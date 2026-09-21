@@ -112,6 +112,47 @@ def test_el_manifiesto_cuadra_con_el_esquema_objetivo():
     )
 
 
+def test_las_referencias_cruzadas_declaradas_apuntan_a_algo_real():
+    """Una referencia mal escrita en el manifiesto es peor que no declararla:
+    la prueba de la regla 4 la da por buena y deja pasar la infraccion que
+    debia atrapar."""
+    problemas: list[str] = []
+
+    for ref in DATOS.get("referencias_cruzadas", []):
+        desde, hacia = ref["desde"], ref["hacia"]
+
+        partes = desde.split(".")
+        if len(partes) != 3:
+            problemas.append(f"  `{desde}` no tiene la forma servicio.tabla.columna")
+            continue
+        servicio, tabla, columna = partes
+
+        if servicio not in SERVICIOS:
+            problemas.append(f"  `{desde}`: el servicio `{servicio}` no existe")
+        elif tabla not in SERVICIOS[servicio].tablas:
+            problemas.append(f"  `{desde}`: `{tabla}` no es una tabla de `{servicio}`")
+        if not columna.endswith("_id"):
+            problemas.append(f"  `{desde}`: la columna no termina en `_id`")
+
+        destino = hacia.split(".")
+        if len(destino) != 2:
+            problemas.append(f"  `{hacia}` no tiene la forma servicio.tabla")
+            continue
+        servicio_destino, tabla_destino = destino
+
+        if servicio_destino not in SERVICIOS:
+            problemas.append(f"  `{hacia}`: el servicio `{servicio_destino}` no existe")
+        elif tabla_destino not in SERVICIOS[servicio_destino].tablas:
+            problemas.append(f"  `{hacia}`: `{tabla_destino}` no es tabla de `{servicio_destino}`")
+        elif servicio_destino == servicio:
+            problemas.append(
+                f"  `{desde}` -> `{hacia}`: es referencia LOCAL, no cruzada. "
+                f"Debe ser una llave foranea de verdad, no una declaracion."
+            )
+
+    assert not problemas, "Referencias cruzadas mal declaradas:\n" + "\n".join(problemas)
+
+
 def test_ninguna_tabla_tiene_dos_duenos():
     """Es exactamente el defecto que origino todo el rediseno: `productos_catalogo`
     declarada como maestro en MS-Comercio y en MS-Busqueda a la vez."""

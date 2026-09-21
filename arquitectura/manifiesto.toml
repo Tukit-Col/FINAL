@@ -12,8 +12,12 @@
 # Arquitectura/DICCIONARIO_DATOS.md (nombres definitivos).
 
 [meta]
-version = "1"
-total_tablas_esperado = 67
+version = "2"
+# 67 del esquema objetivo + `direccion`. El esquema objetivo no modelaba
+# ninguna direccion de entrega en un negocio que entrega a domicilio; el hueco
+# se cierra con una tabla en Identidad mas una copia congelada en el envio de
+# Comercio, que no agrega tabla. Ver ADR 0015.
+total_tablas_esperado = 68
 
 # Tablas que existen a proposito en varias bases. Son la excepcion declarada,
 # no un descuido: cada servicio necesita su propia bandeja de salida local para
@@ -43,6 +47,7 @@ tablas = [
     "estudiante",
     "matricula",
     "acudiente_matricula",
+    "direccion",
     "bandeja_salida",
 ]
 
@@ -206,3 +211,75 @@ nota = "La lista la publica un colegio, que vive en Identidad."
 desde = "operacion.registro_auditoria.actor_id"
 hacia = "identidad.usuario"
 nota = "Auditoria referencia al actor sin poder bloquearlo ni borrarlo en cascada."
+
+[[referencias_cruzadas]]
+desde = "comercio.pedido.usuario_id"
+hacia = "identidad.usuario"
+nota = "Quien compra. La supresion del titular NO borra el pedido: obligacion contable."
+
+[[referencias_cruzadas]]
+desde = "comercio.devolucion.usuario_id"
+hacia = "identidad.usuario"
+
+[[referencias_cruzadas]]
+desde = "comercio.reserva_inventario.producto_canonico_id"
+hacia = "catalogo.producto_canonico"
+nota = "La reserva es de Comercio; el producto es de Catalogo."
+
+[[referencias_cruzadas]]
+desde = "comercio.precio_proveedor.producto_canonico_id"
+hacia = "catalogo.producto_canonico"
+nota = """
+El precio contractual que un mayorista le cobra a Tukit. NO se unifica con
+`catalogo.precio_oferta`, que es el precio publico observado: son datos
+distintos en lados opuestos de la asimetria de recuperacion. Uno se
+reconstruye scrapeando y el otro no se puede perder.
+"""
+
+[[referencias_cruzadas]]
+desde = "comercio.inventario_proveedor.producto_canonico_id"
+hacia = "catalogo.producto_canonico"
+
+[[referencias_cruzadas]]
+desde = "comercio.item_pedido_mayorista.producto_canonico_id"
+hacia = "catalogo.producto_canonico"
+
+[[referencias_cruzadas]]
+desde = "inteligencia.kit.matricula_id"
+hacia = "identidad.matricula"
+nota = "Un kit es para un estudiante en un grado y un anio, no para una cuenta."
+
+[[referencias_cruzadas]]
+desde = "catalogo.configuracion_colegio_editorial.colegio_id"
+hacia = "identidad.colegio"
+
+[[referencias_cruzadas]]
+desde = "catalogo.version_lista_oficial.sede_id"
+hacia = "identidad.sede"
+
+[[referencias_cruzadas]]
+desde = "operacion.caso.usuario_id"
+hacia = "identidad.usuario"
+nota = "El titular del caso. Puede ser nulo cuando el caso lo abre el sistema."
+
+[[referencias_cruzadas]]
+desde = "operacion.notificacion.usuario_id"
+hacia = "identidad.usuario"
+nota = """
+El destinatario. OJO con la deuda heredada: el servicio anterior persistia el
+correo REAL del acudiente dentro del contenido de la notificacion, y el
+proceso de derecho al olvido no lo borraba. La referencia va por
+identificador y el contenido no repite el dato de contacto.
+"""
+
+[[referencias_cruzadas]]
+desde = "operacion.preferencia_notificacion.usuario_id"
+hacia = "identidad.usuario"
+
+[[referencias_cruzadas]]
+desde = "operacion.evento_clickout.kit_id"
+hacia = "inteligencia.kit"
+
+[[referencias_cruzadas]]
+desde = "operacion.evento_clickout.producto_canonico_id"
+hacia = "catalogo.producto_canonico"

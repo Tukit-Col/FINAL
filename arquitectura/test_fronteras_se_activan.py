@@ -116,7 +116,7 @@ def test_detecta_referencia_cruzada_sin_declarar():
 class Devolucion(Base):
     __tablename__ = "devolucion"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
-    usuario_id: Mapped[uuid.UUID] = mapped_column()
+    estudiante_id: Mapped[uuid.UUID] = mapped_column()
 """
     columnas = _columnas_declaradas(_arbol(fuente))
     cruzadas = [
@@ -124,10 +124,13 @@ class Devolucion(Base):
         for tabla, col, _ in columnas
         if col.endswith("_id") and DUENO_DE_TABLA.get(col[:-3]) not in (None, "comercio")
     ]
-    assert cruzadas == [("devolucion", "usuario_id")], (
-        "No detecto que `devolucion.usuario_id` apunta a `usuario`, de Identidad."
+    # Que una devolucion apunte directo al menor es justo el tipo de referencia
+    # que no debe nacer sin que alguien la mire: salta la matricula y mete un
+    # dato de menor en la base transaccional.
+    assert cruzadas == [("devolucion", "estudiante_id")], (
+        "No detecto que `devolucion.estudiante_id` apunta a `estudiante`, de Identidad."
     )
-    assert "comercio.devolucion.usuario_id" not in REFERENCIAS_DECLARADAS
+    assert "comercio.devolucion.estudiante_id" not in REFERENCIAS_DECLARADAS
 
 
 def test_acepta_la_referencia_cruzada_ya_declarada():
