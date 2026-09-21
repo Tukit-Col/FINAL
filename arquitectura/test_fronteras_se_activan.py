@@ -18,6 +18,7 @@ from test_fronteras import (
     SERVICIOS,
     _columnas_declaradas,
     _modulos_importados,
+    _tabla_apuntada,
     _tablas_declaradas,
 )
 
@@ -131,6 +132,39 @@ class Devolucion(Base):
         "No detecto que `devolucion.estudiante_id` apunta a `estudiante`, de Identidad."
     )
     assert "comercio.devolucion.estudiante_id" not in REFERENCIAS_DECLARADAS
+
+
+def test_detecta_la_columna_de_actor_que_no_termina_en_id():
+    """El hueco que esta prueba cierra es de la prueba misma, no del codigo.
+
+    El detector solo miraba el sufijo `_id`, asi que `curado_por`,
+    `resuelta_por` y `publicada_por` cruzaban a `identidad.usuario` sin que
+    nada se quejara. Tres referencias reales pasaron por ahi.
+
+    Es el modo de falla propio de una prueba de arquitectura: no grita un
+    falso positivo, se queda callada, y uno cree que la frontera esta
+    vigilada cuando no lo esta. Por eso la comprobacion nueva necesita su
+    propia prueba de que dispara.
+    """
+    fuente = """
+class Informe(Base):
+    __tablename__ = "informe"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    firmado_por: Mapped[uuid.UUID] = mapped_column()
+"""
+    _, columna, _ = _columnas_declaradas(_arbol(fuente))[1]
+    assert _tabla_apuntada(columna) == "usuario", (
+        "No reconocio `firmado_por` como referencia a `usuario`."
+    )
+    assert DUENO_DE_TABLA["usuario"] == "identidad"
+    assert "comercio.informe.firmado_por" not in REFERENCIAS_DECLARADAS
+
+
+def test_no_confunde_una_columna_cualquiera_con_una_referencia():
+    """`creado_en` y `nombre` no apuntan a nada. Si el detector las marcara,
+    el manifiesto se llenaria de ruido y dejaria de leerse."""
+    for columna in ("creado_en", "nombre", "activo", "valor_centavos"):
+        assert _tabla_apuntada(columna) is None, f"`{columna}` se tomo por referencia."
 
 
 def test_acepta_la_referencia_cruzada_ya_declarada():

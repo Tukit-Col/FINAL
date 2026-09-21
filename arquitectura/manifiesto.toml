@@ -300,3 +300,50 @@ hacia = "inteligencia.kit"
 [[referencias_cruzadas]]
 desde = "operacion.evento_clickout.producto_canonico_id"
 hacia = "catalogo.producto_canonico"
+
+# --- Catalogo ---
+
+[[referencias_cruzadas]]
+desde = "catalogo.producto_canonico.curado_por"
+hacia = "identidad.usuario"
+nota = "Un producto que nadie curo no existe, asi que no admite nulo pese a cruzar."
+
+[[referencias_cruzadas]]
+desde = "catalogo.lista_oficial.colegio_id"
+hacia = "identidad.colegio"
+nota = "La lista oficial es vocabulario de catalogo; la tenencia del colegio vive en Identidad."
+
+[[referencias_cruzadas]]
+desde = "catalogo.lista_oficial.sede_id"
+hacia = "identidad.sede"
+nota = "Nulo cuando la lista aplica a todas las sedes del colegio."
+
+[[referencias_cruzadas]]
+desde = "catalogo.version_lista_oficial.publicada_por"
+hacia = "identidad.usuario"
+nota = "Quien del colegio publico esa version de la lista."
+
+[[referencias_cruzadas]]
+desde = "catalogo.version_vigente.colegio_id"
+hacia = "identidad.colegio"
+nota = "Que edicion usa hoy ese colegio para un area, un grado y un anio."
+
+[[referencias_cruzadas]]
+desde = "catalogo.propuesta_version.colegio_id"
+hacia = "identidad.colegio"
+nota = "A quien le llega la propuesta editorial y de quien es la ventana de decision."
+
+[[referencias_cruzadas]]
+desde = "catalogo.propuesta_version.resuelta_por"
+hacia = "identidad.usuario"
+nota = "Nulo solo si la propuesta se vencio, que es el unico desenlace sin persona detras."
+
+[[referencias_cruzadas]]
+desde = "catalogo.configuracion_colegio_editorial.colegio_id"
+hacia = "identidad.colegio"
+nota = "La politica del colegio frente a los cambios de edicion."
+
+[[referencias_cruzadas]]
+desde = "catalogo.tarea_importacion.caso_id"
+hacia = "operacion.caso"
+nota = "Una importacion fallida abre Caso: requiere que alguien decida, no solo reintentar."

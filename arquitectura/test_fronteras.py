@@ -131,8 +131,8 @@ def test_las_referencias_cruzadas_declaradas_apuntan_a_algo_real():
             problemas.append(f"  `{desde}`: el servicio `{servicio}` no existe")
         elif tabla not in SERVICIOS[servicio].tablas:
             problemas.append(f"  `{desde}`: `{tabla}` no es una tabla de `{servicio}`")
-        if not columna.endswith("_id"):
-            problemas.append(f"  `{desde}`: la columna no termina en `_id`")
+        if _tabla_apuntada(columna) is None:
+            problemas.append(f"  `{desde}`: la columna no termina en `_id` ni en `_por`")
 
         destino = hacia.split(".")
         if len(destino) != 2:
@@ -327,11 +327,32 @@ def _columnas_declaradas(arbol: ast.Module) -> list[tuple[str, str, int]]:
     return resultado
 
 
+def _tabla_apuntada(columna: str) -> str | None:
+    """Que tabla referencia una columna, segun como se llame.
+
+    Dos convenciones, no una. `x_id` apunta a la tabla `x`, y `x_por` apunta
+    a `usuario` porque nombra a quien hizo algo: `curado_por`, `resuelta_por`,
+    `publicada_por`.
+
+    La segunda se agrego despues de que esta misma prueba dejara pasar tres
+    referencias a `identidad.usuario` en Catalogo. El detector solo miraba el
+    sufijo `_id`, asi que una columna de actor cruzaba de servicio sin que
+    nada se quejara. Vale la pena anotarlo porque es el modo de falla propio
+    de una prueba de arquitectura: no da un falso positivo ruidoso, se queda
+    callada, y uno cree que la frontera esta vigilada cuando no lo esta.
+    """
+    if columna.endswith("_id"):
+        return columna[:-3]
+    if columna.endswith("_por"):
+        return "usuario"
+    return None
+
+
 @pytest.mark.parametrize("nombre", sorted(SERVICIOS))
 def test_toda_referencia_a_otro_dominio_esta_declarada(nombre: str):
-    """Una columna `x_id` que apunta a una tabla de otro servicio es una llave
-    foranea que Postgres no puede imponer. Si ademas no esta escrita en ningun
-    lado, es invisible: nadie sabe que existe hasta que rompe.
+    """Una columna `x_id` o `x_por` que apunta a una tabla de otro servicio es
+    una llave foranea que Postgres no puede imponer. Si ademas no esta escrita
+    en ningun lado, es invisible: nadie sabe que existe hasta que rompe.
 
     Es exactamente lo que pasaba con `kits_optimizados.items`, un JSON con
     `producto_id` adentro que para Postgres era texto.
@@ -344,9 +365,9 @@ def test_toda_referencia_a_otro_dominio_esta_declarada(nombre: str):
         if arbol is None:
             continue
         for tabla, columna, linea in _columnas_declaradas(arbol):
-            if not columna.endswith("_id"):
+            apuntada = _tabla_apuntada(columna)
+            if apuntada is None:
                 continue
-            apuntada = columna[:-3]
             dueno = DUENO_DE_TABLA.get(apuntada)
             if dueno is None or dueno == nombre:
                 continue
