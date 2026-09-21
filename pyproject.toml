@@ -28,6 +28,18 @@ dev = [
 # de correr media hora de pruebas de dominio.
 testpaths = ["arquitectura", "libs", "servicios"]
 asyncio_mode = "auto"
+# Cada servicio es un paquete raiz propio. Esto es lo que permite correr toda
+# la suite desde aqui sin instalar nada, y a la vez mantiene los paquetes
+# separados: `tukit_identidad` no queda dentro de `tukit_catalogo`.
+pythonpath = [
+    "arquitectura",
+    "servicios/identidad",
+    "servicios/catalogo",
+    "servicios/inteligencia",
+    "servicios/comercio",
+    "servicios/operacion",
+    "libs/py/tukit_comun",
+]
 filterwarnings = ["error::DeprecationWarning"]
 
 [tool.ruff]
