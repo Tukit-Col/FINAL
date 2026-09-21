@@ -1,0 +1,38 @@
+[project]
+name = "tukit"
+version = "0.1.0"
+description = "Tukit: armado asistido de kits escolares. Monorepo con despliegue independiente."
+requires-python = ">=3.12"
+dependencies = []
+
+# Espacio de trabajo de uv: cada servicio y cada libreria es un paquete propio,
+# resueltos juntos con un solo uv.lock. Esto es lo que elimina el baile de subir
+# una version y crear un tag cada vez que cambia algo compartido, que es el costo
+# concreto que motivo el ADR 0014.
+[tool.uv.workspace]
+members = ["servicios/*", "libs/py/*"]
+exclude = ["servicios/gateway", "servicios/ingesta"]
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+]
+
+[tool.pytest.ini_options]
+# `arquitectura/` primero a proposito: si una frontera se rompio, se sabe antes
+# de correr media hora de pruebas de dominio.
+testpaths = ["arquitectura", "libs", "servicios"]
+asyncio_mode = "auto"
+filterwarnings = ["error::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

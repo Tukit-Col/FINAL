@@ -1,0 +1,208 @@
+# Manifiesto de arquitectura de Tukit
+#
+# Fuente de verdad de las fronteras del sistema. No es documentacion: las
+# pruebas de `arquitectura/test_fronteras.py` lo leen y fallan la integracion
+# continua cuando el codigo se sale de lo declarado aqui.
+#
+# Existe porque el defecto mas grave que encontro el rediseno, dos servicios
+# declarando el maestro del mismo catalogo, no se produjo por falta de criterio
+# sino porque nada verificaba el criterio de forma continua. Ver ADR 0014.
+#
+# Derivado de Arquitectura/ESQUEMA_OBJETIVO.md (reparto de las 67 tablas) y de
+# Arquitectura/DICCIONARIO_DATOS.md (nombres definitivos).
+
+[meta]
+version = "1"
+total_tablas_esperado = 67
+
+# Tablas que existen a proposito en varias bases. Son la excepcion declarada,
+# no un descuido: cada servicio necesita su propia bandeja de salida local para
+# que el evento se escriba en la MISMA transaccion que el cambio que lo origina.
+# Si no fuera local, volveria a ser una escritura a dos sistemas sin garantia.
+tablas_replicadas = ["bandeja_salida"]
+
+
+[servicios.identidad]
+lenguaje = "python"
+ruta = "servicios/identidad"
+paquete = "tukit_identidad"
+base_datos = "tukit_identidad"
+descripcion = "Personas, tenencia y autorizacion. Frontera de cumplimiento: aqui viven los datos de menores."
+tablas = [
+    "usuario",
+    "perfil_socioeconomico",
+    "consentimiento",
+    "consentimiento_finalidad",
+    "solicitud_supresion",
+    "colegio",
+    "sede",
+    "rol",
+    "permiso",
+    "rol_permiso",
+    "asignacion_rol",
+    "estudiante",
+    "matricula",
+    "acudiente_matricula",
+    "bandeja_salida",
+]
+
+[servicios.catalogo]
+lenguaje = "python"
+ruta = "servicios/catalogo"
+paquete = "tukit_catalogo"
+base_datos = "tukit_catalogo"
+descripcion = "Que existe y a que precio publico. Reconstruible scrapeando: tolera perder horas."
+tablas = [
+    "concepto",
+    "concepto_ruta_categoria",
+    "grupo_variante",
+    "producto_canonico",
+    "tienda",
+    "oferta_tienda",
+    "precio_oferta",
+    "corrida_scraper",
+    "lista_oficial",
+    "version_lista_oficial",
+    "item_lista_oficial",
+    "tarea_importacion",
+    "edicion_libro",
+    "version_vigente",
+    "propuesta_version",
+    "configuracion_colegio_editorial",
+    "bandeja_salida",
+]
+
+[servicios.inteligencia]
+lenguaje = "python"
+ruta = "servicios/inteligencia"
+paquete = "tukit_inteligencia"
+base_datos = "tukit_inteligencia"
+descripcion = "Percepcion, normalizacion, resolucion y optimizacion. Perfil de recurso propio: CPU intensivo y modelos."
+tablas = [
+    "item_crudo",
+    "candidato_item",
+    "resolucion_item",
+    "transicion_resolucion",
+    "kit",
+    "linea_kit",
+    "trabajo_pipeline",
+    "etapa_trabajo",
+    "bandeja_salida",
+]
+
+[servicios.comercio]
+lenguaje = "python"
+ruta = "servicios/comercio"
+paquete = "tukit_comercio"
+base_datos = "tukit_comercio"
+descripcion = "Pedidos, inventario, pagos y entrega. Irremplazable: objetivo de punto de recuperacion cero."
+tablas = [
+    "pedido",
+    "linea_pedido",
+    "devolucion",
+    "zona_entrega",
+    "ruta_reparto",
+    "envio",
+    "inventario",
+    "reserva_inventario",
+    "pago",
+    "evento_pasarela_procesado",
+    "proveedor",
+    "condicion_comercial",
+    "precio_proveedor",
+    "inventario_proveedor",
+    "pedido_mayorista",
+    "item_pedido_mayorista",
+    "bandeja_salida",
+]
+
+[servicios.operacion]
+lenguaje = "python"
+ruta = "servicios/operacion"
+paquete = "tukit_operacion"
+base_datos = "tukit_operacion"
+descripcion = "Casos, PQRS, notificaciones, auditoria y telemetria. Solo anexar, crece sin limite."
+tablas = [
+    "caso",
+    "evento_caso",
+    "alarma",
+    "notificacion",
+    "preferencia_notificacion",
+    "evento_clickout",
+    "registro_auditoria",
+    "metrica_diaria",
+    "bandeja_salida",
+]
+
+[servicios.ingesta]
+lenguaje = "python"
+ruta = "servicios/ingesta"
+paquete = "tukit_ingesta"
+base_datos = ""
+descripcion = """
+Scrapers y refresco de precios. No tiene base propia: publica hacia Catalogo.
+Es el unico componente con argumento tecnico para Go, pero el perfilado mostro
+que sus cuellos de hoy son estructurales y no de lenguaje (vendedores en serie,
+1,5 s de espera deliberada por producto, sin pool de conexiones). Se arregla eso
+en Python primero. Ver Arquitectura/PERFILADO_PIPELINE.md seccion 9.
+"""
+tablas = []
+
+[servicios.gateway]
+lenguaje = "python"
+ruta = "servicios/gateway"
+paquete = "tukit_gateway"
+base_datos = ""
+descripcion = """
+Ruteo, validacion de token, version de permisos y limite de tasa. Sin dominio y
+sin base. Candidato a Go de prioridad baja: no aparece en ninguna medicion como
+cuello de botella.
+"""
+tablas = []
+
+
+# Referencias entre bases distintas. Como no pueden ser llaves foraneas fisicas,
+# la unica forma de que no se vuelvan invisibles es declararlas. Toda referencia
+# a un dominio ajeno que NO este aqui hace fallar la prueba.
+#
+# El diccionario de datos contabiliza 53. Se van declarando a medida que cada
+# tabla se implementa; la prueba solo exige que lo implementado este declarado.
+[[referencias_cruzadas]]
+desde = "inteligencia.item_crudo.matricula_id"
+hacia = "identidad.matricula"
+nota = "Ancla de tenencia. Se valida contra Identidad al crear, no por llave foranea."
+
+[[referencias_cruzadas]]
+desde = "inteligencia.candidato_item.producto_canonico_id"
+hacia = "catalogo.producto_canonico"
+nota = "El catalogo vive en otra base; la referencia es logica."
+
+[[referencias_cruzadas]]
+desde = "inteligencia.linea_kit.producto_canonico_id"
+hacia = "catalogo.producto_canonico"
+nota = "Reemplaza el JSON `kits_optimizados.items`, que escondia esta misma referencia."
+
+[[referencias_cruzadas]]
+desde = "comercio.linea_pedido.matricula_id"
+hacia = "identidad.matricula"
+nota = "Va en la linea y no en el pedido: dos hermanos deben caber en un solo pago."
+
+[[referencias_cruzadas]]
+desde = "comercio.linea_pedido.producto_canonico_id"
+hacia = "catalogo.producto_canonico"
+nota = "El precio se congela en la linea al confirmar; no se vuelve a leer de Catalogo."
+
+[[referencias_cruzadas]]
+desde = "comercio.inventario.producto_canonico_id"
+hacia = "catalogo.producto_canonico"
+nota = "El stock es de Comercio; el producto es de Catalogo. Esta separacion es la que hoy no existe."
+
+[[referencias_cruzadas]]
+desde = "catalogo.lista_oficial.sede_id"
+hacia = "identidad.sede"
+nota = "La lista la publica un colegio, que vive en Identidad."
+
+[[referencias_cruzadas]]
+desde = "operacion.registro_auditoria.actor_id"
+hacia = "identidad.usuario"
+nota = "Auditoria referencia al actor sin poder bloquearlo ni borrarlo en cascada."

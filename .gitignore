@@ -1,0 +1,19 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# El lock si se versiona; los entornos no.
+node_modules/
+dist/
+build/
+*.egg-info/
+
+.env
+.env.*
+!.env.ejemplo
+
+.DS_Store
+*.log

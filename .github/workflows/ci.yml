@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Trabajo aparte y primero, no un paso mas dentro de las pruebas. Si una
+  # frontera se rompio, el diagnostico tiene que ser inmediato y legible, sin
+  # quedar sepultado entre cientos de pruebas de dominio.
+  fronteras:
+    name: Fronteras de arquitectura
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv venv --python 3.12
+      - run: uv pip install pytest pytest-asyncio
+      - name: Verificar fronteras
+        run: .venv/bin/pytest arquitectura/ -v
+
+  lint:
+    name: Estilo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv venv --python 3.12
+      - run: uv pip install ruff
+      - run: .venv/bin/ruff check .
+      - run: .venv/bin/ruff format --check .
+
+  # Ejecucion selectiva por ruta: con siete servicios, correr todo en cada
+  # commit es la objecion real al monorepo, y esto es lo que la responde.
+  pruebas:
+    name: Pruebas
+    needs: fronteras
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        servicio: [identidad, catalogo, inteligencia, comercio, operacion, ingesta, gateway]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Los valores de `github.*` se pasan por `env` y nunca se interpolan
+      # dentro del script: interpolar directo en `run:` es como se inyectan
+      # comandos en un flujo de trabajo.
+      - name: Detectar si el servicio cambio
+        id: cambios
+        env:
+          SHA_BASE: ${{ github.event.pull_request.base.sha }}
+          SERVICIO: ${{ matrix.servicio }}
+        run: |
+          set -euo pipefail
+          base="${SHA_BASE:-HEAD~1}"
+          if git diff --quiet "$base" HEAD -- \
+               "servicios/${SERVICIO}" libs/ pyproject.toml; then
+            echo "correr=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "correr=si" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: astral-sh/setup-uv@v5
+        if: steps.cambios.outputs.correr == 'si'
+        with:
+          enable-cache: true
+
+      - name: Pruebas del servicio
+        if: steps.cambios.outputs.correr == 'si'
+        env:
+          SERVICIO: ${{ matrix.servicio }}
+        run: |
+          set -euo pipefail
+          if [ -d "servicios/${SERVICIO}/tests" ]; then
+            uv venv --python 3.12
+            uv pip install pytest pytest-asyncio
+            .venv/bin/pytest "servicios/${SERVICIO}" -q
+          else
+            echo "Sin pruebas todavia en ${SERVICIO}."
+          fi
