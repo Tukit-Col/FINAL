@@ -314,11 +314,6 @@ hacia = "identidad.colegio"
 nota = "La lista oficial es vocabulario de catalogo; la tenencia del colegio vive en Identidad."
 
 [[referencias_cruzadas]]
-desde = "catalogo.lista_oficial.sede_id"
-hacia = "identidad.sede"
-nota = "Nulo cuando la lista aplica a todas las sedes del colegio."
-
-[[referencias_cruzadas]]
 desde = "catalogo.version_lista_oficial.publicada_por"
 hacia = "identidad.usuario"
 nota = "Quien del colegio publico esa version de la lista."
@@ -338,12 +333,3 @@ desde = "catalogo.propuesta_version.resuelta_por"
 hacia = "identidad.usuario"
 nota = "Nulo solo si la propuesta se vencio, que es el unico desenlace sin persona detras."
 
-[[referencias_cruzadas]]
-desde = "catalogo.configuracion_colegio_editorial.colegio_id"
-hacia = "identidad.colegio"
-nota = "La politica del colegio frente a los cambios de edicion."
-
-[[referencias_cruzadas]]
-desde = "catalogo.tarea_importacion.caso_id"
-hacia = "operacion.caso"
-nota = "Una importacion fallida abre Caso: requiere que alguien decida, no solo reintentar."

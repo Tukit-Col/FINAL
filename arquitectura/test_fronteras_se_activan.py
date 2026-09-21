@@ -16,6 +16,7 @@ from test_fronteras import (
     DUENO_DE_TABLA,
     REFERENCIAS_DECLARADAS,
     SERVICIOS,
+    _buscar_ciclo,
     _columnas_declaradas,
     _modulos_importados,
     _tabla_apuntada,
@@ -199,3 +200,58 @@ class RespuestaPedido(BaseModel):
     matricula_id: uuid.UUID
 """
     assert _columnas_declaradas(_arbol(fuente)) == []
+
+
+# --------------------------------------------------------------------------
+# Detector de ciclos entre servicios
+# --------------------------------------------------------------------------
+
+
+def test_detecta_el_ciclo_real_que_existio():
+    """El ciclo que de verdad estuvo en el manifiesto, no uno inventado.
+
+    Catalogo referenciaba `operacion.caso` desde su tabla de tareas de
+    importacion, y Operacion referencia a Catalogo. Una sola columna bastaba.
+    """
+    grafo = {
+        "identidad": set(),
+        "catalogo": {"identidad", "operacion"},
+        "operacion": {"identidad", "catalogo"},
+    }
+    ciclo = _buscar_ciclo(grafo)
+    assert ciclo is not None, "No detecto el ciclo catalogo <-> operacion."
+    assert ciclo[0] == ciclo[-1], "El ciclo devuelto no cierra sobre si mismo."
+    assert set(ciclo) == {"catalogo", "operacion"}
+
+
+def test_no_marca_ciclo_donde_solo_hay_un_destino_compartido():
+    """Que tres servicios apunten todos a Identidad no es un ciclo.
+
+    Es el caso normal del sistema, y un detector que lo marcara volveria la
+    prueba inservible desde el primer dia.
+    """
+    grafo = {
+        "identidad": set(),
+        "catalogo": {"identidad"},
+        "comercio": {"identidad", "catalogo"},
+        "inteligencia": {"identidad", "catalogo"},
+    }
+    assert _buscar_ciclo(grafo) is None
+
+
+def test_detecta_el_ciclo_largo_y_no_solo_el_de_dos():
+    """Un ciclo de tres es mas facil de introducir sin darse cuenta, porque
+    ningun par de servicios se referencia mutuamente de forma visible."""
+    grafo = {
+        "identidad": {"comercio"},
+        "catalogo": {"identidad"},
+        "comercio": {"catalogo"},
+    }
+    ciclo = _buscar_ciclo(grafo)
+    assert ciclo is not None
+    assert len(set(ciclo)) == 3
+
+
+def test_un_servicio_que_se_referencia_a_si_mismo_no_cuenta():
+    """Una llave foranea dentro de la misma base es normal y fisica."""
+    assert _buscar_ciclo({"catalogo": {"catalogo"}, "identidad": set()}) is None

@@ -1,0 +1,1347 @@
+{
+  "catalogo": {
+    "con_personaje": {
+      "bluey": 4,
+      "cars": 4,
+      "disney": 3,
+      "frozen": 4,
+      "halo": 2,
+      "jurassic": 2,
+      "lego": 3,
+      "mafalda": 1,
+      "minecraft": 2,
+      "minnie": 6,
+      "paw patrol": 4,
+      "snoopy": 4,
+      "spiderman": 4,
+      "stitch": 4
+    },
+    "conceptos_con_producto": 82,
+    "conceptos_sin_producto": [
+      "C054",
+      "C056",
+      "C057",
+      "C063",
+      "C066",
+      "C067",
+      "C069",
+      "C074",
+      "C075",
+      "C079",
+      "C080",
+      "C083",
+      "C084",
+      "C092",
+      "C095",
+      "C096",
+      "C099"
+    ],
+    "objetivo_dimensionamiento": 353,
+    "origen_de_la_etiqueta_de_nivel": {
+      "marca clasificada": 5185,
+      "marca confiable en cuartil alto": 543,
+      "marca confiable en cuartil bajo": 484,
+      "tercil de precio del concepto (marca sin clasificar)": 1410
+    },
+    "por_nivel": {
+      "confiable": 54,
+      "economico": 117,
+      "premium": 68
+    },
+    "productos_canonicos": 239,
+    "productos_por_concepto": {
+      "C001": {
+        "frecuencia": 410,
+        "niveles_vacios": [],
+        "nombre": "cuaderno",
+        "productos": 17
+      },
+      "C002": {
+        "frecuencia": 274,
+        "niveles_vacios": [],
+        "nombre": "lapiz",
+        "productos": 3
+      },
+      "C003": {
+        "frecuencia": 194,
+        "niveles_vacios": [],
+        "nombre": "block",
+        "productos": 5
+      },
+      "C004": {
+        "frecuencia": 177,
+        "niveles_vacios": [],
+        "nombre": "colores",
+        "productos": 4
+      },
+      "C005": {
+        "frecuencia": 153,
+        "niveles_vacios": [],
+        "nombre": "borrador",
+        "productos": 3
+      },
+      "C006": {
+        "frecuencia": 139,
+        "niveles_vacios": [],
+        "nombre": "marcador",
+        "productos": 3
+      },
+      "C007": {
+        "frecuencia": 133,
+        "niveles_vacios": [],
+        "nombre": "tajalapiz",
+        "productos": 3
+      },
+      "C008": {
+        "frecuencia": 132,
+        "niveles_vacios": [],
+        "nombre": "regla",
+        "productos": 3
+      },
+      "C009": {
+        "frecuencia": 120,
+        "niveles_vacios": [],
+        "nombre": "cartuchera",
+        "productos": 15
+      },
+      "C010": {
+        "frecuencia": 115,
+        "niveles_vacios": [],
+        "nombre": "cartulina",
+        "productos": 3
+      },
+      "C011": {
+        "frecuencia": 102,
+        "niveles_vacios": [],
+        "nombre": "carpeta",
+        "productos": 12
+      },
+      "C012": {
+        "frecuencia": 100,
+        "niveles_vacios": [],
+        "nombre": "esfero",
+        "productos": 3
+      },
+      "C013": {
+        "frecuencia": 100,
+        "niveles_vacios": [],
+        "nombre": "tijera",
+        "productos": 3
+      },
+      "C014": {
+        "frecuencia": 95,
+        "niveles_vacios": [],
+        "nombre": "papel",
+        "productos": 3
+      },
+      "C015": {
+        "frecuencia": 76,
+        "niveles_vacios": [],
+        "nombre": "cinta adhesiva",
+        "productos": 3
+      },
+      "C016": {
+        "frecuencia": 76,
+        "niveles_vacios": [],
+        "nombre": "pegante en barra",
+        "productos": 3
+      },
+      "C017": {
+        "frecuencia": 69,
+        "niveles_vacios": [],
+        "nombre": "pegante liquido",
+        "productos": 3
+      },
+      "C018": {
+        "frecuencia": 67,
+        "niveles_vacios": [],
+        "nombre": "compas",
+        "productos": 3
+      },
+      "C019": {
+        "frecuencia": 67,
+        "niveles_vacios": [
+          "confiable"
+        ],
+        "nombre": "escuadra",
+        "productos": 2
+      },
+      "C020": {
+        "frecuencia": 67,
+        "niveles_vacios": [],
+        "nombre": "vinilo",
+        "productos": 3
+      },
+      "C021": {
+        "frecuencia": 56,
+        "niveles_vacios": [],
+        "nombre": "pincel",
+        "productos": 3
+      },
+      "C022": {
+        "frecuencia": 53,
+        "niveles_vacios": [],
+        "nombre": "plastilina",
+        "productos": 3
+      },
+      "C023": {
+        "frecuencia": 53,
+        "niveles_vacios": [
+          "confiable"
+        ],
+        "nombre": "transportador",
+        "productos": 2
+      },
+      "C024": {
+        "frecuencia": 45,
+        "niveles_vacios": [
+          "confiable"
+        ],
+        "nombre": "bata de laboratorio",
+        "productos": 2
+      },
+      "C025": {
+        "frecuencia": 42,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "tabla periodica",
+        "productos": 1
+      },
+      "C026": {
+        "frecuencia": 34,
+        "niveles_vacios": [
+          "confiable"
+        ],
+        "nombre": "calculadora",
+        "productos": 2
+      },
+      "C027": {
+        "frecuencia": 34,
+        "niveles_vacios": [],
+        "nombre": "pintura",
+        "productos": 3
+      },
+      "C028": {
+        "frecuencia": 33,
+        "niveles_vacios": [],
+        "nombre": "silicona",
+        "productos": 3
+      },
+      "C029": {
+        "frecuencia": 32,
+        "niveles_vacios": [],
+        "nombre": "foamy",
+        "productos": 3
+      },
+      "C030": {
+        "frecuencia": 30,
+        "niveles_vacios": [],
+        "nombre": "acetato",
+        "productos": 3
+      },
+      "C031": {
+        "frecuencia": 25,
+        "niveles_vacios": [],
+        "nombre": "resma",
+        "productos": 3
+      },
+      "C032": {
+        "frecuencia": 24,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "hojas",
+        "productos": 1
+      },
+      "C033": {
+        "frecuencia": 23,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "palitos",
+        "productos": 1
+      },
+      "C034": {
+        "frecuencia": 22,
+        "niveles_vacios": [],
+        "nombre": "diccionario",
+        "productos": 3
+      },
+      "C035": {
+        "frecuencia": 21,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "material singapur",
+        "productos": 1
+      },
+      "C036": {
+        "frecuencia": 19,
+        "niveles_vacios": [],
+        "nombre": "juego de geometria",
+        "productos": 3
+      },
+      "C037": {
+        "frecuencia": 19,
+        "niveles_vacios": [],
+        "nombre": "papel higienico",
+        "productos": 3
+      },
+      "C038": {
+        "frecuencia": 18,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "lana",
+        "productos": 1
+      },
+      "C039": {
+        "frecuencia": 18,
+        "niveles_vacios": [],
+        "nombre": "resaltador",
+        "productos": 3
+      },
+      "C040": {
+        "frecuencia": 18,
+        "niveles_vacios": [
+          "confiable"
+        ],
+        "nombre": "toallas y panitos",
+        "productos": 2
+      },
+      "C041": {
+        "frecuencia": 13,
+        "niveles_vacios": [],
+        "nombre": "carton",
+        "productos": 3
+      },
+      "C042": {
+        "frecuencia": 12,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "constitucion politica",
+        "productos": 1
+      },
+      "C043": {
+        "frecuencia": 12,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "lentejuelas",
+        "productos": 1
+      },
+      "C044": {
+        "frecuencia": 12,
+        "niveles_vacios": [],
+        "nombre": "libro",
+        "productos": 3
+      },
+      "C045": {
+        "frecuencia": 12,
+        "niveles_vacios": [],
+        "nombre": "notas adhesivas",
+        "productos": 3
+      },
+      "C046": {
+        "frecuencia": 12,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "tabla de picar",
+        "productos": 1
+      },
+      "C047": {
+        "frecuencia": 11,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "algodon",
+        "productos": 1
+      },
+      "C048": {
+        "frecuencia": 11,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "biblia",
+        "productos": 1
+      },
+      "C049": {
+        "frecuencia": 11,
+        "niveles_vacios": [],
+        "nombre": "delantal",
+        "productos": 3
+      },
+      "C050": {
+        "frecuencia": 10,
+        "niveles_vacios": [],
+        "nombre": "lienzo",
+        "productos": 3
+      },
+      "C051": {
+        "frecuencia": 10,
+        "niveles_vacios": [],
+        "nombre": "tempera",
+        "productos": 3
+      },
+      "C052": {
+        "frecuencia": 9,
+        "niveles_vacios": [],
+        "nombre": "escarcha",
+        "productos": 3
+      },
+      "C053": {
+        "frecuencia": 8,
+        "niveles_vacios": [],
+        "nombre": "crayones",
+        "productos": 3
+      },
+      "C054": {
+        "frecuencia": 8,
+        "niveles_vacios": [
+          "confiable",
+          "economico",
+          "premium"
+        ],
+        "nombre": "juego didactico",
+        "productos": 0
+      },
+      "C055": {
+        "frecuencia": 8,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "reforzadores",
+        "productos": 1
+      },
+      "C056": {
+        "frecuencia": 8,
+        "niveles_vacios": [
+          "confiable",
+          "economico",
+          "premium"
+        ],
+        "nombre": "rompecabezas",
+        "productos": 0
+      },
+      "C057": {
+        "frecuencia": 8,
+        "niveles_vacios": [
+          "confiable",
+          "economico",
+          "premium"
+        ],
+        "nombre": "vaso o plato",
+        "productos": 0
+      },
+      "C058": {
+        "frecuencia": 7,
+        "niveles_vacios": [],
+        "nombre": "agenda",
+        "productos": 6
+      },
+      "C059": {
+        "frecuencia": 7,
+        "niveles_vacios": [],
+        "nombre": "corrector",
+        "productos": 3
+      },
+      "C060": {
+        "frecuencia": 7,
+        "niveles_vacios": [
+          "confiable"
+        ],
+        "nombre": "curvigrafo",
+        "productos": 2
+      },
+      "C061": {
+        "frecuencia": 6,
+        "niveles_vacios": [
+          "confiable"
+        ],
+        "nombre": "aserrin",
+        "productos": 2
+      },
+      "C062": {
+        "frecuencia": 6,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "guantes",
+        "productos": 1
+      },
+      "C063": {
+        "frecuencia": 6,
+        "niveles_vacios": [
+          "confiable",
+          "economico",
+          "premium"
+        ],
+        "nombre": "monogafas",
+        "productos": 0
+      },
+      "C064": {
+        "frecuencia": 6,
+        "niveles_vacios": [],
+        "nombre": "portaminas",
+        "productos": 3
+      },
+      "C065": {
+        "frecuencia": 5,
+        "niveles_vacios": [],
+        "nombre": "acuarela",
+        "productos": 3
+      },
+      "C066": {
+        "frecuencia": 5,
+        "niveles_vacios": [
+          "confiable",
+          "economico",
+          "premium"
+        ],
+        "nombre": "flauta",
+        "productos": 0
+      },
+      "C067": {
+        "frecuencia": 5,
+        "niveles_vacios": [
+          "confiable",
+          "economico",
+          "premium"
+        ],
+        "nombre": "muda de ropa",
+        "productos": 0
+      },
+      "C068": {
+        "frecuencia": 5,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "ojos moviles",
+        "productos": 1
+      },
+      "C069": {
+        "frecuencia": 5,
+        "niveles_vacios": [
+          "confiable",
+          "economico",
+          "premium"
+        ],
+        "nombre": "plantilla",
+        "productos": 0
+      },
+      "C070": {
+        "frecuencia": 4,
+        "niveles_vacios": [],
+        "nombre": "kit de artes",
+        "productos": 3
+      },
+      "C071": {
+        "frecuencia": 4,
+        "niveles_vacios": [
+          "confiable"
+        ],
+        "nombre": "kit de tecnologia",
+        "productos": 2
+      },
+      "C072": {
+        "frecuencia": 4,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "lazo",
+        "productos": 1
+      },
+      "C073": {
+        "frecuencia": 4,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "punzon",
+        "productos": 1
+      },
+      "C074": {
+        "frecuencia": 3,
+        "niveles_vacios": [
+          "confiable",
+          "economico",
+          "premium"
+        ],
+        "nombre": "balon",
+        "productos": 0
+      },
+      "C075": {
+        "frecuencia": 3,
+        "niveles_vacios": [
+          "confiable",
+          "economico",
+          "premium"
+        ],
+        "nombre": "bolsa de basura",
+        "productos": 0
+      },
+      "C076": {
+        "frecuencia": 3,
+        "niveles_vacios": [],
+        "nombre": "carboncillo",
+        "productos": 3
+      },
+      "C077": {
+        "frecuencia": 3,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "cojin",
+        "productos": 1
+      },
+      "C078": {
+        "frecuencia": 3,
+        "niveles_vacios": [
+          "confiable"
+        ],
+        "nombre": "fichas bibliograficas",
+        "productos": 2
+      },
+      "C079": {
+        "frecuencia": 3,
+        "niveles_vacios": [
+          "confiable",
+          "economico",
+          "premium"
+        ],
+        "nombre": "instrumento de percusion",
+        "productos": 0
+      },
+      "C080": {
+        "frecuencia": 3,
+        "niveles_vacios": [
+          "confiable",
+          "economico",
+          "premium"
+        ],
+        "nombre": "jabon",
+        "productos": 0
+      },
+      "C081": {
+        "frecuencia": 2,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "abaco",
+        "productos": 1
+      },
+      "C082": {
+        "frecuencia": 2,
+        "niveles_vacios": [],
+        "nombre": "clips y ganchos",
+        "productos": 3
+      },
+      "C083": {
+        "frecuencia": 2,
+        "niveles_vacios": [
+          "confiable",
+          "economico",
+          "premium"
+        ],
+        "nombre": "frasco para pintura",
+        "productos": 0
+      },
+      "C084": {
+        "frecuencia": 2,
+        "niveles_vacios": [
+          "confiable",
+          "economico",
+          "premium"
+        ],
+        "nombre": "gel antibacterial",
+        "productos": 0
+      },
+      "C085": {
+        "frecuencia": 2,
+        "niveles_vacios": [],
+        "nombre": "limpiapipas",
+        "productos": 3
+      },
+      "C086": {
+        "frecuencia": 2,
+        "niveles_vacios": [],
+        "nombre": "maleta",
+        "productos": 9
+      },
+      "C087": {
+        "frecuencia": 2,
+        "niveles_vacios": [
+          "confiable"
+        ],
+        "nombre": "pilas",
+        "productos": 2
+      },
+      "C088": {
+        "frecuencia": 2,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "pintura facial",
+        "productos": 1
+      },
+      "C089": {
+        "frecuencia": 2,
+        "niveles_vacios": [
+          "confiable"
+        ],
+        "nombre": "pompones",
+        "productos": 2
+      },
+      "C090": {
+        "frecuencia": 2,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "separadores",
+        "productos": 1
+      },
+      "C091": {
+        "frecuencia": 2,
+        "niveles_vacios": [],
+        "nombre": "sobre de manila",
+        "productos": 3
+      },
+      "C092": {
+        "frecuencia": 2,
+        "niveles_vacios": [
+          "confiable",
+          "economico",
+          "premium"
+        ],
+        "nombre": "tablero de dibujo",
+        "productos": 0
+      },
+      "C093": {
+        "frecuencia": 2,
+        "niveles_vacios": [
+          "confiable",
+          "economico"
+        ],
+        "nombre": "tinta china",
+        "productos": 1
+      },
+      "C094": {
+        "frecuencia": 2,
+        "niveles_vacios": [],
+        "nombre": "tiza",
+        "productos": 3
+      },
+      "C095": {
+        "frecuencia": 1,
+        "niveles_vacios": [
+          "confiable",
+          "economico",
+          "premium"
+        ],
+        "nombre": "arena decorativa",
+        "productos": 0
+      },
+      "C096": {
+        "frecuencia": 1,
+        "niveles_vacios": [
+          "confiable",
+          "economico",
+          "premium"
+        ],
+        "nombre": "copitos",
+        "productos": 0
+      },
+      "C097": {
+        "frecuencia": 1,
+        "niveles_vacios": [
+          "confiable",
+          "premium"
+        ],
+        "nombre": "esponja",
+        "productos": 1
+      },
+      "C098": {
+        "frecuencia": 1,
+        "niveles_vacios": [
+          "premium"
+        ],
+        "nombre": "plastico de burbujas",
+        "productos": 2
+      },
+      "C099": {
+        "frecuencia": 1,
+        "niveles_vacios": [
+          "confiable",
+          "economico",
+          "premium"
+        ],
+        "nombre": "regleta",
+        "productos": 0
+      }
+    }
+  },
+  "cobertura_corpus": {
+    "cobertura_lineas": 0.9789,
+    "cobertura_por_colegio": {
+      "1.1": {
+        "cobertura": 0.9923,
+        "lineas": 130,
+        "resueltas": 129
+      },
+      "1.2": {
+        "cobertura": 0.9609,
+        "lineas": 128,
+        "resueltas": 123
+      },
+      "1.3": {
+        "cobertura": 0.9375,
+        "lineas": 48,
+        "resueltas": 45
+      },
+      "2.1": {
+        "cobertura": 1.0,
+        "lineas": 176,
+        "resueltas": 176
+      },
+      "2.10": {
+        "cobertura": 0.9615,
+        "lineas": 78,
+        "resueltas": 75
+      },
+      "2.11": {
+        "cobertura": 1.0,
+        "lineas": 196,
+        "resueltas": 196
+      },
+      "2.12": {
+        "cobertura": 1.0,
+        "lineas": 216,
+        "resueltas": 216
+      },
+      "2.13": {
+        "cobertura": 0.9751,
+        "lineas": 602,
+        "resueltas": 587
+      },
+      "2.14": {
+        "cobertura": 0.963,
+        "lineas": 297,
+        "resueltas": 286
+      },
+      "2.2": {
+        "cobertura": 0.9627,
+        "lineas": 161,
+        "resueltas": 155
+      },
+      "2.3": {
+        "cobertura": 0.9878,
+        "lineas": 245,
+        "resueltas": 242
+      },
+      "2.4": {
+        "cobertura": 1.0,
+        "lineas": 164,
+        "resueltas": 164
+      },
+      "2.5": {
+        "cobertura": 0.9958,
+        "lineas": 236,
+        "resueltas": 235
+      },
+      "2.6": {
+        "cobertura": 1.0,
+        "lineas": 224,
+        "resueltas": 224
+      },
+      "2.7": {
+        "cobertura": 0.8523,
+        "lineas": 88,
+        "resueltas": 75
+      },
+      "2.8": {
+        "cobertura": 0.9852,
+        "lineas": 338,
+        "resueltas": 333
+      },
+      "2.9": {
+        "cobertura": 0.9647,
+        "lineas": 283,
+        "resueltas": 273
+      }
+    },
+    "cobertura_unidades": 0.9845,
+    "lineas_corpus": 3610,
+    "lineas_por_concepto_sin_producto": {
+      "C054": 8,
+      "C056": 8,
+      "C057": 8,
+      "C063": 6,
+      "C066": 5,
+      "C067": 5,
+      "C069": 5,
+      "C074": 3,
+      "C075": 3,
+      "C079": 3,
+      "C080": 3,
+      "C083": 2,
+      "C084": 2,
+      "C092": 2,
+      "C095": 1,
+      "C096": 1,
+      "C099": 1
+    },
+    "lineas_resueltas": 3534,
+    "lineas_sin_concepto": 10,
+    "unidades_corpus": 6000,
+    "unidades_resueltas": 5907
+  },
+  "emparejamiento": {
+    "curva": [
+      {
+        "cobertura": 1.0,
+        "f1": 0.191,
+        "fn": 0,
+        "fp": 144,
+        "precision": 0.1056,
+        "umbral": 0.3,
+        "vp": 17
+      },
+      {
+        "cobertura": 1.0,
+        "f1": 0.2048,
+        "fn": 0,
+        "fp": 132,
+        "precision": 0.1141,
+        "umbral": 0.32,
+        "vp": 17
+      },
+      {
+        "cobertura": 1.0,
+        "f1": 0.2086,
+        "fn": 0,
+        "fp": 129,
+        "precision": 0.1164,
+        "umbral": 0.34,
+        "vp": 17
+      },
+      {
+        "cobertura": 1.0,
+        "f1": 0.2152,
+        "fn": 0,
+        "fp": 124,
+        "precision": 0.1206,
+        "umbral": 0.36,
+        "vp": 17
+      },
+      {
+        "cobertura": 1.0,
+        "f1": 0.2179,
+        "fn": 0,
+        "fp": 122,
+        "precision": 0.1223,
+        "umbral": 0.38,
+        "vp": 17
+      },
+      {
+        "cobertura": 1.0,
+        "f1": 0.2194,
+        "fn": 0,
+        "fp": 121,
+        "precision": 0.1232,
+        "umbral": 0.4,
+        "vp": 17
+      },
+      {
+        "cobertura": 1.0,
+        "f1": 0.2237,
+        "fn": 0,
+        "fp": 118,
+        "precision": 0.1259,
+        "umbral": 0.42,
+        "vp": 17
+      },
+      {
+        "cobertura": 0.9412,
+        "f1": 0.2133,
+        "fn": 1,
+        "fp": 117,
+        "precision": 0.1203,
+        "umbral": 0.44,
+        "vp": 16
+      },
+      {
+        "cobertura": 0.9412,
+        "f1": 0.2177,
+        "fn": 1,
+        "fp": 114,
+        "precision": 0.1231,
+        "umbral": 0.46,
+        "vp": 16
+      },
+      {
+        "cobertura": 0.9412,
+        "f1": 0.2254,
+        "fn": 1,
+        "fp": 109,
+        "precision": 0.128,
+        "umbral": 0.48,
+        "vp": 16
+      },
+      {
+        "cobertura": 0.9412,
+        "f1": 0.2319,
+        "fn": 1,
+        "fp": 105,
+        "precision": 0.1322,
+        "umbral": 0.5,
+        "vp": 16
+      },
+      {
+        "cobertura": 0.8235,
+        "f1": 0.2171,
+        "fn": 3,
+        "fp": 98,
+        "precision": 0.125,
+        "umbral": 0.52,
+        "vp": 14
+      },
+      {
+        "cobertura": 0.8235,
+        "f1": 0.2258,
+        "fn": 3,
+        "fp": 93,
+        "precision": 0.1308,
+        "umbral": 0.54,
+        "vp": 14
+      },
+      {
+        "cobertura": 0.7647,
+        "f1": 0.2185,
+        "fn": 4,
+        "fp": 89,
+        "precision": 0.1275,
+        "umbral": 0.56,
+        "vp": 13
+      },
+      {
+        "cobertura": 0.7059,
+        "f1": 0.2124,
+        "fn": 5,
+        "fp": 84,
+        "precision": 0.125,
+        "umbral": 0.58,
+        "vp": 12
+      },
+      {
+        "cobertura": 0.7059,
+        "f1": 0.2264,
+        "fn": 5,
+        "fp": 77,
+        "precision": 0.1348,
+        "umbral": 0.6,
+        "vp": 12
+      },
+      {
+        "cobertura": 0.7059,
+        "f1": 0.2526,
+        "fn": 5,
+        "fp": 66,
+        "precision": 0.1538,
+        "umbral": 0.62,
+        "vp": 12
+      },
+      {
+        "cobertura": 0.5882,
+        "f1": 0.2632,
+        "fn": 7,
+        "fp": 49,
+        "precision": 0.1695,
+        "umbral": 0.64,
+        "vp": 10
+      },
+      {
+        "cobertura": 0.5882,
+        "f1": 0.3636,
+        "fn": 7,
+        "fp": 28,
+        "precision": 0.2632,
+        "umbral": 0.66,
+        "vp": 10
+      },
+      {
+        "cobertura": 0.4706,
+        "f1": 0.4211,
+        "fn": 9,
+        "fp": 13,
+        "precision": 0.381,
+        "umbral": 0.68,
+        "vp": 8
+      },
+      {
+        "cobertura": 0.4706,
+        "f1": 0.5,
+        "fn": 9,
+        "fp": 7,
+        "precision": 0.5333,
+        "umbral": 0.7,
+        "vp": 8
+      },
+      {
+        "cobertura": 0.4706,
+        "f1": 0.5926,
+        "fn": 9,
+        "fp": 2,
+        "precision": 0.8,
+        "umbral": 0.72,
+        "vp": 8
+      },
+      {
+        "cobertura": 0.4706,
+        "f1": 0.6154,
+        "fn": 9,
+        "fp": 1,
+        "precision": 0.8889,
+        "umbral": 0.74,
+        "vp": 8
+      },
+      {
+        "cobertura": 0.4706,
+        "f1": 0.6154,
+        "fn": 9,
+        "fp": 1,
+        "precision": 0.8889,
+        "umbral": 0.76,
+        "vp": 8
+      },
+      {
+        "cobertura": 0.2941,
+        "f1": 0.4545,
+        "fn": 12,
+        "fp": 0,
+        "precision": 1.0,
+        "umbral": 0.78,
+        "vp": 5
+      },
+      {
+        "cobertura": 0.2353,
+        "f1": 0.381,
+        "fn": 13,
+        "fp": 0,
+        "precision": 1.0,
+        "umbral": 0.8,
+        "vp": 4
+      },
+      {
+        "cobertura": 0.2353,
+        "f1": 0.381,
+        "fn": 13,
+        "fp": 0,
+        "precision": 1.0,
+        "umbral": 0.82,
+        "vp": 4
+      },
+      {
+        "cobertura": 0.2353,
+        "f1": 0.381,
+        "fn": 13,
+        "fp": 0,
+        "precision": 1.0,
+        "umbral": 0.84,
+        "vp": 4
+      },
+      {
+        "cobertura": 0.2353,
+        "f1": 0.381,
+        "fn": 13,
+        "fp": 0,
+        "precision": 1.0,
+        "umbral": 0.86,
+        "vp": 4
+      },
+      {
+        "cobertura": 0.0588,
+        "f1": 0.1111,
+        "fn": 16,
+        "fp": 0,
+        "precision": 1.0,
+        "umbral": 0.88,
+        "vp": 1
+      },
+      {
+        "cobertura": 0.0588,
+        "f1": 0.1111,
+        "fn": 16,
+        "fp": 0,
+        "precision": 1.0,
+        "umbral": 0.9,
+        "vp": 1
+      },
+      {
+        "cobertura": 0.0,
+        "f1": 0.0,
+        "fn": 17,
+        "fp": 0,
+        "precision": 1.0,
+        "umbral": 0.92,
+        "vp": 0
+      },
+      {
+        "cobertura": 0.0,
+        "f1": 0.0,
+        "fn": 17,
+        "fp": 0,
+        "precision": 1.0,
+        "umbral": 0.94,
+        "vp": 0
+      },
+      {
+        "cobertura": 0.0,
+        "f1": 0.0,
+        "fn": 17,
+        "fp": 0,
+        "precision": 1.0,
+        "umbral": 0.96,
+        "vp": 0
+      },
+      {
+        "cobertura": 0.0,
+        "f1": 0.0,
+        "fn": 17,
+        "fp": 0,
+        "precision": 1.0,
+        "umbral": 0.98,
+        "vp": 0
+      },
+      {
+        "cobertura": 0.0,
+        "f1": 0.0,
+        "fn": 17,
+        "fp": 0,
+        "precision": 1.0,
+        "umbral": 1.0,
+        "vp": 0
+      }
+    ],
+    "mejor_f1": {
+      "cobertura": 0.4706,
+      "f1": 0.6154,
+      "fn": 9,
+      "fp": 1,
+      "precision": 0.8889,
+      "umbral": 0.76,
+      "vp": 8
+    },
+    "negativos": 157,
+    "pares_anotados": 174,
+    "pares_no_localizados": 0,
+    "positivos": 17,
+    "punto_operativo": {
+      "cobertura": 0.4706,
+      "f1": 0.6154,
+      "fn": 9,
+      "fp": 1,
+      "precision": 0.8889,
+      "umbral": 0.74,
+      "vp": 8
+    },
+    "punto_revision_manual": {
+      "cobertura": 0.2353,
+      "f1": 0.381,
+      "fn": 13,
+      "fp": 0,
+      "precision": 1.0,
+      "umbral": 0.8,
+      "vp": 4
+    }
+  },
+  "entradas": {
+    "feed_scraper": {
+      "filas": 15991,
+      "ruta": "Tukit-Poc-Tesis/poc_02_base_de_datos/data/raw/feed_scraper.json",
+      "sha256": "b7c120b73fdfe20f0d13a1a4aa584c39b0b132b6cbbcd3d856c095b963ff7a32"
+    },
+    "grancentral": {
+      "filas": 3187,
+      "ruta": "tukit-mvp-pipeline/calibration/_grancentral_catalogo.json",
+      "sha256": "f2396d29d2142775d54dfe5c6f639ab4548ba0c5b7fe101dd506c8dbbaad7c7d"
+    }
+  },
+  "ofertas": {
+    "en_cola_de_revision_manual": 3,
+    "por_metodo": {
+      "atributos": 7,
+      "ean": 61,
+      "manual": 178
+    },
+    "por_tienda": {
+      "exito": 107,
+      "grancentral": 68,
+      "panamericana": 71
+    },
+    "productos_multitienda": 7,
+    "total": 246
+  },
+  "rn_p12_sobre_el_universo_cerrado": {
+    "candidatos_evaluados": 7753,
+    "descartados": 131,
+    "por_motivo": {
+      "accesorios de celular": 76,
+      "aseo y cuidado personal": 4,
+      "hogar y varios": 16,
+      "instrumentos musicales (fuera de alcance)": 2,
+      "juguetes (fuera de alcance)": 7,
+      "marca_ajena": 21,
+      "ropa y calzado": 5
+    },
+    "referencia_perfilado": {
+      "crudo_del_scraper": 0.05528,
+      "grancentral": 0.13241,
+      "semilla_de_la_bd": 0.10408
+    },
+    "tasa": 0.0169
+  },
+  "umbrales": {
+    "aceptacion_vinculacion": 0.74,
+    "longitud_minima_nombre": 12,
+    "precio_max_feed_scraper": 854160,
+    "precio_max_grancentral": 208596,
+    "precio_min_feed_scraper": 2890,
+    "precio_min_grancentral": 650,
+    "revision_manual": 0.8
+  },
+  "universo": {
+    "candidatos_asignados_a_concepto": 7753,
+    "descartes_por_motivo": {
+      "RN-P2 precio ausente o no positivo": 5475,
+      "RN-P8 nombre demasiado corto para recuperar": 3,
+      "precio fuera del rango p01-p99 de su fuente": 250
+    },
+    "diagnostico_asignacion": {
+      "listados con más de un concepto candidato": 561
+    },
+    "listados_con_concepto": 7622,
+    "listados_leidos": 19178,
+    "listados_saneados": 13450
+  }
+}

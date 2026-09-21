@@ -1,0 +1,4 @@
+concepto_id,producto_nombre,producto_tienda,oferta_nombre,oferta_tienda,oferta_url,confianza,motivo
+C008,Regla T escolar de 50 cm acrílica Faber Castell,panamericana,REGLA T.ESCOLAR DE 50CM. FABER CASTELL,exito,https://www.exito.com/regla-tescolar-de-50cm-faber-castell-457-50a-477327/p,0.7938,"vinculación por atributos por debajo de 0,800"
+C028,Silicona Liquida 250ml Tesa,grancentral,Silicona líquida de 250 ml Tesa,panamericana,https://www.panamericana.com.co/silicona-liquida-de-250-ml-tesa-3/p,0.7693,"vinculación por atributos por debajo de 0,800"
+C064,Portaminas Pilot azul de 0.7 mm + minas de color,panamericana,Portaminas Pilot Color Eno 0.7Mm + Minas,exito,https://www.exito.com/portaminas-pilot-color-eno-07mm-minas-101542927-mp/p,0.7656,"vinculación por atributos por debajo de 0,800"

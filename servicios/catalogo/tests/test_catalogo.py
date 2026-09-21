@@ -267,10 +267,18 @@ class TestTareaImportacion:
         with pytest.raises(IntegrityError):
             sesion.flush()
 
-    def test_una_tarea_fallida_con_caso_abierto_se_acepta(self, sesion):
-        sesion.add(TareaImportacion(origen="pdf", estado="fallida", caso_id=uuid.uuid4()))
+    def test_una_tarea_fallida_con_mensaje_se_acepta(self, sesion):
+        sesion.add(
+            TareaImportacion(origen="pdf", estado="fallida", error="PDF ilegible")
+        )
         sesion.flush()
         assert sesion.query(TareaImportacion).count() == 1
+
+    def test_la_tarea_no_guarda_el_caso_que_la_atiende(self, sesion):
+        """Guardarlo metia una arista de Catalogo hacia Operacion, y era la
+        unica que cerraba un ciclo en el grafo de dependencias. El Caso lo
+        abre Operacion consumiendo el evento, y apunta de vuelta."""
+        assert not hasattr(TareaImportacion, "caso_id")
 
     def test_la_etapa_completada_es_el_punto_de_reanudacion(self, sesion):
         """Reanudar desde la ultima etapa buena evita repagar la percepcion,

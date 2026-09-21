@@ -158,7 +158,22 @@ class TareaImportacion(Base):
 
     intentos: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    caso_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+
+    # NO hay `caso_id` aqui, y la ausencia es deliberada.
+    #
+    # La version anterior de esta tabla lo tenia, apuntando a `operacion.caso`.
+    # Eso metia una arista de Catalogo hacia Operacion en un grafo de
+    # dependencias donde todas las demas van hacia Identidad y Catalogo, o sea
+    # que **cerraba un ciclo**. Un grafo aciclico es lo que da un orden de
+    # arranque y de restauracion bien definido; con el ciclo, ni levantar el
+    # sistema desde cero ni restaurar un respaldo tienen orden correcto.
+    #
+    # La direccion correcta es la inversa: Catalogo escribe el fallo en su
+    # bandeja de salida, Operacion lo consume y abre el Caso apuntando de
+    # vuelta con su referencia polimorfica `caso.entidad_id`. Asi la arista va
+    # de Operacion hacia Catalogo, que es el sentido permitido, y de paso
+    # Catalogo deja de depender de que Operacion este arriba para registrar
+    # que algo fallo.
 
     creada_en: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -173,9 +188,11 @@ class TareaImportacion(Base):
             name="tarea_estado_valido"),
         CheckConstraint("intentos >= 0", name="tarea_intentos_no_negativos"),
         # Una tarea fallida sin diagnostico es una tarea que nadie puede
-        # atender. Se exige o el mensaje o el Caso abierto.
+        # atender. Ya no se admite el Caso como alternativa al mensaje: el
+        # Caso lo abre Operacion, asi que Catalogo no puede contar con el
+        # para satisfacer su propia invariante.
         CheckConstraint(
-            "estado <> 'fallida' OR error IS NOT NULL OR caso_id IS NOT NULL",
+            "estado <> 'fallida' OR error IS NOT NULL",
             name="tarea_fallida_tiene_diagnostico"),
         Index("ix_tarea_pendiente", "estado", "actualizada_en"),
     )

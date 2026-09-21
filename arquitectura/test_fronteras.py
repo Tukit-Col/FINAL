@@ -410,3 +410,80 @@ def test_el_lenguaje_declarado_coincide_con_el_codigo(nombre: str):
         )
     elif servicio.lenguaje == "go":
         assert not hay_python, f"`{nombre}` esta declarado en Go y tiene archivos .py."
+
+
+def _grafo_de_dependencias() -> dict[str, set[str]]:
+    """Que servicio referencia a que otro, segun el manifiesto."""
+    grafo: dict[str, set[str]] = {n: set() for n in SERVICIOS}
+    for ref in DATOS.get("referencias_cruzadas", []):
+        origen = ref["desde"].split(".")[0]
+        destino = ref["hacia"].split(".")[0]
+        if origen in grafo and destino != origen:
+            grafo[origen].add(destino)
+    return grafo
+
+
+def _buscar_ciclo(grafo: dict[str, set[str]]) -> list[str] | None:
+    """Devuelve un ciclo concreto, no solo si existe.
+
+    Decir "hay un ciclo" no sirve para arreglarlo; hay que decir cual.
+    """
+    EN_CAMINO, LISTO = 1, 2
+    estado: dict[str, int] = {}
+    camino: list[str] = []
+
+    def visitar(nodo: str) -> list[str] | None:
+        estado[nodo] = EN_CAMINO
+        camino.append(nodo)
+        for vecino in sorted(grafo.get(nodo, ())):
+            # Una arista de un servicio consigo mismo es una llave foranea
+            # fisica dentro de su propia base. No afecta el orden de arranque
+            # ni el de restauracion, asi que no es un ciclo en el sentido que
+            # aqui importa.
+            if vecino == nodo:
+                continue
+            if estado.get(vecino) == EN_CAMINO:
+                return camino[camino.index(vecino):] + [vecino]
+            if estado.get(vecino) is None:
+                encontrado = visitar(vecino)
+                if encontrado:
+                    return encontrado
+        camino.pop()
+        estado[nodo] = LISTO
+        return None
+
+    for nodo in sorted(grafo):
+        if estado.get(nodo) is None:
+            ciclo = visitar(nodo)
+            if ciclo:
+                return ciclo
+    return None
+
+
+def test_el_grafo_de_dependencias_entre_servicios_es_aciclico():
+    """Ningun ciclo de referencias entre servicios.
+
+    Esta prueba se agrego despues de que una sola columna, `caso_id` en la
+    tabla de tareas de importacion de Catalogo, metiera una arista hacia
+    Operacion cuando todas las demas van hacia Identidad y Catalogo. Bastaba
+    esa para cerrar el ciclo.
+
+    Lo que se pierde con un ciclo no es elegancia. Se pierde el **orden de
+    arranque** (cual servicio puede levantar primero sin que le falte algo) y
+    el **orden de restauracion** (en que secuencia devolver los respaldos para
+    que las referencias resuelvan). Con un ciclo, ninguno de los dos existe, y
+    eso solo se descubre el dia que hay que restaurar.
+
+    La direccion correcta cuando aparece una arista prohibida casi siempre es
+    invertirla usando la bandeja de salida: en vez de que A guarde el
+    identificador de algo de B, A publica un hecho y B reacciona apuntando de
+    vuelta.
+    """
+    ciclo = _buscar_ciclo(_grafo_de_dependencias())
+    assert ciclo is None, (
+        "El grafo de dependencias entre servicios tiene un ciclo:\n"
+        f"  {' -> '.join(ciclo)}\n\n"
+        "Invierte una de las aristas con la bandeja de salida: el servicio de "
+        "origen publica el hecho y el de destino reacciona, en vez de guardar "
+        "el identificador del otro dominio."
+    )
