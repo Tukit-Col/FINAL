@@ -12,12 +12,22 @@
 # Arquitectura/DICCIONARIO_DATOS.md (nombres definitivos).
 
 [meta]
-version = "2"
-# 67 del esquema objetivo + `direccion`. El esquema objetivo no modelaba
-# ninguna direccion de entrega en un negocio que entrega a domicilio; el hueco
-# se cierra con una tabla en Identidad mas una copia congelada en el envio de
-# Comercio, que no agrega tabla. Ver ADR 0015.
-total_tablas_esperado = 68
+version = "3"
+# 67 del esquema objetivo + `direccion` + `sustituibilidad_concepto`.
+#
+# `direccion`: el esquema objetivo no modelaba ninguna direccion de entrega en
+# un negocio que entrega a domicilio; el hueco se cierra con una tabla en
+# Identidad mas una copia congelada en el envio de Comercio, que no agrega
+# tabla. Ver ADR 0015.
+#
+# `sustituibilidad_concepto`: que ofrecer cuando el catalogo no tiene lo que la
+# lista pide. Hoy 102 de las 297 celdas (concepto x nivel) estan vacias y 17
+# conceptos no tienen ni un producto, asi que responder "no lo tengo" sin
+# alternativa es la respuesta mas comun y la menos util. La relacion es curada
+# sobre 99 conceptos, no inducida, y vive en Catalogo porque es vocabulario de
+# catalogo. Reemplaza al grafo en memoria que se reconstruia por item y costaba
+# el 95,3 por ciento de la latencia del pipeline.
+total_tablas_esperado = 69
 
 # Tablas que existen a proposito en varias bases. Son la excepcion declarada,
 # no un descuido: cada servicio necesita su propia bandeja de salida local para
@@ -56,10 +66,17 @@ lenguaje = "python"
 ruta = "servicios/catalogo"
 paquete = "tukit_catalogo"
 base_datos = "tukit_catalogo"
-descripcion = "Que existe y a que precio publico. Reconstruible scrapeando: tolera perder horas."
+descripcion = """
+Que existe y a que precio publico. El grueso es reconstruible scrapeando, pero la base pasa a
+objetivo de punto de recuperacion CERO: cuatro tablas editoriales guardan decisiones
+institucionales nominales que no se reconstruyen, y la recuperacion es por agrupacion de bases,
+no por tabla. Ver ADR 0017. Se separa de Comercio por perfil de recurso (pgvector, replicas de
+lectura, rafagas del scraper), no ya por recuperabilidad asimetrica.
+"""
 tablas = [
     "concepto",
     "concepto_ruta_categoria",
+    "sustituibilidad_concepto",
     "grupo_variante",
     "producto_canonico",
     "tienda",
@@ -265,6 +282,19 @@ hacia = "catalogo.producto_canonico"
 desde = "inteligencia.kit.matricula_id"
 hacia = "identidad.matricula"
 nota = "Un kit es para un estudiante en un grado y un anio, no para una cuenta."
+
+[[referencias_cruzadas]]
+desde = "inteligencia.trabajo_pipeline.usuario_id"
+hacia = "identidad.usuario"
+nota = """
+Quien pidio el kit, y por tanto a quien hay que avisarle cuando termine. El
+trabajo es por HOGAR y no por hijo: es lo que permite consolidar entre hermanos
+y repartir empaques, cosa que no se puede ver si cada hijo se pide aparte.
+
+Va por identificador y no copiando correo ni celular. Es la misma deuda que la
+nota de `operacion.notificacion`: el servicio anterior persistia el correo real
+del acudiente y el derecho al olvido no lo alcanzaba.
+"""
 
 [[referencias_cruzadas]]
 desde = "catalogo.configuracion_colegio_editorial.colegio_id"

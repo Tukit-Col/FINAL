@@ -6,7 +6,11 @@ requires-python = ">=3.12"
 dependencies = [
     "sqlalchemy>=2.0",
     "pydantic>=2.9",
+    "tukit-comun",
 ]
+
+[tool.uv.sources]
+tukit-comun = { workspace = true }
 
 [project.optional-dependencies]
 dev = [

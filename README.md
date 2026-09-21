@@ -22,11 +22,11 @@ Un monorepo con **siete desplegables independientes y cinco bases de datos separ
 
 ```
 servicios/     identidad  catalogo  inteligencia  comercio  operacion  ingesta  gateway
-apps/          web  admin
+apps/          web  admin  colegio
 libs/          py/tukit_comun   go/tukitgo
 arquitectura/  manifiesto.toml + las funciones de aptitud
 datos/         corpus, conceptos, conjuntos de referencia
-infra/         minikube, compose, despliegue
+infra/         compose de Postgres 16 + pgvector (cinco bases), despliegue
 ```
 
 Un repositorio no es un desplegable. Que el código viva junto y se despliegue por separado
@@ -76,7 +76,7 @@ resistiría la primera pregunta. Las tres razones que sí se sostienen:
 
 | Criterio | Qué separa |
 |---|---|
-| **Recuperabilidad asimétrica** | `catalogo` se reconstruye scrapeando y tolera perder horas. `comercio` no puede perder un byte. Objetivos de punto de recuperación incompatibles en el mismo almacén. |
+| **Recuperabilidad asimétrica** | `inteligencia` es enteramente reconstruible y tolera perder horas; `comercio` no puede perder un byte. Objetivos de punto de recuperación incompatibles en el mismo almacén. (Nota: `catalogo` **también** pasó a RPO cero al entrar el módulo editorial —ADR 0017—, así que entre `catalogo` y `comercio` la frontera hoy la sostiene el perfil de recurso, no esta asimetría.) |
 | **Frontera de cumplimiento** | Los datos de menores de edad (Ley 1581 de 2012) viven aislados en `identidad`, con proceso y base propios. |
 | **Perfil de recurso** | `inteligencia` es intensiva en CPU y modelos; `comercio` necesita transaccionalidad y disponibilidad. Juntas obligan a dimensionar todo por la más exigente. |
 
@@ -108,13 +108,35 @@ reestructurar.
 
 ## Estado
 
-Andamiaje. Existen el manifiesto de las 67 tablas, las funciones de aptitud con sus
-pruebas, el ejecutor de tareas y la integración continua con ejecución selectiva por ruta.
-Los servicios están vacíos: se llenan portando desde los repositorios anteriores, en el
-orden del [plan](../Arquitectura/PLAN_TUKIT_V2.md).
+Andamiaje con base de datos viva. Existen el manifiesto de las 68 tablas, las funciones de
+aptitud con sus pruebas, el ejecutor de tareas y la integración continua con ejecución
+selectiva por ruta. **Dos de los siete servicios están portados** (identidad y catálogo:
+modelos SQLAlchemy y pruebas de dominio); los otros cinco se llenan portando desde los
+repositorios anteriores, en el orden del [plan](../Arquitectura/PLAN_TUKIT_V2.md).
+
+### La base de datos, de modelo a motor
+
+Los modelos ya no viven solo en las pruebas. `libs/py/tukit_comun` tiene la capa de acceso
+compartida —motor y sesiones async, configuración por entorno— y `infra/` levanta un
+Postgres 16 con pgvector que hospeda las cinco bases. El nombre de la base nunca se escribe
+en el código de un servicio: cada uno se lo pide a la librería pasando su nombre, y la
+librería lo deriva o lo lee del entorno, que es lo que mantiene verde la regla 3.
+
+```bash
+make bd-arriba     # Postgres con las 5 bases + pgvector
+make bd-esquema    # materializa el esquema de identidad y catalogo en su base
+make bd-abajo      # detiene, conservando datos   (bd-limpiar los borra)
+```
+
+`bd-esquema` usa `create_all` (provisión), no migraciones incrementales. Es lo mismo que
+las pruebas ya validan contra SQLite, ahora contra Postgres real. El versionado del esquema
+con Alembic es el siguiente paso (ver deuda).
 
 ### Deuda conocida, anotada para que no se pierda
 
+- **Migraciones (Alembic).** Hoy el esquema se materializa con `create_all`, que crea lo
+  que falta pero no versiona cambios ni migra datos. Sirve para arranque de desarrollo y
+  primera carga; producción necesita migraciones. Es candidato a ADR.
 - **No hay dirección de entrega** en ninguna parte del modelo, en un negocio que entrega a
   domicilio. Falta también en `ESQUEMA_OBJETIVO.md`, así que no está en el manifiesto.
   Hay que modelarla y clasificarla como `personal_sensible`.

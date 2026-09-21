@@ -1,0 +1,24 @@
+[project]
+name = "tukit-comun"
+version = "0.1.0"
+description = "Libreria compartida del monorepo: acceso a base de datos, configuracion y utilidades transversales. No es un servicio ni tiene dominio."
+requires-python = ">=3.12"
+dependencies = [
+    "sqlalchemy>=2.0",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.5",
+]
+
+[project.optional-dependencies]
+# El driver async de Postgres. Es opcional a proposito: las pruebas de dominio
+# corren contra SQLite en memoria (aiosqlite) y no necesitan Postgres, asi que
+# la integracion continua no obliga a instalar asyncpg. El servicio que se
+# conecta a una base real lo instala con `pip install tukit-comun[postgres]`.
+postgres = ["asyncpg>=0.29"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["tukit_comun"]

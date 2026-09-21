@@ -125,8 +125,25 @@ class ProductoCanonico(Base):
         Uuid(as_uuid=True), ForeignKey("concepto.id", ondelete="RESTRICT"), nullable=False
     )
 
-    # Nula cuando la fuente no la trae, que es el caso normal y no la
-    # excepcion: el mayorista no publica ninguno.
+    # Nula por DOS razones distintas, y conviene no confundirlas porque la
+    # segunda es contraintuitiva y alguien la va a querer "arreglar".
+    #
+    # (1) La fuente no lo trae. Es el caso normal, no la excepcion: el canal
+    #     mayorista publica 0,00 por ciento de EAN valido. Solo las tiendas
+    #     VTEX lo traen.
+    #
+    # (2) El EAN existe pero NO identifica al producto. 146 referencias de
+    #     una de las tiendas comparten codigo entre listados distintos: una
+    #     misma carpeta con Moana, Frozen, Minnie y Stitch lleva un solo
+    #     codigo de barras, y son cuatro productos distintos porque el nino
+    #     elige uno. Donde eso pasa el EAN se anula a proposito y la
+    #     identidad recae en la URL de la oferta.
+    #
+    # De ahi que solo 39 de 242 productos del catalogo curado lleven EAN. Esa
+    # cobertura baja NO es un defecto de la ingesta que haya que subir: subirla
+    # exigiria quitar la anulacion del caso (2), y eso volveria a fundir cuatro
+    # productos en uno. La restriccion de unicidad de abajo es la que hizo
+    # visible el problema, reventando en las pruebas.
     ean: Mapped[str | None] = mapped_column(String(14), nullable=True, unique=True)
     sku_interno: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
 

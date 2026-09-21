@@ -38,161 +38,181 @@
     ],
     "objetivo_dimensionamiento": 353,
     "origen_de_la_etiqueta_de_nivel": {
-      "marca clasificada": 5185,
-      "marca confiable en cuartil alto": 543,
-      "marca confiable en cuartil bajo": 484,
+      "marca clasificada": 5018,
+      "marca confiable en cuartil alto": 590,
+      "marca confiable en cuartil bajo": 604,
       "tercil de precio del concepto (marca sin clasificar)": 1410
     },
     "por_nivel": {
-      "confiable": 54,
+      "confiable": 57,
       "economico": 117,
       "premium": 68
     },
-    "productos_canonicos": 239,
+    "productos_canonicos": 242,
     "productos_por_concepto": {
       "C001": {
+        "candidatos_en_universo": 1251,
         "frecuencia": 410,
         "niveles_vacios": [],
         "nombre": "cuaderno",
         "productos": 17
       },
       "C002": {
+        "candidatos_en_universo": 212,
         "frecuencia": 274,
         "niveles_vacios": [],
         "nombre": "lapiz",
         "productos": 3
       },
       "C003": {
+        "candidatos_en_universo": 222,
         "frecuencia": 194,
         "niveles_vacios": [],
         "nombre": "block",
         "productos": 5
       },
       "C004": {
+        "candidatos_en_universo": 100,
         "frecuencia": 177,
         "niveles_vacios": [],
         "nombre": "colores",
         "productos": 4
       },
       "C005": {
+        "candidatos_en_universo": 83,
         "frecuencia": 153,
         "niveles_vacios": [],
         "nombre": "borrador",
         "productos": 3
       },
       "C006": {
+        "candidatos_en_universo": 817,
         "frecuencia": 139,
         "niveles_vacios": [],
         "nombre": "marcador",
         "productos": 3
       },
       "C007": {
+        "candidatos_en_universo": 168,
         "frecuencia": 133,
         "niveles_vacios": [],
         "nombre": "tajalapiz",
         "productos": 3
       },
       "C008": {
+        "candidatos_en_universo": 78,
         "frecuencia": 132,
         "niveles_vacios": [],
         "nombre": "regla",
         "productos": 3
       },
       "C009": {
+        "candidatos_en_universo": 235,
         "frecuencia": 120,
         "niveles_vacios": [],
         "nombre": "cartuchera",
         "productos": 15
       },
       "C010": {
+        "candidatos_en_universo": 131,
         "frecuencia": 115,
         "niveles_vacios": [],
         "nombre": "cartulina",
         "productos": 3
       },
       "C011": {
+        "candidatos_en_universo": 515,
         "frecuencia": 102,
         "niveles_vacios": [],
         "nombre": "carpeta",
         "productos": 12
       },
       "C012": {
+        "candidatos_en_universo": 525,
         "frecuencia": 100,
         "niveles_vacios": [],
         "nombre": "esfero",
         "productos": 3
       },
       "C013": {
+        "candidatos_en_universo": 66,
         "frecuencia": 100,
         "niveles_vacios": [],
         "nombre": "tijera",
         "productos": 3
       },
       "C014": {
+        "candidatos_en_universo": 104,
         "frecuencia": 95,
         "niveles_vacios": [],
         "nombre": "papel",
         "productos": 3
       },
       "C015": {
+        "candidatos_en_universo": 143,
         "frecuencia": 76,
         "niveles_vacios": [],
         "nombre": "cinta adhesiva",
         "productos": 3
       },
       "C016": {
+        "candidatos_en_universo": 34,
         "frecuencia": 76,
         "niveles_vacios": [],
         "nombre": "pegante en barra",
         "productos": 3
       },
       "C017": {
+        "candidatos_en_universo": 50,
         "frecuencia": 69,
         "niveles_vacios": [],
         "nombre": "pegante liquido",
         "productos": 3
       },
       "C018": {
+        "candidatos_en_universo": 31,
         "frecuencia": 67,
         "niveles_vacios": [],
         "nombre": "compas",
         "productos": 3
       },
       "C019": {
+        "candidatos_en_universo": 21,
         "frecuencia": 67,
-        "niveles_vacios": [
-          "confiable"
-        ],
+        "niveles_vacios": [],
         "nombre": "escuadra",
-        "productos": 2
+        "productos": 3
       },
       "C020": {
+        "candidatos_en_universo": 108,
         "frecuencia": 67,
         "niveles_vacios": [],
         "nombre": "vinilo",
         "productos": 3
       },
       "C021": {
+        "candidatos_en_universo": 184,
         "frecuencia": 56,
         "niveles_vacios": [],
         "nombre": "pincel",
         "productos": 3
       },
       "C022": {
+        "candidatos_en_universo": 67,
         "frecuencia": 53,
         "niveles_vacios": [],
         "nombre": "plastilina",
         "productos": 3
       },
       "C023": {
+        "candidatos_en_universo": 5,
         "frecuencia": 53,
-        "niveles_vacios": [
-          "confiable"
-        ],
+        "niveles_vacios": [],
         "nombre": "transportador",
-        "productos": 2
+        "productos": 3
       },
       "C024": {
+        "candidatos_en_universo": 2,
         "frecuencia": 45,
         "niveles_vacios": [
           "confiable"
@@ -201,6 +221,7 @@
         "productos": 2
       },
       "C025": {
+        "candidatos_en_universo": 1,
         "frecuencia": 42,
         "niveles_vacios": [
           "confiable",
@@ -210,6 +231,7 @@
         "productos": 1
       },
       "C026": {
+        "candidatos_en_universo": 50,
         "frecuencia": 34,
         "niveles_vacios": [
           "confiable"
@@ -218,36 +240,42 @@
         "productos": 2
       },
       "C027": {
+        "candidatos_en_universo": 268,
         "frecuencia": 34,
         "niveles_vacios": [],
         "nombre": "pintura",
         "productos": 3
       },
       "C028": {
+        "candidatos_en_universo": 42,
         "frecuencia": 33,
         "niveles_vacios": [],
         "nombre": "silicona",
         "productos": 3
       },
       "C029": {
+        "candidatos_en_universo": 102,
         "frecuencia": 32,
         "niveles_vacios": [],
         "nombre": "foamy",
         "productos": 3
       },
       "C030": {
+        "candidatos_en_universo": 27,
         "frecuencia": 30,
         "niveles_vacios": [],
         "nombre": "acetato",
         "productos": 3
       },
       "C031": {
+        "candidatos_en_universo": 30,
         "frecuencia": 25,
         "niveles_vacios": [],
         "nombre": "resma",
         "productos": 3
       },
       "C032": {
+        "candidatos_en_universo": 5,
         "frecuencia": 24,
         "niveles_vacios": [
           "confiable",
@@ -257,6 +285,7 @@
         "productos": 1
       },
       "C033": {
+        "candidatos_en_universo": 2,
         "frecuencia": 23,
         "niveles_vacios": [
           "confiable",
@@ -266,12 +295,14 @@
         "productos": 1
       },
       "C034": {
+        "candidatos_en_universo": 27,
         "frecuencia": 22,
         "niveles_vacios": [],
         "nombre": "diccionario",
         "productos": 3
       },
       "C035": {
+        "candidatos_en_universo": 1,
         "frecuencia": 21,
         "niveles_vacios": [
           "confiable",
@@ -281,18 +312,21 @@
         "productos": 1
       },
       "C036": {
+        "candidatos_en_universo": 12,
         "frecuencia": 19,
         "niveles_vacios": [],
         "nombre": "juego de geometria",
         "productos": 3
       },
       "C037": {
+        "candidatos_en_universo": 5,
         "frecuencia": 19,
         "niveles_vacios": [],
         "nombre": "papel higienico",
         "productos": 3
       },
       "C038": {
+        "candidatos_en_universo": 46,
         "frecuencia": 18,
         "niveles_vacios": [
           "confiable",
@@ -302,12 +336,14 @@
         "productos": 1
       },
       "C039": {
+        "candidatos_en_universo": 296,
         "frecuencia": 18,
         "niveles_vacios": [],
         "nombre": "resaltador",
         "productos": 3
       },
       "C040": {
+        "candidatos_en_universo": 4,
         "frecuencia": 18,
         "niveles_vacios": [
           "confiable"
@@ -316,12 +352,14 @@
         "productos": 2
       },
       "C041": {
+        "candidatos_en_universo": 8,
         "frecuencia": 13,
         "niveles_vacios": [],
         "nombre": "carton",
         "productos": 3
       },
       "C042": {
+        "candidatos_en_universo": 1,
         "frecuencia": 12,
         "niveles_vacios": [
           "confiable",
@@ -331,6 +369,7 @@
         "productos": 1
       },
       "C043": {
+        "candidatos_en_universo": 2,
         "frecuencia": 12,
         "niveles_vacios": [
           "confiable",
@@ -340,18 +379,21 @@
         "productos": 1
       },
       "C044": {
+        "candidatos_en_universo": 144,
         "frecuencia": 12,
         "niveles_vacios": [],
         "nombre": "libro",
         "productos": 3
       },
       "C045": {
+        "candidatos_en_universo": 81,
         "frecuencia": 12,
         "niveles_vacios": [],
         "nombre": "notas adhesivas",
         "productos": 3
       },
       "C046": {
+        "candidatos_en_universo": 2,
         "frecuencia": 12,
         "niveles_vacios": [
           "confiable",
@@ -361,6 +403,7 @@
         "productos": 1
       },
       "C047": {
+        "candidatos_en_universo": 2,
         "frecuencia": 11,
         "niveles_vacios": [
           "confiable",
@@ -370,6 +413,7 @@
         "productos": 1
       },
       "C048": {
+        "candidatos_en_universo": 1,
         "frecuencia": 11,
         "niveles_vacios": [
           "confiable",
@@ -379,36 +423,42 @@
         "productos": 1
       },
       "C049": {
+        "candidatos_en_universo": 37,
         "frecuencia": 11,
         "niveles_vacios": [],
         "nombre": "delantal",
         "productos": 3
       },
       "C050": {
+        "candidatos_en_universo": 122,
         "frecuencia": 10,
         "niveles_vacios": [],
         "nombre": "lienzo",
         "productos": 3
       },
       "C051": {
+        "candidatos_en_universo": 20,
         "frecuencia": 10,
         "niveles_vacios": [],
         "nombre": "tempera",
         "productos": 3
       },
       "C052": {
+        "candidatos_en_universo": 34,
         "frecuencia": 9,
         "niveles_vacios": [],
         "nombre": "escarcha",
         "productos": 3
       },
       "C053": {
+        "candidatos_en_universo": 41,
         "frecuencia": 8,
         "niveles_vacios": [],
         "nombre": "crayones",
         "productos": 3
       },
       "C054": {
+        "candidatos_en_universo": 0,
         "frecuencia": 8,
         "niveles_vacios": [
           "confiable",
@@ -419,6 +469,7 @@
         "productos": 0
       },
       "C055": {
+        "candidatos_en_universo": 1,
         "frecuencia": 8,
         "niveles_vacios": [
           "confiable",
@@ -428,6 +479,7 @@
         "productos": 1
       },
       "C056": {
+        "candidatos_en_universo": 0,
         "frecuencia": 8,
         "niveles_vacios": [
           "confiable",
@@ -438,6 +490,7 @@
         "productos": 0
       },
       "C057": {
+        "candidatos_en_universo": 0,
         "frecuencia": 8,
         "niveles_vacios": [
           "confiable",
@@ -448,18 +501,21 @@
         "productos": 0
       },
       "C058": {
+        "candidatos_en_universo": 104,
         "frecuencia": 7,
         "niveles_vacios": [],
         "nombre": "agenda",
         "productos": 6
       },
       "C059": {
+        "candidatos_en_universo": 55,
         "frecuencia": 7,
         "niveles_vacios": [],
         "nombre": "corrector",
         "productos": 3
       },
       "C060": {
+        "candidatos_en_universo": 5,
         "frecuencia": 7,
         "niveles_vacios": [
           "confiable"
@@ -468,14 +524,14 @@
         "productos": 2
       },
       "C061": {
+        "candidatos_en_universo": 4,
         "frecuencia": 6,
-        "niveles_vacios": [
-          "confiable"
-        ],
+        "niveles_vacios": [],
         "nombre": "aserrin",
-        "productos": 2
+        "productos": 3
       },
       "C062": {
+        "candidatos_en_universo": 1,
         "frecuencia": 6,
         "niveles_vacios": [
           "confiable",
@@ -485,6 +541,7 @@
         "productos": 1
       },
       "C063": {
+        "candidatos_en_universo": 0,
         "frecuencia": 6,
         "niveles_vacios": [
           "confiable",
@@ -495,18 +552,21 @@
         "productos": 0
       },
       "C064": {
+        "candidatos_en_universo": 107,
         "frecuencia": 6,
         "niveles_vacios": [],
         "nombre": "portaminas",
         "productos": 3
       },
       "C065": {
+        "candidatos_en_universo": 56,
         "frecuencia": 5,
         "niveles_vacios": [],
         "nombre": "acuarela",
         "productos": 3
       },
       "C066": {
+        "candidatos_en_universo": 0,
         "frecuencia": 5,
         "niveles_vacios": [
           "confiable",
@@ -517,6 +577,7 @@
         "productos": 0
       },
       "C067": {
+        "candidatos_en_universo": 0,
         "frecuencia": 5,
         "niveles_vacios": [
           "confiable",
@@ -527,6 +588,7 @@
         "productos": 0
       },
       "C068": {
+        "candidatos_en_universo": 8,
         "frecuencia": 5,
         "niveles_vacios": [
           "confiable",
@@ -536,6 +598,7 @@
         "productos": 1
       },
       "C069": {
+        "candidatos_en_universo": 0,
         "frecuencia": 5,
         "niveles_vacios": [
           "confiable",
@@ -546,12 +609,14 @@
         "productos": 0
       },
       "C070": {
+        "candidatos_en_universo": 88,
         "frecuencia": 4,
         "niveles_vacios": [],
         "nombre": "kit de artes",
         "productos": 3
       },
       "C071": {
+        "candidatos_en_universo": 2,
         "frecuencia": 4,
         "niveles_vacios": [
           "confiable"
@@ -560,6 +625,7 @@
         "productos": 2
       },
       "C072": {
+        "candidatos_en_universo": 1,
         "frecuencia": 4,
         "niveles_vacios": [
           "confiable",
@@ -569,6 +635,7 @@
         "productos": 1
       },
       "C073": {
+        "candidatos_en_universo": 1,
         "frecuencia": 4,
         "niveles_vacios": [
           "confiable",
@@ -578,6 +645,7 @@
         "productos": 1
       },
       "C074": {
+        "candidatos_en_universo": 0,
         "frecuencia": 3,
         "niveles_vacios": [
           "confiable",
@@ -588,6 +656,7 @@
         "productos": 0
       },
       "C075": {
+        "candidatos_en_universo": 0,
         "frecuencia": 3,
         "niveles_vacios": [
           "confiable",
@@ -598,12 +667,14 @@
         "productos": 0
       },
       "C076": {
+        "candidatos_en_universo": 20,
         "frecuencia": 3,
         "niveles_vacios": [],
         "nombre": "carboncillo",
         "productos": 3
       },
       "C077": {
+        "candidatos_en_universo": 1,
         "frecuencia": 3,
         "niveles_vacios": [
           "confiable",
@@ -613,6 +684,7 @@
         "productos": 1
       },
       "C078": {
+        "candidatos_en_universo": 11,
         "frecuencia": 3,
         "niveles_vacios": [
           "confiable"
@@ -621,6 +693,7 @@
         "productos": 2
       },
       "C079": {
+        "candidatos_en_universo": 0,
         "frecuencia": 3,
         "niveles_vacios": [
           "confiable",
@@ -631,6 +704,7 @@
         "productos": 0
       },
       "C080": {
+        "candidatos_en_universo": 0,
         "frecuencia": 3,
         "niveles_vacios": [
           "confiable",
@@ -641,6 +715,7 @@
         "productos": 0
       },
       "C081": {
+        "candidatos_en_universo": 2,
         "frecuencia": 2,
         "niveles_vacios": [
           "confiable",
@@ -650,12 +725,14 @@
         "productos": 1
       },
       "C082": {
+        "candidatos_en_universo": 87,
         "frecuencia": 2,
         "niveles_vacios": [],
         "nombre": "clips y ganchos",
         "productos": 3
       },
       "C083": {
+        "candidatos_en_universo": 0,
         "frecuencia": 2,
         "niveles_vacios": [
           "confiable",
@@ -666,6 +743,7 @@
         "productos": 0
       },
       "C084": {
+        "candidatos_en_universo": 0,
         "frecuencia": 2,
         "niveles_vacios": [
           "confiable",
@@ -676,18 +754,21 @@
         "productos": 0
       },
       "C085": {
+        "candidatos_en_universo": 52,
         "frecuencia": 2,
         "niveles_vacios": [],
         "nombre": "limpiapipas",
         "productos": 3
       },
       "C086": {
+        "candidatos_en_universo": 378,
         "frecuencia": 2,
         "niveles_vacios": [],
         "nombre": "maleta",
         "productos": 9
       },
       "C087": {
+        "candidatos_en_universo": 2,
         "frecuencia": 2,
         "niveles_vacios": [
           "confiable"
@@ -696,6 +777,7 @@
         "productos": 2
       },
       "C088": {
+        "candidatos_en_universo": 1,
         "frecuencia": 2,
         "niveles_vacios": [
           "confiable",
@@ -705,6 +787,7 @@
         "productos": 1
       },
       "C089": {
+        "candidatos_en_universo": 9,
         "frecuencia": 2,
         "niveles_vacios": [
           "confiable"
@@ -713,6 +796,7 @@
         "productos": 2
       },
       "C090": {
+        "candidatos_en_universo": 18,
         "frecuencia": 2,
         "niveles_vacios": [
           "confiable",
@@ -722,12 +806,14 @@
         "productos": 1
       },
       "C091": {
+        "candidatos_en_universo": 12,
         "frecuencia": 2,
         "niveles_vacios": [],
         "nombre": "sobre de manila",
         "productos": 3
       },
       "C092": {
+        "candidatos_en_universo": 0,
         "frecuencia": 2,
         "niveles_vacios": [
           "confiable",
@@ -738,6 +824,7 @@
         "productos": 0
       },
       "C093": {
+        "candidatos_en_universo": 5,
         "frecuencia": 2,
         "niveles_vacios": [
           "confiable",
@@ -747,12 +834,14 @@
         "productos": 1
       },
       "C094": {
+        "candidatos_en_universo": 20,
         "frecuencia": 2,
         "niveles_vacios": [],
         "nombre": "tiza",
         "productos": 3
       },
       "C095": {
+        "candidatos_en_universo": 0,
         "frecuencia": 1,
         "niveles_vacios": [
           "confiable",
@@ -763,6 +852,7 @@
         "productos": 0
       },
       "C096": {
+        "candidatos_en_universo": 0,
         "frecuencia": 1,
         "niveles_vacios": [
           "confiable",
@@ -773,6 +863,7 @@
         "productos": 0
       },
       "C097": {
+        "candidatos_en_universo": 1,
         "frecuencia": 1,
         "niveles_vacios": [
           "confiable",
@@ -782,6 +873,7 @@
         "productos": 1
       },
       "C098": {
+        "candidatos_en_universo": 5,
         "frecuencia": 1,
         "niveles_vacios": [
           "premium"
@@ -790,6 +882,7 @@
         "productos": 2
       },
       "C099": {
+        "candidatos_en_universo": 0,
         "frecuencia": 1,
         "niveles_vacios": [
           "confiable",
@@ -920,29 +1013,38 @@
     "curva": [
       {
         "cobertura": 1.0,
-        "f1": 0.191,
+        "f1": 0.1889,
         "fn": 0,
-        "fp": 144,
-        "precision": 0.1056,
+        "fp": 146,
+        "precision": 0.1043,
         "umbral": 0.3,
         "vp": 17
       },
       {
         "cobertura": 1.0,
-        "f1": 0.2048,
+        "f1": 0.2,
         "fn": 0,
-        "fp": 132,
-        "precision": 0.1141,
+        "fp": 136,
+        "precision": 0.1111,
         "umbral": 0.32,
         "vp": 17
       },
       {
         "cobertura": 1.0,
-        "f1": 0.2086,
+        "f1": 0.2073,
         "fn": 0,
-        "fp": 129,
-        "precision": 0.1164,
+        "fp": 130,
+        "precision": 0.1156,
         "umbral": 0.34,
+        "vp": 17
+      },
+      {
+        "cobertura": 1.0,
+        "f1": 0.2138,
+        "fn": 0,
+        "fp": 125,
+        "precision": 0.1197,
+        "umbral": 0.36,
         "vp": 17
       },
       {
@@ -951,60 +1053,51 @@
         "fn": 0,
         "fp": 124,
         "precision": 0.1206,
-        "umbral": 0.36,
-        "vp": 17
-      },
-      {
-        "cobertura": 1.0,
-        "f1": 0.2179,
-        "fn": 0,
-        "fp": 122,
-        "precision": 0.1223,
         "umbral": 0.38,
         "vp": 17
       },
       {
         "cobertura": 1.0,
-        "f1": 0.2194,
+        "f1": 0.2166,
         "fn": 0,
-        "fp": 121,
-        "precision": 0.1232,
+        "fp": 123,
+        "precision": 0.1214,
         "umbral": 0.4,
         "vp": 17
       },
       {
         "cobertura": 1.0,
-        "f1": 0.2237,
+        "f1": 0.2208,
         "fn": 0,
-        "fp": 118,
-        "precision": 0.1259,
+        "fp": 120,
+        "precision": 0.1241,
         "umbral": 0.42,
         "vp": 17
       },
       {
         "cobertura": 0.9412,
-        "f1": 0.2133,
+        "f1": 0.2105,
         "fn": 1,
-        "fp": 117,
-        "precision": 0.1203,
+        "fp": 119,
+        "precision": 0.1185,
         "umbral": 0.44,
         "vp": 16
       },
       {
         "cobertura": 0.9412,
-        "f1": 0.2177,
+        "f1": 0.2148,
         "fn": 1,
-        "fp": 114,
-        "precision": 0.1231,
+        "fp": 116,
+        "precision": 0.1212,
         "umbral": 0.46,
         "vp": 16
       },
       {
         "cobertura": 0.9412,
-        "f1": 0.2254,
+        "f1": 0.2238,
         "fn": 1,
-        "fp": 109,
-        "precision": 0.128,
+        "fp": 110,
+        "precision": 0.127,
         "umbral": 0.48,
         "vp": 16
       },
@@ -1288,19 +1381,19 @@
     }
   },
   "ofertas": {
-    "en_cola_de_revision_manual": 3,
+    "en_cola_de_revision_manual": 1,
     "por_metodo": {
-      "atributos": 7,
-      "ean": 61,
-      "manual": 178
+      "atributos": 6,
+      "ean": 39,
+      "manual": 203
     },
     "por_tienda": {
-      "exito": 107,
-      "grancentral": 68,
-      "panamericana": 71
+      "exito": 111,
+      "grancentral": 70,
+      "panamericana": 67
     },
-    "productos_multitienda": 7,
-    "total": 246
+    "productos_multitienda": 5,
+    "total": 248
   },
   "rn_p12_sobre_el_universo_cerrado": {
     "candidatos_evaluados": 7753,
@@ -1342,6 +1435,13 @@
     },
     "listados_con_concepto": 7622,
     "listados_leidos": 19178,
-    "listados_saneados": 13450
+    "listados_saneados": 13450,
+    "referencias_no_identificantes": {
+      "listados_afectados": 590,
+      "por_tienda": {
+        "exito": 146
+      },
+      "referencias_compartidas": 146
+    }
   }
 }

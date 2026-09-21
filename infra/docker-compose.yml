@@ -1,0 +1,43 @@
+# Infraestructura local de desarrollo.
+#
+# Un solo Postgres 16 con la extension pgvector, que hospeda las CINCO bases
+# del sistema. Que sean cinco bases logicas en un motor, y no cinco motores, es
+# deliberado para el piloto: el aislamiento que exige la arquitectura es de
+# ESQUEMA y de conexion (una base, un dueno, ver los cinco invariantes), no de
+# proceso. La funcion de aptitud `test_ningun_servicio_nombra_la_base_de_otro`
+# sigue siendo la que garantiza que un servicio no cruce a la base de otro, y no
+# depende de que esten en motores separados. En produccion se pueden separar sin
+# tocar el codigo: cada servicio ya recibe su URL del entorno.
+#
+# Levantar:   make bd-arriba
+# Bajar:      make bd-abajo
+# Reiniciar:  make bd-limpiar  (BORRA los datos)
+
+services:
+  postgres:
+    # pgvector/pgvector empaqueta Postgres 16 con la extension ya compilada.
+    # El tipo Vector(1024) de catalogo la necesita; sin ella el esquema de
+    # catalogo no materializa.
+    image: pgvector/pgvector:pg16
+    container_name: tukit_postgres
+    environment:
+      POSTGRES_USER: tukit
+      POSTGRES_PASSWORD: tukit
+      # La base que Postgres crea al arrancar. Las cinco del sistema las crea
+      # el script de init de abajo; esta es solo la de administracion.
+      POSTGRES_DB: tukit
+    ports:
+      - "5432:5432"
+    volumes:
+      - tukit_pgdata:/var/lib/postgresql/data
+      # El script corre UNA vez, cuando el volumen esta vacio. Crea las cinco
+      # bases y habilita pgvector en cada una.
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tukit"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  tukit_pgdata:
