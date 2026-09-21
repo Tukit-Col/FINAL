@@ -82,7 +82,24 @@ lenguaje = "python"
 ruta = "servicios/inteligencia"
 paquete = "tukit_inteligencia"
 base_datos = "tukit_inteligencia"
-descripcion = "Percepcion, normalizacion, resolucion y optimizacion. Perfil de recurso propio: CPU intensivo y modelos."
+descripcion = """
+Percepcion, normalizacion, resolucion y optimizacion. Perfil de recurso propio:
+CPU intensivo y modelos.
+
+CUIDADO AL PORTAR, dos cosas que el servicio anterior hacia mal:
+
+(1) `kit.perfil` y `kit.pesos_usados` son derivados de la encuesta
+socioeconomica, que en Identidad esta cifrada. Aqui vivian EN CLARO. Cifrar el
+origen y dejar el derivado en claro no protege nada. Peor: el proceso de
+derecho al olvido documentaba la decision de NO borrar el kit argumentando que
+'no tiene ninguna columna con datos personales', lo cual es cierto para las
+columnas que su autor tenia en mente y falso para esas dos.
+
+(2) El grafo de sustituibilidad se reconstruia entero en cada item, y eso solo
+era el 95,3 por ciento de la latencia del pipeline: 1.673 ms construirlo contra
+0,137 ms consultarlo. Va cacheado por (categoria, version del catalogo) y fuera
+del bucle de eventos. Ver Arquitectura/PERFILADO_PIPELINE.md.
+"""
 tablas = [
     "item_crudo",
     "candidato_item",
