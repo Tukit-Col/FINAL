@@ -3,7 +3,7 @@ import styles from "./Cabecera.module.css";
 
 const ENLACES = [
   { href: "/", texto: "Inicio" },
-  { href: "/catalogo", texto: "Catalogo" },
+  { href: "/catalogo", texto: "Catálogo" },
   { href: "/dashboard", texto: "Mi cuenta" },
 ];
 

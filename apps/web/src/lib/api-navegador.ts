@@ -25,7 +25,7 @@ async function leer<T>(respuesta: Response): Promise<T> {
     throw new FalloApi(
       respuesta.status,
       error.error ?? "error_desconocido",
-      error.mensaje ?? "Algo salio mal.",
+      error.mensaje ?? "Algo salió mal.",
       error,
     );
   }

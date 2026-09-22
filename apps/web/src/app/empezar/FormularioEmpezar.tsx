@@ -27,7 +27,7 @@ interface HijoFormulario {
 }
 
 const DOLORES: { valor: DolorDeclarado; etiqueta: string }[] = [
-  { valor: "disponibilidad", etiqueta: "Que este agotado y toque recorrer papelerias" },
+  { valor: "disponibilidad", etiqueta: "Que esté agotado y toque recorrer papelerías" },
   { valor: "libros", etiqueta: "Los libros y el plan lector" },
   { valor: "un_solo_lugar", etiqueta: "No encontrar todo en un solo lugar" },
   { valor: "precio", etiqueta: "El precio" },
@@ -148,7 +148,7 @@ export default function FormularioEmpezar({ colegios }: { colegios: Colegio[] })
       <header className={styles.encabezado}>
         <h1>Armemos el kit de tu hogar</h1>
         <p>
-          Es un pedido por hogar y no por hijo: asi podemos juntar lo que se repite
+          Es un pedido por hogar y no por hijo: así podemos juntar lo que se repite
           entre hermanos y cobrarte una caja en vez de dos sueltos.
         </p>
       </header>
@@ -156,7 +156,7 @@ export default function FormularioEmpezar({ colegios }: { colegios: Colegio[] })
       {/* ------------------------------------------------------------ Hijos */}
       <section className={styles.bloque} aria-labelledby={`${idBase}-hijos`}>
         <h2 id={`${idBase}-hijos`} className={styles.tituloBloque}>
-          <span className={styles.paso}>1</span> De quien es la lista
+          <span className={styles.paso}>1</span> De quién es la lista
         </h2>
 
         {hijos.map((hijo, indice) => {
@@ -225,7 +225,7 @@ export default function FormularioEmpezar({ colegios }: { colegios: Colegio[] })
                 </p>
               )}
 
-              <div className={styles.entradas} role="group" aria-label="Como nos das la lista">
+              <div className={styles.entradas} role="group" aria-label="Cómo nos das la lista">
                 {(
                   [
                     ["lista_oficial", "Usar la lista que ya tiene el colegio"],
@@ -256,9 +256,9 @@ export default function FormularioEmpezar({ colegios }: { colegios: Colegio[] })
                       esperar: una restriccion que solo aparece cuando ya
                       perdiste el tiempo es una restriccion mal puesta. */}
                   <p className={styles.reglaArchivo}>
-                    Sube solo las paginas del grado de tu hijo. Si mandas el PDF
+                    Sube solo las páginas del grado de tu hijo. Si mandas el PDF
                     completo del colegio con los trece grados no lo procesamos, porque
-                    un kit armado con los utiles de otro grado es peor que no tener
+                    un kit armado con los útiles de otro grado es peor que no tener
                     kit.
                   </p>
                   <input
@@ -318,11 +318,11 @@ export default function FormularioEmpezar({ colegios }: { colegios: Colegio[] })
       {/* --------------------------------------------------------- Contacto */}
       <section className={styles.bloque} aria-labelledby={`${idBase}-contacto`}>
         <h2 id={`${idBase}-contacto`} className={styles.tituloBloque}>
-          <span className={styles.paso}>2</span> A donde te avisamos
+          <span className={styles.paso}>2</span> A dónde te avisamos
         </h2>
         <p className={styles.explicacion}>
           Armar el kit toma minutos, no segundos. No tienes que quedarte mirando la
-          pantalla: te escribimos cuando este listo.
+          pantalla: te escribimos cuando esté listo.
         </p>
         <div className={styles.dosColumnas}>
           <label className={styles.campo}>
@@ -353,15 +353,15 @@ export default function FormularioEmpezar({ colegios }: { colegios: Colegio[] })
       {/* ----------------------------------------------------- Preferencias */}
       <section className={styles.bloque} aria-labelledby={`${idBase}-preferencias`}>
         <h2 id={`${idBase}-preferencias`} className={styles.tituloBloque}>
-          <span className={styles.paso}>3</span> Que te importa mas
+          <span className={styles.paso}>3</span> Qué te importa más
         </h2>
         <p className={styles.explicacion}>
-          No te pedimos el estrato ni nada del hogar: con esto basta para elegir cual de
+          No te pedimos el estrato ni nada del hogar: con esto basta para elegir cuál de
           los tres kits te marcamos.
         </p>
 
         <fieldset className={styles.opciones}>
-          <legend className={styles.leyendaSimple}>Lo que mas te pesa</legend>
+          <legend className={styles.leyendaSimple}>Lo que más te pesa</legend>
           {DOLORES.map((opcion) => (
             <label
               key={opcion.valor}
@@ -410,7 +410,7 @@ export default function FormularioEmpezar({ colegios }: { colegios: Colegio[] })
         </button>
         {!listo && (
           <p className={styles.faltante}>
-            Falta el colegio, el grado y como te avisamos.
+            Falta el colegio, el grado y cómo te avisamos.
           </p>
         )}
       </div>
