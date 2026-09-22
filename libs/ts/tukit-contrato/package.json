@@ -1,0 +1,22 @@
+{
+  "name": "@tukit/contrato",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tipos, cliente HTTP y origen simulado derivados de arquitectura/CONTRATO_API.md",
+  "type": "module",
+  "exports": {
+    ".": "./src/indice.ts",
+    "./servidor": "./src/servidor.ts",
+    "./tokens.css": "./src/tokens.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "semillas": "python3 herramientas/generar_semillas.py"
+  },
+  "dependencies": {
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}

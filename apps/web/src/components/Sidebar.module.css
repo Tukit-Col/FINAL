@@ -1,0 +1,107 @@
+/* ============================================================
+   Sidebar — TuKit MVP
+   ============================================================ */
+
+.sidebar {
+  width: 210px;
+  flex-shrink: 0;
+  background: var(--color-white);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 0;
+  min-height: calc(100vh - 56px);
+}
+
+/* ---- Account info ---- */
+.sidebar__account {
+  padding: 0 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 8px;
+}
+
+.sidebar__account-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.sidebar__account-name {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+/* ---- Nav items ---- */
+.sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 8px;
+  flex: 1;
+}
+
+.sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--color-sidebar-text);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  text-decoration: none;
+}
+
+.sidebar__item:hover {
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.sidebar__item--active {
+  background: var(--color-sidebar-active-bg);
+  color: var(--color-sidebar-active-text);
+  font-weight: 600;
+}
+
+.sidebar__item--active:hover {
+  background: var(--color-sidebar-active-bg);
+  color: var(--color-sidebar-active-text);
+}
+
+.sidebar__item--danger {
+  color: var(--color-danger);
+  margin-top: 8px;
+}
+
+.sidebar__item--danger:hover {
+  background: #fff1f2;
+  color: var(--color-danger);
+}
+
+.sidebar__icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar__icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.sidebar__separator {
+  height: 1px;
+  background: var(--color-border);
+  margin: 8px 16px;
+}

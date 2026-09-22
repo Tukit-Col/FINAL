@@ -1,0 +1,4 @@
+# Artefactos de Next. Van aqui y no en el `.gitignore` de la raiz para no
+# tocar un fichero compartido con el equipo de backend mientras trabaja.
+.next/
+*.tsbuildinfo

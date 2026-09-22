@@ -1,0 +1,24 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import "@tukit/contrato/tokens.css";
+
+body {
+  /* La app del acudiente se usa de pie, con el celular en una mano. El fondo
+   * claro y el contenido centrado en una columna ancha es lo mismo que ya
+   * hacia el prototipo; lo que cambia es que ahora hay una barra de estado
+   * arriba diciendo de donde salen los datos. */
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+main {
+  flex: 1;
+  width: 100%;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
