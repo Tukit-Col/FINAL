@@ -1,0 +1,17 @@
+{
+  "name": "tukit-monorepo-web",
+  "private": true,
+  "workspaces": [
+    "libs/ts/*",
+    "apps/web",
+    "apps/admin"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace @tukit/web",
+    "dev:admin": "npm run dev --workspace @tukit/admin",
+    "build:web": "npm run build --workspace @tukit/web",
+    "build:admin": "npm run build --workspace @tukit/admin",
+    "lint": "npm run lint --workspace @tukit/web && npm run lint --workspace @tukit/admin",
+    "typecheck": "npm run typecheck --workspace @tukit/web && npm run typecheck --workspace @tukit/admin"
+  }
+}

@@ -1,0 +1,42 @@
+.cinta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espacio-2);
+  flex-wrap: wrap;
+  padding: 5px var(--espacio-4);
+  font-size: 12px;
+  border-bottom: 1px solid transparent;
+}
+
+.simulado {
+  background: var(--color-aviso-bg);
+  border-bottom-color: var(--color-aviso-border);
+  color: var(--color-aviso);
+}
+
+.api {
+  background: var(--color-success-bg);
+  border-bottom-color: var(--color-success-border);
+  color: var(--color-success);
+}
+
+.punto {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+  flex: none;
+}
+
+.pista {
+  opacity: 0.75;
+}
+
+.cinta code {
+  font-family: var(--font-cifras);
+  font-size: 11px;
+  background: rgba(15, 23, 42, 0.06);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+}

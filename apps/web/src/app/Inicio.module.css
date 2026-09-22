@@ -1,0 +1,218 @@
+.pagina {
+  max-width: var(--ancho-contenido);
+  margin: 0 auto;
+  padding: 0 var(--espacio-4) var(--espacio-7);
+}
+
+/* ------------------------------------------------------------------ Heroe */
+
+.heroe {
+  padding: var(--espacio-7) 0 var(--espacio-6);
+}
+
+.heroeTexto {
+  max-width: 720px;
+}
+
+.antetitulo {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-bottom: var(--espacio-3);
+}
+
+.titular {
+  font-size: clamp(30px, 5.2vw, 46px);
+  font-weight: 700;
+  text-wrap: balance;
+}
+
+.titular em {
+  font-style: normal;
+  /* El subrayado va bajo la palabra que cambia la promesa: "de verdad". Es
+   * la diferencia entre este producto y un catalogo cualquiera. */
+  background: linear-gradient(transparent 62%, #bfdbfe 62%);
+}
+
+.bajada {
+  margin-top: var(--espacio-4);
+  font-size: 17px;
+  color: var(--color-text-secondary);
+  max-width: 62ch;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-3);
+  margin-top: var(--espacio-5);
+}
+
+.botonPrimario,
+.botonSecundario {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 48px de alto: se pulsa con el pulgar, de pie, con el celular en una mano. */
+  min-height: 48px;
+  padding: 0 var(--espacio-5);
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.botonPrimario {
+  background: var(--color-primary);
+  color: var(--color-white);
+}
+
+.botonPrimario:hover {
+  background: var(--color-primary-dark);
+}
+
+.botonSecundario {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.botonSecundario:hover {
+  border-color: var(--color-text-muted);
+}
+
+.cifras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-6);
+  margin-top: var(--espacio-6);
+  padding-top: var(--espacio-5);
+  border-top: 1px solid var(--color-border);
+}
+
+.cifras dt {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.cifras dd {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.cifraHonesta dd {
+  color: var(--color-aviso);
+}
+
+.notaCifras {
+  margin-top: var(--espacio-3);
+  font-size: 13px;
+  color: var(--color-text-muted);
+  max-width: 60ch;
+}
+
+/* ----------------------------------------------------------------- Dolores */
+
+.tituloSeccion {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: var(--espacio-5);
+}
+
+.dolores {
+  padding: var(--espacio-6) 0;
+}
+
+.rejillaDolores {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--espacio-4);
+}
+
+.dolor {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--espacio-5);
+}
+
+.porcentaje {
+  display: block;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.dolor h3 {
+  margin-top: var(--espacio-2);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.dolor p {
+  margin-top: var(--espacio-2);
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+/* ----------------------------------------------------------- Como funciona */
+
+.comoFunciona {
+  padding: var(--espacio-6) 0 0;
+}
+
+.pasos {
+  list-style: none;
+  display: grid;
+  gap: var(--espacio-4);
+}
+
+.pasos li {
+  display: flex;
+  gap: var(--espacio-4);
+  align-items: flex-start;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--espacio-4) var(--espacio-5);
+}
+
+.numero {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.pasos h3 {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.pasos p {
+  margin-top: 2px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  max-width: 72ch;
+}
+
+@media (max-width: 600px) {
+  .cifras {
+    gap: var(--espacio-4);
+  }
+
+  .cifras dd {
+    font-size: 22px;
+  }
+}

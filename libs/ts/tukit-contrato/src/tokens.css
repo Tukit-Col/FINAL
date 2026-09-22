@@ -1,0 +1,145 @@
+/* Tokens compartidos por apps/web y apps/admin.
+ *
+ * Se comparten los TOKENS y no los componentes. Las dos aplicaciones tienen
+ * usuarios distintos —una es para un papa con quince minutos en el celular y
+ * la otra es una consola de operacion— y compartir componentes las obligaria a
+ * moverse juntas donde justamente tienen que moverse aparte. Lo que si no
+ * puede divergir es el color con que las dos dicen "hueco de catalogo".
+ *
+ * La base son los tokens que ya traia el prototipo; lo que se agrega es el
+ * vocabulario que el CONTRATO_API obliga a tener en pantalla: los tres
+ * niveles de producto, los cuatro estados de resolucion y la diferencia entre
+ * una linea que se cobra y una que solo se informa. */
+
+:root {
+  --color-primary: #2563eb;
+  --color-primary-dark: #1d4ed8;
+  --color-primary-light: #eff6ff;
+
+  --color-bg: #f1f5f9;
+  --color-white: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-2: #f8fafc;
+
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+
+  --color-border: #e2e8f0;
+  --color-border-light: #f1f5f9;
+
+  --color-success: #15803d;
+  --color-success-bg: #f0fdf4;
+  --color-success-border: #bbf7d0;
+
+  --color-aviso: #b45309;
+  --color-aviso-bg: #fffbeb;
+  --color-aviso-border: #fde68a;
+
+  --color-danger: #b91c1c;
+  --color-danger-bg: #fef2f2;
+  --color-danger-border: #fecaca;
+
+  --color-info: #1d4ed8;
+  --color-info-bg: #eff6ff;
+  --color-info-border: #bfdbfe;
+
+  --color-neutro-bg: #f8fafc;
+  --color-neutro-border: #e2e8f0;
+
+  /* Nivel de producto. Son tres, y el personaje NO es un cuarto: va en su
+   * propio token porque es un eje ortogonal. Pintarlo como un nivel mas es el
+   * error que la restriccion `producto_nivel_valido` de la base impide. */
+  --color-nivel-economico: #15803d;
+  --color-nivel-confiable: #1d4ed8;
+  --color-nivel-premium: #7c3aed;
+  --color-personaje: #db2777;
+  --color-personaje-bg: #fdf2f8;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 14px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.12);
+
+  --espacio-1: 4px;
+  --espacio-2: 8px;
+  --espacio-3: 12px;
+  --espacio-4: 16px;
+  --espacio-5: 24px;
+  --espacio-6: 32px;
+  --espacio-7: 48px;
+
+  --ancho-contenido: 1120px;
+
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-cifras: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  min-height: 100%;
+  font-family: var(--font);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  outline: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Un foco visible no es decoracion: es lo unico que tiene quien navega con
+ * teclado, y la mitad de estas pantallas son formularios. */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Toda cifra de dinero se alinea por columna: comparar tres kits con los
+ * digitos bailando obliga a leer numero por numero. */
+.cifra {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

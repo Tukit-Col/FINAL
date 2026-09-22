@@ -1,0 +1,295 @@
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-4);
+}
+
+.encabezado {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--espacio-5);
+  flex-wrap: wrap;
+}
+
+.encabezado h1 {
+  font-size: 22px;
+}
+
+.bajada {
+  max-width: 62ch;
+  margin-top: var(--espacio-1);
+  color: var(--color-text-secondary);
+}
+
+.resumen {
+  display: flex;
+  gap: var(--espacio-2);
+}
+
+.resumen > div {
+  min-width: 128px;
+  padding: var(--espacio-2) var(--espacio-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.resumen dt {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.resumen dd {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* ------------------------------------------------------------------ tabla */
+
+.marco {
+  overflow-x: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.leyenda {
+  padding: var(--espacio-3) var(--espacio-4);
+  text-align: left;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.tabla th,
+.tabla td {
+  padding: var(--espacio-2) var(--espacio-3);
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.tabla thead th {
+  position: sticky;
+  top: 0;
+  background: var(--color-surface-2);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tabla tbody tr:last-child th,
+.tabla tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tabla tbody tr:hover {
+  background: var(--color-surface-2);
+}
+
+/* Lo que espera a una persona lleva una barra a la izquierda: es lo unico de
+ * la tabla sobre lo que hay que actuar hoy. */
+.filaEspera {
+  background: var(--color-aviso-bg);
+  box-shadow: inset 3px 0 0 var(--color-aviso);
+}
+
+.filaEspera:hover {
+  background: #fef6e0;
+}
+
+/* Lo publicado ya no es trabajo: se deja visible como historial y se apaga. */
+.filaPublicada {
+  color: var(--color-text-muted);
+}
+
+.filaPublicada .identificador a {
+  color: var(--color-text-secondary);
+}
+
+.num {
+  text-align: right;
+}
+
+.tenue {
+  color: var(--color-text-muted);
+}
+
+.identificador a {
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.identificador a:hover {
+  text-decoration: underline;
+}
+
+.identificador code {
+  font-size: 12px;
+}
+
+.fecha {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+
+.fechaExacta {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pendientes {
+  display: inline-block;
+  min-width: 26px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  color: var(--color-danger);
+  font-weight: 600;
+  text-align: center;
+}
+
+.cero {
+  color: var(--color-text-muted);
+}
+
+.lista {
+  max-width: 22ch;
+  color: var(--color-text-secondary);
+}
+
+.estado {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-neutro-border);
+  background: var(--color-neutro-bg);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.estado_espera_revision {
+  background: var(--color-aviso-bg);
+  border-color: var(--color-aviso-border);
+  color: var(--color-aviso);
+}
+
+.estado_publicado {
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+  color: var(--color-success);
+}
+
+.estado_fallido {
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+  color: var(--color-danger);
+}
+
+.estado_procesando,
+.estado_encolado {
+  background: var(--color-info-bg);
+  border-color: var(--color-info-border);
+  color: var(--color-info);
+}
+
+.accionCelda {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.accion {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: var(--color-white);
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+.accion:hover {
+  background: var(--color-primary-dark);
+}
+
+.accionSecundaria {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  font-size: 12.5px;
+}
+
+.accionSecundaria:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ cola vacia */
+
+.vacia {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  max-width: 76ch;
+  padding: var(--espacio-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.vacia h2 {
+  font-size: 17px;
+}
+
+.vacia p {
+  color: var(--color-text-secondary);
+}
+
+.pistaVacia {
+  padding-top: var(--espacio-3);
+  border-top: 1px solid var(--color-border-light);
+  font-size: 13px;
+}
+
+.enlaceExterno {
+  color: var(--color-primary);
+  font-weight: 500;
+  text-decoration: underline;
+}
+
+.vacia code {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0 5px;
+}
