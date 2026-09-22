@@ -1,0 +1,40 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import "@tukit/contrato/tokens.css";
+
+/* Los tokens son los mismos que los de `apps/web` y eso no es negociable: el
+ * color con que las dos aplicaciones dicen "hueco de catalogo" tiene que ser
+ * el mismo. Lo que cambia es la densidad. La app del acudiente se usa de pie
+ * y en el celular; esta se usa sentado, con teclado, revisando cincuenta y
+ * cinco renglones seguidos, asi que el texto es mas chico, el ancho es el de
+ * la pantalla y no una columna, y no hay animaciones que hagan esperar. */
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  font-size: 14px;
+  background: var(--color-bg);
+}
+
+main {
+  flex: 1;
+  width: 100%;
+  padding: var(--espacio-5) var(--espacio-5) var(--espacio-7);
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+/* Los identificadores (trabajo_id, item_id, sku, ISBN) se leen caracter por
+ * caracter y se comparan entre si: con proporcional eso es un error de
+ * transcripcion esperando a pasar. */
+code,
+kbd,
+samp {
+  font-family: var(--font-cifras);
+  font-size: 0.92em;
+}

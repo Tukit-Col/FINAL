@@ -1,0 +1,517 @@
+.pagina {
+  max-width: var(--ancho-contenido);
+  margin: 0 auto;
+  padding: var(--espacio-6) var(--espacio-4) var(--espacio-7);
+}
+
+.encabezado h1 {
+  font-size: clamp(24px, 4vw, 32px);
+  font-weight: 700;
+}
+
+.encabezado p {
+  margin-top: var(--espacio-2);
+  color: var(--color-text-secondary);
+  max-width: 66ch;
+}
+
+.vacio {
+  padding: var(--espacio-7) 0;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+/* ------------------------------------------------------------ Comparador */
+
+.comparador {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--espacio-3);
+  margin-top: var(--espacio-5);
+}
+
+.tarjetaKit {
+  position: relative;
+  text-align: left;
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  padding: var(--espacio-5) var(--espacio-4) var(--espacio-4);
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.tarjetaKit:hover {
+  border-color: var(--color-text-muted);
+}
+
+/* El recomendado se marca, y los otros dos NO se atenuan: el contrato exige
+ * mostrar los tres y bajarles el contraste seria ocultarlos a medias. */
+.kitRecomendado {
+  border-color: var(--color-primary);
+}
+
+.kitActivo {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.chapaRecomendado {
+  position: absolute;
+  top: -9px;
+  left: var(--espacio-4);
+  background: var(--color-primary);
+  color: var(--color-white);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 2px 9px;
+  border-radius: var(--radius-full);
+}
+
+.nombreKit {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.totalKit {
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.promesa {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.objetivos {
+  margin-top: var(--espacio-2);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.razon {
+  margin-top: var(--espacio-4);
+  background: var(--color-primary-light);
+  border: 1px solid var(--color-info-border);
+  border-radius: var(--radius-md);
+  padding: var(--espacio-4);
+  font-size: 14.5px;
+}
+
+.fueraPresupuesto {
+  font-style: normal;
+  color: var(--color-aviso);
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------- Resumen */
+
+.resumen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-6);
+  margin-top: var(--espacio-5);
+  padding: var(--espacio-4) 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.resumen dt {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.resumen dd {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.resumenAviso dd {
+  color: var(--color-aviso);
+}
+
+/* -------------------------------------------------------- Consolidaciones */
+
+.consolidaciones {
+  margin-top: var(--espacio-5);
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  border-radius: var(--radius-lg);
+  padding: var(--espacio-4);
+}
+
+.consolidaciones h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-success);
+}
+
+.consolidaciones ul {
+  list-style: none;
+  margin-top: var(--espacio-2);
+  display: grid;
+  gap: var(--espacio-2);
+}
+
+.consolidaciones li {
+  display: grid;
+  font-size: 13.5px;
+}
+
+.consolidaciones span {
+  color: var(--color-text-secondary);
+}
+
+/* -------------------------------------------------------------- Secciones */
+
+.secciones {
+  margin-top: var(--espacio-6);
+  display: grid;
+  gap: var(--espacio-6);
+}
+
+.cabeceraSeccion h2 {
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.conteo {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-border-light);
+  border-radius: var(--radius-full);
+  padding: 1px 9px;
+}
+
+.cabeceraSeccion p {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  max-width: 76ch;
+}
+
+/* Las abstenciones se marcan con color, no se esconden al final. Que "no lo
+ * tenemos" sea lo primero que se ve es una decision de producto: la encuesta
+ * dice que el 37 % del dolor es descubrir tarde que algo no estaba. */
+.seccion_hueco .cabeceraSeccion h2,
+.seccion_sin_match .cabeceraSeccion h2 {
+  color: var(--color-aviso);
+}
+
+.lineas {
+  list-style: none;
+  margin-top: var(--espacio-3);
+  display: grid;
+  gap: var(--espacio-2);
+}
+
+/* ----------------------------------------------------------------- Linea */
+
+.linea {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--espacio-4);
+}
+
+.lineaPrincipal {
+  display: flex;
+  gap: var(--espacio-4);
+  align-items: flex-start;
+}
+
+.foto,
+.sinFoto {
+  flex: none;
+  width: 62px;
+  height: 62px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  object-fit: contain;
+}
+
+.sinFoto {
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border);
+}
+
+.lineaTexto {
+  flex: 1;
+  min-width: 0;
+}
+
+.descripcion {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.meta {
+  margin-top: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.hijo {
+  background: var(--color-border-light);
+  border-radius: var(--radius-full);
+  padding: 0 8px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.compramos {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.producto {
+  margin-top: var(--espacio-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-2);
+  font-size: 13.5px;
+}
+
+.marca {
+  color: var(--color-text-secondary);
+}
+
+/* `nivel` y `personaje` son ejes ortogonales y por eso son dos pastillas
+ * distintas: un cuaderno de Spiderman tambien tiene nivel de calidad. */
+.nivel {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: var(--radius-full);
+  padding: 1px 8px;
+  border: 1px solid currentColor;
+}
+
+.economico {
+  color: var(--color-nivel-economico);
+}
+
+.confiable {
+  color: var(--color-nivel-confiable);
+}
+
+.premium {
+  color: var(--color-nivel-premium);
+}
+
+.personaje {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-personaje);
+  background: var(--color-personaje-bg);
+  border-radius: var(--radius-full);
+  padding: 1px 8px;
+}
+
+.edicion {
+  margin-top: var(--espacio-2);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.edicion em {
+  font-style: normal;
+  color: var(--color-text-muted);
+}
+
+.razonNoCobro {
+  margin-top: var(--espacio-2);
+  font-size: 13.5px;
+  color: var(--color-text-secondary);
+  max-width: 76ch;
+}
+
+.instruccion {
+  margin-top: var(--espacio-2);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  border-left: 3px solid var(--color-border);
+  padding-left: var(--espacio-3);
+}
+
+.enlacePago {
+  display: inline-block;
+  margin-top: var(--espacio-2);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.sustitutos {
+  margin-top: var(--espacio-3);
+  background: var(--color-surface-2);
+  border-radius: var(--radius-md);
+  padding: var(--espacio-3);
+  font-size: 13px;
+}
+
+.sustitutos ul {
+  list-style: none;
+  margin-top: 4px;
+  display: grid;
+  gap: 2px;
+  color: var(--color-text-secondary);
+}
+
+.lineaPrecio {
+  flex: none;
+  text-align: right;
+  display: grid;
+  gap: 2px;
+}
+
+.subtotal {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.noCobrado {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.tienda {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+/* ---------------------------------------------------------- Alternativas */
+
+.alternativas {
+  margin-top: var(--espacio-3);
+  padding-top: var(--espacio-3);
+  border-top: 1px dashed var(--color-border);
+}
+
+.verAlternativas {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.listaAlternativas {
+  list-style: none;
+  margin-top: var(--espacio-2);
+  display: grid;
+  gap: 4px;
+}
+
+.listaAlternativas li {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-3);
+  font-size: 13px;
+}
+
+.nombreAlternativa {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-secondary);
+}
+
+/* ------------------------------------------------------------------- Pie */
+
+.pie {
+  position: sticky;
+  bottom: 0;
+  margin-top: var(--espacio-6);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-4);
+  align-items: center;
+  justify-content: space-between;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--espacio-4) var(--espacio-5);
+  box-shadow: var(--shadow-md);
+}
+
+.pie > div {
+  display: grid;
+}
+
+.etiquetaTotal {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.totalPie {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.notaTotal {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  max-width: 48ch;
+}
+
+.pagar {
+  min-height: 50px;
+  padding: 0 var(--espacio-6);
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-white);
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.pagar:disabled {
+  background: var(--color-border);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.notaPago {
+  margin-top: var(--espacio-3);
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .lineaPrincipal {
+    flex-wrap: wrap;
+  }
+
+  .lineaPrecio {
+    text-align: left;
+    width: 100%;
+    display: flex;
+    gap: var(--espacio-2);
+    align-items: baseline;
+  }
+
+  .notaPago {
+    text-align: left;
+  }
+}

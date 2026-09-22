@@ -1,0 +1,792 @@
+/* Estilos de la revision, compartidos por los cuatro componentes que la
+ * componen (`ConsolaRevision`, `LineaRevision`, `AltaProducto`,
+ * `DecisionTrabajo`).
+ *
+ * Un solo modulo y no cuatro porque son un solo widget partido en ficheros
+ * por tamano, no cuatro piezas reutilizables: el formulario de alta vive
+ * dentro de una linea, y la linea dentro de la consola. Con modulos
+ * separados, el boton primario de los tres se tendria que mantener igual a
+ * mano, que es justo como se desalinean. */
+
+.consola {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-4);
+}
+
+.vacio {
+  padding: var(--espacio-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+}
+
+/* ---------------------------------------------------- selector de perfil */
+
+.selector {
+  display: flex;
+  gap: var(--espacio-2);
+  flex-wrap: wrap;
+}
+
+.pestana {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 190px;
+  padding: var(--espacio-2) var(--espacio-3);
+  text-align: left;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.pestana:hover {
+  border-color: var(--color-primary);
+}
+
+.pestanaActiva {
+  border-color: var(--color-primary);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.perfilNombre {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  font-weight: 600;
+}
+
+.recomendado {
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  color: var(--color-success);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.perfilTotal {
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.perfilObjetivos {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.razonRecomendacion {
+  padding: var(--espacio-2) var(--espacio-3);
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info-border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+/* -------------------------------------------------------- consolidaciones */
+
+.consolidaciones {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+}
+
+.consolidaciones > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--espacio-3);
+  padding: var(--espacio-2) var(--espacio-3);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.consolidaciones ul {
+  list-style: none;
+  padding: 0 var(--espacio-3) var(--espacio-3);
+}
+
+.consolidaciones li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--espacio-2);
+  flex-wrap: wrap;
+  padding: var(--espacio-1) 0;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.explicacion {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+/* ------------------------------------------------------------- secciones */
+
+.seccion {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* Lo pendiente es el trabajo del admin: se marca con el borde entero y no
+ * con un icono, porque hay que verlo al bajar rapido por cincuenta lineas. */
+.seccionPendiente {
+  border-color: var(--color-aviso);
+  box-shadow: 0 0 0 1px var(--color-aviso-border);
+}
+
+.seccionCabecera {
+  padding: var(--espacio-3) var(--espacio-4);
+  background: var(--color-surface-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.seccionPendiente .seccionCabecera {
+  background: var(--color-aviso-bg);
+}
+
+.seccionCabecera h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  font-size: 14px;
+}
+
+.seccionCabecera p {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}
+
+.conteo {
+  min-width: 22px;
+  padding: 0 7px;
+  border-radius: var(--radius-full);
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.lineas {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ------------------------------------------------------------ una linea */
+
+.linea {
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.linea:last-child {
+  border-bottom: none;
+}
+
+.linea[open] {
+  background: var(--color-surface-2);
+}
+
+.lineaPendiente[open] {
+  background: var(--color-white);
+  box-shadow: inset 3px 0 0 var(--color-aviso);
+}
+
+.resumenLinea {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--espacio-3);
+  padding: var(--espacio-2) var(--espacio-4);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.resumenLinea:hover {
+  background: var(--color-primary-light);
+}
+
+.itemId {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.descripcion {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.etiquetas {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-1);
+  flex-wrap: wrap;
+}
+
+.etiqueta {
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-neutro-bg);
+  border: 1px solid var(--color-neutro-border);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.resolucion_AMBIGUO {
+  background: var(--color-aviso-bg);
+  border-color: var(--color-aviso-border);
+  color: var(--color-aviso);
+}
+
+.resolucion_SIN_MATCH,
+.resolucion_HUECO_CATALOGO {
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+  color: var(--color-danger);
+}
+
+.resolucion_RESUELTO_AUTO {
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+  color: var(--color-success);
+}
+
+.hijo {
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info-border);
+  color: var(--color-info);
+  font-size: 11px;
+}
+
+.subtotal {
+  font-weight: 600;
+  text-align: right;
+  min-width: 92px;
+}
+
+.cuerpoLinea {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  padding: var(--espacio-3) var(--espacio-4) var(--espacio-4) calc(var(--espacio-4) + 84px);
+  border-top: 1px dashed var(--color-border);
+}
+
+.razon {
+  padding: var(--espacio-2) var(--espacio-3);
+  background: var(--color-aviso-bg);
+  border-left: 3px solid var(--color-aviso);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 13px;
+}
+
+.datos {
+  display: flex;
+  gap: var(--espacio-4);
+  flex-wrap: wrap;
+}
+
+.datos dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.datos dd {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.detalle {
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}
+
+.detalle a {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.sustitutos h4 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.sustitutos ul {
+  list-style: none;
+  font-size: 13px;
+}
+
+.sustitutos li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--espacio-2);
+  flex-wrap: wrap;
+  padding: 2px 0;
+}
+
+.grado,
+.motivoSustituto {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+/* ------------------------------------------------------------ productos */
+
+.productos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  list-style: none;
+}
+
+.producto {
+  padding: var(--espacio-2) var(--espacio-3);
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.productoCabecera {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-3);
+  cursor: pointer;
+}
+
+.miniatura,
+.miniaturaVacia {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-light);
+}
+
+.productoTexto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.productoNombre {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.productoMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.nivel {
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  border: 1px solid currentColor;
+  font-weight: 600;
+}
+
+.nivel_economico {
+  color: var(--color-nivel-economico);
+}
+
+.nivel_confiable {
+  color: var(--color-nivel-confiable);
+}
+
+.nivel_premium {
+  color: var(--color-nivel-premium);
+}
+
+.personaje {
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-personaje-bg);
+  color: var(--color-personaje);
+  font-weight: 600;
+}
+
+.confianza {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Bajo el umbral tau del PE-04: es la razon por la que la linea esta aqui. */
+.confianzaBaja {
+  color: var(--color-aviso);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.insignia {
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.productoPrecio {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ofertas {
+  display: flex;
+  gap: var(--espacio-3);
+  flex-wrap: wrap;
+  list-style: none;
+  margin-top: var(--espacio-1);
+  padding-left: calc(36px + var(--espacio-3) + 18px);
+  font-size: 12px;
+}
+
+.ofertas li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--espacio-1);
+}
+
+.tienda {
+  color: var(--color-text-secondary);
+}
+
+.vigencia {
+  color: var(--color-text-muted);
+}
+
+.sinOferta {
+  color: var(--color-aviso);
+}
+
+.enlaceAccion {
+  margin-top: var(--espacio-1);
+  font-size: 11.5px;
+  color: var(--color-danger);
+  text-decoration: underline;
+}
+
+/* -------------------------------------------------------------- acciones */
+
+.acciones {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  flex-wrap: wrap;
+  padding-top: var(--espacio-2);
+  border-top: 1px solid var(--color-border-light);
+}
+
+.notaCorta {
+  flex: 1;
+  min-width: 200px;
+  padding: 5px var(--espacio-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  font-size: 13px;
+}
+
+.principal,
+.secundario,
+.peligro,
+.plano {
+  padding: 5px 13px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.principal {
+  background: var(--color-primary);
+  color: var(--color-white);
+}
+
+.principal:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.secundario {
+  border: 1px solid var(--color-border);
+  background: var(--color-white);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.secundario:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.peligro {
+  background: var(--color-danger);
+  color: var(--color-white);
+}
+
+.plano {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.plano:hover {
+  color: var(--color-text-primary);
+}
+
+.principal:disabled,
+.secundario:disabled,
+.peligro:disabled,
+.plano:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.botonera {
+  display: flex;
+  gap: var(--espacio-2);
+  flex-wrap: wrap;
+}
+
+/* ------------------------------------------------------- formularios */
+
+.formularioEnLinea {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  padding: var(--espacio-3);
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.formularioEnLinea label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+/* Los selectores de este modulo llevan siempre una clase local delante:
+ * Next exige selectores puros en los CSS Modules y falla al compilar si un
+ * modulo intenta pintar un elemento global. */
+.formularioEnLinea textarea,
+.decision textarea {
+  width: 100%;
+  padding: var(--espacio-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  font-size: 13px;
+  resize: vertical;
+}
+
+.advertencia {
+  padding: var(--espacio-2);
+  background: var(--color-aviso-bg);
+  border: 1px solid var(--color-aviso-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-aviso);
+  font-size: 12.5px;
+}
+
+.error {
+  padding: var(--espacio-2) var(--espacio-3);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+  font-size: 13px;
+}
+
+.exito {
+  padding: var(--espacio-2) var(--espacio-3);
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-success);
+  font-size: 13px;
+}
+
+/* ---------------------------------------------------- alta de producto */
+
+.alta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  padding: var(--espacio-3);
+  background: var(--color-white);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+}
+
+.alta h4 {
+  font-size: 13px;
+}
+
+.altaBajada {
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}
+
+.rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--espacio-3);
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.campoAncho {
+  grid-column: span 2;
+}
+
+.campo label {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+}
+
+.campo input,
+.campo select {
+  padding: 5px var(--espacio-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  font-size: 13px;
+}
+
+.ayuda {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.ayudaError {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+/* --------------------------------------------------- decision del trabajo */
+
+.decision {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  padding: var(--espacio-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.decision h2 {
+  font-size: 15px;
+}
+
+.decision > .campo {
+  gap: var(--espacio-1);
+}
+
+.publicado {
+  padding: var(--espacio-2) var(--espacio-3);
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-success);
+  font-size: 13px;
+}
+
+.espera {
+  padding: var(--espacio-2) var(--espacio-3);
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-info);
+  font-size: 13px;
+}
+
+.todoResuelto {
+  color: var(--color-success);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.decisiones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--espacio-3);
+}
+
+.opcion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  align-items: flex-start;
+  padding: var(--espacio-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+}
+
+/* La irreversible va primero y con el borde del color primario; la que se
+ * puede repetir sin consecuencias va al lado, apagada. */
+.opcion:first-child {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.opcion h3 {
+  font-size: 13px;
+}
+
+.opcion p {
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}
+
+.confirmacion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  width: 100%;
+  padding: var(--espacio-2);
+  background: var(--color-white);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+}
+
+.confirmacion p {
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.notaPrevia {
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}

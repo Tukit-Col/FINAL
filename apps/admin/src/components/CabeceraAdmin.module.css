@@ -1,0 +1,49 @@
+.cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-4);
+  flex-wrap: wrap;
+  padding: var(--espacio-3) var(--espacio-5);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.marca {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+}
+
+.marca svg {
+  width: 15px;
+  height: 15px;
+}
+
+.nombre {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.consola {
+  padding-left: var(--espacio-2);
+  margin-left: var(--espacio-1);
+  border-left: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.requisitos {
+  font-family: var(--font-cifras);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}

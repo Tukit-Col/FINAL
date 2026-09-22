@@ -1,0 +1,45 @@
+/* ============================================================
+   StepIndicator — Indicador de pasos del flujo
+   ============================================================ */
+
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 8px;
+  min-width: 80px;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.step--active {
+  border-bottom-color: var(--color-primary);
+}
+
+.step--done {
+  border-bottom-color: var(--color-border);
+}
+
+.stepLabel {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.step--active .stepLabel {
+  color: var(--color-primary);
+}
+
+.step--done .stepLabel {
+  color: var(--color-text-secondary);
+}
