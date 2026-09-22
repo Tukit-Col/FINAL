@@ -296,10 +296,10 @@ export function validarArchivo(archivo: File): string | null {
     return "Formato no soportado. Sube la lista en PDF, JPG, PNG o WEBP.";
   }
   if (archivo.size === 0) {
-    return "El archivo esta vacio.";
+    return "El archivo está vacío.";
   }
   if (archivo.size > TAMANO_MAXIMO_BYTES) {
-    return "El archivo supera el limite de 10 MB.";
+    return "El archivo supera el límite de 10 MB.";
   }
   return null;
 }

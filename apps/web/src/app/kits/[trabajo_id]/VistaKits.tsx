@@ -18,22 +18,22 @@ import styles from "./Kits.module.css";
 // Que promete cada perfil, en una frase. Los tres tienen el MISMO alcance:
 // lo que cambia es el punto del frente de Pareto, no cuanto te resuelven.
 const PROMESA: Record<PerfilKit, string> = {
-  Ahorrador: "Lo mas barato que cumple con la lista.",
-  Fan: "Con los personajes que pidio tu hijo, donde se puede.",
-  Premium: "Las marcas que mas aguantan el ano.",
+  Ahorrador: "Lo más barato que cumple con la lista.",
+  Fan: "Con los personajes que pidió tu hijo, donde se puede.",
+  Premium: "Las marcas que más aguantan el año.",
 };
 
 // Las secciones que NO se cobran se explican una vez, arriba del grupo, en
 // vez de repetir la misma aclaracion en cada renglon.
 const EXPLICACION_SECCION: Partial<Record<ClaseLinea, string>> = {
-  hueco: "Entendimos que pide la lista y hoy no lo tenemos. Preferimos decirlo a ofrecerte otra cosa parecida como si fuera esto.",
+  hueco: "Entendimos qué pide la lista y hoy no lo tenemos. Preferimos decirlo a ofrecerte otra cosa parecida como si fuera esto.",
   sin_match: "Estos renglones no los supimos leer. Quedan visibles para que no se te pasen.",
   pendiente_revision: "Habia varias opciones parecidas y ninguna ganaba clara.",
   licencia_digital: "Se pagan por fuera de Tukit, en la plataforma del proveedor.",
-  informativa: "El colegio o la editorial los venden directamente. No los podemos cobrar, pero si decirte como conseguirlos.",
-  diferido: "El colegio los va a pedir durante el ano.",
+  informativa: "El colegio o la editorial los venden directamente. No los podemos cobrar, pero sí decirte cómo conseguirlos.",
+  diferido: "El colegio los va a pedir durante el año.",
   no_comprar: "El colegio dice que uses el que ya tienes en casa.",
-  fuera_de_alcance: "Los uniformes todavia no los surtimos.",
+  fuera_de_alcance: "Los uniformes todavía no los surtimos.",
   comprable: undefined,
 };
 
@@ -49,7 +49,7 @@ export default function VistaKits({ trabajo }: { trabajo: Trabajo }) {
   if (!kit) {
     return (
       <div className={styles.pagina}>
-        <p className={styles.vacio}>Este pedido no trajo ningun kit.</p>
+        <p className={styles.vacio}>Este pedido no trajo ningún kit.</p>
       </div>
     );
   }
@@ -57,10 +57,10 @@ export default function VistaKits({ trabajo }: { trabajo: Trabajo }) {
   return (
     <div className={styles.pagina}>
       <header className={styles.encabezado}>
-        <h1>Tus tres kits estan listos</h1>
+        <h1>Tus tres kits están listos</h1>
         <p>
           Los tres cubren la misma lista. Te marcamos uno, pero los otros dos siguen
-          aqui: cual conviene depende de cosas que solo sabes tu.
+          aquí: cuál conviene depende de cosas que solo sabes tú.
         </p>
       </header>
 
@@ -93,7 +93,7 @@ export default function VistaKits({ trabajo }: { trabajo: Trabajo }) {
 
       {recomendado && (
         <p className={styles.razon}>
-          <strong>Por que el {recomendado.perfil}:</strong> {recomendado.razon}
+          <strong>Por qué el {recomendado.perfil}:</strong> {recomendado.razon}
           {!recomendado.dentro_de_presupuesto && (
             <em className={styles.fueraPresupuesto}> Ojo: se pasa del tope que pusiste.</em>
           )}
@@ -137,7 +137,7 @@ export default function VistaKits({ trabajo }: { trabajo: Trabajo }) {
         </button>
       </footer>
       <p className={styles.notaPago}>
-        El pago se habilita cuando el servicio de comercio este arriba. Al confirmar,
+        El pago se habilita cuando el servicio de comercio esté arriba. Al confirmar,
         el precio se congela y no se mueve.
       </p>
     </div>

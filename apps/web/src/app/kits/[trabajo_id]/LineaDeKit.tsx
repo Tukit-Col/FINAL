@@ -76,7 +76,7 @@ export default function LineaDeKit({ linea, clase }: { linea: LineaKit; clase: C
 
           {linea.edicion?.titulo && (
             <p className={styles.edicion}>
-              Edicion exigida: <strong>{linea.edicion.titulo}</strong>
+              Edición exigida: <strong>{linea.edicion.titulo}</strong>
               {linea.edicion.editorial && ` · ${linea.edicion.editorial}`}
               {linea.no_consolidable && (
                 <em title={linea.motivo_no_consolidable ?? undefined}>
@@ -102,13 +102,13 @@ export default function LineaDeKit({ linea, clase }: { linea: LineaKit; clase: C
 
           {linea.instruccion_colegio && clase === "informativa" && (
             <p className={styles.instruccion}>
-              Instruccion del colegio: <q>{linea.instruccion_colegio}</q>
+              Instrucción del colegio: <q>{linea.instruccion_colegio}</q>
             </p>
           )}
 
           {linea.sustitutos && linea.sustitutos.length > 0 && (
             <div className={styles.sustitutos}>
-              <span>Lo que si tenemos y podria servirte:</span>
+              <span>Lo que sí tenemos y podría servirte:</span>
               <ul>
                 {linea.sustitutos.map((s) => (
                   <li key={s.concepto}>
@@ -145,7 +145,7 @@ export default function LineaDeKit({ linea, clase }: { linea: LineaKit; clase: C
             aria-expanded={abierto}
             onClick={() => setAbierto((a) => !a)}
           >
-            {abierto ? "Ocultar" : `Ver ${alternativas.length} opciones mas`}
+            {abierto ? "Ocultar" : `Ver ${alternativas.length} opciones más`}
           </button>
           {abierto && (
             <ul className={styles.listaAlternativas}>

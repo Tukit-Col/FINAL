@@ -13,15 +13,15 @@ import styles from "./Espera.module.css";
 const EXPLICACION: Record<NombreEtapa, { titulo: string; detalle: string }> = {
   percepcion: {
     titulo: "Leyendo la lista",
-    detalle: "Sacando renglon por renglon lo que pide el colegio.",
+    detalle: "Sacando renglón por renglón lo que pide el colegio.",
   },
   normalizacion: {
-    titulo: "Entendiendo que es cada cosa",
-    detalle: "Un esfero y un boligrafo son lo mismo; un cuaderno de 100 hojas no es cualquiera.",
+    titulo: "Entendiendo qué es cada cosa",
+    detalle: "Un esfero y un bolígrafo son lo mismo; un cuaderno de 100 hojas no es cualquiera.",
   },
   resolucion: {
     titulo: "Buscando cada producto",
-    detalle: "Es la parte lenta, y es a proposito: preferimos acertar a ir rapido.",
+    detalle: "Es la parte lenta, y es a propósito: preferimos acertar a ir rápido.",
   },
   optimizacion: {
     titulo: "Armando los tres kits",
@@ -30,11 +30,11 @@ const EXPLICACION: Record<NombreEtapa, { titulo: string; detalle: string }> = {
 };
 
 const ESTADO_TITULO: Record<Trabajo["estado"], string> = {
-  encolado: "Tu pedido esta en la fila",
+  encolado: "Tu pedido está en la fila",
   procesando: "Estamos armando tu kit",
-  espera_revision: "Una persona lo esta revisando",
+  espera_revision: "Una persona lo está revisando",
   publicado: "Tu kit esta listo",
-  fallido: "Algo se rompio",
+  fallido: "Algo se rompió",
 };
 
 export default function PantallaEspera({ trabajoId }: { trabajoId: string }) {
@@ -91,8 +91,8 @@ export default function PantallaEspera({ trabajoId }: { trabajoId: string }) {
 
         <p className={styles.honestidad}>
           {enRevision
-            ? "Ya terminamos la parte automatica. Ahora alguien de Tukit mira lo que quedo dudoso antes de mostrartelo: nunca te mandamos un kit sin revisar."
-            : "Esto toma minutos, no segundos. Puedes cerrar esta pestana: te avisamos al correo y al celular cuando este listo."}
+            ? "Ya terminamos la parte automática. Ahora alguien de Tukit mira lo que quedó dudoso antes de mostrártelo: nunca te mandamos un kit sin revisar."
+            : "Esto toma minutos, no segundos. Puedes cerrar esta pestaña: te avisamos al correo y al celular cuando esté listo."}
         </p>
 
         <ol className={styles.etapas}>
@@ -107,7 +107,7 @@ export default function PantallaEspera({ trabajoId }: { trabajoId: string }) {
           >
             <Marca estado={enRevision ? "en_curso" : estado === "publicado" ? "ok" : "pendiente"} />
             <div>
-              <strong>Revision de una persona</strong>
+              <strong>Revisión de una persona</strong>
               <span>
                 La pausa que hace que el kit que recibes sea el que alguien dio por
                 bueno.
@@ -123,7 +123,7 @@ export default function PantallaEspera({ trabajoId }: { trabajoId: string }) {
               {trabajo.degradaciones.map((d) => (
                 <li key={d.dependencia}>
                   {d.efecto} · {d.lineas_afectadas}{" "}
-                  {d.lineas_afectadas === 1 ? "renglon" : "renglones"}
+                  {d.lineas_afectadas === 1 ? "renglón" : "renglones"}
                 </li>
               ))}
             </ul>
@@ -133,14 +133,14 @@ export default function PantallaEspera({ trabajoId }: { trabajoId: string }) {
         {estado === "fallido" && (
           <div className={styles.error} role="alert">
             No pudimos terminar tu kit. Vuelve a intentarlo y, si sigue igual,
-            escribenos: el pedido queda guardado.
+            escríbenos: el pedido queda guardado.
           </div>
         )}
 
         <footer className={styles.pie}>
           <span className="cifra">{formatearReloj(segundos)} esperando</span>
           <Link href="/catalogo" className={styles.enlacePie}>
-            Mientras tanto, mira el catalogo →
+            Mientras tanto, mira el catálogo →
           </Link>
         </footer>
       </div>
@@ -163,7 +163,7 @@ function FilaEtapa({ nombre, etapa }: { nombre: NombreEtapa; etapa: Etapa | unde
         <span>{texto.detalle}</span>
         {estado === "incompleta" && (
           <em className={styles.incompleta}>
-            Quedo a medias y va a revision. No recortamos nada en silencio.
+            Quedó a medias y va a revisión. No recortamos nada en silencio.
           </em>
         )}
       </div>
