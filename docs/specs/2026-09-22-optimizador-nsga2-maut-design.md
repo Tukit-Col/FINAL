@@ -397,7 +397,47 @@ Nuevas, en `servicios/inteligencia/tests/`:
 
 ---
 
-## 9. Lo que este spec NO hace
+## 9. Trabajo previo reusable, y la evidencia que dejó
+
+`Isis2610-G19-Tukit-Poc/services/optimizer/nsga.py` **ya implementa un NSGA-II con pymoo**
+(0.6.2) y funciona. Se reusa su cableado:
+
+| Qué se reusa | Por qué sirve |
+|---|---|
+| Codificación **entera** con `IntegerRandomSampling` + `SBX` + `PM` + `RoundingRepair` | Es la misma forma que §2.2 necesita |
+| **Normalización del frente antes de escalarizar** (`_normalizar_frente`) | Sin ella el costo en pesos aplasta a los demás objetivos |
+| Reproducibilidad por semilla | Requisito de §6 |
+| El auxiliar de **fuerza bruta** de sus pruebas | Se convierte en la línea base exacta de §6 |
+| `verificar_diversidad_marca` (anti-dominancia de una sola marca) | Existe y no está conectada al optimizador; se evalúa conectarla |
+
+### 9.1 Lo que NO se reusa: la formulación, y por qué
+
+Sus cuatro objetivos (`costo_total`, `−fan_prom`, `−quality_prom`, `−frac_propio`) son
+**sumas o promedios sobre ítems independientes**, con una variable por **ítem** y
+`costo = precio × cantidad`. Eso hace el problema **completamente separable**: el óptimo del
+conjunto es la suma de los óptimos por ítem, y por lo tanto la escalarización por pesos se
+resuelve exactamente con un bucle, sin búsqueda.
+
+**Sus propias pruebas lo confirman.** `test_ahorrador_coincide_con_optimo_por_fuerza_bruta`,
+`test_fan_prioriza_mayor_afinidad_de_marca` y `test_premium_prioriza_mayor_calidad` afirman
+que NSGA-II devuelve **exactamente** lo mismo que la fuerza bruta. Un algoritmo genético de
+100 individuos por 200 generaciones que empata con fuerza bruta no está buscando nada: está
+confirmando que no hacía falta buscar.
+
+Esa es la evidencia empírica de §1.1, y llega de la suite de pruebas del propio equipo. Va al
+capítulo de defectos de la memoria con ruta y nombre de prueba.
+
+Tres defectos adicionales de ese módulo, que este spec no hereda:
+
+- **No hay empaque.** `precio × cantidad` es el error de las doce cajas cuando la lista pedía
+  doce lápices.
+- **No hay tienda**, así que no hay el acoplamiento de §1.3.
+- **El presupuesto se maneja duplicando el kit más barato** hasta completar tres
+  (`while len(kits) < 3: kits.append(kit_mas_barato)`), de modo que el acudiente puede recibir
+  tres kits idénticos presentados como tres opciones.
+- `cobertura` es siempre 1,0 y su propio docstring lo admite: es un objetivo que no mide nada.
+
+## 10. Lo que este spec NO hace
 
 - No llena los 102 huecos de catálogo (§1.4).
 - No implementa el MOKP binario; lo formula como referencia (§2.2).
