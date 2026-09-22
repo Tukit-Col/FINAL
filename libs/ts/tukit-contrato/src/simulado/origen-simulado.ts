@@ -118,7 +118,7 @@ export class OrigenSimulado implements OrigenDatos {
       throw new ErrorTukit(
         400,
         "contacto_requerido",
-        "Necesitamos tu correo y tu celular para avisarte cuando el kit este listo.",
+        "Necesitamos tu correo y tu celular para avisarte cuando el kit esté listo.",
         { campo: "contacto" },
       );
     }
@@ -138,7 +138,7 @@ export class OrigenSimulado implements OrigenDatos {
         throw new ErrorTukit(
           422,
           "lista_de_varios_grados",
-          "Este archivo parece traer la lista de varios grados. Sube solo las paginas del grado de tu hijo.",
+          "Este archivo parece traer la lista de varios grados. Sube solo las páginas del grado de tu hijo.",
           { grados_detectados: [], paginas: 0 },
         );
       }
@@ -201,7 +201,7 @@ export class OrigenSimulado implements OrigenDatos {
   async listaOficial(colegioId: string, grado: string): Promise<ListaOficial> {
     const lista = listaDe(colegioId, grado);
     if (!lista) {
-      throw new ErrorTukit(404, "lista_no_existe", "No tenemos esa lista todavia.");
+      throw new ErrorTukit(404, "lista_no_existe", "No tenemos esa lista todavía.");
     }
     return lista;
   }
@@ -283,7 +283,7 @@ export class OrigenSimulado implements OrigenDatos {
       throw new ErrorTukit(
         400,
         "motivo_requerido",
-        "Escribe por que no hay coincidencia: una marca sin motivo no se puede revisar despues.",
+        "Escribe por qué no hay coincidencia: una marca sin motivo no se puede revisar después.",
         { campo: "motivo" },
       );
     }
@@ -321,7 +321,7 @@ export class OrigenSimulado implements OrigenDatos {
 
   async marcarNoDisponible(sku: string, cuerpo: MarcarNoDisponible): Promise<void> {
     if (!cuerpo.motivo?.trim()) {
-      throw new ErrorTukit(400, "motivo_requerido", "Di por que no esta disponible.", {
+      throw new ErrorTukit(400, "motivo_requerido", "Di por qué no está disponible.", {
         campo: "motivo",
       });
     }
@@ -342,7 +342,7 @@ export class OrigenSimulado implements OrigenDatos {
       throw new ErrorTukit(
         409,
         "trabajo_ya_publicado",
-        "Este trabajo ya se publico: no se puede volver a revisar.",
+        "Este trabajo ya se publicó: no se puede volver a revisar.",
       );
     }
     actualizar(trabajoId, (r) => {

@@ -26,7 +26,7 @@ export default function CintaOrigen({ nombre, detalle }: Props) {
   return (
     <div className={`${styles.cinta} ${styles.simulado}`}>
       <span className={styles.punto} aria-hidden="true" />
-      Datos simulados: catalogo y listas reales del repositorio, sin backend.
+      Datos simulados: catálogo y listas reales del repositorio, sin backend.
       <span className={styles.pista}>
         Cambia con <code>TUKIT_ORIGEN_DATOS=api</code>
       </span>
