@@ -150,7 +150,24 @@ probó como objetivo separado y se documenta la comparación; con tres objetivos
 holgadamente dentro del régimen donde su desempeño está validado empíricamente, que es el
 argumento que el VFP ya cita.
 
-### 2.4 Restricciones duras
+### 2.4 Restricción de diversidad de marca (blanda)
+
+Un kit que optimiza bien puede salir siendo **una sola marca de punta a punta**, y eso es un
+sesgo del modelo hacia un proveedor, no una preferencia del acudiente. `verificar_diversidad_marca`
+ya existe en `Isis2610-G19-Tukit-Poc/services/optimizer/nsga.py`, con su prueba, y **nunca se
+conectó al optimizador**: se calcula después y no influye en nada.
+
+Aquí se conecta como **restricción de desigualdad** de pymoo: la fracción de líneas que
+comparten la marca dominante no debe pasar de un umbral declarado (0,8 por omisión, el valor
+que ya traía). Declararla como restricción y no como penalización manual es lo que la vuelve
+**blanda sin código extra**: NSGA-II ordena primero las soluciones factibles y, cuando ninguna
+lo es, ordena por menor violación. Así, si el catálogo simplemente no da para diversificar
+—que pasa en conceptos con un solo proveedor—, el algoritmo entrega el kit menos concentrado
+posible en vez de no entregar nada.
+
+Las líneas sin marca conocida no cuentan en el denominador, igual que en la versión original.
+
+### 2.5 Restricciones duras
 
 - **Presupuesto del hogar**: `f₁(x) ≤ Σ_hijos presupuesto_hijo · (1 + disposición_sobreprecio)`.
   Es una **cota**, no una preferencia. Es el uso más valioso de la encuesta: convierte una
@@ -162,7 +179,7 @@ Si ninguna solución satisface el presupuesto, no se falla: se devuelve el frent
 restricción y se dice explícitamente que ningún kit cabe y cuál es el más barato posible. El
 comportamiento ya existe en `recomendar` y se conserva.
 
-### 2.5 Lo que se conserva sin tocar
+### 2.6 Lo que se conserva sin tocar
 
 Está probado y no depende del algoritmo:
 
