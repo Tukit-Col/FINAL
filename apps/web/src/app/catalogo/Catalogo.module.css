@@ -1,0 +1,747 @@
+/* Pantalla de catalogo.
+ *
+ * Es densa a proposito y no un escaparate con aire. La usa un acudiente para
+ * ver que hay, pero tambien el equipo para juzgar si el catalogo esta surtido,
+ * y esa segunda lectura necesita muchos productos a la vez en la pantalla: un
+ * hueco solo se ve cuando al lado hay algo que si esta lleno.
+ *
+ * Los colores de nivel viajan por la variable local `--tinte-nivel`, que se
+ * fija una sola vez por grupo con `data-nivel`. Asi la etiqueta de nivel y la
+ * banda del grupo nunca pueden desincronizarse, y el personaje conserva su
+ * propio token, que es lo que impide pintarlo como un cuarto nivel. */
+
+.pagina {
+  /* La cabecera global es pegajosa en `top: 0` y mide esto de alto. La barra
+   * de filtros se pega justo debajo para que filtrar no cueste perder la
+   * navegacion. */
+  --alto-cabecera: 64px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ------------------------------------------------------------- Encabezado */
+
+.encabezado {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.interior {
+  max-width: var(--ancho-contenido);
+  margin: 0 auto;
+  padding: var(--espacio-5) var(--espacio-4);
+  width: 100%;
+}
+
+.titulo {
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.entradilla {
+  margin-top: var(--espacio-2);
+  max-width: 78ch;
+  font-size: 13.5px;
+  color: var(--color-text-secondary);
+}
+
+.cifras {
+  list-style: none;
+  margin-top: var(--espacio-5);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(154px, 1fr));
+  gap: var(--espacio-2);
+}
+
+.bloqueCifra {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--espacio-3);
+  border: 1px solid var(--color-border);
+  border-left-width: 3px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+}
+
+.valorCifra {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.etiquetaCifra {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+}
+
+.notaCifra {
+  margin-top: 2px;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--color-text-muted);
+}
+
+.neutro {
+  border-left-color: var(--color-primary);
+}
+
+.aviso {
+  border-left-color: var(--color-aviso);
+  background: var(--color-aviso-bg);
+  border-color: var(--color-aviso-border);
+}
+
+.aviso .valorCifra,
+.aviso .etiquetaCifra {
+  color: var(--color-aviso);
+}
+
+.alerta {
+  border-left-color: var(--color-danger);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+}
+
+.alerta .valorCifra,
+.alerta .etiquetaCifra {
+  color: var(--color-danger);
+}
+
+/* --------------------------------------------------------- Barra de filtros */
+
+.barra {
+  position: sticky;
+  top: var(--alto-cabecera);
+  /* Por debajo del 20 de la cabecera, que tiene que quedar encima. */
+  z-index: 10;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.barraInterior {
+  max-width: var(--ancho-contenido);
+  margin: 0 auto;
+  width: 100%;
+  padding: var(--espacio-3) var(--espacio-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.busqueda {
+  flex: 1 1 230px;
+  min-width: 0;
+  padding: 8px 12px;
+  font-size: 13.5px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.busqueda::placeholder {
+  color: var(--color-text-muted);
+}
+
+.selector {
+  flex: 0 1 auto;
+  max-width: 200px;
+  padding: 8px 10px;
+  font-size: 13px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.interruptor {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 9px;
+  font-size: 13px;
+  white-space: nowrap;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.interruptorActivo {
+  border-color: var(--color-aviso-border);
+  background: var(--color-aviso-bg);
+  color: var(--color-aviso);
+  font-weight: 600;
+}
+
+.limpiar {
+  padding: 7px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.limpiar:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.contador {
+  flex: 1 1 100%;
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}
+
+.contadorHuecos {
+  color: var(--color-danger);
+}
+
+/* ------------------------------------------------------- Lista de conceptos */
+
+.lista {
+  max-width: var(--ancho-contenido);
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--espacio-4) var(--espacio-4) var(--espacio-7);
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+}
+
+.concepto {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.cabeceraConcepto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  padding: var(--espacio-3) var(--espacio-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.filaTitulo {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+}
+
+.nombreConcepto {
+  font-size: 15.5px;
+  font-weight: 700;
+}
+
+.codigoConcepto {
+  font-family: var(--font-cifras);
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.categoria {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.pastillas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.pastilla {
+  padding: 2px 9px;
+  font-size: 11px;
+  white-space: nowrap;
+  border: 1px solid var(--color-neutro-border);
+  border-radius: var(--radius-full);
+  background: var(--color-neutro-bg);
+  color: var(--color-text-secondary);
+}
+
+.pastillaDemanda {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.pastillaPersonaje {
+  color: var(--color-personaje);
+  background: var(--color-personaje-bg);
+  border-color: color-mix(in srgb, var(--color-personaje) 30%, var(--color-white));
+}
+
+.pastillaInfo {
+  color: var(--color-info);
+  background: var(--color-info-bg);
+  border-color: var(--color-info-border);
+}
+
+.pastillaCompleta {
+  color: var(--color-success);
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+  font-weight: 600;
+}
+
+.pastillaParcial {
+  color: var(--color-aviso);
+  background: var(--color-aviso-bg);
+  border-color: var(--color-aviso-border);
+  font-weight: 600;
+}
+
+.pastillaVacia {
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+  font-weight: 600;
+}
+
+/* ----------------------------------------------------- Atributos y sinonimos */
+
+.atributos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-2) var(--espacio-4);
+}
+
+.grupoAtributos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.rotuloAtributos {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  cursor: help;
+}
+
+.atributoFiltra {
+  padding: 1px 7px;
+  font-family: var(--font-cifras);
+  font-size: 11px;
+  color: var(--color-info);
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info-border);
+  border-radius: var(--radius-sm);
+}
+
+.atributoInforma {
+  padding: 1px 7px;
+  font-family: var(--font-cifras);
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-2);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.atributoNinguno {
+  font-size: 11.5px;
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
+.sinonimos {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  cursor: help;
+  border-bottom: 1px dotted var(--color-border);
+}
+
+/* -------------------------------------------------------- Grupos por nivel */
+
+.grupoNivel {
+  --tinte-nivel: var(--color-text-secondary);
+  border-top: 1px solid var(--color-border-light);
+}
+
+.grupoNivel:first-of-type {
+  border-top: none;
+}
+
+.grupoNivel[data-nivel="economico"] {
+  --tinte-nivel: var(--color-nivel-economico);
+}
+
+.grupoNivel[data-nivel="confiable"] {
+  --tinte-nivel: var(--color-nivel-confiable);
+}
+
+.grupoNivel[data-nivel="premium"] {
+  --tinte-nivel: var(--color-nivel-premium);
+}
+
+.rotuloNivel {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  padding: 7px var(--espacio-4);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--tinte-nivel);
+  background: color-mix(in srgb, var(--tinte-nivel) 7%, var(--color-surface));
+  border-left: 3px solid var(--tinte-nivel);
+}
+
+.conteoNivel {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--color-text-muted);
+}
+
+/* ------------------------------------------------------ Tarjeta de producto */
+
+.rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(214px, 1fr));
+  /* La rejilla se separa con el propio fondo: una linea de un pixel entre
+   * tarjetas ocupa menos que un margen y deja caber una columna mas. */
+  gap: 1px;
+  background: var(--color-border-light);
+}
+
+.producto {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: var(--espacio-3);
+  background: var(--color-surface);
+}
+
+.foto {
+  width: 100%;
+  height: 118px;
+  object-fit: contain;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-sm);
+}
+
+.sinFoto {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 118px;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  background: var(--color-surface-2);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.nombreProducto {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  /* Altura fija de dos lineas: con nombres de largo desigual las tarjetas
+   * bailan y comparar precios de una fila obliga a buscarlos uno por uno. */
+  min-height: 34px;
+}
+
+.enlaceNombre:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.marcaProducto {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+}
+
+.etiquetasProducto {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chipNivel {
+  --tinte-nivel: var(--color-text-secondary);
+  padding: 1px 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  color: var(--tinte-nivel);
+  background: color-mix(in srgb, var(--tinte-nivel) 9%, var(--color-white));
+  border: 1px solid color-mix(in srgb, var(--tinte-nivel) 32%, var(--color-white));
+}
+
+.chipNivel[data-nivel="economico"] {
+  --tinte-nivel: var(--color-nivel-economico);
+}
+
+.chipNivel[data-nivel="confiable"] {
+  --tinte-nivel: var(--color-nivel-confiable);
+}
+
+.chipNivel[data-nivel="premium"] {
+  --tinte-nivel: var(--color-nivel-premium);
+}
+
+/* El personaje tiene su propio color a proposito: no pertenece a la familia de
+ * los niveles porque no es uno de ellos. */
+.chipPersonaje {
+  padding: 1px 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  color: var(--color-personaje);
+  background: var(--color-personaje-bg);
+  border: 1px solid color-mix(in srgb, var(--color-personaje) 30%, var(--color-white));
+}
+
+.chipPropio {
+  padding: 1px 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  color: var(--color-info);
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info-border);
+}
+
+.chipSinRevisar {
+  padding: 1px 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  color: var(--color-aviso);
+  background: var(--color-aviso-bg);
+  border: 1px solid var(--color-aviso-border);
+  cursor: help;
+}
+
+/* ------------------------------------------------------------- Precios */
+
+.precios {
+  /* Empujado al fondo de la tarjeta: los precios de una misma fila quedan a la
+   * misma altura y se leen como una columna. */
+  margin-top: auto;
+  padding-top: var(--espacio-2);
+}
+
+.precioDestacado {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.precioValor {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.precioSinDato {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.precioNota {
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+}
+
+.ofertas {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.oferta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--color-text-secondary);
+}
+
+.ofertaBarata {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.tienda {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.stock {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+  cursor: help;
+}
+
+.stockPunto {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  flex: none;
+}
+
+.stockHay {
+  background: var(--color-success);
+}
+
+.stockAgotado {
+  background: var(--color-danger);
+}
+
+/* Hueco y no relleno: que el stock no se conozca se ve distinto de que sea
+ * cero, porque son dos cosas distintas. */
+.stockSinDato {
+  background: transparent;
+  border: 1px solid var(--color-text-muted);
+}
+
+.precioTienda {
+  margin-left: auto;
+}
+
+.enlaceTienda {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.enlaceTienda:hover {
+  text-decoration: underline;
+}
+
+/* ------------------------------------------------------- Estados vacios */
+
+.conceptoVacio {
+  padding: var(--espacio-4);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-surface-2),
+    var(--color-surface-2) 10px,
+    var(--color-surface) 10px,
+    var(--color-surface) 20px
+  );
+}
+
+.notaOcultos {
+  padding: var(--espacio-2) var(--espacio-4);
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  border-top: 1px dashed var(--color-border);
+}
+
+.sinResultados {
+  padding: var(--espacio-7) var(--espacio-4);
+  text-align: center;
+  background: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.sinResultadosTitulo {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.sinResultadosNota {
+  margin: var(--espacio-2) auto 0;
+  max-width: 52ch;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.botonLimpiar {
+  margin-top: var(--espacio-4);
+  padding: 9px 18px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-white);
+  background: var(--color-primary);
+  border-radius: var(--radius-full);
+}
+
+.botonLimpiar:hover {
+  background: var(--color-primary-dark);
+}
+
+/* ----------------------------------------------------------- Pantalla chica */
+
+@media (max-width: 720px) {
+  .interior {
+    padding: var(--espacio-4) var(--espacio-3);
+  }
+
+  .titulo {
+    font-size: 22px;
+  }
+
+  .cifras {
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  }
+
+  .valorCifra {
+    font-size: 20px;
+  }
+
+  .barraInterior,
+  .lista {
+    padding-left: var(--espacio-3);
+    padding-right: var(--espacio-3);
+  }
+
+  .selector {
+    /* En el celular los cinco controles se reparten en dos filas en vez de
+     * encogerse hasta no poder leer el nombre de la categoria. */
+    flex: 1 1 140px;
+    max-width: none;
+  }
+
+  .pastillas,
+  .sinonimos {
+    margin-left: 0;
+  }
+
+  .rejilla {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+
+  .rotuloNivel,
+  .cabeceraConcepto,
+  .conceptoVacio,
+  .notaOcultos {
+    padding-left: var(--espacio-3);
+    padding-right: var(--espacio-3);
+  }
+}

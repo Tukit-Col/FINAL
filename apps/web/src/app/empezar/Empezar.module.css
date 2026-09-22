@@ -1,0 +1,280 @@
+.pagina {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: var(--espacio-6) var(--espacio-4) var(--espacio-7);
+  display: grid;
+  gap: var(--espacio-5);
+}
+
+.encabezado h1 {
+  font-size: clamp(24px, 4vw, 32px);
+  font-weight: 700;
+}
+
+.encabezado p {
+  margin-top: var(--espacio-2);
+  color: var(--color-text-secondary);
+  max-width: 62ch;
+}
+
+.bloque {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--espacio-5);
+  display: grid;
+  gap: var(--espacio-4);
+}
+
+.tituloBloque {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-3);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.paso {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-white);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.explicacion {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin-top: calc(var(--espacio-3) * -1);
+  max-width: 64ch;
+}
+
+/* ------------------------------------------------------------------ Hijos */
+
+.hijo {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--espacio-4);
+  display: grid;
+  gap: var(--espacio-4);
+}
+
+.leyenda {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-3);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  padding: 0 var(--espacio-2);
+}
+
+.leyendaSimple {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--espacio-2);
+}
+
+.quitar {
+  font-size: 12px;
+  color: var(--color-danger);
+  text-transform: none;
+  letter-spacing: 0;
+  text-decoration: underline;
+}
+
+.dosColumnas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--espacio-4);
+}
+
+.campo {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.campo > span {
+  font-weight: 600;
+}
+
+.campo em {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.campo input,
+.campo select {
+  min-height: 44px;
+  padding: 0 var(--espacio-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+}
+
+.campo input:focus,
+.campo select:focus {
+  border-color: var(--color-primary);
+}
+
+.campo select:disabled {
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+}
+
+.avisoAtribucion {
+  background: var(--color-aviso-bg);
+  border: 1px solid var(--color-aviso-border);
+  color: var(--color-aviso);
+  border-radius: var(--radius-md);
+  padding: var(--espacio-3);
+  font-size: 13px;
+}
+
+/* --------------------------------------------------------------- Entradas */
+
+.entradas,
+.opciones {
+  display: grid;
+  gap: var(--espacio-2);
+  border: none;
+}
+
+.opcionEntrada {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-3);
+  min-height: 44px;
+  padding: 0 var(--espacio-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.opcionActiva {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  font-weight: 600;
+}
+
+.opcionEntrada input {
+  accent-color: var(--color-primary);
+}
+
+/* ---------------------------------------------------------------- Archivo */
+
+.zonaArchivo {
+  display: grid;
+  gap: var(--espacio-3);
+  background: var(--color-surface-2);
+  border-radius: var(--radius-md);
+  padding: var(--espacio-4);
+}
+
+.reglaArchivo {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.inputArchivo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.soltar {
+  display: grid;
+  gap: 4px;
+  place-items: center;
+  text-align: center;
+  padding: var(--espacio-5);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.soltar:hover {
+  border-color: var(--color-primary);
+}
+
+.soltar span {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.archivoElegido {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.errorCampo {
+  font-size: 13px;
+  color: var(--color-danger);
+}
+
+.agregar {
+  justify-self: start;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-primary);
+  min-height: 40px;
+}
+
+/* ----------------------------------------------------------------- Envio */
+
+.errorCaja {
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  color: var(--color-danger);
+  border-radius: var(--radius-md);
+  padding: var(--espacio-4);
+  font-size: 14px;
+  display: grid;
+  gap: var(--espacio-2);
+}
+
+.barraAccion {
+  display: grid;
+  gap: var(--espacio-2);
+  justify-items: start;
+}
+
+.enviar {
+  min-height: 50px;
+  padding: 0 var(--espacio-6);
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-white);
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.enviar:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.enviar:disabled {
+  background: var(--color-border);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.faltante {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
