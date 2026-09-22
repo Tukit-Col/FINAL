@@ -27,7 +27,16 @@ Estado verificado contra la base viva el 2026-09-22:
 | Columna `embedding` en `concepto` | **no existe** | `select embedding from concepto` → error |
 | Conceptos | 100 | `select count(*) from concepto` |
 | Aristas de sustituibilidad curadas | **0** | `select count(*) from sustituibilidad_concepto` |
+| Listas oficiales cargadas | 175, de 17 colegios | `lista_oficial` |
 | Renglones de listas oficiales | 4.719, sobre 98 conceptos distintos | `item_lista_oficial` |
+
+> **Dos artefactos distintos que conviene no confundir.** `Arquitectura/UTILES_COLEGIO_GRADO.zip`
+> contiene **80 PDF en crudo de 7 colegios** (San Pedro Claver 14, Modelia 14, Prados de
+> Alameda 13, CACS 13, Bahía Solano 12, Matilde 11, Osito de Miel 3). Las **175 listas** de
+> este spec son las filas de `lista_oficial` en `tukit_catalogo`, de **17 colegios**, ya
+> parseadas y con cada renglón ligado a su concepto. El grafo se deriva de las 175, porque son
+> las que tienen la liga a concepto que el prior necesita; los PDF son la fuente cruda de una
+> parte de ellas.
 
 O sea: la infraestructura vectorial está construida y **vacía**, y el grafo curado está
 declarado y **vacío**. `cargador.py` no menciona la palabra `embedding` ni una vez.
@@ -167,13 +176,55 @@ Nodos: los 100 conceptos. Tres clases de arista, de tres procedencias distintas:
 | **Sinonimia** | `concepto.sinonimos` | Poblada |
 | **Co-ocurrencia por grado** | `item_lista_oficial` (4.719 renglones, 98 conceptos, 175 listas) | Derivable hoy |
 
-La tabla de sustituibilidad exige `motivo` y `curado_por` no nulos **a propósito**: su propio
-docstring dice que una arista que no dice por qué existe ni quién la puso no se puede revisar,
-y que poder revisarla es lo único que la separa de un coseno. Así que **sembrarla es trabajo
-humano y es un entregable de este spec**, no un derivado. Alcance mínimo: los conceptos donde
-la sustitución es real y frecuente en el corpus (blocks entre sí, tipos de papel, adhesivos),
-con su motivo escrito. Un grafo con 0 aristas curadas deja el canal en silencio, que es un
-resultado válido y medible pero no es el diseño.
+#### Cómo se siembra la sustituibilidad sin escribirla desde cero
+
+La tabla exige `motivo` y `curado_por` no nulos **a propósito**: su propio docstring dice que
+una arista que no dice por qué existe ni quién la puso no se puede revisar, y que poder
+revisarla es lo único que la separa de un coseno. Eso **no** obliga a redactar cada arista a
+mano. Obliga a que una persona **confirme** cada una.
+
+El catálogo ya contiene la curaduría, en un sitio inesperado: **los nombres de las 49
+categorías son grupos de sustitución** escritos con alternativas separadas por barra.
+
+```
+Colbón / Pegante líquido / Pegastic
+Carpetas / Folders / Legajadores / Sobres manila
+Témperas / Vinilos / Pintura / Acuarelas
+Compás / Estuche de geometría
+Lápices / Portaminas
+```
+
+Alguien ya decidió qué se parece a qué cuando nombró esas categorías. Derivar aristas
+candidatas de la co-pertenencia a categoría no inventa una heurística nueva: cobra una
+curaduría que ya ocurrió.
+
+Volumen medido contra la base (2026-09-22):
+
+| Fuente de candidatos | Pares dirigidos |
+|---|---|
+| Todas las categorías con ≥2 conceptos (18 de 49) | 362 |
+| **Excluyendo `Otros / Varios` y las de >6 conceptos** | **120** |
+| `CONCEPTOS` ya curados en `tukit-mvp-pipeline/pipeline/grafo_sustituibilidad.py` | 36 grupos |
+| `SINONIMOS` ya curados en `stage2_busqueda.py` | 10 grupos |
+
+`grupo_variante_id` se evaluó como cuarta fuente y **no sirve**: 0 de 375 productos la tienen
+poblada.
+
+**Procedimiento**: un script propone las ~120 aristas con su `motivo` pre-redactado
+(«comparten la categoría *X*, que enumera alternativas»), y una persona acepta, rechaza o
+ajusta el `grado` en bloque. Es el mismo patrón que `propuesta_producto` ya implementa para
+productos candidatos, así que no se inventa un mecanismo nuevo. Se espera rechazar una fracción
+alta y rápido: `Biblia` y `Diccionario` comparten categoría y **no** son sustitutos.
+
+El grafo es **incremental y opcional**: con 0 aristas el canal queda en silencio y la
+recuperación funciona con léxico y denso. Eso acota el riesgo de que la curaduría se vuelva el
+camino crítico del OE3.
+
+> **Trampa que hay que evitar, y que la implementación no puede confundir.** Que dos conceptos
+> aparezcan **juntos** en la misma lista es evidencia de que son **complementarios**, no
+> sustitutos: si el colegio pide cuaderno y block, se necesitan los dos. La co-ocurrencia
+> alimenta **solo** el prior de grado. La señal de sustituibilidad es la contraria —ocupar el
+> mismo lugar sin aparecer juntos— y por eso no se deriva de co-ocurrencia.
 
 El grafo hace **dos trabajos que no se deben confundir**:
 
@@ -431,7 +482,28 @@ Casos concretos del corpus, que son pruebas y no ejemplos:
 
 ---
 
-## 9. Lo que este spec NO hace
+## 9. Trabajo previo reusable
+
+No se parte de cero. Inventario verificado el 2026-09-22:
+
+| Qué | Dónde | Cómo se usa |
+|---|---|---|
+| `variantes_lexicas` (una frase completa por sustitución) | `tukit-mvp-pipeline/pipeline/stage2_busqueda.py` | Se porta al canal léxico |
+| `STOPWORDS_DOMINIO` con su justificación medida | ídem | Se porta, solo al canal léxico |
+| `SINONIMOS` — 10 grupos curados a mano | ídem | Semilla de aristas de sinonimia |
+| `CONCEPTOS` — 36 grupos de tipo de producto | `pipeline/grafo_sustituibilidad.py` | Semilla de aristas de sustituibilidad |
+| Adaptador de reordenador cross-encoder | `pipeline/reranker.py` | Base del adaptador del puerto |
+| **2.710 pares anotados** | `calibration/gold_standard_final.csv` | Calibración, τ/δ y toda la evaluación |
+| Guiones de calibración y medición de equivalencia | `calibration/*.py` | Referencia de método |
+
+`Tukit-Poc-Tesis/` contiene una copia del mismo prototipo más
+`tukit-mvp-pipeline-investigacion/`; se toma `tukit-mvp-pipeline/` como fuente y la otra solo
+para consultar el análisis.
+
+Lo que **no** se reusa: la fusión RRF (§1) y la decisión sobre puntaje crudo, que son
+precisamente los dos defectos que este spec corrige.
+
+## 10. Lo que este spec NO hace
 
 - No llena los 102 huecos de catálogo (§1.1).
 - No toca `POST /v1/catalogo/emparejar` ni el contrato ya publicado.
