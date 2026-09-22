@@ -21,7 +21,7 @@ export function respuestaDeError(causa: unknown): Response {
 
   console.error("[tukit] fallo no controlado", causa);
   return Response.json(
-    { error: "error_interno", mensaje: "Algo se rompio de nuestro lado. Intenta de nuevo." },
+    { error: "error_interno", mensaje: "Algo se rompió de nuestro lado. Intenta de nuevo." },
     { status: 500 },
   );
 }

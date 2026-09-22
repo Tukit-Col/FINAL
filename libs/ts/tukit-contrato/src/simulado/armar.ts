@@ -155,7 +155,7 @@ function sustitutosDe(concepto: ConceptoCatalogo): Sustituto[] {
       concepto: c.codigo,
       nombre: c.nombre_canonico,
       grado: 0.5,
-      motivo: `Misma categoria (${c.categoria}) y si lo tenemos en catalogo.`,
+      motivo: `Misma categoría (${c.categoria}) y sí lo tenemos en catálogo.`,
     }));
 }
 
@@ -168,11 +168,11 @@ function instruccionDe(item: ItemListaOficial): string {
     case "venta_directa_editorial":
       return "La editorial lo vende directamente a las familias en el colegio.";
     case "edicion_exclusiva":
-      return "Edicion exclusiva para la institucion. Se adquiere con la editorial.";
+      return "Edición exclusiva para la institución. Se adquiere con la editorial.";
     case "plataforma":
-      return "Se paga en la plataforma del proveedor con un link o un codigo de acceso.";
+      return "Se paga en la plataforma del proveedor con un link o un código de acceso.";
     case "diferido":
-      return "El colegio lo va a solicitar durante el ano, segun las necesidades de la clase.";
+      return "El colegio lo va a solicitar durante el año, según las necesidades de la clase.";
     default:
       return "El colegio lo gestiona directamente.";
   }
@@ -215,7 +215,7 @@ function armarLinea(
     return { ...base, modo_adquisicion: "diferido", instruccion_colegio: instruccionDe(item) };
   }
   if (tipo === "uniforme") {
-    return { ...base, nota: "Los uniformes quedan fuera del alcance de la version 1." };
+    return { ...base, nota: "Los uniformes quedan fuera del alcance de la versión 1." };
   }
 
   // (2) Lo que el colegio cerro: se muestra con su instruccion y no se cobra.
@@ -250,7 +250,7 @@ function armarLinea(
     return {
       ...base,
       estado_resolucion: "SIN_MATCH",
-      mensaje: "No logramos entender este renglon de la lista.",
+      mensaje: "No logramos entender este renglón de la lista.",
     };
   }
 
@@ -277,7 +277,7 @@ function armarLinea(
       ...base,
       estado_resolucion: "HUECO_CATALOGO",
       concepto: `${concepto.codigo} ${concepto.nombre_canonico}`,
-      mensaje: `Se nos agoto ${elegido.nombre}. Estamos buscando reemplazo.`,
+      mensaje: `Se nos agotó ${elegido.nombre}. Estamos buscando reemplazo.`,
       sustitutos: sustitutosDe(concepto),
     };
   }
@@ -312,7 +312,7 @@ function armarLinea(
     ...(esTexto
       ? {
           no_consolidable: true,
-          motivo_no_consolidable: "Dos ediciones del mismo titulo no son sustituibles.",
+          motivo_no_consolidable: "Dos ediciones del mismo título no son sustituibles.",
         }
       : {}),
     precio,
@@ -365,7 +365,7 @@ function consolidar(lineas: readonly LineaKit[], resueltos: readonly ItemResuelt
       producto: primera.producto_elegido.sku,
       unidades_a_comprar: empaquesJuntos,
       ahorro: (empaquesAparte - empaquesJuntos) * unitario,
-      explicacion: `Un empaque de ${empaque} alcanza para los dos, y sale mas barato que comprar uno por hijo.`,
+      explicacion: `Un empaque de ${empaque} alcanza para los dos, y sale más barato que comprar uno por hijo.`,
     });
   }
   return consolidaciones;
@@ -462,10 +462,10 @@ export function recomendar(
     razon = `Pediste ${personajes.join(", ")} para tu hijo, y este es el kit que lo trae.`;
   } else if (pesos.calidad === maximo && sobreprecio >= 0.1) {
     perfil = "Premium";
-    razon = "Pusiste la calidad primero y dijiste que pagas hasta un 10 % mas por ella.";
+    razon = "Pusiste la calidad primero y dijiste que pagas hasta un 10 % más por ella.";
   } else {
     perfil = "Ahorrador";
-    razon = "Elegiste el precio como lo mas importante, y este es el kit mas barato de los tres.";
+    razon = "Elegiste el precio como lo más importante, y este es el kit más barato de los tres.";
   }
 
   let kit = porPerfil.get(perfil);
@@ -477,8 +477,8 @@ export function recomendar(
     const alternativa = [...kits].sort((a, b) => a.total - b.total)[0];
     if (alternativa && presupuesto !== null && alternativa.total <= presupuesto) {
       razon =
-        `El kit ${perfil} se pasa de tu presupuesto, asi que te recomendamos el ` +
-        `${alternativa.perfil}, que si cabe.`;
+        `El kit ${perfil} se pasa de tu presupuesto, así que te recomendamos el ` +
+        `${alternativa.perfil}, que sí cabe.`;
       perfil = alternativa.perfil;
       kit = alternativa;
       dentro = true;
@@ -505,7 +505,7 @@ export function degradacionesDe(kits: readonly Kit[]): Degradacion[] {
   if (sinPrecio > 0) {
     degradaciones.push({
       dependencia: "precio",
-      efecto: "sin precio vigente: la linea no entra al total y se marca para revision",
+      efecto: "sin precio vigente: la línea no entra al total y se marca para revisión",
       lineas_afectadas: sinPrecio,
     });
   }

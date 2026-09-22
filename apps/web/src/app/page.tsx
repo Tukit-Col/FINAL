@@ -14,27 +14,27 @@ export const dynamic = "force-dynamic";
 const DOLORES = [
   {
     porcentaje: "37 %",
-    titulo: "Recorrer papelerias y que este agotado",
+    titulo: "Recorrer papelerías y que esté agotado",
     respuesta:
-      "Si no lo tenemos, te lo decimos con esas palabras. Nunca te ofrecemos algo parecido haciendolo pasar por lo que pediste.",
+      "Si no lo tenemos, te lo decimos con esas palabras. Nunca te ofrecemos algo parecido haciéndolo pasar por lo que pediste.",
   },
   {
     porcentaje: "28 %",
     titulo: "Los libros y el plan lector",
     respuesta:
-      "Los textos se resuelven por edicion, no por parecido. Y cuando el colegio los cierra a una editorial, te decimos como conseguirlos en vez de callarlo.",
+      "Los textos se resuelven por edición, no por parecido. Y cuando el colegio los cierra a una editorial, te decimos cómo conseguirlos en vez de callarlo.",
   },
   {
     porcentaje: "22 %",
     titulo: "No encontrar todo en un solo lugar",
     respuesta:
-      "Un solo pedido para todos tus hijos, con lo repetido junto: dos borradores sueltos cuestan mas que una caja de diez.",
+      "Un solo pedido para todos tus hijos, con lo repetido junto: dos borradores sueltos cuestan más que una caja de diez.",
   },
   {
     porcentaje: "17 %",
     titulo: "El precio",
     respuesta:
-      "Tres kits con el mismo alcance y precios distintos. Te marcamos uno y te decimos por que, pero los otros dos quedan a la vista.",
+      "Tres kits con el mismo alcance y precios distintos. Te marcamos uno y te decimos por qué, pero los otros dos quedan a la vista.",
   },
 ];
 
@@ -51,8 +51,8 @@ export default async function Inicio() {
         <div className={styles.heroeTexto}>
           <p className={styles.antetitulo}>Listas escolares, resueltas</p>
           <h1 className={styles.titular}>
-            Te decimos que hay <em>de verdad</em> disponible, y que libro es
-            exactamente cual.
+            Te decimos qué hay <em>de verdad</em> disponible, y qué libro es
+            exactamente cuál.
           </h1>
           <p className={styles.bajada}>
             Elige tu colegio y tu grado, o sube el archivo de la lista. Te armamos tres
@@ -65,7 +65,7 @@ export default async function Inicio() {
               Armar mi kit
             </Link>
             <Link href="/catalogo" className={styles.botonSecundario}>
-              Ver que hay en catalogo
+              Ver qué hay en catálogo
             </Link>
           </div>
 
@@ -75,7 +75,7 @@ export default async function Inicio() {
               <dd className="cifra">{resumen.productos}</dd>
             </div>
             <div>
-              <dt>Utiles distintos</dt>
+              <dt>Útiles distintos</dt>
               <dd className="cifra">{resumen.conceptos}</dd>
             </div>
             <div>
@@ -83,20 +83,20 @@ export default async function Inicio() {
               <dd className="cifra">{resumen.tiendas}</dd>
             </div>
             <div className={styles.cifraHonesta}>
-              <dt>Todavia no tenemos</dt>
+              <dt>Todavía no tenemos</dt>
               <dd className="cifra">{resumen.conceptos_sin_producto}</dd>
             </div>
           </dl>
           <p className={styles.notaCifras}>
-            Esa ultima cifra tambien la publicamos. Un catalogo que solo cuenta lo que
-            si tiene es el que te hace perder la tarde en la papeleria.
+            Esa última cifra también la publicamos. Un catálogo que solo cuenta lo que
+            sí tiene es el que te hace perder la tarde en la papelería.
           </p>
         </div>
       </section>
 
       <section className={styles.dolores} aria-labelledby="titulo-dolores">
         <h2 id="titulo-dolores" className={styles.tituloSeccion}>
-          Lo que nos dijeron 60 acudientes que mas les duele
+          Lo que nos dijeron 60 acudientes que más les duele
         </h2>
         <ul className={styles.rejillaDolores}>
           {DOLORES.map((dolor) => (
@@ -111,16 +111,16 @@ export default async function Inicio() {
 
       <section className={styles.comoFunciona} aria-labelledby="titulo-como">
         <h2 id="titulo-como" className={styles.tituloSeccion}>
-          Como funciona
+          Cómo funciona
         </h2>
         <ol className={styles.pasos}>
           <li>
             <span className={styles.numero}>1</span>
             <div>
-              <h3>Nos dices de quien es la lista</h3>
+              <h3>Nos dices de quién es la lista</h3>
               <p>
                 Eliges colegio y grado, o subes el archivo. Es un pedido por hogar, no
-                por hijo: asi podemos juntar lo que se repite entre hermanos.
+                por hijo: así podemos juntar lo que se repite entre hermanos.
               </p>
             </div>
           </li>
@@ -130,7 +130,7 @@ export default async function Inicio() {
               <h3>Te vas a hacer otra cosa</h3>
               <p>
                 Armar el kit toma minutos, no segundos, porque preferimos acertar a ir
-                rapido. Te avisamos al correo y al celular cuando este.
+                rápido. Te avisamos al correo y al celular cuando esté.
               </p>
             </div>
           </li>
@@ -139,7 +139,7 @@ export default async function Inicio() {
             <div>
               <h3>Una persona lo revisa antes de que lo veas</h3>
               <p>
-                Nadie de Tukit te manda un kit sin mirarlo. Lo que quedo dudoso lo
+                Nadie de Tukit te manda un kit sin mirarlo. Lo que quedó dudoso lo
                 resuelve alguien, y solo entonces te llega.
               </p>
             </div>
@@ -150,7 +150,7 @@ export default async function Inicio() {
               <h3>Eliges entre tres</h3>
               <p>
                 Ahorrador, Fan y Premium, con el mismo alcance. Te marcamos uno y te
-                explicamos por que, pero decides tu.
+                explicamos por qué, pero decides tú.
               </p>
             </div>
           </li>

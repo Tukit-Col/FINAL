@@ -63,11 +63,11 @@ export function esAbstencion(linea: LineaKit): boolean {
 export const TITULO_CLASE: Record<ClaseLinea, string> = {
   comprable: "En tu carrito",
   hueco: "No lo tenemos",
-  sin_match: "No entendimos que pide",
-  pendiente_revision: "Lo esta revisando una persona",
+  sin_match: "No entendimos qué pide",
+  pendiente_revision: "Lo está revisando una persona",
   licencia_digital: "Se paga por fuera",
   no_comprar: "No hay que comprarlo",
-  diferido: "El colegio lo pedira despues",
+  diferido: "El colegio lo pedirá después",
   fuera_de_alcance: "Uniformes: fuera de Tukit por ahora",
   informativa: "Lo gestiona el colegio",
 };
@@ -82,10 +82,10 @@ export function razonDeNoCobrar(linea: LineaKit): string | null {
       return null;
     case "hueco":
       return (
-        linea.mensaje ?? "Entendimos que pides esto y hoy no lo tenemos en el catalogo."
+        linea.mensaje ?? "Entendimos que pides esto y hoy no lo tenemos en el catálogo."
       );
     case "sin_match":
-      return "No logramos entender este renglon de la lista. Lo va a mirar una persona.";
+      return "No logramos entender este renglón de la lista. Lo va a mirar una persona.";
     case "pendiente_revision":
       return "Hay varias opciones parecidas y ninguna gana clara. Una persona lo decide antes de cobrarte.";
     case "licencia_digital":
@@ -95,13 +95,13 @@ export function razonDeNoCobrar(linea: LineaKit): string | null {
     case "no_comprar":
       return linea.nota ?? "El colegio indica usar el que ya tienes en casa.";
     case "diferido":
-      return "El colegio lo va a pedir durante el ano. Te avisamos cuando se pueda comprar.";
+      return "El colegio lo va a pedir durante el año. Te avisamos cuando se pueda comprar.";
     case "fuera_de_alcance":
-      return "Los uniformes todavia no los surtimos. Te lo dejamos visible para que no se te pase.";
+      return "Los uniformes todavía no los surtimos. Te lo dejamos visible para que no se te pase.";
     case "informativa":
       return (
         linea.instruccion_colegio ??
-        "El colegio o la editorial lo venden directamente, asi que no lo podemos cobrar."
+        "El colegio o la editorial lo venden directamente, así que no lo podemos cobrar."
       );
   }
 }
