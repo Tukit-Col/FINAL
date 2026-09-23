@@ -155,13 +155,27 @@ reutilizable, dejando a `admin.py` (CLI) encadenando encolar+aprobar como hoy.
 
 - **Editor (`EditorProducto.tsx`):**
   - Al guardar, pasar los atributos por `serializarAtributos` (tipos correctos).
-  - Recibir del padre los `atributos_discriminantes` / `atributos_descriptivos`
-    del concepto del producto; renderizar dos grupos etiquetados
-    ("filtra la búsqueda" / "solo informativo") y pre-poblar las claves que el
-    concepto declara y el producto no tiene (valor vacío = no afirmar).
-    Las claves libres siguen permitidas.
+    Esto arregla el ruido real medido: en el concepto C001, `materias` aparece
+    hoy como `int` en unos productos y `str` en otros.
+  - **Pre-poblar TODAS las claves que el concepto declara**, no solo las que el
+    producto ya trae. El esquema sale del concepto del producto
+    (`atributos_discriminantes` + `atributos_descriptivos`), que el endpoint de
+    conceptos y `ConceptoCatalogo` **ya exponen** — sin backend nuevo. Caso
+    concreto (screenshot): un cuaderno con solo `materias` verá también `hojas`
+    y `rayado` (que otros cuadernos sí tienen) como filas vacías, listas para
+    llenar. Valor vacío = no se afirma la clave (no se guarda), consistente con
+    la regla de `extraer_atributos` ("ausente antes que inventado").
+  - Renderizar en dos grupos etiquetados: discriminantes ("filtra la búsqueda")
+    y descriptivos ("solo informativo"). Un grupo puede quedar vacío (C001 no
+    tiene descriptivos hoy) — no se muestra el encabezado en ese caso.
+  - **Claves libres siguen permitidas:** botón "+ Atributo" para una clave que
+    el concepto no declara todavía (queda como texto tipado por inferencia).
   - `personaje` ya está; sin cambios salvo dejar claro que es la etiqueta de
     personalización.
+  - **Requiere** que la página `/catalogo` pase al editor el concepto completo
+    (con sus dos listas de atributos), no solo `{codigo, nombre}`. Hoy
+    `OpcionConcepto` es `{codigo, nombre}`; se extiende o se pasa el
+    `ConceptoCatalogo` del producto en edición.
 - **Cola de revisión:** sección/pestaña nueva en `/catalogo` (o componente
   `ColaCuraduria`) que lista `colaPropuestas()` con Aprobar (elige nivel) /
   Rechazar (motivo + checkbox no_surtir).
@@ -169,9 +183,13 @@ reutilizable, dejando a `admin.py` (CLI) encadenando encolar+aprobar como hoy.
   Éxito / Panamericana / Gran Central), lista de candidatos con foto y precio,
   elegir uno → concepto + nivel + personaje → `altaUtil` → entra a la cola.
 - **Añadir libro:** formulario manual (ISBN + título + precio + tienda +
-  concepto + nivel + personaje) con **link "Buscar en Buscalibre"**
-  (`https://www.buscalibre.com.co/libros/search?q=<isbn|titulo>`) porque
-  Buscalibre no expone búsqueda en vivo. `altaLibro` → entra a la cola.
+  concepto + nivel + personaje). `altaLibro` → entra a la cola.
+  - **Redirección a Buscalibre (requisito fijo, se mantiene):** el formulario
+    SIEMPRE ofrece un link "Buscar en Buscalibre"
+    (`https://www.buscalibre.com.co/libros/search?q=<isbn|titulo>`, abre en
+    pestaña nueva). Es la vía para copiar ISBN/título/precio, porque Buscalibre
+    no expone búsqueda en vivo (probado: su `/api/catalog_system/...` → 404). No
+    se elimina ni se reemplaza por búsqueda automática en ninguna iteración.
 - **Route Handlers** nuevos en `apps/admin/src/app/api/catalogo/propuestas/**`
   y `.../tiendas/[slug]/buscar/route.ts`, que delegan a `origenDeDatos()`.
   El navegador nunca ve la URL del backend (patrón existente).
@@ -199,6 +217,10 @@ reutilizable, dejando a `admin.py` (CLI) encadenando encolar+aprobar como hoy.
 - **Gateway:** `test_ruteo.py` — `/v1/admin/catalogo/...` → catálogo.
 - **Contrato:** el simulado devuelve cola no vacía; `serializarAtributos`
   tiene pruebas unitarias (int/bool/decimal/texto).
+- **SPA (caso del screenshot):** un producto de C001 que solo trae `materias`
+  monta el editor con filas vacías para `hojas` y `rayado` (las declara el
+  concepto); llenarlas y guardar las persiste tipadas. Sin fila para claves que
+  el concepto no declara, salvo que se agregue con "+ Atributo".
 - **Fronteras:** `make fronteras` sigue verde (catálogo solo `.` + `tukit_comun`).
 - **Humo:** `make humo` sigue pasando.
 
