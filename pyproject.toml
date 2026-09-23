@@ -72,3 +72,9 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 # Solo se perdona el ancho. El resto de reglas siguen activas, que es lo que
 # atrapa un import que sobra o una revision que quedo sin `down_revision`.
 "servicios/*/migraciones/versions/*.py" = ["E501"]
+
+# Mismo argumento que las revisiones, aplicado a una tabla de datos. Los roles y
+# los permisos son filas, y un registro por linea se revisa leyendo la tabla; la
+# version envuelta en seis lineas por diccionario esconde la tabla detras del
+# formato. Solo se perdona el ancho.
+"servicios/identidad/tukit_identidad/sembrar_acceso.py" = ["E501"]

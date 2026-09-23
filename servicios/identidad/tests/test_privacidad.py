@@ -12,13 +12,14 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from tests.conftest import crear_colegio_con_sede, crear_matricula, crear_usuario
 from tukit_identidad.modelos import (
     Consentimiento,
     ConsentimientoFinalidad,
     Direccion,
     SolicitudSupresion,
 )
+
+from tests.conftest import crear_colegio_con_sede, crear_matricula, crear_usuario
 
 SUSCRIPTORES = frozenset({"catalogo", "inteligencia", "comercio", "operacion"})
 
