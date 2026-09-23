@@ -11,7 +11,11 @@ dependencies = []
 # concreto que motivo el ADR 0014.
 [tool.uv.workspace]
 members = ["servicios/*", "libs/py/*"]
-exclude = ["servicios/gateway", "servicios/ingesta"]
+# `ingesta` sigue fuera porque todavia no tiene ni paquete ni pyproject.
+# `gateway` entro al espacio de trabajo el dia que dejo de ser una carpeta
+# vacia: ya tiene dependencias propias (fastapi, httpx) y `make preparar`
+# tiene que instalarlas, porque sin ellas el backend no levanta entero.
+exclude = ["servicios/ingesta"]
 
 [tool.uv]
 package = false
@@ -21,6 +25,15 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
     "ruff>=0.6",
+    # Estos dos son extras opcionales de `tukit-comun` (ver su pyproject), pero
+    # en desarrollo se quieren siempre: sin ellos `make bd-migrar` falla justo
+    # despues de `make preparar`, y el mensaje habla de un modulo que falta en
+    # vez de decir que hay que instalar un extra.
+    #
+    # Ponerlos aqui no engorda la integracion continua: sus trabajos instalan a
+    # mano lo que cada uno necesita y no pasan por este grupo.
+    "alembic>=1.13",
+    "asyncpg>=0.29",
 ]
 
 [tool.pytest.ini_options]
@@ -38,6 +51,7 @@ pythonpath = [
     "servicios/inteligencia",
     "servicios/comercio",
     "servicios/operacion",
+    "servicios/gateway",
     "libs/py/tukit_comun",
 ]
 filterwarnings = ["error::DeprecationWarning"]
@@ -48,3 +62,13 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# Las revisiones de Alembic las escribe el autogenerador, no una persona:
+# emite un `sa.Column(...)` por linea y muchas pasan de 110 caracteres. Se
+# revisan leyendo el SQL que producen, no su formato. Reformatearlas a mano
+# ademas haria ruidoso el diff de la siguiente regeneracion.
+#
+# Solo se perdona el ancho. El resto de reglas siguen activas, que es lo que
+# atrapa un import que sobra o una revision que quedo sin `down_revision`.
+"servicios/*/migraciones/versions/*.py" = ["E501"]

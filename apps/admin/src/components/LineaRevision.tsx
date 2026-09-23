@@ -25,6 +25,12 @@ interface Props {
   trabajoId: string;
   linea: LineaKit;
   clase: ClaseLinea;
+  // Selección para acciones masivas. Solo se pasa en las secciones donde tiene
+  // sentido validar en lote (las que tienen un elegido por confirmar); si no
+  // llega, la línea no muestra casilla y se comporta como siempre.
+  seleccionable?: boolean;
+  seleccionada?: boolean;
+  onToggleSeleccion?: (itemId: string) => void;
 }
 
 /** Sin `sku` la validacion se lee como "confirmo el que el sistema eligio". */
@@ -35,7 +41,14 @@ function precioMasBajo(producto: ProductoKit): number | null {
   return precios.length === 0 ? null : Math.min(...precios);
 }
 
-export default function LineaRevision({ trabajoId, linea, clase }: Props) {
+export default function LineaRevision({
+  trabajoId,
+  linea,
+  clase,
+  seleccionable = false,
+  seleccionada = false,
+  onToggleSeleccion,
+}: Props) {
   const router = useRouter();
   const pendiente = esPendiente(clase);
 
@@ -43,6 +56,11 @@ export default function LineaRevision({ trabajoId, linea, clase }: Props) {
   const alternativas = linea.alternativas ?? [];
   const hayQueElegir = elegido !== null || alternativas.length > 0;
 
+  // Lo pendiente nace abierto y lo resuelto cerrado. El cuerpo solo se pinta
+  // cuando la linea esta abierta: una lista de sexto con dos hijos son ciento
+  // diez renglones, y pintar los ciento diez paneles completos para que el
+  // admin toque tres es medio mega de HTML que nadie lee.
+  const [abierta, setAbierta] = useState(pendiente);
   const [seleccion, setSeleccion] = useState<string>(CONFIRMAR_EL_ELEGIDO);
   const [nota, setNota] = useState("");
   const [motivo, setMotivo] = useState("");
@@ -231,8 +249,27 @@ export default function LineaRevision({ trabajoId, linea, clase }: Props) {
   }
 
   return (
-    <details className={`${styles.linea} ${pendiente ? styles.lineaPendiente : ""}`} open={pendiente}>
-      <summary className={styles.resumenLinea}>
+    <details
+      className={`${styles.linea} ${pendiente ? styles.lineaPendiente : ""}`}
+      open={abierta}
+      onToggle={(evento) => setAbierta(evento.currentTarget.open)}
+    >
+      <summary className={`${styles.resumenLinea} ${seleccionable ? styles.resumenConCasilla : ""}`}>
+        {seleccionable ? (
+          // La casilla no despliega la línea: es una acción aparte. Por eso
+          // corta la propagación y el `preventDefault` del click en el summary.
+          <input
+            type="checkbox"
+            className={styles.casilla}
+            checked={seleccionada}
+            aria-label={`Seleccionar ${linea.item_id} para acción masiva`}
+            onClick={(evento) => evento.stopPropagation()}
+            onChange={(evento) => {
+              evento.stopPropagation();
+              onToggleSeleccion?.(linea.item_id);
+            }}
+          />
+        ) : null}
         <code className={styles.itemId}>{linea.item_id}</code>
         <span className={styles.descripcion}>{linea.descripcion}</span>
         <span className={styles.etiquetas}>
@@ -251,184 +288,186 @@ export default function LineaRevision({ trabajoId, linea, clase }: Props) {
         <span className={`${styles.subtotal} cifra`}>{formatearPesos(linea.subtotal_linea)}</span>
       </summary>
 
-      <div className={styles.cuerpoLinea}>
-        {razon ? <p className={styles.razon}>{razon}</p> : null}
+      {abierta ? (
+        <div className={styles.cuerpoLinea}>
+          {razon ? <p className={styles.razon}>{razon}</p> : null}
 
-        <dl className={styles.datos}>
-          <div>
-            <dt>Pedido en la lista</dt>
-            <dd className="cifra">
-              {linea.cantidad_pedida ?? "—"} {linea.unidad_base ?? ""}
-            </dd>
-          </div>
-          <div>
-            <dt>Unidades por empaque</dt>
-            <dd className="cifra">{linea.unidades_por_empaque ?? "—"}</dd>
-          </div>
-          <div>
-            <dt>Unidades a comprar</dt>
-            <dd className="cifra">{linea.unidades_a_comprar ?? "—"}</dd>
-          </div>
-          {linea.modo_adquisicion ? (
+          <dl className={styles.datos}>
             <div>
-              <dt>Modo de adquisición</dt>
-              <dd>{TITULO_MODO[linea.modo_adquisicion]}</dd>
-            </div>
-          ) : null}
-          {linea.concepto ? (
-            <div>
-              <dt>Concepto</dt>
-              <dd>
-                <code>{linea.concepto}</code>
+              <dt>Pedido en la lista</dt>
+              <dd className="cifra">
+                {linea.cantidad_pedida ?? "—"} {linea.unidad_base ?? ""}
               </dd>
             </div>
-          ) : null}
-          {linea.edicion ? (
             <div>
-              <dt>Edición</dt>
-              <dd>
-                {linea.edicion.titulo}
-                {linea.edicion.editorial ? ` · ${linea.edicion.editorial}` : ""}
-                {linea.edicion.isbn13 ? ` · ISBN ${linea.edicion.isbn13}` : ""}
-              </dd>
+              <dt>Unidades por empaque</dt>
+              <dd className="cifra">{linea.unidades_por_empaque ?? "—"}</dd>
+            </div>
+            <div>
+              <dt>Unidades a comprar</dt>
+              <dd className="cifra">{linea.unidades_a_comprar ?? "—"}</dd>
+            </div>
+            {linea.modo_adquisicion ? (
+              <div>
+                <dt>Modo de adquisición</dt>
+                <dd>{TITULO_MODO[linea.modo_adquisicion]}</dd>
+              </div>
+            ) : null}
+            {linea.concepto ? (
+              <div>
+                <dt>Concepto</dt>
+                <dd>
+                  <code>{linea.concepto}</code>
+                </dd>
+              </div>
+            ) : null}
+            {linea.edicion ? (
+              <div>
+                <dt>Edición</dt>
+                <dd>
+                  {linea.edicion.titulo}
+                  {linea.edicion.editorial ? ` · ${linea.edicion.editorial}` : ""}
+                  {linea.edicion.isbn13 ? ` · ISBN ${linea.edicion.isbn13}` : ""}
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+
+          {linea.atributo_faltante ? (
+            <p className={styles.detalle}>
+              Atributo que falta en el catálogo:{" "}
+              {Object.entries(linea.atributo_faltante)
+                .map(([clave, valor]) => `${clave} = ${valor}`)
+                .join(" · ")}
+            </p>
+          ) : null}
+
+          {linea.no_consolidable ? (
+            <p className={styles.detalle}>
+              No consolidable entre hermanos.{" "}
+              {linea.motivo_no_consolidable ?? "Dos ediciones del mismo título no son sustituibles."}
+            </p>
+          ) : null}
+
+          {linea.url_externa ? (
+            <p className={styles.detalle}>
+              Pago externo:{" "}
+              <a href={linea.url_externa} target="_blank" rel="noreferrer">
+                {linea.url_externa}
+              </a>
+            </p>
+          ) : null}
+
+          {linea.sustitutos && linea.sustitutos.length > 0 ? (
+            <div className={styles.sustitutos}>
+              <h4>Sustitutos del grafo</h4>
+              <ul>
+                {linea.sustitutos.map((sustituto) => (
+                  <li key={sustituto.concepto}>
+                    <code>{sustituto.concepto}</code> {sustituto.nombre}
+                    <span className={styles.grado}>grado {sustituto.grado}</span>
+                    <span className={styles.motivoSustituto}>{sustituto.motivo}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
-        </dl>
 
-        {linea.atributo_faltante ? (
-          <p className={styles.detalle}>
-            Atributo que falta en el catálogo:{" "}
-            {Object.entries(linea.atributo_faltante)
-              .map(([clave, valor]) => `${clave} = ${valor}`)
-              .join(" · ")}
-          </p>
-        ) : null}
-
-        {linea.no_consolidable ? (
-          <p className={styles.detalle}>
-            No consolidable entre hermanos.{" "}
-            {linea.motivo_no_consolidable ?? "Dos ediciones del mismo título no son sustituibles."}
-          </p>
-        ) : null}
-
-        {linea.url_externa ? (
-          <p className={styles.detalle}>
-            Pago externo:{" "}
-            <a href={linea.url_externa} target="_blank" rel="noreferrer">
-              {linea.url_externa}
-            </a>
-          </p>
-        ) : null}
-
-        {linea.sustitutos && linea.sustitutos.length > 0 ? (
-          <div className={styles.sustitutos}>
-            <h4>Sustitutos del grafo</h4>
-            <ul>
-              {linea.sustitutos.map((sustituto) => (
-                <li key={sustituto.concepto}>
-                  <code>{sustituto.concepto}</code> {sustituto.nombre}
-                  <span className={styles.grado}>grado {sustituto.grado}</span>
-                  <span className={styles.motivoSustituto}>{sustituto.motivo}</span>
-                </li>
-              ))}
+          {elegido || alternativas.length > 0 ? (
+            <ul className={styles.productos}>
+              {elegido ? tarjetaProducto(elegido, "elegido") : null}
+              {alternativas.map((alternativa) => tarjetaProducto(alternativa, "alternativa"))}
             </ul>
+          ) : (
+            <p className={styles.detalle}>
+              No hay producto que confirmar. Lo que resuelve esta línea es dar de alta uno a
+              mano (AD-07) o dejarla marcada sin coincidencia con el motivo.
+            </p>
+          )}
+
+          {/* ------------------------------------------------ acciones AD-04 */}
+          <div className={styles.acciones}>
+            {hayQueElegir ? (
+              <>
+                <input
+                  className={styles.notaCorta}
+                  type="text"
+                  value={nota}
+                  onChange={(evento) => setNota(evento.target.value)}
+                  placeholder="Nota de la validación (opcional)"
+                  aria-label="Nota de la validación"
+                />
+                <button
+                  type="button"
+                  className={styles.principal}
+                  disabled={enviando}
+                  onClick={alValidar}
+                >
+                  {seleccion === CONFIRMAR_EL_ELEGIDO
+                    ? "Validar el elegido"
+                    : "Validar con la alternativa"}
+                </button>
+              </>
+            ) : null}
+            <button
+              type="button"
+              className={styles.secundario}
+              onClick={() => setPanel(panel === "sin_coincidencia" ? "ninguno" : "sin_coincidencia")}
+            >
+              Sin coincidencia
+            </button>
+            <button
+              type="button"
+              className={styles.secundario}
+              onClick={() => setPanel(panel === "alta" ? "ninguno" : "alta")}
+            >
+              Dar de alta un producto
+            </button>
           </div>
-        ) : null}
 
-        {elegido || alternativas.length > 0 ? (
-          <ul className={styles.productos}>
-            {elegido ? tarjetaProducto(elegido, "elegido") : null}
-            {alternativas.map((alternativa) => tarjetaProducto(alternativa, "alternativa"))}
-          </ul>
-        ) : (
-          <p className={styles.detalle}>
-            No hay producto que confirmar. Lo que resuelve esta línea es dar de alta uno a
-            mano (AD-07) o dejarla marcada sin coincidencia con el motivo.
-          </p>
-        )}
-
-        {/* ------------------------------------------------ acciones AD-04 */}
-        <div className={styles.acciones}>
-          {hayQueElegir ? (
-            <>
-              <input
-                className={styles.notaCorta}
-                type="text"
-                value={nota}
-                onChange={(evento) => setNota(evento.target.value)}
-                placeholder="Nota de la validación (opcional)"
-                aria-label="Nota de la validación"
+          {panel === "sin_coincidencia" ? (
+            <div className={styles.formularioEnLinea}>
+              <label htmlFor={`motivo-${linea.item_id}`}>
+                Motivo de la marca sin coincidencia (obligatorio)
+              </label>
+              <textarea
+                id={`motivo-${linea.item_id}`}
+                rows={2}
+                value={motivo}
+                onChange={(evento) => setMotivo(evento.target.value)}
+                placeholder="El renglón pide una marca que no distribuimos y no hay equivalente."
               />
-              <button
-                type="button"
-                className={styles.principal}
-                disabled={enviando}
-                onClick={alValidar}
-              >
-                {seleccion === CONFIRMAR_EL_ELEGIDO
-                  ? "Validar el elegido"
-                  : "Validar con la alternativa"}
-              </button>
-            </>
-          ) : null}
-          <button
-            type="button"
-            className={styles.secundario}
-            onClick={() => setPanel(panel === "sin_coincidencia" ? "ninguno" : "sin_coincidencia")}
-          >
-            Sin coincidencia
-          </button>
-          <button
-            type="button"
-            className={styles.secundario}
-            onClick={() => setPanel(panel === "alta" ? "ninguno" : "alta")}
-          >
-            Dar de alta un producto
-          </button>
-        </div>
-
-        {panel === "sin_coincidencia" ? (
-          <div className={styles.formularioEnLinea}>
-            <label htmlFor={`motivo-${linea.item_id}`}>
-              Motivo de la marca sin coincidencia (obligatorio)
-            </label>
-            <textarea
-              id={`motivo-${linea.item_id}`}
-              rows={2}
-              value={motivo}
-              onChange={(evento) => setMotivo(evento.target.value)}
-              placeholder="El renglón pide una marca que no distribuimos y no hay equivalente."
-            />
-            <div className={styles.botonera}>
-              <button
-                type="button"
-                className={styles.principal}
-                disabled={enviando}
-                onClick={alMarcarSinCoincidencia}
-              >
-                Marcar sin coincidencia
-              </button>
-              <button type="button" className={styles.plano} onClick={() => setPanel("ninguno")}>
-                Cancelar
-              </button>
+              <div className={styles.botonera}>
+                <button
+                  type="button"
+                  className={styles.principal}
+                  disabled={enviando}
+                  onClick={alMarcarSinCoincidencia}
+                >
+                  Marcar sin coincidencia
+                </button>
+                <button type="button" className={styles.plano} onClick={() => setPanel("ninguno")}>
+                  Cancelar
+                </button>
+              </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        {panel === "alta" ? (
-          <AltaProducto
-            trabajoId={trabajoId}
-            linea={linea}
-            alTerminar={(sku) => {
-              setPanel("ninguno");
-              setAviso(`Producto ${sku} dado de alta y asignado a la línea.`);
-            }}
-          />
-        ) : null}
+          {panel === "alta" ? (
+            <AltaProducto
+              trabajoId={trabajoId}
+              linea={linea}
+              alTerminar={(sku) => {
+                setPanel("ninguno");
+                setAviso(`Producto ${sku} dado de alta y asignado a la línea.`);
+              }}
+            />
+          ) : null}
 
-        {error ? <p className={styles.error}>{error}</p> : null}
-        {aviso ? <p className={styles.exito}>{aviso}</p> : null}
-      </div>
+          {error ? <p className={styles.error}>{error}</p> : null}
+          {aviso ? <p className={styles.exito}>{aviso}</p> : null}
+        </div>
+      ) : null}
     </details>
   );
 }

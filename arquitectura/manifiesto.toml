@@ -27,7 +27,7 @@ version = "3"
 # sobre 99 conceptos, no inducida, y vive en Catalogo porque es vocabulario de
 # catalogo. Reemplaza al grafo en memoria que se reconstruia por item y costaba
 # el 95,3 por ciento de la latencia del pipeline.
-total_tablas_esperado = 69
+total_tablas_esperado = 70
 
 # Tablas que existen a proposito en varias bases. Son la excepcion declarada,
 # no un descuido: cada servicio necesita su propia bandeja de salida local para
@@ -90,6 +90,7 @@ tablas = [
     "edicion_libro",
     "version_vigente",
     "propuesta_version",
+    "propuesta_producto",
     "configuracion_colegio_editorial",
     "bandeja_salida",
 ]
@@ -222,6 +223,31 @@ hacia = "catalogo.producto_canonico"
 nota = "Reemplaza el JSON `kits_optimizados.items`, que escondia esta misma referencia."
 
 [[referencias_cruzadas]]
+desde = "inteligencia.resolucion_item.decidido_por"
+hacia = "identidad.usuario"
+nota = """
+Quien de Admin Tukit valido el emparejamiento o lo marco sin coincidencia
+(AD-04). Nulo mientras la decision sea automatica, y esa distincion es el
+punto entero de la columna: un kit revisado por una persona y uno que salio
+solo del umbral no son la misma promesa, y hoy no habia como diferenciarlos.
+"""
+
+[[referencias_cruzadas]]
+desde = "inteligencia.transicion_resolucion.decidida_por"
+hacia = "identidad.usuario"
+nota = "Quien movio la resolucion de un estado a otro. Nulo cuando la movio el pipeline."
+
+[[referencias_cruzadas]]
+desde = "inteligencia.trabajo_pipeline.revisado_por"
+hacia = "identidad.usuario"
+nota = """
+Quien aprobo o devolvio el trabajo en la cola de revision (AD-06). El registro
+completo de la transicion va a `operacion.registro_auditoria` por la bandeja de
+salida; esta columna es la copia local que permite responder
+`GET /v1/admin/trabajos/{id}` sin depender de que Operacion este arriba.
+"""
+
+[[referencias_cruzadas]]
 desde = "comercio.linea_pedido.matricula_id"
 hacia = "identidad.matricula"
 nota = "Va en la linea y no en el pedido: dos hermanos deben caber en un solo pago."
@@ -339,9 +365,40 @@ hacia = "identidad.usuario"
 nota = "Un producto que nadie curo no existe, asi que no admite nulo pese a cruzar."
 
 [[referencias_cruzadas]]
+desde = "catalogo.sustituibilidad_concepto.curado_por"
+hacia = "identidad.usuario"
+nota = """
+Quien declaro que un concepto sirve en lugar de otro. La relacion es curada y
+no inducida, asi que saber quien la puso es lo que la distingue de un coseno
+entre embeddings. No admite nulo, por la misma regla que
+`producto_canonico.curado_por`. Los dos extremos de la arista SI son llaves
+foraneas fisicas: ambos conceptos viven en esta misma base.
+"""
+
+[[referencias_cruzadas]]
 desde = "catalogo.lista_oficial.colegio_id"
 hacia = "identidad.colegio"
 nota = "La lista oficial es vocabulario de catalogo; la tenencia del colegio vive en Identidad."
+
+[[referencias_cruzadas]]
+desde = "catalogo.version_lista_oficial.revisada_por"
+hacia = "identidad.usuario"
+nota = """
+Quien dio por revisada la lista de un colegio. Con `revisada_en` forma la puerta
+que decide si el catalogo puede salir a una tienda: una version sin revisar la
+abre, una revisada la cierra para siempre. De ahi que interese quien firmo, y no
+solo cuando: el alta de productos que salio de esa revision es suya.
+"""
+
+[[referencias_cruzadas]]
+desde = "catalogo.propuesta_producto.resuelta_por"
+hacia = "identidad.usuario"
+nota = """
+Quien aprobo o rechazo el candidato. Una busqueda por texto trae productos
+reales que no son lo pedido (pedir `punzon punta metalica` devuelve correctores
+de punta fina), asi que nada entra al catalogo sin que una persona responda por
+el. Sin esta columna, la cola de revision aparentaria un control sin dueño.
+"""
 
 [[referencias_cruzadas]]
 desde = "catalogo.version_lista_oficial.publicada_por"

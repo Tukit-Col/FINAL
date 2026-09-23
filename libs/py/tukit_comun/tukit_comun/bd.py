@@ -25,6 +25,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -34,6 +35,14 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase
 
 from .config import url_desde_entorno
+
+# Las extensiones de Postgres que toda base del sistema necesita. Son las dos
+# mitades de la busqueda hibrida del emparejamiento: `vector` el canal semantico
+# (embeddings de producto) y `pg_trgm` el lexico (similitud por trigramas sobre
+# el nombre). La lista es unica y vive aqui, no repartida por servicio, porque
+# habilitar de mas no cuesta nada y olvidar una sola convierte un fallo de
+# arranque en un fallo de consulta seis pantallas despues.
+EXTENSIONES: tuple[str, ...] = ("vector", "pg_trgm")
 
 
 @dataclass
@@ -60,6 +69,32 @@ class MotorServicio:
                 await db.rollback()
                 raise
 
+    async def asegurar_extensiones(self) -> None:
+        """Habilita las extensiones de Postgres que falten en la base del servicio.
+
+        Existe porque el script de init de `infra/postgres/init` corre UNA sola
+        vez, cuando el volumen de datos esta vacio. Quien levanto el motor antes
+        de que una extension se agregara al script no la va a tener nunca, y el
+        sintoma no aparece al arrancar sino mucho despues, como un error de tipo
+        desconocido o de operador inexistente en una consulta que deberia
+        funcionar. Documentarlo no lo arregla; repetirlo aqui si.
+
+        Este es el punto natural para hacerlo: ya estamos conectados a la base
+        correcta del servicio y ocurre justo antes de crear las tablas, que es
+        la primera operacion que depende de que `vector` exista.
+
+        No hace nada fuera de Postgres. Las pruebas de dominio de los servicios
+        corren contra SQLite en memoria, donde `CREATE EXTENSION` no existe y
+        reventaria. El nombre se interpola en el SQL, no se parametriza, porque
+        `CREATE EXTENSION` no acepta parametros; la lista es una constante del
+        modulo, nunca entrada externa.
+        """
+        if self.engine.dialect.name != "postgresql":
+            return
+        async with self.engine.begin() as conexion:
+            for extension in EXTENSIONES:
+                await conexion.execute(text(f'CREATE EXTENSION IF NOT EXISTS "{extension}"'))
+
     async def crear_esquema(self, base: type[DeclarativeBase]) -> None:
         """Materializa todas las tablas del servicio en su base.
 
@@ -67,7 +102,12 @@ class MotorServicio:
         contra la base real del servicio. Sirve para el arranque de desarrollo
         y para la primera provision; el versionado incremental del esquema
         (migraciones) queda para un paso posterior con Alembic. Ver la deuda
-        anotada en el README."""
+        anotada en el README.
+
+        Las extensiones van primero y en su propia transaccion: `create_all` de
+        catalogo declara columnas `Vector(1024)`, y ese tipo no se puede emitir
+        si `vector` todavia no esta en la base."""
+        await self.asegurar_extensiones()
         async with self.engine.begin() as conexion:
             await conexion.run_sync(base.metadata.create_all)
 

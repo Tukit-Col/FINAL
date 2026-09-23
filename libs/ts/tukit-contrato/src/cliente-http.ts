@@ -19,7 +19,15 @@ import type {
   ValidarLinea,
 } from "./contrato";
 import type { Catalogo, Colegio, ListaOficial } from "./catalogo";
-import { ErrorTukit, type ArchivoLista, type OrigenDatos } from "./origen";
+import type { Pedido, TableroComercio } from "./comercio";
+import type { BandejaOperacion, Caso } from "./operacion";
+import {
+  ErrorTukit,
+  type ArchivoLista,
+  type Credenciales,
+  type OrigenDatos,
+  type Sesion,
+} from "./origen";
 
 // El pipeline tarda minutos, no segundos, y eso es deliberado (§0).
 const TIEMPO_MAXIMO_MS = 300_000;
@@ -93,6 +101,34 @@ export class ClienteApi implements OrigenDatos {
       method: metodo,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cuerpo),
+    });
+  }
+
+  // ------------------------------------------------------------ §Identidad
+  //
+  // El cliente NO habla con identidad directamente: pega al gateway
+  // (`urlBase`), y el gateway rutea a identidad `/v1/sesiones*`, valida el
+  // token y compara `version_permisos` (§1, edges C4 web→gateway→identidad).
+  // El error 503 de `pedir` ("levantalo o pon TUKIT_ORIGEN_DATOS=simulado")
+  // cubre el login cuando el backend esta caido, gratis.
+  async iniciarSesion(cred: Credenciales): Promise<{ sesion: Sesion; token: string }> {
+    return this.pedir<{ sesion: Sesion; token: string }>("/v1/sesiones", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cred),
+    });
+  }
+
+  sesionActual(token: string): Promise<Sesion | null> {
+    return this.pedir<Sesion | null>("/v1/sesiones/actual", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
+
+  cerrarSesion(token: string): Promise<void> {
+    return this.pedir<void>("/v1/sesiones/cierre", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
     });
   }
 
@@ -180,5 +216,23 @@ export class ClienteApi implements OrigenDatos {
 
   decidirRevision(trabajoId: string, cuerpo: DecisionRevision): Promise<void> {
     return this.json(`/v1/admin/trabajos/${encodeURIComponent(trabajoId)}/revision`, cuerpo);
+  }
+
+  // ------------------------------------------------- ASUMIDO (comercio 1.x)
+  pedidos(): Promise<TableroComercio> {
+    return this.pedir<TableroComercio>("/v1/comercio/pedidos");
+  }
+
+  pedido(pedidoId: string): Promise<Pedido> {
+    return this.pedir<Pedido>(`/v1/comercio/pedidos/${encodeURIComponent(pedidoId)}`);
+  }
+
+  // ------------------------------------------------ ASUMIDO (operacion 1.x)
+  casos(): Promise<BandejaOperacion> {
+    return this.pedir<BandejaOperacion>("/v1/operacion/casos");
+  }
+
+  caso(casoId: string): Promise<Caso> {
+    return this.pedir<Caso>(`/v1/operacion/casos/${encodeURIComponent(casoId)}`);
   }
 }

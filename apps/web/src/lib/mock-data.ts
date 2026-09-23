@@ -1,7 +1,9 @@
 // ============================================================
 // MOCK DATA — TuKit MVP
-// En etapas posteriores este archivo será reemplazado por
-// llamadas reales al API Gateway / GenUI streaming.
+// Datos de muestra que hoy solo alimentan la "Vista de diseño" del
+// dashboard (perfiles de hijos y pedidos). Viven en `identidad` y
+// `comercio`, que todavia no publican superficie de lectura; se
+// reemplazaran por esas llamadas cuando esos servicios existan.
 // ============================================================
 
 export interface Hijo {
@@ -18,14 +20,6 @@ export interface Pedido {
   fecha: string;
   estado: "Entregado" | "En camino" | "Pendiente" | "Cancelado";
   total: string;
-}
-
-export interface KitGuardado {
-  id: string;
-  nombre: string;
-  articulos: number;
-  precio: string;
-  imagen: string;
 }
 
 export interface Usuario {
@@ -75,59 +69,3 @@ export const mockPedidos: Pedido[] = [
   },
 ];
 
-// ---- KITS GUARDADOS ----
-export const mockKitsGuardados: KitGuardado[] = [
-  {
-    id: "1",
-    nombre: "Kit Básico Primaria",
-    articulos: 24,
-    precio: "$85.000",
-    imagen: "/kit-basico.jpg",
-  },
-  {
-    id: "2",
-    nombre: "Pack de Artes",
-    articulos: 12,
-    precio: "$45.000",
-    imagen: "/pack-artes.jpg",
-  },
-];
-
-// ---- OPCIONES BUSCADOR ----
-export const localidades = [
-  "Usaquén",
-  "Chapinero",
-  "Santa Fe",
-  "San Cristóbal",
-  "Usme",
-  "Tunjuelito",
-  "Bosa",
-  "Kennedy",
-  "Fontibón",
-  "Engativá",
-  "Suba",
-  "Barrios Unidos",
-  "Teusaquillo",
-  "Mártires",
-  "Antonio Nariño",
-  "Puente Aranda",
-  "Candelaria",
-  "Rafael Uribe Uribe",
-  "Ciudad Bolívar",
-];
-
-export const grados = [
-  "Jardín",
-  "Transición",
-  "Primero",
-  "Segundo",
-  "Tercero",
-  "Cuarto",
-  "Quinto",
-  "Sexto",
-  "Séptimo",
-  "Octavo",
-  "Noveno",
-  "Décimo",
-  "Undécimo",
-];

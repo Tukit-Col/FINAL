@@ -33,7 +33,13 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .base import Base, Texto
+from .base import MODOS_SURTIBLES, Base, ModoAdquisicion, Texto, TipoItem, UnidadBase
+from .catalogo import Concepto
+
+_TIPOS_ITEM = ", ".join(f"'{t.value}'" for t in TipoItem)
+_UNIDADES_BASE = ", ".join(f"'{u.value}'" for u in UnidadBase)
+_MODOS = ", ".join(f"'{m.value}'" for m in ModoAdquisicion)
+_MODOS_SURTIBLES = ", ".join(f"'{m.value}'" for m in sorted(MODOS_SURTIBLES))
 
 
 class ListaOficial(Base):
@@ -82,6 +88,19 @@ class VersionListaOficial(Base):
     publicada_por: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     vigente: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
+    # Cuando un administrador dio por buena esta version. Es la puerta que
+    # decide si el catalogo puede salir a buscar afuera.
+    #
+    # Se separa de `publicada_por` a proposito, aunque a veces coincidan en el
+    # tiempo. Publicar es decir "esta es la lista del colegio"; revisar es
+    # decir "ya miramos que tenemos para responderla". Solo una version SIN
+    # revisar habilita buscar productos en una tienda o darlos de alta a mano,
+    # y una vez revisada no se vuelve a abrir: si se pudiera, cada corrida
+    # volveria a consultar tiendas por listas que ya estan resueltas, y el
+    # trabajo del administrador dejaria de acumularse.
+    revisada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revisada_por: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+
     __table_args__ = (
         UniqueConstraint("lista_id", "numero", name="uq_version_lista_numero"),
         CheckConstraint("numero > 0", name="version_numero_positivo"),
@@ -90,7 +109,8 @@ class VersionListaOficial(Base):
             "lista_id",
             unique=True,
             postgresql_where=text("vigente"),
-            sqlite_where=text("vigente")),
+            sqlite_where=text("vigente"),
+        ),
     )
 
 
@@ -107,9 +127,8 @@ class ItemListaOficial(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     version_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid(as_uuid=True),
-        ForeignKey("version_lista_oficial.id", ondelete="CASCADE"),
-        nullable=False)
+        Uuid(as_uuid=True), ForeignKey("version_lista_oficial.id", ondelete="CASCADE"), nullable=False
+    )
     orden: Mapped[int] = mapped_column(Integer, nullable=False)
     texto_original: Mapped[str] = mapped_column(Text, nullable=False)
 
@@ -117,22 +136,73 @@ class ItemListaOficial(Base):
         Uuid(as_uuid=True), ForeignKey("concepto.id", ondelete="SET NULL"), nullable=True
     )
     cantidad: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    unidad: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
+    # Restringida al MISMO vocabulario que `producto_canonico.unidad_base`, y
+    # no a texto libre. Es la otra mitad de la division de empaque: con una
+    # sola punta restringida, "1 resma" contra un producto que cuenta hojas da
+    # un numero sin sentido y nada lo detecta. Admite nulo porque muchos
+    # renglones no dicen unidad ("2 cuadernos"), y ahi contar por pieza es lo
+    # correcto; lo que no se admite es una unidad escrita de cualquier forma.
+    unidad: Mapped[str | None] = mapped_column(String(16), nullable=True)
+
+    # Nulo significa "lo que diga el concepto", NO `util`. El concepto es la
+    # necesidad abstracta que comparten los 17 colegios; el tipo de un renglon
+    # es de ese renglon. "Diccionario: el disponible en casa" no vuelve el
+    # diccionario incomprable para los diecisiete, solo para ese colegio.
+    tipo_item: Mapped[str | None] = mapped_column(String(24), nullable=True)
+
+    modo_adquisicion: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=ModoAdquisicion.MERCADO_ABIERTO.value
+    )
+
+    # Lo que el colegio dijo textualmente sobre este renglon, y a donde manda
+    # si el pago es por fuera. Son lo que hace util a una linea informativa:
+    # sin ellos, "esto no te lo vendemos" deja al acudiente peor que antes.
+    instruccion_colegio: Mapped[str | None] = mapped_column(Text, nullable=True)
+    url_externa: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     atributos: Mapped[dict[str, Any]] = mapped_column(Texto, nullable=False, default=dict)
 
     confianza_normalizacion: Mapped[float | None] = mapped_column(nullable=True)
     requiere_revision: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    def tipo_efectivo(self, concepto: Concepto | None) -> str | None:
+        """El tipo del renglon si lo declaro, y si no el de su concepto.
+
+        Recibe el concepto en vez de navegarlo: ningun modelo de este servicio
+        declara `relationship`, para que toda lectura de otra tabla sea una
+        consulta visible y no una carga perezosa que aparece sola en medio del
+        camino caliente.
+        """
+        if self.tipo_item is not None:
+            return self.tipo_item
+        return concepto.tipo_item if concepto is not None else None
+
+    @property
+    def surtible(self) -> bool:
+        """Si Tukit puede ponerlo en el carrito o solo informarlo."""
+        return self.modo_adquisicion in MODOS_SURTIBLES
+
     __table_args__ = (
         UniqueConstraint("version_id", "orden", name="uq_item_version_orden"),
         CheckConstraint("cantidad > 0", name="item_cantidad_positiva"),
         Index("ix_item_concepto", "concepto_id"),
+        CheckConstraint(f"tipo_item IS NULL OR tipo_item IN ({_TIPOS_ITEM})", name="item_tipo_item_valido"),
+        CheckConstraint(f"unidad IS NULL OR unidad IN ({_UNIDADES_BASE})", name="item_unidad_valida"),
+        CheckConstraint(f"modo_adquisicion IN ({_MODOS})", name="item_modo_adquisicion_valido"),
+        # Lo que Tukit no puede surtir tiene que decir como se consigue. Es la
+        # misma regla que `tarea_importacion`: un aviso que nadie puede
+        # atender es ruido, no un aviso.
+        CheckConstraint(
+            f"modo_adquisicion IN ({_MODOS_SURTIBLES}) OR instruccion_colegio IS NOT NULL",
+            name="item_no_surtible_explica_como_conseguirlo",
+        ),
         # Un renglon sin concepto SIEMPRE requiere revision. Sin esta regla,
         # un renglon que nadie resolvio puede quedarse callado y salir del
         # kit sin que nadie se entere.
         CheckConstraint(
-            "concepto_id IS NOT NULL OR requiere_revision",
-            name="item_sin_concepto_va_a_revision"),
+            "concepto_id IS NOT NULL OR requiere_revision", name="item_sin_concepto_va_a_revision"
+        ),
     )
 
 
@@ -185,15 +255,14 @@ class TareaImportacion(Base):
     __table_args__ = (
         CheckConstraint(
             "estado IN ('pendiente', 'en_curso', 'completada', 'fallida', 'requiere_revision')",
-            name="tarea_estado_valido"),
+            name="tarea_estado_valido",
+        ),
         CheckConstraint("intentos >= 0", name="tarea_intentos_no_negativos"),
         # Una tarea fallida sin diagnostico es una tarea que nadie puede
         # atender. Ya no se admite el Caso como alternativa al mensaje: el
         # Caso lo abre Operacion, asi que Catalogo no puede contar con el
         # para satisfacer su propia invariante.
-        CheckConstraint(
-            "estado <> 'fallida' OR error IS NOT NULL",
-            name="tarea_fallida_tiene_diagnostico"),
+        CheckConstraint("estado <> 'fallida' OR error IS NOT NULL", name="tarea_fallida_tiene_diagnostico"),
         Index("ix_tarea_pendiente", "estado", "actualizada_en"),
     )
 
@@ -226,5 +295,6 @@ class BandejaSalida(Base):
             "ix_bandeja_salida_pendiente",
             "creado_en",
             postgresql_where=text("publicado_en IS NULL"),
-            sqlite_where=text("publicado_en IS NULL")),
+            sqlite_where=text("publicado_en IS NULL"),
+        ),
     )

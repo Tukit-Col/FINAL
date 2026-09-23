@@ -51,8 +51,8 @@ class Tienda(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "tipo IN ('minorista', 'mayorista', 'editorial', 'propia')",
-            name="tienda_tipo_valido"),
+            "tipo IN ('minorista', 'mayorista', 'editorial', 'propia')", name="tienda_tipo_valido"
+        ),
     )
 
 
@@ -82,8 +82,8 @@ class CorridaScraper(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "estado IN ('en_curso', 'completada', 'fallida', 'parcial')",
-            name="corrida_estado_valido"),
+            "estado IN ('en_curso', 'completada', 'fallida', 'parcial')", name="corrida_estado_valido"
+        ),
         Index("ix_corrida_tienda", "tienda_id", "iniciada_en"),
     )
 
@@ -95,9 +95,8 @@ class OfertaTienda(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     producto_canonico_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid(as_uuid=True),
-        ForeignKey("producto_canonico.id", ondelete="CASCADE"),
-        nullable=False)
+        Uuid(as_uuid=True), ForeignKey("producto_canonico.id", ondelete="CASCADE"), nullable=False
+    )
     tienda_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("tienda.id", ondelete="CASCADE"), nullable=False
     )
@@ -105,9 +104,7 @@ class OfertaTienda(Base):
     url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     metodo_vinculacion: Mapped[str] = mapped_column(String(16), nullable=False)
-    confianza_vinculacion: Mapped[float] = mapped_column(
-        Numeric(4, 3), nullable=False, default=1.000
-    )
+    confianza_vinculacion: Mapped[float] = mapped_column(Numeric(4, 3), nullable=False, default=1.000)
 
     # De TRES valores a proposito. `None` significa "no se", no "no hay".
     # La fuente mayorista no reporta stock, y forzar `False` haria que el
@@ -125,8 +122,8 @@ class OfertaTienda(Base):
         UniqueConstraint("tienda_id", "referencia_externa", name="uq_oferta_referencia"),
         CheckConstraint(f"metodo_vinculacion IN ({_METODOS})", name="oferta_metodo_valido"),
         CheckConstraint(
-            "confianza_vinculacion >= 0 AND confianza_vinculacion <= 1",
-            name="oferta_confianza_en_rango"),
+            "confianza_vinculacion >= 0 AND confianza_vinculacion <= 1", name="oferta_confianza_en_rango"
+        ),
         # Cola de revision manual. Vincular por atributos no es un caso
         # degradado: es el camino normal del canal mayorista, donde el EAN
         # valido es del 0,00 %. Este indice es el que hace operativa la
@@ -139,7 +136,8 @@ class OfertaTienda(Base):
             ),
             sqlite_where=text(
                 f"metodo_vinculacion = 'atributos' AND confianza_vinculacion < {UMBRAL_REVISION_MANUAL}"
-            )),
+            ),
+        ),
         Index("ix_oferta_producto", "producto_canonico_id", postgresql_where=text("activo")),
     )
 
@@ -184,8 +182,8 @@ class PrecioOferta(Base):
         CheckConstraint("moneda IN ('COP')", name="precio_moneda_valida"),
         CheckConstraint(f"fuente IN ({_FUENTES})", name="precio_fuente_valida"),
         CheckConstraint(
-            "vigente_hasta IS NULL OR vigente_hasta > vigente_desde",
-            name="precio_vigencia_coherente"),
+            "vigente_hasta IS NULL OR vigente_hasta > vigente_desde", name="precio_vigencia_coherente"
+        ),
         # En Postgres esto va acompanado de una restriccion de exclusion sobre
         # el rango temporal, que es lo que impide dos precios solapados para
         # la misma oferta. SQLAlchemy no la expresa de forma portable, asi que
@@ -199,7 +197,8 @@ class PrecioOferta(Base):
             "oferta_id",
             unique=True,
             postgresql_where=text("vigente_hasta IS NULL"),
-            sqlite_where=text("vigente_hasta IS NULL")),
+            sqlite_where=text("vigente_hasta IS NULL"),
+        ),
         Index("ix_precio_oferta_historial", "oferta_id", "vigente_desde"),
     )
 

@@ -1,0 +1,27 @@
+.salir {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1.5px solid var(--color-border-light);
+  background: var(--color-white);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 15px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: color var(--dur-rapido) var(--ease-suave),
+    border-color var(--dur-rapido) var(--ease-suave),
+    transform var(--dur-rapido) var(--ease-clay);
+}
+
+.salir:hover:not(:disabled) {
+  color: var(--color-primary);
+  border-color: var(--clay-cielo);
+  transform: translateY(-1px);
+}
+
+.salir:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
