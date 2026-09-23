@@ -31,3 +31,6 @@ datos/catalogo/demanda_atributos.json
 # Son estado de UNA maquina en UN momento; versionarlos haria que el `make
 # abajo` de otra persona intentara matar un proceso que nunca existio.
 .ejecucion/
+
+# Worktrees aislados para ejecutar planes sin tocar la copia principal.
+.worktrees/
