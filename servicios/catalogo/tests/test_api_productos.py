@@ -246,6 +246,22 @@ class TestEditarProducto:
         assert respuesta.status_code == 404
         assert respuesta.json()["error"] == "producto_no_existe"
 
+    async def test_patch_atributos_no_escalar_es_422(self, cliente):
+        # Un atributo con valor lista/objeto es basura tipada: se rechaza antes
+        # de persistirla, nombrando la clave ofensora, no un 200 que la guarda.
+        respuesta = await cliente.patch(
+            "/v1/catalogo/productos/TK-C001-SPIDER", json={"atributos": {"materias": ["a", "b"]}}
+        )
+        assert respuesta.status_code == 422 and respuesta.json()["error"] == "atributos_invalido"
+
+    async def test_patch_atributos_escalares_ok(self, cliente):
+        # int, str y bool son valores simples aceptados (bool es subclase de int).
+        respuesta = await cliente.patch(
+            "/v1/catalogo/productos/TK-C001-SPIDER",
+            json={"atributos": {"hojas": 80, "rayado": "cuadriculado", "deposito": True}},
+        )
+        assert respuesta.status_code == 200
+
 
 class TestReclasificar:
     async def test_reasigna_el_concepto_y_devuelve_la_forma_publica(self, cliente):

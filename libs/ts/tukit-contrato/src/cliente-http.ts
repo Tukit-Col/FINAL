@@ -25,6 +25,10 @@ import type {
   ValidarLinea,
 } from "./contrato";
 import type {
+  AltaLibro,
+  AltaUtil,
+  AprobarPropuesta,
+  CandidatoTienda,
   Catalogo,
   Colegio,
   ColegioDetalle,
@@ -41,7 +45,10 @@ import type {
   ProductoCatalogo,
   ProductoCatalogoDetalle,
   ProductoEditable,
+  PropuestaCola,
+  PropuestaEncolada,
   PropuestaRevision,
+  RechazarPropuesta,
   RevisionLista,
   SedeColegio,
   Sugerencia,
@@ -451,6 +458,81 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
+  // ------------------------------------ §Catalogo — curaduria proactiva (P4c bis)
+  //
+  // La cola de curaduria del catalogo, sus altas y sus decisiones. Vive bajo
+  // `/v1/admin/catalogo/*` (que el gateway rutea a catalogo), salvo el rechazo,
+  // que reusa la ruta ya existente `/v1/admin/propuestas/{id}/rechazar`. El
+  // backend envuelve la cola en `{total, propuestas}` y la busqueda en
+  // `{candidatos}`; aca se propaga solo el arreglo, igual que `personajes`.
+  async colaPropuestas(concepto?: string): Promise<PropuestaCola[]> {
+    const qs = concepto ? `?concepto=${encodeURIComponent(concepto)}` : "";
+    const resp = await this.pedir<{ total?: number; propuestas?: PropuestaCola[] }>(
+      `/v1/admin/catalogo/propuestas${qs}`,
+    );
+    return resp.propuestas ?? [];
+  }
+
+  async buscarEnTienda(
+    slug: string,
+    consulta: string,
+    cuantos?: number,
+  ): Promise<CandidatoTienda[]> {
+    const qs = new URLSearchParams({ consulta });
+    if (cuantos !== undefined) qs.set("cuantos", String(cuantos));
+    const resp = await this.pedir<{ candidatos?: CandidatoTienda[] }>(
+      `/v1/admin/catalogo/tiendas/${encodeURIComponent(slug)}/buscar?${qs.toString()}`,
+    );
+    return resp.candidatos ?? [];
+  }
+
+  altaUtil(cuerpo: AltaUtil): Promise<PropuestaEncolada> {
+    return this.pedir<PropuestaEncolada>("/v1/admin/catalogo/propuestas/util", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo),
+    });
+  }
+
+  altaLibro(cuerpo: AltaLibro): Promise<PropuestaEncolada> {
+    return this.pedir<PropuestaEncolada>("/v1/admin/catalogo/propuestas/libro", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo),
+    });
+  }
+
+  aprobarPropuesta(
+    id: string,
+    cuerpo: AprobarPropuesta,
+  ): Promise<{ id: string; estado: string }> {
+    return this.pedir<{ id: string; estado: string }>(
+      `/v1/admin/catalogo/propuestas/${encodeURIComponent(id)}/aprobar`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cuerpo),
+      },
+    );
+  }
+
+  rechazarPropuesta(
+    id: string,
+    cuerpo: RechazarPropuesta,
+  ): Promise<{ id: string; estado: string }> {
+    // Ruta EXISTENTE (no estrena prefijo): `/v1/admin/propuestas` ya se rutea a
+    // catalogo por su propio prefijo, asi que el rechazo no cuelga de
+    // `/v1/admin/catalogo`.
+    return this.pedir<{ id: string; estado: string }>(
+      `/v1/admin/propuestas/${encodeURIComponent(id)}/rechazar`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cuerpo),
+      },
+    );
+  }
+
   // ------------------------------------------------------------------ §7
   async cola(): Promise<ColaAdmin> {
     // El backend responde `{trabajos:[{creado_en, lineas_a_revisar, ...}]}`;
@@ -487,7 +569,15 @@ export class ClienteApi implements OrigenDatos {
     const crudo = await this.pedir<TrabajoAdmin>(
       `/v1/admin/trabajos/${encodeURIComponent(trabajoId)}`,
     );
-    return { ...crudo, kits: crudo.kits.map(normalizarKit) };
+    // El backend ya manda `lineas_pendientes` con el nombre del contrato, asi
+    // que no hay remapeo como en `cola()`. El `?? []` es cinturon y tirantes:
+    // un backend viejo que lo omita degrada a "sin pendientes" en vez de
+    // tumbar el detalle con un `.length` sobre `undefined`.
+    return {
+      ...crudo,
+      kits: crudo.kits.map(normalizarKit),
+      lineas_pendientes: crudo.lineas_pendientes ?? [],
+    };
   }
 
   validarLinea(trabajoId: string, itemId: string, cuerpo: ValidarLinea): Promise<void> {
@@ -602,10 +692,17 @@ export class ClienteApi implements OrigenDatos {
     if (filtros.grado) qs.set("grado", filtros.grado);
     if (filtros.anio_lectivo !== undefined) qs.set("anio_lectivo", String(filtros.anio_lectivo));
     const cadena = qs.toString();
-    const resp = await this.pedir<{ listas?: VersionListaAdmin[] }>(
+    const resp = await this.pedir<{ listas?: Partial<VersionListaAdmin>[] }>(
       `/v1/admin/listas${cadena ? `?${cadena}` : ""}`,
     );
-    return resp.listas ?? [];
+    // `procedencia`/`tiene_contacto` son recientes en el contrato: un backend
+    // que aun no los sirva no debe romper la cola. Se rellenan a null/false, el
+    // mismo cinturon-y-tirantes que `trabajoAdmin` usa con `lineas_pendientes`.
+    return (resp.listas ?? []).map((v) => ({
+      ...(v as VersionListaAdmin),
+      procedencia: v.procedencia ?? null,
+      tiene_contacto: v.tiene_contacto ?? false,
+    }));
   }
 
   async revisionLista(versionId: string): Promise<RevisionLista> {

@@ -47,7 +47,7 @@ export default function TarjetaColegio({ colegio }: { colegio: Colegio }) {
         {colegio.grados.length === 0 ? (
           <p className={styles.sinGrados}>
             Ningún grado revisado.{" "}
-            <Link href="/onboarding">Sube una lista</Link> para empezar.
+            <Link href="/cola">Sube una lista</Link> para empezar.
           </p>
         ) : (
           <ul>

@@ -25,6 +25,10 @@ import type {
   ValidarLinea,
 } from "./contrato";
 import type {
+  AltaLibro,
+  AltaUtil,
+  AprobarPropuesta,
+  CandidatoTienda,
   Catalogo,
   Colegio,
   ColegioDetalle,
@@ -37,6 +41,9 @@ import type {
   Personaje,
   ProductoCatalogoDetalle,
   ProductoEditable,
+  PropuestaCola,
+  PropuestaEncolada,
+  RechazarPropuesta,
   RevisionLista,
   Sugerencia,
   VersionListaAdmin,
@@ -125,6 +132,24 @@ export interface OrigenDatos {
   editarProducto(sku: string, cambios: ProductoEditable): Promise<ProductoCatalogoDetalle>;
   reclasificarProducto(sku: string, concepto: string): Promise<ProductoCatalogoDetalle>;
   eliminarProducto(sku: string): Promise<void>;
+
+  // §Catalogo (P4c bis) — curaduria PROACTIVA del catalogo. Distinta de la
+  // revision de listas de colegio (`cola`/`revisionLista`): aqui el personal
+  // llena huecos del catalogo antes de que un acudiente pregunte. `colaPropuestas`
+  // lista los candidatos pendientes; `buscarEnTienda` envuelve la busqueda en
+  // vivo (VTEX/Shopify) para el alta de utiles; `altaUtil`/`altaLibro` ENCOLAN
+  // (no aprueban: la propuesta cae en la cola visible y una persona decide el
+  // nivel al aprobar); `aprobarPropuesta`/`rechazarPropuesta` cierran la cola.
+  // El rechazo reusa la ruta ya existente `POST /v1/admin/propuestas/{id}/rechazar`.
+  colaPropuestas(concepto?: string): Promise<PropuestaCola[]>;
+  buscarEnTienda(slug: string, consulta: string, cuantos?: number): Promise<CandidatoTienda[]>;
+  altaUtil(cuerpo: AltaUtil): Promise<PropuestaEncolada>;
+  altaLibro(cuerpo: AltaLibro): Promise<PropuestaEncolada>;
+  aprobarPropuesta(id: string, cuerpo: AprobarPropuesta): Promise<{ id: string; estado: string }>;
+  rechazarPropuesta(
+    id: string,
+    cuerpo: RechazarPropuesta,
+  ): Promise<{ id: string; estado: string }>;
 
   // §7 — revision humana.
   cola(): Promise<ColaAdmin>;

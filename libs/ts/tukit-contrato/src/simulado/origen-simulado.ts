@@ -30,6 +30,10 @@ import type {
 } from "../contrato";
 import { ETAPAS } from "../contrato";
 import type {
+  AltaLibro,
+  AltaUtil,
+  AprobarPropuesta,
+  CandidatoTienda,
   Catalogo,
   Colegio,
   ColegioDetalle,
@@ -42,10 +46,14 @@ import type {
   ListaOficial,
   PaginaProductos,
   Personaje,
+  ProcedenciaVersion,
   ProductoCatalogo,
   ProductoCatalogoDetalle,
   ProductoEditable,
+  PropuestaCola,
+  PropuestaEncolada,
   PropuestaRevision,
+  RechazarPropuesta,
   RevisionLista,
   SedeColegio,
   Sugerencia,
@@ -134,6 +142,13 @@ interface VersionImportada {
   items: ItemRevision[];
   // El correlativo de renglones nuevos, para no chocar `orden` al agregar.
   siguiente_orden: number;
+  // De donde vino la version, igual que el `origen` de la `tarea_importacion`
+  // en el backend: 'onboarding' cuando un administrador o el colegio la subio,
+  // 'sugerencia_padre' cuando la subio un acudiente. Ausente en las versiones
+  // sembradas del corpus (la cola las trata como sin procedencia).
+  procedencia?: ProcedenciaVersion;
+  // El acudiente que espera esta version, por identificador y nunca por correo.
+  contacto_referencia?: string | null;
 }
 
 const VERSIONES = new Map<string, VersionImportada>();
@@ -155,6 +170,65 @@ interface SugerenciaEncolada {
 }
 
 const SUGERENCIAS: SugerenciaEncolada[] = [];
+
+// La cola de curaduria PROACTIVA del catalogo (P4c bis): candidatos de producto
+// pendientes de aprobar, que el personal encola para llenar huecos ANTES de que
+// un acudiente pregunte. Es un eje distinto de la revision de listas de colegio.
+// El backend real la respalda en la tabla `propuesta` con estado 'pendiente';
+// aca vive en memoria al nivel de modulo, como el resto del estado del simulado,
+// para que el asiento sobreviva entre requests. `id_corto` es el prefijo de 8
+// que la cola muestra (mismo criterio que `str(id)[:8]` del backend).
+const PROPUESTAS: PropuestaCola[] = [];
+
+// Se siembra una vez, en la primera lectura de la cola, derivando unas cuantas
+// propuestas "pendientes" de productos reales del corpus para que la SPA en modo
+// `simulado` muestre una cola con datos de verdad —no una lista vacia—. La
+// bandera evita re-sembrar en cada request (el arreglo es de modulo).
+let PROPUESTAS_SEMBRADAS = false;
+
+// Cuantos productos del corpus se convierten en propuestas de siembra. Suficiente
+// para llenar la pantalla sin volcar el catalogo entero en la cola.
+const SEMILLA_PROPUESTAS = 6;
+
+// Las tiendas con busqueda (en el backend real: VTEX para exito/panamericana,
+// Shopify para grancentral). Buscalibre NO esta —no expone busqueda en vivo—.
+// Un slug fuera de esta lista es 422 `tienda_desconocida`.
+const TIENDAS_BUSCABLES = ["exito", "panamericana", "grancentral"];
+
+function sembrarPropuestas(): void {
+  if (PROPUESTAS_SEMBRADAS) return;
+  PROPUESTAS_SEMBRADAS = true;
+  for (const concepto of CATALOGO.conceptos) {
+    for (const producto of concepto.productos) {
+      if (PROPUESTAS.length >= SEMILLA_PROPUESTAS) return;
+      PROPUESTAS.push(propuestaDesdeProducto(producto, concepto));
+    }
+  }
+}
+
+// Cose una fila de cola a partir de un producto del corpus, imitando la forma
+// que sirve `GET /v1/admin/catalogo/propuestas`: el precio en pesos enteros (el
+// mas barato de sus ofertas, o null), el concepto ya decidido, y un `id_corto`
+// de 8 caracteres.
+function propuestaDesdeProducto(
+  producto: ProductoCatalogo,
+  concepto: ConceptoCatalogo,
+): PropuestaCola {
+  const id = randomUUID();
+  return {
+    id,
+    id_corto: id.slice(0, 8),
+    texto_origen: producto.nombre,
+    nombre: producto.nombre,
+    marca: producto.marca ?? null,
+    imagen_url: producto.imagen_url ?? null,
+    precio: precioMasBarato(producto),
+    nivel_sugerido: producto.nivel ?? null,
+    puntaje: producto.es_propio ? 0.9 : 0.6,
+    concepto: { codigo: concepto.codigo, nombre: concepto.nombre_canonico },
+    origen: "manual",
+  };
+}
 
 // Los SKU dados de baja (borrado suave) por la SPA de admin. No se borran de la
 // semilla —que es de solo lectura y compartida— sino que se ocultan del
@@ -561,6 +635,175 @@ export class OrigenSimulado implements OrigenDatos {
     return ubicado;
   }
 
+  // ----------------------------------- §Catalogo — curaduria proactiva (P4c bis)
+  //
+  // La cola de curaduria del catalogo en memoria. `colaPropuestas` la lista
+  // (sembrandola la primera vez con productos reales del corpus); `buscarEnTienda`
+  // devuelve candidatos derivados del catalogo filtrados por la consulta;
+  // `altaUtil`/`altaLibro` EMPUJAN a la cola (no aprueban); `aprobar`/`rechazar`
+  // la quitan. Un concepto inexistente es 422 `concepto_no_existe`, igual que el
+  // backend, para que la SPA ejerza la misma ruta de error contra los dos origenes.
+  async colaPropuestas(concepto?: string): Promise<PropuestaCola[]> {
+    sembrarPropuestas();
+    const filas = PROPUESTAS.map((p) => ({ ...p }));
+    if (!concepto) return filas;
+    return filas.filter((p) => "codigo" in p.concepto && p.concepto.codigo === concepto);
+  }
+
+  async buscarEnTienda(
+    slug: string,
+    consulta: string,
+    cuantos = 12,
+  ): Promise<CandidatoTienda[]> {
+    if (!TIENDAS_BUSCABLES.includes(slug)) {
+      throw new ErrorTukit(
+        422,
+        "tienda_desconocida",
+        `No sabemos buscar en la tienda '${slug}'.`,
+        { campo: "slug" },
+      );
+    }
+    const q = consulta.trim().toLowerCase();
+    const candidatos: CandidatoTienda[] = [];
+    for (const p of productosVivos()) {
+      if (candidatos.length >= cuantos) break;
+      const coincide =
+        !q ||
+        p.nombre.toLowerCase().includes(q) ||
+        (p.marca ?? "").toLowerCase().includes(q) ||
+        p.sku.toLowerCase().includes(q);
+      if (!coincide) continue;
+      const precio = p.precio_desde;
+      // Un candidato sin precio no se lista: el alta de util re-busca por precio.
+      if (precio === null) continue;
+      candidatos.push({
+        slug,
+        sku: p.sku,
+        nombre: p.nombre,
+        precio,
+        marca: p.marca ?? null,
+        ean: p.ean ?? null,
+        url: p.ofertas[0]?.url ?? "",
+        imagen_url: p.imagen_url ?? null,
+        disponible: true,
+        especificaciones: {},
+      });
+    }
+    return candidatos;
+  }
+
+  async altaUtil(cuerpo: AltaUtil): Promise<PropuestaEncolada> {
+    this.exigirConcepto(cuerpo.concepto);
+    const nombreConcepto = this.nombreDeConcepto(cuerpo.concepto);
+    // Se re-busca por (slug, sku) como el backend (`admin._util`): el candidato
+    // tiene que seguir en la tienda o el alta cae con 422, no con un 500.
+    const candidatos = await this.buscarEnTienda(cuerpo.slug, cuerpo.consulta);
+    const elegido = candidatos.find((c) => c.sku === cuerpo.sku);
+    if (!elegido) {
+      throw new ErrorTukit(
+        422,
+        "candidato_no_disponible",
+        `El SKU '${cuerpo.sku}' ya no aparece en ${cuerpo.slug}.`,
+        { campo: "sku" },
+      );
+    }
+    const id = randomUUID();
+    const fila: PropuestaCola = {
+      id,
+      id_corto: id.slice(0, 8),
+      texto_origen: elegido.nombre,
+      nombre: elegido.nombre,
+      marca: elegido.marca,
+      imagen_url: elegido.imagen_url,
+      precio: elegido.precio,
+      nivel_sugerido: cuerpo.nivel,
+      puntaje: 0.6,
+      concepto: { codigo: cuerpo.concepto, nombre: nombreConcepto },
+      origen: "manual",
+    };
+    sembrarPropuestas();
+    PROPUESTAS.push(fila);
+    return { id, id_corto: fila.id_corto, estado: "pendiente" };
+  }
+
+  async altaLibro(cuerpo: AltaLibro): Promise<PropuestaEncolada> {
+    this.exigirConcepto(cuerpo.concepto);
+    const nombreConcepto = this.nombreDeConcepto(cuerpo.concepto);
+    const isbn = cuerpo.isbn.replace(/[^0-9Xx]/g, "");
+    // Un ISBN-13 tiene 13 digitos; el backend lo valida con `isbn13_valido`. El
+    // simulado se queda en la guarda de longitud, que es la que la SPA ejerce.
+    if (isbn.length !== 13) {
+      throw new ErrorTukit(422, "isbn_invalido", "El ISBN debe tener 13 digitos.", {
+        campo: "isbn",
+      });
+    }
+    if (!Number.isInteger(cuerpo.precio) || cuerpo.precio <= 0) {
+      throw new ErrorTukit(422, "precio_invalido", "El precio debe ser un entero mayor que cero.", {
+        campo: "precio",
+      });
+    }
+    const id = randomUUID();
+    const fila: PropuestaCola = {
+      id,
+      id_corto: id.slice(0, 8),
+      texto_origen: cuerpo.titulo,
+      nombre: cuerpo.titulo,
+      marca: null,
+      imagen_url: null,
+      precio: cuerpo.precio,
+      nivel_sugerido: cuerpo.nivel,
+      puntaje: 0.9,
+      concepto: { codigo: cuerpo.concepto, nombre: nombreConcepto },
+      origen: "manual",
+    };
+    sembrarPropuestas();
+    PROPUESTAS.push(fila);
+    return { id, id_corto: fila.id_corto, estado: "pendiente" };
+  }
+
+  async aprobarPropuesta(
+    id: string,
+    _cuerpo: AprobarPropuesta,
+  ): Promise<{ id: string; estado: string }> {
+    this.quitarPropuesta(id);
+    return { id, estado: "aprobada" };
+  }
+
+  async rechazarPropuesta(
+    id: string,
+    _cuerpo: RechazarPropuesta,
+  ): Promise<{ id: string; estado: string }> {
+    this.quitarPropuesta(id);
+    return { id, estado: "rechazada" };
+  }
+
+  // La propuesta puede referirse por su id completo o por su prefijo de 8
+  // (`id_corto`), igual que el backend acepta `str(id)[:8]`. Si no esta, 404.
+  private quitarPropuesta(id: string): void {
+    sembrarPropuestas();
+    const i = PROPUESTAS.findIndex((p) => p.id === id || p.id_corto === id);
+    if (i === -1) {
+      throw new ErrorTukit(404, "propuesta_no_existe", "Esa propuesta no esta en la cola.");
+    }
+    PROPUESTAS.splice(i, 1);
+  }
+
+  // Un concepto del catalogo, o 422 `concepto_no_existe` (mismo codigo y estado
+  // que el backend), para que las altas no cuelguen de un concepto inventado.
+  private exigirConcepto(codigo: string): ConceptoCatalogo {
+    const concepto = CATALOGO.conceptos.find((c) => c.codigo === codigo);
+    if (!concepto) {
+      throw new ErrorTukit(422, "concepto_no_existe", "Ese concepto no esta en el catalogo.", {
+        campo: "concepto",
+      });
+    }
+    return concepto;
+  }
+
+  private nombreDeConcepto(codigo: string): string {
+    return CATALOGO.conceptos.find((c) => c.codigo === codigo)?.nombre_canonico ?? codigo;
+  }
+
   async cola(): Promise<ColaAdmin> {
     const entradas = listar()
       .map((registro) => {
@@ -794,6 +1037,10 @@ export class OrigenSimulado implements OrigenDatos {
       percepcion: { paginas, items },
       items: itemsRevision,
       siguiente_orden: itemsRevision.length + 1,
+      // El onboarding es la subida de un administrador (o del colegio): sin un
+      // acudiente esperando detras, a diferencia de una sugerencia de padre.
+      procedencia: "onboarding",
+      contacto_referencia: null,
     });
 
     return { version_id: versionId, grado, items: items.length };
@@ -850,6 +1097,11 @@ export class OrigenSimulado implements OrigenDatos {
         numero: v.numero,
         revisada: v.revisada,
         items: v.items.length,
+        // Las versiones sembradas del corpus no declaran procedencia: la cola
+        // las trata como sin ingreso conocido (null), igual que el backend con
+        // una version sin `tarea_importacion`.
+        procedencia: v.procedencia ?? null,
+        tiene_contacto: v.contacto_referencia != null,
       }));
   }
 

@@ -76,6 +76,11 @@ RUTAS: dict[str, str] = {
     # inteligencia.
     "/v1/admin/listas": "catalogo",
     "/v1/admin/propuestas": "catalogo",
+    # La curaduria proactiva del catalogo (cola de propuestas, alta de util y
+    # libro, buscar en tienda, aprobar) la sirve CATALOGO bajo este prefijo mas
+    # largo. Gana a `/v1/admin` -> inteligencia; `rechazar` sigue yendo a
+    # catalogo por `/v1/admin/propuestas`, que ya esta ruteado arriba.
+    "/v1/admin/catalogo": "catalogo",
     # El backlog de sugerencias de padres lo escribe CATALOGO (crea la
     # tarea_importacion). Sin este prefijo mas largo caeria en `/v1/admin` e
     # iria a inteligencia, que no la sirve.

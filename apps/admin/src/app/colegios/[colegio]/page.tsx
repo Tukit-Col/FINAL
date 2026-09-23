@@ -79,7 +79,7 @@ export default async function PaginaColegio({ params }: Props) {
         <h2 className={styles.subtitulo}>Grados verificados</h2>
         {grados.length === 0 ? (
           <p className={styles.sinGrados}>
-            Ningún grado revisado. <Link href="/onboarding">Sube una lista</Link>.
+            Ningún grado revisado. <Link href="/cola">Sube una lista</Link>.
           </p>
         ) : (
           <ul className={styles.listaGrados}>

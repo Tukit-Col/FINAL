@@ -176,6 +176,83 @@
   color: var(--color-text-secondary);
 }
 
+/* La pista de "acudiente esperando" junto a la insignia de ingreso: es lo que
+ * distingue una versión que al aprobarse dispara un kit de una que no. */
+.pistaContacto {
+  font-size: 11.5px;
+  color: var(--color-aviso);
+  font-weight: 600;
+}
+
+/* El bloque de trabajos de acudiente en espera, debajo de las versiones: un
+ * ingreso todavía sin migrar a versión. Se separa con aire y un subtítulo para
+ * que no se lea como parte de la tabla de versiones. */
+.bloqueTrabajos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  margin-top: var(--espacio-4);
+}
+
+.subtitulo {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+/* El costado derecho del encabezado: el botón de subir una lista sobre el
+ * resumen de cifras. Subir y verificar son el mismo trabajo, así que la acción
+ * vive aquí y no en una pantalla aparte. */
+.acciones {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--espacio-3);
+}
+
+.subirLista {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--espacio-2);
+  width: 100%;
+}
+
+.subirBoton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(145deg, var(--clay-cielo) 0%, var(--color-primary) 100%);
+  color: var(--color-white);
+  font-weight: 700;
+  font-size: 13px;
+  box-shadow: var(--clay-shadow-primary);
+  cursor: pointer;
+  transition: transform var(--dur-rapido) var(--ease-suave);
+}
+
+.subirBoton:hover {
+  transform: translateY(-1px);
+}
+
+.subirBoton:active {
+  transform: scale(0.97);
+}
+
+.subirPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  width: 100%;
+  max-width: 640px;
+  padding: var(--espacio-5);
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--clay-shadow);
+}
+
 .estado {
   display: inline-block;
   padding: 1px 8px;
