@@ -358,9 +358,7 @@ async def emparejar_en_catalogo(
     ]
 
 
-def calcular_vectores(
-    renglones: list[str], embeder: Embeder | None
-) -> list[list[float] | None]:
+def calcular_vectores(renglones: list[str], embeder: Embeder | None) -> list[list[float] | None]:
     """El vector de cada renglon en un solo lote, o `None` por renglon si no hay
     embeder o si la llamada falla.
 

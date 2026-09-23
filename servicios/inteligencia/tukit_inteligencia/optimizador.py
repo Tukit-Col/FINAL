@@ -413,8 +413,10 @@ def _no_dominadas(soluciones: list[SolucionFrente]) -> list[SolucionFrente]:
         s
         for s in puntos
         if not any(
-            _domina((o.costo, o.fidelidad, o.disponibilidad, o.personaje),
-                     (s.costo, s.fidelidad, s.disponibilidad, s.personaje))
+            _domina(
+                (o.costo, o.fidelidad, o.disponibilidad, o.personaje),
+                (s.costo, s.fidelidad, s.disponibilidad, s.personaje),
+            )
             for o in puntos
             if o is not s
         )
@@ -426,9 +428,7 @@ def _no_dominadas(soluciones: list[SolucionFrente]) -> list[SolucionFrente]:
 def _solucion(
     decidibles: list[Renglon], elegidos: list[Candidato], preferencias: dict[str, Any]
 ) -> SolucionFrente:
-    costo, fidelidad, disponibilidad, personaje = _objetivos_de_asignacion(
-        decidibles, elegidos, preferencias
-    )
+    costo, fidelidad, disponibilidad, personaje = _objetivos_de_asignacion(decidibles, elegidos, preferencias)
     asignacion = {(r.hijo, r.orden): c.sku for r, c in zip(decidibles, elegidos, strict=True)}
     return SolucionFrente(asignacion, costo, fidelidad, disponibilidad, personaje)
 
@@ -439,9 +439,7 @@ def _frente_exacto(
     preferencias: dict[str, Any],
 ) -> list[SolucionFrente]:
     """Frente OPTIMO por enumeracion. Exacto e instantaneo para kits chicos."""
-    soluciones = [
-        _solucion(decidibles, list(combo), preferencias) for combo in product(*opciones)
-    ]
+    soluciones = [_solucion(decidibles, list(combo), preferencias) for combo in product(*opciones)]
     return _no_dominadas(soluciones)
 
 
@@ -776,9 +774,7 @@ def _objetivos(lineas: tuple[LineaKit, ...], total: int) -> dict[str, float | in
         }
 
     tope_nivel = max(1, len(ORDEN_NIVEL) - 1)
-    suma_fidelidad = sum(
-        (linea.elegido.rango_nivel / tope_nivel) for linea in comprables if linea.elegido
-    )
+    suma_fidelidad = sum((linea.elegido.rango_nivel / tope_nivel) for linea in comprables if linea.elegido)
     resueltas = sum(
         1 for linea in comprables if linea.estado_resolucion == EstadoResolucion.RESUELTO_AUTO.value
     )

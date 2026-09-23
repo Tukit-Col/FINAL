@@ -44,9 +44,7 @@ async def cliente():
         sesion.add(u)
         await sesion.flush()
         sesion.add(
-            AsignacionRol(
-                usuario_id=u.id, rol_codigo="acudiente", ambito_tipo="global", ambito_id=None
-            )
+            AsignacionRol(usuario_id=u.id, rol_codigo="acudiente", ambito_tipo="global", ambito_id=None)
         )
         # Un contacto sin credencial, como el que crea `registrar_contacto`.
         sesion.add(Usuario(correo="invitado@ejemplo.com", clave_hash="sin-credencial"))

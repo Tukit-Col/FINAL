@@ -128,9 +128,7 @@ async def _contar_notificaciones(motor_operacion) -> list:
 
 async def _pendientes(engine, bandeja) -> list:
     async with engine.begin() as conexion:
-        return list(
-            await conexion.execute(select(bandeja).where(bandeja.c.publicado_en.is_(None)))
-        )
+        return list(await conexion.execute(select(bandeja).where(bandeja.c.publicado_en.is_(None))))
 
 
 def _repartidor(motor_operacion, engine, notificador, identidad) -> Repartidor:
@@ -235,9 +233,7 @@ async def test_fallo_de_envio_sube_intentos_y_no_publica(motor_operacion, motor_
 
             return Envio(canal="correo", exito=False, detalle="sin_correo")
 
-    entregados = await _repartidor(
-        motor_operacion, engine, NotificadorQueFalla(), SinContacto()
-    ).pasada()
+    entregados = await _repartidor(motor_operacion, engine, NotificadorQueFalla(), SinContacto()).pasada()
 
     assert entregados == 0
     # La fila sigue pendiente para reintentar, con intentos subido.

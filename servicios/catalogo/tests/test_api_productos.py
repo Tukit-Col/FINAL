@@ -136,9 +136,7 @@ async def cliente():
 
 async def _texto_embedding(sku: str) -> str | None:
     async with app.state.motor.engine.begin() as conexion:
-        return await conexion.scalar(
-            select(PRODUCTO.c.texto_embedding).where(PRODUCTO.c.sku_interno == sku)
-        )
+        return await conexion.scalar(select(PRODUCTO.c.texto_embedding).where(PRODUCTO.c.sku_interno == sku))
 
 
 async def _activo(sku: str) -> bool | None:
@@ -193,15 +191,11 @@ class TestEditarProducto:
 
     async def test_cambiar_nombre_invalida_el_embedding(self, cliente):
         assert await _texto_embedding("TK-C001-SPIDER") is not None
-        await cliente.patch(
-            "/v1/catalogo/productos/TK-C001-SPIDER", json={"nombre": "Otro nombre"}
-        )
+        await cliente.patch("/v1/catalogo/productos/TK-C001-SPIDER", json={"nombre": "Otro nombre"})
         assert await _texto_embedding("TK-C001-SPIDER") is None
 
     async def test_cambiar_atributos_invalida_el_embedding(self, cliente):
-        await cliente.patch(
-            "/v1/catalogo/productos/TK-C001-SPIDER", json={"atributos": {"rayado": "rayado"}}
-        )
+        await cliente.patch("/v1/catalogo/productos/TK-C001-SPIDER", json={"atributos": {"rayado": "rayado"}})
         assert await _texto_embedding("TK-C001-SPIDER") is None
 
     async def test_editar_solo_marca_no_toca_el_embedding(self, cliente):
@@ -219,16 +213,12 @@ class TestEditarProducto:
         assert env["campo"] == "sku"
 
     async def test_el_concepto_no_se_edita_por_esta_ruta(self, cliente):
-        respuesta = await cliente.patch(
-            "/v1/catalogo/productos/TK-C001-SPIDER", json={"concepto": "C011"}
-        )
+        respuesta = await cliente.patch("/v1/catalogo/productos/TK-C001-SPIDER", json={"concepto": "C011"})
         assert respuesta.status_code == 400
         assert respuesta.json()["campo"] == "concepto"
 
     async def test_nivel_fuera_de_dominio_es_400(self, cliente):
-        respuesta = await cliente.patch(
-            "/v1/catalogo/productos/TK-C001-SPIDER", json={"nivel": "carisimo"}
-        )
+        respuesta = await cliente.patch("/v1/catalogo/productos/TK-C001-SPIDER", json={"nivel": "carisimo"})
         assert respuesta.status_code == 400
         assert respuesta.json()["campo"] == "nivel"
 
@@ -247,9 +237,7 @@ class TestEditarProducto:
         assert respuesta.json()["campo"] == "unidades_por_empaque"
 
     async def test_quality_score_fuera_de_rango_es_400(self, cliente):
-        respuesta = await cliente.patch(
-            "/v1/catalogo/productos/TK-C001-SPIDER", json={"quality_score": 1.5}
-        )
+        respuesta = await cliente.patch("/v1/catalogo/productos/TK-C001-SPIDER", json={"quality_score": 1.5})
         assert respuesta.status_code == 400
         assert respuesta.json()["campo"] == "quality_score"
 
@@ -271,9 +259,7 @@ class TestReclasificar:
         assert cuerpo["precio_desde"] == 9900
 
     async def test_reclasificar_invalida_el_embedding(self, cliente):
-        await cliente.post(
-            "/v1/catalogo/productos/TK-C001-SPIDER/reclasificar", json={"concepto": "C011"}
-        )
+        await cliente.post("/v1/catalogo/productos/TK-C001-SPIDER/reclasificar", json={"concepto": "C011"})
         assert await _texto_embedding("TK-C001-SPIDER") is None
 
     async def test_concepto_inexistente_es_404(self, cliente):

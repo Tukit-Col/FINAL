@@ -586,9 +586,7 @@ async def editar_direccion(
             )
         ).one_or_none()
         if actual is None:
-            raise ErrorDominio(
-                "direccion_no_existe", "No hay ninguna direccion tuya con ese id.", estado=404
-            )
+            raise ErrorDominio("direccion_no_existe", "No hay ninguna direccion tuya con ese id.", estado=404)
         if entrada.predeterminada:
             await _limpiar_predeterminada(conexion, fila.id)
         await conexion.execute(
@@ -633,9 +631,7 @@ async def archivar_direccion(
             .values(archivada_en=datetime.now(UTC), predeterminada=False)
         )
         if resultado.rowcount == 0:
-            raise ErrorDominio(
-                "direccion_no_existe", "No hay ninguna direccion tuya con ese id.", estado=404
-            )
+            raise ErrorDominio("direccion_no_existe", "No hay ninguna direccion tuya con ese id.", estado=404)
     return None
 
 

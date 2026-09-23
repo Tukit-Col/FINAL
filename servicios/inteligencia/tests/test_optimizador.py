@@ -365,16 +365,12 @@ class TestElFrenteDePareto:
     def test_premium_maximiza_el_nivel_de_marca(self):
         kits = armar_los_tres(self.RENGLONES, {})
         premium = next(k for k in kits if k.perfil == "Premium")
-        assert premium.objetivos["fidelidad"] >= max(
-            k.objetivos["fidelidad"] for k in kits
-        )
+        assert premium.objetivos["fidelidad"] >= max(k.objetivos["fidelidad"] for k in kits)
         # Los dos premium: 12000 + 25000.
         assert premium.total_cop == 37000
 
     def test_fan_toma_el_personaje_pedido_en_todo_el_kit(self):
-        kits = armar_los_tres(
-            self.RENGLONES, {"personaje_por_hijo": {"hijo-1": ["spiderman"]}}
-        )
+        kits = armar_los_tres(self.RENGLONES, {"personaje_por_hijo": {"hijo-1": ["spiderman"]}})
         fan = next(k for k in kits if k.perfil == "Fan")
         elegidos = {linea.elegido.sku for linea in fan.lineas if linea.elegido}
         assert elegidos == {"C-FAN", "K-FAN"}
@@ -388,8 +384,7 @@ class TestElFrenteDePareto:
         from tukit_inteligencia.optimizador import armar_kit
 
         kits_heuristica = [
-            armar_kit(self.RENGLONES, perfil, {})
-            for perfil in ("Ahorrador", "Premium", "Fan")
+            armar_kit(self.RENGLONES, perfil, {}) for perfil in ("Ahorrador", "Premium", "Fan")
         ]
         ref = max(k.total_cop for k in kits_frente + kits_heuristica) + 1
         assert _hipervolumen(kits_frente, ref) >= _hipervolumen(kits_heuristica, ref)
@@ -397,6 +392,7 @@ class TestElFrenteDePareto:
     def test_es_reproducible_bajo_la_misma_semilla(self):
         una = optimizar_frente(self.RENGLONES, {}, semilla=7)
         otra = optimizar_frente(self.RENGLONES, {}, semilla=7)
+
         def clave(f):
             return sorted((s.costo, s.fidelidad, s.disponibilidad, s.personaje) for s in f)
 
@@ -429,10 +425,7 @@ class TestElFrenteNSGAEnEspacioGrande:
                 i,
                 f"Item {i}",
                 tuple(
-                    _candidato(
-                        f"L{i}-{j}", niveles[j], precios[j], personaje=personajes[j]
-                    )
-                    for j in range(4)
+                    _candidato(f"L{i}-{j}", niveles[j], precios[j], personaje=personajes[j]) for j in range(4)
                 ),
                 hijo="hijo-1",
             )

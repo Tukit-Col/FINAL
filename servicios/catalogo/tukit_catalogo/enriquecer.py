@@ -948,9 +948,7 @@ def imagen_desde_ficha(url_oferta: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 
-def embeddings_a_actualizar(
-    productos: list[dict[str, Any]], embeder: Embeder
-) -> list[dict[str, Any]]:
+def embeddings_a_actualizar(productos: list[dict[str, Any]], embeder: Embeder) -> list[dict[str, Any]]:
     """Que embeddings hay que (re)calcular, y con que texto.
 
     Es idempotente por diseno, que es lo que permite correr el backfill sobre
@@ -1269,9 +1267,7 @@ def _embeder_por_entorno() -> Embeder | None:
 def main() -> int:
     analizador = argparse.ArgumentParser(description=__doc__)
     analizador.add_argument("--imagenes", action="store_true", help="ir a la red por las portadas")
-    analizador.add_argument(
-        "--sin-embeddings", action="store_true", help="no calcular el canal semantico"
-    )
+    analizador.add_argument("--sin-embeddings", action="store_true", help="no calcular el canal semantico")
     analizador.add_argument("--solo-validar", action="store_true")
     args = analizador.parse_args()
     return asyncio.run(_principal(args.imagenes, args.solo_validar, not args.sin_embeddings))

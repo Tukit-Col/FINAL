@@ -162,10 +162,7 @@ uv run alembic -c servicios/catalogo/alembic.ini revision --autogenerate -m "emb
 En el archivo generado, dentro de `upgrade()` y después de los `add_column`:
 
 ```python
-    op.execute(
-        "CREATE INDEX ix_concepto_embedding_hnsw ON concepto "
-        "USING hnsw (embedding vector_cosine_ops)"
-    )
+op.execute("CREATE INDEX ix_concepto_embedding_hnsw ON concepto USING hnsw (embedding vector_cosine_ops)")
 ```
 
 Y en `downgrade()`, antes de los `drop_column`:
@@ -256,8 +253,11 @@ def test_textos_distintos_dan_vectores_distintos():
 
 def test_el_texto_del_concepto_junta_nombre_sinonimos_y_discriminantes():
     texto = texto_de_concepto(
-        {"nombre_canonico": "cuaderno", "sinonimos": ["libreta", "cuadernillo"],
-         "atributos_discriminantes": ["tipo", "tamano"]}
+        {
+            "nombre_canonico": "cuaderno",
+            "sinonimos": ["libreta", "cuadernillo"],
+            "atributos_discriminantes": ["tipo", "tamano"],
+        }
     )
 
     assert "cuaderno" in texto
@@ -630,8 +630,30 @@ from __future__ import annotations
 # distinguen nada. NO incluir "grande"/"mediano"/"pequeno": para cuadernos y
 # mochilas el catalogo si diferencia tallas reales con el mismo conteo de hojas.
 STOPWORDS_DOMINIO = frozenset(
-    {"caja", "cajas", "paquete", "paquetes", "bolsa", "bolsas", "set", "kit", "unidad", "unidades",
-     "und", "pack", "x", "de", "del", "la", "el", "los", "las", "con", "para", "por"}
+    {
+        "caja",
+        "cajas",
+        "paquete",
+        "paquetes",
+        "bolsa",
+        "bolsas",
+        "set",
+        "kit",
+        "unidad",
+        "unidades",
+        "und",
+        "pack",
+        "x",
+        "de",
+        "del",
+        "la",
+        "el",
+        "los",
+        "las",
+        "con",
+        "para",
+        "por",
+    }
 )
 
 SINONIMOS: dict[str, frozenset[str]] = {
@@ -796,10 +818,9 @@ def test_los_conceptos_de_una_misma_categoria_se_proponen_como_pares_dirigidos()
 
 
 def test_el_cajon_de_sastre_no_propone_nada():
-    """"Otros / Varios" junta 12 conceptos que no se parecen en nada."""
+    """ "Otros / Varios" junta 12 conceptos que no se parecen en nada."""
     conceptos = [
-        {"id": f"c{i}", "nombre_canonico": f"cosa{i}", "categoria": "Otros / Varios"}
-        for i in range(5)
+        {"id": f"c{i}", "nombre_canonico": f"cosa{i}", "categoria": "Otros / Varios"} for i in range(5)
     ]
 
     assert proponer_aristas(conceptos) == []
@@ -1103,7 +1124,8 @@ def test_un_candidato_que_no_entro_por_un_canal_tiene_ese_canal_en_cero():
 def test_rrf_no_aparece_como_puntaje_de_ningun_candidato():
     """Midio 0,753 contra 0,825 del canal denso solo. No puntua."""
     resultado = pool.armar_pool_desde(
-        texto="x", candidatos_por_canal={"lex": [{"producto_id": "p1", "puntaje": 0.8}], "vec": [], "grafo": []}
+        texto="x",
+        candidatos_por_canal={"lex": [{"producto_id": "p1", "puntaje": 0.8}], "vec": [], "grafo": []},
     )
 
     assert "rrf" not in resultado[0]["canales"]
@@ -1499,7 +1521,7 @@ def test_probabilidad_alta_con_margen_estrecho_es_ambiguo():
 
 
 def test_probabilidad_baja_con_concepto_reconocido_es_hueco_de_catalogo():
-    """"Te entendi y no lo tengo" es distinto de "no te entendi"."""
+    """ "Te entendi y no lo tengo" es distinto de "no te entendi"."""
     estado = decidir([0.10], hubo_concepto=True)
 
     assert estado == EstadoResolucion.HUECO_CATALOGO.value
@@ -1512,7 +1534,7 @@ def test_probabilidad_baja_sin_concepto_es_sin_match():
 
 
 def test_un_atributo_que_ningun_producto_declara_es_hueco_no_sin_match():
-    """"Block oficio" se entiende perfecto; lo que falta es el producto."""
+    """ "Block oficio" se entiende perfecto; lo que falta es el producto."""
     estado = decidir([0.99], hubo_concepto=True, atributo_incumplido=True)
 
     assert estado == EstadoResolucion.HUECO_CATALOGO.value
@@ -1593,9 +1615,7 @@ class Calibrador:
     def probabilidad(self, puntajes: Sequence[float]) -> list[float]:
         import numpy as np
 
-        return [
-            float(np.clip(np.interp(p, self.puntos_x, self.puntos_y), 0.0, 1.0)) for p in puntajes
-        ]
+        return [float(np.clip(np.interp(p, self.puntos_x, self.puntos_y), 0.0, 1.0)) for p in puntajes]
 ```
 
 ```python
@@ -1636,21 +1656,13 @@ def decidir(
         return EstadoResolucion.HUECO_CATALOGO.value
 
     if not probabilidades:
-        return (
-            EstadoResolucion.HUECO_CATALOGO.value
-            if hubo_concepto
-            else EstadoResolucion.SIN_MATCH.value
-        )
+        return EstadoResolucion.HUECO_CATALOGO.value if hubo_concepto else EstadoResolucion.SIN_MATCH.value
 
     ordenadas = sorted(probabilidades, reverse=True)
     primera = ordenadas[0]
 
     if primera < TAU:
-        return (
-            EstadoResolucion.HUECO_CATALOGO.value
-            if hubo_concepto
-            else EstadoResolucion.SIN_MATCH.value
-        )
+        return EstadoResolucion.HUECO_CATALOGO.value if hubo_concepto else EstadoResolucion.SIN_MATCH.value
 
     if len(ordenadas) > 1 and (primera - ordenadas[1]) < DELTA:
         return EstadoResolucion.AMBIGUO.value
@@ -1699,9 +1711,21 @@ from tukit_catalogo.descubrir import clasificar
 @pytest.fixture
 def conceptos():
     return [
-        {"id": "c-colores", "codigo": "C004", "nombre": "colores", "sinonimos": ["lapices de colores"], "discriminantes": ()},
+        {
+            "id": "c-colores",
+            "codigo": "C004",
+            "nombre": "colores",
+            "sinonimos": ["lapices de colores"],
+            "discriminantes": (),
+        },
         {"id": "c-pompones", "codigo": "C050", "nombre": "pompones", "sinonimos": [], "discriminantes": ()},
-        {"id": "c-block", "codigo": "C003", "nombre": "block", "sinonimos": [], "discriminantes": ("tamano",)},
+        {
+            "id": "c-block",
+            "codigo": "C003",
+            "nombre": "block",
+            "sinonimos": [],
+            "discriminantes": ("tamano",),
+        },
     ]
 
 
@@ -1722,8 +1746,15 @@ def test_chaquiras_de_colores_tampoco(conceptos):
 
 def test_block_oficio_se_abstiene_en_vez_de_ofrecer_origami(conceptos):
     productos = [
-        {"concepto_id": "c-block", "sku": "TK-C003-ORI", "nombre": "Bloc origami x 50",
-         "nivel": "economico", "personaje": None, "atributos": {"tipo": "origami"}, "precio_cop": 5000},
+        {
+            "concepto_id": "c-block",
+            "sku": "TK-C003-ORI",
+            "nombre": "Bloc origami x 50",
+            "nivel": "economico",
+            "personaje": None,
+            "atributos": {"tipo": "origami"},
+            "precio_cop": 5000,
+        },
     ]
 
     resultado = emparejar("block oficio", conceptos, productos)

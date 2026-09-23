@@ -43,22 +43,77 @@ COLEGIO_PILOTO = "2.13"
 CLAVE_DEMO = "demo1234"
 
 ROLES: list[dict[str, object]] = [
-    {"codigo": "acudiente", "nombre": "Acudiente", "descripcion": "Arma la lista de sus hijos.", "del_sistema": True},
-    {"codigo": "colegio_admin", "nombre": "Administrador de colegio", "descripcion": "Publica la lista oficial y ve el panel institucional.", "del_sistema": True},
-    {"codigo": "colegio_docente", "nombre": "Docente", "descripcion": "Consulta institucional del colegio.", "del_sistema": True},
-    {"codigo": "operador", "nombre": "Operador Tukit", "descripcion": "Revisa la cola y valida lineas.", "del_sistema": True},
-    {"codigo": "admin", "nombre": "Administrador Tukit", "descripcion": "Superset del equipo interno.", "del_sistema": True},
+    {
+        "codigo": "acudiente",
+        "nombre": "Acudiente",
+        "descripcion": "Arma la lista de sus hijos.",
+        "del_sistema": True,
+    },
+    {
+        "codigo": "colegio_admin",
+        "nombre": "Administrador de colegio",
+        "descripcion": "Publica la lista oficial y ve el panel institucional.",
+        "del_sistema": True,
+    },
+    {
+        "codigo": "colegio_docente",
+        "nombre": "Docente",
+        "descripcion": "Consulta institucional del colegio.",
+        "del_sistema": True,
+    },
+    {
+        "codigo": "operador",
+        "nombre": "Operador Tukit",
+        "descripcion": "Revisa la cola y valida lineas.",
+        "del_sistema": True,
+    },
+    {
+        "codigo": "admin",
+        "nombre": "Administrador Tukit",
+        "descripcion": "Superset del equipo interno.",
+        "del_sistema": True,
+    },
 ]
 
 # Permisos minimos: `recurso:accion`. La clasificacion por omision es interno;
 # lo que toca dato de menor se marca aparte, para no colar seguridad de campo
 # por la puerta de atras.
 PERMISOS: list[dict[str, object]] = [
-    {"codigo": "trabajo:crear", "recurso": "trabajo", "accion": "crear", "campo": None, "clasificacion_minima": Clasificacion.PERSONAL.value},
-    {"codigo": "trabajo:leer", "recurso": "trabajo", "accion": "leer", "campo": None, "clasificacion_minima": Clasificacion.PERSONAL.value},
-    {"codigo": "cola:leer", "recurso": "cola", "accion": "leer", "campo": None, "clasificacion_minima": Clasificacion.INTERNO.value},
-    {"codigo": "linea:validar", "recurso": "linea", "accion": "validar", "campo": None, "clasificacion_minima": Clasificacion.INTERNO.value},
-    {"codigo": "lista:publicar", "recurso": "lista", "accion": "publicar", "campo": None, "clasificacion_minima": Clasificacion.INTERNO.value},
+    {
+        "codigo": "trabajo:crear",
+        "recurso": "trabajo",
+        "accion": "crear",
+        "campo": None,
+        "clasificacion_minima": Clasificacion.PERSONAL.value,
+    },
+    {
+        "codigo": "trabajo:leer",
+        "recurso": "trabajo",
+        "accion": "leer",
+        "campo": None,
+        "clasificacion_minima": Clasificacion.PERSONAL.value,
+    },
+    {
+        "codigo": "cola:leer",
+        "recurso": "cola",
+        "accion": "leer",
+        "campo": None,
+        "clasificacion_minima": Clasificacion.INTERNO.value,
+    },
+    {
+        "codigo": "linea:validar",
+        "recurso": "linea",
+        "accion": "validar",
+        "campo": None,
+        "clasificacion_minima": Clasificacion.INTERNO.value,
+    },
+    {
+        "codigo": "lista:publicar",
+        "recurso": "lista",
+        "accion": "publicar",
+        "campo": None,
+        "clasificacion_minima": Clasificacion.INTERNO.value,
+    },
 ]
 
 ROL_PERMISO: list[tuple[str, str]] = [
@@ -96,7 +151,12 @@ def usuarios_demo(clave: str) -> list[dict[str, object]]:
         usuario_id = derivar("usuario", correo)
         filas.append(
             {
-                "usuario": {"id": usuario_id, "correo": correo, "clave_hash": hashear_clave(clave), "activo": True},
+                "usuario": {
+                    "id": usuario_id,
+                    "correo": correo,
+                    "clave_hash": hashear_clave(clave),
+                    "activo": True,
+                },
                 "asignacion": {
                     "id": derivar("asignacion", correo, rol),
                     "usuario_id": usuario_id,
@@ -129,7 +189,10 @@ async def sembrar(clave: str) -> dict[str, int]:
                 .values(ROLES)
                 .on_conflict_do_update(
                     index_elements=["codigo"],
-                    set_={"nombre": insert(rol).excluded.nombre, "descripcion": insert(rol).excluded.descripcion},
+                    set_={
+                        "nombre": insert(rol).excluded.nombre,
+                        "descripcion": insert(rol).excluded.descripcion,
+                    },
                 )
             )
             escritos["rol"] = len(ROLES)
@@ -154,7 +217,10 @@ async def sembrar(clave: str) -> dict[str, int]:
                 .values([d["usuario"] for d in demo])
                 .on_conflict_do_update(
                     index_elements=["id"],
-                    set_={"clave_hash": insert(usuario).excluded.clave_hash, "activo": insert(usuario).excluded.activo},
+                    set_={
+                        "clave_hash": insert(usuario).excluded.clave_hash,
+                        "activo": insert(usuario).excluded.activo,
+                    },
                 )
             )
             escritos["usuario"] = len(demo)

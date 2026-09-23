@@ -61,8 +61,7 @@ MODELO_GEMINI = "gemini-embedding-001"
 MODELO_FALSO = "falso-trigramas-1024"
 
 _URL_GEMINI = (
-    "https://generativelanguage.googleapis.com/v1beta/models/"
-    "{modelo}:batchEmbedContents?key={clave}"
+    "https://generativelanguage.googleapis.com/v1beta/models/{modelo}:batchEmbedContents?key={clave}"
 )
 _TIEMPO_SEGUNDOS = 60
 # Gemini acepta muchos textos por peticion; se parte en lotes para no armar un
@@ -251,9 +250,7 @@ def embeder_gemini(textos: Sequence[str]) -> list[list[float]]:
         except (KeyError, IndexError, TypeError) as exc:
             raise EmbeddingFallido(f"La respuesta no trae los vectores pedidos: {exc}") from exc
         if len(vectores) != len(lote):
-            raise EmbeddingFallido(
-                f"Se pidieron {len(lote)} vectores y volvieron {len(vectores)}."
-            )
+            raise EmbeddingFallido(f"Se pidieron {len(lote)} vectores y volvieron {len(vectores)}.")
         salida.extend(_normalizar(list(v)) for v in vectores)
     return salida
 

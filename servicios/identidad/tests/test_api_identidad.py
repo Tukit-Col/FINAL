@@ -150,7 +150,9 @@ class TestEditarElPerfilDelColegio:
 
     async def test_devuelve_la_misma_forma_que_el_detalle(self, cliente):
         cid = str(derivar("colegio", "2.4"))
-        cuerpo = (await cliente.patch(f"/v1/colegios/{cid}", json={"sitio_web": "https://nuevo.edu.co"})).json()
+        cuerpo = (
+            await cliente.patch(f"/v1/colegios/{cid}", json={"sitio_web": "https://nuevo.edu.co"})
+        ).json()
         assert set(cuerpo.keys()) == {
             "colegio_id",
             "nombre",

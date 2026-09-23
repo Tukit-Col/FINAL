@@ -170,9 +170,7 @@ class Repartidor:
     async def _usuario_del_trabajo(self, trabajo_id: uuid.UUID) -> str | None:
         trabajo = _trabajo_reflejado()
         async with self.motor_origen.connect() as conexion:
-            usuario = await conexion.scalar(
-                select(trabajo.c.usuario_id).where(trabajo.c.id == trabajo_id)
-            )
+            usuario = await conexion.scalar(select(trabajo.c.usuario_id).where(trabajo.c.id == trabajo_id))
         return str(usuario) if usuario is not None else None
 
     def _datos_plantilla(self, fila: Any) -> dict[str, object]:

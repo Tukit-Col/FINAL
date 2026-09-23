@@ -338,14 +338,10 @@ async def resumen_catalogo() -> dict[str, Any]:
                     func.count(productos_por_concepto.c.niveles)
                     .filter(productos_por_concepto.c.niveles >= 3)
                     .label("tres_niveles"),
-                    func.count()
-                    .filter(productos_por_concepto.c.niveles.is_(None))
-                    .label("sin_producto"),
+                    func.count().filter(productos_por_concepto.c.niveles.is_(None)).label("sin_producto"),
                 )
                 .select_from(
-                    CONCEPTO.outerjoin(
-                        productos_por_concepto, productos_por_concepto.c.cid == CONCEPTO.c.id
-                    )
+                    CONCEPTO.outerjoin(productos_por_concepto, productos_por_concepto.c.cid == CONCEPTO.c.id)
                 )
                 .where(CONCEPTO.c.activo.is_(True))
             )
@@ -356,9 +352,7 @@ async def resumen_catalogo() -> dict[str, Any]:
                 select(
                     func.count().label("total"),
                     func.count().filter(PRODUCTO.c.imagen_url.is_not(None)).label("con_foto"),
-                    func.count()
-                    .filter(PRODUCTO.c.quality_score < UMBRAL_SIN_REVISAR)
-                    .label("sin_revisar"),
+                    func.count().filter(PRODUCTO.c.quality_score < UMBRAL_SIN_REVISAR).label("sin_revisar"),
                 ).where(PRODUCTO.c.activo.is_(True))
             )
         ).one()
@@ -740,17 +734,11 @@ async def editar_producto(sku: str, cuerpo: dict[str, Any]) -> dict[str, Any]:
         valores["texto_embedding"] = None
 
     async with app.state.motor.engine.begin() as conexion:
-        existe = await conexion.scalar(
-            select(PRODUCTO.c.id).where(PRODUCTO.c.sku_interno == sku)
-        )
+        existe = await conexion.scalar(select(PRODUCTO.c.id).where(PRODUCTO.c.sku_interno == sku))
         if existe is None:
-            raise ErrorDominio(
-                "producto_no_existe", f"No hay ningun producto con el sku {sku}.", estado=404
-            )
+            raise ErrorDominio("producto_no_existe", f"No hay ningun producto con el sku {sku}.", estado=404)
         if valores:
-            await conexion.execute(
-                update(PRODUCTO).where(PRODUCTO.c.sku_interno == sku).values(**valores)
-            )
+            await conexion.execute(update(PRODUCTO).where(PRODUCTO.c.sku_interno == sku).values(**valores))
         return await _producto_por_sku(conexion, sku)
 
 
@@ -771,9 +759,7 @@ async def reclasificar_producto(sku: str, cuerpo: dict[str, Any]) -> dict[str, A
     async with app.state.motor.engine.begin() as conexion:
         pid = await conexion.scalar(select(PRODUCTO.c.id).where(PRODUCTO.c.sku_interno == sku))
         if pid is None:
-            raise ErrorDominio(
-                "producto_no_existe", f"No hay ningun producto con el sku {sku}.", estado=404
-            )
+            raise ErrorDominio("producto_no_existe", f"No hay ningun producto con el sku {sku}.", estado=404)
         cid = await conexion.scalar(select(CONCEPTO.c.id).where(CONCEPTO.c.codigo == codigo))
         if cid is None:
             raise ErrorDominio(
@@ -805,12 +791,8 @@ async def retirar_producto(sku: str) -> Response:
     async with app.state.motor.engine.begin() as conexion:
         pid = await conexion.scalar(select(PRODUCTO.c.id).where(PRODUCTO.c.sku_interno == sku))
         if pid is None:
-            raise ErrorDominio(
-                "producto_no_existe", f"No hay ningun producto con el sku {sku}.", estado=404
-            )
-        await conexion.execute(
-            update(PRODUCTO).where(PRODUCTO.c.sku_interno == sku).values(activo=False)
-        )
+            raise ErrorDominio("producto_no_existe", f"No hay ningun producto con el sku {sku}.", estado=404)
+        await conexion.execute(update(PRODUCTO).where(PRODUCTO.c.sku_interno == sku).values(activo=False))
     return Response(status_code=204)
 
 
@@ -1110,8 +1092,7 @@ async def emparejar_renglones(cuerpo: dict[str, Any]) -> dict[str, Any]:
         conceptos, productos = await cargar_indice(conexion)
     vectores = calcular_vectores(textos, _embeder_por_entorno())
     resultados = [
-        emparejar(t, conceptos, productos, embedding_renglon=v)
-        for t, v in zip(textos, vectores, strict=True)
+        emparejar(t, conceptos, productos, embedding_renglon=v) for t, v in zip(textos, vectores, strict=True)
     ]
     return {"total": len(resultados), "emparejamientos": [r.a_dict() for r in resultados]}
 
@@ -1132,9 +1113,7 @@ def main(argv: list[str] | None = None) -> int:
     # existe (de ahi el 500 en `/v1/admin/*`). Nombrar el modulo canonico hace
     # que uvicorn importe esa misma `tukit_catalogo.api`, corra su lifespan y
     # sea la que `admin_http` ve: una sola `app`, un solo motor.
-    uvicorn.run(
-        "tukit_catalogo.api:app", host=argumentos.host, port=argumentos.puerto, log_level="info"
-    )
+    uvicorn.run("tukit_catalogo.api:app", host=argumentos.host, port=argumentos.puerto, log_level="info")
     return 0
 
 

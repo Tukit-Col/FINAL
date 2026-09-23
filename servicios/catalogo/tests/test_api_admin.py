@@ -268,9 +268,7 @@ class TestEditarUnRenglon:
         vid = cliente.ids["cerrada"]
         revision = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()
         item_id = revision["items"][0]["item_id"]
-        respuesta = await cliente.patch(
-            f"/v1/admin/listas/{vid}/items/{item_id}", json={"cantidad": 9}
-        )
+        respuesta = await cliente.patch(f"/v1/admin/listas/{vid}/items/{item_id}", json={"cantidad": 9})
         assert respuesta.status_code == 409
         assert respuesta.json()["error"] == "lista_ya_revisada"
 
@@ -376,18 +374,14 @@ class TestImportarListaDesdeOnboarding:
         assert chaquira["requiere_revision"] is True
 
     async def test_el_documento_devuelve_el_pdf_crudo(self, cliente):
-        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
-            "version_id"
-        ]
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
         respuesta = await cliente.get(f"/v1/admin/listas/{vid}/documento")
         assert respuesta.status_code == 200
         assert respuesta.headers["content-type"] == "application/pdf"
         assert respuesta.content == PDF_FALSO
 
     async def test_la_percepcion_devuelve_paginas_e_items(self, cliente):
-        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
-            "version_id"
-        ]
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
         cuerpo = (await cliente.get(f"/v1/admin/listas/{vid}/percepcion")).json()
         assert cuerpo["version_id"] == vid
         assert cuerpo["paginas"] == [{"pagina": 1, "crudo": "cuadernos y chaquiras"}]
@@ -415,9 +409,7 @@ class TestImportarListaDesdeOnboarding:
 
     async def test_un_item_invalido_no_repite_su_texto_en_el_error(self, cliente):
         secreto = "cuaderno del nino Juan Perez"
-        cuerpo = _cuerpo_importar(
-            items=[{"texto_original": secreto, "cantidad": 0, "confianza": 0.9}]
-        )
+        cuerpo = _cuerpo_importar(items=[{"texto_original": secreto, "cantidad": 0, "confianza": 0.9}])
         respuesta = await cliente.post("/v1/admin/listas/importar", json=cuerpo)
         assert respuesta.status_code == 422
         env = respuesta.json()
@@ -603,9 +595,7 @@ class TestElBacklogDeSugerencias:
 
     async def test_lista_solo_las_sugerencias_con_campos_seguros(self, cliente):
         referencia = str(uuid.uuid4())
-        await cliente.post(
-            "/v1/admin/sugerencias", json=_cuerpo_sugerencia(contacto_referencia=referencia)
-        )
+        await cliente.post("/v1/admin/sugerencias", json=_cuerpo_sugerencia(contacto_referencia=referencia))
 
         cuerpo = (await cliente.get("/v1/admin/sugerencias")).json()
         assert len(cuerpo["sugerencias"]) == 1

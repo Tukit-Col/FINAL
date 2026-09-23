@@ -61,14 +61,10 @@ async def metricas_de_colegio(motor: Any, colegio_id: str) -> dict[str, Any]:
 
         publicados = list(
             await conexion.execute(
-                select(TRABAJO.c.id, TRABAJO.c.hijos).where(
-                    TRABAJO.c.estado == EstadoTrabajo.PUBLICADO.value
-                )
+                select(TRABAJO.c.id, TRABAJO.c.hijos).where(TRABAJO.c.estado == EstadoTrabajo.PUBLICADO.value)
             )
         )
-        trabajos_del_colegio = [
-            t.id for t in publicados if colegio_id in _colegios_del_trabajo(t.hijos)
-        ]
+        trabajos_del_colegio = [t.id for t in publicados if colegio_id in _colegios_del_trabajo(t.hijos)]
 
         if not trabajos_del_colegio:
             return _vacio(colegio_id)
