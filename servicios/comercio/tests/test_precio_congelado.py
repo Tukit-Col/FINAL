@@ -9,7 +9,6 @@ del mismo producto lleve otro.
 from __future__ import annotations
 
 import pytest
-
 from conftest import agregar_linea, crear_pedido
 
 pytestmark = pytest.mark.asyncio

@@ -59,7 +59,8 @@ from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.core.problem import Problem
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
-from pymoo.operators.sampling.rnd import FloatRandomSampling
+from pymoo.operators.repair.rounding import RoundingRepair
+from pymoo.operators.sampling.rnd import IntegerRandomSampling
 from pymoo.optimize import minimize as _minimizar
 
 from .modelos import PESOS_POR_OMISION, EstadoResolucion, PerfilKit
@@ -96,11 +97,40 @@ CONCEPTOS_ANCLA = ("C001", "C009", "C011", "C086")
 # corpus real de listas con decenas de renglones y varios candidatos cada uno.
 LIMITE_ENUMERACION = 4096
 
-# Presupuesto de busqueda del NSGA-II. Se escala con el numero de lineas
-# decidibles para que el frente no se quede corto en listas grandes, con topes
-# para que una lista enorme no dispare el tiempo del pipeline.
-_POBLACION = 60
-_GENERACIONES = 40
+# Presupuesto de busqueda del NSGA-II. Se escala con el tamano del problema —el
+# numero de lineas decidibles `n` y el espacio de busqueda `espacio`— en vez de
+# ser fijo, para que el frente no se quede corto en una lista de decenas de
+# renglones y no gaste generaciones de mas en una de tres. Los topes evitan que
+# una lista enorme dispare el tiempo del pipeline. La terminacion sigue siendo
+# por numero fijo de generaciones (no por convergencia): el frente de una
+# semilla dada tiene que reproducirse byte a byte, y un criterio de convergencia
+# como `DefaultMultiObjectiveTermination` haria depender el corte del azar de la
+# corrida. Reproducibilidad es requisito de la tesis, asi que se rechaza.
+_POBLACION_MIN = 40
+_POBLACION_MAX = 200
+_GENERACIONES_MIN = 30
+_GENERACIONES_MAX = 120
+
+
+def _poblacion(n: int) -> int:
+    """Tamano de poblacion escalado a las lineas decidibles, redondeado a par.
+
+    Par porque el emparejamiento de padres de NSGA-II trabaja de a dos y una
+    poblacion impar desperdicia un individuo por generacion.
+    """
+    cruda = min(_POBLACION_MAX, max(_POBLACION_MIN, 12 * n))
+    return cruda + (cruda & 1)
+
+
+def _generaciones(espacio: int) -> int:
+    """Generaciones escaladas al log10 del espacio de busqueda.
+
+    El espacio crece multiplicativamente (producto de candidatos por linea), asi
+    que el esfuerzo util crece con su logaritmo, no linealmente. `max(10, ...)`
+    evita `log10(0)`/valores negativos en el piso.
+    """
+    crudas = 20 * math.log10(max(10, espacio))
+    return int(min(_GENERACIONES_MAX, max(_GENERACIONES_MIN, crudas)))
 
 
 @dataclass(frozen=True)
@@ -424,19 +454,35 @@ def _frente_nsga(
 ) -> list[SolucionFrente]:
     """Frente de Pareto por NSGA-II sobre pymoo. El optimizador de la tesis.
 
-    Las variables de decision son reales en [0, n_i) y se redondean al indice
-    del candidato de la linea i; es la codificacion continua estandar para un
-    problema combinatorio y le deja a los operadores SBX/PM hacer su trabajo. La
-    poblacion inicial se siembra con las tres soluciones heuristicas
+    Las variables de decision son ENTERAS en [0, n_i - 1]: la variable de la
+    linea i es directamente el indice del candidato elegido. Antes eran reales
+    en [0, n_i) con floor, la relajacion continua estandar, pero ahi SBX trataba
+    el indice como una magnitud —interpolaba el indice 3 "entre" el 2 y el 4—
+    cuando el indice es una ETIQUETA nominal, no un numero en una recta. Con
+    `IntegerRandomSampling` + `RoundingRepair` en cruce y mutacion, la
+    descendencia cae siempre en indices legales sin el epsilon de `n_i - 1e-6` y
+    sin dejar de ser determinista bajo una semilla fija.
+
+    Caveat honesto: SBX/PM con redondeo siguen siendo operadores ORDINALES sobre
+    un eje nominal —asumen que indices vecinos son soluciones vecinas, que aqui
+    no es cierto—. Un operador discreto a medida (p.ej. cruce uniforme por
+    variable) seria mas fiel, pero a escala tesis el sesgo ordinal no domina el
+    resultado y `indices()` como guarda de legalidad basta; el operador a medida
+    queda fuera de alcance a proposito (YAGNI).
+
+    La poblacion inicial se siembra con las tres soluciones heuristicas
     (Ahorrador/Premium/Fan) para garantizar que el frente cubra los extremos
     aunque la muestra aleatoria no los toque, y el resultado se vuelve a filtrar
-    por no-dominancia junto con esas semillas.
+    por no-dominancia junto con esas semillas. `pop`/`gen` se escalan con el
+    tamano del problema (`_poblacion`/`_generaciones`).
     """
     n = len(decidibles)
     tamanos = [len(o) for o in opciones]
 
     def indices(x: _np.ndarray) -> list[int]:
-        return [min(tamanos[i] - 1, max(0, int(math.floor(x[i])))) for i in range(n)]
+        # Guarda de legalidad: RoundingRepair ya entrega enteros en rango, pero
+        # se recorta igual para no depender de esa invariante externa.
+        return [min(tamanos[i] - 1, max(0, int(round(float(x[i]))))) for i in range(n)]
 
     preferencias_local = preferencias
 
@@ -446,12 +492,18 @@ def _frente_nsga(
                 n_var=n,
                 n_obj=4,
                 n_constr=0,
-                xl=_np.zeros(n),
-                # El tope es n_i - epsilon para que floor nunca caiga en n_i.
-                xu=_np.array([t - 1e-6 for t in tamanos], dtype=float),
+                xl=_np.zeros(n, dtype=int),
+                xu=_np.array([t - 1 for t in tamanos], dtype=int),
+                vtype=int,
             )
 
         def _evaluate(self, X, out, *args, **kwargs):  # noqa: N802 (pymoo API)
+            # ponytail: bucle por fila, no vectorizado. A escala tesis (pop<=200,
+            # gen<=120, n de unas decenas) es sub-segundo. Una copia numpy de la
+            # logica de objetivos correria el riesgo de divergir de
+            # `_objetivos_de_asignacion` —justo la clase de bug que B4 arregla—,
+            # asi que se reusa esa unica definicion. Vectorizar solo si el
+            # perfilado lo pide.
             filas = []
             for fila in X:
                 elegidos = [opciones[i][idx] for i, idx in enumerate(indices(fila))]
@@ -462,17 +514,18 @@ def _frente_nsga(
                 filas.append([costo, -fidelidad, -disp, -pers])
             out["F"] = _np.array(filas, dtype=float)
 
+    espacio = math.prod(tamanos)
     algoritmo = NSGA2(
-        pop_size=_POBLACION,
-        sampling=FloatRandomSampling(),
-        crossover=SBX(prob=0.9, eta=15),
-        mutation=PM(eta=20),
+        pop_size=_poblacion(n),
+        sampling=IntegerRandomSampling(),
+        crossover=SBX(prob=0.9, eta=15, repair=RoundingRepair()),
+        mutation=PM(prob=1.0, eta=20, repair=RoundingRepair()),
         eliminate_duplicates=True,
     )
     resultado = _minimizar(
         _ProblemaKit(),
         algoritmo,
-        ("n_gen", _GENERACIONES),
+        ("n_gen", _generaciones(espacio)),
         seed=semilla,
         verbose=False,
     )
@@ -701,24 +754,40 @@ def consolidar(lineas: tuple[LineaKit, ...]) -> tuple[tuple[LineaKit, ...], tupl
 
 
 def _objetivos(lineas: tuple[LineaKit, ...], total: int) -> dict[str, float | int]:
-    """Los tres ejes del frente, calculados solo sobre lo comprable.
+    """El resumen de display del kit, calculado solo sobre lo comprable.
 
-    Medir fidelidad o disponibilidad sobre las lineas informativas inflaria
-    los dos numeros con items que Tukit nunca iba a surtir, y el kit se veria
-    mejor cuanto mas cosas no pudiera vender.
+    Medir sobre las lineas informativas inflaria los numeros con items que Tukit
+    nunca iba a surtir, y el kit se veria mejor cuanto mas cosas no pudiera vender.
+
+    `fidelidad` es EL MISMO eje que el frente optimiza: nivel de marca promedio
+    normalizado a [0, 1], recomputado aqui desde el `rango_nivel` del candidato
+    elegido en cada linea. Antes este `fidelidad` era otra cosa —la fraccion de
+    lineas resueltas en automatico—, con lo que el numero que se mostraba no era
+    el eje que se habia optimizado; los dos solo coincidian por correlacion. Esa
+    fraccion sigue siendo util y se reporta aparte como `resolucion_auto`.
     """
     comprables = [linea for linea in lineas if not linea.informativa]
     if not comprables:
-        return {"costo": total, "fidelidad": 0.0, "disponibilidad": 0.0}
+        return {
+            "costo": total,
+            "fidelidad": 0.0,
+            "disponibilidad": 0.0,
+            "resolucion_auto": 0.0,
+        }
 
+    tope_nivel = max(1, len(ORDEN_NIVEL) - 1)
+    suma_fidelidad = sum(
+        (linea.elegido.rango_nivel / tope_nivel) for linea in comprables if linea.elegido
+    )
     resueltas = sum(
         1 for linea in comprables if linea.estado_resolucion == EstadoResolucion.RESUELTO_AUTO.value
     )
     con_precio = sum(1 for linea in comprables if linea.precio_unitario_cop is not None)
     return {
         "costo": total,
-        "fidelidad": round(resueltas / len(comprables), 3),
+        "fidelidad": round(suma_fidelidad / len(comprables), 3),
         "disponibilidad": round(con_precio / len(comprables), 3),
+        "resolucion_auto": round(resueltas / len(comprables), 3),
     }
 
 

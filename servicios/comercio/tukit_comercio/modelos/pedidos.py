@@ -60,9 +60,7 @@ class Pedido(Base):
     # con la cola de revision. Referencia logica a inteligencia.trabajo_pipeline.
     trabajo_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
 
-    estado: Mapped[str] = mapped_column(
-        String(24), nullable=False, default=EstadoPedido.PENDIENTE_PAGO.value
-    )
+    estado: Mapped[str] = mapped_column(String(24), nullable=False, default=EstadoPedido.PENDIENTE_PAGO.value)
 
     # Entero en pesos COP. Congelado al confirmar (ADR 0012).
     total: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)

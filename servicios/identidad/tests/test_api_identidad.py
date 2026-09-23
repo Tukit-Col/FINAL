@@ -190,6 +190,23 @@ class TestElContactoSeVuelveUnIdentificador:
         assert uuid.UUID(cuerpo["usuario_id"])
         assert "papa@ejemplo.com" not in respuesta.text
 
+    async def test_resolver_un_id_devuelve_su_contacto_para_enviar(self, cliente):
+        """La contraparte: el repartidor cambia el id por el correo justo al
+        enviar. `celular` es nulo porque ninguna tabla lo persiste hoy."""
+        creado = (await cliente.post("/v1/contactos", json={"correo": "mama@ejemplo.com"})).json()
+
+        respuesta = await cliente.get(f"/v1/contactos/{creado['usuario_id']}")
+        assert respuesta.status_code == 200
+        cuerpo = respuesta.json()
+        assert cuerpo["usuario_id"] == creado["usuario_id"]
+        assert cuerpo["correo"] == "mama@ejemplo.com"
+        assert cuerpo["celular"] is None
+
+    async def test_resolver_un_id_que_no_existe_da_404(self, cliente):
+        respuesta = await cliente.get(f"/v1/contactos/{uuid.uuid4()}")
+        assert respuesta.status_code == 404
+        assert respuesta.json()["error"] == "usuario_no_existe"
+
     async def test_el_mismo_correo_no_crea_dos_cuentas(self, cliente):
         primero = (await cliente.post("/v1/contactos", json={"correo": "papa@ejemplo.com"})).json()
         segundo = (await cliente.post("/v1/contactos", json={"correo": "PAPA@Ejemplo.com "})).json()
@@ -229,10 +246,19 @@ class TestLaSuperficieDeMenoresNoEstaAbierta:
             "/v1/colegios/{colegio_id}",
             "/v1/grados",
             "/v1/contactos",
+            # Resuelve un id a su contacto para ENVIAR (el repartidor de
+            # Operacion), sin devolver menor ni matricula: la contraparte de
+            # POST /v1/contactos. Efimera, nadie la persiste.
+            "/v1/contactos/{usuario_id}",
             # Autenticacion (seccion 12.4). Devuelven quien es el portador y sus
             # ROLES, nunca un estudiante ni un nombre de menor: la superficie
             # sensible sigue cerrada, es lo que fija la prueba de arriba.
             "/v1/sesiones",
             "/v1/sesiones/actual",
             "/v1/sesiones/cierre",
+            # "Mi cuenta": quien soy y mi libreta de direcciones. Todo exige el
+            # token y solo devuelve lo propio del portador; no abre menores.
+            "/v1/cuenta",
+            "/v1/cuenta/direcciones",
+            "/v1/cuenta/direcciones/{direccion_id}",
         }

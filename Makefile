@@ -10,16 +10,17 @@
         bd-migrar bd-revision bd-deriva bd-cargar bd-datos bd-enriquecer bd-completar \
         bd-demanda bd-revisar bd-vista bd-admin bd-nivelar bd-volcar bd-limpiar-candidatos fase1 \
         bd-sembrar bd-colegios bd-listas backend arriba abajo estado humo \
-        api-catalogo api-identidad api-inteligencia api-gateway
+        api-catalogo api-identidad api-inteligencia api-gateway \
+        api-comercio api-operacion repartidor
 
 PY := .venv/bin/python
 PYTEST := .venv/bin/pytest
 RUFF := .venv/bin/ruff
 ALEMBIC := ../../.venv/bin/alembic
 
-# Servicios con historia de migraciones propia. Los otros tres todavia no
-# tienen modelos, y se agregan aqui el dia que los tengan.
-SERVICIOS_CON_MIGRACIONES := identidad catalogo inteligencia
+# Servicios con historia de migraciones propia. Gateway no tiene base; los
+# cinco con dominio si.
+SERVICIOS_CON_MIGRACIONES := identidad catalogo inteligencia comercio operacion
 
 COMPOSE := docker compose -f infra/docker-compose.yml
 
@@ -125,7 +126,7 @@ bd-limpiar:  ## Detiene Postgres y BORRA los datos (volumen incluido)
 
 # PYTHONPATH explicito para `python -m`: pytest usa el pythonpath del pyproject,
 # pero `python -m` no. Se listan la libreria compartida y cada servicio portado.
-ESQUEMA_PATH := libs/py/tukit_comun:servicios/identidad:servicios/catalogo:servicios/inteligencia:servicios/gateway
+ESQUEMA_PATH := libs/py/tukit_comun:servicios/identidad:servicios/catalogo:servicios/inteligencia:servicios/gateway:servicios/comercio:servicios/operacion
 
 # Cada archivo de aqui se llama como el servicio dueno de la base a la que se
 # aplica: `catalogo.sql` -> `tukit_catalogo`. La convencion es lo que permite
@@ -138,6 +139,8 @@ bd-esquema:  ## Materializa el esquema de identidad y catalogo, y sus indices
 	@PYTHONPATH="$(ESQUEMA_PATH)" $(PY) -m tukit_identidad
 	@PYTHONPATH="$(ESQUEMA_PATH)" $(PY) -m tukit_catalogo
 	@PYTHONPATH="$(ESQUEMA_PATH)" $(PY) -m tukit_inteligencia esquema
+	@PYTHONPATH="$(ESQUEMA_PATH)" $(PY) -m tukit_comercio
+	@PYTHONPATH="$(ESQUEMA_PATH)" $(PY) -m tukit_operacion
 	@$(MAKE) --no-print-directory bd-indices
 
 # Va aparte de `bd-esquema` porque no lo hace create_all: SQLAlchemy crea los
@@ -247,7 +250,7 @@ bd-deriva:  ## Falla si el esquema migrado y los modelos no dicen lo mismo
 	@$(PY) arquitectura/verificar_deriva.py
 
 # --- La superficie HTTP ----------------------------------------------------
-# Cuatro procesos: tres servicios con dominio y una puerta de enlace que le da
+# Seis procesos: cinco servicios con dominio y una puerta de enlace que le da
 # al frontend UNA sola URL base, que es la unica direccion que el contrato le
 # promete a quien consume.
 #
@@ -255,6 +258,8 @@ bd-deriva:  ## Falla si el esquema migrado y los modelos no dicen lo mismo
 #   8011  identidad     colegios, sedes, grados, contacto
 #   8012  catalogo      conceptos, productos, ofertas, listas, emparejar
 #   8013  inteligencia  trabajos y cola de revision
+#   8014  comercio      pedidos, inventario, pagos (Wompi), entrega
+#   8015  operacion     casos/PQRS, notificaciones, auditoria, telemetria
 #
 # El bloque empieza en 8010 y no en 8000 por una razon aburrida y real: 8000
 # es el puerto por omision de medio mundo (uvicorn, http.server, Django) y en
@@ -274,6 +279,8 @@ PUERTO_GATEWAY ?= 8010
 PUERTO_IDENTIDAD ?= 8011
 PUERTO_CATALOGO ?= 8012
 PUERTO_INTELIGENCIA ?= 8013
+PUERTO_COMERCIO ?= 8014
+PUERTO_OPERACION ?= 8015
 
 # Se exportan para que cada proceso sepa donde estan los otros sin que nadie
 # escriba una URL en el codigo. Si se cambia un puerto arriba, todo sigue
@@ -281,6 +288,8 @@ PUERTO_INTELIGENCIA ?= 8013
 export TUKIT_IDENTIDAD_URL ?= http://127.0.0.1:$(PUERTO_IDENTIDAD)
 export TUKIT_CATALOGO_URL ?= http://127.0.0.1:$(PUERTO_CATALOGO)
 export TUKIT_INTELIGENCIA_URL ?= http://127.0.0.1:$(PUERTO_INTELIGENCIA)
+export TUKIT_COMERCIO_URL ?= http://127.0.0.1:$(PUERTO_COMERCIO)
+export TUKIT_OPERACION_URL ?= http://127.0.0.1:$(PUERTO_OPERACION)
 
 api-identidad:  ## Levanta SOLO identidad, en primer plano
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_identidad.api --puerto $(PUERTO_IDENTIDAD)
@@ -291,10 +300,19 @@ api-catalogo:  ## Levanta SOLO catalogo, en primer plano
 api-inteligencia:  ## Levanta SOLO inteligencia, en primer plano
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_inteligencia.api --puerto $(PUERTO_INTELIGENCIA)
 
+api-comercio:  ## Levanta SOLO comercio, en primer plano
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_comercio.api --puerto $(PUERTO_COMERCIO)
+
+api-operacion:  ## Levanta SOLO operacion, en primer plano
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_operacion.api --puerto $(PUERTO_OPERACION)
+
 api-gateway:  ## Levanta SOLO la puerta de enlace, en primer plano
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_gateway.api --puerto $(PUERTO_GATEWAY)
 
-arriba:  ## Levanta los cuatro procesos HTTP en segundo plano
+repartidor:  ## Reparte los eventos de las bandejas (una pasada; usa s=--seguir para bucle)
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_operacion.repartidor $(s)
+
+arriba:  ## Levanta los seis procesos HTTP en segundo plano
 	@mkdir -p $(EJECUCION)
 	@$(MAKE) --no-print-directory abajo >/dev/null 2>&1 || true
 	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_identidad.api --puerto $(PUERTO_IDENTIDAD) \
@@ -303,6 +321,10 @@ arriba:  ## Levanta los cuatro procesos HTTP en segundo plano
 		> $(EJECUCION)/catalogo.log 2>&1 & echo $$! > $(EJECUCION)/catalogo.pid
 	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_inteligencia.api --puerto $(PUERTO_INTELIGENCIA) \
 		> $(EJECUCION)/inteligencia.log 2>&1 & echo $$! > $(EJECUCION)/inteligencia.pid
+	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_comercio.api --puerto $(PUERTO_COMERCIO) \
+		> $(EJECUCION)/comercio.log 2>&1 & echo $$! > $(EJECUCION)/comercio.pid
+	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_operacion.api --puerto $(PUERTO_OPERACION) \
+		> $(EJECUCION)/operacion.log 2>&1 & echo $$! > $(EJECUCION)/operacion.pid
 	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_gateway.api --puerto $(PUERTO_GATEWAY) \
 		> $(EJECUCION)/gateway.log 2>&1 & echo $$! > $(EJECUCION)/gateway.pid
 	@echo "Esperando a que respondan..."
@@ -312,14 +334,14 @@ arriba:  ## Levanta los cuatro procesos HTTP en segundo plano
 	done
 	@$(MAKE) --no-print-directory estado
 
-abajo:  ## Detiene los cuatro procesos HTTP
-	@for s in gateway inteligencia catalogo identidad; do \
+abajo:  ## Detiene los seis procesos HTTP
+	@for s in gateway operacion comercio inteligencia catalogo identidad; do \
 		[ -f $(EJECUCION)/$$s.pid ] && kill $$(cat $(EJECUCION)/$$s.pid) 2>/dev/null; \
 		rm -f $(EJECUCION)/$$s.pid; \
 	done; true
 	@echo "Procesos HTTP detenidos."
 
-estado:  ## Dice cuales de los cuatro estan arriba, preguntandoles
+estado:  ## Dice cuales de los seis estan arriba, preguntandoles
 	@curl -fs http://127.0.0.1:$(PUERTO_GATEWAY)/v1/servicios | $(PY) -m json.tool \
 		|| echo "  La puerta no responde en http://127.0.0.1:$(PUERTO_GATEWAY)"
 	@echo "  Base para el frontend: http://127.0.0.1:$(PUERTO_GATEWAY)"

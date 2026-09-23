@@ -62,6 +62,30 @@ export async function crearTrabajo(
   return leer<TrabajoCreado>(await fetch("/api/trabajos", { method: "POST", body: forma }));
 }
 
+/**
+ * Sugiere un (colegio, grado) al backlog del administrador cuando aún no es
+ * aliado. El PDF que el acudiente subió viaja como semilla de onboarding; la
+ * única traza al acudiente es `contacto_referencia` —correo y celular nunca
+ * salen del navegador por aquí—.
+ */
+export async function sugerirColegio(datos: {
+  colegioId: string;
+  grado: string;
+  anioLectivo: number;
+  archivo?: File | null;
+  contactoReferencia?: string;
+}): Promise<{ tarea_id: string; estado: string }> {
+  const forma = new FormData();
+  forma.append("colegio_id", datos.colegioId);
+  forma.append("grado", datos.grado);
+  forma.append("anio_lectivo", String(datos.anioLectivo));
+  if (datos.contactoReferencia) forma.append("contacto_referencia", datos.contactoReferencia);
+  if (datos.archivo) forma.append("archivo", datos.archivo, datos.archivo.name);
+  return leer<{ tarea_id: string; estado: string }>(
+    await fetch("/api/sugerencias", { method: "POST", body: forma }),
+  );
+}
+
 export async function crearCaso(solicitud: SolicitudCaso): Promise<CasoCreado> {
   return leer<CasoCreado>(
     await fetch("/api/casos", {

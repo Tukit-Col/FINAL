@@ -26,6 +26,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, insert, select
 from tukit_comun.bd import crear_motor
 from tukit_comun.http import ErrorDominio, crear_app
+from tukit_comun.http import iso as _iso
 
 from .modelos import (
     CATEGORIAS_CASO_ACUDIENTE,
@@ -67,10 +68,6 @@ app = crear_app(
 )
 
 
-def _iso(valor: datetime | None) -> str | None:
-    return valor.isoformat() if valor is not None else None
-
-
 def _serializar_caso(fila: Any) -> dict[str, Any]:
     return {
         "caso_id": str(fila.id),
@@ -108,9 +105,7 @@ async def _resumen(conexion: Any, ahora: datetime) -> dict[str, Any]:
     fin_dia = ahora.replace(hour=23, minute=59, second=59, microsecond=0)
     hace_una_semana = ahora - timedelta(days=7)
 
-    abiertos = await conexion.scalar(
-        select(func.count()).where(CASO.c.estado.notin_(inactivos))
-    )
+    abiertos = await conexion.scalar(select(func.count()).where(CASO.c.estado.notin_(inactivos)))
     urgentes = await conexion.scalar(
         select(func.count()).where(
             CASO.c.estado.notin_(inactivos), CASO.c.prioridad == Prioridad.URGENTE.value
@@ -124,9 +119,7 @@ async def _resumen(conexion: Any, ahora: datetime) -> dict[str, Any]:
         )
     )
     resueltos_semana = await conexion.scalar(
-        select(func.count()).where(
-            CASO.c.resuelto_en.is_not(None), CASO.c.resuelto_en >= hace_una_semana
-        )
+        select(func.count()).where(CASO.c.resuelto_en.is_not(None), CASO.c.resuelto_en >= hace_una_semana)
     )
     return {
         "abiertos": int(abiertos or 0),
@@ -210,7 +203,9 @@ async def abrir_caso(solicitud: SolicitudCaso) -> dict[str, Any]:
             trabajo_id = uuid.UUID(solicitud.trabajo_id)
         except ValueError:
             raise ErrorDominio(
-                "trabajo_invalido", "El identificador de trabajo no tiene forma valida.", estado=422,
+                "trabajo_invalido",
+                "El identificador de trabajo no tiene forma valida.",
+                estado=422,
                 campo="trabajo_id",
             ) from None
 

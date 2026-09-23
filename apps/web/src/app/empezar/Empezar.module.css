@@ -60,7 +60,9 @@
 
 .hijo {
   border: none;
-  background: var(--clay-crema-suave);
+  /* Fondo blanco liso: el crema suave leia como "amarillo" y competia con las
+   * fichas de personaje. El relieve lo da la sombra hundida, no el color. */
+  background: var(--color-white);
   border-radius: var(--radius-lg);
   padding: var(--espacio-4);
   display: grid;
@@ -141,6 +143,177 @@
   color: var(--color-text-muted);
   box-shadow: none;
   background: var(--color-border-light);
+}
+
+/* Rótulo de campo reutilizable (colegio, grado): mismo peso que .campo>span
+ * pero para bloques que no son <label> directos. */
+.campoRotulo {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* ----------------------------------------------------- Selector de colegio */
+
+.colegioBloque {
+  display: grid;
+  gap: var(--espacio-2);
+}
+
+.buscador {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  padding: 0 var(--espacio-4);
+  min-height: 46px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-md);
+  box-shadow: var(--clay-shadow-inset);
+  color: var(--color-text-muted);
+}
+
+.buscador input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.listaColegios {
+  display: grid;
+  gap: var(--espacio-2);
+  max-height: 268px;
+  overflow-y: auto;
+  padding: 4px;
+  margin: -4px;
+}
+
+.tarjetaColegio {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-3);
+  width: 100%;
+  padding: var(--espacio-3);
+  text-align: left;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-md);
+  box-shadow: var(--clay-shadow-sm);
+  cursor: pointer;
+  transition: transform var(--dur-rapido) var(--ease-clay),
+    box-shadow var(--dur-rapido) var(--ease-suave);
+}
+
+.tarjetaColegio:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--clay-shadow);
+}
+
+.colegioActivo {
+  background: var(--clay-cielo-bg);
+  box-shadow: var(--clay-shadow-sm), inset 0 0 0 2px var(--color-primary);
+}
+
+.logoColegio {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-white);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.logoColegio img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.logoIniciales {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+.colegioTexto {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.colegioNombre {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.colegioMeta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.colegioMarca {
+  margin-left: auto;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  color: var(--color-white);
+  background: var(--color-primary);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.sinColegios {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  padding: var(--espacio-4);
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* --------------------------------------------------------------- Grado */
+
+.gradoBloque {
+  display: grid;
+  gap: var(--espacio-2);
+}
+
+.gradoChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+}
+
+.chipGrado {
+  min-height: 40px;
+  padding: 0 var(--espacio-4);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-2);
+  border-radius: var(--radius-full);
+  box-shadow: var(--clay-shadow-sm);
+  cursor: pointer;
+  transition: transform var(--dur-rapido) var(--ease-clay),
+    box-shadow var(--dur-rapido) var(--ease-suave);
+}
+
+.chipGrado:hover {
+  transform: translateY(-1px);
+}
+
+.chipGradoActivo {
+  color: var(--color-white);
+  background: linear-gradient(145deg, var(--clay-cielo) 0%, var(--color-primary) 100%);
+  box-shadow: var(--clay-shadow-primary);
 }
 
 /* --------------------------------------------------------------- Entradas */
@@ -283,6 +456,70 @@
 
 .archivoElegido {
   font-size: 13px;
+  font-weight: 700;
+  color: var(--color-success);
+}
+
+/* ------------------------------------------------------------ Sugerencia */
+
+.sugerencia {
+  display: grid;
+  gap: var(--espacio-3);
+  padding: var(--espacio-4);
+  background: var(--clay-cielo-bg);
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--clay-cielo) 32%, transparent);
+}
+
+.sugerenciaTexto {
+  display: grid;
+  gap: 3px;
+  font-size: 13px;
+}
+
+.sugerenciaTexto strong {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.sugerenciaTexto span {
+  color: var(--color-text-secondary);
+}
+
+.botonSugerir {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: start;
+  min-height: 44px;
+  padding: 0 var(--espacio-5);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-white);
+  background: linear-gradient(145deg, var(--clay-cielo) 0%, var(--color-primary) 100%);
+  border-radius: var(--radius-full);
+  box-shadow: var(--clay-shadow-primary);
+  cursor: pointer;
+  transition: transform var(--dur-rapido) var(--ease-clay),
+    box-shadow var(--dur-rapido) var(--ease-suave);
+}
+
+.botonSugerir:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.botonSugerir:disabled {
+  background: var(--color-border);
+  color: var(--color-text-muted);
+  box-shadow: var(--clay-shadow-inset);
+  cursor: not-allowed;
+}
+
+.sugerenciaOk {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--color-success);
 }

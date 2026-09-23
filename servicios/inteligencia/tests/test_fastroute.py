@@ -25,7 +25,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from conftest import CatalogoFalso, opcion
+from conftest import CatalogoFalso, opcion, reconocido, renglon
 from tukit_inteligencia import trabajos
 from tukit_inteligencia.modelos import EstadoResolucion, EstadoTrabajo
 from tukit_inteligencia.optimizador import (
@@ -270,8 +270,6 @@ class TestRutaRapidaVerificada:
 
 class TestListaSinRevisarUsaRutaLenta:
     async def test_si_no_esta_revisada_se_llama_emparejar(self, motor):
-        from conftest import reconocido, renglon
-
         catalogo = CatalogoVerificado(
             revisada=False,
             renglones=[renglon(1, "2 cuadernos", cantidad=2)],

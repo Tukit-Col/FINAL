@@ -1090,6 +1090,14 @@ export class OrigenSimulado implements OrigenDatos {
     return pedido;
   }
 
+  // El historial del acudiente. Los pedidos simulados se derivan de los
+  // trabajos publicados y no llevan `usuario_id` (la demo es de un solo hogar),
+  // asi que se devuelve el tablero completo: es el mismo conjunto que el padre
+  // veria en su panel. El backend real si filtra por `usuario_id`.
+  async misPedidos(_usuarioId: string): Promise<Pedido[]> {
+    return derivarTablero().pedidos;
+  }
+
   // ASUMIDO — superficie de lectura de `operacion`. Los casos se derivan de las
   // fallas observables de cada trabajo (SIN_MATCH → mapeo, HUECO → stock).
   async casos(): Promise<BandejaOperacion> {

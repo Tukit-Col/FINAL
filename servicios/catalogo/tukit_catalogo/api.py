@@ -897,6 +897,10 @@ async def listar_listas(
     ] = None,
     grado: Annotated[str | None, Query(description="Grado tal como lo nombra el colegio")] = None,
     anio_lectivo: Annotated[int | None, Query(ge=2020, le=2100)] = None,
+    revisada: Annotated[
+        bool | None,
+        Query(description="Solo listas verificadas (true) o solo pendientes (false)"),
+    ] = None,
     pagina: Annotated[int, Query(ge=1)] = 1,
     por_pagina: Annotated[int, Query(ge=1, le=POR_PAGINA_MAXIMO)] = POR_PAGINA_POR_OMISION,
 ) -> dict[str, Any]:
@@ -938,6 +942,13 @@ async def listar_listas(
         consulta = consulta.where(LISTA.c.grado == grado)
     if anio_lectivo is not None:
         consulta = consulta.where(LISTA.c.anio_lectivo == anio_lectivo)
+    # `revisada` es un derivado de `revisada_en IS NULL`; se filtra aqui para
+    # que el selector del acudiente pida `?revisada=true` y no traiga las
+    # pendientes solo para descartarlas en el navegador.
+    if revisada is True:
+        consulta = consulta.where(VERSION.c.revisada_en.is_not(None))
+    elif revisada is False:
+        consulta = consulta.where(VERSION.c.revisada_en.is_(None))
 
     consulta = consulta.order_by(LISTA.c.anio_lectivo.desc(), LISTA.c.colegio_id, LISTA.c.grado)
 
@@ -1072,7 +1083,7 @@ async def emparejar_renglones(cuerpo: dict[str, Any]) -> dict[str, Any]:
     da nada de alta. Lo que da de alta es `descubrir`, y solo a traves de una
     version de lista sin revisar.
     """
-    from .consulta import emparejar
+    from .consulta import _embeder_por_entorno, calcular_vectores, cargar_indice, emparejar
 
     renglones = cuerpo.get("renglones")
     if not isinstance(renglones, list) or not renglones:
@@ -1089,74 +1100,20 @@ async def emparejar_renglones(cuerpo: dict[str, Any]) -> dict[str, Any]:
             campo="renglones",
         )
 
-    conceptos, productos = await _indice(app.state.motor)
-    resultados = [emparejar(str(r), conceptos, productos) for r in renglones]
+    textos = [str(r) for r in renglones]
+    # El motor del servicio (su pool) trae la conexion; `cargar_indice` es la
+    # unica copia de la consulta y SI carga embeddings, asi que el canal
+    # semantico de OE3 corre aqui igual que en la CLI. El vector del renglon se
+    # calcula en un solo lote (una peticion) y degrada a lexico si no hay clave
+    # o el proveedor falla — misma contrato que `emparejar_en_catalogo`.
+    async with app.state.motor.engine.begin() as conexion:
+        conceptos, productos = await cargar_indice(conexion)
+    vectores = calcular_vectores(textos, _embeder_por_entorno())
+    resultados = [
+        emparejar(t, conceptos, productos, embedding_renglon=v)
+        for t, v in zip(textos, vectores, strict=True)
+    ]
     return {"total": len(resultados), "emparejamientos": [r.a_dict() for r in resultados]}
-
-
-async def _indice(motor: Any) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Conceptos y productos en la forma que `emparejar` espera.
-
-    Es la consulta de `consulta.cargar_indice`, pero reusando el motor que ya
-    tiene abierto el servicio en vez de crear uno por llamada. Crear y
-    desechar un motor por peticion es un pool de conexiones nuevo cada vez, y
-    ese fue uno de los cuellos que el perfilado encontro en la ingesta.
-    """
-    precio_min = _precio_minimo_vigente()
-    async with motor.engine.begin() as conexion:
-        conceptos = [
-            {
-                "id": f.id,
-                "codigo": f.codigo,
-                "nombre": f.nombre_canonico,
-                "sinonimos": list(f.sinonimos or ()),
-                "discriminantes": tuple(f.atributos_discriminantes or ()),
-            }
-            for f in await conexion.execute(
-                select(
-                    CONCEPTO.c.id,
-                    CONCEPTO.c.codigo,
-                    CONCEPTO.c.nombre_canonico,
-                    CONCEPTO.c.sinonimos,
-                    CONCEPTO.c.atributos_discriminantes,
-                ).where(CONCEPTO.c.activo.is_(True))
-            )
-        ]
-        productos = [
-            {
-                "id": f.id,
-                "concepto_id": f.concepto_id,
-                "sku": f.sku_interno,
-                "nombre": f.nombre,
-                "nivel": f.nivel,
-                "personaje": f.personaje,
-                "marca": f.marca,
-                "imagen_url": f.imagen_url,
-                "unidad_base": f.unidad_base,
-                "unidades_por_empaque": int(f.unidades_por_empaque or 1),
-                "atributos": dict(f.atributos or {}),
-                "precio_cop": pesos(f.centavos),
-            }
-            for f in await conexion.execute(
-                select(
-                    PRODUCTO.c.id,
-                    PRODUCTO.c.concepto_id,
-                    PRODUCTO.c.sku_interno,
-                    PRODUCTO.c.nombre,
-                    PRODUCTO.c.nivel,
-                    PRODUCTO.c.personaje,
-                    PRODUCTO.c.marca,
-                    PRODUCTO.c.imagen_url,
-                    PRODUCTO.c.unidad_base,
-                    PRODUCTO.c.unidades_por_empaque,
-                    PRODUCTO.c.atributos,
-                    precio_min.c.centavos,
-                )
-                .select_from(PRODUCTO.outerjoin(precio_min, precio_min.c.pid == PRODUCTO.c.id))
-                .where(PRODUCTO.c.activo.is_(True))
-            )
-        ]
-    return conceptos, productos
 
 
 def main(argv: list[str] | None = None) -> int:

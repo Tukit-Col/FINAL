@@ -5,7 +5,7 @@ arranque es identico para los servicios y solo cambian el nombre y los modelos.
 Ver el docstring de ese modulo.
 """
 
-from tukit_comun.migraciones import correr
 from tukit_comercio.modelos import Base
+from tukit_comun.migraciones import correr
 
 correr("comercio", Base)

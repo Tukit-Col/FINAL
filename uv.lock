@@ -6,10 +6,12 @@ requires-python = ">=3.12"
 members = [
     "tukit",
     "tukit-catalogo",
+    "tukit-comercio",
     "tukit-comun",
     "tukit-gateway",
     "tukit-identidad",
     "tukit-inteligencia",
+    "tukit-operacion",
 ]
 
 [[package]]
@@ -1556,6 +1558,40 @@ requires-dist = [
 ]
 
 [[package]]
+name = "tukit-comercio"
+version = "0.1.0"
+source = { editable = "servicios/comercio" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "sqlalchemy" },
+    { name = "tukit-comun" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "aiosqlite" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiosqlite", marker = "extra == 'dev'", specifier = ">=0.20" },
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "pydantic", specifier = ">=2.9" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24" },
+    { name = "sqlalchemy", specifier = ">=2.0" },
+    { name = "tukit-comun", editable = "libs/py/tukit_comun" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "tukit-comun"
 version = "0.1.0"
 source = { editable = "libs/py/tukit_comun" }
@@ -1667,6 +1703,40 @@ requires-dist = [
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
 ]
 provides-extras = ["pdf"]
+
+[[package]]
+name = "tukit-operacion"
+version = "0.1.0"
+source = { editable = "servicios/operacion" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "sqlalchemy" },
+    { name = "tukit-comun" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "aiosqlite" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiosqlite", marker = "extra == 'dev'", specifier = ">=0.20" },
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "pydantic", specifier = ">=2.9" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24" },
+    { name = "sqlalchemy", specifier = ">=2.0" },
+    { name = "tukit-comun", editable = "libs/py/tukit_comun" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "typing-extensions"

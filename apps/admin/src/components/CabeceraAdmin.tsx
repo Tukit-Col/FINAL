@@ -17,6 +17,7 @@ import {
   School,
   Truck,
 } from "lucide-react";
+import SalirBoton from "./SalirBoton";
 import styles from "./CabeceraAdmin.module.css";
 
 // El orden es el del flujo de trabajo: primero el pulso del negocio (Panel),
@@ -59,22 +60,25 @@ export default function CabeceraAdmin() {
         <span className={styles.consola}>Back-office</span>
       </Link>
 
-      <nav className={styles.nav} aria-label="Secciones del back-office">
-        {SECCIONES.map(({ href, etiqueta, Icono }) => {
-          const activa = estaActiva(pathname, href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`${styles.item} ${activa ? styles.itemActivo : ""}`}
-              aria-current={activa ? "page" : undefined}
-            >
-              <Icono size={16} strokeWidth={2.2} aria-hidden="true" />
-              {etiqueta}
-            </Link>
-          );
-        })}
-      </nav>
+      <div className={styles.derecha}>
+        <nav className={styles.nav} aria-label="Secciones del back-office">
+          {SECCIONES.map(({ href, etiqueta, Icono }) => {
+            const activa = estaActiva(pathname, href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`${styles.item} ${activa ? styles.itemActivo : ""}`}
+                aria-current={activa ? "page" : undefined}
+              >
+                <Icono size={16} strokeWidth={2.2} aria-hidden="true" />
+                {etiqueta}
+              </Link>
+            );
+          })}
+        </nav>
+        <SalirBoton />
+      </div>
     </header>
   );
 }

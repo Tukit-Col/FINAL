@@ -107,6 +107,54 @@ class TestSeAbstieneEnVezDeInventar:
         assert economicos[0].sku == "TK-C003-ECO"
         assert economicos[0].personaje is None
 
+
+class TestCanalSemanticoRescata:
+    """OE3: el vector rescata un sinonimo que el lexico no reconoce.
+
+    `cartuchera` es el concepto; `estuche` es como lo dice otra gente y NO esta
+    en los sinonimos ni comparte cabeza. Sin el vector el lexico no lo reconoce
+    (`sin_match`); con un vector que coincide con el del concepto, el coseno pasa
+    el umbral de rescate y el renglon queda `reconocido`. Es el unico test que
+    falla si el canal semantico vuelve a quedar en 0 —el defecto que Parte A
+    cerro—. El vector se construye a mano (coseno 1.0) para ser determinista sin
+    salir a la red ni depender de la calibracion de un embeder de trigramas.
+    """
+
+    CARTUCHERA = uuid.UUID("00000000-0000-0000-0000-0000000000ca")
+
+    def _escenario(self):
+        vector = [1.0] + [0.0] * 1023  # unitario; coseno consigo mismo = 1.0
+        conceptos = [
+            {
+                "id": self.CARTUCHERA,
+                "codigo": "C120",
+                "nombre": "cartuchera",
+                "sinonimos": [],
+                "discriminantes": (),
+                "embedding": list(vector),
+            }
+        ]
+        productos = [
+            _producto(self.CARTUCHERA, "TK-C120-ECO", "Cartuchera escolar", "economico", {}),
+        ]
+        return conceptos, productos, vector
+
+    def test_sin_vector_el_sinonimo_no_se_reconoce(self):
+        conceptos, productos, _ = self._escenario()
+
+        resultado = emparejar("estuche", conceptos, productos)
+
+        assert resultado.estado == "sin_match"
+
+    def test_con_vector_el_sinonimo_se_rescata(self):
+        conceptos, productos, vector = self._escenario()
+
+        resultado = emparejar("estuche", conceptos, productos, embedding_renglon=vector)
+
+        assert resultado.estado == "reconocido"
+        assert resultado.concepto_codigo == "C120"
+        assert [o.sku for o in resultado.opciones] == ["TK-C120-ECO"]
+
     def test_lo_que_no_reconocemos_no_trae_producto(self):
         resultado = emparejar("chaquiras surtidas", CONCEPTOS, PRODUCTOS)
 

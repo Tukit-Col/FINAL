@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import httpx
+from tukit_comun.http import cliente_efimero
 
 # Puertos por omision del arranque local. Coinciden con los que documenta el
 # contrato y con los que levanta el ejecutor de tareas; se sobreescriben con
@@ -77,19 +78,15 @@ class ClienteCatalogo:
         return self.base or url_catalogo()
 
     async def _pedir(self, metodo: str, ruta: str, **kw: Any) -> Any:
-        propio = self.cliente is None
-        cliente = self.cliente or httpx.AsyncClient(timeout=ESPERA_SEGUNDOS)
         try:
-            respuesta = await cliente.request(metodo, f"{self._base()}{ruta}", **kw)
-            respuesta.raise_for_status()
-            return respuesta.json()
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.request(metodo, f"{self._base()}{ruta}", **kw)
+                respuesta.raise_for_status()
+                return respuesta.json()
         except httpx.HTTPStatusError as error:
             raise RemotoCaido("catalogo", f"{ruta} respondio {error.response.status_code}") from error
         except httpx.HTTPError as error:
             raise RemotoCaido("catalogo", f"{ruta} no respondio ({error})") from error
-        finally:
-            if propio:
-                await cliente.aclose()
 
     async def emparejar(self, renglones: list[str]) -> list[dict[str, Any]]:
         cuerpo = await self._pedir("POST", "/v1/catalogo/emparejar", json={"renglones": renglones})
@@ -171,20 +168,16 @@ class ClienteIdentidad:
         `None` y no una excepcion: la caida de identidad degrada el trabajo,
         no lo tumba. Quien llama anota la degradacion.
         """
-        propio = self.cliente is None
-        cliente = self.cliente or httpx.AsyncClient(timeout=ESPERA_SEGUNDOS)
         try:
-            respuesta = await cliente.post(
-                f"{self._base()}/v1/contactos",
-                json={"correo": correo, "celular": celular},
-            )
-            respuesta.raise_for_status()
-            return str(respuesta.json().get("usuario_id"))
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.post(
+                    f"{self._base()}/v1/contactos",
+                    json={"correo": correo, "celular": celular},
+                )
+                respuesta.raise_for_status()
+                return str(respuesta.json().get("usuario_id"))
         except httpx.HTTPError:
             return None
-        finally:
-            if propio:
-                await cliente.aclose()
 
 
 __all__ = [

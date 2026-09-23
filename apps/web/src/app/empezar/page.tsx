@@ -4,7 +4,7 @@ import FormularioEmpezar from "./FormularioEmpezar";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Armar mi kit — Tukit",
+  title: "Armar mi kit · Tukit",
 };
 
 // Las cuatro anclas de una franquicia OFRECIBLE: cuaderno, cartuchera, carpeta

@@ -17,6 +17,18 @@
 // vive en `dinero.ts`.
 export type Dinero = number;
 
+// Los grados del sistema educativo colombiano, en orden pedagógico (el mismo
+// que sirve identidad en `/v1/grados`). Es la lista canónica: sirve para
+// ordenar los grados de un colegio y —en la ruta de subir archivo— para elegir
+// el grado aunque el colegio todavía no tenga ninguna lista verificada, que es
+// justo cuando el acudiente sugiere su colegio. Client-safe: se exporta por
+// `indice.ts` y no arrastra nada de servidor.
+export const GRADOS_CANONICOS: readonly string[] = [
+  "Parvulos", "Prejardin", "Jardin", "Transicion", "Primero", "Segundo",
+  "Tercero", "Cuarto", "Quinto", "Sexto", "Septimo", "Octavo", "Noveno",
+  "Decimo", "Once",
+];
+
 // ------------------------------------------------------------- §1.1 TipoItem
 export type TipoItem =
   | "util"

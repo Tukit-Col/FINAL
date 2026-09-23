@@ -46,8 +46,16 @@
 
 .rejilla {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  /* Exactamente cuatro columnas: la rejilla queda pareja y las fichas no
+   * "bailan" de tamaño entre filas. En pantallas muy angostas baja a dos. */
+  grid-template-columns: repeat(4, 1fr);
   gap: var(--espacio-3);
+}
+
+@media (max-width: 460px) {
+  .rejilla {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .ficha {
@@ -57,7 +65,7 @@
   gap: 6px;
   padding: var(--espacio-4) var(--espacio-2);
   border-radius: var(--radius-lg);
-  background: var(--clay-surface-grad);
+  background: var(--color-surface-2);
   box-shadow: var(--clay-shadow-sm);
   cursor: pointer;
   transition: transform var(--dur-rapido) var(--ease-clay),

@@ -20,8 +20,6 @@ desde memoria.
 
 from __future__ import annotations
 
-import uuid
-
 import httpx
 import pytest
 from conftest import CatalogoFalso, opcion, reconocido, renglon
@@ -207,9 +205,3 @@ class TestPreviewNoEsFireAndForget:
             )
         assert respuesta.status_code == 200
         assert respuesta.json()["estado"] == EstadoTrabajo.FALLIDO.value
-
-
-def test_version_id_no_es_uuid_obligatorio():
-    # El version_id del path es un str libre (el catalogo lo define), no un UUID.
-    assert isinstance(VERSION_VIGENTE, str)
-    uuid.uuid4()  # solo confirma que uuid esta importado y disponible

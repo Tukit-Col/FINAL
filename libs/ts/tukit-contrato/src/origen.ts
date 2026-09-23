@@ -224,6 +224,14 @@ export interface OrigenDatos {
   pedidos(): Promise<TableroComercio>;
   pedido(pedidoId: string): Promise<Pedido>;
 
+  // El historial de UN acudiente, para su panel (`/v1/comercio/mis-pedidos`).
+  // A diferencia de `pedidos()` (el tablero de logistica, TODOS los pedidos),
+  // esto filtra por el `usuario_id` del portador de la sesion —que quien llama
+  // resuelve antes con `sesionActual`—, no por token: comercio no puede validar
+  // la sesion de identidad sin cruzar la frontera (regla 1). Devuelve la lista
+  // sin resumen; el dashboard no lo necesita.
+  misPedidos(usuarioId: string): Promise<Pedido[]>;
+
   // ASUMIDO — superficie de lectura de `operacion` (tickets del back-office).
   // Ver `operacion.ts`.
   casos(): Promise<BandejaOperacion>;

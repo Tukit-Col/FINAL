@@ -46,6 +46,26 @@ class TestElPrefijoMasLargoGana:
             # sirve catalogo: su prefijo mas largo gana a `/v1/admin` y evita
             # que caiga en inteligencia.
             ("/v1/admin/sugerencias", "catalogo"),
+            # El tablero de logistica y la bandeja de casos, que ahora si tienen
+            # servicio detras (comercio y operacion).
+            ("/v1/comercio/pedidos", "comercio"),
+            ("/v1/comercio/pedidos/abc", "comercio"),
+            ("/v1/comercio/mis-pedidos", "comercio"),
+            # "Mi cuenta" del acudiente y su libreta de direcciones: identidad.
+            ("/v1/cuenta", "identidad"),
+            ("/v1/cuenta/direcciones", "identidad"),
+            ("/v1/cuenta/direcciones/abc", "identidad"),
+            # El panel del colegio (kits, cobertura, ahorro) lo calcula
+            # inteligencia; cuelga de `/v1/metricas`, no de `/v1/colegios`.
+            ("/v1/metricas/colegios/abc", "inteligencia"),
+            ("/v1/operacion/casos", "operacion"),
+            ("/v1/operacion/casos/abc", "operacion"),
+            # El checkout y el webhook de la pasarela, ahora servidos por
+            # comercio (§9): salieron de PENDIENTES cuando existio la escritura.
+            ("/v1/ordenes", "comercio"),
+            ("/v1/ordenes/abc/pago", "comercio"),
+            ("/v1/ordenes/abc/retracto", "comercio"),
+            ("/v1/webhooks/wompi", "comercio"),
         ],
     )
     def test_cada_prefijo_va_a_su_servicio(self, ruta, esperado):
@@ -65,30 +85,26 @@ class TestElPrefijoMasLargoGana:
         separador, un endpoint nuevo mal escrito se reenviaria en silencio."""
         assert destino("/v1/listasbla") is None
 
-    @pytest.mark.parametrize("ruta", ["/", "/v1", "/v2/catalogo", "/v1/ordenes"])
+    @pytest.mark.parametrize("ruta", ["/", "/v1", "/v2/catalogo", "/v1/inventado"])
     def test_lo_que_no_esta_declarado_no_se_rutea(self, ruta):
         assert destino(ruta) is None
 
 
-class TestLoQueElContratoDefineYNadieSirve:
-    """501 y no 404, y la diferencia le importa a quien integra.
+class TestYaNoHayPagoPendiente:
+    """El §9 (checkout y webhook) ya no responde 501: tiene a comercio detras.
 
-    Un 404 dice "te equivocaste de URL" y manda a revisar el cliente; un 501
-    dice "la URL es correcta y el backend todavia no la sirve" y manda a
-    esperar. Confundirlas cuesta una tarde buscando un error que no esta.
+    Cuando el pago vivia en PENDIENTES, la puerta respondia 501 con la seccion
+    del contrato. Ahora que la escritura de comercio existe, esas rutas rutean
+    como cualquier otra y PENDIENTES queda vacio; esta prueba fija que no quedo
+    ningun 501 residual anunciando algo que ya se sirve.
     """
 
-    @pytest.mark.parametrize("ruta", ["/v1/ordenes", "/v1/ordenes/abc/pago", "/v1/webhooks/wompi"])
-    async def test_el_pago_responde_501_con_la_seccion_del_contrato(self, ruta):
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app), base_url="http://prueba"
-        ) as cliente:
-            respuesta = await cliente.post(ruta, json={})
+    def test_el_checkout_ya_no_esta_pendiente(self):
+        from tukit_gateway.api import PENDIENTES, pendiente
 
-        assert respuesta.status_code == 501
-        cuerpo = respuesta.json()
-        assert cuerpo["error"] == "no_implementado"
-        assert cuerpo["seccion_contrato"] == "9"
+        assert PENDIENTES == {}
+        assert pendiente("/v1/ordenes") is None
+        assert pendiente("/v1/webhooks/wompi") is None
 
 
 class TestLaRespuestaCuandoNoSabe:
@@ -189,7 +205,13 @@ class TestLaSondaDiceLaVerdadSobreLosTres:
     async def test_no_responde_ok_con_los_tres_caidos(self, monkeypatch):
         """`GET /salud` en la puerta responde `ok` aunque no haya nada
         detras. Sin `/v1/servicios`, eso hace perder una tarde."""
-        for variable in ("TUKIT_CATALOGO_URL", "TUKIT_IDENTIDAD_URL", "TUKIT_INTELIGENCIA_URL"):
+        for variable in (
+            "TUKIT_CATALOGO_URL",
+            "TUKIT_IDENTIDAD_URL",
+            "TUKIT_INTELIGENCIA_URL",
+            "TUKIT_COMERCIO_URL",
+            "TUKIT_OPERACION_URL",
+        ):
             monkeypatch.setenv(variable, "http://127.0.0.1:1")
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://prueba"
@@ -198,4 +220,10 @@ class TestLaSondaDiceLaVerdadSobreLosTres:
             cuerpo = (await cliente.get("/v1/servicios")).json()
 
         assert cuerpo["todos_arriba"] is False
-        assert set(cuerpo["servicios"]) == {"catalogo", "identidad", "inteligencia"}
+        assert set(cuerpo["servicios"]) == {
+            "catalogo",
+            "identidad",
+            "inteligencia",
+            "comercio",
+            "operacion",
+        }
