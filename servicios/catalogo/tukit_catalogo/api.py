@@ -1167,7 +1167,17 @@ def main(argv: list[str] | None = None) -> int:
 
     import uvicorn
 
-    uvicorn.run(app, host=argumentos.host, port=argumentos.puerto, log_level="info")
+    # Se arranca por CADENA DE IMPORTACION, no pasando `app`, a proposito. Con
+    # `python -m tukit_catalogo.api` este archivo es `__main__`, y uvicorn
+    # correria el lifespan sobre `__main__.app`. Pero `admin_http._motor()` hace
+    # `from .api import app`, que importa `tukit_catalogo.api` como OTRO modulo:
+    # una segunda `app` cuyo lifespan nunca corrio y cuyo `state.motor` no
+    # existe (de ahi el 500 en `/v1/admin/*`). Nombrar el modulo canonico hace
+    # que uvicorn importe esa misma `tukit_catalogo.api`, corra su lifespan y
+    # sea la que `admin_http` ve: una sola `app`, un solo motor.
+    uvicorn.run(
+        "tukit_catalogo.api:app", host=argumentos.host, port=argumentos.puerto, log_level="info"
+    )
     return 0
 
 
