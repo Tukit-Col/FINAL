@@ -9,11 +9,20 @@ su manejador seria repetirlo.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import httpx
 import pytest
 from fastapi import FastAPI
 from pydantic import BaseModel
-from tukit_comun.http import ORIGENES_POR_OMISION, ErrorDominio, crear_app, origenes_permitidos
+from tukit_comun.http import (
+    ORIGENES_POR_OMISION,
+    ErrorDominio,
+    cliente_efimero,
+    crear_app,
+    iso,
+    origenes_permitidos,
+)
 
 
 class Clave(BaseModel):
@@ -98,6 +107,35 @@ class TestLaSonda:
     async def test_los_tres_servicios_responden_igual(self):
         cuerpo = (await _pedir("GET", "/salud")).json()
         assert cuerpo == {"estado": "ok", "servicio": "Prueba", "version": "1.1"}
+
+
+class TestIso:
+    def test_none_es_none_no_cadena_vacia(self):
+        assert iso(None) is None
+
+    def test_una_fecha_sale_en_iso8601(self):
+        assert iso(datetime(2026, 9, 23, 10, 30, tzinfo=UTC)) == "2026-09-23T10:30:00+00:00"
+
+
+class TestClienteEfimero:
+    """El ciclo de vida compartido de los tres `remoto.py`: tomar el cliente
+    inyectado (que las pruebas sustituyen) o abrir uno propio y cerrarlo."""
+
+    async def test_el_cliente_inyectado_se_reusa_y_no_se_cierra(self):
+        inyectado = httpx.AsyncClient()
+        try:
+            async with cliente_efimero(inyectado, 5.0) as usado:
+                assert usado is inyectado
+            assert not inyectado.is_closed  # sigue vivo: lo cierra quien lo creo
+        finally:
+            await inyectado.aclose()
+
+    async def test_sin_cliente_abre_uno_propio_y_lo_cierra_al_salir(self):
+        capturado = {}
+        async with cliente_efimero(None, 5.0) as propio:
+            capturado["c"] = propio
+            assert not propio.is_closed
+        assert capturado["c"].is_closed  # el efimero se cierra solo al salir
 
 
 @pytest.mark.parametrize("metodo", ["GET", "POST"])

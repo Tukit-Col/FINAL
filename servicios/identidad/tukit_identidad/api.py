@@ -52,6 +52,7 @@ COLEGIO = Base.metadata.tables["colegio"]
 SEDE = Base.metadata.tables["sede"]
 USUARIO = Base.metadata.tables["usuario"]
 ASIGNACION_ROL = Base.metadata.tables["asignacion_rol"]
+DIRECCION = Base.metadata.tables["direccion"]
 
 # Los quince grados del corpus, en el orden en que un colegio los nombra. Va
 # como constante y no como consulta porque no es un dato del sistema sino del
@@ -268,6 +269,41 @@ async def registrar_contacto(contacto: Contacto) -> dict[str, Any]:
     return {"usuario_id": str(nuevo), "creado": True}
 
 
+@app.get(
+    "/v1/contactos/{usuario_id}",
+    tags=["contacto"],
+    summary="Resuelve un id a su contacto para enviar. Efimero: nadie lo guarda.",
+)
+async def resolver_contacto(usuario_id: uuid.UUID) -> dict[str, Any]:
+    """Devuelve el contacto de un usuario para que el repartidor de Operacion
+    pueda entregar el aviso SIN guardar el dato.
+
+    Es la contraparte de `POST /v1/contactos`: alli el correo entra y se cambia
+    por un id; aqui el id se cambia por el correo, justo en el momento del
+    envio. La razon de que exista es precisamente la deuda del manifiesto: el
+    contacto vive en un solo sitio (aqui), la notificacion lo referencia por id,
+    y el derecho al olvido lo alcanza en un unico lugar.
+
+    `celular` es hoy nulo: el sistema no persiste el celular del acudiente en
+    ninguna tabla, asi que el envio por wa-link cae a correo mientras no exista
+    esa columna. Se devuelve el campo igual para que el contrato del repartidor
+    no cambie el dia que el celular se capture.
+    """
+    async with app.state.motor.engine.begin() as conexion:
+        fila = (
+            await conexion.execute(
+                select(USUARIO.c.correo, USUARIO.c.activo).where(USUARIO.c.id == usuario_id)
+            )
+        ).one_or_none()
+    if fila is None or not fila.activo:
+        raise ErrorDominio(
+            "usuario_no_existe",
+            "No hay ningun usuario activo con ese identificador.",
+            estado=404,
+        )
+    return {"usuario_id": str(usuario_id), "correo": fila.correo, "celular": None}
+
+
 # ---------------------------------------------------------------- sesiones
 #
 # La superficie de autenticacion (seccion 12.4 del contrato). Es lo que el
@@ -387,6 +423,219 @@ async def cerrar_sesion(authorization: Annotated[str | None, Header()] = None) -
     invalidar TODOS los tokens de un usuario ya existe la palanca correcta:
     incrementar su `version_permisos`. Esta ruta existe para cerrar el contrato
     y para poder auditar el cierre el dia que haga falta."""
+    return None
+
+
+# ------------------------------------------------------------------ cuenta
+#
+# La superficie de "mi cuenta" del acudiente: quien soy y mi libreta de
+# direcciones. El dashboard del padre corria sobre datos de muestra porque esta
+# superficie no existia; aqui nace, sobre el token que ya emite `iniciar_sesion`.
+#
+# La libreta vive en Identidad y no en Comercio porque es dato personal de una
+# familia con menores y la supresion tiene que alcanzarla (ADR 0015). La linea
+# de la direccion y el telefono viajan cifrados en la base y se descifran aqui
+# con el cifrador del entorno (en desarrollo, `CifradorEnClaro`, que lo dice).
+
+
+class DireccionEntrada(BaseModel):
+    """Lo que el acudiente escribe en su libreta. `ciudad`/`localidad` quedan en
+    claro (de ellas depende la zona de reparto); la linea y el contacto se
+    cifran antes de guardarse."""
+
+    etiqueta: str = Field(default="casa", max_length=64)
+    ciudad: str = Field(min_length=1, max_length=128)
+    localidad: str | None = Field(default=None, max_length=128)
+    linea: str = Field(min_length=1, max_length=512)
+    contacto: str | None = Field(default=None, max_length=64)
+    predeterminada: bool = False
+
+
+async def _usuario_del_token(authorization: str | None, conexion: Any) -> Any:
+    """El usuario activo portador del token, o 401. Reusa la misma verificacion
+    de firma/expiracion y revocacion por `version_permisos` que `sesion_actual`."""
+    token = _token_del_encabezado(authorization)
+    payload = leer_token(token) if token else None
+    if payload is None:
+        raise ErrorDominio("sesion_invalida", "El token no es valido o expiro.", estado=401)
+    usuario_id = uuid.UUID(payload["sub"])
+    fila = (await conexion.execute(select(USUARIO).where(USUARIO.c.id == usuario_id))).one_or_none()
+    if fila is None or not fila.activo:
+        raise ErrorDominio("sesion_invalida", "La cuenta ya no esta activa.", estado=401)
+    if int(payload.get("vp", -1)) != int(fila.version_permisos):
+        raise ErrorDominio("sesion_revocada", "La sesion fue revocada. Vuelve a entrar.", estado=401)
+    return fila
+
+
+def _direccion_publica(fila: Any) -> dict[str, Any]:
+    """Una direccion descifrada para que la vea su dueno. La linea y el contacto
+    se descifran aqui; en la base viajan cifrados."""
+    cifrador = cifrador_desde_entorno()
+    linea = cifrador.descifrar(fila.linea_cifrada).decode("utf-8", errors="replace")
+    contacto = None
+    if fila.contacto_cifrado is not None:
+        contacto = cifrador.descifrar(fila.contacto_cifrado).decode("utf-8", errors="replace")
+    return {
+        "direccion_id": str(fila.id),
+        "etiqueta": fila.etiqueta,
+        "ciudad": fila.ciudad,
+        "localidad": fila.localidad,
+        "linea": linea,
+        "contacto": contacto,
+        "predeterminada": bool(fila.predeterminada),
+    }
+
+
+async def _direcciones_de(conexion: Any, usuario_id: uuid.UUID) -> list[dict[str, Any]]:
+    filas = await conexion.execute(
+        select(DIRECCION)
+        .where(DIRECCION.c.usuario_id == usuario_id, DIRECCION.c.archivada_en.is_(None))
+        .order_by(DIRECCION.c.predeterminada.desc(), DIRECCION.c.creado_en)
+    )
+    return [_direccion_publica(f) for f in filas]
+
+
+@app.get("/v1/cuenta", tags=["cuenta"], summary="Quien soy: el portador de este token.")
+async def ver_cuenta(authorization: Annotated[str | None, Header()] = None) -> dict[str, Any]:
+    """La identidad del acudiente para su propio panel. El nombre va descifrado;
+    el correo es el de la cuenta. No devuelve menores: esa superficie sigue
+    cerrada (ver la prueba de superficie)."""
+    async with app.state.motor.engine.begin() as conexion:
+        fila = await _usuario_del_token(authorization, conexion)
+        nombre = fila.correo
+        if fila.nombre_cifrado is not None:
+            nombre = cifrador_desde_entorno().descifrar(fila.nombre_cifrado).decode("utf-8", errors="replace")
+    return {"usuario_id": str(fila.id), "correo": fila.correo, "nombre": nombre}
+
+
+@app.get("/v1/cuenta/direcciones", tags=["cuenta"], summary="Mi libreta de direcciones, descifrada.")
+async def listar_direcciones(authorization: Annotated[str | None, Header()] = None) -> dict[str, Any]:
+    async with app.state.motor.engine.begin() as conexion:
+        fila = await _usuario_del_token(authorization, conexion)
+        direcciones = await _direcciones_de(conexion, fila.id)
+    return {"total": len(direcciones), "direcciones": direcciones}
+
+
+async def _limpiar_predeterminada(conexion: Any, usuario_id: uuid.UUID) -> None:
+    """Baja la marca de la anterior predeterminada, para que el indice unico
+    parcial no choque cuando llega una nueva."""
+    await conexion.execute(
+        update(DIRECCION)
+        .where(
+            DIRECCION.c.usuario_id == usuario_id,
+            DIRECCION.c.predeterminada.is_(True),
+            DIRECCION.c.archivada_en.is_(None),
+        )
+        .values(predeterminada=False)
+    )
+
+
+@app.post(
+    "/v1/cuenta/direcciones",
+    tags=["cuenta"],
+    status_code=201,
+    summary="Agrega una direccion a mi libreta. La linea y el contacto se cifran.",
+)
+async def crear_direccion(
+    entrada: DireccionEntrada, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    cifrador = cifrador_desde_entorno()
+    async with app.state.motor.engine.begin() as conexion:
+        fila = await _usuario_del_token(authorization, conexion)
+        if entrada.predeterminada:
+            await _limpiar_predeterminada(conexion, fila.id)
+        nueva = uuid.uuid4()
+        await conexion.execute(
+            insert(DIRECCION).values(
+                id=nueva,
+                usuario_id=fila.id,
+                etiqueta=entrada.etiqueta,
+                ciudad=entrada.ciudad,
+                localidad=entrada.localidad,
+                linea_cifrada=cifrador.cifrar(entrada.linea.encode("utf-8")),
+                contacto_cifrado=(
+                    cifrador.cifrar(entrada.contacto.encode("utf-8")) if entrada.contacto else None
+                ),
+                predeterminada=entrada.predeterminada,
+            )
+        )
+        creada = (await conexion.execute(select(DIRECCION).where(DIRECCION.c.id == nueva))).one()
+    return _direccion_publica(creada)
+
+
+@app.patch(
+    "/v1/cuenta/direcciones/{direccion_id}",
+    tags=["cuenta"],
+    summary="Edita una direccion mia. Solo la mia (404 si no).",
+)
+async def editar_direccion(
+    direccion_id: uuid.UUID,
+    entrada: DireccionEntrada,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    cifrador = cifrador_desde_entorno()
+    async with app.state.motor.engine.begin() as conexion:
+        fila = await _usuario_del_token(authorization, conexion)
+        actual = (
+            await conexion.execute(
+                select(DIRECCION).where(
+                    DIRECCION.c.id == direccion_id,
+                    DIRECCION.c.usuario_id == fila.id,
+                    DIRECCION.c.archivada_en.is_(None),
+                )
+            )
+        ).one_or_none()
+        if actual is None:
+            raise ErrorDominio(
+                "direccion_no_existe", "No hay ninguna direccion tuya con ese id.", estado=404
+            )
+        if entrada.predeterminada:
+            await _limpiar_predeterminada(conexion, fila.id)
+        await conexion.execute(
+            update(DIRECCION)
+            .where(DIRECCION.c.id == direccion_id)
+            .values(
+                etiqueta=entrada.etiqueta,
+                ciudad=entrada.ciudad,
+                localidad=entrada.localidad,
+                linea_cifrada=cifrador.cifrar(entrada.linea.encode("utf-8")),
+                contacto_cifrado=(
+                    cifrador.cifrar(entrada.contacto.encode("utf-8")) if entrada.contacto else None
+                ),
+                predeterminada=entrada.predeterminada,
+            )
+        )
+        editada = (await conexion.execute(select(DIRECCION).where(DIRECCION.c.id == direccion_id))).one()
+    return _direccion_publica(editada)
+
+
+@app.delete(
+    "/v1/cuenta/direcciones/{direccion_id}",
+    tags=["cuenta"],
+    status_code=204,
+    summary="Archiva una direccion mia. Baja logica: un envio en curso la sigue viendo.",
+)
+async def archivar_direccion(
+    direccion_id: uuid.UUID, authorization: Annotated[str | None, Header()] = None
+) -> None:
+    """Baja logica y no borrado (ADR 0015): un envio en curso todavia necesita
+    que la direccion exista mientras se entrega. La copia congelada del envio
+    vive en Comercio y no se toca."""
+    async with app.state.motor.engine.begin() as conexion:
+        fila = await _usuario_del_token(authorization, conexion)
+        resultado = await conexion.execute(
+            update(DIRECCION)
+            .where(
+                DIRECCION.c.id == direccion_id,
+                DIRECCION.c.usuario_id == fila.id,
+                DIRECCION.c.archivada_en.is_(None),
+            )
+            .values(archivada_en=datetime.now(UTC), predeterminada=False)
+        )
+        if resultado.rowcount == 0:
+            raise ErrorDominio(
+                "direccion_no_existe", "No hay ninguna direccion tuya con ese id.", estado=404
+            )
     return None
 
 

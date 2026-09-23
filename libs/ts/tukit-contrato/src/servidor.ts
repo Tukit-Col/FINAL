@@ -35,6 +35,14 @@ export function urlAdmin(): string {
   return process.env["TUKIT_ADMIN_URL"] ?? "http://localhost:3001";
 }
 
+/** Origen absoluto de la app publica (apps/web). Simetrico a `urlAdmin`: al
+ *  salir del back-office (:3001) el usuario vuelve al login de la web (:3000),
+ *  que es otro origen. Se resuelve en el servidor porque el back-office no
+ *  expone URLs con `NEXT_PUBLIC_` al navegador. */
+export function urlWeb(): string {
+  return process.env["TUKIT_WEB_URL"] ?? "http://localhost:3000";
+}
+
 let cache: OrigenDatos | null = null;
 
 export function origenDeDatos(): OrigenDatos {

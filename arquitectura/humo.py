@@ -66,7 +66,7 @@ def comprobar(base: str) -> list[tuple[str, str]]:
 
     salud = _pedir(base, "/v1/servicios")
     _exigir(salud["todos_arriba"], f"no todos los servicios estan arriba: {salud['servicios']}")
-    hechas.append(("/v1/servicios", "los cuatro procesos responden"))
+    hechas.append(("/v1/servicios", f"los {len(salud['servicios'])} procesos responden"))
 
     conceptos = _pedir(base, "/v1/catalogo/conceptos?por_pagina=5")
     _exigir(conceptos["total"] > 0, "el catalogo no tiene conceptos: falta `make bd-cargar`")
@@ -169,6 +169,55 @@ def comprobar(base: str) -> list[tuple[str, str]]:
             f"3 kits ({totales}), recomendado {publicado['recomendado']['perfil']}",
         )
     )
+
+    # --- las superficies de lectura de comercio y operacion ------------------
+    # Aqui se comprueba la FORMA del contrato, no un minimo de contenido: los
+    # pedidos aparecen cuando un acudiente paga (checkout, seccion 9) y los
+    # casos cuando el repartidor procesa la bandeja de salida. Un tablero vacio
+    # es el estado honesto de una base recien migrada; lo que no puede faltar es
+    # la estructura `resumen`+`lista` que el frontend espera.
+    tablero = _pedir(base, "/v1/comercio/pedidos")
+    _exigir("resumen" in tablero and "pedidos" in tablero, "el tablero de comercio no trae resumen+pedidos")
+    _exigir(
+        "por_estado" in tablero["resumen"] and "ingresos_confirmados" in tablero["resumen"],
+        "el resumen de comercio no tiene la forma del contrato",
+    )
+    hechas.append(
+        (
+            "/v1/comercio/pedidos",
+            f"{tablero['resumen']['pedidos_totales']} pedidos, "
+            f"${tablero['resumen']['ingresos_confirmados']:,} confirmados",
+        )
+    )
+
+    bandeja = _pedir(base, "/v1/operacion/casos")
+    _exigir("resumen" in bandeja and "casos" in bandeja, "la bandeja de operacion no trae resumen+casos")
+    _exigir(
+        {"abiertos", "urgentes", "vencen_hoy", "resueltos_semana"} <= set(bandeja["resumen"]),
+        "el resumen de operacion no tiene la forma del contrato",
+    )
+    hechas.append(
+        (
+            "/v1/operacion/casos",
+            f"{bandeja['resumen']['abiertos']} abiertos, {bandeja['resumen']['urgentes']} urgentes",
+        )
+    )
+
+    # El alta de PQRS del acudiente es escritura real: se puede probar sin
+    # sembrar nada. El contacto se resuelve a un id y no se guarda (Ley 1581).
+    caso = _pedir(
+        base,
+        "/v1/operacion/casos",
+        {
+            "categoria": "peticion",
+            "asunto": "Prueba de humo",
+            "descripcion": "El acudiente abre una peticion desde el centro de ayuda.",
+            "contacto": {"correo": "humo@ejemplo.com", "celular": "3001234567"},
+        },
+    )
+    _exigir(caso.get("caso_id") and caso.get("vence_en"), "el alta de PQRS no devolvio caso_id y vence_en")
+    hechas.append(("POST /v1/operacion/casos", f"201, caso {caso['caso_id']} vence {caso['vence_en'][:10]}"))
+
     return hechas
 
 

@@ -33,7 +33,7 @@ from pydantic import BaseModel, Field
 from tukit_comun.bd import crear_motor
 from tukit_comun.http import ErrorDominio, crear_app
 
-from . import gemini, paginas, trabajos
+from . import gemini, metricas, paginas, trabajos
 from .modelos import EstadoResolucion, EstadoTrabajo
 from .percepcion import LeerPagina, Percepcion, Renderizar, percibir
 from .remoto import ClienteCatalogo, url_catalogo, url_identidad
@@ -548,6 +548,32 @@ async def revisar(trabajo_id: uuid.UUID, decision: DecisionRevision) -> dict[str
     if decision.decision == "devolver":
         trabajos.lanzar(app.state.motor, trabajo_id)
     return resultado
+
+
+@app.get(
+    "/v1/metricas/colegios/{colegio_id}",
+    tags=["metricas"],
+    summary="Metricas en vivo de un colegio: kits armados, cobertura y ahorro.",
+)
+async def metricas_colegio(colegio_id: str) -> dict[str, Any]:
+    """El panel del colegio, calculado sobre los trabajos publicados.
+
+    Cuenta los kits recomendados publicados para el colegio, la cobertura del
+    catalogo sobre sus lineas comprables (FU-06 medida, no prometida) y el
+    ahorro que la consolidacion entre hermanos imputo. Un colegio sin trabajos
+    publicados responde con ceros, no con 404: la ausencia de kits es una
+    respuesta valida y el panel la sabe pintar.
+
+    El colegio no es una columna de este servicio: vive en el JSON `hijos` de
+    cada trabajo, tal como lo mando el acudiente. Por eso el filtro se hace en
+    memoria sobre lo publicado; ver `metricas.py`.
+
+    La ruta cuelga de `/v1/metricas/` y no de `/v1/colegios/` a proposito:
+    `/v1/colegios` es superficie de Identidad (el catalogo institucional) y el
+    gateway rutea por prefijo. Colgarla ahi la mandaria a Identidad; bajo
+    `/v1/metricas` llega a Inteligencia, que es quien tiene los kits.
+    """
+    return await metricas.metricas_de_colegio(app.state.motor, colegio_id)
 
 
 def main(argv: list[str] | None = None) -> int:

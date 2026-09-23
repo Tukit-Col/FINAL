@@ -114,7 +114,12 @@ export function squish(el: Element | null, presionado: boolean): void {
   gsap.to(el, {
     scale: presionado ? 0.94 : 1,
     duration: presionado ? 0.12 : 0.32,
-    ease: presionado ? "power2.out" : EASE_CLAY,
+    // El regreso NO rebota: `back.out` sobrepasa el 1 y, si el usuario vuelve a
+    // tocar antes de que el tween termine, deja la escala colgada por encima de
+    // 1 (el sintoma de "crece y no vuelve"). `overwrite` mata cualquier tween
+    // de escala en curso sobre el mismo nodo para que siempre resuelva a 1.
+    ease: "power2.out",
+    overwrite: "auto",
   });
 }
 

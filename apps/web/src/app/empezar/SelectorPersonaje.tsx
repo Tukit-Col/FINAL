@@ -68,6 +68,11 @@ export default function SelectorPersonaje({ valor, onChange, etiquetaHijo, surti
         duration: 0.4,
         ease: "back.out(1.6)",
         stagger: { each: 0.03, from: "center" },
+        // Sin esto, la animacion de entrada deja un `transform` inline en cada
+        // ficha que pisa el estado en reposo del CSS: una ficha deseleccionada
+        // se quedaba "grande". `clearProps` devuelve el control al CSS al
+        // terminar, para que solo `.fichaActiva` decida como se ve.
+        clearProps: "transform",
       });
     },
     { scope: rejilla },
@@ -75,13 +80,16 @@ export default function SelectorPersonaje({ valor, onChange, etiquetaHijo, surti
 
   function alternar(nombre: string, nodo: Element | null) {
     const yaEsta = elegidosLower.includes(nombre.toLowerCase());
-    const siguiente = yaEsta
-      ? elegidos.filter((p) => p.toLowerCase() !== nombre.toLowerCase())
-      : [...elegidos, nombre];
-    if (!yaEsta) {
-      squish(nodo, true);
-      setTimeout(() => squish(nodo, false), 130);
-    }
+    // Un personaje por hijo: el kit Fan se arma alrededor de UNO. Tocar otra
+    // ficha reemplaza la elección de la rejilla en vez de sumar una segunda;
+    // tocar la activa la quita. (Los `pedidos` escritos a mano son aparte.)
+    const soloPedidos = elegidos.filter((p) => !surtidosSet.has(p.toLowerCase()));
+    const siguiente = yaEsta ? soloPedidos : [...soloPedidos, nombre];
+    // El "hundido y vuelve" se hace en cada toque, seleccionar o soltar: antes
+    // solo corria al seleccionar, asi que la ficha quedaba encogida hasta el
+    // siguiente toque. El release siempre resuelve la escala a 1.
+    squish(nodo, true);
+    setTimeout(() => squish(nodo, false), 130);
     onChange(siguiente.join(", "));
   }
 

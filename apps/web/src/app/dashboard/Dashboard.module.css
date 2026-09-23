@@ -245,6 +245,12 @@
   border-bottom: none;
 }
 
+.sinPedidos {
+  padding: var(--espacio-4) var(--espacio-5);
+  font-size: 13.5px;
+  color: var(--color-text-secondary);
+}
+
 .pedidoId {
   font-weight: 700;
 }

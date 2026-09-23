@@ -5,10 +5,12 @@
 // un `rewrite`, que corta a los 30 s. Es la misma razon que ya estaba escrita
 // en el proxy del prototipo, y se conserva.
 
+import { GRADOS_CANONICOS } from "./contrato";
 import type {
   AltaProducto,
   ColaAdmin,
   DecisionRevision,
+  EstadoTrabajo,
   Kit,
   LineaKit,
   MarcarNoDisponible,
@@ -58,18 +60,9 @@ import {
 // El pipeline tarda minutos, no segundos, y eso es deliberado (§0).
 const TIEMPO_MAXIMO_MS = 300_000;
 
-// Los quince grados del corpus, en el orden en que un colegio los nombra (es el
-// mismo que sirve identidad en `/v1/grados`). Se usa para ordenar los grados de
-// cada colegio en el picker: alfabetico pondria "Once" antes que "Primero".
-const ORDEN_GRADOS: readonly string[] = [
-  "Parvulos", "Prejardin", "Jardin", "Transicion", "Primero", "Segundo",
-  "Tercero", "Cuarto", "Quinto", "Sexto", "Septimo", "Octavo", "Noveno",
-  "Decimo", "Once",
-];
-
 function ordenGrado(a: string, b: string): number {
-  const ia = ORDEN_GRADOS.indexOf(a);
-  const ib = ORDEN_GRADOS.indexOf(b);
+  const ia = GRADOS_CANONICOS.indexOf(a);
+  const ib = GRADOS_CANONICOS.indexOf(b);
   // Un grado que no esté en la lista canónica va al final, en orden alfabético.
   if (ia === -1 && ib === -1) return a.localeCompare(b);
   if (ia === -1) return 1;
@@ -285,32 +278,40 @@ export class ClienteApi implements OrigenDatos {
   }
 
   // Identidad sirve los colegios (`/v1/colegios`) y los grados existen aparte
-  // (`/v1/grados`), pero un colegio del picker debe ofrecer SOLO los grados que
-  // tienen lista publicada: ofrecer un grado sin lista manda al acudiente a un
-  // trabajo que falla con `sin_lista_oficial`. Asi que los grados de cada
-  // colegio se derivan de las listas reales de catalogo, no del catalogo global
-  // de grados.
+  // (`/v1/grados`), pero los grados VERIFICADOS de un colegio (los que habilitan
+  // la ruta rapida "lista oficial") se derivan de las listas REVISADAS reales de
+  // catalogo, no del catalogo global de grados: ofrecer un grado sin lista
+  // revisada manda al acudiente a un trabajo que falla con `sin_lista_oficial`.
+  //
+  // Pero el colegio SI se puede elegir aunque no tenga ningun grado revisado: la
+  // ruta "subir archivo" (y la sugerencia de alianza) existe justo para el
+  // colegio que todavia no es aliado. Antes esto filtraba fuera todo colegio con
+  // `grados.length === 0`, y como la semilla deja casi todas las listas sin
+  // revisar, el selector mostraba 1 de 17 colegios y el onboarding del admin
+  // —que precisamente quiere ver los NO aliados— quedaba vacio. `es_partner`
+  // sigue marcando quien tiene grados verificados; la lista ya no se recorta.
+  //
+  // Los grados verificados se ordenan pedagogicamente; un colegio sin ellos
+  // llega con `grados: []` y solo es usable por la ruta de archivo.
   async colegios(): Promise<Colegio[]> {
     const [colegiosResp, listasResp] = await Promise.all([
       this.pedir<{ colegios: { colegio_id: string; nombre: string; logo_url?: string | null }[] }>(
         "/v1/colegios",
       ),
-      // El tope de página del backend es 200 (POR_PAGINA_MAXIMO). El corpus
-      // tiene 175 listas, así que una página las trae todas; si algún día pasan
-      // de 200 habría que paginar aquí, y por eso se comprueba `total`.
+      // El selector arranca VACIO y solo se llena con lo verificado, asi que
+      // pedimos `?revisada=true` y el filtro lo resuelve el servidor: una lista
+      // importada pero sin revisar no habilita el grado —la ruta rapida a
+      // optimizacion solo aplica a listas verificadas—. El tope de página del
+      // backend es 200 (POR_PAGINA_MAXIMO); las revisadas caben en una, y si
+      // algún día pasan de 200 habría que paginar (por eso se comprueba `total`).
       this.pedir<{
         total: number;
         listas: { colegio_id: string; grado: string; revisada: boolean }[];
-      }>("/v1/listas?por_pagina=200"),
+      }>("/v1/listas?revisada=true&por_pagina=200"),
     ]);
 
-    // El selector arranca VACIO y solo se llena con lo verificado: un grado
-    // solo cuenta si su lista esta REVISADA (`revisada===true`). Una lista
-    // importada pero sin revisar no habilita el grado —la ruta rapida a
-    // optimizacion solo aplica a listas verificadas—.
     const gradosPorColegio = new Map<string, Set<string>>();
     for (const lista of listasResp.listas ?? []) {
-      if (lista.revisada !== true) continue;
       const set = gradosPorColegio.get(lista.colegio_id) ?? new Set<string>();
       set.add(lista.grado);
       gradosPorColegio.set(lista.colegio_id, set);
@@ -332,10 +333,7 @@ export class ClienteApi implements OrigenDatos {
           grados,
           es_partner: grados.length > 0,
         };
-      })
-      // Un colegio sin ningun grado REVISADO no se puede elegir todavia: no
-      // aparece. Asi el selector queda vacio hasta la primera aprobacion.
-      .filter((c) => c.grados.length > 0);
+      });
   }
 
   // Trae la lista publicada de un (colegio, grado): primero la localiza en el
@@ -454,8 +452,35 @@ export class ClienteApi implements OrigenDatos {
   }
 
   // ------------------------------------------------------------------ §7
-  cola(): Promise<ColaAdmin> {
-    return this.pedir<ColaAdmin>("/v1/admin/cola");
+  async cola(): Promise<ColaAdmin> {
+    // El backend responde `{trabajos:[{creado_en, lineas_a_revisar, ...}]}`;
+    // el contrato pide `{entradas:[{recibido_en, lineas_pendientes, ...}]}`.
+    // Se normaliza aqui, igual que `trabajoAdmin`/`producto`, en vez de dejar
+    // el cast crudo (que dejaba `entradas` undefined y reventaba la cola).
+    // `colegios`/`grados`/`lineas_totales` no viajan en la cola: viven en
+    // catalogo y unirlos aqui cruzaria la frontera de servicios. Se reportan
+    // vacios en vez de fingir un dato que este endpoint no tiene.
+    const crudo = await this.pedir<{
+      trabajos?: {
+        trabajo_id: string;
+        estado: EstadoTrabajo;
+        creado_en: string;
+        hijos: number;
+        lineas_a_revisar: number;
+      }[];
+    }>("/v1/admin/cola");
+    return {
+      entradas: (crudo.trabajos ?? []).map((t) => ({
+        trabajo_id: t.trabajo_id,
+        estado: t.estado,
+        recibido_en: t.creado_en,
+        hijos: t.hijos,
+        lineas_totales: t.lineas_a_revisar,
+        lineas_pendientes: t.lineas_a_revisar,
+        colegios: [],
+        grados: [],
+      })),
+    };
   }
 
   async trabajoAdmin(trabajoId: string): Promise<TrabajoAdmin> {
@@ -801,6 +826,15 @@ export class ClienteApi implements OrigenDatos {
 
   pedido(pedidoId: string): Promise<Pedido> {
     return this.pedir<Pedido>(`/v1/comercio/pedidos/${encodeURIComponent(pedidoId)}`);
+  }
+
+  // El historial del acudiente para su dashboard. Comercio responde
+  // `{total, pedidos}`; la pantalla solo usa la lista, asi que se propaga esa.
+  async misPedidos(usuarioId: string): Promise<Pedido[]> {
+    const resp = await this.pedir<{ total: number; pedidos: Pedido[] }>(
+      `/v1/comercio/mis-pedidos?usuario_id=${encodeURIComponent(usuarioId)}`,
+    );
+    return resp.pedidos ?? [];
   }
 
   // ------------------------------------------------ ASUMIDO (operacion 1.x)

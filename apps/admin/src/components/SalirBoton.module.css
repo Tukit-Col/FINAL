@@ -1,0 +1,32 @@
+/* El boton de salir vive al final de la cabecera. Mismo lenguaje que los
+ * enlaces de nav (pastilla, borde de luz, se eleva al pasar por encima) pero en
+ * tono neutro: no es una seccion, es la puerta. */
+
+.salir {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--color-border);
+  background: var(--color-white);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 7px 14px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: transform var(--dur-rapido) var(--ease-suave),
+    background var(--dur-rapido) var(--ease-suave), color var(--dur-rapido) var(--ease-suave),
+    border-color var(--dur-rapido) var(--ease-suave);
+}
+
+.salir:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: var(--clay-cielo-bg);
+  color: var(--color-primary);
+  border-color: var(--clay-cielo);
+}
+
+.salir:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

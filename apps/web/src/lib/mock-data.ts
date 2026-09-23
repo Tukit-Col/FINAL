@@ -1,9 +1,10 @@
 // ============================================================
 // MOCK DATA — TuKit MVP
-// Datos de muestra que hoy solo alimentan la "Vista de diseño" del
-// dashboard (perfiles de hijos y pedidos). Viven en `identidad` y
-// `comercio`, que todavia no publican superficie de lectura; se
-// reemplazaran por esas llamadas cuando esos servicios existan.
+// Lo unico que queda de muestra es "Mis hijos" del dashboard: los perfiles de
+// menores viven en `identidad`, que mantiene esa superficie CERRADA a
+// proposito (Anexo M, Ley 1581) y no la abre solo para pintar una tarjeta. El
+// saludo y los pedidos del panel ya salen del backend real (sesion de
+// identidad + `/v1/comercio/mis-pedidos`), asi que su mock se eliminó.
 // ============================================================
 
 export interface Hijo {
@@ -14,24 +15,6 @@ export interface Hijo {
   grado: string;
   colegio: string;
 }
-
-export interface Pedido {
-  id: string;
-  fecha: string;
-  estado: "Entregado" | "En camino" | "Pendiente" | "Cancelado";
-  total: string;
-}
-
-export interface Usuario {
-  nombre: string;
-  apellido: string;
-}
-
-// ---- USUARIO ----
-export const mockUsuario: Usuario = {
-  nombre: "Camila",
-  apellido: "R.",
-};
 
 // ---- HIJOS ----
 export const mockHijos: Hijo[] = [
@@ -52,20 +35,3 @@ export const mockHijos: Hijo[] = [
     colegio: "Gimnasio Moderno",
   },
 ];
-
-// ---- PEDIDOS RECIENTES ----
-export const mockPedidos: Pedido[] = [
-  {
-    id: "#ORD-4920",
-    fecha: "Oct 24, 2023",
-    estado: "Entregado",
-    total: "$345.000 COP",
-  },
-  {
-    id: "#ORD-4892",
-    fecha: "Sep 12, 2023",
-    estado: "Entregado",
-    total: "$120.500 COP",
-  },
-];
-

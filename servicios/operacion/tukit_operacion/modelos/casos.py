@@ -28,8 +28,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .base import CategoriaCaso, EstadoCaso, OrigenCaso, Prioridad, Texto
-from .base import Base
+from .base import Base, CategoriaCaso, EstadoCaso, OrigenCaso, Prioridad, Texto
 
 _ESTADOS = ", ".join(f"'{e.value}'" for e in EstadoCaso)
 _CATEGORIAS = ", ".join(f"'{e.value}'" for e in CategoriaCaso)

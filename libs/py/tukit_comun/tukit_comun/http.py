@@ -25,13 +25,18 @@ saber cual es.
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
-from typing import Any
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
+from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+if TYPE_CHECKING:
+    import httpx
 
 # Los dos puertos en los que arranca un Next.js recien creado. Se ponen por
 # omision porque el caso de desarrollo es el 100 % de los usos de hoy y
@@ -62,6 +67,42 @@ class ErrorDominio(Exception):
         if self.campo is not None:
             sobre["campo"] = self.campo
         return sobre
+
+
+def iso(valor: datetime | None) -> str | None:
+    """Fecha a texto ISO-8601, o `None` si no hay fecha.
+
+    Vive aqui porque comercio y operacion serializaban lo mismo con dos copias
+    identicas de este ayudante. `None` es "no hay fecha", no una cadena vacia:
+    el contrato distingue "sin entregar" de "entregado en fecha desconocida".
+    """
+    return valor.isoformat() if valor is not None else None
+
+
+@asynccontextmanager
+async def cliente_efimero(
+    cliente: httpx.AsyncClient | None, espera: float
+) -> AsyncIterator[httpx.AsyncClient]:
+    """El cliente httpx inyectado, o uno propio que se cierra al salir.
+
+    Los tres `remoto.py` (catalogo, identidad, operacion) repetian el mismo
+    baile: `propio = self.cliente is None; cliente = self.cliente or AsyncClient();
+    try: ... finally: if propio: await cliente.aclose()`. El patron compartido es
+    SOLO el ciclo de vida del cliente —tomar el inyectado (para las pruebas) o
+    abrir uno efimero y cerrarlo—; el manejo de errores de cada metodo (levantar
+    vs devolver None, tratar el 404) es distinto a proposito y se queda en cada
+    cliente. Por eso esto es un context manager y no una clase base con logica.
+    """
+    import httpx
+
+    if cliente is not None:
+        yield cliente
+        return
+    propio = httpx.AsyncClient(timeout=espera)
+    try:
+        yield propio
+    finally:
+        await propio.aclose()
 
 
 def origenes_permitidos() -> list[str]:

@@ -2,16 +2,18 @@
 
 import { useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Search, Check, School, Send } from "lucide-react";
 import {
   formatearTamano,
   validarArchivo,
   EXTENSIONES_ACEPTADAS,
+  GRADOS_CANONICOS,
   type Colegio,
   type HijoSolicitud,
   type Pesos,
   type SolicitudTrabajo,
 } from "@tukit/contrato";
-import { crearTrabajo, FalloApi } from "@/lib/api-navegador";
+import { crearTrabajo, sugerirColegio, FalloApi } from "@/lib/api-navegador";
 import SelectorPersonaje from "./SelectorPersonaje";
 import styles from "./Empezar.module.css";
 
@@ -25,6 +27,11 @@ interface HijoFormulario {
   archivo: File | null;
   errorArchivo: string | null;
   personajes: string;
+  // Estado de la sugerencia de colegio (solo en la ruta "subir archivo", cuando
+  // el par no es aliado todavía). null = sin enviar; luego el tarea_id.
+  sugerido: string | null;
+  sugiriendo: boolean;
+  errorSugerencia: string | null;
 }
 
 // El paso 3 no es una encuesta socioeconómica: es la ÚNICA palanca del
@@ -85,7 +92,101 @@ function hijoVacio(indice: number): HijoFormulario {
     archivo: null,
     errorArchivo: null,
     personajes: "",
+    sugerido: null,
+    sugiriendo: false,
+    errorSugerencia: null,
   };
+}
+
+// Iniciales del colegio para el avatar cuando no hay logo: dos letras de las
+// dos primeras palabras significativas, en mayúscula.
+function iniciales(nombre: string): string {
+  const palabras = nombre
+    .split(/\s+/)
+    .filter((p) => p.length > 2 && !/^(de|del|la|el|los|las|y)$/i.test(p));
+  const base = palabras.length > 0 ? palabras : nombre.split(/\s+/);
+  return base
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+// ------------------------------------------------------- Selector de colegio
+
+function SelectorColegio({
+  colegios,
+  valor,
+  onElegir,
+}: {
+  colegios: Colegio[];
+  valor: string;
+  onElegir: (colegioId: string) => void;
+}) {
+  const [busqueda, setBusqueda] = useState("");
+  const filtrados = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    if (!q) return colegios;
+    return colegios.filter((c) => c.nombre.toLowerCase().includes(q));
+  }, [colegios, busqueda]);
+
+  return (
+    <div className={styles.colegioBloque}>
+      <span className={styles.campoRotulo}>Colegio</span>
+      <div className={styles.buscador}>
+        <Search size={16} strokeWidth={2.4} aria-hidden="true" />
+        <input
+          type="text"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Busca tu colegio…"
+          aria-label="Buscar colegio"
+        />
+      </div>
+      <div className={styles.listaColegios} role="radiogroup" aria-label="Elige el colegio">
+        {filtrados.map((c) => {
+          const activo = c.colegio_id === valor;
+          return (
+            <button
+              key={c.colegio_id}
+              type="button"
+              role="radio"
+              aria-checked={activo}
+              className={`${styles.tarjetaColegio} ${activo ? styles.colegioActivo : ""}`}
+              onClick={() => onElegir(c.colegio_id)}
+            >
+              <span className={styles.logoColegio} aria-hidden="true">
+                {c.logo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={c.logo_url} alt="" />
+                ) : (
+                  <span className={styles.logoIniciales}>{iniciales(c.nombre)}</span>
+                )}
+              </span>
+              <span className={styles.colegioTexto}>
+                <span className={styles.colegioNombre}>{c.nombre}</span>
+                <span className={styles.colegioMeta}>
+                  {c.grados.length === 0
+                    ? "Sin lista verificada · sube el archivo"
+                    : `${c.grados.length} ${c.grados.length === 1 ? "grado verificado" : "grados verificados"}`}
+                </span>
+              </span>
+              {activo && (
+                <span className={styles.colegioMarca} aria-hidden="true">
+                  <Check size={14} strokeWidth={3.2} />
+                </span>
+              )}
+            </button>
+          );
+        })}
+        {filtrados.length === 0 && (
+          <p className={styles.sinColegios}>
+            <School size={18} strokeWidth={2} aria-hidden="true" />
+            No encontramos ese colegio entre los aliados todavía.
+          </p>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function FormularioEmpezar({
@@ -101,7 +202,6 @@ export default function FormularioEmpezar({
   const [hijos, setHijos] = useState<HijoFormulario[]>([hijoVacio(1)]);
   const [correo, setCorreo] = useState("");
   const [celular, setCelular] = useState("");
-  const [presupuesto, setPresupuesto] = useState("");
   const [prioridad, setPrioridad] = useState<ClavePrioridad>("equilibrio");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -124,6 +224,29 @@ export default function FormularioEmpezar({
     });
   }
 
+  async function sugerir(indice: number) {
+    const hijo = hijos[indice];
+    if (!hijo || !hijo.colegioId || !hijo.grado || hijo.sugiriendo) return;
+    cambiar(indice, { sugiriendo: true, errorSugerencia: null });
+    try {
+      const { tarea_id } = await sugerirColegio({
+        colegioId: hijo.colegioId,
+        grado: hijo.grado,
+        anioLectivo: new Date().getFullYear(),
+        archivo: hijo.archivo,
+      });
+      cambiar(indice, { sugerido: tarea_id, sugiriendo: false });
+    } catch (causa) {
+      cambiar(indice, {
+        sugiriendo: false,
+        errorSugerencia:
+          causa instanceof FalloApi
+            ? causa.message
+            : "No pudimos enviar la sugerencia. Intenta de nuevo.",
+      });
+    }
+  }
+
   const listo =
     correo.trim().length > 3 &&
     celular.trim().length > 6 &&
@@ -141,10 +264,6 @@ export default function FormularioEmpezar({
     setError(null);
     setGradosDetectados([]);
 
-    // El presupuesto es una cota DURA, no un gusto, y va en pesos enteros.
-    // Se limpia aqui de puntos y espacios porque la gente lo escribe como lo
-    // lee: "700.000".
-    const soloDigitos = presupuesto.replace(/\D/g, "");
     const personajePorHijo: Record<string, string[]> = {};
     for (const hijo of hijos) {
       const lista = hijo.personajes
@@ -166,11 +285,10 @@ export default function FormularioEmpezar({
       })),
       preferencias: {
         // Lo que el recomendador de verdad lee: pesos + disposición a pagar de
-        // más. Antes íbamos con `dolor_declarado`, que no movía la elección del
-        // kit y hacía del paso 3 un adorno.
+        // más. El tope por hijo salió del formulario a pedido del acudiente; el
+        // encuadre del paso 3 ya es "hasta dónde estirar el bolsillo".
         pesos: elegida.pesos,
         disposicion_sobreprecio: elegida.disposicion_sobreprecio,
-        ...(soloDigitos ? { presupuesto_por_hijo: Number(soloDigitos) } : {}),
         ...(Object.keys(personajePorHijo).length > 0
           ? { personaje_por_hijo: personajePorHijo }
           : {}),
@@ -232,40 +350,52 @@ export default function FormularioEmpezar({
                 )}
               </legend>
 
-              <div className={styles.dosColumnas}>
-                <label className={styles.campo}>
-                  <span>Colegio</span>
-                  <select
-                    value={hijo.colegioId}
-                    onChange={(e) => cambiar(indice, { colegioId: e.target.value, grado: "" })}
-                    required
-                  >
-                    <option value="">Elige el colegio…</option>
-                    {colegios.map((c) => (
-                      <option key={c.colegio_id} value={c.colegio_id}>
-                        {c.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+              <SelectorColegio
+                colegios={colegios}
+                valor={hijo.colegioId}
+                onElegir={(colegioId) =>
+                  cambiar(indice, { colegioId, grado: "", sugerido: null, errorSugerencia: null })
+                }
+              />
 
-                <label className={styles.campo}>
-                  <span>Grado</span>
-                  <select
-                    value={hijo.grado}
-                    onChange={(e) => cambiar(indice, { grado: e.target.value })}
-                    disabled={!colegio}
-                    required
-                  >
-                    <option value="">{colegio ? "Elige el grado…" : "Primero el colegio"}</option>
-                    {colegio?.grados.map((g) => (
-                      <option key={g} value={g}>
-                        {g}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
+              {colegio &&
+                (() => {
+                  // La ruta "lista oficial" solo puede usar grados VERIFICADOS
+                  // (los únicos con la ruta rápida a optimización). La ruta
+                  // "subir archivo" no depende de eso: el grado sale del PDF que
+                  // el acudiente manda, así que ahí se ofrecen todos los grados
+                  // canónicos —es lo que hace usable un colegio sin lista
+                  // verificada todavía, que es justo cuando se sugiere—.
+                  const grados =
+                    hijo.entrada === "archivo" ? GRADOS_CANONICOS : colegio.grados;
+                  if (grados.length === 0) return null;
+                  return (
+                    <div className={styles.gradoBloque}>
+                      <span className={styles.campoRotulo}>Grado</span>
+                      <div
+                        className={styles.gradoChips}
+                        role="radiogroup"
+                        aria-label="Elige el grado"
+                      >
+                        {grados.map((g) => {
+                          const activo = hijo.grado === g;
+                          return (
+                            <button
+                              key={g}
+                              type="button"
+                              role="radio"
+                              aria-checked={activo}
+                              className={`${styles.chipGrado} ${activo ? styles.chipGradoActivo : ""}`}
+                              onClick={() => cambiar(indice, { grado: g })}
+                            >
+                              {g}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
 
               <div className={styles.entradas} role="group" aria-label="Cómo nos das la lista">
                 {(
@@ -285,7 +415,7 @@ export default function FormularioEmpezar({
                       name={`entrada-${hijo.referencia}`}
                       value={valor}
                       checked={hijo.entrada === valor}
-                      onChange={() => cambiar(indice, { entrada: valor })}
+                      onChange={() => cambiar(indice, { entrada: valor, grado: "" })}
                     />
                     {etiqueta}
                   </label>
@@ -328,6 +458,44 @@ export default function FormularioEmpezar({
                       {hijo.errorArchivo}
                     </p>
                   )}
+
+                  {/* Sugerir el colegio+grado al backlog del administrador: el PDF
+                      que subiste es la mejor semilla de onboarding, así que en vez
+                      de quedarse solo en tu pedido lo mandamos a que lo verifiquen
+                      y quede como lista aliada para el próximo acudiente. */}
+                  <div className={styles.sugerencia}>
+                    {hijo.sugerido ? (
+                      <p className={styles.sugerenciaOk} role="status">
+                        <Check size={16} strokeWidth={3} aria-hidden="true" />
+                        Listo: le mandamos tu lista al equipo. La revisamos y queda
+                        como lista verificada del colegio.
+                      </p>
+                    ) : (
+                      <>
+                        <div className={styles.sugerenciaTexto}>
+                          <strong>¿Quieres que quede como lista del colegio?</strong>
+                          <span>
+                            Mándanos este colegio y grado con tu archivo: lo revisamos
+                            a mano y lo dejamos verificado para todos.
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className={styles.botonSugerir}
+                          disabled={!hijo.colegioId || !hijo.grado || hijo.sugiriendo}
+                          onClick={() => sugerir(indice)}
+                        >
+                          <Send size={15} strokeWidth={2.6} aria-hidden="true" />
+                          {hijo.sugiriendo ? "Enviando…" : "Sugerir mi colegio"}
+                        </button>
+                      </>
+                    )}
+                    {hijo.errorSugerencia && (
+                      <p className={styles.errorCampo} role="alert">
+                        {hijo.errorSugerencia}
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -358,7 +526,8 @@ export default function FormularioEmpezar({
           <span className={styles.paso}>2</span> A dónde te avisamos
         </h2>
         <p className={styles.explicacion}>
-          Armar el kit toma minutos, no segundos. No tienes que quedarte mirando la
+          Armar el kit toma minutos, no segundos, porque una persona revisa cada
+          lista para que la calidad no falle. No tienes que quedarte mirando la
           pantalla: te escribimos cuando esté listo.
         </p>
         <div className={styles.dosColumnas}>
@@ -393,9 +562,9 @@ export default function FormularioEmpezar({
           <span className={styles.paso}>3</span> Cuál de los tres te marcamos
         </h2>
         <p className={styles.explicacion}>
-          Los tres kits cubren la misma lista y la misma calidad asegurada: lo que
-          cambia es cuánto gastas. Dinos hasta dónde quieres estirar el bolsillo y te
-          marcamos uno —los otros dos quedan a la vista—. No te pedimos el estrato ni
+          Los tres kits llevan la misma lista y la misma calidad. Lo único que cambia
+          es cuánto gastas. Dinos hasta dónde quieres estirar el bolsillo y te marcamos
+          uno; los otros dos quedan a la vista. No preguntamos por el estrato ni por
           nada del hogar.
         </p>
 
@@ -422,23 +591,6 @@ export default function FormularioEmpezar({
             </label>
           ))}
         </fieldset>
-
-        <label className={styles.campo}>
-          <span>
-            Tope por hijo en pesos <em>(opcional, pero si lo pones lo respetamos)</em>
-          </span>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={presupuesto}
-            onChange={(e) => setPresupuesto(e.target.value)}
-            placeholder="Ej. 700000"
-          />
-          <span className={styles.pistaCampo}>
-            Es una cota dura: si el kit que priorizas se pasa de este tope, te marcamos
-            el que sí cabe y te lo decimos.
-          </span>
-        </label>
       </section>
 
       {error && (

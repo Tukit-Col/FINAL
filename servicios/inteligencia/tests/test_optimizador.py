@@ -148,7 +148,7 @@ class TestLoInformativoSeMuestraYNoSeCobra:
         assert kits[0].lineas[0].informativa is True
         assert kits[0].total_cop == 0
 
-    def test_la_fidelidad_no_cuenta_lo_que_nunca_se_iba_a_vender(self):
+    def test_los_objetivos_no_cuentan_lo_que_nunca_se_iba_a_vender(self):
         util = _candidato("TK-UTIL", "confiable", 10000)
         kits = armar_los_tres(
             [
@@ -156,9 +156,12 @@ class TestLoInformativoSeMuestraYNoSeCobra:
                 _renglon(2, "Uniforme", tipo_item="uniforme", modo_adquisicion="mercado_abierto"),
             ]
         )
-        # Una sola linea comprable y esta resuelta: fidelidad 1.0. Contando la
-        # informativa daria 0.5 y el kit se veria peor por vender menos.
-        assert kits[0].objetivos["fidelidad"] == 1.0
+        # Una sola linea comprable y esta resuelta: resolucion_auto 1.0. Contando
+        # la informativa daria 0.5 y el kit se veria peor por vender menos. La
+        # fidelidad es el nivel de marca (confiable = 0.5 sobre el tope premium),
+        # que es un eje distinto y ya no se confunde con la resolucion.
+        assert kits[0].objetivos["resolucion_auto"] == 1.0
+        assert kits[0].objetivos["fidelidad"] == 0.5
 
 
 class TestLaConsolidacionEntreHermanos:
@@ -406,6 +409,96 @@ class TestElFrenteDePareto:
         assert optimizar_frente(unica, {}) == []
         kits = armar_los_tres(unica, {})
         assert all(k.lineas[0].elegido.sku == "SOLO" for k in kits)
+
+
+class TestElFrenteNSGAEnEspacioGrande:
+    """El camino que SOLO corre NSGA-II: espacio de busqueda > LIMITE_ENUMERACION.
+
+    Las otras pruebas del frente usan kits chicos (espacio 9) que caen en la
+    enumeracion exacta; ninguna ejercita el optimizador metaheuristico en si. Con
+    8 lineas de 4 candidatos el espacio es 4**8 = 65536 > 4096, asi que aqui si
+    corre NSGA-II con la codificacion entera.
+    """
+
+    def _renglones_grandes(self):
+        niveles = ("economico", "confiable", "premium", "confiable")
+        precios = (3000, 6000, 12000, 7000)
+        personajes = (None, None, None, "spiderman")
+        return [
+            _renglon(
+                i,
+                f"Item {i}",
+                tuple(
+                    _candidato(
+                        f"L{i}-{j}", niveles[j], precios[j], personaje=personajes[j]
+                    )
+                    for j in range(4)
+                ),
+                hijo="hijo-1",
+            )
+            for i in range(1, 9)
+        ]
+
+    def test_el_frente_es_no_dominado(self):
+        from tukit_inteligencia.optimizador import LIMITE_ENUMERACION
+
+        renglones = self._renglones_grandes()
+        assert LIMITE_ENUMERACION < 4**8  # confirma que corre NSGA, no enumeracion
+        frente = optimizar_frente(renglones, {}, semilla=0)
+        assert len(frente) >= 2
+        # Ningun punto del frente domina a otro: si dos difieren, no puede uno
+        # ser >= en todos los ejes (costo invertido) y > en alguno.
+        for a in frente:
+            for b in frente:
+                if a is b:
+                    continue
+                mejor_o_igual = (
+                    a.costo <= b.costo
+                    and a.fidelidad >= b.fidelidad
+                    and a.disponibilidad >= b.disponibilidad
+                    and a.personaje >= b.personaje
+                )
+                estricto = (
+                    a.costo < b.costo
+                    or a.fidelidad > b.fidelidad
+                    or a.disponibilidad > b.disponibilidad
+                    or a.personaje > b.personaje
+                )
+                assert not (mejor_o_igual and estricto), "el frente trae un punto dominado"
+
+    def test_es_reproducible_bajo_la_misma_semilla(self):
+        renglones = self._renglones_grandes()
+
+        def clave(f):
+            return sorted((s.costo, s.fidelidad, s.disponibilidad, s.personaje) for s in f)
+
+        assert clave(optimizar_frente(renglones, {}, semilla=13)) == clave(
+            optimizar_frente(renglones, {}, semilla=13)
+        )
+
+
+class TestBordesDelOptimizador:
+    """Casos limite que antes no tenian prueba: sin lineas, todo informativo,
+    sin candidatos admisibles. El contrato es un resultado bien definido, no una
+    excepcion."""
+
+    def test_sin_renglones_el_frente_es_vacio(self):
+        assert optimizar_frente([], {}) == []
+
+    def test_todo_informativo_el_frente_es_vacio(self):
+        informativas = [
+            _renglon(1, "Licencia", tipo_item="licencia_digital"),
+            _renglon(2, "Uniforme", tipo_item="uniforme"),
+        ]
+        assert optimizar_frente(informativas, {}) == []
+
+    def test_sin_candidatos_no_hay_frente_y_el_kit_marca_la_linea(self):
+        sin_cand = [_renglon(1, "Cuaderno", ())]
+        assert optimizar_frente(sin_cand, {}) == []
+        kits = armar_los_tres(sin_cand)
+        # Se arman los tres kits igual; la linea queda sin elegido, no revienta.
+        assert len(kits) == 3
+        assert all(kit.lineas[0].elegido is None for kit in kits)
 
     def test_un_kit_grande_corre_por_nsga_y_respeta_las_unidades(self):
         """Un espacio de busqueda grande fuerza la ruta NSGA-II; la aritmetica

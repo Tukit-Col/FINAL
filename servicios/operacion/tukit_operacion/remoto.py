@@ -17,6 +17,7 @@ import os
 from dataclasses import dataclass
 
 import httpx
+from tukit_comun.http import cliente_efimero
 
 URL_IDENTIDAD_POR_OMISION = "http://127.0.0.1:8011"
 ESPERA_SEGUNDOS = 30.0
@@ -41,20 +42,35 @@ class ClienteIdentidad:
         abrir igual sin titular resuelto y la degradacion se anota. El correo
         no se guarda aqui pase lo que pase.
         """
-        propio = self.cliente is None
-        cliente = self.cliente or httpx.AsyncClient(timeout=ESPERA_SEGUNDOS)
         try:
-            respuesta = await cliente.post(
-                f"{self._base()}/v1/contactos",
-                json={"correo": correo, "celular": celular},
-            )
-            respuesta.raise_for_status()
-            return str(respuesta.json().get("usuario_id"))
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.post(
+                    f"{self._base()}/v1/contactos",
+                    json={"correo": correo, "celular": celular},
+                )
+                respuesta.raise_for_status()
+                return str(respuesta.json().get("usuario_id"))
         except httpx.HTTPError:
             return None
-        finally:
-            if propio:
-                await cliente.aclose()
+
+    async def contacto_de(self, usuario_id: str) -> dict[str, str | None] | None:
+        """Resuelve un `usuario_id` a su contacto para enviar el aviso, sin
+        guardarlo. Es la contraparte de `resolver_contacto`: alli el correo entra
+        y se cambia por un id; aqui el id se cambia por el correo justo en el
+        momento del envio (`GET /v1/contactos/{usuario_id}`).
+
+        Devuelve `{"correo", "celular"}` o `None` si Identidad no responde o el
+        usuario no existe: el repartidor sube `intentos` y reintenta luego, sin
+        que el correo llegue a persistirse en Operacion en ningun caso.
+        """
+        try:
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.get(f"{self._base()}/v1/contactos/{usuario_id}")
+                respuesta.raise_for_status()
+                cuerpo = respuesta.json()
+                return {"correo": cuerpo.get("correo"), "celular": cuerpo.get("celular")}
+        except httpx.HTTPError:
+            return None
 
 
 __all__ = ["ClienteIdentidad", "url_identidad", "ESPERA_SEGUNDOS"]

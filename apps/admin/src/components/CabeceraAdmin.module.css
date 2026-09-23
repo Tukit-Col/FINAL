@@ -57,6 +57,15 @@
 
 /* --------------------------------------------------------------- nav */
 
+/* La nav y el boton de salir van juntos a la derecha; el logo se queda solo a
+ * la izquierda por el `space-between` de la cabecera. */
+.derecha {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-3);
+  flex-wrap: wrap;
+}
+
 .nav {
   display: flex;
   align-items: center;

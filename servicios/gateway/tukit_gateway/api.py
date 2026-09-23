@@ -59,6 +59,8 @@ def _servicios() -> dict[str, str]:
         "catalogo": os.environ.get("TUKIT_CATALOGO_URL", "http://127.0.0.1:8012").rstrip("/"),
         "identidad": os.environ.get("TUKIT_IDENTIDAD_URL", "http://127.0.0.1:8011").rstrip("/"),
         "inteligencia": os.environ.get("TUKIT_INTELIGENCIA_URL", "http://127.0.0.1:8013").rstrip("/"),
+        "comercio": os.environ.get("TUKIT_COMERCIO_URL", "http://127.0.0.1:8014").rstrip("/"),
+        "operacion": os.environ.get("TUKIT_OPERACION_URL", "http://127.0.0.1:8015").rstrip("/"),
     }
 
 
@@ -82,8 +84,22 @@ RUTAS: dict[str, str] = {
     "/v1/grados": "identidad",
     "/v1/contactos": "identidad",
     "/v1/sesiones": "identidad",
+    # "Mi cuenta" del acudiente: identidad y libreta de direcciones, sobre el
+    # token que emite `/v1/sesiones`.
+    "/v1/cuenta": "identidad",
     "/v1/trabajos": "inteligencia",
     "/v1/admin": "inteligencia",
+    # El panel del colegio: kits armados, cobertura y ahorro, calculados en vivo
+    # sobre los kits. Cuelga de `/v1/metricas` y no de `/v1/colegios` (que es de
+    # identidad) para que este ruteo por prefijo lo mande a inteligencia.
+    "/v1/metricas": "inteligencia",
+    # El back-office de logistica (tablero de pedidos) y la bandeja de casos/PQRS.
+    "/v1/comercio": "comercio",
+    "/v1/operacion": "operacion",
+    # El checkout del acudiente y el webhook de la pasarela: ya tienen detras la
+    # superficie de escritura de Comercio (§9), asi que salen de PENDIENTES.
+    "/v1/ordenes": "comercio",
+    "/v1/webhooks/wompi": "comercio",
 }
 
 
@@ -95,10 +111,7 @@ RUTAS: dict[str, str] = {
 # URL" y manda a revisar el cliente; un 501 dice "la URL es la correcta y el
 # backend todavia no la sirve" y manda a esperar. Confundirlas cuesta una
 # tarde de buscar un error que no esta.
-PENDIENTES: dict[str, str] = {
-    "/v1/ordenes": "9",
-    "/v1/webhooks/wompi": "9",
-}
+PENDIENTES: dict[str, str] = {}
 
 
 def destino(ruta: str) -> str | None:
