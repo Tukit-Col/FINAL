@@ -711,9 +711,7 @@ class TestSinDuplicados:
         # nadie que el optimizador muestre.
         escaleras = {(p["concepto_id"], p["personaje"]) for p in utiles}
         con_representante = {
-            (p["concepto_id"], p["personaje"])
-            for p in utiles
-            if _es_true(p["es_representante_canonico"])
+            (p["concepto_id"], p["personaje"]) for p in utiles if _es_true(p["es_representante_canonico"])
         }
         sin_representante = sorted(escaleras - con_representante)
         assert sin_representante == [], f"escaleras util sin representante: {sin_representante}"

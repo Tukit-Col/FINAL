@@ -270,9 +270,7 @@ async def mis_pedidos(usuario_id: uuid.UUID) -> dict[str, Any]:
         conexion = await db.connection()
         filas = list(
             await conexion.execute(
-                select(PEDIDO)
-                .where(PEDIDO.c.usuario_id == usuario_id)
-                .order_by(PEDIDO.c.creado_en.desc())
+                select(PEDIDO).where(PEDIDO.c.usuario_id == usuario_id).order_by(PEDIDO.c.creado_en.desc())
             )
         )
         pedidos = await _pedidos_completos(conexion, filas)
@@ -411,9 +409,7 @@ async def crear_orden(solicitud: SolicitudOrden) -> dict[str, Any]:
         )
         for linea in solicitud.lineas:
             producto_id = _uuid_o_422(linea.producto_canonico_id, "producto_canonico_id")
-            matricula_id = (
-                _uuid_o_422(linea.matricula_id, "matricula_id") if linea.matricula_id else None
-            )
+            matricula_id = _uuid_o_422(linea.matricula_id, "matricula_id") if linea.matricula_id else None
             await conexion.execute(
                 insert(LINEA_PEDIDO).values(
                     id=uuid.uuid4(),

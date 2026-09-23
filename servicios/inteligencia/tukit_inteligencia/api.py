@@ -64,9 +64,7 @@ class PercepcionRechazada(ErrorDominio):
     subio.
     """
 
-    def __init__(
-        self, error: str, mensaje: str, *, grados_detectados: tuple[str, ...] = ()
-    ) -> None:
+    def __init__(self, error: str, mensaje: str, *, grados_detectados: tuple[str, ...] = ()) -> None:
         super().__init__(error, mensaje, estado=422)
         self.grados_detectados = grados_detectados
 
@@ -250,10 +248,8 @@ def _leer_multipart(cuerpo: bytes, tipo_contenido: str) -> tuple[dict[str, str],
     marca = "boundary="
     posicion = tipo_contenido.find(marca)
     if posicion < 0:
-        raise ErrorDominio(
-            "multipart_invalido", "El envio no es un formulario multipart valido.", estado=422
-        )
-    frontera = tipo_contenido[posicion + len(marca):].strip().strip('"')
+        raise ErrorDominio("multipart_invalido", "El envio no es un formulario multipart valido.", estado=422)
+    frontera = tipo_contenido[posicion + len(marca) :].strip().strip('"')
     separador = b"--" + frontera.encode()
 
     campos: dict[str, str] = {}
@@ -302,9 +298,7 @@ async def onboarding(peticion: Request) -> dict[str, Any]:
     """
     tipo = peticion.headers.get("content-type", "")
     if "multipart/form-data" not in tipo:
-        raise ErrorDominio(
-            "multipart_invalido", "Sube la lista como multipart/form-data.", estado=422
-        )
+        raise ErrorDominio("multipart_invalido", "Sube la lista como multipart/form-data.", estado=422)
     campos, archivos = _leer_multipart(await peticion.body(), tipo)
 
     for requerido in ("colegio_id", "grado", "anio_lectivo"):

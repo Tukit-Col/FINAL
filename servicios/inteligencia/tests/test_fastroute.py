@@ -199,15 +199,15 @@ class TestRutaRapidaVerificada:
             )
             item_ids = {f.id for f in items}
             kits = await conexion.scalar(
-                select(func.count()).select_from(trabajos.KIT).where(
-                    trabajos.KIT.c.trabajo_id == trabajo_id
-                )
+                select(func.count()).select_from(trabajos.KIT).where(trabajos.KIT.c.trabajo_id == trabajo_id)
             )
             lineas = list(
                 await conexion.execute(
-                    select(trabajos.LINEA.c.item_crudo_id).select_from(
+                    select(trabajos.LINEA.c.item_crudo_id)
+                    .select_from(
                         trabajos.LINEA.join(trabajos.KIT, trabajos.LINEA.c.kit_id == trabajos.KIT.c.id)
-                    ).where(trabajos.KIT.c.trabajo_id == trabajo_id)
+                    )
+                    .where(trabajos.KIT.c.trabajo_id == trabajo_id)
                 )
             )
 
@@ -274,9 +274,7 @@ class TestListaSinRevisarUsaRutaLenta:
             revisada=False,
             renglones=[renglon(1, "2 cuadernos", cantidad=2)],
             respuestas={
-                "2 cuadernos": reconocido(
-                    "2 cuadernos", "C001", [opcion("TK-C001-ECO", "economico", 4500)]
-                )
+                "2 cuadernos": reconocido("2 cuadernos", "C001", [opcion("TK-C001-ECO", "economico", 4500)])
             },
         )
         trabajo_id, estado = await _crear_y_procesar(motor, catalogo)

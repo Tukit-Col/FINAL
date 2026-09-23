@@ -125,9 +125,7 @@ def _item_publico(fila: Any) -> dict[str, Any]:
         "atributos": dict(fila.atributos or {}),
         "requiere_revision": bool(fila.requiere_revision),
         "concepto": (
-            {"codigo": fila.concepto_codigo, "nombre": fila.concepto_nombre}
-            if fila.concepto_codigo
-            else None
+            {"codigo": fila.concepto_codigo, "nombre": fila.concepto_nombre} if fila.concepto_codigo else None
         ),
     }
 
@@ -155,21 +153,18 @@ async def listar_versiones(
         .group_by(ITEM.c.version_id)
         .subquery()
     )
-    consulta = (
-        select(
-            LISTA.c.id.label("lista_id"),
-            LISTA.c.colegio_id,
-            LISTA.c.grado,
-            LISTA.c.anio_lectivo,
-            VERSION.c.id.label("version_id"),
-            VERSION.c.numero,
-            VERSION.c.revisada_en,
-            func.coalesce(items_por_version.c.renglones, 0).label("renglones"),
-        )
-        .select_from(
-            LISTA.join(
-                VERSION, and_(VERSION.c.lista_id == LISTA.c.id, VERSION.c.vigente.is_(True))
-            ).outerjoin(items_por_version, items_por_version.c.vid == VERSION.c.id)
+    consulta = select(
+        LISTA.c.id.label("lista_id"),
+        LISTA.c.colegio_id,
+        LISTA.c.grado,
+        LISTA.c.anio_lectivo,
+        VERSION.c.id.label("version_id"),
+        VERSION.c.numero,
+        VERSION.c.revisada_en,
+        func.coalesce(items_por_version.c.renglones, 0).label("renglones"),
+    ).select_from(
+        LISTA.join(VERSION, and_(VERSION.c.lista_id == LISTA.c.id, VERSION.c.vigente.is_(True))).outerjoin(
+            items_por_version, items_por_version.c.vid == VERSION.c.id
         )
     )
     if revisada is True:
@@ -299,9 +294,7 @@ async def ver_revision(version_id: uuid.UUID) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def _candidatos_por_concepto(
-    conexion: Any, codigos: list[str]
-) -> dict[str, list[dict[str, Any]]]:
+async def _candidatos_por_concepto(conexion: Any, codigos: list[str]) -> dict[str, list[dict[str, Any]]]:
     """Los candidatos curados de un conjunto de conceptos, uno por nivel.
 
     REUSA el mismo constructor de opciones que `emparejar`: la consulta de
@@ -323,9 +316,7 @@ async def _candidatos_por_concepto(
         return {}
 
     precio_min = _precio_minimo_vigente()
-    filas = await conexion.execute(
-        _consulta_productos(precio_min).where(_CONCEPTO_API.c.codigo.in_(codigos))
-    )
+    filas = await conexion.execute(_consulta_productos(precio_min).where(_CONCEPTO_API.c.codigo.in_(codigos)))
 
     # Se agrupan los productos crudos por concepto en la forma que
     # `_elegir_por_nivel` consume (las mismas llaves que arma `emparejar`).
@@ -473,14 +464,9 @@ async def _cargar_conceptos(conexion: Any) -> list[dict[str, Any]]:
     la del CLI y no una segunda implementacion que derive.
     """
     filas = await conexion.execute(
-        select(
-            CONCEPTO.c.id, CONCEPTO.c.nombre_canonico, CONCEPTO.c.sinonimos
-        ).where(CONCEPTO.c.activo)
+        select(CONCEPTO.c.id, CONCEPTO.c.nombre_canonico, CONCEPTO.c.sinonimos).where(CONCEPTO.c.activo)
     )
-    return [
-        {"id": f.id, "nombre": f.nombre_canonico, "sinonimos": list(f.sinonimos or ())}
-        for f in filas
-    ]
+    return [{"id": f.id, "nombre": f.nombre_canonico, "sinonimos": list(f.sinonimos or ())} for f in filas]
 
 
 @router.post(
@@ -548,9 +534,7 @@ async def importar_lista(cuerpo: dict[str, Any]) -> dict[str, Any]:
                 campo="cantidad",
             )
         confianza = it.get("confianza")
-        renglones.append(
-            {"texto": texto, "cantidad": cantidad, "confianza": confianza}
-        )
+        renglones.append({"texto": texto, "cantidad": cantidad, "confianza": confianza})
 
     async with _motor().sesion() as db:
         conexion = await db.connection()
@@ -579,15 +563,13 @@ async def importar_lista(cuerpo: dict[str, Any]) -> dict[str, Any]:
         # El siguiente numero, y quitarle la vigencia a la anterior ANTES de
         # insertar la nueva, para no violar el indice de una sola vigente.
         ultimo = (
-            await conexion.execute(
-                select(func.max(VERSION.c.numero)).where(VERSION.c.lista_id == lista_id)
-            )
+            await conexion.execute(select(func.max(VERSION.c.numero)).where(VERSION.c.lista_id == lista_id))
         ).scalar_one_or_none()
         numero = int(ultimo or 0) + 1
         await conexion.execute(
-            update(VERSION).where(VERSION.c.lista_id == lista_id, VERSION.c.vigente.is_(True)).values(
-                vigente=False
-            )
+            update(VERSION)
+            .where(VERSION.c.lista_id == lista_id, VERSION.c.vigente.is_(True))
+            .values(vigente=False)
         )
         version_id = uuid.uuid4()
         await conexion.execute(
@@ -794,9 +776,7 @@ async def percepcion_de_version(version_id: uuid.UUID) -> dict[str, Any]:
                 estado=404,
             )
         filas = await conexion.execute(
-            select(
-                ITEM.c.texto_original, ITEM.c.cantidad, ITEM.c.confianza_normalizacion
-            )
+            select(ITEM.c.texto_original, ITEM.c.cantidad, ITEM.c.confianza_normalizacion)
             .where(ITEM.c.version_id == version_id)
             .order_by(ITEM.c.orden)
         )
@@ -871,9 +851,7 @@ async def _valores_de_renglon(conexion: Any, cuerpo: dict[str, Any], *, nuevo: b
         valores["atributos"] = dict(cuerpo["atributos"] or {})
     if "concepto_codigo" in cuerpo:
         codigo = cuerpo["concepto_codigo"]
-        valores["concepto_id"] = (
-            None if codigo is None else await _concepto_id(conexion, codigo)
-        )
+        valores["concepto_id"] = None if codigo is None else await _concepto_id(conexion, codigo)
     if "requiere_revision" in cuerpo:
         valores["requiere_revision"] = bool(cuerpo["requiere_revision"])
     return valores
@@ -906,17 +884,13 @@ def _cuidar_invariantes(concepto_id: Any, requiere_revision: Any, modo: Any, ins
     "/listas/{version_id}/items/{item_id}",
     summary="Editar un renglon de una version sin revisar",
 )
-async def editar_item(
-    version_id: uuid.UUID, item_id: uuid.UUID, cuerpo: dict[str, Any]
-) -> dict[str, Any]:
+async def editar_item(version_id: uuid.UUID, item_id: uuid.UUID, cuerpo: dict[str, Any]) -> dict[str, Any]:
     async with _motor().sesion() as db:
         conexion = await db.connection()
         cabeza = await _version_y_lista(conexion, version_id)
         _exigir_sin_revisar(cabeza)
         actual = (
-            await conexion.execute(
-                select(ITEM).where(ITEM.c.id == item_id, ITEM.c.version_id == version_id)
-            )
+            await conexion.execute(select(ITEM).where(ITEM.c.id == item_id, ITEM.c.version_id == version_id))
         ).first()
         if actual is None:
             raise ErrorDominio("item_no_existe", "Ese renglon no esta en esta version.", estado=404)
@@ -957,9 +931,7 @@ async def agregar_item(version_id: uuid.UUID, cuerpo: dict[str, Any]) -> dict[st
         # El siguiente orden libre: el ultimo mas uno, para no chocar con el
         # indice unico (version_id, orden).
         ultimo = (
-            await conexion.execute(
-                select(func.max(ITEM.c.orden)).where(ITEM.c.version_id == version_id)
-            )
+            await conexion.execute(select(func.max(ITEM.c.orden)).where(ITEM.c.version_id == version_id))
         ).scalar_one_or_none()
         orden = int(ultimo or 0) + 1
         nuevo_id = uuid.uuid4()

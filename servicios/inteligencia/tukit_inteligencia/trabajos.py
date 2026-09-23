@@ -621,20 +621,26 @@ async def _procesar_verificado(
         fuente = {"fuente": "lista_verificada"}
         listas_detalle = {
             "fuente": "lista_verificada",
-            "listas": [
-                {"hijo": e["hijo"], "version_id": str(e["version_id"])} for e in encontradas
-            ],
+            "listas": [{"hijo": e["hijo"], "version_id": str(e["version_id"])} for e in encontradas],
         }
         await _marcar_etapa(
             conexion, trabajo_id, "percepcion", EstadoEtapa.OK.value, ms=ms, detalle=listas_detalle
         )
         await _marcar_etapa(
-            conexion, trabajo_id, "normalizacion", EstadoEtapa.OK.value, ms=0,
+            conexion,
+            trabajo_id,
+            "normalizacion",
+            EstadoEtapa.OK.value,
+            ms=0,
             detalle={**fuente, "renglones": len(renglones)},
         )
         resueltos = sum(1 for r in renglones if r.concepto_codigo is not None)
         await _marcar_etapa(
-            conexion, trabajo_id, "resolucion", EstadoEtapa.OK.value, ms=0,
+            conexion,
+            trabajo_id,
+            "resolucion",
+            EstadoEtapa.OK.value,
+            ms=0,
             detalle={**fuente, "resueltos": resueltos, "a_revision": 0},
         )
 

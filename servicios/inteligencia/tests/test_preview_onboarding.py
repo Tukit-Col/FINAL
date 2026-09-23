@@ -107,9 +107,7 @@ def catalogo():
 async def cliente(motor, catalogo):
     app.state.motor = motor
     app.state.catalogo = catalogo
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://prueba"
-    ) as http:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
         yield http
 
 
@@ -121,9 +119,7 @@ def _cuerpo(**kw):
 
 class TestPreviewFeliz:
     async def test_arma_tres_kits_por_la_ruta_lenta(self, cliente, catalogo, motor):
-        respuesta = await cliente.post(
-            f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo()
-        )
+        respuesta = await cliente.post(f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo())
 
         assert respuesta.status_code == 200
         cuerpo = respuesta.json()
@@ -140,9 +136,7 @@ class TestPreviewFeliz:
         assert {k["perfil"] for k in kits} == {"Ahorrador", "Fan", "Premium"}
 
     async def test_el_trabajo_lleva_origen_preview(self, cliente, catalogo):
-        respuesta = await cliente.post(
-            f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo()
-        )
+        respuesta = await cliente.post(f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo())
         trabajo_id = respuesta.json()["trabajo_id"]
 
         vista = await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")
@@ -152,9 +146,7 @@ class TestPreviewFeliz:
 class TestPreviewGuardas:
     async def test_version_no_vigente_es_409(self, cliente, catalogo):
         # La vigente del catalogo es VERSION_VIGENTE; se pide otra.
-        respuesta = await cliente.post(
-            "/v1/admin/onboarding/ver-vieja-0/preview", json=_cuerpo()
-        )
+        respuesta = await cliente.post("/v1/admin/onboarding/ver-vieja-0/preview", json=_cuerpo())
         assert respuesta.status_code == 409
         assert respuesta.json()["error"] == "version_no_vigente"
 
@@ -165,9 +157,7 @@ class TestPreviewGuardas:
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://prueba"
         ) as http:
-            respuesta = await http.post(
-                f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo()
-            )
+            respuesta = await http.post(f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo())
         assert respuesta.status_code == 404
         assert respuesta.json()["error"] == "version_no_existe"
 
@@ -184,9 +174,7 @@ class TestPreviewNoEsFireAndForget:
     async def test_los_kits_estan_listos_al_responder(self, cliente, catalogo):
         # Si fuera fire-and-forget, los kits no estarian escritos todavia cuando
         # respondemos. Se lee inmediatamente y ya tienen que estar.
-        respuesta = await cliente.post(
-            f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo()
-        )
+        respuesta = await cliente.post(f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo())
         trabajo_id = respuesta.json()["trabajo_id"]
         vista = await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")
         assert len(vista.json()["kits"]) == 3
@@ -200,8 +188,6 @@ class TestPreviewNoEsFireAndForget:
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://prueba"
         ) as http:
-            respuesta = await http.post(
-                f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo()
-            )
+            respuesta = await http.post(f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo())
         assert respuesta.status_code == 200
         assert respuesta.json()["estado"] == EstadoTrabajo.FALLIDO.value

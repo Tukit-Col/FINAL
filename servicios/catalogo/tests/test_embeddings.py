@@ -154,9 +154,7 @@ class TestElRescateSemanticoLevantaLoQueElLexicoNoVe:
             "embedding": vector,
         }
         # Cabeza 'lonchera': no aparece en 'estuche'/'cartuchera' -> lexico 0.
-        _id, nombre, puntaje = clasificar(
-            "lonchera termica", [estuche], embedding_renglon=vector
-        )
+        _id, nombre, puntaje = clasificar("lonchera termica", [estuche], embedding_renglon=vector)
         assert nombre == "estuche"
         assert puntaje >= 0.5
 
