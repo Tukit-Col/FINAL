@@ -1,6 +1,6 @@
 "use client";
 
-// Una linea del kit, con todo lo que hace falta para decidirla (AD-04, AD-05,
+// Una linea del kit, con todo lo que hace falta para decidirla (AD-02, AD-05,
 // AD-07).
 //
 // Es un `<details>` y no una tarjeta siempre abierta porque una lista de
@@ -385,7 +385,7 @@ export default function LineaRevision({
             </p>
           )}
 
-          {/* ------------------------------------------------ acciones AD-04 */}
+          {/* ------------------------------------------------ acciones AD-02 */}
           <div className={styles.acciones}>
             {hayQueElegir ? (
               <>

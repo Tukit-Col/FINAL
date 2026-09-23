@@ -67,6 +67,17 @@ def _servicios() -> dict[str, str]:
 RUTAS: dict[str, str] = {
     "/v1/catalogo": "catalogo",
     "/v1/listas": "catalogo",
+    # La revision de listas por HTTP la sirve CATALOGO (es su curaduria); la
+    # ingesta de PDF y la percepcion las sirve INTELIGENCIA. Ambas cuelgan de
+    # `/v1/admin`, asi que las de catalogo se nombran con su prefijo mas largo
+    # —`destino` busca el mas largo primero— y `/v1/admin` a secas queda para
+    # inteligencia.
+    "/v1/admin/listas": "catalogo",
+    "/v1/admin/propuestas": "catalogo",
+    # El backlog de sugerencias de padres lo escribe CATALOGO (crea la
+    # tarea_importacion). Sin este prefijo mas largo caeria en `/v1/admin` e
+    # iria a inteligencia, que no la sirve.
+    "/v1/admin/sugerencias": "catalogo",
     "/v1/colegios": "identidad",
     "/v1/grados": "identidad",
     "/v1/contactos": "identidad",

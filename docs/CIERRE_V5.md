@@ -337,10 +337,10 @@ lo resuelve al abrir.
 
 | Qué | Dónde | Bloqueado por |
 |---|---|---|
-| El choque de alcance de `OP-03` y el presupuesto del camino corto | `tukit/docs/DECISION_OP03_NR07.md` | Decisión entre tres alternativas |
+| ~~El choque de alcance de `OP-03` y el presupuesto del camino corto~~ | **CERRADO en el v6** por la alternativa B, ver `CIERRE_V6.md` §1 | — |
 | Re-medir `DP-04` con ≥10 documentos en régimen de cuota de producción | §1.3 de este documento | Cuota de producción del proveedor del modelo |
 | `TOPE_PAGINAS = 40` frente al presupuesto de `OP-03` | §1.4 de este documento | Decisión de quien posee `servicios/**` |
-| Elegir si la Sección 3 se organiza por módulo o por servicio | §3.3 de este documento | Decisión de arquitectura de documento |
+| ~~Elegir si la Sección 3 se organiza por módulo o por servicio~~ | **CERRADO en el v6**: una sola taxonomía, el reparto canónico de la arquitectura. Ver `CIERRE_V6.md` §2 | — |
 | Partir `SG-05` en dos requisitos (faltante `RF-13`) | `CONSOLIDACION_SRS_V4.md` §3 | Nada; es redacción |
 | Paquete de trabajo para los seis requisitos editoriales de v1 | `REQUISITOS_DIFERIDOS.md` | Decisión de alcance |
 | Aceptar formalmente los ADR 0012, 0013 y 0014 | `CORRECCIONES_TRAZABILIDAD.md` §7.5 | Nada |

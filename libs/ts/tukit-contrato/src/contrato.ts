@@ -310,7 +310,7 @@ export function validarArchivo(archivo: File): string | null {
 // `/revision`. Todo lo de abajo excepto `DecisionRevision` es INFERIDO a
 // partir de lo que cada requisito del SRS necesita para poder ejecutarse.
 
-// INFERIDO (AD-02/AD-03): la cola necesita, por trabajo, con que decidir a
+// AD-01/AD-02/AD-03: la cola necesita, por trabajo, con que decidir a
 // cual entrar primero.
 export interface EntradaCola {
   trabajo_id: string;
@@ -327,7 +327,7 @@ export interface ColaAdmin {
   entradas: EntradaCola[];
 }
 
-// INFERIDO (AD-03): el detalle del trabajo en admin es el mismo `Trabajo` mas
+// AD-04: el detalle del trabajo en admin es el mismo `Trabajo` mas
 // lo que la revision necesita y el acudiente no ve: por que cada linea esta
 // pendiente y quien la toco.
 export interface TrabajoAdmin extends Trabajo {
@@ -337,20 +337,20 @@ export interface TrabajoAdmin extends Trabajo {
   nota_revision?: string | null;
 }
 
-// INFERIDO (AD-04): validar es fijar el producto de la linea. Sin `sku` se lee
+// AD-02: validar es fijar el producto de la linea. Sin `sku` se lee
 // como "confirmo el que el sistema eligio".
 export interface ValidarLinea {
   sku?: string;
   nota?: string;
 }
 
-// INFERIDO (AD-04): una marca de "sin coincidencia" que no diga por que no se
+// AD-02: una marca de "sin coincidencia" que no diga por que no se
 // puede revisar despues.
 export interface SinCoincidencia {
   motivo: string;
 }
 
-// INFERIDO (AD-07): alta manual de producto con precio e imagen, que es lo que
+// AD-07: alta manual de producto con precio e imagen, que es lo que
 // el requisito nombra. `precio` en pesos enteros, como todo `Dinero`.
 export interface AltaProducto {
   concepto: string;
@@ -371,7 +371,7 @@ export interface ProductoDadoDeAlta {
   sku: string;
 }
 
-// INFERIDO (AD-05).
+// AD-05.
 export interface MarcarNoDisponible {
   motivo: string;
 }
@@ -380,4 +380,24 @@ export interface MarcarNoDisponible {
 export interface DecisionRevision {
   decision: "aprobar" | "devolver";
   nota?: string;
+}
+
+// ------------------------------------------- Onboarding: percepcion cruda
+//
+// La evidencia que inteligencia dejo al importar una lista, tal como la sirve
+// catalogo en `GET /v1/admin/listas/{version_id}/percepcion` (region 2 del
+// revisor de cuatro paneles). Son dos cosas: lo CRUDO que ley el modelo por
+// pagina (para poder cotejar contra el PDF original) y lo que se ITEMIZO de
+// ahi. El item admite `texto_original` o `descripcion` porque el borde escribe
+// `texto_original` pero la percepcion de inteligencia lo nombra `descripcion`;
+// se aceptan ambos y `cantidad`/`confianza` pueden faltar (null) mientras la
+// revision no los fije.
+export interface PercepcionCruda {
+  paginas: { pagina: number; crudo: string }[];
+  items: {
+    texto_original?: string;
+    descripcion?: string;
+    cantidad: number | null;
+    confianza: number | null;
+  }[];
 }

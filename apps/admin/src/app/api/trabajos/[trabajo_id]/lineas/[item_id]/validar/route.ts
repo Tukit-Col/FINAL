@@ -1,4 +1,4 @@
-// `POST /api/trabajos/{id}/lineas/{item_id}/validar` — AD-04.
+// `POST /api/trabajos/{id}/lineas/{item_id}/validar` — AD-02.
 //
 // Route Handler y no Server Action, igual que en `apps/web` y por la misma
 // razon: la bandera `TUKIT_ORIGEN_DATOS` y la URL del backend se resuelven en

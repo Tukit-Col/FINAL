@@ -484,7 +484,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Bajo el umbral tau del PE-04: es la razon por la que la linea esta aqui. */
+/* Bajo el umbral tau del PE-04: es la razon por la que la linea esta aqui.
+   PE-07 es lo que hara que esa confianza se pueda juzgar. */
 .confianzaBaja {
   color: var(--color-aviso);
   font-weight: 600;

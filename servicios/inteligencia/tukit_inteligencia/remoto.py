@@ -105,6 +105,50 @@ class ClienteCatalogo:
     async def lista(self, lista_id: str) -> dict[str, Any]:
         return await self._pedir("GET", f"/v1/listas/{lista_id}")
 
+    async def resueltos(self, version_id: str) -> dict[str, Any]:
+        """La ruta rapida: items ya resueltos + candidatos curados de una lista revisada.
+
+        Para una version REVISADA, el catalogo devuelve cada item con su
+        concepto y los productos candidatos curados (los mismos que devolveria
+        `emparejar`, pero indexados por el concepto ya resuelto: sin busqueda de
+        texto, sin recomputo). Es la fuente de datos de la optimizacion cuando
+        la lista ya paso por revision humana, y por eso no toca Gemini.
+        """
+        return await self._pedir("GET", f"/v1/admin/listas/{version_id}/resueltos")
+
+    async def importar_lista(
+        self,
+        *,
+        colegio_id: str,
+        grado: str,
+        anio_lectivo: int,
+        items: list[dict],
+        documento_base64: str,
+        percepcion_cruda: list[dict],
+    ) -> dict[str, Any]:
+        """Escribe una lista percibida en el catalogo, con su evidencia.
+
+        El PDF viaja en base64 y la percepcion cruda por pagina viaja al lado
+        para que la revision humana del catalogo pueda contrastar lo que se
+        importo contra lo que el modelo leyo. Inteligencia no escribe en la
+        base del catalogo: le entrega el renglon y la evidencia por HTTP y es
+        el catalogo quien decide como guardarlo (invariantes 1 y 3).
+        """
+        return await self._pedir(
+            "POST",
+            "/v1/admin/listas/importar",
+            json={
+                "colegio_id": colegio_id,
+                "grado": grado,
+                "anio_lectivo": anio_lectivo,
+                "items": items,
+                "evidencia": {
+                    "documento_base64": documento_base64,
+                    "percepcion_cruda": percepcion_cruda,
+                },
+            },
+        )
+
 
 @dataclass
 class ClienteIdentidad:

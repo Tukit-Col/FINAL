@@ -1,4 +1,4 @@
-// `/trabajos/{id}` — el detalle y la revision (AD-03 a AD-07).
+// `/trabajos/{id}` — el detalle y la revision (AD-02 a AD-07).
 //
 // Server Component para leer: `trabajoAdmin()` sale del origen directamente,
 // sin pasar por el navegador. Las escrituras si van por Route Handlers, que

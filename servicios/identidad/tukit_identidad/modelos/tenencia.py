@@ -47,6 +47,17 @@ class Colegio(Base):
     nombre: Mapped[str] = mapped_column(String(256), nullable=False)
     nit: Mapped[str | None] = mapped_column(String(32), nullable=True, unique=True)
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # El perfil institucional que el padre reconoce en la tarjeta de partner y
+    # que el administrador completa. Son datos de la INSTITUCION, no del menor:
+    # no les toca el cifrado del Anexo M que sí protege al estudiante en este
+    # mismo modelo, así que viajan en claro por la superficie pública. Todos
+    # nulables: los colegios sembrados nacen sin perfil y se completa después.
+    logo_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    sitio_web: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    contacto_nombre: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    contacto_email: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    contacto_telefono: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    direccion: Mapped[str | None] = mapped_column(String(512), nullable=True)
     creado_en: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

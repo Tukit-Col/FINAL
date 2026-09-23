@@ -3,7 +3,7 @@
 > # ⚠ INCORPORADA — NO VOLVER A APLICAR
 >
 > **Estado: aplicada el 2026-09-22.** Los 12 cambios de este documento (E-29 a E-40) están
-> **incorporados** a la línea base **`Arquitectura/SRS_ISIS2610G19_v5.docx`**, junto con los 28 de
+> **incorporados** a la línea base **`Arquitectura/SRS_ISIS2610G19_v6.docx`**, junto con los 28 de
 > `Arquitectura/ENMIENDA_SRS.md` (E-01 a E-28).
 >
 > **Aplicarlos otra vez duplicaría los once requisitos nuevos.** Este documento queda como
@@ -19,11 +19,14 @@
 >   crudo.
 > - **Resultado de la aplicación, cambio por cambio:** `tukit/docs/CONSOLIDACION_SRS_V4.md`, y el
 >   cierre posterior en `tukit/docs/CIERRE_V5.md`.
-> - **Siguen abiertas dos decisiones** de este documento. La primera: qué hace exactamente un texto
->   diferido cuando llega (E-37); se explica ahí por qué no se puede redactar sin una decisión de
->   negocio previa. La segunda apareció al consolidar: el choque de alcance entre `OP-03` y el
->   camino corto de `NR-07`, con tres redacciones alternativas en
->   `tukit/docs/DECISION_OP03_NR07.md`.
+> - **El choque de alcance entre `OP-03` y el camino corto de `NR-07` está cerrado en el v6**, por la
+>   alternativa B de `tukit/docs/DECISION_OP03_NR07.md`: `OP-03` acota ahora el flujo de extremo a
+>   extremo y nace `DP-06`, que acota el camino corto en 30 s declarándose provisional.
+> - **Sigue abierta una sola decisión** de este documento: qué hace exactamente un texto diferido
+>   cuando llega (E-37); se explica ahí por qué no se puede redactar sin una decisión de negocio previa.
+> - **La columna `Módulo` de los requisitos de esta adenda se llama ahora `Servicio` en el v6** y usa
+>   las diez unidades canónicas de la arquitectura. Donde aquí se lee *Percepción* o *Admin*, el v6
+>   dice `inteligencia` o `apps/admin`. Ver `tukit/docs/CIERRE_V6.md` §2.
 
 - **Tipo:** ingeniería de requisitos. No hay código de producción en este documento.
 - **Fecha:** 2026-09-22. **Revisión 2**: `PE-07` reescrito en crudo; estado incorporado.

@@ -32,10 +32,21 @@ async def cliente():
 
     fabrica = async_sessionmaker(engine, expire_on_commit=False)
     async with fabrica() as sesion:
-        colegio = Colegio(id=derivar("colegio", "2.4"), nombre="Colegio San Pedro")
+        colegio = Colegio(
+            id=derivar("colegio", "2.4"),
+            nombre="Colegio San Pedro",
+            logo_url="https://cdn.tukit.co/colegios/san-pedro.png",
+            sitio_web="https://sanpedro.edu.co",
+            contacto_nombre="Secretaria academica",
+            contacto_email="secretaria@sanpedro.edu.co",
+            contacto_telefono="+57 1 2345678",
+            direccion="Calle 1 # 2-3, Bogota",
+        )
         sesion.add(colegio)
         await sesion.flush()
         sesion.add(Sede(id=derivar("sede", "2.4", "Sede unica"), colegio_id=colegio.id, nombre="Sede unica"))
+        # Un segundo colegio sin perfil: los campos nuevos serializan null.
+        sesion.add(Colegio(id=derivar("colegio", "9.9"), nombre="Colegio Sin Perfil"))
         await sesion.commit()
 
     app.state.motor = MotorServicio(servicio="prueba", engine=engine, _fabrica=fabrica)
@@ -48,7 +59,8 @@ class TestElAcudienteEscogeColegioYGrado:
     async def test_los_colegios_traen_su_numero_de_sedes(self, cliente):
         cuerpo = (await cliente.get("/v1/colegios")).json()
 
-        assert cuerpo["total"] == 1
+        assert cuerpo["total"] == 2
+        # Ordenados por nombre: "San Pedro" antes que "Sin Perfil".
         assert cuerpo["colegios"][0]["nombre"] == "Colegio San Pedro"
         assert cuerpo["colegios"][0]["sedes"] == 1
 
@@ -63,11 +75,107 @@ class TestElAcudienteEscogeColegioYGrado:
         assert respuesta.status_code == 404
         assert respuesta.json()["error"] == "colegio_no_existe"
 
+
+class TestElPerfilDelColegio:
+    """El logo y los contactos que el padre reconoce en la tarjeta de partner.
+
+    Son datos institucionales, no de menor: no les aplica el cifrado del
+    Anexo M que sí protege al estudiante en el mismo modelo. Por eso viajan en
+    claro por la superficie pública, a diferencia de todo lo de `menor`.
+    """
+
+    async def test_el_detalle_trae_logo_sitio_y_contactos(self, cliente):
+        cid = str(derivar("colegio", "2.4"))
+        cuerpo = (await cliente.get(f"/v1/colegios/{cid}")).json()
+        assert cuerpo["logo_url"] == "https://cdn.tukit.co/colegios/san-pedro.png"
+        assert cuerpo["sitio_web"] == "https://sanpedro.edu.co"
+        assert cuerpo["contacto_nombre"] == "Secretaria academica"
+        assert cuerpo["contacto_email"] == "secretaria@sanpedro.edu.co"
+        assert cuerpo["contacto_telefono"] == "+57 1 2345678"
+        assert cuerpo["direccion"] == "Calle 1 # 2-3, Bogota"
+
+    async def test_el_listado_trae_el_logo_para_la_tarjeta(self, cliente):
+        # El logo va en el listado porque el desplegable del padre lo pinta
+        # sin abrir el detalle; los contactos no, que son de la pantalla admin.
+        cuerpo = (await cliente.get("/v1/colegios")).json()
+        san_pedro = next(c for c in cuerpo["colegios"] if c["nombre"] == "Colegio San Pedro")
+        assert san_pedro["logo_url"] == "https://cdn.tukit.co/colegios/san-pedro.png"
+
+    async def test_un_colegio_sin_perfil_serializa_los_campos_como_null(self, cliente):
+        cid = str(derivar("colegio", "9.9"))
+        cuerpo = (await cliente.get(f"/v1/colegios/{cid}")).json()
+        assert cuerpo["logo_url"] is None
+        assert cuerpo["sitio_web"] is None
+        assert cuerpo["contacto_nombre"] is None
+        assert cuerpo["contacto_email"] is None
+        assert cuerpo["contacto_telefono"] is None
+        assert cuerpo["direccion"] is None
+
     async def test_los_grados_van_en_orden_escolar_y_no_alfabetico(self, cliente):
         cuerpo = (await cliente.get("/v1/grados")).json()
         assert cuerpo["grados"] == list(GRADOS)
         assert cuerpo["grados"][0] == "Parvulos"
         assert cuerpo["grados"][-1] == "Once"
+
+
+class TestEditarElPerfilDelColegio:
+    """El administrador completa el perfil institucional que el padre reconoce.
+
+    Solo los campos institucionales —logo, sitio, contactos— son editables. El
+    nombre y el NIT son la identidad de la institucion y no se tocan por esta
+    puerta: cambiarlos rompe la referencia que Catalogo guarda por colegio_id.
+    Estos datos NO son de menor, asi que no les toca el cifrado del Anexo M.
+    """
+
+    async def test_editar_persiste_y_hace_round_trip_por_el_get(self, cliente):
+        cid = str(derivar("colegio", "9.9"))  # el que nace sin perfil
+        respuesta = await cliente.patch(
+            f"/v1/colegios/{cid}",
+            json={
+                "logo_url": "https://cdn.tukit.co/colegios/sin-perfil.png",
+                "contacto_email": "rectoria@sinperfil.edu.co",
+            },
+        )
+        assert respuesta.status_code == 200
+        cuerpo = respuesta.json()
+        assert cuerpo["logo_url"] == "https://cdn.tukit.co/colegios/sin-perfil.png"
+        assert cuerpo["contacto_email"] == "rectoria@sinperfil.edu.co"
+        # El nombre no se toca: es institucional y no vino en el cuerpo.
+        assert cuerpo["nombre"] == "Colegio Sin Perfil"
+
+        # Y persiste: el GET del detalle lo devuelve igual.
+        despues = (await cliente.get(f"/v1/colegios/{cid}")).json()
+        assert despues["logo_url"] == "https://cdn.tukit.co/colegios/sin-perfil.png"
+        assert despues["contacto_email"] == "rectoria@sinperfil.edu.co"
+
+    async def test_devuelve_la_misma_forma_que_el_detalle(self, cliente):
+        cid = str(derivar("colegio", "2.4"))
+        cuerpo = (await cliente.patch(f"/v1/colegios/{cid}", json={"sitio_web": "https://nuevo.edu.co"})).json()
+        assert set(cuerpo.keys()) == {
+            "colegio_id",
+            "nombre",
+            "logo_url",
+            "sitio_web",
+            "contacto_nombre",
+            "contacto_email",
+            "contacto_telefono",
+            "direccion",
+            "sedes",
+        }
+        assert cuerpo["sitio_web"] == "https://nuevo.edu.co"
+
+    async def test_un_colegio_que_no_existe_es_404(self, cliente):
+        respuesta = await cliente.patch(f"/v1/colegios/{uuid.uuid4()}", json={"sitio_web": "x"})
+        assert respuesta.status_code == 404
+        assert respuesta.json()["error"] == "colegio_no_existe"
+
+    @pytest.mark.parametrize("campo", ["nombre", "nit"])
+    async def test_los_campos_institucionales_no_se_editan(self, cliente, campo):
+        cid = str(derivar("colegio", "2.4"))
+        respuesta = await cliente.patch(f"/v1/colegios/{cid}", json={campo: "Otro"})
+        assert respuesta.status_code == 400
+        assert respuesta.json()["error"] == "campo_no_editable"
+        assert respuesta.json()["campo"] == campo
 
 
 class TestElContactoSeVuelveUnIdentificador:

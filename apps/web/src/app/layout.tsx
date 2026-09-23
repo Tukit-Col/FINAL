@@ -26,7 +26,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="es">
-      <body>
+      {/* Extensiones del navegador (p. ej. ColorZilla) inyectan atributos como
+          `cz-shortcut-listen` en el <body> antes de que React hidrate, lo que
+          dispara un aviso de hidratación por algo que no controlamos. Suprimirlo
+          solo en este nodo evita el falso positivo sin ocultar otros. */}
+      <body suppressHydrationWarning>
         <CintaOrigen nombre={origen.nombre} detalle={origen.detalle} />
         <Cabecera />
         <main>{children}</main>

@@ -9,14 +9,18 @@ import {
   LayoutGrid,
   Users,
   Lock,
-  Mail,
+  MessagesSquare,
 } from "lucide-react";
 import Revelar from "@/components/Revelar";
+import SobreSoporte from "./SobreSoporte";
+import FormularioCaso from "./FormularioCaso";
 import styles from "./Ayuda.module.css";
 
-// Página informativa, no un formulario. No hay backend de soporte todavía, así
-// que no fingimos un canal que no existe: las respuestas explican el producto
-// tal como es y el bloque de contacto dice en voz alta que está en construcción.
+// El centro de ayuda tiene dos mitades: las preguntas frecuentes (informativas)
+// y un formulario REAL para abrir una PQRS. El formulario escribe en `operacion`
+// (vía `/api/casos`), así que el caso queda de verdad en la cola del back-office
+// —no fingimos un canal que no existe—. La primera tarjeta de la sección de
+// soporte lleva la ilustración claymorphism del sobre a la derecha.
 
 const PREGUNTAS = [
   {
@@ -97,22 +101,36 @@ export default function AyudaPage() {
         </Revelar>
       </section>
 
-      <section className={styles.contacto} aria-labelledby="titulo-contacto">
-        <div className={styles.contactoIcono} aria-hidden="true">
-          <Mail size={26} strokeWidth={2.2} />
-        </div>
-        <div className={styles.contactoTexto}>
-          <h2 id="titulo-contacto">¿No encontraste tu respuesta?</h2>
-          <p>
-            Nuestro canal de soporte todavía está en construcción. Mientras lo
-            montamos, escríbenos a{" "}
-            <a href="mailto:hola@tukit.co" className={styles.correo}>
-              hola@tukit.co
-            </a>{" "}
-            y te respondemos una persona de verdad. Aún no es un buzón automático,
-            así que danos un momento.
-          </p>
-        </div>
+      <section className={styles.soporte} aria-labelledby="titulo-soporte">
+        <h2 id="titulo-soporte" className={styles.tituloSeccion}>
+          ¿No encontraste tu respuesta?
+        </h2>
+
+        {/* Primera tarjeta: la introducción, con el SVG claymorphism a la
+            derecha. En móvil el SVG se apila arriba. */}
+        <Revelar as="div" className={styles.introSoporte} modo="una">
+          <div className={styles.introTexto}>
+            <p className={styles.introAntetitulo}>
+              <MessagesSquare size={14} aria-hidden="true" strokeWidth={2.6} />
+              Escríbenos
+            </p>
+            <h3>Abre una solicitud y una persona la atiende</h3>
+            <p>
+              Cuéntanos qué necesitas: una duda, una queja, un reclamo sobre un pedido o
+              una idea para mejorar. Tu mensaje entra a la cola de soporte con un número
+              de radicado, y para las PQRS te decimos el plazo de ley en el que
+              respondemos. Nada de buzones al vacío.
+            </p>
+          </div>
+          <div className={styles.introArte} aria-hidden="true">
+            <SobreSoporte />
+          </div>
+        </Revelar>
+
+        {/* Segunda tarjeta: el formulario real. */}
+        <Revelar as="div" className={styles.tarjetaForma} modo="una" retraso={0.08}>
+          <FormularioCaso />
+        </Revelar>
       </section>
 
       <section className={styles.cierre}>

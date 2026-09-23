@@ -9,20 +9,28 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ClipboardList,
+  FileUp,
+  Inbox,
   LayoutDashboard,
   LifeBuoy,
   PackageSearch,
+  School,
   Truck,
 } from "lucide-react";
 import styles from "./CabeceraAdmin.module.css";
 
 // El orden es el del flujo de trabajo: primero el pulso del negocio (Panel),
-// luego lo que hay que revisar (Cola), lo que falta en catálogo (Catálogo),
-// lo que hay que mover (Logística) y lo que hay que responder (Tickets).
+// luego lo que hay que revisar (Cola), el onboarding de un colegio nuevo
+// (Onboarding), la BD durable de colegios y listas (Colegios), lo que hay en
+// catálogo (Catálogo), las peticiones de acudientes (Sugerencias), lo que hay
+// que mover (Logística) y lo que hay que responder (Tickets).
 const SECCIONES = [
   { href: "/panel", etiqueta: "Panel", Icono: LayoutDashboard },
   { href: "/", etiqueta: "Cola", Icono: ClipboardList },
+  { href: "/onboarding", etiqueta: "Onboarding", Icono: FileUp },
+  { href: "/colegios", etiqueta: "Colegios", Icono: School },
   { href: "/catalogo", etiqueta: "Catálogo", Icono: PackageSearch },
+  { href: "/sugerencias", etiqueta: "Sugerencias", Icono: Inbox },
   { href: "/logistica", etiqueta: "Logística", Icono: Truck },
   { href: "/tickets", etiqueta: "Tickets", Icono: LifeBuoy },
 ] as const;

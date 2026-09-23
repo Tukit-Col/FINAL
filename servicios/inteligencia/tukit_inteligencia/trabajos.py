@@ -37,7 +37,7 @@ from .modelos import (
     puede_pasar,
 )
 from .modelos.trabajo import ETAPAS
-from .optimizador import Candidato, Renglon, armar_los_tres
+from .optimizador import Candidato, Renglon, anclar_personaje, armar_los_tres
 from .parseo import mensaje_para_papa, parsear_renglon
 from .remoto import ClienteCatalogo, ClienteIdentidad, RemotoCaido
 
@@ -203,6 +203,45 @@ async def _pasar_a(conexion: Any, trabajo_id: uuid.UUID, nuevo: str, **extra: An
     await conexion.execute(update(TRABAJO).where(TRABAJO.c.id == trabajo_id).values(estado=nuevo, **extra))
 
 
+async def _listas_por_hijo(
+    catalogo: ClienteCatalogo, hijos: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Resuelve la lista oficial vigente de cada hijo (metadatos, no items).
+
+    Devuelve `(encontradas, sin_lista)`: cada entrada de `encontradas` trae la
+    referencia del hijo, la lista completa (`lista()`), su `version_id` y si
+    esta `revisada`. Es el paso comun a las dos rutas —la lenta lee los items
+    de aqui, la rapida solo mira `revisada`/`version_id`— para no llamar dos
+    veces al catalogo por lo mismo.
+    """
+    encontradas: list[dict[str, Any]] = []
+    sin_lista: list[dict[str, Any]] = []
+
+    for hijo in hijos:
+        referencia = str(hijo.get("referencia") or "hijo-1")
+        colegio_id = str(hijo.get("colegio_id") or "")
+        grado = str(hijo.get("grado") or "")
+        anio = int(hijo.get("anio_lectivo") or ANIO_LECTIVO_POR_OMISION)
+
+        listas = await catalogo.listas(colegio_id=colegio_id, grado=grado, anio_lectivo=anio)
+        if not listas:
+            sin_lista.append({"hijo": referencia, "colegio_id": colegio_id, "grado": grado})
+            continue
+
+        completa = await catalogo.lista(listas[0]["lista_id"])
+        encontradas.append(
+            {
+                "hijo": referencia,
+                "colegio_id": colegio_id,
+                "completa": completa,
+                "version_id": completa.get("version_id") or listas[0].get("version_id"),
+                "revisada": bool(completa.get("revisada")),
+            }
+        )
+
+    return encontradas, sin_lista
+
+
 async def _renglones_de_listas(
     catalogo: ClienteCatalogo, hijos: list[dict[str, Any]]
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -215,18 +254,12 @@ async def _renglones_de_listas(
     renglones: list[dict[str, Any]] = []
     detalle: dict[str, Any] = {"listas": [], "sin_lista": []}
 
-    for hijo in hijos:
-        referencia = str(hijo.get("referencia") or "hijo-1")
-        colegio_id = str(hijo.get("colegio_id") or "")
-        grado = str(hijo.get("grado") or "")
-        anio = int(hijo.get("anio_lectivo") or ANIO_LECTIVO_POR_OMISION)
+    encontradas, sin_lista = await _listas_por_hijo(catalogo, hijos)
+    detalle["sin_lista"] = sin_lista
 
-        encontradas = await catalogo.listas(colegio_id=colegio_id, grado=grado, anio_lectivo=anio)
-        if not encontradas:
-            detalle["sin_lista"].append({"hijo": referencia, "colegio_id": colegio_id, "grado": grado})
-            continue
-
-        completa = await catalogo.lista(encontradas[0]["lista_id"])
+    for entrada in encontradas:
+        referencia = entrada["hijo"]
+        completa = entrada["completa"]
         detalle["listas"].append(
             {
                 "hijo": referencia,
@@ -321,9 +354,299 @@ def _candidato(opcion: dict[str, Any]) -> Candidato:
     )
 
 
+def _personaje_pedido(preferencias: dict[str, Any]) -> str | None:
+    """El personaje que el acudiente pidio, para anclar sus 4 items al tope.
+
+    El anclaje reordena el kit completo, asi que se toma el primer personaje
+    declarado en `personaje_por_hijo`. En el caso comun (un hijo con un
+    personaje) es exactamente el suyo; con varios hijos se ancla el primero,
+    que es suficiente para el gesto de "poner arriba lo del personaje" sin
+    reordenar de forma ambigua entre hermanos.
+    """
+    por_hijo = preferencias.get("personaje_por_hijo") or {}
+    for valores in por_hijo.values():
+        if valores:
+            return str(valores[0])
+    return None
+
+
+def _anclar_kits(kits: list[Any], preferencias: dict[str, Any]) -> list[Any]:
+    """Sube los 4 conceptos ancla del personaje pedido al tope de cada kit.
+
+    Post-proceso puro: no cambia totales ni que producto se eligio (NSGA-II
+    queda intacto). Si no se pidio personaje, `anclar_personaje` devuelve el
+    kit sin tocar.
+    """
+    personaje = _personaje_pedido(preferencias)
+    if personaje is None:
+        return kits
+    return [anclar_personaje(kit, personaje) for kit in kits]
+
+
+async def _escribir_kits(
+    conexion: Any,
+    trabajo_id: uuid.UUID,
+    kits: list[Any],
+    ids_item: dict[tuple[str, int], uuid.UUID],
+    preferencias: dict[str, Any],
+    cifrador: Any,
+    *,
+    ms: int,
+) -> None:
+    """Persiste KIT+LINEA y marca la etapa de optimizacion. Comun a las dos rutas."""
+    for kit in kits:
+        kit_id = uuid.uuid4()
+        await conexion.execute(
+            insert(KIT).values(
+                id=kit_id,
+                trabajo_id=trabajo_id,
+                perfil=kit.perfil,
+                total_cop=kit.total_cop,
+                objetivos=kit.objetivos,
+                recomendado=kit.recomendado,
+                razon_recomendacion=kit.razon,
+                dentro_de_presupuesto=kit.dentro_de_presupuesto,
+                pesos_usados_cifrados=cifrador.cifrar_json(
+                    {**PESOS_POR_OMISION, **(preferencias.get("pesos") or {})}
+                ),
+                consolidaciones=list(kit.consolidaciones),
+            )
+        )
+        for linea in kit.lineas:
+            elegido = linea.elegido
+            await conexion.execute(
+                insert(LINEA).values(
+                    id=uuid.uuid4(),
+                    kit_id=kit_id,
+                    item_crudo_id=ids_item[(linea.hijo, linea.orden)],
+                    producto_canonico_id=(
+                        uuid.UUID(elegido.producto_id) if elegido and elegido.producto_id else None
+                    ),
+                    hijo_referencia=linea.hijo,
+                    orden=linea.orden,
+                    descripcion=linea.descripcion,
+                    tipo=linea.tipo,
+                    estado_resolucion=linea.estado_resolucion,
+                    cantidad_pedida=linea.cantidad_pedida,
+                    unidad_base=linea.unidad_base,
+                    unidades_por_empaque=linea.unidades_por_empaque,
+                    unidades_a_comprar=linea.unidades_a_comprar,
+                    sku=elegido.sku if elegido else None,
+                    nombre_producto=elegido.nombre if elegido else None,
+                    marca=elegido.marca if elegido else None,
+                    nivel=elegido.nivel if elegido else None,
+                    personaje=elegido.personaje if elegido else None,
+                    imagen_url=elegido.imagen_url if elegido else None,
+                    confianza=None,
+                    precio_unitario_cop=linea.precio_unitario_cop,
+                    subtotal_cop=linea.subtotal_cop,
+                    informativa=linea.informativa,
+                    instruccion_colegio=linea.instruccion_colegio,
+                    url_externa=linea.url_externa,
+                    mensaje=linea.mensaje,
+                    no_consolidable=linea.no_consolidable,
+                    motivo_no_consolidable=linea.motivo_no_consolidable,
+                    alternativas=[
+                        {
+                            "sku": alternativa.sku,
+                            "nombre": alternativa.nombre,
+                            "nivel": alternativa.nivel,
+                            "precio_cop": alternativa.precio_cop,
+                            "imagen_url": alternativa.imagen_url,
+                        }
+                        for alternativa in linea.alternativas
+                    ],
+                )
+            )
+
+    await _marcar_etapa(
+        conexion,
+        trabajo_id,
+        "optimizacion",
+        EstadoEtapa.OK.value,
+        ms=ms,
+        detalle={
+            "kits": len(kits),
+            "recomendado": next((k.perfil for k in kits if k.recomendado), None),
+        },
+    )
+
+
+async def _finalizar(motor: Any, trabajo_id: uuid.UUID) -> str:
+    """El cierre comun: autopublicar o dejar en espera de revision.
+
+    No cambia con la ruta: la lista verificada NO crea una aprobacion nueva ni
+    toca `revisada_en`; solo decide, como siempre, si la valvula de desarrollo
+    publica directo o si el kit espera a una persona.
+    """
+    async with motor.engine.begin() as conexion:
+        if autopublicar():
+            await _pasar_a(conexion, trabajo_id, EstadoTrabajo.PUBLICADO.value, terminado_en=ahora())
+            await _publicar_evento(conexion, trabajo_id)
+            return EstadoTrabajo.PUBLICADO.value
+        await _pasar_a(conexion, trabajo_id, EstadoTrabajo.ESPERA_REVISION.value)
+    return EstadoTrabajo.ESPERA_REVISION.value
+
+
 # ---------------------------------------------------------------------------
 # Procesamiento
 # ---------------------------------------------------------------------------
+
+
+async def _procesar_verificado(
+    motor: Any,
+    trabajo_id: uuid.UUID,
+    catalogo: ClienteCatalogo,
+    encontradas: list[dict[str, Any]],
+    preferencias: dict[str, Any],
+    cifrador: Any,
+) -> str:
+    """La ruta rapida: lista(s) ya revisada(s) -> directo a optimizacion.
+
+    No toca Gemini ni `emparejar`: lee `/resueltos` del catalogo, que trae cada
+    item con su concepto ya resuelto y los productos candidatos curados. Aun
+    asi escribe ITEM+CANDIDATO+RESOLUCION para que el timeline de revision y
+    las lecturas de abajo (LINEA referencia ITEM) queden coherentes, y marca
+    percepcion/normalizacion/resolucion como OK con `fuente='lista_verificada'`
+    —satisfechas por la lista, no saltadas ni fallidas.
+    """
+    reloj = time.monotonic()
+    ids_item: dict[tuple[str, int], uuid.UUID] = {}
+    renglones: list[Renglon] = []
+
+    async with motor.engine.begin() as conexion:
+        for entrada in encontradas:
+            hijo = entrada["hijo"]
+            datos = await catalogo.resueltos(str(entrada["version_id"]))
+            for item in datos.get("items") or ():
+                orden = int(item["orden"])
+                item_id = uuid.uuid4()
+                ids_item[(hijo, orden)] = item_id
+
+                candidatos = tuple(_candidato(c) for c in (item.get("candidatos") or ()))
+                surtible = item.get("concepto_codigo") is not None
+
+                await conexion.execute(
+                    insert(ITEM).values(
+                        id=item_id,
+                        trabajo_id=trabajo_id,
+                        hijo_referencia=hijo,
+                        orden=orden,
+                        texto=item["texto_original"],
+                        cantidad=int(item.get("cantidad") or 1),
+                        unidad_base=(candidatos[0].unidad_base if candidatos else "unidad"),
+                        tipo_item=item.get("tipo_item") or "util",
+                        modo_adquisicion=item.get("modo_adquisicion") or "mercado_abierto",
+                        instruccion_colegio=item.get("instruccion_colegio"),
+                        url_externa=item.get("url_externa"),
+                        nota=None,
+                    )
+                )
+
+                if surtible:
+                    elegido_id: uuid.UUID | None = None
+                    for orden_c, candidato in enumerate(candidatos):
+                        candidato_id = uuid.uuid4()
+                        if orden_c == 0:
+                            elegido_id = candidato_id
+                        await conexion.execute(
+                            insert(CANDIDATO).values(
+                                id=candidato_id,
+                                item_crudo_id=item_id,
+                                producto_canonico_id=(
+                                    uuid.UUID(candidato.producto_id) if candidato.producto_id else None
+                                ),
+                                sku=candidato.sku,
+                                nombre=candidato.nombre,
+                                marca=candidato.marca,
+                                nivel=candidato.nivel,
+                                personaje=candidato.personaje,
+                                imagen_url=candidato.imagen_url,
+                                unidad_base=candidato.unidad_base,
+                                unidades_por_empaque=candidato.unidades_por_empaque,
+                                atributos=dict(candidato.atributos),
+                                precio_cop=candidato.precio_cop,
+                                confianza=1.0,
+                                cumple_atributos=candidato.cumple,
+                                orden=orden_c,
+                            )
+                        )
+
+                    resolucion_id = uuid.uuid4()
+                    await conexion.execute(
+                        insert(RESOLUCION).values(
+                            id=resolucion_id,
+                            item_crudo_id=item_id,
+                            estado=EstadoResolucion.RESUELTO_AUTO.value,
+                            concepto_codigo=item.get("concepto_codigo"),
+                            concepto_nombre=item.get("concepto_nombre"),
+                            parecido=1.0,
+                            candidato_item_id=elegido_id,
+                            atributos_impuestos={},
+                            motivo="resuelto desde lista verificada",
+                        )
+                    )
+                    await conexion.execute(
+                        insert(TRANSICION).values(
+                            id=uuid.uuid4(),
+                            resolucion_item_id=resolucion_id,
+                            estado_anterior=None,
+                            estado_nuevo=EstadoResolucion.RESUELTO_AUTO.value,
+                            motivo="resuelto desde lista verificada",
+                        )
+                    )
+
+                renglones.append(
+                    Renglon(
+                        hijo=hijo,
+                        orden=orden,
+                        texto=item["texto_original"],
+                        tipo_item=item.get("tipo_item") or "util",
+                        modo_adquisicion=item.get("modo_adquisicion") or "mercado_abierto",
+                        cantidad=int(item.get("cantidad") or 1),
+                        estado_resolucion=EstadoResolucion.RESUELTO_AUTO.value,
+                        unidad_base=(candidatos[0].unidad_base if candidatos else "unidad"),
+                        concepto_codigo=item.get("concepto_codigo"),
+                        concepto_nombre=item.get("concepto_nombre"),
+                        parecido=1.0,
+                        candidatos=candidatos,
+                        mensaje=None,
+                        instruccion_colegio=item.get("instruccion_colegio"),
+                        url_externa=item.get("url_externa"),
+                        nota=None,
+                    )
+                )
+
+        ms = int((time.monotonic() - reloj) * 1000)
+        fuente = {"fuente": "lista_verificada"}
+        listas_detalle = {
+            "fuente": "lista_verificada",
+            "listas": [
+                {"hijo": e["hijo"], "version_id": str(e["version_id"])} for e in encontradas
+            ],
+        }
+        await _marcar_etapa(
+            conexion, trabajo_id, "percepcion", EstadoEtapa.OK.value, ms=ms, detalle=listas_detalle
+        )
+        await _marcar_etapa(
+            conexion, trabajo_id, "normalizacion", EstadoEtapa.OK.value, ms=0,
+            detalle={**fuente, "renglones": len(renglones)},
+        )
+        resueltos = sum(1 for r in renglones if r.concepto_codigo is not None)
+        await _marcar_etapa(
+            conexion, trabajo_id, "resolucion", EstadoEtapa.OK.value, ms=0,
+            detalle={**fuente, "resueltos": resueltos, "a_revision": 0},
+        )
+
+    reloj = time.monotonic()
+    kits = armar_los_tres(renglones, preferencias)
+    kits = _anclar_kits(kits, preferencias)
+    ms = int((time.monotonic() - reloj) * 1000)
+
+    async with motor.engine.begin() as conexion:
+        await _escribir_kits(conexion, trabajo_id, kits, ids_item, preferencias, cifrador, ms=ms)
+
+    return await _finalizar(motor, trabajo_id)
 
 
 async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalogo | None = None) -> str:
@@ -365,6 +688,21 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
         await conexion.execute(delete(KIT).where(KIT.c.trabajo_id == trabajo_id))
 
     try:
+        # --- ruta rapida: lista(s) ya verificada(s) -------------------------
+        # Si TODAS las listas apuntadas estan revisadas (revisada_en != null en
+        # el catalogo), no hay nada que volver a percibir/normalizar/resolver:
+        # el concepto y los candidatos curados ya existen. Se salta directo a
+        # optimizacion leyendo `/resueltos` (NO `emparejar`, NO Gemini). Si
+        # algun hijo apunta a una lista sin revisar, se usa la ruta lenta para
+        # TODO el trabajo: mezclar rutas por hijo abriria un camino sin la
+        # revision que la lista verificada ya garantiza, y la correccion pesa
+        # mas que ahorrar la percepcion en el hijo verificado.
+        encontradas, _sin_lista = await _listas_por_hijo(catalogo, hijos)
+        if encontradas and all(e["revisada"] for e in encontradas):
+            return await _procesar_verificado(
+                motor, trabajo_id, catalogo, encontradas, preferencias, cifrador
+            )
+
         # --- percepcion -----------------------------------------------------
         reloj = time.monotonic()
         crudos, detalle = await _renglones_de_listas(catalogo, hijos)
@@ -557,93 +895,13 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
             )
 
         kits = armar_los_tres(renglones, preferencias)
+        kits = _anclar_kits(kits, preferencias)
         ms = int((time.monotonic() - reloj) * 1000)
 
         async with motor.engine.begin() as conexion:
-            for kit in kits:
-                kit_id = uuid.uuid4()
-                await conexion.execute(
-                    insert(KIT).values(
-                        id=kit_id,
-                        trabajo_id=trabajo_id,
-                        perfil=kit.perfil,
-                        total_cop=kit.total_cop,
-                        objetivos=kit.objetivos,
-                        recomendado=kit.recomendado,
-                        razon_recomendacion=kit.razon,
-                        dentro_de_presupuesto=kit.dentro_de_presupuesto,
-                        pesos_usados_cifrados=cifrador.cifrar_json(
-                            {**PESOS_POR_OMISION, **(preferencias.get("pesos") or {})}
-                        ),
-                        consolidaciones=list(kit.consolidaciones),
-                    )
-                )
-                for linea in kit.lineas:
-                    elegido = linea.elegido
-                    await conexion.execute(
-                        insert(LINEA).values(
-                            id=uuid.uuid4(),
-                            kit_id=kit_id,
-                            item_crudo_id=ids_item[(linea.hijo, linea.orden)],
-                            producto_canonico_id=(
-                                uuid.UUID(elegido.producto_id) if elegido and elegido.producto_id else None
-                            ),
-                            hijo_referencia=linea.hijo,
-                            orden=linea.orden,
-                            descripcion=linea.descripcion,
-                            tipo=linea.tipo,
-                            estado_resolucion=linea.estado_resolucion,
-                            cantidad_pedida=linea.cantidad_pedida,
-                            unidad_base=linea.unidad_base,
-                            unidades_por_empaque=linea.unidades_por_empaque,
-                            unidades_a_comprar=linea.unidades_a_comprar,
-                            sku=elegido.sku if elegido else None,
-                            nombre_producto=elegido.nombre if elegido else None,
-                            marca=elegido.marca if elegido else None,
-                            nivel=elegido.nivel if elegido else None,
-                            personaje=elegido.personaje if elegido else None,
-                            imagen_url=elegido.imagen_url if elegido else None,
-                            confianza=None,
-                            precio_unitario_cop=linea.precio_unitario_cop,
-                            subtotal_cop=linea.subtotal_cop,
-                            informativa=linea.informativa,
-                            instruccion_colegio=linea.instruccion_colegio,
-                            url_externa=linea.url_externa,
-                            mensaje=linea.mensaje,
-                            no_consolidable=linea.no_consolidable,
-                            motivo_no_consolidable=linea.motivo_no_consolidable,
-                            alternativas=[
-                                {
-                                    "sku": alternativa.sku,
-                                    "nombre": alternativa.nombre,
-                                    "nivel": alternativa.nivel,
-                                    "precio_cop": alternativa.precio_cop,
-                                    "imagen_url": alternativa.imagen_url,
-                                }
-                                for alternativa in linea.alternativas
-                            ],
-                        )
-                    )
+            await _escribir_kits(conexion, trabajo_id, kits, ids_item, preferencias, cifrador, ms=ms)
 
-            await _marcar_etapa(
-                conexion,
-                trabajo_id,
-                "optimizacion",
-                EstadoEtapa.OK.value,
-                ms=ms,
-                detalle={
-                    "kits": len(kits),
-                    "recomendado": next((k.perfil for k in kits if k.recomendado), None),
-                },
-            )
-
-        async with motor.engine.begin() as conexion:
-            if autopublicar():
-                await _pasar_a(conexion, trabajo_id, EstadoTrabajo.PUBLICADO.value, terminado_en=ahora())
-                await _publicar_evento(conexion, trabajo_id)
-                return EstadoTrabajo.PUBLICADO.value
-            await _pasar_a(conexion, trabajo_id, EstadoTrabajo.ESPERA_REVISION.value)
-        return EstadoTrabajo.ESPERA_REVISION.value
+        return await _finalizar(motor, trabajo_id)
 
     except RemotoCaido as error:
         async with motor.engine.begin() as conexion:

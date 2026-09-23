@@ -3,8 +3,16 @@
 - **Tipo:** preparación de decisión. **No decide nada.** Formula el problema y pone las opciones con
   su consecuencia, para que la decisión se tome con el material delante.
 - **Fecha:** 2026-09-22.
-- **Línea base:** `Arquitectura/SRS_ISIS2610G19_v5.docx`. **`OP-03` no se modificó en el v5**, a
-  propósito: el encargo pide preparar la decisión, no tomarla.
+- **Línea base:** `Arquitectura/SRS_ISIS2610G19_v6.docx`.
+
+> # ✅ DECIDIDO — se aplicó la alternativa B
+>
+> La usuaria eligió la **alternativa B** y está incorporada al v6: la descripción de `OP-03` pasó a
+> acotar el flujo **de extremo a extremo** y remite a `DP-03`, `DP-04` y `DP-06` para los topes por
+> etapa; y nació **`DP-06`** en §3.9 con un tope de **30 s** para el camino corto sobre lista
+> validada, **declarándose provisional** en su propia descripción y en su criterio, porque el valor es
+> derivado y no medido. Este documento queda como el registro del razonamiento y de las dos
+> alternativas descartadas. Ver `tukit/docs/CIERRE_V6.md` §1.
 - **Insumo:** los textos literales de `OP-03`, `DP-03`, `DP-04` y `NR-07` tal como están en el v5.
 
 ---

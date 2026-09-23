@@ -28,7 +28,7 @@ import { ESTADOS_PEDIDO } from "../comercio";
 import type { BandejaOperacion, Caso, ResumenOperacion } from "../operacion";
 import { armarKits, resolverSolicitud } from "./armar";
 import { COLEGIOS } from "./semillas";
-import { listar, type RegistroTrabajo } from "./almacen";
+import { listar, listarCasos, type RegistroTrabajo } from "./almacen";
 
 // Hash estable de una cadena: mismo trabajo, mismo pedido, en cada lectura. No
 // se usa `Math.random()` a propósito — el tablero no puede parpadear entre dos
@@ -252,9 +252,12 @@ function casosDeTrabajo(registro: RegistroTrabajo): Caso[] {
 }
 
 export function derivarBandeja(): BandejaOperacion {
-  const casos = listar()
-    .flatMap(casosDeTrabajo)
-    .sort((a, b) => (a.abierto_en < b.abierto_en ? 1 : -1));
+  const casos = [
+    // Los que abrio una persona desde el centro de ayuda (almacen)...
+    ...listarCasos(),
+    // ...mas los que el sistema abre por una falla observable de la saga.
+    ...listar().flatMap(casosDeTrabajo),
+  ].sort((a, b) => (a.abierto_en < b.abierto_en ? 1 : -1));
 
   const activos = casos.filter((c) => c.estado !== "resuelto" && c.estado !== "cerrado");
   const resumen: ResumenOperacion = {

@@ -18,6 +18,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from .descubrir import clasificar
+from .embeddings import Embeder, promedio
 from .enriquecer import extraer_atributos
 from .transcripcion import corregir, lexico_de
 
@@ -105,15 +106,22 @@ def emparejar(
     texto: str,
     conceptos: list[dict[str, Any]],
     productos: list[dict[str, Any]],
+    *,
+    embedding_renglon: list[float] | None = None,
 ) -> Emparejamiento:
     """Clasifica el renglon y, si el catalogo puede cumplirlo, da hasta tres opciones.
 
     Tres, no treinta: una por nivel. El acudiente compara tres cosas. Una
     cola de blocks carta no es una respuesta, es el fallo que este corte
     existe para no repetir.
+
+    `embedding_renglon` es el canal semantico (OE3): el vector del renglon
+    entrante, que `clasificar` funde con el lexico. Es opcional para que quien
+    no lo calcula —o corre sin el modelo— siga obteniendo el match lexico de
+    siempre.
     """
     corregido = corregir(texto, lexico_de(conceptos))
-    concepto_id, nombre, parecido = clasificar(corregido, conceptos)
+    concepto_id, nombre, parecido = clasificar(corregido, conceptos, embedding_renglon=embedding_renglon)
     if parecido < 0.5 or concepto_id is None:
         return Emparejamiento(
             texto=texto,
@@ -241,38 +249,83 @@ async def cargar_indice() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
                 .group_by(oferta.c.producto_canonico_id)
                 .subquery()
             )
-            productos = [
-                {
-                    "concepto_id": f.concepto_id,
-                    "sku": f.sku_interno,
-                    "nombre": f.nombre,
-                    "nivel": f.nivel,
-                    "personaje": f.personaje,
-                    "atributos": dict(f.atributos or {}),
-                    "precio_cop": None if f.centavos is None else int(f.centavos) // 100,
-                }
-                for f in await conexion.execute(
-                    select(
-                        producto.c.concepto_id,
-                        producto.c.sku_interno,
-                        producto.c.nombre,
-                        producto.c.nivel,
-                        producto.c.personaje,
-                        producto.c.atributos,
-                        precio_min.c.centavos,
-                    )
-                    .select_from(producto.outerjoin(precio_min, precio_min.c.pid == producto.c.id))
-                    .where(producto.c.activo.is_(True))
+            productos = []
+            emb_por_concepto: dict[Any, list[list[float]]] = {}
+            for f in await conexion.execute(
+                select(
+                    producto.c.concepto_id,
+                    producto.c.sku_interno,
+                    producto.c.nombre,
+                    producto.c.nivel,
+                    producto.c.personaje,
+                    producto.c.atributos,
+                    producto.c.embedding,
+                    precio_min.c.centavos,
                 )
-            ]
+                .select_from(producto.outerjoin(precio_min, precio_min.c.pid == producto.c.id))
+                .where(producto.c.activo.is_(True))
+            ):
+                productos.append(
+                    {
+                        "concepto_id": f.concepto_id,
+                        "sku": f.sku_interno,
+                        "nombre": f.nombre,
+                        "nivel": f.nivel,
+                        "personaje": f.personaje,
+                        "atributos": dict(f.atributos or {}),
+                        "precio_cop": None if f.centavos is None else int(f.centavos) // 100,
+                    }
+                )
+                # El embedding del concepto se deriva del de sus productos: el
+                # centro de los cuadernos ES, en promedio, "cuaderno". Asi el
+                # canal semantico reusa los vectores ya poblados en
+                # `producto_canonico` sin una columna nueva en `concepto`.
+                if f.embedding is not None:
+                    emb_por_concepto.setdefault(f.concepto_id, []).append(list(f.embedding))
     finally:
         await motor.cerrar()
+
+    for c in conceptos:
+        c["embedding"] = promedio(emb_por_concepto.get(c["id"], []))
     return conceptos, productos
 
 
-async def emparejar_en_catalogo(renglones: list[str]) -> list[Emparejamiento]:
+async def emparejar_en_catalogo(
+    renglones: list[str], *, embeder: Embeder | None = None
+) -> list[Emparejamiento]:
+    """Empareja una tanda de renglones contra el catalogo cargado.
+
+    `embeder` es el canal semantico (OE3): si se pasa, se calcula el vector de
+    cada renglon UNA vez (un lote, una peticion) y se funde en `clasificar`. Se
+    resuelve por entorno cuando no se inyecta —con GEMINI_API_KEY, el real; sin
+    ella, ninguno—, de modo que la consulta sigue dando el match lexico donde
+    no hay modelo, sin fallar. El vector es del renglon entrante nada mas: no
+    sale de la base ni entra a ella, asi que la invariante de que el acudiente
+    no sale a nuestra red por producto se mantiene.
+    """
     conceptos, productos = await cargar_indice()
-    return [emparejar(renglon, conceptos, productos) for renglon in renglones]
+    if embeder is None:
+        embeder = _embeder_por_entorno()
+    vectores: list[list[float] | None] = [None] * len(renglones)
+    if embeder is not None and renglones:
+        try:
+            calculados = embeder(list(renglones))
+            vectores = list(calculados)
+        except Exception:  # noqa: BLE001 - el canal semantico degrada, no tumba la consulta
+            vectores = [None] * len(renglones)
+    return [
+        emparejar(renglon, conceptos, productos, embedding_renglon=vec)
+        for renglon, vec in zip(renglones, vectores, strict=True)
+    ]
+
+
+def _embeder_por_entorno() -> Embeder | None:
+    """El embeder real si hay clave, ninguno si no. Igual criterio que enriquecer."""
+    import os
+
+    from .embeddings import embeder_gemini
+
+    return embeder_gemini if os.environ.get("GEMINI_API_KEY", "").strip() else None
 
 
 def _imprimir(resultado: Emparejamiento) -> None:

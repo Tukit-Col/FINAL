@@ -77,9 +77,20 @@ def reacomodar(productos: list[dict[str, str]], precios: dict[str, int]) -> dict
     # el de Bluey premium compiten entre si, no contra el cuaderno sin
     # personaje. Mezclarlos ademas choca el sku, porque `TK-<concepto>-<NIV>`
     # solo puede repetirse si el personaje lo distingue.
+    #
+    # Solo entran los REPRESENTANTES. Desde que la cola de revision aprueba
+    # varias referencias por celda, una escalera tiene un representante por nivel
+    # (lo que el kit muestra) mas profundidad de compra detras. Esa profundidad
+    # entro con `nivel_sugerido=None` -su etiqueta es un 'confiable' por defecto,
+    # no una promesa-, asi que permutar etiquetas contra ella mezclaria un relleno
+    # con la escalera curada y podria arrancarle el nivel al representante para
+    # darselo a una alternativa que el kit ni siquiera propone. El nivel ordena lo
+    # que el papa recibe, y eso es el representante.
     por_escalera = defaultdict(list)
     for p in productos:
-        if p["activo"].lower() in {"true", "1", "t"} and p["id"] in precios:
+        vivo = p["activo"].lower() in {"true", "1", "t"}
+        es_rep = p["es_representante_canonico"].lower() in {"true", "1", "t"}
+        if vivo and es_rep and p["id"] in precios:
             por_escalera[p["concepto_id"], p["personaje"]].append(p)
 
     cambios: dict[str, str] = {}
@@ -143,10 +154,18 @@ def _principal() -> int:
     for pid, nivel in cambios.items():
         p = por_id[pid]
         viejo = p["sku_interno"]
-        nuevo = sku(viejo.split("-")[1], nivel, p["personaje"])
+        # El tier aprobado en revision (`TK-REV-<referencia>`) es otra cosa: su
+        # SKU nombra la referencia de tienda, no `<concepto>-<nivel>`, asi que no
+        # se re-acuna al mover el nivel -partirlo por '-' daria `TK-REV-CON` y
+        # chocaria-. Y su `quality_score` es el 0,85 fijo que marca 'lo miro una
+        # persona en la cola', que tampoco se deriva del nivel. Solo se corrige
+        # la etiqueta de nivel, que es lo que este modulo vino a ordenar.
+        es_revision = viejo.startswith("TK-REV-")
+        nuevo = viejo if es_revision else sku(viejo.split("-")[1], nivel, p["personaje"])
         print(f"  {viejo:24} {p['nivel']:>9} -> {nivel:<9} ${precios[pid] // 100:>8,}  {p['nombre'][:34]}")
         p["nivel"] = nivel
-        p["quality_score"] = f"{CALIDAD_POR_NIVEL[Nivel(nivel)]:.3f}"
+        if not es_revision:
+            p["quality_score"] = f"{CALIDAD_POR_NIVEL[Nivel(nivel)]:.3f}"
         p["sku_interno"] = nuevo
         if viejo != nuevo:
             renombres[viejo] = nuevo

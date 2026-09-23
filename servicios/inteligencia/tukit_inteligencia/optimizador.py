@@ -1,35 +1,66 @@
-"""Los tres kits, con una heuristica explicita en vez de NSGA-II.
+"""Los tres kits, ahora sobre un frente de Pareto NSGA-II (OE4).
 
-**Esto no es el optimizador de la tesis y conviene decirlo aqui arriba.** La
-version que sostiene los resultados de hipervolumen es un NSGA-II sobre pymoo
-que produce un frente de Pareto de verdad; lo que hay en este modulo es una
-regla de seleccion por perfil, determinista y leible en una tarde. Se escribe
-asi a proposito y por dos razones:
+**Que cambio y que no.** Este modulo nacio con una heuristica de seleccion por
+perfil ("una regla determinista y leible en una tarde") como andamio para que
+el ciclo completo corriera antes de que cada etapa fuera optima. Ese andamio ya
+cumplio: el contrato esta verificado y las pantallas existen. Lo que hay aqui
+ahora es el optimizador de la tesis —un NSGA-II sobre pymoo que produce un
+frente de Pareto de verdad— y los tres kits son tres proyecciones de ese frente,
+exactamente como la version anterior prometia ("Los tres puntos que devuelve son
+comparables con los que devolveria el frente: mismo vocabulario de objetivos").
 
-1. El ciclo completo tiene que correr y verse antes que cada etapa sea
-   optima. Sin kits que salgan, no hay pantalla que probar ni contrato que
-   verificar, y el optimizador bueno se estaria afinando a ciegas.
-2. Los tres puntos que devuelve son comparables con los que devolveria el
-   frente: mismo vocabulario de objetivos (`costo`, `fidelidad`,
-   `disponibilidad`), misma forma de salida. Cambiar la heuristica por el
-   algoritmo es reemplazar `elegir_por_perfil` y nada mas.
-
-Lo que **si** es definitivo aqui, porque no depende del algoritmo:
+El reemplazo se hizo donde el docstring viejo dijo que se haria —en la seleccion
+de candidatos— y **nada mas**. Lo que sigue siendo definitivo porque no depende
+del algoritmo se conserva palabra por palabra:
 
 - La aritmetica de unidades. `unidades_a_comprar = techo(cantidad_pedida /
   unidades_por_empaque)` es la correccion del defecto que sumaba doce cajas
   cuando la lista pedia doce lapices, y vale igual con cualquier optimizador.
-- Que el total incluya solo lo que Tukit puede entregar. Una linea
-  informativa se muestra y no se cobra (FU-06).
+- Que el total incluya solo lo que Tukit puede entregar. Una linea informativa
+  se muestra y no se cobra (FU-06).
 - La regla de recomendacion de la seccion 6 del contrato, que sale de la
-  encuesta y no del algoritmo.
+  encuesta y no del algoritmo. **El presupuesto es una cota que vive en
+  `recomendar`, no en el frente**: un frente de Pareto no debe esconder un kit
+  valido por caro, sino ofrecerlo para que la capa de recomendacion lo degrade
+  con su explicacion (§6). Meter el presupuesto como restriccion del NSGA-II
+  cambiaria la composicion del kit Premium y romperia esa regla.
+
+**pymoo es dependencia dura.** No hay ruta "sin pymoo": si falta, el servicio no
+arranca (el import esta arriba, sin `try`). La version anterior degradaba a la
+heuristica cuando pymoo no estaba, pero esa degradacion silenciosa servia kits
+que no eran los del algoritmo sin avisar; fallar ruidoso en el arranque es mas
+honesto que mentir en tiempo de ejecucion.
+
+**Donde sigue viva la heuristica.** `elegir_por_perfil` NO desaparece, pero su
+papel es acotado: (1) la linea de un unico candidato admisible, donde no hay
+compromiso multiobjetivo que optimizar y el frente devolveria ese mismo unico
+punto; y (2) la referencia contra la que la prueba de hipervolumen mide el
+frente (NSGA-II no puede hacerlo peor). Nunca es el plan B de "pymoo no esta".
 """
 
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field, replace
+from itertools import product
 from typing import Any
+
+# pymoo es la dependencia DURA del optimizador de la tesis. Se importa arriba,
+# sin red: si falta, el servicio no arranca. Antes se importaba de forma
+# defensiva y `armar_los_tres` caia a la heuristica cuando pymoo no estaba, pero
+# esa degradacion silenciosa era un riesgo real —un despliegue mal configurado
+# servia kits que no eran los del algoritmo sin decirlo—. Preferimos fallar
+# ruidoso en el arranque a mentir en tiempo de ejecucion. La heuristica
+# (`elegir_por_perfil`) sigue viva, pero SOLO para la linea de un unico
+# candidato (no hay frente que optimizar) y como referencia de la prueba de
+# hipervolumen; nunca como plan B de "pymoo no esta".
+import numpy as _np
+from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.core.problem import Problem
+from pymoo.operators.crossover.sbx import SBX
+from pymoo.operators.mutation.pm import PM
+from pymoo.operators.sampling.rnd import FloatRandomSampling
+from pymoo.optimize import minimize as _minimizar
 
 from .modelos import PESOS_POR_OMISION, EstadoResolucion, PerfilKit
 
@@ -51,6 +82,25 @@ TIPOS_NO_COMPRABLES = frozenset({"licencia_digital", "no_comprar", "diferido", "
 # la consolidacion y se enuncia como dato para poder explicarla en la linea.
 TIPOS_NO_CONSOLIDABLES = frozenset({"texto"})
 MOTIVO_NO_CONSOLIDABLE = "Dos ediciones del mismo titulo no son sustituibles."
+
+# Los cuatro conceptos que el acudiente ve como "los del personaje": cuaderno,
+# cartuchera, carpeta y maleta. Cuando pidio un personaje para un hijo, estas
+# lineas suben al tope del kit en ESTE orden canonico —es puro reordenamiento
+# de presentacion, no cambia que producto se eligio ni cuanto cuesta el kit.
+CONCEPTOS_ANCLA = ("C001", "C009", "C011", "C086")
+
+# Por encima de este tamano del espacio de busqueda (producto de candidatos por
+# linea) se corre NSGA-II; por debajo se enumera el frente exacto. La
+# enumeracion da el frente OPTIMO y es instantanea para kits chicos —que es lo
+# que se prueba—, y el NSGA-II gana justo cuando el espacio explota, que es el
+# corpus real de listas con decenas de renglones y varios candidatos cada uno.
+LIMITE_ENUMERACION = 4096
+
+# Presupuesto de busqueda del NSGA-II. Se escala con el numero de lineas
+# decidibles para que el frente no se quede corto en listas grandes, con topes
+# para que una lista enorme no dispare el tiempo del pipeline.
+_POBLACION = 60
+_GENERACIONES = 40
 
 
 @dataclass(frozen=True)
@@ -137,6 +187,7 @@ class LineaKit:
     url_externa: str | None = None
     no_consolidable: bool = False
     motivo_no_consolidable: str | None = None
+    concepto_codigo: str | None = None
 
 
 @dataclass(frozen=True)
@@ -149,6 +200,23 @@ class KitArmado:
     recomendado: bool = False
     razon: str | None = None
     dentro_de_presupuesto: bool | None = None
+
+
+@dataclass(frozen=True)
+class SolucionFrente:
+    """Un punto del frente de Pareto: una asignacion de candidato por linea.
+
+    Guarda los tres ejes del contrato (`costo`, `fidelidad`, `disponibilidad`)
+    mas `personaje`, que es lo que le da al kit Fan un punto propio en el frente
+    cuando el acudiente pidio un personaje. `asignacion` mapea la clave de linea
+    `(hijo, orden)` al SKU elegido, para reconstruir el kit sin re-optimizar.
+    """
+
+    asignacion: dict[tuple[str, int], str]
+    costo: int
+    fidelidad: float
+    disponibilidad: float
+    personaje: float
 
 
 def unidades_a_comprar(cantidad_pedida: int, unidades_por_empaque: int) -> int:
@@ -174,13 +242,30 @@ def _precio_para_ordenar(candidato: Candidato) -> tuple[int, int]:
     return (1, 0) if candidato.precio_cop is None else (0, candidato.precio_cop)
 
 
+def _admisibles(renglon: Renglon) -> list[Candidato]:
+    """Los candidatos que se pueden elegir para un renglon.
+
+    Mismo criterio que la heuristica: se prefieren los que cumplen el atributo
+    exigido, pero si ninguno cumple no se deja el renglon vacio —el que no
+    cumple entra como ultimo recurso, con su bandera intacta.
+    """
+    return [c for c in renglon.candidatos if c.cumple] or list(renglon.candidatos)
+
+
 def elegir_por_perfil(
     candidatos: tuple[Candidato, ...],
     perfil: str,
     *,
     personajes: tuple[str, ...] = (),
 ) -> Candidato | None:
-    """La unica pieza que un NSGA-II reemplazaria.
+    """La heuristica de seleccion, hoy acotada a dos usos legitimos.
+
+    Sigue viva por dos razones, y NINGUNA es "pymoo no esta" (pymoo es
+    dependencia dura): es la eleccion de la linea sin compromiso multiobjetivo
+    —un unico candidato admisible, donde el frente devolveria ese mismo punto—,
+    y es la referencia contra la que se mide el frente (la prueba de
+    hipervolumen exige que NSGA-II no lo haga peor). Su semantica es la de
+    siempre:
 
     `Ahorrador` es el mas barato; `Premium` el de mejor nivel de marca y, a
     igualdad de nivel, el mas barato; `Fan` el que trae el personaje que el
@@ -190,8 +275,7 @@ def elegir_por_perfil(
     Nota sobre `Ahorrador`: puede terminar eligiendo un producto de nivel
     `premium` si resulto mas barato por empaque, y eso NO es un defecto. El
     nivel describe un producto y el perfil describe una ponderacion sobre el
-    kit completo; el contrato lo dice explicitamente para que nadie
-    "arregle" la coincidencia de nombre.
+    kit completo.
     """
     admisibles = [c for c in candidatos if c.cumple] or list(candidatos)
     if not admisibles:
@@ -213,7 +297,266 @@ def elegir_por_perfil(
     return min(admisibles, key=lambda c: (_precio_para_ordenar(c), c.sku))
 
 
-def _linea(renglon: Renglon, perfil: str, personajes: tuple[str, ...]) -> LineaKit:
+# --------------------------------------------------------------- El frente
+
+
+def _personajes_de(preferencias: dict[str, Any], hijo: str) -> tuple[str, ...]:
+    por_hijo = preferencias.get("personaje_por_hijo") or {}
+    valores = por_hijo.get(hijo) or []
+    return tuple(str(v) for v in valores)
+
+
+def _objetivos_de_asignacion(
+    decidibles: list[Renglon],
+    elegidos: list[Candidato],
+    preferencias: dict[str, Any],
+) -> tuple[int, float, float, float]:
+    """Los cuatro ejes de una asignacion completa, sobre lo comprable.
+
+    - `costo`: suma de subtotales con precio conocido (los sin precio no
+      inflan ni abaratan el costo; su falta se refleja en `disponibilidad`).
+    - `fidelidad`: nivel de marca promedio, normalizado a [0, 1]. Es lo que
+      separa un kit Premium de uno Ahorrador en el frente.
+    - `disponibilidad`: fraccion de lineas cuyo candidato tiene precio, o sea
+      que Tukit puede efectivamente surtir hoy.
+    - `personaje`: fraccion de lineas cuyo candidato trae el personaje que el
+      kit Fan buscaria. Se cuenta con la MISMA regla que `elegir_por_perfil`
+      Fan: si el acudiente pidio personajes para ese hijo, solo cuenta el que
+      coincide; si no pidio ninguno, cuenta cualquier personaje (el Fan es "el
+      kit divertido" aunque nadie lo haya pedido explicitamente). Alinear esta
+      regla con la heuristica es lo que hace que el frente no pierda el punto
+      intermedio que la heuristica surtia por su cuenta.
+    """
+    if not decidibles:
+        return (0, 0.0, 0.0, 0.0)
+
+    costo = 0
+    suma_fidelidad = 0.0
+    con_precio = 0
+    con_personaje = 0
+    tope_nivel = max(1, len(ORDEN_NIVEL) - 1)
+    for renglon, elegido in zip(decidibles, elegidos, strict=True):
+        unidades = unidades_a_comprar(renglon.cantidad, elegido.unidades_por_empaque)
+        if elegido.precio_cop is not None:
+            costo += elegido.precio_cop * unidades
+            con_precio += 1
+        suma_fidelidad += elegido.rango_nivel / tope_nivel
+        pedidos = {p.lower() for p in _personajes_de(preferencias, renglon.hijo)}
+        if elegido.personaje and (not pedidos or elegido.personaje.lower() in pedidos):
+            con_personaje += 1
+
+    n = len(decidibles)
+    return (
+        costo,
+        round(suma_fidelidad / n, 6),
+        round(con_precio / n, 6),
+        round(con_personaje / n, 6),
+    )
+
+
+def _domina(a: tuple[int, float, float, float], b: tuple[int, float, float, float]) -> bool:
+    """`a` domina a `b`: no peor en ningun eje y mejor en al menos uno.
+
+    Se minimiza `costo` y se maximizan `fidelidad`, `disponibilidad` y
+    `personaje`, asi que la comparacion mezcla sentidos: costo `<=`, el resto
+    `>=`.
+    """
+    no_peor = a[0] <= b[0] and a[1] >= b[1] and a[2] >= b[2] and a[3] >= b[3]
+    estricto = a[0] < b[0] or a[1] > b[1] or a[2] > b[2] or a[3] > b[3]
+    return no_peor and estricto
+
+
+def _no_dominadas(soluciones: list[SolucionFrente]) -> list[SolucionFrente]:
+    """Filtra el frente de Pareto de un conjunto de soluciones.
+
+    Se deduplica primero por vector de objetivos para no dejar copias, y se
+    ordena el resultado por costo para que el frente salga estable y leible
+    (dos corridas del NSGA-II con la misma semilla dan el mismo frente).
+    """
+    unicas: dict[tuple[int, float, float, float], SolucionFrente] = {}
+    for s in soluciones:
+        clave = (s.costo, s.fidelidad, s.disponibilidad, s.personaje)
+        unicas.setdefault(clave, s)
+
+    puntos = list(unicas.values())
+    frente = [
+        s
+        for s in puntos
+        if not any(
+            _domina((o.costo, o.fidelidad, o.disponibilidad, o.personaje),
+                     (s.costo, s.fidelidad, s.disponibilidad, s.personaje))
+            for o in puntos
+            if o is not s
+        )
+    ]
+    frente.sort(key=lambda s: (s.costo, -s.fidelidad, -s.disponibilidad, -s.personaje))
+    return frente
+
+
+def _solucion(
+    decidibles: list[Renglon], elegidos: list[Candidato], preferencias: dict[str, Any]
+) -> SolucionFrente:
+    costo, fidelidad, disponibilidad, personaje = _objetivos_de_asignacion(
+        decidibles, elegidos, preferencias
+    )
+    asignacion = {(r.hijo, r.orden): c.sku for r, c in zip(decidibles, elegidos, strict=True)}
+    return SolucionFrente(asignacion, costo, fidelidad, disponibilidad, personaje)
+
+
+def _frente_exacto(
+    decidibles: list[Renglon],
+    opciones: list[list[Candidato]],
+    preferencias: dict[str, Any],
+) -> list[SolucionFrente]:
+    """Frente OPTIMO por enumeracion. Exacto e instantaneo para kits chicos."""
+    soluciones = [
+        _solucion(decidibles, list(combo), preferencias) for combo in product(*opciones)
+    ]
+    return _no_dominadas(soluciones)
+
+
+def _frente_nsga(
+    decidibles: list[Renglon],
+    opciones: list[list[Candidato]],
+    preferencias: dict[str, Any],
+    *,
+    semilla: int,
+) -> list[SolucionFrente]:
+    """Frente de Pareto por NSGA-II sobre pymoo. El optimizador de la tesis.
+
+    Las variables de decision son reales en [0, n_i) y se redondean al indice
+    del candidato de la linea i; es la codificacion continua estandar para un
+    problema combinatorio y le deja a los operadores SBX/PM hacer su trabajo. La
+    poblacion inicial se siembra con las tres soluciones heuristicas
+    (Ahorrador/Premium/Fan) para garantizar que el frente cubra los extremos
+    aunque la muestra aleatoria no los toque, y el resultado se vuelve a filtrar
+    por no-dominancia junto con esas semillas.
+    """
+    n = len(decidibles)
+    tamanos = [len(o) for o in opciones]
+
+    def indices(x: _np.ndarray) -> list[int]:
+        return [min(tamanos[i] - 1, max(0, int(math.floor(x[i])))) for i in range(n)]
+
+    preferencias_local = preferencias
+
+    class _ProblemaKit(Problem):
+        def __init__(self) -> None:
+            super().__init__(
+                n_var=n,
+                n_obj=4,
+                n_constr=0,
+                xl=_np.zeros(n),
+                # El tope es n_i - epsilon para que floor nunca caiga en n_i.
+                xu=_np.array([t - 1e-6 for t in tamanos], dtype=float),
+            )
+
+        def _evaluate(self, X, out, *args, **kwargs):  # noqa: N802 (pymoo API)
+            filas = []
+            for fila in X:
+                elegidos = [opciones[i][idx] for i, idx in enumerate(indices(fila))]
+                costo, fidelidad, disp, pers = _objetivos_de_asignacion(
+                    decidibles, elegidos, preferencias_local
+                )
+                # pymoo minimiza; los tres ejes "mas es mejor" se niegan.
+                filas.append([costo, -fidelidad, -disp, -pers])
+            out["F"] = _np.array(filas, dtype=float)
+
+    algoritmo = NSGA2(
+        pop_size=_POBLACION,
+        sampling=FloatRandomSampling(),
+        crossover=SBX(prob=0.9, eta=15),
+        mutation=PM(eta=20),
+        eliminate_duplicates=True,
+    )
+    resultado = _minimizar(
+        _ProblemaKit(),
+        algoritmo,
+        ("n_gen", _GENERACIONES),
+        seed=semilla,
+        verbose=False,
+    )
+
+    soluciones: list[SolucionFrente] = []
+    matriz = _np.atleast_2d(resultado.X) if resultado.X is not None else _np.empty((0, n))
+    for fila in matriz:
+        elegidos = [opciones[i][idx] for i, idx in enumerate(indices(fila))]
+        soluciones.append(_solucion(decidibles, elegidos, preferencias_local))
+
+    # Siembra: las tres heuristicas garantizan cubrir min-costo, max-nivel y
+    # personaje, que son justo los puntos que los perfiles van a proyectar.
+    for perfil in PerfilKit:
+        elegidos = [
+            elegir_por_perfil(
+                tuple(opciones[i]), perfil.value, personajes=_personajes_de(preferencias, r.hijo)
+            )
+            or opciones[i][0]
+            for i, r in enumerate(decidibles)
+        ]
+        soluciones.append(_solucion(decidibles, elegidos, preferencias_local))
+
+    return _no_dominadas(soluciones)
+
+
+def optimizar_frente(
+    renglones: list[Renglon], preferencias: dict[str, Any] | None = None, *, semilla: int = 0
+) -> list[SolucionFrente]:
+    """El frente de Pareto de un kit. Enumera si es chico, NSGA-II si no.
+
+    Devuelve `[]` cuando no hay un compromiso real que optimizar (ninguna linea
+    decidible, o todas con un solo candidato): en ese caso `armar_los_tres` cae
+    a la heuristica, que da exactamente el mismo kit sin gastar el algoritmo.
+    """
+    preferencias = preferencias or {}
+    decidibles = [r for r in renglones if not r.informativa and _admisibles(r)]
+    if not decidibles:
+        return []
+
+    opciones = [_admisibles(r) for r in decidibles]
+    espacio = math.prod(len(o) for o in opciones)
+    if espacio <= 1:
+        return []
+
+    if espacio <= LIMITE_ENUMERACION:
+        # Enumeracion exacta para kits chicos: mismo frente que NSGA-II pero
+        # exacto e instantaneo. Es una optimizacion por tamano, NO un plan B por
+        # falta de pymoo (pymoo es dependencia dura).
+        return _frente_exacto(decidibles, opciones, preferencias)
+    return _frente_nsga(decidibles, opciones, preferencias, semilla=semilla)
+
+
+def _proyectar(frente: list[SolucionFrente], perfil: str) -> SolucionFrente | None:
+    """Elige el punto del frente que corresponde a un perfil.
+
+    Los tres perfiles son arquetipos, no los pesos del acudiente (esos solo
+    deciden CUAL de los tres se recomienda, en `recomendar`). Por eso cada uno
+    proyecta el frente sobre un eje distinto:
+
+    - `Ahorrador`: minimo costo (desempata por mayor disponibilidad).
+    - `Premium`: maxima fidelidad de marca (desempata por menor costo).
+    - `Fan`: maximo `personaje`; si el frente no ofrece personaje (nadie lo
+      pidio), se comporta como `Ahorrador`, igual que la heuristica.
+    """
+    if not frente:
+        return None
+    if perfil == PerfilKit.PREMIUM.value:
+        return max(frente, key=lambda s: (s.fidelidad, -s.costo, s.disponibilidad))
+    if perfil == PerfilKit.FAN.value:
+        mejor = max(frente, key=lambda s: (s.personaje, -s.costo, s.fidelidad))
+        if mejor.personaje > 0:
+            return mejor
+        # Sin personaje pedido, Fan es Ahorrador: no inventa un personaje.
+    return min(frente, key=lambda s: (s.costo, -s.disponibilidad, -s.fidelidad))
+
+
+def _linea_desde(renglon: Renglon, elegido: Candidato | None) -> LineaKit:
+    """Construye la linea del kit a partir del candidato ya elegido.
+
+    Separa la CONSTRUCCION de la linea de la SELECCION del candidato: la
+    seleccion la hace el frente (o la heuristica en la linea de un solo
+    candidato) y este helper solo arma la fila con la aritmetica de unidades y
+    el subtotal. Es la pieza que no cambia con el algoritmo.
+    """
     if renglon.informativa:
         # Ni precio ni subtotal, y la base lo impone con un CHECK. Lo que si
         # lleva es la instruccion textual del colegio: decir "esto lo vende la
@@ -235,9 +578,9 @@ def _linea(renglon: Renglon, perfil: str, personajes: tuple[str, ...]) -> LineaK
             url_externa=renglon.url_externa,
             no_consolidable=renglon.no_consolidable,
             motivo_no_consolidable=MOTIVO_NO_CONSOLIDABLE if renglon.no_consolidable else None,
+            concepto_codigo=renglon.concepto_codigo,
         )
 
-    elegido = elegir_por_perfil(renglon.candidatos, perfil, personajes=personajes)
     if elegido is None:
         return LineaKit(
             hijo=renglon.hijo,
@@ -251,6 +594,7 @@ def _linea(renglon: Renglon, perfil: str, personajes: tuple[str, ...]) -> LineaK
             unidades_a_comprar=0,
             informativa=False,
             mensaje=renglon.mensaje,
+            concepto_codigo=renglon.concepto_codigo,
         )
 
     unidades = unidades_a_comprar(renglon.cantidad, elegido.unidades_por_empaque)
@@ -275,6 +619,7 @@ def _linea(renglon: Renglon, perfil: str, personajes: tuple[str, ...]) -> LineaK
         mensaje=renglon.mensaje,
         no_consolidable=renglon.no_consolidable,
         motivo_no_consolidable=MOTIVO_NO_CONSOLIDABLE if renglon.no_consolidable else None,
+        concepto_codigo=renglon.concepto_codigo,
     )
 
 
@@ -377,17 +722,34 @@ def _objetivos(lineas: tuple[LineaKit, ...], total: int) -> dict[str, float | in
     }
 
 
-def _personajes_de(preferencias: dict[str, Any], hijo: str) -> tuple[str, ...]:
-    por_hijo = preferencias.get("personaje_por_hijo") or {}
-    valores = por_hijo.get(hijo) or []
-    return tuple(str(v) for v in valores)
+def armar_kit(
+    renglones: list[Renglon],
+    perfil: str,
+    preferencias: dict[str, Any],
+    *,
+    elecciones: dict[tuple[str, int], Candidato] | None = None,
+) -> KitArmado:
+    """Arma un kit para un perfil.
 
+    Si `elecciones` viene (proyeccion del frente de Pareto), se usa el candidato
+    que el frente asigno a cada linea; si no, se cae a la heuristica por perfil.
+    La diferencia es solo la SELECCION del candidato: unidades, consolidacion,
+    total honesto y objetivos son identicos en las dos rutas.
+    """
+    lineas_lista: list[LineaKit] = []
+    for renglon in renglones:
+        if renglon.informativa:
+            lineas_lista.append(_linea_desde(renglon, None))
+            continue
+        if elecciones is not None:
+            elegido = elecciones.get((renglon.hijo, renglon.orden))
+        else:
+            elegido = elegir_por_perfil(
+                renglon.candidatos, perfil, personajes=_personajes_de(preferencias, renglon.hijo)
+            )
+        lineas_lista.append(_linea_desde(renglon, elegido))
 
-def armar_kit(renglones: list[Renglon], perfil: str, preferencias: dict[str, Any]) -> KitArmado:
-    lineas = tuple(
-        _linea(renglon, perfil, _personajes_de(preferencias, renglon.hijo)) for renglon in renglones
-    )
-    lineas, consolidaciones = consolidar(lineas)
+    lineas, consolidaciones = consolidar(tuple(lineas_lista))
     # El total suma SOLO lo no informativo. Es la promesa de la seccion 5.1.1
     # del contrato y la que impide cobrar lo que no se puede entregar.
     total = sum(linea.subtotal_cop or 0 for linea in lineas if not linea.informativa)
@@ -475,8 +837,78 @@ def recomendar(kits: list[KitArmado], preferencias: dict[str, Any]) -> list[KitA
     ]
 
 
-def armar_los_tres(renglones: list[Renglon], preferencias: dict[str, Any] | None = None) -> list[KitArmado]:
-    """Los tres perfiles, con uno marcado. El punto de entrada de la etapa."""
+def armar_los_tres(
+    renglones: list[Renglon], preferencias: dict[str, Any] | None = None, *, semilla: int = 0
+) -> list[KitArmado]:
+    """Los tres perfiles, con uno marcado. El punto de entrada de la etapa.
+
+    Calcula UN frente de Pareto y proyecta cada perfil sobre el —los tres kits
+    son tres puntos del mismo frente, comparables entre si—. Si el frente esta
+    vacio (nada que optimizar) cae a la heuristica, que da el mismo kit. La
+    `semilla` hace el NSGA-II reproducible: los scripts no pueden llamar al RNG
+    en import, asi que se inyecta por parametro.
+    """
     preferencias = preferencias or {}
-    kits = [armar_kit(renglones, perfil.value, preferencias) for perfil in PerfilKit]
+    frente = optimizar_frente(renglones, preferencias, semilla=semilla)
+
+    # Mapa sku -> Candidato por linea, para reconstruir la eleccion del frente.
+    por_linea: dict[tuple[str, int], dict[str, Candidato]] = {}
+    for renglon in renglones:
+        if not renglon.informativa:
+            por_linea[(renglon.hijo, renglon.orden)] = {c.sku: c for c in renglon.candidatos}
+
+    kits: list[KitArmado] = []
+    for perfil in PerfilKit:
+        elecciones: dict[tuple[str, int], Candidato] | None = None
+        punto = _proyectar(frente, perfil.value) if frente else None
+        if punto is not None:
+            elecciones = {
+                clave: por_linea[clave][sku]
+                for clave, sku in punto.asignacion.items()
+                if clave in por_linea and sku in por_linea[clave]
+            }
+        kits.append(armar_kit(renglones, perfil.value, preferencias, elecciones=elecciones))
+
     return recomendar(kits, preferencias)
+
+
+def anclar_personaje(kit: KitArmado, personaje: str | None) -> KitArmado:
+    """Sube al tope las 4 lineas ancla cuyo producto trae el personaje pedido.
+
+    Es post-proceso puro sobre un kit ya armado: NSGA-II no se toca. Cuando el
+    acudiente pidio un personaje para el hijo, las lineas de los cuatro
+    conceptos ancla (`CONCEPTOS_ANCLA`) cuyo producto elegido es de ese
+    personaje se mueven al frente en el orden canonico cuaderno -> cartuchera
+    -> carpeta -> maleta; el resto de las lineas conserva su orden. Como solo
+    reordena, `total_cop`, `consolidaciones` y objetivos no cambian (el total
+    es una suma, no depende del orden), y se defiende con una prueba.
+
+    Si `personaje` es None o ninguna linea ancla trae ese personaje, devuelve
+    el kit sin tocar (mismo objeto cuando es None).
+    """
+    if personaje is None:
+        return kit
+
+    pedido = personaje.lower()
+
+    def es_ancla(linea: LineaKit, codigo: str) -> bool:
+        return (
+            not linea.informativa
+            and linea.concepto_codigo == codigo
+            and linea.elegido is not None
+            and (linea.elegido.personaje or "").lower() == pedido
+        )
+
+    anclas: list[LineaKit] = []
+    usadas: set[int] = set()
+    for codigo in CONCEPTOS_ANCLA:
+        for indice, linea in enumerate(kit.lineas):
+            if indice not in usadas and es_ancla(linea, codigo):
+                anclas.append(linea)
+                usadas.add(indice)
+
+    if not anclas:
+        return kit
+
+    resto = [linea for indice, linea in enumerate(kit.lineas) if indice not in usadas]
+    return replace(kit, lineas=tuple(anclas) + tuple(resto))

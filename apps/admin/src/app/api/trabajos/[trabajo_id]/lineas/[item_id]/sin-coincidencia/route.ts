@@ -1,4 +1,4 @@
-// `POST /api/trabajos/{id}/lineas/{item_id}/sin-coincidencia` — AD-04.
+// `POST /api/trabajos/{id}/lineas/{item_id}/sin-coincidencia` — AD-02.
 
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { SinCoincidencia } from "@tukit/contrato";

@@ -23,19 +23,58 @@ Dos cosas de esta version que conviene tener a mano al leer el codigo:
 from __future__ import annotations
 
 import argparse
+import base64
+import re
 import uuid
 from typing import Annotated, Any
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Request
 from pydantic import BaseModel, Field
 from tukit_comun.bd import crear_motor
 from tukit_comun.http import ErrorDominio, crear_app
 
-from . import trabajos
+from . import gemini, paginas, trabajos
 from .modelos import EstadoResolucion, EstadoTrabajo
-from .remoto import url_catalogo, url_identidad
+from .percepcion import LeerPagina, Percepcion, Renderizar, percibir
+from .remoto import ClienteCatalogo, url_catalogo, url_identidad
 
 PUERTO_POR_OMISION = 8013
+
+# Los dos puertos de percepcion viven como indireccion de modulo para que el
+# onboarding se pueda probar sin pypdfium2 y sin una llave de Gemini: las
+# pruebas sustituyen `_RENDERIZAR` y `_LEER` (o el envoltorio completo
+# `_percibir_onboarding`) por dobles. En produccion apuntan al render real y
+# al adaptador de Gemini, que es el unico sitio que toca la red y la llave.
+_RENDERIZAR: Renderizar = paginas.renderizar
+_LEER: LeerPagina = gemini.pedir_pagina
+
+
+def _percibir_onboarding(contenido: bytes) -> Percepcion:
+    """Envoltorio con los puertos por omision, monkeypatcheable en pruebas."""
+    return percibir(contenido, renderizar=_RENDERIZAR, leer=_LEER)
+
+
+class PercepcionRechazada(ErrorDominio):
+    """Un rechazo de percepcion que ademas puede nombrar los grados vistos.
+
+    Reusa el sobre de `ErrorDominio` (mismo manejador, mismo `error`/`mensaje`)
+    y solo agrega `grados_detectados` cuando el archivo traia mas de un grado,
+    que es la unica pista que ayuda al acudiente a subir la pagina correcta.
+    Nunca lleva el contenido del archivo: el sobre dice QUE paso, no QUE se
+    subio.
+    """
+
+    def __init__(
+        self, error: str, mensaje: str, *, grados_detectados: tuple[str, ...] = ()
+    ) -> None:
+        super().__init__(error, mensaje, estado=422)
+        self.grados_detectados = grados_detectados
+
+    def cuerpo(self) -> dict[str, Any]:
+        sobre = super().cuerpo()
+        if self.grados_detectados:
+            sobre["grados_detectados"] = list(self.grados_detectados)
+        return sobre
 
 
 class Hijo(BaseModel):
@@ -193,6 +232,209 @@ async def reintentar(trabajo_id: uuid.UUID) -> dict[str, Any]:
 
     trabajos.lanzar(app.state.motor, trabajo_id)
     return {"trabajo_id": str(trabajo_id), "estado": EstadoTrabajo.ENCOLADO.value}
+
+
+# ---------------------------------------------------------------------------
+# Onboarding de listas (apps/admin): un PDF entra, el catalogo recibe la lista
+# ---------------------------------------------------------------------------
+
+
+def _leer_multipart(cuerpo: bytes, tipo_contenido: str) -> tuple[dict[str, str], dict[str, bytes]]:
+    """Separa campos de archivos de un `multipart/form-data`.
+
+    Se parsea a mano y no con `UploadFile`/`Form` de FastAPI a proposito: esos
+    exigen `python-multipart` en el arranque y este servicio no lo trae. El
+    onboarding sube un solo PDF y un punado de campos de texto, asi que un
+    parseo por frontera alcanza y no arrastra una dependencia nueva.
+    """
+    marca = "boundary="
+    posicion = tipo_contenido.find(marca)
+    if posicion < 0:
+        raise ErrorDominio(
+            "multipart_invalido", "El envio no es un formulario multipart valido.", estado=422
+        )
+    frontera = tipo_contenido[posicion + len(marca):].strip().strip('"')
+    separador = b"--" + frontera.encode()
+
+    campos: dict[str, str] = {}
+    archivos: dict[str, bytes] = {}
+    for parte in cuerpo.split(separador):
+        parte = parte.strip(b"\r\n")
+        if not parte or parte == b"--":
+            continue
+        cabeza, _, contenido = parte.partition(b"\r\n\r\n")
+        disposicion = ""
+        for linea in cabeza.split(b"\r\n"):
+            if linea.lower().startswith(b"content-disposition"):
+                disposicion = linea.decode("latin-1", "replace")
+        nombre = re.search(r'name="([^"]*)"', disposicion)
+        if not nombre:
+            continue
+        if 'filename="' in disposicion:
+            archivos[nombre.group(1)] = contenido
+        else:
+            campos[nombre.group(1)] = contenido.decode("utf-8", "replace")
+    return campos, archivos
+
+
+def _catalogo() -> Any:
+    """El cliente del catalogo, inyectable por `app.state` para las pruebas."""
+    cliente = getattr(app.state, "catalogo", None)
+    if cliente is None:
+        cliente = ClienteCatalogo()
+    return cliente
+
+
+@app.post(
+    "/v1/admin/onboarding",
+    tags=["admin"],
+    summary="Sube el PDF de una lista, lo percibe y lo importa al catalogo",
+)
+async def onboarding(peticion: Request) -> dict[str, Any]:
+    """De un PDF a una lista en el catalogo, pasando por la percepcion.
+
+    La percepcion es la unica puerta: si rechaza el archivo (varios grados,
+    pagina a medias, ilegible) no se importa nada y se responde 422 con el
+    codigo del rechazo. Nunca se le devuelve al cliente el contenido que
+    subio, ni siquiera cuando se rechaza. Lo que si viaja al catalogo, cuando
+    se acepta, es el PDF en base64 y la percepcion cruda por pagina, para que
+    la revision humana del catalogo pueda contrastar.
+    """
+    tipo = peticion.headers.get("content-type", "")
+    if "multipart/form-data" not in tipo:
+        raise ErrorDominio(
+            "multipart_invalido", "Sube la lista como multipart/form-data.", estado=422
+        )
+    campos, archivos = _leer_multipart(await peticion.body(), tipo)
+
+    for requerido in ("colegio_id", "grado", "anio_lectivo"):
+        if requerido not in campos:
+            raise ErrorDominio(
+                "campo_faltante", "Falta un campo del formulario de onboarding.", estado=422, campo=requerido
+            )
+    archivo = archivos.get("archivo")
+    if archivo is None:
+        raise ErrorDominio(
+            "archivo_faltante", "No llego ningun archivo en el campo `archivo`.", estado=422, campo="archivo"
+        )
+    try:
+        anio_lectivo = int(campos["anio_lectivo"])
+    except ValueError as error:
+        raise ErrorDominio(
+            "anio_invalido", "El anio lectivo tiene que ser un numero.", estado=422, campo="anio_lectivo"
+        ) from error
+
+    percepcion = _percibir_onboarding(archivo)
+    if not percepcion.aceptada:
+        raise PercepcionRechazada(
+            percepcion.error or "percepcion_rechazada",
+            percepcion.mensaje,
+            grados_detectados=percepcion.grados,
+        )
+
+    # Un item leido se vuelve un renglon del contrato: la cantidad en null se
+    # vuelve 1 (un item pedido al menos una vez), y el texto del modelo es el
+    # texto_original que el catalogo va a emparejar.
+    items = [
+        {
+            "texto_original": item.descripcion,
+            "cantidad": item.cantidad or 1,
+            "confianza": item.confianza,
+        }
+        for item in percepcion.items
+    ]
+    # La evidencia por pagina agrupa los items que se leyeron en cada una. No
+    # se guarda el texto por separado del modelo (no lo devuelve la Percepcion
+    # ya agregada), pero si el crudo estructurado que si viaja.
+    percepcion_cruda = [
+        {
+            "pagina": numero,
+            "crudo": [item.model_dump() for item in percepcion.items] if numero == 1 else [],
+        }
+        for numero in range(1, percepcion.paginas + 1)
+    ]
+
+    respuesta = await _catalogo().importar_lista(
+        colegio_id=campos["colegio_id"],
+        grado=percepcion.grados[0] if percepcion.grados else campos["grado"],
+        anio_lectivo=anio_lectivo,
+        items=items,
+        documento_base64=base64.b64encode(archivo).decode(),
+        percepcion_cruda=percepcion_cruda,
+    )
+    return {
+        "version_id": respuesta["version_id"],
+        "grado": percepcion.grados[0] if percepcion.grados else campos["grado"],
+        "items": len(items),
+    }
+
+
+class PeticionPreview(BaseModel):
+    colegio_id: str = Field(min_length=1, max_length=64)
+    grado: str = Field(min_length=1, max_length=32)
+    anio_lectivo: int = Field(ge=2020, le=2100)
+
+
+@app.post(
+    "/v1/admin/onboarding/{version_id}/preview",
+    tags=["admin"],
+    summary="Arma los tres kits de una lista recien subida, ANTES de aprobarla",
+)
+async def preview_onboarding(version_id: str, peticion: PeticionPreview) -> dict[str, Any]:
+    """Los tres kits + recomendacion de una version vigente pero SIN revisar.
+
+    El admin acaba de subir un PDF (`POST /v1/admin/onboarding`) y quiere ver
+    como quedan Ahorrador/Fan/Premium antes de aprobar la version. Se crea un
+    trabajo DESECHABLE con `origen='preview_onboarding'` sobre ese
+    (colegio, grado, anio): como la version es vigente pero sin revisar, el
+    pipeline toma la ruta LENTA (emparejar + NSGA-II), que es exactamente la
+    previsualizacion. No se autopublica: el trabajo se queda en
+    `espera_revision`/`fallido` y solo sirve para pintar los kits.
+
+    Se corre de forma SINCRONICA (no `trabajos.lanzar`) para que los kits ya
+    esten escritos cuando el admin lea `GET /v1/admin/trabajos/{id}`.
+
+    La guarda evita previsualizar una version que ya quedo atras: se resuelve
+    la version vigente del catalogo para ese (colegio, grado, anio) —igual que
+    `_listas_por_hijo`, por `listas()` y `lista()`— y si no coincide con la del
+    path se responde 409. Si no hay ninguna lista, 404.
+    """
+    catalogo = _catalogo()
+    listas = await catalogo.listas(
+        colegio_id=peticion.colegio_id, grado=peticion.grado, anio_lectivo=peticion.anio_lectivo
+    )
+    if not listas:
+        raise ErrorDominio(
+            "version_no_existe",
+            "No hay ninguna lista publicada para ese colegio, grado y anio.",
+            estado=404,
+        )
+    completa = await catalogo.lista(listas[0]["lista_id"])
+    vigente = str(completa.get("version_id") or listas[0].get("version_id") or "")
+    if vigente != version_id:
+        raise ErrorDominio(
+            "version_no_vigente",
+            "Existe una version mas nueva; previsualiza esa.",
+            estado=409,
+        )
+
+    respuesta = await trabajos.crear(
+        app.state.motor,
+        hijos=[
+            {
+                "referencia": "preview",
+                "colegio_id": peticion.colegio_id,
+                "grado": peticion.grado,
+                "anio_lectivo": peticion.anio_lectivo,
+            }
+        ],
+        contacto=None,
+        preferencias={},
+        origen="preview_onboarding",
+    )
+    trabajo_id = uuid.UUID(respuesta["trabajo_id"])
+    estado = await trabajos.procesar(app.state.motor, trabajo_id, catalogo=catalogo)
+    return {"trabajo_id": str(trabajo_id), "estado": estado}
 
 
 # ---------------------------------------------------------------------------

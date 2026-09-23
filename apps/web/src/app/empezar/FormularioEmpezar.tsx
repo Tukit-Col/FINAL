@@ -7,8 +7,8 @@ import {
   validarArchivo,
   EXTENSIONES_ACEPTADAS,
   type Colegio,
-  type DolorDeclarado,
   type HijoSolicitud,
+  type Pesos,
   type SolicitudTrabajo,
 } from "@tukit/contrato";
 import { crearTrabajo, FalloApi } from "@/lib/api-navegador";
@@ -27,11 +27,53 @@ interface HijoFormulario {
   personajes: string;
 }
 
-const DOLORES: { valor: DolorDeclarado; etiqueta: string }[] = [
-  { valor: "disponibilidad", etiqueta: "Que esté agotado y toque recorrer papelerías" },
-  { valor: "libros", etiqueta: "Los libros y el plan lector" },
-  { valor: "un_solo_lugar", etiqueta: "No encontrar todo en un solo lugar" },
-  { valor: "precio", etiqueta: "El precio" },
+// El paso 3 no es una encuesta socioeconómica: es la ÚNICA palanca del
+// acudiente sobre cuál de los tres kits le marcamos. Por eso pregunta lo que el
+// recomendador de verdad lee —los pesos y la disposición a pagar de más
+// (`optimizador.recomendar`)— y no un "dolor" que no movía nada.
+//
+// El encuadre es cuánto gastar, NO precio contra calidad: la calidad asegurada
+// está en los tres kits, lo que cambia es la economía. Tres opciones, cada una
+// con su efecto declarado en pantalla:
+//   • "Lo más económico" -> Ahorrador (el gasto manda, sin sobreprecio)
+//   • "Un punto medio"   -> Ahorrador por defecto de la encuesta (P21)
+//   • "Puedo estirarme"  -> Premium, si acepta pagar un poco más
+// El Fan no vive aquí: se dispara solo si en el paso 1 pediste un personaje.
+type ClavePrioridad = "precio" | "equilibrio" | "calidad";
+
+interface Prioridad {
+  clave: ClavePrioridad;
+  titulo: string;
+  detalle: string;
+  // Lo que se manda al backend: los pesos suman 1.0 (el §3 lo exige, y el
+  // validador de inteligencia devuelve 422 si no) y la disposición a pagar de
+  // más, que es lo que destraba el Premium.
+  pesos: Pesos;
+  disposicion_sobreprecio: number;
+}
+
+const PRIORIDADES: Prioridad[] = [
+  {
+    clave: "precio",
+    titulo: "Lo más económico",
+    detalle: "Gastar lo menos posible. Te marcamos el Ahorrador.",
+    pesos: { precio: 0.6, marca_exigida: 0.15, calidad: 0.2, personaje: 0.05 },
+    disposicion_sobreprecio: 0,
+  },
+  {
+    clave: "equilibrio",
+    titulo: "Un punto medio",
+    detalle: "Sin gastar de más, pero con algo de marca. Te marcamos el Ahorrador y dejamos los otros dos a la vista.",
+    pesos: { precio: 0.35, marca_exigida: 0.3, calidad: 0.25, personaje: 0.1 },
+    disposicion_sobreprecio: 0.05,
+  },
+  {
+    clave: "calidad",
+    titulo: "Puedo estirarme un poco",
+    detalle: "Marcas y acabados de gama alta. Te marcamos el Premium si cabe en tu tope.",
+    pesos: { precio: 0.15, marca_exigida: 0.35, calidad: 0.4, personaje: 0.1 },
+    disposicion_sobreprecio: 0.1,
+  },
 ];
 
 function hijoVacio(indice: number): HijoFormulario {
@@ -46,7 +88,13 @@ function hijoVacio(indice: number): HijoFormulario {
   };
 }
 
-export default function FormularioEmpezar({ colegios }: { colegios: Colegio[] }) {
+export default function FormularioEmpezar({
+  colegios,
+  surtidos,
+}: {
+  colegios: Colegio[];
+  surtidos: string[];
+}) {
   const router = useRouter();
   const idBase = useId();
 
@@ -54,7 +102,7 @@ export default function FormularioEmpezar({ colegios }: { colegios: Colegio[] })
   const [correo, setCorreo] = useState("");
   const [celular, setCelular] = useState("");
   const [presupuesto, setPresupuesto] = useState("");
-  const [dolor, setDolor] = useState<DolorDeclarado>("disponibilidad");
+  const [prioridad, setPrioridad] = useState<ClavePrioridad>("equilibrio");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gradosDetectados, setGradosDetectados] = useState<string[]>([]);
@@ -106,6 +154,9 @@ export default function FormularioEmpezar({ colegios }: { colegios: Colegio[] })
       if (lista.length > 0) personajePorHijo[hijo.referencia] = lista;
     }
 
+    const elegida =
+      PRIORIDADES.find((p) => p.clave === prioridad) ?? PRIORIDADES[1]!;
+
     const solicitud: SolicitudTrabajo = {
       contacto: { correo: correo.trim(), celular: celular.trim() },
       hijos: hijos.map<HijoSolicitud>((hijo) => ({
@@ -114,7 +165,11 @@ export default function FormularioEmpezar({ colegios }: { colegios: Colegio[] })
         grado: hijo.grado,
       })),
       preferencias: {
-        dolor_declarado: dolor,
+        // Lo que el recomendador de verdad lee: pesos + disposición a pagar de
+        // más. Antes íbamos con `dolor_declarado`, que no movía la elección del
+        // kit y hacía del paso 3 un adorno.
+        pesos: elegida.pesos,
+        disposicion_sobreprecio: elegida.disposicion_sobreprecio,
         ...(soloDigitos ? { presupuesto_por_hijo: Number(soloDigitos) } : {}),
         ...(Object.keys(personajePorHijo).length > 0
           ? { personaje_por_hijo: personajePorHijo }
@@ -212,20 +267,6 @@ export default function FormularioEmpezar({ colegios }: { colegios: Colegio[] })
                 </label>
               </div>
 
-              {/* El contrato convierte la atribucion colegio-lista en un
-                  bloqueante de correccion de esta ruta: el acudiente no puede
-                  detectar el error porque confia en la lista que le
-                  mostramos. Cuando la atribucion es dudosa se lo decimos y le
-                  ofrecemos la otra entrada, que es la unica que el si puede
-                  verificar. */}
-              {colegio?.atribucion_dudosa && (
-                <p className={styles.avisoAtribucion} role="status">
-                  Esta lista comparte plantilla con la de otro colegio y no pudimos
-                  separarlas con total confianza. Si algo no te cuadra, mejor sube el
-                  archivo que te mandaron.
-                </p>
-              )}
-
               <div className={styles.entradas} role="group" aria-label="Cómo nos das la lista">
                 {(
                   [
@@ -294,6 +335,7 @@ export default function FormularioEmpezar({ colegios }: { colegios: Colegio[] })
                 etiquetaHijo={`Hijo ${indice + 1}`}
                 valor={hijo.personajes}
                 onChange={(personajes) => cambiar(indice, { personajes })}
+                surtidos={surtidos}
               />
             </fieldset>
           );
@@ -348,30 +390,35 @@ export default function FormularioEmpezar({ colegios }: { colegios: Colegio[] })
       {/* ----------------------------------------------------- Preferencias */}
       <section className={styles.bloque} aria-labelledby={`${idBase}-preferencias`}>
         <h2 id={`${idBase}-preferencias`} className={styles.tituloBloque}>
-          <span className={styles.paso}>3</span> Qué te importa más
+          <span className={styles.paso}>3</span> Cuál de los tres te marcamos
         </h2>
         <p className={styles.explicacion}>
-          No te pedimos el estrato ni nada del hogar: con esto basta para elegir cuál de
-          los tres kits te marcamos.
+          Los tres kits cubren la misma lista y la misma calidad asegurada: lo que
+          cambia es cuánto gastas. Dinos hasta dónde quieres estirar el bolsillo y te
+          marcamos uno —los otros dos quedan a la vista—. No te pedimos el estrato ni
+          nada del hogar.
         </p>
 
         <fieldset className={styles.opciones}>
-          <legend className={styles.leyendaSimple}>Lo que más te pesa</legend>
-          {DOLORES.map((opcion) => (
+          <legend className={styles.leyendaSimple}>Cuánto quieres gastar</legend>
+          {PRIORIDADES.map((opcion) => (
             <label
-              key={opcion.valor}
-              className={`${styles.opcionEntrada} ${
-                dolor === opcion.valor ? styles.opcionActiva : ""
+              key={opcion.clave}
+              className={`${styles.tarjetaPrioridad} ${
+                prioridad === opcion.clave ? styles.opcionActiva : ""
               }`}
             >
               <input
                 type="radio"
-                name="dolor"
-                value={opcion.valor}
-                checked={dolor === opcion.valor}
-                onChange={() => setDolor(opcion.valor)}
+                name="prioridad"
+                value={opcion.clave}
+                checked={prioridad === opcion.clave}
+                onChange={() => setPrioridad(opcion.clave)}
               />
-              {opcion.etiqueta}
+              <span className={styles.prioridadTexto}>
+                <strong>{opcion.titulo}</strong>
+                <span className={styles.prioridadDetalle}>{opcion.detalle}</span>
+              </span>
             </label>
           ))}
         </fieldset>
@@ -385,8 +432,12 @@ export default function FormularioEmpezar({ colegios }: { colegios: Colegio[] })
             inputMode="numeric"
             value={presupuesto}
             onChange={(e) => setPresupuesto(e.target.value)}
-            placeholder="700000"
+            placeholder="Ej. 700000"
           />
+          <span className={styles.pistaCampo}>
+            Es una cota dura: si el kit que priorizas se pasa de este tope, te marcamos
+            el que sí cabe y te lo decimos.
+          </span>
         </label>
       </section>
 
