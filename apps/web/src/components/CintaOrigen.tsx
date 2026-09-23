@@ -1,3 +1,4 @@
+import { FlaskConical, PlugZap } from "lucide-react";
 import styles from "./CintaOrigen.module.css";
 
 interface Props {
@@ -17,18 +18,18 @@ export default function CintaOrigen({ nombre, detalle }: Props) {
   if (nombre === "api") {
     return (
       <div className={`${styles.cinta} ${styles.api}`}>
-        <span className={styles.punto} aria-hidden="true" />
-        Conectado al backend en <code>{detalle}</code>
+        <PlugZap size={15} aria-hidden="true" strokeWidth={2.4} />
+        Conectado al backend en <code>{detalle}</code> · sesión vía gateway → identidad
       </div>
     );
   }
 
   return (
     <div className={`${styles.cinta} ${styles.simulado}`}>
-      <span className={styles.punto} aria-hidden="true" />
-      Datos simulados: catálogo y listas reales del repositorio, sin backend.
+      <FlaskConical size={15} aria-hidden="true" strokeWidth={2.4} />
+      Datos simulados: catálogo, listas y usuarios de prueba del repositorio, sin backend.
       <span className={styles.pista}>
-        Cambia con <code>TUKIT_ORIGEN_DATOS=api</code>
+        Sesión de demostración: cualquier clave entra · cambia con <code>TUKIT_ORIGEN_DATOS=api</code>
       </span>
     </div>
   );

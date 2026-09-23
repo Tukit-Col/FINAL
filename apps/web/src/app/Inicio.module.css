@@ -6,213 +6,312 @@
 
 /* ------------------------------------------------------------------ Heroe */
 
+/* Héroe tipo landing de startup (referencia Payway): lienzo casi blanco,
+ * titular grande y CENTRADO que se entrelaza con útiles en clay flotando a los
+ * lados, un solo acento de color y CTA claros. Sin cifras de catálogo: a un
+ * acudiente que llega a comprar no le dicen nada, y llenaban el héroe de ruido. */
 .heroe {
-  padding: var(--espacio-7) 0 var(--espacio-6);
+  position: relative;
+  margin-top: var(--espacio-5);
+  padding: clamp(48px, 8vw, 96px) clamp(var(--espacio-4), 5vw, 56px)
+    clamp(var(--espacio-6), 5vw, 72px);
+  background:
+    radial-gradient(70% 60% at 50% 22%, var(--clay-cielo-bg) 0%, transparent 60%);
+  border-radius: var(--radius-clay);
+  overflow: hidden;
+  isolation: isolate;
 }
 
 .heroeTexto {
-  max-width: 720px;
+  position: relative;
+  /* El texto pasa POR ENCIMA de los útiles flotantes, como en la referencia. */
+  z-index: 3;
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
 }
 
 .antetitulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-primary);
-  margin-bottom: var(--espacio-3);
+  background: var(--color-white);
+  padding: 7px 14px;
+  border-radius: var(--radius-full);
+  box-shadow: var(--clay-shadow-sm);
+  margin-bottom: var(--espacio-4);
 }
 
 .titular {
-  font-size: clamp(30px, 5.2vw, 46px);
-  font-weight: 700;
+  font-size: clamp(38px, 7vw, 76px);
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
   text-wrap: balance;
 }
 
 .titular em {
   font-style: normal;
-  /* El subrayado va bajo la palabra que cambia la promesa: "de verdad". Es
-   * la diferencia entre este producto y un catalogo cualquiera. */
-  background: linear-gradient(transparent 62%, #bfdbfe 62%);
+  color: var(--color-primary);
+  /* El acento va bajo la palabra que carga la promesa: "de verdad". Subrayado
+   * dorado del logo, grueso, tipo marcador. */
+  background: linear-gradient(transparent 62%, var(--clay-estrella) 62%);
+  padding: 0 6px;
+  border-radius: 4px;
 }
 
 .bajada {
-  margin-top: var(--espacio-4);
-  font-size: 17px;
+  margin: var(--espacio-4) auto 0;
+  font-size: clamp(16px, 2vw, 19px);
+  line-height: 1.55;
   color: var(--color-text-secondary);
-  max-width: 62ch;
+  max-width: 58ch;
 }
 
 .acciones {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: var(--espacio-3);
-  margin-top: var(--espacio-5);
+  margin-top: var(--espacio-6);
 }
 
 .botonPrimario,
 .botonSecundario {
   display: inline-flex;
   align-items: center;
+  gap: 9px;
   justify-content: center;
-  /* 48px de alto: se pulsa con el pulgar, de pie, con el celular en una mano. */
-  min-height: 48px;
-  padding: 0 var(--espacio-5);
+  /* 52px de alto: se pulsa con el pulgar, de pie, con el celular en una mano. */
+  min-height: 52px;
+  padding: 0 var(--espacio-6);
   border-radius: var(--radius-full);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 15px;
+  transition: transform var(--dur-rapido) var(--ease-clay),
+    box-shadow var(--dur-rapido) var(--ease-suave);
 }
 
 .botonPrimario {
-  background: var(--color-primary);
+  background: linear-gradient(145deg, var(--clay-cielo) 0%, var(--color-primary) 100%);
   color: var(--color-white);
+  box-shadow: var(--clay-shadow-primary);
 }
 
 .botonPrimario:hover {
-  background: var(--color-primary-dark);
+  transform: translateY(-2px);
+}
+
+.botonPrimario:active {
+  transform: scale(0.96);
+  box-shadow: var(--clay-shadow-sm);
 }
 
 .botonSecundario {
-  background: var(--color-white);
-  border: 1px solid var(--color-border);
+  background: var(--clay-surface-grad);
   color: var(--color-text-primary);
+  box-shadow: var(--clay-shadow-sm);
 }
 
 .botonSecundario:hover {
-  border-color: var(--color-text-muted);
+  transform: translateY(-2px);
+  box-shadow: var(--clay-shadow);
 }
 
-.cifras {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--espacio-6);
-  margin-top: var(--espacio-6);
-  padding-top: var(--espacio-5);
-  border-top: 1px solid var(--color-border);
+.botonSecundario:active {
+  transform: scale(0.96);
 }
 
-.cifras dt {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
-}
-
-.cifras dd {
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-.cifraHonesta dd {
-  color: var(--color-aviso);
-}
-
-.notaCifras {
-  margin-top: var(--espacio-3);
+/* Micro-tranquilizador bajo los CTA: baja el "labor" percibido antes del clic
+ * (gratis, decides tú, sin registro). Discreto, no compite con los botones. */
+.tranquilizador {
+  position: relative;
+  z-index: 3;
+  margin: var(--espacio-4) auto 0;
   font-size: 13px;
+  font-weight: 600;
   color: var(--color-text-muted);
-  max-width: 60ch;
+  max-width: 52ch;
 }
 
-/* ----------------------------------------------------------------- Dolores */
+/* ----------------------------------------------------------- Encabezados */
+
+/* Encabezado compartido de sección: kicker + título + subtítulo opcional,
+ * centrado, con aire arriba. Da ritmo a la página y evita títulos sueltos. */
+.encabezadoSeccion {
+  max-width: 720px;
+  margin: 0 auto var(--espacio-6);
+  text-align: center;
+}
+
+.kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-primary);
+  margin-bottom: var(--espacio-2);
+}
 
 .tituloSeccion {
-  font-size: 22px;
-  font-weight: 700;
-  margin-bottom: var(--espacio-5);
+  font-size: clamp(24px, 3.4vw, 34px);
+  font-weight: 800;
+  line-height: 1.12;
+  text-wrap: balance;
 }
 
+.subtituloSeccion {
+  margin: var(--espacio-3) auto 0;
+  font-size: clamp(15px, 1.8vw, 17px);
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+  max-width: 56ch;
+}
+
+/* -------------------------------------------------------------- Dolores */
+
 .dolores {
-  padding: var(--espacio-6) 0;
+  padding: var(--espacio-7) 0 var(--espacio-6);
 }
 
 .rejillaDolores {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--espacio-4);
+}
+
+.dolor {
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-xl);
+  padding: var(--espacio-5);
+  box-shadow: var(--clay-shadow);
+  transition: transform var(--dur-medio) var(--ease-clay);
+}
+
+.dolor:hover {
+  transform: translateY(-4px);
+}
+
+.dolorIcono {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: var(--radius-md);
+  background: var(--clay-cielo-bg);
+  color: var(--color-primary);
+  box-shadow: var(--clay-shadow-sm);
+  margin-bottom: var(--espacio-3);
+}
+
+.dolor h3 {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.dolor p {
+  margin-top: var(--espacio-2);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
+
+/* -------------------------------------------------------------- Razones */
+
+.razones {
+  padding: var(--espacio-6) 0;
+}
+
+.rejillaRazones {
   list-style: none;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: var(--espacio-4);
 }
 
-.dolor {
+/* Las razones son más "airadas" que los dolores: fondo blanco, icono en dorado,
+ * para que se lean como la respuesta luminosa al bloque de dolores de arriba. */
+.razon {
   background: var(--color-white);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   padding: var(--espacio-5);
+  box-shadow: var(--clay-shadow-sm);
+  text-align: center;
 }
 
-.porcentaje {
-  display: block;
-  font-size: 26px;
-  font-weight: 700;
-  color: var(--color-primary);
+.razonIcono {
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  background: var(--clay-estrella-bg);
+  color: var(--color-aviso);
+  box-shadow: var(--clay-shadow-sm), inset 0 0 0 1.5px var(--clay-estrella);
+  margin-bottom: var(--espacio-3);
 }
 
-.dolor h3 {
-  margin-top: var(--espacio-2);
-  font-size: 15px;
-  font-weight: 600;
+.razon h3 {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-text-primary);
 }
 
-.dolor p {
+.razon p {
   margin-top: var(--espacio-2);
   font-size: 14px;
+  line-height: 1.55;
   color: var(--color-text-secondary);
 }
 
 /* ----------------------------------------------------------- Como funciona */
 
 .comoFunciona {
+  padding: var(--espacio-7) 0 var(--espacio-6);
+  /* Deja aire bajo el header sticky para que el ancla /#como-funciona no
+   * quede tapada al saltar aquí. */
+  scroll-margin-top: var(--espacio-6);
+}
+
+/* -------------------------------------------------------------- Cierre */
+
+.cierre {
   padding: var(--espacio-6) 0 0;
 }
 
-.pasos {
-  list-style: none;
-  display: grid;
-  gap: var(--espacio-4);
+/* Tarjeta de cierre: el último empujón. Fondo cielo tenue, promesa honesta
+ * arriba (la cifra de lo que NOS falta), titular de acción y un solo CTA. */
+.tarjetaCierre {
+  position: relative;
+  text-align: center;
+  padding: clamp(var(--espacio-6), 5vw, 64px) clamp(var(--espacio-4), 5vw, 56px);
+  border-radius: var(--radius-clay);
+  background:
+    radial-gradient(80% 90% at 50% 0%, var(--clay-cielo-bg) 0%, transparent 70%),
+    var(--clay-surface-grad);
+  box-shadow: var(--clay-shadow);
+  overflow: hidden;
 }
 
-.pasos li {
-  display: flex;
-  gap: var(--espacio-4);
-  align-items: flex-start;
-  background: var(--color-white);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--espacio-4) var(--espacio-5);
+.tituloCierre {
+  font-size: clamp(24px, 3.6vw, 36px);
+  font-weight: 800;
+  line-height: 1.1;
+  text-wrap: balance;
+  max-width: 20ch;
+  margin: 0 auto;
 }
 
-.numero {
-  flex: none;
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-full);
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  font-size: 14px;
-}
-
-.pasos h3 {
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.pasos p {
-  margin-top: 2px;
-  font-size: 14px;
+.bajadaCierre {
+  margin: var(--espacio-3) auto var(--espacio-6);
+  font-size: clamp(15px, 1.8vw, 17px);
   color: var(--color-text-secondary);
-  max-width: 72ch;
-}
-
-@media (max-width: 600px) {
-  .cifras {
-    gap: var(--espacio-4);
-  }
-
-  .cifras dd {
-    font-size: 22px;
-  }
+  max-width: 46ch;
 }

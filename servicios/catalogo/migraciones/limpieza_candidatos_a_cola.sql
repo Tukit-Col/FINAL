@@ -1,0 +1,8 @@
+-- Reemplazado por `limpieza_candidatos_a_cola.py` en este mismo directorio.
+--
+-- La limpieza se hace en Python y no en SQL puro por una sola razon tecnica:
+-- los identificadores de la cola se derivan del contenido con el mismo
+-- `_uuid_estable` (uuid5) que usa el resto del catalogo, y esta base no tiene
+-- la extension `uuid-ossp` instalada, asi que `uuid_generate_v5` no existe.
+-- Calcularlos en Python evita agregar una extension solo para una migracion
+-- puntual y mantiene el esquema de ids consistente con `cargador`/`completar`.

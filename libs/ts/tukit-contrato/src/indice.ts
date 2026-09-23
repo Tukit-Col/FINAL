@@ -7,6 +7,18 @@
 
 export * from "./contrato";
 export * from "./catalogo";
+export * from "./comercio";
+export * from "./operacion";
 export * from "./dinero";
 export * from "./linea";
-export { ErrorTukit, type ArchivoLista, type OrigenDatos } from "./origen";
+export {
+  ErrorTukit,
+  destinoDe,
+  type ArchivoLista,
+  type OrigenDatos,
+  type Rol,
+  type AmbitoTipo,
+  type RolAsignado,
+  type Sesion,
+  type Credenciales,
+} from "./origen";

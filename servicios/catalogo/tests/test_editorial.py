@@ -32,7 +32,8 @@ def _propuesta(sesion, edicion, **kw) -> PropuestaVersion:
         grado=kw.pop("grado", "5"),
         anio_lectivo=kw.pop("anio_lectivo", 2026),
         vence_en=kw.pop("vence_en", en_dias(3)),
-        **kw)
+        **kw,
+    )
     sesion.add(p)
     sesion.flush()
     return p
@@ -42,9 +43,7 @@ class TestVentanaDeDecision:
     """Dolor 1: la ventana de tres dias entre que la editorial publica y que
     el colegio tiene que decidir."""
 
-    def test_el_colegio_fija_su_ventana_una_vez_en_vez_de_decidir_bajo_presion(
-        self, sesion
-    ):
+    def test_el_colegio_fija_su_ventana_una_vez_en_vez_de_decidir_bajo_presion(self, sesion):
         config = ConfiguracionColegioEditorial(colegio_id=COLEGIO)
         sesion.add(config)
         sesion.flush()
@@ -81,9 +80,7 @@ class TestVentanaDeDecision:
         # pendientes.
         urgentes = (
             sesion.query(PropuestaVersion)
-            .filter(
-                PropuestaVersion.estado == "pendiente",
-                PropuestaVersion.vence_en <= en_dias(2))
+            .filter(PropuestaVersion.estado == "pendiente", PropuestaVersion.vence_en <= en_dias(2))
             .all()
         )
         assert len(urgentes) == 1
@@ -104,7 +101,8 @@ class TestCostoDeEvaluar:
             nueva,
             edicion_actual_id=actual.id,
             justificacion="Actualiza el capitulo de estadistica",
-            delta_precio_centavos=12_000)
+            delta_precio_centavos=12_000,
+        )
 
         assert p.edicion_actual_id == actual.id
         assert p.delta_precio_centavos == 12_000
@@ -132,9 +130,7 @@ class TestCostoDeEvaluar:
         with pytest.raises(IntegrityError):
             sesion.flush()
 
-    def test_una_propuesta_vencida_es_el_unico_desenlace_sin_persona_detras(
-        self, sesion
-    ):
+    def test_una_propuesta_vencida_es_el_unico_desenlace_sin_persona_detras(self, sesion):
         nueva = crear_edicion(sesion, "9789580000015")
         p = _propuesta(sesion, nueva)
         p.estado = "vencida"
@@ -169,9 +165,7 @@ class TestBachilleratoInternacional:
 
 
 class TestEdicionVigente:
-    def test_un_colegio_tiene_una_sola_edicion_vigente_por_area_grado_y_anio(
-        self, sesion
-    ):
+    def test_un_colegio_tiene_una_sola_edicion_vigente_por_area_grado_y_anio(self, sesion):
         a = crear_edicion(sesion, "9789580000050")
         b = crear_edicion(sesion, "9789580000051")
         for edicion in (a, b):
@@ -181,36 +175,29 @@ class TestEdicionVigente:
                     edicion_id=edicion.id,
                     area="matematicas",
                     grado="5",
-                    anio_lectivo=2026)
+                    anio_lectivo=2026,
+                )
             )
         with pytest.raises(IntegrityError):
             sesion.flush()
 
-    def test_cerrar_la_vigencia_anterior_permite_la_nueva_y_conserva_el_historial(
-        self, sesion
-    ):
+    def test_cerrar_la_vigencia_anterior_permite_la_nueva_y_conserva_el_historial(self, sesion):
         """Saber que edicion se uso en 2025 es lo que permite explicarle a un
         acudiente por que el libro de su hijo mayor no le sirve al menor."""
         vieja = crear_edicion(sesion, "9789580000060", anio_edicion=2023)
         nueva = crear_edicion(sesion, "9789580000061", anio_edicion=2026)
 
         v1 = VersionVigente(
-            colegio_id=COLEGIO,
-            edicion_id=vieja.id,
-            area="matematicas",
-            grado="5",
-            anio_lectivo=2026)
+            colegio_id=COLEGIO, edicion_id=vieja.id, area="matematicas", grado="5", anio_lectivo=2026
+        )
         sesion.add(v1)
         sesion.flush()
 
         v1.vigente_hasta = ahora()
         sesion.add(
             VersionVigente(
-                colegio_id=COLEGIO,
-                edicion_id=nueva.id,
-                area="matematicas",
-                grado="5",
-                anio_lectivo=2026)
+                colegio_id=COLEGIO, edicion_id=nueva.id, area="matematicas", grado="5", anio_lectivo=2026
+            )
         )
         sesion.flush()
 
@@ -223,11 +210,8 @@ class TestEdicionVigente:
         edicion = crear_edicion(sesion, "9789580000070")
         sesion.add(
             VersionVigente(
-                colegio_id=COLEGIO,
-                edicion_id=edicion.id,
-                area="matematicas",
-                grado="5",
-                anio_lectivo=2026)
+                colegio_id=COLEGIO, edicion_id=edicion.id, area="matematicas", grado="5", anio_lectivo=2026
+            )
         )
         sesion.flush()
         sesion.delete(edicion)

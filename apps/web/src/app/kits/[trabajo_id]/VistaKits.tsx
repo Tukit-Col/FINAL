@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Star, Lock, PiggyBank, Sparkles, Gem } from "lucide-react";
 import {
   ORDEN_SECCIONES,
   TITULO_CLASE,
@@ -14,6 +15,13 @@ import {
 } from "@tukit/contrato";
 import LineaDeKit from "./LineaDeKit";
 import styles from "./Kits.module.css";
+
+// Un icono por perfil, para que los tres kits se distingan de un vistazo.
+const ICONO_PERFIL: Record<PerfilKit, typeof PiggyBank> = {
+  Ahorrador: PiggyBank,
+  Fan: Sparkles,
+  Premium: Gem,
+};
 
 // Que promete cada perfil, en una frase. Los tres tienen el MISMO alcance:
 // lo que cambia es el punto del frente de Pareto, no cuanto te resuelven.
@@ -69,6 +77,7 @@ export default function VistaKits({ trabajo }: { trabajo: Trabajo }) {
         {trabajo.kits.map((otro) => {
           const esRecomendado = otro.perfil === recomendado?.perfil;
           const esActivo = otro.perfil === activo;
+          const IconoKit = ICONO_PERFIL[otro.perfil];
           return (
             <button
               key={otro.perfil}
@@ -79,8 +88,18 @@ export default function VistaKits({ trabajo }: { trabajo: Trabajo }) {
               }`}
               onClick={() => setActivo(otro.perfil)}
             >
-              {esRecomendado && <span className={styles.chapaRecomendado}>Te recomendamos este</span>}
-              <span className={styles.nombreKit}>{otro.perfil}</span>
+              {esRecomendado && (
+                <span className={styles.chapaRecomendado}>
+                  <Star size={12} aria-hidden="true" fill="currentColor" strokeWidth={0} />
+                  Te recomendamos este
+                </span>
+              )}
+              <span className={styles.nombreKit}>
+                <span className={styles.iconoKit} aria-hidden="true">
+                  <IconoKit size={18} strokeWidth={2.4} />
+                </span>
+                {otro.perfil}
+              </span>
               <span className={`${styles.totalKit} cifra`}>{formatearPesos(otro.total)}</span>
               <span className={styles.promesa}>{PROMESA[otro.perfil]}</span>
               <span className={styles.objetivos}>
@@ -133,6 +152,7 @@ export default function VistaKits({ trabajo }: { trabajo: Trabajo }) {
         {/* El pago vive en `comercio` y todavia no existe. Un boton que no
             hace nada es peor que un boton apagado que dice por que. */}
         <button type="button" className={styles.pagar} disabled>
+          <Lock size={17} aria-hidden="true" strokeWidth={2.4} />
           Ir a pagar
         </button>
       </footer>

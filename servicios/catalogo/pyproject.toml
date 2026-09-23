@@ -3,7 +3,25 @@ name = "tukit-catalogo"
 version = "0.1.0"
 description = "Servicio de Catalogo: conceptos, productos canonicos, ofertas, listas oficiales y ciclo editorial"
 requires-python = ">=3.12"
-dependencies = ["sqlalchemy>=2.0", "pydantic>=2.0", "pgvector>=0.3", "tukit-comun"]
+dependencies = [
+    "sqlalchemy>=2.0",
+    "pydantic>=2.0",
+    "pgvector>=0.3",
+    "tukit-comun",
+    # La superficie de lectura (`tukit_catalogo.api`). Va en las dependencias
+    # normales y no en un extra porque desde que existe un frontend es el modo
+    # principal de correr este servicio: sin la API, el catalogo vuelve a ser
+    # una base que solo se puede mirar con psql.
+    #
+    # Ojo con la incoherencia aparente: `admin.py` usa `http.server` de la
+    # biblioteca estandar y lo justifica en su docstring. Sigue siendo la
+    # decision correcta ahi. Una pantalla de curaduria que corre una persona en
+    # su maquina no tiene clientes ni contrato; esto lo consume otro equipo
+    # contra un contrato congelado, y necesita validacion de entrada, esquema
+    # OpenAPI y CORS, que es justo lo que `http.server` no da.
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+]
 
 [tool.uv.sources]
 tukit-comun = { workspace = true }

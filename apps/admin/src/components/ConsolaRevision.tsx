@@ -7,6 +7,8 @@
 // §4 se los oculta al acudiente hasta que alguien los apruebe.
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { CheckCheck } from "lucide-react";
 import type { ClaseLinea, PerfilKit, TrabajoAdmin } from "@tukit/contrato";
 import {
   agruparPorClase,
@@ -14,6 +16,7 @@ import {
   ORDEN_SECCIONES,
   TITULO_CLASE,
 } from "@tukit/contrato";
+import { FalloApi, validarLinea } from "@/lib/api-navegador";
 import { esPendiente, porcentaje } from "@/lib/formato";
 import LineaRevision from "./LineaRevision";
 import styles from "./Revision.module.css";
@@ -38,8 +41,20 @@ const QUE_HACER: Record<ClaseLinea, string> = {
   comprable: "Ya resueltas y dentro del total. Van plegadas; se abren si hay que cambiar algo.",
 };
 
+// Solo se validan en lote las líneas donde el sistema ya eligió un producto:
+// la acción masiva "confirma el elegido" (validar sin sku), que es exactamente
+// lo que hace el botón individual "Validar el elegido". No se marca sin
+// coincidencia ni se da de alta en lote: eso pide un motivo por línea y no se
+// puede hacer a ciegas.
+const CLASE_MASIVA: ClaseLinea = "pendiente_revision";
+
 export default function ConsolaRevision({ trabajo }: Props) {
+  const router = useRouter();
   const [perfil, setPerfil] = useState<PerfilKit>(trabajo.recomendado?.perfil ?? "Ahorrador");
+  const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
+  const [enLote, setEnLote] = useState(false);
+  const [avisoLote, setAvisoLote] = useState<string | null>(null);
+  const [errorLote, setErrorLote] = useState<string | null>(null);
   const kit = trabajo.kits.find((k) => k.perfil === perfil) ?? trabajo.kits[0];
 
   if (!kit) {
@@ -58,6 +73,64 @@ export default function ConsolaRevision({ trabajo }: Props) {
     clase,
     lineas: grupos.get(clase) ?? [],
   })).filter((seccion) => seccion.lineas.length > 0);
+
+  // Las líneas que se pueden validar en lote: las de la sección masiva que
+  // tienen un producto ya elegido por el sistema. Confirmar el elegido no pide
+  // decidir nada, así que es lo único seguro de hacer a varias a la vez.
+  const lineasMasivas = (grupos.get(CLASE_MASIVA) ?? []).filter(
+    (l) => l.producto_elegido !== null && l.producto_elegido !== undefined,
+  );
+  const idsMasivos = new Set(lineasMasivas.map((l) => l.item_id));
+  const seleccionValida = [...seleccion].filter((id) => idsMasivos.has(id));
+
+  function alternarSeleccion(itemId: string): void {
+    setSeleccion((previa) => {
+      const siguiente = new Set(previa);
+      if (siguiente.has(itemId)) siguiente.delete(itemId);
+      else siguiente.add(itemId);
+      return siguiente;
+    });
+  }
+
+  function seleccionarTodas(): void {
+    setSeleccion(new Set(idsMasivos));
+  }
+
+  function limpiarSeleccion(): void {
+    setSeleccion(new Set());
+  }
+
+  async function validarSeleccionadas(): Promise<void> {
+    if (seleccionValida.length === 0) return;
+    setEnLote(true);
+    setAvisoLote(null);
+    setErrorLote(null);
+    let hechas = 0;
+    try {
+      // En secuencia y no en paralelo a propósito: el backend recalcula el
+      // estado del trabajo en cada validación, y una ráfaga de validaciones
+      // simultáneas sobre el mismo trabajo pelearía por ese recálculo. Además,
+      // si una falla, se sabe exactamente cuántas se alcanzaron a guardar.
+      for (const itemId of seleccionValida) {
+        // Sin sku: "confirmo el que el sistema eligió", igual que el botón
+        // individual "Validar el elegido".
+        await validarLinea(trabajo.trabajo_id, itemId, {});
+        hechas += 1;
+      }
+      setAvisoLote(`${hechas} línea(s) validadas con el producto que eligió el sistema.`);
+      limpiarSeleccion();
+      router.refresh();
+    } catch (causa) {
+      setErrorLote(
+        `Se validaron ${hechas} de ${seleccionValida.length}. ${
+          causa instanceof FalloApi ? causa.message : "No pudimos validar el resto."
+        }`,
+      );
+      router.refresh();
+    } finally {
+      setEnLote(false);
+    }
+  }
 
   return (
     <section className={styles.consola}>
@@ -120,30 +193,75 @@ export default function ConsolaRevision({ trabajo }: Props) {
         </details>
       ) : null}
 
-      {secciones.map(({ clase, lineas }) => (
-        <section
-          key={clase}
-          className={`${styles.seccion} ${esPendiente(clase) ? styles.seccionPendiente : ""}`}
-        >
-          <header className={styles.seccionCabecera}>
-            <h3>
-              {TITULO_CLASE[clase]}
-              <span className={styles.conteo}>{lineas.length}</span>
-            </h3>
-            <p>{QUE_HACER[clase]}</p>
-          </header>
-          <div className={styles.lineas}>
-            {lineas.map((linea) => (
-              <LineaRevision
-                key={linea.item_id}
-                trabajoId={trabajo.trabajo_id}
-                linea={linea}
-                clase={clase}
-              />
-            ))}
-          </div>
-        </section>
-      ))}
+      {secciones.map(({ clase, lineas }) => {
+        // La sección masiva ofrece validar en lote las líneas con elegido.
+        const esMasiva = clase === CLASE_MASIVA && lineasMasivas.length > 0;
+        return (
+          <section
+            key={clase}
+            className={`${styles.seccion} ${esPendiente(clase) ? styles.seccionPendiente : ""}`}
+          >
+            <header className={styles.seccionCabecera}>
+              <h3>
+                {TITULO_CLASE[clase]}
+                <span className={styles.conteo}>{lineas.length}</span>
+              </h3>
+              <p>{QUE_HACER[clase]}</p>
+            </header>
+
+            {esMasiva ? (
+              <div className={styles.barraLote}>
+                <span className={styles.loteConteo}>
+                  {seleccionValida.length > 0
+                    ? `${seleccionValida.length} seleccionada(s)`
+                    : "Selecciona líneas para validarlas en lote"}
+                </span>
+                <div className={styles.loteBotones}>
+                  <button
+                    type="button"
+                    className={styles.plano}
+                    onClick={seleccionValida.length === idsMasivos.size ? limpiarSeleccion : seleccionarTodas}
+                  >
+                    {seleccionValida.length === idsMasivos.size
+                      ? "Quitar todas"
+                      : `Seleccionar las ${idsMasivos.size} con elegido`}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.principal}
+                    disabled={enLote || seleccionValida.length === 0}
+                    onClick={() => void validarSeleccionadas()}
+                  >
+                    <CheckCheck size={15} strokeWidth={2.6} aria-hidden="true" />
+                    {enLote
+                      ? "Validando…"
+                      : `Validar ${seleccionValida.length || ""} el elegido`.trim()}
+                  </button>
+                </div>
+                {avisoLote ? <p className={styles.exito}>{avisoLote}</p> : null}
+                {errorLote ? <p className={styles.error}>{errorLote}</p> : null}
+              </div>
+            ) : null}
+
+            <div className={styles.lineas}>
+              {lineas.map((linea) => {
+                const seleccionable = esMasiva && idsMasivos.has(linea.item_id);
+                return (
+                  <LineaRevision
+                    key={linea.item_id}
+                    trabajoId={trabajo.trabajo_id}
+                    linea={linea}
+                    clase={clase}
+                    seleccionable={seleccionable}
+                    seleccionada={seleccionable && seleccion.has(linea.item_id)}
+                    onToggleSeleccion={alternarSeleccion}
+                  />
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
     </section>
   );
 }

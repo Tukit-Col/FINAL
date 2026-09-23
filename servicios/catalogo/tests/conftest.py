@@ -45,7 +45,8 @@ def crear_concepto(sesion: Session, codigo: str = "cuaderno", **kw) -> Concepto:
         codigo=codigo,
         nombre_canonico=kw.pop("nombre", codigo),
         categoria=kw.pop("categoria", "escritura"),
-        **kw)
+        **kw,
+    )
     sesion.add(c)
     sesion.flush()
     return c
@@ -61,7 +62,8 @@ def crear_producto(
         nombre=kw.pop("nombre", f"{concepto.nombre_canonico} {nivel.value}"),
         nivel=nivel.value,
         curado_por=kw.pop("curado_por", CURADOR),
-        **kw)
+        **kw,
+    )
     sesion.add(p)
     sesion.flush()
     return p
@@ -80,14 +82,16 @@ def crear_oferta(
     tienda: Tienda,
     metodo: str = "ean",
     confianza: float = 1.000,
-    **kw) -> OfertaTienda:
+    **kw,
+) -> OfertaTienda:
     o = OfertaTienda(
         producto_canonico_id=producto.id,
         tienda_id=tienda.id,
         referencia_externa=kw.pop("referencia", uuid.uuid4().hex[:10]),
         metodo_vinculacion=metodo,
         confianza_vinculacion=confianza,
-        **kw)
+        **kw,
+    )
     sesion.add(o)
     sesion.flush()
     return o
@@ -101,7 +105,8 @@ def crear_edicion(sesion: Session, isbn: str, programa: str = "nacional", **kw) 
         anio_edicion=kw.pop("anio_edicion", 2025),
         area=kw.pop("area", "matematicas"),
         programa=programa,
-        **kw)
+        **kw,
+    )
     sesion.add(e)
     sesion.flush()
     return e

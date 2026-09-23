@@ -237,9 +237,7 @@ def semilla_listas() -> dict[str, Any]:
             # El CONTRATO_API no tiene ese valor, y el caso sin restriccion
             # declarada es justo `mercado_abierto`.
             "modo_adquisicion": (
-                "mercado_abierto"
-                if f["modo_adquisicion"] in ("", "desconocido")
-                else f["modo_adquisicion"]
+                "mercado_abierto" if f["modo_adquisicion"] in ("", "desconocido") else f["modo_adquisicion"]
             ),
         }
         if f["libro_titulo"]:

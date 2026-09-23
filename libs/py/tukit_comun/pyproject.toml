@@ -16,6 +16,13 @@ dependencies = [
 # conecta a una base real lo instala con `pip install tukit-comun[postgres]`.
 postgres = ["asyncpg>=0.29"]
 
+# Alembic, por la misma razon. `tukit_comun.migraciones` es el arranque
+# compartido del entorno de migraciones, y solo lo importa el `env.py` de un
+# servicio: nada del camino normal de la aplicacion pasa por ahi. Quien genera
+# o aplica migraciones instala `tukit-comun[migraciones,postgres]`; los dos
+# extras van juntos porque una migracion sin driver no se puede aplicar.
+migraciones = ["alembic>=1.13"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

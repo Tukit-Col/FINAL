@@ -79,18 +79,19 @@ class EdicionLibro(Base):
     )
 
     producto_canonico_id: Mapped[uuid.UUID | None] = mapped_column(
-        Uuid(as_uuid=True),
-        ForeignKey("producto_canonico.id", ondelete="SET NULL"),
-        nullable=True)
+        Uuid(as_uuid=True), ForeignKey("producto_canonico.id", ondelete="SET NULL"), nullable=True
+    )
 
     __table_args__ = (
         CheckConstraint(
             "programa IN ('nacional', 'bachillerato_internacional', 'cambridge', 'otro')",
-            name="edicion_programa_valido"),
+            name="edicion_programa_valido",
+        ),
         CheckConstraint("anio_edicion >= 1980", name="edicion_anio_plausible"),
         CheckConstraint(
             "reemplazada_por_id IS NULL OR reemplazada_por_id <> id",
-            name="edicion_no_se_reemplaza_a_si_misma"),
+            name="edicion_no_se_reemplaza_a_si_misma",
+        ),
         Index("ix_edicion_area_programa", "area", "programa"),
     )
 
@@ -120,13 +121,9 @@ class ConfiguracionColegioEditorial(Base):
     # signifique "conservar la edicion vigente" y no "aceptar la nueva" es una
     # decision de negocio y no un detalle: el colegio que no alcanzo a
     # revisar no queda comprometido con un cambio que no evaluo.
-    politica_silencio: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="conservar_vigente"
-    )
+    politica_silencio: Mapped[str] = mapped_column(String(32), nullable=False, default="conservar_vigente")
     exige_aprobacion_humana: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    programa_predeterminado: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="nacional"
-    )
+    programa_predeterminado: Mapped[str] = mapped_column(String(32), nullable=False, default="nacional")
     actualizado_en: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
@@ -135,7 +132,8 @@ class ConfiguracionColegioEditorial(Base):
         CheckConstraint("dias_ventana_decision > 0", name="config_ventana_positiva"),
         CheckConstraint(
             "politica_silencio IN ('conservar_vigente', 'aceptar_propuesta', 'escalar')",
-            name="config_politica_silencio_valida"),
+            name="config_politica_silencio_valida",
+        ),
     )
 
 
@@ -167,8 +165,8 @@ class VersionVigente(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "vigente_hasta IS NULL OR vigente_hasta > vigente_desde",
-            name="version_vigencia_coherente"),
+            "vigente_hasta IS NULL OR vigente_hasta > vigente_desde", name="version_vigencia_coherente"
+        ),
         Index(
             "uq_version_vigente_actual",
             "colegio_id",
@@ -177,7 +175,8 @@ class VersionVigente(Base):
             "anio_lectivo",
             unique=True,
             postgresql_where=text("vigente_hasta IS NULL"),
-            sqlite_where=text("vigente_hasta IS NULL")),
+            sqlite_where=text("vigente_hasta IS NULL"),
+        ),
     )
 
 
@@ -220,28 +219,31 @@ class PropuestaVersion(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "estado IN ('pendiente', 'aceptada', 'rechazada', 'vencida')",
-            name="propuesta_estado_valido"),
+            "estado IN ('pendiente', 'aceptada', 'rechazada', 'vencida')", name="propuesta_estado_valido"
+        ),
         CheckConstraint("vence_en > recibida_en", name="propuesta_ventana_coherente"),
         # Una propuesta resuelta necesita saber quien la resolvio, salvo que
         # se haya vencido, que es el unico desenlace sin persona detras.
         CheckConstraint(
-            "(estado IN ('pendiente', 'vencida')) "
-            "OR (resuelta_en IS NOT NULL AND resuelta_por IS NOT NULL)",
-            name="propuesta_resuelta_tiene_responsable"),
+            "(estado IN ('pendiente', 'vencida')) OR (resuelta_en IS NOT NULL AND resuelta_por IS NOT NULL)",
+            name="propuesta_resuelta_tiene_responsable",
+        ),
         CheckConstraint(
             "edicion_actual_id IS NULL OR edicion_actual_id <> edicion_propuesta_id",
-            name="propuesta_cambia_de_edicion"),
+            name="propuesta_cambia_de_edicion",
+        ),
         Index(
             "ix_propuesta_por_vencer",
             "vence_en",
             postgresql_where=text("estado = 'pendiente'"),
-            sqlite_where=text("estado = 'pendiente'")),
+            sqlite_where=text("estado = 'pendiente'"),
+        ),
         UniqueConstraint(
             "colegio_id",
             "area",
             "grado",
             "anio_lectivo",
             "edicion_propuesta_id",
-            name="uq_propuesta_sin_duplicar"),
+            name="uq_propuesta_sin_duplicar",
+        ),
     )

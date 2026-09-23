@@ -14,6 +14,47 @@ make fronteras    # verifica las fronteras de arquitectura
 make verificar    # todo lo que corre la integración continua
 ```
 
+## Levantar el backend completo
+
+```bash
+make preparar     # entorno y dependencias
+make bd-arriba    # Postgres con las 5 bases   (con Docker)
+make bd-crear     # las 5 bases + extensiones  (sin Docker, Postgres 16 local)
+make backend      # migra, siembra y levanta los cuatro procesos HTTP
+make humo         # golpea la API y falla si algún endpoint viene vacío
+```
+
+`make backend` encadena `bd-migrar`, `bd-sembrar` y `arriba`, y las tres son idempotentes:
+volver a correrlo sobre una base ya sembrada no duplica nada.
+
+`bd-crear` existe porque el compose crea las bases con su script de init y un Postgres
+instalado en la máquina nunca pasa por ahí, así que el arranque desde cero se quedaba a
+medias en el primer paso. Con Docker no hace falta.
+
+El frontend apunta a **`http://127.0.0.1:8010`** y no necesita saber nada más:
+
+```
+TUKIT_API_URL=http://127.0.0.1:8010
+```
+
+| Proceso | Puerto | Qué atiende |
+|---|---|---|
+| **gateway** | **8010** | La única URL que el frontend conoce. Rutea por prefijo declarado |
+| identidad | 8011 | `/v1/colegios`, `/v1/grados`, `/v1/contactos` |
+| catalogo | 8012 | `/v1/catalogo/*`, `/v1/listas*` |
+| inteligencia | 8013 | `/v1/trabajos*`, `/v1/admin/*` |
+
+`make estado` pregunta a la puerta cuáles de los tres responden; `make abajo` los detiene.
+Cada servicio publica su OpenAPI en `/docs`. La fuente de verdad, de todas formas, es
+[el contrato](arquitectura/CONTRATO_API.md), que desde la versión 1.1 documenta la
+superficie de lectura completa con ejemplos de respuestas reales.
+
+`make humo` es la función de aptitud de la capa HTTP. No comprueba que responda `200`: un
+endpoint que devuelve `{"total": 0}` responde `200` perfectamente, y una base migrada y sin
+sembrar se ve igual de sana que una sembrada hasta que alguien abre la pantalla. Cada
+comprobación exige contenido, y la última recorre el ciclo entero: crear un trabajo,
+esperarlo, aprobarlo y verificar que salgan tres kits con uno recomendado.
+
 ---
 
 ## Cómo está organizado, y por qué así
@@ -108,11 +149,17 @@ reestructurar.
 
 ## Estado
 
-Andamiaje con base de datos viva. Existen el manifiesto de las 68 tablas, las funciones de
+Andamiaje con base de datos viva. Existen el manifiesto de las 69 tablas, las funciones de
 aptitud con sus pruebas, el ejecutor de tareas y la integración continua con ejecución
-selectiva por ruta. **Dos de los siete servicios están portados** (identidad y catálogo:
-modelos SQLAlchemy y pruebas de dominio); los otros cinco se llenan portando desde los
-repositorios anteriores, en el orden del [plan](../Arquitectura/PLAN_TUKIT_V2.md).
+selectiva por ruta. **Dos de los siete servicios están portados** (identidad con 16 tablas y
+catálogo con 18: modelos SQLAlchemy y pruebas de dominio); los otros cinco se llenan
+portando desde los repositorios anteriores, en el orden del
+[plan](../Arquitectura/PLAN_TUKIT_V2.md).
+
+La otra mitad de la superficie compartida es el [contrato de la API](arquitectura/CONTRATO_API.md).
+El manifiesto fija las fronteras de *datos*; el contrato fija las de *conversación*. Son los
+dos únicos archivos que varios frentes tocan a la vez, así que se cierran antes de repartir
+trabajo.
 
 ### La base de datos, de modelo a motor
 
@@ -123,24 +170,94 @@ en el código de un servicio: cada uno se lo pide a la librería pasando su nomb
 librería lo deriva o lo lee del entorno, que es lo que mantiene verde la regla 3.
 
 ```bash
-make bd-arriba     # Postgres con las 5 bases + pgvector
-make bd-esquema    # materializa el esquema de identidad y catalogo en su base
+make bd-arriba     # Postgres con las 5 bases + pgvector y pg_trgm
+make bd-migrar     # lleva cada base a la ultima revision de SU servicio, + indices
+make bd-deriva     # falla si el esquema migrado y los modelos no dicen lo mismo
+make bd-verificar  # comprueba contra el motor que extensiones e indices existan
 make bd-abajo      # detiene, conservando datos   (bd-limpiar los borra)
+
+make bd-revision m='agrega tal cosa' s=catalogo   # genera una revision nueva
+make bd-esquema    # create_all, atajo de desarrollo: ver mas abajo
 ```
 
-`bd-esquema` usa `create_all` (provisión), no migraciones incrementales. Es lo mismo que
-las pruebas ya validan contra SQLite, ahora contra Postgres real. El versionado del esquema
-con Alembic es el siguiente paso (ver deuda).
+Las metas de base de datos **no exigen Docker**. Si el contenedor de `infra/` está
+levantado lo usan, porque es el entorno que reproduce a producción; si no, se caen a un
+Postgres instalado en la máquina. Cada meta imprime cuál de los dos usó. La distinción no
+es cosmética: el SQL de índices se escribió a ciegas durante días porque la única vía era
+un Docker que no arrancaba, habiendo al lado un Postgres 16 que servía igual.
+
+`bd-verificar` comprueba las extensiones en las cinco bases y los dos índices por nombre,
+porque un índice que no se creó no da error en ninguna consulta: solo la vuelve un
+recorrido secuencial, en silencio.
+
+#### Migraciones: una historia por servicio
+
+Cada servicio tiene su `alembic.ini` y su carpeta `migraciones/`, porque cada uno tiene su
+propia base y se despliega solo; una historia compartida obligaría a desplegarlos juntos.
+Lo que se comparte es el arranque, en `tukit_comun.migraciones`, para que el `env.py` de
+los cinco no sea el mismo archivo copiado cinco veces.
+
+`bd-esquema` (`create_all`) sigue existiendo como atajo para levantar un entorno de cero en
+un comando, pero **la fuente de verdad del esquema son las migraciones**. Los dos caminos
+no son equivalentes, y ahí está lo que hay que saber: `create_all` resuelve solo los ciclos
+de llaves foráneas, creando las tablas primero y las llaves después con un `ALTER`. Alembic
+no. Por eso `make bd-deriva` no es opcional.
+
+Esa meta compara el esquema que dejan las migraciones contra el que declaran los modelos, y
+es la única forma de ver una clase de fallo que no aparece de ninguna otra: el modelo
+declara una restricción, la migración no la crea, y la suite sigue verde. Las dos primeras
+que encontró, el día que se escribió:
+
+- `grupo_variante` y `producto_canonico` se apuntan entre sí. La migración producía la tabla
+  **sin esa llave foránea**: un hueco de integridad referencial, en silencio. Las llaves
+  marcadas `use_alter` las omite el autogenerador y hay que agregar el `op.create_foreign_key`
+  a mano.
+- `concepto_ruta_categoria` declaraba una restricción única sobre las mismas tres columnas
+  de su llave primaria. Postgres las funde al crear la tabla y la superviviente se queda con
+  el nombre de la otra, así que el esquema real dejaba de parecerse al declarado.
+
+Las dos quedaron cubiertas además por pruebas que no necesitan motor, en
+`TestElEsquemaSePuedeMigrar`: una revisa que exista un orden válido de creación, la otra que
+ninguna restricción única repita una llave primaria.
+
+Encadena `bd-indices` al final porque `create_all` no puede generar los índices de la
+búsqueda híbrida: HNSW sobre el embedding y GIN de trigramas sobre el nombre son sintaxis
+exclusiva de Postgres, y declararlos en el modelo rompería el mismo modelo contra SQLite,
+que es donde corren las pruebas de dominio. Viven en `infra/postgres/indices/`, un archivo
+por servicio dueño de su base.
+
+Las extensiones se habilitan en dos sitios a propósito: el script de init las crea en
+volúmenes nuevos, y `tukit_comun.bd` las vuelve a pedir con `IF NOT EXISTS` antes de crear
+tablas. El init corre **una sola vez**, cuando el volumen está vacío, así que quien levantó
+el motor antes de que se agregara `pg_trgm` no lo tendría nunca, y el síntoma no aparece al
+arrancar sino mucho después, como un operador inexistente en una consulta que debería
+funcionar.
 
 ### Deuda conocida, anotada para que no se pierda
 
-- **Migraciones (Alembic).** Hoy el esquema se materializa con `create_all`, que crea lo
-  que falta pero no versiona cambios ni migra datos. Sirve para arranque de desarrollo y
-  primera carga; producción necesita migraciones. Es candidato a ADR.
-- **No hay dirección de entrega** en ninguna parte del modelo, en un negocio que entrega a
-  domicilio. Falta también en `ESQUEMA_OBJETIVO.md`, así que no está en el manifiesto.
-  Hay que modelarla y clasificarla como `personal_sensible`.
+- **Las migraciones cubren tres de los cinco servicios.** Identidad, Catálogo e
+  Inteligencia tienen su revisión aplicada y sin deriva. Comercio y Operación todavía no
+  tienen modelos; se agregan a `SERVICIOS_CON_MIGRACIONES` en el Makefile el día que los
+  tengan.
+- **El optimizador es una heurística, no NSGA-II.** Los tres kits salen, son comparables y
+  usan el mismo vocabulario de objetivos que usaría el frente de Pareto, pero no son un
+  frente. Cambiarlo es reemplazar `optimizador.elegir_por_perfil` y nada más; lo que ya es
+  definitivo (la aritmética de unidades, que lo informativo no se cobre, la regla de
+  recomendación) está probado aparte para que sobreviva al reemplazo.
+- **El pipeline corre como tarea del propio proceso.** Un trabajo en vuelo cuando el
+  servicio se reinicia queda en `procesando` hasta que alguien lo reencole con
+  `POST /v1/trabajos/{id}/reintentar`. El estado sí está en la base, que es lo que hace
+  posible el rescate; lo que falta es el trabajador que lo haga solo.
+- **La bandeja de salida de Inteligencia no tiene repartidor.** Al publicar un trabajo se
+  escribe `kits_publicados` en la misma transacción y nadie lo recoge, así que el aviso al
+  acudiente no sale. Es la misma deuda que el manifiesto documenta del sistema anterior.
+- **El bloque `api` del compose nunca se ha ejecutado.** La máquina donde se escribió no
+  tiene Docker. El camino verificado es `make arriba`, contra el árbol de trabajo.
+- **`make bd-deriva` no corre en integración continua.** Necesita un Postgres vivo y la
+  suite normal no lo tiene, así que hoy depende de que alguien la invoque. Mientras eso siga
+  así, una migración incompleta puede entrar sin que nada la pare.
 - El diccionario de datos cubre Identidad y Catálogo; faltan Inteligencia, Comercio y
   Operación. El manifiesto de esos tres se derivó de `ESQUEMA_OBJETIVO.md`.
-- Las 53 referencias cruzadas entre bases están contadas pero solo 8 declaradas. Se van
-  declarando a medida que cada tabla se implementa.
+- De las 53 referencias cruzadas entre bases hay 30 declaradas. Se van declarando a medida
+  que cada tabla se implementa, y la función de aptitud solo exige que lo implementado esté
+  declarado.

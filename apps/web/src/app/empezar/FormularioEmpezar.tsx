@@ -12,6 +12,7 @@ import {
   type SolicitudTrabajo,
 } from "@tukit/contrato";
 import { crearTrabajo, FalloApi } from "@/lib/api-navegador";
+import SelectorPersonaje from "./SelectorPersonaje";
 import styles from "./Empezar.module.css";
 
 type Entrada = "lista_oficial" | "archivo";
@@ -289,17 +290,11 @@ export default function FormularioEmpezar({ colegios }: { colegios: Colegio[] })
                 </div>
               )}
 
-              <label className={styles.campo}>
-                <span>
-                  Personajes que pide tu hijo <em>(opcional)</em>
-                </span>
-                <input
-                  type="text"
-                  value={hijo.personajes}
-                  placeholder="spiderman, frozen"
-                  onChange={(e) => cambiar(indice, { personajes: e.target.value })}
-                />
-              </label>
+              <SelectorPersonaje
+                etiquetaHijo={`Hijo ${indice + 1}`}
+                valor={hijo.personajes}
+                onChange={(personajes) => cambiar(indice, { personajes })}
+              />
             </fieldset>
           );
         })}

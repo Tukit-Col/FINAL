@@ -28,6 +28,13 @@ export function urlApi(): string {
   return process.env["TUKIT_API_URL"] ?? "http://localhost:8080";
 }
 
+/** Origen absoluto de la app interna (apps/admin). El salto entre apps es una
+ *  redireccion absoluta a otro origen (ADR 0008), configurada por entorno y
+ *  nunca hardcodeada en un componente. */
+export function urlAdmin(): string {
+  return process.env["TUKIT_ADMIN_URL"] ?? "http://localhost:3001";
+}
+
 let cache: OrigenDatos | null = null;
 
 export function origenDeDatos(): OrigenDatos {
@@ -46,5 +53,11 @@ export function descripcionOrigen(): { nombre: NombreOrigen; detalle: string } {
     : { nombre: "simulado", detalle: rutaDelAlmacen() };
 }
 
-export { ErrorTukit } from "./origen";
-export type { OrigenDatos } from "./origen";
+export { ErrorTukit, destinoDe } from "./origen";
+export type {
+  OrigenDatos,
+  Rol,
+  RolAsignado,
+  Sesion,
+  Credenciales,
+} from "./origen";
