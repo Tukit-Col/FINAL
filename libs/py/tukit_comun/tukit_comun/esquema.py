@@ -16,6 +16,17 @@ Provision, no migracion. Crea lo que falta; no versiona cambios incrementales
 ni migra datos. El versionado del esquema (Alembic) es un paso posterior,
 anotado como deuda en el README. Para el arranque de desarrollo y la primera
 carga, create_all es suficiente y es exactamente lo que las pruebas ya validan.
+
+Antes de las tablas habilita las extensiones de Postgres que falten (ver
+`MotorServicio.asegurar_extensiones`). Es la red que cubre a quien ya tenia el
+volumen de datos creado cuando la lista de extensiones cambio: el script de init
+de `infra/` no vuelve a correr para el, pero esto si.
+
+Lo que NO hace es crear los indices propios de Postgres (HNSW sobre el
+embedding, GIN de trigramas sobre el nombre): `create_all` solo sabe de los
+indices declarados en los modelos, y esos dos no pueden declararse ahi sin
+romper las pruebas que corren en SQLite. Viven en `infra/postgres/indices/` y
+los aplica `make bd-indices`, encadenado al final de `make bd-esquema`.
 """
 
 from __future__ import annotations

@@ -1,160 +1,197 @@
 import Link from "next/link";
-import { origenDeDatos } from "@tukit/contrato/servidor";
+import {
+  Sparkles,
+  Route,
+  PackageSearch,
+  BookMarked,
+  ShoppingBasket,
+  Cpu,
+  ShieldCheck,
+  Eye,
+} from "lucide-react";
+import Revelar from "@/components/Revelar";
+import UtilesFlotantes from "./UtilesFlotantes";
+import LineaDelTiempo from "./LineaDelTiempo";
 import styles from "./Inicio.module.css";
 
 export const dynamic = "force-dynamic";
 
-// El titular lo elige el DOLOR declarado en la encuesta, no el precio.
-// 37 % disponibilidad y agotados, 28 % libros y plan lector, 22 % no
-// encontrar todo en un solo lugar, 17 % precio. Por eso la pagina abre
-// diciendo que se va a decir la verdad sobre lo que hay y sobre que edicion
-// es cual, y el ahorro aparece al final y en voz baja: es el cuarto dolor de
-// cuatro, y liderar con descuentos seria contestar la pregunta que menos
-// gente hizo.
+// Marco de copy (Julian Shapiro): la portada abre con el DOLOR del acudiente,
+// no con el catálogo ni con el precio. Los útiles distintos, las tiendas y los
+// productos curados son cifras del backend que a un papá no le dicen nada: no
+// van en el héroe. Lo que sí va es la promesa —te lo resolvemos de verdad— y la
+// razón por la que es creíble —una persona revisa, y lo que no hay te lo
+// decimos—. El ahorro aparece tarde y en voz baja: en la encuesta fue el dolor
+// que MENOS gente nombró, y liderar con descuentos sería contestar la pregunta
+// que casi nadie hizo.
+
+// Los dolores de la encuesta, ya sin el porcentaje: el número era ruido para
+// quien llega a comprar. Cada tarjeta es un dolor real y, debajo, lo que
+// hacemos con él —la promesa se gana objeción por objeción, no de una—.
 const DOLORES = [
   {
-    porcentaje: "37 %",
+    Icono: PackageSearch,
     titulo: "Recorrer papelerías y que esté agotado",
     respuesta:
       "Si no lo tenemos, te lo decimos con esas palabras. Nunca te ofrecemos algo parecido haciéndolo pasar por lo que pediste.",
   },
   {
-    porcentaje: "28 %",
-    titulo: "Los libros y el plan lector",
+    Icono: BookMarked,
+    titulo: "Los libros y el plan lector nunca cuadran",
     respuesta:
       "Los textos se resuelven por edición, no por parecido. Y cuando el colegio los cierra a una editorial, te decimos cómo conseguirlos en vez de callarlo.",
   },
   {
-    porcentaje: "22 %",
+    Icono: ShoppingBasket,
     titulo: "No encontrar todo en un solo lugar",
     respuesta:
       "Un solo pedido para todos tus hijos, con lo repetido junto: dos borradores sueltos cuestan más que una caja de diez.",
   },
+];
+
+// Por qué es creíble: las tres cosas que hacemos distinto, cada una responde una
+// objeción que el acudiente ya trae puesta ("¿otra tienda que promete?"). La
+// primera es la propuesta de valor: la IA hace en minutos lo que a ti te toma
+// una tarde. La segunda dice que igual una persona lo revisa (la IA no manda
+// sola). La tercera es la promesa de decir la verdad sobre lo que no hay.
+const RAZONES = [
   {
-    porcentaje: "17 %",
-    titulo: "El precio",
-    respuesta:
-      "Tres kits con el mismo alcance y precios distintos. Te marcamos uno y te decimos por qué, pero los otros dos quedan a la vista.",
+    Icono: Cpu,
+    titulo: "Una IA arma el kit en minutos",
+    texto:
+      "Lee tu lista renglón por renglón y busca cada útil en las tiendas que sí lo tienen. Lo que a ti te cuesta una tarde de papelería, aquí toma minutos.",
+  },
+  {
+    Icono: ShieldCheck,
+    titulo: "Y una persona lo revisa",
+    texto:
+      "La IA propone, pero no manda sola. Antes de que veas tu kit, alguien del equipo revisa lo que quedó dudoso. Rápido no significa a la carrera.",
+  },
+  {
+    Icono: Eye,
+    titulo: "Te decimos lo que no tenemos",
+    texto:
+      "Un catálogo que solo cuenta lo que sí tiene es el que te hace perder la tarde. Nosotros publicamos también lo que todavía nos falta.",
   },
 ];
 
 export default async function Inicio() {
-  // Las cifras del heroe salen del catalogo de verdad, no de un texto fijo.
-  // Si el catalogo baja, la portada baja con el, que es lo que queremos: una
-  // portada que promete lo que el sistema no tiene es la forma mas cara de
-  // mentir.
-  const { resumen } = await origenDeDatos().catalogo();
-
   return (
     <div className={styles.pagina}>
       <section className={styles.heroe}>
-        <div className={styles.heroeTexto}>
-          <p className={styles.antetitulo}>Listas escolares, resueltas</p>
+        {/* Útiles en clay flotando alrededor del titular. Decorativos. */}
+        <UtilesFlotantes />
+
+        <Revelar className={styles.heroeTexto} modo="una">
+          <p className={styles.antetitulo}>
+            <Sparkles size={14} aria-hidden="true" strokeWidth={2.6} />
+            Listas escolares, resueltas
+          </p>
+          {/* Header con la propuesta de valor directa: el acento va bajo lo que
+              de verdad compras, que no son útiles sino la tarde de vuelta. */}
           <h1 className={styles.titular}>
-            Te decimos qué hay <em>de verdad</em> disponible, y qué libro es
-            exactamente cuál.
+            Menos filas,
+            <br />
+            más <em>tiempo en familia</em>.
           </h1>
+          {/* Subheader: qué es + por qué es posible (la IA), en dos frases. */}
           <p className={styles.bajada}>
-            Elige tu colegio y tu grado, o sube el archivo de la lista. Te armamos tres
-            kits con todo lo de tus hijos en un solo pedido. Lo que no tenemos te lo
-            decimos, no te lo cambiamos por otra cosa.
+            Nos dices de qué colegio y grado es la lista, o le tomas una foto, y una IA te
+            arma tres kits con todo lo de tus hijos en un solo pedido. Antes de que lo veas,
+            una persona lo revisa. Y lo que no tenemos te lo decimos: no te lo cambiamos por
+            otra cosa.
           </p>
 
           <div className={styles.acciones}>
             <Link href="/empezar" className={styles.botonPrimario}>
+              <Sparkles size={18} aria-hidden="true" strokeWidth={2.6} />
               Armar mi kit
             </Link>
-            <Link href="/catalogo" className={styles.botonSecundario}>
-              Ver qué hay en catálogo
+            <Link href="/#como-funciona" className={styles.botonSecundario}>
+              <Route size={18} aria-hidden="true" strokeWidth={2.4} />
+              Ver cómo funciona
             </Link>
           </div>
 
-          <dl className={styles.cifras}>
-            <div>
-              <dt>Productos curados</dt>
-              <dd className="cifra">{resumen.productos}</dd>
-            </div>
-            <div>
-              <dt>Útiles distintos</dt>
-              <dd className="cifra">{resumen.conceptos}</dd>
-            </div>
-            <div>
-              <dt>Tiendas comparadas</dt>
-              <dd className="cifra">{resumen.tiendas}</dd>
-            </div>
-            <div className={styles.cifraHonesta}>
-              <dt>Todavía no tenemos</dt>
-              <dd className="cifra">{resumen.conceptos_sin_producto}</dd>
-            </div>
-          </dl>
-          <p className={styles.notaCifras}>
-            Esa última cifra también la publicamos. Un catálogo que solo cuenta lo que
-            sí tiene es el que te hace perder la tarde en la papelería.
+          {/* Micro-prueba bajo los CTA: baja el esfuerzo percibido antes del clic. */}
+          <p className={styles.tranquilizador}>
+            Armar el kit no cuesta nada · Tú eliges entre tres · Sin crear cuenta para empezar
           </p>
-        </div>
+        </Revelar>
       </section>
 
       <section className={styles.dolores} aria-labelledby="titulo-dolores">
-        <h2 id="titulo-dolores" className={styles.tituloSeccion}>
-          Lo que nos dijeron 60 acudientes que más les duele
-        </h2>
-        <ul className={styles.rejillaDolores}>
-          {DOLORES.map((dolor) => (
-            <li key={dolor.titulo} className={styles.dolor}>
-              <span className={`${styles.porcentaje} cifra`}>{dolor.porcentaje}</span>
-              <h3>{dolor.titulo}</h3>
-              <p>{dolor.respuesta}</p>
+        <Revelar className={styles.encabezadoSeccion} modo="una">
+          <p className={styles.kicker}>Lo que nos dijeron 60 acudientes</p>
+          <h2 id="titulo-dolores" className={styles.tituloSeccion}>
+            Sabemos por qué la lista del colegio se vuelve una tarde perdida
+          </h2>
+          <p className={styles.subtituloSeccion}>
+            Preguntamos qué era lo que más pesaba. No inventamos el problema: lo oímos, y
+            armamos el servicio alrededor de él.
+          </p>
+        </Revelar>
+        <Revelar as="ul" className={styles.rejillaDolores} modo="scroll" cadaUno={0.08}>
+          {DOLORES.map(({ Icono, titulo, respuesta }) => (
+            <li key={titulo} className={styles.dolor}>
+              <span className={styles.dolorIcono} aria-hidden="true">
+                <Icono size={22} strokeWidth={2.2} />
+              </span>
+              <h3>{titulo}</h3>
+              <p>{respuesta}</p>
             </li>
           ))}
-        </ul>
+        </Revelar>
       </section>
 
-      <section className={styles.comoFunciona} aria-labelledby="titulo-como">
-        <h2 id="titulo-como" className={styles.tituloSeccion}>
-          Cómo funciona
-        </h2>
-        <ol className={styles.pasos}>
-          <li>
-            <span className={styles.numero}>1</span>
-            <div>
-              <h3>Nos dices de quién es la lista</h3>
-              <p>
-                Eliges colegio y grado, o subes el archivo. Es un pedido por hogar, no
-                por hijo: así podemos juntar lo que se repite entre hermanos.
-              </p>
-            </div>
-          </li>
-          <li>
-            <span className={styles.numero}>2</span>
-            <div>
-              <h3>Te vas a hacer otra cosa</h3>
-              <p>
-                Armar el kit toma minutos, no segundos, porque preferimos acertar a ir
-                rápido. Te avisamos al correo y al celular cuando esté.
-              </p>
-            </div>
-          </li>
-          <li>
-            <span className={styles.numero}>3</span>
-            <div>
-              <h3>Una persona lo revisa antes de que lo veas</h3>
-              <p>
-                Nadie de Tukit te manda un kit sin mirarlo. Lo que quedó dudoso lo
-                resuelve alguien, y solo entonces te llega.
-              </p>
-            </div>
-          </li>
-          <li>
-            <span className={styles.numero}>4</span>
-            <div>
-              <h3>Eliges entre tres</h3>
-              <p>
-                Ahorrador, Fan y Premium, con el mismo alcance. Te marcamos uno y te
-                explicamos por qué, pero decides tú.
-              </p>
-            </div>
-          </li>
-        </ol>
+      <section className={styles.razones} aria-labelledby="titulo-razones">
+        <Revelar className={styles.encabezadoSeccion} modo="una">
+          <p className={styles.kicker}>Por qué puedes confiar</p>
+          <h2 id="titulo-razones" className={styles.tituloSeccion}>
+            No es otra tienda que promete y desaparece
+          </h2>
+        </Revelar>
+        <Revelar as="ul" className={styles.rejillaRazones} modo="scroll" cadaUno={0.08}>
+          {RAZONES.map(({ Icono, titulo, texto }) => (
+            <li key={titulo} className={styles.razon}>
+              <span className={styles.razonIcono} aria-hidden="true">
+                <Icono size={22} strokeWidth={2.2} />
+              </span>
+              <h3>{titulo}</h3>
+              <p>{texto}</p>
+            </li>
+          ))}
+        </Revelar>
+      </section>
+
+      <section id="como-funciona" className={styles.comoFunciona} aria-labelledby="titulo-como">
+        <Revelar className={styles.encabezadoSeccion} modo="una">
+          <p className={styles.kicker}>De la lista a tu casa</p>
+          <h2 id="titulo-como" className={styles.tituloSeccion}>
+            Cómo funciona, paso a paso
+          </h2>
+          <p className={styles.subtituloSeccion}>
+            Siete pasos, y en cada uno decimos quién lo hace: tú, la IA, o una persona del
+            equipo que revisa. El último todavía lo estamos construyendo, y lo decimos aquí
+            en vez de prometerlo antes de tiempo.
+          </p>
+        </Revelar>
+        <LineaDelTiempo />
+      </section>
+
+      <section className={styles.cierre} aria-labelledby="titulo-cierre">
+        <Revelar className={styles.tarjetaCierre} modo="una">
+          <h2 id="titulo-cierre" className={styles.tituloCierre}>
+            Esa tarde de papelería, esta vez pásala en casa.
+          </h2>
+          <p className={styles.bajadaCierre}>
+            Toma un minuto. Armas el kit, ves los tres precios y decides sin compromiso.
+          </p>
+          <Link href="/empezar" className={styles.botonPrimario}>
+            <Sparkles size={18} aria-hidden="true" strokeWidth={2.6} />
+            Armar mi kit
+          </Link>
+        </Revelar>
       </section>
     </div>
   );

@@ -61,6 +61,25 @@ FICHEROS = (
 # un nino de verdad pide Spiderman o Frozen.
 CONCEPTOS_CON_PERSONAJE_ESPERADOS = 7
 
+# Niveles que una persona QUITO del catalogo a proposito, por concepto.
+#
+# La regla de los tres niveles mide que la curaduria no pierda un nivel por el
+# camino. Quitar un producto equivocado no es perderlo: es la curaduria
+# funcionando. Sin esta excepcion la prueba castiga exactamente el acto que
+# defiende, y la unica forma de volver a verde seria reponer el producto malo.
+#
+# `C021 pincel`: el hueco de nivel premium lo dejo `TK-C021-PRE`, que era
+# "Limpiador para pinceles" a 49.900. Un limpiador no es un pincel, asi que
+# ofrecerlo como el pincel premium del kit le habria mandado al papa un frasco
+# de disolvente donde la lista pedia una brocha. Se quito por la pantalla de
+# curaduria y el hueco es la respuesta honesta hasta que haya un pincel premium
+# de verdad en el universo raspado.
+#
+# Cada entrada que se agregue aqui tiene que decir QUE se quito y POR QUE, o la
+# excepcion deja de ser una decision y pasa a ser una forma de silenciar la
+# prueba.
+QUITADOS_A_MANO: dict[str, int] = {"C021": 1}
+
 # Umbral de aceptacion medido en `construir_catalogo_curado.py` contra la
 # muestra anotada a mano. Por debajo de el no se crea oferta; entre el y
 # `UMBRAL_REVISION_MANUAL` la oferta se crea pero va a la cola.
@@ -161,7 +180,8 @@ def cargado(catalogo) -> Session:
             nombre_canonico=f["nombre_canonico"],
             sinonimos=_lista(f["sinonimos"]),
             categoria=f["categoria"],
-            atributos_requeridos=_lista(f["atributos_requeridos"]),
+            atributos_discriminantes=_lista(f["atributos_discriminantes"]),
+            atributos_descriptivos=_lista(f["atributos_descriptivos"]),
             admite_personaje=_bool(f["admite_personaje"]),
             frecuencia_demanda=int(f["frecuencia_demanda"]),
             activo=_bool(f["activo"]),
@@ -354,9 +374,7 @@ class TestDemandaAlta:
 
     @staticmethod
     def _alta_demanda(cargado: Session) -> list[Concepto]:
-        conceptos = sorted(
-            cargado.query(Concepto), key=lambda c: (-c.frecuencia_demanda, c.codigo)
-        )
+        conceptos = sorted(cargado.query(Concepto), key=lambda c: (-c.frecuencia_demanda, c.codigo))
         total = sum(c.frecuencia_demanda for c in conceptos)
         acumulado, seleccion = 0, []
         for concepto in conceptos:
@@ -375,14 +393,10 @@ class TestDemandaAlta:
         """Un concepto de alta demanda sin producto es un renglon que el kit no
         puede resolver en ninguno de los tres perfiles."""
         for concepto in self._alta_demanda(cargado):
-            productos = (
-                cargado.query(ProductoCanonico).filter_by(concepto_id=concepto.id).count()
-            )
+            productos = cargado.query(ProductoCanonico).filter_by(concepto_id=concepto.id).count()
             assert productos > 0, f"{concepto.codigo} {concepto.nombre_canonico} sin producto"
 
-    def test_tiene_los_tres_niveles_salvo_que_el_universo_no_diera_para_tanto(
-        self, cargado, catalogo
-    ):
+    def test_tiene_los_tres_niveles_salvo_que_el_universo_no_diera_para_tanto(self, cargado, catalogo):
         """La promesa que se puede sostener sin inventar producto.
 
         Los tres niveles son la promesa por omision, pero no se cumple a la
@@ -397,14 +411,103 @@ class TestDemandaAlta:
         """
         por_concepto = catalogo["metricas"]["catalogo"]["productos_por_concepto"]
         for concepto in self._alta_demanda(cargado):
-            niveles = {
-                p.nivel
-                for p in cargado.query(ProductoCanonico).filter_by(concepto_id=concepto.id)
-            }
+            niveles = {p.nivel for p in cargado.query(ProductoCanonico).filter_by(concepto_id=concepto.id)}
             candidatos = por_concepto[concepto.codigo]["candidatos_en_universo"]
-            assert len(niveles) == min(3, candidatos), (
+            esperado = min(3, candidatos) - QUITADOS_A_MANO.get(concepto.codigo, 0)
+            assert len(niveles) == esperado, (
                 f"{concepto.codigo} {concepto.nombre_canonico}: "
                 f"{sorted(niveles)} con {candidatos} candidatos en el universo"
+            )
+
+    def test_el_precio_ordena_los_niveles_dentro_de_cada_escalera(self, cargado):
+        """Un economico no puede costar mas que un premium. Nunca.
+
+        Es la unica cosa que el nivel promete al papa: si escoge la opcion
+        economica paga menos. `Nivel` dice que un kit economico se compone de
+        productos ECONOMICO, asi que una etiqueta invertida no es cosmetica:
+        hace que el kit barato salga mas caro que el kit caro.
+
+        La escalera es (concepto, personaje) y no solo concepto porque los
+        productos con personaje son una via aparte: el cuaderno de Bluey no
+        compite en precio contra el cuaderno sin personaje, compite contra los
+        otros cuadernos de Bluey. Quien pide personalizacion ya tomo otra
+        decision. Por eso comparar entre personajes distintos no dice nada,
+        y comparar dentro de uno es obligatorio.
+
+        Este test no existia, y por eso entraron 36 productos con el nivel al
+        reves en 18 conceptos: el peor caso era un cojin economico de $143.760
+        contra un premium de $80.270.
+        """
+        barato: dict[uuid.UUID, int] = {}
+        for oferta in cargado.query(OfertaTienda):
+            for precio in cargado.query(PrecioOferta).filter_by(oferta_id=oferta.id):
+                visto = barato.get(oferta.producto_canonico_id)
+                if visto is None or precio.valor_centavos < visto:
+                    barato[oferta.producto_canonico_id] = precio.valor_centavos
+
+        orden = {n.value: i for i, n in enumerate(Nivel)}
+        escaleras: dict[tuple[uuid.UUID, str], list[tuple[int, str, str]]] = {}
+        for p in cargado.query(ProductoCanonico).filter_by(activo=True):
+            if p.id in barato:
+                clave = (p.concepto_id, p.personaje or "")
+                escaleras.setdefault(clave, []).append((barato[p.id], p.nivel, p.sku_interno))
+
+        assert escaleras, "sin precios no se puede comprobar nada"
+        for peldanos in escaleras.values():
+            # Solo se exige monotonia entre precios DISTINTOS. Dos productos
+            # que valen lo mismo pueden llevar etiquetas distintas sin que
+            # nadie pague de mas, y pasa de verdad: el marcador economico y el
+            # confiable de C006 estan los dos en $20.900. Comparar empates
+            # seria exigirle al dato un orden que el precio no define.
+            tope_mas_barato = -1
+            for precio in sorted({p for p, _, _ in peldanos}):
+                grupo = [(n, s) for p, n, s in peldanos if p == precio]
+                for nivel, sku in grupo:
+                    assert orden[nivel] >= tope_mas_barato, (
+                        f"{sku} vale ${precio // 100:,} y es {nivel}, "
+                        f"pero algo estrictamente mas barato de su escalera "
+                        f"lleva un nivel mas alto"
+                    )
+                tope_mas_barato = max(orden[n] for n, _ in grupo)
+
+    def test_ningun_economico_cuesta_mas_que_un_premium_del_mismo_concepto(self, cargado):
+        """La regla dura, esta vez cruzando personajes.
+
+        El test anterior compara dentro de cada escalera, y por eso dejaba
+        pasar un caso: un producto solo en su escalera de personaje conserva la
+        etiqueta con que nacio, sin nadie con quien compararse. Asi el
+        planeador de Stitch quedo 'economico' a $34.900 mientras la agenda de
+        marca 'premium' valia $26.600.
+
+        Aunque el personaje sea una via aparte para escoger, las etiquetas se
+        muestran al mismo papa y no pueden contradecirse entre si. Esta es la
+        version que no admite excepcion: en un concepto, nada etiquetado
+        economico puede costar mas que algo etiquetado premium.
+        """
+        barato: dict[uuid.UUID, int] = {}
+        for oferta in cargado.query(OfertaTienda):
+            for precio in cargado.query(PrecioOferta).filter_by(oferta_id=oferta.id):
+                visto = barato.get(oferta.producto_canonico_id)
+                if visto is None or precio.valor_centavos < visto:
+                    barato[oferta.producto_canonico_id] = precio.valor_centavos
+
+        por_concepto: dict[uuid.UUID, list[ProductoCanonico]] = defaultdict(list)
+        for p in cargado.query(ProductoCanonico).filter_by(activo=True):
+            if p.id in barato:
+                por_concepto[p.concepto_id].append(p)
+
+        for productos in por_concepto.values():
+            economicos = [p for p in productos if p.nivel == Nivel.ECONOMICO.value]
+            premium = [p for p in productos if p.nivel == Nivel.PREMIUM.value]
+            if not economicos or not premium:
+                continue
+            caro = max(economicos, key=lambda p: barato[p.id])
+            barato_premium = min(premium, key=lambda p: barato[p.id])
+            assert barato[caro.id] <= barato[barato_premium.id], (
+                f"{caro.sku_interno} es economico y vale "
+                f"${barato[caro.id] // 100:,}, pero "
+                f"{barato_premium.sku_interno} es premium y vale "
+                f"${barato[barato_premium.id] // 100:,}"
             )
 
     def test_los_conceptos_sin_producto_son_los_documentados(self, cargado, catalogo):
@@ -439,23 +542,18 @@ class TestSinDuplicados:
         Dos en la misma celda significa que la seleccion del representante no
         desempato, y el optimizador de kit tendria dos respuestas identicas."""
         celdas = Counter(
-            (p["concepto_id"], p["nivel"], p["personaje"])
-            for p in catalogo["productos_canonicos"]
+            (p["concepto_id"], p["nivel"], p["personaje"]) for p in catalogo["productos_canonicos"]
         )
         assert [c for c, n in celdas.items() if n > 1] == []
 
     def test_una_tienda_no_ofrece_dos_veces_el_mismo_producto(self, catalogo):
-        pares = Counter(
-            (o["producto_canonico_id"], o["tienda_id"]) for o in catalogo["ofertas_tienda"]
-        )
+        pares = Counter((o["producto_canonico_id"], o["tienda_id"]) for o in catalogo["ofertas_tienda"])
         assert [p for p, n in pares.items() if n > 1] == []
 
     def test_una_referencia_de_tienda_apunta_a_un_solo_producto(self, catalogo):
         """El mismo SKU de Exito en dos productos canonicos significa que dos
         celdas se llenaron con el mismo listado."""
-        pares = Counter(
-            (o["tienda_id"], o["referencia_externa"]) for o in catalogo["ofertas_tienda"]
-        )
+        pares = Counter((o["tienda_id"], o["referencia_externa"]) for o in catalogo["ofertas_tienda"])
         assert [p for p, n in pares.items() if n > 1] == []
 
     def test_los_identificadores_no_colisionan(self, catalogo):
@@ -500,9 +598,7 @@ class TestPrecios:
         """Un producto canonico sin oferta no se puede poner en un kit: existe
         en el catalogo y no se puede comprar en ninguna parte."""
         con_oferta = {o.producto_canonico_id for o in cargado.query(OfertaTienda)}
-        sin_oferta = [
-            p.sku_interno for p in cargado.query(ProductoCanonico) if p.id not in con_oferta
-        ]
+        sin_oferta = [p.sku_interno for p in cargado.query(ProductoCanonico) if p.id not in con_oferta]
         assert sin_oferta == []
 
     def test_los_niveles_ordenan_el_precio_de_la_canasta(self, cargado):

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { ETAPAS, type Etapa, type NombreEtapa, type Trabajo } from "@tukit/contrato";
 import { FalloApi, sondear } from "@/lib/api-navegador";
 import styles from "./Espera.module.css";
@@ -139,8 +140,9 @@ export default function PantallaEspera({ trabajoId }: { trabajoId: string }) {
 
         <footer className={styles.pie}>
           <span className="cifra">{formatearReloj(segundos)} esperando</span>
-          <Link href="/catalogo" className={styles.enlacePie}>
-            Mientras tanto, mira el catálogo →
+          <Link href="/" className={styles.enlacePie}>
+            <ArrowLeft size={16} aria-hidden="true" />
+            Volver al inicio
           </Link>
         </footer>
       </div>

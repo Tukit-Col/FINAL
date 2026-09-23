@@ -29,10 +29,30 @@ import type {
 } from "../contrato";
 import { ETAPAS } from "../contrato";
 import type { Catalogo, Colegio, ListaOficial } from "../catalogo";
-import { ErrorTukit, type ArchivoLista, type OrigenDatos } from "../origen";
+import type { Pedido, TableroComercio } from "../comercio";
+import type { BandejaOperacion, Caso } from "../operacion";
+import {
+  ErrorTukit,
+  type ArchivoLista,
+  type Credenciales,
+  type OrigenDatos,
+  type Sesion,
+} from "../origen";
 import { CATALOGO, COLEGIOS, listaDe } from "./semillas";
+import {
+  leerTokenSimulado,
+  sesionDe,
+  tokenSimulado,
+  usuarioPorCorreo,
+} from "./usuarios";
 import { armarKits, degradacionesDe, recomendar, resolverSolicitud } from "./armar";
 import { actualizar, guardar, listar, obtener, type RegistroTrabajo } from "./almacen";
+import {
+  derivarBandeja,
+  derivarCaso,
+  derivarPedido,
+  derivarTablero,
+} from "./back-office";
 
 const SEGUNDOS = Number(process.env["TUKIT_SIMULADO_SEGUNDOS"] ?? 12);
 // Reparto del tiempo entre etapas, proporcional a lo que cuesta cada una en el
@@ -109,6 +129,35 @@ function construir(registro: RegistroTrabajo): Trabajo {
 
 export class OrigenSimulado implements OrigenDatos {
   readonly nombre = "simulado" as const;
+
+  // ------------------------------------------------------------ §Identidad
+  async iniciarSesion(cred: Credenciales): Promise<{ sesion: Sesion; token: string }> {
+    const u = usuarioPorCorreo(cred.correo);
+    // El simulado NO verifica la clave: identidad hoy tampoco tiene una
+    // credencial utilizable (`clave_hash="sin-credencial"`, ver api.py). Se
+    // acepta cualquier clave para un correo sembrado y se dice en pantalla,
+    // para no fingir un control de acceso que el backend aun no ofrece.
+    if (!u) {
+      throw new ErrorTukit(
+        401,
+        "credenciales_invalidas",
+        "Ese correo no está en el corpus de demostración.",
+        { campo: "correo" },
+      );
+    }
+    return { sesion: sesionDe(u), token: tokenSimulado(u.correo) };
+  }
+
+  async sesionActual(token: string): Promise<Sesion | null> {
+    const correo = leerTokenSimulado(token);
+    const u = correo ? usuarioPorCorreo(correo) : null;
+    return u ? sesionDe(u) : null;
+  }
+
+  async cerrarSesion(_token: string): Promise<void> {
+    // La cookie la borra el Route Handler; el token simulado no tiene estado
+    // en servidor que invalidar.
+  }
 
   async crearTrabajo(
     solicitud: SolicitudTrabajo,
@@ -355,5 +404,30 @@ export class OrigenSimulado implements OrigenDatos {
         r.base_ms = Date.now();
       }
     });
+  }
+
+  // ASUMIDO — superficie de lectura de `comercio`. Los pedidos se derivan de
+  // los trabajos publicados (ver `back-office.ts`): un trabajo aprobado se
+  // vuelve pedido, igual que en la saga del §Procesos.
+  async pedidos(): Promise<TableroComercio> {
+    return derivarTablero();
+  }
+
+  async pedido(pedidoId: string): Promise<Pedido> {
+    const pedido = derivarPedido(pedidoId);
+    if (!pedido) throw new ErrorTukit(404, "pedido_no_existe", "Ese pedido no existe.");
+    return pedido;
+  }
+
+  // ASUMIDO — superficie de lectura de `operacion`. Los casos se derivan de las
+  // fallas observables de cada trabajo (SIN_MATCH → mapeo, HUECO → stock).
+  async casos(): Promise<BandejaOperacion> {
+    return derivarBandeja();
+  }
+
+  async caso(casoId: string): Promise<Caso> {
+    const caso = derivarCaso(casoId);
+    if (!caso) throw new ErrorTukit(404, "caso_no_existe", "Ese caso no existe.");
+    return caso;
   }
 }

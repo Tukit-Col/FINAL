@@ -154,9 +154,7 @@ class Informe(Base):
     firmado_por: Mapped[uuid.UUID] = mapped_column()
 """
     _, columna, _ = _columnas_declaradas(_arbol(fuente))[1]
-    assert _tabla_apuntada(columna) == "usuario", (
-        "No reconocio `firmado_por` como referencia a `usuario`."
-    )
+    assert _tabla_apuntada(columna) == "usuario", "No reconocio `firmado_por` como referencia a `usuario`."
     assert DUENO_DE_TABLA["usuario"] == "identidad"
     assert "comercio.informe.firmado_por" not in REFERENCIAS_DECLARADAS
 

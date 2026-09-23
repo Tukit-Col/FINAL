@@ -2,8 +2,12 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  background: var(--color-white);
-  border-bottom: 1px solid var(--color-border);
+  /* Crema translúcida con desenfoque: la barra flota sobre el contenido sin
+   * cortarlo con una línea dura, como pide el clay (superficies, no bordes). */
+  background: rgba(253, 249, 238, 0.82);
+  backdrop-filter: saturate(1.4) blur(10px);
+  -webkit-backdrop-filter: saturate(1.4) blur(10px);
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .interior {
@@ -19,64 +23,133 @@
   display: flex;
   align-items: center;
   gap: var(--espacio-2);
-  font-weight: 700;
-  font-size: 17px;
-  letter-spacing: -0.02em;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 19px;
+  letter-spacing: -0.01em;
 }
 
 .marca {
-  width: 28px;
-  height: 28px;
+  width: 38px;
+  height: 38px;
   border-radius: var(--radius-md);
-  background: var(--color-primary);
+  background: linear-gradient(145deg, var(--clay-cielo) 0%, var(--color-primary) 100%);
   display: grid;
   place-items: center;
+  box-shadow: var(--clay-shadow-sm);
 }
 
 .marca svg {
-  width: 17px;
-  height: 17px;
+  width: 24px;
+  height: 24px;
+}
+
+.nombre {
+  color: var(--color-text-primary);
 }
 
 .nav {
   display: flex;
-  gap: var(--espacio-4);
+  gap: var(--espacio-2);
   margin-left: auto;
 }
 
 .enlace {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-size: 14px;
+  font-weight: 600;
   color: var(--color-text-secondary);
-  padding: 6px 2px;
-  border-bottom: 2px solid transparent;
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
+  transition: background var(--dur-rapido) var(--ease-suave),
+    color var(--dur-rapido) var(--ease-suave), transform var(--dur-rapido) var(--ease-clay);
 }
 
 .enlace:hover {
-  color: var(--color-text-primary);
-  border-bottom-color: var(--color-border);
+  color: var(--color-primary);
+  background: var(--clay-cielo-bg);
+  transform: translateY(-1px);
+}
+
+/* Bloque de acciones a la derecha: ingresar/cuenta + el CTA principal. */
+.acciones {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.ingresar,
+.cuenta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  padding: 9px 15px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  transition: color var(--dur-rapido) var(--ease-suave),
+    background var(--dur-rapido) var(--ease-suave), transform var(--dur-rapido) var(--ease-clay);
+}
+
+.ingresar:hover,
+.cuenta:hover {
+  color: var(--color-primary);
+  background: var(--clay-cielo-bg);
+  transform: translateY(-1px);
+}
+
+.salir {
+  padding: 9px 14px;
 }
 
 .accion {
-  background: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(145deg, var(--clay-cielo) 0%, var(--color-primary) 100%);
   color: var(--color-white);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
-  padding: 9px 16px;
+  padding: 11px 20px;
   border-radius: var(--radius-full);
   white-space: nowrap;
+  box-shadow: var(--clay-shadow-primary);
+  transition: transform var(--dur-rapido) var(--ease-clay),
+    box-shadow var(--dur-rapido) var(--ease-suave);
 }
 
 .accion:hover {
-  background: var(--color-primary-dark);
+  transform: translateY(-2px);
 }
 
-@media (max-width: 640px) {
-  .nav {
-    gap: var(--espacio-3);
-    font-size: 13px;
-  }
+.accion:active {
+  transform: scale(0.96);
+  box-shadow: var(--clay-shadow-sm);
+}
 
+@media (max-width: 680px) {
   .interior {
     gap: var(--espacio-3);
+  }
+
+  .enlace span,
+  .ingresar span,
+  .cuenta span {
+    display: none;
+  }
+
+  .enlace,
+  .ingresar,
+  .cuenta {
+    padding: 9px;
+  }
+
+  /* En pantallas chicas, cerrar sesión se hace desde la cuenta, no en la barra. */
+  .salir {
+    display: none;
   }
 }

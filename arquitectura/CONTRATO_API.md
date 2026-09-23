@@ -5,10 +5,29 @@
 > fronteras de *conversación*. Cambiar cualquiera de los dos sin avisar rompe a alguien
 > más, así que se cierran antes de repartir el trabajo y se versionan.
 
-- **Versión:** 1.0
+- **Versión:** 1.1
 - **Prefijo:** `/v1`
+- **URL base:** `http://127.0.0.1:8010` en desarrollo. Ver §12.1.
 - **Formato:** JSON UTF-8. Dinero en **pesos enteros** (nunca decimales flotantes).
 - **Idioma de los identificadores:** español sin tildes, como el resto del código.
+
+### Qué cambió en 1.1
+
+La 1.0 especificaba el pipeline y no el catálogo, y eso dejaba al frontend sin
+poder pintar una sola pantalla antes de que existiera un trabajo. La 1.1 agrega
+la **superficie de lectura** (§12) y corrige tres cosas que al implementar
+resultaron incompletas o incoherentes con los modelos.
+
+| Cambio | Dónde | Por qué |
+|---|---|---|
+| Nueva sección 12: catálogo, listas, colegios, emparejamiento | §12 | No existía superficie de navegación. El catálogo estaba en la base y no lo exponía nadie |
+| `501 no_implementado` como código de error | §11, §12.1 | `/v1/ordenes` está especificado y no tiene servicio detrás. Un `404` haría buscar un error en el cliente que no está ahí |
+| `GET /v1/trabajos/{id}` devuelve también `origen`, `hijos`, `error`, `mensaje`, `creado_en`, `nota_revision`; cada etapa lleva `detalle` | §4 | El frontend no podía distinguir "sin lista publicada" de "el catálogo se cayó" sin ellos |
+| `POST /v1/trabajos/{id}/reintentar` | §4.1 | §8 promete que un trabajo fallido es reintentable y no había endpoint que lo hiciera |
+| Las líneas del kit traen `hijo`, `orden` y `alternativas` siempre (lista vacía si no hay) | §5 | Agrupar por hijo era imposible sin `hijo`, y un campo que a veces no viene obliga a defenderse en cada punto de uso |
+| El total de un trabajo es por **hogar**, no por hijo, y `presupuesto_por_hijo` se compara contra el total del kit | §6 | Se declara porque con un solo hijo son lo mismo y la diferencia solo aparece con dos. Se revisa cuando el optimizador reparta por hijo |
+| La entrada (b) por archivo (`multipart/form-data`) queda **declarada y no implementada** | §2 | Requiere `GEMINI_API_KEY` y render de PDF. Hoy solo funciona la entrada (a), por colegio y grado |
+| §9 (pago) queda **declarada y no implementada** | §9 | El servicio `comercio` todavía no existe |
 
 ---
 
@@ -56,15 +75,40 @@ comprables**, y forzarles un emparejamiento sería un defecto, no cobertura.
 | Valor | Qué es | Qué hace el pipeline |
 |---|---|---|
 | `util` | Papelería comprable | Busca producto, ofrece 3 niveles |
-| `texto` | Texto escolar | **No busca**: resuelve por `version_vigente` a un ISBN |
+| `texto` | Texto escolar con edición obligatoria | **No busca**: resuelve por `version_vigente` a un ISBN |
+| `libro_libre` | Libro sin editorial exigida | **Sí busca**, y optimiza por precio |
 | `licencia_digital` | Licencia con pago externo | No entra al carrito; expone `url_externa` |
 | `no_comprar` | "El disponible en casa" | Cantidad cero, con la instrucción visible |
 | `diferido` | "Se solicitará más adelante" | Queda pendiente; reabre el trabajo al publicarse |
 | `uniforme` | Uniforme | Fuera de alcance de v1, declarado |
 | `otro` | No clasificable | Va a revisión humana |
 
-Los cuatro que no son `util` ni `texto` **no cuentan** para la métrica de "catálogo sin
-huecos": esa se mide solo sobre `util`.
+Todo lo que no sea `util`, `texto` o `libro_libre` **no cuenta** para la métrica de
+"catálogo sin huecos": esa se mide solo sobre lo comprable.
+
+### 1.1.1 `ModoAdquisicion`: quién puede vender el ítem
+
+Ortogonal a `TipoItem`, y es la diferencia entre un catálogo que promete y uno que cumple.
+Salió de leer los 14 PDF originales: **hay textos que Tukit no puede surtir, y no por falta
+de proveedor sino porque el colegio los cerró**.
+
+| Valor | Señal en la lista | ¿Tukit lo surte? |
+|---|---|---|
+| `mercado_abierto` | Sin restricción declarada | Sí |
+| `libro_libre` | "Cualquier editorial" | Sí, y es donde más aporta |
+| `venta_directa_editorial` | "Venta directa a las familias", "tienda virtual de la editorial" | No |
+| `edicion_exclusiva` | "Edición exclusiva para la institución" | No |
+| `plataforma` | "Link de pago", "código de acceso" | No |
+| `diferido` | "Se solicitarán acordes a las necesidades de la clase" | Todavía no |
+
+Dos casos reales que fijan los extremos. Osito de Miel: *"el jardín ofrece las instalaciones
+a las diferentes editoriales para que les hagan la venta directa a las familias sábado 24
+enero... las editoriales reciben dinero en efectivo"*. Y en la otra punta, *"La casa de los
+espíritus. Autor: Isabella Allende. Cualquier editorial"*, donde la restricción se **invierte**:
+no hay una sola edición válida sino muchas, y el sistema puede escoger la más barata.
+
+Que el caso `libro_libre` no estuviera modelado era un hueco caro: es el segmento de libros
+donde Tukit agrega más valor, porque es el único donde tiene margen para optimizar.
 
 ### 1.2 `EstadoResolucion`
 
@@ -127,6 +171,58 @@ Dos formas de entrar, las dos del SRS:
 //     Formatos y límites: los que ya valida el frontend
 //     (.pdf .jpg .jpeg .png .webp, 10 MB)
 ```
+
+> **Estado en 1.1: (a) funciona, (b) todavía no.** El endpoint solo acepta JSON; mandarle
+> `multipart` devuelve `400 entrada_invalida`. La etapa de percepción existe y está probada
+> (`tukit_inteligencia.percepcion`, con las reglas de §2.1 ya impuestas), pero conectarla
+> pide `GEMINI_API_KEY` y el render de PDF, y ninguna de las dos es una decisión de
+> contrato. La ruta (a) cubre los 17 colegios del corpus con sus 175 listas cargadas, así
+> que el frontend puede construirse entero contra ella.
+
+### 2.1 Un archivo es la lista de UN grado, y eso se verifica
+
+**Regla de negocio, no límite técnico.** El archivo tiene que ser la lista del grado de ese
+hijo. Si el acudiente sube el PDF completo del colegio —que trae los trece grados— el
+sistema **no lo procesa**: se lo dice y le pide las páginas de su grado.
+
+No se procesa "lo que se pueda" porque un kit armado con los útiles de otro grado es peor
+que no tener kit: el acudiente no tiene cómo notar el error hasta que llega el pedido. Esto
+no es hipotético, los archivos del corpus son así: el de CACS tiene **39 páginas** y el de
+San Pedro **22**; los catorce suman 199.
+
+El aviso es explícito antes de subir, porque una restricción que solo aparece como error
+después de esperar es una restricción mal puesta.
+
+```jsonc
+// 422
+{ "error": "lista_de_varios_grados",
+  "mensaje": "Este archivo tiene la lista de 13 grados. Sube solo las páginas del grado de tu hijo.",
+  "grados_detectados": ["Jardin", "Transicion", "Primero", "..."],
+  "paginas": 39 }
+```
+
+**Cómo se detecta.** La señal buena es **cuántos grados distintos aparece**, que es lo que
+de verdad importa, y la reporta el mismo modelo de la etapa de percepción que ya se llama.
+El número de páginas es solo una guarda barata previa, porque como criterio falla en los dos
+sentidos: hay listas de un grado que ocupan seis páginas y listas de tres grados que caben
+en dos.
+
+Esto además cierra un defecto de producción real: la etapa de percepción tenía un tope de
+cinco páginas que **truncaba en silencio**, sin avisar ni marcar el kit como parcial. Leer
+cinco páginas de un PDF de 39 y devolver un kit con toda confianza es el peor
+comportamiento posible de los tres (procesar todo, rechazar, o truncar callado).
+
+### 2.2 La otra entrada depende de que el mapeo colegio–lista sea correcto
+
+Cuando el acudiente elige colegio y grado en vez de subir archivo, el sistema le muestra la
+`version_lista_oficial` vigente de ese `(sede, grado, anio_lectivo)`. Ahí el acudiente **no
+puede detectar el error**: confía en que la lista que le mostramos es la de su colegio.
+
+Por eso la ambigüedad que quedó abierta en la extracción del corpus —dos PDF que comparten
+plantilla y no se pudieron separar con confianza, con 115 renglones en juego— deja de ser
+una imprecisión de datos y pasa a ser **un bloqueante de corrección de esta ruta**. Una
+lista atribuida al colegio equivocado es exactamente el fallo que esta entrada no puede
+tener.
 
 Respuesta:
 
@@ -203,6 +299,22 @@ exigida 0.30, calidad 0.25, personaje 0.10, que es el orden que dio la P21 norma
 
 Mientras `estado` no sea `publicado`, `kits` va vacío. El acudiente **nunca ve un kit sin
 revisar**: esa es la razón de ser de `espera_revision` y de `AD-06`.
+
+La respuesta real trae además `origen`, `hijos`, `error`, `mensaje`, `creado_en`,
+`terminado_en`, `nota_revision` y un `detalle` por etapa. Ver §12.6, con un cuerpo
+completo tal como responde hoy.
+
+### 4.1 Reintentar
+
+`POST /v1/trabajos/{id}/reintentar` → `200 OK`
+
+Existe porque §8 promete que un trabajo `fallido` es reintentable, y una promesa sin
+endpoint no se puede cumplir. Vuelve a encolar sin que el acudiente tenga que rehacer nada:
+el trabajo guardó su entrada y sus etapas.
+
+Solo desde `fallido` o `encolado`. Desde cualquier otro estado es `409 estado_incompatible`,
+porque reprocesar un trabajo que ya está publicado reescribiría kits que el acudiente ya
+vio.
 
 ---
 
@@ -291,6 +403,35 @@ separa.
 borradores se juntan y los textos nunca, y el sistema dice por qué. Sale del mismo dato
 —`version_vigente` guarda histórico— y de la misma razón que documenta el modelo editorial.
 
+### 5.1.1 Líneas informativas: lo que el colegio pide y Tukit no puede vender
+
+```jsonc
+{ "item_id": "h1-030", "tipo": "texto",
+  "descripcion": "Sistema Flex TAC-Lenguaje 1. Ed. Libros y libros",
+  "modo_adquisicion": "edicion_exclusiva",
+  "informativa": true,
+  "instruccion_colegio": "Edición exclusiva para la institución. Se adquiere directamente con la editorial.",
+  "precio": null,
+  "subtotal_linea": null }
+```
+
+`informativa: true` significa **se muestra, no se cobra**. La línea aparece en el kit con la
+instrucción textual del colegio, y queda fuera del carrito, del total y del conteo de
+cobertura.
+
+Se muestran en vez de ocultarse porque el acudiente necesita saber que esos ítems existen y
+cómo conseguirlos: el dolor que la encuesta mide es *recorrer papelerías y perder tiempo*,
+y una lista incompleta reproduce ese dolor aunque el carrito se vea más limpio. Decir "esto
+lo vende la editorial el 24 de enero en el colegio" es útil; callarlo es dejar al papá con
+un hueco que descubre tarde.
+
+Y no se cobran porque prometer lo que no se puede entregar es el modo de falla más caro del
+negocio. `FU-06` congela el precio al confirmar, así que una línea que Tukit no controla no
+puede entrar al total.
+
+**El total de cada kit incluye solo líneas con `informativa: false`.** El frontend muestra
+el conteo aparte: *"3 ítems los gestiona directamente el colegio"*.
+
 ### 5.2 Huecos
 
 ```jsonc
@@ -364,6 +505,7 @@ una respuesta parcial honesta.
 | Dependencia | Falla | Qué pasa |
 |---|---|---|
 | Gemini (percepción) | Sin respuesta | `502` con mensaje accionable; el trabajo queda `fallido` y reintentable |
+| Gemini (percepción) | Salida truncada | Se marca la página como incompleta y va a revisión. **Nunca se recorta en silencio** |
 | Embeddings | No disponible | Solo canal léxico, y **toda** línea baja a `AMBIGUO` |
 | Reranker | No disponible | Se ordena por el canal vectorial, que mide mejor que la fusión |
 | Precio vencido | `vigente_hasta` pasado | La línea no entra al total y se marca para revisión |
@@ -380,6 +522,12 @@ Las degradaciones se reportan, no se esconden:
 ---
 
 ## 9. Pago (comercio)
+
+> **Estado en 1.1: declarada y no implementada.** El servicio `comercio` no existe todavía
+> —ni modelos, ni tablas, ni proceso—, así que estas rutas no tienen nadie detrás. La
+> puerta de enlace responde `501 no_implementado` con la sección de este documento, y no
+> `404`, para que quede claro que la URL del cliente es la correcta (§11). Lo de abajo es
+> el diseño al que hay que llegar, no lo que hay.
 
 | Endpoint | Requisito |
 |---|---|
@@ -411,6 +559,15 @@ las pruebas no pueden depender de él.
 
 ## 10. Notificación (operacion)
 
+> **Estado en 1.1: media implementada, y la mitad que falta es la que entrega.** Al aprobar
+> un trabajo, `inteligencia` escribe el evento `kits_publicados` en su bandeja de salida,
+> en la MISMA transacción que la publicación. Pero **no hay repartidor** que la lea ni
+> servicio `operacion` que la consuma, así que hoy no sale ni correo ni wa-link. Es
+> exactamente la deuda que el manifiesto documenta del sistema anterior (la mitad
+> transaccional escrita y la de entrega ausente), con la diferencia de que esta vez está
+> anotada donde se va a leer. El frontend no puede contar con el aviso: tiene que sondear
+> `GET /v1/trabajos/{id}`.
+
 Puerto `Notificador` con dos adaptadores en v1:
 
 - **Correo** (`FU-02`), que ya es requisito.
@@ -437,9 +594,602 @@ persistía el correo real del acudiente y el derecho al olvido no lo borraba.
 ```
 
 `400` entrada inválida · `404` no existe · `409` estado incompatible (por ejemplo, revisar
-un trabajo ya publicado) · `422` entrada válida que el dominio rechaza · `502` dependencia
-externa caída · `503` servicio no disponible.
+un trabajo ya publicado) · `422` entrada válida que el dominio rechaza · `501` ruta
+especificada en este contrato sin servicio detrás todavía · `502` dependencia externa
+caída · `503` servicio no disponible.
+
+`501` se agregó en 1.1 y la distinción con `404` no es formalismo. Un `404` dice "te
+equivocaste de URL" y manda a revisar el cliente; un `501` dice "la URL es la correcta y el
+backend todavía no la sirve" y manda a esperar. Confundirlas cuesta una tarde buscando un
+error que no está. El cuerpo trae la sección de este documento donde la ruta se especifica:
+
+```json
+{ "error": "no_implementado",
+  "mensaje": "/v1/ordenes esta en el contrato (seccion 9) y todavia no hay servicio detras. No cambies el cliente: la URL es la correcta.",
+  "seccion_contrato": "9" }
+```
 
 Nunca se devuelve al cliente lo que el cliente acaba de enviar en un mensaje de error: el
 manejador de validación del sistema anterior devolvía la contraseña recibida, y es uno de
-los defectos ya documentados.
+los defectos ya documentados. El manejador de errores de validación de los tres servicios
+reescribe la respuesta por omisión del framework, que incluye el valor recibido en `input`,
+y deja solo `{error, mensaje, campo}`.
+
+---
+
+## 12. La superficie de lectura (nueva en 1.1)
+
+Hasta la 1.0 este contrato especificaba el pipeline y nada más, y esa omisión bloqueaba al
+frontend en la primera pantalla: el catálogo existía en la base, con 100 conceptos y 347
+productos con precio, y no lo exponía nadie. Sin esto no hay nada que pintar hasta que un
+acudiente crea un trabajo, que es justo al revés de como se usa el producto.
+
+Toda esta sección es de **solo lectura**. La única ruta que no es `GET` es
+`POST /v1/catalogo/emparejar`, y tampoco escribe: es `POST` porque recibe una lista de
+renglones en el cuerpo. Lo que escribe catálogo pasa por la cola de propuestas y por la
+mano de una persona, porque una búsqueda por texto trae productos reales que no son lo
+pedido (pedir `punzon punta metalica` devuelve correctores de punta fina).
+
+### 12.1 Dónde vive todo esto
+
+El backend son **cuatro procesos**. El frontend habla con uno solo.
+
+| Proceso | Puerto | Qué atiende |
+|---|---|---|
+| **gateway** | **8010** | **La URL base. Es la única que el frontend debe conocer** |
+| identidad | 8011 | `/v1/colegios`, `/v1/grados`, `/v1/contactos` |
+| catalogo | 8012 | `/v1/catalogo/*`, `/v1/listas*` |
+| inteligencia | 8013 | `/v1/trabajos*`, `/v1/admin/*` |
+
+```
+TUKIT_API_URL=http://127.0.0.1:8010
+```
+
+> **Ojo, frontend: el puerto cambió.** `apps/web/.env.ejemplo` trae hoy
+> `TUKIT_API_URL=http://localhost:8080`, y **8080 no sirve**: en la máquina de desarrollo lo
+> tiene ocupado otro proceso. El valor correcto es el de arriba. Es solo cambiar la
+> variable; la forma de las rutas no se mueve.
+
+El bloque empieza en 8010 y no en 8000 ni en 8080 por una razón aburrida y real: los dos
+son el puerto por omisión de medio mundo (uvicorn, `http.server`, Django, cualquier
+servidor de desarrollo de Java o Node) y en la máquina donde esto se escribió los dos
+estaban tomados por proyectos ajenos. Los cuatro seguidos desde 8010 se recuerdan igual de
+fácil y no chocan. Se cambian con `make arriba PUERTO_GATEWAY=9000`.
+
+La puerta **rutea por prefijo declarado**, no con comodín. Una ruta que no esté en su mapa
+devuelve `404 ruta_desconocida` con la lista de las que sí existen, en vez de reenviarla a
+un servicio al azar. Las que este contrato define y todavía no tiene nadie detrás
+devuelven `501 no_implementado` (§11).
+
+`GET /v1/servicios` dice si los tres de atrás responden. Existe porque `GET /salud` en la
+puerta contesta `ok` con los tres caídos, y esa es la clase de sonda que hace perder una
+tarde.
+
+```bash
+curl http://127.0.0.1:8010/v1/servicios
+```
+```json
+{"servicios": {
+   "catalogo":     {"url": "http://127.0.0.1:8012", "arriba": true},
+   "identidad":    {"url": "http://127.0.0.1:8011", "arriba": true},
+   "inteligencia": {"url": "http://127.0.0.1:8013", "arriba": true}},
+ "todos_arriba": true}
+```
+
+**CORS.** Los tres servicios y la puerta permiten `http://localhost:3000` y
+`http://127.0.0.1:3000` sin configurar nada. Se sobreescribe con `TUKIT_CORS_ORIGENES`,
+separando con comas. Los orígenes de desarrollo no se heredan en producción.
+
+**Documentación viva.** Cada servicio publica su OpenAPI: `http://127.0.0.1:8012/docs`,
+`:8013/docs`, `:8011/docs`. Este documento manda; el OpenAPI sirve para generar tipos.
+
+### 12.2 Paginación, y el mismo sobre para todo
+
+Toda colección responde igual, para que el componente de paginación se escriba una vez:
+
+```jsonc
+{ "total": 100, "pagina": 1, "por_pagina": 50, "conceptos": [ /* ... */ ] }
+```
+
+`pagina` empieza en 1. `por_pagina` va de 1 a **200**; pedir más es `400`, no una lista
+recortada en silencio. `total` viene siempre, también cuando cabe en una página, porque
+"cuántos hay" es la pregunta que decide si se pinta el paginador.
+
+### 12.3 Catálogo
+
+#### `GET /v1/catalogo/categorias`
+
+Las 49 categorías con cuántos conceptos tiene cada una. Es lo que alimenta la navegación
+lateral sin tener que traer los 100 conceptos para contarlos.
+
+```json
+{"total": 49, "categorias": [{"categoria": "Borradores", "conceptos": 1}]}
+```
+
+#### `GET /v1/catalogo/conceptos`
+
+Un **concepto** es la necesidad abstracta que el colegio pide (`cuaderno`), no un producto
+comercial. Es la capa que el sistema anterior no tenía y por la que la variabilidad
+terminológica colombiana (`esfero` = `bolígrafo`) no tenía dónde vivir.
+
+| Parámetro | Qué hace |
+|---|---|
+| `categoria` | Exacta, de `/v1/catalogo/categorias` |
+| `tipo_item` | `util`, `texto`, `libro_libre`, `licencia_digital`, `no_comprar`, `diferido`, `uniforme`, `otro` |
+| `busqueda` | Texto en el nombre canónico |
+| `con_producto` | `true` solo los surtidos, `false` solo los huecos |
+| `pagina`, `por_pagina` | §12.2 |
+
+El orden por omisión es **por demanda medida** (`frecuencia_demanda`, de las 3.610 líneas
+del corpus) y no alfabético: el orden de una pantalla de catálogo tiene que ser el de lo
+que los colegios de verdad piden, y alfabético pondría `abaco` antes que `cuaderno`.
+
+```bash
+curl 'http://127.0.0.1:8010/v1/catalogo/conceptos?categoria=Borradores&por_pagina=1'
+```
+```json
+{"total": 1, "pagina": 1, "por_pagina": 1,
+ "conceptos": [{
+   "codigo": "C005",
+   "nombre": "borrador",
+   "categoria": "Borradores",
+   "tipo_item": "util",
+   "sinonimos": ["borrador", "borrador nata", "borrador miga pan", "goma limpiatipo", "borrador nata grande"],
+   "admite_personaje": false,
+   "atributos_discriminantes": ["tipo"],
+   "atributos_descriptivos": [],
+   "frecuencia_demanda": 153,
+   "productos": 3,
+   "niveles_disponibles": 3}]}
+```
+
+**`atributos_discriminantes` y `atributos_descriptivos` son cosas distintas y se pintan
+distinto.** El discriminante **filtra**: si el renglón dice `block oficio` y ningún block
+declara `tamano: oficio`, no se ofrece otro. El descriptivo solo le cuenta al acudiente qué
+está comprando y no descarta a nadie. De 155 pares concepto-atributo declarados
+obligatorios, solo 81 los pide alguna lista; usarlos todos como restricción dura descartaba
+candidatos válidos.
+
+`niveles_disponibles` es cuántos de los tres niveles tiene el concepto. Un concepto con
+menos de tres no puede ofrecer una opción distinta en cada kit, y eso el frontend lo puede
+avisar antes de que el acudiente se extrañe.
+
+#### `GET /v1/catalogo/conceptos/{codigo}`
+
+El concepto con sus productos, ordenados `economico → confiable → premium` y no como los
+devuelve la base (alfabético, que da `confiable` primero). `404 concepto_no_existe`.
+
+#### `GET /v1/catalogo/productos`
+
+| Parámetro | Qué hace |
+|---|---|
+| `concepto` | Código de concepto (`C005`) |
+| `nivel` | `economico`, `confiable`, `premium`. Un valor inventado es `400`, no una lista vacía |
+| `personaje` | Nombre exacto, sin distinguir mayúsculas |
+| `con_personaje` | `true` solo los que tienen, `false` solo los que no |
+| `busqueda` | Texto en el nombre o la marca |
+| `con_precio` | `true` solo los que tienen precio vigente |
+
+`nivel` y `personaje` son **ejes ortogonales**: un cuaderno de Spiderman también tiene nivel
+de calidad de marca. La taxonomía anterior ponía `licencia` al lado de los tres niveles, y
+bajo ella un cuaderno con personaje perdía su nivel y el optimizador se quedaba sin puntaje
+con que compararlo.
+
+#### `GET /v1/catalogo/productos/{sku}`
+
+El producto con **todas** sus ofertas. Comparar precio entre tiendas es el núcleo de la
+propuesta de valor y era literalmente inexpresable en el esquema anterior, donde `precio` y
+`proveedor` eran columnas del producto.
+
+```bash
+curl http://127.0.0.1:8010/v1/catalogo/productos/TK-C005-ECO
+```
+```json
+{"sku": "TK-C005-ECO",
+ "nombre": "Set Borrador X3 Negro Eterna",
+ "marca": "ETERNA",
+ "nivel": "economico",
+ "personaje": null,
+ "imagen_url": "https://exitocol.vteximg.com.br/arquivos/ids/32010789/image-...jpg",
+ "descripcion": null,
+ "unidad_base": "unidad",
+ "unidades_por_empaque": 3,
+ "atributos": {},
+ "quality_score": 0.4,
+ "concepto": {"codigo": "C005", "nombre": "borrador"},
+ "precio_desde": 4400,
+ "tiendas": 1,
+ "ofertas": [
+   {"tienda": "exito", "tienda_nombre": "Éxito", "tipo_tienda": "minorista",
+    "url": "https://www.exito.com/set-borrador-x3-negro-eterna-124157264/p",
+    "disponible": true,
+    "precio": 4400,
+    "vigente_desde": "2026-09-02T05:00:00+00:00",
+    "vigente_hasta": null,
+    "fuente_precio": "scraper",
+    "metodo_vinculacion": "ean",
+    "confianza_vinculacion": 1.0}]}
+```
+
+Tres campos que conviene no malinterpretar:
+
+- **`disponible` tiene tres valores, no dos.** `null` significa "la fuente no reporta
+  existencias", que no es lo mismo que "no hay". El canal mayorista nunca las reporta, y
+  pintar `null` como agotado escondería ofertas legítimas por una observación que nunca se
+  hizo.
+- **`precio` es `null` cuando no se conoce, y eso no es cero.** Una oferta sin precio no se
+  puede comparar, pero tampoco se esconde: existe y el acudiente puede ir a mirarla. Van al
+  final del orden.
+- **`unidades_por_empaque` es de a cuántas viene**, y `unidad_base` en qué se cuentan. Con
+  los dos, el frontend dice "una caja de 3" donde la base dice "3". Sin ellos sale el error
+  del carrito que sumaba doce cajas cuando la lista pedía doce lápices.
+
+Las ofertas vienen **ordenadas por precio**, las que lo tienen primero.
+
+#### `GET /v1/catalogo/tiendas`
+
+```json
+{"total": 7, "tiendas": [{"slug": "exito", "nombre": "Éxito", "tipo": "minorista",
+                          "url_base": "https://www.exito.com", "ofertas": 177}]}
+```
+
+#### `POST /v1/catalogo/emparejar`
+
+Empareja renglones de texto libre contra el catálogo. **No escribe nada.** Es el mismo
+código que usa la etapa de resolución del pipeline, expuesto por HTTP porque
+`inteligencia` no puede leer la base de `catalogo` ni importar su paquete (invariantes 1 y
+3 del manifiesto). El frontend lo puede usar para una vista previa mientras el acudiente
+escribe.
+
+```bash
+curl -X POST http://127.0.0.1:8010/v1/catalogo/emparejar \
+  -H 'Content-Type: application/json' \
+  -d '{"renglones": ["2 cuadernos cuadriculados grandes", "block oficio"]}'
+```
+```jsonc
+{"total": 2, "emparejamientos": [
+  {"texto": "2 cuadernos cuadriculados grandes",
+   "texto_corregido": "2 cuadernos cuadriculados grandes",
+   "estado": "reconocido",
+   "concepto_codigo": "C001", "concepto_nombre": "cuaderno",
+   "parecido": 1.0,
+   "atributos_impuestos": {"rayado": "cuadriculado", "materias": 1},
+   "motivo": "",
+   "opciones": [
+     {"sku": "TK-C001-ECO-CARS", "nombre": "Cuaderno Cars Mediano Cuadriculado 100 hojas...",
+      "nivel": "economico", "personaje": "cars", "marca": "CUADERNOS NORMA",
+      "atributos": {"hojas": 100, "rayado": "cuadriculado", "materias": 1},
+      "precio_cop": 15900, "cumple": true,
+      "imagen_url": "https://...", "unidad_base": "unidad", "unidades_por_empaque": 1,
+      "producto_id": "…uuid…"}]},
+
+  {"texto": "block oficio",
+   "estado": "abstencion",
+   "concepto_codigo": "C003", "concepto_nombre": "block",
+   "parecido": 0.867,
+   "atributos_impuestos": {"tamano": "oficio"},
+   "motivo": "El renglon pide block con tamano=oficio y ninguno de los 5 productos lo declara. No ofrezco otro.",
+   "opciones": []}]}
+```
+
+`estado` es el vocabulario **del catálogo**, no el `EstadoResolucion` de §1.2:
+
+| `estado` | Significado | Equivale a |
+|---|---|---|
+| `reconocido` | Hay concepto y hay productos que cumplen | `RESUELTO_AUTO` si `parecido ≥ τ`, si no `AMBIGUO` |
+| `abstencion` | Se entendió el concepto y ningún producto declara el atributo exigido | `HUECO_CATALOGO` |
+| `hueco_catalogo` | Se entendió el concepto y no hay ningún producto | `HUECO_CATALOGO` |
+| `sin_match` | No se entendió qué pide | `SIN_MATCH` |
+
+La diferencia entre `abstencion` y `sin_match` es la que permite decir *"no tengo block
+oficio"* en vez de ofrecer origami con confianza. `abstencion` no es un fallo: es el
+sistema negándose a inventar.
+
+`texto_corregido` trae la corrección ortográfica contra el léxico del catálogo. Osito
+imprime `SHSRPIE` y `TAOLLA` y el modelo las copia; sin este paso el catálogo diría que no
+las reconoce teniendo marcador y toalla.
+
+Como mucho **500 renglones** por petición (`422 demasiados_renglones`). Una lista de un
+grado no tiene 500.
+
+### 12.4 Colegios, sedes y grados (servicio `identidad`)
+
+Los colegios **no** viven en `catalogo`: la tenencia es de `identidad` (ADR 0013), y
+`lista_oficial.colegio_id` es una referencia lógica declarada en el manifiesto. Por eso
+`/v1/listas` devuelve `colegio_id` y no el nombre: el nombre se resuelve contra
+`/v1/colegios`, que el frontend puede cargar una vez.
+
+```bash
+curl http://127.0.0.1:8010/v1/colegios
+```
+```json
+{"total": 17, "colegios": [{"colegio_id": "618e926b-77e1-55d7-8c26-4615830500f6",
+                            "nombre": "Colegio 1.1", "sedes": 1}]}
+```
+
+- `GET /v1/colegios?busqueda=...`
+- `GET /v1/colegios/{colegio_id}` → con sus sedes. `404 colegio_no_existe`
+- `GET /v1/grados` → los 15 grados **en orden escolar**, de `Parvulos` a `Once`. Es una
+  constante y no una consulta a propósito: derivarla de las listas cargadas haría que un
+  colegio sin lista publicada desapareciera del desplegable.
+
+#### `POST /v1/contactos`
+
+Convierte un correo en un identificador, y es lo que hace cumplible la regla de §2: el
+trabajo referencia al acudiente **por identificador y nunca copiando el correo**, para que
+el derecho al olvido lo alcance en un solo sitio. Idempotente por correo.
+
+```json
+// 201
+{"usuario_id": "…uuid…", "creado": true}
+```
+
+El frontend normalmente **no** necesita llamarlo: `POST /v1/trabajos` lo hace por dentro con
+el bloque `contacto`. Está expuesto por si hace falta registrar antes.
+
+**Lo que NO hay en identidad, y la ausencia es deliberada:** ninguna ruta devuelve un
+estudiante, un nombre de menor ni una matrícula. Esa superficie necesita autenticación y
+control por clasificación de dato, y abrirla sin eso sería el defecto que documenta el
+Anexo M. Hay una prueba que lee el OpenAPI publicado y falla si aparece alguna.
+
+### 12.5 Listas oficiales
+
+#### `GET /v1/listas`
+
+| Parámetro | Qué hace |
+|---|---|
+| `colegio_id` | UUID, de `/v1/colegios` |
+| `grado` | Tal como lo nombra el colegio (`Cuarto`) |
+| `anio_lectivo` | Entero. Hoy todo es 2026 |
+
+```bash
+curl 'http://127.0.0.1:8010/v1/listas?grado=Cuarto&por_pagina=1'
+```
+```json
+{"total": 13, "pagina": 1, "por_pagina": 1,
+ "listas": [{"lista_id": "ebfb1673-3ddb-5333-bfe0-46084a97e335",
+             "colegio_id": "17127bcf-9134-58a4-aae4-6a2bc6f7bf32",
+             "sede_id": "c259b3dc-2d55-5674-9626-94c5c921783b",
+             "grado": "Cuarto", "anio_lectivo": 2026,
+             "version_id": "28b17ec3-f5c8-5971-a6cb-a3159b0c83e3", "version": 1,
+             "publicada_en": "2026-09-22T17:08:30.226216+00:00",
+             "revisada": false,
+             "items": 55}]}
+```
+
+`revisada: false` **no es un defecto ni un aviso para el acudiente.** Es la puerta que
+habilita salir a una tienda por lo que la lista pide y el catálogo no tiene; una vez
+revisada se cierra y no se vuelve a abrir. Hoy las 175 están sin revisar. No lo pintes como
+error.
+
+#### `GET /v1/listas/{lista_id}`
+
+Los renglones de la versión vigente, ya resueltos a concepto.
+
+```jsonc
+{"lista_id": "…", "colegio_id": "…", "sede_id": "…",
+ "grado": "Cuarto", "anio_lectivo": 2026,
+ "version_id": "…", "version": 1, "revisada": false,
+ "total_items": 55,
+ "items": [
+   {"item_id": "…", "orden": 1,
+    "texto_original": "cuaderno grande cuadriculado cosido de 100 hojas.",
+    "cantidad": 7, "unidad": null,
+    "tipo_item": "util",            // ya resuelto: el del renglón, o el de su concepto
+    "tipo_item_declarado": null,    // lo que el renglón declaró, que puede ser null
+    "modo_adquisicion": "mercado_abierto",
+    "surtible": true,
+    "instruccion_colegio": null, "url_externa": null,
+    "atributos": {}, "requiere_revision": false,
+    "concepto": {"codigo": "C001", "nombre": "cuaderno"}}]}
+```
+
+Dos campos para el mismo dato, y no sobra ninguno. **`tipo_item` viene resuelto**: si el
+renglón no declara tipo, hereda el de su concepto. `tipo_item_declarado` dice si el valor
+salió del renglón o del concepto, que es lo que necesita quien está curando. La regla
+resuelta va en la respuesta para que el cliente no la reimplemente: `null` significa "lo
+que diga el concepto", **no** `util`.
+
+`concepto: null` y `requiere_revision: true` van juntos y son honestos: 891 de los 4.719
+renglones del corpus (18,9 %) no los cubre todavía el vocabulario de 100 conceptos. Un
+renglón sin concepto queda visible como no resuelto en vez de forzarse al más parecido.
+
+`surtible: false` significa que Tukit no lo puede poner en el carrito (§1.1.1). Esos
+renglones **siempre** traen `instruccion_colegio`: una línea que dice "esto no te lo
+vendemos" sin decir dónde conseguirlo deja al acudiente peor que antes.
+
+
+### 12.6 El ciclo completo, con lo que de verdad responde hoy
+
+Lo que sigue son las tres llamadas que llevan de "no hay nada" a "tres kits en pantalla",
+ejecutadas contra el backend sembrado.
+
+**(1) Crear el trabajo.** Entrada (a) de §2: el colegio ya publicó la lista.
+
+```bash
+curl -X POST http://127.0.0.1:8010/v1/trabajos \
+  -H 'Content-Type: application/json' \
+  -d '{"contacto": {"correo": "papa@ejemplo.com"},
+       "hijos": [{"referencia": "hijo-1",
+                  "colegio_id": "17127bcf-9134-58a4-aae4-6a2bc6f7bf32",
+                  "grado": "Cuarto"}],
+       "preferencias": {"presupuesto_por_hijo": 700000}}'
+```
+```json
+{"trabajo_id": "d1aac882-7119-48ea-87a7-34bb9f64c21d",
+ "estado": "encolado",
+ "estimado_segundos": 180,
+ "consultar_en": "/v1/trabajos/d1aac882-7119-48ea-87a7-34bb9f64c21d",
+ "degradaciones": []}
+```
+
+**(2) Consultar hasta que cambie de estado.** Con el camino de hoy (lista oficial ya
+cargada, sin llamar a ningún modelo) tarda **menos de un segundo**, no los 180 que estima.
+El estimado se deja alto porque la entrada por archivo sí llamará a Gemini.
+
+```bash
+curl http://127.0.0.1:8010/v1/trabajos/d1aac882-7119-48ea-87a7-34bb9f64c21d
+```
+```jsonc
+{"estado": "espera_revision",
+ "origen": "colegio_grado",
+ "hijos": [{"referencia": "hijo-1", "colegio_id": "…", "grado": "Cuarto", "anio_lectivo": null}],
+ "etapas": [
+   {"nombre": "percepcion",    "estado": "ok", "ms": 30,
+    "detalle": {"listas": [{"hijo": "hijo-1", "grado": "Cuarto", "items": 55, "lista_id": "…"}],
+                "sin_lista": []}},
+   {"nombre": "normalizacion", "estado": "ok", "ms": 0,   "detalle": {"renglones": 55}},
+   {"nombre": "resolucion",    "estado": "ok", "ms": 596, "detalle": {"emparejados": 36, "a_revision": 13}},
+   {"nombre": "optimizacion",  "estado": "ok", "ms": 1,   "detalle": {"kits": 3, "recomendado": "Ahorrador"}}],
+ "kits": [],
+ "recomendado": null,
+ "degradaciones": [],
+ "error": null, "mensaje": null,
+ "creado_en": "2026-09-22T17:14:02.118Z", "terminado_en": null, "nota_revision": null}
+```
+
+**`kits` va vacío hasta que el estado sea `publicado`. No es un error.** Es la razón de ser
+de `espera_revision` y de `AD-06`: el acudiente nunca ve un kit sin revisar. La barra de
+progreso se pinta con `etapas`, que existen desde el momento de crear (las cuatro en
+`pendiente`) para que la espera tenga forma.
+
+`detalle` por etapa es nuevo en 1.1 y es lo que permite decirle algo útil al acudiente:
+`percepcion.detalle.sin_lista` nombra a los hijos para los que no había lista publicada, y
+`resolucion.detalle.a_revision` dice cuántas líneas dudosas hay.
+
+**(3) Aprobar, que hoy es una llamada manual.**
+
+```bash
+curl -X POST http://127.0.0.1:8010/v1/admin/trabajos/{id}/revision \
+  -H 'Content-Type: application/json' -d '{"decision": "aprobar"}'
+```
+
+> **Atajo de desarrollo.** Con `TUKIT_AUTOPUBLICAR=1` el trabajo pasa directo a
+> `publicado` y este paso no hace falta. El servicio lo anuncia a gritos al arrancar,
+> porque una válvula silenciosa acaba puesta en producción. **Por omisión está apagada** y
+> el contrato es el que manda: sin revisión humana no hay publicación.
+
+Y ahí sí, los tres kits:
+
+```jsonc
+{"estado": "publicado",
+ "kits": [ /* ordenados por total, de menor a mayor */
+   {"perfil": "Ahorrador",
+    "total": 462395,
+    "objetivos": {"costo": 462395, "fidelidad": 0.535, "disponibilidad": 0.628},
+    "informativas": 5,
+    "consolidaciones": [],
+    "lineas": [ /* ver 12.7 */ ]},
+   {"perfil": "Fan",     "total": 516595, "objetivos": {…}, "lineas": […]},
+   {"perfil": "Premium", "total": 864943, "objetivos": {…}, "lineas": […]}],
+ "recomendado": {"perfil": "Ahorrador",
+                 "razon": "Elegiste precio como lo mas importante y este es el kit mas barato.",
+                 "dentro_de_presupuesto": true}}
+```
+
+`informativas` es nuevo en 1.1: cuántas líneas del kit se muestran y no se cobran. Es el
+número del aviso que pide §5.1.1 (*"5 ítems los gestiona directamente el colegio"*), y
+tenerlo ya contado ahorra recorrer las líneas.
+
+### 12.7 Las dos formas de una línea de kit
+
+**Con producto**, que es la normal:
+
+```json
+{"item_id": "e95f4365-c6df-454f-96fa-17b77d689e13",
+ "hijo": "hijo-1", "orden": 1,
+ "descripcion": "cuaderno grande cuadriculado cosido de 100 hojas.",
+ "tipo": "util",
+ "estado_resolucion": "RESUELTO_AUTO",
+ "cantidad_pedida": 7,
+ "unidad_base": "unidad",
+ "unidades_por_empaque": 1,
+ "unidades_a_comprar": 7,
+ "informativa": false,
+ "subtotal_linea": 111300,
+ "mensaje": null,
+ "producto_elegido": {"sku": "TK-C001-ECO-CARS",
+                      "nombre": "Cuaderno Cars Mediano Cuadriculado 100 hojas Cosido CUADERNOS NORMA",
+                      "marca": "CUADERNOS NORMA",
+                      "nivel": "economico",
+                      "personaje": "cars",
+                      "imagen_url": "https://…",
+                      "precio": 15900},
+ "alternativas": []}
+```
+
+**Informativa**, que se muestra y no se cobra:
+
+```json
+{"item_id": "2ffc28d8-a3e2-4a72-9038-ee39a6d506c0",
+ "hijo": "hijo-1", "orden": 12,
+ "descripcion": "Plan lector virtual RAZ-PLUS",
+ "tipo": "licencia_digital",
+ "estado_resolucion": "RESUELTO_AUTO",
+ "cantidad_pedida": 1,
+ "unidades_a_comprar": 0,
+ "informativa": true,
+ "subtotal_linea": null,
+ "instruccion_colegio": "El colegio indica que se adquiere por plataforma externa. Sigue el enlace o las instrucciones que el colegio publico en su lista.",
+ "alternativas": []}
+```
+
+Cinco reglas sobre estas líneas que el frontend necesita tener claras:
+
+1. **`subtotal_linea = precio × unidades_a_comprar`**, no `× cantidad_pedida`. Siete
+   cuadernos sueltos a 15.900 son 111.300; doce lápices en caja de doce son **una** caja.
+   `unidades_a_comprar = techo(cantidad_pedida / unidades_por_empaque)`.
+2. **El total del kit suma solo las líneas con `informativa: false`.** Prometer lo que no
+   se puede entregar es el modo de falla más caro del negocio.
+3. **`producto_elegido` no está cuando no hay producto.** Se omite la clave entera, no
+   viene en `null`. Pasa con `SIN_MATCH`, con `HUECO_CATALOGO` y con toda línea informativa.
+4. **`alternativas` viene siempre**, lista vacía si no hay. Hasta dos productos más del
+   mismo concepto, en otros niveles, con `sku`, `nombre`, `nivel`, `precio_cop` e
+   `imagen_url`.
+5. **Una línea informativa puede tener `tipo: "util"`.** El tipo dice qué clase de cosa es
+   y el modo de adquisición dice quién puede venderla; un útil que el colegio cerró a una
+   plataforma es papel comprable que Tukit no surte. Decide `informativa`, no `tipo`.
+
+Cuando la línea es un texto escolar de mercado abierto sale con
+`estado_resolucion: "SIN_MATCH"` y `unidades_a_comprar: 0`: la resolución por ISBN contra
+`edicion_libro` todavía no está conectada, y decirlo es mejor que ofrecer una edición al
+azar. Se ve, no se cobra y se explica.
+
+### 12.8 La cola de revisión (`apps/admin`)
+
+| Endpoint | Qué hace |
+|---|---|
+| `GET /v1/admin/cola` | Trabajos en `espera_revision`, del más viejo al más nuevo, con `lineas_a_revisar` |
+| `GET /v1/admin/trabajos/{id}` | El mismo lector del acudiente **con los kits forzados**: Admin tiene que ver lo que todavía no se publica |
+| `POST /v1/admin/trabajos/{id}/lineas/{item_id}/validar` | `{"sku": "…", "motivo": "…", "actor": "…uuid…"}`. Deja la línea en `RESUELTO_AUTO` |
+| `POST /v1/admin/trabajos/{id}/lineas/{item_id}/sin-coincidencia` | Deja la línea en **`HUECO_CATALOGO`**, no en `SIN_MATCH` |
+| `POST /v1/admin/trabajos/{id}/revision` | `{"decision": "aprobar"\|"devolver", "nota": "…"}` |
+
+`sin-coincidencia` marca `HUECO_CATALOGO` a propósito. Si una persona miró la línea,
+entendió qué pedía y concluyó que no lo tenemos, eso ya no es "no te entendí". Solo el
+hueco se puede responder con una alternativa y solo el hueco alimenta la métrica de qué le
+falta al catálogo.
+
+`actor` es opcional hoy porque no hay autenticación; cuando la haya saldrá del token. Toda
+decisión queda en `transicion_resolucion` con quién y cuándo (`AD-25`, `AD-26`).
+
+`devolver` reabre el trabajo y lo vuelve a procesar **sin avisarle al acudiente**. Aprobar
+un trabajo ya publicado es `409 estado_incompatible`: no es idempotente, es un segundo
+aviso.
+
+### 12.9 Lo que está declarado y todavía no funciona
+
+Sin rodeos, porque el frontend necesita saber contra qué puede programar hoy.
+
+| Qué | Estado | Qué pasa si lo llamas |
+|---|---|---|
+| §12.3, §12.4, §12.5 completas | **Funcionan** con datos reales | 100 conceptos, 347 productos con precio, 7 tiendas, 17 colegios, 175 listas, 4.719 renglones |
+| `POST /v1/trabajos` entrada (a), colegio y grado | **Funciona** | Tres kits en menos de un segundo |
+| `POST /v1/trabajos` entrada (b), `multipart/form-data` | **No implementada** | El endpoint solo acepta JSON: mandar `multipart` es `400`. Necesita `GEMINI_API_KEY` y render de PDF |
+| Optimizador | **Heurística, no NSGA-II** | Los tres kits salen y son comparables, pero no son un frente de Pareto: `Ahorrador` = el más barato, `Premium` = mejor nivel de marca, `Fan` = el del personaje pedido |
+| Consolidación entre hermanos | **Funciona**, probada | Solo se dispara cuando a dos hijos les toca el mismo sku y el empaque alcanza |
+| Notificación (§10) | **No implementada** | Al publicar se escribe `kits_publicados` en la bandeja de salida y **nadie la recoge**: no sale correo ni wa-link |
+| Pago (§9) | **No implementado** | `501 no_implementado` con la sección del contrato |
+| Autenticación | **No existe** | Ninguna ruta pide token. `actor` se manda en el cuerpo |
+| Cifrado de `pesos_usados` | **Puerto sí, cifrado no** | Pasa por el puerto `Cifrador`; sin `TUKIT_LLAVE_CIFRADO` el adaptador guarda en claro y lo dice al arrancar |
+| Ejecución de fondo | **Tarea en proceso** | Si el servicio se reinicia con un trabajo en vuelo, queda en `procesando`. Se rescata con `POST /v1/trabajos/{id}/reintentar` |

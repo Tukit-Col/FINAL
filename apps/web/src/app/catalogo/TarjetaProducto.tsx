@@ -132,12 +132,17 @@ export default function TarjetaProducto({ producto }: Props) {
                   <span className={`${estilos.stockPunto} ${estado.clase}`} aria-hidden="true" />
                   {estado.texto}
                 </span>
-                <span
-                  className={`${estilos.precioTienda} cifra`}
-                  title={oferta.visto_en ? `Precio visto el ${fechaCorta(oferta.visto_en)}` : undefined}
-                >
-                  {formatearPesos(oferta.precio)}
-                </span>
+                {/* Con una sola tienda el precio de la fila seria el mismo de
+                    arriba, y repetirlo solo gasta el ancho que necesita el
+                    nombre de la tienda. */}
+                {ofertas.length > 1 && (
+                  <span
+                    className={`${estilos.precioTienda} cifra`}
+                    title={oferta.visto_en ? `Precio visto el ${fechaCorta(oferta.visto_en)}` : undefined}
+                  >
+                    {formatearPesos(oferta.precio)}
+                  </span>
+                )}
                 {oferta.url && (
                   <a
                     className={estilos.enlaceTienda}

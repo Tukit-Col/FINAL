@@ -4,8 +4,9 @@
   justify-content: center;
   gap: var(--espacio-2);
   flex-wrap: wrap;
-  padding: 5px var(--espacio-4);
+  padding: 6px var(--espacio-4);
   font-size: 12px;
+  font-weight: 600;
   border-bottom: 1px solid transparent;
 }
 
@@ -13,30 +14,34 @@
   background: var(--color-aviso-bg);
   border-bottom-color: var(--color-aviso-border);
   color: var(--color-aviso);
+  box-shadow: inset 0 -2px 4px rgba(180, 83, 9, 0.06);
 }
 
 .api {
   background: var(--color-success-bg);
   border-bottom-color: var(--color-success-border);
   color: var(--color-success);
+  box-shadow: inset 0 -2px 4px rgba(21, 128, 61, 0.06);
 }
 
 .punto {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: var(--radius-full);
   background: currentColor;
   flex: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent);
 }
 
 .pista {
   opacity: 0.75;
+  font-weight: 500;
 }
 
 .cinta code {
   font-family: var(--font-cifras);
   font-size: 11px;
   background: rgba(15, 23, 42, 0.06);
-  padding: 1px 5px;
+  padding: 1px 6px;
   border-radius: var(--radius-sm);
 }

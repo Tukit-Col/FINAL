@@ -5,6 +5,12 @@
  * y esa segunda lectura necesita muchos productos a la vez en la pantalla: un
  * hueco solo se ve cuando al lado hay algo que si esta lleno.
  *
+ * El rediseño clay se aplica con criterio de densidad: las SUPERFICIES y los
+ * CONTROLES se visten de plastilina (tarjetas de concepto infladas, filtros
+ * hundidos, chips redondos), pero la rejilla de productos sigue apretada y las
+ * tarjetas no se separan con aire, porque comparar precios y detectar huecos
+ * pide ver muchas a la vez. Clay aqui es tacto, no espacio malgastado.
+ *
  * Los colores de nivel viajan por la variable local `--tinte-nivel`, que se
  * fija una sola vez por grupo con `data-nivel`. Asi la etiqueta de nivel y la
  * banda del grupo nunca pueden desincronizarse, y el personaje conserva su
@@ -22,7 +28,9 @@
 /* ------------------------------------------------------------- Encabezado */
 
 .encabezado {
-  background: var(--color-surface);
+  background:
+    radial-gradient(120% 140% at 100% 0%, var(--clay-cielo-bg) 0%, transparent 55%),
+    var(--color-surface-2);
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -34,8 +42,9 @@
 }
 
 .titulo {
-  font-size: 26px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
 }
 
 .entradilla {
@@ -57,23 +66,24 @@
   display: flex;
   flex-direction: column;
   gap: 1px;
-  padding: var(--espacio-3);
-  border: 1px solid var(--color-border);
-  border-left-width: 3px;
+  padding: var(--espacio-3) var(--espacio-4);
+  border-left: 3px solid var(--color-primary);
   border-radius: var(--radius-md);
-  background: var(--color-surface-2);
+  background: var(--clay-surface-grad);
+  box-shadow: var(--clay-shadow-sm);
 }
 
 .valorCifra {
+  font-family: var(--font-display);
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1.15;
   letter-spacing: -0.02em;
 }
 
 .etiquetaCifra {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--color-text-secondary);
@@ -90,10 +100,12 @@
   border-left-color: var(--color-primary);
 }
 
+/* El tono aviso/alerta no es decoracion: que N conceptos no tengan producto es
+ * el dato mas util del encabezado. Se pinta distinto para que resalte entre las
+ * cifras que si son buenas. */
 .aviso {
   border-left-color: var(--color-aviso);
-  background: var(--color-aviso-bg);
-  border-color: var(--color-aviso-border);
+  background: var(--clay-estrella-bg);
 }
 
 .aviso .valorCifra,
@@ -104,7 +116,6 @@
 .alerta {
   border-left-color: var(--color-danger);
   background: var(--color-danger-bg);
-  border-color: var(--color-danger-border);
 }
 
 .alerta .valorCifra,
@@ -119,7 +130,8 @@
   top: var(--alto-cabecera);
   /* Por debajo del 20 de la cabecera, que tiene que quedar encima. */
   z-index: 10;
-  background: var(--color-bg);
+  background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -134,14 +146,37 @@
   gap: var(--espacio-2);
 }
 
-.busqueda {
+/* La lupa vive dentro del campo: el input mantiene su clase y su ancho, el
+ * icono se posiciona absoluto sobre el padding izquierdo. */
+.campoBusqueda {
+  position: relative;
   flex: 1 1 230px;
   min-width: 0;
-  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+}
+
+.iconoBusqueda {
+  position: absolute;
+  left: 12px;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.busqueda {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 14px 9px 36px;
   font-size: 13.5px;
-  border: 1px solid var(--color-border);
+  border: none;
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: var(--color-white);
+  box-shadow: var(--clay-shadow-inset);
+  transition: box-shadow var(--dur-rapido) var(--ease-suave);
+}
+
+.busqueda:focus {
+  box-shadow: var(--clay-shadow-inset), 0 0 0 3px var(--clay-cielo-claro);
 }
 
 .busqueda::placeholder {
@@ -151,38 +186,50 @@
 .selector {
   flex: 0 1 auto;
   max-width: 200px;
-  padding: 8px 10px;
+  padding: 9px 12px;
   font-size: 13px;
-  border: 1px solid var(--color-border);
+  border: none;
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: var(--color-white);
+  box-shadow: var(--clay-shadow-sm);
   cursor: pointer;
+  transition: box-shadow var(--dur-rapido) var(--ease-suave);
+}
+
+.selector:focus {
+  box-shadow: var(--clay-shadow-sm), 0 0 0 3px var(--clay-cielo-claro);
 }
 
 .interruptor {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px 6px 9px;
+  gap: 7px;
+  padding: 7px 14px 7px 11px;
   font-size: 13px;
   white-space: nowrap;
-  border: 1px solid var(--color-border);
+  border: none;
   border-radius: var(--radius-full);
-  background: var(--color-surface);
+  background: var(--color-white);
+  box-shadow: var(--clay-shadow-sm);
   cursor: pointer;
+  transition: transform var(--dur-rapido) var(--ease-clay);
+}
+
+.interruptor:hover {
+  transform: translateY(-1px);
 }
 
 .interruptorActivo {
-  border-color: var(--color-aviso-border);
-  background: var(--color-aviso-bg);
+  background: var(--clay-estrella-bg);
   color: var(--color-aviso);
-  font-weight: 600;
+  font-weight: 700;
+  box-shadow: var(--clay-shadow-sm), inset 0 0 0 2px var(--color-aviso-border);
 }
 
 .limpiar {
-  padding: 7px 8px;
+  padding: 7px 10px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-primary);
 }
 
@@ -199,6 +246,7 @@
 
 .contadorHuecos {
   color: var(--color-danger);
+  font-weight: 700;
 }
 
 /* ------------------------------------------------------- Lista de conceptos */
@@ -214,10 +262,15 @@
 }
 
 .concepto {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--clay-surface-grad);
   border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
   overflow: hidden;
+  transition: box-shadow var(--dur-medio) var(--ease-suave);
+}
+
+.concepto:hover {
+  box-shadow: var(--clay-shadow);
 }
 
 .cabeceraConcepto {
@@ -237,7 +290,7 @@
 
 .nombreConcepto {
   font-size: 15.5px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .codigoConcepto {
@@ -259,51 +312,46 @@
 }
 
 .pastilla {
-  padding: 2px 9px;
+  padding: 2px 10px;
   font-size: 11px;
   white-space: nowrap;
-  border: 1px solid var(--color-neutro-border);
   border-radius: var(--radius-full);
   background: var(--color-neutro-bg);
   color: var(--color-text-secondary);
+  box-shadow: var(--clay-shadow-sm);
 }
 
 .pastillaDemanda {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-text-primary);
 }
 
 .pastillaPersonaje {
   color: var(--color-personaje);
   background: var(--color-personaje-bg);
-  border-color: color-mix(in srgb, var(--color-personaje) 30%, var(--color-white));
 }
 
 .pastillaInfo {
   color: var(--color-info);
   background: var(--color-info-bg);
-  border-color: var(--color-info-border);
 }
 
 .pastillaCompleta {
   color: var(--color-success);
   background: var(--color-success-bg);
-  border-color: var(--color-success-border);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .pastillaParcial {
   color: var(--color-aviso);
   background: var(--color-aviso-bg);
-  border-color: var(--color-aviso-border);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .pastillaVacia {
   color: var(--color-danger);
   background: var(--color-danger-bg);
-  border-color: var(--color-danger-border);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* ----------------------------------------------------- Atributos y sinonimos */
@@ -332,17 +380,16 @@
 }
 
 .atributoFiltra {
-  padding: 1px 7px;
+  padding: 2px 8px;
   font-family: var(--font-cifras);
   font-size: 11px;
   color: var(--color-info);
   background: var(--color-info-bg);
-  border: 1px solid var(--color-info-border);
   border-radius: var(--radius-sm);
 }
 
 .atributoInforma {
-  padding: 1px 7px;
+  padding: 2px 8px;
   font-family: var(--font-cifras);
   font-size: 11px;
   color: var(--color-text-secondary);
@@ -392,19 +439,19 @@
   display: flex;
   align-items: center;
   gap: var(--espacio-2);
-  padding: 7px var(--espacio-4);
+  padding: 8px var(--espacio-4);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--tinte-nivel);
-  background: color-mix(in srgb, var(--tinte-nivel) 7%, var(--color-surface));
+  background: color-mix(in srgb, var(--tinte-nivel) 8%, var(--color-surface));
   border-left: 3px solid var(--tinte-nivel);
 }
 
 .conteoNivel {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   text-transform: none;
   letter-spacing: 0;
   color: var(--color-text-muted);
@@ -416,7 +463,8 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(214px, 1fr));
   /* La rejilla se separa con el propio fondo: una linea de un pixel entre
-   * tarjetas ocupa menos que un margen y deja caber una columna mas. */
+   * tarjetas ocupa menos que un margen y deja caber una columna mas. La
+   * densidad es la funcion de esta pantalla, no un accidente. */
   gap: 1px;
   background: var(--color-border-light);
 }
@@ -427,6 +475,11 @@
   gap: 5px;
   padding: var(--espacio-3);
   background: var(--color-surface);
+  transition: background var(--dur-rapido) var(--ease-suave);
+}
+
+.producto:hover {
+  background: var(--clay-crema-suave);
 }
 
 .foto {
@@ -434,7 +487,8 @@
   height: 118px;
   object-fit: contain;
   background: var(--color-surface-2);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
+  box-shadow: var(--clay-shadow-inset);
 }
 
 .sinFoto {
@@ -445,13 +499,13 @@
   font-size: 11.5px;
   color: var(--color-text-muted);
   background: var(--color-surface-2);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
+  box-shadow: var(--clay-shadow-inset);
 }
 
 .nombreProducto {
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.35;
   /* Altura fija de dos lineas: con nombres de largo desigual las tarjetas
    * bailan y comparar precios de una fila obliga a buscarlos uno por uno. */
@@ -478,13 +532,13 @@
 
 .chipNivel {
   --tinte-nivel: var(--color-text-secondary);
-  padding: 1px 8px;
+  padding: 2px 9px;
   font-size: 10.5px;
-  font-weight: 700;
+  font-weight: 800;
   border-radius: var(--radius-full);
   color: var(--tinte-nivel);
-  background: color-mix(in srgb, var(--tinte-nivel) 9%, var(--color-white));
-  border: 1px solid color-mix(in srgb, var(--tinte-nivel) 32%, var(--color-white));
+  background: color-mix(in srgb, var(--tinte-nivel) 10%, var(--color-white));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tinte-nivel) 30%, var(--color-white));
 }
 
 .chipNivel[data-nivel="economico"] {
@@ -502,33 +556,33 @@
 /* El personaje tiene su propio color a proposito: no pertenece a la familia de
  * los niveles porque no es uno de ellos. */
 .chipPersonaje {
-  padding: 1px 8px;
+  padding: 2px 9px;
   font-size: 10.5px;
-  font-weight: 700;
+  font-weight: 800;
   border-radius: var(--radius-full);
   color: var(--color-personaje);
   background: var(--color-personaje-bg);
-  border: 1px solid color-mix(in srgb, var(--color-personaje) 30%, var(--color-white));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-personaje) 28%, var(--color-white));
 }
 
 .chipPropio {
-  padding: 1px 8px;
+  padding: 2px 9px;
   font-size: 10.5px;
-  font-weight: 600;
+  font-weight: 700;
   border-radius: var(--radius-full);
   color: var(--color-info);
   background: var(--color-info-bg);
-  border: 1px solid var(--color-info-border);
+  box-shadow: inset 0 0 0 1px var(--color-info-border);
 }
 
 .chipSinRevisar {
-  padding: 1px 8px;
+  padding: 2px 9px;
   font-size: 10.5px;
-  font-weight: 600;
+  font-weight: 700;
   border-radius: var(--radius-full);
   color: var(--color-aviso);
   background: var(--color-aviso-bg);
-  border: 1px solid var(--color-aviso-border);
+  box-shadow: inset 0 0 0 1px var(--color-aviso-border);
   cursor: help;
 }
 
@@ -549,6 +603,7 @@
 }
 
 .precioValor {
+  font-family: var(--font-cifras);
   font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -556,7 +611,7 @@
 
 .precioSinDato {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-text-muted);
 }
 
@@ -585,7 +640,7 @@
 
 .ofertaBarata {
   color: var(--color-text-primary);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .tienda {
@@ -598,6 +653,10 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  /* Empuja precio y enlace al borde derecho. Va aqui y no en el precio porque
+   * el precio de la fila desaparece cuando el producto lo vende una sola
+   * tienda, y el enlace tiene que quedar alineado igual. */
+  margin-right: auto;
   font-size: 10px;
   white-space: nowrap;
   color: var(--color-text-muted);
@@ -605,8 +664,8 @@
 }
 
 .stockPunto {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: var(--radius-full);
   flex: none;
 }
@@ -627,11 +686,11 @@
 }
 
 .precioTienda {
-  margin-left: auto;
+  font-family: var(--font-cifras);
 }
 
 .enlaceTienda {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-primary);
 }
 
@@ -641,6 +700,9 @@
 
 /* ------------------------------------------------------- Estados vacios */
 
+/* El hueco NO se esconde: la franja rayada lo hace imposible de ignorar. Que
+ * "no lo tenemos" salte a la vista es una decision de producto, no un descuido
+ * de estilo — es la mitad de la informacion de esta pantalla. */
 .conceptoVacio {
   padding: var(--espacio-4);
   font-size: 12.5px;
@@ -650,8 +712,8 @@
     135deg,
     var(--color-surface-2),
     var(--color-surface-2) 10px,
-    var(--color-surface) 10px,
-    var(--color-surface) 20px
+    var(--clay-estrella-bg) 10px,
+    var(--clay-estrella-bg) 20px
   );
 }
 
@@ -665,14 +727,15 @@
 .sinResultados {
   padding: var(--espacio-7) var(--espacio-4);
   text-align: center;
-  background: var(--color-surface);
-  border: 1px dashed var(--color-border);
+  background: var(--clay-surface-grad);
   border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
 }
 
 .sinResultadosTitulo {
-  font-size: 15px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
 }
 
 .sinResultadosNota {
@@ -684,16 +747,19 @@
 
 .botonLimpiar {
   margin-top: var(--espacio-4);
-  padding: 9px 18px;
+  min-height: 44px;
+  padding: 0 var(--espacio-5);
   font-size: 13.5px;
-  font-weight: 600;
+  font-weight: 800;
   color: var(--color-white);
-  background: var(--color-primary);
+  background: linear-gradient(145deg, var(--clay-cielo) 0%, var(--color-primary) 100%);
   border-radius: var(--radius-full);
+  box-shadow: var(--clay-shadow-primary);
+  transition: transform var(--dur-rapido) var(--ease-clay);
 }
 
 .botonLimpiar:hover {
-  background: var(--color-primary-dark);
+  transform: translateY(-2px);
 }
 
 /* ----------------------------------------------------------- Pantalla chica */

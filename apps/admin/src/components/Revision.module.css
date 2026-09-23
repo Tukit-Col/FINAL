@@ -35,21 +35,23 @@
   flex-direction: column;
   gap: 2px;
   min-width: 190px;
-  padding: var(--espacio-2) var(--espacio-3);
+  padding: var(--espacio-3) var(--espacio-4);
   text-align: left;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--clay-surface-grad);
   border-radius: var(--radius-md);
+  box-shadow: var(--clay-shadow-sm);
+  transition: transform var(--dur-rapido) var(--ease-suave);
 }
 
 .pestana:hover {
-  border-color: var(--color-primary);
+  transform: translateY(-1px);
 }
 
-.pestanaActiva {
-  border-color: var(--color-primary);
-  box-shadow: inset 0 0 0 1px var(--color-primary);
+.pestanaActiva,
+.pestanaActiva:hover {
   background: var(--color-primary-light);
+  box-shadow: var(--clay-shadow-sm), inset 0 0 0 2px var(--color-primary);
+  transform: none;
 }
 
 .perfilNombre {
@@ -131,16 +133,15 @@
 
 .seccion {
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
   overflow: hidden;
 }
 
 /* Lo pendiente es el trabajo del admin: se marca con el borde entero y no
  * con un icono, porque hay que verlo al bajar rapido por cincuenta lineas. */
 .seccionPendiente {
-  border-color: var(--color-aviso);
-  box-shadow: 0 0 0 1px var(--color-aviso-border);
+  box-shadow: var(--clay-shadow-sm), inset 0 0 0 2px var(--color-aviso);
 }
 
 .seccionCabecera {
@@ -177,6 +178,42 @@
   text-align: center;
 }
 
+/* Barra de acción masiva: vive entre la cabecera de la sección y las líneas.
+ * Sobria, sin rebote — es una consola. */
+.barraLote {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-3);
+  flex-wrap: wrap;
+  padding: var(--espacio-2) var(--espacio-4);
+  background: var(--clay-cielo-bg);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.loteConteo {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.loteBotones {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.barraLote .principal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.barraLote .exito,
+.barraLote .error {
+  flex-basis: 100%;
+}
+
 .lineas {
   display: flex;
   flex-direction: column;
@@ -209,6 +246,19 @@
   padding: var(--espacio-2) var(--espacio-4);
   cursor: pointer;
   font-size: 13px;
+}
+
+/* Con casilla de selección masiva se antepone una columna de 22px para el
+ * checkbox, sin descuadrar el resto de la rejilla. */
+.resumenConCasilla {
+  grid-template-columns: 22px 84px minmax(0, 1fr) auto auto;
+}
+
+.casilla {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
 }
 
 .resumenLinea:hover {
@@ -514,37 +564,48 @@
 .secundario,
 .peligro,
 .plano {
-  padding: 5px 13px;
-  border-radius: var(--radius-sm);
+  padding: 7px 15px;
+  border-radius: var(--radius-full);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
+  transition: transform var(--dur-rapido) var(--ease-suave);
+}
+
+.principal:hover:not(:disabled),
+.secundario:hover:not(:disabled),
+.peligro:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.principal:active:not(:disabled),
+.secundario:active:not(:disabled),
+.peligro:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 .principal {
-  background: var(--color-primary);
+  background: linear-gradient(145deg, var(--clay-cielo) 0%, var(--color-primary) 100%);
   color: var(--color-white);
-}
-
-.principal:hover:not(:disabled) {
-  background: var(--color-primary-dark);
+  box-shadow: var(--clay-shadow-primary);
 }
 
 .secundario {
-  border: 1px solid var(--color-border);
   background: var(--color-white);
   color: var(--color-text-secondary);
-  font-weight: 500;
+  font-weight: 600;
+  box-shadow: var(--clay-shadow-sm);
 }
 
 .secundario:hover:not(:disabled) {
-  border-color: var(--color-primary);
   color: var(--color-primary);
 }
 
 .peligro {
   background: var(--color-danger);
   color: var(--color-white);
+  box-shadow: 0 8px 18px rgba(185, 28, 28, 0.3), inset 0 2px 3px rgba(255, 255, 255, 0.3),
+    inset 0 -4px 8px rgba(120, 15, 15, 0.35);
 }
 
 .plano {
@@ -635,10 +696,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--espacio-3);
-  padding: var(--espacio-3);
+  padding: var(--espacio-4);
   background: var(--color-white);
-  border: 1px solid var(--color-primary);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
+  box-shadow: var(--clay-shadow-sm), inset 0 0 0 2px var(--color-primary-light);
 }
 
 .alta h4 {
@@ -699,10 +760,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--espacio-3);
-  padding: var(--espacio-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  padding: var(--espacio-5);
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow);
 }
 
 .decision h2 {
