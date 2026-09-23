@@ -12,14 +12,6 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy.exc import IntegrityError
-from tests.conftest import (
-    asignar,
-    crear_colegio_con_sede,
-    crear_matricula,
-    crear_rol_con_permisos,
-    crear_usuario,
-    vincular_acudiente,
-)
 from tukit_identidad.autorizacion import (
     Ambito,
     campos_visibles,
@@ -32,6 +24,15 @@ from tukit_identidad.modelos import (
     AmbitoTipo,
     Clasificacion,
     Permiso,
+)
+
+from tests.conftest import (
+    asignar,
+    crear_colegio_con_sede,
+    crear_matricula,
+    crear_rol_con_permisos,
+    crear_usuario,
+    vincular_acudiente,
 )
 
 
