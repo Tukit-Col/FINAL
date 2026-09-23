@@ -2,3 +2,5 @@ id,slug,nombre,tipo,url_base,activa
 73bb1501-f9af-5aa8-98a5-a8c32ef8801e,exito,Éxito,minorista,https://www.exito.com,true
 376c2c83-0367-510d-9684-0ca3e122492f,grancentral,Papelería Grancentral,mayorista,https://pgrancentral.com,true
 01462dc7-31d0-5d82-95d6-042db6251508,panamericana,Panamericana,minorista,https://www.panamericana.com.co,true
+62284ce0-e633-56bc-a5c7-adf8da64d7ec,librerianacional,Libreria Nacional,minorista,https://www.librerianacional.com,true
+185aeb7a-64b5-5415-a1a1-d025d3012580,buscalibre,Buscalibre Colombia,minorista,https://www.buscalibre.com.co,true

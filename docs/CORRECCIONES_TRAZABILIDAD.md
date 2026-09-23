@@ -2,11 +2,13 @@
 
 - **Tipo:** corrección de trazabilidad. **Este documento no edita nada.** Produce las
   correcciones para que otra persona las aplique.
-- **Fecha:** 2026-09-22. **Revisión 3**, tras cerrar los tres cambios abiertos.
-- **Línea base normativa:** **`Arquitectura/SRS_ISIS2610G19_v5.docx`**, que incorpora los 28
-  cambios de `ENMIENDA_SRS.md`, los 12 de `ADENDA_REQUISITOS_SRS.md` y el cierre de los tres que
-  el v4 dejó abiertos (`tukit/docs/CIERRE_V5.md`). El PDF `v2` de la raíz y los `.docx` `v3` y
-  `v4` son historia y no se citan como fuente de requisitos.
+- **Fecha:** 2026-09-22. **Revisión 4**, tras unificar la taxonomía y cerrar `OP-03`.
+- **Línea base normativa:** **`Arquitectura/SRS_ISIS2610G19_v6.docx`**, que incorpora los 28
+  cambios de `ENMIENDA_SRS.md`, los 12 de `ADENDA_REQUISITOS_SRS.md`, el cierre de los tres que el
+  v4 dejó abiertos (`CIERRE_V5.md`) y la unificación de taxonomía más `DP-06` (`CIERRE_V6.md`). El
+  PDF `v2` de la raíz y los `.docx` `v3`, `v4` y `v5` son historia y no se citan como fuente.
+- **Verificación:** `Arquitectura/scripts/verificar_srs.py`, que sustituye a las comprobaciones que
+  antes se corrían a mano y añade la de ubicación de cada edición.
 - **Qué cambió en la revisión 2.** La primera versión traía **dos** columnas de destino, una para
   la línea base vigente y otra para después de aplicar las enmiendas, porque en ese momento había
   tres documentos que había que leer juntos. Ya no: **hay un solo destino** y la tabla está
@@ -15,7 +17,18 @@
 - **Qué cambió en la revisión 3.** Solo la línea base a la que apuntan las correcciones: v4 → v5.
   **Ninguna corrección de esta tabla cambió de destino**, porque el v5 no renumeró ni redefinió
   ningún requisito: cerró `DP-04`, corrigió la norma de §2.4.1, completó la Tabla 4 y arregló dos
-  defectos de aplicación del v4. `OP-03` **no** se tocó, de modo que C-02 sigue vigente tal cual.
+  defectos de aplicación del v4.
+- **Qué cambió en la revisión 4.** La línea base v5 → v6, y **dos cosas que sí afectan a esta tabla**.
+  La primera: **C-02 se puede cerrar mejor de lo que decía**, porque el v6 re-encuadró la descripción
+  de `OP-03` y su reemplazo sugerido ya no tiene que explicar el desajuste de alcance; ver la nota en
+  C-02. La segunda: se añade **§4.bis con S-01**, la corrección de `TOPE_PAGINAS = 40` en
+  `percepcion.py`, que es la primera entrada de esta tabla que no es una cita mal puesta sino un
+  límite de código incompatible con un requisito.
+- **Y un aviso sobre la columna `Servicio`.** El v6 renombró la columna `Módulo` de las tablas de
+  requisitos a **`Servicio`** y normalizó sus 132 valores a las diez unidades canónicas de
+  `ARQUITECTURA.md` §1. Ninguna corrección de esta tabla cita esa columna, así que ninguna cambió de
+  destino; pero quien aplique una corrección y de paso lea el SRS debe saber que los nombres de módulo
+  funcional —`PWA`, `Admin`, `Transversal`, `Todos`— ya no existen ahí.
 
 > **Sobre las menciones a «el v4» en el cuerpo de esta tabla.** Se conservan a propósito y son
 > correctas. Cuando una fila dice *"en el v4, `FU-06` existe y significa otra cosa"*, está fechando
@@ -100,7 +113,8 @@ significado. Esas dos primero.
 | **Código actual** | `OP-03` — el código es correcto, **la cita no** |
 | **Código correcto** | `OP-03`, con su texto real |
 | **Justificación** | Se buscaron "por encima de la velocidad", "velocidad de generación" y "priorizar la precisión" en el v2, en el v3 y en el v4: **no aparecen en ninguno**. El `OP-03` real del v4 dice *"El motor debe generar los 3 kits en un tiempo razonable que no afecte negativamente la experiencia del padre"*, con criterio *"Tope máximo de 5 minutos de extremo a extremo (peor caso), con progreso visible por etapa mientras dura el procesamiento"*. O sea que el contrato no solo inventa la cita: le atribuye al SRS **lo contrario** de lo que dice, porque el SRS **acota** el tiempo en vez de subordinarlo a la precisión. Es el defecto más fácil de verificar de esta lista —se comprueba abriendo el SRS— y el más caro si lo encuentra un jurado, porque una cita textual falsa no es un error de trazabilidad sino de método |
-| **Reemplazo listo para pegar** | *"El pipeline tarda minutos, no segundos. `OP-03` del SRS lo acota en cinco minutos de extremo a extremo en el peor caso, y exige **progreso visible por etapa** mientras dura el procesamiento. Una API síncrona no puede ofrecer ese progreso, y por eso el recurso central no es el kit sino el trabajo."* Dice lo que el contrato necesita decir en ese punto y es cierto |
+| **Reemplazo listo para pegar** | *"El pipeline tarda minutos, no segundos. `OP-03` del SRS lo acota en cinco minutos de extremo a extremo en el peor caso, y exige **progreso visible por etapa** mientras dura el procesamiento. Una API síncrona no puede ofrecer ese progreso, y por eso el recurso central no es el kit sino el trabajo. El tiempo de cada etapa lo acotan `DP-04` (percepción), `DP-03` (optimización) y `DP-06` (camino corto sobre lista validada), y el `estimado_segundos` que se le anuncia al acudiente debe ser el del camino que su trabajo va a tomar, no uno único para los dos."* |
+| **Nota de la revisión 4** | El v6 re-encuadró la descripción de `OP-03`, que antes acotaba *"el motor"* mientras su criterio acotaba el flujo completo. Eso simplifica esta corrección: el reemplazo ya no tiene que explicar un desajuste, solo citar bien. Y habilita la segunda mitad, que antes no se podía escribir: **el contrato puede anunciar `estimado_segundos` por camino**, porque ahora hay un requisito que acota cada uno |
 
 ### 1.3 C-03 — `AD-01` no se cita en ningún sitio, y la cola está trazada a otro requisito
 
@@ -217,6 +231,23 @@ dice que son tres aplicaciones y que `apps/colegio/` está pendiente de portar. 
 inconsistencia interna del documento que manda, y los diagramas de ese bloque son la fuente
 versionada que se exporta al SAD y a la memoria, así que se propaga a documentos calificables. El
 v4 la agrava un poco, porque `CO-05` añade una capacidad que vive en ese panel.
+
+---
+
+## 4.bis `tukit/servicios/inteligencia/**` — 1 corrección pendiente
+
+**No editar.** Lo posee el agente de backend. Es una corrección de **código**, no de cita, y es la
+única de esta tabla que no es un código de requisito mal puesto.
+
+| # | Archivo | Línea | Texto citado | Qué está mal | Qué debería decir |
+|---|---|---:|---|---|---|
+| S-01 | `servicios/inteligencia/tukit_inteligencia/percepcion.py` | 34 | `TOPE_PAGINAS = 40` | El tope de páginas y el tope de tiempo se fijaron por separado y no se hablan. Con la latencia medida de la percepción —**5,62 s por página**, la única observación del corpus libre de estrangulamiento por cuota (`CIERRE_V5.md` §1.3)—, un documento de 40 páginas cuesta **225 s** en la primera etapa sola. Eso es el **75 % del presupuesto completo de 300 s de `OP-03`**, que tiene que cubrir las cuatro etapas. O sea que el límite vigente **admite documentos que garantizan el incumplimiento de `OP-03`** | Bajar `TOPE_PAGINAS` a un valor coherente con el presupuesto. Con `DP-04` en ≤ 45 s por lista de un grado, el tope coherente está en torno a **8 páginas** (45 ÷ 5,62 ≈ 8), que además es holgado frente a la realidad del corpus: la lista de un grado ocupa entre una y tres páginas, y el documento más largo, el consolidado de CACS, tiene 39 páginas **para catorce grados**. En la práctica la guarda de `422 lista_de_varios_grados` hace improbable que una lista legítima de un grado llegue a 40 páginas, pero el límite lo permite y el requisito no |
+
+**Por qué va aquí y no como edición.** El archivo está en `tukit/servicios/**`, que pertenece al
+agente de backend. Y conviene que la decisión sea suya por una razón de fondo: bajar el tope cambia
+qué documentos el sistema **rechaza**, que es una decisión de producto además de una de presupuesto.
+La alternativa sería subir el tope de `OP-03`, y eso empeora la experiencia que `OP-03` existe para
+proteger.
 
 ---
 

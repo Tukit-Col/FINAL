@@ -1,7 +1,8 @@
 "use client";
 
 // El cuerpo de la revision: elegir cual de los tres kits se mira y recorrer
-// sus lineas (AD-03, AD-04).
+// sus lineas. La consola de comparacion es AD-04 sobre la cola que pide
+// AD-01; las acciones sobre cada linea son AD-02.
 //
 // El admin SI ve los kits antes de publicar —esa es su tarea— mientras que el
 // §4 se los oculta al acudiente hasta que alguien los apruebe.

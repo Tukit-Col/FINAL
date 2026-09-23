@@ -4,7 +4,14 @@
 // asi la bandera `TUKIT_ORIGEN_DATOS` vive en un solo sitio y el cliente no
 // tiene que saber que existe.
 
-import type { ErrorApi, SolicitudTrabajo, Trabajo, TrabajoCreado } from "@tukit/contrato";
+import type {
+  CasoCreado,
+  ErrorApi,
+  SolicitudCaso,
+  SolicitudTrabajo,
+  Trabajo,
+  TrabajoCreado,
+} from "@tukit/contrato";
 
 export class FalloApi extends Error {
   constructor(
@@ -53,6 +60,16 @@ export async function crearTrabajo(
     forma.append("referencia", referencia);
   }
   return leer<TrabajoCreado>(await fetch("/api/trabajos", { method: "POST", body: forma }));
+}
+
+export async function crearCaso(solicitud: SolicitudCaso): Promise<CasoCreado> {
+  return leer<CasoCreado>(
+    await fetch("/api/casos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(solicitud),
+    }),
+  );
 }
 
 export async function consultarTrabajo(trabajoId: string): Promise<Trabajo> {

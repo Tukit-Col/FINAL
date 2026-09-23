@@ -9,8 +9,12 @@ import type {
   AltaProducto,
   ColaAdmin,
   DecisionRevision,
+  Kit,
+  LineaKit,
   MarcarNoDisponible,
+  PercepcionCruda,
   ProductoDadoDeAlta,
+  ProductoKit,
   SinCoincidencia,
   SolicitudTrabajo,
   Trabajo,
@@ -18,9 +22,31 @@ import type {
   TrabajoCreado,
   ValidarLinea,
 } from "./contrato";
-import type { Catalogo, Colegio, ListaOficial } from "./catalogo";
+import type {
+  Catalogo,
+  Colegio,
+  ColegioDetalle,
+  ColegioEditable,
+  ConceptoCatalogo,
+  FiltrosListasAdmin,
+  FiltrosProductos,
+  ItemListaEditable,
+  ItemRevision,
+  ListaOficial,
+  OfertaCatalogo,
+  PaginaProductos,
+  Personaje,
+  ProductoCatalogo,
+  ProductoCatalogoDetalle,
+  ProductoEditable,
+  PropuestaRevision,
+  RevisionLista,
+  SedeColegio,
+  Sugerencia,
+  VersionListaAdmin,
+} from "./catalogo";
 import type { Pedido, TableroComercio } from "./comercio";
-import type { BandejaOperacion, Caso } from "./operacion";
+import type { BandejaOperacion, Caso, CasoCreado, SolicitudCaso } from "./operacion";
 import {
   ErrorTukit,
   type ArchivoLista,
@@ -31,6 +57,25 @@ import {
 
 // El pipeline tarda minutos, no segundos, y eso es deliberado (§0).
 const TIEMPO_MAXIMO_MS = 300_000;
+
+// Los quince grados del corpus, en el orden en que un colegio los nombra (es el
+// mismo que sirve identidad en `/v1/grados`). Se usa para ordenar los grados de
+// cada colegio en el picker: alfabetico pondria "Once" antes que "Primero".
+const ORDEN_GRADOS: readonly string[] = [
+  "Parvulos", "Prejardin", "Jardin", "Transicion", "Primero", "Segundo",
+  "Tercero", "Cuarto", "Quinto", "Sexto", "Septimo", "Octavo", "Noveno",
+  "Decimo", "Once",
+];
+
+function ordenGrado(a: string, b: string): number {
+  const ia = ORDEN_GRADOS.indexOf(a);
+  const ib = ORDEN_GRADOS.indexOf(b);
+  // Un grado que no esté en la lista canónica va al final, en orden alfabético.
+  if (ia === -1 && ib === -1) return a.localeCompare(b);
+  if (ia === -1) return 1;
+  if (ib === -1) return -1;
+  return ia - ib;
+}
 
 export interface OpcionesCliente {
   urlBase: string;
@@ -156,23 +201,256 @@ export class ClienteApi implements OrigenDatos {
     return this.pedir<TrabajoCreado>("/v1/trabajos", { method: "POST", body: forma });
   }
 
-  consultarTrabajo(trabajoId: string): Promise<Trabajo> {
-    return this.pedir<Trabajo>(`/v1/trabajos/${encodeURIComponent(trabajoId)}`);
+  async consultarTrabajo(trabajoId: string): Promise<Trabajo> {
+    const crudo = await this.pedir<Trabajo>(`/v1/trabajos/${encodeURIComponent(trabajoId)}`);
+    return normalizarTrabajo(crudo);
   }
 
   // ------------------------------------------------------- ASUMIDO (v1.1)
-  catalogo(): Promise<Catalogo> {
-    return this.pedir<Catalogo>("/v1/catalogo");
+  //
+  // El fichero `catalogo.ts` infirio una superficie 1.1 que el backend no
+  // implemento tal cual: no hay un `/v1/catalogo` de una pieza, ni colegios
+  // colgando de catalogo, ni una lista por `(colegio, grado)`. Lo que SI existe
+  // es lo que sirve el corpus real, y a eso se pega el cliente. La reconciliacion
+  // vive aqui, en el borde HTTP, para no tocar ni el contrato ni las pantallas.
+
+  // El catalogo de pantalla junta tres lecturas reales y las cose en la forma
+  // que el contrato asumio (§12): el resumen curado, las tiendas y —lo que el
+  // backend NO sirve de una pieza— los conceptos con sus productos anidados.
+  //
+  // El backend los separa a proposito: `/v1/catalogo/conceptos` devuelve el
+  // concepto con `productos` como un CONTEO, no como el arreglo que el contrato
+  // pide; el arreglo solo existe producto a producto en `/v1/catalogo/productos`
+  // (con `concepto.codigo` en cada fila) y solo trae `ofertas` cuando se pide
+  // `con_ofertas=true`. Asi que se traen todos los productos con ofertas y se
+  // agrupan aqui por concepto. Es la misma reconciliacion 1.0→1.1 del resto del
+  // fichero, en el borde HTTP, para no tocar ni el contrato ni la pantalla.
+  async catalogo(): Promise<Catalogo> {
+    const [resumen, tiendasResp, conceptosResp, productos] = await Promise.all([
+      this.pedir<Catalogo["resumen"]>("/v1/catalogo/resumen"),
+      this.pedir<{ tiendas: Catalogo["tiendas"] }>("/v1/catalogo/tiendas"),
+      this.pedir<{ conceptos: ConceptoCrudo[] }>("/v1/catalogo/conceptos?por_pagina=200"),
+      this.todosLosProductos(),
+    ]);
+
+    // Los productos se indexan por su codigo de concepto para colgarlos del
+    // concepto al que pertenecen. Un concepto sin productos se queda con `[]`,
+    // que es exactamente lo que la pantalla usa para pintarlo como hueco.
+    const porConcepto = new Map<string, ProductoCatalogo[]>();
+    for (const p of productos) {
+      const codigo = p.concepto?.codigo;
+      if (!codigo) continue;
+      const lista = porConcepto.get(codigo) ?? [];
+      lista.push(normalizarProductoCatalogo(p));
+      porConcepto.set(codigo, lista);
+    }
+
+    const conceptos: ConceptoCatalogo[] = (conceptosResp.conceptos ?? []).map((c) => ({
+      codigo: c.codigo,
+      // El backend nombra el campo `nombre`; el contrato lo llama
+      // `nombre_canonico`. Se acepta cualquiera de los dos.
+      nombre_canonico: c.nombre_canonico ?? c.nombre ?? c.codigo,
+      sinonimos: c.sinonimos ?? [],
+      categoria: c.categoria,
+      tipo_item: c.tipo_item,
+      atributos_discriminantes: c.atributos_discriminantes ?? [],
+      atributos_descriptivos: c.atributos_descriptivos ?? [],
+      admite_personaje: Boolean(c.admite_personaje),
+      frecuencia_demanda: c.frecuencia_demanda ?? 0,
+      productos: porConcepto.get(c.codigo) ?? [],
+    }));
+
+    return {
+      resumen,
+      tiendas: tiendasResp.tiendas ?? [],
+      conceptos,
+    };
   }
 
-  colegios(): Promise<Colegio[]> {
-    return this.pedir<Colegio[]>("/v1/catalogo/colegios");
+  // Trae TODOS los productos activos con sus ofertas, paginando contra el tope
+  // real del backend (200). El corpus tiene ~406, asi que son dos o tres
+  // vueltas; se para cuando la pagina viene incompleta o ya se juntaron `total`.
+  private async todosLosProductos(): Promise<ProductoCrudo[]> {
+    const POR_PAGINA = 200;
+    const todos: ProductoCrudo[] = [];
+    for (let pagina = 1; ; pagina += 1) {
+      const resp = await this.pedir<{ total: number; productos: ProductoCrudo[] }>(
+        `/v1/catalogo/productos?con_ofertas=true&por_pagina=${POR_PAGINA}&pagina=${pagina}`,
+      );
+      const lote = resp.productos ?? [];
+      todos.push(...lote);
+      if (lote.length < POR_PAGINA || todos.length >= (resp.total ?? todos.length)) break;
+    }
+    return todos;
   }
 
-  listaOficial(colegioId: string, grado: string): Promise<ListaOficial> {
-    return this.pedir<ListaOficial>(
-      `/v1/catalogo/colegios/${encodeURIComponent(colegioId)}/listas/${encodeURIComponent(grado)}`,
+  // Identidad sirve los colegios (`/v1/colegios`) y los grados existen aparte
+  // (`/v1/grados`), pero un colegio del picker debe ofrecer SOLO los grados que
+  // tienen lista publicada: ofrecer un grado sin lista manda al acudiente a un
+  // trabajo que falla con `sin_lista_oficial`. Asi que los grados de cada
+  // colegio se derivan de las listas reales de catalogo, no del catalogo global
+  // de grados.
+  async colegios(): Promise<Colegio[]> {
+    const [colegiosResp, listasResp] = await Promise.all([
+      this.pedir<{ colegios: { colegio_id: string; nombre: string; logo_url?: string | null }[] }>(
+        "/v1/colegios",
+      ),
+      // El tope de página del backend es 200 (POR_PAGINA_MAXIMO). El corpus
+      // tiene 175 listas, así que una página las trae todas; si algún día pasan
+      // de 200 habría que paginar aquí, y por eso se comprueba `total`.
+      this.pedir<{
+        total: number;
+        listas: { colegio_id: string; grado: string; revisada: boolean }[];
+      }>("/v1/listas?por_pagina=200"),
+    ]);
+
+    // El selector arranca VACIO y solo se llena con lo verificado: un grado
+    // solo cuenta si su lista esta REVISADA (`revisada===true`). Una lista
+    // importada pero sin revisar no habilita el grado —la ruta rapida a
+    // optimizacion solo aplica a listas verificadas—.
+    const gradosPorColegio = new Map<string, Set<string>>();
+    for (const lista of listasResp.listas ?? []) {
+      if (lista.revisada !== true) continue;
+      const set = gradosPorColegio.get(lista.colegio_id) ?? new Set<string>();
+      set.add(lista.grado);
+      gradosPorColegio.set(lista.colegio_id, set);
+    }
+
+    return (colegiosResp.colegios ?? [])
+      .map((c) => {
+        const grados = [...(gradosPorColegio.get(c.colegio_id) ?? [])].sort(ordenGrado);
+        return {
+          colegio_id: c.colegio_id,
+          nombre: c.nombre,
+          // El backend no lleva la trazabilidad `fuente`/`atribucion_dudosa` del
+          // simulado (era una senal del cargador de listas, no del dominio); se
+          // reportan neutros para no fingir un dato que no existe.
+          fuente: "backend",
+          atribucion_dudosa: false,
+          // El logo lo sirve identidad; `null` cuando el colegio no cargo marca.
+          logo_url: c.logo_url ?? null,
+          grados,
+          es_partner: grados.length > 0,
+        };
+      })
+      // Un colegio sin ningun grado REVISADO no se puede elegir todavia: no
+      // aparece. Asi el selector queda vacio hasta la primera aprobacion.
+      .filter((c) => c.grados.length > 0);
+  }
+
+  // Trae la lista publicada de un (colegio, grado): primero la localiza en el
+  // indice `/v1/listas` y luego pide su detalle por id. Hoy no la consume
+  // ninguna pantalla, pero mantiene la paridad con el origen simulado.
+  async listaOficial(colegioId: string, grado: string): Promise<ListaOficial> {
+    const indice = await this.pedir<{
+      listas: { lista_id: string; grado: string; anio_lectivo: number; version: number }[];
+    }>(
+      `/v1/listas?colegio_id=${encodeURIComponent(colegioId)}&grado=${encodeURIComponent(grado)}&por_pagina=1`,
     );
+    const encontrada = indice.listas?.[0];
+    if (!encontrada) {
+      throw new ErrorTukit(404, "lista_no_existe", "No tenemos esa lista todavía.");
+    }
+    const detalle = await this.pedir<{
+      colegio_id: string;
+      grado: string;
+      anio_lectivo: number;
+      version: number;
+      items: ListaOficial["items"];
+    }>(`/v1/listas/${encodeURIComponent(encontrada.lista_id)}`);
+    return {
+      colegio_id: detalle.colegio_id,
+      grado: detalle.grado,
+      anio_lectivo: detalle.anio_lectivo,
+      version: detalle.version,
+      items: detalle.items ?? [],
+    };
+  }
+
+  // ----------------------------------------------- §Catalogo — admin (P4c)
+  //
+  // La SPA de administracion del catalogo. `personajes` sale de una lectura
+  // dedicada del backend; los tres verbos de escritura pegan al producto por su
+  // SKU (PATCH parcial, POST reclasificar, DELETE baja suave) y devuelven la
+  // forma de detalle `_producto_publico`, que se normaliza en el borde igual que
+  // `normalizarProductoCatalogo`. `buscarProductos` arma el querystring con solo
+  // los filtros presentes.
+  async personajes(): Promise<Personaje[]> {
+    const resp = await this.pedir<{ personajes?: PersonajeCrudo[] }>(
+      "/v1/catalogo/personajes",
+    );
+    return (resp.personajes ?? []).map((p) => ({
+      nombre: p.nombre,
+      productos: typeof p.productos === "number" ? p.productos : 0,
+      ...(Array.isArray(p.conceptos) ? { conceptos: p.conceptos } : {}),
+    }));
+  }
+
+  async buscarProductos(filtros: FiltrosProductos): Promise<PaginaProductos> {
+    const qs = new URLSearchParams();
+    if (filtros.concepto) qs.set("concepto", filtros.concepto);
+    if (filtros.nivel) qs.set("nivel", filtros.nivel);
+    if (filtros.personaje) qs.set("personaje", filtros.personaje);
+    if (filtros.con_personaje !== undefined)
+      qs.set("con_personaje", String(filtros.con_personaje));
+    if (filtros.busqueda) qs.set("busqueda", filtros.busqueda);
+    if (filtros.con_precio !== undefined) qs.set("con_precio", String(filtros.con_precio));
+    if (filtros.con_ofertas !== undefined) qs.set("con_ofertas", String(filtros.con_ofertas));
+    if (filtros.pagina !== undefined) qs.set("pagina", String(filtros.pagina));
+    if (filtros.por_pagina !== undefined) qs.set("por_pagina", String(filtros.por_pagina));
+    const cadena = qs.toString();
+    const resp = await this.pedir<{
+      total?: number;
+      pagina?: number;
+      por_pagina?: number;
+      productos?: ProductoCrudo[];
+    }>(`/v1/catalogo/productos${cadena ? `?${cadena}` : ""}`);
+    const productos = (resp.productos ?? []).map(normalizarProductoDetalle);
+    return {
+      total: typeof resp.total === "number" ? resp.total : productos.length,
+      pagina: typeof resp.pagina === "number" ? resp.pagina : (filtros.pagina ?? 1),
+      por_pagina:
+        typeof resp.por_pagina === "number"
+          ? resp.por_pagina
+          : (filtros.por_pagina ?? productos.length),
+      productos,
+    };
+  }
+
+  async editarProducto(
+    sku: string,
+    cambios: ProductoEditable,
+  ): Promise<ProductoCatalogoDetalle> {
+    const crudo = await this.pedir<ProductoCrudo>(
+      `/v1/catalogo/productos/${encodeURIComponent(sku)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cambios),
+      },
+    );
+    return normalizarProductoDetalle(crudo);
+  }
+
+  async reclasificarProducto(
+    sku: string,
+    concepto: string,
+  ): Promise<ProductoCatalogoDetalle> {
+    const crudo = await this.pedir<ProductoCrudo>(
+      `/v1/catalogo/productos/${encodeURIComponent(sku)}/reclasificar`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ concepto }),
+      },
+    );
+    return normalizarProductoDetalle(crudo);
+  }
+
+  eliminarProducto(sku: string): Promise<void> {
+    return this.pedir<void>(`/v1/catalogo/productos/${encodeURIComponent(sku)}`, {
+      method: "DELETE",
+    });
   }
 
   // ------------------------------------------------------------------ §7
@@ -180,8 +458,11 @@ export class ClienteApi implements OrigenDatos {
     return this.pedir<ColaAdmin>("/v1/admin/cola");
   }
 
-  trabajoAdmin(trabajoId: string): Promise<TrabajoAdmin> {
-    return this.pedir<TrabajoAdmin>(`/v1/admin/trabajos/${encodeURIComponent(trabajoId)}`);
+  async trabajoAdmin(trabajoId: string): Promise<TrabajoAdmin> {
+    const crudo = await this.pedir<TrabajoAdmin>(
+      `/v1/admin/trabajos/${encodeURIComponent(trabajoId)}`,
+    );
+    return { ...crudo, kits: crudo.kits.map(normalizarKit) };
   }
 
   validarLinea(trabajoId: string, itemId: string, cuerpo: ValidarLinea): Promise<void> {
@@ -218,6 +499,301 @@ export class ClienteApi implements OrigenDatos {
     return this.json(`/v1/admin/trabajos/${encodeURIComponent(trabajoId)}/revision`, cuerpo);
   }
 
+  // ---------------------------------------------------------- §Onboarding (P2)
+  //
+  // Inteligencia expone la ruta publica `POST /v1/admin/onboarding` como
+  // `multipart/form-data`: el PDF va en `archivo` y el destino (`colegio_id`,
+  // `grado`, `anio_lectivo`) en campos aparte, igual que `crearTrabajo` con
+  // archivos. Inteligencia percibe y escribe en catalogo por su cuenta; el
+  // cliente solo recibe la version creada.
+  async onboarding(
+    colegio_id: string,
+    grado: string,
+    anio_lectivo: number,
+    archivo: { contenido: Blob; nombre: string },
+  ): Promise<{ version_id: string; grado: string; items: number }> {
+    const forma = new FormData();
+    forma.append("colegio_id", colegio_id);
+    forma.append("grado", grado);
+    forma.append("anio_lectivo", String(anio_lectivo));
+    forma.append("archivo", archivo.contenido, archivo.nombre);
+    return this.pedir<{ version_id: string; grado: string; items: number }>(
+      "/v1/admin/onboarding",
+      { method: "POST", body: forma },
+    );
+  }
+
+  // Un acudiente sugiere la lista de su (colegio, grado) cuando no hay una
+  // verificada. A diferencia de `onboarding` (multipart hacia inteligencia),
+  // esto es JSON hacia catalogo por el gateway: el PDF va en base64 dentro de
+  // `evidencia`, y la traza al acudiente es SOLO `contacto_referencia`. Nunca
+  // se envia correo ni telefono: esa PII vive solo en identidad.
+  async sugerirColegio(
+    colegio_id: string,
+    grado: string,
+    anio_lectivo: number,
+    archivo?: { contenido: Blob; nombre: string },
+    contacto_referencia?: string,
+  ): Promise<{ tarea_id: string; estado: string }> {
+    const documento_base64 = archivo ? await this.aBase64(archivo.contenido) : null;
+    return this.pedir<{ tarea_id: string; estado: string }>("/v1/admin/sugerencias", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        colegio_id,
+        grado,
+        anio_lectivo,
+        contacto_referencia: contacto_referencia ?? null,
+        evidencia: { documento_base64 },
+      }),
+    });
+  }
+
+  // Un Blob a base64 sin `data:` prefijo, para meter el PDF en el JSON de la
+  // sugerencia. Se lee como bytes y se codifica en bloques para no reventar la
+  // pila con `String.fromCharCode(...bytes)` en archivos grandes.
+  private async aBase64(blob: Blob): Promise<string> {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let binario = "";
+    const bloque = 0x8000;
+    for (let i = 0; i < bytes.length; i += bloque) {
+      binario += String.fromCharCode(...bytes.subarray(i, i + bloque));
+    }
+    return btoa(binario);
+  }
+
+  // ------------------------------------------- §Admin — revision de listas (P4)
+  //
+  // La superficie de escritura que `admin_http.py` sirve bajo `/v1/admin`. El
+  // indice y la vista de revision se cosen en el borde a las formas del
+  // contrato: el backend anida `concepto` en `{codigo, nombre}` y aca se aplana
+  // a `concepto_codigo`/`concepto_nombre`, y el precio de una propuesta ya llega
+  // en pesos enteros. Las mutaciones (editar/agregar/cerrar/nueva) mandan JSON y
+  // devuelven lo justo que la pantalla necesita para re-pintar.
+  async listasAdmin(filtros: FiltrosListasAdmin = {}): Promise<VersionListaAdmin[]> {
+    const qs = new URLSearchParams();
+    if (filtros.revisada !== undefined) qs.set("revisada", String(filtros.revisada));
+    if (filtros.colegio_id) qs.set("colegio_id", filtros.colegio_id);
+    if (filtros.grado) qs.set("grado", filtros.grado);
+    if (filtros.anio_lectivo !== undefined) qs.set("anio_lectivo", String(filtros.anio_lectivo));
+    const cadena = qs.toString();
+    const resp = await this.pedir<{ listas?: VersionListaAdmin[] }>(
+      `/v1/admin/listas${cadena ? `?${cadena}` : ""}`,
+    );
+    return resp.listas ?? [];
+  }
+
+  async revisionLista(versionId: string): Promise<RevisionLista> {
+    const crudo = await this.pedir<RevisionCruda>(
+      `/v1/admin/listas/${encodeURIComponent(versionId)}/revision`,
+    );
+    return {
+      version_id: crudo.version_id,
+      colegio_id: crudo.colegio_id,
+      grado: crudo.grado,
+      anio_lectivo: crudo.anio_lectivo,
+      numero: crudo.numero,
+      revisada: Boolean(crudo.revisada),
+      items: (crudo.items ?? []).map(normalizarItemRevision),
+      propuestas: (crudo.propuestas ?? []).map(normalizarPropuestaRevision),
+    };
+  }
+
+  editarItemLista(
+    versionId: string,
+    itemId: string,
+    cambios: ItemListaEditable,
+  ): Promise<void> {
+    // El backend responde 200 con `{item_id, actualizado}`; se descarta, el
+    // metodo es void y la pantalla re-lee la revision.
+    return this.pedir<void>(
+      `/v1/admin/listas/${encodeURIComponent(versionId)}/items/${encodeURIComponent(itemId)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cuerpoItem(cambios)),
+      },
+    );
+  }
+
+  async agregarItemLista(
+    versionId: string,
+    item: ItemListaEditable,
+  ): Promise<{ item_id: string }> {
+    // El POST del backend responde 201 con `{item_id, orden}`; solo se propaga
+    // `item_id`, que es lo que el contrato promete.
+    const resp = await this.pedir<{ item_id: string; orden?: number }>(
+      `/v1/admin/listas/${encodeURIComponent(versionId)}/items`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cuerpoItem(item)),
+      },
+    );
+    return { item_id: resp.item_id };
+  }
+
+  cerrarLista(versionId: string): Promise<void> {
+    // Responde 200 con `{version_id, revisada, ya_estaba?}`; se descarta.
+    return this.pedir<void>(
+      `/v1/admin/listas/${encodeURIComponent(versionId)}/cerrar`,
+      { method: "POST" },
+    );
+  }
+
+  async nuevaVersion(
+    colegioId: string,
+    grado: string,
+    anioLectivo: number,
+  ): Promise<{ version_id: string }> {
+    // El backend exige `anio_lectivo` como query y responde 201 con
+    // `{version_id, numero, revisada}`; se propaga solo `version_id`.
+    const resp = await this.pedir<{ version_id: string; numero?: number; revisada?: boolean }>(
+      `/v1/admin/listas/${encodeURIComponent(colegioId)}/${encodeURIComponent(grado)}/nueva-version?anio_lectivo=${anioLectivo}`,
+      { method: "POST" },
+    );
+    return { version_id: resp.version_id };
+  }
+
+  // ------------------------------------------ §Admin — identidad del colegio (P4)
+  //
+  // El detalle vive en identidad (`/v1/colegios/{id}`) y el PATCH lo sirve el
+  // slice que construye la edicion en paralelo. Los dos responden con la misma
+  // forma de detalle, que se cose a `ColegioDetalle` en el borde.
+  colegio(colegioId: string): Promise<ColegioDetalle> {
+    return this.pedirColegioDetalle(
+      `/v1/colegios/${encodeURIComponent(colegioId)}`,
+    );
+  }
+
+  editarColegio(colegioId: string, cambios: ColegioEditable): Promise<ColegioDetalle> {
+    return this.pedirColegioDetalle(`/v1/colegios/${encodeURIComponent(colegioId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cambios),
+    });
+  }
+
+  // La vista previa de una version curada (region 4). Un slice de backend sirve
+  // `POST /v1/admin/onboarding/{version_id}/preview` con el destino en el
+  // cuerpo; responde `{trabajo_id, estado}` y se propaga solo `trabajo_id`, que
+  // es lo que la pantalla necesita para leer luego `trabajoAdmin(trabajo_id)`.
+  // Es el mismo patron de `crearTrabajo` (POST con cuerpo) y `trabajoAdmin`
+  // (leer del id devuelto).
+  async previewDeVersion(
+    versionId: string,
+    ctx: { colegioId: string; grado: string; anioLectivo: number },
+  ): Promise<{ trabajo_id: string }> {
+    const resp = await this.pedir<{ trabajo_id: string; estado: string }>(
+      `/v1/admin/onboarding/${encodeURIComponent(versionId)}/preview`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          colegio_id: ctx.colegioId,
+          grado: ctx.grado,
+          anio_lectivo: ctx.anioLectivo,
+        }),
+      },
+    );
+    return { trabajo_id: resp.trabajo_id };
+  }
+
+  private async pedirColegioDetalle(
+    ruta: string,
+    init?: RequestInit,
+  ): Promise<ColegioDetalle> {
+    const c = await this.pedir<ColegioDetalleCrudo>(ruta, init);
+    return {
+      colegio_id: c.colegio_id,
+      nombre: c.nombre,
+      logo_url: c.logo_url ?? null,
+      sitio_web: c.sitio_web ?? null,
+      contacto_nombre: c.contacto_nombre ?? null,
+      contacto_email: c.contacto_email ?? null,
+      contacto_telefono: c.contacto_telefono ?? null,
+      direccion: c.direccion ?? null,
+      sedes: (c.sedes ?? []).map(
+        (s): SedeColegio => ({ sede_id: s.sede_id, nombre: s.nombre }),
+      ),
+    };
+  }
+
+  // El backlog de sugerencias. Se lee tal cual del backend y se recorta a los
+  // campos SEGUROS: nunca correo ni telefono —esa PII vive solo en identidad—.
+  async sugerencias(): Promise<Sugerencia[]> {
+    const resp = await this.pedir<{ sugerencias?: SugerenciaCruda[] }>(
+      "/v1/admin/sugerencias",
+    );
+    return (resp.sugerencias ?? []).map((s) => ({
+      tarea_id: s.tarea_id,
+      estado: s.estado,
+      colegio_id: s.colegio_id ?? null,
+      grado: s.grado ?? null,
+      anio_lectivo: s.anio_lectivo ?? null,
+      contacto_referencia: s.contacto_referencia ?? null,
+      tiene_documento: Boolean(s.tiene_documento),
+    }));
+  }
+
+  // La evidencia de una version importada. `documento` es el PDF crudo
+  // (`application/pdf`), asi que NO pasa por `pedir` (que espera JSON): se lee
+  // como Blob. `percepcion` si es JSON y se cose a `PercepcionCruda` en el
+  // borde, tolerando que un item venga con `descripcion` en vez de
+  // `texto_original` y que falten `cantidad`/`confianza`.
+  async documento(versionId: string): Promise<Blob> {
+    let respuesta: Response;
+    try {
+      respuesta = await fetch(
+        `${this.urlBase}/v1/admin/listas/${encodeURIComponent(versionId)}/documento`,
+        { signal: AbortSignal.timeout(this.tiempoMaximoMs), cache: "no-store" },
+      );
+    } catch (causa) {
+      const nombre = (causa as { name?: string }).name;
+      if (nombre === "TimeoutError") {
+        throw new ErrorTukit(504, "tiempo_agotado", "El backend tardo demasiado en responder.");
+      }
+      throw new ErrorTukit(
+        503,
+        "backend_no_disponible",
+        `No pudimos hablar con el backend en ${this.urlBase}. Levantalo o pon TUKIT_ORIGEN_DATOS=simulado.`,
+      );
+    }
+    if (respuesta.status === 404) {
+      throw new ErrorTukit(404, "sin_evidencia", "Esta lista no tiene documento adjunto.");
+    }
+    if (!respuesta.ok) {
+      throw new ErrorTukit(
+        respuesta.status,
+        "error_documento",
+        `El backend respondio ${respuesta.status} al pedir el documento.`,
+      );
+    }
+    return respuesta.blob();
+  }
+
+  async percepcion(versionId: string): Promise<PercepcionCruda> {
+    const crudo = await this.pedir<{
+      version_id: string;
+      paginas?: { pagina: number; crudo: string }[];
+      items?: {
+        texto_original?: string;
+        descripcion?: string;
+        cantidad?: number | null;
+        confianza?: number | null;
+      }[];
+    }>(`/v1/admin/listas/${encodeURIComponent(versionId)}/percepcion`);
+    return {
+      paginas: (crudo.paginas ?? []).map((p) => ({ pagina: p.pagina, crudo: p.crudo })),
+      items: (crudo.items ?? []).map((i) => ({
+        texto_original: i.texto_original ?? i.descripcion,
+        descripcion: i.descripcion,
+        cantidad: i.cantidad ?? null,
+        confianza: i.confianza ?? null,
+      })),
+    };
+  }
+
   // ------------------------------------------------- ASUMIDO (comercio 1.x)
   pedidos(): Promise<TableroComercio> {
     return this.pedir<TableroComercio>("/v1/comercio/pedidos");
@@ -235,4 +811,288 @@ export class ClienteApi implements OrigenDatos {
   caso(casoId: string): Promise<Caso> {
     return this.pedir<Caso>(`/v1/operacion/casos/${encodeURIComponent(casoId)}`);
   }
+
+  crearCaso(solicitud: SolicitudCaso): Promise<CasoCreado> {
+    return this.pedir<CasoCreado>("/v1/operacion/casos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(solicitud),
+    });
+  }
+}
+
+// --------------------------------------------------- Normalización de kits
+//
+// El producto de una línea de kit sale del backend más flaco que el
+// `ProductoKit` del contrato: trae un `precio` (o `precio_cop` en las
+// alternativas) plano y NO trae `ofertas[]` ni `confianza`. El origen simulado
+// sí los adjunta, porque los deriva del catálogo local. Para que las pantallas
+// (que confían en el contrato) funcionen igual contra los dos orígenes, se
+// rellena aquí la forma que falta, sin inventar datos: la oferta sintética
+// lleva el precio real y una tienda vacía, y la confianza cae a 1 —el backend
+// ya filtró por debajo de TAU o lo mandó a revisión—. Es el mismo trabajo de
+// costura que hace `colegios()`, en el mismo borde.
+
+function normalizarProducto(p: unknown): ProductoKit | null {
+  if (!p || typeof p !== "object") return null;
+  const crudo = p as Record<string, unknown>;
+  // El precio viene como `precio` (producto elegido) o `precio_cop`
+  // (alternativa); se toma el primero que exista.
+  const precio =
+    typeof crudo["precio"] === "number"
+      ? (crudo["precio"] as number)
+      : typeof crudo["precio_cop"] === "number"
+        ? (crudo["precio_cop"] as number)
+        : null;
+
+  // Si ya trae ofertas (origen simulado o una futura versión del backend), se
+  // respetan; si no, se sintetiza una con el precio plano.
+  const ofertasCrudas = crudo["ofertas"];
+  const ofertas = Array.isArray(ofertasCrudas)
+    ? (ofertasCrudas as ProductoKit["ofertas"])
+    : precio !== null
+      ? [{ tienda: "", precio, vigente_hasta: null }]
+      : [];
+
+  return {
+    sku: String(crudo["sku"] ?? ""),
+    nombre: String(crudo["nombre"] ?? ""),
+    marca: (crudo["marca"] as string | null) ?? null,
+    nivel: crudo["nivel"] as ProductoKit["nivel"],
+    personaje: (crudo["personaje"] as string | null) ?? null,
+    imagen_url: (crudo["imagen_url"] as string | null) ?? null,
+    confianza: typeof crudo["confianza"] === "number" ? (crudo["confianza"] as number) : 1,
+    ofertas,
+  };
+}
+
+function normalizarLinea(linea: LineaKit): LineaKit {
+  return {
+    ...linea,
+    producto_elegido: normalizarProducto(linea.producto_elegido),
+    alternativas: Array.isArray(linea.alternativas)
+      ? linea.alternativas.map(normalizarProducto).filter((p): p is ProductoKit => p !== null)
+      : [],
+  };
+}
+
+function normalizarKit(kit: Kit): Kit {
+  return { ...kit, lineas: (kit.lineas ?? []).map(normalizarLinea) };
+}
+
+function normalizarTrabajo(trabajo: Trabajo): Trabajo {
+  return { ...trabajo, kits: (trabajo.kits ?? []).map(normalizarKit) };
+}
+
+// --------------------------------------------- Normalización del catálogo
+//
+// Las formas crudas que sirve el backend de catálogo. Se declaran laxas (todo
+// opcional) porque son lo que entra por HTTP, no lo que el contrato promete: el
+// concepto viene con `productos` como conteo (que se ignora), y el producto
+// solo trae `ofertas` cuando se pidió `con_ofertas=true`. `catalogo()` las cose
+// en `ConceptoCatalogo`/`ProductoCatalogo`.
+
+interface ConceptoCrudo {
+  codigo: string;
+  nombre_canonico?: string;
+  nombre?: string;
+  sinonimos?: string[];
+  categoria: string;
+  tipo_item: ConceptoCatalogo["tipo_item"];
+  atributos_discriminantes?: string[];
+  atributos_descriptivos?: string[];
+  admite_personaje?: boolean;
+  frecuencia_demanda?: number;
+}
+
+interface ProductoCrudo {
+  sku: string;
+  ean?: string | null;
+  nombre: string;
+  descripcion?: string | null;
+  marca?: string | null;
+  nivel: ProductoCatalogo["nivel"];
+  personaje?: string | null;
+  imagen_url?: string | null;
+  atributos?: Record<string, unknown>;
+  quality_score?: number;
+  es_propio?: boolean;
+  concepto?: { codigo: string; nombre: string } | null;
+  ofertas?: OfertaCatalogo[];
+  // Solo los sirve `_producto_publico` (detalle o busqueda paginada), no el
+  // producto colgado de un concepto en `/v1/catalogo/conceptos`.
+  unidad_base?: ProductoCatalogoDetalle["unidad_base"];
+  unidades_por_empaque?: number;
+  precio_desde?: number | null;
+  tiendas?: number;
+}
+
+interface PersonajeCrudo {
+  nombre: string;
+  productos?: number;
+  conceptos?: string[];
+}
+
+function normalizarProductoCatalogo(p: ProductoCrudo): ProductoCatalogo {
+  return {
+    sku: p.sku,
+    ean: p.ean ?? null,
+    nombre: p.nombre,
+    descripcion: p.descripcion ?? null,
+    marca: p.marca ?? null,
+    nivel: p.nivel,
+    personaje: p.personaje ?? null,
+    imagen_url: p.imagen_url ?? null,
+    atributos: p.atributos ?? {},
+    quality_score: typeof p.quality_score === "number" ? p.quality_score : 0,
+    es_propio: Boolean(p.es_propio),
+    // Sin `con_ofertas=true` el backend no adjunta el arreglo; la pantalla
+    // recorre `ofertas` en varios sitios, así que se garantiza que exista.
+    ofertas: Array.isArray(p.ofertas) ? p.ofertas : [],
+  };
+}
+
+// La forma de detalle (`_producto_publico`): el producto normalizado MAS los
+// campos que solo llegan con la busqueda paginada o el detalle puntual. Un
+// backend que aun no los sirva cae a valores neutros y el precio se deriva de
+// las ofertas, igual que `precioMasBarato`, para no fingir un dato ausente.
+function normalizarProductoDetalle(p: ProductoCrudo): ProductoCatalogoDetalle {
+  const base = normalizarProductoCatalogo(p);
+  const ofertados = base.ofertas
+    .map((o) => o.precio)
+    .filter((x): x is number => typeof x === "number");
+  const precioDesde =
+    typeof p.precio_desde === "number"
+      ? p.precio_desde
+      : ofertados.length > 0
+        ? Math.min(...ofertados)
+        : null;
+  return {
+    ...base,
+    unidad_base: p.unidad_base ?? "unidad",
+    unidades_por_empaque:
+      typeof p.unidades_por_empaque === "number" ? p.unidades_por_empaque : 1,
+    concepto: p.concepto ?? { codigo: "", nombre: "" },
+    precio_desde: precioDesde,
+    tiendas: typeof p.tiendas === "number" ? p.tiendas : base.ofertas.length,
+  };
+}
+
+// ------------------------------------------ Normalización de la revision (P4)
+//
+// Las formas crudas que sirve `admin_http.py`. El renglon (`_item_publico`) y
+// la propuesta anidan el concepto; aca se aplana el renglon a
+// `concepto_codigo`/`concepto_nombre` y se deja la propuesta como el contrato
+// la promete (crudo). El colegio (`ver_colegio` de identidad) y la sugerencia
+// se declaran laxos porque entran por HTTP.
+
+interface ItemRevisionCrudo {
+  item_id: string;
+  orden: number;
+  texto_original: string;
+  cantidad: number;
+  unidad?: ItemRevision["unidad"];
+  tipo_item: ItemRevision["tipo_item"];
+  modo_adquisicion?: ItemRevision["modo_adquisicion"];
+  instruccion_colegio?: string | null;
+  url_externa?: string | null;
+  atributos?: Record<string, unknown>;
+  requiere_revision?: boolean;
+  concepto?: { codigo: string; nombre: string } | null;
+}
+
+interface PropuestaRevisionCruda {
+  id: string;
+  texto_origen: string;
+  nombre: string;
+  marca?: string | null;
+  imagen_url?: string | null;
+  precio?: number | null;
+  nivel_sugerido?: PropuestaRevision["nivel_sugerido"];
+  puntaje?: number;
+  concepto?: { codigo: string; nombre: string } | { sugerido: string | null };
+}
+
+interface RevisionCruda {
+  version_id: string;
+  colegio_id: string;
+  grado: string;
+  anio_lectivo: number;
+  numero: number;
+  revisada?: boolean;
+  items?: ItemRevisionCrudo[];
+  propuestas?: PropuestaRevisionCruda[];
+}
+
+interface ColegioDetalleCrudo {
+  colegio_id: string;
+  nombre: string;
+  logo_url?: string | null;
+  sitio_web?: string | null;
+  contacto_nombre?: string | null;
+  contacto_email?: string | null;
+  contacto_telefono?: string | null;
+  direccion?: string | null;
+  sedes?: { sede_id: string; nombre: string }[];
+}
+
+interface SugerenciaCruda {
+  tarea_id: string;
+  estado: string;
+  colegio_id?: string | null;
+  grado?: string | null;
+  anio_lectivo?: number | null;
+  contacto_referencia?: string | null;
+  tiene_documento?: boolean;
+}
+
+function normalizarItemRevision(i: ItemRevisionCrudo): ItemRevision {
+  return {
+    id: i.item_id,
+    orden: i.orden,
+    texto_original: i.texto_original,
+    cantidad: i.cantidad,
+    unidad: i.unidad ?? null,
+    tipo_item: i.tipo_item,
+    modo_adquisicion: i.modo_adquisicion ?? null,
+    instruccion_colegio: i.instruccion_colegio ?? null,
+    url_externa: i.url_externa ?? null,
+    atributos: i.atributos ?? {},
+    requiere_revision: Boolean(i.requiere_revision),
+    concepto_codigo: i.concepto?.codigo ?? null,
+    concepto_nombre: i.concepto?.nombre ?? null,
+  };
+}
+
+function normalizarPropuestaRevision(p: PropuestaRevisionCruda): PropuestaRevision {
+  return {
+    id: p.id,
+    texto_origen: p.texto_origen,
+    nombre: p.nombre,
+    marca: p.marca ?? null,
+    imagen_url: p.imagen_url ?? null,
+    precio: typeof p.precio === "number" ? p.precio : null,
+    nivel_sugerido: p.nivel_sugerido ?? null,
+    puntaje: typeof p.puntaje === "number" ? p.puntaje : 0,
+    concepto: p.concepto ?? { sugerido: null },
+  };
+}
+
+// El cuerpo de editar/agregar un renglon: se traduce `concepto` (el codigo del
+// contrato) al `concepto_codigo` que `_valores_de_renglon` espera, y se manda
+// solo lo que vino (los `undefined` no viajan porque `JSON.stringify` los omite).
+function cuerpoItem(item: ItemListaEditable): Record<string, unknown> {
+  const cuerpo: Record<string, unknown> = {
+    texto_original: item.texto_original,
+    cantidad: item.cantidad,
+    unidad: item.unidad,
+    tipo_item: item.tipo_item,
+    modo_adquisicion: item.modo_adquisicion,
+    instruccion_colegio: item.instruccion_colegio,
+    url_externa: item.url_externa,
+    atributos: item.atributos,
+    requiere_revision: item.requiere_revision,
+  };
+  if ("concepto" in item) cuerpo["concepto_codigo"] = item.concepto;
+  return cuerpo;
 }

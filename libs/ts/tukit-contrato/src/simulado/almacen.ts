@@ -14,6 +14,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { SolicitudTrabajo } from "../contrato";
+import type { Caso } from "../operacion";
 
 export interface RegistroTrabajo {
   trabajo_id: string;
@@ -33,6 +34,10 @@ export interface RegistroTrabajo {
 
 interface Contenido {
   trabajos: Record<string, RegistroTrabajo>;
+  // Casos abiertos por una persona desde el centro de ayuda. Los casos del
+  // §Procesos (fallas de la saga) NO viven aqui: esos se derivan de los
+  // trabajos en `back-office.ts`. Aqui solo lo que un acudiente escribio.
+  casos?: Record<string, Caso>;
 }
 
 const DIRECTORIO = process.env["TUKIT_SIMULADO_DIR"] ?? join(tmpdir(), "tukit-simulado");
@@ -79,6 +84,23 @@ export function actualizar(
   cambio(registro);
   escribir(contenido);
   return registro;
+}
+
+// --------------------------------------------------------------- Casos
+
+/** Anexa un caso abierto por una persona. `operacion` es "solo anexar"
+ *  (ARQUITECTURA.md §5): un caso no se borra, se cierra cambiando su estado. */
+export function guardarCaso(caso: Caso): void {
+  const contenido = leer();
+  (contenido.casos ??= {})[caso.caso_id] = caso;
+  escribir(contenido);
+}
+
+/** Los casos abiertos por personas, del mas reciente al mas antiguo. */
+export function listarCasos(): Caso[] {
+  return Object.values(leer().casos ?? {}).sort((a, b) =>
+    a.abierto_en < b.abierto_en ? 1 : -1,
+  );
 }
 
 export function rutaDelAlmacen(): string {

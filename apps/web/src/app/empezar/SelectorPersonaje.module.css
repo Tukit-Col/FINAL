@@ -78,10 +78,13 @@
   box-shadow: var(--clay-shadow-sm), inset 0 0 0 2.5px var(--color-personaje);
 }
 
-.emoji {
-  font-size: 30px;
-  line-height: 1;
-  /* El emoji es decorativo; el nombre lleva el significado accesible. */
+.icono {
+  width: 42px;
+  height: 42px;
+  /* La sombra difusa da el "tacto de plastilina" a la pieza SVG; el mismo
+   * truco que usan las piezas de UtilesFlotantes. El nombre lleva el
+   * significado accesible, la pieza es decorativa. */
+  filter: drop-shadow(0 3px 5px rgba(30, 42, 74, 0.16));
 }
 
 .nombre {
@@ -112,14 +115,29 @@
 
 /* --------------------------------------------------------- Campo libre */
 
+/* El campo libre es un PEDIDO, no una ficha en stock: se ve distinto a
+ * proposito. Un rotulo tenue lo separa de la rejilla de personajes surtidos. */
+.rotuloLibre {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.rotuloLibre span {
+  display: block;
+  margin-top: 2px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
 .libre {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 0 var(--espacio-4);
-  background: var(--color-white);
+  background: var(--clay-crema-suave);
+  border: 1.5px dashed color-mix(in srgb, var(--color-personaje) 40%, var(--color-white));
   border-radius: var(--radius-md);
-  box-shadow: var(--clay-shadow-inset);
 }
 
 .libreIcono {

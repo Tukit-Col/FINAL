@@ -33,7 +33,7 @@ from typing import Annotated, Any
 
 from fastapi import FastAPI, Header, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import and_, func, insert, or_, select
+from sqlalchemy import and_, func, insert, or_, select, update
 from tukit_comun.bd import crear_motor
 from tukit_comun.cifrado import cifrador_desde_entorno
 from tukit_comun.http import ErrorDominio, crear_app
@@ -118,21 +118,24 @@ async def listar_colegios(
         select(
             COLEGIO.c.id,
             COLEGIO.c.nombre,
+            COLEGIO.c.logo_url,
             func.count(SEDE.c.id).label("sedes"),
         )
         .select_from(
             COLEGIO.outerjoin(SEDE, and_(SEDE.c.colegio_id == COLEGIO.c.id, SEDE.c.activa.is_(True)))
         )
         .where(COLEGIO.c.activo.is_(True))
-        .group_by(COLEGIO.c.id, COLEGIO.c.nombre)
+        .group_by(COLEGIO.c.id, COLEGIO.c.nombre, COLEGIO.c.logo_url)
         .order_by(COLEGIO.c.nombre)
     )
     if busqueda:
         consulta = consulta.where(func.lower(COLEGIO.c.nombre).like(f"%{busqueda.lower()}%"))
 
     async with app.state.motor.engine.begin() as conexion:
+        # El logo va aqui porque el desplegable del padre pinta la tarjeta sin
+        # abrir el detalle; los contactos no, que son de la pantalla admin.
         datos = [
-            {"colegio_id": str(f.id), "nombre": f.nombre, "sedes": int(f.sedes)}
+            {"colegio_id": str(f.id), "nombre": f.nombre, "sedes": int(f.sedes), "logo_url": f.logo_url}
             for f in await conexion.execute(consulta)
         ]
     return {"total": len(datos), "colegios": datos}
@@ -152,7 +155,64 @@ async def ver_colegio(colegio_id: uuid.UUID) -> dict[str, Any]:
                 select(SEDE).where(SEDE.c.colegio_id == colegio_id, SEDE.c.activa.is_(True))
             )
         ]
-    return {"colegio_id": str(fila.id), "nombre": fila.nombre, "sedes": sedes}
+    return {
+        "colegio_id": str(fila.id),
+        "nombre": fila.nombre,
+        "logo_url": fila.logo_url,
+        "sitio_web": fila.sitio_web,
+        "contacto_nombre": fila.contacto_nombre,
+        "contacto_email": fila.contacto_email,
+        "contacto_telefono": fila.contacto_telefono,
+        "direccion": fila.direccion,
+        "sedes": sedes,
+    }
+
+
+# Los campos institucionales que el administrador puede completar. El nombre y
+# el NIT NO estan aqui a proposito: son la identidad de la institucion y
+# Catalogo referencia al colegio por su id derivado, asi que cambiarlos por esta
+# puerta romperia esa referencia. Son datos de la INSTITUCION, no del menor: no
+# les toca el cifrado del Anexo M que si protege al estudiante en el mismo
+# modelo, por eso viajan y se guardan en claro.
+_CAMPOS_PERFIL = (
+    "logo_url",
+    "sitio_web",
+    "contacto_nombre",
+    "contacto_email",
+    "contacto_telefono",
+    "direccion",
+)
+_CAMPOS_FIJOS = ("nombre", "nit")
+
+
+@app.patch("/v1/colegios/{colegio_id}", tags=["colegios"], summary="Editar el perfil institucional")
+async def editar_colegio(colegio_id: uuid.UUID, cuerpo: dict[str, Any]) -> dict[str, Any]:
+    """El administrador completa el perfil que el padre reconoce en la tarjeta.
+
+    Solo se aceptan los campos institucionales; un intento de tocar `nombre` o
+    `nit` se rechaza con 400 antes de escribir nada, porque esa identidad es fija
+    y Catalogo la referencia por id. Devuelve la MISMA forma que el detalle, para
+    que la pantalla admin refresque sin una segunda llamada.
+    """
+    for campo in _CAMPOS_FIJOS:
+        if campo in cuerpo:
+            raise ErrorDominio(
+                "campo_no_editable",
+                "El nombre y el NIT son la identidad de la institucion y no se editan aqui.",
+                estado=400,
+                campo=campo,
+            )
+    valores = {c: cuerpo[c] for c in _CAMPOS_PERFIL if c in cuerpo}
+
+    async with app.state.motor.engine.begin() as conexion:
+        existe = await conexion.scalar(select(COLEGIO.c.id).where(COLEGIO.c.id == colegio_id))
+        if existe is None:
+            raise ErrorDominio(
+                "colegio_no_existe", "No hay ningun colegio con ese identificador.", estado=404
+            )
+        if valores:
+            await conexion.execute(update(COLEGIO).where(COLEGIO.c.id == colegio_id).values(**valores))
+    return await ver_colegio(colegio_id)
 
 
 @app.get("/v1/grados", tags=["colegios"], summary="Los grados, en orden escolar")

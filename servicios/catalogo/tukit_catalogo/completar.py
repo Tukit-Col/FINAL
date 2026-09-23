@@ -29,10 +29,20 @@ del acudiente corre siempre contra nuestra base, y si algo no esta, se agrega
 por aqui y se revisa ANTES de que un papa lo vea. Un test en
 `test_descubrir.py` impide que el modulo del acudiente importe este.
 
+Hay dos modos. El de por defecto tapa HUECOS: recorre los conceptos, y para el
+que le falta un nivel encola a lo sumo tres productos, uno por nivel. El de
+`--surtir CODIGO[,CODIGO...]` ENSANCHA: para conceptos que ya estan llenos encola
+el abanico completo -tipos, marcas, paquetes- con el nivel sin asignar, para que
+la curadora lo reparta en la cola. Es como se traen los paquetes de cartulina,
+las temperas surtidas o las variantes de cuaderno que el llenado de huecos nunca
+mira por estar ya completos.
+
 Uso:
 
     python -m tukit_catalogo.completar --solo-validar
     python -m tukit_catalogo.completar
+    python -m tukit_catalogo.completar --surtir C010,C051,C029 --solo-validar
+    python -m tukit_catalogo.completar --surtir C003,C006,C010,C014,C020,C022
 """
 
 from __future__ import annotations
@@ -103,15 +113,23 @@ CONSULTAS: dict[str, tuple[str, int, int]] = {
     "C048": ("biblia catolica letra grande", 60000, 400000),
     "C054": ("juego didactico educativo ninos", 10000, 90000),
     "C056": ("rompecabezas infantil 100 piezas", 8000, 70000),
-    "C057": ("vaso plastico infantil", 3000, 40000),
+    "C057": ("vaso plastico", 3000, 40000),
     "C060": ("curvigrafo", 3000, 45000),
     "C062": ("guantes desechables caja", 5000, 50000),
     "C063": ("gafas natacion", 8000, 95000),
     "C066": ("flauta dulce soprano", 15000, 90000),
     "C068": ("ojos moviles manualidades", 1500, 20000),
-    "C071": ("kit electronica protoboard", 20000, 150000),
+    # Redefinidos: "kit de artes" es temperas+pinceles, no los cuadros de
+    # pintar por numeros que tenia; "kit de tecnologia" es electronica/arduino,
+    # no las USB. El quinto filtro (`_coincide`) exige TODAS las palabras en el
+    # nombre, y con tres ("kit tempera pincel") casi nada casa aunque las
+    # tiendas tengan decenas de sets de arte; con dos ("set arte") entran los
+    # kits de temperas/pinceles reales. Igual "protoboard" a secas trae los
+    # kits de electronica/arduino, no las USB que se acaban de sacar.
+    "C070": ("set arte", 8000, 90000),
+    "C071": ("protoboard", 8000, 150000),
     "C072": ("lazo saltar cuerda", 5000, 45000),
-    "C074": ("balon futbol numero 4", 20000, 120000),
+    "C074": ("balon futbol", 20000, 120000),
     "C075": ("bolsa basura rollo", 3000, 35000),
     "C077": ("cojin infantil", 15000, 90000),
     "C078": ("fichas bibliograficas", 2000, 25000),
@@ -120,7 +138,7 @@ CONSULTAS: dict[str, tuple[str, int, int]] = {
     "C081": ("abaco escolar", 8000, 70000),
     "C084": ("gel antibacterial 500 ml", 3000, 35000),
     "C087": ("pilas alcalinas AA", 4000, 45000),
-    "C088": ("pintura facial carnaval", 5000, 50000),
+    "C088": ("pintura facial", 5000, 50000),
     "C089": ("pompones manualidades", 2000, 25000),
     "C090": ("separadores hojas indice", 2000, 25000),
     "C092": ("tablero de dibujo tecnico", 15000, 120000),
@@ -152,7 +170,82 @@ CONSULTAS: dict[str, tuple[str, int, int]] = {
     "C059": ("corrector", 1500, 20000),
     "C061": ("aserrin", 1500, 20000),
     "C091": ("sobre manila", 500, 15000),
+    # Morral ESCOLAR, no universitario: el generico que habia eran morrales de
+    # PC 14"/15". `morral escolar` acota al de nino y el tope de 90.000 deja
+    # fuera los porta-laptop. Los morrales de personaje (Minnie, Spiderman) ya
+    # cubren la personalizacion y no se tocan.
+    "C086": ("morral escolar", 20000, 90000),
 }
+
+# --- Ensanchamiento (`--surtir`) -------------------------------------------
+#
+# `CONSULTAS` tapa HUECOS: una consulta por concepto, y solo si le falta un
+# nivel. Eso deja el catalogo con tres opciones por concepto y ni una mas.
+# `SURTIDO` es lo contrario: para un concepto que YA esta lleno, trae el abanico
+# -tipos, marcas, presentaciones- para que la curadora escoja en la cola. Varias
+# consultas por concepto, cada una calibrada (1-2 palabras, porque el quinto
+# filtro exige que TODAS esten en el nombre) y sondeada contra la API real antes
+# de fijarla. Se surten las tres tiendas (Exito y Panamericana por VTEX,
+# Grancentral por Shopify).
+SURTIDO: dict[str, list[tuple[str, int, int]]] = {
+    # Consumibles que el papa compra por PAQUETE (ver CONCEPTOS_PAQUETE): la
+    # consulta trae sueltos y paquetes mezclados y el filtro de empaque prefiere
+    # el paquete.
+    "C003": [("block iris", 2000, 20000), ("block cuadriculado", 3000, 40000)],  # block
+    "C006": [
+        ("marcador borrable", 3000, 30000),
+        ("marcador permanente", 2000, 30000),
+        ("marcador sharpie", 3000, 40000),
+        ("marcador pelikan", 2000, 30000),
+    ],  # marcador (mas marcas: Sharpie, Pelikan)
+    "C012": [
+        ("esfero bic", 500, 20000),
+        ("esfero kilometrico", 500, 20000),
+        ("esfero gel", 1000, 25000),
+        ("esfero paper mate", 1000, 25000),
+    ],  # esfero (mas marcas: BIC, Kilometrico, gel, Paper Mate)
+    "C004": [
+        ("colores prismacolor", 8000, 90000),
+        ("colores norma", 5000, 60000),
+        ("crayones crayola", 3000, 40000),
+        ("colores faber", 8000, 90000),
+    ],  # colores/crayones (mas marcas: Prismacolor, Norma, Crayola, Faber)
+    "C010": [("cartulina escolar", 2000, 20000)],  # cartulina (pliego da 0; escolar x10/x20 si)
+    "C014": [
+        ("papel seda", 1000, 20000),
+        ("papel crepe", 1000, 20000),
+        ("papel silueta", 1000, 20000),
+        ("papel kraft", 1000, 25000),
+    ],  # papel
+    "C020": [("vinilo acrilico", 2000, 40000), ("vinilo escolar", 3000, 40000)],  # vinilo
+    "C022": [("plastilina pelikan", 3000, 30000), ("plastilina barra", 2000, 30000)],  # plastilina
+    "C027": [("pintura oleo", 5000, 60000), ("oleo", 5000, 60000)],  # pintura (repone oleo premium)
+    "C029": [("foamy", 3000, 40000)],  # foamy (escarchado/octavo/carta, x10)
+    "C038": [("lana madeja", 2000, 30000)],  # lana
+    "C051": [("tempera", 3000, 60000)],  # tempera (Bozetto/Pelikan/Art Rangers)
+    # No-consumibles: variedad por tipo/marca, sin preferencia de paquete.
+    "C001": [("cuaderno cosido", 5000, 30000), ("cuaderno argollado", 8000, 45000)],  # cuaderno
+    "C039": [("resaltador kiut", 5000, 30000), ("resaltador pastel", 3000, 30000)],  # resaltador
+    # `morral infantil` repone el generico (porta-PC borrados); `morral disney`
+    # es para PERSONALIZACION: Disney es la unica franquicia recuperable a las 4
+    # anclas (cuaderno/cartuchera/carpeta/maleta) -- solo le faltaba la maleta y
+    # el mercado si la tiene (Moana, Princess). Las demas franquicias
+    # incompletas (lego/minecraft/jurassic/snoopy/halo) NO se surten: el mercado
+    # no tiene sus carpetas ni maletas, y sin las 4 anclas no entran a
+    # personalizacion.
+    "C086": [("morral infantil", 30000, 130000), ("morral disney", 25000, 150000)],  # maleta
+    # Kit de tecnologia: Exito es la que surte electronica de verdad (en
+    # Panamericana "arduino" es un libro). VTEX consulta ambas igual; el rango
+    # deja pasar kits reales.
+    "C071": [("kit electronica", 20000, 150000), ("protoboard", 5000, 150000), ("arduino", 15000, 400000)],
+}
+
+# Conceptos cuyo generico honesto es un PAQUETE, no una unidad suelta. El papa no
+# compra "una cartulina": compra el paquete x10. Cuando una consulta trae sueltos
+# y paquetes mezclados, para estos conceptos se prefiere el paquete (unidades>1).
+# Se apoya en `enriquecer.extraer_empaque`, que ya sabe leer "x12 unidades" como
+# conteo y "100 hojas"/"250 g" como medida, y es consciente del concepto.
+CONCEPTOS_PAQUETE = frozenset({"C010", "C051", "C020", "C029", "C022", "C038", "C014"})
 
 # Lo que Tukit NO deberia intentar vender aunque la lista lo pida.
 #
@@ -175,15 +268,17 @@ CONSULTAS: dict[str, tuple[str, int, int]] = {
 #   didactico especializado que estas dos tiendas no manejan.
 # - C069 plantilla de borrar: solo reglas de escala y una tableta magica de
 #   juguete. El escudo de borrar de dibujo tecnico no aparece.
-# - C083 frasco: `frasco transparente` devuelve frascos de cocina y
-#   organizadores de escritorio. El envase de 3,5 gramos no esta.
 # - C046 tabla de picado: los dos productos correctos existen, la tabla de
 #   picado y punzado a $14.490 y el tablero acrilico con tabla a $50.800, pero
 #   ENTRE esos dos precios las tiendas venden tablas de COCINA: picadora a
 #   $21.630 y acero inoxidable a $36.979. En Colombia una tabla de cocina
 #   tambien se llama "tabla de picado", asi que ni el rango ni la palabra
 #   separan. Necesita que una persona escoja las dos referencias a mano.
-SIN_CONSULTA_FIABLE = ("C035", "C069", "C083")
+#
+# C083 "frasco" salio de esta lista: se fusiono con C057 "vaso o plato" (los
+# frascos que la lista pide son vasitos para mezclar pintura), asi que ya no es
+# un hueco propio.
+SIN_CONSULTA_FIABLE = ("C035", "C069")
 
 # Esta lista tenia el doble de entradas y se acorto por una razon que conviene
 # dejar escrita, porque el defecto era nuestro y no del mercado.
@@ -417,6 +512,119 @@ def repartir_en_niveles(candidatos: list[Candidato], faltan: set[str]) -> dict[s
     return elegidos
 
 
+def consultar_tiendas(
+    consulta: str,
+    minimo: int,
+    maximo: int,
+    tiendas: dict[str, uuid.UUID],
+    ya_ofrecidos: set[tuple[str, str]],
+) -> list[Candidato]:
+    """Trae candidatos de las tres tiendas para una consulta, ya filtrados.
+
+    Los conceptos van de uno en uno y las tiendas en paralelo. Repartir los
+    conceptos entre varios hilos parecia mas rapido y salia peor: las tiendas
+    limitaban el ritmo y respondian vacio, que aqui se lee igual que "no existe
+    el producto". Se consultan las dos VTEX (Exito, Panamericana) y Grancentral
+    (Shopify) a la vez, y se descarta lo que ya esta en el catalogo por
+    (tienda, referencia).
+    """
+    with ThreadPoolExecutor(max_workers=3) as par:
+        vtex = par.map(
+            lambda t: a_candidatos(t[0], buscar(t[1], consulta), minimo, maximo, consulta),
+            TIENDAS,
+        )
+        # Grancentral es mayorista y es la que tiene lo que las dos minoristas
+        # no: lentejuelas por metro, reforzadores para hojas perforadas, la
+        # tabla de picado con acrilico. Se consulta aparte porque es Shopify, no
+        # porque valga menos.
+        shopify = par.submit(candidatos_shopify, "grancentral", consulta, minimo, maximo)
+        por_tienda = [*vtex, shopify.result()]
+    # Una referencia de tienda que ya esta en el catalogo no se vuelve a traer.
+    # La base lo impide con un indice unico sobre (tienda, referencia), y con
+    # razon: el mismo articulo de la misma tienda no es una opcion nueva. Suele
+    # pasar cuando dos conceptos vecinos comparten resultados de busqueda.
+    return [
+        c
+        for grupo_tienda in por_tienda
+        for c in grupo_tienda
+        if (str(tiendas[c.tienda]), c.sku) not in ya_ofrecidos
+    ]
+
+
+def _a_propuesta(
+    codigo: str,
+    info: dict[str, Any],
+    c: Candidato,
+    tiendas: dict[str, uuid.UUID],
+    nivel: str | None,
+) -> dict[str, Any]:
+    """Arma la fila de `propuesta_producto` a partir de un candidato.
+
+    Un candidato NO es un producto: es una propuesta que espera a que una
+    persona la mire. Antes se insertaba directo en el catalogo con calidad 0,4,
+    y el efecto era el que el quinto filtro no atrapa: una poinsettia entraba
+    como lentejuela y un lavaloza como esponja, sin que nadie lo viera, y el papa
+    lo recibia como parte del kit. La cola de revision es donde el administrador
+    aprueba lo bueno -y ahi nace el producto curado- o lo descarta.
+
+    `nivel` es el nivel_sugerido. En el llenado de huecos viene fijo (el reparto
+    ya decidio economico/confiable/premium); al ENSANCHAR viene None, porque el
+    abanico se le muestra a la curadora para que ella asigne el nivel al aprobar
+    -- `resolver` lo resuelve a "confiable" si sigue vacio.
+    """
+    return {
+        "id": _uuid_estable("sugerido", codigo, c.tienda, c.sku),
+        "concepto_id": info["id"],
+        "concepto_sugerido": None,
+        # El renglon contra el que se compara en la pantalla de revision. Aqui no
+        # hay una lista de colegio detras -esto es curaduria adelantada-, asi que
+        # el "pedido" es el propio concepto que se esta surtiendo.
+        "texto_origen": info["nombre"],
+        "tienda_id": tiendas[c.tienda],
+        "referencia_externa": c.sku,
+        "url": c.url or None,
+        "nombre": c.nombre[:512],
+        "marca": c.marca,
+        "ean": c.ean if (c.ean or "").isdigit() and len(c.ean or "") in (8, 12, 13) else None,
+        "imagen_url": c.imagen_url,
+        "precio_centavos": c.precio_cop * 100,
+        "disponible": True,
+        # La ficha cruda no la traemos del listado, pero el nombre basta: al
+        # aprobar, `resolver` saca empaque y atributos del nombre igual que lo
+        # hacia esta funcion.
+        "especificaciones": {},
+        "nivel_sugerido": nivel,
+        # Bajo a proposito. Lo eligio una consulta con un rango de precio, no una
+        # persona que miro la lista del colegio. El administrador ordena su cola
+        # por esto y los ve primero.
+        "puntaje": 0.4,
+        "estado": "pendiente",
+        "origen": "scraper",
+        "version_lista_id": None,
+        "item_lista_id": None,
+    }
+
+
+def _preferir_paquetes(candidatos: list[Candidato], attrs: tuple[str, ...]) -> list[Candidato]:
+    """Deja primero los PAQUETES cuando el papa compra por paquete.
+
+    Para consumibles (`CONCEPTOS_PAQUETE`) el generico honesto es el paquete
+    x10/x12, no la unidad suelta: nadie compra "una cartulina". Se lee cuantas
+    unidades trae el nombre con `extraer_empaque` -que es consciente del concepto
+    y sabe que "100 hojas" describe pero "x10 unds" cuenta- y, si hay candidatos
+    con unidades>1, se descartan los sueltos. Si TODOS son sueltos, se dejan:
+    mejor mostrar una unidad que dejar el renglon vacio. Orden final: paquete mas
+    grande primero, y a igual tamano el mas barato.
+    """
+    from .enriquecer import extraer_empaque
+
+    con_empaque = [(extraer_empaque(c.nombre, attrs).unidades, c) for c in candidatos]
+    paquetes = [par for par in con_empaque if par[0] > 1]
+    escogidos = paquetes or con_empaque
+    escogidos.sort(key=lambda par: (-par[0], par[1].precio_cop))
+    return [c for _, c in escogidos]
+
+
 async def _estado() -> tuple[
     dict[str, dict[str, Any]], dict[str, set[str]], dict[str, uuid.UUID], set[tuple[str, str]]
 ]:
@@ -534,33 +742,8 @@ async def _principal(solo_validar: bool) -> int:
 
     print(f"Conceptos con huecos: {len(pendientes)}. Consultando las tres tiendas...")
 
-    # Los conceptos van de uno en uno y las tiendas en paralelo. Repartir los
-    # conceptos entre varios hilos parecia mas rapido y salia peor: las tiendas
-    # limitaban el ritmo y respondian vacio, que aqui se lee igual que "no
-    # existe el producto".
     def todas_las_tiendas(consulta: str, minimo: int, maximo: int) -> list[Candidato]:
-        with ThreadPoolExecutor(max_workers=3) as par:
-            vtex = par.map(
-                lambda t: a_candidatos(t[0], buscar(t[1], consulta), minimo, maximo, consulta),
-                TIENDAS,
-            )
-            # Grancentral es mayorista y es la que tiene lo que las dos
-            # minoristas no: lentejuelas por metro, reforzadores para hojas
-            # perforadas, la tabla de picado con acrilico. Se consulta aparte
-            # porque es Shopify, no porque valga menos.
-            shopify = par.submit(candidatos_shopify, "grancentral", consulta, minimo, maximo)
-            por_tienda = [*vtex, shopify.result()]
-        # Una referencia de tienda que ya esta en el catalogo no se vuelve a
-        # traer. La base lo impide con un indice unico sobre (tienda,
-        # referencia), y con razon: el mismo articulo de la misma tienda no es
-        # una opcion nueva. Suele pasar cuando dos conceptos vecinos, como
-        # `abaco` y `material singapur`, comparten resultados de busqueda.
-        return [
-            c
-            for grupo_tienda in por_tienda
-            for c in grupo_tienda
-            if (str(tiendas[c.tienda]), c.sku) not in ya_ofrecidos
-        ]
+        return consultar_tiendas(consulta, minimo, maximo, tiendas, ya_ofrecidos)
 
     resultados = []
     for indice, (codigo, info, consulta, minimo, maximo, faltan) in enumerate(pendientes, 1):
@@ -585,47 +768,7 @@ async def _principal(solo_validar: bool) -> int:
 
         for nivel, c in elegidos.items():
             print(f"      {nivel:10} ${c.precio_cop:>7}  {c.nombre[:52]}")
-            # Un candidato NO es un producto: es una propuesta que espera a que
-            # una persona la mire. Antes se insertaba directo en el catalogo con
-            # calidad 0,4, y el efecto era el que la lista quinta filtro no
-            # atrapa: una poinsettia entraba como lentejuela y un lavaloza como
-            # esponja, sin que nadie lo viera, y el papa lo recibia como parte
-            # del kit. La cola de revision es justamente donde el administrador
-            # aprueba lo bueno -y ahi nace el producto curado- o lo descarta.
-            propuestas.append(
-                {
-                    "id": _uuid_estable("sugerido", codigo, c.tienda, c.sku),
-                    "concepto_id": info["id"],
-                    "concepto_sugerido": None,
-                    # El renglon contra el que se compara en la pantalla de
-                    # revision. Aqui no hay una lista de colegio detras -esto es
-                    # curaduria adelantada-, asi que el "pedido" es el propio
-                    # concepto que se esta surtiendo.
-                    "texto_origen": info["nombre"],
-                    "tienda_id": tiendas[c.tienda],
-                    "referencia_externa": c.sku,
-                    "url": c.url or None,
-                    "nombre": c.nombre[:512],
-                    "marca": c.marca,
-                    "ean": c.ean if (c.ean or "").isdigit() and len(c.ean or "") in (8, 12, 13) else None,
-                    "imagen_url": c.imagen_url,
-                    "precio_centavos": c.precio_cop * 100,
-                    "disponible": True,
-                    # La ficha cruda no la traemos del listado, pero el nombre
-                    # basta: al aprobar, `resolver` saca empaque y atributos del
-                    # nombre igual que lo hacia esta funcion.
-                    "especificaciones": {},
-                    "nivel_sugerido": nivel,
-                    # Bajo a proposito. Lo eligio una consulta con un rango de
-                    # precio, no una persona que miro la lista del colegio. El
-                    # administrador ordena su cola por esto y los ve primero.
-                    "puntaje": 0.4,
-                    "estado": "pendiente",
-                    "origen": "scraper",
-                    "version_lista_id": None,
-                    "item_lista_id": None,
-                }
-            )
+            propuestas.append(_a_propuesta(codigo, info, c, tiendas, nivel))
 
     tipos = [{"cod": c, "tipo": "no_comprar"} for c in NO_SE_SURTE if c in conceptos]
 
@@ -646,10 +789,92 @@ async def _principal(solo_validar: bool) -> int:
     return 0
 
 
+async def _surtir(codigos: list[str], tope: int, solo_validar: bool) -> int:
+    """Ensancha conceptos que YA estan llenos: encola el ABANICO, no 3 picks.
+
+    `_principal` tapa huecos -salta el concepto lleno y encola a lo sumo tres
+    productos, uno por nivel-. Eso deja el catalogo correcto pero angosto: una
+    cartulina, una tempera, un cuaderno. Aqui es al reves: para los codigos
+    dados se ignora si ya tiene los tres niveles y se encola TODO lo que pasa el
+    rango y el quinto filtro, con `nivel_sugerido=None` para que la curadora
+    asigne el nivel al aprobar. Asi la cola le muestra la variedad -tipos,
+    marcas, presentaciones- y ella arma el abanico a mano.
+
+    Para los consumibles (`CONCEPTOS_PAQUETE`) se prefieren los PAQUETES sobre
+    las unidades sueltas. `tope` corta cuantos candidatos se encolan por consulta
+    para no inundar la cola.
+    """
+    conceptos, _niveles, tiendas, ya_ofrecidos = await _estado()
+
+    codigos = [c.upper() for c in codigos]
+    desconocidos = [c for c in codigos if c not in SURTIDO]
+    if desconocidos:
+        print(f"  aviso: sin consultas de surtido para {', '.join(desconocidos)}; se omiten")
+    a_surtir = [c for c in codigos if c in SURTIDO]
+    if not a_surtir:
+        print("Nada que surtir: ninguno de los codigos tiene consultas en SURTIDO.")
+        return 1
+
+    print(f"Ensanchando {len(a_surtir)} conceptos. Consultando las tres tiendas...")
+
+    propuestas: dict[Any, dict[str, Any]] = {}
+    for codigo in a_surtir:
+        info = conceptos.get(codigo)
+        if info is None:
+            print(f"  aviso: el concepto {codigo} ya no existe, se omite")
+            continue
+        for consulta, minimo, maximo in SURTIDO[codigo]:
+            candidatos = consultar_tiendas(consulta, minimo, maximo, tiendas, ya_ofrecidos)
+            if codigo in CONCEPTOS_PAQUETE:
+                candidatos = _preferir_paquetes(candidatos, info["attrs"])
+            else:
+                candidatos = sorted(candidatos, key=lambda c: c.precio_cop)
+            recortados = candidatos[:tope]
+            print(
+                f"  {codigo:6} {info['nombre'][:20]:22} '{consulta}': "
+                f"{len(candidatos):3} candidatos, encolo {len(recortados)}"
+            )
+            for c in recortados:
+                # Un mismo SKU puede aparecer en dos consultas del concepto (p.ej.
+                # 'vinilo acrilico' y 'vinilo escolar'). Se deduplica por id
+                # estable para no encolarlo dos veces en esta corrida; la BD ya
+                # frena repeticiones entre corridas via `on_conflict_do_nothing`.
+                fila = _a_propuesta(codigo, info, c, tiendas, None)
+                propuestas.setdefault(fila["id"], fila)
+            time.sleep(0.4)
+
+    filas = list(propuestas.values())
+    print(f"\n=== ensanchamiento ===\n  candidatos unicos encolables  {len(filas)}")
+
+    if solo_validar:
+        print("\n(--solo-validar: no se escribio nada)")
+        return 0
+
+    encoladas = await _encolar_candidatos(filas, [])
+    print(f"\nEncolado. {encoladas} candidatos nuevos en la cola de revision.")
+    print("Revisalos con  make bd-revisar  /  python -m tukit_catalogo.descubrir --pendientes")
+    return 0
+
+
 def main() -> int:
     analizador = argparse.ArgumentParser(description=__doc__)
     analizador.add_argument("--solo-validar", action="store_true")
-    return asyncio.run(_principal(analizador.parse_args().solo_validar))
+    analizador.add_argument(
+        "--surtir",
+        metavar="CODIGO[,CODIGO...]",
+        help="Ensancha los conceptos dados: encola el abanico completo, no solo los niveles faltantes.",
+    )
+    analizador.add_argument(
+        "--tope",
+        type=int,
+        default=15,
+        help="Maximo de candidatos a encolar por consulta en --surtir (por defecto 15).",
+    )
+    args = analizador.parse_args()
+    if args.surtir:
+        codigos = [c.strip() for c in args.surtir.split(",") if c.strip()]
+        return asyncio.run(_surtir(codigos, args.tope, args.solo_validar))
+    return asyncio.run(_principal(args.solo_validar))
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-// `/` — la cola de revision (AD-02, AD-03).
+// `/` — la cola de revision (AD-01, AD-03).
 //
 // Server Component: lee el origen directamente. No hay ningun `fetch` de por
 // medio porque no hace falta —la lectura no pasa por el navegador— y meter un

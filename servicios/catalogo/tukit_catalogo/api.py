@@ -34,8 +34,8 @@ import argparse
 import uuid
 from typing import Annotated, Any
 
-from fastapi import FastAPI, Query
-from sqlalchemy import Select, and_, func, or_, select
+from fastapi import FastAPI, Query, Response
+from sqlalchemy import Select, and_, func, or_, select, update
 from tukit_comun.bd import crear_motor
 from tukit_comun.http import ErrorDominio, crear_app
 
@@ -130,13 +130,24 @@ def _concepto_publico(fila: Any) -> dict[str, Any]:
 
 def _producto_publico(fila: Any) -> dict[str, Any]:
     return {
+        # `sku` y no `sku_interno`: hacia afuera el identificador del producto
+        # se llama igual en el catalogo y en el `ProductoKit` de la seccion 5,
+        # que es lo que permite que una tarjeta de catalogo y una linea de kit
+        # compartan componente. El nombre interno se queda en la base.
         "sku": fila.sku_interno,
+        # El EAN no es un adorno: es lo unico que permite reconocer el mismo
+        # producto en dos tiendas que lo nombran distinto, y la pantalla de
+        # comparacion se apoya en eso. Es nulo cuando la fuente no lo publica.
+        "ean": fila.ean,
         "nombre": fila.nombre,
         "marca": fila.marca,
         "nivel": fila.nivel,
         "personaje": fila.personaje,
         "imagen_url": fila.imagen_url,
         "descripcion": fila.descripcion,
+        # Marca propia de Tukit. Cambia como se lee el precio -no hay una
+        # tienda tercera detras- asi que la pantalla lo etiqueta aparte.
+        "es_propio": bool(fila.es_propio),
         # Las dos columnas de las que depende no sumar doce cajas cuando la
         # lista pidio doce lapices. Van en la respuesta porque el frontend
         # tiene que poder decir "una caja de 12" y no "12".
@@ -155,6 +166,8 @@ def _consulta_productos(precio_min: Any) -> Select:
         select(
             PRODUCTO.c.id,
             PRODUCTO.c.sku_interno,
+            PRODUCTO.c.ean,
+            PRODUCTO.c.es_propio,
             PRODUCTO.c.nombre,
             PRODUCTO.c.descripcion,
             PRODUCTO.c.marca,
@@ -179,6 +192,72 @@ def _consulta_productos(precio_min: Any) -> Select:
     )
 
 
+def _oferta_publica(fila: Any) -> dict[str, Any]:
+    return {
+        "tienda": fila.slug,
+        "tienda_nombre": fila.tienda_nombre,
+        "tipo_tienda": fila.tipo,
+        "url": fila.url,
+        # Tres valores y no dos: `null` es "la fuente no reporta
+        # existencias", que no es lo mismo que "no hay". El canal
+        # mayorista nunca las reporta, y forzar `false` descartaria
+        # ofertas legitimas por una observacion que nunca se hizo.
+        "disponible": fila.disponible,
+        "precio": pesos(fila.valor_centavos),
+        "vigente_desde": fila.vigente_desde.isoformat() if fila.vigente_desde else None,
+        "vigente_hasta": fila.vigente_hasta.isoformat() if fila.vigente_hasta else None,
+        # El instante en que se observo el precio que se esta mostrando. La
+        # pantalla lo necesita para poder decir "visto el 12/09" en vez de
+        # presentar un precio de hace tres meses como si fuera de hoy.
+        "visto_en": fila.vigente_desde.isoformat() if fila.vigente_desde else None,
+        "fuente_precio": fila.fuente,
+        "metodo_vinculacion": fila.metodo_vinculacion,
+        "confianza_vinculacion": float(fila.confianza_vinculacion),
+    }
+
+
+def _consulta_ofertas(producto_ids: list[Any]) -> Select:
+    """Las ofertas vivas de un conjunto de productos, con su precio vigente.
+
+    Toma una lista de identificadores y no uno solo porque la pantalla de
+    catalogo necesita las ofertas de la pagina entera: pedirlas producto a
+    producto serian doscientas idas y vueltas para pintar una pagina, que es
+    el patron N+1 que el perfilado ya encontro una vez en la ingesta.
+    """
+    return (
+        select(
+            OFERTA.c.producto_canonico_id.label("pid"),
+            TIENDA.c.slug,
+            TIENDA.c.nombre.label("tienda_nombre"),
+            TIENDA.c.tipo,
+            OFERTA.c.url,
+            OFERTA.c.disponible,
+            OFERTA.c.metodo_vinculacion,
+            OFERTA.c.confianza_vinculacion,
+            PRECIO.c.valor_centavos,
+            PRECIO.c.vigente_desde,
+            PRECIO.c.vigente_hasta,
+            PRECIO.c.fuente,
+        )
+        .select_from(
+            OFERTA.join(TIENDA, TIENDA.c.id == OFERTA.c.tienda_id).outerjoin(
+                PRECIO,
+                and_(PRECIO.c.oferta_id == OFERTA.c.id, PRECIO.c.vigente_hasta.is_(None)),
+            )
+        )
+        .where(OFERTA.c.producto_canonico_id.in_(producto_ids), OFERTA.c.activo.is_(True))
+    )
+
+
+def _ordenar_ofertas(ofertas: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Las que tienen precio primero y de menor a mayor; las que no, al final.
+
+    Una oferta sin precio no se puede comparar, pero tampoco se esconde:
+    existe y el acudiente puede ir a mirarla.
+    """
+    return sorted(ofertas, key=lambda o: (o["precio"] is None, o["precio"] or 0))
+
+
 async def _arrancar(app: FastAPI) -> None:
     app.state.motor = crear_motor("catalogo")
 
@@ -198,10 +277,105 @@ app = crear_app(
     al_apagar=_apagar,
 )
 
+# La superficie de ESCRITURA de la revision de listas vive aparte, en
+# `admin_http`, para que este modulo pueda seguir diciendo con verdad que es de
+# solo lectura. Es la mano de la persona que revisa: editar renglones, decidir
+# propuestas, cerrar una lista y clonarla para corregir. Se monta sobre la
+# misma app —y el mismo `app.state.motor`— y se rutea por su prefijo `/v1/admin`.
+from .admin_http import router as _router_admin  # noqa: E402
+
+app.include_router(_router_admin)
+
 
 # ---------------------------------------------------------------------------
 # Conceptos
 # ---------------------------------------------------------------------------
+
+
+# Por debajo de esto un producto lo sugirio la busqueda y nadie lo confirmo.
+# Vive aqui y no en la pantalla porque la cifra del resumen y la etiqueta de
+# la tarjeta tienen que salir del MISMO numero: si cada lado eligiera el suyo,
+# la pantalla se contradiria con su propio encabezado y no habria forma de
+# saber cual de los dos miente.
+UMBRAL_SIN_REVISAR = 0.5
+
+
+@app.get(
+    "/v1/catalogo/resumen",
+    tags=["catalogo"],
+    summary="Las siete cifras que resumen el estado del catalogo curado",
+)
+async def resumen_catalogo() -> dict[str, Any]:
+    """El encabezado de la pantalla de catalogo, en una sola consulta.
+
+    No es una comodidad: es la unica cifra que NO se puede derivar de las
+    colecciones paginadas. Un cliente que solo tuviera `/productos` sabria
+    cuantos hay en su pagina, no cuantos hay con foto en las 385, y para
+    averiguarlo tendria que traerse el catalogo entero, que es exactamente lo
+    que la paginacion existe para impedir. Sin esta ruta, el tope de pagina y
+    la pantalla se contradicen.
+
+    Las carencias se cuentan igual que los logros -conceptos sin ningun
+    producto, productos sin foto, productos sin revisar- porque la pantalla se
+    usa para decidir que curar, y un resumen que solo cuenta lo bueno no sirve
+    para eso.
+    """
+    productos_por_concepto = (
+        select(
+            PRODUCTO.c.concepto_id.label("cid"),
+            func.count(func.distinct(PRODUCTO.c.nivel)).label("niveles"),
+        )
+        .where(PRODUCTO.c.activo.is_(True))
+        .group_by(PRODUCTO.c.concepto_id)
+        .subquery()
+    )
+
+    async with app.state.motor.engine.begin() as conexion:
+        fila = (
+            await conexion.execute(
+                select(
+                    func.count().label("conceptos"),
+                    func.count(productos_por_concepto.c.niveles)
+                    .filter(productos_por_concepto.c.niveles >= 3)
+                    .label("tres_niveles"),
+                    func.count()
+                    .filter(productos_por_concepto.c.niveles.is_(None))
+                    .label("sin_producto"),
+                )
+                .select_from(
+                    CONCEPTO.outerjoin(
+                        productos_por_concepto, productos_por_concepto.c.cid == CONCEPTO.c.id
+                    )
+                )
+                .where(CONCEPTO.c.activo.is_(True))
+            )
+        ).one()
+
+        productos = (
+            await conexion.execute(
+                select(
+                    func.count().label("total"),
+                    func.count().filter(PRODUCTO.c.imagen_url.is_not(None)).label("con_foto"),
+                    func.count()
+                    .filter(PRODUCTO.c.quality_score < UMBRAL_SIN_REVISAR)
+                    .label("sin_revisar"),
+                ).where(PRODUCTO.c.activo.is_(True))
+            )
+        ).one()
+
+        tiendas = await conexion.scalar(
+            select(func.count()).select_from(TIENDA).where(TIENDA.c.activa.is_(True))
+        )
+
+    return {
+        "conceptos": int(fila.conceptos),
+        "productos": int(productos.total),
+        "conceptos_con_tres_niveles": int(fila.tres_niveles),
+        "conceptos_sin_producto": int(fila.sin_producto),
+        "productos_con_foto": int(productos.con_foto),
+        "tiendas": int(tiendas or 0),
+        "productos_sin_revisar": int(productos.sin_revisar),
+    }
 
 
 @app.get(
@@ -332,6 +506,9 @@ async def listar_productos(
     con_personaje: Annotated[bool | None, Query(description="Solo con, o solo sin, personaje")] = None,
     busqueda: Annotated[str | None, Query(description="Texto en el nombre del producto")] = None,
     con_precio: Annotated[bool | None, Query(description="Solo los que tienen precio vigente")] = None,
+    con_ofertas: Annotated[
+        bool, Query(description="Incluye el arreglo `ofertas` de cada producto de la pagina")
+    ] = False,
     pagina: Annotated[int, Query(ge=1)] = 1,
     por_pagina: Annotated[int, Query(ge=1, le=POR_PAGINA_MAXIMO)] = POR_PAGINA_POR_OMISION,
 ) -> dict[str, Any]:
@@ -367,8 +544,22 @@ async def listar_productos(
 
     async with app.state.motor.engine.begin() as conexion:
         total = await _total(conexion, consulta)
-        filas = await conexion.execute(_paginar(consulta, pagina, por_pagina))
+        filas = list(await conexion.execute(_paginar(consulta, pagina, por_pagina)))
         datos = [_producto_publico(f) for f in filas]
+
+        # `con_ofertas` expande la pagina, no el catalogo. La comparacion de
+        # precio entre tiendas es el nucleo de la propuesta y una pantalla que
+        # la pinte necesita las ofertas de todo lo que muestra; pedirlas una a
+        # una serian `por_pagina` idas y vueltas. Sigue acotado por el mismo
+        # tope de pagina, asi que el dia que el catalogo tenga 26.000
+        # productos esta respuesta pesa lo mismo que hoy.
+        if con_ofertas and filas:
+            por_producto: dict[Any, list[dict[str, Any]]] = {}
+            for oferta in await conexion.execute(_consulta_ofertas([f.id for f in filas])):
+                por_producto.setdefault(oferta.pid, []).append(_oferta_publica(oferta))
+            for producto, fila in zip(datos, filas, strict=True):
+                producto["ofertas"] = _ordenar_ofertas(por_producto.get(fila.id, []))
+
     return _sobre(pagina, por_pagina, total, "productos", datos)
 
 
@@ -433,6 +624,234 @@ async def ver_producto(sku: str) -> dict[str, Any]:
     # esconde: existe y el acudiente puede ir a mirarla.
     detalle.sort(key=lambda o: (o["precio"] is None, o["precio"] or 0))
     return _producto_publico(fila) | {"ofertas": detalle}
+
+
+# ---------------------------------------------------------------------------
+# Escritura de productos (la mano de la persona que cura el catalogo)
+# ---------------------------------------------------------------------------
+#
+# Vive en `api.py` y NO en `admin_http` a proposito, contra lo que hace la
+# revision de listas: los productos ya viven aqui —`GET /v1/catalogo/productos`
+# los lista y `GET .../{sku}` los muestra—, y el SPA lee y escribe contra el
+# mismo prefijo. Poner la escritura en `/v1/admin` obligaria al SPA a hablar con
+# dos origenes para la misma entidad y a mantener dos formas del producto en vez
+# de reusar `_producto_publico`. La promesa de "solo lectura" del encabezado del
+# modulo se refiere a que ninguna busqueda da de alta catalogo sin una persona:
+# estas rutas SON esa persona.
+
+# Los campos que una persona puede tocar por PATCH. El concepto NO esta: se
+# reasigna por su propia ruta (`/reclasificar`) porque arrastra la invalidacion
+# del vector y no es una edicion de texto mas. `sku`, `id`, `curado_*` y
+# `embedding*` no se listan porque no se editan: cambiarlos rompe la identidad
+# del producto o la huella del canal semantico.
+_CAMPOS_EDITABLES = frozenset(
+    {
+        "nombre",
+        "descripcion",
+        "marca",
+        "nivel",
+        "personaje",
+        "imagen_url",
+        "unidad_base",
+        "unidades_por_empaque",
+        "atributos",
+        "quality_score",
+        "es_propio",
+    }
+)
+
+_UNIDADES_BASE = ("unidad", "hoja", "pliego", "metro", "gramo", "mililitro")
+
+# Cambiar uno de estos cambia el texto del que sale el embedding, asi que hay
+# que invalidar `texto_embedding` para que `enriquecer` lo recalcule. El resto
+# (marca, precio, imagen) no alimenta el vector y no gasta una re-embebida.
+_CAMPOS_QUE_REEMBEBEN = frozenset({"nombre", "atributos"})
+
+
+def _validar_edicion(cambios: dict[str, Any]) -> None:
+    """Los mismos CHECK del modelo, dichos en el borde como error de dominio.
+
+    Se rechaza antes de que la base lo grite para que el mensaje nombre el campo
+    y el SPA lo pinte donde toca. Un cuerpo con una clave que no se edita es un
+    400 que la nombra: es un error del cliente, no un dato que se ignora en
+    silencio (ignorarlo dejaria creer que se guardo).
+    """
+    for campo in cambios:
+        if campo not in _CAMPOS_EDITABLES:
+            raise ErrorDominio(
+                "campo_no_editable",
+                f"El campo {campo} no se edita por esta ruta.",
+                campo=campo,
+            )
+    if "nivel" in cambios and cambios["nivel"] not in _ORDEN_NIVEL:
+        raise ErrorDominio(
+            "nivel_invalido", f"El nivel debe ser uno de {', '.join(_ORDEN_NIVEL)}.", campo="nivel"
+        )
+    if "unidad_base" in cambios and cambios["unidad_base"] not in _UNIDADES_BASE:
+        raise ErrorDominio(
+            "unidad_base_invalida",
+            f"La unidad base debe ser una de {', '.join(_UNIDADES_BASE)}.",
+            campo="unidad_base",
+        )
+    if "unidades_por_empaque" in cambios and int(cambios["unidades_por_empaque"]) < 1:
+        raise ErrorDominio(
+            "empaque_invalido",
+            "Las unidades por empaque tienen que ser al menos 1.",
+            campo="unidades_por_empaque",
+        )
+    if "quality_score" in cambios and not (0 <= float(cambios["quality_score"]) <= 1):
+        raise ErrorDominio(
+            "quality_score_invalido", "El quality_score va entre 0 y 1.", campo="quality_score"
+        )
+
+
+async def _producto_por_sku(conexion: Any, sku: str) -> dict[str, Any]:
+    """Re-lee el producto en su forma publica, con precio y tiendas, o 404.
+
+    La misma consulta que `ver_producto`/`listar_productos`, para que lo que
+    devuelve una escritura coincida clave por clave con lo que el SPA ya
+    pinta. El precio_desde y el conteo de tiendas salen igual que en la lectura.
+    """
+    precio_min = _precio_minimo_vigente()
+    fila = (
+        await conexion.execute(_consulta_productos(precio_min).where(PRODUCTO.c.sku_interno == sku))
+    ).one_or_none()
+    if fila is None:
+        raise ErrorDominio("producto_no_existe", f"No hay ningun producto con el sku {sku}.", estado=404)
+    return _producto_publico(fila)
+
+
+@app.patch(
+    "/v1/catalogo/productos/{sku}",
+    tags=["catalogo"],
+    summary="Edita los campos de un producto. No reasigna concepto ni escribe embedding.",
+)
+async def editar_producto(sku: str, cuerpo: dict[str, Any]) -> dict[str, Any]:
+    """Edicion parcial de un producto por su sku, con los CHECK del modelo.
+
+    Cuando cambia lo que alimenta el vector (nombre o atributos) se invalida
+    `texto_embedding` a NULL en la misma transaccion, PERO no se llama a Gemini
+    aqui: el camino de la peticion no sale a la red. El siguiente `enriquecer`
+    ve el NULL y re-embebe. Devuelve la forma publica ya con precio y tiendas.
+    """
+    _validar_edicion(cuerpo)
+    valores = {c: cuerpo[c] for c in cuerpo}
+    if _CAMPOS_QUE_REEMBEBEN & valores.keys():
+        valores["texto_embedding"] = None
+
+    async with app.state.motor.engine.begin() as conexion:
+        existe = await conexion.scalar(
+            select(PRODUCTO.c.id).where(PRODUCTO.c.sku_interno == sku)
+        )
+        if existe is None:
+            raise ErrorDominio(
+                "producto_no_existe", f"No hay ningun producto con el sku {sku}.", estado=404
+            )
+        if valores:
+            await conexion.execute(
+                update(PRODUCTO).where(PRODUCTO.c.sku_interno == sku).values(**valores)
+            )
+        return await _producto_por_sku(conexion, sku)
+
+
+@app.post(
+    "/v1/catalogo/productos/{sku}/reclasificar",
+    tags=["catalogo"],
+    summary="Reasigna el concepto de un producto. Invalida su embedding.",
+)
+async def reclasificar_producto(sku: str, cuerpo: dict[str, Any]) -> dict[str, Any]:
+    """Mueve un producto a otro concepto por el codigo del concepto.
+
+    Va aparte del PATCH porque cambiar el concepto cambia el texto del que sale
+    el vector: se invalida `texto_embedding` a NULL (no se re-embebe aqui). El
+    concepto se busca por su codigo; si no existe es 404, no un 400 de campo,
+    porque el recurso destino no esta.
+    """
+    codigo = cuerpo.get("concepto")
+    async with app.state.motor.engine.begin() as conexion:
+        pid = await conexion.scalar(select(PRODUCTO.c.id).where(PRODUCTO.c.sku_interno == sku))
+        if pid is None:
+            raise ErrorDominio(
+                "producto_no_existe", f"No hay ningun producto con el sku {sku}.", estado=404
+            )
+        cid = await conexion.scalar(select(CONCEPTO.c.id).where(CONCEPTO.c.codigo == codigo))
+        if cid is None:
+            raise ErrorDominio(
+                "concepto_no_existe", f"No hay ningun concepto con el codigo {codigo}.", estado=404
+            )
+        await conexion.execute(
+            update(PRODUCTO)
+            .where(PRODUCTO.c.sku_interno == sku)
+            .values(concepto_id=cid, texto_embedding=None)
+        )
+        return await _producto_por_sku(conexion, sku)
+
+
+@app.delete(
+    "/v1/catalogo/productos/{sku}",
+    status_code=204,
+    tags=["catalogo"],
+    summary="Retira un producto del catalogo (soft delete: activo=False).",
+)
+async def retirar_producto(sku: str) -> Response:
+    """Baja logica, nunca fisica: `activo=False`, no un DELETE.
+
+    Las ofertas y los precios cuelgan del producto; un borrado fisico los
+    dejaria huerfanos o los arrastraria. Poner `activo=False` lo saca de toda
+    la lectura publica (que filtra por `activo`) sin perder el historial. Es
+    idempotente: retirar dos veces sigue siendo 204; solo un sku que nunca
+    existio es 404.
+    """
+    async with app.state.motor.engine.begin() as conexion:
+        pid = await conexion.scalar(select(PRODUCTO.c.id).where(PRODUCTO.c.sku_interno == sku))
+        if pid is None:
+            raise ErrorDominio(
+                "producto_no_existe", f"No hay ningun producto con el sku {sku}.", estado=404
+            )
+        await conexion.execute(
+            update(PRODUCTO).where(PRODUCTO.c.sku_interno == sku).values(activo=False)
+        )
+    return Response(status_code=204)
+
+
+@app.get(
+    "/v1/catalogo/personajes",
+    tags=["catalogo"],
+    summary="Los personajes en existencia, con cuantos productos y en que conceptos",
+)
+async def listar_personajes() -> dict[str, Any]:
+    """Enumera los personajes con producto activo, su conteo y sus conceptos.
+
+    Alimenta el selector del empezar (P4b) y el re-etiquetado del SPA (P4c). NO
+    calcula el gate de los cuatro anclas (C001/C009/C011/C086): esa completitud
+    es de la UI. Solo dice que personajes hay, cuantos productos tiene cada uno
+    y en que conceptos aparecen, para que el SPA compute el gate sin otra
+    llamada. Es una sola consulta agrupada por personaje/concepto.
+    """
+    async with app.state.motor.engine.begin() as conexion:
+        filas = await conexion.execute(
+            select(
+                PRODUCTO.c.personaje,
+                CONCEPTO.c.codigo.label("concepto_codigo"),
+                func.count().label("productos"),
+            )
+            .select_from(PRODUCTO.join(CONCEPTO, CONCEPTO.c.id == PRODUCTO.c.concepto_id))
+            .where(PRODUCTO.c.activo.is_(True), PRODUCTO.c.personaje.is_not(None))
+            .group_by(PRODUCTO.c.personaje, CONCEPTO.c.codigo)
+        )
+        # Se agrupa por (personaje, concepto) en SQL y se pliega en Python: el
+        # conteo de productos del personaje es la suma sobre sus conceptos, y
+        # los codigos de concepto salen de las mismas filas sin una segunda
+        # consulta.
+        por_personaje: dict[str, dict[str, Any]] = {}
+        for fila in filas:
+            entrada = por_personaje.setdefault(
+                fila.personaje, {"nombre": fila.personaje, "productos": 0, "conceptos": []}
+            )
+            entrada["productos"] += int(fila.productos)
+            entrada["conceptos"].append(fila.concepto_codigo)
+    personajes = sorted(por_personaje.values(), key=lambda p: p["nombre"])
+    return {"personajes": personajes}
 
 
 @app.get("/v1/catalogo/tiendas", tags=["catalogo"], summary="Las tiendas con oferta viva en el catalogo")

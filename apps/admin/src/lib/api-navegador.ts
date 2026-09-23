@@ -52,7 +52,7 @@ async function enviar<T>(ruta: string, cuerpo: unknown): Promise<T> {
 
 const id = encodeURIComponent;
 
-/** AD-04. Sin `sku` se lee como "confirmo el producto que el sistema eligio". */
+/** AD-02. Sin `sku` se lee como "confirmo el producto que el sistema eligio". */
 export function validarLinea(
   trabajoId: string,
   itemId: string,
@@ -61,7 +61,7 @@ export function validarLinea(
   return enviar(`/api/trabajos/${id(trabajoId)}/lineas/${id(itemId)}/validar`, cuerpo);
 }
 
-/** AD-04. El motivo es obligatorio: una marca sin motivo no se puede revisar despues. */
+/** AD-02. El motivo es obligatorio: una marca sin motivo no se puede revisar despues. */
 export function marcarSinCoincidencia(
   trabajoId: string,
   itemId: string,
@@ -70,7 +70,7 @@ export function marcarSinCoincidencia(
   return enviar(`/api/trabajos/${id(trabajoId)}/lineas/${id(itemId)}/sin-coincidencia`, cuerpo);
 }
 
-/** AD-07. Alta manual con precio e imagen, sobre todo para libros. */
+/** AD-07. Alta manual con precio e imagen, para utiles y libros. */
 export function altaProducto(cuerpo: AltaProducto): Promise<ProductoDadoDeAlta> {
   return enviar<ProductoDadoDeAlta>("/api/productos", cuerpo);
 }

@@ -1,86 +1,71 @@
-// `/catalogo` — el gestor de huecos de catálogo (CABLEADO).
+// `/catalogo` — la SPA de administración del catálogo (P4c).
 //
-// Lista los conceptos que el catálogo NO cubre bien, con datos reales de
-// `catalogo()`: los que no tienen ningún producto (hueco duro) y los que tienen
-// productos pero no los tres niveles (cobertura parcial). Para cada uno se puede
-// dar de alta un producto con `altaProducto()` — la misma mutación que usa AD-07
-// en la revisión, aquí sin línea de por medio (el contrato lo admite: sin
-// trabajo/item solo agrega al catálogo).
+// Reemplaza al antiguo gestor de huecos: en vez de listar solo los conceptos
+// sin cubrir, es un gestor completo de `producto_canonico` — búsqueda con
+// filtros, CRUD de todos los campos, gestión de imagen por URL, re-etiqueta
+// (nivel/personaje/marca/atributos) y re-clasificación (mover de concepto).
 //
-// Server Component: lee el origen directo. El alta vive en un componente de
-// cliente porque escribe.
+// Server Component: hace las tres LECTURAS iniciales directo contra el origen
+// (sin salto HTTP) —la primera página de productos, la lista de conceptos para
+// filtrar/reclasificar y los personajes para el autocompletado— y las pasa al
+// cliente. Toda escritura y toda búsqueda interactiva posterior van por los
+// Route Handlers de `/api/catalogo/**`.
 
-import { PackageSearch } from "lucide-react";
-import type { ConceptoCatalogo } from "@tukit/contrato";
-import { coberturaDe } from "@tukit/contrato";
 import { origenDeDatos } from "@tukit/contrato/servidor";
-import GestorHuecos from "@/components/GestorHuecos";
+import GestorCatalogo from "@/components/GestorCatalogo";
+import type { OpcionConcepto } from "@/components/PanelReclasificar";
 import styles from "./Catalogo.module.css";
 
 export const dynamic = "force-dynamic";
 
 export default async function PaginaCatalogo() {
-  const catalogo = await origenDeDatos().catalogo();
+  const origen = origenDeDatos();
 
-  // Los huecos primero (sin ningún producto), después la cobertura parcial.
-  // Dentro de cada grupo, lo más pedido arriba: es lo que más duele que falte.
-  const clasificar = (c: ConceptoCatalogo) => coberturaDe(c);
-  const conceptos = [...catalogo.conceptos].sort(
-    (a, b) => b.frecuencia_demanda - a.frecuencia_demanda,
-  );
-  const huecos = conceptos.filter((c) => clasificar(c) === "sin_productos");
-  const parciales = conceptos.filter((c) => clasificar(c) === "parcial");
+  // Las tres lecturas en paralelo: primera página, conceptos y personajes.
+  const [paginaInicial, catalogo, personajes] = await Promise.all([
+    origen.buscarProductos({ por_pagina: 24, pagina: 1 }),
+    origen.catalogo(),
+    origen.personajes(),
+  ]);
+
+  const conceptos: OpcionConcepto[] = catalogo.conceptos
+    .map((c) => ({ codigo: c.codigo, nombre: c.nombre_canonico }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  const nombresPersonajes = personajes.map((p) => p.nombre);
 
   return (
     <div className={styles.pagina}>
       <header className={styles.encabezado}>
         <div>
-          <h1>Catálogo · huecos</h1>
+          <h1>Catálogo · productos</h1>
           <p className={styles.bajada}>
-            Lo que el catálogo todavía no cubre. Un hueco es lo que el acudiente ve como
-            &ldquo;esto no lo tenemos&rdquo;: darlo de alta aquí lo cierra para todos los
-            trabajos, no solo para uno.
+            El gestor del catálogo canónico. Buscá un producto, editá todos sus campos,
+            re-etiquetalo (nivel, personaje, marca), cambialo de concepto o dalo de baja. Lo que
+            cambies aquí vale para todos los trabajos, no para uno.
           </p>
         </div>
         <dl className={styles.resumen}>
           <div>
-            <dt>Sin ningún producto</dt>
-            <dd className="cifra">{catalogo.resumen.conceptos_sin_producto}</dd>
+            <dt>Productos</dt>
+            <dd className="cifra">{catalogo.resumen.productos}</dd>
           </div>
           <div>
-            <dt>Con los tres niveles</dt>
-            <dd className="cifra">{catalogo.resumen.conceptos_con_tres_niveles}</dd>
+            <dt>Con foto</dt>
+            <dd className="cifra">{catalogo.resumen.productos_con_foto}</dd>
           </div>
           <div>
-            <dt>Conceptos en total</dt>
-            <dd className="cifra">{catalogo.resumen.conceptos}</dd>
+            <dt>Sin revisar</dt>
+            <dd className="cifra">{catalogo.resumen.productos_sin_revisar}</dd>
           </div>
         </dl>
       </header>
 
-      {huecos.length === 0 && parciales.length === 0 ? (
-        <div className={styles.vacio}>
-          <PackageSearch size={22} aria-hidden="true" />
-          <p>No hay huecos: todos los conceptos tienen al menos un producto.</p>
-        </div>
-      ) : (
-        <GestorHuecos
-          huecos={huecos.map((c) => ({
-            codigo: c.codigo,
-            nombre: c.nombre_canonico,
-            categoria: c.categoria,
-            demanda: c.frecuencia_demanda,
-            productos: 0,
-          }))}
-          parciales={parciales.map((c) => ({
-            codigo: c.codigo,
-            nombre: c.nombre_canonico,
-            categoria: c.categoria,
-            demanda: c.frecuencia_demanda,
-            productos: c.productos.length,
-          }))}
-        />
-      )}
+      <GestorCatalogo
+        paginaInicial={paginaInicial}
+        conceptos={conceptos}
+        personajes={nombresPersonajes}
+      />
     </div>
   );
 }

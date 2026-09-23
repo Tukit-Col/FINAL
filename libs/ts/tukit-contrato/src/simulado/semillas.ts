@@ -17,9 +17,23 @@ import type { Catalogo, Colegio, ConceptoCatalogo, ListaOficial } from "../catal
 
 export const CATALOGO = crudoCatalogo as unknown as Catalogo;
 
-const LISTAS = crudoListas as unknown as { colegios: Colegio[]; listas: ListaOficial[] };
+const LISTAS = crudoListas as unknown as {
+  colegios: Omit<Colegio, "logo_url" | "es_partner">[];
+  listas: ListaOficial[];
+};
 
-export const COLEGIOS = LISTAS.colegios;
+// El corpus simulado no lleva ni `logo_url` (era una senal de identidad, no del
+// cargador de listas) ni una marca `revisada` por lista. Para reflejar la misma
+// idea de "solo lo verificado" que el cliente real, el simulado trata TODAS sus
+// listas sembradas como revisadas: cada colegio sembrado ya trae sus grados con
+// lista, asi que su seleccion equivale a "verificado". Se completa `logo_url` a
+// `null` (no hay logo en el corpus) y `es_partner` desde `grados.length`, para
+// que la forma coincida con el `Colegio` real.
+export const COLEGIOS: Colegio[] = LISTAS.colegios.map((c) => ({
+  ...c,
+  logo_url: null,
+  es_partner: c.grados.length > 0,
+}));
 
 const POR_COLEGIO_GRADO = new Map<string, ListaOficial>(
   LISTAS.listas.map((l) => [`${l.colegio_id}|${l.grado}`, l]),

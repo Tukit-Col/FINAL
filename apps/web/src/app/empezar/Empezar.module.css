@@ -143,15 +143,6 @@
   background: var(--color-border-light);
 }
 
-.avisoAtribucion {
-  background: var(--clay-estrella-bg);
-  color: var(--color-aviso);
-  border-radius: var(--radius-md);
-  padding: var(--espacio-3) var(--espacio-4);
-  font-size: 13px;
-  box-shadow: var(--clay-shadow-sm);
-}
-
 /* --------------------------------------------------------------- Entradas */
 
 .entradas,
@@ -190,6 +181,57 @@
   accent-color: var(--color-primary);
   width: 18px;
   height: 18px;
+}
+
+/* --------------------------------------------------- Prioridad (paso 3) */
+
+/* Como .opcionEntrada pero con dos líneas: el título de la prioridad y, debajo,
+ * el efecto concreto sobre cuál kit se marca. Alinea el radio arriba porque el
+ * texto ocupa dos renglones. */
+.tarjetaPrioridad {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espacio-3);
+  padding: var(--espacio-4);
+  background: var(--color-white);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  box-shadow: var(--clay-shadow-sm);
+  transition: transform var(--dur-rapido) var(--ease-clay),
+    box-shadow var(--dur-rapido) var(--ease-suave);
+}
+
+.tarjetaPrioridad:hover {
+  transform: translateY(-1px);
+}
+
+.tarjetaPrioridad input {
+  accent-color: var(--color-primary);
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex: none;
+}
+
+.prioridadTexto {
+  display: grid;
+  gap: 3px;
+}
+
+.prioridadTexto strong {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.prioridadDetalle {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.pistaCampo {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  font-weight: 400;
 }
 
 /* ---------------------------------------------------------------- Archivo */

@@ -1,0 +1,33 @@
+[project]
+name = "tukit-operacion"
+version = "0.1.0"
+description = "Casos, PQRS, notificaciones, auditoria y telemetria. Solo anexar. Incluye el repartidor de la bandeja de salida."
+requires-python = ">=3.12"
+dependencies = [
+    "sqlalchemy>=2.0",
+    "pydantic>=2.9",
+    "tukit-comun",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    # Al abrir un caso, el contacto (correo/celular) se resuelve a un usuario_id
+    # llamando a Identidad por HTTP: nunca se persiste el dato de contacto aqui.
+    # El repartidor tambien resuelve el destinatario contra Identidad.
+    "httpx>=0.27",
+]
+
+[tool.uv.sources]
+tukit-comun = { workspace = true }
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "aiosqlite>=0.20",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["tukit_operacion"]

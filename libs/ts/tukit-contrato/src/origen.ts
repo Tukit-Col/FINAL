@@ -15,6 +15,7 @@ import type {
   ColaAdmin,
   DecisionRevision,
   MarcarNoDisponible,
+  PercepcionCruda,
   ProductoDadoDeAlta,
   SinCoincidencia,
   SolicitudTrabajo,
@@ -23,9 +24,25 @@ import type {
   TrabajoCreado,
   ValidarLinea,
 } from "./contrato";
-import type { Catalogo, Colegio, ListaOficial } from "./catalogo";
+import type {
+  Catalogo,
+  Colegio,
+  ColegioDetalle,
+  ColegioEditable,
+  FiltrosListasAdmin,
+  FiltrosProductos,
+  ItemListaEditable,
+  ListaOficial,
+  PaginaProductos,
+  Personaje,
+  ProductoCatalogoDetalle,
+  ProductoEditable,
+  RevisionLista,
+  Sugerencia,
+  VersionListaAdmin,
+} from "./catalogo";
 import type { Pedido, TableroComercio } from "./comercio";
-import type { BandejaOperacion, Caso } from "./operacion";
+import type { BandejaOperacion, Caso, CasoCreado, SolicitudCaso } from "./operacion";
 
 /** Los roles del sistema (filas de `rol` en identidad, ADR 0013). No es un
  *  enum del dominio: el codigo pregunta `puede(...)`, nunca `if rol in (...)`.
@@ -96,6 +113,19 @@ export interface OrigenDatos {
   colegios(): Promise<Colegio[]>;
   listaOficial(colegioId: string, grado: string): Promise<ListaOficial>;
 
+  // §Catalogo (P4c) — la SPA de administracion del catalogo. `personajes`
+  // deriva la lista de franquicias con su conteo; `buscarProductos` es la
+  // busqueda paginada con filtros; los tres verbos de escritura editan, mueven
+  // de concepto y dan de baja (borrado suave) un producto. Todos responden con
+  // la forma de detalle (`_producto_publico`) para que el formulario re-pinte
+  // sin una segunda lectura. Igual que el resto de catalogo, es ASUMIDO (1.1):
+  // el backend lo esta construyendo en paralelo con estas mismas claves.
+  personajes(): Promise<Personaje[]>;
+  buscarProductos(filtros: FiltrosProductos): Promise<PaginaProductos>;
+  editarProducto(sku: string, cambios: ProductoEditable): Promise<ProductoCatalogoDetalle>;
+  reclasificarProducto(sku: string, concepto: string): Promise<ProductoCatalogoDetalle>;
+  eliminarProducto(sku: string): Promise<void>;
+
   // §7 — revision humana.
   cola(): Promise<ColaAdmin>;
   trabajoAdmin(trabajoId: string): Promise<TrabajoAdmin>;
@@ -109,6 +139,86 @@ export interface OrigenDatos {
   marcarNoDisponible(sku: string, cuerpo: MarcarNoDisponible): Promise<void>;
   decidirRevision(trabajoId: string, cuerpo: DecisionRevision): Promise<void>;
 
+  // §Onboarding — inteligencia recibe el PDF de un grado, lo percibe y lo
+  // vuelca en catalogo como una version de lista importada (P2). El gateway
+  // expone `POST /v1/admin/onboarding` (multipart); el origen no sabe de HTTP,
+  // asi que recibe el archivo ya leido (`{contenido, nombre}`) como
+  // `crearTrabajo`. Devuelve lo justo para llevar al revisor a la version que
+  // se acaba de crear. Los dos GET sirven la evidencia de esa version:
+  // `documento` el PDF crudo (region 1), `percepcion` lo que el modelo ley
+  // por pagina mas lo itemizado (region 2). Las rutas de edicion/aprobacion de
+  // P1 NO viven aqui: son un eslabon aparte.
+  onboarding(
+    colegio_id: string,
+    grado: string,
+    anio_lectivo: number,
+    archivo: { contenido: Blob; nombre: string },
+  ): Promise<{ version_id: string; grado: string; items: number }>;
+  documento(versionId: string): Promise<Blob | ArrayBuffer | string>;
+  percepcion(versionId: string): Promise<PercepcionCruda>;
+
+  // §Sugerencia — un acudiente cuyo (colegio, grado) no tiene lista verificada
+  // sugiere la suya al backlog del administrador (P3c). El gateway expone
+  // `POST /v1/admin/sugerencias` hacia catalogo, que crea una tarea de
+  // importacion 'pendiente' con origen 'sugerencia_padre'. La traza al
+  // acudiente es SOLO `contacto_referencia` (el usuario_id que identidad emite);
+  // el correo y el telefono nunca cruzan aqui —viven solo en identidad. El
+  // archivo llega ya leido (`{contenido, nombre}`), igual que en `onboarding`,
+  // porque el origen no sabe de HTTP. Es una semilla para P4b: la rama visual
+  // la arma esa fase, esto es el asiento del contrato.
+  sugerirColegio(
+    colegio_id: string,
+    grado: string,
+    anio_lectivo: number,
+    archivo?: { contenido: Blob; nombre: string },
+    contacto_referencia?: string,
+  ): Promise<{ tarea_id: string; estado: string }>;
+
+  // §Admin — revision y edicion de listas (P4). La superficie de escritura que
+  // el `admin_http.py` de catalogo ya sirve bajo `/v1/admin`, mas dos rutas que
+  // un slice de backend construye en paralelo (`PATCH /v1/colegios/{id}` y
+  // `GET /v1/admin/sugerencias`). `listasAdmin` es el indice de versiones a
+  // curar; `revisionLista` la vista de cuatro regiones (renglones + propuestas).
+  // `editar/agregar` solo valen sobre una version SIN revisar (el backend alza
+  // 409 `lista_ya_revisada` si no); `cerrar` aprueba; `nuevaVersion` clona la
+  // vigente en una nueva sin revisar para corregir una lista ya publicada.
+  listasAdmin(filtros?: FiltrosListasAdmin): Promise<VersionListaAdmin[]>;
+  revisionLista(versionId: string): Promise<RevisionLista>;
+  editarItemLista(
+    versionId: string,
+    itemId: string,
+    cambios: ItemListaEditable,
+  ): Promise<void>;
+  agregarItemLista(versionId: string, item: ItemListaEditable): Promise<{ item_id: string }>;
+  cerrarLista(versionId: string): Promise<void>;
+  nuevaVersion(
+    colegioId: string,
+    grado: string,
+    anioLectivo: number,
+  ): Promise<{ version_id: string }>;
+
+  // El detalle de un colegio y la edicion de su identidad. `colegio` lee
+  // `GET /v1/colegios/{id}`; `editarColegio` manda el `PATCH /v1/colegios/{id}`
+  // (solo los campos presentes) y devuelve el colegio ya actualizado.
+  colegio(colegioId: string): Promise<ColegioDetalle>;
+  editarColegio(colegioId: string, cambios: ColegioEditable): Promise<ColegioDetalle>;
+
+  // §Admin — vista previa de una version (region 4). El administrador, parado
+  // sobre una version curada, pide los tres kits que saldrian de ella sin crear
+  // un trabajo de acudiente: se arma un trabajo de preview para ese
+  // (colegio, grado) y se devuelve su `trabajo_id`. La pantalla lee luego el
+  // `trabajoAdmin(trabajo_id)` de siempre para pintar los 3 kits. El gateway
+  // sirve `POST /v1/admin/onboarding/{version_id}/preview`; el origen no sabe
+  // de HTTP, asi que recibe el destino ya resuelto en `ctx`.
+  previewDeVersion(
+    versionId: string,
+    ctx: { colegioId: string; grado: string; anioLectivo: number },
+  ): Promise<{ trabajo_id: string }>;
+
+  // El backlog de sugerencias de padres, con la UNICA traza permitida
+  // (`contacto_referencia`): nunca correo ni telefono.
+  sugerencias(): Promise<Sugerencia[]>;
+
   // ASUMIDO — superficie de lectura de `comercio` (logistica del back-office).
   // Ver `comercio.ts`: el contrato v1.0 aun no publica esto.
   pedidos(): Promise<TableroComercio>;
@@ -118,6 +228,11 @@ export interface OrigenDatos {
   // Ver `operacion.ts`.
   casos(): Promise<BandejaOperacion>;
   caso(casoId: string): Promise<Caso>;
+
+  // ASUMIDO — superficie de ESCRITURA de `operacion`: abrir un caso/PQRS desde
+  // el centro de ayuda del acudiente (ADR 0004). El backend real lo servira en
+  // `POST /v1/operacion/casos`; hoy lo atiende el simulado.
+  crearCaso(solicitud: SolicitudCaso): Promise<CasoCreado>;
 }
 
 /** A donde mandar a alguien despues de entrar, segun sus roles (ADR 0008: tres

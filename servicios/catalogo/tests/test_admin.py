@@ -48,6 +48,7 @@ def _producto(**kw: Any) -> dict[str, Any]:
         "nivel": "confiable",
         "imagen_url": "https://ejemplo/foto.jpg",
         "personaje": None,
+        "marca": "Norma",
         "atributos": {"hojas": 100},
         "unidad_base": "unidad",
         "unidades_por_empaque": 1,
@@ -68,6 +69,7 @@ def _concepto(**kw: Any) -> dict[str, Any]:
         "tipo_item": "util",
         "demanda": 12,
         "sinonimos": ["cuaderno cosido"],
+        "atributos_clave": ["hojas", "rayado", "materias"],
         "productos": [_producto()],
     }
     base.update(kw)
@@ -258,6 +260,49 @@ class TestEditarYBorrarUnProductoSuelto:
         pos_prop = cuerpo.index("DELETE FROM propuesta_producto")
         pos_prod = cuerpo.index("DELETE FROM producto_canonico WHERE id")
         assert pos_prop < pos_prod, "la propuesta se borra antes que el producto"
+
+    def test_la_tarjeta_trae_marca_concepto_y_atributos_para_editar(self):
+        # El diálogo ampliado precarga marca, el concepto actual y los atributos
+        # desde data-attributes de la tarjeta. Sin ellos no se pueden editar esas
+        # tres cosas ni preseleccionar el concepto al que mover el producto.
+        html = admin.construir([_concepto()], _resumen())
+        assert 'data-pmarca="Norma"' in html
+        assert 'data-pconcepto="22222222-2222-2222-2222-222222222222"' in html
+        assert "data-pclaves=" in html  # las claves que el concepto declara
+        assert "data-pattrs=" in html  # los atributos que el producto ya tiene
+
+    def test_el_dialogo_ofrece_mover_a_cualquier_concepto(self):
+        # El <select> de concepto lista todos los conceptos con su código, para
+        # mover una resma del concepto 'hojas' al concepto 'resma'. Se compara la
+        # opción por su value (el id) para no chocar con el nombre en la tarjeta.
+        otro = _concepto(id="99999999-9999-9999-9999-999999999999", codigo="C031", nombre="resma")
+        html = admin.construir([_concepto(), otro], _resumen())
+        assert '<option value="99999999-9999-9999-9999-999999999999">C031 · resma</option>' in html
+
+    def test_editar_actualiza_marca_concepto_y_atributos_en_el_producto(self):
+        # Marca, concepto y atributos viven en producto_canonico: editarlos es un
+        # UPDATE de esa tabla. Reasignar el concepto NO toca la llave sku ni borra
+        # ofertas -es solo cambiar la llave foránea-, por eso no aparece un DELETE.
+        # Se lee el código SIN la prosa: el docstring menciona lo que la prueba
+        # prohíbe (el mismo modo de fallar que ya documenta `_solo_codigo`).
+        cuerpo = _solo_codigo(admin._editar_producto)
+        assert '"marca"' in cuerpo
+        assert '"concepto_id"' in cuerpo
+        assert '"atributos"' in cuerpo
+        assert "sku_interno" not in cuerpo
+        assert "DELETE" not in cuerpo
+
+    def test_editar_valida_que_el_concepto_destino_exista(self):
+        # Mover a un concepto que no existe reventaría la llave foránea; se
+        # comprueba antes y se devuelve un error claro en vez de un 500.
+        cuerpo = _solo_codigo(admin._editar_producto)
+        assert "FROM concepto WHERE id" in cuerpo
+
+    def test_el_handler_de_editar_pasa_marca_concepto_y_atributos(self):
+        cuerpo = inspect.getsource(admin._Manejador._editar)
+        assert 'cuerpo.get("marca")' in cuerpo
+        assert "concepto_id=" in cuerpo
+        assert "atributos" in cuerpo
 
     def test_editar_precio_escribe_en_precio_oferta_no_en_el_producto(self):
         # Nombre/nivel/foto viven en producto_canonico; el precio vive en

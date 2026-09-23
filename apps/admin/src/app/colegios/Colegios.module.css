@@ -1,0 +1,427 @@
+/* Estilos de la BD de colegios y listas (P4): el índice, el perfil y la lista
+ * de un grado. Un solo módulo porque son el mismo objeto a tres niveles de
+ * zoom. Tokens compartidos desde `@tukit/contrato/tokens.css`. */
+
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-5);
+}
+
+.migas {
+  font-size: 13px;
+}
+
+.migas a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.migas a:hover {
+  text-decoration: underline;
+}
+
+.encabezado {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--espacio-5);
+  flex-wrap: wrap;
+}
+
+.encabezado h1 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.bajada {
+  max-width: 64ch;
+  margin-top: var(--espacio-1);
+  color: var(--color-text-secondary);
+}
+
+.resumen {
+  display: flex;
+  gap: var(--espacio-2);
+}
+
+.resumen > div {
+  min-width: 132px;
+  padding: var(--espacio-3) var(--espacio-4);
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.resumen dt {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.resumen dd {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.2;
+  font-family: var(--font-display);
+}
+
+.vacio {
+  padding: var(--espacio-6);
+  text-align: center;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+/* --------------------------------------------------------------- rejilla */
+
+.rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--espacio-4);
+}
+
+.tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  padding: var(--espacio-4);
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.tarjetaCabecera {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-3);
+}
+
+.logo,
+.logoVacio {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  object-fit: contain;
+  background: var(--color-surface);
+  flex-shrink: 0;
+}
+
+.logoVacio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.tarjetaIdentidad {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tarjetaIdentidad h2 {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.tarjetaIdentidad h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.tarjetaIdentidad h2 a:hover {
+  text-decoration: underline;
+}
+
+.insigniaAliado,
+.insigniaBorrador {
+  align-self: flex-start;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.insigniaAliado {
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  color: var(--color-success);
+}
+
+.insigniaBorrador {
+  background: var(--color-aviso-bg);
+  border: 1px solid var(--color-aviso-border);
+  color: var(--color-aviso);
+}
+
+.avisoAtribucion {
+  padding: 6px var(--espacio-2);
+  background: var(--color-aviso-bg);
+  border: 1px solid var(--color-aviso-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-aviso);
+  font-size: 12px;
+}
+
+.grados ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+  list-style: none;
+}
+
+.grados li a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.grados li a:hover {
+  border-color: var(--color-primary);
+}
+
+.gradoEstado {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-success);
+}
+
+.sinGrados {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.sinGrados a {
+  color: var(--color-primary);
+}
+
+.tarjetaPie {
+  margin-top: auto;
+}
+
+.fuente {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+/* ---------------------------------------------------------------- perfil */
+
+.perfilIdentidad {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-4);
+}
+
+.logoGrande,
+.logoVacioGrande {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-lg);
+  object-fit: contain;
+  background: var(--color-surface);
+}
+
+.logoVacioGrande {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.subtitulo {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: var(--espacio-2);
+}
+
+.ficha {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--espacio-3);
+}
+
+.ficha dt {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.ficha dd {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.listaGrados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+  list-style: none;
+}
+
+.listaGrados li a {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.listaGrados li a:hover {
+  border-color: var(--color-primary);
+}
+
+/* --------------------------------------------------------- lista de grado */
+
+.accionesGrado {
+  display: flex;
+  gap: var(--espacio-2);
+}
+
+.botonSecundario {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--espacio-2) var(--espacio-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.botonSecundario:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.tabla th,
+.tabla td {
+  text-align: left;
+  padding: var(--espacio-2) var(--espacio-3);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.tabla th {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.libro {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.pendienteContrato {
+  padding: var(--espacio-3);
+  border: 1px dashed var(--color-aviso-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-aviso-bg);
+  color: var(--color-aviso);
+  font-size: 13px;
+}
+
+/* ---------------------------------------------- formulario de perfil (P1b) */
+
+.formularioPerfil {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--espacio-4);
+}
+
+.formularioPerfil .accionesGrado {
+  grid-column: 1 / -1;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.campo > span:first-child {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.campo input {
+  padding: var(--espacio-2) var(--espacio-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font: inherit;
+}
+
+.campo input:focus {
+  outline: 2px solid var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+
+.pistaError {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  color: var(--color-danger);
+}
+
+.perfilOk {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  color: var(--color-success);
+}
+
+.botonPrincipal {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  padding: var(--espacio-2) var(--espacio-4);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.botonPrincipal:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
