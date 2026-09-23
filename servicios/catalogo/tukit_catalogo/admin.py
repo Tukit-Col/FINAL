@@ -554,6 +554,88 @@ def buscar_candidatos(consulta: str) -> list[tuple[str, tiendas.Oferta]]:
     return candidatos
 
 
+def construir_propuesta_util(
+    concepto_id: uuid.UUID,
+    nombre_concepto: str,
+    slug: str,
+    tienda_id: uuid.UUID,
+    oferta: tiendas.Oferta,
+    nivel: str,
+) -> dict[str, Any]:
+    """El dict de propuesta de un util elegido, listo para `_encolar`.
+
+    Funcion pura --sin I/O, sin motor-- para que la comparta el CLI (que encola
+    y aprueba en el acto) y la SPA (que solo encola, y una persona decide el
+    nivel al aprobar). El id sale de `_uuid_estable("util", slug, sku)` para que
+    reencolar el mismo candidato no lo duplique. Precio en CENTAVOS, puntaje 0.6
+    porque lo eligio una persona de una lista de candidatos reales.
+    """
+    return {
+        "id": _uuid_estable("util", slug, oferta.sku),
+        "concepto_id": concepto_id,
+        "concepto_sugerido": None,
+        "texto_origen": nombre_concepto,
+        "tienda_id": tienda_id,
+        "referencia_externa": oferta.sku,
+        "url": oferta.url or None,
+        "nombre": oferta.nombre[:512],
+        "marca": oferta.marca,
+        "ean": _ean_valido(oferta.ean),
+        "imagen_url": oferta.imagen_url,
+        "especificaciones": oferta.especificaciones or {},
+        "precio_centavos": oferta.precio_cop * 100,
+        "disponible": oferta.disponible,
+        "nivel_sugerido": nivel,
+        "puntaje": 0.6,
+        "estado": "pendiente",
+        "origen": "manual",
+        "version_lista_id": None,
+        "item_lista_id": None,
+    }
+
+
+def construir_propuesta_libro(
+    concepto_id: uuid.UUID,
+    nombre_concepto: str,
+    slug: str,
+    tienda_id: uuid.UUID,
+    isbn: str,
+    titulo: str,
+    precio_cop: int,
+    nivel: str,
+) -> dict[str, Any]:
+    """El dict de propuesta de un libro por ISBN, listo para `_encolar`.
+
+    Gemelo puro de `construir_propuesta_util` para libros: el ISBN es la
+    referencia (identifica la edicion, no un titulo) y va tambien en `ean` y en
+    `especificaciones`. Puntaje 0.9 porque un ISBN es un dato duro, no una
+    coincidencia de busqueda. Precio en CENTAVOS. `nombre_concepto` no se usa en
+    el dict pero se recibe por simetria con el util y para futuras trazas.
+    """
+    return {
+        "id": _uuid_estable("propuesta", slug, isbn),
+        "concepto_id": concepto_id,
+        "concepto_sugerido": None,
+        "texto_origen": titulo,
+        "tienda_id": tienda_id,
+        "referencia_externa": isbn,
+        "url": None,
+        "nombre": titulo[:512],
+        "marca": None,
+        "ean": isbn,
+        "imagen_url": None,
+        "especificaciones": {"isbn": isbn},
+        "precio_centavos": precio_cop * 100,
+        "disponible": True,
+        "nivel_sugerido": nivel,
+        "puntaje": 0.9,
+        "estado": "pendiente",
+        "origen": "manual",
+        "version_lista_id": None,
+        "item_lista_id": None,
+    }
+
+
 async def agregar_util(concepto_id: str, slug: str, oferta: tiendas.Oferta, nivel: str) -> tuple[bool, str]:
     """Encola el candidato elegido y lo aprueba: queda como producto del catalogo.
 
@@ -574,34 +656,11 @@ async def agregar_util(concepto_id: str, slug: str, oferta: tiendas.Oferta, nive
         return False, "Ese concepto ya no existe."
     _, nombre_concepto = resuelto
 
-    pid = _uuid_estable("util", slug, oferta.sku)
-    encoladas = await _encolar(
-        [
-            {
-                "id": pid,
-                "concepto_id": uuid.UUID(concepto_id),
-                "concepto_sugerido": None,
-                "texto_origen": nombre_concepto,
-                "tienda_id": tienda_id,
-                "referencia_externa": oferta.sku,
-                "url": oferta.url or None,
-                "nombre": oferta.nombre[:512],
-                "marca": oferta.marca,
-                "ean": _ean_valido(oferta.ean),
-                "imagen_url": oferta.imagen_url,
-                "especificaciones": oferta.especificaciones or {},
-                "precio_centavos": oferta.precio_cop * 100,
-                "disponible": oferta.disponible,
-                "nivel_sugerido": nivel,
-                # Lo eligio una persona de una lista de candidatos reales.
-                "puntaje": 0.6,
-                "estado": "pendiente",
-                "origen": "manual",
-                "version_lista_id": None,
-                "item_lista_id": None,
-            }
-        ]
+    propuesta = construir_propuesta_util(
+        uuid.UUID(concepto_id), nombre_concepto, slug, tienda_id, oferta, nivel
     )
+    pid = propuesta["id"]
+    encoladas = await _encolar([propuesta])
     if not encoladas:
         # La llave natural (tienda, referencia) ya estaba: puede que sea un
         # producto que ya tenemos, o una propuesta pendiente. Se intenta
@@ -665,33 +724,11 @@ async def agregar_libro(
         return False, "Ese concepto ya no existe."
     _, nombre_concepto = resuelto
 
-    pid = _uuid_estable("propuesta", slug, isbn)
-    await _encolar(
-        [
-            {
-                "id": pid,
-                "concepto_id": uuid.UUID(concepto_id),
-                "concepto_sugerido": None,
-                "texto_origen": titulo,
-                "tienda_id": tienda_id,
-                "referencia_externa": isbn,
-                "url": None,
-                "nombre": titulo[:512],
-                "marca": None,
-                "ean": isbn,
-                "imagen_url": None,
-                "especificaciones": {"isbn": isbn},
-                "precio_centavos": precio_cop * 100,
-                "disponible": True,
-                "nivel_sugerido": nivel,
-                "puntaje": 0.9,
-                "estado": "pendiente",
-                "origen": "manual",
-                "version_lista_id": None,
-                "item_lista_id": None,
-            }
-        ]
+    propuesta = construir_propuesta_libro(
+        uuid.UUID(concepto_id), nombre_concepto, slug, tienda_id, isbn, titulo, precio_cop, nivel
     )
+    pid = propuesta["id"]
+    await _encolar([propuesta])
     codigo = await resolver(str(pid)[:8], aprobar=True, nivel=nivel, motivo=None)
     if codigo != 0:
         return False, "El libro se encolo pero no se pudo aprobar."

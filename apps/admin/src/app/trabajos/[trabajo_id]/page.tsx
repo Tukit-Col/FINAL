@@ -53,7 +53,7 @@ export default async function PaginaTrabajo({ params }: Props) {
   return (
     <div className={styles.pagina}>
       <nav className={styles.migas}>
-        <Link href="/">← Cola de revisión</Link>
+        <Link href="/cola">← Cola de revisión</Link>
       </nav>
 
       <header className={styles.encabezado}>

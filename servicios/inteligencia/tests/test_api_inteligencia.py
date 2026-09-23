@@ -115,6 +115,27 @@ class TestConsultar:
         admin = (await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")).json()
         assert len(admin["kits"]) == 3
 
+    async def test_el_admin_ve_los_campos_de_consola_y_el_acudiente_no(self, cliente, motor):
+        """La consola necesita `recibido_en`, `contacto_id` y
+        `lineas_pendientes` para dibujar la cabecera del trabajo; sin ellos
+        el detalle se cae (`Cannot read properties of undefined`).
+
+        La asimetria es a proposito: `contacto_id` nunca viaja en la vista
+        del acudiente, porque reintroduciria a mano la referencia que la
+        notificacion resuelve al vuelo (frontera de `identidad`)."""
+        creado = (await cliente.post("/v1/trabajos", json=_peticion())).json()
+        trabajo_id = uuid.UUID(creado["trabajo_id"])
+        await trabajos.procesar(motor, trabajo_id, catalogo=_catalogo())
+
+        admin = (await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")).json()
+        assert isinstance(admin["lineas_pendientes"], list)
+        assert admin["recibido_en"]
+        assert "contacto_id" in admin
+
+        acudiente = (await cliente.get(f"/v1/trabajos/{trabajo_id}")).json()
+        assert "contacto_id" not in acudiente
+        assert "lineas_pendientes" not in acudiente
+
 
 class TestLaColaYLaPublicacion:
     async def test_aprobar_publica_y_los_kits_aparecen(self, cliente, motor):

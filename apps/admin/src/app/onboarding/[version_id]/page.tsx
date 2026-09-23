@@ -64,7 +64,7 @@ export default async function PaginaRevisionLista({ params }: Props) {
   return (
     <div className={styles.pagina}>
       <nav className={styles.migas}>
-        <Link href="/onboarding">← Subir otra lista</Link>
+        <Link href="/cola">← Cola de verificación</Link>
       </nav>
 
       <header className={styles.encabezado}>

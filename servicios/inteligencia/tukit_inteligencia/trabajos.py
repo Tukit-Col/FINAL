@@ -1013,13 +1013,24 @@ def _linea_publica(fila: Any) -> dict[str, Any]:
     return cuerpo
 
 
-async def ver(motor: Any, trabajo_id: uuid.UUID, *, incluir_kits: bool | None = None) -> dict[str, Any]:
+async def ver(
+    motor: Any,
+    trabajo_id: uuid.UUID,
+    *,
+    incluir_kits: bool | None = None,
+    incluir_admin: bool = False,
+) -> dict[str, Any]:
     """El cuerpo de `GET /v1/trabajos/{id}`.
 
     Mientras el estado no sea `publicado`, `kits` va vacio: el acudiente
     nunca ve un kit sin revisar, y esa es la razon de ser de
     `espera_revision`. Admin usa el mismo lector con `incluir_kits=True`,
     porque su trabajo es justamente mirar lo que todavia no se publica.
+
+    `incluir_admin` agrega los campos que solo la consola interna ve
+    (`recibido_en`, `contacto_id`, `lineas_pendientes`). El acudiente nunca
+    los recibe: `contacto_id` reintroduciria a mano la referencia que la
+    notificacion resuelve al vuelo, y esa asimetria es intencional.
     """
     async with motor.engine.begin() as conexion:
         cabeza = (await conexion.execute(select(TRABAJO).where(TRABAJO.c.id == trabajo_id))).one_or_none()
@@ -1069,6 +1080,30 @@ async def ver(motor: Any, trabajo_id: uuid.UUID, *, incluir_kits: bool | None = 
                         "dentro_de_presupuesto": kit.dentro_de_presupuesto,
                     }
 
+        campos_admin: dict[str, Any] = {}
+        if incluir_admin:
+            # Los item_id que todavia esperan a una persona: los que la
+            # resolucion no dejo en RESUELTO_AUTO. Es el mismo criterio que
+            # `cola()`, pero devolviendo los ids de este trabajo en vez de un
+            # conteo, porque la consola los necesita uno a uno.
+            pendientes = await conexion.execute(
+                select(ITEM.c.id)
+                .select_from(ITEM.join(RESOLUCION, RESOLUCION.c.item_crudo_id == ITEM.c.id))
+                .where(
+                    ITEM.c.trabajo_id == trabajo_id,
+                    RESOLUCION.c.estado != EstadoResolucion.RESUELTO_AUTO.value,
+                )
+                .order_by(ITEM.c.orden)
+            )
+            campos_admin = {
+                "recibido_en": cabeza.creado_en.isoformat() if cabeza.creado_en else None,
+                # Nunca el correo ni el celular: la consola referencia al
+                # acudiente por identificador y `operacion` lo resuelve al
+                # enviar. Un trabajo de preview o anonimo no tiene usuario.
+                "contacto_id": str(cabeza.usuario_id) if cabeza.usuario_id else "",
+                "lineas_pendientes": [str(f.id) for f in pendientes],
+            }
+
     return {
         "trabajo_id": str(cabeza.id),
         "estado": cabeza.estado,
@@ -1083,6 +1118,7 @@ async def ver(motor: Any, trabajo_id: uuid.UUID, *, incluir_kits: bool | None = 
         "creado_en": cabeza.creado_en.isoformat() if cabeza.creado_en else None,
         "terminado_en": cabeza.terminado_en.isoformat() if cabeza.terminado_en else None,
         "nota_revision": cabeza.nota_revision,
+        **campos_admin,
     }
 
 

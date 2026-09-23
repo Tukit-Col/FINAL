@@ -457,7 +457,7 @@ async def ver_admin(trabajo_id: uuid.UUID) -> dict[str, Any]:
     no dos lectores distintos que se puedan desincronizar.
     """
     try:
-        return await trabajos.ver(app.state.motor, trabajo_id, incluir_kits=True)
+        return await trabajos.ver(app.state.motor, trabajo_id, incluir_kits=True, incluir_admin=True)
     except trabajos.TrabajoNoExiste as error:
         raise ErrorDominio(
             "trabajo_no_existe", "No hay ningun trabajo con ese identificador.", estado=404

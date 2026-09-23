@@ -697,6 +697,19 @@ def _validar_edicion(cambios: dict[str, Any]) -> None:
         raise ErrorDominio(
             "quality_score_invalido", "El quality_score va entre 0 y 1.", campo="quality_score"
         )
+    if "atributos" in cambios:
+        # Los atributos son un mapa de valores ESCALARES (str/int/float/bool o
+        # null): el tipo lo fija el cliente y el backend solo lo endurece. Una
+        # lista o un dict anidado es basura que no se persiste; se nombra la
+        # clave ofensora. bool es subclase de int en Python: ambos valen.
+        for clave, valor in (cambios["atributos"] or {}).items():
+            if valor is not None and not isinstance(valor, (str, int, float)):
+                raise ErrorDominio(
+                    "atributos_invalido",
+                    f"El atributo '{clave}' debe ser un valor simple.",
+                    estado=422,
+                    campo="atributos",
+                )
 
 
 async def _producto_por_sku(conexion: Any, sku: str) -> dict[str, Any]:

@@ -224,6 +224,25 @@ class TestListarVersionesParaRevisar:
         assert cuerpo["total"] == 1
         assert cuerpo["listas"][0]["grado"] == "Quinto"
 
+    async def test_una_lista_sin_tarea_no_declara_procedencia(self, cliente):
+        # Las versiones sembradas a mano no nacen de una importacion, asi que la
+        # cola no puede atribuirles una procedencia ni un padre esperando.
+        cuerpo = (await cliente.get("/v1/admin/listas")).json()
+        cuarto = next(v for v in cuerpo["listas"] if v["grado"] == "Cuarto")
+        assert cuarto["procedencia"] is None
+        assert cuarto["tiene_contacto"] is False
+
+    async def test_una_version_importada_declara_su_procedencia(self, cliente):
+        # Una version que nace de `importar` (onboarding) la trae etiquetada,
+        # para que la cola distinga "el colegio la envio" de "un padre la subio".
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
+            "version_id"
+        ]
+        cuerpo = (await cliente.get("/v1/admin/listas?revisada=false")).json()
+        importada = next(v for v in cuerpo["listas"] if v["version_id"] == vid)
+        assert importada["procedencia"] == "onboarding"
+        assert importada["tiene_contacto"] is False
+
 
 class TestLaVistaDeRevision:
     async def test_trae_los_renglones_con_su_concepto_y_las_propuestas(self, cliente):

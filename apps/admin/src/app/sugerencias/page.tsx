@@ -37,7 +37,7 @@ export default async function PaginaSugerencias() {
         <div className={styles.vacio}>
           <Inbox size={22} aria-hidden="true" />
           <p>No hay sugerencias en el backlog.</p>
-          <Link className={styles.enlaceOnboarding} href="/onboarding">
+          <Link className={styles.enlaceOnboarding} href="/cola">
             Ir a subir una lista
           </Link>
         </div>
@@ -56,12 +56,9 @@ export default async function PaginaSugerencias() {
           </thead>
           <tbody>
             {backlog.map((s) => {
-              // "Onboardear" prefija el onboarding con colegio y grado (solo si
-              // los hay: una sugerencia puede venir sin ambos).
-              const qs = new URLSearchParams();
-              if (s.colegio_id) qs.set("colegio", s.colegio_id);
-              if (s.grado) qs.set("grado", s.grado);
-              const cadena = qs.toString();
+              // "Onboardear" lleva a la cola, donde se sube la lista. La subida
+              // ya no vive en una pantalla aparte que se pudiera prefijar por
+              // query; el revisor pide colegio y grado en el formulario.
               return (
                 <tr key={s.tarea_id}>
                   <td>
@@ -87,10 +84,7 @@ export default async function PaginaSugerencias() {
                     )}
                   </td>
                   <td>
-                    <Link
-                      className={styles.onboardear}
-                      href={`/onboarding${cadena ? `?${cadena}` : ""}`}
-                    >
+                    <Link className={styles.onboardear} href="/cola">
                       Onboardear
                     </Link>
                   </td>

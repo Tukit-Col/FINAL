@@ -6,11 +6,18 @@
 // `api-navegador.ts`, que otro slice puede tocar.
 
 import type {
+  AltaLibro,
+  AltaUtil,
+  AprobarPropuesta,
+  CandidatoTienda,
   ErrorApi,
   FiltrosProductos,
   PaginaProductos,
   ProductoCatalogoDetalle,
   ProductoEditable,
+  PropuestaCola,
+  PropuestaEncolada,
+  RechazarPropuesta,
 } from "@tukit/contrato";
 
 export class FalloCatalogo extends Error {
@@ -92,4 +99,79 @@ export function reclasificarProducto(
 /** DELETE — baja suave (activo=False en el backend), 204 sin cuerpo. */
 export function eliminarProducto(sku: string): Promise<void> {
   return pedir<void>(`/api/catalogo/productos/${id(sku)}`, { method: "DELETE" });
+}
+
+// --------------------------------------------------- Curaduría proactiva (P4c bis)
+//
+// La cola de propuestas y las altas de útil/libro. Curaduría del catálogo ANTES
+// de que un acudiente pregunte, distinta de la revisión de listas de colegio.
+// Encolar y aprobar son dos pasos separados: `altaUtil`/`altaLibro` meten la
+// propuesta en la cola; `aprobarPropuesta`/`rechazarPropuesta` la cierran.
+
+/** GET — la cola de pendientes, opcionalmente filtrada por concepto. */
+export function colaPropuestas(concepto?: string): Promise<PropuestaCola[]> {
+  const qs = concepto ? `?concepto=${id(concepto)}` : "";
+  return pedir<PropuestaCola[]>(`/api/catalogo/propuestas${qs}`, { method: "GET" });
+}
+
+/** GET — candidatos en vivo de una tienda (VTEX/Shopify) para el alta de útil. */
+export function buscarEnTienda(
+  slug: string,
+  consulta: string,
+  cuantos?: number,
+): Promise<CandidatoTienda[]> {
+  const qs = new URLSearchParams({ consulta });
+  if (cuantos !== undefined) qs.set("cuantos", String(cuantos));
+  return pedir<CandidatoTienda[]>(
+    `/api/catalogo/tiendas/${id(slug)}/buscar?${qs.toString()}`,
+    { method: "GET" },
+  );
+}
+
+/** POST — encola un útil elegido de la tienda (no aprueba: cae en la cola). */
+export function altaUtil(cuerpo: AltaUtil): Promise<PropuestaEncolada> {
+  return pedir<PropuestaEncolada>(`/api/catalogo/propuestas/util`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(cuerpo),
+  });
+}
+
+/** POST — encola un libro por ISBN (manual, precio en pesos > 0). */
+export function altaLibro(cuerpo: AltaLibro): Promise<PropuestaEncolada> {
+  return pedir<PropuestaEncolada>(`/api/catalogo/propuestas/libro`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(cuerpo),
+  });
+}
+
+/** POST — aprueba una propuesta de la cola (nace producto + oferta + precio). */
+export function aprobarPropuesta(
+  propuestaId: string,
+  cuerpo: AprobarPropuesta,
+): Promise<{ id: string; estado: string }> {
+  return pedir<{ id: string; estado: string }>(
+    `/api/catalogo/propuestas/${id(propuestaId)}/aprobar`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo),
+    },
+  );
+}
+
+/** POST — rechaza una propuesta (con motivo y, opcional, `no_surtir`). */
+export function rechazarPropuesta(
+  propuestaId: string,
+  cuerpo: RechazarPropuesta,
+): Promise<{ id: string; estado: string }> {
+  return pedir<{ id: string; estado: string }>(
+    `/api/catalogo/propuestas/${id(propuestaId)}/rechazar`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo),
+    },
+  );
 }

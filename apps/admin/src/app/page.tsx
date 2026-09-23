@@ -1,196 +1,154 @@
-// `/` — la cola de revision (AD-01, AD-03).
+// `/` — el pulso del back-office (CABLEADO). Es la casa del operador: al
+// entrar ve el panel, no la cola. La cola vive ahora en `/cola`.
 //
-// Server Component: lee el origen directamente. No hay ningun `fetch` de por
-// medio porque no hace falta —la lectura no pasa por el navegador— y meter un
-// Route Handler aqui solo agregaria un salto de red contra uno mismo.
+// Todas las cifras salen de datos REALES del origen activo: `cola()` (la misma
+// que alimenta la Cola) y `catalogo()`. No se inventa ni un número. Cuando el
+// origen es simulado son las semillas del repo; cuando `TUKIT_ORIGEN_DATOS=api`
+// son las del backend. La pantalla no cambia.
+//
+// Server Component, igual que la Cola: lee el origen directo, sin `fetch` de
+// por medio.
 
 import Link from "next/link";
-import type { EntradaCola, EstadoTrabajo } from "@tukit/contrato";
+import {
+  ClipboardList,
+  PackageX,
+  ShoppingBag,
+  TriangleAlert,
+} from "lucide-react";
+import type { EstadoTrabajo } from "@tukit/contrato";
 import { origenDeDatos } from "@tukit/contrato/servidor";
-import { formatearFecha, haceCuanto, TITULO_ESTADO_TRABAJO } from "@/lib/formato";
-import styles from "./Cola.module.css";
+import Revelar from "@/components/Revelar";
+import styles from "./Panel.module.css";
 
 export const dynamic = "force-dynamic";
 
-// Lo primero es lo que espera a una persona; despues, lo que mas trabajo
-// pide; y a igualdad de trabajo, lo que lleva mas rato esperando, que es lo
-// unico que impide que un trabajo pequeno se quede al fondo para siempre.
-// Lo publicado sale de la cola: ya no es trabajo, es historial.
-const PRIORIDAD: Record<EstadoTrabajo, number> = {
-  espera_revision: 0,
-  fallido: 1,
-  procesando: 2,
-  encolado: 3,
-  publicado: 4,
-};
+export default async function PaginaPanel() {
+  // Dos lecturas reales del mismo origen que ya usan Cola y (más adelante) el
+  // gestor de huecos. Nada aquí es un mock suelto.
+  const [{ entradas }, catalogo] = await Promise.all([
+    origenDeDatos().cola(),
+    origenDeDatos().catalogo(),
+  ]);
 
-function ordenar(entradas: readonly EntradaCola[]): EntradaCola[] {
-  return [...entradas].sort(
-    (a, b) =>
-      PRIORIDAD[a.estado] - PRIORIDAD[b.estado] ||
-      b.lineas_pendientes - a.lineas_pendientes ||
-      Date.parse(a.recibido_en) - Date.parse(b.recibido_en),
+  const enEspera = entradas.filter((e) => e.estado === "espera_revision");
+  const lineasPendientes = enEspera.reduce((t, e) => t + e.lineas_pendientes, 0);
+  const publicados = entradas.filter((e) => e.estado === "publicado").length;
+
+  // Reparto de la cola por estado, para la barra de "en qué anda el pipeline".
+  const porEstado = entradas.reduce<Record<EstadoTrabajo, number>>(
+    (acc, e) => {
+      acc[e.estado] += 1;
+      return acc;
+    },
+    { encolado: 0, procesando: 0, espera_revision: 0, publicado: 0, fallido: 0 },
   );
-}
 
-function ColaVacia() {
-  return (
-    <div className={styles.vacia}>
-      <h2>No hay nada en la cola.</h2>
-      <p>
-        La cola se llena sola: cada trabajo que un acudiente crea entra aquí y espera a que
-        alguien lo revise. Si está vacía es porque todavía no se ha creado ninguno en este
-        entorno, no porque algo esté roto.
-      </p>
-      <p>
-        Para crear uno, abre la app del acudiente en{" "}
-        <a href="http://localhost:3000/empezar" className={styles.enlaceExterno}>
-          http://localhost:3000/empezar
-        </a>{" "}
-        y arma un kit. Con el origen simulado las dos apps comparten el mismo almacén en
-        disco, así que el trabajo aparece aquí en cuanto se cree. La lista más rica del
-        corpus es <code>2.13</code> · <code>Sexto</code>: trae útiles, textos, licencias
-        digitales, diferidos y uniformes, o sea todos los casos que hay que saber revisar.
-      </p>
-      <p className={styles.pistaVacia}>
-        El trabajo tarda unos segundos en llegar a <code>espera_revision</code>. Si quieres
-        que se quede esperando tu decisión en vez de publicarse solo, levanta esta app con{" "}
-        <code>TUKIT_SIMULADO_AUTOAPROBAR=false</code>.
-      </p>
-    </div>
-  );
-}
+  const tarjetas = [
+    {
+      etiqueta: "Esperando revisión",
+      valor: enEspera.length,
+      pista: "Trabajos que necesitan una persona ahora",
+      Icono: ClipboardList,
+      tono: enEspera.length > 0 ? "aviso" : "ok",
+      href: "/cola",
+    },
+    {
+      etiqueta: "Líneas por resolver",
+      valor: lineasPendientes,
+      pista: "Renglones pendientes en esos trabajos",
+      Icono: TriangleAlert,
+      tono: lineasPendientes > 0 ? "aviso" : "ok",
+      href: "/cola",
+    },
+    {
+      etiqueta: "Huecos de catálogo",
+      valor: catalogo.resumen.conceptos_sin_producto,
+      pista: "Conceptos sin ningún producto",
+      Icono: PackageX,
+      tono: catalogo.resumen.conceptos_sin_producto > 0 ? "aviso" : "ok",
+      href: "/catalogo",
+    },
+    {
+      etiqueta: "Kits publicados",
+      valor: publicados,
+      pista: "Trabajos ya aprobados y en el hogar",
+      Icono: ShoppingBag,
+      tono: "ok",
+      href: "/logistica",
+    },
+  ] as const;
 
-export default async function PaginaCola() {
-  const { entradas } = await origenDeDatos().cola();
-  const ordenadas = ordenar(entradas);
-  // Un solo reloj para toda la tabla: si cada fila llamara a `Date.now()`, dos
-  // trabajos creados en el mismo instante podrian mostrar minutos distintos.
-  //
-  // `react-hooks/purity` marca el reloj porque en un componente de cliente
-  // produciria un render inestable. Aqui no hay tal: es un Server Component
-  // con `force-dynamic` que se renderiza una vez por peticion y nunca se
-  // hidrata, asi que "hace 4 min" se calcula una sola vez y no baila.
-  // eslint-disable-next-line react-hooks/purity
-  const ahora = Date.now();
-
-  const enEspera = ordenadas.filter((e) => e.estado === "espera_revision");
-  const pendientes = enEspera.reduce((total, e) => total + e.lineas_pendientes, 0);
+  const totalCola = entradas.length || 1;
+  const barras: { estado: EstadoTrabajo; etiqueta: string }[] = [
+    { estado: "espera_revision", etiqueta: "Espera revisión" },
+    { estado: "procesando", etiqueta: "Procesando" },
+    { estado: "encolado", etiqueta: "En cola" },
+    { estado: "publicado", etiqueta: "Publicado" },
+    { estado: "fallido", etiqueta: "Fallido" },
+  ];
 
   return (
     <div className={styles.pagina}>
       <header className={styles.encabezado}>
         <div>
-          <h1>Cola de revisión</h1>
+          <h1>Panel</h1>
           <p className={styles.bajada}>
-            Ningún kit llega al acudiente sin pasar por aquí. Mientras el trabajo esté en
-            espera, el acudiente ve una pantalla de espera y no un kit a medias.
+            El pulso de la operación con las cifras del origen activo. No hay números
+            inventados: todo sale de la cola de revisión y del catálogo.
           </p>
         </div>
-        <dl className={styles.resumen}>
-          <div>
-            <dt>Esperando a una persona</dt>
-            <dd className="cifra">{enEspera.length}</dd>
-          </div>
-          <div>
-            <dt>Líneas por resolver</dt>
-            <dd className="cifra">{pendientes}</dd>
-          </div>
-          <div>
-            <dt>Trabajos en total</dt>
-            <dd className="cifra">{ordenadas.length}</dd>
-          </div>
-        </dl>
       </header>
 
-      {ordenadas.length === 0 ? (
-        <ColaVacia />
-      ) : (
-        <div className={styles.marco}>
-          <table className={styles.tabla}>
-            <caption className={styles.leyenda}>
-              Ordenada por lo que más trabajo pide: primero lo que espera revisión, después
-              por líneas pendientes, y a igualdad de líneas lo que lleva más rato esperando.
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Trabajo</th>
-                <th scope="col">Estado</th>
-                <th scope="col">Recibido</th>
-                <th scope="col" className={styles.num}>
-                  Hijos
-                </th>
-                <th scope="col" className={styles.num}>
-                  Pendientes
-                </th>
-                <th scope="col" className={styles.num}>
-                  Líneas
-                </th>
-                <th scope="col">Colegios</th>
-                <th scope="col">Grados</th>
-                <th scope="col">
-                  <span className={styles.oculto}>Acción</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {ordenadas.map((entrada) => {
-                const espera = entrada.estado === "espera_revision";
-                const publicado = entrada.estado === "publicado";
-                return (
-                  <tr
-                    key={entrada.trabajo_id}
-                    className={[
-                      espera ? styles.filaEspera : "",
-                      publicado ? styles.filaPublicada : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                  >
-                    <th scope="row" className={styles.identificador}>
-                      <Link href={`/trabajos/${entrada.trabajo_id}`}>
-                        <code>{entrada.trabajo_id}</code>
-                      </Link>
-                    </th>
-                    <td>
-                      <span className={`${styles.estado} ${styles[`estado_${entrada.estado}`]}`}>
-                        {TITULO_ESTADO_TRABAJO[entrada.estado]}
-                      </span>
-                    </td>
-                    <td className={styles.fecha}>
-                      <span>{haceCuanto(entrada.recibido_en, ahora)}</span>
-                      <span className={styles.fechaExacta}>
-                        {formatearFecha(entrada.recibido_en)}
-                      </span>
-                    </td>
-                    <td className={`${styles.num} cifra`}>{entrada.hijos}</td>
-                    <td className={`${styles.num} cifra`}>
-                      {entrada.lineas_pendientes > 0 ? (
-                        <span className={styles.pendientes}>{entrada.lineas_pendientes}</span>
-                      ) : (
-                        <span className={styles.cero}>0</span>
-                      )}
-                    </td>
-                    <td className={`${styles.num} cifra ${styles.tenue}`}>
-                      {entrada.lineas_totales}
-                    </td>
-                    <td className={styles.lista}>{entrada.colegios.join(", ") || "—"}</td>
-                    <td className={styles.lista}>{entrada.grados.join(", ") || "—"}</td>
-                    <td className={styles.accionCelda}>
-                      <Link
-                        href={`/trabajos/${entrada.trabajo_id}`}
-                        className={espera ? styles.accion : styles.accionSecundaria}
-                      >
-                        {publicado ? "Ver" : "Revisar"}
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <Revelar>
+        <section className={styles.tarjetas} aria-label="Métricas de la operación">
+          {tarjetas.map(({ etiqueta, valor, pista, Icono, tono, href }) => (
+            <Link
+              key={etiqueta}
+              href={href}
+              className={`${styles.tarjeta} ${tono === "aviso" ? styles.tarjetaAviso : ""}`}
+            >
+              <span className={styles.tarjetaIcono} aria-hidden="true">
+                <Icono size={20} strokeWidth={2.2} />
+              </span>
+              <span className={`${styles.tarjetaValor} cifra`}>{valor}</span>
+              <span className={styles.tarjetaEtiqueta}>{etiqueta}</span>
+              <span className={styles.tarjetaPista}>{pista}</span>
+            </Link>
+          ))}
+        </section>
+      </Revelar>
+
+      <section className={styles.bloque} aria-labelledby="pipeline">
+        <h2 id="pipeline" className={styles.bloqueTitulo}>
+          En qué anda el pipeline
+        </h2>
+        <ul className={styles.barras}>
+          {barras.map(({ estado, etiqueta }) => {
+            const n = porEstado[estado];
+            const pct = Math.round((n / totalCola) * 100);
+            return (
+              <li key={estado} className={styles.barraFila}>
+                <span className={styles.barraEtiqueta}>{etiqueta}</span>
+                <span className={styles.barraCarril}>
+                  <span
+                    className={`${styles.barraRelleno} ${styles[`relleno_${estado}`]}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </span>
+                <span className={`${styles.barraValor} cifra`}>{n}</span>
+              </li>
+            );
+          })}
+        </ul>
+        <p className={styles.notaCatalogo}>
+          Catálogo: <strong className="cifra">{catalogo.resumen.conceptos}</strong> conceptos ·{" "}
+          <strong className="cifra">{catalogo.resumen.productos}</strong> productos ·{" "}
+          <strong className="cifra">{catalogo.resumen.conceptos_con_tres_niveles}</strong> con los
+          tres niveles ·{" "}
+          <strong className="cifra">{catalogo.resumen.productos_sin_revisar}</strong> sin revisar.
+        </p>
+      </section>
     </div>
   );
 }

@@ -35,6 +35,12 @@ class TestElPrefijoMasLargoGana:
             ("/v1/admin/listas", "catalogo"),
             ("/v1/admin/listas/abc/revision", "catalogo"),
             ("/v1/admin/propuestas/abc/rechazar", "catalogo"),
+            # La curaduria proactiva del catalogo (cola, alta de util/libro,
+            # buscar en tienda, aprobar) cuelga de `/v1/admin/catalogo`: su
+            # prefijo mas largo gana a `/v1/admin` -> inteligencia. `rechazar`
+            # sigue yendo a catalogo por su propio prefijo `/v1/admin/propuestas`.
+            ("/v1/admin/catalogo/propuestas", "catalogo"),
+            ("/v1/admin/catalogo/tiendas/exito/buscar", "catalogo"),
             ("/v1/admin/onboarding", "inteligencia"),
             # Importar una lista, su documento y su percepcion cuelgan de
             # `/v1/admin/listas`, asi que van a catalogo por el prefijo mas

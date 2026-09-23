@@ -228,7 +228,20 @@ export interface VersionListaAdmin {
   numero: number;
   revisada: boolean;
   items: number;
+  // De donde vino la version, para que la cola distinga los dos ingresos:
+  // 'onboarding' (el colegio la envio o un administrador la subio) y
+  // 'sugerencia_padre' (un acudiente la subio y espera su kit). `null` cuando
+  // la version no nacio de una importacion con contexto (p.ej. sembrada).
+  procedencia: ProcedenciaVersion | null;
+  // Si hay un acudiente detras a quien avisar al aprobar. Nunca el correo: solo
+  // el hecho de que exista una referencia (la PII vive en identidad).
+  tiene_contacto: boolean;
 }
+
+// Los dos ingresos de una lista a la cola de revision. Es el `origen` de la
+// `tarea_importacion` que produjo la version, acotado a los valores que la cola
+// sabe pintar.
+export type ProcedenciaVersion = "onboarding" | "sugerencia_padre";
 
 // Los filtros del indice de versiones del revisor (`GET /v1/admin/listas`).
 // Todos opcionales: sin filtros trae todas las versiones vigentes. `revisada`
@@ -299,6 +312,94 @@ export interface PropuestaRevision {
   nivel_sugerido: Nivel | null;
   puntaje: number;
   concepto: { codigo: string; nombre: string } | { sugerido: string | null };
+}
+
+// ------------------------------------------- Curaduria del catalogo (P4c bis)
+//
+// La cola de curaduria PROACTIVA: propuestas de producto que el personal encola
+// para llenar huecos del catalogo, ANTES de que un acudiente pregunte. Es un
+// eje distinto de la revision de listas de colegio (esa vive en RevisionLista):
+// aqui no hay version de lista detras, solo un concepto y una tienda.
+//
+// `PropuestaCola` es la fila de `GET /v1/admin/catalogo/propuestas`. El precio
+// ya viene en pesos enteros (el backend divide `precio_centavos` entre 100) y
+// admite `null` ("no se conoce el precio", §1.4). `concepto` conserva la forma
+// cruda del backend: el concepto ya decidido (`{codigo, nombre}`) o el que el
+// modelo sugirio sin confirmar (`{sugerido}`), igual que `PropuestaRevision`.
+export interface PropuestaCola {
+  id: string;
+  id_corto: string;
+  texto_origen: string;
+  nombre: string;
+  marca: string | null;
+  imagen_url: string | null;
+  precio: number | null;
+  nivel_sugerido: string | null;
+  puntaje: number;
+  concepto: { codigo: string; nombre: string } | { sugerido: string | null };
+  origen: string;
+}
+
+// Un candidato de tienda tal como lo sirve `GET .../tiendas/{slug}/buscar`
+// (envuelve `tiendas.buscar`). El precio ya viene en pesos enteros; a diferencia
+// de `PropuestaCola` nunca es nulo porque un candidato sin precio no se lista.
+// `especificaciones` es el mapa crudo que la tienda expone (siempre texto).
+export interface CandidatoTienda {
+  slug: string;
+  sku: string;
+  nombre: string;
+  precio: number;
+  marca: string | null;
+  ean: string | null;
+  url: string;
+  imagen_url: string | null;
+  disponible: boolean;
+  especificaciones: Record<string, string>;
+}
+
+// El cuerpo del alta de un util (`POST .../propuestas/util`). El servidor
+// re-busca por `(slug, sku)` para no confiar en un precio que el navegador
+// pudo alterar; `consulta` es la misma con la que se encontro el candidato.
+export interface AltaUtil {
+  concepto: string;
+  slug: string;
+  sku: string;
+  consulta: string;
+  nivel: string;
+}
+
+// El cuerpo del alta de un libro (`POST .../propuestas/libro`). Manual: el
+// personal copia ISBN/titulo/precio de Buscalibre (que no expone busqueda en
+// vivo). `precio` es entero en PESOS y > 0; el backend lo pasa a centavos.
+export interface AltaLibro {
+  concepto: string;
+  isbn: string;
+  titulo: string;
+  precio: number;
+  slug: string;
+  nivel: string;
+}
+
+// El cuerpo de la aprobacion (`POST .../propuestas/{id}/aprobar`): la persona
+// decide el nivel al aprobar, no al encolar (los dos pasos van separados).
+export interface AprobarPropuesta {
+  nivel: string;
+}
+
+// El cuerpo del rechazo (`POST /v1/admin/propuestas/{id}/rechazar`, ruta ya
+// existente). `no_surtir` manda el concepto a 'no_comprar' en vez de solo
+// descartar el candidato.
+export interface RechazarPropuesta {
+  motivo?: string;
+  no_surtir?: boolean;
+}
+
+// La respuesta de un alta: la propuesta cae en la cola (`estado: "pendiente"`),
+// NO se aprueba en el acto. `id_corto` es el prefijo de 8 que la cola muestra.
+export interface PropuestaEncolada {
+  id: string;
+  id_corto: string;
+  estado: string;
 }
 
 // La vista completa de la region 3/4: la cabecera de la version, sus renglones
@@ -411,4 +512,44 @@ export function coberturaDe(concepto: ConceptoCatalogo): CoberturaConcepto {
   if (concepto.productos.length === 0) return "sin_productos";
   const niveles = new Set(concepto.productos.map((p) => p.nivel));
   return niveles.size >= 3 ? "tres_niveles" : "parcial";
+}
+
+// ------------------------------------------------- Atributos tipados del editor
+//
+// El editor de productos escribe cada atributo como texto (una caja de input),
+// pero la base los guarda TIPADOS (`hojas: 80` int, `deposito: true` bool,
+// `rayado: "cuadriculado"` str). Sin este paso, guardar degrada `80` a `"80"`.
+// El tipo lo fija el cliente aqui; el backend solo endurece la guarda (rechaza
+// listas/dicts). Escalares nada mas: str/int/float/bool.
+//
+// Regla de numero: se convierte solo si el texto redondea al mismo string
+// (`String(n) === texto`). Asi `"80"`→`80` pero `"007"` (un codigo con ceros a
+// la izquierda) o `"1e3"` se quedan como texto, que es lo que la persona quiso.
+export function inferirTipoAtributo(texto: string): string | number | boolean {
+  const limpio = texto.trim();
+  if (limpio === "true") return true;
+  if (limpio === "false") return false;
+  // Entero o decimal simple; nada de notacion cientifica ni signos raros.
+  if (/^-?\d+(\.\d+)?$/.test(limpio)) {
+    const n = Number(limpio);
+    if (Number.isFinite(n) && String(n) === limpio) return n;
+  }
+  return texto;
+}
+
+// Convierte los pares clave/valor del editor en el mapa de atributos tipado que
+// viaja en el PATCH. Descarta la clave vacia y el valor `""`: un atributo sin
+// valor NO se afirma (consistente con `extraer_atributos` del backend, "ausente
+// antes que inventado", y con la guarda `atributos_invalido"). La ultima
+// ocurrencia de una clave repetida gana.
+export function serializarAtributos(
+  pares: { clave: string; valor: string }[],
+): Record<string, string | number | boolean> {
+  const salida: Record<string, string | number | boolean> = {};
+  for (const { clave, valor } of pares) {
+    const k = clave.trim();
+    if (!k || valor === "") continue;
+    salida[k] = inferirTipoAtributo(valor);
+  }
+  return salida;
 }

@@ -45,6 +45,10 @@ VERSION = Base.metadata.tables["version_lista_oficial"]
 ITEM = Base.metadata.tables["item_lista_oficial"]
 PROPUESTA = Base.metadata.tables["propuesta_producto"]
 TAREA = Base.metadata.tables["tarea_importacion"]
+TIENDA = Base.metadata.tables["tienda"]
+
+# Las tiendas con busqueda en vivo (VTEX/Shopify), las mismas que usa `admin`.
+_SLUGS_TIENDA = {"exito", "panamericana", "grancentral"}
 
 # El mismo corte que usa el cargador de listas (UMBRAL_CONCEPTO): por debajo, el
 # renglon queda sin concepto y va a revision en vez de forzarse al mas parecido.
@@ -153,18 +157,45 @@ async def listar_versiones(
         .group_by(ITEM.c.version_id)
         .subquery()
     )
-    consulta = select(
-        LISTA.c.id.label("lista_id"),
-        LISTA.c.colegio_id,
-        LISTA.c.grado,
-        LISTA.c.anio_lectivo,
-        VERSION.c.id.label("version_id"),
-        VERSION.c.numero,
-        VERSION.c.revisada_en,
-        func.coalesce(items_por_version.c.renglones, 0).label("renglones"),
-    ).select_from(
-        LISTA.join(VERSION, and_(VERSION.c.lista_id == LISTA.c.id, VERSION.c.vigente.is_(True))).outerjoin(
-            items_por_version, items_por_version.c.vid == VERSION.c.id
+    # La procedencia y si hay un padre esperando salen de la `tarea_importacion`
+    # que produjo la version, no de la version misma: onboarding y
+    # sugerencia_padre son hechos del PROCESO de importacion. Se leen como
+    # subconsultas correlacionadas —la mas reciente por version— para que una
+    # version sin tarea de contexto quede en null/false sin multiplicar filas
+    # ni excluirse del listado.
+    tarea_reciente = (
+        select(TAREA.c.id)
+        .where(TAREA.c.version_id == VERSION.c.id)
+        .order_by(TAREA.c.creada_en.desc())
+        .limit(1)
+        .correlate(VERSION)
+        .scalar_subquery()
+    )
+    procedencia = (
+        select(TAREA.c.origen).where(TAREA.c.id == tarea_reciente).scalar_subquery()
+    )
+    contacto = (
+        select(TAREA.c.contacto_referencia)
+        .where(TAREA.c.id == tarea_reciente)
+        .scalar_subquery()
+    )
+    consulta = (
+        select(
+            LISTA.c.id.label("lista_id"),
+            LISTA.c.colegio_id,
+            LISTA.c.grado,
+            LISTA.c.anio_lectivo,
+            VERSION.c.id.label("version_id"),
+            VERSION.c.numero,
+            VERSION.c.revisada_en,
+            func.coalesce(items_por_version.c.renglones, 0).label("renglones"),
+            procedencia.label("procedencia"),
+            contacto.label("contacto_referencia"),
+        )
+        .select_from(
+            LISTA.join(
+                VERSION, and_(VERSION.c.lista_id == LISTA.c.id, VERSION.c.vigente.is_(True))
+            ).outerjoin(items_por_version, items_por_version.c.vid == VERSION.c.id)
         )
     )
     if revisada is True:
@@ -191,6 +222,14 @@ async def listar_versiones(
                 "numero": int(f.numero),
                 "revisada": f.revisada_en is not None,
                 "items": int(f.renglones),
+                # De donde vino esta version: 'onboarding' (la envio el colegio o
+                # un administrador la subio) o 'sugerencia_padre' (un acudiente la
+                # subio y espera). None cuando la version no nacio de una
+                # importacion con contexto.
+                "procedencia": f.procedencia,
+                # Si hay un acudiente detras a quien avisar al aprobar. Nunca el
+                # correo: solo el hecho de que exista una referencia.
+                "tiene_contacto": f.contacto_referencia is not None,
             }
             for f in filas
         ]
@@ -1136,3 +1175,277 @@ async def nueva_version(
                 )
             )
     return {"version_id": str(nuevo_id), "numero": int(vigente.numero) + 1, "revisada": False}
+
+
+# ---------------------------------------------------------------------------
+# Curaduria proactiva del catalogo (la mitad de `admin` que la SPA necesita)
+#
+# La cola de propuestas en JSON, la busqueda en tienda, el alta de util/libro y
+# la aprobacion, todo bajo `/v1/admin/catalogo/*`. Reusa `_encolar`/`resolver`/
+# `tiendas.buscar` de `descubrir`/`admin` sin reimplementar dominio: encolar y
+# aprobar son DOS pasos separados aqui (a diferencia del CLI), para que la
+# propuesta caiga en la cola visible y una persona decida el nivel al aprobar.
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/catalogo/propuestas",
+    summary="La cola de propuestas pendientes de curaduria, en JSON",
+)
+async def cola_propuestas(
+    concepto: Annotated[str | None, Query(description="Filtrar por codigo de concepto")] = None,
+) -> dict[str, Any]:
+    """La misma cola que `descubrir.listar_pendientes`, pero devuelta como JSON.
+
+    Es el gemelo HTTP de la vista de `admin._leer_cola`: `estado=='pendiente'`,
+    ordenada por `propuesta_en`, con lo que la tarjeta necesita para decidir sin
+    salir a la tienda. El precio va en pesos (centavos // 100). El concepto sale
+    resuelto (`{codigo, nombre}`) o, si la propuesta trae un concepto sugerido
+    nuevo, como `{sugerido}`. Filtro opcional por codigo de concepto.
+    """
+    consulta = (
+        select(
+            PROPUESTA.c.id,
+            PROPUESTA.c.texto_origen,
+            PROPUESTA.c.nombre,
+            PROPUESTA.c.marca,
+            PROPUESTA.c.imagen_url,
+            PROPUESTA.c.precio_centavos,
+            PROPUESTA.c.nivel_sugerido,
+            PROPUESTA.c.concepto_sugerido,
+            PROPUESTA.c.puntaje,
+            PROPUESTA.c.origen,
+            CONCEPTO.c.codigo.label("concepto_codigo"),
+            CONCEPTO.c.nombre_canonico.label("concepto_nombre"),
+        )
+        .select_from(PROPUESTA.outerjoin(CONCEPTO, CONCEPTO.c.id == PROPUESTA.c.concepto_id))
+        .where(PROPUESTA.c.estado == "pendiente")
+        .order_by(PROPUESTA.c.propuesta_en)
+    )
+    if concepto:
+        consulta = consulta.where(CONCEPTO.c.codigo == concepto)
+
+    async with _motor().engine.begin() as conexion:
+        filas = await conexion.execute(consulta)
+        propuestas = [
+            {
+                "id": str(p.id),
+                "id_corto": str(p.id)[:8],
+                "texto_origen": p.texto_origen,
+                "nombre": p.nombre,
+                "marca": p.marca,
+                "imagen_url": p.imagen_url,
+                "precio": None if p.precio_centavos is None else int(p.precio_centavos) // 100,
+                "nivel_sugerido": p.nivel_sugerido,
+                "puntaje": float(p.puntaje or 0),
+                "concepto": (
+                    {"codigo": p.concepto_codigo, "nombre": p.concepto_nombre}
+                    if p.concepto_codigo
+                    else {"sugerido": p.concepto_sugerido}
+                ),
+                "origen": p.origen,
+            }
+            for p in filas
+        ]
+    return {"total": len(propuestas), "propuestas": propuestas}
+
+
+async def _tienda_id_por_slug(conexion: Any, slug: str) -> uuid.UUID | None:
+    """El id de una tienda por su slug, dentro de la conexion abierta.
+
+    Gemelo de `admin._tienda_por_slug`, pero sobre el motor del servicio en vez
+    de abrir uno propio: el alta necesita el `tienda_id` para colgar la oferta
+    en la tienda correcta.
+    """
+    return (
+        await conexion.execute(select(TIENDA.c.id).where(TIENDA.c.slug == slug))
+    ).scalar_one_or_none()
+
+
+@router.get(
+    "/catalogo/tiendas/{slug}/buscar",
+    summary="Candidatos en vivo de una tienda para el alta de util (no escribe)",
+)
+async def buscar_en_tienda(
+    slug: str,
+    consulta: Annotated[str, Query(description="Que buscar en la tienda")],
+    cuantos: Annotated[int, Query(ge=1, le=48)] = 24,
+) -> dict[str, Any]:
+    """Envuelve `tiendas.buscar` para el buscador del alta de util.
+
+    Solo lectura externa: NO escribe. Solo las tres tiendas con busqueda en vivo
+    (VTEX/Shopify); otro slug es un 422 con causa, no un 500. La busqueda es sync
+    y con cache en disco, asi que se corre en un hilo (`run_in_threadpool`) para
+    no bloquear el loop. El precio va en pesos, como lo devuelve la tienda.
+    """
+    from starlette.concurrency import run_in_threadpool
+
+    from . import tiendas
+
+    if slug not in _SLUGS_TIENDA:
+        raise ErrorDominio(
+            "tienda_desconocida",
+            f"No conozco la tienda '{slug}'. Solo {', '.join(sorted(_SLUGS_TIENDA))}.",
+            estado=422,
+            campo="slug",
+        )
+    ofertas = await run_in_threadpool(tiendas.buscar, slug, consulta, cuantos)
+    return {
+        "candidatos": [
+            {
+                "slug": slug,
+                "sku": o.sku,
+                "nombre": o.nombre,
+                "precio": o.precio_cop,
+                "marca": o.marca,
+                "ean": o.ean,
+                "url": o.url,
+                "imagen_url": o.imagen_url,
+                "disponible": o.disponible,
+                "especificaciones": o.especificaciones or {},
+            }
+            for o in ofertas
+        ]
+    }
+
+
+@router.post(
+    "/catalogo/propuestas/util",
+    status_code=201,
+    summary="Encolar un util elegido de una tienda (encola, NO aprueba)",
+)
+async def encolar_util(cuerpo: dict[str, Any]) -> dict[str, Any]:
+    """Encola el candidato elegido; la aprobacion es un paso aparte.
+
+    Re-busca por `(slug, sku)` con `admin.buscar_candidatos` --el mismo camino
+    que `admin._util`-- para no confiar en que el navegador arme la Oferta: el
+    precio y la ficha salen de la tienda, no del cliente. Si el candidato ya no
+    aparece (se agoto entre la busqueda y el alta), es un 422 con causa, no un
+    500. El concepto se resuelve por codigo (`concepto_no_existe` si no existe)
+    y el dict lo arma `admin.construir_propuesta_util`, que HTTP y CLI comparten.
+    """
+    from . import admin
+    from .descubrir import _encolar
+
+    consulta = str(cuerpo.get("consulta") or "").strip()
+    slug = str(cuerpo.get("slug") or "")
+    sku = str(cuerpo.get("sku") or "")
+    nivel = str(cuerpo.get("nivel") or "confiable")
+    codigo = str(cuerpo.get("concepto") or "")
+
+    elegida = next(
+        (o for s, o in admin.buscar_candidatos(consulta) if s == slug and o.sku == sku), None
+    )
+    if elegida is None:
+        raise ErrorDominio(
+            "candidato_no_disponible",
+            "Ese candidato ya no esta disponible en la tienda; busca de nuevo.",
+            estado=422,
+            campo="sku",
+        )
+
+    async with _motor().engine.begin() as conexion:
+        concepto_id = await _concepto_id(conexion, codigo)
+        tienda_id = await _tienda_id_por_slug(conexion, slug)
+        if tienda_id is None:
+            raise ErrorDominio(
+                "tienda_desconocida", f"No conozco la tienda '{slug}'.", estado=422, campo="slug"
+            )
+        nombre_concepto = (
+            await conexion.execute(
+                select(CONCEPTO.c.nombre_canonico).where(CONCEPTO.c.id == concepto_id)
+            )
+        ).scalar_one()
+
+    propuesta = admin.construir_propuesta_util(
+        concepto_id, nombre_concepto, slug, tienda_id, elegida, nivel
+    )
+    await _encolar([propuesta])
+    return {"id": str(propuesta["id"]), "id_corto": str(propuesta["id"])[:8], "estado": "pendiente"}
+
+
+@router.post(
+    "/catalogo/propuestas/libro",
+    status_code=201,
+    summary="Encolar un libro por ISBN (encola, NO aprueba)",
+)
+async def encolar_libro(cuerpo: dict[str, Any]) -> dict[str, Any]:
+    """Encola un libro dado de alta a mano; la aprobacion es un paso aparte.
+
+    Un libro no se busca (lo identifica el ISBN de una edicion, no un titulo):
+    la persona escribe ISBN, titulo y precio. El ISBN se valida con el digito de
+    control (`isbn_invalido` si no pasa) y el precio tiene que ser un entero > 0
+    en pesos (`precio_invalido`). El dict lo arma `admin.construir_propuesta_libro`.
+    """
+    from . import admin
+    from .cargador import isbn13_valido, normalizar_isbn
+    from .descubrir import _encolar
+
+    codigo = str(cuerpo.get("concepto") or "")
+    isbn = normalizar_isbn(cuerpo.get("isbn")) or ""
+    if not isbn13_valido(isbn):
+        raise ErrorDominio(
+            "isbn_invalido",
+            "El ISBN no pasa el digito de control.",
+            estado=422,
+            campo="isbn",
+        )
+    titulo = str(cuerpo.get("titulo") or "").strip()
+    try:
+        precio = int(cuerpo.get("precio") or 0)
+    except (TypeError, ValueError):
+        precio = 0
+    if precio <= 0:
+        raise ErrorDominio(
+            "precio_invalido",
+            "El precio debe ser un entero mayor que cero en pesos.",
+            estado=422,
+            campo="precio",
+        )
+    slug = str(cuerpo.get("slug") or "panamericana")
+    nivel = str(cuerpo.get("nivel") or "confiable")
+
+    async with _motor().engine.begin() as conexion:
+        concepto_id = await _concepto_id(conexion, codigo)
+        tienda_id = await _tienda_id_por_slug(conexion, slug)
+        if tienda_id is None:
+            raise ErrorDominio(
+                "tienda_desconocida", f"No conozco la tienda '{slug}'.", estado=422, campo="slug"
+            )
+        nombre_concepto = (
+            await conexion.execute(
+                select(CONCEPTO.c.nombre_canonico).where(CONCEPTO.c.id == concepto_id)
+            )
+        ).scalar_one()
+
+    propuesta = admin.construir_propuesta_libro(
+        concepto_id, nombre_concepto, slug, tienda_id, isbn, titulo, precio, nivel
+    )
+    await _encolar([propuesta])
+    return {"id": str(propuesta["id"]), "id_corto": str(propuesta["id"])[:8], "estado": "pendiente"}
+
+
+@router.post(
+    "/catalogo/propuestas/{prop_id}/aprobar",
+    summary="Aprobar una propuesta de la cola: nace el producto, su oferta y su precio",
+)
+async def aprobar_propuesta(prop_id: uuid.UUID, cuerpo: dict[str, Any]) -> dict[str, Any]:
+    """La aprobacion. Llama a `resolver` --el MISMO camino que aprueba una lista.
+
+    No reimplementa el alta: `descubrir.resolver` es quien materializa el
+    producto canonico, su oferta en la tienda y su primer precio, todo en una
+    transaccion. Devuelve 0 en exito; cualquier otro codigo (la propuesta ya se
+    resolvio, o le falta concepto) se traduce a un 409 con causa. La persona
+    elige el nivel al aprobar, que puede diferir del sugerido.
+    """
+    from . import descubrir
+
+    nivel = str(cuerpo.get("nivel") or "confiable")
+    codigo = await descubrir.resolver(str(prop_id)[:8], aprobar=True, nivel=nivel, motivo=None)
+    if codigo != 0:
+        raise ErrorDominio(
+            "no_se_pudo_aprobar",
+            "No se pudo aprobar. Puede que ya este resuelta o le falte concepto.",
+            estado=409,
+        )
+    return {"id": str(prop_id), "estado": "aprobada"}
