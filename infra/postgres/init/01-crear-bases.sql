@@ -1,4 +1,4 @@
--- Crea las cinco bases del sistema y habilita pgvector en cada una.
+-- Crea las cinco bases del sistema y habilita sus extensiones en cada una.
 --
 -- Corre una sola vez, cuando el volumen de datos esta vacio (lo ejecuta el
 -- entrypoint de la imagen de Postgres). Son las cinco bases que declara el
@@ -15,21 +15,41 @@ CREATE DATABASE tukit_inteligencia;
 CREATE DATABASE tukit_comercio;
 CREATE DATABASE tukit_operacion;
 
--- pgvector se habilita por base: la extension no es global. Catalogo la usa hoy
--- (embeddings de producto, Vector(1024)); inteligencia la usara al portar la
--- resolucion semantica. Se habilita en las cinco para no tener que recordar
--- hacerlo despues, cuesta nada en las que no la usan.
+-- Las extensiones se habilitan por base: no son globales. Catalogo usa las dos
+-- hoy, inteligencia las usara al portar la resolucion semantica. Se habilitan
+-- en las cinco para no tener que recordar hacerlo despues, cuesta nada en las
+-- que no las usan.
+--
+-- `vector`: canal semantico. Los embeddings de producto son Vector(1024), y
+-- sin la extension el tipo no existe: el esquema de catalogo ni siquiera
+-- materializa.
+--
+-- `pg_trgm`: canal lexico. El emparejamiento es busqueda HIBRIDA, y el canal
+-- lexico es el que resuelve lo que el semantico no: nombres con codigo de
+-- referencia, marcas mal escritas, abreviaturas de la lista del colegio. Da la
+-- similitud por trigramas (`%`, `similarity()`) y la clase de operadores
+-- `gin_trgm_ops` que hace viable el indice sobre el nombre del producto.
+--
+-- Este archivo corre UNA sola vez, con el volumen vacio. Quien ya tenga el
+-- volumen creado no lo vera nunca, asi que la habilitacion se repite de forma
+-- idempotente en `tukit_comun.bd.MotorServicio.asegurar_extensiones`, que corre
+-- en cada `make bd-esquema`. Aqui queda porque es donde se espera encontrarlo.
 \connect tukit_identidad
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 \connect tukit_catalogo
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 \connect tukit_inteligencia
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 \connect tukit_comercio
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 \connect tukit_operacion
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;

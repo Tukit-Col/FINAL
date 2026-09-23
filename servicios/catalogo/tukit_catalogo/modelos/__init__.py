@@ -1,4 +1,4 @@
-"""Las 17 tablas del servicio de Catalogo."""
+"""Las 19 tablas del servicio de Catalogo."""
 
 from .base import (
     CALIDAD_POR_NIVEL,
@@ -8,8 +8,16 @@ from .base import (
     FuentePrecio,
     MetodoVinculacion,
     Nivel,
+    TipoItem,
+    UnidadBase,
 )
-from .catalogo import Concepto, ConceptoRutaCategoria, GrupoVariante, ProductoCanonico
+from .catalogo import (
+    Concepto,
+    ConceptoRutaCategoria,
+    GrupoVariante,
+    ProductoCanonico,
+    SustituibilidadConcepto,
+)
 from .editorial import (
     ConfiguracionColegioEditorial,
     EdicionLibro,
@@ -24,6 +32,7 @@ from .listas import (
     VersionListaOficial,
 )
 from .oferta import CorridaScraper, OfertaTienda, PrecioOferta, Tienda
+from .propuesta import PropuestaProducto
 
 __all__ = [
     "CALIDAD_POR_NIVEL",
@@ -44,10 +53,14 @@ __all__ = [
     "Nivel",
     "OfertaTienda",
     "PrecioOferta",
+    "PropuestaProducto",
     "ProductoCanonico",
     "PropuestaVersion",
+    "SustituibilidadConcepto",
     "TareaImportacion",
     "Tienda",
+    "TipoItem",
+    "UnidadBase",
     "VersionListaOficial",
     "VersionVigente",
 ]

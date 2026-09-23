@@ -1,0 +1,166 @@
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-5);
+}
+
+.encabezado h1 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.bajada {
+  max-width: 62ch;
+  margin-top: var(--espacio-1);
+  color: var(--color-text-secondary);
+}
+
+/* --------------------------------------------------------- tarjetas */
+
+.tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--espacio-4);
+}
+
+.tarjeta {
+  display: grid;
+  gap: 4px;
+  padding: var(--espacio-4) var(--espacio-5);
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+  transition: transform var(--dur-rapido) var(--ease-suave),
+    box-shadow var(--dur-rapido) var(--ease-suave);
+}
+
+.tarjeta:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--clay-shadow);
+}
+
+/* El aviso no cambia el número, cambia el marco: un anillo ámbar dice "aquí
+ * hay trabajo" sin tocar el significado de los colores de estado. */
+.tarjetaAviso {
+  box-shadow: var(--clay-shadow-sm), inset 0 0 0 2px var(--color-aviso-border);
+}
+
+.tarjetaIcono {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  color: var(--color-primary);
+  background: var(--clay-cielo-bg);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.tarjetaAviso .tarjetaIcono {
+  color: var(--color-aviso);
+  background: var(--color-aviso-bg);
+}
+
+.tarjetaValor {
+  margin-top: var(--espacio-2);
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.05;
+  color: var(--color-text-primary);
+}
+
+.tarjetaEtiqueta {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.tarjetaPista {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* ----------------------------------------------------------- bloque */
+
+.bloque {
+  padding: var(--espacio-5);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.bloqueTitulo {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: var(--espacio-4);
+}
+
+.barras {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  list-style: none;
+}
+
+.barraFila {
+  display: grid;
+  grid-template-columns: 130px 1fr 40px;
+  align-items: center;
+  gap: var(--espacio-3);
+  font-size: 13px;
+}
+
+.barraEtiqueta {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.barraCarril {
+  height: 14px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-2);
+  box-shadow: var(--clay-shadow-inset);
+  overflow: hidden;
+}
+
+.barraRelleno {
+  display: block;
+  height: 100%;
+  min-width: 3px;
+  border-radius: var(--radius-full);
+  transition: width var(--dur-lento) var(--ease-suave);
+}
+
+/* Cada estado con su color semántico, el mismo que la Cola y el Detalle usan
+ * para el mismo estado. No se inventa una paleta nueva para el panel. */
+.relleno_espera_revision {
+  background: var(--color-aviso);
+}
+
+.relleno_procesando,
+.relleno_encolado {
+  background: var(--color-info);
+}
+
+.relleno_publicado {
+  background: var(--color-success);
+}
+
+.relleno_fallido {
+  background: var(--color-danger);
+}
+
+.barraValor {
+  text-align: right;
+  font-weight: 700;
+}
+
+.notaCatalogo {
+  margin-top: var(--espacio-4);
+  padding-top: var(--espacio-4);
+  border-top: 1px solid var(--color-border-light);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}

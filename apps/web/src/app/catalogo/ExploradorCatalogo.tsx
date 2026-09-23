@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Search, PackageX, X } from "lucide-react";
 import {
   coberturaDe,
   ETIQUETA_NIVEL,
@@ -170,14 +171,17 @@ export default function ExploradorCatalogo({ catalogo }: Props) {
     <>
       <div className={estilos.barra}>
         <div className={estilos.barraInterior} role="search">
-          <input
-            type="search"
-            className={estilos.busqueda}
-            placeholder="Buscar un útil, una marca, un personaje…"
-            aria-label="Buscar por útil, sinónimo, marca o personaje"
-            value={filtros.texto}
-            onChange={(evento) => cambiar({ texto: evento.target.value })}
-          />
+          <span className={estilos.campoBusqueda}>
+            <Search size={16} className={estilos.iconoBusqueda} aria-hidden="true" />
+            <input
+              type="search"
+              className={estilos.busqueda}
+              placeholder="Buscar un útil, una marca, un personaje…"
+              aria-label="Buscar por útil, sinónimo, marca o personaje"
+              value={filtros.texto}
+              onChange={(evento) => cambiar({ texto: evento.target.value })}
+            />
+          </span>
 
           <select
             className={estilos.selector}
@@ -250,6 +254,7 @@ export default function ExploradorCatalogo({ catalogo }: Props) {
               aria-label="Mostrar solo los conceptos incompletos"
               onChange={(evento) => cambiar({ soloHuecos: evento.target.checked })}
             />
+            <PackageX size={15} aria-hidden="true" strokeWidth={2.2} />
             Solo lo que no tenemos
           </label>
 
@@ -259,6 +264,7 @@ export default function ExploradorCatalogo({ catalogo }: Props) {
             disabled={!hayFiltros}
             onClick={() => setFiltros(SIN_FILTROS)}
           >
+            <X size={14} aria-hidden="true" strokeWidth={2.6} style={{ verticalAlign: "-2px" }} />{" "}
             Limpiar
           </button>
 

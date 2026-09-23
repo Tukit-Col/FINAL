@@ -12,12 +12,35 @@
 # Levantar:   make bd-arriba
 # Bajar:      make bd-abajo
 # Reiniciar:  make bd-limpiar  (BORRA los datos)
+#
+# ---------------------------------------------------------------------------
+# Los cuatro procesos HTTP viven aqui bajo el perfil `api`, y estan APAGADOS
+# por omision. `make bd-arriba` sigue levantando solo Postgres.
+#
+#     docker compose -f infra/docker-compose.yml --profile api up -d
+#
+# La separacion por perfil no es una mania de organizacion. El camino de
+# desarrollo que de verdad se usa es `make arriba`, que corre los cuatro
+# procesos contra el arbol de trabajo: recarga al editar, se depura con un
+# `breakpoint()` y no exige reconstruir una imagen por cada cambio. Meterlos
+# en el `up` por omision obligaria a todo el mundo a pasar por Docker para
+# tocar una linea.
+#
+# ADVERTENCIA HONESTA: el bloque `api` de abajo NO se ha ejecutado. La maquina
+# donde se escribio no tiene Docker instalado, asi que esta revisado a ojo y
+# nada mas. El resto del archivo (el Postgres) si esta en uso. Es la misma
+# clase de deuda que ya documenta el Makefile sobre el SQL de indices, que se
+# escribio a ciegas durante dias por no tener motor: anotarla es lo que evita
+# que alguien la de por probada.
+# ---------------------------------------------------------------------------
 
 services:
   postgres:
     # pgvector/pgvector empaqueta Postgres 16 con la extension ya compilada.
     # El tipo Vector(1024) de catalogo la necesita; sin ella el esquema de
-    # catalogo no materializa.
+    # catalogo no materializa. La otra mitad de la busqueda hibrida, pg_trgm,
+    # viene en contrib y esta en cualquier imagen oficial: no condiciona la
+    # eleccion de imagen, solo hay que habilitarla por base.
     image: pgvector/pgvector:pg16
     container_name: tukit_postgres
     environment:
@@ -31,13 +54,67 @@ services:
     volumes:
       - tukit_pgdata:/var/lib/postgresql/data
       # El script corre UNA vez, cuando el volumen esta vacio. Crea las cinco
-      # bases y habilita pgvector en cada una.
+      # bases y habilita sus extensiones (vector, pg_trgm) en cada una. Como no
+      # vuelve a correr, agregar una extension aqui no alcanza para quien ya
+      # tiene el volumen creado: por eso `make bd-esquema` las vuelve a
+      # asegurar de forma idempotente desde la libreria compartida.
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tukit"]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  # --- Los cuatro procesos HTTP, bajo el perfil `api` --------------------
+  #
+  # Cada uno recibe la URL de SU base por entorno y nunca la escribe en el
+  # codigo: es lo que mantiene verde la regla 3. El host es `postgres`, el
+  # nombre del servicio de aqui arriba, y no `localhost`.
+
+  identidad: &servicio
+    profiles: ["api"]
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    environment: &entorno
+      TUKIT_DB_HOST: postgres
+      TUKIT_DB_PORT: 5432
+      TUKIT_DB_USER: tukit
+      TUKIT_DB_PASSWORD: tukit
+      # Los tres se encuentran por nombre de servicio, no por IP ni por
+      # puerto publicado: dentro de la red del compose el 8011 de identidad
+      # es el mismo aunque afuera se mapee a otro.
+      TUKIT_IDENTIDAD_URL: http://identidad:8011
+      TUKIT_CATALOGO_URL: http://catalogo:8012
+      TUKIT_INTELIGENCIA_URL: http://inteligencia:8013
+      TUKIT_CORS_ORIGENES: "http://localhost:3000,http://127.0.0.1:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["python", "-m", "tukit_identidad.api", "--puerto", "8011", "--host", "0.0.0.0"]
+    ports: ["8011:8011"]
+
+  catalogo:
+    <<: *servicio
+    environment: *entorno
+    command: ["python", "-m", "tukit_catalogo.api", "--puerto", "8012", "--host", "0.0.0.0"]
+    ports: ["8012:8012"]
+
+  inteligencia:
+    <<: *servicio
+    environment: *entorno
+    command: ["python", "-m", "tukit_inteligencia.api", "--puerto", "8013", "--host", "0.0.0.0"]
+    ports: ["8013:8013"]
+
+  gateway:
+    <<: *servicio
+    # La puerta no tiene base ni dominio: solo necesita saber donde estan los
+    # otros tres. Depende de ellos para que `docker compose up` no la deje
+    # respondiendo 503 durante los primeros segundos.
+    depends_on: [identidad, catalogo, inteligencia]
+    environment: *entorno
+    command: ["python", "-m", "tukit_gateway.api", "--puerto", "8010", "--host", "0.0.0.0"]
+    ports: ["8010:8010"]
 
 volumes:
   tukit_pgdata:

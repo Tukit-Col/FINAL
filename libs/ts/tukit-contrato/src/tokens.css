@@ -9,24 +9,61 @@
  * La base son los tokens que ya traia el prototipo; lo que se agrega es el
  * vocabulario que el CONTRATO_API obliga a tener en pantalla: los tres
  * niveles de producto, los cuatro estados de resolucion y la diferencia entre
- * una linea que se cobra y una que solo se informa. */
+ * una linea que se cobra y una que solo se informa.
+ *
+ * --- Rediseño claymorphico (2026-09) --------------------------------------
+ * La capa visual se reexpresa en CLAYMORPHISM con la paleta del logo de Tukit:
+ * el azul rey del libro, los azules cielo del toldo, la crema de la pagina y
+ * el amarillo dorado de las estrellas. Superficies infladas, esquinas muy
+ * redondeadas y sombras dobles (exterior difusa + luz interior) que dan tacto
+ * de plastilina. Lo que NO cambia es el SIGNIFICADO: los colores de estado y
+ * de nivel de producto conservan su semantica; solo se visten distinto. */
 
 :root {
-  --color-primary: #2563eb;
-  --color-primary-dark: #1d4ed8;
-  --color-primary-light: #eff6ff;
+  /* ---- Marca (paleta del logo) ------------------------------------------
+   * Azul rey del libro como primario. Antes era #2563eb; se profundiza a la
+   * tinta del logo para que el CTA y la marca sean el mismo azul. */
+  --color-primary: #1e40af;
+  --color-primary-dark: #1e3a8a;
+  --color-primary-light: #dbeafe;
 
-  --color-bg: #f1f5f9;
+  /* Azules cielo del toldo de la tiendita del logo. */
+  --clay-cielo: #4aa3e0;
+  --clay-cielo-claro: #8fd3f4;
+  --clay-cielo-bg: #eaf6fd;
+
+  /* Crema de la pagina del libro. Es el "nunca blanco puro" del clay: el
+   * fondo tiene temperatura. */
+  --clay-crema: #f7ecc9;
+  --clay-crema-suave: #fdf9ee;
+
+  /* Amarillo dorado de las estrellas: acento, gamificacion y CTA secundaria
+   * calida. NO es un color de estado. */
+  --clay-estrella: #f5c542;
+  --clay-estrella-oscuro: #e0a92b;
+  --clay-estrella-bg: #fef7e0;
+
+  /* ---- Superficies y fondo ----------------------------------------------
+   * Fondo blanco frío casi puro (#fbfcfe, un susurro de azul): elegante y
+   * startup-grade. Las tarjetas blancas ya no dependen de un fondo cálido para
+   * separarse — flotan por la SOMBRA clay difusa, que es lo que da la sensación
+   * premium. La crema y el dorado del logo pasan a ser ACENTOS (estrella,
+   * avisos honestos), no el lienzo. */
+  --color-bg: #fbfcfe;
   --color-white: #ffffff;
   --color-surface: #ffffff;
-  --color-surface-2: #f8fafc;
+  --color-surface-2: #f6f8fc;
+  /* Gradiente sutil, ahora frío, para dar volumen a las superficies clay sin
+   * teñirlas de amarillo sobre el fondo blanco. */
+  --clay-surface-grad: linear-gradient(145deg, #ffffff 0%, #f4f7fc 100%);
 
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #475569;
-  --color-text-muted: #94a3b8;
+  --color-text-primary: #1a2a4f;
+  --color-text-secondary: #4a5878;
+  --color-text-muted: #8b95ac;
 
-  --color-border: #e2e8f0;
-  --color-border-light: #f1f5f9;
+  /* Bordes en gris frío muy tenue: sobre blanco, un borde crema se ve sucio. */
+  --color-border: #e6eaf2;
+  --color-border-light: #eef1f7;
 
   --color-success: #15803d;
   --color-success-bg: #f0fdf4;
@@ -40,32 +77,70 @@
   --color-danger-bg: #fef2f2;
   --color-danger-border: #fecaca;
 
-  --color-info: #1d4ed8;
+  --color-info: #1e40af;
   --color-info-bg: #eff6ff;
   --color-info-border: #bfdbfe;
 
-  --color-neutro-bg: #f8fafc;
-  --color-neutro-border: #e2e8f0;
+  --color-neutro-bg: #f6f8fc;
+  --color-neutro-border: #e6eaf2;
 
   /* Nivel de producto. Son tres, y el personaje NO es un cuarto: va en su
    * propio token porque es un eje ortogonal. Pintarlo como un nivel mas es el
    * error que la restriccion `producto_nivel_valido` de la base impide. */
   --color-nivel-economico: #15803d;
-  --color-nivel-confiable: #1d4ed8;
+  --color-nivel-confiable: #1e40af;
   --color-nivel-premium: #7c3aed;
   --color-personaje: #db2777;
   --color-personaje-bg: #fdf2f8;
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
+  /* ---- Radios (claymorphism: esquinas gordas) ---------------------------
+   * El clay pide esquinas mucho mas redondeadas que el prototipo plano. */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
+  --radius-clay: 32px;
   --radius-full: 9999px;
 
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-md: 0 4px 14px rgba(15, 23, 42, 0.08);
-  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.12);
+  /* ---- Sombras -----------------------------------------------------------
+   * Se conservan los nombres planos (por si algun modulo aun los usa) pero se
+   * suavizan a la temperatura de la marca. */
+  --shadow-sm: 0 1px 3px rgba(26, 42, 79, 0.06), 0 1px 2px rgba(26, 42, 79, 0.04);
+  --shadow-md: 0 6px 18px rgba(26, 42, 79, 0.08);
+  --shadow-lg: 0 16px 40px rgba(26, 42, 79, 0.12);
 
+  /* Sombras CLAY: una exterior difusa que separa del fondo + una luz interior
+   * arriba-izquierda que infla la superficie. Es la firma del estilo. */
+  --clay-shadow:
+    0 10px 24px rgba(30, 58, 138, 0.14),
+    0 2px 6px rgba(30, 58, 138, 0.10),
+    inset 0 2px 3px rgba(255, 255, 255, 0.95),
+    inset 0 -3px 6px rgba(30, 58, 138, 0.06);
+  --clay-shadow-sm:
+    0 4px 12px rgba(30, 58, 138, 0.10),
+    inset 0 1px 2px rgba(255, 255, 255, 0.9),
+    inset 0 -2px 4px rgba(30, 58, 138, 0.05);
+  --clay-shadow-lg:
+    0 22px 50px rgba(30, 58, 138, 0.18),
+    0 6px 14px rgba(30, 58, 138, 0.10),
+    inset 0 3px 4px rgba(255, 255, 255, 0.95),
+    inset 0 -4px 8px rgba(30, 58, 138, 0.07);
+  /* Hundido: para inputs y estados "pressed" — la luz se invierte. */
+  --clay-shadow-inset:
+    inset 0 3px 7px rgba(30, 58, 138, 0.13),
+    inset 0 -2px 3px rgba(255, 255, 255, 0.8);
+  /* Boton primario azul: la luz interior es mas fria y la sombra mas saturada. */
+  --clay-shadow-primary:
+    0 10px 22px rgba(30, 64, 175, 0.35),
+    0 3px 6px rgba(30, 64, 175, 0.25),
+    inset 0 2px 3px rgba(255, 255, 255, 0.45),
+    inset 0 -4px 8px rgba(15, 30, 80, 0.35);
+  --clay-shadow-estrella:
+    0 10px 22px rgba(224, 169, 43, 0.38),
+    inset 0 2px 3px rgba(255, 255, 255, 0.6),
+    inset 0 -4px 8px rgba(180, 120, 20, 0.35);
+
+  /* ---- Espaciado (sin cambios) ------------------------------------------ */
   --espacio-1: 4px;
   --espacio-2: 8px;
   --espacio-3: 12px;
@@ -76,8 +151,22 @@
 
   --ancho-contenido: 1120px;
 
-  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* ---- Tipografia --------------------------------------------------------
+   * Cuerpo en Nunito (redondeada, legible, mantiene la seriedad para leer 55
+   * renglones); titulares en Baloo 2 (display juguetona, terminales
+   * redondas). Las cifras en monoespaciada para comparar dinero. */
+  --font: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Baloo 2", "Nunito", -apple-system, sans-serif;
   --font-cifras: ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* ---- Motion ------------------------------------------------------------
+   * Rebote de plastilina. La entrada sobrepasa un poco y vuelve; el press
+   * hunde. Compartido con el helper de motion (src/motion.ts). */
+  --ease-clay: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-suave: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-rapido: 160ms;
+  --dur-medio: 260ms;
+  --dur-lento: 420ms;
 }
 
 *,
@@ -97,6 +186,14 @@ body {
   font-size: 15px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+  line-height: 1.15;
 }
 
 button {
@@ -123,7 +220,7 @@ a {
 /* Un foco visible no es decoracion: es lo unico que tiene quien navega con
  * teclado, y la mitad de estas pantallas son formularios. */
 :focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 3px solid var(--clay-cielo);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
@@ -132,6 +229,14 @@ a {
  * digitos bailando obliga a leer numero por numero. */
 .cifra {
   font-variant-numeric: tabular-nums;
+}
+
+/* Utilidad clay reutilizable: cualquier superficie que quiera el tacto de
+ * plastilina puede componer con esta clase o copiar las variables. */
+.clay {
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-clay);
+  box-shadow: var(--clay-shadow);
 }
 
 @media (prefers-reduced-motion: reduce) {

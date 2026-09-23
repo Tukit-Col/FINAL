@@ -17,3 +17,17 @@ build/
 
 .DS_Store
 *.log
+
+# Artefactos generados del catalogo: se regeneran, no se versionan.
+#   catalogo.html          -> make bd-vista (vista.py)
+#   cache_tiendas/          -> caché de scraper (tiendas.py); se conserva en
+#                              disco para no re-scrapear, pero fuera de git.
+#   demanda_atributos.json  -> make bd-demanda (informe)
+catalogo.html
+datos/catalogo/cache_tiendas/
+datos/catalogo/demanda_atributos.json
+
+# Los pid y los registros de los cuatro procesos que levanta `make arriba`.
+# Son estado de UNA maquina en UN momento; versionarlos haria que el `make
+# abajo` de otra persona intentara matar un proceso que nunca existio.
+.ejecucion/

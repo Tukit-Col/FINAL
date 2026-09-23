@@ -1,0 +1,158 @@
+/* Línea de tiempo vertical del flujo. El riel corre por la izquierda y se
+ * rellena con el scroll; las etapas cuelgan a su derecha. La lógica de encendido
+ * y de movimiento reducido vive en el .tsx; aquí solo el aspecto. */
+
+.linea {
+  list-style: none;
+  position: relative;
+  /* Centrada en la página, no pegada al borde: el flujo es lo que la portada
+   * quiere que se lea, así que va en una columna estrecha y al medio. */
+  max-width: 640px;
+  margin: 0 auto;
+  /* Espacio para el riel + los puntos a la izquierda de cada etapa. */
+  padding: 0 0 0 4px;
+}
+
+/* El riel: una guía tenue de arriba a abajo, alineada con el centro de los
+ * puntos (24px = mitad de los 48px del punto). */
+.riel {
+  position: absolute;
+  left: 23px;
+  top: 24px;
+  bottom: 24px;
+  width: 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+/* El relleno que se dibuja al bajar. Arranca en scaleY:0 y crece hasta 1
+ * (transform-origin lo fija el JS en top). Con movimiento reducido el JS lo
+ * deja en 1. */
+.rielRelleno {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: linear-gradient(180deg, var(--clay-cielo) 0%, var(--color-primary) 100%);
+  transform: scaleY(0);
+}
+
+.etapa {
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: var(--espacio-4);
+  align-items: start;
+  padding-bottom: var(--espacio-6);
+}
+
+.etapa:last-child {
+  padding-bottom: 0;
+}
+
+/* El punto: chapa clay con el icono. Apagado (gris) hasta que el scroll lo
+ * alcanza; entonces .activa lo enciende. */
+.punto {
+  position: relative;
+  z-index: 1;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  display: grid;
+  place-items: center;
+  background: var(--clay-surface-grad);
+  color: var(--color-text-muted);
+  box-shadow: var(--clay-shadow-sm);
+  transition:
+    transform var(--dur-medio) var(--ease-clay),
+    background var(--dur-medio) var(--ease-suave),
+    color var(--dur-medio) var(--ease-suave),
+    box-shadow var(--dur-medio) var(--ease-suave);
+}
+
+.etapa.activa .punto {
+  background: linear-gradient(145deg, var(--clay-cielo) 0%, var(--color-primary) 100%);
+  color: var(--color-white);
+  box-shadow: var(--clay-shadow-primary);
+  transform: scale(1.04);
+}
+
+/* La etapa "próximamente" se enciende en dorado, no en azul: señala que es real
+ * pero todavía no está, en vez de fingir que es un paso más ya disponible. */
+.etapa[data-estado="proximamente"].activa .punto {
+  background: linear-gradient(145deg, var(--clay-estrella) 0%, var(--clay-estrella-oscuro) 100%);
+  color: var(--color-primary-dark);
+  box-shadow: var(--clay-shadow-estrella);
+}
+
+.contenido {
+  padding-top: 2px;
+}
+
+.encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-2);
+  margin-bottom: 6px;
+}
+
+.paso {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+/* Quién hace cada paso: una etiqueta pequeña que separa "lo haces tú" de "lo
+ * hace Tukit" de "lo revisa una persona". Es media promesa de marca. */
+.actor {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  background: var(--color-surface-2);
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  box-shadow: inset 0 0 0 1px var(--color-border-light);
+}
+
+.etapa[data-estado="proximamente"] .actor {
+  color: var(--color-aviso);
+  background: var(--clay-estrella-bg);
+  box-shadow: inset 0 0 0 1px var(--color-aviso-border);
+}
+
+.contenido h3 {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.contenido p {
+  margin-top: 5px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+  max-width: 60ch;
+}
+
+@media (max-width: 600px) {
+  .etapa {
+    grid-template-columns: 40px 1fr;
+    gap: var(--espacio-3);
+  }
+
+  .riel {
+    left: 19px;
+  }
+
+  .punto {
+    width: 40px;
+    height: 40px;
+  }
+}

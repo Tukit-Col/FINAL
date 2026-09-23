@@ -443,7 +443,7 @@ def _buscar_ciclo(grafo: dict[str, set[str]]) -> list[str] | None:
             if vecino == nodo:
                 continue
             if estado.get(vecino) == EN_CAMINO:
-                return camino[camino.index(vecino):] + [vecino]
+                return camino[camino.index(vecino) :] + [vecino]
             if estado.get(vecino) is None:
                 encontrado = visitar(vecino)
                 if encontrado:
