@@ -9,16 +9,20 @@ import { GRADOS_CANONICOS } from "./contrato";
 import type {
   AltaProducto,
   ColaAdmin,
+  Contacto,
   DecisionRevision,
   EstadoTrabajo,
+  HijoSubida,
   Kit,
   LineaKit,
   MarcarNoDisponible,
   PercepcionCruda,
+  Preferencias,
   ProductoDadoDeAlta,
   ProductoKit,
   SinCoincidencia,
   SolicitudTrabajo,
+  SubidaListas,
   Trabajo,
   TrabajoAdmin,
   TrabajoCreado,
@@ -27,13 +31,16 @@ import type {
 import type {
   AltaLibro,
   AltaUtil,
+  AltaUtilManual,
   AprobarPropuesta,
   CandidatoTienda,
   Catalogo,
   Colegio,
   ColegioDetalle,
   ColegioEditable,
+  ColegioNuevoEditable,
   ConceptoCatalogo,
+  DatosColegioNuevo,
   FiltrosListasAdmin,
   FiltrosProductos,
   ItemListaEditable,
@@ -204,6 +211,30 @@ export class ClienteApi implements OrigenDatos {
   async consultarTrabajo(trabajoId: string): Promise<Trabajo> {
     const crudo = await this.pedir<Trabajo>(`/v1/trabajos/${encodeURIComponent(trabajoId)}`);
     return normalizarTrabajo(crudo);
+  }
+
+  // §2 — la subida de listas de un acudiente. `multipart/form-data` hacia
+  // inteligencia: `hijos` y `contacto` como JSON, y un `archivo`+`referencia`
+  // por hijo APAREADOS por orden, igual que `crearTrabajo` con archivos.
+  // Inteligencia percibe cada PDF y lo importa como version pendiente; devuelve
+  // a que version quedo ligado cada hijo. No crea un trabajo.
+  async subirListas(
+    hijos: HijoSubida[],
+    archivos: ArchivoLista[],
+    contacto?: Contacto,
+    preferencias?: Preferencias,
+  ): Promise<SubidaListas> {
+    const forma = new FormData();
+    forma.append("hijos", JSON.stringify(hijos));
+    if (contacto) forma.append("contacto", JSON.stringify(contacto));
+    // Las preferencias del paso 3 son del HOGAR: viajan una vez y quedan con
+    // cada version importada, para que el kit de la aprobacion las use.
+    if (preferencias) forma.append("preferencias", JSON.stringify(preferencias));
+    for (const archivo of archivos) {
+      forma.append("archivo", archivo.contenido, archivo.nombre);
+      forma.append("referencia", archivo.referencia);
+    }
+    return this.pedir<SubidaListas>("/v1/listas/subir", { method: "POST", body: forma });
   }
 
   // ------------------------------------------------------- ASUMIDO (v1.1)
@@ -494,6 +525,14 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
+  altaUtilManual(cuerpo: AltaUtilManual): Promise<PropuestaEncolada> {
+    return this.pedir<PropuestaEncolada>("/v1/admin/catalogo/propuestas/util-manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo),
+    });
+  }
+
   altaLibro(cuerpo: AltaLibro): Promise<PropuestaEncolada> {
     return this.pedir<PropuestaEncolada>("/v1/admin/catalogo/propuestas/libro", {
       method: "POST",
@@ -718,6 +757,7 @@ export class ClienteApi implements OrigenDatos {
       revisada: Boolean(crudo.revisada),
       items: (crudo.items ?? []).map(normalizarItemRevision),
       propuestas: (crudo.propuestas ?? []).map(normalizarPropuestaRevision),
+      colegio_datos: crudo.colegio_datos ?? null,
     };
   }
 
@@ -775,6 +815,24 @@ export class ClienteApi implements OrigenDatos {
       { method: "POST" },
     );
     return { version_id: resp.version_id };
+  }
+
+  async completarColegioDeVersion(
+    versionId: string,
+    cambios: ColegioNuevoEditable,
+  ): Promise<DatosColegioNuevo> {
+    // El backend hace merge de los campos presentes sobre `colegio_datos` de la
+    // tarea y responde `{version_id, colegio_datos}`; se propaga solo el bloque
+    // de datos ya combinado, que es lo que la pantalla vuelve a pintar.
+    const resp = await this.pedir<{ version_id: string; colegio_datos: DatosColegioNuevo }>(
+      `/v1/admin/listas/${encodeURIComponent(versionId)}/colegio`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cambios),
+      },
+    );
+    return resp.colegio_datos;
   }
 
   // ------------------------------------------ §Admin — identidad del colegio (P4)
@@ -1153,6 +1211,7 @@ interface RevisionCruda {
   revisada?: boolean;
   items?: ItemRevisionCrudo[];
   propuestas?: PropuestaRevisionCruda[];
+  colegio_datos?: DatosColegioNuevo | null;
 }
 
 interface ColegioDetalleCrudo {

@@ -31,6 +31,7 @@ import type { PercepcionCruda, RevisionLista } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import ItemsPercibidos from "@/components/ItemsPercibidos";
 import AprobarLista from "@/components/AprobarLista";
+import CompletarColegio from "@/components/CompletarColegio";
 import PrevisualizarKits from "./PrevisualizarKits";
 import styles from "../Onboarding.module.css";
 
@@ -124,6 +125,21 @@ export default async function PaginaRevisionLista({ params }: Props) {
             propuestas={revision.propuestas}
           />
         </section>
+
+        {/* ------------- Colegio nuevo por crear (solo si lo subió un padre) */}
+        {revision.colegio_datos ? (
+          <section className={`${styles.region} ${styles.regionAncha}`}>
+            <div className={styles.regionCabecera}>
+              <span className={styles.regionNumero}>·</span>
+              <h2>Identidad del colegio nuevo</h2>
+            </div>
+            <CompletarColegio
+              versionId={version_id}
+              datos={revision.colegio_datos}
+              revisada={revision.revisada}
+            />
+          </section>
+        ) : null}
 
         {/* ------------------------------- Región 4: aprobar y publicar */}
         <section className={`${styles.region} ${styles.regionAncha}`}>

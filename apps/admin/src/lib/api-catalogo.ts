@@ -8,6 +8,7 @@
 import type {
   AltaLibro,
   AltaUtil,
+  AltaUtilManual,
   AprobarPropuesta,
   CandidatoTienda,
   ErrorApi,
@@ -131,6 +132,15 @@ export function buscarEnTienda(
 /** POST — encola un útil elegido de la tienda (no aprueba: cae en la cola). */
 export function altaUtil(cuerpo: AltaUtil): Promise<PropuestaEncolada> {
   return pedir<PropuestaEncolada>(`/api/catalogo/propuestas/util`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(cuerpo),
+  });
+}
+
+/** POST — encola un útil escrito a mano (sin búsqueda; precio en pesos > 0). */
+export function altaUtilManual(cuerpo: AltaUtilManual): Promise<PropuestaEncolada> {
+  return pedir<PropuestaEncolada>(`/api/catalogo/propuestas/util-manual`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(cuerpo),

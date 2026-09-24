@@ -41,6 +41,12 @@ export default async function PaginaCatalogo() {
 
   const nombresPersonajes = personajes.map((p) => p.nombre);
 
+  // Las tiendas registradas viajan al alta de útil/libro: el selector deja
+  // elegir una o escribir otro slug (el backend valida contra la BD).
+  const tiendas = catalogo.tiendas
+    .map((t) => ({ slug: t.slug, nombre: t.nombre }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
   return (
     <div className={styles.pagina}>
       <header className={styles.encabezado}>
@@ -72,6 +78,7 @@ export default async function PaginaCatalogo() {
         paginaInicial={paginaInicial}
         conceptos={conceptos}
         personajes={nombresPersonajes}
+        tiendas={tiendas}
       />
     </div>
   );

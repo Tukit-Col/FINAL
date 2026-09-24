@@ -312,6 +312,12 @@ api-gateway:  ## Levanta SOLO la puerta de enlace, en primer plano
 repartidor:  ## Reparte los eventos de las bandejas (una pasada; usa s=--seguir para bucle)
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_operacion.repartidor $(s)
 
+poller:  ## Drena lista_verificada del catalogo y arma el kit del padre (una pasada; s=--seguir para bucle)
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_inteligencia.poller $(s)
+
+poller-identidad:  ## Drena colegio_verificado del catalogo y da de alta el colegio aliado (s=--seguir para bucle)
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_identidad.poller $(s)
+
 arriba:  ## Levanta los seis procesos HTTP en segundo plano
 	@mkdir -p $(EJECUCION)
 	@$(MAKE) --no-print-directory abajo >/dev/null 2>&1 || true

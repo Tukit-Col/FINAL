@@ -122,6 +122,9 @@ class ClienteCatalogo:
         items: list[dict],
         documento_base64: str,
         percepcion_cruda: list[dict],
+        contacto_referencia: str | None = None,
+        preferencias: dict[str, Any] | None = None,
+        colegio_datos: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Escribe una lista percibida en el catalogo, con su evidencia.
 
@@ -130,21 +133,33 @@ class ClienteCatalogo:
         importo contra lo que el modelo leyo. Inteligencia no escribe en la
         base del catalogo: le entrega el renglon y la evidencia por HTTP y es
         el catalogo quien decide como guardarlo (invariantes 1 y 3).
+
+        Cuando la subida viene de un acudiente, `contacto_referencia` es su
+        `usuario_id` (nunca su correo ni telefono): la traza que deja al padre
+        esperando para poder avisarle cuando la version se apruebe.
+
+        `colegio_datos` viaja cuando el colegio AUN NO existe en Tukit (lo eligio
+        del directorio de Bogota o lo escribio a mano): trae su nombre y DANE
+        para que la cola lo muestre y la aprobacion cree su identidad. Un colegio
+        aliado ya conocido no lo trae.
         """
-        return await self._pedir(
-            "POST",
-            "/v1/admin/listas/importar",
-            json={
-                "colegio_id": colegio_id,
-                "grado": grado,
-                "anio_lectivo": anio_lectivo,
-                "items": items,
-                "evidencia": {
-                    "documento_base64": documento_base64,
-                    "percepcion_cruda": percepcion_cruda,
-                },
+        cuerpo: dict[str, Any] = {
+            "colegio_id": colegio_id,
+            "grado": grado,
+            "anio_lectivo": anio_lectivo,
+            "items": items,
+            "evidencia": {
+                "documento_base64": documento_base64,
+                "percepcion_cruda": percepcion_cruda,
             },
-        )
+        }
+        if contacto_referencia is not None:
+            cuerpo["contacto_referencia"] = contacto_referencia
+        if preferencias:
+            cuerpo["preferencias"] = preferencias
+        if colegio_datos:
+            cuerpo["colegio_datos"] = colegio_datos
+        return await self._pedir("POST", "/v1/admin/listas/importar", json=cuerpo)
 
 
 @dataclass

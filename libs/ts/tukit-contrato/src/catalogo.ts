@@ -444,6 +444,41 @@ export interface RevisionLista {
   revisada: boolean;
   items: ItemRevision[];
   propuestas: PropuestaRevision[];
+  // Los datos del colegio NUEVO que se dara de alta al aprobar, cuando la lista
+  // la subio un acudiente para un colegio que aun no existe en Tukit (lo eligio
+  // del directorio de Bogota o lo escribio). `null` cuando es de un colegio ya
+  // aliado: no hay identidad que crear ni perfil que completar. El revisor
+  // completa estos campos con `completarColegioDeVersion` antes de aprobar.
+  colegio_datos: DatosColegioNuevo | null;
+}
+
+// El perfil del colegio nuevo que viaja en `colegio_datos` de una version en la
+// cola. `nombre` y `dane` los fija la subida (el `dane` deriva el `colegio_id`,
+// no se edita); el resto los completa el revisor. Todos son datos de la
+// INSTITUCION, no del menor: no son PII.
+export interface DatosColegioNuevo {
+  nombre?: string | null;
+  dane?: string | null;
+  logo_url?: string | null;
+  sitio_web?: string | null;
+  direccion?: string | null;
+  contacto_nombre?: string | null;
+  contacto_email?: string | null;
+  contacto_telefono?: string | null;
+}
+
+// Los campos del colegio nuevo que el revisor puede completar antes de aprobar
+// (cuerpo del `PATCH /v1/admin/listas/{version_id}/colegio`). Se manda solo lo
+// que cambio; el backend hace merge sobre `colegio_datos`. NO incluye `dane`:
+// cambiarlo cambiaria el `colegio_id` derivado y desligaria la lista del colegio.
+export interface ColegioNuevoEditable {
+  nombre?: string;
+  logo_url?: string;
+  sitio_web?: string;
+  direccion?: string;
+  contacto_nombre?: string;
+  contacto_email?: string;
+  contacto_telefono?: string;
 }
 
 // Una sede de un colegio, tal como la sirve el detalle de identidad

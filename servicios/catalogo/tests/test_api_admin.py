@@ -38,6 +38,7 @@ from tukit_comun.bd import MotorServicio
 
 COLEGIO = uuid.UUID("11111111-1111-5111-8111-111111111111")
 TAREA = Base.metadata.tables["tarea_importacion"]
+BANDEJA = Base.metadata.tables["bandeja_salida"]
 CURADOR = uuid.UUID("22222222-2222-5222-8222-222222222222")
 
 
@@ -350,6 +351,116 @@ class TestCerrarLaRevision:
         despues = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()
         assert despues["revisada"] is True
 
+    async def _bandeja(self, tipo: str | None = None) -> list:
+        motor = app.state.motor
+        async with motor.sesion() as db:
+            conexion = await db.connection()
+            filas = list(await conexion.execute(BANDEJA.select()))
+        return [f for f in filas if tipo is None or f.tipo == tipo]
+
+    async def test_cerrar_una_version_con_padre_esperando_emite_lista_verificada(self, cliente):
+        # Un padre subio su lista (version importada con `contacto_referencia` y
+        # sus preferencias). Al aprobarla, se escribe un evento en la bandeja de
+        # salida para que Inteligencia arme su kit —Catalogo no la llama directo—.
+        referencia = str(uuid.uuid4())
+        preferencias = {
+            "pesos": {"precio": 0.6, "marca_exigida": 0.15, "calidad": 0.2, "personaje": 0.05},
+            "disposicion_sobreprecio": 0.05,
+        }
+        vid = (
+            await cliente.post(
+                "/v1/admin/listas/importar",
+                json=_cuerpo_importar(contacto_referencia=referencia, preferencias=preferencias),
+            )
+        ).json()["version_id"]
+
+        respuesta = await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
+        assert respuesta.status_code == 200
+
+        eventos = await self._bandeja("lista_verificada")
+        assert len(eventos) == 1
+        evento = eventos[0]
+        assert evento.agregado_tipo == "version_lista_oficial"
+        assert str(evento.agregado_id) == vid
+        assert evento.publicado_en is None
+        assert evento.carga["contacto_referencia"] == referencia
+        assert evento.carga["colegio_id"] == str(COLEGIO)
+        assert evento.carga["grado"] == "Sexto"
+        assert evento.carga["anio_lectivo"] == 2026
+        assert evento.carga["preferencias"] == preferencias
+
+    async def test_cerrar_un_onboarding_sin_padre_no_emite_nada(self, cliente):
+        # El onboarding del colegio no deja padre esperando: aprobarlo no dispara
+        # ningun kit ni evento —la lista queda verificada y disponible, nada mas—.
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
+            "version_id"
+        ]
+
+        respuesta = await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
+        assert respuesta.status_code == 200
+        assert await self._bandeja("lista_verificada") == []
+
+    async def test_cerrar_una_version_de_colegio_nuevo_emite_colegio_verificado(self, cliente):
+        # Un acudiente subio la lista de un colegio que aun no existe en Tukit
+        # (lo eligio del directorio o lo escribio): la version trae `colegio_datos`.
+        # Al aprobarla, ademas de armar el kit, se emite `colegio_verificado` para
+        # que Identidad cree el colegio como aliado —Catalogo no la llama directo—.
+        colegio_datos = {
+            "dane": "311001105731",
+            "nombre": "ACADEMIA CENTRAL DE SISTEMAS",
+            "direccion": "Calle 1 # 2-3",
+        }
+        vid = (
+            await cliente.post(
+                "/v1/admin/listas/importar",
+                json=_cuerpo_importar(colegio_datos=colegio_datos),
+            )
+        ).json()["version_id"]
+
+        respuesta = await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
+        assert respuesta.status_code == 200
+
+        eventos = await self._bandeja("colegio_verificado")
+        assert len(eventos) == 1
+        evento = eventos[0]
+        assert evento.agregado_tipo == "colegio"
+        assert str(evento.agregado_id) == str(COLEGIO)
+        assert evento.publicado_en is None
+        # El colegio_id es el que el catalogo ya derivo; Identidad lo usa como PK.
+        assert evento.carga["colegio_id"] == str(COLEGIO)
+        assert evento.carga["grado"] == "Sexto"
+        assert evento.carga["nombre"] == "ACADEMIA CENTRAL DE SISTEMAS"
+        # El DANE viaja como `nit` (la columna del colegio en Identidad).
+        assert evento.carga["nit"] == "311001105731"
+        assert evento.carga["direccion"] == "Calle 1 # 2-3"
+
+    async def test_cerrar_un_colegio_aliado_conocido_no_emite_colegio_verificado(self, cliente):
+        # Un colegio ya aliado (sin `colegio_datos`) no tiene identidad que crear:
+        # aprobar su lista no emite el evento de colegio.
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
+            "version_id"
+        ]
+        respuesta = await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
+        assert respuesta.status_code == 200
+        assert await self._bandeja("colegio_verificado") == []
+
+    async def test_cerrar_dos_veces_no_re_emite_el_evento(self, cliente):
+        # `cerrar` sobre una version ya revisada devuelve `ya_estaba` sin tocar
+        # nada: el evento se emite una sola vez, no en cada reintento.
+        referencia = str(uuid.uuid4())
+        vid = (
+            await cliente.post(
+                "/v1/admin/listas/importar",
+                json=_cuerpo_importar(contacto_referencia=referencia),
+            )
+        ).json()["version_id"]
+
+        assert (await cliente.post(f"/v1/admin/listas/{vid}/cerrar")).status_code == 200
+        segunda = await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
+        assert segunda.status_code == 200
+        assert segunda.json().get("ya_estaba") is True
+        assert len(await self._bandeja("lista_verificada")) == 1
+
 
 PDF_FALSO = b"%PDF-1.4 lista de utiles de prueba"
 
@@ -434,6 +545,201 @@ class TestImportarListaDesdeOnboarding:
         env = respuesta.json()
         assert secreto not in str(env)
         assert env["campo"] == "cantidad"
+
+    async def test_sin_contacto_la_tarea_queda_sin_referencia(self, cliente):
+        # El onboarding del colegio no trae un padre esperando: la tarea de
+        # evidencia nace sin `contacto_referencia`.
+        env = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()
+        motor = app.state.motor
+        async with motor.sesion() as db:
+            conexion = await db.connection()
+            fila = (
+                await conexion.execute(TAREA.select().where(TAREA.c.id == uuid.UUID(env["tarea_id"])))
+            ).one()
+        assert fila.contacto_referencia is None
+
+    async def test_con_contacto_la_tarea_referencia_al_padre_que_espera(self, cliente):
+        # La subida de un acudiente importa la version PERO deja la traza al
+        # padre por identificador (nunca su correo/telefono) para avisarle
+        # cuando un administrador la apruebe.
+        referencia = str(uuid.uuid4())
+        env = (
+            await cliente.post(
+                "/v1/admin/listas/importar",
+                json=_cuerpo_importar(contacto_referencia=referencia),
+            )
+        ).json()
+        motor = app.state.motor
+        async with motor.sesion() as db:
+            conexion = await db.connection()
+            fila = (
+                await conexion.execute(TAREA.select().where(TAREA.c.id == uuid.UUID(env["tarea_id"])))
+            ).one()
+        assert str(fila.contacto_referencia) == referencia
+
+    async def test_un_contacto_invalido_es_422_sin_repetir_el_documento(self, cliente):
+        cuerpo = _cuerpo_importar(contacto_referencia="no-es-un-uuid")
+        respuesta = await cliente.post("/v1/admin/listas/importar", json=cuerpo)
+        assert respuesta.status_code == 422
+        assert respuesta.json()["campo"] == "contacto_referencia"
+
+    async def test_las_preferencias_del_padre_se_guardan_en_la_tarea(self, cliente):
+        # Las preferencias que el padre declaro al subir se guardan tal cual para
+        # que el kit de la aprobacion las use, en vez de los pesos por omision.
+        preferencias = {
+            "pesos": {"precio": 0.6, "marca_exigida": 0.15, "calidad": 0.2, "personaje": 0.05},
+            "disposicion_sobreprecio": 0.0,
+        }
+        env = (
+            await cliente.post(
+                "/v1/admin/listas/importar",
+                json=_cuerpo_importar(preferencias=preferencias),
+            )
+        ).json()
+        motor = app.state.motor
+        async with motor.sesion() as db:
+            conexion = await db.connection()
+            fila = (
+                await conexion.execute(TAREA.select().where(TAREA.c.id == uuid.UUID(env["tarea_id"])))
+            ).one()
+        assert fila.preferencias == preferencias
+
+    async def test_sin_preferencias_la_tarea_las_deja_en_null(self, cliente):
+        env = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()
+        motor = app.state.motor
+        async with motor.sesion() as db:
+            conexion = await db.connection()
+            fila = (
+                await conexion.execute(TAREA.select().where(TAREA.c.id == uuid.UUID(env["tarea_id"])))
+            ).one()
+        assert fila.preferencias is None
+
+    async def test_preferencias_que_no_son_objeto_es_422(self, cliente):
+        cuerpo = _cuerpo_importar(preferencias=["no", "es", "objeto"])
+        respuesta = await cliente.post("/v1/admin/listas/importar", json=cuerpo)
+        assert respuesta.status_code == 422
+        assert respuesta.json()["campo"] == "preferencias"
+
+    async def test_los_datos_del_colegio_se_guardan_en_la_tarea(self, cliente):
+        # Cuando la lista llega por un colegio que aun no existe en Tukit (el
+        # acudiente lo eligio del directorio o lo escribio), sus datos se guardan
+        # tal cual para que la cola los muestre y la aprobacion cree la identidad.
+        colegio_datos = {"dane": "311001105731", "nombre": "ACADEMIA CENTRAL DE SISTEMAS"}
+        env = (
+            await cliente.post(
+                "/v1/admin/listas/importar",
+                json=_cuerpo_importar(colegio_datos=colegio_datos),
+            )
+        ).json()
+        motor = app.state.motor
+        async with motor.sesion() as db:
+            conexion = await db.connection()
+            fila = (
+                await conexion.execute(TAREA.select().where(TAREA.c.id == uuid.UUID(env["tarea_id"])))
+            ).one()
+        assert fila.colegio_datos == colegio_datos
+
+    async def test_sin_datos_de_colegio_la_tarea_los_deja_en_null(self, cliente):
+        # Un colegio aliado ya conocido no trae datos que crear.
+        env = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()
+        motor = app.state.motor
+        async with motor.sesion() as db:
+            conexion = await db.connection()
+            fila = (
+                await conexion.execute(TAREA.select().where(TAREA.c.id == uuid.UUID(env["tarea_id"])))
+            ).one()
+        assert fila.colegio_datos is None
+
+    async def test_datos_de_colegio_que_no_son_objeto_es_422(self, cliente):
+        cuerpo = _cuerpo_importar(colegio_datos=["no", "es", "objeto"])
+        respuesta = await cliente.post("/v1/admin/listas/importar", json=cuerpo)
+        assert respuesta.status_code == 422
+        assert respuesta.json()["campo"] == "colegio_datos"
+
+
+class TestEditarDatosDelColegioEnLaRevision:
+    """El revisor completa los datos del colegio nuevo ANTES de aprobar, para que
+    se vaya completo (logo, direccion, contacto...) y no solo con nombre y grado.
+    Se guardan sobre `colegio_datos` de la tarea; al aprobar viajan en el evento
+    `colegio_verificado` y Identidad crea el colegio con ellos."""
+
+    async def test_la_revision_expone_los_datos_del_colegio_nuevo(self, cliente):
+        colegio_datos = {"dane": "311001105731", "nombre": "ACADEMIA CENTRAL DE SISTEMAS"}
+        vid = (
+            await cliente.post(
+                "/v1/admin/listas/importar",
+                json=_cuerpo_importar(colegio_datos=colegio_datos),
+            )
+        ).json()["version_id"]
+
+        vista = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()
+        assert vista["colegio_datos"]["dane"] == "311001105731"
+        assert vista["colegio_datos"]["nombre"] == "ACADEMIA CENTRAL DE SISTEMAS"
+
+    async def test_la_revision_de_un_aliado_no_trae_datos_de_colegio(self, cliente):
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
+            "version_id"
+        ]
+        vista = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()
+        assert vista["colegio_datos"] is None
+
+    async def test_completar_atributos_los_persiste_y_aprobar_los_lleva_al_evento(self, cliente):
+        colegio_datos = {"dane": "311001105731", "nombre": "ACADEMIA CENTRAL DE SISTEMAS"}
+        vid = (
+            await cliente.post(
+                "/v1/admin/listas/importar",
+                json=_cuerpo_importar(colegio_datos=colegio_datos),
+            )
+        ).json()["version_id"]
+
+        # El revisor completa logo, direccion y contacto.
+        parche = {
+            "logo_url": "https://cdn.tukit.co/logos/aca.png",
+            "direccion": "Calle 1 # 2-3",
+            "contacto_email": "rector@aca.edu.co",
+        }
+        respuesta = await cliente.patch(f"/v1/admin/listas/{vid}/colegio", json=parche)
+        assert respuesta.status_code == 200
+
+        # Persistio sobre colegio_datos (merge, sin perder nombre/dane).
+        vista = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()
+        assert vista["colegio_datos"]["logo_url"] == "https://cdn.tukit.co/logos/aca.png"
+        assert vista["colegio_datos"]["direccion"] == "Calle 1 # 2-3"
+        assert vista["colegio_datos"]["nombre"] == "ACADEMIA CENTRAL DE SISTEMAS"
+
+        # Al aprobar, esos datos viajan en el evento colegio_verificado.
+        assert (await cliente.post(f"/v1/admin/listas/{vid}/cerrar")).status_code == 200
+        eventos = [f for f in await _bandeja_de(cliente) if f.tipo == "colegio_verificado"]
+        assert len(eventos) == 1
+        assert eventos[0].carga["logo_url"] == "https://cdn.tukit.co/logos/aca.png"
+        assert eventos[0].carga["contacto_email"] == "rector@aca.edu.co"
+
+    async def test_completar_un_aliado_sin_datos_de_colegio_es_409(self, cliente):
+        # Una version de colegio ya aliado no tiene datos que completar.
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
+            "version_id"
+        ]
+        respuesta = await cliente.patch(f"/v1/admin/listas/{vid}/colegio", json={"logo_url": "x"})
+        assert respuesta.status_code == 409
+
+    async def test_completar_una_version_ya_revisada_es_409(self, cliente):
+        colegio_datos = {"dane": "311001105731", "nombre": "ACADEMIA CENTRAL DE SISTEMAS"}
+        vid = (
+            await cliente.post(
+                "/v1/admin/listas/importar",
+                json=_cuerpo_importar(colegio_datos=colegio_datos),
+            )
+        ).json()["version_id"]
+        assert (await cliente.post(f"/v1/admin/listas/{vid}/cerrar")).status_code == 200
+        respuesta = await cliente.patch(f"/v1/admin/listas/{vid}/colegio", json={"logo_url": "x"})
+        assert respuesta.status_code == 409
+
+
+async def _bandeja_de(cliente) -> list:
+    motor = app.state.motor
+    async with motor.sesion() as db:
+        conexion = await db.connection()
+        return list(await conexion.execute(BANDEJA.select()))
 
 
 CAMPOS_CANDIDATO = {

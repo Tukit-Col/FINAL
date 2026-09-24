@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -181,6 +182,12 @@ class Repartidor:
         datos: dict[str, object] = {"turno": turno}
         if carga.get("pedido_id"):
             datos["pedido"] = str(carga["pedido_id"])[:8].upper()
+        # Para `kits_publicados`, el enlace de pre-compra: el acudiente revisa
+        # su kit antes de pagar. Lleva SOLO el trabajo_id opaco (el `agregado_id`
+        # del evento), nunca su correo ni celular. La base de la URL sale del
+        # entorno (`TUKIT_WEB_URL`) para no cablear el host del navegador aqui.
+        if fila.tipo == "kits_publicados":
+            datos["enlace"] = f"{_url_web()}/kits/{fila.agregado_id}"
         return datos
 
     async def _resolver_contacto(self, usuario_id: str) -> Contacto:
@@ -221,6 +228,15 @@ class Repartidor:
         await conexion.execute(
             update(bandeja).where(bandeja.c.id == id_fila).values(intentos=bandeja.c.intentos + 1)
         )
+
+
+def _url_web() -> str:
+    """La base de la app del acudiente, para armar el enlace de pre-compra.
+
+    Sale del entorno (`TUKIT_WEB_URL`); por omision el Next.js de desarrollo.
+    Se recorta la barra final para no duplicarla al concatenar la ruta.
+    """
+    return os.environ.get("TUKIT_WEB_URL", "http://localhost:3000").rstrip("/")
 
 
 def _motor_lectura(servicio: str) -> AsyncEngine:

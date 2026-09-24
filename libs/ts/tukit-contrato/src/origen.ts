@@ -13,12 +13,16 @@
 import type {
   AltaProducto,
   ColaAdmin,
+  Contacto,
   DecisionRevision,
+  HijoSubida,
   MarcarNoDisponible,
   PercepcionCruda,
+  Preferencias,
   ProductoDadoDeAlta,
   SinCoincidencia,
   SolicitudTrabajo,
+  SubidaListas,
   Trabajo,
   TrabajoAdmin,
   TrabajoCreado,
@@ -27,12 +31,15 @@ import type {
 import type {
   AltaLibro,
   AltaUtil,
+  AltaUtilManual,
   AprobarPropuesta,
   CandidatoTienda,
   Catalogo,
   Colegio,
   ColegioDetalle,
   ColegioEditable,
+  ColegioNuevoEditable,
+  DatosColegioNuevo,
   FiltrosListasAdmin,
   FiltrosProductos,
   ItemListaEditable,
@@ -115,6 +122,19 @@ export interface OrigenDatos {
   crearTrabajo(solicitud: SolicitudTrabajo, archivos?: ArchivoLista[]): Promise<TrabajoCreado>;
   consultarTrabajo(trabajoId: string): Promise<Trabajo>;
 
+  // §2 — la subida de listas de un acudiente (`POST /v1/listas/subir`). Percibe
+  // el PDF de cada hijo y lo importa como una version PENDIENTE, ligada al padre
+  // por su `contacto_referencia`. NO crea un trabajo: el padre espera la
+  // verificacion. El origen no sabe de HTTP, asi que recibe los archivos ya
+  // leidos (`ArchivoLista`) igual que `crearTrabajo`. El contacto viaja para
+  // que Identidad lo registre una vez; su correo/telefono nunca se guardan aca.
+  subirListas(
+    hijos: HijoSubida[],
+    archivos: ArchivoLista[],
+    contacto?: Contacto,
+    preferencias?: Preferencias,
+  ): Promise<SubidaListas>;
+
   // ASUMIDO — superficie de lectura de catalogo (1.1).
   catalogo(): Promise<Catalogo>;
   colegios(): Promise<Colegio[]>;
@@ -144,6 +164,7 @@ export interface OrigenDatos {
   colaPropuestas(concepto?: string): Promise<PropuestaCola[]>;
   buscarEnTienda(slug: string, consulta: string, cuantos?: number): Promise<CandidatoTienda[]>;
   altaUtil(cuerpo: AltaUtil): Promise<PropuestaEncolada>;
+  altaUtilManual(cuerpo: AltaUtilManual): Promise<PropuestaEncolada>;
   altaLibro(cuerpo: AltaLibro): Promise<PropuestaEncolada>;
   aprobarPropuesta(id: string, cuerpo: AprobarPropuesta): Promise<{ id: string; estado: string }>;
   rechazarPropuesta(
@@ -221,6 +242,17 @@ export interface OrigenDatos {
     grado: string,
     anioLectivo: number,
   ): Promise<{ version_id: string }>;
+
+  // Completar el perfil del colegio NUEVO de una version antes de aprobarla,
+  // para que se de de alta completo (logo, direccion, contacto...) y no solo
+  // con nombre y grado. Manda el `PATCH /v1/admin/listas/{version_id}/colegio`
+  // (solo los campos presentes; el backend hace merge sobre `colegio_datos`) y
+  // devuelve los datos ya combinados. Solo vale sobre una version SIN revisar y
+  // con un colegio nuevo por crear (el backend alza 409 si no).
+  completarColegioDeVersion(
+    versionId: string,
+    cambios: ColegioNuevoEditable,
+  ): Promise<DatosColegioNuevo>;
 
   // El detalle de un colegio y la edicion de su identidad. `colegio` lee
   // `GET /v1/colegios/{id}`; `editarColegio` manda el `PATCH /v1/colegios/{id}`

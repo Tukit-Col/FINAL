@@ -14,25 +14,23 @@ import { NIVELES, ETIQUETA_NIVEL } from "@tukit/contrato";
 import type { Nivel } from "@tukit/contrato";
 import { altaLibro, FalloCatalogo } from "@/lib/api-catalogo";
 import type { OpcionConcepto } from "./PanelReclasificar";
+import type { OpcionTienda } from "./SeccionesCatalogo";
 import styles from "./CatalogoSpa.module.css";
-
-// El backend guarda los libros bajo Panamericana (buscalibre no es surtidor en
-// vivo); se deja el selector por si otra tienda los surte.
-const TIENDAS: { slug: string; nombre: string }[] = [
-  { slug: "panamericana", nombre: "Panamericana" },
-  { slug: "grancentral", nombre: "Gran Central" },
-];
 
 interface Props {
   conceptos: OpcionConcepto[];
+  // Las tiendas registradas: se puede elegir una del listado o escribir otro
+  // slug (el backend valida contra la BD y responde `tienda_desconocida` si no
+  // existe). Buscalibre no surte en vivo, pero sí está registrada como tienda.
+  tiendas: OpcionTienda[];
   onEncolado: () => void;
 }
 
-export default function AltaLibro({ conceptos, onEncolado }: Props) {
+export default function AltaLibro({ conceptos, tiendas, onEncolado }: Props) {
   const [isbn, setIsbn] = useState("");
   const [titulo, setTitulo] = useState("");
   const [precio, setPrecio] = useState("");
-  const [slug, setSlug] = useState(TIENDAS[0]!.slug);
+  const [slug, setSlug] = useState(tiendas[0]?.slug ?? "panamericana");
   const [concepto, setConcepto] = useState("");
   const [nivel, setNivel] = useState<Nivel>("confiable");
 
@@ -51,7 +49,11 @@ export default function AltaLibro({ conceptos, onEncolado }: Props) {
   }, [isbn, titulo]);
 
   const puedeEncolar =
-    isbn.trim().length > 0 && titulo.trim().length > 0 && precioValido && concepto.length > 0;
+    isbn.trim().length > 0 &&
+    titulo.trim().length > 0 &&
+    precioValido &&
+    concepto.length > 0 &&
+    slug.trim().length > 0;
 
   async function encolar() {
     setError(null);
@@ -67,7 +69,7 @@ export default function AltaLibro({ conceptos, onEncolado }: Props) {
         isbn: isbn.trim(),
         titulo: titulo.trim(),
         precio: precioNum,
-        slug,
+        slug: slug.trim(),
         nivel,
       });
       setExito(`Encolado (${r.id_corto}). Revisalo en la cola para aprobarlo.`);
@@ -130,13 +132,20 @@ export default function AltaLibro({ conceptos, onEncolado }: Props) {
 
         <div className={styles.campo}>
           <label htmlFor="al-tienda">Tienda</label>
-          <select id="al-tienda" value={slug} onChange={(e) => setSlug(e.target.value)}>
-            {TIENDAS.map((t) => (
+          <input
+            id="al-tienda"
+            list="al-tiendas"
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+            placeholder="elegí o escribí un slug"
+          />
+          <datalist id="al-tiendas">
+            {tiendas.map((t) => (
               <option key={t.slug} value={t.slug}>
                 {t.nombre}
               </option>
             ))}
-          </select>
+          </datalist>
         </div>
 
         <div className={styles.campo}>
