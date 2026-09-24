@@ -12,7 +12,7 @@
 // Route Handlers de `/api/catalogo/**`.
 
 import { origenDeDatos } from "@tukit/contrato/servidor";
-import GestorCatalogo from "@/components/GestorCatalogo";
+import SeccionesCatalogo from "@/components/SeccionesCatalogo";
 import type { OpcionConcepto } from "@/components/PanelReclasificar";
 import styles from "./Catalogo.module.css";
 
@@ -29,7 +29,14 @@ export default async function PaginaCatalogo() {
   ]);
 
   const conceptos: OpcionConcepto[] = catalogo.conceptos
-    .map((c) => ({ codigo: c.codigo, nombre: c.nombre_canonico }))
+    .map((c) => ({
+      codigo: c.codigo,
+      nombre: c.nombre_canonico,
+      // El esquema de atributos viaja hasta el editor para pre-poblar las claves
+      // que el concepto declara (el caso del cuaderno con solo `materias`).
+      atributos_discriminantes: c.atributos_discriminantes,
+      atributos_descriptivos: c.atributos_descriptivos,
+    }))
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   const nombresPersonajes = personajes.map((p) => p.nombre);
@@ -61,7 +68,7 @@ export default async function PaginaCatalogo() {
         </dl>
       </header>
 
-      <GestorCatalogo
+      <SeccionesCatalogo
         paginaInicial={paginaInicial}
         conceptos={conceptos}
         personajes={nombresPersonajes}

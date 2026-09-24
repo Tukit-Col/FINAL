@@ -12,6 +12,12 @@ import styles from "./CatalogoSpa.module.css";
 export interface OpcionConcepto {
   codigo: string;
   nombre: string;
+  // El esquema de atributos que el concepto declara. Lo consume el editor para
+  // pre-poblar todas las claves (discriminantes + descriptivos), no solo las
+  // que el producto ya trae. El selector de re-clasificación no lo usa; por eso
+  // son opcionales y no rompen a los consumidores que solo arman `{codigo, nombre}`.
+  atributos_discriminantes?: string[];
+  atributos_descriptivos?: string[];
 }
 
 interface Props {
