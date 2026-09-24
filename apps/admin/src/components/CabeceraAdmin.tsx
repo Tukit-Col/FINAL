@@ -9,7 +9,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ClipboardList,
-  Inbox,
   LayoutDashboard,
   LifeBuoy,
   PackageSearch,
@@ -21,16 +20,15 @@ import styles from "./CabeceraAdmin.module.css";
 
 // El orden es el del flujo de trabajo: primero el pulso del negocio (Panel),
 // luego lo que hay que verificar (Cola) —donde ahora también se sube una lista
-// nueva, sin pantalla aparte—, la BD durable de colegios y listas (Colegios),
-// lo que hay en catálogo (Catálogo), las peticiones de acudientes
-// (Sugerencias), lo que hay que mover (Logística) y lo que hay que responder
-// (Tickets).
+// nueva, sin pantalla aparte, y donde una lista de acudiente trae su colegio y
+// grado para crearlos al aprobar—, la BD durable de colegios y listas
+// (Colegios), lo que hay en catálogo (Catálogo), lo que hay que mover
+// (Logística) y lo que hay que responder (Tickets).
 const SECCIONES = [
   { href: "/", etiqueta: "Panel", Icono: LayoutDashboard },
   { href: "/cola", etiqueta: "Cola", Icono: ClipboardList },
   { href: "/colegios", etiqueta: "Colegios", Icono: School },
   { href: "/catalogo", etiqueta: "Catálogo", Icono: PackageSearch },
-  { href: "/sugerencias", etiqueta: "Sugerencias", Icono: Inbox },
   { href: "/logistica", etiqueta: "Logística", Icono: Truck },
   { href: "/tickets", etiqueta: "Tickets", Icono: LifeBuoy },
 ] as const;

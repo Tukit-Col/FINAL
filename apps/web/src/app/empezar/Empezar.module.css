@@ -279,6 +279,47 @@
   color: var(--color-text-muted);
 }
 
+/* "Cambiar" el colegio ya elegido (dentro de la tarjeta activa del buscador de
+ * directorio): un enlace discreto alineado a la derecha, no un botón macizo. */
+.cambiarColegio {
+  margin-left: auto;
+  flex: none;
+  padding: 6px var(--espacio-3);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: transparent;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+}
+
+.cambiarColegio:hover {
+  background: var(--color-white);
+}
+
+/* "No lo encuentro: usar tal cual" — la salida a escribir el colegio a mano
+ * cuando no está en el directorio. Va al final de la lista de resultados, con
+ * el mismo alto de fila que una tarjeta pero en tono de acción secundaria. */
+.escribirColegio {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  width: 100%;
+  padding: var(--espacio-3);
+  text-align: left;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: var(--clay-cielo-bg);
+  border-radius: var(--radius-md);
+  box-shadow: var(--clay-shadow-sm);
+  cursor: pointer;
+}
+
+.escribirColegio:hover {
+  transform: translateY(-1px);
+}
+
 /* --------------------------------------------------------------- Grado */
 
 .gradoBloque {

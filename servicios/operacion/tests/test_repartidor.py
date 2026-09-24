@@ -192,6 +192,25 @@ async def test_notificacion_y_contenido_no_llevan_contacto(motor_operacion, moto
     assert CELULAR not in texto
 
 
+async def test_kits_publicados_lleva_el_enlace_de_precompra_sin_contacto(
+    motor_operacion, motor_origen, monkeypatch
+):
+    monkeypatch.setenv("TUKIT_WEB_URL", "https://tukit.co")
+    engine, bandeja, trabajo = motor_origen
+    trabajo_id = uuid.uuid4()
+    await _sembrar_kits_publicados(engine, bandeja, trabajo, trabajo_id)
+
+    notificador = NotificadorFalso()
+    await _repartidor(motor_operacion, engine, notificador, IdentidadContacto()).pasada()
+
+    texto = notificador.enviados[0]["texto"]
+    # El aviso trae el enlace de pre-compra con el trabajo_id opaco...
+    assert f"https://tukit.co/kits/{trabajo_id}" in texto
+    # ...y ni el enlace ni el resto del cuerpo repiten el contacto.
+    assert CORREO not in texto
+    assert CELULAR not in texto
+
+
 async def test_pedido_pagado_saca_el_usuario_de_la_carga(motor_operacion, motor_origen):
     engine, bandeja, trabajo = motor_origen
     pedido_id = uuid.uuid4()

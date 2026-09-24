@@ -1,8 +1,8 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Check, School, Send } from "lucide-react";
+import { Search, Check, School, Pencil } from "lucide-react";
 import {
   formatearTamano,
   validarArchivo,
@@ -13,7 +13,7 @@ import {
   type Pesos,
   type SolicitudTrabajo,
 } from "@tukit/contrato";
-import { crearTrabajo, sugerirColegio, FalloApi } from "@/lib/api-navegador";
+import { crearTrabajo, subirListas, FalloApi } from "@/lib/api-navegador";
 import SelectorPersonaje from "./SelectorPersonaje";
 import styles from "./Empezar.module.css";
 
@@ -21,17 +21,19 @@ type Entrada = "lista_oficial" | "archivo";
 
 interface HijoFormulario {
   referencia: string;
+  // La ruta "lista oficial" elige un colegio ALIADO por su id. La ruta "subir
+  // archivo" designa el colegio de otra forma (no es aliado todavía): con el
+  // DANE del directorio de Bogotá, o solo con el nombre escrito a mano. El
+  // backend deriva el `colegio_id` estable de lo que llegue; aquí se guardan las
+  // tres piezas y se manda la que corresponda según la ruta.
   colegioId: string;
+  colegioDane: string;
+  colegioNombre: string;
   grado: string;
   entrada: Entrada;
   archivo: File | null;
   errorArchivo: string | null;
   personajes: string;
-  // Estado de la sugerencia de colegio (solo en la ruta "subir archivo", cuando
-  // el par no es aliado todavía). null = sin enviar; luego el tarea_id.
-  sugerido: string | null;
-  sugiriendo: boolean;
-  errorSugerencia: string | null;
 }
 
 // El paso 3 no es una encuesta socioeconómica: es la ÚNICA palanca del
@@ -87,14 +89,13 @@ function hijoVacio(indice: number): HijoFormulario {
   return {
     referencia: `hijo-${indice}`,
     colegioId: "",
+    colegioDane: "",
+    colegioNombre: "",
     grado: "",
     entrada: "lista_oficial",
     archivo: null,
     errorArchivo: null,
     personajes: "",
-    sugerido: null,
-    sugiriendo: false,
-    errorSugerencia: null,
   };
 }
 
@@ -189,6 +190,151 @@ function SelectorColegio({
   );
 }
 
+// ------------------------------------------ Buscador del directorio de Bogotá
+//
+// Una entrada del directorio estático de colegios de Bogotá
+// (`/directorio-colegios.json`, ~3k colegios). NO es un colegio aliado: es la
+// guía oficial para que el acudiente designe SU colegio al subir el archivo,
+// aunque Tukit todavía no lo tenga. La búsqueda es del lado del cliente sobre el
+// JSON ya cargado; no pega a ningún servicio (decisión: directorio buscable, no
+// sembrado).
+interface EntradaDirectorio {
+  dane: string;
+  nombre: string;
+  localidad: string;
+}
+
+// El directorio se carga UNA vez y se comparte entre todos los hijos: es el
+// mismo JSON estático. Se memoiza en un módulo para no re-descargar 300 KB por
+// cada `<BuscadorDirectorio>` que se monte.
+let directorioPromesa: Promise<EntradaDirectorio[]> | null = null;
+function cargarDirectorio(): Promise<EntradaDirectorio[]> {
+  if (!directorioPromesa) {
+    directorioPromesa = fetch("/directorio-colegios.json")
+      .then((r) => (r.ok ? (r.json() as Promise<EntradaDirectorio[]>) : []))
+      .catch(() => []);
+  }
+  return directorioPromesa;
+}
+
+function BuscadorDirectorio({
+  dane,
+  nombre,
+  onElegir,
+  onEscribir,
+}: {
+  dane: string;
+  nombre: string;
+  // Eligió una entrada del directorio: viaja el DANE (deriva el id) y el nombre.
+  onElegir: (entrada: { dane: string; nombre: string }) => void;
+  // Lo escribió a mano porque no está en el directorio: solo el nombre.
+  onEscribir: (nombre: string) => void;
+}) {
+  const [directorio, setDirectorio] = useState<EntradaDirectorio[]>([]);
+  const [busqueda, setBusqueda] = useState("");
+  // Cargar el directorio al primer foco/tecleo, no al montar: la mayoría de los
+  // hogares usa la lista aliada y nunca abre esta ruta.
+  const asegurarCargado = useCallback(() => {
+    if (directorio.length === 0) cargarDirectorio().then(setDirectorio);
+  }, [directorio.length]);
+
+  const q = busqueda.trim().toLowerCase();
+  const resultados = useMemo(() => {
+    if (q.length < 3) return [];
+    return directorio.filter((e) => e.nombre.toLowerCase().includes(q)).slice(0, 30);
+  }, [directorio, q]);
+
+  // Ya eligió (por directorio o a mano): se muestra el elegido con opción de
+  // cambiarlo, en vez de la lista, para que el paso quede claramente resuelto.
+  if (nombre) {
+    return (
+      <div className={styles.colegioBloque}>
+        <span className={styles.campoRotulo}>Colegio</span>
+        <div className={`${styles.tarjetaColegio} ${styles.colegioActivo}`}>
+          <span className={styles.logoColegio} aria-hidden="true">
+            <span className={styles.logoIniciales}>{iniciales(nombre)}</span>
+          </span>
+          <span className={styles.colegioTexto}>
+            <span className={styles.colegioNombre}>{nombre}</span>
+            <span className={styles.colegioMeta}>
+              {dane ? `Directorio de Bogotá · DANE ${dane}` : "Escrito a mano · lo verificamos nosotros"}
+            </span>
+          </span>
+          <button
+            type="button"
+            className={styles.cambiarColegio}
+            onClick={() => {
+              onEscribir("");
+              setBusqueda("");
+            }}
+          >
+            Cambiar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.colegioBloque}>
+      <span className={styles.campoRotulo}>Colegio</span>
+      <div className={styles.buscador}>
+        <Search size={16} strokeWidth={2.4} aria-hidden="true" />
+        <input
+          type="text"
+          value={busqueda}
+          onFocus={asegurarCargado}
+          onChange={(e) => {
+            asegurarCargado();
+            setBusqueda(e.target.value);
+          }}
+          placeholder="Busca tu colegio en el directorio de Bogotá…"
+          aria-label="Buscar colegio en el directorio de Bogotá"
+        />
+      </div>
+      {q.length >= 3 && (
+        <div className={styles.listaColegios} role="listbox" aria-label="Colegios del directorio">
+          {resultados.map((e) => (
+            <button
+              key={`${e.dane}`}
+              type="button"
+              role="option"
+              aria-selected="false"
+              className={styles.tarjetaColegio}
+              onClick={() => onElegir({ dane: e.dane, nombre: e.nombre })}
+            >
+              <span className={styles.logoColegio} aria-hidden="true">
+                <span className={styles.logoIniciales}>{iniciales(e.nombre)}</span>
+              </span>
+              <span className={styles.colegioTexto}>
+                <span className={styles.colegioNombre}>{e.nombre}</span>
+                <span className={styles.colegioMeta}>{e.localidad}</span>
+              </span>
+            </button>
+          ))}
+          {/* No está en el directorio: se escribe a mano. El backend deriva el
+              id del nombre normalizado, así que dos acudientes que escriban el
+              mismo colegio convergen a la misma versión. */}
+          <button
+            type="button"
+            className={styles.escribirColegio}
+            onClick={() => onEscribir(busqueda.trim())}
+          >
+            <Pencil size={15} strokeWidth={2.4} aria-hidden="true" />
+            No lo encuentro: usar “{busqueda.trim()}” tal cual
+          </button>
+        </div>
+      )}
+      {q.length > 0 && q.length < 3 && (
+        <p className={styles.sinColegios}>
+          <School size={18} strokeWidth={2} aria-hidden="true" />
+          Escribe al menos tres letras del nombre.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function FormularioEmpezar({
   colegios,
   surtidos,
@@ -224,38 +370,19 @@ export default function FormularioEmpezar({
     });
   }
 
-  async function sugerir(indice: number) {
-    const hijo = hijos[indice];
-    if (!hijo || !hijo.colegioId || !hijo.grado || hijo.sugiriendo) return;
-    cambiar(indice, { sugiriendo: true, errorSugerencia: null });
-    try {
-      const { tarea_id } = await sugerirColegio({
-        colegioId: hijo.colegioId,
-        grado: hijo.grado,
-        anioLectivo: new Date().getFullYear(),
-        archivo: hijo.archivo,
-      });
-      cambiar(indice, { sugerido: tarea_id, sugiriendo: false });
-    } catch (causa) {
-      cambiar(indice, {
-        sugiriendo: false,
-        errorSugerencia:
-          causa instanceof FalloApi
-            ? causa.message
-            : "No pudimos enviar la sugerencia. Intenta de nuevo.",
-      });
-    }
-  }
+  // Un hijo está completo según su ruta: la lista aliada necesita el `colegioId`;
+  // la subida necesita el nombre del colegio (del directorio o a mano) y el
+  // archivo. El grado siempre.
+  const hijoListo = useCallback((hijo: HijoFormulario) => {
+    if (!hijo.grado) return false;
+    if (hijo.entrada === "lista_oficial") return Boolean(hijo.colegioId);
+    return Boolean(hijo.colegioNombre) && hijo.archivo !== null;
+  }, []);
 
   const listo =
     correo.trim().length > 3 &&
     celular.trim().length > 6 &&
-    hijos.every(
-      (hijo) =>
-        hijo.colegioId &&
-        hijo.grado &&
-        (hijo.entrada === "lista_oficial" || hijo.archivo !== null),
-    );
+    hijos.every(hijoListo);
 
   async function enviar(evento: React.FormEvent) {
     evento.preventDefault();
@@ -276,32 +403,78 @@ export default function FormularioEmpezar({
     const elegida =
       PRIORIDADES.find((p) => p.clave === prioridad) ?? PRIORIDADES[1]!;
 
-    const solicitud: SolicitudTrabajo = {
-      contacto: { correo: correo.trim(), celular: celular.trim() },
-      hijos: hijos.map<HijoSolicitud>((hijo) => ({
-        referencia: hijo.referencia,
-        colegio_id: hijo.colegioId,
-        grado: hijo.grado,
-      })),
-      preferencias: {
-        // Lo que el recomendador de verdad lee: pesos + disposición a pagar de
-        // más. El tope por hijo salió del formulario a pedido del acudiente; el
-        // encuadre del paso 3 ya es "hasta dónde estirar el bolsillo".
-        pesos: elegida.pesos,
-        disposicion_sobreprecio: elegida.disposicion_sobreprecio,
-        ...(Object.keys(personajePorHijo).length > 0
-          ? { personaje_por_hijo: personajePorHijo }
-          : {}),
-      },
+    const contacto = { correo: correo.trim(), celular: celular.trim() };
+
+    // Las preferencias del paso 3 son del HOGAR: las mismas viajan por las dos
+    // rutas. En la verificada las lee el recomendador ya; en la subida quedan
+    // guardadas con la tarea para armar el kit cuando un administrador apruebe.
+    const preferencias = {
+      pesos: elegida.pesos,
+      disposicion_sobreprecio: elegida.disposicion_sobreprecio,
+      ...(Object.keys(personajePorHijo).length > 0
+        ? { personaje_por_hijo: personajePorHijo }
+        : {}),
     };
 
-    const archivos = hijos
-      .filter((hijo) => hijo.entrada === "archivo" && hijo.archivo)
-      .map((hijo) => ({ referencia: hijo.referencia, archivo: hijo.archivo as File }));
+    // El hogar se parte en dos rutas distintas (decisión "wait-screen wins"):
+    //   • Los hijos con lista VERIFICADA del colegio disparan `crearTrabajo` y
+    //     salen con un kit al vuelo (ruta rápida, sin revisión).
+    //   • Los hijos que suben el PDF disparan `subirListas`: cada archivo se
+    //     importa como una versión PENDIENTE de su (colegio, grado) y el
+    //     acudiente espera a que un administrador la apruebe. No hay kit todavía.
+    // Si hay al menos un PDF pendiente, el hogar aterriza en la pantalla de
+    // verificación (`/recibimos`) aunque algunos kits ya estén listos.
+    const hijosVerificados = hijos.filter((hijo) => hijo.entrada === "lista_oficial");
+    const hijosArchivo = hijos.filter((hijo) => hijo.entrada === "archivo" && hijo.archivo);
 
     try {
-      const creado = await crearTrabajo(solicitud, archivos);
-      router.push(`/esperando/${creado.trabajo_id}`);
+      let trabajoInstantaneo: string | null = null;
+
+      if (hijosVerificados.length > 0) {
+        const solicitud: SolicitudTrabajo = {
+          contacto,
+          hijos: hijosVerificados.map<HijoSolicitud>((hijo) => ({
+            referencia: hijo.referencia,
+            colegio_id: hijo.colegioId,
+            grado: hijo.grado,
+          })),
+          // Lo que el recomendador de verdad lee: pesos + disposición a pagar
+          // de más. El encuadre del paso 3 es "hasta dónde estirar el bolsillo".
+          preferencias,
+        };
+        const creado = await crearTrabajo(solicitud, []);
+        trabajoInstantaneo = creado.trabajo_id;
+      }
+
+      if (hijosArchivo.length > 0) {
+        const resultado = await subirListas(
+          hijosArchivo.map((hijo) => ({
+            referencia: hijo.referencia,
+            // El colegio se designa como llegó: DANE del directorio (+ nombre),
+            // o solo el nombre escrito a mano. El backend deriva de ahí el
+            // `colegio_id` estable y, al aprobar, crea la identidad del colegio.
+            ...(hijo.colegioDane
+              ? { colegio_dane: hijo.colegioDane, colegio_nombre: hijo.colegioNombre }
+              : { colegio_nombre: hijo.colegioNombre }),
+            grado: hijo.grado,
+          })),
+          hijosArchivo.map((hijo) => ({
+            referencia: hijo.referencia,
+            archivo: hijo.archivo as File,
+          })),
+          contacto,
+          preferencias,
+        );
+        // Wait-screen wins: aunque haya un kit listo, el hogar va a la pantalla
+        // de verificación, con el kit instantáneo enlazado si existe.
+        const parametros = new URLSearchParams({ pendientes: String(resultado.subidas.length) });
+        if (trabajoInstantaneo) parametros.set("trabajo", trabajoInstantaneo);
+        router.push(`/recibimos?${parametros.toString()}`);
+        return;
+      }
+
+      // Hogar solo con listas verificadas: la espera de siempre.
+      router.push(`/esperando/${trabajoInstantaneo}`);
     } catch (causa) {
       if (causa instanceof FalloApi) {
         setError(causa.message);
@@ -350,53 +523,11 @@ export default function FormularioEmpezar({
                 )}
               </legend>
 
-              <SelectorColegio
-                colegios={colegios}
-                valor={hijo.colegioId}
-                onElegir={(colegioId) =>
-                  cambiar(indice, { colegioId, grado: "", sugerido: null, errorSugerencia: null })
-                }
-              />
-
-              {colegio &&
-                (() => {
-                  // La ruta "lista oficial" solo puede usar grados VERIFICADOS
-                  // (los únicos con la ruta rápida a optimización). La ruta
-                  // "subir archivo" no depende de eso: el grado sale del PDF que
-                  // el acudiente manda, así que ahí se ofrecen todos los grados
-                  // canónicos —es lo que hace usable un colegio sin lista
-                  // verificada todavía, que es justo cuando se sugiere—.
-                  const grados =
-                    hijo.entrada === "archivo" ? GRADOS_CANONICOS : colegio.grados;
-                  if (grados.length === 0) return null;
-                  return (
-                    <div className={styles.gradoBloque}>
-                      <span className={styles.campoRotulo}>Grado</span>
-                      <div
-                        className={styles.gradoChips}
-                        role="radiogroup"
-                        aria-label="Elige el grado"
-                      >
-                        {grados.map((g) => {
-                          const activo = hijo.grado === g;
-                          return (
-                            <button
-                              key={g}
-                              type="button"
-                              role="radio"
-                              aria-checked={activo}
-                              className={`${styles.chipGrado} ${activo ? styles.chipGradoActivo : ""}`}
-                              onClick={() => cambiar(indice, { grado: g })}
-                            >
-                              {g}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })()}
-
+              {/* La ruta se elige PRIMERO: cambia cómo se designa el colegio.
+                  "Usar la lista que ya tiene el colegio" busca entre los aliados;
+                  "subir archivo" busca en el directorio de Bogotá (o a mano) un
+                  colegio que quizá aún no es aliado. Al cambiar de ruta se limpia
+                  el colegio y el grado: no se arrastran de una a la otra. */}
               <div className={styles.entradas} role="group" aria-label="Cómo nos das la lista">
                 {(
                   [
@@ -415,12 +546,80 @@ export default function FormularioEmpezar({
                       name={`entrada-${hijo.referencia}`}
                       value={valor}
                       checked={hijo.entrada === valor}
-                      onChange={() => cambiar(indice, { entrada: valor, grado: "" })}
+                      onChange={() =>
+                        cambiar(indice, {
+                          entrada: valor,
+                          grado: "",
+                          colegioId: "",
+                          colegioDane: "",
+                          colegioNombre: "",
+                        })
+                      }
                     />
                     {etiqueta}
                   </label>
                 ))}
               </div>
+
+              {hijo.entrada === "lista_oficial" ? (
+                <SelectorColegio
+                  colegios={colegios}
+                  valor={hijo.colegioId}
+                  onElegir={(colegioId) => cambiar(indice, { colegioId, grado: "" })}
+                />
+              ) : (
+                <BuscadorDirectorio
+                  dane={hijo.colegioDane}
+                  nombre={hijo.colegioNombre}
+                  onElegir={({ dane, nombre }) =>
+                    cambiar(indice, { colegioDane: dane, colegioNombre: nombre, grado: "" })
+                  }
+                  onEscribir={(nombre) =>
+                    cambiar(indice, { colegioDane: "", colegioNombre: nombre, grado: "" })
+                  }
+                />
+              )}
+
+              {(() => {
+                // La ruta "lista oficial" solo puede usar grados VERIFICADOS del
+                // aliado (los únicos con la ruta rápida a optimización). La ruta
+                // "subir archivo" ofrece todos los grados canónicos una vez que
+                // hay un colegio designado: el grado real lo confirma el PDF, y
+                // esto es lo que hace usable un colegio sin lista verificada.
+                const grados =
+                  hijo.entrada === "archivo"
+                    ? hijo.colegioNombre
+                      ? GRADOS_CANONICOS
+                      : []
+                    : (colegio?.grados ?? []);
+                if (grados.length === 0) return null;
+                return (
+                  <div className={styles.gradoBloque}>
+                    <span className={styles.campoRotulo}>Grado</span>
+                    <div
+                      className={styles.gradoChips}
+                      role="radiogroup"
+                      aria-label="Elige el grado"
+                    >
+                      {grados.map((g) => {
+                        const activo = hijo.grado === g;
+                        return (
+                          <button
+                            key={g}
+                            type="button"
+                            role="radio"
+                            aria-checked={activo}
+                            className={`${styles.chipGrado} ${activo ? styles.chipGradoActivo : ""}`}
+                            onClick={() => cambiar(indice, { grado: g })}
+                          >
+                            {g}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {hijo.entrada === "archivo" && (
                 <div className={styles.zonaArchivo}>
@@ -459,43 +658,17 @@ export default function FormularioEmpezar({
                     </p>
                   )}
 
-                  {/* Sugerir el colegio+grado al backlog del administrador: el PDF
-                      que subiste es la mejor semilla de onboarding, así que en vez
-                      de quedarse solo en tu pedido lo mandamos a que lo verifiquen
-                      y quede como lista aliada para el próximo acudiente. */}
-                  <div className={styles.sugerencia}>
-                    {hijo.sugerido ? (
-                      <p className={styles.sugerenciaOk} role="status">
-                        <Check size={16} strokeWidth={3} aria-hidden="true" />
-                        Listo: le mandamos tu lista al equipo. La revisamos y queda
-                        como lista verificada del colegio.
-                      </p>
-                    ) : (
-                      <>
-                        <div className={styles.sugerenciaTexto}>
-                          <strong>¿Quieres que quede como lista del colegio?</strong>
-                          <span>
-                            Mándanos este colegio y grado con tu archivo: lo revisamos
-                            a mano y lo dejamos verificado para todos.
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          className={styles.botonSugerir}
-                          disabled={!hijo.colegioId || !hijo.grado || hijo.sugiriendo}
-                          onClick={() => sugerir(indice)}
-                        >
-                          <Send size={15} strokeWidth={2.6} aria-hidden="true" />
-                          {hijo.sugiriendo ? "Enviando…" : "Sugerir mi colegio"}
-                        </button>
-                      </>
-                    )}
-                    {hijo.errorSugerencia && (
-                      <p className={styles.errorCampo} role="alert">
-                        {hijo.errorSugerencia}
-                      </p>
-                    )}
-                  </div>
+                  {/* No hay que "sugerir" nada aparte: el archivo que subes ES la
+                      semilla. Lo revisamos, armamos tu kit y de paso el colegio y
+                      el grado quedan verificados para el próximo acudiente del
+                      mismo colegio. Un solo paso, no dos. */}
+                  {hijo.colegioNombre && hijo.grado && (
+                    <p className={styles.sugerenciaOk} role="status">
+                      <Check size={16} strokeWidth={3} aria-hidden="true" />
+                      Con esto revisamos tu lista, armamos tu kit y dejamos {hijo.colegioNombre} ·{" "}
+                      {hijo.grado} verificado para los demás.
+                    </p>
+                  )}
                 </div>
               )}
 

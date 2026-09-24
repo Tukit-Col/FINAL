@@ -24,19 +24,21 @@ from __future__ import annotations
 
 import argparse
 import base64
+import json
 import re
 import uuid
 from typing import Annotated, Any
 
 from fastapi import FastAPI, Query, Request
 from pydantic import BaseModel, Field
+from tukit_comun import derivar
 from tukit_comun.bd import crear_motor
 from tukit_comun.http import ErrorDominio, crear_app
 
 from . import gemini, metricas, paginas, trabajos
 from .modelos import EstadoResolucion, EstadoTrabajo
 from .percepcion import LeerPagina, Percepcion, Renderizar, percibir
-from .remoto import ClienteCatalogo, url_catalogo, url_identidad
+from .remoto import ClienteCatalogo, ClienteIdentidad, url_catalogo, url_identidad
 
 PUERTO_POR_OMISION = 8013
 
@@ -237,13 +239,33 @@ async def reintentar(trabajo_id: uuid.UUID) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def _leer_multipart(cuerpo: bytes, tipo_contenido: str) -> tuple[dict[str, str], dict[str, bytes]]:
-    """Separa campos de archivos de un `multipart/form-data`.
+class ParteMultipart:
+    """Una parte de un `multipart/form-data`: su nombre, si es archivo y bytes.
+
+    Se conserva el ORDEN y la REPETICION de las partes (una subida de varios
+    hijos manda varios `archivo`/`referencia` con el mismo nombre), cosa que el
+    aplanado a diccionario de `_leer_multipart` pierde a proposito para el
+    onboarding de un solo PDF.
+    """
+
+    __slots__ = ("nombre", "es_archivo", "contenido")
+
+    def __init__(self, nombre: str, es_archivo: bool, contenido: bytes) -> None:
+        self.nombre = nombre
+        self.es_archivo = es_archivo
+        self.contenido = contenido
+
+    def texto(self) -> str:
+        return self.contenido.decode("utf-8", "replace")
+
+
+def _partes_multipart(cuerpo: bytes, tipo_contenido: str) -> list[ParteMultipart]:
+    """Trocea un `multipart/form-data` en partes, en orden y con repeticiones.
 
     Se parsea a mano y no con `UploadFile`/`Form` de FastAPI a proposito: esos
-    exigen `python-multipart` en el arranque y este servicio no lo trae. El
-    onboarding sube un solo PDF y un punado de campos de texto, asi que un
-    parseo por frontera alcanza y no arrastra una dependencia nueva.
+    exigen `python-multipart` en el arranque y este servicio no lo trae. Un
+    parseo por frontera alcanza para el punado de campos y archivos que suben
+    el onboarding y la subida de listas, sin arrastrar una dependencia nueva.
     """
     marca = "boundary="
     posicion = tipo_contenido.find(marca)
@@ -252,13 +274,12 @@ def _leer_multipart(cuerpo: bytes, tipo_contenido: str) -> tuple[dict[str, str],
     frontera = tipo_contenido[posicion + len(marca) :].strip().strip('"')
     separador = b"--" + frontera.encode()
 
-    campos: dict[str, str] = {}
-    archivos: dict[str, bytes] = {}
-    for parte in cuerpo.split(separador):
-        parte = parte.strip(b"\r\n")
-        if not parte or parte == b"--":
+    partes: list[ParteMultipart] = []
+    for bruto in cuerpo.split(separador):
+        bruto = bruto.strip(b"\r\n")
+        if not bruto or bruto == b"--":
             continue
-        cabeza, _, contenido = parte.partition(b"\r\n\r\n")
+        cabeza, _, contenido = bruto.partition(b"\r\n\r\n")
         disposicion = ""
         for linea in cabeza.split(b"\r\n"):
             if linea.lower().startswith(b"content-disposition"):
@@ -266,10 +287,24 @@ def _leer_multipart(cuerpo: bytes, tipo_contenido: str) -> tuple[dict[str, str],
         nombre = re.search(r'name="([^"]*)"', disposicion)
         if not nombre:
             continue
-        if 'filename="' in disposicion:
-            archivos[nombre.group(1)] = contenido
+        partes.append(ParteMultipart(nombre.group(1), 'filename="' in disposicion, contenido))
+    return partes
+
+
+def _leer_multipart(cuerpo: bytes, tipo_contenido: str) -> tuple[dict[str, str], dict[str, bytes]]:
+    """Separa campos de archivos de un `multipart/form-data`, aplanado a dict.
+
+    Es la vista que le sirve al onboarding, que sube un solo PDF y un punado de
+    campos de texto: la ultima parte de cada nombre gana. Para una subida con
+    partes repetidas usa `_partes_multipart`, que conserva orden y repeticion.
+    """
+    campos: dict[str, str] = {}
+    archivos: dict[str, bytes] = {}
+    for parte in _partes_multipart(cuerpo, tipo_contenido):
+        if parte.es_archivo:
+            archivos[parte.nombre] = parte.contenido
         else:
-            campos[nombre.group(1)] = contenido.decode("utf-8", "replace")
+            campos[parte.nombre] = parte.texto()
     return campos, archivos
 
 
@@ -279,6 +314,262 @@ def _catalogo() -> Any:
     if cliente is None:
         cliente = ClienteCatalogo()
     return cliente
+
+
+def _identidad() -> Any:
+    """El cliente de Identidad, inyectable por `app.state` para las pruebas."""
+    cliente = getattr(app.state, "identidad", None)
+    if cliente is None:
+        cliente = ClienteIdentidad()
+    return cliente
+
+
+def _items_desde_percepcion(percepcion: Percepcion) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """De una percepcion aceptada a `(items, percepcion_cruda)` para el catalogo.
+
+    Mismo mapeo que el onboarding: un `descripcion` es el `texto_original` que
+    el catalogo va a emparejar, una `cantidad` en null se vuelve 1, y la
+    evidencia por pagina agrupa el crudo estructurado que si viaja.
+    """
+    items = [
+        {
+            "texto_original": item.descripcion,
+            "cantidad": item.cantidad or 1,
+            "confianza": item.confianza,
+        }
+        for item in percepcion.items
+    ]
+    percepcion_cruda = [
+        {
+            "pagina": numero,
+            "crudo": [item.model_dump() for item in percepcion.items] if numero == 1 else [],
+        }
+        for numero in range(1, percepcion.paginas + 1)
+    ]
+    return items, percepcion_cruda
+
+
+class HijoSubida(BaseModel):
+    """Un hijo de una subida de listas: a que (colegio, grado) va su PDF.
+
+    El colegio se designa de UNA de tres formas, y el backend deriva de ellas un
+    `colegio_id` estable (`colegio_resuelto`):
+      • `colegio_id`: un colegio ALIADO ya conocido (ruta "lista_oficial").
+      • `colegio_dane` (+ `colegio_nombre`): elegido del directorio de Bogota al
+        subir el archivo; el colegio aun no existe en Tukit y nacera cuando un
+        administrador apruebe. El id se deriva del DANE con el contrato compartido.
+      • solo `colegio_nombre`: escrito a mano porque no estaba en el directorio;
+        el id se deriva del nombre normalizado para que dos acudientes que
+        escriban el mismo colegio converjan a la misma version.
+    """
+
+    referencia: str = Field(min_length=1, max_length=64)
+    colegio_id: str | None = Field(default=None, max_length=64)
+    colegio_dane: str | None = Field(default=None, max_length=32)
+    colegio_nombre: str | None = Field(default=None, max_length=256)
+    grado: str = Field(min_length=1, max_length=32)
+    anio_lectivo: int | None = Field(default=None, ge=2020, le=2100)
+
+    def resolver_colegio(self) -> tuple[str, dict[str, Any] | None]:
+        """El `colegio_id` estable y, si el colegio aun no existe en Tukit, los
+        datos con que la aprobacion creara su identidad.
+
+        Un `colegio_id` explicito (aliado conocido) no trae datos: no hay
+        identidad que crear. El directorio y el texto a mano SI los traen, para
+        que la cola muestre el nombre y el poller de Identidad haga el upsert.
+        """
+        if self.colegio_id:
+            return self.colegio_id, None
+        nombre = (self.colegio_nombre or "").strip()
+        if self.colegio_dane:
+            colegio_id = str(derivar("colegio", self.colegio_dane))
+            datos: dict[str, Any] = {"dane": self.colegio_dane, "nombre": nombre or None}
+            return colegio_id, datos
+        if nombre:
+            # Nombre normalizado (espacios colapsados, minusculas) como llave, para
+            # que "  Gimnasio  Del Norte " y "gimnasio del norte" sean el mismo.
+            clave = " ".join(nombre.lower().split())
+            colegio_id = str(derivar("colegio", "libre", clave))
+            return colegio_id, {"dane": None, "nombre": " ".join(nombre.split())}
+        raise ErrorDominio(
+            "colegio_requerido",
+            "Falta el colegio del hijo: elige uno o escribe su nombre.",
+            estado=422,
+            campo="colegio",
+        )
+
+
+@app.post(
+    "/v1/listas/subir",
+    tags=["listas"],
+    status_code=202,
+    summary="§2: un acudiente sube el PDF de cada hijo; cada uno queda como version pendiente",
+)
+async def subir_listas(peticion: Request) -> dict[str, Any]:
+    """La puerta del acudiente: PDFs entran, versiones PENDIENTES salen.
+
+    A diferencia de `POST /v1/trabajos` (que arma un kit desechable) y de
+    `POST /v1/admin/onboarding` (la subida de un administrador, un PDF por vez),
+    esto percibe el PDF de CADA hijo y lo importa al catalogo como una version
+    SIN revisar de esa (colegio, grado), ligada al padre por su
+    `contacto_referencia` —el `usuario_id` que Identidad emite; nunca su correo
+    ni telefono—. No se crea ningun trabajo: el padre espera a que un
+    administrador apruebe la version, y recien ahi se arma su kit.
+
+    Es todo o nada por hogar: si la percepcion rechaza el archivo de un hijo
+    (varios grados, pagina a medias, ilegible) no se importa NADA y se responde
+    422 con el codigo del rechazo, sin devolver jamas el contenido subido. Dos
+    hijos del mismo (colegio, grado) comparten una sola version: se importa una
+    vez para no pisar una lista con la otra.
+    """
+    tipo = peticion.headers.get("content-type", "")
+    if "multipart/form-data" not in tipo:
+        raise ErrorDominio("multipart_invalido", "Sube las listas como multipart/form-data.", estado=422)
+
+    partes = _partes_multipart(await peticion.body(), tipo)
+    hijos_crudo = ""
+    contacto_crudo = ""
+    preferencias_crudo = ""
+    # `archivo` y `referencia` llegan como partes repetidas y APAREADAS por
+    # orden (cada `archivo` seguido de su `referencia`), igual que las escribe
+    # `crearTrabajo`/el navegador. Se recogen en orden y se aparean por indice.
+    archivos_orden: list[bytes] = []
+    referencias_orden: list[str] = []
+    for parte in partes:
+        if parte.nombre == "hijos" and not parte.es_archivo:
+            hijos_crudo = parte.texto()
+        elif parte.nombre == "contacto" and not parte.es_archivo:
+            contacto_crudo = parte.texto()
+        elif parte.nombre == "preferencias" and not parte.es_archivo:
+            preferencias_crudo = parte.texto()
+        elif parte.nombre == "archivo" and parte.es_archivo:
+            archivos_orden.append(parte.contenido)
+        elif parte.nombre == "referencia" and not parte.es_archivo:
+            referencias_orden.append(parte.texto())
+
+    archivos: dict[str, bytes] = {}
+    for indice, contenido in enumerate(archivos_orden):
+        clave = referencias_orden[indice] if indice < len(referencias_orden) else str(indice)
+        archivos[clave] = contenido
+
+    try:
+        hijos = [HijoSubida(**h) for h in json.loads(hijos_crudo or "[]")]
+    except (ValueError, TypeError) as error:
+        raise ErrorDominio(
+            "hijos_invalidos",
+            "El campo `hijos` no trae una lista de hijos valida.",
+            estado=422,
+            campo="hijos",
+        ) from error
+    if not hijos:
+        raise ErrorDominio(
+            "hijos_requeridos", "Sube al menos un hijo con su archivo.", estado=422, campo="hijos"
+        )
+
+    # El contacto es opcional: sin el, la lista igual se importa (perder el
+    # aviso es malo, perder la lista por no poder avisar es peor).
+    contacto = None
+    if contacto_crudo:
+        try:
+            contacto = Contacto(**json.loads(contacto_crudo))
+        except (ValueError, TypeError) as error:
+            raise ErrorDominio(
+                "contacto_invalido", "El contacto no es valido.", estado=422, campo="contacto"
+            ) from error
+
+    # Las preferencias del paso 3 son del HOGAR, no de un hijo: se guardan en
+    # cada version importada para que, al aprobarla, el kit del padre se optimice
+    # con lo que pidio (pesos, disposicion, personaje) y no con los por omision.
+    # Son opcionales: sin ellas la aprobacion cae a los pesos por defecto.
+    preferencias: dict[str, Any] | None = None
+    if preferencias_crudo:
+        try:
+            crudo = json.loads(preferencias_crudo)
+        except ValueError as error:
+            raise ErrorDominio(
+                "preferencias_invalidas",
+                "Las preferencias no son un JSON valido.",
+                estado=422,
+                campo="preferencias",
+            ) from error
+        if not isinstance(crudo, dict):
+            raise ErrorDominio(
+                "preferencias_invalidas",
+                "Las preferencias tienen que ser un objeto.",
+                estado=422,
+                campo="preferencias",
+            )
+        preferencias = crudo or None
+
+    # Cada hijo tiene que traer su archivo, por referencia o por orden. Se exige
+    # ANTES de tocar Identidad o el catalogo: nada a medias.
+    def _archivo_de(indice: int, referencia: str) -> bytes:
+        if referencia in archivos:
+            return archivos[referencia]
+        if str(indice) in archivos:
+            return archivos[str(indice)]
+        raise ErrorDominio(
+            "archivo_faltante",
+            "Falta el archivo de un hijo de la subida.",
+            estado=422,
+            campo="archivo",
+        )
+
+    pdf_por_hijo = [_archivo_de(i, h.referencia) for i, h in enumerate(hijos)]
+
+    # Se percibe TODO antes de escribir NADA: si un archivo se rechaza, ni
+    # Identidad ni el catalogo se tocan. La percepcion resuelve el grado real
+    # del PDF (puede diferir del que el acudiente eligio) para deduplicar bien.
+    percibidos: list[tuple[HijoSubida, str, bytes, Percepcion]] = []
+    for hijo, pdf in zip(hijos, pdf_por_hijo, strict=True):
+        percepcion = _percibir_onboarding(pdf)
+        if not percepcion.aceptada:
+            raise PercepcionRechazada(
+                percepcion.error or "percepcion_rechazada",
+                percepcion.mensaje,
+                grados_detectados=percepcion.grados,
+            )
+        grado = percepcion.grados[0] if percepcion.grados else hijo.grado
+        percibidos.append((hijo, grado, pdf, percepcion))
+
+    # El contacto se registra UNA vez para el hogar, no una por hijo. Su id es
+    # la unica traza que baja al catalogo.
+    contacto_referencia: str | None = None
+    if contacto and contacto.correo:
+        contacto_referencia = await _identidad().registrar_contacto(contacto.correo, contacto.celular)
+
+    # Se importa una version por (colegio, grado): dos hijos del mismo destino
+    # comparten la misma, para no pisar una lista con la otra. El `colegio_id` se
+    # DERIVA (del aliado elegido, del DANE del directorio o del nombre a mano) y
+    # con el viajan los datos del colegio cuando este aun no existe en Tukit,
+    # para que la cola lo muestre y la aprobacion cree su identidad.
+    catalogo = _catalogo()
+    por_destino: dict[tuple[str, int], str] = {}
+    subidas: list[dict[str, Any]] = []
+    anio_por_omision = 2026
+    for hijo, grado, pdf, percepcion in percibidos:
+        colegio_id, colegio_datos = hijo.resolver_colegio()
+        anio = hijo.anio_lectivo or anio_por_omision
+        clave = (f"{colegio_id}|{grado}", anio)
+        version_id = por_destino.get(clave)
+        if version_id is None:
+            items, percepcion_cruda = _items_desde_percepcion(percepcion)
+            respuesta = await catalogo.importar_lista(
+                colegio_id=colegio_id,
+                grado=grado,
+                anio_lectivo=anio,
+                items=items,
+                documento_base64=base64.b64encode(pdf).decode(),
+                percepcion_cruda=percepcion_cruda,
+                contacto_referencia=contacto_referencia,
+                preferencias=preferencias,
+                colegio_datos=colegio_datos,
+            )
+            version_id = str(respuesta["version_id"])
+            por_destino[clave] = version_id
+        subidas.append({"referencia": hijo.referencia, "version_id": version_id, "grado": grado})
+
+    return {"subidas": subidas, "contacto_referencia": contacto_referencia}
 
 
 @app.post(

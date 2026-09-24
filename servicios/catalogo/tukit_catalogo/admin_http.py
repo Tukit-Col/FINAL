@@ -86,6 +86,26 @@ async def _version_y_lista(conexion: Any, version_id: uuid.UUID) -> Any:
     ).first()
 
 
+async def _colegio_datos_de(conexion: Any, version_id: uuid.UUID) -> dict[str, Any] | None:
+    """Los `colegio_datos` de la tarea mas reciente de una version, o None.
+
+    Los trae la tarea de importacion (no la version) porque son un hecho del
+    proceso —el colegio que se dara de alta al aprobar—, no del contenido
+    publicado. Una version de colegio ya aliado no tiene, y devuelve None.
+    """
+    fila = (
+        await conexion.execute(
+            select(TAREA.c.colegio_datos)
+            .where(TAREA.c.version_id == version_id)
+            .order_by(TAREA.c.creada_en.desc())
+            .limit(1)
+        )
+    ).first()
+    if fila is None or fila.colegio_datos is None:
+        return None
+    return dict(fila.colegio_datos)
+
+
 def _exigir_sin_revisar(fila: Any) -> None:
     """La misma puerta que `descubrir.exigir_sin_revisar`, en clave HTTP.
 
@@ -316,6 +336,11 @@ async def ver_revision(version_id: uuid.UUID) -> dict[str, Any]:
             for p in propuestas
         ]
 
+        # Los datos del colegio NUEVO que se dara de alta al aprobar (nombre,
+        # dane y lo que el revisor complete). None cuando la lista es de un
+        # colegio ya aliado: no hay identidad que crear ni que completar.
+        colegio_datos = await _colegio_datos_de(conexion, version_id)
+
     return {
         "version_id": str(cabeza.id),
         "colegio_id": str(cabeza.colegio_id),
@@ -325,6 +350,7 @@ async def ver_revision(version_id: uuid.UUID) -> dict[str, Any]:
         "revisada": cabeza.revisada_en is not None,
         "items": items,
         "propuestas": candidatos,
+        "colegio_datos": colegio_datos,
     }
 
 
@@ -580,6 +606,21 @@ async def importar_lista(cuerpo: dict[str, Any]) -> dict[str, Any]:
         )
     preferencias = preferencias_crudas or None
 
+    # Los datos del colegio cuando la lista viene por un colegio que aun no
+    # existe en Tukit: el acudiente lo eligio del directorio de Bogota (trae
+    # DANE) o lo escribio a mano (solo nombre). Es un objeto JSON (nombre, dane,
+    # y lo que el revisor complete despues); si viene algo que no es objeto se
+    # rechaza sin adivinar. Un colegio aliado ya conocido no lo trae.
+    colegio_datos_crudos = cuerpo.get("colegio_datos")
+    if colegio_datos_crudos is not None and not isinstance(colegio_datos_crudos, dict):
+        raise ErrorDominio(
+            "colegio_datos_invalidos",
+            "Los datos del colegio tienen que ser un objeto.",
+            estado=422,
+            campo="colegio_datos",
+        )
+    colegio_datos = colegio_datos_crudos or None
+
     # Se validan TODOS los renglones antes de escribir nada, y el mensaje no
     # repite el texto del renglon: el documento puede traer nombres de menores y
     # un error no debe filtrarlos de vuelta al cliente.
@@ -679,6 +720,7 @@ async def importar_lista(cuerpo: dict[str, Any]) -> dict[str, Any]:
                 anio_lectivo=anio_lectivo,
                 contacto_referencia=contacto_referencia,
                 preferencias=preferencias,
+                colegio_datos=colegio_datos,
                 documento=documento,
                 percepcion_cruda=percepcion_cruda,
             )
@@ -1030,6 +1072,66 @@ async def quitar_item(version_id: uuid.UUID, item_id: uuid.UUID) -> None:
             raise ErrorDominio("item_no_existe", "Ese renglon no esta en esta version.", estado=404)
 
 
+# Los campos que el revisor puede completar del colegio nuevo antes de aprobar.
+# Es una lista blanca: `nombre` y `dane` los fija la subida y no se reescriben
+# aqui (cambiar el dane cambiaria el `colegio_id` derivado y desligaria la lista
+# del colegio). Todos son datos de la INSTITUCION, no del menor: no son PII.
+_CAMPOS_COLEGIO_EDITABLES = frozenset(
+    {
+        "nombre",
+        "logo_url",
+        "sitio_web",
+        "direccion",
+        "contacto_nombre",
+        "contacto_email",
+        "contacto_telefono",
+    }
+)
+
+
+@router.patch(
+    "/listas/{version_id}/colegio",
+    summary="Completar los datos del colegio nuevo de una version sin revisar",
+)
+async def completar_colegio(version_id: uuid.UUID, cuerpo: dict[str, Any]) -> dict[str, Any]:
+    """El revisor completa el perfil del colegio que se dara de alta al aprobar.
+
+    Para que el colegio se vaya COMPLETO (logo, direccion, contacto...) y no solo
+    con nombre y grado. Se hace un merge sobre `colegio_datos` de la tarea: los
+    campos que llegan reemplazan; los que no, se conservan. `dane` no se toca
+    —cambia el `colegio_id` derivado y desligaria la lista del colegio—. Solo
+    sobre una version SIN revisar (despues, se corrige con una version nueva) y
+    solo si hay un colegio nuevo que completar (un aliado ya conocido es 409).
+    """
+    parche = {k: cuerpo[k] for k in cuerpo if k in _CAMPOS_COLEGIO_EDITABLES}
+    async with _motor().sesion() as db:
+        conexion = await db.connection()
+        cabeza = await _version_y_lista(conexion, version_id)
+        _exigir_sin_revisar(cabeza)
+
+        tarea = (
+            await conexion.execute(
+                select(TAREA.c.id, TAREA.c.colegio_datos)
+                .where(TAREA.c.version_id == version_id)
+                .order_by(TAREA.c.creada_en.desc())
+                .limit(1)
+            )
+        ).first()
+        if tarea is None or tarea.colegio_datos is None:
+            raise ErrorDominio(
+                "sin_colegio_por_crear",
+                "Esta lista es de un colegio ya aliado: no hay un colegio nuevo que completar.",
+                estado=409,
+            )
+
+        datos = dict(tarea.colegio_datos)
+        datos.update(parche)
+        await conexion.execute(
+            update(TAREA).where(TAREA.c.id == tarea.id).values(colegio_datos=datos)
+        )
+    return {"version_id": str(version_id), "colegio_datos": datos}
+
+
 # ---------------------------------------------------------------------------
 # Decidir propuestas
 # ---------------------------------------------------------------------------
@@ -1128,7 +1230,12 @@ async def cerrar_version(version_id: uuid.UUID) -> dict[str, Any]:
         # El onboarding del colegio no deja padre esperando: no emite nada.
         tarea = (
             await conexion.execute(
-                select(TAREA.c.id, TAREA.c.contacto_referencia, TAREA.c.preferencias)
+                select(
+                    TAREA.c.id,
+                    TAREA.c.contacto_referencia,
+                    TAREA.c.preferencias,
+                    TAREA.c.colegio_datos,
+                )
                 .where(TAREA.c.version_id == version_id)
                 .order_by(TAREA.c.creada_en.desc())
                 .limit(1)
@@ -1148,6 +1255,38 @@ async def cerrar_version(version_id: uuid.UUID) -> dict[str, Any]:
                         "anio_lectivo": cabeza.anio_lectivo,
                         # Lo que el padre pidio en el paso 3, para optimizar su kit.
                         "preferencias": tarea.preferencias,
+                    },
+                )
+            )
+
+        # Si la lista se subio para un colegio que AUN NO existe en Tukit (trae
+        # `colegio_datos`: lo eligio del directorio de Bogota o lo escribio),
+        # aprobarla es lo que lo vuelve aliado. Catalogo NO llama a Identidad
+        # —esa arista tampoco existe en el grafo—: emite `colegio_verificado` en
+        # la MISMA transaccion, y un poller de Identidad crea el colegio con el
+        # MISMO `colegio_id` que Catalogo ya derivo (de forma estable del DANE o
+        # del nombre), de modo que la lista y el colegio quedan ligados sin FK
+        # entre bases. El `nit` es el DANE; el resto son datos que el revisor
+        # completo antes de aprobar. Un colegio aliado ya conocido no lo trae.
+        if tarea is not None and tarea.colegio_datos:
+            datos = dict(tarea.colegio_datos)
+            await conexion.execute(
+                BANDEJA.insert().values(
+                    tipo="colegio_verificado",
+                    agregado_tipo="colegio",
+                    agregado_id=cabeza.colegio_id,
+                    carga={
+                        "colegio_id": str(cabeza.colegio_id),
+                        "grado": cabeza.grado,
+                        "nombre": datos.get("nombre"),
+                        # El DANE es el `nit` del colegio en Identidad.
+                        "nit": datos.get("dane") or datos.get("nit"),
+                        "logo_url": datos.get("logo_url"),
+                        "sitio_web": datos.get("sitio_web"),
+                        "direccion": datos.get("direccion"),
+                        "contacto_nombre": datos.get("contacto_nombre"),
+                        "contacto_email": datos.get("contacto_email"),
+                        "contacto_telefono": datos.get("contacto_telefono"),
                     },
                 )
             )

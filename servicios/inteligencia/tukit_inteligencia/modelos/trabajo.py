@@ -112,7 +112,7 @@ class TrabajoPipeline(Base):
     __table_args__ = (
         CheckConstraint(f"estado IN ({_ESTADOS})", name="trabajo_estado_valido"),
         CheckConstraint(
-            "origen IN ('colegio_grado', 'archivo', 'preview_onboarding')",
+            "origen IN ('colegio_grado', 'archivo', 'preview_onboarding', 'lista_verificada')",
             name="trabajo_origen_valido",
         ),
         CheckConstraint("estimado_segundos > 0", name="trabajo_estimado_positivo"),

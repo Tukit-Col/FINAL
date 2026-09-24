@@ -148,6 +148,46 @@ export interface TrabajoCreado {
   consultar_en: string;
 }
 
+// --------------------------------------------------- §2 Subida de listas (P2)
+//
+// La puerta del acudiente que sube el PDF de cada hijo: cada archivo se percibe
+// y se importa al catalogo como una version SIN revisar de esa (colegio, grado),
+// ligada al padre por su `contacto_referencia` (el `usuario_id` que Identidad
+// emite; NUNCA su correo ni telefono). No se crea ningun trabajo: el padre
+// espera a que un administrador apruebe la version y recien ahi se arma su kit.
+// Es distinto de `crearTrabajo`, que arma un kit desechable al vuelo.
+export interface HijoSubida {
+  referencia: string;
+  // El colegio se designa de UNA de dos formas, segun como llego el acudiente:
+  //   • `colegio_id`: eligio un colegio ALIADO ya conocido (ruta "lista_oficial").
+  //   • `colegio_dane` (+ `colegio_nombre`): lo busco en el directorio de Bogota
+  //     al subir su archivo; el colegio todavia no existe en Tukit y nacera
+  //     cuando un administrador apruebe la version. El UUID se deriva del DANE.
+  //   • solo `colegio_nombre`: no lo encontro en el directorio y lo escribio a
+  //     mano; el UUID se deriva del nombre normalizado para que dos acudientes
+  //     que escriban el mismo colegio converjan a la misma version.
+  // El backend deriva el `colegio_id` final; el frontend manda lo que tenga.
+  colegio_id?: string;
+  colegio_dane?: string;
+  colegio_nombre?: string;
+  grado: string;
+  anio_lectivo?: number;
+}
+
+// El resultado por hijo: a que version pendiente quedo ligado y con que grado
+// (el grado real lo resuelve la percepcion del PDF, puede diferir del elegido).
+export interface SubidaHecha {
+  referencia: string;
+  version_id: string;
+  grado: string;
+}
+
+export interface SubidaListas {
+  subidas: SubidaHecha[];
+  // La UNICA traza al acudiente, o null si no dejo contacto. Es un id, jamas PII.
+  contacto_referencia: string | null;
+}
+
 // --------------------------------------------------------------- §5 Los kits
 export interface Oferta {
   tienda: string;

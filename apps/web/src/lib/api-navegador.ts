@@ -6,9 +6,13 @@
 
 import type {
   CasoCreado,
+  Contacto,
   ErrorApi,
+  HijoSubida,
+  Preferencias,
   SolicitudCaso,
   SolicitudTrabajo,
+  SubidaListas,
   Trabajo,
   TrabajoCreado,
 } from "@tukit/contrato";
@@ -84,6 +88,32 @@ export async function sugerirColegio(datos: {
   return leer<{ tarea_id: string; estado: string }>(
     await fetch("/api/sugerencias", { method: "POST", body: forma }),
   );
+}
+
+/**
+ * Sube el PDF de cada hijo para que se importe como una versión PENDIENTE de su
+ * (colegio, grado). NO crea un trabajo: el acudiente espera la verificación de
+ * un administrador. El contacto viaja para que Identidad lo registre una vez;
+ * su correo y celular nunca se guardan en catálogo —solo baja el
+ * `contacto_referencia` (un id) para poder avisarle cuando aprueben la lista—.
+ */
+export async function subirListas(
+  hijos: HijoSubida[],
+  archivos: { referencia: string; archivo: File }[],
+  contacto?: Contacto,
+  preferencias?: Preferencias,
+): Promise<SubidaListas> {
+  const forma = new FormData();
+  forma.append("hijos", JSON.stringify(hijos));
+  if (contacto) forma.append("contacto", JSON.stringify(contacto));
+  // El paso 3 es del hogar: las preferencias viajan una vez y quedan con cada
+  // versión, para que el kit que se arme al aprobar use lo que el padre pidió.
+  if (preferencias) forma.append("preferencias", JSON.stringify(preferencias));
+  for (const { referencia, archivo } of archivos) {
+    forma.append("archivo", archivo, archivo.name);
+    forma.append("referencia", referencia);
+  }
+  return leer<SubidaListas>(await fetch("/api/listas/subir", { method: "POST", body: forma }));
 }
 
 export async function crearCaso(solicitud: SolicitudCaso): Promise<CasoCreado> {

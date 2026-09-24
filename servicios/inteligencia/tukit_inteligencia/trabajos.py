@@ -108,6 +108,7 @@ async def crear(
     preferencias: dict[str, Any] | None = None,
     origen: str = "colegio_grado",
     identidad: ClienteIdentidad | None = None,
+    usuario_id: uuid.UUID | None = None,
 ) -> dict[str, Any]:
     """Crea el trabajo en `encolado` y devuelve el cuerpo del 202.
 
@@ -115,10 +116,14 @@ async def crear(
     Si Identidad no responde, el trabajo se crea igual con la degradacion
     anotada: perder el aviso es malo, perder el kit por no poder avisar es
     peor.
+
+    `usuario_id` permite crear el trabajo para un acudiente YA identificado sin
+    volver a llamar a Identidad: es lo que usa el poller de `lista_verificada`,
+    donde el padre subio su lista hace rato y su `usuario_id` ya vive en la
+    tarea. Si viene, gana sobre `contacto` (no se re-registra nada).
     """
     degradaciones: list[dict[str, Any]] = []
-    usuario_id: uuid.UUID | None = None
-    if contacto and contacto.get("correo"):
+    if usuario_id is None and contacto and contacto.get("correo"):
         cliente = identidad or ClienteIdentidad()
         crudo = await cliente.registrar_contacto(str(contacto["correo"]), contacto.get("celular"))
         if crudo:
@@ -472,15 +477,19 @@ async def _escribir_kits(
     )
 
 
-async def _finalizar(motor: Any, trabajo_id: uuid.UUID) -> str:
-    """El cierre comun: autopublicar o dejar en espera de revision.
+async def _finalizar(motor: Any, trabajo_id: uuid.UUID, *, publicar_directo: bool = False) -> str:
+    """El cierre comun: publicar (y avisar) o dejar en espera de revision.
 
-    No cambia con la ruta: la lista verificada NO crea una aprobacion nueva ni
-    toca `revisada_en`; solo decide, como siempre, si la valvula de desarrollo
-    publica directo o si el kit espera a una persona.
+    `publicar_directo` es para el kit que un administrador YA autorizo al
+    aprobar la lista del padre (origen 'lista_verificada'): la revision humana
+    ocurrio sobre la LISTA, y el padre revisa el KIT resultante desde el enlace
+    de pre-compra del correo. Ahi no hay una segunda cola de revision —seria
+    pedirle a una persona que apruebe lo que ya aprobo—, asi que se publica
+    directo y se emite `kits_publicados` para que el repartidor le avise. La
+    valvula de desarrollo (`autopublicar`) hace lo mismo para todos los origenes.
     """
     async with motor.engine.begin() as conexion:
-        if autopublicar():
+        if publicar_directo or autopublicar():
             await _pasar_a(conexion, trabajo_id, EstadoTrabajo.PUBLICADO.value, terminado_en=ahora())
             await _publicar_evento(conexion, trabajo_id)
             return EstadoTrabajo.PUBLICADO.value
@@ -500,6 +509,7 @@ async def _procesar_verificado(
     encontradas: list[dict[str, Any]],
     preferencias: dict[str, Any],
     cifrador: Any,
+    publicar_directo: bool = False,
 ) -> str:
     """La ruta rapida: lista(s) ya revisada(s) -> directo a optimizacion.
 
@@ -652,7 +662,7 @@ async def _procesar_verificado(
     async with motor.engine.begin() as conexion:
         await _escribir_kits(conexion, trabajo_id, kits, ids_item, preferencias, cifrador, ms=ms)
 
-    return await _finalizar(motor, trabajo_id)
+    return await _finalizar(motor, trabajo_id, publicar_directo=publicar_directo)
 
 
 async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalogo | None = None) -> str:
@@ -669,9 +679,12 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
     async with motor.engine.begin() as conexion:
         fila = (
             await conexion.execute(
-                select(TRABAJO.c.estado, TRABAJO.c.hijos, TRABAJO.c.preferencias_cifradas).where(
-                    TRABAJO.c.id == trabajo_id
-                )
+                select(
+                    TRABAJO.c.estado,
+                    TRABAJO.c.hijos,
+                    TRABAJO.c.preferencias_cifradas,
+                    TRABAJO.c.origen,
+                ).where(TRABAJO.c.id == trabajo_id)
             )
         ).one_or_none()
         if fila is None:
@@ -684,6 +697,9 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
             )
         hijos = list(fila.hijos or ())
         preferencias = cifrador.descifrar_json(fila.preferencias_cifradas) or {}
+        # El kit de una lista que un admin ya aprobo se publica directo y avisa
+        # al padre: la revision humana fue sobre la lista, no sobre el kit.
+        publicar_directo = fila.origen == "lista_verificada"
 
     async with motor.engine.begin() as conexion:
         await _pasar_a(conexion, trabajo_id, EstadoTrabajo.PROCESANDO.value)
@@ -706,7 +722,7 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
         encontradas, _sin_lista = await _listas_por_hijo(catalogo, hijos)
         if encontradas and all(e["revisada"] for e in encontradas):
             return await _procesar_verificado(
-                motor, trabajo_id, catalogo, encontradas, preferencias, cifrador
+                motor, trabajo_id, catalogo, encontradas, preferencias, cifrador, publicar_directo
             )
 
         # --- percepcion -----------------------------------------------------
@@ -907,7 +923,7 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
         async with motor.engine.begin() as conexion:
             await _escribir_kits(conexion, trabajo_id, kits, ids_item, preferencias, cifrador, ms=ms)
 
-        return await _finalizar(motor, trabajo_id)
+        return await _finalizar(motor, trabajo_id, publicar_directo=publicar_directo)
 
     except RemotoCaido as error:
         async with motor.engine.begin() as conexion:

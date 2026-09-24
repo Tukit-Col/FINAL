@@ -1,0 +1,190 @@
+"""El poller de `lista_verificada`: aprobar la lista de un padre arma su kit.
+
+Cuando un administrador aprueba una version que un acudiente habia subido, el
+Catalogo escribe `lista_verificada` en su bandeja (nunca llama a Inteligencia:
+eso cerraria un ciclo). Este poller la drena y crea el trabajo de RUTA RAPIDA
+del padre con las preferencias que dejo, sin volver a pasar por Identidad.
+
+Lo que se fija aqui:
+
+- Un evento arma un trabajo dirigido al padre (`usuario_id` = su
+  `contacto_referencia`), sin llamar a Identidad, y lo procesa por la ruta
+  rapida (llama `resueltos`, nunca `emparejar`).
+- El trabajo lleva las preferencias del evento.
+- El evento se marca publicado: una segunda pasada no arma un segundo kit.
+- Un evento de onboarding (sin `contacto_referencia`) o mal formado no arma
+  nada, pero se marca publicado para no reintentarlo en vano.
+- Al terminar, el pipeline deja `kits_publicados` en la bandeja propia para que
+  el repartidor avise al padre.
+"""
+
+from __future__ import annotations
+
+import uuid
+from typing import Any
+
+from conftest import CatalogoFalso  # noqa: F401  (reexport para claridad)
+from sqlalchemy import insert, select
+from test_fastroute import COLEGIO, _catalogo_verificado
+from tukit_inteligencia import trabajos
+from tukit_inteligencia.modelos import EstadoTrabajo
+from tukit_inteligencia.poller import Poller, _bandeja_reflejada
+
+# La bandeja del Catalogo, aqui montada sobre el MISMO SQLite de prueba: tiene
+# la forma comun de bandeja (identica en todos los servicios), asi que la tabla
+# reflejada del poller la lee igual que en produccion.
+BANDEJA_CATALOGO = _bandeja_reflejada()
+
+
+class _CatalogoNoIdentidad:
+    """Guarda si alguien intento registrar un contacto. Nunca deberia pasar:
+    el poller crea el trabajo con el `usuario_id` que ya venia en el evento."""
+
+    def __init__(self) -> None:
+        self.registros: list[Any] = []
+
+    async def registrar_contacto(self, correo: str, celular: str | None = None) -> str | None:
+        self.registros.append((correo, celular))
+        return str(uuid.uuid4())
+
+
+async def _sembrar_bandeja(motor, **carga: Any) -> None:
+    """Crea la tabla de bandeja del catalogo en el SQLite de prueba y le mete
+    un evento `lista_verificada` con la carga dada."""
+    async with motor.engine.begin() as conexion:
+        await conexion.run_sync(BANDEJA_CATALOGO.metadata.create_all)
+        await conexion.execute(
+            insert(BANDEJA_CATALOGO).values(
+                tipo="lista_verificada",
+                agregado_tipo="version_lista_oficial",
+                agregado_id=uuid.uuid4(),
+                carga=carga,
+                intentos=0,
+            )
+        )
+
+
+def _carga(contacto: str, preferencias: dict | None = None) -> dict[str, Any]:
+    return {
+        "contacto_referencia": contacto,
+        "colegio_id": COLEGIO,
+        "grado": "Cuarto",
+        "anio_lectivo": 2026,
+        "preferencias": preferencias,
+    }
+
+
+class TestPollerArmaElKitDelPadre:
+    async def test_un_evento_arma_un_trabajo_dirigido_por_ruta_rapida(self, motor, monkeypatch):
+        # Identidad NO se debe tocar: el poller ya tiene el usuario del evento.
+        identidad = _CatalogoNoIdentidad()
+        monkeypatch.setattr(trabajos, "ClienteIdentidad", lambda *a, **k: identidad)
+
+        contacto = str(uuid.uuid4())
+        await _sembrar_bandeja(motor, **_carga(contacto))
+        catalogo = _catalogo_verificado()
+
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+        arrancados = await poller.pasada()
+
+        assert arrancados == 1
+        assert identidad.registros == []  # jamas re-registro el contacto
+        assert "resueltos" in catalogo.llamadas
+        assert "emparejar" not in catalogo.llamadas
+
+        # El trabajo quedo dirigido al padre y en el estado de la ruta rapida.
+        async with motor.engine.begin() as conexion:
+            fila = (
+                await conexion.execute(
+                    select(
+                        trabajos.TRABAJO.c.usuario_id,
+                        trabajos.TRABAJO.c.estado,
+                        trabajos.TRABAJO.c.origen,
+                    )
+                )
+            ).one()
+        assert str(fila.usuario_id) == contacto
+        # La lista ya la aprobo un admin: el kit se publica directo (el padre lo
+        # revisa desde el enlace del correo), no entra a una segunda cola.
+        assert fila.estado == EstadoTrabajo.PUBLICADO.value
+        assert fila.origen == "lista_verificada"
+
+    async def test_el_trabajo_lleva_las_preferencias_del_evento(self, motor):
+        preferencias = {
+            "pesos": {"precio": 0.6, "marca_exigida": 0.15, "calidad": 0.2, "personaje": 0.05},
+            "disposicion_sobreprecio": 0.05,
+        }
+        await _sembrar_bandeja(motor, **_carga(str(uuid.uuid4()), preferencias))
+        catalogo = _catalogo_verificado()
+
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+        assert await poller.pasada() == 1
+
+        # Las preferencias se guardan cifradas; se leen con el mismo cifrador.
+        from tukit_inteligencia.trabajos import cifrador_desde_entorno
+
+        async with motor.engine.begin() as conexion:
+            cifradas = (
+                await conexion.execute(select(trabajos.TRABAJO.c.preferencias_cifradas))
+            ).scalar_one()
+        guardadas = cifrador_desde_entorno().descifrar_json(cifradas)
+        assert guardadas == preferencias
+
+    async def test_al_terminar_deja_kits_publicados_en_la_bandeja_propia(self, motor):
+        await _sembrar_bandeja(motor, **_carga(str(uuid.uuid4())))
+        catalogo = _catalogo_verificado()
+
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+        await poller.pasada()
+
+        async with motor.engine.begin() as conexion:
+            eventos = list(
+                await conexion.execute(
+                    select(trabajos.BANDEJA.c.tipo).where(trabajos.BANDEJA.c.tipo == "kits_publicados")
+                )
+            )
+        assert len(eventos) == 1
+
+    async def test_una_segunda_pasada_no_arma_un_segundo_kit(self, motor):
+        await _sembrar_bandeja(motor, **_carga(str(uuid.uuid4())))
+        catalogo = _catalogo_verificado()
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+
+        assert await poller.pasada() == 1
+        assert await poller.pasada() == 0  # ya publicado: nada que hacer
+
+        async with motor.engine.begin() as conexion:
+            trabajos_creados = list(await conexion.execute(select(trabajos.TRABAJO.c.id)))
+        assert len(trabajos_creados) == 1
+
+
+class TestPollerIgnoraLoQueNoLeToca:
+    async def test_un_evento_sin_contacto_no_arma_nada_pero_se_marca_publicado(self, motor):
+        # Onboarding del colegio: sin padre esperando. No arma kit, pero se
+        # marca publicado para no reintentarlo en cada pasada.
+        await _sembrar_bandeja(
+            motor, contacto_referencia=None, colegio_id=COLEGIO, grado="Cuarto", anio_lectivo=2026
+        )
+        catalogo = _catalogo_verificado()
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+
+        assert await poller.pasada() == 0
+        async with motor.engine.begin() as conexion:
+            trabajos_creados = list(await conexion.execute(select(trabajos.TRABAJO.c.id)))
+            pendientes = list(
+                await conexion.execute(
+                    select(BANDEJA_CATALOGO.c.id).where(BANDEJA_CATALOGO.c.publicado_en.is_(None))
+                )
+            )
+        assert trabajos_creados == []
+        assert pendientes == []  # se marco publicado
+
+    async def test_un_contacto_que_no_es_uuid_se_descarta_sin_armar_kit(self, motor):
+        await _sembrar_bandeja(motor, **_carga("no-es-un-uuid"))
+        catalogo = _catalogo_verificado()
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+
+        assert await poller.pasada() == 0
+        async with motor.engine.begin() as conexion:
+            trabajos_creados = list(await conexion.execute(select(trabajos.TRABAJO.c.id)))
+        assert trabajos_creados == []

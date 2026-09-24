@@ -6,7 +6,14 @@
 // el backend. La URL del backend y el token se quedan en el servidor. Módulo
 // propio del slice para no pisar `api-navegador.ts`.
 
-import type { ColegioDetalle, ColegioEditable, ErrorApi, ItemListaEditable } from "@tukit/contrato";
+import type {
+  ColegioDetalle,
+  ColegioEditable,
+  ColegioNuevoEditable,
+  DatosColegioNuevo,
+  ErrorApi,
+  ItemListaEditable,
+} from "@tukit/contrato";
 
 export class FalloListas extends Error {
   constructor(
@@ -83,6 +90,21 @@ export function previsualizarVersion(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(destino),
+  });
+}
+
+/** PATCH — completar el perfil del colegio NUEVO por crear de una versión (logo,
+ *  sitio, dirección, contacto) antes de aprobarla, para que nazca completo y no
+ *  solo con nombre y grado. Devuelve los datos ya combinados. Solo vale sobre una
+ *  versión sin revisar y con un colegio nuevo (409 si no). */
+export function completarColegioDeVersion(
+  versionId: string,
+  cambios: ColegioNuevoEditable,
+): Promise<DatosColegioNuevo> {
+  return pedir<DatosColegioNuevo>(`/api/listas/${id(versionId)}/colegio`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(cambios),
   });
 }
 

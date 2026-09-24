@@ -10,19 +10,23 @@
 // Los tiempos son segundos y no minutos para que se pueda mirar; se ajustan
 // con `TUKIT_SIMULADO_SEGUNDOS`.
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type {
   AltaProducto,
   ColaAdmin,
+  Contacto,
   DecisionRevision,
   Etapa,
   EstadoTrabajo,
+  HijoSubida,
   MarcarNoDisponible,
   NombreEtapa,
   PercepcionCruda,
+  Preferencias,
   ProductoDadoDeAlta,
   SinCoincidencia,
   SolicitudTrabajo,
+  SubidaListas,
   Trabajo,
   TrabajoAdmin,
   TrabajoCreado,
@@ -32,13 +36,16 @@ import { ETAPAS } from "../contrato";
 import type {
   AltaLibro,
   AltaUtil,
+  AltaUtilManual,
   AprobarPropuesta,
   CandidatoTienda,
   Catalogo,
   Colegio,
   ColegioDetalle,
   ColegioEditable,
+  ColegioNuevoEditable,
   ConceptoCatalogo,
+  DatosColegioNuevo,
   FiltrosListasAdmin,
   FiltrosProductos,
   ItemListaEditable,
@@ -149,6 +156,14 @@ interface VersionImportada {
   procedencia?: ProcedenciaVersion;
   // El acudiente que espera esta version, por identificador y nunca por correo.
   contacto_referencia?: string | null;
+  // Las preferencias del paso 3 que el hogar declaro al subir (pesos, disposicion
+  // al sobreprecio, personaje). Son dato de negocio, no PII, y viajan para que el
+  // kit que se arma al aprobar use lo que el padre pidio. Ausentes en onboarding.
+  preferencias?: Preferencias | null;
+  // Los datos del colegio NUEVO por crear (nombre/dane mas lo que el revisor
+  // complete), espejo de `colegio_datos` en la `tarea_importacion`. Nulo cuando
+  // la version es de un colegio aliado ya existente.
+  colegio_datos?: DatosColegioNuevo | null;
 }
 
 const VERSIONES = new Map<string, VersionImportada>();
@@ -228,6 +243,61 @@ function propuestaDesdeProducto(
     concepto: { codigo: concepto.codigo, nombre: concepto.nombre_canonico },
     origen: "manual",
   };
+}
+
+// El mismo UUID derivado que `tukit_comun.derivar` (uuid5 sobre NAMESPACE_URL,
+// prefijo "tukit:"), letra por letra, para que el `colegio_id` que el simulado
+// deriva de un DANE o de un nombre a mano coincida con el que produciria el
+// backend real. Es lo que hace que dos acudientes que escriban el mismo colegio
+// converjan a la misma version, sin que el simulado invente un UUID aleatorio.
+const ESPACIO_URL = "6ba7b811-9dad-11d1-80b4-00c04fd430c8";
+
+function derivar(...partes: string[]): string {
+  const espacio = Buffer.from(ESPACIO_URL.replace(/-/g, ""), "hex");
+  const nombre = Buffer.from("tukit:" + partes.join(":"), "utf8");
+  const hash = createHash("sha1")
+    .update(Buffer.concat([espacio, nombre]))
+    .digest();
+  hash[6] = (hash[6]! & 0x0f) | 0x50; // version 5
+  hash[8] = (hash[8]! & 0x3f) | 0x80; // variante RFC 4122
+  const hex = hash.subarray(0, 16).toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+// El `colegio_id` estable de un hijo y, si el colegio aun no existe en Tukit,
+// los datos con que la aprobacion creara su identidad. Espejo exacto de
+// `resolver_colegio` en el backend (api.py): un `colegio_id` explicito es un
+// aliado conocido y no trae datos; el DANE y el nombre a mano SI, para que la
+// cola muestre el nombre y el poller de Identidad haga el upsert al aprobar.
+function resolverColegioDeHijo(hijo: HijoSubida): {
+  colegio_id: string;
+  colegio_datos: DatosColegioNuevo | null;
+} {
+  if (hijo.colegio_id) {
+    return { colegio_id: hijo.colegio_id, colegio_datos: null };
+  }
+  const nombre = (hijo.colegio_nombre ?? "").trim();
+  if (hijo.colegio_dane) {
+    return {
+      colegio_id: derivar("colegio", hijo.colegio_dane),
+      colegio_datos: { dane: hijo.colegio_dane, nombre: nombre || null },
+    };
+  }
+  if (nombre) {
+    // Nombre normalizado (espacios colapsados, minusculas) como llave, para que
+    // "  Gimnasio  Del Norte " y "gimnasio del norte" converjan al mismo id.
+    const clave = nombre.toLowerCase().split(/\s+/).join(" ");
+    return {
+      colegio_id: derivar("colegio", "libre", clave),
+      colegio_datos: { dane: null, nombre: nombre.split(/\s+/).join(" ") },
+    };
+  }
+  throw new ErrorTukit(
+    422,
+    "colegio_requerido",
+    "Falta el colegio del hijo: elige uno o escribe su nombre.",
+    { campo: "colegio" },
+  );
 }
 
 // Los SKU dados de baja (borrado suave) por la SPA de admin. No se borran de la
@@ -726,6 +796,41 @@ export class OrigenSimulado implements OrigenDatos {
     return { id, id_corto: fila.id_corto, estado: "pendiente" };
   }
 
+  async altaUtilManual(cuerpo: AltaUtilManual): Promise<PropuestaEncolada> {
+    this.exigirConcepto(cuerpo.concepto);
+    const nombreConcepto = this.nombreDeConcepto(cuerpo.concepto);
+    // Util escrito a mano: la Oferta se arma del cuerpo, no se re-busca. Se
+    // ejercen las mismas guardas que el backend (nombre no vacio, precio > 0).
+    const nombre = cuerpo.nombre.trim();
+    if (!nombre) {
+      throw new ErrorTukit(422, "nombre_invalido", "El util necesita un nombre.", {
+        campo: "nombre",
+      });
+    }
+    if (!Number.isInteger(cuerpo.precio) || cuerpo.precio <= 0) {
+      throw new ErrorTukit(422, "precio_invalido", "El precio debe ser un entero mayor que cero.", {
+        campo: "precio",
+      });
+    }
+    const id = randomUUID();
+    const fila: PropuestaCola = {
+      id,
+      id_corto: id.slice(0, 8),
+      texto_origen: nombre,
+      nombre,
+      marca: cuerpo.marca ?? null,
+      imagen_url: null,
+      precio: cuerpo.precio,
+      nivel_sugerido: cuerpo.nivel,
+      puntaje: 0.6,
+      concepto: { codigo: cuerpo.concepto, nombre: nombreConcepto },
+      origen: "manual",
+    };
+    sembrarPropuestas();
+    PROPUESTAS.push(fila);
+    return { id, id_corto: fila.id_corto, estado: "pendiente" };
+  }
+
   async altaLibro(cuerpo: AltaLibro): Promise<PropuestaEncolada> {
     this.exigirConcepto(cuerpo.concepto);
     const nombreConcepto = this.nombreDeConcepto(cuerpo.concepto);
@@ -968,28 +1073,54 @@ export class OrigenSimulado implements OrigenDatos {
     anio_lectivo: number,
     archivo: { contenido: Blob; nombre: string },
   ): Promise<{ version_id: string; grado: string; items: number }> {
+    // El onboarding es la subida de un administrador (o del colegio): sin un
+    // acudiente esperando detras, a diferencia de una subida de acudiente.
+    const version = this.importarVersionSimulada(colegio_id, grado, anio_lectivo, archivo.contenido, {
+      procedencia: "onboarding",
+      contacto_referencia: null,
+    });
+    return { version_id: version.version_id, grado, items: version.percepcion.items.length };
+  }
+
+  // El corazon compartido de `onboarding` y `subirListas`: de un (colegio,
+  // grado) del corpus a una version PENDIENTE, con su percepcion derivada y sus
+  // renglones resueltos. El simulado no percibe un PDF real; si tiene la lista
+  // en el corpus la usa como si el modelo la hubiera leido, para poder recorrer
+  // el revisor de cuatro paneles sin Gemini. La procedencia y el contacto los
+  // fija quien llama: el administrador no deja padre esperando, el acudiente si.
+  private importarVersionSimulada(
+    colegio_id: string,
+    grado: string,
+    anio_lectivo: number,
+    documento: Blob,
+    traza: {
+      procedencia: "onboarding" | "sugerencia_padre";
+      contacto_referencia: string | null;
+      preferencias?: Preferencias | null;
+      colegio_datos?: DatosColegioNuevo | null;
+    },
+  ): VersionImportada {
+    // Un colegio ALIADO trae su lista en el corpus y de ahi salen los renglones.
+    // Un colegio NUEVO (subido por un padre que lo escribio a mano) todavia no
+    // existe en Tukit ni en el corpus: la version nace vacia y el revisor la
+    // llena. El backend real percibe el PDF; el simulado no, asi que sin corpus
+    // deja la percepcion en blanco en vez de fallar (que romperia el flujo del
+    // colegio nuevo, que es justo lo que esta rama existe para poder probar).
     const lista = listaDe(colegio_id, grado);
-    if (!lista) {
-      throw new ErrorTukit(
-        422,
-        "lista_no_encontrada",
-        `No tenemos la lista de ${grado} para ese colegio en el corpus simulado.`,
-        { grados_detectados: [] },
-      );
-    }
+    const itemsCorpus = lista?.items ?? [];
 
     // Los renglones se reparten en dos paginas crudas, para que la region 2
     // tenga mas de una pagina que cotejar. `crudo` es el texto tal cual, sin
     // itemizar; `items` es lo ya extraido con confianza sintetica alta.
-    const mitad = Math.ceil(lista.items.length / 2);
+    const mitad = Math.max(1, Math.ceil(itemsCorpus.length / 2));
     const paginas = [0, 1].map((p) => ({
       pagina: p + 1,
-      crudo: lista.items
+      crudo: itemsCorpus
         .slice(p * mitad, (p + 1) * mitad)
         .map((it) => `${it.cantidad} ${it.texto_original}`)
         .join("\n"),
     }));
-    const items: PercepcionCruda["items"] = lista.items.map((it) => ({
+    const items: PercepcionCruda["items"] = itemsCorpus.map((it) => ({
       texto_original: it.texto_original,
       descripcion: it.texto_original,
       cantidad: it.cantidad,
@@ -1001,7 +1132,7 @@ export class OrigenSimulado implements OrigenDatos {
     // no llega al umbral queda sin concepto y marcado a revision, igual que
     // `importar_lista` con `clasificar`. Se guardan en la version para que las
     // ediciones persistan.
-    const itemsRevision: ItemRevision[] = lista.items.map((it, i) => {
+    const itemsRevision: ItemRevision[] = itemsCorpus.map((it, i) => {
       const { concepto, confianza } = resolverConcepto(it.texto_original);
       const resuelto = confianza >= 0.5 ? concepto : null;
       return {
@@ -1026,24 +1157,88 @@ export class OrigenSimulado implements OrigenDatos {
       [...VERSIONES.values()].filter(
         (v) => v.colegio_id === colegio_id && v.grado === grado,
       ).length + 1;
-    VERSIONES.set(versionId, {
+    const version: VersionImportada = {
       version_id: versionId,
       colegio_id,
       grado,
       anio_lectivo,
       numero,
       revisada: false,
-      documento: archivo.contenido,
+      documento,
       percepcion: { paginas, items },
       items: itemsRevision,
       siguiente_orden: itemsRevision.length + 1,
-      // El onboarding es la subida de un administrador (o del colegio): sin un
-      // acudiente esperando detras, a diferencia de una sugerencia de padre.
-      procedencia: "onboarding",
-      contacto_referencia: null,
+      procedencia: traza.procedencia,
+      contacto_referencia: traza.contacto_referencia,
+      preferencias: traza.preferencias ?? null,
+      colegio_datos: traza.colegio_datos ?? null,
+    };
+    VERSIONES.set(versionId, version);
+    return version;
+  }
+
+  // §2 — la subida de listas de un acudiente. Percibe (aqui: usa el corpus) el
+  // PDF de cada hijo y lo importa como una version PENDIENTE ligada al padre por
+  // `contacto_referencia`. Dos hijos del mismo (colegio, grado) comparten una
+  // sola version, para no pisar una lista con la otra; el grado que se usa es el
+  // que el acudiente declaro (el simulado no lee un grado real del PDF). No crea
+  // un trabajo: el padre espera a que un administrador apruebe la version.
+  async subirListas(
+    hijos: HijoSubida[],
+    archivos: ArchivoLista[],
+    contacto?: Contacto,
+    preferencias?: Preferencias,
+  ): Promise<SubidaListas> {
+    if (hijos.length === 0) {
+      throw new ErrorTukit(422, "hijos_requeridos", "Sube al menos un hijo con su archivo.", {
+        campo: "hijos",
+      });
+    }
+    const porReferencia = new Map(archivos.map((a) => [a.referencia, a]));
+    for (const hijo of hijos) {
+      if (!porReferencia.has(hijo.referencia)) {
+        throw new ErrorTukit(422, "archivo_faltante", "Falta el archivo de un hijo de la subida.", {
+          campo: "archivo",
+        });
+      }
+    }
+
+    // El contacto se registra una sola vez para el hogar. En el simulado su id
+    // es un UUID sintetico: nunca se guarda el correo/telefono, igual que el
+    // backend real solo baja el `usuario_id` al catalogo.
+    const contacto_referencia = contacto?.correo ? randomUUID() : null;
+
+    // El anio por omision es el mismo que usa el backend real (`subir_listas`)
+    // cuando el hijo no lo trae: la cola de revision no depende de esto.
+    const anioPorOmision = 2026;
+    const porDestino = new Map<string, VersionImportada>();
+    const subidas = hijos.map((hijo) => {
+      // El colegio se resuelve igual que en el backend: aliado (id explicito),
+      // o derivado del DANE / nombre a mano, que ademas trae los datos con que
+      // la aprobacion creara la identidad del colegio nuevo.
+      const { colegio_id, colegio_datos } = resolverColegioDeHijo(hijo);
+      const anio = hijo.anio_lectivo ?? anioPorOmision;
+      const clave = `${colegio_id}|${hijo.grado}|${anio}`;
+      let version = porDestino.get(clave);
+      if (!version) {
+        version = this.importarVersionSimulada(
+          colegio_id,
+          hijo.grado,
+          anio,
+          porReferencia.get(hijo.referencia)!.contenido,
+          {
+            procedencia: "sugerencia_padre",
+            contacto_referencia,
+            preferencias: preferencias ?? null,
+            colegio_datos,
+          },
+        );
+        porDestino.set(clave, version);
+      }
+      return { referencia: hijo.referencia, version_id: version.version_id, grado: version.grado };
     });
 
-    return { version_id: versionId, grado, items: items.length };
+    return { subidas, contacto_referencia };
   }
 
   async sugerirColegio(
@@ -1119,6 +1314,7 @@ export class OrigenSimulado implements OrigenDatos {
       // El simulado no corre la cola de propuestas de producto: no hay
       // candidatos pendientes que decidir, asi que la revision nace sin ellos.
       propuestas: [] as PropuestaRevision[],
+      colegio_datos: version.colegio_datos ?? null,
     };
   }
 
@@ -1207,6 +1403,26 @@ export class OrigenSimulado implements OrigenDatos {
       siguiente_orden: vigente.siguiente_orden,
     });
     return { version_id: versionId };
+  }
+
+  async completarColegioDeVersion(
+    versionId: string,
+    cambios: ColegioNuevoEditable,
+  ): Promise<DatosColegioNuevo> {
+    // Solo sobre una version SIN revisar, igual que el backend; y solo si hay un
+    // colegio nuevo por crear (409 `sin_colegio_por_crear` si es un aliado).
+    const version = this.exigirSinRevisar(versionId);
+    if (!version.colegio_datos) {
+      throw new ErrorTukit(
+        409,
+        "sin_colegio_por_crear",
+        "Esta version es de un colegio aliado ya existente; no hay datos que completar.",
+      );
+    }
+    // Merge de los campos presentes sobre lo que ya haya, sin pisar el resto ni
+    // el `dane` (que no es editable): espejo del PATCH del backend.
+    version.colegio_datos = { ...version.colegio_datos, ...cambios };
+    return { ...version.colegio_datos };
   }
 
   // Una version importada, o 404. Leer una revisada es legitimo; solo escribir

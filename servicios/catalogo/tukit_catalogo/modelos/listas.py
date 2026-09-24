@@ -267,6 +267,30 @@ class TareaImportacion(Base):
     # un acudiente detras.
     contacto_referencia: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
 
+    # Las PREFERENCIAS que el acudiente declaro al subir (paso 3 del formulario:
+    # pesos, disposicion a pagar de mas, personaje por hijo). Se guardan aqui, y
+    # no se pierden, porque el kit del padre NO se arma al subir —la lista entra
+    # sin revisar— sino cuando un administrador la aprueba: en ese momento un
+    # trabajo de ruta rapida las lee para optimizar los tres kits a la medida de
+    # lo que el padre pidio. Sin esto, el kit aprobado saldria con los pesos por
+    # omision y no con los del acudiente. Es dato de negocio, no PII: no lleva
+    # correo ni telefono. Nullable porque el onboarding del colegio no trae padre
+    # ni preferencias.
+    preferencias: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+
+    # Los DATOS del colegio cuando la lista la subio un acudiente para un colegio
+    # que TODAVIA NO EXISTE en Tukit: lo eligio del directorio de Bogota (trae
+    # DANE) o lo escribio a mano. Es un objeto JSON con nombre, dane y los campos
+    # que el revisor completa antes de aprobar (logo, direccion, contacto...).
+    #
+    # Vive aqui, y no en una tabla de colegios de Catalogo, porque el colegio no
+    # es de Catalogo: nace en Identidad cuando un administrador APRUEBA la version
+    # (el `cerrar` emite un evento y un poller de Identidad hace el upsert). Hasta
+    # entonces esto es lo unico que Tukit sabe del colegio, y es lo que la cola
+    # muestra en vez de un UUID crudo. Nullable porque un colegio aliado ya
+    # conocido (o el onboarding de administrador) no trae datos que crear.
+    colegio_datos: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+
     # NO hay `caso_id` aqui, y la ausencia es deliberada.
     #
     # La version anterior de esta tabla lo tenia, apuntando a `operacion.caso`.
