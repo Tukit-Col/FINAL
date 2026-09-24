@@ -1,6 +1,10 @@
-// Tabla paginada de productos del catálogo (P4c). Es presentación pura: recibe
-// la página ya resuelta y avisa hacia arriba cuándo se elige una fila o se
-// cambia de página. La búsqueda/filtrado la maneja `GestorCatalogo`.
+// Rejilla paginada de productos del catálogo (P4c). Es presentación pura:
+// recibe la página ya resuelta y avisa hacia arriba cuándo se elige una ficha o
+// se cambia de página. La búsqueda/filtrado la maneja `GestorCatalogo`.
+//
+// Se muestra como REJILLA DE TARJETAS (como el gestor del MS), no como tabla:
+// cada producto es una ficha con foto grande, pastilla de nivel, nombre, precio
+// y metadatos. Cada tarjeta es un <button> real, así funciona con teclado.
 
 import { ImageOff } from "lucide-react";
 import { ETIQUETA_NIVEL, formatearPesos } from "@tukit/contrato";
@@ -40,7 +44,7 @@ export default function TablaProductos({
         </span>
         {total > 0 && (
           <span>
-            Mostrando {desde}–{hasta}
+            Mostrando {desde}–{hasta} de {total}
           </span>
         )}
       </div>
@@ -50,66 +54,55 @@ export default function TablaProductos({
           {cargando ? "Buscando…" : "Ningún producto coincide con estos filtros."}
         </p>
       ) : (
-        <table className={styles.tabla}>
-          <thead>
-            <tr>
-              <th aria-label="Imagen" />
-              <th>Producto</th>
-              <th>Marca</th>
-              <th>Nivel</th>
-              <th>Personaje</th>
-              <th>Concepto</th>
-              <th style={{ textAlign: "right" }}>Desde</th>
-              <th style={{ textAlign: "center" }}>Tiendas</th>
-            </tr>
-          </thead>
-          <tbody>
-            {productos.map((p) => (
-              <tr
-                key={p.sku}
-                className={p.sku === skuActivo ? styles.filaActiva : undefined}
-                onClick={() => onElegir(p)}
-              >
-                <td className={styles.celdaImagen}>
-                  {p.imagen_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img className={styles.miniatura} src={p.imagen_url} alt="" />
-                  ) : (
-                    <span className={styles.miniaturaVacia}>
-                      <ImageOff size={16} aria-hidden="true" />
-                    </span>
-                  )}
-                </td>
-                <td className={styles.celdaNombre}>
-                  <div className={styles.nombreProducto}>{p.nombre}</div>
-                  <div className={styles.skuMono}>{p.sku}</div>
-                </td>
-                <td>{p.marca ?? <span className={styles.sinDato}>—</span>}</td>
-                <td>
-                  <span className={`${styles.nivelPildora} ${styles[`nivel_${p.nivel}`]}`}>
-                    {ETIQUETA_NIVEL[p.nivel]}
-                  </span>
-                </td>
-                <td>
-                  {p.personaje ? (
-                    <span className={styles.personajePildora}>{p.personaje}</span>
-                  ) : (
-                    <span className={styles.sinDato}>—</span>
-                  )}
-                </td>
-                <td>{p.concepto.nombre}</td>
-                <td className={styles.celdaPrecio}>
+        <div className={styles.rejillaProductos}>
+          {productos.map((p) => (
+            <button
+              key={p.sku}
+              type="button"
+              className={`${styles.tarjeta} ${p.sku === skuActivo ? styles.tarjetaActiva : ""}`}
+              aria-pressed={p.sku === skuActivo}
+              onClick={() => onElegir(p)}
+            >
+              {p.imagen_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img className={styles.tarjetaFoto} src={p.imagen_url} alt="" />
+              ) : (
+                <span className={styles.tarjetaFotoVacia}>
+                  <ImageOff size={28} aria-hidden="true" />
+                </span>
+              )}
+
+              <div className={styles.tarjetaPildoras}>
+                <span className={`${styles.nivelPildora} ${styles[`nivel_${p.nivel}`]}`}>
+                  {ETIQUETA_NIVEL[p.nivel]}
+                </span>
+                {p.personaje && (
+                  <span className={styles.personajePildora}>{p.personaje}</span>
+                )}
+              </div>
+
+              <div className={styles.tarjetaNombre}>{p.nombre}</div>
+              <div className={styles.skuMono}>{p.sku}</div>
+
+              <div className={styles.tarjetaPie}>
+                <span className={styles.tarjetaPrecio}>
                   {p.precio_desde !== null ? (
                     formatearPesos(p.precio_desde)
                   ) : (
                     <span className={styles.sinDato}>sin precio</span>
                   )}
-                </td>
-                <td className={styles.celdaTiendas}>{p.tiendas}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </span>
+                <span className={styles.tarjetaMeta}>
+                  {p.marca ? <span>{p.marca}</span> : null}
+                  <span className={styles.tarjetaTiendas}>
+                    {p.concepto.nombre} · {p.tiendas}{" "}
+                    {p.tiendas === 1 ? "tienda" : "tiendas"}
+                  </span>
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
       )}
 
       {ultimaPagina > 1 && (

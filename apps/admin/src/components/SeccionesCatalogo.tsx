@@ -18,6 +18,13 @@ import AltaLibro from "./AltaLibro";
 import type { OpcionConcepto } from "./PanelReclasificar";
 import styles from "./CatalogoSpa.module.css";
 
+// Una tienda registrada para los selectores de alta (se puede elegir una o
+// escribir otro slug; el backend valida contra la BD).
+export interface OpcionTienda {
+  slug: string;
+  nombre: string;
+}
+
 type Pestana = "productos" | "cola" | "util" | "libro";
 
 const PESTANAS: { id: Pestana; nombre: string }[] = [
@@ -31,9 +38,15 @@ interface Props {
   paginaInicial: PaginaProductos;
   conceptos: OpcionConcepto[];
   personajes: string[];
+  tiendas: OpcionTienda[];
 }
 
-export default function SeccionesCatalogo({ paginaInicial, conceptos, personajes }: Props) {
+export default function SeccionesCatalogo({
+  paginaInicial,
+  conceptos,
+  personajes,
+  tiendas,
+}: Props) {
   const [pestana, setPestana] = useState<Pestana>("productos");
   // Se incrementa al encolar algo; `ColaCuraduria` se remonta y recarga.
   const [versionCola, setVersionCola] = useState(0);
@@ -66,9 +79,15 @@ export default function SeccionesCatalogo({ paginaInicial, conceptos, personajes
           personajes={personajes}
         />
       )}
-      {pestana === "cola" && <ColaCuraduria key={versionCola} />}
-      {pestana === "util" && <AltaUtil conceptos={conceptos} onEncolado={irALaCola} />}
-      {pestana === "libro" && <AltaLibro conceptos={conceptos} onEncolado={irALaCola} />}
+      {pestana === "cola" && (
+        <ColaCuraduria key={versionCola} conceptos={conceptos} personajes={personajes} />
+      )}
+      {pestana === "util" && (
+        <AltaUtil conceptos={conceptos} tiendas={tiendas} onEncolado={irALaCola} />
+      )}
+      {pestana === "libro" && (
+        <AltaLibro conceptos={conceptos} tiendas={tiendas} onEncolado={irALaCola} />
+      )}
     </div>
   );
 }

@@ -20,9 +20,6 @@ que se documentan donde aparecen:
 
 from __future__ import annotations
 
-import uuid
-from datetime import UTC, datetime
-
 import httpx
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -276,6 +273,71 @@ async def test_encolar_libro_cae_en_la_cola(cliente, monkeypatch):
     assert any(p["nombre"] == "El Principito" for p in cola["propuestas"])
 
 
+async def test_encolar_util_manual_cae_en_la_cola(cliente, monkeypatch):
+    # Util escrito a mano (sin busqueda en tienda): la Oferta se arma del cuerpo,
+    # no se re-busca por (slug, sku). Apunta a la tienda sembrada (exito).
+    _encolar_en_motor_de_prueba(monkeypatch)
+    r = await cliente.post(
+        "/v1/admin/catalogo/propuestas/util-manual",
+        json={
+            "concepto": cliente.ids["concepto_c001"],
+            "nombre": "Cuaderno artesanal",
+            "precio": 4200,
+            "slug": "exito",
+            "sku": "MANUAL-1",
+            "url": "http://tienda/x",
+            "marca": "Local",
+            "nivel": "confiable",
+        },
+    )
+    assert r.status_code == 201 and r.json()["estado"] == "pendiente"
+    cola = (await cliente.get("/v1/admin/catalogo/propuestas")).json()
+    fila = next(p for p in cola["propuestas"] if p["nombre"] == "Cuaderno artesanal")
+    assert fila["precio"] == 4200  # centavos // 100, precio de PESOS respetado
+
+
+async def test_encolar_util_manual_precio_invalido_es_422(cliente):
+    r = await cliente.post(
+        "/v1/admin/catalogo/propuestas/util-manual",
+        json={
+            "concepto": cliente.ids["concepto_c001"],
+            "nombre": "Cuaderno",
+            "precio": 0,
+            "slug": "exito",
+            "nivel": "confiable",
+        },
+    )
+    assert r.status_code == 422 and r.json()["error"] == "precio_invalido"
+
+
+async def test_encolar_util_manual_sin_nombre_es_422(cliente):
+    r = await cliente.post(
+        "/v1/admin/catalogo/propuestas/util-manual",
+        json={
+            "concepto": cliente.ids["concepto_c001"],
+            "nombre": "   ",
+            "precio": 4200,
+            "slug": "exito",
+            "nivel": "confiable",
+        },
+    )
+    assert r.status_code == 422 and r.json()["error"] == "nombre_invalido"
+
+
+async def test_encolar_util_manual_tienda_desconocida_es_422(cliente):
+    r = await cliente.post(
+        "/v1/admin/catalogo/propuestas/util-manual",
+        json={
+            "concepto": cliente.ids["concepto_c001"],
+            "nombre": "Cuaderno",
+            "precio": 4200,
+            "slug": "mercadolibre",
+            "nivel": "confiable",
+        },
+    )
+    assert r.status_code == 422 and r.json()["error"] == "tienda_desconocida"
+
+
 async def test_aprobar_propuesta_traduce_el_codigo(cliente, monkeypatch):
     # `resolver` abre su propio `crear_motor("catalogo")` (BD de entorno), no el
     # SQLite inyectado, y su creacion real de producto+oferta+precio ya la cubre
@@ -283,7 +345,7 @@ async def test_aprobar_propuesta_traduce_el_codigo(cliente, monkeypatch):
     # endpoint traduce ese codigo a la respuesta {id, estado: "aprobada"}.
     from tukit_catalogo import descubrir
 
-    async def _falso_resolver(id_corto, aprobar, nivel, motivo, no_surtir=False):
+    async def _falso_resolver(id_corto, aprobar, nivel, motivo, no_surtir=False, overrides=None):
         assert aprobar is True and nivel == "confiable"
         return 0
 
@@ -295,10 +357,65 @@ async def test_aprobar_propuesta_traduce_el_codigo(cliente, monkeypatch):
     assert r.status_code == 200 and r.json()["estado"] == "aprobada"
 
 
+async def test_aprobar_propuesta_reenvia_correcciones_a_resolver(cliente, monkeypatch):
+    # Las correcciones a mano (marca/imagen/personaje/atributos) que la cola
+    # manda en el cuerpo tienen que llegar a `resolver` como `overrides`, y solo
+    # las claves presentes: `nombre` intacto no viaja, `""` se guarda como NULL.
+    from tukit_catalogo import descubrir
+
+    visto: dict = {}
+
+    async def _falso_resolver(id_corto, aprobar, nivel, motivo, no_surtir=False, overrides=None):
+        visto["overrides"] = overrides
+        return 0
+
+    monkeypatch.setattr(descubrir, "resolver", _falso_resolver)
+    prop_id = cliente.ids["propuesta_pendiente"]
+    r = await cliente.post(
+        f"/v1/admin/catalogo/propuestas/{prop_id}/aprobar",
+        json={
+            "nivel": "premium",
+            "marca": "  Faber  ",
+            "imagen_url": "",
+            "personaje": "Frozen",
+            "atributos": {"hojas": 100},
+        },
+    )
+    assert r.status_code == 200 and r.json()["estado"] == "aprobada"
+    ov = visto["overrides"]
+    assert ov == {
+        "marca": "Faber",
+        "imagen_url": None,
+        "personaje": "Frozen",
+        "atributos": {"hojas": 100},
+    }
+    assert "nombre" not in ov  # no se mando: se conserva el de la propuesta
+
+
+async def test_aprobar_propuesta_sin_correcciones_no_manda_overrides(cliente, monkeypatch):
+    # Aprobar sin tocar nada (solo nivel) NO manda overrides: el backend conserva
+    # su derivacion automatica. Es el camino identico a como era antes.
+    from tukit_catalogo import descubrir
+
+    visto: dict = {}
+
+    async def _falso_resolver(id_corto, aprobar, nivel, motivo, no_surtir=False, overrides=None):
+        visto["overrides"] = overrides
+        return 0
+
+    monkeypatch.setattr(descubrir, "resolver", _falso_resolver)
+    prop_id = cliente.ids["propuesta_pendiente"]
+    r = await cliente.post(
+        f"/v1/admin/catalogo/propuestas/{prop_id}/aprobar", json={"nivel": "confiable"}
+    )
+    assert r.status_code == 200
+    assert visto["overrides"] is None
+
+
 async def test_aprobar_propuesta_que_falla_es_409(cliente, monkeypatch):
     from tukit_catalogo import descubrir
 
-    async def _falso_resolver(id_corto, aprobar, nivel, motivo, no_surtir=False):
+    async def _falso_resolver(id_corto, aprobar, nivel, motivo, no_surtir=False, overrides=None):
         return 2  # cualquier codigo != 0 = no se pudo aprobar
 
     monkeypatch.setattr(descubrir, "resolver", _falso_resolver)

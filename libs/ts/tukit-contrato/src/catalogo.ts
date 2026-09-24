@@ -368,6 +368,22 @@ export interface AltaUtil {
   nivel: string;
 }
 
+// El cuerpo del alta de un util escrito a mano (`POST .../propuestas/util-manual`).
+// Para lo que la busqueda en vivo no encuentra: la Oferta se arma de estos
+// campos, no se re-busca. `precio` es entero en PESOS y > 0 (el backend lo pasa
+// a centavos). `sku` es opcional; sin el, el backend deriva uno estable de
+// (slug, nombre). `slug` puede ser cualquier tienda registrada.
+export interface AltaUtilManual {
+  concepto: string;
+  nombre: string;
+  precio: number;
+  slug: string;
+  sku?: string;
+  url?: string;
+  marca?: string;
+  nivel: string;
+}
+
 // El cuerpo del alta de un libro (`POST .../propuestas/libro`). Manual: el
 // personal copia ISBN/titulo/precio de Buscalibre (que no expone busqueda en
 // vivo). `precio` es entero en PESOS y > 0; el backend lo pasa a centavos.
@@ -382,8 +398,22 @@ export interface AltaLibro {
 
 // El cuerpo de la aprobacion (`POST .../propuestas/{id}/aprobar`): la persona
 // decide el nivel al aprobar, no al encolar (los dos pasos van separados).
+//
+// Ademas del nivel, la cola puede corregir a mano el producto ANTES de que
+// nazca: nombre, marca, imagen y atributos. Todos son OPCIONALES; una clave
+// ausente conserva el valor que la propuesta traia (o lo que se derivo del
+// nombre/ficha), asi que aprobar con solo `{nivel}` es identico a como era.
+// `marca`/`imagen_url`/`personaje` en `null` guardan "sin dato". `atributos`
+// REEMPLAZA el mapa entero (misma semantica que el editor de catalogo), no lo
+// fusiona. Es el unico momento de editarlos aca: despues, el producto ya
+// existe y se corrige por el PATCH del editor.
 export interface AprobarPropuesta {
   nivel: string;
+  nombre?: string;
+  marca?: string | null;
+  imagen_url?: string | null;
+  personaje?: string | null;
+  atributos?: Record<string, string | number | boolean>;
 }
 
 // El cuerpo del rechazo (`POST /v1/admin/propuestas/{id}/rechazar`, ruta ya
