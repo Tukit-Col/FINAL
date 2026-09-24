@@ -46,6 +46,7 @@ ITEM = Base.metadata.tables["item_lista_oficial"]
 PROPUESTA = Base.metadata.tables["propuesta_producto"]
 TAREA = Base.metadata.tables["tarea_importacion"]
 TIENDA = Base.metadata.tables["tienda"]
+BANDEJA = Base.metadata.tables["bandeja_salida"]
 
 # Las tiendas con busqueda en vivo (VTEX/Shopify), las mismas que usa `admin`.
 _SLUGS_TIENDA = {"exito", "panamericana", "grancentral"}
@@ -549,6 +550,36 @@ async def importar_lista(cuerpo: dict[str, Any]) -> dict[str, Any]:
         ) from exc
     percepcion_cruda = list(evidencia.get("percepcion_cruda") or [])
 
+    # Traza opcional al padre que espera esta lista: cuando un acudiente sube su
+    # PDF, la importacion queda ligada a su `usuario_id` (nunca su correo ni
+    # telefono, que son PII de Identidad) para poder avisarle cuando un
+    # administrador apruebe la version. El onboarding del colegio no trae padre,
+    # asi que la referencia queda en None.
+    referencia_cruda = cuerpo.get("contacto_referencia")
+    try:
+        contacto_referencia = uuid.UUID(str(referencia_cruda)) if referencia_cruda is not None else None
+    except (ValueError, TypeError) as exc:
+        raise ErrorDominio(
+            "contacto_invalido",
+            "El contacto de referencia no es un identificador valido.",
+            estado=422,
+            campo="contacto_referencia",
+        ) from exc
+
+    # Las preferencias que el padre declaro al subir (paso 3): se guardan tal
+    # cual para que el kit de la aprobacion las use. Es dato de negocio, un
+    # objeto JSON (pesos, disposicion, personaje_por_hijo); si viene algo que no
+    # es objeto se rechaza sin adivinar. El onboarding del colegio no las trae.
+    preferencias_crudas = cuerpo.get("preferencias")
+    if preferencias_crudas is not None and not isinstance(preferencias_crudas, dict):
+        raise ErrorDominio(
+            "preferencias_invalidas",
+            "Las preferencias tienen que ser un objeto.",
+            estado=422,
+            campo="preferencias",
+        )
+    preferencias = preferencias_crudas or None
+
     # Se validan TODOS los renglones antes de escribir nada, y el mensaje no
     # repite el texto del renglon: el documento puede traer nombres de menores y
     # un error no debe filtrarlos de vuelta al cliente.
@@ -646,6 +677,8 @@ async def importar_lista(cuerpo: dict[str, Any]) -> dict[str, Any]:
                 colegio_id=colegio_id,
                 grado=grado,
                 anio_lectivo=anio_lectivo,
+                contacto_referencia=contacto_referencia,
+                preferencias=preferencias,
                 documento=documento,
                 percepcion_cruda=percepcion_cruda,
             )
@@ -1084,6 +1117,40 @@ async def cerrar_version(version_id: uuid.UUID) -> dict[str, Any]:
         await conexion.execute(
             update(VERSION).where(VERSION.c.id == version_id).values(revisada_en=datetime.now(UTC))
         )
+
+        # Si un padre estaba esperando esta version (subio su PDF y quedo ligado
+        # por `contacto_referencia`), aprobarla dispara su kit. Pero Catalogo NO
+        # llama a Inteligencia —esa arista cerraria un ciclo en el grafo de
+        # dependencias, la misma razon por la que esta tabla no tiene `caso_id`—:
+        # se escribe un evento `lista_verificada` en la bandeja de salida, EN LA
+        # MISMA transaccion que el `revisada_en`, y un poller de Inteligencia lo
+        # drena y arma el trabajo de ruta rapida con las preferencias guardadas.
+        # El onboarding del colegio no deja padre esperando: no emite nada.
+        tarea = (
+            await conexion.execute(
+                select(TAREA.c.id, TAREA.c.contacto_referencia, TAREA.c.preferencias)
+                .where(TAREA.c.version_id == version_id)
+                .order_by(TAREA.c.creada_en.desc())
+                .limit(1)
+            )
+        ).first()
+        if tarea is not None and tarea.contacto_referencia is not None:
+            await conexion.execute(
+                BANDEJA.insert().values(
+                    tipo="lista_verificada",
+                    agregado_tipo="version_lista_oficial",
+                    agregado_id=version_id,
+                    carga={
+                        # El padre, por identificador; NUNCA su correo/telefono.
+                        "contacto_referencia": str(tarea.contacto_referencia),
+                        "colegio_id": str(cabeza.colegio_id),
+                        "grado": cabeza.grado,
+                        "anio_lectivo": cabeza.anio_lectivo,
+                        # Lo que el padre pidio en el paso 3, para optimizar su kit.
+                        "preferencias": tarea.preferencias,
+                    },
+                )
+            )
     return {"version_id": str(version_id), "revisada": True}
 
 
@@ -1365,6 +1432,86 @@ async def encolar_util(cuerpo: dict[str, Any]) -> dict[str, Any]:
 
 
 @router.post(
+    "/catalogo/propuestas/util-manual",
+    status_code=201,
+    summary="Encolar un util escrito a mano (sin busqueda en tienda; encola, NO aprueba)",
+)
+async def encolar_util_manual(cuerpo: dict[str, Any]) -> dict[str, Any]:
+    """Encola un util que la persona escribe a mano, sin busqueda en vivo.
+
+    Gemelo de `encolar_util` para lo que no aparece en la busqueda de la tienda
+    (VTEX/Shopify no lo indexa, o es una tienda sin busqueda en vivo): la Oferta
+    se arma del cuerpo en vez de re-buscarse por `(slug, sku)`. El precio es un
+    entero > 0 en PESOS (`precio_invalido`) y el nombre no puede ir vacio
+    (`nombre_invalido`); la tienda tiene que existir en la BD (`tienda_desconocida`,
+    cualquiera de las registradas, no solo las de busqueda en vivo). El dict lo
+    arma el mismo `admin.construir_propuesta_util` que comparten HTTP y CLI, asi
+    que el alta manual y la de busqueda nacen identicas al aprobarse.
+    """
+    from . import admin, tiendas
+    from .cargador import _uuid_estable
+    from .descubrir import _encolar
+
+    codigo = str(cuerpo.get("concepto") or "")
+    nombre = str(cuerpo.get("nombre") or "").strip()
+    if not nombre:
+        raise ErrorDominio(
+            "nombre_invalido", "El util necesita un nombre.", estado=422, campo="nombre"
+        )
+    try:
+        precio = int(cuerpo.get("precio") or 0)
+    except (TypeError, ValueError):
+        precio = 0
+    if precio <= 0:
+        raise ErrorDominio(
+            "precio_invalido",
+            "El precio debe ser un entero mayor que cero en pesos.",
+            estado=422,
+            campo="precio",
+        )
+    slug = str(cuerpo.get("slug") or "")
+    # Sin SKU de tienda, se deriva uno estable de (slug, nombre) para que
+    # reencolar el mismo util a mano no lo duplique (la llave natural es
+    # tienda+referencia, y `construir_propuesta_util` usa el sku como referencia).
+    sku = str(cuerpo.get("sku") or "").strip() or _uuid_estable("util-manual", slug, nombre).hex[:12]
+    url = str(cuerpo.get("url") or "").strip()
+    marca = str(cuerpo.get("marca") or "").strip() or None
+    nivel = str(cuerpo.get("nivel") or "confiable")
+
+    oferta = tiendas.Oferta(
+        tienda=slug,
+        nombre=nombre,
+        precio_cop=precio,
+        disponible=True,
+        imagen_url=None,
+        url=url,
+        sku=sku,
+        ean=None,
+        marca=marca,
+        especificaciones={},
+    )
+
+    async with _motor().engine.begin() as conexion:
+        concepto_id = await _concepto_id(conexion, codigo)
+        tienda_id = await _tienda_id_por_slug(conexion, slug)
+        if tienda_id is None:
+            raise ErrorDominio(
+                "tienda_desconocida", f"No conozco la tienda '{slug}'.", estado=422, campo="slug"
+            )
+        nombre_concepto = (
+            await conexion.execute(
+                select(CONCEPTO.c.nombre_canonico).where(CONCEPTO.c.id == concepto_id)
+            )
+        ).scalar_one()
+
+    propuesta = admin.construir_propuesta_util(
+        concepto_id, nombre_concepto, slug, tienda_id, oferta, nivel
+    )
+    await _encolar([propuesta])
+    return {"id": str(propuesta["id"]), "id_corto": str(propuesta["id"])[:8], "estado": "pendiente"}
+
+
+@router.post(
     "/catalogo/propuestas/libro",
     status_code=201,
     summary="Encolar un libro por ISBN (encola, NO aprueba)",
@@ -1441,7 +1588,24 @@ async def aprobar_propuesta(prop_id: uuid.UUID, cuerpo: dict[str, Any]) -> dict[
     from . import descubrir
 
     nivel = str(cuerpo.get("nivel") or "confiable")
-    codigo = await descubrir.resolver(str(prop_id)[:8], aprobar=True, nivel=nivel, motivo=None)
+
+    # Correcciones a mano que la cola manda ANTES de aprobar: solo se reenvian
+    # las claves presentes, para que resolver conserve el valor automatico de
+    # las ausentes (aprobar sin correcciones sigue siendo identico a antes).
+    overrides: dict[str, Any] = {}
+    if isinstance(cuerpo.get("nombre"), str) and cuerpo["nombre"].strip():
+        overrides["nombre"] = cuerpo["nombre"]
+    for campo in ("marca", "imagen_url", "personaje"):
+        if campo in cuerpo:
+            valor = cuerpo[campo]
+            # "" desde el formulario significa "sin dato": se guarda NULL.
+            overrides[campo] = (valor.strip() or None) if isinstance(valor, str) else valor
+    if isinstance(cuerpo.get("atributos"), dict):
+        overrides["atributos"] = cuerpo["atributos"]
+
+    codigo = await descubrir.resolver(
+        str(prop_id)[:8], aprobar=True, nivel=nivel, motivo=None, overrides=overrides or None
+    )
     if codigo != 0:
         raise ErrorDominio(
             "no_se_pudo_aprobar",

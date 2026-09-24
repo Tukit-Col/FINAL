@@ -674,6 +674,7 @@ async def resolver(
     nivel: str | None,
     motivo: str | None,
     no_surtir: bool = False,
+    overrides: dict[str, Any] | None = None,
 ) -> int:
     """Aprueba o rechaza, y si aprueba crea el producto con su oferta y precio.
 
@@ -682,6 +683,14 @@ async def resolver(
     una sola transaccion porque un producto sin oferta no se puede comprar y
     una oferta sin precio no se puede sumar al kit; las tres cosas valen
     juntas o no valen.
+
+    `overrides` es la correccion a mano que hace una persona en la cola ANTES
+    de aprobar: nombre, marca, imagen_url, personaje y atributos. Cada clave
+    presente pisa el valor que la propuesta traia (o lo que se derivo del
+    nombre/ficha); las ausentes conservan el comportamiento automatico de
+    siempre, asi que aprobar sin `overrides` es identico a como era. Es el
+    unico momento con permiso de editar estos campos aqui: despues de aprobar,
+    el producto ya existe y se corrige por el editor de catalogo (su PATCH).
 
     Rechazar tiene dos sabores. El corriente descarta ESTA propuesta y deja el
     concepto abierto para otra: quiza el candidato no servia pero el util si se
@@ -756,6 +765,17 @@ async def resolver(
                 **extraer_atributos(fila.nombre, attrs_concepto),
             }
 
+            # Correcciones a mano hechas en la cola. Cada clave presente pisa el
+            # valor automatico; las ausentes lo conservan. `atributos` se
+            # REEMPLAZA entero (misma semantica que el editor de catalogo), no
+            # se fusiona: la persona ve el mapa completo y lo deja como quiere.
+            ov = overrides or {}
+            nombre_final = str(ov["nombre"]).strip() if ov.get("nombre") else fila.nombre
+            marca_final = ov.get("marca", fila.marca)
+            imagen_final = ov.get("imagen_url", fila.imagen_url)
+            personaje_final = ov.get("personaje", extraer_personaje(fila.nombre))
+            atributos_final = ov.get("atributos", atributos)
+
             pid = _uuid_estable("aprobado", str(fila.tienda_id), fila.referencia_externa)
             await conexion.execute(
                 insert(Base.metadata.tables["producto_canonico"])
@@ -764,14 +784,14 @@ async def resolver(
                     concepto_id=fila.concepto_id,
                     ean=fila.ean,
                     sku_interno=f"TK-REV-{fila.referencia_externa}"[:64],
-                    nombre=fila.nombre[:255],
-                    marca=fila.marca,
+                    nombre=nombre_final[:255],
+                    marca=marca_final,
                     nivel=nivel or fila.nivel_sugerido or "confiable",
-                    personaje=extraer_personaje(fila.nombre),
-                    imagen_url=fila.imagen_url,
+                    personaje=personaje_final,
+                    imagen_url=imagen_final,
                     unidad_base=empaque.unidad_base,
                     unidades_por_empaque=empaque.unidades,
-                    atributos=atributos,
+                    atributos=atributos_final,
                     es_propio=False,
                     es_representante_canonico=False,
                     activo=True,

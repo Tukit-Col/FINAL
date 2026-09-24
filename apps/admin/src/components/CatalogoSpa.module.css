@@ -87,118 +87,156 @@
   cursor: pointer;
 }
 
-/* ----------------------------------------------------------------- tabla */
+/* ------------------------------------------------ rejilla de productos
+ * La vista de productos es una REJILLA DE TARJETAS (como el gestor del MS),
+ * no una tabla: cada producto se lee como una ficha con foto grande, pastilla
+ * de nivel, nombre, precio y metadatos. Cambia a editor al hacer click. */
 
 .tablaEnvoltura {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--clay-shadow-sm);
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-4);
 }
 
 .tablaCabecera {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: var(--espacio-3);
   flex-wrap: wrap;
-  padding: var(--espacio-2) var(--espacio-4);
-  background: var(--clay-cielo-bg);
-  border-bottom: 1px solid var(--color-border-light);
+  padding: 0 var(--espacio-1);
   font-size: 12.5px;
+  color: var(--color-text-secondary);
 }
 
 .conteo {
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 14px;
   color: var(--color-primary);
   font-variant-numeric: tabular-nums;
 }
 
-.tabla {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+.rejillaProductos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(216px, 1fr));
+  gap: var(--espacio-4);
 }
 
-.tabla thead th {
-  padding: var(--espacio-2) var(--espacio-3);
+/* La tarjeta es un botón real (accesible por teclado), no un div con onClick. */
+.tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  padding: var(--espacio-3);
   text-align: left;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-text-muted);
-  background: var(--color-surface-2);
-  border-bottom: 1px solid var(--color-border);
-  white-space: nowrap;
-}
-
-.tabla tbody tr {
-  border-bottom: 1px solid var(--color-border-light);
+  background: var(--clay-surface-grad);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
   cursor: pointer;
-  transition: background var(--dur-rapido) var(--ease-suave);
+  transition:
+    transform var(--dur-rapido) var(--ease-suave),
+    box-shadow var(--dur-rapido) var(--ease-suave);
 }
 
-.tabla tbody tr:hover {
-  background: var(--color-primary-light);
+.tarjeta:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--clay-shadow);
 }
 
-.filaActiva,
-.filaActiva:hover {
-  background: var(--color-primary-light);
-  box-shadow: inset 3px 0 0 var(--color-primary);
+.tarjeta:active {
+  transform: translateY(-1px) scale(0.99);
 }
 
-.tabla td {
-  padding: var(--espacio-2) var(--espacio-3);
-  vertical-align: middle;
+.tarjetaActiva,
+.tarjetaActiva:hover {
+  box-shadow: var(--clay-shadow), inset 0 0 0 2px var(--color-primary);
 }
 
-.celdaImagen {
-  width: 44px;
-}
-
-.miniatura,
-.miniaturaVacia {
-  width: 36px;
-  height: 36px;
+.tarjetaFoto,
+.tarjetaFotoVacia {
+  width: 100%;
+  aspect-ratio: 4 / 3;
   object-fit: contain;
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-2);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
   border: 1px solid var(--color-border-light);
 }
 
-.miniaturaVacia {
-  display: inline-flex;
+.tarjetaFotoVacia {
+  display: flex;
   align-items: center;
   justify-content: center;
   color: var(--color-text-muted);
 }
 
-.celdaNombre {
-  min-width: 200px;
-  max-width: 320px;
+.tarjetaPildoras {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  min-height: 18px;
 }
 
-.nombreProducto {
-  font-weight: 500;
+.tarjetaNombre {
+  font-weight: 700;
+  font-size: 13.5px;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-height: 2.6em;
 }
 
 .skuMono {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--color-text-muted);
   font-family: var(--font-cifras, monospace);
 }
 
+.tarjetaPie {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--espacio-2);
+  margin-top: auto;
+  padding-top: var(--espacio-2);
+  border-top: 1px solid var(--color-border-light);
+}
+
+.tarjetaPrecio {
+  font-size: 17px;
+  font-weight: 800;
+  font-family: var(--font-display);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tarjetaMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+.tarjetaTiendas {
+  font-variant-numeric: tabular-nums;
+}
+
 .nivelPildora {
-  padding: 0 6px;
+  padding: 1px 8px;
   border-radius: var(--radius-full);
   border: 1px solid currentColor;
-  font-weight: 600;
-  font-size: 11px;
+  font-weight: 700;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   white-space: nowrap;
 }
 
@@ -215,29 +253,20 @@
 }
 
 .personajePildora {
-  padding: 0 6px;
+  padding: 1px 8px;
   border-radius: var(--radius-full);
   background: var(--color-personaje-bg);
   color: var(--color-personaje);
-  font-weight: 600;
-  font-size: 11px;
+  font-weight: 700;
+  font-size: 10.5px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .sinDato {
   color: var(--color-text-muted);
-}
-
-.celdaPrecio {
-  font-weight: 600;
-  white-space: nowrap;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.celdaTiendas {
-  text-align: center;
-  font-variant-numeric: tabular-nums;
 }
 
 /* ------------------------------------------------------------ paginación */
@@ -246,21 +275,29 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--espacio-3);
+  gap: var(--espacio-4);
   padding: var(--espacio-3) var(--espacio-4);
-  border-top: 1px solid var(--color-border-light);
-  font-size: 12.5px;
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+  font-size: 13px;
 }
 
 .paginaActual {
   font-variant-numeric: tabular-nums;
+  font-weight: 600;
   color: var(--color-text-secondary);
+  min-width: 9ch;
+  text-align: center;
 }
 
 .vacioTabla {
   padding: var(--espacio-6);
   text-align: center;
   color: var(--color-text-secondary);
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
 }
 
 /* -------------------------------------------------------- panel de edición */
