@@ -10,9 +10,9 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { Trash2 } from "lucide-react";
-import { NIVELES, ETIQUETA_NIVEL } from "@tukit/contrato";
+import { NIVELES, ETIQUETA_NIVEL, serializarAtributos } from "@tukit/contrato";
 import type {
   Nivel,
   ProductoCatalogoDetalle,
@@ -25,6 +25,7 @@ import {
   reclasificarProducto,
   FalloCatalogo,
 } from "@/lib/api-catalogo";
+import { filasDeAtributos, type ParAtributo } from "@/lib/atributos-editor";
 import PanelReclasificar, { type OpcionConcepto } from "./PanelReclasificar";
 import styles from "./CatalogoSpa.module.css";
 
@@ -44,17 +45,6 @@ interface Props {
   onGuardado: (producto: ProductoCatalogoDetalle) => void;
   onEliminado: (sku: string) => void;
   onCerrar: () => void;
-}
-
-interface ParAtributo {
-  clave: string;
-  valor: string;
-}
-
-function comoTexto(valor: unknown): string {
-  if (valor === null || valor === undefined) return "";
-  if (typeof valor === "object") return JSON.stringify(valor);
-  return String(valor);
 }
 
 function pareceUrl(texto: string): boolean {
@@ -85,12 +75,29 @@ export default function EditorProducto({
   const [empaque, setEmpaque] = useState(String(producto.unidades_por_empaque));
   const [quality, setQuality] = useState(String(producto.quality_score));
   const [esPropio, setEsPropio] = useState(producto.es_propio);
-  const [atributos, setAtributos] = useState<ParAtributo[]>(() =>
-    Object.entries(producto.atributos).map(([clave, valor]) => ({
-      clave,
-      valor: comoTexto(valor),
-    })),
+
+  // El esquema de atributos sale del concepto del producto: se pre-pueblan
+  // TODAS las claves que declara (discriminantes + descriptivos), no solo las
+  // que el producto trae. Las que el producto tiene pero el concepto no declara
+  // caen en "libres" para no perderlas. Si el concepto no viaja (no está en la
+  // lista), se cae al comportamiento previo: solo las claves del producto.
+  const conceptoDelProducto = conceptos.find((c) => c.codigo === producto.concepto.codigo);
+  const gruposIniciales = useMemo(
+    () =>
+      filasDeAtributos(
+        producto.atributos,
+        conceptoDelProducto?.atributos_discriminantes ?? [],
+        conceptoDelProducto?.atributos_descriptivos ?? [],
+      ),
+    // Solo depende del producto abierto; el padre remonta con `key={sku}`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   );
+  const [discriminantes, setDiscriminantes] = useState<ParAtributo[]>(
+    gruposIniciales.discriminantes,
+  );
+  const [descriptivos, setDescriptivos] = useState<ParAtributo[]>(gruposIniciales.descriptivos);
+  const [libres, setLibres] = useState<ParAtributo[]>(gruposIniciales.libres);
 
   const [guardando, setGuardando] = useState(false);
   const [reclasificando, setReclasificando] = useState(false);
@@ -121,12 +128,10 @@ export default function EditorProducto({
     }
 
     // El mapa de atributos se reemplaza entero (contrato: `atributos` reemplaza
-    // el mapa). Se dejan solo las claves con nombre; el valor va como texto.
-    const mapaAtributos: Record<string, unknown> = {};
-    for (const { clave, valor } of atributos) {
-      const k = clave.trim();
-      if (k) mapaAtributos[k] = valor;
-    }
+    // el mapa). `serializarAtributos` tipa cada valor (`"80"`→`80`,
+    // `"true"`→`true`) y descarta las filas vacías: una clave sin valor NO se
+    // afirma (consistente con la guarda `atributos_invalido` del backend).
+    const mapaAtributos = serializarAtributos([...discriminantes, ...descriptivos, ...libres]);
 
     const cambios: ProductoEditable = {
       nombre: nombre.trim(),
@@ -184,9 +189,46 @@ export default function EditorProducto({
     }
   }
 
-  function actualizarAtributo(indice: number, campo: keyof ParAtributo, valor: string) {
-    setAtributos((prev) =>
-      prev.map((p, i) => (i === indice ? { ...p, [campo]: valor } : p)),
+  // Los grupos declarados (discriminantes/descriptivos) solo editan el VALOR:
+  // la clave la fija el concepto y no se toca. El grupo libre sí edita clave y
+  // valor y permite quitar filas, como el editor plano anterior.
+  function editarValor(
+    set: Dispatch<SetStateAction<ParAtributo[]>>,
+    indice: number,
+    valor: string,
+  ) {
+    set((prev) => prev.map((p, i) => (i === indice ? { ...p, valor } : p)));
+  }
+
+  function editarLibre(indice: number, campo: keyof ParAtributo, valor: string) {
+    setLibres((prev) => prev.map((p, i) => (i === indice ? { ...p, [campo]: valor } : p)));
+  }
+
+  // Un grupo declarado: cada fila muestra la clave (fija) y una caja de valor.
+  function grupoDeclarado(
+    titulo: string,
+    nota: string,
+    filas: ParAtributo[],
+    set: Dispatch<SetStateAction<ParAtributo[]>>,
+  ) {
+    if (filas.length === 0) return null; // no se muestra encabezado de grupo vacío
+    return (
+      <div className={styles.atributos}>
+        <span className={styles.ayuda}>
+          <strong>{titulo}</strong> — {nota}
+        </span>
+        {filas.map((par, i) => (
+          <div key={par.clave} className={styles.atributoFila}>
+            <input aria-label="Clave" value={par.clave} readOnly disabled />
+            <input
+              aria-label={`Valor de ${par.clave}`}
+              placeholder="(sin valor)"
+              value={par.valor}
+              onChange={(e) => editarValor(set, i, e.target.value)}
+            />
+          </div>
+        ))}
+      </div>
     );
   }
 
@@ -363,30 +405,53 @@ export default function EditorProducto({
           </label>
         </div>
 
-        {/* Atributos: editor clave-valor sobre el dict. */}
+        {/* Atributos: pre-poblados por el concepto (todas sus claves), en dos
+            grupos, más las claves libres que el producto ya trae. Una fila con
+            valor vacío no afirma la clave (no se guarda). */}
         <span className={styles.subtitulo}>Atributos</span>
+
+        {grupoDeclarado(
+          "Filtra la búsqueda",
+          "estos atributos deciden qué candidatos entran a un kit.",
+          discriminantes,
+          setDiscriminantes,
+        )}
+        {grupoDeclarado(
+          "Solo informativo",
+          "se le muestran al acudiente pero no filtran.",
+          descriptivos,
+          setDescriptivos,
+        )}
+
+        {/* Claves libres: las que el producto trae y el concepto no declara, más
+            las que se agreguen a mano. Aquí sí se edita la clave y se quitan. */}
         <div className={styles.atributos}>
-          {atributos.length === 0 && (
+          {discriminantes.length === 0 && descriptivos.length === 0 && libres.length === 0 && (
             <span className={styles.ayuda}>Sin atributos. Agregá uno abajo.</span>
           )}
-          {atributos.map((par, i) => (
+          {libres.length > 0 && (
+            <span className={styles.ayuda}>
+              <strong>Otros</strong> — claves que este concepto no declara.
+            </span>
+          )}
+          {libres.map((par, i) => (
             <div key={i} className={styles.atributoFila}>
               <input
                 aria-label="Clave"
                 placeholder="clave"
                 value={par.clave}
-                onChange={(e) => actualizarAtributo(i, "clave", e.target.value)}
+                onChange={(e) => editarLibre(i, "clave", e.target.value)}
               />
               <input
                 aria-label="Valor"
                 placeholder="valor"
                 value={par.valor}
-                onChange={(e) => actualizarAtributo(i, "valor", e.target.value)}
+                onChange={(e) => editarLibre(i, "valor", e.target.value)}
               />
               <button
                 type="button"
                 className={styles.secundario}
-                onClick={() => setAtributos((prev) => prev.filter((_, j) => j !== i))}
+                onClick={() => setLibres((prev) => prev.filter((_, j) => j !== i))}
                 aria-label="Quitar atributo"
               >
                 <Trash2 size={14} aria-hidden="true" />
@@ -397,7 +462,7 @@ export default function EditorProducto({
             type="button"
             className={styles.secundario}
             style={{ alignSelf: "flex-start" }}
-            onClick={() => setAtributos((prev) => [...prev, { clave: "", valor: "" }])}
+            onClick={() => setLibres((prev) => [...prev, { clave: "", valor: "" }])}
           >
             + Atributo
           </button>

@@ -547,3 +547,34 @@
   font-size: 13px;
   color: var(--color-text-primary);
 }
+
+/* --------------------------------------------------------------- pestañas
+ * Cambian entre las cuatro vistas de /catalogo (productos, cola, alta de útil,
+ * alta de libro). Presentación mínima reusando los tokens del slice. */
+.pestanas {
+  display: flex;
+  gap: var(--espacio-1);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--espacio-4);
+}
+
+.pestana {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: var(--espacio-2) var(--espacio-3);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.pestana:hover {
+  color: var(--color-text-primary);
+}
+
+.pestanaActiva {
+  color: var(--color-text-primary);
+  border-bottom-color: var(--color-primary);
+}
