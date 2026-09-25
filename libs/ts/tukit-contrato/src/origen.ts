@@ -12,9 +12,13 @@
 
 import type {
   AltaProducto,
+  AplicarCanonico,
+  Checkout,
   ColaAdmin,
   Contacto,
   DecisionRevision,
+  GradoCanonico,
+  SolicitudCheckout,
   HijoSubida,
   MarcarNoDisponible,
   PercepcionCruda,
@@ -25,12 +29,15 @@ import type {
   SubidaListas,
   Trabajo,
   TrabajoAdmin,
+  TrabajoAplicado,
   TrabajoCreado,
   ValidarLinea,
 } from "./contrato";
 import type {
   AltaLibro,
   AltaUtil,
+  ConceptoCreado,
+  CrearConcepto,
   AltaUtilManual,
   AprobarPropuesta,
   CandidatoTienda,
@@ -163,6 +170,9 @@ export interface OrigenDatos {
   // El rechazo reusa la ruta ya existente `POST /v1/admin/propuestas/{id}/rechazar`.
   colaPropuestas(concepto?: string): Promise<PropuestaCola[]>;
   buscarEnTienda(slug: string, consulta: string, cuantos?: number): Promise<CandidatoTienda[]>;
+  // Crea un concepto nuevo (el codigo lo autogenera el backend). Es el otro
+  // brazo de la curacion: nace el concepto y despues se le encolan sus niveles.
+  crearConcepto(cuerpo: CrearConcepto): Promise<ConceptoCreado>;
   altaUtil(cuerpo: AltaUtil): Promise<PropuestaEncolada>;
   altaUtilManual(cuerpo: AltaUtilManual): Promise<PropuestaEncolada>;
   altaLibro(cuerpo: AltaLibro): Promise<PropuestaEncolada>;
@@ -172,10 +182,31 @@ export interface OrigenDatos {
     cuerpo: RechazarPropuesta,
   ): Promise<{ id: string; estado: string }>;
 
+  // §Ruta rapida del acudiente — un (colegio, grado) YA publicado es la cache
+  // bendita: `gradosCanonicos` lista lo que tiene cache (para elegir en vez de
+  // subir PDF) y `aplicarCanonico` aplica el nivel + personaje sin re-optimizar
+  // ni entrar a la cola, dejando el pedido congelado para comercio.
+  gradosCanonicos(colegioId?: string): Promise<GradoCanonico[]>;
+  aplicarCanonico(cuerpo: AplicarCanonico): Promise<TrabajoAplicado>;
+
+  // §Checkout — el acudiente paga el kit de un trabajo publicado. Manda solo
+  // perfil + correo + direccion; Inteligencia arma la orden en Comercio y
+  // devuelve la url de la pasarela a la que redirigir. No expone ids de base.
+  iniciarCheckout(trabajoId: string, cuerpo: SolicitudCheckout): Promise<Checkout>;
+
   // §7 — revision humana.
   cola(): Promise<ColaAdmin>;
   trabajoAdmin(trabajoId: string): Promise<TrabajoAdmin>;
   validarLinea(trabajoId: string, itemId: string, cuerpo: ValidarLinea): Promise<void>;
+  // Fija el producto de UN kit (por-nivel): escribe LINEA, no RESOLUCION, y
+  // recalcula el subtotal. A diferencia de `validarLinea` (que confirma el item
+  // en los tres kits) esto cambia el producto de un solo perfil.
+  fijarProductoLinea(
+    trabajoId: string,
+    perfil: string,
+    itemId: string,
+    sku: string,
+  ): Promise<void>;
   marcarSinCoincidencia(
     trabajoId: string,
     itemId: string,
@@ -184,6 +215,9 @@ export interface OrigenDatos {
   altaProducto(cuerpo: AltaProducto): Promise<ProductoDadoDeAlta>;
   marcarNoDisponible(sku: string, cuerpo: MarcarNoDisponible): Promise<void>;
   decidirRevision(trabajoId: string, cuerpo: DecisionRevision): Promise<void>;
+  // Borra un trabajo desechable (preview, encolado, fallido). Un `publicado`
+  // esta protegido y el backend responde 409.
+  eliminarTrabajo(trabajoId: string): Promise<void>;
 
   // §Onboarding — inteligencia recibe el PDF de un grado, lo percibe y lo
   // vuelca en catalogo como una version de lista importada (P2). El gateway
@@ -236,6 +270,7 @@ export interface OrigenDatos {
     cambios: ItemListaEditable,
   ): Promise<void>;
   agregarItemLista(versionId: string, item: ItemListaEditable): Promise<{ item_id: string }>;
+  quitarItemLista(versionId: string, itemId: string): Promise<void>;
   cerrarLista(versionId: string): Promise<void>;
   nuevaVersion(
     colegioId: string,
@@ -253,6 +288,13 @@ export interface OrigenDatos {
     versionId: string,
     cambios: ColegioNuevoEditable,
   ): Promise<DatosColegioNuevo>;
+
+  // El bloque DUEB de un colegio del directorio de Bogota (`GET
+  // /v1/directorio/{dane}`), para pre-llenar el perfil del colegio nuevo de una
+  // version cuando la subida solo dejo el nombre. `null` si el DANE no esta en
+  // el directorio (colegio de otra ciudad o escrito a mano): quien llama degrada
+  // a solo nombre+dane.
+  directorioColegio(dane: string): Promise<DatosColegioNuevo | null>;
 
   // El detalle de un colegio y la edicion de su identidad. `colegio` lee
   // `GET /v1/colegios/{id}`; `editarColegio` manda el `PATCH /v1/colegios/{id}`

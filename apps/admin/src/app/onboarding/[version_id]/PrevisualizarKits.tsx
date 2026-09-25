@@ -35,9 +35,11 @@ export default function PrevisualizarKits({ versionId, colegioId, grado, anioLec
         grado,
         anio_lectivo: anioLectivo,
       });
-      router.push(
-        `/onboarding/${encodeURIComponent(versionId)}/preview/${encodeURIComponent(trabajo_id)}`,
-      );
+      // El preview es un TrabajoAdmin real: se abre en la MISMA consola de
+      // revisión que el resto de la cola (`/trabajos/{id}`, ConsolaRevision), no
+      // en la vista de solo lectura aparte. Es la vista que el revisor ya conoce
+      // y sobre la que puede validar/editar/cambiar personaje antes de publicar.
+      router.push(`/trabajos/${encodeURIComponent(trabajo_id)}`);
     } catch (causa) {
       setError(
         causa instanceof FalloListas ? causa.message : "No pudimos armar la vista previa.",
@@ -58,8 +60,8 @@ export default function PrevisualizarKits({ versionId, colegioId, grado, anioLec
         {armando ? "Armando la vista previa…" : "Previsualizar los 3 kits"}
       </button>
       <span className={styles.faltante}>
-        Ve los tres kits que saldrían de esta versión sin publicarla. Es una vista de solo
-        lectura: publicar es el otro botón.
+        Abre los tres kits que saldrían de esta versión en la consola de revisión, sin
+        publicarla: ahí puedes validar, editar y cambiar personaje. Publicar es el otro botón.
       </span>
       {error ? <p className={styles.errorCaja}>{error}</p> : null}
     </div>

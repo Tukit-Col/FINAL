@@ -296,7 +296,11 @@ class LineaOrden(BaseModel):
     """Un renglon que el acudiente aprobo. El precio que trae es el que VIO;
     Comercio lo re-verifica contra Catalogo y solo lo congela si sigue igual."""
 
-    producto_canonico_id: str
+    # Opcional: Comercio lo resuelve por sku contra Catalogo (endpoint interno),
+    # en la misma lectura con que re-verifica el precio. Quien arma la orden
+    # (Inteligencia, el navegador) nunca ve un id canonico -RPO cero, ADR 0017-,
+    # asi que no puede mandarlo; se acepta si viene, pero no se exige.
+    producto_canonico_id: str | None = None
     sku: str = Field(min_length=1, max_length=64)
     nombre: str = Field(min_length=1, max_length=256)
     cantidad: int = Field(gt=0)
@@ -367,19 +371,25 @@ async def crear_orden(solicitud: SolicitudOrden) -> dict[str, Any]:
     # poder leer el precio no se cobra: Catalogo caido es 503, no un cobro a
     # ciegas.
     cambios: list[dict[str, Any]] = []
+    # sku -> id canonico resuelto por Catalogo, para congelar linea y reserva
+    # sin que quien arma la orden tenga que conocer el id (RPO cero, ADR 0017).
+    ids: dict[str, uuid.UUID] = {}
     for linea in solicitud.lineas:
         try:
-            precio_actual = await app.state.catalogo.precio_de(linea.sku)
+            resuelto = await app.state.catalogo.resolver(linea.sku)
         except CatalogoCaido:
             raise ErrorDominio(
                 "catalogo_no_disponible",
                 "No se pudo re-verificar el precio con Catalogo; la orden no se cerro.",
                 estado=503,
             ) from None
-        if precio_actual is None or precio_actual != linea.precio_unitario:
+        precio_actual = resuelto[1] if resuelto else None
+        if resuelto is None or precio_actual is None or precio_actual != linea.precio_unitario:
             cambios.append(
                 {"sku": linea.sku, "precio_aprobado": linea.precio_unitario, "precio_actual": precio_actual}
             )
+        else:
+            ids[linea.sku] = resuelto[0]
 
     if cambios:
         raise ErrorDominio(
@@ -408,7 +418,9 @@ async def crear_orden(solicitud: SolicitudOrden) -> dict[str, Any]:
             )
         )
         for linea in solicitud.lineas:
-            producto_id = _uuid_o_422(linea.producto_canonico_id, "producto_canonico_id")
+            # El id resuelto por Catalogo manda; si el cliente mando uno se
+            # respeta, pero la fuente de verdad es el sku re-verificado arriba.
+            producto_id = ids.get(linea.sku) or _uuid_o_422(linea.producto_canonico_id, "producto_canonico_id")
             matricula_id = _uuid_o_422(linea.matricula_id, "matricula_id") if linea.matricula_id else None
             await conexion.execute(
                 insert(LINEA_PEDIDO).values(

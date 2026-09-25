@@ -137,6 +137,22 @@ class TestLaFusionNoRompeLaCabezaAnclada:
         _i, _n, hibrido = clasificar(renglon, CATALOGO, embedding_renglon=consulta)
         assert hibrido >= solo_lexico
 
+    def test_un_match_lexico_perfecto_mas_coseno_no_pasa_de_uno(self):
+        # El puntaje ES la confianza que `inteligencia` guarda en
+        # `candidato_item.confianza`, una columna NUMERIC(4,3) con el check
+        # `candidato_confianza_en_rango` (0..1). Cuando el lexico acierta la
+        # cabeza y la frase entera (parecido 1.0), la base ya vale 1.0, y el
+        # aporte del coseno la empujaba por encima -> viola el check y el
+        # pipeline muere en la insercion. La fusion debe tener techo en 1.0.
+        renglon = "cuaderno cosido"
+        (consulta,) = embeder_falso([renglon])
+        # Concepto cuyo nombre ES el renglon (parecido lexico 1.0) y cuyo
+        # embedding es el del renglon (coseno 1.0): el caso extremo que dispara
+        # el desborde. Sin techo, 0.6 + 0.4 + 0.15 = 1.15.
+        exacto = {"id": "x", "nombre": renglon, "sinonimos": [], "embedding": consulta}
+        _i, _n, hibrido = clasificar(renglon, [exacto], embedding_renglon=consulta)
+        assert hibrido <= 1.0
+
 
 class TestElRescateSemanticoLevantaLoQueElLexicoNoVe:
     """Un sinonimo que no esta en la lista de sinonimos. El lexico da 0 porque

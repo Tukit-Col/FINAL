@@ -38,7 +38,7 @@ from tukit_comun.http import ErrorDominio, crear_app
 from . import gemini, metricas, paginas, trabajos
 from .modelos import EstadoResolucion, EstadoTrabajo
 from .percepcion import LeerPagina, Percepcion, Renderizar, percibir
-from .remoto import ClienteCatalogo, ClienteIdentidad, url_catalogo, url_identidad
+from .remoto import ClienteCatalogo, ClienteComercio, ClienteIdentidad, url_catalogo, url_identidad
 
 PUERTO_POR_OMISION = 8013
 
@@ -127,10 +127,48 @@ class DecisionLinea(BaseModel):
     actor: uuid.UUID | None = None
 
 
+class ProductoEnLinea(BaseModel):
+    sku: str = Field(max_length=64)
+
+
 class DecisionRevision(BaseModel):
     decision: str = Field(pattern="^(aprobar|devolver)$")
     nota: str | None = Field(default=None, max_length=1024)
     actor: uuid.UUID | None = None
+
+
+class AplicarCanonico(BaseModel):
+    """La ruta rapida del acudiente: su nivel + personaje sobre la cache bendita."""
+
+    colegio_id: str = Field(max_length=64)
+    grado: str = Field(max_length=64)
+    anio_lectivo: int = Field(ge=2020, le=2100)
+    perfil: str = Field(max_length=16)
+    personaje: str | None = Field(default=None, max_length=64)
+    usuario_id: uuid.UUID | None = None
+
+
+class EntregaCheckout(BaseModel):
+    """La direccion a la que se entrega. Se COPIA congelada en Comercio (ADR 0015)."""
+
+    destinatario: str = Field(min_length=1, max_length=256)
+    direccion: str = Field(min_length=1, max_length=512)
+    ciudad: str = Field(min_length=1, max_length=128)
+
+
+class PeticionCheckout(BaseModel):
+    """Lo que el navegador manda para pagar: el kit por perfil, correo y direccion.
+
+    Nunca un id de base ni una linea: el trabajo (que Inteligencia si conoce)
+    tiene el kit y el `usuario_id`; el navegador solo elige el perfil y a donde
+    entregar. Asi el checkout no reintroduce lo que RPO cero saca de la vista.
+    """
+
+    perfil: str = Field(max_length=16)
+    correo: str = Field(min_length=5, max_length=320)
+    entrega: EntregaCheckout
+    metodo: str = Field(default="pse", max_length=16)
+    url_redireccion: str | None = Field(default=None, max_length=512)
 
 
 async def _arrancar(app: FastAPI) -> None:
@@ -197,10 +235,58 @@ async def crear_trabajo(peticion: PeticionTrabajo) -> dict[str, Any]:
 @app.get("/v1/trabajos/{trabajo_id}", tags=["trabajos"], summary="Estado, etapas y kits del trabajo")
 async def ver_trabajo(trabajo_id: uuid.UUID) -> dict[str, Any]:
     try:
-        return await trabajos.ver(app.state.motor, trabajo_id)
+        return await trabajos.ver(app.state.motor, trabajo_id, catalogo=_catalogo())
     except trabajos.TrabajoNoExiste as error:
         raise ErrorDominio(
             "trabajo_no_existe", "No hay ningun trabajo con ese identificador.", estado=404
+        ) from error
+
+
+@app.post(
+    "/v1/trabajos/{trabajo_id}/ordenar",
+    tags=["trabajos"],
+    status_code=201,
+    summary="Checkout: arma la orden del kit elegido y arranca el pago (server-to-server)",
+)
+async def ordenar_trabajo(trabajo_id: uuid.UUID, cuerpo: PeticionCheckout) -> dict[str, Any]:
+    """El acudiente elige perfil + direccion; Inteligencia arma la orden en Comercio.
+
+    El navegador no habla con Comercio: manda `trabajo_id` + perfil + correo +
+    direccion, y aqui se resuelve el kit y se cobra. Devuelve la
+    `url_redireccion` de la pasarela para mandar al acudiente a pagar.
+    """
+    try:
+        return await trabajos.ordenar(
+            app.state.motor,
+            trabajo_id,
+            perfil=cuerpo.perfil,
+            entrega=cuerpo.entrega.model_dump(),
+            correo=cuerpo.correo,
+            metodo=cuerpo.metodo,
+            url_redireccion=cuerpo.url_redireccion,
+            comercio=_comercio(),
+            catalogo=_catalogo(),
+            identidad=_identidad(),
+        )
+    except trabajos.TrabajoNoExiste as error:
+        raise ErrorDominio(
+            "trabajo_no_ordenable",
+            "Ese trabajo no tiene un kit de ese perfil para comprar.",
+            estado=404,
+        ) from error
+    except trabajos.CheckoutRechazado as error:
+        # Comercio rechazo por negocio (p.ej. precio_cambiado): se reenvia su
+        # cuerpo verbatim y su estado, para que el acudiente vea el motivo.
+        raise ErrorDominio(
+            str(error.cuerpo.get("error") or "checkout_rechazado"),
+            str(error.cuerpo.get("mensaje") or "El pago no se pudo iniciar."),
+            estado=error.estado,
+        ) from error
+    except trabajos.RemotoCaido as error:
+        raise ErrorDominio(
+            "servicio_no_disponible",
+            f"No se pudo completar el checkout: {error.servicio} no respondio.",
+            estado=503,
         ) from error
 
 
@@ -324,12 +410,22 @@ def _identidad() -> Any:
     return cliente
 
 
+def _comercio() -> Any:
+    """El cliente de Comercio, inyectable por `app.state` para las pruebas."""
+    cliente = getattr(app.state, "comercio", None)
+    if cliente is None:
+        cliente = ClienteComercio()
+    return cliente
+
+
 def _items_desde_percepcion(percepcion: Percepcion) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """De una percepcion aceptada a `(items, percepcion_cruda)` para el catalogo.
 
-    Mismo mapeo que el onboarding: un `descripcion` es el `texto_original` que
-    el catalogo va a emparejar, una `cantidad` en null se vuelve 1, y la
-    evidencia por pagina agrupa el crudo estructurado que si viaja.
+    Un `descripcion` es el `texto_original` que el catalogo va a emparejar, una
+    `cantidad` en null se vuelve 1, y la evidencia por pagina lleva el texto
+    leido —`crudo` es una cadena (contrato: `PercepcionCruda`), no una lista de
+    objetos: la region 2 la pinta directamente—. La percepcion ya viene agregada
+    (sin items por pagina), asi que el texto leido se muestra en la pagina 1.
     """
     items = [
         {
@@ -339,11 +435,12 @@ def _items_desde_percepcion(percepcion: Percepcion) -> tuple[list[dict[str, Any]
         }
         for item in percepcion.items
     ]
+    leido = "\n".join(
+        f"{item.cantidad} {item.descripcion}".strip() if item.cantidad else item.descripcion
+        for item in percepcion.items
+    )
     percepcion_cruda = [
-        {
-            "pagina": numero,
-            "crudo": [item.model_dump() for item in percepcion.items] if numero == 1 else [],
-        }
+        {"pagina": numero, "crudo": leido if numero == 1 else ""}
         for numero in range(1, percepcion.paginas + 1)
     ]
     return items, percepcion_cruda
@@ -549,6 +646,13 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
     anio_por_omision = 2026
     for hijo, grado, pdf, percepcion in percibidos:
         colegio_id, colegio_datos = hijo.resolver_colegio()
+        # Colegio nuevo elegido del directorio: se pre-llena su perfil (direccion,
+        # contacto, sitio) con el DUEB para que la cola no muestre un bloque vacio.
+        # El nombre/dane de la subida mandan; el directorio solo tapa huecos.
+        if colegio_datos and colegio_datos.get("dane"):
+            del_dueb = await _identidad().datos_directorio(colegio_datos["dane"])
+            if del_dueb:
+                colegio_datos = {**del_dueb, **{k: v for k, v in colegio_datos.items() if v}}
         anio = hijo.anio_lectivo or anio_por_omision
         clave = (f"{colegio_id}|{grado}", anio)
         version_id = por_destino.get(clave)
@@ -564,6 +668,7 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
                 contacto_referencia=contacto_referencia,
                 preferencias=preferencias,
                 colegio_datos=colegio_datos,
+                origen="sugerencia_padre",
             )
             version_id = str(respuesta["version_id"])
             por_destino[clave] = version_id
@@ -617,27 +722,8 @@ async def onboarding(peticion: Request) -> dict[str, Any]:
             grados_detectados=percepcion.grados,
         )
 
-    # Un item leido se vuelve un renglon del contrato: la cantidad en null se
-    # vuelve 1 (un item pedido al menos una vez), y el texto del modelo es el
-    # texto_original que el catalogo va a emparejar.
-    items = [
-        {
-            "texto_original": item.descripcion,
-            "cantidad": item.cantidad or 1,
-            "confianza": item.confianza,
-        }
-        for item in percepcion.items
-    ]
-    # La evidencia por pagina agrupa los items que se leyeron en cada una. No
-    # se guarda el texto por separado del modelo (no lo devuelve la Percepcion
-    # ya agregada), pero si el crudo estructurado que si viaja.
-    percepcion_cruda = [
-        {
-            "pagina": numero,
-            "crudo": [item.model_dump() for item in percepcion.items] if numero == 1 else [],
-        }
-        for numero in range(1, percepcion.paginas + 1)
-    ]
+    # Mismo mapeo (renglones + evidencia por pagina) que la subida del acudiente.
+    items, percepcion_cruda = _items_desde_percepcion(percepcion)
 
     respuesta = await _catalogo().importar_lista(
         colegio_id=campos["colegio_id"],
@@ -703,6 +789,15 @@ async def preview_onboarding(version_id: str, peticion: PeticionPreview) -> dict
             estado=409,
         )
 
+    # Previsualizar es idempotente por version: si el admin ya previsualizo
+    # este (colegio, grado, anio), su preview anterior se descarta antes de
+    # armar el nuevo. Sin esto, cada clic dejaba un trabajo desechable mas en
+    # la cola y no habia forma de limpiarlos.
+    for viejo in await trabajos.previews_de(
+        app.state.motor, peticion.colegio_id, peticion.grado, peticion.anio_lectivo
+    ):
+        await trabajos.eliminar(app.state.motor, viejo)
+
     respuesta = await trabajos.crear(
         app.state.motor,
         hijos=[
@@ -748,10 +843,40 @@ async def ver_admin(trabajo_id: uuid.UUID) -> dict[str, Any]:
     no dos lectores distintos que se puedan desincronizar.
     """
     try:
-        return await trabajos.ver(app.state.motor, trabajo_id, incluir_kits=True, incluir_admin=True)
+        return await trabajos.ver(
+            app.state.motor, trabajo_id, incluir_kits=True, incluir_admin=True, catalogo=_catalogo()
+        )
     except trabajos.TrabajoNoExiste as error:
         raise ErrorDominio(
             "trabajo_no_existe", "No hay ningun trabajo con ese identificador.", estado=404
+        ) from error
+
+
+@app.delete(
+    "/v1/admin/trabajos/{trabajo_id}",
+    tags=["admin"],
+    status_code=204,
+    summary="Borra un trabajo desechable (preview, encolado, fallido). No borra publicados.",
+)
+async def eliminar_trabajo(trabajo_id: uuid.UUID) -> None:
+    """Borra un trabajo y su cascada. Un `publicado` esta protegido (409).
+
+    Existe para limpiar los previews que se acumulan al previsualizar una lista
+    varias veces, y cualquier trabajo desechable que ensucie la cola. La cascada
+    de FKs se lleva etapas, items, kits y lineas; solo queda la bandeja de
+    eventos, que es el log.
+    """
+    try:
+        await trabajos.eliminar(app.state.motor, trabajo_id)
+    except trabajos.TrabajoNoExiste as error:
+        raise ErrorDominio(
+            "trabajo_no_existe", "No hay ningun trabajo con ese identificador.", estado=404
+        ) from error
+    except trabajos.TrabajoProtegido as error:
+        raise ErrorDominio(
+            "trabajo_publicado_protegido",
+            "Un trabajo publicado es el kit canonico de su colegio y grado; no se borra.",
+            estado=409,
         ) from error
 
 
@@ -773,6 +898,72 @@ async def validar_linea(trabajo_id: uuid.UUID, item_id: uuid.UUID, decision: Dec
         )
     except trabajos.TrabajoNoExiste as error:
         raise ErrorDominio("linea_no_existe", "Ese trabajo no tiene esa linea.", estado=404) from error
+
+
+@app.put(
+    "/v1/admin/trabajos/{trabajo_id}/kits/{perfil}/lineas/{item_id}/producto",
+    tags=["admin"],
+    summary="AD-04: fija el producto de UN kit (por-nivel), recalculando su subtotal",
+)
+async def fijar_producto(
+    trabajo_id: uuid.UUID, perfil: str, item_id: uuid.UUID, cuerpo: ProductoEnLinea
+) -> dict[str, Any]:
+    """Escribe LINEA (no RESOLUCION): la eleccion de producto es por kit.
+
+    A diferencia de `validar_linea` —que confirma el emparejamiento del item en
+    los tres kits— esto cambia el producto de UN nivel. Es lo que hace que un
+    concepto suba de economico a premium entre kits y que un personaje del Fan
+    llegue de verdad al kit publicado.
+    """
+    try:
+        return await trabajos.fijar_producto_en_linea(
+            app.state.motor, trabajo_id, perfil, item_id, cuerpo.sku, catalogo=_catalogo()
+        )
+    except trabajos.TrabajoNoExiste as error:
+        raise ErrorDominio("linea_no_existe", "Ese trabajo no tiene esa linea en ese kit.", estado=404) from error
+
+
+@app.get(
+    "/v1/grados-canonicos",
+    tags=["trabajos"],
+    summary="Los (colegio, grado, anio) con cache bendita, para el selector de /empezar",
+)
+async def listar_grados_canonicos(
+    colegio_id: Annotated[str | None, Query(description="Filtra a un colegio")] = None,
+) -> dict[str, Any]:
+    grados = await trabajos.grados_canonicos(app.state.motor, colegio_id=colegio_id)
+    return {"grados": grados}
+
+
+@app.post(
+    "/v1/trabajos/aplicar-canonico",
+    tags=["trabajos"],
+    status_code=201,
+    summary="Ruta rapida: aplica nivel + personaje a la cache bendita y solicita el pedido",
+)
+async def aplicar_canonico(cuerpo: AplicarCanonico) -> dict[str, Any]:
+    """Sin re-optimizar y sin cola: crea el trabajo del acudiente y su pedido.
+
+    Es la contraparte de subir un PDF (que si entra al pipeline). Un grado con
+    cache bendita se resuelve al vuelo; el pedido congelado queda para Comercio.
+    """
+    try:
+        return await trabajos.aplicar_canonico(
+            app.state.motor,
+            colegio_id=cuerpo.colegio_id,
+            grado=cuerpo.grado,
+            anio_lectivo=cuerpo.anio_lectivo,
+            perfil=cuerpo.perfil,
+            personaje=cuerpo.personaje,
+            usuario_id=cuerpo.usuario_id,
+            catalogo=_catalogo(),
+        )
+    except trabajos.TrabajoNoExiste as error:
+        raise ErrorDominio(
+            "cache_no_existe",
+            "Ese colegio y grado no tiene todavia un kit publicado; sube la lista.",
+            estado=404,
+        ) from error
 
 
 @app.post(
@@ -827,6 +1018,14 @@ async def revisar(trabajo_id: uuid.UUID, decision: DecisionRevision) -> dict[str
         raise ErrorDominio(
             "estado_incompatible",
             f"Un trabajo en {error.actual} no se puede pasar a {error.pedida}.",
+            estado=409,
+        ) from error
+    except trabajos.PreviewNoPublicable as error:
+        raise ErrorDominio(
+            "preview_no_publicable",
+            "Este es un preview de la lista, no tiene acudiente a quien avisar. "
+            "Para publicar, aprueba la lista en su revisión (crea el colegio y arma "
+            "el trabajo del padre).",
             estado=409,
         ) from error
 

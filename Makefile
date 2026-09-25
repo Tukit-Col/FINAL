@@ -9,7 +9,7 @@
         bd-arriba bd-abajo bd-crear bd-limpiar bd-esquema bd-indices bd-verificar \
         bd-migrar bd-revision bd-deriva bd-cargar bd-datos bd-enriquecer bd-completar \
         bd-demanda bd-revisar bd-vista bd-admin bd-nivelar bd-volcar bd-limpiar-candidatos fase1 \
-        bd-sembrar bd-colegios bd-listas backend arriba abajo estado humo \
+        bd-sembrar bd-colegios bd-listas backend arriba reanudar abajo estado humo \
         api-catalogo api-identidad api-inteligencia api-gateway \
         api-comercio api-operacion repartidor
 
@@ -233,16 +233,16 @@ bd-limpiar-candidatos:  ## Saca del catalogo lo que la maquina metio sin revisar
 	@cd servicios/catalogo && PYTHONPATH=".:../../libs/py/tukit_comun" \
 		../../$(PY) -m migraciones.limpieza_candidatos_a_cola $(ARGS)
 
-bd-sembrar:  ## Siembra colegios, catalogo curado y listas oficiales. Idempotente.
-	@$(MAKE) --no-print-directory bd-colegios
+bd-sembrar:  ## Siembra SOLO el catalogo curado de productos. Idempotente.
 	@$(MAKE) --no-print-directory bd-cargar
-	@$(MAKE) --no-print-directory bd-listas
+	@echo "Colegios y listas ya NO se siembran: se crean de verdad probando (identidad + revisar en la cola)."
+	@echo "Para sembrar datos falsos a mano: make bd-colegios / make bd-listas"
 
-bd-colegios:  ## Siembra los 17 colegios y sus sedes en Identidad
+bd-colegios:  ## (manual) Siembra los 17 colegios y sus sedes en Identidad. Datos falsos, fuera del sembrado por defecto.
 	@cd servicios/identidad && PYTHONPATH=".:../../libs/py/tukit_comun" \
 		../../$(PY) -m tukit_identidad.cargador --datos ../../datos/listas $(ARGS)
 
-bd-listas:  ## Siembra las listas oficiales por colegio y grado en Catalogo
+bd-listas:  ## (manual) Siembra las listas oficiales por colegio y grado. Datos falsos, fuera del sembrado por defecto.
 	@cd servicios/catalogo && PYTHONPATH=".:../../libs/py/tukit_comun" \
 		../../$(PY) -m tukit_catalogo.cargador_listas --datos ../../datos/listas $(ARGS)
 
@@ -318,6 +318,8 @@ poller:  ## Drena lista_verificada del catalogo y arma el kit del padre (una pas
 poller-identidad:  ## Drena colegio_verificado del catalogo y da de alta el colegio aliado (s=--seguir para bucle)
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_identidad.poller $(s)
 
+reanudar: arriba  ## Reanuda tras un apagado: solo levanta los procesos, NO siembra (usa `backend` solo para reconstruir de cero)
+
 arriba:  ## Levanta los seis procesos HTTP en segundo plano
 	@mkdir -p $(EJECUCION)
 	@$(MAKE) --no-print-directory abajo >/dev/null 2>&1 || true
@@ -338,14 +340,24 @@ arriba:  ## Levanta los seis procesos HTTP en segundo plano
 		curl -fs http://127.0.0.1:$(PUERTO_GATEWAY)/v1/servicios 2>/dev/null | grep -q '"todos_arriba":true' && break; \
 		sleep 0.5; \
 	done
+	@# Los tres trabajadores de fondo (§10): sin ellos el aviso al acudiente no
+	@# sale (repartidor), el kit del padre no se arma (poller) y un colegio nuevo
+	@# nunca se vuelve aliado (poller-identidad). Antes se lanzaban a mano y se
+	@# olvidaban; ahora suben con el backend. Cada uno en --seguir con su pid.
+	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_operacion.repartidor --seguir \
+		> $(EJECUCION)/repartidor.log 2>&1 & echo $$! > $(EJECUCION)/repartidor.pid
+	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_inteligencia.poller --seguir \
+		> $(EJECUCION)/poller.log 2>&1 & echo $$! > $(EJECUCION)/poller.pid
+	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_identidad.poller --seguir \
+		> $(EJECUCION)/poller-identidad.log 2>&1 & echo $$! > $(EJECUCION)/poller-identidad.pid
 	@$(MAKE) --no-print-directory estado
 
-abajo:  ## Detiene los seis procesos HTTP
-	@for s in gateway operacion comercio inteligencia catalogo identidad; do \
+abajo:  ## Detiene los seis procesos HTTP y los tres trabajadores de fondo
+	@for s in gateway operacion comercio inteligencia catalogo identidad repartidor poller poller-identidad; do \
 		[ -f $(EJECUCION)/$$s.pid ] && kill $$(cat $(EJECUCION)/$$s.pid) 2>/dev/null; \
 		rm -f $(EJECUCION)/$$s.pid; \
 	done; true
-	@echo "Procesos HTTP detenidos."
+	@echo "Procesos detenidos."
 
 estado:  ## Dice cuales de los seis estan arriba, preguntandoles
 	@curl -fs http://127.0.0.1:$(PUERTO_GATEWAY)/v1/servicios | $(PY) -m json.tool \

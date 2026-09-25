@@ -13,11 +13,15 @@
 import { createHash, randomUUID } from "node:crypto";
 import type {
   AltaProducto,
+  AplicarCanonico,
+  Checkout,
   ColaAdmin,
   Contacto,
   DecisionRevision,
   Etapa,
   EstadoTrabajo,
+  GradoCanonico,
+  SolicitudCheckout,
   HijoSubida,
   MarcarNoDisponible,
   NombreEtapa,
@@ -27,8 +31,10 @@ import type {
   SinCoincidencia,
   SolicitudTrabajo,
   SubidaListas,
+  TipoItem,
   Trabajo,
   TrabajoAdmin,
+  TrabajoAplicado,
   TrabajoCreado,
   ValidarLinea,
 } from "../contrato";
@@ -36,6 +42,8 @@ import { ETAPAS } from "../contrato";
 import type {
   AltaLibro,
   AltaUtil,
+  ConceptoCreado,
+  CrearConcepto,
   AltaUtilManual,
   AprobarPropuesta,
   CandidatoTienda,
@@ -94,6 +102,7 @@ import {
 import { armarKits, degradacionesDe, recomendar, resolverSolicitud } from "./armar";
 import {
   actualizar,
+  eliminar,
   guardar,
   guardarCaso,
   listar,
@@ -762,6 +771,46 @@ export class OrigenSimulado implements OrigenDatos {
     return candidatos;
   }
 
+  async crearConcepto(cuerpo: CrearConcepto): Promise<ConceptoCreado> {
+    const nombre = (cuerpo.nombre_canonico ?? "").trim();
+    const categoria = (cuerpo.categoria ?? "").trim();
+    if (!nombre) {
+      throw new ErrorTukit(422, "nombre_invalido", "El concepto necesita un nombre canonico.", {
+        campo: "nombre_canonico",
+      });
+    }
+    if (!categoria) {
+      throw new ErrorTukit(422, "categoria_invalida", "El concepto necesita una categoria.", {
+        campo: "categoria",
+      });
+    }
+    if (CATALOGO.conceptos.some((c) => c.nombre_canonico.toLowerCase() === nombre.toLowerCase())) {
+      throw new ErrorTukit(409, "concepto_ya_existe", `Ya existe un concepto '${nombre}'.`, {
+        campo: "nombre_canonico",
+      });
+    }
+    // El siguiente C0NN libre, igual que el backend, para que la demo enseñe el
+    // codigo autogenerado sin gestionar el esquema.
+    const maximo = CATALOGO.conceptos
+      .map((c) => (c.codigo.startsWith("C") && /^\d+$/.test(c.codigo.slice(1)) ? Number(c.codigo.slice(1)) : 0))
+      .reduce((a, b) => Math.max(a, b), 0);
+    const codigo = `C${String(maximo + 1).padStart(3, "0")}`;
+    const tipo_item = (cuerpo.tipo_item ?? "util") as TipoItem;
+    CATALOGO.conceptos.push({
+      codigo,
+      nombre_canonico: nombre,
+      sinonimos: (cuerpo.sinonimos ?? "").split("|").map((s) => s.trim()).filter(Boolean),
+      categoria,
+      tipo_item,
+      atributos_discriminantes: [],
+      atributos_descriptivos: [],
+      admite_personaje: Boolean(cuerpo.admite_personaje),
+      frecuencia_demanda: 0,
+      productos: [],
+    });
+    return { codigo, nombre_canonico: nombre, categoria, tipo_item };
+  }
+
   async altaUtil(cuerpo: AltaUtil): Promise<PropuestaEncolada> {
     this.exigirConcepto(cuerpo.concepto);
     const nombreConcepto = this.nombreDeConcepto(cuerpo.concepto);
@@ -977,6 +1026,57 @@ export class OrigenSimulado implements OrigenDatos {
     if (!registro) throw new ErrorTukit(404, "trabajo_no_existe", "Ese trabajo no existe.");
   }
 
+  async fijarProductoLinea(
+    trabajoId: string,
+    _perfil: string,
+    _itemId: string,
+    _sku: string,
+  ): Promise<void> {
+    // ponytail: el doble solo valida que el trabajo exista; no re-renderiza el
+    // producto por perfil (los kits del simulado se derivan, no se guardan por
+    // nivel). La ruta real es cliente-http contra inteligencia. Upgrade: guardar
+    // overrides por (perfil,item) si algun test del simulado los necesita.
+    const registro = actualizar(trabajoId, () => {});
+    if (!registro) throw new ErrorTukit(404, "trabajo_no_existe", "Ese trabajo no existe.");
+  }
+
+  // ponytail: el simulado no materializa la cache canonica (no guarda kits por
+  // grado). `gradosCanonicos` devuelve vacio y `aplicarCanonico` valida la
+  // forma y responde un pedido sintetico. La ruta real es cliente-http contra
+  // inteligencia. Upgrade: derivar grados de los trabajos publicados si algun
+  // test del simulado los necesita.
+  async gradosCanonicos(_colegioId?: string): Promise<GradoCanonico[]> {
+    return [];
+  }
+
+  async aplicarCanonico(cuerpo: AplicarCanonico): Promise<TrabajoAplicado> {
+    if (!cuerpo.colegio_id || !cuerpo.grado) {
+      throw new ErrorTukit(400, "destino_requerido", "Elige colegio y grado.");
+    }
+    return {
+      trabajo_id: `sim-${cuerpo.colegio_id}-${cuerpo.grado}`,
+      perfil: cuerpo.perfil,
+      personaje: cuerpo.personaje ?? null,
+      total: 0,
+    };
+  }
+
+  // ponytail: el checkout real vive en Comercio (server-to-server via
+  // Inteligencia); el simulado solo valida la forma y devuelve un pago
+  // sintetico sin pasarela. La ruta real es cliente-http.
+  async iniciarCheckout(trabajoId: string, cuerpo: SolicitudCheckout): Promise<Checkout> {
+    if (!cuerpo.correo?.trim() || !cuerpo.entrega?.direccion?.trim()) {
+      throw new ErrorTukit(400, "checkout_incompleto", "Faltan correo o dirección de entrega.");
+    }
+    return {
+      pedido_id: `sim-ped-${trabajoId}`,
+      total: 0,
+      pago_id: `sim-pago-${trabajoId}`,
+      estado: "iniciado",
+      url_redireccion: null,
+    };
+  }
+
   async marcarSinCoincidencia(
     trabajoId: string,
     itemId: string,
@@ -1058,6 +1158,21 @@ export class OrigenSimulado implements OrigenDatos {
         r.base_ms = Date.now();
       }
     });
+  }
+
+  async eliminarTrabajo(trabajoId: string): Promise<void> {
+    const registro = obtener(trabajoId);
+    if (!registro) throw new ErrorTukit(404, "trabajo_no_existe", "Ese trabajo no existe.");
+    // Un publicado es el kit canonico de su colegio y grado: protegido, igual
+    // que en el backend (409).
+    if (registro.aprobado) {
+      throw new ErrorTukit(
+        409,
+        "trabajo_publicado_protegido",
+        "Un trabajo publicado es el kit canónico de su colegio y grado; no se borra.",
+      );
+    }
+    eliminar(trabajoId);
   }
 
   // ---------------------------------------------------------- §Onboarding (P2)
@@ -1297,6 +1412,9 @@ export class OrigenSimulado implements OrigenDatos {
         // una version sin `tarea_importacion`.
         procedencia: v.procedencia ?? null,
         tiene_contacto: v.contacto_referencia != null,
+        // El simulado no modela colegios nuevos por crear: sus versiones son de
+        // colegios ya sembrados, cuyo nombre se resuelve por id.
+        colegio_nombre: null,
       }));
   }
 
@@ -1363,6 +1481,15 @@ export class OrigenSimulado implements OrigenDatos {
     version.items.push(nuevo);
     version.siguiente_orden += 1;
     return { item_id: nuevo.id };
+  }
+
+  async quitarItemLista(versionId: string, itemId: string): Promise<void> {
+    const version = this.exigirSinRevisar(versionId);
+    const antes = version.items.length;
+    version.items = version.items.filter((i) => i.id !== itemId);
+    if (version.items.length === antes) {
+      throw new ErrorTukit(404, "item_no_existe", "Ese renglon no esta en esta version.");
+    }
   }
 
   async cerrarLista(versionId: string): Promise<void> {
@@ -1447,6 +1574,13 @@ export class OrigenSimulado implements OrigenDatos {
       );
     }
     return version;
+  }
+
+  // El simulado no lleva el directorio DUEB (3169 colegios); degrada a null,
+  // que es lo mismo que "el DANE no esta en el directorio". El pre-llenado real
+  // solo se ejerce contra el backend.
+  async directorioColegio(_dane: string): Promise<DatosColegioNuevo | null> {
+    return null;
   }
 
   // ---------------------------------------------- §Admin — identidad del colegio (P4)

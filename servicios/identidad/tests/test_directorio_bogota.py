@@ -98,3 +98,20 @@ class TestParaServirAlFrontend:
             "nombre": "ACADEMIA CENTRAL DE SISTEMAS",
             "localidad": "BARRIOS UNIDOS",
         }
+
+    def test_a_datos_colegio_nuevo_remapea_al_formulario(self):
+        # El bloque con que la cola pre-llena el perfil del colegio nuevo: los
+        # campos del DUEB se remapean a los del formulario. El rector es el
+        # `contacto_nombre` (secretaria/contacto) y NO va `logo_url` (el DUEB no
+        # lo trae; lo completa el revisor a mano).
+        c = parsear_directorio(_BLOQUE)[0]
+        assert c.a_datos_colegio_nuevo() == {
+            "dane": "311001105731",
+            "nombre": "ACADEMIA CENTRAL DE SISTEMAS",
+            "direccion": "AV CARACAS # 68 - 11",
+            "sitio_web": "www.acsi.edu.co",
+            "contacto_email": "acsi86.edu.co@gmail.com",
+            "contacto_telefono": "6012352887",
+            "contacto_nombre": "SANDRA MILENA MURCIA CUENCA",
+        }
+        assert "logo_url" not in c.a_datos_colegio_nuevo()

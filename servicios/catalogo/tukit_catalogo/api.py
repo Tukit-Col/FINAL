@@ -620,6 +620,31 @@ async def ver_producto(sku: str) -> dict[str, Any]:
     return _producto_publico(fila) | {"ofertas": detalle}
 
 
+@app.get(
+    "/interno/resolver-sku/{sku}",
+    tags=["interno"],
+    include_in_schema=False,
+    summary="sku -> (id canonico, precio) para Comercio; NO es publica",
+)
+async def resolver_sku(sku: str) -> dict[str, Any]:
+    """El id canonico y el precio de un sku, para que Comercio congele la linea.
+
+    Vive fuera de `/v1/catalogo` A PROPOSITO: la puerta rutea por ese prefijo,
+    asi que esta ruta no existe hacia el navegador (RPO cero, ADR 0017) y solo
+    la alcanza otro servicio que hable con Catalogo directo. Es la MISMA lectura
+    que `precio_de` hace hoy, mas el id que la orden necesita y la superficie
+    publica nunca expone.
+    """
+    precio_min = _precio_minimo_vigente()
+    async with app.state.motor.engine.begin() as conexion:
+        fila = (
+            await conexion.execute(_consulta_productos(precio_min).where(PRODUCTO.c.sku_interno == sku))
+        ).one_or_none()
+    if fila is None:
+        raise ErrorDominio("producto_no_existe", f"No hay ningun producto con el sku {sku}.", estado=404)
+    return {"producto_canonico_id": str(fila.id), "precio_desde": pesos(getattr(fila, "centavos", None))}
+
+
 # ---------------------------------------------------------------------------
 # Escritura de productos (la mano de la persona que cura el catalogo)
 # ---------------------------------------------------------------------------

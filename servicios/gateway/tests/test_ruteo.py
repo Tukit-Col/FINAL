@@ -22,6 +22,10 @@ class TestElPrefijoMasLargoGana:
             ("/v1/catalogo/conceptos", "catalogo"),
             ("/v1/catalogo", "catalogo"),
             ("/v1/listas/abc", "catalogo"),
+            # La subida de listas la sirve inteligencia (percepcion + version
+            # pendiente), no catalogo: su prefijo mas largo gana a `/v1/listas`.
+            # Un `/v1/listas/<id>` cualquiera sigue en catalogo (la linea de arriba).
+            ("/v1/listas/subir", "inteligencia"),
             ("/v1/colegios", "identidad"),
             ("/v1/contactos", "identidad"),
             ("/v1/trabajos/abc", "inteligencia"),

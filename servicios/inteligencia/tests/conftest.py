@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import pytest
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 from tukit_comun.bd import MotorServicio
@@ -35,6 +36,15 @@ async def motor():
         poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
+    # SQLite ignora las FK (y por tanto ON DELETE CASCADE) salvo que se pida por
+    # conexion. Postgres las respeta en produccion; sin este pragma las pruebas
+    # no verian la cascada de borrado de un trabajo. Es la receta estandar.
+    @event.listens_for(engine.sync_engine, "connect")
+    def _activar_fk(conexion, _registro):  # noqa: ANN001
+        cursor = conexion.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
     async with engine.begin() as conexion:
         await conexion.run_sync(Base.metadata.create_all)
     fabrica = async_sessionmaker(engine, expire_on_commit=False)
@@ -83,6 +93,46 @@ class CatalogoFalso:
             "total_items": len(self.renglones),
             "items": self.renglones,
         }
+
+    async def producto(self, sku: str) -> dict[str, Any]:
+        """El producto por sku, en forma publica (`precio_desde`), buscado en las opciones."""
+        self.llamadas.append("producto")
+        for respuesta in self.respuestas.values():
+            for op in respuesta.get("opciones", []):
+                if op["sku"] == sku:
+                    return {
+                        "sku": op["sku"],
+                        "nombre": op["nombre"],
+                        "marca": op.get("marca"),
+                        "nivel": op["nivel"],
+                        "personaje": op.get("personaje"),
+                        "imagen_url": op.get("imagen_url"),
+                        "unidad_base": op.get("unidad_base", "unidad"),
+                        "unidades_por_empaque": op.get("unidades_por_empaque", 1),
+                        "precio_desde": op.get("precio_cop"),
+                    }
+        raise KeyError(sku)
+
+    async def producto_de_personaje(self, concepto: str, personaje: str) -> dict[str, Any] | None:
+        """Primera opcion de un concepto ancla cuyo personaje coincide, o None."""
+        self.llamadas.append("producto_de_personaje")
+        respuesta = next(
+            (r for r in self.respuestas.values() if r.get("concepto_codigo") == concepto), None
+        )
+        for op in (respuesta or {}).get("opciones", []):
+            if str(op.get("personaje") or "").lower() == personaje.lower():
+                return {
+                    "sku": op["sku"],
+                    "nombre": op["nombre"],
+                    "marca": op.get("marca"),
+                    "nivel": op["nivel"],
+                    "personaje": op.get("personaje"),
+                    "imagen_url": op.get("imagen_url"),
+                    "unidad_base": op.get("unidad_base", "unidad"),
+                    "unidades_por_empaque": op.get("unidades_por_empaque", 1),
+                    "precio_desde": op.get("precio_cop"),
+                }
+        return None
 
     async def emparejar(self, renglones: list[str]) -> list[dict[str, Any]]:
         self.llamadas.append("emparejar")

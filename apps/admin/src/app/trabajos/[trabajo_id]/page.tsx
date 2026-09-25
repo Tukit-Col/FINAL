@@ -8,6 +8,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { TrabajoAdmin } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
+import BorrarTrabajo from "@/components/BorrarTrabajo";
 import ConsolaRevision from "@/components/ConsolaRevision";
 import DecisionTrabajo from "@/components/DecisionTrabajo";
 import {
@@ -19,6 +20,11 @@ import {
 import styles from "./Detalle.module.css";
 
 export const dynamic = "force-dynamic";
+
+// Los 4 conceptos ancla del kit Fan (cuaderno/cartuchera/carpeta/maleta),
+// espejo de CONCEPTOS_ANCLA en optimizador.py:91 y PersonajeFan.tsx:26. Una
+// franquicia solo es "validada" si tiene producto para las cuatro.
+const ANCLAS_FAN = ["C001", "C009", "C011", "C086"] as const;
 
 interface Props {
   params: Promise<{ trabajo_id: string }>;
@@ -34,6 +40,20 @@ export default async function PaginaTrabajo({ params }: Props) {
     if (causa instanceof ErrorTukit && causa.estado === 404) notFound();
     throw causa;
   }
+
+  // Las franquicias del catálogo para el interruptor de personaje del kit Fan
+  // (§7, 2d). Se lee aquí —Server Component— y se pasa como nombres; si el
+  // catálogo está caído, se degrada a lista vacía (el interruptor no aparece).
+  //
+  // Solo las franquicias VALIDADAS: las que tienen producto para las 4 anclas.
+  // El endpoint devuelve `conceptos` justo para que la UI calcule este gate (el
+  // catálogo no lo calcula). Sin las 4, el switch dejaría anclas sin cambiar.
+  const personajes = await origenDeDatos()
+    .personajes()
+    .then((lista) =>
+      lista.filter((p) => ANCLAS_FAN.every((c) => p.conceptos?.includes(c))).map((p) => p.nombre),
+    )
+    .catch(() => [] as string[]);
 
   // El reloj de la peticion. `react-hooks/purity` lo marca porque en un
   // componente de cliente daria un render inestable; este es un Server
@@ -54,6 +74,7 @@ export default async function PaginaTrabajo({ params }: Props) {
     <div className={styles.pagina}>
       <nav className={styles.migas}>
         <Link href="/cola">← Cola de revisión</Link>
+        <BorrarTrabajo trabajoId={trabajo.trabajo_id} estado={trabajo.estado} volverA="/cola" />
       </nav>
 
       <header className={styles.encabezado}>
@@ -133,7 +154,7 @@ export default async function PaginaTrabajo({ params }: Props) {
         notaRevision={trabajo.nota_revision}
       />
 
-      <ConsolaRevision trabajo={trabajo} />
+      <ConsolaRevision trabajo={trabajo} personajes={personajes} />
     </div>
   );
 }

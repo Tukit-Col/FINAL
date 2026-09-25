@@ -37,9 +37,16 @@ from .modelos import (
     puede_pasar,
 )
 from .modelos.trabajo import ETAPAS
-from .optimizador import Candidato, Renglon, anclar_personaje, armar_los_tres
+from .optimizador import (
+    CONCEPTOS_ANCLA,
+    Candidato,
+    Renglon,
+    anclar_personaje,
+    armar_los_tres,
+    unidades_a_comprar,
+)
 from .parseo import mensaje_para_papa, parsear_renglon
-from .remoto import ClienteCatalogo, ClienteIdentidad, RemotoCaido
+from .remoto import ClienteCatalogo, ClienteComercio, ClienteIdentidad, RemotoCaido
 
 TRABAJO = Base.metadata.tables["trabajo_pipeline"]
 ETAPA = Base.metadata.tables["etapa_trabajo"]
@@ -50,6 +57,7 @@ TRANSICION = Base.metadata.tables["transicion_resolucion"]
 KIT = Base.metadata.tables["kit"]
 LINEA = Base.metadata.tables["linea_kit"]
 BANDEJA = Base.metadata.tables["bandeja_salida"]
+KIT_CANONICO = Base.metadata.tables["kit_canonico"]
 
 # Umbral de confianza por encima del cual el emparejamiento se da por bueno
 # sin que lo mire una persona. Es la tau configurable que pide PE-04, y se
@@ -88,11 +96,37 @@ class TrabajoNoExiste(Exception):
     pass
 
 
+class CheckoutRechazado(Exception):
+    """Comercio rechazo la orden por una razon de negocio (p.ej. precio cambio).
+
+    Lleva el estado HTTP y el cuerpo de Comercio para que el acudiente vea el
+    motivo exacto (`precio_cambiado` y el nuevo precio), no un 500 generico.
+    """
+
+    def __init__(self, estado: int, cuerpo: dict[str, Any]) -> None:
+        super().__init__(str(cuerpo.get("error") or estado))
+        self.estado = estado
+        self.cuerpo = cuerpo
+
+
 class TransicionIlegal(Exception):
     def __init__(self, actual: str, pedida: str) -> None:
         super().__init__(f"no se puede pasar de {actual} a {pedida}")
         self.actual = actual
         self.pedida = pedida
+
+
+class TrabajoProtegido(Exception):
+    """Un trabajo `publicado` no se borra: es (o alimenta) el kit canonico."""
+
+    def __init__(self, estado: str) -> None:
+        super().__init__(f"un trabajo en {estado} esta protegido contra borrado")
+        self.estado = estado
+
+
+class PreviewNoPublicable(Exception):
+    """Un `preview_onboarding` no se publica: no tiene acudiente. Se aprueba la
+    LISTA (Catalogo), que si crea el colegio y arma el trabajo del padre."""
 
 
 # ---------------------------------------------------------------------------
@@ -971,11 +1005,11 @@ def lanzar(motor: Any, trabajo_id: uuid.UUID) -> asyncio.Task:
 async def _publicar_evento(conexion: Any, trabajo_id: uuid.UUID) -> None:
     """Deja `kits_publicados` en la bandeja, en la MISMA transaccion.
 
-    Hoy nadie lo recoge: el repartidor y el consumidor de Operacion no
-    existen todavia, asi que el aviso al acudiente no sale. Se escribe igual
-    porque la mitad transaccional es la que no se puede agregar despues sin
-    reescribir el flujo, y porque el dia que exista el repartidor los
-    trabajos ya publicados tendran su evento esperando.
+    El repartidor de Operacion (`tukit_operacion.repartidor`) lo drena y avisa al
+    acudiente resolviendo su `usuario_id` desde `trabajo_pipeline`. Por eso este
+    evento solo tiene sentido en un trabajo con acudiente; un preview
+    (`usuario_id` NULL) no llega aca —`revisar` lo rechaza antes— para no dejar un
+    evento sin destinatario que el repartidor reintente sin fin.
     """
     await conexion.execute(
         insert(BANDEJA).values(
@@ -1008,6 +1042,13 @@ def _linea_publica(fila: Any) -> dict[str, Any]:
         "subtotal_linea": fila.subtotal_cop,
         "mensaje": fila.mensaje,
     }
+    # El codigo del concepto (`C001`) sale de RESOLUCION, no de LINEA: es la
+    # llave con la que la matriz agrupa y con la que el interruptor de personaje
+    # del Fan encuentra sus anclas. `getattr` porque los otros llamadores de
+    # `_linea_publica` pasan una fila de solo-LINEA sin el join.
+    concepto = getattr(fila, "concepto_codigo", None)
+    if concepto:
+        cuerpo["concepto"] = concepto
     if fila.instruccion_colegio:
         cuerpo["instruccion_colegio"] = fila.instruccion_colegio
     if fila.url_externa:
@@ -1035,6 +1076,7 @@ async def ver(
     *,
     incluir_kits: bool | None = None,
     incluir_admin: bool = False,
+    catalogo: ClienteCatalogo | None = None,
 ) -> dict[str, Any]:
     """El cuerpo de `GET /v1/trabajos/{id}`.
 
@@ -1042,6 +1084,12 @@ async def ver(
     nunca ve un kit sin revisar, y esa es la razon de ser de
     `espera_revision`. Admin usa el mismo lector con `incluir_kits=True`,
     porque su trabajo es justamente mirar lo que todavia no se publica.
+
+    Un trabajo `parent_apply` NO tiene kits propios: es un puntero al canonico
+    (modelo por referencia). Sus kits se resuelven al vuelo siguiendo
+    `hijos[0].canonico_trabajo_id` + su perfil, con el personaje aplicado sobre
+    las anclas. Por eso `ver` acepta `catalogo`: sin el, el swap de personaje no
+    se puede hacer y el kit sale con sus productos neutrales.
 
     `incluir_admin` agrega los campos que solo la consola interna ve
     (`recibido_en`, `contacto_id`, `lineas_pendientes`). El acudiente nunca
@@ -1068,14 +1116,46 @@ async def ver(
         kits: list[dict[str, Any]] = []
         recomendado: dict[str, Any] | None = None
 
-        if mostrar:
+        if mostrar and cabeza.origen == "parent_apply":
+            # Un puntero al canonico: no tiene kits propios. Se sigue
+            # `hijos[0].canonico_trabajo_id` y se pinta el unico kit del perfil
+            # elegido, con el personaje aplicado sobre las anclas.
+            hijo = (list(cabeza.hijos or ()) or [{}])[0]
+            canonico_id = hijo.get("canonico_trabajo_id")
+            perfil = str(hijo.get("perfil") or "")
+            if canonico_id and perfil:
+                # ponytail: 4 llamadas de catalogo dentro de la txn de lectura
+                # (SELECT puro, sin locks, un solo kit). Si molesta, resolver los
+                # swaps antes de abrir la txn con una pre-lectura de cabeza.
+                swaps = await _anclas_de_personaje(catalogo, hijo.get("personaje")) if catalogo else {}
+                lineas, total = await _lineas_aplicadas(
+                    conexion, uuid.UUID(str(canonico_id)), perfil, swaps
+                )
+                kits.append(
+                    {
+                        "perfil": perfil,
+                        "total": total,
+                        "objetivos": {},
+                        "lineas": lineas,
+                        "consolidaciones": [],
+                        "informativas": sum(1 for linea in lineas if linea["informativa"]),
+                    }
+                )
+        elif mostrar:
             for kit in await conexion.execute(
                 select(KIT).where(KIT.c.trabajo_id == trabajo_id).order_by(KIT.c.total_cop)
             ):
                 lineas = [
                     _linea_publica(f)
                     for f in await conexion.execute(
-                        select(LINEA)
+                        select(LINEA, RESOLUCION.c.concepto_codigo)
+                        .select_from(
+                            LINEA.join(
+                                RESOLUCION,
+                                RESOLUCION.c.item_crudo_id == LINEA.c.item_crudo_id,
+                                isouter=True,
+                            )
+                        )
                         .where(LINEA.c.kit_id == kit.id)
                         .order_by(LINEA.c.hijo_referencia, LINEA.c.orden)
                     )
@@ -1138,6 +1218,93 @@ async def ver(
     }
 
 
+async def ordenar(
+    motor: Any,
+    trabajo_id: uuid.UUID,
+    *,
+    perfil: str,
+    entrega: dict[str, str],
+    correo: str,
+    metodo: str = "pse",
+    url_redireccion: str | None = None,
+    comercio: ClienteComercio,
+    catalogo: ClienteCatalogo,
+    identidad: ClienteIdentidad | None = None,
+) -> dict[str, Any]:
+    """El checkout del acudiente: del trabajo publicado a la orden y el pago.
+
+    El navegador manda `trabajo_id` + perfil + direccion + correo, nada mas.
+    Aqui se lee el kit de ese perfil (por `ver`, que ya sabe seguir el puntero
+    de un `parent_apply` y aplicar el personaje), se arma la orden con SOLO sku
+    y precio publico —el id canonico lo resuelve Comercio— y se manda a Comercio
+    a congelar y cobrar. Asi ningun id de base sale a la superficie (RPO cero).
+
+    El `usuario_id` sale del trabajo. Un trabajo anonimo (la ruta rapida de
+    `/empezar` no exige login) no lo tiene: se registra el contacto con el correo
+    del pago, igual que en `crear`. Sin `usuario_id` Comercio no cierra la orden,
+    asi que aqui no se degrada: sin destinatario no hay a quien cobrarle.
+    """
+    async with motor.engine.begin() as conexion:
+        cabeza = (await conexion.execute(select(TRABAJO).where(TRABAJO.c.id == trabajo_id))).one_or_none()
+        if cabeza is None:
+            raise TrabajoNoExiste(str(trabajo_id))
+        usuario_id = cabeza.usuario_id
+        hijos = list(cabeza.hijos or ())
+
+    if usuario_id is None:
+        cliente = identidad or ClienteIdentidad()
+        crudo = await cliente.registrar_contacto(correo)
+        if not crudo:
+            raise RemotoCaido("identidad", "no se pudo registrar el contacto para el pago")
+        usuario_id = uuid.UUID(crudo)
+
+    vista = await ver(motor, trabajo_id, incluir_kits=True, catalogo=catalogo)
+    kit = next((k for k in vista["kits"] if k["perfil"] == perfil), None)
+    if kit is None:
+        raise TrabajoNoExiste(f"{trabajo_id}/{perfil}")
+
+    lineas = []
+    for linea in kit["lineas"]:
+        elegido = linea.get("producto_elegido")
+        # Una linea informativa (o sin producto/precio) no se compra: se muestra
+        # en el kit pero no entra a la orden.
+        if linea["informativa"] or not elegido or elegido.get("precio") is None:
+            continue
+        lineas.append(
+            {
+                "sku": elegido["sku"],
+                "nombre": elegido["nombre"],
+                "cantidad": int(linea["unidades_a_comprar"]),
+                "precio_unitario": int(elegido["precio"]),
+            }
+        )
+    if not lineas:
+        raise TrabajoNoExiste(f"{trabajo_id}/{perfil} sin lineas comprables")
+
+    colegios = sorted({h["colegio_id"] for h in hijos if h.get("colegio_id")})
+    estado, orden = await comercio.crear_orden(
+        {
+            "usuario_id": str(usuario_id),
+            "trabajo_id": str(trabajo_id),
+            "hijos": len(hijos),
+            "colegios": colegios,
+            "lineas": lineas,
+            "entrega": entrega,
+        }
+    )
+    if estado != 201:
+        raise CheckoutRechazado(estado, orden)
+
+    estado, pago = await comercio.iniciar_pago(
+        orden["pedido_id"],
+        {"correo_cliente": correo, "metodo": metodo, "url_redireccion": url_redireccion},
+    )
+    if estado != 201:
+        raise CheckoutRechazado(estado, pago)
+
+    return {"pedido_id": orden["pedido_id"], "total": orden["total"], **pago}
+
+
 # ---------------------------------------------------------------------------
 # Revision humana
 # ---------------------------------------------------------------------------
@@ -1184,6 +1351,54 @@ async def cola(motor: Any, *, pagina: int = 1, por_pagina: int = 50) -> dict[str
             for f in filas
         ]
     return {"total": total, "pagina": pagina, "por_pagina": por_pagina, "trabajos": datos}
+
+
+async def eliminar(motor: Any, trabajo_id: uuid.UUID) -> None:
+    """Borra un trabajo y todo lo que cuelga de el (cascada de FKs).
+
+    Un trabajo `publicado` esta protegido: es el kit canonico de su colegio y
+    grado (o lo alimentara), y borrarlo perderia una revision humana ya
+    aprobada. Los demas estados —previews desechables, encolados, fallidos— se
+    pueden borrar sin remordimiento. La cascada `ondelete=CASCADE` de etapas,
+    items, candidatos, resoluciones, kits y lineas hace el resto; lo unico que
+    no cuelga por FK es la `bandeja_salida`, que es el log de eventos y se deja.
+    """
+    async with motor.engine.begin() as conexion:
+        actual = await _estado(conexion, trabajo_id)
+        if actual == EstadoTrabajo.PUBLICADO.value:
+            raise TrabajoProtegido(actual)
+        await conexion.execute(delete(TRABAJO).where(TRABAJO.c.id == trabajo_id))
+
+
+async def previews_de(
+    motor: Any, colegio_id: str, grado: str, anio_lectivo: int
+) -> list[uuid.UUID]:
+    """Los previews desechables vivos de un (colegio, grado, anio).
+
+    El colegio/grado no son columnas: viven en el JSON `hijos`, tal como los
+    mando el admin al previsualizar. Se filtra en memoria (son pocos) los
+    trabajos con `origen='preview_onboarding'` que NO estan publicados y cuyo
+    primer hijo cuadra. Lo usa `preview_onboarding` para no acumular copias.
+    """
+    async with motor.engine.begin() as conexion:
+        filas = await conexion.execute(
+            select(TRABAJO.c.id, TRABAJO.c.hijos).where(
+                TRABAJO.c.origen == "preview_onboarding",
+                TRABAJO.c.estado != EstadoTrabajo.PUBLICADO.value,
+            )
+        )
+    coincidencias: list[uuid.UUID] = []
+    for fila in filas:
+        hijo = next(iter(fila.hijos or ()), None)
+        if not hijo:
+            continue
+        if (
+            str(hijo.get("colegio_id") or "") == colegio_id
+            and str(hijo.get("grado") or "") == grado
+            and int(hijo.get("anio_lectivo") or 0) == anio_lectivo
+        ):
+            coincidencias.append(fila.id)
+    return coincidencias
 
 
 async def _resolucion_de(conexion: Any, trabajo_id: uuid.UUID, item_id: uuid.UUID) -> Any:
@@ -1249,6 +1464,77 @@ async def decidir_linea(
     return {"item_id": str(item_id), "estado": estado, "sku": sku}
 
 
+async def fijar_producto_en_linea(
+    motor: Any,
+    trabajo_id: uuid.UUID,
+    perfil: str,
+    item_id: uuid.UUID,
+    sku: str,
+    *,
+    catalogo: ClienteCatalogo,
+) -> dict[str, Any]:
+    """Fija un producto en UNA linea (un kit + un item) con su precio recalculado.
+
+    La decision de producto es por-nivel (tres LINEA por item, una por kit),
+    no por-item: `decidir_linea` solo escribe RESOLUCION y nunca toca LINEA, asi
+    que el kit publicado seguia mostrando el producto del optimizador. Esta es la
+    ruta de escritura que faltaba. El producto se pide al catalogo (no al
+    CANDIDATO) porque un personaje puede no ser candidato del item y aun asi ser
+    una eleccion valida del revisor.
+
+    `subtotal = precio * techo(cantidad_pedida / unidades_por_empaque)`, la misma
+    aritmetica del armado (optimizador._construir_linea). Recalcula KIT.total_cop.
+    """
+    producto = await catalogo.producto(sku)
+    precio = producto.get("precio_desde")
+    async with motor.engine.begin() as conexion:
+        fila = (
+            await conexion.execute(
+                select(LINEA.c.id, LINEA.c.kit_id, LINEA.c.cantidad_pedida, LINEA.c.informativa)
+                .select_from(LINEA.join(KIT, KIT.c.id == LINEA.c.kit_id))
+                .where(
+                    KIT.c.trabajo_id == trabajo_id,
+                    KIT.c.perfil == perfil,
+                    LINEA.c.item_crudo_id == item_id,
+                )
+            )
+        ).one_or_none()
+        if fila is None:
+            raise TrabajoNoExiste(f"{trabajo_id}/{perfil}/{item_id}")
+
+        # Una linea informativa no lleva precio (CHECK del modelo): fijarle un
+        # producto no puede introducir un subtotal por la puerta de atras.
+        empaque = int(producto.get("unidades_por_empaque") or 1)
+        unidades = unidades_a_comprar(int(fila.cantidad_pedida or 0), empaque)
+        subtotal = None if (fila.informativa or precio is None) else precio * unidades
+        await conexion.execute(
+            update(LINEA)
+            .where(LINEA.c.id == fila.id)
+            .values(
+                sku=sku,
+                nombre_producto=producto.get("nombre"),
+                marca=producto.get("marca"),
+                nivel=producto.get("nivel"),
+                personaje=producto.get("personaje"),
+                imagen_url=producto.get("imagen_url"),
+                unidad_base=producto.get("unidad_base"),
+                unidades_por_empaque=empaque,
+                unidades_a_comprar=unidades,
+                precio_unitario_cop=None if fila.informativa else precio,
+                subtotal_cop=subtotal,
+            )
+        )
+        await _recalcular_total_kit(conexion, fila.kit_id)
+    return {"trabajo_id": str(trabajo_id), "perfil": perfil, "item_id": str(item_id), "sku": sku}
+
+
+async def _recalcular_total_kit(conexion: Any, kit_id: uuid.UUID) -> None:
+    total = await conexion.scalar(
+        select(func.coalesce(func.sum(LINEA.c.subtotal_cop), 0)).where(LINEA.c.kit_id == kit_id)
+    )
+    await conexion.execute(update(KIT).where(KIT.c.id == kit_id).values(total_cop=int(total or 0)))
+
+
 async def revisar(
     motor: Any,
     trabajo_id: uuid.UUID,
@@ -1263,6 +1549,16 @@ async def revisar(
         actual = await _estado(conexion, trabajo_id)
         if not puede_pasar(actual, nuevo):
             raise TransicionIlegal(actual, nuevo)
+        # Un preview de onboarding no tiene acudiente (`usuario_id` NULL): no es
+        # el trabajo del padre, es la vista de los kits que saldrian de la lista.
+        # Publicarlo no avisa a nadie (el `kits_publicados` que emite se queda
+        # sin destinatario y el repartidor lo reintenta sin fin) y no crea el
+        # colegio (eso lo hace aprobar la LISTA en Catalogo). Quien quiera
+        # publicar, aprueba la lista; el preview solo se mira.
+        if decision == "aprobar":
+            origen = await conexion.scalar(select(TRABAJO.c.origen).where(TRABAJO.c.id == trabajo_id))
+            if origen == "preview_onboarding":
+                raise PreviewNoPublicable()
         await conexion.execute(
             update(TRABAJO)
             .where(TRABAJO.c.id == trabajo_id)
@@ -1276,5 +1572,255 @@ async def revisar(
         )
         if decision == "aprobar":
             await _publicar_evento(conexion, trabajo_id)
+            await _fijar_canonico(conexion, trabajo_id)
 
     return {"trabajo_id": str(trabajo_id), "estado": nuevo, "nota": nota}
+
+
+async def _fijar_canonico(conexion: Any, trabajo_id: uuid.UUID) -> None:
+    """Al publicar, apunta la cache canonica de (colegio, grado, anio) a este trabajo.
+
+    Solo cuando el trabajo tiene UNA identidad de grado clara: un solo hijo con
+    colegio y grado (el caso de onboarding y de la ruta de acudiente por grado).
+    Un trabajo multi-hogar, o sin colegio/grado, no define una cache de grado y
+    se deja sin puntero —publicar igual funciona, solo no se cachea—.
+
+    Publicar de nuevo para el mismo grado REEMPLAZA el puntero (delete + insert
+    sobre la llave unica): una sola cache bendita por grado.
+    """
+    fila = (
+        await conexion.execute(select(TRABAJO.c.hijos).where(TRABAJO.c.id == trabajo_id))
+    ).one_or_none()
+    hijos = list(fila.hijos or ()) if fila else []
+    if len(hijos) != 1:
+        return
+    hijo = hijos[0]
+    colegio_id = str(hijo.get("colegio_id") or "")
+    grado = str(hijo.get("grado") or "")
+    # Mismo anio bajo el que se construyeron los kits (ver `procesar`): si el
+    # hijo no lo trajo, se cachea bajo el de omision para que la busqueda por
+    # grado en /empezar caiga en la misma fila.
+    anio = int(hijo.get("anio_lectivo") or ANIO_LECTIVO_POR_OMISION)
+    if not (colegio_id and grado):
+        return
+
+    # Reemplaza el puntero del grado: la cache es una sola. No es un upsert de
+    # ON CONFLICT para no atarse al dialecto —delete+insert corre igual en
+    # SQLite (pruebas) y en Postgres (real)—.
+    await conexion.execute(
+        delete(KIT_CANONICO).where(
+            KIT_CANONICO.c.colegio_id == colegio_id,
+            KIT_CANONICO.c.grado == grado,
+            KIT_CANONICO.c.anio_lectivo == anio,
+        )
+    )
+    await conexion.execute(
+        insert(KIT_CANONICO).values(
+            id=uuid.uuid4(),
+            colegio_id=colegio_id,
+            grado=grado,
+            anio_lectivo=anio,
+            trabajo_id=trabajo_id,
+        )
+    )
+
+
+async def grados_canonicos(motor: Any, *, colegio_id: str | None = None) -> list[dict[str, Any]]:
+    """Los (colegio, grado, anio) que ya tienen cache bendita, para el selector.
+
+    Es lo que `/empezar` lista en vez de pedir un PDF: un grado que aparece aqui
+    se puede aplicar al vuelo (ruta rapida); uno que no, entra al pipeline.
+    """
+    consulta = select(
+        KIT_CANONICO.c.colegio_id,
+        KIT_CANONICO.c.grado,
+        KIT_CANONICO.c.anio_lectivo,
+        KIT_CANONICO.c.trabajo_id,
+    ).order_by(KIT_CANONICO.c.colegio_id, KIT_CANONICO.c.grado)
+    if colegio_id:
+        consulta = consulta.where(KIT_CANONICO.c.colegio_id == colegio_id)
+    async with motor.engine.begin() as conexion:
+        filas = await conexion.execute(consulta)
+    return [
+        {
+            "colegio_id": f.colegio_id,
+            "grado": f.grado,
+            "anio_lectivo": int(f.anio_lectivo),
+            "trabajo_id": str(f.trabajo_id),
+        }
+        for f in filas
+    ]
+
+
+async def _anclas_de_personaje(
+    catalogo: ClienteCatalogo, personaje: str | None
+) -> dict[str, dict[str, Any]]:
+    """Los productos de las cuatro anclas para un personaje, indexados por concepto.
+
+    Vacio si no hay personaje. Es I/O de red: se resuelve FUERA de cualquier
+    transaccion abierta. Un ancla que el catalogo no surte simplemente no entra
+    (el kit queda con su producto neutral en ese concepto).
+    """
+    swaps: dict[str, dict[str, Any]] = {}
+    if personaje:
+        for concepto in CONCEPTOS_ANCLA:
+            producto = await catalogo.producto_de_personaje(concepto, personaje)
+            if producto:
+                swaps[concepto] = producto
+    return swaps
+
+
+async def _lineas_aplicadas(
+    conexion: Any, canonico_trabajo_id: uuid.UUID, perfil: str, swaps: dict[str, dict[str, Any]]
+) -> tuple[list[dict[str, Any]], int]:
+    """Las lineas del kit canonico de un perfil, con el personaje aplicado y el total.
+
+    Es la fuente unica del kit aplicado: la usan tanto `aplicar_canonico` (para
+    congelar el pedido) como `ver` (para pintarle al acudiente su kit sin copiar
+    filas). Sobre un ancla con personaje elegido congela el producto del
+    personaje en vez del neutral, con la misma aritmetica del armado
+    (techo(pedida/empaque)); una linea informativa nunca lleva precio.
+    """
+    kit = (
+        await conexion.execute(
+            select(KIT.c.id, KIT.c.perfil).where(
+                KIT.c.trabajo_id == canonico_trabajo_id, KIT.c.perfil == perfil
+            )
+        )
+    ).one_or_none()
+    if kit is None:
+        raise TrabajoNoExiste(f"{canonico_trabajo_id}/{perfil}")
+
+    lineas: list[dict[str, Any]] = []
+    total = 0
+    filas = await conexion.execute(
+        select(LINEA, RESOLUCION.c.concepto_codigo)
+        .select_from(
+            LINEA.join(
+                RESOLUCION,
+                RESOLUCION.c.item_crudo_id == LINEA.c.item_crudo_id,
+                isouter=True,
+            )
+        )
+        .where(LINEA.c.kit_id == kit.id)
+        .order_by(LINEA.c.hijo_referencia, LINEA.c.orden)
+    )
+    for fila in filas:
+        linea = _linea_publica(fila)
+        concepto = getattr(fila, "concepto_codigo", None)
+        swap = swaps.get(concepto) if concepto else None
+        if swap and not fila.informativa:
+            empaque = int(swap.get("unidades_por_empaque") or 1)
+            precio = swap.get("precio_desde")
+            unidades = unidades_a_comprar(int(fila.cantidad_pedida or 0), empaque)
+            linea["producto_elegido"] = {
+                "sku": swap.get("sku"),
+                "nombre": swap.get("nombre"),
+                "marca": swap.get("marca"),
+                "nivel": swap.get("nivel"),
+                "personaje": swap.get("personaje"),
+                "imagen_url": swap.get("imagen_url"),
+                "precio": precio,
+            }
+            linea["unidades_por_empaque"] = empaque
+            linea["unidades_a_comprar"] = unidades
+            linea["subtotal_linea"] = None if precio is None else precio * unidades
+        if not linea["informativa"] and linea.get("subtotal_linea"):
+            total += int(linea["subtotal_linea"])
+        lineas.append(linea)
+    return lineas, total
+
+
+async def aplicar_canonico(
+    motor: Any,
+    *,
+    colegio_id: str,
+    grado: str,
+    anio_lectivo: int,
+    perfil: str,
+    personaje: str | None = None,
+    usuario_id: uuid.UUID | None = None,
+    catalogo: ClienteCatalogo,
+) -> dict[str, Any]:
+    """La ruta rapida del acudiente: aplica su nivel + personaje a la cache bendita.
+
+    NO re-optimiza (los tres kits ya los valido una persona; re-rankear
+    arriesga sacar un producto no aprobado) y NO entra a la cola. Crea un
+    trabajo `parent_apply` que es un puntero durable —no una copia de los kits—:
+    referencia al trabajo canonico y guarda la seleccion (nivel + personaje).
+    La UNICA copia que se congela es la del PEDIDO, porque es lo que se compra;
+    ese snapshot viaja en el evento de la bandeja hacia Comercio (hoy sin
+    repartidor: mismo patron de outbox sin consumidor que `kits_publicados`).
+
+    El personaje se aplica al vuelo sobre las cuatro anclas (`CONCEPTOS_ANCLA`)
+    con la misma consulta de catalogo que el interruptor del Fan; el resto del
+    kit es neutral y no se toca. Devuelve el trabajo creado y el total congelado.
+    """
+    # Las anclas se resuelven contra el catalogo ANTES de abrir la transaccion:
+    # es I/O de red y no debe tener una transaccion abierta esperandola.
+    swaps = await _anclas_de_personaje(catalogo, personaje)
+
+    parent_id = uuid.uuid4()
+    async with motor.engine.begin() as conexion:
+        canonico = (
+            await conexion.execute(
+                select(KIT_CANONICO.c.trabajo_id).where(
+                    KIT_CANONICO.c.colegio_id == colegio_id,
+                    KIT_CANONICO.c.grado == grado,
+                    KIT_CANONICO.c.anio_lectivo == anio_lectivo,
+                )
+            )
+        ).one_or_none()
+        if canonico is None:
+            raise TrabajoNoExiste(f"cache {colegio_id}/{grado}/{anio_lectivo}")
+
+        lineas_frias, total = await _lineas_aplicadas(
+            conexion, canonico.trabajo_id, perfil, swaps
+        )
+
+        # El trabajo del acudiente: un registro durable, sin etapas de pipeline.
+        # `hijos` lleva la seleccion entera porque es la ENTRADA de este trabajo
+        # (se lee completa o no se lee), igual que en un trabajo de onboarding.
+        await conexion.execute(
+            insert(TRABAJO).values(
+                id=parent_id,
+                usuario_id=usuario_id,
+                estado=EstadoTrabajo.PUBLICADO.value,
+                origen="parent_apply",
+                hijos=[
+                    {
+                        "colegio_id": colegio_id,
+                        "grado": grado,
+                        "anio_lectivo": anio_lectivo,
+                        "canonico_trabajo_id": str(canonico.trabajo_id),
+                        "perfil": perfil,
+                        "personaje": personaje,
+                    }
+                ],
+                terminado_en=ahora(),
+            )
+        )
+        # El PEDIDO: el snapshot congelado de lo que se compra. Comercio (sin
+        # portar) lo recogera de aqui; mientras, se escribe y nadie lo consume,
+        # igual que `kits_publicados`.
+        await conexion.execute(
+            insert(BANDEJA).values(
+                tipo="pedido_solicitado",
+                agregado_tipo="trabajo_pipeline",
+                agregado_id=parent_id,
+                carga={
+                    "trabajo_id": str(parent_id),
+                    "canonico_trabajo_id": str(canonico.trabajo_id),
+                    "usuario_id": str(usuario_id) if usuario_id else None,
+                    "colegio_id": colegio_id,
+                    "grado": grado,
+                    "anio_lectivo": anio_lectivo,
+                    "perfil": perfil,
+                    "personaje": personaje,
+                    "total_cop": total,
+                    "lineas": lineas_frias,
+                    "solicitado_en": ahora().isoformat(),
+                },
+            )
+        )
+    return {"trabajo_id": str(parent_id), "perfil": perfil, "personaje": personaje, "total": total}

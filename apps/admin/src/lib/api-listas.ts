@@ -73,6 +73,12 @@ export function agregarItemLista(
   });
 }
 
+/** DELETE — quitar un renglón de una versión sin revisar (p. ej. "Todo
+ *  debidamente marcado"). El backend exige versión sin revisar (409 si no). */
+export function quitarItemLista(versionId: string, itemId: string): Promise<void> {
+  return pedir<void>(`/api/listas/${id(versionId)}/items/${id(itemId)}`, { method: "DELETE" });
+}
+
 /** POST — aprobar y publicar la versión. Deja el par (colegio, grado) disponible. */
 export function cerrarLista(versionId: string): Promise<void> {
   return pedir<void>(`/api/listas/${id(versionId)}/cerrar`, { method: "POST" });

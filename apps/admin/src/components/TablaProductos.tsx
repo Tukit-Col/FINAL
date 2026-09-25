@@ -6,9 +6,9 @@
 // cada producto es una ficha con foto grande, pastilla de nivel, nombre, precio
 // y metadatos. Cada tarjeta es un <button> real, así funciona con teclado.
 
-import { ImageOff } from "lucide-react";
-import { ETIQUETA_NIVEL, formatearPesos } from "@tukit/contrato";
+import { formatearPesos } from "@tukit/contrato";
 import type { ProductoCatalogoDetalle } from "@tukit/contrato";
+import TarjetaProductoCard from "./TarjetaProductoCard";
 import styles from "./CatalogoSpa.module.css";
 
 interface Props {
@@ -56,51 +56,27 @@ export default function TablaProductos({
       ) : (
         <div className={styles.rejillaProductos}>
           {productos.map((p) => (
-            <button
+            <TarjetaProductoCard
               key={p.sku}
-              type="button"
-              className={`${styles.tarjeta} ${p.sku === skuActivo ? styles.tarjetaActiva : ""}`}
-              aria-pressed={p.sku === skuActivo}
+              producto={p}
+              activo={p.sku === skuActivo}
               onClick={() => onElegir(p)}
             >
-              {p.imagen_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img className={styles.tarjetaFoto} src={p.imagen_url} alt="" />
-              ) : (
-                <span className={styles.tarjetaFotoVacia}>
-                  <ImageOff size={28} aria-hidden="true" />
-                </span>
-              )}
-
-              <div className={styles.tarjetaPildoras}>
-                <span className={`${styles.nivelPildora} ${styles[`nivel_${p.nivel}`]}`}>
-                  {ETIQUETA_NIVEL[p.nivel]}
-                </span>
-                {p.personaje && (
-                  <span className={styles.personajePildora}>{p.personaje}</span>
+              <span className={styles.tarjetaPrecio}>
+                {p.precio_desde !== null ? (
+                  formatearPesos(p.precio_desde)
+                ) : (
+                  <span className={styles.sinDato}>sin precio</span>
                 )}
-              </div>
-
-              <div className={styles.tarjetaNombre}>{p.nombre}</div>
-              <div className={styles.skuMono}>{p.sku}</div>
-
-              <div className={styles.tarjetaPie}>
-                <span className={styles.tarjetaPrecio}>
-                  {p.precio_desde !== null ? (
-                    formatearPesos(p.precio_desde)
-                  ) : (
-                    <span className={styles.sinDato}>sin precio</span>
-                  )}
+              </span>
+              <span className={styles.tarjetaMeta}>
+                {p.marca ? <span>{p.marca}</span> : null}
+                <span className={styles.tarjetaTiendas}>
+                  {p.concepto.nombre} · {p.tiendas}{" "}
+                  {p.tiendas === 1 ? "tienda" : "tiendas"}
                 </span>
-                <span className={styles.tarjetaMeta}>
-                  {p.marca ? <span>{p.marca}</span> : null}
-                  <span className={styles.tarjetaTiendas}>
-                    {p.concepto.nombre} · {p.tiendas}{" "}
-                    {p.tiendas === 1 ? "tienda" : "tiendas"}
-                  </span>
-                </span>
-              </div>
-            </button>
+              </span>
+            </TarjetaProductoCard>
           ))}
         </div>
       )}

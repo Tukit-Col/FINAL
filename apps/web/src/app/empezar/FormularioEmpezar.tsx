@@ -9,11 +9,13 @@ import {
   EXTENSIONES_ACEPTADAS,
   GRADOS_CANONICOS,
   type Colegio,
+  type GradoCanonico,
   type HijoSolicitud,
+  type PerfilKit,
   type Pesos,
   type SolicitudTrabajo,
 } from "@tukit/contrato";
-import { crearTrabajo, subirListas, FalloApi } from "@/lib/api-navegador";
+import { aplicarCanonico, crearTrabajo, subirListas, FalloApi } from "@/lib/api-navegador";
 import SelectorPersonaje from "./SelectorPersonaje";
 import styles from "./Empezar.module.css";
 
@@ -84,6 +86,15 @@ const PRIORIDADES: Prioridad[] = [
     disposicion_sobreprecio: 0.1,
   },
 ];
+
+// La ruta rapida no manda pesos: manda UN kit ya validado. El paso 3 (economia)
+// y el personaje del paso 1 se colapsan al perfil que se aplica. Decision del
+// usuario: personaje gana -> Fan; si no, precio/equilibrio -> Ahorrador,
+// calidad -> Premium.
+function perfilDeSeleccion(prioridad: ClavePrioridad, tienePersonaje: boolean): PerfilKit {
+  if (tienePersonaje) return "Fan";
+  return prioridad === "calidad" ? "Premium" : "Ahorrador";
+}
 
 function hijoVacio(indice: number): HijoFormulario {
   return {
@@ -338,9 +349,11 @@ function BuscadorDirectorio({
 export default function FormularioEmpezar({
   colegios,
   surtidos,
+  canonicos,
 }: {
   colegios: Colegio[];
   surtidos: string[];
+  canonicos: GradoCanonico[];
 }) {
   const router = useRouter();
   const idBase = useId();
@@ -426,6 +439,38 @@ export default function FormularioEmpezar({
     // verificación (`/recibimos`) aunque algunos kits ya estén listos.
     const hijosVerificados = hijos.filter((hijo) => hijo.entrada === "lista_oficial");
     const hijosArchivo = hijos.filter((hijo) => hijo.entrada === "archivo" && hijo.archivo);
+
+    // Ruta rapida: un hogar de UN solo hijo verificado cuyo (colegio, grado) ya
+    // tiene cache bendita salta la cola y aplica su nivel + personaje al vuelo.
+    // Un hogar mixto o con hermanos sigue por la ruta de siempre —la cache es por
+    // (colegio, grado), no cubre la consolidacion entre hijos.
+    const soloHijo = hijos.length === 1 ? hijos[0] : null;
+    const canonicoDelHijo =
+      soloHijo && soloHijo.entrada === "lista_oficial"
+        ? canonicos.find(
+            (c) => c.colegio_id === soloHijo.colegioId && c.grado === soloHijo.grado,
+          )
+        : undefined;
+
+    if (soloHijo && canonicoDelHijo) {
+      const personaje = personajePorHijo[soloHijo.referencia]?.[0];
+      try {
+        const aplicado = await aplicarCanonico({
+          colegio_id: canonicoDelHijo.colegio_id,
+          grado: canonicoDelHijo.grado,
+          anio_lectivo: canonicoDelHijo.anio_lectivo,
+          perfil: perfilDeSeleccion(prioridad, Boolean(personaje)),
+          ...(personaje ? { personaje } : {}),
+        });
+        router.push(`/kits/${aplicado.trabajo_id}`);
+        return;
+      } catch (causa) {
+        if (causa instanceof FalloApi) setError(causa.message);
+        else setError("No pudimos armar tu kit. Intenta de nuevo.");
+        setEnviando(false);
+        return;
+      }
+    }
 
     try {
       let trabajoInstantaneo: string | null = null;
