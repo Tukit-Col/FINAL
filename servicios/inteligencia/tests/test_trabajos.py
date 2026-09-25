@@ -155,6 +155,44 @@ class TestElPipelineDejaTresKits:
         assert total == 3
 
 
+class TestFijarProductoPorNivel:
+    """Fijar un producto escribe LINEA de UN kit y recalcula su total.
+
+    Es la ruta que faltaba: antes solo se escribia RESOLUCION (por item, los
+    tres kits a la vez) y el producto elegido nunca llegaba al kit publicado.
+    """
+
+    async def test_fijar_cambia_solo_ese_kit_y_recalcula_el_total(self, motor):
+        catalogo = _catalogo()
+        trabajo_id, _ = await _crear_y_procesar(motor, catalogo)
+        kits = (await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"]
+        ahorrador = next(k for k in kits if k["perfil"] == "Ahorrador")
+        total_antes = ahorrador["total"]
+        cuaderno = next(l for l in ahorrador["lineas"] if l["descripcion"].startswith("2 cuadernos"))
+        assert cuaderno["producto_elegido"]["sku"] == "TK-C001-ECO"
+
+        # Al premium: 2 cuadernos a 12000 en vez de 4500.
+        await trabajos.fijar_producto_en_linea(
+            motor, trabajo_id, "Ahorrador", uuid.UUID(cuaderno["item_id"]), "TK-C001-PRE",
+            catalogo=catalogo,
+        )
+
+        kits = (await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"]
+        ahorrador = next(k for k in kits if k["perfil"] == "Ahorrador")
+        cuaderno = next(l for l in ahorrador["lineas"] if l["descripcion"].startswith("2 cuadernos"))
+        assert cuaderno["producto_elegido"]["sku"] == "TK-C001-PRE"
+        assert cuaderno["subtotal_linea"] == 2 * 12000
+        assert ahorrador["total"] == total_antes + 2 * (12000 - 4500)
+
+    async def test_kit_o_item_inexistente_es_no_existe(self, motor):
+        catalogo = _catalogo()
+        trabajo_id, _ = await _crear_y_procesar(motor, catalogo)
+        with pytest.raises(trabajos.TrabajoNoExiste):
+            await trabajos.fijar_producto_en_linea(
+                motor, trabajo_id, "Ahorrador", uuid.uuid4(), "TK-C001-PRE", catalogo=catalogo,
+            )
+
+
 class TestLaTraduccionDeEstados:
     """`abstencion` del catalogo es `HUECO_CATALOGO` y no `SIN_MATCH`.
 
@@ -251,6 +289,261 @@ class TestLaRevisionHumana:
 
         with pytest.raises(trabajos.TransicionIlegal):
             await trabajos.revisar(motor, trabajo_id, decision="aprobar")
+
+    async def test_un_preview_de_onboarding_no_se_publica(self, motor):
+        """Un preview no tiene acudiente: publicarlo dejaria un `kits_publicados`
+        sin destinatario que el repartidor reintentaria sin fin. Se rechaza."""
+        from sqlalchemy import func, select
+
+        respuesta = await trabajos.crear(
+            motor,
+            hijos=[{"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"}],
+            origen="preview_onboarding",
+        )
+        trabajo_id = uuid.UUID(respuesta["trabajo_id"])
+        await trabajos.procesar(motor, trabajo_id, catalogo=_catalogo())
+
+        with pytest.raises(trabajos.PreviewNoPublicable):
+            await trabajos.revisar(motor, trabajo_id, decision="aprobar")
+
+        # No se emitio ningun evento sin destinatario.
+        async with motor.engine.begin() as conexion:
+            eventos = await conexion.scalar(select(func.count()).select_from(trabajos.BANDEJA))
+        assert eventos == 0
+
+    async def test_borrar_un_trabajo_en_revision_lo_saca_de_la_cola(self, motor):
+        from sqlalchemy import func, select
+
+        trabajo_id, _ = await _crear_y_procesar(motor)
+        assert (await trabajos.cola(motor))["total"] == 1
+
+        await trabajos.eliminar(motor, trabajo_id)
+
+        assert (await trabajos.cola(motor))["total"] == 0
+        # La cascada se llevo etapas, items y kits: no quedan huerfanos.
+        async with motor.engine.begin() as conexion:
+            for tabla in (trabajos.ETAPA, trabajos.ITEM, trabajos.KIT):
+                sobran = await conexion.scalar(
+                    select(func.count()).select_from(tabla).where(tabla.c.trabajo_id == trabajo_id)
+                )
+                assert sobran == 0
+
+    async def test_borrar_un_publicado_esta_prohibido(self, motor):
+        trabajo_id, _ = await _crear_y_procesar(motor)
+        await trabajos.revisar(motor, trabajo_id, decision="aprobar")
+
+        with pytest.raises(trabajos.TrabajoProtegido):
+            await trabajos.eliminar(motor, trabajo_id)
+
+        # Sigue vivo y publicado.
+        assert (await trabajos.ver(motor, trabajo_id))["estado"] == EstadoTrabajo.PUBLICADO.value
+
+    async def test_borrar_uno_que_no_existe_es_TrabajoNoExiste(self, motor):
+        with pytest.raises(trabajos.TrabajoNoExiste):
+            await trabajos.eliminar(motor, uuid.uuid4())
+
+    async def test_publicar_deja_el_puntero_canonico_del_grado(self, motor):
+        from sqlalchemy import select
+
+        trabajo_id, _ = await _crear_y_procesar(motor)
+        await trabajos.revisar(motor, trabajo_id, decision="aprobar")
+
+        async with motor.engine.begin() as conexion:
+            puntero = list(await conexion.execute(select(trabajos.KIT_CANONICO)))
+        assert len(puntero) == 1
+        assert puntero[0].colegio_id == COLEGIO
+        assert puntero[0].grado == "Cuarto"
+        assert puntero[0].trabajo_id == trabajo_id
+
+    async def test_republicar_el_mismo_grado_reemplaza_el_puntero(self, motor):
+        from sqlalchemy import select
+
+        primero, _ = await _crear_y_procesar(motor)
+        await trabajos.revisar(motor, primero, decision="aprobar")
+        segundo, _ = await _crear_y_procesar(motor)
+        await trabajos.revisar(motor, segundo, decision="aprobar")
+
+        async with motor.engine.begin() as conexion:
+            puntero = list(await conexion.execute(select(trabajos.KIT_CANONICO)))
+        # Una sola cache bendita por grado: el segundo desbanca al primero.
+        assert len(puntero) == 1
+        assert puntero[0].trabajo_id == segundo
+
+
+class TestAplicarCanonico:
+    """La ruta rapida del acudiente: sin re-optimizar, sin cola, un pedido."""
+
+    async def test_aplicar_no_copia_kits_y_congela_el_pedido(self, motor):
+        from sqlalchemy import func, select
+
+        canonico, _ = await _crear_y_procesar(motor)
+        await trabajos.revisar(motor, canonico, decision="aprobar")
+
+        async with motor.engine.begin() as conexion:
+            kits_antes = await conexion.scalar(select(func.count()).select_from(trabajos.KIT))
+
+        usuario = uuid.uuid4()
+        resultado = await trabajos.aplicar_canonico(
+            motor,
+            colegio_id=COLEGIO,
+            grado="Cuarto",
+            anio_lectivo=2026,
+            perfil="Ahorrador",
+            usuario_id=usuario,
+            catalogo=_catalogo(),
+        )
+        parent_id = uuid.UUID(resultado["trabajo_id"])
+
+        async with motor.engine.begin() as conexion:
+            # Modelo por REFERENCIA: no nacieron kits nuevos.
+            assert await conexion.scalar(select(func.count()).select_from(trabajos.KIT)) == kits_antes
+            # El trabajo del acudiente es parent_apply, publicado, sin etapas.
+            fila = (
+                await conexion.execute(select(trabajos.TRABAJO).where(trabajos.TRABAJO.c.id == parent_id))
+            ).one()
+            assert fila.origen == "parent_apply"
+            assert fila.estado == EstadoTrabajo.PUBLICADO.value
+            assert fila.hijos[0]["canonico_trabajo_id"] == str(canonico)
+            # El pedido congelado quedo en la bandeja para Comercio.
+            pedidos = [
+                e for e in await conexion.execute(select(trabajos.BANDEJA)) if e.tipo == "pedido_solicitado"
+            ]
+        assert len(pedidos) == 1
+        assert pedidos[0].carga["total_cop"] == resultado["total"]
+        assert resultado["total"] > 0
+
+    async def test_el_personaje_se_congela_en_las_anclas(self, motor):
+        from sqlalchemy import select
+
+        # Catalogo con un personaje en el ancla C001, ademas del neutral.
+        catalogo = _catalogo()
+        catalogo.respuestas["2 cuadernos cuadriculados"]["opciones"].append(
+            opcion("TK-C001-FAN", "confiable", 9000, personaje="cars")
+        )
+        canonico, _ = await _crear_y_procesar(motor, catalogo=catalogo)
+        await trabajos.revisar(motor, canonico, decision="aprobar")
+
+        resultado = await trabajos.aplicar_canonico(
+            motor,
+            colegio_id=COLEGIO,
+            grado="Cuarto",
+            anio_lectivo=2026,
+            perfil="Ahorrador",
+            personaje="cars",
+            catalogo=catalogo,
+        )
+        parent_id = uuid.UUID(resultado["trabajo_id"])
+
+        async with motor.engine.begin() as conexion:
+            pedido = next(
+                e
+                for e in await conexion.execute(select(trabajos.BANDEJA))
+                if e.tipo == "pedido_solicitado" and e.agregado_id == parent_id
+            )
+        c001 = next(l for l in pedido.carga["lineas"] if l.get("concepto") == "C001")
+        assert c001["producto_elegido"]["personaje"] == "cars"
+        assert c001["producto_elegido"]["sku"] == "TK-C001-FAN"
+
+    async def test_sin_cache_es_TrabajoNoExiste(self, motor):
+        with pytest.raises(trabajos.TrabajoNoExiste):
+            await trabajos.aplicar_canonico(
+                motor,
+                colegio_id=COLEGIO,
+                grado="Cuarto",
+                anio_lectivo=2026,
+                perfil="Ahorrador",
+                catalogo=_catalogo(),
+            )
+
+    async def test_ver_sigue_el_puntero_y_pinta_el_kit_con_personaje(self, motor):
+        # ver() de un parent_apply no tiene kits propios: sigue el puntero al
+        # canonico y arma el unico kit del perfil, con el personaje en el ancla.
+        catalogo = _catalogo()
+        catalogo.respuestas["2 cuadernos cuadriculados"]["opciones"].append(
+            opcion("TK-C001-FAN", "confiable", 9000, personaje="cars")
+        )
+        canonico, _ = await _crear_y_procesar(motor, catalogo=catalogo)
+        await trabajos.revisar(motor, canonico, decision="aprobar")
+
+        resultado = await trabajos.aplicar_canonico(
+            motor,
+            colegio_id=COLEGIO,
+            grado="Cuarto",
+            anio_lectivo=2026,
+            perfil="Ahorrador",
+            personaje="cars",
+            catalogo=catalogo,
+        )
+        parent_id = uuid.UUID(resultado["trabajo_id"])
+
+        vista = await trabajos.ver(motor, parent_id, catalogo=catalogo)
+        assert len(vista["kits"]) == 1
+        assert vista["kits"][0]["perfil"] == "Ahorrador"
+        assert vista["kits"][0]["total"] == resultado["total"]
+        c001 = next(l for l in vista["kits"][0]["lineas"] if l.get("concepto") == "C001")
+        assert c001["producto_elegido"]["sku"] == "TK-C001-FAN"
+
+    async def test_ordenar_arma_la_orden_server_to_server_sin_ids_de_base(self, motor):
+        # El checkout: del kit publicado a la orden. Se verifica que Inteligencia
+        # manda a Comercio SOLO sku+precio (nunca un id canonico: RPO cero) y que
+        # devuelve la url de la pasarela para mandar al acudiente a pagar.
+        canonico, _ = await _crear_y_procesar(motor)
+        await trabajos.revisar(motor, canonico, decision="aprobar")
+        aplicado = await trabajos.aplicar_canonico(
+            motor, colegio_id=COLEGIO, grado="Cuarto", anio_lectivo=2026,
+            perfil="Ahorrador", usuario_id=uuid.uuid4(), catalogo=_catalogo(),
+        )
+        parent_id = uuid.UUID(aplicado["trabajo_id"])
+
+        class ComercioFalso:
+            def __init__(self):
+                self.orden_enviada = None
+            async def crear_orden(self, cuerpo):
+                self.orden_enviada = cuerpo
+                return 201, {"pedido_id": "ped-1", "total": cuerpo_total(cuerpo)}
+            async def iniciar_pago(self, pedido_id, cuerpo):
+                return 201, {"pago_id": "pago-1", "url_redireccion": "https://pasarela/xy"}
+
+        def cuerpo_total(c):
+            return sum(l["precio_unitario"] * l["cantidad"] for l in c["lineas"])
+
+        comercio = ComercioFalso()
+        resultado = await trabajos.ordenar(
+            motor, parent_id, perfil="Ahorrador",
+            entrega={"destinatario": "Ana", "direccion": "Calle 1", "ciudad": "Bogota"},
+            correo="ana@example.com", comercio=comercio, catalogo=_catalogo(),
+        )
+        assert resultado["url_redireccion"] == "https://pasarela/xy"
+        assert resultado["pedido_id"] == "ped-1"
+        # RPO cero: ni una linea lleva id canonico, solo sku.
+        assert comercio.orden_enviada["lineas"]
+        assert all("producto_canonico_id" not in l for l in comercio.orden_enviada["lineas"])
+        assert all(l["sku"] and l["precio_unitario"] > 0 for l in comercio.orden_enviada["lineas"])
+        assert comercio.orden_enviada["trabajo_id"] == str(parent_id)
+
+    async def test_ordenar_reenvia_el_rechazo_de_negocio_de_comercio(self, motor):
+        canonico, _ = await _crear_y_procesar(motor)
+        await trabajos.revisar(motor, canonico, decision="aprobar")
+        aplicado = await trabajos.aplicar_canonico(
+            motor, colegio_id=COLEGIO, grado="Cuarto", anio_lectivo=2026,
+            perfil="Ahorrador", usuario_id=uuid.uuid4(), catalogo=_catalogo(),
+        )
+        parent_id = uuid.UUID(aplicado["trabajo_id"])
+
+        class ComercioRechaza:
+            async def crear_orden(self, cuerpo):
+                return 422, {"error": "precio_cambiado", "mensaje": "cambio"}
+            async def iniciar_pago(self, pedido_id, cuerpo):  # no se llega
+                raise AssertionError
+
+        with pytest.raises(trabajos.CheckoutRechazado) as exc:
+            await trabajos.ordenar(
+                motor, parent_id, perfil="Ahorrador",
+                entrega={"destinatario": "Ana", "direccion": "Calle 1", "ciudad": "Bogota"},
+                correo="ana@example.com", comercio=ComercioRechaza(), catalogo=_catalogo(),
+            )
+        assert exc.value.estado == 422
+        assert exc.value.cuerpo["error"] == "precio_cambiado"
 
     async def test_la_cola_lista_lo_que_espera_a_una_persona(self, motor):
         await _crear_y_procesar(motor)

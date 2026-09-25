@@ -19,9 +19,12 @@ export default async function Empezar() {
   // Los colegios y los personajes se leen en el servidor y viajan como prop: el
   // selector necesita la lista entera de colegios para filtrar grados, y la lista
   // de personajes surtidos completos para pintar solo lo que sí cumplimos.
-  const [colegios, personajes] = await Promise.all([
+  const [colegios, personajes, canonicos] = await Promise.all([
     origenDeDatos().colegios(),
     origenDeDatos().personajes(),
+    // Los (colegio, grado) con cache bendita: un hogar de un solo hijo verificado
+    // que caiga en uno de estos toma la ruta rapida (aplicar_canonico, sin NSGA).
+    origenDeDatos().gradosCanonicos(),
   ]);
 
   // Filtro de las cuatro anclas: solo las franquicias cuyo conjunto de conceptos
@@ -35,5 +38,5 @@ export default async function Empezar() {
     .sort((a, b) => b.productos - a.productos)
     .map((p) => p.nombre.toLowerCase());
 
-  return <FormularioEmpezar colegios={colegios} surtidos={surtidos} />;
+  return <FormularioEmpezar colegios={colegios} surtidos={surtidos} canonicos={canonicos} />;
 }

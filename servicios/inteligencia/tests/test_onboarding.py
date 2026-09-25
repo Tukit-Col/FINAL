@@ -40,6 +40,8 @@ class CatalogoImportador:
         items: list[dict],
         documento_base64: str,
         percepcion_cruda: list[dict],
+        origen: str = "onboarding",
+        **_extra: object,
     ) -> dict:
         self.llamadas.append(
             {
@@ -49,6 +51,7 @@ class CatalogoImportador:
                 "items": items,
                 "documento_base64": documento_base64,
                 "percepcion_cruda": percepcion_cruda,
+                "origen": origen,
             }
         )
         return {"version_id": "ver-1", "tarea_id": "tar-1", "items": len(items), "revisada": False}

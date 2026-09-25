@@ -17,6 +17,7 @@ Lo que se defiende es lo que el §9 promete:
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import AsyncIterator
 
 import httpx
@@ -30,17 +31,20 @@ from tukit_comun.bd import MotorServicio
 
 
 class CatalogoFalso:
-    """Doble del cliente de Catalogo: devuelve un precio fijo por sku.
+    """Doble del cliente de Catalogo: resuelve id + precio fijo por sku.
 
     Sin salir a la red. `precios` mapea sku -> precio; un sku ausente devuelve
-    `None`, que es el "sin precio vigente" del contrato de Catalogo.
+    `None` (sku que no existe), y un precio `None` es el "sin precio vigente"
+    del contrato de Catalogo. El id canonico es determinista por sku.
     """
 
     def __init__(self, precios: dict[str, int] | None = None) -> None:
         self.precios = precios or {}
 
-    async def precio_de(self, sku: str) -> int | None:
-        return self.precios.get(sku)
+    async def resolver(self, sku: str):
+        if sku not in self.precios:
+            return None
+        return uuid.uuid5(uuid.NAMESPACE_OID, sku), self.precios[sku]
 
 
 PRODUCTO = "11111111-1111-5111-8111-111111111111"
@@ -81,6 +85,15 @@ async def cliente() -> AsyncIterator[httpx.AsyncClient]:
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
         yield http
     await engine.dispose()
+
+
+async def test_crear_orden_sin_id_canonico_lo_resuelve_por_sku(cliente):
+    # Quien arma la orden nunca ve el id canonico (RPO cero): manda solo sku,
+    # y Comercio lo resuelve contra Catalogo. La orden se cierra igual.
+    orden = _orden()
+    orden["lineas"][0].pop("producto_canonico_id")
+    respuesta = await cliente.post("/v1/ordenes", json=orden)
+    assert respuesta.status_code == 201
 
 
 async def test_crear_orden_congela_precio_y_reserva(cliente):

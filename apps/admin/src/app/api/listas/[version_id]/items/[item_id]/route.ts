@@ -2,9 +2,9 @@
 //
 // El revisor reescribe una línea (concepto, cantidad, unidad, modo de
 // adquisición directa del colegio + instrucción libre…). El cuerpo es un
-// `ItemListaEditable` con solo lo que cambió. No hay borrado duro desde la
-// revisión (alcance ADD+EDIT): esta ruta no expone DELETE. Las guardas de
-// dominio (lista_ya_revisada 409, concepto_no_existe, campo inválido) las impone
+// `ItemListaEditable` con solo lo que cambió. DELETE quita un renglón que sobra
+// (p. ej. "Todo debidamente marcado"): solo sobre una versión sin revisar, el
+// backend alza 409 `lista_ya_revisada` si no. Las guardas de dominio las impone
 // el backend; aquí solo se traduce el error tal cual (§11), sin devolver lo que
 // el cliente mandó. 204 sin cuerpo cuando el backend acepta el cambio.
 
@@ -36,6 +36,19 @@ export async function PATCH(
 
   try {
     await origenDeDatos().editarItemLista(version_id, item_id, cuerpo);
+    return SIN_CONTENIDO();
+  } catch (causa) {
+    return respuestaDeError(causa);
+  }
+}
+
+export async function DELETE(
+  _peticion: Request,
+  contexto: { params: Promise<{ version_id: string; item_id: string }> },
+): Promise<Response> {
+  const { version_id, item_id } = await contexto.params;
+  try {
+    await origenDeDatos().quitarItemLista(version_id, item_id);
     return SIN_CONTENIDO();
   } catch (causa) {
     return respuestaDeError(causa);

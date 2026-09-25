@@ -26,7 +26,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="es">
-      <body>
+      {/* Extensiones del navegador (ColorZilla, gestores de atajos) inyectan
+          atributos como `cz-shortcut-listen` en <body> tras el SSR y disparan
+          un aviso de hidratación que no es nuestro. Silenciarlo solo en <body>. */}
+      <body suppressHydrationWarning>
         <CintaOrigen nombre={origen.nombre} detalle={origen.detalle} />
         <CabeceraAdmin />
         <main>{children}</main>

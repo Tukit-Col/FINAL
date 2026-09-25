@@ -244,6 +244,31 @@ class TestListarVersionesParaRevisar:
         assert importada["procedencia"] == "onboarding"
         assert importada["tiene_contacto"] is False
 
+    async def test_una_subida_de_acudiente_declara_sugerencia_padre(self, cliente):
+        # La subida del acudiente manda origen='sugerencia_padre' en el cuerpo:
+        # la cola tiene que verlo asi para decir "un acudiente la subio". Sin
+        # esto, `importar` fijaba siempre 'onboarding' y mentia en la insignia.
+        vid = (
+            await cliente.post(
+                "/v1/admin/listas/importar",
+                json=_cuerpo_importar(
+                    origen="sugerencia_padre", colegio_datos={"nombre": "Colegio San Ejemplo"}
+                ),
+            )
+        ).json()["version_id"]
+        cuerpo = (await cliente.get("/v1/admin/listas?revisada=false")).json()
+        subida = next(v for v in cuerpo["listas"] if v["version_id"] == vid)
+        assert subida["procedencia"] == "sugerencia_padre"
+        # Y el nombre del colegio nuevo viaja para que la cola no muestre el id.
+        assert subida["colegio_nombre"] == "Colegio San Ejemplo"
+
+    async def test_un_origen_desconocido_se_rechaza(self, cliente):
+        respuesta = await cliente.post(
+            "/v1/admin/listas/importar", json=_cuerpo_importar(origen="cualquier_cosa")
+        )
+        assert respuesta.status_code == 422
+        assert respuesta.json()["error"] == "origen_invalido"
+
 
 class TestLaVistaDeRevision:
     async def test_trae_los_renglones_con_su_concepto_y_las_propuestas(self, cliente):
@@ -519,6 +544,33 @@ class TestImportarListaDesdeOnboarding:
             "2 cuadernos cuadriculados",
             "chaquiras de colores",
         }
+
+    async def test_la_percepcion_coacciona_un_crudo_viejo_de_lista_a_texto(self, cliente):
+        # Versiones importadas antes del arreglo guardaron `crudo` como una LISTA
+        # de objetos {descripcion,cantidad,confianza} en vez de texto. La region 2
+        # lo pinta directo y una lista revienta React ("Objects are not valid as a
+        # React child"). El endpoint tiene que devolverlo SIEMPRE como cadena,
+        # sin depender de una migracion, para no romper las filas ya escritas.
+        cuerpo_viejo = _cuerpo_importar(
+            evidencia={
+                "documento_base64": base64.b64encode(PDF_FALSO).decode("ascii"),
+                "percepcion_cruda": [
+                    {
+                        "pagina": 1,
+                        "crudo": [
+                            {"descripcion": "2 cuadernos cuadriculados", "cantidad": 2, "confianza": 0.9},
+                            {"descripcion": "caja de colores", "cantidad": None, "confianza": 0.8},
+                        ],
+                    }
+                ],
+            }
+        )
+        vid = (await cliente.post("/v1/admin/listas/importar", json=cuerpo_viejo)).json()["version_id"]
+        cuerpo = (await cliente.get(f"/v1/admin/listas/{vid}/percepcion")).json()
+        crudo = cuerpo["paginas"][0]["crudo"]
+        assert isinstance(crudo, str)
+        assert "2 cuadernos cuadriculados" in crudo
+        assert "caja de colores" in crudo
 
     async def test_el_documento_sin_evidencia_es_404(self, cliente):
         # La version sembrada (abierta) no tiene tarea de evidencia.
@@ -991,3 +1043,50 @@ class TestNuevaVersionParaCorregir:
         listas = (await cliente.get(f"/v1/admin/listas?colegio_id={COLEGIO}&grado=Quinto")).json()
         assert listas["total"] == 1
         assert listas["listas"][0]["numero"] == 2
+
+
+class TestCrearConcepto:
+    async def test_autogenera_el_siguiente_codigo_y_parte_sinonimos(self, cliente):
+        # La semilla tiene C001 y C002: el nuevo nace C003. Los sinonimos llegan
+        # separados por "|" y se guardan como lista para que el matcher los use.
+        respuesta = await cliente.post(
+            "/v1/admin/catalogo/conceptos",
+            json={
+                "nombre_canonico": "plan lector digital",
+                "categoria": "Diccionario / Biblia / Libros / Constitución",
+                "sinonimos": "raz plus | plan lector virtual",
+                "tipo_item": "licencia_digital",
+            },
+        )
+        assert respuesta.status_code == 201
+        assert respuesta.json()["codigo"] == "C003"
+
+        # El concepto quedo activo y con sus sinonimos: aparece en el vocabulario.
+        from tukit_catalogo.admin_http import CONCEPTO, _motor
+        from sqlalchemy import select
+
+        async with _motor().engine.begin() as conexion:
+            fila = (
+                await conexion.execute(
+                    select(CONCEPTO.c.sinonimos, CONCEPTO.c.tipo_item).where(CONCEPTO.c.codigo == "C003")
+                )
+            ).one()
+        assert list(fila.sinonimos) == ["raz plus", "plan lector virtual"]
+        assert fila.tipo_item == "licencia_digital"
+
+    async def test_nombre_repetido_es_409(self, cliente):
+        # "cuaderno" ya existe (C001): duplicarlo partiria el vocabulario, asi que
+        # se rechaza y se invita a agregarle productos en vez de crear otro.
+        respuesta = await cliente.post(
+            "/v1/admin/catalogo/conceptos",
+            json={"nombre_canonico": "Cuaderno", "categoria": "Cuadernos"},
+        )
+        assert respuesta.status_code == 409
+
+    async def test_sin_nombre_o_categoria_es_422(self, cliente):
+        assert (
+            await cliente.post("/v1/admin/catalogo/conceptos", json={"categoria": "Arte"})
+        ).status_code == 422
+        assert (
+            await cliente.post("/v1/admin/catalogo/conceptos", json={"nombre_canonico": "algo"})
+        ).status_code == 422

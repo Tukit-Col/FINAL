@@ -148,6 +148,62 @@ export interface TrabajoCreado {
   consultar_en: string;
 }
 
+// --------------------------------------- §Ruta rapida sobre la cache bendita
+//
+// Un (colegio, grado, anio) publicado es la cache de 3 kits validados. El
+// acudiente que cae en uno de estos NO sube PDF ni entra a la cola: elige su
+// nivel + personaje y se le arma el pedido al vuelo (`aplicarCanonico`).
+export interface GradoCanonico {
+  colegio_id: string;
+  grado: string;
+  anio_lectivo: number;
+  trabajo_id: string;
+}
+
+export interface AplicarCanonico {
+  colegio_id: string;
+  grado: string;
+  anio_lectivo: number;
+  perfil: PerfilKit;
+  personaje?: string;
+  usuario_id?: string;
+}
+
+export interface TrabajoAplicado {
+  trabajo_id: string;
+  perfil: PerfilKit;
+  personaje: string | null;
+  total: number;
+}
+
+// El checkout del acudiente: elige el perfil de kit + a donde entregar, y el
+// backend (Inteligencia) arma la orden en Comercio server-to-server. El
+// navegador NUNCA manda lineas ni ids de producto: el trabajo ya tiene el kit,
+// y el id canonico de cada producto lo resuelve Comercio (RPO cero, ADR 0017).
+export interface Entrega {
+  destinatario: string;
+  direccion: string;
+  ciudad: string;
+}
+
+export interface SolicitudCheckout {
+  perfil: PerfilKit;
+  correo: string;
+  entrega: Entrega;
+  metodo?: string;
+  url_redireccion?: string;
+}
+
+export interface Checkout {
+  pedido_id: string;
+  total: number;
+  pago_id: string;
+  referencia_wompi?: string;
+  transaccion_wompi?: string;
+  estado?: string;
+  url_redireccion: string | null;
+}
+
 // --------------------------------------------------- §2 Subida de listas (P2)
 //
 // La puerta del acudiente que sube el PDF de cada hijo: cada archivo se percibe

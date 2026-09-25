@@ -103,10 +103,10 @@ export default function DecisionTrabajo({
               </p>
               {confirmando ? (
                 <div className={styles.confirmacion}>
-                  <p>
-                    ¿Seguro? Se le avisa al acudiente <code>{trabajoId.slice(0, 8)}</code> y el
-                    trabajo sale de la cola.
-                  </p>
+                  {/* Sin identificar al acudiente: el nombre va cifrado y la
+                      consola es libre de PII (ver page.tsx). Antes se mostraba
+                      un trozo del id del TRABAJO mal rotulado como acudiente. */}
+                  <p>¿Seguro? Se le avisa al acudiente y el trabajo sale de la cola.</p>
                   <div className={styles.botonera}>
                     <button
                       type="button"

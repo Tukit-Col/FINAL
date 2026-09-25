@@ -294,9 +294,9 @@ def clasificar(
                 # orden de la tabla, que es como no decidir. Lo que distingue
                 # a los lapices de colores de un lapiz es justamente lo que
                 # sobra de la frase. El coseno suma, no resta.
-                puntaje = 0.6 + 0.4 * _parecido(renglon, candidato) + _APORTE_COSENO * cos
+                puntaje = min(1.0, 0.6 + 0.4 * _parecido(renglon, candidato) + _APORTE_COSENO * cos)
             elif nombra_la_cabeza:
-                puntaje = _parecido(renglon, candidato) + _APORTE_COSENO * cos
+                puntaje = min(1.0, _parecido(renglon, candidato) + _APORTE_COSENO * cos)
             elif cos >= _RESCATE_COSENO:
                 # El lexico no reconocio la cosa pedida, pero el significado
                 # dice que es esta. Rescate a un piso de revision, graduado por

@@ -14,6 +14,7 @@ salio a la red.
 from __future__ import annotations
 
 import os
+import uuid
 from dataclasses import dataclass
 
 import httpx
@@ -39,22 +40,28 @@ class ClienteCatalogo:
     def _base(self) -> str:
         return self.base or url_catalogo()
 
-    async def precio_de(self, sku: str) -> int | None:
-        """El precio publico vigente mas bajo del producto, en pesos COP.
+    async def resolver(self, sku: str) -> tuple[uuid.UUID, int | None] | None:
+        """El id canonico y el precio publico vigente de un sku.
 
-        `None` cuando el producto existe pero no tiene precio vigente (el
-        `precio_desde` del contrato de Catalogo es `null` en ese caso). Levanta
-        `CatalogoCaido` si Catalogo no responde: sin poder re-verificar, la
-        orden NO se cierra, que es lo contrario de degradar en silencio.
+        `None` cuando el sku no existe; `(id, None)` cuando existe pero no tiene
+        precio vigente (el `precio_desde` del contrato es `null` en ese caso).
+        Levanta `CatalogoCaido` si Catalogo no responde: sin poder re-verificar,
+        la orden NO se cierra, que es lo contrario de degradar en silencio.
+
+        Pega al endpoint INTERNO `/interno/resolver-sku` (no `/v1/catalogo`):
+        Comercio necesita el id canonico para congelar la linea y reservar, y
+        ese id la superficie publica nunca lo expone (RPO cero, ADR 0017). La
+        puerta no rutea `/interno`, asi que el navegador no lo alcanza.
         """
         try:
             async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
-                respuesta = await cliente.get(f"{self._base()}/v1/catalogo/productos/{sku}")
+                respuesta = await cliente.get(f"{self._base()}/interno/resolver-sku/{sku}")
                 if respuesta.status_code == 404:
                     return None
                 respuesta.raise_for_status()
-                valor = respuesta.json().get("precio_desde")
-                return int(valor) if valor is not None else None
+                cuerpo = respuesta.json()
+                valor = cuerpo.get("precio_desde")
+                return uuid.UUID(cuerpo["producto_canonico_id"]), (int(valor) if valor is not None else None)
         except httpx.HTTPError as error:
             raise CatalogoCaido(str(error)) from error
 

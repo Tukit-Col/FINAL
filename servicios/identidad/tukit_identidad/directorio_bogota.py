@@ -78,6 +78,22 @@ class ColegioDirectorio:
         resto de campos los pre-llena el revisor desde el directorio completo."""
         return {"dane": self.dane, "nombre": self.nombre, "localidad": self.localidad}
 
+    def a_datos_colegio_nuevo(self) -> dict[str, str | None]:
+        """El bloque con que la cola pre-llena el perfil del colegio nuevo
+        (`DatosColegioNuevo`). Mapea los campos del DUEB a los del formulario:
+        el `rector` va a `contacto_nombre` (la secretaria/contacto institucional
+        que el revisor puede corregir), y no hay `logo_url` porque el DUEB no lo
+        trae —ese lo completa el revisor a mano, como dice `CompletarColegio`."""
+        return {
+            "dane": self.dane,
+            "nombre": self.nombre,
+            "direccion": self.direccion,
+            "sitio_web": self.sitio_web,
+            "contacto_email": self.email,
+            "contacto_telefono": self.telefono,
+            "contacto_nombre": self.rector,
+        }
+
 
 def _limpio(crudo: str | None) -> str | None:
     """El valor recortado, o None si quedo vacio: en el volcado un campo
@@ -150,6 +166,35 @@ def generar_json_busqueda(texto: str) -> list[dict[str, str | None]]:
     colegios = parsear_directorio(texto)
     colegios.sort(key=lambda c: c.nombre)
     return [c.a_dict_busqueda() for c in colegios]
+
+
+# --------------------------------------------------------------- lookup por DANE
+
+# El volcado DUEB vive junto al modulo (no en `datos/`, que es data sembrable):
+# es una referencia externa fija, no algo que el pipeline genere. Se parsea una
+# vez y se indexa por DANE. `None` hasta el primer uso: un servicio que nunca
+# resuelve un colegio nuevo no paga el parseo de 3169 bloques.
+_POR_DANE: dict[str, ColegioDirectorio] | None = None
+_FUENTE = "datos/colegios_bogota.txt"
+
+
+def _indice_por_dane() -> dict[str, ColegioDirectorio]:
+    global _POR_DANE
+    if _POR_DANE is None:
+        from pathlib import Path
+
+        ruta = Path(__file__).parent / _FUENTE
+        texto = ruta.read_text(encoding="utf-8", errors="replace")
+        _POR_DANE = {c.dane: c for c in parsear_directorio(texto)}
+    return _POR_DANE
+
+
+def datos_colegio_nuevo_por_dane(dane: str) -> dict[str, str | None] | None:
+    """Los datos del DUEB para pre-llenar el perfil del colegio nuevo, o `None`
+    si el DANE no esta en el directorio (colegio escrito a mano, otra ciudad).
+    Es lo que Identidad expone para que la subida enriquezca `colegio_datos`."""
+    colegio = _indice_por_dane().get(dane)
+    return colegio.a_datos_colegio_nuevo() if colegio is not None else None
 
 
 def _main() -> None:

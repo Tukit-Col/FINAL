@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Star, Lock, PiggyBank, Sparkles, Gem } from "lucide-react";
+import { Star, PiggyBank, Sparkles, Gem } from "lucide-react";
 import {
   ORDEN_SECCIONES,
   TITULO_CLASE,
@@ -13,6 +13,7 @@ import {
   type PerfilKit,
   type Trabajo,
 } from "@tukit/contrato";
+import { FalloApi, iniciarCheckout } from "@/lib/api-navegador";
 import LineaDeKit from "./LineaDeKit";
 import styles from "./Kits.module.css";
 
@@ -140,27 +141,117 @@ export default function VistaKits({ trabajo }: { trabajo: Trabajo }) {
 
       <SeccionesDeLineas kit={kit} />
 
+      <Checkout trabajoId={trabajo.trabajo_id} perfil={kit.perfil} total={kit.total} />
+    </div>
+  );
+}
+
+// El pago: se congela el precio del kit elegido y se manda al acudiente a la
+// pasarela. No viaja ni un id de producto —el backend arma la orden desde el
+// trabajo—; aqui solo se recoge a donde entregar y el correo del comprobante.
+function Checkout({
+  trabajoId,
+  perfil,
+  total,
+}: {
+  trabajoId: string;
+  perfil: PerfilKit;
+  total: number;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [datos, setDatos] = useState({
+    destinatario: "",
+    direccion: "",
+    ciudad: "",
+    correo: "",
+  });
+
+  const cambiar = (campo: keyof typeof datos) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setDatos((d) => ({ ...d, [campo]: e.target.value }));
+
+  async function pagar(e: React.FormEvent) {
+    e.preventDefault();
+    setEnviando(true);
+    setError(null);
+    try {
+      const { destinatario, direccion, ciudad, correo } = datos;
+      const checkout = await iniciarCheckout(trabajoId, {
+        perfil,
+        correo,
+        entrega: { destinatario, direccion, ciudad },
+        // La pasarela devuelve aqui tras pagar; el trabajo publicado es la
+        // pagina de vuelta natural.
+        url_redireccion: window.location.href,
+      });
+      if (checkout.url_redireccion) {
+        window.location.href = checkout.url_redireccion;
+      } else {
+        // Sin pasarela (modo de prueba sin redireccion): el pedido quedo creado.
+        setError(null);
+        setAbierto(false);
+        window.alert(`Pedido ${checkout.pedido_id} creado por ${formatearPesos(checkout.total)}.`);
+      }
+    } catch (causa) {
+      const mensaje =
+        causa instanceof FalloApi
+          ? causa.message
+          : "No pudimos iniciar el pago. Intenta de nuevo.";
+      setError(mensaje);
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <>
       <footer className={styles.pie}>
         <div>
-          <span className={styles.etiquetaTotal}>Total del kit {kit.perfil}</span>
-          <span className={`${styles.totalPie} cifra`}>{formatearPesos(kit.total)}</span>
+          <span className={styles.etiquetaTotal}>Total del kit {perfil}</span>
+          <span className={`${styles.totalPie} cifra`}>{formatearPesos(total)}</span>
           <span className={styles.notaTotal}>
             Solo lo que Tukit te puede vender. Lo que gestiona el colegio no entra en
             esta cifra.
           </span>
         </div>
-        {/* El pago vive en `comercio` y todavia no existe. Un boton que no
-            hace nada es peor que un boton apagado que dice por que. */}
-        <button type="button" className={styles.pagar} disabled>
-          <Lock size={17} aria-hidden="true" strokeWidth={2.4} />
-          Ir a pagar
-        </button>
+        {!abierto && (
+          <button type="button" className={styles.pagar} onClick={() => setAbierto(true)}>
+            Ir a pagar
+          </button>
+        )}
       </footer>
+
+      {abierto && (
+        <form className={styles.formPago} onSubmit={pagar}>
+          <p className={styles.tituloPago}>¿A dónde te lo llevamos?</p>
+          <label>
+            Nombre de quien recibe
+            <input value={datos.destinatario} onChange={cambiar("destinatario")} required />
+          </label>
+          <label>
+            Dirección
+            <input value={datos.direccion} onChange={cambiar("direccion")} required />
+          </label>
+          <label>
+            Ciudad
+            <input value={datos.ciudad} onChange={cambiar("ciudad")} required />
+          </label>
+          <label>
+            Correo para el comprobante
+            <input type="email" value={datos.correo} onChange={cambiar("correo")} required />
+          </label>
+          {error && <p className={styles.errorPago}>{error}</p>}
+          <button type="submit" className={styles.pagar} disabled={enviando}>
+            {enviando ? "Llevándote a la pasarela…" : `Pagar ${formatearPesos(total)}`}
+          </button>
+        </form>
+      )}
+
       <p className={styles.notaPago}>
-        El pago se habilita cuando el servicio de comercio esté arriba. Al confirmar,
-        el precio se congela y no se mueve.
+        Al confirmar, el precio se congela y no se mueve. Pagas en la pasarela segura;
+        Tukit nunca ve los datos de tu tarjeta.
       </p>
-    </div>
+    </>
   );
 }
 

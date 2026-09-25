@@ -142,6 +142,26 @@ async def listar_colegios(
     return {"total": len(datos), "colegios": datos}
 
 
+@app.get(
+    "/v1/directorio/{dane}",
+    tags=["colegios"],
+    summary="Datos DUEB de un colegio del directorio, para pre-llenar el perfil del nuevo",
+)
+async def datos_directorio(dane: str) -> dict[str, Any]:
+    """El bloque del DUEB para un DANE: direccion, contacto, sitio. Lo consume la
+    subida para enriquecer `colegio_datos` de una lista de colegio nuevo, y la
+    cola lo muestra pre-llenado. 404 si el DANE no esta en el directorio (colegio
+    de otra ciudad o escrito a mano): quien llama degrada a solo nombre+dane."""
+    from .directorio_bogota import datos_colegio_nuevo_por_dane
+
+    datos = datos_colegio_nuevo_por_dane(dane)
+    if datos is None:
+        raise ErrorDominio(
+            "dane_no_en_directorio", f"El DANE {dane} no esta en el directorio de Bogota.", estado=404
+        )
+    return datos
+
+
 @app.get("/v1/colegios/{colegio_id}", tags=["colegios"], summary="Un colegio con sus sedes")
 async def ver_colegio(colegio_id: uuid.UUID) -> dict[str, Any]:
     async with app.state.motor.engine.begin() as conexion:

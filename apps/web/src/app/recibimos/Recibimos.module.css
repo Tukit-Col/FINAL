@@ -1,0 +1,53 @@
+/* La pantalla de "ya recibimos tu lista". Reusa la tarjeta y las etapas de
+ * Espera.module.css; esto solo agrega el remate de arriba —el sello y el
+ * titulo centrados— para que la confirmacion se sienta como un cierre y no
+ * como una lista de pasos mas. */
+
+.hero {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: var(--espacio-2);
+  padding-bottom: var(--espacio-4);
+}
+
+.sello {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full);
+  color: var(--color-success);
+  background: var(--color-success-bg);
+  box-shadow: var(--clay-shadow-sm);
+  margin-bottom: var(--espacio-2);
+  animation: aterriza var(--dur-medio) var(--ease-clay) both;
+}
+
+.titulo {
+  font-size: clamp(25px, 4.5vw, 33px);
+  font-weight: 800;
+}
+
+.entrada {
+  max-width: 46ch;
+  color: var(--color-text-secondary);
+  font-size: 15px;
+}
+
+@keyframes aterriza {
+  from {
+    opacity: 0;
+    transform: scale(0.82) translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sello {
+    animation: none;
+  }
+}

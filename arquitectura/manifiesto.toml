@@ -27,7 +27,7 @@ version = "3"
 # sobre 99 conceptos, no inducida, y vive en Catalogo porque es vocabulario de
 # catalogo. Reemplaza al grafo en memoria que se reconstruia por item y costaba
 # el 95,3 por ciento de la latencia del pipeline.
-total_tablas_esperado = 70
+total_tablas_esperado = 71
 
 # Tablas que existen a proposito en varias bases. Son la excepcion declarada,
 # no un descuido: cada servicio necesita su propia bandeja de salida local para
@@ -128,6 +128,7 @@ tablas = [
     "trabajo_pipeline",
     "etapa_trabajo",
     "bandeja_salida",
+    "kit_canonico",
 ]
 
 [servicios.comercio]
@@ -413,6 +414,16 @@ foraneas fisicas: ambos conceptos viven en esta misma base.
 desde = "catalogo.lista_oficial.colegio_id"
 hacia = "identidad.colegio"
 nota = "La lista oficial es vocabulario de catalogo; la tenencia del colegio vive en Identidad."
+
+[[referencias_cruzadas]]
+desde = "inteligencia.kit_canonico.colegio_id"
+hacia = "identidad.colegio"
+nota = """
+El puntero a la cache de kits benditos se indexa por (colegio, grado, anio). El
+colegio vive en Identidad; aqui es la llave con la que el acudiente elige su
+grado en /empezar y con la que la ruta de aplicacion encuentra los kits ya
+validados. La integridad se apoya en que el colegio ya existia cuando su lista
+se importo (misma garantia que `catalogo.lista_oficial.colegio_id`)."""
 
 [[referencias_cruzadas]]
 desde = "catalogo.tarea_importacion.colegio_id"

@@ -23,7 +23,7 @@ import httpx
 import pytest
 from tukit_inteligencia import api
 from tukit_inteligencia.api import app
-from tukit_inteligencia.percepcion import ItemExtraido, PaginaLeida, Percepcion
+from tukit_inteligencia.percepcion import ItemExtraido, PaginaLeida
 
 COLEGIO = "11111111-1111-5111-8111-111111111111"
 OTRO_COLEGIO = "22222222-2222-5222-8222-222222222222"
@@ -48,6 +48,7 @@ class CatalogoImportador:
         contacto_referencia: str | None = None,
         preferencias: dict | None = None,
         colegio_datos: dict | None = None,
+        origen: str = "onboarding",
     ) -> dict:
         self._proximo += 1
         version_id = f"ver-{self._proximo}"
@@ -62,6 +63,7 @@ class CatalogoImportador:
                 "contacto_referencia": contacto_referencia,
                 "preferencias": preferencias,
                 "colegio_datos": colegio_datos,
+                "origen": origen,
             }
         )
         return {"version_id": version_id, "tarea_id": f"tar-{self._proximo}", "items": len(items)}
@@ -157,6 +159,10 @@ class TestSubirFeliz:
         assert llamada["grado"] == "Cuarto"
         assert llamada["anio_lectivo"] == 2026
         assert llamada["items"][0]["texto_original"] == "2 cuadernos cuadriculados"
+        # La subida del acudiente entra como 'sugerencia_padre', no 'onboarding':
+        # de eso depende que la cola diga "Un acudiente la subió" y no "El colegio
+        # la envió". Regresion de un bug donde `importar_lista` fijaba onboarding.
+        assert llamada["origen"] == "sugerencia_padre"
 
     async def test_el_contacto_se_registra_una_vez_y_solo_viaja_su_id(self, cliente, catalogo, identidad):
         cuerpo = _subida(
@@ -357,8 +363,9 @@ class TestSubirRechazado:
         # Un hijo sin su PDF: falta el `archivo`. Se manda un multipart con los
         # `hijos` pero sin parte `archivo` (un campo de relleno fuerza el
         # encoding multipart en httpx aunque no haya archivos).
+        hijos = [{"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"}]
         cuerpo = {
-            "data": {"hijos": json.dumps([{"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"}])},
+            "data": {"hijos": json.dumps(hijos)},
             "files": [("relleno", (None, "x"))],
         }
         respuesta = await cliente.post("/v1/listas/subir", **cuerpo)

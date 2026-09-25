@@ -36,6 +36,7 @@ from tukit_comun.http import cliente_efimero
 # TUKIT_CATALOGO_URL y TUKIT_IDENTIDAD_URL.
 URL_CATALOGO_POR_OMISION = "http://127.0.0.1:8012"
 URL_IDENTIDAD_POR_OMISION = "http://127.0.0.1:8011"
+URL_COMERCIO_POR_OMISION = "http://127.0.0.1:8014"
 
 # Generoso a proposito. El emparejamiento de una lista entera carga el indice
 # del catalogo y compara cada renglon contra 100 conceptos; medio segundo de
@@ -59,6 +60,10 @@ def url_catalogo() -> str:
 
 def url_identidad() -> str:
     return os.environ.get("TUKIT_IDENTIDAD_URL", URL_IDENTIDAD_POR_OMISION).rstrip("/")
+
+
+def url_comercio() -> str:
+    return os.environ.get("TUKIT_COMERCIO_URL", URL_COMERCIO_POR_OMISION).rstrip("/")
 
 
 @dataclass
@@ -102,6 +107,31 @@ class ClienteCatalogo:
     async def lista(self, lista_id: str) -> dict[str, Any]:
         return await self._pedir("GET", f"/v1/listas/{lista_id}")
 
+    async def producto(self, sku: str) -> dict[str, Any]:
+        """El producto autoritativo por sku, con precio y empaque frescos.
+
+        Se usa al fijar un producto en una linea que NO era candidato del item
+        (p. ej. un personaje que el optimizador deprioriza): la linea no puede
+        copiar campos de un CANDIDATO que no existe, asi que los pide aqui.
+        """
+        return await self._pedir("GET", f"/v1/catalogo/productos/{sku}")
+
+    async def producto_de_personaje(self, concepto: str, personaje: str) -> dict[str, Any] | None:
+        """El producto de un concepto ancla para un personaje, o None si no hay.
+
+        Es la misma consulta que el interruptor de personaje del Fan hace en la
+        consola (concepto + personaje, primera pagina), pero del lado del
+        servidor: la ruta de aplicacion del acudiente congela las anclas del kit
+        canonico al personaje elegido sin depender del navegador.
+        """
+        cuerpo = await self._pedir(
+            "GET",
+            "/v1/catalogo/productos",
+            params={"concepto": concepto, "personaje": personaje, "por_pagina": 1},
+        )
+        productos = list(cuerpo.get("productos") or ())
+        return productos[0] if productos else None
+
     async def resueltos(self, version_id: str) -> dict[str, Any]:
         """La ruta rapida: items ya resueltos + candidatos curados de una lista revisada.
 
@@ -125,6 +155,7 @@ class ClienteCatalogo:
         contacto_referencia: str | None = None,
         preferencias: dict[str, Any] | None = None,
         colegio_datos: dict[str, Any] | None = None,
+        origen: str = "onboarding",
     ) -> dict[str, Any]:
         """Escribe una lista percibida en el catalogo, con su evidencia.
 
@@ -148,6 +179,7 @@ class ClienteCatalogo:
             "grado": grado,
             "anio_lectivo": anio_lectivo,
             "items": items,
+            "origen": origen,
             "evidencia": {
                 "documento_base64": documento_base64,
                 "percepcion_cruda": percepcion_cruda,
@@ -194,12 +226,67 @@ class ClienteIdentidad:
         except httpx.HTTPError:
             return None
 
+    async def datos_directorio(self, dane: str) -> dict[str, Any] | None:
+        """Los datos DUEB (direccion, contacto, sitio) del colegio con ese DANE,
+        para pre-llenar el perfil del colegio nuevo. `None` si el DANE no esta en
+        el directorio o identidad no responde: la subida degrada a nombre+dane,
+        no se cae (el revisor completa a mano lo que falte)."""
+        try:
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.get(f"{self._base()}/v1/directorio/{dane}")
+                if respuesta.status_code == 404:
+                    return None
+                respuesta.raise_for_status()
+                return dict(respuesta.json())
+        except httpx.HTTPError:
+            return None
+
+
+@dataclass
+class ClienteComercio:
+    """El checkout server-to-server: Inteligencia arma la orden, Comercio cobra.
+
+    El navegador nunca habla con Comercio directo: manda solo `trabajo_id` +
+    perfil + direccion, e Inteligencia -que tiene el `usuario_id` del trabajo y
+    las lineas del kit- monta la orden aqui. Asi el id canonico de cada producto
+    (que Comercio necesita para reservar) jamas sale a la superficie publica
+    (RPO cero, ADR 0017): la orden viaja con sku y Comercio resuelve el id.
+
+    Devuelve `(estado_http, cuerpo)` en vez de levantar en los rechazos de
+    negocio: un `422 precio_cambiado` es una respuesta legitima que el acudiente
+    tiene que ver, no un fallo. Solo la caida de red o un 5xx es `RemotoCaido`.
+    """
+
+    base: str = ""
+    cliente: httpx.AsyncClient | None = None
+
+    def _base(self) -> str:
+        return self.base or url_comercio()
+
+    async def crear_orden(self, cuerpo: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+        return await self._postear("/v1/ordenes", cuerpo)
+
+    async def iniciar_pago(self, pedido_id: str, cuerpo: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+        return await self._postear(f"/v1/ordenes/{pedido_id}/pago", cuerpo)
+
+    async def _postear(self, ruta: str, cuerpo: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+        try:
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.post(f"{self._base()}{ruta}", json=cuerpo)
+        except httpx.HTTPError as error:
+            raise RemotoCaido("comercio", str(error)) from error
+        if respuesta.status_code >= 500:
+            raise RemotoCaido("comercio", f"{respuesta.status_code} en {ruta}")
+        return respuesta.status_code, respuesta.json()
+
 
 __all__ = [
     "ESPERA_SEGUNDOS",
     "ClienteCatalogo",
+    "ClienteComercio",
     "ClienteIdentidad",
     "RemotoCaido",
     "url_catalogo",
+    "url_comercio",
     "url_identidad",
 ]

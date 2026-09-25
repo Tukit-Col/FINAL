@@ -1,4 +1,4 @@
-"""Las 9 tablas del servicio de Inteligencia, tal como las declara el manifiesto."""
+"""Las 10 tablas del servicio de Inteligencia, tal como las declara el manifiesto."""
 
 from .base import (
     PESOS_POR_OMISION,
@@ -12,7 +12,14 @@ from .base import (
 )
 from .kit import Kit, LineaKit
 from .resolucion import CandidatoItem, ItemCrudo, ResolucionItem, TransicionResolucion
-from .trabajo import ETAPAS, BandejaSalida, EtapaTrabajo, TrabajoPipeline, puede_pasar
+from .trabajo import (
+    ETAPAS,
+    BandejaSalida,
+    EtapaTrabajo,
+    KitCanonico,
+    TrabajoPipeline,
+    puede_pasar,
+)
 
 __all__ = [
     "ETAPAS",
@@ -27,6 +34,7 @@ __all__ = [
     "EtapaTrabajo",
     "ItemCrudo",
     "Kit",
+    "KitCanonico",
     "LineaKit",
     "PerfilKit",
     "ResolucionItem",
