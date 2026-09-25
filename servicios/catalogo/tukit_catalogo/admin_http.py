@@ -200,6 +200,16 @@ async def listar_versiones(
         .where(TAREA.c.id == tarea_reciente)
         .scalar_subquery()
     )
+    # Los datos del colegio NUEVO que el acudiente escribio/eligio, cuando el
+    # colegio aun no existe en Tukit (no hay fila en `colegio` que darle nombre).
+    # Viajan en `colegio_datos` de la tarea; el nombre se extrae en Python (JSON
+    # generico, portable a SQLite) para que la cola muestre "Colegio X" en vez
+    # del id derivado. Un colegio aliado ya conocido no los trae.
+    colegio_datos = (
+        select(TAREA.c.colegio_datos)
+        .where(TAREA.c.id == tarea_reciente)
+        .scalar_subquery()
+    )
     consulta = (
         select(
             LISTA.c.id.label("lista_id"),
@@ -212,6 +222,7 @@ async def listar_versiones(
             func.coalesce(items_por_version.c.renglones, 0).label("renglones"),
             procedencia.label("procedencia"),
             contacto.label("contacto_referencia"),
+            colegio_datos.label("colegio_datos"),
         )
         .select_from(
             LISTA.join(
@@ -251,6 +262,12 @@ async def listar_versiones(
                 # Si hay un acudiente detras a quien avisar al aprobar. Nunca el
                 # correo: solo el hecho de que exista una referencia.
                 "tiene_contacto": f.contacto_referencia is not None,
+                # El nombre del colegio NUEVO cuando aun no existe en Tukit, para
+                # que la cola lo muestre en vez del id derivado. None si es un
+                # colegio aliado (su nombre ya vive en la tabla `colegio`).
+                "colegio_nombre": (
+                    (f.colegio_datos or {}).get("nombre") if f.colegio_datos else None
+                ),
             }
             for f in filas
         ]
@@ -303,6 +320,7 @@ async def ver_revision(version_id: uuid.UUID) -> dict[str, Any]:
             select(
                 PROPUESTA.c.id,
                 PROPUESTA.c.texto_origen,
+                PROPUESTA.c.item_lista_id,
                 PROPUESTA.c.nombre,
                 PROPUESTA.c.marca,
                 PROPUESTA.c.imagen_url,
@@ -321,6 +339,10 @@ async def ver_revision(version_id: uuid.UUID) -> dict[str, Any]:
             {
                 "id": str(p.id),
                 "texto_origen": p.texto_origen,
+                # La llave FIABLE al renglon: el texto se repite (una lista pide
+                # dos cuadernos iguales) y agrupar por texto le colgaba a un
+                # renglon los candidatos del otro. `item_lista_id` es 1:1.
+                "item_id": None if p.item_lista_id is None else str(p.item_lista_id),
                 "nombre": p.nombre,
                 "marca": p.marca,
                 "imagen_url": p.imagen_url,
@@ -576,6 +598,19 @@ async def importar_lista(cuerpo: dict[str, Any]) -> dict[str, Any]:
         ) from exc
     percepcion_cruda = list(evidencia.get("percepcion_cruda") or [])
 
+    # De quien vino la subida, para que la cola la atribuya bien: 'onboarding'
+    # (el colegio o un administrador) o 'sugerencia_padre' (un acudiente). Por
+    # omision onboarding, que es el caso historico; cualquier otro valor se
+    # rechaza sin adivinar.
+    origen = str(cuerpo.get("origen") or "onboarding")
+    if origen not in ("onboarding", "sugerencia_padre"):
+        raise ErrorDominio(
+            "origen_invalido",
+            "El origen de la importacion tiene que ser 'onboarding' o 'sugerencia_padre'.",
+            estado=422,
+            campo="origen",
+        )
+
     # Traza opcional al padre que espera esta lista: cuando un acudiente sube su
     # PDF, la importacion queda ligada a su `usuario_id` (nunca su correo ni
     # telefono, que son PII de Identidad) para poder avisarle cuando un
@@ -712,7 +747,7 @@ async def importar_lista(cuerpo: dict[str, Any]) -> dict[str, Any]:
             TAREA.insert().values(
                 id=tarea_id,
                 lista_id=lista_id,
-                origen="onboarding",
+                origen=origen,
                 estado="completada",
                 version_id=version_id,
                 colegio_id=colegio_id,
@@ -849,12 +884,41 @@ async def listar_sugerencias() -> dict[str, Any]:
     return {"sugerencias": datos}
 
 
+def _pagina_percepcion(pagina: Any) -> dict[str, Any]:
+    """Una pagina de percepcion con su `crudo` SIEMPRE como cadena (contrato).
+
+    Versiones importadas antes del arreglo guardaron `crudo` como una lista de
+    objetos `{descripcion, cantidad, confianza}` en vez de texto; la region 2 lo
+    renderiza directo y una lista revienta React. Se coacciona aqui —el limite
+    donde el dato guardado se vuelve el contrato `PercepcionCruda`— para no
+    depender de una migracion y cubrir las filas viejas ya escritas.
+    """
+    if not isinstance(pagina, dict):
+        return {"pagina": 1, "crudo": str(pagina)}
+    crudo = pagina.get("crudo")
+    if isinstance(crudo, list):
+        crudo = "\n".join(
+            f"{it.get('cantidad')} {it.get('descripcion', '')}".strip()
+            if isinstance(it, dict) and it.get("cantidad")
+            else (it.get("descripcion", "") if isinstance(it, dict) else str(it))
+            for it in crudo
+        )
+    elif not isinstance(crudo, str):
+        crudo = "" if crudo is None else str(crudo)
+    return {"pagina": pagina.get("pagina", 1), "crudo": crudo}
+
+
 async def _tarea_con_evidencia(conexion: Any, version_id: uuid.UUID) -> Any:
-    """La tarea de importacion que dejo la evidencia de esta version, o None."""
+    """La tarea de importacion que dejo la evidencia de esta version, o None.
+
+    No filtra por `origen`: la evidencia (PDF + percepcion) la deja tanto la
+    subida del colegio ('onboarding') como la del acudiente ('sugerencia_padre').
+    Se toma la mas reciente por version, que es la que produjo la vigente.
+    """
     return (
         await conexion.execute(
             select(TAREA.c.documento, TAREA.c.percepcion_cruda)
-            .where(TAREA.c.version_id == version_id, TAREA.c.origen == "onboarding")
+            .where(TAREA.c.version_id == version_id)
             .order_by(TAREA.c.creada_en.desc())
         )
     ).first()
@@ -904,7 +968,7 @@ async def percepcion_de_version(version_id: uuid.UUID) -> dict[str, Any]:
         ]
     return {
         "version_id": str(version_id),
-        "paginas": list(tarea.percepcion_cruda or []),
+        "paginas": [_pagina_percepcion(p) for p in (tarea.percepcion_cruda or [])],
         "items": items,
     }
 
@@ -1513,6 +1577,87 @@ async def buscar_en_tienda(
             for o in ofertas
         ]
     }
+
+
+@router.post(
+    "/catalogo/conceptos",
+    status_code=201,
+    summary="Crear un concepto nuevo (para encolar sus productos despues)",
+)
+async def crear_concepto(cuerpo: dict[str, Any]) -> dict[str, Any]:
+    """Da de alta un concepto que el corpus no tenia, para poder encolarle sus
+    tres niveles enseguida. Es el otro brazo del bucle de curacion: cuando el
+    revisor ve un renglon que no empareja con nada ("Plan lector RAZ-PLUS") crea
+    el concepto y luego le agrega productos, de modo que la BD crezca revisando.
+
+    El `codigo` se autogenera (el siguiente `C0NN` libre) para no cargarle al
+    revisor el esquema de codigos. `nombre_canonico` y `categoria` son
+    obligatorios; los sinonimos ayudan al matcher a reconocerlo en la proxima
+    lista y llegan como lista o como texto separado por `|`. `tipo_item` cae a
+    `util` (lo comprable, el caso comun). El id se deriva del codigo con el
+    contrato compartido, igual que el cargador, para que sea idempotente.
+    """
+    nombre = str(cuerpo.get("nombre_canonico") or cuerpo.get("nombre") or "").strip()
+    categoria = str(cuerpo.get("categoria") or "").strip()
+    if not nombre:
+        raise ErrorDominio(
+            "nombre_invalido", "El concepto necesita un nombre canonico.", estado=422, campo="nombre_canonico"
+        )
+    if not categoria:
+        raise ErrorDominio(
+            "categoria_invalida", "El concepto necesita una categoria.", estado=422, campo="categoria"
+        )
+    tipo_item = str(cuerpo.get("tipo_item") or TipoItem.UTIL.value)
+    if tipo_item not in {t.value for t in TipoItem}:
+        raise ErrorDominio(
+            "tipo_item_invalido", f"Tipo de item desconocido: {tipo_item}.", estado=422, campo="tipo_item"
+        )
+    crudo = cuerpo.get("sinonimos") or []
+    sinonimos = (
+        [s.strip() for s in crudo.split("|") if s.strip()]
+        if isinstance(crudo, str)
+        else [str(s).strip() for s in crudo if str(s).strip()]
+    )
+
+    from .cargador import _uuid_estable
+
+    async with _motor().engine.begin() as conexion:
+        # El nombre canonico ya existente es el choque real: dos "cuaderno" con
+        # codigos distintos partirian el vocabulario del matcher. El codigo se
+        # autogenera, asi que no puede chocar.
+        ya = (
+            await conexion.execute(
+                select(CONCEPTO.c.codigo).where(func.lower(CONCEPTO.c.nombre_canonico) == nombre.lower())
+            )
+        ).scalar_one_or_none()
+        if ya is not None:
+            raise ErrorDominio(
+                "concepto_ya_existe",
+                f"Ya existe un concepto '{nombre}' ({ya}). Agregale productos en vez de duplicarlo.",
+                estado=409,
+                campo="nombre_canonico",
+            )
+        # El siguiente C0NN libre: se lee el maximo actual y se suma uno. El
+        # formato lo fija el corpus (C001..C0NN); mantenerlo deja que CLI y cola
+        # compartan el mismo espacio de codigos.
+        codigos = [
+            c for (c,) in await conexion.execute(select(CONCEPTO.c.codigo)) if c and c.startswith("C")
+        ]
+        maximo = max((int(c[1:]) for c in codigos if c[1:].isdigit()), default=0)
+        codigo = f"C{maximo + 1:03d}"
+
+        await conexion.execute(
+            CONCEPTO.insert().values(
+                id=_uuid_estable("concepto", codigo),
+                codigo=codigo,
+                nombre_canonico=nombre,
+                sinonimos=sinonimos,
+                categoria=categoria,
+                tipo_item=tipo_item,
+                admite_personaje=bool(cuerpo.get("admite_personaje", False)),
+            )
+        )
+    return {"codigo": codigo, "nombre_canonico": nombre, "categoria": categoria, "tipo_item": tipo_item}
 
 
 @router.post(

@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ArrowLeft, Check, Clock } from "lucide-react";
-import styles from "../esperando/[trabajo_id]/Espera.module.css";
+import { ArrowLeft, BellRing, Check, Clock, MailCheck } from "lucide-react";
+import espera from "../esperando/[trabajo_id]/Espera.module.css";
+import styles from "./Recibimos.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -27,21 +28,32 @@ export default async function Recibimos({
   const plural = cuantas === 1 ? "tu lista" : `tus ${cuantas} listas`;
 
   return (
-    <div className={styles.pagina}>
-      <div className={styles.tarjeta}>
-        <span className={styles.chapa}>Recibido</span>
-        <h1>Ya tenemos {plural}</h1>
+    <div className={espera.pagina}>
+      <div className={espera.tarjeta}>
+        <div className={styles.hero}>
+          <span className={styles.sello} aria-hidden="true">
+            <MailCheck size={30} strokeWidth={2.2} />
+          </span>
+          <span className={espera.chapa}>Recibido</span>
+          <h1 className={styles.titulo}>Ya tenemos {plural}</h1>
+          <p className={styles.entrada}>
+            {cuantas === 1
+              ? "Quedó a salvo en la fila de revisión."
+              : `Las ${cuantas} quedaron a salvo en la fila de revisión.`}{" "}
+            Ahora el trabajo es nuestro.
+          </p>
+        </div>
 
-        <p className={styles.honestidad}>
+        <p className={espera.honestidad}>
           Nunca armamos un kit con una lista sin verificar. Una persona de Tukit
           revisa {cuantas === 1 ? "la lista que subiste" : "las listas que subiste"} y,
           apenas quede aprobada, te avisamos al correo y al celular con el enlace
           para ver tu kit antes de comprar. Puedes cerrar esta pestaña.
         </p>
 
-        <ol className={styles.etapas}>
-          <li className={`${styles.etapa} ${styles.ok}`}>
-            <span className={styles.marca} aria-hidden="true">
+        <ol className={espera.etapas}>
+          <li className={`${espera.etapa} ${espera.ok}`}>
+            <span className={espera.marca} aria-hidden="true">
               <Check size={15} strokeWidth={2.6} />
             </span>
             <div>
@@ -49,8 +61,8 @@ export default async function Recibimos({
               <span>Leímos el archivo y lo dejamos en la fila de revisión.</span>
             </div>
           </li>
-          <li className={`${styles.etapa} ${styles.enCurso}`}>
-            <span className={styles.marca} aria-hidden="true">
+          <li className={`${espera.etapa} ${espera.enCurso}`}>
+            <span className={espera.marca} aria-hidden="true">
               <Clock size={15} strokeWidth={2.6} />
             </span>
             <div>
@@ -61,8 +73,10 @@ export default async function Recibimos({
               </span>
             </div>
           </li>
-          <li className={styles.etapa}>
-            <span className={styles.marca} aria-hidden="true" />
+          <li className={espera.etapa}>
+            <span className={espera.marca} aria-hidden="true">
+              <BellRing size={15} strokeWidth={2.6} />
+            </span>
             <div>
               <strong>Te avisamos con tu kit</strong>
               <span>Al correo y al celular, con el enlace para revisarlo antes de comprar.</span>
@@ -71,7 +85,7 @@ export default async function Recibimos({
         </ol>
 
         {trabajo && (
-          <div className={styles.degradaciones}>
+          <div className={espera.degradaciones}>
             <strong>Mientras tanto, un kit ya está listo</strong>
             <p style={{ marginTop: "8px" }}>
               Para {cuantas === 1 ? "el otro hijo" : "los hijos"} con lista ya
@@ -80,7 +94,7 @@ export default async function Recibimos({
             </p>
             <Link
               href={`/esperando/${trabajo}`}
-              className={styles.boton}
+              className={espera.boton}
               style={{ marginTop: "12px" }}
             >
               Ver el kit listo
@@ -88,9 +102,9 @@ export default async function Recibimos({
           </div>
         )}
 
-        <footer className={styles.pie}>
+        <footer className={espera.pie}>
           <span>Te escribimos apenas esté verificada.</span>
-          <Link href="/" className={styles.enlacePie}>
+          <Link href="/" className={espera.enlacePie}>
             <ArrowLeft size={16} aria-hidden="true" />
             Volver al inicio
           </Link>

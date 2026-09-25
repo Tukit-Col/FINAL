@@ -61,6 +61,22 @@ export function validarLinea(
   return enviar(`/api/trabajos/${id(trabajoId)}/lineas/${id(itemId)}/validar`, cuerpo);
 }
 
+/** AD-04. Fija el producto de UN kit (por-nivel): escribe LINEA y recalcula su
+ *  subtotal. A diferencia de `validarLinea` (item, los tres kits), esto cambia
+ *  el producto de un solo perfil, que es lo que hace que el concepto suba de
+ *  economico a premium entre kits y que el personaje del Fan llegue al kit. */
+export function fijarProductoLinea(
+  trabajoId: string,
+  perfil: string,
+  itemId: string,
+  sku: string,
+): Promise<void> {
+  return enviar(
+    `/api/trabajos/${id(trabajoId)}/kits/${id(perfil)}/lineas/${id(itemId)}/producto`,
+    { sku },
+  );
+}
+
 /** AD-02. El motivo es obligatorio: una marca sin motivo no se puede revisar despues. */
 export function marcarSinCoincidencia(
   trabajoId: string,
@@ -83,4 +99,10 @@ export function marcarNoDisponible(sku: string, cuerpo: MarcarNoDisponible): Pro
 /** AD-06. Aprobar publica y avisa al acudiente; devolver reabre en silencio. */
 export function decidirRevision(trabajoId: string, cuerpo: DecisionRevision): Promise<void> {
   return enviar(`/api/trabajos/${id(trabajoId)}/revision`, cuerpo);
+}
+
+/** Borra un trabajo desechable (preview, encolado, fallido). Un `publicado`
+ *  esta protegido: el backend responde 409 `trabajo_publicado_protegido`. */
+export function eliminarTrabajo(trabajoId: string): Promise<void> {
+  return enviar(`/api/trabajos/${id(trabajoId)}/eliminar`, {});
 }

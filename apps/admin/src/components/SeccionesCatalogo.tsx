@@ -10,11 +10,12 @@
 "use client";
 
 import { useState } from "react";
-import type { PaginaProductos } from "@tukit/contrato";
+import type { ConceptoCreado, PaginaProductos } from "@tukit/contrato";
 import GestorCatalogo from "./GestorCatalogo";
 import ColaCuraduria from "./ColaCuraduria";
 import AltaUtil from "./AltaUtil";
 import AltaLibro from "./AltaLibro";
+import NuevoConcepto from "./NuevoConcepto";
 import type { OpcionConcepto } from "./PanelReclasificar";
 import styles from "./CatalogoSpa.module.css";
 
@@ -25,11 +26,12 @@ export interface OpcionTienda {
   nombre: string;
 }
 
-type Pestana = "productos" | "cola" | "util" | "libro";
+type Pestana = "productos" | "cola" | "concepto" | "util" | "libro";
 
 const PESTANAS: { id: Pestana; nombre: string }[] = [
   { id: "productos", nombre: "Productos" },
   { id: "cola", nombre: "Cola de curaduría" },
+  { id: "concepto", nombre: "Nuevo concepto" },
   { id: "util", nombre: "Agregar útil" },
   { id: "libro", nombre: "Agregar libro" },
 ];
@@ -43,17 +45,27 @@ interface Props {
 
 export default function SeccionesCatalogo({
   paginaInicial,
-  conceptos,
+  conceptos: conceptosIniciales,
   personajes,
   tiendas,
 }: Props) {
   const [pestana, setPestana] = useState<Pestana>("productos");
   // Se incrementa al encolar algo; `ColaCuraduria` se remonta y recarga.
   const [versionCola, setVersionCola] = useState(0);
+  // Los conceptos viven en estado para que uno recién creado aparezca de
+  // inmediato en los selectores de las altas, sin refrescar la página.
+  const [conceptos, setConceptos] = useState<OpcionConcepto[]>(conceptosIniciales);
 
   function irALaCola() {
     setVersionCola((v) => v + 1);
     setPestana("cola");
+  }
+
+  function alCrearConcepto(creado: ConceptoCreado) {
+    setConceptos((previos) => [
+      ...previos,
+      { codigo: creado.codigo, nombre: creado.nombre_canonico },
+    ]);
   }
 
   return (
@@ -82,6 +94,7 @@ export default function SeccionesCatalogo({
       {pestana === "cola" && (
         <ColaCuraduria key={versionCola} conceptos={conceptos} personajes={personajes} />
       )}
+      {pestana === "concepto" && <NuevoConcepto onCreado={alCrearConcepto} />}
       {pestana === "util" && (
         <AltaUtil conceptos={conceptos} tiendas={tiendas} onEncolado={irALaCola} />
       )}

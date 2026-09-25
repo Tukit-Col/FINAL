@@ -86,6 +86,15 @@ export function actualizar(
   return registro;
 }
 
+/** Borra un trabajo del almacen. Devuelve `false` si no existia. */
+export function eliminar(trabajoId: string): boolean {
+  const contenido = leer();
+  if (!(trabajoId in contenido.trabajos)) return false;
+  delete contenido.trabajos[trabajoId];
+  escribir(contenido);
+  return true;
+}
+
 // --------------------------------------------------------------- Casos
 
 /** Anexa un caso abierto por una persona. `operacion` es "solo anexar"

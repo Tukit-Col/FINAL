@@ -236,6 +236,10 @@ export interface VersionListaAdmin {
   // Si hay un acudiente detras a quien avisar al aprobar. Nunca el correo: solo
   // el hecho de que exista una referencia (la PII vive en identidad).
   tiene_contacto: boolean;
+  // El nombre del colegio NUEVO que el acudiente escribio/eligio, cuando el
+  // colegio aun no existe en Tukit y por eso no tiene fila en `colegio` que le
+  // de nombre. `null` para un colegio aliado (su nombre ya se resuelve por id).
+  colegio_nombre: string | null;
 }
 
 // Los dos ingresos de una lista a la cola de revision. Es el `origen` de la
@@ -305,6 +309,10 @@ export interface ItemRevision {
 export interface PropuestaRevision {
   id: string;
   texto_origen: string;
+  // El renglón al que pertenece (`item_lista_oficial.id`). Llave 1:1 para colgar
+  // los candidatos: `texto_origen` se repite cuando la lista pide dos renglones
+  // iguales. `null` en propuestas viejas anteriores al vínculo.
+  item_id: string | null;
   nombre: string;
   marca: string | null;
   imagen_url: string | null;
@@ -366,6 +374,29 @@ export interface AltaUtil {
   sku: string;
   consulta: string;
   nivel: string;
+}
+
+// El cuerpo para crear un concepto nuevo (`POST .../catalogo/conceptos`). El
+// `codigo` NO viaja: lo autogenera el backend (el siguiente `C0NN` libre). Es el
+// otro brazo del bucle de curacion —cuando un renglon no empareja con nada, el
+// revisor crea el concepto y luego le agrega productos—, para que la BD crezca
+// revisando. `sinonimos` ayuda al matcher a reconocerlo en la proxima lista;
+// `tipo_item` cae a "util" (lo comprable) si no se dice.
+export interface CrearConcepto {
+  nombre_canonico: string;
+  categoria: string;
+  sinonimos?: string;
+  tipo_item?: string;
+  admite_personaje?: boolean;
+}
+
+// La respuesta de crear un concepto: el codigo autogenerado con que ya se le
+// pueden encolar productos.
+export interface ConceptoCreado {
+  codigo: string;
+  nombre_canonico: string;
+  categoria: string;
+  tipo_item: string;
 }
 
 // El cuerpo del alta de un util escrito a mano (`POST .../propuestas/util-manual`).

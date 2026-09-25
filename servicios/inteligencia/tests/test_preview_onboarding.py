@@ -191,3 +191,26 @@ class TestPreviewNoEsFireAndForget:
             respuesta = await http.post(f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo())
         assert respuesta.status_code == 200
         assert respuesta.json()["estado"] == EstadoTrabajo.FALLIDO.value
+
+
+class TestPreviewEsIdempotente:
+    async def test_tres_previews_dejan_uno_en_la_cola(self, cliente, catalogo):
+        # El bug original: cada clic de "Previsualizar los 3 kits" dejaba un
+        # trabajo desechable mas. Ahora previsualizar descarta el preview
+        # anterior del mismo (colegio, grado, anio): 3 clics -> 1 trabajo.
+        ids = []
+        for _ in range(3):
+            respuesta = await cliente.post(
+                f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo()
+            )
+            assert respuesta.status_code == 200
+            ids.append(respuesta.json()["trabajo_id"])
+
+        # Tres trabajos distintos, pero solo el ultimo sigue vivo.
+        assert len({*ids}) == 3
+        cola = (await cliente.get("/v1/admin/cola")).json()
+        vivos = [t["trabajo_id"] for t in cola["trabajos"]]
+        assert ids[-1] in vivos
+        assert ids[0] not in vivos and ids[1] not in vivos
+        # Un solo preview de este (colegio, grado) en la cola.
+        assert sum(1 for t in cola["trabajos"] if t["trabajo_id"] in ids) == 1

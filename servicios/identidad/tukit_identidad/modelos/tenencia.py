@@ -28,6 +28,7 @@ from sqlalchemy import (
     LargeBinary,
     SmallInteger,
     String,
+    Text,
     UniqueConstraint,
     Uuid,
     func,
@@ -52,7 +53,10 @@ class Colegio(Base):
     # no les toca el cifrado del Anexo M que sí protege al estudiante en este
     # mismo modelo, así que viajan en claro por la superficie pública. Todos
     # nulables: los colegios sembrados nacen sin perfil y se completa después.
-    logo_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    # `Text`, no `String(n)`: el logo puede llegar como URL corta o como data-URI
+    # (`data:image/...;base64,...`) que el revisor pega/sube, y eso desborda
+    # cualquier limite razonable. Es dato institucional publico, sin PII.
+    logo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     sitio_web: Mapped[str | None] = mapped_column(String(512), nullable=True)
     contacto_nombre: Mapped[str | None] = mapped_column(String(256), nullable=True)
     contacto_email: Mapped[str | None] = mapped_column(String(256), nullable=True)

@@ -8,10 +8,14 @@
 import { GRADOS_CANONICOS } from "./contrato";
 import type {
   AltaProducto,
+  AplicarCanonico,
+  Checkout,
   ColaAdmin,
   Contacto,
   DecisionRevision,
   EstadoTrabajo,
+  GradoCanonico,
+  SolicitudCheckout,
   HijoSubida,
   Kit,
   LineaKit,
@@ -25,12 +29,15 @@ import type {
   SubidaListas,
   Trabajo,
   TrabajoAdmin,
+  TrabajoAplicado,
   TrabajoCreado,
   ValidarLinea,
 } from "./contrato";
 import type {
   AltaLibro,
   AltaUtil,
+  ConceptoCreado,
+  CrearConcepto,
   AltaUtilManual,
   AprobarPropuesta,
   CandidatoTienda,
@@ -517,6 +524,14 @@ export class ClienteApi implements OrigenDatos {
     return resp.candidatos ?? [];
   }
 
+  crearConcepto(cuerpo: CrearConcepto): Promise<ConceptoCreado> {
+    return this.pedir<ConceptoCreado>("/v1/admin/catalogo/conceptos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo),
+    });
+  }
+
   altaUtil(cuerpo: AltaUtil): Promise<PropuestaEncolada> {
     return this.pedir<PropuestaEncolada>("/v1/admin/catalogo/propuestas/util", {
       method: "POST",
@@ -626,6 +641,44 @@ export class ClienteApi implements OrigenDatos {
     );
   }
 
+  fijarProductoLinea(
+    trabajoId: string,
+    perfil: string,
+    itemId: string,
+    sku: string,
+  ): Promise<void> {
+    return this.json(
+      `/v1/admin/trabajos/${encodeURIComponent(trabajoId)}/kits/${encodeURIComponent(perfil)}/lineas/${encodeURIComponent(itemId)}/producto`,
+      { sku },
+      "PUT",
+    );
+  }
+
+  async gradosCanonicos(colegioId?: string): Promise<GradoCanonico[]> {
+    const cola = colegioId ? `?colegio_id=${encodeURIComponent(colegioId)}` : "";
+    const resp = await this.pedir<{ grados?: GradoCanonico[] }>(`/v1/grados-canonicos${cola}`);
+    return resp.grados ?? [];
+  }
+
+  aplicarCanonico(cuerpo: AplicarCanonico): Promise<TrabajoAplicado> {
+    return this.pedir<TrabajoAplicado>("/v1/trabajos/aplicar-canonico", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo),
+    });
+  }
+
+  iniciarCheckout(trabajoId: string, cuerpo: SolicitudCheckout): Promise<Checkout> {
+    return this.pedir<Checkout>(
+      `/v1/trabajos/${encodeURIComponent(trabajoId)}/ordenar`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cuerpo),
+      },
+    );
+  }
+
   marcarSinCoincidencia(
     trabajoId: string,
     itemId: string,
@@ -651,6 +704,12 @@ export class ClienteApi implements OrigenDatos {
 
   decidirRevision(trabajoId: string, cuerpo: DecisionRevision): Promise<void> {
     return this.json(`/v1/admin/trabajos/${encodeURIComponent(trabajoId)}/revision`, cuerpo);
+  }
+
+  eliminarTrabajo(trabajoId: string): Promise<void> {
+    return this.pedir<void>(`/v1/admin/trabajos/${encodeURIComponent(trabajoId)}`, {
+      method: "DELETE",
+    });
   }
 
   // ---------------------------------------------------------- §Onboarding (P2)
@@ -741,6 +800,7 @@ export class ClienteApi implements OrigenDatos {
       ...(v as VersionListaAdmin),
       procedencia: v.procedencia ?? null,
       tiene_contacto: v.tiene_contacto ?? false,
+      colegio_nombre: v.colegio_nombre ?? null,
     }));
   }
 
@@ -795,6 +855,14 @@ export class ClienteApi implements OrigenDatos {
     return { item_id: resp.item_id };
   }
 
+  quitarItemLista(versionId: string, itemId: string): Promise<void> {
+    // El backend responde 204 sin cuerpo; guarda 409 `lista_ya_revisada`.
+    return this.pedir<void>(
+      `/v1/admin/listas/${encodeURIComponent(versionId)}/items/${encodeURIComponent(itemId)}`,
+      { method: "DELETE" },
+    );
+  }
+
   cerrarLista(versionId: string): Promise<void> {
     // Responde 200 con `{version_id, revisada, ya_estaba?}`; se descarta.
     return this.pedir<void>(
@@ -833,6 +901,20 @@ export class ClienteApi implements OrigenDatos {
       },
     );
     return resp.colegio_datos;
+  }
+
+  async directorioColegio(dane: string): Promise<DatosColegioNuevo | null> {
+    // El directorio alza 404 cuando el DANE no esta (colegio de otra ciudad o
+    // escrito a mano); eso NO es un error de la revision, es "no hay que
+    // pre-llenar", asi que se degrada a null en vez de propagar.
+    try {
+      return await this.pedir<DatosColegioNuevo>(
+        `/v1/directorio/${encodeURIComponent(dane)}`,
+      );
+    } catch (causa) {
+      if (causa instanceof ErrorTukit && causa.estado === 404) return null;
+      throw causa;
+    }
   }
 
   // ------------------------------------------ §Admin — identidad del colegio (P4)
@@ -1193,6 +1275,7 @@ interface ItemRevisionCrudo {
 interface PropuestaRevisionCruda {
   id: string;
   texto_origen: string;
+  item_id?: string | null;
   nombre: string;
   marca?: string | null;
   imagen_url?: string | null;
@@ -1258,6 +1341,7 @@ function normalizarPropuestaRevision(p: PropuestaRevisionCruda): PropuestaRevisi
   return {
     id: p.id,
     texto_origen: p.texto_origen,
+    item_id: p.item_id ?? null,
     nombre: p.nombre,
     marca: p.marca ?? null,
     imagen_url: p.imagen_url ?? null,

@@ -10,9 +10,11 @@
 //       los controles ADD + EDIT y el de adquisición directa del colegio
 //       (sin borrado duro), WIRED a `editarItemLista`/`agregarItemLista`;
 //   (4) previsualizar los tres kits (`previewDeVersion` → un trabajo de preview
-//       desechable que se lee en solo lectura) Y aprobar y publicar
-//       (`cerrarLista(version_id)`). Previsualizar NO aprueba: son dos acciones
-//       distintas.
+//       que se abre en la consola de revisión de siempre, `/trabajos/{id}`) Y
+//       aprobar y publicar (`cerrarLista(version_id)`). Previsualizar NO aprueba:
+//       son dos acciones distintas —y el preview NO se puede publicar (no tiene
+//       acudiente): publicar es aprobar la LISTA, que crea el colegio y arma el
+//       trabajo del padre.
 //
 // Server Component para leer: `revisionLista()` y `percepcion()` salen del origen
 // directamente. Un 404 (`version_no_existe`/`sin_evidencia`) se traduce a
@@ -20,15 +22,13 @@
 //
 // NOTA DE CONTRATO: `previewDeVersion(versionId, {colegioId, grado, anioLectivo})`
 // arma, sobre una versión curada, un `TrabajoAdmin` de preview (`{trabajo_id}`) sin
-// crear un trabajo de acudiente; la región 4 lo usa para la vista previa. Se rearma
-// la presentación de kits en solo lectura en vez de reusar `ConsolaRevision`, porque
-// esa consola cablea acciones que mutan (validar/alta/no-disponible) sin prop de solo
-// lectura, y no queremos mutar el trabajo de preview ni el catálogo.
+// crear un trabajo de acudiente; la región 4 navega a él en la consola de revisión.
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { PercepcionCruda, RevisionLista } from "@tukit/contrato";
+import type { DatosColegioNuevo, PercepcionCruda, RevisionLista } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
+import type { OpcionConcepto } from "@/components/PanelReclasificar";
 import ItemsPercibidos from "@/components/ItemsPercibidos";
 import AprobarLista from "@/components/AprobarLista";
 import CompletarColegio from "@/components/CompletarColegio";
@@ -36,6 +36,15 @@ import PrevisualizarKits from "./PrevisualizarKits";
 import styles from "../Onboarding.module.css";
 
 export const dynamic = "force-dynamic";
+
+// Quita las claves null/vacías de un bloque para que, al fusionar el DUEB por
+// debajo (`{...dueb, ...limpiarVacios(guardado)}`), el pre-llenado solo cubra
+// los huecos y jamás pise un dato que el revisor ya escribió.
+function limpiarVacios(obj: DatosColegioNuevo): Partial<DatosColegioNuevo> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== null && v !== undefined && v !== ""),
+  ) as Partial<DatosColegioNuevo>;
+}
 
 interface Props {
   params: Promise<{ version_id: string }>;
@@ -48,16 +57,32 @@ export default async function PaginaRevisionLista({ params }: Props) {
 
   let revision: RevisionLista;
   let percepcion: PercepcionCruda;
+  let conceptos: OpcionConcepto[] = [];
   try {
     // La revisión es la fuente de las regiones 3/4; la percepción cruda es la
-    // evidencia por página de la región 2. Ambas cuelgan de la misma versión.
-    [revision, percepcion] = await Promise.all([
+    // evidencia por página de la región 2; el catálogo puebla el selector de
+    // concepto de la región 3. Los tres cuelgan de la misma versión/origen.
+    const [rev, perc, catalogo] = await Promise.all([
       origen.revisionLista(version_id),
       origen.percepcion(version_id),
+      origen.catalogo(),
     ]);
+    revision = rev;
+    percepcion = perc;
+    conceptos = catalogo.conceptos
+      .map((c) => ({ codigo: c.codigo, nombre: c.nombre_canonico }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
   } catch (causa) {
     if (causa instanceof ErrorTukit && causa.estado === 404) notFound();
     throw causa;
+  }
+
+  // Pre-llenar el perfil del colegio nuevo con el bloque DUEB: la subida a veces
+  // solo dejó el nombre. Se trae por DANE y se rellenan SOLO los campos vacíos
+  // (lo que el revisor ya guardó manda). null = el DANE no está en el directorio.
+  if (revision.colegio_datos?.dane) {
+    const dueb = await origen.directorioColegio(revision.colegio_datos.dane);
+    if (dueb) revision.colegio_datos = { ...dueb, ...limpiarVacios(revision.colegio_datos) };
   }
 
   const urlDocumento = `/api/listas/${encodeURIComponent(version_id)}/documento`;
@@ -71,7 +96,8 @@ export default async function PaginaRevisionLista({ params }: Props) {
       <header className={styles.encabezado}>
         <div>
           <h1>
-            Revisión de {revision.grado} · <code>{revision.colegio_id}</code>
+            Revisión de {revision.grado} ·{" "}
+            {revision.colegio_datos?.nombre ?? <code>{revision.colegio_id}</code>}
           </h1>
           <p className={styles.bajada}>
             Versión <span className="cifra">{revision.numero}</span> · año{" "}
@@ -123,12 +149,15 @@ export default async function PaginaRevisionLista({ params }: Props) {
             revisada={revision.revisada}
             items={revision.items}
             propuestas={revision.propuestas}
+            conceptos={conceptos}
           />
         </section>
 
-        {/* ------------- Colegio nuevo por crear (solo si lo subió un padre) */}
+        {/* ------------- Colegio nuevo por crear (solo si lo subió un padre).
+            Sin `regionAncha`: cae en la celda libre al lado de la región 3 en vez
+            de dejar un hueco. Va justo tras la región 3 para quedar a su derecha. */}
         {revision.colegio_datos ? (
-          <section className={`${styles.region} ${styles.regionAncha}`}>
+          <section className={styles.region}>
             <div className={styles.regionCabecera}>
               <span className={styles.regionNumero}>·</span>
               <h2>Identidad del colegio nuevo</h2>

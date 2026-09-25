@@ -69,6 +69,10 @@ def _servicios() -> dict[str, str]:
 RUTAS: dict[str, str] = {
     "/v1/catalogo": "catalogo",
     "/v1/listas": "catalogo",
+    # La SUBIDA de listas (percepcion del PDF + alta de version pendiente) la
+    # sirve INTELIGENCIA, no catalogo. Prefijo mas largo que `/v1/listas`
+    # —`destino` busca el mas largo primero— para que gane el POST /subir.
+    "/v1/listas/subir": "inteligencia",
     # La revision de listas por HTTP la sirve CATALOGO (es su curaduria); la
     # ingesta de PDF y la percepcion las sirve INTELIGENCIA. Ambas cuelgan de
     # `/v1/admin`, asi que las de catalogo se nombran con su prefijo mas largo
@@ -86,6 +90,9 @@ RUTAS: dict[str, str] = {
     # iria a inteligencia, que no la sirve.
     "/v1/admin/sugerencias": "catalogo",
     "/v1/colegios": "identidad",
+    # Bloque DUEB de un colegio del directorio, para pre-llenar el perfil del
+    # colegio nuevo en la revisión (logo/sitio/dirección/contacto).
+    "/v1/directorio": "identidad",
     "/v1/grados": "identidad",
     "/v1/contactos": "identidad",
     "/v1/sesiones": "identidad",
@@ -93,6 +100,9 @@ RUTAS: dict[str, str] = {
     # token que emite `/v1/sesiones`.
     "/v1/cuenta": "identidad",
     "/v1/trabajos": "inteligencia",
+    # Los (colegio, grado) con cache bendita, para la ruta rapida de /empezar.
+    # Cuelga fuera de `/v1/trabajos` (no es un trabajo, es el indice de la cache).
+    "/v1/grados-canonicos": "inteligencia",
     "/v1/admin": "inteligencia",
     # El panel del colegio: kits armados, cobertura y ahorro, calculados en vivo
     # sobre los kits. Cuelga de `/v1/metricas` y no de `/v1/colegios` (que es de

@@ -11,6 +11,8 @@ import type {
   AltaUtilManual,
   AprobarPropuesta,
   CandidatoTienda,
+  ConceptoCreado,
+  CrearConcepto,
   ErrorApi,
   FiltrosProductos,
   PaginaProductos,
@@ -127,6 +129,15 @@ export function buscarEnTienda(
     `/api/catalogo/tiendas/${id(slug)}/buscar?${qs.toString()}`,
     { method: "GET" },
   );
+}
+
+/** POST — crea un concepto nuevo (el código C0NN lo autogenera el backend). */
+export function crearConcepto(cuerpo: CrearConcepto): Promise<ConceptoCreado> {
+  return pedir<ConceptoCreado>(`/api/catalogo/conceptos`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(cuerpo),
+  });
 }
 
 /** POST — encola un útil elegido de la tienda (no aprueba: cae en la cola). */

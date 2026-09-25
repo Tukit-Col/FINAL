@@ -5,15 +5,19 @@
 // tiene que saber que existe.
 
 import type {
+  AplicarCanonico,
   CasoCreado,
+  Checkout,
   Contacto,
   ErrorApi,
   HijoSubida,
   Preferencias,
   SolicitudCaso,
+  SolicitudCheckout,
   SolicitudTrabajo,
   SubidaListas,
   Trabajo,
+  TrabajoAplicado,
   TrabajoCreado,
 } from "@tukit/contrato";
 
@@ -64,6 +68,39 @@ export async function crearTrabajo(
     forma.append("referencia", referencia);
   }
   return leer<TrabajoCreado>(await fetch("/api/trabajos", { method: "POST", body: forma }));
+}
+
+/**
+ * Ruta rápida: aplica el nivel + personaje del acudiente a la cache bendita de
+ * un (colegio, grado) ya publicado, sin subir PDF ni entrar a la cola. Devuelve
+ * el trabajo creado y el total del pedido congelado.
+ */
+export async function aplicarCanonico(cuerpo: AplicarCanonico): Promise<TrabajoAplicado> {
+  return leer<TrabajoAplicado>(
+    await fetch("/api/trabajos/aplicar-canonico", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo),
+    }),
+  );
+}
+
+/**
+ * Checkout: el acudiente paga el kit de un trabajo publicado. Manda solo perfil
+ * + correo + dirección; el backend arma la orden en Comercio y devuelve la url
+ * de la pasarela a la que redirigir. No viaja ningún id de producto.
+ */
+export async function iniciarCheckout(
+  trabajoId: string,
+  cuerpo: SolicitudCheckout,
+): Promise<Checkout> {
+  return leer<Checkout>(
+    await fetch(`/api/trabajos/${encodeURIComponent(trabajoId)}/ordenar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo),
+    }),
+  );
 }
 
 /**
