@@ -2,9 +2,8 @@
 //
 // Es el unico punto donde se pone y se borra la cookie de sesion, por la misma
 // razon que `/api/trabajos`: el navegador no habla con el backend, el token no
-// sale al cliente, y aqui se decide si la peticion va al backend real
-// (gateway→identidad) o al origen simulado. Devuelve a donde ir despues, no el
-// token.
+// sale al cliente, y aqui se habla con el backend real (gateway→identidad).
+// Devuelve a donde ir despues, no el token.
 
 import { NextResponse } from "next/server";
 import {

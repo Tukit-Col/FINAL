@@ -15,16 +15,27 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
 from tukit_comun.http import cliente_efimero
 
 URL_IDENTIDAD_POR_OMISION = "http://127.0.0.1:8011"
+URL_CATALOGO_POR_OMISION = "http://127.0.0.1:8012"
+URL_INTELIGENCIA_POR_OMISION = "http://127.0.0.1:8013"
 ESPERA_SEGUNDOS = 30.0
 
 
 def url_identidad() -> str:
     return os.environ.get("TUKIT_IDENTIDAD_URL", URL_IDENTIDAD_POR_OMISION).rstrip("/")
+
+
+def url_catalogo() -> str:
+    return os.environ.get("TUKIT_CATALOGO_URL", URL_CATALOGO_POR_OMISION).rstrip("/")
+
+
+def url_inteligencia() -> str:
+    return os.environ.get("TUKIT_INTELIGENCIA_URL", URL_INTELIGENCIA_POR_OMISION).rstrip("/")
 
 
 @dataclass
@@ -73,4 +84,61 @@ class ClienteIdentidad:
             return None
 
 
-__all__ = ["ClienteIdentidad", "url_identidad", "ESPERA_SEGUNDOS"]
+@dataclass
+class ClienteMetricas:
+    """Lo que el snapshot de metricas le pide a Catalogo e Inteligencia por HTTP.
+
+    Lee el resumen global del catalogo (Catalogo), el listado de colegios
+    (Identidad) y las metricas en vivo por colegio (Inteligencia). Cada llamada
+    degrada a `None`/`[]` si el servicio esta caido: un snapshot parcial es una
+    respuesta valida, no un fallo — al dia siguiente se vuelve a intentar. No
+    guarda nada aqui; solo trae los agregados que el escritor persiste.
+    """
+
+    cliente: httpx.AsyncClient | None = None
+    base_catalogo: str = ""
+    base_identidad: str = ""
+    base_inteligencia: str = ""
+
+    async def resumen_catalogo(self) -> dict[str, Any] | None:
+        """Las siete cifras del catalogo curado, o `None` si Catalogo no esta."""
+        base = self.base_catalogo or url_catalogo()
+        try:
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.get(f"{base}/v1/catalogo/resumen")
+                respuesta.raise_for_status()
+                return respuesta.json()
+        except httpx.HTTPError:
+            return None
+
+    async def colegios(self) -> list[dict[str, Any]]:
+        """Los colegios activos (`colegio_id`, `nombre`), o `[]` si Identidad no esta."""
+        base = self.base_identidad or url_identidad()
+        try:
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.get(f"{base}/v1/colegios")
+                respuesta.raise_for_status()
+                return list(respuesta.json().get("colegios", []))
+        except httpx.HTTPError:
+            return []
+
+    async def metricas_colegio(self, colegio_id: str) -> dict[str, Any] | None:
+        """Las metricas en vivo de un colegio, o `None` si Inteligencia no esta."""
+        base = self.base_inteligencia or url_inteligencia()
+        try:
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.get(f"{base}/v1/metricas/colegios/{colegio_id}")
+                respuesta.raise_for_status()
+                return respuesta.json()
+        except httpx.HTTPError:
+            return None
+
+
+__all__ = [
+    "ClienteIdentidad",
+    "ClienteMetricas",
+    "url_identidad",
+    "url_catalogo",
+    "url_inteligencia",
+    "ESPERA_SEGUNDOS",
+]

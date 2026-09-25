@@ -648,10 +648,9 @@ El backend son **cuatro procesos**. El frontend habla con uno solo.
 TUKIT_API_URL=http://127.0.0.1:8010
 ```
 
-> **Ojo, frontend: el puerto cambió.** `apps/web/.env.ejemplo` trae hoy
-> `TUKIT_API_URL=http://localhost:8080`, y **8080 no sirve**: en la máquina de desarrollo lo
-> tiene ocupado otro proceso. El valor correcto es el de arriba. Es solo cambiar la
-> variable; la forma de las rutas no se mueve.
+> **Frontend:** `TUKIT_API_URL` es obligatoria y apunta al gateway (`:8010` en local). No
+> hay valor por defecto: si falta, la app falla de entrada a proposito. `apps/web/.env.ejemplo`
+> y `apps/admin/.env.ejemplo` ya la traen con el valor correcto.
 
 El bloque empieza en 8010 y no en 8000 ni en 8080 por una razón aburrida y real: los dos
 son el puerto por omisión de medio mundo (uvicorn, `http.server`, Django, cualquier

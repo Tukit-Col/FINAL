@@ -2,9 +2,9 @@
 //
 // El navegador no llama al backend directamente y nunca lo va a hacer: la URL
 // del backend se queda en el servidor, el tiempo de espera del pipeline supera
-// el corte de 30 s de un `rewrite`, y este es el unico punto donde se decide
-// si la peticion va al backend real o al origen simulado. El prototipo ya
-// tenia esta forma y se conserva por las mismas razones.
+// el corte de 30 s de un `rewrite`, y este es el unico punto donde se habla con
+// el backend. El prototipo ya tenia esta forma y se conserva por las mismas
+// razones.
 
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { ArchivoLista, SolicitudTrabajo } from "@tukit/contrato";

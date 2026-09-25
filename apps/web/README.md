@@ -19,43 +19,27 @@ npm run dev:web        # http://localhost:3000
 npm run dev:admin
 ```
 
-## La bandera
+## El origen de datos
 
 Toda la app lee los datos a traves de `origenDeDatos()`, en
-`libs/ts/tukit-contrato/src/servidor.ts`. Una variable decide cual de las dos
-implementaciones se usa:
+`libs/ts/tukit-contrato/src/servidor.ts`. Siempre habla con el backend real: los
+7 microservicios a traves del gateway. Solo hay que decirle donde esta:
 
 ```bash
-TUKIT_ORIGEN_DATOS=simulado   # por defecto
-TUKIT_ORIGEN_DATOS=api TUKIT_API_URL=http://localhost:8080 npm run dev:web
+TUKIT_API_URL=http://localhost:8010 npm run dev:web
 ```
 
-Las pantallas no consultan la bandera nunca: piden el origen y lo usan. El dia
-que el backend responda no hay que tocar ninguna. La cinta de arriba de la
-pantalla dice en cual de los dos modos esta, porque una pantalla que se ve
-completa con datos simulados y no lo dice es la forma mas barata de creer que
-algo esta listo cuando no lo esta.
+`TUKIT_API_URL` es obligatoria: si falta, la app falla de entrada a proposito
+(no hay valor por defecto silencioso — apuntar a un puerto equivocado sin avisar
+fue justo el bug que se arrastro). En local el gateway es `:8010` (`make
+arriba`). Las pantallas no consultan la URL nunca: piden el origen y lo usan.
 
-Copia `.env.ejemplo` a `.env.local` para ajustar los tiempos del simulado.
+Copia `.env.ejemplo` a `.env.local` para fijarla.
 
-## Los datos simulados no son inventados
+## La UI no tapa los huecos del catalogo
 
-Salen de los mismos ficheros que carga la base:
-
-- `datos/catalogo/*.csv` — los 99 conceptos, 242 productos canonicos, 3 tiendas
-  y sus precios vigentes del catalogo curado.
-- `Arquitectura/Corpus_ItemLista_v2.csv` — las 4.719 lineas de lista de los 17
-  colegios del corpus, con su `tipo_item` y su `modo_adquisicion`.
-
-Los convierte a JSON `libs/ts/tukit-contrato/herramientas/generar_semillas.py`,
-que se ejecuta a mano y cuya salida se versiona:
-
-```bash
-npm run semillas --workspace @tukit/contrato
-```
-
-Por eso la pantalla de kits muestra huecos de catalogo y lineas que no se
-pueden cobrar: el catalogo real tiene 17 conceptos sin ni un producto, y las
+La pantalla de kits muestra huecos de catalogo y lineas que no se pueden cobrar,
+porque el catalogo real los tiene: hay conceptos sin ni un producto, y las
 listas reales traen licencias digitales, textos de edicion exclusiva y
 uniformes. Taparlos aqui haria que la UI se viera mejor de lo que el sistema
 esta.
@@ -69,7 +53,7 @@ esta.
 | `/esperando/[trabajo_id]` | La espera honesta: las cuatro etapas y la pausa humana |
 | `/kits/[trabajo_id]` | Los tres kits, con uno marcado y los otros dos a la vista |
 | `/catalogo` | Que hay hoy: conceptos, productos por nivel, personaje y precio por tienda |
-| `/dashboard` | Pantalla de cuenta heredada del prototipo, todavia sobre `mock-data` |
+| `/dashboard` | Cuenta del acudiente: saludo (sesion de identidad) y pedidos reales (`/v1/comercio/mis-pedidos`) |
 
 ## Lo que NO esta
 

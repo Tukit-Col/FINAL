@@ -167,12 +167,21 @@ async def listar_versiones(
     grado: Annotated[str | None, Query()] = None,
     anio_lectivo: Annotated[int | None, Query(ge=2020, le=2100)] = None,
 ) -> dict[str, Any]:
-    """Todas las versiones vigentes, no solo las publicadas al acudiente.
+    """La ultima version de cada lista, no solo la publicada al acudiente.
 
     Es la version de administracion de `/v1/listas`: aquella filtra a lista
-    activa y aqui interesa el estado de revision para decidir que curar. Se
-    apoya en la version VIGENTE de cada lista (una sola, por el indice parcial).
+    activa y a la VIGENTE; aqui interesa el estado de revision para decidir que
+    curar. Se apoya en la version de NUMERO MAYOR de cada lista (una sola, por
+    `uq_version_lista_numero`), no en la vigente: al editar, el borrador nace
+    sin vigencia pero con numero mayor, y es justo el que hay que revisar en la
+    cola —mientras el acudiente sigue viendo la vigente publicada.
     """
+    ultimo_numero = (
+        select(func.max(VERSION.c.numero))
+        .where(VERSION.c.lista_id == LISTA.c.id)
+        .correlate(LISTA)
+        .scalar_subquery()
+    )
     items_por_version = (
         select(ITEM.c.version_id.label("vid"), func.count().label("renglones"))
         .group_by(ITEM.c.version_id)
@@ -226,7 +235,7 @@ async def listar_versiones(
         )
         .select_from(
             LISTA.join(
-                VERSION, and_(VERSION.c.lista_id == LISTA.c.id, VERSION.c.vigente.is_(True))
+                VERSION, and_(VERSION.c.lista_id == LISTA.c.id, VERSION.c.numero == ultimo_numero)
             ).outerjoin(items_por_version, items_por_version.c.vid == VERSION.c.id)
         )
     )
@@ -1284,6 +1293,20 @@ async def cerrar_version(version_id: uuid.UUID) -> dict[str, Any]:
             update(VERSION).where(VERSION.c.id == version_id).values(revisada_en=datetime.now(UTC))
         )
 
+        # Aprobar es lo que le pasa la vigencia a esta version: al editar, el
+        # borrador nacio SIN vigencia para que el acudiente siguiera viendo la
+        # anterior; ahora que se aprueba, se degrada la vigente actual y se
+        # promueve esta, en ESTA misma transaccion, para respetar el indice
+        # parcial de una sola vigente por lista. Es no-op en el onboarding de
+        # estreno: la version aprobada ya era la unica vigente (se degrada y se
+        # re-promueve la misma fila).
+        await conexion.execute(
+            update(VERSION)
+            .where(VERSION.c.lista_id == cabeza.lista_id, VERSION.c.vigente.is_(True))
+            .values(vigente=False)
+        )
+        await conexion.execute(update(VERSION).where(VERSION.c.id == version_id).values(vigente=True))
+
         # Si un padre estaba esperando esta version (subio su PDF y quedo ligado
         # por `contacto_referencia`), aprobarla dispara su kit. Pero Catalogo NO
         # llama a Inteligencia —esa arista cerraria un ciclo en el grafo de
@@ -1369,10 +1392,13 @@ async def nueva_version(
 ) -> dict[str, Any]:
     """Editar despues de aprobar sin borrar contra que compro quien ya compro.
 
-    Clona la version VIGENTE en `numero+1`, nace SIN revisar, y le pasa la
-    vigencia (el indice parcial garantiza una sola vigente por lista). El
-    administrador la corrige y la vuelve a cerrar; el fast-route del acudiente
-    ve la correccion desde la siguiente compra.
+    Clona la version VIGENTE en `max(numero)+1`, nace SIN revisar y SIN
+    vigencia: la vigente publicada NO cambia hasta que el administrador cierre
+    (aprueba) la correccion, y solo entonces `cerrar_version` le pasa la
+    vigencia. Asi el acudiente sigue viendo la lista aprobada mientras se
+    corrige, y la cola de administracion muestra el borrador por ser la de
+    numero mayor. Se exige que la vigente ya este revisada: no se edita-clona
+    algo nunca publicado.
     """
     async with _motor().sesion() as db:
         conexion = await db.connection()
@@ -1394,21 +1420,36 @@ async def nueva_version(
 
         vigente = (
             await conexion.execute(
-                select(VERSION.c.id, VERSION.c.numero).where(
+                select(VERSION.c.id, VERSION.c.numero, VERSION.c.revisada_en).where(
                     VERSION.c.lista_id == lista.id, VERSION.c.vigente.is_(True)
                 )
             )
         ).first()
         if vigente is None:
             raise ErrorDominio("version_no_existe", "La lista no tiene version vigente.", estado=404)
+        if vigente.revisada_en is None:
+            raise ErrorDominio(
+                "lista_no_revisada",
+                "Solo se puede editar una lista ya revisada. Esta version aun esta en revision: "
+                "corrigela y aprubala en la cola en vez de crear otra.",
+                estado=409,
+            )
 
-        # La vieja deja de ser vigente ANTES de insertar la nueva, para no
-        # violar el indice parcial de una sola vigente por lista.
-        await conexion.execute(update(VERSION).where(VERSION.c.id == vigente.id).values(vigente=False))
+        # El borrador nace SIN vigencia: la vigente publicada no cambia (el
+        # acudiente la sigue viendo) hasta que se apruebe la correccion. Se
+        # numera con max(numero)+1, no vigente.numero+1, para que un segundo
+        # Editar sobre la misma vigente no choque con el uq (lista_id, numero)
+        # del borrador anterior.
+        siguiente = (
+            await conexion.execute(
+                select(func.max(VERSION.c.numero)).where(VERSION.c.lista_id == lista.id)
+            )
+        ).scalar_one_or_none()
+        nuevo_numero = int(siguiente or 0) + 1
         nuevo_id = uuid.uuid4()
         await conexion.execute(
             VERSION.insert().values(
-                id=nuevo_id, lista_id=lista.id, numero=int(vigente.numero) + 1, vigente=True, revisada_en=None
+                id=nuevo_id, lista_id=lista.id, numero=nuevo_numero, vigente=False, revisada_en=None
             )
         )
         renglones = await conexion.execute(
@@ -1444,7 +1485,51 @@ async def nueva_version(
                     requiere_revision=r.requiere_revision,
                 )
             )
-    return {"version_id": str(nuevo_id), "numero": int(vigente.numero) + 1, "revisada": False}
+
+        # Copiar la evidencia (PDF + percepcion cruda) de la vigente al
+        # borrador, para que el revisor de 4 paneles de onboarding pueda abrirlo
+        # sin 404: `/documento` y `/percepcion` cuelgan de una `tarea_importacion`
+        # ligada por `version_id`, que el clonado de VERSION/ITEM no arrastra. Se
+        # anula `contacto_referencia` y `preferencias`: es una correccion del
+        # administrador, no la subida de un padre —al re-aprobar NO debe re-armar
+        # el kit de nadie (cerrar_version solo emite `lista_verificada` cuando
+        # hay contacto_referencia). Una lista sembrada/CLI sin tarea no se copia:
+        # queda sin evidencia, igual que hoy.
+        origen_tarea = (
+            await conexion.execute(
+                select(
+                    TAREA.c.origen,
+                    TAREA.c.documento,
+                    TAREA.c.percepcion_cruda,
+                    TAREA.c.colegio_datos,
+                    TAREA.c.colegio_id,
+                    TAREA.c.grado,
+                    TAREA.c.anio_lectivo,
+                )
+                .where(TAREA.c.version_id == vigente.id)
+                .order_by(TAREA.c.creada_en.desc())
+                .limit(1)
+            )
+        ).first()
+        if origen_tarea is not None:
+            await conexion.execute(
+                TAREA.insert().values(
+                    id=uuid.uuid4(),
+                    lista_id=lista.id,
+                    origen=origen_tarea.origen,
+                    estado="completada",
+                    version_id=nuevo_id,
+                    colegio_id=origen_tarea.colegio_id,
+                    grado=origen_tarea.grado,
+                    anio_lectivo=origen_tarea.anio_lectivo,
+                    contacto_referencia=None,
+                    preferencias=None,
+                    colegio_datos=origen_tarea.colegio_datos,
+                    documento=origen_tarea.documento,
+                    percepcion_cruda=origen_tarea.percepcion_cruda,
+                )
+            )
+    return {"version_id": str(nuevo_id), "numero": nuevo_numero, "revisada": False}
 
 
 # ---------------------------------------------------------------------------

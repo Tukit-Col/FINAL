@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { descripcionOrigen } from "@tukit/contrato/servidor";
 import CabeceraAdmin from "@/components/CabeceraAdmin";
-import CintaOrigen from "@/components/CintaOrigen";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,18 +17,12 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // El origen se resuelve en el servidor y se pinta arriba. En esta app la
-  // cinta no es una ayuda de depuracion: aprobar un trabajo del almacen
-  // simulado creyendo que es el backend real es el error caro de la pantalla.
-  const origen = descripcionOrigen();
-
   return (
     <html lang="es">
       {/* Extensiones del navegador (ColorZilla, gestores de atajos) inyectan
           atributos como `cz-shortcut-listen` en <body> tras el SSR y disparan
           un aviso de hidratación que no es nuestro. Silenciarlo solo en <body>. */}
       <body suppressHydrationWarning>
-        <CintaOrigen nombre={origen.nombre} detalle={origen.detalle} />
         <CabeceraAdmin />
         <main>{children}</main>
       </body>

@@ -3,9 +3,9 @@
 // El formulario para abrir una PQRS desde el centro de ayuda.
 //
 // Es la mitad de cliente de la escritura de `operacion`: recoge lo mínimo
-// (tipo, asunto, descripción, contacto) y llama a `/api/casos`, que decide si
-// va al backend real o al simulado. No inventa un canal que no existe —el caso
-// queda de verdad en la bandeja del back-office— y, al crearlo, muestra el
+// (tipo, asunto, descripción, contacto) y llama a `/api/casos`, que habla con el
+// backend. No inventa un canal que no existe —el caso queda de verdad en la
+// bandeja del back-office— y, al crearlo, muestra el
 // número de radicado y el término legal de respuesta, para que la promesa quede
 // por escrito y no como adorno.
 
