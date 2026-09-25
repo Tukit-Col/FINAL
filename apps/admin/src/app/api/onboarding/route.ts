@@ -64,8 +64,8 @@ export async function POST(peticion: Request): Promise<Response> {
     });
     return Response.json(version, { status: 201 });
   } catch (causa) {
-    // Un 422 `lista_de_varios_grados` (o `lista_no_encontrada` en el simulado)
-    // sube tal cual: la pantalla tiene que decir por que se rechazo el PDF.
+    // Un 422 `lista_de_varios_grados` sube tal cual: la pantalla tiene que
+    // decir por que se rechazo el PDF.
     return respuestaDeError(causa);
   }
 }

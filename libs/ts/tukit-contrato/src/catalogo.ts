@@ -209,6 +209,10 @@ export interface ListaOficial {
   grado: string;
   anio_lectivo: number;
   version: number;
+  // El id de la version vigente, para construir la URL del PDF de origen
+  // (`/api/listas/{version_id}/documento`). Opcional: una lista sembrada/CLI
+  // no tiene evidencia adjunta y el consumidor debe tolerar su ausencia.
+  version_id?: string;
   items: ItemListaOficial[];
 }
 

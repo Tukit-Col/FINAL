@@ -76,13 +76,12 @@ npm run dev:web    # app pública    → http://127.0.0.1:3000
 npm run dev:admin  # back-office    → http://127.0.0.1:3001
 ```
 
-Cada app lee su origen de datos de un `.env.local` propio. En modo `api` habla con el
-backend real; en `simulado` (por defecto) lee el corpus del repositorio y no necesita
-backend levantado.
+Cada app lee su origen de datos de un `.env.local` propio. Siempre habla con el backend
+real a traves del gateway: solo hay que decirle donde esta. `TUKIT_API_URL` es obligatoria
+— si falta, la app falla de entrada a proposito (no hay default silencioso).
 
 ```bash
 # apps/web/.env.local  y  apps/admin/.env.local
-TUKIT_ORIGEN_DATOS=api
 TUKIT_API_URL=http://127.0.0.1:8010
 ```
 
