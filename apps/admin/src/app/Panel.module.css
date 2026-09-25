@@ -158,9 +158,200 @@
 }
 
 .notaCatalogo {
-  margin-top: var(--espacio-4);
-  padding-top: var(--espacio-4);
-  border-top: 1px solid var(--color-border-light);
   font-size: 13px;
   color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+/* --------------------------------------------------- grupos del panel */
+
+/* El título que abre cada grupo (Cola, Catálogo, Pedidos, Casos, Colegios,
+ * Traza). Da jerarquía por encima de las tarjetas sin meter otra caja. */
+.grupoTitulo {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  margin-top: var(--espacio-3);
+  color: var(--color-text-primary);
+}
+
+/* Aviso honesto de sección caída: mismo lenguaje que el resto de la degradación
+ * del sistema. No tumba el panel, solo dice qué servicio no respondió. */
+.caida {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: var(--espacio-3) var(--espacio-4);
+  font-size: 13px;
+  color: var(--color-aviso);
+  background: var(--color-aviso-bg);
+  border-radius: var(--radius-md);
+}
+
+.vacio {
+  padding: var(--espacio-3) 0;
+  font-size: 13.5px;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+}
+
+.vacio a {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.codigo {
+  padding: 1px 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-sm);
+}
+
+/* ------------------------------------------------- colegios + cobertura */
+
+.colegios {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+}
+
+.colegioFila {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-3);
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.colegioFila:last-child {
+  border-bottom: none;
+}
+
+.colegioIcono {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-md);
+  color: var(--color-primary);
+  background: var(--clay-cielo-bg);
+  box-shadow: var(--clay-shadow-sm);
+  flex-shrink: 0;
+}
+
+.colegioNombre {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.colegioNombre:hover {
+  color: var(--color-primary);
+}
+
+.colegioKits {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.colegioAhorro {
+  font-size: 12.5px;
+  color: var(--color-success);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* La cobertura como pastilla con color semántico: verde casi-resuelto, ámbar a
+ * medias, rojo con mucho hueco. El mismo umbral que la Cola usa para "curar". */
+.cobertura {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 12.5px;
+  font-weight: 800;
+  box-shadow: var(--clay-shadow-sm);
+  white-space: nowrap;
+}
+
+.cobertura_ok {
+  color: var(--color-success);
+  background: var(--color-success-bg);
+}
+
+.cobertura_medio {
+  color: var(--color-aviso);
+  background: var(--color-aviso-bg);
+}
+
+.cobertura_bajo {
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
+}
+
+/* ------------------------------------------- traza de calidad por día */
+
+/* Un mini-gráfico de barras verticales, una por día, con CSS puro (sin librería
+ * de charts): la altura es la cobertura de esa jornada. Se lee la tendencia de
+ * un vistazo. Scroll horizontal si hay muchas sesiones. */
+.traza {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--espacio-3);
+  min-height: 160px;
+  overflow-x: auto;
+  padding-bottom: var(--espacio-2);
+}
+
+.trazaColumna {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1 0 44px;
+  min-width: 44px;
+}
+
+.trazaValor {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.trazaCarril {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  height: 110px;
+}
+
+.trazaBarra {
+  display: block;
+  width: 100%;
+  border-radius: var(--radius-sm);
+  transition: height var(--dur-lento) var(--ease-suave);
+}
+
+.trazaBarra_ok {
+  background: var(--color-success);
+}
+
+.trazaBarra_medio {
+  background: var(--color-aviso);
+}
+
+.trazaBarra_bajo {
+  background: var(--color-danger);
+}
+
+.trazaFecha {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }

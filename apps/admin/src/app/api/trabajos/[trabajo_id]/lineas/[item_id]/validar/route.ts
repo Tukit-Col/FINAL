@@ -1,8 +1,8 @@
 // `POST /api/trabajos/{id}/lineas/{item_id}/validar` — AD-02.
 //
 // Route Handler y no Server Action, igual que en `apps/web` y por la misma
-// razon: la bandera `TUKIT_ORIGEN_DATOS` y la URL del backend se resuelven en
-// un solo sitio de servidor, y el borde queda siendo HTTP con la forma de
+// razon: la URL del backend se resuelve en un solo sitio de servidor, y el
+// borde queda siendo HTTP con la forma de
 // error del §11, que es lo que el backend real va a hablar. Una Server Action
 // tambien se ejecutaria en el servidor, pero el error volveria como una
 // excepcion serializada en vez de un `{error, mensaje}` con codigo de estado,

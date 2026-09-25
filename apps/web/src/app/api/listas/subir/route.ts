@@ -1,6 +1,6 @@
 // `POST /api/listas/subir` — la subida de listas de un acudiente (§2 del
-// contrato). El navegador nunca llama al backend directo: la URL del backend y
-// la bandera `TUKIT_ORIGEN_DATOS` viven aquí, igual que en `/api/trabajos`.
+// contrato). El navegador nunca llama al backend directo: la URL del backend
+// vive aquí, igual que en `/api/trabajos`.
 //
 // A diferencia de `crearTrabajo`, esto NO arma un kit: cada archivo se percibe
 // y se importa como una versión PENDIENTE de su (colegio, grado). El acudiente

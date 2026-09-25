@@ -11,7 +11,7 @@
         bd-demanda bd-revisar bd-vista bd-admin bd-nivelar bd-volcar bd-limpiar-candidatos fase1 \
         bd-sembrar bd-colegios bd-listas backend arriba reanudar abajo estado humo \
         api-catalogo api-identidad api-inteligencia api-gateway \
-        api-comercio api-operacion repartidor
+        api-comercio api-operacion repartidor instantanea-metricas
 
 PY := .venv/bin/python
 PYTEST := .venv/bin/pytest
@@ -311,6 +311,9 @@ api-gateway:  ## Levanta SOLO la puerta de enlace, en primer plano
 
 repartidor:  ## Reparte los eventos de las bandejas (una pasada; usa s=--seguir para bucle)
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_operacion.repartidor $(s)
+
+instantanea-metricas:  ## Congela el snapshot de hoy de cobertura/match por colegio en metrica_diaria (idempotente; correlo por sesion). Requiere los servicios arriba.
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_operacion.instantanea
 
 poller:  ## Drena lista_verificada del catalogo y arma el kit del padre (una pasada; s=--seguir para bucle)
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_inteligencia.poller $(s)

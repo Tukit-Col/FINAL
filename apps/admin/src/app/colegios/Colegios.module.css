@@ -359,6 +359,166 @@
   font-size: 13px;
 }
 
+/* ------------------------------------- lista de grado: PDF + renglones (P4)
+ * Dos paneles claymórficos lado a lado, calcados del revisor de onboarding
+ * (`.region`/`.marco`): PDF a la izquierda, renglones a la derecha. Bajo 900px
+ * se apilan. */
+
+.paneles {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: var(--espacio-4);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .paneles {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  padding: var(--espacio-4);
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+  min-width: 0;
+}
+
+.panelCabecera {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espacio-2);
+}
+
+.panelCabecera h2 {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.panelConteo {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.marcoPdf {
+  width: 100%;
+  height: 640px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+@media (max-width: 900px) {
+  .marcoPdf {
+    height: 480px;
+  }
+}
+
+.renglones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  list-style: none;
+  max-height: 640px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.renglon {
+  display: flex;
+  gap: var(--espacio-3);
+  padding: var(--espacio-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.renglonNumero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font-cifras);
+}
+
+.renglonCuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.renglonTexto {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.libroBadge {
+  align-self: flex-start;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.renglonMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.metaCantidad {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.categoriaPill,
+.adquisicionPill {
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.categoriaPill {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.adqSurte {
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+  color: var(--color-success);
+}
+
+.adqDirecta {
+  background: var(--color-aviso-bg);
+  border-color: var(--color-aviso-border);
+  color: var(--color-aviso);
+}
+
+.adqNeutra {
+  background: var(--color-info-bg);
+  border-color: var(--color-info-border);
+  color: var(--color-info);
+}
+
 /* ---------------------------------------------- formulario de perfil (P1b) */
 
 .formularioPerfil {
