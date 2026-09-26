@@ -13,7 +13,15 @@ const DEMO = [
   { correo: "operador@tukit.co", quien: "Equipo Tukit — cola de revisión (app interna)" },
 ];
 
-export default function FormularioIngreso({ modo }: { modo: "api" | "simulado" }) {
+export default function FormularioIngreso({
+  modo,
+  destino,
+}: {
+  modo: "api" | "simulado";
+  // A donde volver tras entrar (p. ej. `/empezar` en el camino "ya tengo
+  // cuenta"). Si no viene, manda el destino por rol que decide el backend.
+  destino?: string;
+}) {
   const router = useRouter();
   const idCorreo = useId();
   const idClave = useId();
@@ -30,7 +38,7 @@ export default function FormularioIngreso({ modo }: { modo: "api" | "simulado" }
       const respuesta = await fetch("/api/sesion", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ correo, clave }),
+        body: JSON.stringify({ correo, clave, destino }),
       });
       const cuerpo = (await respuesta.json()) as { url?: string; mensaje?: string };
       if (!respuesta.ok) {
@@ -43,7 +51,11 @@ export default function FormularioIngreso({ modo }: { modo: "api" | "simulado" }
       if (/^https?:\/\//.test(url)) {
         window.location.assign(url);
       } else {
+        // Navegación interna: `router.refresh()` tras `replace` obliga a la Cabecera
+        // (Server Component que lee la sesión) a repintarse ya, sin F5, igual que
+        // hace SalirBoton al cerrar sesión.
         router.replace(url);
+        router.refresh();
       }
     } catch {
       setError("No pudimos conectar. Intenta de nuevo.");

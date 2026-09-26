@@ -12,6 +12,7 @@ import type {
   ErrorApi,
   HijoSubida,
   Preferencias,
+  RegistroAcudiente,
   SolicitudCaso,
   SolicitudCheckout,
   SolicitudTrabajo,
@@ -151,6 +152,24 @@ export async function subirListas(
     forma.append("referencia", referencia);
   }
   return leer<SubidaListas>(await fetch("/api/listas/subir", { method: "POST", body: forma }));
+}
+
+/**
+ * Da de alta al acudiente y sus hijos en el camino "soy nuevo usuario". Habla
+ * con el Route Handler local, no con el backend: correo, clave y celular no
+ * salen del navegador hacia otro origen. La clave viaja una sola vez aqui y
+ * nunca vuelve al cliente.
+ */
+export async function registrarAcudiente(
+  datos: RegistroAcudiente,
+): Promise<{ usuario_id: string; creado: boolean }> {
+  return leer<{ usuario_id: string; creado: boolean }>(
+    await fetch("/api/registro", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(datos),
+    }),
+  );
 }
 
 export async function crearCaso(solicitud: SolicitudCaso): Promise<CasoCreado> {
