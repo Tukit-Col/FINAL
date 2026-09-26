@@ -89,12 +89,16 @@ import {
   ErrorTukit,
   type ArchivoLista,
   type Credenciales,
+  type MatriculaAcudiente,
   type OrigenDatos,
+  type RegistroAcudiente,
   type Sesion,
 } from "../origen";
 import { CATALOGO, COLEGIOS, listaDe, resolverConcepto } from "./semillas";
 import {
   leerTokenSimulado,
+  matriculasDeCorreo,
+  registrarMatriculasSimuladas,
   sesionDe,
   tokenSimulado,
   usuarioPorCorreo,
@@ -508,6 +512,29 @@ export class OrigenSimulado implements OrigenDatos {
   async cerrarSesion(_token: string): Promise<void> {
     // La cookie la borra el Route Handler; el token simulado no tiene estado
     // en servidor que invalidar.
+  }
+
+  async registrarAcudiente(
+    datos: RegistroAcudiente,
+  ): Promise<{ usuario_id: string; creado: boolean }> {
+    // El simulado no persiste ni valida credenciales: guarda las matriculas en
+    // memoria del proceso para que `matriculasDelAcudiente` las devuelva, y
+    // sella un id derivado del correo (estable entre llamadas, transparente a
+    // proposito, igual que el token simulado).
+    const correo = datos.correo.trim().toLowerCase();
+    registrarMatriculasSimuladas(correo, datos.hijos);
+    return {
+      usuario_id: `sim-${Buffer.from(correo, "utf8").toString("base64url")}`,
+      creado: true,
+    };
+  }
+
+  async matriculasDelAcudiente(token: string): Promise<MatriculaAcudiente[]> {
+    // Decodifica el token simulado a su correo y devuelve sus matriculas
+    // (sembradas o registradas en vivo). Falla cerrada a lista vacia, igual que
+    // el helper del servidor: sin token valido, no hay tenencia que precargar.
+    const correo = leerTokenSimulado(token);
+    return correo ? matriculasDeCorreo(correo) : [];
   }
 
   async crearTrabajo(

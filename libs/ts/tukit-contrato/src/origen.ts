@@ -103,6 +103,28 @@ export interface Credenciales {
   clave: string;
 }
 
+/** El ambito de tenencia de UN hijo del portador, tal como lo devuelve
+ *  `GET /v1/cuenta/matriculas`. Es lo justo para precargar `/empezar` sin
+ *  re-teclear: colegio y grado. NUNCA trae nombre, apodo, documento ni
+ *  `estudiante_id` —nada que singularice al menor—; colegio, grado y anio son
+ *  el ambito, no la identidad. */
+export interface MatriculaAcudiente {
+  colegio_id: string;
+  grado: string;
+  anio_lectivo: number;
+}
+
+/** El alta del acudiente nuevo (camino "soy nuevo usuario"): su credencial, el
+ *  celular para el aviso y sus hijos. Del menor solo viaja un `apodo` opcional
+ *  —jamas el nombre legal, por minimizacion (Ley 1581 de 2012, Art. 4)—, que
+ *  identidad guarda cifrado. */
+export interface RegistroAcudiente {
+  correo: string;
+  clave: string;
+  celular?: string;
+  hijos: { colegio_id: string; grado: string; apodo?: string }[];
+}
+
 /** Un archivo de lista, ya leido, con el hijo al que pertenece. */
 export interface ArchivoLista {
   referencia: string;
@@ -124,6 +146,17 @@ export interface OrigenDatos {
   iniciarSesion(credenciales: Credenciales): Promise<{ sesion: Sesion; token: string }>;
   sesionActual(token: string): Promise<Sesion | null>;
   cerrarSesion(token: string): Promise<void>;
+
+  // §Identidad — registro y tenencia del acudiente.
+  //
+  // `registrarAcudiente` es el alta del camino "soy nuevo usuario": crea la
+  // cuenta con credencial usable y persiste las matriculas de sus hijos. No
+  // asigna rol (minimo, igual que el contacto): la sesion vale y `destinoDe`
+  // cae al destino web por defecto. `matriculasDelAcudiente` lee la tenencia
+  // del PROPIO portador del token, para que quien vuelve a `/empezar` con
+  // sesion no re-teclee a sus hijos; nunca devuelve datos de menor.
+  registrarAcudiente(datos: RegistroAcudiente): Promise<{ usuario_id: string; creado: boolean }>;
+  matriculasDelAcudiente(token: string): Promise<MatriculaAcudiente[]>;
 
   // §2 y §4 — el ciclo asincrono.
   crearTrabajo(solicitud: SolicitudTrabajo, archivos?: ArchivoLista[]): Promise<TrabajoCreado>;

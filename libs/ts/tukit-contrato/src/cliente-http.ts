@@ -74,7 +74,9 @@ import {
   ErrorTukit,
   type ArchivoLista,
   type Credenciales,
+  type MatriculaAcudiente,
   type OrigenDatos,
+  type RegistroAcudiente,
   type Sesion,
 } from "./origen";
 
@@ -189,6 +191,28 @@ export class ClienteApi implements OrigenDatos {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
+  }
+
+  // El registro de verdad: crea la cuenta con credencial y persiste las
+  // matriculas de sus hijos. Sin token (la ruta es publica), igual que el
+  // alta del contacto. El gateway lo rutea a identidad `POST /v1/registro`.
+  registrarAcudiente(datos: RegistroAcudiente): Promise<{ usuario_id: string; creado: boolean }> {
+    return this.pedir<{ usuario_id: string; creado: boolean }>("/v1/registro", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(datos),
+    });
+  }
+
+  // La tenencia del portador, para precargar `/empezar`. El backend envuelve la
+  // lista en `{total, matriculas}`; aqui se devuelve el arreglo pelado, que es
+  // lo que la interfaz promete. Bearer, igual que `sesionActual`.
+  async matriculasDelAcudiente(token: string): Promise<MatriculaAcudiente[]> {
+    const cuerpo = await this.pedir<{ total: number; matriculas: MatriculaAcudiente[] }>(
+      "/v1/cuenta/matriculas",
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    return cuerpo.matriculas;
   }
 
   // ------------------------------------------------------------------ §2, §4

@@ -21,4 +21,6 @@ export {
   type RolAsignado,
   type Sesion,
   type Credenciales,
+  type MatriculaAcudiente,
+  type RegistroAcudiente,
 } from "./origen";
