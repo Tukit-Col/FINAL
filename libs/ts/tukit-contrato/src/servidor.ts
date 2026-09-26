@@ -68,4 +68,6 @@ export type {
   RolAsignado,
   Sesion,
   Credenciales,
+  MatriculaAcudiente,
+  RegistroAcudiente,
 } from "./origen";

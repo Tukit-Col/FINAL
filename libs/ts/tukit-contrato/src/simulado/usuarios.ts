@@ -12,7 +12,7 @@
 // cualquier clave para un correo sembrado y se dice en pantalla, para no fingir
 // un control de acceso que el backend todavia no ofrece.
 
-import type { RolAsignado, Sesion } from "../origen";
+import type { MatriculaAcudiente, RolAsignado, Sesion } from "../origen";
 
 /** Una fila sembrada: quien es y que roles tiene, tal como los daria identidad. */
 export interface UsuarioSimulado {
@@ -102,4 +102,44 @@ export function leerTokenSimulado(token: string): string | null {
   } catch {
     return null;
   }
+}
+
+// ------------------------------------------------------------ matriculas
+//
+// La tenencia sembrada del acudiente, para el camino "ya tengo cuenta": mama
+// tiene un hijo en Quinto del colegio piloto. El `colegio_id` es el codigo del
+// corpus ("2.13"), el mismo que `colegios()` ofrece, para que la precarga de
+// `/empezar` case con una opcion real del desplegable. El anio es fijo para que
+// la demostracion sea determinista, y coincide con el que siembra `identidad`.
+const ANIO_LECTIVO_DEMO = 2026;
+
+const MATRICULAS_SEMBRADAS: Record<string, MatriculaAcudiente[]> = {
+  "mama@ejemplo.com": [{ colegio_id: COLEGIO_PILOTO, grado: "Quinto", anio_lectivo: ANIO_LECTIVO_DEMO }],
+};
+
+// Los registros que llegan en tiempo de ejecucion por `registrarAcudiente`.
+// Almacen de proceso, no persistente: el simulado no tiene base. Vive aqui para
+// que `matriculasDelAcudiente` devuelva lo recien registrado igual que lo
+// sembrado, y que el camino "soy nuevo usuario" sea coherente dentro de la demo.
+const MATRICULAS_REGISTRADAS = new Map<string, MatriculaAcudiente[]>();
+
+/** Guarda (en memoria) las matriculas de un alta simulada. */
+export function registrarMatriculasSimuladas(
+  correo: string,
+  hijos: { colegio_id: string; grado: string }[],
+): void {
+  MATRICULAS_REGISTRADAS.set(
+    correo.trim().toLowerCase(),
+    hijos.map((h) => ({
+      colegio_id: h.colegio_id,
+      grado: h.grado,
+      anio_lectivo: ANIO_LECTIVO_DEMO,
+    })),
+  );
+}
+
+/** Las matriculas de un correo: primero lo registrado en vivo, si no lo sembrado. */
+export function matriculasDeCorreo(correo: string): MatriculaAcudiente[] {
+  const clave = correo.trim().toLowerCase();
+  return MATRICULAS_REGISTRADAS.get(clave) ?? MATRICULAS_SEMBRADAS[clave] ?? [];
 }
