@@ -143,10 +143,14 @@ function SelectorColegio({
   colegios,
   valor,
   onElegir,
+  onNoEncuentro,
 }: {
   colegios: Colegio[];
   valor: string;
   onElegir: (colegioId: string) => void;
+  // Salida a la ruta "No encontré mi colegio". Si no se pasa, no se pinta la
+  // pista.
+  onNoEncuentro?: () => void;
 }) {
   const [busqueda, setBusqueda] = useState("");
   const filtrados = useMemo(() => {
@@ -211,6 +215,14 @@ function SelectorColegio({
           </p>
         )}
       </div>
+      {onNoEncuentro && (
+        <p className={styles.pistaCampo}>
+          ¿No aparece tu colegio? Elige{" "}
+          <button type="button" className={styles.enlaceEnLinea} onClick={onNoEncuentro}>
+            No encontré mi colegio
+          </button>
+        </p>
+      )}
     </div>
   );
 }
@@ -394,15 +406,28 @@ export default function FormularioEmpezar({
   const [modo, setModo] = useState<Modo>(sesion ? "autenticado" : "nuevo");
   // Con sesion y matriculas, un bloque por hijo ya con su colegio y grado (ruta
   // "lista oficial", que es la que valida el envio). Sin eso, un hijo en blanco.
-  const [hijos, setHijos] = useState<HijoFormulario[]>(() =>
-    matriculasIniciales.length > 0
-      ? matriculasIniciales.map((m, i) => ({
-          ...hijoVacio(i + 1),
-          colegioId: m.colegio_id,
-          grado: m.grado,
-        }))
-      : [hijoVacio(1)],
+  // Un colegio es "aliado" en cuanto tiene su primer grado verificado. Mismo
+  // criterio que el tipo Colegio y el admin (apps/admin/.../colegios/page.tsx).
+  const colegiosAliados = useMemo(
+    () => colegios.filter((c) => c.es_partner ?? c.grados.length > 0),
+    [colegios],
   );
+  const [hijos, setHijos] = useState<HijoFormulario[]>(() => {
+    // Solo se precarga colegio+grado si la matrícula es de un aliado; si no, el
+    // hijo arranca vacío (como uno nuevo) para no dejar seleccionado un colegio
+    // que el selector, ya filtrado a aliados, no muestra.
+    const idsAliados = new Set(colegiosAliados.map((c) => c.colegio_id));
+    return matriculasIniciales.length > 0
+      ? matriculasIniciales.map((m, i) => {
+          const esAliado = idsAliados.has(m.colegio_id);
+          return {
+            ...hijoVacio(i + 1),
+            colegioId: esAliado ? m.colegio_id : "",
+            grado: esAliado ? m.grado : "",
+          };
+        })
+      : [hijoVacio(1)];
+  });
   const [correo, setCorreo] = useState(sesion?.correo ?? "");
   const [clave, setClave] = useState("");
   const [celular, setCelular] = useState("");
@@ -859,9 +884,18 @@ export default function FormularioEmpezar({
 
               {hijo.entrada === "lista_oficial" ? (
                 <SelectorColegio
-                  colegios={colegios}
+                  colegios={colegiosAliados}
                   valor={hijo.colegioId}
                   onElegir={(colegioId) => cambiar(indice, { colegioId, grado: "" })}
+                  onNoEncuentro={() =>
+                    cambiar(indice, {
+                      entrada: "archivo",
+                      grado: "",
+                      colegioId: "",
+                      colegioDane: "",
+                      colegioNombre: "",
+                    })
+                  }
                 />
               ) : (
                 <BuscadorDirectorio

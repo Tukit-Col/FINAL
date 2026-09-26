@@ -279,6 +279,15 @@
   color: var(--color-text-muted);
 }
 
+/* Botón con aspecto de enlace para la pista "No encontré mi colegio": hereda el
+ * reset global de <button> (sin fondo ni borde, font: inherit) y solo añade el
+ * color primario y el subrayado. El foco de teclado lo da el :focus-visible
+ * global de tokens.css (contorno --clay-cielo). */
+.enlaceEnLinea {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
 /* "Cambiar" el colegio ya elegido (dentro de la tarjeta activa del buscador de
  * directorio): un enlace discreto alineado a la derecha, no un botón macizo. */
 .cambiarColegio {
