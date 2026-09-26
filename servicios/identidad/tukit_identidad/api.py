@@ -15,10 +15,24 @@ dos que el frontend no puede resolver de otra forma:
   identificador, y ese sitio es este.
 
 Lo que NO hay aqui, y la ausencia es la parte importante: nada que devuelva
-un estudiante, un nombre de menor ni una matricula. Esa superficie necesita
-autenticacion y control de acceso por clasificacion de dato, y abrirla sin
-eso seria exactamente el defecto que el Anexo M documenta. Mientras el
-frontend no la necesite, no existe.
+un nombre de menor, un documento ni un `estudiante_id`. Esa superficie
+necesita control de acceso por clasificacion de dato, y abrirla sin eso seria
+exactamente el defecto que el Anexo M documenta.
+
+**La excepcion, y hay que nombrarla:** `GET /v1/cuenta/matriculas` (autenticada,
+Bearer) devuelve la matricula —solo `{colegio_id, grado, anio_lectivo}`— del
+PROPIO portador del token. Nace porque el frontend ya la necesita: quien vuelve
+a `/empezar` con sesion no debe re-teclear a sus hijos. Se defiende por tres
+recortes que la prueba de superficie fija: exige token, alcanza solo lo del
+portador (nunca lo de otro acudiente por rol) y no expone ni un campo de menor
+(ni nombre, ni apodo, ni documento, ni `estudiante_id`). Colegio, grado y anio
+no singularizan a un menor: son el ambito de tenencia, no su identidad.
+
+Y `POST /v1/registro` (sin sesion) es el registro de verdad que el docstring de
+`registrar_contacto` anticipaba: da credencial usable a una cuenta y persiste
+las matriculas de sus hijos usando un apodo opcional cifrado como
+`nombre_cifrado` —nunca el nombre legal, por minimizacion (Ley 1581 de 2012,
+Art. 4)—. Solo ESCRIBE; no devuelve ningun dato de menor.
 
     python -m tukit_identidad.api            # localhost:8011
 """
@@ -37,9 +51,10 @@ from sqlalchemy import and_, func, insert, or_, select, update
 from tukit_comun.bd import crear_motor
 from tukit_comun.cifrado import cifrador_desde_entorno
 from tukit_comun.http import ErrorDominio, crear_app
+from tukit_comun.identificadores import derivar
 
 from .modelos import Base
-from .sesiones import emitir_token, leer_token, verificar_clave
+from .sesiones import emitir_token, hashear_clave, leer_token, verificar_clave
 
 PUERTO_POR_OMISION = 8011
 
@@ -53,6 +68,15 @@ SEDE = Base.metadata.tables["sede"]
 USUARIO = Base.metadata.tables["usuario"]
 ASIGNACION_ROL = Base.metadata.tables["asignacion_rol"]
 DIRECCION = Base.metadata.tables["direccion"]
+ESTUDIANTE = Base.metadata.tables["estudiante"]
+MATRICULA = Base.metadata.tables["matricula"]
+ACUDIENTE_MATRICULA = Base.metadata.tables["acudiente_matricula"]
+
+# El centinela con que nace un contacto sin registro (`registrar_contacto`). No
+# valida contra ninguna clave; distinguirlo de un hash real es lo que permite a
+# `POST /v1/registro` ascender ese contacto a cuenta sin pisar una credencial de
+# verdad.
+_CLAVE_CENTINELA = "sin-credencial"
 
 # Los quince grados del corpus, en el orden en que un colegio los nombra. Va
 # como constante y no como consulta porque no es un dato del sistema sino del
@@ -324,6 +348,177 @@ async def resolver_contacto(usuario_id: uuid.UUID) -> dict[str, Any]:
     return {"usuario_id": str(usuario_id), "correo": fila.correo, "celular": None}
 
 
+# ---------------------------------------------------------------- registro
+#
+# El registro de verdad que `registrar_contacto` anticipaba. Da credencial
+# usable a una cuenta (o la crea) y persiste las matriculas de sus hijos. Es
+# la unica ruta publica que escribe en la tabla de menores, y por eso lleva
+# tres cuidados: solo el apodo (opcional, cifrado) toca al menor y nunca su
+# nombre legal (minimizacion, Ley 1581 de 2012, Art. 4); todo se deriva para
+# ser idempotente; y si el correo ya tiene una credencial REAL, la ruta no
+# escribe nada —ni la clave ni los hijos— para que un tercero sin sesion no
+# pueda inyectar matriculas en la cuenta de otra familia.
+
+
+class HijoRegistro(BaseModel):
+    """Un hijo tal como el formulario lo manda: colegio y grado bastan para
+    armar el kit. El `apodo` es opcional y es lo unico que identifica al menor;
+    se guarda cifrado. NO se pide el nombre legal: no hace falta para la
+    finalidad (armar la lista) y recolectarlo violaria el principio de
+    necesidad."""
+
+    colegio_id: uuid.UUID
+    grado: str = Field(min_length=1, max_length=32)
+    apodo: str | None = Field(default=None, max_length=120)
+
+
+class Registro(BaseModel):
+    """El alta del acudiente nuevo: su credencial, su celular para el aviso y
+    sus hijos. La clave pide un minimo de 8 para no crear cuentas triviales;
+    no se valida mas forma porque la politica real vive en un solo sitio el dia
+    que endurezca, y aqui solo se hashea."""
+
+    correo: str = Field(min_length=5, max_length=320)
+    clave: str = Field(min_length=8, max_length=256)
+    celular: str | None = Field(default=None, max_length=32)
+    hijos: list[HijoRegistro] = Field(default_factory=list)
+
+
+@app.post(
+    "/v1/registro",
+    tags=["registro"],
+    status_code=201,
+    summary="Alta del acudiente: credencial + matriculas de sus hijos. No devuelve menores.",
+)
+async def registrar_acudiente(registro: Registro) -> dict[str, Any]:
+    """Alta idempotente y orden-independiente con `POST /v1/contactos`.
+
+    Tres caminos segun el estado del correo:
+
+    - **No existe:** se crea la cuenta con clave hasheada y celular.
+    - **Existe como contacto sin credencial** (`clave_hash` centinela): se le
+      pone la clave y el celular. Es el caso de quien primero pidio un kit
+      (que creo el contacto) y ahora se registra.
+    - **Existe con credencial real:** NO se escribe nada y se devuelve
+      `creado=False`. La ruta es publica; permitir mutar una cuenta ya
+      registrada dejaria a un tercero colgar matriculas de la familia de otro.
+
+    Los hijos solo se persisten cuando la ruta establece la credencial (los dos
+    primeros casos). Cada hijo se materializa como estudiante + matricula +
+    vinculo, todo con UUID derivado para que reenviar el formulario no duplique.
+    El `nombre_cifrado` del estudiante es el apodo cifrado (o cadena vacia
+    cifrada si no vino): la columna es NOT NULL, pero jamas guarda el nombre
+    legal.
+    """
+    correo = str(registro.correo).strip().lower()
+    if not _FORMA_CORREO.fullmatch(correo):
+        raise ErrorDominio(
+            "correo_invalido", "El correo no tiene una forma valida.", estado=422, campo="correo"
+        )
+    for hijo in registro.hijos:
+        # El grado se compara contra el catalogo escolar (no contra las listas
+        # cargadas): un grado que el sistema no nombra es una entrada corrupta.
+        if hijo.grado not in GRADOS:
+            raise ErrorDominio(
+                "grado_invalido", f"'{hijo.grado}' no es un grado escolar.", estado=422, campo="grado"
+            )
+
+    cifrador = cifrador_desde_entorno()
+    anio_lectivo = datetime.now(UTC).year
+
+    async with app.state.motor.engine.begin() as conexion:
+        existente = (
+            await conexion.execute(
+                select(USUARIO.c.id, USUARIO.c.clave_hash).where(USUARIO.c.correo == correo)
+            )
+        ).one_or_none()
+
+        if existente is not None and existente.clave_hash != _CLAVE_CENTINELA:
+            # Ya es una cuenta de verdad: sin sesion no se toca. Quien ya tiene
+            # cuenta entra por el otro camino ("ya tengo cuenta"), no por aqui.
+            return {"usuario_id": str(existente.id), "creado": False}
+
+        if existente is None:
+            usuario_id = derivar("usuario", correo)
+            await conexion.execute(
+                insert(USUARIO).values(
+                    id=usuario_id,
+                    correo=correo,
+                    clave_hash=hashear_clave(registro.clave),
+                    celular=registro.celular,
+                )
+            )
+        else:
+            usuario_id = existente.id
+            await conexion.execute(
+                update(USUARIO)
+                .where(USUARIO.c.id == usuario_id)
+                .values(clave_hash=hashear_clave(registro.clave), celular=registro.celular)
+            )
+
+        for hijo in registro.hijos:
+            # La sede activa del colegio. En el piloto es unica ("Sede unica");
+            # colegios multi-sede quedan como brecha conocida (se toma la
+            # primera activa por nombre).
+            sede_id = await conexion.scalar(
+                select(SEDE.c.id)
+                .where(SEDE.c.colegio_id == hijo.colegio_id, SEDE.c.activa.is_(True))
+                .order_by(SEDE.c.nombre)
+                .limit(1)
+            )
+            if sede_id is None:
+                raise ErrorDominio(
+                    "colegio_sin_sede",
+                    "El colegio no existe o no tiene una sede activa.",
+                    estado=422,
+                    campo="colegio_id",
+                )
+
+            # UUID derivados de la llave natural: reenviar el mismo formulario
+            # cae en las mismas filas en vez de crear un segundo estudiante.
+            estudiante_id = derivar(
+                "estudiante", str(usuario_id), str(hijo.colegio_id), hijo.grado, str(anio_lectivo)
+            )
+            if await conexion.scalar(select(ESTUDIANTE.c.id).where(ESTUDIANTE.c.id == estudiante_id)) is None:
+                await conexion.execute(
+                    insert(ESTUDIANTE).values(
+                        id=estudiante_id,
+                        nombre_cifrado=cifrador.cifrar((hijo.apodo or "").encode("utf-8")),
+                    )
+                )
+
+            matricula_id = derivar("matricula", str(estudiante_id), str(sede_id), hijo.grado, str(anio_lectivo))
+            if await conexion.scalar(select(MATRICULA.c.id).where(MATRICULA.c.id == matricula_id)) is None:
+                await conexion.execute(
+                    insert(MATRICULA).values(
+                        id=matricula_id,
+                        estudiante_id=estudiante_id,
+                        sede_id=sede_id,
+                        colegio_id=hijo.colegio_id,
+                        grado=hijo.grado,
+                        anio_lectivo=anio_lectivo,
+                    )
+                )
+
+            vinculo = await conexion.scalar(
+                select(ACUDIENTE_MATRICULA.c.usuario_id).where(
+                    ACUDIENTE_MATRICULA.c.usuario_id == usuario_id,
+                    ACUDIENTE_MATRICULA.c.matricula_id == matricula_id,
+                )
+            )
+            if vinculo is None:
+                await conexion.execute(
+                    insert(ACUDIENTE_MATRICULA).values(
+                        usuario_id=usuario_id,
+                        matricula_id=matricula_id,
+                        parentesco="acudiente",
+                        es_principal=True,
+                    )
+                )
+
+    return {"usuario_id": str(usuario_id), "creado": True}
+
+
 # ---------------------------------------------------------------- sesiones
 #
 # La superficie de autenticacion (seccion 12.4 del contrato). Es lo que el
@@ -526,6 +721,42 @@ async def ver_cuenta(authorization: Annotated[str | None, Header()] = None) -> d
         if fila.nombre_cifrado is not None:
             nombre = cifrador_desde_entorno().descifrar(fila.nombre_cifrado).decode("utf-8", errors="replace")
     return {"usuario_id": str(fila.id), "correo": fila.correo, "nombre": nombre}
+
+
+@app.get(
+    "/v1/cuenta/matriculas",
+    tags=["cuenta"],
+    summary="El ambito de tenencia de MIS hijos: colegio, grado y anio. Sin datos de menor.",
+)
+async def listar_matriculas(authorization: Annotated[str | None, Header()] = None) -> dict[str, Any]:
+    """Lo justo para precargar `/empezar` sin re-teclear a los hijos.
+
+    Devuelve SOLO `{colegio_id, grado, anio_lectivo}` de las matriculas activas
+    vinculadas al portador con vinculo vigente. Deliberadamente NO devuelve el
+    apodo, el `estudiante_id`, el documento ni la marca de tiempo: nada que
+    singularice al menor. El join va directo `acudiente_matricula` -> `matricula`
+    y se filtra por el `usuario_id` del token, no por rol: un colegio_admin no
+    ve por aqui a los hijos de su colegio, solo el acudiente ve los suyos.
+    """
+    async with app.state.motor.engine.begin() as conexion:
+        fila = await _usuario_del_token(authorization, conexion)
+        filas = await conexion.execute(
+            select(MATRICULA.c.colegio_id, MATRICULA.c.grado, MATRICULA.c.anio_lectivo)
+            .select_from(
+                ACUDIENTE_MATRICULA.join(MATRICULA, ACUDIENTE_MATRICULA.c.matricula_id == MATRICULA.c.id)
+            )
+            .where(
+                ACUDIENTE_MATRICULA.c.usuario_id == fila.id,
+                ACUDIENTE_MATRICULA.c.vigente_hasta.is_(None),
+                MATRICULA.c.estado == "activa",
+            )
+            .order_by(MATRICULA.c.colegio_id, MATRICULA.c.grado)
+        )
+        matriculas = [
+            {"colegio_id": str(f.colegio_id), "grado": f.grado, "anio_lectivo": int(f.anio_lectivo)}
+            for f in filas
+        ]
+    return {"total": len(matriculas), "matriculas": matriculas}
 
 
 @app.get("/v1/cuenta/direcciones", tags=["cuenta"], summary="Mi libreta de direcciones, descifrada.")
