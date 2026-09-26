@@ -230,6 +230,148 @@ class TestElContactoSeVuelveUnIdentificador:
         assert respuesta.json()["error"] == "entrada_invalida"
 
 
+class TestElRegistroDelAcudiente:
+    """El alta con credencial y los hijos del acudiente nuevo (camino B)."""
+
+    async def test_crea_una_cuenta_con_credencial_usable(self, cliente):
+        respuesta = await cliente.post(
+            "/v1/registro",
+            json={"correo": "nueva@ejemplo.com", "clave": "clave1234", "celular": "3001112233", "hijos": []},
+        )
+        assert respuesta.status_code == 201
+        assert respuesta.json()["creado"] is True
+
+        # Y la credencial sirve: la cuenta puede iniciar sesion.
+        sesion = await cliente.post(
+            "/v1/sesiones", json={"correo": "nueva@ejemplo.com", "clave": "clave1234"}
+        )
+        assert sesion.status_code == 200
+        assert sesion.json()["sesion"]["correo"] == "nueva@ejemplo.com"
+
+    async def test_asciende_un_contacto_sin_credencial_sin_perder_su_id(self, cliente):
+        """Orden-independiente con /v1/contactos: quien primero pidio un kit
+        (creando el contacto) y luego se registra conserva el MISMO id, para
+        que el trabajo del pipeline que ya lo referencia siga apuntando bien."""
+        contacto = (await cliente.post("/v1/contactos", json={"correo": "mixta@ejemplo.com"})).json()
+        assert contacto["creado"] is True
+
+        registro = (
+            await cliente.post(
+                "/v1/registro", json={"correo": "mixta@ejemplo.com", "clave": "clave1234", "hijos": []}
+            )
+        ).json()
+        assert registro["creado"] is True
+        assert registro["usuario_id"] == contacto["usuario_id"]
+
+        # Antes no podia entrar (centinela); ahora si.
+        sesion = await cliente.post(
+            "/v1/sesiones", json={"correo": "mixta@ejemplo.com", "clave": "clave1234"}
+        )
+        assert sesion.status_code == 200
+
+    async def test_no_pisa_una_cuenta_ya_registrada(self, cliente):
+        """La ruta es publica: no debe dejar que un tercero cambie la clave de
+        una cuenta que ya tiene credencial."""
+        await cliente.post("/v1/registro", json={"correo": "duena@ejemplo.com", "clave": "originaal", "hijos": []})
+        repetido = await cliente.post(
+            "/v1/registro", json={"correo": "duena@ejemplo.com", "clave": "otraaaaa", "hijos": []}
+        )
+        assert repetido.status_code == 201
+        assert repetido.json()["creado"] is False
+
+        # La clave sigue siendo la original, no la del segundo intento.
+        assert (
+            await cliente.post("/v1/sesiones", json={"correo": "duena@ejemplo.com", "clave": "originaal"})
+        ).status_code == 200
+        assert (
+            await cliente.post("/v1/sesiones", json={"correo": "duena@ejemplo.com", "clave": "otraaaaa"})
+        ).status_code == 401
+
+    async def test_persiste_los_hijos_y_los_expone_por_cuenta_matriculas(self, cliente):
+        colegio_id = str(derivar("colegio", "2.4"))
+        await cliente.post(
+            "/v1/registro",
+            json={
+                "correo": "conhijos@ejemplo.com",
+                "clave": "clave1234",
+                "hijos": [{"colegio_id": colegio_id, "grado": "Quinto", "apodo": "Pipe"}],
+            },
+        )
+        token = (
+            await cliente.post("/v1/sesiones", json={"correo": "conhijos@ejemplo.com", "clave": "clave1234"})
+        ).json()["token"]
+
+        respuesta = await cliente.get(
+            "/v1/cuenta/matriculas", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert respuesta.status_code == 200
+        cuerpo = respuesta.json()
+        assert cuerpo["total"] == 1
+        assert cuerpo["matriculas"][0]["colegio_id"] == colegio_id
+        assert cuerpo["matriculas"][0]["grado"] == "Quinto"
+        # El apodo NUNCA sale: la matricula es ambito, no identidad del menor.
+        assert "Pipe" not in respuesta.text
+        assert "apodo" not in cuerpo["matriculas"][0]
+
+    async def test_reenviar_el_mismo_formulario_no_duplica_matriculas(self, cliente):
+        colegio_id = str(derivar("colegio", "2.4"))
+        cuerpo = {
+            "correo": "repite@ejemplo.com",
+            "clave": "clave1234",
+            "hijos": [{"colegio_id": colegio_id, "grado": "Quinto"}],
+        }
+        # Nace como contacto y luego se registra dos veces (idempotente).
+        await cliente.post("/v1/registro", json=cuerpo)
+        # El segundo POST no asciende (ya tiene credencial) pero tampoco debe
+        # duplicar; comprobamos por matriculas tras un solo alta valida.
+        token = (
+            await cliente.post("/v1/sesiones", json={"correo": "repite@ejemplo.com", "clave": "clave1234"})
+        ).json()["token"]
+        cuenta = (
+            await cliente.get("/v1/cuenta/matriculas", headers={"Authorization": f"Bearer {token}"})
+        ).json()
+        assert cuenta["total"] == 1
+
+    async def test_un_grado_que_no_existe_es_422(self, cliente):
+        colegio_id = str(derivar("colegio", "2.4"))
+        respuesta = await cliente.post(
+            "/v1/registro",
+            json={
+                "correo": "malgrado@ejemplo.com",
+                "clave": "clave1234",
+                "hijos": [{"colegio_id": colegio_id, "grado": "5"}],
+            },
+        )
+        assert respuesta.status_code == 422
+        assert respuesta.json()["campo"] == "grado"
+
+
+class TestMisMatriculasExigenToken:
+    async def test_sin_token_es_401(self, cliente):
+        assert (await cliente.get("/v1/cuenta/matriculas")).status_code == 401
+
+    async def test_solo_devuelve_lo_del_portador(self, cliente):
+        """Otro acudiente no ve las matriculas ajenas ni con token valido."""
+        colegio_id = str(derivar("colegio", "2.4"))
+        await cliente.post(
+            "/v1/registro",
+            json={
+                "correo": "conkid@ejemplo.com",
+                "clave": "clave1234",
+                "hijos": [{"colegio_id": colegio_id, "grado": "Quinto"}],
+            },
+        )
+        await cliente.post("/v1/registro", json={"correo": "sinkid@ejemplo.com", "clave": "clave1234", "hijos": []})
+        token_ajeno = (
+            await cliente.post("/v1/sesiones", json={"correo": "sinkid@ejemplo.com", "clave": "clave1234"})
+        ).json()["token"]
+
+        cuenta = (
+            await cliente.get("/v1/cuenta/matriculas", headers={"Authorization": f"Bearer {token_ajeno}"})
+        ).json()
+        assert cuenta["total"] == 0
+
+
 class TestLaSuperficieDeMenoresNoEstaAbierta:
     @pytest.mark.parametrize(
         "ruta",
@@ -263,4 +405,17 @@ class TestLaSuperficieDeMenoresNoEstaAbierta:
             "/v1/cuenta",
             "/v1/cuenta/direcciones",
             "/v1/cuenta/direcciones/{direccion_id}",
+            # El ambito de tenencia del PROPIO portador: colegio, grado y anio,
+            # nada que singularice al menor. Exige token y filtra por usuario_id
+            # (no por rol), asi que sigue cerrada la superficie sensible: no
+            # devuelve nombre, apodo, documento ni estudiante_id.
+            "/v1/cuenta/matriculas",
+            # El registro de verdad. Solo ESCRIBE (credencial + matriculas) y
+            # nunca devuelve datos de menor: su respuesta es {usuario_id, creado}.
+            "/v1/registro",
+            # Datos DUEB de un colegio del directorio de Bogota por DANE, para
+            # pre-llenar el perfil del colegio nuevo en la cola. Es dato
+            # INSTITUCIONAL del directorio publico (nombre, localidad), no de
+            # menores: no abre la superficie sensible.
+            "/v1/directorio/{dane}",
         }

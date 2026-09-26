@@ -95,6 +95,10 @@ RUTAS: dict[str, str] = {
     "/v1/directorio": "identidad",
     "/v1/grados": "identidad",
     "/v1/contactos": "identidad",
+    # Alta del acudiente y sus hijos desde `/empezar` (camino "soy nuevo
+    # usuario"): crea la credencial y las matriculas. Sin auth, como
+    # `/v1/contactos`; la sirve IDENTIDAD.
+    "/v1/registro": "identidad",
     "/v1/sesiones": "identidad",
     # "Mi cuenta" del acudiente: identidad y libreta de direcciones, sobre el
     # token que emite `/v1/sesiones`.
