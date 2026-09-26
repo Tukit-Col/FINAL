@@ -33,6 +33,13 @@ class Usuario(Base):
     correo: Mapped[str] = mapped_column(String(320), nullable=False, unique=True)
     clave_hash: Mapped[str] = mapped_column(String(256), nullable=False)
     nombre_cifrado: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    # El celular del acudiente para el aviso por wa-link. Nulable porque las
+    # cuentas que nacen sin registro (el contacto sin credencial) no lo tienen,
+    # y porque no es un dato de menor: es del adulto y viaja en claro, igual que
+    # su correo. Antes NO existia ninguna columna donde persistirlo, asi que el
+    # celular capturado en el formulario se perdia y el envio caia siempre a
+    # correo; esta columna cierra ese hueco.
+    celular: Mapped[str | None] = mapped_column(String(32), nullable=True)
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     # Lo que arregla la revocacion de sesion. Hoy la cadena `jti` solo existe
