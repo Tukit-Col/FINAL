@@ -12,7 +12,11 @@
 
 import "server-only";
 import { cookies } from "next/headers";
-import { origenDeDatos, type Sesion } from "@tukit/contrato/servidor";
+import {
+  origenDeDatos,
+  type MatriculaAcudiente,
+  type Sesion,
+} from "@tukit/contrato/servidor";
 
 export const COOKIE_SESION = "tukit_sesion";
 
@@ -26,5 +30,24 @@ export async function sesionActual(): Promise<Sesion | null> {
     // Un token que el backend rechaza es como no tener sesion: fail-closed,
     // igual que `puede()`.
     return null;
+  }
+}
+
+/**
+ * Las matriculas vigentes del portador de la cookie, para precargar `/empezar`
+ * cuando el acudiente ya tiene cuenta. Solo devuelve colegio+grado+anio (nunca
+ * datos del menor), tal como los expone `GET /v1/cuenta/matriculas`.
+ *
+ * Fail-closed a lista vacia, igual que `sesionActual()`: sin cookie, con token
+ * rechazado o si el backend no responde, el formulario simplemente arranca sin
+ * precarga en vez de romper la pantalla.
+ */
+export async function matriculasDeLaSesion(): Promise<MatriculaAcudiente[]> {
+  const token = (await cookies()).get(COOKIE_SESION)?.value;
+  if (!token) return [];
+  try {
+    return await origenDeDatos().matriculasDelAcudiente(token);
+  } catch {
+    return [];
   }
 }

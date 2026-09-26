@@ -2,7 +2,8 @@
 
 import { useCallback, useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Check, School, Pencil } from "lucide-react";
+import Link from "next/link";
+import { Search, Check, School, LogIn, UserPlus, Pencil } from "lucide-react";
 import {
   formatearTamano,
   validarArchivo,
@@ -11,11 +12,18 @@ import {
   type Colegio,
   type GradoCanonico,
   type HijoSolicitud,
+  type MatriculaAcudiente,
   type PerfilKit,
   type Pesos,
   type SolicitudTrabajo,
 } from "@tukit/contrato";
-import { aplicarCanonico, crearTrabajo, subirListas, FalloApi } from "@/lib/api-navegador";
+import {
+  aplicarCanonico,
+  crearTrabajo,
+  subirListas,
+  registrarAcudiente,
+  FalloApi,
+} from "@/lib/api-navegador";
 import SelectorPersonaje from "./SelectorPersonaje";
 import styles from "./Empezar.module.css";
 
@@ -32,6 +40,11 @@ interface HijoFormulario {
   colegioDane: string;
   colegioNombre: string;
   grado: string;
+  // Apodo OPCIONAL del menor, solo en el camino "soy nuevo usuario". Nunca el
+  // nombre legal completo: para armar un kit basta colegio+grado, y por el
+  // principio de minimizacion (Ley 1581 de 2012, Art. 4) no recolectamos mas de
+  // lo indispensable de un menor. Viaja al backend como `nombre_cifrado`.
+  apodo: string;
   entrada: Entrada;
   archivo: File | null;
   errorArchivo: string | null;
@@ -103,6 +116,7 @@ function hijoVacio(indice: number): HijoFormulario {
     colegioDane: "",
     colegioNombre: "",
     grado: "",
+    apodo: "",
     entrada: "lista_oficial",
     archivo: null,
     errorArchivo: null,
@@ -346,20 +360,51 @@ function BuscadorDirectorio({
   );
 }
 
+// Los cuatro estados de la pantalla. Es la particion pedida: quien ya tiene
+// cuenta no re-teclea a sus hijos; quien es nuevo se registra en el mismo flujo.
+//   elegir      -> sin sesion y sin escoger: solo el encabezado y los dos botones
+//   existente   -> "ya tengo cuenta": texto + CTA a /ingresar (vuelve a /empezar)
+//   nuevo       -> "soy nuevo usuario": seccion Registrate + hijos + prioridad
+//   autenticado -> ya hay sesion: hijos precargados + a-donde-avisamos + prioridad
+type Modo = "elegir" | "existente" | "nuevo" | "autenticado";
+
 export default function FormularioEmpezar({
   colegios,
   surtidos,
   canonicos,
+  sesion = null,
+  matriculasIniciales = [],
 }: {
   colegios: Colegio[];
   surtidos: string[];
   canonicos: GradoCanonico[];
+  // La sesion trae solo el correo (para precargar el contacto); si es null, el
+  // acudiente aun no entro y hay que ofrecerle los dos caminos.
+  sesion?: { correo: string } | null;
+  // Colegio+grado de cada hijo del portador, sin dato del menor. Precarga el
+  // camino "ya tengo cuenta"; vacio si no hay sesion o el backend no responde.
+  matriculasIniciales?: MatriculaAcudiente[];
 }) {
   const router = useRouter();
   const idBase = useId();
 
-  const [hijos, setHijos] = useState<HijoFormulario[]>([hijoVacio(1)]);
-  const [correo, setCorreo] = useState("");
+  // Sin sesion arranca en "nuevo" (soy nuevo usuario) ya marcado y con el
+  // formulario de registro a la vista; el acudiente puede cambiar a "ya tengo
+  // cuenta". Con sesion viva, "autenticado".
+  const [modo, setModo] = useState<Modo>(sesion ? "autenticado" : "nuevo");
+  // Con sesion y matriculas, un bloque por hijo ya con su colegio y grado (ruta
+  // "lista oficial", que es la que valida el envio). Sin eso, un hijo en blanco.
+  const [hijos, setHijos] = useState<HijoFormulario[]>(() =>
+    matriculasIniciales.length > 0
+      ? matriculasIniciales.map((m, i) => ({
+          ...hijoVacio(i + 1),
+          colegioId: m.colegio_id,
+          grado: m.grado,
+        }))
+      : [hijoVacio(1)],
+  );
+  const [correo, setCorreo] = useState(sesion?.correo ?? "");
+  const [clave, setClave] = useState("");
   const [celular, setCelular] = useState("");
   const [prioridad, setPrioridad] = useState<ClavePrioridad>("equilibrio");
   const [enviando, setEnviando] = useState(false);
@@ -383,19 +428,57 @@ export default function FormularioEmpezar({
     });
   }
 
-  // Un hijo está completo según su ruta: la lista aliada necesita el `colegioId`;
-  // la subida necesita el nombre del colegio (del directorio o a mano) y el
-  // archivo. El grado siempre.
-  const hijoListo = useCallback((hijo: HijoFormulario) => {
-    if (!hijo.grado) return false;
-    if (hijo.entrada === "lista_oficial") return Boolean(hijo.colegioId);
-    return Boolean(hijo.colegioNombre) && hijo.archivo !== null;
-  }, []);
+  // Un grado tiene lista VERIFICADA si el colegio la trae en `colegio.grados`
+  // (ver catalogo.ts): son los únicos grados con lista revisada y ruta rápida a
+  // optimización.
+  function gradoVerificado(hijo: HijoFormulario): boolean {
+    return porId.get(hijo.colegioId)?.grados.includes(hijo.grado) ?? false;
+  }
 
+  // Cuándo el hijo se resuelve adjuntando un archivo en vez de con la lista
+  // verificada del colegio: SIEMPRE en la ruta "no encontré mi colegio", y
+  // también en "lista oficial" cuando el grado elegido no tiene lista verificada
+  // (ahí el acudiente adjunta la lista de ESE grado). En ambos casos el archivo
+  // viaja en el mismo `crearTrabajo` de hoy; no hay endpoint nuevo.
+  function necesitaArchivo(hijo: HijoFormulario): boolean {
+    if (hijo.entrada === "archivo") return true;
+    return hijo.grado !== "" && !gradoVerificado(hijo);
+  }
+
+  // Un hijo está completo según su ruta. El grado es obligatorio siempre. En "No
+  // encontré mi colegio" (archivo) basta el nombre del colegio (del directorio o
+  // a mano) y el archivo; no hay `colegioId` de aliado. En "lista oficial" hace
+  // falta el id del aliado, y si el grado no tiene lista verificada, también el
+  // archivo adjunto (zonaListaGrado).
+  function hijoCompleto(hijo: HijoFormulario): boolean {
+    if (!hijo.grado) return false;
+    if (hijo.entrada === "archivo") return Boolean(hijo.colegioNombre) && hijo.archivo !== null;
+    if (!hijo.colegioId) return false;
+    if (necesitaArchivo(hijo)) return hijo.archivo !== null;
+    return true; // lista oficial con grado verificado: la lista ya existe
+  }
+
+  // El camino "soy nuevo usuario" crea la cuenta, asi que ahi la clave es
+  // obligatoria; en los demas caminos no hay clave que pedir.
   const listo =
     correo.trim().length > 3 &&
     celular.trim().length > 6 &&
-    hijos.every(hijoListo);
+    (modo !== "nuevo" || clave.length >= 6) &&
+    hijos.every(hijoCompleto);
+
+  // Algún hijo necesita adjuntar la lista (grado sin verificar) o el archivo del
+  // colegio y aún no lo hizo. Se usa para explicar el bloqueo en pantalla en vez
+  // de dejar el botón deshabilitado sin decir la razón.
+  const faltaArchivo = hijos.some((hijo) => necesitaArchivo(hijo) && hijo.archivo === null);
+
+  // Renumeracion de las secciones sin duplicar JSX: en "nuevo" hay tres pasos
+  // (1 Registrate, 2 hijos, 3 prioridad) y NO se pinta "a donde te avisamos"
+  // (el correo y el celular ya se capturan en Registrate). En el resto sigue
+  // igual que siempre: 1 hijos, 2 contacto, 3 prioridad.
+  const mostrarFormulario = modo === "nuevo" || modo === "autenticado";
+  const pasoHijos = modo === "nuevo" ? 2 : 1;
+  const pasoContacto = 2;
+  const pasoPrioridad = 3;
 
   async function enviar(evento: React.FormEvent) {
     evento.preventDefault();
@@ -429,16 +512,55 @@ export default function FormularioEmpezar({
         : {}),
     };
 
-    // El hogar se parte en dos rutas distintas (decisión "wait-screen wins"):
-    //   • Los hijos con lista VERIFICADA del colegio disparan `crearTrabajo` y
-    //     salen con un kit al vuelo (ruta rápida, sin revisión).
-    //   • Los hijos que suben el PDF disparan `subirListas`: cada archivo se
-    //     importa como una versión PENDIENTE de su (colegio, grado) y el
-    //     acudiente espera a que un administrador la apruebe. No hay kit todavía.
-    // Si hay al menos un PDF pendiente, el hogar aterriza en la pantalla de
-    // verificación (`/recibimos`) aunque algunos kits ya estén listos.
-    const hijosVerificados = hijos.filter((hijo) => hijo.entrada === "lista_oficial");
-    const hijosArchivo = hijos.filter((hijo) => hijo.entrada === "archivo" && hijo.archivo);
+    // Camino "soy nuevo usuario": ANTES de armar nada se da de alta la cuenta y
+    // los hijos (idempotente en el backend); el registro es un paso ADICIONAL, no
+    // un reemplazo del armado del kit. Solo viajan los hijos con colegio ALIADO
+    // (`colegioId` real): `HijoRegistro.colegio_id` es un UUID requerido, y los de
+    // la ruta "No encontré mi colegio" todavía no lo tienen —esos se dan de alta
+    // cuando un administrador aprueba la lista que subieron—. Si el alta falla no
+    // seguimos: su propio catch lo reporta y no se crea ningún trabajo.
+    if (modo === "nuevo") {
+      try {
+        await registrarAcudiente({
+          correo: contacto.correo,
+          clave,
+          celular: contacto.celular,
+          hijos: hijos
+            .filter((hijo) => hijo.colegioId)
+            .map((hijo) => ({
+              colegio_id: hijo.colegioId,
+              grado: hijo.grado,
+              // Apodo solo si lo dieron: es opcional y minimizamos el dato del menor.
+              ...(hijo.apodo.trim() ? { apodo: hijo.apodo.trim() } : {}),
+            })),
+        });
+      } catch (causa) {
+        if (causa instanceof FalloApi) setError(causa.message);
+        else setError("No pudimos crear tu cuenta. Intenta de nuevo.");
+        setEnviando(false);
+        return;
+      }
+    }
+
+    // El hogar se parte en dos rutas (decisión "wait-screen wins"):
+    //   • Grado con lista VERIFICADA → `crearTrabajo` (JSON, sin archivo): kit al
+    //     vuelo, sin revisión.
+    //   • Sube PDF (grado sin verificar de un colegio aliado, o "No encontré mi
+    //     colegio") → `subirListas`: el archivo entra como versión PENDIENTE de su
+    //     (colegio, grado) y el acudiente espera la aprobación de un administrador.
+    // El PDF NUNCA viaja por `crearTrabajo` (`POST /v1/trabajos` es solo JSON, y un
+    // multipart daría 400 "no tiene la forma que el contrato espera"): siempre por
+    // `subirListas` (`POST /v1/listas/subir`, que acepta multipart). Si hay al menos
+    // un PDF pendiente, el hogar aterriza en `/recibimos` aunque algún kit ya esté listo.
+    // lista oficial con grado VERIFICADO: su lista ya existe → crearTrabajo (JSON).
+    const hijosVerificados = hijos.filter(
+      (hijo) => hijo.entrada === "lista_oficial" && gradoVerificado(hijo),
+    );
+    // Suben PDF por `subirListas`: "No encontré mi colegio" (entrada "archivo") y
+    // lista oficial cuyo grado aún no tiene lista verificada. `necesitaArchivo` reúne
+    // los dos casos sin duplicar su lógica; el `&& archivo` descarta lo que el gate
+    // `listo` ya impide llegar sin adjunto.
+    const hijosSubida = hijos.filter((hijo) => necesitaArchivo(hijo) && hijo.archivo);
 
     // Ruta rapida: un hogar de UN solo hijo verificado cuyo (colegio, grado) ya
     // tiene cache bendita salta la cola y aplica su nivel + personaje al vuelo.
@@ -446,7 +568,12 @@ export default function FormularioEmpezar({
     // (colegio, grado), no cubre la consolidacion entre hijos.
     const soloHijo = hijos.length === 1 ? hijos[0] : null;
     const canonicoDelHijo =
-      soloHijo && soloHijo.entrada === "lista_oficial"
+      // Solo un grado VERIFICADO puede tomar la ruta rápida. La cache canónica
+      // (kit_canonico, inteligencia) y los grados verificados (revisada_en, catálogo)
+      // se pueblan por triggers independientes en servicios distintos, sin FK ni join:
+      // un (colegio, grado) puede tener entrada canónica sin estar verificado. Sin esta
+      // guarda, un grado gris con PDF aplicaría el kit canónico y se perdería el archivo.
+      soloHijo && soloHijo.entrada === "lista_oficial" && gradoVerificado(soloHijo)
         ? canonicos.find(
             (c) => c.colegio_id === soloHijo.colegioId && c.grado === soloHijo.grado,
           )
@@ -463,6 +590,9 @@ export default function FormularioEmpezar({
           ...(personaje ? { personaje } : {}),
         });
         router.push(`/kits/${aplicado.trabajo_id}`);
+        // Si hubo alta ("soy nuevo usuario"), la cookie de sesión ya está puesta:
+        // refrescamos para que la Cabecera (Server Component) la lea en el destino.
+        if (modo === "nuevo") router.refresh();
         return;
       } catch (causa) {
         if (causa instanceof FalloApi) setError(causa.message);
@@ -487,23 +617,30 @@ export default function FormularioEmpezar({
           // de más. El encuadre del paso 3 es "hasta dónde estirar el bolsillo".
           preferencias,
         };
-        const creado = await crearTrabajo(solicitud, []);
+        // Sin archivos: la lista verificada ya existe, así que el trabajo viaja en
+        // JSON puro. Un PDF aquí forzaría multipart contra `POST /v1/trabajos` (solo
+        // JSON) → 400. Los grados sin verificar suben su PDF por `subirListas`.
+        const creado = await crearTrabajo(solicitud);
         trabajoInstantaneo = creado.trabajo_id;
       }
 
-      if (hijosArchivo.length > 0) {
+      if (hijosSubida.length > 0) {
         const resultado = await subirListas(
-          hijosArchivo.map((hijo) => ({
+          hijosSubida.map((hijo) => ({
             referencia: hijo.referencia,
-            // El colegio se designa como llegó: DANE del directorio (+ nombre),
-            // o solo el nombre escrito a mano. El backend deriva de ahí el
-            // `colegio_id` estable y, al aprobar, crea la identidad del colegio.
-            ...(hijo.colegioDane
-              ? { colegio_dane: hijo.colegioDane, colegio_nombre: hijo.colegioNombre }
-              : { colegio_nombre: hijo.colegioNombre }),
+            // El colegio se designa según la ruta: lista oficial con grado sin
+            // verificar es un colegio ALIADO → viaja por `colegio_id`; si vino de
+            // "No encontré mi colegio", por DANE del directorio (+ nombre) o solo el
+            // nombre escrito a mano. El backend deriva de ahí el `colegio_id` estable
+            // y, al aprobar, crea la identidad del colegio si aún no existe.
+            ...(hijo.entrada === "lista_oficial"
+              ? { colegio_id: hijo.colegioId }
+              : hijo.colegioDane
+                ? { colegio_dane: hijo.colegioDane, colegio_nombre: hijo.colegioNombre }
+                : { colegio_nombre: hijo.colegioNombre }),
             grado: hijo.grado,
           })),
-          hijosArchivo.map((hijo) => ({
+          hijosSubida.map((hijo) => ({
             referencia: hijo.referencia,
             archivo: hijo.archivo as File,
           })),
@@ -515,11 +652,13 @@ export default function FormularioEmpezar({
         const parametros = new URLSearchParams({ pendientes: String(resultado.subidas.length) });
         if (trabajoInstantaneo) parametros.set("trabajo", trabajoInstantaneo);
         router.push(`/recibimos?${parametros.toString()}`);
+        if (modo === "nuevo") router.refresh();
         return;
       }
 
       // Hogar solo con listas verificadas: la espera de siempre.
       router.push(`/esperando/${trabajoInstantaneo}`);
+      if (modo === "nuevo") router.refresh();
     } catch (causa) {
       if (causa instanceof FalloApi) {
         setError(causa.message);
@@ -545,10 +684,105 @@ export default function FormularioEmpezar({
         </p>
       </header>
 
+      {/* ------------------------------------------------ Los dos caminos */}
+      {/* La particion pedida: justo debajo del encabezado, quien ya tiene
+          cuenta la usa (y le precargamos los hijos) y quien es nuevo se
+          registra en el mismo flujo. Con sesion viva no se pintan: ya estas
+          "autenticado". Reutilizan el patron tarjeta-radio de las entradas. */}
+      {modo !== "autenticado" && (
+        <div className={styles.dosColumnas} role="group" aria-label="¿Ya tienes cuenta?">
+          <button
+            type="button"
+            className={`${styles.opcionEntrada} ${modo === "existente" ? styles.opcionActiva : ""}`}
+            onClick={() => setModo("existente")}
+          >
+            <LogIn size={16} strokeWidth={2.4} aria-hidden="true" />
+            Ya tengo cuenta
+          </button>
+          <button
+            type="button"
+            className={`${styles.opcionEntrada} ${modo === "nuevo" ? styles.opcionActiva : ""}`}
+            onClick={() => setModo("nuevo")}
+          >
+            <UserPlus size={16} strokeWidth={2.4} aria-hidden="true" />
+            Soy nuevo usuario
+          </button>
+        </div>
+      )}
+
+      {/* Camino "ya tengo cuenta": entrar y volver aqui con los hijos cargados.
+          El `destino=/empezar` hace que el login regrese a esta pantalla (no al
+          dashboard); el Route Handler solo acepta rutas internas. */}
+      {modo === "existente" && (
+        <section className={styles.bloque}>
+          <p className={styles.explicacion}>
+            Entra con tu cuenta y te precargamos a tus hijos: no vuelves a teclear su
+            colegio ni su grado, solo eliges el kit.
+          </p>
+          <Link href="/ingresar?destino=/empezar" className={styles.enviar}>
+            <LogIn size={17} strokeWidth={2.6} aria-hidden="true" />
+            Ingresar a mi cuenta
+          </Link>
+        </section>
+      )}
+
+      {/* ------------------------------------------------------- Regístrate */}
+      {/* Solo en el camino "soy nuevo usuario", ANTES de todo: aqui se capturan
+          correo, clave y celular, por eso en este camino se quita "a dónde te
+          avisamos". Reutiliza los estilos de esa sección, sin CSS nuevo. */}
+      {modo === "nuevo" && (
+        <section className={styles.bloque} aria-labelledby={`${idBase}-registro`}>
+          <h2 id={`${idBase}-registro`} className={styles.tituloBloque}>
+            <span className={styles.paso}>1</span> Regístrate
+          </h2>
+          <p className={styles.explicacion}>
+            Creamos tu cuenta para guardar tus pedidos y avisarte cuando el kit esté
+            listo. La próxima vez entras y ya tienes a tus hijos cargados.
+          </p>
+          <div className={styles.dosColumnas}>
+            <label className={styles.campo}>
+              <span>Correo</span>
+              <input
+                type="email"
+                value={correo}
+                onChange={(e) => setCorreo(e.target.value)}
+                placeholder="tucorreo@ejemplo.com"
+                autoComplete="email"
+                required
+              />
+            </label>
+            <label className={styles.campo}>
+              <span>Contraseña</span>
+              <input
+                type="password"
+                value={clave}
+                onChange={(e) => setClave(e.target.value)}
+                placeholder="Elige una contraseña"
+                autoComplete="new-password"
+                required
+              />
+            </label>
+            <label className={styles.campo}>
+              <span>Celular</span>
+              <input
+                type="tel"
+                value={celular}
+                onChange={(e) => setCelular(e.target.value)}
+                placeholder="+57 300 123 4567"
+                autoComplete="tel"
+                required
+              />
+            </label>
+          </div>
+        </section>
+      )}
+
+      {mostrarFormulario && (
+        <>
       {/* ------------------------------------------------------------ Hijos */}
       <section className={styles.bloque} aria-labelledby={`${idBase}-hijos`}>
         <h2 id={`${idBase}-hijos`} className={styles.tituloBloque}>
-          <span className={styles.paso}>1</span> De quién es la lista
+          <span className={styles.paso}>{pasoHijos}</span> De quién es la lista
         </h2>
 
         {hijos.map((hijo, indice) => {
@@ -573,11 +807,28 @@ export default function FormularioEmpezar({
                   "subir archivo" busca en el directorio de Bogotá (o a mano) un
                   colegio que quizá aún no es aliado. Al cambiar de ruta se limpia
                   el colegio y el grado: no se arrastran de una a la otra. */}
+
+              {/* Apodo OPCIONAL del menor, solo en el alta nueva. Nunca el
+                  nombre legal: para el kit basta colegio+grado, y minimizamos
+                  el dato del menor (Ley 1581 de 2012, Art. 4). */}
+              {modo === "nuevo" && (
+                <label className={styles.campo}>
+                  <span>Apodo de tu hijo (opcional)</span>
+                  <input
+                    type="text"
+                    value={hijo.apodo}
+                    onChange={(e) => cambiar(indice, { apodo: e.target.value })}
+                    placeholder="Escribe el apodo de tu hijo para personalizar tu kit"
+                    autoComplete="off"
+                  />
+                </label>
+              )}
+
               <div className={styles.entradas} role="group" aria-label="Cómo nos das la lista">
                 {(
                   [
                     ["lista_oficial", "Usar la lista que ya tiene el colegio"],
-                    ["archivo", "Subir el archivo que me mandaron"],
+                    ["archivo", "No encontré mi colegio"],
                   ] as [Entrada, string][]
                 ).map(([valor, etiqueta]) => (
                   <label
@@ -625,46 +876,105 @@ export default function FormularioEmpezar({
                 />
               )}
 
-              {(() => {
-                // La ruta "lista oficial" solo puede usar grados VERIFICADOS del
-                // aliado (los únicos con la ruta rápida a optimización). La ruta
-                // "subir archivo" ofrece todos los grados canónicos una vez que
-                // hay un colegio designado: el grado real lo confirma el PDF, y
-                // esto es lo que hace usable un colegio sin lista verificada.
-                const grados =
-                  hijo.entrada === "archivo"
-                    ? hijo.colegioNombre
-                      ? GRADOS_CANONICOS
-                      : []
-                    : (colegio?.grados ?? []);
-                if (grados.length === 0) return null;
-                return (
-                  <div className={styles.gradoBloque}>
-                    <span className={styles.campoRotulo}>Grado</span>
-                    <div
-                      className={styles.gradoChips}
-                      role="radiogroup"
-                      aria-label="Elige el grado"
-                    >
-                      {grados.map((g) => {
-                        const activo = hijo.grado === g;
-                        return (
-                          <button
-                            key={g}
-                            type="button"
-                            role="radio"
-                            aria-checked={activo}
-                            className={`${styles.chipGrado} ${activo ? styles.chipGradoActivo : ""}`}
-                            onClick={() => cambiar(indice, { grado: g })}
-                          >
-                            {g}
-                          </button>
-                        );
-                      })}
-                    </div>
+              {/* Selector de grado, DEBAJO del selector de colegio. Se ofrecen los
+                  13 grados canónicos en AMBAS rutas (el grado es obligatorio también
+                  para el archivo: el backend lo exige en `HijoSolicitud.grado`).
+                  Aparece cuando ya hay colegio designado: en "lista oficial", un
+                  aliado (`colegio`); en "No encontré mi colegio", un nombre escrito
+                  o elegido del directorio. Solo en "lista oficial" los grados con
+                  lista verificada del aliado (`colegio.grados`) van en azul suave;
+                  en la ruta de archivo no hay aliado, así que van todos neutros y el
+                  grado real lo confirma el PDF. */}
+              {((hijo.entrada === "lista_oficial" && colegio) ||
+                (hijo.entrada === "archivo" && hijo.colegioNombre)) && (
+                <div className={styles.gradoBloque}>
+                  <span className={styles.campoRotulo}>Grado</span>
+                  <div className={styles.gradoChips} role="radiogroup" aria-label="Elige el grado">
+                    {GRADOS_CANONICOS.map((g) => {
+                      const activo = hijo.grado === g;
+                      const oficial = hijo.entrada === "lista_oficial";
+                      // Un grado está "verificado" si el colegio aliado tiene lista
+                      // revisada para él (`colegio.grados`, ver catalogo.ts); solo
+                      // aplica en "lista oficial".
+                      const verificado = oficial && (colegio?.grados.includes(g) ?? false);
+                      const clase = activo
+                        ? styles.chipGradoActivo
+                        : verificado
+                          ? styles.chipGradoVerificado
+                          : "";
+                      return (
+                        <button
+                          key={g}
+                          type="button"
+                          role="radio"
+                          aria-checked={activo}
+                          // El color no es la única señal: el lector de pantalla y
+                          // el tooltip dicen si el grado tiene lista verificada.
+                          aria-label={
+                            oficial
+                              ? `${g}, ${verificado ? "con lista verificada" : "sin lista verificada"}`
+                              : g
+                          }
+                          title={
+                            oficial
+                              ? verificado
+                                ? "Tiene lista verificada del colegio"
+                                : "Sin lista verificada todavía"
+                              : undefined
+                          }
+                          className={`${styles.chipGrado} ${clase}`}
+                          onClick={() => cambiar(indice, { grado: g })}
+                        >
+                          {g}
+                        </button>
+                      );
+                    })}
                   </div>
-                );
-              })()}
+                </div>
+              )}
+
+              {/* Punto 3: grado elegido por "lista oficial" que el colegio aún no
+                  tiene verificado. En vez de bloquear, se invita a ADJUNTAR la
+                  lista de ese grado: el archivo viaja en el mismo `crearTrabajo`
+                  que la ruta de archivo (reusa `elegirArchivo`/`hijo.archivo`), sin
+                  endpoint nuevo. Contenedor propio (`zonaListaGrado`, azul suave)
+                  para que se distinga de la zona blanca de "No encontré mi colegio". */}
+              {colegio &&
+                hijo.entrada === "lista_oficial" &&
+                hijo.grado !== "" &&
+                !colegio.grados.includes(hijo.grado) && (
+                  <div className={styles.zonaListaGrado}>
+                    <span className={styles.campoRotulo}>Subir lista de grado ({hijo.grado})</span>
+                    <p className={styles.reglaArchivo}>
+                      Este grado todavía no tiene lista verificada del colegio.
+                      Adjunta tu lista y la revisamos para armar el kit.
+                    </p>
+                    <input
+                      id={`lista-grado-${hijo.referencia}`}
+                      type="file"
+                      className={styles.inputArchivo}
+                      accept={EXTENSIONES_ACEPTADAS.join(",")}
+                      onChange={(e) => {
+                        elegirArchivo(indice, e.target.files?.[0]);
+                        e.target.value = "";
+                      }}
+                    />
+                    <label htmlFor={`lista-grado-${hijo.referencia}`} className={styles.soltar}>
+                      <strong>Haz clic para elegir el archivo</strong>
+                      <span>PDF, JPG, PNG o WEBP · hasta 10 MB</span>
+                    </label>
+                    {hijo.archivo && (
+                      <p className={styles.archivoElegido}>
+                        {hijo.archivo.name} · {formatearTamano(hijo.archivo.size)}
+                      </p>
+                    )}
+                    {hijo.errorArchivo && (
+                      <p className={styles.errorCampo} role="alert">
+                        {hijo.errorArchivo}
+                      </p>
+                    )}
+                  </div>
+                )}
 
               {hijo.entrada === "archivo" && (
                 <div className={styles.zonaArchivo}>
@@ -739,9 +1049,13 @@ export default function FormularioEmpezar({
       </section>
 
       {/* --------------------------------------------------------- Contacto */}
+      {/* En "soy nuevo usuario" NO se pinta: el correo y el celular ya se
+          piden en Regístrate. En "autenticado" sí, porque la sesión trae el
+          correo pero no el celular, que hay que capturar aquí. */}
+      {modo !== "nuevo" && (
       <section className={styles.bloque} aria-labelledby={`${idBase}-contacto`}>
         <h2 id={`${idBase}-contacto`} className={styles.tituloBloque}>
-          <span className={styles.paso}>2</span> A dónde te avisamos
+          <span className={styles.paso}>{pasoContacto}</span> A dónde te avisamos
         </h2>
         <p className={styles.explicacion}>
           Armar el kit toma minutos, no segundos, porque una persona revisa cada
@@ -773,11 +1087,12 @@ export default function FormularioEmpezar({
           </label>
         </div>
       </section>
+      )}
 
       {/* ----------------------------------------------------- Preferencias */}
       <section className={styles.bloque} aria-labelledby={`${idBase}-preferencias`}>
         <h2 id={`${idBase}-preferencias`} className={styles.tituloBloque}>
-          <span className={styles.paso}>3</span> Cuál de los tres te marcamos
+          <span className={styles.paso}>{pasoPrioridad}</span> Cuál de los tres te marcamos
         </h2>
         <p className={styles.explicacion}>
           Los tres kits llevan la misma lista y la misma calidad. Lo único que cambia
@@ -826,10 +1141,14 @@ export default function FormularioEmpezar({
         </button>
         {!listo && (
           <p className={styles.faltante}>
-            Falta el colegio, el grado y cómo te avisamos.
+            {faltaArchivo
+              ? "Adjunta la lista de ese grado (o el archivo del colegio) para continuar."
+              : "Falta el colegio, el grado y cómo te avisamos."}
           </p>
         )}
       </div>
+        </>
+      )}
     </form>
   );
 }

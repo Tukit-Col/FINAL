@@ -1,4 +1,5 @@
 import { origenDeDatos } from "@tukit/contrato/servidor";
+import { sesionActual, matriculasDeLaSesion } from "@/lib/sesion";
 import FormularioEmpezar from "./FormularioEmpezar";
 
 export const dynamic = "force-dynamic";
@@ -19,12 +20,18 @@ export default async function Empezar() {
   // Los colegios y los personajes se leen en el servidor y viajan como prop: el
   // selector necesita la lista entera de colegios para filtrar grados, y la lista
   // de personajes surtidos completos para pintar solo lo que sí cumplimos.
-  const [colegios, personajes, canonicos] = await Promise.all([
+  // La sesion y las matriculas van juntas: si el acudiente ya entro (camino "ya
+  // tengo cuenta"), el formulario arranca precargado con colegio+grado de cada
+  // hijo. Sin sesion, `matriculasDeLaSesion()` devuelve [] y el formulario pide
+  // escoger camino. Nunca viaja dato del menor: solo colegio, grado y anio.
+  const [colegios, personajes, canonicos, sesion, matriculasIniciales] = await Promise.all([
     origenDeDatos().colegios(),
     origenDeDatos().personajes(),
     // Los (colegio, grado) con cache bendita: un hogar de un solo hijo verificado
     // que caiga en uno de estos toma la ruta rapida (aplicar_canonico, sin NSGA).
     origenDeDatos().gradosCanonicos(),
+    sesionActual(),
+    matriculasDeLaSesion(),
   ]);
 
   // Filtro de las cuatro anclas: solo las franquicias cuyo conjunto de conceptos
@@ -38,5 +45,13 @@ export default async function Empezar() {
     .sort((a, b) => b.productos - a.productos)
     .map((p) => p.nombre.toLowerCase());
 
-  return <FormularioEmpezar colegios={colegios} surtidos={surtidos} canonicos={canonicos} />;
+  return (
+    <FormularioEmpezar
+      colegios={colegios}
+      surtidos={surtidos}
+      canonicos={canonicos}
+      sesion={sesion ? { correo: sesion.correo } : null}
+      matriculasIniciales={matriculasIniciales}
+    />
+  );
 }
