@@ -168,7 +168,9 @@ class TestFijarProductoPorNivel:
         kits = (await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"]
         ahorrador = next(k for k in kits if k["perfil"] == "Ahorrador")
         total_antes = ahorrador["total"]
-        cuaderno = next(l for l in ahorrador["lineas"] if l["descripcion"].startswith("2 cuadernos"))
+        cuaderno = next(
+            linea for linea in ahorrador["lineas"] if linea["descripcion"].startswith("2 cuadernos")
+        )
         assert cuaderno["producto_elegido"]["sku"] == "TK-C001-ECO"
 
         # Al premium: 2 cuadernos a 12000 en vez de 4500.
@@ -179,7 +181,9 @@ class TestFijarProductoPorNivel:
 
         kits = (await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"]
         ahorrador = next(k for k in kits if k["perfil"] == "Ahorrador")
-        cuaderno = next(l for l in ahorrador["lineas"] if l["descripcion"].startswith("2 cuadernos"))
+        cuaderno = next(
+            linea for linea in ahorrador["lineas"] if linea["descripcion"].startswith("2 cuadernos")
+        )
         assert cuaderno["producto_elegido"]["sku"] == "TK-C001-PRE"
         assert cuaderno["subtotal_linea"] == 2 * 12000
         assert ahorrador["total"] == total_antes + 2 * (12000 - 4500)
@@ -440,7 +444,7 @@ class TestAplicarCanonico:
                 for e in await conexion.execute(select(trabajos.BANDEJA))
                 if e.tipo == "pedido_solicitado" and e.agregado_id == parent_id
             )
-        c001 = next(l for l in pedido.carga["lineas"] if l.get("concepto") == "C001")
+        c001 = next(linea for linea in pedido.carga["lineas"] if linea.get("concepto") == "C001")
         assert c001["producto_elegido"]["personaje"] == "cars"
         assert c001["producto_elegido"]["sku"] == "TK-C001-FAN"
 
@@ -480,7 +484,7 @@ class TestAplicarCanonico:
         assert len(vista["kits"]) == 1
         assert vista["kits"][0]["perfil"] == "Ahorrador"
         assert vista["kits"][0]["total"] == resultado["total"]
-        c001 = next(l for l in vista["kits"][0]["lineas"] if l.get("concepto") == "C001")
+        c001 = next(linea for linea in vista["kits"][0]["lineas"] if linea.get("concepto") == "C001")
         assert c001["producto_elegido"]["sku"] == "TK-C001-FAN"
 
     async def test_ordenar_arma_la_orden_server_to_server_sin_ids_de_base(self, motor):
@@ -505,7 +509,7 @@ class TestAplicarCanonico:
                 return 201, {"pago_id": "pago-1", "url_redireccion": "https://pasarela/xy"}
 
         def cuerpo_total(c):
-            return sum(l["precio_unitario"] * l["cantidad"] for l in c["lineas"])
+            return sum(linea["precio_unitario"] * linea["cantidad"] for linea in c["lineas"])
 
         comercio = ComercioFalso()
         resultado = await trabajos.ordenar(
@@ -517,8 +521,9 @@ class TestAplicarCanonico:
         assert resultado["pedido_id"] == "ped-1"
         # RPO cero: ni una linea lleva id canonico, solo sku.
         assert comercio.orden_enviada["lineas"]
-        assert all("producto_canonico_id" not in l for l in comercio.orden_enviada["lineas"])
-        assert all(l["sku"] and l["precio_unitario"] > 0 for l in comercio.orden_enviada["lineas"])
+        lineas_enviadas = comercio.orden_enviada["lineas"]
+        assert all("producto_canonico_id" not in linea for linea in lineas_enviadas)
+        assert all(linea["sku"] and linea["precio_unitario"] > 0 for linea in lineas_enviadas)
         assert comercio.orden_enviada["trabajo_id"] == str(parent_id)
 
     async def test_ordenar_reenvia_el_rechazo_de_negocio_de_comercio(self, motor):

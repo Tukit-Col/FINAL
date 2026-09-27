@@ -226,6 +226,21 @@ class ClienteIdentidad:
         except httpx.HTTPError:
             return None
 
+    async def usuario_del_token(self, token: str) -> str | None:
+        """Resuelve el Bearer a un usuario_id contra Identidad. `None` si no vale
+        o Identidad no responde: la subida degrada al flujo por contacto, no se
+        cae (mismo criterio que `registrar_contacto`)."""
+        try:
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.get(
+                    f"{self._base()}/v1/sesiones/actual",
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+                respuesta.raise_for_status()
+                return str(respuesta.json()["usuario_id"])
+        except (httpx.HTTPError, KeyError):
+            return None
+
     async def datos_directorio(self, dane: str) -> dict[str, Any] | None:
         """Los datos DUEB (direccion, contacto, sitio) del colegio con ese DANE,
         para pre-llenar el perfil del colegio nuevo. `None` si el DANE no esta en

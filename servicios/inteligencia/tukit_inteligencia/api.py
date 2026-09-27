@@ -523,6 +523,13 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
     if "multipart/form-data" not in tipo:
         raise ErrorDominio("multipart_invalido", "Sube las listas como multipart/form-data.", estado=422)
 
+    # Si el acudiente ya viene autenticado, su usuario_id sale de la sesion (lo
+    # resuelve Identidad; este servicio no tiene la clave HMAC) y ES la traza
+    # que baja al catalogo. Solo el flujo anonimo heredado registra por contacto.
+    autorizacion = peticion.headers.get("Authorization", "")
+    token = autorizacion[7:] if autorizacion.startswith("Bearer ") else None
+    usuario_id = await _identidad().usuario_del_token(token) if token else None
+
     partes = _partes_multipart(await peticion.body(), tipo)
     hijos_crudo = ""
     contacto_crudo = ""
@@ -630,9 +637,10 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
         percibidos.append((hijo, grado, pdf, percepcion))
 
     # El contacto se registra UNA vez para el hogar, no una por hijo. Su id es
-    # la unica traza que baja al catalogo.
-    contacto_referencia: str | None = None
-    if contacto and contacto.correo:
+    # la unica traza que baja al catalogo. Si ya hay sesion, el usuario_id de la
+    # sesion es esa traza y no se re-registra nada (refleja trabajos.crear:160).
+    contacto_referencia: str | None = usuario_id
+    if usuario_id is None and contacto and contacto.correo:
         contacto_referencia = await _identidad().registrar_contacto(contacto.correo, contacto.celular)
 
     # Se importa una version por (colegio, grado): dos hijos del mismo destino
@@ -920,7 +928,9 @@ async def fijar_producto(
             app.state.motor, trabajo_id, perfil, item_id, cuerpo.sku, catalogo=_catalogo()
         )
     except trabajos.TrabajoNoExiste as error:
-        raise ErrorDominio("linea_no_existe", "Ese trabajo no tiene esa linea en ese kit.", estado=404) from error
+        raise ErrorDominio(
+            "linea_no_existe", "Ese trabajo no tiene esa linea en ese kit.", estado=404
+        ) from error
 
 
 @app.get(
