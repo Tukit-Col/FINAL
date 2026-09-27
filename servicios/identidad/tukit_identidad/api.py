@@ -171,14 +171,25 @@ async def listar_colegios(
     tags=["colegios"],
     summary="Datos DUEB de un colegio del directorio, para pre-llenar el perfil del nuevo",
 )
-async def datos_directorio(dane: str) -> dict[str, Any]:
-    """El bloque del DUEB para un DANE: direccion, contacto, sitio. Lo consume la
-    subida para enriquecer `colegio_datos` de una lista de colegio nuevo, y la
-    cola lo muestra pre-llenado. 404 si el DANE no esta en el directorio (colegio
-    de otra ciudad o escrito a mano): quien llama degrada a solo nombre+dane."""
-    from .directorio_bogota import datos_colegio_nuevo_por_dane
+async def datos_directorio(
+    dane: str,
+    # Por defecto se devuelven SOLO los 7 campos del alta. La subida de listas
+    # (inteligencia) vuelca TODO lo que reciba de aqui en `colegio_datos`, que
+    # Catalogo persiste como JSON sin validar; si el default trajera sector,
+    # localidad, rector, telefonos y correos, se filtrarian a cada colegio nuevo.
+    # El admin pide la ficha completa a proposito con `?completo=true`.
+    completo: Annotated[bool, Query(description="Trae la ficha DUEB completa (admin)")] = False,
+) -> dict[str, Any]:
+    """El bloque del DUEB para un DANE. Por defecto, SOLO los 7 campos del alta
+    (direccion, contacto, sitio): es lo que la subida vuelca sin filtrar en
+    `colegio_datos`, asi que el default se mantiene minimo para no ensuciar cada
+    colegio nuevo. Con `?completo=true` agrega sector, localidad, rector y las
+    listas de telefonos/correos, para el detalle del colegio en el admin. 404 si
+    el DANE no esta en el directorio (colegio de otra ciudad o escrito a mano):
+    quien llama degrada a solo nombre+dane."""
+    from .directorio_bogota import datos_colegio_nuevo_por_dane, ficha_directorio_por_dane
 
-    datos = datos_colegio_nuevo_por_dane(dane)
+    datos = ficha_directorio_por_dane(dane) if completo else datos_colegio_nuevo_por_dane(dane)
     if datos is None:
         raise ErrorDominio(
             "dane_no_en_directorio", f"El DANE {dane} no esta en el directorio de Bogota.", estado=404
@@ -203,6 +214,7 @@ async def ver_colegio(colegio_id: uuid.UUID) -> dict[str, Any]:
     return {
         "colegio_id": str(fila.id),
         "nombre": fila.nombre,
+        "dane": fila.dane,
         "logo_url": fila.logo_url,
         "sitio_web": fila.sitio_web,
         "contacto_nombre": fila.contacto_nombre,
@@ -219,7 +231,13 @@ async def ver_colegio(colegio_id: uuid.UUID) -> dict[str, Any]:
 # puerta romperia esa referencia. Son datos de la INSTITUCION, no del menor: no
 # les toca el cifrado del Anexo M que si protege al estudiante en el mismo
 # modelo, por eso viajan y se guardan en claro.
+#
+# El `dane` SI es editable: aqui el `colegio_id` es un UUID que ya viene fijado
+# al crear el colegio (no se re-deriva del DANE en esta base), asi que escribir
+# el codigo DANE cuando falta —para poder leer su ficha del directorio— no mueve
+# ninguna referencia. Distinto del NIT, que sigue fijo.
 _CAMPOS_PERFIL = (
+    "dane",
     "logo_url",
     "sitio_web",
     "contacto_nombre",
@@ -246,6 +264,19 @@ async def editar_colegio(colegio_id: uuid.UUID, cuerpo: dict[str, Any]) -> dict[
                 "El nombre y el NIT son la identidad de la institucion y no se editan aqui.",
                 estado=400,
                 campo=campo,
+            )
+    # El DANE es la llave del directorio DUEB: o son 12 digitos exactos, o es
+    # `null` para vaciarlo. Cualquier otra cosa (menos digitos, letras, un numero)
+    # se rechaza antes de escribir, para no guardar una llave que nunca casara con
+    # el directorio.
+    if "dane" in cuerpo:
+        dane = cuerpo["dane"]
+        if dane is not None and not (isinstance(dane, str) and dane.isdigit() and len(dane) == 12):
+            raise ErrorDominio(
+                "dane_invalido",
+                "El codigo DANE debe tener exactamente 12 digitos, o null para vaciarlo.",
+                estado=400,
+                campo="dane",
             )
     valores = {c: cuerpo[c] for c in _CAMPOS_PERFIL if c in cuerpo}
 
