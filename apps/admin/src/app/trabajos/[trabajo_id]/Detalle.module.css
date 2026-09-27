@@ -229,3 +229,39 @@
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
 }
+
+/* Banner del preview de onboarding: no se publica, se enlaza al revisor. */
+.avisoPreview {
+  padding: var(--espacio-4);
+  background: var(--color-info-bg, var(--color-aviso-bg));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm), inset 0 0 0 1.5px var(--color-info-border, var(--color-aviso-border));
+}
+
+.avisoPreview h2 {
+  font-size: 14px;
+  color: var(--color-info, var(--color-aviso));
+}
+
+.avisoPreview p {
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+  margin: var(--espacio-2) 0;
+  max-width: 64ch;
+}
+
+.enlaceRevisor {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--espacio-2) var(--espacio-4);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.enlaceRevisor:hover {
+  filter: brightness(1.05);
+}
