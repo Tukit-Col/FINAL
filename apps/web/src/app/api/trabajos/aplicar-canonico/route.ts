@@ -3,7 +3,7 @@
 // Un (colegio, grado) ya publicado tiene 3 kits validados: en vez de subir un
 // PDF y entrar a la cola, el acudiente aplica su nivel + personaje y se le arma
 // el pedido al vuelo. Misma costura de siempre: el navegador no toca el backend,
-// el origen (real o simulado) se resuelve aqui.
+// el origen se resuelve aqui, en el servidor.
 
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { AplicarCanonico } from "@tukit/contrato";

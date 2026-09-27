@@ -1,8 +1,8 @@
 // El lado del navegador de las acciones del §7.
 //
 // Habla solo con los Route Handlers de esta misma app, nunca con el backend:
-// la URL del backend y la bandera `TUKIT_ORIGEN_DATOS` se quedan en el
-// servidor y el navegador no tiene que saber que existen.
+// la URL del backend se queda en el servidor y el navegador no tiene que saber
+// que existe.
 
 import type {
   AltaProducto,

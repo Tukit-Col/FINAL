@@ -69,6 +69,7 @@ import type {
   VersionListaAdmin,
 } from "./catalogo";
 import type { Pedido, TableroComercio } from "./comercio";
+import type { MetricasColegio, SerieMetricas } from "./metricas";
 import type { BandejaOperacion, Caso, CasoCreado, SolicitudCaso } from "./operacion";
 import {
   ErrorTukit,
@@ -128,7 +129,7 @@ export class ClienteApi implements OrigenDatos {
       throw new ErrorTukit(
         503,
         "backend_no_disponible",
-        `No pudimos hablar con el backend en ${this.urlBase}. Levantalo o pon TUKIT_ORIGEN_DATOS=simulado.`,
+        `No pudimos hablar con el backend en ${this.urlBase}. Levanta los servicios (make arriba) y revisa TUKIT_API_URL.`,
       );
     }
 
@@ -170,8 +171,8 @@ export class ClienteApi implements OrigenDatos {
   // El cliente NO habla con identidad directamente: pega al gateway
   // (`urlBase`), y el gateway rutea a identidad `/v1/sesiones*`, valida el
   // token y compara `version_permisos` (§1, edges C4 web→gateway→identidad).
-  // El error 503 de `pedir` ("levantalo o pon TUKIT_ORIGEN_DATOS=simulado")
-  // cubre el login cuando el backend esta caido, gratis.
+  // El error 503 de `pedir` ("levanta los servicios") cubre el login cuando el
+  // backend esta caido, gratis.
   async iniciarSesion(cred: Credenciales): Promise<{ sesion: Sesion; token: string }> {
     return this.pedir<{ sesion: Sesion; token: string }>("/v1/sesiones", {
       method: "POST",
@@ -392,9 +393,9 @@ export class ClienteApi implements OrigenDatos {
         return {
           colegio_id: c.colegio_id,
           nombre: c.nombre,
-          // El backend no lleva la trazabilidad `fuente`/`atribucion_dudosa` del
-          // simulado (era una senal del cargador de listas, no del dominio); se
-          // reportan neutros para no fingir un dato que no existe.
+          // El backend no lleva la trazabilidad `fuente`/`atribucion_dudosa`
+          // (es una senal del cargador de listas, no del dominio); se reportan
+          // neutros para no fingir un dato que no existe.
           fuente: "backend",
           atribucion_dudosa: false,
           // El logo lo sirve identidad; `null` cuando el colegio no cargo marca.
@@ -406,8 +407,7 @@ export class ClienteApi implements OrigenDatos {
   }
 
   // Trae la lista publicada de un (colegio, grado): primero la localiza en el
-  // indice `/v1/listas` y luego pide su detalle por id. Hoy no la consume
-  // ninguna pantalla, pero mantiene la paridad con el origen simulado.
+  // indice `/v1/listas` y luego pide su detalle por id.
   async listaOficial(colegioId: string, grado: string): Promise<ListaOficial> {
     const indice = await this.pedir<{
       listas: { lista_id: string; grado: string; anio_lectivo: number; version: number }[];
@@ -423,6 +423,7 @@ export class ClienteApi implements OrigenDatos {
       grado: string;
       anio_lectivo: number;
       version: number;
+      version_id: string;
       items: ListaOficial["items"];
     }>(`/v1/listas/${encodeURIComponent(encontrada.lista_id)}`);
     return {
@@ -430,6 +431,7 @@ export class ClienteApi implements OrigenDatos {
       grado: detalle.grado,
       anio_lectivo: detalle.anio_lectivo,
       version: detalle.version,
+      version_id: detalle.version_id,
       items: detalle.items ?? [],
     };
   }
@@ -1042,7 +1044,7 @@ export class ClienteApi implements OrigenDatos {
       throw new ErrorTukit(
         503,
         "backend_no_disponible",
-        `No pudimos hablar con el backend en ${this.urlBase}. Levantalo o pon TUKIT_ORIGEN_DATOS=simulado.`,
+        `No pudimos hablar con el backend en ${this.urlBase}. Levanta los servicios (make arriba) y revisa TUKIT_API_URL.`,
       );
     }
     if (respuesta.status === 404) {
@@ -1114,19 +1116,41 @@ export class ClienteApi implements OrigenDatos {
       body: JSON.stringify(solicitud),
     });
   }
+
+  // -------------------------------------------------------------- Metricas
+  // La medida en vivo de un colegio (Inteligencia) y la serie congelada por dia
+  // (Operacion). Ambas ya tienen forma de contrato en el backend, asi que se
+  // propagan tal cual; los filtros de la serie se traducen a query params.
+  metricasColegio(colegioId: string): Promise<MetricasColegio> {
+    return this.pedir<MetricasColegio>(
+      `/v1/metricas/colegios/${encodeURIComponent(colegioId)}`,
+    );
+  }
+
+  metricasSerie(filtros?: {
+    dimension?: "catalogo" | "colegio" | "global";
+    dimensionId?: string;
+    desde?: string;
+  }): Promise<SerieMetricas> {
+    const params = new URLSearchParams();
+    if (filtros?.dimension) params.set("dimension", filtros.dimension);
+    if (filtros?.dimensionId) params.set("dimension_id", filtros.dimensionId);
+    if (filtros?.desde) params.set("desde", filtros.desde);
+    const cola = params.toString();
+    return this.pedir<SerieMetricas>(`/v1/operacion/metricas${cola ? `?${cola}` : ""}`);
+  }
 }
 
 // --------------------------------------------------- Normalización de kits
 //
 // El producto de una línea de kit sale del backend más flaco que el
 // `ProductoKit` del contrato: trae un `precio` (o `precio_cop` en las
-// alternativas) plano y NO trae `ofertas[]` ni `confianza`. El origen simulado
-// sí los adjunta, porque los deriva del catálogo local. Para que las pantallas
-// (que confían en el contrato) funcionen igual contra los dos orígenes, se
-// rellena aquí la forma que falta, sin inventar datos: la oferta sintética
-// lleva el precio real y una tienda vacía, y la confianza cae a 1 —el backend
-// ya filtró por debajo de TAU o lo mandó a revisión—. Es el mismo trabajo de
-// costura que hace `colegios()`, en el mismo borde.
+// alternativas) plano y NO trae `ofertas[]` ni `confianza`. Para que las
+// pantallas (que confían en el contrato) funcionen, se rellena aquí la forma
+// que falta, sin inventar datos: la oferta sintética lleva el precio real y una
+// tienda vacía, y la confianza cae a 1 —el backend ya filtró por debajo de TAU
+// o lo mandó a revisión—. Es el mismo trabajo de costura que hace `colegios()`,
+// en el mismo borde.
 
 function normalizarProducto(p: unknown): ProductoKit | null {
   if (!p || typeof p !== "object") return null;
@@ -1140,8 +1164,8 @@ function normalizarProducto(p: unknown): ProductoKit | null {
         ? (crudo["precio_cop"] as number)
         : null;
 
-  // Si ya trae ofertas (origen simulado o una futura versión del backend), se
-  // respetan; si no, se sintetiza una con el precio plano.
+  // Si ya trae ofertas (una futura versión del backend), se respetan; si no, se
+  // sintetiza una con el precio plano.
   const ofertasCrudas = crudo["ofertas"];
   const ofertas = Array.isArray(ofertasCrudas)
     ? (ofertasCrudas as ProductoKit["ofertas"])

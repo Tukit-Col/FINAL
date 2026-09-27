@@ -2,10 +2,9 @@
 //
 // La mitad de servidor de la escritura de `operacion`. Igual que `/api/sesion`
 // y `/api/trabajos`: el navegador no habla con el backend, y este es el único
-// punto donde se decide si la petición va al backend real (`/v1/operacion/casos`
-// vía gateway) o al origen simulado. El acudiente no necesita sesión para abrir
-// un caso —igual que no la necesita para armar un kit—, así que no se exige
-// cookie aquí.
+// punto donde se habla con el backend real (`/v1/operacion/casos` vía gateway).
+// El acudiente no necesita sesión para abrir un caso —igual que no la necesita
+// para armar un kit—, así que no se exige cookie aquí.
 
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { SolicitudCaso } from "@tukit/contrato";

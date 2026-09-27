@@ -1,8 +1,7 @@
 // `POST /api/registro`: alta del acudiente y sus hijos (camino "soy nuevo").
 //
 // Mismo motivo que `/api/sesion` y `/api/trabajos`: el navegador no habla con
-// el backend. Aqui se decide si la peticion va al backend real
-// (gateway→identidad) o al origen simulado, segun `TUKIT_ORIGEN_DATOS`.
+// el backend. Aqui la peticion va al backend real (gateway→identidad).
 //
 // Tras un alta exitosa INICIA SESION y pone la cookie httpOnly igual que
 // `/api/sesion`, para que el padre quede logueado sin pasar por `/ingresar`. La

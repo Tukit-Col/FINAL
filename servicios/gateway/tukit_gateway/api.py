@@ -40,7 +40,7 @@ import os
 import httpx
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
-from tukit_comun.http import crear_app
+from tukit_comun.http import CABECERA_CORRELACION, crear_app, id_de_correlacion
 
 PUERTO_POR_OMISION = 8010
 
@@ -209,6 +209,15 @@ async def reenviar(ruta: str, peticion: Request) -> Response:
     base = _servicios()[nombre]
     cabeceras = {k: v for k, v in peticion.headers.items() if k.lower() not in CABECERAS_SALTADAS}
     cuerpo = await peticion.body()
+
+    # La puerta es el borde de entrada: aqui se acuña el id de correlacion. El
+    # middleware compartido ya leyo-o-acuñó uno para ESTA peticion; se estampa en
+    # las cabeceras salientes para que el servicio de atras —y los que el llame
+    # despues— compartan el mismo id. Reenvia el suyo httpx crudo (no
+    # `cliente_efimero`), asi que se pega a mano.
+    cid = id_de_correlacion()
+    if cid:
+        cabeceras[CABECERA_CORRELACION] = cid
 
     # Aqui va la validacion del token y la comparacion de `version_permisos`
     # cuando exista autenticacion. Es el unico punto por el que pasa todo el
