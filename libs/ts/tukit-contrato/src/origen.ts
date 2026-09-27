@@ -222,6 +222,9 @@ export interface OrigenDatos {
   // Los acudientes de un colegio con el estado de su trabajo más reciente. Solo
   // usuario_id + estado + fecha (Ley 1581, sin datos de menores).
   acudientesDeColegio(colegioId: string): Promise<AcudienteResumen[]>;
+  // Nombres de acudientes ADULTOS por id (PII, §Anexo M): exige el Bearer de la
+  // sesión del admin. Mapa id→nombre; un id sin nombre no aparece.
+  nombresDeUsuarios(ids: string[], token: string): Promise<Record<string, string>>;
   validarLinea(trabajoId: string, itemId: string, cuerpo: ValidarLinea): Promise<void>;
   // Fija el producto de UN kit (por-nivel): escribe LINEA, no RESOLUCION, y
   // recalcula el subtotal. A diferencia de `validarLinea` (que confirma el item

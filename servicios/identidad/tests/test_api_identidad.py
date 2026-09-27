@@ -274,6 +274,11 @@ class TestLaSuperficieDeMenoresNoEstaAbierta:
             # el registro publico de establecimientos: no toca menores ni
             # matriculas, no abre la superficie sensible.
             "/v1/directorio/{dane}",
+            # Nombres de acudientes ADULTOS por id, para el panel del back-office.
+            # Es PII PERSONAL (no menor): exige `usuario:leer:nombre` (solo admin
+            # y operador) y solo lee la tabla `usuario`, jamas `estudiante`. No
+            # abre la superficie sensible de menores.
+            "/v1/usuarios/nombres",
             # Autenticacion (seccion 12.4). Devuelven quien es el portador y sus
             # ROLES, nunca un estudiante ni un nombre de menor: la superficie
             # sensible sigue cerrada, es lo que fija la prueba de arriba.

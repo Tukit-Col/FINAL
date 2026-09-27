@@ -315,6 +315,11 @@
   background: var(--color-surface);
 }
 
+.nombreAcudiente {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
 .gradosAcudiente {
   font-size: 12px;
   font-weight: 600;

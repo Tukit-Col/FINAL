@@ -16,6 +16,7 @@ import type { AcudienteResumen, ColegioDetalle } from "@tukit/contrato";
 import { formatearPesos } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import PerfilColegio from "@/components/PerfilColegio";
+import { tokenDeSesion } from "@/lib/sesion";
 import styles from "../Colegios.module.css";
 
 export const dynamic = "force-dynamic";
@@ -58,6 +59,19 @@ export default async function PaginaColegio({ params }: Props) {
   const acudientes = await origenDeDatos()
     .acudientesDeColegio(colegioId)
     .catch(() => []);
+
+  // El nombre del acudiente adulto (PII, §Anexo M) exige el Bearer del admin y
+  // el permiso `usuario:leer:nombre`. Fail-soft: sin token o si identidad no
+  // responde, el panel cae al id corto que ya mostraba.
+  const token = await tokenDeSesion();
+  const nombres = token
+    ? await origenDeDatos()
+        .nombresDeUsuarios(
+          acudientes.map((a) => a.usuario_id),
+          token,
+        )
+        .catch(() => ({}) as Record<string, string>)
+    : ({} as Record<string, string>);
 
   return (
     <div className={styles.pagina}>
@@ -129,7 +143,11 @@ export default async function PaginaColegio({ params }: Props) {
               const prefs = resumenPreferencias(a.preferencias);
               return (
                 <li key={a.usuario_id}>
-                  <code>{a.usuario_id.slice(0, 8)}</code>
+                  {nombres[a.usuario_id] ? (
+                    <span className={styles.nombreAcudiente}>{nombres[a.usuario_id]}</span>
+                  ) : (
+                    <code>{a.usuario_id.slice(0, 8)}</code>
+                  )}
                   {a.grados.length > 0 ? (
                     <span className={styles.gradosAcudiente}>{a.grados.join(", ")}</span>
                   ) : null}
