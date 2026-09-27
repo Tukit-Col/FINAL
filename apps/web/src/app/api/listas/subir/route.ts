@@ -10,6 +10,7 @@
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { ArchivoLista, Contacto, HijoSubida, Preferencias } from "@tukit/contrato";
 import { respuestaDeError } from "@/lib/respuesta";
+import { tokenDeSesion } from "@/lib/sesion";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -63,7 +64,13 @@ export async function POST(peticion: Request): Promise<Response> {
   }
 
   try {
-    const resultado = await origenDeDatos().subirListas(hijos, archivos, contacto, preferencias);
+    const resultado = await origenDeDatos().subirListas(
+      hijos,
+      archivos,
+      contacto,
+      preferencias,
+      await tokenDeSesion(),
+    );
     return Response.json(resultado, { status: 202 });
   } catch (causa) {
     return respuestaDeError(causa);
