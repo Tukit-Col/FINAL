@@ -114,6 +114,22 @@ PERMISOS: list[dict[str, object]] = [
         "campo": None,
         "clasificacion_minima": Clasificacion.INTERNO.value,
     },
+    {
+        "codigo": "estudiante:leer:apodo",
+        "recurso": "estudiante",
+        "accion": "leer",
+        "campo": "apodo",
+        "clasificacion_minima": Clasificacion.MENOR.value,
+    },
+    {
+        "codigo": "usuario:leer:nombre",
+        "recurso": "usuario",
+        "accion": "leer",
+        "campo": "nombre",
+        # PERSONAL, no MENOR: es el nombre del acudiente adulto. La
+        # clasificacion mide sensibilidad del dato, no quien lo ve.
+        "clasificacion_minima": Clasificacion.PERSONAL.value,
+    },
 ]
 
 ROL_PERMISO: list[tuple[str, str]] = [
@@ -127,6 +143,9 @@ ROL_PERMISO: list[tuple[str, str]] = [
     ("admin", "linea:validar"),
     ("admin", "lista:publicar"),
     ("admin", "trabajo:leer"),
+    ("acudiente", "estudiante:leer:apodo"),
+    ("admin", "usuario:leer:nombre"),
+    ("operador", "usuario:leer:nombre"),
 ]
 
 
