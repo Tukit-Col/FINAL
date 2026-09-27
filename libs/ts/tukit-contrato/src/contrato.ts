@@ -421,6 +421,16 @@ export function validarArchivo(archivo: File): string | null {
 // `/revision`. Todo lo de abajo excepto `DecisionRevision` es INFERIDO a
 // partir de lo que cada requisito del SRS necesita para poder ejecutarse.
 
+// El panel de acudientes de un colegio: quién pidió kits y en qué va su
+// trabajo. Solo el identificador del acudiente y el estado —ni correo ni
+// apodos de menores (Ley 1581)—.
+export interface AcudienteResumen {
+  usuario_id: string;
+  estado: EstadoTrabajo;
+  actualizado_en: string;
+  trabajo_id: string;
+}
+
 // AD-01/AD-02/AD-03: la cola necesita, por trabajo, con que decidir a
 // cual entrar primero.
 export interface EntradaCola {

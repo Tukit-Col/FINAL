@@ -7,6 +7,7 @@
 
 import { GRADOS_CANONICOS } from "./contrato";
 import type {
+  AcudienteResumen,
   AltaProducto,
   AplicarCanonico,
   Checkout,
@@ -659,6 +660,12 @@ export class ClienteApi implements OrigenDatos {
       kits: crudo.kits.map(normalizarKit),
       lineas_pendientes: crudo.lineas_pendientes ?? [],
     };
+  }
+
+  acudientesDeColegio(colegioId: string): Promise<AcudienteResumen[]> {
+    return this.pedir<{ acudientes: AcudienteResumen[] }>(
+      `/v1/admin/colegios/${encodeURIComponent(colegioId)}/acudientes`,
+    ).then((r) => r.acudientes);
   }
 
   validarLinea(trabajoId: string, itemId: string, cuerpo: ValidarLinea): Promise<void> {

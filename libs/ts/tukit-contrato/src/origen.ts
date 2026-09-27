@@ -11,6 +11,7 @@
 // el cliente entero.
 
 import type {
+  AcudienteResumen,
   AltaProducto,
   AplicarCanonico,
   Checkout,
@@ -217,6 +218,9 @@ export interface OrigenDatos {
   // §7 — revision humana.
   cola(): Promise<ColaAdmin>;
   trabajoAdmin(trabajoId: string): Promise<TrabajoAdmin>;
+  // Los acudientes de un colegio con el estado de su trabajo más reciente. Solo
+  // usuario_id + estado + fecha (Ley 1581, sin datos de menores).
+  acudientesDeColegio(colegioId: string): Promise<AcudienteResumen[]>;
   validarLinea(trabajoId: string, itemId: string, cuerpo: ValidarLinea): Promise<void>;
   // Fija el producto de UN kit (por-nivel): escribe LINEA, no RESOLUCION, y
   // recalcula el subtotal. A diferencia de `validarLinea` (que confirma el item
