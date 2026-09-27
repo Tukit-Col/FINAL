@@ -1688,6 +1688,44 @@ async def acudientes_de_colegio(motor: Any, *, colegio_id: str) -> list[dict[str
     ]
 
 
+async def mis_trabajos(motor: Any, *, usuario_id: uuid.UUID) -> list[dict[str, Any]]:
+    """Los trabajos (solicitudes de kit) de UN acudiente, del mas nuevo al mas viejo.
+
+    Es la lectura del panel del acudiente: sus solicitudes de kit —lo que
+    `/empezar` crea—, que no son pedidos pagados (esos los sirve comercio) sino
+    trabajos del pipeline. Devuelve por cada uno el estado, los hijos (por
+    `referencia`/`colegio_id`/`grado`, jamas un nombre de menor) y las
+    preferencias del hogar descifradas, que son del titular y las pidio el.
+    """
+    cifrador = cifrador_desde_entorno()
+    consulta = (
+        select(
+            TRABAJO.c.id,
+            TRABAJO.c.estado,
+            TRABAJO.c.hijos,
+            TRABAJO.c.preferencias_cifradas,
+            TRABAJO.c.creado_en,
+        )
+        .where(TRABAJO.c.usuario_id == usuario_id)
+        .order_by(TRABAJO.c.creado_en.desc())
+    )
+    async with motor.engine.begin() as conexion:
+        filas = (await conexion.execute(consulta)).all()
+
+    return [
+        {
+            "trabajo_id": str(f.id),
+            "estado": f.estado,
+            "creado_en": f.creado_en.isoformat() if f.creado_en else None,
+            "hijos": list(f.hijos or ()),
+            "preferencias": cifrador.descifrar_json(f.preferencias_cifradas) or {}
+            if f.preferencias_cifradas
+            else {},
+        }
+        for f in filas
+    ]
+
+
 async def _anclas_de_personaje(
     catalogo: ClienteCatalogo, personaje: str | None
 ) -> dict[str, dict[str, Any]]:

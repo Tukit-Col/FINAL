@@ -1,13 +1,14 @@
 import Link from "next/link";
-import { Users, Package, PlusCircle } from "lucide-react";
+import { Users, Package, PlusCircle, ClipboardList } from "lucide-react";
 import styles from "./Sidebar.module.css";
 
-// Navegacion honesta de la cuenta. No hay identidad ni sesion real todavia,
-// asi que el sidebar solo apunta a lo que existe de verdad: las dos secciones
-// de esta misma pagina (ancla interna) y el flujo real de armado (/empezar).
-// Nada de /perfil, /pedidos, /logout u otras rutas que el backend aun no sirve.
+// Navegacion honesta de la cuenta: apunta solo a lo que existe de verdad —las
+// tres secciones de esta misma pagina (ancla interna), todas con lectura real
+// del backend— y el flujo de armado (/empezar). Nada de /perfil, /logout u
+// otras rutas que el backend aun no sirve.
 const navItems = [
   { id: "hijos", label: "Perfiles de hijos", href: "#hijos", icon: Users },
+  { id: "solicitudes", label: "Mis solicitudes", href: "#solicitudes", icon: ClipboardList },
   { id: "pedidos", label: "Mis pedidos", href: "#pedidos", icon: Package },
 ];
 
