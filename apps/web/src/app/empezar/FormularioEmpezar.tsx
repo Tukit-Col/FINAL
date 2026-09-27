@@ -361,6 +361,15 @@ export default function FormularioEmpezar({
   const [hijos, setHijos] = useState<HijoFormulario[]>([hijoVacio(1)]);
   const [correo, setCorreo] = useState("");
   const [celular, setCelular] = useState("");
+  // Paso 1 · la cuenta. El nombre es el del ADULTO (PERSONAL, no de menor). La
+  // clave crea cuentas reales desde el minuto uno; `yaTengoCuenta` alterna a
+  // iniciar sesion; `sesionLista` marca que el paso 1 quedo resuelto (la cookie
+  // ya la puso el Route Handler) y habilita armar el kit.
+  const [nombre, setNombre] = useState("");
+  const [clave, setClave] = useState("");
+  const [yaTengoCuenta, setYaTengoCuenta] = useState(false);
+  const [sesionLista, setSesionLista] = useState(false);
+  const [resolviendoCuenta, setResolviendoCuenta] = useState(false);
   const [prioridad, setPrioridad] = useState<ClavePrioridad>("equilibrio");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -392,10 +401,54 @@ export default function FormularioEmpezar({
     return Boolean(hijo.colegioNombre) && hijo.archivo !== null;
   }, []);
 
-  const listo =
+  // El paso 1 (cuenta) tiene su propio gate: sin resolverlo no se puede enviar
+  // el kit. Crear cuenta pide nombre + celular; iniciar sesion solo correo+clave.
+  const cuentaCompletable =
     correo.trim().length > 3 &&
-    celular.trim().length > 6 &&
-    hijos.every(hijoListo);
+    clave.trim().length >= 8 &&
+    (yaTengoCuenta || (nombre.trim().length > 0 && celular.trim().length > 6));
+
+  const listo = sesionLista && hijos.every(hijoListo);
+
+  // Resuelve el paso 1 contra el mismo backend que el login: crea la cuenta
+  // (POST /empezar/api/cuenta) o inicia sesion (POST /api/sesion). En ambos
+  // casos el Route Handler pone la cookie httpOnly; el formulario nunca ve el
+  // token, solo marca `sesionLista`. Un correo ya registrado empuja a login.
+  async function resolverCuenta() {
+    if (!cuentaCompletable || resolviendoCuenta) return;
+    setResolviendoCuenta(true);
+    setError(null);
+
+    const ruta = yaTengoCuenta ? "/api/sesion" : "/empezar/api/cuenta";
+    const cuerpo = yaTengoCuenta
+      ? { correo: correo.trim(), clave }
+      : { correo: correo.trim(), clave, nombre: nombre.trim(), celular: celular.trim() };
+
+    try {
+      const respuesta = await fetch(ruta, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cuerpo),
+      });
+      if (respuesta.ok) {
+        setSesionLista(true);
+        return;
+      }
+      const detalle = (await respuesta.json().catch(() => ({}))) as { error?: string; mensaje?: string };
+      if (detalle.error === "correo_ya_registrado") {
+        setYaTengoCuenta(true);
+        setError("Ese correo ya tiene cuenta — inicia sesión con tu clave.");
+      } else if (respuesta.status === 401) {
+        setError("Correo o clave incorrectos.");
+      } else {
+        setError(detalle.mensaje ?? "No pudimos con tu cuenta. Intenta de nuevo.");
+      }
+    } catch {
+      setError("No pudimos con tu cuenta. Revisa tu conexión e intenta de nuevo.");
+    } finally {
+      setResolviendoCuenta(false);
+    }
+  }
 
   async function enviar(evento: React.FormEvent) {
     evento.preventDefault();
@@ -416,7 +469,9 @@ export default function FormularioEmpezar({
     const elegida =
       PRIORIDADES.find((p) => p.clave === prioridad) ?? PRIORIDADES[1]!;
 
-    const contacto = { correo: correo.trim(), celular: celular.trim() };
+    // El kit ya no lleva contacto: viaja autenticado por la cookie de sesion
+    // (paso 1) y la tuberia resuelve el usuario_id del Bearer que reenvia el
+    // Route Handler. El destinatario del aviso es esa cuenta.
 
     // Las preferencias del paso 3 son del HOGAR: las mismas viajan por las dos
     // rutas. En la verificada las lee el recomendador ya; en la subida quedan
@@ -477,7 +532,6 @@ export default function FormularioEmpezar({
 
       if (hijosVerificados.length > 0) {
         const solicitud: SolicitudTrabajo = {
-          contacto,
           hijos: hijosVerificados.map<HijoSolicitud>((hijo) => ({
             referencia: hijo.referencia,
             colegio_id: hijo.colegioId,
@@ -507,7 +561,7 @@ export default function FormularioEmpezar({
             referencia: hijo.referencia,
             archivo: hijo.archivo as File,
           })),
-          contacto,
+          undefined,
           preferencias,
         );
         // Wait-screen wins: aunque haya un kit listo, el hogar va a la pantalla
@@ -545,10 +599,104 @@ export default function FormularioEmpezar({
         </p>
       </header>
 
+      {/* ----------------------------------------------------------- Cuenta */}
+      <section className={styles.bloque} aria-labelledby={`${idBase}-cuenta`}>
+        <h2 id={`${idBase}-cuenta`} className={styles.tituloBloque}>
+          <span className={styles.paso}>1</span> Tu cuenta
+        </h2>
+        <p className={styles.explicacion}>
+          Creas tu cuenta primero. Así guardamos tus kits y te escribimos cuando
+          estén listos — armar el kit toma minutos, no segundos, porque una persona
+          revisa cada lista para que la calidad no falle.
+        </p>
+        {sesionLista ? (
+          <p className={styles.explicacion} role="status">
+            <Check size={16} aria-hidden /> Cuenta lista. Sigue con las listas de tus hijos.
+          </p>
+        ) : (
+          <>
+            <div className={styles.dosColumnas}>
+              <label className={styles.campo}>
+                <span>Correo</span>
+                <input
+                  type="email"
+                  value={correo}
+                  onChange={(e) => setCorreo(e.target.value)}
+                  placeholder="tucorreo@ejemplo.com"
+                  autoComplete="email"
+                  required
+                />
+              </label>
+              {!yaTengoCuenta && (
+                <label className={styles.campo}>
+                  <span>Tu nombre</span>
+                  <input
+                    type="text"
+                    value={nombre}
+                    onChange={(e) => setNombre(e.target.value)}
+                    placeholder="Cómo te llamas"
+                    autoComplete="name"
+                    required
+                  />
+                </label>
+              )}
+            </div>
+            <div className={styles.dosColumnas}>
+              {!yaTengoCuenta && (
+                <label className={styles.campo}>
+                  <span>Celular</span>
+                  <input
+                    type="tel"
+                    value={celular}
+                    onChange={(e) => setCelular(e.target.value)}
+                    placeholder="+57 300 123 4567"
+                    autoComplete="tel"
+                    required
+                  />
+                </label>
+              )}
+              <label className={styles.campo}>
+                <span>Clave</span>
+                <input
+                  type="password"
+                  value={clave}
+                  onChange={(e) => setClave(e.target.value)}
+                  placeholder="Al menos 8 caracteres"
+                  autoComplete={yaTengoCuenta ? "current-password" : "new-password"}
+                  minLength={8}
+                  required
+                />
+              </label>
+            </div>
+            <div className={styles.barraAccion}>
+              <button
+                type="button"
+                className={styles.enviar}
+                onClick={() => void resolverCuenta()}
+                disabled={!cuentaCompletable || resolviendoCuenta}
+              >
+                {resolviendoCuenta
+                  ? "Un momento…"
+                  : yaTengoCuenta
+                    ? "Iniciar sesión"
+                    : "Crear mi cuenta"}
+              </button>
+              <button
+                type="button"
+                className={styles.agregar}
+                onClick={() => setYaTengoCuenta((v) => !v)}
+              >
+                {yaTengoCuenta ? "Quiero crear una cuenta" : "Ya tengo cuenta"}
+              </button>
+            </div>
+          </>
+        )}
+      </section>
+
       {/* ------------------------------------------------------------ Hijos */}
       <section className={styles.bloque} aria-labelledby={`${idBase}-hijos`}>
         <h2 id={`${idBase}-hijos`} className={styles.tituloBloque}>
-          <span className={styles.paso}>1</span> De quién es la lista
+          <span className={styles.paso}>2</span> De quién es la lista
         </h2>
 
         {hijos.map((hijo, indice) => {
@@ -738,42 +886,6 @@ export default function FormularioEmpezar({
         )}
       </section>
 
-      {/* --------------------------------------------------------- Contacto */}
-      <section className={styles.bloque} aria-labelledby={`${idBase}-contacto`}>
-        <h2 id={`${idBase}-contacto`} className={styles.tituloBloque}>
-          <span className={styles.paso}>2</span> A dónde te avisamos
-        </h2>
-        <p className={styles.explicacion}>
-          Armar el kit toma minutos, no segundos, porque una persona revisa cada
-          lista para que la calidad no falle. No tienes que quedarte mirando la
-          pantalla: te escribimos cuando esté listo.
-        </p>
-        <div className={styles.dosColumnas}>
-          <label className={styles.campo}>
-            <span>Correo</span>
-            <input
-              type="email"
-              value={correo}
-              onChange={(e) => setCorreo(e.target.value)}
-              placeholder="tucorreo@ejemplo.com"
-              autoComplete="email"
-              required
-            />
-          </label>
-          <label className={styles.campo}>
-            <span>Celular</span>
-            <input
-              type="tel"
-              value={celular}
-              onChange={(e) => setCelular(e.target.value)}
-              placeholder="+57 300 123 4567"
-              autoComplete="tel"
-              required
-            />
-          </label>
-        </div>
-      </section>
-
       {/* ----------------------------------------------------- Preferencias */}
       <section className={styles.bloque} aria-labelledby={`${idBase}-preferencias`}>
         <h2 id={`${idBase}-preferencias`} className={styles.tituloBloque}>
@@ -826,7 +938,9 @@ export default function FormularioEmpezar({
         </button>
         {!listo && (
           <p className={styles.faltante}>
-            Falta el colegio, el grado y cómo te avisamos.
+            {sesionLista
+              ? "Falta el colegio y el grado de cada hijo."
+              : "Primero crea tu cuenta o inicia sesión (paso 1)."}
           </p>
         )}
       </div>

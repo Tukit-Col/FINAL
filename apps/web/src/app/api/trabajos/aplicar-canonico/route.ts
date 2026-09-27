@@ -8,6 +8,7 @@
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { AplicarCanonico } from "@tukit/contrato";
 import { respuestaDeError } from "@/lib/respuesta";
+import { tokenDeSesion } from "@/lib/sesion";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export async function POST(peticion: Request): Promise<Response> {
   }
 
   try {
-    const aplicado = await origenDeDatos().aplicarCanonico(cuerpo);
+    const aplicado = await origenDeDatos().aplicarCanonico(cuerpo, await tokenDeSesion());
     return Response.json(aplicado, { status: 201 });
   } catch (causa) {
     return respuestaDeError(causa);

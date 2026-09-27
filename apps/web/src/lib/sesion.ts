@@ -16,6 +16,14 @@ import { origenDeDatos, type Sesion } from "@tukit/contrato/servidor";
 
 export const COOKIE_SESION = "tukit_sesion";
 
+/** El token crudo de la cookie, o `undefined` si el visitante es anonimo. Lo
+ *  reenvian los Route Handlers como Bearer para que el pipeline atribuya el
+ *  trabajo a la sesion (y el kit no quede huerfano); no valida contra el
+ *  backend —eso lo hace el gateway al recibir el Bearer—. */
+export async function tokenDeSesion(): Promise<string | undefined> {
+  return (await cookies()).get(COOKIE_SESION)?.value;
+}
+
 /** La sesion actual, o `null` si no hay cookie o el token ya no vale. */
 export async function sesionActual(): Promise<Sesion | null> {
   const token = (await cookies()).get(COOKIE_SESION)?.value;
