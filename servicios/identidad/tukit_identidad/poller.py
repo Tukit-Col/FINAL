@@ -60,6 +60,22 @@ _TIPO = "colegio_verificado"
 _SEDE_PRINCIPAL = "Sede principal"
 
 
+def _dane_de_carga(carga: dict[str, Any]) -> str | None:
+    """El codigo DANE que trae el evento, o `None`.
+
+    HALLAZGO para MapaRuiz: el evento `colegio_verificado` NO trae una clave
+    `dane`; el emisor de Catalogo pliega el DANE dentro de `nit`
+    (`"nit": datos.get("dane") or datos.get("nit")`). Lo ideal seria que emitiera
+    un `dane` aparte. Mientras tanto, y sin tocar el emisor, se rescata de `nit`
+    SOLO cuando tiene la forma del DANE del DUEB (12 digitos exactos): asi un NIT
+    tributario que no es DANE no ensucia la columna nueva. `nit` se sigue
+    guardando igual que hoy, reciba o no el DANE."""
+    valor = carga.get("dane") or carga.get("nit")
+    if isinstance(valor, str) and valor.isdigit() and len(valor) == 12:
+        return valor
+    return None
+
+
 def _bandeja_reflejada() -> Table:
     """La bandeja del Catalogo, descrita con solo las columnas que se leen.
 
@@ -149,6 +165,7 @@ class Poller:
                         id=colegio_id,
                         nombre=nombre,
                         nit=carga.get("nit"),
+                        dane=_dane_de_carga(carga),
                         logo_url=carga.get("logo_url"),
                         sitio_web=carga.get("sitio_web"),
                         contacto_nombre=carga.get("contacto_nombre"),
@@ -176,6 +193,11 @@ class Poller:
                     valor = carga.get(campo)
                     if valor and getattr(existente, campo) is None:
                         setattr(existente, campo, valor)
+                # El `dane` no viaja como clave propia (se rescata de `nit`), asi
+                # que va aparte del bucle, con la misma regla de solo-si-vacio.
+                dane = _dane_de_carga(carga)
+                if dane and existente.dane is None:
+                    existente.dane = dane
         return True
 
     async def _marcar_publicado(self, conexion: Any, bandeja: Table, id_fila: int) -> None:

@@ -48,6 +48,7 @@ import type {
   ColegioNuevoEditable,
   ConceptoCatalogo,
   DatosColegioNuevo,
+  DirectorioColegio,
   FiltrosListasAdmin,
   FiltrosProductos,
   ItemListaEditable,
@@ -943,6 +944,23 @@ export class ClienteApi implements OrigenDatos {
     }
   }
 
+  async directorioCompleto(dane: string): Promise<DirectorioColegio | null> {
+    // Mismo endpoint que `directorioColegio`, pero OPTA a la ficha COMPLETA con
+    // `?completo=true` (sector, localidad, rector y las listas de telefonos/
+    // correos) que el detalle del colegio en el admin pinta. El default del
+    // endpoint es la forma reducida de 7 campos, a proposito: la subida de
+    // listas vuelca esa respuesta sin filtrar, asi que los campos extra solo
+    // salen cuando alguien los pide explicitamente. Mismo 404 -> null.
+    try {
+      return await this.pedir<DirectorioColegio>(
+        `/v1/directorio/${encodeURIComponent(dane)}?completo=true`,
+      );
+    } catch (causa) {
+      if (causa instanceof ErrorTukit && causa.estado === 404) return null;
+      throw causa;
+    }
+  }
+
   // ------------------------------------------ §Admin — identidad del colegio (P4)
   //
   // El detalle vive en identidad (`/v1/colegios/{id}`) y el PATCH lo sirve el
@@ -995,6 +1013,7 @@ export class ClienteApi implements OrigenDatos {
     return {
       colegio_id: c.colegio_id,
       nombre: c.nombre,
+      dane: c.dane ?? null,
       logo_url: c.logo_url ?? null,
       sitio_web: c.sitio_web ?? null,
       contacto_nombre: c.contacto_nombre ?? null,
@@ -1348,6 +1367,7 @@ interface RevisionCruda {
 interface ColegioDetalleCrudo {
   colegio_id: string;
   nombre: string;
+  dane?: string | null;
   logo_url?: string | null;
   sitio_web?: string | null;
   contacto_nombre?: string | null;

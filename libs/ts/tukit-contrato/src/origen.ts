@@ -47,6 +47,7 @@ import type {
   ColegioEditable,
   ColegioNuevoEditable,
   DatosColegioNuevo,
+  DirectorioColegio,
   FiltrosListasAdmin,
   FiltrosProductos,
   ItemListaEditable,
@@ -329,6 +330,11 @@ export interface OrigenDatos {
   // el directorio (colegio de otra ciudad o escrito a mano): quien llama degrada
   // a solo nombre+dane.
   directorioColegio(dane: string): Promise<DatosColegioNuevo | null>;
+
+  // La ficha COMPLETA del directorio DUEB (mismo `GET /v1/directorio/{dane}`),
+  // con sector, localidad, rector y las listas de telefonos/correos, para el
+  // detalle del colegio en el admin. `null` con el mismo 404 que el anterior.
+  directorioCompleto(dane: string): Promise<DirectorioColegio | null>;
 
   // El detalle de un colegio y la edicion de su identidad. `colegio` lee
   // `GET /v1/colegios/{id}`; `editarColegio` manda el `PATCH /v1/colegios/{id}`

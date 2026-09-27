@@ -47,6 +47,12 @@ class Colegio(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     nombre: Mapped[str] = mapped_column(String(256), nullable=False)
     nit: Mapped[str | None] = mapped_column(String(32), nullable=True, unique=True)
+    # El codigo DANE del DUEB, distinto del NIT tributario. Es la llave natural
+    # de la que Catalogo deriva el `colegio_id`, pero hasta ahora vivia plegado
+    # dentro de `nit`; se separa aqui para poder leer el directorio oficial y
+    # mostrar su ficha. Nulable (los colegios sembrados nacen sin el) y NO unico:
+    # varios colegios sin DANE conviven sin chocar.
+    dane: Mapped[str | None] = mapped_column(String(12), nullable=True)
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # El perfil institucional que el padre reconoce en la tarjeta de partner y
     # que el administrador completa. Son datos de la INSTITUCION, no del menor:

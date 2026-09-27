@@ -55,6 +55,34 @@ async def cliente():
     await engine.dispose()
 
 
+class TestElDirectorioNoFiltraDeMas:
+    """`GET /v1/directorio/{dane}` sirve dos formas en la MISMA ruta. Por defecto
+    solo los 7 campos del alta: es lo que la subida de listas vuelca sin filtrar
+    en `colegio_datos`, asi que un campo de mas se filtraria a cada colegio nuevo.
+    La ficha completa (sector, localidad, rector, telefonos, correos) solo sale
+    con `?completo=true`, para el detalle del colegio en el admin. Se usa un DANE
+    real del directorio (no uno inventado) para no acoplar la prueba a un codigo."""
+
+    async def test_por_defecto_solo_devuelve_los_campos_del_alta(self, cliente):
+        from tukit_identidad.directorio_bogota import (
+            _indice_por_dane,
+            datos_colegio_nuevo_por_dane,
+        )
+
+        dane = next(iter(_indice_por_dane()))
+        cuerpo = (await cliente.get(f"/v1/directorio/{dane}")).json()
+        # Igualdad exacta: ni una clave de mas. Esto protege el flujo de subida
+        # (MapaRuiz) de que se filtren datos del directorio a `colegio_datos`.
+        assert set(cuerpo) == set(datos_colegio_nuevo_por_dane(dane))
+
+    async def test_completo_agrega_el_superconjunto_del_admin(self, cliente):
+        from tukit_identidad.directorio_bogota import _indice_por_dane
+
+        dane = next(iter(_indice_por_dane()))
+        cuerpo = (await cliente.get(f"/v1/directorio/{dane}?completo=true")).json()
+        assert {"sector", "localidad", "rector", "telefonos", "correos"} <= set(cuerpo)
+
+
 class TestElAcudienteEscogeColegioYGrado:
     async def test_los_colegios_traen_su_numero_de_sedes(self, cliente):
         cuerpo = (await cliente.get("/v1/colegios")).json()
@@ -156,6 +184,7 @@ class TestEditarElPerfilDelColegio:
         assert set(cuerpo.keys()) == {
             "colegio_id",
             "nombre",
+            "dane",
             "logo_url",
             "sitio_web",
             "contacto_nombre",
@@ -178,6 +207,36 @@ class TestEditarElPerfilDelColegio:
         assert respuesta.status_code == 400
         assert respuesta.json()["error"] == "campo_no_editable"
         assert respuesta.json()["campo"] == campo
+
+    async def test_el_dane_si_se_puede_completar(self, cliente):
+        """A diferencia del NIT, el DANE si se edita: aqui el id ya esta fijado y
+        no se re-deriva del DANE, asi que completarlo cuando falta es seguro y es
+        lo que habilita leer la ficha del directorio."""
+        cid = str(derivar("colegio", "2.4"))
+        cuerpo = (await cliente.patch(f"/v1/colegios/{cid}", json={"dane": "311001105731"})).json()
+        assert cuerpo["dane"] == "311001105731"
+        despues = (await cliente.get(f"/v1/colegios/{cid}")).json()
+        assert despues["dane"] == "311001105731"
+
+    @pytest.mark.parametrize("dane", ["311001093", "311001105731a", "abcdefghijkl", "3110 0110573"])
+    async def test_un_dane_que_no_son_12_digitos_es_400(self, cliente, dane):
+        """El DANE es la llave del directorio DUEB: si no son 12 digitos exactos se
+        rechaza antes de escribir, con el mismo formato de error 400 del endpoint."""
+        cid = str(derivar("colegio", "2.4"))
+        respuesta = await cliente.patch(f"/v1/colegios/{cid}", json={"dane": dane})
+        assert respuesta.status_code == 400
+        assert respuesta.json()["error"] == "dane_invalido"
+        assert respuesta.json()["campo"] == "dane"
+
+    async def test_el_dane_se_puede_vaciar_con_null(self, cliente):
+        """`null` vacia el DANE (p. ej. si se cargo uno equivocado): es valido y
+        deja el colegio sin ficha de directorio, sin romper."""
+        cid = str(derivar("colegio", "2.4"))
+        await cliente.patch(f"/v1/colegios/{cid}", json={"dane": "311001105731"})
+        cuerpo = (await cliente.patch(f"/v1/colegios/{cid}", json={"dane": None})).json()
+        assert cuerpo["dane"] is None
+        despues = (await cliente.get(f"/v1/colegios/{cid}")).json()
+        assert despues["dane"] is None
 
 
 class TestElContactoSeVuelveUnIdentificador:
