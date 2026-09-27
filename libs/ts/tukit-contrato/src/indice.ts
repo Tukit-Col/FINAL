@@ -24,4 +24,6 @@ export {
   type Credenciales,
   type MatriculaAcudiente,
   type RegistroAcudiente,
+  type AcudienteAdmin,
+  type HijoAcudiente,
 } from "./origen";

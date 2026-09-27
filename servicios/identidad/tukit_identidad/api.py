@@ -50,7 +50,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, insert, or_, select, update
 from tukit_comun.bd import crear_motor
 from tukit_comun.cifrado import cifrador_desde_entorno
-from tukit_comun.http import ErrorDominio, crear_app
+from tukit_comun.http import ErrorDominio, crear_app, iso as _iso
 from tukit_comun.identificadores import derivar
 
 from .modelos import Base
@@ -77,6 +77,16 @@ ACUDIENTE_MATRICULA = Base.metadata.tables["acudiente_matricula"]
 # `POST /v1/registro` ascender ese contacto a cuenta sin pisar una credencial de
 # verdad.
 _CLAVE_CENTINELA = "sin-credencial"
+
+# Los roles que PUEDEN llamar al padron de acudientes: el equipo interno de
+# Tukit, que se siembra a ambito global. Es la puerta 403.
+_ROLES_STAFF = ("admin", "operador")
+
+# Los roles INTERNOS cuyo portador NO es acudiente y por tanto queda FUERA del
+# padron. Superset de _ROLES_STAFF: suma los del colegio. La exclusion es por
+# ROL vigente, no por ausencia de hijos: un interno con un hijo matriculado
+# sigue siendo interno y no aparece en el padron.
+_ROLES_INTERNOS = ("admin", "operador", "colegio_admin", "colegio_docente")
 
 # Los quince grados del corpus, en el orden en que un colegio los nombra. Va
 # como constante y no como consulta porque no es un dato del sistema sino del
@@ -915,6 +925,143 @@ async def archivar_direccion(
         if resultado.rowcount == 0:
             raise ErrorDominio("direccion_no_existe", "No hay ninguna direccion tuya con ese id.", estado=404)
     return None
+
+
+# ------------------------------------------------------------------ admin
+#
+# La primera puerta que expone dato de menor (el apodo) por la superficie
+# publica, y por eso la mas vigilada. Se abre SOLO al equipo interno
+# (admin/operador) y devuelve unicamente a las familias registradas (credencial
+# real, sin rol interno). Nunca clave_hash, documento, fecha de nacimiento ni
+# nombre legal: el modelo ni siquiera los selecciona.
+
+
+@app.get(
+    "/v1/admin/acudientes",
+    tags=["admin"],
+    summary="Padron de acudientes registrados y sus hijos. Solo equipo interno.",
+)
+async def listar_acudientes(
+    authorization: Annotated[str | None, Header()] = None,
+    ids: Annotated[str | None, Query(description="UUIDs separados por coma para acotar")] = None,
+) -> dict[str, Any]:
+    ahora = datetime.now(UTC)
+    async with app.state.motor.engine.begin() as conexion:
+        # 1) Puerta: token valido (401 si no) ...
+        solicitante = await _usuario_del_token(authorization, conexion)
+        # 2) ... y rol de staff VIGENTE (403 si no). Mismo predicado de vigencia
+        #    que _armar_sesion. No se filtra ambito: admin/operador solo se
+        #    siembran a ambito global y el codigo de rol ya los singulariza.
+        es_staff = await conexion.scalar(
+            select(ASIGNACION_ROL.c.id)
+            .where(
+                ASIGNACION_ROL.c.usuario_id == solicitante.id,
+                ASIGNACION_ROL.c.rol_codigo.in_(_ROLES_STAFF),
+                ASIGNACION_ROL.c.vigente_desde <= ahora,
+                or_(ASIGNACION_ROL.c.vigente_hasta.is_(None), ASIGNACION_ROL.c.vigente_hasta > ahora),
+            )
+            .limit(1)
+        )
+        if es_staff is None:
+            raise ErrorDominio(
+                "acceso_denegado",
+                "Esta vista es solo para el equipo interno de Tukit.",
+                estado=403,
+            )
+
+        # ids -> lista de UUID, ya PASADA la puerta: un id mal formado responde
+        # 400, pero solo a quien ya autentico y tiene rol. Antes del gate, un
+        # `?ids=nope` sin token debe seguir siendo 401 (no revelar la forma del
+        # endpoint). Se acota luego SOBRE el filtro de poblacion; nunca lo relaja.
+        ids_filtrados: list[uuid.UUID] | None = None
+        if ids is not None:
+            crudos = [p.strip() for p in ids.split(",") if p.strip()]
+            try:
+                ids_filtrados = [uuid.UUID(p) for p in crudos]
+            except ValueError:
+                raise ErrorDominio(
+                    "ids_invalido", "El parametro ids trae un UUID mal formado.", estado=400, campo="ids"
+                )
+
+        # 3) La poblacion: credencial REAL, activo, y SIN ningun rol interno
+        #    vigente (NOT EXISTS correlado, mismo predicado de vigencia).
+        sin_rol_interno = ~(
+            select(ASIGNACION_ROL.c.id)
+            .where(
+                ASIGNACION_ROL.c.usuario_id == USUARIO.c.id,
+                ASIGNACION_ROL.c.rol_codigo.in_(_ROLES_INTERNOS),
+                ASIGNACION_ROL.c.vigente_desde <= ahora,
+                or_(ASIGNACION_ROL.c.vigente_hasta.is_(None), ASIGNACION_ROL.c.vigente_hasta > ahora),
+            )
+            .exists()
+        )
+        consulta = (
+            select(USUARIO.c.id, USUARIO.c.correo, USUARIO.c.celular, USUARIO.c.creado_en)
+            .where(
+                USUARIO.c.clave_hash != _CLAVE_CENTINELA,
+                USUARIO.c.activo.is_(True),
+                sin_rol_interno,
+            )
+            .order_by(USUARIO.c.creado_en.desc())
+        )
+        # El acote por ids va SOBRE el filtro (AND), nunca lo abre: el id de un
+        # usuario interno sigue excluido por el NOT EXISTS de arriba.
+        if ids_filtrados is not None:
+            consulta = consulta.where(USUARIO.c.id.in_(ids_filtrados))
+
+        usuarios = list(await conexion.execute(consulta))
+
+        # 4) Los hijos en UNA consulta acotada a esos usuarios; se agrupan en
+        #    Python. Vinculo vigente + matricula activa, igual que
+        #    listar_matriculas. colegio_id esta desnormalizado en matricula:
+        #    join directo a colegio.nombre.
+        hijos_por_usuario: dict[uuid.UUID, list[dict[str, Any]]] = {}
+        if usuarios:
+            cifrador = cifrador_desde_entorno()
+            filas_hijos = await conexion.execute(
+                select(
+                    ACUDIENTE_MATRICULA.c.usuario_id,
+                    ESTUDIANTE.c.nombre_cifrado,
+                    MATRICULA.c.colegio_id,
+                    MATRICULA.c.grado,
+                    COLEGIO.c.nombre,
+                )
+                .select_from(
+                    ACUDIENTE_MATRICULA.join(
+                        MATRICULA, ACUDIENTE_MATRICULA.c.matricula_id == MATRICULA.c.id
+                    )
+                    .join(ESTUDIANTE, MATRICULA.c.estudiante_id == ESTUDIANTE.c.id)
+                    .join(COLEGIO, MATRICULA.c.colegio_id == COLEGIO.c.id)
+                )
+                .where(
+                    ACUDIENTE_MATRICULA.c.usuario_id.in_([u.id for u in usuarios]),
+                    ACUDIENTE_MATRICULA.c.vigente_hasta.is_(None),
+                    MATRICULA.c.estado == "activa",
+                )
+                .order_by(ACUDIENTE_MATRICULA.c.usuario_id, MATRICULA.c.grado)
+            )
+            for h in filas_hijos:
+                apodo = cifrador.descifrar(h.nombre_cifrado).decode("utf-8", errors="replace")
+                hijos_por_usuario.setdefault(h.usuario_id, []).append(
+                    {
+                        "apodo": apodo or None,
+                        "colegio_id": str(h.colegio_id),
+                        "colegio_nombre": h.nombre,
+                        "grado": h.grado,
+                    }
+                )
+
+    acudientes = [
+        {
+            "usuario_id": str(u.id),
+            "correo": u.correo,
+            "celular": u.celular,
+            "creado_en": _iso(u.creado_en),
+            "hijos": hijos_por_usuario.get(u.id, []),
+        }
+        for u in usuarios
+    ]
+    return {"total": len(acudientes), "acudientes": acudientes}
 
 
 def _token_del_encabezado(authorization: str | None) -> str | None:
