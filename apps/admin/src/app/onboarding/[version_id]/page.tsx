@@ -96,8 +96,8 @@ export default async function PaginaRevisionLista({ params }: Props) {
       <header className={styles.encabezado}>
         <div>
           <h1>
-            Revisión de {revision.grado} ·{" "}
-            {revision.colegio_datos?.nombre ?? <code>{revision.colegio_id}</code>}
+            Revisión de {revision.colegio_datos?.nombre ?? "Colegio por identificar"} ·{" "}
+            {revision.grado}
           </h1>
           <p className={styles.bajada}>
             Versión <span className="cifra">{revision.numero}</span> · año{" "}
