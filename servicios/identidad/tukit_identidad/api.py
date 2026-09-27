@@ -152,7 +152,7 @@ async def datos_directorio(dane: str) -> dict[str, Any]:
     subida para enriquecer `colegio_datos` de una lista de colegio nuevo, y la
     cola lo muestra pre-llenado. 404 si el DANE no esta en el directorio (colegio
     de otra ciudad o escrito a mano): quien llama degrada a solo nombre+dane."""
-    from .directorio_bogota import datos_colegio_nuevo_por_dane
+    from .dominio.directorio import datos_colegio_nuevo_por_dane
 
     datos = datos_colegio_nuevo_por_dane(dane)
     if datos is None:
