@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from typing import Any
 
 from tukit_comun import derivar
 
@@ -61,6 +62,12 @@ class ColegioDirectorio:
     email: str | None = None
     sitio_web: str | None = None
     rector: str | None = None
+    # El DUEB trae varios telefonos/correos separados por `--`. `telefono`/`email`
+    # guardan el PRIMERO (el principal, lo que el alta pre-llena y no debe
+    # cambiar); estas listas guardan TODOS, para la ficha completa del admin que
+    # los muestra en lista. Tuplas por ser el dataclass `frozen`.
+    telefonos: tuple[str, ...] = ()
+    correos: tuple[str, ...] = ()
 
     @property
     def id(self) -> uuid.UUID:
@@ -94,6 +101,24 @@ class ColegioDirectorio:
             "contacto_nombre": self.rector,
         }
 
+    def a_ficha_directorio(self) -> dict[str, Any]:
+        """La ficha COMPLETA del DUEB para el detalle del colegio en el admin.
+
+        Es un superconjunto ADITIVO de `a_datos_colegio_nuevo`: repite esas siete
+        claves con el mismo nombre y significado (`contacto_nombre`=rector,
+        `contacto_telefono`/`contacto_email`=primer valor) para no romper a quien
+        ya castea la respuesta como `DatosColegioNuevo`, y AGREGA `sector`,
+        `localidad`, `rector` y las listas completas `telefonos`/`correos`. El
+        admin las pinta; el alta las ignora."""
+        return {
+            **self.a_datos_colegio_nuevo(),
+            "sector": self.sector,
+            "localidad": self.localidad,
+            "rector": self.rector,
+            "telefonos": list(self.telefonos),
+            "correos": list(self.correos),
+        }
+
 
 def _limpio(crudo: str | None) -> str | None:
     """El valor recortado, o None si quedo vacio: en el volcado un campo
@@ -106,6 +131,12 @@ def _limpio(crudo: str | None) -> str | None:
 def _primer_valor(crudo: str) -> str | None:
     """El valor principal de un campo que puede traer varios (`a -- b -- c`)."""
     return _limpio(crudo.split(_SEPARADOR_MULTIVALOR, 1)[0])
+
+
+def _todos_valores(crudo: str) -> tuple[str, ...]:
+    """Todos los valores de un campo multivalor (`a -- b -- c`), limpios y sin
+    vacios. Para la ficha del admin, que muestra telefonos y correos en lista."""
+    return tuple(v for parte in crudo.split(_SEPARADOR_MULTIVALOR) if (v := _limpio(parte)))
 
 
 def _bloque_a_colegio(campos: dict[str, str]) -> ColegioDirectorio | None:
@@ -126,6 +157,8 @@ def _bloque_a_colegio(campos: dict[str, str]) -> ColegioDirectorio | None:
         email=_primer_valor(campos.get("email", "")),
         sitio_web=_limpio(campos.get("sitio_web")),
         rector=_limpio(campos.get("rector")),
+        telefonos=_todos_valores(campos.get("telefono", "")),
+        correos=_todos_valores(campos.get("email", "")),
     )
 
 
@@ -195,6 +228,14 @@ def datos_colegio_nuevo_por_dane(dane: str) -> dict[str, str | None] | None:
     Es lo que Identidad expone para que la subida enriquezca `colegio_datos`."""
     colegio = _indice_por_dane().get(dane)
     return colegio.a_datos_colegio_nuevo() if colegio is not None else None
+
+
+def ficha_directorio_por_dane(dane: str) -> dict[str, Any] | None:
+    """La ficha COMPLETA del DUEB (los 7 campos del alta + sector, localidad,
+    rector y las listas de telefonos/correos), o `None` si el DANE no esta en el
+    directorio. Es lo que el detalle del colegio en el admin pinta."""
+    colegio = _indice_por_dane().get(dane)
+    return colegio.a_ficha_directorio() if colegio is not None else None
 
 
 def _main() -> None:

@@ -118,8 +118,25 @@ class TestPollerDaDeAltaElColegio:
         assert str(colegio.id) == COLEGIO
         assert colegio.nombre == "ACADEMIA CENTRAL DE SISTEMAS"
         assert colegio.nit == "311001105731"
+        # El evento no trae clave `dane`; se rescata del `nit` porque tiene la
+        # forma del DANE del DUEB (12 digitos). `nit` no cambia.
+        assert colegio.dane == "311001105731"
         assert colegio.direccion == "Calle 1 # 2-3"
         assert colegio.activo is True
+
+    async def test_un_nit_que_no_es_dane_no_llena_la_columna(self, motor, motor_catalogo):
+        """Si el `nit` no tiene la forma del DANE del DUEB (12 digitos), la
+        columna `dane` queda vacia: no se ensucia con un NIT tributario."""
+        await _sembrar_bandeja(motor_catalogo, **_carga(nit="900.123.456-7"))
+        poller = Poller(motor_identidad=motor, motor_catalogo=motor_catalogo)
+        await poller.pasada()
+
+        async with motor.sesion() as db:
+            colegio = (
+                await db.execute(select(Colegio).where(Colegio.id == uuid.UUID(COLEGIO)))
+            ).scalar_one()
+        assert colegio.nit == "900.123.456-7"
+        assert colegio.dane is None
 
     async def test_al_colegio_se_le_crea_una_sede_principal(self, motor, motor_catalogo):
         await _sembrar_bandeja(motor_catalogo, **_carga())

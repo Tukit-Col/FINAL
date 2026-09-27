@@ -1,6 +1,12 @@
 // Tarjeta de un colegio en la BD de colegios y listas (P4). Muestra el logo del
 // aliado (si cargó marca), su nombre, si ya es aliado (tiene al menos un grado
-// revisado) y los grados verificados con enlace a cada lista.
+// revisado) y sus grados verificados.
+//
+// La tarjeta ENTERA es clicable hacia la ficha del colegio (patrón "stretched
+// link"): el enlace del nombre lleva un `::after` absoluto que cubre la tarjeta.
+// Por eso adentro no puede haber otro enlace (un `<a>` no anida en otro `<a>`):
+// los grados pasan a ser `<span>` visuales y el CTA de "sube una lista" —que sí
+// es un enlace— se movió a la ficha, no vive aquí.
 //
 // Server Component: no tiene estado, solo pinta. La atribución dudosa se marca
 // porque el §2.2 la convierte en un bloqueante de corrección de la ruta del
@@ -29,7 +35,9 @@ export default function TarjetaColegio({ colegio }: { colegio: Colegio }) {
         )}
         <div className={styles.tarjetaIdentidad}>
           <h2>
-            <Link href={`/colegios/${id}`}>{colegio.nombre}</Link>
+            <Link href={`/colegios/${id}`} className={styles.enlaceTarjeta}>
+              {colegio.nombre}
+            </Link>
           </h2>
           <span className={esAliado ? styles.insigniaAliado : styles.insigniaBorrador}>
             {esAliado ? "Aliado" : "Sin listas revisadas"}
@@ -45,18 +53,17 @@ export default function TarjetaColegio({ colegio }: { colegio: Colegio }) {
 
       <div className={styles.grados}>
         {colegio.grados.length === 0 ? (
-          <p className={styles.sinGrados}>
-            Ningún grado revisado.{" "}
-            <Link href="/cola">Sube una lista</Link> para empezar.
-          </p>
+          // Sin enlace: el detalle (con su CTA para subir lista) se abre al
+          // clicar la tarjeta entera; aquí solo se informa el estado.
+          <p className={styles.sinGrados}>Ningún grado revisado todavía.</p>
         ) : (
           <ul>
             {colegio.grados.map((grado) => (
-              <li key={grado}>
-                <Link href={`/colegios/${id}/${encodeURIComponent(grado)}`}>
-                  {grado}
-                  <span className={styles.gradoEstado}>revisado</span>
-                </Link>
+              // Chip visual (no enlace): reusa el look de `.grados li` sin ser
+              // un `<a>`, para no anidar dentro del enlace de la tarjeta.
+              <li key={grado} className={styles.gradoChip}>
+                {grado}
+                <span className={styles.gradoEstado}>revisado</span>
               </li>
             ))}
           </ul>

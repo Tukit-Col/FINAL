@@ -67,6 +67,15 @@ class TestParsearDirectorio:
         assert c.telefono == "6012352887"
         assert c.email == "acsi86.edu.co@gmail.com"
 
+    def test_guarda_ademas_todas_las_lineas_multivalor(self):
+        # Para la ficha del admin se conservan TODOS los telefonos/correos, no
+        # solo el primero, para mostrarlos en lista.
+        c = parsear_directorio(_BLOQUE)[0]
+        assert c.telefonos == ("6012352887", "3223573876")
+        assert c.correos == ("acsi86.edu.co@gmail.com", "acsicolegio@gmail.com")
+        # Un campo vacio deja la lista vacia, no una lista con un ""
+        assert parsear_directorio(_BLOQUE)[1].correos == ()
+
     def test_campos_vacios_quedan_en_none(self):
         c = parsear_directorio(_BLOQUE)[1]
         assert c.email is None
@@ -115,3 +124,19 @@ class TestParaServirAlFrontend:
             "contacto_nombre": "SANDRA MILENA MURCIA CUENCA",
         }
         assert "logo_url" not in c.a_datos_colegio_nuevo()
+
+    def test_a_ficha_directorio_agrega_los_campos_del_admin(self):
+        # La ficha completa del admin: los 7 campos del alta (mismos nombres y
+        # significado) MAS sector, localidad, rector y las listas completas.
+        c = parsear_directorio(_BLOQUE)[0]
+        ficha = c.a_ficha_directorio()
+        # Los 7 del alta se repiten sin cambiar de nombre ni significado.
+        assert ficha["contacto_nombre"] == "SANDRA MILENA MURCIA CUENCA"
+        assert ficha["contacto_telefono"] == "6012352887"
+        assert ficha["contacto_email"] == "acsi86.edu.co@gmail.com"
+        # Y se agregan los del directorio completo.
+        assert ficha["sector"] == "NO OFICIAL"
+        assert ficha["localidad"] == "BARRIOS UNIDOS"
+        assert ficha["rector"] == "SANDRA MILENA MURCIA CUENCA"
+        assert ficha["telefonos"] == ["6012352887", "3223573876"]
+        assert ficha["correos"] == ["acsi86.edu.co@gmail.com", "acsicolegio@gmail.com"]

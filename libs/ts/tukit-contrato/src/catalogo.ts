@@ -531,6 +531,9 @@ export interface SedeColegio {
 export interface ColegioDetalle {
   colegio_id: string;
   nombre: string;
+  // El codigo DANE del DUEB, la llave del directorio oficial. Puede faltar
+  // (`null`) en colegios sembrados; el admin lo completa para leer la ficha.
+  dane: string | null;
   logo_url: string | null;
   sitio_web: string | null;
   contacto_nombre: string | null;
@@ -545,11 +548,36 @@ export interface ColegioDetalle {
 // solo lo que cambio. `null` limpia el campo. NO incluye `nombre` ni `sedes`:
 // esos no se editan por esta ruta.
 export interface ColegioEditable {
+  // El DANE si es editable por esta ruta (a diferencia del nombre): en identidad
+  // el `colegio_id` ya esta fijado y no se re-deriva del DANE, asi que
+  // completarlo cuando falta es seguro y habilita leer su ficha del directorio.
+  dane?: string | null;
   logo_url?: string | null;
   sitio_web?: string | null;
   contacto_nombre?: string | null;
   contacto_email?: string | null;
   contacto_telefono?: string | null;
+}
+
+// La ficha COMPLETA del directorio DUEB para el detalle del colegio en el admin
+// (`GET /v1/directorio/{dane}`). Es un superconjunto de `DatosColegioNuevo`:
+// repite sus 7 campos con el mismo nombre y significado y AGREGA sector,
+// localidad, rector y las listas completas de telefonos/correos. Se mantiene
+// aparte a proposito: `DatosColegioNuevo` es la forma del ALTA (onboarding y
+// poller) y no debe crecer con campos que solo la ficha usa.
+export interface DirectorioColegio {
+  dane?: string | null;
+  nombre?: string | null;
+  direccion?: string | null;
+  sitio_web?: string | null;
+  contacto_nombre?: string | null;
+  contacto_email?: string | null;
+  contacto_telefono?: string | null;
+  sector?: string | null;
+  localidad?: string | null;
+  rector?: string | null;
+  telefonos?: string[];
+  correos?: string[];
 }
 
 // Una sugerencia de lista en el backlog del administrador
