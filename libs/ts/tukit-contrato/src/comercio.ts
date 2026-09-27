@@ -69,6 +69,12 @@ export interface Envio {
   destinatario: string;
   direccion: string;
   ciudad: string;
+  // Mas de la copia congelada del hecho de entrega (ADR 0015). `null` en los
+  // pedidos legados; el formulario nuevo de entrega los llena.
+  telefono: string | null;
+  departamento: string | null;
+  documento_destinatario: string | null;
+  indicaciones: string | null;
   transportadora: string | null;
   guia: string | null;
   // ISO 8601. `null` mientras no haya fecha estimada.

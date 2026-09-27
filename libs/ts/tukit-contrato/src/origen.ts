@@ -104,6 +104,12 @@ export interface Credenciales {
   clave: string;
 }
 
+/** Alta de cuenta del acudiente: credenciales + celular opcional para el aviso. */
+export interface NuevaCuenta extends Credenciales {
+  nombre: string;
+  celular?: string;
+}
+
 /** Un archivo de lista, ya leido, con el hijo al que pertenece. */
 export interface ArchivoLista {
   referencia: string;
@@ -123,6 +129,9 @@ export interface OrigenDatos {
   // quien pone la cookie: el origen no toca cookies, igual que el resto de la
   // interfaz no sabe de HTTP.
   iniciarSesion(credenciales: Credenciales): Promise<{ sesion: Sesion; token: string }>;
+  // Alta de cuenta del acudiente (paso 1 de /empezar). Misma forma de retorno
+  // que `iniciarSesion`: el Route Handler pone la cookie con el token.
+  crearCuenta(cuenta: NuevaCuenta): Promise<{ sesion: Sesion; token: string }>;
   sesionActual(token: string): Promise<Sesion | null>;
   cerrarSesion(token: string): Promise<void>;
 
