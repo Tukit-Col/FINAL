@@ -2,22 +2,12 @@
 
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogIn, FlaskConical, PlugZap, ShieldCheck } from "lucide-react";
+import { LogIn, PlugZap } from "lucide-react";
 import styles from "./Ingresar.module.css";
 
-// Los correos sembrados, para que la demo se pueda recorrer sin adivinar. Solo
-// se pintan en modo simulado; en `api` los usuarios son los de identidad.
-const DEMO = [
-  { correo: "mama@ejemplo.com", quien: "Acudiente — arma la lista de sus hijos" },
-  { correo: "rectoria@colegio.edu.co", quien: "Colegio — portal del aliado (en construcción)" },
-  { correo: "operador@tukit.co", quien: "Equipo Tukit — cola de revisión (app interna)" },
-];
-
 export default function FormularioIngreso({
-  modo,
   destino,
 }: {
-  modo: "api" | "simulado";
   // A donde volver tras entrar (p. ej. `/empezar` en el camino "ya tengo
   // cuenta"). Si no viene, manda el destino por rol que decide el backend.
   destino?: string;
@@ -73,11 +63,7 @@ export default function FormularioIngreso({
         <h1 id="titulo-ingreso" className={styles.titulo}>
           Ingresa a Tukit
         </h1>
-        <p className={styles.subtitulo}>
-          {modo === "simulado"
-            ? "Estás viendo el corpus de demostración: los usuarios son de prueba y no se verifica la clave."
-            : "Autenticando contra identidad a través del gateway."}
-        </p>
+        <p className={styles.subtitulo}>Autenticando contra identidad a través del gateway.</p>
 
         <form className={styles.forma} onSubmit={enviar}>
           <label className={styles.campo} htmlFor={idCorreo}>
@@ -101,7 +87,7 @@ export default function FormularioIngreso({
               autoComplete="current-password"
               value={clave}
               onChange={(e) => setClave(e.target.value)}
-              placeholder={modo === "simulado" ? "cualquier clave entra" : "tu clave"}
+              placeholder="tu clave"
             />
           </label>
 
@@ -118,41 +104,9 @@ export default function FormularioIngreso({
         </form>
 
         <p className={styles.cinta}>
-          {modo === "simulado" ? (
-            <>
-              <FlaskConical size={14} strokeWidth={2.4} aria-hidden="true" />
-              Sesión de demostración — sin backend
-            </>
-          ) : (
-            <>
-              <PlugZap size={14} strokeWidth={2.4} aria-hidden="true" />
-              api · vía gateway → identidad
-            </>
-          )}
+          <PlugZap size={14} strokeWidth={2.4} aria-hidden="true" />
+          api · vía gateway → identidad
         </p>
-
-        {modo === "simulado" && (
-          <div className={styles.demo}>
-            <p className={styles.demoTitulo}>
-              <ShieldCheck size={14} strokeWidth={2.4} aria-hidden="true" />
-              Usuarios de prueba (te llevan a donde corresponda por rol)
-            </p>
-            <ul>
-              {DEMO.map((u) => (
-                <li key={u.correo}>
-                  <button
-                    type="button"
-                    className={styles.demoCorreo}
-                    onClick={() => setCorreo(u.correo)}
-                  >
-                    {u.correo}
-                  </button>
-                  <span>{u.quien}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </section>
     </div>
   );

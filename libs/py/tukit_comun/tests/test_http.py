@@ -16,10 +16,12 @@ import pytest
 from fastapi import FastAPI
 from pydantic import BaseModel
 from tukit_comun.http import (
+    CABECERA_CORRELACION,
     ORIGENES_POR_OMISION,
     ErrorDominio,
     cliente_efimero,
     crear_app,
+    id_de_correlacion,
     iso,
     origenes_permitidos,
 )
@@ -40,6 +42,12 @@ def _app() -> FastAPI:
     @app.get("/rechazo")
     async def rechazo() -> dict:
         raise ErrorDominio("presupuesto_invalido", "Tiene que ser positivo.", campo="presupuesto")
+
+    @app.get("/quien-soy")
+    async def quien_soy() -> dict:
+        # Devuelve el id que el handler VE en su contextvar: prueba que el
+        # middleware lo propago hacia adentro, no solo a la respuesta.
+        return {"cid": id_de_correlacion()}
 
     return app
 
@@ -87,6 +95,38 @@ class TestElSobreDeDominio:
         error = ErrorDominio("estado_incompatible", "Ya estaba publicado.", estado=409)
         assert error.estado == 409
         assert error.cuerpo() == {"error": "estado_incompatible", "mensaje": "Ya estaba publicado."}
+
+
+class TestElIdDeCorrelacion:
+    """Una sola cadena sigue la peticion por los servicios que toca. El
+    middleware la lee-o-acuña, la mete en el contextvar de la peticion y la
+    devuelve en la cabecera; `cliente_efimero` la propaga a las salientes."""
+
+    async def test_sin_cabecera_se_acuña_una_y_vuelve_en_la_respuesta(self):
+        respuesta = await _pedir("GET", "/quien-soy")
+        cid = respuesta.headers.get(CABECERA_CORRELACION)
+        assert cid  # se acuñó
+        # el mismo id que el handler vio por dentro es el que sale por fuera
+        assert respuesta.json()["cid"] == cid
+
+    async def test_una_cabecera_dada_viaja_de_ida_y_vuelta(self):
+        dado = "abc-123-correlacion"
+        respuesta = await _pedir("GET", "/quien-soy", headers={CABECERA_CORRELACION: dado})
+        assert respuesta.headers[CABECERA_CORRELACION] == dado
+        assert respuesta.json()["cid"] == dado
+
+    async def test_el_error_de_dominio_tambien_lleva_la_cabecera(self):
+        # El sobre de error sigue siendo EXACTO (lo fija otro test); el id va en
+        # la cabecera, no en el cuerpo.
+        dado = "corr-en-el-error"
+        respuesta = await _pedir("GET", "/rechazo", headers={CABECERA_CORRELACION: dado})
+        assert respuesta.status_code == 400
+        assert respuesta.headers[CABECERA_CORRELACION] == dado
+
+    async def test_cliente_efimero_propaga_el_id_a_las_salientes(self):
+        # Sin peticion en curso no hay id: el CM no anexa cabecera de correlacion.
+        async with cliente_efimero(None, 5.0) as propio:
+            assert CABECERA_CORRELACION not in {k.lower() for k in propio.headers}
 
 
 class TestElNavegadorPuedeLeerLaRespuesta:

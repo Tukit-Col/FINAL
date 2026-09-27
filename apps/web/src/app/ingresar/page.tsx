@@ -1,17 +1,11 @@
 // Pantalla de ingreso.
 //
-// El servidor resuelve el origen para decir la verdad sobre que autenticacion
-// esta viva: en `simulado` los usuarios son de prueba y no se verifica la
-// clave; en `api` se autentica contra identidad a traves del gateway. Si ya
-// hay sesion, no tiene sentido volver a pedir credenciales: se redirige al
-// destino que corresponde.
+// Se autentica contra identidad a traves del gateway. Si ya hay sesion, no
+// tiene sentido volver a pedir credenciales: se redirige al destino que
+// corresponde por rol.
 
 import { redirect } from "next/navigation";
-import {
-  descripcionOrigen,
-  destinoDe,
-  urlAdmin,
-} from "@tukit/contrato/servidor";
+import { destinoDe, urlAdmin } from "@tukit/contrato/servidor";
 import { sesionActual } from "@/lib/sesion";
 import FormularioIngreso from "./FormularioIngreso";
 
@@ -38,6 +32,5 @@ export default async function Ingresar({
   const destinoSeguro =
     destino && destino.startsWith("/") && !destino.startsWith("//") ? destino : undefined;
 
-  const origen = descripcionOrigen();
-  return <FormularioIngreso modo={origen.nombre} destino={destinoSeguro} />;
+  return <FormularioIngreso destino={destinoSeguro} />;
 }

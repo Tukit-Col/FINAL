@@ -1,7 +1,7 @@
 // El lado del navegador del ciclo asincrono.
 //
 // Habla solo con los Route Handlers de esta misma app, nunca con el backend:
-// asi la bandera `TUKIT_ORIGEN_DATOS` vive en un solo sitio y el cliente no
+// asi la URL del backend vive en un solo sitio de servidor y el cliente no
 // tiene que saber que existe.
 
 import type {
