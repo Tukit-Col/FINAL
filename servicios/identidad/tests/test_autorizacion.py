@@ -13,12 +13,12 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy.exc import IntegrityError
 from tukit_identidad.autorizacion import (
-    Ambito,
     campos_visibles,
     matriculas_visibles,
     puede,
     roles_vigentes,
 )
+from tukit_identidad.dominio.autorizacion import Ambito
 from tukit_identidad.modelos import (
     AcudienteMatricula,
     AmbitoTipo,
