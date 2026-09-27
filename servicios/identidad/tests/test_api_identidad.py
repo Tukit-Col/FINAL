@@ -19,7 +19,8 @@ from sqlalchemy.pool import StaticPool
 from tukit_comun.bd import MotorServicio
 from tukit_comun.identificadores import derivar
 from tukit_identidad.api import GRADOS, app
-from tukit_identidad.modelos import Base, Colegio, Sede
+from tukit_identidad.modelos import AsignacionRol, Base, Colegio, Sede, Usuario
+from tukit_identidad.sesiones import emitir_token, hashear_clave
 
 
 @pytest.fixture()
@@ -477,4 +478,133 @@ class TestLaSuperficieDeMenoresNoEstaAbierta:
             # INSTITUCIONAL del directorio publico (nombre, localidad), no de
             # menores: no abre la superficie sensible.
             "/v1/directorio/{dane}",
+            # El padron de acudientes para el equipo interno. UNICA ruta que
+            # expone dato de menor (el apodo) por la superficie publica, y por
+            # eso GATEADA: 401 sin token, 403 sin rol admin/operador. Devuelve
+            # solo familias registradas (credencial real, sin rol interno);
+            # nunca clave, documento, fecha de nacimiento ni nombre legal. La
+            # justifica el test del gate (TestElPadronDeAcudientes).
+            "/v1/admin/acudientes",
         }
+
+
+async def _sembrar_usuario_con_rol(correo: str, rol: str) -> tuple[uuid.UUID, str]:
+    """Usuario con credencial real + un rol GLOBAL vigente; devuelve (id, token).
+
+    Siembra directo (no por /v1/registro) porque el registro no asigna roles. El
+    ambito va global/`ambito_id=None` para satisfacer el CHECK
+    `asignacion_ambito_coherente` que SQLite si aplica (las FK no, por eso no hace
+    falta sembrar la tabla `rol`).
+    """
+    fabrica = async_sessionmaker(app.state.motor.engine, expire_on_commit=False)
+    async with fabrica() as sesion:
+        u = Usuario(correo=correo, clave_hash=hashear_clave("demo1234"))
+        sesion.add(u)
+        await sesion.flush()
+        sesion.add(AsignacionRol(usuario_id=u.id, rol_codigo=rol, ambito_tipo="global", ambito_id=None))
+        await sesion.commit()
+        uid = u.id
+    return uid, emitir_token(uid, version_permisos=1)
+
+
+class TestElPadronDeAcudientes:
+    """`GET /v1/admin/acudientes`: la unica ruta que abre dato de menor, gateada
+    a admin/operador y podada a lo minimo. Los acudientes de prueba nacen por
+    `/v1/registro` (credencial real + hijos, sin rol) para que caigan dentro del
+    filtro de poblacion."""
+
+    async def _registrar(self, cliente, correo, apodo=None):
+        hijo = {"colegio_id": str(derivar("colegio", "2.4")), "grado": "Quinto"}
+        if apodo is not None:
+            hijo["apodo"] = apodo
+        respuesta = await cliente.post(
+            "/v1/registro",
+            json={"correo": correo, "clave": "clave1234", "celular": "3001112233", "hijos": [hijo]},
+        )
+        assert respuesta.status_code == 201
+        return respuesta.json()["usuario_id"]
+
+    async def test_sin_token_es_401(self, cliente):
+        assert (await cliente.get("/v1/admin/acudientes")).status_code == 401
+
+    async def test_token_invalido_es_401(self, cliente):
+        r = await cliente.get("/v1/admin/acudientes", headers={"Authorization": "Bearer no-sirve"})
+        assert r.status_code == 401
+
+    async def test_sin_token_con_ids_mal_formado_sigue_siendo_401(self, cliente):
+        # El gate va primero: un `?ids=nope` sin token NO debe delatar la ruta con
+        # un 400 de validacion; primero se exige el token (401).
+        r = await cliente.get("/v1/admin/acudientes?ids=nope")
+        assert r.status_code == 401
+
+    async def test_un_acudiente_no_ve_el_padron_ni_el_apodo(self, cliente):
+        await self._registrar(cliente, "papa@ejemplo.com", apodo="Pipe")
+        token = (
+            await cliente.post("/v1/sesiones", json={"correo": "papa@ejemplo.com", "clave": "clave1234"})
+        ).json()["token"]
+        r = await cliente.get("/v1/admin/acudientes", headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code == 403
+        assert r.json()["error"] == "acceso_denegado"
+        assert "Pipe" not in r.text  # el dato de menor NO se filtro a un no-staff
+
+    async def test_admin_ve_al_acudiente_con_apodo_descifrado(self, cliente):
+        await self._registrar(cliente, "familia@ejemplo.com", apodo="Pipe")
+        _uid, token = await _sembrar_usuario_con_rol("admin@tukit.co", "admin")
+        r = await cliente.get("/v1/admin/acudientes", headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code == 200
+        fila = next(a for a in r.json()["acudientes"] if a["correo"] == "familia@ejemplo.com")
+        assert fila["celular"] == "3001112233"
+        assert fila["creado_en"]  # ISO-8601 presente
+        assert fila["hijos"][0] == {
+            "apodo": "Pipe",
+            "colegio_id": str(derivar("colegio", "2.4")),
+            "colegio_nombre": "Colegio San Pedro",
+            "grado": "Quinto",
+        }
+
+    async def test_operador_tambien_puede(self, cliente):
+        _uid, token = await _sembrar_usuario_con_rol("operador@tukit.co", "operador")
+        r = await cliente.get("/v1/admin/acudientes", headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code == 200
+
+    async def test_hijo_sin_apodo_sale_como_null(self, cliente):
+        await self._registrar(cliente, "sinapodo@ejemplo.com", apodo=None)
+        _uid, token = await _sembrar_usuario_con_rol("admin@tukit.co", "admin")
+        cuerpo = (
+            await cliente.get("/v1/admin/acudientes", headers={"Authorization": f"Bearer {token}"})
+        ).json()
+        fila = next(a for a in cuerpo["acudientes"] if a["correo"] == "sinapodo@ejemplo.com")
+        assert fila["hijos"][0]["apodo"] is None
+
+    async def test_ids_acota_a_los_solicitados(self, cliente):
+        a = await self._registrar(cliente, "a@ejemplo.com")
+        await self._registrar(cliente, "b@ejemplo.com")
+        _uid, token = await _sembrar_usuario_con_rol("admin@tukit.co", "admin")
+        cuerpo = (
+            await cliente.get(f"/v1/admin/acudientes?ids={a}", headers={"Authorization": f"Bearer {token}"})
+        ).json()
+        assert {x["correo"] for x in cuerpo["acudientes"]} == {"a@ejemplo.com"}
+
+    async def test_los_internos_no_aparecen_ni_pidiendolos_por_id(self, cliente):
+        interno, _ = await _sembrar_usuario_con_rol("rectoria@colegio.edu.co", "colegio_admin")
+        _uid, token = await _sembrar_usuario_con_rol("admin@tukit.co", "admin")
+        general = (
+            await cliente.get("/v1/admin/acudientes", headers={"Authorization": f"Bearer {token}"})
+        ).json()
+        assert str(interno) not in {x["usuario_id"] for x in general["acudientes"]}
+        forzado = (
+            await cliente.get(
+                f"/v1/admin/acudientes?ids={interno}", headers={"Authorization": f"Bearer {token}"}
+            )
+        ).json()
+        assert forzado["acudientes"] == []  # el acote va SOBRE el filtro de poblacion
+
+    async def test_no_expone_campos_prohibidos(self, cliente):
+        await self._registrar(cliente, "familia@ejemplo.com", apodo="Pipe")
+        _uid, token = await _sembrar_usuario_con_rol("admin@tukit.co", "admin")
+        r = await cliente.get("/v1/admin/acudientes", headers={"Authorization": f"Bearer {token}"})
+        for prohibido in ("clave_hash", "documento", "fecha_nacimiento", "estudiante_id"):
+            assert prohibido not in r.text
+        fila = next(a for a in r.json()["acudientes"] if a["correo"] == "familia@ejemplo.com")
+        assert set(fila) == {"usuario_id", "correo", "celular", "creado_en", "hijos"}
+        assert set(fila["hijos"][0]) == {"apodo", "colegio_id", "colegio_nombre", "grado"}

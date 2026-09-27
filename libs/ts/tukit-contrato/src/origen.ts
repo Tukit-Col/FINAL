@@ -127,6 +127,29 @@ export interface RegistroAcudiente {
   hijos: { colegio_id: string; grado: string; apodo?: string }[];
 }
 
+/** Un hijo de un acudiente tal como lo devuelve el padron interno
+ *  (`GET /v1/admin/acudientes`). Del menor SOLO viaja el apodo (descifrado por
+ *  identidad, o `null` si no tiene) y el ambito de la matricula: nunca nombre
+ *  legal, documento ni `estudiante_id`. */
+export interface HijoAcudiente {
+  apodo: string | null;
+  colegio_id: string;
+  colegio_nombre: string;
+  grado: string;
+}
+
+/** Una familia registrada, tal como la ve el equipo interno en el padron
+ *  (`GET /v1/admin/acudientes`, solo admin/operador). El minimo para operar y
+ *  para que metricas resuelva `usuario_id -> cliente`: nunca clave, documento,
+ *  fecha de nacimiento ni nombre legal. */
+export interface AcudienteAdmin {
+  usuario_id: string;
+  correo: string;
+  celular: string | null;
+  creado_en: string;
+  hijos: HijoAcudiente[];
+}
+
 /** Un archivo de lista, ya leido, con el hijo al que pertenece. */
 export interface ArchivoLista {
   referencia: string;
@@ -159,6 +182,12 @@ export interface OrigenDatos {
   // sesion no re-teclee a sus hijos; nunca devuelve datos de menor.
   registrarAcudiente(datos: RegistroAcudiente): Promise<{ usuario_id: string; creado: boolean }>;
   matriculasDelAcudiente(token: string): Promise<MatriculaAcudiente[]>;
+
+  // §Identidad — padron de acudientes para el equipo interno. Solo admin/
+  // operador (identidad gatea: 401 sin token, 403 sin rol). Devuelve las
+  // familias registradas con sus hijos; `ids` (opcional) acota a esos usuarios
+  // sin relajar el filtro. El token viaja como `Authorization: Bearer`.
+  acudientesAdmin(token: string, ids?: string[]): Promise<AcudienteAdmin[]>;
 
   // §2 y §4 — el ciclo asincrono.
   crearTrabajo(solicitud: SolicitudTrabajo, archivos?: ArchivoLista[]): Promise<TrabajoCreado>;
