@@ -39,7 +39,7 @@ from tukit_comun.cifrado import cifrador_desde_entorno
 from tukit_comun.http import ErrorDominio, crear_app
 
 from .modelos import Base
-from .sesiones import emitir_token, leer_token, verificar_clave
+from .dominio.sesiones import emitir_token, leer_token, verificar_clave
 
 PUERTO_POR_OMISION = 8011
 
