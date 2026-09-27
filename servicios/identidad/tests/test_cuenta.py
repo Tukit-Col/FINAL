@@ -23,7 +23,7 @@ from sqlalchemy.pool import StaticPool
 from tukit_comun.bd import MotorServicio
 from tukit_identidad.api import app
 from tukit_identidad.modelos import Base, Usuario
-from tukit_identidad.sesiones import emitir_token, hashear_clave
+from tukit_identidad.dominio.sesiones import emitir_token, hashear_clave
 
 
 @pytest.fixture()
