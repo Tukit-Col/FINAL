@@ -157,6 +157,12 @@ export class ClienteApi implements OrigenDatos {
     return cuerpo as T;
   }
 
+  // El Bearer de la sesion del acudiente cuando el Route Handler lo reenvia
+  // desde la cookie; vacio en el flujo anonimo. Se esparce sobre las cabeceras.
+  private autoriza(token?: string): Record<string, string> {
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
   private json(ruta: string, cuerpo: unknown, metodo = "POST"): Promise<void> {
     return this.pedir<void>(ruta, {
       method: metodo,
@@ -205,11 +211,12 @@ export class ClienteApi implements OrigenDatos {
   async crearTrabajo(
     solicitud: SolicitudTrabajo,
     archivos: ArchivoLista[] = [],
+    token?: string,
   ): Promise<TrabajoCreado> {
     if (archivos.length === 0) {
       return this.pedir<TrabajoCreado>("/v1/trabajos", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...this.autoriza(token) },
         body: JSON.stringify(solicitud),
       });
     }
@@ -222,7 +229,11 @@ export class ClienteApi implements OrigenDatos {
       forma.append("archivo", archivo.contenido, archivo.nombre);
       forma.append("referencia", archivo.referencia);
     }
-    return this.pedir<TrabajoCreado>("/v1/trabajos", { method: "POST", body: forma });
+    return this.pedir<TrabajoCreado>("/v1/trabajos", {
+      method: "POST",
+      headers: this.autoriza(token),
+      body: forma,
+    });
   }
 
   async consultarTrabajo(trabajoId: string): Promise<Trabajo> {
@@ -240,6 +251,7 @@ export class ClienteApi implements OrigenDatos {
     archivos: ArchivoLista[],
     contacto?: Contacto,
     preferencias?: Preferencias,
+    token?: string,
   ): Promise<SubidaListas> {
     const forma = new FormData();
     forma.append("hijos", JSON.stringify(hijos));
@@ -251,7 +263,11 @@ export class ClienteApi implements OrigenDatos {
       forma.append("archivo", archivo.contenido, archivo.nombre);
       forma.append("referencia", archivo.referencia);
     }
-    return this.pedir<SubidaListas>("/v1/listas/subir", { method: "POST", body: forma });
+    return this.pedir<SubidaListas>("/v1/listas/subir", {
+      method: "POST",
+      headers: this.autoriza(token),
+      body: forma,
+    });
   }
 
   // ------------------------------------------------------- ASUMIDO (v1.1)
@@ -671,10 +687,10 @@ export class ClienteApi implements OrigenDatos {
     return resp.grados ?? [];
   }
 
-  aplicarCanonico(cuerpo: AplicarCanonico): Promise<TrabajoAplicado> {
+  aplicarCanonico(cuerpo: AplicarCanonico, token?: string): Promise<TrabajoAplicado> {
     return this.pedir<TrabajoAplicado>("/v1/trabajos/aplicar-canonico", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...this.autoriza(token) },
       body: JSON.stringify(cuerpo),
     });
   }
