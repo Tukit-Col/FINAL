@@ -301,6 +301,102 @@ async def resolver_contacto(peticion: Request, usuario_id: uuid.UUID) -> dict[st
     return {"usuario_id": str(usuario_id), "correo": fila.correo, "celular": None}
 
 
+# --------------------------------------------------------------- cuenta del acudiente
+
+
+class NuevaCuenta(BaseModel):
+    correo: str = Field(min_length=5, max_length=320)
+    clave: str = Field(min_length=1, max_length=256)
+    nombre: str = Field(min_length=1, max_length=256)
+    celular: str | None = Field(default=None, max_length=32)
+
+
+class NuevoHijo(BaseModel):
+    apodo: str = Field(min_length=1, max_length=64)
+    colegio_id: str | None = None
+    sede_id: str | None = None
+    grado: str = Field(min_length=1, max_length=32)
+    anio_lectivo: int = Field(ge=2020, le=2100)
+    consentimiento: bool = False
+
+
+_VERSION_CONSENTIMIENTO_MENOR = "2026-09"
+
+
+@router.post("/v1/cuenta", tags=["cuenta"], status_code=201, summary="Crea la cuenta del acudiente.")
+async def crear_cuenta(peticion: Request, datos: NuevaCuenta) -> dict[str, Any]:
+    from ..dominio.cuenta import ClaveDebil, Decision, validar_clave
+
+    try:
+        validar_clave(datos.clave)
+    except ClaveDebil:
+        raise ErrorDominio(
+            "clave_debil", "La clave necesita al menos 8 caracteres.", estado=422, campo="clave"
+        ) from None
+
+    correo = datos.correo.strip().lower()
+    if not _FORMA_CORREO.fullmatch(correo):
+        raise ErrorDominio("correo_invalido", "El correo no tiene una forma valida.", estado=422, campo="correo")
+
+    async with peticion.app.state.motor.sesion() as db:
+        repo = RepoIdentidad(await db.connection())
+        fila, decision = await repo.crear_o_promover_cuenta(
+            correo=correo, clave=datos.clave, nombre=datos.nombre, celular=datos.celular
+        )
+        if decision is Decision.CONFLICTO:
+            raise ErrorDominio(
+                "correo_ya_registrado", "Ese correo ya tiene una cuenta. Inicia sesion.", estado=409, campo="correo"
+            )
+        sesion = await repo.armar_sesion(fila)
+    token = emitir_token(fila.id, fila.version_permisos)
+    return {"sesion": sesion, "token": token}
+
+
+@router.post(
+    "/v1/cuenta/hijos", tags=["cuenta"], status_code=201, summary="Registra un hijo del acudiente (apodo)."
+)
+async def registrar_hijo(
+    peticion: Request, datos: NuevoHijo, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    if not datos.consentimiento:
+        raise ErrorDominio(
+            "consentimiento_requerido",
+            "Hay que autorizar el tratamiento del dato del menor (Ley 1581).",
+            estado=422,
+            campo="consentimiento",
+        )
+    if not datos.colegio_id or not datos.sede_id:
+        raise ErrorDominio(
+            "hijo_sin_colegio", "El hijo necesita un colegio y una sede.", estado=422, campo="colegio_id"
+        )
+
+    async with peticion.app.state.motor.sesion() as db:
+        repo = RepoIdentidad(await db.connection())
+        fila = await _usuario_del_token(authorization, repo)
+        matricula_id = await repo.registrar_hijo(
+            usuario_id=fila.id,
+            apodo=datos.apodo,
+            colegio_id=uuid.UUID(datos.colegio_id),
+            sede_id=uuid.UUID(datos.sede_id),
+            grado=datos.grado,
+            anio_lectivo=datos.anio_lectivo,
+            version_consentimiento=_VERSION_CONSENTIMIENTO_MENOR,
+        )
+        await repo.otorgar_rol_acudiente(fila.id, uuid.UUID(datos.colegio_id))
+    return {"matricula_id": str(matricula_id)}
+
+
+@router.get("/v1/cuenta/hijos", tags=["cuenta"], summary="Mis hijos, por apodo. Nunca nombres reales.")
+async def listar_hijos(
+    peticion: Request, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    async with peticion.app.state.motor.sesion() as db:
+        repo = RepoIdentidad(await db.connection())
+        fila = await _usuario_del_token(authorization, repo)
+        hijos = await repo.hijos_del_padre(fila.id)
+    return {"total": len(hijos), "hijos": hijos}
+
+
 # --------------------------------------------------------------- sesiones
 
 
