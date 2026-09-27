@@ -56,4 +56,5 @@ export type {
   RolAsignado,
   Sesion,
   Credenciales,
+  NuevaCuenta,
 } from "./origen";
