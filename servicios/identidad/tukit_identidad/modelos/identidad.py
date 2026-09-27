@@ -33,6 +33,10 @@ class Usuario(Base):
     correo: Mapped[str] = mapped_column(String(320), nullable=False, unique=True)
     clave_hash: Mapped[str] = mapped_column(String(256), nullable=False)
     nombre_cifrado: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    # El celular del titular, para el aviso por wa-link cuando el trabajo
+    # termine. Nulable: una cuenta puede nacer solo con correo. Va en claro
+    # (dato del adulto, no del menor); no es PII de menor del Anexo M.
+    celular: Mapped[str | None] = mapped_column(String(32), nullable=True)
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     # Lo que arregla la revocacion de sesion. Hoy la cadena `jti` solo existe

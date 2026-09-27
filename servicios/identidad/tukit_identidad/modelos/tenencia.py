@@ -183,6 +183,11 @@ class AcudienteMatricula(Base):
     )
     parentesco: Mapped[str] = mapped_column(String(32), nullable=False, default="acudiente")
     es_principal: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Como el acudiente llama a su hijo. Ley 1581 / Anexo M: el sistema nunca
+    # guarda el nombre del menor en claro; el padre lo refiere por un apodo, y
+    # hasta el apodo va cifrado porque singulariza al menor. Nulable: los
+    # vinculos sembrados por prueba pueden no tenerlo.
+    apodo_cifrado: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     vigente_desde: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
