@@ -296,6 +296,10 @@ export interface OrigenDatos {
   ): Promise<void>;
   agregarItemLista(versionId: string, item: ItemListaEditable): Promise<{ item_id: string }>;
   quitarItemLista(versionId: string, itemId: string): Promise<void>;
+  // Descartar una version SIN revisar de la cola (una sugerencia que no va, un
+  // onboarding equivocado). El backend alza 409 `lista_ya_revisada` si ya se
+  // aprobo —una lista oficial no se borra, se corrige con `nuevaVersion`—.
+  eliminarVersion(versionId: string): Promise<void>;
   cerrarLista(versionId: string): Promise<void>;
   nuevaVersion(
     colegioId: string,

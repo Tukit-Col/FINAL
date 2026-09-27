@@ -19,6 +19,7 @@ import Link from "next/link";
 import type { EntradaCola, VersionListaAdmin } from "@tukit/contrato";
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import BorrarTrabajo from "@/components/BorrarTrabajo";
+import BorrarVersion from "@/components/BorrarVersion";
 import { formatearFecha, haceCuanto, TITULO_ESTADO_TRABAJO } from "@/lib/formato";
 import SubirLista from "./SubirLista";
 import styles from "./Cola.module.css";
@@ -170,6 +171,7 @@ export default async function PaginaCola() {
                         >
                           Revisar
                         </Link>
+                        <BorrarVersion versionId={v.version_id} />
                       </td>
                     </tr>
                   ))}

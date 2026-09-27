@@ -1145,6 +1145,25 @@ async def quitar_item(version_id: uuid.UUID, item_id: uuid.UUID) -> None:
             raise ErrorDominio("item_no_existe", "Ese renglon no esta en esta version.", estado=404)
 
 
+@router.delete(
+    "/listas/{version_id}",
+    status_code=204,
+    summary="Descartar una version sin revisar de la cola",
+)
+async def borrar_version(version_id: uuid.UUID) -> None:
+    """Sacar de la cola una version que aun no se aprueba (una sugerencia que
+    no va, un onboarding equivocado). Solo SIN revisar: una version revisada es
+    la lista oficial del colegio y no se borra —se corrige con una nueva—, misma
+    puerta que editar. Los renglones y las propuestas caen por CASCADE; la tarea
+    de importacion queda (su `version_id` es SET NULL) como rastro de que se subio.
+    """
+    async with _motor().sesion() as db:
+        conexion = await db.connection()
+        cabeza = await _version_y_lista(conexion, version_id)
+        _exigir_sin_revisar(cabeza)
+        await conexion.execute(delete(VERSION).where(VERSION.c.id == version_id))
+
+
 # Los campos que el revisor puede completar del colegio nuevo antes de aprobar.
 # Es una lista blanca: `nombre` y `dane` los fija la subida y no se reescriben
 # aqui (cambiar el dane cambiaria el `colegio_id` derivado y desligaria la lista

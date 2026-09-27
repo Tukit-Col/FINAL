@@ -79,6 +79,13 @@ export function quitarItemLista(versionId: string, itemId: string): Promise<void
   return pedir<void>(`/api/listas/${id(versionId)}/items/${id(itemId)}`, { method: "DELETE" });
 }
 
+/** DELETE — descartar de la cola una versión SIN revisar (una sugerencia que no
+ *  va, un onboarding equivocado). El backend alza 409 `lista_ya_revisada` si ya
+ *  se aprobó: una lista oficial no se borra, se corrige con `nuevaVersion`. */
+export function eliminarVersion(versionId: string): Promise<void> {
+  return pedir<void>(`/api/listas/${id(versionId)}`, { method: "DELETE" });
+}
+
 /** POST — aprobar y publicar la versión. Deja el par (colegio, grado) disponible. */
 export function cerrarLista(versionId: string): Promise<void> {
   return pedir<void>(`/api/listas/${id(versionId)}/cerrar`, { method: "POST" });
