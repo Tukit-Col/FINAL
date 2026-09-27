@@ -77,8 +77,23 @@ export default async function PaginaListaGrado({ params }: Props) {
     throw causa;
   }
 
-  // El PDF cuelga de la versión; una lista sembrada/CLI no lo trae y el panel
-  // muestra un vacío en vez de un iframe roto.
+  // El documento cuelga de la versión; una lista sembrada/CLI no lo trae. Se
+  // sondea aquí (server-side, la única primitiva del origen) para elegir antes
+  // de pintar: iframe (PDF), <img> (imagen) o mensaje, sin volcar el JSON del
+  // 404 al panel.
+  let tipoDocumento: string | null = null; // null => la lista no tiene documento
+  if (lista.version_id) {
+    try {
+      const blob = await origenDeDatos().documento(lista.version_id);
+      tipoDocumento = blob instanceof Blob && blob.type ? blob.type : "application/pdf";
+    } catch (causa) {
+      // 404 => sin documento. Cualquier otro fallo (timeout/5xx) NO tumba la
+      // página: se asume documento y el navegador reintenta por el proxy.
+      if (causa instanceof ErrorTukit && causa.estado === 404) tipoDocumento = null;
+      else tipoDocumento = "application/pdf";
+    }
+  }
+
   const urlDocumento = lista.version_id
     ? `/api/listas/${encodeURIComponent(lista.version_id)}/documento`
     : null;
@@ -107,16 +122,29 @@ export default async function PaginaListaGrado({ params }: Props) {
       </header>
 
       <div className={styles.paneles}>
-        {/* -------------------------------------------- El PDF oficial */}
+        {/* -------------------------------------------- El documento original */}
         <section className={styles.panel}>
           <div className={styles.panelCabecera}>
-            <h2>PDF oficial</h2>
+            <h2>Documento original</h2>
           </div>
-          {urlDocumento ? (
-            <iframe className={styles.marcoPdf} src={urlDocumento} title="PDF de la lista" />
+          {urlDocumento && tipoDocumento ? (
+            tipoDocumento.startsWith("image/") ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                className={styles.imagenDocumento}
+                src={urlDocumento}
+                alt="Documento original de la lista"
+              />
+            ) : (
+              <iframe
+                className={styles.marcoPdf}
+                src={urlDocumento}
+                title="Documento original de la lista"
+              />
+            )
           ) : (
             <p className={styles.pendienteContrato}>
-              Esta versión no tiene un PDF adjunto (se cargó sin evidencia).
+              Esta lista no tiene documento original: se cargó desde los datos del sistema
             </p>
           )}
         </section>

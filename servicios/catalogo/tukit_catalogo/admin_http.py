@@ -917,6 +917,23 @@ def _pagina_percepcion(pagina: Any) -> dict[str, Any]:
     return {"pagina": pagina.get("pagina", 1), "crudo": crudo}
 
 
+def _media_type_documento(datos: bytes) -> str:
+    """El Content-Type del documento por sus primeros bytes (magic number).
+
+    La subida acepta PDF/JPG/PNG/WEBP y `tarea_importacion.documento` no guarda
+    el tipo; se deduce aqui para no servir una imagen como `application/pdf`.
+    """
+    if datos.startswith(b"%PDF"):
+        return "application/pdf"
+    if datos.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if datos.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if datos[:4] == b"RIFF" and datos[8:12] == b"WEBP":
+        return "image/webp"
+    return "application/octet-stream"
+
+
 async def _tarea_con_evidencia(conexion: Any, version_id: uuid.UUID) -> Any:
     """La tarea de importacion que dejo la evidencia de esta version, o None.
 
@@ -946,7 +963,8 @@ async def documento_de_version(version_id: uuid.UUID) -> Response:
                 "Esta version no tiene un documento de origen.",
                 estado=404,
             )
-        return Response(content=bytes(tarea.documento), media_type="application/pdf")
+        datos = bytes(tarea.documento)
+        return Response(content=datos, media_type=_media_type_documento(datos))
 
 
 @router.get(

@@ -488,6 +488,7 @@ class TestCerrarLaRevision:
 
 
 PDF_FALSO = b"%PDF-1.4 lista de utiles de prueba"
+PNG_FALSO = b"\x89PNG\r\n\x1a\n" + b"lista de utiles de prueba"
 
 
 def _cuerpo_importar(**extra) -> dict:
@@ -534,6 +535,20 @@ class TestImportarListaDesdeOnboarding:
         assert respuesta.status_code == 200
         assert respuesta.headers["content-type"] == "application/pdf"
         assert respuesta.content == PDF_FALSO
+
+    async def test_el_documento_png_conserva_su_tipo(self, cliente):
+        # Una lista subida como imagen se sirve como image/png, no como PDF.
+        cuerpo = _cuerpo_importar(
+            evidencia={
+                "documento_base64": base64.b64encode(PNG_FALSO).decode("ascii"),
+                "percepcion_cruda": [{"pagina": 1, "crudo": "imagen de prueba"}],
+            }
+        )
+        vid = (await cliente.post("/v1/admin/listas/importar", json=cuerpo)).json()["version_id"]
+        respuesta = await cliente.get(f"/v1/admin/listas/{vid}/documento")
+        assert respuesta.status_code == 200
+        assert respuesta.headers["content-type"] == "image/png"
+        assert respuesta.content == PNG_FALSO
 
     async def test_la_percepcion_devuelve_paginas_e_items(self, cliente):
         vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
