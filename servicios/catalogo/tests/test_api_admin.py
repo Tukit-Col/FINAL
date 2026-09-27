@@ -357,6 +357,27 @@ class TestAgregarYQuitarRenglon:
         assert respuesta.status_code == 409
 
 
+class TestBorrarUnaVersion:
+    async def test_borrar_una_sin_revisar_la_saca_de_la_cola(self, cliente):
+        vid = cliente.ids["abierta"]
+        assert (await cliente.delete(f"/v1/admin/listas/{vid}")).status_code == 204
+        # Ya no aparece entre las pendientes.
+        pendientes = (await cliente.get("/v1/admin/listas?revisada=false")).json()
+        assert all(v["version_id"] != str(vid) for v in pendientes["listas"])
+        # Y su revision ya no existe.
+        assert (await cliente.get(f"/v1/admin/listas/{vid}/revision")).status_code == 404
+
+    async def test_borrar_una_revisada_se_rechaza(self, cliente):
+        vid = cliente.ids["cerrada"]
+        respuesta = await cliente.delete(f"/v1/admin/listas/{vid}")
+        assert respuesta.status_code == 409
+        assert respuesta.json()["error"] == "lista_ya_revisada"
+
+    async def test_borrar_una_que_no_existe_es_404(self, cliente):
+        respuesta = await cliente.delete(f"/v1/admin/listas/{uuid.uuid4()}")
+        assert respuesta.status_code == 404
+
+
 class TestCerrarLaRevision:
     async def test_cerrar_con_propuestas_pendientes_se_niega(self, cliente):
         vid = cliente.ids["abierta"]
@@ -1123,8 +1144,8 @@ class TestCrearConcepto:
         assert respuesta.json()["codigo"] == "C003"
 
         # El concepto quedo activo y con sus sinonimos: aparece en el vocabulario.
-        from tukit_catalogo.admin_http import CONCEPTO, _motor
         from sqlalchemy import select
+        from tukit_catalogo.admin_http import CONCEPTO, _motor
 
         async with _motor().engine.begin() as conexion:
             fila = (

@@ -898,6 +898,13 @@ export class ClienteApi implements OrigenDatos {
     );
   }
 
+  eliminarVersion(versionId: string): Promise<void> {
+    // El backend responde 204 sin cuerpo; guarda 409 `lista_ya_revisada`.
+    return this.pedir<void>(`/v1/admin/listas/${encodeURIComponent(versionId)}`, {
+      method: "DELETE",
+    });
+  }
+
   cerrarLista(versionId: string): Promise<void> {
     // Responde 200 con `{version_id, revisada, ya_estaba?}`; se descarta.
     return this.pedir<void>(
