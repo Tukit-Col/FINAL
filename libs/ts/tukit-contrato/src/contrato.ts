@@ -438,13 +438,17 @@ export function validarArchivo(archivo: File): string | null {
 // partir de lo que cada requisito del SRS necesita para poder ejecutarse.
 
 // El panel de acudientes de un colegio: quién pidió kits y en qué va su
-// trabajo. Solo el identificador del acudiente y el estado —ni correo ni
-// apodos de menores (Ley 1581)—.
+// trabajo. El identificador del acudiente y el estado, más los grados que pidió
+// EN ESTE colegio y las preferencias del hogar (pesos, presupuesto, personaje).
+// Nunca el correo ni el apodo de un menor (Ley 1581): `grados` y `preferencias`
+// son dato de negocio, no PII.
 export interface AcudienteResumen {
   usuario_id: string;
   estado: EstadoTrabajo;
   actualizado_en: string;
   trabajo_id: string;
+  grados: string[];
+  preferencias: Preferencias;
 }
 
 // AD-01/AD-02/AD-03: la cola necesita, por trabajo, con que decidir a

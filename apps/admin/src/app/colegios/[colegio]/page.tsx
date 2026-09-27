@@ -12,7 +12,8 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { ColegioDetalle } from "@tukit/contrato";
+import type { AcudienteResumen, ColegioDetalle } from "@tukit/contrato";
+import { formatearPesos } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import PerfilColegio from "@/components/PerfilColegio";
 import styles from "../Colegios.module.css";
@@ -21,6 +22,17 @@ export const dynamic = "force-dynamic";
 
 interface Props {
   params: Promise<{ colegio: string }>;
+}
+
+// Las preferencias del hogar en frases cortas para el panel: presupuesto por
+// hijo (restricción dura) y el dolor que declaró. Vacío si no pidió ninguna.
+function resumenPreferencias(p: AcudienteResumen["preferencias"]): string[] {
+  const partes: string[] = [];
+  if (typeof p.presupuesto_por_hijo === "number") {
+    partes.push(`Tope ${formatearPesos(p.presupuesto_por_hijo)}/hijo`);
+  }
+  if (p.dolor_declarado) partes.push(`Le duele: ${p.dolor_declarado.replace(/_/g, " ")}`);
+  return partes;
 }
 
 export default async function PaginaColegio({ params }: Props) {
@@ -105,20 +117,30 @@ export default async function PaginaColegio({ params }: Props) {
       <section className={styles.tarjeta}>
         <h2 className={styles.subtitulo}>Acudientes</h2>
         <p className={styles.bajada}>
-          Quiénes han pedido kits para este colegio y en qué va su trabajo. Sin datos
-          de menores: solo el identificador del acudiente y el estado.
+          Quiénes han pedido kits para este colegio, para qué grado y con qué preferencias.
+          Sin datos de menores: el identificador del acudiente, el grado que pidió y los
+          pesos del hogar —nunca el apodo ni el correo.
         </p>
         {acudientes.length === 0 ? (
           <p className={styles.sinGrados}>Ningún acudiente todavía.</p>
         ) : (
           <ul className={styles.listaAcudientes}>
-            {acudientes.map((a) => (
-              <li key={a.usuario_id}>
-                <code>{a.usuario_id.slice(0, 8)}</code>
-                <span className={styles.insigniaAliado}>{a.estado}</span>
-                <time dateTime={a.actualizado_en}>{a.actualizado_en.slice(0, 10)}</time>
-              </li>
-            ))}
+            {acudientes.map((a) => {
+              const prefs = resumenPreferencias(a.preferencias);
+              return (
+                <li key={a.usuario_id}>
+                  <code>{a.usuario_id.slice(0, 8)}</code>
+                  {a.grados.length > 0 ? (
+                    <span className={styles.gradosAcudiente}>{a.grados.join(", ")}</span>
+                  ) : null}
+                  <span className={styles.insigniaAliado}>{a.estado}</span>
+                  <time dateTime={a.actualizado_en}>{a.actualizado_en.slice(0, 10)}</time>
+                  {prefs.length > 0 ? (
+                    <span className={styles.prefsAcudiente}>{prefs.join(" · ")}</span>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

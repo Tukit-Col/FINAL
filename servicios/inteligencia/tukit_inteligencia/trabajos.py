@@ -1660,9 +1660,23 @@ async def acudientes_de_colegio(motor: Any, *, colegio_id: str) -> list[dict[str
     acudiente. El colegio no es columna del trabajo —vive en el JSON `hijos`—,
     así que el filtro es por ese campo. Los trabajos anónimos (sin `usuario_id`)
     no se agrupan: no hay a quién listar.
+
+    Devuelve además los `grados` que ese acudiente pidió EN ESTE colegio (de los
+    hijos que le corresponden) y las `preferencias` del hogar descifradas —pesos,
+    presupuesto, personaje—: dato de negocio, no PII (no lleva correo ni el
+    nombre del menor), y es lo que el panel necesita para atenderlo sin abrir el
+    trabajo.
     """
+    cifrador = cifrador_desde_entorno()
     consulta = (
-        select(TRABAJO.c.id, TRABAJO.c.usuario_id, TRABAJO.c.estado, TRABAJO.c.actualizado_en, TRABAJO.c.hijos)
+        select(
+            TRABAJO.c.id,
+            TRABAJO.c.usuario_id,
+            TRABAJO.c.estado,
+            TRABAJO.c.actualizado_en,
+            TRABAJO.c.hijos,
+            TRABAJO.c.preferencias_cifradas,
+        )
         .where(TRABAJO.c.usuario_id.is_not(None))
         .order_by(TRABAJO.c.usuario_id, TRABAJO.c.actualizado_en.desc())
     )
@@ -1677,12 +1691,22 @@ async def acudientes_de_colegio(motor: Any, *, colegio_id: str) -> list[dict[str
         if any(h.get("colegio_id") == colegio_id for h in (f.hijos or ())):
             ultimos.setdefault(str(f.usuario_id), f)
 
+    def _grados_en_colegio(f: Any) -> list[str]:
+        # Solo los grados de los hijos de ESTE colegio, sin repetir. Un hogar
+        # tiene uno o dos: orden alfabético basta, no vale un índice canónico.
+        grados = {h["grado"] for h in (f.hijos or ()) if h.get("colegio_id") == colegio_id and h.get("grado")}
+        return sorted(grados)
+
     return [
         {
             "usuario_id": uid,
             "estado": f.estado,
             "actualizado_en": f.actualizado_en.isoformat() if f.actualizado_en else None,
             "trabajo_id": str(f.id),
+            "grados": _grados_en_colegio(f),
+            "preferencias": cifrador.descifrar_json(f.preferencias_cifradas) or {}
+            if f.preferencias_cifradas
+            else {},
         }
         for uid, f in ultimos.items()
     ]

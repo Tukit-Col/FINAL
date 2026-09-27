@@ -31,7 +31,14 @@ async def cliente(motor):
         yield http
 
 
-async def _sembrar(motor, *, usuario_id, estado, colegio, actualizado_en):
+async def _sembrar(
+    motor, *, usuario_id, estado, colegio, actualizado_en, grado="Cuarto", preferencias=None
+):
+    from tukit_comun.cifrado import cifrador_desde_entorno
+
+    cifradas = (
+        cifrador_desde_entorno().cifrar_json(preferencias) if preferencias is not None else None
+    )
     async with motor.engine.begin() as conexion:
         await conexion.execute(
             insert(TRABAJO).values(
@@ -39,7 +46,8 @@ async def _sembrar(motor, *, usuario_id, estado, colegio, actualizado_en):
                 usuario_id=usuario_id,
                 estado=estado,
                 origen="colegio_grado",
-                hijos=[{"referencia": "h1", "colegio_id": colegio, "grado": "Cuarto"}],
+                hijos=[{"referencia": "h1", "colegio_id": colegio, "grado": grado}],
+                preferencias_cifradas=cifradas,
                 degradaciones=[],
                 estimado_segundos=180,
                 creado_en=actualizado_en,
@@ -94,5 +102,28 @@ class TestAcudientesDeColegio:
         )
         respuesta = await cliente.get(f"/v1/admin/colegios/{COLEGIO}/acudientes")
         cuerpo = respuesta.json()["acudientes"][0]
-        # Solo usuario_id + estado + fecha + trabajo_id: ni apodo ni grado ni correo.
-        assert set(cuerpo) == {"usuario_id", "estado", "actualizado_en", "trabajo_id"}
+        # usuario_id + estado + fecha + trabajo_id + grados + preferencias: NUNCA
+        # el apodo del menor ni el correo. `grados` y `preferencias` son dato de
+        # negocio (grado pedido, pesos del hogar), no PII.
+        assert set(cuerpo) == {
+            "usuario_id", "estado", "actualizado_en", "trabajo_id", "grados", "preferencias",
+        }
+
+    async def test_trae_grados_del_colegio_y_preferencias_descifradas(self, cliente, motor):
+        u1 = uuid.uuid4()
+        base = datetime(2026, 9, 1, tzinfo=UTC)
+        prefs = {"presupuesto_por_hijo": 700000, "dolor_declarado": "libros"}
+        # Un trabajo de este colegio (grado Quinto) con preferencias, y uno de
+        # OTRO colegio (Sexto) que no debe colarse en `grados`.
+        await _sembrar(
+            motor, usuario_id=u1, estado="publicado", colegio=COLEGIO,
+            actualizado_en=base + timedelta(hours=1), grado="Quinto", preferencias=prefs,
+        )
+        await _sembrar(
+            motor, usuario_id=u1, estado="publicado", colegio=OTRO,
+            actualizado_en=base, grado="Sexto",
+        )
+        respuesta = await cliente.get(f"/v1/admin/colegios/{COLEGIO}/acudientes")
+        cuerpo = respuesta.json()["acudientes"][0]
+        assert cuerpo["grados"] == ["Quinto"]  # solo el grado en ESTE colegio
+        assert cuerpo["preferencias"] == prefs

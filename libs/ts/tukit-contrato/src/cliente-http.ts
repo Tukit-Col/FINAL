@@ -664,9 +664,17 @@ export class ClienteApi implements OrigenDatos {
   }
 
   acudientesDeColegio(colegioId: string): Promise<AcudienteResumen[]> {
-    return this.pedir<{ acudientes: AcudienteResumen[] }>(
+    return this.pedir<{ acudientes: Partial<AcudienteResumen>[] }>(
       `/v1/admin/colegios/${encodeURIComponent(colegioId)}/acudientes`,
-    ).then((r) => r.acudientes);
+    ).then((r) =>
+      // `grados`/`preferencias` son recientes: un backend que aún no los sirva
+      // no debe romper el panel. Se rellenan vacíos, mismo cinturón que la cola.
+      (r.acudientes ?? []).map((a) => ({
+        ...(a as AcudienteResumen),
+        grados: a.grados ?? [],
+        preferencias: a.preferencias ?? {},
+      })),
+    );
   }
 
   validarLinea(trabajoId: string, itemId: string, cuerpo: ValidarLinea): Promise<void> {
