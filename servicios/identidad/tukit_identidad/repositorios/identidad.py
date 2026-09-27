@@ -39,6 +39,10 @@ SEDE_T = Base.metadata.tables["sede"]
 USUARIO = Base.metadata.tables["usuario"]
 ASIGNACION_ROL = Base.metadata.tables["asignacion_rol"]
 DIRECCION = Base.metadata.tables["direccion"]
+ESTUDIANTE = Base.metadata.tables["estudiante"]
+MATRICULA = Base.metadata.tables["matricula"]
+ACUDIENTE_MATRICULA = Base.metadata.tables["acudiente_matricula"]
+CONSENTIMIENTO = Base.metadata.tables["consentimiento"]
 
 
 class RepoIdentidad:
@@ -367,3 +371,149 @@ class RepoIdentidad:
             .values(archivada_en=datetime.now(UTC), predeterminada=False)
         )
         return resultado.rowcount
+
+    async def crear_o_promover_cuenta(
+        self, *, correo: str, clave: str, nombre: str, celular: str | None
+    ) -> tuple[Any, Any]:
+        """Aplica la decision del dominio: crea, promueve al invitado, o
+        devuelve CONFLICTO sin tocar nada (el router lo traduce a 409)."""
+        from tukit_comun.cifrado import cifrador_desde_entorno
+
+        from ..dominio.cuenta import Decision, decide_creacion
+        from ..dominio.sesiones import hashear_clave
+
+        fila = await self.usuario_por_correo(correo)
+        decision = decide_creacion(fila.clave_hash if fila is not None else None)
+        if decision is Decision.CONFLICTO:
+            return fila, decision
+
+        nombre_cifrado = cifrador_desde_entorno().cifrar(nombre.encode("utf-8"))
+        clave_hash = hashear_clave(clave)
+
+        if decision is Decision.PROMOVER:
+            await self.conexion.execute(
+                update(USUARIO)
+                .where(USUARIO.c.id == fila.id)
+                .values(clave_hash=clave_hash, nombre_cifrado=nombre_cifrado, celular=celular)
+            )
+            usuario_id = fila.id
+        else:  # CREAR
+            usuario_id = uuid.uuid4()
+            await self.conexion.execute(
+                insert(USUARIO).values(
+                    id=usuario_id,
+                    correo=correo,
+                    clave_hash=clave_hash,
+                    nombre_cifrado=nombre_cifrado,
+                    celular=celular,
+                )
+            )
+        creada = (await self.conexion.execute(select(USUARIO).where(USUARIO.c.id == usuario_id))).one()
+        return creada, decision
+
+    async def otorgar_rol_acudiente(self, usuario_id: uuid.UUID, colegio_id: uuid.UUID) -> None:
+        """El rol acudiente con ambito de colegio. El CHECK
+        `asignacion_ambito_coherente` exige ambito_id no-nulo para 'colegio'."""
+        await self.conexion.execute(
+            insert(ASIGNACION_ROL).values(
+                id=uuid.uuid4(),
+                usuario_id=usuario_id,
+                rol_codigo="acudiente",
+                ambito_tipo="colegio",
+                ambito_id=colegio_id,
+            )
+        )
+
+    async def registrar_hijo(
+        self,
+        *,
+        usuario_id: uuid.UUID,
+        apodo: str,
+        colegio_id: uuid.UUID,
+        sede_id: uuid.UUID,
+        grado: str,
+        anio_lectivo: int,
+        version_consentimiento: str,
+    ) -> uuid.UUID:
+        from tukit_comun.cifrado import cifrador_desde_entorno
+
+        cifrador = cifrador_desde_entorno()
+        estudiante_id = uuid.uuid4()
+        matricula_id = uuid.uuid4()
+
+        # Estudiante sin nombre en claro: el apodo cifrado vive en el vinculo,
+        # no en el estudiante. `nombre_cifrado` del estudiante es NOT NULL, asi
+        # que se cifra el propio apodo como marcador (el sistema nunca recibe el
+        # nombre real del menor en este flujo).
+        await self.conexion.execute(
+            insert(ESTUDIANTE).values(id=estudiante_id, nombre_cifrado=cifrador.cifrar(apodo.encode("utf-8")))
+        )
+        await self.conexion.execute(
+            insert(MATRICULA).values(
+                id=matricula_id,
+                estudiante_id=estudiante_id,
+                sede_id=sede_id,
+                colegio_id=colegio_id,
+                grado=grado,
+                anio_lectivo=anio_lectivo,
+            )
+        )
+        await self.conexion.execute(
+            insert(ACUDIENTE_MATRICULA).values(
+                usuario_id=usuario_id,
+                matricula_id=matricula_id,
+                es_principal=True,
+                apodo_cifrado=cifrador.cifrar(apodo.encode("utf-8")),
+            )
+        )
+        # El consentimiento de menor DEBE llevar matricula_id: el CHECK
+        # `consentimiento_menor_coherente` lo impone. Va en la misma
+        # transaccion que el vinculo; no hay hijo sin consentimiento.
+        await self.conexion.execute(
+            insert(CONSENTIMIENTO).values(
+                id=uuid.uuid4(),
+                usuario_id=usuario_id,
+                regimen="registro_menor",
+                version=version_consentimiento,
+                matricula_id=matricula_id,
+                aceptado_en=datetime.now(UTC),
+            )
+        )
+        return matricula_id
+
+    async def hijos_del_padre(self, usuario_id: uuid.UUID) -> list[dict[str, Any]]:
+        """Los apodos que este titular puede ver, filtrados por las matriculas
+        que alcanza. Reusa `matriculas_visibles` (Fase 1): solo lo propio."""
+        from tukit_comun.cifrado import cifrador_desde_entorno
+
+        visibles = await self.matriculas_visibles(usuario_id)
+        if not visibles:
+            return []
+        filas = await self.conexion.execute(
+            select(
+                ACUDIENTE_MATRICULA.c.apodo_cifrado,
+                MATRICULA.c.grado,
+                MATRICULA.c.colegio_id,
+            )
+            .select_from(
+                ACUDIENTE_MATRICULA.join(MATRICULA, MATRICULA.c.id == ACUDIENTE_MATRICULA.c.matricula_id)
+            )
+            .where(
+                ACUDIENTE_MATRICULA.c.usuario_id == usuario_id,
+                ACUDIENTE_MATRICULA.c.matricula_id.in_(visibles),
+                ACUDIENTE_MATRICULA.c.vigente_hasta.is_(None),
+            )
+        )
+        cifrador = cifrador_desde_entorno()
+        return [
+            {
+                "apodo": (
+                    cifrador.descifrar(f.apodo_cifrado).decode("utf-8", errors="replace")
+                    if f.apodo_cifrado is not None
+                    else None
+                ),
+                "grado": f.grado,
+                "colegio_id": str(f.colegio_id),
+            }
+            for f in filas
+        ]
