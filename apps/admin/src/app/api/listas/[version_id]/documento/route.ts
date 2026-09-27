@@ -6,7 +6,7 @@
 // HTTP, o el tipo asumido `Blob | ArrayBuffer | string` en el contrato); aqui
 // se normaliza a un cuerpo de `Response` con el tipo correcto.
 
-import { origenDeDatos } from "@tukit/contrato/servidor";
+import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { respuestaDeError } from "@/lib/respuesta";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +19,13 @@ export async function GET(
 
   try {
     const documento = await origenDeDatos().documento(version_id);
-    // El PDF se muestra embebido, no se descarga: `inline`. Un 404 de
-    // `sin_evidencia` sube por `respuestaDeError` como el resto.
+    // El documento (PDF o imagen) se muestra embebido, no se descarga: `inline`.
+    // El tipo real viaja en el Blob (`.type` = Content-Type del backend); se
+    // reenvia para que una imagen se sirva como image/* y no como PDF.
+    const tipo =
+      documento instanceof Blob && documento.type ? documento.type : "application/pdf";
     const cabeceras = {
-      "Content-Type": "application/pdf",
+      "Content-Type": tipo,
       "Content-Disposition": "inline",
       "Cache-Control": "no-store",
     };
@@ -33,6 +36,10 @@ export async function GET(
           documento;
     return new Response(cuerpo as BodyInit, { headers: cabeceras });
   } catch (causa) {
+    // Sin documento: 404 seco, sin volcar el JSON de `sin_evidencia` al iframe.
+    if (causa instanceof ErrorTukit && causa.estado === 404) {
+      return new Response(null, { status: 404 });
+    }
     return respuestaDeError(causa);
   }
 }
