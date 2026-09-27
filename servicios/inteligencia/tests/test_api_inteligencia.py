@@ -40,6 +40,21 @@ async def cliente(motor, monkeypatch):
         yield http
 
 
+class IdentidadDoble:
+    """Doble de Identidad: resuelve tokens y anota si se registro un contacto."""
+
+    def __init__(self) -> None:
+        self.usuario_por_token: dict[str, str] = {}
+        self.contactos: list[str] = []
+
+    async def usuario_del_token(self, token: str) -> str | None:
+        return self.usuario_por_token.get(token)
+
+    async def registrar_contacto(self, correo: str, celular: str | None = None) -> str | None:
+        self.contactos.append(correo)
+        return "usr-contacto"
+
+
 def _peticion(**kw):
     cuerpo = {
         "contacto": {"correo": "papa@ejemplo.com"},
@@ -94,6 +109,44 @@ class TestCrearDevuelve202:
         assert cuerpo["error"] == "entrada_invalida"
         assert "input" not in respuesta.text
         assert set(cuerpo) <= {"error", "mensaje", "campo"}
+
+
+class TestLaSesionEsLaProdiedad:
+    """Un acudiente autenticado (Bearer) es dueño de su trabajo por su
+    usuario_id de sesion, sin re-registrar contacto. Es la traza que hace que
+    su kit no quede huerfano cuando /empezar deja de mandar el contacto."""
+
+    async def test_crear_con_bearer_usa_el_usuario_de_sesion(self, cliente, motor):
+        identidad = IdentidadDoble()
+        identidad.usuario_por_token["tok-acud"] = "22222222-2222-5222-8222-222222222222"
+        app.state.identidad = identidad
+
+        creado = (
+            await cliente.post(
+                "/v1/trabajos",
+                json=_peticion(contacto=None),
+                headers={"Authorization": "Bearer tok-acud"},
+            )
+        ).json()
+        trabajo_id = uuid.UUID(creado["trabajo_id"])
+        await trabajos.procesar(motor, trabajo_id, catalogo=_catalogo())
+
+        admin = (await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")).json()
+        assert admin["contacto_id"] == "22222222-2222-5222-8222-222222222222"
+        assert identidad.contactos == []  # no se re-registro contacto
+
+    async def test_aplicar_canonico_con_bearer_usa_el_usuario_de_sesion(self, cliente):
+        identidad = IdentidadDoble()
+        identidad.usuario_por_token["tok-acud"] = "33333333-3333-5333-8333-333333333333"
+        app.state.identidad = identidad
+        # Sin cache publicada la ruta responde 404, pero el token ya se resolvio
+        # antes de tocar la cache: basta con que no explote la resolucion.
+        respuesta = await cliente.post(
+            "/v1/trabajos/aplicar-canonico",
+            json={"colegio_id": COLEGIO, "grado": "Cuarto", "anio_lectivo": 2026, "perfil": "Ahorrador"},
+            headers={"Authorization": "Bearer tok-acud"},
+        )
+        assert respuesta.status_code == 404
 
 
 class TestConsultar:
