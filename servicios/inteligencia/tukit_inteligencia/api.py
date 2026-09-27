@@ -197,7 +197,7 @@ app = crear_app(
 
 
 @app.post("/v1/trabajos", tags=["trabajos"], status_code=202, summary="Crea un trabajo y lo encola")
-async def crear_trabajo(peticion: PeticionTrabajo) -> dict[str, Any]:
+async def crear_trabajo(peticion: PeticionTrabajo, solicitud: Request) -> dict[str, Any]:
     """La peticion es por HOGAR y no por hijo.
 
     Es lo que hace posible la consolidacion entre hermanos y el reparto de
@@ -227,6 +227,7 @@ async def crear_trabajo(peticion: PeticionTrabajo) -> dict[str, Any]:
         hijos=[hijo.model_dump() for hijo in peticion.hijos],
         contacto=peticion.contacto.model_dump() if peticion.contacto else None,
         preferencias=(peticion.preferencias.model_dump(exclude_none=True) if peticion.preferencias else {}),
+        usuario_id=uuid.UUID(uid) if (uid := await _usuario_de_la_peticion(solicitud)) else None,
     )
     trabajos.lanzar(app.state.motor, uuid.UUID(respuesta["trabajo_id"]))
     return respuesta
@@ -410,6 +411,19 @@ def _identidad() -> Any:
     return cliente
 
 
+async def _usuario_de_la_peticion(peticion: Request) -> str | None:
+    """El `usuario_id` del acudiente autenticado, o None si viene anonimo.
+
+    El token de sesion llega como `Authorization: Bearer ...` (lo reenvia el
+    Route Handler desde la cookie httpOnly). Este servicio no tiene la clave
+    HMAC: se lo pregunta a Identidad. Es la traza de propiedad que baja al
+    pipeline; el flujo anonimo heredado cae de vuelta al contacto.
+    """
+    autorizacion = peticion.headers.get("Authorization", "")
+    token = autorizacion[7:] if autorizacion.startswith("Bearer ") else None
+    return await _identidad().usuario_del_token(token) if token else None
+
+
 def _comercio() -> Any:
     """El cliente de Comercio, inyectable por `app.state` para las pruebas."""
     cliente = getattr(app.state, "comercio", None)
@@ -523,12 +537,9 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
     if "multipart/form-data" not in tipo:
         raise ErrorDominio("multipart_invalido", "Sube las listas como multipart/form-data.", estado=422)
 
-    # Si el acudiente ya viene autenticado, su usuario_id sale de la sesion (lo
-    # resuelve Identidad; este servicio no tiene la clave HMAC) y ES la traza
-    # que baja al catalogo. Solo el flujo anonimo heredado registra por contacto.
-    autorizacion = peticion.headers.get("Authorization", "")
-    token = autorizacion[7:] if autorizacion.startswith("Bearer ") else None
-    usuario_id = await _identidad().usuario_del_token(token) if token else None
+    # Si el acudiente ya viene autenticado, su usuario_id sale de la sesion y
+    # ES la traza que baja al catalogo. Solo el flujo anonimo registra contacto.
+    usuario_id = await _usuario_de_la_peticion(peticion)
 
     partes = _partes_multipart(await peticion.body(), tipo)
     hijos_crudo = ""
@@ -951,12 +962,17 @@ async def listar_grados_canonicos(
     status_code=201,
     summary="Ruta rapida: aplica nivel + personaje a la cache bendita y solicita el pedido",
 )
-async def aplicar_canonico(cuerpo: AplicarCanonico) -> dict[str, Any]:
+async def aplicar_canonico(cuerpo: AplicarCanonico, solicitud: Request) -> dict[str, Any]:
     """Sin re-optimizar y sin cola: crea el trabajo del acudiente y su pedido.
 
     Es la contraparte de subir un PDF (que si entra al pipeline). Un grado con
     cache bendita se resuelve al vuelo; el pedido congelado queda para Comercio.
     """
+    # La sesion manda: si el acudiente viene autenticado, su usuario_id sale del
+    # token y no del cuerpo (que el navegador ya no envia). El body queda como
+    # respaldo del flujo server-to-server.
+    desde_token = await _usuario_de_la_peticion(solicitud)
+    usuario_id = uuid.UUID(desde_token) if desde_token else cuerpo.usuario_id
     try:
         return await trabajos.aplicar_canonico(
             app.state.motor,
@@ -965,7 +981,7 @@ async def aplicar_canonico(cuerpo: AplicarCanonico) -> dict[str, Any]:
             anio_lectivo=cuerpo.anio_lectivo,
             perfil=cuerpo.perfil,
             personaje=cuerpo.personaje,
-            usuario_id=cuerpo.usuario_id,
+            usuario_id=usuario_id,
             catalogo=_catalogo(),
         )
     except trabajos.TrabajoNoExiste as error:
