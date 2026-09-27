@@ -1060,6 +1060,28 @@ async def metricas_colegio(colegio_id: str) -> dict[str, Any]:
     return await metricas.metricas_de_colegio(app.state.motor, colegio_id)
 
 
+@app.get(
+    "/v1/metricas/colegios/{colegio_id}/pedidos",
+    tags=["metricas"],
+    summary="Padres y ninos con pedido pagado en un colegio, por grado, sin PII.",
+)
+async def metricas_pedidos_colegio(colegio_id: str) -> dict[str, Any]:
+    """El cruce `pedido pagado -> trabajo -> hijos -> padre` del colegio.
+
+    Comercio devuelve por HTTP (`GET /v1/comercio/pedidos-pagados`) los pedidos
+    en estado confirmado con su `{trabajo_id, usuario_id}`; aqui se cruzan con
+    los `hijos` del trabajo (que si tienen colegio y grado) y se agrega. La
+    respuesta trae solo `usuario_id`, nunca correo: el correo lo resuelve el
+    servidor del admin con el endpoint protegido de acudientes. Un colegio sin
+    pedidos pagados responde con ceros y listas vacias, no con 404.
+
+    Cuelga de `/v1/metricas/` por la misma razon que `metricas_colegio`: el
+    gateway rutea por prefijo y este es el servicio dueno del cruce (ya habla con
+    Comercio para el checkout). Cero cambios en el gateway.
+    """
+    return await metricas.resumen_pedidos_de_colegio(app.state.motor, colegio_id, _comercio())
+
+
 def main(argv: list[str] | None = None) -> int:
     analizador = argparse.ArgumentParser(description="Levanta la API del pipeline de kits.")
     analizador.add_argument("--puerto", type=int, default=PUERTO_POR_OMISION)

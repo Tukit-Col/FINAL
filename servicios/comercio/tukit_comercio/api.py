@@ -277,6 +277,42 @@ async def mis_pedidos(usuario_id: uuid.UUID) -> dict[str, Any]:
     return {"total": len(pedidos), "pedidos": pedidos}
 
 
+@app.get(
+    "/v1/comercio/pedidos-pagados",
+    tags=["comercio"],
+    summary="Los pedidos pagados (estado confirmado) con su trabajo, para cruces internos.",
+)
+async def pedidos_pagados() -> dict[str, Any]:
+    """El minimo cruce que otro servicio necesita: por cada pedido en un estado
+    de `_ESTADOS_CONFIRMADOS` y con `trabajo_id`, su `{trabajo_id, usuario_id,
+    estado}`. Nada de PII (solo identificadores) y la definicion de "pagado"
+    queda aqui, en Comercio, que es su dueno.
+
+    Lo consume Inteligencia server-to-server para armar las metricas de pedidos
+    por colegio; el navegador nunca lo llama. Sin token, como el resto de la
+    superficie de lectura (ver el gateway y `mis_pedidos`)."""
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        filas = list(
+            await conexion.execute(
+                select(PEDIDO.c.trabajo_id, PEDIDO.c.usuario_id, PEDIDO.c.estado).where(
+                    PEDIDO.c.estado.in_(_ESTADOS_CONFIRMADOS),
+                    PEDIDO.c.trabajo_id.isnot(None),
+                )
+            )
+        )
+    return {
+        "pedidos": [
+            {
+                "trabajo_id": str(f.trabajo_id),
+                "usuario_id": str(f.usuario_id),
+                "estado": f.estado,
+            }
+            for f in filas
+        ]
+    }
+
+
 @app.get("/v1/comercio/pedidos/{pedido_id}", tags=["comercio"], summary="Un pedido, con lineas, pago y envio")
 async def ver_pedido(pedido_id: uuid.UUID) -> dict[str, Any]:
     async with app.state.motor.sesion() as db:

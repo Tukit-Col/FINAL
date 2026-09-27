@@ -64,7 +64,7 @@ import type {
   VersionListaAdmin,
 } from "./catalogo";
 import type { Pedido, TableroComercio } from "./comercio";
-import type { MetricasColegio, SerieMetricas } from "./metricas";
+import type { MetricasColegio, ResumenPedidosColegio, SerieMetricas } from "./metricas";
 import type { BandejaOperacion, Caso, CasoCreado, SolicitudCaso } from "./operacion";
 
 /** Los roles del sistema (filas de `rol` en identidad, ADR 0013). No es un
@@ -417,6 +417,14 @@ export interface OrigenDatos {
   // `GET /v1/operacion/metricas`), que `make instantanea-metricas` va llenando
   // sesion a sesion; los filtros acotan por dimension/colegio y por fecha minima.
   metricasColegio(colegioId: string): Promise<MetricasColegio>;
+
+  // §Metricas de pedidos — el cruce `pedido pagado -> trabajo -> hijos -> padre`
+  // de un colegio (Inteligencia, `GET /v1/metricas/colegios/{id}/pedidos`).
+  // Solo agregados e `usuario_id`: cero PII, por eso NO lleva token. El correo
+  // de cada padre lo resuelve el servidor del admin con `acudientesAdmin`,
+  // pasando estos `usuario_id`.
+  resumenPedidosColegio(colegioId: string): Promise<ResumenPedidosColegio>;
+
   metricasSerie(filtros?: {
     dimension?: "catalogo" | "colegio" | "global";
     dimensionId?: string;

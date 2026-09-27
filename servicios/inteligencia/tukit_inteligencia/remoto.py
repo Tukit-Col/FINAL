@@ -269,6 +269,19 @@ class ClienteComercio:
     async def iniciar_pago(self, pedido_id: str, cuerpo: dict[str, Any]) -> tuple[int, dict[str, Any]]:
         return await self._postear(f"/v1/ordenes/{pedido_id}/pago", cuerpo)
 
+    async def pedidos_pagados(self) -> list[dict[str, Any]]:
+        """Los pedidos en estado confirmado con su trabajo: `{trabajo_id,
+        usuario_id, estado}`. Comercio es el dueno de la definicion de "pagado";
+        aqui solo se lee para cruzar con los hijos del trabajo. Una caida de
+        Comercio es `RemotoCaido`, no un cruce a medias."""
+        try:
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.get(f"{self._base()}/v1/comercio/pedidos-pagados")
+                respuesta.raise_for_status()
+        except httpx.HTTPError as error:
+            raise RemotoCaido("comercio", str(error)) from error
+        return list(respuesta.json().get("pedidos") or ())
+
     async def _postear(self, ruta: str, cuerpo: dict[str, Any]) -> tuple[int, dict[str, Any]]:
         try:
             async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:

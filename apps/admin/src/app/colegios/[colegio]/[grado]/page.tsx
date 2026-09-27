@@ -12,10 +12,12 @@
 // traduce a `notFound()`.
 
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
-import type { ItemListaOficial, ListaOficial } from "@tukit/contrato";
+import type { ItemListaOficial, ListaOficial, PedidosPorGrado } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import EditarLista from "@/components/EditarLista";
+import { COOKIE_SESION } from "@/lib/sesion";
 import styles from "../../Colegios.module.css";
 
 export const dynamic = "force-dynamic";
@@ -98,6 +100,40 @@ export default async function PaginaListaGrado({ params }: Props) {
     ? `/api/listas/${encodeURIComponent(lista.version_id)}/documento`
     : null;
 
+  // ------------------------------------- Padres con pedido pagado en el grado
+  // Se reutiliza el mismo cruce del perfil del colegio y se toma la fila de ESTE
+  // grado. Los conteos van sin token; el correo (PII) sale del endpoint
+  // protegido de acudientes y degrada a identificador sin sesión/rol.
+  const origen = origenDeDatos();
+  const resumenPedidos = await origen.resumenPedidosColegio(colegioId);
+  const filaGrado: PedidosPorGrado | undefined = resumenPedidos.por_grado.find(
+    (g) => g.grado === grado,
+  );
+  const padresGrado = filaGrado?.por_padre ?? [];
+
+  const correos = new Map<string, string>();
+  let correosCargados = true;
+  if (padresGrado.length > 0) {
+    const token = (await cookies()).get(COOKIE_SESION)?.value;
+    if (!token) {
+      correosCargados = false;
+    } else {
+      try {
+        const acudientes = await origen.acudientesAdmin(
+          token,
+          padresGrado.map((p) => p.usuario_id),
+        );
+        for (const a of acudientes) correos.set(a.usuario_id, a.correo);
+      } catch (causa) {
+        if (causa instanceof ErrorTukit && (causa.estado === 401 || causa.estado === 403)) {
+          correosCargados = false;
+        } else {
+          throw causa;
+        }
+      }
+    }
+  }
+
   return (
     <div className={styles.pagina}>
       <nav className={styles.migas}>
@@ -168,6 +204,44 @@ export default async function PaginaListaGrado({ params }: Props) {
           )}
         </section>
       </div>
+
+      {/* Padres con pedido PAGADO de este colegio + grado, con su nº de niños en
+          el grado. Reusa el cruce del perfil del colegio (`por_grado`). */}
+      <section className={styles.tarjeta}>
+        <h2 className={styles.subtitulo}>Padres con pedido pagado</h2>
+        {padresGrado.length === 0 ? (
+          <p className={styles.vacio}>
+            Todavía no hay pedidos pagados de este colegio en este grado.
+          </p>
+        ) : (
+          <>
+            {!correosCargados ? (
+              <p className={styles.avisoCorreos}>
+                No pudimos cargar los correos (falta sesión o rol de operador/admin). Se muestran
+                los identificadores.
+              </p>
+            ) : null}
+            <table className={styles.tabla}>
+              <thead>
+                <tr>
+                  <th scope="col">Padre</th>
+                  <th scope="col">Niños en {lista.grado}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {padresGrado.map((p) => (
+                  <tr key={p.usuario_id}>
+                    <th scope="row" className={styles.celdaDato}>
+                      {correos.get(p.usuario_id) ?? p.usuario_id}
+                    </th>
+                    <td className="cifra">{p.ninos}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+      </section>
     </div>
   );
 }
