@@ -1652,6 +1652,42 @@ async def grados_canonicos(motor: Any, *, colegio_id: str | None = None) -> list
     ]
 
 
+async def acudientes_de_colegio(motor: Any, *, colegio_id: str) -> list[dict[str, Any]]:
+    """Los acudientes de un colegio con el estado de su trabajo más reciente.
+
+    Agrupa por `usuario_id` (el identificador del acudiente, jamás su correo ni
+    el nombre de un menor) y se queda con el trabajo VIVO: el más nuevo de cada
+    acudiente. El colegio no es columna del trabajo —vive en el JSON `hijos`—,
+    así que el filtro es por ese campo. Los trabajos anónimos (sin `usuario_id`)
+    no se agrupan: no hay a quién listar.
+    """
+    consulta = (
+        select(TRABAJO.c.id, TRABAJO.c.usuario_id, TRABAJO.c.estado, TRABAJO.c.actualizado_en, TRABAJO.c.hijos)
+        .where(TRABAJO.c.usuario_id.is_not(None))
+        .order_by(TRABAJO.c.usuario_id, TRABAJO.c.actualizado_en.desc())
+    )
+    async with motor.engine.begin() as conexion:
+        filas = (await conexion.execute(consulta)).all()
+
+    # ponytail: filtro por colegio en Python sobre los trabajos recientes — un
+    # colegio tiene decenas de acudientes, no hace falta índice sobre el JSON.
+    # Subir a JSON containment (`hijos @> …`) si un colegio pasa de miles.
+    ultimos: dict[str, Any] = {}
+    for f in filas:  # ya vienen por usuario, más reciente primero
+        if any(h.get("colegio_id") == colegio_id for h in (f.hijos or ())):
+            ultimos.setdefault(str(f.usuario_id), f)
+
+    return [
+        {
+            "usuario_id": uid,
+            "estado": f.estado,
+            "actualizado_en": f.actualizado_en.isoformat() if f.actualizado_en else None,
+            "trabajo_id": str(f.id),
+        }
+        for uid, f in ultimos.items()
+    ]
+
+
 async def _anclas_de_personaje(
     catalogo: ClienteCatalogo, personaje: str | None
 ) -> dict[str, dict[str, Any]]:
