@@ -115,6 +115,92 @@ async def metricas_de_colegio(motor: Any, colegio_id: str) -> dict[str, Any]:
     }
 
 
+async def resumen_pedidos_de_colegio(motor: Any, colegio_id: str, cliente_comercio: Any) -> dict[str, Any]:
+    """El cruce `pedido pagado -> trabajo -> hijos -> padre` de un colegio.
+
+    Comercio es el dueno de "pagado": devuelve por HTTP los pedidos en estado
+    confirmado con su `{trabajo_id, usuario_id}` (sin PII). Aqui se cruzan con
+    los `hijos` del propio `trabajo_pipeline` (que si tienen colegio y grado) y
+    se agrega. Se devuelve solo `usuario_id`, nunca correo: el correo lo resuelve
+    el servidor del admin con el endpoint protegido de acudientes.
+
+    Un trabajo cuenta una sola vez aunque tenga varios pedidos pagados (dedupe
+    por `trabajo_id`), para no inflar el conteo de ninos con re-pedidos.
+
+    `estados_trabajos` (punto 4) cuenta TODAS las solicitudes de kit del colegio
+    -pagadas o no- en los tres estados de negocio; por eso se calcula sobre el
+    barrido completo de trabajos y no solo sobre los pagados."""
+    pagados = await cliente_comercio.pedidos_pagados()
+    dueno_por_trabajo: dict[str, str] = {}
+    for pedido in pagados:
+        tid = pedido.get("trabajo_id")
+        uid = pedido.get("usuario_id")
+        if tid and uid:
+            dueno_por_trabajo.setdefault(str(tid), str(uid))
+
+    async with motor.sesion() as db:
+        conexion = await db.connection()
+        trabajos = list(
+            await conexion.execute(select(TRABAJO.c.id, TRABAJO.c.hijos, TRABAJO.c.estado))
+        )
+
+    # Punto 4: estados de las solicitudes de kit del colegio (todas, no solo pagadas).
+    estados = {
+        EstadoTrabajo.ESPERA_REVISION.value: 0,
+        EstadoTrabajo.PUBLICADO.value: 0,
+        EstadoTrabajo.FALLIDO.value: 0,
+    }
+    for t in trabajos:
+        if colegio_id in _colegios_del_trabajo(t.hijos) and t.estado in estados:
+            estados[t.estado] += 1
+
+    # Puntos 1-3 y el desglose por grado: solo trabajos pagados, contando los
+    # hijos de ESTE colegio, atribuidos al padre que pago.
+    por_padre: dict[str, int] = {}
+    por_grado: dict[str, dict[str, int]] = {}
+    for t in trabajos:
+        uid = dueno_por_trabajo.get(str(t.id))
+        if uid is None:
+            continue
+        for hijo in t.hijos or ():
+            if not isinstance(hijo, dict) or str(hijo.get("colegio_id")) != colegio_id:
+                continue
+            por_padre[uid] = por_padre.get(uid, 0) + 1
+            grado = str(hijo.get("grado")) if hijo.get("grado") is not None else "—"
+            grado_padres = por_grado.setdefault(grado, {})
+            grado_padres[uid] = grado_padres.get(uid, 0) + 1
+
+    return {
+        "colegio_id": colegio_id,
+        "total_padres": len(por_padre),
+        "total_ninos": sum(por_padre.values()),
+        "por_padre": _lista_padres(por_padre),
+        "por_grado": [
+            {
+                "grado": grado,
+                "padres": len(padres),
+                "ninos": sum(padres.values()),
+                "por_padre": _lista_padres(padres),
+            }
+            for grado, padres in sorted(por_grado.items())
+        ],
+        "estados_trabajos": {
+            "espera_revision": estados[EstadoTrabajo.ESPERA_REVISION.value],
+            "publicado": estados[EstadoTrabajo.PUBLICADO.value],
+            "fallido": estados[EstadoTrabajo.FALLIDO.value],
+        },
+    }
+
+
+def _lista_padres(por_padre: dict[str, int]) -> list[dict[str, Any]]:
+    """La lista `[{usuario_id, ninos}]` ordenada por mas ninos primero y, a
+    empate, por id (orden estable, sin depender del insertado)."""
+    return [
+        {"usuario_id": uid, "ninos": ninos}
+        for uid, ninos in sorted(por_padre.items(), key=lambda kv: (-kv[1], kv[0]))
+    ]
+
+
 def _un_kit_por_trabajo(kits: list[Any]) -> list[Any]:
     """Un kit por trabajo: el recomendado si lo hay, si no el primero (mas
     barato, porque la consulta viene ordenada por `total_cop`)."""

@@ -70,7 +70,7 @@ import type {
   VersionListaAdmin,
 } from "./catalogo";
 import type { Pedido, TableroComercio } from "./comercio";
-import type { MetricasColegio, SerieMetricas } from "./metricas";
+import type { MetricasColegio, ResumenPedidosColegio, SerieMetricas } from "./metricas";
 import type { BandejaOperacion, Caso, CasoCreado, SolicitudCaso } from "./operacion";
 import {
   ErrorTukit,
@@ -1159,6 +1159,12 @@ export class ClienteApi implements OrigenDatos {
   metricasColegio(colegioId: string): Promise<MetricasColegio> {
     return this.pedir<MetricasColegio>(
       `/v1/metricas/colegios/${encodeURIComponent(colegioId)}`,
+    );
+  }
+
+  resumenPedidosColegio(colegioId: string): Promise<ResumenPedidosColegio> {
+    return this.pedir<ResumenPedidosColegio>(
+      `/v1/metricas/colegios/${encodeURIComponent(colegioId)}/pedidos`,
     );
   }
 

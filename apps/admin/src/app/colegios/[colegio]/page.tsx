@@ -13,11 +13,20 @@
 // (`colegio_no_existe`) se traduce a `notFound()`.
 
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
-import type { ColegioDetalle, DirectorioColegio } from "@tukit/contrato";
-import { GRADOS_CANONICOS } from "@tukit/contrato";
+import type {
+  ColegioDetalle,
+  DirectorioColegio,
+  MetricasColegio,
+  ResumenPedidosColegio,
+  Sugerencia,
+} from "@tukit/contrato";
+import { GRADOS_CANONICOS, formatearPesos } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import PerfilColegio from "@/components/PerfilColegio";
+import { COOKIE_SESION } from "@/lib/sesion";
+import { demandaPorGrado } from "@/lib/metricas-colegio";
 import styles from "../Colegios.module.css";
 
 export const dynamic = "force-dynamic";
@@ -59,6 +68,39 @@ export default async function PaginaColegio({ params }: Props) {
   // —el nombre en la base no cambia—, pero evita mostrar un alias interno cuando
   // existe el nombre oficial.
   const titulo = directorio?.nombre ?? colegio.nombre;
+
+  // ------------------------------------------------ Métricas (pedidos pagados)
+  // Los agregados —conteos, estados de trabajo, cobertura, demanda— NO llevan
+  // datos personales y se leen sin token. Los correos de los padres SÍ son PII:
+  // se resuelven aparte con el endpoint protegido de acudientes, usando la
+  // cookie de sesión. Sin sesión o sin el rol, los conteos se muestran igual y
+  // solo el correo degrada a su identificador (nunca se rompe la página).
+  const origen = origenDeDatos();
+  const resumenPedidos: ResumenPedidosColegio = await origen.resumenPedidosColegio(colegioId);
+  const metricas: MetricasColegio = await origen.metricasColegio(colegioId);
+  const sugerencias: Sugerencia[] = await origen.sugerencias();
+  const demanda = demandaPorGrado(sugerencias, colegioId, gradosVerificados);
+
+  const correos = new Map<string, string>();
+  let correosCargados = true;
+  const idsPadres = resumenPedidos.por_padre.map((p) => p.usuario_id);
+  if (idsPadres.length > 0) {
+    const token = (await cookies()).get(COOKIE_SESION)?.value;
+    if (!token) {
+      correosCargados = false;
+    } else {
+      try {
+        const acudientes = await origen.acudientesAdmin(token, idsPadres);
+        for (const a of acudientes) correos.set(a.usuario_id, a.correo);
+      } catch (causa) {
+        if (causa instanceof ErrorTukit && (causa.estado === 401 || causa.estado === 403)) {
+          correosCargados = false;
+        } else {
+          throw causa;
+        }
+      }
+    }
+  }
 
   return (
     <div className={styles.pagina}>
@@ -208,6 +250,111 @@ export default async function PaginaColegio({ params }: Props) {
             );
           })}
         </ul>
+      </section>
+
+      {/* Métricas: cruza pedidos PAGADOS × trabajos × hijos × correo. Los
+          conteos y estados no llevan PII; los correos vienen del endpoint
+          protegido de acudientes y degradan a identificador sin sesión/rol. */}
+      <section className={styles.tarjeta}>
+        <h2 className={styles.subtitulo}>Métricas</h2>
+
+        {/* Puntos 1 y 2: totales de padres y niños con pedido pagado. */}
+        <dl className={styles.resumen}>
+          <div>
+            <dt>Padres con pedido pagado</dt>
+            <dd className="cifra">{resumenPedidos.total_padres}</dd>
+          </div>
+          <div>
+            <dt>Niños en esos pedidos</dt>
+            <dd className="cifra">{resumenPedidos.total_ninos}</dd>
+          </div>
+        </dl>
+
+        {/* Punto 3: cada padre (correo) con su nº de niños en el colegio. */}
+        <h3 className={styles.metricaTitulo}>Padres con pedido pagado</h3>
+        {resumenPedidos.por_padre.length === 0 ? (
+          <p className={styles.vacio}>Todavía no hay pedidos pagados de este colegio.</p>
+        ) : (
+          <>
+            {!correosCargados ? (
+              <p className={styles.avisoCorreos}>
+                No pudimos cargar los correos (falta sesión o rol de operador/admin). Se muestran
+                los identificadores.
+              </p>
+            ) : null}
+            <table className={styles.tabla}>
+              <thead>
+                <tr>
+                  <th scope="col">Padre</th>
+                  <th scope="col">Niños</th>
+                </tr>
+              </thead>
+              <tbody>
+                {resumenPedidos.por_padre.map((p) => (
+                  <tr key={p.usuario_id}>
+                    <th scope="row" className={styles.celdaDato}>
+                      {correos.get(p.usuario_id) ?? p.usuario_id}
+                    </th>
+                    <td className="cifra">{p.ninos}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {/* Punto 4: estado de las solicitudes de kit del colegio. */}
+        <h3 className={styles.metricaTitulo}>Solicitudes de kit</h3>
+        <div className={styles.estados}>
+          <span className={`${styles.estadoPill} ${styles.estadoEspera}`}>
+            <span className="cifra">{resumenPedidos.estados_trabajos.espera_revision}</span>{" "}
+            esperando revisión
+          </span>
+          <span className={`${styles.estadoPill} ${styles.estadoPublicado}`}>
+            <span className="cifra">{resumenPedidos.estados_trabajos.publicado}</span> publicadas
+          </span>
+          <span className={`${styles.estadoPill} ${styles.estadoFallido}`}>
+            <span className="cifra">{resumenPedidos.estados_trabajos.fallido}</span> fallidas
+          </span>
+        </div>
+
+        {/* Punto 5: grados SIN lista verificada con más demanda (una tarea por
+            familia; las copias de "Editar" no suman, ver `demandaPorGrado`). */}
+        <h3 className={styles.metricaTitulo}>Grados sin lista con más demanda</h3>
+        {demanda.length === 0 ? (
+          <p className={styles.vacio}>No hay solicitudes de padres para grados sin lista.</p>
+        ) : (
+          <ul className={styles.demanda}>
+            {demanda.map((d) => (
+              <li key={d.grado}>
+                <span>{d.grado}</span>
+                <span>
+                  <span className="cifra">{d.solicitudes}</span>{" "}
+                  {d.solicitudes === 1 ? "solicitud" : "solicitudes"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* Punto 6: cobertura y ahorro (medida en vivo de Inteligencia). */}
+        <h3 className={styles.metricaTitulo}>Cobertura y ahorro</h3>
+        <dl className={styles.ficha}>
+          <div>
+            <dt>Cobertura</dt>
+            <dd>
+              <span className="cifra">{Math.round(metricas.cobertura * 100)}</span>%
+            </dd>
+          </div>
+          <div>
+            <dt>Ahorro total</dt>
+            <dd>{formatearPesos(metricas.ahorro_total_cop)}</dd>
+          </div>
+          <div>
+            <dt>Kits armados</dt>
+            <dd className="cifra">{metricas.kits_armados}</dd>
+          </div>
+        </dl>
       </section>
     </div>
   );
