@@ -55,6 +55,16 @@ async def cliente():
     await engine.dispose()
 
 
+def test_las_rutas_vienen_de_un_router_incluido(cliente):
+    # ADR 0019: api.py es solo ensamblador; las rutas viven en routers/identidad.py.
+    from tukit_identidad.routers import router
+
+    montadas = {r.path for r in router.routes}
+    assert "/v1/colegios" in montadas
+    assert "/v1/sesiones" in montadas
+    assert "/v1/cuenta/direcciones/{direccion_id}" in montadas
+
+
 class TestElAcudienteEscogeColegioYGrado:
     async def test_los_colegios_traen_su_numero_de_sedes(self, cliente):
         cuerpo = (await cliente.get("/v1/colegios")).json()
@@ -252,6 +262,11 @@ class TestLaSuperficieDeMenoresNoEstaAbierta:
             # Operacion), sin devolver menor ni matricula: la contraparte de
             # POST /v1/contactos. Efimera, nadie la persiste.
             "/v1/contactos/{usuario_id}",
+            # Datos DUEB de un colegio del directorio de Bogota (direccion,
+            # contacto, sitio) para pre-llenar el perfil de un colegio nuevo. Es
+            # el registro publico de establecimientos: no toca menores ni
+            # matriculas, no abre la superficie sensible.
+            "/v1/directorio/{dane}",
             # Autenticacion (seccion 12.4). Devuelven quien es el portador y sus
             # ROLES, nunca un estudiante ni un nombre de menor: la superficie
             # sensible sigue cerrada, es lo que fija la prueba de arriba.
