@@ -850,6 +850,22 @@ async def cola(
 
 
 @app.get(
+    "/v1/admin/colegios/{colegio_id}/acudientes",
+    tags=["admin"],
+    summary="Los acudientes de un colegio con el estado de su trabajo mas reciente",
+)
+async def acudientes_de_colegio(colegio_id: str) -> dict[str, Any]:
+    """Agrupado por usuario_id, el trabajo vivo de cada acudiente.
+
+    Sin correo ni apodos de menores (Ley 1581 / Anexo M): esta superficie solo
+    expone el identificador del acudiente, el estado y la fecha. El colegio se
+    filtra dentro del JSON `hijos`, que es donde vive.
+    """
+    acudientes = await trabajos.acudientes_de_colegio(app.state.motor, colegio_id=colegio_id)
+    return {"acudientes": acudientes}
+
+
+@app.get(
     "/v1/admin/trabajos/{trabajo_id}",
     tags=["admin"],
     summary="AD-03: el trabajo CON sus kits, aunque todavia no este publicado",
