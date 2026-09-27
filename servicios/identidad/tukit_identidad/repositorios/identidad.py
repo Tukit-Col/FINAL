@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import and_, func, insert, or_, select, update
+from tukit_comun.cifrado import cifrador_desde_entorno
 
 from ..dominio.autorizacion import Ambito
 from ..modelos import (
@@ -317,6 +318,23 @@ class RepoIdentidad:
 
     async def usuario_del_token(self, usuario_id: uuid.UUID) -> Any:
         return (await self.conexion.execute(select(USUARIO).where(USUARIO.c.id == usuario_id))).one_or_none()
+
+    async def nombres_de(self, ids: list[uuid.UUID]) -> dict[str, str]:
+        """Los nombres descifrados de esos usuarios ADULTOS, por id. Solo entran
+        los que tienen `nombre_cifrado`; un contacto invitado (sin nombre) no
+        aparece. Nunca toca `estudiante`: aqui no vive ningun nombre de menor."""
+        if not ids:
+            return {}
+        cifrador = cifrador_desde_entorno()
+        filas = await self.conexion.execute(
+            select(USUARIO.c.id, USUARIO.c.nombre_cifrado).where(
+                USUARIO.c.id.in_(ids), USUARIO.c.nombre_cifrado.is_not(None)
+            )
+        )
+        return {
+            str(f.id): cifrador.descifrar(f.nombre_cifrado).decode("utf-8", errors="replace")
+            for f in filas
+        }
 
     async def direcciones_de(self, usuario_id: uuid.UUID) -> list[Any]:
         return list(

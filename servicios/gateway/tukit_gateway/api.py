@@ -95,6 +95,9 @@ RUTAS: dict[str, str] = {
     "/v1/directorio": "identidad",
     "/v1/grados": "identidad",
     "/v1/contactos": "identidad",
+    # Nombres de acudientes adultos por id, para el panel del back-office
+    # (tras `usuario:leer:nombre`). Es de identidad, la unica que cifra nombres.
+    "/v1/usuarios": "identidad",
     "/v1/sesiones": "identidad",
     # "Mi cuenta" del acudiente: identidad y libreta de direcciones, sobre el
     # token que emite `/v1/sesiones`.

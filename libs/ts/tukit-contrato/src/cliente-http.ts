@@ -677,6 +677,20 @@ export class ClienteApi implements OrigenDatos {
     );
   }
 
+  // Nombres de acudientes ADULTOS por id, para poner cara al panel del colegio.
+  // Es PII (§Anexo M): identidad exige `usuario:leer:nombre`, asi que el panel
+  // reenvia el Bearer de la sesion del admin (leido de la cookie por el Server
+  // Component). Devuelve un mapa id→nombre; un id sin nombre no aparece.
+  async nombresDeUsuarios(ids: string[], token: string): Promise<Record<string, string>> {
+    if (ids.length === 0) return {};
+    const cola = ids.map((id) => `ids=${encodeURIComponent(id)}`).join("&");
+    const r = await this.pedir<{ nombres?: Record<string, string> }>(
+      `/v1/usuarios/nombres?${cola}`,
+      { headers: this.autoriza(token) },
+    );
+    return r.nombres ?? {};
+  }
+
   validarLinea(trabajoId: string, itemId: string, cuerpo: ValidarLinea): Promise<void> {
     return this.json(
       `/v1/admin/trabajos/${encodeURIComponent(trabajoId)}/lineas/${encodeURIComponent(itemId)}/validar`,

@@ -29,6 +29,7 @@ from pydantic import BaseModel, Field
 from tukit_comun.cifrado import cifrador_desde_entorno
 from tukit_comun.http import ErrorDominio
 
+from ..dominio.autorizacion import Ambito
 from ..dominio.sesiones import emitir_token, leer_token, verificar_clave
 from ..repositorios import RepoIdentidad
 
@@ -299,6 +300,32 @@ async def resolver_contacto(peticion: Request, usuario_id: uuid.UUID) -> dict[st
             "usuario_no_existe", "No hay ningun usuario activo con ese identificador.", estado=404
         )
     return {"usuario_id": str(usuario_id), "correo": fila.correo, "celular": None}
+
+
+@router.get(
+    "/v1/usuarios/nombres",
+    tags=["contacto"],
+    summary="Nombres de acudientes adultos por id, para el panel del back-office.",
+)
+async def nombres_de_usuarios(
+    peticion: Request,
+    ids: Annotated[list[uuid.UUID], Query(description="usuario_id a resolver")],
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    """El nombre en claro de uno o varios acudientes ADULTOS, para que el panel
+    de acudientes del colegio muestre quien pidio en vez de un id. Es PII
+    (§Anexo M: el nombre del adulto es PERSONAL), asi que exige el permiso
+    `usuario:leer:nombre` sobre el ambito global —solo admin y operador lo
+    tienen— y devuelve 403 a quien no. Nunca resuelve un nombre de menor: solo
+    lee la tabla `usuario`."""
+    async with peticion.app.state.motor.sesion() as db:
+        repo = RepoIdentidad(await db.connection())
+        quien = await _usuario_del_token(authorization, repo)
+        if not await repo.puede(quien.id, "usuario:leer:nombre", Ambito.global_()):
+            raise ErrorDominio(
+                "sin_permiso", "No puedes leer nombres de acudientes.", estado=403
+            )
+        return {"nombres": await repo.nombres_de(ids)}
 
 
 # --------------------------------------------------------------- cuenta del acudiente
