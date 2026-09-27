@@ -249,6 +249,12 @@ class TestLaSuperficieDeMenoresNoEstaAbierta:
     async def test_no_hay_ruta_que_devuelva_datos_de_menores(self, cliente, ruta):
         assert (await cliente.get(ruta)).status_code in {404, 422}
 
+    async def test_hijos_sin_token_es_401_y_no_filtra_menores(self, cliente):
+        r = await cliente.get("/v1/cuenta/hijos")
+        assert r.status_code == 401
+        # El cuerpo del error nunca trae un apodo ni un nombre: es solo el sobre.
+        assert set(r.json().keys()) <= {"error", "mensaje", "campo"}
+
     def test_el_esquema_publicado_no_anuncia_ninguna(self):
         """Se mira el OpenAPI y no solo las respuestas: una ruta que existe
         y hoy nadie llama es una ruta que alguien llama manana."""
@@ -279,4 +285,7 @@ class TestLaSuperficieDeMenoresNoEstaAbierta:
             "/v1/cuenta",
             "/v1/cuenta/direcciones",
             "/v1/cuenta/direcciones/{direccion_id}",
+            # "Mis hijos": apodos del portador, nunca nombres reales de menor.
+            # Exige token y solo devuelve lo propio (Ley 1581 / Anexo M).
+            "/v1/cuenta/hijos",
         }
