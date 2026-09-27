@@ -1,8 +1,8 @@
 // El lado del navegador de las acciones del onboarding y las listas (P4).
 //
 // Habla solo con los Route Handlers de esta misma app, nunca con el backend:
-// la URL del backend y la bandera `TUKIT_ORIGEN_DATOS` se quedan del lado del
-// servidor. Es un modulo propio de esta rebanada —no se toca `api-navegador.ts`—
+// la URL del backend se queda del lado del servidor. Es un modulo propio de
+// esta rebanada —no se toca `api-navegador.ts`—
 // que reproduce la forma de `enviar()` de ese fichero, ampliada a los verbos
 // que estas pantallas necesitan (multipart para el PDF, PATCH/POST para los
 // items) sin acoplarse al resto de las acciones del §7.

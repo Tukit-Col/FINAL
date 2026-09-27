@@ -24,7 +24,9 @@ saber cual es.
 
 from __future__ import annotations
 
+import contextvars
 import os
+import uuid
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -44,6 +46,28 @@ if TYPE_CHECKING:
 # friccion sin contrapartida. En produccion se sobreescribe con
 # `TUKIT_CORS_ORIGENES`, separando con comas.
 ORIGENES_POR_OMISION = ("http://localhost:3000", "http://127.0.0.1:3000")
+
+# El id de correlacion: una sola cadena que sigue una peticion a traves de todos
+# los servicios que toca. Sin esto, un fallo en la saga de pago deja cinco logs
+# en cinco servicios sin forma de saber que son la misma peticion. Se guarda en
+# un `contextvar` (no un global de modulo) porque el servidor atiende varias
+# peticiones async a la vez y un global las mezclaria. La cabecera es la
+# convencion de facto (`x-correlation-id`), en minusculas porque HTTP no
+# distingue mayusculas y asi se compara sin normalizar.
+CABECERA_CORRELACION = "x-correlation-id"
+_correlacion: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "correlacion_id", default=None
+)
+
+
+def id_de_correlacion() -> str | None:
+    """El id de correlacion de la peticion en curso, o `None` fuera de una.
+
+    `None` fuera de un ciclo de peticion (un poller, un CLI): no se inventa un
+    id para trabajo que nadie pidio por HTTP, y quien propaga trata `None` como
+    "no anexar cabecera".
+    """
+    return _correlacion.get()
 
 
 class ErrorDominio(Exception):
@@ -95,10 +119,18 @@ async def cliente_efimero(
     """
     import httpx
 
+    # El id de correlacion viaja como cabecera por omision del cliente, asi que
+    # se propaga a TODA llamada saliente sin tocar cada `remoto.py`. Es aditivo:
+    # si no hay id (un poller, un CLI) no se anexa nada, y una cabecera que el
+    # metodo llamante pase explicitamente en `headers=` gana, porque va por
+    # peticion y las de omision no la pisan.
+    cid = _correlacion.get()
+    cabeceras = {CABECERA_CORRELACION: cid} if cid else None
+
     if cliente is not None:
         yield cliente
         return
-    propio = httpx.AsyncClient(timeout=espera)
+    propio = httpx.AsyncClient(timeout=espera, headers=cabeceras)
     try:
         yield propio
     finally:
@@ -149,6 +181,28 @@ def crear_app(
         allow_headers=["*"],
     )
 
+    @app.middleware("http")
+    async def _correlacion_mw(peticion: Request, siguiente):
+        # Toma el id que llega (el gateway lo acuña en el borde, ver
+        # `tukit_gateway.api`), o acuña uno si esta peticion entra directo al
+        # servicio. Se guarda en el contextvar de ESTA peticion para que las
+        # llamadas salientes (via `cliente_efimero`) y el sobre de error lo
+        # lleven sin pasarlo a mano, y se resetea al salir para no filtrarlo a
+        # la siguiente peticion que reuse el hilo/tarea.
+        cid = peticion.headers.get(CABECERA_CORRELACION) or uuid.uuid4().hex
+        token = _correlacion.set(cid)
+        try:
+            respuesta = await siguiente(peticion)
+        finally:
+            _correlacion.reset(token)
+        respuesta.headers[CABECERA_CORRELACION] = cid
+        return respuesta
+
+    # Los dos manejadores devuelven el sobre EXACTO del contrato (nada mas: el
+    # test fija `set(cuerpo) == {error, mensaje, campo}`). El id de correlacion
+    # no va en el cuerpo sino en la cabecera, y no hace falta ponerlo aqui: la
+    # respuesta de estos manejadores vuelve a salir por `_correlacion_mw` (que
+    # envuelve al ExceptionMiddleware), y alli se le pega la cabecera.
     @app.exception_handler(ErrorDominio)
     async def _dominio(_peticion: Request, error: ErrorDominio) -> JSONResponse:
         return JSONResponse(status_code=error.estado, content=error.cuerpo())

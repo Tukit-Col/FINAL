@@ -19,9 +19,9 @@ from __future__ import annotations
 import argparse
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func, insert, select
 from tukit_comun.bd import crear_motor
@@ -44,6 +44,7 @@ from .remoto import ClienteIdentidad
 PUERTO_POR_OMISION = 8015
 
 CASO = Base.metadata.tables["caso"]
+METRICA = Base.metadata.tables["metrica_diaria"]
 
 
 async def _arrancar(app: FastAPI) -> None:
@@ -148,6 +149,64 @@ async def ver_caso(caso_id: uuid.UUID) -> dict[str, Any]:
         if fila is None:
             raise ErrorDominio("caso_no_existe", "No hay ningun caso con ese identificador.", estado=404)
         return _serializar_caso(fila)
+
+
+@app.get(
+    "/v1/operacion/metricas",
+    tags=["operacion"],
+    summary="Series de las metricas de calidad congeladas por dia (metrica_diaria)",
+)
+async def metricas_series(
+    dimension: Annotated[
+        str | None, Query(description="Filtra por dimension: catalogo, colegio, global")
+    ] = None,
+    dimension_id: Annotated[
+        str | None, Query(description="Acota a un id dentro de la dimension (ej. un colegio)")
+    ] = None,
+    desde: Annotated[str | None, Query(description="Fecha ISO minima (inclusive)")] = None,
+) -> dict[str, Any]:
+    """Las metricas punto-en-el-tiempo que `instantanea` congela cada dia.
+
+    El panel del operador las pide para pintar la traza de "como mejora el
+    algoritmo por dia". Devuelve las filas crudas (fecha, dimension, id, metrica,
+    valor) ordenadas por fecha; el frontend las agrupa por metrica en series. Sin
+    snapshots aun, `puntos` viene vacio: es una respuesta valida, no un 404.
+    """
+    consulta = select(
+        METRICA.c.fecha,
+        METRICA.c.dimension,
+        METRICA.c.dimension_id,
+        METRICA.c.metrica,
+        METRICA.c.valor,
+    ).order_by(METRICA.c.fecha, METRICA.c.dimension, METRICA.c.metrica)
+    if dimension:
+        consulta = consulta.where(METRICA.c.dimension == dimension)
+    if dimension_id:
+        consulta = consulta.where(METRICA.c.dimension_id == dimension_id)
+    if desde:
+        try:
+            limite = datetime.fromisoformat(desde).date()
+        except ValueError:
+            raise ErrorDominio(
+                "fecha_invalida", "`desde` va como fecha ISO (YYYY-MM-DD).", estado=422, campo="desde"
+            ) from None
+        consulta = consulta.where(METRICA.c.fecha >= limite)
+
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        filas = list(await conexion.execute(consulta))
+
+    puntos = [
+        {
+            "fecha": f.fecha.isoformat(),
+            "dimension": f.dimension,
+            "dimension_id": f.dimension_id,
+            "metrica": f.metrica,
+            "valor": int(f.valor),
+        }
+        for f in filas
+    ]
+    return {"puntos": puntos}
 
 
 class Contacto(BaseModel):

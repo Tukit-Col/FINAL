@@ -6,9 +6,9 @@
 // sesion con `sesionActual()`; la proteccion de rutas se hace en un layout con
 // `redirect`, nunca en codigo de cliente.
 //
-// Que todo pase por `origenDeDatos()` significa que cambiar `TUKIT_ORIGEN_DATOS`
-// no toca ninguna pantalla: en `simulado` la cookie es el sello base64, en
-// `api` es el bearer real de identidad/gateway. Mismo nombre, mismo flujo.
+// Que todo pase por `origenDeDatos()` significa que ninguna pantalla toca el
+// backend directo: la cookie es el bearer real de identidad/gateway y el flujo
+// es el mismo en toda la app.
 
 import "server-only";
 import { cookies } from "next/headers";

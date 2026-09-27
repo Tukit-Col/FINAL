@@ -2,8 +2,8 @@
 //
 // El navegador manda perfil + correo + dirección; el backend (Inteligencia)
 // arma la orden en Comercio server-to-server y devuelve la url de la pasarela.
-// Misma costura de siempre: el navegador no toca el backend, el origen (real o
-// simulado) se resuelve aquí. Ningún id de producto viaja por esta ruta.
+// Misma costura de siempre: el navegador no toca el backend, el origen se
+// resuelve aquí, en el servidor. Ningún id de producto viaja por esta ruta.
 
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { SolicitudCheckout } from "@tukit/contrato";

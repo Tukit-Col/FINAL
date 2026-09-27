@@ -1,9 +1,9 @@
 // La frontera entre "de donde salen los datos" y "como se ven".
 //
-// Hay dos implementaciones: el cliente HTTP contra el backend real y el origen
-// simulado que lee las semillas del repositorio. Las pantallas no saben cual
-// tienen delante, y por eso el dia que el backend responda no hay que tocar
-// ninguna: se cambia una variable de entorno.
+// La implementacion es el cliente HTTP contra el backend real (los 7
+// microservicios a traves del gateway). Las pantallas no lo tocan directo:
+// piden el origen y lo usan, y por eso mantener este contrato estable las aisla
+// de como se hable con el backend.
 //
 // La interfaz esta partida en tres a proposito. `catalogo`, `colegios` y
 // `listaOficial` son la parte ASUMIDA (ver `catalogo.ts`): si la 1.1 del
@@ -63,6 +63,7 @@ import type {
   VersionListaAdmin,
 } from "./catalogo";
 import type { Pedido, TableroComercio } from "./comercio";
+import type { MetricasColegio, SerieMetricas } from "./metricas";
 import type { BandejaOperacion, Caso, CasoCreado, SolicitudCaso } from "./operacion";
 
 /** Los roles del sistema (filas de `rol` en identidad, ADR 0013). No es un
@@ -135,14 +136,14 @@ export interface ArchivoLista {
 }
 
 export interface OrigenDatos {
-  readonly nombre: "api" | "simulado";
+  readonly nombre: "api";
 
   // §Identidad — autenticacion y sesion (identidad, ADR 0013).
   //
-  // El token es opaco al contrato: en `api` es lo que emite identidad/gateway;
-  // en `simulado` es un sello base64 sin firma. `iniciarSesion` devuelve la
-  // Sesion, y quien llama (un Route Handler) es quien pone la cookie: el origen
-  // no toca cookies, igual que el resto de la interfaz no sabe de HTTP.
+  // El token es opaco al contrato: es lo que emite identidad/gateway.
+  // `iniciarSesion` devuelve la Sesion, y quien llama (un Route Handler) es
+  // quien pone la cookie: el origen no toca cookies, igual que el resto de la
+  // interfaz no sabe de HTTP.
   iniciarSesion(credenciales: Credenciales): Promise<{ sesion: Sesion; token: string }>;
   sesionActual(token: string): Promise<Sesion | null>;
   cerrarSesion(token: string): Promise<void>;
@@ -370,9 +371,22 @@ export interface OrigenDatos {
   caso(casoId: string): Promise<Caso>;
 
   // ASUMIDO — superficie de ESCRITURA de `operacion`: abrir un caso/PQRS desde
-  // el centro de ayuda del acudiente (ADR 0004). El backend real lo servira en
-  // `POST /v1/operacion/casos`; hoy lo atiende el simulado.
+  // el centro de ayuda del acudiente (ADR 0004). El backend lo sirve en
+  // `POST /v1/operacion/casos`.
   crearCaso(solicitud: SolicitudCaso): Promise<CasoCreado>;
+
+  // §Metricas — las dos caras de la calidad del algoritmo, para el panel del
+  // operador. `metricasColegio` es la medida EN VIVO de un colegio
+  // (Inteligencia, `GET /v1/metricas/colegios/{id}`): cobertura y ahorro de hoy.
+  // `metricasSerie` es la traza CONGELADA por dia (Operacion,
+  // `GET /v1/operacion/metricas`), que `make instantanea-metricas` va llenando
+  // sesion a sesion; los filtros acotan por dimension/colegio y por fecha minima.
+  metricasColegio(colegioId: string): Promise<MetricasColegio>;
+  metricasSerie(filtros?: {
+    dimension?: "catalogo" | "colegio" | "global";
+    dimensionId?: string;
+    desde?: string;
+  }): Promise<SerieMetricas>;
 }
 
 /** A donde mandar a alguien despues de entrar, segun sus roles (ADR 0008: tres

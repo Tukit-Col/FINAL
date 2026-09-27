@@ -105,7 +105,7 @@ export interface Caso {
 // centro de ayuda para abrir una PQRS. El contrato v1.0 tampoco publica el
 // endpoint de escritura de `operacion`, asi que —igual que la lectura— es una
 // inferencia coherente con la ADR 0004 (gestion de casos propia). El backend
-// real la expondra como `POST /v1/operacion/casos`; hoy la atiende el simulado.
+// la expone como `POST /v1/operacion/casos`.
 
 // Las categorias que un acudiente puede elegir al abrir un caso. Es un
 // SUBCONJUNTO de `CategoriaCaso`: las fallas de la saga (`mapeo_lista`,

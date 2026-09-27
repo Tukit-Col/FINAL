@@ -15,8 +15,8 @@ export default function TrabajoNoExiste() {
           <h1>Ese trabajo no existe.</h1>
           <p>
             Puede que el identificador esté incompleto, o que el trabajo se haya creado en otro
-            entorno: con el origen simulado los trabajos viven en un fichero temporal del
-            equipo y se pierden al limpiarlo.
+            entorno: cada backend tiene su propia base, así que un id de otro despliegue no
+            aparece aquí.
           </p>
         </div>
       </section>
