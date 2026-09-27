@@ -12,13 +12,24 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy.exc import IntegrityError
-from tukit_identidad.autorizacion import (
-    campos_visibles,
-    matriculas_visibles,
-    puede,
-    roles_vigentes,
-)
 from tukit_identidad.dominio.autorizacion import Ambito
+from tukit_identidad.repositorios.identidad import RepoIdentidad
+
+
+async def puede(db, usuario_id, permiso, ambito):
+    return await RepoIdentidad(db).puede(usuario_id, permiso, ambito)
+
+
+async def roles_vigentes(db, usuario_id, ambito):
+    return await RepoIdentidad(db).roles_vigentes(usuario_id, ambito)
+
+
+async def campos_visibles(db, usuario_id, recurso, ambito, clasificacion_por_campo):
+    return await RepoIdentidad(db).campos_visibles(usuario_id, recurso, ambito, clasificacion_por_campo)
+
+
+async def matriculas_visibles(db, usuario_id):
+    return await RepoIdentidad(db).matriculas_visibles(usuario_id)
 from tukit_identidad.modelos import (
     AcudienteMatricula,
     AmbitoTipo,
