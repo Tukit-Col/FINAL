@@ -15,7 +15,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, func, insert, or_, select, update
 
 from ..dominio.autorizacion import Ambito
 from ..modelos import (
@@ -23,12 +23,22 @@ from ..modelos import (
     AcudienteMatricula,
     AmbitoTipo,
     AsignacionRol,
+    Base,
     Clasificacion,
     Matricula,
     Permiso,
     RolPermiso,
     Sede,
 )
+
+# Las tablas del SQL de handler se resuelven una vez, como en api.py. Los
+# modelos ORM (AsignacionRol, Matricula, ...) los usa el SQL de autorizacion;
+# el de handler va contra la tabla Core, que es la forma que ya tenia api.py.
+COLEGIO = Base.metadata.tables["colegio"]
+SEDE_T = Base.metadata.tables["sede"]
+USUARIO = Base.metadata.tables["usuario"]
+ASIGNACION_ROL = Base.metadata.tables["asignacion_rol"]
+DIRECCION = Base.metadata.tables["direccion"]
 
 
 class RepoIdentidad:
@@ -202,3 +212,158 @@ class RepoIdentidad:
             por_rol |= set((await self.conexion.scalars(select(Matricula.id).where(or_(*condiciones)))).all())
 
         return directas | por_rol
+
+    # ------------------------------------------------------------------
+    # SQL de handler: colegios, contacto, sesion y libreta de direcciones.
+    # Salio verbatim de api.py; lo unico que cambia es que va contra
+    # self.conexion en vez de una `engine.begin()` abierta en cada ruta.
+    # ------------------------------------------------------------------
+
+    async def listar_colegios(self, busqueda: str | None) -> list[Any]:
+        consulta = (
+            select(
+                COLEGIO.c.id,
+                COLEGIO.c.nombre,
+                COLEGIO.c.logo_url,
+                func.count(SEDE_T.c.id).label("sedes"),
+            )
+            .select_from(
+                COLEGIO.outerjoin(SEDE_T, and_(SEDE_T.c.colegio_id == COLEGIO.c.id, SEDE_T.c.activa.is_(True)))
+            )
+            .where(COLEGIO.c.activo.is_(True))
+            .group_by(COLEGIO.c.id, COLEGIO.c.nombre, COLEGIO.c.logo_url)
+            .order_by(COLEGIO.c.nombre)
+        )
+        if busqueda:
+            consulta = consulta.where(func.lower(COLEGIO.c.nombre).like(f"%{busqueda.lower()}%"))
+        return list(await self.conexion.execute(consulta))
+
+    async def ver_colegio(self, colegio_id: uuid.UUID) -> Any:
+        return (await self.conexion.execute(select(COLEGIO).where(COLEGIO.c.id == colegio_id))).one_or_none()
+
+    async def sedes_de(self, colegio_id: uuid.UUID) -> list[Any]:
+        return list(
+            await self.conexion.execute(
+                select(SEDE_T).where(SEDE_T.c.colegio_id == colegio_id, SEDE_T.c.activa.is_(True))
+            )
+        )
+
+    async def existe_colegio(self, colegio_id: uuid.UUID) -> uuid.UUID | None:
+        return await self.conexion.scalar(select(COLEGIO.c.id).where(COLEGIO.c.id == colegio_id))
+
+    async def editar_colegio(self, colegio_id: uuid.UUID, valores: dict[str, Any]) -> None:
+        if valores:
+            await self.conexion.execute(update(COLEGIO).where(COLEGIO.c.id == colegio_id).values(**valores))
+
+    async def usuario_por_correo(self, correo: str) -> Any:
+        return (await self.conexion.execute(select(USUARIO).where(USUARIO.c.correo == correo))).one_or_none()
+
+    async def registrar_contacto(self, correo: str) -> tuple[uuid.UUID, bool]:
+        existente = await self.conexion.scalar(select(USUARIO.c.id).where(USUARIO.c.correo == correo))
+        if existente is not None:
+            return existente, False
+        nuevo = uuid.uuid4()
+        # Centinela y no cadena vacia: una cadena vacia se parece demasiado a un
+        # hash y algun verificador la podria comparar. Esto no valida contra nada.
+        await self.conexion.execute(insert(USUARIO).values(id=nuevo, correo=correo, clave_hash="sin-credencial"))
+        return nuevo, True
+
+    async def contacto_de(self, usuario_id: uuid.UUID) -> Any:
+        return (
+            await self.conexion.execute(
+                select(USUARIO.c.correo, USUARIO.c.activo).where(USUARIO.c.id == usuario_id)
+            )
+        ).one_or_none()
+
+    async def armar_sesion(self, fila_usuario: Any) -> dict[str, Any]:
+        """La Sesion publica: quien es y que roles vigentes tiene. Los roles
+        salen de `asignacion_rol` (vigentes, sin caducar); el nombre va
+        descifrado con el cifrador del entorno."""
+        ahora = datetime.now(UTC)
+        filas = await self.conexion.execute(
+            select(
+                ASIGNACION_ROL.c.rol_codigo, ASIGNACION_ROL.c.ambito_tipo, ASIGNACION_ROL.c.ambito_id
+            ).where(
+                ASIGNACION_ROL.c.usuario_id == fila_usuario.id,
+                ASIGNACION_ROL.c.vigente_desde <= ahora,
+                or_(ASIGNACION_ROL.c.vigente_hasta.is_(None), ASIGNACION_ROL.c.vigente_hasta > ahora),
+            )
+        )
+        roles = [
+            {
+                "rol": f.rol_codigo,
+                "ambito": {"tipo": f.ambito_tipo, "id": str(f.ambito_id) if f.ambito_id is not None else None},
+            }
+            for f in filas
+        ]
+        nombre = fila_usuario.correo
+        if fila_usuario.nombre_cifrado is not None:
+            from tukit_comun.cifrado import cifrador_desde_entorno
+
+            nombre = cifrador_desde_entorno().descifrar(fila_usuario.nombre_cifrado).decode(
+                "utf-8", errors="replace"
+            )
+        return {
+            "usuario_id": str(fila_usuario.id),
+            "correo": fila_usuario.correo,
+            "nombre": nombre,
+            "roles": roles,
+            "version_permisos": int(fila_usuario.version_permisos),
+        }
+
+    async def usuario_del_token(self, usuario_id: uuid.UUID) -> Any:
+        return (await self.conexion.execute(select(USUARIO).where(USUARIO.c.id == usuario_id))).one_or_none()
+
+    async def direcciones_de(self, usuario_id: uuid.UUID) -> list[Any]:
+        return list(
+            await self.conexion.execute(
+                select(DIRECCION)
+                .where(DIRECCION.c.usuario_id == usuario_id, DIRECCION.c.archivada_en.is_(None))
+                .order_by(DIRECCION.c.predeterminada.desc(), DIRECCION.c.creado_en)
+            )
+        )
+
+    async def limpiar_predeterminada(self, usuario_id: uuid.UUID) -> None:
+        """Baja la marca de la anterior predeterminada, para que el indice unico
+        parcial no choque cuando llega una nueva."""
+        await self.conexion.execute(
+            update(DIRECCION)
+            .where(
+                DIRECCION.c.usuario_id == usuario_id,
+                DIRECCION.c.predeterminada.is_(True),
+                DIRECCION.c.archivada_en.is_(None),
+            )
+            .values(predeterminada=False)
+        )
+
+    async def crear_direccion(self, **valores: Any) -> Any:
+        nueva = uuid.uuid4()
+        await self.conexion.execute(insert(DIRECCION).values(id=nueva, **valores))
+        return (await self.conexion.execute(select(DIRECCION).where(DIRECCION.c.id == nueva))).one()
+
+    async def obtener_direccion(self, direccion_id: uuid.UUID, usuario_id: uuid.UUID) -> Any:
+        return (
+            await self.conexion.execute(
+                select(DIRECCION).where(
+                    DIRECCION.c.id == direccion_id,
+                    DIRECCION.c.usuario_id == usuario_id,
+                    DIRECCION.c.archivada_en.is_(None),
+                )
+            )
+        ).one_or_none()
+
+    async def editar_direccion(self, direccion_id: uuid.UUID, **valores: Any) -> Any:
+        await self.conexion.execute(update(DIRECCION).where(DIRECCION.c.id == direccion_id).values(**valores))
+        return (await self.conexion.execute(select(DIRECCION).where(DIRECCION.c.id == direccion_id))).one()
+
+    async def archivar_direccion(self, direccion_id: uuid.UUID, usuario_id: uuid.UUID) -> int:
+        resultado = await self.conexion.execute(
+            update(DIRECCION)
+            .where(
+                DIRECCION.c.id == direccion_id,
+                DIRECCION.c.usuario_id == usuario_id,
+                DIRECCION.c.archivada_en.is_(None),
+            )
+            .values(archivada_en=datetime.now(UTC), predeterminada=False)
+        )
+        return resultado.rowcount
