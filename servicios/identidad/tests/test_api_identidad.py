@@ -18,7 +18,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 from tukit_comun.bd import MotorServicio
 from tukit_comun.identificadores import derivar
-from tukit_identidad.api import GRADOS, app
+from tukit_identidad.api import app
+from tukit_identidad.routers.identidad import GRADOS
 from tukit_identidad.modelos import Base, Colegio, Sede
 
 
