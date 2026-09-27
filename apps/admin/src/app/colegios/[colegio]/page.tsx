@@ -41,6 +41,12 @@ export default async function PaginaColegio({ params }: Props) {
   const grados = resumen?.grados ?? [];
   const esAliado = resumen?.es_partner ?? grados.length > 0;
 
+  // Los acudientes del colegio con el estado de su trabajo. Fail-soft: si el
+  // backend no responde, el panel queda vacío en vez de tumbar toda la ficha.
+  const acudientes = await origenDeDatos()
+    .acudientesDeColegio(colegioId)
+    .catch(() => []);
+
   return (
     <div className={styles.pagina}>
       <nav className={styles.migas}>
@@ -90,6 +96,27 @@ export default async function PaginaColegio({ params }: Props) {
                 >
                   {grado}
                 </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className={styles.tarjeta}>
+        <h2 className={styles.subtitulo}>Acudientes</h2>
+        <p className={styles.bajada}>
+          Quiénes han pedido kits para este colegio y en qué va su trabajo. Sin datos
+          de menores: solo el identificador del acudiente y el estado.
+        </p>
+        {acudientes.length === 0 ? (
+          <p className={styles.sinGrados}>Ningún acudiente todavía.</p>
+        ) : (
+          <ul className={styles.listaAcudientes}>
+            {acudientes.map((a) => (
+              <li key={a.usuario_id}>
+                <code>{a.usuario_id.slice(0, 8)}</code>
+                <span className={styles.insigniaAliado}>{a.estado}</span>
+                <time dateTime={a.actualizado_en}>{a.actualizado_en.slice(0, 10)}</time>
               </li>
             ))}
           </ul>

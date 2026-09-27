@@ -297,6 +297,34 @@
   border-color: var(--color-primary);
 }
 
+.listaAcudientes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-1);
+  list-style: none;
+}
+
+.listaAcudientes li {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.listaAcudientes li code {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.listaAcudientes li time {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
 /* --------------------------------------------------------- lista de grado */
 
 .accionesGrado {
