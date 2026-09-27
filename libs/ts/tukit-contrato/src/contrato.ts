@@ -136,7 +136,10 @@ export interface Preferencias {
 }
 
 export interface SolicitudTrabajo {
-  contacto: Contacto;
+  // Opcional: cuando el acudiente ya viene autenticado (cookie→Bearer) el
+  // pipeline resuelve el usuario_id de la sesion y no hace falta contacto. Solo
+  // el flujo anonimo heredado lo envia para que Identidad registre a quien avisar.
+  contacto?: Contacto;
   hijos: HijoSolicitud[];
   preferencias?: Preferencias;
 }
