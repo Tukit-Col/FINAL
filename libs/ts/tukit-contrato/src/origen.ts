@@ -136,7 +136,16 @@ export interface OrigenDatos {
   cerrarSesion(token: string): Promise<void>;
 
   // §2 y §4 — el ciclo asincrono.
-  crearTrabajo(solicitud: SolicitudTrabajo, archivos?: ArchivoLista[]): Promise<TrabajoCreado>;
+  // `token` (opcional) es la sesion del acudiente: el Route Handler lo saca de
+  // la cookie httpOnly y lo reenvia como Bearer para que el pipeline resuelva
+  // el usuario_id de la sesion y el kit no quede huerfano. Sin token, flujo
+  // anonimo (el contacto registra el destinatario). Igual en `subirListas` y
+  // `aplicarCanonico`.
+  crearTrabajo(
+    solicitud: SolicitudTrabajo,
+    archivos?: ArchivoLista[],
+    token?: string,
+  ): Promise<TrabajoCreado>;
   consultarTrabajo(trabajoId: string): Promise<Trabajo>;
 
   // §2 — la subida de listas de un acudiente (`POST /v1/listas/subir`). Percibe
@@ -150,6 +159,7 @@ export interface OrigenDatos {
     archivos: ArchivoLista[],
     contacto?: Contacto,
     preferencias?: Preferencias,
+    token?: string,
   ): Promise<SubidaListas>;
 
   // ASUMIDO — superficie de lectura de catalogo (1.1).
@@ -197,7 +207,7 @@ export interface OrigenDatos {
   // subir PDF) y `aplicarCanonico` aplica el nivel + personaje sin re-optimizar
   // ni entrar a la cola, dejando el pedido congelado para comercio.
   gradosCanonicos(colegioId?: string): Promise<GradoCanonico[]>;
-  aplicarCanonico(cuerpo: AplicarCanonico): Promise<TrabajoAplicado>;
+  aplicarCanonico(cuerpo: AplicarCanonico, token?: string): Promise<TrabajoAplicado>;
 
   // §Checkout — el acudiente paga el kit de un trabajo publicado. Manda solo
   // perfil + correo + direccion; Inteligencia arma la orden en Comercio y
