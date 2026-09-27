@@ -15,12 +15,12 @@ Ver ADR 0013.
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .dominio.autorizacion import Ambito
 from .modelos import (
     ORDEN_CLASIFICACION,
     AcudienteMatricula,
@@ -32,40 +32,6 @@ from .modelos import (
     RolPermiso,
     Sede,
 )
-
-
-@dataclass(frozen=True, slots=True)
-class Ambito:
-    """Sobre que se pregunta. `GLOBAL` no lleva identificador."""
-
-    tipo: AmbitoTipo
-    id: uuid.UUID | None = None
-
-    def __post_init__(self) -> None:
-        # Misma regla que el CHECK `asignacion_ambito_coherente`. Se valida
-        # tambien aqui para que un ambito mal armado falle al construirse y no
-        # al comparar, donde el error seria un permiso denegado sin explicacion.
-        if (self.tipo is AmbitoTipo.GLOBAL) != (self.id is None):
-            raise ValueError(
-                f"Ambito incoherente: tipo={self.tipo} con id={self.id}. "
-                "El ambito global no lleva identificador, y los demas si."
-            )
-
-    @classmethod
-    def global_(cls) -> Ambito:
-        return cls(AmbitoTipo.GLOBAL)
-
-    @classmethod
-    def colegio(cls, id: uuid.UUID) -> Ambito:
-        return cls(AmbitoTipo.COLEGIO, id)
-
-    @classmethod
-    def sede(cls, id: uuid.UUID) -> Ambito:
-        return cls(AmbitoTipo.SEDE, id)
-
-    @classmethod
-    def matricula(cls, id: uuid.UUID) -> Ambito:
-        return cls(AmbitoTipo.MATRICULA, id)
 
 
 async def _cadena_de_contencion(db: AsyncSession, ambito: Ambito) -> list[Ambito]:
