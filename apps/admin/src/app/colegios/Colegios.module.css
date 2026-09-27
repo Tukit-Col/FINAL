@@ -412,6 +412,17 @@
   color: var(--color-text-muted);
 }
 
+/* Celda que es cabecera de fila (`<th scope="row">`, se conserva por
+ * accesibilidad) pero contiene un dato (el correo del padre), no un rótulo: se
+ * anula el aspecto de encabezado (mayúsculas y color apagado) y luce como los
+ * demás datos de la tabla. */
+.celdaDato {
+  font-size: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--color-text);
+}
+
 .libro {
   display: block;
   margin-top: 2px;
@@ -662,4 +673,93 @@
 .botonPrincipal:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ----------------------------------------------------- métricas del colegio */
+
+/* Título de una sub-métrica dentro de la tarjeta "Métricas", más discreto que
+   `.subtitulo` porque cuelga de él. */
+.metricaTitulo {
+  margin-top: var(--espacio-4);
+  margin-bottom: var(--espacio-2);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+/* Fila de píldoras de estado de las solicitudes de kit (punto 4). */
+.estados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+}
+
+.estadoPill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: var(--espacio-2) var(--espacio-3);
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.estadoPill .cifra {
+  font-size: 15px;
+}
+
+.estadoEspera {
+  background: var(--color-aviso-bg);
+  border-color: var(--color-aviso-border);
+  color: var(--color-aviso);
+}
+
+.estadoPublicado {
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+  color: var(--color-success);
+}
+
+.estadoFallido {
+  background: var(--color-info-bg);
+  border-color: var(--color-info-border);
+  color: var(--color-info);
+}
+
+/* Lista de demanda por grado (punto 5): grado + nº de solicitudes. */
+.demanda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-1);
+}
+
+.demanda li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-3);
+  padding: var(--espacio-2) var(--espacio-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: 13.5px;
+}
+
+.demanda .cifra {
+  color: var(--color-primary);
+}
+
+/* Aviso discreto cuando los correos no se pudieron cargar (sin sesión/rol): los
+   conteos se muestran igual, con `usuario_id` en vez de correo. */
+.avisoCorreos {
+  padding: var(--espacio-2) var(--espacio-3);
+  background: var(--color-aviso-bg);
+  border: 1px solid var(--color-aviso-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-aviso);
+  font-size: 12.5px;
 }
