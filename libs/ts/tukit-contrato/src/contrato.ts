@@ -103,6 +103,10 @@ export interface HijoSolicitud {
   referencia: string;
   colegio_id: string;
   grado: string;
+  // Solo lo lleva el "hijo" sintético de un preview de onboarding: la versión
+  // de lista de la que salió, para enlazar de vuelta a su revisor. En una
+  // solicitud real de acudiente no aplica.
+  version_id?: string;
 }
 
 // ----------------------------------------------------------- §3 Preferencias
@@ -468,6 +472,14 @@ export interface TrabajoAdmin extends Trabajo {
   contacto_id: string;
   lineas_pendientes: string[];
   nota_revision?: string | null;
+  // De dónde nació el trabajo. `preview_onboarding` es el caso especial: un
+  // preview desechable de una lista que NO se publica (no tiene acudiente); la
+  // consola lo detecta para enlazar de vuelta al revisor en vez de ofrecer un
+  // "Publicar" que el backend rechaza (409 `preview_no_publicable`).
+  origen: string;
+  // Los hijos como se recibieron. En un preview, el único "hijo" trae el
+  // `version_id` de la lista de la que salió, para poder volver a su revisor.
+  hijos: HijoSolicitud[];
 }
 
 // AD-02: validar es fijar el producto de la linea. Sin `sku` se lee

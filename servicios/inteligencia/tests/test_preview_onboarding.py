@@ -140,7 +140,11 @@ class TestPreviewFeliz:
         trabajo_id = respuesta.json()["trabajo_id"]
 
         vista = await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")
-        assert vista.json()["origen"] == "preview_onboarding"
+        cuerpo = vista.json()
+        assert cuerpo["origen"] == "preview_onboarding"
+        # El hijo sintetico del preview guarda el version_id de su lista: es a
+        # donde la consola enlaza para aprobarla (el preview no se publica).
+        assert cuerpo["hijos"][0]["version_id"] == VERSION_VIGENTE
 
 
 class TestPreviewGuardas:

@@ -840,6 +840,10 @@ async def preview_onboarding(version_id: str, peticion: PeticionPreview) -> dict
                 "colegio_id": peticion.colegio_id,
                 "grado": peticion.grado,
                 "anio_lectivo": peticion.anio_lectivo,
+                # La version de la que salio el preview: es a donde el revisor
+                # tiene que volver para aprobar la lista de verdad (el preview no
+                # se publica). Se guarda aqui para que la consola pueda enlazarla.
+                "version_id": version_id,
             }
         ],
         contacto=None,
