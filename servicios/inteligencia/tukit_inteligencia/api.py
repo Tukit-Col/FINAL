@@ -233,6 +233,21 @@ async def crear_trabajo(peticion: PeticionTrabajo, solicitud: Request) -> dict[s
     return respuesta
 
 
+@app.get("/v1/trabajos", tags=["trabajos"], summary="Mis solicitudes de kit (las del acudiente autenticado)")
+async def mis_trabajos(solicitud: Request) -> dict[str, Any]:
+    """El panel del acudiente: sus solicitudes de kit, no pedidos pagados.
+
+    Se resuelve por el Bearer que reenvia el Route Handler; un anonimo no tiene
+    trabajos propios que mostrar, asi que se rechaza (401) en vez de devolver
+    los de nadie. La superficie no lleva correo ni nombre de menor.
+    """
+    uid = await _usuario_de_la_peticion(solicitud)
+    if uid is None:
+        raise ErrorDominio("sesion_requerida", "Inicia sesion para ver tus solicitudes.", estado=401)
+    trabajos_ = await trabajos.mis_trabajos(app.state.motor, usuario_id=uuid.UUID(uid))
+    return {"total": len(trabajos_), "trabajos": trabajos_}
+
+
 @app.get("/v1/trabajos/{trabajo_id}", tags=["trabajos"], summary="Estado, etapas y kits del trabajo")
 async def ver_trabajo(trabajo_id: uuid.UUID) -> dict[str, Any]:
     try:

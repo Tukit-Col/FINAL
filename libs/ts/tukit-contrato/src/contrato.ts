@@ -377,6 +377,18 @@ export interface Trabajo {
   degradaciones: Degradacion[];
 }
 
+// El panel del acudiente: una de SUS solicitudes de kit (un trabajo del
+// pipeline, no un pedido pagado). Trae el estado, los hijos como los mandó
+// —por referencia sintética/colegio/grado, jamás un nombre de menor— y las
+// preferencias del hogar. Lo sirve `GET /v1/trabajos` autenticado por Bearer.
+export interface TrabajoResumen {
+  trabajo_id: string;
+  estado: EstadoTrabajo;
+  creado_en: string;
+  hijos: HijoSolicitud[];
+  preferencias: Preferencias;
+}
+
 // ---------------------------------------------------------------- §11 Errores
 export interface ErrorApi {
   error: string;

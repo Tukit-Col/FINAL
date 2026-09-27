@@ -32,6 +32,7 @@ import type {
   TrabajoAdmin,
   TrabajoAplicado,
   TrabajoCreado,
+  TrabajoResumen,
   ValidarLinea,
 } from "./contrato";
 import type {
@@ -354,6 +355,12 @@ export interface OrigenDatos {
   // la sesion de identidad sin cruzar la frontera (regla 1). Devuelve la lista
   // sin resumen; el dashboard no lo necesita.
   misPedidos(usuarioId: string): Promise<Pedido[]>;
+
+  // Las solicitudes de kit del acudiente (trabajos del pipeline, no pedidos
+  // pagados): lo que `/empezar` crea. A diferencia de `misPedidos`, inteligencia
+  // SÍ valida la sesión, así que se identifica por el `token` del portador —el
+  // mismo Bearer que ya reenvía `crearTrabajo`— y no por un `usuario_id` suelto.
+  misTrabajos(token?: string): Promise<TrabajoResumen[]>;
 
   // ASUMIDO — superficie de lectura de `operacion` (tickets del back-office).
   // Ver `operacion.ts`.

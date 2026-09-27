@@ -149,6 +149,53 @@ class TestLaSesionEsLaProdiedad:
         assert respuesta.status_code == 404
 
 
+class TestMisTrabajos:
+    """El panel del acudiente: `GET /v1/trabajos` con Bearer devuelve SUS
+    solicitudes de kit —no las de otro, y un anonimo no ve ninguna."""
+
+    async def test_devuelve_los_del_acudiente_con_hijos_y_preferencias(self, cliente):
+        identidad = IdentidadDoble()
+        identidad.usuario_por_token["tok-acud"] = "22222222-2222-5222-8222-222222222222"
+        app.state.identidad = identidad
+
+        await cliente.post(
+            "/v1/trabajos",
+            json=_peticion(contacto=None, preferencias={"disposicion_sobreprecio": 0.2}),
+            headers={"Authorization": "Bearer tok-acud"},
+        )
+
+        respuesta = await cliente.get("/v1/trabajos", headers={"Authorization": "Bearer tok-acud"})
+
+        assert respuesta.status_code == 200
+        cuerpo = respuesta.json()
+        assert cuerpo["total"] == 1
+        trabajo = cuerpo["trabajos"][0]
+        assert trabajo["estado"] == "encolado"
+        assert trabajo["hijos"][0]["grado"] == "Cuarto"
+        assert trabajo["preferencias"]["disposicion_sobreprecio"] == 0.2
+
+    async def test_no_ve_los_de_otro_acudiente(self, cliente):
+        identidad = IdentidadDoble()
+        identidad.usuario_por_token["tok-mio"] = "22222222-2222-5222-8222-222222222222"
+        identidad.usuario_por_token["tok-ajeno"] = "33333333-3333-5333-8333-333333333333"
+        app.state.identidad = identidad
+
+        await cliente.post(
+            "/v1/trabajos", json=_peticion(contacto=None), headers={"Authorization": "Bearer tok-ajeno"}
+        )
+
+        respuesta = await cliente.get("/v1/trabajos", headers={"Authorization": "Bearer tok-mio"})
+
+        assert respuesta.status_code == 200
+        assert respuesta.json()["trabajos"] == []
+
+    async def test_anonimo_es_401(self, cliente):
+        app.state.identidad = IdentidadDoble()
+        respuesta = await cliente.get("/v1/trabajos")
+        assert respuesta.status_code == 401
+        assert respuesta.json()["error"] == "sesion_requerida"
+
+
 class TestConsultar:
     async def test_un_trabajo_que_no_existe_es_404_con_codigo(self, cliente):
         respuesta = await cliente.get(f"/v1/trabajos/{uuid.uuid4()}")

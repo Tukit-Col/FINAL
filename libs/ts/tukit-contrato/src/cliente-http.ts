@@ -32,6 +32,7 @@ import type {
   TrabajoAdmin,
   TrabajoAplicado,
   TrabajoCreado,
+  TrabajoResumen,
   ValidarLinea,
 } from "./contrato";
 import type {
@@ -1106,6 +1107,16 @@ export class ClienteApi implements OrigenDatos {
       `/v1/comercio/mis-pedidos?usuario_id=${encodeURIComponent(usuarioId)}`,
     );
     return resp.pedidos ?? [];
+  }
+
+  // Las solicitudes de kit del acudiente (trabajos del pipeline). Inteligencia
+  // valida la sesion, asi que se identifica por el Bearer que reenvia el Route
+  // Handler. Responde `{total, trabajos}`; la pantalla solo usa la lista.
+  async misTrabajos(token?: string): Promise<TrabajoResumen[]> {
+    const resp = await this.pedir<{ total: number; trabajos: TrabajoResumen[] }>("/v1/trabajos", {
+      headers: { ...this.autoriza(token) },
+    });
+    return resp.trabajos ?? [];
   }
 
   // ------------------------------------------------ ASUMIDO (operacion 1.x)
