@@ -22,4 +22,5 @@ export {
   type RolAsignado,
   type Sesion,
   type Credenciales,
+  type NuevaCuenta,
 } from "./origen";

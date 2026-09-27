@@ -75,6 +75,7 @@ import {
   ErrorTukit,
   type ArchivoLista,
   type Credenciales,
+  type NuevaCuenta,
   type OrigenDatos,
   type Sesion,
 } from "./origen";
@@ -176,6 +177,14 @@ export class ClienteApi implements OrigenDatos {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cred),
+    });
+  }
+
+  crearCuenta(cuenta: NuevaCuenta): Promise<{ sesion: Sesion; token: string }> {
+    return this.pedir<{ sesion: Sesion; token: string }>("/v1/cuenta", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuenta),
     });
   }
 
