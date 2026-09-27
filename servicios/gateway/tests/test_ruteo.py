@@ -56,6 +56,10 @@ class TestElPrefijoMasLargoGana:
             # sirve catalogo: su prefijo mas largo gana a `/v1/admin` y evita
             # que caiga en inteligencia.
             ("/v1/admin/sugerencias", "catalogo"),
+            # El padron de acudientes lo sirve identidad (es su dato personal),
+            # no inteligencia: su prefijo mas largo gana a `/v1/admin`.
+            ("/v1/admin/acudientes", "identidad"),
+            ("/v1/admin/acudientes/abc", "identidad"),
             # El tablero de logistica y la bandeja de casos, que ahora si tienen
             # servicio detras (comercio y operacion).
             ("/v1/comercio/pedidos", "comercio"),
@@ -89,6 +93,15 @@ class TestElPrefijoMasLargoGana:
         """
         assert destino("/v1/admin/sugerencias") == "catalogo"
         assert destino("/v1/admin/sugerencias/abc") == "catalogo"
+
+    def test_acudientes_no_cae_en_inteligencia(self):
+        """`/v1/admin/acudientes` NO debe sombrearse a `/v1/admin` (inteligencia).
+
+        Sin el prefijo propio el padron iria al servicio equivocado y nunca
+        llegaria a identidad, que es quien tiene el dato del acudiente.
+        """
+        assert destino("/v1/admin/acudientes") == "identidad"
+        assert destino("/v1/admin/acudientes/abc") == "identidad"
 
     def test_un_prefijo_parecido_pero_distinto_no_cuela(self):
         """`/v1/listasbla` no es `/v1/listas`. Sin la comprobacion del

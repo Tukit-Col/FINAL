@@ -74,6 +74,7 @@ import type { MetricasColegio, SerieMetricas } from "./metricas";
 import type { BandejaOperacion, Caso, CasoCreado, SolicitudCaso } from "./operacion";
 import {
   ErrorTukit,
+  type AcudienteAdmin,
   type ArchivoLista,
   type Credenciales,
   type MatriculaAcudiente,
@@ -215,6 +216,21 @@ export class ClienteApi implements OrigenDatos {
       { headers: { Authorization: `Bearer ${token}` } },
     );
     return cuerpo.matriculas;
+  }
+
+  // El padron de acudientes para el equipo interno (solo admin/operador:
+  // identidad gatea con 401/403). `ids` opcional, separados por coma, acota a
+  // esos usuarios. El backend envuelve en `{total, acudientes}`; se devuelve el
+  // arreglo pelado. Bearer, igual que `sesionActual`.
+  async acudientesAdmin(token: string, ids?: string[]): Promise<AcudienteAdmin[]> {
+    const qs = new URLSearchParams();
+    if (ids && ids.length) qs.set("ids", ids.join(","));
+    const cadena = qs.toString();
+    const cuerpo = await this.pedir<{ total: number; acudientes: AcudienteAdmin[] }>(
+      `/v1/admin/acudientes${cadena ? `?${cadena}` : ""}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    return cuerpo.acudientes;
   }
 
   // ------------------------------------------------------------------ §2, §4

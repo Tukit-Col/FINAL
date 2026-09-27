@@ -14,6 +14,7 @@ import {
   PackageSearch,
   School,
   Truck,
+  Users,
 } from "lucide-react";
 import SalirBoton from "./SalirBoton";
 import styles from "./CabeceraAdmin.module.css";
@@ -22,12 +23,14 @@ import styles from "./CabeceraAdmin.module.css";
 // luego lo que hay que verificar (Cola) —donde ahora también se sube una lista
 // nueva, sin pantalla aparte, y donde una lista de acudiente trae su colegio y
 // grado para crearlos al aprobar—, la BD durable de colegios y listas
-// (Colegios), lo que hay en catálogo (Catálogo), lo que hay que mover
-// (Logística) y lo que hay que responder (Tickets).
+// (Colegios), el padrón de familias registradas (Clientes), lo que hay en
+// catálogo (Catálogo), lo que hay que mover (Logística) y lo que hay que
+// responder (Tickets).
 const SECCIONES = [
   { href: "/", etiqueta: "Panel", Icono: LayoutDashboard },
   { href: "/cola", etiqueta: "Cola", Icono: ClipboardList },
   { href: "/colegios", etiqueta: "Colegios", Icono: School },
+  { href: "/clientes", etiqueta: "Clientes", Icono: Users },
   { href: "/catalogo", etiqueta: "Catálogo", Icono: PackageSearch },
   { href: "/logistica", etiqueta: "Logística", Icono: Truck },
   { href: "/tickets", etiqueta: "Tickets", Icono: LifeBuoy },
