@@ -75,10 +75,19 @@ class IdentidadDoble:
     def __init__(self, usuario_id: str | None = "usr-1") -> None:
         self.usuario_id = usuario_id
         self.llamadas: list[dict] = []
+        self.usuario_por_token: dict[str, str] = {}
 
     async def registrar_contacto(self, correo: str, celular: str | None = None) -> str | None:
         self.llamadas.append({"correo": correo, "celular": celular})
         return self.usuario_id
+
+    async def usuario_del_token(self, token: str) -> str | None:
+        return self.usuario_por_token.get(token)
+
+    async def datos_directorio(self, dane: str) -> dict | None:
+        # El DANE no esta en el directorio (o Identidad no responde): la subida
+        # degrada a nombre+dane, que es justo lo que estas pruebas comprueban.
+        return None
 
 
 @pytest.fixture()
@@ -184,6 +193,25 @@ class TestSubirFeliz:
         assert all(ll["contacto_referencia"] == "usr-1" for ll in catalogo.llamadas)
         assert "mama@ejemplo.com" not in respuesta.text
         assert "+573001112233" not in respuesta.text
+
+    async def test_con_sesion_no_reregistra_contacto(self, cliente, catalogo, identidad):
+        # El acudiente ya viene autenticado (Bearer): su usuario_id sale de la
+        # sesion y ES el contacto_referencia. No se re-registra el contacto.
+        identidad.usuario_por_token["tok-acudiente"] = "usr-sesion"
+        cuerpo = _subida(
+            [{"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"}],
+            contacto={"correo": "mama@ejemplo.com", "celular": "+573001112233"},
+        )
+        respuesta = await cliente.post(
+            "/v1/listas/subir", headers={"Authorization": "Bearer tok-acudiente"}, **cuerpo
+        )
+
+        assert respuesta.status_code == 202
+        env = respuesta.json()
+        # Ya venia autenticado: cero registros, y el id de la sesion es la traza.
+        assert len(identidad.llamadas) == 0
+        assert env["contacto_referencia"] == "usr-sesion"
+        assert all(ll["contacto_referencia"] == "usr-sesion" for ll in catalogo.llamadas)
 
     async def test_dos_hijos_del_mismo_colegio_y_grado_comparten_una_version(self, cliente, catalogo):
         # No se importa dos veces la misma (colegio, grado): la segunda pisaria
