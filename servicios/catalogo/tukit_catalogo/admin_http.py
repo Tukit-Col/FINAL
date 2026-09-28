@@ -34,6 +34,12 @@ from sqlalchemy import and_, delete, func, select, update
 from tukit_comun.http import ErrorDominio
 
 from .descubrir import clasificar
+from .dominio.listas import (
+    _cuidar_invariantes,
+    _exigir_sin_revisar,
+    _item_publico,
+    _pagina_percepcion,
+)
 from .modelos import Base
 from .modelos.base import ModoAdquisicion, TipoItem, UnidadBase
 
@@ -58,7 +64,6 @@ UMBRAL_CONCEPTO = 0.5
 _TIPOS_ITEM = {t.value for t in TipoItem}
 _MODOS = {m.value for m in ModoAdquisicion}
 _UNIDADES = {u.value for u in UnidadBase}
-_MODOS_SURTIBLES = {"mercado_abierto", "libro_libre"}
 
 
 def _motor() -> Any:
@@ -106,23 +111,6 @@ async def _colegio_datos_de(conexion: Any, version_id: uuid.UUID) -> dict[str, A
     return dict(fila.colegio_datos)
 
 
-def _exigir_sin_revisar(fila: Any) -> None:
-    """La misma puerta que `descubrir.exigir_sin_revisar`, en clave HTTP.
-
-    La decision es identica —existe y no esta revisada— pero los rechazos se
-    distinguen por codigo, cosa que la version de CLI no necesita: una version
-    inexistente es 404 y una ya revisada es 409, porque el recurso existe y
-    esta en un estado que no admite la operacion. Por eso no se llama a aquella
-    (alza `PuertaCerrada` sin esa distincion) sino que se rehace su condicion.
-    """
-    if fila is None:
-        raise ErrorDominio("version_no_existe", "No hay ninguna version con ese identificador.", estado=404)
-    if fila.revisada_en is not None:
-        raise ErrorDominio(
-            "lista_ya_revisada",
-            "Esa version ya fue revisada. Para corregirla, crea una version nueva.",
-            estado=409,
-        )
 
 
 async def _concepto_id(conexion: Any, codigo: str) -> uuid.UUID:
@@ -136,23 +124,6 @@ async def _concepto_id(conexion: Any, codigo: str) -> uuid.UUID:
     return cid
 
 
-def _item_publico(fila: Any) -> dict[str, Any]:
-    return {
-        "item_id": str(fila.id),
-        "orden": int(fila.orden),
-        "texto_original": fila.texto_original,
-        "cantidad": int(fila.cantidad),
-        "unidad": fila.unidad,
-        "tipo_item": fila.tipo_item,
-        "modo_adquisicion": fila.modo_adquisicion,
-        "instruccion_colegio": fila.instruccion_colegio,
-        "url_externa": fila.url_externa,
-        "atributos": dict(fila.atributos or {}),
-        "requiere_revision": bool(fila.requiere_revision),
-        "concepto": (
-            {"codigo": fila.concepto_codigo, "nombre": fila.concepto_nombre} if fila.concepto_codigo else None
-        ),
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -893,28 +864,6 @@ async def listar_sugerencias() -> dict[str, Any]:
     return {"sugerencias": datos}
 
 
-def _pagina_percepcion(pagina: Any) -> dict[str, Any]:
-    """Una pagina de percepcion con su `crudo` SIEMPRE como cadena (contrato).
-
-    Versiones importadas antes del arreglo guardaron `crudo` como una lista de
-    objetos `{descripcion, cantidad, confianza}` en vez de texto; la region 2 lo
-    renderiza directo y una lista revienta React. Se coacciona aqui —el limite
-    donde el dato guardado se vuelve el contrato `PercepcionCruda`— para no
-    depender de una migracion y cubrir las filas viejas ya escritas.
-    """
-    if not isinstance(pagina, dict):
-        return {"pagina": 1, "crudo": str(pagina)}
-    crudo = pagina.get("crudo")
-    if isinstance(crudo, list):
-        crudo = "\n".join(
-            f"{it.get('cantidad')} {it.get('descripcion', '')}".strip()
-            if isinstance(it, dict) and it.get("cantidad")
-            else (it.get("descripcion", "") if isinstance(it, dict) else str(it))
-            for it in crudo
-        )
-    elif not isinstance(crudo, str):
-        crudo = "" if crudo is None else str(crudo)
-    return {"pagina": pagina.get("pagina", 1), "crudo": crudo}
 
 
 async def _tarea_con_evidencia(conexion: Any, version_id: uuid.UUID) -> Any:
@@ -1044,27 +993,6 @@ async def _valores_de_renglon(conexion: Any, cuerpo: dict[str, Any], *, nuevo: b
     return valores
 
 
-def _cuidar_invariantes(concepto_id: Any, requiere_revision: Any, modo: Any, instruccion: Any) -> None:
-    """Las dos reglas de `item_lista_oficial` que el cliente puede violar.
-
-    Sin concepto, requiere revision; y lo no surtible tiene que decir como se
-    consigue. Se dicen antes de escribir para devolver un 422 con causa en vez
-    de un 500 de constraint.
-    """
-    if concepto_id is None and requiere_revision is False:
-        raise ErrorDominio(
-            "renglon_sin_concepto_va_a_revision",
-            "Un renglon sin concepto siempre requiere revision.",
-            estado=422,
-            campo="requiere_revision",
-        )
-    if modo is not None and modo not in _MODOS_SURTIBLES and not instruccion:
-        raise ErrorDominio(
-            "no_surtible_sin_instruccion",
-            "Un renglon que Tukit no surte tiene que decir como conseguirlo (instruccion_colegio).",
-            estado=422,
-            campo="instruccion_colegio",
-        )
 
 
 @router.patch(
