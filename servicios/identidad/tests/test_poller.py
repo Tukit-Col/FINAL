@@ -23,13 +23,22 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest_asyncio
 from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from tukit_comun.bd import MotorServicio
-from tukit_identidad.modelos import Base, Colegio, Sede
+from tukit_identidad.modelos import (
+    AcudienteMatricula,
+    Base,
+    Colegio,
+    Estudiante,
+    Matricula,
+    Sede,
+    Usuario,
+)
 from tukit_identidad.poller import Poller, _bandeja_reflejada
 
 # La bandeja del Catalogo: la misma forma comun de bandeja (identica en todos los
@@ -38,6 +47,15 @@ from tukit_identidad.poller import Poller, _bandeja_reflejada
 BANDEJA_CATALOGO = _bandeja_reflejada()
 
 COLEGIO = str(uuid.uuid4())
+USUARIO_ID = str(uuid.uuid4())
+
+
+async def _sembrar_usuario(motor: MotorServicio, usuario_id: str = USUARIO_ID) -> None:
+    """Mete en la base propia el usuario (contacto) que 'subio' la lista. El
+    poller solo matricula si este existe; en produccion lo crea `registrar_contacto`
+    cuando el padre usa 'No encontre mi colegio'."""
+    async with motor.sesion() as db:
+        db.add(Usuario(id=uuid.UUID(usuario_id), correo=f"{usuario_id}@ejemplo.co", clave_hash="x"))
 
 
 @pytest_asyncio.fixture
@@ -210,3 +228,95 @@ class TestPollerIgnoraLoQueNoLeSirve:
         async with motor.sesion() as db:
             colegios = list((await db.execute(select(Colegio))).scalars())
         assert colegios == []
+
+
+async def _contar(motor: MotorServicio) -> tuple[int, int, int]:
+    """Estudiantes, matriculas y vinculos que hay en la base propia."""
+    async with motor.sesion() as db:
+        estudiantes = list((await db.execute(select(Estudiante))).scalars())
+        matriculas = list((await db.execute(select(Matricula))).scalars())
+        vinculos = list((await db.execute(select(AcudienteMatricula))).scalars())
+    return len(estudiantes), len(matriculas), len(vinculos)
+
+
+class TestPollerMatriculaAlHijo:
+    """Cerrar el hueco de 'No encontre mi colegio': al volverse aliado el colegio,
+    el hijo del padre que subio la lista queda matriculado (reusa la funcion del
+    registro), de forma idempotente y con el apodo vacio."""
+
+    async def test_matricula_al_hijo_cuando_el_padre_existe(self, motor, motor_catalogo):
+        await _sembrar_usuario(motor)
+        await _sembrar_bandeja(motor_catalogo, **_carga(contacto_referencia=USUARIO_ID))
+        poller = Poller(motor_identidad=motor, motor_catalogo=motor_catalogo)
+
+        assert await poller.pasada() == 1
+
+        async with motor.sesion() as db:
+            matricula = (
+                await db.execute(
+                    select(Matricula).where(Matricula.colegio_id == uuid.UUID(COLEGIO))
+                )
+            ).scalar_one()
+            vinculo = (
+                await db.execute(
+                    select(AcudienteMatricula).where(
+                        AcudienteMatricula.usuario_id == uuid.UUID(USUARIO_ID)
+                    )
+                )
+            ).scalar_one()
+        # (colegio, "Sede principal", grado, año actual): el año es el mismo que el
+        # registro, para que el id derivado coincida y no se duplique.
+        assert matricula.grado == "Cuarto"
+        assert matricula.anio_lectivo == datetime.now(UTC).year
+        assert vinculo.matricula_id == matricula.id
+        assert vinculo.es_principal is True
+        assert vinculo.parentesco == "acudiente"
+        # Un estudiante, una matricula, un vinculo.
+        assert await _contar(motor) == (1, 1, 1)
+
+    async def test_una_segunda_pasada_no_duplica_la_matricula(self, motor, motor_catalogo):
+        await _sembrar_usuario(motor)
+        await _sembrar_bandeja(motor_catalogo, **_carga(contacto_referencia=USUARIO_ID))
+        poller = Poller(motor_identidad=motor, motor_catalogo=motor_catalogo)
+
+        assert await poller.pasada() == 1
+        assert await poller.pasada() == 0  # ya publicado: nada que hacer
+
+        assert await _contar(motor) == (1, 1, 1)
+
+    async def test_sin_contacto_referencia_crea_colegio_pero_no_matricula(self, motor, motor_catalogo):
+        # Onboarding administrativo: sin padre esperando, el evento no trae la clave.
+        await _sembrar_bandeja(motor_catalogo, **_carga())
+        poller = Poller(motor_identidad=motor, motor_catalogo=motor_catalogo)
+
+        assert await poller.pasada() == 1
+
+        async with motor.sesion() as db:
+            colegios = list((await db.execute(select(Colegio))).scalars())
+        assert len(colegios) == 1
+        assert await _contar(motor) == (0, 0, 0)
+
+    async def test_con_padre_inexistente_crea_colegio_pero_no_matricula(self, motor, motor_catalogo):
+        # El evento trae la referencia pero el usuario no existe en Identidad: no se
+        # inventa una cuenta desde el poller. El colegio si se da de alta.
+        await _sembrar_bandeja(motor_catalogo, **_carga(contacto_referencia=USUARIO_ID))
+        poller = Poller(motor_identidad=motor, motor_catalogo=motor_catalogo)
+
+        assert await poller.pasada() == 1
+
+        async with motor.sesion() as db:
+            colegios = list((await db.execute(select(Colegio))).scalars())
+        assert len(colegios) == 1
+        assert await _contar(motor) == (0, 0, 0)
+
+    async def test_idempotencia_entre_eventos_repetidos(self, motor, motor_catalogo):
+        # Dos eventos identicos en un mismo lote: el SELECT-then-INSERT de
+        # `_materializar_hijos` cae en los mismos id derivados y no duplica.
+        await _sembrar_usuario(motor)
+        await _sembrar_bandeja(motor_catalogo, **_carga(contacto_referencia=USUARIO_ID))
+        await _sembrar_bandeja(motor_catalogo, **_carga(contacto_referencia=USUARIO_ID))
+        poller = Poller(motor_identidad=motor, motor_catalogo=motor_catalogo)
+
+        await poller.pasada()
+
+        assert await _contar(motor) == (1, 1, 1)

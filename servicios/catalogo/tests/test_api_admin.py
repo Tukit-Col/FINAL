@@ -458,6 +458,37 @@ class TestCerrarLaRevision:
         # El DANE viaja como `nit` (la columna del colegio en Identidad).
         assert evento.carga["nit"] == "311001105731"
         assert evento.carga["direccion"] == "Calle 1 # 2-3"
+        # Onboarding sin padre esperando: la clave viaja pero en None (el guard de
+        # este bloque es `colegio_datos`, no `contacto_referencia`).
+        assert evento.carga["contacto_referencia"] is None
+
+    async def test_colegio_verificado_lleva_contacto_referencia_cuando_hay_padre(self, cliente):
+        # Un padre subio la lista de un colegio nuevo (trae `contacto_referencia` Y
+        # `colegio_datos`): al aprobarla, `colegio_verificado` debe llevar tambien
+        # su identificador opaco, para que el poller de Identidad matricule al hijo.
+        referencia = str(uuid.uuid4())
+        colegio_datos = {
+            "dane": "311001105731",
+            "nombre": "ACADEMIA CENTRAL DE SISTEMAS",
+            "direccion": "Calle 1 # 2-3",
+        }
+        vid = (
+            await cliente.post(
+                "/v1/admin/listas/importar",
+                json=_cuerpo_importar(contacto_referencia=referencia, colegio_datos=colegio_datos),
+            )
+        ).json()["version_id"]
+
+        respuesta = await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
+        assert respuesta.status_code == 200
+
+        eventos = await self._bandeja("colegio_verificado")
+        assert len(eventos) == 1
+        evento = eventos[0]
+        # El padre, por identificador opaco; nunca su correo/telefono.
+        assert evento.carga["contacto_referencia"] == referencia
+        assert evento.carga["colegio_id"] == str(COLEGIO)
+        assert evento.carga["grado"] == "Sexto"
 
     async def test_cerrar_un_colegio_aliado_conocido_no_emite_colegio_verificado(self, cliente):
         # Un colegio ya aliado (sin `colegio_datos`) no tiene identidad que crear:
