@@ -1383,6 +1383,16 @@ async def cerrar_version(version_id: uuid.UUID) -> dict[str, Any]:
                     carga={
                         "colegio_id": str(cabeza.colegio_id),
                         "grado": cabeza.grado,
+                        # El padre que esperaba este colegio, por identificador
+                        # opaco; NUNCA su correo/telefono, igual que en
+                        # `lista_verificada`. Va None en el onboarding de admin
+                        # (colegio dado de alta sin padre esperando): el guard de
+                        # este bloque es `colegio_datos`, no `contacto_referencia`.
+                        "contacto_referencia": (
+                            str(tarea.contacto_referencia)
+                            if tarea.contacto_referencia is not None
+                            else None
+                        ),
                         "nombre": datos.get("nombre"),
                         # El DANE es el `nit` del colegio en Identidad.
                         "nit": datos.get("dane") or datos.get("nit"),
