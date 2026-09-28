@@ -58,6 +58,7 @@ export type {
   Credenciales,
   MatriculaAcudiente,
   RegistroAcudiente,
+  HijoNuevo,
   AcudienteAdmin,
   HijoAcudiente,
 } from "./origen";

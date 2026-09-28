@@ -77,6 +77,7 @@ import {
   type AcudienteAdmin,
   type ArchivoLista,
   type Credenciales,
+  type HijoNuevo,
   type MatriculaAcudiente,
   type OrigenDatos,
   type RegistroAcudiente,
@@ -216,6 +217,16 @@ export class ClienteApi implements OrigenDatos {
       { headers: { Authorization: `Bearer ${token}` } },
     );
     return cuerpo.matriculas;
+  }
+
+  // Agrega matriculas del portador (camino autenticado). Mismo path que el GET,
+  // con Bearer, igual que `sesionActual`. El backend responde `{total}`.
+  async guardarMatriculas(token: string, hijos: HijoNuevo[]): Promise<{ total: number }> {
+    return this.pedir<{ total: number }>("/v1/cuenta/matriculas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ hijos }),
+    });
   }
 
   // El padron de acudientes para el equipo interno (solo admin/operador:
@@ -1162,9 +1173,12 @@ export class ClienteApi implements OrigenDatos {
     );
   }
 
-  resumenPedidosColegio(colegioId: string): Promise<ResumenPedidosColegio> {
+  // Exige Bearer de operador/admin: la respuesta trae los `usuario_id` de los
+  // padres que pagaron (dato sensible). Bearer, igual que `acudientesAdmin`.
+  resumenPedidosColegio(token: string, colegioId: string): Promise<ResumenPedidosColegio> {
     return this.pedir<ResumenPedidosColegio>(
       `/v1/metricas/colegios/${encodeURIComponent(colegioId)}/pedidos`,
+      { headers: { Authorization: `Bearer ${token}` } },
     );
   }
 

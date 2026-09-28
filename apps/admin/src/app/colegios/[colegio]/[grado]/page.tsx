@@ -14,7 +14,14 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
-import type { ItemListaOficial, ListaOficial, PedidosPorGrado } from "@tukit/contrato";
+import type {
+  ColegioDetalle,
+  DirectorioColegio,
+  ItemListaOficial,
+  ListaOficial,
+  PedidosPorGrado,
+  ResumenPedidosColegio,
+} from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import EditarLista from "@/components/EditarLista";
 import { COOKIE_SESION } from "@/lib/sesion";
@@ -100,13 +107,48 @@ export default async function PaginaListaGrado({ params }: Props) {
     ? `/api/listas/${encodeURIComponent(lista.version_id)}/documento`
     : null;
 
+  // ------------------------------------------- Nombre del colegio (para el H1)
+  // Igual que el perfil del colegio: nombre oficial del DUEB si el colegio tiene
+  // DANE y el directorio lo encuentra; si no, el nombre guardado en Tukit. El id
+  // crudo del colegio solo se muestra cuando no hay ningún nombre.
+  const origen = origenDeDatos();
+  let colegio: ColegioDetalle | null = null;
+  try {
+    colegio = await origen.colegio(colegioId);
+  } catch (causa) {
+    // Un 404 no debería pasar (la lista ya garantiza el colegio); si pasa, el
+    // título cae al id. Cualquier otro fallo sí tumba la página.
+    if (!(causa instanceof ErrorTukit && causa.estado === 404)) throw causa;
+  }
+  const directorio: DirectorioColegio | null = colegio?.dane
+    ? await origen.directorioCompleto(colegio.dane)
+    : null;
+  const nombreColegio = directorio?.nombre ?? colegio?.nombre ?? null;
+
   // ------------------------------------- Padres con pedido pagado en el grado
   // Se reutiliza el mismo cruce del perfil del colegio y se toma la fila de ESTE
-  // grado. Los conteos van sin token; el correo (PII) sale del endpoint
-  // protegido de acudientes y degrada a identificador sin sesión/rol.
-  const origen = origenDeDatos();
-  const resumenPedidos = await origen.resumenPedidosColegio(colegioId);
-  const filaGrado: PedidosPorGrado | undefined = resumenPedidos.por_grado.find(
+  // grado. El cruce exige operador/admin (lista los `usuario_id`): se pide con
+  // la cookie de sesión y degrada a un aviso sin sesión/rol. El correo (PII)
+  // sale aparte del endpoint protegido de acudientes, con el mismo token.
+  const token = (await cookies()).get(COOKIE_SESION)?.value;
+
+  let resumenPedidos: ResumenPedidosColegio | null = null;
+  let pedidosCargados = true;
+  if (token) {
+    try {
+      resumenPedidos = await origen.resumenPedidosColegio(token, colegioId);
+    } catch (causa) {
+      if (causa instanceof ErrorTukit && (causa.estado === 401 || causa.estado === 403)) {
+        pedidosCargados = false;
+      } else {
+        throw causa;
+      }
+    }
+  } else {
+    pedidosCargados = false;
+  }
+
+  const filaGrado: PedidosPorGrado | undefined = resumenPedidos?.por_grado.find(
     (g) => g.grado === grado,
   );
   const padresGrado = filaGrado?.por_padre ?? [];
@@ -114,7 +156,6 @@ export default async function PaginaListaGrado({ params }: Props) {
   const correos = new Map<string, string>();
   let correosCargados = true;
   if (padresGrado.length > 0) {
-    const token = (await cookies()).get(COOKIE_SESION)?.value;
     if (!token) {
       correosCargados = false;
     } else {
@@ -143,7 +184,7 @@ export default async function PaginaListaGrado({ params }: Props) {
       <header className={styles.encabezado}>
         <div>
           <h1>
-            {lista.grado} · <code>{lista.colegio_id}</code>
+            {lista.grado} · {nombreColegio ?? <code>{lista.colegio_id}</code>}
           </h1>
           <p className={styles.bajada}>
             Lista verificada, versión <span className="cifra">{lista.version}</span> · año{" "}
@@ -209,7 +250,11 @@ export default async function PaginaListaGrado({ params }: Props) {
           el grado. Reusa el cruce del perfil del colegio (`por_grado`). */}
       <section className={styles.tarjeta}>
         <h2 className={styles.subtitulo}>Padres con pedido pagado</h2>
-        {padresGrado.length === 0 ? (
+        {!pedidosCargados ? (
+          <p className={styles.avisoCorreos}>
+            No pudimos cargar los pedidos pagados (falta sesión o rol de operador/admin).
+          </p>
+        ) : padresGrado.length === 0 ? (
           <p className={styles.vacio}>
             Todavía no hay pedidos pagados de este colegio en este grado.
           </p>
