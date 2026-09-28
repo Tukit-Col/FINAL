@@ -249,6 +249,21 @@ async def ver_trabajo(trabajo_id: uuid.UUID) -> dict[str, Any]:
         ) from error
 
 
+@app.get(
+    "/v1/mis-solicitudes",
+    tags=["trabajos"],
+    summary="Las solicitudes del acudiente (listas subidas + trabajos), unidas",
+)
+async def mis_solicitudes(authorization: Annotated[str | None, Header()] = None) -> dict[str, Any]:
+    """El panel del acudiente: sus listas subidas y sus trabajos, en una lista.
+
+    Exige una sesion valida (no rol de staff) y usa el `usuario_id` de esa
+    sesion; nunca acepta un id del navegador. Un catalogo caido no tumba la
+    vista: `trabajos.mis_solicitudes` lo marca en `listas_disponibles`."""
+    usuario_id = await _usuario_de_sesion(authorization)
+    return await trabajos.mis_solicitudes(app.state.motor, usuario_id, catalogo=_catalogo())
+
+
 @app.post(
     "/v1/trabajos/{trabajo_id}/ordenar",
     tags=["trabajos"],
@@ -464,6 +479,25 @@ async def _exigir_staff(authorization: str | None) -> None:
         raise ErrorDominio(
             "acceso_denegado", "Esta vista es solo para el equipo interno de Tukit.", estado=403
         )
+
+
+async def _usuario_de_sesion(authorization: str | None) -> uuid.UUID:
+    """Puerta de portador: cualquier sesion valida, sin exigir rol de staff.
+
+    Misma validacion y misma falla CERRADA que `_exigir_staff` (401 sin token o
+    con token invalido/revocado, 503 si identidad no responde), pero devuelve el
+    `usuario_id` de la sesion en vez de comprobar roles. Es lo que deja que "Mis
+    solicitudes" use el id del PORTADOR y nunca uno que venga del navegador."""
+    token = _token_bearer(authorization)
+    if not token:
+        raise ErrorDominio("sesion_invalida", "El token no es valido o expiro.", estado=401)
+    try:
+        sesion = await _identidad().sesion(token)
+    except RemotoCaido as error:
+        raise ErrorDominio("identidad_no_disponible", "No se pudo validar la sesion.", estado=503) from error
+    if sesion is None:
+        raise ErrorDominio("sesion_invalida", "El token no es valido o expiro.", estado=401)
+    return uuid.UUID(str(sesion["usuario_id"]))
 
 
 def _items_desde_percepcion(percepcion: Percepcion) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:

@@ -132,6 +132,18 @@ class ClienteCatalogo:
         productos = list(cuerpo.get("productos") or ())
         return productos[0] if productos else None
 
+    async def listas_por_contacto(self, contacto_referencia: str) -> list[dict[str, Any]]:
+        """Las listas que subio un acudiente, para su panel "Mis solicitudes".
+
+        Cuelga de `/interno` A PROPOSITO: la puerta no rutea ese prefijo, asi que
+        esta lectura servicio-a-servicio no existe hacia el navegador (nadie de
+        fuera pide "las listas de un contacto"). Inteligencia le pega directo al
+        Catalogo con el `usuario_id` de la sesion que ya valido: `contacto_referencia`
+        JAMAS viene del navegador.
+        """
+        cuerpo = await self._pedir("GET", f"/interno/listas-por-contacto/{contacto_referencia}")
+        return list(cuerpo.get("listas") or ())
+
     async def resueltos(self, version_id: str) -> dict[str, Any]:
         """La ruta rapida: items ya resueltos + candidatos curados de una lista revisada.
 
