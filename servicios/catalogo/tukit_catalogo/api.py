@@ -18,17 +18,6 @@ from fastapi import FastAPI
 from tukit_comun.bd import crear_motor
 from tukit_comun.http import crear_app
 
-# Re-exportados para no romper a quien los importaba de aqui: los tests usan
-# `pesos`, y `admin_http` toma `CONCEPTO`/`_consulta_productos`/
-# `_precio_minimo_vigente` para armar los candidatos de la cola. Su hogar real
-# es el dominio y el repo; C-2 re-apunta `admin_http` a `repositorios` y estos
-# se van. ponytail: alias transitorio, se borra al mudar admin_http.
-from .dominio.catalogo import pesos  # noqa: F401
-from .repositorios.catalogo import (  # noqa: F401
-    CONCEPTO,
-    _consulta_productos,
-    _precio_minimo_vigente,
-)
 from .routers import router_catalogo
 
 PUERTO_POR_OMISION = 8012
