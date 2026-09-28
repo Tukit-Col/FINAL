@@ -6,7 +6,7 @@
 
 .DEFAULT_GOAL := ayuda
 .PHONY: ayuda preparar fronteras prueba lint formato verificar limpiar \
-        bd-arriba bd-abajo bd-crear bd-limpiar bd-esquema bd-indices bd-verificar \
+        bd-arriba bd-abajo bd-crear bd-limpiar bd-reiniciar-datos bd-esquema bd-indices bd-verificar \
         bd-migrar bd-revision bd-deriva bd-cargar bd-datos bd-enriquecer bd-completar \
         bd-demanda bd-revisar bd-vista bd-admin bd-nivelar bd-volcar bd-limpiar-candidatos fase1 \
         bd-sembrar bd-colegios bd-listas backend arriba reanudar abajo estado humo \
@@ -123,6 +123,43 @@ bd-abajo:  ## Detiene Postgres, conservando los datos
 
 bd-limpiar:  ## Detiene Postgres y BORRA los datos (volumen incluido)
 	@$(COMPOSE) down -v
+
+# Los datos que NO se borran al reiniciar para una prueba desde cero: la semilla
+# curada (que `bd-sembrar` carga y tarda) y lo que hace posible entrar. Todo lo
+# demas -cuentas de prueba, hijos, listas subidas, trabajos, cola, pedidos,
+# casos, bandejas- es fruto de probar y se trunca. La lista es por-base; una
+# tabla nueva se borra por defecto (mas seguro para una prueba: nunca deja
+# residuo), asi que si se agrega una tabla que SI es semilla, va aqui.
+GUARDAR_identidad := rol permiso rol_permiso colegio sede
+GUARDAR_catalogo := concepto producto_canonico sustituibilidad_concepto grupo_variante concepto_ruta_categoria tienda edicion_libro configuracion_colegio_editorial
+GUARDAR_inteligencia :=
+GUARDAR_comercio :=
+GUARDAR_operacion :=
+
+bd-reiniciar-datos:  ## Trunca los datos de PRUEBA (deja la semilla del catalogo y el acceso). Para probar el flujo del padre desde cero SIN re-sembrar.
+	@echo "Motor: $(BD_MODO)"
+	@echo "Esto BORRA cuentas, hijos, listas, trabajos, cola, pedidos y casos de prueba."
+	@echo "Conserva: catalogo curado, roles/permisos y el directorio de colegios."
+	@for base in identidad catalogo inteligencia comercio operacion; do \
+		guardar="$(GUARDAR_identidad)"; \
+		case $$base in \
+			catalogo) guardar="$(GUARDAR_catalogo)";; \
+			inteligencia) guardar="$(GUARDAR_inteligencia)";; \
+			comercio) guardar="$(GUARDAR_comercio)";; \
+			operacion) guardar="$(GUARDAR_operacion)";; \
+		esac; \
+		enlista=""; for t in $$guardar; do enlista="$$enlista,'$$t'"; done; enlista="$${enlista#,}"; \
+		[ -z "$$enlista" ] && enlista="''"; \
+		sql="DO \$$\$$ DECLARE t text; BEGIN FOR t IN SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename NOT IN ($$enlista) LOOP EXECUTE format('TRUNCATE TABLE %I CASCADE', t); END LOOP; END \$$\$$;"; \
+		echo "$$sql" | $(PSQL) -q -v ON_ERROR_STOP=1 -U tukit -d "tukit_$$base" || exit 1; \
+		echo "[$$base] datos de prueba truncados"; \
+	done
+	@# El truncado se llevo tambien los usuarios demo (admin@tukit.co, etc.):
+	@# sin ellos no hay con quien entrar a aprobar en la cola. `sembrar_acceso`
+	@# los re-crea idempotente (roles, permisos y logins con clave demo1234).
+	@cd servicios/identidad && PYTHONPATH=".:../../libs/py/tukit_comun" \
+		../../$(PY) -m tukit_identidad.sembrar_acceso
+	@echo "Listo. Reinicia los trabajadores (make reanudar) y prueba el flujo desde /empezar."
 
 # PYTHONPATH explicito para `python -m`: pytest usa el pythonpath del pyproject,
 # pero `python -m` no. Se listan la libreria compartida y cada servicio portado.

@@ -151,7 +151,12 @@ export default async function PaginaColegio({ params }: Props) {
                   {a.grados.length > 0 ? (
                     <span className={styles.gradosAcudiente}>{a.grados.join(", ")}</span>
                   ) : null}
-                  <span className={styles.insigniaAliado}>{a.estado}</span>
+                  {/* El estado enlaza al trabajo: sus fases (percepción →
+                      optimización) y, cuando llega a `publicado`, el kit ya
+                      armado. Es la ventana para seguir el avance tras aprobar. */}
+                  <Link href={`/trabajos/${a.trabajo_id}`} className={styles.estadoTrabajo}>
+                    {a.estado}
+                  </Link>
                   <time dateTime={a.actualizado_en}>{a.actualizado_en.slice(0, 10)}</time>
                   {prefs.length > 0 ? (
                     <span className={styles.prefsAcudiente}>{prefs.join(" · ")}</span>

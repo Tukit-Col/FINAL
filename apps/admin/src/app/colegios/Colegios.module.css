@@ -320,6 +320,26 @@
   font-weight: 700;
 }
 
+/* El estado como enlace al trabajo: misma píldora que `.insigniaAliado` pero
+ * clicable, para abrir las fases del pipeline y ver cuándo queda `publicado`. */
+.estadoTrabajo {
+  align-self: flex-start;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  color: var(--color-success);
+  text-decoration: none;
+}
+
+.estadoTrabajo:hover {
+  text-decoration: underline;
+}
+
 .gradosAcudiente {
   font-size: 12px;
   font-weight: 600;
