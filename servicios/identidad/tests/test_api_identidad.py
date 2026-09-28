@@ -36,6 +36,7 @@ async def cliente():
         colegio = Colegio(
             id=derivar("colegio", "2.4"),
             nombre="Colegio San Pedro",
+            dane="311001093652",
             logo_url="https://cdn.tukit.co/colegios/san-pedro.png",
             sitio_web="https://sanpedro.edu.co",
             contacto_nombre="Secretaria academica",
@@ -129,6 +130,17 @@ class TestElPerfilDelColegio:
         cuerpo = (await cliente.get("/v1/colegios")).json()
         san_pedro = next(c for c in cuerpo["colegios"] if c["nombre"] == "Colegio San Pedro")
         assert san_pedro["logo_url"] == "https://cdn.tukit.co/colegios/san-pedro.png"
+
+    async def test_el_listado_trae_el_dane_para_casar_el_buscador(self, cliente):
+        # El buscador de `/empezar` compara el DANE del aliado contra el
+        # directorio de Bogota para reconducir por `colegio_id`; sin el DANE en el
+        # listado no podria, y volveria a darlo de alta como colegio del
+        # directorio (el bug del duplicado). El que no tiene DANE serializa null.
+        cuerpo = (await cliente.get("/v1/colegios")).json()
+        san_pedro = next(c for c in cuerpo["colegios"] if c["nombre"] == "Colegio San Pedro")
+        assert san_pedro["dane"] == "311001093652"
+        sin_perfil = next(c for c in cuerpo["colegios"] if c["nombre"] == "Colegio Sin Perfil")
+        assert sin_perfil["dane"] is None
 
     async def test_un_colegio_sin_perfil_serializa_los_campos_como_null(self, cliente):
         cid = str(derivar("colegio", "9.9"))
