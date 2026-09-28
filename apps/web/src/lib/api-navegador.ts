@@ -10,6 +10,7 @@ import type {
   Checkout,
   Contacto,
   ErrorApi,
+  HijoNuevo,
   HijoSubida,
   Preferencias,
   RegistroAcudiente,
@@ -168,6 +169,22 @@ export async function registrarAcudiente(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(datos),
+    }),
+  );
+}
+
+/**
+ * Guarda en la cuenta del acudiente autenticado las matrículas de sus hijos
+ * NUEVOS (camino "ya tengo cuenta"). Habla con el Route Handler local, que pone
+ * el Bearer desde la cookie httpOnly: el token nunca toca el navegador. Es
+ * idempotente en el backend, así que reintentar es inocuo.
+ */
+export async function guardarMatriculas(hijos: HijoNuevo[]): Promise<{ total: number }> {
+  return leer<{ total: number }>(
+    await fetch("/api/cuenta/matriculas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hijos }),
     }),
   );
 }
