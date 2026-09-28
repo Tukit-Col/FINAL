@@ -21,6 +21,7 @@ import type {
   SolicitudCheckout,
   HijoSubida,
   MarcarNoDisponible,
+  MisSolicitudes,
   PercepcionCruda,
   Preferencias,
   ProductoDadoDeAlta,
@@ -416,6 +417,12 @@ export interface OrigenDatos {
   // la sesion de identidad sin cruzar la frontera (regla 1). Devuelve la lista
   // sin resumen; el dashboard no lo necesita.
   misPedidos(usuarioId: string): Promise<Pedido[]>;
+
+  // "Mis solicitudes" del panel del acudiente: sus listas subidas + sus
+  // trabajos, unidas (`GET /v1/mis-solicitudes` en inteligencia). Viaja el
+  // token, no el `usuario_id`: el backend saca la identidad de la sesion que
+  // valida, para que el navegador nunca elija de quien pedir las solicitudes.
+  misSolicitudes(token: string): Promise<MisSolicitudes>;
 
   // ASUMIDO — superficie de lectura de `operacion` (tickets del back-office).
   // Ver `operacion.ts`.

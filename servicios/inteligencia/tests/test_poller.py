@@ -48,20 +48,23 @@ class _CatalogoNoIdentidad:
         return str(uuid.uuid4())
 
 
-async def _sembrar_bandeja(motor, **carga: Any) -> None:
+async def _sembrar_bandeja(motor, *, agregado_id: uuid.UUID | None = None, **carga: Any) -> uuid.UUID:
     """Crea la tabla de bandeja del catalogo en el SQLite de prueba y le mete
-    un evento `lista_verificada` con la carga dada."""
+    un evento `lista_verificada` con la carga dada. Devuelve el `agregado_id`
+    (el `version_id` de la version aprobada) para poder aseverarlo."""
+    agregado_id = agregado_id or uuid.uuid4()
     async with motor.engine.begin() as conexion:
         await conexion.run_sync(BANDEJA_CATALOGO.metadata.create_all)
         await conexion.execute(
             insert(BANDEJA_CATALOGO).values(
                 tipo="lista_verificada",
                 agregado_tipo="version_lista_oficial",
-                agregado_id=uuid.uuid4(),
+                agregado_id=agregado_id,
                 carga=carga,
                 intentos=0,
             )
         )
+    return agregado_id
 
 
 def _carga(contacto: str, preferencias: dict | None = None) -> dict[str, Any]:
@@ -108,6 +111,21 @@ class TestPollerArmaElKitDelPadre:
         # revisa desde el enlace del correo), no entra a una segunda cola.
         assert fila.estado == EstadoTrabajo.PUBLICADO.value
         assert fila.origen == "lista_verificada"
+
+    async def test_el_trabajo_guarda_el_version_id_de_la_lista(self, motor):
+        # El `agregado_id` del evento (el version_id de la version aprobada) queda
+        # en `hijos[0]`: es la bisagra que deja unir la lista aprobada con su
+        # trabajo en "Mis solicitudes".
+        version_id = uuid.uuid4()
+        await _sembrar_bandeja(motor, agregado_id=version_id, **_carga(str(uuid.uuid4())))
+        catalogo = _catalogo_verificado()
+
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+        assert await poller.pasada() == 1
+
+        async with motor.engine.begin() as conexion:
+            hijos = (await conexion.execute(select(trabajos.TRABAJO.c.hijos))).scalar_one()
+        assert hijos[0]["version_id"] == str(version_id)
 
     async def test_el_trabajo_lleva_las_preferencias_del_evento(self, motor):
         preferencias = {

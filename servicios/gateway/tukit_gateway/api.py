@@ -105,6 +105,10 @@ RUTAS: dict[str, str] = {
     # token que emite `/v1/sesiones`.
     "/v1/cuenta": "identidad",
     "/v1/trabajos": "inteligencia",
+    # "Mis solicitudes" del acudiente: sus listas subidas + sus trabajos, unidas.
+    # Prefijo propio y no bajo `/v1/trabajos` para no chocar con
+    # `/v1/trabajos/{trabajo_id}` (que toma un UUID); la sirve INTELIGENCIA.
+    "/v1/mis-solicitudes": "inteligencia",
     # Los (colegio, grado) con cache bendita, para la ruta rapida de /empezar.
     # Cuelga fuera de `/v1/trabajos` (no es un trabajo, es el indice de la cache).
     "/v1/grados-canonicos": "inteligencia",

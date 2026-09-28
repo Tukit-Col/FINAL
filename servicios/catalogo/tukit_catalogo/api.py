@@ -60,6 +60,7 @@ PRECIO = Base.metadata.tables["precio_oferta"]
 LISTA = Base.metadata.tables["lista_oficial"]
 VERSION = Base.metadata.tables["version_lista_oficial"]
 ITEM = Base.metadata.tables["item_lista_oficial"]
+TAREA = Base.metadata.tables["tarea_importacion"]
 
 
 def pesos(centavos: int | None) -> int | None:
@@ -643,6 +644,71 @@ async def resolver_sku(sku: str) -> dict[str, Any]:
     if fila is None:
         raise ErrorDominio("producto_no_existe", f"No hay ningun producto con el sku {sku}.", estado=404)
     return {"producto_canonico_id": str(fila.id), "precio_desde": pesos(getattr(fila, "centavos", None))}
+
+
+@app.get(
+    "/interno/listas-por-contacto/{contacto_referencia}",
+    tags=["interno"],
+    include_in_schema=False,
+    summary="Las listas que subio un acudiente, por su usuario_id; NO es publica",
+)
+async def listas_por_contacto(contacto_referencia: uuid.UUID) -> dict[str, Any]:
+    """Las listas subidas de un acudiente, para su panel "Mis solicitudes".
+
+    Vive fuera de `/v1/` A PROPOSITO —igual que `resolver_sku`—: la puerta rutea
+    por prefijo, asi que esta ruta no existe hacia el navegador (nadie de fuera
+    pide "las listas de un contacto") y solo la alcanza Inteligencia hablando con
+    Catalogo directo, con el `usuario_id` de la sesion que ya valido.
+
+    Una fila por VERSION (gana la tarea mas reciente de cada version); una tarea
+    sin version todavia —sugerencia aun pendiente— tambien sale, como recibida.
+    `colegio_nombre` viene de `colegio_datos` cuando el colegio es nuevo; para un
+    colegio aliado es `None` (su nombre vive en identidad, no aca) y lo resuelve
+    la web.
+    """
+    consulta = (
+        select(
+            TAREA.c.id,
+            TAREA.c.version_id,
+            TAREA.c.colegio_id,
+            TAREA.c.grado,
+            TAREA.c.anio_lectivo,
+            TAREA.c.colegio_datos,
+            TAREA.c.creada_en,
+            VERSION.c.revisada_en,
+        )
+        .select_from(TAREA.outerjoin(VERSION, VERSION.c.id == TAREA.c.version_id))
+        .where(TAREA.c.contacto_referencia == contacto_referencia)
+        .order_by(TAREA.c.creada_en.desc())
+    )
+    async with app.state.motor.engine.begin() as conexion:
+        filas = list(await conexion.execute(consulta))
+
+    # Una sola fila por version (la tarea mas reciente ya viene primero por el
+    # orden). Las tareas sin version aun no comparten identidad: cada una es su
+    # propia solicitud, asi que se llavean por su id.
+    vistas: set[str] = set()
+    listas: list[dict[str, Any]] = []
+    for f in filas:
+        clave = str(f.version_id) if f.version_id else f"tarea:{f.id}"
+        if clave in vistas:
+            continue
+        vistas.add(clave)
+        nombre = None
+        if f.colegio_datos:
+            nombre = dict(f.colegio_datos).get("nombre")
+        listas.append(
+            {
+                "version_id": str(f.version_id) if f.version_id else None,
+                "colegio_id": str(f.colegio_id) if f.colegio_id else None,
+                "colegio_nombre": nombre,
+                "grado": f.grado,
+                "anio_lectivo": f.anio_lectivo,
+                "revisada_en": f.revisada_en.isoformat() if f.revisada_en else None,
+                "creada_en": f.creada_en.isoformat() if f.creada_en else None,
+            }
+        )
+    return {"listas": listas}
 
 
 # ---------------------------------------------------------------------------
