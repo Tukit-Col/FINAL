@@ -1777,10 +1777,11 @@ async def encolar_util(cuerpo: dict[str, Any]) -> dict[str, Any]:
     precio y la ficha salen de la tienda, no del cliente. Si el candidato ya no
     aparece (se agoto entre la busqueda y el alta), es un 422 con causa, no un
     500. El concepto se resuelve por codigo (`concepto_no_existe` si no existe)
-    y el dict lo arma `admin.construir_propuesta_util`, que HTTP y CLI comparten.
+    y el dict lo arma `construir_propuesta_util`, que HTTP y CLI comparten.
     """
     from . import admin
     from .descubrir import _encolar
+    from .dominio.propuesta import construir_propuesta_util
 
     consulta = str(cuerpo.get("consulta") or "").strip()
     slug = str(cuerpo.get("slug") or "")
@@ -1812,7 +1813,7 @@ async def encolar_util(cuerpo: dict[str, Any]) -> dict[str, Any]:
             )
         ).scalar_one()
 
-    propuesta = admin.construir_propuesta_util(
+    propuesta = construir_propuesta_util(
         concepto_id, nombre_concepto, slug, tienda_id, elegida, nivel
     )
     await _encolar([propuesta])
@@ -1833,12 +1834,12 @@ async def encolar_util_manual(cuerpo: dict[str, Any]) -> dict[str, Any]:
     entero > 0 en PESOS (`precio_invalido`) y el nombre no puede ir vacio
     (`nombre_invalido`); la tienda tiene que existir en la BD (`tienda_desconocida`,
     cualquiera de las registradas, no solo las de busqueda en vivo). El dict lo
-    arma el mismo `admin.construir_propuesta_util` que comparten HTTP y CLI, asi
+    arma el mismo `construir_propuesta_util` que comparten HTTP y CLI, asi
     que el alta manual y la de busqueda nacen identicas al aprobarse.
     """
-    from . import admin, tiendas
-    from .cargador import _uuid_estable
+    from . import tiendas
     from .descubrir import _encolar
+    from .dominio.propuesta import _uuid_estable, construir_propuesta_util
 
     codigo = str(cuerpo.get("concepto") or "")
     nombre = str(cuerpo.get("nombre") or "").strip()
@@ -1892,7 +1893,7 @@ async def encolar_util_manual(cuerpo: dict[str, Any]) -> dict[str, Any]:
             )
         ).scalar_one()
 
-    propuesta = admin.construir_propuesta_util(
+    propuesta = construir_propuesta_util(
         concepto_id, nombre_concepto, slug, tienda_id, oferta, nivel
     )
     await _encolar([propuesta])
@@ -1910,11 +1911,11 @@ async def encolar_libro(cuerpo: dict[str, Any]) -> dict[str, Any]:
     Un libro no se busca (lo identifica el ISBN de una edicion, no un titulo):
     la persona escribe ISBN, titulo y precio. El ISBN se valida con el digito de
     control (`isbn_invalido` si no pasa) y el precio tiene que ser un entero > 0
-    en pesos (`precio_invalido`). El dict lo arma `admin.construir_propuesta_libro`.
+    en pesos (`precio_invalido`). El dict lo arma `construir_propuesta_libro`.
     """
-    from . import admin
     from .cargador import isbn13_valido, normalizar_isbn
     from .descubrir import _encolar
+    from .dominio.propuesta import construir_propuesta_libro
 
     codigo = str(cuerpo.get("concepto") or "")
     isbn = normalizar_isbn(cuerpo.get("isbn")) or ""
@@ -1953,7 +1954,7 @@ async def encolar_libro(cuerpo: dict[str, Any]) -> dict[str, Any]:
             )
         ).scalar_one()
 
-    propuesta = admin.construir_propuesta_libro(
+    propuesta = construir_propuesta_libro(
         concepto_id, nombre_concepto, slug, tienda_id, isbn, titulo, precio, nivel
     )
     await _encolar([propuesta])
