@@ -395,9 +395,14 @@ export class ClienteApi implements OrigenDatos {
   // llega con `grados: []` y solo es usable por la ruta de archivo.
   async colegios(): Promise<Colegio[]> {
     const [colegiosResp, listasResp] = await Promise.all([
-      this.pedir<{ colegios: { colegio_id: string; nombre: string; logo_url?: string | null }[] }>(
-        "/v1/colegios",
-      ),
+      this.pedir<{
+        colegios: {
+          colegio_id: string;
+          nombre: string;
+          dane?: string | null;
+          logo_url?: string | null;
+        }[];
+      }>("/v1/colegios"),
       // El selector arranca VACIO y solo se llena con lo verificado, asi que
       // pedimos `?revisada=true` y el filtro lo resuelve el servidor: una lista
       // importada pero sin revisar no habilita el grado —la ruta rapida a
@@ -430,6 +435,9 @@ export class ClienteApi implements OrigenDatos {
           atribucion_dudosa: false,
           // El logo lo sirve identidad; `null` cuando el colegio no cargo marca.
           logo_url: c.logo_url ?? null,
+          // El DANE deja al buscador reconducir al aliado por `colegio_id` cuando
+          // el padre elige del directorio un colegio que ya es aliado.
+          dane: c.dane ?? null,
           grados,
           es_partner: grados.length > 0,
         };

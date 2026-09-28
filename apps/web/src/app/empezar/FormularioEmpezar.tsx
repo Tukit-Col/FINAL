@@ -29,15 +29,15 @@ import {
 import SelectorPersonaje from "./SelectorPersonaje";
 import styles from "./Empezar.module.css";
 
-type Entrada = "lista_oficial" | "archivo";
-
 interface HijoFormulario {
   referencia: string;
-  // La ruta "lista oficial" elige un colegio ALIADO por su id. La ruta "subir
-  // archivo" designa el colegio de otra forma (no es aliado todavía): con el
-  // DANE del directorio de Bogotá, o solo con el nombre escrito a mano. El
-  // backend deriva el `colegio_id` estable de lo que llegue; aquí se guardan las
-  // tres piezas y se manda la que corresponda según la ruta.
+  // El colegio se designa de UNA de tres formas, y la ruta se DERIVA de cuál está
+  // puesta (ya no hay un campo `entrada`): un `colegioId` de aliado (ruta "lista
+  // oficial"); el DANE del directorio de Bogotá + nombre (colegio del directorio,
+  // aún no aliado); o solo el nombre escrito a mano. El backend deriva el
+  // `colegio_id` estable de lo que llegue; aquí se guardan las tres piezas y se
+  // manda la que corresponda. El buscador reconduce por `colegioId` cuando el
+  // DANE elegido en el directorio es el de un aliado, para no duplicarlo.
   colegioId: string;
   colegioDane: string;
   colegioNombre: string;
@@ -52,7 +52,6 @@ interface HijoFormulario {
   // la cuenta y solo ellos ofrecen campo de apodo editable; el apodo de un hijo
   // precargado se muestra en solo-lectura (no se re-escribe dato del menor).
   precargado: boolean;
-  entrada: Entrada;
   archivo: File | null;
   errorArchivo: string | null;
   personajes: string;
@@ -125,7 +124,6 @@ function hijoVacio(indice: number): HijoFormulario {
     grado: "",
     apodo: "",
     precargado: false,
-    entrada: "lista_oficial",
     archivo: null,
     errorArchivo: null,
     personajes: "",
@@ -152,104 +150,17 @@ function unirEnLista(items: string[]): string {
   return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
 }
 
-// ------------------------------------------------------- Selector de colegio
-
-function SelectorColegio({
-  colegios,
-  valor,
-  onElegir,
-  onNoEncuentro,
-}: {
-  colegios: Colegio[];
-  valor: string;
-  onElegir: (colegioId: string) => void;
-  // Salida a la ruta "No encontré mi colegio". Si no se pasa, no se pinta la
-  // pista.
-  onNoEncuentro?: () => void;
-}) {
-  const [busqueda, setBusqueda] = useState("");
-  const filtrados = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
-    if (!q) return colegios;
-    return colegios.filter((c) => c.nombre.toLowerCase().includes(q));
-  }, [colegios, busqueda]);
-
-  return (
-    <div className={styles.colegioBloque}>
-      <span className={styles.campoRotulo}>Colegio</span>
-      <div className={styles.buscador}>
-        <Search size={16} strokeWidth={2.4} aria-hidden="true" />
-        <input
-          type="text"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Busca tu colegio…"
-          aria-label="Buscar colegio"
-        />
-      </div>
-      <div className={styles.listaColegios} role="radiogroup" aria-label="Elige el colegio">
-        {filtrados.map((c) => {
-          const activo = c.colegio_id === valor;
-          return (
-            <button
-              key={c.colegio_id}
-              type="button"
-              role="radio"
-              aria-checked={activo}
-              className={`${styles.tarjetaColegio} ${activo ? styles.colegioActivo : ""}`}
-              onClick={() => onElegir(c.colegio_id)}
-            >
-              <span className={styles.logoColegio} aria-hidden="true">
-                {c.logo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={c.logo_url} alt="" />
-                ) : (
-                  <span className={styles.logoIniciales}>{iniciales(c.nombre)}</span>
-                )}
-              </span>
-              <span className={styles.colegioTexto}>
-                <span className={styles.colegioNombre}>{c.nombre}</span>
-                <span className={styles.colegioMeta}>
-                  {c.grados.length === 0
-                    ? "Sin lista verificada · sube el archivo"
-                    : `${c.grados.length} ${c.grados.length === 1 ? "grado verificado" : "grados verificados"}`}
-                </span>
-              </span>
-              {activo && (
-                <span className={styles.colegioMarca} aria-hidden="true">
-                  <Check size={14} strokeWidth={3.2} />
-                </span>
-              )}
-            </button>
-          );
-        })}
-        {filtrados.length === 0 && (
-          <p className={styles.sinColegios}>
-            <School size={18} strokeWidth={2} aria-hidden="true" />
-            No encontramos ese colegio entre los aliados todavía.
-          </p>
-        )}
-      </div>
-      {onNoEncuentro && (
-        <p className={styles.pistaCampo}>
-          ¿No aparece tu colegio? Elige{" "}
-          <button type="button" className={styles.enlaceEnLinea} onClick={onNoEncuentro}>
-            No encontré mi colegio
-          </button>
-        </p>
-      )}
-    </div>
-  );
-}
-
-// ------------------------------------------ Buscador del directorio de Bogotá
+// -------------------------------------------------------- Buscador de colegio
 //
+// Un ÚNICO buscador por hijo que mezcla dos fuentes que el padre no distingue:
+// los colegios aliados de Tukit y el directorio de Bogotá. La búsqueda del
+// directorio es del lado del cliente sobre el JSON ya cargado; no pega a ningún
+// servicio (decisión: directorio buscable, no sembrado).
+
 // Una entrada del directorio estático de colegios de Bogotá
 // (`/directorio-colegios.json`, ~3k colegios). NO es un colegio aliado: es la
-// guía oficial para que el acudiente designe SU colegio al subir el archivo,
-// aunque Tukit todavía no lo tenga. La búsqueda es del lado del cliente sobre el
-// JSON ya cargado; no pega a ningún servicio (decisión: directorio buscable, no
-// sembrado).
+// guía oficial para que el acudiente designe SU colegio aunque Tukit todavía no
+// lo tenga.
 interface EntradaDirectorio {
   dane: string;
   nombre: string;
@@ -258,7 +169,7 @@ interface EntradaDirectorio {
 
 // El directorio se carga UNA vez y se comparte entre todos los hijos: es el
 // mismo JSON estático. Se memoiza en un módulo para no re-descargar 300 KB por
-// cada `<BuscadorDirectorio>` que se monte.
+// cada `<BuscadorColegio>` que se monte.
 let directorioPromesa: Promise<EntradaDirectorio[]> | null = null;
 function cargarDirectorio(): Promise<EntradaDirectorio[]> {
   if (!directorioPromesa) {
@@ -269,54 +180,144 @@ function cargarDirectorio(): Promise<EntradaDirectorio[]> {
   return directorioPromesa;
 }
 
-function BuscadorDirectorio({
-  dane,
-  nombre,
-  onElegir,
+// Plegado de mayúsculas y acentos, mismo idioma que el explorador del catálogo
+// (`ExploradorCatalogo.tsx`): así "agustiniano" encuentra "AGUSTINIANO".
+function normalizar(texto: string): string {
+  return texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+}
+
+// La leyenda que el aliado muestra bajo su nombre, igual en la lista y en la
+// tarjeta del elegido: cuántos grados tiene ya con lista verificada.
+function metaAliado(c: Colegio): string {
+  return c.grados.length === 0
+    ? "Sin lista verificada · sube el archivo"
+    : `${c.grados.length} ${c.grados.length === 1 ? "grado verificado" : "grados verificados"}`;
+}
+
+function BuscadorColegio({
+  colegiosAliados,
+  colegioId,
+  colegioDane,
+  colegioNombre,
+  onElegirAliado,
+  onElegirDirectorio,
   onEscribir,
+  onCambiar,
 }: {
-  dane: string;
-  nombre: string;
-  // Eligió una entrada del directorio: viaja el DANE (deriva el id) y el nombre.
-  onElegir: (entrada: { dane: string; nombre: string }) => void;
-  // Lo escribió a mano porque no está en el directorio: solo el nombre.
+  colegiosAliados: Colegio[];
+  colegioId: string;
+  colegioDane: string;
+  colegioNombre: string;
+  // Eligió una fila que resultó ser un aliado (por su nombre Tukit o por casar el
+  // DANE del directorio con el de un aliado): viaja el `colegio_id` real, así el
+  // backend NO lo re-deriva ni lo da de alta de nuevo (evita el duplicado).
+  onElegirAliado: (colegioId: string) => void;
+  // Eligió una entrada del directorio que NO es aliado: viaja el DANE (que deriva
+  // el id) y el nombre; nacerá como colegio nuevo cuando se apruebe su lista.
+  onElegirDirectorio: (entrada: { dane: string; nombre: string }) => void;
+  // No estaba en ninguna fuente y lo escribió a mano: solo el nombre.
   onEscribir: (nombre: string) => void;
+  // Deshace la elección para volver a buscar.
+  onCambiar: () => void;
 }) {
   const [directorio, setDirectorio] = useState<EntradaDirectorio[]>([]);
   const [busqueda, setBusqueda] = useState("");
-  // Cargar el directorio al primer foco/tecleo, no al montar: la mayoría de los
-  // hogares usa la lista aliada y nunca abre esta ruta.
+  // Cargar el directorio al primer foco/tecleo, no al montar: pesa ~300 KB y no
+  // hace falta hasta que el padre empieza a escribir.
   const asegurarCargado = useCallback(() => {
     if (directorio.length === 0) cargarDirectorio().then(setDirectorio);
   }, [directorio.length]);
 
-  const q = busqueda.trim().toLowerCase();
-  const resultados = useMemo(() => {
-    if (q.length < 3) return [];
-    return directorio.filter((e) => e.nombre.toLowerCase().includes(q)).slice(0, 30);
-  }, [directorio, q]);
+  // Índices normalizados una sola vez (no por tecla): el de aliados incluye un
+  // mapa por DANE —primero-gana ante una colisión de DANE, saltando los nulos—
+  // que es la clave de reconducir al aliado en vez de duplicarlo.
+  const indexAliados = useMemo(() => {
+    const porDane = new Map<string, { colegio: Colegio; buscable: string }>();
+    const lista = colegiosAliados.map((c) => {
+      const entry = { colegio: c, buscable: normalizar(c.nombre) };
+      if (c.dane && !porDane.has(c.dane)) porDane.set(c.dane, entry);
+      return entry;
+    });
+    return { lista, porDane };
+  }, [colegiosAliados]);
+  const directorioNorm = useMemo(
+    () => directorio.map((entrada) => ({ entrada, buscable: normalizar(entrada.nombre) })),
+    [directorio],
+  );
+  const directorioDanes = useMemo(
+    () => new Set(directorio.map((e) => e.dane)),
+    [directorio],
+  );
 
-  // Ya eligió (por directorio o a mano): se muestra el elegido con opción de
-  // cambiarlo, en vez de la lista, para que el paso quede claramente resuelto.
-  if (nombre) {
+  const qn = normalizar(busqueda.trim());
+  const resultados = useMemo(() => {
+    if (qn.length < 3) return { aliados: [] as { colegio: Colegio; etiqueta: string }[], directorio: [] as EntradaDirectorio[] };
+    const aliados: { colegio: Colegio; etiqueta: string }[] = [];
+    const yaAliado = new Set<string>();
+    // (a) Entradas del directorio que SON un aliado (comparten DANE). Casan por el
+    //     nombre del directorio O por el nombre Tukit del aliado, para que tanto
+    //     "agustiniano" como "cacs" den con la misma fila. Etiqueta compuesta.
+    for (const { entrada, buscable } of directorioNorm) {
+      const aliado = indexAliados.porDane.get(entrada.dane);
+      if (!aliado || yaAliado.has(aliado.colegio.colegio_id)) continue;
+      if (buscable.includes(qn) || aliado.buscable.includes(qn)) {
+        yaAliado.add(aliado.colegio.colegio_id);
+        aliados.push({ colegio: aliado.colegio, etiqueta: `${entrada.nombre} · ${aliado.colegio.nombre}` });
+      }
+    }
+    // (b) Aliados que NO están en el directorio (sin DANE, o su DANE no aparece):
+    //     los que casan por su nombre Tukit, con etiqueta simple.
+    for (const { colegio, buscable } of indexAliados.lista) {
+      if (colegio.dane && directorioDanes.has(colegio.dane)) continue;
+      if (buscable.includes(qn) && !yaAliado.has(colegio.colegio_id)) {
+        yaAliado.add(colegio.colegio_id);
+        aliados.push({ colegio, etiqueta: colegio.nombre });
+      }
+    }
+    // (2) Entradas del directorio que NO son aliados, tope 30 como antes.
+    const dir = directorioNorm
+      .filter(({ entrada, buscable }) => !indexAliados.porDane.has(entrada.dane) && buscable.includes(qn))
+      .slice(0, 30)
+      .map(({ entrada }) => entrada);
+    return { aliados, directorio: dir };
+  }, [directorioNorm, directorioDanes, indexAliados, qn]);
+
+  // Ya eligió (aliado, directorio o a mano): se muestra el elegido con opción de
+  // cambiarlo, en vez de la lista, para que el paso quede claramente resuelto. El
+  // aliado se resuelve desde `colegiosAliados` (ya cargado, sin esperar el JSON).
+  if (colegioId || colegioNombre) {
+    const aliado = colegioId ? colegiosAliados.find((c) => c.colegio_id === colegioId) : undefined;
+    const nombre = aliado?.nombre ?? colegioNombre;
     return (
       <div className={styles.colegioBloque}>
-        <span className={styles.campoRotulo}>Colegio</span>
+        <span className={styles.campoRotulo}>Busca el colegio de tu hijo</span>
         <div className={`${styles.tarjetaColegio} ${styles.colegioActivo}`}>
           <span className={styles.logoColegio} aria-hidden="true">
-            <span className={styles.logoIniciales}>{iniciales(nombre)}</span>
+            {aliado?.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={aliado.logo_url} alt="" />
+            ) : (
+              <span className={styles.logoIniciales}>{iniciales(nombre)}</span>
+            )}
           </span>
           <span className={styles.colegioTexto}>
             <span className={styles.colegioNombre}>{nombre}</span>
             <span className={styles.colegioMeta}>
-              {dane ? `Directorio de Bogotá · DANE ${dane}` : "Escrito a mano · lo verificamos nosotros"}
+              {aliado
+                ? metaAliado(aliado)
+                : colegioDane
+                  ? `Directorio de Bogotá · DANE ${colegioDane}`
+                  : "Escrito a mano · lo verificamos nosotros"}
             </span>
           </span>
           <button
             type="button"
             className={styles.cambiarColegio}
             onClick={() => {
-              onEscribir("");
+              onCambiar();
               setBusqueda("");
             }}
           >
@@ -329,7 +330,7 @@ function BuscadorDirectorio({
 
   return (
     <div className={styles.colegioBloque}>
-      <span className={styles.campoRotulo}>Colegio</span>
+      <span className={styles.campoRotulo}>Busca el colegio de tu hijo</span>
       <div className={styles.buscador}>
         <Search size={16} strokeWidth={2.4} aria-hidden="true" />
         <input
@@ -340,20 +341,43 @@ function BuscadorDirectorio({
             asegurarCargado();
             setBusqueda(e.target.value);
           }}
-          placeholder="Busca tu colegio en el directorio de Bogotá…"
-          aria-label="Buscar colegio en el directorio de Bogotá"
+          placeholder="Escribe el nombre de tu colegio…"
+          aria-label="Buscar el colegio de tu hijo"
         />
       </div>
-      {q.length >= 3 && (
-        <div className={styles.listaColegios} role="listbox" aria-label="Colegios del directorio">
-          {resultados.map((e) => (
+      {qn.length >= 3 && (
+        <div className={styles.listaColegios} role="listbox" aria-label="Colegios">
+          {resultados.aliados.map(({ colegio, etiqueta }) => (
             <button
-              key={`${e.dane}`}
+              key={`aliado-${colegio.colegio_id}`}
               type="button"
               role="option"
               aria-selected="false"
               className={styles.tarjetaColegio}
-              onClick={() => onElegir({ dane: e.dane, nombre: e.nombre })}
+              onClick={() => onElegirAliado(colegio.colegio_id)}
+            >
+              <span className={styles.logoColegio} aria-hidden="true">
+                {colegio.logo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={colegio.logo_url} alt="" />
+                ) : (
+                  <span className={styles.logoIniciales}>{iniciales(colegio.nombre)}</span>
+                )}
+              </span>
+              <span className={styles.colegioTexto}>
+                <span className={styles.colegioNombre}>{etiqueta}</span>
+                <span className={styles.colegioMeta}>{metaAliado(colegio)}</span>
+              </span>
+            </button>
+          ))}
+          {resultados.directorio.map((e) => (
+            <button
+              key={`dir-${e.dane}`}
+              type="button"
+              role="option"
+              aria-selected="false"
+              className={styles.tarjetaColegio}
+              onClick={() => onElegirDirectorio({ dane: e.dane, nombre: e.nombre })}
             >
               <span className={styles.logoColegio} aria-hidden="true">
                 <span className={styles.logoIniciales}>{iniciales(e.nombre)}</span>
@@ -364,9 +388,9 @@ function BuscadorDirectorio({
               </span>
             </button>
           ))}
-          {/* No está en el directorio: se escribe a mano. El backend deriva el
-              id del nombre normalizado, así que dos acudientes que escriban el
-              mismo colegio convergen a la misma versión. */}
+          {/* No está en ninguna fuente: se escribe a mano. El backend deriva el id
+              del nombre normalizado, así que dos acudientes que escriban el mismo
+              colegio convergen a la misma versión. */}
           <button
             type="button"
             className={styles.escribirColegio}
@@ -377,7 +401,7 @@ function BuscadorDirectorio({
           </button>
         </div>
       )}
-      {q.length > 0 && q.length < 3 && (
+      {qn.length > 0 && qn.length < 3 && (
         <p className={styles.sinColegios}>
           <School size={18} strokeWidth={2} aria-hidden="true" />
           Escribe al menos tres letras del nombre.
@@ -495,26 +519,24 @@ export default function FormularioEmpezar({
   }
 
   // Cuándo el hijo se resuelve adjuntando un archivo en vez de con la lista
-  // verificada del colegio: SIEMPRE en la ruta "no encontré mi colegio", y
-  // también en "lista oficial" cuando el grado elegido no tiene lista verificada
-  // (ahí el acudiente adjunta la lista de ESE grado). En ambos casos el archivo
-  // viaja en el mismo `crearTrabajo` de hoy; no hay endpoint nuevo.
+  // verificada del colegio: SIEMPRE que no sea un aliado (no hay `colegioId`), y
+  // también en un aliado cuando el grado elegido no tiene lista verificada (ahí el
+  // acudiente adjunta la lista de ESE grado). En ambos casos el archivo viaja en
+  // el mismo `crearTrabajo`/`subirListas` de hoy; no hay endpoint nuevo.
   function necesitaArchivo(hijo: HijoFormulario): boolean {
-    if (hijo.entrada === "archivo") return true;
+    if (!hijo.colegioId) return true;
     return hijo.grado !== "" && !gradoVerificado(hijo);
   }
 
-  // Un hijo está completo según su ruta. El grado es obligatorio siempre. En "No
-  // encontré mi colegio" (archivo) basta el nombre del colegio (del directorio o
-  // a mano) y el archivo; no hay `colegioId` de aliado. En "lista oficial" hace
-  // falta el id del aliado, y si el grado no tiene lista verificada, también el
-  // archivo adjunto (zonaListaGrado).
+  // Un hijo está completo según su ruta (derivada de `colegioId`). El grado es
+  // obligatorio siempre. Sin `colegioId` (colegio del directorio o a mano) basta
+  // el nombre y el archivo. Con `colegioId` de aliado, si el grado no tiene lista
+  // verificada hace falta también el archivo adjunto (zonaListaGrado).
   function hijoCompleto(hijo: HijoFormulario): boolean {
     if (!hijo.grado) return false;
-    if (hijo.entrada === "archivo") return Boolean(hijo.colegioNombre) && hijo.archivo !== null;
-    if (!hijo.colegioId) return false;
+    if (!hijo.colegioId) return Boolean(hijo.colegioNombre) && hijo.archivo !== null;
     if (necesitaArchivo(hijo)) return hijo.archivo !== null;
-    return true; // lista oficial con grado verificado: la lista ya existe
+    return true; // aliado con grado verificado: la lista ya existe
   }
 
   // El camino "soy nuevo usuario" crea la cuenta, asi que ahi la clave es
@@ -539,8 +561,7 @@ export default function FormularioEmpezar({
   const faltantesHijos: string[] = [];
   hijos.forEach((hijo, i) => {
     const suf = hijos.length > 1 ? ` del hijo ${i + 1}` : "";
-    const tieneColegio =
-      hijo.entrada === "archivo" ? Boolean(hijo.colegioNombre) : Boolean(hijo.colegioId);
+    const tieneColegio = Boolean(hijo.colegioId) || Boolean(hijo.colegioNombre);
     if (!tieneColegio) faltantesHijos.push(`el colegio${suf}`);
     else if (!hijo.grado) faltantesHijos.push(`el grado${suf}`);
     else if (necesitaArchivo(hijo) && hijo.archivo === null) faltantesHijos.push(`la lista${suf}`);
@@ -673,12 +694,12 @@ export default function FormularioEmpezar({
     // multipart daría 400 "no tiene la forma que el contrato espera"): siempre por
     // `subirListas` (`POST /v1/listas/subir`, que acepta multipart). Si hay al menos
     // un PDF pendiente, el hogar aterriza en `/recibimos` aunque algún kit ya esté listo.
-    // lista oficial con grado VERIFICADO: su lista ya existe → crearTrabajo (JSON).
+    // aliado con grado VERIFICADO: su lista ya existe → crearTrabajo (JSON).
     const hijosVerificados = hijos.filter(
-      (hijo) => hijo.entrada === "lista_oficial" && gradoVerificado(hijo),
+      (hijo) => hijo.colegioId && gradoVerificado(hijo),
     );
-    // Suben PDF por `subirListas`: "No encontré mi colegio" (entrada "archivo") y
-    // lista oficial cuyo grado aún no tiene lista verificada. `necesitaArchivo` reúne
+    // Suben PDF por `subirListas`: colegio no aliado (sin `colegioId`) y aliado
+    // cuyo grado aún no tiene lista verificada. `necesitaArchivo` reúne
     // los dos casos sin duplicar su lógica; el `&& archivo` descarta lo que el gate
     // `listo` ya impide llegar sin adjunto.
     const hijosSubida = hijos.filter((hijo) => necesitaArchivo(hijo) && hijo.archivo);
@@ -694,7 +715,7 @@ export default function FormularioEmpezar({
       // se pueblan por triggers independientes en servicios distintos, sin FK ni join:
       // un (colegio, grado) puede tener entrada canónica sin estar verificado. Sin esta
       // guarda, un grado gris con PDF aplicaría el kit canónico y se perdería el archivo.
-      soloHijo && soloHijo.entrada === "lista_oficial" && gradoVerificado(soloHijo)
+      soloHijo && soloHijo.colegioId && gradoVerificado(soloHijo)
         ? canonicos.find(
             (c) => c.colegio_id === soloHijo.colegioId && c.grado === soloHijo.grado,
           )
@@ -762,12 +783,13 @@ export default function FormularioEmpezar({
         const resultado = await subirListas(
           hijosSubida.map((hijo) => ({
             referencia: hijo.referencia,
-            // El colegio se designa según la ruta: lista oficial con grado sin
-            // verificar es un colegio ALIADO → viaja por `colegio_id`; si vino de
-            // "No encontré mi colegio", por DANE del directorio (+ nombre) o solo el
-            // nombre escrito a mano. El backend deriva de ahí el `colegio_id` estable
-            // y, al aprobar, crea la identidad del colegio si aún no existe.
-            ...(hijo.entrada === "lista_oficial"
+            // El colegio se designa según lo que quedó puesto: un aliado (grado sin
+            // verificar) viaja por `colegio_id` —incluido el aliado al que el
+            // buscador reconduce desde el directorio, que es lo que EVITA el
+            // duplicado—; si no, por DANE del directorio (+ nombre) o solo el nombre
+            // escrito a mano. El backend deriva de ahí el `colegio_id` estable y, al
+            // aprobar, crea la identidad del colegio si aún no existe.
+            ...(hijo.colegioId
               ? { colegio_id: hijo.colegioId }
               : hijo.colegioDane
                 ? { colegio_dane: hijo.colegioDane, colegio_nombre: hijo.colegioNombre }
@@ -936,115 +958,71 @@ export default function FormularioEmpezar({
                 )}
               </legend>
 
-              {/* La ruta se elige PRIMERO: cambia cómo se designa el colegio.
-                  "Usar la lista que ya tiene el colegio" busca entre los aliados;
-                  "subir archivo" busca en el directorio de Bogotá (o a mano) un
-                  colegio que quizá aún no es aliado. Al cambiar de ruta se limpia
-                  el colegio y el grado: no se arrastran de una a la otra. */}
+              {/* Un solo buscador: mezcla aliados y directorio sin que el padre
+                  distinga. Al elegir un aliado (por su nombre o porque el DANE del
+                  directorio casa con uno) viaja `colegioId` y se reconduce ahí
+                  mismo, sin volver a darlo de alta. Al cambiar se limpian las tres
+                  piezas y el grado: no se arrastran de una elección a otra. */}
+              <BuscadorColegio
+                colegiosAliados={colegiosAliados}
+                colegioId={hijo.colegioId}
+                colegioDane={hijo.colegioDane}
+                colegioNombre={hijo.colegioNombre}
+                onElegirAliado={(colegioId) =>
+                  cambiar(indice, { colegioId, colegioDane: "", colegioNombre: "", grado: "" })
+                }
+                onElegirDirectorio={({ dane, nombre }) =>
+                  cambiar(indice, { colegioId: "", colegioDane: dane, colegioNombre: nombre, grado: "" })
+                }
+                onEscribir={(nombre) =>
+                  cambiar(indice, { colegioId: "", colegioDane: "", colegioNombre: nombre, grado: "" })
+                }
+                onCambiar={() =>
+                  cambiar(indice, { colegioId: "", colegioDane: "", colegioNombre: "", grado: "" })
+                }
+              />
 
-              {/* Apodo OPCIONAL del menor. Nunca el nombre legal: para el kit
-                  basta colegio+grado, y minimizamos el dato del menor (Ley 1581
-                  de 2012, Art. 4). Editable para un hijo NUEVO (alta nueva o hijo
-                  que el acudiente autenticado agrega ahora); para un hijo YA
-                  precargado se muestra en solo-lectura —no re-escribimos el dato
-                  del menor, solo lo recordamos—. */}
-              {(modo === "nuevo" || (modo === "autenticado" && !hijo.precargado)) && (
-                <label className={styles.campo}>
-                  <span>Apodo de tu hijo (opcional)</span>
-                  <input
-                    type="text"
-                    value={hijo.apodo}
-                    onChange={(e) => cambiar(indice, { apodo: e.target.value })}
-                    placeholder="Escribe el apodo de tu hijo para personalizar tu kit"
-                    autoComplete="off"
-                  />
-                </label>
-              )}
+              {/* Apodo OPCIONAL del menor, SOLO cuando el hijo quedó en un aliado
+                  (`colegioId`): un hijo de colegio no aliado se matricula recién al
+                  aprobarse su lista, así que aquí el apodo no se guardaría. Nunca el
+                  nombre legal: para el kit basta colegio+grado, y minimizamos el
+                  dato del menor (Ley 1581 de 2012, Art. 4). Editable para un hijo
+                  NUEVO; para uno YA precargado se muestra en solo-lectura —no
+                  re-escribimos el dato del menor, solo lo recordamos—. */}
+              {hijo.colegioId &&
+                (modo === "nuevo" || (modo === "autenticado" && !hijo.precargado)) && (
+                  <label className={styles.campo}>
+                    <span>Apodo de tu hijo (opcional)</span>
+                    <input
+                      type="text"
+                      value={hijo.apodo}
+                      onChange={(e) => cambiar(indice, { apodo: e.target.value })}
+                      placeholder="Escribe el apodo de tu hijo para personalizar tu kit"
+                      autoComplete="off"
+                    />
+                  </label>
+                )}
               {modo === "autenticado" && hijo.precargado && hijo.apodo && (
                 <p className={styles.apodoPrecargado}>Apodo: {hijo.apodo}</p>
               )}
 
-              <div className={styles.entradas} role="group" aria-label="Cómo nos das la lista">
-                {(
-                  [
-                    ["lista_oficial", "Usar la lista que ya tiene el colegio"],
-                    ["archivo", "No encontré mi colegio"],
-                  ] as [Entrada, string][]
-                ).map(([valor, etiqueta]) => (
-                  <label
-                    key={valor}
-                    className={`${styles.opcionEntrada} ${
-                      hijo.entrada === valor ? styles.opcionActiva : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name={`entrada-${hijo.referencia}`}
-                      value={valor}
-                      checked={hijo.entrada === valor}
-                      onChange={() =>
-                        cambiar(indice, {
-                          entrada: valor,
-                          grado: "",
-                          colegioId: "",
-                          colegioDane: "",
-                          colegioNombre: "",
-                        })
-                      }
-                    />
-                    {etiqueta}
-                  </label>
-                ))}
-              </div>
-
-              {hijo.entrada === "lista_oficial" ? (
-                <SelectorColegio
-                  colegios={colegiosAliados}
-                  valor={hijo.colegioId}
-                  onElegir={(colegioId) => cambiar(indice, { colegioId, grado: "" })}
-                  onNoEncuentro={() =>
-                    cambiar(indice, {
-                      entrada: "archivo",
-                      grado: "",
-                      colegioId: "",
-                      colegioDane: "",
-                      colegioNombre: "",
-                    })
-                  }
-                />
-              ) : (
-                <BuscadorDirectorio
-                  dane={hijo.colegioDane}
-                  nombre={hijo.colegioNombre}
-                  onElegir={({ dane, nombre }) =>
-                    cambiar(indice, { colegioDane: dane, colegioNombre: nombre, grado: "" })
-                  }
-                  onEscribir={(nombre) =>
-                    cambiar(indice, { colegioDane: "", colegioNombre: nombre, grado: "" })
-                  }
-                />
-              )}
-
-              {/* Selector de grado, DEBAJO del selector de colegio. Se ofrecen los
-                  13 grados canónicos en AMBAS rutas (el grado es obligatorio también
-                  para el archivo: el backend lo exige en `HijoSolicitud.grado`).
-                  Aparece cuando ya hay colegio designado: en "lista oficial", un
-                  aliado (`colegio`); en "No encontré mi colegio", un nombre escrito
-                  o elegido del directorio. Solo en "lista oficial" los grados con
-                  lista verificada del aliado (`colegio.grados`) van en azul suave;
-                  en la ruta de archivo no hay aliado, así que van todos neutros y el
-                  grado real lo confirma el PDF. */}
-              {((hijo.entrada === "lista_oficial" && colegio) ||
-                (hijo.entrada === "archivo" && hijo.colegioNombre)) && (
+              {/* Selector de grado, DEBAJO del buscador de colegio. Se ofrecen los
+                  13 grados canónicos siempre (el grado es obligatorio también sin
+                  aliado: el backend lo exige en `HijoSolicitud.grado`). Aparece
+                  cuando ya hay colegio designado: un aliado (`colegio`) o un nombre
+                  del directorio/escrito a mano. Solo con un aliado los grados con
+                  lista verificada (`colegio.grados`) van en azul suave; sin aliado
+                  van todos neutros y el grado real lo confirma el PDF. */}
+              {(colegio || hijo.colegioNombre) && (
                 <div className={styles.gradoBloque}>
                   <span className={styles.campoRotulo}>Grado</span>
                   <div className={styles.gradoChips} role="radiogroup" aria-label="Elige el grado">
                     {GRADOS_CANONICOS.map((g) => {
                       const activo = hijo.grado === g;
-                      const oficial = hijo.entrada === "lista_oficial";
+                      // La señal de "verificado" (azul) solo aplica a un aliado.
+                      const oficial = Boolean(hijo.colegioId);
                       // Un grado está "verificado" si el colegio aliado tiene lista
-                      // revisada para él (`colegio.grados`, ver catalogo.ts); solo
-                      // aplica en "lista oficial".
+                      // revisada para él (`colegio.grados`, ver catalogo.ts).
                       const verificado = oficial && (colegio?.grados.includes(g) ?? false);
                       const clase = activo
                         ? styles.chipGradoActivo
@@ -1082,14 +1060,12 @@ export default function FormularioEmpezar({
                 </div>
               )}
 
-              {/* Punto 3: grado elegido por "lista oficial" que el colegio aún no
-                  tiene verificado. En vez de bloquear, se invita a ADJUNTAR la
-                  lista de ese grado: el archivo viaja en el mismo `crearTrabajo`
-                  que la ruta de archivo (reusa `elegirArchivo`/`hijo.archivo`), sin
-                  endpoint nuevo. Contenedor propio (`zonaListaGrado`, azul suave)
-                  para que se distinga de la zona blanca de "No encontré mi colegio". */}
+              {/* Grado elegido en un ALIADO que el colegio aún no tiene verificado.
+                  En vez de bloquear, se invita a ADJUNTAR la lista de ese grado: el
+                  archivo viaja por `subirListas` (reusa `elegirArchivo`/`hijo.archivo`),
+                  sin endpoint nuevo. Contenedor propio (`zonaListaGrado`, azul suave)
+                  para que se distinga de la zona blanca del colegio no aliado. */}
               {colegio &&
-                hijo.entrada === "lista_oficial" &&
                 hijo.grado !== "" &&
                 !colegio.grados.includes(hijo.grado) && (
                   <div className={styles.zonaListaGrado}>
@@ -1125,7 +1101,11 @@ export default function FormularioEmpezar({
                   </div>
                 )}
 
-              {hijo.entrada === "archivo" && (
+              {/* Colegio no aliado (sin `colegioId`) ya designado por nombre. Se
+                  exige el nombre —no basta `!colegioId`— porque la ruta se deriva:
+                  un hijo recién creado también tiene `colegioId` vacío y no debe
+                  mostrar la zona de subida antes de elegir colegio. */}
+              {!hijo.colegioId && hijo.colegioNombre && (
                 <div className={styles.zonaArchivo}>
                   {/* El aviso va ANTES de subir, no como error despues de
                       esperar: una restriccion que solo aparece cuando ya

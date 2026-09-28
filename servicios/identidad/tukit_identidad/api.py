@@ -153,6 +153,7 @@ async def listar_colegios(
         select(
             COLEGIO.c.id,
             COLEGIO.c.nombre,
+            COLEGIO.c.dane,
             COLEGIO.c.logo_url,
             func.count(SEDE.c.id).label("sedes"),
         )
@@ -160,7 +161,7 @@ async def listar_colegios(
             COLEGIO.outerjoin(SEDE, and_(SEDE.c.colegio_id == COLEGIO.c.id, SEDE.c.activa.is_(True)))
         )
         .where(COLEGIO.c.activo.is_(True))
-        .group_by(COLEGIO.c.id, COLEGIO.c.nombre, COLEGIO.c.logo_url)
+        .group_by(COLEGIO.c.id, COLEGIO.c.nombre, COLEGIO.c.dane, COLEGIO.c.logo_url)
         .order_by(COLEGIO.c.nombre)
     )
     if busqueda:
@@ -168,9 +169,18 @@ async def listar_colegios(
 
     async with app.state.motor.engine.begin() as conexion:
         # El logo va aqui porque el desplegable del padre pinta la tarjeta sin
-        # abrir el detalle; los contactos no, que son de la pantalla admin.
+        # abrir el detalle; los contactos no, que son de la pantalla admin. El
+        # DANE tambien: el buscador de `/empezar` lo casa contra el directorio de
+        # Bogota para reconducir por `colegio_id` al aliado que comparte ese DANE
+        # (y no darlo de alta de nuevo como colegio del directorio).
         datos = [
-            {"colegio_id": str(f.id), "nombre": f.nombre, "sedes": int(f.sedes), "logo_url": f.logo_url}
+            {
+                "colegio_id": str(f.id),
+                "nombre": f.nombre,
+                "dane": f.dane,
+                "sedes": int(f.sedes),
+                "logo_url": f.logo_url,
+            }
             for f in await conexion.execute(consulta)
         ]
     return {"total": len(datos), "colegios": datos}
