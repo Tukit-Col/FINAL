@@ -63,7 +63,7 @@ async def entorno():
         papa = Usuario(
             correo="papa@ejemplo.com",
             clave_hash="x",
-            nombre_cifrado=cifrador.cifrar("Pedro Perez".encode()),
+            nombre_cifrado=cifrador.cifrar(b"Pedro Perez"),
         )
         s.add_all([admin, acudiente, papa])
         await s.flush()

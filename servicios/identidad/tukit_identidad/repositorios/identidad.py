@@ -233,7 +233,9 @@ class RepoIdentidad:
                 func.count(SEDE_T.c.id).label("sedes"),
             )
             .select_from(
-                COLEGIO.outerjoin(SEDE_T, and_(SEDE_T.c.colegio_id == COLEGIO.c.id, SEDE_T.c.activa.is_(True)))
+                COLEGIO.outerjoin(
+                    SEDE_T, and_(SEDE_T.c.colegio_id == COLEGIO.c.id, SEDE_T.c.activa.is_(True))
+                )
             )
             .where(COLEGIO.c.activo.is_(True))
             .group_by(COLEGIO.c.id, COLEGIO.c.nombre, COLEGIO.c.logo_url)
@@ -270,7 +272,9 @@ class RepoIdentidad:
         nuevo = uuid.uuid4()
         # Centinela y no cadena vacia: una cadena vacia se parece demasiado a un
         # hash y algun verificador la podria comparar. Esto no valida contra nada.
-        await self.conexion.execute(insert(USUARIO).values(id=nuevo, correo=correo, clave_hash="sin-credencial"))
+        await self.conexion.execute(
+            insert(USUARIO).values(id=nuevo, correo=correo, clave_hash="sin-credencial")
+        )
         return nuevo, True
 
     async def contacto_de(self, usuario_id: uuid.UUID) -> Any:
@@ -297,7 +301,10 @@ class RepoIdentidad:
         roles = [
             {
                 "rol": f.rol_codigo,
-                "ambito": {"tipo": f.ambito_tipo, "id": str(f.ambito_id) if f.ambito_id is not None else None},
+                "ambito": {
+                    "tipo": f.ambito_tipo,
+                    "id": str(f.ambito_id) if f.ambito_id is not None else None,
+                },
             }
             for f in filas
         ]
@@ -305,8 +312,10 @@ class RepoIdentidad:
         if fila_usuario.nombre_cifrado is not None:
             from tukit_comun.cifrado import cifrador_desde_entorno
 
-            nombre = cifrador_desde_entorno().descifrar(fila_usuario.nombre_cifrado).decode(
-                "utf-8", errors="replace"
+            nombre = (
+                cifrador_desde_entorno()
+                .descifrar(fila_usuario.nombre_cifrado)
+                .decode("utf-8", errors="replace")
             )
         return {
             "usuario_id": str(fila_usuario.id),
@@ -332,8 +341,7 @@ class RepoIdentidad:
             )
         )
         return {
-            str(f.id): cifrador.descifrar(f.nombre_cifrado).decode("utf-8", errors="replace")
-            for f in filas
+            str(f.id): cifrador.descifrar(f.nombre_cifrado).decode("utf-8", errors="replace") for f in filas
         }
 
     async def direcciones_de(self, usuario_id: uuid.UUID) -> list[Any]:

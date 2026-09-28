@@ -19,13 +19,13 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 from tukit_comun.bd import MotorServicio
 from tukit_identidad.api import app
-from tukit_identidad.modelos import AsignacionRol, Base, Usuario
 from tukit_identidad.dominio.sesiones import (
     emitir_token,
     hashear_clave,
     leer_token,
     verificar_clave,
 )
+from tukit_identidad.modelos import AsignacionRol, Base, Usuario
 
 
 @pytest.fixture()

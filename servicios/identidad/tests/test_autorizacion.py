@@ -13,7 +13,22 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy.exc import IntegrityError
 from tukit_identidad.dominio.autorizacion import Ambito
+from tukit_identidad.modelos import (
+    AcudienteMatricula,
+    AmbitoTipo,
+    Clasificacion,
+    Permiso,
+)
 from tukit_identidad.repositorios.identidad import RepoIdentidad
+
+from tests.conftest import (
+    asignar,
+    crear_colegio_con_sede,
+    crear_matricula,
+    crear_rol_con_permisos,
+    crear_usuario,
+    vincular_acudiente,
+)
 
 
 async def puede(db, usuario_id, permiso, ambito):
@@ -30,21 +45,6 @@ async def campos_visibles(db, usuario_id, recurso, ambito, clasificacion_por_cam
 
 async def matriculas_visibles(db, usuario_id):
     return await RepoIdentidad(db).matriculas_visibles(usuario_id)
-from tukit_identidad.modelos import (
-    AcudienteMatricula,
-    AmbitoTipo,
-    Clasificacion,
-    Permiso,
-)
-
-from tests.conftest import (
-    asignar,
-    crear_colegio_con_sede,
-    crear_matricula,
-    crear_rol_con_permisos,
-    crear_usuario,
-    vincular_acudiente,
-)
 
 
 async def _rol_rector(db):

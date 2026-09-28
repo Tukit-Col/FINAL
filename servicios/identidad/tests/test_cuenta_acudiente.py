@@ -63,10 +63,12 @@ async def test_clave_corta_es_422(cliente):
 
 
 async def test_registrar_hijo_sin_colegio_es_422(cliente):
-    login = (await cliente.post(
-        "/v1/cuenta",
-        json={"correo": "papa@ejemplo.com", "clave": "clave1234", "nombre": "Papa", "celular": None},
-    )).json()
+    login = (
+        await cliente.post(
+            "/v1/cuenta",
+            json={"correo": "papa@ejemplo.com", "clave": "clave1234", "nombre": "Papa", "celular": None},
+        )
+    ).json()
     tok = {"Authorization": f"Bearer {login['token']}"}
     r = await cliente.post(
         "/v1/cuenta/hijos",
@@ -78,34 +80,52 @@ async def test_registrar_hijo_sin_colegio_es_422(cliente):
 
 
 async def test_registrar_hijo_sin_consentimiento_es_422(cliente):
-    login = (await cliente.post(
-        "/v1/cuenta",
-        json={"correo": "mama@ejemplo.com", "clave": "clave1234", "nombre": "Mama", "celular": None},
-    )).json()
+    login = (
+        await cliente.post(
+            "/v1/cuenta",
+            json={"correo": "mama@ejemplo.com", "clave": "clave1234", "nombre": "Mama", "celular": None},
+        )
+    ).json()
     tok = {"Authorization": f"Bearer {login['token']}"}
     cid = str(derivar("colegio", "2.4"))
     sid = str(derivar("sede", "2.4", "u"))
     r = await cliente.post(
         "/v1/cuenta/hijos",
         headers=tok,
-        json={"apodo": "Pepe", "colegio_id": cid, "sede_id": sid, "grado": "Tercero", "anio_lectivo": 2026, "consentimiento": False},
+        json={
+            "apodo": "Pepe",
+            "colegio_id": cid,
+            "sede_id": sid,
+            "grado": "Tercero",
+            "anio_lectivo": 2026,
+            "consentimiento": False,
+        },
     )
     assert r.status_code == 422
     assert r.json()["error"] == "consentimiento_requerido"
 
 
 async def test_registrar_hijo_y_listarlo_devuelve_apodo(cliente):
-    login = (await cliente.post(
-        "/v1/cuenta",
-        json={"correo": "tia@ejemplo.com", "clave": "clave1234", "nombre": "Tia", "celular": None},
-    )).json()
+    login = (
+        await cliente.post(
+            "/v1/cuenta",
+            json={"correo": "tia@ejemplo.com", "clave": "clave1234", "nombre": "Tia", "celular": None},
+        )
+    ).json()
     tok = {"Authorization": f"Bearer {login['token']}"}
     cid = str(derivar("colegio", "2.4"))
     sid = str(derivar("sede", "2.4", "u"))
     creado = await cliente.post(
         "/v1/cuenta/hijos",
         headers=tok,
-        json={"apodo": "Pepe", "colegio_id": cid, "sede_id": sid, "grado": "Tercero", "anio_lectivo": 2026, "consentimiento": True},
+        json={
+            "apodo": "Pepe",
+            "colegio_id": cid,
+            "sede_id": sid,
+            "grado": "Tercero",
+            "anio_lectivo": 2026,
+            "consentimiento": True,
+        },
     )
     assert creado.status_code == 201
     listado = (await cliente.get("/v1/cuenta/hijos", headers=tok)).json()

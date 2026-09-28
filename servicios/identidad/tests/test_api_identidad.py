@@ -19,8 +19,8 @@ from sqlalchemy.pool import StaticPool
 from tukit_comun.bd import MotorServicio
 from tukit_comun.identificadores import derivar
 from tukit_identidad.api import app
-from tukit_identidad.routers.identidad import GRADOS
 from tukit_identidad.modelos import Base, Colegio, Sede
+from tukit_identidad.routers.identidad import GRADOS
 
 
 @pytest.fixture()
