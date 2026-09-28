@@ -425,6 +425,131 @@ class Registro(BaseModel):
     hijos: list[HijoRegistro] = Field(default_factory=list)
 
 
+async def _materializar_hijos(
+    conexion: Any,
+    usuario_id: uuid.UUID,
+    hijos: list[HijoRegistro],
+    anio_lectivo: int,
+    cifrador: Any,
+    conteo_inicial: dict[tuple[uuid.UUID, str], int] | None = None,
+) -> int:
+    """Materializa cada hijo como estudiante + matricula + vinculo del acudiente
+    (UUID derivado + SELECT-then-INSERT). Reutilizable por el registro y por
+    `POST /v1/cuenta/matriculas` (y a futuro el poller); corre dentro de una
+    transaccion que abre el llamador.
+
+    POR QUE cuenta repeticiones: dos hijos con el MISMO (colegio, grado) —gemelos—
+    derivarian el mismo `estudiante_id` y colapsarian en una sola fila. Se lleva un
+    conteo por (colegio_id, grado): la aparicion nº1 conserva la derivacion
+    historica intacta —no se le agrega nada, o reescribiria PKs ya sembradas por
+    `sembrar_acceso`—; desde la nº2 se agrega el ordinal, y como `matricula_id`
+    deriva de `estudiante_id`, tambien diverge.
+
+    POR QUE un `conteo_inicial` opcional: el registro no lo pasa —arranca en 0, y
+    reenviar la MISMA peticion cae en las mismas filas derivadas (idempotente)—.
+    Pero la ruta de sesion SI lo pasa, con las repeticiones que el portador YA
+    tiene guardadas en cada (colegio, grado). Sin eso, "agregar" un segundo hijo al
+    mismo par arrancaria de nuevo en la aparicion nº1, cuya derivacion coincide
+    EXACTAMENTE con la del hijo existente: el SELECT lo encontraria, no insertaria
+    nada y el apodo del hijo nuevo se perderia. Con el conteo previo, el hijo nuevo
+    toma el ordinal SIGUIENTE y cae en una fila distinta.
+
+    Devuelve cuantos hijos se CREARON de verdad (vinculo nuevo), no cuantos se
+    recibieron: si una derivacion cae en una fila ya existente, no cuenta.
+    """
+    # Copia, para no mutar el dict del llamador al ir contando dentro del bucle.
+    conteo: dict[tuple[uuid.UUID, str], int] = dict(conteo_inicial or {})
+    creados = 0
+    for hijo in hijos:
+        # El grado se valida tambien aqui (no solo en el pre-check del registro):
+        # el endpoint de sesion no tiene pre-check y debe quedar cubierto por el
+        # mismo 422.
+        if hijo.grado not in GRADOS:
+            raise ErrorDominio(
+                "grado_invalido", f"'{hijo.grado}' no es un grado escolar.", estado=422, campo="grado"
+            )
+
+        # La sede activa del colegio. En el piloto es unica ("Sede unica");
+        # colegios multi-sede quedan como brecha conocida (se toma la primera
+        # activa por nombre).
+        sede_id = await conexion.scalar(
+            select(SEDE.c.id)
+            .where(SEDE.c.colegio_id == hijo.colegio_id, SEDE.c.activa.is_(True))
+            .order_by(SEDE.c.nombre)
+            .limit(1)
+        )
+        if sede_id is None:
+            raise ErrorDominio(
+                "colegio_sin_sede",
+                "El colegio no existe o no tiene una sede activa.",
+                estado=422,
+                campo="colegio_id",
+            )
+
+        clave = (hijo.colegio_id, hijo.grado)
+        conteo[clave] = conteo.get(clave, 0) + 1
+        repeticion = conteo[clave]
+        # Aparicion nº1 (incluye el conteo previo del portador): derivacion HISTORICA
+        # intacta (misma tupla que `sembrar_acceso`), para no reescribir filas ya
+        # existentes. De la nº2 en adelante se agrega el ordinal para separar gemelos
+        # —y a los hijos que se agregan sobre un par que el portador ya tenia— en
+        # estudiantes distintos.
+        if repeticion == 1:
+            estudiante_id = derivar(
+                "estudiante", str(usuario_id), str(hijo.colegio_id), hijo.grado, str(anio_lectivo)
+            )
+        else:
+            estudiante_id = derivar(
+                "estudiante",
+                str(usuario_id),
+                str(hijo.colegio_id),
+                hijo.grado,
+                str(anio_lectivo),
+                str(repeticion),
+            )
+
+        if await conexion.scalar(select(ESTUDIANTE.c.id).where(ESTUDIANTE.c.id == estudiante_id)) is None:
+            await conexion.execute(
+                insert(ESTUDIANTE).values(
+                    id=estudiante_id,
+                    nombre_cifrado=cifrador.cifrar((hijo.apodo or "").encode("utf-8")),
+                )
+            )
+
+        matricula_id = derivar("matricula", str(estudiante_id), str(sede_id), hijo.grado, str(anio_lectivo))
+        if await conexion.scalar(select(MATRICULA.c.id).where(MATRICULA.c.id == matricula_id)) is None:
+            await conexion.execute(
+                insert(MATRICULA).values(
+                    id=matricula_id,
+                    estudiante_id=estudiante_id,
+                    sede_id=sede_id,
+                    colegio_id=hijo.colegio_id,
+                    grado=hijo.grado,
+                    anio_lectivo=anio_lectivo,
+                )
+            )
+
+        vinculo = await conexion.scalar(
+            select(ACUDIENTE_MATRICULA.c.usuario_id).where(
+                ACUDIENTE_MATRICULA.c.usuario_id == usuario_id,
+                ACUDIENTE_MATRICULA.c.matricula_id == matricula_id,
+            )
+        )
+        if vinculo is None:
+            await conexion.execute(
+                insert(ACUDIENTE_MATRICULA).values(
+                    usuario_id=usuario_id,
+                    matricula_id=matricula_id,
+                    parentesco="acudiente",
+                    es_principal=True,
+                )
+            )
+            # Solo aqui se cuenta: el vinculo nuevo es la unidad de "hijo agregado a
+            # ESTA cuenta". Si la derivacion cayo en una fila ya existente, no suma.
+            creados += 1
+    return creados
+
+
 @app.post(
     "/v1/registro",
     tags=["registro"],
@@ -459,6 +584,10 @@ async def registrar_acudiente(registro: Registro) -> dict[str, Any]:
     for hijo in registro.hijos:
         # El grado se compara contra el catalogo escolar (no contra las listas
         # cargadas): un grado que el sistema no nombra es una entrada corrupta.
+        # Este pre-check corre ANTES de la transaccion y para TODOS los caminos
+        # (incluido el correo ya-registrado que retorna temprano sin materializar):
+        # es redundante con la validacion de `_materializar_hijos`, pero deliberado,
+        # para que un grado invalido sea 422 aunque no se llegue a materializar.
         if hijo.grado not in GRADOS:
             raise ErrorDominio(
                 "grado_invalido", f"'{hijo.grado}' no es un grado escolar.", estado=422, campo="grado"
@@ -497,65 +626,10 @@ async def registrar_acudiente(registro: Registro) -> dict[str, Any]:
                 .values(clave_hash=hashear_clave(registro.clave), celular=registro.celular)
             )
 
-        for hijo in registro.hijos:
-            # La sede activa del colegio. En el piloto es unica ("Sede unica");
-            # colegios multi-sede quedan como brecha conocida (se toma la
-            # primera activa por nombre).
-            sede_id = await conexion.scalar(
-                select(SEDE.c.id)
-                .where(SEDE.c.colegio_id == hijo.colegio_id, SEDE.c.activa.is_(True))
-                .order_by(SEDE.c.nombre)
-                .limit(1)
-            )
-            if sede_id is None:
-                raise ErrorDominio(
-                    "colegio_sin_sede",
-                    "El colegio no existe o no tiene una sede activa.",
-                    estado=422,
-                    campo="colegio_id",
-                )
-
-            # UUID derivados de la llave natural: reenviar el mismo formulario
-            # cae en las mismas filas en vez de crear un segundo estudiante.
-            estudiante_id = derivar(
-                "estudiante", str(usuario_id), str(hijo.colegio_id), hijo.grado, str(anio_lectivo)
-            )
-            if await conexion.scalar(select(ESTUDIANTE.c.id).where(ESTUDIANTE.c.id == estudiante_id)) is None:
-                await conexion.execute(
-                    insert(ESTUDIANTE).values(
-                        id=estudiante_id,
-                        nombre_cifrado=cifrador.cifrar((hijo.apodo or "").encode("utf-8")),
-                    )
-                )
-
-            matricula_id = derivar("matricula", str(estudiante_id), str(sede_id), hijo.grado, str(anio_lectivo))
-            if await conexion.scalar(select(MATRICULA.c.id).where(MATRICULA.c.id == matricula_id)) is None:
-                await conexion.execute(
-                    insert(MATRICULA).values(
-                        id=matricula_id,
-                        estudiante_id=estudiante_id,
-                        sede_id=sede_id,
-                        colegio_id=hijo.colegio_id,
-                        grado=hijo.grado,
-                        anio_lectivo=anio_lectivo,
-                    )
-                )
-
-            vinculo = await conexion.scalar(
-                select(ACUDIENTE_MATRICULA.c.usuario_id).where(
-                    ACUDIENTE_MATRICULA.c.usuario_id == usuario_id,
-                    ACUDIENTE_MATRICULA.c.matricula_id == matricula_id,
-                )
-            )
-            if vinculo is None:
-                await conexion.execute(
-                    insert(ACUDIENTE_MATRICULA).values(
-                        usuario_id=usuario_id,
-                        matricula_id=matricula_id,
-                        parentesco="acudiente",
-                        es_principal=True,
-                    )
-                )
+        # Cada hijo se materializa como estudiante + matricula + vinculo, con UUID
+        # derivado para que reenviar el formulario no duplique. Los gemelos (mismo
+        # colegio y grado en la misma peticion) caen en estudiantes distintos.
+        await _materializar_hijos(conexion, usuario_id, registro.hijos, anio_lectivo, cifrador)
 
     return {"usuario_id": str(usuario_id), "creado": True}
 
@@ -772,19 +846,30 @@ async def ver_cuenta(authorization: Annotated[str | None, Header()] = None) -> d
 async def listar_matriculas(authorization: Annotated[str | None, Header()] = None) -> dict[str, Any]:
     """Lo justo para precargar `/empezar` sin re-teclear a los hijos.
 
-    Devuelve SOLO `{colegio_id, grado, anio_lectivo}` de las matriculas activas
-    vinculadas al portador con vinculo vigente. Deliberadamente NO devuelve el
-    apodo, el `estudiante_id`, el documento ni la marca de tiempo: nada que
-    singularice al menor. El join va directo `acudiente_matricula` -> `matricula`
-    y se filtra por el `usuario_id` del token, no por rol: un colegio_admin no
-    ve por aqui a los hijos de su colegio, solo el acudiente ve los suyos.
+    Devuelve `{colegio_id, grado, anio_lectivo, apodo}` de las matriculas activas
+    vinculadas al portador con vinculo vigente. El `apodo` (descifrado en servidor;
+    vacio -> null) SI baja: el PADRE puede ver el apodo de SUS hijos —es el portador
+    del token y ya lo escribio el mismo—, para precargarlo en `/empezar`. Sigue sin
+    devolver el nombre legal, el `estudiante_id`, el documento ni la marca de tiempo:
+    nada mas que singularice al menor. Se filtra por el `usuario_id` del token, no
+    por rol: un colegio_admin no ve por aqui a los hijos de su colegio, solo el
+    acudiente ve los suyos (misma clasificacion que `/v1/admin/acudientes`, pero
+    autenticado y limitado a lo propio).
     """
     async with app.state.motor.engine.begin() as conexion:
         fila = await _usuario_del_token(authorization, conexion)
+        cifrador = cifrador_desde_entorno()
         filas = await conexion.execute(
-            select(MATRICULA.c.colegio_id, MATRICULA.c.grado, MATRICULA.c.anio_lectivo)
+            select(
+                MATRICULA.c.colegio_id,
+                MATRICULA.c.grado,
+                MATRICULA.c.anio_lectivo,
+                ESTUDIANTE.c.nombre_cifrado,
+            )
             .select_from(
-                ACUDIENTE_MATRICULA.join(MATRICULA, ACUDIENTE_MATRICULA.c.matricula_id == MATRICULA.c.id)
+                ACUDIENTE_MATRICULA.join(
+                    MATRICULA, ACUDIENTE_MATRICULA.c.matricula_id == MATRICULA.c.id
+                ).join(ESTUDIANTE, MATRICULA.c.estudiante_id == ESTUDIANTE.c.id)
             )
             .where(
                 ACUDIENTE_MATRICULA.c.usuario_id == fila.id,
@@ -793,11 +878,86 @@ async def listar_matriculas(authorization: Annotated[str | None, Header()] = Non
             )
             .order_by(MATRICULA.c.colegio_id, MATRICULA.c.grado)
         )
-        matriculas = [
-            {"colegio_id": str(f.colegio_id), "grado": f.grado, "anio_lectivo": int(f.anio_lectivo)}
-            for f in filas
-        ]
+        matriculas = []
+        for f in filas:
+            # Mismo patron de descifrado que `listar_acudientes`: vacio -> None.
+            apodo = cifrador.descifrar(f.nombre_cifrado).decode("utf-8", errors="replace")
+            matriculas.append(
+                {
+                    "colegio_id": str(f.colegio_id),
+                    "grado": f.grado,
+                    "anio_lectivo": int(f.anio_lectivo),
+                    "apodo": apodo or None,
+                }
+            )
     return {"total": len(matriculas), "matriculas": matriculas}
+
+
+class MatriculasNuevas(BaseModel):
+    """Hijos que un acudiente YA autenticado agrega a su cuenta desde `/empezar`.
+    Reusa `HijoRegistro`: misma forma `{colegio_id, grado, apodo?}` y mismas reglas
+    de validacion que el alta del registro."""
+
+    hijos: list[HijoRegistro] = Field(default_factory=list)
+
+
+@app.post(
+    "/v1/cuenta/matriculas",
+    tags=["cuenta"],
+    status_code=201,
+    summary="Agrega matriculas de MIS hijos con sesion. Solo escribe; no devuelve menores.",
+)
+async def guardar_matriculas(
+    cuerpo: MatriculasNuevas,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    """Equivalente autenticado del alta de hijos de `POST /v1/registro`: el portador
+    del token agrega a sus propios hijos sin re-registrar la cuenta. Mismas
+    validaciones (grado en catalogo, colegio con sede activa -> 422). Solo escribe
+    tenencia del PORTADOR; la respuesta es `{total}` con los hijos REALMENTE creados,
+    sin ningun dato de menor. Un grado invalido de un hijo posterior aborta la
+    transaccion completa (rollback), asi que no hace falta pre-check aparte.
+
+    "Agregar" SIEMPRE crea un hijo nuevo, con el ordinal siguiente: se le pasa a
+    `_materializar_hijos` cuantos hijos tiene ya el portador en cada (colegio, grado)
+    de este anio, para que el hijo nuevo no reciba la derivacion de "primera
+    aparicion" —que coincide con la del hijo existente y colapsaria en su fila,
+    perdiendo el apodo—. Por eso el endpoint NO es idempotente ante reenvios: la
+    proteccion contra reenvios la da la firma del formulario (`matriculasFirma`), no
+    esta ruta.
+    """
+    cifrador = cifrador_desde_entorno()
+    anio_lectivo = datetime.now(UTC).year
+    async with app.state.motor.engine.begin() as conexion:
+        # Se resuelve el portador ANTES de escribir: sin token valido, 401 y nada
+        # se materializa.
+        fila = await _usuario_del_token(authorization, conexion)
+        # Cuantas matriculas tiene ya el portador en cada (colegio, grado) de este
+        # anio, con el MISMO filtro de vigencia que `listar_matriculas` (vinculo
+        # vigente + matricula activa). Ese conteo previo es lo que hace que agregar
+        # otro hijo al mismo par tome el ordinal siguiente en vez de re-derivar la
+        # fila que ya existe. La clave se normaliza a uuid.UUID para casar con la que
+        # usa `_materializar_hijos` (`hijo.colegio_id`, un uuid.UUID de pydantic).
+        filas_previas = await conexion.execute(
+            select(MATRICULA.c.colegio_id, MATRICULA.c.grado, func.count().label("n"))
+            .select_from(
+                ACUDIENTE_MATRICULA.join(MATRICULA, ACUDIENTE_MATRICULA.c.matricula_id == MATRICULA.c.id)
+            )
+            .where(
+                ACUDIENTE_MATRICULA.c.usuario_id == fila.id,
+                ACUDIENTE_MATRICULA.c.vigente_hasta.is_(None),
+                MATRICULA.c.estado == "activa",
+                MATRICULA.c.anio_lectivo == anio_lectivo,
+            )
+            .group_by(MATRICULA.c.colegio_id, MATRICULA.c.grado)
+        )
+        conteo_inicial = {
+            (uuid.UUID(str(f.colegio_id)), f.grado): int(f.n) for f in filas_previas
+        }
+        total = await _materializar_hijos(
+            conexion, fila.id, cuerpo.hijos, anio_lectivo, cifrador, conteo_inicial
+        )
+    return {"total": total}
 
 
 @app.get("/v1/cuenta/direcciones", tags=["cuenta"], summary="Mi libreta de direcciones, descifrada.")

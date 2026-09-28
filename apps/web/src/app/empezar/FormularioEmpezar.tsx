@@ -11,6 +11,7 @@ import {
   GRADOS_CANONICOS,
   type Colegio,
   type GradoCanonico,
+  type HijoNuevo,
   type HijoSolicitud,
   type MatriculaAcudiente,
   type PerfilKit,
@@ -22,6 +23,7 @@ import {
   crearTrabajo,
   subirListas,
   registrarAcudiente,
+  guardarMatriculas,
   FalloApi,
 } from "@/lib/api-navegador";
 import SelectorPersonaje from "./SelectorPersonaje";
@@ -45,6 +47,11 @@ interface HijoFormulario {
   // principio de minimizacion (Ley 1581 de 2012, Art. 4) no recolectamos mas de
   // lo indispensable de un menor. Viaja al backend como `nombre_cifrado`.
   apodo: string;
+  // Distingue un hijo NUEVO (que el acudiente teclea ahora) de uno PRECARGADO
+  // desde sus matrículas ya guardadas. Con sesión, solo los nuevos se guardan en
+  // la cuenta y solo ellos ofrecen campo de apodo editable; el apodo de un hijo
+  // precargado se muestra en solo-lectura (no se re-escribe dato del menor).
+  precargado: boolean;
   entrada: Entrada;
   archivo: File | null;
   errorArchivo: string | null;
@@ -117,6 +124,7 @@ function hijoVacio(indice: number): HijoFormulario {
     colegioNombre: "",
     grado: "",
     apodo: "",
+    precargado: false,
     entrada: "lista_oficial",
     archivo: null,
     errorArchivo: null,
@@ -135,6 +143,13 @@ function iniciales(nombre: string): string {
     .slice(0, 2)
     .map((p) => p[0]?.toUpperCase() ?? "")
     .join("");
+}
+
+// Une una lista en español natural: "a", "a y b", "a, b y c". Se usa para armar
+// el mensaje de qué falta sin comas colgando.
+function unirEnLista(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
 }
 
 // ------------------------------------------------------- Selector de colegio
@@ -424,6 +439,12 @@ export default function FormularioEmpezar({
             ...hijoVacio(i + 1),
             colegioId: esAliado ? m.colegio_id : "",
             grado: esAliado ? m.grado : "",
+            // El apodo del propio hijo baja descifrado en la precarga; solo se
+            // conserva si el colegio es aliado (si no, el hijo arranca vacío).
+            apodo: esAliado ? (m.apodo ?? "") : "",
+            // Marcado como precargado solo si de verdad quedó con su matrícula
+            // (colegio aliado): así no se re-guarda ni pide apodo de nuevo.
+            precargado: esAliado,
           };
         })
       : [hijoVacio(1)];
@@ -434,7 +455,20 @@ export default function FormularioEmpezar({
   const [prioridad, setPrioridad] = useState<ClavePrioridad>("equilibrio");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Aviso NO bloqueante (ámbar): p.ej. no pudimos guardar los hijos nuevos en la
+  // cuenta, pero el kit se arma igual. Distinto de `error`, que sí detiene.
+  const [aviso, setAviso] = useState<string | null>(null);
   const [gradosDetectados, setGradosDetectados] = useState<string[]>([]);
+  // Lo que ya salió bien en un envío que aún no terminó, para no repetirlo al
+  // reintentar. La "firma" es el payload serializado del paso: si el acudiente
+  // cambia esos datos deja de coincidir y el paso se rehace; si no, se reutiliza
+  // y no se duplica. Se limpia solo: al navegar con éxito, /empezar se desmonta.
+  const [progreso, setProgreso] = useState<{
+    registroFirma?: string;
+    matriculasFirma?: string;
+    trabajoId?: string;
+    trabajoFirma?: string;
+  }>({});
 
   const porId = useMemo(() => new Map(colegios.map((c) => [c.colegio_id, c])), [colegios]);
 
@@ -491,10 +525,32 @@ export default function FormularioEmpezar({
     (modo !== "nuevo" || clave.length >= 6) &&
     hijos.every(hijoCompleto);
 
-  // Algún hijo necesita adjuntar la lista (grado sin verificar) o el archivo del
-  // colegio y aún no lo hizo. Se usa para explicar el bloqueo en pantalla en vez
-  // de dejar el botón deshabilitado sin decir la razón.
-  const faltaArchivo = hijos.some((hijo) => necesitaArchivo(hijo) && hijo.archivo === null);
+  // Qué falta EXACTAMENTE para poder enviar, traduciendo a texto los mismos
+  // predicados que ya calculan `listo` y `necesitaArchivo` (no hay validación
+  // nueva). Por hijo se reporta solo el primer paso ACCIONABLE —colegio, luego
+  // grado, luego lista— porque los chips de grado y la zona de subida no se
+  // pintan hasta que hay colegio: pedir "el grado" sin colegio señalaría un campo
+  // que aún no está en pantalla.
+  const faltantesContacto: string[] = [];
+  if (correo.trim().length <= 3) faltantesContacto.push("tu correo");
+  if (modo === "nuevo" && clave.length < 6) faltantesContacto.push("una contraseña");
+  if (celular.trim().length <= 6) faltantesContacto.push("tu celular");
+
+  const faltantesHijos: string[] = [];
+  hijos.forEach((hijo, i) => {
+    const suf = hijos.length > 1 ? ` del hijo ${i + 1}` : "";
+    const tieneColegio =
+      hijo.entrada === "archivo" ? Boolean(hijo.colegioNombre) : Boolean(hijo.colegioId);
+    if (!tieneColegio) faltantesHijos.push(`el colegio${suf}`);
+    else if (!hijo.grado) faltantesHijos.push(`el grado${suf}`);
+    else if (necesitaArchivo(hijo) && hijo.archivo === null) faltantesHijos.push(`la lista${suf}`);
+  });
+
+  // En "soy nuevo usuario" el registro va primero en pantalla; en el resto, los hijos.
+  const faltantes =
+    modo === "nuevo"
+      ? [...faltantesContacto, ...faltantesHijos]
+      : [...faltantesHijos, ...faltantesContacto];
 
   // Renumeracion de las secciones sin duplicar JSX: en "nuevo" hay tres pasos
   // (1 Registrate, 2 hijos, 3 prioridad) y NO se pinta "a donde te avisamos"
@@ -510,6 +566,7 @@ export default function FormularioEmpezar({
     if (!listo || enviando) return;
     setEnviando(true);
     setError(null);
+    setAviso(null);
     setGradosDetectados([]);
 
     const personajePorHijo: Record<string, string[]> = {};
@@ -545,25 +602,64 @@ export default function FormularioEmpezar({
     // cuando un administrador aprueba la lista que subieron—. Si el alta falla no
     // seguimos: su propio catch lo reporta y no se crea ningún trabajo.
     if (modo === "nuevo") {
-      try {
-        await registrarAcudiente({
-          correo: contacto.correo,
-          clave,
-          celular: contacto.celular,
-          hijos: hijos
-            .filter((hijo) => hijo.colegioId)
-            .map((hijo) => ({
-              colegio_id: hijo.colegioId,
-              grado: hijo.grado,
-              // Apodo solo si lo dieron: es opcional y minimizamos el dato del menor.
-              ...(hijo.apodo.trim() ? { apodo: hijo.apodo.trim() } : {}),
-            })),
-        });
-      } catch (causa) {
-        if (causa instanceof FalloApi) setError(causa.message);
-        else setError("No pudimos crear tu cuenta. Intenta de nuevo.");
-        setEnviando(false);
-        return;
+      const registro = {
+        correo: contacto.correo,
+        clave,
+        celular: contacto.celular,
+        hijos: hijos
+          .filter((hijo) => hijo.colegioId)
+          .map((hijo) => ({
+            colegio_id: hijo.colegioId,
+            grado: hijo.grado,
+            // Apodo solo si lo dieron: es opcional y minimizamos el dato del menor.
+            ...(hijo.apodo.trim() ? { apodo: hijo.apodo.trim() } : {}),
+          })),
+      };
+      // El alta es idempotente en el backend, pero no la repetimos en cada
+      // reintento: guardamos la firma de lo ya registrado y solo volvemos a llamar
+      // si el acudiente cambió esos datos. Así el registro sobrevive al reintento.
+      const firmaRegistro = JSON.stringify(registro);
+      if (progreso.registroFirma !== firmaRegistro) {
+        try {
+          await registrarAcudiente(registro);
+          setProgreso((p) => ({ ...p, registroFirma: firmaRegistro }));
+        } catch (causa) {
+          if (causa instanceof FalloApi) setError(causa.message);
+          else setError("No pudimos crear tu cuenta. Intenta de nuevo.");
+          setEnviando(false);
+          return;
+        }
+      }
+    }
+
+    // Camino "ya tengo cuenta": guardamos en la cuenta los hijos NUEVOS (los que
+    // el acudiente agregó ahora), para que la próxima vez se precarguen. Es un
+    // EXTRA sobre el armado del kit: solo van los nuevos de colegio ALIADO (los
+    // precargados ya están; los sin `colegioId` todavía no tienen matrícula), y
+    // si el guardado falla NO bloqueamos —se avisa y se sigue armando el kit—.
+    // Idempotente y con firma, igual que el registro: no se repite en reintentos.
+    if (modo === "autenticado") {
+      const nuevos: HijoNuevo[] = hijos
+        .filter((hijo) => !hijo.precargado && hijo.colegioId)
+        .map((hijo) => ({
+          colegio_id: hijo.colegioId,
+          grado: hijo.grado,
+          ...(hijo.apodo.trim() ? { apodo: hijo.apodo.trim() } : {}),
+        }));
+      if (nuevos.length > 0) {
+        const firmaMatriculas = JSON.stringify(nuevos);
+        if (progreso.matriculasFirma !== firmaMatriculas) {
+          try {
+            await guardarMatriculas(nuevos);
+            setProgreso((p) => ({ ...p, matriculasFirma: firmaMatriculas }));
+          } catch {
+            // No bloquea: el kit se arma igual. Solo avisamos que no quedaron
+            // guardados en la cuenta (se podrán agregar luego sin perder el kit).
+            setAviso(
+              "No pudimos guardar tus hijos nuevos en tu cuenta, pero seguimos con tu kit. Podrás agregarlos más tarde.",
+            );
+          }
+        }
       }
     }
 
@@ -642,14 +738,27 @@ export default function FormularioEmpezar({
           // de más. El encuadre del paso 3 es "hasta dónde estirar el bolsillo".
           preferencias,
         };
-        // Sin archivos: la lista verificada ya existe, así que el trabajo viaja en
-        // JSON puro. Un PDF aquí forzaría multipart contra `POST /v1/trabajos` (solo
-        // JSON) → 400. Los grados sin verificar suben su PDF por `subirListas`.
-        const creado = await crearTrabajo(solicitud);
-        trabajoInstantaneo = creado.trabajo_id;
+        // Reintento sin huérfanos: si este mismo trabajo ya se creó (misma firma) y
+        // luego falló la subida, se reutiliza su id en vez de crear otro. Si el hogar
+        // verificado o las preferencias cambiaron, la firma no coincide y se crea el
+        // trabajo que toca.
+        const firmaTrabajo = JSON.stringify(solicitud);
+        if (progreso.trabajoId && progreso.trabajoFirma === firmaTrabajo) {
+          trabajoInstantaneo = progreso.trabajoId;
+        } else {
+          // Sin archivos: la lista verificada ya existe, así que el trabajo viaja en
+          // JSON puro. Un PDF aquí forzaría multipart contra `POST /v1/trabajos` (solo
+          // JSON) → 400. Los grados sin verificar suben su PDF por `subirListas`.
+          const creado = await crearTrabajo(solicitud);
+          trabajoInstantaneo = creado.trabajo_id;
+          setProgreso((p) => ({ ...p, trabajoId: creado.trabajo_id, trabajoFirma: firmaTrabajo }));
+        }
       }
 
       if (hijosSubida.length > 0) {
+        // subirListas no se cachea: es el paso terminal (al éxito navega y retorna),
+        // así que nunca hay un reintento después de una subida exitosa; y el backend
+        // deduplica por (colegio, grado), así que repetirla es inocua.
         const resultado = await subirListas(
           hijosSubida.map((hijo) => ({
             referencia: hijo.referencia,
@@ -833,10 +942,13 @@ export default function FormularioEmpezar({
                   colegio que quizá aún no es aliado. Al cambiar de ruta se limpia
                   el colegio y el grado: no se arrastran de una a la otra. */}
 
-              {/* Apodo OPCIONAL del menor, solo en el alta nueva. Nunca el
-                  nombre legal: para el kit basta colegio+grado, y minimizamos
-                  el dato del menor (Ley 1581 de 2012, Art. 4). */}
-              {modo === "nuevo" && (
+              {/* Apodo OPCIONAL del menor. Nunca el nombre legal: para el kit
+                  basta colegio+grado, y minimizamos el dato del menor (Ley 1581
+                  de 2012, Art. 4). Editable para un hijo NUEVO (alta nueva o hijo
+                  que el acudiente autenticado agrega ahora); para un hijo YA
+                  precargado se muestra en solo-lectura —no re-escribimos el dato
+                  del menor, solo lo recordamos—. */}
+              {(modo === "nuevo" || (modo === "autenticado" && !hijo.precargado)) && (
                 <label className={styles.campo}>
                   <span>Apodo de tu hijo (opcional)</span>
                   <input
@@ -847,6 +959,9 @@ export default function FormularioEmpezar({
                     autoComplete="off"
                   />
                 </label>
+              )}
+              {modo === "autenticado" && hijo.precargado && hijo.apodo && (
+                <p className={styles.apodoPrecargado}>Apodo: {hijo.apodo}</p>
               )}
 
               <div className={styles.entradas} role="group" aria-label="Cómo nos das la lista">
@@ -1169,15 +1284,23 @@ export default function FormularioEmpezar({
         </div>
       )}
 
+      {/* Aviso no bloqueante: el kit sigue su curso. `role="status"` (no
+          "alert") porque no exige acción del acudiente. */}
+      {aviso && (
+        <div className={styles.avisoCaja} role="status">
+          {aviso}
+        </div>
+      )}
+
       <div className={styles.barraAccion}>
         <button type="submit" className={styles.enviar} disabled={!listo || enviando}>
           {enviando ? "Creando tu pedido…" : "Armar mis tres kits"}
         </button>
         {!listo && (
           <p className={styles.faltante}>
-            {faltaArchivo
-              ? "Adjunta la lista de ese grado (o el archivo del colegio) para continuar."
-              : "Falta el colegio, el grado y cómo te avisamos."}
+            {faltantes.length > 0
+              ? `${faltantes.length === 1 ? "Falta" : "Faltan"} ${unirEnLista(faltantes)} para continuar.`
+              : "Completa los datos que faltan para continuar."}
           </p>
         )}
       </div>

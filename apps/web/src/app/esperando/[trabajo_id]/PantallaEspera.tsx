@@ -92,7 +92,7 @@ export default function PantallaEspera({ trabajoId }: { trabajoId: string }) {
 
         <p className={styles.honestidad}>
           {enRevision
-            ? "Ya terminamos la parte automática. Ahora alguien de Tukit mira lo que quedó dudoso antes de mostrártelo: nunca te mandamos un kit sin revisar."
+            ? "Ya terminamos la parte automática. Ahora una persona de Tukit revisa tu kit antes de mostrártelo: nunca te mandamos un kit sin revisar."
             : "Esto toma minutos, no segundos. Puedes cerrar esta pestaña: te avisamos al correo y al celular cuando esté listo."}
         </p>
 

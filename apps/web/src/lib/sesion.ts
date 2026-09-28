@@ -35,8 +35,10 @@ export async function sesionActual(): Promise<Sesion | null> {
 
 /**
  * Las matriculas vigentes del portador de la cookie, para precargar `/empezar`
- * cuando el acudiente ya tiene cuenta. Solo devuelve colegio+grado+anio (nunca
- * datos del menor), tal como los expone `GET /v1/cuenta/matriculas`.
+ * cuando el acudiente ya tiene cuenta. Devuelve colegio+grado+anio y el `apodo`
+ * del propio portador (el padre ve el de SUS hijos, para no re-teclearlo); sigue
+ * sin traer nombre legal, documento ni estudiante_id, tal como los expone
+ * `GET /v1/cuenta/matriculas`.
  *
  * Fail-closed a lista vacia, igual que `sesionActual()`: sin cookie, con token
  * rechazado o si el backend no responde, el formulario simplemente arranca sin
