@@ -72,6 +72,13 @@
   transform: translateX(2px);
 }
 
+/* La seccion del panel que esta a la vista. */
+.sidebar__item--activo {
+  background: var(--clay-cielo-bg);
+  color: var(--color-text-primary);
+  font-weight: 800;
+}
+
 /* CTA a ruta real (/empezar) — boton clay inflado dentro del nav. */
 .sidebar__cta {
   display: flex;

@@ -12,6 +12,7 @@
 
 import "server-only";
 import { cookies } from "next/headers";
+import type { MisSolicitudes } from "@tukit/contrato";
 import {
   origenDeDatos,
   type MatriculaAcudiente,
@@ -52,4 +53,24 @@ export async function matriculasDeLaSesion(): Promise<MatriculaAcudiente[]> {
   } catch {
     return [];
   }
+}
+
+/**
+ * Las solicitudes del portador de la cookie —sus listas subidas + sus trabajos,
+ * unidas— para la seccion "Mis solicitudes" del panel.
+ *
+ * A DIFERENCIA de `matriculasDeLaSesion()`, esto NO traga el fallo del backend:
+ * devuelve `[]` SOLO cuando no hay cookie (no hay a quien pedirle). Si
+ * inteligencia o la sesion fallan, deja PROPAGAR el error, para que el panel
+ * distinga "no tienes solicitudes" (lista vacia legitima) de "no pudimos
+ * cargarlas" (aviso de error). Fallar cerrado a `[]` aqui mentiria: mostraria
+ * "no tienes solicitudes" cuando en realidad no se pudieron leer.
+ *
+ * La caida de catalogo NO llega hasta aca: inteligencia la degrada a
+ * `listas_disponibles: false` y devuelve los trabajos igual (§Decisiones 5).
+ */
+export async function solicitudesDeLaSesion(): Promise<MisSolicitudes> {
+  const token = (await cookies()).get(COOKIE_SESION)?.value;
+  if (!token) return { solicitudes: [], listas_disponibles: true };
+  return origenDeDatos().misSolicitudes(token);
 }
