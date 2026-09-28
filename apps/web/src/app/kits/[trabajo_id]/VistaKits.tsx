@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Star, PiggyBank, Sparkles, Gem } from "lucide-react";
+import { prefiereMenosMovimiento } from "@tukit/contrato/motion";
 import {
   ORDEN_SECCIONES,
   TITULO_CLASE,
@@ -167,6 +168,19 @@ function Checkout({
     ciudad: "",
     correo: "",
   });
+  const formRef = useRef<HTMLFormElement>(null);
+  const primerCampoRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!abierto) return;
+    // El form aparece bajo la barra fija del total; lo traemos a la vista y
+    // enfocamos el primer campo. Con prefers-reduced-motion, sin animacion.
+    formRef.current?.scrollIntoView({
+      behavior: prefiereMenosMovimiento() ? "auto" : "smooth",
+      block: "start",
+    });
+    primerCampoRef.current?.focus({ preventScroll: true });
+  }, [abierto]);
 
   const cambiar = (campo: keyof typeof datos) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setDatos((d) => ({ ...d, [campo]: e.target.value }));
@@ -222,11 +236,16 @@ function Checkout({
       </footer>
 
       {abierto && (
-        <form className={styles.formPago} onSubmit={pagar}>
+        <form ref={formRef} className={styles.formPago} onSubmit={pagar}>
           <p className={styles.tituloPago}>¿A dónde te lo llevamos?</p>
           <label>
             Nombre de quien recibe
-            <input value={datos.destinatario} onChange={cambiar("destinatario")} required />
+            <input
+              ref={primerCampoRef}
+              value={datos.destinatario}
+              onChange={cambiar("destinatario")}
+              required
+            />
           </label>
           <label>
             Dirección
