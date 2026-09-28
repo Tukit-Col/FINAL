@@ -12,7 +12,7 @@ from __future__ import annotations
 import httpx
 import pytest
 from tukit_gateway import api
-from tukit_gateway.api import CABECERAS_SALTADAS, RUTAS, app, destino
+from tukit_gateway.api import CABECERAS_SALTADAS, RUTAS, app, bloqueada, destino
 
 
 class TestElPrefijoMasLargoGana:
@@ -128,6 +128,39 @@ class TestYaNoHayPagoPendiente:
         assert PENDIENTES == {}
         assert pendiente("/v1/ordenes") is None
         assert pendiente("/v1/webhooks/wompi") is None
+
+
+class TestLasRutasInternasNoSeExponen:
+    """`/v1/comercio/pedidos-pagados` es servicio-a-servicio (inteligencia le
+    pega directo a comercio por `TUKIT_COMERCIO_URL`), y desde fuera debe verse
+    como INEXISTENTE, no como prohibida: revelar que hay una superficie interna
+    es informacion que no le hace falta a nadie de fuera.
+    """
+
+    def test_pedidos_pagados_esta_bloqueada(self):
+        assert bloqueada("/v1/comercio/pedidos-pagados") is True
+
+    def test_el_resto_de_comercio_no_esta_bloqueado(self):
+        # El bloqueo es exacto sobre pedidos-pagados: el tablero de pedidos y lo
+        # demas de comercio siguen ruteando.
+        assert bloqueada("/v1/comercio/pedidos") is False
+        assert bloqueada("/v1/comercio/mis-pedidos") is False
+        assert destino("/v1/comercio/pedidos") == "comercio"
+
+    async def test_responde_404_indistinguible_de_ruta_desconocida(self):
+        """El 404 de la ruta interna es identico al de una ruta que no existe, y
+        la ruta bloqueada NO aparece en la lista de rutas: desde fuera no hay
+        forma de saber que existe una superficie interna detras."""
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://prueba"
+        ) as cliente:
+            respuesta = await cliente.get("/v1/comercio/pedidos-pagados")
+
+        assert respuesta.status_code == 404
+        cuerpo = respuesta.json()
+        assert cuerpo["error"] == "ruta_desconocida"
+        assert cuerpo["rutas"] == sorted(RUTAS)
+        assert "/v1/comercio/pedidos-pagados" not in cuerpo["rutas"]
 
 
 class TestLaRespuestaCuandoNoSabe:

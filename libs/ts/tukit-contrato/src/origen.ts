@@ -105,15 +105,26 @@ export interface Credenciales {
   clave: string;
 }
 
+/** Un hijo tal como lo manda el formulario: colegio y grado bastan para armar el
+ *  kit; el `apodo` es opcional y es lo unico del menor que viaja (identidad lo
+ *  cifra), jamas el nombre legal, por minimizacion (Ley 1581 de 2012, Art. 4). Lo
+ *  usan el alta nueva (`RegistroAcudiente`) y el guardado con sesion. */
+export interface HijoNuevo {
+  colegio_id: string;
+  grado: string;
+  apodo?: string;
+}
+
 /** El ambito de tenencia de UN hijo del portador, tal como lo devuelve
  *  `GET /v1/cuenta/matriculas`. Es lo justo para precargar `/empezar` sin
- *  re-teclear: colegio y grado. NUNCA trae nombre, apodo, documento ni
- *  `estudiante_id` —nada que singularice al menor—; colegio, grado y anio son
- *  el ambito, no la identidad. */
+ *  re-teclear: colegio, grado y el `apodo` (descifrado por identidad, o `null`).
+ *  El apodo SI baja porque el PADRE puede ver el de SUS hijos —es el portador del
+ *  token—, pero sigue sin traer nombre legal, documento ni `estudiante_id`. */
 export interface MatriculaAcudiente {
   colegio_id: string;
   grado: string;
   anio_lectivo: number;
+  apodo: string | null;
 }
 
 /** El alta del acudiente nuevo (camino "soy nuevo usuario"): su credencial, el
@@ -124,7 +135,7 @@ export interface RegistroAcudiente {
   correo: string;
   clave: string;
   celular?: string;
-  hijos: { colegio_id: string; grado: string; apodo?: string }[];
+  hijos: HijoNuevo[];
 }
 
 /** Un hijo de un acudiente tal como lo devuelve el padron interno
@@ -182,6 +193,12 @@ export interface OrigenDatos {
   // sesion no re-teclee a sus hijos; nunca devuelve datos de menor.
   registrarAcudiente(datos: RegistroAcudiente): Promise<{ usuario_id: string; creado: boolean }>;
   matriculasDelAcudiente(token: string): Promise<MatriculaAcudiente[]>;
+
+  // `guardarMatriculas` es el equivalente autenticado del alta de hijos de
+  // `registrarAcudiente` (camino "ya tengo cuenta"): el PORTADOR del token agrega
+  // a sus propios hijos sin re-registrar la cuenta. Bearer; idempotente; solo
+  // escribe tenencia del portador. Devuelve cuantas materializo.
+  guardarMatriculas(token: string, hijos: HijoNuevo[]): Promise<{ total: number }>;
 
   // §Identidad — padron de acudientes para el equipo interno. Solo admin/
   // operador (identidad gatea: 401 sin token, 403 sin rol). Devuelve las
@@ -420,10 +437,11 @@ export interface OrigenDatos {
 
   // §Metricas de pedidos — el cruce `pedido pagado -> trabajo -> hijos -> padre`
   // de un colegio (Inteligencia, `GET /v1/metricas/colegios/{id}/pedidos`).
-  // Solo agregados e `usuario_id`: cero PII, por eso NO lleva token. El correo
-  // de cada padre lo resuelve el servidor del admin con `acudientesAdmin`,
-  // pasando estos `usuario_id`.
-  resumenPedidosColegio(colegioId: string): Promise<ResumenPedidosColegio>;
+  // Exige Bearer de operador/admin (misma semantica que `acudientesAdmin`): la
+  // respuesta lista los `usuario_id` de los padres que pagaron, que es dato
+  // sensible aunque no sea correo. El correo de cada padre lo resuelve el
+  // servidor del admin con `acudientesAdmin`, pasando estos `usuario_id`.
+  resumenPedidosColegio(token: string, colegioId: string): Promise<ResumenPedidosColegio>;
 
   metricasSerie(filtros?: {
     dimension?: "catalogo" | "colegio" | "global";
