@@ -376,9 +376,9 @@ async def _candidatos_por_concepto(conexion: Any, codigos: list[str]) -> dict[st
     N+1). El dict de salida mapea `concepto_codigo` a la lista de candidatos
     con la forma EXACTA del `Candidato` del optimizador.
     """
-    from .api import CONCEPTO as _CONCEPTO_API
-    from .api import _consulta_productos, _precio_minimo_vigente
     from .consulta import _elegir_por_nivel
+    from .repositorios.catalogo import CONCEPTO as _CONCEPTO_API
+    from .repositorios.catalogo import _consulta_productos, _precio_minimo_vigente
 
     if not codigos:
         return {}
