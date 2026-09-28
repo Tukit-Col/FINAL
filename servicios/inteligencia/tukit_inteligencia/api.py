@@ -29,7 +29,7 @@ import re
 import uuid
 from typing import Annotated, Any
 
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, Header, Query, Request
 from pydantic import BaseModel, Field
 from tukit_comun import derivar
 from tukit_comun.bd import crear_motor
@@ -38,7 +38,14 @@ from tukit_comun.http import ErrorDominio, crear_app
 from . import gemini, metricas, paginas, trabajos
 from .modelos import EstadoResolucion, EstadoTrabajo
 from .percepcion import LeerPagina, Percepcion, Renderizar, percibir
-from .remoto import ClienteCatalogo, ClienteComercio, ClienteIdentidad, url_catalogo, url_identidad
+from .remoto import (
+    ClienteCatalogo,
+    ClienteComercio,
+    ClienteIdentidad,
+    RemotoCaido,
+    url_catalogo,
+    url_identidad,
+)
 
 PUERTO_POR_OMISION = 8013
 
@@ -416,6 +423,47 @@ def _comercio() -> Any:
     if cliente is None:
         cliente = ClienteComercio()
     return cliente
+
+
+# Los roles que dan acceso a las vistas del equipo interno. Mismo par que usa
+# identidad en `/v1/admin/acudientes` (`_ROLES_STAFF`), y la razon de que esta
+# puerta tenga la misma semantica.
+_ROLES_STAFF = ("admin", "operador")
+
+
+def _token_bearer(authorization: str | None) -> str | None:
+    """El token del encabezado `Authorization`. Refleja `_token_del_encabezado`
+    de identidad: acepta `Bearer <token>` y tambien el token pelado."""
+    if not authorization:
+        return None
+    partes = authorization.split(" ", 1)
+    if len(partes) == 2 and partes[0].lower() == "bearer":
+        return partes[1].strip()
+    return authorization.strip()
+
+
+async def _exigir_staff(authorization: str | None) -> None:
+    """Puerta operador/admin con la MISMA semantica que `/v1/admin/acudientes`:
+    401 sin token o con token invalido/revocado, 403 si el rol no es staff.
+
+    Inteligencia no puede leer la base de identidad (invariantes 1 y 3): valida
+    por HTTP contra `GET /v1/sesiones/actual`, el chequeo autoritativo que ya
+    compara `version_permisos`. Falla CERRADA (503) si identidad no responde:
+    no autorizar por no poder preguntar seria abrir el acceso."""
+    token = _token_bearer(authorization)
+    if not token:
+        raise ErrorDominio("sesion_invalida", "El token no es valido o expiro.", estado=401)
+    try:
+        sesion = await _identidad().sesion(token)
+    except RemotoCaido as error:
+        raise ErrorDominio("identidad_no_disponible", "No se pudo validar la sesion.", estado=503) from error
+    if sesion is None:
+        raise ErrorDominio("sesion_invalida", "El token no es valido o expiro.", estado=401)
+    roles = {r.get("rol") for r in sesion.get("roles", [])}
+    if not roles & set(_ROLES_STAFF):
+        raise ErrorDominio(
+            "acceso_denegado", "Esta vista es solo para el equipo interno de Tukit.", estado=403
+        )
 
 
 def _items_desde_percepcion(percepcion: Percepcion) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -1063,22 +1111,29 @@ async def metricas_colegio(colegio_id: str) -> dict[str, Any]:
 @app.get(
     "/v1/metricas/colegios/{colegio_id}/pedidos",
     tags=["metricas"],
-    summary="Padres y ninos con pedido pagado en un colegio, por grado, sin PII.",
+    summary="Padres y ninos con pedido pagado en un colegio, por grado. Solo staff.",
 )
-async def metricas_pedidos_colegio(colegio_id: str) -> dict[str, Any]:
+async def metricas_pedidos_colegio(
+    colegio_id: str,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
     """El cruce `pedido pagado -> trabajo -> hijos -> padre` del colegio.
+
+    Exige Bearer de operador/admin (misma semantica que `/v1/admin/acudientes`):
+    la respuesta lista los `usuario_id` de los padres que pagaron en el colegio,
+    que es dato sensible aunque no sea correo. El correo lo resuelve aparte el
+    servidor del admin con el endpoint protegido de acudientes.
 
     Comercio devuelve por HTTP (`GET /v1/comercio/pedidos-pagados`) los pedidos
     en estado confirmado con su `{trabajo_id, usuario_id}`; aqui se cruzan con
-    los `hijos` del trabajo (que si tienen colegio y grado) y se agrega. La
-    respuesta trae solo `usuario_id`, nunca correo: el correo lo resuelve el
-    servidor del admin con el endpoint protegido de acudientes. Un colegio sin
-    pedidos pagados responde con ceros y listas vacias, no con 404.
+    los `hijos` del trabajo (que si tienen colegio y grado) y se agrega. Un
+    colegio sin pedidos pagados responde con ceros y listas vacias, no con 404.
 
     Cuelga de `/v1/metricas/` por la misma razon que `metricas_colegio`: el
     gateway rutea por prefijo y este es el servicio dueno del cruce (ya habla con
-    Comercio para el checkout). Cero cambios en el gateway.
+    Comercio para el checkout).
     """
+    await _exigir_staff(authorization)
     return await metricas.resumen_pedidos_de_colegio(app.state.motor, colegio_id, _comercio())
 
 

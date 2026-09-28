@@ -70,22 +70,35 @@ export default async function PaginaColegio({ params }: Props) {
   const titulo = directorio?.nombre ?? colegio.nombre;
 
   // ------------------------------------------------ Métricas (pedidos pagados)
-  // Los agregados —conteos, estados de trabajo, cobertura, demanda— NO llevan
-  // datos personales y se leen sin token. Los correos de los padres SÍ son PII:
-  // se resuelven aparte con el endpoint protegido de acudientes, usando la
-  // cookie de sesión. Sin sesión o sin el rol, los conteos se muestran igual y
-  // solo el correo degrada a su identificador (nunca se rompe la página).
+  // El cruce de pedidos pagados lista los `usuario_id` de los padres que
+  // pagaron, así que ahora exige operador/admin: se pide con la cookie de
+  // sesión. Sin sesión o sin el rol degrada a `null` y el panel de pedidos
+  // muestra un aviso; cobertura y demanda (sin PII) se pintan igual. Los correos
+  // (PII) salen aparte del endpoint protegido de acudientes, con el mismo token.
   const origen = origenDeDatos();
-  const resumenPedidos: ResumenPedidosColegio = await origen.resumenPedidosColegio(colegioId);
+  const token = (await cookies()).get(COOKIE_SESION)?.value;
+
+  let resumenPedidos: ResumenPedidosColegio | null = null;
+  if (token) {
+    try {
+      resumenPedidos = await origen.resumenPedidosColegio(token, colegioId);
+    } catch (causa) {
+      if (causa instanceof ErrorTukit && (causa.estado === 401 || causa.estado === 403)) {
+        resumenPedidos = null;
+      } else {
+        throw causa;
+      }
+    }
+  }
+
   const metricas: MetricasColegio = await origen.metricasColegio(colegioId);
   const sugerencias: Sugerencia[] = await origen.sugerencias();
   const demanda = demandaPorGrado(sugerencias, colegioId, gradosVerificados);
 
   const correos = new Map<string, string>();
   let correosCargados = true;
-  const idsPadres = resumenPedidos.por_padre.map((p) => p.usuario_id);
+  const idsPadres = resumenPedidos?.por_padre.map((p) => p.usuario_id) ?? [];
   if (idsPadres.length > 0) {
-    const token = (await cookies()).get(COOKIE_SESION)?.value;
     if (!token) {
       correosCargados = false;
     } else {
@@ -258,65 +271,77 @@ export default async function PaginaColegio({ params }: Props) {
       <section className={styles.tarjeta}>
         <h2 className={styles.subtitulo}>Métricas</h2>
 
-        {/* Puntos 1 y 2: totales de padres y niños con pedido pagado. */}
-        <dl className={styles.resumen}>
-          <div>
-            <dt>Padres con pedido pagado</dt>
-            <dd className="cifra">{resumenPedidos.total_padres}</dd>
-          </div>
-          <div>
-            <dt>Niños en esos pedidos</dt>
-            <dd className="cifra">{resumenPedidos.total_ninos}</dd>
-          </div>
-        </dl>
-
-        {/* Punto 3: cada padre (correo) con su nº de niños en el colegio. */}
-        <h3 className={styles.metricaTitulo}>Padres con pedido pagado</h3>
-        {resumenPedidos.por_padre.length === 0 ? (
-          <p className={styles.vacio}>Todavía no hay pedidos pagados de este colegio.</p>
-        ) : (
+        {/* Puntos 1 a 4 (padres, niños, tabla y estados) salen del cruce de
+            pedidos, que exige operador/admin. Sin sesión o sin rol degradan a un
+            aviso; los puntos 5 y 6 (demanda y cobertura) no llevan PII y se
+            pintan igual. */}
+        {resumenPedidos ? (
           <>
-            {!correosCargados ? (
-              <p className={styles.avisoCorreos}>
-                No pudimos cargar los correos (falta sesión o rol de operador/admin). Se muestran
-                los identificadores.
-              </p>
-            ) : null}
-            <table className={styles.tabla}>
-              <thead>
-                <tr>
-                  <th scope="col">Padre</th>
-                  <th scope="col">Niños</th>
-                </tr>
-              </thead>
-              <tbody>
-                {resumenPedidos.por_padre.map((p) => (
-                  <tr key={p.usuario_id}>
-                    <th scope="row" className={styles.celdaDato}>
-                      {correos.get(p.usuario_id) ?? p.usuario_id}
-                    </th>
-                    <td className="cifra">{p.ninos}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
+            {/* Puntos 1 y 2: totales de padres y niños con pedido pagado. */}
+            <dl className={styles.resumen}>
+              <div>
+                <dt>Padres con pedido pagado</dt>
+                <dd className="cifra">{resumenPedidos.total_padres}</dd>
+              </div>
+              <div>
+                <dt>Niños en esos pedidos</dt>
+                <dd className="cifra">{resumenPedidos.total_ninos}</dd>
+              </div>
+            </dl>
 
-        {/* Punto 4: estado de las solicitudes de kit del colegio. */}
-        <h3 className={styles.metricaTitulo}>Solicitudes de kit</h3>
-        <div className={styles.estados}>
-          <span className={`${styles.estadoPill} ${styles.estadoEspera}`}>
-            <span className="cifra">{resumenPedidos.estados_trabajos.espera_revision}</span>{" "}
-            esperando revisión
-          </span>
-          <span className={`${styles.estadoPill} ${styles.estadoPublicado}`}>
-            <span className="cifra">{resumenPedidos.estados_trabajos.publicado}</span> publicadas
-          </span>
-          <span className={`${styles.estadoPill} ${styles.estadoFallido}`}>
-            <span className="cifra">{resumenPedidos.estados_trabajos.fallido}</span> fallidas
-          </span>
-        </div>
+            {/* Punto 3: cada padre (correo) con su nº de niños en el colegio. */}
+            <h3 className={styles.metricaTitulo}>Padres con pedido pagado</h3>
+            {resumenPedidos.por_padre.length === 0 ? (
+              <p className={styles.vacio}>Todavía no hay pedidos pagados de este colegio.</p>
+            ) : (
+              <>
+                {!correosCargados ? (
+                  <p className={styles.avisoCorreos}>
+                    No pudimos cargar los correos (falta sesión o rol de operador/admin). Se
+                    muestran los identificadores.
+                  </p>
+                ) : null}
+                <table className={styles.tabla}>
+                  <thead>
+                    <tr>
+                      <th scope="col">Padre</th>
+                      <th scope="col">Niños</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resumenPedidos.por_padre.map((p) => (
+                      <tr key={p.usuario_id}>
+                        <th scope="row" className={styles.celdaDato}>
+                          {correos.get(p.usuario_id) ?? p.usuario_id}
+                        </th>
+                        <td className="cifra">{p.ninos}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+
+            {/* Punto 4: estado de las solicitudes de kit del colegio. */}
+            <h3 className={styles.metricaTitulo}>Solicitudes de kit</h3>
+            <div className={styles.estados}>
+              <span className={`${styles.estadoPill} ${styles.estadoEspera}`}>
+                <span className="cifra">{resumenPedidos.estados_trabajos.espera_revision}</span>{" "}
+                esperando revisión
+              </span>
+              <span className={`${styles.estadoPill} ${styles.estadoPublicado}`}>
+                <span className="cifra">{resumenPedidos.estados_trabajos.publicado}</span> publicadas
+              </span>
+              <span className={`${styles.estadoPill} ${styles.estadoFallido}`}>
+                <span className="cifra">{resumenPedidos.estados_trabajos.fallido}</span> fallidas
+              </span>
+            </div>
+          </>
+        ) : (
+          <p className={styles.avisoCorreos}>
+            No pudimos cargar los pedidos pagados (falta sesión o rol de operador/admin).
+          </p>
+        )}
 
         {/* Punto 5: grados SIN lista verificada con más demanda (una tarea por
             familia; las copias de "Editar" no suman, ver `demandaPorGrado`). */}

@@ -415,8 +415,10 @@
 /* Celda que es cabecera de fila (`<th scope="row">`, se conserva por
  * accesibilidad) pero contiene un dato (el correo del padre), no un rótulo: se
  * anula el aspecto de encabezado (mayúsculas y color apagado) y luce como los
- * demás datos de la tabla. */
-.celdaDato {
+ * demás datos de la tabla. El selector lleva `.tabla th` para ganarle en
+ * especificidad (0,2,1) a la regla de encabezado `.tabla th` (0,1,1), que si no
+ * dejaba el correo en mayúsculas y gris. */
+.tabla th.celdaDato {
   font-size: inherit;
   text-transform: none;
   letter-spacing: normal;

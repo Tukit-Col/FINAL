@@ -134,6 +134,16 @@ RUTAS: dict[str, str] = {
 PENDIENTES: dict[str, str] = {}
 
 
+# Rutas servicio-a-servicio que la puerta NO expone. Existen para llamadas
+# internas directas —p. ej. inteligencia lee `/v1/comercio/pedidos-pagados`
+# pegandole a `TUKIT_COMERCIO_URL`, sin pasar por aqui— y desde fuera deben
+# verse como si no existieran, no como "prohibidas": revelar que hay una
+# superficie interna es informacion que no le hace falta a nadie de fuera. Van
+# en un set aparte de RUTAS a proposito: asi `sorted(RUTAS)` nunca las lista y
+# el 404 que responde la puerta es indistinguible del de una ruta desconocida.
+RUTAS_BLOQUEADAS: frozenset[str] = frozenset({"/v1/comercio/pedidos-pagados"})
+
+
 def destino(ruta: str) -> str | None:
     for prefijo in sorted(RUTAS, key=len, reverse=True):
         if ruta == prefijo or ruta.startswith(prefijo + "/"):
@@ -146,6 +156,11 @@ def pendiente(ruta: str) -> str | None:
         if ruta == prefijo or ruta.startswith(prefijo + "/"):
             return seccion
     return None
+
+
+def bloqueada(ruta: str) -> bool:
+    """`True` si la ruta es interna y la puerta no debe exponerla."""
+    return any(ruta == p or ruta.startswith(p + "/") for p in RUTAS_BLOQUEADAS)
 
 
 app = crear_app(
@@ -196,8 +211,10 @@ async def reenviar(ruta: str, peticion: Request) -> Response:
             },
         )
 
-    nombre = destino(camino)
-    if nombre is None:
+    # Las rutas internas se responden EXACTAMENTE igual que una desconocida
+    # (mismo cuerpo, misma lista de rutas que no las incluye): desde fuera no hay
+    # forma de distinguir "no existe" de "existe pero es interna".
+    if bloqueada(camino) or destino(camino) is None:
         return JSONResponse(
             status_code=404,
             content={
@@ -206,6 +223,8 @@ async def reenviar(ruta: str, peticion: Request) -> Response:
                 "rutas": sorted(RUTAS),
             },
         )
+
+    nombre = destino(camino)
 
     base = _servicios()[nombre]
     cabeceras = {k: v for k, v in peticion.headers.items() if k.lower() not in CABECERAS_SALTADAS}

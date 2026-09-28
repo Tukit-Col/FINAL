@@ -226,6 +226,28 @@ class ClienteIdentidad:
         except httpx.HTTPError:
             return None
 
+    async def sesion(self, token: str) -> dict[str, Any] | None:
+        """La sesion del portador del token contra identidad
+        (`GET /v1/sesiones/actual`), o `None` si el token no vale (401).
+
+        A diferencia del resto de este cliente, la autorizacion FALLA CERRADA:
+        una caida de identidad es `RemotoCaido` (no `None`), para que quien
+        valida NUNCA abra el acceso por no poder preguntar. Devuelve el JSON con
+        `roles`, que es lo que la puerta de inteligencia necesita para exigir
+        operador/admin con la misma semantica que `/v1/admin/acudientes`."""
+        try:
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.get(
+                    f"{self._base()}/v1/sesiones/actual",
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+                if respuesta.status_code == 401:
+                    return None
+                respuesta.raise_for_status()
+                return dict(respuesta.json())
+        except httpx.HTTPError as error:
+            raise RemotoCaido("identidad", str(error)) from error
+
     async def datos_directorio(self, dane: str) -> dict[str, Any] | None:
         """Los datos DUEB (direccion, contacto, sitio) del colegio con ese DANE,
         para pre-llenar el perfil del colegio nuevo. `None` si el DANE no esta en
