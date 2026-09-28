@@ -367,3 +367,81 @@ class TestAnclarPersonaje:
         kit = _kit_con_conceptos()
         anclado = anclar_personaje(kit, "batman")
         assert [linea.orden for linea in anclado.lineas] == [linea.orden for linea in kit.lineas]
+
+
+# --------------------------------------------------------------------------
+# El personaje llega al kit Fan end-to-end (regresion del bug de las 4 cards)
+# --------------------------------------------------------------------------
+
+
+@dataclass
+class CatalogoRealista(CatalogoVerificado):
+    """Modela el catalogo REAL: /resueltos NO trae la variante de personaje.
+
+    El bug que esto defiende: `_elegir_por_nivel` del catalogo colapsa a una
+    opcion por nivel y deja fuera la de personaje (es una via aparte, curada),
+    asi que `/resueltos` nunca la entrega. El interruptor del Fan la pide por
+    separado con `producto_de_personaje`. La fixture vieja horneaba el personaje
+    dentro de los candidatos de /resueltos —ficcion que el catalogo real no
+    produce— y por eso el bug pasaba verde.
+    """
+
+    async def producto_de_personaje(self, concepto: str, personaje: str) -> dict[str, Any] | None:
+        self.llamadas.append("producto_de_personaje")
+        if personaje.lower() != "spiderman":
+            return None
+        # El catalogo surte las cuatro anclas con spiderman (precio_desde, como
+        # el endpoint publico de productos). La maleta (C086) no esta en la lista
+        # de esta prueba, asi que solo C001/C009 caen en anclas presentes.
+        return {
+            "sku": f"SPIDEY-{concepto}",
+            "nombre": f"{concepto} Spiderman",
+            "marca": "Marvel",
+            "nivel": "confiable",
+            "personaje": "spiderman",
+            "precio_desde": 20000,
+            "unidades_por_empaque": 1,
+        }
+
+
+def _catalogo_realista() -> CatalogoRealista:
+    # Mismos items que _catalogo_verificado pero SIN personaje en /resueltos:
+    # es lo que el catalogo real entrega tras _elegir_por_nivel.
+    base = _catalogo_verificado(personaje=None)
+    return CatalogoRealista(revisada=True, items_resueltos=base.items_resueltos)
+
+
+class TestPersonajeLlegaAlFan:
+    async def test_el_fan_trae_spiderman_en_sus_anclas_aunque_resueltos_no_lo_tenga(self, motor):
+        catalogo = _catalogo_realista()
+        prefs = {"personaje_por_hijo": {"hijo-1": ["spiderman"]}, "pesos": {"personaje": 1}}
+        trabajo_id, _ = await _crear_y_procesar(motor, catalogo, preferencias=prefs)
+        vista = await trabajos.ver(motor, trabajo_id, incluir_kits=True)
+
+        # El interruptor pidio el personaje por separado (no salio de /resueltos).
+        assert "producto_de_personaje" in catalogo.llamadas
+        fan = next(k for k in vista["kits"] if k["perfil"] == "Fan")
+
+        # Las anclas surtidas de este set (C001 cuaderno, C009 cartuchera) traen
+        # spiderman en el kit Fan; ese `personaje` es lo que pinta las cards.
+        anclas = {
+            li["concepto"]: li["producto_elegido"]
+            for li in fan["lineas"]
+            if li.get("concepto") in {"C001", "C009"} and li.get("producto_elegido")
+        }
+        assert anclas, "el Fan debe tener las anclas con producto elegido"
+        assert all(p["personaje"] == "spiderman" for p in anclas.values())
+        assert all(p["sku"].startswith("SPIDEY-") for p in anclas.values())
+
+        # Los otros perfiles NO llevan el personaje (es una via del Fan).
+        ahorrador = next(k for k in vista["kits"] if k["perfil"] == "Ahorrador")
+        assert all((li.get("producto_elegido") or {}).get("personaje") is None for li in ahorrador["lineas"])
+
+    async def test_sin_personaje_pedido_el_fan_no_pide_ni_trae_personaje(self, motor):
+        catalogo = _catalogo_realista()
+        trabajo_id, _ = await _crear_y_procesar(motor, catalogo, preferencias={})
+        vista = await trabajos.ver(motor, trabajo_id, incluir_kits=True)
+
+        assert "producto_de_personaje" not in catalogo.llamadas
+        fan = next(k for k in vista["kits"] if k["perfil"] == "Fan")
+        assert all((li.get("producto_elegido") or {}).get("personaje") is None for li in fan["lineas"])

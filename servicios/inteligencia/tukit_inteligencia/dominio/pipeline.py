@@ -16,7 +16,15 @@ from dataclasses import replace
 from typing import Any
 
 from ..modelos import EstadoResolucion
-from ..optimizador import Candidato, PerfilKit, anclar_personaje, unidades_a_comprar
+from ..optimizador import (
+    Candidato,
+    PerfilKit,
+    _objetivos,
+    anclar_personaje,
+    consolidar,
+    recomendar,
+    unidades_a_comprar,
+)
 from ..parseo import mensaje_para_papa, parsear_renglon
 
 
@@ -136,8 +144,10 @@ def _candidato_de_swap(swap: dict[str, Any]) -> Candidato:
     )
 
 
-def inyectar_personaje_fan(kits: list[Any], swaps: dict[str, dict[str, Any]]) -> list[Any]:
-    """Mete el producto de personaje en las anclas del kit Fan y recalcula su total.
+def inyectar_personaje_fan(
+    kits: list[Any], swaps: dict[str, dict[str, Any]], preferencias: dict[str, Any]
+) -> list[Any]:
+    """Mete el producto de personaje en las anclas del kit Fan y rehace sus numeros.
 
     En las rutas verificada/preview el catalogo entrega `/resueltos` con una
     opcion por nivel y SIN la variante de personaje (es una via aparte, curada);
@@ -145,39 +155,79 @@ def inyectar_personaje_fan(kits: list[Any], swaps: dict[str, dict[str, Any]]) ->
     `anclar_personaje` no encuentra nada que subir. Aca se cierra ese hueco: para
     cada concepto ancla que el catalogo si surte con el personaje (`swaps`), se
     reemplaza el `elegido` de la linea del kit Fan por ese producto, con la misma
-    aritmetica del armado (techo(pedida/empaque)) y se rehace `total_cop`. Solo
-    toca el Fan —los otros perfiles son neutrales a proposito—; sin swaps
-    devuelve los kits intactos.
+    aritmetica del armado (techo(pedida/empaque)).
+
+    Como el swap cambia el precio del Fan DESPUES de que `armar_los_tres` calculo
+    su `total_cop`, sus `objetivos` (incluido `costo`) y el veredicto de
+    presupuesto de `recomendar`, hay que rehacer los tres o el kit mostraria un
+    total nuevo con objetivos y "cabe en tu presupuesto" viejos —una mentira en
+    una pantalla de plata—. Se recomputan `total_cop`/`objetivos` del Fan y se
+    re-corre `recomendar` sobre los tres para que la marca y el veredicto de
+    presupuesto reflejen los precios verdaderos. Solo toca el Fan; sin swaps
+    devuelve los kits intactos (la ruta sin personaje queda byte a byte igual).
     """
     if not swaps:
         return kits
 
-    resultado: list[Any] = []
+    recomputados: list[Any] = []
     for kit in kits:
         if kit.perfil != PerfilKit.FAN.value:
-            resultado.append(kit)
+            recomputados.append(kit)
             continue
 
-        lineas = []
-        for linea in kit.lineas:
-            swap = swaps.get(linea.concepto_codigo) if linea.concepto_codigo else None
-            if swap is None or linea.informativa:
-                lineas.append(linea)
-                continue
-            elegido = _candidato_de_swap(swap)
-            unidades = unidades_a_comprar(linea.cantidad_pedida, elegido.unidades_por_empaque)
-            subtotal = None if elegido.precio_cop is None else elegido.precio_cop * unidades
-            lineas.append(
-                replace(
-                    linea,
-                    elegido=elegido,
-                    unidad_base=elegido.unidad_base or linea.unidad_base,
-                    unidades_por_empaque=elegido.unidades_por_empaque,
-                    unidades_a_comprar=unidades,
-                    precio_unitario_cop=elegido.precio_cop,
-                    subtotal_cop=subtotal,
-                )
+        # Se reconstruye cada linea del Fan en su forma PRE-consolidacion (con el
+        # producto de personaje donde aplica) y se vuelve a correr `consolidar`:
+        # `armar_los_tres` ya habia consolidado sobre el sku neutral, y cambiar el
+        # producto despues sin re-consolidar cobraria dos veces un ancla que dos
+        # hermanos comparten (el empaque conjunto se pierde). Re-armar sobre el
+        # mismo `consolidar` reproduce lo que el optimizador habria hecho si el
+        # producto de personaje hubiera sido candidato. Ambos hermanos reciben el
+        # MISMO producto por concepto (los swaps se indexan por concepto), asi que
+        # el grupo vuelve a unirse y las notas se regeneran con el sku correcto.
+        crudas = tuple(
+            _linea_con_producto(
+                linea,
+                _candidato_de_swap(swaps[linea.concepto_codigo])
+                if linea.concepto_codigo in swaps
+                else linea.elegido,
             )
+            for linea in kit.lineas
+        )
+        lineas, consolidaciones = consolidar(crudas)
         total = sum(li.subtotal_cop or 0 for li in lineas if not li.informativa)
-        resultado.append(replace(kit, lineas=tuple(lineas), total_cop=total))
-    return resultado
+        recomputados.append(
+            replace(
+                kit,
+                lineas=lineas,
+                consolidaciones=consolidaciones,
+                total_cop=total,
+                objetivos=_objetivos(lineas, total),
+            )
+        )
+
+    # El Fan cambio de precio: la marca del recomendado y el veredicto de
+    # presupuesto se recalculan sobre los tres kits ya con el precio verdadero.
+    return recomendar(recomputados, preferencias)
+
+
+def _linea_con_producto(linea: Any, elegido: Any) -> Any:
+    """La linea en su forma pre-consolidacion (unidades sueltas) para un elegido.
+
+    Deshace la consolidacion que `armar_los_tres` ya aplico —reponiendo las
+    unidades y el subtotal de una sola compra— para que `consolidar` pueda volver
+    a decidir sobre el producto (posiblemente nuevo). Una informativa o una linea
+    sin producto no se toca; su aritmetica ya es cero.
+    """
+    if linea.informativa or elegido is None:
+        return linea
+    unidades = unidades_a_comprar(linea.cantidad_pedida, elegido.unidades_por_empaque)
+    subtotal = None if elegido.precio_cop is None else elegido.precio_cop * unidades
+    return replace(
+        linea,
+        elegido=elegido,
+        unidad_base=elegido.unidad_base or linea.unidad_base,
+        unidades_por_empaque=elegido.unidades_por_empaque,
+        unidades_a_comprar=unidades,
+        precio_unitario_cop=elegido.precio_cop,
+        subtotal_cop=subtotal,
+    )

@@ -504,7 +504,7 @@ async def _procesar_verificado(
 
     reloj = time.monotonic()
     kits = armar_los_tres(renglones, preferencias)
-    kits = inyectar_personaje_fan(kits, swaps)
+    kits = inyectar_personaje_fan(kits, swaps, preferencias)
     kits = _anclar_kits(kits, preferencias)
     ms = int((time.monotonic() - reloj) * 1000)
 
@@ -767,7 +767,7 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
 
         swaps = await _anclas_de_personaje(catalogo, _personaje_pedido(preferencias))
         kits = armar_los_tres(renglones, preferencias)
-        kits = inyectar_personaje_fan(kits, swaps)
+        kits = inyectar_personaje_fan(kits, swaps, preferencias)
         kits = _anclar_kits(kits, preferencias)
         ms = int((time.monotonic() - reloj) * 1000)
 
