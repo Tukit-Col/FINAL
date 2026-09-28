@@ -325,6 +325,30 @@ class TestPublicarDirectoDesdeListaVerificada:
         assert eventos[0].agregado_id == trabajo_id
 
 
+class TestElEventoDeOutboxNoEsDualWrite:
+    """I3.d: `emitir_evento` no abre transaccion propia. Si el orquestador hace
+    rollback despues de emitirlo, la fila de la bandeja NO debe sobrevivir: eso
+    es lo que separa un outbox transaccional de un dual-write que deja eventos
+    huerfanos que el repartidor reintenta sin fin."""
+
+    async def test_la_fila_no_sobrevive_a_un_rollback_a_mitad(self, motor):
+        from sqlalchemy import func, select
+
+        from tukit_inteligencia.repositorios.trabajos import RepoTrabajos
+
+        trabajo_id = uuid.uuid4()
+        # Se emite el evento y se ABORTA la transaccion (rollback) sin commit:
+        # begin() hace rollback si el bloque sale por excepcion.
+        with pytest.raises(RuntimeError):
+            async with motor.engine.begin() as conexion:
+                await RepoTrabajos(conexion).emitir_evento(trabajo_id)
+                raise RuntimeError("aborta a mitad")
+
+        async with motor.engine.begin() as conexion:
+            cuantos = await conexion.scalar(select(func.count()).select_from(trabajos.BANDEJA))
+        assert cuantos == 0
+
+
 class TestLaRevisionHumana:
     async def test_aprobar_publica_y_deja_el_evento_en_la_bandeja(self, motor):
         from sqlalchemy import select
