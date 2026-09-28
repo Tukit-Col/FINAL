@@ -12,10 +12,11 @@ SQLAlchemy/FastAPI/httpx a nivel de modulo—, asi que `dominio/` queda puro.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 from ..modelos import EstadoResolucion
-from ..optimizador import Candidato, anclar_personaje
+from ..optimizador import Candidato, PerfilKit, anclar_personaje, unidades_a_comprar
 from ..parseo import mensaje_para_papa, parsear_renglon
 
 
@@ -115,3 +116,68 @@ def _anclar_kits(kits: list[Any], preferencias: dict[str, Any]) -> list[Any]:
     if personaje is None:
         return kits
     return [anclar_personaje(kit, personaje) for kit in kits]
+
+
+def _candidato_de_swap(swap: dict[str, Any]) -> Candidato:
+    """Un `Candidato` del producto de personaje que trae el catalogo (`precio_desde`)."""
+    return Candidato(
+        sku=swap.get("sku") or "",
+        nombre=swap.get("nombre") or "",
+        nivel=swap.get("nivel") or "confiable",
+        precio_cop=swap.get("precio_desde"),
+        producto_id=swap.get("producto_id"),
+        marca=swap.get("marca"),
+        personaje=swap.get("personaje"),
+        imagen_url=swap.get("imagen_url"),
+        unidad_base=swap.get("unidad_base") or "unidad",
+        unidades_por_empaque=int(swap.get("unidades_por_empaque") or 1),
+        atributos={},
+        cumple=True,
+    )
+
+
+def inyectar_personaje_fan(kits: list[Any], swaps: dict[str, dict[str, Any]]) -> list[Any]:
+    """Mete el producto de personaje en las anclas del kit Fan y recalcula su total.
+
+    En las rutas verificada/preview el catalogo entrega `/resueltos` con una
+    opcion por nivel y SIN la variante de personaje (es una via aparte, curada);
+    por eso el optimizador nunca ve un candidato de personaje que elegir y
+    `anclar_personaje` no encuentra nada que subir. Aca se cierra ese hueco: para
+    cada concepto ancla que el catalogo si surte con el personaje (`swaps`), se
+    reemplaza el `elegido` de la linea del kit Fan por ese producto, con la misma
+    aritmetica del armado (techo(pedida/empaque)) y se rehace `total_cop`. Solo
+    toca el Fan —los otros perfiles son neutrales a proposito—; sin swaps
+    devuelve los kits intactos.
+    """
+    if not swaps:
+        return kits
+
+    resultado: list[Any] = []
+    for kit in kits:
+        if kit.perfil != PerfilKit.FAN.value:
+            resultado.append(kit)
+            continue
+
+        lineas = []
+        for linea in kit.lineas:
+            swap = swaps.get(linea.concepto_codigo) if linea.concepto_codigo else None
+            if swap is None or linea.informativa:
+                lineas.append(linea)
+                continue
+            elegido = _candidato_de_swap(swap)
+            unidades = unidades_a_comprar(linea.cantidad_pedida, elegido.unidades_por_empaque)
+            subtotal = None if elegido.precio_cop is None else elegido.precio_cop * unidades
+            lineas.append(
+                replace(
+                    linea,
+                    elegido=elegido,
+                    unidad_base=elegido.unidad_base or linea.unidad_base,
+                    unidades_por_empaque=elegido.unidades_por_empaque,
+                    unidades_a_comprar=unidades,
+                    precio_unitario_cop=elegido.precio_cop,
+                    subtotal_cop=subtotal,
+                )
+            )
+        total = sum(li.subtotal_cop or 0 for li in lineas if not li.informativa)
+        resultado.append(replace(kit, lineas=tuple(lineas), total_cop=total))
+    return resultado
