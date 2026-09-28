@@ -89,9 +89,7 @@ class RepoTrabajos:
             return
         if not puede_pasar(actual, nuevo):
             raise TransicionIlegal(actual, nuevo)
-        await self.c.execute(
-            update(TRABAJO).where(TRABAJO.c.id == trabajo_id).values(estado=nuevo, **extra)
-        )
+        await self.c.execute(update(TRABAJO).where(TRABAJO.c.id == trabajo_id).values(estado=nuevo, **extra))
 
     # --- escritura de kits -------------------------------------------------
 
@@ -236,9 +234,7 @@ class RepoTrabajos:
         Publicar de nuevo para el mismo grado REEMPLAZA el puntero (delete + insert
         sobre la llave unica): una sola cache bendita por grado.
         """
-        fila = (
-            await self.c.execute(select(TRABAJO.c.hijos).where(TRABAJO.c.id == trabajo_id))
-        ).one_or_none()
+        fila = (await self.c.execute(select(TRABAJO.c.hijos).where(TRABAJO.c.id == trabajo_id))).one_or_none()
         hijos = list(fila.hijos or ()) if fila else []
         if len(hijos) != 1:
             return

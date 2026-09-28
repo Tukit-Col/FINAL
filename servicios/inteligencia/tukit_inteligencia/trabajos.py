@@ -316,9 +316,7 @@ async def _escribir_kits(
     ms: int,
 ) -> None:
     """Persiste KIT+LINEA y marca la etapa de optimizacion. Comun a las dos rutas."""
-    await RepoTrabajos(conexion).escribir_kits(
-        trabajo_id, kits, ids_item, preferencias, cifrador, ms=ms
-    )
+    await RepoTrabajos(conexion).escribir_kits(trabajo_id, kits, ids_item, preferencias, cifrador, ms=ms)
 
 
 async def _finalizar(motor: Any, trabajo_id: uuid.UUID, *, publicar_directo: bool = False) -> str:
@@ -929,9 +927,7 @@ async def ver(
                 # (SELECT puro, sin locks, un solo kit). Si molesta, resolver los
                 # swaps antes de abrir la txn con una pre-lectura de cabeza.
                 swaps = await _anclas_de_personaje(catalogo, hijo.get("personaje")) if catalogo else {}
-                lineas, total = await _lineas_aplicadas(
-                    conexion, uuid.UUID(str(canonico_id)), perfil, swaps
-                )
+                lineas, total = await _lineas_aplicadas(conexion, uuid.UUID(str(canonico_id)), perfil, swaps)
                 kits.append(
                     {
                         "perfil": perfil,
@@ -1171,9 +1167,7 @@ async def eliminar(motor: Any, trabajo_id: uuid.UUID) -> None:
         await conexion.execute(delete(TRABAJO).where(TRABAJO.c.id == trabajo_id))
 
 
-async def previews_de(
-    motor: Any, colegio_id: str, grado: str, anio_lectivo: int
-) -> list[uuid.UUID]:
+async def previews_de(motor: Any, colegio_id: str, grado: str, anio_lectivo: int) -> list[uuid.UUID]:
     """Los previews desechables vivos de un (colegio, grado, anio).
 
     El colegio/grado no son columnas: viven en el JSON `hijos`, tal como los
@@ -1499,9 +1493,7 @@ async def mis_trabajos(motor: Any, *, usuario_id: uuid.UUID) -> list[dict[str, A
     ]
 
 
-async def _anclas_de_personaje(
-    catalogo: ClienteCatalogo, personaje: str | None
-) -> dict[str, dict[str, Any]]:
+async def _anclas_de_personaje(catalogo: ClienteCatalogo, personaje: str | None) -> dict[str, dict[str, Any]]:
     """Los productos de las cuatro anclas para un personaje, indexados por concepto.
 
     Vacio si no hay personaje. Es I/O de red: se resuelve FUERA de cualquier
@@ -1621,9 +1613,7 @@ async def aplicar_canonico(
         if canonico is None:
             raise TrabajoNoExiste(f"cache {colegio_id}/{grado}/{anio_lectivo}")
 
-        lineas_frias, total = await _lineas_aplicadas(
-            conexion, canonico.trabajo_id, perfil, swaps
-        )
+        lineas_frias, total = await _lineas_aplicadas(conexion, canonico.trabajo_id, perfil, swaps)
 
         # El trabajo del acudiente: un registro durable, sin etapas de pipeline.
         # `hijos` lleva la seleccion entera porque es la ENTRADA de este trabajo
