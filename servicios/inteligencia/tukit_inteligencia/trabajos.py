@@ -32,7 +32,9 @@ from .dominio.pipeline import (
     _anclar_kits,
     _candidato,
     _normalizar,
+    _personaje_pedido,
     estado_desde_emparejamiento,
+    inyectar_personaje_fan,
 )
 from .modelos import (
     Base,
@@ -496,8 +498,13 @@ async def _procesar_verificado(
             detalle={**fuente, "resueltos": resueltos, "a_revision": 0},
         )
 
+    # El producto de personaje de las anclas es I/O de red: se resuelve FUERA
+    # de la transaccion de escritura (misma consulta que el interruptor del Fan).
+    swaps = await _anclas_de_personaje(catalogo, _personaje_pedido(preferencias))
+
     reloj = time.monotonic()
     kits = armar_los_tres(renglones, preferencias)
+    kits = inyectar_personaje_fan(kits, swaps)
     kits = _anclar_kits(kits, preferencias)
     ms = int((time.monotonic() - reloj) * 1000)
 
@@ -758,7 +765,9 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
                 )
             )
 
+        swaps = await _anclas_de_personaje(catalogo, _personaje_pedido(preferencias))
         kits = armar_los_tres(renglones, preferencias)
+        kits = inyectar_personaje_fan(kits, swaps)
         kits = _anclar_kits(kits, preferencias)
         ms = int((time.monotonic() - reloj) * 1000)
 
