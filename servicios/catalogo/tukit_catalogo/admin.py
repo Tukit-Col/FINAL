@@ -70,6 +70,10 @@ from .dominio.propuesta import (  # re-exportados: la vista http.server y su tes
     construir_propuesta_util,
 )
 from .modelos import Nivel, TipoItem
+
+# ponytail: `volcar` es CLI batch de un solo llamador HTTP (el boton "volcar" de
+# la consola); se invoca entero, no tiene SQL que un request reuse pieza a pieza
+# -> a repositorios solo si un endpoint necesitara sus consultas por separado.
 from .volcar import _principal as volcar_principal
 
 # Las tres tiendas que el catalogo ya usa, en el orden en que `completar` y
