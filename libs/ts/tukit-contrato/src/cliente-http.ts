@@ -20,11 +20,13 @@ import type {
   Kit,
   LineaKit,
   MarcarNoDisponible,
+  MisSolicitudes,
   PercepcionCruda,
   Preferencias,
   ProductoDadoDeAlta,
   ProductoKit,
   SinCoincidencia,
+  Solicitud,
   SolicitudTrabajo,
   SubidaListas,
   Trabajo,
@@ -1144,6 +1146,21 @@ export class ClienteApi implements OrigenDatos {
       `/v1/comercio/mis-pedidos?usuario_id=${encodeURIComponent(usuarioId)}`,
     );
     return resp.pedidos ?? [];
+  }
+
+  // "Mis solicitudes": las listas subidas + los trabajos del portador, unidas.
+  // Bearer, no `usuario_id` en la URL: inteligencia saca la identidad de la
+  // sesion. `listas_disponibles` por defecto `true` para no inventar una
+  // degradacion que el backend no reporto.
+  async misSolicitudes(token: string): Promise<MisSolicitudes> {
+    const cuerpo = await this.pedir<{ solicitudes?: Solicitud[]; listas_disponibles?: boolean }>(
+      "/v1/mis-solicitudes",
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    return {
+      solicitudes: cuerpo.solicitudes ?? [],
+      listas_disponibles: cuerpo.listas_disponibles ?? true,
+    };
   }
 
   // ------------------------------------------------ ASUMIDO (operacion 1.x)

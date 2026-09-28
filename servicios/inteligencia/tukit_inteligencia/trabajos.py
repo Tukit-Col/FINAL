@@ -1353,6 +1353,139 @@ async def cola(motor: Any, *, pagina: int = 1, por_pagina: int = 50) -> dict[str
     return {"total": total, "pagina": pagina, "por_pagina": por_pagina, "trabajos": datos}
 
 
+# ---------------------------------------------------------------------------
+# Panel del acudiente: "Mis solicitudes"
+# ---------------------------------------------------------------------------
+
+
+def _a_consciente(momento: Any) -> datetime:
+    """Un `datetime` con zona para ordenar sin chocar naive contra aware.
+
+    Las fechas propias vuelven naive en SQLite (pruebas) y aware en Postgres;
+    las del catalogo llegan como ISO por HTTP. Mezclarlas en un `sort` levanta
+    `TypeError`, asi que todo se normaliza a aware (UTC si no trae zona) antes
+    de comparar. `None` cae al final (fecha minima)."""
+    if momento is None:
+        return datetime.min.replace(tzinfo=UTC)
+    if isinstance(momento, str):
+        momento = datetime.fromisoformat(momento)
+    return momento if momento.tzinfo else momento.replace(tzinfo=UTC)
+
+
+async def mis_solicitudes(motor: Any, usuario_id: uuid.UUID, *, catalogo: Any) -> dict[str, Any]:
+    """Las solicitudes del acudiente —listas subidas + trabajos—, ya unidas.
+
+    Una lista subida (en el catalogo) y el trabajo que engendra al aprobarse
+    (aca) son la MISMA solicitud: se unen por el `version_id` que el poller
+    dejo en el trabajo. Una lista aprobada con su trabajo sale como una sola
+    fila `aprobada`, no como dos.
+
+    El `usuario_id` es SIEMPRE el del portador de la sesion, nunca uno del
+    navegador; `listas_por_contacto` se llama con ese mismo id.
+
+    Si el catalogo no responde, no se cae la vista: se devuelven los trabajos y
+    `listas_disponibles=False` para que el panel muestre un aviso y aun asi
+    liste los trabajos (las filas `recibida`, que solo viven en el catalogo, no
+    aparecen mientras dure la caida).
+    """
+    consulta = (
+        select(
+            TRABAJO.c.id,
+            TRABAJO.c.estado,
+            TRABAJO.c.origen,
+            TRABAJO.c.hijos,
+            TRABAJO.c.creado_en,
+        )
+        .where(TRABAJO.c.usuario_id == usuario_id)
+        .order_by(TRABAJO.c.creado_en.desc())
+    )
+    async with motor.engine.begin() as conexion:
+        filas = list(await conexion.execute(consulta))
+
+    # Las listas subidas del contacto. Una caida del catalogo degrada la vista,
+    # no la tumba (se marca y se sigue con los trabajos).
+    try:
+        listas = await catalogo.listas_por_contacto(str(usuario_id))
+        listas_disponibles = True
+    except RemotoCaido:
+        listas = []
+        listas_disponibles = False
+
+    # `version_id` -> trabajo, para unir una lista aprobada con el trabajo que
+    # engendro. Solo los de `lista_verificada` guardan ese id en `hijos[0]`.
+    trabajo_por_version: dict[str, Any] = {}
+    for fila in filas:
+        if fila.origen == "lista_verificada":
+            hijos = list(fila.hijos or ())
+            vid = hijos[0].get("version_id") if hijos else None
+            if vid:
+                trabajo_por_version[str(vid)] = fila
+
+    solicitudes: list[dict[str, Any]] = []
+    versiones_unidas: set[str] = set()
+
+    # Una solicitud por lista subida: aprobada (con su trabajo) o recibida.
+    for lista_subida in listas:
+        vid = lista_subida.get("version_id")
+        colegio_id = str(lista_subida.get("colegio_id") or "")
+        grado = lista_subida.get("grado") or ""
+        colegio_nombre = lista_subida.get("colegio_nombre")
+        trabajo_ligado = trabajo_por_version.get(str(vid)) if vid else None
+        if lista_subida.get("revisada_en") and trabajo_ligado is not None:
+            versiones_unidas.add(str(vid))
+            solicitudes.append(
+                {
+                    "tipo": "aprobada",
+                    "colegio_id": colegio_id,
+                    "colegio_nombre": colegio_nombre,
+                    "grado": grado,
+                    "trabajo_id": str(trabajo_ligado.id),
+                    "creado_en": trabajo_ligado.creado_en.isoformat() if trabajo_ligado.creado_en else None,
+                    "_orden": _a_consciente(trabajo_ligado.creado_en),
+                }
+            )
+        else:
+            # Sin aprobar todavia, o aprobada pero el poller aun no crea el
+            # trabajo (se autocorrige en la siguiente carga): es "recibida".
+            solicitudes.append(
+                {
+                    "tipo": "recibida",
+                    "colegio_id": colegio_id,
+                    "colegio_nombre": colegio_nombre,
+                    "grado": grado,
+                    "creado_en": lista_subida.get("creada_en"),
+                    "_orden": _a_consciente(lista_subida.get("creada_en")),
+                }
+            )
+
+    # Los trabajos que no salieron ya como una lista aprobada.
+    for fila in filas:
+        vid = None
+        if fila.origen == "lista_verificada":
+            hijos = list(fila.hijos or ())
+            vid = hijos[0].get("version_id") if hijos else None
+        if vid and str(vid) in versiones_unidas:
+            continue
+        primer = (list(fila.hijos or ()) or [{}])[0]
+        solicitudes.append(
+            {
+                "tipo": "trabajo",
+                "colegio_id": str(primer.get("colegio_id") or ""),
+                "colegio_nombre": None,
+                "grado": primer.get("grado") or "",
+                "trabajo_id": str(fila.id),
+                "estado": fila.estado,
+                "creado_en": fila.creado_en.isoformat() if fila.creado_en else None,
+                "_orden": _a_consciente(fila.creado_en),
+            }
+        )
+
+    solicitudes.sort(key=lambda s: s["_orden"], reverse=True)
+    for solicitud in solicitudes:
+        del solicitud["_orden"]
+    return {"solicitudes": solicitudes, "listas_disponibles": listas_disponibles}
+
+
 async def eliminar(motor: Any, trabajo_id: uuid.UUID) -> None:
     """Borra un trabajo y todo lo que cuelga de el (cascada de FKs).
 

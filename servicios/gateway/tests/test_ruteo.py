@@ -29,6 +29,9 @@ class TestElPrefijoMasLargoGana:
             ("/v1/colegios", "identidad"),
             ("/v1/contactos", "identidad"),
             ("/v1/trabajos/abc", "inteligencia"),
+            # "Mis solicitudes" del acudiente: prefijo propio para no chocar con
+            # `/v1/trabajos/{trabajo_id}`; la sirve inteligencia.
+            ("/v1/mis-solicitudes", "inteligencia"),
             # `/v1/admin` esta declarado aparte y no cae en `/v1/trabajos`
             # por parecido: si un dia admin vive en otro servicio, cambia una
             # linea del mapa y nada mas.
@@ -161,6 +164,31 @@ class TestLasRutasInternasNoSeExponen:
         assert cuerpo["error"] == "ruta_desconocida"
         assert cuerpo["rutas"] == sorted(RUTAS)
         assert "/v1/comercio/pedidos-pagados" not in cuerpo["rutas"]
+
+
+class TestElEndpointInternoDeCatalogoNoSeExpone:
+    """`/interno/listas-por-contacto/{usuario_id}` es servicio-a-servicio
+    (inteligencia le pega directo a catalogo por `TUKIT_CATALOGO_URL`) y, como no
+    esta en `RUTAS`, la puerta ni siquiera lo conoce: `destino` es `None` y la
+    peticion recibe el mismo 404 de "ruta desconocida" que cualquier otra. Asi la
+    superficie interna del catalogo no existe hacia el navegador."""
+
+    RUTA = "/interno/listas-por-contacto/aaaaaaaa-aaaa-5aaa-8aaa-aaaaaaaaaaaa"
+
+    def test_destino_es_none(self):
+        assert destino(self.RUTA) is None
+
+    async def test_responde_404_ruta_desconocida(self):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://prueba"
+        ) as cliente:
+            respuesta = await cliente.get(self.RUTA)
+
+        assert respuesta.status_code == 404
+        cuerpo = respuesta.json()
+        assert cuerpo["error"] == "ruta_desconocida"
+        # El prefijo interno no aparece en la lista de rutas que si existen.
+        assert not any(r.startswith("/interno") for r in cuerpo["rutas"])
 
 
 class TestLaRespuestaCuandoNoSabe:
