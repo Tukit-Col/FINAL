@@ -1,9 +1,10 @@
 /* ============================================================
    Dashboard — TuKit (rediseño claymorphico)
 
-   Los pedidos salen de `comercio` via el contrato; el saludo, de la sesion de
-   `identidad`. Los perfiles de menores no se pintan: identidad mantiene esa
-   superficie cerrada (Anexo M, Ley 1581) y el panel no la finge.
+   Los pedidos salen de `comercio` via el contrato; el saludo y los perfiles de
+   los hijos, de `identidad` (sesion + `/v1/cuenta/matriculas`). Los perfiles se
+   pintan con dato minimo del portador (colegio, grado y apodo descifrado), sin
+   nombre legal ni documento (Ley 1581).
    ============================================================ */
 
 /* Layout shell */
@@ -178,6 +179,63 @@
   border-radius: var(--radius-full);
   background: var(--color-success);
   flex-shrink: 0;
+}
+
+/* ============================================================
+   Seccion perfiles de hijos
+   ============================================================ */
+.hijos {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--espacio-3);
+  padding: 0 var(--espacio-5) var(--espacio-5);
+}
+
+/* Tarjeta anidada tintada, mismo lenguaje que .ayudaCard (cielo + clay-sm). */
+.hijoCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--espacio-4);
+  background: var(--clay-cielo-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.hijoApodo {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.hijoMeta {
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}
+
+/* Vacio: mismo patron visual que .sinPedidos. */
+.sinHijos {
+  padding: var(--espacio-4) var(--espacio-5);
+  font-size: 13.5px;
+  color: var(--color-text-secondary);
+}
+
+.sinHijos a {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+/* Lectura fallida: aviso ambar NO bloqueante; el resto del panel sigue vivo. */
+.hijosError {
+  margin: 0 var(--espacio-5) var(--espacio-5);
+  padding: var(--espacio-4);
+  background: var(--color-aviso-bg);
+  color: var(--color-aviso);
+  border: 1px solid var(--color-aviso-border);
+  border-radius: var(--radius-lg);
+  font-size: 13.5px;
 }
 
 /* ============================================================
