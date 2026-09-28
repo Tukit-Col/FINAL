@@ -272,7 +272,9 @@ async def registrar_contacto(peticion: Request, contacto: Contacto) -> dict[str,
     """
     correo = str(contacto.correo).strip().lower()
     if not _FORMA_CORREO.fullmatch(correo):
-        raise ErrorDominio("correo_invalido", "El correo no tiene una forma valida.", estado=422, campo="correo")
+        raise ErrorDominio(
+            "correo_invalido", "El correo no tiene una forma valida.", estado=422, campo="correo"
+        )
 
     async with peticion.app.state.motor.sesion() as db:
         usuario_id, creado = await RepoIdentidad(await db.connection()).registrar_contacto(correo)
@@ -322,9 +324,7 @@ async def nombres_de_usuarios(
         repo = RepoIdentidad(await db.connection())
         quien = await _usuario_del_token(authorization, repo)
         if not await repo.puede(quien.id, "usuario:leer:nombre", Ambito.global_()):
-            raise ErrorDominio(
-                "sin_permiso", "No puedes leer nombres de acudientes.", estado=403
-            )
+            raise ErrorDominio("sin_permiso", "No puedes leer nombres de acudientes.", estado=403)
         return {"nombres": await repo.nombres_de(ids)}
 
 
@@ -363,7 +363,9 @@ async def crear_cuenta(peticion: Request, datos: NuevaCuenta) -> dict[str, Any]:
 
     correo = datos.correo.strip().lower()
     if not _FORMA_CORREO.fullmatch(correo):
-        raise ErrorDominio("correo_invalido", "El correo no tiene una forma valida.", estado=422, campo="correo")
+        raise ErrorDominio(
+            "correo_invalido", "El correo no tiene una forma valida.", estado=422, campo="correo"
+        )
 
     async with peticion.app.state.motor.sesion() as db:
         repo = RepoIdentidad(await db.connection())
@@ -372,7 +374,10 @@ async def crear_cuenta(peticion: Request, datos: NuevaCuenta) -> dict[str, Any]:
         )
         if decision is Decision.CONFLICTO:
             raise ErrorDominio(
-                "correo_ya_registrado", "Ese correo ya tiene una cuenta. Inicia sesion.", estado=409, campo="correo"
+                "correo_ya_registrado",
+                "Ese correo ya tiene una cuenta. Inicia sesion.",
+                estado=409,
+                campo="correo",
             )
         sesion = await repo.armar_sesion(fila)
     token = emitir_token(fila.id, fila.version_permisos)
@@ -475,7 +480,9 @@ async def cerrar_sesion(authorization: Annotated[str | None, Header()] = None) -
 
 
 @router.get("/v1/cuenta", tags=["cuenta"], summary="Quien soy: el portador de este token.")
-async def ver_cuenta(peticion: Request, authorization: Annotated[str | None, Header()] = None) -> dict[str, Any]:
+async def ver_cuenta(
+    peticion: Request, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
     """La identidad del acudiente para su propio panel. El nombre va descifrado;
     el correo es el de la cuenta. No devuelve menores."""
     async with peticion.app.state.motor.sesion() as db:
@@ -520,7 +527,9 @@ async def crear_direccion(
             ciudad=entrada.ciudad,
             localidad=entrada.localidad,
             linea_cifrada=cifrador.cifrar(entrada.linea.encode("utf-8")),
-            contacto_cifrado=(cifrador.cifrar(entrada.contacto.encode("utf-8")) if entrada.contacto else None),
+            contacto_cifrado=(
+                cifrador.cifrar(entrada.contacto.encode("utf-8")) if entrada.contacto else None
+            ),
             predeterminada=entrada.predeterminada,
         )
     return _direccion_publica(creada)
@@ -551,7 +560,9 @@ async def editar_direccion(
             ciudad=entrada.ciudad,
             localidad=entrada.localidad,
             linea_cifrada=cifrador.cifrar(entrada.linea.encode("utf-8")),
-            contacto_cifrado=(cifrador.cifrar(entrada.contacto.encode("utf-8")) if entrada.contacto else None),
+            contacto_cifrado=(
+                cifrador.cifrar(entrada.contacto.encode("utf-8")) if entrada.contacto else None
+            ),
             predeterminada=entrada.predeterminada,
         )
     return _direccion_publica(editada)

@@ -111,9 +111,7 @@ class TestPollerDaDeAltaElColegio:
 
         assert aplicados == 1
         async with motor.sesion() as db:
-            colegio = (
-                await db.execute(select(Colegio).where(Colegio.id == uuid.UUID(COLEGIO)))
-            ).scalar_one()
+            colegio = (await db.execute(select(Colegio).where(Colegio.id == uuid.UUID(COLEGIO)))).scalar_one()
         # El id es el del evento: el mismo que el Catalogo derivo del DANE.
         assert str(colegio.id) == COLEGIO
         assert colegio.nombre == "ACADEMIA CENTRAL DE SISTEMAS"
@@ -155,9 +153,7 @@ class TestPollerDaDeAltaElColegio:
         assert await poller.pasada() == 1
 
         async with motor.sesion() as db:
-            colegio = (
-                await db.execute(select(Colegio).where(Colegio.id == uuid.UUID(COLEGIO)))
-            ).scalar_one()
+            colegio = (await db.execute(select(Colegio).where(Colegio.id == uuid.UUID(COLEGIO)))).scalar_one()
             sedes = list(
                 (await db.execute(select(Sede).where(Sede.colegio_id == uuid.UUID(COLEGIO)))).scalars()
             )

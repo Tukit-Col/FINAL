@@ -46,7 +46,11 @@ async def test_el_vinculo_guarda_apodo_cifrado(sesion):
     sesion.add_all([sede, estudiante])
     await sesion.flush()
     matricula = Matricula(
-        estudiante_id=estudiante.id, sede_id=sede.id, colegio_id=colegio.id, grado="Tercero", anio_lectivo=2026
+        estudiante_id=estudiante.id,
+        sede_id=sede.id,
+        colegio_id=colegio.id,
+        grado="Tercero",
+        anio_lectivo=2026,
     )
     usuario = Usuario(correo="papa@ejemplo.com", clave_hash="x")
     sesion.add_all([matricula, usuario])
