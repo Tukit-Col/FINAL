@@ -27,7 +27,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
@@ -45,9 +45,16 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from tukit_comun.bd import MotorServicio, crear_motor
+from tukit_comun.cifrado import cifrador_desde_entorno
 from tukit_comun.config import url_desde_entorno
 
-from .modelos import Colegio, Sede
+# Import intra-servicio: `_materializar_hijos` es la funcion del registro, que su
+# propio docstring reserva "y a futuro el poller". Reusarla evita duplicar la
+# derivacion idempotente de estudiante + matricula + vinculo. `api.py` no importa
+# a `poller.py`, asi que no hay ciclo, y ambos viven en el mismo servicio (la
+# frontera solo prohibe importar OTRO servicio).
+from .api import GRADOS, HijoRegistro, _materializar_hijos
+from .modelos import Colegio, Sede, Usuario
 
 # El unico tipo de evento que este poller atiende. La bandeja del Catalogo
 # lleva otros (`lista_verificada`, que drena Inteligencia); un tipo que no sea
@@ -112,6 +119,10 @@ class Poller:
 
     motor_identidad: MotorServicio
     motor_catalogo: AsyncEngine
+    # Se resuelve una vez, igual que cada peticion de la API. `cifrador_desde_entorno`
+    # nunca levanta (cae a claro), asi que el default es seguro y las pruebas
+    # pueden construir el Poller sin pasarlo.
+    cifrador: Any = field(default_factory=cifrador_desde_entorno)
 
     async def pasada(self, *, limite: int = 100) -> int:
         """Una pasada: procesa hasta `limite` eventos no publicados. Devuelve
@@ -198,7 +209,53 @@ class Poller:
                 dane = _dane_de_carga(carga)
                 if dane and existente.dane is None:
                     existente.dane = dane
+
+        # El colegio y su "Sede principal" ya quedaron confirmados. Si un padre
+        # subio la lista para este colegio y existe en Identidad, se matricula a
+        # su hijo; si no, el colegio queda igual.
+        await self._matricular_al_hijo_que_esperaba(carga, colegio_id)
         return True
+
+    async def _matricular_al_hijo_que_esperaba(
+        self, carga: dict[str, Any], colegio_id: uuid.UUID
+    ) -> None:
+        """Reusa `_materializar_hijos` (el camino del registro) para que el hijo
+        del padre que subio la lista quede matriculado al volverse aliado el
+        colegio. Sin esto, el hijo nunca aparece en precarga ni en el padron.
+
+        - `contacto_referencia` es el usuario_id OPACO del padre (nunca su correo);
+          solo se matricula si ese usuario YA existe: no se crea cuenta desde aqui.
+        - El apodo queda vacio (cadena vacia cifrada): el dato del menor no viaja
+          por Catalogo ni Inteligencia.
+        - El año es el actual, igual que el registro y `/v1/cuenta/matriculas`, para
+          que el id derivado coincida con el de un registro propio y no duplique.
+        - Va en su PROPIA transaccion y es best-effort: el colegio ya quedo dado de
+          alta; un fallo aqui no debe reprocesar el lote entero (el evento se marca
+          publicado igual) y el padre podra inscribirlo desde /empezar (idempotente).
+        """
+        referencia = carga.get("contacto_referencia")
+        if not referencia:
+            return
+        try:
+            usuario_id = uuid.UUID(str(referencia))
+        except (ValueError, TypeError):
+            return
+        grado = (carga.get("grado") or "").strip()
+        if grado not in GRADOS:
+            return
+        try:
+            async with self.motor_identidad.engine.begin() as conexion:
+                existe = await conexion.scalar(
+                    select(Usuario.id).where(Usuario.id == usuario_id)
+                )
+                if existe is None:
+                    return
+                hijo = HijoRegistro(colegio_id=colegio_id, grado=grado)  # apodo -> "" cifrado
+                await _materializar_hijos(
+                    conexion, usuario_id, [hijo], datetime.now(UTC).year, self.cifrador
+                )
+        except Exception as error:  # noqa: BLE001 - best-effort; el colegio ya quedo dado de alta
+            print(f"[poller-identidad] no se pudo matricular al hijo de {colegio_id}: {error}")
 
     async def _marcar_publicado(self, conexion: Any, bandeja: Table, id_fila: int) -> None:
         await conexion.execute(
