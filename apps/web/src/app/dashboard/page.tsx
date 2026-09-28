@@ -12,17 +12,19 @@
 // de hijos falla, la seccion degrada a un aviso y el resto del panel sigue vivo.
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { UserPlus, LifeBuoy } from "lucide-react";
+import { LifeBuoy } from "lucide-react";
 import {
   ETIQUETA_ESTADO_PEDIDO,
   formatearPesos,
   type Colegio,
+  type EstadoTrabajo,
   type MatriculaAcudiente,
   type Pedido,
+  type Solicitud,
 } from "@tukit/contrato";
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import Sidebar from "@/components/Sidebar";
-import { sesionActual, matriculasDeLaSesion } from "@/lib/sesion";
+import { sesionActual, matriculasDeLaSesion, solicitudesDeLaSesion } from "@/lib/sesion";
 import styles from "./Dashboard.module.css";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +40,18 @@ function fechaLegible(iso: string): string {
     year: "numeric",
   });
 }
+
+// El estado de un trabajo, en las mismas palabras que ve el acudiente en
+// `/esperando`: nunca el nombre tecnico del estado. `fallido` no dice "error":
+// dice que alguien lo esta mirando, porque un trabajo fallido es reintentable y
+// no una via muerta para el padre.
+const PALABRAS_ESTADO: Record<EstadoTrabajo, string> = {
+  encolado: "Estamos armando tu kit",
+  procesando: "Estamos armando tu kit",
+  espera_revision: "Una persona lo está revisando",
+  publicado: "Listo",
+  fallido: "Hubo un problema, lo estamos revisando",
+};
 
 export default async function DashboardPage() {
   const sesion = await sesionActual();
@@ -73,6 +87,24 @@ export default async function DashboardPage() {
     errorHijos = true;
   }
 
+  // Las solicitudes del portador: sus listas subidas + sus trabajos, unidas.
+  // En su PROPIO try/catch (degradacion por seccion). Dos niveles de fallo:
+  //  - `errorSolicitudes`: fallo de sesion o de inteligencia -> aviso de TODA
+  //    la seccion (no distinguimos "sin solicitudes" de "no se pudo leer").
+  //  - `listasDisponibles === false`: solo catalogo cayo -> inteligencia
+  //    devolvio los trabajos igual, y arriba de ellos avisamos que faltan las
+  //    listas subidas (§Decisiones 5).
+  let solicitudes: Solicitud[] = [];
+  let listasDisponibles = true;
+  let errorSolicitudes = false;
+  try {
+    const r = await solicitudesDeLaSesion();
+    solicitudes = r.solicitudes;
+    listasDisponibles = r.listas_disponibles;
+  } catch {
+    errorSolicitudes = true;
+  }
+
   // colegio_id -> nombre para resolver el colegio de cada hijo sin O(n^2).
   const nombrePorColegio = new Map(colegios.map((c) => [c.colegio_id, c.nombre]));
 
@@ -93,10 +125,6 @@ export default async function DashboardPage() {
                 <h1>Hola, {sesion.nombre}</h1>
                 <p>Tus pedidos, en un solo lugar.</p>
               </div>
-              <Link href="/empezar" className={styles.btnNuevoPedido}>
-                <UserPlus size={16} strokeWidth={2.4} aria-hidden="true" />
-                Nuevo pedido
-              </Link>
             </div>
 
             {/* ---- Perfiles de hijos ---- */}
@@ -134,6 +162,93 @@ export default async function DashboardPage() {
                     );
                   })}
                 </ul>
+              )}
+            </section>
+
+            {/* ---- Mis solicitudes ---- */}
+            <section id="solicitudes" className={styles.card}>
+              <div className={styles.sectionHeader}>
+                <h2>Mis solicitudes</h2>
+              </div>
+
+              {errorSolicitudes ? (
+                <p className={styles.hijosError}>
+                  No pudimos cargar tus solicitudes en este momento. Vuelve a
+                  intentarlo en unos minutos.
+                </p>
+              ) : solicitudes.length === 0 && listasDisponibles ? (
+                <p className={styles.sinPedidos}>
+                  Todavía no has enviado ninguna lista. Cuando subas una,
+                  aparecerá aquí mientras la revisamos.
+                </p>
+              ) : (
+                <>
+                  {/* Catalogo caido: mostramos los trabajos que inteligencia SI
+                      tiene y avisamos que faltan las listas subidas, sin fingir
+                      que no existen ni tumbar la seccion. */}
+                  {!listasDisponibles && (
+                    <p className={styles.hijosError}>
+                      No pudimos cargar las listas que subiste; vuelve a
+                      intentarlo en unos minutos.
+                    </p>
+                  )}
+                  <ul className={styles.solicitudes}>
+                    {solicitudes.map((solicitud, i) => {
+                      // Nombre del colegio: primero el mapa de identidad (colegio
+                      // aliado conocido), luego el que trajo catalogo (colegio
+                      // nuevo), y el id crudo solo si no hay ninguno.
+                      const colegio =
+                        nombrePorColegio.get(solicitud.colegio_id) ??
+                        solicitud.colegio_nombre ??
+                        solicitud.colegio_id;
+                      const clave = `${solicitud.tipo}-${solicitud.colegio_id}-${solicitud.grado}-${i}`;
+                      return (
+                        <li key={clave} className={styles.solicitudCard}>
+                          <div className={styles.solicitudMeta}>
+                            <span className={styles.solicitudColegio}>{colegio}</span>
+                            <span className={styles.solicitudGrado}>{solicitud.grado}</span>
+                          </div>
+                          {solicitud.tipo === "recibida" ? (
+                            <p className={styles.solicitudEstado}>
+                              Recibida: una persona está revisando tu lista.
+                            </p>
+                          ) : solicitud.tipo === "aprobada" ? (
+                            <>
+                              <p className={styles.solicitudEstado}>
+                                Aprobada: tu kit está listo. Te enviamos el enlace
+                                a tu correo.
+                              </p>
+                              <Link
+                                href={`/kits/${solicitud.trabajo_id}`}
+                                className={styles.solicitudEnlace}
+                              >
+                                Ver mis kits
+                              </Link>
+                            </>
+                          ) : (
+                            <>
+                              <p className={styles.solicitudEstado}>
+                                {PALABRAS_ESTADO[solicitud.estado]}
+                              </p>
+                              <Link
+                                href={
+                                  solicitud.estado === "publicado"
+                                    ? `/kits/${solicitud.trabajo_id}`
+                                    : `/esperando/${solicitud.trabajo_id}`
+                                }
+                                className={styles.solicitudEnlace}
+                              >
+                                {solicitud.estado === "publicado"
+                                  ? "Ver mis kits"
+                                  : "Ver el estado"}
+                              </Link>
+                            </>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
               )}
             </section>
 
