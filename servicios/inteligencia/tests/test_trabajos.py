@@ -250,6 +250,28 @@ class TestDegradarNuncaTumbar:
         assert vista["error"] == "dependencia_caida"
         assert "se puede reintentar" in vista["mensaje"]
 
+    async def test_un_hijo_sin_lista_degrada_percepcion_pero_no_tumba(self, motor):
+        # Caracterizacion (I-2): con DOS hijos donde solo uno tiene lista
+        # publicada, el trabajo NO falla —el otro hijo aporta renglones— pero
+        # la etapa percepcion queda DEGRADADA, no OK: la seccion 8 exige decir
+        # que falto en vez de fingir un kit completo. Es la rama
+        # `detalle["sin_lista"]` de procesar que ningun test cubria.
+        respuesta = await trabajos.crear(
+            motor,
+            hijos=[
+                {"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"},
+                {"referencia": "hijo-2", "colegio_id": COLEGIO, "grado": "Septimo"},
+            ],
+        )
+        trabajo_id = uuid.UUID(respuesta["trabajo_id"])
+        estado = await trabajos.procesar(motor, trabajo_id, catalogo=_catalogo())
+        vista = await trabajos.ver(motor, trabajo_id)
+
+        assert estado == EstadoTrabajo.ESPERA_REVISION.value
+        percepcion = next(e for e in vista["etapas"] if e["nombre"] == "percepcion")
+        assert percepcion["estado"] == "degradada"
+        assert [s["hijo"] for s in percepcion["detalle"]["sin_lista"]] == ["hijo-2"]
+
     async def test_reprocesar_no_duplica_items_ni_kits(self, motor):
         from sqlalchemy import func, select
 
@@ -266,6 +288,41 @@ class TestDegradarNuncaTumbar:
             kits = await conexion.scalar(select(func.count()).select_from(trabajos.KIT))
         assert items == 4
         assert kits == 3
+
+
+class TestPublicarDirectoDesdeListaVerificada:
+    """Caracterizacion (I-2) del `publicar_directo`: un trabajo con
+    origen='lista_verificada' (el kit del padre cuya lista un admin ya aprobo)
+    se publica SIN pasar por la cola de revision y deja `kits_publicados` en la
+    MISMA transaccion que el cambio a PUBLICADO. Es la rama de _finalizar que
+    solo cubria el preview (por la negativa) y `revisar` (por la ruta manual)."""
+
+    async def _crear_lista_verificada_y_procesar(self, motor):
+        respuesta = await trabajos.crear(
+            motor,
+            hijos=[{"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"}],
+            origen="lista_verificada",
+            usuario_id=uuid.uuid4(),
+        )
+        trabajo_id = uuid.UUID(respuesta["trabajo_id"])
+        estado = await trabajos.procesar(motor, trabajo_id, catalogo=_catalogo())
+        return trabajo_id, estado
+
+    async def test_se_publica_sin_pasar_por_revision(self, motor):
+        trabajo_id, estado = await self._crear_lista_verificada_y_procesar(motor)
+        assert estado == EstadoTrabajo.PUBLICADO.value
+        vista = await trabajos.ver(motor, trabajo_id, incluir_kits=True)
+        assert vista["estado"] == EstadoTrabajo.PUBLICADO.value
+        assert len(vista["kits"]) == 3
+
+    async def test_deja_kits_publicados_en_la_bandeja(self, motor):
+        from sqlalchemy import select
+
+        trabajo_id, _ = await self._crear_lista_verificada_y_procesar(motor)
+        async with motor.engine.begin() as conexion:
+            eventos = list(await conexion.execute(select(trabajos.BANDEJA)))
+        assert [e.tipo for e in eventos] == ["kits_publicados"]
+        assert eventos[0].agregado_id == trabajo_id
 
 
 class TestLaRevisionHumana:
