@@ -169,6 +169,11 @@ export interface Catalogo {
 export interface Colegio {
   colegio_id: string;
   nombre: string;
+  // El DANE del aliado (`null` si no lo cargo). El buscador de `/empezar` lo casa
+  // contra el directorio de Bogota: si el DANE elegido en el directorio es el de
+  // un aliado, el hijo se reconduce por `colegio_id` en vez de nacer como colegio
+  // nuevo del directorio (que derivaria otro id y duplicaria el colegio).
+  dane: string | null;
   // De que fichero del corpus salio la lista. Se expone porque el §2.2 del
   // contrato convierte la atribucion colegio-lista en un bloqueante de
   // correccion de esta ruta: el acudiente no puede detectar el error, asi que

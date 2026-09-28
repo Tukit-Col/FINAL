@@ -257,19 +257,6 @@
   color: var(--color-text-muted);
 }
 
-.colegioMarca {
-  margin-left: auto;
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-full);
-  color: var(--color-white);
-  background: var(--color-primary);
-  box-shadow: var(--clay-shadow-sm);
-}
-
 .sinColegios {
   display: flex;
   align-items: center;
@@ -279,17 +266,8 @@
   color: var(--color-text-muted);
 }
 
-/* Botón con aspecto de enlace para la pista "No encontré mi colegio": hereda el
- * reset global de <button> (sin fondo ni borde, font: inherit) y solo añade el
- * color primario y el subrayado. El foco de teclado lo da el :focus-visible
- * global de tokens.css (contorno --clay-cielo). */
-.enlaceEnLinea {
-  color: var(--color-primary);
-  text-decoration: underline;
-}
-
-/* "Cambiar" el colegio ya elegido (dentro de la tarjeta activa del buscador de
- * directorio): un enlace discreto alineado a la derecha, no un botón macizo. */
+/* "Cambiar" el colegio ya elegido (dentro de la tarjeta activa del buscador):
+ * un enlace discreto alineado a la derecha, no un botón macizo. */
 .cambiarColegio {
   margin-left: auto;
   flex: none;
@@ -376,9 +354,8 @@
   background: var(--color-primary-light);
 }
 
-/* --------------------------------------------------------------- Entradas */
+/* ------------------------------------------------ Opciones (modo y prioridad) */
 
-.entradas,
 .opciones {
   display: grid;
   gap: var(--espacio-2);
@@ -408,12 +385,6 @@
   background: var(--clay-cielo-bg);
   font-weight: 700;
   box-shadow: var(--clay-shadow-sm), inset 0 0 0 2px var(--color-primary);
-}
-
-.opcionEntrada input {
-  accent-color: var(--color-primary);
-  width: 18px;
-  height: 18px;
 }
 
 /* --------------------------------------------------- Prioridad (paso 3) */
@@ -459,12 +430,6 @@
 .prioridadDetalle {
   font-size: 13px;
   color: var(--color-text-secondary);
-}
-
-.pistaCampo {
-  font-size: 12.5px;
-  color: var(--color-text-muted);
-  font-weight: 400;
 }
 
 /* ---------------------------------------------------------------- Archivo */
