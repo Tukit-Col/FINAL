@@ -333,7 +333,6 @@ class TestElEventoDeOutboxNoEsDualWrite:
 
     async def test_la_fila_no_sobrevive_a_un_rollback_a_mitad(self, motor):
         from sqlalchemy import func, select
-
         from tukit_inteligencia.repositorios.trabajos import RepoTrabajos
 
         trabajo_id = uuid.uuid4()
