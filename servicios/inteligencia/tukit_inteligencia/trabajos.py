@@ -28,8 +28,13 @@ from typing import Any
 from sqlalchemy import and_, delete, func, insert, select, update
 from tukit_comun.cifrado import cifrador_desde_entorno
 
+from .dominio.pipeline import (
+    _anclar_kits,
+    _candidato,
+    _normalizar,
+    estado_desde_emparejamiento,
+)
 from .modelos import (
-    PESOS_POR_OMISION,
     Base,
     EstadoEtapa,
     EstadoResolucion,
@@ -37,12 +42,6 @@ from .modelos import (
     puede_pasar,
 )
 from .modelos.trabajo import ETAPAS
-from .dominio.pipeline import (
-    _anclar_kits,
-    _candidato,
-    _normalizar,
-    estado_desde_emparejamiento,
-)
 from .optimizador import (
     CONCEPTOS_ANCLA,
     Candidato,
@@ -51,6 +50,7 @@ from .optimizador import (
     unidades_a_comprar,
 )
 from .remoto import ClienteCatalogo, ClienteComercio, ClienteIdentidad, RemotoCaido
+from .repositorios.trabajos import RepoTrabajos, TrabajoNoExiste, TransicionIlegal
 
 TRABAJO = Base.metadata.tables["trabajo_pipeline"]
 ETAPA = Base.metadata.tables["etapa_trabajo"]
@@ -96,10 +96,6 @@ def ahora() -> datetime:
     return datetime.now(UTC)
 
 
-class TrabajoNoExiste(Exception):
-    pass
-
-
 class CheckoutRechazado(Exception):
     """Comercio rechazo la orden por una razon de negocio (p.ej. precio cambio).
 
@@ -111,13 +107,6 @@ class CheckoutRechazado(Exception):
         super().__init__(str(cuerpo.get("error") or estado))
         self.estado = estado
         self.cuerpo = cuerpo
-
-
-class TransicionIlegal(Exception):
-    def __init__(self, actual: str, pedida: str) -> None:
-        super().__init__(f"no se puede pasar de {actual} a {pedida}")
-        self.actual = actual
-        self.pedida = pedida
 
 
 class TrabajoProtegido(Exception):
@@ -223,27 +212,15 @@ async def _marcar_etapa(
     ms: int | None = None,
     detalle: dict[str, Any] | None = None,
 ) -> None:
-    await conexion.execute(
-        update(ETAPA)
-        .where(ETAPA.c.trabajo_id == trabajo_id, ETAPA.c.nombre == nombre)
-        .values(estado=estado, ms=ms, detalle=detalle or {}, terminada_en=ahora())
-    )
+    await RepoTrabajos(conexion).marcar_etapa(trabajo_id, nombre, estado, ms=ms, detalle=detalle)
 
 
 async def _estado(conexion: Any, trabajo_id: uuid.UUID) -> str:
-    valor = await conexion.scalar(select(TRABAJO.c.estado).where(TRABAJO.c.id == trabajo_id))
-    if valor is None:
-        raise TrabajoNoExiste(str(trabajo_id))
-    return str(valor)
+    return await RepoTrabajos(conexion).estado(trabajo_id)
 
 
 async def _pasar_a(conexion: Any, trabajo_id: uuid.UUID, nuevo: str, **extra: Any) -> None:
-    actual = await _estado(conexion, trabajo_id)
-    if actual == nuevo:
-        return
-    if not puede_pasar(actual, nuevo):
-        raise TransicionIlegal(actual, nuevo)
-    await conexion.execute(update(TRABAJO).where(TRABAJO.c.id == trabajo_id).values(estado=nuevo, **extra))
+    await RepoTrabajos(conexion).pasar_a(trabajo_id, nuevo, **extra)
 
 
 async def _listas_por_hijo(
@@ -339,81 +316,8 @@ async def _escribir_kits(
     ms: int,
 ) -> None:
     """Persiste KIT+LINEA y marca la etapa de optimizacion. Comun a las dos rutas."""
-    for kit in kits:
-        kit_id = uuid.uuid4()
-        await conexion.execute(
-            insert(KIT).values(
-                id=kit_id,
-                trabajo_id=trabajo_id,
-                perfil=kit.perfil,
-                total_cop=kit.total_cop,
-                objetivos=kit.objetivos,
-                recomendado=kit.recomendado,
-                razon_recomendacion=kit.razon,
-                dentro_de_presupuesto=kit.dentro_de_presupuesto,
-                pesos_usados_cifrados=cifrador.cifrar_json(
-                    {**PESOS_POR_OMISION, **(preferencias.get("pesos") or {})}
-                ),
-                consolidaciones=list(kit.consolidaciones),
-            )
-        )
-        for linea in kit.lineas:
-            elegido = linea.elegido
-            await conexion.execute(
-                insert(LINEA).values(
-                    id=uuid.uuid4(),
-                    kit_id=kit_id,
-                    item_crudo_id=ids_item[(linea.hijo, linea.orden)],
-                    producto_canonico_id=(
-                        uuid.UUID(elegido.producto_id) if elegido and elegido.producto_id else None
-                    ),
-                    hijo_referencia=linea.hijo,
-                    orden=linea.orden,
-                    descripcion=linea.descripcion,
-                    tipo=linea.tipo,
-                    estado_resolucion=linea.estado_resolucion,
-                    cantidad_pedida=linea.cantidad_pedida,
-                    unidad_base=linea.unidad_base,
-                    unidades_por_empaque=linea.unidades_por_empaque,
-                    unidades_a_comprar=linea.unidades_a_comprar,
-                    sku=elegido.sku if elegido else None,
-                    nombre_producto=elegido.nombre if elegido else None,
-                    marca=elegido.marca if elegido else None,
-                    nivel=elegido.nivel if elegido else None,
-                    personaje=elegido.personaje if elegido else None,
-                    imagen_url=elegido.imagen_url if elegido else None,
-                    confianza=None,
-                    precio_unitario_cop=linea.precio_unitario_cop,
-                    subtotal_cop=linea.subtotal_cop,
-                    informativa=linea.informativa,
-                    instruccion_colegio=linea.instruccion_colegio,
-                    url_externa=linea.url_externa,
-                    mensaje=linea.mensaje,
-                    no_consolidable=linea.no_consolidable,
-                    motivo_no_consolidable=linea.motivo_no_consolidable,
-                    alternativas=[
-                        {
-                            "sku": alternativa.sku,
-                            "nombre": alternativa.nombre,
-                            "nivel": alternativa.nivel,
-                            "precio_cop": alternativa.precio_cop,
-                            "imagen_url": alternativa.imagen_url,
-                        }
-                        for alternativa in linea.alternativas
-                    ],
-                )
-            )
-
-    await _marcar_etapa(
-        conexion,
-        trabajo_id,
-        "optimizacion",
-        EstadoEtapa.OK.value,
-        ms=ms,
-        detalle={
-            "kits": len(kits),
-            "recomendado": next((k.perfil for k in kits if k.recomendado), None),
-        },
+    await RepoTrabajos(conexion).escribir_kits(
+        trabajo_id, kits, ids_item, preferencias, cifrador, ms=ms
     )
 
 
@@ -911,20 +815,11 @@ def lanzar(motor: Any, trabajo_id: uuid.UUID) -> asyncio.Task:
 async def _publicar_evento(conexion: Any, trabajo_id: uuid.UUID) -> None:
     """Deja `kits_publicados` en la bandeja, en la MISMA transaccion.
 
-    El repartidor de Operacion (`tukit_operacion.repartidor`) lo drena y avisa al
-    acudiente resolviendo su `usuario_id` desde `trabajo_pipeline`. Por eso este
-    evento solo tiene sentido en un trabajo con acudiente; un preview
-    (`usuario_id` NULL) no llega aca —`revisar` lo rechaza antes— para no dejar un
-    evento sin destinatario que el repartidor reintente sin fin.
+    Delegado a `RepoTrabajos.emitir_evento`, que NO abre transaccion: quien lo
+    llama (`_finalizar`, `revisar`) lo hace dentro del mismo `async with` que el
+    paso a PUBLICADO, para que el evento no sobreviva a un rollback (no dual-write).
     """
-    await conexion.execute(
-        insert(BANDEJA).values(
-            tipo="kits_publicados",
-            agregado_tipo="trabajo_pipeline",
-            agregado_id=trabajo_id,
-            carga={"trabajo_id": str(trabajo_id), "publicado_en": ahora().isoformat()},
-        )
-    )
+    await RepoTrabajos(conexion).emitir_evento(trabajo_id)
 
 
 # ---------------------------------------------------------------------------
@@ -1308,13 +1203,7 @@ async def previews_de(
 
 
 async def _resolucion_de(conexion: Any, trabajo_id: uuid.UUID, item_id: uuid.UUID) -> Any:
-    return (
-        await conexion.execute(
-            select(RESOLUCION)
-            .select_from(RESOLUCION.join(ITEM, ITEM.c.id == RESOLUCION.c.item_crudo_id))
-            .where(ITEM.c.trabajo_id == trabajo_id, ITEM.c.id == item_id)
-        )
-    ).one_or_none()
+    return await RepoTrabajos(conexion).resolucion_de(trabajo_id, item_id)
 
 
 async def decidir_linea(
@@ -1435,10 +1324,7 @@ async def fijar_producto_en_linea(
 
 
 async def _recalcular_total_kit(conexion: Any, kit_id: uuid.UUID) -> None:
-    total = await conexion.scalar(
-        select(func.coalesce(func.sum(LINEA.c.subtotal_cop), 0)).where(LINEA.c.kit_id == kit_id)
-    )
-    await conexion.execute(update(KIT).where(KIT.c.id == kit_id).values(total_cop=int(total or 0)))
+    await RepoTrabajos(conexion).recalcular_total_kit(kit_id)
 
 
 async def revisar(
@@ -1484,51 +1370,8 @@ async def revisar(
 
 
 async def _fijar_canonico(conexion: Any, trabajo_id: uuid.UUID) -> None:
-    """Al publicar, apunta la cache canonica de (colegio, grado, anio) a este trabajo.
-
-    Solo cuando el trabajo tiene UNA identidad de grado clara: un solo hijo con
-    colegio y grado (el caso de onboarding y de la ruta de acudiente por grado).
-    Un trabajo multi-hogar, o sin colegio/grado, no define una cache de grado y
-    se deja sin puntero —publicar igual funciona, solo no se cachea—.
-
-    Publicar de nuevo para el mismo grado REEMPLAZA el puntero (delete + insert
-    sobre la llave unica): una sola cache bendita por grado.
-    """
-    fila = (
-        await conexion.execute(select(TRABAJO.c.hijos).where(TRABAJO.c.id == trabajo_id))
-    ).one_or_none()
-    hijos = list(fila.hijos or ()) if fila else []
-    if len(hijos) != 1:
-        return
-    hijo = hijos[0]
-    colegio_id = str(hijo.get("colegio_id") or "")
-    grado = str(hijo.get("grado") or "")
-    # Mismo anio bajo el que se construyeron los kits (ver `procesar`): si el
-    # hijo no lo trajo, se cachea bajo el de omision para que la busqueda por
-    # grado en /empezar caiga en la misma fila.
-    anio = int(hijo.get("anio_lectivo") or ANIO_LECTIVO_POR_OMISION)
-    if not (colegio_id and grado):
-        return
-
-    # Reemplaza el puntero del grado: la cache es una sola. No es un upsert de
-    # ON CONFLICT para no atarse al dialecto —delete+insert corre igual en
-    # SQLite (pruebas) y en Postgres (real)—.
-    await conexion.execute(
-        delete(KIT_CANONICO).where(
-            KIT_CANONICO.c.colegio_id == colegio_id,
-            KIT_CANONICO.c.grado == grado,
-            KIT_CANONICO.c.anio_lectivo == anio,
-        )
-    )
-    await conexion.execute(
-        insert(KIT_CANONICO).values(
-            id=uuid.uuid4(),
-            colegio_id=colegio_id,
-            grado=grado,
-            anio_lectivo=anio,
-            trabajo_id=trabajo_id,
-        )
-    )
+    """Al publicar, apunta la cache canonica de (colegio, grado, anio) a este trabajo."""
+    await RepoTrabajos(conexion).fijar_canonico(trabajo_id)
 
 
 async def grados_canonicos(motor: Any, *, colegio_id: str | None = None) -> list[dict[str, Any]]:
