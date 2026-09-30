@@ -2,13 +2,14 @@
 //
 // El navegador no llama al backend directamente y nunca lo va a hacer: la URL
 // del backend se queda en el servidor, el tiempo de espera del pipeline supera
-// el corte de 30 s de un `rewrite`, y este es el unico punto donde se decide
-// si la peticion va al backend real o al origen simulado. El prototipo ya
-// tenia esta forma y se conserva por las mismas razones.
+// el corte de 30 s de un `rewrite`, y este es el unico punto donde se habla con
+// el backend. El prototipo ya tenia esta forma y se conserva por las mismas
+// razones.
 
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { ArchivoLista, SolicitudTrabajo } from "@tukit/contrato";
 import { respuestaDeError } from "@/lib/respuesta";
+import { tokenDeSesion } from "@/lib/sesion";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -54,7 +55,7 @@ export async function POST(peticion: Request): Promise<Response> {
   }
 
   try {
-    const creado = await origenDeDatos().crearTrabajo(solicitud, archivos);
+    const creado = await origenDeDatos().crearTrabajo(solicitud, archivos, await tokenDeSesion());
     return Response.json(creado, { status: 202 });
   } catch (causa) {
     return respuestaDeError(causa);

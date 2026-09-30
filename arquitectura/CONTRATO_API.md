@@ -33,14 +33,17 @@ resultaron incompletas o incoherentes con los modelos.
 
 ## 0. Por qué la API es asíncrona
 
-El pipeline tarda minutos, no segundos, y eso es deliberado: `OP-03` del SRS dice que el
-sistema "debe priorizar la precisión del emparejamiento y la mejor relación calidad-precio
-del kit **por encima de la velocidad de generación**". El proxy actual del frontend ya
-convive con eso con un tiempo de espera de 300 s y un comentario que lo explica.
+El pipeline tarda minutos, no segundos. `OP-03` del SRS lo acota en cinco minutos de
+extremo a extremo en el peor caso, y exige **progreso visible por etapa** mientras dura el
+procesamiento. Una API síncrona no puede ofrecer ese progreso, y por eso el recurso central
+no es el kit sino el trabajo. El tiempo de cada etapa lo acotan `DP-04` (percepción),
+`DP-03` (optimización) y `DP-06` (camino corto sobre lista validada), y el
+`estimado_segundos` que se le anuncia al acudiente debe ser el del camino que su trabajo va
+a tomar, no uno único para los dos.
 
 Encima, el flujo de negocio **exige** una pausa humana: los kits pasan por revisión de
-Admin Tukit (`AD-03`, `AD-04`) antes de llegar al acudiente (`AD-06`). Una API síncrona no
-puede modelar una espera que incluye a una persona.
+Admin Tukit (`AD-01`, `AD-02`, `AD-03`) antes de llegar al acudiente (`AD-06`). Una API
+síncrona no puede modelar una espera que incluye a una persona.
 
 Por eso el recurso central no es "el kit" sino **el trabajo**: se crea, se consulta, y
 cuando termina se avisa por los canales que el acudiente dejó.
@@ -154,7 +157,7 @@ diez sale mejor.
 Dos formas de entrar, las dos del SRS:
 
 ```jsonc
-// (a) El colegio ya publicó la lista: AD-06
+// (a) El colegio ya publicó la lista: CO-01, o reconstruida por NR-07 y distinguida por NR-08
 {
   "contacto":  { "correo": "papa@ejemplo.com", "celular": "+573001234567" },
   "hijos": [
@@ -426,7 +429,7 @@ lo vende la editorial el 24 de enero en el colegio" es útil; callarlo es dejar 
 un hueco que descubre tarde.
 
 Y no se cobran porque prometer lo que no se puede entregar es el modo de falla más caro del
-negocio. `FU-06` congela el precio al confirmar, así que una línea que Tukit no controla no
+negocio. `FU-08` congela el precio al confirmar, así que una línea que Tukit no controla no
 puede entrar al total.
 
 **El total de cada kit incluye solo líneas con `informativa: false`.** El frontend muestra
@@ -480,17 +483,18 @@ regla, derivada de la encuesta:
 
 | Endpoint | Requisito |
 |---|---|
-| `GET /v1/admin/cola` | `AD-02`, `AD-03` |
-| `GET /v1/admin/trabajos/{id}` | `AD-03` |
-| `POST /v1/admin/trabajos/{id}/lineas/{item_id}/validar` | `AD-04` |
-| `POST /v1/admin/trabajos/{id}/lineas/{item_id}/sin-coincidencia` | `AD-04` |
+| `GET /v1/admin/cola` | `AD-01`, `AD-03` |
+| `GET /v1/admin/trabajos/{id}` | `AD-04` |
+| `POST /v1/admin/trabajos/{id}/lineas/{item_id}/validar` | `AD-02` |
+| `POST /v1/admin/trabajos/{id}/lineas/{item_id}/sin-coincidencia` | `AD-02` |
 | `POST /v1/admin/productos` | `AD-07` — alta manual con precio e imagen |
 | `POST /v1/admin/productos/{sku}/no-disponible` | `AD-05` |
 | `POST /v1/admin/trabajos/{id}/revision` | `AD-06` — publica al acudiente |
 
 La cola se alimenta de `PE-04`: "marcar para revisión de Admin Tukit los ítems con
 confianza de extracción por debajo del umbral configurable τ". Toda transición queda en
-`operacion.registro_auditoria` con quién y cuándo, que es lo que `AD-25` y `AD-26` exigen.
+`operacion.registro_auditoria` con quién y cuándo, que es lo que exigen el criterio de
+`AD-02`, `ML-06`, `SG-02` y el criterio de `AD-06`.
 
 `POST .../revision` acepta `{ "decision": "aprobar" | "devolver", "nota": "..." }`. Aprobar
 publica y dispara la notificación; devolver reabre el trabajo sin avisar al acudiente.
@@ -534,14 +538,14 @@ Las degradaciones se reportan, no se esconden:
 | `POST /v1/ordenes` | `FU-01` — congela precios y crea la orden |
 | `POST /v1/ordenes/{id}/pago` | `FU-03` — inicia el pago con Wompi |
 | `POST /v1/webhooks/wompi` | Confirmación asíncrona, idempotente |
-| `GET /v1/ordenes/{id}` | `AD-33`, seguimiento |
+| `GET /v1/ordenes/{id}` | `FU-01` + `UM-03`, seguimiento |
 | `POST /v1/ordenes/{id}/retracto` | `FU-04` |
 
 Tres invariantes que no se negocian:
 
 1. **Re-verificación antes de cobrar** (`UI-05`, `SC-05`): se vuelven a leer precio y
    disponibilidad; si cambiaron, la orden no se cierra y el acudiente decide.
-2. **El precio no se mueve después de confirmar** (`FU-06`). Lo confirma la entrevista:
+2. **El precio no se mueve después de confirmar** (`FU-08`). Lo confirma la entrevista:
    *"te lo tengo en este tiempo a este precio, sí o no"*.
 3. **No se guardan medios de pago** (`SG-03`): solo identificador de transacción y estado.
    La captura ocurre en el dominio de la pasarela.
@@ -549,11 +553,9 @@ Tres invariantes que no se negocian:
 El webhook es idempotente contra `comercio.evento_pasarela_procesado`: una pasarela
 reintenta, y cobrar dos veces por un reintento sería el peor defecto posible en esta ruta.
 
-**Nota de trazabilidad:** `FU-03` dice hoy "PSE y ePayco" y la implementación usa **Wompi**,
-que entrega PSE, Nequi y tarjeta en una sola integración. El cambio va con ADR y con la
-actualización de `FU-03` en el SRS. La integración vive tras un puerto `PasarelaPago` con
-adaptador falso, porque `[D4]` marca el registro empresarial como dependencia bloqueante y
-las pruebas no pueden depender de él.
+**Nota de trazabilidad:** `FU-03` ya nombra **Wompi**, que entrega PSE, Nequi y tarjeta en
+una sola integración. La integración vive tras un puerto `PasarelaPago` con adaptador falso
+para las pruebas.
 
 ---
 
@@ -568,11 +570,12 @@ las pruebas no pueden depender de él.
 > anotada donde se va a leer. El frontend no puede contar con el aviso: tiene que sondear
 > `GET /v1/trabajos/{id}`.
 
-Puerto `Notificador` con dos adaptadores en v1:
+Puerto `Notificador` (`FU-10`) con dos adaptadores en v1:
 
 - **Correo** (`FU-02`), que ya es requisito.
-- **wa-link**: `https://wa.me/<numero>?text=<mensaje con turno>`. Es la vía **reactiva**,
-  la que el acudiente inicia.
+- **wa-link** (`FU-11`): `https://wa.me/<numero>?text=<mensaje con turno>`. Es la vía
+  **reactiva**, la que el acudiente inicia. `FU-11` gobierna el número de solicitud que va
+  en el enlace y la caducidad del aviso.
 
 El SRS difiere a v2+ "la integración con WhatsApp Business para notificaciones
 **proactivas** y no solo reactivas", así que empujar mensajes queda fuera de v1 por
@@ -645,10 +648,9 @@ El backend son **cuatro procesos**. El frontend habla con uno solo.
 TUKIT_API_URL=http://127.0.0.1:8010
 ```
 
-> **Ojo, frontend: el puerto cambió.** `apps/web/.env.ejemplo` trae hoy
-> `TUKIT_API_URL=http://localhost:8080`, y **8080 no sirve**: en la máquina de desarrollo lo
-> tiene ocupado otro proceso. El valor correcto es el de arriba. Es solo cambiar la
-> variable; la forma de las rutas no se mueve.
+> **Frontend:** `TUKIT_API_URL` es obligatoria y apunta al gateway (`:8010` en local). No
+> hay valor por defecto: si falta, la app falla de entrada a proposito. `apps/web/.env.ejemplo`
+> y `apps/admin/.env.ejemplo` ya la traen con el valor correcto.
 
 El bloque empieza en 8010 y no en 8000 ni en 8080 por una razón aburrida y real: los dos
 son el puerto por omisión de medio mundo (uvicorn, `http.server`, Django, cualquier

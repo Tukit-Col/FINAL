@@ -92,7 +92,8 @@ class CifradorFernet(_Base):
         self._fernet = Fernet(llave)
 
     def cifrar(self, datos: bytes) -> bytes:
-        return self._fernet.encrypt(datos)
+        cifrado: bytes = self._fernet.encrypt(datos)
+        return cifrado
 
     def descifrar(self, datos: bytes) -> bytes:
         # Un dato escrito por `CifradorEnClaro` antes de que hubiera llave no
@@ -100,7 +101,8 @@ class CifradorFernet(_Base):
         # el prefijo delata de donde viene.
         if datos.startswith(PREFIJO_EN_CLARO):
             return datos[len(PREFIJO_EN_CLARO) :]
-        return self._fernet.decrypt(datos)
+        claro: bytes = self._fernet.decrypt(datos)
+        return claro
 
 
 def cifrador_desde_entorno() -> Cifrador:

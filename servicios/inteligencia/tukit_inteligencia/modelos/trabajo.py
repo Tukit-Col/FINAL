@@ -111,7 +111,11 @@ class TrabajoPipeline(Base):
 
     __table_args__ = (
         CheckConstraint(f"estado IN ({_ESTADOS})", name="trabajo_estado_valido"),
-        CheckConstraint("origen IN ('colegio_grado', 'archivo')", name="trabajo_origen_valido"),
+        CheckConstraint(
+            "origen IN ('colegio_grado', 'archivo', 'preview_onboarding', "
+            "'lista_verificada', 'parent_apply')",
+            name="trabajo_origen_valido",
+        ),
         CheckConstraint("estimado_segundos > 0", name="trabajo_estimado_positivo"),
         # Un trabajo fallido sin diagnostico es un trabajo que nadie puede
         # atender, y ademas no se puede reintentar a ciegas. Es la misma regla
@@ -211,6 +215,45 @@ class BandejaSalida(Base):
     )
 
 
+class KitCanonico(Base):
+    """El puntero al kit bendito de un (colegio, grado, anio): la cache canonica.
+
+    Publicar un trabajo de onboarding no es solo un estado terminal: deja tres
+    kits que una persona validó, y esos son la respuesta reutilizable para todo
+    acudiente de ese (colegio, grado). Esta tabla es el puntero —una fila por
+    (colegio, grado, anio)— al `trabajo_pipeline` publicado que los tiene. Es un
+    puntero y no una copia de los kits: la fuente sigue siendo el trabajo (sus
+    KIT/LINEA), y así no hay dos verdades que sincronizar.
+
+    Publicar de nuevo para el mismo grado REEMPLAZA el puntero (upsert por la
+    llave única): una sola cache bendita por grado, sin ambigüedad. El trabajo
+    apuntado no se puede borrar (guardia en `eliminar`), porque es la cache.
+    """
+
+    __tablename__ = "kit_canonico"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    colegio_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    grado: Mapped[str] = mapped_column(String(64), nullable=False)
+    anio_lectivo: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    # El trabajo publicado cuyos kits son la cache. Si ese trabajo se borrara
+    # (no puede: la guardia lo impide), la fila se iria con el —el puntero no
+    # sobrevive a su fuente—.
+    trabajo_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("trabajo_pipeline.id", ondelete="CASCADE"), nullable=False
+    )
+
+    creado_en: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    actualizado_en: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (UniqueConstraint("colegio_id", "grado", "anio_lectivo", name="uq_kit_canonico_grado"),)
+
+
 def puede_pasar(actual: str, siguiente: str) -> bool:
     """Si la transicion de estado esta permitida.
 
@@ -228,4 +271,11 @@ def puede_pasar(actual: str, siguiente: str) -> bool:
     return hacia in TRANSICIONES[desde]
 
 
-__all__ = ["ETAPAS", "BandejaSalida", "EtapaTrabajo", "TrabajoPipeline", "puede_pasar"]
+__all__ = [
+    "ETAPAS",
+    "BandejaSalida",
+    "EtapaTrabajo",
+    "KitCanonico",
+    "TrabajoPipeline",
+    "puede_pasar",
+]

@@ -98,6 +98,48 @@ export interface Caso {
   asignado_a: string | null;
 }
 
+// ------------------------------------------------------ Abrir un caso (§write)
+//
+// La superficie de LECTURA de arriba es la que consume la bandeja del
+// back-office. Esta es la de ESCRITURA: lo que un acudiente manda desde el
+// centro de ayuda para abrir una PQRS. El contrato v1.0 tampoco publica el
+// endpoint de escritura de `operacion`, asi que —igual que la lectura— es una
+// inferencia coherente con la ADR 0004 (gestion de casos propia). El backend
+// la expone como `POST /v1/operacion/casos`.
+
+// Las categorias que un acudiente puede elegir al abrir un caso. Es un
+// SUBCONJUNTO de `CategoriaCaso`: las fallas de la saga (`mapeo_lista`,
+// `autenticacion`) las abre el sistema, no una persona, y no tienen sentido en
+// un formulario de ayuda.
+export const CATEGORIAS_CASO_ACUDIENTE: readonly CategoriaCaso[] = [
+  "peticion",
+  "queja",
+  "reclamo",
+  "sugerencia",
+  "pago",
+  "entrega",
+];
+
+export interface SolicitudCaso {
+  categoria: CategoriaCaso;
+  asunto: string;
+  descripcion: string;
+  contacto: { correo: string; celular: string };
+  // Opcional: si la duda es sobre un kit concreto, el acudiente puede pegar su
+  // identificador de trabajo para que el operador lo cruce.
+  trabajo_id?: string | null;
+}
+
+export interface CasoCreado {
+  caso_id: string;
+  estado: EstadoCaso;
+  categoria: CategoriaCaso;
+  recibido_en: string;
+  // Termino legal para responder (Ley 1755), si la categoria lo tiene. La UI lo
+  // muestra para que la promesa quede por escrito, no como adorno.
+  vence_en: string | null;
+}
+
 export interface ResumenOperacion {
   abiertos: number;
   urgentes: number;

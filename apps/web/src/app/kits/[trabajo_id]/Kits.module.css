@@ -124,12 +124,6 @@
   box-shadow: var(--clay-shadow-sm);
 }
 
-.fueraPresupuesto {
-  font-style: normal;
-  color: var(--color-aviso);
-  font-weight: 700;
-}
-
 /* --------------------------------------------------------------- Resumen */
 
 .resumen {
@@ -548,13 +542,59 @@
   box-shadow: var(--clay-shadow-primary);
 }
 
-/* El pago vive en `comercio` y todavia no existe. El boton apagado dice por
- * que con su icono de candado: honesto, no roto. */
+/* Mientras se manda a la pasarela: apagado para no cobrar dos veces. */
 .pagar:disabled {
   background: var(--color-border);
   color: var(--color-text-muted);
   box-shadow: var(--clay-shadow-inset);
   cursor: not-allowed;
+}
+
+.formPago {
+  margin-top: var(--espacio-4);
+  /* Deja aire bajo la cabecera sticky superior (~63px) al saltar aqui. */
+  scroll-margin-top: var(--espacio-7);
+  display: grid;
+  gap: var(--espacio-3);
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-xl);
+  padding: var(--espacio-5);
+  box-shadow: var(--clay-shadow-lg);
+}
+
+.tituloPago {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+.formPago label {
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.formPago input {
+  min-height: 46px;
+  padding: 0 var(--espacio-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-white);
+  font-size: 15px;
+}
+
+.formPago .pagar {
+  justify-content: center;
+  margin-top: var(--espacio-2);
+}
+
+.errorPago {
+  color: var(--color-danger, #c0392b);
+  font-size: 13.5px;
+  font-weight: 700;
 }
 
 .notaPago {

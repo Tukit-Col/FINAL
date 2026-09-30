@@ -34,6 +34,14 @@ dev = [
     # mano lo que cada uno necesita y no pasan por este grupo.
     "alembic>=1.13",
     "asyncpg>=0.29",
+    # SQLAlchemy async lo necesita en tiempo de ejecucion (`engine.dispose`,
+    # cualquier `await` contra el motor), pero no lo declara como dependencia
+    # dura: su wheel lo trae solo bajo ciertos marcadores de plataforma. En este
+    # entorno `uv sync` lo desinstalaba, y entonces `bd-completar`/`bd-volcar`
+    # -todo lo que toca la BD async- moria con "the greenlet library is
+    # required". Fijarlo aqui lo mantiene puesto entre `uv sync`.
+    "greenlet>=3.0",
+    "mypy>=1.11",
 ]
 
 [tool.pytest.ini_options]
@@ -56,12 +64,35 @@ pythonpath = [
 ]
 filterwarnings = ["error::DeprecationWarning"]
 
+[tool.mypy]
+# Tipos incrementales (ADR 0026): laxo global para no exigir anotar 40k lineas de
+# golpe, ESTRICTO en el codigo nuevo puro (`tukit_comun.*` y los `dominio/`), que es
+# donde vive la logica que un tipo mal puesto rompe callado. El circulo estricto
+# se ensancha con el tiempo; hoy arranca verde, que es la regla del ADR.
+python_version = "3.12"
+ignore_missing_imports = true
+strict = false
+
+[[tool.mypy.overrides]]
+module = ["tukit_comun.*"]
+strict = true
+
 [tool.ruff]
 line-length = 110
 target-version = "py312"
+# Los worktrees efimeros de los agentes (.claude/worktrees, .worktrees) son
+# copias del arbol en otra rama: lintearlas aqui haria que el trabajo a medio
+# hacer de un agente rompiera la CI del arbol principal. Cada worktree se
+# revisa en su propia rama, no desde la raiz.
+extend-exclude = [".claude/worktrees", ".worktrees"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+# `Depends(...)` en un default de argumento es EL idiom de FastAPI, no el bug que
+# B008 persigue (un default mutable evaluado una vez). Se marca como llamada
+# inmutable para que el patron de inyeccion (`repo_dep`, ADR 0019) no dispare B008.
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends"]
 
 [tool.ruff.lint.per-file-ignores]
 # Las revisiones de Alembic las escribe el autogenerador, no una persona:

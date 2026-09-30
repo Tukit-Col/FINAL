@@ -1,7 +1,19 @@
 .pagina {
+  position: relative;
   max-width: var(--ancho-contenido);
   margin: 0 auto;
   padding: 0 var(--espacio-4) var(--espacio-7);
+  /* Nuevo contexto de apilado: la capa de útiles de fondo vive detrás y las
+   * secciones por encima, sin pelear con el resto de la app. */
+  isolation: isolate;
+}
+
+/* Las secciones van por encima de la capa de fondo de útiles. El héroe y el
+ * cierre ya crean su propio contexto, pero las secciones intermedias necesitan
+ * subir para que el texto no quede tapado por una pieza. */
+.pagina > section {
+  position: relative;
+  z-index: 1;
 }
 
 /* ------------------------------------------------------------------ Heroe */
@@ -55,14 +67,34 @@
   text-wrap: balance;
 }
 
+/* El acento ya no es un subrayado: es un "sticker" de plastilina. La palabra
+ * que carga la promesa ("tiempo en familia") va sobre una pastilla dorada
+ * inflada, con brillo arriba y sombra de contacto abajo (mismo lenguaje clay
+ * que los útiles y los botones), ligeramente torcida como pegada a mano. */
 .titular em {
   font-style: normal;
-  color: var(--color-primary);
-  /* El acento va bajo la palabra que carga la promesa: "de verdad". Subrayado
-   * dorado del logo, grueso, tipo marcador. */
-  background: linear-gradient(transparent 62%, var(--clay-estrella) 62%);
-  padding: 0 6px;
-  border-radius: 4px;
+  position: relative;
+  display: inline-block;
+  color: var(--color-primary-dark);
+  background: linear-gradient(150deg, var(--clay-estrella) 0%, var(--clay-estrella-oscuro) 100%);
+  padding: 0.04em 0.32em;
+  margin: 0 0.06em;
+  border-radius: 0.34em;
+  transform: rotate(-1.6deg);
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.55),
+    inset 0 -3px 6px rgba(180, 120, 20, 0.28),
+    0 8px 16px rgba(224, 169, 43, 0.32);
+}
+
+/* Brillo diagonal sutil sobre la pastilla, como el reflejo de una pieza clay. */
+.titular em::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.4) 0%, transparent 42%);
+  pointer-events: none;
 }
 
 .bajada {
@@ -298,6 +330,13 @@
     var(--clay-surface-grad);
   box-shadow: var(--clay-shadow);
   overflow: hidden;
+  isolation: isolate;
+}
+
+/* El texto de la tarjeta va por encima de los útiles flotantes de fondo. */
+.cierreTexto {
+  position: relative;
+  z-index: 3;
 }
 
 .tituloCierre {

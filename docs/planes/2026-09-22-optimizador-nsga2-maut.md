@@ -510,7 +510,7 @@ def test_el_costo_fijo_por_tienda_se_cobra_una_vez_por_tienda_usada():
     ]
     problema = ProblemaKit(grupos, costo_fijo_tienda=5000)
 
-    una_tienda = problema.evaluar_una(np.array([0, 0]))   # t1 y t1
+    una_tienda = problema.evaluar_una(np.array([0, 0]))  # t1 y t1
     dos_tiendas = problema.evaluar_una(np.array([0, 1]))  # t1 y t2
 
     assert una_tienda["costo"] == 1000 + 1000 + 5000
@@ -554,10 +554,14 @@ def test_el_empaque_hace_que_la_caja_compita_contra_los_sueltos():
 def test_la_fidelidad_puntua_nivel_y_personaje_a_la_vez():
     """El defecto que se corrige: un producto de personaje tenia utilidad None."""
     grupos = [
-        _grupo("A", 1, (
-            _oferta("pelado", 1000, "t1", nivel="premium"),
-            _oferta("spiderman", 1000, "t1", nivel="premium", personaje="spiderman"),
-        )),
+        _grupo(
+            "A",
+            1,
+            (
+                _oferta("pelado", 1000, "t1", nivel="premium"),
+                _oferta("spiderman", 1000, "t1", nivel="premium", personaje="spiderman"),
+            ),
+        ),
     ]
     problema = ProblemaKit(grupos, personajes=("spiderman",))
 
@@ -584,8 +588,8 @@ def test_la_diversidad_de_marca_es_blanda_y_ordena_por_menor_violacion():
     ]
     problema = ProblemaKit(grupos, max_frac_misma_marca=0.8)
 
-    todo_norma = problema.evaluar_una(np.array([0, 0, 0]))   # 3/3 = 1.0
-    mezclado = problema.evaluar_una(np.array([1, 0, 0]))     # 2/3 = 0.67
+    todo_norma = problema.evaluar_una(np.array([0, 0, 0]))  # 3/3 = 1.0
+    mezclado = problema.evaluar_una(np.array([1, 0, 0]))  # 2/3 = 0.67
 
     assert todo_norma["viola_marca"] > 0
     assert mezclado["viola_marca"] <= 0
@@ -838,15 +842,27 @@ from tukit_inteligencia.optimizacion.problema import ProblemaKit
 
 def _grupo(clave, demanda, ofertas):
     return GrupoDemanda(
-        clave=(clave, ()), concepto_codigo=clave, descripcion=clave,
-        hijos=("Ana",), ordenes=(("Ana", 1),), demanda=demanda,
-        unidad_base="unidad", ofertas=ofertas,
+        clave=(clave, ()),
+        concepto_codigo=clave,
+        descripcion=clave,
+        hijos=("Ana",),
+        ordenes=(("Ana", 1),),
+        demanda=demanda,
+        unidad_base="unidad",
+        ofertas=ofertas,
     )
 
 
 def _oferta(sku, precio, tienda, nivel="economico"):
-    return Oferta(sku=sku, nombre=sku, nivel=nivel, precio_cop=precio,
-                  oferta_id=f"of-{sku}", tienda_id=tienda, tienda_slug=tienda)
+    return Oferta(
+        sku=sku,
+        nombre=sku,
+        nivel=nivel,
+        precio_cop=precio,
+        oferta_id=f"of-{sku}",
+        tienda_id=tienda,
+        tienda_slug=tienda,
+    )
 
 
 def _problema_variado() -> ProblemaKit:
@@ -862,10 +878,10 @@ def test_ninguna_solucion_del_frente_domina_a_otra():
     frente = calcular_frente(_problema_variado(), semilla=42)
 
     def domina(p, q):
-        mejor_o_igual = (p.costo <= q.costo and p.fidelidad >= q.fidelidad
-                         and p.disponibilidad >= q.disponibilidad)
-        estrictamente = (p.costo < q.costo or p.fidelidad > q.fidelidad
-                         or p.disponibilidad > q.disponibilidad)
+        mejor_o_igual = (
+            p.costo <= q.costo and p.fidelidad >= q.fidelidad and p.disponibilidad >= q.disponibilidad
+        )
+        estrictamente = p.costo < q.costo or p.fidelidad > q.fidelidad or p.disponibilidad > q.disponibilidad
         return mejor_o_igual and estrictamente
 
     for p in frente:
@@ -1031,15 +1047,27 @@ from tukit_inteligencia.optimizacion.problema import ProblemaKit
 
 def _grupo(clave, demanda, ofertas):
     return GrupoDemanda(
-        clave=(clave, ()), concepto_codigo=clave, descripcion=clave,
-        hijos=("Ana",), ordenes=(("Ana", 1),), demanda=demanda,
-        unidad_base="unidad", ofertas=ofertas,
+        clave=(clave, ()),
+        concepto_codigo=clave,
+        descripcion=clave,
+        hijos=("Ana",),
+        ordenes=(("Ana", 1),),
+        demanda=demanda,
+        unidad_base="unidad",
+        ofertas=ofertas,
     )
 
 
 def _oferta(sku, precio, tienda, nivel="economico"):
-    return Oferta(sku=sku, nombre=sku, nivel=nivel, precio_cop=precio,
-                  oferta_id=f"of-{sku}", tienda_id=tienda, tienda_slug=tienda)
+    return Oferta(
+        sku=sku,
+        nombre=sku,
+        nivel=nivel,
+        precio_cop=precio,
+        oferta_id=f"of-{sku}",
+        tienda_id=tienda,
+        tienda_slug=tienda,
+    )
 
 
 def _problema_pequeno() -> ProblemaKit:
@@ -1058,10 +1086,12 @@ def test_el_frente_exacto_no_tiene_soluciones_dominadas():
         for q in frente:
             if p is q:
                 continue
-            assert not (p.costo <= q.costo and p.fidelidad >= q.fidelidad
-                        and p.disponibilidad >= q.disponibilidad
-                        and (p.costo < q.costo or p.fidelidad > q.fidelidad
-                             or p.disponibilidad > q.disponibilidad))
+            assert not (
+                p.costo <= q.costo
+                and p.fidelidad >= q.fidelidad
+                and p.disponibilidad >= q.disponibilidad
+                and (p.costo < q.costo or p.fidelidad > q.fidelidad or p.disponibilidad > q.disponibilidad)
+            )
 
 
 def test_nsga_alcanza_el_frente_exacto_en_instancias_pequenas():
@@ -1074,8 +1104,9 @@ def test_nsga_alcanza_el_frente_exacto_en_instancias_pequenas():
 
 
 def test_se_niega_a_enumerar_instancias_grandes():
-    grupos = [_grupo(f"G{i}", 1, (_oferta(f"x{i}", 100, "t1"), _oferta(f"y{i}", 200, "t2")))
-              for i in range(12)]
+    grupos = [
+        _grupo(f"G{i}", 1, (_oferta(f"x{i}", 100, "t1"), _oferta(f"y{i}", 200, "t2"))) for i in range(12)
+    ]
 
     with pytest.raises(ValueError, match="grupos"):
         frente_exacto(ProblemaKit(grupos), max_grupos=8)
@@ -1113,9 +1144,7 @@ from .problema import ProblemaKit
 
 
 def _domina(p: PuntoFrente, q: PuntoFrente) -> bool:
-    mejor_o_igual = (
-        p.costo <= q.costo and p.fidelidad >= q.fidelidad and p.disponibilidad >= q.disponibilidad
-    )
+    mejor_o_igual = p.costo <= q.costo and p.fidelidad >= q.fidelidad and p.disponibilidad >= q.disponibilidad
     estricto = p.costo < q.costo or p.fidelidad > q.fidelidad or p.disponibilidad > q.disponibilidad
     return mejor_o_igual and estricto
 
@@ -1391,7 +1420,10 @@ def recomendar_perfil(preferencias: dict) -> tuple[str, str]:
     )
 
     if personajes and pesos.get("personaje", 0) > 0:
-        return PerfilKit.FAN.value, "Pediste personajes para tus hijos, asi que este es el kit que los incluye."
+        return (
+            PerfilKit.FAN.value,
+            "Pediste personajes para tus hijos, asi que este es el kit que los incluye.",
+        )
     if calidad_primero and sobreprecio >= 0.10:
         return PerfilKit.PREMIUM.value, "Pusiste la calidad primero y aceptas pagar hasta un 10 % mas."
     return PerfilKit.AHORRADOR.value, "Elegiste precio como lo mas importante y este es el kit mas barato."
@@ -1444,25 +1476,41 @@ from tukit_inteligencia.optimizador import Candidato, Renglon, armar_los_tres
 
 def _renglon(hijo, orden, texto, concepto, cantidad, candidatos):
     return Renglon(
-        hijo=hijo, orden=orden, texto=texto, tipo_item="papeleria",
-        modo_adquisicion="mercado_abierto", cantidad=cantidad,
-        estado_resolucion="RESUELTO_AUTO", concepto_codigo=concepto,
+        hijo=hijo,
+        orden=orden,
+        texto=texto,
+        tipo_item="papeleria",
+        modo_adquisicion="mercado_abierto",
+        cantidad=cantidad,
+        estado_resolucion="RESUELTO_AUTO",
+        concepto_codigo=concepto,
         candidatos=candidatos,
     )
 
 
 def _cand(sku, precio, tienda, empaque=1, nivel="economico"):
     return Candidato(
-        sku=sku, nombre=sku, nivel=nivel, precio_cop=precio,
-        unidades_por_empaque=empaque, oferta_id=f"of-{sku}",
-        tienda_id=tienda, tienda_slug=tienda,
+        sku=sku,
+        nombre=sku,
+        nivel=nivel,
+        precio_cop=precio,
+        unidades_por_empaque=empaque,
+        oferta_id=f"of-{sku}",
+        tienda_id=tienda,
+        tienda_slug=tienda,
     )
 
 
 def test_siempre_salen_tres_kits_con_uno_recomendado():
     renglones = [
-        _renglon("Ana", 1, "cuaderno", "C001", 2,
-                 (_cand("c-eco", 3000, "t1"), _cand("c-pre", 9000, "t1", nivel="premium"))),
+        _renglon(
+            "Ana",
+            1,
+            "cuaderno",
+            "C001",
+            2,
+            (_cand("c-eco", 3000, "t1"), _cand("c-pre", 9000, "t1", nivel="premium")),
+        ),
     ]
 
     kits = armar_los_tres(renglones, {})
@@ -1511,9 +1559,16 @@ def test_dos_hermanos_comparten_el_empaque_y_el_total_lo_refleja():
 
 def test_lo_informativo_se_muestra_y_no_se_cobra():
     renglones = [
-        Renglon(hijo="Ana", orden=1, texto="RAZ-PLUS", tipo_item="licencia_digital",
-                modo_adquisicion="plataforma", cantidad=1, estado_resolucion="RESUELTO_AUTO",
-                url_externa="https://pagoslearning.com/"),
+        Renglon(
+            hijo="Ana",
+            orden=1,
+            texto="RAZ-PLUS",
+            tipo_item="licencia_digital",
+            modo_adquisicion="plataforma",
+            cantidad=1,
+            estado_resolucion="RESUELTO_AUTO",
+            url_externa="https://pagoslearning.com/",
+        ),
         _renglon("Ana", 2, "cuaderno", "C001", 1, (_cand("c1", 3000, "t1"),)),
     ]
 
@@ -1582,12 +1637,18 @@ def _linea_de_grupo(grupo, oferta, hijo: str, orden: int, cantidad: int, cobra: 
         unidades_a_comprar=unidades,
         informativa=False,
         elegido=Candidato(
-            sku=oferta.sku, nombre=oferta.nombre, nivel=oferta.nivel,
-            precio_cop=oferta.precio_cop, producto_id=oferta.producto_id,
-            marca=oferta.marca, personaje=oferta.personaje,
+            sku=oferta.sku,
+            nombre=oferta.nombre,
+            nivel=oferta.nivel,
+            precio_cop=oferta.precio_cop,
+            producto_id=oferta.producto_id,
+            marca=oferta.marca,
+            personaje=oferta.personaje,
             unidades_por_empaque=oferta.unidades_por_empaque,
-            oferta_id=oferta.oferta_id, tienda_id=oferta.tienda_id,
-            tienda_slug=oferta.tienda_slug, disponible=oferta.disponible,
+            oferta_id=oferta.oferta_id,
+            tienda_id=oferta.tienda_id,
+            tienda_slug=oferta.tienda_slug,
+            disponible=oferta.disponible,
         ),
         precio_unitario_cop=oferta.precio_cop,
         subtotal_cop=subtotal,
@@ -1628,9 +1689,7 @@ def armar_los_tres(renglones: list[Renglon], preferencias: dict[str, Any] | None
         for i, grupo in enumerate(problema.grupos):
             oferta = grupo.ofertas[min(punto.x[i], len(grupo.ofertas) - 1)]
             for k, (hijo, orden) in enumerate(grupo.ordenes):
-                cantidad = next(
-                    (r.cantidad for r in renglones if r.hijo == hijo and r.orden == orden), 1
-                )
+                cantidad = next((r.cantidad for r in renglones if r.hijo == hijo and r.orden == orden), 1)
                 lineas.append(_linea_de_grupo(grupo, oferta, hijo, orden, cantidad, cobra=(k == 0)))
         todas = tuple(lineas) + lineas_informativas
         total = sum(line.subtotal_cop or 0 for line in todas if not line.informativa)
@@ -1743,15 +1802,27 @@ from tukit_inteligencia.optimizacion.problema import ProblemaKit
 
 def _grupo(clave, demanda, ofertas):
     return GrupoDemanda(
-        clave=(clave, ()), concepto_codigo=clave, descripcion=clave,
-        hijos=("Ana",), ordenes=(("Ana", 1),), demanda=demanda,
-        unidad_base="unidad", ofertas=ofertas,
+        clave=(clave, ()),
+        concepto_codigo=clave,
+        descripcion=clave,
+        hijos=("Ana",),
+        ordenes=(("Ana", 1),),
+        demanda=demanda,
+        unidad_base="unidad",
+        ofertas=ofertas,
     )
 
 
 def _oferta(sku, precio, tienda, nivel="economico"):
-    return Oferta(sku=sku, nombre=sku, nivel=nivel, precio_cop=precio,
-                  oferta_id=f"of-{sku}", tienda_id=tienda, tienda_slug=tienda)
+    return Oferta(
+        sku=sku,
+        nombre=sku,
+        nivel=nivel,
+        precio_cop=precio,
+        oferta_id=f"of-{sku}",
+        tienda_id=tienda,
+        tienda_slug=tienda,
+    )
 
 
 def _grupos_de_prueba():

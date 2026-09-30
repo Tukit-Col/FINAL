@@ -34,10 +34,29 @@ async def cliente(motor, monkeypatch):
     """
     app.state.motor = motor
     lanzados: list[uuid.UUID] = []
-    monkeypatch.setattr(trabajos, "lanzar", lambda _motor, trabajo_id: lanzados.append(trabajo_id))
+
+    async def _lanzar_falso(_motor, trabajo_id):
+        lanzados.append(trabajo_id)
+
+    monkeypatch.setattr(trabajos, "lanzar", _lanzar_falso)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
         http.lanzados = lanzados
         yield http
+
+
+class IdentidadDoble:
+    """Doble de Identidad: resuelve tokens y anota si se registro un contacto."""
+
+    def __init__(self) -> None:
+        self.usuario_por_token: dict[str, str] = {}
+        self.contactos: list[str] = []
+
+    async def usuario_del_token(self, token: str) -> str | None:
+        return self.usuario_por_token.get(token)
+
+    async def registrar_contacto(self, correo: str, celular: str | None = None) -> str | None:
+        self.contactos.append(correo)
+        return "usr-contacto"
 
 
 def _peticion(**kw):
@@ -96,6 +115,91 @@ class TestCrearDevuelve202:
         assert set(cuerpo) <= {"error", "mensaje", "campo"}
 
 
+class TestLaSesionEsLaProdiedad:
+    """Un acudiente autenticado (Bearer) es dueño de su trabajo por su
+    usuario_id de sesion, sin re-registrar contacto. Es la traza que hace que
+    su kit no quede huerfano cuando /empezar deja de mandar el contacto."""
+
+    async def test_crear_con_bearer_usa_el_usuario_de_sesion(self, cliente, motor):
+        identidad = IdentidadDoble()
+        identidad.usuario_por_token["tok-acud"] = "22222222-2222-5222-8222-222222222222"
+        app.state.identidad = identidad
+
+        creado = (
+            await cliente.post(
+                "/v1/trabajos",
+                json=_peticion(contacto=None),
+                headers={"Authorization": "Bearer tok-acud"},
+            )
+        ).json()
+        trabajo_id = uuid.UUID(creado["trabajo_id"])
+        await trabajos.procesar(motor, trabajo_id, catalogo=_catalogo())
+
+        admin = (await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")).json()
+        assert admin["contacto_id"] == "22222222-2222-5222-8222-222222222222"
+        assert identidad.contactos == []  # no se re-registro contacto
+
+    async def test_aplicar_canonico_con_bearer_usa_el_usuario_de_sesion(self, cliente):
+        identidad = IdentidadDoble()
+        identidad.usuario_por_token["tok-acud"] = "33333333-3333-5333-8333-333333333333"
+        app.state.identidad = identidad
+        # Sin cache publicada la ruta responde 404, pero el token ya se resolvio
+        # antes de tocar la cache: basta con que no explote la resolucion.
+        respuesta = await cliente.post(
+            "/v1/trabajos/aplicar-canonico",
+            json={"colegio_id": COLEGIO, "grado": "Cuarto", "anio_lectivo": 2026, "perfil": "Ahorrador"},
+            headers={"Authorization": "Bearer tok-acud"},
+        )
+        assert respuesta.status_code == 404
+
+
+class TestMisTrabajos:
+    """El panel del acudiente: `GET /v1/trabajos` con Bearer devuelve SUS
+    solicitudes de kit —no las de otro, y un anonimo no ve ninguna."""
+
+    async def test_devuelve_los_del_acudiente_con_hijos_y_preferencias(self, cliente):
+        identidad = IdentidadDoble()
+        identidad.usuario_por_token["tok-acud"] = "22222222-2222-5222-8222-222222222222"
+        app.state.identidad = identidad
+
+        await cliente.post(
+            "/v1/trabajos",
+            json=_peticion(contacto=None, preferencias={"disposicion_sobreprecio": 0.2}),
+            headers={"Authorization": "Bearer tok-acud"},
+        )
+
+        respuesta = await cliente.get("/v1/trabajos", headers={"Authorization": "Bearer tok-acud"})
+
+        assert respuesta.status_code == 200
+        cuerpo = respuesta.json()
+        assert cuerpo["total"] == 1
+        trabajo = cuerpo["trabajos"][0]
+        assert trabajo["estado"] == "encolado"
+        assert trabajo["hijos"][0]["grado"] == "Cuarto"
+        assert trabajo["preferencias"]["disposicion_sobreprecio"] == 0.2
+
+    async def test_no_ve_los_de_otro_acudiente(self, cliente):
+        identidad = IdentidadDoble()
+        identidad.usuario_por_token["tok-mio"] = "22222222-2222-5222-8222-222222222222"
+        identidad.usuario_por_token["tok-ajeno"] = "33333333-3333-5333-8333-333333333333"
+        app.state.identidad = identidad
+
+        await cliente.post(
+            "/v1/trabajos", json=_peticion(contacto=None), headers={"Authorization": "Bearer tok-ajeno"}
+        )
+
+        respuesta = await cliente.get("/v1/trabajos", headers={"Authorization": "Bearer tok-mio"})
+
+        assert respuesta.status_code == 200
+        assert respuesta.json()["trabajos"] == []
+
+    async def test_anonimo_es_401(self, cliente):
+        app.state.identidad = IdentidadDoble()
+        respuesta = await cliente.get("/v1/trabajos")
+        assert respuesta.status_code == 401
+        assert respuesta.json()["error"] == "sesion_requerida"
+
+
 class TestConsultar:
     async def test_un_trabajo_que_no_existe_es_404_con_codigo(self, cliente):
         respuesta = await cliente.get(f"/v1/trabajos/{uuid.uuid4()}")
@@ -114,6 +218,27 @@ class TestConsultar:
 
         admin = (await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")).json()
         assert len(admin["kits"]) == 3
+
+    async def test_el_admin_ve_los_campos_de_consola_y_el_acudiente_no(self, cliente, motor):
+        """La consola necesita `recibido_en`, `contacto_id` y
+        `lineas_pendientes` para dibujar la cabecera del trabajo; sin ellos
+        el detalle se cae (`Cannot read properties of undefined`).
+
+        La asimetria es a proposito: `contacto_id` nunca viaja en la vista
+        del acudiente, porque reintroduciria a mano la referencia que la
+        notificacion resuelve al vuelo (frontera de `identidad`)."""
+        creado = (await cliente.post("/v1/trabajos", json=_peticion())).json()
+        trabajo_id = uuid.UUID(creado["trabajo_id"])
+        await trabajos.procesar(motor, trabajo_id, catalogo=_catalogo())
+
+        admin = (await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")).json()
+        assert isinstance(admin["lineas_pendientes"], list)
+        assert admin["recibido_en"]
+        assert "contacto_id" in admin
+
+        acudiente = (await cliente.get(f"/v1/trabajos/{trabajo_id}")).json()
+        assert "contacto_id" not in acudiente
+        assert "lineas_pendientes" not in acudiente
 
 
 class TestLaColaYLaPublicacion:

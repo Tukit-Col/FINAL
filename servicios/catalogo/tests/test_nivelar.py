@@ -10,13 +10,24 @@ from __future__ import annotations
 from tukit_catalogo.nivelar import reacomodar, sku
 
 
-def producto(pid: str, concepto: str, nivel: str, personaje: str = "") -> dict[str, str]:
+def producto(
+    pid: str,
+    concepto: str,
+    nivel: str,
+    personaje: str = "",
+    representante: bool = True,
+) -> dict[str, str]:
+    """Un producto de prueba. Por defecto es REPRESENTANTE: nivelar solo ordena
+    lo que el kit muestra, asi que el caso normal de estos tests es el
+    representante. `representante=False` modela la profundidad de compra que la
+    cola de revision dejo detras -alternativas que nivelar no debe tocar-."""
     return {
         "id": pid,
         "concepto_id": concepto,
         "nivel": nivel,
         "personaje": personaje,
         "activo": "true",
+        "es_representante_canonico": "true" if representante else "false",
     }
 
 
@@ -56,6 +67,31 @@ class TestElPrecioManda:
         # Y los dos que si tienen precio se reparten solo SUS etiquetas, sin
         # robarse la del que quedo fuera.
         assert set(cambios.values()) <= {"premium", "economico"}
+
+    def test_la_profundidad_de_la_cola_no_entra_en_la_escalera(self):
+        """Nivelar ordena solo los representantes. Las referencias que la cola de
+        revision aprobo como profundidad de compra (`representante=False`) entran
+        con un nivel por defecto que no es una promesa de curaduria; si nivelar
+        las metiera en la escalera, una de esas alternativas baratas podria
+        robarle la etiqueta 'economico' al representante y dejarlo mal marcado.
+
+        Aqui el representante barato es 'premium' y el caro 'economico' -estan al
+        reves y hay que permutarlos-, pero hay ademas dos `TK-REV` de profundidad
+        con precios intermedios. El resultado correcto toca solo a los dos
+        representantes y a nadie mas."""
+        productos = [
+            producto("rep_barato", "C1", "premium"),
+            producto("rep_caro", "C1", "economico"),
+            producto("depth1", "C1", "confiable", representante=False),
+            producto("depth2", "C1", "confiable", representante=False),
+        ]
+        cambios = reacomodar(
+            productos,
+            {"rep_barato": 1000, "depth1": 1500, "depth2": 1800, "rep_caro": 3000},
+        )
+
+        assert cambios == {"rep_barato": "economico", "rep_caro": "premium"}
+        assert "depth1" not in cambios and "depth2" not in cambios
 
 
 class TestElPersonajeEsOtraVia:

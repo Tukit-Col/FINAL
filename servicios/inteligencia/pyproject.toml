@@ -13,6 +13,15 @@ dependencies = [
     # No puede importar sus paquetes ni leer sus bases (invariantes 1 y 3),
     # asi que un cliente HTTP no es una comodidad: es la frontera.
     "httpx>=0.27",
+    # OE4: el optimizador de la tesis. NSGA-II sobre pymoo produce el frente de
+    # Pareto de verdad que sostiene los resultados de hipervolumen; la
+    # heuristica de `elegir_por_perfil` fue el andamio para que el ciclo
+    # corriera antes de tener el algoritmo (ver docstring de optimizador.py).
+    # Es dependencia DURA: el modulo la importa arriba sin `try`, asi que si
+    # falta el servicio no arranca. Antes degradaba a la heuristica cuando no
+    # estaba, pero esa degradacion silenciosa servia kits que no eran los del
+    # algoritmo sin avisar; preferimos fallar ruidoso en el arranque.
+    "pymoo>=0.6",
 ]
 
 [project.optional-dependencies]

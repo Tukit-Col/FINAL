@@ -17,13 +17,24 @@ sobre base limpia reproduce el MISMO estado.
 
 Tres decisiones que no son de comodidad sino de correccion:
 
-1. **Fusion, no volcado.** Las filas que YA estan en el CSV se conservan tal
-   cual, byte a byte. No se re-serializan desde la base. Es lo unico que respeta
-   la curaduria: el CSV es dueno de columnas que la base tiene distintas a
-   proposito (`atributos`, `texto_embedding`, `nivel` reacomodado por `nivelar`,
-   las fechas). Reescribirlas desde la base desharia ese trabajo igual que el
-   upsert deshacia el enriquecimiento antes de `COLUMNAS_ENRIQUECIDAS`. Solo se
-   AGREGAN las filas nuevas que la base tiene y el CSV no.
+1. **Espejo de MEMBRESIA, contenido conservado.** La base manda sobre QUE filas
+   existen; el CSV manda sobre COMO se ven las que sobreviven. Concretamente:
+   - Una fila cuyo producto ya NO esta en la base (el administrador lo borro en
+     el dashboard, que es un HARD DELETE) se ELIMINA del CSV. Antes no: la fusion
+     era solo-suma y una maleta borrada seguia viva en el corpus, asi que una
+     `bd-cargar` limpia la resucitaba. Ese era el defecto que hacia sentir que
+     "se perdia el trabajo": la base y el CSV divergian y nadie los reconciliaba.
+   - Una fila que SIGUE en la base se conserva del CSV tal cual, byte a byte. No
+     se re-serializa desde la base, porque el CSV es dueno de columnas que la
+     base tiene distintas a proposito: `nivel` lo reacomoda `nivelar` sobre el
+     CSV (no sobre la base), `atributos` los cura una persona, y hay arreglos
+     manuales (una URL corregida a mano). Reescribirlas desde la base desharia
+     ese trabajo.
+   - Las filas NUEVAS que la base tiene y el CSV no se AGREGAN, serializadas
+     desde la base (su `nivel` es el que puso `resolver`; `nivelar` lo ordena
+     despues).
+   El neto: tras `bd-volcar --escribir`, el conjunto de productos del CSV es
+   exactamente el de la base viva, y el dashboard deja de divergir del corpus.
 
 2. **Solo se vuelca lo CURADO, no lo candidato ni lo sintetizado.** Tres clases
    de fila viven en `producto_canonico` y solo una pertenece al corpus:
@@ -140,6 +151,26 @@ COLUMNAS_PRECIO = [
     "vigente_hasta",
     "corrida_id",
 ]
+COLUMNAS_PROCEDENCIA = [
+    "producto_id",
+    "sku_interno",
+    "fichero_fuente",
+    "sha256_fichero",
+    "indice_en_fichero",
+    "tienda_origen",
+    "referencia_origen",
+    "url_origen",
+    "precio_observado_cop",
+]
+
+# Marca de procedencia para lo aprobado en la cola de revision. La semilla
+# vieja salio de dos ficheros JSON fijados por SHA-256 (feed_scraper,
+# grancentral) y su origen es "fichero + linea". Lo que aprueba un
+# administrador en `/cola` NO sale de un fichero: lo trajo la API en vivo o
+# Firecrawl y lo miro una persona. Su origen versionable es la tienda y la URL
+# donde se vio, no un hash de fichero -por eso `sha256_fichero` va vacio aqui y
+# el test lo admite para esta fuente (ver `test_todo_producto_dice_de_que_...`).
+FUENTE_COLA = "cola_revision"
 
 
 # ---------------------------------------------------------------------------
@@ -253,24 +284,130 @@ def _fila_precio(pr: Any) -> dict[str, str]:
     }
 
 
+def _fila_procedencia(
+    p: Any,
+    oferta: Any,
+    slug_por_tienda: dict[str, str],
+    cop_por_oferta: dict[str, int],
+) -> dict[str, str]:
+    """Origen de un producto aprobado en la cola, reconstruido desde su oferta.
+
+    No hay fichero versionado detras -por eso `sha256_fichero` va vacio y
+    `fichero_fuente` es la marca `cola_revision`-, pero SI hay un origen
+    verificable: la tienda y la URL donde el administrador lo vio, y el precio
+    que se observo. `indice_en_fichero` se llena con la referencia externa de la
+    tienda (el SKU de Exito/Panamericana), que es la posicion natural del item
+    en su catalogo de origen.
+    """
+    centavos = cop_por_oferta.get(str(oferta.id)) if oferta is not None else None
+    return {
+        "producto_id": _s(p.id),
+        "sku_interno": _s(p.sku_interno),
+        "fichero_fuente": FUENTE_COLA,
+        "sha256_fichero": "",
+        "indice_en_fichero": _s(oferta.referencia_externa) if oferta is not None else "",
+        "tienda_origen": slug_por_tienda.get(str(oferta.tienda_id), "") if oferta is not None else "",
+        "referencia_origen": _s(oferta.referencia_externa) if oferta is not None else "",
+        "url_origen": _s(oferta.url) if oferta is not None else "",
+        "precio_observado_cop": "" if centavos is None else str(round(centavos / 100)),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Fusion y escritura
 # ---------------------------------------------------------------------------
 
 
+# Columnas de las que el CSV es dueno y la base NO debe pisar al espejar. Son
+# las que herramientas que corren SOBRE el CSV producen, o que la base rellena
+# distinto a proposito:
+#   - `nivel`: `nivelar` lo reacomoda sobre el CSV por precio, no sobre la base.
+#   - `quality_score`: `nivelar` lo deriva del nivel para los SKU semilla.
+#   - `atributos`: el cargador los fuerza a `{}` al leer; el CSV los guarda por
+#     fidelidad y no deben perderse en el viaje.
+# NO estan aqui `embedding_model`/`texto_embedding`: son la huella que `enriquecer`
+# computa CONTRA la base (el modelo usado y el texto embebido). La base manda sobre
+# ellos, asi el espejo REFLEJA que el corpus esta embebido en vez de re-vaciarlos.
+# El vector `embedding` en si tampoco se versiona en el CSV, pero eso ya lo resuelve
+# `_fila_producto` escribiendolo vacio siempre; no necesita estar en este conjunto.
+# Todo lo demas (concepto_id, marca, nombre, imagen_url, ean, descripcion,
+# personaje, categoria, activo, curado_*) es autoridad de la base: es lo que el
+# administrador edita en el dashboard -reasignar concepto, corregir marca o
+# nombre- y por tanto es lo que el espejo debe traer de vuelta.
+COLUMNAS_PROPIAS_DEL_CSV = frozenset({"nivel", "quality_score", "atributos"})
+
+
 def _fusionar(
     existentes: list[dict[str, str]],
     nuevas_por_id: dict[str, dict[str, str]],
-) -> tuple[list[dict[str, str]], int]:
-    """Conserva las filas del CSV tal cual y agrega solo las que faltan.
+    ids_vivos: set[str],
+) -> tuple[list[dict[str, str]], int, int]:
+    """Espeja la membresia de la base para ofertas/precios (sin merge de columnas).
 
-    Una fila cuyo `id` ya esta en el CSV NO se toca: el CSV es dueno de sus
-    columnas curadas (decision 1 del modulo). Devuelve la lista fusionada y
-    cuantas filas nuevas se agregaron.
+    - Se ELIMINA la fila del CSV cuyo `id` ya no esta en `ids_vivos`.
+    - Se CONSERVA tal cual la que sigue viva (estas tablas no tienen columnas que
+      el CSV cure aparte; su contenido lo reproduce la base al recargar).
+    - Se AGREGA la nueva que la base tiene y el CSV no.
+
+    Devuelve (filas, nuevas_agregadas, eliminadas).
     """
-    vistos = {fila["id"] for fila in existentes}
+    conservadas = [fila for fila in existentes if fila["id"] in ids_vivos]
+    eliminadas = len(existentes) - len(conservadas)
+    vistos = {fila["id"] for fila in conservadas}
     agregadas = [fila for id_, fila in nuevas_por_id.items() if id_ not in vistos]
-    return existentes + agregadas, len(agregadas)
+    return conservadas + agregadas, len(agregadas), eliminadas
+
+
+def _fusionar_productos(
+    existentes: list[dict[str, str]],
+    nuevas_por_id: dict[str, dict[str, str]],
+) -> tuple[list[dict[str, str]], int, int]:
+    """Espejo por-columna de productos: la base manda salvo lo que cura el CSV.
+
+    Para cada producto vivo en la base:
+      - si YA estaba en el CSV, se toma la serializacion de la base y se le
+        SOBREPONEN las columnas de `COLUMNAS_PROPIAS_DEL_CSV` que trae el CSV.
+        Asi una reasignacion de concepto o una edicion de marca/nombre hecha en
+        el dashboard llega al corpus, sin borrar el orden de nivel de `nivelar`.
+      - si es NUEVA, entra tal cual la serializo la base.
+    Una fila del CSV cuyo producto ya no vive en la base se ELIMINA (borrado en
+    el dashboard). Devuelve (filas, nuevas, eliminadas).
+    """
+    csv_por_id = {fila["id"]: fila for fila in existentes}
+    salida: list[dict[str, str]] = []
+    nuevas = 0
+    for id_, fila_bd in nuevas_por_id.items():
+        vieja = csv_por_id.get(id_)
+        if vieja is None:
+            salida.append(fila_bd)
+            nuevas += 1
+            continue
+        fila = dict(fila_bd)
+        for col in COLUMNAS_PROPIAS_DEL_CSV:
+            if col in vieja:
+                fila[col] = vieja[col]
+        salida.append(fila)
+    eliminadas = len(existentes) - (len(salida) - nuevas)
+    return salida, nuevas, eliminadas
+
+
+def _fusionar_procedencia(
+    existentes: list[dict[str, str]],
+    nuevas_por_producto: dict[str, dict[str, str]],
+    productos_vivos: set[str],
+) -> tuple[list[dict[str, str]], int, int]:
+    """Como `_fusionar` pero con clave `producto_id`.
+
+    La procedencia se identifica por el producto al que describe, no por un `id`
+    propio -no tiene uno-. Se elimina la procedencia de un producto que ya no
+    esta vivo, se conserva la de los que siguen (la semilla fijada por hash entre
+    ellos), y se agrega la de los productos que el CSV aun no tenia.
+    """
+    conservadas = [fila for fila in existentes if fila["producto_id"] in productos_vivos]
+    eliminadas = len(existentes) - len(conservadas)
+    vistos = {fila["producto_id"] for fila in conservadas}
+    agregadas = [fila for pid, fila in nuevas_por_producto.items() if pid not in vistos]
+    return conservadas + agregadas, len(agregadas), eliminadas
 
 
 def _guardar(nombre: str, columnas: list[str], filas: list[dict[str, str]], clave: str) -> None:
@@ -298,6 +435,7 @@ async def _leer_base() -> dict[str, list[Any]]:
     producto = Base.metadata.tables["producto_canonico"]
     oferta = Base.metadata.tables["oferta_tienda"]
     precio = Base.metadata.tables["precio_oferta"]
+    tienda = Base.metadata.tables["tienda"]
 
     motor = crear_motor("catalogo")
     try:
@@ -305,9 +443,10 @@ async def _leer_base() -> dict[str, list[Any]]:
             productos = list(await conexion.execute(select(producto)))
             ofertas = list(await conexion.execute(select(oferta)))
             precios = list(await conexion.execute(select(precio)))
+            tiendas = list(await conexion.execute(select(tienda)))
     finally:
         await motor.cerrar()
-    return {"productos": productos, "ofertas": ofertas, "precios": precios}
+    return {"productos": productos, "ofertas": ofertas, "precios": precios, "tiendas": tiendas}
 
 
 async def _principal(solo_ensayo: bool) -> int:
@@ -328,15 +467,52 @@ async def _principal(solo_ensayo: bool) -> int:
     ofe_nuevas = {str(o.id): _fila_oferta(o) for o in ofertas_bd}
     pre_nuevas = {str(pr.id): _fila_precio(pr) for pr in precios_bd}
 
-    prod_fusion, n_prod = _fusionar(leer_csv(DATOS / "productos_canonicos.csv"), prod_nuevas)
-    ofe_fusion, n_ofe = _fusionar(leer_csv(DATOS / "ofertas_tienda.csv"), ofe_nuevas)
-    pre_fusion, n_pre = _fusionar(leer_csv(DATOS / "precios_oferta.csv"), pre_nuevas)
+    # Procedencia: cada producto nuevo necesita una fila de origen o el corpus
+    # queda con productos sin fichero de procedencia (lo que el test exige). Se
+    # elige UNA oferta por producto -la de menor precio, la que `nivelar` habria
+    # tomado como representante- y de ella salen tienda, URL y precio observado.
+    slug_por_tienda = {str(t.id): t.slug for t in datos["tiendas"]}
+    cop_por_oferta = {str(pr.oferta_id): pr.valor_centavos for pr in precios_bd}
+    ofertas_por_producto: dict[str, list[Any]] = {}
+    for o in ofertas_bd:
+        ofertas_por_producto.setdefault(str(o.producto_canonico_id), []).append(o)
+
+    def _oferta_representante(pid: str) -> Any:
+        ofs = ofertas_por_producto.get(pid, [])
+        if not ofs:
+            return None
+        return min(ofs, key=lambda o: cop_por_oferta.get(str(o.id), 1 << 62))
+
+    proc_nuevas = {
+        str(p.id): _fila_procedencia(p, _oferta_representante(str(p.id)), slug_por_tienda, cop_por_oferta)
+        for p in productos_bd
+    }
+
+    # La membresia viva la definen las filas curadas de la base: sus `id` (y para
+    # procedencia, los `id` de producto). Una fila del CSV fuera de estos
+    # conjuntos es una que se borro en el dashboard, y el espejo la quita.
+    prod_vivos = set(prod_nuevas)
+    ofe_vivos = set(ofe_nuevas)
+    pre_vivos = set(pre_nuevas)
+
+    prod_fusion, n_prod, d_prod = _fusionar_productos(
+        leer_csv(DATOS / "productos_canonicos.csv"), prod_nuevas
+    )
+    ofe_fusion, n_ofe, d_ofe = _fusionar(leer_csv(DATOS / "ofertas_tienda.csv"), ofe_nuevas, ofe_vivos)
+    pre_fusion, n_pre, d_pre = _fusionar(leer_csv(DATOS / "precios_oferta.csv"), pre_nuevas, pre_vivos)
+    proc_fusion, n_proc, d_proc = _fusionar_procedencia(
+        leer_csv(DATOS / "productos_procedencia.csv"), proc_nuevas, prod_vivos
+    )
 
     print("=== volcado base -> CSV ===")
     omitidos = len(ids_excluidos)
-    print(f"  productos: {len(prod_fusion):5} en CSV (+{n_prod} nuevos, {omitidos} no curados omitidos)")
-    print(f"  ofertas:   {len(ofe_fusion):5} en CSV (+{n_ofe} nuevas)")
-    print(f"  precios:   {len(pre_fusion):5} en CSV (+{n_pre} nuevos)")
+    print(
+        f"  productos:   {len(prod_fusion):5} en CSV "
+        f"(+{n_prod} nuevos, -{d_prod} borrados, {omitidos} no curados omitidos)"
+    )
+    print(f"  ofertas:     {len(ofe_fusion):5} en CSV (+{n_ofe} nuevas, -{d_ofe} borradas)")
+    print(f"  precios:     {len(pre_fusion):5} en CSV (+{n_pre} nuevos, -{d_pre} borrados)")
+    print(f"  procedencia: {len(proc_fusion):5} en CSV (+{n_proc} nuevas, -{d_proc} borradas)")
 
     if solo_ensayo:
         print("\nEnsayo. Sin --escribir no se toca ningun fichero.")
@@ -345,6 +521,7 @@ async def _principal(solo_ensayo: bool) -> int:
     _guardar("productos_canonicos", COLUMNAS_PRODUCTO, prod_fusion, "sku_interno")
     _guardar("ofertas_tienda", COLUMNAS_OFERTA, ofe_fusion, "id")
     _guardar("precios_oferta", COLUMNAS_PRECIO, pre_fusion, "id")
+    _guardar("productos_procedencia", COLUMNAS_PROCEDENCIA, proc_fusion, "sku_interno")
     print("\nEscrito. Corre `make bd-datos` para confirmar la cobertura desde el CSV.")
     return 0
 

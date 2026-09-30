@@ -128,10 +128,13 @@ export default function LineaDeKit({ linea, clase }: { linea: LineaKit; clase: C
           ) : (
             <span className={styles.noCobrado}>No se cobra</span>
           )}
-          {producto && producto.ofertas.length > 0 && (
+          {/* Las ofertas por tienda son opcionales: el backend las omite en la
+              línea del kit (el producto ya trae su `precio`). Se pinta la pista
+              de tienda solo cuando existe, en vez de asumir que siempre viene. */}
+          {producto && (producto.ofertas?.length ?? 0) > 0 && (
             <span className={styles.tienda}>
-              en {producto.ofertas[0]?.tienda}
-              {producto.ofertas.length > 1 && ` · ${producto.ofertas.length} tiendas`}
+              en {producto.ofertas![0]?.tienda}
+              {producto.ofertas!.length > 1 && ` · ${producto.ofertas!.length} tiendas`}
             </span>
           )}
         </div>

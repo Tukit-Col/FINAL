@@ -274,10 +274,62 @@ def test_ningun_servicio_declara_tabla_ajena(nombre: str):
 # --------------------------------------------------------------------------
 
 
+def _docstrings(arbol: ast.Module) -> set[int]:
+    """Ids (por identidad de nodo) de los `ast.Constant` que son docstrings.
+
+    Un docstring es el primer enunciado de un modulo, clase o funcion cuando es
+    un literal de cadena. Es prosa, no codigo: nombrar ahi el paquete de un
+    servicio hermano —`tukit_operacion.repartidor`, que describe quien drena la
+    bandeja— es correcto y deseable, no una conexion a su base.
+    """
+    ids: set[int] = set()
+    for nodo in ast.walk(arbol):
+        cuerpo = getattr(nodo, "body", None)
+        if not isinstance(cuerpo, list) or not cuerpo:
+            continue
+        if not isinstance(nodo, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        primero = cuerpo[0]
+        if (
+            isinstance(primero, ast.Expr)
+            and isinstance(primero.value, ast.Constant)
+            and isinstance(primero.value.value, str)
+        ):
+            ids.add(id(primero.value))
+    return ids
+
+
+def _cadenas_no_docstring(arbol: ast.Module) -> list[str]:
+    """Valores de todos los literales de cadena del modulo MENOS los docstrings.
+
+    La base de un servicio nunca se escribe como literal: `crear_motor` la
+    deriva del entorno (`bd.py`, "El servicio no escribe el nombre de su base
+    como literal"). Por eso una conexion a la base ajena solo puede aparecer
+    como un literal de cadena real —una URL de conexion incrustada—, no como
+    prosa. Los comentarios ni siquiera estan en el arbol, asi que se excluyen
+    solos; aqui se quitan ademas los docstrings.
+    """
+    saltar = _docstrings(arbol)
+    cadenas: list[str] = []
+    for nodo in ast.walk(arbol):
+        if isinstance(nodo, ast.Constant) and isinstance(nodo.value, str) and id(nodo) not in saltar:
+            cadenas.append(nodo.value)
+    return cadenas
+
+
 @pytest.mark.parametrize("nombre", sorted(SERVICIOS))
 def test_ningun_servicio_nombra_la_base_de_otro(nombre: str):
     """Una base por servicio. Conectarse a la base ajena salta la frontera
-    entera sin pasar por ninguna interfaz, y ninguna de las otras reglas lo ve."""
+    entera sin pasar por ninguna interfaz, y ninguna de las otras reglas lo ve.
+
+    El detector busca el nombre de la base ajena en los literales de cadena del
+    codigo (donde viviria una URL de conexion incrustada), no en la linea cruda:
+    la convencion `tukit_<servicio>` hace que el nombre del paquete de un
+    servicio y el de su base coincidan, y un servicio SI puede —y debe— nombrar
+    el paquete hermano en un docstring o comentario (para decir quien drena su
+    bandeja). Mirar la linea cruda confundia esa prosa con una conexion. Se mira
+    solo el AST, sin docstrings, para separar el codigo de la documentacion.
+    """
     servicio = SERVICIOS[nombre]
     ajenas = {s.base_datos: s.nombre for s in SERVICIOS.values() if s.nombre != nombre and s.base_datos}
     if not ajenas:
@@ -285,12 +337,13 @@ def test_ningun_servicio_nombra_la_base_de_otro(nombre: str):
 
     infracciones: list[str] = []
     for ruta in _archivos_python(servicio):
-        for numero, linea in enumerate(ruta.read_text(encoding="utf-8").splitlines(), 1):
-            for base, dueno in ajenas.items():
-                if base in linea:
-                    infracciones.append(
-                        f"  {_relativa(ruta)}:{numero} menciona la base `{base}` (de {dueno})"
-                    )
+        arbol = _arbol(ruta)
+        if arbol is None:
+            continue
+        cadenas = _cadenas_no_docstring(arbol)
+        for base, dueno in ajenas.items():
+            if any(base in cadena for cadena in cadenas):
+                infracciones.append(f"  {_relativa(ruta)} menciona la base `{base}` (de {dueno})")
 
     assert not infracciones, f"El servicio `{nombre}` nombra la base de datos de otro:\n" + "\n".join(
         sorted(infracciones)

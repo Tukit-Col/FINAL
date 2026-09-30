@@ -40,7 +40,7 @@ import os
 import httpx
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
-from tukit_comun.http import crear_app
+from tukit_comun.http import CABECERA_CORRELACION, crear_app, id_de_correlacion
 
 PUERTO_POR_OMISION = 8010
 
@@ -59,6 +59,8 @@ def _servicios() -> dict[str, str]:
         "catalogo": os.environ.get("TUKIT_CATALOGO_URL", "http://127.0.0.1:8012").rstrip("/"),
         "identidad": os.environ.get("TUKIT_IDENTIDAD_URL", "http://127.0.0.1:8011").rstrip("/"),
         "inteligencia": os.environ.get("TUKIT_INTELIGENCIA_URL", "http://127.0.0.1:8013").rstrip("/"),
+        "comercio": os.environ.get("TUKIT_COMERCIO_URL", "http://127.0.0.1:8014").rstrip("/"),
+        "operacion": os.environ.get("TUKIT_OPERACION_URL", "http://127.0.0.1:8015").rstrip("/"),
     }
 
 
@@ -67,12 +69,64 @@ def _servicios() -> dict[str, str]:
 RUTAS: dict[str, str] = {
     "/v1/catalogo": "catalogo",
     "/v1/listas": "catalogo",
+    # La SUBIDA de listas (percepcion del PDF + alta de version pendiente) la
+    # sirve INTELIGENCIA, no catalogo. Prefijo mas largo que `/v1/listas`
+    # —`destino` busca el mas largo primero— para que gane el POST /subir.
+    "/v1/listas/subir": "inteligencia",
+    # La revision de listas por HTTP la sirve CATALOGO (es su curaduria); la
+    # ingesta de PDF y la percepcion las sirve INTELIGENCIA. Ambas cuelgan de
+    # `/v1/admin`, asi que las de catalogo se nombran con su prefijo mas largo
+    # —`destino` busca el mas largo primero— y `/v1/admin` a secas queda para
+    # inteligencia.
+    "/v1/admin/listas": "catalogo",
+    "/v1/admin/propuestas": "catalogo",
+    # La curaduria proactiva del catalogo (cola de propuestas, alta de util y
+    # libro, buscar en tienda, aprobar) la sirve CATALOGO bajo este prefijo mas
+    # largo. Gana a `/v1/admin` -> inteligencia; `rechazar` sigue yendo a
+    # catalogo por `/v1/admin/propuestas`, que ya esta ruteado arriba.
+    "/v1/admin/catalogo": "catalogo",
+    # El backlog de sugerencias de padres lo escribe CATALOGO (crea la
+    # tarea_importacion). Sin este prefijo mas largo caeria en `/v1/admin` e
+    # iria a inteligencia, que no la sirve.
+    "/v1/admin/sugerencias": "catalogo",
+    "/v1/admin/acudientes": "identidad",
     "/v1/colegios": "identidad",
+    # Bloque DUEB de un colegio del directorio, para pre-llenar el perfil del
+    # colegio nuevo en la revisión (logo/sitio/dirección/contacto).
+    "/v1/directorio": "identidad",
     "/v1/grados": "identidad",
     "/v1/contactos": "identidad",
+    # Nombres de acudientes adultos por id, para el panel del back-office
+    # (tras `usuario:leer:nombre`). Es de identidad, la unica que cifra nombres.
+    "/v1/usuarios": "identidad",
+    # Alta del acudiente y sus hijos desde `/empezar` (camino "soy nuevo
+    # usuario"): crea la credencial y las matriculas. Sin auth, como
+    # `/v1/contactos`; la sirve IDENTIDAD.
+    "/v1/registro": "identidad",
     "/v1/sesiones": "identidad",
+    # "Mi cuenta" del acudiente: identidad y libreta de direcciones, sobre el
+    # token que emite `/v1/sesiones`.
+    "/v1/cuenta": "identidad",
     "/v1/trabajos": "inteligencia",
+    # "Mis solicitudes" del acudiente: sus listas subidas + sus trabajos, unidas.
+    # Prefijo propio y no bajo `/v1/trabajos` para no chocar con
+    # `/v1/trabajos/{trabajo_id}` (que toma un UUID); la sirve INTELIGENCIA.
+    "/v1/mis-solicitudes": "inteligencia",
+    # Los (colegio, grado) con cache bendita, para la ruta rapida de /empezar.
+    # Cuelga fuera de `/v1/trabajos` (no es un trabajo, es el indice de la cache).
+    "/v1/grados-canonicos": "inteligencia",
     "/v1/admin": "inteligencia",
+    # El panel del colegio: kits armados, cobertura y ahorro, calculados en vivo
+    # sobre los kits. Cuelga de `/v1/metricas` y no de `/v1/colegios` (que es de
+    # identidad) para que este ruteo por prefijo lo mande a inteligencia.
+    "/v1/metricas": "inteligencia",
+    # El back-office de logistica (tablero de pedidos) y la bandeja de casos/PQRS.
+    "/v1/comercio": "comercio",
+    "/v1/operacion": "operacion",
+    # El checkout del acudiente y el webhook de la pasarela: ya tienen detras la
+    # superficie de escritura de Comercio (§9), asi que salen de PENDIENTES.
+    "/v1/ordenes": "comercio",
+    "/v1/webhooks/wompi": "comercio",
 }
 
 
@@ -84,10 +138,17 @@ RUTAS: dict[str, str] = {
 # URL" y manda a revisar el cliente; un 501 dice "la URL es la correcta y el
 # backend todavia no la sirve" y manda a esperar. Confundirlas cuesta una
 # tarde de buscar un error que no esta.
-PENDIENTES: dict[str, str] = {
-    "/v1/ordenes": "9",
-    "/v1/webhooks/wompi": "9",
-}
+PENDIENTES: dict[str, str] = {}
+
+
+# Rutas servicio-a-servicio que la puerta NO expone. Existen para llamadas
+# internas directas —p. ej. inteligencia lee `/v1/comercio/pedidos-pagados`
+# pegandole a `TUKIT_COMERCIO_URL`, sin pasar por aqui— y desde fuera deben
+# verse como si no existieran, no como "prohibidas": revelar que hay una
+# superficie interna es informacion que no le hace falta a nadie de fuera. Van
+# en un set aparte de RUTAS a proposito: asi `sorted(RUTAS)` nunca las lista y
+# el 404 que responde la puerta es indistinguible del de una ruta desconocida.
+RUTAS_BLOQUEADAS: frozenset[str] = frozenset({"/v1/comercio/pedidos-pagados"})
 
 
 def destino(ruta: str) -> str | None:
@@ -102,6 +163,11 @@ def pendiente(ruta: str) -> str | None:
         if ruta == prefijo or ruta.startswith(prefijo + "/"):
             return seccion
     return None
+
+
+def bloqueada(ruta: str) -> bool:
+    """`True` si la ruta es interna y la puerta no debe exponerla."""
+    return any(ruta == p or ruta.startswith(p + "/") for p in RUTAS_BLOQUEADAS)
 
 
 app = crear_app(
@@ -120,11 +186,15 @@ async def servicios() -> dict[str, object]:
     Sin esto, `GET /salud` en la puerta responde `ok` con los tres servicios
     caidos, que es la clase de sonda que hace perder una tarde.
     """
+    # Se pregunta por READINESS, no liveness (ADR 0021): "arriba" tiene que
+    # significar "listo para atender" (base incluida), no solo "el proceso
+    # responde". Un servicio vivo con su base caida da 503 aqui, que es la verdad
+    # que evita perder la tarde con un 502 rio abajo.
     estado = {}
     async with httpx.AsyncClient(timeout=5.0) as cliente:
         for nombre, base in _servicios().items():
             try:
-                respuesta = await cliente.get(f"{base}/salud")
+                respuesta = await cliente.get(f"{base}/health/ready")
                 estado[nombre] = {"url": base, "arriba": respuesta.status_code == 200}
             except httpx.HTTPError as error:
                 estado[nombre] = {"url": base, "arriba": False, "detalle": str(error)}
@@ -152,8 +222,10 @@ async def reenviar(ruta: str, peticion: Request) -> Response:
             },
         )
 
-    nombre = destino(camino)
-    if nombre is None:
+    # Las rutas internas se responden EXACTAMENTE igual que una desconocida
+    # (mismo cuerpo, misma lista de rutas que no las incluye): desde fuera no hay
+    # forma de distinguir "no existe" de "existe pero es interna".
+    if bloqueada(camino) or destino(camino) is None:
         return JSONResponse(
             status_code=404,
             content={
@@ -163,9 +235,20 @@ async def reenviar(ruta: str, peticion: Request) -> Response:
             },
         )
 
+    nombre = destino(camino)
+
     base = _servicios()[nombre]
     cabeceras = {k: v for k, v in peticion.headers.items() if k.lower() not in CABECERAS_SALTADAS}
     cuerpo = await peticion.body()
+
+    # La puerta es el borde de entrada: aqui se acuña el id de correlacion. El
+    # middleware compartido ya leyo-o-acuñó uno para ESTA peticion; se estampa en
+    # las cabeceras salientes para que el servicio de atras —y los que el llame
+    # despues— compartan el mismo id. Reenvia el suyo httpx crudo (no
+    # `cliente_efimero`), asi que se pega a mano.
+    cid = id_de_correlacion()
+    if cid:
+        cabeceras[CABECERA_CORRELACION] = cid
 
     # Aqui va la validacion del token y la comparacion de `version_permisos`
     # cuando exista autenticacion. Es el unico punto por el que pasa todo el

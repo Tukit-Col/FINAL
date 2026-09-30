@@ -17,6 +17,18 @@
 // vive en `dinero.ts`.
 export type Dinero = number;
 
+// Los grados del sistema educativo colombiano, en orden pedagógico (el mismo
+// que sirve identidad en `/v1/grados`). Es la lista canónica: sirve para
+// ordenar los grados de un colegio y —en la ruta de subir archivo— para elegir
+// el grado aunque el colegio todavía no tenga ninguna lista verificada, que es
+// justo cuando el acudiente sugiere su colegio. Client-safe: se exporta por
+// `indice.ts` y no arrastra nada de servidor.
+export const GRADOS_CANONICOS: readonly string[] = [
+  "Parvulos", "Prejardin", "Jardin", "Transicion", "Primero", "Segundo",
+  "Tercero", "Cuarto", "Quinto", "Sexto", "Septimo", "Octavo", "Noveno",
+  "Decimo", "Once",
+];
+
 // ------------------------------------------------------------- §1.1 TipoItem
 export type TipoItem =
   | "util"
@@ -91,6 +103,10 @@ export interface HijoSolicitud {
   referencia: string;
   colegio_id: string;
   grado: string;
+  // Solo lo lleva el "hijo" sintético de un preview de onboarding: la versión
+  // de lista de la que salió, para enlazar de vuelta a su revisor. En una
+  // solicitud real de acudiente no aplica.
+  version_id?: string;
 }
 
 // ----------------------------------------------------------- §3 Preferencias
@@ -116,15 +132,16 @@ export type DolorDeclarado = "disponibilidad" | "libros" | "un_solo_lugar" | "pr
 
 export interface Preferencias {
   pesos?: Pesos;
-  // Restriccion DURA, no una pista.
-  presupuesto_por_hijo?: Dinero | null;
   disposicion_sobreprecio?: number;
   personaje_por_hijo?: Record<string, string[]>;
   dolor_declarado?: DolorDeclarado;
 }
 
 export interface SolicitudTrabajo {
-  contacto: Contacto;
+  // Opcional: cuando el acudiente ya viene autenticado (cookie→Bearer) el
+  // pipeline resuelve el usuario_id de la sesion y no hace falta contacto. Solo
+  // el flujo anonimo heredado lo envia para que Identidad registre a quien avisar.
+  contacto?: Contacto;
   hijos: HijoSolicitud[];
   preferencias?: Preferencias;
 }
@@ -134,6 +151,102 @@ export interface TrabajoCreado {
   estado: "encolado";
   estimado_segundos: number;
   consultar_en: string;
+}
+
+// --------------------------------------- §Ruta rapida sobre la cache bendita
+//
+// Un (colegio, grado, anio) publicado es la cache de 3 kits validados. El
+// acudiente que cae en uno de estos NO sube PDF ni entra a la cola: elige su
+// nivel + personaje y se le arma el pedido al vuelo (`aplicarCanonico`).
+export interface GradoCanonico {
+  colegio_id: string;
+  grado: string;
+  anio_lectivo: number;
+  trabajo_id: string;
+}
+
+export interface AplicarCanonico {
+  colegio_id: string;
+  grado: string;
+  anio_lectivo: number;
+  perfil: PerfilKit;
+  personaje?: string;
+  usuario_id?: string;
+}
+
+export interface TrabajoAplicado {
+  trabajo_id: string;
+  perfil: PerfilKit;
+  personaje: string | null;
+  total: number;
+}
+
+// El checkout del acudiente: elige el perfil de kit + a donde entregar, y el
+// backend (Inteligencia) arma la orden en Comercio server-to-server. El
+// navegador NUNCA manda lineas ni ids de producto: el trabajo ya tiene el kit,
+// y el id canonico de cada producto lo resuelve Comercio (RPO cero, ADR 0017).
+export interface Entrega {
+  destinatario: string;
+  direccion: string;
+  ciudad: string;
+}
+
+export interface SolicitudCheckout {
+  perfil: PerfilKit;
+  correo: string;
+  entrega: Entrega;
+  metodo?: string;
+  url_redireccion?: string;
+}
+
+export interface Checkout {
+  pedido_id: string;
+  total: number;
+  pago_id: string;
+  referencia_wompi?: string;
+  transaccion_wompi?: string;
+  estado?: string;
+  url_redireccion: string | null;
+}
+
+// --------------------------------------------------- §2 Subida de listas (P2)
+//
+// La puerta del acudiente que sube el PDF de cada hijo: cada archivo se percibe
+// y se importa al catalogo como una version SIN revisar de esa (colegio, grado),
+// ligada al padre por su `contacto_referencia` (el `usuario_id` que Identidad
+// emite; NUNCA su correo ni telefono). No se crea ningun trabajo: el padre
+// espera a que un administrador apruebe la version y recien ahi se arma su kit.
+// Es distinto de `crearTrabajo`, que arma un kit desechable al vuelo.
+export interface HijoSubida {
+  referencia: string;
+  // El colegio se designa de UNA de dos formas, segun como llego el acudiente:
+  //   • `colegio_id`: eligio un colegio ALIADO ya conocido (ruta "lista_oficial").
+  //   • `colegio_dane` (+ `colegio_nombre`): lo busco en el directorio de Bogota
+  //     al subir su archivo; el colegio todavia no existe en Tukit y nacera
+  //     cuando un administrador apruebe la version. El UUID se deriva del DANE.
+  //   • solo `colegio_nombre`: no lo encontro en el directorio y lo escribio a
+  //     mano; el UUID se deriva del nombre normalizado para que dos acudientes
+  //     que escriban el mismo colegio converjan a la misma version.
+  // El backend deriva el `colegio_id` final; el frontend manda lo que tenga.
+  colegio_id?: string;
+  colegio_dane?: string;
+  colegio_nombre?: string;
+  grado: string;
+  anio_lectivo?: number;
+}
+
+// El resultado por hijo: a que version pendiente quedo ligado y con que grado
+// (el grado real lo resuelve la percepcion del PDF, puede diferir del elegido).
+export interface SubidaHecha {
+  referencia: string;
+  version_id: string;
+  grado: string;
+}
+
+export interface SubidaListas {
+  subidas: SubidaHecha[];
+  // La UNICA traza al acudiente, o null si no dejo contacto. Es un id, jamas PII.
+  contacto_referencia: string | null;
 }
 
 // --------------------------------------------------------------- §5 Los kits
@@ -243,7 +356,6 @@ export interface Kit {
 export interface Recomendacion {
   perfil: PerfilKit;
   razon: string;
-  dentro_de_presupuesto: boolean;
   pesos_usados: Pesos;
 }
 
@@ -264,6 +376,64 @@ export interface Trabajo {
   kits: Kit[];
   recomendado: Recomendacion | null;
   degradaciones: Degradacion[];
+}
+
+// El panel del acudiente: una de SUS solicitudes de kit (un trabajo del
+// pipeline, no un pedido pagado). Trae el estado, los hijos como los mandó
+// —por referencia sintética/colegio/grado, jamás un nombre de menor— y las
+// preferencias del hogar. Lo sirve `GET /v1/trabajos` autenticado por Bearer.
+export interface TrabajoResumen {
+  trabajo_id: string;
+  estado: EstadoTrabajo;
+  creado_en: string;
+  hijos: HijoSolicitud[];
+  preferencias: Preferencias;
+}
+
+// ---------------------------------------------- §4.1 "Mis solicitudes" del panel
+// Una solicitud del acudiente es una de dos cosas —una lista que subio, o un
+// trabajo del pipeline— y a veces las dos son la misma (la lista aprobada
+// engendra su trabajo). El backend las une y las expone como una union por
+// `tipo`, para que el panel discrimine sin adivinar por campos ausentes.
+interface SolicitudBase {
+  // `colegio_id` viaja como string para casar con el mapa de nombres del panel.
+  colegio_id: string;
+  // `null` cuando el nombre vive en identidad (colegio aliado), no en catalogo:
+  // la web lo resuelve con su propio mapa de colegios.
+  colegio_nombre: string | null;
+  grado: string;
+  // ISO-8601. Clave de orden unificada: la fecha de la lista o del trabajo.
+  creado_en: string;
+}
+
+// Lista subida, aun sin aprobar: "una persona esta revisando tu lista".
+export interface SolicitudRecibida extends SolicitudBase {
+  tipo: "recibida";
+}
+
+// Lista aprobada: su trabajo ya existe y el kit esta listo.
+export interface SolicitudAprobada extends SolicitudBase {
+  tipo: "aprobada";
+  trabajo_id: string;
+}
+
+// Trabajo sin lista subida (ruta rapida o lista verificada directa): se muestra
+// su estado en palabras y un enlace segun este publicado o no.
+export interface SolicitudEnProceso extends SolicitudBase {
+  tipo: "trabajo";
+  trabajo_id: string;
+  estado: EstadoTrabajo;
+}
+
+export type Solicitud = SolicitudRecibida | SolicitudAprobada | SolicitudEnProceso;
+
+// Resultado del endpoint: las solicitudes mas una marca de si se pudieron leer
+// las listas subidas. `listas_disponibles: false` significa que catalogo no
+// respondio: el panel muestra los trabajos y avisa que faltan las listas, en
+// vez de fallar entero.
+export interface MisSolicitudes {
+  solicitudes: Solicitud[];
+  listas_disponibles: boolean;
 }
 
 // ---------------------------------------------------------------- §11 Errores
@@ -310,7 +480,21 @@ export function validarArchivo(archivo: File): string | null {
 // `/revision`. Todo lo de abajo excepto `DecisionRevision` es INFERIDO a
 // partir de lo que cada requisito del SRS necesita para poder ejecutarse.
 
-// INFERIDO (AD-02/AD-03): la cola necesita, por trabajo, con que decidir a
+// El panel de acudientes de un colegio: quién pidió kits y en qué va su
+// trabajo. El identificador del acudiente y el estado, más los grados que pidió
+// EN ESTE colegio y las preferencias del hogar (pesos, presupuesto, personaje).
+// Nunca el correo ni el apodo de un menor (Ley 1581): `grados` y `preferencias`
+// son dato de negocio, no PII.
+export interface AcudienteResumen {
+  usuario_id: string;
+  estado: EstadoTrabajo;
+  actualizado_en: string;
+  trabajo_id: string;
+  grados: string[];
+  preferencias: Preferencias;
+}
+
+// AD-01/AD-02/AD-03: la cola necesita, por trabajo, con que decidir a
 // cual entrar primero.
 export interface EntradaCola {
   trabajo_id: string;
@@ -327,7 +511,7 @@ export interface ColaAdmin {
   entradas: EntradaCola[];
 }
 
-// INFERIDO (AD-03): el detalle del trabajo en admin es el mismo `Trabajo` mas
+// AD-04: el detalle del trabajo en admin es el mismo `Trabajo` mas
 // lo que la revision necesita y el acudiente no ve: por que cada linea esta
 // pendiente y quien la toco.
 export interface TrabajoAdmin extends Trabajo {
@@ -335,22 +519,30 @@ export interface TrabajoAdmin extends Trabajo {
   contacto_id: string;
   lineas_pendientes: string[];
   nota_revision?: string | null;
+  // De dónde nació el trabajo. `preview_onboarding` es el caso especial: un
+  // preview desechable de una lista que NO se publica (no tiene acudiente); la
+  // consola lo detecta para enlazar de vuelta al revisor en vez de ofrecer un
+  // "Publicar" que el backend rechaza (409 `preview_no_publicable`).
+  origen: string;
+  // Los hijos como se recibieron. En un preview, el único "hijo" trae el
+  // `version_id` de la lista de la que salió, para poder volver a su revisor.
+  hijos: HijoSolicitud[];
 }
 
-// INFERIDO (AD-04): validar es fijar el producto de la linea. Sin `sku` se lee
+// AD-02: validar es fijar el producto de la linea. Sin `sku` se lee
 // como "confirmo el que el sistema eligio".
 export interface ValidarLinea {
   sku?: string;
   nota?: string;
 }
 
-// INFERIDO (AD-04): una marca de "sin coincidencia" que no diga por que no se
+// AD-02: una marca de "sin coincidencia" que no diga por que no se
 // puede revisar despues.
 export interface SinCoincidencia {
   motivo: string;
 }
 
-// INFERIDO (AD-07): alta manual de producto con precio e imagen, que es lo que
+// AD-07: alta manual de producto con precio e imagen, que es lo que
 // el requisito nombra. `precio` en pesos enteros, como todo `Dinero`.
 export interface AltaProducto {
   concepto: string;
@@ -371,7 +563,7 @@ export interface ProductoDadoDeAlta {
   sku: string;
 }
 
-// INFERIDO (AD-05).
+// AD-05.
 export interface MarcarNoDisponible {
   motivo: string;
 }
@@ -380,4 +572,24 @@ export interface MarcarNoDisponible {
 export interface DecisionRevision {
   decision: "aprobar" | "devolver";
   nota?: string;
+}
+
+// ------------------------------------------- Onboarding: percepcion cruda
+//
+// La evidencia que inteligencia dejo al importar una lista, tal como la sirve
+// catalogo en `GET /v1/admin/listas/{version_id}/percepcion` (region 2 del
+// revisor de cuatro paneles). Son dos cosas: lo CRUDO que ley el modelo por
+// pagina (para poder cotejar contra el PDF original) y lo que se ITEMIZO de
+// ahi. El item admite `texto_original` o `descripcion` porque el borde escribe
+// `texto_original` pero la percepcion de inteligencia lo nombra `descripcion`;
+// se aceptan ambos y `cantidad`/`confianza` pueden faltar (null) mientras la
+// revision no los fije.
+export interface PercepcionCruda {
+  paginas: { pagina: number; crudo: string }[];
+  items: {
+    texto_original?: string;
+    descripcion?: string;
+    cantidad: number | null;
+    confianza: number | null;
+  }[];
 }

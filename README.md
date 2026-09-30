@@ -14,6 +14,14 @@ make fronteras    # verifica las fronteras de arquitectura
 make verificar    # todo lo que corre la integración continua
 ```
 
+## Requisitos
+
+- **Python 3.12+** y [`uv`](https://github.com/astral-sh/uv) (gestiona el venv y las
+  dependencias del workspace).
+- **Node 20+** y **npm** (los frontends son un workspace de npm, no pnpm).
+- **Postgres 16 con `pgvector`** — o **Docker**, que lo levanta por ti con `make bd-arriba`
+  (imagen `pgvector/pgvector:pg16`). Sin Docker necesitas Postgres 16 local y `make bd-crear`.
+
 ## Levantar el backend completo
 
 ```bash
@@ -54,6 +62,59 @@ endpoint que devuelve `{"total": 0}` responde `200` perfectamente, y una base mi
 sembrar se ve igual de sana que una sembrada hasta que alguien abre la pantalla. Cada
 comprobación exige contenido, y la última recorre el ciclo entero: crear un trabajo,
 esperarlo, aprobarlo y verificar que salgan tres kits con uno recomendado.
+
+---
+
+## Levantar el frontend
+
+Dos apps de Next.js 16 en el mismo workspace de npm: la pública (`web`, acudiente) y el
+back-office (`admin`, operación). Ambas hablan solo con el gateway.
+
+```bash
+npm install        # instala los dos workspaces desde la raíz
+npm run dev:web    # app pública    → http://127.0.0.1:3000
+npm run dev:admin  # back-office    → http://127.0.0.1:3001
+```
+
+Cada app lee su origen de datos de un `.env.local` propio. Siempre habla con el backend
+real a traves del gateway: solo hay que decirle donde esta. `TUKIT_API_URL` es obligatoria
+— si falta, la app falla de entrada a proposito (no hay default silencioso).
+
+```bash
+# apps/web/.env.local  y  apps/admin/.env.local
+TUKIT_API_URL=http://127.0.0.1:8010
+```
+
+El `.env` del backend se copia de [`.env.ejemplo`](.env.ejemplo). Todo tiene defaults de
+desarrollo, así que puedes arrancar sin tocarlo. Dos variables son opcionales pero mejoran
+la demo:
+
+- `GEMINI_API_KEY` — habilita la búsqueda semántica del catálogo. Sin ella el emparejamiento
+  cae a solo léxico.
+- `WOMPI_*` — la pasarela de pago. `WOMPI_MODO=falso` (por defecto) usa una pasarela simulada;
+  no necesitas llaves reales para caminar el checkout.
+
+## Usuarios de prueba
+
+Las seis cuentas demo entran con la misma clave: **`demo1234`**. No es un secreto, es un
+banco de pruebas (así lo dice el propio sembrador). Las siembra `make bd-sembrar`; para
+re-sembrar con otra clave: `python -m tukit_identidad.sembrar_acceso --clave otra`.
+
+| Correo | Rol | Dónde aterriza | Ruta |
+|---|---|---|---|
+| `mama@ejemplo.com` | acudiente | web · :3000 | `/dashboard` |
+| `papa@ejemplo.com` | acudiente | web · :3000 | `/dashboard` |
+| `operador@tukit.co` | operador | admin · :3001 | `/` (cola de revisión) |
+| `admin@tukit.co` | admin | admin · :3001 | `/` (cola de revisión) |
+| `rectoria@colegio.edu.co` | colegio_admin | portal de colegio* | `/portal` |
+| `docente@colegio.edu.co` | colegio_docente | portal de colegio* | `/portal` |
+
+\* El portal de colegio está enrutado pero aún no construido; hoy solo existen la app web
+(:3000) y el back-office (:3001).
+
+El enrutado por rol vive en `libs/ts/tukit-contrato/src/origen.ts::destinoDe`: `admin` y
+`operador` van al back-office, `colegio_*` al portal de colegio, y el resto al dashboard del
+acudiente.
 
 ---
 

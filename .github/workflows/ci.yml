@@ -99,7 +99,8 @@ jobs:
             # parece en nada a lo que de verdad se rompio.
             uv pip install pytest pytest-asyncio \
               sqlalchemy pydantic pgvector aiosqlite \
-              fastapi httpx
+              fastapi httpx alembic greenlet \
+              numpy pymoo
             .venv/bin/pytest "servicios/${SERVICIO}" -q
           else
             echo "Sin pruebas todavia en ${SERVICIO}."

@@ -1,0 +1,32 @@
+[project]
+name = "tukit-comercio"
+version = "0.1.0"
+description = "Pedidos, inventario, pagos (Wompi PSE) y entrega. Todo lo que toca dinero: objetivo de punto de recuperacion cero."
+requires-python = ">=3.12"
+dependencies = [
+    "sqlalchemy>=2.0",
+    "pydantic>=2.9",
+    "tukit-comun",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    # El checkout reverifica precio y existencias contra Catalogo por HTTP (no
+    # por lectura entre bases), y el pago habla con la pasarela sandbox de Wompi.
+    "httpx>=0.27",
+]
+
+[tool.uv.sources]
+tukit-comun = { workspace = true }
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "aiosqlite>=0.20",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["tukit_comercio"]

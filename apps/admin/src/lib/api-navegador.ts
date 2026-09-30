@@ -1,8 +1,8 @@
 // El lado del navegador de las acciones del §7.
 //
 // Habla solo con los Route Handlers de esta misma app, nunca con el backend:
-// la URL del backend y la bandera `TUKIT_ORIGEN_DATOS` se quedan en el
-// servidor y el navegador no tiene que saber que existen.
+// la URL del backend se queda en el servidor y el navegador no tiene que saber
+// que existe.
 
 import type {
   AltaProducto,
@@ -52,7 +52,7 @@ async function enviar<T>(ruta: string, cuerpo: unknown): Promise<T> {
 
 const id = encodeURIComponent;
 
-/** AD-04. Sin `sku` se lee como "confirmo el producto que el sistema eligio". */
+/** AD-02. Sin `sku` se lee como "confirmo el producto que el sistema eligio". */
 export function validarLinea(
   trabajoId: string,
   itemId: string,
@@ -61,7 +61,23 @@ export function validarLinea(
   return enviar(`/api/trabajos/${id(trabajoId)}/lineas/${id(itemId)}/validar`, cuerpo);
 }
 
-/** AD-04. El motivo es obligatorio: una marca sin motivo no se puede revisar despues. */
+/** AD-04. Fija el producto de UN kit (por-nivel): escribe LINEA y recalcula su
+ *  subtotal. A diferencia de `validarLinea` (item, los tres kits), esto cambia
+ *  el producto de un solo perfil, que es lo que hace que el concepto suba de
+ *  economico a premium entre kits y que el personaje del Fan llegue al kit. */
+export function fijarProductoLinea(
+  trabajoId: string,
+  perfil: string,
+  itemId: string,
+  sku: string,
+): Promise<void> {
+  return enviar(
+    `/api/trabajos/${id(trabajoId)}/kits/${id(perfil)}/lineas/${id(itemId)}/producto`,
+    { sku },
+  );
+}
+
+/** AD-02. El motivo es obligatorio: una marca sin motivo no se puede revisar despues. */
 export function marcarSinCoincidencia(
   trabajoId: string,
   itemId: string,
@@ -70,7 +86,7 @@ export function marcarSinCoincidencia(
   return enviar(`/api/trabajos/${id(trabajoId)}/lineas/${id(itemId)}/sin-coincidencia`, cuerpo);
 }
 
-/** AD-07. Alta manual con precio e imagen, sobre todo para libros. */
+/** AD-07. Alta manual con precio e imagen, para utiles y libros. */
 export function altaProducto(cuerpo: AltaProducto): Promise<ProductoDadoDeAlta> {
   return enviar<ProductoDadoDeAlta>("/api/productos", cuerpo);
 }
@@ -83,4 +99,10 @@ export function marcarNoDisponible(sku: string, cuerpo: MarcarNoDisponible): Pro
 /** AD-06. Aprobar publica y avisa al acudiente; devolver reabre en silencio. */
 export function decidirRevision(trabajoId: string, cuerpo: DecisionRevision): Promise<void> {
   return enviar(`/api/trabajos/${id(trabajoId)}/revision`, cuerpo);
+}
+
+/** Borra un trabajo desechable (preview, encolado, fallido). Un `publicado`
+ *  esta protegido: el backend responde 409 `trabajo_publicado_protegido`. */
+export function eliminarTrabajo(trabajoId: string): Promise<void> {
+  return enviar(`/api/trabajos/${id(trabajoId)}/eliminar`, {});
 }

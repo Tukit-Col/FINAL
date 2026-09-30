@@ -1,40 +1,28 @@
 "use client";
 
-// Selector de personajes gamificado para el hijo.
+// Selector de personajes para el hijo.
 //
 // No es una pantalla suelta ni un mock: es la entrada REAL de la preferencia
 // `personaje_por_hijo` del contrato. El formulario la sigue leyendo como una
 // lista de nombres separados por comas (misma forma de antes), asi que este
 // componente solo cambia COMO se elige, no QUE se guarda. El eje personaje es
 // ortogonal al nivel de calidad —por eso usa `--color-personaje` y nunca se
-// pinta como un cuarto nivel—, y elegir un personaje no promete que exista:
-// el catalogo dira la verdad después. Aqui solo capturamos el gusto del niño.
+// pinta como un cuarto nivel.
+//
+// El cambio de fondo (P4b): la rejilla ya no es una lista fija de "sugeridos"
+// que promete cualquier cosa. Son las franquicias que de verdad tenemos surtidas
+// completas —el filtro de las cuatro anclas lo hace el servidor y nos llega en
+// `surtidos`—, asi que tocar una es una promesa que sí cumplimos. El campo libre
+// sigue existiendo, pero como PEDIDO: se ve distinto porque no garantiza stock.
 //
 // Motion de plastilina con rebote al elegir; con `prefers-reduced-motion` no
 // anima (el helper del contrato lo resuelve) y el selector sigue funcionando.
 
 import { useRef } from "react";
-import { Check, Plus, Sparkles } from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
 import { useGSAP, gsap, squish, prefiereMenosMovimiento } from "@tukit/contrato/motion";
+import { iconoDe } from "./IconosPersonaje";
 import estilos from "./SelectorPersonaje.module.css";
-
-// Personajes que los niños piden más, con un emoji de gancho visual. La lista
-// es un atajo amable, no una promesa de catálogo: se puede escribir cualquier
-// otro. Los nombres van en minúscula porque asi los normaliza el catálogo.
-const SUGERIDOS: { nombre: string; emoji: string }[] = [
-  { nombre: "spiderman", emoji: "🕷️" },
-  { nombre: "frozen", emoji: "❄️" },
-  { nombre: "barbie", emoji: "💗" },
-  { nombre: "hot wheels", emoji: "🏎️" },
-  { nombre: "minecraft", emoji: "⛏️" },
-  { nombre: "stitch", emoji: "🩵" },
-  { nombre: "harry potter", emoji: "⚡" },
-  { nombre: "sonic", emoji: "💨" },
-  { nombre: "kitty", emoji: "🎀" },
-  { nombre: "dinosaurios", emoji: "🦕" },
-  { nombre: "fútbol", emoji: "⚽" },
-  { nombre: "unicornios", emoji: "🦄" },
-];
 
 interface Props {
   /** Valor actual: nombres separados por comas (lo que el formulario guarda). */
@@ -43,6 +31,11 @@ interface Props {
   onChange: (valor: string) => void;
   /** Para etiquetar el hijo en la cabecera del selector. */
   etiquetaHijo: string;
+  /**
+   * Franquicias surtidas completas (pasan el filtro de las cuatro anclas). Son
+   * los nombres de catalogo, ya en minuscula. Vienen del servidor.
+   */
+  surtidos: string[];
 }
 
 // El estado vive en el string del formulario. Lo parseamos a un conjunto para
@@ -55,16 +48,15 @@ function parsear(valor: string): string[] {
     .filter(Boolean);
 }
 
-export default function SelectorPersonaje({ valor, onChange, etiquetaHijo }: Props) {
+export default function SelectorPersonaje({ valor, onChange, etiquetaHijo, surtidos }: Props) {
   const rejilla = useRef<HTMLDivElement>(null);
   const elegidos = parsear(valor);
   const elegidosLower = elegidos.map((p) => p.toLowerCase());
+  const surtidosSet = new Set(surtidos.map((s) => s.toLowerCase()));
 
-  // Sugeridos que ya no están elegidos + los personajes libres que el acudiente
-  // escribió y no están en la lista sugerida (para poder mostrarlos como chip).
-  const libresElegidos = elegidos.filter(
-    (p) => !SUGERIDOS.some((s) => s.nombre === p.toLowerCase()),
-  );
+  // Los que el acudiente escribió a mano y no están en la rejilla surtida: son
+  // pedidos, y se muestran aparte como chips que se pueden quitar.
+  const pedidos = elegidos.filter((p) => !surtidosSet.has(p.toLowerCase()));
 
   useGSAP(
     () => {
@@ -76,6 +68,11 @@ export default function SelectorPersonaje({ valor, onChange, etiquetaHijo }: Pro
         duration: 0.4,
         ease: "back.out(1.6)",
         stagger: { each: 0.03, from: "center" },
+        // Sin esto, la animacion de entrada deja un `transform` inline en cada
+        // ficha que pisa el estado en reposo del CSS: una ficha deseleccionada
+        // se quedaba "grande". `clearProps` devuelve el control al CSS al
+        // terminar, para que solo `.fichaActiva` decida como se ve.
+        clearProps: "transform",
       });
     },
     { scope: rejilla },
@@ -83,13 +80,16 @@ export default function SelectorPersonaje({ valor, onChange, etiquetaHijo }: Pro
 
   function alternar(nombre: string, nodo: Element | null) {
     const yaEsta = elegidosLower.includes(nombre.toLowerCase());
-    const siguiente = yaEsta
-      ? elegidos.filter((p) => p.toLowerCase() !== nombre.toLowerCase())
-      : [...elegidos, nombre];
-    if (!yaEsta) {
-      squish(nodo, true);
-      setTimeout(() => squish(nodo, false), 130);
-    }
+    // Un personaje por hijo: el kit Fan se arma alrededor de UNO. Tocar otra
+    // ficha reemplaza la elección de la rejilla en vez de sumar una segunda;
+    // tocar la activa la quita. (Los `pedidos` escritos a mano son aparte.)
+    const soloPedidos = elegidos.filter((p) => !surtidosSet.has(p.toLowerCase()));
+    const siguiente = yaEsta ? soloPedidos : [...soloPedidos, nombre];
+    // El "hundido y vuelve" se hace en cada toque, seleccionar o soltar: antes
+    // solo corria al seleccionar, asi que la ficha quedaba encogida hasta el
+    // siguiente toque. El release siempre resuelve la escala a 1.
+    squish(nodo, true);
+    setTimeout(() => squish(nodo, false), 130);
     onChange(siguiente.join(", "));
   }
 
@@ -109,64 +109,76 @@ export default function SelectorPersonaje({ valor, onChange, etiquetaHijo }: Pro
         <div>
           <p className={estilos.titulo}>¿Qué le encanta a {etiquetaHijo}?</p>
           <p className={estilos.subtitulo}>
-            Toca los que le gusten. Buscaremos sus útiles con esos personajes donde
-            los tengamos — y si no, te lo diremos claro.
+            Toca los que le gusten. Estos los tenemos surtidos completos, así que
+            los buscamos con esos personajes sin falta.
           </p>
         </div>
       </div>
 
-      <div className={estilos.rejilla} ref={rejilla} role="group" aria-label={`Personajes de ${etiquetaHijo}`}>
-        {SUGERIDOS.map((personaje) => {
-          const activo = elegidosLower.includes(personaje.nombre);
-          return (
-            <button
-              key={personaje.nombre}
-              type="button"
-              aria-pressed={activo}
-              className={`${estilos.ficha} ${activo ? estilos.fichaActiva : ""}`}
-              onClick={(e) => alternar(personaje.nombre, e.currentTarget)}
-            >
-              <span className={estilos.emoji} aria-hidden="true">
-                {personaje.emoji}
-              </span>
-              <span className={estilos.nombre}>{personaje.nombre}</span>
-              {activo && (
-                <span className={estilos.marca} aria-hidden="true">
-                  <Check size={12} strokeWidth={3.4} />
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {surtidos.length > 0 && (
+        <div
+          className={estilos.rejilla}
+          ref={rejilla}
+          role="group"
+          aria-label={`Personajes surtidos para ${etiquetaHijo}`}
+        >
+          {surtidos.map((nombre) => {
+            const activo = elegidosLower.includes(nombre);
+            const Icono = iconoDe(nombre);
+            return (
+              <button
+                key={nombre}
+                type="button"
+                aria-pressed={activo}
+                className={`${estilos.ficha} ${activo ? estilos.fichaActiva : ""}`}
+                onClick={(e) => alternar(nombre, e.currentTarget)}
+              >
+                <Icono className={estilos.icono} />
+                <span className={estilos.nombre}>{nombre}</span>
+                {activo && (
+                  <span className={estilos.marca} aria-hidden="true">
+                    <Check size={12} strokeWidth={3.4} />
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-      {/* Cualquier otro personaje: campo libre. Es la misma preferencia, escrita
-          a mano. Se guarda en el mismo string. */}
-      <label className={estilos.libre}>
-        <Plus size={15} aria-hidden="true" strokeWidth={2.6} className={estilos.libreIcono} />
-        <input
-          type="text"
-          className={estilos.libreInput}
-          placeholder="¿Otro? Escríbelo y presiona Enter"
-          aria-label={`Agregar otro personaje para ${etiquetaHijo}`}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
+      {/* Campo libre: es un PEDIDO, no una promesa de stock. Se ve distinto y el
+          rótulo lo dice claro. Se guarda en el mismo string. */}
+      <div>
+        <p className={estilos.rotuloLibre}>
+          ¿Le gusta otro?
+          <span>Escríbelo y lo pedimos: si aún no lo surtimos, te lo decimos claro.</span>
+        </p>
+        <label className={estilos.libre}>
+          <Sparkles size={15} aria-hidden="true" strokeWidth={2.4} className={estilos.libreIcono} />
+          <input
+            type="text"
+            className={estilos.libreInput}
+            placeholder="Otro personaje… y presiona Enter"
+            aria-label={`Pedir otro personaje para ${etiquetaHijo}`}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                agregarLibre(e.currentTarget.value);
+                e.currentTarget.value = "";
+              }
+            }}
+            onBlur={(e) => {
               agregarLibre(e.currentTarget.value);
               e.currentTarget.value = "";
-            }
-          }}
-          onBlur={(e) => {
-            agregarLibre(e.currentTarget.value);
-            e.currentTarget.value = "";
-          }}
-        />
-      </label>
+            }}
+          />
+        </label>
+      </div>
 
-      {/* Los personajes libres elegidos también se pueden quitar tocándolos. */}
-      {libresElegidos.length > 0 && (
+      {/* Los pedidos escritos a mano se muestran aparte y se quitan tocándolos. */}
+      {pedidos.length > 0 && (
         <div className={estilos.propios}>
-          {libresElegidos.map((p) => (
+          {pedidos.map((p) => (
             <button
               key={p}
               type="button"

@@ -9,11 +9,22 @@ su manejador seria repetirlo.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import httpx
 import pytest
 from fastapi import FastAPI
 from pydantic import BaseModel
-from tukit_comun.http import ORIGENES_POR_OMISION, ErrorDominio, crear_app, origenes_permitidos
+from tukit_comun.http import (
+    CABECERA_CORRELACION,
+    ORIGENES_POR_OMISION,
+    ErrorDominio,
+    cliente_efimero,
+    crear_app,
+    id_de_correlacion,
+    iso,
+    origenes_permitidos,
+)
 
 
 class Clave(BaseModel):
@@ -31,6 +42,12 @@ def _app() -> FastAPI:
     @app.get("/rechazo")
     async def rechazo() -> dict:
         raise ErrorDominio("presupuesto_invalido", "Tiene que ser positivo.", campo="presupuesto")
+
+    @app.get("/quien-soy")
+    async def quien_soy() -> dict:
+        # Devuelve el id que el handler VE en su contextvar: prueba que el
+        # middleware lo propago hacia adentro, no solo a la respuesta.
+        return {"cid": id_de_correlacion()}
 
     return app
 
@@ -80,6 +97,104 @@ class TestElSobreDeDominio:
         assert error.cuerpo() == {"error": "estado_incompatible", "mensaje": "Ya estaba publicado."}
 
 
+class TestElIdDeCorrelacion:
+    """Una sola cadena sigue la peticion por los servicios que toca. El
+    middleware la lee-o-acuña, la mete en el contextvar de la peticion y la
+    devuelve en la cabecera; `cliente_efimero` la propaga a las salientes."""
+
+    async def test_sin_cabecera_se_acuña_una_y_vuelve_en_la_respuesta(self):
+        respuesta = await _pedir("GET", "/quien-soy")
+        cid = respuesta.headers.get(CABECERA_CORRELACION)
+        assert cid  # se acuñó
+        # el mismo id que el handler vio por dentro es el que sale por fuera
+        assert respuesta.json()["cid"] == cid
+
+    async def test_una_cabecera_dada_viaja_de_ida_y_vuelta(self):
+        dado = "abc-123-correlacion"
+        respuesta = await _pedir("GET", "/quien-soy", headers={CABECERA_CORRELACION: dado})
+        assert respuesta.headers[CABECERA_CORRELACION] == dado
+        assert respuesta.json()["cid"] == dado
+
+    async def test_el_error_de_dominio_tambien_lleva_la_cabecera(self):
+        # El sobre de error sigue siendo EXACTO (lo fija otro test); el id va en
+        # la cabecera, no en el cuerpo.
+        dado = "corr-en-el-error"
+        respuesta = await _pedir("GET", "/rechazo", headers={CABECERA_CORRELACION: dado})
+        assert respuesta.status_code == 400
+        assert respuesta.headers[CABECERA_CORRELACION] == dado
+
+    async def test_cliente_efimero_propaga_el_id_a_las_salientes(self):
+        # Sin peticion en curso no hay id: el CM no anexa cabecera de correlacion.
+        async with cliente_efimero(None, 5.0) as propio:
+            assert CABECERA_CORRELACION not in {k.lower() for k in propio.headers}
+
+
+class TestPoolHttpx:
+    """El pool de vida larga (ADR 0020): reusa conexiones y estampa el id VIVO
+    por peticion (no cabecera por omision, que quedaria congelada)."""
+
+    async def test_el_hook_estampa_el_id_vivo_de_la_peticion_en_curso(self):
+        from tukit_comun.http import _sellar_correlacion, crear_pool, fijar_correlacion, reset_correlacion
+
+        pool = crear_pool(espera=5.0)
+        try:
+            peticion = pool.build_request("GET", "http://x/ping")
+            token = fijar_correlacion("cid-vivo")
+            try:
+                await _sellar_correlacion(peticion)
+            finally:
+                reset_correlacion(token)
+            assert peticion.headers[CABECERA_CORRELACION] == "cid-vivo"
+        finally:
+            await pool.aclose()
+
+    async def test_sin_peticion_en_curso_no_anexa_nada(self):
+        from tukit_comun.http import _sellar_correlacion, crear_pool
+
+        pool = crear_pool(espera=5.0)
+        try:
+            peticion = pool.build_request("GET", "http://x/ping")
+            await _sellar_correlacion(peticion)  # sin contexto: None
+            assert CABECERA_CORRELACION not in {k.lower() for k in peticion.headers}
+        finally:
+            await pool.aclose()
+
+
+class TestLivenessYReadiness:
+    """ADR 0021: liveness no toca base; readiness prueba base y da 503 con detalle."""
+
+    async def test_live_responde_sin_base(self):
+        respuesta = await _pedir("GET", "/health/live")
+        assert respuesta.status_code == 200
+        assert respuesta.json()["estado"] == "vivo"
+
+    async def test_ready_sin_motor_esta_listo(self):
+        # Una app sin `app.state.motor` (el gateway) esta lista si responde.
+        respuesta = await _pedir("GET", "/health/ready")
+        assert respuesta.status_code == 200
+        assert respuesta.json()["estado"] == "listo"
+
+    async def test_ready_da_503_si_la_base_falla(self):
+        # Un motor cuyo SELECT 1 revienta => readiness 503 con el detalle, no 500.
+        from types import SimpleNamespace
+
+        class _ConexionRota:
+            async def __aenter__(self):
+                raise RuntimeError("base caida")
+
+            async def __aexit__(self, *a):
+                return False
+
+        app = crear_app(titulo="Prueba", descripcion="banco")
+        app.state.motor = SimpleNamespace(engine=SimpleNamespace(connect=lambda: _ConexionRota()))
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://prueba"
+        ) as cliente:
+            respuesta = await cliente.get("/health/ready")
+        assert respuesta.status_code == 503
+        assert "base caida" in respuesta.json()["detalle"]
+
+
 class TestElNavegadorPuedeLeerLaRespuesta:
     async def test_el_next_local_esta_permitido_sin_configurar_nada(self):
         respuesta = await _pedir("GET", "/salud", headers={"Origin": "http://localhost:3000"})
@@ -98,6 +213,35 @@ class TestLaSonda:
     async def test_los_tres_servicios_responden_igual(self):
         cuerpo = (await _pedir("GET", "/salud")).json()
         assert cuerpo == {"estado": "ok", "servicio": "Prueba", "version": "1.1"}
+
+
+class TestIso:
+    def test_none_es_none_no_cadena_vacia(self):
+        assert iso(None) is None
+
+    def test_una_fecha_sale_en_iso8601(self):
+        assert iso(datetime(2026, 9, 23, 10, 30, tzinfo=UTC)) == "2026-09-23T10:30:00+00:00"
+
+
+class TestClienteEfimero:
+    """El ciclo de vida compartido de los tres `remoto.py`: tomar el cliente
+    inyectado (que las pruebas sustituyen) o abrir uno propio y cerrarlo."""
+
+    async def test_el_cliente_inyectado_se_reusa_y_no_se_cierra(self):
+        inyectado = httpx.AsyncClient()
+        try:
+            async with cliente_efimero(inyectado, 5.0) as usado:
+                assert usado is inyectado
+            assert not inyectado.is_closed  # sigue vivo: lo cierra quien lo creo
+        finally:
+            await inyectado.aclose()
+
+    async def test_sin_cliente_abre_uno_propio_y_lo_cierra_al_salir(self):
+        capturado = {}
+        async with cliente_efimero(None, 5.0) as propio:
+            capturado["c"] = propio
+            assert not propio.is_closed
+        assert capturado["c"].is_closed  # el efimero se cierra solo al salir
 
 
 @pytest.mark.parametrize("metodo", ["GET", "POST"])

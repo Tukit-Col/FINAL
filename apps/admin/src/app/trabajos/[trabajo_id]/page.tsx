@@ -1,4 +1,4 @@
-// `/trabajos/{id}` — el detalle y la revision (AD-03 a AD-07).
+// `/trabajos/{id}` — el detalle y la revision (AD-02 a AD-07).
 //
 // Server Component para leer: `trabajoAdmin()` sale del origen directamente,
 // sin pasar por el navegador. Las escrituras si van por Route Handlers, que
@@ -8,6 +8,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { TrabajoAdmin } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
+import BorrarTrabajo from "@/components/BorrarTrabajo";
 import ConsolaRevision from "@/components/ConsolaRevision";
 import DecisionTrabajo from "@/components/DecisionTrabajo";
 import {
@@ -19,6 +20,11 @@ import {
 import styles from "./Detalle.module.css";
 
 export const dynamic = "force-dynamic";
+
+// Los 4 conceptos ancla del kit Fan (cuaderno/cartuchera/carpeta/maleta),
+// espejo de CONCEPTOS_ANCLA en optimizador.py:91 y PersonajeFan.tsx:26. Una
+// franquicia solo es "validada" si tiene producto para las cuatro.
+const ANCLAS_FAN = ["C001", "C009", "C011", "C086"] as const;
 
 interface Props {
   params: Promise<{ trabajo_id: string }>;
@@ -35,12 +41,32 @@ export default async function PaginaTrabajo({ params }: Props) {
     throw causa;
   }
 
+  // Las franquicias del catálogo para el interruptor de personaje del kit Fan
+  // (§7, 2d). Se lee aquí —Server Component— y se pasa como nombres; si el
+  // catálogo está caído, se degrada a lista vacía (el interruptor no aparece).
+  //
+  // Solo las franquicias VALIDADAS: las que tienen producto para las 4 anclas.
+  // El endpoint devuelve `conceptos` justo para que la UI calcule este gate (el
+  // catálogo no lo calcula). Sin las 4, el switch dejaría anclas sin cambiar.
+  const personajes = await origenDeDatos()
+    .personajes()
+    .then((lista) =>
+      lista.filter((p) => ANCLAS_FAN.every((c) => p.conceptos?.includes(c))).map((p) => p.nombre),
+    )
+    .catch(() => [] as string[]);
+
   // El reloj de la peticion. `react-hooks/purity` lo marca porque en un
   // componente de cliente daria un render inestable; este es un Server
   // Component con `force-dynamic`, se renderiza una vez por peticion y no se
   // hidrata, asi que el valor no puede cambiar bajo los pies de nadie.
   // eslint-disable-next-line react-hooks/purity
   const ahora = Date.now();
+
+  // Un preview de onboarding es un trabajo desechable que no se publica. La
+  // consola lo trata distinto: enlaza al revisor de su lista (el `version_id`
+  // que el preview guarda en su único hijo) en vez de ofrecer "Publicar".
+  const esPreview = trabajo.origen === "preview_onboarding";
+  const versionPreview = trabajo.hijos[0]?.version_id;
 
   // Los hijos no vienen sueltos en `TrabajoAdmin`: se derivan de las lineas,
   // que es donde el contrato pone la referencia de cada hijo.
@@ -53,7 +79,8 @@ export default async function PaginaTrabajo({ params }: Props) {
   return (
     <div className={styles.pagina}>
       <nav className={styles.migas}>
-        <Link href="/">← Cola de revisión</Link>
+        <Link href="/cola">← Cola de revisión</Link>
+        <BorrarTrabajo trabajoId={trabajo.trabajo_id} estado={trabajo.estado} volverA="/cola" />
       </nav>
 
       <header className={styles.encabezado}>
@@ -126,14 +153,39 @@ export default async function PaginaTrabajo({ params }: Props) {
         </section>
       ) : null}
 
-      <DecisionTrabajo
-        trabajoId={trabajo.trabajo_id}
-        estado={trabajo.estado}
-        lineasPendientes={trabajo.lineas_pendientes.length}
-        notaRevision={trabajo.nota_revision}
-      />
+      {esPreview ? (
+        // Un preview de onboarding no se publica: no tiene acudiente a quien
+        // avisar (el backend lo rechaza con 409). Para servir al acudiente que
+        // subió la lista hay que APROBARLA en su revisor, que crea el colegio y
+        // arma el trabajo del padre. Se enlaza de vuelta en vez de ofrecer un
+        // "Publicar" que no funciona.
+        <section className={styles.avisoPreview}>
+          <h2>Este es un preview de la lista</h2>
+          <p>
+            No se publica: es una vista de solo lectura, sin acudiente a quien avisar. Para
+            servir al acudiente que subió la lista, apruébala en su revisión —eso crea el colegio
+            y arma su trabajo.
+          </p>
+          {versionPreview ? (
+            <Link href={`/onboarding/${encodeURIComponent(versionPreview)}`} className={styles.enlaceRevisor}>
+              Ir a la revisión de la lista →
+            </Link>
+          ) : (
+            <Link href="/cola" className={styles.enlaceRevisor}>
+              Volver a la cola de verificación →
+            </Link>
+          )}
+        </section>
+      ) : (
+        <DecisionTrabajo
+          trabajoId={trabajo.trabajo_id}
+          estado={trabajo.estado}
+          lineasPendientes={trabajo.lineas_pendientes.length}
+          notaRevision={trabajo.nota_revision}
+        />
+      )}
 
-      <ConsolaRevision trabajo={trabajo} />
+      <ConsolaRevision trabajo={trabajo} personajes={personajes} />
     </div>
   );
 }

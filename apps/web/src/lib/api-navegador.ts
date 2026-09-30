@@ -1,10 +1,27 @@
 // El lado del navegador del ciclo asincrono.
 //
 // Habla solo con los Route Handlers de esta misma app, nunca con el backend:
-// asi la bandera `TUKIT_ORIGEN_DATOS` vive en un solo sitio y el cliente no
+// asi la URL del backend vive en un solo sitio de servidor y el cliente no
 // tiene que saber que existe.
 
-import type { ErrorApi, SolicitudTrabajo, Trabajo, TrabajoCreado } from "@tukit/contrato";
+import type {
+  AplicarCanonico,
+  CasoCreado,
+  Checkout,
+  Contacto,
+  ErrorApi,
+  HijoNuevo,
+  HijoSubida,
+  Preferencias,
+  RegistroAcudiente,
+  SolicitudCaso,
+  SolicitudCheckout,
+  SolicitudTrabajo,
+  SubidaListas,
+  Trabajo,
+  TrabajoAplicado,
+  TrabajoCreado,
+} from "@tukit/contrato";
 
 export class FalloApi extends Error {
   constructor(
@@ -53,6 +70,133 @@ export async function crearTrabajo(
     forma.append("referencia", referencia);
   }
   return leer<TrabajoCreado>(await fetch("/api/trabajos", { method: "POST", body: forma }));
+}
+
+/**
+ * Ruta rápida: aplica el nivel + personaje del acudiente a la cache bendita de
+ * un (colegio, grado) ya publicado, sin subir PDF ni entrar a la cola. Devuelve
+ * el trabajo creado y el total del pedido congelado.
+ */
+export async function aplicarCanonico(cuerpo: AplicarCanonico): Promise<TrabajoAplicado> {
+  return leer<TrabajoAplicado>(
+    await fetch("/api/trabajos/aplicar-canonico", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo),
+    }),
+  );
+}
+
+/**
+ * Checkout: el acudiente paga el kit de un trabajo publicado. Manda solo perfil
+ * + correo + dirección; el backend arma la orden en Comercio y devuelve la url
+ * de la pasarela a la que redirigir. No viaja ningún id de producto.
+ */
+export async function iniciarCheckout(
+  trabajoId: string,
+  cuerpo: SolicitudCheckout,
+): Promise<Checkout> {
+  return leer<Checkout>(
+    await fetch(`/api/trabajos/${encodeURIComponent(trabajoId)}/ordenar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo),
+    }),
+  );
+}
+
+/**
+ * Sugiere un (colegio, grado) al backlog del administrador cuando aún no es
+ * aliado. El PDF que el acudiente subió viaja como semilla de onboarding; la
+ * única traza al acudiente es `contacto_referencia` —correo y celular nunca
+ * salen del navegador por aquí—.
+ */
+export async function sugerirColegio(datos: {
+  colegioId: string;
+  grado: string;
+  anioLectivo: number;
+  archivo?: File | null;
+  contactoReferencia?: string;
+}): Promise<{ tarea_id: string; estado: string }> {
+  const forma = new FormData();
+  forma.append("colegio_id", datos.colegioId);
+  forma.append("grado", datos.grado);
+  forma.append("anio_lectivo", String(datos.anioLectivo));
+  if (datos.contactoReferencia) forma.append("contacto_referencia", datos.contactoReferencia);
+  if (datos.archivo) forma.append("archivo", datos.archivo, datos.archivo.name);
+  return leer<{ tarea_id: string; estado: string }>(
+    await fetch("/api/sugerencias", { method: "POST", body: forma }),
+  );
+}
+
+/**
+ * Sube el PDF de cada hijo para que se importe como una versión PENDIENTE de su
+ * (colegio, grado). NO crea un trabajo: el acudiente espera la verificación de
+ * un administrador. El contacto viaja para que Identidad lo registre una vez;
+ * su correo y celular nunca se guardan en catálogo —solo baja el
+ * `contacto_referencia` (un id) para poder avisarle cuando aprueben la lista—.
+ */
+export async function subirListas(
+  hijos: HijoSubida[],
+  archivos: { referencia: string; archivo: File }[],
+  contacto?: Contacto,
+  preferencias?: Preferencias,
+): Promise<SubidaListas> {
+  const forma = new FormData();
+  forma.append("hijos", JSON.stringify(hijos));
+  if (contacto) forma.append("contacto", JSON.stringify(contacto));
+  // El paso 3 es del hogar: las preferencias viajan una vez y quedan con cada
+  // versión, para que el kit que se arme al aprobar use lo que el padre pidió.
+  if (preferencias) forma.append("preferencias", JSON.stringify(preferencias));
+  for (const { referencia, archivo } of archivos) {
+    forma.append("archivo", archivo, archivo.name);
+    forma.append("referencia", referencia);
+  }
+  return leer<SubidaListas>(await fetch("/api/listas/subir", { method: "POST", body: forma }));
+}
+
+/**
+ * Da de alta al acudiente y sus hijos en el camino "soy nuevo usuario". Habla
+ * con el Route Handler local, no con el backend: correo, clave y celular no
+ * salen del navegador hacia otro origen. La clave viaja una sola vez aqui y
+ * nunca vuelve al cliente.
+ */
+export async function registrarAcudiente(
+  datos: RegistroAcudiente,
+): Promise<{ usuario_id: string; creado: boolean }> {
+  return leer<{ usuario_id: string; creado: boolean }>(
+    await fetch("/api/registro", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(datos),
+    }),
+  );
+}
+
+/**
+ * Guarda en la cuenta del acudiente autenticado las matrículas de sus hijos
+ * NUEVOS (camino "ya tengo cuenta"). Habla con el Route Handler local, que pone
+ * el Bearer desde la cookie httpOnly: el token nunca toca el navegador. Es
+ * idempotente en el backend, así que reintentar es inocuo.
+ */
+export async function guardarMatriculas(hijos: HijoNuevo[]): Promise<{ total: number }> {
+  return leer<{ total: number }>(
+    await fetch("/api/cuenta/matriculas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hijos }),
+    }),
+  );
+}
+
+export async function crearCaso(solicitud: SolicitudCaso): Promise<CasoCreado> {
+  return leer<CasoCreado>(
+    await fetch("/api/casos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(solicitud),
+    }),
+  );
 }
 
 export async function consultarTrabajo(trabajoId: string): Promise<Trabajo> {

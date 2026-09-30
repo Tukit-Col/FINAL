@@ -1,9 +1,12 @@
 """El armado de los tres kits: unidades, total honesto y recomendacion.
 
 Las pruebas de aqui fijan lo que NO depende del algoritmo. La heuristica de
-seleccion se va a reemplazar por NSGA-II; la aritmetica de unidades, la regla
-de que lo informativo no se cobra y la regla de recomendacion salida de la
-encuesta tienen que seguir valiendo despues del reemplazo.
+seleccion se reemplazo por NSGA-II (OE4); la aritmetica de unidades, la regla de
+que lo informativo no se cobra y la regla de recomendacion salida de la encuesta
+siguen valiendo despues del reemplazo —eso es lo que la mayoria de estas pruebas
+defiende—. El ultimo bloque (`TestElFrenteDePareto`) es lo que si depende del
+algoritmo: que el frente no lo haga peor que la heuristica y que sea
+reproducible.
 """
 
 from __future__ import annotations
@@ -15,6 +18,7 @@ from tukit_inteligencia.optimizador import (
     armar_los_tres,
     consolidar,
     elegir_por_perfil,
+    optimizar_frente,
     unidades_a_comprar,
 )
 
@@ -144,7 +148,7 @@ class TestLoInformativoSeMuestraYNoSeCobra:
         assert kits[0].lineas[0].informativa is True
         assert kits[0].total_cop == 0
 
-    def test_la_fidelidad_no_cuenta_lo_que_nunca_se_iba_a_vender(self):
+    def test_los_objetivos_no_cuentan_lo_que_nunca_se_iba_a_vender(self):
         util = _candidato("TK-UTIL", "confiable", 10000)
         kits = armar_los_tres(
             [
@@ -152,9 +156,12 @@ class TestLoInformativoSeMuestraYNoSeCobra:
                 _renglon(2, "Uniforme", tipo_item="uniforme", modo_adquisicion="mercado_abierto"),
             ]
         )
-        # Una sola linea comprable y esta resuelta: fidelidad 1.0. Contando la
-        # informativa daria 0.5 y el kit se veria peor por vender menos.
-        assert kits[0].objetivos["fidelidad"] == 1.0
+        # Una sola linea comprable y esta resuelta: resolucion_auto 1.0. Contando
+        # la informativa daria 0.5 y el kit se veria peor por vender menos. La
+        # fidelidad es el nivel de marca (confiable = 0.5 sobre el tope premium),
+        # que es un eje distinto y ya no se confunde con la resolucion.
+        assert kits[0].objetivos["resolucion_auto"] == 1.0
+        assert kits[0].objetivos["fidelidad"] == 0.5
 
 
 class TestLaConsolidacionEntreHermanos:
@@ -276,3 +283,235 @@ class TestLaRecomendacion:
         recomendado = next(kit for kit in kits if kit.recomendado)
         assert recomendado.dentro_de_presupuesto is False
         assert "Ningun kit cabe" in recomendado.razon
+
+
+def _hipervolumen(kits, ref_costo: int) -> float:
+    """Hipervolumen 2D (costo vs nivel) de un conjunto de kits.
+
+    No se necesita pymoo: con dos ejes el hipervolumen es el area que domina el
+    frente respecto a un punto de referencia. Se usa costo (minimizar, se
+    normaliza a `ref_costo - costo`) contra fidelidad de nivel (maximizar). Es
+    la magnitud que la tesis reporta; aqui solo se pide que NSGA-II no la
+    empeore frente a la heuristica sobre el mismo corpus.
+    """
+    puntos = sorted({(k.total_cop, k.objetivos.get("fidelidad", 0.0)) for k in kits})
+    # Frente: para cada costo, la mejor fidelidad; area bajo la escalera.
+    mejor: dict[int, float] = {}
+    for costo, fid in puntos:
+        mejor[costo] = max(mejor.get(costo, 0.0), fid)
+    area = 0.0
+    for costo, fid in mejor.items():
+        area += max(0, ref_costo - costo) * fid
+    return area
+
+
+class TestElFrenteDePareto:
+    """Lo que SI depende del algoritmo: el frente NSGA-II (OE4).
+
+    Un renglon con varios candidatos que se compensan (mas barato vs mejor
+    nivel vs con personaje) es donde el frente tiene algo que decir. La
+    heuristica es la referencia: el frente no puede hacerlo peor.
+    """
+
+    # Un kit con compromiso real: cada linea ofrece barato-flojo,
+    # caro-premium y medio-con-personaje. La heuristica y el frente deberian
+    # coincidir en los extremos y el frente debe dominar en area.
+    RENGLONES = [
+        _renglon(
+            1,
+            "Cuaderno",
+            (
+                _candidato("C-ECO", "economico", 3000),
+                _candidato("C-PRE", "premium", 12000),
+                _candidato("C-FAN", "confiable", 6000, personaje="spiderman"),
+            ),
+            hijo="hijo-1",
+        ),
+        _renglon(
+            2,
+            "Colores",
+            (
+                _candidato("K-ECO", "economico", 8000),
+                _candidato("K-PRE", "premium", 25000),
+                _candidato("K-FAN", "confiable", 15000, personaje="spiderman"),
+            ),
+            hijo="hijo-1",
+        ),
+    ]
+
+    def test_el_frente_no_esta_vacio_cuando_hay_compromiso(self):
+        frente = optimizar_frente(self.RENGLONES, {})
+        assert len(frente) >= 2
+        # Un frente de Pareto no tiene puntos dominados: si ordeno por costo, la
+        # fidelidad no puede quedarse igual o subir sin que el costo suba.
+        ordenado = sorted(frente, key=lambda s: s.costo)
+        for anterior, siguiente in zip(ordenado, ordenado[1:], strict=False):
+            assert siguiente.costo >= anterior.costo
+            # Si el costo sube es porque compra fidelidad/disponibilidad; dos
+            # puntos con el mismo costo no pueden estar ambos en el frente.
+            if siguiente.costo == anterior.costo:
+                assert (siguiente.fidelidad, siguiente.disponibilidad) != (
+                    anterior.fidelidad,
+                    anterior.disponibilidad,
+                )
+
+    def test_ahorrador_es_el_mas_barato_del_frente(self):
+        kits = armar_los_tres(self.RENGLONES, {})
+        ahorrador = next(k for k in kits if k.perfil == "Ahorrador")
+        assert ahorrador.total_cop == min(k.total_cop for k in kits)
+        # Los dos candidatos mas baratos: 3000 + 8000.
+        assert ahorrador.total_cop == 11000
+
+    def test_premium_maximiza_el_nivel_de_marca(self):
+        kits = armar_los_tres(self.RENGLONES, {})
+        premium = next(k for k in kits if k.perfil == "Premium")
+        assert premium.objetivos["fidelidad"] >= max(k.objetivos["fidelidad"] for k in kits)
+        # Los dos premium: 12000 + 25000.
+        assert premium.total_cop == 37000
+
+    def test_fan_toma_el_personaje_pedido_en_todo_el_kit(self):
+        kits = armar_los_tres(self.RENGLONES, {"personaje_por_hijo": {"hijo-1": ["spiderman"]}})
+        fan = next(k for k in kits if k.perfil == "Fan")
+        elegidos = {linea.elegido.sku for linea in fan.lineas if linea.elegido}
+        assert elegidos == {"C-FAN", "K-FAN"}
+
+    def test_el_frente_domina_o_iguala_a_la_heuristica_en_hipervolumen(self):
+        """La prueba de la tesis, en pequeno: el frente NSGA-II no puede tener
+        menos hipervolumen que los tres puntos que daba la heuristica."""
+        kits_frente = armar_los_tres(self.RENGLONES, {})
+        # La heuristica pura: se fuerza reconstruyendo los kits con
+        # `elegir_por_perfil` linea a linea (misma que la ruta degradada).
+        from tukit_inteligencia.optimizador import armar_kit
+
+        kits_heuristica = [
+            armar_kit(self.RENGLONES, perfil, {}) for perfil in ("Ahorrador", "Premium", "Fan")
+        ]
+        ref = max(k.total_cop for k in kits_frente + kits_heuristica) + 1
+        assert _hipervolumen(kits_frente, ref) >= _hipervolumen(kits_heuristica, ref)
+
+    def test_es_reproducible_bajo_la_misma_semilla(self):
+        una = optimizar_frente(self.RENGLONES, {}, semilla=7)
+        otra = optimizar_frente(self.RENGLONES, {}, semilla=7)
+
+        def clave(f):
+            return sorted((s.costo, s.fidelidad, s.disponibilidad, s.personaje) for s in f)
+
+        assert clave(una) == clave(otra)
+
+    def test_una_sola_opcion_por_linea_no_gasta_el_algoritmo(self):
+        """Sin compromiso multiobjetivo el frente es vacio y `armar_los_tres`
+        cae a la heuristica, que da exactamente el mismo kit."""
+        unica = [_renglon(1, "Cuaderno", (_candidato("SOLO", "confiable", 5000),))]
+        assert optimizar_frente(unica, {}) == []
+        kits = armar_los_tres(unica, {})
+        assert all(k.lineas[0].elegido.sku == "SOLO" for k in kits)
+
+
+class TestElFrenteNSGAEnEspacioGrande:
+    """El camino que SOLO corre NSGA-II: espacio de busqueda > LIMITE_ENUMERACION.
+
+    Las otras pruebas del frente usan kits chicos (espacio 9) que caen en la
+    enumeracion exacta; ninguna ejercita el optimizador metaheuristico en si. Con
+    8 lineas de 4 candidatos el espacio es 4**8 = 65536 > 4096, asi que aqui si
+    corre NSGA-II con la codificacion entera.
+    """
+
+    def _renglones_grandes(self):
+        niveles = ("economico", "confiable", "premium", "confiable")
+        precios = (3000, 6000, 12000, 7000)
+        personajes = (None, None, None, "spiderman")
+        return [
+            _renglon(
+                i,
+                f"Item {i}",
+                tuple(
+                    _candidato(f"L{i}-{j}", niveles[j], precios[j], personaje=personajes[j]) for j in range(4)
+                ),
+                hijo="hijo-1",
+            )
+            for i in range(1, 9)
+        ]
+
+    def test_el_frente_es_no_dominado(self):
+        from tukit_inteligencia.optimizador import LIMITE_ENUMERACION
+
+        renglones = self._renglones_grandes()
+        assert LIMITE_ENUMERACION < 4**8  # confirma que corre NSGA, no enumeracion
+        frente = optimizar_frente(renglones, {}, semilla=0)
+        assert len(frente) >= 2
+        # Ningun punto del frente domina a otro: si dos difieren, no puede uno
+        # ser >= en todos los ejes (costo invertido) y > en alguno.
+        for a in frente:
+            for b in frente:
+                if a is b:
+                    continue
+                mejor_o_igual = (
+                    a.costo <= b.costo
+                    and a.fidelidad >= b.fidelidad
+                    and a.disponibilidad >= b.disponibilidad
+                    and a.personaje >= b.personaje
+                )
+                estricto = (
+                    a.costo < b.costo
+                    or a.fidelidad > b.fidelidad
+                    or a.disponibilidad > b.disponibilidad
+                    or a.personaje > b.personaje
+                )
+                assert not (mejor_o_igual and estricto), "el frente trae un punto dominado"
+
+    def test_es_reproducible_bajo_la_misma_semilla(self):
+        renglones = self._renglones_grandes()
+
+        def clave(f):
+            return sorted((s.costo, s.fidelidad, s.disponibilidad, s.personaje) for s in f)
+
+        assert clave(optimizar_frente(renglones, {}, semilla=13)) == clave(
+            optimizar_frente(renglones, {}, semilla=13)
+        )
+
+
+class TestBordesDelOptimizador:
+    """Casos limite que antes no tenian prueba: sin lineas, todo informativo,
+    sin candidatos admisibles. El contrato es un resultado bien definido, no una
+    excepcion."""
+
+    def test_sin_renglones_el_frente_es_vacio(self):
+        assert optimizar_frente([], {}) == []
+
+    def test_todo_informativo_el_frente_es_vacio(self):
+        informativas = [
+            _renglon(1, "Licencia", tipo_item="licencia_digital"),
+            _renglon(2, "Uniforme", tipo_item="uniforme"),
+        ]
+        assert optimizar_frente(informativas, {}) == []
+
+    def test_sin_candidatos_no_hay_frente_y_el_kit_marca_la_linea(self):
+        sin_cand = [_renglon(1, "Cuaderno", ())]
+        assert optimizar_frente(sin_cand, {}) == []
+        kits = armar_los_tres(sin_cand)
+        # Se arman los tres kits igual; la linea queda sin elegido, no revienta.
+        assert len(kits) == 3
+        assert all(kit.lineas[0].elegido is None for kit in kits)
+
+    def test_un_kit_grande_corre_por_nsga_y_respeta_las_unidades(self):
+        """Un espacio de busqueda grande fuerza la ruta NSGA-II; la aritmetica
+        de unidades y la exclusion de lo informativo siguen valiendo."""
+        renglones = [
+            _renglon(
+                orden,
+                f"Item {orden}",
+                (
+                    _candidato(f"A{orden}", "economico", 1000 + orden),
+                    _candidato(f"B{orden}", "confiable", 2000 + orden),
+                    _candidato(f"C{orden}", "premium", 3000 + orden, personaje="bluey"),
+                ),
+                hijo="hijo-1",
+            )
+            for orden in range(1, 9)  # 3**8 = 6561 > LIMITE_ENUMERACION
+        ]
+        frente = optimizar_frente(renglones, {}, semilla=3)
+        assert len(frente) >= 2
+        kits = armar_los_tres(renglones, {}, semilla=3)
+        ahorrador = next(k for k in kits if k.perfil == "Ahorrador")
+        # El mas barato posible: los ocho candidatos "A".
+        assert ahorrador.total_cop == sum(1000 + o for o in range(1, 9))
