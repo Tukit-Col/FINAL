@@ -245,6 +245,56 @@ async def resolver_sku(peticion: Request, sku: str) -> dict[str, Any]:
     return {"producto_canonico_id": str(fila.id), "precio_desde": pesos(getattr(fila, "centavos", None))}
 
 
+@router.get(
+    "/interno/listas-por-contacto/{contacto_referencia}",
+    tags=["interno"],
+    include_in_schema=False,
+    summary="Las listas que subio un acudiente, por su usuario_id; NO es publica",
+)
+async def listas_por_contacto(peticion: Request, contacto_referencia: uuid.UUID) -> dict[str, Any]:
+    """Las listas subidas de un acudiente, para su panel "Mis solicitudes".
+
+    Vive fuera de `/v1/` A PROPOSITO —igual que `resolver_sku`—: la puerta rutea
+    por prefijo, asi que esta ruta no existe hacia el navegador (nadie de fuera
+    pide "las listas de un contacto") y solo la alcanza Inteligencia hablando con
+    Catalogo directo, con el `usuario_id` de la sesion que ya valido.
+
+    Una fila por VERSION (gana la tarea mas reciente de cada version); una tarea
+    sin version todavia —sugerencia aun pendiente— tambien sale, como recibida.
+    `colegio_nombre` viene de `colegio_datos` cuando el colegio es nuevo; para un
+    colegio aliado es `None` (su nombre vive en identidad, no aca) y lo resuelve
+    la web.
+    """
+    async with peticion.app.state.motor.sesion() as db:
+        filas = await RepoCatalogo(await db.connection()).tareas_por_contacto(contacto_referencia)
+
+    # Una sola fila por version (la tarea mas reciente ya viene primero por el
+    # orden). Las tareas sin version aun no comparten identidad: cada una es su
+    # propia solicitud, asi que se llavean por su id.
+    vistas: set[str] = set()
+    listas: list[dict[str, Any]] = []
+    for f in filas:
+        clave = str(f.version_id) if f.version_id else f"tarea:{f.id}"
+        if clave in vistas:
+            continue
+        vistas.add(clave)
+        nombre = None
+        if f.colegio_datos:
+            nombre = dict(f.colegio_datos).get("nombre")
+        listas.append(
+            {
+                "version_id": str(f.version_id) if f.version_id else None,
+                "colegio_id": str(f.colegio_id) if f.colegio_id else None,
+                "colegio_nombre": nombre,
+                "grado": f.grado,
+                "anio_lectivo": f.anio_lectivo,
+                "revisada_en": f.revisada_en.isoformat() if f.revisada_en else None,
+                "creada_en": f.creada_en.isoformat() if f.creada_en else None,
+            }
+        )
+    return {"listas": listas}
+
+
 # ---------------------------------------------------------------------------
 # Escritura de productos (la mano de la persona que cura el catalogo)
 # ---------------------------------------------------------------------------
@@ -541,7 +591,6 @@ async def emparejar_renglones(peticion: Request, cuerpo: dict[str, Any]) -> dict
         conceptos, productos = await cargar_indice(await db.connection())
     vectores = calcular_vectores(textos, _embeder_por_entorno())
     resultados = [
-        emparejar(t, conceptos, productos, embedding_renglon=v)
-        for t, v in zip(textos, vectores, strict=True)
+        emparejar(t, conceptos, productos, embedding_renglon=v) for t, v in zip(textos, vectores, strict=True)
     ]
     return {"total": len(resultados), "emparejamientos": [r.a_dict() for r in resultados]}

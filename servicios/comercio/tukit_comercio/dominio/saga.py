@@ -62,9 +62,7 @@ PASOS: tuple[Paso, ...] = (
 )
 
 
-def reservas_vencidas(
-    filas: Iterable[Any], *, ahora: datetime, ttl: timedelta = TTL_RESERVA
-) -> list[Any]:
+def reservas_vencidas(filas: Iterable[Any], *, ahora: datetime, ttl: timedelta = TTL_RESERVA) -> list[Any]:
     """Las reservas a liberar (C1): activas, de un pedido sin pagar, mas viejas que el TTL.
 
     `filas` son reservas con su `estado`, su `creado_en` y el `pedido_estado` del
@@ -72,6 +70,7 @@ def reservas_vencidas(
     en vez de leer el reloj, para probar el vencimiento sin esperar.
     """
     corte = ahora - ttl
+
     # SQLite devuelve `creado_en` naive; Postgres, aware. Se normaliza a UTC para
     # que la comparacion no reviente segun el motor (mismo esquema, distinto tipo).
     def _viejo(f: Any) -> bool:
@@ -80,11 +79,7 @@ def reservas_vencidas(
             creado = creado.replace(tzinfo=UTC)
         return creado < corte
 
-    return [
-        f
-        for f in filas
-        if f.estado == _ACTIVA and f.pedido_estado == _SIN_PAGAR and _viejo(f)
-    ]
+    return [f for f in filas if f.estado == _ACTIVA and f.pedido_estado == _SIN_PAGAR and _viejo(f)]
 
 
 __all__ = ["PASOS", "TTL_RESERVA", "Paso", "reservas_vencidas"]

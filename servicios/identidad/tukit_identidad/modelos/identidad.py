@@ -34,8 +34,9 @@ class Usuario(Base):
     clave_hash: Mapped[str] = mapped_column(String(256), nullable=False)
     nombre_cifrado: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     # El celular del titular, para el aviso por wa-link cuando el trabajo
-    # termine. Nulable: una cuenta puede nacer solo con correo. Va en claro
-    # (dato del adulto, no del menor); no es PII de menor del Anexo M.
+    # termine. Nulable: una cuenta puede nacer solo con correo (el contacto sin
+    # credencial). Va en claro (dato del adulto, no del menor); no es PII de
+    # menor del Anexo M.
     celular: Mapped[str | None] = mapped_column(String(32), nullable=True)
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 

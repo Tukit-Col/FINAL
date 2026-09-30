@@ -38,7 +38,13 @@ const ESTADO_TITULO: Record<Trabajo["estado"], string> = {
   fallido: "Algo se rompió",
 };
 
-export default function PantallaEspera({ trabajoId }: { trabajoId: string }) {
+export default function PantallaEspera({
+  trabajoId,
+  conSesion,
+}: {
+  trabajoId: string;
+  conSesion: boolean;
+}) {
   const router = useRouter();
   const [trabajo, setTrabajo] = useState<Trabajo | null>(null);
   const [fallo, setFallo] = useState<FalloApi | null>(null);
@@ -92,7 +98,7 @@ export default function PantallaEspera({ trabajoId }: { trabajoId: string }) {
 
         <p className={styles.honestidad}>
           {enRevision
-            ? "Ya terminamos la parte automática. Ahora alguien de Tukit mira lo que quedó dudoso antes de mostrártelo: nunca te mandamos un kit sin revisar."
+            ? "Ya terminamos la parte automática. Ahora una persona de Tukit revisa tu kit antes de mostrártelo: nunca te mandamos un kit sin revisar."
             : "Esto toma minutos, no segundos. Puedes cerrar esta pestaña: te avisamos al correo y al celular cuando esté listo."}
         </p>
 
@@ -140,9 +146,9 @@ export default function PantallaEspera({ trabajoId }: { trabajoId: string }) {
 
         <footer className={styles.pie}>
           <span className="cifra">{formatearReloj(segundos)} esperando</span>
-          <Link href="/" className={styles.enlacePie}>
+          <Link href={conSesion ? "/dashboard" : "/"} className={styles.enlacePie}>
             <ArrowLeft size={16} aria-hidden="true" />
-            Volver al inicio
+            {conSesion ? "Volver a mi panel" : "Volver al inicio"}
           </Link>
         </footer>
       </div>

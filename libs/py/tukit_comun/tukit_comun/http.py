@@ -55,9 +55,7 @@ ORIGENES_POR_OMISION = ("http://localhost:3000", "http://127.0.0.1:3000")
 # convencion de facto (`x-correlation-id`), en minusculas porque HTTP no
 # distingue mayusculas y asi se compara sin normalizar.
 CABECERA_CORRELACION = "x-correlation-id"
-_correlacion: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-    "correlacion_id", default=None
-)
+_correlacion: contextvars.ContextVar[str | None] = contextvars.ContextVar("correlacion_id", default=None)
 
 
 def id_de_correlacion() -> str | None:

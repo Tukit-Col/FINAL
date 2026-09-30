@@ -161,9 +161,7 @@ async def drenar(
 
             if resultado is Resultado.REINTENTAR:
                 await conexion.execute(
-                    update(bandeja)
-                    .where(bandeja.c.id == fila.id)
-                    .values(intentos=(fila.intentos or 0) + 1)
+                    update(bandeja).where(bandeja.c.id == fila.id).values(intentos=(fila.intentos or 0) + 1)
                 )
                 continue
             await conexion.execute(

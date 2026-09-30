@@ -235,6 +235,18 @@ class RepoPedidos:
     async def obtener(self, pedido_id: uuid.UUID) -> Any:
         return (await self.conexion.execute(select(PEDIDO).where(PEDIDO.c.id == pedido_id))).one_or_none()
 
+    async def pagados_con_trabajo(self) -> list[Any]:
+        """Los pedidos en un estado confirmado (`_ESTADOS_CONFIRMADOS`) que tienen
+        `trabajo_id`: el cruce minimo que otro servicio necesita, sin PII."""
+        return list(
+            await self.conexion.execute(
+                select(PEDIDO.c.trabajo_id, PEDIDO.c.usuario_id, PEDIDO.c.estado).where(
+                    PEDIDO.c.estado.in_(_ESTADOS_CONFIRMADOS),
+                    PEDIDO.c.trabajo_id.isnot(None),
+                )
+            )
+        )
+
     # -- escritura: checkout ----------------------------------------------
 
     async def insertar_orden(
@@ -403,9 +415,7 @@ class RepoPedidos:
         webhook, la transicion y el sello del envio van en la misma unidad de
         trabajo del router.
         """
-        await self.conexion.execute(
-            update(PEDIDO).where(PEDIDO.c.id == pedido_id).values(estado=destino)
-        )
+        await self.conexion.execute(update(PEDIDO).where(PEDIDO.c.id == pedido_id).values(estado=destino))
 
         cambios: dict[str, Any] = {}
         if transportadora is not None:

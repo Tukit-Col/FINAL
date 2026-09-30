@@ -167,25 +167,25 @@ ni "adaptadores de salida" —esas existen— sino la de **dominio** (reglas lib
 `POST /v1/ordenes` es el ejemplo limpio: en ~100 líneas se ven las tres capas trenzadas.
 
 ```python
-@app.post("/v1/ordenes", ...)                                    # (a) HTTP
+@app.post("/v1/ordenes", ...)  # (a) HTTP
 async def crear_orden(solicitud: SolicitudOrden) -> dict[str, Any]:
-    usuario_id = _uuid_o_422(solicitud.usuario_id, "usuario_id")            # (a) validación
+    usuario_id = _uuid_o_422(solicitud.usuario_id, "usuario_id")  # (a) validación
     ...
-    for linea in solicitud.lineas:                                          # (b) DOMINIO:
-        resuelto = await app.state.catalogo.resolver(linea.sku)             #     re-verificar
-        precio_actual = resuelto[1] if resuelto else None                   #     precio,
-        if resuelto is None or precio_actual != linea.precio_unitario:      #     invariante §9.1
+    for linea in solicitud.lineas:  # (b) DOMINIO:
+        resuelto = await app.state.catalogo.resolver(linea.sku)  #     re-verificar
+        precio_actual = resuelto[1] if resuelto else None  #     precio,
+        if resuelto is None or precio_actual != linea.precio_unitario:  #     invariante §9.1
             cambios.append({...})
     if cambios:
         raise ErrorDominio("precio_cambiado", ..., estado=422, campo="lineas")
-    async with app.state.motor.sesion() as db:                             # (c) PERSISTENCIA:
-        conexion = await db.connection()                                    #     SQL crudo,
-        await conexion.execute(insert(PEDIDO).values(...))                  #     4 inserts
-        for linea in solicitud.lineas:                                      #     (pedido, línea,
-            await conexion.execute(insert(LINEA_PEDIDO).values(...))        #      reserva, envío)
+    async with app.state.motor.sesion() as db:  # (c) PERSISTENCIA:
+        conexion = await db.connection()  #     SQL crudo,
+        await conexion.execute(insert(PEDIDO).values(...))  #     4 inserts
+        for linea in solicitud.lineas:  #     (pedido, línea,
+            await conexion.execute(insert(LINEA_PEDIDO).values(...))  #      reserva, envío)
             await conexion.execute(insert(RESERVA).values(...))
         await conexion.execute(insert(ENVIO).values(...))
-        return await _pedido_completo(conexion, fila)                       # (a) serializar
+        return await _pedido_completo(conexion, fila)  # (a) serializar
 ```
 
 La invariante que importa —"si el precio cambió, no cierres" (`FU-08`)— es una regla **pura** que
@@ -333,12 +333,14 @@ class CambioPrecio:
     precio_aprobado: int
     precio_actual: int | None
 
+
 def reverificar_precios(
     lineas: list[LineaSolicitada],
     precio_vigente: Callable[[str], tuple[uuid.UUID, int | None] | None],
 ) -> tuple[dict[str, uuid.UUID], list[CambioPrecio]]:
     """Invariante FU-08 (§9): qué líneas cambiaron y cuáles quedan congelables."""
     ...
+
 
 # routers/ordenes.py — delgado
 @router.post("/v1/ordenes", status_code=201)
@@ -348,6 +350,7 @@ async def crear_orden(solicitud, repo: RepoPedidos = Depends(...)):
     if cambios:
         raise ErrorDominio("precio_cambiado", ..., estado=422, campo="lineas")
     return await repo.crear_pedido(solicitud, ids)  # repositorio
+
 
 # repositorios/pedidos.py — el SQL, aislado (los 4 inserts, verbatim desde api.py:408-455)
 class RepoPedidosSQL:

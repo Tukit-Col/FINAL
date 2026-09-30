@@ -77,9 +77,7 @@ class RepoAdmin:
 
     async def nombre_concepto(self, concepto_id: uuid.UUID) -> str:
         return (
-            await self.c.execute(
-                select(CONCEPTO.c.nombre_canonico).where(CONCEPTO.c.id == concepto_id)
-            )
+            await self.c.execute(select(CONCEPTO.c.nombre_canonico).where(CONCEPTO.c.id == concepto_id))
         ).scalar_one()
 
     # -- Listar versiones (cola de administracion) ------------------------
@@ -112,16 +110,8 @@ class RepoAdmin:
             .scalar_subquery()
         )
         procedencia = select(TAREA.c.origen).where(TAREA.c.id == tarea_reciente).scalar_subquery()
-        contacto = (
-            select(TAREA.c.contacto_referencia)
-            .where(TAREA.c.id == tarea_reciente)
-            .scalar_subquery()
-        )
-        colegio_datos = (
-            select(TAREA.c.colegio_datos)
-            .where(TAREA.c.id == tarea_reciente)
-            .scalar_subquery()
-        )
+        contacto = select(TAREA.c.contacto_referencia).where(TAREA.c.id == tarea_reciente).scalar_subquery()
+        colegio_datos = select(TAREA.c.colegio_datos).where(TAREA.c.id == tarea_reciente).scalar_subquery()
         consulta = select(
             LISTA.c.id.label("lista_id"),
             LISTA.c.colegio_id,
@@ -210,9 +200,7 @@ class RepoAdmin:
 
         precio_min = _precio_minimo_vigente()
         return list(
-            await self.c.execute(
-                _consulta_productos(precio_min).where(_CONCEPTO.c.codigo.in_(codigos))
-            )
+            await self.c.execute(_consulta_productos(precio_min).where(_CONCEPTO.c.codigo.in_(codigos)))
         )
 
     async def items_resueltos(self, version_id: uuid.UUID) -> list[Any]:
@@ -242,18 +230,13 @@ class RepoAdmin:
     async def cargar_conceptos(self) -> list[dict[str, Any]]:
         """El vocabulario activo, con la forma que `clasificar` consume."""
         filas = await self.c.execute(
-            select(CONCEPTO.c.id, CONCEPTO.c.nombre_canonico, CONCEPTO.c.sinonimos).where(
-                CONCEPTO.c.activo
-            )
+            select(CONCEPTO.c.id, CONCEPTO.c.nombre_canonico, CONCEPTO.c.sinonimos).where(CONCEPTO.c.activo)
         )
         return [
-            {"id": f.id, "nombre": f.nombre_canonico, "sinonimos": list(f.sinonimos or ())}
-            for f in filas
+            {"id": f.id, "nombre": f.nombre_canonico, "sinonimos": list(f.sinonimos or ())} for f in filas
         ]
 
-    async def lista_por_llave(
-        self, colegio_id: uuid.UUID, grado: str, anio_lectivo: int
-    ) -> Any:
+    async def lista_por_llave(self, colegio_id: uuid.UUID, grado: str, anio_lectivo: int) -> Any:
         return (
             await self.c.execute(
                 select(LISTA.c.id).where(
@@ -268,16 +251,12 @@ class RepoAdmin:
         self, lista_id: uuid.UUID, colegio_id: uuid.UUID, grado: str, anio_lectivo: int
     ) -> None:
         await self.c.execute(
-            LISTA.insert().values(
-                id=lista_id, colegio_id=colegio_id, grado=grado, anio_lectivo=anio_lectivo
-            )
+            LISTA.insert().values(id=lista_id, colegio_id=colegio_id, grado=grado, anio_lectivo=anio_lectivo)
         )
 
     async def max_numero_version(self, lista_id: uuid.UUID) -> int:
         ultimo = (
-            await self.c.execute(
-                select(func.max(VERSION.c.numero)).where(VERSION.c.lista_id == lista_id)
-            )
+            await self.c.execute(select(func.max(VERSION.c.numero)).where(VERSION.c.lista_id == lista_id))
         ).scalar_one_or_none()
         return int(ultimo or 0)
 
@@ -344,9 +323,7 @@ class RepoAdmin:
 
     async def item_por_id(self, item_id: uuid.UUID, version_id: uuid.UUID) -> Any:
         return (
-            await self.c.execute(
-                select(ITEM).where(ITEM.c.id == item_id, ITEM.c.version_id == version_id)
-            )
+            await self.c.execute(select(ITEM).where(ITEM.c.id == item_id, ITEM.c.version_id == version_id))
         ).first()
 
     async def actualizar_item(self, item_id: uuid.UUID, valores: dict[str, Any]) -> None:
@@ -354,9 +331,7 @@ class RepoAdmin:
 
     async def max_orden_item(self, version_id: uuid.UUID) -> int:
         ultimo = (
-            await self.c.execute(
-                select(func.max(ITEM.c.orden)).where(ITEM.c.version_id == version_id)
-            )
+            await self.c.execute(select(func.max(ITEM.c.orden)).where(ITEM.c.version_id == version_id))
         ).scalar_one_or_none()
         return int(ultimo or 0)
 
@@ -380,17 +355,13 @@ class RepoAdmin:
         ).first()
 
     async def actualizar_colegio_datos(self, tarea_id: uuid.UUID, datos: dict[str, Any]) -> None:
-        await self.c.execute(
-            update(TAREA).where(TAREA.c.id == tarea_id).values(colegio_datos=datos)
-        )
+        await self.c.execute(update(TAREA).where(TAREA.c.id == tarea_id).values(colegio_datos=datos))
 
     # -- Decidir propuestas -----------------------------------------------
 
     async def propuesta_estado(self, prop_id: uuid.UUID) -> Any:
         return (
-            await self.c.execute(
-                select(PROPUESTA.c.id, PROPUESTA.c.estado).where(PROPUESTA.c.id == prop_id)
-            )
+            await self.c.execute(select(PROPUESTA.c.id, PROPUESTA.c.estado).where(PROPUESTA.c.id == prop_id))
         ).first()
 
     async def rechazar_propuesta(self, prop_id: uuid.UUID, motivo: Any, resuelta_en: Any) -> None:
@@ -519,18 +490,14 @@ class RepoAdmin:
         return list(await self.c.execute(consulta))
 
     async def tienda_id_por_slug(self, slug: str) -> uuid.UUID | None:
-        return (
-            await self.c.execute(select(TIENDA.c.id).where(TIENDA.c.slug == slug))
-        ).scalar_one_or_none()
+        return (await self.c.execute(select(TIENDA.c.id).where(TIENDA.c.slug == slug))).scalar_one_or_none()
 
     # -- Crear concepto ---------------------------------------------------
 
     async def concepto_codigo_por_nombre(self, nombre_lower: str) -> str | None:
         return (
             await self.c.execute(
-                select(CONCEPTO.c.codigo).where(
-                    func.lower(CONCEPTO.c.nombre_canonico) == nombre_lower
-                )
+                select(CONCEPTO.c.codigo).where(func.lower(CONCEPTO.c.nombre_canonico) == nombre_lower)
             )
         ).scalar_one_or_none()
 

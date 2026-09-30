@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, Query, Request
@@ -30,6 +31,7 @@ from tukit_comun.cifrado import cifrador_desde_entorno
 from tukit_comun.http import ErrorDominio
 
 from ..dominio.autorizacion import Ambito
+from ..dominio.matriculas import HijoMatricula
 from ..dominio.sesiones import emitir_token, leer_token, verificar_clave
 from ..repositorios import RepoIdentidad
 
@@ -65,7 +67,12 @@ GRADOS = (
 # `nit` NO estan aqui a proposito: son la identidad de la institucion y Catalogo
 # la referencia por id derivado. Son datos de la INSTITUCION, no del menor: no
 # les toca el cifrado del Anexo M, por eso viajan y se guardan en claro.
+# El `dane` SI es editable: aqui el `colegio_id` es un UUID ya fijado al crear el
+# colegio (no se re-deriva del DANE en esta base), asi que escribir el codigo DANE
+# cuando falta —para poder leer su ficha del directorio— no mueve ninguna
+# referencia. Distinto del NIT, que sigue fijo.
 _CAMPOS_PERFIL = (
+    "dane",
     "logo_url",
     "sitio_web",
     "contacto_nombre",
@@ -133,6 +140,7 @@ async def _detalle_colegio(repo: RepoIdentidad, colegio_id: uuid.UUID) -> dict[s
     return {
         "colegio_id": str(fila.id),
         "nombre": fila.nombre,
+        "dane": fila.dane,
         "logo_url": fila.logo_url,
         "sitio_web": fila.sitio_web,
         "contacto_nombre": fila.contacto_nombre,
@@ -189,7 +197,13 @@ async def listar_colegios(
     # El logo va aqui porque el desplegable del padre pinta la tarjeta sin abrir
     # el detalle; los contactos no, que son de la pantalla admin.
     datos = [
-        {"colegio_id": str(f.id), "nombre": f.nombre, "sedes": int(f.sedes), "logo_url": f.logo_url}
+        {
+            "colegio_id": str(f.id),
+            "nombre": f.nombre,
+            "dane": f.dane,
+            "sedes": int(f.sedes),
+            "logo_url": f.logo_url,
+        }
         for f in filas
     ]
     return {"total": len(datos), "colegios": datos}
@@ -200,13 +214,18 @@ async def listar_colegios(
     tags=["colegios"],
     summary="Datos DUEB de un colegio del directorio, para pre-llenar el perfil del nuevo",
 )
-async def datos_directorio(dane: str) -> dict[str, Any]:
-    """El bloque del DUEB para un DANE: direccion, contacto, sitio. Lo consume la
-    subida para enriquecer `colegio_datos` de una lista de colegio nuevo, y la
-    cola lo muestra pre-llenado. 404 si el DANE no esta en el directorio."""
-    from ..dominio.directorio import datos_colegio_nuevo_por_dane
+async def datos_directorio(
+    dane: str,
+    completo: Annotated[bool, Query(description="La ficha completa del admin, no solo el alta")] = False,
+) -> dict[str, Any]:
+    """El bloque del DUEB para un DANE. Dos formas en la MISMA ruta: por defecto
+    solo los 7 campos del alta (lo que la subida vuelca sin filtrar en
+    `colegio_datos`, asi que un campo de mas se filtraria a cada colegio nuevo);
+    con `?completo=true`, el superconjunto del admin (sector, localidad, rector,
+    telefonos, correos). 404 si el DANE no esta en el directorio."""
+    from ..dominio.directorio import datos_colegio_nuevo_por_dane, ficha_directorio_por_dane
 
-    datos = datos_colegio_nuevo_por_dane(dane)
+    datos = ficha_directorio_por_dane(dane) if completo else datos_colegio_nuevo_por_dane(dane)
     if datos is None:
         raise ErrorDominio(
             "dane_no_en_directorio", f"El DANE {dane} no esta en el directorio de Bogota.", estado=404
@@ -235,6 +254,18 @@ async def editar_colegio(peticion: Request, colegio_id: uuid.UUID, cuerpo: dict[
                 "El nombre y el NIT son la identidad de la institucion y no se editan aqui.",
                 estado=400,
                 campo=campo,
+            )
+    # El DANE es la llave del directorio DUEB: o son 12 digitos exactos, o `null`
+    # para vaciarlo. Cualquier otra cosa se rechaza antes de escribir, para no
+    # guardar una llave que nunca casara con el directorio.
+    if "dane" in cuerpo:
+        dane = cuerpo["dane"]
+        if dane is not None and not (isinstance(dane, str) and dane.isdigit() and len(dane) == 12):
+            raise ErrorDominio(
+                "dane_invalido",
+                "El codigo DANE debe tener exactamente 12 digitos, o null para vaciarlo.",
+                estado=400,
+                campo="dane",
             )
     valores = {c: cuerpo[c] for c in _CAMPOS_PERFIL if c in cuerpo}
 
@@ -350,6 +381,81 @@ class NuevoHijo(BaseModel):
 _VERSION_CONSENTIMIENTO_MENOR = "2026-09"
 
 
+class HijoRegistro(BaseModel):
+    """Un hijo tal como el formulario lo manda: colegio y grado bastan para armar
+    el kit. El `apodo` es opcional y es lo unico que identifica al menor; se
+    guarda cifrado. NO se pide el nombre legal: no hace falta para la finalidad
+    (armar la lista) y recolectarlo violaria el principio de necesidad."""
+
+    colegio_id: uuid.UUID
+    grado: str = Field(min_length=1, max_length=32)
+    apodo: str | None = Field(default=None, max_length=120)
+
+    def a_dominio(self) -> HijoMatricula:
+        return HijoMatricula(colegio_id=self.colegio_id, grado=self.grado, apodo=self.apodo)
+
+
+class Registro(BaseModel):
+    """El alta del acudiente nuevo: su credencial, su celular para el aviso y sus
+    hijos. La clave pide un minimo de 8 para no crear cuentas triviales; no se
+    valida mas forma porque la politica real vive en un solo sitio."""
+
+    correo: str = Field(min_length=5, max_length=320)
+    clave: str = Field(min_length=8, max_length=256)
+    celular: str | None = Field(default=None, max_length=32)
+    hijos: list[HijoRegistro] = Field(default_factory=list)
+
+
+class MatriculasNuevas(BaseModel):
+    """Hijos que un acudiente YA autenticado agrega a su cuenta desde `/empezar`.
+    Reusa `HijoRegistro`: misma forma y mismas reglas de validacion."""
+
+    hijos: list[HijoRegistro] = Field(default_factory=list)
+
+
+@router.post(
+    "/v1/registro",
+    tags=["registro"],
+    status_code=201,
+    summary="Alta del acudiente: credencial + matriculas de sus hijos. No devuelve menores.",
+)
+async def registrar_acudiente(peticion: Request, registro: Registro) -> dict[str, Any]:
+    """Alta idempotente y orden-independiente con `POST /v1/contactos`. La unica
+    ruta publica que escribe en la tabla de menores: solo el apodo (opcional,
+    cifrado) toca al menor y nunca su nombre legal (Ley 1581 Art. 4); todo se
+    deriva para ser idempotente; y si el correo ya tiene credencial REAL no
+    escribe nada, para que un tercero sin sesion no inyecte matriculas en la
+    cuenta de otra familia."""
+    correo = str(registro.correo).strip().lower()
+    if not _FORMA_CORREO.fullmatch(correo):
+        raise ErrorDominio(
+            "correo_invalido", "El correo no tiene una forma valida.", estado=422, campo="correo"
+        )
+    # Pre-check de grado ANTES de la transaccion y para TODOS los caminos (incluido
+    # el correo ya-registrado que retorna temprano): redundante con la validacion
+    # del repo, pero deliberado, para que un grado invalido sea 422 aunque no se
+    # llegue a materializar.
+    for hijo in registro.hijos:
+        if hijo.grado not in GRADOS:
+            raise ErrorDominio(
+                "grado_invalido", f"'{hijo.grado}' no es un grado escolar.", estado=422, campo="grado"
+            )
+
+    cifrador = cifrador_desde_entorno()
+    anio_lectivo = datetime.now(UTC).year
+    async with peticion.app.state.motor.sesion() as db:
+        repo = RepoIdentidad(await db.connection())
+        usuario_id, creado = await repo.registrar_acudiente_con_hijos(
+            correo,
+            registro.clave,
+            registro.celular,
+            [h.a_dominio() for h in registro.hijos],
+            anio_lectivo,
+            cifrador,
+        )
+    return {"usuario_id": str(usuario_id), "creado": creado}
+
+
 @router.post("/v1/cuenta", tags=["cuenta"], status_code=201, summary="Crea la cuenta del acudiente.")
 async def crear_cuenta(peticion: Request, datos: NuevaCuenta) -> dict[str, Any]:
     from ..dominio.cuenta import ClaveDebil, Decision, validar_clave
@@ -427,6 +533,94 @@ async def listar_hijos(
         fila = await _usuario_del_token(authorization, repo)
         hijos = await repo.hijos_del_padre(fila.id)
     return {"total": len(hijos), "hijos": hijos}
+
+
+@router.get(
+    "/v1/cuenta/matriculas",
+    tags=["cuenta"],
+    summary="El ambito de tenencia de MIS hijos: colegio, grado y anio. Sin datos de menor.",
+)
+async def listar_matriculas(
+    peticion: Request, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    """Lo justo para precargar `/empezar` sin re-teclear a los hijos: colegio,
+    grado, anio y el apodo (el PADRE puede ver el de SUS hijos). Se filtra por el
+    usuario del token, no por rol."""
+    async with peticion.app.state.motor.sesion() as db:
+        repo = RepoIdentidad(await db.connection())
+        fila = await _usuario_del_token(authorization, repo)
+        matriculas = await repo.matriculas_del_titular(fila.id)
+    return {"total": len(matriculas), "matriculas": matriculas}
+
+
+@router.post(
+    "/v1/cuenta/matriculas",
+    tags=["cuenta"],
+    status_code=201,
+    summary="Agrega matriculas de MIS hijos con sesion. Solo escribe; no devuelve menores.",
+)
+async def guardar_matriculas(
+    peticion: Request,
+    cuerpo: MatriculasNuevas,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    """Equivalente autenticado del alta de hijos de `POST /v1/registro`: el
+    portador agrega a sus propios hijos sin re-registrar la cuenta. "Agregar"
+    SIEMPRE crea un hijo nuevo con el ordinal siguiente (se le pasa al repo el
+    conteo previo del portador en cada par), asi que NO es idempotente ante
+    reenvios; la proteccion la da la firma del formulario, no esta ruta."""
+    cifrador = cifrador_desde_entorno()
+    anio_lectivo = datetime.now(UTC).year
+    async with peticion.app.state.motor.sesion() as db:
+        repo = RepoIdentidad(await db.connection())
+        fila = await _usuario_del_token(authorization, repo)
+        conteo_inicial = await repo.conteo_matriculas_por_par(fila.id, anio_lectivo)
+        total = await repo.materializar_hijos(
+            fila.id, [h.a_dominio() for h in cuerpo.hijos], anio_lectivo, cifrador, conteo_inicial
+        )
+    return {"total": total}
+
+
+# --------------------------------------------------------------- admin
+#
+# La primera puerta que expone dato de menor (el apodo) por la superficie
+# publica, y por eso la mas vigilada: se abre SOLO al equipo interno
+# (admin/operador) y devuelve unicamente a las familias registradas.
+
+
+@router.get(
+    "/v1/admin/acudientes",
+    tags=["admin"],
+    summary="Padron de acudientes registrados y sus hijos. Solo equipo interno.",
+)
+async def listar_acudientes(
+    peticion: Request,
+    authorization: Annotated[str | None, Header()] = None,
+    ids: Annotated[str | None, Query(description="UUIDs separados por coma para acotar")] = None,
+) -> dict[str, Any]:
+    async with peticion.app.state.motor.sesion() as db:
+        repo = RepoIdentidad(await db.connection())
+        # 1) Puerta: token valido (401 si no) ...
+        solicitante = await _usuario_del_token(authorization, repo)
+        # 2) ... y rol de staff VIGENTE (403 si no).
+        if not await repo.es_staff_vigente(solicitante.id):
+            raise ErrorDominio(
+                "acceso_denegado", "Esta vista es solo para el equipo interno de Tukit.", estado=403
+            )
+        # ids -> lista de UUID, ya PASADA la puerta: un id mal formado responde 400,
+        # pero solo a quien ya autentico. Antes del gate, un `?ids=nope` sin token
+        # sigue siendo 401 (no revelar la forma del endpoint).
+        ids_filtrados: list[uuid.UUID] | None = None
+        if ids is not None:
+            crudos = [p.strip() for p in ids.split(",") if p.strip()]
+            try:
+                ids_filtrados = [uuid.UUID(p) for p in crudos]
+            except ValueError:
+                raise ErrorDominio(
+                    "ids_invalido", "El parametro ids trae un UUID mal formado.", estado=400, campo="ids"
+                ) from None
+        acudientes = await repo.padron_acudientes(ids_filtrados)
+    return {"total": len(acudientes), "acudientes": acudientes}
 
 
 # --------------------------------------------------------------- sesiones

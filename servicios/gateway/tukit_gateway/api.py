@@ -89,6 +89,7 @@ RUTAS: dict[str, str] = {
     # tarea_importacion). Sin este prefijo mas largo caeria en `/v1/admin` e
     # iria a inteligencia, que no la sirve.
     "/v1/admin/sugerencias": "catalogo",
+    "/v1/admin/acudientes": "identidad",
     "/v1/colegios": "identidad",
     # Bloque DUEB de un colegio del directorio, para pre-llenar el perfil del
     # colegio nuevo en la revisión (logo/sitio/dirección/contacto).
@@ -98,11 +99,19 @@ RUTAS: dict[str, str] = {
     # Nombres de acudientes adultos por id, para el panel del back-office
     # (tras `usuario:leer:nombre`). Es de identidad, la unica que cifra nombres.
     "/v1/usuarios": "identidad",
+    # Alta del acudiente y sus hijos desde `/empezar` (camino "soy nuevo
+    # usuario"): crea la credencial y las matriculas. Sin auth, como
+    # `/v1/contactos`; la sirve IDENTIDAD.
+    "/v1/registro": "identidad",
     "/v1/sesiones": "identidad",
     # "Mi cuenta" del acudiente: identidad y libreta de direcciones, sobre el
     # token que emite `/v1/sesiones`.
     "/v1/cuenta": "identidad",
     "/v1/trabajos": "inteligencia",
+    # "Mis solicitudes" del acudiente: sus listas subidas + sus trabajos, unidas.
+    # Prefijo propio y no bajo `/v1/trabajos` para no chocar con
+    # `/v1/trabajos/{trabajo_id}` (que toma un UUID); la sirve INTELIGENCIA.
+    "/v1/mis-solicitudes": "inteligencia",
     # Los (colegio, grado) con cache bendita, para la ruta rapida de /empezar.
     # Cuelga fuera de `/v1/trabajos` (no es un trabajo, es el indice de la cache).
     "/v1/grados-canonicos": "inteligencia",
@@ -132,6 +141,16 @@ RUTAS: dict[str, str] = {
 PENDIENTES: dict[str, str] = {}
 
 
+# Rutas servicio-a-servicio que la puerta NO expone. Existen para llamadas
+# internas directas —p. ej. inteligencia lee `/v1/comercio/pedidos-pagados`
+# pegandole a `TUKIT_COMERCIO_URL`, sin pasar por aqui— y desde fuera deben
+# verse como si no existieran, no como "prohibidas": revelar que hay una
+# superficie interna es informacion que no le hace falta a nadie de fuera. Van
+# en un set aparte de RUTAS a proposito: asi `sorted(RUTAS)` nunca las lista y
+# el 404 que responde la puerta es indistinguible del de una ruta desconocida.
+RUTAS_BLOQUEADAS: frozenset[str] = frozenset({"/v1/comercio/pedidos-pagados"})
+
+
 def destino(ruta: str) -> str | None:
     for prefijo in sorted(RUTAS, key=len, reverse=True):
         if ruta == prefijo or ruta.startswith(prefijo + "/"):
@@ -144,6 +163,11 @@ def pendiente(ruta: str) -> str | None:
         if ruta == prefijo or ruta.startswith(prefijo + "/"):
             return seccion
     return None
+
+
+def bloqueada(ruta: str) -> bool:
+    """`True` si la ruta es interna y la puerta no debe exponerla."""
+    return any(ruta == p or ruta.startswith(p + "/") for p in RUTAS_BLOQUEADAS)
 
 
 app = crear_app(
@@ -198,8 +222,10 @@ async def reenviar(ruta: str, peticion: Request) -> Response:
             },
         )
 
-    nombre = destino(camino)
-    if nombre is None:
+    # Las rutas internas se responden EXACTAMENTE igual que una desconocida
+    # (mismo cuerpo, misma lista de rutas que no las incluye): desde fuera no hay
+    # forma de distinguir "no existe" de "existe pero es interna".
+    if bloqueada(camino) or destino(camino) is None:
         return JSONResponse(
             status_code=404,
             content={
@@ -208,6 +234,8 @@ async def reenviar(ruta: str, peticion: Request) -> Response:
                 "rutas": sorted(RUTAS),
             },
         )
+
+    nombre = destino(camino)
 
     base = _servicios()[nombre]
     cabeceras = {k: v for k, v in peticion.headers.items() if k.lower() not in CABECERAS_SALTADAS}

@@ -175,7 +175,11 @@ class TestFijarProductoPorNivel:
 
         # Al premium: 2 cuadernos a 12000 en vez de 4500.
         await trabajos.fijar_producto_en_linea(
-            motor, trabajo_id, "Ahorrador", uuid.UUID(cuaderno["item_id"]), "TK-C001-PRE",
+            motor,
+            trabajo_id,
+            "Ahorrador",
+            uuid.UUID(cuaderno["item_id"]),
+            "TK-C001-PRE",
             catalogo=catalogo,
         )
 
@@ -193,7 +197,12 @@ class TestFijarProductoPorNivel:
         trabajo_id, _ = await _crear_y_procesar(motor, catalogo)
         with pytest.raises(trabajos.TrabajoNoExiste):
             await trabajos.fijar_producto_en_linea(
-                motor, trabajo_id, "Ahorrador", uuid.uuid4(), "TK-C001-PRE", catalogo=catalogo,
+                motor,
+                trabajo_id,
+                "Ahorrador",
+                uuid.uuid4(),
+                "TK-C001-PRE",
+                catalogo=catalogo,
             )
 
 
@@ -608,17 +617,24 @@ class TestAplicarCanonico:
         canonico, _ = await _crear_y_procesar(motor)
         await trabajos.revisar(motor, canonico, decision="aprobar")
         aplicado = await trabajos.aplicar_canonico(
-            motor, colegio_id=COLEGIO, grado="Cuarto", anio_lectivo=2026,
-            perfil="Ahorrador", usuario_id=uuid.uuid4(), catalogo=_catalogo(),
+            motor,
+            colegio_id=COLEGIO,
+            grado="Cuarto",
+            anio_lectivo=2026,
+            perfil="Ahorrador",
+            usuario_id=uuid.uuid4(),
+            catalogo=_catalogo(),
         )
         parent_id = uuid.UUID(aplicado["trabajo_id"])
 
         class ComercioFalso:
             def __init__(self):
                 self.orden_enviada = None
+
             async def crear_orden(self, cuerpo):
                 self.orden_enviada = cuerpo
                 return 201, {"pedido_id": "ped-1", "total": cuerpo_total(cuerpo)}
+
             async def iniciar_pago(self, pedido_id, cuerpo):
                 return 201, {"pago_id": "pago-1", "url_redireccion": "https://pasarela/xy"}
 
@@ -627,9 +643,13 @@ class TestAplicarCanonico:
 
         comercio = ComercioFalso()
         resultado = await trabajos.ordenar(
-            motor, parent_id, perfil="Ahorrador",
+            motor,
+            parent_id,
+            perfil="Ahorrador",
             entrega={"destinatario": "Ana", "direccion": "Calle 1", "ciudad": "Bogota"},
-            correo="ana@example.com", comercio=comercio, catalogo=_catalogo(),
+            correo="ana@example.com",
+            comercio=comercio,
+            catalogo=_catalogo(),
         )
         assert resultado["url_redireccion"] == "https://pasarela/xy"
         assert resultado["pedido_id"] == "ped-1"
@@ -644,22 +664,32 @@ class TestAplicarCanonico:
         canonico, _ = await _crear_y_procesar(motor)
         await trabajos.revisar(motor, canonico, decision="aprobar")
         aplicado = await trabajos.aplicar_canonico(
-            motor, colegio_id=COLEGIO, grado="Cuarto", anio_lectivo=2026,
-            perfil="Ahorrador", usuario_id=uuid.uuid4(), catalogo=_catalogo(),
+            motor,
+            colegio_id=COLEGIO,
+            grado="Cuarto",
+            anio_lectivo=2026,
+            perfil="Ahorrador",
+            usuario_id=uuid.uuid4(),
+            catalogo=_catalogo(),
         )
         parent_id = uuid.UUID(aplicado["trabajo_id"])
 
         class ComercioRechaza:
             async def crear_orden(self, cuerpo):
                 return 422, {"error": "precio_cambiado", "mensaje": "cambio"}
+
             async def iniciar_pago(self, pedido_id, cuerpo):  # no se llega
                 raise AssertionError
 
         with pytest.raises(trabajos.CheckoutRechazado) as exc:
             await trabajos.ordenar(
-                motor, parent_id, perfil="Ahorrador",
+                motor,
+                parent_id,
+                perfil="Ahorrador",
                 entrega={"destinatario": "Ana", "direccion": "Calle 1", "ciudad": "Bogota"},
-                correo="ana@example.com", comercio=ComercioRechaza(), catalogo=_catalogo(),
+                correo="ana@example.com",
+                comercio=ComercioRechaza(),
+                catalogo=_catalogo(),
             )
         assert exc.value.estado == 422
         assert exc.value.cuerpo["error"] == "precio_cambiado"

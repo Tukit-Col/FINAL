@@ -19,7 +19,8 @@ from sqlalchemy.pool import StaticPool
 from tukit_comun.bd import MotorServicio
 from tukit_comun.identificadores import derivar
 from tukit_identidad.api import app
-from tukit_identidad.modelos import Base, Colegio, Sede
+from tukit_identidad.dominio.sesiones import emitir_token, hashear_clave
+from tukit_identidad.modelos import AsignacionRol, Base, Colegio, Sede, Usuario
 from tukit_identidad.routers.identidad import GRADOS
 
 
@@ -36,6 +37,7 @@ async def cliente():
         colegio = Colegio(
             id=derivar("colegio", "2.4"),
             nombre="Colegio San Pedro",
+            dane="311001093652",
             logo_url="https://cdn.tukit.co/colegios/san-pedro.png",
             sitio_web="https://sanpedro.edu.co",
             contacto_nombre="Secretaria academica",
@@ -64,6 +66,34 @@ def test_las_rutas_vienen_de_un_router_incluido(cliente):
     assert "/v1/colegios" in montadas
     assert "/v1/sesiones" in montadas
     assert "/v1/cuenta/direcciones/{direccion_id}" in montadas
+
+
+class TestElDirectorioNoFiltraDeMas:
+    """`GET /v1/directorio/{dane}` sirve dos formas en la MISMA ruta. Por defecto
+    solo los 7 campos del alta: es lo que la subida de listas vuelca sin filtrar
+    en `colegio_datos`, asi que un campo de mas se filtraria a cada colegio nuevo.
+    La ficha completa (sector, localidad, rector, telefonos, correos) solo sale
+    con `?completo=true`, para el detalle del colegio en el admin. Se usa un DANE
+    real del directorio (no uno inventado) para no acoplar la prueba a un codigo."""
+
+    async def test_por_defecto_solo_devuelve_los_campos_del_alta(self, cliente):
+        from tukit_identidad.dominio.directorio import (
+            _indice_por_dane,
+            datos_colegio_nuevo_por_dane,
+        )
+
+        dane = next(iter(_indice_por_dane()))
+        cuerpo = (await cliente.get(f"/v1/directorio/{dane}")).json()
+        # Igualdad exacta: ni una clave de mas. Esto protege el flujo de subida
+        # (MapaRuiz) de que se filtren datos del directorio a `colegio_datos`.
+        assert set(cuerpo) == set(datos_colegio_nuevo_por_dane(dane))
+
+    async def test_completo_agrega_el_superconjunto_del_admin(self, cliente):
+        from tukit_identidad.dominio.directorio import _indice_por_dane
+
+        dane = next(iter(_indice_por_dane()))
+        cuerpo = (await cliente.get(f"/v1/directorio/{dane}?completo=true")).json()
+        assert {"sector", "localidad", "rector", "telefonos", "correos"} <= set(cuerpo)
 
 
 class TestElAcudienteEscogeColegioYGrado:
@@ -111,6 +141,17 @@ class TestElPerfilDelColegio:
         cuerpo = (await cliente.get("/v1/colegios")).json()
         san_pedro = next(c for c in cuerpo["colegios"] if c["nombre"] == "Colegio San Pedro")
         assert san_pedro["logo_url"] == "https://cdn.tukit.co/colegios/san-pedro.png"
+
+    async def test_el_listado_trae_el_dane_para_casar_el_buscador(self, cliente):
+        # El buscador de `/empezar` compara el DANE del aliado contra el
+        # directorio de Bogota para reconducir por `colegio_id`; sin el DANE en el
+        # listado no podria, y volveria a darlo de alta como colegio del
+        # directorio (el bug del duplicado). El que no tiene DANE serializa null.
+        cuerpo = (await cliente.get("/v1/colegios")).json()
+        san_pedro = next(c for c in cuerpo["colegios"] if c["nombre"] == "Colegio San Pedro")
+        assert san_pedro["dane"] == "311001093652"
+        sin_perfil = next(c for c in cuerpo["colegios"] if c["nombre"] == "Colegio Sin Perfil")
+        assert sin_perfil["dane"] is None
 
     async def test_un_colegio_sin_perfil_serializa_los_campos_como_null(self, cliente):
         cid = str(derivar("colegio", "9.9"))
@@ -167,6 +208,7 @@ class TestEditarElPerfilDelColegio:
         assert set(cuerpo.keys()) == {
             "colegio_id",
             "nombre",
+            "dane",
             "logo_url",
             "sitio_web",
             "contacto_nombre",
@@ -189,6 +231,36 @@ class TestEditarElPerfilDelColegio:
         assert respuesta.status_code == 400
         assert respuesta.json()["error"] == "campo_no_editable"
         assert respuesta.json()["campo"] == campo
+
+    async def test_el_dane_si_se_puede_completar(self, cliente):
+        """A diferencia del NIT, el DANE si se edita: aqui el id ya esta fijado y
+        no se re-deriva del DANE, asi que completarlo cuando falta es seguro y es
+        lo que habilita leer la ficha del directorio."""
+        cid = str(derivar("colegio", "2.4"))
+        cuerpo = (await cliente.patch(f"/v1/colegios/{cid}", json={"dane": "311001105731"})).json()
+        assert cuerpo["dane"] == "311001105731"
+        despues = (await cliente.get(f"/v1/colegios/{cid}")).json()
+        assert despues["dane"] == "311001105731"
+
+    @pytest.mark.parametrize("dane", ["311001093", "311001105731a", "abcdefghijkl", "3110 0110573"])
+    async def test_un_dane_que_no_son_12_digitos_es_400(self, cliente, dane):
+        """El DANE es la llave del directorio DUEB: si no son 12 digitos exactos se
+        rechaza antes de escribir, con el mismo formato de error 400 del endpoint."""
+        cid = str(derivar("colegio", "2.4"))
+        respuesta = await cliente.patch(f"/v1/colegios/{cid}", json={"dane": dane})
+        assert respuesta.status_code == 400
+        assert respuesta.json()["error"] == "dane_invalido"
+        assert respuesta.json()["campo"] == "dane"
+
+    async def test_el_dane_se_puede_vaciar_con_null(self, cliente):
+        """`null` vacia el DANE (p. ej. si se cargo uno equivocado): es valido y
+        deja el colegio sin ficha de directorio, sin romper."""
+        cid = str(derivar("colegio", "2.4"))
+        await cliente.patch(f"/v1/colegios/{cid}", json={"dane": "311001105731"})
+        cuerpo = (await cliente.patch(f"/v1/colegios/{cid}", json={"dane": None})).json()
+        assert cuerpo["dane"] is None
+        despues = (await cliente.get(f"/v1/colegios/{cid}")).json()
+        assert despues["dane"] is None
 
 
 class TestElContactoSeVuelveUnIdentificador:
@@ -239,6 +311,332 @@ class TestElContactoSeVuelveUnIdentificador:
         respuesta = await cliente.post("/v1/contactos", json={"correo": "a@b"})
         assert respuesta.status_code == 400
         assert respuesta.json()["error"] == "entrada_invalida"
+
+
+class TestElRegistroDelAcudiente:
+    """El alta con credencial y los hijos del acudiente nuevo (camino B)."""
+
+    async def test_crea_una_cuenta_con_credencial_usable(self, cliente):
+        respuesta = await cliente.post(
+            "/v1/registro",
+            json={"correo": "nueva@ejemplo.com", "clave": "clave1234", "celular": "3001112233", "hijos": []},
+        )
+        assert respuesta.status_code == 201
+        assert respuesta.json()["creado"] is True
+
+        # Y la credencial sirve: la cuenta puede iniciar sesion.
+        sesion = await cliente.post(
+            "/v1/sesiones", json={"correo": "nueva@ejemplo.com", "clave": "clave1234"}
+        )
+        assert sesion.status_code == 200
+        assert sesion.json()["sesion"]["correo"] == "nueva@ejemplo.com"
+
+    async def test_asciende_un_contacto_sin_credencial_sin_perder_su_id(self, cliente):
+        """Orden-independiente con /v1/contactos: quien primero pidio un kit
+        (creando el contacto) y luego se registra conserva el MISMO id, para
+        que el trabajo del pipeline que ya lo referencia siga apuntando bien."""
+        contacto = (await cliente.post("/v1/contactos", json={"correo": "mixta@ejemplo.com"})).json()
+        assert contacto["creado"] is True
+
+        registro = (
+            await cliente.post(
+                "/v1/registro", json={"correo": "mixta@ejemplo.com", "clave": "clave1234", "hijos": []}
+            )
+        ).json()
+        assert registro["creado"] is True
+        assert registro["usuario_id"] == contacto["usuario_id"]
+
+        # Antes no podia entrar (centinela); ahora si.
+        sesion = await cliente.post(
+            "/v1/sesiones", json={"correo": "mixta@ejemplo.com", "clave": "clave1234"}
+        )
+        assert sesion.status_code == 200
+
+    async def test_no_pisa_una_cuenta_ya_registrada(self, cliente):
+        """La ruta es publica: no debe dejar que un tercero cambie la clave de
+        una cuenta que ya tiene credencial."""
+        await cliente.post(
+            "/v1/registro", json={"correo": "duena@ejemplo.com", "clave": "originaal", "hijos": []}
+        )
+        repetido = await cliente.post(
+            "/v1/registro", json={"correo": "duena@ejemplo.com", "clave": "otraaaaa", "hijos": []}
+        )
+        assert repetido.status_code == 201
+        assert repetido.json()["creado"] is False
+
+        # La clave sigue siendo la original, no la del segundo intento.
+        assert (
+            await cliente.post("/v1/sesiones", json={"correo": "duena@ejemplo.com", "clave": "originaal"})
+        ).status_code == 200
+        assert (
+            await cliente.post("/v1/sesiones", json={"correo": "duena@ejemplo.com", "clave": "otraaaaa"})
+        ).status_code == 401
+
+    async def test_persiste_los_hijos_y_los_expone_por_cuenta_matriculas(self, cliente):
+        colegio_id = str(derivar("colegio", "2.4"))
+        await cliente.post(
+            "/v1/registro",
+            json={
+                "correo": "conhijos@ejemplo.com",
+                "clave": "clave1234",
+                "hijos": [{"colegio_id": colegio_id, "grado": "Quinto", "apodo": "Pipe"}],
+            },
+        )
+        token = (
+            await cliente.post("/v1/sesiones", json={"correo": "conhijos@ejemplo.com", "clave": "clave1234"})
+        ).json()["token"]
+
+        respuesta = await cliente.get("/v1/cuenta/matriculas", headers={"Authorization": f"Bearer {token}"})
+        assert respuesta.status_code == 200
+        cuerpo = respuesta.json()
+        assert cuerpo["total"] == 1
+        assert cuerpo["matriculas"][0]["colegio_id"] == colegio_id
+        assert cuerpo["matriculas"][0]["grado"] == "Quinto"
+        # El PADRE SI ve el apodo de SUS hijos: es el portador del token y el mismo
+        # lo escribio, y lo necesita para precargar `/empezar`. Baja descifrado en
+        # servidor; sigue sin salir nombre legal, documento ni estudiante_id.
+        assert cuerpo["matriculas"][0]["apodo"] == "Pipe"
+
+    async def test_reenviar_el_mismo_formulario_no_duplica_matriculas(self, cliente):
+        colegio_id = str(derivar("colegio", "2.4"))
+        cuerpo = {
+            "correo": "repite@ejemplo.com",
+            "clave": "clave1234",
+            "hijos": [{"colegio_id": colegio_id, "grado": "Quinto"}],
+        }
+        # Nace como contacto y luego se registra dos veces (idempotente).
+        await cliente.post("/v1/registro", json=cuerpo)
+        # El segundo POST no asciende (ya tiene credencial) pero tampoco debe
+        # duplicar; comprobamos por matriculas tras un solo alta valida.
+        token = (
+            await cliente.post("/v1/sesiones", json={"correo": "repite@ejemplo.com", "clave": "clave1234"})
+        ).json()["token"]
+        cuenta = (
+            await cliente.get("/v1/cuenta/matriculas", headers={"Authorization": f"Bearer {token}"})
+        ).json()
+        assert cuenta["total"] == 1
+
+    async def test_un_grado_que_no_existe_es_422(self, cliente):
+        colegio_id = str(derivar("colegio", "2.4"))
+        respuesta = await cliente.post(
+            "/v1/registro",
+            json={
+                "correo": "malgrado@ejemplo.com",
+                "clave": "clave1234",
+                "hijos": [{"colegio_id": colegio_id, "grado": "5"}],
+            },
+        )
+        assert respuesta.status_code == 422
+        assert respuesta.json()["campo"] == "grado"
+
+    async def test_gemelos_mismo_colegio_grado_generan_dos_matriculas(self, cliente):
+        """Dos hijos en el mismo colegio y grado —gemelos— son DOS matriculas, no
+        una: antes colapsaban en el mismo estudiante derivado."""
+        colegio_id = str(derivar("colegio", "2.4"))
+        await cliente.post(
+            "/v1/registro",
+            json={
+                "correo": "gemelos@ejemplo.com",
+                "clave": "clave1234",
+                "hijos": [
+                    {"colegio_id": colegio_id, "grado": "Quinto", "apodo": "Ana"},
+                    {"colegio_id": colegio_id, "grado": "Quinto", "apodo": "Bea"},
+                ],
+            },
+        )
+        token = (
+            await cliente.post("/v1/sesiones", json={"correo": "gemelos@ejemplo.com", "clave": "clave1234"})
+        ).json()["token"]
+        cuenta = (
+            await cliente.get("/v1/cuenta/matriculas", headers={"Authorization": f"Bearer {token}"})
+        ).json()
+        assert cuenta["total"] == 2
+        assert {m["apodo"] for m in cuenta["matriculas"]} == {"Ana", "Bea"}
+
+
+class TestMisMatriculasExigenToken:
+    async def test_sin_token_es_401(self, cliente):
+        assert (await cliente.get("/v1/cuenta/matriculas")).status_code == 401
+
+    async def test_solo_devuelve_lo_del_portador(self, cliente):
+        """Otro acudiente no ve las matriculas ajenas ni con token valido."""
+        colegio_id = str(derivar("colegio", "2.4"))
+        await cliente.post(
+            "/v1/registro",
+            json={
+                "correo": "conkid@ejemplo.com",
+                "clave": "clave1234",
+                "hijos": [{"colegio_id": colegio_id, "grado": "Quinto"}],
+            },
+        )
+        await cliente.post(
+            "/v1/registro", json={"correo": "sinkid@ejemplo.com", "clave": "clave1234", "hijos": []}
+        )
+        token_ajeno = (
+            await cliente.post("/v1/sesiones", json={"correo": "sinkid@ejemplo.com", "clave": "clave1234"})
+        ).json()["token"]
+
+        cuenta = (
+            await cliente.get("/v1/cuenta/matriculas", headers={"Authorization": f"Bearer {token_ajeno}"})
+        ).json()
+        assert cuenta["total"] == 0
+
+
+class TestGuardarMatriculasConSesion:
+    """`POST /v1/cuenta/matriculas`: un acudiente autenticado agrega a sus hijos."""
+
+    async def _token(self, cliente, correo: str) -> str:
+        await cliente.post("/v1/registro", json={"correo": correo, "clave": "clave1234", "hijos": []})
+        return (await cliente.post("/v1/sesiones", json={"correo": correo, "clave": "clave1234"})).json()[
+            "token"
+        ]
+
+    async def test_sin_token_es_401(self, cliente):
+        colegio_id = str(derivar("colegio", "2.4"))
+        respuesta = await cliente.post(
+            "/v1/cuenta/matriculas",
+            json={"hijos": [{"colegio_id": colegio_id, "grado": "Quinto"}]},
+        )
+        assert respuesta.status_code == 401
+
+    async def test_grado_invalido_es_422(self, cliente):
+        token = await self._token(cliente, "malgrado-sesion@ejemplo.com")
+        colegio_id = str(derivar("colegio", "2.4"))
+        respuesta = await cliente.post(
+            "/v1/cuenta/matriculas",
+            json={"hijos": [{"colegio_id": colegio_id, "grado": "5"}]},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert respuesta.status_code == 422
+        assert respuesta.json()["campo"] == "grado"
+
+    async def test_colegio_sin_sede_es_422(self, cliente):
+        token = await self._token(cliente, "sinsede-sesion@ejemplo.com")
+        # El colegio "9.9" existe pero no tiene sede activa (fixture `cliente`).
+        colegio_id = str(derivar("colegio", "9.9"))
+        respuesta = await cliente.post(
+            "/v1/cuenta/matriculas",
+            json={"hijos": [{"colegio_id": colegio_id, "grado": "Quinto"}]},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert respuesta.status_code == 422
+        assert respuesta.json()["campo"] == "colegio_id"
+
+    async def test_solo_escribe_al_portador(self, cliente):
+        """El hijo queda en la cuenta de quien porta el token, no en otra."""
+        colegio_id = str(derivar("colegio", "2.4"))
+        token_a = await self._token(cliente, "porta-a@ejemplo.com")
+        token_b = await self._token(cliente, "porta-b@ejemplo.com")
+
+        resultado = await cliente.post(
+            "/v1/cuenta/matriculas",
+            json={"hijos": [{"colegio_id": colegio_id, "grado": "Quinto", "apodo": "Pipe"}]},
+            headers={"Authorization": f"Bearer {token_a}"},
+        )
+        assert resultado.status_code == 201
+        assert resultado.json()["total"] == 1
+
+        cuenta_b = (
+            await cliente.get("/v1/cuenta/matriculas", headers={"Authorization": f"Bearer {token_b}"})
+        ).json()
+        assert cuenta_b["total"] == 0
+        cuenta_a = (
+            await cliente.get("/v1/cuenta/matriculas", headers={"Authorization": f"Bearer {token_a}"})
+        ).json()
+        assert cuenta_a["total"] == 1
+        assert cuenta_a["matriculas"][0]["apodo"] == "Pipe"
+
+    async def test_reenviar_agrega_otro_hijo(self, cliente):
+        """El endpoint NO es idempotente por diseno: cada POST AGREGA. Reenviar el
+        mismo cuerpo crea otra matricula (la proteccion de reenvios vive en la firma
+        del formulario, no aqui). Antes esto colapsaba en una sola fila."""
+        colegio_id = str(derivar("colegio", "2.4"))
+        token = await self._token(cliente, "reenvio-sesion@ejemplo.com")
+        cuerpo = {"hijos": [{"colegio_id": colegio_id, "grado": "Quinto"}]}
+        cabecera = {"Authorization": f"Bearer {token}"}
+        primero = await cliente.post("/v1/cuenta/matriculas", json=cuerpo, headers=cabecera)
+        assert primero.json()["total"] == 1
+        segundo = await cliente.post("/v1/cuenta/matriculas", json=cuerpo, headers=cabecera)
+        assert segundo.json()["total"] == 1  # uno mas, realmente creado
+        cuenta = (await cliente.get("/v1/cuenta/matriculas", headers=cabecera)).json()
+        assert cuenta["total"] == 2
+
+    async def test_reenviar_gemelos_agrega_mas(self, cliente):
+        """Reenviar dos gemelos agrega dos mas (endpoint aditivo por diseno): 2 -> 4.
+        La firma del formulario es lo que evita el reenvio accidental."""
+        colegio_id = str(derivar("colegio", "2.4"))
+        token = await self._token(cliente, "gemelos-sesion@ejemplo.com")
+        cuerpo = {
+            "hijos": [
+                {"colegio_id": colegio_id, "grado": "Quinto", "apodo": "Ana"},
+                {"colegio_id": colegio_id, "grado": "Quinto", "apodo": "Bea"},
+            ]
+        }
+        cabecera = {"Authorization": f"Bearer {token}"}
+        primero = await cliente.post("/v1/cuenta/matriculas", json=cuerpo, headers=cabecera)
+        assert primero.json()["total"] == 2
+        segundo = await cliente.post("/v1/cuenta/matriculas", json=cuerpo, headers=cabecera)
+        assert segundo.json()["total"] == 2
+        cuenta = (await cliente.get("/v1/cuenta/matriculas", headers=cabecera)).json()
+        assert cuenta["total"] == 4
+
+    async def test_agregar_otro_hijo_en_mismo_colegio_y_grado(self, cliente):
+        """El bug: el portador YA tiene un hijo en (colegio, grado) por el registro;
+        agregar OTRO en el mismo par con otro apodo debe crear una matricula NUEVA (no
+        colapsar en la existente ni perder el apodo). Fija tambien la casacion de tipo
+        de la clave del conteo: si fallara, colapsaria a 1 y esta prueba caeria."""
+        colegio_id = str(derivar("colegio", "2.4"))
+        await cliente.post(
+            "/v1/registro",
+            json={
+                "correo": "dos-hijos@ejemplo.com",
+                "clave": "clave1234",
+                "hijos": [{"colegio_id": colegio_id, "grado": "Quinto", "apodo": "Pipe"}],
+            },
+        )
+        token = (
+            await cliente.post("/v1/sesiones", json={"correo": "dos-hijos@ejemplo.com", "clave": "clave1234"})
+        ).json()["token"]
+        cabecera = {"Authorization": f"Bearer {token}"}
+        respuesta = await cliente.post(
+            "/v1/cuenta/matriculas",
+            json={"hijos": [{"colegio_id": colegio_id, "grado": "Quinto", "apodo": "Sofi"}]},
+            headers=cabecera,
+        )
+        assert respuesta.status_code == 201
+        assert respuesta.json()["total"] == 1  # uno realmente creado
+        cuenta = (await cliente.get("/v1/cuenta/matriculas", headers=cabecera)).json()
+        assert cuenta["total"] == 2
+        assert {m["apodo"] for m in cuenta["matriculas"]} == {"Pipe", "Sofi"}
+
+    async def test_un_tercero_tras_gemelos_del_registro_son_tres(self, cliente):
+        """Registro con gemelos (2 en el mismo par) y luego un POST con un tercero en
+        ese par: 3 matriculas distintas, no colapsar."""
+        colegio_id = str(derivar("colegio", "2.4"))
+        await cliente.post(
+            "/v1/registro",
+            json={
+                "correo": "trillizos@ejemplo.com",
+                "clave": "clave1234",
+                "hijos": [
+                    {"colegio_id": colegio_id, "grado": "Quinto", "apodo": "Ana"},
+                    {"colegio_id": colegio_id, "grado": "Quinto", "apodo": "Bea"},
+                ],
+            },
+        )
+        token = (
+            await cliente.post("/v1/sesiones", json={"correo": "trillizos@ejemplo.com", "clave": "clave1234"})
+        ).json()["token"]
+        cabecera = {"Authorization": f"Bearer {token}"}
+        respuesta = await cliente.post(
+            "/v1/cuenta/matriculas",
+            json={"hijos": [{"colegio_id": colegio_id, "grado": "Quinto", "apodo": "Cami"}]},
+            headers=cabecera,
+        )
+        assert respuesta.json()["total"] == 1
+        cuenta = (await cliente.get("/v1/cuenta/matriculas", headers=cabecera)).json()
+        assert cuenta["total"] == 3
+        assert {m["apodo"] for m in cuenta["matriculas"]} == {"Ana", "Bea", "Cami"}
 
 
 class TestLaSuperficieDeMenoresNoEstaAbierta:
@@ -296,4 +694,145 @@ class TestLaSuperficieDeMenoresNoEstaAbierta:
             # "Mis hijos": apodos del portador, nunca nombres reales de menor.
             # Exige token y solo devuelve lo propio (Ley 1581 / Anexo M).
             "/v1/cuenta/hijos",
+            # La tenencia del PROPIO portador. Este path ahora tiene GET y POST y
+            # se ABRE deliberadamente sobre dato de menor, pero acotado: exige token
+            # y filtra por usuario_id (no por rol), asi que un padre solo alcanza a
+            # SUS hijos. El GET devuelve el apodo del portador (descifrado, para
+            # precargar `/empezar`) y el POST agrega matriculas del portador; ambos
+            # siguen sin exponer nombre legal, documento ni estudiante_id. Nota: GET
+            # y POST comparten esta clave de path, asi que el `set` no gana una
+            # entrada nueva —no hay "lista" que ampliar, solo esta documentacion—.
+            "/v1/cuenta/matriculas",
+            # El registro de verdad. Solo ESCRIBE (credencial + matriculas) y
+            # nunca devuelve datos de menor: su respuesta es {usuario_id, creado}.
+            "/v1/registro",
+            # El padron de acudientes para el equipo interno. UNICA ruta que
+            # expone dato de menor (el apodo) por la superficie publica, y por
+            # eso GATEADA: 401 sin token, 403 sin rol admin/operador. Devuelve
+            # solo familias registradas (credencial real, sin rol interno);
+            # nunca clave, documento, fecha de nacimiento ni nombre legal. La
+            # justifica el test del gate (TestElPadronDeAcudientes).
+            "/v1/admin/acudientes",
         }
+
+
+async def _sembrar_usuario_con_rol(correo: str, rol: str) -> tuple[uuid.UUID, str]:
+    """Usuario con credencial real + un rol GLOBAL vigente; devuelve (id, token).
+
+    Siembra directo (no por /v1/registro) porque el registro no asigna roles. El
+    ambito va global/`ambito_id=None` para satisfacer el CHECK
+    `asignacion_ambito_coherente` que SQLite si aplica (las FK no, por eso no hace
+    falta sembrar la tabla `rol`).
+    """
+    fabrica = async_sessionmaker(app.state.motor.engine, expire_on_commit=False)
+    async with fabrica() as sesion:
+        u = Usuario(correo=correo, clave_hash=hashear_clave("demo1234"))
+        sesion.add(u)
+        await sesion.flush()
+        sesion.add(AsignacionRol(usuario_id=u.id, rol_codigo=rol, ambito_tipo="global", ambito_id=None))
+        await sesion.commit()
+        uid = u.id
+    return uid, emitir_token(uid, version_permisos=1)
+
+
+class TestElPadronDeAcudientes:
+    """`GET /v1/admin/acudientes`: la unica ruta que abre dato de menor, gateada
+    a admin/operador y podada a lo minimo. Los acudientes de prueba nacen por
+    `/v1/registro` (credencial real + hijos, sin rol) para que caigan dentro del
+    filtro de poblacion."""
+
+    async def _registrar(self, cliente, correo, apodo=None):
+        hijo = {"colegio_id": str(derivar("colegio", "2.4")), "grado": "Quinto"}
+        if apodo is not None:
+            hijo["apodo"] = apodo
+        respuesta = await cliente.post(
+            "/v1/registro",
+            json={"correo": correo, "clave": "clave1234", "celular": "3001112233", "hijos": [hijo]},
+        )
+        assert respuesta.status_code == 201
+        return respuesta.json()["usuario_id"]
+
+    async def test_sin_token_es_401(self, cliente):
+        assert (await cliente.get("/v1/admin/acudientes")).status_code == 401
+
+    async def test_token_invalido_es_401(self, cliente):
+        r = await cliente.get("/v1/admin/acudientes", headers={"Authorization": "Bearer no-sirve"})
+        assert r.status_code == 401
+
+    async def test_sin_token_con_ids_mal_formado_sigue_siendo_401(self, cliente):
+        # El gate va primero: un `?ids=nope` sin token NO debe delatar la ruta con
+        # un 400 de validacion; primero se exige el token (401).
+        r = await cliente.get("/v1/admin/acudientes?ids=nope")
+        assert r.status_code == 401
+
+    async def test_un_acudiente_no_ve_el_padron_ni_el_apodo(self, cliente):
+        await self._registrar(cliente, "papa@ejemplo.com", apodo="Pipe")
+        token = (
+            await cliente.post("/v1/sesiones", json={"correo": "papa@ejemplo.com", "clave": "clave1234"})
+        ).json()["token"]
+        r = await cliente.get("/v1/admin/acudientes", headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code == 403
+        assert r.json()["error"] == "acceso_denegado"
+        assert "Pipe" not in r.text  # el dato de menor NO se filtro a un no-staff
+
+    async def test_admin_ve_al_acudiente_con_apodo_descifrado(self, cliente):
+        await self._registrar(cliente, "familia@ejemplo.com", apodo="Pipe")
+        _uid, token = await _sembrar_usuario_con_rol("admin@tukit.co", "admin")
+        r = await cliente.get("/v1/admin/acudientes", headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code == 200
+        fila = next(a for a in r.json()["acudientes"] if a["correo"] == "familia@ejemplo.com")
+        assert fila["celular"] == "3001112233"
+        assert fila["creado_en"]  # ISO-8601 presente
+        assert fila["hijos"][0] == {
+            "apodo": "Pipe",
+            "colegio_id": str(derivar("colegio", "2.4")),
+            "colegio_nombre": "Colegio San Pedro",
+            "grado": "Quinto",
+        }
+
+    async def test_operador_tambien_puede(self, cliente):
+        _uid, token = await _sembrar_usuario_con_rol("operador@tukit.co", "operador")
+        r = await cliente.get("/v1/admin/acudientes", headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code == 200
+
+    async def test_hijo_sin_apodo_sale_como_null(self, cliente):
+        await self._registrar(cliente, "sinapodo@ejemplo.com", apodo=None)
+        _uid, token = await _sembrar_usuario_con_rol("admin@tukit.co", "admin")
+        cuerpo = (
+            await cliente.get("/v1/admin/acudientes", headers={"Authorization": f"Bearer {token}"})
+        ).json()
+        fila = next(a for a in cuerpo["acudientes"] if a["correo"] == "sinapodo@ejemplo.com")
+        assert fila["hijos"][0]["apodo"] is None
+
+    async def test_ids_acota_a_los_solicitados(self, cliente):
+        a = await self._registrar(cliente, "a@ejemplo.com")
+        await self._registrar(cliente, "b@ejemplo.com")
+        _uid, token = await _sembrar_usuario_con_rol("admin@tukit.co", "admin")
+        cuerpo = (
+            await cliente.get(f"/v1/admin/acudientes?ids={a}", headers={"Authorization": f"Bearer {token}"})
+        ).json()
+        assert {x["correo"] for x in cuerpo["acudientes"]} == {"a@ejemplo.com"}
+
+    async def test_los_internos_no_aparecen_ni_pidiendolos_por_id(self, cliente):
+        interno, _ = await _sembrar_usuario_con_rol("rectoria@colegio.edu.co", "colegio_admin")
+        _uid, token = await _sembrar_usuario_con_rol("admin@tukit.co", "admin")
+        general = (
+            await cliente.get("/v1/admin/acudientes", headers={"Authorization": f"Bearer {token}"})
+        ).json()
+        assert str(interno) not in {x["usuario_id"] for x in general["acudientes"]}
+        forzado = (
+            await cliente.get(
+                f"/v1/admin/acudientes?ids={interno}", headers={"Authorization": f"Bearer {token}"}
+            )
+        ).json()
+        assert forzado["acudientes"] == []  # el acote va SOBRE el filtro de poblacion
+
+    async def test_no_expone_campos_prohibidos(self, cliente):
+        await self._registrar(cliente, "familia@ejemplo.com", apodo="Pipe")
+        _uid, token = await _sembrar_usuario_con_rol("admin@tukit.co", "admin")
+        r = await cliente.get("/v1/admin/acudientes", headers={"Authorization": f"Bearer {token}"})
+        for prohibido in ("clave_hash", "documento", "fecha_nacimiento", "estudiante_id"):
+            assert prohibido not in r.text
+        fila = next(a for a in r.json()["acudientes"] if a["correo"] == "familia@ejemplo.com")
+        assert set(fila) == {"usuario_id", "correo", "celular", "creado_en", "hijos"}
+        assert set(fila["hijos"][0]) == {"apodo", "colegio_id", "colegio_nombre", "grado"}

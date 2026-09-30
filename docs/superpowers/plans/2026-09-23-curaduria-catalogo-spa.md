@@ -56,20 +56,34 @@ import uuid
 from tukit_catalogo import tiendas
 from tukit_catalogo.admin import construir_propuesta_util, construir_propuesta_libro
 
+
 def test_util_conserva_precio_en_centavos_y_puntaje():
-    cid = uuid.uuid4(); tid = uuid.uuid4()
-    o = tiendas.Oferta(tienda="exito", nombre="Cuaderno 100h", precio_cop=5000,
-                       disponible=True, imagen_url=None, url="http://x", sku="SKU1",
-                       ean=None, marca="Norma", especificaciones={})
+    cid = uuid.uuid4()
+    tid = uuid.uuid4()
+    o = tiendas.Oferta(
+        tienda="exito",
+        nombre="Cuaderno 100h",
+        precio_cop=5000,
+        disponible=True,
+        imagen_url=None,
+        url="http://x",
+        sku="SKU1",
+        ean=None,
+        marca="Norma",
+        especificaciones={},
+    )
     d = construir_propuesta_util(cid, "Cuaderno", "exito", tid, o, "confiable")
     assert d["precio_centavos"] == 500000 and d["puntaje"] == 0.6
     assert d["origen"] == "manual" and d["version_lista_id"] is None
     assert d["concepto_id"] == cid and d["referencia_externa"] == "SKU1"
 
+
 def test_libro_usa_isbn_como_referencia_y_puntaje_0_9():
-    cid = uuid.uuid4(); tid = uuid.uuid4()
-    d = construir_propuesta_libro(cid, "Libro", "panamericana", tid,
-                                  "9781234567897", "El Principito", 30000, "confiable")
+    cid = uuid.uuid4()
+    tid = uuid.uuid4()
+    d = construir_propuesta_libro(
+        cid, "Libro", "panamericana", tid, "9781234567897", "El Principito", 30000, "confiable"
+    )
     assert d["referencia_externa"] == "9781234567897" and d["puntaje"] == 0.9
     assert d["especificaciones"] == {"isbn": "9781234567897"} and d["precio_centavos"] == 3000000
 ```
@@ -142,24 +156,55 @@ async def test_lista_propuestas_pendientes(cliente):
 ```python
 async def test_encolar_util_cae_en_la_cola(cliente, monkeypatch):
     from tukit_catalogo import admin, tiendas
-    o = tiendas.Oferta(tienda="exito", nombre="Cuaderno", precio_cop=5000, disponible=True,
-                       imagen_url=None, url="http://x", sku="SKU9", ean=None, marca="Norma",
-                       especificaciones={})
+
+    o = tiendas.Oferta(
+        tienda="exito",
+        nombre="Cuaderno",
+        precio_cop=5000,
+        disponible=True,
+        imagen_url=None,
+        url="http://x",
+        sku="SKU9",
+        ean=None,
+        marca="Norma",
+        especificaciones={},
+    )
     monkeypatch.setattr(admin, "buscar_candidatos", lambda c: [("exito", o)])
-    r = await cliente.post("/v1/admin/catalogo/propuestas/util",
-        json={"concepto": cliente.ids["concepto_c001"], "slug": "exito",
-              "sku": "SKU9", "consulta": "cuaderno", "nivel": "confiable"})
+    r = await cliente.post(
+        "/v1/admin/catalogo/propuestas/util",
+        json={
+            "concepto": cliente.ids["concepto_c001"],
+            "slug": "exito",
+            "sku": "SKU9",
+            "consulta": "cuaderno",
+            "nivel": "confiable",
+        },
+    )
     assert r.status_code == 201 and r.json()["estado"] == "pendiente"
     cola = (await cliente.get("/v1/admin/catalogo/propuestas")).json()
     assert any(p["nombre"] == "Cuaderno" for p in cola["propuestas"])
 
+
 async def test_encolar_util_concepto_inexistente_es_422(cliente, monkeypatch):
     from tukit_catalogo import admin, tiendas
-    o = tiendas.Oferta(tienda="exito", nombre="X", precio_cop=1, disponible=True, imagen_url=None,
-                       url="", sku="S", ean=None, marca=None, especificaciones={})
+
+    o = tiendas.Oferta(
+        tienda="exito",
+        nombre="X",
+        precio_cop=1,
+        disponible=True,
+        imagen_url=None,
+        url="",
+        sku="S",
+        ean=None,
+        marca=None,
+        especificaciones={},
+    )
     monkeypatch.setattr(admin, "buscar_candidatos", lambda c: [("exito", o)])
-    r = await cliente.post("/v1/admin/catalogo/propuestas/util",
-        json={"concepto": "NOPE", "slug": "exito", "sku": "S", "consulta": "x", "nivel": "confiable"})
+    r = await cliente.post(
+        "/v1/admin/catalogo/propuestas/util",
+        json={"concepto": "NOPE", "slug": "exito", "sku": "S", "consulta": "x", "nivel": "confiable"},
+    )
     assert r.status_code == 422 and r.json()["error"] == "concepto_no_existe"
 ```
 
@@ -182,15 +227,23 @@ async def test_encolar_util_concepto_inexistente_es_422(cliente, monkeypatch):
 
 ```python
 async def test_encolar_libro_valida_isbn(cliente):
-    r = await cliente.post("/v1/admin/catalogo/propuestas/libro",
-        json={"concepto": cliente.ids["concepto_c001"], "isbn": "123", "titulo": "T",
-              "precio": 30000, "slug": "panamericana", "nivel": "confiable"})
+    r = await cliente.post(
+        "/v1/admin/catalogo/propuestas/libro",
+        json={
+            "concepto": cliente.ids["concepto_c001"],
+            "isbn": "123",
+            "titulo": "T",
+            "precio": 30000,
+            "slug": "panamericana",
+            "nivel": "confiable",
+        },
+    )
     assert r.status_code == 422 and r.json()["error"] == "isbn_invalido"
+
 
 async def test_aprobar_propuesta_nace_producto(cliente):
     prop_id = cliente.ids["propuesta_pendiente"]  # sembrada con concepto en la fixture
-    r = await cliente.post(f"/v1/admin/catalogo/propuestas/{prop_id}/aprobar",
-        json={"nivel": "confiable"})
+    r = await cliente.post(f"/v1/admin/catalogo/propuestas/{prop_id}/aprobar", json={"nivel": "confiable"})
     assert r.status_code == 200 and r.json()["estado"] == "aprobada"
 ```
 
@@ -213,14 +266,16 @@ async def test_aprobar_propuesta_nace_producto(cliente):
 ```python
 async def test_patch_atributos_no_escalar_es_422(cliente):
     sku = cliente.ids["sku_p1"]
-    r = await cliente.patch(f"/v1/catalogo/productos/{sku}",
-        json={"atributos": {"materias": ["a", "b"]}})
+    r = await cliente.patch(f"/v1/catalogo/productos/{sku}", json={"atributos": {"materias": ["a", "b"]}})
     assert r.status_code == 422 and r.json()["error"] == "atributos_invalido"
+
 
 async def test_patch_atributos_escalares_ok(cliente):
     sku = cliente.ids["sku_p1"]
-    r = await cliente.patch(f"/v1/catalogo/productos/{sku}",
-        json={"atributos": {"hojas": 80, "rayado": "cuadriculado", "deposito": True}})
+    r = await cliente.patch(
+        f"/v1/catalogo/productos/{sku}",
+        json={"atributos": {"hojas": 80, "rayado": "cuadriculado", "deposito": True}},
+    )
     assert r.status_code == 200
 ```
 
@@ -245,9 +300,9 @@ async def test_patch_atributos_escalares_ok(cliente):
 - [ ] **Step 1: Failing test** — añadir a `TestElPrefijoMasLargoGana` (parametrizado):
 
 ```python
-("/v1/admin/catalogo/propuestas", "catalogo"),
-("/v1/admin/catalogo/tiendas/exito/buscar", "catalogo"),
-("/v1/admin/propuestas/abc/rechazar", "catalogo"),
+(("/v1/admin/catalogo/propuestas", "catalogo"),)
+(("/v1/admin/catalogo/tiendas/exito/buscar", "catalogo"),)
+(("/v1/admin/propuestas/abc/rechazar", "catalogo"),)
 ```
 
 - [ ] **Step 2: Run → FAIL** (`/v1/admin/catalogo/...` cae en inteligencia).

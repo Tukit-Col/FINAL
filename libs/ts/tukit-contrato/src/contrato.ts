@@ -390,6 +390,52 @@ export interface TrabajoResumen {
   preferencias: Preferencias;
 }
 
+// ---------------------------------------------- §4.1 "Mis solicitudes" del panel
+// Una solicitud del acudiente es una de dos cosas —una lista que subio, o un
+// trabajo del pipeline— y a veces las dos son la misma (la lista aprobada
+// engendra su trabajo). El backend las une y las expone como una union por
+// `tipo`, para que el panel discrimine sin adivinar por campos ausentes.
+interface SolicitudBase {
+  // `colegio_id` viaja como string para casar con el mapa de nombres del panel.
+  colegio_id: string;
+  // `null` cuando el nombre vive en identidad (colegio aliado), no en catalogo:
+  // la web lo resuelve con su propio mapa de colegios.
+  colegio_nombre: string | null;
+  grado: string;
+  // ISO-8601. Clave de orden unificada: la fecha de la lista o del trabajo.
+  creado_en: string;
+}
+
+// Lista subida, aun sin aprobar: "una persona esta revisando tu lista".
+export interface SolicitudRecibida extends SolicitudBase {
+  tipo: "recibida";
+}
+
+// Lista aprobada: su trabajo ya existe y el kit esta listo.
+export interface SolicitudAprobada extends SolicitudBase {
+  tipo: "aprobada";
+  trabajo_id: string;
+}
+
+// Trabajo sin lista subida (ruta rapida o lista verificada directa): se muestra
+// su estado en palabras y un enlace segun este publicado o no.
+export interface SolicitudEnProceso extends SolicitudBase {
+  tipo: "trabajo";
+  trabajo_id: string;
+  estado: EstadoTrabajo;
+}
+
+export type Solicitud = SolicitudRecibida | SolicitudAprobada | SolicitudEnProceso;
+
+// Resultado del endpoint: las solicitudes mas una marca de si se pudieron leer
+// las listas subidas. `listas_disponibles: false` significa que catalogo no
+// respondio: el panel muestra los trabajos y avisa que faltan las listas, en
+// vez de fallar entero.
+export interface MisSolicitudes {
+  solicitudes: Solicitud[];
+  listas_disponibles: boolean;
+}
+
 // ---------------------------------------------------------------- §11 Errores
 export interface ErrorApi {
   error: string;

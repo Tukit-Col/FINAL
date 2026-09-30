@@ -77,6 +77,30 @@ async def mis_pedidos(request: Request, usuario_id: uuid.UUID) -> dict[str, Any]
     return {"total": len(pedidos), "pedidos": pedidos}
 
 
+@router.get(
+    "/v1/comercio/pedidos-pagados",
+    summary="Los pedidos pagados (estado confirmado) con su trabajo, para cruces internos.",
+)
+async def pedidos_pagados(request: Request) -> dict[str, Any]:
+    """El minimo cruce que otro servicio necesita: por cada pedido en un estado
+    confirmado y con `trabajo_id`, su `{trabajo_id, usuario_id, estado}`. Nada de
+    PII (solo identificadores) y la definicion de "pagado" queda aqui, en
+    Comercio, que es su dueno.
+
+    Lo consume Inteligencia server-to-server para armar las metricas de pedidos
+    por colegio; el navegador nunca lo llama. Sin token, como el resto de la
+    superficie de lectura (ver el gateway y `mis_pedidos`)."""
+    async with request.app.state.motor.sesion() as db:
+        repo = _repo(await db.connection())
+        filas = await repo.pagados_con_trabajo()
+    return {
+        "pedidos": [
+            {"trabajo_id": str(f.trabajo_id), "usuario_id": str(f.usuario_id), "estado": f.estado}
+            for f in filas
+        ]
+    }
+
+
 @router.get("/v1/comercio/pedidos/{pedido_id}", summary="Un pedido, con lineas, pago y envio")
 async def ver_pedido(request: Request, pedido_id: uuid.UUID) -> dict[str, Any]:
     async with request.app.state.motor.sesion() as db:

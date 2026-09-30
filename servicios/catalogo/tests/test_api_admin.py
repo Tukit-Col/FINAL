@@ -236,9 +236,7 @@ class TestListarVersionesParaRevisar:
     async def test_una_version_importada_declara_su_procedencia(self, cliente):
         # Una version que nace de `importar` (onboarding) la trae etiquetada,
         # para que la cola distinga "el colegio la envio" de "un padre la subio".
-        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
-            "version_id"
-        ]
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
         cuerpo = (await cliente.get("/v1/admin/listas?revisada=false")).json()
         importada = next(v for v in cuerpo["listas"] if v["version_id"] == vid)
         assert importada["procedencia"] == "onboarding"
@@ -442,9 +440,7 @@ class TestCerrarLaRevision:
         # `colegio_grado`) que entra a la cola de revision, y al aprobarlo ahi
         # queda como kit canonico del grado. Sin este evento no habria canonico y
         # el panel NSGA del colegio no tendria nada que pintar.
-        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
-            "version_id"
-        ]
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
 
         respuesta = await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
         assert respuesta.status_code == 200
@@ -495,13 +491,42 @@ class TestCerrarLaRevision:
         # El DANE viaja como `nit` (la columna del colegio en Identidad).
         assert evento.carga["nit"] == "311001105731"
         assert evento.carga["direccion"] == "Calle 1 # 2-3"
+        # Onboarding sin padre esperando: la clave viaja pero en None (el guard de
+        # este bloque es `colegio_datos`, no `contacto_referencia`).
+        assert evento.carga["contacto_referencia"] is None
+
+    async def test_colegio_verificado_lleva_contacto_referencia_cuando_hay_padre(self, cliente):
+        # Un padre subio la lista de un colegio nuevo (trae `contacto_referencia` Y
+        # `colegio_datos`): al aprobarla, `colegio_verificado` debe llevar tambien
+        # su identificador opaco, para que el poller de Identidad matricule al hijo.
+        referencia = str(uuid.uuid4())
+        colegio_datos = {
+            "dane": "311001105731",
+            "nombre": "ACADEMIA CENTRAL DE SISTEMAS",
+            "direccion": "Calle 1 # 2-3",
+        }
+        vid = (
+            await cliente.post(
+                "/v1/admin/listas/importar",
+                json=_cuerpo_importar(contacto_referencia=referencia, colegio_datos=colegio_datos),
+            )
+        ).json()["version_id"]
+
+        respuesta = await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
+        assert respuesta.status_code == 200
+
+        eventos = await self._bandeja("colegio_verificado")
+        assert len(eventos) == 1
+        evento = eventos[0]
+        # El padre, por identificador opaco; nunca su correo/telefono.
+        assert evento.carga["contacto_referencia"] == referencia
+        assert evento.carga["colegio_id"] == str(COLEGIO)
+        assert evento.carga["grado"] == "Sexto"
 
     async def test_cerrar_un_colegio_aliado_conocido_no_emite_colegio_verificado(self, cliente):
         # Un colegio ya aliado (sin `colegio_datos`) no tiene identidad que crear:
         # aprobar su lista no emite el evento de colegio.
-        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
-            "version_id"
-        ]
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
         respuesta = await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
         assert respuesta.status_code == 200
         assert await self._bandeja("colegio_verificado") == []
@@ -525,6 +550,7 @@ class TestCerrarLaRevision:
 
 
 PDF_FALSO = b"%PDF-1.4 lista de utiles de prueba"
+PNG_FALSO = b"\x89PNG\r\n\x1a\n" + b"lista de utiles de prueba"
 
 
 def _cuerpo_importar(**extra) -> dict:
@@ -571,6 +597,20 @@ class TestImportarListaDesdeOnboarding:
         assert respuesta.status_code == 200
         assert respuesta.headers["content-type"] == "application/pdf"
         assert respuesta.content == PDF_FALSO
+
+    async def test_el_documento_png_conserva_su_tipo(self, cliente):
+        # Una lista subida como imagen se sirve como image/png, no como PDF.
+        cuerpo = _cuerpo_importar(
+            evidencia={
+                "documento_base64": base64.b64encode(PNG_FALSO).decode("ascii"),
+                "percepcion_cruda": [{"pagina": 1, "crudo": "imagen de prueba"}],
+            }
+        )
+        vid = (await cliente.post("/v1/admin/listas/importar", json=cuerpo)).json()["version_id"]
+        respuesta = await cliente.get(f"/v1/admin/listas/{vid}/documento")
+        assert respuesta.status_code == 200
+        assert respuesta.headers["content-type"] == "image/png"
+        assert respuesta.content == PNG_FALSO
 
     async def test_la_percepcion_devuelve_paginas_e_items(self, cliente):
         vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
@@ -766,9 +806,7 @@ class TestEditarDatosDelColegioEnLaRevision:
         assert vista["colegio_datos"]["nombre"] == "ACADEMIA CENTRAL DE SISTEMAS"
 
     async def test_la_revision_de_un_aliado_no_trae_datos_de_colegio(self, cliente):
-        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
-            "version_id"
-        ]
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
         vista = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()
         assert vista["colegio_datos"] is None
 
@@ -805,9 +843,7 @@ class TestEditarDatosDelColegioEnLaRevision:
 
     async def test_completar_un_aliado_sin_datos_de_colegio_es_409(self, cliente):
         # Una version de colegio ya aliado no tiene datos que completar.
-        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
-            "version_id"
-        ]
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
         respuesta = await cliente.patch(f"/v1/admin/listas/{vid}/colegio", json={"logo_url": "x"})
         assert respuesta.status_code == 409
 
@@ -1086,9 +1122,7 @@ class TestNuevaVersionParaCorregir:
 
         # Pero el acudiente sigue viendo la vigente aprobada (numero 1): la
         # lectura publica sigue atada a `vigente`, y el borrador no la toco.
-        publica = (
-            await cliente.get(f"/v1/listas?colegio_id={COLEGIO}&grado=Quinto&revisada=true")
-        ).json()
+        publica = (await cliente.get(f"/v1/listas?colegio_id={COLEGIO}&grado=Quinto&revisada=true")).json()
         assert publica["total"] == 1
         assert publica["listas"][0]["version"] == 1
 
@@ -1121,6 +1155,43 @@ class TestNuevaVersionParaCorregir:
         # Y la percepcion cruda tambien: /percepcion trae las paginas.
         perc = (await cliente.get(f"/v1/admin/listas/{clon['version_id']}/percepcion")).json()
         assert perc["paginas"] == [{"pagina": 1, "crudo": "cuadernos y chaquiras"}]
+
+    async def test_la_copia_anula_contacto_y_preferencias(self, cliente):
+        # Invariante del conteo de demanda: al "Editar (nueva versión)" la copia
+        # CONSERVA `origen='sugerencia_padre'` pero ANULA `contacto_referencia` y
+        # `preferencias`. Por eso la demanda se cuenta por contacto no nulo y una
+        # copia de edición no suma. Se importa una sugerencia de padre (con
+        # contacto y preferencias), se cierra y se clona; la copia debe nacer sin
+        # contacto ni preferencias.
+        referencia = str(uuid.uuid4())
+        preferencias = {"nivel": "economico"}
+        vid = (
+            await cliente.post(
+                "/v1/admin/listas/importar",
+                json=_cuerpo_importar(
+                    origen="sugerencia_padre",
+                    contacto_referencia=referencia,
+                    preferencias=preferencias,
+                ),
+            )
+        ).json()["version_id"]
+        await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
+
+        clon = (
+            await cliente.post(f"/v1/admin/listas/{COLEGIO}/Sexto/nueva-version?anio_lectivo=2026")
+        ).json()
+
+        from tukit_catalogo.admin_http import _motor
+
+        async with _motor().engine.begin() as conexion:
+            fila = (
+                await conexion.execute(
+                    TAREA.select().where(TAREA.c.version_id == uuid.UUID(clon["version_id"]))
+                )
+            ).one()
+        assert fila.origen == "sugerencia_padre"  # el origen se conserva
+        assert fila.contacto_referencia is None  # pero el contacto NO: no es demanda
+        assert fila.preferencias is None
 
     async def test_al_cerrar_el_borrador_pasa_a_vigente_y_publica(self, cliente):
         # Aprobar la correccion es lo que le pasa la vigencia: hasta cerrar, el

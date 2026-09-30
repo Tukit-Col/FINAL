@@ -21,11 +21,13 @@ import type {
   Kit,
   LineaKit,
   MarcarNoDisponible,
+  MisSolicitudes,
   PercepcionCruda,
   Preferencias,
   ProductoDadoDeAlta,
   ProductoKit,
   SinCoincidencia,
+  Solicitud,
   SolicitudTrabajo,
   SubidaListas,
   Trabajo,
@@ -50,6 +52,7 @@ import type {
   ColegioNuevoEditable,
   ConceptoCatalogo,
   DatosColegioNuevo,
+  DirectorioColegio,
   FiltrosListasAdmin,
   FiltrosProductos,
   ItemListaEditable,
@@ -71,14 +74,18 @@ import type {
   VersionListaAdmin,
 } from "./catalogo";
 import type { Pedido, TableroComercio } from "./comercio";
-import type { MetricasColegio, SerieMetricas } from "./metricas";
+import type { MetricasColegio, ResumenPedidosColegio, SerieMetricas } from "./metricas";
 import type { BandejaOperacion, Caso, CasoCreado, SolicitudCaso } from "./operacion";
 import {
   ErrorTukit,
+  type AcudienteAdmin,
   type ArchivoLista,
   type Credenciales,
   type NuevaCuenta,
+  type HijoNuevo,
+  type MatriculaAcudiente,
   type OrigenDatos,
+  type RegistroAcudiente,
   type Sesion,
 } from "./origen";
 
@@ -207,6 +214,53 @@ export class ClienteApi implements OrigenDatos {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
+  }
+
+  // El registro de verdad: crea la cuenta con credencial y persiste las
+  // matriculas de sus hijos. Sin token (la ruta es publica), igual que el
+  // alta del contacto. El gateway lo rutea a identidad `POST /v1/registro`.
+  registrarAcudiente(datos: RegistroAcudiente): Promise<{ usuario_id: string; creado: boolean }> {
+    return this.pedir<{ usuario_id: string; creado: boolean }>("/v1/registro", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(datos),
+    });
+  }
+
+  // La tenencia del portador, para precargar `/empezar`. El backend envuelve la
+  // lista en `{total, matriculas}`; aqui se devuelve el arreglo pelado, que es
+  // lo que la interfaz promete. Bearer, igual que `sesionActual`.
+  async matriculasDelAcudiente(token: string): Promise<MatriculaAcudiente[]> {
+    const cuerpo = await this.pedir<{ total: number; matriculas: MatriculaAcudiente[] }>(
+      "/v1/cuenta/matriculas",
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    return cuerpo.matriculas;
+  }
+
+  // Agrega matriculas del portador (camino autenticado). Mismo path que el GET,
+  // con Bearer, igual que `sesionActual`. El backend responde `{total}`.
+  async guardarMatriculas(token: string, hijos: HijoNuevo[]): Promise<{ total: number }> {
+    return this.pedir<{ total: number }>("/v1/cuenta/matriculas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ hijos }),
+    });
+  }
+
+  // El padron de acudientes para el equipo interno (solo admin/operador:
+  // identidad gatea con 401/403). `ids` opcional, separados por coma, acota a
+  // esos usuarios. El backend envuelve en `{total, acudientes}`; se devuelve el
+  // arreglo pelado. Bearer, igual que `sesionActual`.
+  async acudientesAdmin(token: string, ids?: string[]): Promise<AcudienteAdmin[]> {
+    const qs = new URLSearchParams();
+    if (ids && ids.length) qs.set("ids", ids.join(","));
+    const cadena = qs.toString();
+    const cuerpo = await this.pedir<{ total: number; acudientes: AcudienteAdmin[] }>(
+      `/v1/admin/acudientes${cadena ? `?${cadena}` : ""}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    return cuerpo.acudientes;
   }
 
   // ------------------------------------------------------------------ §2, §4
@@ -368,9 +422,14 @@ export class ClienteApi implements OrigenDatos {
   // llega con `grados: []` y solo es usable por la ruta de archivo.
   async colegios(): Promise<Colegio[]> {
     const [colegiosResp, listasResp] = await Promise.all([
-      this.pedir<{ colegios: { colegio_id: string; nombre: string; logo_url?: string | null }[] }>(
-        "/v1/colegios",
-      ),
+      this.pedir<{
+        colegios: {
+          colegio_id: string;
+          nombre: string;
+          dane?: string | null;
+          logo_url?: string | null;
+        }[];
+      }>("/v1/colegios"),
       // El selector arranca VACIO y solo se llena con lo verificado, asi que
       // pedimos `?revisada=true` y el filtro lo resuelve el servidor: una lista
       // importada pero sin revisar no habilita el grado —la ruta rapida a
@@ -403,6 +462,9 @@ export class ClienteApi implements OrigenDatos {
           atribucion_dudosa: false,
           // El logo lo sirve identidad; `null` cuando el colegio no cargo marca.
           logo_url: c.logo_url ?? null,
+          // El DANE deja al buscador reconducir al aliado por `colegio_id` cuando
+          // el padre elige del directorio un colegio que ya es aliado.
+          dane: c.dane ?? null,
           grados,
           es_partner: grados.length > 0,
         };
@@ -981,6 +1043,23 @@ export class ClienteApi implements OrigenDatos {
     }
   }
 
+  async directorioCompleto(dane: string): Promise<DirectorioColegio | null> {
+    // Mismo endpoint que `directorioColegio`, pero OPTA a la ficha COMPLETA con
+    // `?completo=true` (sector, localidad, rector y las listas de telefonos/
+    // correos) que el detalle del colegio en el admin pinta. El default del
+    // endpoint es la forma reducida de 7 campos, a proposito: la subida de
+    // listas vuelca esa respuesta sin filtrar, asi que los campos extra solo
+    // salen cuando alguien los pide explicitamente. Mismo 404 -> null.
+    try {
+      return await this.pedir<DirectorioColegio>(
+        `/v1/directorio/${encodeURIComponent(dane)}?completo=true`,
+      );
+    } catch (causa) {
+      if (causa instanceof ErrorTukit && causa.estado === 404) return null;
+      throw causa;
+    }
+  }
+
   // ------------------------------------------ §Admin — identidad del colegio (P4)
   //
   // El detalle vive en identidad (`/v1/colegios/{id}`) y el PATCH lo sirve el
@@ -1033,6 +1112,7 @@ export class ClienteApi implements OrigenDatos {
     return {
       colegio_id: c.colegio_id,
       nombre: c.nombre,
+      dane: c.dane ?? null,
       logo_url: c.logo_url ?? null,
       sitio_web: c.sitio_web ?? null,
       contacto_nombre: c.contacto_nombre ?? null,
@@ -1148,6 +1228,21 @@ export class ClienteApi implements OrigenDatos {
     return resp.trabajos ?? [];
   }
 
+  // "Mis solicitudes": las listas subidas + los trabajos del portador, unidas.
+  // Bearer, no `usuario_id` en la URL: inteligencia saca la identidad de la
+  // sesion. `listas_disponibles` por defecto `true` para no inventar una
+  // degradacion que el backend no reporto.
+  async misSolicitudes(token: string): Promise<MisSolicitudes> {
+    const cuerpo = await this.pedir<{ solicitudes?: Solicitud[]; listas_disponibles?: boolean }>(
+      "/v1/mis-solicitudes",
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    return {
+      solicitudes: cuerpo.solicitudes ?? [],
+      listas_disponibles: cuerpo.listas_disponibles ?? true,
+    };
+  }
+
   // ------------------------------------------------ ASUMIDO (operacion 1.x)
   casos(): Promise<BandejaOperacion> {
     return this.pedir<BandejaOperacion>("/v1/operacion/casos");
@@ -1172,6 +1267,15 @@ export class ClienteApi implements OrigenDatos {
   metricasColegio(colegioId: string): Promise<MetricasColegio> {
     return this.pedir<MetricasColegio>(
       `/v1/metricas/colegios/${encodeURIComponent(colegioId)}`,
+    );
+  }
+
+  // Exige Bearer de operador/admin: la respuesta trae los `usuario_id` de los
+  // padres que pagaron (dato sensible). Bearer, igual que `acudientesAdmin`.
+  resumenPedidosColegio(token: string, colegioId: string): Promise<ResumenPedidosColegio> {
+    return this.pedir<ResumenPedidosColegio>(
+      `/v1/metricas/colegios/${encodeURIComponent(colegioId)}/pedidos`,
+      { headers: { Authorization: `Bearer ${token}` } },
     );
   }
 
@@ -1396,6 +1500,7 @@ interface RevisionCruda {
 interface ColegioDetalleCrudo {
   colegio_id: string;
   nombre: string;
+  dane?: string | null;
   logo_url?: string | null;
   sitio_web?: string | null;
   contacto_nombre?: string | null;

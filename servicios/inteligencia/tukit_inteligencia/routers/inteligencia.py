@@ -18,7 +18,7 @@ import re
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Header, Query, Request
 from pydantic import BaseModel, Field
 from tukit_comun import derivar
 from tukit_comun.http import ErrorDominio
@@ -26,8 +26,68 @@ from tukit_comun.http import ErrorDominio
 from .. import api, metricas, trabajos
 from ..modelos import EstadoResolucion, EstadoTrabajo
 from ..percepcion import Percepcion
+from ..remoto import RemotoCaido
 
 router = APIRouter()
+
+# Los roles que dan acceso a las vistas del equipo interno. Mismo par que usa
+# identidad en `/v1/admin/acudientes` (`_ROLES_STAFF`), y la razon de que esta
+# puerta tenga la misma semantica.
+_ROLES_STAFF = ("admin", "operador")
+
+
+def _token_bearer(authorization: str | None) -> str | None:
+    """El token del encabezado `Authorization`. Refleja `_token_del_encabezado`
+    de identidad: acepta `Bearer <token>` y tambien el token pelado."""
+    if not authorization:
+        return None
+    partes = authorization.split(" ", 1)
+    if len(partes) == 2 and partes[0].lower() == "bearer":
+        return partes[1].strip()
+    return authorization.strip()
+
+
+async def _exigir_staff(authorization: str | None) -> None:
+    """Puerta operador/admin con la MISMA semantica que `/v1/admin/acudientes`:
+    401 sin token o con token invalido/revocado, 403 si el rol no es staff.
+
+    Inteligencia no puede leer la base de identidad (invariantes 1 y 3): valida
+    por HTTP contra `GET /v1/sesiones/actual`, el chequeo autoritativo que ya
+    compara `version_permisos`. Falla CERRADA (503) si identidad no responde:
+    no autorizar por no poder preguntar seria abrir el acceso."""
+    token = _token_bearer(authorization)
+    if not token:
+        raise ErrorDominio("sesion_invalida", "El token no es valido o expiro.", estado=401)
+    try:
+        sesion = await api._identidad().sesion(token)
+    except RemotoCaido as error:
+        raise ErrorDominio("identidad_no_disponible", "No se pudo validar la sesion.", estado=503) from error
+    if sesion is None:
+        raise ErrorDominio("sesion_invalida", "El token no es valido o expiro.", estado=401)
+    roles = {r.get("rol") for r in sesion.get("roles", [])}
+    if not roles & set(_ROLES_STAFF):
+        raise ErrorDominio(
+            "acceso_denegado", "Esta vista es solo para el equipo interno de Tukit.", estado=403
+        )
+
+
+async def _usuario_de_sesion(authorization: str | None) -> uuid.UUID:
+    """Puerta de portador: cualquier sesion valida, sin exigir rol de staff.
+
+    Misma validacion y misma falla CERRADA que `_exigir_staff` (401 sin token o
+    con token invalido/revocado, 503 si identidad no responde), pero devuelve el
+    `usuario_id` de la sesion en vez de comprobar roles. Es lo que deja que "Mis
+    solicitudes" use el id del PORTADOR y nunca uno que venga del navegador."""
+    token = _token_bearer(authorization)
+    if not token:
+        raise ErrorDominio("sesion_invalida", "El token no es valido o expiro.", estado=401)
+    try:
+        sesion = await api._identidad().sesion(token)
+    except RemotoCaido as error:
+        raise ErrorDominio("identidad_no_disponible", "No se pudo validar la sesion.", estado=503) from error
+    if sesion is None:
+        raise ErrorDominio("sesion_invalida", "El token no es valido o expiro.", estado=401)
+    return uuid.UUID(str(sesion["usuario_id"]))
 
 
 class PercepcionRechazada(ErrorDominio):
@@ -209,6 +269,21 @@ async def ver_trabajo(trabajo_id: uuid.UUID) -> dict[str, Any]:
         raise ErrorDominio(
             "trabajo_no_existe", "No hay ningun trabajo con ese identificador.", estado=404
         ) from error
+
+
+@router.get(
+    "/v1/mis-solicitudes",
+    tags=["trabajos"],
+    summary="Las solicitudes del acudiente (listas subidas + trabajos), unidas",
+)
+async def mis_solicitudes(authorization: Annotated[str | None, Header()] = None) -> dict[str, Any]:
+    """El panel del acudiente: sus listas subidas y sus trabajos, en una lista.
+
+    Exige una sesion valida (no rol de staff) y usa el `usuario_id` de esa
+    sesion; nunca acepta un id del navegador. Un catalogo caido no tumba la
+    vista: `trabajos.mis_solicitudes` lo marca en `listas_disponibles`."""
+    usuario_id = await _usuario_de_sesion(authorization)
+    return await trabajos.mis_solicitudes(api.app.state.motor, usuario_id, catalogo=api._catalogo())
 
 
 @router.post(
@@ -1047,3 +1122,32 @@ async def metricas_colegio(colegio_id: str) -> dict[str, Any]:
     `/v1/metricas` llega a Inteligencia, que es quien tiene los kits.
     """
     return await metricas.metricas_de_colegio(api.app.state.motor, colegio_id)
+
+
+@router.get(
+    "/v1/metricas/colegios/{colegio_id}/pedidos",
+    tags=["metricas"],
+    summary="Padres y ninos con pedido pagado en un colegio, por grado. Solo staff.",
+)
+async def metricas_pedidos_colegio(
+    colegio_id: str,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    """El cruce `pedido pagado -> trabajo -> hijos -> padre` del colegio.
+
+    Exige Bearer de operador/admin (misma semantica que `/v1/admin/acudientes`):
+    la respuesta lista los `usuario_id` de los padres que pagaron en el colegio,
+    que es dato sensible aunque no sea correo. El correo lo resuelve aparte el
+    servidor del admin con el endpoint protegido de acudientes.
+
+    Comercio devuelve por HTTP (`GET /v1/comercio/pedidos-pagados`) los pedidos
+    en estado confirmado con su `{trabajo_id, usuario_id}`; aqui se cruzan con
+    los `hijos` del trabajo (que si tienen colegio y grado) y se agrega. Un
+    colegio sin pedidos pagados responde con ceros y listas vacias, no con 404.
+
+    Cuelga de `/v1/metricas/` por la misma razon que `metricas_colegio`: el
+    gateway rutea por prefijo y este es el servicio dueno del cruce (ya habla con
+    Comercio para el checkout).
+    """
+    await _exigir_staff(authorization)
+    return await metricas.resumen_pedidos_de_colegio(api.app.state.motor, colegio_id, api._comercio())

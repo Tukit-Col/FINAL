@@ -62,9 +62,7 @@ class RepoCasos:
         fin_dia = ahora.replace(hour=23, minute=59, second=59, microsecond=0)
         hace_una_semana = ahora - timedelta(days=7)
 
-        abiertos = await self.conexion.scalar(
-            select(func.count()).where(CASO.c.estado.notin_(inactivos))
-        )
+        abiertos = await self.conexion.scalar(select(func.count()).where(CASO.c.estado.notin_(inactivos)))
         urgentes = await self.conexion.scalar(
             select(func.count()).where(
                 CASO.c.estado.notin_(inactivos), CASO.c.prioridad == Prioridad.URGENTE.value
@@ -78,9 +76,7 @@ class RepoCasos:
             )
         )
         resueltos_semana = await self.conexion.scalar(
-            select(func.count()).where(
-                CASO.c.resuelto_en.is_not(None), CASO.c.resuelto_en >= hace_una_semana
-            )
+            select(func.count()).where(CASO.c.resuelto_en.is_not(None), CASO.c.resuelto_en >= hace_una_semana)
         )
         return {
             "abiertos": int(abiertos or 0),

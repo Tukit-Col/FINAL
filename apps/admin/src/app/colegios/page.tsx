@@ -1,8 +1,9 @@
 // `/colegios` — P4, la BD durable de colegios y listas.
 //
-// La superficie de gestión: todos los colegios con su logo, si ya son aliados
-// (tienen al menos un grado revisado) y sus grados verificados con enlace a
-// cada lista. Aliados primero, después los que aún no tienen ninguna lista.
+// La superficie de gestión: SOLO los colegios aliados (los que ya tienen al
+// menos un grado revisado), con su logo, su nombre y sus grados. Los que aún no
+// son aliados no se listan aquí —siguen intactos en la base, solo no se pintan—
+// para que la vista sea el directorio de aliados y no un mezclado con ruido.
 //
 // Server Component: `colegios()` sale del origen directamente.
 
@@ -15,14 +16,12 @@ export const dynamic = "force-dynamic";
 export default async function PaginaColegios() {
   const colegios = await origenDeDatos().colegios();
 
-  const esAliado = (c: (typeof colegios)[number]) =>
-    (c.es_partner ?? c.grados.length > 0) ? 0 : 1;
-  // Aliados arriba; dentro de cada grupo, alfabético por nombre.
-  const ordenados = [...colegios].sort(
-    (a, b) => esAliado(a) - esAliado(b) || a.nombre.localeCompare(b.nombre, "es"),
-  );
-
-  const aliados = ordenados.filter((c) => (c.es_partner ?? c.grados.length > 0));
+  // Un colegio es aliado en cuanto tiene su primer grado revisado. Solo esos se
+  // listan; el resto ni se cuenta ni se pinta (no hay "colegios ocultos" que
+  // insinuar). Dentro de la lista, alfabético por nombre.
+  const aliados = colegios
+    .filter((c) => c.es_partner ?? c.grados.length > 0)
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 
   return (
     <div className={styles.pagina}>
@@ -39,18 +38,14 @@ export default async function PaginaColegios() {
             <dt>Aliados</dt>
             <dd className="cifra">{aliados.length}</dd>
           </div>
-          <div>
-            <dt>Colegios en total</dt>
-            <dd className="cifra">{colegios.length}</dd>
-          </div>
         </dl>
       </header>
 
-      {colegios.length === 0 ? (
-        <p className={styles.vacio}>Todavía no hay colegios cargados.</p>
+      {aliados.length === 0 ? (
+        <p className={styles.vacio}>Todavía no hay colegios aliados.</p>
       ) : (
         <div className={styles.rejilla}>
-          {ordenados.map((colegio) => (
+          {aliados.map((colegio) => (
             <TarjetaColegio key={colegio.colegio_id} colegio={colegio} />
           ))}
         </div>

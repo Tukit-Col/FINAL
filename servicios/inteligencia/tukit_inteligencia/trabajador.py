@@ -39,9 +39,7 @@ _RECLAMABLES_NORMAL = (EstadoTrabajo.ENCOLADO.value,)
 _RECLAMABLES_CON_COLGADOS = (EstadoTrabajo.ENCOLADO.value, EstadoTrabajo.PROCESANDO.value)
 # Un trabajo "publicado" para la metrica es el que termino en un estado exitoso:
 # publicado directo o a la espera de revision. `fallido` no cuenta.
-_TERMINALES_EXITOSOS = frozenset(
-    {EstadoTrabajo.PUBLICADO.value, EstadoTrabajo.ESPERA_REVISION.value}
-)
+_TERMINALES_EXITOSOS = frozenset({EstadoTrabajo.PUBLICADO.value, EstadoTrabajo.ESPERA_REVISION.value})
 
 
 async def _reclamar(motor: Any, *, limite: int, estados: tuple[str, ...]) -> list[uuid.UUID]:
@@ -66,9 +64,7 @@ async def _reclamar(motor: Any, *, limite: int, estados: tuple[str, ...]) -> lis
         ids = [f.id for f in filas]
         if ids:
             await conexion.execute(
-                update(TRABAJO)
-                .where(TRABAJO.c.id.in_(ids))
-                .values(estado=EstadoTrabajo.PROCESANDO.value)
+                update(TRABAJO).where(TRABAJO.c.id.in_(ids)).values(estado=EstadoTrabajo.PROCESANDO.value)
             )
         return ids
 

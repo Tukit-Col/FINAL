@@ -8,7 +8,7 @@
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { AplicarCanonico } from "@tukit/contrato";
 import { respuestaDeError } from "@/lib/respuesta";
-import { tokenDeSesion } from "@/lib/sesion";
+import { sesionActual, tokenDeSesion } from "@/lib/sesion";
 
 export const dynamic = "force-dynamic";
 
@@ -22,8 +22,16 @@ export async function POST(peticion: Request): Promise<Response> {
     );
   }
 
+  // La ruta rapida debe tener dueño: el usuario_id lo pone el servidor desde la
+  // cookie de sesion, NUNCA el navegador (que podria mentir). Sin sesion, el
+  // trabajo queda anonimo igual que hoy (usuario_id undefined -> se omite -> NULL).
+  const sesion = await sesionActual();
+  const cuerpoConUsuario: AplicarCanonico = { ...cuerpo, usuario_id: sesion?.usuario_id };
+
   try {
-    const aplicado = await origenDeDatos().aplicarCanonico(cuerpo, await tokenDeSesion());
+    // El token manda (el backend saca el usuario_id del Bearer); `usuario_id`
+    // en el cuerpo queda como respaldo del flujo server-to-server sin sesión.
+    const aplicado = await origenDeDatos().aplicarCanonico(cuerpoConUsuario, await tokenDeSesion());
     return Response.json(aplicado, { status: 201 });
   } catch (causa) {
     return respuestaDeError(causa);

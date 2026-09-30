@@ -73,10 +73,19 @@ def test_pagina_percepcion_no_dict_se_coacciona():
 
 def test_item_publico_arma_concepto_solo_si_hay_codigo():
     base = dict(
-        id="i1", orden=1, texto_original="t", cantidad=2, unidad="unidad",
-        tipo_item="util", modo_adquisicion="mercado_abierto", instruccion_colegio=None,
-        url_externa=None, atributos={"x": 1}, requiere_revision=False,
-        concepto_codigo="C001", concepto_nombre="Cuaderno",
+        id="i1",
+        orden=1,
+        texto_original="t",
+        cantidad=2,
+        unidad="unidad",
+        tipo_item="util",
+        modo_adquisicion="mercado_abierto",
+        instruccion_colegio=None,
+        url_externa=None,
+        atributos={"x": 1},
+        requiere_revision=False,
+        concepto_codigo="C001",
+        concepto_nombre="Cuaderno",
     )
     r = _item_publico(SimpleNamespace(**base))
     assert r["concepto"] == {"codigo": "C001", "nombre": "Cuaderno"}

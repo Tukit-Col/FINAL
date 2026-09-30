@@ -81,10 +81,7 @@ def configurar_metricas() -> None:
     from .resiliencia import _disyuntores
 
     def _observar_breakers(_opciones: Any) -> list[Any]:
-        return [
-            Observation(1 if d.abierto else 0, {"destino": nombre})
-            for nombre, d in _disyuntores.items()
-        ]
+        return [Observation(1 if d.abierto else 0, {"destino": nombre}) for nombre, d in _disyuntores.items()]
 
     meter.create_observable_gauge(
         "tukit.breaker.abierto",

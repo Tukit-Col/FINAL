@@ -55,6 +55,23 @@ _MODOS = {m.value for m in ModoAdquisicion}
 _UNIDADES = {u.value for u in UnidadBase}
 
 
+def _media_type_documento(datos: bytes) -> str:
+    """El Content-Type del documento por sus primeros bytes (magic number).
+
+    La subida acepta PDF/JPG/PNG/WEBP y `tarea_importacion.documento` no guarda
+    el tipo; se deduce aqui para no servir una imagen como `application/pdf`.
+    """
+    if datos.startswith(b"%PDF"):
+        return "application/pdf"
+    if datos.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if datos.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if datos[:4] == b"RIFF" and datos[8:12] == b"WEBP":
+        return "image/webp"
+    return "application/octet-stream"
+
+
 def _motor() -> Any:
     from ..api import app
 
@@ -116,9 +133,7 @@ async def listar_versiones(
                 # El nombre del colegio NUEVO cuando aun no existe en Tukit, para
                 # que la cola lo muestre en vez del id derivado. None si es un
                 # colegio aliado (su nombre ya vive en la tabla `colegio`).
-                "colegio_nombre": (
-                    (f.colegio_datos or {}).get("nombre") if f.colegio_datos else None
-                ),
+                "colegio_nombre": ((f.colegio_datos or {}).get("nombre") if f.colegio_datos else None),
             }
             for f in filas
         ]
@@ -638,7 +653,8 @@ async def documento_de_version(version_id: uuid.UUID) -> Response:
                 "Esta version no tiene un documento de origen.",
                 estado=404,
             )
-        return Response(content=bytes(tarea.documento), media_type="application/pdf")
+        datos = bytes(tarea.documento)
+        return Response(content=datos, media_type=_media_type_documento(datos))
 
 
 @router.get(
@@ -1003,6 +1019,12 @@ async def cerrar_version(version_id: uuid.UUID) -> dict[str, Any]:
                 carga={
                     "colegio_id": str(cabeza.colegio_id),
                     "grado": cabeza.grado,
+                    # El padre que esperaba este colegio, por identificador
+                    # opaco; NUNCA su correo/telefono, igual que en
+                    # `lista_verificada`. Va None en el onboarding de admin
+                    # (colegio dado de alta sin padre esperando): el guard de
+                    # este bloque es `colegio_datos`, no `contacto_referencia`.
+                    "contacto_referencia": None if contacto is None else str(contacto),
                     "nombre": datos.get("nombre"),
                     # El DANE es el `nit` del colegio en Identidad.
                     "nit": datos.get("dane") or datos.get("nit"),
@@ -1309,9 +1331,7 @@ async def encolar_util(cuerpo: dict[str, Any]) -> dict[str, Any]:
     nivel = str(cuerpo.get("nivel") or "confiable")
     codigo = str(cuerpo.get("concepto") or "")
 
-    elegida = next(
-        (o for s, o in admin.buscar_candidatos(consulta) if s == slug and o.sku == sku), None
-    )
+    elegida = next((o for s, o in admin.buscar_candidatos(consulta) if s == slug and o.sku == sku), None)
     if elegida is None:
         raise ErrorDominio(
             "candidato_no_disponible",
@@ -1330,9 +1350,7 @@ async def encolar_util(cuerpo: dict[str, Any]) -> dict[str, Any]:
             )
         nombre_concepto = await repo.nombre_concepto(concepto_id)
 
-    propuesta = construir_propuesta_util(
-        concepto_id, nombre_concepto, slug, tienda_id, elegida, nivel
-    )
+    propuesta = construir_propuesta_util(concepto_id, nombre_concepto, slug, tienda_id, elegida, nivel)
     await _encolar([propuesta])
     return {"id": str(propuesta["id"]), "id_corto": str(propuesta["id"])[:8], "estado": "pendiente"}
 
@@ -1361,9 +1379,7 @@ async def encolar_util_manual(cuerpo: dict[str, Any]) -> dict[str, Any]:
     codigo = str(cuerpo.get("concepto") or "")
     nombre = str(cuerpo.get("nombre") or "").strip()
     if not nombre:
-        raise ErrorDominio(
-            "nombre_invalido", "El util necesita un nombre.", estado=422, campo="nombre"
-        )
+        raise ErrorDominio("nombre_invalido", "El util necesita un nombre.", estado=422, campo="nombre")
     try:
         precio = int(cuerpo.get("precio") or 0)
     except (TypeError, ValueError):
@@ -1407,9 +1423,7 @@ async def encolar_util_manual(cuerpo: dict[str, Any]) -> dict[str, Any]:
             )
         nombre_concepto = await repo.nombre_concepto(concepto_id)
 
-    propuesta = construir_propuesta_util(
-        concepto_id, nombre_concepto, slug, tienda_id, oferta, nivel
-    )
+    propuesta = construir_propuesta_util(concepto_id, nombre_concepto, slug, tienda_id, oferta, nivel)
     await _encolar([propuesta])
     return {"id": str(propuesta["id"]), "id_corto": str(propuesta["id"])[:8], "estado": "pendiente"}
 
