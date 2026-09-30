@@ -124,12 +124,6 @@
   box-shadow: var(--clay-shadow-sm);
 }
 
-.fueraPresupuesto {
-  font-style: normal;
-  color: var(--color-aviso);
-  font-weight: 700;
-}
-
 /* --------------------------------------------------------------- Resumen */
 
 .resumen {

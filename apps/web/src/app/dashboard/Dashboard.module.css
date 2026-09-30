@@ -181,6 +181,62 @@
 }
 
 /* ============================================================
+   Línea de etapas de una solicitud (EtapasSolicitud)
+   ============================================================ */
+.etapas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.etapaChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.etapaDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.etapaHecha {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.etapaEnCurso {
+  background: var(--clay-cielo-bg);
+  color: var(--color-primary);
+}
+
+.etapaPendiente {
+  background: var(--color-surface-2);
+  color: var(--color-text-secondary);
+}
+
+.etapaFallida {
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11.5px;
+  font-weight: 700;
+  background: var(--color-danger-bg, var(--color-surface-2));
+  color: var(--color-aviso);
+}
+
+/* ============================================================
    Tarjeta de ayuda
    ============================================================ */
 .ayudaCard {

@@ -26,45 +26,20 @@ import argparse
 import asyncio
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import MetaData, String, Table, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from tukit_comun.bandeja import Resultado, drenar
 from tukit_comun.bd import crear_motor
 from tukit_comun.config import url_desde_entorno
 
 from . import trabajos
-from .modelos import Texto
 from .remoto import ClienteCatalogo
 
 # El unico tipo de evento que este poller atiende. La bandeja del Catalogo
 # lleva otros (ninguno hoy), y un tipo desconocido se marca publicado sin
 # actuar, para no reprocesarlo en cada pasada.
 _TIPO = "lista_verificada"
-
-
-def _bandeja_reflejada() -> Table:
-    """La bandeja del Catalogo, descrita con solo las columnas que se leen.
-
-    No se importa el modelo del Catalogo (regla 1): se declara aqui una tabla
-    con la forma comun de bandeja, identica en todos los servicios. `carga` usa
-    el mismo tipo portable que los modelos (JSON en SQLite, JSONB en Postgres).
-    """
-    from sqlalchemy import BigInteger, Column, DateTime, Integer, Uuid
-
-    metadatos = MetaData()
-    return Table(
-        "bandeja_salida",
-        metadatos,
-        Column("id", BigInteger, primary_key=True),
-        Column("tipo", String(128)),
-        Column("agregado_tipo", String(64)),
-        Column("agregado_id", Uuid(as_uuid=True)),
-        Column("carga", Texto),
-        Column("publicado_en", DateTime(timezone=True)),
-        Column("intentos", Integer),
-    )
 
 
 @dataclass
@@ -83,77 +58,80 @@ class Poller:
 
     async def pasada(self, *, limite: int = 100) -> int:
         """Una pasada: procesa hasta `limite` eventos no publicados. Devuelve
-        cuantos kits arranco con exito."""
-        bandeja = _bandeja_reflejada()
-        arrancados = 0
-        async with self.motor_catalogo.begin() as conexion:
-            pendientes = list(
-                await conexion.execute(
-                    select(bandeja)
-                    .where(bandeja.c.publicado_en.is_(None), bandeja.c.tipo == _TIPO)
-                    .order_by(bandeja.c.id)
-                    .limit(limite)
-                    .with_for_update(skip_locked=True)
-                )
-            )
-            for fila in pendientes:
-                ok = await self._procesar(conexion, bandeja, fila)
-                if ok:
-                    arrancados += 1
-        return arrancados
+        cuantos kits arranco con exito.
 
-    async def _procesar(self, conexion: Any, bandeja: Table, fila: Any) -> bool:
+        El drenar/SKIP LOCKED/marcar-publicado vive en `tukit_comun.bandeja`
+        (ADR 0022); aqui solo se aporta el `manejar` de `lista_verificada`."""
+        return await drenar(self.motor_catalogo, self._procesar, tipo=_TIPO, limite=limite)
+
+    async def _procesar(self, conexion: Any, fila: Any) -> Resultado:
         carga = fila.carga or {}
         colegio_id = carga.get("colegio_id")
         grado = carga.get("grado")
         contacto = carga.get("contacto_referencia")
-        # Un evento sin destino o sin padre no puede armar un kit dirigido: se
-        # marca publicado para no reintentarlo en vano (no es un fallo del
-        # poller, es un evento que no le sirve a nadie).
-        if not colegio_id or not grado or not contacto:
-            await self._marcar_publicado(conexion, bandeja, fila.id)
-            return False
+        # Sin colegio o grado no hay como armar un kit de grado: OMITIR lo marca
+        # publicado para no reintentarlo en vano (no es un fallo del poller, es
+        # un evento que no le sirve a nadie).
+        if not colegio_id or not grado:
+            return Resultado.OMITIR
 
-        try:
-            usuario_id = uuid.UUID(str(contacto))
-        except (ValueError, TypeError):
-            await self._marcar_publicado(conexion, bandeja, fila.id)
-            return False
+        # `contacto_referencia` decide el origen del trabajo:
+        #   - CON padre: `usuario_id` real + origen `lista_verificada`. El kit es
+        #     de ese padre; el pipeline lo publica directo y el repartidor le
+        #     avisa (la revision fue sobre la LISTA, no hay segunda cola).
+        #   - SIN padre (onboarding/colegio): anonimo + origen `colegio_grado`.
+        #     Entra a la cola de revision (`espera_revision`); al aprobarlo ahi
+        #     queda como kit CANONICO del grado —la cache que /empezar y el panel
+        #     NSGA del colegio consultan—. Aprobar la LISTA y aprobar el TRABAJO
+        #     sobre ella son los dos pasos que el flujo pide, en ese orden.
+        usuario_id: uuid.UUID | None = None
+        origen = "colegio_grado"
+        if contacto:
+            try:
+                usuario_id = uuid.UUID(str(contacto))
+                origen = "lista_verificada"
+            except (ValueError, TypeError):
+                # Contacto presente pero ilegible: se degrada a kit de colegio en
+                # vez de descartar el evento (perder el kito del grado es peor).
+                usuario_id = None
+                origen = "colegio_grado"
 
         anio = carga.get("anio_lectivo")
         hijo: dict[str, Any] = {"referencia": "hijo-1", "colegio_id": str(colegio_id), "grado": grado}
         if anio is not None:
             hijo["anio_lectivo"] = anio
 
-        # El trabajo se crea para el padre YA identificado —su `usuario_id`
-        # vive en la tarea desde que subio la lista—, sin volver a llamar a
-        # Identidad. Las preferencias son las del paso 3 que el Catalogo
-        # guardo y reenvio en la carga del evento.
+        # Las preferencias son las del paso 3 que el Catalogo guardo y reenvio en
+        # la carga; {} para el kit del colegio (se arma con las preferencias base).
         respuesta = await trabajos.crear(
             self.motor_inteligencia,
             hijos=[hijo],
             preferencias=carga.get("preferencias") or {},
-            origen="lista_verificada",
+            origen=origen,
             usuario_id=usuario_id,
         )
         trabajo_id = uuid.UUID(respuesta["trabajo_id"])
 
-        # Se marca el evento publicado ANTES de procesar: el trabajo ya es
-        # durable en `encolado`. Si el proceso muere durante el pipeline, el
-        # trabajo queda reintentable (`POST /v1/trabajos/{id}/reintentar`) y el
-        # evento no se reprocesa —no se arma un segundo kit para el mismo padre—.
-        await self._marcar_publicado(conexion, bandeja, fila.id)
+        # El trabajo ya es durable en `encolado`: `drenar` marcara el evento
+        # publicado al devolver HECHO (dentro de la misma transaccion de la
+        # pasada). Si el proceso muere durante el pipeline, el trabajo queda
+        # reintentable (`POST /v1/trabajos/{id}/reintentar`) y el evento no se
+        # reprocesa —no se arma un segundo kit para el mismo padre—.
 
-        # La lista esta revisada: `procesar` toma la ruta rapida (sin Gemini) y
-        # al terminar deja `kits_publicados` en la bandeja propia, que el
-        # repartidor recogera para avisarle al padre con el enlace.
+        # La lista esta revisada: `procesar` toma la ruta rapida (sin Gemini,
+        # con NSGA-II sobre los candidatos curados). El destino del trabajo
+        # depende del origen: `lista_verificada` se publica directo y deja
+        # `kits_publicados` para que el repartidor avise al padre; `colegio_grado`
+        # queda en `espera_revision` para que un admin lo apruebe en la cola y
+        # ahi se fije como canonico del grado.
+        #
+        # HECHO marca el evento publicado (en la misma transaccion de la pasada):
+        # el trabajo ya es durable en `encolado` y `procesar` no levanta ante un
+        # fallo de dependencia —lo deja `fallido` y reintentable por su estado—,
+        # asi que el evento nunca se reprocesa y no se arma un segundo kit para
+        # el mismo padre.
         await trabajos.procesar(self.motor_inteligencia, trabajo_id, catalogo=self.catalogo)
-        return True
-
-    async def _marcar_publicado(self, conexion: Any, bandeja: Table, id_fila: int) -> None:
-        await conexion.execute(
-            update(bandeja).where(bandeja.c.id == id_fila).values(publicado_en=datetime.now(UTC))
-        )
+        return Resultado.HECHO
 
 
 def _motor_lectura(servicio: str) -> AsyncEngine:

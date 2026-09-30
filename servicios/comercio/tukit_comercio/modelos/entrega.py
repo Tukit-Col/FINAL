@@ -86,6 +86,15 @@ class Envio(Base):
     direccion: Mapped[str] = mapped_column(String(512), nullable=False)
     ciudad: Mapped[str] = mapped_column(String(128), nullable=False)
 
+    # Mas de la copia congelada del hecho de entrega. Nullable porque el
+    # checkout legado (solo destinatario/direccion/ciudad) tiene que seguir
+    # cerrando y las filas ya escritas no los tienen; el formulario nuevo si los
+    # exige. Como el resto del envio, es copia y no llave a Identidad (ADR 0015).
+    telefono: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    departamento: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    documento_destinatario: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    indicaciones: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
     zona_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("zona_entrega.id", ondelete="SET NULL"), nullable=True
     )

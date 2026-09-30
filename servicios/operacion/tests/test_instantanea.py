@@ -166,3 +166,22 @@ async def test_series_vacia_sin_snapshots(cliente_http):
     respuesta = await cliente_http.get("/v1/operacion/metricas")
     assert respuesta.status_code == 200
     assert respuesta.json()["puntos"] == []
+
+
+async def test_series_desde_invalida_da_422(cliente_http):
+    # `desde` que no es fecha ISO no es una serie vacia: es una entrada mala.
+    respuesta = await cliente_http.get("/v1/operacion/metricas", params={"desde": "no-es-fecha"})
+    assert respuesta.status_code == 422
+    assert respuesta.json()["error"] == "fecha_invalida"
+
+
+async def test_series_desde_valida_acota_por_fecha(motor, cliente_http):
+    # Dos dias congelados; `desde` el dia de hoy deja fuera el snapshot viejo.
+    ayer = date(HOY.year, HOY.month, HOY.day - 1)
+    await escribir_instantanea(motor, MetricasFalsas(), ayer)
+    await escribir_instantanea(motor, MetricasFalsas(), HOY)
+
+    respuesta = await cliente_http.get("/v1/operacion/metricas", params={"desde": HOY.isoformat()})
+    assert respuesta.status_code == 200
+    fechas = {p["fecha"] for p in respuesta.json()["puntos"]}
+    assert fechas == {HOY.isoformat()}

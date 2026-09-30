@@ -26,16 +26,17 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 import pytest_asyncio
-from sqlalchemy import insert, select
+from sqlalchemy import MetaData, insert, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from tukit_comun.bandeja import bandeja_reflejada
 from tukit_comun.bd import MotorServicio
 from tukit_identidad.modelos import Base, Colegio, Sede
-from tukit_identidad.poller import Poller, _bandeja_reflejada
+from tukit_identidad.poller import Poller
 
 # La bandeja del Catalogo: la misma forma comun de bandeja (identica en todos los
 # servicios), montada aqui en su propio engine (base ajena), asi que la tabla
 # reflejada del poller la lee igual que en produccion.
-BANDEJA_CATALOGO = _bandeja_reflejada()
+BANDEJA_CATALOGO = bandeja_reflejada(MetaData())
 
 COLEGIO = str(uuid.uuid4())
 

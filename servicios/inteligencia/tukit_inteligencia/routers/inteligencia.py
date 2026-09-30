@@ -178,7 +178,7 @@ async def crear_trabajo(peticion: PeticionTrabajo, solicitud: Request) -> dict[s
         preferencias=(peticion.preferencias.model_dump(exclude_none=True) if peticion.preferencias else {}),
         usuario_id=uuid.UUID(uid) if (uid := await api._usuario_de_la_peticion(solicitud)) else None,
     )
-    trabajos.lanzar(api.app.state.motor, uuid.UUID(respuesta["trabajo_id"]))
+    await trabajos.lanzar(api.app.state.motor, uuid.UUID(respuesta["trabajo_id"]))
     return respuesta
 
 
@@ -285,7 +285,7 @@ async def reintentar(trabajo_id: uuid.UUID) -> dict[str, Any]:
             estado=409,
         )
 
-    trabajos.lanzar(api.app.state.motor, trabajo_id)
+    await trabajos.lanzar(api.app.state.motor, trabajo_id)
     return {"trabajo_id": str(trabajo_id), "estado": EstadoTrabajo.ENCOLADO.value}
 
 
@@ -715,27 +715,31 @@ async def preview_onboarding(version_id: str, peticion: PeticionPreview) -> dict
     Se corre de forma SINCRONICA (no `trabajos.lanzar`) para que los kits ya
     esten escritos cuando el admin lea `GET /v1/admin/trabajos/{id}`.
 
-    La guarda evita previsualizar una version que ya quedo atras: se resuelve
-    la version vigente del catalogo para ese (colegio, grado, anio) —igual que
-    `_listas_por_hijo`, por `listas()` y `lista()`— y si no coincide con la del
-    path se responde 409. Si no hay ninguna lista, 404.
+    Se previsualiza la version del PATH, no la vigente: al Editar, el borrador
+    nace sin vigencia (el acudiente sigue viendo la aprobada), asi que exigir que
+    fuera la vigente rompia justo el caso de editar-y-previsualizar. La guarda
+    solo comprueba que la version EXISTE y es la de ese (colegio, grado): 404 si
+    no. El pipeline lee sus items por `version_id` (ver `_listas_por_hijo`).
     """
     catalogo = api._catalogo()
-    listas = await catalogo.listas(
-        colegio_id=peticion.colegio_id, grado=peticion.grado, anio_lectivo=peticion.anio_lectivo
-    )
-    if not listas:
+    try:
+        cabeza = await catalogo.revision(version_id)
+    except trabajos.RemotoCaido as error:
         raise ErrorDominio(
             "version_no_existe",
-            "No hay ninguna lista publicada para ese colegio, grado y anio.",
+            "No hay ninguna version con ese identificador.",
             estado=404,
-        )
-    completa = await catalogo.lista(listas[0]["lista_id"])
-    vigente = str(completa.get("version_id") or listas[0].get("version_id") or "")
-    if vigente != version_id:
+        ) from error
+    # La version tiene que ser la del (colegio, grado, anio) que se pidio
+    # previsualizar: un version_id de otra lista no se previsualiza aqui.
+    if (
+        str(cabeza.get("colegio_id") or "") != peticion.colegio_id
+        or str(cabeza.get("grado") or "") != peticion.grado
+        or int(cabeza.get("anio_lectivo") or 0) != peticion.anio_lectivo
+    ):
         raise ErrorDominio(
-            "version_no_vigente",
-            "Existe una version mas nueva; previsualiza esa.",
+            "version_no_corresponde",
+            "Esa version no es de ese colegio, grado y anio.",
             estado=409,
         )
 
@@ -1005,9 +1009,17 @@ async def revisar(trabajo_id: uuid.UUID, decision: DecisionRevision) -> dict[str
             "el trabajo del padre).",
             estado=409,
         ) from error
+    except trabajos.CheckoutRechazado as error:
+        # Aprobar un kit sin lineas comprables se niega con su motivo: fijar el
+        # canonico solo garantizaria el 404 del acudiente al comprar.
+        raise ErrorDominio(
+            str(error.cuerpo.get("error") or "kit_no_aprobable"),
+            str(error.cuerpo.get("mensaje") or "El trabajo no se puede aprobar."),
+            estado=error.estado,
+        ) from error
 
     if decision.decision == "devolver":
-        trabajos.lanzar(api.app.state.motor, trabajo_id)
+        await trabajos.lanzar(api.app.state.motor, trabajo_id)
     return resultado
 
 

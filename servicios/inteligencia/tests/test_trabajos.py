@@ -453,6 +453,40 @@ class TestLaRevisionHumana:
         assert len(puntero) == 1
         assert puntero[0].trabajo_id == segundo
 
+    async def test_aprobar_un_kit_sin_lineas_comprables_se_niega_y_no_fija_canonico(self, motor):
+        # Todos los renglones son licencia digital (informativos, sin precio): el
+        # kit no tiene NADA que Tukit pueda cobrar. Aprobarlo como canonico solo
+        # garantizaria el 404 "sin lineas comprables" en el checkout, asi que se
+        # niega con `CheckoutRechazado` y NO se fija el puntero ni se emite aviso.
+        from sqlalchemy import func, select
+
+        catalogo = CatalogoFalso(
+            renglones=[
+                renglon(
+                    1,
+                    "Plan lector virtual RAZ-PLUS",
+                    tipo_item="licencia_digital",
+                    modo_adquisicion="plataforma",
+                    instruccion_colegio="Se adquiere con QUOVIX.",
+                ),
+            ],
+            respuestas={},  # sin emparejamiento: el renglon no gana producto ni precio
+        )
+        trabajo_id, _ = await _crear_y_procesar(motor, catalogo=catalogo)
+
+        with pytest.raises(trabajos.CheckoutRechazado) as exc:
+            await trabajos.revisar(motor, trabajo_id, decision="aprobar")
+        assert exc.value.estado == 409
+        assert exc.value.cuerpo["error"] == "kit_sin_lineas"
+
+        # El rollback dejo el trabajo en espera de revision, sin canonico ni evento.
+        assert (await trabajos.ver(motor, trabajo_id))["estado"] == EstadoTrabajo.ESPERA_REVISION.value
+        async with motor.engine.begin() as conexion:
+            punteros = await conexion.scalar(select(func.count()).select_from(trabajos.KIT_CANONICO))
+            eventos = await conexion.scalar(select(func.count()).select_from(trabajos.BANDEJA))
+        assert punteros == 0
+        assert eventos == 0
+
 
 class TestAplicarCanonico:
     """La ruta rapida del acudiente: sin re-optimizar, sin cola, un pedido."""

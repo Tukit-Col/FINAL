@@ -208,7 +208,7 @@ export default async function PaginaCola() {
                       <tr key={entrada.trabajo_id} className={styles.filaEspera}>
                         <th scope="row" className={styles.identificador}>
                           <Link href={`/trabajos/${entrada.trabajo_id}`}>
-                            <code>{entrada.trabajo_id}</code>
+                            <code>{entrada.trabajo_id.slice(0, 8).toUpperCase()}</code>
                           </Link>
                         </th>
                         <td className={styles.fecha}>

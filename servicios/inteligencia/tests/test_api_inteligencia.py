@@ -34,7 +34,11 @@ async def cliente(motor, monkeypatch):
     """
     app.state.motor = motor
     lanzados: list[uuid.UUID] = []
-    monkeypatch.setattr(trabajos, "lanzar", lambda _motor, trabajo_id: lanzados.append(trabajo_id))
+
+    async def _lanzar_falso(_motor, trabajo_id):
+        lanzados.append(trabajo_id)
+
+    monkeypatch.setattr(trabajos, "lanzar", _lanzar_falso)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
         http.lanzados = lanzados
         yield http

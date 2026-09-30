@@ -13,7 +13,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { AcudienteResumen, ColegioDetalle } from "@tukit/contrato";
-import { formatearPesos } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import PerfilColegio from "@/components/PerfilColegio";
 import { tokenDeSesion } from "@/lib/sesion";
@@ -25,13 +24,10 @@ interface Props {
   params: Promise<{ colegio: string }>;
 }
 
-// Las preferencias del hogar en frases cortas para el panel: presupuesto por
-// hijo (restricción dura) y el dolor que declaró. Vacío si no pidió ninguna.
+// Las preferencias del hogar en frases cortas para el panel: hoy solo el dolor
+// que declaró. Vacío si no pidió ninguna.
 function resumenPreferencias(p: AcudienteResumen["preferencias"]): string[] {
   const partes: string[] = [];
-  if (typeof p.presupuesto_por_hijo === "number") {
-    partes.push(`Tope ${formatearPesos(p.presupuesto_por_hijo)}/hijo`);
-  }
   if (p.dolor_declarado) partes.push(`Le duele: ${p.dolor_declarado.replace(/_/g, " ")}`);
   return partes;
 }

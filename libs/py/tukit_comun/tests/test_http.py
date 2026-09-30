@@ -129,6 +129,74 @@ class TestElIdDeCorrelacion:
             assert CABECERA_CORRELACION not in {k.lower() for k in propio.headers}
 
 
+class TestPoolHttpx:
+    """El pool de vida larga (ADR 0020): reusa conexiones y estampa el id VIVO
+    por peticion (no cabecera por omision, que quedaria congelada)."""
+
+    async def test_el_hook_estampa_el_id_vivo_de_la_peticion_en_curso(self):
+        from tukit_comun.http import _sellar_correlacion, crear_pool, fijar_correlacion, reset_correlacion
+
+        pool = crear_pool(espera=5.0)
+        try:
+            peticion = pool.build_request("GET", "http://x/ping")
+            token = fijar_correlacion("cid-vivo")
+            try:
+                await _sellar_correlacion(peticion)
+            finally:
+                reset_correlacion(token)
+            assert peticion.headers[CABECERA_CORRELACION] == "cid-vivo"
+        finally:
+            await pool.aclose()
+
+    async def test_sin_peticion_en_curso_no_anexa_nada(self):
+        from tukit_comun.http import _sellar_correlacion, crear_pool
+
+        pool = crear_pool(espera=5.0)
+        try:
+            peticion = pool.build_request("GET", "http://x/ping")
+            await _sellar_correlacion(peticion)  # sin contexto: None
+            assert CABECERA_CORRELACION not in {k.lower() for k in peticion.headers}
+        finally:
+            await pool.aclose()
+
+
+class TestLivenessYReadiness:
+    """ADR 0021: liveness no toca base; readiness prueba base y da 503 con detalle."""
+
+    async def test_live_responde_sin_base(self):
+        respuesta = await _pedir("GET", "/health/live")
+        assert respuesta.status_code == 200
+        assert respuesta.json()["estado"] == "vivo"
+
+    async def test_ready_sin_motor_esta_listo(self):
+        # Una app sin `app.state.motor` (el gateway) esta lista si responde.
+        respuesta = await _pedir("GET", "/health/ready")
+        assert respuesta.status_code == 200
+        assert respuesta.json()["estado"] == "listo"
+
+    async def test_ready_da_503_si_la_base_falla(self):
+        # Un motor cuyo SELECT 1 revienta => readiness 503 con el detalle, no 500.
+        from types import SimpleNamespace
+
+        class _ConexionRota:
+            async def __aenter__(self):
+                raise RuntimeError("base caida")
+
+            async def __aexit__(self, *a):
+                return False
+
+        app = crear_app(titulo="Prueba", descripcion="banco")
+        app.state.motor = SimpleNamespace(
+            engine=SimpleNamespace(connect=lambda: _ConexionRota())
+        )
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://prueba"
+        ) as cliente:
+            respuesta = await cliente.get("/health/ready")
+        assert respuesta.status_code == 503
+        assert "base caida" in respuesta.json()["detalle"]
+
+
 class TestElNavegadorPuedeLeerLaRespuesta:
     async def test_el_next_local_esta_permitido_sin_configurar_nada(self):
         respuesta = await _pedir("GET", "/salud", headers={"Origin": "http://localhost:3000"})
