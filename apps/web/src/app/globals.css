@@ -9,6 +9,11 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
+  /* Corta cualquier desbordamiento horizontal que dejen las piezas decorativas
+   * en clay (rotadas, con sombra difusa) o los "stickers" torcidos del titular:
+   * en móvil eso aparece como scroll lateral fantasma. `clip` (no `hidden`) no
+   * crea un contenedor de scroll, así que la cabecera sticky sigue funcionando. */
+  overflow-x: clip;
 }
 
 main {

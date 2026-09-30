@@ -310,7 +310,8 @@ Mismo patrón, en `catalogo`:
 ```python
 class Embebedor(Protocol):
     modelo: str
-    dimensiones: int          # 1024, y se verifica contra la columna al arrancar
+    dimensiones: int  # 1024, y se verifica contra la columna al arrancar
+
     def embeber(self, textos: Sequence[str]) -> Sequence[Sequence[float]]: ...
 ```
 

@@ -78,6 +78,10 @@ const RAZONES = [
 export default async function Inicio() {
   return (
     <div className={styles.pagina}>
+      {/* Útiles esparcidos por toda la página (fondo), para que el scroll entre
+          secciones no se sienta vacío. Decorativos. */}
+      <UtilesFlotantes variante="pagina" />
+
       <section className={styles.heroe}>
         {/* Útiles en clay flotando alrededor del titular. Decorativos. */}
         <UtilesFlotantes />
@@ -98,8 +102,7 @@ export default async function Inicio() {
           <p className={styles.bajada}>
             Nos dices de qué colegio y grado es la lista, o le tomas una foto, y una IA te
             arma tres kits con todo lo de tus hijos en un solo pedido. Antes de que lo veas,
-            una persona lo revisa. Y lo que no tenemos te lo decimos: no te lo cambiamos por
-            otra cosa.
+            una persona lo revisa, para que llegue seguro a tu casa.
           </p>
 
           <div className={styles.acciones}>
@@ -180,18 +183,23 @@ export default async function Inicio() {
       </section>
 
       <section className={styles.cierre} aria-labelledby="titulo-cierre">
-        <Revelar className={styles.tarjetaCierre} modo="una">
-          <h2 id="titulo-cierre" className={styles.tituloCierre}>
-            Esa tarde de papelería, esta vez pásala en casa.
-          </h2>
-          <p className={styles.bajadaCierre}>
-            Toma un minuto. Armas el kit, ves los tres precios y decides sin compromiso.
-          </p>
-          <Link href="/empezar" className={styles.botonPrimario}>
-            <Sparkles size={18} aria-hidden="true" strokeWidth={2.6} />
-            Armar mi kit
-          </Link>
-        </Revelar>
+        <div className={styles.tarjetaCierre}>
+          {/* Reparto liviano de útiles en las esquinas para que la tarjeta no se
+              sienta vacía. Decorativo. */}
+          <UtilesFlotantes variante="cierre" />
+          <Revelar className={styles.cierreTexto} modo="una">
+            <h2 id="titulo-cierre" className={styles.tituloCierre}>
+              Esa tarde de papelería, esta vez pásala en casa.
+            </h2>
+            <p className={styles.bajadaCierre}>
+              Toma un minuto. Armas el kit, ves los tres precios y decides sin compromiso.
+            </p>
+            <Link href="/empezar" className={styles.botonPrimario}>
+              <Sparkles size={18} aria-hidden="true" strokeWidth={2.6} />
+              Armar mi kit
+            </Link>
+          </Revelar>
+        </div>
       </section>
     </div>
   );

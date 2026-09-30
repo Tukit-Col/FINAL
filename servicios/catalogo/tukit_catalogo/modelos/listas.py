@@ -18,12 +18,15 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -228,6 +231,65 @@ class TareaImportacion(Base):
 
     intentos: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # La EVIDENCIA de la importacion, para la revision con documento a la vista.
+    #
+    # Un administrador que cura una lista importada necesita ver contra que la
+    # curo: el PDF original y lo que la percepcion leyo de cada pagina. Sin eso
+    # la revision es a ciegas —aceptar o rechazar renglones sin poder cotejarlos
+    # con la fuente— y la promesa de que la lista es fiel al documento del
+    # colegio queda sin forma de verificarse. Se guarda en la tarea y no en la
+    # version porque es un hecho del PROCESO de importacion (que entro, que se
+    # leyo), no del contenido publicado; la version ya tiene su texto redactado.
+    documento: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    # La percepcion cruda por pagina: [{"pagina": int, "crudo": str}, ...].
+    percepcion_cruda: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+    # La version que esta importacion produjo, para poder ir de una a la otra.
+    # SET NULL y no CASCADE: borrar la version no debe borrar el rastro de que
+    # se importo, solo desatar el vinculo.
+    version_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("version_lista_oficial.id", ondelete="SET NULL"), nullable=True
+    )
+    # El destino declarado por quien importo, redundante con la lista pero util
+    # para diagnosticar una importacion que fallo ANTES de resolver la lista.
+    colegio_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    grado: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    anio_lectivo: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+
+    # El acudiente que ORIGINO la tarea, por identificador y nunca por correo.
+    #
+    # Una sugerencia de lista de un padre (origen='sugerencia_padre') debe poder
+    # rastrearse hasta quien la envio —para pedirle el original si hace falta—
+    # pero el correo y el telefono son PII que vive SOLO en Identidad. Aqui se
+    # guarda unicamente el `usuario_id` que Identidad ya emite al resolver un
+    # contacto: la traza existe sin duplicar el dato sensible en Catalogo. Es
+    # nullable porque las importaciones de administrador (onboarding) no tienen
+    # un acudiente detras.
+    contacto_referencia: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+
+    # Las PREFERENCIAS que el acudiente declaro al subir (paso 3 del formulario:
+    # pesos, disposicion a pagar de mas, personaje por hijo). Se guardan aqui, y
+    # no se pierden, porque el kit del padre NO se arma al subir —la lista entra
+    # sin revisar— sino cuando un administrador la aprueba: en ese momento un
+    # trabajo de ruta rapida las lee para optimizar los tres kits a la medida de
+    # lo que el padre pidio. Sin esto, el kit aprobado saldria con los pesos por
+    # omision y no con los del acudiente. Es dato de negocio, no PII: no lleva
+    # correo ni telefono. Nullable porque el onboarding del colegio no trae padre
+    # ni preferencias.
+    preferencias: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+
+    # Los DATOS del colegio cuando la lista la subio un acudiente para un colegio
+    # que TODAVIA NO EXISTE en Tukit: lo eligio del directorio de Bogota (trae
+    # DANE) o lo escribio a mano. Es un objeto JSON con nombre, dane y los campos
+    # que el revisor completa antes de aprobar (logo, direccion, contacto...).
+    #
+    # Vive aqui, y no en una tabla de colegios de Catalogo, porque el colegio no
+    # es de Catalogo: nace en Identidad cuando un administrador APRUEBA la version
+    # (el `cerrar` emite un evento y un poller de Identidad hace el upsert). Hasta
+    # entonces esto es lo unico que Tukit sabe del colegio, y es lo que la cola
+    # muestra en vez de un UUID crudo. Nullable porque un colegio aliado ya
+    # conocido (o el onboarding de administrador) no trae datos que crear.
+    colegio_datos: Mapped[Any | None] = mapped_column(JSON, nullable=True)
 
     # NO hay `caso_id` aqui, y la ausencia es deliberada.
     #

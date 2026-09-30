@@ -1,0 +1,411 @@
+// Alta de un útil, en dos modos (P4c bis):
+//
+//  - Buscar en tienda: selector de tienda + caja de búsqueda → candidatos (foto,
+//    nombre, precio, marca) → se elige uno + concepto + nivel → `altaUtil` lo
+//    ENCOLA. El backend re-busca por `(slug, sku)` para no confiar en un precio
+//    que el navegador pudo alterar. Solo las tres tiendas con búsqueda en vivo.
+//  - Escribir a mano: para lo que la búsqueda no encuentra (o una tienda sin
+//    búsqueda en vivo). La persona escribe nombre, precio, tienda y —si lo
+//    tiene— SKU y marca; `altaUtilManual` arma la Oferta del cuerpo y la ENCOLA.
+//
+// Las dos solo ENCOLAN (caen en la cola visible): una persona decide el nivel al
+// aprobar. Leaf de cliente: habla con los Route Handlers; la URL del backend se
+// queda en el servidor. El mensaje de error es el del backend tal cual.
+
+"use client";
+
+import { useState } from "react";
+import { ImageOff } from "lucide-react";
+import { NIVELES, ETIQUETA_NIVEL, formatearPesos } from "@tukit/contrato";
+import type { CandidatoTienda, Nivel } from "@tukit/contrato";
+import { buscarEnTienda, altaUtil, altaUtilManual, FalloCatalogo } from "@/lib/api-catalogo";
+import type { OpcionConcepto } from "./PanelReclasificar";
+import type { OpcionTienda } from "./SeccionesCatalogo";
+import styles from "./CatalogoSpa.module.css";
+
+// Los slugs que el backend acepta para búsqueda en vivo (`tiendas.buscar`):
+// Éxito y Panamericana por VTEX, Gran Central por Shopify.
+const TIENDAS_BUSCABLES: { slug: string; nombre: string }[] = [
+  { slug: "exito", nombre: "Éxito" },
+  { slug: "panamericana", nombre: "Panamericana" },
+  { slug: "grancentral", nombre: "Gran Central" },
+];
+
+type Modo = "buscar" | "manual";
+
+interface Props {
+  conceptos: OpcionConcepto[];
+  // Las tiendas registradas, para el modo manual (elegir o escribir un slug).
+  tiendas: OpcionTienda[];
+  onEncolado: () => void;
+}
+
+export default function AltaUtil({ conceptos, tiendas, onEncolado }: Props) {
+  const [modo, setModo] = useState<Modo>("buscar");
+
+  // Comunes a los dos modos.
+  const [concepto, setConcepto] = useState("");
+  const [nivel, setNivel] = useState<Nivel>("confiable");
+  const [error, setError] = useState<string | null>(null);
+  const [exito, setExito] = useState<string | null>(null);
+  const [encolando, setEncolando] = useState(false);
+
+  // Modo buscar.
+  const [slug, setSlug] = useState(TIENDAS_BUSCABLES[0]!.slug);
+  const [consulta, setConsulta] = useState("");
+  const [candidatos, setCandidatos] = useState<CandidatoTienda[]>([]);
+  const [buscando, setBuscando] = useState(false);
+  const [elegido, setElegido] = useState<CandidatoTienda | null>(null);
+
+  // Modo manual.
+  const [nombre, setNombre] = useState("");
+  const [precio, setPrecio] = useState("");
+  const [slugManual, setSlugManual] = useState(tiendas[0]?.slug ?? "");
+  const [sku, setSku] = useState("");
+  const [marca, setMarca] = useState("");
+
+  const precioNum = Number(precio);
+  const precioValido = Number.isInteger(precioNum) && precioNum > 0;
+
+  function cambiarModo(nuevo: Modo) {
+    setModo(nuevo);
+    setError(null);
+    setExito(null);
+  }
+
+  async function buscar() {
+    if (!consulta.trim()) return;
+    setError(null);
+    setExito(null);
+    setElegido(null);
+    setBuscando(true);
+    try {
+      setCandidatos(await buscarEnTienda(slug, consulta.trim()));
+    } catch (causa) {
+      setError(causa instanceof FalloCatalogo ? causa.message : "No pudimos buscar en la tienda.");
+    } finally {
+      setBuscando(false);
+    }
+  }
+
+  async function encolarBuscado() {
+    if (!elegido || !concepto) return;
+    setError(null);
+    setExito(null);
+    setEncolando(true);
+    try {
+      const r = await altaUtil({ concepto, slug: elegido.slug, sku: elegido.sku, consulta, nivel });
+      setExito(`Encolado (${r.id_corto}). Revisalo en la cola para aprobarlo.`);
+      setElegido(null);
+      onEncolado();
+    } catch (causa) {
+      setError(causa instanceof FalloCatalogo ? causa.message : "No pudimos encolar el útil.");
+    } finally {
+      setEncolando(false);
+    }
+  }
+
+  const puedeEncolarManual =
+    nombre.trim().length > 0 && precioValido && concepto.length > 0 && slugManual.trim().length > 0;
+
+  async function encolarManual() {
+    setError(null);
+    setExito(null);
+    if (!puedeEncolarManual) {
+      setError("Revisá nombre, precio (entero en pesos > 0), tienda y concepto.");
+      return;
+    }
+    setEncolando(true);
+    try {
+      const r = await altaUtilManual({
+        concepto,
+        nombre: nombre.trim(),
+        precio: precioNum,
+        slug: slugManual.trim(),
+        sku: sku.trim() || undefined,
+        marca: marca.trim() || undefined,
+        nivel,
+      });
+      setExito(`Encolado (${r.id_corto}). Revisalo en la cola para aprobarlo.`);
+      setNombre("");
+      setPrecio("");
+      setSku("");
+      setMarca("");
+      onEncolado();
+    } catch (causa) {
+      setError(causa instanceof FalloCatalogo ? causa.message : "No pudimos encolar el útil.");
+    } finally {
+      setEncolando(false);
+    }
+  }
+
+  return (
+    <section className={styles.spa}>
+      <div className={styles.pestanas} role="tablist" aria-label="Modo de alta de útil">
+        <button
+          type="button"
+          role="tab"
+          className={`${styles.pestana} ${modo === "buscar" ? styles.pestanaActiva : ""}`}
+          aria-selected={modo === "buscar"}
+          onClick={() => cambiarModo("buscar")}
+        >
+          Buscar en tienda
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className={`${styles.pestana} ${modo === "manual" ? styles.pestanaActiva : ""}`}
+          aria-selected={modo === "manual"}
+          onClick={() => cambiarModo("manual")}
+        >
+          Escribir a mano
+        </button>
+      </div>
+
+      {error && <p className={styles.error}>{error}</p>}
+      {exito && <p className={styles.exito}>{exito}</p>}
+
+      {modo === "buscar" && (
+        <>
+          <div className={styles.buscadorFila}>
+            <div className={styles.campo}>
+              <label htmlFor="au-tienda">Tienda</label>
+              <select id="au-tienda" value={slug} onChange={(e) => setSlug(e.target.value)}>
+                {TIENDAS_BUSCABLES.map((t) => (
+                  <option key={t.slug} value={t.slug}>
+                    {t.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className={`${styles.campo} ${styles.campoBusqueda}`}>
+              <label htmlFor="au-consulta">Buscar</label>
+              <input
+                id="au-consulta"
+                value={consulta}
+                onChange={(e) => setConsulta(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void buscar();
+                }}
+                placeholder="cuaderno, lápiz, témpera…"
+              />
+            </div>
+            <button
+              type="button"
+              className={styles.secundario}
+              disabled={buscando || !consulta.trim()}
+              onClick={() => void buscar()}
+              style={{ alignSelf: "flex-end" }}
+            >
+              {buscando ? "Buscando…" : "Buscar"}
+            </button>
+          </div>
+
+          {candidatos.length === 0 && !buscando && (
+            <p className={styles.vacioTabla}>
+              Buscá un útil en la tienda para ver candidatos y encolar uno. Si no aparece, escribilo
+              a mano.
+            </p>
+          )}
+
+          {candidatos.length > 0 && (
+            <div className={styles.rejillaProductos}>
+              {candidatos.map((c) => (
+                <button
+                  key={`${c.slug}:${c.sku}`}
+                  type="button"
+                  className={`${styles.tarjeta} ${elegido?.sku === c.sku ? styles.tarjetaActiva : ""}`}
+                  aria-pressed={elegido?.sku === c.sku}
+                  onClick={() => {
+                    setElegido(c);
+                    setExito(null);
+                  }}
+                >
+                  {c.imagen_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img className={styles.tarjetaFoto} src={c.imagen_url} alt="" />
+                  ) : (
+                    <span className={styles.tarjetaFotoVacia}>
+                      <ImageOff size={28} aria-hidden="true" />
+                    </span>
+                  )}
+
+                  {!c.disponible && (
+                    <div className={styles.tarjetaPildoras}>
+                      <span className={styles.sinDato}>agotado</span>
+                    </div>
+                  )}
+
+                  <div className={styles.tarjetaNombre}>{c.nombre}</div>
+                  <div className={styles.skuMono}>{c.sku}</div>
+
+                  <div className={styles.tarjetaPie}>
+                    <span className={styles.tarjetaPrecio}>{formatearPesos(c.precio)}</span>
+                    <span className={styles.tarjetaMeta}>
+                      {c.marca ? <span>{c.marca}</span> : null}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {elegido && (
+            <div className={styles.panel}>
+              <header className={styles.panelCabecera}>
+                <h2>{elegido.nombre}</h2>
+                <span className={styles.panelSku}>
+                  {elegido.sku} · {formatearPesos(elegido.precio)}
+                  {elegido.marca ? ` · ${elegido.marca}` : ""}
+                </span>
+              </header>
+              <div className={styles.acciones} style={{ border: "none", padding: 0 }}>
+                <div className={styles.campo}>
+                  <label htmlFor="au-concepto">Concepto</label>
+                  <select
+                    id="au-concepto"
+                    value={concepto}
+                    onChange={(e) => setConcepto(e.target.value)}
+                  >
+                    <option value="">— elegir concepto —</option>
+                    {conceptos.map((op) => (
+                      <option key={op.codigo} value={op.codigo}>
+                        {op.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <label className={styles.bandera}>
+                  Nivel sugerido
+                  <select value={nivel} onChange={(e) => setNivel(e.target.value as Nivel)}>
+                    {NIVELES.map((n) => (
+                      <option key={n} value={n}>
+                        {ETIQUETA_NIVEL[n]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className={styles.principal}
+                  disabled={!concepto || encolando}
+                  onClick={() => void encolarBuscado()}
+                >
+                  {encolando ? "Encolando…" : "Encolar a la cola"}
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {modo === "manual" && (
+        <>
+          <p className={styles.nota}>
+            Para lo que la búsqueda no encuentra. Escribí nombre, precio (entero en pesos) y tienda;
+            el SKU y la marca son opcionales.
+          </p>
+
+          <div className={styles.rejilla}>
+            <div className={`${styles.campo} ${styles.campoAncho}`}>
+              <label htmlFor="aum-nombre">Nombre</label>
+              <input
+                id="aum-nombre"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                placeholder="Cuaderno cosido 100 hojas"
+              />
+            </div>
+
+            <div className={styles.campo}>
+              <label htmlFor="aum-precio">Precio (pesos)</label>
+              <input
+                id="aum-precio"
+                type="number"
+                min={1}
+                step={1}
+                value={precio}
+                onChange={(e) => setPrecio(e.target.value)}
+              />
+              {precio.trim() !== "" && !precioValido && (
+                <span className={`${styles.ayuda} ${styles.ayudaError}`}>
+                  Un entero en pesos mayor que 0.
+                </span>
+              )}
+            </div>
+
+            <div className={styles.campo}>
+              <label htmlFor="aum-tienda">Tienda</label>
+              <input
+                id="aum-tienda"
+                list="aum-tiendas"
+                value={slugManual}
+                onChange={(e) => setSlugManual(e.target.value)}
+                placeholder="elegí o escribí un slug"
+              />
+              <datalist id="aum-tiendas">
+                {tiendas.map((t) => (
+                  <option key={t.slug} value={t.slug}>
+                    {t.nombre}
+                  </option>
+                ))}
+              </datalist>
+            </div>
+
+            <div className={styles.campo}>
+              <label htmlFor="aum-sku">SKU (opcional)</label>
+              <input id="aum-sku" value={sku} onChange={(e) => setSku(e.target.value)} />
+            </div>
+
+            <div className={styles.campo}>
+              <label htmlFor="aum-marca">Marca (opcional)</label>
+              <input id="aum-marca" value={marca} onChange={(e) => setMarca(e.target.value)} />
+            </div>
+
+            <div className={styles.campo}>
+              <label htmlFor="aum-concepto">Concepto</label>
+              <select
+                id="aum-concepto"
+                value={concepto}
+                onChange={(e) => setConcepto(e.target.value)}
+              >
+                <option value="">— elegir concepto —</option>
+                {conceptos.map((op) => (
+                  <option key={op.codigo} value={op.codigo}>
+                    {op.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.campo}>
+              <label htmlFor="aum-nivel">Nivel sugerido</label>
+              <select
+                id="aum-nivel"
+                value={nivel}
+                onChange={(e) => setNivel(e.target.value as Nivel)}
+              >
+                {NIVELES.map((n) => (
+                  <option key={n} value={n}>
+                    {ETIQUETA_NIVEL[n]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className={styles.acciones}>
+            <button
+              type="button"
+              className={styles.principal}
+              disabled={!puedeEncolarManual || encolando}
+              onClick={() => void encolarManual()}
+            >
+              {encolando ? "Encolando…" : "Encolar a la cola"}
+            </button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}

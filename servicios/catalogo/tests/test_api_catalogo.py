@@ -20,7 +20,8 @@ import httpx
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
-from tukit_catalogo.api import app, pesos
+from tukit_catalogo.api import app
+from tukit_catalogo.dominio.catalogo import pesos
 from tukit_catalogo.modelos import (
     Base,
     Concepto,
@@ -249,6 +250,18 @@ class TestLasListasOficiales:
         # Sin revisar no es un defecto: es la puerta que habilita salir a una
         # tienda por lo que la lista pide y el catalogo no tiene.
         assert lista["revisada"] is False
+
+    async def test_filtra_por_revisada(self, cliente):
+        # El selector del acudiente solo puede ofrecer listas verificadas, asi
+        # que el filtro `revisada` tiene que resolverse en el servidor, no
+        # despues de traer 200 filas al navegador. La semilla nace sin revisar,
+        # asi que `revisada=false` la trae y `revisada=true` la excluye.
+        sin_revisar = (await cliente.get("/v1/listas?revisada=false")).json()
+        assert sin_revisar["total"] >= 1
+        assert all(lista["revisada"] is False for lista in sin_revisar["listas"])
+
+        revisadas = (await cliente.get("/v1/listas?revisada=true")).json()
+        assert all(lista["revisada"] is True for lista in revisadas["listas"])
 
     async def test_el_detalle_resuelve_el_tipo_del_renglon_contra_su_concepto(self, cliente):
         listado = (await cliente.get("/v1/listas")).json()

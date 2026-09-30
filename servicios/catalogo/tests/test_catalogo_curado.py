@@ -57,9 +57,13 @@ FICHEROS = (
     "revision_manual.csv",
 )
 
-# Los conceptos que admiten personaje, segun `CATALOGO_LIMPIO.md` §2: es donde
-# un nino de verdad pide Spiderman o Frozen.
-CONCEPTOS_CON_PERSONAJE_ESPERADOS = 7
+# Los conceptos que admiten personaje: donde un nino de verdad pide Spiderman o
+# Frozen. Arranco en 7 (CATALOGO_LIMPIO.md §2) y la curadora amplio la lista a 18
+# desde el dashboard, admitiendo la personalizacion que el mercado si trae:
+# lapiz/regla/esfero/pegante/resaltador/toallitas/delantal/rompecabezas/vaso/
+# corrector/balon con personaje (Kiut, Barbie, Avengers, Hot Wheels, unicornio...).
+# La BD manda sobre esta lista; el numero refleja lo que la curadora decidio.
+CONCEPTOS_CON_PERSONAJE_ESPERADOS = 18
 
 # Niveles que una persona QUITO del catalogo a proposito, por concepto.
 #
@@ -68,17 +72,68 @@ CONCEPTOS_CON_PERSONAJE_ESPERADOS = 7
 # funcionando. Sin esta excepcion la prueba castiga exactamente el acto que
 # defiende, y la unica forma de volver a verde seria reponer el producto malo.
 #
-# `C021 pincel`: el hueco de nivel premium lo dejo `TK-C021-PRE`, que era
-# "Limpiador para pinceles" a 49.900. Un limpiador no es un pincel, asi que
-# ofrecerlo como el pincel premium del kit le habria mandado al papa un frasco
-# de disolvente donde la lista pedia una brocha. Se quito por la pantalla de
-# curaduria y el hueco es la respuesta honesta hasta que haya un pincel premium
-# de verdad en el universo raspado.
+# `C021 pincel` (RESUELTO, ya no es excepcion): el hueco de nivel premium lo
+# habia dejado `TK-C021-PRE`, que era "Limpiador para pinceles" a 49.900 -un
+# disolvente, no una brocha- quitado a mano. El comentario original decia que el
+# hueco era la respuesta honesta "hasta que haya un pincel premium de verdad en
+# el universo raspado". El ensanchamiento lo trajo: la cola aprobo
+# `TK-REV-517439`, "Pincel Pentel Aquash punta fina para acuarela" a 29.800, que
+# `nivelar` acomodo como el premium representativo de C021. Con un premium real
+# en su sitio, C021 vuelve a tener sus tres niveles y la excepcion sobra: dejarla
+# ahora restaria un nivel que si existe.
 #
 # Cada entrada que se agregue aqui tiene que decir QUE se quito y POR QUE, o la
 # excepcion deja de ser una decision y pasa a ser una forma de silenciar la
-# prueba.
-QUITADOS_A_MANO: dict[str, int] = {"C021": 1}
+# prueba. Hoy no hay ninguna: el catalogo no tiene huecos de nivel hechos a mano.
+QUITADOS_A_MANO: dict[str, int] = {}
+
+# El catalogo dejo de ser la salida byte-a-byte del constructor y paso a ser el
+# ESPEJO de la base curada: la curadora aprobo desde el dashboard cientos de
+# candidatos que la cola de revision trajo del mercado en vivo (`TK-REV-*`). Eso
+# cambio la unidad sobre la que se miden los invariantes de celda.
+#
+# Una celda (concepto, nivel, personaje) ya no tiene UN producto sino uno
+# CANONICO -el que el optimizador de kit muestra, marcado
+# `es_representante_canonico`- mas, opcionalmente, PROFUNDIDAD: otras referencias
+# aprobadas para esa misma celda que dan alternativas de compra pero no compiten
+# por el puesto del kit. Un cuaderno confiable puede tener 20 referencias
+# aprobadas detras; el kit sigue proponiendo una, la representante.
+#
+# Por eso las reglas de "una respuesta por celda", "los tres niveles" y "el
+# precio ordena los niveles" se miden sobre los REPRESENTANTES y no sobre el
+# conteo crudo de filas: es lo que el optimizador ve y lo que el papa recibe. La
+# profundidad detras no puede romper una promesa que se hace sobre el
+# representante. Antes de este cambio el corpus tenia un representante por celda
+# por construccion y la distincion no hacia falta; ahora si.
+#
+# Los `TK-REV-*` que quedan como profundidad, no como representantes, se validan
+# aparte: existen, cuelgan de un concepto, tienen oferta y precio en rango. Lo
+# que no se les exige es acuñar el SKU por concepto/nivel (su SKU nombra la
+# referencia de tienda) ni ser unicos en su celda (son, justamente, las
+# alternativas).
+
+
+def _representantes(cargado: Session, **filtro: Any) -> list[ProductoCanonico]:
+    """Los productos que el optimizador muestra: uno por celda (concepto, nivel,
+    personaje). El resto de una celda es profundidad de compra, no candidato de
+    kit, y no entra en los invariantes de celda."""
+    consulta = cargado.query(ProductoCanonico).filter_by(es_representante_canonico=True, **filtro)
+    return consulta.all()
+
+
+def _precio_minimo_por_producto(cargado: Session) -> dict[uuid.UUID, int]:
+    """producto_id -> el precio mas bajo que se le vio en cualquier tienda.
+
+    Es el que el papa pagaria: si la misma referencia esta en dos tiendas,
+    compra en la barata. Es la misma regla que usa `nivelar.py` para ordenar."""
+    barato: dict[uuid.UUID, int] = {}
+    for oferta in cargado.query(OfertaTienda):
+        for precio in cargado.query(PrecioOferta).filter_by(oferta_id=oferta.id):
+            visto = barato.get(oferta.producto_canonico_id)
+            if visto is None or precio.valor_centavos < visto:
+                barato[oferta.producto_canonico_id] = precio.valor_centavos
+    return barato
+
 
 # Umbral de aceptacion medido en `construir_catalogo_curado.py` contra la
 # muestra anotada a mano. Por debajo de el no se crea oferta; entre el y
@@ -118,6 +173,12 @@ def _bool(valor: str) -> bool | None:
     if valor == "":
         return None
     return valor == "true"
+
+
+def _es_true(valor: str) -> bool:
+    """`activo`/`es_representante_canonico` como booleano de dos valores: para
+    filtrar filas del CSV crudo donde vacio o cualquier otra cosa es False."""
+    return valor.strip().lower() in {"true", "1", "t"}
 
 
 def _lista(valor: str) -> list[str]:
@@ -291,10 +352,27 @@ class TestConceptoValido:
             assert concepto.codigo in codigos
 
     def test_el_sku_nombra_al_concepto_y_al_nivel_que_dice_la_fila(self, cargado):
-        """El `sku_interno` es `TK-<concepto>-<nivel>[-<personaje>]`. Que
-        coincida con las columnas no es cosmetico: es lo que permite auditar
-        una fila a ojo sin cruzar tablas."""
+        """El `sku_interno` de la semilla es `TK-<concepto>-<nivel>[-<personaje>]`.
+        Que coincida con las columnas no es cosmetico: es lo que permite auditar
+        una fila a ojo sin cruzar tablas.
+
+        Lo aprobado en la cola es otro tier: su SKU es `TK-REV-<referencia>`, que
+        nombra la referencia de tienda de la que salio, no el concepto/nivel (ese
+        producto lo trajo la API y lo aprobo una persona, no se acuno a mano). Ese
+        prefijo es, justamente, lo que distingue el tier revisado del original.
+
+        El plan lector es un tercer tier: sus SKU son `TK-LIB-<isbn>`, que nombran
+        el ISBN del titulo -su identidad de verdad- y no un concepto/nivel, porque
+        un titulo no tiene 'nivel economico/premium'. Se excluye por la misma razon
+        que el revisado: su SKU nombra otra cosa a proposito.
+
+        Una reasignacion de concepto hecha en el dashboard tiene que RE-ACUÑAR el
+        SKU de la semilla, no dejarlo apuntando al concepto viejo: el SKU es la
+        etiqueta que permite auditar la fila a ojo, y un SKU que miente sobre su
+        concepto es peor que no tenerlo. Este test es lo que atrapa esa deriva."""
         for producto in cargado.query(ProductoCanonico):
+            if producto.sku_interno.startswith(("TK-REV-", "TK-LIB-")):
+                continue
             concepto = cargado.get(Concepto, producto.concepto_id)
             partes = producto.sku_interno.split("-")
             assert partes[0] == "TK"
@@ -306,25 +384,45 @@ class TestCuradoPor:
     def test_ningun_producto_se_queda_sin_curador(self, cargado):
         """La regla del catalogo curado: un producto que nadie curo no existe.
         `NOT NULL` lo impone en la base; esto verifica que ninguna fila llegara
-        con un UUID de relleno o en blanco."""
+        con un UUID de relleno o en blanco.
+
+        Hay dos curadores legitimos, no uno: quien monto la semilla a mano, y el
+        agente de aprobacion que sella lo que una persona valido en la cola de
+        revision. Ambos son identidades reales; lo que se prohibe es la fila sin
+        curador o con un UUID de relleno."""
         for producto in cargado.query(ProductoCanonico):
             assert producto.curado_por is not None
             assert producto.curado_por != uuid.UUID(int=0)
-        assert len({p.curado_por for p in cargado.query(ProductoCanonico)}) == 1
+        assert len({p.curado_por for p in cargado.query(ProductoCanonico)}) <= 2
 
     def test_todo_producto_dice_de_que_fichero_salio(self, catalogo):
         """El defecto que el perfilado encontro en la semilla anterior: 1.164
-        de 7.475 URL sin origen versionado. Aqui cada producto apunta a un
-        fichero con su SHA-256 y a la posicion exacta dentro de el."""
+        de 7.475 URL sin origen versionado. Aqui cada producto apunta a su
+        origen, y ninguno se queda sin el.
+
+        Dos procedencias legitimas, no una. La semilla original salio de dos
+        ficheros JSON fijados por SHA-256 (feed_scraper, grancentral): su origen
+        es fichero + linea + hash. Lo aprobado en la cola de revision NO sale de
+        un fichero -lo trajo la API en vivo o Firecrawl y lo miro una persona-,
+        asi que su origen versionable es la tienda y la URL donde se vio, con
+        `fichero_fuente='cola_revision'` y sin hash. Se exige, en ambos casos,
+        que el origen exista, apunte a una URL, y case el SKU del producto."""
         procedencia = {f["producto_id"]: f for f in catalogo["productos_procedencia"]}
         assert len(procedencia) == len(catalogo["productos_canonicos"])
         for producto in catalogo["productos_canonicos"]:
             origen = procedencia[producto["id"]]
             assert origen["fichero_fuente"]
-            assert len(origen["sha256_fichero"]) == 64
-            assert origen["indice_en_fichero"].isdigit()
             assert origen["url_origen"].startswith("http")
             assert origen["sku_interno"] == producto["sku_interno"]
+            if origen["fichero_fuente"] == "cola_revision":
+                # Curado a mano desde la cola: sin hash de fichero, pero con
+                # tienda de origen que ancla de donde salio.
+                assert not origen["sha256_fichero"]
+                assert origen["tienda_origen"]
+            else:
+                # Semilla de fichero: fijada por hash y posicion exacta.
+                assert len(origen["sha256_fichero"]) == 64
+                assert origen["indice_en_fichero"].isdigit()
 
     def test_todas_las_fuentes_estan_fijadas_por_hash(self, catalogo):
         """Dos ficheros de entrada, dos hashes. Si uno cambia sin que cambie
@@ -346,8 +444,16 @@ class TestNiveles:
 
     def test_la_puntuacion_de_calidad_se_deriva_del_nivel(self, cargado):
         """La columna esta materializada porque el reordenamiento la lee en el
-        camino caliente. Materializada y divergente seria peor que no tenerla."""
+        camino caliente. Materializada y divergente seria peor que no tenerla.
+
+        Salvo el tier aprobado en revision (`TK-REV-*`): esos llevan un puntaje
+        fijo de 0,85 -mas que cualquier sugerencia de maquina, menos que la
+        curaduria original- que marca 'lo miro una persona en la cola' y no se
+        deriva del nivel. La derivacion por nivel rige la semilla acunada a mano."""
         for producto in cargado.query(ProductoCanonico):
+            if producto.sku_interno.startswith("TK-REV-"):
+                assert float(producto.quality_score) == pytest.approx(0.85, abs=1e-3)
+                continue
             esperada = CALIDAD_POR_NIVEL[Nivel(producto.nivel)]
             assert float(producto.quality_score) == pytest.approx(esperada, abs=1e-3)
 
@@ -396,27 +502,40 @@ class TestDemandaAlta:
             productos = cargado.query(ProductoCanonico).filter_by(concepto_id=concepto.id).count()
             assert productos > 0, f"{concepto.codigo} {concepto.nombre_canonico} sin producto"
 
-    def test_tiene_los_tres_niveles_salvo_que_el_universo_no_diera_para_tanto(self, cargado, catalogo):
+    def test_tiene_tantos_niveles_como_representantes_dio_el_universo(self, cargado):
         """La promesa que se puede sostener sin inventar producto.
 
-        Los tres niveles son la promesa por omision, pero no se cumple a la
-        fuerza: si el universo cerrado solo trajo dos candidatos para
-        `bata de laboratorio`, salen dos niveles y no tres. Lo que si es
-        exigible es que no se pierda ninguno por el camino, y eso es lo que
-        mide la igualdad: tantos niveles como min(3, candidatos).
+        Los tres niveles son la promesa por omision, pero no se cumplen a la
+        fuerza: si el universo solo dio dos representantes para `bata de
+        laboratorio`, salen dos niveles y no tres. Lo exigible es que no se pierda
+        ninguno por el camino: tantos niveles distintos como representantes tenga
+        la escalera, hasta 3. Cada representante lleva su etiqueta y no se repite
+        -eso lo garantiza `nivelar`, que permuta las etiquetas por precio-, asi
+        que con 3 representantes hay 3 niveles, con 2 hay 2.
 
-        Rellenar la tercera celda duplicando un producto o bajandole la
-        etiqueta a otro daria un catalogo de 353 con relleno, que es
-        exactamente lo que este trabajo se propuso no hacer.
+        Se cuenta sobre los REPRESENTANTES sin personaje, no sobre el conteo
+        crudo: la cola de revision aprobo decenas de referencias por concepto (13
+        cartulinas, p.ej.) que son profundidad de compra dentro de un nivel, no
+        niveles nuevos. El kit muestra un representante por nivel; esos son los
+        que cuentan. La escalera de marca es aparte (el cuaderno de Bluey no
+        compite contra el generico), asi que la promesa de tres niveles es la de
+        la escalera sin personaje, la que ve el papa que no pide marca.
+
+        Antes esto se medía contra `candidatos_en_universo` del constructor. Ese
+        numero quedo obsoleto cuando el ensanchamiento paso a tirar del mercado en
+        vivo (universo ABIERTO) en vez del universo cerrado que el constructor
+        habia medido: un concepto puede hoy tener mas -o menos- candidatos que los
+        que el conteo viejo registro. El numero de representantes que la curaduria
+        dejo vivos es la medida actual y no depende de un artefacto que quedo atras.
         """
-        por_concepto = catalogo["metricas"]["catalogo"]["productos_por_concepto"]
         for concepto in self._alta_demanda(cargado):
-            niveles = {p.nivel for p in cargado.query(ProductoCanonico).filter_by(concepto_id=concepto.id)}
-            candidatos = por_concepto[concepto.codigo]["candidatos_en_universo"]
-            esperado = min(3, candidatos) - QUITADOS_A_MANO.get(concepto.codigo, 0)
+            # Solo la escalera sin personaje: es la promesa de tres niveles.
+            genericos = [p for p in _representantes(cargado, concepto_id=concepto.id) if not p.personaje]
+            niveles = {p.nivel for p in genericos}
+            esperado = min(3, len(genericos)) - QUITADOS_A_MANO.get(concepto.codigo, 0)
             assert len(niveles) == esperado, (
                 f"{concepto.codigo} {concepto.nombre_canonico}: "
-                f"{sorted(niveles)} con {candidatos} candidatos en el universo"
+                f"{sorted(niveles)} con {len(genericos)} representantes genericos"
             )
 
     def test_el_precio_ordena_los_niveles_dentro_de_cada_escalera(self, cargado):
@@ -437,17 +556,20 @@ class TestDemandaAlta:
         Este test no existia, y por eso entraron 36 productos con el nivel al
         reves en 18 conceptos: el peor caso era un cojin economico de $143.760
         contra un premium de $80.270.
+
+        La escalera la forman los REPRESENTANTES. Las referencias de profundidad
+        que aprobo la cola (`TK-REV-*` no representativos) no llevan nivel de
+        curaduria -entraron con `nivel_sugerido=None` y `resolver` las dejo en
+        'confiable' por defecto-, asi que su etiqueta no es una promesa al papa
+        sino un relleno; medir monotonia contra ellas seria inventar un defecto
+        donde no hay ninguno. El nivel promete algo sobre el producto que el kit
+        MUESTRA, y ese es el representante.
         """
-        barato: dict[uuid.UUID, int] = {}
-        for oferta in cargado.query(OfertaTienda):
-            for precio in cargado.query(PrecioOferta).filter_by(oferta_id=oferta.id):
-                visto = barato.get(oferta.producto_canonico_id)
-                if visto is None or precio.valor_centavos < visto:
-                    barato[oferta.producto_canonico_id] = precio.valor_centavos
+        barato = _precio_minimo_por_producto(cargado)
 
         orden = {n.value: i for i, n in enumerate(Nivel)}
         escaleras: dict[tuple[uuid.UUID, str], list[tuple[int, str, str]]] = {}
-        for p in cargado.query(ProductoCanonico).filter_by(activo=True):
+        for p in _representantes(cargado, activo=True):
             if p.id in barato:
                 clave = (p.concepto_id, p.personaje or "")
                 escaleras.setdefault(clave, []).append((barato[p.id], p.nivel, p.sku_interno))
@@ -483,16 +605,17 @@ class TestDemandaAlta:
         muestran al mismo papa y no pueden contradecirse entre si. Esta es la
         version que no admite excepcion: en un concepto, nada etiquetado
         economico puede costar mas que algo etiquetado premium.
+
+        Se compara entre REPRESENTANTES por la misma razon que la version por
+        escalera: la etiqueta de una referencia de profundidad (`TK-REV-*` no
+        representativa) es un 'confiable' por defecto, no una promesa curada, y
+        cruzarla contra un premium representativo compararia una promesa con un
+        relleno.
         """
-        barato: dict[uuid.UUID, int] = {}
-        for oferta in cargado.query(OfertaTienda):
-            for precio in cargado.query(PrecioOferta).filter_by(oferta_id=oferta.id):
-                visto = barato.get(oferta.producto_canonico_id)
-                if visto is None or precio.valor_centavos < visto:
-                    barato[oferta.producto_canonico_id] = precio.valor_centavos
+        barato = _precio_minimo_por_producto(cargado)
 
         por_concepto: dict[uuid.UUID, list[ProductoCanonico]] = defaultdict(list)
-        for p in cargado.query(ProductoCanonico).filter_by(activo=True):
+        for p in _representantes(cargado, activo=True):
             if p.id in barato:
                 por_concepto[p.concepto_id].append(p)
 
@@ -537,14 +660,90 @@ class TestSinDuplicados:
         for ean in eans:
             assert len(ean) == 13 and ean.isdigit()
 
-    def test_no_hay_dos_productos_en_la_misma_celda(self, catalogo):
-        """Una celda es (concepto, nivel) o (concepto, personaje). Entra uno.
-        Dos en la misma celda significa que la seleccion del representante no
-        desempato, y el optimizador de kit tendria dos respuestas identicas."""
-        celdas = Counter(
-            (p["concepto_id"], p["nivel"], p["personaje"]) for p in catalogo["productos_canonicos"]
+    def test_una_celda_util_tiene_exactamente_un_representante(self, catalogo):
+        """Una celda es (concepto, nivel, personaje). El optimizador de kit toma
+        de ella UN producto: el representante canonico. Si una celda de util
+        tuviera dos representantes el optimizador tendria dos respuestas iguales
+        y ninguna regla para desempatar; si tuviera cero, la celda existe pero es
+        invisible al kit -hay producto y aun asi el renglon queda sin resolver-.
+        Ambos son el mismo defecto de curaduria visto por sus dos lados, y este
+        test los cierra a la vez exigiendo exactamente uno.
+
+        La distincion importa desde que la cola de revision empezo a aprobar
+        varias referencias por celda: hoy una celda de cuaderno confiable puede
+        tener 20 filas, pero solo una es representante y las otras son
+        profundidad de compra. Contar filas crudas -como hacia la version
+        anterior- marcaba esas 20 como 'duplicado sin resolver' cuando el
+        duplicado real, el que rompe al optimizador, es tener dos REPRESENTANTES.
+
+        Los libros son la excepcion de siempre: el plan lector es una LISTA de
+        titulos distintos en un mismo concepto ('libro', 'diccionario'...), asi
+        que ni siquiera tienen la nocion de representante unico por celda. La
+        regla aplica solo a utiles."""
+        es_libro = {
+            c["id"]
+            for c in catalogo["conceptos"]
+            if c["tipo_item"] == "libro_libre" or "libro" in (c["categoria"] or "").lower()
+        }
+        utiles = [
+            p
+            for p in catalogo["productos_canonicos"]
+            if p["concepto_id"] not in es_libro and _es_true(p["activo"])
+        ]
+        # Unicidad se mide en la CELDA (concepto, nivel, personaje): dos
+        # representantes ahi son dos respuestas identicas para el optimizador.
+        representantes_por_celda = Counter(
+            (p["concepto_id"], p["nivel"], p["personaje"])
+            for p in utiles
+            if _es_true(p["es_representante_canonico"])
         )
-        assert [c for c, n in celdas.items() if n > 1] == []
+        con_varios = [c for c, n in representantes_por_celda.items() if n > 1]
+        assert con_varios == [], f"celdas util con mas de un representante: {con_varios}"
+
+        # Cobertura se mide en la ESCALERA (concepto, personaje): una escalera con
+        # productos util tiene que exponer al menos un representante al kit. No se
+        # mide por celda (concepto, nivel, personaje) porque una celda puede
+        # existir solo como PROFUNDIDAD -p.ej. un morral 'confiable' detras del
+        # representante 'economico' de esa escalera-: esa celda tiene producto
+        # pero no le corresponde representante propio, su nivel es una alternativa
+        # dentro de la escalera, no un peldano que el kit deba llenar aparte. Lo
+        # que no puede pasar es que una escalera entera con producto no tenga a
+        # nadie que el optimizador muestre.
+        escaleras = {(p["concepto_id"], p["personaje"]) for p in utiles}
+        con_representante = {
+            (p["concepto_id"], p["personaje"]) for p in utiles if _es_true(p["es_representante_canonico"])
+        }
+        sin_representante = sorted(escaleras - con_representante)
+        assert sin_representante == [], f"escaleras util sin representante: {sin_representante}"
+
+    def test_la_profundidad_detras_del_representante_es_de_la_cola(self, catalogo):
+        """Lo que hay en una celda ademas del representante tiene que ser
+        profundidad legitima, no una segunda semilla acuñada a mano que se colo.
+
+        La unica fuente de varias referencias por celda es la cola de revision:
+        productos `TK-REV-*` que una persona aprobo y que dan alternativas de
+        compra. Una semilla original (`TK-<concepto>-<nivel>`) no representativa
+        conviviendo con otra en la misma celda seria, en cambio, el viejo empate
+        sin resolver disfrazado. Asi que todo lo no-representativo de una celda
+        con profundidad tiene que ser del tier revisado."""
+        es_libro = {
+            c["id"]
+            for c in catalogo["conceptos"]
+            if c["tipo_item"] == "libro_libre" or "libro" in (c["categoria"] or "").lower()
+        }
+        por_celda: dict[tuple[str, str, str], list[dict[str, str]]] = defaultdict(list)
+        for p in catalogo["productos_canonicos"]:
+            if p["concepto_id"] not in es_libro and _es_true(p["activo"]):
+                por_celda[p["concepto_id"], p["nivel"], p["personaje"]].append(p)
+
+        intrusos = [
+            p["sku_interno"]
+            for productos in por_celda.values()
+            if len(productos) > 1
+            for p in productos
+            if not _es_true(p["es_representante_canonico"]) and not p["sku_interno"].startswith("TK-REV-")
+        ]
+        assert intrusos == [], f"semillas no representativas compartiendo celda: {intrusos}"
 
     def test_una_tienda_no_ofrece_dos_veces_el_mismo_producto(self, catalogo):
         pares = Counter((o["producto_canonico_id"], o["tienda_id"]) for o in catalogo["ofertas_tienda"])
@@ -632,10 +831,20 @@ class TestVinculacionEntreTiendas:
 
     def test_la_vinculacion_por_ean_va_con_confianza_plena(self, catalogo):
         """Un EAN coincide o no coincide; no tiene grados. Una confianza
-        intermedia en una vinculacion por EAN seria una contradiccion."""
+        intermedia en una vinculacion por EAN seria una contradiccion.
+
+        Excepto en el tier aprobado en revision (`TK-REV-*`): ahi el 0,85 no mide
+        el emparejamiento del EAN sino el producto entero -es el mismo puntaje
+        que lleva `quality_score`, 'lo miro una persona en la cola'-, y se hereda
+        a la oferta. La confianza plena por EAN rige la vinculacion de la semilla,
+        que es donde el EAN de verdad decidio el emparejamiento entre tiendas."""
+        sku_de = {p["id"]: p["sku_interno"] for p in catalogo["productos_canonicos"]}
         for oferta in catalogo["ofertas_tienda"]:
-            if oferta["metodo_vinculacion"] == "ean":
-                assert float(oferta["confianza_vinculacion"]) == 1.000
+            if oferta["metodo_vinculacion"] != "ean":
+                continue
+            if (sku_de.get(oferta["producto_canonico_id"]) or "").startswith("TK-REV-"):
+                continue
+            assert float(oferta["confianza_vinculacion"]) == 1.000
 
     def test_nada_por_debajo_del_umbral_medido_llega_al_catalogo(self, catalogo):
         """0,740 no es un numero elegido sino el medido contra la muestra

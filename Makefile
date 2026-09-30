@@ -5,21 +5,24 @@
 # invocacion distinta.
 
 .DEFAULT_GOAL := ayuda
-.PHONY: ayuda preparar fronteras prueba lint formato verificar limpiar \
-        bd-arriba bd-abajo bd-crear bd-limpiar bd-esquema bd-indices bd-verificar \
+.PHONY: ayuda preparar fronteras prueba lint formato tipos verificar limpiar \
+        bd-arriba bd-abajo bd-crear bd-limpiar bd-reiniciar-datos bd-esquema bd-indices bd-verificar \
         bd-migrar bd-revision bd-deriva bd-cargar bd-datos bd-enriquecer bd-completar \
         bd-demanda bd-revisar bd-vista bd-admin bd-nivelar bd-volcar bd-limpiar-candidatos fase1 \
-        bd-sembrar bd-colegios bd-listas backend arriba abajo estado humo \
-        api-catalogo api-identidad api-inteligencia api-gateway
+        bd-sembrar bd-colegios bd-listas backend arriba reanudar abajo estado humo \
+        infra-arriba infra-abajo \
+        api-catalogo api-identidad api-inteligencia api-gateway \
+        api-comercio api-operacion repartidor instantanea-metricas \
+        poller poller-identidad trabajador barredor
 
 PY := .venv/bin/python
 PYTEST := .venv/bin/pytest
 RUFF := .venv/bin/ruff
 ALEMBIC := ../../.venv/bin/alembic
 
-# Servicios con historia de migraciones propia. Los otros tres todavia no
-# tienen modelos, y se agregan aqui el dia que los tengan.
-SERVICIOS_CON_MIGRACIONES := identidad catalogo inteligencia
+# Servicios con historia de migraciones propia. Gateway no tiene base; los
+# cinco con dominio si.
+SERVICIOS_CON_MIGRACIONES := identidad catalogo inteligencia comercio operacion
 
 COMPOSE := docker compose -f infra/docker-compose.yml
 
@@ -76,6 +79,9 @@ formato:  ## Aplica formato
 	@$(RUFF) check --fix .
 	@$(RUFF) format .
 
+tipos:  ## Revisa tipos (laxo global, estricto en tukit_comun; ADR 0026)
+	@.venv/bin/mypy libs/py/tukit_comun/tukit_comun
+
 verificar: lint prueba  ## Todo lo que corre la integracion continua
 
 limpiar:  ## Borra artefactos
@@ -117,15 +123,63 @@ bd-crear:  ## Crea el usuario y las 5 bases en un Postgres YA instalado (sin Doc
 		echo "  ok   tukit_$$base"; \
 	done
 
+infra-arriba:  ## Levanta el backbone opcional (RabbitMQ, Redis, Jaeger) bajo el perfil `infra`
+	@# El codigo corre sin esto (broker->NotifierSink, OTLP no-op). Levantarlo
+	@# activa entrega por broker y trazas: pon RABBITMQ_URL y
+	@# OTEL_EXPORTER_OTLP_ENDPOINT en tu .env. Consolas: RabbitMQ :15672,
+	@# Jaeger :16686.
+	@$(COMPOSE) --profile infra up -d
+	@echo "Backbone arriba: RabbitMQ :15672, Jaeger :16686, Redis :6379."
+
+infra-abajo:  ## Detiene el backbone opcional (conserva la cola de RabbitMQ)
+	@$(COMPOSE) --profile infra down
+
 bd-abajo:  ## Detiene Postgres, conservando los datos
 	@$(COMPOSE) down
 
 bd-limpiar:  ## Detiene Postgres y BORRA los datos (volumen incluido)
 	@$(COMPOSE) down -v
 
+# Los datos que NO se borran al reiniciar para una prueba desde cero: la semilla
+# curada (que `bd-sembrar` carga y tarda) y lo que hace posible entrar. Todo lo
+# demas -cuentas de prueba, hijos, listas subidas, trabajos, cola, pedidos,
+# casos, bandejas- es fruto de probar y se trunca. La lista es por-base; una
+# tabla nueva se borra por defecto (mas seguro para una prueba: nunca deja
+# residuo), asi que si se agrega una tabla que SI es semilla, va aqui.
+GUARDAR_identidad := rol permiso rol_permiso colegio sede
+GUARDAR_catalogo := concepto producto_canonico sustituibilidad_concepto grupo_variante concepto_ruta_categoria tienda edicion_libro configuracion_colegio_editorial oferta_tienda precio_oferta
+GUARDAR_inteligencia :=
+GUARDAR_comercio :=
+GUARDAR_operacion :=
+
+bd-reiniciar-datos:  ## Trunca los datos de PRUEBA (deja la semilla del catalogo y el acceso). Para probar el flujo del padre desde cero SIN re-sembrar.
+	@echo "Motor: $(BD_MODO)"
+	@echo "Esto BORRA cuentas, hijos, listas, trabajos, cola, pedidos y casos de prueba."
+	@echo "Conserva: catalogo curado, roles/permisos y el directorio de colegios."
+	@for base in identidad catalogo inteligencia comercio operacion; do \
+		guardar="$(GUARDAR_identidad)"; \
+		case $$base in \
+			catalogo) guardar="$(GUARDAR_catalogo)";; \
+			inteligencia) guardar="$(GUARDAR_inteligencia)";; \
+			comercio) guardar="$(GUARDAR_comercio)";; \
+			operacion) guardar="$(GUARDAR_operacion)";; \
+		esac; \
+		enlista=""; for t in $$guardar; do enlista="$$enlista,'$$t'"; done; enlista="$${enlista#,}"; \
+		[ -z "$$enlista" ] && enlista="''"; \
+		sql="DO \$$\$$ DECLARE t text; BEGIN FOR t IN SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename NOT IN ($$enlista) LOOP EXECUTE format('TRUNCATE TABLE %I CASCADE', t); END LOOP; END \$$\$$;"; \
+		echo "$$sql" | $(PSQL) -q -v ON_ERROR_STOP=1 -U tukit -d "tukit_$$base" || exit 1; \
+		echo "[$$base] datos de prueba truncados"; \
+	done
+	@# El truncado se llevo tambien los usuarios demo (admin@tukit.co, etc.):
+	@# sin ellos no hay con quien entrar a aprobar en la cola. `sembrar_acceso`
+	@# los re-crea idempotente (roles, permisos y logins con clave demo1234).
+	@cd servicios/identidad && PYTHONPATH=".:../../libs/py/tukit_comun" \
+		../../$(PY) -m tukit_identidad.sembrar_acceso
+	@echo "Listo. Reinicia los trabajadores (make reanudar) y prueba el flujo desde /empezar."
+
 # PYTHONPATH explicito para `python -m`: pytest usa el pythonpath del pyproject,
 # pero `python -m` no. Se listan la libreria compartida y cada servicio portado.
-ESQUEMA_PATH := libs/py/tukit_comun:servicios/identidad:servicios/catalogo:servicios/inteligencia:servicios/gateway
+ESQUEMA_PATH := libs/py/tukit_comun:servicios/identidad:servicios/catalogo:servicios/inteligencia:servicios/gateway:servicios/comercio:servicios/operacion
 
 # Cada archivo de aqui se llama como el servicio dueno de la base a la que se
 # aplica: `catalogo.sql` -> `tukit_catalogo`. La convencion es lo que permite
@@ -138,6 +192,8 @@ bd-esquema:  ## Materializa el esquema de identidad y catalogo, y sus indices
 	@PYTHONPATH="$(ESQUEMA_PATH)" $(PY) -m tukit_identidad
 	@PYTHONPATH="$(ESQUEMA_PATH)" $(PY) -m tukit_catalogo
 	@PYTHONPATH="$(ESQUEMA_PATH)" $(PY) -m tukit_inteligencia esquema
+	@PYTHONPATH="$(ESQUEMA_PATH)" $(PY) -m tukit_comercio
+	@PYTHONPATH="$(ESQUEMA_PATH)" $(PY) -m tukit_operacion
 	@$(MAKE) --no-print-directory bd-indices
 
 # Va aparte de `bd-esquema` porque no lo hace create_all: SQLAlchemy crea los
@@ -230,16 +286,16 @@ bd-limpiar-candidatos:  ## Saca del catalogo lo que la maquina metio sin revisar
 	@cd servicios/catalogo && PYTHONPATH=".:../../libs/py/tukit_comun" \
 		../../$(PY) -m migraciones.limpieza_candidatos_a_cola $(ARGS)
 
-bd-sembrar:  ## Siembra colegios, catalogo curado y listas oficiales. Idempotente.
-	@$(MAKE) --no-print-directory bd-colegios
+bd-sembrar:  ## Siembra SOLO el catalogo curado de productos. Idempotente.
 	@$(MAKE) --no-print-directory bd-cargar
-	@$(MAKE) --no-print-directory bd-listas
+	@echo "Colegios y listas ya NO se siembran: se crean de verdad probando (identidad + revisar en la cola)."
+	@echo "Para sembrar datos falsos a mano: make bd-colegios / make bd-listas"
 
-bd-colegios:  ## Siembra los 17 colegios y sus sedes en Identidad
+bd-colegios:  ## (manual) Siembra los 17 colegios y sus sedes en Identidad. Datos falsos, fuera del sembrado por defecto.
 	@cd servicios/identidad && PYTHONPATH=".:../../libs/py/tukit_comun" \
 		../../$(PY) -m tukit_identidad.cargador --datos ../../datos/listas $(ARGS)
 
-bd-listas:  ## Siembra las listas oficiales por colegio y grado en Catalogo
+bd-listas:  ## (manual) Siembra las listas oficiales por colegio y grado. Datos falsos, fuera del sembrado por defecto.
 	@cd servicios/catalogo && PYTHONPATH=".:../../libs/py/tukit_comun" \
 		../../$(PY) -m tukit_catalogo.cargador_listas --datos ../../datos/listas $(ARGS)
 
@@ -247,7 +303,7 @@ bd-deriva:  ## Falla si el esquema migrado y los modelos no dicen lo mismo
 	@$(PY) arquitectura/verificar_deriva.py
 
 # --- La superficie HTTP ----------------------------------------------------
-# Cuatro procesos: tres servicios con dominio y una puerta de enlace que le da
+# Seis procesos: cinco servicios con dominio y una puerta de enlace que le da
 # al frontend UNA sola URL base, que es la unica direccion que el contrato le
 # promete a quien consume.
 #
@@ -255,6 +311,8 @@ bd-deriva:  ## Falla si el esquema migrado y los modelos no dicen lo mismo
 #   8011  identidad     colegios, sedes, grados, contacto
 #   8012  catalogo      conceptos, productos, ofertas, listas, emparejar
 #   8013  inteligencia  trabajos y cola de revision
+#   8014  comercio      pedidos, inventario, pagos (Wompi), entrega
+#   8015  operacion     casos/PQRS, notificaciones, auditoria, telemetria
 #
 # El bloque empieza en 8010 y no en 8000 por una razon aburrida y real: 8000
 # es el puerto por omision de medio mundo (uvicorn, http.server, Django) y en
@@ -274,6 +332,8 @@ PUERTO_GATEWAY ?= 8010
 PUERTO_IDENTIDAD ?= 8011
 PUERTO_CATALOGO ?= 8012
 PUERTO_INTELIGENCIA ?= 8013
+PUERTO_COMERCIO ?= 8014
+PUERTO_OPERACION ?= 8015
 
 # Se exportan para que cada proceso sepa donde estan los otros sin que nadie
 # escriba una URL en el codigo. Si se cambia un puerto arriba, todo sigue
@@ -281,6 +341,8 @@ PUERTO_INTELIGENCIA ?= 8013
 export TUKIT_IDENTIDAD_URL ?= http://127.0.0.1:$(PUERTO_IDENTIDAD)
 export TUKIT_CATALOGO_URL ?= http://127.0.0.1:$(PUERTO_CATALOGO)
 export TUKIT_INTELIGENCIA_URL ?= http://127.0.0.1:$(PUERTO_INTELIGENCIA)
+export TUKIT_COMERCIO_URL ?= http://127.0.0.1:$(PUERTO_COMERCIO)
+export TUKIT_OPERACION_URL ?= http://127.0.0.1:$(PUERTO_OPERACION)
 
 api-identidad:  ## Levanta SOLO identidad, en primer plano
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_identidad.api --puerto $(PUERTO_IDENTIDAD)
@@ -291,10 +353,36 @@ api-catalogo:  ## Levanta SOLO catalogo, en primer plano
 api-inteligencia:  ## Levanta SOLO inteligencia, en primer plano
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_inteligencia.api --puerto $(PUERTO_INTELIGENCIA)
 
+api-comercio:  ## Levanta SOLO comercio, en primer plano
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_comercio.api --puerto $(PUERTO_COMERCIO)
+
+api-operacion:  ## Levanta SOLO operacion, en primer plano
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_operacion.api --puerto $(PUERTO_OPERACION)
+
 api-gateway:  ## Levanta SOLO la puerta de enlace, en primer plano
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_gateway.api --puerto $(PUERTO_GATEWAY)
 
-arriba:  ## Levanta los cuatro procesos HTTP en segundo plano
+repartidor:  ## Reparte los eventos de las bandejas (una pasada; usa s=--seguir para bucle)
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_operacion.repartidor $(s)
+
+instantanea-metricas:  ## Congela el snapshot de hoy de cobertura/match por colegio en metrica_diaria (idempotente; correlo por sesion). Requiere los servicios arriba.
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_operacion.instantanea
+
+poller:  ## Drena lista_verificada del catalogo y arma el kit del padre (una pasada; s=--seguir para bucle)
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_inteligencia.poller $(s)
+
+trabajador:  ## Drena la cola de trabajos y corre el pipeline durable, ADR 0024 (una pasada; s=--seguir para bucle)
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_inteligencia.trabajador $(s)
+
+barredor:  ## Libera reservas de pedidos sin pagar por TTL, ADR 0023 C1 (una pasada; s=--seguir para bucle)
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_comercio.barredor $(s)
+
+poller-identidad:  ## Drena colegio_verificado del catalogo y da de alta el colegio aliado (s=--seguir para bucle)
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_identidad.poller $(s)
+
+reanudar: arriba  ## Reanuda tras un apagado: solo levanta los procesos, NO siembra (usa `backend` solo para reconstruir de cero)
+
+arriba:  ## Levanta los seis procesos HTTP en segundo plano
 	@mkdir -p $(EJECUCION)
 	@$(MAKE) --no-print-directory abajo >/dev/null 2>&1 || true
 	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_identidad.api --puerto $(PUERTO_IDENTIDAD) \
@@ -303,6 +391,10 @@ arriba:  ## Levanta los cuatro procesos HTTP en segundo plano
 		> $(EJECUCION)/catalogo.log 2>&1 & echo $$! > $(EJECUCION)/catalogo.pid
 	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_inteligencia.api --puerto $(PUERTO_INTELIGENCIA) \
 		> $(EJECUCION)/inteligencia.log 2>&1 & echo $$! > $(EJECUCION)/inteligencia.pid
+	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_comercio.api --puerto $(PUERTO_COMERCIO) \
+		> $(EJECUCION)/comercio.log 2>&1 & echo $$! > $(EJECUCION)/comercio.pid
+	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_operacion.api --puerto $(PUERTO_OPERACION) \
+		> $(EJECUCION)/operacion.log 2>&1 & echo $$! > $(EJECUCION)/operacion.pid
 	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_gateway.api --puerto $(PUERTO_GATEWAY) \
 		> $(EJECUCION)/gateway.log 2>&1 & echo $$! > $(EJECUCION)/gateway.pid
 	@echo "Esperando a que respondan..."
@@ -310,16 +402,33 @@ arriba:  ## Levanta los cuatro procesos HTTP en segundo plano
 		curl -fs http://127.0.0.1:$(PUERTO_GATEWAY)/v1/servicios 2>/dev/null | grep -q '"todos_arriba":true' && break; \
 		sleep 0.5; \
 	done
+	@# Los trabajadores de fondo: sin ellos el aviso al acudiente no sale
+	@# (repartidor), el kit del padre no se arma (poller), un colegio nuevo nunca
+	@# se vuelve aliado (poller-identidad) y —desde ADR 0024— el pipeline no corre
+	@# (trabajador: drena la cola de trabajos `encolado`, antes era una asyncio.Task
+	@# del API que un reinicio dejaba colgada). Cada uno en --seguir con su pid.
+	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_operacion.repartidor --seguir \
+		> $(EJECUCION)/repartidor.log 2>&1 & echo $$! > $(EJECUCION)/repartidor.pid
+	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_inteligencia.poller --seguir \
+		> $(EJECUCION)/poller.log 2>&1 & echo $$! > $(EJECUCION)/poller.pid
+	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_inteligencia.trabajador --seguir \
+		> $(EJECUCION)/trabajador.log 2>&1 & echo $$! > $(EJECUCION)/trabajador.pid
+	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_identidad.poller --seguir \
+		> $(EJECUCION)/poller-identidad.log 2>&1 & echo $$! > $(EJECUCION)/poller-identidad.pid
+	@# El barredor libera la reserva de un pedido que nunca se pago (ADR 0023, C1):
+	@# sin el, un checkout abandonado bloquea stock para siempre.
+	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_comercio.barredor --seguir \
+		> $(EJECUCION)/barredor.log 2>&1 & echo $$! > $(EJECUCION)/barredor.pid
 	@$(MAKE) --no-print-directory estado
 
-abajo:  ## Detiene los cuatro procesos HTTP
-	@for s in gateway inteligencia catalogo identidad; do \
+abajo:  ## Detiene los seis procesos HTTP y los trabajadores de fondo
+	@for s in gateway operacion comercio inteligencia catalogo identidad repartidor poller trabajador poller-identidad barredor; do \
 		[ -f $(EJECUCION)/$$s.pid ] && kill $$(cat $(EJECUCION)/$$s.pid) 2>/dev/null; \
 		rm -f $(EJECUCION)/$$s.pid; \
 	done; true
-	@echo "Procesos HTTP detenidos."
+	@echo "Procesos detenidos."
 
-estado:  ## Dice cuales de los cuatro estan arriba, preguntandoles
+estado:  ## Dice cuales de los seis estan arriba, preguntandoles
 	@curl -fs http://127.0.0.1:$(PUERTO_GATEWAY)/v1/servicios | $(PY) -m json.tool \
 		|| echo "  La puerta no responde en http://127.0.0.1:$(PUERTO_GATEWAY)"
 	@echo "  Base para el frontend: http://127.0.0.1:$(PUERTO_GATEWAY)"

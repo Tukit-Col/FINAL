@@ -63,9 +63,17 @@ from typing import Any
 from urllib.parse import urlparse
 
 from . import tiendas
-from .cargador import _uuid_estable
 from .descubrir import _encolar, resolver
+from .dominio.propuesta import (  # re-exportados: la vista http.server y su test los usan por nombre
+    _ean_valido,  # noqa: F401
+    construir_propuesta_libro,
+    construir_propuesta_util,
+)
 from .modelos import Nivel, TipoItem
+
+# ponytail: `volcar` es CLI batch de un solo llamador HTTP (el boton "volcar" de
+# la consola); se invoca entero, no tiene SQL que un request reuse pieza a pieza
+# -> a repositorios solo si un endpoint necesitara sus consultas por separado.
 from .volcar import _principal as volcar_principal
 
 # Las tres tiendas que el catalogo ya usa, en el orden en que `completar` y
@@ -97,7 +105,8 @@ async def _leer() -> tuple[list[dict[str, Any]], dict[str, int]]:
                     text("""
                 SELECT c.id AS cid, c.codigo, c.nombre_canonico, c.tipo_item,
                        c.frecuencia_demanda, c.sinonimos,
-                       p.id AS pid, p.nombre, p.nivel, p.imagen_url, p.personaje,
+                       c.atributos_discriminantes, c.atributos_descriptivos,
+                       p.id AS pid, p.nombre, p.nivel, p.imagen_url, p.personaje, p.marca,
                        p.atributos, p.unidad_base, p.unidades_por_empaque, p.quality_score,
                        t.nombre AS tienda, o.url,
                        (SELECT min(pr.valor_centavos)
@@ -140,6 +149,12 @@ async def _leer() -> tuple[list[dict[str, Any]], dict[str, int]]:
                 "tipo_item": f.tipo_item,
                 "demanda": f.frecuencia_demanda,
                 "sinonimos": list(f.sinonimos or ()),
+                # Las claves que el concepto declara: son las casillas que el
+                # diálogo de editar pinta para llenar los `atributos` de cada
+                # producto (color, tamaño, hojas...). Discriminantes primero
+                # porque son las que de verdad separan un producto de otro.
+                "atributos_clave": list(f.atributos_discriminantes or ())
+                + list(f.atributos_descriptivos or ()),
                 "productos": [],
             }
             indice[f.codigo] = bloque
@@ -152,6 +167,7 @@ async def _leer() -> tuple[list[dict[str, Any]], dict[str, int]]:
                     "nivel": f.nivel,
                     "imagen_url": f.imagen_url,
                     "personaje": f.personaje,
+                    "marca": f.marca,
                     "atributos": f.atributos,
                     "unidad_base": f.unidad_base,
                     "unidades_por_empaque": f.unidades_por_empaque,
@@ -283,13 +299,23 @@ async def _editar_producto(
     nivel: str | None,
     imagen_url: str | None,
     precio_centavos: int | None,
+    marca: str | None = None,
+    concepto_id: str | None = None,
+    atributos: dict[str, str] | None = None,
 ) -> tuple[bool, str]:
-    """Edita un producto suelto: nombre, nivel, foto y precio, en una transacción.
+    """Edita un producto suelto en una transacción.
 
-    Nombre, nivel e imagen viven en `producto_canonico`; el precio vive en
-    `precio_oferta`, colgado de las ofertas del producto. Curar a mano un
-    duplicado es corregir esas cuatro cosas, así que van juntas: si el precio se
-    escribe pero la fila del producto falla, no queremos un precio huérfano.
+    Nombre, nivel, foto, marca, concepto y atributos viven en
+    `producto_canonico`; el precio vive en `precio_oferta`, colgado de las
+    ofertas del producto. Curar a mano un duplicado es corregir esas cosas
+    juntas: si el precio se escribe pero la fila del producto falla, no queremos
+    un precio huérfano.
+
+    Reasignar el concepto es solo cambiar la llave foránea `concepto_id`: no
+    toca `sku_interno` (sigue único) ni borra las ofertas. Es lo que arregla
+    "veo resmas en el concepto hojas": se mueve el producto a su concepto real.
+    Los `atributos` (color, tamaño, hojas...) llegan como un diccionario ya
+    armado desde las casillas que el concepto declara; se sobrescribe entero.
     """
     from sqlalchemy import text, update
     from tukit_comun.bd import crear_motor
@@ -304,6 +330,12 @@ async def _editar_producto(
         columnas["nivel"] = nivel
     if imagen_url is not None:  # cadena vacía = borrar la foto a propósito
         columnas["imagen_url"] = imagen_url or None
+    if marca is not None:  # cadena vacía = borrar la marca a propósito
+        columnas["marca"] = marca or None
+    if concepto_id:
+        columnas["concepto_id"] = uuid.UUID(concepto_id)
+    if atributos is not None:  # {} = vaciar los atributos a propósito
+        columnas["atributos"] = atributos
 
     motor = crear_motor("catalogo")
     try:
@@ -316,6 +348,15 @@ async def _editar_producto(
             ).first()
             if not existe:
                 return False, "No encontré ese producto."
+            if concepto_id:
+                concepto_ok = (
+                    await conexion.execute(
+                        text("SELECT 1 FROM concepto WHERE id = :cid AND activo"),
+                        {"cid": concepto_id},
+                    )
+                ).first()
+                if not concepto_ok:
+                    return False, "Ese concepto no existe o no está activo."
             if columnas:
                 await conexion.execute(
                     update(producto).where(producto.c.id == uuid.UUID(producto_id)).values(**columnas)
@@ -496,11 +537,6 @@ async def _tienda_por_slug(slug: str) -> uuid.UUID | None:
         await motor.cerrar()
 
 
-def _ean_valido(ean: str | None) -> str | None:
-    ean = (ean or "").strip()
-    return ean if ean.isdigit() and len(ean) in (8, 12, 13) else None
-
-
 def buscar_candidatos(consulta: str) -> list[tuple[str, tiendas.Oferta]]:
     """Las tres tiendas con el quinto filtro puesto, de mas barato a mas caro.
 
@@ -541,34 +577,11 @@ async def agregar_util(concepto_id: str, slug: str, oferta: tiendas.Oferta, nive
         return False, "Ese concepto ya no existe."
     _, nombre_concepto = resuelto
 
-    pid = _uuid_estable("util", slug, oferta.sku)
-    encoladas = await _encolar(
-        [
-            {
-                "id": pid,
-                "concepto_id": uuid.UUID(concepto_id),
-                "concepto_sugerido": None,
-                "texto_origen": nombre_concepto,
-                "tienda_id": tienda_id,
-                "referencia_externa": oferta.sku,
-                "url": oferta.url or None,
-                "nombre": oferta.nombre[:512],
-                "marca": oferta.marca,
-                "ean": _ean_valido(oferta.ean),
-                "imagen_url": oferta.imagen_url,
-                "especificaciones": oferta.especificaciones or {},
-                "precio_centavos": oferta.precio_cop * 100,
-                "disponible": oferta.disponible,
-                "nivel_sugerido": nivel,
-                # Lo eligio una persona de una lista de candidatos reales.
-                "puntaje": 0.6,
-                "estado": "pendiente",
-                "origen": "manual",
-                "version_lista_id": None,
-                "item_lista_id": None,
-            }
-        ]
+    propuesta = construir_propuesta_util(
+        uuid.UUID(concepto_id), nombre_concepto, slug, tienda_id, oferta, nivel
     )
+    pid = propuesta["id"]
+    encoladas = await _encolar([propuesta])
     if not encoladas:
         # La llave natural (tienda, referencia) ya estaba: puede que sea un
         # producto que ya tenemos, o una propuesta pendiente. Se intenta
@@ -632,33 +645,11 @@ async def agregar_libro(
         return False, "Ese concepto ya no existe."
     _, nombre_concepto = resuelto
 
-    pid = _uuid_estable("propuesta", slug, isbn)
-    await _encolar(
-        [
-            {
-                "id": pid,
-                "concepto_id": uuid.UUID(concepto_id),
-                "concepto_sugerido": None,
-                "texto_origen": titulo,
-                "tienda_id": tienda_id,
-                "referencia_externa": isbn,
-                "url": None,
-                "nombre": titulo[:512],
-                "marca": None,
-                "ean": isbn,
-                "imagen_url": None,
-                "especificaciones": {"isbn": isbn},
-                "precio_centavos": precio_cop * 100,
-                "disponible": True,
-                "nivel_sugerido": nivel,
-                "puntaje": 0.9,
-                "estado": "pendiente",
-                "origen": "manual",
-                "version_lista_id": None,
-                "item_lista_id": None,
-            }
-        ]
+    propuesta = construir_propuesta_libro(
+        uuid.UUID(concepto_id), nombre_concepto, slug, tienda_id, isbn, titulo, precio_cop, nivel
     )
+    pid = propuesta["id"]
+    await _encolar([propuesta])
     codigo = await resolver(str(pid)[:8], aprobar=True, nivel=nivel, motivo=None)
     if codigo != 0:
         return False, "El libro se encolo pero no se pudo aprobar."
@@ -719,6 +710,11 @@ button.mini { font-size:12px; padding:4px 9px; }
 .nivel.premium { color:#7c3aed; }
 .attrs { font-size:11px; color:var(--suave); }
 .attrs code { background:#f2f3f5; padding:1px 5px; border-radius:4px; margin-right:3px; }
+.meta .marca { color:#475569; }
+.attrs-edit { display:grid; grid-template-columns:1fr 1fr; gap:6px 10px; margin-bottom:6px; }
+.attr-fila { display:flex; flex-direction:column; gap:2px; }
+.attr-fila label { font-size:11px; color:var(--suave); text-transform:capitalize; }
+.attr-fila input { padding:5px 7px; }
 .empaque { display:flex; gap:5px; align-items:center; font-size:11px; }
 .empaque input { width:52px; font:inherit; padding:2px 5px; border:1px solid var(--linea);
   border-radius:5px; }
@@ -905,8 +901,31 @@ document.querySelectorAll('[data-cerrar]').forEach(b => b.addEventListener('clic
   e.preventDefault(); b.closest('dialog').close();
 }));
 
-// --- Editar un producto suelto (nombre, foto, precio, nivel) ---
+// --- Editar un producto suelto (nombre, foto, precio, nivel, marca, concepto, atributos) ---
 const dlgEd = $('#dlg-editar');
+function jsonSeguro(txt, porOmision) {
+  try { return JSON.parse(txt); } catch (_) { return porOmision; }
+}
+function pintarAttrs(claves, valores) {
+  // Una casilla por atributo que el concepto declara (color, tamano, hojas...),
+  // precargada con lo que el producto ya tiene. Si el producto trae un atributo
+  // que el concepto no declara, tambien se muestra para no perderlo al guardar.
+  const cont = $('#editar-attrs');
+  cont.innerHTML = '';
+  const llaves = [...claves];
+  Object.keys(valores || {}).forEach(k => { if (!llaves.includes(k)) llaves.push(k); });
+  if (!llaves.length) {
+    cont.innerHTML = '<em class="pista">Este concepto no declara atributos.</em>'; return;
+  }
+  llaves.forEach(k => {
+    const fila = document.createElement('div');
+    fila.className = 'attr-fila';
+    const et = document.createElement('label'); et.textContent = k;
+    const inp = document.createElement('input'); inp.dataset.attr = k;
+    inp.value = valores && valores[k] != null ? valores[k] : '';
+    fila.appendChild(et); fila.appendChild(inp); cont.appendChild(fila);
+  });
+}
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-editar]');
   if (!b) return;
@@ -916,6 +935,9 @@ document.addEventListener('click', (e) => {
   f.imagen_url.value = card.dataset.pimg || '';
   f.precio.value = card.dataset.pprecio || '';
   f.nivel.value = card.dataset.pnivel || 'confiable';
+  f.marca.value = card.dataset.pmarca || '';
+  if (card.dataset.pconcepto) f.concepto_id.value = card.dataset.pconcepto;
+  pintarAttrs(jsonSeguro(card.dataset.pclaves, []), jsonSeguro(card.dataset.pattrs, {}));
   dlgEd.querySelector('.pista').textContent = card.dataset.pnombre || '';
   dlgEd.showModal();
 });
@@ -923,10 +945,16 @@ $('#editar-guardar').addEventListener('click', async (e) => {
   e.preventDefault();
   const f = dlgEd.querySelector('form');
   const precio = parseInt(f.precio.value, 10);
+  const atributos = {};
+  $('#editar-attrs').querySelectorAll('input[data-attr]').forEach(inp => {
+    const v = inp.value.trim();
+    if (v) atributos[inp.dataset.attr] = v;  // vacio = no guardar esa clave
+  });
   const cuerpo = {
     producto_id: f.producto_id.value, nombre: f.nombre.value.trim(),
     imagen_url: f.imagen_url.value.trim(), nivel: f.nivel.value,
     precio: Number.isFinite(precio) ? precio : null,
+    marca: f.marca.value.trim(), concepto_id: f.concepto_id.value, atributos,
   };
   const d = await enviar('/editar', cuerpo);
   if (d) { dlgEd.close(); avisar(d.mensaje); setTimeout(() => location.reload(), 900); }
@@ -999,27 +1027,37 @@ def _pesos(centavos: int | None) -> str:
     return f"${centavos // 100:,.0f}".replace(",", ".") if centavos else "sin precio"
 
 
-def _tarjeta(p: dict[str, Any]) -> str:
+def _tarjeta(p: dict[str, Any], concepto: dict[str, Any] | None = None) -> str:
     e = html.escape
     foto = (
         f'<img src="{e(p["imagen_url"])}" alt="" loading="lazy">'
         if p["imagen_url"]
         else '<div class="sinfoto">sin foto</div>'
     )
-    attrs = "".join(f"<code>{e(str(k))}: {e(str(v))}</code>" for k, v in (p["atributos"] or {}).items())
+    atributos = p.get("atributos") or {}
+    attrs = "".join(f"<code>{e(str(k))}: {e(str(v))}</code>" for k, v in atributos.items())
     personaje = f"<span>🏷️ {e(p['personaje'])}</span>" if p["personaje"] else ""
+    marca = f'<span class="marca">{e(p["marca"])}</span>' if p.get("marca") else ""
     nombre = e(p["nombre"])
     enlace = f'<a href="{e(p["url"])}" target="_blank" rel="noopener">{nombre}</a>' if p["url"] else nombre
     empaque_val = p["unidades_por_empaque"] or 1
     precio_pesos = (p["precio"] or 0) // 100  # el dialogo de editar trabaja en pesos
+    # El diálogo de editar se llena desde estos data-attributes. `pconcepto` dice
+    # en qué concepto está hoy (para preseleccionar el <select> de mover), y
+    # `pclaves`/`pattrs` viajan como JSON para pintar una casilla por atributo
+    # que el concepto declara, ya precargada con lo que el producto tiene.
+    concepto_id = e(concepto["id"]) if concepto else ""
+    claves = json.dumps(concepto["atributos_clave"] if concepto else [], ensure_ascii=False)
     return f"""<div class="prod"
       data-pid="{e(p["id"])}" data-pnombre="{e(p["nombre"])}" data-pnivel="{e(p["nivel"])}"
-      data-pimg="{e(p["imagen_url"] or "")}" data-pprecio="{precio_pesos}">
+      data-pimg="{e(p["imagen_url"] or "")}" data-pprecio="{precio_pesos}"
+      data-pmarca="{e(p.get("marca") or "")}" data-pconcepto="{concepto_id}"
+      data-pclaves="{e(claves)}" data-pattrs="{e(json.dumps(atributos, ensure_ascii=False))}">
       {foto}
       <div class="nivel {e(p["nivel"])}">{e(p["nivel"])}</div>
       <div class="nom">{enlace}</div>
       <div class="precio">{_pesos(p["precio"])}</div>
-      <div class="meta"><span>{e(p["tienda"] or "sin tienda")}</span>{personaje}</div>
+      <div class="meta"><span>{e(p["tienda"] or "sin tienda")}</span>{marca}{personaje}</div>
       <div class="empaque">empaque
         <input type="number" min="1" value="{empaque_val}" title="unidades por empaque">
         <span>{e(p["unidad_base"] or "unidad")}</span>
@@ -1068,7 +1106,7 @@ def _bloque_concepto(c: dict[str, Any]) -> str:
         f'<button class="mini peligro" data-descartar="{e(c["id"])}" '
         f'data-nombre="{nombre_attr}">Descartar</button>'
     )
-    tarjetas = "".join(_tarjeta(p) for p in c["productos"]) or (
+    tarjetas = "".join(_tarjeta(p, c) for p in c["productos"]) or (
         '<div class="prod"><div class="sinfoto">nada que ofrecer todavía</div></div>'
     )
     return f"""<section class="concepto{" destacado" if destacado else ""}" data-estado="{estado}"
@@ -1097,9 +1135,24 @@ def _nav(activo: str, por_revisar: int) -> str:
     </nav>"""
 
 
+def _opciones_concepto(conceptos: list[dict[str, Any]]) -> str:
+    """Las opciones del <select> para mover un producto a otro concepto.
+
+    Ordenadas por código para que la lista sea buscable con el teclado, y con el
+    código a la vista (C031 · resma) porque hay nombres que se parecen -hojas vs
+    resma, marcador vs resaltador- y el código desambigua.
+    """
+    e = html.escape
+    ordenados = sorted(conceptos, key=lambda c: c["codigo"])
+    return "".join(
+        f'<option value="{e(c["id"])}">{e(c["codigo"])} · {e(c["nombre"])}</option>' for c in ordenados
+    )
+
+
 def construir(conceptos: list[dict[str, Any]], resumen: dict[str, int]) -> str:
     momento = datetime.now(UTC).astimezone().strftime("%d/%m/%Y %H:%M")
     bloques = "".join(_bloque_concepto(c) for c in conceptos)
+    opciones_concepto = _opciones_concepto(conceptos)
     return f"""<!doctype html>
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1167,6 +1220,12 @@ def construir(conceptos: list[dict[str, Any]], resumen: dict[str, int]) -> str:
     <div><label>Precio (COP)</label><input name="precio" type="number" placeholder="6500"></div>
     <div><label>Nivel</label><select name="nivel">{_opciones_nivel()}</select></div>
   </div>
+  <div class="fila">
+    <div><label>Marca</label><input name="marca" placeholder="Faber-Castell"></div>
+    <div><label>Concepto</label><select name="concepto_id">{opciones_concepto}</select></div>
+  </div>
+  <label>Atributos</label>
+  <div id="editar-attrs" class="attrs-edit"></div>
   <div class="pie"><button data-cerrar>Cancelar</button>
     <button id="editar-guardar" class="primario">Guardar</button></div>
 </form></div></dialog>
@@ -1411,6 +1470,12 @@ class _Manejador(BaseHTTPRequestHandler):
             if precio <= 0:
                 self._json(400, {"ok": False, "mensaje": "El precio debe ser positivo."})
                 return
+        # marca y atributos van tal cual (cadena vacía / {} son borrados a
+        # propósito); concepto_id solo si viene, para no reasignar sin querer.
+        atributos = cuerpo.get("atributos")
+        if atributos is not None and not isinstance(atributos, dict):
+            self._json(400, {"ok": False, "mensaje": "Los atributos deben ser un objeto."})
+            return
         ok, mensaje = asyncio.run(
             _editar_producto(
                 producto_id,
@@ -1418,6 +1483,9 @@ class _Manejador(BaseHTTPRequestHandler):
                 nivel=cuerpo.get("nivel") or None,
                 imagen_url=cuerpo.get("imagen_url"),
                 precio_centavos=precio,
+                marca=cuerpo.get("marca"),
+                concepto_id=(cuerpo.get("concepto_id") or "").strip() or None,
+                atributos={str(k): str(v) for k, v in atributos.items()} if atributos is not None else None,
             )
         )
         self._json(200 if ok else 404, {"ok": ok, "mensaje": mensaje})

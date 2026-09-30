@@ -1,11 +1,8 @@
 // `/logistica` — el tablero de pedidos y entregas (CABLEADO vía contrato extendido).
 //
-// Consume `origenDeDatos().pedidos()`, la superficie de lectura de `comercio`.
-// El contrato v1.0 todavía no la publica, así que en modo simulado son pedidos
-// DERIVADOS de trabajos publicados (ver `simulado/back-office.ts`), y la
-// `CintaOrigen` de arriba avisa que el origen activo es simulado. El día que
-// `comercio` responda, `TUKIT_ORIGEN_DATOS=api` conecta esto sin tocar la
-// pantalla: `cliente-http.ts` ya pega contra `/v1/comercio/*`.
+// Consume `origenDeDatos().pedidos()`, la superficie de lectura de `comercio`
+// (`cliente-http.ts` pega contra `/v1/comercio/*`). Cuando `comercio` aún no
+// publica pedidos, la lectura vuelve vacía y la pantalla muestra su estado vacío.
 //
 // Server Component, mismo patrón que la Cola.
 

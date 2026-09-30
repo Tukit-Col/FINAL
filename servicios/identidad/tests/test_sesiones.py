@@ -19,13 +19,13 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 from tukit_comun.bd import MotorServicio
 from tukit_identidad.api import app
-from tukit_identidad.modelos import AsignacionRol, Base, Usuario
-from tukit_identidad.sesiones import (
+from tukit_identidad.dominio.sesiones import (
     emitir_token,
     hashear_clave,
     leer_token,
     verificar_clave,
 )
+from tukit_identidad.modelos import AsignacionRol, Base, Usuario
 
 
 @pytest.fixture()
@@ -44,9 +44,7 @@ async def cliente():
         sesion.add(u)
         await sesion.flush()
         sesion.add(
-            AsignacionRol(
-                usuario_id=u.id, rol_codigo="acudiente", ambito_tipo="global", ambito_id=None
-            )
+            AsignacionRol(usuario_id=u.id, rol_codigo="acudiente", ambito_tipo="global", ambito_id=None)
         )
         # Un contacto sin credencial, como el que crea `registrar_contacto`.
         sesion.add(Usuario(correo="invitado@ejemplo.com", clave_hash="sin-credencial"))

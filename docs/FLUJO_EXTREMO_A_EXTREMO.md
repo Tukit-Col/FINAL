@@ -21,13 +21,14 @@
 
 Antes del análisis largo, lo que un lector apurado necesita saber.
 
-**Primero: el contrato de la API cita nueve requisitos del SRS que no existen.** El SRS v2
-define `AD-01`, `AD-02` y `AD-03`, y nada más en el módulo de administración. `CONTRATO_API.md`
-§7 amarra sus siete endpoints de revisión a `AD-04`, `AD-05`, `AD-06` y `AD-07`, y §8–§9 citan
-`AD-25`, `AD-26`, `AD-33`, `FU-04` y `FU-06`. Ninguno de esos nueve códigos aparece en el
-documento. El plan vigente agrega otros tres inexistentes: `PR-08`, `UM-03` y `AM-01`. Esto no
-es un detalle de formato: la superficie compartida del proyecto está trazada contra requisitos
-imaginarios, y es un documento calificable. Se arregla en §5.1, y es barato arreglarlo porque
+**Primero: el contrato de la API cita ocho requisitos del SRS que no existen.** Este conteo se
+hizo contra el **PDF v2**, que define `AD-01`, `AD-02` y `AD-03` y nada más en el módulo de
+administración; la línea base era el `.docx` v3. `CONTRATO_API.md` §7 amarra sus siete
+endpoints de revisión a `AD-04`, `AD-05`, `AD-06` y `AD-07`, y §8–§9 citan `AD-25`, `AD-26`,
+`AD-33` y `FU-06`. Esos ocho son los que no aparecen. `FU-04` sí existe desde el v3, y los tres
+que el plan agrega —`PR-08`, `UM-03` y `AM-01`— también: no eran inexistentes, estaban fuera
+del v2. Esto no es un detalle de formato: la superficie compartida del proyecto está trazada
+contra requisitos imaginarios, y es un documento calificable. Se arregla en §5.1, y es barato arreglarlo porque
 la **intención** sí tiene requisito; lo que está mal es el número.
 
 **Segundo: el actor colegio está diseñado, y lo que falta es construirlo.** El SRS le dedica un
@@ -68,12 +69,14 @@ construido es grande y asimétrica.
 | `apps/admin` | **0** | Carpeta creada, vacía | Todo |
 | `apps/colegio` | **no existe** | — | Todo |
 
-**No hay ninguna API HTTP de dominio en todo `tukit/servicios/**`.** Busqué `FastAPI`,
-`APIRouter`, `uvicorn` y `BaseHTTPRequestHandler`: la única mención de FastAPI en el árbol es un
-comentario en `catalogo/tukit_catalogo/admin.py:14` que explica por qué **no** se usa. Lo único
-que sirve HTTP es ese mismo `admin.py`, un `ThreadingHTTPServer` sobre `127.0.0.1:8000` para
-curaduría interna, con `GET /`, `GET /cola` y siete `POST` de alta y resolución. Es un
-precursor honesto de `apps/admin`, no un backend.
+**Cuando se escribió esto no había ninguna API HTTP de dominio en todo `tukit/servicios/**`.**
+Busqué `FastAPI`, `APIRouter`, `uvicorn` y `BaseHTTPRequestHandler`: la única mención de FastAPI
+en el árbol era un comentario en `catalogo/tukit_catalogo/admin.py:14` que explica por qué **no**
+se usa. Lo único que servía HTTP era ese mismo `admin.py`, un `ThreadingHTTPServer` sobre
+`127.0.0.1:8000` para curaduría interna, con `GET /`, `GET /cola` y siete `POST` de alta y
+resolución. Es un precursor honesto de `apps/admin`, no un backend. **Ya no es así:** existe
+`servicios/catalogo/tukit_catalogo/api.py`, obra del agente de backend, que confirma la
+advertencia de concurrencia de §8 de este mismo documento.
 
 Esto importa para leer el contrato: `CONTRATO_API.md` describe una API **deseada**. El cliente
 tipado que el agente de frontend está armando en `libs/ts/tukit-contrato/src/cliente-http.ts`
@@ -340,7 +343,7 @@ construcción, y es el único actor cuyo panel completo está por hacer.
 | Se entendió y no lo tenemos | `HUECO_CATALOGO` con sustitutos del grafo curado | Modelado; `sustituibilidad_concepto` existe en el manifiesto; el estado no existe en el prototipo (que solo tiene tres) |
 | Producto fuera de stock | Excluir del kit (`SC-05`); admin puede marcarlo (`AD-02`) | `producto_canonico.activo` existe; `comercio.inventario` no existe |
 | Categoría que no proveemos (uniformes) | Línea informativa, fuera del carrito y del total | Modelado en contrato §5.1.1 y en `parseo.py`; sin UI |
-| Precio vencido | La línea no entra al total y va a revisión | Contrato §8; `precio_oferta` tiene `vigente_desde`; la **ventana** `vigente_hasta` es tarea pendiente del plan |
+| Precio vencido | La línea no entra al total y va a revisión | Contrato §8; `precio_oferta` ya tiene `vigente_desde` **y** `vigente_hasta` (`modelos/oferta.py:174`), con la restricción `precio_vigencia_coherente` y el índice único parcial `uq_precio_vigente_por_oferta`. Lo que faltaba era la **política**, que la línea base fija en `SC-06` |
 | El papá nunca escribe por WhatsApp | El correo (`FU-02`) queda como canal de respaldo | **Sin política de caducidad.** Ver §6, decisión abierta 2 |
 | El colegio publica lista nueva a mitad de año | Nueva `version_lista_oficial` con `numero+1` y `vigente=true`; la anterior deja de serlo | El índice único parcial `uq_version_lista_vigente` ya lo garantiza. Lo que falta es el efecto sobre los kits ya entregados. Ver §4.4 |
 | Llegan los textos diferidos | Reabrir el trabajo del acudiente | **Sin mecanismo.** Ver §4.4 |
@@ -373,12 +376,13 @@ aplicaciones. Es una inconsistencia interna del documento que manda, y como los 
 bloque son "la fuente versionada única" que se exporta al SAD y a la memoria, se propaga. Va a la
 lista de deuda de coherencia de §7.1 del lock.
 
-**4. El plan da por bueno un trazado al SRS que no se sostiene.** Cita `PR-08`, `UM-03` y `AM-01`,
-ninguno de los cuales existe. En el caso de `PR-08` la consecuencia es irónica: el plan lo usa
-para argumentar que la facturación electrónica es un hueco del SRS —"'Factura' solo aparece en
-`PR-08`, que es la del *proveedor*"—. La conclusión es correcta y el argumento es falso: la
-palabra factura **no aparece en ninguna parte del SRS**, y `PR` no es un prefijo que el documento
-use. El hueco es más grande de lo que el plan cree.
+**4. El trazado del plan al SRS se sostiene mejor de lo que este análisis creyó.** `PR-08`,
+`UM-03` y `AM-01` existen los tres en el `.docx` v3; se dieron por inexistentes por haberlos
+buscado en el PDF v2. En el caso de `PR-08` **el plan tenía razón**: existe, es del proveedor y
+habla de facturación, así que "'Factura' solo aparece en `PR-08`, que es la del *proveedor*" es
+una lectura correcta y el hueco era del tamaño que el plan decía. En la línea base vigente ese
+hueco está cerrado por `FU-09`, con la dependencia `[D5]` que exige NIT y habilitación ante la
+DIAN.
 
 ---
 
@@ -522,8 +526,9 @@ La salida es **separar por capas**, y el modelo ya está estratificado para eso:
 La regla que se deriva: **la revisión humana valida el significado, no el precio.** Que un lápiz
 cueste 1.800 en vez de 1.700 no cambia que el renglón "1 lápiz negro" significa el concepto
 lápiz. Por eso el precio vencido baja la línea del total y la marca (contrato §8) sin reabrir la
-puerta de `revisada_en`. Y por eso la ventana de validez de precio, que es una tarea pendiente
-del plan, es **prerrequisito** de la reutilización: sin `vigente_hasta`, no hay forma de
+puerta de `revisada_en`. Y por eso la ventana de validez de precio es **prerrequisito** de la
+reutilización: la columna `vigente_hasta` ya existe y lo que faltaba era su política, que
+`SC-06` fija. Sin esa ventana no hay forma de
 distinguir un precio que sigue bueno de uno viejo, y entonces toca re-revisar todo o no
 re-revisar nada.
 
@@ -588,8 +593,8 @@ se ve el flujo funcionando; **M** = el flujo se ve pero cojo; **B** = mejora.
 
 | # | Qué falta | Dueño | Requisito | Bloqueo | Esfuerzo |
 |---|---|---|---|---|---|
-| T1 | `CONTRATO_API.md` cita `AD-04/05/06/07/25/26/33`, `FU-04` y `FU-06`, que **no existen**. Remapear: la cola → `AD-01`; validar, marcar sin coincidencia y marcar no disponible → `AD-02`; publicar al padre → criterio de `AD-02`; auditoría → `SG-01/02` o nada | arquitectura | — | **A** para el entregable | 0,5 |
-| T2 | El plan cita `PR-08`, `UM-03` y `AM-01`, inexistentes. `AM-01` además sostiene la decisión de diferir la app nativa, que sí tiene ADR (0009) pero no requisito | plan | — | M | 0,25 |
+| T1 | `CONTRATO_API.md` cita ocho códigos que **no existían** en la línea base leída: `AD-04/05/06/07/25/26/33` y `FU-06`. `FU-04` sí existe desde el v3. La línea base vigente crea `AD-04` a `AD-07`, así que lo que queda por remapear es: la cola → `AD-01`; validar y marcar sin coincidencia → `AD-02`; auditoría → criterio de `AD-02` + `ML-06` + `SG-02`; seguimiento del pedido → `FU-01` + `UM-03` | arquitectura | — | **A** para el entregable | 0,5 |
+| T2 | El plan cita `PR-08`, `UM-03` y `AM-01`: **los tres existen** en el `.docx` v3 y se marcaron falsos por leer el PDF v2. Lo que sí hay que corregir es que `AM-01` fue **retirado** con el Módulo 9, de modo que la decisión de diferir la app nativa se apoya en el ADR 0009 y en §3.13 como nota de retiro, no en un requisito vigente | plan | — | M | 0,25 |
 | T3 | **Sin requisito: el alta manual de producto con precio e imagen.** `AD-02` solo cubre elegir otro del catálogo. Hay que levantar `AD-04` nuevo | SRS | hueco | **A** | 0,5 |
 | T4 | **Sin requisito: la pantalla de comparación PDF ∥ OCR ∥ matches.** `AD-01` pide una lista de pendientes | SRS | hueco | M | 0,25 |
 | T5 | **Sin requisito: el front generativo con chat.** Cero menciones de chat o conversación en el SRS. `UI-03` cubre intercambiar un ítem por una alternativa del catálogo, que es otra cosa | SRS | hueco | M | 0,25 |
@@ -602,7 +607,7 @@ se ve el flujo funcionando; **M** = el flujo se ve pero cojo; **B** = mejora.
 
 | # | Qué falta | Dueño | Requisito | Bloqueo | Esfuerzo |
 |---|---|---|---|---|---|
-| P1 | **No hay ninguna API HTTP de dominio.** El contrato describe `/v1/...` y no responde nadie | gateway + cada servicio | implícito en todos | **A** | 5–8 |
+| P1 | **Falta casi toda la API HTTP de dominio.** El contrato describe `/v1/...` y hoy solo responde `catalogo` por `tukit_catalogo/api.py`; el resto de servicios no tiene superficie | gateway + cada servicio | implícito en todos | **A** | 5–8 |
 | P2 | **`inteligencia` sin resolución, optimización ni kits.** Solo percepción y parseo | inteligencia | `OP-01`, `OP-04`, `NR-*` | **A** | 8–12 |
 | P3 | **Trabajos durables del ADR 0018.** `trabajo_pipeline`, `etapa_trabajo`, máquina HITL con `en_revision` de primera clase | inteligencia | ADR 0018 | **A**, y va **antes** de la cola | 3–4 |
 | P4 | **`operacion` vacío.** Cola, auditoría y puerto `Notificador` | operacion | `AD-01`, `FU-02`, `PE-04` | **A** | 4–6 |
@@ -618,7 +623,7 @@ se ve el flujo funcionando; **M** = el flujo se ve pero cojo; **B** = mejora.
 | R2 | **Camino corto: un trabajo sobre lista validada arranca en optimización.** Marcar percepción, normalización y resolución como satisfechas desde el artefacto | inteligencia | `OP-03` | **A** | 2–3 |
 | R3 | **Reconocer que el PDF que sube el papá es una lista que ya teníamos**, por `hash_origen` y con confirmación del papá cuando el hash no acierta | inteligencia + catalogo | hueco | M | 2 |
 | R4 | **Comparación entre versiones de lista**, para re-revisar solo lo que cambió | catalogo | hueco | M | 2 |
-| R5 | **Ventana de validez de precio** (`vigente_hasta`). Es **prerrequisito** de la invalidación por capas | catalogo + ingesta | entrevista; contrato §8 | **A** | 1,5 |
+| R5 | **Ventana de validez de precio.** La columna `vigente_hasta` **ya existe** en `modelos/oferta.py:174`, con la restricción `precio_vigencia_coherente` y el índice único parcial `uq_precio_vigente_por_oferta`; lo que falta es la **política** de caducidad, que `SC-06` fija. Es **prerrequisito** de la invalidación por capas | catalogo + ingesta | `SC-06`; entrevista; contrato §8 | **A** | 0,5 |
 | R6 | **Segunda firma: la aprobación del mapeo por el colegio**, distinta de la del admin | catalogo + inteligencia | `CO-02` | M | 1 |
 | R7 | **Reapertura por texto diferido.** Prometido en el contrato, sin código | inteligencia + operacion | hueco | B | 2–3 |
 
@@ -784,11 +789,15 @@ Por honestidad, y para que nadie construya sobre esto sin comprobarlo:
 
 - **`CONTRATO_API.md` v1.1.** Leí la v1.0 a las 10:36 del 2026-09-22. Si la extensión a v1.1 ya
   añadió endpoints de catálogo o de colegio, §5 de este documento sobreestima algunos huecos.
-- **Que `AD-01` a `AD-03` y `CO-01` a `CO-03` sean todo.** Extraje el SRS completo con
-  `pdftotext -layout` y enumeré todos los `XX-NN`. Si el PDF tuviera requisitos en imágenes o en
-  tablas que no extrajeron, se me escaparon. El conteo por prefijo fue: `AD` 01–03, `BD` 01–05,
-  `CF` 01–02, `CO` 01–03, `DI` 01, `DP` 01–04, `FU` 01–03, `LI` 02, `ML` 01–09, `MT` 01–02, `NR`
-  01–06, `OP` 01–06, `PE` 01–06, `PT` 01–02, `RD` 01–06, `SC` 01–05, `SG` 01–04, `UI` 01–07.
+- **Que `AD-01` a `AD-03` y `CO-01` a `CO-03` sean todo. No lo eran, y este es el error de raíz
+  del documento.** Extraje el **PDF v2** con `pdftotext -layout`, enumeré todos los `XX-NN` y lo
+  di por completo, cuando la línea base era el `.docx` v3. De ahí salieron los cuatro falsos
+  positivos de §0 y §3. El conteo del v2 fueron 75 identificadores: `AD` 01–03, `BD` 01–05, `CF`
+  01–02, `CO` 01–03, `DI` 01, `DP` 01–04, `FU` 01–03, `LI` 02, `ML` 01–09, `MT` 01–02, `NR`
+  01–06, `OP` 01–06, `PE` 01–06, `PT` 01–02, `RD` 01–06, `SC` 01–05, `SG` 01–04, `UI` 01–07 —
+  sin `PR`, `UM` ni `AM`, que sí existen desde el v3. El v3 declaraba 101 requisitos y la línea
+  base vigente, `Arquitectura/SRS_ISIS2610G19_v6.docx`, declara **132**. Cualquier afirmación de
+  este documento sobre que un código "no existe" hay que releerla contra el v6.
 - **Que las tres tiendas respondan hoy.** No hice ninguna llamada de red. Lo que verifiqué es que
   el cliente existe, que los tres dominios están declarados y que hay 178 respuestas
   cacheadas en `datos/catalogo/cache_tiendas/`. El módulo mismo documenta que Grancentral estuvo

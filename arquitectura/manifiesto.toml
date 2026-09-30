@@ -27,7 +27,7 @@ version = "3"
 # sobre 99 conceptos, no inducida, y vive en Catalogo porque es vocabulario de
 # catalogo. Reemplaza al grafo en memoria que se reconstruia por item y costaba
 # el 95,3 por ciento de la latencia del pipeline.
-total_tablas_esperado = 70
+total_tablas_esperado = 71
 
 # Tablas que existen a proposito en varias bases. Son la excepcion declarada,
 # no un descuido: cada servicio necesita su propia bandeja de salida local para
@@ -128,6 +128,7 @@ tablas = [
     "trabajo_pipeline",
     "etapa_trabajo",
     "bandeja_salida",
+    "kit_canonico",
 ]
 
 [servicios.comercio]
@@ -357,6 +358,40 @@ hacia = "inteligencia.kit"
 desde = "operacion.evento_clickout.producto_canonico_id"
 hacia = "catalogo.producto_canonico"
 
+[[referencias_cruzadas]]
+desde = "operacion.caso.trabajo_id"
+hacia = "inteligencia.trabajo_pipeline"
+nota = "De que trabajo del pipeline salio el caso. Nulo en un caso general que no viene de un trabajo."
+
+[[referencias_cruzadas]]
+desde = "operacion.caso.pedido_id"
+hacia = "comercio.pedido"
+nota = """
+El pedido al que se refiere el caso (una incidencia de pago o de entrega). Nulo
+cuando el caso no es sobre un pedido. Referencia logica: el pedido vive en la
+base de Comercio y Operacion no puede imponerle una llave foranea.
+"""
+
+[[referencias_cruzadas]]
+desde = "operacion.caso.asignado_a_id"
+hacia = "identidad.usuario"
+nota = """
+El operador que gestiona el caso. Nulo mientras nadie lo toma. Se llama con
+sufijo `_id` a proposito para que la prueba de fronteras lo detecte y exija esta
+declaracion; si fuera `asignado_a` cruzaria a Identidad en silencio.
+"""
+
+# --- Comercio ---
+
+[[referencias_cruzadas]]
+desde = "comercio.pedido.trabajo_id"
+hacia = "inteligencia.trabajo_pipeline"
+nota = """
+De que trabajo publicado del pipeline nacio el pedido, para cruzar el back-office
+de logistica con la cola de revision. Nulo porque un pedido puede entrar por otra
+via el dia que exista.
+"""
+
 # --- Catalogo ---
 
 [[referencias_cruzadas]]
@@ -379,6 +414,26 @@ foraneas fisicas: ambos conceptos viven en esta misma base.
 desde = "catalogo.lista_oficial.colegio_id"
 hacia = "identidad.colegio"
 nota = "La lista oficial es vocabulario de catalogo; la tenencia del colegio vive en Identidad."
+
+[[referencias_cruzadas]]
+desde = "inteligencia.kit_canonico.colegio_id"
+hacia = "identidad.colegio"
+nota = """
+El puntero a la cache de kits benditos se indexa por (colegio, grado, anio). El
+colegio vive en Identidad; aqui es la llave con la que el acudiente elige su
+grado en /empezar y con la que la ruta de aplicacion encuentra los kits ya
+validados. La integridad se apoya en que el colegio ya existia cuando su lista
+se importo (misma garantia que `catalogo.lista_oficial.colegio_id`)."""
+
+[[referencias_cruzadas]]
+desde = "catalogo.tarea_importacion.colegio_id"
+hacia = "identidad.colegio"
+nota = """
+El destino declarado por quien importo una lista, redundante con la lista pero
+util para diagnosticar una importacion que fallo ANTES de resolverla. Referencia
+logica y nullable: una importacion mal formada puede no traer aun un colegio
+valido. La tenencia del colegio vive en Identidad.
+"""
 
 [[referencias_cruzadas]]
 desde = "catalogo.version_lista_oficial.revisada_por"

@@ -1,0 +1,465 @@
+/* Estilos del onboarding y su revisor de cuatro paneles (P4). Un solo módulo
+ * para el formulario de subida y el revisor porque son el mismo flujo: subir
+ * una lista y aprobarla. Tokens compartidos desde `@tukit/contrato/tokens.css`. */
+
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-5);
+}
+
+.encabezado {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--espacio-5);
+  flex-wrap: wrap;
+}
+
+.encabezado h1 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.bajada {
+  max-width: 64ch;
+  margin-top: var(--espacio-1);
+  color: var(--color-text-secondary);
+}
+
+.migas {
+  font-size: 13px;
+}
+
+.migas a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.migas a:hover {
+  text-decoration: underline;
+}
+
+/* ------------------------------------------------------ formulario de subida */
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-4);
+  padding: var(--espacio-5);
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.dosColumnas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--espacio-4);
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.campo > span:first-child {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.campo input,
+.campo select {
+  padding: var(--espacio-2) var(--espacio-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font: inherit;
+}
+
+.campo input:focus,
+.campo select:focus {
+  outline: 2px solid var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+
+.pistaError {
+  font-size: 12px;
+  color: var(--color-danger);
+}
+
+/* -------------------------------------------------------------- zona archivo */
+
+.zonaArchivo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+}
+
+.reglaArchivo {
+  padding: var(--espacio-3);
+  background: var(--color-aviso-bg);
+  border: 1px solid var(--color-aviso-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-aviso);
+  font-size: 13px;
+}
+
+.inputArchivo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.soltar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: var(--espacio-5);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: center;
+  color: var(--color-text-secondary);
+  transition: border-color var(--dur-rapido) var(--ease-suave);
+}
+
+.soltar:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.soltar strong {
+  color: var(--color-text);
+}
+
+.soltar span {
+  font-size: 12.5px;
+}
+
+.archivoElegido {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- acción */
+
+.barraAccion {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-3);
+  flex-wrap: wrap;
+}
+
+.principal {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  padding: var(--espacio-2) var(--espacio-4);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.principal:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* La acción de previsualizar: distinta del publicar (contorno, no relleno) para
+   que quede claro que no aprueba nada. */
+.secundario {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  padding: var(--espacio-2) var(--espacio-4);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secundario:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.faltante {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.errorCaja {
+  padding: var(--espacio-3) var(--espacio-4);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+}
+
+/* ---------------------------------------------- revisor de cuatro paneles */
+
+.regiones {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--espacio-4);
+}
+
+@media (max-width: 900px) {
+  .regiones {
+    grid-template-columns: 1fr;
+  }
+}
+
+.region {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  padding: var(--espacio-4);
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+  min-width: 0;
+}
+
+.regionAncha {
+  grid-column: 1 / -1;
+}
+
+.regionCabecera {
+  display: flex;
+  align-items: baseline;
+  gap: var(--espacio-2);
+}
+
+.regionCabecera h2 {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.regionNumero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font-cifras);
+}
+
+.marco {
+  width: 100%;
+  height: 620px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.crudo {
+  max-height: 620px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+}
+
+.crudoPagina {
+  padding: var(--espacio-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.crudoPagina h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+
+.crudoTexto {
+  white-space: pre-wrap;
+  font-family: var(--font-cifras);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ------------------------------------------------- ítems percibidos (region 3) */
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  max-height: 620px;
+  overflow: auto;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--espacio-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.itemLinea {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espacio-2);
+}
+
+.itemTexto {
+  font-weight: 600;
+}
+
+.itemMeta {
+  display: flex;
+  gap: var(--espacio-2);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-family: var(--font-cifras);
+}
+
+.confianza {
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  color: var(--color-success);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.confianzaBaja {
+  background: var(--color-aviso-bg);
+  border-color: var(--color-aviso-border);
+  color: var(--color-aviso);
+}
+
+.pendienteContrato {
+  padding: var(--espacio-3);
+  border: 1px dashed var(--color-aviso-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-aviso-bg);
+  color: var(--color-aviso);
+  font-size: 13px;
+}
+
+/* ------------------------- controles de edición/alta de ítem (region 3) */
+
+.concepto {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.conceptoSugerido {
+  font-style: italic;
+  color: var(--color-aviso);
+}
+
+.conceptoRevision {
+  color: var(--color-danger);
+}
+
+.itemAcciones {
+  display: flex;
+  gap: var(--espacio-2);
+  flex-wrap: wrap;
+}
+
+.botonMini {
+  padding: 4px var(--espacio-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.botonMini:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.botonMini:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  padding-top: var(--espacio-2);
+  border-top: 1px dashed var(--color-border);
+}
+
+.candidatos {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.candidato {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espacio-2);
+  padding: 4px var(--espacio-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.candidatoPuntaje {
+  font-family: var(--font-cifras);
+  color: var(--color-text-muted);
+}
+
+.itemError {
+  font-size: 12px;
+  color: var(--color-danger);
+}
+
+.altaItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  padding: var(--espacio-3);
+  border: 1px dashed var(--color-primary);
+  border-radius: var(--radius-sm);
+}
+
+.aviso404 {
+  padding: var(--espacio-6);
+  text-align: center;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}

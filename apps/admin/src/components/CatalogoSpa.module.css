@@ -1,0 +1,617 @@
+/* Estilos de la SPA de catálogo (P4c): buscador, tabla paginada, editor de
+ * todos los campos, panel de reclasificación y baja suave. Un solo módulo
+ * compartido por los componentes del slice (`GestorCatalogo`, `TablaProductos`,
+ * `EditorProducto`, `PanelReclasificar`), igual que `Revision.module.css` es
+ * uno para los cuatro de la revisión: son un widget partido por tamaño, no
+ * piezas reutilizables sueltas. Naming BEM-like, tokens compartidos. */
+
+.spa {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-4);
+}
+
+/* --------------------------------------------------------------- buscador */
+
+.buscador {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  padding: var(--espacio-4);
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.buscadorFila {
+  display: flex;
+  gap: var(--espacio-2);
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.campoBusqueda {
+  flex: 1;
+  min-width: 220px;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.campo label {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+}
+
+.campo input,
+.campo select,
+.campo textarea {
+  padding: 6px var(--espacio-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  font-size: 13px;
+}
+
+.campo textarea {
+  resize: vertical;
+  min-height: 56px;
+}
+
+.banderas {
+  display: flex;
+  gap: var(--espacio-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.bandera {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.bandera input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+/* ------------------------------------------------ rejilla de productos
+ * La vista de productos es una REJILLA DE TARJETAS (como el gestor del MS),
+ * no una tabla: cada producto se lee como una ficha con foto grande, pastilla
+ * de nivel, nombre, precio y metadatos. Cambia a editor al hacer click. */
+
+.tablaEnvoltura {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-4);
+}
+
+.tablaCabecera {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espacio-3);
+  flex-wrap: wrap;
+  padding: 0 var(--espacio-1);
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}
+
+.conteo {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.rejillaProductos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(216px, 1fr));
+  gap: var(--espacio-4);
+}
+
+/* La tarjeta es un botón real (accesible por teclado), no un div con onClick. */
+.tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  padding: var(--espacio-3);
+  text-align: left;
+  background: var(--clay-surface-grad);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+  cursor: pointer;
+  transition:
+    transform var(--dur-rapido) var(--ease-suave),
+    box-shadow var(--dur-rapido) var(--ease-suave);
+}
+
+.tarjeta:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--clay-shadow);
+}
+
+.tarjeta:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+.tarjetaActiva,
+.tarjetaActiva:hover {
+  box-shadow: var(--clay-shadow), inset 0 0 0 2px var(--color-primary);
+}
+
+.tarjetaFoto,
+.tarjetaFotoVacia {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+  border: 1px solid var(--color-border-light);
+}
+
+.tarjetaFotoVacia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+}
+
+.tarjetaPildoras {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  min-height: 18px;
+}
+
+.tarjetaNombre {
+  font-weight: 700;
+  font-size: 13.5px;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.6em;
+}
+
+.skuMono {
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+  font-family: var(--font-cifras, monospace);
+}
+
+.tarjetaPie {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--espacio-2);
+  margin-top: auto;
+  padding-top: var(--espacio-2);
+  border-top: 1px solid var(--color-border-light);
+}
+
+.tarjetaPrecio {
+  font-size: 17px;
+  font-weight: 800;
+  font-family: var(--font-display);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tarjetaMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+.tarjetaTiendas {
+  font-variant-numeric: tabular-nums;
+}
+
+.nivelPildora {
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid currentColor;
+  font-weight: 700;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.nivel_economico {
+  color: var(--color-nivel-economico);
+}
+
+.nivel_confiable {
+  color: var(--color-nivel-confiable);
+}
+
+.nivel_premium {
+  color: var(--color-nivel-premium);
+}
+
+.personajePildora {
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-personaje-bg);
+  color: var(--color-personaje);
+  font-weight: 700;
+  font-size: 10.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.sinDato {
+  color: var(--color-text-muted);
+}
+
+/* ------------------------------------------------------------ paginación */
+
+.paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espacio-4);
+  padding: var(--espacio-3) var(--espacio-4);
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+  font-size: 13px;
+}
+
+.paginaActual {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  min-width: 9ch;
+  text-align: center;
+}
+
+.vacioTabla {
+  padding: var(--espacio-6);
+  text-align: center;
+  color: var(--color-text-secondary);
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+/* -------------------------------------------------------- panel de edición */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  padding: var(--espacio-4);
+  background: var(--color-white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm), inset 0 0 0 2px var(--color-primary-light);
+}
+
+.panelCabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-3);
+  flex-wrap: wrap;
+}
+
+.panelCabecera h2 {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.panelSku {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  font-family: var(--font-cifras, monospace);
+}
+
+.rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--espacio-3);
+}
+
+.campoAncho {
+  grid-column: 1 / -1;
+}
+
+.subtitulo {
+  grid-column: 1 / -1;
+  margin-top: var(--espacio-2);
+  padding-top: var(--espacio-2);
+  border-top: 1px dashed var(--color-border);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+
+.ayuda {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.ayudaError {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+/* imagen: campo URL + vista previa en vivo */
+
+.imagenBloque {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: var(--espacio-3);
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.imagenCampo {
+  flex: 1;
+  min-width: 240px;
+}
+
+.previa,
+.previaVacia {
+  width: 84px;
+  height: 84px;
+  flex: none;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+}
+
+.previaVacia {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: 10.5px;
+  text-align: center;
+  padding: 4px;
+}
+
+/* atributos: editor clave-valor */
+
+.atributos {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+}
+
+.atributoFila {
+  display: flex;
+  gap: var(--espacio-2);
+  align-items: center;
+}
+
+.atributoFila input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px var(--espacio-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  font-size: 13px;
+}
+
+.datosSoloLectura {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: var(--espacio-4);
+  flex-wrap: wrap;
+  padding: var(--espacio-2) var(--espacio-3);
+  background: var(--color-surface-2);
+  border-radius: var(--radius-sm);
+}
+
+.datosSoloLectura dt {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.datosSoloLectura dd {
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+/* --------------------------------------------------- panel reclasificar */
+
+.reclasificar {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  padding: var(--espacio-3);
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info-border);
+  border-radius: var(--radius-md);
+}
+
+.reclasificar h3 {
+  font-size: 12.5px;
+  color: var(--color-info);
+}
+
+.reclasificarFila {
+  display: flex;
+  gap: var(--espacio-2);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.reclasificarFila select {
+  flex: 1;
+  min-width: 200px;
+}
+
+.nota {
+  font-size: 11.5px;
+  color: var(--color-text-secondary);
+}
+
+/* ------------------------------------------------------------ acciones */
+
+.acciones {
+  display: flex;
+  gap: var(--espacio-2);
+  flex-wrap: wrap;
+  align-items: center;
+  padding-top: var(--espacio-2);
+  border-top: 1px solid var(--color-border-light);
+}
+
+.separador {
+  flex: 1;
+}
+
+.principal,
+.secundario,
+.peligro {
+  padding: 7px 15px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: transform var(--dur-rapido) var(--ease-suave);
+}
+
+.principal:hover:not(:disabled),
+.secundario:hover:not(:disabled),
+.peligro:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.principal:active:not(:disabled),
+.secundario:active:not(:disabled),
+.peligro:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.principal {
+  background: linear-gradient(145deg, var(--clay-cielo) 0%, var(--color-primary) 100%);
+  color: var(--color-white);
+  box-shadow: var(--clay-shadow-primary);
+}
+
+.secundario {
+  background: var(--color-white);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.secundario:hover:not(:disabled) {
+  color: var(--color-primary);
+}
+
+.peligro {
+  background: var(--color-danger);
+  color: var(--color-white);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.principal:disabled,
+.secundario:disabled,
+.peligro:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.error {
+  padding: var(--espacio-2) var(--espacio-3);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+  font-size: 13px;
+}
+
+.exito {
+  padding: var(--espacio-2) var(--espacio-3);
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-success);
+  font-size: 13px;
+}
+
+/* confirmación de baja */
+
+.confirmBaja {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  width: 100%;
+  padding: var(--espacio-3);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-sm);
+}
+
+.confirmBaja p {
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+/* --------------------------------------------------------------- pestañas
+ * Cambian entre las cuatro vistas de /catalogo (productos, cola, alta de útil,
+ * alta de libro). Presentación mínima reusando los tokens del slice. */
+.pestanas {
+  display: flex;
+  gap: var(--espacio-1);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--espacio-4);
+}
+
+.pestana {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: var(--espacio-2) var(--espacio-3);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.pestana:hover {
+  color: var(--color-text-primary);
+}
+
+.pestanaActiva {
+  color: var(--color-text-primary);
+  border-bottom-color: var(--color-primary);
+}

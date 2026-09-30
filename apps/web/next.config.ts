@@ -6,6 +6,10 @@ import type { NextConfig } from "next";
 // build que hay que recordar correr. A cambio, Next tiene que transpilarlo.
 const nextConfig: NextConfig = {
   transpilePackages: ["@tukit/contrato"],
+  // Next 16 bloquea recursos de dev (HMR, chunks de cliente) si el host no es
+  // localhost. En pruebas se entra por 127.0.0.1 / la IP de red; sin esto el JS
+  // de cliente no carga (ni anima la linea de tiempo ni responden los chips).
+  allowedDevOrigins: ["127.0.0.1"],
   // La raiz del workspace, para que Next no adivine cual de los dos
   // `package.json` manda y no avise de lockfiles multiples.
   outputFileTracingRoot: join(import.meta.dirname, "../.."),

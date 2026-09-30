@@ -28,6 +28,7 @@ from sqlalchemy import (
     LargeBinary,
     SmallInteger,
     String,
+    Text,
     UniqueConstraint,
     Uuid,
     func,
@@ -46,7 +47,27 @@ class Colegio(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     nombre: Mapped[str] = mapped_column(String(256), nullable=False)
     nit: Mapped[str | None] = mapped_column(String(32), nullable=True, unique=True)
+    # El codigo DANE del DUEB, distinto del NIT tributario. Es la llave natural
+    # de la que Catalogo deriva el `colegio_id`, pero hasta ahora vivia plegado
+    # dentro de `nit`; se separa aqui para poder leer el directorio oficial y
+    # mostrar su ficha. Nulable (los colegios sembrados nacen sin el) y NO unico:
+    # varios colegios sin DANE conviven sin chocar.
+    dane: Mapped[str | None] = mapped_column(String(12), nullable=True)
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # El perfil institucional que el padre reconoce en la tarjeta de partner y
+    # que el administrador completa. Son datos de la INSTITUCION, no del menor:
+    # no les toca el cifrado del Anexo M que sí protege al estudiante en este
+    # mismo modelo, así que viajan en claro por la superficie pública. Todos
+    # nulables: los colegios sembrados nacen sin perfil y se completa después.
+    # `Text`, no `String(n)`: el logo puede llegar como URL corta o como data-URI
+    # (`data:image/...;base64,...`) que el revisor pega/sube, y eso desborda
+    # cualquier limite razonable. Es dato institucional publico, sin PII.
+    logo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sitio_web: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    contacto_nombre: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    contacto_email: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    contacto_telefono: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    direccion: Mapped[str | None] = mapped_column(String(512), nullable=True)
     creado_en: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -168,6 +189,11 @@ class AcudienteMatricula(Base):
     )
     parentesco: Mapped[str] = mapped_column(String(32), nullable=False, default="acudiente")
     es_principal: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Como el acudiente llama a su hijo. Ley 1581 / Anexo M: el sistema nunca
+    # guarda el nombre del menor en claro; el padre lo refiere por un apodo, y
+    # hasta el apodo va cifrado porque singulariza al menor. Nulable: los
+    # vinculos sembrados por prueba pueden no tenerlo.
+    apodo_cifrado: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     vigente_desde: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

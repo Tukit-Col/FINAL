@@ -24,14 +24,21 @@ saber cual es.
 
 from __future__ import annotations
 
+import contextvars
 import os
-from collections.abc import Callable
-from typing import Any
+import uuid
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
+from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+if TYPE_CHECKING:
+    import httpx
 
 # Los dos puertos en los que arranca un Next.js recien creado. Se ponen por
 # omision porque el caso de desarrollo es el 100 % de los usos de hoy y
@@ -39,6 +46,42 @@ from fastapi.responses import JSONResponse
 # friccion sin contrapartida. En produccion se sobreescribe con
 # `TUKIT_CORS_ORIGENES`, separando con comas.
 ORIGENES_POR_OMISION = ("http://localhost:3000", "http://127.0.0.1:3000")
+
+# El id de correlacion: una sola cadena que sigue una peticion a traves de todos
+# los servicios que toca. Sin esto, un fallo en la saga de pago deja cinco logs
+# en cinco servicios sin forma de saber que son la misma peticion. Se guarda en
+# un `contextvar` (no un global de modulo) porque el servidor atiende varias
+# peticiones async a la vez y un global las mezclaria. La cabecera es la
+# convencion de facto (`x-correlation-id`), en minusculas porque HTTP no
+# distingue mayusculas y asi se compara sin normalizar.
+CABECERA_CORRELACION = "x-correlation-id"
+_correlacion: contextvars.ContextVar[str | None] = contextvars.ContextVar("correlacion_id", default=None)
+
+
+def id_de_correlacion() -> str | None:
+    """El id de correlacion de la peticion en curso, o `None` fuera de una.
+
+    `None` fuera de un ciclo de peticion (un poller, un CLI): no se inventa un
+    id para trabajo que nadie pidio por HTTP, y quien propaga trata `None` como
+    "no anexar cabecera".
+    """
+    return _correlacion.get()
+
+
+def fijar_correlacion(cid: str | None) -> contextvars.Token[str | None]:
+    """Fija el id de correlacion en el contexto actual y devuelve el token.
+
+    Lo usa el drenador de la bandeja (`tukit_comun.bandeja`) para RE-VINCULAR el
+    id que viajo en la carga del evento antes de manejarlo: asi un evento drenado
+    del outbox recupera el hilo de la peticion que lo origino (cierra el hueco de
+    §A.6). Quien lo llama debe hacer `_correlacion.reset(token)` al terminar, o
+    usar el mismo patron del middleware. `reset_correlacion` lo encapsula."""
+    return _correlacion.set(cid)
+
+
+def reset_correlacion(token: contextvars.Token[str | None]) -> None:
+    """Deshace un `fijar_correlacion`, para no filtrar el id al siguiente uso."""
+    _correlacion.reset(token)
 
 
 class ErrorDominio(Exception):
@@ -62,6 +105,80 @@ class ErrorDominio(Exception):
         if self.campo is not None:
             sobre["campo"] = self.campo
         return sobre
+
+
+def iso(valor: datetime | None) -> str | None:
+    """Fecha a texto ISO-8601, o `None` si no hay fecha.
+
+    Vive aqui porque comercio y operacion serializaban lo mismo con dos copias
+    identicas de este ayudante. `None` es "no hay fecha", no una cadena vacia:
+    el contrato distingue "sin entregar" de "entregado en fecha desconocida".
+    """
+    return valor.isoformat() if valor is not None else None
+
+
+@asynccontextmanager
+async def cliente_efimero(
+    cliente: httpx.AsyncClient | None, espera: float
+) -> AsyncIterator[httpx.AsyncClient]:
+    """El cliente httpx inyectado, o uno propio que se cierra al salir.
+
+    Los tres `remoto.py` (catalogo, identidad, operacion) repetian el mismo
+    baile: `propio = self.cliente is None; cliente = self.cliente or AsyncClient();
+    try: ... finally: if propio: await cliente.aclose()`. El patron compartido es
+    SOLO el ciclo de vida del cliente —tomar el inyectado (para las pruebas) o
+    abrir uno efimero y cerrarlo—; el manejo de errores de cada metodo (levantar
+    vs devolver None, tratar el 404) es distinto a proposito y se queda en cada
+    cliente. Por eso esto es un context manager y no una clase base con logica.
+    """
+    import httpx
+
+    # El id de correlacion viaja como cabecera por omision del cliente, asi que
+    # se propaga a TODA llamada saliente sin tocar cada `remoto.py`. Es aditivo:
+    # si no hay id (un poller, un CLI) no se anexa nada, y una cabecera que el
+    # metodo llamante pase explicitamente en `headers=` gana, porque va por
+    # peticion y las de omision no la pisan.
+    cid = _correlacion.get()
+    cabeceras = {CABECERA_CORRELACION: cid} if cid else None
+
+    if cliente is not None:
+        yield cliente
+        return
+    propio = httpx.AsyncClient(timeout=espera, headers=cabeceras)
+    try:
+        yield propio
+    finally:
+        await propio.aclose()
+
+
+async def _sellar_correlacion(peticion: Any) -> None:
+    """Estampa el id de correlacion VIVO en cada peticion saliente del pool.
+
+    Un cliente de pool vive entre peticiones, asi que el id NO puede ir como
+    cabecera por omision (quedaria congelado el de la primera peticion). Este
+    hook lo lee del contextvar en cada salida, que es donde `cliente_efimero`
+    ponia la cabecera para el cliente efimero. Aditivo: sin id, no anexa nada;
+    una cabecera explicita del llamante ya viene puesta y no se pisa."""
+    cid = _correlacion.get()
+    if cid and CABECERA_CORRELACION not in peticion.headers:
+        peticion.headers[CABECERA_CORRELACION] = cid
+
+
+def crear_pool(*, espera: float, conexiones: int = 20) -> httpx.AsyncClient:
+    """Un cliente httpx de vida larga (bulkhead por destino, ADR 0020).
+
+    Reusa conexiones en vez de abrir una por llamada (lo que hacia el efimero),
+    y su `Limits` acota cuantas hay en vuelo hacia UN destino: si ese destino se
+    degrada, la saturacion no se derrama a los demas. El id de correlacion se
+    estampa por peticion via `event_hook` (no cabecera por omision, ver arriba).
+    Lo crea el `_arrancar` de cada servicio y lo cierra el `_apagar`."""
+    import httpx
+
+    return httpx.AsyncClient(
+        timeout=espera,
+        limits=httpx.Limits(max_connections=conexiones, max_keepalive_connections=conexiones),
+        event_hooks={"request": [_sellar_correlacion]},
+    )
 
 
 def origenes_permitidos() -> list[str]:
@@ -88,8 +205,10 @@ def crear_app(
     """
     from contextlib import asynccontextmanager
 
+    from .registro import configurar_registro
+
     @asynccontextmanager
-    async def ciclo(app: FastAPI):
+    async def ciclo(app: FastAPI) -> AsyncIterator[None]:
         if al_arrancar is not None:
             await al_arrancar(app)
         try:
@@ -108,6 +227,28 @@ def crear_app(
         allow_headers=["*"],
     )
 
+    @app.middleware("http")
+    async def _correlacion_mw(peticion: Request, siguiente: Callable[[Request], Any]) -> Any:
+        # Toma el id que llega (el gateway lo acuña en el borde, ver
+        # `tukit_gateway.api`), o acuña uno si esta peticion entra directo al
+        # servicio. Se guarda en el contextvar de ESTA peticion para que las
+        # llamadas salientes (via `cliente_efimero`) y el sobre de error lo
+        # lleven sin pasarlo a mano, y se resetea al salir para no filtrarlo a
+        # la siguiente peticion que reuse el hilo/tarea.
+        cid = peticion.headers.get(CABECERA_CORRELACION) or uuid.uuid4().hex
+        token = _correlacion.set(cid)
+        try:
+            respuesta = await siguiente(peticion)
+        finally:
+            _correlacion.reset(token)
+        respuesta.headers[CABECERA_CORRELACION] = cid
+        return respuesta
+
+    # Los dos manejadores devuelven el sobre EXACTO del contrato (nada mas: el
+    # test fija `set(cuerpo) == {error, mensaje, campo}`). El id de correlacion
+    # no va en el cuerpo sino en la cabecera, y no hace falta ponerlo aqui: la
+    # respuesta de estos manejadores vuelve a salir por `_correlacion_mw` (que
+    # envuelve al ExceptionMiddleware), y alli se le pega la cabecera.
     @app.exception_handler(ErrorDominio)
     async def _dominio(_peticion: Request, error: ErrorDominio) -> JSONResponse:
         return JSONResponse(status_code=error.estado, content=error.cuerpo())
@@ -128,8 +269,42 @@ def crear_app(
             },
         )
 
+    configurar_registro(titulo)
+
+    from .metricas import configurar_metricas
+    from .telemetria import configurar_telemetria
+
+    configurar_telemetria(app, titulo)
+    configurar_metricas()
+
     @app.get("/salud", tags=["salud"], summary="Sonda de vida del servicio")
     async def salud() -> dict[str, str]:
         return {"estado": "ok", "servicio": titulo, "version": version}
+
+    # Liveness vs readiness (ADR 0021): `/health/live` dice "el loop respira" (no
+    # toca base: si respondiera 200 solo con base arriba, un orquestador reiniciaria
+    # el proceso por una caida de base que el reinicio no arregla). `/health/ready`
+    # dice "puedo atender": prueba la base con un `SELECT 1` sobre el pool (que ya
+    # hace `pool_pre_ping`). `/salud` se conserva como alias de liveness.
+    @app.get("/health/live", tags=["salud"], summary="Liveness: el proceso responde")
+    async def live() -> dict[str, str]:
+        return {"estado": "vivo", "servicio": titulo}
+
+    @app.get("/health/ready", tags=["salud"], summary="Readiness: listo para atender")
+    async def ready() -> JSONResponse:
+        from sqlalchemy import text
+
+        motor = getattr(app.state, "motor", None)
+        if motor is None:  # un servicio sin base (el gateway) esta listo si responde
+            return JSONResponse({"estado": "listo", "servicio": titulo})
+        try:
+            async with motor.engine.connect() as conexion:
+                await conexion.execute(text("SELECT 1"))
+        except Exception as error:  # noqa: BLE001 — el detalle va al cuerpo, no se traga
+            return JSONResponse(
+                status_code=503,
+                content={"estado": "no_listo", "servicio": titulo, "detalle": str(error)},
+            )
+        return JSONResponse({"estado": "listo", "servicio": titulo})
 
     return app

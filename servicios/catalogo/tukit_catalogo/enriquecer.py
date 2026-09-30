@@ -40,6 +40,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from . import tiendas
+from .embeddings import Embeder, texto_de_producto
 
 # ---------------------------------------------------------------------------
 # Vocabularios
@@ -344,6 +345,7 @@ PERSONAJES = (
     ("mandaloriano", "Star Wars"),
     ("hot wheels", "Hot Wheels"),
     ("peppa pig", "Peppa Pig"),
+    ("pikachu", "Pokemon"),
     ("pokemon", "Pokemon"),
     ("naruto", "Naruto"),
     ("sonic", "Sonic"),
@@ -355,6 +357,10 @@ PERSONAJES = (
     ("kiut", "Kiut"),
     ("totto", "Totto"),
     ("cars", "Cars"),
+    # `disney` es un paraguas, no una franquicia: va de ULTIMO a proposito, para
+    # que un "Morral Disney Frozen" lo reclame Frozen (mas arriba) y solo caiga
+    # en Disney lo que no dice otra cosa mas especifica.
+    ("disney", "disney"),
 )
 
 
@@ -938,6 +944,50 @@ def imagen_desde_ficha(url_oferta: str) -> str | None:
 
 
 # ---------------------------------------------------------------------------
+# Embeddings (canal semantico de la busqueda hibrida, OE3)
+# ---------------------------------------------------------------------------
+
+
+def embeddings_a_actualizar(productos: list[dict[str, Any]], embeder: Embeder) -> list[dict[str, Any]]:
+    """Que embeddings hay que (re)calcular, y con que texto.
+
+    Es idempotente por diseno, que es lo que permite correr el backfill sobre
+    todo el corpus sin gastar una llamada por producto cada vez: se recalcula
+    solo cuando el TEXTO del que sale el vector cambio, o cuando no habia
+    vector. `texto_embedding` guardado es la huella; si coincide con el texto
+    de ahora, el vector sigue valiendo. Esto separa el QUE de la escritura a
+    base y del transporte, para poder probarlo sin red ni motor: se inyecta
+    `embeder` (el falso en pruebas, Gemini en produccion).
+
+    El embeder se llama UNA vez con todos los textos pendientes: los
+    proveedores cobran y tardan por peticion, no por vector, y un lote es una
+    peticion. La lista devuelta tiene la forma que `_guardar_embeddings`
+    espera (`pid`, `embedding`, `embedding_model`, `texto_embedding`).
+    """
+    modelo = getattr(embeder, "modelo", None) or getattr(embeder, "__name__", "embeder")
+    pendientes: list[tuple[dict[str, Any], str]] = []
+    for p in productos:
+        texto = texto_de_producto(p.get("nombre", ""), p.get("concepto"), p.get("atributos"))
+        vigente = p.get("texto_embedding") == texto and p.get("embedding_model") == modelo
+        if not vigente:
+            pendientes.append((p, texto))
+
+    if not pendientes:
+        return []
+
+    vectores = embeder([texto for _, texto in pendientes])
+    return [
+        {
+            "pid": p["id"],
+            "embedding": vector,
+            "embedding_model": modelo,
+            "texto_embedding": texto,
+        }
+        for (p, texto), vector in zip(pendientes, vectores, strict=True)
+    ]
+
+
+# ---------------------------------------------------------------------------
 # Aplicacion
 # ---------------------------------------------------------------------------
 
@@ -966,23 +1016,32 @@ async def _cargar_contexto() -> tuple[list[dict[str, Any]], dict[str, tuple[str,
                         producto.c.unidades_por_empaque,
                         producto.c.atributos,
                         producto.c.personaje,
+                        # La huella del embedding: con que texto y que modelo se
+                        # calculo el vector que ya esta en la fila. Es lo que
+                        # hace idempotente el backfill (ver embeddings_a_actualizar).
+                        producto.c.texto_embedding,
+                        producto.c.embedding_model,
                     )
                 )
             ]
-            requeridos = {
-                # Los DOS, discriminantes y descriptivos. El enriquecedor
-                # llena todo lo que se pueda leer: un descriptivo no filtra
+            requeridos: dict[str, tuple[str, ...]] = {}
+            nombres_concepto: dict[str, str] = {}
+            for f in await conexion.execute(
+                select(
+                    concepto.c.id,
+                    concepto.c.nombre_canonico,
+                    concepto.c.atributos_discriminantes,
+                    concepto.c.atributos_descriptivos,
+                )
+            ):
+                # Los DOS, discriminantes y descriptivos. El enriquecedor llena
+                # todo lo que se pueda leer: un descriptivo no filtra
                 # candidatos, pero si se le muestra al acudiente, y dejarlo
                 # vacio lo deja mirando una ficha en blanco.
-                str(f.id): tuple(f.atributos_discriminantes or ()) + tuple(f.atributos_descriptivos or ())
-                for f in await conexion.execute(
-                    select(
-                        concepto.c.id,
-                        concepto.c.atributos_discriminantes,
-                        concepto.c.atributos_descriptivos,
-                    )
+                requeridos[str(f.id)] = tuple(f.atributos_discriminantes or ()) + tuple(
+                    f.atributos_descriptivos or ()
                 )
-            }
+                nombres_concepto[str(f.id)] = f.nombre_canonico
             urls: dict[str, list[str]] = {}
             for f in await conexion.execute(
                 select(oferta.c.producto_canonico_id, oferta.c.url).where(oferta.c.url.is_not(None))
@@ -990,7 +1049,40 @@ async def _cargar_contexto() -> tuple[list[dict[str, Any]], dict[str, tuple[str,
                 urls.setdefault(str(f.producto_canonico_id), []).append(f.url)
     finally:
         await motor.cerrar()
-    return productos, requeridos, urls
+    return productos, requeridos, urls, nombres_concepto
+
+
+async def _guardar_embeddings(cambios: list[dict[str, Any]]) -> None:
+    """Escribe los vectores calculados en `producto_canonico`.
+
+    Va en su propia transaccion, aparte de `_guardar` (empaque, atributos,
+    imagen), porque el embedding sale de un puerto externo que puede fallar o
+    no estar configurado: separarlo deja que el enriquecimiento del nombre —que
+    nunca sale a la red— se escriba aunque el canal semantico no corra.
+    """
+    if not cambios:
+        return
+    from sqlalchemy import bindparam, update
+    from tukit_comun.bd import crear_motor
+
+    from .modelos import Base
+
+    producto = Base.metadata.tables["producto_canonico"]
+    motor = crear_motor("catalogo")
+    try:
+        async with motor.engine.begin() as conexion:
+            sentencia = (
+                update(producto)
+                .where(producto.c.id == bindparam("pid"))
+                .values(
+                    embedding=bindparam("embedding"),
+                    embedding_model=bindparam("embedding_model"),
+                    texto_embedding=bindparam("texto_embedding"),
+                )
+            )
+            await conexion.execute(sentencia, cambios)
+    finally:
+        await motor.cerrar()
 
 
 async def _guardar(cambios: list[dict[str, Any]]) -> None:
@@ -1034,8 +1126,8 @@ async def _guardar(cambios: list[dict[str, Any]]) -> None:
         await motor.cerrar()
 
 
-async def _principal(con_imagenes: bool, solo_validar: bool) -> int:
-    productos, requeridos, urls = await _cargar_contexto()
+async def _principal(con_imagenes: bool, solo_validar: bool, con_embeddings: bool = True) -> int:
+    productos, requeridos, urls, nombres_concepto = await _cargar_contexto()
 
     imagenes: dict[str, str] = {}
     de_ficha: dict[str, dict[str, Any]] = {}
@@ -1120,21 +1212,65 @@ async def _principal(con_imagenes: bool, solo_validar: bool) -> int:
     print(f"  productos con imagen               {con_img:5}/{total}")
     print(f"  productos con personaje            {con_personaje:5}/{total}")
 
+    # El canal semantico (OE3). El texto que se embebe se arma de lo YA
+    # enriquecido —nombre + concepto + atributos finales—, no del crudo, para
+    # que el vector situe al producto por lo que de verdad es. Se decide el
+    # embeder por el entorno: con GEMINI_API_KEY, el real; sin ella, ninguno,
+    # y se dice —no se inventa un vector falso en produccion—.
+    plan_embeddings: list[dict[str, Any]] = []
+    if con_embeddings:
+        embeder = _embeder_por_entorno()
+        if embeder is None:
+            print("\n(sin GEMINI_API_KEY: no se calculan embeddings)")
+        else:
+            por_pid = {str(c["pid"]): c for c in cambios}
+            para_embeber = [
+                {
+                    "id": p["id"],
+                    "nombre": p["nombre"],
+                    "concepto": nombres_concepto.get(str(p["concepto_id"])),
+                    "atributos": por_pid[str(p["id"])]["atributos"],
+                    "texto_embedding": p.get("texto_embedding"),
+                    "embedding_model": p.get("embedding_model"),
+                }
+                for p in productos
+            ]
+            plan_embeddings = embeddings_a_actualizar(para_embeber, embeder)
+            print(f"  embeddings a (re)calcular          {len(plan_embeddings):5}/{total}")
+
     if solo_validar:
         print("\n(--solo-validar: no se escribio nada)")
         return 0
 
     await _guardar(cambios)
+    await _guardar_embeddings(plan_embeddings)
     print("\nEscrito.")
     return 0
+
+
+def _embeder_por_entorno() -> Embeder | None:
+    """El embeder real si hay clave, ninguno si no.
+
+    Se elige por entorno y no por bandera para que el mismo comando haga lo
+    correcto en cada sitio: con clave (produccion, E2E) puebla el canal
+    semantico; sin ella (un dev sin credenciales) enriquece nombre e imagenes
+    y calla el vector, en vez de fallar o fingirlo. Las pruebas no pasan por
+    aqui: inyectan el embeder falso directo a `embeddings_a_actualizar`.
+    """
+    import os
+
+    from .embeddings import embeder_gemini
+
+    return embeder_gemini if os.environ.get("GEMINI_API_KEY", "").strip() else None
 
 
 def main() -> int:
     analizador = argparse.ArgumentParser(description=__doc__)
     analizador.add_argument("--imagenes", action="store_true", help="ir a la red por las portadas")
+    analizador.add_argument("--sin-embeddings", action="store_true", help="no calcular el canal semantico")
     analizador.add_argument("--solo-validar", action="store_true")
     args = analizador.parse_args()
-    return asyncio.run(_principal(args.imagenes, args.solo_validar))
+    return asyncio.run(_principal(args.imagenes, args.solo_validar, not args.sin_embeddings))
 
 
 if __name__ == "__main__":

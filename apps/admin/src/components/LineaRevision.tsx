@@ -1,6 +1,6 @@
 "use client";
 
-// Una linea del kit, con todo lo que hace falta para decidirla (AD-04, AD-05,
+// Una linea del kit, con todo lo que hace falta para decidirla (AD-02, AD-05,
 // AD-07).
 //
 // Es un `<details>` y no una tarjeta siempre abierta porque una lista de
@@ -9,10 +9,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ClaseLinea, LineaKit, ProductoKit } from "@tukit/contrato";
+import type { ClaseLinea, LineaKit, PerfilKit, ProductoKit } from "@tukit/contrato";
 import { formatearPesos, razonDeNoCobrar } from "@tukit/contrato";
 import {
   FalloApi,
+  fijarProductoLinea,
   marcarNoDisponible,
   marcarSinCoincidencia,
   validarLinea,
@@ -25,6 +26,12 @@ interface Props {
   trabajoId: string;
   linea: LineaKit;
   clase: ClaseLinea;
+  // El perfil del kit al que pertenece esta linea. Cuando llega, cambiar de
+  // producto (elegir una alternativa) se guarda POR NIVEL: escribe la LINEA de
+  // ESTE kit y recalcula su subtotal, sin tocar los otros dos. Sin el, la
+  // validacion es la de siempre (por item, los tres kits) —el caso de las
+  // vistas que no son la matriz.
+  perfil?: PerfilKit;
   // Selección para acciones masivas. Solo se pasa en las secciones donde tiene
   // sentido validar en lote (las que tienen un elegido por confirmar); si no
   // llega, la línea no muestra casilla y se comporta como siempre.
@@ -45,6 +52,7 @@ export default function LineaRevision({
   trabajoId,
   linea,
   clase,
+  perfil,
   seleccionable = false,
   seleccionada = false,
   onToggleSeleccion,
@@ -91,6 +99,17 @@ export default function LineaRevision({
 
   function alValidar(): void {
     const sku = seleccion === CONFIRMAR_EL_ELEGIDO ? undefined : seleccion;
+    // Cambiar de producto en la matriz es una decision POR KIT: escribe la
+    // LINEA de este perfil y recalcula su subtotal. Confirmar el elegido (sin
+    // sku) sigue siendo la validacion por item —marca el emparejamiento como
+    // bueno en los tres kits, no cambia ningun producto—.
+    if (sku && perfil) {
+      void ejecutar(
+        () => fijarProductoLinea(trabajoId, perfil, linea.item_id, sku),
+        "Producto cambiado en este kit.",
+      );
+      return;
+    }
     void ejecutar(
       () =>
         validarLinea(trabajoId, linea.item_id, {
@@ -385,7 +404,7 @@ export default function LineaRevision({
             </p>
           )}
 
-          {/* ------------------------------------------------ acciones AD-04 */}
+          {/* ------------------------------------------------ acciones AD-02 */}
           <div className={styles.acciones}>
             {hayQueElegir ? (
               <>

@@ -36,7 +36,7 @@ from pathlib import Path
 from typing import Any
 
 RAIZ = Path(__file__).resolve().parent.parent
-SERVICIOS = ("identidad", "catalogo", "inteligencia")
+SERVICIOS = ("identidad", "catalogo", "inteligencia", "comercio", "operacion")
 
 # Indices que viven en infra/ y no en los modelos. Ver el docstring.
 INDICES_DE_INFRA = frozenset({"ix_producto_embedding_hnsw", "ix_producto_nombre_trgm"})
@@ -80,13 +80,17 @@ async def _diferencias(servicio: str, metadata: Any) -> list[Any]:
 
 async def _principal() -> int:
     from tukit_catalogo.modelos import Base as BaseCatalogo
+    from tukit_comercio.modelos import Base as BaseComercio
     from tukit_identidad.modelos import Base as BaseIdentidad
     from tukit_inteligencia.modelos import Base as BaseInteligencia
+    from tukit_operacion.modelos import Base as BaseOperacion
 
     bases = {
         "identidad": BaseIdentidad,
         "catalogo": BaseCatalogo,
         "inteligencia": BaseInteligencia,
+        "comercio": BaseComercio,
+        "operacion": BaseOperacion,
     }
     total = 0
 

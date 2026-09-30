@@ -13,15 +13,19 @@ una prueba que lee este archivo para que eso siga siendo cierto.
 from __future__ import annotations
 
 import asyncio
+import logging
 import sys
 from dataclasses import asdict, dataclass
 from typing import Any
 
 from .descubrir import clasificar
+from .embeddings import Embeder, promedio
 from .enriquecer import extraer_atributos
 from .transcripcion import corregir, lexico_de
 
 _ORDEN_NIVEL = ("economico", "confiable", "premium")
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -105,15 +109,22 @@ def emparejar(
     texto: str,
     conceptos: list[dict[str, Any]],
     productos: list[dict[str, Any]],
+    *,
+    embedding_renglon: list[float] | None = None,
 ) -> Emparejamiento:
     """Clasifica el renglon y, si el catalogo puede cumplirlo, da hasta tres opciones.
 
     Tres, no treinta: una por nivel. El acudiente compara tres cosas. Una
     cola de blocks carta no es una respuesta, es el fallo que este corte
     existe para no repetir.
+
+    `embedding_renglon` es el canal semantico (OE3): el vector del renglon
+    entrante, que `clasificar` funde con el lexico. Es opcional para que quien
+    no lo calcula —o corre sin el modelo— siga obteniendo el match lexico de
+    siempre.
     """
     corregido = corregir(texto, lexico_de(conceptos))
-    concepto_id, nombre, parecido = clasificar(corregido, conceptos)
+    concepto_id, nombre, parecido = clasificar(corregido, conceptos, embedding_renglon=embedding_renglon)
     if parecido < 0.5 or concepto_id is None:
         return Emparejamiento(
             texto=texto,
@@ -194,14 +205,32 @@ def emparejar(
     )
 
 
-async def cargar_indice() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+async def cargar_indice(
+    conexion: Any,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Conceptos activos y sus productos, con el precio vigente mas bajo.
+
+    Recibe una conexion YA ABIERTA. Antes habia dos copias de esta consulta —una
+    aqui que creaba un motor por llamada (solo alcanzable por CLI) y otra en la
+    API que reusaba el motor del servicio pero NO leia embeddings—, y la de la
+    API dejaba el canal semantico de OE3 muerto en produccion (coseno siempre 0).
+    Ahora hay una: quien la llama trae la conexion (el servicio, su pool; la CLI,
+    un motor efimero por `_cargar_indice_cli`), y el canal semantico vive en las
+    dos vias porque el embedding del producto se carga una sola vez, aqui.
 
     El precio sale de la oferta, no del producto: un producto tiene varias
     tiendas y el numero que se le muestra al acudiente es el menor vigente.
+
+    El vector del concepto se deriva del de sus productos (`promedio`): el centro
+    de los cuadernos ES, en promedio, "cuaderno". El embedding crudo del producto
+    no viaja en el dict de salida —se consume aqui para el promedio y se descarta—
+    porque el consumidor (`emparejar`) solo necesita el del concepto.
+
+    ponytail: index load = un par de SELECTs a escala tesis (~100 conceptos /
+    ~261 productos); si el perfilado lo muestra en la ruta caliente, cachear en
+    `app.state` con alcance de lifespan. No antes.
     """
     from sqlalchemy import func, select
-    from tukit_comun.bd import crear_motor
 
     from .modelos import Base
 
@@ -210,69 +239,149 @@ async def cargar_indice() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     oferta = Base.metadata.tables["oferta_tienda"]
     precio = Base.metadata.tables["precio_oferta"]
 
-    motor = crear_motor("catalogo")
-    try:
-        async with motor.engine.begin() as conexion:
-            conceptos = [
-                {
-                    "id": f.id,
-                    "codigo": f.codigo,
-                    "nombre": f.nombre_canonico,
-                    "sinonimos": list(f.sinonimos or ()),
-                    "discriminantes": tuple(f.atributos_discriminantes or ()),
-                }
-                for f in await conexion.execute(
-                    select(
-                        concepto.c.id,
-                        concepto.c.codigo,
-                        concepto.c.nombre_canonico,
-                        concepto.c.sinonimos,
-                        concepto.c.atributos_discriminantes,
-                    ).where(concepto.c.activo.is_(True))
-                )
-            ]
-            precio_min = (
-                select(
-                    oferta.c.producto_canonico_id.label("pid"),
-                    func.min(precio.c.valor_centavos).label("centavos"),
-                )
-                .select_from(oferta.join(precio, precio.c.oferta_id == oferta.c.id))
-                .where(oferta.c.activo.is_(True), precio.c.vigente_hasta.is_(None))
-                .group_by(oferta.c.producto_canonico_id)
-                .subquery()
-            )
-            productos = [
-                {
-                    "concepto_id": f.concepto_id,
-                    "sku": f.sku_interno,
-                    "nombre": f.nombre,
-                    "nivel": f.nivel,
-                    "personaje": f.personaje,
-                    "atributos": dict(f.atributos or {}),
-                    "precio_cop": None if f.centavos is None else int(f.centavos) // 100,
-                }
-                for f in await conexion.execute(
-                    select(
-                        producto.c.concepto_id,
-                        producto.c.sku_interno,
-                        producto.c.nombre,
-                        producto.c.nivel,
-                        producto.c.personaje,
-                        producto.c.atributos,
-                        precio_min.c.centavos,
-                    )
-                    .select_from(producto.outerjoin(precio_min, precio_min.c.pid == producto.c.id))
-                    .where(producto.c.activo.is_(True))
-                )
-            ]
-    finally:
-        await motor.cerrar()
+    conceptos = [
+        {
+            "id": f.id,
+            "codigo": f.codigo,
+            "nombre": f.nombre_canonico,
+            "sinonimos": list(f.sinonimos or ()),
+            "discriminantes": tuple(f.atributos_discriminantes or ()),
+        }
+        for f in await conexion.execute(
+            select(
+                concepto.c.id,
+                concepto.c.codigo,
+                concepto.c.nombre_canonico,
+                concepto.c.sinonimos,
+                concepto.c.atributos_discriminantes,
+            ).where(concepto.c.activo.is_(True))
+        )
+    ]
+    precio_min = (
+        select(
+            oferta.c.producto_canonico_id.label("pid"),
+            func.min(precio.c.valor_centavos).label("centavos"),
+        )
+        .select_from(oferta.join(precio, precio.c.oferta_id == oferta.c.id))
+        .where(oferta.c.activo.is_(True), precio.c.vigente_hasta.is_(None))
+        .group_by(oferta.c.producto_canonico_id)
+        .subquery()
+    )
+    productos = []
+    emb_por_concepto: dict[Any, list[list[float]]] = {}
+    for f in await conexion.execute(
+        select(
+            producto.c.id,
+            producto.c.concepto_id,
+            producto.c.sku_interno,
+            producto.c.nombre,
+            producto.c.nivel,
+            producto.c.personaje,
+            producto.c.marca,
+            producto.c.imagen_url,
+            producto.c.unidad_base,
+            producto.c.unidades_por_empaque,
+            producto.c.atributos,
+            producto.c.embedding,
+            precio_min.c.centavos,
+        )
+        .select_from(producto.outerjoin(precio_min, precio_min.c.pid == producto.c.id))
+        .where(producto.c.activo.is_(True))
+    ):
+        productos.append(
+            {
+                "id": f.id,
+                "concepto_id": f.concepto_id,
+                "sku": f.sku_interno,
+                "nombre": f.nombre,
+                "nivel": f.nivel,
+                "personaje": f.personaje,
+                "marca": f.marca,
+                "imagen_url": f.imagen_url,
+                "unidad_base": f.unidad_base or "unidad",
+                "unidades_por_empaque": int(f.unidades_por_empaque or 1),
+                "atributos": dict(f.atributos or {}),
+                "precio_cop": None if f.centavos is None else int(f.centavos) // 100,
+            }
+        )
+        if f.embedding is not None:
+            emb_por_concepto.setdefault(f.concepto_id, []).append(list(f.embedding))
+
+    con_emb = 0
+    for c in conceptos:
+        c["embedding"] = promedio(emb_por_concepto.get(c["id"], []))
+        if c["embedding"] is not None:
+            con_emb += 1
+    if conceptos and con_emb == 0:
+        log.debug("indice sin embeddings poblados: el match sera solo lexico")
     return conceptos, productos
 
 
-async def emparejar_en_catalogo(renglones: list[str]) -> list[Emparejamiento]:
-    conceptos, productos = await cargar_indice()
-    return [emparejar(renglon, conceptos, productos) for renglon in renglones]
+async def _cargar_indice_cli() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """`cargar_indice` para la CLI: abre y cierra su propio motor efimero.
+
+    El servicio HTTP reusa su pool; un proceso `python -m ...consulta` no tiene
+    pool que reusar, asi que crea un motor, lo usa y lo cierra.
+    """
+    from tukit_comun.bd import crear_motor
+
+    motor = crear_motor("catalogo")
+    try:
+        async with motor.engine.begin() as conexion:
+            return await cargar_indice(conexion)
+    finally:
+        await motor.cerrar()
+
+
+async def emparejar_en_catalogo(
+    renglones: list[str], *, embeder: Embeder | None = None
+) -> list[Emparejamiento]:
+    """Empareja una tanda de renglones contra el catalogo cargado.
+
+    `embeder` es el canal semantico (OE3): si se pasa, se calcula el vector de
+    cada renglon UNA vez (un lote, una peticion) y se funde en `clasificar`. Se
+    resuelve por entorno cuando no se inyecta —con GEMINI_API_KEY, el real; sin
+    ella, ninguno—, de modo que la consulta sigue dando el match lexico donde
+    no hay modelo, sin fallar. El vector es del renglon entrante nada mas: no
+    sale de la base ni entra a ella, asi que la invariante de que el acudiente
+    no sale a nuestra red por producto se mantiene.
+    """
+    conceptos, productos = await _cargar_indice_cli()
+    if embeder is None:
+        embeder = _embeder_por_entorno()
+    if embeder is None:
+        log.debug("sin GEMINI_API_KEY: match lexico")
+    vectores = calcular_vectores(renglones, embeder)
+    return [
+        emparejar(renglon, conceptos, productos, embedding_renglon=vec)
+        for renglon, vec in zip(renglones, vectores, strict=True)
+    ]
+
+
+def calcular_vectores(renglones: list[str], embeder: Embeder | None) -> list[list[float] | None]:
+    """El vector de cada renglon en un solo lote, o `None` por renglon si no hay
+    embeder o si la llamada falla.
+
+    El canal semantico DEGRADA, no tumba: si el proveedor no responde, la consulta
+    sigue dando el match lexico. Se registra el fallo (antes era un `except`
+    silencioso) para que "de repente todo es solo lexico" deje rastro.
+    """
+    if embeder is None or not renglones:
+        return [None] * len(renglones)
+    try:
+        return list(embeder(list(renglones)))
+    except Exception as exc:  # noqa: BLE001 - degrada a lexico, no tumba la consulta
+        log.warning("canal semantico degradado a lexico: %s", exc)
+        return [None] * len(renglones)
+
+
+def _embeder_por_entorno() -> Embeder | None:
+    """El embeder real si hay clave, ninguno si no. Igual criterio que enriquecer."""
+    import os
+
+    from .embeddings import embeder_gemini
+
+    return embeder_gemini if os.environ.get("GEMINI_API_KEY", "").strip() else None
 
 
 def _imprimir(resultado: Emparejamiento) -> None:

@@ -132,8 +132,26 @@
 }
 
 @media (max-width: 680px) {
+  /* En el celular la barra tiene que caber en ~360px de ancho sin desbordarse:
+   * logo + dos íconos de nav + ingresar + el CTA. Se aprietan los espacios, los
+   * enlaces quedan solo en ícono y el CTA baja de tamaño (sigue con texto: es
+   * la acción principal). Medido a 360px cabe con holgura. */
   .interior {
-    gap: var(--espacio-3);
+    padding: var(--espacio-3);
+    gap: var(--espacio-2);
+  }
+
+  .marca {
+    width: 34px;
+    height: 34px;
+  }
+
+  .logo {
+    font-size: 17px;
+  }
+
+  .nav {
+    gap: var(--espacio-1);
   }
 
   .enlace span,
@@ -148,8 +166,26 @@
     padding: 9px;
   }
 
+  .acciones {
+    gap: 6px;
+  }
+
+  .accion {
+    gap: 6px;
+    padding: 10px 14px;
+    font-size: 13.5px;
+  }
+
   /* En pantallas chicas, cerrar sesión se hace desde la cuenta, no en la barra. */
   .salir {
+    display: none;
+  }
+}
+
+/* Teléfonos muy estrechos (≤360px): el nombre de la marca cede el paso a los
+ * controles para que el CTA nunca se corte. El logotipo sigue siendo tocable. */
+@media (max-width: 360px) {
+  .nombre {
     display: none;
   }
 }

@@ -1,10 +1,10 @@
 /* ============================================================
    Dashboard — TuKit (rediseño claymorphico)
 
-   OJO: esta pantalla corre sobre `mock-data`, no sobre el contrato. Los
-   perfiles de hijos y los pedidos viven en `identidad` y `comercio`, que
-   todavia no publican superficie de lectura. El aviso `.avisoMock` lo dice
-   en pantalla para no aparentar mas de lo que hay.
+   Los pedidos salen de `comercio` via el contrato; el saludo y los perfiles de
+   los hijos, de `identidad` (sesion + `/v1/cuenta/matriculas`). Los perfiles se
+   pintan con dato minimo del portador (colegio, grado y apodo descifrado), sin
+   nombre legal ni documento (Ley 1581).
    ============================================================ */
 
 /* Layout shell */
@@ -28,19 +28,6 @@
   max-width: 960px;
   margin: 0 auto;
   width: 100%;
-}
-
-/* ---- Aviso honesto de datos simulados ---- */
-.avisoMock {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px var(--espacio-4);
-  font-size: 12.5px;
-  color: var(--color-aviso);
-  background: var(--clay-estrella-bg);
-  border-radius: var(--radius-full);
-  box-shadow: var(--clay-shadow-sm);
 }
 
 /* ============================================================
@@ -76,30 +63,6 @@
   color: var(--color-text-secondary);
 }
 
-.btnNuevoPedido {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 0 var(--espacio-5);
-  background: linear-gradient(145deg, var(--clay-cielo) 0%, var(--color-primary) 100%);
-  color: white;
-  border-radius: var(--radius-full);
-  font-size: 14px;
-  font-weight: 800;
-  border: none;
-  cursor: pointer;
-  white-space: nowrap;
-  text-decoration: none;
-  box-shadow: var(--clay-shadow-primary);
-  transition: transform var(--dur-rapido) var(--ease-clay);
-  flex-shrink: 0;
-}
-
-.btnNuevoPedido:hover {
-  transform: translateY(-2px);
-}
-
 /* ============================================================
    Tarjeta de seccion (compartida)
    ============================================================ */
@@ -123,96 +86,6 @@
   font-size: 16px;
   font-weight: 800;
   color: var(--color-text-primary);
-}
-
-/* ============================================================
-   Seccion hijos
-   ============================================================ */
-.hijosContainer {
-  padding: 0 var(--espacio-5);
-  display: flex;
-  flex-direction: column;
-}
-
-.hijoCard {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.hijoCard:last-child {
-  border-bottom: none;
-}
-
-.hijoAvatar {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-full);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-display);
-  font-size: 17px;
-  font-weight: 800;
-  color: white;
-  flex-shrink: 0;
-  box-shadow: var(--clay-shadow-sm);
-}
-
-.hijoInfo {
-  flex: 1;
-  min-width: 0;
-}
-
-.hijoNameRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.hijoName {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.gradoBadge {
-  padding: 2px 10px;
-  background: var(--clay-cielo-bg);
-  color: var(--color-primary);
-  border-radius: var(--radius-full);
-  font-size: 11.5px;
-  font-weight: 700;
-  box-shadow: var(--clay-shadow-sm);
-}
-
-.hijoColegio {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 3px;
-  font-size: 12.5px;
-  color: var(--color-text-secondary);
-}
-
-/* Agregar hijo — accion de muestra, deshabilitada hasta que exista identidad */
-.agregarHijo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 16px;
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--color-text-muted);
-  background: none;
-  border: none;
-  border-top: 1px dashed var(--color-border);
-  cursor: not-allowed;
 }
 
 /* ============================================================
@@ -243,6 +116,12 @@
 
 .table tr:last-child td {
   border-bottom: none;
+}
+
+.sinPedidos {
+  padding: var(--espacio-4) var(--espacio-5);
+  font-size: 13.5px;
+  color: var(--color-text-secondary);
 }
 
 .pedidoId {
@@ -276,6 +155,173 @@
   border-radius: var(--radius-full);
   background: var(--color-success);
   flex-shrink: 0;
+}
+
+/* ============================================================
+   Línea de etapas de una solicitud (EtapasSolicitud)
+   ============================================================ */
+.etapas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.etapaChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.etapaDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.etapaHecha {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.etapaEnCurso {
+  background: var(--clay-cielo-bg);
+  color: var(--color-primary);
+}
+
+.etapaPendiente {
+  background: var(--color-surface-2);
+  color: var(--color-text-secondary);
+}
+
+.etapaFallida {
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11.5px;
+  font-weight: 700;
+  background: var(--color-danger-bg, var(--color-surface-2));
+  color: var(--color-aviso);
+}
+
+/* ============================================================
+   Seccion perfiles de hijos
+   ============================================================ */
+.hijos {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--espacio-3);
+  padding: 0 var(--espacio-5) var(--espacio-5);
+}
+
+/* Tarjeta anidada tintada, mismo lenguaje que .ayudaCard (cielo + clay-sm). */
+.hijoCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--espacio-4);
+  background: var(--clay-cielo-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.hijoApodo {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.hijoMeta {
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}
+
+/* Vacio: mismo patron visual que .sinPedidos. */
+.sinHijos {
+  padding: var(--espacio-4) var(--espacio-5);
+  font-size: 13.5px;
+  color: var(--color-text-secondary);
+}
+
+.sinHijos a {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+/* Lectura fallida: aviso ambar NO bloqueante; el resto del panel sigue vivo. */
+.hijosError {
+  margin: 0 var(--espacio-5) var(--espacio-5);
+  padding: var(--espacio-4);
+  background: var(--color-aviso-bg);
+  color: var(--color-aviso);
+  border: 1px solid var(--color-aviso-border);
+  border-radius: var(--radius-lg);
+  font-size: 13.5px;
+}
+
+/* ============================================================
+   Seccion mis solicitudes
+   ============================================================ */
+.solicitudes {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  padding: 0 var(--espacio-5) var(--espacio-5);
+}
+
+/* Mismo lenguaje tintado que .hijoCard, pero en fila: cada solicitud es una
+   linea con su colegio+grado y su estado en palabras. */
+.solicitudCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--espacio-4);
+  background: var(--clay-cielo-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.solicitudMeta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--espacio-3);
+}
+
+.solicitudColegio {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.solicitudGrado {
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}
+
+.solicitudEstado {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--color-text-secondary);
+}
+
+.solicitudEnlace {
+  align-self: flex-start;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-primary);
 }
 
 /* ============================================================
@@ -352,10 +398,5 @@
 
   .pageHeader {
     flex-direction: column;
-  }
-
-  .btnNuevoPedido {
-    align-self: stretch;
-    justify-content: center;
   }
 }

@@ -1,12 +1,8 @@
 // `/tickets` — la bandeja de casos y PQRS (CABLEADO vía contrato extendido).
 //
 // Consume `origenDeDatos().casos()`, la superficie de lectura de `operacion`.
-// Igual que logística: el contrato v1.0 no la publica, así que en simulado los
-// casos se DERIVAN de fallas observables en la cola (una línea SIN_MATCH abre un
-// MappingFailure; un HUECO_CATALOGO abre un StockFailure — ver
-// `simulado/back-office.ts`). La `CintaOrigen` avisa que el origen es simulado.
-// Cuando `operacion` responda, `TUKIT_ORIGEN_DATOS=api` lo conecta sin tocar la
-// pantalla.
+// Cuando `operacion` aún no publica casos, la lectura vuelve vacía y la pantalla
+// muestra su estado vacío. `cliente-http.ts` ya pega contra `/v1/operacion/*`.
 //
 // Server Component, mismo patrón que la Cola.
 

@@ -12,26 +12,43 @@ import {
   LayoutDashboard,
   LifeBuoy,
   PackageSearch,
+  School,
   Truck,
+  Users,
 } from "lucide-react";
+import SalirBoton from "./SalirBoton";
 import styles from "./CabeceraAdmin.module.css";
 
 // El orden es el del flujo de trabajo: primero el pulso del negocio (Panel),
-// luego lo que hay que revisar (Cola), lo que falta en catálogo (Catálogo),
-// lo que hay que mover (Logística) y lo que hay que responder (Tickets).
+// luego lo que hay que verificar (Cola) —donde ahora también se sube una lista
+// nueva, sin pantalla aparte, y donde una lista de acudiente trae su colegio y
+// grado para crearlos al aprobar—, la BD durable de colegios y listas
+// (Colegios), el padrón de familias registradas (Clientes), lo que hay en
+// catálogo (Catálogo), lo que hay que mover (Logística) y lo que hay que
+// responder (Tickets).
 const SECCIONES = [
-  { href: "/panel", etiqueta: "Panel", Icono: LayoutDashboard },
-  { href: "/", etiqueta: "Cola", Icono: ClipboardList },
+  { href: "/", etiqueta: "Panel", Icono: LayoutDashboard },
+  { href: "/cola", etiqueta: "Cola", Icono: ClipboardList },
+  { href: "/colegios", etiqueta: "Colegios", Icono: School },
+  { href: "/clientes", etiqueta: "Clientes", Icono: Users },
   { href: "/catalogo", etiqueta: "Catálogo", Icono: PackageSearch },
   { href: "/logistica", etiqueta: "Logística", Icono: Truck },
   { href: "/tickets", etiqueta: "Tickets", Icono: LifeBuoy },
 ] as const;
 
-// Un enlace está activo si la ruta actual empieza por su href. La cola vive en
-// "/" y en "/trabajos/…", así que se trata aparte: cualquier ruta de trabajo
-// pertenece a la Cola.
+// Un enlace está activo si la ruta actual empieza por su href. El Panel es la
+// casa ("/") y solo se enciende en la raíz exacta. La Cola vive en "/cola" y
+// además es dueña de "/trabajos/…" (un ingreso de acudiente) y de
+// "/onboarding/…" (el revisor de una versión): ambas rutas son revisar algo de
+// la cola, así que encienden el mismo ítem.
 function estaActiva(pathname: string, href: string): boolean {
-  if (href === "/") return pathname === "/" || pathname.startsWith("/trabajos");
+  if (href === "/") return pathname === "/";
+  if (href === "/cola")
+    return (
+      pathname === "/cola" ||
+      pathname.startsWith("/trabajos") ||
+      pathname.startsWith("/onboarding")
+    );
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -40,7 +57,7 @@ export default function CabeceraAdmin() {
 
   return (
     <header className={styles.cabecera}>
-      <Link href="/panel" className={styles.logo}>
+      <Link href="/" className={styles.logo}>
         <span className={styles.marca} aria-hidden="true">
           <svg viewBox="0 0 18 18" fill="none">
             <path d="M9 1L16.5 5.25V12.75L9 17L1.5 12.75V5.25L9 1Z" fill="white" fillOpacity="0.9" />
@@ -51,22 +68,25 @@ export default function CabeceraAdmin() {
         <span className={styles.consola}>Back-office</span>
       </Link>
 
-      <nav className={styles.nav} aria-label="Secciones del back-office">
-        {SECCIONES.map(({ href, etiqueta, Icono }) => {
-          const activa = estaActiva(pathname, href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`${styles.item} ${activa ? styles.itemActivo : ""}`}
-              aria-current={activa ? "page" : undefined}
-            >
-              <Icono size={16} strokeWidth={2.2} aria-hidden="true" />
-              {etiqueta}
-            </Link>
-          );
-        })}
-      </nav>
+      <div className={styles.derecha}>
+        <nav className={styles.nav} aria-label="Secciones del back-office">
+          {SECCIONES.map(({ href, etiqueta, Icono }) => {
+            const activa = estaActiva(pathname, href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`${styles.item} ${activa ? styles.itemActivo : ""}`}
+                aria-current={activa ? "page" : undefined}
+              >
+                <Icono size={16} strokeWidth={2.2} aria-hidden="true" />
+                {etiqueta}
+              </Link>
+            );
+          })}
+        </nav>
+        <SalirBoton />
+      </div>
     </header>
   );
 }
