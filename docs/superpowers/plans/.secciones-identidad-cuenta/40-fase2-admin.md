@@ -76,9 +76,7 @@ volumen, filtrar en Python:
 ```python
 # repositorios / consulta del servicio de inteligencia
 async def trabajos_recientes(self) -> list[Fila]:
-    q = select(TrabajoPipeline).order_by(
-        TrabajoPipeline.usuario_id, TrabajoPipeline.actualizado_en.desc()
-    )
+    q = select(TrabajoPipeline).order_by(TrabajoPipeline.usuario_id, TrabajoPipeline.actualizado_en.desc())
     return (await self._conn.execute(q)).all()
 ```
 
@@ -89,11 +87,10 @@ async def acudientes_de_colegio(request: Request, colegio_id: str) -> dict:
     async with request.app.state.motor.sesion() as db:
         filas = await Repo(await db.connection()).trabajos_recientes()
     del_colegio = [
-        f for f in filas
-        if f.usuario_id and any(h.get("colegio_id") == colegio_id for h in f.hijos)
+        f for f in filas if f.usuario_id and any(h.get("colegio_id") == colegio_id for h in f.hijos)
     ]
     ultimos: dict[str, Fila] = {}
-    for f in del_colegio:                 # ya vienen ordenados por usuario, más reciente primero
+    for f in del_colegio:  # ya vienen ordenados por usuario, más reciente primero
         ultimos.setdefault(str(f.usuario_id), f)
     acudientes = [
         {

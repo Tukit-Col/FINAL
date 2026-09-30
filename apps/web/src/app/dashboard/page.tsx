@@ -1,42 +1,34 @@
-// El panel del acudiente. Todo sale del backend real: identidad emite la
-// sesion, comercio sirve los pedidos pagados (`/v1/comercio/mis-pedidos`) e
-// inteligencia sirve las solicitudes de kit del portador (`GET /v1/trabajos`,
-// autenticado por Bearer). Los hijos se derivan de esas solicitudes —por
-// referencia sintetica, colegio y grado, nunca un nombre de menor (Anexo M,
-// Ley 1581)—, que es la unica lectura real que expone esos perfiles hoy.
+// El panel del acudiente. El saludo, los pedidos y ahora los perfiles de los
+// hijos salen del backend real (identidad emite la sesion y sirve
+// `/v1/cuenta/matriculas`; comercio sirve `/v1/comercio/mis-pedidos`). La
+// superficie de menores ya NO se finge: se lee la tenencia del PROPIO portador
+// (`matriculasDeLaSesion`), que expone solo colegio+grado+anio y el `apodo`
+// descifrado —nunca nombre legal, documento ni estudiante_id (minimizacion,
+// Ley 1581)—, y el `colegio_id` se resuelve a nombre con `colegios()`.
 //
 // Es un Server Component: lee la sesion de la cookie httponly (`sesionActual`)
-// y reenvia el Bearer (`tokenDeSesion`) a inteligencia. Sin sesion, redirige a
-// /ingresar, fail-closed como el resto de las rutas protegidas.
+// y pide los pedidos por el `usuario_id` del portador. Sin sesion, redirige a
+// /ingresar, fail-closed como el resto de las rutas protegidas. Si la lectura
+// de hijos falla, la seccion degrada a un aviso y el resto del panel sigue vivo.
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { UserPlus, LifeBuoy, Users } from "lucide-react";
+import { LifeBuoy } from "lucide-react";
 import {
   ETIQUETA_ESTADO_PEDIDO,
   formatearPesos,
+  type Colegio,
+  type EstadoTrabajo,
+  type MatriculaAcudiente,
   type Pedido,
-  type TrabajoResumen,
+  type Solicitud,
 } from "@tukit/contrato";
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import Sidebar from "@/components/Sidebar";
-import EtapasSolicitud from "./EtapasSolicitud";
-import { sesionActual, tokenDeSesion } from "@/lib/sesion";
+import { sesionActual, matriculasDeLaSesion, solicitudesDeLaSesion } from "@/lib/sesion";
 import styles from "./Dashboard.module.css";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Mi cuenta — Tukit" };
-
-// Como se le nombra al acudiente cada estado de su solicitud, y a donde lo
-// lleva. Un kit publicado se abre en su detalle; cualquier otro estado (en
-// cola, procesando, en revision o fallido) vive en la pantalla de espera, que
-// ya sabe pintar cada uno. La etiqueta es del acudiente, no la tecnica.
-const ESTADO_SOLICITUD: Record<TrabajoResumen["estado"], { texto: string; ruta: string }> = {
-  encolado: { texto: "En cola", ruta: "/esperando" },
-  procesando: { texto: "Armando tu kit", ruta: "/esperando" },
-  espera_revision: { texto: "En revisión", ruta: "/esperando" },
-  publicado: { texto: "Kit listo", ruta: "/kits" },
-  fallido: { texto: "No pudimos terminarlo", ruta: "/esperando" },
-};
 
 // La fecha viene del pedido (dato de servidor, ISO 8601), no del reloj del
 // cliente: no hay riesgo de desajuste de zona entre render de servidor y de
@@ -49,54 +41,81 @@ function fechaLegible(iso: string): string {
   });
 }
 
+// El estado de un trabajo, en las mismas palabras que ve el acudiente en
+// `/esperando`: nunca el nombre tecnico del estado. `fallido` no dice "error":
+// dice que alguien lo esta mirando, porque un trabajo fallido es reintentable y
+// no una via muerta para el padre.
+const PALABRAS_ESTADO: Record<EstadoTrabajo, string> = {
+  encolado: "Estamos armando tu kit",
+  procesando: "Estamos armando tu kit",
+  espera_revision: "Una persona lo está revisando",
+  publicado: "Listo",
+  fallido: "Hubo un problema, lo estamos revisando",
+};
+
 export default async function DashboardPage() {
   const sesion = await sesionActual();
   if (!sesion) redirect("/ingresar");
 
-  // Dos lecturas del portador. Cada una es fail-soft: si un servicio esta
-  // caido, su seccion queda vacia en vez de tumbar el panel entero, y nunca se
-  // inventa lo que no existe. Los pedidos pagados salen de comercio; las
-  // solicitudes de kit —lo que /empezar crea— de inteligencia, por el Bearer.
-  const token = await tokenDeSesion();
+  // Los pedidos pagados del portador salen de comercio. Fail-soft: si el
+  // servicio esta caido, la seccion queda vacia en vez de tumbar el panel.
   let pedidos: Pedido[] = [];
-  let trabajos: TrabajoResumen[] = [];
   try {
     pedidos = await origenDeDatos().misPedidos(sesion.usuario_id);
   } catch (causa) {
     console.error("dashboard: no se pudieron leer los pedidos", causa);
     pedidos = [];
   }
+
+  // Los perfiles de los hijos del portador. `matriculasDeLaSesion()` es
+  // fail-closed a [] (no distingue "sin hijos" de "lectura fallida"), asi que
+  // usamos `colegios()` —que SI lanza— como centinela de salud del backend y,
+  // de paso, para resolver el nombre del colegio de cada matricula. Un fallo
+  // aqui pinta un aviso y no tumba las demas secciones, igual que pedidos. Gap
+  // conocido: si SOLO cae el endpoint de matriculas y catalogo responde,
+  // degradamos al mensaje "sin hijos" en vez de romper. Va en su PROPIO
+  // try/catch: un fallo de colegios no debe vaciar la tabla de pedidos.
+  let hijos: MatriculaAcudiente[] = [];
+  let colegios: Colegio[] = [];
+  let errorHijos = false;
   try {
-    trabajos = await origenDeDatos().misTrabajos(token);
-  } catch (causa) {
-    console.error("dashboard: no se pudieron leer las solicitudes", causa);
-    trabajos = [];
+    [hijos, colegios] = await Promise.all([
+      matriculasDeLaSesion(),
+      origenDeDatos().colegios(),
+    ]);
+  } catch {
+    errorHijos = true;
   }
 
-  // Los hijos del hogar, derivados de las solicitudes: cada solicitud trae sus
-  // hijos por (referencia, colegio, grado). Se deduplican por esa terna para
-  // que dos solicitudes del mismo hijo no lo dupliquen en la tarjeta. El nombre
-  // legible del colegio sale de `colegios()`; si no está, se muestra su id.
-  const colegios = await origenDeDatos()
-    .colegios()
-    .catch(() => []);
-  const nombreColegio = new Map(colegios.map((c) => [c.colegio_id, c.nombre]));
-  const hijos = new Map<string, { colegio: string; grado: string }>();
-  for (const t of trabajos) {
-    for (const h of t.hijos) {
-      hijos.set(`${h.colegio_id}·${h.grado}·${h.referencia}`, {
-        colegio: nombreColegio.get(h.colegio_id) ?? h.colegio_id,
-        grado: h.grado,
-      });
-    }
+  // Las solicitudes del portador: sus listas subidas + sus trabajos, unidas.
+  // En su PROPIO try/catch (degradacion por seccion). Dos niveles de fallo:
+  //  - `errorSolicitudes`: fallo de sesion o de inteligencia -> aviso de TODA
+  //    la seccion (no distinguimos "sin solicitudes" de "no se pudo leer").
+  //  - `listasDisponibles === false`: solo catalogo cayo -> inteligencia
+  //    devolvio los trabajos igual, y arriba de ellos avisamos que faltan las
+  //    listas subidas (§Decisiones 5).
+  let solicitudes: Solicitud[] = [];
+  let listasDisponibles = true;
+  let errorSolicitudes = false;
+  try {
+    const r = await solicitudesDeLaSesion();
+    solicitudes = r.solicitudes;
+    listasDisponibles = r.listas_disponibles;
+  } catch {
+    errorSolicitudes = true;
   }
-  const perfiles = [...hijos.values()];
+
+  // colegio_id -> nombre para resolver el colegio de cada hijo sin O(n^2).
+  const nombrePorColegio = new Map(colegios.map((c) => [c.colegio_id, c.nombre]));
+
+  // sesion.nombre puede venir vacio; caemos al correo para no mostrar un hueco.
+  const nombreCuenta = sesion.nombre.trim() || sesion.correo;
 
   return (
     <div className={styles.shell}>
       <div className={styles.body}>
         <div className={styles.main}>
-          <Sidebar />
+          <Sidebar nombreCuenta={nombreCuenta} />
 
           {/* ======== Columna de contenido ======== */}
           <div className={styles.content}>
@@ -106,10 +125,6 @@ export default async function DashboardPage() {
                 <h1>Hola, {sesion.nombre}</h1>
                 <p>Tus hijos y tus kits, en un solo lugar.</p>
               </div>
-              <Link href="/empezar" className={styles.btnNuevoPedido}>
-                <UserPlus size={16} strokeWidth={2.4} aria-hidden="true" />
-                Nuevo pedido
-              </Link>
             </div>
 
             {/* ---- Perfiles de hijos ---- */}
@@ -117,74 +132,122 @@ export default async function DashboardPage() {
               <div className={styles.sectionHeader}>
                 <h2>Perfiles de hijos</h2>
               </div>
-              {perfiles.length === 0 ? (
-                <p className={styles.sinPedidos}>
-                  Todavía no has armado el kit de ningún hijo.{" "}
-                  <Link href="/empezar">Empieza aquí</Link>.
+              {errorHijos ? (
+                <p className={styles.hijosError}>
+                  No pudimos cargar los perfiles de tus hijos en este momento.
+                  Vuelve a intentarlo en unos minutos.
+                </p>
+              ) : hijos.length === 0 ? (
+                <p className={styles.sinHijos}>
+                  Todavía no has registrado a tus hijos.{" "}
+                  <Link href="/empezar">Arma tu primer kit</Link> para agregarlos.
                 </p>
               ) : (
-                <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      <th>Hijo</th>
-                      <th>Colegio</th>
-                      <th>Grado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {perfiles.map((h, i) => (
-                      <tr key={`${h.colegio}·${h.grado}·${i}`}>
-                        <td className={styles.pedidoId}>
-                          <Users size={14} strokeWidth={2.2} aria-hidden="true" /> Hijo {i + 1}
-                        </td>
-                        <td>{h.colegio}</td>
-                        <td>{h.grado}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <ul className={styles.hijos}>
+                  {hijos.map((hijo, i) => {
+                    // apodo null, vacio o solo espacios -> "Hijo N" en base 1.
+                    const titulo = hijo.apodo?.trim() || `Hijo ${i + 1}`;
+                    // Nombre del colegio; el id crudo solo si no se encuentra.
+                    const colegio = nombrePorColegio.get(hijo.colegio_id) ?? hijo.colegio_id;
+                    return (
+                      <li
+                        key={`${hijo.colegio_id}-${hijo.grado}-${i}`}
+                        className={styles.hijoCard}
+                      >
+                        <span className={styles.hijoApodo}>{titulo}</span>
+                        <span className={styles.hijoMeta}>{colegio}</span>
+                        <span className={styles.hijoMeta}>{hijo.grado}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
               )}
             </section>
 
-            {/* ---- Mis solicitudes de kit ---- */}
+            {/* ---- Mis solicitudes ---- */}
             <section id="solicitudes" className={styles.card}>
               <div className={styles.sectionHeader}>
-                <h2>Mis solicitudes de kit</h2>
+                <h2>Mis solicitudes</h2>
               </div>
-              {trabajos.length === 0 ? (
+
+              {errorSolicitudes ? (
+                <p className={styles.hijosError}>
+                  No pudimos cargar tus solicitudes en este momento. Vuelve a
+                  intentarlo en unos minutos.
+                </p>
+              ) : solicitudes.length === 0 && listasDisponibles ? (
                 <p className={styles.sinPedidos}>
-                  Aún no tienes solicitudes. Cuando armes un kit, aparecerá aquí con su estado.
+                  Todavía no has enviado ninguna lista. Cuando subas una,
+                  aparecerá aquí mientras la revisamos.
                 </p>
               ) : (
-                <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      <th>Solicitud</th>
-                      <th>Fecha</th>
-                      <th>Hijos</th>
-                      <th>Progreso</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {trabajos.map((t) => {
-                      const e = ESTADO_SOLICITUD[t.estado];
+                <>
+                  {/* Catalogo caido: mostramos los trabajos que inteligencia SI
+                      tiene y avisamos que faltan las listas subidas, sin fingir
+                      que no existen ni tumbar la seccion. */}
+                  {!listasDisponibles && (
+                    <p className={styles.hijosError}>
+                      No pudimos cargar las listas que subiste; vuelve a
+                      intentarlo en unos minutos.
+                    </p>
+                  )}
+                  <ul className={styles.solicitudes}>
+                    {solicitudes.map((solicitud, i) => {
+                      // Nombre del colegio: primero el mapa de identidad (colegio
+                      // aliado conocido), luego el que trajo catalogo (colegio
+                      // nuevo), y el id crudo solo si no hay ninguno.
+                      const colegio =
+                        nombrePorColegio.get(solicitud.colegio_id) ??
+                        solicitud.colegio_nombre ??
+                        solicitud.colegio_id;
+                      const clave = `${solicitud.tipo}-${solicitud.colegio_id}-${solicitud.grado}-${i}`;
                       return (
-                        <tr key={t.trabajo_id}>
-                          <td className={styles.pedidoId}>
-                            <Link href={`${e.ruta}/${t.trabajo_id}`}>
-                              {t.trabajo_id.slice(0, 8).toUpperCase()}
-                            </Link>
-                          </td>
-                          <td className={styles.pedidoFecha}>{fechaLegible(t.creado_en)}</td>
-                          <td>{t.hijos.length}</td>
-                          <td>
-                            <EtapasSolicitud estado={t.estado} />
-                          </td>
-                        </tr>
+                        <li key={clave} className={styles.solicitudCard}>
+                          <div className={styles.solicitudMeta}>
+                            <span className={styles.solicitudColegio}>{colegio}</span>
+                            <span className={styles.solicitudGrado}>{solicitud.grado}</span>
+                          </div>
+                          {solicitud.tipo === "recibida" ? (
+                            <p className={styles.solicitudEstado}>
+                              Recibida: una persona está revisando tu lista.
+                            </p>
+                          ) : solicitud.tipo === "aprobada" ? (
+                            <>
+                              <p className={styles.solicitudEstado}>
+                                Aprobada: tu kit está listo. Te enviamos el enlace
+                                a tu correo.
+                              </p>
+                              <Link
+                                href={`/kits/${solicitud.trabajo_id}`}
+                                className={styles.solicitudEnlace}
+                              >
+                                Ver mis kits
+                              </Link>
+                            </>
+                          ) : (
+                            <>
+                              <p className={styles.solicitudEstado}>
+                                {PALABRAS_ESTADO[solicitud.estado]}
+                              </p>
+                              <Link
+                                href={
+                                  solicitud.estado === "publicado"
+                                    ? `/kits/${solicitud.trabajo_id}`
+                                    : `/esperando/${solicitud.trabajo_id}`
+                                }
+                                className={styles.solicitudEnlace}
+                              >
+                                {solicitud.estado === "publicado"
+                                  ? "Ver mis kits"
+                                  : "Ver el estado"}
+                              </Link>
+                            </>
+                          )}
+                        </li>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </ul>
+                </>
               )}
             </section>
 

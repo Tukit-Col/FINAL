@@ -218,9 +218,7 @@ class RepoTrabajos:
                 tipo="kits_publicados",
                 agregado_tipo="trabajo_pipeline",
                 agregado_id=trabajo_id,
-                carga=con_correlacion(
-                    {"trabajo_id": str(trabajo_id), "publicado_en": _ahora().isoformat()}
-                ),
+                carga=con_correlacion({"trabajo_id": str(trabajo_id), "publicado_en": _ahora().isoformat()}),
             )
         )
 

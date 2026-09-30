@@ -161,6 +161,7 @@ En `servicios/identidad/tukit_identidad/api.py` linea 42:
 ```python
 # antes
 from .sesiones import emitir_token, leer_token, verificar_clave
+
 # despues
 from .dominio.sesiones import emitir_token, leer_token, verificar_clave
 ```
@@ -170,6 +171,7 @@ En `servicios/identidad/tukit_identidad/sembrar_acceso.py` linea 37:
 ```python
 # antes
 from .sesiones import hashear_clave
+
 # despues
 from .dominio.sesiones import hashear_clave
 ```
@@ -184,6 +186,7 @@ from tukit_identidad.sesiones import (
     leer_token,
     verificar_clave,
 )
+
 # despues
 from tukit_identidad.dominio.sesiones import (
     emitir_token,
@@ -198,6 +201,7 @@ En `servicios/identidad/tests/test_cuenta.py` linea 26:
 ```python
 # antes
 from tukit_identidad.sesiones import emitir_token, hashear_clave
+
 # despues
 from tukit_identidad.dominio.sesiones import emitir_token, hashear_clave
 ```
@@ -249,6 +253,7 @@ En `servicios/identidad/tukit_identidad/api.py` linea 155 (import inline dentro 
 ```python
 # antes
 from .directorio_bogota import datos_colegio_nuevo_por_dane
+
 # despues
 from .dominio.directorio import datos_colegio_nuevo_por_dane
 ```
@@ -260,6 +265,7 @@ En `servicios/identidad/tests/test_directorio_bogota.py` lineas 16-18:
 from tukit_identidad.directorio_bogota import (
     parsear_directorio,
 )
+
 # despues
 from tukit_identidad.dominio.directorio import (
     parsear_directorio,
@@ -302,6 +308,7 @@ from tukit_identidad.autorizacion import (
     puede,
     roles_vigentes,
 )
+
 # despues
 from tukit_identidad.autorizacion import (
     campos_visibles,
@@ -950,9 +957,21 @@ router = APIRouter()
 _FORMA_CORREO = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
 GRADOS = (
-    "Parvulos", "Prejardin", "Jardin", "Transicion", "Primero", "Segundo",
-    "Tercero", "Cuarto", "Quinto", "Sexto", "Septimo", "Octavo", "Noveno",
-    "Decimo", "Once",
+    "Parvulos",
+    "Prejardin",
+    "Jardin",
+    "Transicion",
+    "Primero",
+    "Segundo",
+    "Tercero",
+    "Cuarto",
+    "Quinto",
+    "Sexto",
+    "Septimo",
+    "Octavo",
+    "Noveno",
+    "Decimo",
+    "Once",
 )
 
 
@@ -1046,6 +1065,7 @@ async def archivar_direccion(
         if await repo.archivar_direccion(direccion_id, fila.id) == 0:
             raise ErrorDominio("direccion_no_existe", "No hay ninguna direccion tuya con ese id.", estado=404)
     return None
+
 
 # ... las 12 rutas restantes (directorio, ver_colegio, editar_colegio, grados,
 # contactos POST/GET, sesiones/actual, sesiones/cierre, cuenta, cuenta/direcciones

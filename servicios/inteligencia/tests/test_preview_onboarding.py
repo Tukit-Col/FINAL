@@ -217,9 +217,7 @@ class TestPreviewEsIdempotente:
         # anterior del mismo (colegio, grado, anio): 3 clics -> 1 trabajo.
         ids = []
         for _ in range(3):
-            respuesta = await cliente.post(
-                f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo()
-            )
+            respuesta = await cliente.post(f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo())
             assert respuesta.status_code == 200
             ids.append(respuesta.json()["trabajo_id"])
 

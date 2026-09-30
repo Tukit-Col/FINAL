@@ -147,9 +147,7 @@ def _filas_de_snapshot(
     return filas
 
 
-async def escribir_instantanea(
-    motor: Any, cliente: ClienteMetricas, hoy: date
-) -> dict[str, Any]:
+async def escribir_instantanea(motor: Any, cliente: ClienteMetricas, hoy: date) -> dict[str, Any]:
     """Congela el snapshot de `hoy` en `metrica_diaria`, idempotente.
 
     Devuelve un pequeño reporte (filas escritas, colegios cubiertos, que

@@ -25,20 +25,14 @@ TRABAJO = Base.metadata.tables["trabajo_pipeline"]
 @pytest.fixture()
 async def cliente(motor):
     app.state.motor = motor
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://prueba"
-    ) as http:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
         yield http
 
 
-async def _sembrar(
-    motor, *, usuario_id, estado, colegio, actualizado_en, grado="Cuarto", preferencias=None
-):
+async def _sembrar(motor, *, usuario_id, estado, colegio, actualizado_en, grado="Cuarto", preferencias=None):
     from tukit_comun.cifrado import cifrador_desde_entorno
 
-    cifradas = (
-        cifrador_desde_entorno().cifrar_json(preferencias) if preferencias is not None else None
-    )
+    cifradas = cifrador_desde_entorno().cifrar_json(preferencias) if preferencias is not None else None
     async with motor.engine.begin() as conexion:
         await conexion.execute(
             insert(TRABAJO).values(
@@ -63,11 +57,17 @@ class TestAcudientesDeColegio:
         # u1 tiene dos trabajos: el publicado es más viejo; el vivo es procesando.
         await _sembrar(motor, usuario_id=u1, estado="publicado", colegio=COLEGIO, actualizado_en=base)
         await _sembrar(
-            motor, usuario_id=u1, estado="procesando", colegio=COLEGIO,
+            motor,
+            usuario_id=u1,
+            estado="procesando",
+            colegio=COLEGIO,
             actualizado_en=base + timedelta(hours=2),
         )
         await _sembrar(
-            motor, usuario_id=u2, estado="espera_revision", colegio=COLEGIO,
+            motor,
+            usuario_id=u2,
+            estado="espera_revision",
+            colegio=COLEGIO,
             actualizado_en=base + timedelta(hours=1),
         )
 
@@ -97,7 +97,10 @@ class TestAcudientesDeColegio:
     async def test_no_filtra_datos_de_menores(self, cliente, motor):
         u1 = uuid.uuid4()
         await _sembrar(
-            motor, usuario_id=u1, estado="publicado", colegio=COLEGIO,
+            motor,
+            usuario_id=u1,
+            estado="publicado",
+            colegio=COLEGIO,
             actualizado_en=datetime(2026, 9, 1, tzinfo=UTC),
         )
         respuesta = await cliente.get(f"/v1/admin/colegios/{COLEGIO}/acudientes")
@@ -106,7 +109,12 @@ class TestAcudientesDeColegio:
         # el apodo del menor ni el correo. `grados` y `preferencias` son dato de
         # negocio (grado pedido, pesos del hogar), no PII.
         assert set(cuerpo) == {
-            "usuario_id", "estado", "actualizado_en", "trabajo_id", "grados", "preferencias",
+            "usuario_id",
+            "estado",
+            "actualizado_en",
+            "trabajo_id",
+            "grados",
+            "preferencias",
         }
 
     async def test_trae_grados_del_colegio_y_preferencias_descifradas(self, cliente, motor):
@@ -116,12 +124,21 @@ class TestAcudientesDeColegio:
         # Un trabajo de este colegio (grado Quinto) con preferencias, y uno de
         # OTRO colegio (Sexto) que no debe colarse en `grados`.
         await _sembrar(
-            motor, usuario_id=u1, estado="publicado", colegio=COLEGIO,
-            actualizado_en=base + timedelta(hours=1), grado="Quinto", preferencias=prefs,
+            motor,
+            usuario_id=u1,
+            estado="publicado",
+            colegio=COLEGIO,
+            actualizado_en=base + timedelta(hours=1),
+            grado="Quinto",
+            preferencias=prefs,
         )
         await _sembrar(
-            motor, usuario_id=u1, estado="publicado", colegio=OTRO,
-            actualizado_en=base, grado="Sexto",
+            motor,
+            usuario_id=u1,
+            estado="publicado",
+            colegio=OTRO,
+            actualizado_en=base,
+            grado="Sexto",
         )
         respuesta = await cliente.get(f"/v1/admin/colegios/{COLEGIO}/acudientes")
         cuerpo = respuesta.json()["acudientes"][0]

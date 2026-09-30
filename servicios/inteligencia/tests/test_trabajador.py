@@ -70,9 +70,7 @@ async def test_retoma_un_procesando_colgado(motor):
     trabajo_id = await _encolar(motor)
     async with motor.engine.begin() as conexion:
         await conexion.execute(
-            update(TRABAJO)
-            .where(TRABAJO.c.id == trabajo_id)
-            .values(estado=EstadoTrabajo.PROCESANDO.value)
+            update(TRABAJO).where(TRABAJO.c.id == trabajo_id).values(estado=EstadoTrabajo.PROCESANDO.value)
         )
 
     n = await trabajador.pasada(motor, catalogo=_catalogo_verificado(), retomar_colgados=True)

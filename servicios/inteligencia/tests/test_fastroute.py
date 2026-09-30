@@ -103,6 +103,21 @@ class CatalogoVerificado(CatalogoFalso):
             "items": self.renglones,
         }
 
+    async def revision(self, version_id: str) -> dict[str, Any]:
+        # Misma forma que `lista()` pero por `version_id` explicito: es el camino
+        # que toma el pipeline cuando el poller estampa el `version_id` del evento
+        # en el hijo (para unir la lista aprobada con su trabajo en "Mis
+        # solicitudes"). El fake devuelve la version pedida, revisada, con items.
+        self.llamadas.append("revision")
+        return {
+            "lista_id": "lista-1",
+            "version_id": version_id,
+            "grado": self.grado,
+            "revisada": self.revisada,
+            "total_items": len(self.items_resueltos or self.renglones),
+            "items": self.renglones,
+        }
+
     async def resueltos(self, version_id: str) -> dict[str, Any]:
         self.llamadas.append("resueltos")
         return {

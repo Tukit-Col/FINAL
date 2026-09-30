@@ -274,9 +274,7 @@ async def _pedido_pagado(cliente) -> str:
 
 async def test_avanzar_pedido_pagado_a_en_preparacion(cliente):
     pedido_id = await _pedido_pagado(cliente)
-    respuesta = await cliente.post(
-        f"/v1/ordenes/{pedido_id}/avanzar", json={"destino": "en_preparacion"}
-    )
+    respuesta = await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", json={"destino": "en_preparacion"})
     assert respuesta.status_code == 200
     assert respuesta.json()["estado"] == EstadoPedido.EN_PREPARACION.value
 
@@ -327,9 +325,7 @@ async def test_avanzar_hasta_entregado_marca_entregado_en(cliente):
 
 
 async def test_avanzar_pedido_inexistente_da_404(cliente):
-    respuesta = await cliente.post(
-        f"/v1/ordenes/{uuid.uuid4()}/avanzar", json={"destino": "en_preparacion"}
-    )
+    respuesta = await cliente.post(f"/v1/ordenes/{uuid.uuid4()}/avanzar", json={"destino": "en_preparacion"})
     assert respuesta.status_code == 404
     assert respuesta.json()["error"] == "pedido_no_existe"
 

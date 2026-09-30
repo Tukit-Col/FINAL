@@ -43,8 +43,7 @@ def test_despachar_con_solo_guia_no_basta():
 
 def test_despachar_con_transportadora_y_guia_pasa():
     assert (
-        validar_avance("en_preparacion", "despachado", transportadora="Servientrega", guia="ABC123")
-        is None
+        validar_avance("en_preparacion", "despachado", transportadora="Servientrega", guia="ABC123") is None
     )
 
 

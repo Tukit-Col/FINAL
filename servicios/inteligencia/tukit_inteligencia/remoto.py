@@ -163,6 +163,18 @@ class ClienteCatalogo:
         productos = list(cuerpo.get("productos") or ())
         return productos[0] if productos else None
 
+    async def listas_por_contacto(self, contacto_referencia: str) -> list[dict[str, Any]]:
+        """Las listas que subio un acudiente, para su panel "Mis solicitudes".
+
+        Cuelga de `/interno` A PROPOSITO: la puerta no rutea ese prefijo, asi que
+        esta lectura servicio-a-servicio no existe hacia el navegador (nadie de
+        fuera pide "las listas de un contacto"). Inteligencia le pega directo al
+        Catalogo con el `usuario_id` de la sesion que ya valido: `contacto_referencia`
+        JAMAS viene del navegador.
+        """
+        cuerpo = await self._pedir("GET", f"/interno/listas-por-contacto/{contacto_referencia}")
+        return list(cuerpo.get("listas") or ())
+
     async def resueltos(self, version_id: str) -> dict[str, Any]:
         """La ruta rapida: items ya resueltos + candidatos curados de una lista revisada.
 
@@ -272,6 +284,28 @@ class ClienteIdentidad:
         except (httpx.HTTPError, KeyError):
             return None
 
+    async def sesion(self, token: str) -> dict[str, Any] | None:
+        """La sesion del portador del token contra identidad
+        (`GET /v1/sesiones/actual`), o `None` si el token no vale (401).
+
+        A diferencia del resto de este cliente, la autorizacion FALLA CERRADA:
+        una caida de identidad es `RemotoCaido` (no `None`), para que quien
+        valida NUNCA abra el acceso por no poder preguntar. Devuelve el JSON con
+        `roles`, que es lo que la puerta de inteligencia necesita para exigir
+        operador/admin con la misma semantica que `/v1/admin/acudientes`."""
+        try:
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.get(
+                    f"{self._base()}/v1/sesiones/actual",
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+                if respuesta.status_code == 401:
+                    return None
+                respuesta.raise_for_status()
+                return dict(respuesta.json())
+        except httpx.HTTPError as error:
+            raise RemotoCaido("identidad", str(error)) from error
+
     async def datos_directorio(self, dane: str) -> dict[str, Any] | None:
         """Los datos DUEB (direccion, contacto, sitio) del colegio con ese DANE,
         para pre-llenar el perfil del colegio nuevo. `None` si el DANE no esta en
@@ -314,6 +348,19 @@ class ClienteComercio:
 
     async def iniciar_pago(self, pedido_id: str, cuerpo: dict[str, Any]) -> tuple[int, dict[str, Any]]:
         return await self._postear(f"/v1/ordenes/{pedido_id}/pago", cuerpo)
+
+    async def pedidos_pagados(self) -> list[dict[str, Any]]:
+        """Los pedidos en estado confirmado con su trabajo: `{trabajo_id,
+        usuario_id, estado}`. Comercio es el dueno de la definicion de "pagado";
+        aqui solo se lee para cruzar con los hijos del trabajo. Una caida de
+        Comercio es `RemotoCaido`, no un cruce a medias."""
+        try:
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.get(f"{self._base()}/v1/comercio/pedidos-pagados")
+                respuesta.raise_for_status()
+        except httpx.HTTPError as error:
+            raise RemotoCaido("comercio", str(error)) from error
+        return list(respuesta.json().get("pedidos") or ())
 
     async def _postear(self, ruta: str, cuerpo: dict[str, Any]) -> tuple[int, dict[str, Any]]:
         # Disyuntor, pero SIN reintento: es un POST (crear orden / iniciar pago).

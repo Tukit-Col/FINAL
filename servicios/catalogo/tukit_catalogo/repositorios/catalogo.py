@@ -28,6 +28,7 @@ PRECIO = Base.metadata.tables["precio_oferta"]
 LISTA = Base.metadata.tables["lista_oficial"]
 VERSION = Base.metadata.tables["version_lista_oficial"]
 ITEM = Base.metadata.tables["item_lista_oficial"]
+TAREA = Base.metadata.tables["tarea_importacion"]
 
 _ORDEN_NIVEL = ("economico", "confiable", "premium")
 
@@ -133,9 +134,7 @@ class RepoCatalogo:
         self.conexion = conexion
 
     async def _total(self, consulta: Select) -> int:
-        return int(
-            await self.conexion.scalar(select(func.count()).select_from(consulta.subquery())) or 0
-        )
+        return int(await self.conexion.scalar(select(func.count()).select_from(consulta.subquery())) or 0)
 
     # ------------------------------------------------------------------ resumen
 
@@ -531,3 +530,27 @@ class RepoCatalogo:
             )
         )
         return cabeza, filas
+
+    async def tareas_por_contacto(self, contacto_referencia: uuid.UUID) -> list[Any]:
+        """Las tareas de un acudiente, con la `revisada_en` de su version si la tiene.
+
+        Una fila por tarea (no por version): el router dedupica por version,
+        quedandose con la mas reciente, porque una version puede tener varias
+        tareas y aca solo se trae la materia prima ordenada.
+        """
+        consulta = (
+            select(
+                TAREA.c.id,
+                TAREA.c.version_id,
+                TAREA.c.colegio_id,
+                TAREA.c.grado,
+                TAREA.c.anio_lectivo,
+                TAREA.c.colegio_datos,
+                TAREA.c.creada_en,
+                VERSION.c.revisada_en,
+            )
+            .select_from(TAREA.outerjoin(VERSION, VERSION.c.id == TAREA.c.version_id))
+            .where(TAREA.c.contacto_referencia == contacto_referencia)
+            .order_by(TAREA.c.creada_en.desc())
+        )
+        return list(await self.conexion.execute(consulta))

@@ -23,4 +23,9 @@ export {
   type Sesion,
   type Credenciales,
   type NuevaCuenta,
+  type MatriculaAcudiente,
+  type RegistroAcudiente,
+  type HijoNuevo,
+  type AcudienteAdmin,
+  type HijoAcudiente,
 } from "./origen";

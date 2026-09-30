@@ -100,6 +100,11 @@ class Poller:
         hijo: dict[str, Any] = {"referencia": "hijo-1", "colegio_id": str(colegio_id), "grado": grado}
         if anio is not None:
             hijo["anio_lectivo"] = anio
+        # El `version_id` (el agregado del evento) queda en el trabajo para poder
+        # volver de una lista subida al trabajo que engendro: es lo que deja
+        # "Mis solicitudes" unir la lista aprobada con su trabajo en una sola
+        # fila, en vez de mostrar dos. La carga no lo trae; el agregado si.
+        hijo["version_id"] = str(fila.agregado_id)
 
         # Las preferencias son las del paso 3 que el Catalogo guardo y reenvio en
         # la carga; {} para el kit del colegio (se arma con las preferencias base).

@@ -12,12 +12,25 @@ import FormularioIngreso from "./FormularioIngreso";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Ingresar — Tukit" };
 
-export default async function Ingresar() {
+export default async function Ingresar({
+  searchParams,
+}: {
+  // En Next 16 `searchParams` llega como promesa; se lee en el servidor y el
+  // destino viaja como prop, para no usar `useSearchParams` (que exigiria
+  // envolver el formulario en <Suspense>).
+  searchParams: Promise<{ destino?: string }>;
+}) {
   const sesion = await sesionActual();
   if (sesion) {
     const destino = destinoDe(sesion);
     redirect(destino.app === "admin" ? `${urlAdmin()}${destino.ruta}` : destino.ruta);
   }
 
-  return <FormularioIngreso />;
+  const { destino } = await searchParams;
+  // Solo ruta interna: "/algo" pero no "//host". El Route Handler lo revalida
+  // igual (defensa en profundidad), pero saneamos ya aqui para no pasar basura.
+  const destinoSeguro =
+    destino && destino.startsWith("/") && !destino.startsWith("//") ? destino : undefined;
+
+  return <FormularioIngreso destino={destinoSeguro} />;
 }

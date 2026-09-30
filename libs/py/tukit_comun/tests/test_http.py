@@ -186,9 +186,7 @@ class TestLivenessYReadiness:
                 return False
 
         app = crear_app(titulo="Prueba", descripcion="banco")
-        app.state.motor = SimpleNamespace(
-            engine=SimpleNamespace(connect=lambda: _ConexionRota())
-        )
+        app.state.motor = SimpleNamespace(engine=SimpleNamespace(connect=lambda: _ConexionRota()))
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://prueba"
         ) as cliente:

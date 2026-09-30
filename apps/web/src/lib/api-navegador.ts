@@ -10,8 +10,10 @@ import type {
   Checkout,
   Contacto,
   ErrorApi,
+  HijoNuevo,
   HijoSubida,
   Preferencias,
+  RegistroAcudiente,
   SolicitudCaso,
   SolicitudCheckout,
   SolicitudTrabajo,
@@ -151,6 +153,40 @@ export async function subirListas(
     forma.append("referencia", referencia);
   }
   return leer<SubidaListas>(await fetch("/api/listas/subir", { method: "POST", body: forma }));
+}
+
+/**
+ * Da de alta al acudiente y sus hijos en el camino "soy nuevo usuario". Habla
+ * con el Route Handler local, no con el backend: correo, clave y celular no
+ * salen del navegador hacia otro origen. La clave viaja una sola vez aqui y
+ * nunca vuelve al cliente.
+ */
+export async function registrarAcudiente(
+  datos: RegistroAcudiente,
+): Promise<{ usuario_id: string; creado: boolean }> {
+  return leer<{ usuario_id: string; creado: boolean }>(
+    await fetch("/api/registro", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(datos),
+    }),
+  );
+}
+
+/**
+ * Guarda en la cuenta del acudiente autenticado las matrículas de sus hijos
+ * NUEVOS (camino "ya tengo cuenta"). Habla con el Route Handler local, que pone
+ * el Bearer desde la cookie httpOnly: el token nunca toca el navegador. Es
+ * idempotente en el backend, así que reintentar es inocuo.
+ */
+export async function guardarMatriculas(hijos: HijoNuevo[]): Promise<{ total: number }> {
+  return leer<{ total: number }>(
+    await fetch("/api/cuenta/matriculas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hijos }),
+    }),
+  );
 }
 
 export async function crearCaso(solicitud: SolicitudCaso): Promise<CasoCreado> {

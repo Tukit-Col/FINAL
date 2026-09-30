@@ -71,8 +71,10 @@ En el doble de pruebas (donde vive el `ClienteIdentidad` falso), añadir:
 self.usuario_por_token: dict[str, str] = {}
 self.registros = 0
 
+
 async def usuario_del_token(self, token: str) -> str | None:
     return self.usuario_por_token.get(token)
+
 
 async def registrar_contacto(self, correo, celular=None):
     self.registros += 1

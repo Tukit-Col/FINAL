@@ -267,6 +267,7 @@ En `servicios/identidad/tukit_identidad/api.py` linea 42:
 ```python
 # antes
 from .sesiones import emitir_token, leer_token, verificar_clave
+
 # despues
 from .dominio.sesiones import emitir_token, leer_token, verificar_clave
 ```
@@ -276,6 +277,7 @@ En `servicios/identidad/tukit_identidad/sembrar_acceso.py` linea 37:
 ```python
 # antes
 from .sesiones import hashear_clave
+
 # despues
 from .dominio.sesiones import hashear_clave
 ```
@@ -290,6 +292,7 @@ from tukit_identidad.sesiones import (
     leer_token,
     verificar_clave,
 )
+
 # despues
 from tukit_identidad.dominio.sesiones import (
     emitir_token,
@@ -304,6 +307,7 @@ En `servicios/identidad/tests/test_cuenta.py` linea 26:
 ```python
 # antes
 from tukit_identidad.sesiones import emitir_token, hashear_clave
+
 # despues
 from tukit_identidad.dominio.sesiones import emitir_token, hashear_clave
 ```
@@ -355,6 +359,7 @@ En `servicios/identidad/tukit_identidad/api.py` linea 155 (import inline dentro 
 ```python
 # antes
 from .directorio_bogota import datos_colegio_nuevo_por_dane
+
 # despues
 from .dominio.directorio import datos_colegio_nuevo_por_dane
 ```
@@ -366,6 +371,7 @@ En `servicios/identidad/tests/test_directorio_bogota.py` lineas 16-18:
 from tukit_identidad.directorio_bogota import (
     parsear_directorio,
 )
+
 # despues
 from tukit_identidad.dominio.directorio import (
     parsear_directorio,
@@ -408,6 +414,7 @@ from tukit_identidad.autorizacion import (
     puede,
     roles_vigentes,
 )
+
 # despues
 from tukit_identidad.autorizacion import (
     campos_visibles,
@@ -1056,9 +1063,21 @@ router = APIRouter()
 _FORMA_CORREO = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
 GRADOS = (
-    "Parvulos", "Prejardin", "Jardin", "Transicion", "Primero", "Segundo",
-    "Tercero", "Cuarto", "Quinto", "Sexto", "Septimo", "Octavo", "Noveno",
-    "Decimo", "Once",
+    "Parvulos",
+    "Prejardin",
+    "Jardin",
+    "Transicion",
+    "Primero",
+    "Segundo",
+    "Tercero",
+    "Cuarto",
+    "Quinto",
+    "Sexto",
+    "Septimo",
+    "Octavo",
+    "Noveno",
+    "Decimo",
+    "Once",
 )
 
 
@@ -1152,6 +1171,7 @@ async def archivar_direccion(
         if await repo.archivar_direccion(direccion_id, fila.id) == 0:
             raise ErrorDominio("direccion_no_existe", "No hay ninguna direccion tuya con ese id.", estado=404)
     return None
+
 
 # ... las 12 rutas restantes (directorio, ver_colegio, editar_colegio, grados,
 # contactos POST/GET, sesiones/actual, sesiones/cierre, cuenta, cuenta/direcciones
@@ -1437,7 +1457,11 @@ async def test_el_vinculo_guarda_apodo_cifrado(sesion):
     sesion.add_all([sede, estudiante])
     await sesion.flush()
     matricula = Matricula(
-        estudiante_id=estudiante.id, sede_id=sede.id, colegio_id=colegio.id, grado="Tercero", anio_lectivo=2026
+        estudiante_id=estudiante.id,
+        sede_id=sede.id,
+        colegio_id=colegio.id,
+        grado="Tercero",
+        anio_lectivo=2026,
     )
     usuario = Usuario(correo="papa@ejemplo.com", clave_hash="x")
     sesion.add_all([matricula, usuario])
@@ -1747,6 +1771,7 @@ Expected: FAIL — `StopIteration` (el permiso `estudiante:leer:apodo` no esta e
 En `servicios/identidad/tukit_identidad/sembrar_acceso.py`, agregar al final de la lista `PERMISOS` (antes del `]`):
 
 ```python
+(
     {
         "codigo": "estudiante:leer:apodo",
         "recurso": "estudiante",
@@ -1754,6 +1779,8 @@ En `servicios/identidad/tukit_identidad/sembrar_acceso.py`, agregar al final de 
         "campo": "apodo",
         "clasificacion_minima": Clasificacion.MENOR.value,
     },
+)
+(
     {
         "codigo": "usuario:leer:nombre",
         "recurso": "usuario",
@@ -1763,14 +1790,15 @@ En `servicios/identidad/tukit_identidad/sembrar_acceso.py`, agregar al final de 
         # clasificacion mide sensibilidad del dato, no quien lo ve.
         "clasificacion_minima": Clasificacion.PERSONAL.value,
     },
+)
 ```
 
 Y al final de `ROL_PERMISO` (antes del `]`):
 
 ```python
-    ("acudiente", "estudiante:leer:apodo"),
-    ("admin", "usuario:leer:nombre"),
-    ("operador", "usuario:leer:nombre"),
+(("acudiente", "estudiante:leer:apodo"),)
+(("admin", "usuario:leer:nombre"),)
+(("operador", "usuario:leer:nombre"),)
 ```
 
 - [ ] **Step 4: Correr la prueba, verificar que pasa**
@@ -1831,155 +1859,156 @@ CONSENTIMIENTO = Base.metadata.tables["consentimiento"]
 Agregar los metodos a `RepoIdentidad`:
 
 ```python
-    async def crear_o_promover_cuenta(
-        self, *, correo: str, clave: str, nombre: str, celular: str | None
-    ):
-        from sqlalchemy import insert, update
+async def crear_o_promover_cuenta(self, *, correo: str, clave: str, nombre: str, celular: str | None):
+    from sqlalchemy import insert, update
 
-        from ..dominio.cuenta import Decision, decide_creacion
-        from ..dominio.sesiones import hashear_clave
+    from ..dominio.cuenta import Decision, decide_creacion
+    from ..dominio.sesiones import hashear_clave
 
-        fila = await self.usuario_por_correo(correo)
-        decision = decide_creacion(fila.clave_hash if fila is not None else None)
-        if decision is Decision.CONFLICTO:
-            return fila, decision
+    fila = await self.usuario_por_correo(correo)
+    decision = decide_creacion(fila.clave_hash if fila is not None else None)
+    if decision is Decision.CONFLICTO:
+        return fila, decision
 
-        cifrador = cifrador_desde_entorno()
-        nombre_cifrado = cifrador.cifrar(nombre.encode("utf-8"))
-        clave_hash = hashear_clave(clave)
+    cifrador = cifrador_desde_entorno()
+    nombre_cifrado = cifrador.cifrar(nombre.encode("utf-8"))
+    clave_hash = hashear_clave(clave)
 
-        if decision is Decision.PROMOVER:
-            await self.conexion.execute(
-                update(USUARIO)
-                .where(USUARIO.c.id == fila.id)
-                .values(clave_hash=clave_hash, nombre_cifrado=nombre_cifrado, celular=celular)
+    if decision is Decision.PROMOVER:
+        await self.conexion.execute(
+            update(USUARIO)
+            .where(USUARIO.c.id == fila.id)
+            .values(clave_hash=clave_hash, nombre_cifrado=nombre_cifrado, celular=celular)
+        )
+        usuario_id = fila.id
+    else:  # CREAR
+        usuario_id = uuid.uuid4()
+        await self.conexion.execute(
+            insert(USUARIO).values(
+                id=usuario_id,
+                correo=correo,
+                clave_hash=clave_hash,
+                nombre_cifrado=nombre_cifrado,
+                celular=celular,
             )
-            usuario_id = fila.id
-        else:  # CREAR
-            usuario_id = uuid.uuid4()
-            await self.conexion.execute(
-                insert(USUARIO).values(
-                    id=usuario_id,
-                    correo=correo,
-                    clave_hash=clave_hash,
-                    nombre_cifrado=nombre_cifrado,
-                    celular=celular,
-                )
-            )
-        creada = (await self.conexion.execute(select(USUARIO).where(USUARIO.c.id == usuario_id))).one()
-        return creada, decision
+        )
+    creada = (await self.conexion.execute(select(USUARIO).where(USUARIO.c.id == usuario_id))).one()
+    return creada, decision
 
-    async def otorgar_rol_acudiente(self, usuario_id: uuid.UUID, colegio_id: uuid.UUID) -> None:
-        """El rol acudiente con ambito de colegio. El CHECK
-        `asignacion_ambito_coherente` exige ambito_id no-nulo para 'colegio'."""
-        from sqlalchemy import insert
-        from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 
-        valores = {
-            "id": uuid.uuid4(),
-            "usuario_id": usuario_id,
-            "rol_codigo": "acudiente",
-            "ambito_tipo": "colegio",
-            "ambito_id": colegio_id,
+async def otorgar_rol_acudiente(self, usuario_id: uuid.UUID, colegio_id: uuid.UUID) -> None:
+    """El rol acudiente con ambito de colegio. El CHECK
+    `asignacion_ambito_coherente` exige ambito_id no-nulo para 'colegio'."""
+    from sqlalchemy import insert
+    from sqlalchemy.dialects.sqlite import insert as insert_sqlite
+
+    valores = {
+        "id": uuid.uuid4(),
+        "usuario_id": usuario_id,
+        "rol_codigo": "acudiente",
+        "ambito_tipo": "colegio",
+        "ambito_id": colegio_id,
+    }
+    # Idempotente por (usuario, rol, ambito): re-registrar un hijo del mismo
+    # colegio no duplica la asignacion. En SQLite de prueba el ON CONFLICT
+    # cae al insert plano; en Postgres respeta el indice.
+    await self.conexion.execute(insert(ASIGNACION_ROL).values(**valores))
+
+
+async def registrar_hijo(
+    self,
+    *,
+    usuario_id: uuid.UUID,
+    apodo: str,
+    colegio_id: uuid.UUID,
+    sede_id: uuid.UUID,
+    grado: str,
+    anio_lectivo: int,
+    version_consentimiento: str,
+) -> uuid.UUID:
+    from datetime import UTC, datetime
+
+    from sqlalchemy import insert
+
+    cifrador = cifrador_desde_entorno()
+    estudiante_id = uuid.uuid4()
+    matricula_id = uuid.uuid4()
+
+    # Estudiante sin nombre en claro: el apodo cifrado vive en el vinculo,
+    # no en el estudiante. `nombre_cifrado` del estudiante es NOT NULL, asi
+    # que se cifra el propio apodo como marcador (el sistema nunca recibe el
+    # nombre real del menor en este flujo).
+    await self.conexion.execute(
+        insert(ESTUDIANTE).values(id=estudiante_id, nombre_cifrado=cifrador.cifrar(apodo.encode("utf-8")))
+    )
+    await self.conexion.execute(
+        insert(MATRICULA).values(
+            id=matricula_id,
+            estudiante_id=estudiante_id,
+            sede_id=sede_id,
+            colegio_id=colegio_id,
+            grado=grado,
+            anio_lectivo=anio_lectivo,
+        )
+    )
+    await self.conexion.execute(
+        insert(ACUDIENTE_MATRICULA).values(
+            usuario_id=usuario_id,
+            matricula_id=matricula_id,
+            es_principal=True,
+            apodo_cifrado=cifrador.cifrar(apodo.encode("utf-8")),
+        )
+    )
+    # El consentimiento de menor DEBE llevar matricula_id: el CHECK
+    # `consentimiento_menor_coherente` lo impone. Va en la misma
+    # transaccion que el vinculo; no hay hijo sin consentimiento.
+    await self.conexion.execute(
+        insert(CONSENTIMIENTO).values(
+            id=uuid.uuid4(),
+            usuario_id=usuario_id,
+            regimen="registro_menor",
+            version=version_consentimiento,
+            matricula_id=matricula_id,
+            aceptado_en=datetime.now(UTC),
+        )
+    )
+    return matricula_id
+
+
+async def hijos_del_padre(self, usuario_id: uuid.UUID) -> list[dict[str, Any]]:
+    """Los apodos que este titular puede ver, filtrados por las matriculas
+    que alcanza. Reusa `matriculas_visibles` (Fase 1): solo lo propio."""
+    visibles = await self.matriculas_visibles(usuario_id)
+    if not visibles:
+        return []
+    filas = await self.conexion.execute(
+        select(
+            ACUDIENTE_MATRICULA.c.apodo_cifrado,
+            MATRICULA.c.grado,
+            MATRICULA.c.colegio_id,
+        )
+        .select_from(
+            ACUDIENTE_MATRICULA.join(MATRICULA, MATRICULA.c.id == ACUDIENTE_MATRICULA.c.matricula_id)
+        )
+        .where(
+            ACUDIENTE_MATRICULA.c.usuario_id == usuario_id,
+            ACUDIENTE_MATRICULA.c.matricula_id.in_(visibles),
+            ACUDIENTE_MATRICULA.c.vigente_hasta.is_(None),
+        )
+    )
+    cifrador = cifrador_desde_entorno()
+    return [
+        {
+            "apodo": (
+                cifrador.descifrar(f.apodo_cifrado).decode("utf-8", errors="replace")
+                if f.apodo_cifrado is not None
+                else None
+            ),
+            "grado": f.grado,
+            "colegio_id": str(f.colegio_id),
         }
-        # Idempotente por (usuario, rol, ambito): re-registrar un hijo del mismo
-        # colegio no duplica la asignacion. En SQLite de prueba el ON CONFLICT
-        # cae al insert plano; en Postgres respeta el indice.
-        await self.conexion.execute(insert(ASIGNACION_ROL).values(**valores))
-
-    async def registrar_hijo(
-        self,
-        *,
-        usuario_id: uuid.UUID,
-        apodo: str,
-        colegio_id: uuid.UUID,
-        sede_id: uuid.UUID,
-        grado: str,
-        anio_lectivo: int,
-        version_consentimiento: str,
-    ) -> uuid.UUID:
-        from datetime import UTC, datetime
-
-        from sqlalchemy import insert
-
-        cifrador = cifrador_desde_entorno()
-        estudiante_id = uuid.uuid4()
-        matricula_id = uuid.uuid4()
-
-        # Estudiante sin nombre en claro: el apodo cifrado vive en el vinculo,
-        # no en el estudiante. `nombre_cifrado` del estudiante es NOT NULL, asi
-        # que se cifra el propio apodo como marcador (el sistema nunca recibe el
-        # nombre real del menor en este flujo).
-        await self.conexion.execute(
-            insert(ESTUDIANTE).values(id=estudiante_id, nombre_cifrado=cifrador.cifrar(apodo.encode("utf-8")))
-        )
-        await self.conexion.execute(
-            insert(MATRICULA).values(
-                id=matricula_id,
-                estudiante_id=estudiante_id,
-                sede_id=sede_id,
-                colegio_id=colegio_id,
-                grado=grado,
-                anio_lectivo=anio_lectivo,
-            )
-        )
-        await self.conexion.execute(
-            insert(ACUDIENTE_MATRICULA).values(
-                usuario_id=usuario_id,
-                matricula_id=matricula_id,
-                es_principal=True,
-                apodo_cifrado=cifrador.cifrar(apodo.encode("utf-8")),
-            )
-        )
-        # El consentimiento de menor DEBE llevar matricula_id: el CHECK
-        # `consentimiento_menor_coherente` lo impone. Va en la misma
-        # transaccion que el vinculo; no hay hijo sin consentimiento.
-        await self.conexion.execute(
-            insert(CONSENTIMIENTO).values(
-                id=uuid.uuid4(),
-                usuario_id=usuario_id,
-                regimen="registro_menor",
-                version=version_consentimiento,
-                matricula_id=matricula_id,
-                aceptado_en=datetime.now(UTC),
-            )
-        )
-        return matricula_id
-
-    async def hijos_del_padre(self, usuario_id: uuid.UUID) -> list[dict[str, Any]]:
-        """Los apodos que este titular puede ver, filtrados por las matriculas
-        que alcanza. Reusa `matriculas_visibles` (Fase 1): solo lo propio."""
-        visibles = await self.matriculas_visibles(usuario_id)
-        if not visibles:
-            return []
-        filas = await self.conexion.execute(
-            select(
-                ACUDIENTE_MATRICULA.c.apodo_cifrado,
-                MATRICULA.c.grado,
-                MATRICULA.c.colegio_id,
-            )
-            .select_from(
-                ACUDIENTE_MATRICULA.join(MATRICULA, MATRICULA.c.id == ACUDIENTE_MATRICULA.c.matricula_id)
-            )
-            .where(
-                ACUDIENTE_MATRICULA.c.usuario_id == usuario_id,
-                ACUDIENTE_MATRICULA.c.matricula_id.in_(visibles),
-                ACUDIENTE_MATRICULA.c.vigente_hasta.is_(None),
-            )
-        )
-        cifrador = cifrador_desde_entorno()
-        return [
-            {
-                "apodo": (
-                    cifrador.descifrar(f.apodo_cifrado).decode("utf-8", errors="replace")
-                    if f.apodo_cifrado is not None
-                    else None
-                ),
-                "grado": f.grado,
-                "colegio_id": str(f.colegio_id),
-            }
-            for f in filas
-        ]
+        for f in filas
+    ]
 ```
 
 - [ ] **Step 2: Commit del repo (las pruebas verdes llegan con la Task 24)**
@@ -2091,10 +2120,12 @@ async def test_clave_corta_es_422(cliente):
 
 
 async def test_registrar_hijo_sin_colegio_es_422(cliente):
-    login = (await cliente.post(
-        "/v1/cuenta",
-        json={"correo": "papa@ejemplo.com", "clave": "clave1234", "nombre": "Papa", "celular": None},
-    )).json()
+    login = (
+        await cliente.post(
+            "/v1/cuenta",
+            json={"correo": "papa@ejemplo.com", "clave": "clave1234", "nombre": "Papa", "celular": None},
+        )
+    ).json()
     tok = {"Authorization": f"Bearer {login['token']}"}
     r = await cliente.post(
         "/v1/cuenta/hijos",
@@ -2106,34 +2137,52 @@ async def test_registrar_hijo_sin_colegio_es_422(cliente):
 
 
 async def test_registrar_hijo_sin_consentimiento_es_422(cliente):
-    login = (await cliente.post(
-        "/v1/cuenta",
-        json={"correo": "mama@ejemplo.com", "clave": "clave1234", "nombre": "Mama", "celular": None},
-    )).json()
+    login = (
+        await cliente.post(
+            "/v1/cuenta",
+            json={"correo": "mama@ejemplo.com", "clave": "clave1234", "nombre": "Mama", "celular": None},
+        )
+    ).json()
     tok = {"Authorization": f"Bearer {login['token']}"}
     cid = str(derivar("colegio", "2.4"))
     sid = str(derivar("sede", "2.4", "u"))
     r = await cliente.post(
         "/v1/cuenta/hijos",
         headers=tok,
-        json={"apodo": "Pepe", "colegio_id": cid, "sede_id": sid, "grado": "Tercero", "anio_lectivo": 2026, "consentimiento": False},
+        json={
+            "apodo": "Pepe",
+            "colegio_id": cid,
+            "sede_id": sid,
+            "grado": "Tercero",
+            "anio_lectivo": 2026,
+            "consentimiento": False,
+        },
     )
     assert r.status_code == 422
     assert r.json()["error"] == "consentimiento_requerido"
 
 
 async def test_registrar_hijo_y_listarlo_devuelve_apodo(cliente):
-    login = (await cliente.post(
-        "/v1/cuenta",
-        json={"correo": "tia@ejemplo.com", "clave": "clave1234", "nombre": "Tia", "celular": None},
-    )).json()
+    login = (
+        await cliente.post(
+            "/v1/cuenta",
+            json={"correo": "tia@ejemplo.com", "clave": "clave1234", "nombre": "Tia", "celular": None},
+        )
+    ).json()
     tok = {"Authorization": f"Bearer {login['token']}"}
     cid = str(derivar("colegio", "2.4"))
     sid = str(derivar("sede", "2.4", "u"))
     creado = await cliente.post(
         "/v1/cuenta/hijos",
         headers=tok,
-        json={"apodo": "Pepe", "colegio_id": cid, "sede_id": sid, "grado": "Tercero", "anio_lectivo": 2026, "consentimiento": True},
+        json={
+            "apodo": "Pepe",
+            "colegio_id": cid,
+            "sede_id": sid,
+            "grado": "Tercero",
+            "anio_lectivo": 2026,
+            "consentimiento": True,
+        },
     )
     assert creado.status_code == 201
     listado = (await cliente.get("/v1/cuenta/hijos", headers=tok)).json()
@@ -2185,7 +2234,9 @@ async def crear_cuenta(peticion: Request, datos: NuevaCuenta) -> dict[str, Any]:
 
     correo = datos.correo.strip().lower()
     if not _FORMA_CORREO.fullmatch(correo):
-        raise ErrorDominio("correo_invalido", "El correo no tiene una forma valida.", estado=422, campo="correo")
+        raise ErrorDominio(
+            "correo_invalido", "El correo no tiene una forma valida.", estado=422, campo="correo"
+        )
 
     async with peticion.app.state.motor.sesion() as db:
         repo = RepoIdentidad(await db.connection())
@@ -2194,7 +2245,10 @@ async def crear_cuenta(peticion: Request, datos: NuevaCuenta) -> dict[str, Any]:
         )
         if decision is Decision.CONFLICTO:
             raise ErrorDominio(
-                "correo_ya_registrado", "Ese correo ya tiene una cuenta. Inicia sesion.", estado=409, campo="correo"
+                "correo_ya_registrado",
+                "Ese correo ya tiene una cuenta. Inicia sesion.",
+                estado=409,
+                campo="correo",
             )
         sesion = await repo.armar_sesion(fila)
     token = emitir_token(fila.id, fila.version_permisos)
@@ -2297,10 +2351,10 @@ En `servicios/identidad/tests/test_api_identidad.py`, dentro del set de
 `"/v1/cuenta/direcciones/{direccion_id}",`:
 
 ```python
-            # "Mis hijos": apodos del portador, nunca nombres reales de menor.
-            # Exige token y solo devuelve lo propio (Ley 1581 / Anexo M).
-            "/v1/cuenta/hijos",
-            "/v1/cuenta",
+# "Mis hijos": apodos del portador, nunca nombres reales de menor.
+# Exige token y solo devuelve lo propio (Ley 1581 / Anexo M).
+("/v1/cuenta/hijos",)
+("/v1/cuenta",)
 ```
 
 (Verificar si `/v1/cuenta` ya estaba en el set del as-built; si ya figura, no
@@ -2420,8 +2474,10 @@ En el doble de pruebas (donde vive el `ClienteIdentidad` falso), añadir:
 self.usuario_por_token: dict[str, str] = {}
 self.registros = 0
 
+
 async def usuario_del_token(self, token: str) -> str | None:
     return self.usuario_por_token.get(token)
+
 
 async def registrar_contacto(self, correo, celular=None):
     self.registros += 1
@@ -2842,9 +2898,7 @@ volumen, filtrar en Python:
 ```python
 # repositorios / consulta del servicio de inteligencia
 async def trabajos_recientes(self) -> list[Fila]:
-    q = select(TrabajoPipeline).order_by(
-        TrabajoPipeline.usuario_id, TrabajoPipeline.actualizado_en.desc()
-    )
+    q = select(TrabajoPipeline).order_by(TrabajoPipeline.usuario_id, TrabajoPipeline.actualizado_en.desc())
     return (await self._conn.execute(q)).all()
 ```
 
@@ -2855,11 +2909,10 @@ async def acudientes_de_colegio(request: Request, colegio_id: str) -> dict:
     async with request.app.state.motor.sesion() as db:
         filas = await Repo(await db.connection()).trabajos_recientes()
     del_colegio = [
-        f for f in filas
-        if f.usuario_id and any(h.get("colegio_id") == colegio_id for h in f.hijos)
+        f for f in filas if f.usuario_id and any(h.get("colegio_id") == colegio_id for h in f.hijos)
     ]
     ultimos: dict[str, Fila] = {}
-    for f in del_colegio:                 # ya vienen ordenados por usuario, más reciente primero
+    for f in del_colegio:  # ya vienen ordenados por usuario, más reciente primero
         ultimos.setdefault(str(f.usuario_id), f)
     acudientes = [
         {

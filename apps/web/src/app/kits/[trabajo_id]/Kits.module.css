@@ -552,6 +552,8 @@
 
 .formPago {
   margin-top: var(--espacio-4);
+  /* Deja aire bajo la cabecera sticky superior (~63px) al saltar aqui. */
+  scroll-margin-top: var(--espacio-7);
   display: grid;
   gap: var(--espacio-3);
   background: var(--clay-surface-grad);

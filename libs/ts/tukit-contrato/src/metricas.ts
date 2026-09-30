@@ -23,6 +23,43 @@ export interface MetricasColegio {
   ahorro_total_cop: number;
 }
 
+/** Un padre (por `usuario_id`, sin PII) y cuantos de sus hijos entran en el
+ *  conteo. El correo NO viaja aqui: lo resuelve el servidor del admin con el
+ *  endpoint protegido de acudientes, pasando estos `usuario_id`. */
+export interface PadreConNinos {
+  usuario_id: string;
+  ninos: number;
+}
+
+/** El desglose por grado de los pedidos pagados de un colegio. */
+export interface PedidosPorGrado {
+  grado: string;
+  padres: number;
+  ninos: number;
+  por_padre: PadreConNinos[];
+}
+
+/** El cruce `pedido pagado -> trabajo -> hijos -> padre` de un colegio, que
+ *  calcula Inteligencia (`GET /v1/metricas/colegios/{id}/pedidos`) llamando a
+ *  Comercio por HTTP. Solo agregados e ids: cero PII. "Pedido" = pedido en un
+ *  estado confirmado (la definicion vive en Comercio). Todo en cero y listas
+ *  vacias si el colegio no tiene pedidos pagados: respuesta valida, no 404. */
+export interface ResumenPedidosColegio {
+  colegio_id: string;
+  /** `usuario_id` distintos con >=1 hijo de este colegio en pedidos pagados. */
+  total_padres: number;
+  /** Hijos de este colegio contados en esos pedidos (un trabajo cuenta una vez). */
+  total_ninos: number;
+  por_padre: PadreConNinos[];
+  por_grado: PedidosPorGrado[];
+  /** Estado de las solicitudes de kit del colegio (todas, no solo pagadas). */
+  estados_trabajos: {
+    espera_revision: number;
+    publicado: number;
+    fallido: number;
+  };
+}
+
 /** Un punto de la serie congelada: una metrica, un dia, una dimension. */
 export interface PuntoMetrica {
   fecha: string; // ISO YYYY-MM-DD

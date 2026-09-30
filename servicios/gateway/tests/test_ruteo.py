@@ -12,7 +12,7 @@ from __future__ import annotations
 import httpx
 import pytest
 from tukit_gateway import api
-from tukit_gateway.api import CABECERAS_SALTADAS, RUTAS, app, destino
+from tukit_gateway.api import CABECERAS_SALTADAS, RUTAS, app, bloqueada, destino
 
 
 class TestElPrefijoMasLargoGana:
@@ -29,6 +29,9 @@ class TestElPrefijoMasLargoGana:
             ("/v1/colegios", "identidad"),
             ("/v1/contactos", "identidad"),
             ("/v1/trabajos/abc", "inteligencia"),
+            # "Mis solicitudes" del acudiente: prefijo propio para no chocar con
+            # `/v1/trabajos/{trabajo_id}`; la sirve inteligencia.
+            ("/v1/mis-solicitudes", "inteligencia"),
             # `/v1/admin` esta declarado aparte y no cae en `/v1/trabajos`
             # por parecido: si un dia admin vive en otro servicio, cambia una
             # linea del mapa y nada mas.
@@ -56,6 +59,10 @@ class TestElPrefijoMasLargoGana:
             # sirve catalogo: su prefijo mas largo gana a `/v1/admin` y evita
             # que caiga en inteligencia.
             ("/v1/admin/sugerencias", "catalogo"),
+            # El padron de acudientes lo sirve identidad (es su dato personal),
+            # no inteligencia: su prefijo mas largo gana a `/v1/admin`.
+            ("/v1/admin/acudientes", "identidad"),
+            ("/v1/admin/acudientes/abc", "identidad"),
             # El tablero de logistica y la bandeja de casos, que ahora si tienen
             # servicio detras (comercio y operacion).
             ("/v1/comercio/pedidos", "comercio"),
@@ -90,6 +97,15 @@ class TestElPrefijoMasLargoGana:
         assert destino("/v1/admin/sugerencias") == "catalogo"
         assert destino("/v1/admin/sugerencias/abc") == "catalogo"
 
+    def test_acudientes_no_cae_en_inteligencia(self):
+        """`/v1/admin/acudientes` NO debe sombrearse a `/v1/admin` (inteligencia).
+
+        Sin el prefijo propio el padron iria al servicio equivocado y nunca
+        llegaria a identidad, que es quien tiene el dato del acudiente.
+        """
+        assert destino("/v1/admin/acudientes") == "identidad"
+        assert destino("/v1/admin/acudientes/abc") == "identidad"
+
     def test_un_prefijo_parecido_pero_distinto_no_cuela(self):
         """`/v1/listasbla` no es `/v1/listas`. Sin la comprobacion del
         separador, un endpoint nuevo mal escrito se reenviaria en silencio."""
@@ -115,6 +131,64 @@ class TestYaNoHayPagoPendiente:
         assert PENDIENTES == {}
         assert pendiente("/v1/ordenes") is None
         assert pendiente("/v1/webhooks/wompi") is None
+
+
+class TestLasRutasInternasNoSeExponen:
+    """`/v1/comercio/pedidos-pagados` es servicio-a-servicio (inteligencia le
+    pega directo a comercio por `TUKIT_COMERCIO_URL`), y desde fuera debe verse
+    como INEXISTENTE, no como prohibida: revelar que hay una superficie interna
+    es informacion que no le hace falta a nadie de fuera.
+    """
+
+    def test_pedidos_pagados_esta_bloqueada(self):
+        assert bloqueada("/v1/comercio/pedidos-pagados") is True
+
+    def test_el_resto_de_comercio_no_esta_bloqueado(self):
+        # El bloqueo es exacto sobre pedidos-pagados: el tablero de pedidos y lo
+        # demas de comercio siguen ruteando.
+        assert bloqueada("/v1/comercio/pedidos") is False
+        assert bloqueada("/v1/comercio/mis-pedidos") is False
+        assert destino("/v1/comercio/pedidos") == "comercio"
+
+    async def test_responde_404_indistinguible_de_ruta_desconocida(self):
+        """El 404 de la ruta interna es identico al de una ruta que no existe, y
+        la ruta bloqueada NO aparece en la lista de rutas: desde fuera no hay
+        forma de saber que existe una superficie interna detras."""
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://prueba"
+        ) as cliente:
+            respuesta = await cliente.get("/v1/comercio/pedidos-pagados")
+
+        assert respuesta.status_code == 404
+        cuerpo = respuesta.json()
+        assert cuerpo["error"] == "ruta_desconocida"
+        assert cuerpo["rutas"] == sorted(RUTAS)
+        assert "/v1/comercio/pedidos-pagados" not in cuerpo["rutas"]
+
+
+class TestElEndpointInternoDeCatalogoNoSeExpone:
+    """`/interno/listas-por-contacto/{usuario_id}` es servicio-a-servicio
+    (inteligencia le pega directo a catalogo por `TUKIT_CATALOGO_URL`) y, como no
+    esta en `RUTAS`, la puerta ni siquiera lo conoce: `destino` es `None` y la
+    peticion recibe el mismo 404 de "ruta desconocida" que cualquier otra. Asi la
+    superficie interna del catalogo no existe hacia el navegador."""
+
+    RUTA = "/interno/listas-por-contacto/aaaaaaaa-aaaa-5aaa-8aaa-aaaaaaaaaaaa"
+
+    def test_destino_es_none(self):
+        assert destino(self.RUTA) is None
+
+    async def test_responde_404_ruta_desconocida(self):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://prueba"
+        ) as cliente:
+            respuesta = await cliente.get(self.RUTA)
+
+        assert respuesta.status_code == 404
+        cuerpo = respuesta.json()
+        assert cuerpo["error"] == "ruta_desconocida"
+        # El prefijo interno no aparece en la lista de rutas que si existen.
+        assert not any(r.startswith("/interno") for r in cuerpo["rutas"])
 
 
 class TestLaRespuestaCuandoNoSabe:

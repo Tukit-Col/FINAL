@@ -57,4 +57,9 @@ export type {
   Sesion,
   Credenciales,
   NuevaCuenta,
+  MatriculaAcudiente,
+  RegistroAcudiente,
+  HijoNuevo,
+  AcudienteAdmin,
+  HijoAcudiente,
 } from "./origen";

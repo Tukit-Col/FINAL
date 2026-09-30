@@ -91,9 +91,7 @@ def test_filas_solo_incluye_colegios_con_kits():
     assert colegios == {"col-1"}  # col-2 no tiene kits -> no aporta traza
 
     # La cobertura del colegio activo va en puntos base.
-    cobertura = [
-        f["valor"] for f in filas if f["dimension"] == "colegio" and f["metrica"] == "cobertura_bps"
-    ]
+    cobertura = [f["valor"] for f in filas if f["dimension"] == "colegio" and f["metrica"] == "cobertura_bps"]
     assert cobertura == [9231]
 
     # Las siete cifras del catalogo se congelan como conteo directo.
@@ -145,9 +143,7 @@ async def test_escribir_es_idempotente(motor):
 @pytest_asyncio.fixture
 async def cliente_http(motor) -> AsyncIterator[httpx.AsyncClient]:
     app.state.motor = motor
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://prueba"
-    ) as http:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
         yield http
 
 

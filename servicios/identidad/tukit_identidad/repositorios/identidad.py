@@ -17,8 +17,11 @@ from typing import Any
 
 from sqlalchemy import and_, func, insert, or_, select, update
 from tukit_comun.cifrado import cifrador_desde_entorno
+from tukit_comun.http import ErrorDominio, iso
+from tukit_comun.identificadores import derivar
 
 from ..dominio.autorizacion import Ambito
+from ..dominio.matriculas import GRADOS, HijoMatricula
 from ..modelos import (
     ORDEN_CLASIFICACION,
     AcudienteMatricula,
@@ -229,6 +232,7 @@ class RepoIdentidad:
             select(
                 COLEGIO.c.id,
                 COLEGIO.c.nombre,
+                COLEGIO.c.dane,
                 COLEGIO.c.logo_url,
                 func.count(SEDE_T.c.id).label("sedes"),
             )
@@ -238,7 +242,7 @@ class RepoIdentidad:
                 )
             )
             .where(COLEGIO.c.activo.is_(True))
-            .group_by(COLEGIO.c.id, COLEGIO.c.nombre, COLEGIO.c.logo_url)
+            .group_by(COLEGIO.c.id, COLEGIO.c.nombre, COLEGIO.c.dane, COLEGIO.c.logo_url)
             .order_by(COLEGIO.c.nombre)
         )
         if busqueda:
@@ -543,3 +547,338 @@ class RepoIdentidad:
             }
             for f in filas
         ]
+
+    # ------------------------------------------------------------------
+    # Padron y matriculas por lote: el registro del acudiente, "mis
+    # matriculas" con sesion y el padron de admin. El SQL derivado que
+    # materializa cada hijo lo comparten el router (registro + /empezar) y el
+    # poller (colegio que se vuelve aliado); por eso vive aqui y no en cada
+    # llamador (ADR 0019).
+    # ------------------------------------------------------------------
+
+    async def materializar_hijos(
+        self,
+        usuario_id: uuid.UUID,
+        hijos: list[HijoMatricula],
+        anio_lectivo: int,
+        cifrador: Any,
+        conteo_inicial: dict[tuple[uuid.UUID, str], int] | None = None,
+    ) -> int:
+        """Materializa cada hijo como estudiante + matricula + vinculo del
+        acudiente (UUID derivado + SELECT-then-INSERT). Corre dentro de la
+        conexion ya abierta por el llamador; NO abre transaccion propia.
+
+        Cuenta repeticiones por (colegio_id, grado): dos hijos con el mismo par
+        —gemelos— derivarian el mismo `estudiante_id` y colapsarian en una fila.
+        La aparicion nº1 conserva la derivacion historica intacta (misma tupla
+        que `sembrar_acceso`); desde la nº2 se agrega el ordinal, y como
+        `matricula_id` deriva de `estudiante_id`, tambien diverge.
+
+        `conteo_inicial` opcional: el registro no lo pasa (arranca en 0, reenviar
+        la misma peticion cae en las mismas filas derivadas -> idempotente). La
+        ruta de sesion SI lo pasa, con las repeticiones que el portador YA tiene
+        en cada par, para que agregar otro hijo al mismo par tome el ordinal
+        siguiente en vez de re-derivar la fila que ya existe.
+
+        Devuelve cuantos hijos se CREARON de verdad (vinculo nuevo), no cuantos
+        se recibieron: una derivacion que cae en una fila existente no cuenta.
+        """
+        conteo: dict[tuple[uuid.UUID, str], int] = dict(conteo_inicial or {})
+        creados = 0
+        for hijo in hijos:
+            # El grado se valida aqui (no solo en el pre-check del registro): la
+            # ruta de sesion no tiene pre-check y debe quedar cubierta por el
+            # mismo 422.
+            if hijo.grado not in GRADOS:
+                raise ErrorDominio(
+                    "grado_invalido", f"'{hijo.grado}' no es un grado escolar.", estado=422, campo="grado"
+                )
+
+            # La sede activa del colegio. En el piloto es unica; colegios
+            # multi-sede quedan como brecha conocida (primera activa por nombre).
+            sede_id = await self.conexion.scalar(
+                select(SEDE_T.c.id)
+                .where(SEDE_T.c.colegio_id == hijo.colegio_id, SEDE_T.c.activa.is_(True))
+                .order_by(SEDE_T.c.nombre)
+                .limit(1)
+            )
+            if sede_id is None:
+                raise ErrorDominio(
+                    "colegio_sin_sede",
+                    "El colegio no existe o no tiene una sede activa.",
+                    estado=422,
+                    campo="colegio_id",
+                )
+
+            clave = (hijo.colegio_id, hijo.grado)
+            conteo[clave] = conteo.get(clave, 0) + 1
+            repeticion = conteo[clave]
+            if repeticion == 1:
+                estudiante_id = derivar(
+                    "estudiante", str(usuario_id), str(hijo.colegio_id), hijo.grado, str(anio_lectivo)
+                )
+            else:
+                estudiante_id = derivar(
+                    "estudiante",
+                    str(usuario_id),
+                    str(hijo.colegio_id),
+                    hijo.grado,
+                    str(anio_lectivo),
+                    str(repeticion),
+                )
+
+            if (
+                await self.conexion.scalar(select(ESTUDIANTE.c.id).where(ESTUDIANTE.c.id == estudiante_id))
+                is None
+            ):
+                await self.conexion.execute(
+                    insert(ESTUDIANTE).values(
+                        id=estudiante_id,
+                        nombre_cifrado=cifrador.cifrar((hijo.apodo or "").encode("utf-8")),
+                    )
+                )
+
+            matricula_id = derivar(
+                "matricula", str(estudiante_id), str(sede_id), hijo.grado, str(anio_lectivo)
+            )
+            if (
+                await self.conexion.scalar(select(MATRICULA.c.id).where(MATRICULA.c.id == matricula_id))
+                is None
+            ):
+                await self.conexion.execute(
+                    insert(MATRICULA).values(
+                        id=matricula_id,
+                        estudiante_id=estudiante_id,
+                        sede_id=sede_id,
+                        colegio_id=hijo.colegio_id,
+                        grado=hijo.grado,
+                        anio_lectivo=anio_lectivo,
+                    )
+                )
+
+            vinculo = await self.conexion.scalar(
+                select(ACUDIENTE_MATRICULA.c.usuario_id).where(
+                    ACUDIENTE_MATRICULA.c.usuario_id == usuario_id,
+                    ACUDIENTE_MATRICULA.c.matricula_id == matricula_id,
+                )
+            )
+            if vinculo is None:
+                await self.conexion.execute(
+                    insert(ACUDIENTE_MATRICULA).values(
+                        usuario_id=usuario_id,
+                        matricula_id=matricula_id,
+                        parentesco="acudiente",
+                        es_principal=True,
+                    )
+                )
+                creados += 1
+        return creados
+
+    async def conteo_matriculas_por_par(
+        self, usuario_id: uuid.UUID, anio_lectivo: int
+    ) -> dict[tuple[uuid.UUID, str], int]:
+        """Cuantas matriculas tiene ya el portador en cada (colegio, grado) de
+        este anio, con el filtro de vigencia de `matriculas_del_titular`. Ese
+        conteo previo es lo que hace que agregar otro hijo al mismo par tome el
+        ordinal siguiente en `materializar_hijos`."""
+        filas = await self.conexion.execute(
+            select(MATRICULA.c.colegio_id, MATRICULA.c.grado, func.count().label("n"))
+            .select_from(
+                ACUDIENTE_MATRICULA.join(MATRICULA, ACUDIENTE_MATRICULA.c.matricula_id == MATRICULA.c.id)
+            )
+            .where(
+                ACUDIENTE_MATRICULA.c.usuario_id == usuario_id,
+                ACUDIENTE_MATRICULA.c.vigente_hasta.is_(None),
+                MATRICULA.c.estado == "activa",
+                MATRICULA.c.anio_lectivo == anio_lectivo,
+            )
+            .group_by(MATRICULA.c.colegio_id, MATRICULA.c.grado)
+        )
+        return {(uuid.UUID(str(f.colegio_id)), f.grado): int(f.n) for f in filas}
+
+    async def matriculas_del_titular(self, usuario_id: uuid.UUID) -> list[dict[str, Any]]:
+        """El ambito de tenencia de MIS hijos: colegio, grado, anio y apodo. El
+        apodo (descifrado en servidor; vacio -> None) SI baja: el PADRE puede ver
+        el apodo de SUS hijos —es el portador del token y ya lo escribio el
+        mismo—, para precargar `/empezar`. No baja nombre legal, estudiante_id ni
+        documento. Se filtra por el usuario del token, no por rol."""
+        cifrador = cifrador_desde_entorno()
+        filas = await self.conexion.execute(
+            select(
+                MATRICULA.c.colegio_id,
+                MATRICULA.c.grado,
+                MATRICULA.c.anio_lectivo,
+                ESTUDIANTE.c.nombre_cifrado,
+            )
+            .select_from(
+                ACUDIENTE_MATRICULA.join(
+                    MATRICULA, ACUDIENTE_MATRICULA.c.matricula_id == MATRICULA.c.id
+                ).join(ESTUDIANTE, MATRICULA.c.estudiante_id == ESTUDIANTE.c.id)
+            )
+            .where(
+                ACUDIENTE_MATRICULA.c.usuario_id == usuario_id,
+                ACUDIENTE_MATRICULA.c.vigente_hasta.is_(None),
+                MATRICULA.c.estado == "activa",
+            )
+            .order_by(MATRICULA.c.colegio_id, MATRICULA.c.grado)
+        )
+        matriculas = []
+        for f in filas:
+            apodo = cifrador.descifrar(f.nombre_cifrado).decode("utf-8", errors="replace")
+            matriculas.append(
+                {
+                    "colegio_id": str(f.colegio_id),
+                    "grado": f.grado,
+                    "anio_lectivo": int(f.anio_lectivo),
+                    "apodo": apodo or None,
+                }
+            )
+        return matriculas
+
+    async def es_staff_vigente(self, usuario_id: uuid.UUID) -> bool:
+        """¿Tiene el usuario un rol de staff (admin/operador) vigente? Mismo
+        predicado de vigencia que `armar_sesion`. No filtra ambito: admin/operador
+        solo se siembran a ambito global."""
+        ahora = datetime.now(UTC)
+        existe = await self.conexion.scalar(
+            select(ASIGNACION_ROL.c.id)
+            .where(
+                ASIGNACION_ROL.c.usuario_id == usuario_id,
+                ASIGNACION_ROL.c.rol_codigo.in_(("admin", "operador")),
+                ASIGNACION_ROL.c.vigente_desde <= ahora,
+                or_(ASIGNACION_ROL.c.vigente_hasta.is_(None), ASIGNACION_ROL.c.vigente_hasta > ahora),
+            )
+            .limit(1)
+        )
+        return existe is not None
+
+    async def padron_acudientes(self, ids: list[uuid.UUID] | None) -> list[dict[str, Any]]:
+        """El padron de acudientes registrados y sus hijos, para admin.
+
+        Poblacion: credencial REAL (no el centinela de invitado), activo y SIN
+        ningun rol interno vigente (NOT EXISTS correlado). El acote por `ids` va
+        SOBRE ese filtro (AND), nunca lo abre. Devuelve el apodo del menor (dato
+        del Anexo M que esta puerta expone SOLO a staff), colegio y grado; nunca
+        clave_hash, documento ni nombre legal."""
+        ahora = datetime.now(UTC)
+        roles_internos = ("admin", "operador", "colegio_admin", "colegio_docente")
+        sin_rol_interno = ~(
+            select(ASIGNACION_ROL.c.id)
+            .where(
+                ASIGNACION_ROL.c.usuario_id == USUARIO.c.id,
+                ASIGNACION_ROL.c.rol_codigo.in_(roles_internos),
+                ASIGNACION_ROL.c.vigente_desde <= ahora,
+                or_(ASIGNACION_ROL.c.vigente_hasta.is_(None), ASIGNACION_ROL.c.vigente_hasta > ahora),
+            )
+            .exists()
+        )
+        consulta = (
+            select(USUARIO.c.id, USUARIO.c.correo, USUARIO.c.celular, USUARIO.c.creado_en)
+            .where(
+                USUARIO.c.clave_hash != "sin-credencial",
+                USUARIO.c.activo.is_(True),
+                sin_rol_interno,
+            )
+            .order_by(USUARIO.c.creado_en.desc())
+        )
+        if ids is not None:
+            consulta = consulta.where(USUARIO.c.id.in_(ids))
+        usuarios = list(await self.conexion.execute(consulta))
+
+        hijos_por_usuario: dict[uuid.UUID, list[dict[str, Any]]] = {}
+        if usuarios:
+            cifrador = cifrador_desde_entorno()
+            filas_hijos = await self.conexion.execute(
+                select(
+                    ACUDIENTE_MATRICULA.c.usuario_id,
+                    ESTUDIANTE.c.nombre_cifrado,
+                    MATRICULA.c.colegio_id,
+                    MATRICULA.c.grado,
+                    COLEGIO.c.nombre,
+                )
+                .select_from(
+                    ACUDIENTE_MATRICULA.join(MATRICULA, ACUDIENTE_MATRICULA.c.matricula_id == MATRICULA.c.id)
+                    .join(ESTUDIANTE, MATRICULA.c.estudiante_id == ESTUDIANTE.c.id)
+                    .join(COLEGIO, MATRICULA.c.colegio_id == COLEGIO.c.id)
+                )
+                .where(
+                    ACUDIENTE_MATRICULA.c.usuario_id.in_([u.id for u in usuarios]),
+                    ACUDIENTE_MATRICULA.c.vigente_hasta.is_(None),
+                    MATRICULA.c.estado == "activa",
+                )
+                .order_by(ACUDIENTE_MATRICULA.c.usuario_id, MATRICULA.c.grado)
+            )
+            for h in filas_hijos:
+                apodo = cifrador.descifrar(h.nombre_cifrado).decode("utf-8", errors="replace")
+                hijos_por_usuario.setdefault(h.usuario_id, []).append(
+                    {
+                        "apodo": apodo or None,
+                        "colegio_id": str(h.colegio_id),
+                        "colegio_nombre": h.nombre,
+                        "grado": h.grado,
+                    }
+                )
+
+        return [
+            {
+                "usuario_id": str(u.id),
+                "correo": u.correo,
+                "celular": u.celular,
+                "creado_en": iso(u.creado_en),
+                "hijos": hijos_por_usuario.get(u.id, []),
+            }
+            for u in usuarios
+        ]
+
+    async def registrar_acudiente_con_hijos(
+        self,
+        correo: str,
+        clave: str,
+        celular: str | None,
+        hijos: list[HijoMatricula],
+        anio_lectivo: int,
+        cifrador: Any,
+    ) -> tuple[uuid.UUID, bool]:
+        """Alta idempotente del acudiente + matriculas de sus hijos, en la
+        conexion ya abierta. Tres caminos por el estado del correo:
+
+        - No existe: se crea con clave hasheada y celular (id derivado del correo).
+        - Invitado (centinela `sin-credencial`, lo dejo `registrar_contacto`): se
+          le pone clave y celular.
+        - Cuenta real: NO se escribe nada, devuelve `creado=False`. La ruta es
+          publica; mutar una cuenta ya registrada dejaria a un tercero colgar
+          matriculas de la familia de otro.
+
+        Los hijos solo se persisten en los dos primeros casos. Devuelve
+        `(usuario_id, creado)`."""
+        from ..dominio.sesiones import hashear_clave
+
+        existente = (
+            await self.conexion.execute(
+                select(USUARIO.c.id, USUARIO.c.clave_hash).where(USUARIO.c.correo == correo)
+            )
+        ).one_or_none()
+
+        if existente is not None and existente.clave_hash != "sin-credencial":
+            return existente.id, False
+
+        if existente is None:
+            usuario_id = derivar("usuario", correo)
+            await self.conexion.execute(
+                insert(USUARIO).values(
+                    id=usuario_id,
+                    correo=correo,
+                    clave_hash=hashear_clave(clave),
+                    celular=celular,
+                )
+            )
+        else:
+            usuario_id = existente.id
+            await self.conexion.execute(
+                update(USUARIO)
+                .where(USUARIO.c.id == usuario_id)
+                .values(clave_hash=hashear_clave(clave), celular=celular)
+            )
+
+        await self.materializar_hijos(usuario_id, hijos, anio_lectivo, cifrador)
+        return usuario_id, True

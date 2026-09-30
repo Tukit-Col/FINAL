@@ -22,6 +22,7 @@ import type {
   SolicitudCheckout,
   HijoSubida,
   MarcarNoDisponible,
+  MisSolicitudes,
   PercepcionCruda,
   Preferencias,
   ProductoDadoDeAlta,
@@ -49,6 +50,7 @@ import type {
   ColegioEditable,
   ColegioNuevoEditable,
   DatosColegioNuevo,
+  DirectorioColegio,
   FiltrosListasAdmin,
   FiltrosProductos,
   ItemListaEditable,
@@ -65,7 +67,7 @@ import type {
   VersionListaAdmin,
 } from "./catalogo";
 import type { Pedido, TableroComercio } from "./comercio";
-import type { MetricasColegio, SerieMetricas } from "./metricas";
+import type { MetricasColegio, ResumenPedidosColegio, SerieMetricas } from "./metricas";
 import type { BandejaOperacion, Caso, CasoCreado, SolicitudCaso } from "./operacion";
 
 /** Los roles del sistema (filas de `rol` en identidad, ADR 0013). No es un
@@ -112,6 +114,62 @@ export interface NuevaCuenta extends Credenciales {
   celular?: string;
 }
 
+/** Un hijo tal como lo manda el formulario: colegio y grado bastan para armar el
+ *  kit; el `apodo` es opcional y es lo unico del menor que viaja (identidad lo
+ *  cifra), jamas el nombre legal, por minimizacion (Ley 1581 de 2012, Art. 4). Lo
+ *  usan el alta nueva (`RegistroAcudiente`) y el guardado con sesion. */
+export interface HijoNuevo {
+  colegio_id: string;
+  grado: string;
+  apodo?: string;
+}
+
+/** El ambito de tenencia de UN hijo del portador, tal como lo devuelve
+ *  `GET /v1/cuenta/matriculas`. Es lo justo para precargar `/empezar` sin
+ *  re-teclear: colegio, grado y el `apodo` (descifrado por identidad, o `null`).
+ *  El apodo SI baja porque el PADRE puede ver el de SUS hijos —es el portador del
+ *  token—, pero sigue sin traer nombre legal, documento ni `estudiante_id`. */
+export interface MatriculaAcudiente {
+  colegio_id: string;
+  grado: string;
+  anio_lectivo: number;
+  apodo: string | null;
+}
+
+/** El alta del acudiente nuevo (camino "soy nuevo usuario"): su credencial, el
+ *  celular para el aviso y sus hijos. Del menor solo viaja un `apodo` opcional
+ *  —jamas el nombre legal, por minimizacion (Ley 1581 de 2012, Art. 4)—, que
+ *  identidad guarda cifrado. */
+export interface RegistroAcudiente {
+  correo: string;
+  clave: string;
+  celular?: string;
+  hijos: HijoNuevo[];
+}
+
+/** Un hijo de un acudiente tal como lo devuelve el padron interno
+ *  (`GET /v1/admin/acudientes`). Del menor SOLO viaja el apodo (descifrado por
+ *  identidad, o `null` si no tiene) y el ambito de la matricula: nunca nombre
+ *  legal, documento ni `estudiante_id`. */
+export interface HijoAcudiente {
+  apodo: string | null;
+  colegio_id: string;
+  colegio_nombre: string;
+  grado: string;
+}
+
+/** Una familia registrada, tal como la ve el equipo interno en el padron
+ *  (`GET /v1/admin/acudientes`, solo admin/operador). El minimo para operar y
+ *  para que metricas resuelva `usuario_id -> cliente`: nunca clave, documento,
+ *  fecha de nacimiento ni nombre legal. */
+export interface AcudienteAdmin {
+  usuario_id: string;
+  correo: string;
+  celular: string | null;
+  creado_en: string;
+  hijos: HijoAcudiente[];
+}
+
 /** Un archivo de lista, ya leido, con el hijo al que pertenece. */
 export interface ArchivoLista {
   referencia: string;
@@ -136,6 +194,29 @@ export interface OrigenDatos {
   crearCuenta(cuenta: NuevaCuenta): Promise<{ sesion: Sesion; token: string }>;
   sesionActual(token: string): Promise<Sesion | null>;
   cerrarSesion(token: string): Promise<void>;
+
+  // §Identidad — registro y tenencia del acudiente.
+  //
+  // `registrarAcudiente` es el alta del camino "soy nuevo usuario": crea la
+  // cuenta con credencial usable y persiste las matriculas de sus hijos. No
+  // asigna rol (minimo, igual que el contacto): la sesion vale y `destinoDe`
+  // cae al destino web por defecto. `matriculasDelAcudiente` lee la tenencia
+  // del PROPIO portador del token, para que quien vuelve a `/empezar` con
+  // sesion no re-teclee a sus hijos; nunca devuelve datos de menor.
+  registrarAcudiente(datos: RegistroAcudiente): Promise<{ usuario_id: string; creado: boolean }>;
+  matriculasDelAcudiente(token: string): Promise<MatriculaAcudiente[]>;
+
+  // `guardarMatriculas` es el equivalente autenticado del alta de hijos de
+  // `registrarAcudiente` (camino "ya tengo cuenta"): el PORTADOR del token agrega
+  // a sus propios hijos sin re-registrar la cuenta. Bearer; idempotente; solo
+  // escribe tenencia del portador. Devuelve cuantas materializo.
+  guardarMatriculas(token: string, hijos: HijoNuevo[]): Promise<{ total: number }>;
+
+  // §Identidad — padron de acudientes para el equipo interno. Solo admin/
+  // operador (identidad gatea: 401 sin token, 403 sin rol). Devuelve las
+  // familias registradas con sus hijos; `ids` (opcional) acota a esos usuarios
+  // sin relajar el filtro. El token viaja como `Authorization: Bearer`.
+  acudientesAdmin(token: string, ids?: string[]): Promise<AcudienteAdmin[]>;
 
   // §2 y §4 — el ciclo asincrono.
   // `token` (opcional) es la sesion del acudiente: el Route Handler lo saca de
@@ -328,6 +409,11 @@ export interface OrigenDatos {
   // a solo nombre+dane.
   directorioColegio(dane: string): Promise<DatosColegioNuevo | null>;
 
+  // La ficha COMPLETA del directorio DUEB (mismo `GET /v1/directorio/{dane}`),
+  // con sector, localidad, rector y las listas de telefonos/correos, para el
+  // detalle del colegio en el admin. `null` con el mismo 404 que el anterior.
+  directorioCompleto(dane: string): Promise<DirectorioColegio | null>;
+
   // El detalle de un colegio y la edicion de su identidad. `colegio` lee
   // `GET /v1/colegios/{id}`; `editarColegio` manda el `PATCH /v1/colegios/{id}`
   // (solo los campos presentes) y devuelve el colegio ya actualizado.
@@ -369,6 +455,12 @@ export interface OrigenDatos {
   // mismo Bearer que ya reenvía `crearTrabajo`— y no por un `usuario_id` suelto.
   misTrabajos(token?: string): Promise<TrabajoResumen[]>;
 
+  // "Mis solicitudes" del panel del acudiente: sus listas subidas + sus
+  // trabajos, unidas (`GET /v1/mis-solicitudes` en inteligencia). Viaja el
+  // token, no el `usuario_id`: el backend saca la identidad de la sesion que
+  // valida, para que el navegador nunca elija de quien pedir las solicitudes.
+  misSolicitudes(token: string): Promise<MisSolicitudes>;
+
   // ASUMIDO — superficie de lectura de `operacion` (tickets del back-office).
   // Ver `operacion.ts`.
   casos(): Promise<BandejaOperacion>;
@@ -386,6 +478,15 @@ export interface OrigenDatos {
   // `GET /v1/operacion/metricas`), que `make instantanea-metricas` va llenando
   // sesion a sesion; los filtros acotan por dimension/colegio y por fecha minima.
   metricasColegio(colegioId: string): Promise<MetricasColegio>;
+
+  // §Metricas de pedidos — el cruce `pedido pagado -> trabajo -> hijos -> padre`
+  // de un colegio (Inteligencia, `GET /v1/metricas/colegios/{id}/pedidos`).
+  // Exige Bearer de operador/admin (misma semantica que `acudientesAdmin`): la
+  // respuesta lista los `usuario_id` de los padres que pagaron, que es dato
+  // sensible aunque no sea correo. El correo de cada padre lo resuelve el
+  // servidor del admin con `acudientesAdmin`, pasando estos `usuario_id`.
+  resumenPedidosColegio(token: string, colegioId: string): Promise<ResumenPedidosColegio>;
+
   metricasSerie(filtros?: {
     dimension?: "catalogo" | "colegio" | "global";
     dimensionId?: string;

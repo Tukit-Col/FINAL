@@ -93,6 +93,23 @@
   background: var(--clay-surface-grad);
   border-radius: var(--radius-lg);
   box-shadow: var(--clay-shadow-sm);
+  /* Ancla del overlay del enlace del nombre (patrón "stretched link"): así toda
+     la tarjeta es clicable con un solo `<a>`. */
+  position: relative;
+}
+
+/* El enlace del nombre se estira sobre toda la tarjeta con un `::after`
+   absoluto. Es el único enlace de la tarjeta, así que el lector de pantalla ve
+   un solo destino con el nombre del colegio y no hay anidamiento de enlaces. */
+.enlaceTarjeta::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+}
+
+.tarjeta:hover {
+  box-shadow: var(--clay-shadow);
 }
 
 .tarjetaCabecera {
@@ -182,7 +199,9 @@
   list-style: none;
 }
 
-.grados li a {
+/* Chip de grado VISUAL (ya no es enlace, por el "stretched link" de la tarjeta):
+   mismo look de siempre, sin `:hover` de enlace porque no navega. */
+.gradoChip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -191,12 +210,7 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   color: var(--color-text);
-  text-decoration: none;
   font-size: 13px;
-}
-
-.grados li a:hover {
-  border-color: var(--color-primary);
 }
 
 .gradoEstado {
@@ -264,6 +278,14 @@
   gap: var(--espacio-3);
 }
 
+/* `min-width: 0` deja que las columnas del grid encojan por debajo del ancho de
+   su contenido: sin esto, un correo o URL largo del directorio ensancha su celda
+   y se monta sobre la vecina. Con esto (más el `overflow-wrap` de abajo) el texto
+   largo parte dentro de su celda. */
+.ficha > div {
+  min-width: 0;
+}
+
 .ficha dt {
   font-size: 11.5px;
   text-transform: uppercase;
@@ -274,6 +296,10 @@
 .ficha dd {
   font-size: 15px;
   font-weight: 600;
+  /* Correos y URLs del directorio no tienen espacios donde partir: `anywhere`
+     permite el corte en cualquier punto para que no desborden la columna. Se
+     hereda a los `<li>` de `.listaContactos`. */
+  overflow-wrap: anywhere;
 }
 
 .listaGrados {
@@ -364,6 +390,49 @@
   color: var(--color-text-muted);
 }
 
+/* Lista de teléfonos/correos del directorio DUEB: varios valores, uno por línea,
+   sin viñetas (el `<dt>` ya rotula el bloque). */
+.listaContactos {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Grado VERIFICADO: chip azul y clicable a su lista (estado actionable).
+   El selector incluye `.listaGrados li a` para GANARLE en especificidad a la
+   regla base de esos enlaces (`.listaGrados li a`, que impone fondo blanco y
+   borde gris); si no, el chip verificado se vería gris. */
+.listaGrados li a.gradoVerificado {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-light);
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.listaGrados li a.gradoVerificado:hover {
+  border-color: var(--color-primary);
+  text-decoration: underline;
+}
+
+/* Grado SIN lista: gris, atenuado y NO clicable (es un `<span>`, no un enlace).
+   `cursor: not-allowed` refuerza que no navega; `aria-disabled` + `aria-label`
+   lo cuentan al lector de pantalla. */
+.gradoSinLista {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-neutro-bg);
+  border: 1px solid var(--color-neutro-border);
+  color: var(--color-text-muted);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* --------------------------------------------------------- lista de grado */
 
 .accionesGrado {
@@ -408,6 +477,19 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--color-text-muted);
+}
+
+/* Celda que es cabecera de fila (`<th scope="row">`, se conserva por
+ * accesibilidad) pero contiene un dato (el correo del padre), no un rótulo: se
+ * anula el aspecto de encabezado (mayúsculas y color apagado) y luce como los
+ * demás datos de la tabla. El selector lleva `.tabla th` para ganarle en
+ * especificidad (0,2,1) a la regla de encabezado `.tabla th` (0,1,1), que si no
+ * dejaba el correo en mayúsculas y gris. */
+.tabla th.celdaDato {
+  font-size: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--color-text);
 }
 
 .libro {
@@ -550,6 +632,15 @@
   .marcoPdf {
     height: 480px;
   }
+}
+
+/* Documento subido como imagen: escala al ancho del panel, alto natural. */
+.imagenDocumento {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
 }
 
 .renglones {
@@ -716,4 +807,93 @@
 .botonPrincipal:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ----------------------------------------------------- métricas del colegio */
+
+/* Título de una sub-métrica dentro de la tarjeta "Métricas", más discreto que
+   `.subtitulo` porque cuelga de él. */
+.metricaTitulo {
+  margin-top: var(--espacio-4);
+  margin-bottom: var(--espacio-2);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+/* Fila de píldoras de estado de las solicitudes de kit (punto 4). */
+.estados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+}
+
+.estadoPill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: var(--espacio-2) var(--espacio-3);
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.estadoPill .cifra {
+  font-size: 15px;
+}
+
+.estadoEspera {
+  background: var(--color-aviso-bg);
+  border-color: var(--color-aviso-border);
+  color: var(--color-aviso);
+}
+
+.estadoPublicado {
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+  color: var(--color-success);
+}
+
+.estadoFallido {
+  background: var(--color-info-bg);
+  border-color: var(--color-info-border);
+  color: var(--color-info);
+}
+
+/* Lista de demanda por grado (punto 5): grado + nº de solicitudes. */
+.demanda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-1);
+}
+
+.demanda li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-3);
+  padding: var(--espacio-2) var(--espacio-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: 13.5px;
+}
+
+.demanda .cifra {
+  color: var(--color-primary);
+}
+
+/* Aviso discreto cuando los correos no se pudieron cargar (sin sesión/rol): los
+   conteos se muestran igual, con `usuario_id` en vez de correo. */
+.avisoCorreos {
+  padding: var(--espacio-2) var(--espacio-3);
+  background: var(--color-aviso-bg);
+  border: 1px solid var(--color-aviso-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-aviso);
+  font-size: 12.5px;
 }
