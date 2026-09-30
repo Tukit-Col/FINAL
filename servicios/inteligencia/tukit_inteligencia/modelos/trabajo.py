@@ -251,9 +251,7 @@ class KitCanonico(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
-    __table_args__ = (
-        UniqueConstraint("colegio_id", "grado", "anio_lectivo", name="uq_kit_canonico_grado"),
-    )
+    __table_args__ = (UniqueConstraint("colegio_id", "grado", "anio_lectivo", name="uq_kit_canonico_grado"),)
 
 
 def puede_pasar(actual: str, siguiente: str) -> bool:

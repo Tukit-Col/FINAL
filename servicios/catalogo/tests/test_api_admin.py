@@ -435,16 +435,32 @@ class TestCerrarLaRevision:
         assert evento.carga["anio_lectivo"] == 2026
         assert evento.carga["preferencias"] == preferencias
 
-    async def test_cerrar_un_onboarding_sin_padre_no_emite_nada(self, cliente):
-        # El onboarding del colegio no deja padre esperando: aprobarlo no dispara
-        # ningun kit ni evento —la lista queda verificada y disponible, nada mas—.
+    async def test_cerrar_un_onboarding_sin_padre_emite_lista_verificada_sin_contacto(self, cliente):
+        # El onboarding del colegio no deja padre esperando, pero aprobarlo SI
+        # emite `lista_verificada` —ahora con `contacto_referencia=None`—: el
+        # poller de Inteligencia lo lee como un kit de COLEGIO (origen
+        # `colegio_grado`) que entra a la cola de revision, y al aprobarlo ahi
+        # queda como kit canonico del grado. Sin este evento no habria canonico y
+        # el panel NSGA del colegio no tendria nada que pintar.
         vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
             "version_id"
         ]
 
         respuesta = await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
         assert respuesta.status_code == 200
-        assert await self._bandeja("lista_verificada") == []
+
+        eventos = await self._bandeja("lista_verificada")
+        assert len(eventos) == 1
+        evento = eventos[0]
+        assert evento.agregado_tipo == "version_lista_oficial"
+        assert str(evento.agregado_id) == vid
+        assert evento.publicado_en is None
+        # Sin padre: el poller lo distingue por este None y arma un kit de colegio.
+        assert evento.carga["contacto_referencia"] is None
+        assert evento.carga["colegio_id"] == str(COLEGIO)
+        assert evento.carga["grado"] == "Sexto"
+        assert evento.carga["anio_lectivo"] == 2026
+        assert evento.carga["preferencias"] == {}
 
     async def test_cerrar_una_version_de_colegio_nuevo_emite_colegio_verificado(self, cliente):
         # Un acudiente subio la lista de un colegio que aun no existe en Tukit

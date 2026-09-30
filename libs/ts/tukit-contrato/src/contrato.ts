@@ -132,8 +132,6 @@ export type DolorDeclarado = "disponibilidad" | "libros" | "un_solo_lugar" | "pr
 
 export interface Preferencias {
   pesos?: Pesos;
-  // Restriccion DURA, no una pista.
-  presupuesto_por_hijo?: Dinero | null;
   disposicion_sobreprecio?: number;
   personaje_por_hijo?: Record<string, string[]>;
   dolor_declarado?: DolorDeclarado;
@@ -358,7 +356,6 @@ export interface Kit {
 export interface Recomendacion {
   perfil: PerfilKit;
   razon: string;
-  dentro_de_presupuesto: boolean;
   pesos_usados: Pesos;
 }
 

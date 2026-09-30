@@ -91,10 +91,7 @@ export default function ConsolaRevision({ trabajo, personajes }: Props) {
       {trabajo.recomendado ? (
         <p className={styles.razonRecomendacion}>
           <strong>Se le va a marcar {trabajo.recomendado.perfil}:</strong>{" "}
-          {trabajo.recomendado.razon}{" "}
-          {trabajo.recomendado.dentro_de_presupuesto
-            ? ""
-            : "Ojo: queda fuera del presupuesto declarado."}
+          {trabajo.recomendado.razon}
         </p>
       ) : null}
 

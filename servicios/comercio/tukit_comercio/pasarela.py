@@ -263,11 +263,16 @@ class PasarelaFalsa:
         url_redireccion: str | None = None,
     ) -> TransaccionCreada:
         self._contador += 1
+        # NO se devuelve la `url_redireccion` recibida: es la pagina del kit
+        # desde donde el acudiente pago. Echarla de vuelta hacia que el frontend
+        # navegara a la MISMA pagina (recarga, "el boton no hace nada"). La
+        # pasarela falsa no redirige: el pedido ya quedo creado y el frontend
+        # muestra la confirmacion en sitio (la rama sin `url_redireccion`).
         creada = TransaccionCreada(
             referencia=referencia,
             transaccion_id=f"falsa-{self._contador}",
             estado=EstadoPago.INICIADO,
-            url_redireccion=url_redireccion,
+            url_redireccion=None,
         )
         self.creadas.append(creada)
         return creada

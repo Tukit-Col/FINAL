@@ -261,6 +261,9 @@ class TestLaSuperficieDeMenoresNoEstaAbierta:
         rutas = set(app.openapi()["paths"])
         assert rutas == {
             "/salud",
+            # Liveness/readiness (ADR 0021): sondas sin PII, abiertas a proposito.
+            "/health/live",
+            "/health/ready",
             "/v1/colegios",
             "/v1/colegios/{colegio_id}",
             "/v1/grados",

@@ -432,6 +432,9 @@ export default function FormularioEmpezar({
       });
       if (respuesta.ok) {
         setSesionLista(true);
+        // Cookie de sesion recien puesta: invalidar la Router Cache para que la
+        // cabecera (server component) reconozca al usuario sin recarga manual.
+        router.refresh();
         return;
       }
       const detalle = (await respuesta.json().catch(() => ({}))) as { error?: string; mensaje?: string };

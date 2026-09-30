@@ -19,6 +19,7 @@ import {
 } from "@tukit/contrato";
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import Sidebar from "@/components/Sidebar";
+import EtapasSolicitud from "./EtapasSolicitud";
 import { sesionActual, tokenDeSesion } from "@/lib/sesion";
 import styles from "./Dashboard.module.css";
 
@@ -61,12 +62,14 @@ export default async function DashboardPage() {
   let trabajos: TrabajoResumen[] = [];
   try {
     pedidos = await origenDeDatos().misPedidos(sesion.usuario_id);
-  } catch {
+  } catch (causa) {
+    console.error("dashboard: no se pudieron leer los pedidos", causa);
     pedidos = [];
   }
   try {
     trabajos = await origenDeDatos().misTrabajos(token);
-  } catch {
+  } catch (causa) {
+    console.error("dashboard: no se pudieron leer las solicitudes", causa);
     trabajos = [];
   }
 
@@ -159,7 +162,7 @@ export default async function DashboardPage() {
                       <th>Solicitud</th>
                       <th>Fecha</th>
                       <th>Hijos</th>
-                      <th>Estado</th>
+                      <th>Progreso</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -175,10 +178,7 @@ export default async function DashboardPage() {
                           <td className={styles.pedidoFecha}>{fechaLegible(t.creado_en)}</td>
                           <td>{t.hijos.length}</td>
                           <td>
-                            <span className={styles.badgeEntregado}>
-                              <span className={styles.badgeDot} />
-                              {e.texto}
-                            </span>
+                            <EtapasSolicitud estado={t.estado} />
                           </td>
                         </tr>
                       );

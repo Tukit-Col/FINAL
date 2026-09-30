@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { origenDeDatos } from "@tukit/contrato/servidor";
+import { sesionActual } from "@/lib/sesion";
 import VistaKits from "./VistaKits";
 
 export const dynamic = "force-dynamic";
@@ -23,5 +24,10 @@ export default async function PaginaKits({
     redirect(`/esperando/${trabajo_id}`);
   }
 
-  return <VistaKits trabajo={trabajo} />;
+  // El correo de la sesion prellena el comprobante del pago: al acudiente ya
+  // identificado no se le vuelve a pedir. Anonimo (sin cookie) => "" y el campo
+  // queda editable, como estaba.
+  const sesion = await sesionActual();
+
+  return <VistaKits trabajo={trabajo} correo={sesion?.correo ?? ""} />;
 }

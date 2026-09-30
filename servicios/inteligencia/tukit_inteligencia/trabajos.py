@@ -8,17 +8,16 @@ pierde los trabajos en vuelo, que `GET /v1/trabajos/{id}` puede responder
 desde otro proceso, y que reanudar no vuelve a pagar la percepcion, que es la
 etapa cara.
 
-La ejecucion de fondo es una `asyncio.Task` del mismo proceso, y eso **si**
-es una version simple a mejorar. Un trabajo que se este procesando cuando el
-servicio se caiga se queda en `procesando` para siempre hasta que alguien lo
-reencole; una cola de verdad (un trabajador aparte leyendo de la bandeja) lo
-retomaria solo. Se deja asi a proposito para que el ciclo completo corra con
-un comando, y se anota aqui para que no se confunda con lo definitivo.
+La ejecucion de fondo es DURABLE (ADR 0024): `lanzar` solo deja el trabajo
+`encolado`, y `tukit_inteligencia.trabajador` lo drena con `SELECT … FOR UPDATE
+SKIP LOCKED` —el mismo mecanismo del outbox—, lo mueve a `procesando` y corre
+`procesar`. Una caida de proceso ya no pierde el trabajo: la fila sigue en la
+base y otro worker (o el reinicio) la retoma. `procesar` es idempotente en el
+claim (borra ITEM/KIT y reejecuta), asi que retomar no duplica.
 """
 
 from __future__ import annotations
 
-import asyncio
 import os
 import time
 import uuid
@@ -244,6 +243,26 @@ async def _listas_por_hijo(
         colegio_id = str(hijo.get("colegio_id") or "")
         grado = str(hijo.get("grado") or "")
         anio = int(hijo.get("anio_lectivo") or ANIO_LECTIVO_POR_OMISION)
+
+        # Un hijo con `version_id` explicito (el preview de una edicion) fija la
+        # version a leer: se trae POR SU ID —no la vigente—, para previsualizar
+        # un borrador que aun no es vigente. `revision()` devuelve la misma forma
+        # que `lista()`, asi que el resto del pipeline no distingue. El flujo del
+        # acudiente y el del poller no traen `version_id`: caen a la vigente,
+        # como siempre.
+        version_pedida = hijo.get("version_id")
+        if version_pedida:
+            completa = await catalogo.revision(str(version_pedida))
+            encontradas.append(
+                {
+                    "hijo": referencia,
+                    "colegio_id": colegio_id,
+                    "completa": completa,
+                    "version_id": completa.get("version_id") or version_pedida,
+                    "revisada": bool(completa.get("revisada")),
+                }
+            )
+            continue
 
         listas = await catalogo.listas(colegio_id=colegio_id, grado=grado, anio_lectivo=anio)
         if not listas:
@@ -551,7 +570,14 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
         publicar_directo = fila.origen == "lista_verificada"
 
     async with motor.engine.begin() as conexion:
-        await _pasar_a(conexion, trabajo_id, EstadoTrabajo.PROCESANDO.value)
+        # Idempotente en el claim: el trabajador durable (ADR 0024) ya movio la
+        # fila a PROCESANDO bajo SKIP LOCKED antes de llamar aqui, y PROCESANDO
+        # no transiciona a si mismo. Solo se transiciona si aun venia ENCOLADO
+        # (la llamada directa de las pruebas y el reintento desde FALLIDO, que
+        # arriba se reencolo). Retomar un trabajo ya PROCESANDO tras un crash
+        # entra por aca sin volver a transicionar.
+        if fila.estado != EstadoTrabajo.PROCESANDO.value:
+            await _pasar_a(conexion, trabajo_id, EstadoTrabajo.PROCESANDO.value)
         # Reprocesar borra lo anterior. Sin esto, un reintento duplicaria
         # items y kits, y la unica senal seria que el total del kit se
         # duplico: un defecto que solo se ve sumando a mano.
@@ -807,16 +833,25 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
         return EstadoTrabajo.FALLIDO.value
 
 
-def lanzar(motor: Any, trabajo_id: uuid.UUID) -> asyncio.Task:
-    """Arranca el procesamiento de fondo.
+async def lanzar(motor: Any, trabajo_id: uuid.UUID) -> None:
+    """Encola el trabajo; el trabajador durable lo procesa (ADR 0024).
 
-    Version simple y declarada: una tarea del mismo proceso. Si el servicio
-    se reinicia con un trabajo en vuelo, ese trabajo se queda en
-    `procesando` hasta que alguien lo reencole con
-    `POST /v1/trabajos/{id}/reintentar`. Un trabajador aparte leyendo de la
-    bandeja de salida lo retomaria solo, y es lo que va despues.
+    Ya NO arranca una `asyncio.Task` en el proceso del API —esa era la unica
+    parte del sistema donde una caida de proceso perdia trabajo del usuario, y su
+    propio docstring lo admitia—. Solo garantiza que el trabajo quede `encolado`
+    (transaccional, durable): `tukit_inteligencia.trabajador` lo toma con SKIP
+    LOCKED, lo mueve a `procesando` y corre `procesar`. La respuesta HTTP al
+    acudiente sigue siendo inmediata (202 + `consultar_en`).
+
+    Idempotente: un trabajo ya `encolado` (recien creado) no transiciona; uno
+    `fallido` (reintentar) o `en revision` devuelto se reencola para que el worker
+    lo retome. Un `procesando`/`publicado` no se puede reencolar (lo frena la
+    maquina de estados), que es justo lo que se quiere.
     """
-    return asyncio.create_task(procesar(motor, trabajo_id))
+    async with motor.engine.begin() as conexion:
+        actual = await _estado(conexion, trabajo_id)
+        if actual != EstadoTrabajo.ENCOLADO.value:
+            await _pasar_a(conexion, trabajo_id, EstadoTrabajo.ENCOLADO.value)
 
 
 async def _publicar_evento(conexion: Any, trabajo_id: uuid.UUID) -> None:
@@ -1085,7 +1120,18 @@ async def ordenar(
             }
         )
     if not lineas:
-        raise TrabajoNoExiste(f"{trabajo_id}/{perfil} sin lineas comprables")
+        # El kit del perfil EXISTE, pero ninguna linea tiene producto+precio que
+        # Tukit pueda cobrar hoy: no es "no hay kit" (eso es el 404 de arriba),
+        # es un kit sin nada comprable. Se distingue para no mentirle al
+        # acudiente con "no tiene un kit de ese perfil". `CheckoutRechazado`
+        # lleva su propio estado y el router lo reenvia verbatim.
+        raise CheckoutRechazado(
+            409,
+            {
+                "error": "kit_sin_lineas",
+                "mensaje": "Este kit no tiene productos que Tukit pueda vender hoy.",
+            },
+        )
 
     colegios = sorted({h["colegio_id"] for h in hijos if h.get("colegio_id")})
     estado, orden = await comercio.crear_orden(
@@ -1339,7 +1385,10 @@ async def revisar(
     actor: uuid.UUID | None = None,
 ) -> dict[str, Any]:
     """AD-06: aprobar publica al acudiente, devolver reabre sin avisar."""
-    nuevo = EstadoTrabajo.PUBLICADO.value if decision == "aprobar" else EstadoTrabajo.PROCESANDO.value
+    # Devolver reencola: el trabajador durable (ADR 0024) lo retoma, no una tarea
+    # en proceso. Antes iba a PROCESANDO y el API arrancaba la corrutina; ahora
+    # queda ENCOLADO y el worker lo drena con SKIP LOCKED.
+    nuevo = EstadoTrabajo.PUBLICADO.value if decision == "aprobar" else EstadoTrabajo.ENCOLADO.value
     async with motor.engine.begin() as conexion:
         actual = await _estado(conexion, trabajo_id)
         if not puede_pasar(actual, nuevo):
@@ -1366,10 +1415,50 @@ async def revisar(
             )
         )
         if decision == "aprobar":
+            # No se bendice como canonico un kit del que nadie puede comprar
+            # nada: si NINGUNA linea de NINGUN perfil tiene producto+precio,
+            # fijar el puntero solo garantizaria el 404 "sin lineas comprables"
+            # en el checkout del acudiente. Se niega la aprobacion con un motivo
+            # claro (falta fijar producto/precio en las lineas), en vez de
+            # publicar una cache rota. Misma definicion de "comprable" que
+            # `ordenar`: no informativa, con sku y precio.
+            if not await _tiene_lineas_comprables(conexion, trabajo_id):
+                raise CheckoutRechazado(
+                    409,
+                    {
+                        "error": "kit_sin_lineas",
+                        "mensaje": (
+                            "Este trabajo no tiene ninguna linea con producto y precio "
+                            "que Tukit pueda vender. Fija el producto en las lineas antes "
+                            "de aprobarlo como canonico."
+                        ),
+                    },
+                )
             await _publicar_evento(conexion, trabajo_id)
             await _fijar_canonico(conexion, trabajo_id)
 
     return {"trabajo_id": str(trabajo_id), "estado": nuevo, "nota": nota}
+
+
+async def _tiene_lineas_comprables(conexion: Any, trabajo_id: uuid.UUID) -> bool:
+    """True si algun kit del trabajo tiene una linea que Tukit pueda cobrar.
+
+    Comprable = no informativa, con `sku` y `precio_unitario_cop`. Es la misma
+    condicion que filtra `ordenar` al armar la orden; se comparte aqui para que
+    aprobar y comprar no discrepen sobre que es un kit vendible.
+    """
+    existe = await conexion.scalar(
+        select(LINEA.c.id)
+        .select_from(LINEA.join(KIT, KIT.c.id == LINEA.c.kit_id))
+        .where(
+            KIT.c.trabajo_id == trabajo_id,
+            LINEA.c.informativa.is_(False),
+            LINEA.c.sku.is_not(None),
+            LINEA.c.precio_unitario_cop.is_not(None),
+        )
+        .limit(1)
+    )
+    return existe is not None
 
 
 async def _fijar_canonico(conexion: Any, trabajo_id: uuid.UUID) -> None:

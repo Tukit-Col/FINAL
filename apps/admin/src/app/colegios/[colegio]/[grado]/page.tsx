@@ -13,9 +13,10 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { ItemListaOficial, ListaOficial } from "@tukit/contrato";
+import type { ItemListaOficial, Kit, ListaOficial, Recomendacion } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import EditarLista from "@/components/EditarLista";
+import KitsCanonicos from "./KitsCanonicos";
 import styles from "../../Colegios.module.css";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +78,31 @@ export default async function PaginaListaGrado({ params }: Props) {
     throw causa;
   }
 
+  // Nombre humano del colegio para el título; si no está en el catálogo, cae al
+  // id crudo. Mismo patrón fail-soft que usan cola/dashboard.
+  const colegios = await origenDeDatos()
+    .colegios()
+    .catch(() => []);
+  const nombreColegio = colegios.find((c) => c.colegio_id === lista.colegio_id)?.nombre;
+
+  // Los 3 kits NSGA aprobados: solo del canónico de ESTE grado (el trabajo
+  // publicado que fijó la aprobación), nunca previews ni trabajos sin aprobar.
+  // Si el grado aún no tiene kit aprobado, no hay canónico y no se pinta el panel.
+  let kitsCanonicos: Kit[] = [];
+  let recomendadoCanonico: Recomendacion | null = null;
+  const canonico = (await origenDeDatos().gradosCanonicos(lista.colegio_id).catch(() => [])).find(
+    (g) => g.grado === lista.grado,
+  );
+  if (canonico) {
+    try {
+      const trabajo = await origenDeDatos().trabajoAdmin(canonico.trabajo_id);
+      kitsCanonicos = trabajo.kits;
+      recomendadoCanonico = trabajo.recomendado;
+    } catch (causa) {
+      console.error("no se pudo leer el trabajo canónico", causa);
+    }
+  }
+
   // El PDF cuelga de la versión; una lista sembrada/CLI no lo trae y el panel
   // muestra un vacío en vez de un iframe roto.
   const urlDocumento = lista.version_id
@@ -92,7 +118,7 @@ export default async function PaginaListaGrado({ params }: Props) {
       <header className={styles.encabezado}>
         <div>
           <h1>
-            {lista.grado} · <code>{lista.colegio_id}</code>
+            {lista.grado} · {nombreColegio ?? <code>{lista.colegio_id}</code>}
           </h1>
           <p className={styles.bajada}>
             Lista verificada, versión <span className="cifra">{lista.version}</span> · año{" "}
@@ -140,6 +166,17 @@ export default async function PaginaListaGrado({ params }: Props) {
           )}
         </section>
       </div>
+
+      {/* --------------------------------- Los 3 kits NSGA aprobados (caché) */}
+      {kitsCanonicos.length > 0 && (
+        <section className={styles.panel}>
+          <div className={styles.panelCabecera}>
+            <h2>Kits NSGA aprobados</h2>
+            <span className={styles.panelConteo}>caché del acudiente</span>
+          </div>
+          <KitsCanonicos kits={kitsCanonicos} recomendado={recomendadoCanonico} />
+        </section>
+      )}
     </div>
   );
 }

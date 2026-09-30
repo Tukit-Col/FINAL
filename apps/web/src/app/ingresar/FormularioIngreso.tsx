@@ -35,6 +35,10 @@ export default function FormularioIngreso() {
       if (/^https?:\/\//.test(url)) {
         window.location.assign(url);
       } else {
+        // La cookie de sesion ya esta puesta; invalidar la Router Cache para que
+        // la cabecera (server component) y el destino hidraten con el usuario ya
+        // logueado, sin recarga manual.
+        router.refresh();
         router.replace(url);
       }
     } catch {

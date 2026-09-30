@@ -16,6 +16,7 @@ import uuid
 from typing import Any
 
 from sqlalchemy import and_, delete, func, select, update
+from tukit_comun.bandeja import con_correlacion
 
 from ..modelos import Base
 
@@ -435,7 +436,12 @@ class RepoAdmin:
 
     async def emitir_evento(self, **valores: Any) -> None:
         """Un evento en la bandeja de salida. Va en la MISMA transaccion que su
-        cambio de estado (el llamador no hace commit hasta cerrar la sesion)."""
+        cambio de estado (el llamador no hace commit hasta cerrar la sesion).
+
+        Estampa el `correlacion_id` de la peticion en la carga (§A.6), para que el
+        trabajo que el drenador dispare al consumir el evento herede el hilo."""
+        if "carga" in valores:
+            valores["carga"] = con_correlacion(valores["carga"])
         await self.c.execute(BANDEJA.insert().values(**valores))
 
     # -- Nueva version (clonar para corregir) -----------------------------

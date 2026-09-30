@@ -29,6 +29,7 @@ _PERMITIDAS = {
     ("procesando", "publicado"),
     ("espera_revision", "publicado"),
     ("espera_revision", "procesando"),
+    ("espera_revision", "encolado"),  # devolver reencola (ADR 0024: worker durable)
     ("fallido", "encolado"),
 }
 

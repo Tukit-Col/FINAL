@@ -19,6 +19,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import delete, func, insert, select, update
+from tukit_comun.bandeja import con_correlacion
 
 from ..dominio.maquina import puede_pasar
 from ..modelos import PESOS_POR_OMISION, Base
@@ -217,7 +218,9 @@ class RepoTrabajos:
                 tipo="kits_publicados",
                 agregado_tipo="trabajo_pipeline",
                 agregado_id=trabajo_id,
-                carga={"trabajo_id": str(trabajo_id), "publicado_en": _ahora().isoformat()},
+                carga=con_correlacion(
+                    {"trabajo_id": str(trabajo_id), "publicado_en": _ahora().isoformat()}
+                ),
             )
         )
 

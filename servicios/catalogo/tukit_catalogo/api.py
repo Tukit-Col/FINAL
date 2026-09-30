@@ -17,6 +17,7 @@ import argparse
 from fastapi import FastAPI
 from tukit_comun.bd import crear_motor
 from tukit_comun.http import crear_app
+from tukit_comun.telemetria import instrumentar_motor
 
 from .routers import router_catalogo
 
@@ -25,6 +26,7 @@ PUERTO_POR_OMISION = 8012
 
 async def _arrancar(app: FastAPI) -> None:
     app.state.motor = crear_motor("catalogo")
+    instrumentar_motor(app.state.motor.engine)
 
 
 async def _apagar(app: FastAPI) -> None:

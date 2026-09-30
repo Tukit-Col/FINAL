@@ -37,48 +37,23 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import MetaData, String, Table, insert, select, update
+from sqlalchemy import MetaData, Table, select
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from tukit_comun.bandeja import Resultado, drenar
 from tukit_comun.bd import crear_motor
+from tukit_comun.broker import sink_desde_entorno
 from tukit_comun.config import url_desde_entorno
 
-from .modelos import Base, Texto
+from .dominio.reparto import datos_plantilla, destinatario_en_carga, plantilla_para
 from .notificador import Contacto, Notificador, notificador_desde_entorno
 from .remoto import ClienteIdentidad
+from .repositorios import RepoNotificaciones
+from .repositorios.notificaciones import NOTIFICACION
 
-NOTIFICACION = Base.metadata.tables["notificacion"]
-
-# Que plantilla y de donde sale el destinatario, por tipo de evento.
-_TIPOS = {
-    "kits_publicados": "kits_publicados",
-    "pedido_pagado": "pedido_pagado",
-    "incidencia": "incidencia",
-}
-
-
-def _bandeja_reflejada() -> Table:
-    """La bandeja de otro servicio, descrita con solo las columnas que se leen.
-
-    No se importa el modelo del otro servicio (regla 1: ningun servicio importa
-    codigo de otro): se declara aqui una tabla con la forma comun de bandeja
-    (`tipo, agregado_tipo, agregado_id, carga, publicado_en, intentos`), que es
-    identica en Inteligencia y en Comercio a proposito. `carga` usa el mismo
-    tipo portable que los modelos (JSON en SQLite, JSONB en Postgres).
-    """
-    from sqlalchemy import BigInteger, Column, DateTime, Integer, Uuid
-
-    metadatos = MetaData()
-    return Table(
-        "bandeja_salida",
-        metadatos,
-        Column("id", BigInteger, primary_key=True),
-        Column("tipo", String(128)),
-        Column("agregado_tipo", String(64)),
-        Column("agregado_id", Uuid(as_uuid=True)),
-        Column("carga", Texto),
-        Column("publicado_en", DateTime(timezone=True)),
-        Column("intentos", Integer),
-    )
+# `NOTIFICACION` se reexporta desde el repo: el SQL de la notificacion vive alli
+# (ADR 0019), pero las pruebas de caja blanca lo importan de aqui. `__all__` lo
+# hace explicito para que no lo pode un linter por "no usado".
+__all__ = ["NOTIFICACION", "Repartidor", "correr_una_vez", "main"]
 
 
 def _trabajo_reflejado() -> Table:
@@ -109,61 +84,47 @@ class Repartidor:
     motor_origen: AsyncEngine
     notificador: Notificador
     identidad: ClienteIdentidad
+    sink: Any = None
 
     async def pasada(self, *, limite: int = 100) -> int:
         """Una pasada: procesa hasta `limite` eventos no publicados. Devuelve
-        cuantos entrego con exito."""
-        bandeja = _bandeja_reflejada()
-        entregados = 0
-        async with self.motor_origen.begin() as conexion_origen:
-            pendientes = list(
-                await conexion_origen.execute(
-                    select(bandeja)
-                    .where(bandeja.c.publicado_en.is_(None))
-                    .order_by(bandeja.c.id)
-                    .limit(limite)
-                    .with_for_update(skip_locked=True)
-                )
-            )
-            for fila in pendientes:
-                ok = await self._entregar(conexion_origen, bandeja, fila)
-                if ok:
-                    entregados += 1
-        return entregados
+        cuantos entrego con exito.
 
-    async def _entregar(self, conexion_origen: Any, bandeja: Table, fila: Any) -> bool:
-        plantilla = _TIPOS.get(fila.tipo)
+        El drenar/SKIP LOCKED/marcar-publicado/subir-intentos vive en
+        `tukit_comun.bandeja` (ADR 0022); aqui solo se aporta el `manejar` que
+        entrega el aviso. La bandeja de origen puede ser una base ajena (la
+        excepcion outbox declarada). Si hay `sink` (broker), cada evento
+        entregado se publica ademas a RabbitMQ; sin el, solo notifica (hoy)."""
+        return await drenar(self.motor_origen, self._entregar, limite=limite, sink=self.sink)
+
+    async def _entregar(self, conexion_origen: Any, fila: Any) -> Resultado:
+        plantilla = plantilla_para(fila.tipo)
         if plantilla is None:
-            # Un tipo que este repartidor no maneja: se marca publicado para no
-            # reprocesarlo en cada pasada. No es un fallo, es "no me toca".
-            await self._marcar_publicado(conexion_origen, bandeja, fila.id)
-            return False
+            # Un tipo que este repartidor no maneja: OMITIR lo marca publicado
+            # para no reprocesarlo en cada pasada. No es un fallo, es "no me toca".
+            return Resultado.OMITIR
 
         usuario_id = await self._destinatario(fila)
         if usuario_id is None:
-            await self._subir_intentos(conexion_origen, bandeja, fila.id)
-            return False
+            return Resultado.REINTENTAR
 
-        datos = self._datos_plantilla(fila)
+        datos = datos_plantilla(fila.tipo, fila.agregado_id, fila.carga, base_web=_url_web())
         # Se crea la notificacion POR ID, sin contacto, y se envia resolviendo
-        # el contacto al vuelo. Si el envio falla, se sube intentos y se
+        # el contacto al vuelo. Si el envio falla, REINTENTAR sube intentos y se
         # reintenta en la proxima pasada; la notificacion queda como fallida.
         contacto = await self._resolver_contacto(usuario_id)
         envio = await self.notificador.enviar(contacto, plantilla, datos)
 
         await self._registrar_notificacion(usuario_id, envio.canal, plantilla, datos, envio.exito)
-        if envio.exito:
-            await self._marcar_publicado(conexion_origen, bandeja, fila.id)
-            return True
-        await self._subir_intentos(conexion_origen, bandeja, fila.id)
-        return False
+        return Resultado.HECHO if envio.exito else Resultado.REINTENTAR
 
     async def _destinatario(self, fila: Any) -> str | None:
-        carga = fila.carga or {}
-        # `pedido_pagado` trae el usuario en la carga (lo puso Comercio).
-        if fila.tipo in {"pedido_pagado", "incidencia"} and carga.get("usuario_id"):
-            return str(carga["usuario_id"])
-        # `kits_publicados` no lo trae: se lee de trabajo_pipeline por su id.
+        # Si el tipo trae el usuario en la carga, el dominio lo saca (regla pura).
+        en_carga = destinatario_en_carga(fila.tipo, fila.carga)
+        if en_carga is not None:
+            return en_carga
+        # `kits_publicados` no lo trae: hay que ir a trabajo_pipeline (I/O, queda
+        # en el worker; el dominio ya devolvio None para este tipo).
         if fila.tipo == "kits_publicados":
             return await self._usuario_del_trabajo(fila.agregado_id)
         return None
@@ -173,22 +134,6 @@ class Repartidor:
         async with self.motor_origen.connect() as conexion:
             usuario = await conexion.scalar(select(trabajo.c.usuario_id).where(trabajo.c.id == trabajo_id))
         return str(usuario) if usuario is not None else None
-
-    def _datos_plantilla(self, fila: Any) -> dict[str, object]:
-        carga = fila.carga or {}
-        # El turno es un identificador corto y estable del evento; nunca el
-        # contacto. Sale del id del agregado.
-        turno = str(fila.agregado_id)[:8].upper()
-        datos: dict[str, object] = {"turno": turno}
-        if carga.get("pedido_id"):
-            datos["pedido"] = str(carga["pedido_id"])[:8].upper()
-        # Para `kits_publicados`, el enlace de pre-compra: el acudiente revisa
-        # su kit antes de pagar. Lleva SOLO el trabajo_id opaco (el `agregado_id`
-        # del evento), nunca su correo ni celular. La base de la URL sale del
-        # entorno (`TUKIT_WEB_URL`) para no cablear el host del navegador aqui.
-        if fila.tipo == "kits_publicados":
-            datos["enlace"] = f"{_url_web()}/kits/{fila.agregado_id}"
-        return datos
 
     async def _resolver_contacto(self, usuario_id: str) -> Contacto:
         datos = await self.identidad.contacto_de(usuario_id)
@@ -205,29 +150,14 @@ class Repartidor:
     ) -> None:
         ahora = datetime.now(UTC)
         async with self.motor_operacion.sesion() as db:
-            conexion = await db.connection()
-            await conexion.execute(
-                insert(NOTIFICACION).values(
-                    id=uuid.uuid4(),
-                    usuario_id=uuid.UUID(usuario_id),
-                    canal=canal,
-                    plantilla=plantilla,
-                    datos=datos,  # variables de negocio, sin contacto
-                    estado="enviada" if exito else "fallida",
-                    creado_en=ahora,
-                    enviada_en=ahora if exito else None,
-                )
+            await RepoNotificaciones(await db.connection()).registrar(
+                usuario_id=usuario_id,
+                canal=canal,
+                plantilla=plantilla,
+                datos=datos,
+                exito=exito,
+                ahora=ahora,
             )
-
-    async def _marcar_publicado(self, conexion: Any, bandeja: Table, id_fila: int) -> None:
-        await conexion.execute(
-            update(bandeja).where(bandeja.c.id == id_fila).values(publicado_en=datetime.now(UTC))
-        )
-
-    async def _subir_intentos(self, conexion: Any, bandeja: Table, id_fila: int) -> None:
-        await conexion.execute(
-            update(bandeja).where(bandeja.c.id == id_fila).values(intentos=bandeja.c.intentos + 1)
-        )
 
 
 def _url_web() -> str:
@@ -254,6 +184,10 @@ async def correr_una_vez() -> dict[str, int]:
     motor_operacion = crear_motor("operacion")
     notificador = notificador_desde_entorno()
     identidad = ClienteIdentidad()
+    # El sink del broker es OPCIONAL (ADR 0022): `None` si no hay `RABBITMQ_URL`,
+    # y el repartidor entrega solo por notificador (comportamiento de hoy). Con la
+    # URL, cada evento entregado se publica ademas a RabbitMQ para el fan-out.
+    sink = sink_desde_entorno()
     resultado: dict[str, int] = {}
     try:
         for origen in ("inteligencia", "comercio"):
@@ -265,11 +199,14 @@ async def correr_una_vez() -> dict[str, int]:
                     motor_origen=motor_origen,
                     notificador=notificador,
                     identidad=identidad,
+                    sink=sink,
                 )
                 resultado[origen] = await repartidor.pasada()
             finally:
                 await motor_origen.dispose()
     finally:
+        if sink is not None:
+            await sink.cerrar()
         await motor_operacion.cerrar()
     return resultado
 

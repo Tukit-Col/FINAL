@@ -178,11 +178,17 @@ async def ver_revision(version_id: uuid.UUID) -> dict[str, Any]:
 
     return {
         "version_id": str(cabeza.id),
+        # `lista_id` y `total_items` dan a esta respuesta la MISMA forma que
+        # `GET /v1/listas/{lista_id}`, para que el pipeline lea los items de una
+        # version explicita (preview de una edicion) por el mismo camino que la
+        # vigente, sin ramas por origen.
+        "lista_id": str(cabeza.lista_id),
         "colegio_id": str(cabeza.colegio_id),
         "grado": cabeza.grado,
         "anio_lectivo": int(cabeza.anio_lectivo),
         "numero": int(cabeza.numero),
         "revisada": cabeza.revisada_en is not None,
+        "total_items": len(items),
         "items": items,
         "propuestas": candidatos,
         "colegio_datos": colegio_datos,
@@ -946,30 +952,38 @@ async def cerrar_version(version_id: uuid.UUID) -> dict[str, Any]:
         await repo.desvigar_versiones(cabeza.lista_id)
         await repo.promover_vigente(version_id)
 
-        # Si un padre estaba esperando esta version (subio su PDF y quedo ligado
-        # por `contacto_referencia`), aprobarla dispara su kit. Pero Catalogo NO
+        # Aprobar una version dispara SIEMPRE un `lista_verificada` en la bandeja
+        # de salida, EN LA MISMA transaccion que el `revisada_en`. Catalogo NO
         # llama a Inteligencia —esa arista cerraria un ciclo en el grafo de
         # dependencias, la misma razon por la que esta tabla no tiene `caso_id`—:
-        # se escribe un evento `lista_verificada` en la bandeja de salida, EN LA
-        # MISMA transaccion que el `revisada_en`, y un poller de Inteligencia lo
-        # drena y arma el trabajo de ruta rapida con las preferencias guardadas.
-        # El onboarding del colegio no deja padre esperando: no emite nada.
+        # el poller de Inteligencia lo drena y arma el trabajo. Dos casos, que el
+        # poller distingue por `contacto_referencia`:
+        #   - CON padre esperando (subio su PDF, quedo ligado): trabajo de ruta
+        #     rapida dirigido a el, se publica y se le avisa.
+        #   - SIN padre (onboarding del colegio, lista sembrada, o correccion ya
+        #     desligada): trabajo `colegio_grado` que entra a la cola de revision,
+        #     y al aprobarlo ahi queda como kit canonico del grado (la cache que
+        #     alimenta el selector de /empezar y el panel NSGA del colegio).
+        # `colegio_id`/`grado`/`anio` salen de la cabeza de la version, presentes
+        # con o sin tarea; el contacto y las preferencias, de la tarea si existe.
         tarea = await repo.tarea_para_evento(version_id)
-        if tarea is not None and tarea.contacto_referencia is not None:
-            await repo.emitir_evento(
-                tipo="lista_verificada",
-                agregado_tipo="version_lista_oficial",
-                agregado_id=version_id,
-                carga={
-                    # El padre, por identificador; NUNCA su correo/telefono.
-                    "contacto_referencia": str(tarea.contacto_referencia),
-                    "colegio_id": str(cabeza.colegio_id),
-                    "grado": cabeza.grado,
-                    "anio_lectivo": cabeza.anio_lectivo,
-                    # Lo que el padre pidio en el paso 3, para optimizar su kit.
-                    "preferencias": tarea.preferencias,
-                },
-            )
+        contacto = tarea.contacto_referencia if tarea is not None else None
+        await repo.emitir_evento(
+            tipo="lista_verificada",
+            agregado_tipo="version_lista_oficial",
+            agregado_id=version_id,
+            carga={
+                # El padre, por identificador; NUNCA su correo/telefono. None
+                # cuando no hay padre esperando (el poller lo lee como colegio).
+                "contacto_referencia": None if contacto is None else str(contacto),
+                "colegio_id": str(cabeza.colegio_id),
+                "grado": cabeza.grado,
+                "anio_lectivo": cabeza.anio_lectivo,
+                # Lo que el padre pidio en el paso 3, para optimizar su kit. {}
+                # sin tarea: el kit del colegio se arma con las preferencias base.
+                "preferencias": (tarea.preferencias if tarea is not None else {}) or {},
+            },
+        )
 
         # Si la lista se subio para un colegio que AUN NO existe en Tukit (trae
         # `colegio_datos`: lo eligio del directorio de Bogota o lo escribio),

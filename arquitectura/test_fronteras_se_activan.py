@@ -17,6 +17,7 @@ from test_fronteras import (
     REFERENCIAS_DECLARADAS,
     SERVICIOS,
     _buscar_ciclo,
+    _cadenas_no_docstring,
     _columnas_declaradas,
     _modulos_importados,
     _tabla_apuntada,
@@ -104,6 +105,51 @@ def test_la_bandeja_de_salida_es_valida_en_todos_los_servicios():
                 f"`{servicio.nombre}` tiene base propia y no declara bandeja_salida."
             )
     assert "bandeja_salida" not in DUENO_DE_TABLA, "Una tabla replicada no debe tener dueno unico."
+
+
+# --------------------------------------------------------------------------
+# Detector de conexion a base ajena (regla 3)
+# --------------------------------------------------------------------------
+
+
+def test_detecta_la_base_ajena_en_una_cadena_de_conexion():
+    """Una URL de conexion a la base de otro servicio, escrita como literal, es
+    la infraccion que la regla 3 existe para atrapar: salta la frontera entera
+    sin pasar por ninguna interfaz."""
+    fuente = 'DSN = "postgresql+asyncpg://tukit:tukit@localhost/tukit_operacion"'
+    cadenas = _cadenas_no_docstring(_arbol(fuente))
+    assert any("tukit_operacion" in c for c in cadenas), (
+        "No detecto la base ajena en una cadena de conexion literal."
+    )
+
+
+def test_no_marca_el_nombre_del_paquete_hermano_en_un_docstring():
+    """El falso positivo PRE-EXISTENTE: un docstring que nombra el PAQUETE del
+    servicio hermano (`tukit_operacion.repartidor`) no es una conexion a su
+    BASE (que se llama igual). La convencion `tukit_<servicio>` colisiona, y un
+    detector de subcadena cruda las confunde. Reproduce `trabajos.py:1008`."""
+    fuente = '''
+async def _publicar_evento(conexion, trabajo_id):
+    """Deja el evento en la bandeja.
+
+    El repartidor de Operacion (`tukit_operacion.repartidor`) lo drena y avisa.
+    """
+    return None
+'''
+    cadenas = _cadenas_no_docstring(_arbol(fuente))
+    assert not any("tukit_operacion" in c for c in cadenas), (
+        "Un docstring que nombra el paquete hermano no debe contar como conexion a su base."
+    )
+
+
+def test_no_marca_el_nombre_de_la_base_ajena_en_un_comentario():
+    """Un comentario que menciona la base de otro servicio tampoco es una
+    conexion. Los comentarios ni siquiera llegan al arbol, asi que caen solos."""
+    fuente = "x = 1  # ojo: esto NO habla con tukit_catalogo\n"
+    cadenas = _cadenas_no_docstring(_arbol(fuente))
+    assert not any("tukit_catalogo" in c for c in cadenas), (
+        "Un comentario no debe contar como conexion a la base ajena."
+    )
 
 
 # --------------------------------------------------------------------------
