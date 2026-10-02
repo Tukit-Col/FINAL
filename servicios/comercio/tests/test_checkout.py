@@ -146,6 +146,7 @@ async def _flujo_hasta_webhook(cliente, estado_wompi: str):
         referencia=pago["referencia_wompi"],
         transaccion_id=pago["transaccion_wompi"],
         estado_wompi=estado_wompi,
+        monto_centavos=900000,
     )
     return pedido_id, evento
 
