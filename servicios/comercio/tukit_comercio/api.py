@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -33,7 +34,7 @@ from tukit_comun.http import ErrorDominio, crear_app
 from tukit_comun.http import iso as _iso
 
 from .modelos import Base, EstadoPago, EstadoPedido, MetodoPago, transicion_valida
-from .pasarela import pasarela_desde_entorno
+from .pasarela import EventoPasarela, pasarela_desde_entorno
 from .remoto import CatalogoCaido, ClienteCatalogo
 
 PUERTO_POR_OMISION = 8014
@@ -527,7 +528,10 @@ async def iniciar_pago(pedido_id: uuid.UUID, solicitud: SolicitudPago) -> dict[s
                 estado=409,
             )
 
-        referencia = f"tukit-{pedido_id}"
+        # Una referencia por intento: Wompi no admite repetirla, y un pago
+        # rechazado deja reintentar el mismo pedido.
+        pago_id = uuid.uuid4()
+        referencia = f"tukit-{pago_id}"
         creada = await app.state.pasarela.crear_transaccion(
             referencia=referencia,
             monto_centavos=int(pedido.total) * 100,
@@ -535,7 +539,6 @@ async def iniciar_pago(pedido_id: uuid.UUID, solicitud: SolicitudPago) -> dict[s
             metodo=metodo.value,
             url_redireccion=solicitud.url_redireccion,
         )
-        pago_id = uuid.uuid4()
         await conexion.execute(
             insert(PAGO).values(
                 id=pago_id,
@@ -569,6 +572,100 @@ def _pedido_tras_pago(estado_pago: EstadoPago, estado_actual: str) -> str | None
     return None
 
 
+@dataclass(frozen=True)
+class ResultadoAplicacion:
+    """Lo que dejo la aplicacion de un resultado de pago.
+
+    `estado`: `aplicado`, `repetido`, `sin_pago` o `monto_no_coincide`. Los demas
+    campos reflejan el pago y el pedido tal como quedaron (None si no hay pago).
+    """
+
+    estado: str
+    pedido_id: uuid.UUID | None
+    estado_pago: str | None
+    estado_pedido: str | None
+    transicionado: bool
+
+
+async def _aplicar_resultado(conexion: Any, datos: EventoPasarela) -> ResultadoAplicacion:
+    """Aplica una sola vez el resultado de un pago, llegue por webhook o por sync.
+
+    Candado de idempotencia: `evento_pasarela_procesado`. El SELECT previo cubre
+    el reintento en serie sin envenenar la transaccion; el indice unico de la
+    columna es el respaldo duro contra dos entregas simultaneas. Valida que el
+    monto reportado sea el del pago (un monto distinto rechaza el pago y no mueve
+    el pedido). En la primera aplicacion de un pago aprobado, transiciona el
+    pedido a `pagado` y escribe `pedido_pagado` en la bandeja de salida DENTRO de
+    la misma transaccion (patron outbox).
+    """
+    ya_visto = await conexion.scalar(
+        select(EVENTO_PROCESADO.c.id).where(EVENTO_PROCESADO.c.evento_id == datos.evento_id)
+    )
+    if ya_visto is not None:
+        pago = (
+            await conexion.execute(select(PAGO).where(PAGO.c.referencia_wompi == datos.referencia))
+        ).one_or_none()
+        if pago is None:
+            return ResultadoAplicacion("repetido", None, None, None, False)
+        pedido = (await conexion.execute(select(PEDIDO).where(PEDIDO.c.id == pago.pedido_id))).one()
+        return ResultadoAplicacion("repetido", pedido.id, pago.estado, pedido.estado, False)
+    await conexion.execute(insert(EVENTO_PROCESADO).values(id=uuid.uuid4(), evento_id=datos.evento_id))
+
+    pago = (
+        await conexion.execute(select(PAGO).where(PAGO.c.referencia_wompi == datos.referencia))
+    ).one_or_none()
+    if pago is None:
+        # Evento de una referencia que no conocemos: queda anotado como
+        # procesado (ya insertado arriba) y no se hace nada mas.
+        return ResultadoAplicacion("sin_pago", None, None, None, False)
+
+    pedido = (await conexion.execute(select(PEDIDO).where(PEDIDO.c.id == pago.pedido_id))).one()
+
+    if datos.monto_centavos is None or int(datos.monto_centavos) != int(pago.monto) * 100:
+        await conexion.execute(
+            update(PAGO)
+            .where(PAGO.c.id == pago.id)
+            .values(
+                estado=EstadoPago.RECHAZADO.value,
+                transaccion_wompi=datos.transaccion_id or pago.transaccion_wompi,
+            )
+        )
+        return ResultadoAplicacion(
+            "monto_no_coincide", pedido.id, EstadoPago.RECHAZADO.value, pedido.estado, False
+        )
+
+    valores: dict[str, Any] = {
+        "estado": datos.estado.value,
+        "transaccion_wompi": datos.transaccion_id or pago.transaccion_wompi,
+    }
+    if datos.metodo is not None:
+        valores["metodo"] = datos.metodo
+    await conexion.execute(update(PAGO).where(PAGO.c.id == pago.id).values(**valores))
+
+    destino = _pedido_tras_pago(datos.estado, pedido.estado)
+    transicionado = False
+    estado_pedido = pedido.estado
+    if destino is not None and transicion_valida(pedido.estado, destino):
+        await conexion.execute(update(PEDIDO).where(PEDIDO.c.id == pedido.id).values(estado=destino))
+        transicionado = True
+        estado_pedido = destino
+        if destino == EstadoPedido.PAGADO.value:
+            # Outbox: el aviso sale de aqui, misma transaccion que el pago.
+            await conexion.execute(
+                insert(BANDEJA).values(
+                    tipo="pedido_pagado",
+                    agregado_tipo="pedido",
+                    agregado_id=pedido.id,
+                    carga={
+                        "pedido_id": str(pedido.id),
+                        "usuario_id": str(pedido.usuario_id),
+                        "total": int(pedido.total),
+                    },
+                )
+            )
+    return ResultadoAplicacion("aplicado", pedido.id, datos.estado.value, estado_pedido, transicionado)
+
+
 @app.post("/v1/webhooks/wompi", tags=["comercio"], summary="Confirmacion asincrona de la pasarela")
 async def webhook_wompi(evento: dict[str, Any]) -> dict[str, Any]:
     """Aplica el resultado del pago una sola vez, aunque Wompi reintente.
@@ -589,64 +686,24 @@ async def webhook_wompi(evento: dict[str, Any]) -> dict[str, Any]:
         return {"estado": "ignorado", "motivo": "firma_invalida"}
 
     datos = app.state.pasarela.parsear_evento(evento)
-    if not datos.evento_id or not datos.referencia:
+    if not datos.evento_id or not datos.referencia or not datos.transaccion_id:
         return {"estado": "ignorado", "motivo": "evento_incompleto"}
 
     async with app.state.motor.sesion() as db:
         conexion = await db.connection()
-        # Candado de idempotencia: si el evento ya se proceso, no se re-aplica.
-        # El SELECT cubre el reintento en serie sin envenenar la transaccion; el
-        # indice unico de la columna es el respaldo duro.
-        ya_visto = await conexion.scalar(
-            select(EVENTO_PROCESADO.c.id).where(EVENTO_PROCESADO.c.evento_id == datos.evento_id)
-        )
-        if ya_visto is not None:
-            return {"estado": "repetido", "evento_id": datos.evento_id}
-        await conexion.execute(insert(EVENTO_PROCESADO).values(id=uuid.uuid4(), evento_id=datos.evento_id))
+        resultado = await _aplicar_resultado(conexion, datos)
 
-        pago = (
-            await conexion.execute(select(PAGO).where(PAGO.c.referencia_wompi == datos.referencia))
-        ).one_or_none()
-        if pago is None:
-            # Evento firmado pero de una referencia que no conocemos: se anota
-            # como procesado (ya insertado arriba) y no se hace nada mas.
-            return {"estado": "sin_pago", "referencia": datos.referencia}
-
-        await conexion.execute(
-            update(PAGO)
-            .where(PAGO.c.id == pago.id)
-            .values(
-                estado=datos.estado.value,
-                transaccion_wompi=datos.transaccion_id or pago.transaccion_wompi,
-            )
-        )
-
-        pedido = (await conexion.execute(select(PEDIDO).where(PEDIDO.c.id == pago.pedido_id))).one()
-        destino = _pedido_tras_pago(datos.estado, pedido.estado)
-        transicionado = False
-        if destino is not None and transicion_valida(pedido.estado, destino):
-            await conexion.execute(update(PEDIDO).where(PEDIDO.c.id == pedido.id).values(estado=destino))
-            transicionado = True
-            if destino == EstadoPedido.PAGADO.value:
-                # Outbox: el aviso sale de aqui, misma transaccion que el pago.
-                await conexion.execute(
-                    insert(BANDEJA).values(
-                        tipo="pedido_pagado",
-                        agregado_tipo="pedido",
-                        agregado_id=pedido.id,
-                        carga={
-                            "pedido_id": str(pedido.id),
-                            "usuario_id": str(pedido.usuario_id),
-                            "total": int(pedido.total),
-                        },
-                    )
-                )
-
+    if resultado.estado == "repetido":
+        return {"estado": "repetido", "evento_id": datos.evento_id}
+    if resultado.estado == "sin_pago":
+        return {"estado": "sin_pago", "referencia": datos.referencia}
+    if resultado.estado == "monto_no_coincide":
+        return {"estado": "monto_no_coincide", "evento_id": datos.evento_id}
     return {
         "estado": "aplicado",
         "evento_id": datos.evento_id,
         "pago_estado": datos.estado.value,
-        "pedido_transicionado": transicionado,
+        "pedido_transicionado": resultado.transicionado,
     }
 
 

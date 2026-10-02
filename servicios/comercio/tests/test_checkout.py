@@ -130,7 +130,7 @@ async def test_iniciar_pago_guarda_solo_referencia_y_estado(cliente):
     )
     assert respuesta.status_code == 201
     cuerpo = respuesta.json()
-    assert cuerpo["referencia_wompi"] == f"tukit-{pedido_id}"
+    assert cuerpo["referencia_wompi"] == f"tukit-{cuerpo['pago_id']}"
     assert cuerpo["estado"] == EstadoPago.INICIADO.value
 
 
@@ -149,6 +149,61 @@ async def _flujo_hasta_webhook(cliente, estado_wompi: str):
         monto_centavos=900000,
     )
     return pedido_id, evento
+
+
+async def test_webhook_con_monto_distinto_no_aprueba(cliente):
+    pedido_id, _ = await _flujo_hasta_webhook(cliente, "APPROVED")
+    creada = app.state.pasarela.creadas[-1]
+    evento = app.state.pasarela.emitir_evento(
+        referencia=creada.referencia,
+        transaccion_id=creada.transaccion_id,
+        estado_wompi="APPROVED",
+        monto_centavos=1,
+    )
+    respuesta = await cliente.post("/v1/webhooks/wompi", json=evento)
+    assert respuesta.json()["estado"] == "monto_no_coincide"
+    pedido = (await cliente.get(f"/v1/ordenes/{pedido_id}")).json()
+    assert pedido["estado"] == EstadoPedido.PENDIENTE_PAGO.value
+    assert pedido["pago"]["estado"] == EstadoPago.RECHAZADO.value
+
+
+async def test_reintento_tras_rechazo_crea_otro_pago(cliente):
+    pedido_id, evento = await _flujo_hasta_webhook(cliente, "DECLINED")
+    await cliente.post("/v1/webhooks/wompi", json=evento)
+    primera = app.state.pasarela.creadas[-1]
+
+    segundo = await cliente.post(
+        f"/v1/ordenes/{pedido_id}/pago",
+        json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse"},
+    )
+    assert segundo.status_code == 201
+    cuerpo = segundo.json()
+    assert cuerpo["referencia_wompi"] != primera.referencia
+
+    evento2 = app.state.pasarela.emitir_evento(
+        referencia=cuerpo["referencia_wompi"],
+        transaccion_id=cuerpo["transaccion_wompi"],
+        estado_wompi="APPROVED",
+        monto_centavos=900000,
+    )
+    await cliente.post("/v1/webhooks/wompi", json=evento2)
+    pedido = (await cliente.get(f"/v1/ordenes/{pedido_id}")).json()
+    assert pedido["estado"] == EstadoPedido.PAGADO.value
+
+
+async def test_webhook_guarda_el_metodo_que_reporta_wompi(cliente):
+    pedido_id, _ = await _flujo_hasta_webhook(cliente, "APPROVED")
+    creada = app.state.pasarela.creadas[-1]
+    evento = app.state.pasarela.emitir_evento(
+        referencia=creada.referencia,
+        transaccion_id=creada.transaccion_id,
+        estado_wompi="APPROVED",
+        monto_centavos=900000,
+        metodo_wompi="CARD",
+    )
+    await cliente.post("/v1/webhooks/wompi", json=evento)
+    pedido = (await cliente.get(f"/v1/ordenes/{pedido_id}")).json()
+    assert pedido["pago"]["metodo"] == "tarjeta"
 
 
 async def test_webhook_aprobado_transiciona_a_pagado(cliente):

@@ -332,6 +332,7 @@ class PasarelaFalsa:
         estado_wompi: str,
         monto_centavos: int,
         timestamp: int = 1_700_000_000,
+        metodo_wompi: str | None = None,
     ) -> dict[str, Any]:
         """Un webhook con la MISMA forma y firma que mandaria Wompi.
 
@@ -347,6 +348,9 @@ class PasarelaFalsa:
                 "amount_in_cents": monto_centavos,
             }
         }
+        if metodo_wompi is not None:
+            # Informativo: no entra en las propiedades firmadas.
+            datos["transaction"]["payment_method_type"] = metodo_wompi
         evento: dict[str, Any] = {
             "id": f"evt-{transaccion_id}",
             "event": "transaction.updated",
