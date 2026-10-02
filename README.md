@@ -137,10 +137,21 @@ interruptor en modo de pruebas. Van en el `.env` de la raíz (copiado de `.env.e
 Si no tienes `.env`, cópialo de `.env.ejemplo`. Con `WOMPI_MODO=sandbox` en el `.env`, reinicia
 el stack con esas variables cargadas: en Linux/macOS expórtalas en la shell antes de levantarlo
 (`set -a; . ./.env; set +a; make arriba`); en Windows, el ayudante local `tukit.ps1` (si lo
-usas) carga el `.env` solo. Luego elige un kit y paga. Al terminar, Wompi devuelve al acudiente a
-`/pago/resultado?id=<transacción>`, y esa página le pregunta a Wompi, de servidor a servidor,
-cómo quedó el pago (`POST /v1/pagos/{id}/sincronizar`). Por eso funciona en `localhost`, sin
-túnel.
+usas) carga el `.env` solo.
+
+El checkout de Wompi **no acepta volver a `localhost` ni a una IP privada**: su CDN responde
+403 si `redirect-url` apunta ahí. Por eso la app web se abre por un túnel público:
+
+```bash
+cloudflared tunnel --url http://localhost:3000
+```
+
+Entra a la app por la URL `https://<algo>.trycloudflare.com` que imprime, no por `localhost`,
+elige un kit y paga. La app arma el retorno con el origen desde el que la abriste, así que Wompi
+devuelve al acudiente a `<túnel>/pago/resultado?id=<transacción>`, y esa página le pregunta a
+Wompi, de servidor a servidor, cómo quedó el pago (`POST /v1/pagos/{id}/sincronizar`). Solo la
+app web necesita el túnel; el backend sigue en `localhost`. El túnel es otro dominio, así que
+la sesión hay que iniciarla de nuevo ahí.
 
 En modo falso los montos simulados viven en la memoria de Comercio: si lo reinicias entre
 "Pagar" y "Aprobar pago", obtendrás `transaccion_no_existe`; empieza de nuevo desde el kit.
