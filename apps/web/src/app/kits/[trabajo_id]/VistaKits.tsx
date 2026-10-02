@@ -198,7 +198,8 @@ function Checkout({
         perfil,
         correo,
         entrega: { destinatario, direccion, ciudad },
-        // Solo la usa la pasarela simulada; el widget de Wompi no redirige.
+        // La pasarela simulada redirige aqui; con Wompi, solo PSE (que se lleva
+        // la pestana al banco) vuelve por esta URL.
         url_redireccion: `${window.location.origin}/pago/resultado`,
       });
       if (checkout.widget) {

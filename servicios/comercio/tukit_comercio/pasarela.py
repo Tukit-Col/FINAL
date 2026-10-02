@@ -162,14 +162,20 @@ def datos_widget(
     monto_centavos: int,
     secreto_integridad: str,
     correo: str,
+    url_redireccion: str | None = None,
 ) -> dict[str, Any]:
     """Las opciones de `new WidgetCheckout({...})`, con los nombres de Wompi.
 
     Se arman aqui y no en el navegador porque la firma de integridad necesita el
-    secreto, que nunca sale del servidor. Sin `redirectUrl`: el widget es un
-    modal y el checkout de Wompi rechaza volver a localhost. Sin red.
+    secreto, que nunca sale del servidor. Sin red.
+
+    `redirectUrl` hace falta para PSE: el banco se lleva la pestana entera, el
+    modal y su callback se pierden, y solo con `redirectUrl` el comprobante de
+    Wompi devuelve al acudiente a Tukit. El widget lo envia por postMessage, asi
+    que Wompi acepta localhost (el 403 era solo de la URL del checkout alojado).
+    Con tarjeta o Nequi el modal sigue vivo y manda el callback.
     """
-    return {
+    datos: dict[str, Any] = {
         "publicKey": llave_publica,
         "currency": MONEDA,
         "amountInCents": monto_centavos,
@@ -177,6 +183,9 @@ def datos_widget(
         "signature": {"integrity": firma_integridad(referencia, monto_centavos, secreto_integridad)},
         "customerData": {"email": correo},
     }
+    if url_redireccion:
+        datos["redirectUrl"] = url_redireccion
+    return datos
 
 
 def firma_evento(evento: dict[str, Any], secreto: str) -> str:
@@ -249,6 +258,7 @@ class WompiSandbox:
                 monto_centavos=monto_centavos,
                 secreto_integridad=self.secreto_integridad,
                 correo=correo_cliente,
+                url_redireccion=url_redireccion,
             ),
         )
 
