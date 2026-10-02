@@ -4,9 +4,11 @@ El §9 del contrato dice que la integracion vive tras un puerto `PasarelaPago`
 con adaptador falso para las pruebas, y aqui esta el puerto. Tres cosas hace
 una pasarela desde la vista de Comercio, y ninguna mas:
 
-- **crear_transaccion**: manda a cobrar y devuelve la referencia con la que el
-  webhook la va a encontrar mas tarde. En Wompi la transaccion nace SIEMPRE en
-  PENDIENTE; nunca se aprueba sincronica.
+- **crear_transaccion**: arma el cobro y devuelve la referencia con la que el
+  webhook la va a encontrar mas tarde. En Wompi (solo sandbox) no se llama a
+  ninguna API: se construye la URL firmada del Web Checkout alojado por Wompi y
+  se manda al acudiente alla; la transaccion nace SIEMPRE en PENDIENTE y nunca
+  se aprueba sincronica.
 - **verificar_firma**: dado el cuerpo crudo de un webhook, dice si de verdad lo
   firmo Wompi. Es lo unico que separa un cobro real de uno inventado, asi que
   un evento con firma que no cuadra se ignora.
@@ -14,16 +16,17 @@ una pasarela desde la vista de Comercio, y ninguna mas:
   (SG-03): el id del evento —para el candado de idempotencia—, la referencia,
   el id de transaccion y el estado ya traducido al vocabulario de `EstadoPago`.
 
-Ni una tarjeta, ni un `acceptance_token`, ni un dato de contacto se guardan:
-entran, viajan a Wompi y se olvidan. Las llaves salen del entorno y NUNCA del
+Ni una tarjeta ni un dato de contacto se guardan: el acudiente los digita en
+el checkout de Wompi y aqui nunca se ven. Las llaves salen del entorno y NUNCA del
 codigo (`WOMPI_MODO`, `WOMPI_LLAVE_*`, `WOMPI_SECRETO_*`), mismo idioma que
-`cifrador_desde_entorno` de Identidad.
+`cifrador_desde_entorno` de Identidad. En modo sandbox solo se aceptan llaves
+de prueba (`pub_test_`, `prv_test_`, `test_events_`, `test_integrity_`).
 
 Las formulas de firma estan verificadas contra docs.wompi.co (Colombia):
 
 - Firma de integridad = SHA256("<referencia><monto_centavos><moneda><secreto>")
-  en hexadecimal. El monto va en CENTAVOS. Es lo que autentica el POST de
-  creacion.
+  en hexadecimal. El monto va en CENTAVOS. Es lo que autentica los parametros
+  del Web Checkout (`signature:integrity`).
 - Firma del evento (webhook) = SHA256 de, en orden, los valores de los campos
   que el propio evento nombra en `signature.properties` (leidos de `data`),
   luego el `timestamp` (entero UNIX), y de ULTIMO el secreto de eventos. Se
@@ -34,8 +37,10 @@ from __future__ import annotations
 
 import hashlib
 import os
+import urllib.parse
 from dataclasses import dataclass, field
 from typing import Any, Protocol
+from urllib.parse import urljoin
 
 import httpx
 
@@ -45,6 +50,7 @@ from .modelos import EstadoPago
 # cruzan. La de sandbox es la unica que este repositorio usa por defecto.
 URL_SANDBOX = "https://sandbox.wompi.co/v1"
 URL_PRODUCCION = "https://production.wompi.co/v1"
+URL_CHECKOUT = "https://checkout.wompi.co/p/"
 MONEDA = "COP"
 ESPERA_SEGUNDOS = 30.0
 
@@ -116,6 +122,29 @@ def firma_integridad(referencia: str, monto_centavos: int, secreto: str, moneda:
     return _sha256(f"{referencia}{monto_centavos}{moneda}{secreto}")
 
 
+def url_checkout(
+    *,
+    llave_publica: str,
+    referencia: str,
+    monto_centavos: int,
+    secreto_integridad: str,
+    url_redireccion: str | None,
+    correo: str,
+) -> str:
+    """La URL del Web Checkout de Wompi, firmada y lista para redirigir. Sin red."""
+    params = {
+        "public-key": llave_publica,
+        "currency": MONEDA,
+        "amount-in-cents": str(monto_centavos),
+        "reference": referencia,
+        "signature:integrity": firma_integridad(referencia, monto_centavos, secreto_integridad),
+        "customer-data:email": correo,
+    }
+    if url_redireccion is not None:
+        params["redirect-url"] = url_redireccion
+    return URL_CHECKOUT + "?" + urllib.parse.urlencode(params, safe=":/")
+
+
 def firma_evento(evento: dict[str, Any], secreto: str) -> str:
     """La firma que un webhook de Wompi debe traer, recalculada del cuerpo.
 
@@ -152,9 +181,9 @@ def _valor_por_ruta(datos: dict[str, Any], ruta: str) -> Any:
 class WompiSandbox:
     """Adaptador real contra Wompi. Las llaves salen del entorno.
 
-    Se inyecta un `cliente` httpx en las pruebas de integracion para no salir a
-    la red; en produccion abre el suyo por llamada. No guarda nada: es un puente
-    de ida (crear) y de verificacion (webhook).
+    Crear es puro (arma la URL del Web Checkout). El `cliente` httpx queda para
+    las consultas a la API de Wompi; se inyecta en las pruebas para no salir a
+    la red. No guarda nada.
     """
 
     llave_publica: str = ""
@@ -173,51 +202,21 @@ class WompiSandbox:
         metodo: str,
         url_redireccion: str | None = None,
     ) -> TransaccionCreada:
-        propio = self.cliente is None
-        cliente = self.cliente or httpx.AsyncClient(timeout=ESPERA_SEGUNDOS)
-        try:
-            token = await self._token_aceptacion(cliente)
-            cuerpo: dict[str, Any] = {
-                "acceptance_token": token,
-                "amount_in_cents": monto_centavos,
-                "currency": MONEDA,
-                "customer_email": correo_cliente,
-                "reference": referencia,
-                "signature": firma_integridad(referencia, monto_centavos, self.secreto_integridad),
-            }
-            if url_redireccion:
-                cuerpo["redirect_url"] = url_redireccion
-            respuesta = await cliente.post(
-                f"{self.base}/transactions",
-                headers={"Authorization": f"Bearer {self.llave_privada}"},
-                json=cuerpo,
-            )
-            respuesta.raise_for_status()
-            datos = respuesta.json().get("data") or {}
-            return TransaccionCreada(
+        # No hay llamada a Wompi: el Web Checkout se arma con una URL firmada.
+        # El id de transaccion llega despues, por el webhook o al regreso.
+        return TransaccionCreada(
+            referencia=referencia,
+            transaccion_id=None,
+            estado=EstadoPago.INICIADO,
+            url_redireccion=url_checkout(
+                llave_publica=self.llave_publica,
                 referencia=referencia,
-                transaccion_id=datos.get("id"),
-                estado=_traducir_estado(datos.get("status")),
-                url_redireccion=datos.get("redirect_url") or url_redireccion,
-            )
-        finally:
-            if propio:
-                await cliente.aclose()
-
-    async def _token_aceptacion(self, cliente: httpx.AsyncClient) -> str:
-        """El `acceptance_token` que la creacion de transaccion exige.
-
-        Sale de `GET /merchants/info` con la llave publica en cabecera; es lo
-        que representa la aceptacion de los terminos y no se guarda.
-        """
-        respuesta = await cliente.get(
-            f"{self.base}/merchants/info",
-            headers={"x-merchant-public-key": self.llave_publica},
+                monto_centavos=monto_centavos,
+                secreto_integridad=self.secreto_integridad,
+                url_redireccion=url_redireccion,
+                correo=correo_cliente,
+            ),
         )
-        respuesta.raise_for_status()
-        datos = respuesta.json().get("data") or {}
-        presigned = datos.get("presigned_acceptance") or {}
-        return presigned.get("acceptance_token", "")
 
     def verificar_firma(self, evento: dict[str, Any]) -> bool:
         firma = evento.get("signature") or {}
@@ -251,6 +250,8 @@ class PasarelaFalsa:
     secreto_integridad: str = "test_integrity_falso"
     # Registro de lo creado, para que una prueba compruebe que se llamo.
     creadas: list[TransaccionCreada] = field(default_factory=list)
+    # Monto en centavos por referencia, para la pagina de pago simulado.
+    montos: dict[str, int] = field(default_factory=dict)
     _contador: int = 0
 
     async def crear_transaccion(
@@ -267,8 +268,13 @@ class PasarelaFalsa:
             referencia=referencia,
             transaccion_id=f"falsa-{self._contador}",
             estado=EstadoPago.INICIADO,
-            url_redireccion=url_redireccion,
+            url_redireccion=(
+                urljoin(url_redireccion, "/pago/simulado") + f"?ref={referencia}"
+                if url_redireccion
+                else None
+            ),
         )
+        self.montos[referencia] = monto_centavos
         self.creadas.append(creada)
         return creada
 
@@ -324,6 +330,14 @@ class PasarelaFalsa:
         )
 
 
+_PREFIJOS_PRUEBA = {
+    "WOMPI_LLAVE_PUBLICA": "pub_test_",
+    "WOMPI_LLAVE_PRIVADA": "prv_test_",
+    "WOMPI_SECRETO_EVENTOS": "test_events_",
+    "WOMPI_SECRETO_INTEGRIDAD": "test_integrity_",
+}
+
+
 def pasarela_desde_entorno() -> PasarelaPago:
     """Elige el adaptador segun `WOMPI_MODO`, mismo idioma que el cifrador.
 
@@ -347,6 +361,12 @@ def pasarela_desde_entorno() -> PasarelaPago:
             raise RuntimeError(
                 "WOMPI_MODO=sandbox exige las llaves en el entorno; faltan: " + ", ".join(faltan)
             )
+        for nombre, prefijo in _PREFIJOS_PRUEBA.items():
+            if not os.environ[nombre].startswith(prefijo):
+                raise RuntimeError(
+                    f"{nombre} no es una llave de prueba (debe empezar por {prefijo}); "
+                    "esta rama solo opera en sandbox"
+                )
         return WompiSandbox(
             llave_publica=os.environ["WOMPI_LLAVE_PUBLICA"],
             llave_privada=os.environ["WOMPI_LLAVE_PRIVADA"],
@@ -365,6 +385,8 @@ __all__ = [
     "pasarela_desde_entorno",
     "firma_integridad",
     "firma_evento",
+    "url_checkout",
+    "URL_CHECKOUT",
     "URL_SANDBOX",
     "URL_PRODUCCION",
 ]
