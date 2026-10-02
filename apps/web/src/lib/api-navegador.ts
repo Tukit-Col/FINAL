@@ -12,6 +12,7 @@ import type {
   ErrorApi,
   HijoNuevo,
   HijoSubida,
+  PagoIniciado,
   Pedido,
   Preferencias,
   RegistroAcudiente,
@@ -125,6 +126,17 @@ export async function sincronizarPago(transaccionId: string): Promise<ResultadoP
  */
 export async function verPedido(pedidoId: string): Promise<Pedido> {
   return leer<Pedido>(await fetch(`/api/pedidos/${encodeURIComponent(pedidoId)}`));
+}
+
+/**
+ * Paga desde "Mis pedidos" un pedido que quedó pendiente. El servidor verifica
+ * con la sesión que sea del acudiente; devuelve el widget de Wompi (o la URL de
+ * la pasarela simulada).
+ */
+export async function pagarPedido(pedidoId: string): Promise<PagoIniciado> {
+  return leer<PagoIniciado>(
+    await fetch(`/api/pedidos/${encodeURIComponent(pedidoId)}/pagar`, { method: "POST" }),
+  );
 }
 
 /**

@@ -23,6 +23,7 @@ import type {
   MisSolicitudes,
   PercepcionCruda,
   Preferencias,
+  PagoIniciado,
   ResultadoPago,
   ProductoDadoDeAlta,
   ProductoKit,
@@ -742,6 +743,17 @@ export class ClienteApi implements OrigenDatos {
         body: JSON.stringify(cuerpo),
       },
     );
+  }
+
+  iniciarPagoPedido(
+    pedidoId: string,
+    cuerpo: { correo_cliente: string; url_redireccion?: string },
+  ): Promise<PagoIniciado> {
+    return this.pedir<PagoIniciado>(`/v1/ordenes/${encodeURIComponent(pedidoId)}/pago`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo),
+    });
   }
 
   sincronizarPago(transaccionId: string): Promise<ResultadoPago> {

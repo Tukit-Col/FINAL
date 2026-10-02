@@ -24,6 +24,7 @@ import type {
   MisSolicitudes,
   PercepcionCruda,
   Preferencias,
+  PagoIniciado,
   ResultadoPago,
   ProductoDadoDeAlta,
   SinCoincidencia,
@@ -280,6 +281,12 @@ export interface OrigenDatos {
   // §Pago — al regreso de la pasarela, sincroniza la transaccion con Wompi y
   // devuelve el estado del pago y del pedido (idempotente).
   sincronizarPago(transaccionId: string): Promise<ResultadoPago>;
+  // Un intento de pago nuevo sobre un pedido pendiente (Comercio congela el
+  // precio al crear el pedido; aqui no se re-arma la orden).
+  iniciarPagoPedido(
+    pedidoId: string,
+    cuerpo: { correo_cliente: string; url_redireccion?: string },
+  ): Promise<PagoIniciado>;
 
   // §7 — revision humana.
   cola(): Promise<ColaAdmin>;
