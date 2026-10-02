@@ -12,6 +12,7 @@ import type {
   ErrorApi,
   HijoNuevo,
   HijoSubida,
+  Pedido,
   Preferencias,
   RegistroAcudiente,
   ResultadoPago,
@@ -116,6 +117,14 @@ export async function sincronizarPago(transaccionId: string): Promise<ResultadoP
       method: "POST",
     }),
   );
+}
+
+/**
+ * El detalle de un pedido (productos, medio de pago, entrega) para la pantalla
+ * de resultado del pago. El id sale de `sincronizarPago`.
+ */
+export async function verPedido(pedidoId: string): Promise<Pedido> {
+  return leer<Pedido>(await fetch(`/api/pedidos/${encodeURIComponent(pedidoId)}`));
 }
 
 /**

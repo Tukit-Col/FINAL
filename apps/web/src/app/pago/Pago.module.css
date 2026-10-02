@@ -1,49 +1,341 @@
+/* Pantallas de pago: resultado (aprobado, rechazado, confirmando) y la
+   pasarela simulada. Mismo lenguaje que el kit: tarjetas clay, botones
+   redondeados y cifras en la fuente de cifras. */
+
 .pagina {
   display: grid;
-  place-items: center;
-  padding: var(--espacio-6) var(--espacio-4);
+  justify-items: center;
+  padding: var(--espacio-6) var(--espacio-4) var(--espacio-8, 64px);
+}
+
+.contenedor {
+  width: 100%;
+  max-width: 560px;
+  display: grid;
+  gap: var(--espacio-4);
 }
 
 .tarjeta {
   width: 100%;
-  max-width: 460px;
   display: grid;
-  gap: var(--espacio-4);
-  justify-items: center;
-  text-align: center;
+  gap: var(--espacio-3);
   background: var(--clay-surface-grad);
   border-radius: var(--radius-xl);
-  padding: var(--espacio-6) var(--espacio-5);
+  padding: var(--espacio-5);
   box-shadow: var(--clay-shadow-lg);
+}
+
+/* La tarjeta principal: icono, titulo y franja, centrados. */
+.cabecera {
+  justify-items: center;
+  text-align: center;
+  padding: var(--espacio-6) var(--espacio-5) var(--espacio-5);
+  gap: var(--espacio-3);
+}
+
+.icono {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  border-radius: var(--radius-full);
+  animation: aparecer 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.iconoExito {
+  color: var(--color-success);
+  background: var(--color-success-bg);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--color-success-bg) 55%, transparent);
+}
+
+.iconoAviso {
+  color: var(--color-aviso);
+  background: var(--color-aviso-bg);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--color-aviso-bg) 55%, transparent);
+}
+
+.iconoInfo {
+  color: var(--color-info);
+  background: var(--color-info-bg);
+}
+
+.girando {
+  animation: girar 1.1s linear infinite;
+}
+
+@keyframes aparecer {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icono,
+  .girando {
+    animation: none;
+  }
 }
 
 .titulo {
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: 28px;
+  line-height: 1.15;
   font-weight: 800;
   color: var(--color-primary);
 }
 
-.texto {
-  color: var(--color-text-muted);
-  font-size: 15px;
-}
-
-.total {
-  font-size: 32px;
+.subtitulo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espacio-2);
+  font-family: var(--font-display);
+  font-size: 18px;
   font-weight: 800;
+  color: var(--color-text-primary);
 }
 
+.texto {
+  color: var(--color-text-secondary);
+  font-size: 15px;
+  max-width: 40ch;
+}
+
+.referencia {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  word-break: break-all;
+}
+
+/* Total, medio, fecha y pedido. */
+.franja {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: var(--espacio-3);
+  margin-top: var(--espacio-2);
+  padding: var(--espacio-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-light);
+  text-align: left;
+}
+
+.franja dt {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.franja dd {
+  margin: 2px 0 0;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+
+.franjaTotal {
+  grid-column: 1 / -1;
+}
+
+.franjaTotal dd {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+.medio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.codigo {
+  font-family: var(--font-cifras);
+  letter-spacing: 0.04em;
+}
+
+/* Lo que sigue: cuatro pasos con el primero cumplido. */
+.pasos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--espacio-2);
+  position: relative;
+}
+
+.paso,
+.pasoHecho {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  position: relative;
+}
+
+/* La linea que une cada paso con el siguiente. */
+.paso::before,
+.pasoHecho::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  left: calc(-50% + 22px);
+  right: calc(50% + 22px);
+  height: 2px;
+  background: var(--color-border);
+}
+
+.pasos li:first-child::before {
+  display: none;
+}
+
+.pasoIcono {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-2);
+  border: 2px solid var(--color-border);
+}
+
+.pasoHecho {
+  color: var(--color-success);
+}
+
+.pasoHecho .pasoIcono {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: var(--color-white);
+}
+
+/* Productos del pedido. */
+.contador {
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.productos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.producto {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--espacio-3);
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--color-border);
+  font-size: 14px;
+}
+
+.productoNombre {
+  color: var(--color-text-primary);
+}
+
+.cantidad {
+  color: var(--color-text-muted);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.verTodos {
+  justify-self: start;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.verTodos:hover {
+  text-decoration: underline;
+}
+
+.totalLinea {
+  display: flex;
+  justify-content: space-between;
+  padding-top: var(--espacio-2);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--color-text-primary);
+}
+
+/* Entrega. */
+.entrega {
+  display: flex;
+  gap: var(--espacio-3);
+  align-items: flex-start;
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.entregaIcono {
+  flex: none;
+  margin-top: 3px;
+  color: var(--color-primary);
+}
+
+/* Rechazado: causas y consejo. */
+.causas {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.consejo {
+  padding: var(--espacio-3) var(--espacio-4);
+  border-radius: var(--radius-md);
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info-border);
+  color: var(--color-info);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* Acciones. */
 .acciones {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--espacio-3);
   width: 100%;
 }
 
+.boton,
 .pagar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   min-height: 54px;
   padding: 0 var(--espacio-6);
   border-radius: var(--radius-full);
@@ -53,6 +345,12 @@
   font-size: 16px;
   box-shadow: var(--clay-shadow-primary);
   text-decoration: none;
+  transition: transform 150ms ease;
+}
+
+.boton:hover,
+.pagar:hover {
+  transform: translateY(-1px);
 }
 
 .secundario {
@@ -61,6 +359,27 @@
   box-shadow: var(--clay-shadow-lg);
 }
 
+.nota {
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
 .error {
   color: var(--color-danger, #c0392b);
+}
+
+@media (max-width: 480px) {
+  .titulo {
+    font-size: 24px;
+  }
+
+  .pasos {
+    font-size: 12px;
+  }
+
+  .paso,
+  .pasoHecho {
+    font-size: 11px;
+  }
 }
