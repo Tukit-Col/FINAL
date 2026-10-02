@@ -143,16 +143,19 @@ async def test_iniciar_pago_en_sandbox_devuelve_el_widget_sin_redireccion(client
     cuerpo = (
         await cliente.post(
             f"/v1/ordenes/{pedido_id}/pago",
-            json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse"},
+            json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse",
+                  "url_redireccion": "http://localhost:3000/pago/resultado"},
         )
     ).json()
     assert cuerpo["url_redireccion"] is None
+    assert cuerpo["widget"]["redirectUrl"] == "http://localhost:3000/pago/resultado"
     assert cuerpo["widget"] == datos_widget(
         llave_publica="pub_test_x",
         referencia=cuerpo["referencia_wompi"],
         monto_centavos=900000,
         secreto_integridad="test_integrity_x",
         correo="ana@ejemplo.com",
+        url_redireccion="http://localhost:3000/pago/resultado",
     )
 
 

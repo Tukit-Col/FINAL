@@ -1,9 +1,10 @@
 // El widget de Wompi: carga su script una sola vez y abre el pago en un modal.
 //
-// El modal no saca al acudiente de Tukit y no necesita `redirectUrl` (el
-// checkout de Wompi rechaza volver a localhost). Lo que el callback entrega es
-// informativo: Wompi pide no validar con eso, asi que el id de la transaccion
-// se manda a `/pago/resultado`, que confirma con el servidor.
+// Con tarjeta o Nequi el modal no saca al acudiente de Tukit y el callback
+// entrega la transaccion. PSE si se lleva la pestana al banco: ahi el callback
+// se pierde y Wompi vuelve por `redirectUrl` a `/pago/resultado?id=...`. Lo que
+// llega por cualquiera de los dos caminos es informativo: la pagina de
+// resultado confirma con el servidor.
 
 import type { WidgetWompi } from "@tukit/contrato";
 

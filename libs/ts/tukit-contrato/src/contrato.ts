@@ -217,6 +217,8 @@ export interface WidgetWompi {
   reference: string;
   signature: { integrity: string };
   customerData?: { email?: string };
+  // Solo lo usa PSE: el banco se lleva la pestana y Wompi vuelve aqui con `?id=`.
+  redirectUrl?: string;
 }
 
 // El estado del pago tras consultarlo a la pasarela, cuando el acudiente

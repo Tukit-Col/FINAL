@@ -89,6 +89,21 @@ def test_datos_widget_llevan_monto_referencia_y_firma():
     assert "test_integrity_s" not in repr(datos)
 
 
+def test_datos_widget_llevan_redirect_url_cuando_se_pasa():
+    # PSE saca la pestana entera hacia el banco y el callback del widget se
+    # pierde: sin `redirectUrl`, Wompi deja al acudiente en su comprobante.
+    # Por postMessage (no por URL) Wompi si acepta volver a localhost.
+    datos = datos_widget(
+        llave_publica="pub_test_x",
+        referencia="tukit-abc",
+        monto_centavos=900000,
+        secreto_integridad="test_integrity_s",
+        correo="ana@ejemplo.com",
+        url_redireccion="http://localhost:3000/pago/resultado",
+    )
+    assert datos["redirectUrl"] == "http://localhost:3000/pago/resultado"
+
+
 async def test_wompi_sandbox_crear_no_sale_a_la_red():
     def _falla(request: httpx.Request) -> httpx.Response:
         raise AssertionError("no debe salir a la red")
@@ -119,6 +134,7 @@ async def test_wompi_sandbox_crear_no_sale_a_la_red():
         monto_centavos=100,
         secreto_integridad="test_integrity_x",
         correo="a@b.co",
+        url_redireccion="http://localhost:3000/pago/resultado",
     )
 
 
