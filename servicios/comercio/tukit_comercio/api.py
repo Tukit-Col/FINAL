@@ -751,9 +751,8 @@ async def sincronizar_pago(transaccion_id: str) -> dict[str, Any]:
                 conexion = await db.connection()
                 resultado = await _aplicar_resultado(conexion, datos)
                 if resultado.pedido_id is not None:
-                    total = int(
-                        await conexion.scalar(select(PEDIDO.c.total).where(PEDIDO.c.id == resultado.pedido_id))
-                    )
+                    consulta = select(PEDIDO.c.total).where(PEDIDO.c.id == resultado.pedido_id)
+                    total = int(await conexion.scalar(consulta))
             break
         except IntegrityError:
             if intento == 1:
