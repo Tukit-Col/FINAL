@@ -14,14 +14,28 @@ interface ResultadoWidget {
   transaction?: { id?: string; status?: string } | null;
 }
 
+// Lo que el constructor recibe: las opciones firmadas mas el transporte.
+type OpcionesWidget = WidgetWompi & { bootstrapTransport: "postmessage" };
+
 interface WidgetCheckoutInstancia {
   open(callback: (resultado: ResultadoWidget) => void): void;
 }
 
 declare global {
   interface Window {
-    WidgetCheckout?: new (opciones: WidgetWompi) => WidgetCheckoutInstancia;
+    WidgetCheckout?: new (opciones: OpcionesWidget) => WidgetCheckoutInstancia;
   }
+}
+
+/**
+ * Las opciones con que se abre el widget. Por omision Wompi serializa toda la
+ * configuracion en la URL de su iframe, y su CDN responde 403 cuando ahi va un
+ * `redirect-url` a localhost: el iframe no carga y el modal se queda girando.
+ * Con `bootstrapTransport: "postmessage"` la configuracion viaja por mensaje y
+ * la URL del iframe queda limpia.
+ */
+export function opcionesWidget(opciones: WidgetWompi): OpcionesWidget {
+  return { ...opciones, bootstrapTransport: "postmessage" };
 }
 
 let cargando: Promise<void> | null = null;
@@ -56,7 +70,7 @@ export async function abrirWidgetWompi(
 ): Promise<void> {
   await cargarScript();
   if (!window.WidgetCheckout) throw new Error("El widget de Wompi no quedo disponible.");
-  new window.WidgetCheckout(opciones).open((resultado) => {
+  new window.WidgetCheckout(opcionesWidget(opciones)).open((resultado) => {
     const id = resultado?.transaction?.id;
     if (id) alTerminar(id);
   });

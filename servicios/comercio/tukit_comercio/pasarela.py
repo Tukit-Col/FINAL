@@ -171,8 +171,10 @@ def datos_widget(
 
     `redirectUrl` hace falta para PSE: el banco se lleva la pestana entera, el
     modal y su callback se pierden, y solo con `redirectUrl` el comprobante de
-    Wompi devuelve al acudiente a Tukit. El widget lo envia por postMessage, asi
-    que Wompi acepta localhost (el 403 era solo de la URL del checkout alojado).
+    Wompi devuelve al acudiente a Tukit. Wompi acepta localhost como retorno,
+    pero su CDN responde 403 si `redirect-url` va en una URL: el navegador abre
+    el widget con `bootstrapTransport: "postmessage"` (apps/web/src/lib/wompi.ts)
+    para que la configuracion viaje por mensaje y no en la URL del iframe.
     Con tarjeta o Nequi el modal sigue vivo y manda el callback.
     """
     datos: dict[str, Any] = {
