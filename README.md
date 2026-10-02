@@ -134,11 +134,16 @@ interruptor en modo de pruebas. Van en el `.env` de la raíz (copiado de `.env.e
 | `WOMPI_SECRETO_EVENTOS` | Secretos → Eventos | `test_events_` |
 | `WOMPI_SECRETO_INTEGRIDAD` | Secretos → Integridad | `test_integrity_` |
 
-Con `WOMPI_MODO=sandbox` en el `.env`, reinicia el stack (`.\tukit.ps1 abajo` y luego
-`.\tukit.ps1 arriba`), elige un kit y paga. Al terminar, Wompi devuelve al acudiente a
+Si no tienes `.env`, cópialo de `.env.ejemplo`. Con `WOMPI_MODO=sandbox` en el `.env`, reinicia
+el stack con esas variables cargadas: en Linux/macOS expórtalas en la shell antes de levantarlo
+(`set -a; . ./.env; set +a; make arriba`); en Windows, el ayudante local `tukit.ps1` (si lo
+usas) carga el `.env` solo. Luego elige un kit y paga. Al terminar, Wompi devuelve al acudiente a
 `/pago/resultado?id=<transacción>`, y esa página le pregunta a Wompi, de servidor a servidor,
 cómo quedó el pago (`POST /v1/pagos/{id}/sincronizar`). Por eso funciona en `localhost`, sin
 túnel.
+
+En modo falso los montos simulados viven en la memoria de Comercio: si lo reinicias entre
+"Pagar" y "Aprobar pago", obtendrás `transaccion_no_existe`; empieza de nuevo desde el kit.
 
 Datos de prueba de Wompi (según [docs.wompi.co](https://docs.wompi.co/docs/colombia/datos-de-prueba-en-sandbox/)):
 
