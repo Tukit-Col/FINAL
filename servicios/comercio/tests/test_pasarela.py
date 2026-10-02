@@ -8,7 +8,6 @@ lo que se firma rompa una prueba y no un cobro real.
 from __future__ import annotations
 
 import hashlib
-import urllib.parse
 
 import httpx
 import pytest
@@ -16,15 +15,14 @@ import pytest
 from tukit_comercio.modelos import EstadoPago
 
 from tukit_comercio.pasarela import (
-    URL_CHECKOUT,
     PasarelaCaida,
     PasarelaFalsa,
     TransaccionNoExiste,
     WompiSandbox,
     firma_evento,
+    datos_widget,
     firma_integridad,
     pasarela_desde_entorno,
-    url_checkout,
 )
 
 
@@ -69,37 +67,26 @@ def test_parsear_evento_saca_solo_id_referencia_transaccion_y_estado():
     assert datos.evento_id == "txn-7:APPROVED"
 
 
-def test_url_checkout_lleva_parametros_y_firma():
-    url = url_checkout(
+def test_datos_widget_llevan_monto_referencia_y_firma():
+    # Lo que `new WidgetCheckout({...})` recibe en el navegador, con los nombres
+    # de la documentacion de Wompi. La firma sale del servidor: el secreto de
+    # integridad nunca viaja al navegador.
+    datos = datos_widget(
         llave_publica="pub_test_x",
         referencia="tukit-abc",
         monto_centavos=900000,
         secreto_integridad="test_integrity_s",
-        url_redireccion="http://localhost:3000/pago/resultado",
         correo="ana@ejemplo.com",
     )
-    partes = urllib.parse.urlsplit(url)
-    q = dict(urllib.parse.parse_qsl(partes.query))
-    assert url.startswith("https://checkout.wompi.co/p/?")
-    assert q["public-key"] == "pub_test_x"
-    assert q["currency"] == "COP"
-    assert q["amount-in-cents"] == "900000"
-    assert q["reference"] == "tukit-abc"
-    assert q["signature:integrity"] == firma_integridad("tukit-abc", 900000, "test_integrity_s")
-    assert q["redirect-url"] == "http://localhost:3000/pago/resultado"
-    assert q["customer-data:email"] == "ana@ejemplo.com"
-
-
-def test_url_checkout_omite_redirect_url_si_no_se_pasa():
-    url = url_checkout(
-        llave_publica="pub_test_x",
-        referencia="tukit-abc",
-        monto_centavos=100,
-        secreto_integridad="test_integrity_s",
-        url_redireccion=None,
-        correo="ana@ejemplo.com",
-    )
-    assert "redirect-url" not in dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(url).query))
+    assert datos == {
+        "publicKey": "pub_test_x",
+        "currency": "COP",
+        "amountInCents": 900000,
+        "reference": "tukit-abc",
+        "signature": {"integrity": firma_integridad("tukit-abc", 900000, "test_integrity_s")},
+        "customerData": {"email": "ana@ejemplo.com"},
+    }
+    assert "test_integrity_s" not in repr(datos)
 
 
 async def test_wompi_sandbox_crear_no_sale_a_la_red():
@@ -123,7 +110,16 @@ async def test_wompi_sandbox_crear_no_sale_a_la_red():
     )
     await cliente.aclose()
     assert creada.transaccion_id is None
-    assert creada.url_redireccion.startswith(URL_CHECKOUT)
+    # El widget no redirige: Wompi rechaza volver a localhost, y el modal deja
+    # al acudiente en Tukit.
+    assert creada.url_redireccion is None
+    assert creada.widget == datos_widget(
+        llave_publica="pub_test_x",
+        referencia="tukit-1",
+        monto_centavos=100,
+        secreto_integridad="test_integrity_x",
+        correo="a@b.co",
+    )
 
 
 async def test_pasarela_falsa_manda_a_la_pagina_simulada():
@@ -136,6 +132,7 @@ async def test_pasarela_falsa_manda_a_la_pagina_simulada():
         url_redireccion="http://localhost:3000/pago/resultado",
     )
     assert creada.url_redireccion == "http://localhost:3000/pago/simulado?ref=tukit-1"
+    assert creada.widget is None
     assert falsa.montos == {"tukit-1": 100}
 
 

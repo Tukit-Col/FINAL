@@ -201,7 +201,22 @@ export interface Checkout {
   referencia_wompi?: string;
   transaccion_wompi?: string;
   estado?: string;
+  // Modo simulado: a donde mandar al acudiente (la pasarela falsa).
   url_redireccion: string | null;
+  // Wompi: las opciones firmadas de `new WidgetCheckout({...})`. El pago se
+  // abre en un modal y el acudiente no sale de Tukit.
+  widget: WidgetWompi | null;
+}
+
+// Las opciones del widget de Wompi, con sus nombres. Las arma y firma el
+// backend: el secreto de integridad nunca llega al navegador.
+export interface WidgetWompi {
+  publicKey: string;
+  currency: string;
+  amountInCents: number;
+  reference: string;
+  signature: { integrity: string };
+  customerData?: { email?: string };
 }
 
 // El estado del pago tras consultarlo a la pasarela, cuando el acudiente
