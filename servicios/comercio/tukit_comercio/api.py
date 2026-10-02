@@ -643,13 +643,23 @@ async def _aplicar_resultado(conexion: Any, datos: EventoPasarela) -> ResultadoA
             "monto_no_coincide", pedido.id, EstadoPago.RECHAZADO.value, pedido.estado, False
         )
 
+    if datos.estado == EstadoPago.INICIADO and pago.estado != EstadoPago.INICIADO.value:
+        # Un PENDING tardio no revive un pago ya rechazado: se anota y no cambia nada.
+        return ResultadoAplicacion("repetido", pedido.id, pago.estado, pedido.estado, False)
+
     valores: dict[str, Any] = {
         "estado": datos.estado.value,
         "transaccion_wompi": datos.transaccion_id or pago.transaccion_wompi,
     }
     if datos.metodo is not None:
         valores["metodo"] = datos.metodo
-    await conexion.execute(update(PAGO).where(PAGO.c.id == pago.id).values(**valores))
+    # El `notin_` cierra la carrera: si otro escritor dejo el pago en un estado
+    # final entre la lectura y esta escritura, no se le pisa.
+    await conexion.execute(
+        update(PAGO)
+        .where(PAGO.c.id == pago.id, PAGO.c.estado.notin_(_ESTADOS_PAGO_FINALES))
+        .values(**valores)
+    )
 
     destino = _pedido_tras_pago(datos.estado, pedido.estado)
     transicionado = False
@@ -745,14 +755,19 @@ async def sincronizar_pago(transaccion_id: str) -> dict[str, Any]:
 
     resultado = None
     total = 0
+    trabajo_id: str | None = None
     for intento in range(2):
         try:
             async with app.state.motor.sesion() as db:
                 conexion = await db.connection()
                 resultado = await _aplicar_resultado(conexion, datos)
                 if resultado.pedido_id is not None:
-                    consulta = select(PEDIDO.c.total).where(PEDIDO.c.id == resultado.pedido_id)
-                    total = int(await conexion.scalar(consulta))
+                    consulta = select(PEDIDO.c.total, PEDIDO.c.trabajo_id).where(
+                        PEDIDO.c.id == resultado.pedido_id
+                    )
+                    fila = (await conexion.execute(consulta)).one()
+                    total = int(fila.total)
+                    trabajo_id = str(fila.trabajo_id) if fila.trabajo_id is not None else None
             break
         except IntegrityError:
             if intento == 1:
@@ -765,6 +780,7 @@ async def sincronizar_pago(transaccion_id: str) -> dict[str, Any]:
         "total": total,
         "estado_pago": resultado.estado_pago,
         "estado_pedido": resultado.estado_pedido,
+        "trabajo_id": trabajo_id,
     }
 
 

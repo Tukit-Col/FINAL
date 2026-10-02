@@ -200,7 +200,7 @@ async def test_wompi_consultar_traduce_estado_monto_y_metodo():
         return httpx.Response(
             200,
             json={"data": {"id": "tx-1", "reference": "tukit-1", "status": "APPROVED",
-                           "amount_in_cents": 900000, "payment_method_type": "CARD"}},
+                           "amount_in_cents": 900000, "payment_method_type": "CARD", "currency": "COP"}},
         )
 
     ev = await _wompi_con(_ok).consultar_transaccion("tx-1")
@@ -214,7 +214,7 @@ async def test_wompi_consultar_metodo_desconocido_es_none():
         return httpx.Response(
             200,
             json={"data": {"id": "tx-1", "reference": "r", "status": "PENDING",
-                           "amount_in_cents": 1, "payment_method_type": "BANCOLOMBIA_TRANSFER"}},
+                           "amount_in_cents": 1, "payment_method_type": "BANCOLOMBIA_TRANSFER", "currency": "COP"}},
         )
 
     ev = await _wompi_con(_ok).consultar_transaccion("tx-1")
@@ -256,3 +256,63 @@ async def test_falsa_consultar_formato_invalido_o_referencia_desconocida():
         await p.consultar_transaccion("basura")
     with pytest.raises(TransaccionNoExiste):
         await p.consultar_transaccion("falsa-APPROVED-tukit-nada")
+
+
+def _tx(**extra):
+    datos = {"id": "tx-1", "reference": "tukit-1", "status": "APPROVED",
+             "amount_in_cents": 900000, "currency": "COP"}
+    datos.update(extra)
+    return lambda p: httpx.Response(200, json={"data": datos})
+
+
+def _wompi_con_llave(manejador, llave="pub_test_x") -> WompiSandbox:
+    return WompiSandbox(
+        llave_publica=llave, cliente=httpx.AsyncClient(transport=httpx.MockTransport(manejador))
+    )
+
+
+async def test_wompi_consultar_moneda_distinta_es_transaccion_no_existe():
+    with pytest.raises(TransaccionNoExiste):
+        await _wompi_con(_tx(currency="USD")).consultar_transaccion("tx-1")
+
+
+async def test_wompi_consultar_sin_moneda_es_transaccion_no_existe():
+    manejador = lambda p: httpx.Response(  # noqa: E731
+        200, json={"data": {"id": "tx-1", "reference": "r", "status": "APPROVED", "amount_in_cents": 1}}
+    )
+    with pytest.raises(TransaccionNoExiste):
+        await _wompi_con(manejador).consultar_transaccion("tx-1")
+
+
+async def test_wompi_consultar_comercio_ajeno_es_transaccion_no_existe():
+    wompi = _wompi_con_llave(_tx(merchant={"public_key": "pub_test_otro"}))
+    with pytest.raises(TransaccionNoExiste):
+        await wompi.consultar_transaccion("tx-1")
+
+
+async def test_wompi_consultar_comercio_propio_es_valido():
+    wompi = _wompi_con_llave(_tx(merchant={"public_key": "pub_test_x"}))
+    ev = await wompi.consultar_transaccion("tx-1")
+    assert ev.estado == EstadoPago.APROBADO
+
+
+async def test_wompi_consultar_sin_dato_de_comercio_se_acepta():
+    ev = await _wompi_con_llave(_tx()).consultar_transaccion("tx-1")
+    assert ev.referencia == "tukit-1"
+
+
+async def test_wompi_consultar_422_es_transaccion_no_existe():
+    wompi = _wompi_con(lambda p: httpx.Response(422, json={}))
+    with pytest.raises(TransaccionNoExiste):
+        await wompi.consultar_transaccion("tx-x")
+
+
+def test_modo_desconocido_falla_ruidoso(monkeypatch):
+    monkeypatch.setenv("WOMPI_MODO", "produccion")
+    with pytest.raises(RuntimeError, match="produccion"):
+        pasarela_desde_entorno()
+
+
+def test_modo_falso_con_espacios_y_mayusculas_se_acepta(monkeypatch):
+    monkeypatch.setenv("WOMPI_MODO", " FALSO ")
+    assert isinstance(pasarela_desde_entorno(), PasarelaFalsa)

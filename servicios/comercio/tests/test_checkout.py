@@ -335,7 +335,33 @@ async def test_sincronizar_aprobado_marca_pagado(cliente):
         "total": 9000,
         "estado_pago": "aprobado",
         "estado_pedido": "pagado",
+        "trabajo_id": None,
     }
+
+
+async def test_sincronizar_devuelve_el_trabajo_del_pedido(cliente):
+    trabajo = str(uuid.uuid4())
+    orden = {**_orden(), "trabajo_id": trabajo}
+    pedido_id = (await cliente.post("/v1/ordenes", json=orden)).json()["pedido_id"]
+    pago = (
+        await cliente.post(
+            f"/v1/ordenes/{pedido_id}/pago",
+            json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse",
+                  "url_redireccion": "http://localhost:3000/pago/resultado"},
+        )
+    ).json()
+    r = await cliente.post(f"/v1/pagos/falsa-DECLINED-{pago['referencia_wompi']}/sincronizar")
+    assert r.status_code == 200
+    assert r.json()["trabajo_id"] == trabajo
+
+
+async def test_pendiente_tardio_no_revive_un_pago_rechazado(cliente):
+    _, ref = await _pedido_con_pago(cliente)
+    await cliente.post(f"/v1/pagos/falsa-DECLINED-{ref}/sincronizar")
+    r = await cliente.post(f"/v1/pagos/falsa-PENDING-{ref}/sincronizar")
+    assert r.status_code == 200
+    assert r.json()["estado_pago"] == "rechazado"
+    assert r.json()["estado_pedido"] == "pendiente_pago"
 
 
 async def test_sincronizar_dos_veces_no_duplica_el_aviso(cliente):
@@ -430,6 +456,7 @@ async def test_sincronizar_reintenta_una_vez_si_choca_el_indice_unico(cliente, m
         "total": 9000,
         "estado_pago": "aprobado",
         "estado_pedido": "pagado",
+        "trabajo_id": None,
     }
     assert llamadas["n"] == 2
     assert await _filas_bandeja("pedido_pagado") == 1

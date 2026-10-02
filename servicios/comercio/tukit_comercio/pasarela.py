@@ -273,12 +273,29 @@ class WompiSandbox:
         finally:
             if propio:
                 await cliente.aclose()
-        if respuesta.status_code == 404:
+        if 400 <= respuesta.status_code < 500:
+            # Cualquier 4xx (404, 422...) es "esa transaccion no existe" para nosotros.
             raise TransaccionNoExiste(transaccion_id)
-        if respuesta.status_code >= 400:
+        if respuesta.status_code >= 500:
             raise PasarelaCaida(f"Wompi respondio {respuesta.status_code}")
         try:
-            return _evento_desde_transaccion(respuesta.json()["data"])
+            transaccion = respuesta.json()["data"]
+            moneda = transaccion.get("currency")
+            comercio = transaccion.get("merchant")
+        except (ValueError, KeyError, TypeError, AttributeError) as exc:
+            raise PasarelaCaida("Wompi devolvio una respuesta ilegible") from exc
+        # El GET es publico: cualquier comercio podria crear una transaccion con
+        # nuestra referencia. Se exige la moneda y, si Wompi dice de que comercio
+        # es, que sea el nuestro. En produccion esta verificacion del comercio debe
+        # ser obligatoria, y el campo `merchant.public_key` hay que confirmarlo en
+        # el primer pago real de sandbox (aqui, si falta, se acepta).
+        if moneda != MONEDA:
+            raise TransaccionNoExiste(transaccion_id)
+        if isinstance(comercio, dict) and "public_key" in comercio:
+            if comercio["public_key"] != self.llave_publica:
+                raise TransaccionNoExiste(transaccion_id)
+        try:
+            return _evento_desde_transaccion(transaccion)
         except (ValueError, KeyError, TypeError) as exc:
             raise PasarelaCaida("Wompi devolvio una respuesta ilegible") from exc
 
@@ -410,7 +427,9 @@ def pasarela_desde_entorno() -> PasarelaPago:
 
     `sandbox` exige las cuatro llaves en el entorno y falla ruidoso si falta
     alguna: una pasarela a medio configurar que cobrara de verdad es peor que
-    uno que no arranca. `falso` (por omision) no toca la red.
+    uno que no arranca. Ademas exige que cada llave tenga el prefijo de prueba
+    (`pub_test_`, `prv_test_`, `test_events_`, `test_integrity_`). `falso` (por
+    omision) no toca la red; cualquier otro modo es un error ruidoso.
     """
     modo = os.environ.get("WOMPI_MODO", "falso").strip().lower()
     if modo == "sandbox":
@@ -440,6 +459,8 @@ def pasarela_desde_entorno() -> PasarelaPago:
             secreto_eventos=os.environ["WOMPI_SECRETO_EVENTOS"],
             secreto_integridad=os.environ["WOMPI_SECRETO_INTEGRIDAD"],
         )
+    if modo != "falso":
+        raise RuntimeError(f"WOMPI_MODO={modo!r} no es valido; usa 'falso' o 'sandbox'")
     return PasarelaFalsa()
 
 
