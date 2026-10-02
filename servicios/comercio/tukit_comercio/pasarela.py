@@ -64,6 +64,18 @@ _ESTADO_WOMPI = {
     "PENDING": EstadoPago.INICIADO,
 }
 
+# El `payment_method_type` de Wompi traducido a los medios de Tukit; otro valor
+# no se adivina y queda en `None`.
+_METODO_WOMPI = {"CARD": "tarjeta", "PSE": "pse", "NEQUI": "nequi"}
+
+
+class PasarelaCaida(Exception):
+    """La pasarela no respondio bien (red caida o 5xx): reintentar mas tarde."""
+
+
+class TransaccionNoExiste(Exception):
+    """La pasarela no conoce esa transaccion."""
+
 
 @dataclass(frozen=True)
 class TransaccionCreada:
@@ -85,6 +97,8 @@ class EventoPasarela:
     referencia: str | None
     transaccion_id: str | None
     estado: EstadoPago
+    monto_centavos: int | None = None
+    metodo: str | None = None
 
 
 class PasarelaPago(Protocol):
@@ -100,6 +114,8 @@ class PasarelaPago(Protocol):
         url_redireccion: str | None = None,
     ) -> TransaccionCreada: ...
 
+    async def consultar_transaccion(self, transaccion_id: str) -> EventoPasarela: ...
+
     def verificar_firma(self, evento: dict[str, Any]) -> bool: ...
 
     def parsear_evento(self, evento: dict[str, Any]) -> EventoPasarela: ...
@@ -111,6 +127,22 @@ def _sha256(texto: str) -> str:
 
 def _traducir_estado(estado_wompi: str | None) -> EstadoPago:
     return _ESTADO_WOMPI.get((estado_wompi or "").upper(), EstadoPago.INICIADO)
+
+
+def _evento_desde_transaccion(transaccion: dict[str, Any]) -> EventoPasarela:
+    """Reduce una transaccion de Wompi a lo que se persiste. La clave de
+    idempotencia es `<transaccion>:<ESTADO>`: cada cambio de estado cuenta una
+    vez, pero un reenvio del mismo estado no."""
+    transaccion_id = transaccion.get("id")
+    estado_wompi = str(transaccion.get("status") or "")
+    return EventoPasarela(
+        evento_id=f"{transaccion_id or ''}:{estado_wompi.upper()}",
+        referencia=transaccion.get("reference"),
+        transaccion_id=transaccion_id,
+        estado=_traducir_estado(estado_wompi),
+        monto_centavos=transaccion.get("amount_in_cents"),
+        metodo=_METODO_WOMPI.get(str(transaccion.get("payment_method_type") or "").upper()),
+    )
 
 
 def firma_integridad(referencia: str, monto_centavos: int, secreto: str, moneda: str = MONEDA) -> str:
@@ -228,13 +260,27 @@ class WompiSandbox:
 
     def parsear_evento(self, evento: dict[str, Any]) -> EventoPasarela:
         datos = evento.get("data") or {}
-        transaccion = datos.get("transaction") or {}
-        return EventoPasarela(
-            evento_id=str(evento.get("id") or evento.get("event_id") or transaccion.get("id") or ""),
-            referencia=transaccion.get("reference"),
-            transaccion_id=transaccion.get("id"),
-            estado=_traducir_estado(transaccion.get("status")),
-        )
+        return _evento_desde_transaccion(datos.get("transaction") or {})
+
+    async def consultar_transaccion(self, transaccion_id: str) -> EventoPasarela:
+        """GET publico a `/transactions/{id}`: la fuente de verdad al regreso."""
+        propio = self.cliente is None
+        cliente = self.cliente or httpx.AsyncClient(timeout=ESPERA_SEGUNDOS)
+        try:
+            respuesta = await cliente.get(f"{self.base}/transactions/{transaccion_id}")
+        except httpx.HTTPError as exc:
+            raise PasarelaCaida(f"Wompi no responde: {exc}") from exc
+        finally:
+            if propio:
+                await cliente.aclose()
+        if respuesta.status_code == 404:
+            raise TransaccionNoExiste(transaccion_id)
+        if respuesta.status_code >= 400:
+            raise PasarelaCaida(f"Wompi respondio {respuesta.status_code}")
+        try:
+            return _evento_desde_transaccion(respuesta.json()["data"])
+        except (ValueError, KeyError, TypeError) as exc:
+            raise PasarelaCaida("Wompi devolvio una respuesta ilegible") from exc
 
 
 @dataclass
@@ -284,6 +330,7 @@ class PasarelaFalsa:
         referencia: str,
         transaccion_id: str,
         estado_wompi: str,
+        monto_centavos: int,
         timestamp: int = 1_700_000_000,
     ) -> dict[str, Any]:
         """Un webhook con la MISMA forma y firma que mandaria Wompi.
@@ -297,7 +344,7 @@ class PasarelaFalsa:
                 "id": transaccion_id,
                 "reference": referencia,
                 "status": estado_wompi,
-                "amount_in_cents": 0,
+                "amount_in_cents": monto_centavos,
             }
         }
         evento: dict[str, Any] = {
@@ -306,7 +353,11 @@ class PasarelaFalsa:
             "timestamp": timestamp,
             "data": datos,
             "signature": {
-                "properties": ["transaction.id", "transaction.status"],
+                "properties": [
+                    "transaction.id",
+                    "transaction.status",
+                    "transaction.amount_in_cents",
+                ],
             },
         }
         evento["signature"]["checksum"] = firma_evento(evento, self.secreto_eventos)
@@ -321,12 +372,24 @@ class PasarelaFalsa:
 
     def parsear_evento(self, evento: dict[str, Any]) -> EventoPasarela:
         datos = evento.get("data") or {}
-        transaccion = datos.get("transaction") or {}
-        return EventoPasarela(
-            evento_id=str(evento.get("id") or ""),
-            referencia=transaccion.get("reference"),
-            transaccion_id=transaccion.get("id"),
-            estado=_traducir_estado(transaccion.get("status")),
+        return _evento_desde_transaccion(datos.get("transaction") or {})
+
+    async def consultar_transaccion(self, transaccion_id: str) -> EventoPasarela:
+        """Descompone `falsa-<ESTADO>-<referencia>`; el monto sale de `montos`."""
+        partes = transaccion_id.split("-", 2)
+        if len(partes) != 3 or partes[0] != "falsa" or partes[1] not in _ESTADO_WOMPI:
+            raise TransaccionNoExiste(transaccion_id)
+        _, estado_wompi, referencia = partes
+        if referencia not in self.montos:
+            raise TransaccionNoExiste(transaccion_id)
+        return _evento_desde_transaccion(
+            {
+                "id": transaccion_id,
+                "reference": referencia,
+                "status": estado_wompi,
+                "amount_in_cents": self.montos[referencia],
+                "payment_method_type": "PSE",
+            }
         )
 
 
@@ -380,6 +443,8 @@ __all__ = [
     "PasarelaPago",
     "TransaccionCreada",
     "EventoPasarela",
+    "PasarelaCaida",
+    "TransaccionNoExiste",
     "WompiSandbox",
     "PasarelaFalsa",
     "pasarela_desde_entorno",
