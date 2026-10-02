@@ -211,6 +211,8 @@ export interface ResultadoPago {
   total: number;
   estado_pago: "iniciado" | "aprobado" | "rechazado" | "reembolsado";
   estado_pedido: string;
+  // El kit del que salió el pedido; `null` si el pedido no viene de uno.
+  trabajo_id: string | null;
 }
 
 // --------------------------------------------------- §2 Subida de listas (P2)
