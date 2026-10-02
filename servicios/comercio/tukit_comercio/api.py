@@ -572,6 +572,9 @@ def _pedido_tras_pago(estado_pago: EstadoPago, estado_actual: str) -> str | None
     return None
 
 
+_ESTADOS_PAGO_FINALES = (EstadoPago.APROBADO.value, EstadoPago.REEMBOLSADO.value)
+
+
 @dataclass(frozen=True)
 class ResultadoAplicacion:
     """Lo que dejo la aplicacion de un resultado de pago.
@@ -620,6 +623,11 @@ async def _aplicar_resultado(conexion: Any, datos: EventoPasarela) -> ResultadoA
         return ResultadoAplicacion("sin_pago", None, None, None, False)
 
     pedido = (await conexion.execute(select(PEDIDO).where(PEDIDO.c.id == pago.pedido_id))).one()
+
+    if pago.estado in _ESTADOS_PAGO_FINALES:
+        # Un pago ya aprobado/reembolsado no retrocede: un evento tardio o fuera
+        # de orden (PENDING despues de APPROVED, p. ej.) queda anotado y no cambia nada.
+        return ResultadoAplicacion("repetido", pedido.id, pago.estado, pedido.estado, False)
 
     if datos.monto_centavos is None or int(datos.monto_centavos) != int(pago.monto) * 100:
         await conexion.execute(

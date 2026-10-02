@@ -206,6 +206,24 @@ async def test_webhook_guarda_el_metodo_que_reporta_wompi(cliente):
     assert pedido["pago"]["metodo"] == "tarjeta"
 
 
+async def test_pago_aprobado_no_retrocede_con_eventos_tardios(cliente):
+    pedido_id, evento = await _flujo_hasta_webhook(cliente, "APPROVED")
+    await cliente.post("/v1/webhooks/wompi", json=evento)
+    creada = app.state.pasarela.creadas[-1]
+    for estado_wompi, monto in (("PENDING", 900000), ("DECLINED", 900000), ("APPROVED", 1)):
+        tardio = app.state.pasarela.emitir_evento(
+            referencia=creada.referencia,
+            transaccion_id=creada.transaccion_id,
+            estado_wompi=estado_wompi,
+            monto_centavos=monto,
+        )
+        respuesta = await cliente.post("/v1/webhooks/wompi", json=tardio)
+        assert respuesta.json()["estado"] == "repetido"
+        pedido = (await cliente.get(f"/v1/ordenes/{pedido_id}")).json()
+        assert pedido["estado"] == EstadoPedido.PAGADO.value
+        assert pedido["pago"]["estado"] == EstadoPago.APROBADO.value
+
+
 async def test_webhook_aprobado_transiciona_a_pagado(cliente):
     pedido_id, evento = await _flujo_hasta_webhook(cliente, "APPROVED")
     respuesta = await cliente.post("/v1/webhooks/wompi", json=evento)
