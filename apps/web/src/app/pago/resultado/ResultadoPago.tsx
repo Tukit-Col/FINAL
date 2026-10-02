@@ -8,6 +8,7 @@ import styles from "../Pago.module.css";
 
 const INTERVALO_MS = 3000;
 const MAX_INTENTOS = 20;
+const ESTADOS_REINTENTABLES = [502, 503, 504];
 
 type Vista =
   | { tipo: "cargando" }
@@ -32,7 +33,7 @@ export default function ResultadoPago({ id }: { id: string | undefined }) {
         siguiente = { tipo: "resultado", datos };
         reintentar = datos.estado_pago === "iniciado";
       } catch (causa) {
-        if (causa instanceof FalloApi && causa.estado === 502) {
+        if (causa instanceof FalloApi && ESTADOS_REINTENTABLES.includes(causa.estado)) {
           siguiente = { tipo: "reintento", mensaje: "No pudimos confirmar todavía" };
           reintentar = true;
         } else {
@@ -85,7 +86,7 @@ export default function ResultadoPago({ id }: { id: string | undefined }) {
   } else if (vista.tipo === "agotado") {
     contenido = (
       <>
-        <p className={styles.titulo}>Tu banco aún no confirma. Verás el estado en tu panel.</p>
+        <p className={styles.titulo}>Aún no tenemos la confirmación de tu pago. Vuelve a abrir esta página en unos minutos o revisa tu panel.</p>
         <div className={styles.acciones}>{panel}</div>
       </>
     );
@@ -117,13 +118,13 @@ export default function ResultadoPago({ id }: { id: string | undefined }) {
               No se hizo ningún cobro. Puedes intentarlo de nuevo.
             </p>
             <div className={styles.acciones}>
-              <button
-                type="button"
-                className={styles.pagar}
-                onClick={() => window.history.back()}
-              >
-                Volver
-              </button>
+              {datos.trabajo_id ? (
+                <Link href={`/kits/${datos.trabajo_id}`} className={styles.pagar}>
+                  Volver a mi kit
+                </Link>
+              ) : (
+                panel
+              )}
             </div>
           </>
         );
