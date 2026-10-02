@@ -6,9 +6,9 @@ una pasarela desde la vista de Comercio, y ninguna mas:
 
 - **crear_transaccion**: arma el cobro y devuelve la referencia con la que el
   webhook la va a encontrar mas tarde. En Wompi (solo sandbox) no se llama a
-  ninguna API: se construye la URL firmada del Web Checkout alojado por Wompi y
-  se manda al acudiente alla; la transaccion nace SIEMPRE en PENDIENTE y nunca
-  se aprueba sincronica.
+  ninguna API: se firman los datos del widget de Wompi, que el navegador abre
+  en un modal sin salir de Tukit; la transaccion nace SIEMPRE en PENDIENTE y
+  nunca se aprueba sincronica.
 - **verificar_firma**: dado el cuerpo crudo de un webhook, dice si de verdad lo
   firmo Wompi. Es lo unico que separa un cobro real de uno inventado, asi que
   un evento con firma que no cuadra se ignora.
@@ -17,7 +17,7 @@ una pasarela desde la vista de Comercio, y ninguna mas:
   el id de transaccion y el estado ya traducido al vocabulario de `EstadoPago`.
 
 Ni una tarjeta ni un dato de contacto se guardan: el acudiente los digita en
-el checkout de Wompi y aqui nunca se ven. Las llaves salen del entorno y NUNCA del
+el widget de Wompi y aqui nunca se ven. Las llaves salen del entorno y NUNCA del
 codigo (`WOMPI_MODO`, `WOMPI_LLAVE_*`, `WOMPI_SECRETO_*`), mismo idioma que
 `cifrador_desde_entorno` de Identidad. En modo sandbox solo se aceptan llaves
 de prueba (`pub_test_`, `prv_test_`, `test_events_`, `test_integrity_`).
@@ -25,8 +25,8 @@ de prueba (`pub_test_`, `prv_test_`, `test_events_`, `test_integrity_`).
 Las formulas de firma estan verificadas contra docs.wompi.co (Colombia):
 
 - Firma de integridad = SHA256("<referencia><monto_centavos><moneda><secreto>")
-  en hexadecimal. El monto va en CENTAVOS. Es lo que autentica los parametros
-  del Web Checkout (`signature:integrity`).
+  en hexadecimal. El monto va en CENTAVOS. Es lo que autentica los datos del
+  widget (`signature.integrity`).
 - Firma del evento (webhook) = SHA256 de, en orden, los valores de los campos
   que el propio evento nombra en `signature.properties` (leidos de `data`),
   luego el `timestamp` (entero UNIX), y de ULTIMO el secreto de eventos. Se
@@ -37,7 +37,6 @@ from __future__ import annotations
 
 import hashlib
 import os
-import urllib.parse
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 from urllib.parse import urljoin
@@ -50,7 +49,6 @@ from .modelos import EstadoPago
 # cruzan. La de sandbox es la unica que este repositorio usa por defecto.
 URL_SANDBOX = "https://sandbox.wompi.co/v1"
 URL_PRODUCCION = "https://production.wompi.co/v1"
-URL_CHECKOUT = "https://checkout.wompi.co/p/"
 MONEDA = "COP"
 ESPERA_SEGUNDOS = 30.0
 
@@ -87,6 +85,9 @@ class TransaccionCreada:
     # A donde mandar al acudiente para completar el pago, cuando la pasarela lo
     # da. `None` en flujos que no redirigen.
     url_redireccion: str | None = None
+    # Lo que el navegador le pasa a `new WidgetCheckout({...})` de Wompi para
+    # abrir el pago en un modal sin salir de Tukit. `None` si no hay widget.
+    widget: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -154,27 +155,28 @@ def firma_integridad(referencia: str, monto_centavos: int, secreto: str, moneda:
     return _sha256(f"{referencia}{monto_centavos}{moneda}{secreto}")
 
 
-def url_checkout(
+def datos_widget(
     *,
     llave_publica: str,
     referencia: str,
     monto_centavos: int,
     secreto_integridad: str,
-    url_redireccion: str | None,
     correo: str,
-) -> str:
-    """La URL del Web Checkout de Wompi, firmada y lista para redirigir. Sin red."""
-    params = {
-        "public-key": llave_publica,
+) -> dict[str, Any]:
+    """Las opciones de `new WidgetCheckout({...})`, con los nombres de Wompi.
+
+    Se arman aqui y no en el navegador porque la firma de integridad necesita el
+    secreto, que nunca sale del servidor. Sin `redirectUrl`: el widget es un
+    modal y el checkout de Wompi rechaza volver a localhost. Sin red.
+    """
+    return {
+        "publicKey": llave_publica,
         "currency": MONEDA,
-        "amount-in-cents": str(monto_centavos),
+        "amountInCents": monto_centavos,
         "reference": referencia,
-        "signature:integrity": firma_integridad(referencia, monto_centavos, secreto_integridad),
-        "customer-data:email": correo,
+        "signature": {"integrity": firma_integridad(referencia, monto_centavos, secreto_integridad)},
+        "customerData": {"email": correo},
     }
-    if url_redireccion is not None:
-        params["redirect-url"] = url_redireccion
-    return URL_CHECKOUT + "?" + urllib.parse.urlencode(params, safe=":/")
 
 
 def firma_evento(evento: dict[str, Any], secreto: str) -> str:
@@ -213,7 +215,7 @@ def _valor_por_ruta(datos: dict[str, Any], ruta: str) -> Any:
 class WompiSandbox:
     """Adaptador real contra Wompi. Las llaves salen del entorno.
 
-    Crear es puro (arma la URL del Web Checkout). El `cliente` httpx queda para
+    Crear es puro (firma los datos del widget). El `cliente` httpx queda para
     las consultas a la API de Wompi; se inyecta en las pruebas para no salir a
     la red. No guarda nada.
     """
@@ -234,18 +236,18 @@ class WompiSandbox:
         metodo: str,
         url_redireccion: str | None = None,
     ) -> TransaccionCreada:
-        # No hay llamada a Wompi: el Web Checkout se arma con una URL firmada.
-        # El id de transaccion llega despues, por el webhook o al regreso.
+        # No hay llamada a Wompi: el navegador abre el widget con estos datos
+        # firmados. El id de transaccion llega despues, en el callback del
+        # widget (que lo manda a sincronizar) o por el webhook.
         return TransaccionCreada(
             referencia=referencia,
             transaccion_id=None,
             estado=EstadoPago.INICIADO,
-            url_redireccion=url_checkout(
+            widget=datos_widget(
                 llave_publica=self.llave_publica,
                 referencia=referencia,
                 monto_centavos=monto_centavos,
                 secreto_integridad=self.secreto_integridad,
-                url_redireccion=url_redireccion,
                 correo=correo_cliente,
             ),
         )
@@ -475,8 +477,7 @@ __all__ = [
     "pasarela_desde_entorno",
     "firma_integridad",
     "firma_evento",
-    "url_checkout",
-    "URL_CHECKOUT",
+    "datos_widget",
     "URL_SANDBOX",
     "URL_PRODUCCION",
 ]

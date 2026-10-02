@@ -558,6 +558,7 @@ async def iniciar_pago(pedido_id: uuid.UUID, solicitud: SolicitudPago) -> dict[s
         "transaccion_wompi": creada.transaccion_id,
         "estado": EstadoPago.INICIADO.value,
         "url_redireccion": creada.url_redireccion,
+        "widget": creada.widget,
     }
 
 

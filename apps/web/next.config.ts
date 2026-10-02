@@ -9,10 +9,7 @@ const nextConfig: NextConfig = {
   // Next 16 bloquea recursos de dev (HMR, chunks de cliente) si el host no es
   // localhost. En pruebas se entra por 127.0.0.1 / la IP de red; sin esto el JS
   // de cliente no carga (ni anima la linea de tiempo ni responden los chips).
-  // `*.trycloudflare.com`: el tunel con que se prueba Wompi sandbox. Su
-  // checkout rechaza volver a localhost o a una IP privada (403 en su CDN), asi
-  // que la app se abre por el tunel y el retorno apunta ahi.
-  allowedDevOrigins: ["127.0.0.1", "*.trycloudflare.com"],
+  allowedDevOrigins: ["127.0.0.1"],
   // La raiz del workspace, para que Next no adivine cual de los dos
   // `package.json` manda y no avise de lockfiles multiples.
   outputFileTracingRoot: join(import.meta.dirname, "../.."),

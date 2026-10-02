@@ -27,7 +27,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from tukit_comercio.api import app
 from tukit_comercio.modelos import Base, EstadoPago, EstadoPedido
-from tukit_comercio.pasarela import PasarelaCaida, PasarelaFalsa
+from tukit_comercio.pasarela import PasarelaCaida, PasarelaFalsa, WompiSandbox, datos_widget
 from tukit_comun.bd import MotorServicio
 
 
@@ -133,6 +133,40 @@ async def test_iniciar_pago_guarda_solo_referencia_y_estado(cliente):
     cuerpo = respuesta.json()
     assert cuerpo["referencia_wompi"] == f"tukit-{cuerpo['pago_id']}"
     assert cuerpo["estado"] == EstadoPago.INICIADO.value
+
+
+async def test_iniciar_pago_en_sandbox_devuelve_el_widget_sin_redireccion(cliente):
+    # Con Wompi de verdad el navegador abre el widget en un modal; no hay URL a
+    # la que irse (Wompi rechaza volver a localhost).
+    app.state.pasarela = WompiSandbox(llave_publica="pub_test_x", secreto_integridad="test_integrity_x")
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+    cuerpo = (
+        await cliente.post(
+            f"/v1/ordenes/{pedido_id}/pago",
+            json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse"},
+        )
+    ).json()
+    assert cuerpo["url_redireccion"] is None
+    assert cuerpo["widget"] == datos_widget(
+        llave_publica="pub_test_x",
+        referencia=cuerpo["referencia_wompi"],
+        monto_centavos=900000,
+        secreto_integridad="test_integrity_x",
+        correo="ana@ejemplo.com",
+    )
+
+
+async def test_iniciar_pago_en_modo_falso_no_trae_widget(cliente):
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+    cuerpo = (
+        await cliente.post(
+            f"/v1/ordenes/{pedido_id}/pago",
+            json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse",
+                  "url_redireccion": "http://localhost:3000/pago/resultado"},
+        )
+    ).json()
+    assert cuerpo["widget"] is None
+    assert cuerpo["url_redireccion"].endswith("/pago/simulado?ref=" + cuerpo["referencia_wompi"])
 
 
 async def _flujo_hasta_webhook(cliente, estado_wompi: str):

@@ -139,19 +139,14 @@ el stack con esas variables cargadas: en Linux/macOS expórtalas en la shell ant
 (`set -a; . ./.env; set +a; make arriba`); en Windows, el ayudante local `tukit.ps1` (si lo
 usas) carga el `.env` solo.
 
-El checkout de Wompi **no acepta volver a `localhost` ni a una IP privada**: su CDN responde
-403 si `redirect-url` apunta ahí. Por eso la app web se abre por un túnel público:
-
-```bash
-cloudflared tunnel --url http://localhost:3000
-```
-
-Entra a la app por la URL `https://<algo>.trycloudflare.com` que imprime, no por `localhost`,
-elige un kit y paga. La app arma el retorno con el origen desde el que la abriste, así que Wompi
-devuelve al acudiente a `<túnel>/pago/resultado?id=<transacción>`, y esa página le pregunta a
-Wompi, de servidor a servidor, cómo quedó el pago (`POST /v1/pagos/{id}/sincronizar`). Solo la
-app web necesita el túnel; el backend sigue en `localhost`. El túnel es otro dominio, así que
-la sesión hay que iniciarla de nuevo ahí.
+Elige un kit y paga, desde `localhost` como siempre. El pago se abre con el
+[widget de Wompi](https://docs.wompi.co/docs/colombia/widget-checkout-web/), un modal encima del
+kit: el acudiente nunca sale de Tukit. El backend firma los datos del widget (el secreto de
+integridad no llega al navegador) y no se manda `redirectUrl`, porque el checkout de Wompi
+rechaza con 403 volver a `localhost` o a una IP privada. Cuando Wompi reporta la transacción,
+la app va a `/pago/resultado?id=<transacción>`, y esa página le pregunta a Wompi, de servidor a
+servidor, cómo quedó el pago (`POST /v1/pagos/{id}/sincronizar`); lo que dice el navegador es
+solo informativo.
 
 En modo falso los montos simulados viven en la memoria de Comercio: si lo reinicias entre
 "Pagar" y "Aprobar pago", obtendrás `transaccion_no_existe`; empieza de nuevo desde el kit.

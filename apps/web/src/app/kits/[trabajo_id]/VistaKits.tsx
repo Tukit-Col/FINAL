@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Star, PiggyBank, Sparkles, Gem } from "lucide-react";
 import { prefiereMenosMovimiento } from "@tukit/contrato/motion";
 import {
@@ -15,6 +16,7 @@ import {
   type Trabajo,
 } from "@tukit/contrato";
 import { FalloApi, iniciarCheckout } from "@/lib/api-navegador";
+import { abrirWidgetWompi } from "@/lib/wompi";
 import LineaDeKit from "./LineaDeKit";
 import styles from "./Kits.module.css";
 
@@ -159,6 +161,7 @@ function Checkout({
   perfil: PerfilKit;
   total: number;
 }) {
+  const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -195,11 +198,20 @@ function Checkout({
         perfil,
         correo,
         entrega: { destinatario, direccion, ciudad },
-        // La pasarela devuelve aqui tras pagar; la pagina de resultado
-        // confirma el pago con el backend.
+        // Solo la usa la pasarela simulada; el widget de Wompi no redirige.
         url_redireccion: `${window.location.origin}/pago/resultado`,
       });
-      if (checkout.url_redireccion) {
+      if (checkout.widget) {
+        // Wompi abre el pago en un modal encima del kit. Al terminar, el id
+        // de la transaccion va a la pagina de resultado, que lo confirma con
+        // el servidor (el callback del widget es solo informativo).
+        await abrirWidgetWompi(checkout.widget, (transaccionId) => {
+          router.push(`/pago/resultado?id=${encodeURIComponent(transaccionId)}`);
+        });
+        // El modal ya cubre la pagina. Si el acudiente lo cierra sin pagar, el
+        // boton vuelve a quedar disponible.
+        setEnviando(false);
+      } else if (checkout.url_redireccion) {
         window.location.href = checkout.url_redireccion;
       } else {
         setError("No pudimos abrir la pasarela de pago.");
