@@ -123,6 +123,8 @@ RUTAS: dict[str, str] = {
     # El checkout del acudiente y el webhook de la pasarela: ya tienen detras la
     # superficie de escritura de Comercio (§9), asi que salen de PENDIENTES.
     "/v1/ordenes": "comercio",
+    # La sincronización de pagos con Wompi.
+    "/v1/pagos": "comercio",
     "/v1/webhooks/wompi": "comercio",
 }
 

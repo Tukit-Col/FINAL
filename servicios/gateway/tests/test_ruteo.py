@@ -82,6 +82,7 @@ class TestElPrefijoMasLargoGana:
             ("/v1/ordenes", "comercio"),
             ("/v1/ordenes/abc/pago", "comercio"),
             ("/v1/ordenes/abc/retracto", "comercio"),
+            ("/v1/pagos/abc/sincronizar", "comercio"),
             ("/v1/webhooks/wompi", "comercio"),
         ],
     )
