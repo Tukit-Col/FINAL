@@ -24,6 +24,7 @@ import type {
   MisSolicitudes,
   PercepcionCruda,
   Preferencias,
+  ResultadoPago,
   ProductoDadoDeAlta,
   SinCoincidencia,
   SolicitudTrabajo,
@@ -275,6 +276,10 @@ export interface OrigenDatos {
   // perfil + correo + direccion; Inteligencia arma la orden en Comercio y
   // devuelve la url de la pasarela a la que redirigir. No expone ids de base.
   iniciarCheckout(trabajoId: string, cuerpo: SolicitudCheckout): Promise<Checkout>;
+
+  // §Pago — al regreso de la pasarela, sincroniza la transaccion con Wompi y
+  // devuelve el estado del pago y del pedido (idempotente).
+  sincronizarPago(transaccionId: string): Promise<ResultadoPago>;
 
   // §7 — revision humana.
   cola(): Promise<ColaAdmin>;

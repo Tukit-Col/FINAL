@@ -14,6 +14,7 @@ import type {
   HijoSubida,
   Preferencias,
   RegistroAcudiente,
+  ResultadoPago,
   SolicitudCaso,
   SolicitudCheckout,
   SolicitudTrabajo,
@@ -101,6 +102,18 @@ export async function iniciarCheckout(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cuerpo),
+    }),
+  );
+}
+
+/**
+ * Pago: al regresar de la pasarela, pide al servidor que sincronice la
+ * transacción con Wompi y devuelve el estado del pago y del pedido.
+ */
+export async function sincronizarPago(transaccionId: string): Promise<ResultadoPago> {
+  return leer<ResultadoPago>(
+    await fetch(`/api/pagos/${encodeURIComponent(transaccionId)}/sincronizar`, {
+      method: "POST",
     }),
   );
 }
