@@ -208,6 +208,16 @@ export interface Checkout {
   widget: WidgetWompi | null;
 }
 
+// Un intento de pago nuevo sobre un pedido que ya existe (pendiente de pago),
+// p. ej. desde "Mis pedidos". Misma forma que el pago de `Checkout`.
+export interface PagoIniciado {
+  pago_id: string;
+  referencia_wompi: string;
+  estado: string;
+  url_redireccion: string | null;
+  widget: WidgetWompi | null;
+}
+
 // Las opciones del widget de Wompi, con sus nombres. Las arma y firma el
 // backend: el secreto de integridad nunca llega al navegador.
 export interface WidgetWompi {

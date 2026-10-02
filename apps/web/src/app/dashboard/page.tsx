@@ -25,6 +25,7 @@ import {
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import Sidebar from "@/components/Sidebar";
 import { sesionActual, matriculasDeLaSesion, solicitudesDeLaSesion } from "@/lib/sesion";
+import BotonPagarPedido from "./BotonPagarPedido";
 import styles from "./Dashboard.module.css";
 
 export const dynamic = "force-dynamic";
@@ -270,6 +271,7 @@ export default async function DashboardPage() {
                       <th>Fecha</th>
                       <th>Estado</th>
                       <th>Total</th>
+                      <th aria-label="Acciones" />
                     </tr>
                   </thead>
                   <tbody>
@@ -287,6 +289,11 @@ export default async function DashboardPage() {
                         </td>
                         <td className={`${styles.pedidoTotal} cifra`}>
                           {formatearPesos(pedido.total)}
+                        </td>
+                        <td>
+                          {pedido.estado === "pendiente_pago" && (
+                            <BotonPagarPedido pedidoId={pedido.pedido_id} />
+                          )}
                         </td>
                       </tr>
                     ))}
