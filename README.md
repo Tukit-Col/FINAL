@@ -116,6 +116,53 @@ El enrutado por rol vive en `libs/ts/tukit-contrato/src/origen.ts::destinoDe`: `
 `operador` van al back-office, `colegio_*` al portal de colegio, y el resto al dashboard del
 acudiente.
 
+## Pagos de prueba con Wompi
+
+Con `WOMPI_MODO=falso` el botón **Pagar** lleva a una página local (`/pago/simulado`) con
+"Aprobar pago" y "Rechazar pago"; no sale a la red. Con `WOMPI_MODO=sandbox` lleva al
+checkout real de Wompi (`https://checkout.wompi.co/p/`), pero en modo de **pruebas**: no se
+mueve dinero. Es un candado a propósito: Comercio se niega a arrancar si alguna llave no es de
+prueba, y no existe un modo de producción en esta rama.
+
+Las llaves salen de [comercios.wompi.co](https://comercios.wompi.co) → *Desarrolladores*, con el
+interruptor en modo de pruebas. Van en el `.env` de la raíz (copiado de `.env.ejemplo`):
+
+| Variable | Dónde está en el panel | Empieza por |
+|---|---|---|
+| `WOMPI_LLAVE_PUBLICA` | Llave pública | `pub_test_` |
+| `WOMPI_LLAVE_PRIVADA` | Llave privada | `prv_test_` |
+| `WOMPI_SECRETO_EVENTOS` | Secretos → Eventos | `test_events_` |
+| `WOMPI_SECRETO_INTEGRIDAD` | Secretos → Integridad | `test_integrity_` |
+
+Con `WOMPI_MODO=sandbox` en el `.env`, reinicia el stack (`.\tukit.ps1 abajo` y luego
+`.\tukit.ps1 arriba`), elige un kit y paga. Al terminar, Wompi devuelve al acudiente a
+`/pago/resultado?id=<transacción>`, y esa página le pregunta a Wompi, de servidor a servidor,
+cómo quedó el pago (`POST /v1/pagos/{id}/sincronizar`). Por eso funciona en `localhost`, sin
+túnel.
+
+Datos de prueba de Wompi (según [docs.wompi.co](https://docs.wompi.co/docs/colombia/datos-de-prueba-en-sandbox/)):
+
+| Medio | Dato | Resultado |
+|---|---|---|
+| Tarjeta | `4242 4242 4242 4242`, cualquier CVC de 3 dígitos y fecha futura | Aprobado |
+| Tarjeta | `4111 1111 1111 1111`, cualquier CVC de 3 dígitos y fecha futura | Rechazado |
+| Tarjeta | cualquier otro número | Error |
+| Nequi | `3991111111` | Aprobado |
+| Nequi | `3992222222` | Rechazado |
+| Nequi | cualquier otro número | Error |
+| PSE | Banco "Banco que aprueba" (código `1` por API) | Aprobado |
+| PSE | Banco "Banco que rechaza" (código `2` por API) | Rechazado |
+
+**Webhook (opcional).** El webhook `POST /v1/webhooks/wompi` también confirma el pago, pero
+Wompi tiene que poder alcanzarlo. Para probarlo desde tu máquina expón el gateway con un túnel:
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:8010
+```
+
+y pega `https://<túnel>/v1/webhooks/wompi` como URL de eventos en el panel de Wompi (modo de
+pruebas). Sin túnel no pasa nada malo: la página de resultado confirma igual.
+
 ---
 
 ## Cómo está organizado, y por qué así
