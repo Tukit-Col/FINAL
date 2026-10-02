@@ -195,17 +195,15 @@ function Checkout({
         perfil,
         correo,
         entrega: { destinatario, direccion, ciudad },
-        // La pasarela devuelve aqui tras pagar; el trabajo publicado es la
-        // pagina de vuelta natural.
-        url_redireccion: window.location.href,
+        // La pasarela devuelve aqui tras pagar; la pagina de resultado
+        // confirma el pago con el backend.
+        url_redireccion: `${window.location.origin}/pago/resultado`,
       });
       if (checkout.url_redireccion) {
         window.location.href = checkout.url_redireccion;
       } else {
-        // Sin pasarela (modo de prueba sin redireccion): el pedido quedo creado.
-        setError(null);
-        setAbierto(false);
-        window.alert(`Pedido ${checkout.pedido_id} creado por ${formatearPesos(checkout.total)}.`);
+        setError("No pudimos abrir la pasarela de pago.");
+        setEnviando(false);
       }
     } catch (causa) {
       const mensaje =
