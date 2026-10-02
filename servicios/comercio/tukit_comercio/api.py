@@ -29,12 +29,13 @@ from typing import Any
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 from sqlalchemy import func, insert, select, update
+from sqlalchemy.exc import IntegrityError
 from tukit_comun.bd import crear_motor
 from tukit_comun.http import ErrorDominio, crear_app
 from tukit_comun.http import iso as _iso
 
 from .modelos import Base, EstadoPago, EstadoPedido, MetodoPago, transicion_valida
-from .pasarela import EventoPasarela, pasarela_desde_entorno
+from .pasarela import EventoPasarela, PasarelaCaida, TransaccionNoExiste, pasarela_desde_entorno
 from .remoto import CatalogoCaido, ClienteCatalogo
 
 PUERTO_POR_OMISION = 8014
@@ -712,6 +713,59 @@ async def webhook_wompi(evento: dict[str, Any]) -> dict[str, Any]:
         "evento_id": datos.evento_id,
         "pago_estado": datos.estado.value,
         "pedido_transicionado": resultado.transicionado,
+    }
+
+
+@app.post(
+    "/v1/pagos/{transaccion_id}/sincronizar",
+    tags=["comercio"],
+    summary="Sincroniza el pago con la pasarela al regreso del acudiente",
+)
+async def sincronizar_pago(transaccion_id: str) -> dict[str, Any]:
+    """Consulta la transaccion en la pasarela y la aplica como lo hace el webhook.
+
+    El acudiente vuelve del checkout alojado con el id de la transaccion en la
+    URL; aqui se le pregunta a la pasarela su estado real (no se confia en lo que
+    traiga el navegador) y se aplica con el mismo aplicador idempotente del
+    webhook, asi que sincronizar y recibir el webhook no se pisan ni duplican el
+    aviso. Si el webhook llega a la vez, el segundo INSERT del candado choca con
+    el indice unico: se reintenta UNA vez en una sesion nueva, donde la fila ya
+    existe y el resultado es `repetido` con el estado vigente.
+    """
+    try:
+        datos = await app.state.pasarela.consultar_transaccion(transaccion_id)
+    except TransaccionNoExiste:
+        raise ErrorDominio(
+            "transaccion_no_existe", "La pasarela no conoce esa transaccion", estado=404
+        ) from None
+    except PasarelaCaida:
+        raise ErrorDominio(
+            "pasarela_no_disponible", "No se pudo consultar la pasarela de pagos", estado=502
+        ) from None
+
+    resultado = None
+    total = 0
+    for intento in range(2):
+        try:
+            async with app.state.motor.sesion() as db:
+                conexion = await db.connection()
+                resultado = await _aplicar_resultado(conexion, datos)
+                if resultado.pedido_id is not None:
+                    total = int(
+                        await conexion.scalar(select(PEDIDO.c.total).where(PEDIDO.c.id == resultado.pedido_id))
+                    )
+            break
+        except IntegrityError:
+            if intento == 1:
+                raise
+
+    if resultado is None or resultado.estado == "sin_pago" or resultado.pedido_id is None:
+        raise ErrorDominio("pago_no_existe", "No hay un pago para esa transaccion", estado=404)
+    return {
+        "pedido_id": str(resultado.pedido_id),
+        "total": total,
+        "estado_pago": resultado.estado_pago,
+        "estado_pedido": resultado.estado_pedido,
     }
 
 
