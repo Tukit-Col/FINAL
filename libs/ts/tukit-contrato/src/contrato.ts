@@ -204,6 +204,15 @@ export interface Checkout {
   url_redireccion: string | null;
 }
 
+// El estado del pago tras consultarlo a la pasarela, cuando el acudiente
+// regresa de Wompi. `estado_pedido` es el del pedido en Comercio.
+export interface ResultadoPago {
+  pedido_id: string;
+  total: number;
+  estado_pago: "iniciado" | "aprobado" | "rechazado" | "reembolsado";
+  estado_pedido: string;
+}
+
 // --------------------------------------------------- §2 Subida de listas (P2)
 //
 // La puerta del acudiente que sube el PDF de cada hijo: cada archivo se percibe

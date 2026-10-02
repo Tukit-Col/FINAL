@@ -23,6 +23,7 @@ import type {
   MisSolicitudes,
   PercepcionCruda,
   Preferencias,
+  ResultadoPago,
   ProductoDadoDeAlta,
   ProductoKit,
   SinCoincidencia,
@@ -740,6 +741,13 @@ export class ClienteApi implements OrigenDatos {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(cuerpo),
       },
+    );
+  }
+
+  sincronizarPago(transaccionId: string): Promise<ResultadoPago> {
+    return this.pedir<ResultadoPago>(
+      `/v1/pagos/${encodeURIComponent(transaccionId)}/sincronizar`,
+      { method: "POST" },
     );
   }
 
