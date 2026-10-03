@@ -11,16 +11,14 @@ import hashlib
 
 import httpx
 import pytest
-
 from tukit_comercio.modelos import EstadoPago
-
 from tukit_comercio.pasarela import (
     PasarelaCaida,
     PasarelaFalsa,
     TransaccionNoExiste,
     WompiSandbox,
-    firma_evento,
     datos_widget,
+    firma_evento,
     firma_integridad,
     pasarela_desde_entorno,
 )
@@ -50,7 +48,9 @@ def test_firma_evento_concatena_propiedades_timestamp_y_secreto_al_final():
 
 def test_la_pasarela_falsa_verifica_su_propia_firma():
     falsa = PasarelaFalsa()
-    evento = falsa.emitir_evento(referencia="ref-1", transaccion_id="txn-1", estado_wompi="APPROVED", monto_centavos=500)
+    evento = falsa.emitir_evento(
+        referencia="ref-1", transaccion_id="txn-1", estado_wompi="APPROVED", monto_centavos=500
+    )
     assert falsa.verificar_firma(evento) is True
 
     # Alterar el cuerpo firmado invalida la firma: es exactamente lo que protege.
@@ -60,7 +60,9 @@ def test_la_pasarela_falsa_verifica_su_propia_firma():
 
 def test_parsear_evento_saca_solo_id_referencia_transaccion_y_estado():
     falsa = PasarelaFalsa()
-    evento = falsa.emitir_evento(referencia="ref-7", transaccion_id="txn-7", estado_wompi="APPROVED", monto_centavos=500)
+    evento = falsa.emitir_evento(
+        referencia="ref-7", transaccion_id="txn-7", estado_wompi="APPROVED", monto_centavos=500
+    )
     datos = falsa.parsear_evento(evento)
     assert datos.referencia == "ref-7"
     assert datos.transaccion_id == "txn-7"
@@ -227,7 +229,8 @@ async def test_wompi_consultar_metodo_desconocido_es_none():
         return httpx.Response(
             200,
             json={"data": {"id": "tx-1", "reference": "r", "status": "PENDING",
-                           "amount_in_cents": 1, "payment_method_type": "BANCOLOMBIA_TRANSFER", "currency": "COP"}},
+                           "amount_in_cents": 1, "payment_method_type": "BANCOLOMBIA_TRANSFER",
+                           "currency": "COP"}},
         )
 
     ev = await _wompi_con(_ok).consultar_transaccion("tx-1")
@@ -329,3 +332,55 @@ def test_modo_desconocido_falla_ruidoso(monkeypatch):
 def test_modo_falso_con_espacios_y_mayusculas_se_acepta(monkeypatch):
     monkeypatch.setenv("WOMPI_MODO", " FALSO ")
     assert isinstance(pasarela_desde_entorno(), PasarelaFalsa)
+
+
+# --- Busqueda por referencia (antes de cancelar un pedido) ------------------
+
+
+async def test_wompi_consultar_por_referencia_usa_llave_privada_y_toma_la_mas_reciente():
+    # Con la llave privada Wompi solo devuelve transacciones de ESTE comercio.
+    # Un pedido puede tener varios intentos con la misma referencia: manda el
+    # mas reciente.
+    def _ok(peticion: httpx.Request) -> httpx.Response:
+        assert peticion.method == "GET"
+        assert peticion.url.path == "/v1/transactions"
+        assert peticion.url.params["reference"] == "tukit-1"
+        assert peticion.headers["authorization"] == "Bearer prv_test_x"
+        return httpx.Response(
+            200,
+            json={"data": [
+                {"id": "tx-viejo", "reference": "tukit-1", "status": "DECLINED", "currency": "COP",
+                 "amount_in_cents": 100, "created_at": "2026-10-02T10:00:00.000Z"},
+                {"id": "tx-nuevo", "reference": "tukit-1", "status": "PENDING", "currency": "COP",
+                 "amount_in_cents": 100, "created_at": "2026-10-02T11:00:00.000Z"},
+            ]},
+        )
+
+    wompi = WompiSandbox(
+        llave_privada="prv_test_x", cliente=httpx.AsyncClient(transport=httpx.MockTransport(_ok))
+    )
+    ev = await wompi.consultar_por_referencia("tukit-1")
+    assert (ev.transaccion_id, ev.estado) == ("tx-nuevo", EstadoPago.INICIADO)
+
+
+async def test_wompi_consultar_por_referencia_sin_transacciones_es_none():
+    wompi = _wompi_con(lambda p: httpx.Response(200, json={"data": []}))
+    assert await wompi.consultar_por_referencia("tukit-1") is None
+
+
+async def test_wompi_consultar_por_referencia_500_es_pasarela_caida():
+    wompi = _wompi_con(lambda p: httpx.Response(500, json={}))
+    with pytest.raises(PasarelaCaida):
+        await wompi.consultar_por_referencia("tukit-1")
+
+
+async def test_falsa_consultar_por_referencia():
+    falsa = PasarelaFalsa()
+    await falsa.crear_transaccion(
+        referencia="tukit-1", monto_centavos=700, correo_cliente="a@b.co", metodo="pse"
+    )
+    assert await falsa.consultar_por_referencia("tukit-1") is None
+    falsa.fijar_resultado("tukit-1", "APPROVED")
+    ev = await falsa.consultar_por_referencia("tukit-1")
+    assert (ev.referencia, ev.estado, ev.monto_centavos) == ("tukit-1", EstadoPago.APROBADO, 700)
+    assert ev.transaccion_id == "falsa-APPROVED-tukit-1"
