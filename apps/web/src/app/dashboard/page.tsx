@@ -24,7 +24,12 @@ import {
 } from "@tukit/contrato";
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import Sidebar from "@/components/Sidebar";
-import { sesionActual, matriculasDeLaSesion, solicitudesDeLaSesion } from "@/lib/sesion";
+import {
+  sesionActual,
+  matriculasDeLaSesion,
+  pedidosDeLaSesion,
+  solicitudesDeLaSesion,
+} from "@/lib/sesion";
 import styles from "./Dashboard.module.css";
 
 export const dynamic = "force-dynamic";
@@ -61,7 +66,7 @@ export default async function DashboardPage() {
   // servicio esta caido, la seccion queda vacia en vez de tumbar el panel.
   let pedidos: Pedido[] = [];
   try {
-    pedidos = await origenDeDatos().misPedidos(sesion.usuario_id);
+    pedidos = await pedidosDeLaSesion();
   } catch (causa) {
     console.error("dashboard: no se pudieron leer los pedidos", causa);
     pedidos = [];
