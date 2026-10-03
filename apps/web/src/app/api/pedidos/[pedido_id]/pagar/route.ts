@@ -7,7 +7,7 @@
 // comprobante sale de la sesion, sin formulario.
 
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
-import { decidirPagoPedido } from "@/lib/pagar-pedido";
+import { decidirAccionPedido } from "@/lib/pagar-pedido";
 import { respuestaDeError } from "@/lib/respuesta";
 import { sesionActual } from "@/lib/sesion";
 
@@ -26,7 +26,12 @@ export async function POST(
   }
   try {
     const origen = origenDeDatos();
-    const decision = decidirPagoPedido(await origen.misPedidos(sesion.usuario_id), pedido_id);
+    const decision = decidirAccionPedido(
+      await origen.misPedidos(sesion.usuario_id),
+      pedido_id,
+      "pagar",
+      Date.now(),
+    );
     if (!decision.ok) {
       return respuestaDeError(new ErrorTukit(decision.estado, decision.error, decision.mensaje));
     }
