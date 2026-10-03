@@ -78,3 +78,37 @@ const TONO_ESTADO: Record<EstadoPedido, TonoEstado> = {
 export function tonoEstadoPedido(estado: EstadoPedido): TonoEstado {
   return TONO_ESTADO[estado];
 }
+
+// El cruce entre "Mis solicitudes" y "Mis pedidos" por kit (trabajo_id). La
+// solicitud no se cierra ni guarda un estado propio: se calcula cada vez, asi
+// que si el pedido se cancela o se reembolsa, la solicitud vuelve sola a "Listo".
+// - comprado: el kit tiene un pedido pagado o en camino (el mas reciente).
+// - por_pagar: no lo tiene, pero hay uno pendiente de pago y vigente.
+export type CompraSolicitud = { estado: "comprado" | "por_pagar"; pedidoId: string } | null;
+
+const ESTADOS_COMPRADOS: ReadonlySet<EstadoPedido> = new Set([
+  "pagado",
+  "en_preparacion",
+  "despachado",
+  "en_reparto",
+  "entregado",
+]);
+
+type PedidoDeKit = PedidoMinimo & { trabajo_id: string | null };
+
+export function compraDeSolicitud(
+  trabajoId: string,
+  pedidos: readonly PedidoDeKit[],
+  ahora: number,
+): CompraSolicitud {
+  const delKit = pedidos
+    .filter((p) => p.trabajo_id === trabajoId)
+    .sort((a, b) => Date.parse(b.creado_en) - Date.parse(a.creado_en));
+  const comprado = delKit.find((p) => ESTADOS_COMPRADOS.has(p.estado));
+  if (comprado) return { estado: "comprado", pedidoId: comprado.pedido_id };
+  const pendiente = delKit.find(
+    (p) => p.estado === "pendiente_pago" && !pedidoVencido(p.creado_en, ahora),
+  );
+  if (pendiente) return { estado: "por_pagar", pedidoId: pendiente.pedido_id };
+  return null;
+}

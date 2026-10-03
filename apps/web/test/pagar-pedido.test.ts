@@ -4,7 +4,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { decidirAccionPedido, pedidoVencido, tonoEstadoPedido } from "../src/lib/pagar-pedido.ts";
+import { compraDeSolicitud, decidirAccionPedido, pedidoVencido, tonoEstadoPedido } from "../src/lib/pagar-pedido.ts";
 
 const AHORA = Date.parse("2026-10-03T12:00:00Z");
 const hace = (horas: number) => new Date(AHORA - horas * 3600_000).toISOString();
@@ -62,4 +62,38 @@ test("el tono del estado: verde pagado y entrega, amarillo pendiente, rojo cance
   assert.equal(tonoEstadoPedido("pendiente_pago"), "aviso");
   assert.equal(tonoEstadoPedido("cancelado"), "peligro");
   assert.equal(tonoEstadoPedido("incidencia"), "peligro");
+});
+
+const kit = "t-1";
+const pedidoDe = (
+  pedido_id: string,
+  estado: "pendiente_pago" | "pagado" | "cancelado" | "entregado",
+  horas: number,
+  trabajo_id: string | null = kit,
+) => ({ pedido_id, estado, trabajo_id, creado_en: hace(horas) });
+
+test("un kit con pedido pagado queda comprado, con el pedido mas reciente", () => {
+  const pedidos = [pedidoDe("viejo", "pagado", 5), pedidoDe("nuevo", "entregado", 2), pedidoDe("x", "cancelado", 1)];
+  assert.deepEqual(compraDeSolicitud(kit, pedidos, AHORA), { estado: "comprado", pedidoId: "nuevo" });
+});
+
+test("pagado gana sobre un pendiente del mismo kit", () => {
+  const pedidos = [pedidoDe("pend", "pendiente_pago", 1), pedidoDe("pag", "pagado", 3)];
+  assert.deepEqual(compraDeSolicitud(kit, pedidos, AHORA), { estado: "comprado", pedidoId: "pag" });
+});
+
+test("un kit con pedido pendiente y vigente queda por pagar", () => {
+  assert.deepEqual(compraDeSolicitud(kit, [pedidoDe("pend", "pendiente_pago", 1)], AHORA), {
+    estado: "por_pagar",
+    pedidoId: "pend",
+  });
+});
+
+test("un pendiente vencido, uno cancelado o uno de otro kit no cambian la solicitud", () => {
+  const pedidos = [
+    pedidoDe("venc", "pendiente_pago", 30),
+    pedidoDe("canc", "cancelado", 1),
+    pedidoDe("otro", "pagado", 1, "t-2"),
+  ];
+  assert.equal(compraDeSolicitud(kit, pedidos, AHORA), null);
 });

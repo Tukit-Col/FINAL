@@ -12,7 +12,8 @@
 // de hijos falla, la seccion degrada a un aviso y el resto del panel sigue vivo.
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LifeBuoy } from "lucide-react";
+import { Fragment } from "react";
+import { Clock, LifeBuoy } from "lucide-react";
 import {
   ETIQUETA_ESTADO_PEDIDO,
   formatearPesos,
@@ -25,7 +26,12 @@ import {
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import Sidebar from "@/components/Sidebar";
 import { sesionActual, matriculasDeLaSesion, solicitudesDeLaSesion } from "@/lib/sesion";
-import { pedidoVencido, tonoEstadoPedido, type TonoEstado } from "@/lib/pagar-pedido";
+import {
+  compraDeSolicitud,
+  pedidoVencido,
+  tonoEstadoPedido,
+  type TonoEstado,
+} from "@/lib/pagar-pedido";
 import AccionesPedido from "./AccionesPedido";
 import styles from "./Dashboard.module.css";
 
@@ -68,22 +74,25 @@ const CLASE_TONO: Record<TonoEstado, string> = {
 // "ahora" se toma al cargar los datos, una vez por peticion, no al pintar.
 async function pedidosConVigencia(
   usuarioId: string,
-): Promise<{ pedido: Pedido; vencido: boolean }[]> {
+): Promise<{ filas: { pedido: Pedido; vencido: boolean }[]; ahora: number }> {
+  const ahora = Date.now();
   let pedidos: Pedido[];
   try {
     pedidos = await origenDeDatos().misPedidos(usuarioId);
   } catch {
-    return [];
+    return { filas: [], ahora };
   }
-  const ahora = Date.now();
-  return pedidos.map((pedido) => ({ pedido, vencido: pedidoVencido(pedido.creado_en, ahora) }));
+  return {
+    filas: pedidos.map((pedido) => ({ pedido, vencido: pedidoVencido(pedido.creado_en, ahora) })),
+    ahora,
+  };
 }
 
 export default async function DashboardPage() {
   const sesion = await sesionActual();
   if (!sesion) redirect("/ingresar");
 
-  const pedidos = await pedidosConVigencia(sesion.usuario_id);
+  const { filas: pedidos, ahora } = await pedidosConVigencia(sesion.usuario_id);
 
   // Los perfiles de los hijos del portador. `matriculasDeLaSesion()` es
   // fail-closed a [] (no distingue "sin hijos" de "lectura fallida"), asi que
@@ -220,13 +229,57 @@ export default async function DashboardPage() {
                         solicitud.colegio_nombre ??
                         solicitud.colegio_id;
                       const clave = `${solicitud.tipo}-${solicitud.colegio_id}-${solicitud.grado}-${i}`;
+                      // El cruce con "Mis pedidos" por kit: no se guarda, se
+                      // calcula, asi que un pedido cancelado devuelve la
+                      // solicitud a "Listo" sin escribir nada.
+                      const trabajoId =
+                        solicitud.tipo === "recibida" ? null : solicitud.trabajo_id;
+                      const compra = trabajoId
+                        ? compraDeSolicitud(
+                            trabajoId,
+                            pedidos.map((f) => f.pedido),
+                            ahora,
+                          )
+                        : null;
                       return (
                         <li key={clave} className={styles.solicitudCard}>
                           <div className={styles.solicitudMeta}>
                             <span className={styles.solicitudColegio}>{colegio}</span>
                             <span className={styles.solicitudGrado}>{solicitud.grado}</span>
+                            {compra && (
+                              <span
+                                className={`${styles.badge} ${
+                                  compra.estado === "comprado" ? styles.badgeExito : styles.badgeAviso
+                                } ${styles.solicitudChip}`}
+                              >
+                                <span className={styles.badgeDot} />
+                                {compra.estado === "comprado" ? "Comprado" : "Pago pendiente"}
+                              </span>
+                            )}
                           </div>
-                          {solicitud.tipo === "recibida" ? (
+                          {compra ? (
+                            <>
+                              <p className={styles.solicitudEstado}>
+                                {compra.estado === "comprado"
+                                  ? "Ya compraste este kit. Puedes seguir tu pedido en Mis pedidos."
+                                  : "Armaste un pedido con este kit y está esperando tu pago."}
+                              </p>
+                              <div className={styles.solicitudEnlaces}>
+                                <a
+                                  href={`#pedido-${compra.pedidoId}`}
+                                  className={styles.solicitudEnlace}
+                                >
+                                  {compra.estado === "comprado" ? "Ver mi pedido" : "Ir a pagar"}
+                                </a>
+                                <Link
+                                  href={`/kits/${trabajoId}`}
+                                  className={styles.solicitudEnlaceSecundario}
+                                >
+                                  Ver el kit
+                                </Link>
+                              </div>
+                            </>
+                          ) : solicitud.tipo === "recibida" ? (
                             <p className={styles.solicitudEstado}>
                               Recibida: una persona está revisando tu lista.
                             </p>
@@ -288,38 +341,56 @@ export default async function DashboardPage() {
                       <th>Fecha</th>
                       <th>Estado</th>
                       <th>Total</th>
-                      <th aria-label="Acciones" />
                     </tr>
                   </thead>
                   <tbody>
-                    {pedidos.map(({ pedido, vencido }) => (
-                      <tr key={pedido.pedido_id}>
-                        <td className={styles.pedidoId}>
-                          {pedido.pedido_id.slice(0, 8).toUpperCase()}
-                        </td>
-                        <td className={styles.pedidoFecha}>{fechaLegible(pedido.creado_en)}</td>
-                        <td>
-                          <span
-                            className={`${styles.badge} ${CLASE_TONO[tonoEstadoPedido(pedido.estado)]}`}
+                    {pedidos.map(({ pedido, vencido }) => {
+                      const pendiente = pedido.estado === "pendiente_pago";
+                      return (
+                        <Fragment key={pedido.pedido_id}>
+                          <tr
+                            id={`pedido-${pedido.pedido_id}`}
+                            className={pendiente ? styles.filaConAcciones : undefined}
                           >
-                            <span className={styles.badgeDot} />
-                            {ETIQUETA_ESTADO_PEDIDO[pedido.estado]}
-                          </span>
-                        </td>
-                        <td className={`${styles.pedidoTotal} cifra`}>
-                          {formatearPesos(pedido.total)}
-                        </td>
-                        <td>
-                          {pedido.estado === "pendiente_pago" && (
-                            <AccionesPedido
-                              pedidoId={pedido.pedido_id}
-                              trabajoId={pedido.trabajo_id}
-                              vencido={vencido}
-                            />
+                            <td className={styles.pedidoId}>
+                              {pedido.pedido_id.slice(0, 8).toUpperCase()}
+                            </td>
+                            <td className={styles.pedidoFecha}>
+                              {fechaLegible(pedido.creado_en)}
+                            </td>
+                            <td>
+                              {pendiente && vencido ? (
+                                <span className={`${styles.badge} ${styles.badgeAviso}`}>
+                                  <Clock size={12} aria-hidden />
+                                  Vencido
+                                </span>
+                              ) : (
+                                <span
+                                  className={`${styles.badge} ${CLASE_TONO[tonoEstadoPedido(pedido.estado)]}`}
+                                >
+                                  <span className={styles.badgeDot} />
+                                  {ETIQUETA_ESTADO_PEDIDO[pedido.estado]}
+                                </span>
+                              )}
+                            </td>
+                            <td className={`${styles.pedidoTotal} cifra`}>
+                              {formatearPesos(pedido.total)}
+                            </td>
+                          </tr>
+                          {pendiente && (
+                            <tr className={styles.filaAcciones}>
+                              <td colSpan={4}>
+                                <AccionesPedido
+                                  pedidoId={pedido.pedido_id}
+                                  trabajoId={pedido.trabajo_id}
+                                  vencido={vencido}
+                                />
+                              </td>
+                            </tr>
                           )}
-                        </td>
-                      </tr>
-                    ))}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}

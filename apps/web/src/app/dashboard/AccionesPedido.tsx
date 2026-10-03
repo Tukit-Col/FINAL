@@ -1,17 +1,19 @@
 "use client";
 
-// Las acciones de un pedido pendiente en "Mis pedidos":
+// La franja de acciones bajo un pedido pendiente en "Mis pedidos":
 // - Pagar: abre el mismo widget de Wompi que el kit, sobre un intento de pago
 //   nuevo del pedido. Al terminar va a la pantalla de resultado.
 // - Cancelar: pide confirmacion; Comercio pregunta a Wompi antes y no cancela
 //   si hay un pago aprobado o en curso (su mensaje se muestra tal cual).
 // - Vencido (mas de 24 horas): ya no se paga; se ofrece rearmar el kit, donde
 //   el precio se re-verifica. Cancelarlo libera lo reservado.
+// Va en su propia fila de la tabla, a todo el ancho: como quinta columna no
+// cabia en la tarjeta.
 
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Clock, CreditCard, RefreshCw, X } from "lucide-react";
+import { CreditCard, RefreshCw, X } from "lucide-react";
 import { FalloApi, cancelarPedido, pagarPedido } from "@/lib/api-navegador";
 import { abrirWidgetWompi } from "@/lib/wompi";
 import styles from "./Dashboard.module.css";
@@ -71,25 +73,20 @@ export default function AccionesPedido({
     }
   }
 
-  const botonCancelar = (
-    <button
-      type="button"
-      className={styles.btnCancelar}
-      onClick={cancelar}
-      disabled={ocupado !== null}
-    >
-      <X size={14} aria-hidden />
-      {ocupado === "cancelar" ? "Cancelando…" : "Cancelar"}
-    </button>
-  );
-
   return (
-    <div className={styles.accionPedido}>
-      {vencido && (
-        <span className={styles.vencido} title="Pasaron más de 24 horas desde que lo creaste">
-          <Clock size={13} aria-hidden /> Vencido
+    <div className={vencido ? `${styles.franja} ${styles.franjaVencida}` : styles.franja}>
+      <div className={styles.franjaTexto}>
+        <span>
+          {vencido
+            ? "Pasaron más de 24 horas. Arma el kit de nuevo para ver el precio de hoy."
+            : "Este pedido está esperando tu pago."}
         </span>
-      )}
+        {error && (
+          <span className={styles.errorPedido} role="alert">
+            {error}
+          </span>
+        )}
+      </div>
       <div className={styles.accionesFila}>
         {vencido ? (
           trabajoId && (
@@ -108,13 +105,16 @@ export default function AccionesPedido({
             {ocupado === "pagar" ? "Abriendo…" : "Pagar"}
           </button>
         )}
-        {botonCancelar}
+        <button
+          type="button"
+          className={styles.btnCancelar}
+          onClick={cancelar}
+          disabled={ocupado !== null}
+        >
+          <X size={14} aria-hidden />
+          {ocupado === "cancelar" ? "Cancelando…" : "Cancelar"}
+        </button>
       </div>
-      {error && (
-        <span className={styles.errorPedido} role="alert">
-          {error}
-        </span>
-      )}
     </div>
   );
 }
