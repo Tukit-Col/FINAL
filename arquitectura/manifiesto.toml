@@ -27,7 +27,10 @@ version = "3"
 # sobre 99 conceptos, no inducida, y vive en Catalogo porque es vocabulario de
 # catalogo. Reemplaza al grafo en memoria que se reconstruia por item y costaba
 # el 95,3 por ciento de la latencia del pipeline.
-total_tablas_esperado = 71
+# 72: `comercio.historial_pedido`, un renglon por cada avance del pedido desde
+# el back-office (quien, de que estado a cual, con que nota), para que una
+# incidencia o una cancelacion tengan explicacion.
+total_tablas_esperado = 72
 
 # Tablas que existen a proposito en varias bases. Son la excepcion declarada,
 # no un descuido: cada servicio necesita su propia bandeja de salida local para
@@ -140,6 +143,7 @@ descripcion = "Pedidos, inventario, pagos y entrega. Irremplazable: objetivo de 
 tablas = [
     "pedido",
     "linea_pedido",
+    "historial_pedido",
     "devolucion",
     "zona_entrega",
     "ruta_reparto",
@@ -277,6 +281,11 @@ nota = "Auditoria referencia al actor sin poder bloquearlo ni borrarlo en cascad
 desde = "comercio.pedido.usuario_id"
 hacia = "identidad.usuario"
 nota = "Quien compra. La supresion del titular NO borra el pedido: obligacion contable."
+
+[[referencias_cruzadas]]
+desde = "comercio.historial_pedido.actor_id"
+hacia = "identidad.usuario"
+nota = "Quien del back-office movio el pedido de estado. Referencia logica: la supresion del operador no borra el historial."
 
 [[referencias_cruzadas]]
 desde = "comercio.devolucion.usuario_id"
