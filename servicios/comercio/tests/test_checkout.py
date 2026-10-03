@@ -22,6 +22,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 import pytest_asyncio
+from conftest import TOKEN_ACUDIENTE, TOKEN_OPERADOR, TOKEN_OTRO, IdentidadFalsa, bearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from tukit_comercio.api import app
@@ -59,6 +60,11 @@ class CatalogoFalso:
         return uuid.uuid5(uuid.NAMESPACE_OID, sku), self.precios[sku]
 
 
+# Los avances son back-office: van con el token del operador.
+OPERADOR_HDR = bearer(TOKEN_OPERADOR)
+# Reparto propio: el despacho lleva a quien llamar.
+REPARTIDOR = {"repartidor_nombre": "Luis Gomez", "repartidor_celular": "3001234567"}
+
 PRODUCTO = "11111111-1111-5111-8111-111111111111"
 USUARIO = "22222222-2222-5222-8222-222222222222"
 
@@ -94,6 +100,7 @@ async def cliente() -> AsyncIterator[httpx.AsyncClient]:
     app.state.motor = MotorServicio(servicio="prueba", engine=engine, _fabrica=fabrica)
     app.state.pasarela = PasarelaFalsa()
     app.state.catalogo = CatalogoFalso({"TK-C001-ECO": 4500})
+    app.state.identidad = IdentidadFalsa()
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
         yield http
     await engine.dispose()
@@ -274,7 +281,9 @@ async def _pedido_pagado(cliente) -> str:
 
 async def test_avanzar_pedido_pagado_a_en_preparacion(cliente):
     pedido_id = await _pedido_pagado(cliente)
-    respuesta = await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", json={"destino": "en_preparacion"})
+    respuesta = await cliente.post(
+        f"/v1/ordenes/{pedido_id}/avanzar", headers=OPERADOR_HDR, json={"destino": "en_preparacion"}
+    )
     assert respuesta.status_code == 200
     assert respuesta.json()["estado"] == EstadoPedido.EN_PREPARACION.value
 
@@ -282,42 +291,53 @@ async def test_avanzar_pedido_pagado_a_en_preparacion(cliente):
 async def test_avanzar_a_destino_ilegal_da_409(cliente):
     # pagado -> entregado se salta pasos: la tabla lo rechaza con 409.
     pedido_id = await _pedido_pagado(cliente)
-    respuesta = await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", json={"destino": "entregado"})
+    respuesta = await cliente.post(
+        f"/v1/ordenes/{pedido_id}/avanzar", headers=OPERADOR_HDR, json={"destino": "entregado"}
+    )
     assert respuesta.status_code == 409
     assert respuesta.json()["error"] == "transicion_invalida"
 
 
-async def test_despachar_sin_guia_da_422(cliente):
+async def test_despachar_sin_repartidor_da_422(cliente):
     pedido_id = await _pedido_pagado(cliente)
-    await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", json={"destino": "en_preparacion"})
-    respuesta = await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", json={"destino": "despachado"})
+    await cliente.post(
+        f"/v1/ordenes/{pedido_id}/avanzar", headers=OPERADOR_HDR, json={"destino": "en_preparacion"}
+    )
+    respuesta = await cliente.post(
+        f"/v1/ordenes/{pedido_id}/avanzar", headers=OPERADOR_HDR, json={"destino": "despachado"}
+    )
     assert respuesta.status_code == 422
     assert respuesta.json()["error"] == "despacho_incompleto"
+    assert respuesta.json()["campo"] == "repartidor_nombre"
 
 
-async def test_despachar_con_guia_sella_el_envio(cliente):
+async def test_despachar_con_repartidor_sella_el_envio(cliente):
     pedido_id = await _pedido_pagado(cliente)
-    await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", json={"destino": "en_preparacion"})
+    await cliente.post(
+        f"/v1/ordenes/{pedido_id}/avanzar", headers=OPERADOR_HDR, json={"destino": "en_preparacion"}
+    )
     respuesta = await cliente.post(
         f"/v1/ordenes/{pedido_id}/avanzar",
-        json={"destino": "despachado", "transportadora": "Servientrega", "guia": "ABC123"},
+        headers=OPERADOR_HDR,
+        json={"destino": "despachado", **REPARTIDOR},
     )
     assert respuesta.status_code == 200
+    # La respuesta del avance es el detalle de staff: trae el celular.
+    assert respuesta.json()["envio"]["repartidor_celular"] == "3001234567"
     pedido = (await cliente.get(f"/v1/ordenes/{pedido_id}")).json()
     assert pedido["estado"] == EstadoPedido.DESPACHADO.value
-    assert pedido["envio"]["transportadora"] == "Servientrega"
-    assert pedido["envio"]["guia"] == "ABC123"
+    assert pedido["envio"]["repartidor_nombre"] == "Luis Gomez"
 
 
 async def test_avanzar_hasta_entregado_marca_entregado_en(cliente):
     pedido_id = await _pedido_pagado(cliente)
     for cuerpo in (
         {"destino": "en_preparacion"},
-        {"destino": "despachado", "transportadora": "Servientrega", "guia": "ABC123"},
+        {"destino": "despachado", **REPARTIDOR},
         {"destino": "en_reparto"},
         {"destino": "entregado"},
     ):
-        respuesta = await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", json=cuerpo)
+        respuesta = await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", headers=OPERADOR_HDR, json=cuerpo)
         assert respuesta.status_code == 200, respuesta.json()
     pedido = (await cliente.get(f"/v1/ordenes/{pedido_id}")).json()
     assert pedido["estado"] == EstadoPedido.ENTREGADO.value
@@ -325,7 +345,9 @@ async def test_avanzar_hasta_entregado_marca_entregado_en(cliente):
 
 
 async def test_avanzar_pedido_inexistente_da_404(cliente):
-    respuesta = await cliente.post(f"/v1/ordenes/{uuid.uuid4()}/avanzar", json={"destino": "en_preparacion"})
+    respuesta = await cliente.post(
+        f"/v1/ordenes/{uuid.uuid4()}/avanzar", headers=OPERADOR_HDR, json={"destino": "en_preparacion"}
+    )
     assert respuesta.status_code == 404
     assert respuesta.json()["error"] == "pedido_no_existe"
 
@@ -338,11 +360,12 @@ async def test_mis_pedidos_solo_devuelve_los_del_acudiente(cliente):
     otro["usuario_id"] = "33333333-3333-5333-8333-333333333333"
     await cliente.post("/v1/ordenes", json=otro)
 
-    mios = (await cliente.get(f"/v1/comercio/mis-pedidos?usuario_id={USUARIO}")).json()
+    # El usuario sale del token, no de la URL.
+    mios = (await cliente.get("/v1/comercio/mis-pedidos", headers=bearer(TOKEN_ACUDIENTE))).json()
     assert mios["total"] == 2
     assert all(p["total"] == 9000 for p in mios["pedidos"])
 
-    ajenos = (await cliente.get(f"/v1/comercio/mis-pedidos?usuario_id={otro['usuario_id']}")).json()
+    ajenos = (await cliente.get("/v1/comercio/mis-pedidos", headers=bearer(TOKEN_OTRO))).json()
     assert ajenos["total"] == 1
 
 

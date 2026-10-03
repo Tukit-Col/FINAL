@@ -32,6 +32,7 @@ DEVOLUCION = Base.metadata.tables["devolucion"]
 RESERVA = Base.metadata.tables["reserva_inventario"]
 EVENTO_PROCESADO = Base.metadata.tables["evento_pasarela_procesado"]
 BANDEJA = Base.metadata.tables["bandeja_salida"]
+HISTORIAL = Base.metadata.tables["historial_pedido"]
 
 # Los estados que cuentan como ingreso confirmado: ya se pago, aunque todavia
 # no se entregue. `entregado` incluido; `cancelado` e `incidencia` no.
@@ -68,10 +69,13 @@ def _serializar_pago(fila: Any) -> dict[str, Any] | None:
     }
 
 
-def _serializar_envio(fila: Any) -> dict[str, Any] | None:
+def _serializar_envio(fila: Any, *, con_celular: bool = False) -> dict[str, Any] | None:
+    """El envio del contrato. El celular del repartidor es dato personal de un
+    tercero que solo necesita el staff para llamarlo: sale unicamente con
+    `con_celular` (el detalle del back-office), nunca en listados ni al acudiente."""
     if fila is None:
         return None
-    return {
+    envio = {
         "destinatario": fila.destinatario,
         "direccion": fila.direccion,
         "ciudad": fila.ciudad,
@@ -81,8 +85,24 @@ def _serializar_envio(fila: Any) -> dict[str, Any] | None:
         "indicaciones": fila.indicaciones,
         "transportadora": fila.transportadora,
         "guia": fila.guia,
+        "repartidor_nombre": fila.repartidor_nombre,
         "entrega_estimada": _iso(fila.entrega_estimada),
         "entregado_en": _iso(fila.entregado_en),
+    }
+    if con_celular:
+        envio["repartidor_celular"] = fila.repartidor_celular
+    return envio
+
+
+def _serializar_historial(fila: Any) -> dict[str, Any]:
+    return {
+        "estado_desde": fila.estado_desde,
+        "estado_hacia": fila.estado_hacia,
+        "actor_id": str(fila.actor_id),
+        "actor_correo": fila.actor_correo,
+        "nota": fila.nota,
+        "tipo_incidencia": fila.tipo_incidencia,
+        "creado_en": _iso(fila.creado_en),
     }
 
 
@@ -108,7 +128,7 @@ class RepoPedidos:
 
     # -- lectura -----------------------------------------------------------
 
-    async def pedido_completo(self, fila_pedido: Any) -> dict[str, Any]:
+    async def pedido_completo(self, fila_pedido: Any, *, con_celular: bool = False) -> dict[str, Any]:
         """Un `Pedido` del contrato: con sus lineas, su pago y su envio anidados.
 
         Toma la fila del pedido ya leida para no repetir la consulta cuando viene
@@ -135,6 +155,9 @@ class RepoPedidos:
 
         return {
             "pedido_id": str(fila_pedido.id),
+            # El dueño del pedido: el back-office lo usa para mostrar su correo
+            # (que vive en Identidad); en "mis pedidos" es el propio portador.
+            "usuario_id": str(fila_pedido.usuario_id),
             "trabajo_id": str(fila_pedido.trabajo_id) if fila_pedido.trabajo_id is not None else None,
             "estado": fila_pedido.estado,
             "creado_en": _iso(fila_pedido.creado_en),
@@ -143,10 +166,10 @@ class RepoPedidos:
             "colegios": list(fila_pedido.colegios or []),
             "lineas": lineas,
             "pago": _serializar_pago(pago),
-            "envio": _serializar_envio(envio),
+            "envio": _serializar_envio(envio, con_celular=con_celular),
         }
 
-    async def pedidos_completos(self, filas: list[Any]) -> list[dict[str, Any]]:
+    async def pedidos_completos(self, filas: list[Any], *, con_celular: bool = False) -> list[dict[str, Any]]:
         """Varios pedidos anidados en 3 consultas, no 3 por pedido.
 
         El listado hacia N+1: `pedido_completo` corre una consulta de lineas, una de
@@ -180,6 +203,7 @@ class RepoPedidos:
         return [
             {
                 "pedido_id": str(f.id),
+                "usuario_id": str(f.usuario_id),
                 "trabajo_id": str(f.trabajo_id) if f.trabajo_id is not None else None,
                 "estado": f.estado,
                 "creado_en": _iso(f.creado_en),
@@ -188,7 +212,7 @@ class RepoPedidos:
                 "colegios": list(f.colegios or []),
                 "lineas": lineas_por_pedido.get(f.id, []),
                 "pago": _serializar_pago(pago_por_pedido.get(f.id)),
-                "envio": _serializar_envio(envio_por_pedido.get(f.id)),
+                "envio": _serializar_envio(envio_por_pedido.get(f.id), con_celular=con_celular),
             }
             for f in filas
         ]
@@ -401,33 +425,93 @@ class RepoPedidos:
         self,
         *,
         pedido_id: uuid.UUID,
+        desde: str,
         destino: str,
-        transportadora: str | None,
-        guia: str | None,
+        repartidor_nombre: str | None,
+        repartidor_celular: str | None,
         entrega_estimada: datetime | None,
-    ) -> None:
+    ) -> bool:
         """Avanza el estado del pedido y, en el mismo paso, sella el envio.
 
-        El back-office empuja el pedido por la cadena de entrega; los datos de
-        despacho (transportadora, guia, fecha estimada) son parte del hecho y se
-        graban en el `Envio` cuando llegan. Solo se escriben los campos que
-        vienen: `entregado_en` se marca al llegar a `entregado`. Igual que el
-        webhook, la transicion y el sello del envio van en la misma unidad de
-        trabajo del router.
+        El `UPDATE` exige que el pedido SIGA en `desde`, el estado que el router
+        leyo y valido. Si dos operadores mueven el mismo pedido a la vez, el
+        segundo no encuentra la fila (Postgres re-evalua el WHERE tras el commit
+        del primero) y recibe `False`: sin esa guarda pisaria un estado que no
+        valido. Con `False` no se toca el envio y el router responde 409.
+
+        Los datos de despacho (repartidor, fecha estimada) son parte del hecho y
+        se graban en el `Envio` cuando llegan; `entregado_en` se marca al llegar
+        a `entregado`. Todo va en la unidad de trabajo del router.
         """
-        await self.conexion.execute(update(PEDIDO).where(PEDIDO.c.id == pedido_id).values(estado=destino))
+        resultado = await self.conexion.execute(
+            update(PEDIDO).where(PEDIDO.c.id == pedido_id, PEDIDO.c.estado == desde).values(estado=destino)
+        )
+        if resultado.rowcount != 1:
+            return False
 
         cambios: dict[str, Any] = {}
-        if transportadora is not None:
-            cambios["transportadora"] = transportadora
-        if guia is not None:
-            cambios["guia"] = guia
+        if repartidor_nombre is not None:
+            cambios["repartidor_nombre"] = repartidor_nombre
+        if repartidor_celular is not None:
+            cambios["repartidor_celular"] = repartidor_celular
         if entrega_estimada is not None:
             cambios["entrega_estimada"] = entrega_estimada
         if destino == EstadoPedido.ENTREGADO.value:
             cambios["entregado_en"] = datetime.now(UTC)
         if cambios:
             await self.conexion.execute(update(ENVIO).where(ENVIO.c.pedido_id == pedido_id).values(**cambios))
+        return True
+
+    async def registrar_historial(
+        self,
+        *,
+        pedido_id: uuid.UUID,
+        estado_desde: str,
+        estado_hacia: str,
+        actor_id: uuid.UUID,
+        nota: str | None,
+        tipo_incidencia: str | None,
+        actor_correo: str | None = None,
+    ) -> None:
+        """Una fila por avance, en la misma transaccion que el cambio de estado."""
+        await self.conexion.execute(
+            insert(HISTORIAL).values(
+                pedido_id=pedido_id,
+                estado_desde=estado_desde,
+                estado_hacia=estado_hacia,
+                actor_id=actor_id,
+                actor_correo=actor_correo,
+                nota=nota,
+                tipo_incidencia=tipo_incidencia,
+            )
+        )
+
+    async def historial_de(self, pedido_id: uuid.UUID) -> list[dict[str, Any]]:
+        """Los avances del pedido en el orden en que ocurrieron (el `id` creciente)."""
+        filas = await self.conexion.execute(
+            select(HISTORIAL).where(HISTORIAL.c.pedido_id == pedido_id).order_by(HISTORIAL.c.id.asc())
+        )
+        return [_serializar_historial(f) for f in filas]
+
+    async def encolar_aviso_pedido(self, pedido: Any, tipo: str, *, repartidor: str | None = None) -> None:
+        """Outbox: el aviso al acudiente de un avance, en la MISMA transaccion.
+
+        La carga lleva lo minimo para avisar: a quien (`usuario_id`) y de que
+        pedido. El nombre del repartidor viaja porque el texto lo dice ("va con
+        Luis"); el celular, la nota y el tipo de incidencia NO: el broker publica
+        la fila entera y Operacion guarda la carga como datos de la notificacion.
+        """
+        carga: dict[str, Any] = {"pedido_id": str(pedido.id), "usuario_id": str(pedido.usuario_id)}
+        if repartidor:
+            carga["repartidor"] = repartidor
+        await self.conexion.execute(
+            insert(BANDEJA).values(
+                tipo=tipo,
+                agregado_tipo="pedido",
+                agregado_id=pedido.id,
+                carga=con_correlacion(carga),
+            )
+        )
 
     async def encolar_pedido_pagado(self, pedido: Any) -> None:
         """Outbox: el aviso `pedido_pagado` sale en la MISMA transacción que el
