@@ -66,7 +66,12 @@ import type {
   Sugerencia,
   VersionListaAdmin,
 } from "./catalogo";
-import type { Pedido, TableroComercio } from "./comercio";
+import type {
+  Pedido,
+  PedidoConHistorial,
+  SolicitudAvancePedido,
+  TableroComercio,
+} from "./comercio";
 import type { MetricasColegio, ResumenPedidosColegio, SerieMetricas } from "./metricas";
 import type { BandejaOperacion, Caso, CasoCreado, SolicitudCaso } from "./operacion";
 
@@ -436,23 +441,31 @@ export interface OrigenDatos {
   // (`contacto_referencia`): nunca correo ni telefono.
   sugerencias(): Promise<Sugerencia[]>;
 
-  // ASUMIDO — superficie de lectura de `comercio` (logistica del back-office).
-  // Ver `comercio.ts`: el contrato v1.0 aun no publica esto.
-  pedidos(): Promise<TableroComercio>;
-  pedido(pedidoId: string): Promise<Pedido>;
+  // Logistica del back-office (`comercio`). Solo operador/admin: comercio valida
+  // el Bearer contra identidad por HTTP (no lee su base, regla 1) y responde
+  // 401 sin sesion, 403 con otro rol y 503 si identidad no contesta. Por eso el
+  // token va primero y es obligatorio.
+  pedidos(token: string): Promise<TableroComercio>;
+  // El detalle trae ademas el celular del repartidor y el historial de avances.
+  pedido(token: string, pedidoId: string): Promise<PedidoConHistorial>;
+  // Mueve el pedido un paso; responde el detalle ya actualizado. 409 si la
+  // transicion no procede o alguien lo movio antes; 422 si faltan datos.
+  avanzarPedido(
+    token: string,
+    pedidoId: string,
+    cuerpo: SolicitudAvancePedido,
+  ): Promise<PedidoConHistorial>;
 
-  // El historial de UN acudiente, para su panel (`/v1/comercio/mis-pedidos`).
-  // A diferencia de `pedidos()` (el tablero de logistica, TODOS los pedidos),
-  // esto filtra por el `usuario_id` del portador de la sesion —que quien llama
-  // resuelve antes con `sesionActual`—, no por token: comercio no puede validar
-  // la sesion de identidad sin cruzar la frontera (regla 1). Devuelve la lista
-  // sin resumen; el dashboard no lo necesita.
-  misPedidos(usuarioId: string): Promise<Pedido[]>;
+  // Los pedidos del acudiente, para su panel (`/v1/comercio/mis-pedidos`).
+  // Viaja el token, no un `usuario_id`: comercio saca la identidad de la sesion
+  // que valida, para que el navegador nunca elija de quien leer los pedidos.
+  // Devuelve la lista sin resumen; el dashboard no lo necesita.
+  misPedidos(token: string): Promise<Pedido[]>;
 
   // Las solicitudes de kit del acudiente (trabajos del pipeline, no pedidos
-  // pagados): lo que `/empezar` crea. A diferencia de `misPedidos`, inteligencia
-  // SÍ valida la sesión, así que se identifica por el `token` del portador —el
-  // mismo Bearer que ya reenvía `crearTrabajo`— y no por un `usuario_id` suelto.
+  // pagados): lo que `/empezar` crea. Como `misPedidos`, se identifica por el
+  // `token` del portador —el mismo Bearer que ya reenvía `crearTrabajo`— y no
+  // por un `usuario_id` suelto.
   misTrabajos(token?: string): Promise<TrabajoResumen[]>;
 
   // "Mis solicitudes" del panel del acudiente: sus listas subidas + sus

@@ -75,8 +75,15 @@ export interface Envio {
   departamento: string | null;
   documento_destinatario: string | null;
   indicaciones: string | null;
+  // Envios viejos, de cuando se despachaba por transportadora. Con reparto
+  // propio ya no se piden; se siguen mostrando si vienen.
   transportadora: string | null;
   guia: string | null;
+  // Reparto propio: quien lleva el pedido. El nombre viaja a todas las
+  // lecturas (el papa sabe quien le llega); el celular SOLO al detalle del
+  // back-office, por eso es opcional: el tablero y `mis-pedidos` no lo traen.
+  repartidor_nombre: string | null;
+  repartidor_celular?: string | null;
   // ISO 8601. `null` mientras no haya fecha estimada.
   entrega_estimada: string | null;
   entregado_en: string | null;
@@ -93,6 +100,9 @@ export interface LineaPedido {
 
 export interface Pedido {
   pedido_id: string;
+  // El acudiente dueño del pedido (usuario de identidad). El back-office lo
+  // usa para mostrar su correo con el padron protegido de identidad.
+  usuario_id: string;
   // De que trabajo publicado salio este pedido, para poder cruzar back-office
   // con la cola de revision.
   trabajo_id: string | null;
@@ -104,6 +114,58 @@ export interface Pedido {
   lineas: LineaPedido[];
   pago: Pago | null;
   envio: Envio | null;
+}
+
+// Los tipos de incidencia viven en el codigo de comercio (sin CHECK en la base,
+// `dominio/despacho.py`); esta lista los repite para el formulario del admin.
+export type TipoIncidencia = "no_habia_nadie" | "direccion_errada" | "rechazado" | "otro";
+
+export const TIPOS_INCIDENCIA: readonly TipoIncidencia[] = [
+  "no_habia_nadie",
+  "direccion_errada",
+  "rechazado",
+  "otro",
+];
+
+export const ETIQUETA_TIPO_INCIDENCIA: Record<TipoIncidencia, string> = {
+  no_habia_nadie: "No había nadie",
+  direccion_errada: "Dirección errada",
+  rechazado: "Rechazado",
+  otro: "Otro",
+};
+
+// Un avance del pedido desde el back-office: quien (`actor_id`, un usuario de
+// identidad), de que estado a cual y con que nota. `tipo_incidencia` es texto y
+// no `TipoIncidencia` a proposito: un tipo que se agregue en comercio antes que
+// aqui no debe romper la lectura.
+export interface EntradaHistorialPedido {
+  estado_desde: EstadoPedido;
+  estado_hacia: EstadoPedido;
+  actor_id: string;
+  // Copia del correo de quien hizo el avance; `null` en filas anteriores.
+  actor_correo: string | null;
+  nota: string | null;
+  tipo_incidencia: string | null;
+  creado_en: string;
+}
+
+// El detalle del back-office: el pedido con el celular del repartidor y su
+// historial. Solo staff lo lee.
+export interface PedidoConHistorial extends Pedido {
+  historial: EntradaHistorialPedido[];
+}
+
+// Lo que el admin manda a `POST /v1/ordenes/{id}/avanzar`. Comercio valida que
+// la transicion le toque al back-office y que vengan los datos del destino.
+export interface SolicitudAvancePedido {
+  destino: EstadoPedido;
+  repartidor_nombre?: string;
+  repartidor_celular?: string;
+  tipo_incidencia?: TipoIncidencia;
+  nota?: string;
+  // ISO 8601 CON zona (`2026-10-05T00:00:00-05:00`): sin zona, comercio
+  // responde 400 para no correr la fecha al guardarla.
+  entrega_estimada?: string;
 }
 
 // El panel de logistica necesita, ademas de la lista, el consolidado por estado
