@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 
 import httpx
 from fastapi import Request, Response
@@ -150,6 +151,13 @@ PENDIENTES: dict[str, str] = {}
 # el 404 que responde la puerta es indistinguible del de una ruta desconocida.
 RUTAS_BLOQUEADAS: frozenset[str] = frozenset({"/v1/comercio/pedidos-pagados"})
 
+# Bajo /v1/ordenes la puerta solo expone el avance: es back-office y comercio lo
+# protege por rol. Crear la orden, pagarla, leerla o retractarla son llamadas
+# internas (inteligencia le pega directo a comercio). Es lista de PERMITIDAS y
+# no de bloqueadas a proposito: una ruta nueva bajo /v1/ordenes nace cerrada.
+_PREFIJO_ORDENES = "/v1/ordenes"
+_ORDENES_EXPUESTAS = re.compile(r"/v1/ordenes/[^/]+/avanzar")
+
 
 def destino(ruta: str) -> str | None:
     for prefijo in sorted(RUTAS, key=len, reverse=True):
@@ -165,9 +173,28 @@ def pendiente(ruta: str) -> str | None:
     return None
 
 
+def ambigua(ruta: str) -> bool:
+    """`True` si la ruta trae segmentos `.`/`..` o barras invertidas.
+
+    La puerta decide sobre la ruta tal como llega, pero httpx la normaliza al
+    reenviarla: `/v1/comercio/x/../pedidos-pagados` pasaria aqui como una ruta
+    cualquiera de comercio y llegaria al servicio como `/v1/comercio/pedidos-pagados`,
+    saltandose `RUTAS_BLOQUEADAS`. Starlette ya decodifico `%2e`/`%2f`, asi que
+    el chequeo sobre la ruta decodificada cubre tambien las variantes codificadas.
+    Ningun cliente legitimo manda estos segmentos, asi que se rechazan sin mas.
+    """
+    return "\\" in ruta or any(segmento in (".", "..") for segmento in ruta.split("/"))
+
+
 def bloqueada(ruta: str) -> bool:
-    """`True` si la ruta es interna y la puerta no debe exponerla."""
-    return any(ruta == p or ruta.startswith(p + "/") for p in RUTAS_BLOQUEADAS)
+    """`True` si la ruta es interna (o ambigua) y la puerta no debe exponerla."""
+    if ambigua(ruta):
+        return True
+    if any(ruta == p or ruta.startswith(p + "/") for p in RUTAS_BLOQUEADAS):
+        return True
+    if ruta == _PREFIJO_ORDENES or ruta.startswith(_PREFIJO_ORDENES + "/"):
+        return _ORDENES_EXPUESTAS.fullmatch(ruta) is None
+    return False
 
 
 app = crear_app(
@@ -208,7 +235,7 @@ async def servicios() -> dict[str, object]:
 )
 async def reenviar(ruta: str, peticion: Request) -> Response:
     camino = "/" + ruta
-    seccion = pendiente(camino)
+    seccion = None if ambigua(camino) else pendiente(camino)
     if seccion is not None:
         return JSONResponse(
             status_code=501,
