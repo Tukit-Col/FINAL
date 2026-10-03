@@ -1,40 +1,88 @@
-// `/logistica` — el tablero de pedidos y entregas (CABLEADO vía contrato extendido).
+// `/logistica` — el tablero de pedidos y entregas del back-office.
 //
-// Consume `origenDeDatos().pedidos()`, la superficie de lectura de `comercio`
-// (`cliente-http.ts` pega contra `/v1/comercio/*`). Cuando `comercio` aún no
-// publica pedidos, la lectura vuelve vacía y la pantalla muestra su estado vacío.
+// Lee `origenDeDatos().pedidos(token)`: comercio solo se lo da a operador y
+// admin, asi que sin cookie, con la sesion vencida o sin rol se muestra el
+// aviso que corresponde en vez de reventar. Los filtros viven en la URL
+// (formulario GET) y filtran aqui, en el servidor: comercio devuelve el
+// tablero entero y las tarjetas de arriba son siempre las globales, para que
+// un filtro no esconda que hay incidencias.
 //
-// Server Component, mismo patrón que la Cola.
+// Server Component, mismo patron que la Cola.
 
 import Link from "next/link";
 import { Truck, PackageCheck, CircleDollarSign, TriangleAlert } from "lucide-react";
-import type { EstadoPedido, Pedido } from "@tukit/contrato";
+import type { Pedido, TableroComercio } from "@tukit/contrato";
 import { ETIQUETA_ESTADO_PEDIDO, formatearPesos, pedidoEnCurso } from "@tukit/contrato";
-import { origenDeDatos } from "@tukit/contrato/servidor";
-import { formatearFecha } from "@/lib/formato";
+import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
+import AvisoAcceso from "@/components/AvisoAcceso";
+import FiltrosLogistica from "@/components/FiltrosLogistica";
 import Revelar from "@/components/Revelar";
+import { formatearFecha } from "@/lib/formato";
+import {
+  claveFiltros,
+  filtrarPedidos,
+  hayFiltros,
+  leerFiltros,
+  motivoDeFallo,
+  ordenarPorPrioridad,
+} from "@/lib/logistica";
+import {
+  etiquetasDePedidos,
+  nombresDeColegios,
+  opcionesDeColegio,
+  type EtiquetasLogistica,
+} from "@/lib/logistica-servidor";
+import { tokenDeSesion } from "@/lib/sesion";
 import styles from "./Logistica.module.css";
 
 export const dynamic = "force-dynamic";
 
-// Orden operativo: primero lo que hay que mover (en curso), después incidencias,
-// y al final lo cerrado (entregado/cancelado) como historial.
-const PRIORIDAD_ESTADO: Record<EstadoPedido, number> = {
-  incidencia: 0,
-  pagado: 1,
-  en_preparacion: 2,
-  despachado: 3,
-  en_reparto: 4,
-  pendiente_pago: 5,
-  entregado: 6,
-  cancelado: 7,
-};
+interface Props {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
 
-export default async function PaginaLogistica() {
-  const { resumen, pedidos } = await origenDeDatos().pedidos();
-  const ordenados = [...pedidos].sort(
-    (a, b) => PRIORIDAD_ESTADO[a.estado] - PRIORIDAD_ESTADO[b.estado],
+function Encabezado() {
+  return (
+    <header className={styles.encabezado}>
+      <div>
+        <h1>Logística</h1>
+        <p className={styles.bajada}>
+          Pedidos, pagos y entregas con reparto propio. Abre un pedido para moverlo de estado:
+          cada paso queda en su historial y le avisa al acudiente.
+        </p>
+      </div>
+    </header>
   );
+}
+
+export default async function PaginaLogistica({ searchParams }: Props) {
+  const token = await tokenDeSesion();
+  if (!token) {
+    return (
+      <div className={styles.pagina}>
+        <Encabezado />
+        <AvisoAcceso motivo="sin_sesion" />
+      </div>
+    );
+  }
+
+  let tablero: TableroComercio;
+  try {
+    tablero = await origenDeDatos().pedidos(token);
+  } catch (causa) {
+    if (!(causa instanceof ErrorTukit)) throw causa;
+    return (
+      <div className={styles.pagina}>
+        <Encabezado />
+        <AvisoAcceso motivo={motivoDeFallo(causa.estado)} />
+      </div>
+    );
+  }
+
+  const { resumen, pedidos } = tablero;
+  const filtros = leerFiltros(await searchParams);
+  const ordenados = ordenarPorPrioridad(filtrarPedidos(pedidos, filtros));
+  const etiquetas = await etiquetasDePedidos(token, pedidos);
 
   const tarjetas = [
     {
@@ -69,15 +117,7 @@ export default async function PaginaLogistica() {
 
   return (
     <div className={styles.pagina}>
-      <header className={styles.encabezado}>
-        <div>
-          <h1>Logística</h1>
-          <p className={styles.bajada}>
-            Pedidos, pagos y entregas. Cada pedido nace de un trabajo publicado; el estado, la
-            transportadora y la guía se leen de <code>comercio</code>.
-          </p>
-        </div>
-      </header>
+      <Encabezado />
 
       <Revelar>
         <section className={styles.tarjetas} aria-label="Resumen de logística">
@@ -97,11 +137,32 @@ export default async function PaginaLogistica() {
         </section>
       </Revelar>
 
-      {ordenados.length === 0 ? (
+      {pedidos.length > 0 ? (
+        // `next/form` con action de texto no acepta `key`: el envoltorio
+        // remonta el formulario cuando cambian los filtros (atras/adelante, o
+        // "Limpiar"), para que sus `defaultValue` no queden viejos.
+        <div key={claveFiltros(filtros)}>
+          <FiltrosLogistica filtros={filtros} colegios={opcionesDeColegio(pedidos, etiquetas.colegios)} />
+        </div>
+      ) : null}
+
+      {pedidos.length > 0 && hayFiltros(filtros) ? (
+        <p className={styles.conteo} aria-live="polite">
+          Mostrando {ordenados.length} de {pedidos.length} pedidos.
+        </p>
+      ) : null}
+
+      {pedidos.length === 0 ? (
         <div className={styles.vacio}>
           <p>
             No hay pedidos todavía. Un pedido aparece cuando un trabajo se aprueba en la cola de
             revisión y arranca la saga de pago.
+          </p>
+        </div>
+      ) : ordenados.length === 0 ? (
+        <div className={styles.vacio}>
+          <p>
+            Ningún pedido cumple esos filtros. <Link href="/logistica">Ver todos</Link>.
           </p>
         </div>
       ) : (
@@ -111,6 +172,7 @@ export default async function PaginaLogistica() {
               <tr>
                 <th scope="col">Pedido</th>
                 <th scope="col">Estado</th>
+                <th scope="col">Acudiente</th>
                 <th scope="col">Creado</th>
                 <th scope="col" className={styles.num}>
                   Hijos
@@ -124,7 +186,7 @@ export default async function PaginaLogistica() {
             </thead>
             <tbody>
               {ordenados.map((pedido) => (
-                <FilaPedido key={pedido.pedido_id} pedido={pedido} />
+                <FilaPedido key={pedido.pedido_id} pedido={pedido} etiquetas={etiquetas} />
               ))}
             </tbody>
           </table>
@@ -134,12 +196,15 @@ export default async function PaginaLogistica() {
   );
 }
 
-function FilaPedido({ pedido }: { pedido: Pedido }) {
+function FilaPedido({ pedido, etiquetas }: { pedido: Pedido; etiquetas: EtiquetasLogistica }) {
   const enCurso = pedidoEnCurso(pedido);
+  const correo = etiquetas.correos.get(pedido.usuario_id);
   return (
     <tr className={enCurso ? styles.filaCurso : pedido.estado === "incidencia" ? styles.filaIncidencia : ""}>
       <th scope="row" className={styles.identificador}>
-        <code>{pedido.pedido_id}</code>
+        <Link href={`/logistica/${pedido.pedido_id}`} className={styles.enlacePedido}>
+          <code>{pedido.pedido_id}</code>
+        </Link>
         {pedido.trabajo_id ? (
           <Link href={`/trabajos/${pedido.trabajo_id}`} className={styles.enlaceTrabajo}>
             ver trabajo
@@ -151,11 +216,15 @@ function FilaPedido({ pedido }: { pedido: Pedido }) {
           {ETIQUETA_ESTADO_PEDIDO[pedido.estado]}
         </span>
       </td>
+      <td className={styles.correo}>{correo ?? <span className={styles.tenue}>—</span>}</td>
       <td className={styles.fechaExacta}>{formatearFecha(pedido.creado_en)}</td>
       <td className={`${styles.num} cifra`}>{pedido.hijos}</td>
-      <td className={styles.lista}>{pedido.colegios.join(", ") || "—"}</td>
+      <td className={styles.lista}>{nombresDeColegios(pedido.colegios, etiquetas.colegios) || "—"}</td>
       <td className={styles.envio}>
-        {pedido.envio?.transportadora ? (
+        {pedido.envio?.repartidor_nombre ? (
+          <span>{pedido.envio.repartidor_nombre}</span>
+        ) : pedido.envio?.transportadora ? (
+          // Envio viejo, de cuando se despachaba por transportadora.
           <>
             <span>{pedido.envio.transportadora}</span>
             {pedido.envio.guia ? (
