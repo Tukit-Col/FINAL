@@ -133,6 +133,12 @@ export async function verPedido(pedidoId: string): Promise<Pedido> {
  * con la sesión que sea del acudiente; devuelve el widget de Wompi (o la URL de
  * la pasarela simulada).
  */
+export async function cancelarPedido(pedidoId: string): Promise<Pedido> {
+  return leer<Pedido>(
+    await fetch(`/api/pedidos/${encodeURIComponent(pedidoId)}/cancelar`, { method: "POST" }),
+  );
+}
+
 export async function pagarPedido(pedidoId: string): Promise<PagoIniciado> {
   return leer<PagoIniciado>(
     await fetch(`/api/pedidos/${encodeURIComponent(pedidoId)}/pagar`, { method: "POST" }),

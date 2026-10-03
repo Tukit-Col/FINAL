@@ -756,6 +756,12 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
+  cancelarPedido(pedidoId: string): Promise<Pedido> {
+    return this.pedir<Pedido>(`/v1/ordenes/${encodeURIComponent(pedidoId)}/cancelar`, {
+      method: "POST",
+    });
+  }
+
   sincronizarPago(transaccionId: string): Promise<ResultadoPago> {
     return this.pedir<ResultadoPago>(
       `/v1/pagos/${encodeURIComponent(transaccionId)}/sincronizar`,

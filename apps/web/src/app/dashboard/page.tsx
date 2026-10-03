@@ -25,7 +25,8 @@ import {
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import Sidebar from "@/components/Sidebar";
 import { sesionActual, matriculasDeLaSesion, solicitudesDeLaSesion } from "@/lib/sesion";
-import BotonPagarPedido from "./BotonPagarPedido";
+import { pedidoVencido } from "@/lib/pagar-pedido";
+import AccionesPedido from "./AccionesPedido";
 import styles from "./Dashboard.module.css";
 
 export const dynamic = "force-dynamic";
@@ -54,19 +55,28 @@ const PALABRAS_ESTADO: Record<EstadoTrabajo, string> = {
   fallido: "Hubo un problema, lo estamos revisando",
 };
 
+// Los pedidos del portador, cada uno con si ya vencio su ventana de pago (24
+// horas). Si comercio esta caido, no se tumba el panel entero: se muestran las
+// demas secciones y una fila vacia, sin inventar pedidos que no existen. El
+// "ahora" se toma al cargar los datos, una vez por peticion, no al pintar.
+async function pedidosConVigencia(
+  usuarioId: string,
+): Promise<{ pedido: Pedido; vencido: boolean }[]> {
+  let pedidos: Pedido[];
+  try {
+    pedidos = await origenDeDatos().misPedidos(usuarioId);
+  } catch {
+    return [];
+  }
+  const ahora = Date.now();
+  return pedidos.map((pedido) => ({ pedido, vencido: pedidoVencido(pedido.creado_en, ahora) }));
+}
+
 export default async function DashboardPage() {
   const sesion = await sesionActual();
   if (!sesion) redirect("/ingresar");
 
-  // Los pedidos del portador. Si comercio esta caido, no se tumba el panel
-  // entero: se muestran las demas secciones y una fila vacia, sin inventar
-  // pedidos que no existen.
-  let pedidos: Pedido[] = [];
-  try {
-    pedidos = await origenDeDatos().misPedidos(sesion.usuario_id);
-  } catch {
-    pedidos = [];
-  }
+  const pedidos = await pedidosConVigencia(sesion.usuario_id);
 
   // Los perfiles de los hijos del portador. `matriculasDeLaSesion()` es
   // fail-closed a [] (no distingue "sin hijos" de "lectura fallida"), asi que
@@ -275,7 +285,7 @@ export default async function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {pedidos.map((pedido) => (
+                    {pedidos.map(({ pedido, vencido }) => (
                       <tr key={pedido.pedido_id}>
                         <td className={styles.pedidoId}>
                           {pedido.pedido_id.slice(0, 8).toUpperCase()}
@@ -292,7 +302,11 @@ export default async function DashboardPage() {
                         </td>
                         <td>
                           {pedido.estado === "pendiente_pago" && (
-                            <BotonPagarPedido pedidoId={pedido.pedido_id} />
+                            <AccionesPedido
+                              pedidoId={pedido.pedido_id}
+                              trabajoId={pedido.trabajo_id}
+                              vencido={vencido}
+                            />
                           )}
                         </td>
                       </tr>

@@ -287,6 +287,9 @@ export interface OrigenDatos {
     pedidoId: string,
     cuerpo: { correo_cliente: string; url_redireccion?: string },
   ): Promise<PagoIniciado>;
+  // Cancela un pedido pendiente. Comercio pregunta antes a Wompi: con un pago
+  // aprobado o en curso responde 409 y no cancela.
+  cancelarPedido(pedidoId: string): Promise<Pedido>;
 
   // §7 — revision humana.
   cola(): Promise<ColaAdmin>;

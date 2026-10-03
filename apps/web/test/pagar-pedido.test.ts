@@ -1,20 +1,29 @@
-// Pruebas de la regla que decide si el acudiente puede pagar un pedido desde
-// "Mis pedidos". Runner nativo de Node (type-stripping), sin dependencias:
-// `node --test apps/web/test/pagar-pedido.test.ts`.
+// Pruebas de las reglas de "Mis pedidos": si el acudiente puede pagar o
+// cancelar un pedido, y cuando un pedido vencio. Runner nativo de Node
+// (type-stripping), sin dependencias: `npm test` en apps/web.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { decidirPagoPedido } from "../src/lib/pagar-pedido.ts";
+import { decidirAccionPedido, pedidoVencido } from "../src/lib/pagar-pedido.ts";
 
-const pendiente = { pedido_id: "p-1", estado: "pendiente_pago" } as const;
-const pagado = { pedido_id: "p-2", estado: "pagado" } as const;
+const AHORA = Date.parse("2026-10-03T12:00:00Z");
+const hace = (horas: number) => new Date(AHORA - horas * 3600_000).toISOString();
 
-test("un pedido propio y pendiente se puede pagar", () => {
-  assert.deepEqual(decidirPagoPedido([pendiente, pagado], "p-1"), { ok: true });
+const pendiente = { pedido_id: "p-1", estado: "pendiente_pago", creado_en: hace(1) } as const;
+const pagado = { pedido_id: "p-2", estado: "pagado", creado_en: hace(1) } as const;
+const vencido = { pedido_id: "p-3", estado: "pendiente_pago", creado_en: hace(25) } as const;
+
+test("un pedido de mas de 24 horas esta vencido; uno de 23, no", () => {
+  assert.equal(pedidoVencido(hace(25), AHORA), true);
+  assert.equal(pedidoVencido(hace(23), AHORA), false);
+});
+
+test("un pedido propio, pendiente y vigente se puede pagar", () => {
+  assert.deepEqual(decidirAccionPedido([pendiente, pagado], "p-1", "pagar", AHORA), { ok: true });
 });
 
 test("un pedido que no es del acudiente responde 404, igual que uno inexistente", () => {
-  assert.deepEqual(decidirPagoPedido([pagado], "p-ajeno"), {
+  assert.deepEqual(decidirAccionPedido([pagado], "p-ajeno", "pagar", AHORA), {
     ok: false,
     estado: 404,
     error: "pedido_no_existe",
@@ -22,11 +31,26 @@ test("un pedido que no es del acudiente responde 404, igual que uno inexistente"
   });
 });
 
-test("un pedido que ya no esta pendiente responde 409", () => {
-  assert.deepEqual(decidirPagoPedido([pagado], "p-2"), {
+test("un pedido que ya no esta pendiente no se paga ni se cancela", () => {
+  for (const accion of ["pagar", "cancelar"] as const) {
+    assert.deepEqual(decidirAccionPedido([pagado], "p-2", accion, AHORA), {
+      ok: false,
+      estado: 409,
+      error: "pedido_no_pendiente",
+      mensaje: "Este pedido ya no está pendiente de pago.",
+    });
+  }
+});
+
+test("un pedido vencido no se paga", () => {
+  assert.deepEqual(decidirAccionPedido([vencido], "p-3", "pagar", AHORA), {
     ok: false,
     estado: 409,
-    error: "pedido_no_pagable",
-    mensaje: "Este pedido ya no está pendiente de pago.",
+    error: "pedido_vencido",
+    mensaje: "Este pedido tiene más de 24 horas. Vuelve a armar tu kit para ver el precio de hoy.",
   });
+});
+
+test("un pedido vencido si se puede cancelar, para liberar lo reservado", () => {
+  assert.deepEqual(decidirAccionPedido([vencido], "p-3", "cancelar", AHORA), { ok: true });
 });
