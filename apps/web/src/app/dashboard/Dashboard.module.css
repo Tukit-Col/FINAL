@@ -137,13 +137,39 @@
   font-weight: 700;
 }
 
-/* Acciones de un pedido pendiente: Pagar / Rearmar kit y Cancelar, del mismo
-   alto, con icono. Un pedido vencido lleva arriba su etiqueta ambar. */
-.accionPedido {
+/* Un pedido pendiente ocupa dos filas: la del pedido (sin borde abajo) y una
+   franja a todo el ancho con su texto y sus acciones. */
+.filaConAcciones td {
+  border-bottom: none;
+  padding-bottom: 8px;
+}
+
+.filaAcciones td {
+  padding-top: 0;
+}
+
+.franja {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-3);
+  padding: 10px var(--espacio-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-aviso-bg);
+  border: 1px solid var(--color-aviso-border);
+}
+
+.franjaVencida {
+  background: var(--color-surface-2);
+  border-color: var(--color-border);
+}
+
+.franjaTexto {
   display: grid;
-  gap: 6px;
-  justify-items: start;
-  min-width: 210px;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
 }
 
 .accionesFila {
@@ -218,22 +244,8 @@
   transform: none;
 }
 
-.vencido {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 10px;
-  border-radius: var(--radius-full);
-  background: var(--color-aviso-bg);
-  border: 1px solid var(--color-aviso-border);
-  color: var(--color-aviso);
-  font-size: 11.5px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-}
-
 .errorPedido {
-  max-width: 260px;
+  max-width: 420px;
   font-size: 12px;
   line-height: 1.35;
   color: var(--color-danger);
@@ -380,6 +392,23 @@
 .solicitudEstado {
   margin: 0;
   font-size: 13.5px;
+  color: var(--color-text-secondary);
+}
+
+.solicitudChip {
+  margin-left: auto;
+}
+
+.solicitudEnlaces {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-4);
+}
+
+.solicitudEnlaceSecundario {
+  font-size: 13px;
+  font-weight: 700;
   color: var(--color-text-secondary);
 }
 
