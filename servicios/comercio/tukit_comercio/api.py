@@ -23,7 +23,7 @@ from __future__ import annotations
 import argparse
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import FastAPI
@@ -39,6 +39,11 @@ from .pasarela import EventoPasarela, PasarelaCaida, TransaccionNoExiste, pasare
 from .remoto import CatalogoCaido, ClienteCatalogo
 
 PUERTO_POR_OMISION = 8014
+
+# Cuanto tiempo se puede pagar un pedido pendiente. Despues se cobraria un
+# precio congelado viejo: el acudiente vuelve a armar el kit y el precio se
+# re-verifica contra Catalogo. No hay columna nueva: sale de `creado_en`.
+VIGENCIA_PAGO = timedelta(hours=24)
 
 PEDIDO = Base.metadata.tables["pedido"]
 LINEA_PEDIDO = Base.metadata.tables["linea_pedido"]
@@ -437,6 +442,15 @@ async def crear_orden(solicitud: SolicitudOrden) -> dict[str, Any]:
             campo="lineas",
         )
 
+    # Un kit, un pedido pendiente. Si el acudiente vuelve a pulsar Pagar con lo
+    # mismo, se reutiliza el pedido (Inteligencia le crea un intento de pago
+    # nuevo); si cambio algo, el pendiente anterior se cancela, pero solo si
+    # Wompi confirma que no tiene un pago aprobado o en curso.
+    if trabajo_id is not None:
+        reutilizable = await _resolver_pendientes_del_kit(usuario_id, trabajo_id, solicitud)
+        if reutilizable is not None:
+            return reutilizable
+
     pedido_id = uuid.uuid4()
     total = sum(linea.precio_unitario * linea.cantidad for linea in solicitud.lineas)
     ahora = datetime.now(UTC)
@@ -526,6 +540,12 @@ async def iniciar_pago(pedido_id: uuid.UUID, solicitud: SolicitudPago) -> dict[s
             raise ErrorDominio(
                 "pedido_no_pagable",
                 "El pedido ya no esta pendiente de pago.",
+                estado=409,
+            )
+        if _vencido(pedido.creado_en):
+            raise ErrorDominio(
+                "pedido_vencido",
+                "Este pedido tiene mas de 24 horas. Vuelve a armar tu kit para ver el precio de hoy.",
                 estado=409,
             )
 
@@ -662,6 +682,27 @@ async def _aplicar_resultado(conexion: Any, datos: EventoPasarela) -> ResultadoA
         .values(**valores)
     )
 
+    if datos.estado == EstadoPago.APROBADO and pedido.estado == EstadoPedido.CANCELADO.value:
+        # Red de seguridad: el pedido se cancelo mientras un pago seguia en curso
+        # y Wompi lo aprobo. `cancelado` es terminal, asi que el pedido no se
+        # mueve, pero el cobro no puede perderse en silencio: se deja una
+        # incidencia (el repartidor la avisa al acudiente) y operacion la ve en
+        # el tablero como pedido cancelado con pago aprobado.
+        await conexion.execute(
+            insert(BANDEJA).values(
+                tipo="incidencia",
+                agregado_tipo="pedido",
+                agregado_id=pedido.id,
+                carga={
+                    "pedido_id": str(pedido.id),
+                    "usuario_id": str(pedido.usuario_id),
+                    "motivo": "pago_tras_cancelacion",
+                    "monto": int(pago.monto),
+                    "referencia": pago.referencia_wompi,
+                },
+            )
+        )
+
     destino = _pedido_tras_pago(datos.estado, pedido.estado)
     transicionado = False
     estado_pedido = pedido.estado
@@ -754,28 +795,15 @@ async def sincronizar_pago(transaccion_id: str) -> dict[str, Any]:
             "pasarela_no_disponible", "No se pudo consultar la pasarela de pagos", estado=502
         ) from None
 
-    resultado = None
-    total = 0
-    trabajo_id: str | None = None
-    for intento in range(2):
-        try:
-            async with app.state.motor.sesion() as db:
-                conexion = await db.connection()
-                resultado = await _aplicar_resultado(conexion, datos)
-                if resultado.pedido_id is not None:
-                    consulta = select(PEDIDO.c.total, PEDIDO.c.trabajo_id).where(
-                        PEDIDO.c.id == resultado.pedido_id
-                    )
-                    fila = (await conexion.execute(consulta)).one()
-                    total = int(fila.total)
-                    trabajo_id = str(fila.trabajo_id) if fila.trabajo_id is not None else None
-            break
-        except IntegrityError:
-            if intento == 1:
-                raise
-
-    if resultado is None or resultado.estado == "sin_pago" or resultado.pedido_id is None:
+    resultado = await _aplicar_con_reintento(datos)
+    if resultado.estado == "sin_pago" or resultado.pedido_id is None:
         raise ErrorDominio("pago_no_existe", "No hay un pago para esa transaccion", estado=404)
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        consulta = select(PEDIDO.c.total, PEDIDO.c.trabajo_id).where(PEDIDO.c.id == resultado.pedido_id)
+        fila = (await conexion.execute(consulta)).one()
+    total = int(fila.total)
+    trabajo_id = str(fila.trabajo_id) if fila.trabajo_id is not None else None
     return {
         "pedido_id": str(resultado.pedido_id),
         "total": total,
@@ -783,6 +811,191 @@ async def sincronizar_pago(transaccion_id: str) -> dict[str, Any]:
         "estado_pedido": resultado.estado_pedido,
         "trabajo_id": trabajo_id,
     }
+
+
+async def _aplicar_con_reintento(datos: EventoPasarela) -> ResultadoAplicacion:
+    """Aplica un resultado en su propia sesion. Si el webhook llega a la vez, el
+    segundo INSERT del candado choca con el indice unico: se reintenta UNA vez
+    en una sesion nueva, donde la fila ya existe y el resultado es `repetido`."""
+    for intento in range(2):
+        try:
+            async with app.state.motor.sesion() as db:
+                conexion = await db.connection()
+                return await _aplicar_resultado(conexion, datos)
+        except IntegrityError:
+            if intento == 1:
+                raise
+    raise AssertionError("inalcanzable")
+
+
+def _vencido(creado_en: datetime) -> bool:
+    """Si el pedido ya paso su ventana de pago. SQLite devuelve fechas sin zona:
+    se leen como UTC, que es como se escribieron."""
+    if creado_en.tzinfo is None:
+        creado_en = creado_en.replace(tzinfo=UTC)
+    return datetime.now(UTC) - creado_en > VIGENCIA_PAGO
+
+
+async def _revisar_pagos_en_wompi(pedido_id: uuid.UUID) -> str:
+    """Antes de cancelar: `pagado`, `en_curso` o `libre`.
+
+    Un PSE puede estar en curso, o ya aprobado, sin que Tukit lo sepa (el
+    acudiente no volvio y no hay webhook). Se busca en Wompi cada intento que
+    aqui sigue `iniciado`; uno aprobado se aplica en el acto (el pedido pasa a
+    `pagado`) y uno rechazado se anota. Si Wompi no responde, `PasarelaCaida`
+    sube: sin saberlo no se cancela.
+    """
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        referencias = [
+            f.referencia_wompi
+            for f in await conexion.execute(
+                select(PAGO.c.referencia_wompi).where(
+                    PAGO.c.pedido_id == pedido_id, PAGO.c.estado == EstadoPago.INICIADO.value
+                )
+            )
+        ]
+    en_curso = False
+    for referencia in referencias:
+        evento = await app.state.pasarela.consultar_por_referencia(referencia)
+        if evento is None:
+            continue
+        if evento.estado == EstadoPago.INICIADO:
+            en_curso = True
+            continue
+        resultado = await _aplicar_con_reintento(evento)
+        if resultado.estado_pedido == EstadoPedido.PAGADO.value:
+            return "pagado"
+    return "en_curso" if en_curso else "libre"
+
+
+async def _cancelar_si_se_puede(pedido_id: uuid.UUID) -> str:
+    """Cancela un pedido pendiente y libera su reserva, si Wompi lo permite.
+
+    Devuelve `cancelado`, `pagado`, `en_curso` o `no_cancelable`. La escritura
+    vuelve a exigir `pendiente_pago`: si un pago se aplico entre la revision y
+    este UPDATE, el pedido no se toca.
+    """
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        estado = await conexion.scalar(select(PEDIDO.c.estado).where(PEDIDO.c.id == pedido_id))
+    if estado != EstadoPedido.PENDIENTE_PAGO.value:
+        return "no_cancelable"
+    revision = await _revisar_pagos_en_wompi(pedido_id)
+    if revision != "libre":
+        return revision
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        cancelado = await conexion.execute(
+            update(PEDIDO)
+            .where(PEDIDO.c.id == pedido_id, PEDIDO.c.estado == EstadoPedido.PENDIENTE_PAGO.value)
+            .values(estado=EstadoPedido.CANCELADO.value)
+        )
+        if cancelado.rowcount == 0:
+            return "no_cancelable"
+        await conexion.execute(
+            update(RESERVA)
+            .where(RESERVA.c.pedido_id == pedido_id, RESERVA.c.estado == "activa")
+            .values(estado="liberada")
+        )
+    return "cancelado"
+
+
+def _firma_orden(lineas: list[tuple[str, int, int]], entrega: tuple[str, str, str]) -> tuple[Any, ...]:
+    """Lo que hace "la misma orden": productos (sin importar el orden) y entrega."""
+    return (tuple(sorted(lineas)), entrega)
+
+
+async def _resolver_pendientes_del_kit(
+    usuario_id: uuid.UUID, trabajo_id: uuid.UUID, solicitud: SolicitudOrden
+) -> dict[str, Any] | None:
+    """El pedido pendiente a reutilizar para este kit, o `None` para crear uno.
+
+    Uno identico y vigente se reutiliza. Los demas pendientes del mismo kit se
+    cancelan con la revision de Wompi; uno con pago en curso o aprobado se deja
+    como esta (cancelarlo podria cobrar sin entregar), y si Wompi no responde
+    tambien se deja: duplicar es mejor que cancelar a ciegas.
+    """
+    buscada = _firma_orden(
+        [(linea.sku, linea.cantidad, linea.precio_unitario) for linea in solicitud.lineas],
+        (solicitud.entrega.destinatario, solicitud.entrega.direccion, solicitud.entrega.ciudad),
+    )
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        pendientes = list(
+            await conexion.execute(
+                select(PEDIDO)
+                .where(
+                    PEDIDO.c.usuario_id == usuario_id,
+                    PEDIDO.c.trabajo_id == trabajo_id,
+                    PEDIDO.c.estado == EstadoPedido.PENDIENTE_PAGO.value,
+                )
+                .order_by(PEDIDO.c.creado_en.desc())
+            )
+        )
+        for pedido in pendientes:
+            if _vencido(pedido.creado_en):
+                continue
+            lineas = [
+                (f.sku, int(f.cantidad), int(f.precio_unitario))
+                for f in await conexion.execute(
+                    select(LINEA_PEDIDO).where(LINEA_PEDIDO.c.pedido_id == pedido.id)
+                )
+            ]
+            envio = (
+                await conexion.execute(select(ENVIO).where(ENVIO.c.pedido_id == pedido.id))
+            ).one_or_none()
+            entrega = (envio.destinatario, envio.direccion, envio.ciudad) if envio else ("", "", "")
+            if _firma_orden(lineas, entrega) == buscada:
+                return await _pedido_completo(conexion, pedido)
+
+    for pedido in pendientes:
+        try:
+            await _cancelar_si_se_puede(pedido.id)
+        except PasarelaCaida:
+            continue
+    return None
+
+
+@app.post(
+    "/v1/ordenes/{pedido_id}/cancelar",
+    tags=["comercio"],
+    summary="Cancela un pedido pendiente de pago, si Wompi no tiene un pago en curso",
+)
+async def cancelar_orden(pedido_id: uuid.UUID) -> dict[str, Any]:
+    """El acudiente cancela un pedido que no pago. Antes se le pregunta a Wompi
+    por cada intento: cancelar con un PSE aprobado o en curso cobraria sin
+    entregar. Cancelado, la reserva de inventario se libera."""
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        existe = await conexion.scalar(select(PEDIDO.c.id).where(PEDIDO.c.id == pedido_id))
+    if existe is None:
+        raise ErrorDominio("pedido_no_existe", "No hay ningun pedido con ese identificador.", estado=404)
+    try:
+        resultado = await _cancelar_si_se_puede(pedido_id)
+    except PasarelaCaida:
+        raise ErrorDominio(
+            "pasarela_no_disponible",
+            "No pudimos confirmar con Wompi que no tengas un pago en curso. Intenta en unos minutos.",
+            estado=502,
+        ) from None
+    if resultado == "pagado":
+        raise ErrorDominio(
+            "pedido_ya_pagado",
+            "Tu pago de este pedido ya fue aprobado, asi que no lo cancelamos.",
+            estado=409,
+        )
+    if resultado == "en_curso":
+        raise ErrorDominio(
+            "pago_en_curso",
+            "Tu pago todavia se esta procesando. Espera la respuesta de tu banco antes de cancelar.",
+            estado=409,
+        )
+    if resultado == "no_cancelable":
+        raise ErrorDominio(
+            "pedido_no_cancelable", "Solo se pueden cancelar pedidos pendientes de pago.", estado=409
+        )
+    return await ver_pedido(pedido_id)
 
 
 @app.get("/v1/ordenes/{pedido_id}", tags=["comercio"], summary="Seguimiento de una orden (FU-01 + UM-03)")

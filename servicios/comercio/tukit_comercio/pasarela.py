@@ -117,6 +117,8 @@ class PasarelaPago(Protocol):
 
     async def consultar_transaccion(self, transaccion_id: str) -> EventoPasarela: ...
 
+    async def consultar_por_referencia(self, referencia: str) -> EventoPasarela | None: ...
+
     def verificar_firma(self, evento: dict[str, Any]) -> bool: ...
 
     def parsear_evento(self, evento: dict[str, Any]) -> EventoPasarela: ...
@@ -305,13 +307,50 @@ class WompiSandbox:
         # el primer pago real de sandbox (aqui, si falta, se acepta).
         if moneda != MONEDA:
             raise TransaccionNoExiste(transaccion_id)
-        if isinstance(comercio, dict) and "public_key" in comercio:
-            if comercio["public_key"] != self.llave_publica:
-                raise TransaccionNoExiste(transaccion_id)
+        if (
+            isinstance(comercio, dict)
+            and "public_key" in comercio
+            and comercio["public_key"] != self.llave_publica
+        ):
+            raise TransaccionNoExiste(transaccion_id)
         try:
             return _evento_desde_transaccion(transaccion)
         except (ValueError, KeyError, TypeError) as exc:
             raise PasarelaCaida("Wompi devolvio una respuesta ilegible") from exc
+
+    async def consultar_por_referencia(self, referencia: str) -> EventoPasarela | None:
+        """La transaccion mas reciente con esa referencia, o `None` si no hay.
+
+        Se usa antes de cancelar un pedido: un PSE puede estar en curso o ya
+        aprobado sin que Tukit lo sepa (el acudiente no volvio). Con la llave
+        privada Wompi solo devuelve transacciones de ESTE comercio, asi que aqui
+        no hace falta verificar de quien es.
+        """
+        propio = self.cliente is None
+        cliente = self.cliente or httpx.AsyncClient(timeout=ESPERA_SEGUNDOS)
+        try:
+            respuesta = await cliente.get(
+                f"{self.base}/transactions",
+                params={"reference": referencia},
+                headers={"Authorization": f"Bearer {self.llave_privada}"},
+            )
+        except httpx.HTTPError as exc:
+            raise PasarelaCaida(f"Wompi no responde: {exc}") from exc
+        finally:
+            if propio:
+                await cliente.aclose()
+        if respuesta.status_code >= 400:
+            # Sin poder saber si hay un pago en curso no se cancela nada.
+            raise PasarelaCaida(f"Wompi respondio {respuesta.status_code}")
+        try:
+            transacciones = list(respuesta.json()["data"])
+        except (ValueError, KeyError, TypeError) as exc:
+            raise PasarelaCaida("Wompi devolvio una respuesta ilegible") from exc
+        if not transacciones:
+            return None
+        # ISO 8601 en UTC: el orden de texto es el orden de tiempo.
+        reciente = max(transacciones, key=lambda t: str(t.get("created_at") or ""))
+        return _evento_desde_transaccion(reciente)
 
 
 @dataclass
@@ -329,6 +368,8 @@ class PasarelaFalsa:
     creadas: list[TransaccionCreada] = field(default_factory=list)
     # Monto en centavos por referencia, para la pagina de pago simulado.
     montos: dict[str, int] = field(default_factory=dict)
+    # Lo que "Wompi" diria al buscar por referencia; lo fija una prueba.
+    resultados: dict[str, str] = field(default_factory=dict)
     _contador: int = 0
 
     async def crear_transaccion(
@@ -426,6 +467,16 @@ class PasarelaFalsa:
                 "payment_method_type": "PSE",
             }
         )
+
+    def fijar_resultado(self, referencia: str, estado_wompi: str) -> None:
+        """Simula que en Wompi existe una transaccion con esa referencia."""
+        self.resultados[referencia] = estado_wompi
+
+    async def consultar_por_referencia(self, referencia: str) -> EventoPasarela | None:
+        estado_wompi = self.resultados.get(referencia)
+        if estado_wompi is None:
+            return None
+        return await self.consultar_transaccion(f"falsa-{estado_wompi}-{referencia}")
 
 
 _PREFIJOS_PRUEBA = {

@@ -19,10 +19,11 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest_asyncio
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from tukit_comercio.api import app
@@ -497,3 +498,178 @@ async def test_sincronizar_reintenta_una_vez_si_choca_el_indice_unico(cliente, m
     }
     assert llamadas["n"] == 2
     assert await _filas_bandeja("pedido_pagado") == 1
+
+
+# --- Cancelar, vencimiento y duplicados --------------------------------------
+
+TRABAJO = "33333333-3333-5333-8333-333333333333"
+
+
+def _orden_kit(**cambios) -> dict:
+    """Una orden ligada a un kit (trabajo), que es lo que deduplica Comercio."""
+    return {**_orden(), "trabajo_id": TRABAJO, **cambios}
+
+
+def _con_otra_direccion() -> dict:
+    orden = _orden_kit()
+    orden["entrega"] = {**orden["entrega"], "direccion": "Carrera 9 # 8-7"}
+    return orden
+
+
+async def _pagar(cliente, pedido_id: str) -> dict:
+    return (
+        await cliente.post(
+            f"/v1/ordenes/{pedido_id}/pago",
+            json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse",
+                  "url_redireccion": "http://localhost:3000/pago/resultado"},
+        )
+    ).json()
+
+
+async def _envejecer(pedido_id: str, horas: int) -> None:
+    tabla = Base.metadata.tables["pedido"]
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        await conexion.execute(
+            update(tabla)
+            .where(tabla.c.id == uuid.UUID(pedido_id))
+            .values(creado_en=datetime.now(UTC) - timedelta(hours=horas))
+        )
+
+
+async def _reservas(pedido_id: str) -> list[str]:
+    tabla = Base.metadata.tables["reserva_inventario"]
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        filas = await conexion.execute(
+            select(tabla.c.estado).where(tabla.c.pedido_id == uuid.UUID(pedido_id))
+        )
+        return [f.estado for f in filas]
+
+
+async def _estado(cliente, pedido_id: str) -> str:
+    return (await cliente.get(f"/v1/ordenes/{pedido_id}")).json()["estado"]
+
+
+async def test_cancelar_sin_pago_en_wompi_cancela_y_libera_la_reserva(cliente):
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+    await _pagar(cliente, pedido_id)  # intento abandonado: Wompi no tiene nada
+    r = await cliente.post(f"/v1/ordenes/{pedido_id}/cancelar")
+    assert r.status_code == 200
+    assert r.json()["estado"] == EstadoPedido.CANCELADO.value
+    assert await _reservas(pedido_id) == ["liberada"]
+
+
+async def test_cancelar_con_pago_aprobado_en_wompi_lo_aplica_y_no_cancela(cliente):
+    # El acudiente pago por PSE y no volvio: Tukit no lo sabia. Cancelar a
+    # ciegas cobraria sin entregar.
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+    pago = await _pagar(cliente, pedido_id)
+    app.state.pasarela.fijar_resultado(pago["referencia_wompi"], "APPROVED")
+    r = await cliente.post(f"/v1/ordenes/{pedido_id}/cancelar")
+    assert r.status_code == 409
+    assert r.json()["error"] == "pedido_ya_pagado"
+    assert await _estado(cliente, pedido_id) == EstadoPedido.PAGADO.value
+    assert await _filas_bandeja("pedido_pagado") == 1
+
+
+async def test_cancelar_con_pago_en_curso_no_cancela(cliente):
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+    pago = await _pagar(cliente, pedido_id)
+    app.state.pasarela.fijar_resultado(pago["referencia_wompi"], "PENDING")
+    r = await cliente.post(f"/v1/ordenes/{pedido_id}/cancelar")
+    assert r.status_code == 409
+    assert r.json()["error"] == "pago_en_curso"
+    assert await _estado(cliente, pedido_id) == EstadoPedido.PENDIENTE_PAGO.value
+
+
+async def test_cancelar_un_pedido_pagado_es_409(cliente):
+    pedido_id, ref = await _pedido_con_pago(cliente)
+    await cliente.post(f"/v1/pagos/falsa-APPROVED-{ref}/sincronizar")
+    r = await cliente.post(f"/v1/ordenes/{pedido_id}/cancelar")
+    assert r.status_code == 409
+    assert r.json()["error"] == "pedido_no_cancelable"
+
+
+async def test_cancelar_con_wompi_caido_es_502_y_no_cancela(cliente):
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+    await _pagar(cliente, pedido_id)
+
+    class Caida(PasarelaFalsa):
+        async def consultar_por_referencia(self, referencia):
+            raise PasarelaCaida("sin red")
+
+    app.state.pasarela = Caida(montos=app.state.pasarela.montos)
+    r = await cliente.post(f"/v1/ordenes/{pedido_id}/cancelar")
+    assert r.status_code == 502
+    assert await _estado(cliente, pedido_id) == EstadoPedido.PENDIENTE_PAGO.value
+
+
+async def test_pago_aprobado_tras_cancelar_deja_una_incidencia(cliente):
+    # Red de seguridad: si aun asi llega una aprobacion para un pedido
+    # cancelado, el dinero no se pierde en silencio.
+    pedido_id, ref = await _pedido_con_pago(cliente)
+    await cliente.post(f"/v1/ordenes/{pedido_id}/cancelar")
+    r = await cliente.post(f"/v1/pagos/falsa-APPROVED-{ref}/sincronizar")
+    assert r.json()["estado_pedido"] == EstadoPedido.CANCELADO.value
+    assert r.json()["estado_pago"] == EstadoPago.APROBADO.value
+    assert await _filas_bandeja("incidencia") == 1
+    assert await _filas_bandeja("pedido_pagado") == 0
+
+
+async def test_pagar_un_pedido_de_mas_de_24_horas_es_409(cliente):
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+    await _envejecer(pedido_id, horas=25)
+    r = await cliente.post(
+        f"/v1/ordenes/{pedido_id}/pago", json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse"}
+    )
+    assert r.status_code == 409
+    assert r.json()["error"] == "pedido_vencido"
+
+
+async def test_pagar_un_pedido_de_23_horas_se_permite(cliente):
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+    await _envejecer(pedido_id, horas=23)
+    r = await cliente.post(
+        f"/v1/ordenes/{pedido_id}/pago", json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse"}
+    )
+    assert r.status_code == 201
+
+
+async def test_orden_identica_del_mismo_kit_reutiliza_el_pedido_pendiente(cliente):
+    primero = (await cliente.post("/v1/ordenes", json=_orden_kit())).json()
+    segundo = await cliente.post("/v1/ordenes", json=_orden_kit())
+    assert segundo.status_code == 201
+    assert segundo.json()["pedido_id"] == primero["pedido_id"]
+    tablero = (await cliente.get("/v1/comercio/pedidos")).json()
+    assert tablero["resumen"]["pedidos_totales"] == 1
+
+
+async def test_orden_distinta_del_mismo_kit_cancela_la_pendiente_anterior(cliente):
+    primero = (await cliente.post("/v1/ordenes", json=_orden_kit())).json()
+    segundo = (await cliente.post("/v1/ordenes", json=_con_otra_direccion())).json()
+    assert segundo["pedido_id"] != primero["pedido_id"]
+    assert await _estado(cliente, primero["pedido_id"]) == EstadoPedido.CANCELADO.value
+
+
+async def test_orden_distinta_no_cancela_la_anterior_si_su_pago_esta_en_curso(cliente):
+    primero = (await cliente.post("/v1/ordenes", json=_orden_kit())).json()
+    pago = await _pagar(cliente, primero["pedido_id"])
+    app.state.pasarela.fijar_resultado(pago["referencia_wompi"], "PENDING")
+    segundo = (await cliente.post("/v1/ordenes", json=_con_otra_direccion())).json()
+    assert segundo["pedido_id"] != primero["pedido_id"]
+    assert await _estado(cliente, primero["pedido_id"]) == EstadoPedido.PENDIENTE_PAGO.value
+
+
+async def test_orden_identica_pero_vencida_crea_otra_y_cancela_la_vieja(cliente):
+    primero = (await cliente.post("/v1/ordenes", json=_orden_kit())).json()
+    await _envejecer(primero["pedido_id"], horas=25)
+    segundo = (await cliente.post("/v1/ordenes", json=_orden_kit())).json()
+    assert segundo["pedido_id"] != primero["pedido_id"]
+    assert await _estado(cliente, primero["pedido_id"]) == EstadoPedido.CANCELADO.value
+
+
+async def test_ordenes_sin_kit_no_se_deduplican(cliente):
+    a = (await cliente.post("/v1/ordenes", json=_orden())).json()
+    b = (await cliente.post("/v1/ordenes", json=_orden())).json()
+    assert a["pedido_id"] != b["pedido_id"]
