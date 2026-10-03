@@ -1,4 +1,4 @@
-"""El pedido, sus lineas y las devoluciones. El corazon de "todo lo que toca dinero".
+"""El pedido, sus lineas, su historial de estados y las devoluciones. El corazon de "todo lo que toca dinero".
 
 Dos decisiones de congelacion gobiernan este archivo, y las dos son ADRs:
 
@@ -147,4 +147,53 @@ class Devolucion(Base):
     __table_args__ = (
         CheckConstraint("monto >= 0", name="devolucion_monto_no_negativo"),
         Index("ix_devolucion_pedido", "pedido_id"),
+    )
+
+
+class HistorialPedido(Base):
+    """Cada avance del pedido desde el back-office: de que estado a cual, quien,
+    cuando y con que nota.
+
+    Sin esta tabla, "el pedido esta en incidencia" no tiene explicacion: no se
+    sabe quien lo movio ni por que. Se escribe en la MISMA transaccion que el
+    cambio de estado, asi que no existe un avance sin su fila ni al reves.
+    """
+
+    __tablename__ = "historial_pedido"
+
+    # Entero autoincremental y no uuid: el orden de las filas de un pedido ES el
+    # orden de los avances, y `creado_en` en SQLite tiene resolucion de segundo.
+    # `BigInteger` en Postgres, `Integer` en SQLite (solo ese autoincrementa).
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True
+    )
+    pedido_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("pedido.id", ondelete="CASCADE"), nullable=False
+    )
+    estado_desde: Mapped[str] = mapped_column(String(24), nullable=False)
+    estado_hacia: Mapped[str] = mapped_column(String(24), nullable=False)
+
+    # Quien del back-office movio el pedido. Referencia logica a
+    # identidad.usuario (declarada en el manifiesto): la supresion del operador
+    # no borra el historial, que es la traza de una operacion ya ocurrida.
+    actor_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    # Copia del correo del actor en el momento del avance, tomada de la sesion
+    # que ya valido Identidad. El back-office no puede pedirle a Identidad el
+    # nombre de otro miembro del equipo, y el historial es la traza de un hecho:
+    # debe decir quien fue aunque esa cuenta cambie o se suprima despues.
+    actor_correo: Mapped[str | None] = mapped_column(String(320), nullable=True)
+
+    nota: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    # SIN CHECK a proposito: la lista de tipos vive en el codigo
+    # (`dominio/despacho.py`, TIPOS_INCIDENCIA) para ampliarla sin migracion.
+    tipo_incidencia: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
+    creado_en: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(f"estado_desde IN ({_ESTADOS_PEDIDO})", name="historial_estado_desde_valido"),
+        CheckConstraint(f"estado_hacia IN ({_ESTADOS_PEDIDO})", name="historial_estado_hacia_valido"),
+        Index("ix_historial_pedido", "pedido_id", "id"),
     )
