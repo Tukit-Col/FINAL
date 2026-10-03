@@ -64,3 +64,48 @@ def test_pedido_pagado_no_lleva_enlace_pero_si_pedido_corto():
     )
     assert "enlace" not in datos
     assert datos["pedido"] == "11112222"
+
+
+# Los avisos de logistica: el back-office mueve el pedido y Comercio escribe el
+# evento con el usuario en la carga, igual que `pedido_pagado`.
+AVISOS_DE_LOGISTICA = ("pedido_despachado", "pedido_en_reparto", "pedido_entregado")
+
+
+def test_los_avisos_de_logistica_tienen_plantilla_y_usuario_en_carga():
+    for tipo in AVISOS_DE_LOGISTICA:
+        assert plantilla_para(tipo) == tipo
+        assert destinatario_en_carga(tipo, {"usuario_id": "u-3"}) == "u-3"
+
+
+def test_despachado_lleva_el_nombre_del_repartidor():
+    datos = datos_plantilla(
+        "pedido_despachado", uuid.uuid4(), {"repartidor": " Luis "}, base_web="https://tukit.co"
+    )
+    assert datos["repartidor"] == "Luis"
+
+
+def test_despachado_sin_nombre_cae_al_texto_por_omision():
+    for carga in ({}, {"repartidor": ""}, {"repartidor": None}, None):
+        datos = datos_plantilla("pedido_despachado", uuid.uuid4(), carga, base_web="https://tukit.co")
+        assert datos["repartidor"] == "nuestro repartidor"
+
+
+def test_solo_el_despacho_lleva_repartidor():
+    datos = datos_plantilla(
+        "pedido_en_reparto", uuid.uuid4(), {"repartidor": "Luis"}, base_web="https://tukit.co"
+    )
+    assert "repartidor" not in datos
+
+
+def test_textos_de_los_avisos_de_logistica():
+    from tukit_operacion.notificador import texto_de
+
+    assert (
+        texto_de("pedido_despachado", {"pedido": "ABCD1234", "repartidor": "Luis"})
+        == "Tu pedido ABCD1234 salió y va con Luis."
+    )
+    assert texto_de("pedido_en_reparto", {"pedido": "ABCD1234"}) == "Tu pedido ABCD1234 llega hoy."
+    assert (
+        texto_de("pedido_entregado", {"pedido": "ABCD1234"})
+        == "Tu pedido ABCD1234 fue entregado. ¡Gracias por confiar en Tukit!"
+    )
