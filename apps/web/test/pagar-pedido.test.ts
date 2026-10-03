@@ -4,7 +4,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { decidirAccionPedido, pedidoVencido } from "../src/lib/pagar-pedido.ts";
+import { decidirAccionPedido, pedidoVencido, tonoEstadoPedido } from "../src/lib/pagar-pedido.ts";
 
 const AHORA = Date.parse("2026-10-03T12:00:00Z");
 const hace = (horas: number) => new Date(AHORA - horas * 3600_000).toISOString();
@@ -53,4 +53,13 @@ test("un pedido vencido no se paga", () => {
 
 test("un pedido vencido si se puede cancelar, para liberar lo reservado", () => {
   assert.deepEqual(decidirAccionPedido([vencido], "p-3", "cancelar", AHORA), { ok: true });
+});
+
+test("el tono del estado: verde pagado y entrega, amarillo pendiente, rojo cancelado", () => {
+  assert.equal(tonoEstadoPedido("pagado"), "exito");
+  assert.equal(tonoEstadoPedido("en_preparacion"), "exito");
+  assert.equal(tonoEstadoPedido("entregado"), "exito");
+  assert.equal(tonoEstadoPedido("pendiente_pago"), "aviso");
+  assert.equal(tonoEstadoPedido("cancelado"), "peligro");
+  assert.equal(tonoEstadoPedido("incidencia"), "peligro");
 });

@@ -25,7 +25,7 @@ import {
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import Sidebar from "@/components/Sidebar";
 import { sesionActual, matriculasDeLaSesion, solicitudesDeLaSesion } from "@/lib/sesion";
-import { pedidoVencido } from "@/lib/pagar-pedido";
+import { pedidoVencido, tonoEstadoPedido, type TonoEstado } from "@/lib/pagar-pedido";
 import AccionesPedido from "./AccionesPedido";
 import styles from "./Dashboard.module.css";
 
@@ -53,6 +53,13 @@ const PALABRAS_ESTADO: Record<EstadoTrabajo, string> = {
   espera_revision: "Una persona lo está revisando",
   publicado: "Listo",
   fallido: "Hubo un problema, lo estamos revisando",
+};
+
+// La clase de la etiqueta de estado segun su tono (verde, amarillo, rojo).
+const CLASE_TONO: Record<TonoEstado, string> = {
+  exito: styles.badgeExito,
+  aviso: styles.badgeAviso,
+  peligro: styles.badgePeligro,
 };
 
 // Los pedidos del portador, cada uno con si ya vencio su ventana de pago (24
@@ -292,7 +299,9 @@ export default async function DashboardPage() {
                         </td>
                         <td className={styles.pedidoFecha}>{fechaLegible(pedido.creado_en)}</td>
                         <td>
-                          <span className={styles.badgeEntregado}>
+                          <span
+                            className={`${styles.badge} ${CLASE_TONO[tonoEstadoPedido(pedido.estado)]}`}
+                          >
                             <span className={styles.badgeDot} />
                             {ETIQUETA_ESTADO_PEDIDO[pedido.estado]}
                           </span>

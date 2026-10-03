@@ -58,3 +58,23 @@ export function decidirAccionPedido(
   }
   return { ok: true };
 }
+
+// El color de la etiqueta de estado en "Mis pedidos": verde lo pagado y lo que
+// va camino a la casa, amarillo lo que espera pago, rojo lo cancelado o con
+// problema.
+export type TonoEstado = "exito" | "aviso" | "peligro";
+
+const TONO_ESTADO: Record<EstadoPedido, TonoEstado> = {
+  pendiente_pago: "aviso",
+  pagado: "exito",
+  en_preparacion: "exito",
+  despachado: "exito",
+  en_reparto: "exito",
+  entregado: "exito",
+  incidencia: "peligro",
+  cancelado: "peligro",
+};
+
+export function tonoEstadoPedido(estado: EstadoPedido): TonoEstado {
+  return TONO_ESTADO[estado];
+}

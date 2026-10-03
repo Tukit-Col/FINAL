@@ -5,12 +5,13 @@
 //   nuevo del pedido. Al terminar va a la pantalla de resultado.
 // - Cancelar: pide confirmacion; Comercio pregunta a Wompi antes y no cancela
 //   si hay un pago aprobado o en curso (su mensaje se muestra tal cual).
-// - Vencido (mas de 24 horas): ya no se paga; se ofrece volver a armar el kit,
-//   donde el precio se re-verifica. Cancelarlo libera lo reservado.
+// - Vencido (mas de 24 horas): ya no se paga; se ofrece rearmar el kit, donde
+//   el precio se re-verifica. Cancelarlo libera lo reservado.
 
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Clock, CreditCard, RefreshCw, X } from "lucide-react";
 import { FalloApi, cancelarPedido, pagarPedido } from "@/lib/api-navegador";
 import { abrirWidgetWompi } from "@/lib/wompi";
 import styles from "./Dashboard.module.css";
@@ -70,21 +71,32 @@ export default function AccionesPedido({
     }
   }
 
+  const botonCancelar = (
+    <button
+      type="button"
+      className={styles.btnCancelar}
+      onClick={cancelar}
+      disabled={ocupado !== null}
+    >
+      <X size={14} aria-hidden />
+      {ocupado === "cancelar" ? "Cancelando…" : "Cancelar"}
+    </button>
+  );
+
   return (
     <div className={styles.accionPedido}>
+      {vencido && (
+        <span className={styles.vencido} title="Pasaron más de 24 horas desde que lo creaste">
+          <Clock size={13} aria-hidden /> Vencido
+        </span>
+      )}
       <div className={styles.accionesFila}>
         {vencido ? (
-          <span className={styles.vencido}>
-            Vencido
-            {trabajoId && (
-              <>
-                {" · "}
-                <Link href={`/kits/${trabajoId}`} className={styles.rearmar}>
-                  Volver a armar el kit
-                </Link>
-              </>
-            )}
-          </span>
+          trabajoId && (
+            <Link href={`/kits/${trabajoId}`} className={styles.btnRearmar}>
+              <RefreshCw size={14} aria-hidden /> Rearmar kit
+            </Link>
+          )
         ) : (
           <button
             type="button"
@@ -92,17 +104,11 @@ export default function AccionesPedido({
             onClick={pagar}
             disabled={ocupado !== null}
           >
+            <CreditCard size={14} aria-hidden />
             {ocupado === "pagar" ? "Abriendo…" : "Pagar"}
           </button>
         )}
-        <button
-          type="button"
-          className={styles.btnCancelar}
-          onClick={cancelar}
-          disabled={ocupado !== null}
-        >
-          {ocupado === "cancelar" ? "Cancelando…" : "Cancelar"}
-        </button>
+        {botonCancelar}
       </div>
       {error && (
         <span className={styles.errorPedido} role="alert">
