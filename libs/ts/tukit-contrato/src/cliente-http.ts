@@ -73,7 +73,12 @@ import type {
   Sugerencia,
   VersionListaAdmin,
 } from "./catalogo";
-import type { Pedido, TableroComercio } from "./comercio";
+import type {
+  Pedido,
+  PedidoConHistorial,
+  SolicitudAvancePedido,
+  TableroComercio,
+} from "./comercio";
 import type { MetricasColegio, ResumenPedidosColegio, SerieMetricas } from "./metricas";
 import type { BandejaOperacion, Caso, CasoCreado, SolicitudCaso } from "./operacion";
 import {
@@ -1201,19 +1206,43 @@ export class ClienteApi implements OrigenDatos {
   }
 
   // ------------------------------------------------- ASUMIDO (comercio 1.x)
-  pedidos(): Promise<TableroComercio> {
-    return this.pedir<TableroComercio>("/v1/comercio/pedidos");
+  // Logistica: solo staff. El Bearer lo reenvia el Server Component o el Route
+  // Handler del admin desde la cookie de sesion.
+  pedidos(token: string): Promise<TableroComercio> {
+    return this.pedir<TableroComercio>("/v1/comercio/pedidos", {
+      headers: this.autoriza(token),
+    });
   }
 
-  pedido(pedidoId: string): Promise<Pedido> {
-    return this.pedir<Pedido>(`/v1/comercio/pedidos/${encodeURIComponent(pedidoId)}`);
+  pedido(token: string, pedidoId: string): Promise<PedidoConHistorial> {
+    return this.pedir<PedidoConHistorial>(
+      `/v1/comercio/pedidos/${encodeURIComponent(pedidoId)}`,
+      { headers: this.autoriza(token) },
+    );
   }
 
-  // El historial del acudiente para su dashboard. Comercio responde
-  // `{total, pedidos}`; la pantalla solo usa la lista, asi que se propaga esa.
-  async misPedidos(usuarioId: string): Promise<Pedido[]> {
+  avanzarPedido(
+    token: string,
+    pedidoId: string,
+    cuerpo: SolicitudAvancePedido,
+  ): Promise<PedidoConHistorial> {
+    return this.pedir<PedidoConHistorial>(
+      `/v1/ordenes/${encodeURIComponent(pedidoId)}/avanzar`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...this.autoriza(token) },
+        body: JSON.stringify(cuerpo),
+      },
+    );
+  }
+
+  // Los pedidos del portador para su dashboard: sin `usuario_id` en la URL,
+  // comercio lo saca de la sesion. Responde `{total, pedidos}`; la pantalla
+  // solo usa la lista, asi que se propaga esa.
+  async misPedidos(token: string): Promise<Pedido[]> {
     const resp = await this.pedir<{ total: number; pedidos: Pedido[] }>(
-      `/v1/comercio/mis-pedidos?usuario_id=${encodeURIComponent(usuarioId)}`,
+      "/v1/comercio/mis-pedidos",
+      { headers: this.autoriza(token) },
     );
     return resp.pedidos ?? [];
   }
