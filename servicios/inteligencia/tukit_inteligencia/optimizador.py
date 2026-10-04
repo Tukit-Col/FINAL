@@ -76,7 +76,10 @@ ORDEN_NIVEL = ("economico", "confiable", "premium")
 MODOS_SURTIBLES = frozenset({"mercado_abierto", "libro_libre"})
 
 # Tipos de renglon que nunca van al carrito, dijera lo que dijera el modo.
-TIPOS_NO_COMPRABLES = frozenset({"licencia_digital", "no_comprar", "diferido", "uniforme"})
+# `otro` es lo que el colegio pide y Tukit decidio no vender (audifonos, un
+# titere): el acudiente lo compra por su cuenta. Sin estar aqui, la linea salia
+# como un producto que faltaba en vez de una nota que dice que hacer.
+TIPOS_NO_COMPRABLES = frozenset({"licencia_digital", "no_comprar", "diferido", "uniforme", "otro"})
 
 # Dos ediciones del mismo titulo NO son sustituibles, asi que los textos no se
 # consolidan entre hermanos aunque el titulo coincida. Es la regla inversa de
