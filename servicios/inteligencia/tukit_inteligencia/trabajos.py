@@ -118,9 +118,24 @@ class TrabajoProtegido(Exception):
         self.estado = estado
 
 
+class SinProductoQueValidar(Exception):
+    """Validar una linea exige un producto, y esta no tiene ninguno.
+
+    Ni llego `sku`, ni la linea del kit tiene producto, ni la resolucion
+    apuntaba a un candidato —o el `sku` pedido no existe en el catalogo—. Se
+    rechaza aqui, con un motivo, en vez de dejar que el CHECK
+    `resolucion_resuelta_tiene_candidato` lo convierta en un 500.
+    """
+
+    def __init__(self, sku: str | None) -> None:
+        super().__init__(sku or "sin_sku")
+        self.sku = sku
+
+
 class PreviewNoPublicable(Exception):
-    """Un `preview_onboarding` no se publica: no tiene acudiente. Se aprueba la
-    LISTA (Catalogo), que si crea el colegio y arma el trabajo del padre."""
+    """Un `preview_onboarding` no se aprueba desde la cola: no tiene acudiente.
+    Se aprueba la LISTA (Catalogo); al aprobarla, el poller promueve este preview
+    —con sus ajustes— a kit `colegio_grado` (`promover_vista_previa`)."""
 
 
 # ---------------------------------------------------------------------------
@@ -860,7 +875,14 @@ async def _publicar_evento(conexion: Any, trabajo_id: uuid.UUID) -> None:
     Delegado a `RepoTrabajos.emitir_evento`, que NO abre transaccion: quien lo
     llama (`_finalizar`, `revisar`) lo hace dentro del mismo `async with` que el
     paso a PUBLICADO, para que el evento no sobreviva a un rollback (no dual-write).
+
+    Un trabajo sin acudiente (`colegio_grado` aprobado en la cola) no emite: el
+    repartidor resuelve el destinatario por `usuario_id` y reintentaria sin fin
+    un evento que no tiene a quien avisar.
     """
+    usuario = await conexion.scalar(select(TRABAJO.c.usuario_id).where(TRABAJO.c.id == trabajo_id))
+    if usuario is None:
+        return
     await RepoTrabajos(conexion).emitir_evento(trabajo_id)
 
 
@@ -1162,6 +1184,12 @@ async def ordenar(
 # ---------------------------------------------------------------------------
 
 
+def _version_de(hijos: Any) -> str | None:
+    hijo = next(iter(hijos or ()), None)
+    valor = hijo.get("version_id") if hijo else None
+    return str(valor) if valor else None
+
+
 async def cola(motor: Any, *, pagina: int = 1, por_pagina: int = 50) -> dict[str, Any]:
     """Los trabajos esperando a una persona, del mas viejo al mas nuevo.
 
@@ -1182,6 +1210,7 @@ async def cola(motor: Any, *, pagina: int = 1, por_pagina: int = 50) -> dict[str
             TRABAJO.c.estado,
             TRABAJO.c.creado_en,
             TRABAJO.c.hijos,
+            TRABAJO.c.origen,
             func.coalesce(a_revision.c.dudosos, 0).label("dudosos"),
         )
         .select_from(TRABAJO.outerjoin(a_revision, a_revision.c.tid == TRABAJO.c.id))
@@ -1199,6 +1228,11 @@ async def cola(motor: Any, *, pagina: int = 1, por_pagina: int = 50) -> dict[str
                 "creado_en": f.creado_en.isoformat() if f.creado_en else None,
                 "hijos": len(list(f.hijos or ())),
                 "lineas_a_revisar": int(f.dudosos),
+                # `origen` y `version_id` dejan que Admin separe las vistas
+                # previas de lista (que no son trabajo de un acudiente) y las
+                # enlace a su revisor.
+                "origen": f.origen,
+                "version_id": _version_de(f.hijos),
             }
             for f in filas
         ]
@@ -1343,8 +1377,8 @@ async def eliminar(motor: Any, trabajo_id: uuid.UUID) -> None:
 
     Un trabajo `publicado` esta protegido: es el kit canonico de su colegio y
     grado (o lo alimentara), y borrarlo perderia una revision humana ya
-    aprobada. Los demas estados —previews desechables, encolados, fallidos— se
-    pueden borrar sin remordimiento. La cascada `ondelete=CASCADE` de etapas,
+    aprobada. Los demas estados —previews, encolados, fallidos— se pueden
+    borrar sin remordimiento (borrar un preview pierde sus ajustes). La cascada `ondelete=CASCADE` de etapas,
     items, candidatos, resoluciones, kits y lineas hace el resto; lo unico que
     no cuelga por FK es la `bandeja_salida`, que es el log de eventos y se deja.
     """
@@ -1356,7 +1390,7 @@ async def eliminar(motor: Any, trabajo_id: uuid.UUID) -> None:
 
 
 async def previews_de(motor: Any, colegio_id: str, grado: str, anio_lectivo: int) -> list[uuid.UUID]:
-    """Los previews desechables vivos de un (colegio, grado, anio).
+    """Los previews vivos (no publicados) de un (colegio, grado, anio).
 
     El colegio/grado no son columnas: viven en el JSON `hijos`, tal como los
     mando el admin al previsualizar. Se filtra en memoria (son pocos) los
@@ -1384,8 +1418,305 @@ async def previews_de(motor: Any, colegio_id: str, grado: str, anio_lectivo: int
     return coincidencias
 
 
+def _mismo_uuid(a: Any, b: Any) -> bool:
+    """Compara dos `version_id` sin depender de mayusculas ni guiones.
+
+    El JSON `hijos` guarda el id tal como llego (del admin o del evento) y el
+    agregado de la bandeja es un UUID: compararlos como cadena cruda fallaria
+    por formato, no por ser versiones distintas.
+    """
+    try:
+        return uuid.UUID(str(a)) == uuid.UUID(str(b))
+    except (ValueError, TypeError):
+        return False
+
+
+async def _vista_previa_mas_reciente(conexion: Any, version_id: Any) -> Any:
+    """El `preview_onboarding` mas reciente de una version, en `espera_revision`.
+
+    Solo `espera_revision`: es el unico estado con kits armados que el admin
+    pudo ajustar. Uno encolado/procesando aun no tiene nada que conservar y uno
+    fallido no tiene kits. La version vive en el JSON `hijos` (no es columna),
+    asi que se filtra en memoria, igual que `previews_de`.
+    """
+    filas = await conexion.execute(
+        select(TRABAJO.c.id, TRABAJO.c.hijos, TRABAJO.c.creado_en)
+        .where(
+            TRABAJO.c.origen == "preview_onboarding",
+            TRABAJO.c.estado == EstadoTrabajo.ESPERA_REVISION.value,
+        )
+        .order_by(TRABAJO.c.creado_en.desc())
+    )
+    for fila in filas:
+        hijo = next(iter(fila.hijos or ()), None)
+        if hijo and _mismo_uuid(hijo.get("version_id"), version_id):
+            return fila
+    return None
+
+
+async def _lineas_sin_decidir(conexion: Any, trabajo_id: uuid.UUID) -> int:
+    """Renglones dudosos que ninguna persona ha decidido todavia.
+
+    Dudoso = AMBIGUO o SIN_MATCH sin `decidido_en`. Un HUECO_CATALOGO no
+    cuenta, lo haya marcado el pipeline o una persona: no tiene producto ni
+    precio, asi que publicarlo no le cobra al acudiente nada que no vea.
+    """
+    return int(
+        await conexion.scalar(
+            select(func.count())
+            .select_from(RESOLUCION.join(ITEM, ITEM.c.id == RESOLUCION.c.item_crudo_id))
+            .where(
+                ITEM.c.trabajo_id == trabajo_id,
+                RESOLUCION.c.estado.in_((EstadoResolucion.AMBIGUO.value, EstadoResolucion.SIN_MATCH.value)),
+                RESOLUCION.c.decidido_en.is_(None),
+            )
+        )
+        or 0
+    )
+
+
+async def vista_previa_de_version(motor: Any, version_id: str) -> dict[str, Any] | None:
+    """La vista previa vigente de una version, para el revisor de la lista.
+
+    Es lo que le permite al revisor avisar "hay una vista previa ajustada" y
+    advertir antes de reemplazarla: volver a previsualizar borra los ajustes.
+    """
+    async with motor.engine.begin() as conexion:
+        fila = await _vista_previa_mas_reciente(conexion, version_id)
+        if fila is None:
+            return None
+        sin_decidir = await _lineas_sin_decidir(conexion, fila.id)
+    return {
+        "trabajo_id": str(fila.id),
+        "estado": EstadoTrabajo.ESPERA_REVISION.value,
+        "creado_en": fila.creado_en.isoformat() if fila.creado_en else None,
+        "lineas_sin_decidir": sin_decidir,
+    }
+
+
+def _huella(renglones: list[dict[str, Any]]) -> list[tuple[Any, ...]]:
+    """Lo que tiene que coincidir entre la lista y el preview para promoverlo.
+
+    Son los campos del renglon que el admin puede editar en el revisor y que el
+    ITEM copia. Si alguno cambio despues de previsualizar, los kits del preview
+    se armaron sobre otra lista y no se pueden bendecir como canonicos.
+    """
+    return sorted(
+        (
+            int(r["orden"]),
+            str(r["texto"]),
+            int(r["cantidad"]),
+            r["tipo_item"],
+            r["modo_adquisicion"],
+            r.get("instruccion_colegio"),
+            r.get("url_externa"),
+        )
+        for r in renglones
+    )
+
+
+async def promover_vista_previa(
+    motor: Any,
+    version_id: Any,
+    *,
+    colegio_id: str,
+    grado: str,
+    anio_lectivo: Any,
+    catalogo: ClienteCatalogo,
+) -> str | None:
+    """Al aprobar una lista sin acudiente, convierte su preview en el kit del grado.
+
+    El admin ajusto los kits del preview (productos, validaciones) antes de
+    aprobar la lista; armar un trabajo nuevo los perderia. Por eso el poller
+    prueba esto primero: si hay un preview de ESA version, con alguna linea
+    comprable (la misma regla de `revisar`) y armado sobre los mismos renglones
+    que la version aprobada, se promueve en vez de crear otro trabajo. Conserva
+    sus etapas, resoluciones y transiciones.
+
+    Queda como `colegio_grado`. Si no le queda ningun renglon sin decidir se
+    publica y se fija como canonico; si le quedan, se deja en `espera_revision`
+    para que el admin lo termine en la cola —un canonico con dudas sin mirar
+    llegaria tal cual al acudiente—. NO emite `kits_publicados`: no hay
+    acudiente, y el repartidor reintentaria sin fin un evento sin destinatario.
+
+    Devuelve el estado final, o None si no habia nada que promover (el poller
+    sigue con el flujo de siempre). Un `RemotoCaido` al releer la version se
+    propaga: el poller reintenta el evento en vez de armar otro kit.
+    """
+    async with motor.engine.begin() as conexion:
+        previa = await _vista_previa_mas_reciente(conexion, version_id)
+        if previa is None or not await _tiene_lineas_comprables(conexion, previa.id):
+            return None
+        items = await conexion.execute(select(ITEM).where(ITEM.c.trabajo_id == previa.id))
+        huella_previa = _huella([dict(f._mapping) for f in items])
+
+    # La version se relee igual que la leyo el preview (por su id): si alguien
+    # edito un renglon despues de previsualizar, la huella ya no coincide.
+    hijos_previa = list(previa.hijos or ())
+    crudos, _detalle = await _renglones_de_listas(catalogo, hijos_previa)
+    if _huella(_normalizar(crudos)) != huella_previa:
+        return None
+
+    referencia_previa = str(hijos_previa[0].get("referencia") or "preview")
+    hijo: dict[str, Any] = {"referencia": "hijo-1", "colegio_id": str(colegio_id), "grado": grado}
+    anio = anio_lectivo if anio_lectivo is not None else hijos_previa[0].get("anio_lectivo")
+    if anio is not None:
+        hijo["anio_lectivo"] = anio
+    hijo["version_id"] = str(version_id)
+
+    async with motor.engine.begin() as conexion:
+        # Entre la lectura y aqui el admin pudo re-previsualizar (borra este
+        # trabajo) o devolverlo: solo se promueve si sigue en espera.
+        try:
+            if await _estado(conexion, previa.id) != EstadoTrabajo.ESPERA_REVISION.value:
+                return None
+        except TrabajoNoExiste:
+            return None
+
+        # La referencia del hijo se ve en el kit del acudiente (`linea.hijo`):
+        # el "preview" interno no debe llegarle, se reetiqueta como un hijo
+        # mas, igual que el trabajo que arma el poller.
+        await conexion.execute(
+            update(ITEM)
+            .where(ITEM.c.trabajo_id == previa.id, ITEM.c.hijo_referencia == referencia_previa)
+            .values(hijo_referencia="hijo-1")
+        )
+        await conexion.execute(
+            update(LINEA)
+            .where(
+                LINEA.c.kit_id.in_(select(KIT.c.id).where(KIT.c.trabajo_id == previa.id)),
+                LINEA.c.hijo_referencia == referencia_previa,
+            )
+            .values(hijo_referencia="hijo-1")
+        )
+
+        valores = {"origen": "colegio_grado", "hijos": [hijo]}
+        if await _lineas_sin_decidir(conexion, previa.id) == 0:
+            await _pasar_a(
+                conexion, previa.id, EstadoTrabajo.PUBLICADO.value, terminado_en=ahora(), **valores
+            )
+            await _fijar_canonico(conexion, previa.id)
+            return EstadoTrabajo.PUBLICADO.value
+        await conexion.execute(update(TRABAJO).where(TRABAJO.c.id == previa.id).values(**valores))
+        return EstadoTrabajo.ESPERA_REVISION.value
+
+
 async def _resolucion_de(conexion: Any, trabajo_id: uuid.UUID, item_id: uuid.UUID) -> Any:
     return await RepoTrabajos(conexion).resolucion_de(trabajo_id, item_id)
+
+
+async def _sku_a_validar(conexion: Any, trabajo_id: uuid.UUID, item_id: uuid.UUID, actual: Any) -> str | None:
+    """El producto que "validar el elegido" confirma cuando no llega `sku`.
+
+    Primero el que la LINEA tiene en el kit recomendado —es el que el admin ve
+    marcado como "elegido por el sistema"—, luego el de cualquier otro kit, y
+    al final el del candidato que la resolucion ya apuntaba. La LINEA va antes
+    que el candidato porque la ruta lenta deja `candidato_item_id` nulo en todo
+    lo que no es RESUELTO_AUTO, y el optimizador igual eligio un producto para
+    el kit: ese es el que hay que confirmar.
+    """
+    sku = await conexion.scalar(
+        select(LINEA.c.sku)
+        .select_from(LINEA.join(KIT, KIT.c.id == LINEA.c.kit_id))
+        .where(KIT.c.trabajo_id == trabajo_id, LINEA.c.item_crudo_id == item_id, LINEA.c.sku.is_not(None))
+        .order_by(KIT.c.recomendado.desc())
+        .limit(1)
+    )
+    if sku:
+        return str(sku)
+    if actual.candidato_item_id is not None:
+        previo = await conexion.scalar(
+            select(CANDIDATO.c.sku).where(CANDIDATO.c.id == actual.candidato_item_id)
+        )
+        if previo:
+            return str(previo)
+    return None
+
+
+async def _candidato_de(conexion: Any, item_id: uuid.UUID, sku: str) -> uuid.UUID | None:
+    return await conexion.scalar(
+        select(CANDIDATO.c.id).where(and_(CANDIDATO.c.item_crudo_id == item_id, CANDIDATO.c.sku == sku))
+    )
+
+
+async def _linea_con_sku(conexion: Any, trabajo_id: uuid.UUID, item_id: uuid.UUID, sku: str) -> Any:
+    return (
+        await conexion.execute(
+            select(LINEA)
+            .select_from(LINEA.join(KIT, KIT.c.id == LINEA.c.kit_id))
+            .where(KIT.c.trabajo_id == trabajo_id, LINEA.c.item_crudo_id == item_id, LINEA.c.sku == sku)
+            .order_by(KIT.c.recomendado.desc())
+            .limit(1)
+        )
+    ).first()
+
+
+async def _registrar_candidato(
+    conexion: Any,
+    trabajo_id: uuid.UUID,
+    item_id: uuid.UUID,
+    sku: str,
+    producto_catalogo: dict[str, Any] | None,
+) -> uuid.UUID | None:
+    """El CANDIDATO de (item, sku); si no existe, lo da de alta.
+
+    El producto que una linea muestra no siempre fue candidato del item: el
+    interruptor de personaje del Fan y `fijar_producto_en_linea` ponen en la
+    LINEA productos que el emparejamiento nunca ofrecio. Validarlo es una
+    decision legitima del revisor, y la resolucion exige un candidato
+    (CHECK `resolucion_resuelta_tiene_candidato`), asi que se registra uno con
+    los datos que ya tiene la LINEA —o, si no hay LINEA con ese sku, con los
+    del catalogo—. `confianza=1.0` porque lo confirmo una persona.
+    """
+    existente = await _candidato_de(conexion, item_id, sku)
+    if existente is not None:
+        return existente
+
+    linea = await _linea_con_sku(conexion, trabajo_id, item_id, sku)
+    if linea is not None:
+        datos = {
+            "producto_canonico_id": linea.producto_canonico_id,
+            "nombre": linea.nombre_producto or sku,
+            "marca": linea.marca,
+            "nivel": linea.nivel or "confiable",
+            "personaje": linea.personaje,
+            "imagen_url": linea.imagen_url,
+            "unidad_base": linea.unidad_base or "unidad",
+            "unidades_por_empaque": int(linea.unidades_por_empaque or 1),
+            "precio_cop": linea.precio_unitario_cop,
+        }
+    elif producto_catalogo is not None:
+        datos = {
+            "producto_canonico_id": None,
+            "nombre": producto_catalogo.get("nombre") or sku,
+            "marca": producto_catalogo.get("marca"),
+            "nivel": producto_catalogo.get("nivel") or "confiable",
+            "personaje": producto_catalogo.get("personaje"),
+            "imagen_url": producto_catalogo.get("imagen_url"),
+            "unidad_base": producto_catalogo.get("unidad_base") or "unidad",
+            "unidades_por_empaque": int(producto_catalogo.get("unidades_por_empaque") or 1),
+            "precio_cop": producto_catalogo.get("precio_desde"),
+        }
+    else:
+        return None
+
+    siguiente = await conexion.scalar(
+        select(func.coalesce(func.max(CANDIDATO.c.orden), -1) + 1).where(CANDIDATO.c.item_crudo_id == item_id)
+    )
+    candidato_id = uuid.uuid4()
+    await conexion.execute(
+        insert(CANDIDATO).values(
+            id=candidato_id,
+            item_crudo_id=item_id,
+            sku=sku,
+            atributos={},
+            confianza=1.0,
+            cumple_atributos=True,
+            orden=int(siguiente or 0),
+            **datos,
+        )
+    )
+    return candidato_id
 
 
 async def decidir_linea(
@@ -1397,26 +1728,56 @@ async def decidir_linea(
     sku: str | None = None,
     actor: uuid.UUID | None = None,
     motivo: str | None = None,
+    catalogo: ClienteCatalogo | None = None,
 ) -> dict[str, Any]:
     """AD-04: una persona valida el emparejamiento o lo marca sin coincidencia.
 
     Escribe la transicion ANTES de cambiar el estado y en la misma
     transaccion, porque una decision humana sin rastro de quien la tomo es
     justo el control sin dueno que la cola existe para no ser.
+
+    Validar (RESUELTO_AUTO) sin `sku` confirma el producto que la linea tiene
+    en el kit (`_sku_a_validar`). Si ese producto no es candidato del item se
+    registra (`_registrar_candidato`); solo cuando no hay producto por ningun
+    lado se rechaza con `SinProductoQueValidar` —antes eso llegaba a la base
+    como RESUELTO_AUTO sin candidato y el CHECK lo convertia en un 500—.
+
+    El estado se copia tambien a las LINEA del item en los tres kits: la
+    consola clasifica por `linea.estado_resolucion`, y sin esto una linea ya
+    validada seguia apareciendo como pendiente.
     """
+    resuelto = estado == EstadoResolucion.RESUELTO_AUTO.value
+
+    # El catalogo se consulta FUERA de la transaccion (una llamada HTTP no debe
+    # sostener un lock), y solo cuando el sku no esta ni como candidato ni en
+    # una LINEA del item: es el caso raro, no el comun.
+    producto_catalogo: dict[str, Any] | None = None
+    if resuelto and sku and catalogo is not None:
+        async with motor.engine.begin() as conexion:
+            conocido = await _candidato_de(conexion, item_id, sku) is not None or (
+                await _linea_con_sku(conexion, trabajo_id, item_id, sku) is not None
+            )
+        if not conocido:
+            try:
+                producto_catalogo = await catalogo.producto(sku)
+            except (RemotoCaido, KeyError):
+                producto_catalogo = None
+
     async with motor.engine.begin() as conexion:
         actual = await _resolucion_de(conexion, trabajo_id, item_id)
         if actual is None:
             raise TrabajoNoExiste(f"{trabajo_id}/{item_id}")
 
-        candidato_id = actual.candidato_item_id
-        if sku:
-            elegido = await conexion.scalar(
-                select(CANDIDATO.c.id).where(
-                    and_(CANDIDATO.c.item_crudo_id == item_id, CANDIDATO.c.sku == sku)
+        candidato_id: uuid.UUID | None = None
+        sku_usado = sku
+        if resuelto:
+            sku_usado = sku or await _sku_a_validar(conexion, trabajo_id, item_id, actual)
+            if sku_usado:
+                candidato_id = await _registrar_candidato(
+                    conexion, trabajo_id, item_id, sku_usado, producto_catalogo
                 )
-            )
-            candidato_id = elegido
+            if candidato_id is None:
+                raise SinProductoQueValidar(sku)
 
         await conexion.execute(
             insert(TRANSICION).values(
@@ -1433,12 +1794,53 @@ async def decidir_linea(
             .where(RESOLUCION.c.id == actual.id)
             .values(
                 estado=estado,
-                candidato_item_id=candidato_id if estado == EstadoResolucion.RESUELTO_AUTO.value else None,
+                candidato_item_id=candidato_id,
                 decidido_por=actor,
                 decidido_en=ahora(),
             )
         )
-    return {"item_id": str(item_id), "estado": estado, "sku": sku}
+        await conexion.execute(
+            update(LINEA).where(LINEA.c.item_crudo_id == item_id).values(estado_resolucion=estado)
+        )
+        if not resuelto:
+            await _vaciar_producto_de_item(conexion, item_id)
+    return {"item_id": str(item_id), "estado": estado, "sku": sku_usado}
+
+
+async def _vaciar_producto_de_item(conexion: Any, item_id: uuid.UUID) -> None:
+    """Deja las LINEA del item como un hueco del optimizador: sin producto ni precio.
+
+    "Sin coincidencia" es decir "no lo tenemos". Si la linea conservara el
+    producto que el optimizador eligio, `ordenar` la cobraria (cobra toda linea
+    con sku y precio) mientras el acudiente la ve como hueco. Las alternativas
+    se conservan: el revisor puede fijar una despues con `fijar_producto_en_linea`.
+    """
+    kits = [
+        fila.kit_id
+        for fila in await conexion.execute(
+            select(LINEA.c.kit_id).where(LINEA.c.item_crudo_id == item_id).distinct()
+        )
+    ]
+    await conexion.execute(
+        update(LINEA)
+        .where(LINEA.c.item_crudo_id == item_id)
+        .values(
+            producto_canonico_id=None,
+            sku=None,
+            nombre_producto=None,
+            marca=None,
+            nivel=None,
+            personaje=None,
+            imagen_url=None,
+            confianza=None,
+            unidades_por_empaque=1,
+            unidades_a_comprar=0,
+            precio_unitario_cop=None,
+            subtotal_cop=None,
+        )
+    )
+    for kit_id in kits:
+        await _recalcular_total_kit(conexion, kit_id)
 
 
 async def fijar_producto_en_linea(
@@ -1453,8 +1855,9 @@ async def fijar_producto_en_linea(
     """Fija un producto en UNA linea (un kit + un item) con su precio recalculado.
 
     La decision de producto es por-nivel (tres LINEA por item, una por kit),
-    no por-item: `decidir_linea` solo escribe RESOLUCION y nunca toca LINEA, asi
-    que el kit publicado seguia mostrando el producto del optimizador. Esta es la
+    no por-item: `decidir_linea` escribe RESOLUCION y solo copia su estado a la
+    LINEA —nunca cambia su producto—, asi que el kit publicado seguia mostrando
+    el producto del optimizador. Esta es la
     ruta de escritura que faltaba. El producto se pide al catalogo (no al
     CANDIDATO) porque un personaje puede no ser candidato del item y aun asi ser
     una eleccion valida del revisor.
@@ -1467,7 +1870,18 @@ async def fijar_producto_en_linea(
     async with motor.engine.begin() as conexion:
         fila = (
             await conexion.execute(
-                select(LINEA.c.id, LINEA.c.kit_id, LINEA.c.cantidad_pedida, LINEA.c.informativa)
+                select(
+                    LINEA.c.id,
+                    LINEA.c.kit_id,
+                    LINEA.c.cantidad_pedida,
+                    LINEA.c.informativa,
+                    LINEA.c.sku,
+                    LINEA.c.nombre_producto,
+                    LINEA.c.nivel,
+                    LINEA.c.precio_unitario_cop,
+                    LINEA.c.imagen_url,
+                    LINEA.c.alternativas,
+                )
                 .select_from(LINEA.join(KIT, KIT.c.id == LINEA.c.kit_id))
                 .where(
                     KIT.c.trabajo_id == trabajo_id,
@@ -1478,6 +1892,21 @@ async def fijar_producto_en_linea(
         ).one_or_none()
         if fila is None:
             raise TrabajoNoExiste(f"{trabajo_id}/{perfil}/{item_id}")
+
+        # El producto que sale pasa a ser alternativa y el que entra deja de
+        # serlo: sin esto la consola lo mostraba dos veces y el anterior ya no
+        # se podia volver a elegir. Mismo tope de dos que pone el armado.
+        alternativas = [a for a in (fila.alternativas or []) if a.get("sku") not in {sku, fila.sku}]
+        if fila.sku and fila.sku != sku:
+            anterior = {
+                "sku": fila.sku,
+                "nombre": fila.nombre_producto,
+                "nivel": fila.nivel,
+                "precio_cop": fila.precio_unitario_cop,
+                "imagen_url": fila.imagen_url,
+            }
+            alternativas = [anterior, *alternativas]
+        alternativas = alternativas[:2]
 
         # Una linea informativa no lleva precio (CHECK del modelo): fijarle un
         # producto no puede introducir un subtotal por la puerta de atras.
@@ -1499,6 +1928,7 @@ async def fijar_producto_en_linea(
                 unidades_a_comprar=unidades,
                 precio_unitario_cop=None if fila.informativa else precio,
                 subtotal_cop=subtotal,
+                alternativas=alternativas,
             )
         )
         await _recalcular_total_kit(conexion, fila.kit_id)
@@ -1528,10 +1958,11 @@ async def revisar(
             raise TransicionIlegal(actual, nuevo)
         # Un preview de onboarding no tiene acudiente (`usuario_id` NULL): no es
         # el trabajo del padre, es la vista de los kits que saldrian de la lista.
-        # Publicarlo no avisa a nadie (el `kits_publicados` que emite se queda
-        # sin destinatario y el repartidor lo reintenta sin fin) y no crea el
-        # colegio (eso lo hace aprobar la LISTA en Catalogo). Quien quiera
-        # publicar, aprueba la lista; el preview solo se mira.
+        # Publicarlo aqui no avisa a nadie (el `kits_publicados` que emite se
+        # queda sin destinatario y el repartidor lo reintenta sin fin) y no crea
+        # el colegio (eso lo hace aprobar la LISTA en Catalogo). Quien quiera
+        # publicar, aprueba la lista: el poller promueve entonces este preview,
+        # con sus ajustes, a kit del colegio y grado (`promover_vista_previa`).
         if decision == "aprobar":
             origen = await conexion.scalar(select(TRABAJO.c.origen).where(TRABAJO.c.id == trabajo_id))
             if origen == "preview_onboarding":

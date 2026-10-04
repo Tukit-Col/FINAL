@@ -192,6 +192,35 @@ class TestFijarProductoPorNivel:
         assert cuaderno["subtotal_linea"] == 2 * 12000
         assert ahorrador["total"] == total_antes + 2 * (12000 - 4500)
 
+    async def test_el_producto_anterior_pasa_a_las_alternativas(self, motor):
+        # Sin esto la consola mostraba el nuevo dos veces (elegido y
+        # alternativa) y el anterior ya no se podia volver a elegir.
+        catalogo = _catalogo()
+        trabajo_id, _ = await _crear_y_procesar(motor, catalogo)
+        kits = (await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"]
+        ahorrador = next(k for k in kits if k["perfil"] == "Ahorrador")
+        cuaderno = next(
+            linea for linea in ahorrador["lineas"] if linea["descripcion"].startswith("2 cuadernos")
+        )
+        assert [a["sku"] for a in cuaderno["alternativas"]] == ["TK-C001-PRE"]
+
+        await trabajos.fijar_producto_en_linea(
+            motor,
+            trabajo_id,
+            "Ahorrador",
+            uuid.UUID(cuaderno["item_id"]),
+            "TK-C001-PRE",
+            catalogo=catalogo,
+        )
+
+        kits = (await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"]
+        ahorrador = next(k for k in kits if k["perfil"] == "Ahorrador")
+        cuaderno = next(
+            linea for linea in ahorrador["lineas"] if linea["descripcion"].startswith("2 cuadernos")
+        )
+        assert [a["sku"] for a in cuaderno["alternativas"]] == ["TK-C001-ECO"]
+        assert cuaderno["alternativas"][0]["precio_cop"] == 4500
+
     async def test_kit_o_item_inexistente_es_no_existe(self, motor):
         catalogo = _catalogo()
         trabajo_id, _ = await _crear_y_procesar(motor, catalogo)
@@ -361,7 +390,13 @@ class TestLaRevisionHumana:
     async def test_aprobar_publica_y_deja_el_evento_en_la_bandeja(self, motor):
         from sqlalchemy import select
 
-        trabajo_id, _ = await _crear_y_procesar(motor)
+        respuesta = await trabajos.crear(
+            motor,
+            hijos=[{"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"}],
+            usuario_id=uuid.uuid4(),
+        )
+        trabajo_id = uuid.UUID(respuesta["trabajo_id"])
+        await trabajos.procesar(motor, trabajo_id, catalogo=_catalogo())
         actor = uuid.uuid4()
         resultado = await trabajos.revisar(motor, trabajo_id, decision="aprobar", nota="ok", actor=actor)
 
@@ -374,6 +409,19 @@ class TestLaRevisionHumana:
         async with motor.engine.begin() as conexion:
             eventos = list(await conexion.execute(select(trabajos.BANDEJA)))
         assert [e.tipo for e in eventos] == ["kits_publicados"]
+
+    async def test_aprobar_sin_acudiente_publica_sin_evento(self, motor):
+        """Un `colegio_grado` (sin `usuario_id`) no tiene a quien avisar: un
+        `kits_publicados` suyo lo reintentaria el repartidor sin fin."""
+        from sqlalchemy import func, select
+
+        trabajo_id, _ = await _crear_y_procesar(motor)
+        resultado = await trabajos.revisar(motor, trabajo_id, decision="aprobar")
+
+        assert resultado["estado"] == EstadoTrabajo.PUBLICADO.value
+        async with motor.engine.begin() as conexion:
+            cuantos = await conexion.scalar(select(func.count()).select_from(trabajos.BANDEJA))
+        assert cuantos == 0
 
     async def test_publicar_dos_veces_no_se_puede(self, motor):
         """No es idempotente: es un segundo aviso al acudiente."""
