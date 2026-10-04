@@ -104,6 +104,14 @@ def _elegir_por_nivel(productos: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [por_nivel[nivel] for nivel in _ORDEN_NIVEL if nivel in por_nivel]
 
 
+# Valores que el vocabulario lee de un renglon pero que no se le pueden exigir a
+# un producto. En una lista escolar casi todo dice "escolar": "Maleta escolar"
+# pedia `tipo=escolar` y ninguna de las 27 maletas (morrales, con ruedas) lo
+# declaraba, asi que el kit no ofrecia ninguna. Del lado del producto `escolar`
+# sigue leyendose (es el tipo de ultimo recurso); solo deja de filtrar.
+_NO_SE_EXIGEN = frozenset({("tipo", "escolar")})
+
+
 def _cumple(producto: dict[str, Any], impuestos: dict[str, Any]) -> bool:
     declarados = {k: str(v).lower() for k, v in (producto.get("atributos") or {}).items()}
     return all(declarados.get(k) == str(v).lower() for k, v in impuestos.items())
@@ -143,7 +151,11 @@ def emparejar(
         )
 
     concepto = next(c for c in conceptos if c["id"] == concepto_id)
-    impuestos = extraer_atributos(corregido, tuple(concepto.get("discriminantes") or ()))
+    impuestos = {
+        k: v
+        for k, v in extraer_atributos(corregido, tuple(concepto.get("discriminantes") or ())).items()
+        if (k, v) not in _NO_SE_EXIGEN
+    }
     del_concepto = [p for p in productos if p.get("concepto_id") == concepto_id]
     if not del_concepto:
         return Emparejamiento(
