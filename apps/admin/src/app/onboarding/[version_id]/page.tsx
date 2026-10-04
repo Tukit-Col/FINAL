@@ -3,8 +3,10 @@
 //
 // Las cuatro regiones, lado a lado:
 //   (1) el PDF crudo, embebido desde `/api/listas/{id}/documento` (la URL del
-//       backend no llega al navegador);
-//   (2) lo que leyó el modelo, por página, desde `percepcion()`;
+//       backend no llega al navegador). Una lista sembrada o editada no tiene
+//       documento: la región lo dice en vez de embeber un 404;
+//   (2) lo que leyó el modelo, por página, desde `percepcion()` (vacía si no
+//       hay documento);
 //   (3) los renglones itemizados de `revisionLista()`, con su concepto ya
 //       emparejado, sus candidatos/confianza (las `propuestas`) y —por línea—
 //       los controles ADD + EDIT y el de adquisición directa del colegio
@@ -12,13 +14,13 @@
 //   (4) previsualizar los tres kits (`previewDeVersion` → un trabajo de preview
 //       que se abre en la consola de revisión de siempre, `/trabajos/{id}`) Y
 //       aprobar y publicar (`cerrarLista(version_id)`). Previsualizar NO aprueba:
-//       son dos acciones distintas —y el preview NO se puede publicar (no tiene
-//       acudiente): publicar es aprobar la LISTA, que crea el colegio y arma el
-//       trabajo del padre.
+//       son dos acciones distintas. El preview no se publica desde la cola: lo
+//       que el admin ajuste en él pasa a ser el kit del colegio y grado cuando
+//       se aprueba la LISTA. Si ya hay uno, la región lo enlaza.
 //
-// Server Component para leer: `revisionLista()` y `percepcion()` salen del origen
-// directamente. Un 404 (`version_no_existe`/`sin_evidencia`) se traduce a
-// `notFound()`.
+// Server Component para leer: la carga vive en `cargarRevisor` (lib/revisor),
+// probada aparte. Solo `version_no_existe` se traduce a `notFound()`; la falta
+// de documento (`sin_evidencia`) deja abrir el revisor igual.
 //
 // NOTA DE CONTRATO: `previewDeVersion(versionId, {colegioId, grado, anioLectivo})`
 // arma, sobre una versión curada, un `TrabajoAdmin` de preview (`{trabajo_id}`) sin
@@ -26,9 +28,10 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { DatosColegioNuevo, PercepcionCruda, RevisionLista } from "@tukit/contrato";
-import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
+import type { DatosColegioNuevo } from "@tukit/contrato";
+import { origenDeDatos } from "@tukit/contrato/servidor";
 import type { OpcionConcepto } from "@/components/PanelReclasificar";
+import { cargarRevisor } from "@/lib/revisor";
 import ItemsPercibidos from "@/components/ItemsPercibidos";
 import AprobarLista from "@/components/AprobarLista";
 import CompletarColegio from "@/components/CompletarColegio";
@@ -55,27 +58,15 @@ export default async function PaginaRevisionLista({ params }: Props) {
 
   const origen = origenDeDatos();
 
-  let revision: RevisionLista;
-  let percepcion: PercepcionCruda;
-  let conceptos: OpcionConcepto[] = [];
-  try {
-    // La revisión es la fuente de las regiones 3/4; la percepción cruda es la
-    // evidencia por página de la región 2; el catálogo puebla el selector de
-    // concepto de la región 3. Los tres cuelgan de la misma versión/origen.
-    const [rev, perc, catalogo] = await Promise.all([
-      origen.revisionLista(version_id),
-      origen.percepcion(version_id),
-      origen.catalogo(),
-    ]);
-    revision = rev;
-    percepcion = perc;
-    conceptos = catalogo.conceptos
-      .map((c) => ({ codigo: c.codigo, nombre: c.nombre_canonico }))
-      .sort((a, b) => a.nombre.localeCompare(b.nombre));
-  } catch (causa) {
-    if (causa instanceof ErrorTukit && causa.estado === 404) notFound();
-    throw causa;
-  }
+  // La revisión es la fuente de las regiones 3/4; la percepción cruda es la
+  // evidencia por página de la región 2; el catálogo puebla el selector de
+  // concepto de la región 3; la vista previa, el aviso de la región 4.
+  const datos = await cargarRevisor(origen, version_id);
+  if (datos === null) notFound();
+  const { revision, percepcion, catalogo, vistaPrevia } = datos;
+  const conceptos: OpcionConcepto[] = catalogo.conceptos
+    .map((c) => ({ codigo: c.codigo, nombre: c.nombre_canonico }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   // Pre-llenar el perfil del colegio nuevo con el bloque DUEB: la subida a veces
   // solo dejó el nombre. Se trae por DANE y se rellenan SOLO los campos vacíos
@@ -115,7 +106,13 @@ export default async function PaginaRevisionLista({ params }: Props) {
             <span className={styles.regionNumero}>1</span>
             <h2>El PDF original</h2>
           </div>
-          <iframe className={styles.marco} src={urlDocumento} title="PDF de la lista" />
+          {percepcion ? (
+            <iframe className={styles.marco} src={urlDocumento} title="PDF de la lista" />
+          ) : (
+            <p className={styles.sinDocumento}>
+              Esta lista no tiene documento original (lista sembrada o editada).
+            </p>
+          )}
         </section>
 
         {/* --------------------------------- Región 2: percepción cruda */}
@@ -125,7 +122,12 @@ export default async function PaginaRevisionLista({ params }: Props) {
             <h2>Lo que leyó el modelo</h2>
           </div>
           <div className={styles.crudo}>
-            {percepcion.paginas.length === 0 ? (
+            {percepcion === null ? (
+              <p className={styles.pendienteContrato}>
+                Sin documento original no hay lectura del modelo: los ítems de la región 3 son los
+                de la lista tal como se sembró o editó.
+              </p>
+            ) : percepcion.paginas.length === 0 ? (
               <p className={styles.pendienteContrato}>El modelo no dejó texto crudo por página.</p>
             ) : (
               percepcion.paginas.map((pagina) => (
@@ -177,15 +179,32 @@ export default async function PaginaRevisionLista({ params }: Props) {
             <h2>Aprobar y publicar</h2>
           </div>
           <p className={styles.bajada}>
-            Previsualiza los tres kits que saldrían de esta versión antes de publicar —una vista de
-            solo lectura, sobre un trabajo de preview desechable— y, cuando estés conforme, apruébala.
-            Aprobar deja la versión revisada y el par (colegio, grado) disponible para los acudientes.
+            Previsualiza los tres kits que saldrían de esta versión y ajústalos en la consola de
+            revisión. Cuando apruebes la lista, esa vista previa —con tus ajustes— pasa a ser el kit
+            de este colegio y grado. Aprobar deja la versión revisada y el par (colegio, grado)
+            disponible para los acudientes.
           </p>
+          {vistaPrevia && !revision.revisada ? (
+            <div className={styles.vistaPrevia}>
+              <strong>Hay una vista previa ajustada</strong>
+              <span>
+                {vistaPrevia.lineas_sin_decidir === 0
+                  ? "Todas sus líneas dudosas están decididas."
+                  : `${vistaPrevia.lineas_sin_decidir} ${
+                      vistaPrevia.lineas_sin_decidir === 1 ? "línea dudosa" : "líneas dudosas"
+                    } sin decidir.`}
+              </span>
+              <Link href={`/trabajos/${encodeURIComponent(vistaPrevia.trabajo_id)}`}>
+                Abrir la vista previa →
+              </Link>
+            </div>
+          ) : null}
           <PrevisualizarKits
             versionId={version_id}
             colegioId={revision.colegio_id}
             grado={revision.grado}
             anioLectivo={revision.anio_lectivo}
+            vistaPreviaId={revision.revisada ? null : (vistaPrevia?.trabajo_id ?? null)}
           />
           <AprobarLista
             versionId={version_id}

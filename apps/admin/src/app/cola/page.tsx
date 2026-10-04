@@ -7,10 +7,13 @@
 // lista oficial verificada y la reusa el pipeline para todos los acudientes de
 // ese (colegio, grado).
 //
-// Debajo, mientras el ingreso de acudiente todavia crea trabajos desechables,
-// se listan los que esperan revision para que no desaparezcan. Cuando el
-// ingreso de acudiente pase a crear versiones (Slice C), esta seccion se vacia
-// sola.
+// Debajo, mientras el ingreso de acudiente todavia crea trabajos propios, se
+// listan los que esperan revision para que no desaparezcan. Cuando el ingreso
+// de acudiente pase a crear versiones (Slice C), esta seccion se vacia sola.
+//
+// Las vistas previas de lista (`preview_onboarding`) también esperan revisión,
+// pero no son de un acudiente: van en un bloque aparte, marcadas, y enlazan al
+// revisor de su lista, que es donde se aprueban (ver `lib/cola`).
 //
 // Server Component: lee el origen directamente. No hay `fetch` de por medio
 // porque la lectura no pasa por el navegador.
@@ -20,6 +23,7 @@ import type { EntradaCola, VersionListaAdmin } from "@tukit/contrato";
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import BorrarTrabajo from "@/components/BorrarTrabajo";
 import BorrarVersion from "@/components/BorrarVersion";
+import { separarCola } from "@/lib/cola";
 import { formatearFecha, haceCuanto, TITULO_ESTADO_TRABAJO } from "@/lib/formato";
 import SubirLista from "./SubirLista";
 import styles from "./Cola.module.css";
@@ -82,8 +86,9 @@ export default async function PaginaCola() {
 
   // Solo los trabajos que esperan una persona: lo publicado es historial y lo
   // que aún procesa no necesita acción. Un trabajo es el ingreso de acudiente
-  // sin migrar; se muestra aparte, no mezclado con las versiones.
-  const trabajosEnEspera = entradas.filter((e) => e.estado === "espera_revision");
+  // sin migrar; se muestra aparte, no mezclado con las versiones. Las vistas
+  // previas de lista van en su propio bloque.
+  const { deAcudiente: trabajosEnEspera, vistasPrevias } = separarCola(entradas);
 
   const conContacto = versiones.filter((v) => v.tiene_contacto).length;
 
@@ -117,7 +122,7 @@ export default async function PaginaCola() {
         </div>
       </header>
 
-      {versiones.length === 0 && trabajosEnEspera.length === 0 ? (
+      {versiones.length === 0 && trabajosEnEspera.length === 0 && vistasPrevias.length === 0 ? (
         <ColaVacia />
       ) : (
         <>
@@ -231,6 +236,77 @@ export default async function PaginaCola() {
                             {TITULO_ESTADO_TRABAJO[entrada.estado] ? "Revisar" : "Ver"}
                           </Link>
                           <BorrarTrabajo trabajoId={entrada.trabajo_id} estado={entrada.estado} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
+
+          {vistasPrevias.length > 0 ? (
+            <section className={styles.bloqueTrabajos}>
+              <h2 className={styles.subtitulo}>Vistas previas de lista</h2>
+              <p className={styles.bajada}>
+                Kits previsualizados desde el revisor de una lista, sin acudiente detrás. Sus
+                ajustes pasan a ser el kit del colegio y grado cuando se aprueba la lista.
+              </p>
+              <div className={styles.marco}>
+                <table className={styles.tabla}>
+                  <thead>
+                    <tr>
+                      <th scope="col">Trabajo</th>
+                      <th scope="col">Recibido</th>
+                      <th scope="col" className={styles.num}>
+                        Pendientes
+                      </th>
+                      <th scope="col">Colegios</th>
+                      <th scope="col">Grados</th>
+                      <th scope="col">
+                        <span className={styles.oculto}>Acción</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vistasPrevias.map((entrada: EntradaCola) => (
+                      <tr key={entrada.trabajo_id}>
+                        <th scope="row" className={styles.identificador}>
+                          <Link href={`/trabajos/${entrada.trabajo_id}`}>
+                            <code>{entrada.trabajo_id.slice(0, 8).toUpperCase()}</code>
+                          </Link>{" "}
+                          <span className={styles.estado}>Vista previa de lista</span>
+                        </th>
+                        <td className={styles.fecha}>
+                          <span>{haceCuanto(entrada.recibido_en, ahora)}</span>
+                          <span className={styles.fechaExacta}>
+                            {formatearFecha(entrada.recibido_en)}
+                          </span>
+                        </td>
+                        <td className={`${styles.num} cifra`}>
+                          {entrada.lineas_pendientes > 0 ? (
+                            <span className={styles.pendientes}>{entrada.lineas_pendientes}</span>
+                          ) : (
+                            <span className={styles.cero}>0</span>
+                          )}
+                        </td>
+                        <td className={styles.lista}>{entrada.colegios.join(", ") || "—"}</td>
+                        <td className={styles.lista}>{entrada.grados.join(", ") || "—"}</td>
+                        <td className={styles.accionCelda}>
+                          {entrada.version_id ? (
+                            <Link
+                              href={`/onboarding/${encodeURIComponent(entrada.version_id)}`}
+                              className={styles.accion}
+                            >
+                              Revisar la lista
+                            </Link>
+                          ) : null}
+                          <Link
+                            href={`/trabajos/${entrada.trabajo_id}`}
+                            className={styles.accionSecundaria}
+                          >
+                            Ver kits
+                          </Link>
                         </td>
                       </tr>
                     ))}

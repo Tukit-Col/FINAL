@@ -7,6 +7,11 @@
 // acudiente) con `previewDeVersion` y navega a la página de vista previa, que lo
 // lee con `trabajoAdmin`. Previsualizar NO aprueba: el botón "Aprobar y publicar"
 // (`cerrarLista`) sigue siendo el único que publica, y vive aparte.
+//
+// Los ajustes que el admin haga en la vista previa pasan a ser el kit del
+// colegio y grado al aprobar la lista. Previsualizar de nuevo REEMPLAZA esa
+// vista previa (el backend borra la anterior), así que si ya hay una se pide
+// confirmación antes: un clic de más no debe tirar el trabajo de revisión.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -19,14 +24,25 @@ interface Props {
   colegioId: string;
   grado: string;
   anioLectivo: number;
+  // La vista previa que ya existe para esta versión, si hay; con ella el botón
+  // pide confirmación antes de reemplazarla.
+  vistaPreviaId?: string | null;
 }
 
-export default function PrevisualizarKits({ versionId, colegioId, grado, anioLectivo }: Props) {
+export default function PrevisualizarKits({
+  versionId,
+  colegioId,
+  grado,
+  anioLectivo,
+  vistaPreviaId = null,
+}: Props) {
   const router = useRouter();
   const [armando, setArmando] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function previsualizar() {
+    setConfirmando(false);
     setArmando(true);
     setError(null);
     try {
@@ -36,9 +52,9 @@ export default function PrevisualizarKits({ versionId, colegioId, grado, anioLec
         anio_lectivo: anioLectivo,
       });
       // El preview es un TrabajoAdmin real: se abre en la MISMA consola de
-      // revisión que el resto de la cola (`/trabajos/{id}`, ConsolaRevision), no
-      // en la vista de solo lectura aparte. Es la vista que el revisor ya conoce
-      // y sobre la que puede validar/editar/cambiar personaje antes de publicar.
+      // revisión que el resto de la cola (`/trabajos/{id}`, ConsolaRevision). Es
+      // la vista que el revisor ya conoce y sobre la que puede validar/editar/
+      // cambiar personaje; esos ajustes son los que se conservan al aprobar.
       router.push(`/trabajos/${encodeURIComponent(trabajo_id)}`);
     } catch (causa) {
       setError(
@@ -53,16 +69,33 @@ export default function PrevisualizarKits({ versionId, colegioId, grado, anioLec
       <button
         type="button"
         className={styles.secundario}
-        onClick={previsualizar}
-        disabled={armando}
+        onClick={() => (vistaPreviaId ? setConfirmando(true) : void previsualizar())}
+        disabled={armando || confirmando}
       >
         <Eye size={15} strokeWidth={2.4} aria-hidden="true" />
         {armando ? "Armando la vista previa…" : "Previsualizar los 3 kits"}
       </button>
       <span className={styles.faltante}>
         Abre los tres kits que saldrían de esta versión en la consola de revisión, sin
-        publicarla: ahí puedes validar, editar y cambiar personaje. Publicar es el otro botón.
+        publicarla: ahí puedes validar, editar y cambiar personaje. Lo que ajustes ahí será el kit
+        del colegio y grado cuando apruebes la lista.
       </span>
+      {confirmando ? (
+        <div className={styles.confirmacion} role="alertdialog" aria-live="polite">
+          <p>
+            Ya hay una vista previa de esta lista. Previsualizar de nuevo la reemplazará y se
+            perderán los ajustes que le hiciste. ¿Seguir?
+          </p>
+          <div className={styles.barraAccion}>
+            <button type="button" className={styles.principal} onClick={() => void previsualizar()}>
+              Sí, reemplazarla
+            </button>
+            <button type="button" className={styles.plano} onClick={() => setConfirmando(false)}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : null}
       {error ? <p className={styles.errorCaja}>{error}</p> : null}
     </div>
   );
