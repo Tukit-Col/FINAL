@@ -609,7 +609,7 @@ class Cargador:
                     "codigo": codigo,
                     "nombre_canonico": nombre,
                     "sinonimos": sinonimos,
-                    "categoria": "libro",
+                    "categoria": "Diccionario / Biblia / Libros / Constitución",
                     # La razon de ser de esta semilla. Con el default `util`,
                     # el pipeline le buscaria papeleria a una biblia.
                     "tipo_item": "libro_libre",
