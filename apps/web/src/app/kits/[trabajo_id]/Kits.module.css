@@ -21,13 +21,63 @@
   color: var(--color-text-muted);
 }
 
-/* ------------------------------------------------------------ Comparador */
+/* -------------------------------------------------- Selector discreto */
 
-.comparador {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: var(--espacio-4);
-  margin-top: var(--espacio-6);
+/* Los tres kits a un clic, sin competir con el que se mira: una fila de
+ * pastillas con su total. El marcado (recomendado o elegido) lleva estrella. */
+.selectorKits {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-2);
+  margin-top: var(--espacio-5);
+}
+
+.selectorRotulo {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  margin-right: var(--espacio-1);
+}
+
+.opcionKit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background: var(--color-white);
+  color: var(--color-text-secondary);
+  font-size: 13.5px;
+  font-weight: 700;
+  box-shadow: var(--clay-shadow-sm);
+  transition: background var(--dur-rapido) var(--ease-suave),
+    color var(--dur-rapido) var(--ease-suave);
+}
+
+.opcionKit:hover {
+  color: var(--color-primary);
+}
+
+.opcionKitActiva {
+  background: var(--clay-cielo-bg);
+  color: var(--color-primary);
+  box-shadow: var(--clay-shadow-sm), inset 0 0 0 2px var(--color-primary);
+}
+
+.estrellaKit {
+  color: var(--clay-estrella-oscuro);
+}
+
+.totalOpcion {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.opcionKitActiva .totalOpcion {
+  color: var(--color-primary);
 }
 
 .tarjetaKit {
@@ -44,19 +94,10 @@
     box-shadow var(--dur-medio) var(--ease-suave);
 }
 
-.tarjetaKit:hover {
-  transform: translateY(-4px);
-}
-
-/* El recomendado se marca, y los otros dos NO se atenuan: el contrato exige
- * mostrar los tres y bajarles el contraste seria ocultarlos a medias. */
-.kitRecomendado {
-  box-shadow: var(--clay-shadow), inset 0 0 0 2px var(--clay-estrella);
-}
-
+/* El kit que se mira: una sola tarjeta grande, debajo del selector. */
 .kitActivo {
+  margin-top: var(--espacio-5);
   box-shadow: var(--clay-shadow-lg), inset 0 0 0 3px var(--color-primary);
-  transform: translateY(-4px);
 }
 
 .chapaRecomendado {
@@ -122,6 +163,12 @@
   padding: var(--espacio-4) var(--espacio-5);
   font-size: 14.5px;
   box-shadow: var(--clay-shadow-sm);
+}
+
+.volverKit {
+  font-weight: 700;
+  color: var(--color-primary);
+  text-decoration: underline;
 }
 
 .fueraPresupuesto {
@@ -455,7 +502,7 @@
   color: var(--color-text-muted);
 }
 
-/* ---------------------------------------------------------- Alternativas */
+/* ----------------------------------------------- Cambiar por otra opción */
 
 .alternativas {
   margin-top: var(--espacio-3);
@@ -463,33 +510,192 @@
   border-top: 1px dashed var(--color-border);
 }
 
-.verAlternativas {
-  font-size: 13px;
-  font-weight: 700;
+.botonCambiar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  background: var(--clay-cielo-bg);
   color: var(--color-primary);
+  font-size: 12.5px;
+  font-weight: 700;
+  transition: box-shadow var(--dur-rapido) var(--ease-suave);
 }
 
-.listaAlternativas {
+.botonCambiar:hover {
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.cambiadoPorTi {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: var(--clay-cielo-bg);
+  border-radius: var(--radius-full);
+  padding: 2px 9px;
+}
+
+.panelCambio {
+  margin-top: var(--espacio-3);
+}
+
+.tituloCambio {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.opcionesCambio {
   list-style: none;
   margin-top: var(--espacio-2);
   display: grid;
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--espacio-3);
 }
 
-.listaAlternativas li {
+.opcionCambio {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--espacio-3);
+  padding: var(--espacio-3);
+  border-radius: var(--radius-lg);
+  background: var(--color-white);
+  box-shadow: var(--clay-shadow-sm);
+  transition: box-shadow var(--dur-rapido) var(--ease-suave),
+    transform var(--dur-rapido) var(--ease-clay);
+}
+
+.opcionCambio:hover {
+  box-shadow: var(--clay-shadow);
+  transform: translateY(-2px);
+}
+
+/* La que ya está en el kit: marcada, no se mueve. */
+.opcionEnKit {
+  background: var(--clay-cielo-bg);
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+.opcionEnKit:hover {
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+  transform: none;
+}
+
+.opcionCabecera {
+  display: flex;
+  gap: var(--espacio-3);
+  align-items: flex-start;
+}
+
+.opcionCabecera .foto,
+.opcionCabecera .sinFoto {
+  width: 52px;
+  height: 52px;
+}
+
+.opcionTexto {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.opcionNombre {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.opcionTexto .marca {
+  font-size: 12px;
+}
+
+.opcionPie {
   display: flex;
   align-items: center;
-  gap: var(--espacio-3);
-  font-size: 13px;
+  justify-content: space-between;
+  gap: var(--espacio-2);
 }
 
-.nombreAlternativa {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--color-text-secondary);
+.opcionPrecio {
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.diferencia {
+  font-family: var(--font);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.masCaro {
+  color: var(--color-aviso);
+}
+
+.masBarato {
+  color: var(--color-success);
+}
+
+.enTuKit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+.botonElegir {
+  padding: 6px 16px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(145deg, var(--clay-cielo) 0%, var(--color-primary) 100%);
+  color: var(--color-white);
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.botonElegir:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.sugeridaTukit {
+  position: absolute;
+  top: -9px;
+  right: var(--espacio-3);
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 2px 9px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(145deg, var(--clay-estrella) 0%, var(--clay-estrella-oscuro) 100%);
+  color: var(--color-primary-dark);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.errorCambio {
+  margin-top: var(--espacio-2);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-danger);
+}
+
+.notaCambio {
+  margin-top: var(--espacio-2);
+  font-size: 12px;
+  color: var(--color-text-muted);
 }
 
 /* ------------------------------------------------------------------- Pie */

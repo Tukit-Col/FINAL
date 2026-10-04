@@ -351,7 +351,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--espacio-3);
-  padding: var(--espacio-3) var(--espacio-4) var(--espacio-4) calc(var(--espacio-4) + 84px);
+  padding: var(--espacio-3) var(--espacio-4) var(--espacio-4);
   border-top: 1px dashed var(--color-border);
 }
 
@@ -363,22 +363,32 @@
   font-size: 13px;
 }
 
+/* Los números de la línea como pastillas: se leen de un vistazo y no ocupan
+ * una fila de columnas con rótulos en mayúscula. */
 .datos {
   display: flex;
-  gap: var(--espacio-4);
+  gap: var(--espacio-2);
   flex-wrap: wrap;
 }
 
+.datos > div {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-light);
+}
+
 .datos dt {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: 11.5px;
   color: var(--color-text-muted);
 }
 
 .datos dd {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 12.5px;
+  font-weight: 600;
 }
 
 .detalle {
@@ -419,31 +429,61 @@
 
 /* ------------------------------------------------------------ productos */
 
+/* Las opciones son tarjetas elegibles en rejilla: la marcada lleva anillo y
+ * visto, el resto se ve igual de legible (no se atenúan: hay que compararlas). */
 .productos {
-  display: flex;
-  flex-direction: column;
-  gap: var(--espacio-2);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--espacio-3);
   list-style: none;
 }
 
 .producto {
-  padding: var(--espacio-2) var(--espacio-3);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  padding: var(--espacio-3);
   background: var(--color-white);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
+  transition: border-color var(--dur-rapido) var(--ease-suave),
+    box-shadow var(--dur-rapido) var(--ease-suave);
+}
+
+.producto:hover {
+  border-color: var(--color-primary);
+}
+
+.producto:focus-within {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+.productoMarcado {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-light), var(--clay-shadow-sm);
 }
 
 .productoCabecera {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--espacio-3);
   cursor: pointer;
 }
 
+.radioOculto {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
 .miniatura,
 .miniaturaVacia {
-  width: 36px;
-  height: 36px;
+  width: 64px;
+  height: 64px;
   flex: none;
   object-fit: contain;
   border-radius: var(--radius-sm);
@@ -454,14 +494,23 @@
 .productoTexto {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
   flex: 1;
 }
 
+.productoPildoras {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-1);
+  flex-wrap: wrap;
+  font-size: 11px;
+}
+
 .productoNombre {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .productoMeta {
@@ -473,11 +522,24 @@
   color: var(--color-text-muted);
 }
 
+.marcaElegida {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-white);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .nivel {
-  padding: 0 6px;
+  padding: 0 7px;
   border-radius: var(--radius-full);
   border: 1px solid currentColor;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .nivel_economico {
@@ -493,7 +555,7 @@
 }
 
 .personaje {
-  padding: 0 6px;
+  padding: 0 7px;
   border-radius: var(--radius-full);
   background: var(--color-personaje-bg);
   color: var(--color-personaje);
@@ -513,32 +575,45 @@
 }
 
 .insignia {
-  padding: 0 6px;
+  padding: 0 7px;
   border-radius: var(--radius-full);
   background: var(--color-primary-light);
   color: var(--color-primary);
   font-weight: 600;
 }
 
+.productoPie {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espacio-2);
+  flex-wrap: wrap;
+  padding-top: var(--espacio-2);
+  border-top: 1px solid var(--color-border-light);
+}
+
 .productoPrecio {
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-text-primary);
   white-space: nowrap;
 }
 
 .ofertas {
   display: flex;
-  gap: var(--espacio-3);
+  gap: var(--espacio-1);
   flex-wrap: wrap;
   list-style: none;
-  margin-top: var(--espacio-1);
-  padding-left: calc(36px + var(--espacio-3) + 18px);
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 .ofertas li {
-  display: flex;
+  display: inline-flex;
   align-items: baseline;
-  gap: var(--espacio-1);
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-2);
 }
 
 .tienda {
@@ -553,9 +628,15 @@
   color: var(--color-aviso);
 }
 
+/* AD-05 apaga el producto en TODO el catálogo: discreto, sin el rojo
+ * subrayado que lo hacía parecer un error de la tarjeta. */
 .enlaceAccion {
-  margin-top: var(--espacio-1);
+  align-self: flex-start;
   font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.enlaceAccion:hover {
   color: var(--color-danger);
   text-decoration: underline;
 }
@@ -567,8 +648,9 @@
   align-items: center;
   gap: var(--espacio-2);
   flex-wrap: wrap;
-  padding-top: var(--espacio-2);
-  border-top: 1px solid var(--color-border-light);
+  padding: var(--espacio-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
 }
 
 .notaCorta {
