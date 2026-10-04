@@ -141,6 +141,11 @@
 
 .identificador code {
   font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.identificador a:hover code {
+  color: inherit;
 }
 
 .fecha {
@@ -172,7 +177,7 @@
 }
 
 .lista {
-  max-width: 22ch;
+  max-width: 32ch;
   color: var(--color-text-secondary);
 }
 
