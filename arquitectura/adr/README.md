@@ -21,6 +21,9 @@ citas aquí: el número es una etiqueta, el título es la decisión.
 | [0022](0022-confirmacion-del-pago-por-sincronizacion-y-webhook.md) | El pago se confirma preguntándole a Wompi, y webhook y sincronización comparten un aplicador idempotente | aceptada | `feature/pagos-wompi-sandbox` |
 | [0023](0023-cancelar-solo-con-wompi-consultado.md) | Un pedido pendiente se cancela solo después de consultar a Wompi; vence a las 24 horas y hay uno por kit | aceptada | `feature/pagos-wompi-sandbox` |
 | [0024](0024-estado-de-compra-calculado.md) | El estado de compra de una solicitud se calcula cruzando pedidos, no se guarda | aceptada | `feature/pagos-wompi-sandbox` |
+| [0025](0025-la-curaduria-viaja-por-git.md) | La curaduría de listas y del catálogo viaja por git como CSV | aceptada | `feature/curaduria-de-listas` |
+| [0026](0026-el-concepto-asignado-en-la-revision-manda.md) | El concepto asignado en la revisión manda sobre el texto, y su tipo decide si se busca | aceptada | `feature/curaduria-de-listas` |
+| [0027](0027-lo-que-tukit-no-vende-se-clasifica.md) | Lo que Tukit decide no vender se clasifica como `otro`, no queda como hueco | aceptada | `feature/curaduria-de-listas` |
 
 ## Para incorporarlos
 

@@ -107,7 +107,7 @@ make curaduria-importar   # datos/ -> base  (después de un git pull)
 
 | Archivo | Qué lleva |
 |---|---|
-| `datos/curaduria/listas_revisadas.csv` | Un renglón por ítem de cada versión vigente y revisada, con el concepto por código |
+| `datos/curaduria/listas_revisadas.csv` | Un renglón por ítem de la última versión revisada de cada lista, con el concepto por código |
 | `datos/catalogo/conceptos.csv` | Los conceptos creados curando se agregan; los existentes se actualizan |
 | `datos/curaduria/colegios.csv`, `sedes.csv` | Los colegios que esas listas nombran, para que la lista no quede huérfana |
 | `datos/catalogo/productos_canonicos.csv`, `ofertas_tienda.csv`, `precios_oferta.csv`, `productos_procedencia.csv` | Los productos aprobados en la cola, los reclasificados de concepto y sus **atributos corregidos a mano** (lo que hace que el filtro de atributos encuentre producto) |
@@ -126,6 +126,9 @@ Exporta **antes** de hacer `git pull`: `bd-cargar` actualiza los conceptos desde
 un sinónimo agregado en la base y no exportado se perdería. Los códigos de concepto nuevos
 (`C100`, `C101`…) se numeran en cada base, así que dos personas creando conceptos a la vez
 chocarían; mientras sea una sola persona la que cura, no pasa.
+
+Los criterios para curar (cuándo crear un concepto, qué tipo darle, dónde va un sinónimo) y
+el registro de lo curado están en [`docs/CURADURIA_CATALOGO.md`](docs/CURADURIA_CATALOGO.md).
 
 ## Usuarios de prueba
 
