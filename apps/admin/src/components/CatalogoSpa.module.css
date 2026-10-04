@@ -35,6 +35,12 @@
   min-width: 220px;
 }
 
+/* Los menús (Desplegable) toman el ancho de lo que muestran: en una fila de
+ * filtros se les da un ancho fijo para que no salten al elegir. */
+.buscadorFila > .campo:not(.campoBusqueda) {
+  width: 200px;
+}
+
 .campo {
   display: flex;
   flex-direction: column;
@@ -469,11 +475,6 @@
   gap: var(--espacio-2);
   align-items: flex-end;
   flex-wrap: wrap;
-}
-
-.reclasificarFila select {
-  flex: 1;
-  min-width: 200px;
 }
 
 .nota {

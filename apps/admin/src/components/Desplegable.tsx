@@ -14,6 +14,8 @@ import styles from "./Desplegable.module.css";
 export interface OpcionDesplegable {
   valor: string;
   texto: string;
+  /** Se ve pero no se puede elegir (p. ej. el concepto actual al reclasificar). */
+  deshabilitada?: boolean;
 }
 
 interface Props {
@@ -27,6 +29,8 @@ interface Props {
   buscable?: boolean;
   /** "compacto" para los formularios densos del catálogo. */
   tamano?: "normal" | "compacto";
+  /** Junto a un texto en la misma línea (filtros): ancho de su contenido. */
+  enLinea?: boolean;
   /** id para el `htmlFor` del rótulo. */
   id?: string;
 }
@@ -43,6 +47,7 @@ export default function Desplegable({
   textoVacio = "Elegir…",
   buscable = false,
   tamano = "normal",
+  enLinea = false,
   id,
 }: Props) {
   const idLista = useId();
@@ -95,8 +100,9 @@ export default function Desplegable({
     boton.current?.focus();
   }
 
-  function elegir(nuevo: string) {
-    onCambio(nuevo);
+  function elegir(opcion: OpcionDesplegable) {
+    if (opcion.deshabilitada) return;
+    onCambio(opcion.valor);
     cerrar();
   }
 
@@ -111,7 +117,7 @@ export default function Desplegable({
     } else if (evento.key === "Enter" && abierto) {
       evento.preventDefault();
       const opcion = visibles[activo];
-      if (opcion) elegir(opcion.valor);
+      if (opcion) elegir(opcion);
     } else if (evento.key === "Escape" && abierto) {
       evento.preventDefault();
       cerrar();
@@ -119,7 +125,7 @@ export default function Desplegable({
   }
 
   return (
-    <div className={styles.caja} ref={caja}>
+    <div className={`${styles.caja} ${enLinea ? styles.enLinea : ""}`} ref={caja}>
       <button
         id={id}
         ref={boton}
@@ -167,15 +173,16 @@ export default function Desplegable({
                   key={opcion.valor || "vacio"}
                   role="option"
                   aria-selected={opcion.valor === valor}
+                  aria-disabled={opcion.deshabilitada || undefined}
                   className={`${styles.opcion} ${indice === activo ? styles.activa : ""} ${
                     opcion.valor === valor ? styles.elegida : ""
-                  }`}
+                  } ${opcion.deshabilitada ? styles.deshabilitada : ""}`}
                   onMouseEnter={() => setActivo(indice)}
                   onMouseDown={(e) => {
                     // mousedown y no click: que el buscador no pierda el foco
                     // antes de elegir.
                     e.preventDefault();
-                    elegir(opcion.valor);
+                    elegir(opcion);
                   }}
                 >
                   {opcion.texto}

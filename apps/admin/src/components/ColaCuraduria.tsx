@@ -28,6 +28,7 @@ import {
 } from "@/lib/api-catalogo";
 import { filasDeAtributos, type ParAtributo } from "@/lib/atributos-editor";
 import type { OpcionConcepto } from "./PanelReclasificar";
+import Desplegable from "./Desplegable";
 import styles from "./CatalogoSpa.module.css";
 
 interface Props {
@@ -310,13 +311,13 @@ function FilaPropuesta({ p, conceptos, personajes, ocupada, onAprobar, onRechaza
       <div className={styles.acciones} style={{ border: "none", padding: 0 }}>
         <label className={styles.bandera}>
           Nivel
-          <select value={nivel} onChange={(e) => setNivel(e.target.value as Nivel)}>
-            {NIVELES.map((n) => (
-              <option key={n} value={n}>
-                {ETIQUETA_NIVEL[n]}
-              </option>
-            ))}
-          </select>
+          <Desplegable
+            tamano="compacto"
+            enLinea
+            opciones={NIVELES.map((n) => ({ valor: n, texto: ETIQUETA_NIVEL[n] }))}
+            valor={nivel}
+            onCambio={(v) => setNivel(v as Nivel)}
+          />
         </label>
         <button
           type="button"
