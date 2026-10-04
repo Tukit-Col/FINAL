@@ -1253,7 +1253,7 @@ async def cola(motor: Any, *, pagina: int = 1, por_pagina: int = 50) -> dict[str
         RESOLUCION.c.estado != EstadoResolucion.RESUELTO_AUTO.value, etiqueta="dudosos"
     )
     sin_decidir = _conteo_por_trabajo(
-        RESOLUCION.c.estado.in_((EstadoResolucion.AMBIGUO.value, EstadoResolucion.SIN_MATCH.value)),
+        RESOLUCION.c.estado == EstadoResolucion.AMBIGUO.value,
         RESOLUCION.c.decidido_en.is_(None),
         etiqueta="sin_decidir",
     )
@@ -1552,9 +1552,10 @@ async def _vista_previa_mas_reciente(conexion: Any, version_id: Any) -> Any:
 async def _lineas_sin_decidir(conexion: Any, trabajo_id: uuid.UUID) -> int:
     """Renglones dudosos que ninguna persona ha decidido todavia.
 
-    Dudoso = AMBIGUO o SIN_MATCH sin `decidido_en`. Un HUECO_CATALOGO no
-    cuenta, lo haya marcado el pipeline o una persona: no tiene producto ni
-    precio, asi que publicarlo no le cobra al acudiente nada que no vea.
+    Dudoso = AMBIGUO sin `decidido_en`: la linea tiene un producto que se
+    cobraria sin que nadie lo confirme. SIN_MATCH y HUECO_CATALOGO no cuentan,
+    los haya marcado el pipeline o una persona: no tienen producto ni precio,
+    asi que publicarlos no le cobra al acudiente nada que no vea.
     """
     return int(
         await conexion.scalar(
@@ -1562,7 +1563,7 @@ async def _lineas_sin_decidir(conexion: Any, trabajo_id: uuid.UUID) -> int:
             .select_from(RESOLUCION.join(ITEM, ITEM.c.id == RESOLUCION.c.item_crudo_id))
             .where(
                 ITEM.c.trabajo_id == trabajo_id,
-                RESOLUCION.c.estado.in_((EstadoResolucion.AMBIGUO.value, EstadoResolucion.SIN_MATCH.value)),
+                RESOLUCION.c.estado == EstadoResolucion.AMBIGUO.value,
                 RESOLUCION.c.decidido_en.is_(None),
             )
         )

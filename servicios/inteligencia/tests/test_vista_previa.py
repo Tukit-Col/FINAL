@@ -521,6 +521,26 @@ class TestPromocion:
         assert filas[0].estado == EstadoTrabajo.PUBLICADO.value
         assert await _canonico(motor) == trabajo_id
 
+    async def test_un_sin_match_no_bloquea_la_publicacion(self, motor, version_id):
+        # Como el hueco: el pipeline no le encontro producto, asi que no hay
+        # nada que se cobre sin que una persona lo confirme.
+        catalogo = _catalogo(version_id)
+        catalogo.respuestas[CARTUCHERA]["opciones"] = []
+        catalogo.respuestas[CARTUCHERA]["estado"] = "sin_match"
+        trabajo_id = await _preview(motor, catalogo, version_id)
+        fila, _, _ = await _resolucion(motor, await _item(motor, trabajo_id, 2))
+        assert fila.estado == EstadoResolucion.SIN_MATCH.value
+        assert fila.decidido_en is None
+        await _sembrar_bandeja(motor, agregado_id=uuid.UUID(version_id), **_carga_sin_padre())
+
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+        assert await poller.pasada() == 1
+
+        filas = await _trabajos(motor)
+        assert [f.id for f in filas] == [trabajo_id]
+        assert filas[0].estado == EstadoTrabajo.PUBLICADO.value
+        assert await _canonico(motor) == trabajo_id
+
     async def test_con_varios_previews_usa_el_mas_reciente(self, motor, version_id):
         catalogo = _catalogo(version_id)
         viejo = await _preview(motor, catalogo, version_id)
