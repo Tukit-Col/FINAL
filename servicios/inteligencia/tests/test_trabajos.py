@@ -490,14 +490,16 @@ class TestAplicarCanonico:
         parent_id = uuid.UUID(resultado["trabajo_id"])
 
         vista = await trabajos.ver(motor, parent_id, catalogo=catalogo)
-        assert len(vista["kits"]) == 1
-        assert vista["kits"][0]["perfil"] == "Ahorrador"
-        assert vista["kits"][0]["total"] == resultado["total"]
-        c001 = next(linea for linea in vista["kits"][0]["lineas"] if linea.get("concepto") == "C001")
+        # Los tres kits del canonico; el elegido va marcado como recomendado.
+        assert len(vista["kits"]) == 3
+        assert vista["recomendado"]["perfil"] == "Ahorrador"
+        elegido = next(k for k in vista["kits"] if k["perfil"] == "Ahorrador")
+        assert elegido["total"] == resultado["total"]
+        c001 = next(linea for linea in elegido["lineas"] if linea.get("concepto") == "C001")
         assert c001["producto_elegido"]["sku"] == "TK-C001-FAN"
         # Los objetivos se calculan sobre las lineas aplicadas. Antes iban vacios
         # y la web pintaba "NaN% con precio confirmado".
-        objetivos = vista["kits"][0]["objetivos"]
+        objetivos = elegido["objetivos"]
         assert objetivos["costo"] == resultado["total"]
         assert 0.0 <= objetivos["disponibilidad"] <= 1.0
         assert 0.0 <= objetivos["fidelidad"] <= 1.0
@@ -706,3 +708,189 @@ class TestAplicarCanonico:
             EstadoResolucion.HUECO_CATALOGO.value,
         ]
         assert transiciones[-1].decidida_por == actor
+
+
+def _linea(vista: dict, perfil: str, inicio: str) -> dict:
+    kit = next(k for k in vista["kits"] if k["perfil"] == perfil)
+    return next(linea for linea in kit["lineas"] if linea["descripcion"].startswith(inicio))
+
+
+def _total(vista: dict, perfil: str) -> int:
+    return next(k for k in vista["kits"] if k["perfil"] == perfil)["total"]
+
+
+class TestElAcudienteCambiaSuKit:
+    """El papa cambia un producto por una de sus alternativas, o se cambia de kit.
+
+    Sus cambios se guardan en SU trabajo (`cambios`), nunca en las lineas del
+    kit: esas lineas pueden ser el kit canonico del grado, el que reciben los
+    demas acudientes por la ruta rapida.
+    """
+
+    async def _ruta_rapida(self, motor, usuario_id=None):
+        canonico, _ = await _crear_y_procesar(motor)
+        await trabajos.revisar(motor, canonico, decision="aprobar")
+        resultado = await trabajos.aplicar_canonico(
+            motor,
+            colegio_id=COLEGIO,
+            grado="Cuarto",
+            anio_lectivo=2026,
+            perfil="Ahorrador",
+            usuario_id=usuario_id,
+            catalogo=_catalogo(),
+        )
+        return canonico, uuid.UUID(resultado["trabajo_id"])
+
+    async def test_la_ruta_rapida_trae_los_tres_kits_y_marca_el_elegido(self, motor):
+        _, parent_id = await self._ruta_rapida(motor)
+        vista = await trabajos.ver(motor, parent_id, catalogo=_catalogo())
+        assert {k["perfil"] for k in vista["kits"]} == {"Ahorrador", "Fan", "Premium"}
+        assert vista["recomendado"]["perfil"] == "Ahorrador"
+
+    async def test_cambiar_por_una_alternativa_recalcula_y_no_toca_el_canonico(self, motor):
+        canonico, parent_id = await self._ruta_rapida(motor)
+        catalogo = _catalogo()
+        vista = await trabajos.ver(motor, parent_id, catalogo=catalogo)
+        cuaderno = _linea(vista, "Ahorrador", "2 cuadernos")
+        assert cuaderno["producto_elegido"]["sku"] == "TK-C001-ECO"
+        assert "TK-C001-PRE" in {a["sku"] for a in cuaderno["alternativas"]}
+        total_antes = _total(vista, "Ahorrador")
+
+        await trabajos.cambiar_producto_del_acudiente(
+            motor,
+            parent_id,
+            "Ahorrador",
+            uuid.UUID(cuaderno["item_id"]),
+            "TK-C001-PRE",
+            usuario_id=None,
+            catalogo=catalogo,
+        )
+
+        vista = await trabajos.ver(motor, parent_id, catalogo=catalogo)
+        cuaderno = _linea(vista, "Ahorrador", "2 cuadernos")
+        assert cuaderno["producto_elegido"]["sku"] == "TK-C001-PRE"
+        assert cuaderno["subtotal_linea"] == 2 * 12000
+        # El que dejo pasa a ser una alternativa: siempre se puede volver.
+        assert "TK-C001-ECO" in {a["sku"] for a in cuaderno["alternativas"]}
+        assert _total(vista, "Ahorrador") == total_antes + 2 * (12000 - 4500)
+        # El canonico sigue intacto para los demas acudientes.
+        del_canonico = await trabajos.ver(motor, canonico, incluir_kits=True)
+        assert _linea(del_canonico, "Ahorrador", "2 cuadernos")["producto_elegido"]["sku"] == "TK-C001-ECO"
+
+    async def test_volver_al_original_borra_el_cambio(self, motor):
+        _, parent_id = await self._ruta_rapida(motor)
+        catalogo = _catalogo()
+        item = uuid.UUID(
+            _linea(await trabajos.ver(motor, parent_id, catalogo=catalogo), "Ahorrador", "2 cuadernos")[
+                "item_id"
+            ]
+        )
+        for sku in ("TK-C001-PRE", "TK-C001-ECO"):
+            await trabajos.cambiar_producto_del_acudiente(
+                motor, parent_id, "Ahorrador", item, sku, usuario_id=None, catalogo=catalogo
+            )
+        vista = await trabajos.ver(motor, parent_id, catalogo=catalogo)
+        assert _linea(vista, "Ahorrador", "2 cuadernos")["producto_elegido"]["sku"] == "TK-C001-ECO"
+        assert vista["cambios"] == {}
+
+    async def test_solo_se_puede_elegir_entre_las_alternativas_de_la_linea(self, motor):
+        _, parent_id = await self._ruta_rapida(motor)
+        catalogo = _catalogo()
+        item = uuid.UUID(
+            _linea(await trabajos.ver(motor, parent_id, catalogo=catalogo), "Ahorrador", "2 cuadernos")[
+                "item_id"
+            ]
+        )
+        with pytest.raises(trabajos.CambioNoPermitido) as error:
+            await trabajos.cambiar_producto_del_acudiente(
+                motor, parent_id, "Ahorrador", item, "TK-C004-CON", usuario_id=None, catalogo=catalogo
+            )
+        assert error.value.codigo == "producto_no_permitido"
+
+    async def test_la_solicitud_de_otro_acudiente_no_se_toca(self, motor):
+        dueno = uuid.uuid4()
+        _, parent_id = await self._ruta_rapida(motor, usuario_id=dueno)
+        catalogo = _catalogo()
+        item = uuid.UUID(
+            _linea(await trabajos.ver(motor, parent_id, catalogo=catalogo), "Ahorrador", "2 cuadernos")[
+                "item_id"
+            ]
+        )
+        with pytest.raises(trabajos.CambioNoPermitido) as error:
+            await trabajos.cambiar_producto_del_acudiente(
+                motor, parent_id, "Ahorrador", item, "TK-C001-PRE", usuario_id=uuid.uuid4(), catalogo=catalogo
+            )
+        assert error.value.codigo == "solicitud_ajena"
+        await trabajos.cambiar_producto_del_acudiente(
+            motor, parent_id, "Ahorrador", item, "TK-C001-PRE", usuario_id=dueno, catalogo=catalogo
+        )
+
+    async def test_en_un_kit_propio_tampoco_se_escriben_las_lineas(self, motor):
+        catalogo = _catalogo()
+        trabajo_id, _ = await _crear_y_procesar(motor, catalogo)
+        await trabajos.revisar(motor, trabajo_id, decision="aprobar")
+        vista = await trabajos.ver(motor, trabajo_id)
+        item = uuid.UUID(_linea(vista, "Ahorrador", "2 cuadernos")["item_id"])
+
+        await trabajos.cambiar_producto_del_acudiente(
+            motor, trabajo_id, "Ahorrador", item, "TK-C001-PRE", usuario_id=None, catalogo=catalogo
+        )
+
+        vista = await trabajos.ver(motor, trabajo_id)
+        assert _linea(vista, "Ahorrador", "2 cuadernos")["producto_elegido"]["sku"] == "TK-C001-PRE"
+        # La linea del Ahorrador en la base sigue con el economico: el cambio
+        # vive en el trabajo, no en `linea_kit`.
+        from sqlalchemy import select
+
+        async with motor.engine.begin() as conexion:
+            sku_en_base = await conexion.scalar(
+                select(trabajos.LINEA.c.sku)
+                .select_from(trabajos.LINEA.join(trabajos.KIT, trabajos.KIT.c.id == trabajos.LINEA.c.kit_id))
+                .where(trabajos.LINEA.c.item_crudo_id == item, trabajos.KIT.c.perfil == "Ahorrador")
+            )
+        assert sku_en_base == "TK-C001-ECO"
+
+    async def test_sin_publicar_no_se_cambia(self, motor):
+        catalogo = _catalogo()
+        trabajo_id, _ = await _crear_y_procesar(motor, catalogo)  # queda en revision
+        vista = await trabajos.ver(motor, trabajo_id, incluir_kits=True)
+        item = uuid.UUID(_linea(vista, "Ahorrador", "2 cuadernos")["item_id"])
+        with pytest.raises(trabajos.CambioNoPermitido) as error:
+            await trabajos.cambiar_producto_del_acudiente(
+                motor, trabajo_id, "Ahorrador", item, "TK-C001-PRE", usuario_id=None, catalogo=catalogo
+            )
+        assert error.value.codigo == "kit_no_publicado"
+
+    async def test_el_pago_usa_el_producto_que_eligio_el_papa(self, motor):
+        dueno = uuid.uuid4()
+        _, parent_id = await self._ruta_rapida(motor, usuario_id=dueno)
+        catalogo = _catalogo()
+        vista = await trabajos.ver(motor, parent_id, catalogo=catalogo)
+        item = uuid.UUID(_linea(vista, "Premium", "2 cuadernos")["item_id"])
+        # Se cambia de kit (Premium) y en ese kit baja el cuaderno al economico.
+        await trabajos.cambiar_producto_del_acudiente(
+            motor, parent_id, "Premium", item, "TK-C001-ECO", usuario_id=dueno, catalogo=catalogo
+        )
+
+        class ComercioFalso:
+            orden = None
+
+            async def crear_orden(self, cuerpo):
+                self.orden = cuerpo
+                return 201, {"pedido_id": "ped-1", "total": 0}
+
+            async def iniciar_pago(self, pedido_id, cuerpo):
+                return 201, {"pago_id": "pago-1", "url_redireccion": "https://pasarela/xy"}
+
+        comercio = ComercioFalso()
+        await trabajos.ordenar(
+            motor,
+            parent_id,
+            perfil="Premium",
+            entrega={"destinatario": "Ana", "direccion": "Calle 1", "ciudad": "Bogota"},
+            correo="ana@example.com",
+            comercio=comercio,
+            catalogo=catalogo,
+        )
+        skus = {linea["sku"] for linea in comercio.orden["lineas"]}
+        assert "TK-C001-ECO" in skus and "TK-C001-PRE" not in skus

@@ -254,6 +254,41 @@ async def ver_trabajo(trabajo_id: uuid.UUID) -> dict[str, Any]:
         ) from error
 
 
+@app.put(
+    "/v1/trabajos/{trabajo_id}/kits/{perfil}/lineas/{item_id}/producto",
+    tags=["trabajos"],
+    summary="El acudiente cambia un producto de su kit por una de sus alternativas",
+)
+async def cambiar_producto_del_acudiente(
+    trabajo_id: uuid.UUID,
+    perfil: str,
+    item_id: uuid.UUID,
+    cuerpo: ProductoEnLinea,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    """Solo entre lo que la linea ya ofrece (el sugerido o sus alternativas).
+
+    La sesion es opcional porque la ruta rapida admite trabajos sin cuenta; si
+    el trabajo tiene dueno, `trabajos` exige que la sesion sea la suya. El
+    cambio se guarda en el trabajo del acudiente, nunca en el kit canonico.
+    """
+    usuario_id = await _usuario_de_sesion(authorization) if _token_bearer(authorization) else None
+    try:
+        return await trabajos.cambiar_producto_del_acudiente(
+            app.state.motor,
+            trabajo_id,
+            perfil,
+            item_id,
+            cuerpo.sku,
+            usuario_id=usuario_id,
+            catalogo=_catalogo(),
+        )
+    except trabajos.TrabajoNoExiste as error:
+        raise ErrorDominio("linea_no_existe", "Ese kit no tiene ese renglón.", estado=404) from error
+    except trabajos.CambioNoPermitido as error:
+        raise ErrorDominio(error.codigo, error.mensaje, estado=error.estado) from error
+
+
 @app.get(
     "/v1/mis-solicitudes",
     tags=["trabajos"],

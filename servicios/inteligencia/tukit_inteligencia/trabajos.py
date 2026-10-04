@@ -97,6 +97,20 @@ class TrabajoNoExiste(Exception):
     pass
 
 
+class CambioNoPermitido(Exception):
+    """El acudiente pidio un cambio de producto que no se puede hacer.
+
+    Lleva el codigo y el estado HTTP que la API devuelve tal cual, para que la
+    pantalla le diga al papa el motivo exacto.
+    """
+
+    def __init__(self, codigo: str, mensaje: str, estado: int = 409) -> None:
+        super().__init__(mensaje)
+        self.codigo = codigo
+        self.mensaje = mensaje
+        self.estado = estado
+
+
 class CheckoutRechazado(Exception):
     """Comercio rechazo la orden por una razon de negocio (p.ej. precio cambio).
 
@@ -1202,30 +1216,53 @@ async def ver(
         mostrar = incluir_kits if incluir_kits is not None else cabeza.estado == EstadoTrabajo.PUBLICADO.value
         kits: list[dict[str, Any]] = []
         recomendado: dict[str, Any] | None = None
+        # Lo que el acudiente cambio en sus kits: se aplica al leer, nunca se
+        # escribe en `linea_kit` (ver `TrabajoPipeline.cambios`).
+        cambios: dict[str, Any] = dict(cabeza.cambios or {})
 
         if mostrar and cabeza.origen == "parent_apply":
             # Un puntero al canonico: no tiene kits propios. Se sigue
-            # `hijos[0].canonico_trabajo_id` y se pinta el unico kit del perfil
-            # elegido, con el personaje aplicado sobre las anclas.
+            # `hijos[0].canonico_trabajo_id` y se pintan los TRES kits del
+            # canonico, con el personaje aplicado sobre las anclas: el que eligio
+            # al empezar va marcado, y si prefiere otro puede pagar ese.
             hijo = (list(cabeza.hijos or ()) or [{}])[0]
             canonico_id = hijo.get("canonico_trabajo_id")
             perfil = str(hijo.get("perfil") or "")
             if canonico_id and perfil:
                 # ponytail: 4 llamadas de catalogo dentro de la txn de lectura
-                # (SELECT puro, sin locks, un solo kit). Si molesta, resolver los
-                # swaps antes de abrir la txn con una pre-lectura de cabeza.
+                # (SELECT puro, sin locks). Si molesta, resolver los swaps antes
+                # de abrir la txn con una pre-lectura de cabeza.
                 swaps = await _anclas_de_personaje(catalogo, hijo.get("personaje")) if catalogo else {}
-                lineas, total = await _lineas_aplicadas(conexion, uuid.UUID(str(canonico_id)), perfil, swaps)
-                kits.append(
-                    {
-                        "perfil": perfil,
-                        "total": total,
-                        "objetivos": _objetivos_de_lineas(lineas, total),
-                        "lineas": lineas,
-                        "consolidaciones": [],
-                        "informativas": sum(1 for linea in lineas if linea["informativa"]),
-                    }
-                )
+                perfiles = (
+                    await conexion.execute(
+                        select(KIT.c.perfil)
+                        .where(KIT.c.trabajo_id == uuid.UUID(str(canonico_id)))
+                        .order_by(KIT.c.total_cop)
+                    )
+                ).scalars()
+                for perfil_kit in perfiles:
+                    lineas, total = await _lineas_aplicadas(
+                        conexion, uuid.UUID(str(canonico_id)), perfil_kit, swaps
+                    )
+                    if cambios.get(perfil_kit):
+                        lineas, total = _aplicar_cambios(lineas, cambios[perfil_kit])
+                    kits.append(
+                        {
+                            "perfil": perfil_kit,
+                            "total": total,
+                            "objetivos": _objetivos_de_lineas(lineas, total),
+                            "lineas": lineas,
+                            "consolidaciones": [],
+                            "informativas": sum(1 for linea in lineas if linea["informativa"]),
+                        }
+                    )
+                recomendado = {
+                    "perfil": perfil,
+                    "razon": (
+                        "Es el kit que elegiste al empezar. Puedes mirar los otros y cambiarte si prefieres."
+                    ),
+                    "dentro_de_presupuesto": None,
+                }
         elif mostrar:
             for kit in await conexion.execute(
                 select(KIT).where(KIT.c.trabajo_id == trabajo_id).order_by(KIT.c.total_cop)
@@ -1245,10 +1282,15 @@ async def ver(
                         .order_by(LINEA.c.hijo_referencia, LINEA.c.orden)
                     )
                 ]
+                total = int(kit.total_cop)
+                objetivos = dict(kit.objetivos or {})
+                if cambios.get(kit.perfil):
+                    lineas, total = _aplicar_cambios(lineas, cambios[kit.perfil])
+                    objetivos = _objetivos_de_lineas(lineas, total)
                 cuerpo = {
                     "perfil": kit.perfil,
-                    "total": int(kit.total_cop),
-                    "objetivos": dict(kit.objetivos or {}),
+                    "total": total,
+                    "objetivos": objetivos,
                     "lineas": lineas,
                     "consolidaciones": list(kit.consolidaciones or ()),
                     "informativas": sum(1 for linea in lineas if linea["informativa"]),
@@ -1293,6 +1335,7 @@ async def ver(
         "etapas": etapas,
         "kits": kits,
         "recomendado": recomendado,
+        "cambios": cambios,
         "degradaciones": list(cabeza.degradaciones or ()),
         "error": cabeza.error,
         "mensaje": cabeza.mensaje,
@@ -2049,6 +2092,147 @@ def _objetivos_de_lineas(lineas: list[dict[str, Any]], total: int) -> dict[str, 
         "fidelidad": round(suma_fidelidad / len(comprables), 3),
         "disponibilidad": round(con_precio / len(comprables), 3),
     }
+
+
+def _alternativa_de(producto: dict[str, Any]) -> dict[str, Any]:
+    """Un producto elegido, con la forma de una alternativa guardada en la linea."""
+    return {
+        "sku": producto.get("sku"),
+        "nombre": producto.get("nombre"),
+        "nivel": producto.get("nivel"),
+        "precio_cop": producto.get("precio"),
+        "imagen_url": producto.get("imagen_url"),
+    }
+
+
+def _aplicar_cambios(
+    lineas: list[dict[str, Any]], cambios_del_kit: dict[str, Any]
+) -> tuple[list[dict[str, Any]], int]:
+    """Las lineas de un kit con los productos que el acudiente eligio, y su total.
+
+    Cada cambio reemplaza el producto de su linea con la misma aritmetica del
+    armado (techo(pedida/empaque)) y deja el producto sugerido como una
+    alternativa mas, para que siempre se pueda volver a el. La linea queda
+    marcada (`cambiado_por_acudiente`, `sku_sugerido`) para que la pantalla lo
+    diga. El total se vuelve a sumar desde las lineas, que es como lo suma el
+    armado (`_recalcular_total_kit`).
+    """
+    salida: list[dict[str, Any]] = []
+    for linea in lineas:
+        cambio = cambios_del_kit.get(str(linea.get("item_id")))
+        sugerido = linea.get("producto_elegido")
+        if cambio and sugerido and not linea["informativa"]:
+            linea = dict(linea)
+            empaque = int(cambio.get("unidades_por_empaque") or 1)
+            precio = cambio.get("precio")
+            unidades = unidades_a_comprar(int(linea.get("cantidad_pedida") or 0), empaque)
+            linea["producto_elegido"] = {
+                "sku": cambio.get("sku"),
+                "nombre": cambio.get("nombre"),
+                "marca": cambio.get("marca"),
+                "nivel": cambio.get("nivel"),
+                "personaje": cambio.get("personaje"),
+                "imagen_url": cambio.get("imagen_url"),
+                "precio": precio,
+            }
+            linea["unidades_por_empaque"] = empaque
+            linea["unidades_a_comprar"] = unidades
+            linea["subtotal_linea"] = None if precio is None else precio * unidades
+            linea["alternativas"] = [_alternativa_de(sugerido)] + [
+                a for a in (linea.get("alternativas") or []) if a.get("sku") != cambio.get("sku")
+            ]
+            linea["cambiado_por_acudiente"] = True
+            linea["sku_sugerido"] = sugerido.get("sku")
+        salida.append(linea)
+    total = sum(int(linea.get("subtotal_linea") or 0) for linea in salida if not linea["informativa"])
+    return salida, total
+
+
+async def cambiar_producto_del_acudiente(
+    motor: Any,
+    trabajo_id: uuid.UUID,
+    perfil: str,
+    item_id: uuid.UUID,
+    sku: str,
+    *,
+    usuario_id: uuid.UUID | None,
+    catalogo: ClienteCatalogo,
+) -> dict[str, Any]:
+    """El acudiente cambia el producto de una linea por una de sus alternativas.
+
+    Solo se acepta un producto que ya estaba en la linea (el sugerido o una de
+    sus alternativas): el papa elige entre lo que una persona reviso, no
+    cualquier sku. El cambio se guarda en `cambios` de SU trabajo y `ver` lo
+    aplica al leer; volver al sugerido borra el cambio. Si el trabajo tiene
+    dueno, solo el puede cambiarlo.
+    """
+    async with motor.engine.begin() as conexion:
+        cabeza = (
+            await conexion.execute(
+                select(TRABAJO.c.estado, TRABAJO.c.usuario_id, TRABAJO.c.cambios).where(
+                    TRABAJO.c.id == trabajo_id
+                )
+            )
+        ).one_or_none()
+    if cabeza is None:
+        raise TrabajoNoExiste(str(trabajo_id))
+    if cabeza.usuario_id is not None and cabeza.usuario_id != usuario_id:
+        raise CambioNoPermitido(
+            "solicitud_ajena", "Inicia sesión con la cuenta que hizo esta solicitud para cambiarla.", 403
+        )
+    if cabeza.estado != EstadoTrabajo.PUBLICADO.value:
+        raise CambioNoPermitido("kit_no_publicado", "Tu kit todavía no está listo para cambios.")
+
+    vista = await ver(motor, trabajo_id, catalogo=catalogo)
+    kit = next((k for k in vista["kits"] if k["perfil"] == perfil), None)
+    linea = next((ln for ln in (kit or {}).get("lineas", []) if ln["item_id"] == str(item_id)), None)
+    if kit is None or linea is None:
+        raise TrabajoNoExiste(f"{trabajo_id}/{perfil}/{item_id}")
+    actual = linea.get("producto_elegido")
+    if linea["informativa"] or not actual:
+        raise CambioNoPermitido("linea_sin_producto", "Este renglón no tiene un producto para cambiar.")
+    # Un producto que se compra junto con el de un hermano no se cambia por
+    # separado: la consolidacion lo comparte entre los dos.
+    if any(c.get("sku") == actual.get("sku") for c in kit.get("consolidaciones") or []):
+        raise CambioNoPermitido(
+            "linea_consolidada",
+            "Este producto se compra junto con el de tu otro hijo y no se cambia por separado.",
+        )
+    permitidos = {actual.get("sku")} | {a.get("sku") for a in linea.get("alternativas") or []}
+    if sku not in permitidos:
+        raise CambioNoPermitido(
+            "producto_no_permitido", "Ese producto no es una opción para este renglón.", 422
+        )
+    if sku == actual.get("sku"):
+        return {"trabajo_id": str(trabajo_id), "perfil": perfil, "item_id": str(item_id), "sku": sku}
+
+    cambios = {p: dict(c) for p, c in dict(cabeza.cambios or {}).items()}
+    del_kit = cambios.setdefault(perfil, {})
+    sugerido = linea.get("sku_sugerido") or actual.get("sku")
+    if sku == sugerido:
+        del_kit.pop(str(item_id), None)
+    else:
+        producto = await catalogo.producto(sku)
+        precio = producto.get("precio_desde")
+        if precio is None:
+            raise CambioNoPermitido("producto_sin_precio", "Ese producto no tiene precio hoy; elige otro.")
+        del_kit[str(item_id)] = {
+            "sku": sku,
+            "nombre": producto.get("nombre"),
+            "marca": producto.get("marca"),
+            "nivel": producto.get("nivel"),
+            "personaje": producto.get("personaje"),
+            "imagen_url": producto.get("imagen_url"),
+            "unidades_por_empaque": int(producto.get("unidades_por_empaque") or 1),
+            "precio": int(precio),
+        }
+    cambios = {p: c for p, c in cambios.items() if c}
+
+    async with motor.engine.begin() as conexion:
+        await conexion.execute(
+            update(TRABAJO).where(TRABAJO.c.id == trabajo_id).values(cambios=cambios, actualizado_en=ahora())
+        )
+    return {"trabajo_id": str(trabajo_id), "perfil": perfil, "item_id": str(item_id), "sku": sku}
 
 
 async def _lineas_aplicadas(
