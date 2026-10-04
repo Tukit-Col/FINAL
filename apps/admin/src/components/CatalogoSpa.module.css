@@ -615,3 +615,84 @@
   color: var(--color-text-primary);
   border-bottom-color: var(--color-primary);
 }
+
+/* ------------------------------------------- alta de concepto: atributos */
+
+/* La versión embebida en el editor de un renglón del revisor de listas. */
+.conceptoCompacto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  padding: var(--espacio-3);
+  border: 1px solid var(--color-primary-light);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+}
+
+/* Las fichas de atributo y la entrada comparten la caja, como un campo. */
+.atributos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+  padding: 3px var(--espacio-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+}
+
+.atributos:focus-within {
+  border-color: var(--color-primary);
+}
+
+.atributoChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px 1px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info-border);
+  color: var(--color-info);
+  font-family: var(--font-cifras, monospace);
+  font-size: 12px;
+}
+
+.atributoQuitar {
+  padding: 0 4px;
+  font-size: 13px;
+  line-height: 1;
+  color: inherit;
+  cursor: pointer;
+}
+
+.atributoQuitar:hover {
+  color: var(--color-danger);
+}
+
+.campo .atributos .atributoEntrada {
+  flex: 1;
+  min-width: 110px;
+  padding: 3px 0;
+  border: none;
+  background: transparent;
+  outline: none;
+}
+
+.ayudaCampo {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  line-height: 1.35;
+}
+
+.campo label.casilla {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}

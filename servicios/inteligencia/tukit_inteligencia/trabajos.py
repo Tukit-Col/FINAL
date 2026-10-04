@@ -133,6 +133,22 @@ class PreviewNoPublicable(Exception):
     LISTA (Catalogo), que si crea el colegio y arma el trabajo del padre."""
 
 
+class NoCanonizable(Exception):
+    """Solo un trabajo SIN acudiente (un preview o el canonico de una lista) se
+    fija a mano como kit canonico: el de un padre lleva sus preferencias y su
+    tope, y no puede servirle a otro."""
+
+
+# El trabajo que arma los kits canonicos de una lista recien aprobada. No tiene
+# acudiente ni preferencias: son los tres kits de siempre (Ahorrador, Fan,
+# Premium) que la ruta rapida le aplica a cualquier padre que no pida tope.
+ORIGEN_CANONICO = "canonico_lista"
+
+# Los origenes que no tienen a quien avisar: publicarlos no emite
+# `kits_publicados`, solo fija la cache canonica del grado.
+ORIGENES_SIN_ACUDIENTE = frozenset({"preview_onboarding", ORIGEN_CANONICO})
+
+
 # ---------------------------------------------------------------------------
 # Creacion
 # ---------------------------------------------------------------------------
@@ -556,6 +572,9 @@ async def _finalizar(motor: Any, trabajo_id: uuid.UUID, *, publicar_directo: boo
     valvula de desarrollo (`autopublicar`) hace lo mismo para todos los origenes.
     """
     async with motor.engine.begin() as conexion:
+        origen = await conexion.scalar(select(TRABAJO.c.origen).where(TRABAJO.c.id == trabajo_id))
+        if origen == ORIGEN_CANONICO:
+            return await _cerrar_canonico_de_lista(conexion, trabajo_id)
         if publicar_directo or autopublicar():
             await _pasar_a(conexion, trabajo_id, EstadoTrabajo.PUBLICADO.value, terminado_en=ahora())
             await _publicar_evento(conexion, trabajo_id)
@@ -1788,11 +1807,11 @@ async def revisar(
         # el trabajo del padre, es la vista de los kits que saldrian de la lista.
         # Publicarlo no avisa a nadie (el `kits_publicados` que emite se queda
         # sin destinatario y el repartidor lo reintenta sin fin) y no crea el
-        # colegio (eso lo hace aprobar la LISTA en Catalogo). Quien quiera
-        # publicar, aprueba la lista; el preview solo se mira.
+        # colegio (eso lo hace aprobar la LISTA en Catalogo). Lo que se hace con
+        # un preview es fijarlo como canonico (`fijar_como_canonico`).
         if decision == "aprobar":
             origen = await conexion.scalar(select(TRABAJO.c.origen).where(TRABAJO.c.id == trabajo_id))
-            if origen == "preview_onboarding":
+            if origen in ORIGENES_SIN_ACUDIENTE:
                 raise PreviewNoPublicable()
         await conexion.execute(
             update(TRABAJO)
@@ -1858,6 +1877,111 @@ async def _fijar_canonico(conexion: Any, trabajo_id: uuid.UUID) -> None:
             trabajo_id=trabajo_id,
         )
     )
+
+
+def _identidad_de_grado(hijos: Any) -> tuple[str, str, int, str | None] | None:
+    """(colegio, grado, anio, version_id) de un trabajo de UN solo hijo, o None."""
+    lista = list(hijos or ())
+    if len(lista) != 1:
+        return None
+    hijo = lista[0]
+    colegio_id = str(hijo.get("colegio_id") or "")
+    grado = str(hijo.get("grado") or "")
+    if not (colegio_id and grado):
+        return None
+    anio = int(hijo.get("anio_lectivo") or ANIO_LECTIVO_POR_OMISION)
+    version = hijo.get("version_id")
+    return colegio_id, grado, anio, str(version) if version else None
+
+
+async def version_canonica(conexion: Any, colegio_id: str, grado: str, anio: int) -> str | None:
+    """La version de lista con que se armo el canonico vigente del grado.
+
+    Sale del hijo del trabajo al que apunta la cache. None si no hay canonico o
+    si el trabajo es anterior a que los hijos cargaran su `version_id`.
+    """
+    fila = (
+        await conexion.execute(
+            select(TRABAJO.c.hijos)
+            .select_from(KIT_CANONICO.join(TRABAJO, TRABAJO.c.id == KIT_CANONICO.c.trabajo_id))
+            .where(
+                KIT_CANONICO.c.colegio_id == colegio_id,
+                KIT_CANONICO.c.grado == grado,
+                KIT_CANONICO.c.anio_lectivo == anio,
+            )
+        )
+    ).one_or_none()
+    if fila is None:
+        return None
+    identidad = _identidad_de_grado(fila.hijos)
+    return identidad[3] if identidad else None
+
+
+async def _cerrar_canonico_de_lista(conexion: Any, trabajo_id: uuid.UUID) -> str:
+    """El cierre de un `canonico_lista`: publica sin avisar y fija la cache.
+
+    No hay acudiente, asi que no se emite `kits_publicados` y no pasa por la
+    cola de revision: la persona ya reviso la LISTA, que es lo que la aprobacion
+    certifica, igual que en el kit del padre que esperaba (`lista_verificada`).
+
+    Si mientras el optimizador corria alguien fijo a mano un canonico de ESTA
+    misma version —aprobar desde el preview, con sus ajustes— ese gana: este
+    trabajo sobra y se borra en vez de pisarle el puntero.
+    """
+    fila = (
+        await conexion.execute(select(TRABAJO.c.hijos).where(TRABAJO.c.id == trabajo_id))
+    ).one_or_none()
+    identidad = _identidad_de_grado(fila.hijos if fila else None)
+    if identidad and identidad[3]:
+        colegio_id, grado, anio, version = identidad
+        if await version_canonica(conexion, colegio_id, grado, anio) == version:
+            await conexion.execute(delete(TRABAJO).where(TRABAJO.c.id == trabajo_id))
+            return "descartado"
+    await _pasar_a(conexion, trabajo_id, EstadoTrabajo.PUBLICADO.value, terminado_en=ahora())
+    await _fijar_canonico(conexion, trabajo_id)
+    return EstadoTrabajo.PUBLICADO.value
+
+
+async def fijar_como_canonico(
+    motor: Any,
+    trabajo_id: uuid.UUID,
+    *,
+    nota: str | None = None,
+    actor: uuid.UUID | None = None,
+) -> dict[str, Any]:
+    """Publica un trabajo SIN acudiente y lo deja como kit canonico de su grado.
+
+    Es lo que hace "Aprobar la lista y guardar estos kits" desde un preview: el
+    admin ya miro (y quiza ajusto) los tres kits, asi que esos —y no un calculo
+    nuevo— son los que la ruta rapida le sirve al proximo acudiente. No emite
+    `kits_publicados`: no hay a quien avisar.
+    """
+    async with motor.engine.begin() as conexion:
+        fila = (
+            await conexion.execute(
+                select(TRABAJO.c.estado, TRABAJO.c.origen).where(TRABAJO.c.id == trabajo_id)
+            )
+        ).one_or_none()
+        if fila is None:
+            raise TrabajoNoExiste(str(trabajo_id))
+        if fila.origen not in ORIGENES_SIN_ACUDIENTE:
+            raise NoCanonizable()
+        nuevo = EstadoTrabajo.PUBLICADO.value
+        if not puede_pasar(fila.estado, nuevo):
+            raise TransicionIlegal(fila.estado, nuevo)
+        await conexion.execute(
+            update(TRABAJO)
+            .where(TRABAJO.c.id == trabajo_id)
+            .values(
+                estado=nuevo,
+                revisado_por=actor,
+                revisado_en=ahora(),
+                nota_revision=nota,
+                terminado_en=ahora(),
+            )
+        )
+        await _fijar_canonico(conexion, trabajo_id)
+    return {"trabajo_id": str(trabajo_id), "estado": nuevo, "nota": nota}
 
 
 async def grados_canonicos(motor: Any, *, colegio_id: str | None = None) -> list[dict[str, Any]]:

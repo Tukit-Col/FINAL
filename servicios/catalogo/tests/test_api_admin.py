@@ -450,9 +450,9 @@ class TestCerrarLaRevision:
         assert evento.carga["anio_lectivo"] == 2026
         assert evento.carga["preferencias"] == preferencias
 
-    async def test_cerrar_un_onboarding_sin_padre_no_emite_nada(self, cliente):
+    async def test_cerrar_un_onboarding_sin_padre_no_arma_kit_de_padre(self, cliente):
         # El onboarding del colegio no deja padre esperando: aprobarlo no dispara
-        # ningun kit ni evento —la lista queda verificada y disponible, nada mas—.
+        # el kit de ningun acudiente (`lista_verificada`).
         vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
             "version_id"
         ]
@@ -460,6 +460,51 @@ class TestCerrarLaRevision:
         respuesta = await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
         assert respuesta.status_code == 200
         assert await self._bandeja("lista_verificada") == []
+
+    async def test_cerrar_cualquier_version_emite_lista_aprobada(self, cliente):
+        # Con o sin padre esperando, aprobar la lista le pide a Inteligencia que
+        # arme sus kits canonicos: el proximo acudiente sin tope de gasto los
+        # recibe sin volver a correr el optimizador.
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
+            "version_id"
+        ]
+
+        assert (await cliente.post(f"/v1/admin/listas/{vid}/cerrar")).status_code == 200
+
+        eventos = await self._bandeja("lista_aprobada")
+        assert len(eventos) == 1
+        evento = eventos[0]
+        assert str(evento.agregado_id) == vid
+        assert evento.carga == {"colegio_id": str(COLEGIO), "grado": "Sexto", "anio_lectivo": 2026}
+        # Cerrar dos veces no arma dos veces: la segunda es un no-op.
+        await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
+        assert len(await self._bandeja("lista_aprobada")) == 1
+
+    async def test_las_listas_aprobadas_antes_reciben_su_evento_una_sola_vez(self, cliente):
+        # Una lista aprobada antes de que existiera `lista_aprobada` no tiene
+        # kits canonicos: `canonicos.emitir` le deja el evento que le falto, y
+        # correrlo otra vez no lo repite.
+        from sqlalchemy import delete
+        from tukit_catalogo import canonicos
+
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
+            "version_id"
+        ]
+        assert (await cliente.post(f"/v1/admin/listas/{vid}/cerrar")).status_code == 200
+        motor = app.state.motor
+        async with motor.sesion() as db:
+            conexion = await db.connection()
+            # Como si se hubiera aprobado antes del cambio: sin evento.
+            await conexion.execute(delete(BANDEJA).where(BANDEJA.c.tipo == "lista_aprobada"))
+            # La semilla trae otras listas aprobadas: tambien reciben el suyo.
+            emitidos = await canonicos.emitir(conexion)
+            assert emitidos >= 1
+            assert await canonicos.emitir(conexion) == 0
+            await db.commit()
+
+        eventos = {str(e.agregado_id): e for e in await self._bandeja("lista_aprobada")}
+        assert len(eventos) == emitidos
+        assert eventos[vid].carga["grado"] == "Sexto"
 
     async def test_cerrar_una_version_de_colegio_nuevo_emite_colegio_verificado(self, cliente):
         # Un acudiente subio la lista de un colegio que aun no existe en Tukit
@@ -1253,6 +1298,40 @@ class TestCrearConcepto:
             ).one()
         assert list(fila.sinonimos) == ["raz plus", "plan lector virtual"]
         assert fila.tipo_item == "licencia_digital"
+
+    async def test_guarda_los_atributos_que_filtran_y_los_que_informan(self, cliente):
+        # El alta trae los dos papeles del atributo: el discriminante descarta
+        # productos (un cuaderno cuadriculado no pasa por uno rayado) y el
+        # descriptivo solo cuenta que se compra. Se normalizan a la forma del
+        # corpus y un nombre repetido entre listas se queda solo como filtro,
+        # porque la base prohibe que este en las dos.
+        respuesta = await cliente.post(
+            "/v1/admin/catalogo/conceptos",
+            json={
+                "nombre_canonico": "Bata de laboratorio",
+                "categoria": "Uniformes",
+                "atributos_discriminantes": ["Color", "manga larga"],
+                "atributos_descriptivos": "talla | color",
+            },
+        )
+        assert respuesta.status_code == 201
+        cuerpo = respuesta.json()
+        assert cuerpo["atributos_discriminantes"] == ["color", "manga_larga"]
+        assert cuerpo["atributos_descriptivos"] == ["talla"]
+
+        from sqlalchemy import select
+        from tukit_catalogo.admin_http import CONCEPTO, _motor
+
+        async with _motor().engine.begin() as conexion:
+            fila = (
+                await conexion.execute(
+                    select(CONCEPTO.c.atributos_discriminantes, CONCEPTO.c.atributos_descriptivos).where(
+                        CONCEPTO.c.codigo == cuerpo["codigo"]
+                    )
+                )
+            ).one()
+        assert list(fila.atributos_discriminantes) == ["color", "manga_larga"]
+        assert list(fila.atributos_descriptivos) == ["talla"]
 
     async def test_nombre_repetido_es_409(self, cliente):
         # "cuaderno" ya existe (C001): duplicarlo partiria el vocabulario, asi que

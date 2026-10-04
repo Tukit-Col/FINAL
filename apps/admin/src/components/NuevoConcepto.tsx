@@ -3,14 +3,26 @@
 // concepto (el código C0NN lo autogenera el backend) y después se le encolan sus
 // tres niveles con "Agregar útil"/"Agregar libro". Así crece la BD al revisar.
 //
+// Vive en dos lugares: la pestaña «Nuevo concepto» del catálogo y, en modo
+// `compacto`, dentro del editor de un renglón del revisor de listas —ahí nace
+// con el texto del renglón como nombre y, al crearlo, queda elegido—.
+//
+// Además de nombre, categoría y sinónimos, el concepto declara sus atributos en
+// sus dos papeles (ver `demanda_atributos` en el catálogo):
+//   - los que FILTRAN: un producto que no cumple se descarta (un cuaderno
+//     cuadriculado no pasa por uno rayado);
+//   - los que INFORMAN: se muestran al acudiente pero no descartan nada (la
+//     talla de una bata, que ninguna lista pide).
+// Un mismo atributo no puede estar en las dos listas: pasarlo a una lo saca de
+// la otra.
+//
 // Nombre y categoría obligatorios (validado aquí, en el Route Handler y en el
 // origen, §1.4); un nombre duplicado lo rechaza el backend (409) y el mensaje
-// que se muestra es el suyo. Al crearlo se avisa al padre para que lo agregue a
-// los selectores de concepto sin refrescar la página.
+// que se muestra es el suyo.
 
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { ConceptoCreado, CrearConcepto, TipoItem } from "@tukit/contrato";
 import { crearConcepto, FalloCatalogo } from "@/lib/api-catalogo";
 import styles from "./CatalogoSpa.module.css";
@@ -30,20 +42,55 @@ const TIPOS: TipoItem[] = [
 
 interface Props {
   onCreado: (concepto: ConceptoCreado) => void;
+  /** Nombre con que arranca el formulario (el texto del renglón, en el revisor). */
+  nombreInicial?: string;
+  /** Nombres de atributo que ya usan otros conceptos, para sugerirlos. */
+  atributosConocidos?: string[];
+  /** Categorías existentes, para sugerirlas y no partir el vocabulario. */
+  categoriasConocidas?: string[];
+  /** Versión embebida: sin la nota larga y con botón de cancelar. */
+  compacto?: boolean;
+  onCancelar?: () => void;
 }
 
-export default function NuevoConcepto({ onCreado }: Props) {
-  const [nombre, setNombre] = useState("");
+/** La forma del corpus: minúsculas y `_` por espacio. */
+function normalizarAtributo(texto: string): string {
+  return texto.trim().toLowerCase().replace(/\s+/g, "_");
+}
+
+export default function NuevoConcepto({
+  onCreado,
+  nombreInicial = "",
+  atributosConocidos = [],
+  categoriasConocidas = [],
+  compacto = false,
+  onCancelar,
+}: Props) {
+  const id = useId();
+  const [nombre, setNombre] = useState(nombreInicial);
   const [categoria, setCategoria] = useState("");
   const [sinonimos, setSinonimos] = useState("");
   const [tipo, setTipo] = useState<TipoItem>("util");
   const [admitePersonaje, setAdmitePersonaje] = useState(false);
+  const [filtran, setFiltran] = useState<string[]>([]);
+  const [informan, setInforman] = useState<string[]>([]);
 
   const [creando, setCreando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
 
   const puedeCrear = nombre.trim().length > 0 && categoria.trim().length > 0;
+
+  // Un atributo vive en una sola lista: agregarlo a una lo saca de la otra.
+  function agregarA(lista: "filtran" | "informan", atributo: string) {
+    if (lista === "filtran") {
+      setFiltran((a) => (a.includes(atributo) ? a : [...a, atributo]));
+      setInforman((a) => a.filter((x) => x !== atributo));
+    } else {
+      setInforman((a) => (a.includes(atributo) ? a : [...a, atributo]));
+      setFiltran((a) => a.filter((x) => x !== atributo));
+    }
+  }
 
   async function crear() {
     setError(null);
@@ -60,14 +107,20 @@ export default function NuevoConcepto({ onCreado }: Props) {
         sinonimos: sinonimos.trim() || undefined,
         tipo_item: tipo,
         admite_personaje: admitePersonaje,
+        atributos_discriminantes: filtran,
+        atributos_descriptivos: informan,
       };
       const creado = await crearConcepto(cuerpo);
       setExito(
-        `Creado ${creado.codigo} · ${creado.nombre_canonico}. Ya podés encolarle útiles o libros.`,
+        compacto
+          ? `Creado ${creado.codigo} · ${creado.nombre_canonico}.`
+          : `Creado ${creado.codigo} · ${creado.nombre_canonico}. Ya puedes encolarle útiles o libros.`,
       );
       setNombre("");
       setCategoria("");
       setSinonimos("");
+      setFiltran([]);
+      setInforman([]);
       onCreado(creado);
     } catch (causa) {
       setError(causa instanceof FalloCatalogo ? causa.message : "No pudimos crear el concepto.");
@@ -76,21 +129,30 @@ export default function NuevoConcepto({ onCreado }: Props) {
     }
   }
 
+  const listaCategorias = `${id}-categorias`;
+  const listaAtributos = `${id}-atributos`;
+
   return (
-    <section className={styles.spa}>
+    <section className={compacto ? styles.conceptoCompacto : styles.spa}>
       {error && <p className={styles.error}>{error}</p>}
       {exito && <p className={styles.exito}>{exito}</p>}
 
-      <p className={styles.nota}>
-        Creá el concepto acá y luego encolá sus niveles (económico/confiable/premium) en «Agregar
-        útil» o «Agregar libro». El código lo asigna el sistema.
-      </p>
+      {compacto ? (
+        <p className={styles.nota}>
+          <strong>Nuevo concepto.</strong> Al crearlo queda elegido para este renglón.
+        </p>
+      ) : (
+        <p className={styles.nota}>
+          Crea el concepto aquí y luego encola sus niveles (económico/confiable/premium) en
+          «Agregar útil» o «Agregar libro». El código lo asigna el sistema.
+        </p>
+      )}
 
       <div className={styles.rejilla}>
         <div className={`${styles.campo} ${styles.campoAncho}`}>
-          <label htmlFor="nc-nombre">Nombre canónico</label>
+          <label htmlFor={`${id}-nombre`}>Nombre canónico</label>
           <input
-            id="nc-nombre"
+            id={`${id}-nombre`}
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
             placeholder="p. ej. Cartuchera de tela"
@@ -98,28 +160,28 @@ export default function NuevoConcepto({ onCreado }: Props) {
         </div>
 
         <div className={styles.campo}>
-          <label htmlFor="nc-categoria">Categoría</label>
+          <label htmlFor={`${id}-categoria`}>Categoría</label>
           <input
-            id="nc-categoria"
+            id={`${id}-categoria`}
             value={categoria}
             onChange={(e) => setCategoria(e.target.value)}
-            placeholder="p. ej. papeleria"
+            placeholder="p. ej. Cartucheras / Morrales"
+            list={listaCategorias}
           />
-        </div>
-
-        <div className={`${styles.campo} ${styles.campoAncho}`}>
-          <label htmlFor="nc-sinonimos">Sinónimos (separados por |)</label>
-          <input
-            id="nc-sinonimos"
-            value={sinonimos}
-            onChange={(e) => setSinonimos(e.target.value)}
-            placeholder="estuche | lapicera"
-          />
+          <datalist id={listaCategorias}>
+            {categoriasConocidas.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
         </div>
 
         <div className={styles.campo}>
-          <label htmlFor="nc-tipo">Tipo</label>
-          <select id="nc-tipo" value={tipo} onChange={(e) => setTipo(e.target.value as TipoItem)}>
+          <label htmlFor={`${id}-tipo`}>Tipo</label>
+          <select
+            id={`${id}-tipo`}
+            value={tipo}
+            onChange={(e) => setTipo(e.target.value as TipoItem)}
+          >
             {TIPOS.map((t) => (
               <option key={t} value={t}>
                 {t}
@@ -128,15 +190,49 @@ export default function NuevoConcepto({ onCreado }: Props) {
           </select>
         </div>
 
-        <div className={styles.campo}>
-          <label htmlFor="nc-personaje">
+        <div className={`${styles.campo} ${styles.campoAncho}`}>
+          <label htmlFor={`${id}-sinonimos`}>Sinónimos (separados por |)</label>
+          <input
+            id={`${id}-sinonimos`}
+            value={sinonimos}
+            onChange={(e) => setSinonimos(e.target.value)}
+            placeholder="estuche | lapicera"
+          />
+        </div>
+
+        <EditorAtributos
+          titulo="Atributos que filtran"
+          ayuda="Si el renglón lo pide y el producto no lo cumple, se descarta. Ej.: rayado, hojas, tamaño."
+          valores={filtran}
+          listaSugerencias={listaAtributos}
+          onAgregar={(a) => agregarA("filtran", a)}
+          onQuitar={(a) => setFiltran((v) => v.filter((x) => x !== a))}
+        />
+        <EditorAtributos
+          titulo="Atributos informativos"
+          ayuda="Se muestran al acudiente pero no descartan productos. Ej.: color, marca, talla."
+          valores={informan}
+          listaSugerencias={listaAtributos}
+          onAgregar={(a) => agregarA("informan", a)}
+          onQuitar={(a) => setInforman((v) => v.filter((x) => x !== a))}
+        />
+        <datalist id={listaAtributos}>
+          {atributosConocidos
+            .filter((a) => !filtran.includes(a) && !informan.includes(a))
+            .map((a) => (
+              <option key={a} value={a} />
+            ))}
+        </datalist>
+
+        <div className={`${styles.campo} ${styles.campoAncho}`}>
+          <label htmlFor={`${id}-personaje`} className={styles.casilla}>
             <input
-              id="nc-personaje"
+              id={`${id}-personaje`}
               type="checkbox"
               checked={admitePersonaje}
               onChange={(e) => setAdmitePersonaje(e.target.checked)}
-            />{" "}
-            Admite personaje
+            />
+            Admite personaje (el kit Fan puede elegir una versión con personaje)
           </label>
         </div>
       </div>
@@ -150,7 +246,81 @@ export default function NuevoConcepto({ onCreado }: Props) {
         >
           {creando ? "Creando…" : "Crear concepto"}
         </button>
+        {onCancelar ? (
+          <button type="button" className={styles.secundario} onClick={onCancelar}>
+            Cancelar
+          </button>
+        ) : null}
       </div>
     </section>
+  );
+}
+
+// ------------------------------------------------------- editor de atributos
+
+function EditorAtributos({
+  titulo,
+  ayuda,
+  valores,
+  listaSugerencias,
+  onAgregar,
+  onQuitar,
+}: {
+  titulo: string;
+  ayuda: string;
+  valores: string[];
+  listaSugerencias: string;
+  onAgregar: (atributo: string) => void;
+  onQuitar: (atributo: string) => void;
+}) {
+  const id = useId();
+  const [borrador, setBorrador] = useState("");
+
+  // Agrega lo escrito (puede venir más de uno separado por coma o |).
+  function confirmar() {
+    for (const parte of borrador.split(/[,|]/)) {
+      const atributo = normalizarAtributo(parte);
+      if (atributo) onAgregar(atributo);
+    }
+    setBorrador("");
+  }
+
+  return (
+    <div className={styles.campo}>
+      <label htmlFor={id}>{titulo}</label>
+      <div className={styles.atributos}>
+        {valores.map((a) => (
+          <span key={a} className={styles.atributoChip}>
+            {a}
+            <button
+              type="button"
+              aria-label={`Quitar ${a}`}
+              className={styles.atributoQuitar}
+              onClick={() => onQuitar(a)}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        <input
+          id={id}
+          className={styles.atributoEntrada}
+          value={borrador}
+          list={listaSugerencias}
+          placeholder={valores.length ? "otro…" : "escribe y pulsa Enter"}
+          onChange={(e) => setBorrador(e.target.value)}
+          onBlur={confirmar}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === ",") {
+              e.preventDefault();
+              confirmar();
+            } else if (e.key === "Backspace" && !borrador && valores.length) {
+              onQuitar(valores[valores.length - 1]!);
+            }
+          }}
+        />
+      </div>
+      <span className={styles.ayudaCampo}>{ayuda}</span>
+    </div>
   );
 }

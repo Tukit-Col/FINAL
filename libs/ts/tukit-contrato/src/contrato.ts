@@ -530,6 +530,18 @@ export interface TrabajoAdmin extends Trabajo {
   contacto_id: string;
   lineas_pendientes: string[];
   nota_revision?: string | null;
+  /** `preview_onboarding`/`canonico_lista` no tienen acudiente a quien avisar. */
+  origen?: string;
+  /** Los hijos tal como se pidieron; un preview trae su `version_id`. */
+  hijos?: HijoDeTrabajo[];
+}
+
+export interface HijoDeTrabajo {
+  referencia?: string;
+  colegio_id?: string;
+  grado?: string;
+  anio_lectivo?: number;
+  version_id?: string;
 }
 
 // AD-02: validar es fijar el producto de la linea. Sin `sku` se lee

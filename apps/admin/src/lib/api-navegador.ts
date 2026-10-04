@@ -101,6 +101,12 @@ export function decidirRevision(trabajoId: string, cuerpo: DecisionRevision): Pr
   return enviar(`/api/trabajos/${id(trabajoId)}/revision`, cuerpo);
 }
 
+/** Aprueba la lista de un preview y deja sus tres kits como los canónicos del
+ *  grado. No avisa a nadie: un preview no tiene acudiente. */
+export function guardarComoCanonico(trabajoId: string, cuerpo: { nota?: string }): Promise<void> {
+  return enviar(`/api/trabajos/${id(trabajoId)}/canonico`, cuerpo);
+}
+
 /** Borra un trabajo desechable (preview, encolado, fallido). Un `publicado`
  *  esta protegido: el backend responde 409 `trabajo_publicado_protegido`. */
 export function eliminarTrabajo(trabajoId: string): Promise<void> {

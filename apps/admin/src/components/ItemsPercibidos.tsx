@@ -9,10 +9,16 @@
 // /cola sobre el producto de catálogo). Editar un renglón manda un PATCH con solo
 // lo que cambió; dar de alta uno manda un POST. Tras cada escritura se hace
 // `router.refresh()` para que el Server Component vuelva a leer `revisionLista`.
+//
+// Si ningún concepto le sirve al renglón, se crea ahí mismo (con sus atributos
+// que filtran e informan) en vez de ir al catálogo y volver: nace con el texto
+// del renglón como nombre, entra a la lista de conceptos de toda la pantalla y
+// queda elegido en el editor, listo para «Guardar cambios».
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type {
+  ConceptoCreado,
   ItemListaEditable,
   ItemRevision,
   ModoAdquisicion,
@@ -20,6 +26,8 @@ import type {
 } from "@tukit/contrato";
 import { agregarItemLista, editarItemLista, quitarItemLista, FalloListas } from "@/lib/api-listas";
 import type { OpcionConcepto } from "./PanelReclasificar";
+import NuevoConcepto from "./NuevoConcepto";
+import type { VocabularioConceptos } from "@/lib/vocabulario-conceptos";
 import styles from "@/app/onboarding/Onboarding.module.css";
 
 // Los modos de adquisición directa del colegio que el §1.1.1 lista y que el
@@ -40,6 +48,7 @@ interface Props {
   items: ItemRevision[];
   propuestas: PropuestaRevision[];
   conceptos: OpcionConcepto[];
+  vocabulario: VocabularioConceptos;
 }
 
 // Los candidatos de un renglón. La llave fiable es `item_id` (1:1 con el
@@ -52,7 +61,26 @@ function candidatosDe(item: ItemRevision, propuestas: PropuestaRevision[]): Prop
   );
 }
 
-export default function ItemsPercibidos({ versionId, revisada, items, propuestas, conceptos }: Props) {
+export default function ItemsPercibidos({
+  versionId,
+  revisada,
+  items,
+  propuestas,
+  conceptos: conceptosIniciales,
+  vocabulario,
+}: Props) {
+  // En estado para que un concepto creado desde un renglón aparezca enseguida
+  // en el selector de todos los demás, sin refrescar.
+  const [conceptos, setConceptos] = useState(conceptosIniciales);
+
+  function alCrearConcepto(creado: ConceptoCreado) {
+    setConceptos((previos) =>
+      [...previos, { codigo: creado.codigo, nombre: creado.nombre_canonico }].sort((a, b) =>
+        a.nombre.localeCompare(b.nombre),
+      ),
+    );
+  }
+
   if (items.length === 0) {
     return <p className={styles.pendienteContrato}>El modelo no itemizó ninguna línea.</p>;
   }
@@ -67,6 +95,8 @@ export default function ItemsPercibidos({ versionId, revisada, items, propuestas
           item={item}
           candidatos={candidatosDe(item, propuestas)}
           conceptos={conceptos}
+          vocabulario={vocabulario}
+          onConceptoCreado={alCrearConcepto}
         />
       ))}
       <AltaRenglon versionId={versionId} revisada={revisada} />
@@ -82,15 +112,20 @@ function RenglonEditable({
   item,
   candidatos,
   conceptos,
+  vocabulario,
+  onConceptoCreado,
 }: {
   versionId: string;
   revisada: boolean;
   item: ItemRevision;
   candidatos: PropuestaRevision[];
   conceptos: OpcionConcepto[];
+  vocabulario: VocabularioConceptos;
+  onConceptoCreado: (creado: ConceptoCreado) => void;
 }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
+  const [creandoConcepto, setCreandoConcepto] = useState(false);
   const [dividiendo, setDividiendo] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -184,6 +219,18 @@ function RenglonEditable({
               ? `Concepto: ${item.concepto_nombre} (${item.concepto_codigo})`
               : "Sin concepto — va a revisión"}
           </span>
+          {!item.concepto_codigo && !revisada && !creandoConcepto ? (
+            <button
+              type="button"
+              className={styles.botonMini}
+              onClick={() => {
+                setAbierto(true);
+                setCreandoConcepto(true);
+              }}
+            >
+              + Crear concepto para este renglón
+            </button>
+          ) : null}
 
           {candidatos.length > 0 ? (
             <div className={styles.candidatos}>
@@ -202,7 +249,10 @@ function RenglonEditable({
         <button
           type="button"
           className={styles.botonMini}
-          onClick={() => setAbierto((v) => !v)}
+          onClick={() => {
+            setAbierto((v) => !v);
+            setCreandoConcepto(false);
+          }}
           disabled={revisada}
         >
           {abierto ? "Cerrar" : "Editar"}
@@ -243,19 +293,46 @@ function RenglonEditable({
           </label>
           <label className={styles.campo}>
             <span>Concepto (vacío = sin concepto)</span>
-            <select
-              value={concepto}
-              onChange={(e) => setConcepto(e.target.value)}
-              disabled={guardando}
-            >
-              <option value="">— sin concepto —</option>
-              {conceptos.map((c) => (
-                <option key={c.codigo} value={c.codigo}>
-                  {c.nombre} ({c.codigo})
-                </option>
-              ))}
-            </select>
+            <span className={styles.conceptoFila}>
+              <select
+                value={concepto}
+                onChange={(e) => setConcepto(e.target.value)}
+                disabled={guardando}
+              >
+                <option value="">— sin concepto —</option>
+                {conceptos.map((c) => (
+                  <option key={c.codigo} value={c.codigo}>
+                    {c.nombre} ({c.codigo})
+                  </option>
+                ))}
+              </select>
+              {!creandoConcepto ? (
+                <button
+                  type="button"
+                  className={styles.botonMini}
+                  onClick={() => setCreandoConcepto(true)}
+                  disabled={guardando}
+                  title="Ningún concepto le sirve: crear uno nuevo"
+                >
+                  + Nuevo
+                </button>
+              ) : null}
+            </span>
           </label>
+          {creandoConcepto ? (
+            <NuevoConcepto
+              compacto
+              nombreInicial={item.texto_original}
+              atributosConocidos={vocabulario.atributos}
+              categoriasConocidas={vocabulario.categorias}
+              onCancelar={() => setCreandoConcepto(false)}
+              onCreado={(creado) => {
+                onConceptoCreado(creado);
+                setConcepto(creado.codigo);
+                setCreandoConcepto(false);
+              }}
+            />
+          ) : null}
           <label className={styles.campo}>
             <span>Cantidad</span>
             <input
