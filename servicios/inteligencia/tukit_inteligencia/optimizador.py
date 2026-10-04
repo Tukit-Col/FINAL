@@ -827,6 +827,38 @@ def armar_kit(
     )
 
 
+def perfil_por_preferencias(
+    preferencias: dict[str, Any], perfiles: set[str] | frozenset[str], *, con_personaje: bool
+) -> tuple[str, str]:
+    """El perfil que piden las preferencias del hogar, sin mirar el presupuesto.
+
+    Es la regla de la seccion "Fan / Premium / Ahorrador" de `recomendar`,
+    aparte para que el kit del papa que sale de una vista previa (poller) elija
+    nivel con la MISMA regla que el pipeline y no con una copia que se desvie.
+    El presupuesto no entra: es una cota sobre totales que se decide en
+    `recomendar`, con los tres kits ya armados.
+    """
+    pesos = {**PESOS_POR_OMISION, **(preferencias.get("pesos") or {})}
+    sobreprecio = float(preferencias.get("disposicion_sobreprecio") or 0.0)
+    calidad_primero = pesos.get("calidad", 0) >= max(
+        pesos.get("precio", 0), pesos.get("marca_exigida", 0), pesos.get("personaje", 0)
+    )
+    if con_personaje and pesos.get("personaje", 0) > 0 and PerfilKit.FAN.value in perfiles:
+        return (
+            PerfilKit.FAN.value,
+            "Pediste personajes para tus hijos, asi que este es el kit que los incluye.",
+        )
+    if calidad_primero and sobreprecio >= 0.10 and PerfilKit.PREMIUM.value in perfiles:
+        return (
+            PerfilKit.PREMIUM.value,
+            "Pusiste la calidad primero y aceptas pagar hasta un 10 % mas.",
+        )
+    return (
+        PerfilKit.AHORRADOR.value,
+        "Elegiste precio como lo mas importante y este es el kit mas barato.",
+    )
+
+
 def recomendar(kits: list[KitArmado], preferencias: dict[str, Any]) -> list[KitArmado]:
     """Marca UNO y no oculta los otros dos. La regla sale de la encuesta.
 
@@ -843,31 +875,12 @@ def recomendar(kits: list[KitArmado], preferencias: dict[str, Any]) -> list[KitA
     if not kits:
         return kits
 
-    pesos = {**PESOS_POR_OMISION, **(preferencias.get("pesos") or {})}
     presupuesto = preferencias.get("presupuesto_por_hijo")
     sobreprecio = float(preferencias.get("disposicion_sobreprecio") or 0.0)
     personajes = preferencias.get("personaje_por_hijo") or {}
 
     por_perfil = {kit.perfil: kit for kit in kits}
-    calidad_primero = pesos.get("calidad", 0) >= max(
-        pesos.get("precio", 0), pesos.get("marca_exigida", 0), pesos.get("personaje", 0)
-    )
-
-    if personajes and pesos.get("personaje", 0) > 0 and PerfilKit.FAN.value in por_perfil:
-        elegido, razon = (
-            PerfilKit.FAN.value,
-            "Pediste personajes para tus hijos, asi que este es el kit que los incluye.",
-        )
-    elif calidad_primero and sobreprecio >= 0.10 and PerfilKit.PREMIUM.value in por_perfil:
-        elegido, razon = (
-            PerfilKit.PREMIUM.value,
-            "Pusiste la calidad primero y aceptas pagar hasta un 10 % mas.",
-        )
-    else:
-        elegido, razon = (
-            PerfilKit.AHORRADOR.value,
-            "Elegiste precio como lo mas importante y este es el kit mas barato.",
-        )
+    elegido, razon = perfil_por_preferencias(preferencias, set(por_perfil), con_personaje=bool(personajes))
 
     # El presupuesto es una cota DURA, no un gusto. Es el uso mas valioso de la
     # encuesta: convierte una opinion en una restriccion que se puede imponer.

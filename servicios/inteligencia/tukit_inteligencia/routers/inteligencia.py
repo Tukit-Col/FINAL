@@ -671,6 +671,19 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
     por_destino: dict[tuple[str, int], str] = {}
     subidas: list[dict[str, Any]] = []
     anio_por_omision = 2026
+
+    def _clave(hijo: HijoSubida, grado: str) -> tuple[str, int]:
+        return (f"{hijo.resolver_colegio()[0]}|{grado}", hijo.anio_lectivo or anio_por_omision)
+
+    # Las referencias de los hijos que comparten cada version viajan en SUS
+    # preferencias: al aprobarla, el poller sabe si es de un solo hijo (y cual,
+    # para leer su personaje) y puede armarle al papa su kit desde la vista
+    # previa. Con dos hijos en la misma version no hay un personaje unico, y el
+    # poller arma el kit del papa como siempre.
+    referencias_por_destino: dict[tuple[str, int], list[str]] = {}
+    for hijo, grado, _pdf, _percepcion in percibidos:
+        referencias_por_destino.setdefault(_clave(hijo, grado), []).append(hijo.referencia)
+
     for hijo, grado, pdf, percepcion in percibidos:
         colegio_id, colegio_datos = hijo.resolver_colegio()
         # Colegio nuevo elegido del directorio: se pre-llena su perfil (direccion,
@@ -681,7 +694,7 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
             if del_dueb:
                 colegio_datos = {**del_dueb, **{k: v for k, v in colegio_datos.items() if v}}
         anio = hijo.anio_lectivo or anio_por_omision
-        clave = (f"{colegio_id}|{grado}", anio)
+        clave = _clave(hijo, grado)
         version_id = por_destino.get(clave)
         if version_id is None:
             items, percepcion_cruda = _items_desde_percepcion(percepcion)
@@ -693,7 +706,7 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
                 documento_base64=base64.b64encode(pdf).decode(),
                 percepcion_cruda=percepcion_cruda,
                 contacto_referencia=contacto_referencia,
-                preferencias=preferencias,
+                preferencias={**(preferencias or {}), "referencias_hijo": referencias_por_destino[clave]},
                 colegio_datos=colegio_datos,
                 origen="sugerencia_padre",
             )
@@ -863,9 +876,20 @@ async def vista_previa_de_version(version_id: str) -> dict[str, Any]:
     """Lo que el revisor necesita para avisar que hay una vista previa ajustada.
 
     Volver a previsualizar la reemplaza y pierde sus ajustes; el revisor lo
-    advierte con esto antes de llamar al POST.
+    advierte con esto antes de llamar al POST. `desactualizada` se calcula
+    releyendo la version en el catalogo (el mismo endpoint que usa la
+    promocion): si no responde, 503 y no un "vigente" que no se pudo comprobar.
     """
-    vista = await trabajos.vista_previa_de_version(api.app.state.motor, version_id)
+    try:
+        vista = await trabajos.vista_previa_de_version(
+            api.app.state.motor, version_id, catalogo=api._catalogo()
+        )
+    except trabajos.RemotoCaido as error:
+        raise ErrorDominio(
+            "catalogo_no_disponible",
+            "No pudimos releer la lista en el catálogo para comparar la vista previa.",
+            estado=503,
+        ) from error
     if vista is None:
         raise ErrorDominio(
             "vista_previa_no_existe",
@@ -950,6 +974,13 @@ async def eliminar_trabajo(trabajo_id: uuid.UUID) -> None:
         raise ErrorDominio(
             "trabajo_publicado_protegido",
             "Un trabajo publicado es el kit canonico de su colegio y grado; no se borra.",
+            estado=409,
+        ) from error
+    except trabajos.KitConAcudientesEsperando as error:
+        raise ErrorDominio(
+            "kit_con_acudientes_esperando",
+            f"{error.cuantos} acudiente(s) esperan este kit para recibir el suyo: "
+            "apruébalo en vez de descartarlo.",
             estado=409,
         ) from error
 
@@ -1105,7 +1136,22 @@ async def revisar(trabajo_id: uuid.UUID, decision: DecisionRevision) -> dict[str
             decision=decision.decision,
             nota=decision.nota,
             actor=decision.actor,
+            catalogo=api._catalogo(),
         )
+    except trabajos.RemotoCaido as error:
+        # Solo pasa si hay acudientes esperando este kit con personaje: sin las
+        # anclas no se les puede congelar su kit, y publicar a medias no sirve.
+        raise ErrorDominio(
+            "catalogo_no_disponible",
+            "No pudimos leer el catálogo para armar el kit de los acudientes que esperan.",
+            estado=503,
+        ) from error
+    except trabajos.AcudienteEnEspera as error:
+        raise ErrorDominio(
+            "kit_de_acudiente_en_espera",
+            "Este kit sale del kit del grado: se publica solo cuando apruebes ese kit en la Cola.",
+            estado=409,
+        ) from error
     except trabajos.TrabajoNoExiste as error:
         raise ErrorDominio(
             "trabajo_no_existe", "No hay ningun trabajo con ese identificador.", estado=404
