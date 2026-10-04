@@ -90,7 +90,7 @@ d0ca76b4-151f-5936-8677-67e2d01d6f75,C087,Pilas,pilas aaa,Otros / Varios,util,,t
 afb8af86-de0e-5e36-83b6-905b5508be8e,C089,Pompones,paquete pompones,"Lana, algodón, aserrín, lentejuelas y manualidades varias",util,,tamano|color,false,2,true
 d397d9e3-b2ab-5685-8f7b-1db4de385d1d,C090,Separadores,separador plastico portafolio siguiente colores rosado cafe rojo verde oscuro,Carpetas / Folders / Legajadores / Sobres manila,util,,unidades|colores,false,2,true
 2615454c-c672-5606-baa7-4b23de0f2a7e,C091,Sobre de manila,sobre manila blanco tamano oficio,Carpetas / Folders / Legajadores / Sobres manila,util,,tamano,false,2,true
-6dba19c5-ca1b-5aa0-a799-e76b6e9c623f,C092,Tablero de dibujo,tabla dibujo tecnico formato a3,Otros / Varios,util,,formato,false,2,true
+6dba19c5-ca1b-5aa0-a799-e76b6e9c623f,C092,Tablero de dibujo,tabla dibujo tecnico formato a3|tabla diseno formato|tabla de diseno|tablero de diseno|tabla de dibujo|tablero dibujo tecnico|tabla dibujo tecnico|tabla de dibujo formato,Otros / Varios,util,,formato,false,2,true
 30cdbc45-f2a8-5c86-a3c4-6b765f5fd849,C093,Tinta china,tinta china negra,Otros / Varios,util,color,,false,2,true
 8ea61ce5-96bd-568c-96ab-fe2080d50892,C094,Tiza,tiza colores|tiza colores vivo,Otros / Varios,util,,colores,false,2,true
 7e6c7c9f-cb13-5f65-a343-0fbdfe2ac4b9,C095,Arena decorativa,paquete arena decorativa,"Lana, algodón, aserrín, lentejuelas y manualidades varias",util,,color,false,1,true
@@ -145,3 +145,4 @@ f507bbec-d821-58e8-94db-126f2ceb5925,C142,Componente electrónico especializado,
 916d3fdc-4bba-5692-a966-623bf0fd336c,C144,Piedras decorativas,piedras decorativas|piedras de colores|piedras de bisuteria|piedras bisuteria pequenas|piedras de jardineria|piedras de colores de jardineria|gemas acrilicas|piedrecillas|gravilla de colores|materiales generar textura piedras bisuteria pequenas|materiales para generar textura piedras,"Lana, algodón, aserrín, lentejuelas y manualidades varias",util,,,false,0,true
 d1dae842-9772-58bc-ae09-5103f338f489,C145,Cinta métrica,cinta metrica|cinta metrica metro|cinta metrica costura|metro de costura|metro modisteria|cinta de medir|flexometro|metro flexible,Reglas,util,,,false,0,true
 43e709e2-9cf3-52b8-bec2-a25456a92618,C146,Tapabocas,tapabocas|tapaboca|tapabocas desechables|caja tapabocas|tapabocas antifluido|tapabocas n95|mascarilla|mascarillas desechables|cubrebocas,"Elementos de aseo (papel higiénico, jabón, gel, toallas, paños)",util,,,false,0,true
+55a578d6-4fd8-550a-9bac-ef1e38344fd4,C147,Dispositivo electrónico (computador o tablet),dispositivo electronico|dispositivo electronico computador tablet|computador|computador portatil|portatil|tablet|ipad|equipo de computo,"Tecnología (USB, audífonos, memorias, kits)",otro,,,false,0,true
