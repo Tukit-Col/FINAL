@@ -1189,7 +1189,7 @@ acudiente esperando, la vista previa más reciente de esa versión —si tiene l
 comprables y sus renglones siguen siendo los de la versión— se promueve a `colegio_grado`
 con sus ajustes. Sin líneas por decidir queda `publicado` y fija el kit canónico del grado
 (sin emitir `kits_publicados`: no hay acudiente a quien avisar); con dudosas pendientes
-(`AMBIGUO` o `SIN_MATCH` sin decidir) queda en `espera_revision`, en la cola. Los
+(`AMBIGUO` sin decidir) queda en `espera_revision`, en la cola. Los `SIN_MATCH` y
 `HUECO_CATALOGO` no bloquean: no tienen producto ni precio.
 
 Aprobar un trabajo sin acudiente (`colegio_grado`) lo publica y fija el canónico, pero no

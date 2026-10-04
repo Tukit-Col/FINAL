@@ -41,7 +41,7 @@ export interface ConteosCola {
   listasPorVerificar: number;
   kitsDeAcudientes: number;
   // Las dudosas sin decidir de todo lo que se muestra, con la misma regla que
-  // la consola (AMBIGUO o SIN_MATCH sin decisión; un hueco no cuenta).
+  // la consola (AMBIGUO sin decisión; un hueco o un sin match no cuentan).
   dudosasSinDecidir: number;
 }
 
