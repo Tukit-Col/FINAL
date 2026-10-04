@@ -165,7 +165,7 @@ export default async function PaginaCola() {
                       <td className={`${styles.num} cifra ${styles.tenue}`}>{v.anio_lectivo}</td>
                       <td className={`${styles.num} cifra`}>{v.items}</td>
                       <td className={styles.accionCelda}>
-                        <div className={styles.acciones}>
+                        <div className={styles.accionesFila}>
                           <Link
                             href={`/onboarding/${encodeURIComponent(v.version_id)}`}
                             className={styles.accion}
