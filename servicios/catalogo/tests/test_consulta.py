@@ -99,6 +99,18 @@ class TestSeAbstieneEnVezDeInventar:
         assert resultado.concepto_codigo == "C004"
         assert [o.nivel for o in resultado.opciones] == ["economico", "confiable", "premium"]
 
+    def test_un_concepto_ya_asignado_no_se_vuelve_a_adivinar(self):
+        """La previsualizacion manda el concepto que el revisor puso en la lista:
+        un texto que por si solo no se reconoce queda en ese concepto."""
+        sin_pista = emparejar("material de trabajo opciones varias", CONCEPTOS, PRODUCTOS)
+        asignado = emparejar(
+            "material de trabajo opciones varias", CONCEPTOS, PRODUCTOS, concepto_forzado="C004"
+        )
+
+        assert sin_pista.estado == "sin_match"
+        assert asignado.estado == "reconocido" and asignado.concepto_codigo == "C004"
+        assert [o.nivel for o in asignado.opciones] == ["economico", "confiable", "premium"]
+
     def test_escolar_no_se_le_exige_a_un_producto(self):
         """En una lista escolar casi todo dice "escolar": exigirlo como tipo
         dejaba a "Maleta escolar" sin ninguna de las maletas del catalogo."""

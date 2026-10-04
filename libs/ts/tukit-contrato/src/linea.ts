@@ -35,6 +35,10 @@ export function clasificar(linea: LineaKit): ClaseLinea {
   // acudiente que "lo gestiona el colegio" era falso; lo compra el por su cuenta.
   if (linea.tipo === "otro") return "por_su_cuenta";
   if (linea.informativa) return "informativa";
+  // Un texto con titulo y editorial (no informativo: se compra en libreria) no
+  // se busca en el catalogo y llega como SIN_MATCH, porque la edicion aun no se
+  // resuelve. Mostrarlo como "No entendimos que pide" era falso: se entendio.
+  if (linea.tipo === "texto" && !linea.producto_elegido) return "por_su_cuenta";
   if (linea.estado_resolucion === "HUECO_CATALOGO") return "hueco";
   if (linea.estado_resolucion === "SIN_MATCH") return "sin_match";
   if (linea.estado_resolucion === "AMBIGUO") return "pendiente_revision";

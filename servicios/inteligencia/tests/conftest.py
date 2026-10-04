@@ -134,8 +134,11 @@ class CatalogoFalso:
                 }
         return None
 
-    async def emparejar(self, renglones: list[str]) -> list[dict[str, Any]]:
+    async def emparejar(
+        self, renglones: list[str], conceptos: list[str | None] | None = None
+    ) -> list[dict[str, Any]]:
         self.llamadas.append("emparejar")
+        self.conceptos_asignados = conceptos
         return [
             self.respuestas.get(
                 texto,

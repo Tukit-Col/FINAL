@@ -123,6 +123,7 @@ def emparejar(
     productos: list[dict[str, Any]],
     *,
     embedding_renglon: list[float] | None = None,
+    concepto_forzado: str | None = None,
 ) -> Emparejamiento:
     """Clasifica el renglon y, si el catalogo puede cumplirlo, da hasta tres opciones.
 
@@ -136,7 +137,15 @@ def emparejar(
     siempre.
     """
     corregido = corregir(texto, lexico_de(conceptos))
-    concepto_id, nombre, parecido = clasificar(corregido, conceptos, embedding_renglon=embedding_renglon)
+    # Un concepto que una persona ya le asigno al renglon (en la revision de la
+    # lista) no se vuelve a adivinar por el texto: se usa, y solo se buscan sus
+    # productos. Sin esto la previsualizacion ignoraba la curaduria y decia "no
+    # entendimos" a un renglon que el revisor ya habia resuelto.
+    asignado = next((c for c in conceptos if concepto_forzado and c.get("codigo") == concepto_forzado), None)
+    if asignado is not None:
+        concepto_id, nombre, parecido = asignado["id"], asignado["nombre"], 1.0
+    else:
+        concepto_id, nombre, parecido = clasificar(corregido, conceptos, embedding_renglon=embedding_renglon)
     if parecido < 0.5 or concepto_id is None:
         return Emparejamiento(
             texto=texto,
