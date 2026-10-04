@@ -685,8 +685,11 @@ export default function FormularioEmpezar({
     }
 
     // El hogar se parte en dos rutas (decisión "wait-screen wins"):
-    //   • Grado con lista VERIFICADA → `crearTrabajo` (JSON, sin archivo): kit al
-    //     vuelo, sin revisión.
+    //   • Grado con lista VERIFICADA → `crearTrabajo` (JSON, sin archivo): se
+    //     salta percepción y resolución, pero el kit armado SÍ pasa por la
+    //     revisión de una persona (`trabajos._finalizar`). Sin revisión solo
+    //     salen la ruta rápida (kits canónicos) y el kit de una lista recién
+    //     aprobada por un administrador.
     //   • Sube PDF (grado sin verificar de un colegio aliado, o "No encontré mi
     //     colegio") → `subirListas`: el archivo entra como versión PENDIENTE de su
     //     (colegio, grado) y el acudiente espera la aprobación de un administrador.
