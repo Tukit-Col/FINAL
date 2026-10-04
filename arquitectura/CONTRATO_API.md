@@ -5,11 +5,21 @@
 > fronteras de *conversación*. Cambiar cualquiera de los dos sin avisar rompe a alguien
 > más, así que se cierran antes de repartir el trabajo y se versionan.
 
-- **Versión:** 1.2
+- **Versión:** 1.3
 - **Prefijo:** `/v1`
 - **URL base:** `http://127.0.0.1:8010` en desarrollo. Ver §12.1.
 - **Formato:** JSON UTF-8. Dinero en **pesos enteros** (nunca decimales flotantes).
 - **Idioma de los identificadores:** español sin tildes, como el resto del código.
+
+### Qué cambió en 1.3
+
+Ningún campo cambia de forma; cambia qué kit se marca y qué lleva el Premium cuando hay
+presupuesto. Sale del benchmark Laya vs NSGA-II.
+
+| Cambio | Dónde | Por qué |
+|---|---|---|
+| Con `presupuesto_por_hijo` se recomienda la mejor marca que cabe, y el Premium que no cabe se ajusta al mejor punto del frente dentro del tope | §6 | El kit recomendado con presupuesto lograba el 40 % de la calidad posible y el frente ya traía uno del 94 % |
+| Si el recomendado no cabe, se cae a la mejor marca que cabe, no al más barato | §6 | Es lo que §6 prometía ("el siguiente punto del frente") y el código no hacía |
 
 ### Qué cambió en 1.2
 
@@ -484,14 +494,25 @@ Recomendar es **escalarizar el frente de Pareto** con los pesos de ese acudiente
 kits son óptimos y cuál conviene depende de preferencias que no están en el catálogo. La
 regla, derivada de la encuesta:
 
-- **Por defecto `Ahorrador`.** 42 de 60 encuestados pagan como máximo 5 % más y 15 exigen
-  precio igual o menor.
-- **`Premium`** solo si el acudiente pone calidad primero **y** declara ≥10 %.
 - **`Fan`** solo con `personaje_por_hijo` explícito. El personaje quedó último en la P21
   (1,87 contra 2,85 del precio), y tiene sentido: el que paga es el papá y el que quiere el
   personaje es el hijo.
-- Si el recomendado excede `presupuesto_por_hijo`, se cae al siguiente punto del frente y
-  `razon` lo dice.
+- **Con `presupuesto_por_hijo`, `Premium`: la mejor marca que cabe.** El tope es
+  `presupuesto_por_hijo × (1 + disposicion_sobreprecio)`. Si el Premium de siempre no cabe,
+  ese kit se reemplaza por el punto del frente con mayor fidelidad cuyo costo cabe en el
+  tope, y `razon` dice que se ajustó al presupuesto. Siguen siendo tres kits: el ajustado
+  ocupa el lugar del Premium porque es su mismo arquetipo con la cota del acudiente. No se
+  ajusta si no mejora la marca del Ahorrador.
+- **Sin presupuesto, por defecto `Ahorrador`.** 42 de 60 encuestados pagan como máximo 5 %
+  más y 15 exigen precio igual o menor.
+- **`Premium`** sin presupuesto solo si el acudiente pone calidad primero **y** declara ≥10 %.
+- Si el recomendado excede el tope, se cae al kit de mejor marca que sí cabe (no al más
+  barato) y `razon` lo dice.
+
+El benchmark Laya vs NSGA-II (rama `bench/laya-vs-nsga`) midió por qué: caer al kit más
+barato lograba el 40 % de la calidad posible con presupuesto, mientras el frente ya traía
+un kit que cabía y lograba el 94 %. Con esta regla, en las 174 listas del benchmark, el kit
+recomendado cabe siempre e iguala la mejor marca posible dentro del tope.
 
 ---
 
