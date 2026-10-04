@@ -39,6 +39,7 @@ from .modelos import (
 from .modelos.trabajo import ETAPAS
 from .optimizador import (
     CONCEPTOS_ANCLA,
+    ORDEN_NIVEL,
     Candidato,
     Renglon,
     anclar_personaje,
@@ -1202,7 +1203,7 @@ async def ver(
                     {
                         "perfil": perfil,
                         "total": total,
-                        "objetivos": {},
+                        "objetivos": _objetivos_de_lineas(lineas, total),
                         "lineas": lineas,
                         "consolidaciones": [],
                         "informativas": sum(1 for linea in lineas if linea["informativa"]),
@@ -1903,6 +1904,37 @@ async def _anclas_de_personaje(
             if producto:
                 swaps[concepto] = producto
     return swaps
+
+
+def _objetivos_de_lineas(lineas: list[dict[str, Any]], total: int) -> dict[str, float | int]:
+    """Los objetivos de display de un kit aplicado, desde sus lineas publicas.
+
+    El kit de la ruta rapida no tiene fila propia en `kit` (es un puntero al
+    canonico, con el personaje aplicado), asi que sus objetivos se recalculan
+    con la misma regla que `optimizador._objetivos`: solo lo comprable, la
+    fidelidad como nivel de marca promedio en [0, 1] y la disponibilidad como
+    fraccion de lineas con precio. Sin esto iban vacios y la web pintaba
+    "NaN% con precio confirmado".
+    """
+    comprables = [linea for linea in lineas if not linea["informativa"]]
+    if not comprables:
+        return {"costo": total, "fidelidad": 0.0, "disponibilidad": 0.0}
+    tope_nivel = max(1, len(ORDEN_NIVEL) - 1)
+    suma_fidelidad = 0.0
+    con_precio = 0
+    for linea in comprables:
+        producto = linea.get("producto_elegido") or {}
+        nivel = producto.get("nivel")
+        if nivel is not None:
+            rango = ORDEN_NIVEL.index(nivel) if nivel in ORDEN_NIVEL else len(ORDEN_NIVEL)
+            suma_fidelidad += rango / tope_nivel
+        if producto.get("precio") is not None:
+            con_precio += 1
+    return {
+        "costo": total,
+        "fidelidad": round(suma_fidelidad / len(comprables), 3),
+        "disponibilidad": round(con_precio / len(comprables), 3),
+    }
 
 
 async def _lineas_aplicadas(
