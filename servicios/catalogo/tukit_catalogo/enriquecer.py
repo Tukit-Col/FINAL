@@ -243,8 +243,11 @@ TIPOS = (
     ("cientifica", "cientifica"),
     ("de escritorio", "de escritorio"),
     ("basica", "basica"),
-    ("soprano", "soprano"),
+    # `dulce` antes que `soprano`: dulce es el instrumento y soprano la voz. Una
+    # "Flauta Dulce Soprano" quedaba `soprano` y la lista que pide "flauta dulce"
+    # (la escolar de siempre) no encontraba ninguna.
     ("dulce", "dulce"),
+    ("soprano", "soprano"),
     ("traversa", "traversa"),
     ("precision", "precision"),
     ("fuelle", "fuelle"),

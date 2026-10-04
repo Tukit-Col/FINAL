@@ -443,8 +443,11 @@ class TestLosConceptosQueNadieLograbaCumplir:
         assert cancha["tipo"] == "futbol de salon"
         assert extraer_atributos("Balón De Fútbol Nro 4 Game", ("tipo",))["tipo"] == "futbol"
 
-    def test_la_flauta_dulce_soprano(self):
-        assert extraer_atributos("Flauta Dulce Hohner Soprano 9508", ("tipo",))["tipo"] == "soprano"
+    def test_la_flauta_dulce_soprano_es_dulce(self):
+        """Dulce es el instrumento y soprano la voz. Como `soprano` la lista que
+        pide "flauta dulce" (la escolar de siempre) no encontraba ninguna."""
+        assert extraer_atributos("Flauta Dulce Hohner Soprano 9508", ("tipo",))["tipo"] == "dulce"
+        assert extraer_atributos("Flauta soprano germana", ("tipo",))["tipo"] == "soprano"
 
     def test_para_un_morral_grande_si_es_un_tamano(self):
         assert extraer_atributos("Morral Escolar Frozen Grande", ("tamano",))["tamano"] == "grande"
