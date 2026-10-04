@@ -199,47 +199,65 @@ export default async function PaginaCola() {
                     <tr>
                       <th scope="col">Trabajo</th>
                       <th scope="col">Recibido</th>
+                      <th scope="col">Colegio y grado</th>
                       <th scope="col" className={styles.num}>
                         Pendientes
                       </th>
-                      <th scope="col">Colegios</th>
-                      <th scope="col">Grados</th>
                       <th scope="col">
                         <span className={styles.oculto}>Acción</span>
                       </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {trabajosEnEspera.map((entrada: EntradaCola) => (
-                      <tr key={entrada.trabajo_id} className={styles.filaEspera}>
-                        <th scope="row" className={styles.identificador}>
-                          <Link href={`/trabajos/${entrada.trabajo_id}`}>
-                            <code>{entrada.trabajo_id}</code>
-                          </Link>
-                        </th>
-                        <td className={styles.fecha}>
-                          <span>{haceCuanto(entrada.recibido_en, ahora)}</span>
-                          <span className={styles.fechaExacta}>
-                            {formatearFecha(entrada.recibido_en)}
-                          </span>
-                        </td>
-                        <td className={`${styles.num} cifra`}>
-                          {entrada.lineas_pendientes > 0 ? (
-                            <span className={styles.pendientes}>{entrada.lineas_pendientes}</span>
-                          ) : (
-                            <span className={styles.cero}>0</span>
-                          )}
-                        </td>
-                        <td className={styles.lista}>{entrada.colegios.join(", ") || "—"}</td>
-                        <td className={styles.lista}>{entrada.grados.join(", ") || "—"}</td>
-                        <td className={styles.accionCelda}>
-                          <Link href={`/trabajos/${entrada.trabajo_id}`} className={styles.accion}>
-                            {TITULO_ESTADO_TRABAJO[entrada.estado] ? "Revisar" : "Ver"}
-                          </Link>
-                          <BorrarTrabajo trabajoId={entrada.trabajo_id} estado={entrada.estado} />
-                        </td>
-                      </tr>
-                    ))}
+                    {trabajosEnEspera.map((entrada: EntradaCola) => {
+                      const donde = [entrada.colegios.join(", "), entrada.grados.join(", ")]
+                        .filter(Boolean)
+                        .join(" · ");
+                      return (
+                        <tr key={entrada.trabajo_id} className={styles.filaEspera}>
+                          {/* El id completo no se lee: basta el prefijo, y el
+                              completo queda en el title para copiarlo. */}
+                          <th scope="row" className={styles.identificador}>
+                            <Link href={`/trabajos/${entrada.trabajo_id}`} title={entrada.trabajo_id}>
+                              Trabajo <code>#{entrada.trabajo_id.slice(0, 8)}</code>
+                            </Link>
+                          </th>
+                          <td>
+                            <div className={styles.fecha}>
+                              <span>{haceCuanto(entrada.recibido_en, ahora)}</span>
+                              <span className={styles.fechaExacta}>
+                                {formatearFecha(entrada.recibido_en)}
+                              </span>
+                            </div>
+                          </td>
+                          <td className={donde ? styles.lista : `${styles.lista} ${styles.tenue}`}>
+                            {donde || "Sin identificar"}
+                          </td>
+                          <td className={`${styles.num} cifra`}>
+                            {entrada.lineas_pendientes > 0 ? (
+                              <span className={styles.pendientes}>{entrada.lineas_pendientes}</span>
+                            ) : (
+                              <span className={styles.cero}>0</span>
+                            )}
+                          </td>
+                          <td className={styles.accionCelda}>
+                            <div className={styles.accionesFila}>
+                              <Link
+                                href={`/trabajos/${entrada.trabajo_id}`}
+                                className={styles.accion}
+                              >
+                                {TITULO_ESTADO_TRABAJO[entrada.estado] ? "Revisar" : "Ver"}
+                              </Link>
+                              <BorrarTrabajo
+                                trabajoId={entrada.trabajo_id}
+                                estado={entrada.estado}
+                                enFila
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

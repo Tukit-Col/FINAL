@@ -11,15 +11,18 @@ import { useRouter } from "next/navigation";
 import type { EstadoTrabajo } from "@tukit/contrato";
 import { eliminarTrabajo, FalloApi } from "@/lib/api-navegador";
 import styles from "./Revision.module.css";
+import fila from "./BorrarVersionLista.module.css";
 
 interface Props {
   trabajoId: string;
   estado: EstadoTrabajo;
   /** A donde ir tras borrar. Sin valor, refresca la vista actual (la cola). */
   volverA?: string;
+  /** En una fila de la cola: boton en pastilla y confirmacion en la misma linea. */
+  enFila?: boolean;
 }
 
-export default function BorrarTrabajo({ trabajoId, estado, volverA }: Props) {
+export default function BorrarTrabajo({ trabajoId, estado, volverA, enFila = false }: Props) {
   const router = useRouter();
   const [confirmando, setConfirmando] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -44,6 +47,40 @@ export default function BorrarTrabajo({ trabajoId, estado, volverA }: Props) {
       }
       setEnviando(false);
     }
+  }
+
+  if (enFila) {
+    if (!confirmando) {
+      return (
+        <button type="button" className={fila.disparador} onClick={() => setConfirmando(true)}>
+          Eliminar
+        </button>
+      );
+    }
+    return (
+      <span>
+        <span className={fila.confirmacion} role="alertdialog" aria-label="Eliminar el trabajo">
+          <span className={fila.pregunta}>¿Eliminar?</span>
+          <button
+            type="button"
+            className={fila.confirmar}
+            disabled={enviando}
+            onClick={() => void borrar()}
+          >
+            {enviando ? "Eliminando…" : "Sí, eliminar"}
+          </button>
+          <button
+            type="button"
+            className={fila.cancelar}
+            disabled={enviando}
+            onClick={() => setConfirmando(false)}
+          >
+            Cancelar
+          </button>
+        </span>
+        {error ? <span className={fila.error}>{error}</span> : null}
+      </span>
+    );
   }
 
   return (
