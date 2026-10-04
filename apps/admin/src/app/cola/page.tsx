@@ -55,6 +55,85 @@ function ColaVacia() {
   );
 }
 
+interface PropsTabla {
+  titulo: string;
+  bajada: string;
+  entradas: EntradaCola[];
+  nombreColegio: Map<string, string>;
+  ahora: number;
+  /** Sin la barra de "espera a una persona": nadie la espera. */
+  tenue?: boolean;
+}
+
+function TablaTrabajos({ titulo, bajada, entradas, nombreColegio, ahora, tenue = false }: PropsTabla) {
+  return (
+    <section className={styles.bloqueTrabajos}>
+      <h2 className={styles.subtitulo}>{titulo}</h2>
+      <p className={styles.bajada}>{bajada}</p>
+      <div className={styles.marco}>
+        <table className={styles.tabla}>
+          <thead>
+            <tr>
+              <th scope="col">Trabajo</th>
+              <th scope="col">Recibido</th>
+              <th scope="col">Colegio</th>
+              <th scope="col">Grado</th>
+              <th scope="col" className={styles.num}>
+                Pendientes
+              </th>
+              <th scope="col">
+                <span className={styles.oculto}>Acción</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {entradas.map((entrada) => {
+              const colegios = entrada.colegios.map((id) => nombreColegio.get(id) ?? id).join(", ");
+              const grados = entrada.grados.join(", ");
+              return (
+                <tr key={entrada.trabajo_id} className={tenue ? "" : styles.filaEspera}>
+                  {/* El id completo no se lee: basta el prefijo, y el completo
+                      queda en el title para copiarlo. */}
+                  <th scope="row" className={styles.identificador}>
+                    <Link href={`/trabajos/${entrada.trabajo_id}`} title={entrada.trabajo_id}>
+                      Trabajo <code>#{entrada.trabajo_id.slice(0, 8)}</code>
+                    </Link>
+                  </th>
+                  <td>
+                    <div className={styles.fecha}>
+                      <span>{haceCuanto(entrada.recibido_en, ahora)}</span>
+                      <span className={styles.fechaExacta}>{formatearFecha(entrada.recibido_en)}</span>
+                    </div>
+                  </td>
+                  <td className={colegios ? styles.lista : `${styles.lista} ${styles.tenue}`}>
+                    {colegios || "Sin identificar"}
+                  </td>
+                  <td className={grados ? undefined : styles.tenue}>{grados || "—"}</td>
+                  <td className={`${styles.num} cifra`}>
+                    {entrada.lineas_pendientes > 0 ? (
+                      <span className={styles.pendientes}>{entrada.lineas_pendientes}</span>
+                    ) : (
+                      <span className={styles.cero}>0</span>
+                    )}
+                  </td>
+                  <td className={styles.accionCelda}>
+                    <div className={styles.accionesFila}>
+                      <Link href={`/trabajos/${entrada.trabajo_id}`} className={styles.accion}>
+                        {TITULO_ESTADO_TRABAJO[entrada.estado] ? "Revisar" : "Ver"}
+                      </Link>
+                      <BorrarTrabajo trabajoId={entrada.trabajo_id} estado={entrada.estado} enFila />
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 export default async function PaginaCola() {
   // Dos lecturas del mismo origen: las versiones PENDIENTES (el item real de la
   // cola) y los trabajos en vuelo (el ingreso de acudiente que aún no se ha
@@ -84,6 +163,10 @@ export default async function PaginaCola() {
   // que aún procesa no necesita acción. Un trabajo es el ingreso de acudiente
   // sin migrar; se muestra aparte, no mezclado con las versiones.
   const trabajosEnEspera = entradas.filter((e) => e.estado === "espera_revision");
+  // La previsualizacion del revisor tambien queda en espera, pero nadie la
+  // espera: se aparta para no hacerla pasar por la lista de un acudiente.
+  const previsualizaciones = trabajosEnEspera.filter((e) => e.origen === "preview_onboarding");
+  const trabajosAcudiente = trabajosEnEspera.filter((e) => e.origen !== "preview_onboarding");
 
   const conContacto = versiones.filter((v) => v.tiene_contacto).length;
 
@@ -111,7 +194,7 @@ export default async function PaginaCola() {
             </div>
             <div>
               <dt>Trabajos en espera</dt>
-              <dd className="cifra">{trabajosEnEspera.length}</dd>
+              <dd className="cifra">{trabajosAcudiente.length}</dd>
             </div>
           </dl>
         </div>
@@ -186,82 +269,25 @@ export default async function PaginaCola() {
             </div>
           ) : null}
 
-          {trabajosEnEspera.length > 0 ? (
-            <section className={styles.bloqueTrabajos}>
-              <h2 className={styles.subtitulo}>Trabajos de acudiente en espera</h2>
-              <p className={styles.bajada}>
-                Ingresos de acudiente que aún esperan revisión como trabajo. Cada uno se
-                revisará contra la versión de su colegio y grado.
-              </p>
-              <div className={styles.marco}>
-                <table className={styles.tabla}>
-                  <thead>
-                    <tr>
-                      <th scope="col">Trabajo</th>
-                      <th scope="col">Recibido</th>
-                      <th scope="col">Colegio y grado</th>
-                      <th scope="col" className={styles.num}>
-                        Pendientes
-                      </th>
-                      <th scope="col">
-                        <span className={styles.oculto}>Acción</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {trabajosEnEspera.map((entrada: EntradaCola) => {
-                      const donde = [entrada.colegios.join(", "), entrada.grados.join(", ")]
-                        .filter(Boolean)
-                        .join(" · ");
-                      return (
-                        <tr key={entrada.trabajo_id} className={styles.filaEspera}>
-                          {/* El id completo no se lee: basta el prefijo, y el
-                              completo queda en el title para copiarlo. */}
-                          <th scope="row" className={styles.identificador}>
-                            <Link href={`/trabajos/${entrada.trabajo_id}`} title={entrada.trabajo_id}>
-                              Trabajo <code>#{entrada.trabajo_id.slice(0, 8)}</code>
-                            </Link>
-                          </th>
-                          <td>
-                            <div className={styles.fecha}>
-                              <span>{haceCuanto(entrada.recibido_en, ahora)}</span>
-                              <span className={styles.fechaExacta}>
-                                {formatearFecha(entrada.recibido_en)}
-                              </span>
-                            </div>
-                          </td>
-                          <td className={donde ? styles.lista : `${styles.lista} ${styles.tenue}`}>
-                            {donde || "Sin identificar"}
-                          </td>
-                          <td className={`${styles.num} cifra`}>
-                            {entrada.lineas_pendientes > 0 ? (
-                              <span className={styles.pendientes}>{entrada.lineas_pendientes}</span>
-                            ) : (
-                              <span className={styles.cero}>0</span>
-                            )}
-                          </td>
-                          <td className={styles.accionCelda}>
-                            <div className={styles.accionesFila}>
-                              <Link
-                                href={`/trabajos/${entrada.trabajo_id}`}
-                                className={styles.accion}
-                              >
-                                {TITULO_ESTADO_TRABAJO[entrada.estado] ? "Revisar" : "Ver"}
-                              </Link>
-                              <BorrarTrabajo
-                                trabajoId={entrada.trabajo_id}
-                                estado={entrada.estado}
-                                enFila
-                              />
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+          {trabajosAcudiente.length > 0 ? (
+            <TablaTrabajos
+              titulo="Trabajos de acudiente en espera"
+              bajada="Listas que subió un acudiente y esperan revisión. Cada una se revisa contra la versión de su colegio y grado."
+              entradas={trabajosAcudiente}
+              nombreColegio={nombreColegio}
+              ahora={ahora}
+            />
+          ) : null}
+
+          {previsualizaciones.length > 0 ? (
+            <TablaTrabajos
+              titulo="Previsualizaciones abiertas"
+              bajada="Los kits que se armaron al pulsar «Previsualizar» en el revisor de una lista. Ningún acudiente los espera: queda una por colegio y grado, y se pueden eliminar sin problema."
+              entradas={previsualizaciones}
+              nombreColegio={nombreColegio}
+              ahora={ahora}
+              tenue
+            />
           ) : null}
         </>
       )}

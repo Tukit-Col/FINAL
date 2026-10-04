@@ -507,10 +507,13 @@ export function validarArchivo(archivo: File): string | null {
 export interface EntradaCola {
   trabajo_id: string;
   estado: EstadoTrabajo;
+  /** `preview_onboarding` es la previsualizacion de un revisor, no un acudiente. */
+  origen?: string;
   recibido_en: string;
   hijos: number;
   lineas_totales: number;
   lineas_pendientes: number;
+  /** Ids de colegio: el nombre lo pone la consola con su directorio. */
   colegios: string[];
   grados: string[];
 }

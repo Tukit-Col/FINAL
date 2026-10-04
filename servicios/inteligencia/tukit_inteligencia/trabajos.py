@@ -1395,6 +1395,7 @@ async def cola(motor: Any, *, pagina: int = 1, por_pagina: int = 50) -> dict[str
         select(
             TRABAJO.c.id,
             TRABAJO.c.estado,
+            TRABAJO.c.origen,
             TRABAJO.c.creado_en,
             TRABAJO.c.hijos,
             func.coalesce(a_revision.c.dudosos, 0).label("dudosos"),
@@ -1412,7 +1413,12 @@ async def cola(motor: Any, *, pagina: int = 1, por_pagina: int = 50) -> dict[str
                 "trabajo_id": str(f.id),
                 "estado": f.estado,
                 "creado_en": f.creado_en.isoformat() if f.creado_en else None,
+                "origen": f.origen,
                 "hijos": len(list(f.hijos or ())),
+                # Lo que el trabajo ya sabe de sus hijos. El nombre del colegio
+                # no: ese lo pone quien lee, con el directorio que ya tiene.
+                "colegios": sorted({h["colegio_id"] for h in f.hijos or () if h.get("colegio_id")}),
+                "grados": list(dict.fromkeys(h["grado"] for h in f.hijos or () if h.get("grado"))),
                 "lineas_a_revisar": int(f.dudosos),
             }
             for f in filas

@@ -659,15 +659,18 @@ export class ClienteApi implements OrigenDatos {
     // el contrato pide `{entradas:[{recibido_en, lineas_pendientes, ...}]}`.
     // Se normaliza aqui, igual que `trabajoAdmin`/`producto`, en vez de dejar
     // el cast crudo (que dejaba `entradas` undefined y reventaba la cola).
-    // `colegios`/`grados`/`lineas_totales` no viajan en la cola: viven en
-    // catalogo y unirlos aqui cruzaria la frontera de servicios. Se reportan
-    // vacios en vez de fingir un dato que este endpoint no tiene.
+    // `colegios` (ids) y `grados` salen de los hijos del trabajo; el nombre
+    // del colegio lo pone la consola. Un backend viejo que no los mande deja
+    // listas vacias. `lineas_totales` no viaja: se reporta igual a pendientes.
     const crudo = await this.pedir<{
       trabajos?: {
         trabajo_id: string;
         estado: EstadoTrabajo;
+        origen?: string;
         creado_en: string;
         hijos: number;
+        colegios?: string[];
+        grados?: string[];
         lineas_a_revisar: number;
       }[];
     }>("/v1/admin/cola");
@@ -675,12 +678,13 @@ export class ClienteApi implements OrigenDatos {
       entradas: (crudo.trabajos ?? []).map((t) => ({
         trabajo_id: t.trabajo_id,
         estado: t.estado,
+        origen: t.origen,
         recibido_en: t.creado_en,
         hijos: t.hijos,
         lineas_totales: t.lineas_a_revisar,
         lineas_pendientes: t.lineas_a_revisar,
-        colegios: [],
-        grados: [],
+        colegios: t.colegios ?? [],
+        grados: t.grados ?? [],
       })),
     };
   }
