@@ -578,7 +578,7 @@ GROSORES = (
 # mismo digito para decir otra cosa.
 _DUREZA = re.compile(r"\b(\d?[hb]{1,2})\b")
 _DUREZAS_VALIDAS = frozenset(
-    {"h", "b", "hb", "2b", "3b", "4b", "5b", "6b", "2h", "3h", "4h", "5h", "6h", "hh", "bb"}
+    {"h", "b", "hb", "hh", "bb"} | {f"{n}{l}" for n in range(2, 10) for l in "hb"}
 )
 
 # Cuantos huecos o bolsillos trae algo que los cuenta. El colegio no escribe
@@ -712,10 +712,11 @@ def extraer_atributos(nombre: str, requeridos: tuple[str, ...]) -> dict[str, Any
             # las cifras de las letras para poder leer `x12ml`, y de paso
             # convierte `2B` en `2 b`, con lo que la escala de grafito se
             # partia en dos y quedaba en `b`. Una mina 2B no es una B.
-            for candidato in _DUREZA.findall(_sin_tildes(nombre.lower())):
-                if candidato in _DUREZAS_VALIDAS:
-                    attrs["dureza"] = candidato
-                    break
+            # Con dos durezas distintas (`2H-6B`) es una serie, no una mina:
+            # exigir la primera dejaba sin opcion al renglon.
+            durezas = {c for c in _DUREZA.findall(_sin_tildes(nombre.lower())) if c in _DUREZAS_VALIDAS}
+            if len(durezas) == 1:
+                attrs["dureza"] = durezas.pop()
 
         elif pedido == "tinta":
             # La tinta de un esfero es el color que el colegio escribe:

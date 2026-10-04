@@ -106,6 +106,11 @@ RUIDO = re.compile(
 # cosa; el tamano que dice se lee aparte, en `extraer_atributos`.
 FRACCION = re.compile(r"\b\d+\s*/\s*\d+\b")
 
+# `Lapiz 2H-6B` no pide un lapiz 2H: pide la serie de durezas, que es el kit
+# de dibujo. Se reescribe como "serie durezas", que es como lo nombra ese
+# concepto, para que no caiga en el lapiz suelto con la primera dureza exigida.
+RANGO_DUREZA = re.compile(r"\b\d?[hb]{1,2}\s*(?:-|a|al|hasta)\s*\d?[hb]{1,2}\b")
+
 
 def consulta_desde_renglon(renglon: str) -> str:
     """Convierte el renglon del colegio en algo que una tienda entienda.
@@ -275,6 +280,7 @@ def clasificar(
     eso los callers que aun no calculan el vector siguen valiendo.
     """
     mejor_id, mejor_nombre, mejor = None, "", 0.0
+    renglon = RANGO_DUREZA.sub(" serie durezas ", _plano(renglon))
     nucleo = cabeza(renglon)
     for concepto in conceptos:
         cos = (

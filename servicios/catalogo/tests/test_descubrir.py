@@ -241,6 +241,18 @@ class TestClasificarContraNuestroCatalogo:
         _, nombre, _ = clasificar("2 cuadernos cosidos", CATALOGO)
         assert nombre == "cuaderno"
 
+    def test_un_rango_de_durezas_es_el_kit_de_dibujo(self):
+        """`Lapiz 2H-6B` pide la serie, no un lapiz 2H: caia en el lapiz suelto,
+        exigia la dureza 2H y se quedaba sin opcion."""
+        conceptos = [
+            {"id": uuid.uuid4(), "nombre": "lapiz", "sinonimos": ["lapiz negro"]},
+            {"id": uuid.uuid4(), "nombre": "kit de lapices de dibujo", "sinonimos": ["lapiz serie durezas"]},
+        ]
+
+        for renglon in ("Lápiz 2H-6B", "Lápices 2B a 6B", "lapiz 4H - 8B"):
+            assert clasificar(renglon, conceptos)[1] == "kit de lapices de dibujo", renglon
+        assert clasificar("Lápiz negro HB", conceptos)[1] == "lapiz"
+
 
 class TestLaConsultaQueSeLeMandaALaTienda:
     """Solo se construye para lo que NO tenemos, y describe QUE, no CUANTO."""
