@@ -5,11 +5,23 @@
 > fronteras de *conversación*. Cambiar cualquiera de los dos sin avisar rompe a alguien
 > más, así que se cierran antes de repartir el trabajo y se versionan.
 
-- **Versión:** 1.3
+- **Versión:** 1.4
 - **Prefijo:** `/v1`
 - **URL base:** `http://127.0.0.1:8010` en desarrollo. Ver §12.1.
 - **Formato:** JSON UTF-8. Dinero en **pesos enteros** (nunca decimales flotantes).
 - **Idioma de los identificadores:** español sin tildes, como el resto del código.
+
+### Qué cambió en 1.4
+
+El acudiente puede cambiar productos de su kit y, en la ruta rápida, ver y pagar cualquiera de
+los tres kits. Las decisiones están en el ADR 0028 (`arquitectura/adr/`).
+
+| Cambio | Dónde | Por qué |
+|---|---|---|
+| `PUT /v1/trabajos/{id}/kits/{perfil}/lineas/{item_id}/producto` | §5.3 | El acudiente cambia un producto por el sugerido o una de sus alternativas |
+| `GET /v1/trabajos/{id}` aplica los cambios del acudiente y trae `cambios` | §4, §5.3 | El kit que ve y el que paga son el que él armó |
+| La línea cambiada trae `cambiado_por_acudiente` y `sku_sugerido` | §5.3 | Para decirle qué cambió y ofrecerle volver al sugerido |
+| La ruta rápida (`parent_apply`) devuelve los tres kits, con el elegido como `recomendado` | §4, §6 | Antes solo veía el que eligió al empezar y no podía comparar ni cambiarse |
 
 ### Qué cambió en 1.3
 
@@ -476,6 +488,29 @@ el conteo aparte: *"3 ítems los gestiona directamente el colegio"*.
 ```
 
 ---
+
+### 5.3 El acudiente cambia un producto de su kit
+
+`PUT /v1/trabajos/{id}/kits/{perfil}/lineas/{item_id}/producto` → `200 OK`
+
+```jsonc
+// petición
+{ "sku": "TK-C001-PRE" }
+// respuesta
+{ "trabajo_id": "3f9a...", "perfil": "Ahorrador", "item_id": "h1-007", "sku": "TK-C001-PRE" }
+```
+
+- Solo se acepta el producto sugerido de esa línea o una de sus `alternativas`. Cualquier otro
+  sku responde `422 producto_no_permitido`: el acudiente elige entre lo que una persona revisó.
+- El cambio se guarda en el trabajo del acudiente, **nunca** en las líneas del kit, que pueden ser
+  el kit canónico de su grado (ADR 0028). `GET /v1/trabajos/{id}` lo aplica al leer, recalcula
+  el total y lo devuelve en `cambios` (`{perfil: {item_id: producto}}`). El pago lee ese mismo kit.
+- La línea cambiada trae `cambiado_por_acudiente: true` y `sku_sugerido`. El sugerido queda entre
+  las `alternativas`; elegirlo de nuevo borra el cambio.
+- Si el trabajo tiene dueño, va con su sesión (`Authorization: Bearer`): otra sesión o ninguna
+  responde `403 solicitud_ajena`. Un trabajo sin dueño (ruta rápida sin cuenta) no la pide.
+- Otros errores: `409 kit_no_publicado`, `409 linea_sin_producto`, `409 linea_consolidada` (se
+  compra junto con la de un hermano), `409 producto_sin_precio`, `404 linea_no_existe`.
 
 ## 6. La recomendación
 

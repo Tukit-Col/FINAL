@@ -24,6 +24,8 @@ citas aquí: el número es una etiqueta, el título es la decisión.
 | [0025](0025-la-curaduria-viaja-por-git.md) | La curaduría de listas y del catálogo viaja por git como CSV | aceptada | `feature/curaduria-de-listas` |
 | [0026](0026-el-concepto-asignado-en-la-revision-manda.md) | El concepto asignado en la revisión manda sobre el texto, y su tipo decide si se busca | aceptada | `feature/curaduria-de-listas` |
 | [0027](0027-lo-que-tukit-no-vende-se-clasifica.md) | Lo que Tukit decide no vender se clasifica como `otro`, no queda como hueco | aceptada | `feature/curaduria-de-listas` |
+| [0028](0028-los-cambios-del-acudiente-viven-en-su-trabajo.md) | Los cambios del acudiente viven en su trabajo, no en las líneas del kit | aceptada | `feature/integracion` |
+| [0029](0029-con-presupuesto-se-recomienda-la-mejor-marca-que-cabe.md) | Con presupuesto se recomienda la mejor marca que cabe, tomada del frente | aceptada | `feature/mejoras-benchmark-nsga` |
 
 ## Para incorporarlos
 
