@@ -294,6 +294,16 @@
   white-space: nowrap;
 }
 
+/* "Revisar" y "Eliminar" en una fila; si se abre la confirmacion, baja a su
+   propia linea (flex-wrap) en vez de estirar la columna. */
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
 .accion {
   display: inline-block;
   padding: 6px 15px;

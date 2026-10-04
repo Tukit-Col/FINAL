@@ -29,6 +29,11 @@ export default async function PaginaCatalogo() {
   ]);
 
   const conceptos: OpcionConcepto[] = catalogo.conceptos
+    // Solo los que se buscan en el catalogo (la misma puerta que `BUSCA_EN_CATALOGO`
+    // del pipeline). Uniforme, licencia, "lo entrega el colegio" o un texto con
+    // titulo nunca llevan productos: ofrecerlos aqui solo invita a colgarles uno.
+    // En la revision de listas SI aparecen, porque ahi se asignan a renglones.
+    .filter((c) => c.tipo_item === "util" || c.tipo_item === "libro_libre")
     .map((c) => ({
       codigo: c.codigo,
       nombre: c.nombre_canonico,

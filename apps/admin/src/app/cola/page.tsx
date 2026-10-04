@@ -19,6 +19,7 @@ import Link from "next/link";
 import type { EntradaCola, VersionListaAdmin } from "@tukit/contrato";
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import BorrarTrabajo from "@/components/BorrarTrabajo";
+import BorrarVersionLista from "@/components/BorrarVersionLista";
 import { formatearFecha, haceCuanto, TITULO_ESTADO_TRABAJO } from "@/lib/formato";
 import SubirLista from "./SubirLista";
 import styles from "./Cola.module.css";
@@ -164,12 +165,19 @@ export default async function PaginaCola() {
                       <td className={`${styles.num} cifra ${styles.tenue}`}>{v.anio_lectivo}</td>
                       <td className={`${styles.num} cifra`}>{v.items}</td>
                       <td className={styles.accionCelda}>
-                        <Link
-                          href={`/onboarding/${encodeURIComponent(v.version_id)}`}
-                          className={styles.accion}
-                        >
-                          Revisar
-                        </Link>
+                        <div className={styles.acciones}>
+                          <Link
+                            href={`/onboarding/${encodeURIComponent(v.version_id)}`}
+                            className={styles.accion}
+                          >
+                            Revisar
+                          </Link>
+                          <BorrarVersionLista
+                            versionId={v.version_id}
+                            grado={v.grado}
+                            acudienteEsperando={Boolean(v.tiene_contacto)}
+                          />
+                        </div>
                       </td>
                     </tr>
                   ))}

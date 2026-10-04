@@ -507,6 +507,7 @@ async def resueltos_de_version(version_id: uuid.UUID) -> dict[str, Any]:
                     ITEM.c.concepto_id,
                     CONCEPTO.c.codigo.label("concepto_codigo"),
                     CONCEPTO.c.nombre_canonico.label("concepto_nombre"),
+                    CONCEPTO.c.tipo_item.label("concepto_tipo_item"),
                 )
                 .select_from(ITEM.outerjoin(CONCEPTO, CONCEPTO.c.id == ITEM.c.concepto_id))
                 .where(ITEM.c.version_id == version_id)
@@ -523,7 +524,11 @@ async def resueltos_de_version(version_id: uuid.UUID) -> dict[str, Any]:
                 "orden": int(f.orden),
                 "texto_original": f.texto_original,
                 "cantidad": int(f.cantidad),
-                "tipo_item": f.tipo_item,
+                # El tipo EFECTIVO: el del renglon si lo declaro, y si no el de su
+                # concepto (`ItemListaOficial.tipo_efectivo`). Devolver solo el
+                # declarado hacia que la ruta rapida tratara "muda de ropa"
+                # (concepto `no_comprar`, renglon sin tipo) como un util.
+                "tipo_item": f.tipo_item or f.concepto_tipo_item,
                 "modo_adquisicion": f.modo_adquisicion,
                 "concepto_codigo": f.concepto_codigo,
                 "concepto_nombre": f.concepto_nombre,
@@ -1041,7 +1046,10 @@ async def _valores_de_renglon(conexion: Any, cuerpo: dict[str, Any], *, nuevo: b
     ):
         if campo in cuerpo:
             valor = cuerpo[campo]
-            if valor is not None and valor not in permitidos:
+            # modo_adquisicion es NOT NULL: un null es tan invalido como un
+            # valor fuera del vocabulario, y debe ser 422, no un 500.
+            nulo_invalido = valor is None and campo == "modo_adquisicion"
+            if nulo_invalido or (valor is not None and valor not in permitidos):
                 raise ErrorDominio(
                     f"{campo}_invalido",
                     f"'{valor}' no es un {campo} valido.",
@@ -1161,6 +1169,57 @@ async def quitar_item(version_id: uuid.UUID, item_id: uuid.UUID) -> None:
         )
         if not resultado.rowcount:
             raise ErrorDominio("item_no_existe", "Ese renglon no esta en esta version.", estado=404)
+
+
+@router.delete(
+    "/listas/{version_id}",
+    status_code=204,
+    summary="Sacar de la cola una version sin revisar (y su evidencia)",
+)
+async def eliminar_version(version_id: uuid.UUID) -> None:
+    """Borra una version que nadie ha revisado: una subida repetida, la de un
+    grado equivocado, una que se va a volver a subir con el prompt nuevo.
+
+    Solo SIN revisar, por la misma puerta que editar un renglon: una version
+    revisada es la que el acudiente ve y contra la que alguien pudo comprar, y
+    eso no se borra desde la cola. Se lleva sus renglones y propuestas (la base
+    los cascadea) y su `tarea_importacion` (el PDF y lo que leyo la percepcion),
+    que con SET NULL quedaria huerfana con el documento adentro.
+
+    Subir una lista nueva le QUITA la vigencia a la anterior. Si la que se borra
+    era la vigente, la vigencia vuelve a la ultima revisada de esa lista, para
+    que el acudiente no se quede sin la lista que ya estaba aprobada. Si no queda
+    ninguna version, se borra la lista.
+
+    Un acudiente que esperaba esta version no se entera: su trabajo sigue en
+    espera. La pantalla lo advierte antes de confirmar.
+    """
+    async with _motor().sesion() as db:
+        conexion = await db.connection()
+        cabeza = await _version_y_lista(conexion, version_id)
+        _exigir_sin_revisar(cabeza)
+        version = (
+            await conexion.execute(
+                select(VERSION.c.lista_id, VERSION.c.vigente).where(VERSION.c.id == version_id)
+            )
+        ).one()
+
+        await conexion.execute(delete(TAREA).where(TAREA.c.version_id == version_id))
+        await conexion.execute(delete(VERSION).where(VERSION.c.id == version_id))
+
+        restantes = list(
+            await conexion.execute(
+                select(VERSION.c.id, VERSION.c.revisada_en)
+                .where(VERSION.c.lista_id == version.lista_id)
+                .order_by(VERSION.c.numero.desc())
+            )
+        )
+        if not restantes:
+            await conexion.execute(delete(TAREA).where(TAREA.c.lista_id == version.lista_id))
+            await conexion.execute(delete(LISTA).where(LISTA.c.id == version.lista_id))
+        elif version.vigente:
+            heredera = next((r for r in restantes if r.revisada_en is not None), restantes[0])
+            await conexion.execute(update(VERSION).where(VERSION.c.id == heredera.id).values(vigente=True))
 
 
 # Los campos que el revisor puede completar del colegio nuevo antes de aprobar.
@@ -1781,14 +1840,24 @@ async def crear_concepto(cuerpo: dict[str, Any]) -> dict[str, Any]:
 async def encolar_util(cuerpo: dict[str, Any]) -> dict[str, Any]:
     """Encola el candidato elegido; la aprobacion es un paso aparte.
 
-    Re-busca por `(slug, sku)` con `admin.buscar_candidatos` --el mismo camino
-    que `admin._util`-- para no confiar en que el navegador arme la Oferta: el
-    precio y la ficha salen de la tienda, no del cliente. Si el candidato ya no
-    aparece (se agoto entre la busqueda y el alta), es un 422 con causa, no un
-    500. El concepto se resuelve por codigo (`concepto_no_existe` si no existe)
-    y el dict lo arma `admin.construir_propuesta_util`, que HTTP y CLI comparten.
+    Re-busca por `(slug, sku)` para no confiar en que el navegador arme la
+    Oferta: el precio y la ficha salen de la tienda, no del cliente. La busqueda
+    es la MISMA que alimento la pantalla (`buscar_en_tienda`: una tienda, sin
+    filtrar), y no `admin.buscar_candidatos`. Aquella aplica el quinto filtro
+    (`_coincide`: TODAS las palabras de la consulta en el nombre), que existe
+    para cuando la maquina elige sola; aqui ya eligio una persona mirando el
+    producto. Con el filtro, "Pluma para caligrafia" rechazaba cualquier
+    "Pilot Pluma Pen Caligrafia" porque el nombre no dice "para", y el
+    revisor veia "ya no esta disponible" de un producto disponible.
+
+    Si el candidato ya no aparece, o aparece agotado o sin precio, es un 422
+    con causa, no un 500. El concepto se resuelve por codigo
+    (`concepto_no_existe` si no existe) y el dict lo arma
+    `admin.construir_propuesta_util`, que HTTP y CLI comparten.
     """
-    from . import admin
+    from starlette.concurrency import run_in_threadpool
+
+    from . import admin, tiendas
     from .descubrir import _encolar
 
     consulta = str(cuerpo.get("consulta") or "").strip()
@@ -1797,13 +1866,21 @@ async def encolar_util(cuerpo: dict[str, Any]) -> dict[str, Any]:
     nivel = str(cuerpo.get("nivel") or "confiable")
     codigo = str(cuerpo.get("concepto") or "")
 
-    elegida = next(
-        (o for s, o in admin.buscar_candidatos(consulta) if s == slug and o.sku == sku), None
-    )
+    # El tope de `buscar_en_tienda`: el candidato pudo salir en cualquier
+    # posicion de lo que la pantalla mostro.
+    ofertas = await run_in_threadpool(tiendas.buscar, slug, consulta, 48)
+    elegida = next((o for o in ofertas if o.sku == sku), None)
     if elegida is None:
         raise ErrorDominio(
             "candidato_no_disponible",
-            "Ese candidato ya no esta disponible en la tienda; busca de nuevo.",
+            "Ese candidato ya no aparece en la tienda; busca de nuevo.",
+            estado=422,
+            campo="sku",
+        )
+    if not elegida.disponible or elegida.precio_cop <= 0:
+        raise ErrorDominio(
+            "candidato_no_disponible",
+            "La tienda tiene ese producto agotado o sin precio; elige otro.",
             estado=422,
             campo="sku",
         )
