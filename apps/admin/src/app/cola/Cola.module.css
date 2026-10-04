@@ -294,11 +294,10 @@
   white-space: nowrap;
 }
 
-/* "Revisar" y "Eliminar" en una fila; si se abre la confirmacion, baja a su
-   propia linea (flex-wrap) en vez de estirar la columna. */
+/* "Revisar" y "Eliminar" en una sola linea; la confirmacion reemplaza a
+   "Eliminar" en ese mismo lugar, asi la fila no cambia de alto. */
 .acciones {
   display: flex;
-  flex-wrap: wrap;
   justify-content: flex-end;
   align-items: center;
   gap: 8px;

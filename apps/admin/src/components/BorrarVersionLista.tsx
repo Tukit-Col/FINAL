@@ -51,13 +51,18 @@ export default function BorrarVersionLista({ versionId, grado, acudienteEsperand
     );
   }
 
+  // Texto corto para que quepa en la linea; el detalle (renglones y PDF) va en
+  // el `title`, que aparece al pasar el mouse.
   return (
-    <div className={styles.confirmacion} role="alertdialog" aria-label={`Eliminar la lista de ${grado}`}>
-      <p className={styles.pregunta}>¿Eliminar la lista de {grado}? Se borran sus renglones y el PDF.</p>
-      {acudienteEsperando ? (
-        <p className={styles.aviso}>Un acudiente la está esperando: su kit no se va a armar.</p>
-      ) : null}
-      <div className={styles.botones}>
+    <span>
+      <span
+        className={styles.confirmacion}
+        role="alertdialog"
+        aria-label={`Eliminar la lista de ${grado}`}
+        title={`Se borran los renglones y el PDF de la lista de ${grado}.`}
+      >
+        <span className={styles.pregunta}>¿Eliminar?</span>
+        {acudienteEsperando ? <span className={styles.aviso}>Un acudiente la espera</span> : null}
         <button
           type="button"
           className={styles.confirmar}
@@ -74,8 +79,8 @@ export default function BorrarVersionLista({ versionId, grado, acudienteEsperand
         >
           Cancelar
         </button>
-      </div>
-      {error ? <p className={styles.error}>{error}</p> : null}
-    </div>
+      </span>
+      {error ? <span className={styles.error}>{error}</span> : null}
+    </span>
   );
 }
