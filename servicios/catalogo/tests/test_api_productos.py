@@ -271,12 +271,16 @@ class TestReclasificar:
         assert respuesta.status_code == 200
         cuerpo = respuesta.json()
         assert cuerpo["concepto"]["codigo"] == "C011"
-        assert cuerpo["sku"] == "TK-C001-SPIDER"
+        # La semilla se re-acuna: su SKU nombra el concepto y ya no puede
+        # decir C001 (test_el_sku_nombra_al_concepto_y_al_nivel_que_dice_la_fila).
+        # Ya hay un TK-C011-SPIDER: el re-acunado no lo pisa, lleva sufijo.
+        assert cuerpo["sku"] == "TK-C011-SPIDER-2"
         assert cuerpo["precio_desde"] == 9900
 
     async def test_reclasificar_invalida_el_embedding(self, cliente):
         await cliente.post("/v1/catalogo/productos/TK-C001-SPIDER/reclasificar", json={"concepto": "C011"})
-        assert await _texto_embedding("TK-C001-SPIDER") is None
+        assert await _activo("TK-C011-SPIDER-2") is True
+        assert await _texto_embedding("TK-C011-SPIDER-2") is None
 
     async def test_concepto_inexistente_es_404(self, cliente):
         respuesta = await cliente.post(

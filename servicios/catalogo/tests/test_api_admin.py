@@ -357,6 +357,42 @@ class TestAgregarYQuitarRenglon:
         assert respuesta.status_code == 409
 
 
+class TestEliminarUnaVersionDeLaCola:
+    async def test_eliminar_una_version_sin_revisar_la_saca_de_la_cola(self, cliente):
+        vid = cliente.ids["abierta"]
+        assert (await cliente.delete(f"/v1/admin/listas/{vid}")).status_code == 204
+
+        assert (await cliente.get(f"/v1/admin/listas/{vid}/revision")).status_code == 404
+        pendientes = (await cliente.get("/v1/admin/listas?revisada=false")).json()
+        assert all(v["version_id"] != str(vid) for v in pendientes["listas"])
+
+    async def test_una_version_revisada_no_se_elimina(self, cliente):
+        """La revisada es la que ve el acudiente y contra la que alguien pudo
+        comprar: no sale por la puerta de la cola."""
+        vid = cliente.ids["cerrada"]
+        respuesta = await cliente.delete(f"/v1/admin/listas/{vid}")
+        assert respuesta.status_code == 409
+        assert respuesta.json()["error"] == "lista_ya_revisada"
+
+    async def test_eliminar_la_subida_nueva_le_devuelve_la_vigencia_a_la_aprobada(self, cliente):
+        """Subir una lista nueva le quita la vigencia a la aprobada. Si esa
+        subida se elimina, el acudiente no puede quedarse sin la aprobada."""
+        cerrada = cliente.ids["cerrada"]
+        nueva = (
+            await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar(grado="Quinto"))
+        ).json()["version_id"]
+        assert (await cliente.delete(f"/v1/admin/listas/{nueva}")).status_code == 204
+
+        resueltos = await cliente.get(f"/v1/admin/listas/{cerrada}/resueltos")
+        assert resueltos.status_code == 200
+        listas = (await cliente.get(f"/v1/listas?colegio_id={COLEGIO}&grado=Quinto")).json()
+        assert [v["version_id"] for v in listas["listas"]] == [str(cerrada)]
+
+    async def test_una_version_que_no_existe_es_404(self, cliente):
+        respuesta = await cliente.delete(f"/v1/admin/listas/{uuid.uuid4()}")
+        assert respuesta.status_code == 404
+
+
 class TestCerrarLaRevision:
     async def test_cerrar_con_propuestas_pendientes_se_niega(self, cliente):
         vid = cliente.ids["abierta"]

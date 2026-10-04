@@ -31,6 +31,7 @@ sola vez para que ningun cliente tenga que acordarse de dividir.
 from __future__ import annotations
 
 import argparse
+import re
 import uuid
 from typing import Annotated, Any
 
@@ -869,12 +870,29 @@ async def reclasificar_producto(sku: str, cuerpo: dict[str, Any]) -> dict[str, A
             raise ErrorDominio(
                 "concepto_no_existe", f"No hay ningun concepto con el codigo {codigo}.", estado=404
             )
+        nuevo_sku = await _sku_reacunado(conexion, sku, codigo)
         await conexion.execute(
             update(PRODUCTO)
             .where(PRODUCTO.c.sku_interno == sku)
-            .values(concepto_id=cid, texto_embedding=None)
+            .values(concepto_id=cid, texto_embedding=None, sku_interno=nuevo_sku)
         )
-        return await _producto_por_sku(conexion, sku)
+        return await _producto_por_sku(conexion, nuevo_sku)
+
+
+async def _sku_reacunado(conexion: Any, sku: str, codigo: str) -> str:
+    """El SKU de una semilla (`TK-<concepto>-<nivel>[-<personaje>]`) nombra su
+    concepto; al moverla de concepto se re-acuña para que no mienta
+    (`test_el_sku_nombra_al_concepto_y_al_nivel_que_dice_la_fila`). Los demas
+    tiers (`TK-REV-`, `TK-LIB-`, `TK-SUG-`) nombran otra cosa y no se tocan.
+    Si el SKU nuevo ya existe se le agrega un sufijo numerico."""
+    partes = sku.split("-")
+    if len(partes) < 3 or partes[0] != "TK" or not re.fullmatch(r"C\d{3}", partes[1]) or partes[1] == codigo:
+        return sku
+    base = "-".join([partes[0], codigo, *partes[2:]])
+    candidato, n = base, 2
+    while await conexion.scalar(select(PRODUCTO.c.id).where(PRODUCTO.c.sku_interno == candidato)):
+        candidato, n = f"{base}-{n}", n + 1
+    return candidato
 
 
 @app.delete(

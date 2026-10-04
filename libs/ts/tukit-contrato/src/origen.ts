@@ -368,6 +368,9 @@ export interface OrigenDatos {
   ): Promise<void>;
   agregarItemLista(versionId: string, item: ItemListaEditable): Promise<{ item_id: string }>;
   quitarItemLista(versionId: string, itemId: string): Promise<void>;
+  // Saca de la cola una version SIN revisar (y su PDF). Una revisada responde
+  // 409 `lista_ya_revisada`: es la que ve el acudiente.
+  eliminarVersionLista(versionId: string): Promise<void>;
   cerrarLista(versionId: string): Promise<void>;
   nuevaVersion(
     colegioId: string,

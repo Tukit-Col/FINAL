@@ -79,6 +79,12 @@ export function quitarItemLista(versionId: string, itemId: string): Promise<void
   return pedir<void>(`/api/listas/${id(versionId)}/items/${id(itemId)}`, { method: "DELETE" });
 }
 
+/** DELETE — sacar de la cola una versión sin revisar, con su PDF. Una revisada
+ *  responde 409 `lista_ya_revisada`. */
+export function eliminarVersionLista(versionId: string): Promise<void> {
+  return pedir<void>(`/api/listas/${id(versionId)}`, { method: "DELETE" });
+}
+
 /** POST — aprobar y publicar la versión. Deja el par (colegio, grado) disponible. */
 export function cerrarLista(versionId: string): Promise<void> {
   return pedir<void>(`/api/listas/${id(versionId)}/cerrar`, { method: "POST" });
