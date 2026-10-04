@@ -25,6 +25,7 @@
 import { useId, useState } from "react";
 import type { ConceptoCreado, CrearConcepto, TipoItem } from "@tukit/contrato";
 import { crearConcepto, FalloCatalogo } from "@/lib/api-catalogo";
+import Desplegable from "./Desplegable";
 import styles from "./CatalogoSpa.module.css";
 
 // Los tipos que un concepto puede llevar (§1.1). El comprable por defecto es
@@ -180,17 +181,13 @@ export default function NuevoConcepto({
 
         <div className={styles.campo}>
           <label htmlFor={`${id}-tipo`}>Tipo</label>
-          <select
+          <Desplegable
             id={`${id}-tipo`}
-            value={tipo}
-            onChange={(e) => setTipo(e.target.value as TipoItem)}
-          >
-            {TIPOS.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
+            tamano="compacto"
+            opciones={TIPOS.map((t) => ({ valor: t, texto: t }))}
+            valor={tipo}
+            onCambio={(t) => setTipo(t as TipoItem)}
+          />
         </div>
 
         <div className={`${styles.campo} ${styles.campoAncho}`}>
@@ -330,22 +327,21 @@ function EditorAtributos({
           }}
         />
       ) : (
-        <select
+        <Desplegable
           id={id}
-          value=""
-          onChange={(e) => {
-            if (e.target.value === OTRO_ATRIBUTO) setEscribiendo(true);
-            else if (e.target.value) onAgregar(e.target.value);
+          tamano="compacto"
+          buscable={sugerencias.length > 12}
+          textoVacio={valores.length ? "Agregar otro…" : "Elegir atributo…"}
+          opciones={[
+            ...sugerencias.map((a) => ({ valor: a, texto: a })),
+            { valor: OTRO_ATRIBUTO, texto: "Otro (escribir)…" },
+          ]}
+          valor=""
+          onCambio={(elegido) => {
+            if (elegido === OTRO_ATRIBUTO) setEscribiendo(true);
+            else if (elegido) onAgregar(elegido);
           }}
-        >
-          <option value="">{valores.length ? "Agregar otro…" : "Elegir atributo…"}</option>
-          {sugerencias.map((a) => (
-            <option key={a} value={a}>
-              {a}
-            </option>
-          ))}
-          <option value={OTRO_ATRIBUTO}>Otro (escribir)…</option>
-        </select>
+        />
       )}
       <span className={styles.ayudaCampo}>{ayuda}</span>
     </div>
