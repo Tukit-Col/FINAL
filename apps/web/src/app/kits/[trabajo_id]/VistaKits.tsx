@@ -118,7 +118,8 @@ export default function VistaKits({ trabajo }: { trabajo: Trabajo }) {
       {recomendado && (
         <p className={styles.razon}>
           <strong>Por qué el {recomendado.perfil}:</strong> {recomendado.razon}
-          {!recomendado.dentro_de_presupuesto && (
+          {/* `null` es "no puso tope": solo `false` es pasarse. */}
+          {recomendado.dentro_de_presupuesto === false && (
             <em className={styles.fueraPresupuesto}> Ojo: se pasa del tope que pusiste.</em>
           )}
         </p>
