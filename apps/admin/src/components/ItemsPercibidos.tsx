@@ -95,6 +95,8 @@ function RenglonEditable({
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // La lectura de Gemini, corregible sin tener que dividir el renglon.
+  const [texto, setTexto] = useState(item.texto_original);
   const [concepto, setConcepto] = useState(item.concepto_codigo ?? "");
   const [cantidad, setCantidad] = useState(String(item.cantidad));
   // El select solo distingue los modos directos; cualquier otro modo guardado
@@ -127,11 +129,16 @@ function RenglonEditable({
   }
 
   async function guardar() {
+    if (!texto.trim()) {
+      setError("El renglón necesita un texto. Para quitarlo, usa Eliminar.");
+      return;
+    }
     setGuardando(true);
     setError(null);
     // Solo se manda lo que cambió (todos opcionales). El modo vacío = mercado
     // abierto: la columna es NOT NULL, así que se manda el valor explícito.
     const cambios: ItemListaEditable = {};
+    if (texto.trim() !== item.texto_original) cambios.texto_original = texto.trim();
     if (concepto !== (item.concepto_codigo ?? "")) cambios.concepto = concepto || null;
     const cantidadNum = Number(cantidad);
     if (Number.isFinite(cantidadNum) && cantidadNum !== item.cantidad) cambios.cantidad = cantidadNum;
@@ -230,6 +237,10 @@ function RenglonEditable({
 
       {abierto ? (
         <div className={styles.editor}>
+          <label className={styles.campo}>
+            <span>Texto del renglón</span>
+            <input value={texto} onChange={(e) => setTexto(e.target.value)} disabled={guardando} />
+          </label>
           <label className={styles.campo}>
             <span>Concepto (vacío = sin concepto)</span>
             <select
