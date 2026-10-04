@@ -16,6 +16,7 @@
 import { useState } from "react";
 import type { ClaseLinea, Kit, LineaKit, PerfilKit } from "@tukit/contrato";
 import { agruparPorClase, formatearPesos, ORDEN_SECCIONES, TITULO_CLASE } from "@tukit/contrato";
+import { tituloClaseAdmin } from "@/lib/consola";
 import { esPendiente } from "@/lib/formato";
 import LineaRevision from "./LineaRevision";
 import styles from "./Revision.module.css";
@@ -129,7 +130,7 @@ export default function MatrizComparacion({ trabajoId, kits, recomendado }: Prop
       {secciones.map(({ clase, filas }) => (
         <section key={clase} className={styles.matrizSeccion}>
           <h3 className={`${styles.matrizSeccionTitulo} ${esPendiente(clase) ? styles.seccionPendiente : ""}`}>
-            {TITULO_CLASE[clase]}
+            {tituloClaseAdmin(clase, TITULO_CLASE)}
             <span className={styles.conteo}>{filas.length}</span>
           </h3>
 

@@ -28,6 +28,7 @@ const VISTA_PREVIA: VistaPreviaLista = {
   estado: "espera_revision",
   creado_en: null,
   lineas_sin_decidir: 2,
+  desactualizada: false,
 };
 
 function origen(cambios: Partial<Record<keyof OrigenRevisor, () => Promise<unknown>>> = {}) {
@@ -99,5 +100,6 @@ test("la vista previa se trae, y si falla no tumba el revisor", async () => {
     "v1",
   );
   assert.ok(caida);
-  assert.equal(caida.vistaPrevia, null);
+  // undefined, no null: "no se pudo leer" no es "no hay vista previa".
+  assert.equal(caida.vistaPrevia, undefined);
 });

@@ -76,7 +76,7 @@ export default function ConsolaRevision({ trabajo, personajes }: Props) {
         await validarLinea(trabajo.trabajo_id, linea.item_id, cuerpo);
         hechas += 1;
       }
-      setAvisoLote(`${hechas} línea(s) validadas con el producto que eligió el sistema.`);
+      setAvisoLote(`${hechas} línea(s) validadas con su producto elegido.`);
       router.refresh();
     } catch (causa) {
       setErrorLote(
@@ -102,7 +102,7 @@ export default function ConsolaRevision({ trabajo, personajes }: Props) {
       {masivas.length > 0 ? (
         <div className={styles.barraLote}>
           <span className={styles.loteConteo}>
-            {masivas.length} línea(s) con un producto elegido por el sistema, sin confirmar.
+            {masivas.length} línea(s) con un producto elegido, sin confirmar.
           </span>
           <div className={styles.loteBotones}>
             <button

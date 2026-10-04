@@ -294,6 +294,15 @@
   white-space: nowrap;
 }
 
+/* "Descartar" y "Eliminar" son bloques (traen su confirmación debajo): sin la
+   fila flexible se iban a otra línea, desalineados de "Revisar". */
+.accionesFila {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--espacio-2);
+}
+
 .accion {
   display: inline-block;
   padding: 6px 15px;
