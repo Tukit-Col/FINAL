@@ -20,6 +20,7 @@ presupuesto. Sale del benchmark Laya vs NSGA-II.
 |---|---|---|
 | Con `presupuesto_por_hijo` se recomienda la mejor marca que cabe, y el Premium que no cabe se ajusta al mejor punto del frente dentro del tope | §6 | El kit recomendado con presupuesto lograba el 40 % de la calidad posible y el frente ya traía uno del 94 % |
 | Si el recomendado no cabe, se cae a la mejor marca que cabe, no al más barato | §6 | Es lo que §6 prometía ("el siguiente punto del frente") y el código no hacía |
+| `disposicion_sobreprecio` ya no estira el tope | §6 | Quien escribía "máximo $350.000" podía recibir un kit de $385.000 |
 
 ### Qué cambió en 1.2
 
@@ -498,7 +499,9 @@ regla, derivada de la encuesta:
   (1,87 contra 2,85 del precio), y tiene sentido: el que paga es el papá y el que quiere el
   personaje es el hijo.
 - **Con `presupuesto_por_hijo`, `Premium`: la mejor marca que cabe.** El tope es
-  `presupuesto_por_hijo × (1 + disposicion_sobreprecio)`. Si el Premium de siempre no cabe,
+  `presupuesto_por_hijo` tal cual: `disposicion_sobreprecio` no lo estira, porque dice cuánto
+  más pagaría el acudiente por marca sin tope, no cuánto se puede pasar del tope que él mismo
+  puso. Con tope, la prioridad elegida no cambia el kit marcado. Si el Premium de siempre no cabe,
   ese kit se reemplaza por el punto del frente con mayor fidelidad cuyo costo cabe en el
   tope, y `razon` dice que se ajustó al presupuesto. Siguen siendo tres kits: el ajustado
   ocupa el lugar del Premium porque es su mismo arquetipo con la cota del acudiente. No se
