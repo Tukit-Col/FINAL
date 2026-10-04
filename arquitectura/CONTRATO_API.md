@@ -1161,10 +1161,11 @@ azar. Se ve, no se cobra y se explica.
 
 | Endpoint | Qué hace |
 |---|---|
-| `GET /v1/admin/cola` | Trabajos en `espera_revision`, del más viejo al más nuevo, con `lineas_a_revisar` |
+| `GET /v1/admin/cola` | Trabajos en `espera_revision`, del más viejo al más nuevo, con `lineas_a_revisar`. Cada entrada trae `origen` y `version_id` (la versión de lista de su hijo, o `null`): con eso el admin separa las vistas previas de lista (`preview_onboarding`) de los trabajos de acudiente |
+| `GET /v1/admin/onboarding/{version_id}/preview` | La vista previa vigente de esa versión (`preview_onboarding` en `espera_revision`, la más reciente): `{"trabajo_id", "estado", "creado_en", "lineas_sin_decidir"}`. `404 vista_previa_no_existe` si no hay |
 | `GET /v1/admin/trabajos/{id}` | El mismo lector del acudiente **con los kits forzados**: Admin tiene que ver lo que todavía no se publica |
-| `POST /v1/admin/trabajos/{id}/lineas/{item_id}/validar` | `{"sku": "…", "motivo": "…", "actor": "…uuid…"}`. Deja la línea en `RESUELTO_AUTO` |
-| `POST /v1/admin/trabajos/{id}/lineas/{item_id}/sin-coincidencia` | Deja la línea en **`HUECO_CATALOGO`**, no en `SIN_MATCH` |
+| `POST /v1/admin/trabajos/{id}/lineas/{item_id}/validar` | `{"sku": "…", "motivo": "…", "actor": "…uuid…"}` (`nota` se acepta como sinónimo de `motivo`). Deja la línea en `RESUELTO_AUTO`. `sku` es opcional: sin él vale el producto de la línea en el kit recomendado (o el candidato actual). Si el sku no era candidato se registra como tal. Sin producto que validar es `422 sin_producto_que_validar` con `campo: "sku"` |
+| `POST /v1/admin/trabajos/{id}/lineas/{item_id}/sin-coincidencia` | Deja la línea en **`HUECO_CATALOGO`**, no en `SIN_MATCH`, y le quita el producto y el precio en los tres kits (recalcula sus totales): lo que "no tenemos" no se cobra |
 | `POST /v1/admin/trabajos/{id}/revision` | `{"decision": "aprobar"\|"devolver", "nota": "…"}` |
 
 `sin-coincidencia` marca `HUECO_CATALOGO` a propósito. Si una persona miró la línea,
@@ -1174,6 +1175,20 @@ falta al catálogo.
 
 `actor` es opcional hoy porque no hay autenticación; cuando la haya saldrá del token. Toda
 decisión queda en `transicion_resolucion` con quién y cuándo (`AD-25`, `AD-26`).
+
+Validar o marcar sin coincidencia actualiza también el `estado_resolucion` de la línea en
+los tres kits: la decisión es por ítem, y la consola la lee de la línea.
+
+Una vista previa de lista no se publica con `revision` (`409`): al aprobar su lista sin
+acudiente esperando, la vista previa más reciente de esa versión —si tiene líneas
+comprables y sus renglones siguen siendo los de la versión— se promueve a `colegio_grado`
+con sus ajustes. Sin líneas por decidir queda `publicado` y fija el kit canónico del grado
+(sin emitir `kits_publicados`: no hay acudiente a quien avisar); con dudosas pendientes
+(`AMBIGUO` o `SIN_MATCH` sin decidir) queda en `espera_revision`, en la cola. Los
+`HUECO_CATALOGO` no bloquean: no tienen producto ni precio.
+
+Aprobar un trabajo sin acudiente (`colegio_grado`) lo publica y fija el canónico, pero no
+emite `kits_publicados`: el repartidor no tendría a quién avisar y lo reintentaría sin fin.
 
 `devolver` reabre el trabajo y lo vuelve a procesar **sin avisarle al acudiente**. Aprobar
 un trabajo ya publicado es `409 estado_incompatible`: no es idempotente, es un segundo
