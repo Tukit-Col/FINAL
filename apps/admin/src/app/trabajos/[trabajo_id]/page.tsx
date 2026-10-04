@@ -152,6 +152,7 @@ export default async function PaginaTrabajo({ params }: Props) {
         estado={trabajo.estado}
         lineasPendientes={trabajo.lineas_pendientes.length}
         notaRevision={trabajo.nota_revision}
+        esPreview={trabajo.origen === "preview_onboarding"}
       />
 
       <ConsolaRevision trabajo={trabajo} personajes={personajes} />

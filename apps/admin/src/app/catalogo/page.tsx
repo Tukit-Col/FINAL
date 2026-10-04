@@ -15,6 +15,7 @@ import { origenDeDatos } from "@tukit/contrato/servidor";
 import SeccionesCatalogo from "@/components/SeccionesCatalogo";
 import type { OpcionConcepto } from "@/components/PanelReclasificar";
 import styles from "./Catalogo.module.css";
+import { vocabularioDeConceptos } from "@/lib/vocabulario-conceptos";
 
 export const dynamic = "force-dynamic";
 
@@ -84,6 +85,7 @@ export default async function PaginaCatalogo() {
         conceptos={conceptos}
         personajes={nombresPersonajes}
         tiendas={tiendas}
+        vocabulario={vocabularioDeConceptos(catalogo.conceptos)}
       />
     </div>
   );

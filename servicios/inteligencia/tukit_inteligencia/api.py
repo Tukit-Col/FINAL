@@ -144,6 +144,11 @@ class DecisionRevision(BaseModel):
     actor: uuid.UUID | None = None
 
 
+class FijarCanonico(BaseModel):
+    nota: str | None = Field(default=None, max_length=1024)
+    actor: uuid.UUID | None = None
+
+
 class AplicarCanonico(BaseModel):
     """La ruta rapida del acudiente: su nivel + personaje sobre la cache bendita."""
 
@@ -888,6 +893,10 @@ async def preview_onboarding(version_id: str, peticion: PeticionPreview) -> dict
                 "colegio_id": peticion.colegio_id,
                 "grado": peticion.grado,
                 "anio_lectivo": peticion.anio_lectivo,
+                # La version que se previsualizo: si el admin fija este preview
+                # como canonico, el poller de `lista_aprobada` sabe que esa
+                # version ya tiene sus kits y no vuelve a optimizar.
+                "version_id": version_id,
             }
         ],
         contacto=None,
@@ -1120,6 +1129,42 @@ async def revisar(trabajo_id: uuid.UUID, decision: DecisionRevision) -> dict[str
     if decision.decision == "devolver":
         trabajos.lanzar(app.state.motor, trabajo_id)
     return resultado
+
+
+@app.post(
+    "/v1/admin/trabajos/{trabajo_id}/canonico",
+    tags=["admin"],
+    summary="Fija un preview como los kits canonicos de su grado (sin avisar a nadie)",
+)
+async def fijar_canonico(trabajo_id: uuid.UUID, cuerpo: FijarCanonico) -> dict[str, Any]:
+    """La contraparte de "publicar" para un trabajo sin acudiente.
+
+    El admin previsualizo los kits de una lista, quiza los ajusto, y aprueba:
+    esos tres kits pasan a ser la cache canonica del (colegio, grado, anio) y
+    el proximo acudiente sin tope de gasto los recibe por la ruta rapida, sin
+    volver a correr el optimizador. Aprobar la LISTA es otra llamada (Catalogo);
+    la consola del admin hace las dos.
+    """
+    try:
+        return await trabajos.fijar_como_canonico(
+            app.state.motor, trabajo_id, nota=cuerpo.nota, actor=cuerpo.actor
+        )
+    except trabajos.TrabajoNoExiste as error:
+        raise ErrorDominio(
+            "trabajo_no_existe", "No hay ningun trabajo con ese identificador.", estado=404
+        ) from error
+    except trabajos.NoCanonizable as error:
+        raise ErrorDominio(
+            "trabajo_con_acudiente",
+            "Solo un preview se guarda como kit canonico; el trabajo de un acudiente se publica.",
+            estado=409,
+        ) from error
+    except trabajos.TransicionIlegal as error:
+        raise ErrorDominio(
+            "estado_incompatible",
+            f"Un trabajo en {error.actual} no se puede guardar como canonico.",
+            estado=409,
+        ) from error
 
 
 @app.get(

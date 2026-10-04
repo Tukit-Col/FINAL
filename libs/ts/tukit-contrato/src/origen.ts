@@ -312,6 +312,9 @@ export interface OrigenDatos {
   altaProducto(cuerpo: AltaProducto): Promise<ProductoDadoDeAlta>;
   marcarNoDisponible(sku: string, cuerpo: MarcarNoDisponible): Promise<void>;
   decidirRevision(trabajoId: string, cuerpo: DecisionRevision): Promise<void>;
+  // Fija un preview (sin acudiente) como los kits canonicos de su grado: no
+  // avisa a nadie. Aprobar la LISTA es aparte (`cerrarLista`).
+  fijarCanonico(trabajoId: string, cuerpo: { nota?: string }): Promise<void>;
   // Borra un trabajo desechable (preview, encolado, fallido). Un `publicado`
   // esta protegido y el backend responde 409.
   eliminarTrabajo(trabajoId: string): Promise<void>;

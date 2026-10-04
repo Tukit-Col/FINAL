@@ -42,6 +42,9 @@ from .remoto import ClienteCatalogo
 # lleva otros (ninguno hoy), y un tipo desconocido se marca publicado sin
 # actuar, para no reprocesarlo en cada pasada.
 _TIPO = "lista_verificada"
+# Toda version aprobada, con o sin padre esperando: arma los kits canonicos del
+# grado para que el proximo acudiente sin tope los reciba sin re-optimizar.
+_TIPO_CANONICO = "lista_aprobada"
 
 
 def _bandeja_reflejada() -> Table:
@@ -90,7 +93,10 @@ class Poller:
             pendientes = list(
                 await conexion.execute(
                     select(bandeja)
-                    .where(bandeja.c.publicado_en.is_(None), bandeja.c.tipo == _TIPO)
+                    .where(
+                        bandeja.c.publicado_en.is_(None),
+                        bandeja.c.tipo.in_((_TIPO, _TIPO_CANONICO)),
+                    )
                     .order_by(bandeja.c.id)
                     .limit(limite)
                     .with_for_update(skip_locked=True)
@@ -103,6 +109,8 @@ class Poller:
         return arrancados
 
     async def _procesar(self, conexion: Any, bandeja: Table, fila: Any) -> bool:
+        if fila.tipo == _TIPO_CANONICO:
+            return await self._procesar_canonico(conexion, bandeja, fila)
         carga = fila.carga or {}
         colegio_id = carga.get("colegio_id")
         grado = carga.get("grado")
@@ -153,6 +161,48 @@ class Poller:
         # al terminar deja `kits_publicados` en la bandeja propia, que el
         # repartidor recogera para avisarle al padre con el enlace.
         await trabajos.procesar(self.motor_inteligencia, trabajo_id, catalogo=self.catalogo)
+        return True
+
+    async def _procesar_canonico(self, conexion: Any, bandeja: Table, fila: Any) -> bool:
+        """Arma los tres kits canonicos de la version aprobada y los fija.
+
+        Sin acudiente y sin preferencias: son los kits neutros que la ruta rapida
+        le aplica a cualquiera. Si la version ya tiene canonico —el admin aprobo
+        desde el preview y fijo esos kits— no se vuelve a optimizar.
+        """
+        carga = fila.carga or {}
+        colegio_id = carga.get("colegio_id")
+        grado = carga.get("grado")
+        if not colegio_id or not grado:
+            await self._marcar_publicado(conexion, bandeja, fila.id)
+            return False
+        anio = int(carga.get("anio_lectivo") or trabajos.ANIO_LECTIVO_POR_OMISION)
+        version = str(fila.agregado_id)
+
+        async with self.motor_inteligencia.engine.begin() as propia:
+            ya = await trabajos.version_canonica(propia, str(colegio_id), grado, anio)
+        if ya == version:
+            await self._marcar_publicado(conexion, bandeja, fila.id)
+            return False
+
+        respuesta = await trabajos.crear(
+            self.motor_inteligencia,
+            hijos=[
+                {
+                    "referencia": "canonico",
+                    "colegio_id": str(colegio_id),
+                    "grado": grado,
+                    "anio_lectivo": anio,
+                    "version_id": version,
+                }
+            ],
+            preferencias={},
+            origen=trabajos.ORIGEN_CANONICO,
+        )
+        await self._marcar_publicado(conexion, bandeja, fila.id)
+        await trabajos.procesar(
+            self.motor_inteligencia, uuid.UUID(respuesta["trabajo_id"]), catalogo=self.catalogo
+        )
         return True
 
     async def _marcar_publicado(self, conexion: Any, bandeja: Table, id_fila: int) -> None:

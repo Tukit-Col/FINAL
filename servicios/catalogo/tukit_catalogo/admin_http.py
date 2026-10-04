@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import re
 import uuid
 from typing import Annotated, Any
 
@@ -1384,6 +1385,25 @@ async def cerrar_version(version_id: uuid.UUID) -> dict[str, Any]:
         )
         await conexion.execute(update(VERSION).where(VERSION.c.id == version_id).values(vigente=True))
 
+        # Toda version aprobada estrena sus kits canonicos: Inteligencia drena
+        # `lista_aprobada`, arma Ahorrador/Fan/Premium sin preferencias y los
+        # fija como la cache del grado, para que el proximo acudiente sin tope
+        # de gasto los reciba sin volver a correr el optimizador. Va ANTES que
+        # `lista_verificada` (la bandeja se drena por id) y por la misma razon
+        # de grafo: Catalogo no llama a Inteligencia, le deja el evento.
+        await conexion.execute(
+            BANDEJA.insert().values(
+                tipo="lista_aprobada",
+                agregado_tipo="version_lista_oficial",
+                agregado_id=version_id,
+                carga={
+                    "colegio_id": str(cabeza.colegio_id),
+                    "grado": cabeza.grado,
+                    "anio_lectivo": cabeza.anio_lectivo,
+                },
+            )
+        )
+
         # Si un padre estaba esperando esta version (subio su PDF y quedo ligado
         # por `contacto_referencia`), aprobarla dispara su kit. Pero Catalogo NO
         # llama a Inteligencia —esa arista cerraria un ciclo en el grafo de
@@ -1790,6 +1810,14 @@ async def crear_concepto(cuerpo: dict[str, Any]) -> dict[str, Any]:
         if isinstance(crudo, str)
         else [str(s).strip() for s in crudo if str(s).strip()]
     )
+    # Los dos papeles del atributo (ver `demanda_atributos`): el discriminante
+    # FILTRA (un cuaderno cuadriculado no pasa por uno rayado) y el descriptivo
+    # solo informa. Se normalizan a la forma del corpus (minusculas, `_` por
+    # espacio) y no pueden repetirse entre listas: la base lo prohibe.
+    discriminantes = _nombres_de_atributo(cuerpo.get("atributos_discriminantes"))
+    descriptivos = [
+        a for a in _nombres_de_atributo(cuerpo.get("atributos_descriptivos")) if a not in discriminantes
+    ]
 
     from .cargador import _uuid_estable
 
@@ -1827,9 +1855,31 @@ async def crear_concepto(cuerpo: dict[str, Any]) -> dict[str, Any]:
                 categoria=categoria,
                 tipo_item=tipo_item,
                 admite_personaje=bool(cuerpo.get("admite_personaje", False)),
+                atributos_discriminantes=discriminantes,
+                atributos_descriptivos=descriptivos,
             )
         )
-    return {"codigo": codigo, "nombre_canonico": nombre, "categoria": categoria, "tipo_item": tipo_item}
+    return {
+        "codigo": codigo,
+        "nombre_canonico": nombre,
+        "categoria": categoria,
+        "tipo_item": tipo_item,
+        "atributos_discriminantes": discriminantes,
+        "atributos_descriptivos": descriptivos,
+    }
+
+
+def _nombres_de_atributo(crudo: Any) -> list[str]:
+    """Lista o texto separado por `|`/`,` a nombres de atributo sin repetir."""
+    if not crudo:
+        return []
+    partes = re.split(r"[|,]", crudo) if isinstance(crudo, str) else [str(p) for p in crudo]
+    vistos: list[str] = []
+    for parte in partes:
+        nombre = re.sub(r"\s+", "_", parte.strip().lower())
+        if nombre and nombre not in vistos:
+            vistos.append(nombre)
+    return vistos
 
 
 @router.post(

@@ -17,6 +17,7 @@ import AltaUtil from "./AltaUtil";
 import AltaLibro from "./AltaLibro";
 import NuevoConcepto from "./NuevoConcepto";
 import type { OpcionConcepto } from "./PanelReclasificar";
+import type { VocabularioConceptos } from "@/lib/vocabulario-conceptos";
 import styles from "./CatalogoSpa.module.css";
 
 // Una tienda registrada para los selectores de alta (se puede elegir una o
@@ -41,6 +42,7 @@ interface Props {
   conceptos: OpcionConcepto[];
   personajes: string[];
   tiendas: OpcionTienda[];
+  vocabulario: VocabularioConceptos;
 }
 
 export default function SeccionesCatalogo({
@@ -48,6 +50,7 @@ export default function SeccionesCatalogo({
   conceptos: conceptosIniciales,
   personajes,
   tiendas,
+  vocabulario,
 }: Props) {
   const [pestana, setPestana] = useState<Pestana>("productos");
   // Se incrementa al encolar algo; `ColaCuraduria` se remonta y recarga.
@@ -64,7 +67,12 @@ export default function SeccionesCatalogo({
   function alCrearConcepto(creado: ConceptoCreado) {
     setConceptos((previos) => [
       ...previos,
-      { codigo: creado.codigo, nombre: creado.nombre_canonico },
+      {
+        codigo: creado.codigo,
+        nombre: creado.nombre_canonico,
+        atributos_discriminantes: creado.atributos_discriminantes,
+        atributos_descriptivos: creado.atributos_descriptivos,
+      },
     ]);
   }
 
@@ -94,7 +102,13 @@ export default function SeccionesCatalogo({
       {pestana === "cola" && (
         <ColaCuraduria key={versionCola} conceptos={conceptos} personajes={personajes} />
       )}
-      {pestana === "concepto" && <NuevoConcepto onCreado={alCrearConcepto} />}
+      {pestana === "concepto" && (
+        <NuevoConcepto
+          onCreado={alCrearConcepto}
+          atributosConocidos={vocabulario.atributos}
+          categoriasConocidas={vocabulario.categorias}
+        />
+      )}
       {pestana === "util" && (
         <AltaUtil conceptos={conceptos} tiendas={tiendas} onEncolado={irALaCola} />
       )}

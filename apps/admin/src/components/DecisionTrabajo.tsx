@@ -7,11 +7,16 @@
 // al acudiente, o sea que sale del sistema y ya no se puede recoger; devolver
 // reabre el trabajo y el acudiente no se entera. Ponerlas como dos botones
 // gemelos seria invitar a publicar por inercia.
+//
+// Un PREVIEW (los kits que se armaron al pulsar «Previsualizar» en el revisor de
+// una lista) no tiene acudiente: ahi "publicar" es aprobar la lista del colegio
+// y quedarse con estos tres kits como los canonicos del grado, sin avisar a
+// nadie. Por eso la opcion principal cambia de texto y de destino.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { EstadoTrabajo } from "@tukit/contrato";
-import { decidirRevision, FalloApi } from "@/lib/api-navegador";
+import { decidirRevision, FalloApi, guardarComoCanonico } from "@/lib/api-navegador";
 import styles from "./Revision.module.css";
 
 interface Props {
@@ -19,6 +24,8 @@ interface Props {
   estado: EstadoTrabajo;
   lineasPendientes: number;
   notaRevision: string | null | undefined;
+  /** `preview_onboarding`: sin acudiente, se guarda como canónico. */
+  esPreview?: boolean;
 }
 
 export default function DecisionTrabajo({
@@ -26,6 +33,7 @@ export default function DecisionTrabajo({
   estado,
   lineasPendientes,
   notaRevision,
+  esPreview = false,
 }: Props) {
   const router = useRouter();
   const [nota, setNota] = useState("");
@@ -40,10 +48,9 @@ export default function DecisionTrabajo({
     setError(null);
     setEnviando(true);
     try {
-      await decidirRevision(trabajoId, {
-        decision,
-        ...(nota.trim() ? { nota: nota.trim() } : {}),
-      });
+      const conNota = nota.trim() ? { nota: nota.trim() } : {};
+      if (decision === "aprobar" && esPreview) await guardarComoCanonico(trabajoId, conNota);
+      else await decidirRevision(trabajoId, { decision, ...conNota });
       setConfirmando(false);
       setNota("");
       router.refresh();
@@ -62,7 +69,12 @@ export default function DecisionTrabajo({
     <section className={styles.decision} aria-labelledby="decision-titulo">
       <h2 id="decision-titulo">Decisión de revisión</h2>
 
-      {yaPublicado ? (
+      {yaPublicado && esPreview ? (
+        <p className={styles.publicado}>
+          Estos son los kits canónicos de este grado: la lista quedó aprobada y el acudiente que
+          pida su kit sin tope de gasto los recibe al instante, sin volver a optimizar.
+        </p>
+      ) : yaPublicado ? (
         <p className={styles.publicado}>
           Este trabajo ya se publicó: el acudiente ya vio los kits y ya se le avisó. No se
           puede volver a revisar.
@@ -76,8 +88,9 @@ export default function DecisionTrabajo({
         <>
           {lineasPendientes > 0 ? (
             <p className={styles.advertencia}>
-              Quedan <strong>{lineasPendientes}</strong> líneas pendientes. Si publicas así, el
-              acudiente las va a ver como huecos o como líneas sin resolver.
+              Quedan <strong>{lineasPendientes}</strong> líneas pendientes. Si{" "}
+              {esPreview ? "los guardas" : "publicas"} así, el acudiente las va a ver como huecos o
+              como líneas sin resolver.
             </p>
           ) : (
             <p className={styles.todoResuelto}>No quedan líneas pendientes en este trabajo.</p>
@@ -96,17 +109,34 @@ export default function DecisionTrabajo({
 
           <div className={styles.decisiones}>
             <div className={styles.opcion}>
-              <h3>Publicar al acudiente</h3>
-              <p>
-                Publica los tres kits y dispara la notificación. El acudiente se entera y ya no
-                hay vuelta atrás.
-              </p>
+              {esPreview ? (
+                <>
+                  <h3>Aprobar la lista y guardar estos kits</h3>
+                  <p>
+                    Aprueba la lista del colegio y deja estos tres kits, con tus ajustes, como los
+                    canónicos del grado. El próximo acudiente sin tope de gasto los recibe al
+                    instante. No se avisa a nadie.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h3>Publicar al acudiente</h3>
+                  <p>
+                    Publica los tres kits y dispara la notificación. El acudiente se entera y ya
+                    no hay vuelta atrás.
+                  </p>
+                </>
+              )}
               {confirmando ? (
                 <div className={styles.confirmacion}>
                   {/* Sin identificar al acudiente: el nombre va cifrado y la
                       consola es libre de PII (ver page.tsx). Antes se mostraba
                       un trozo del id del TRABAJO mal rotulado como acudiente. */}
-                  <p>¿Seguro? Se le avisa al acudiente y el trabajo sale de la cola.</p>
+                  <p>
+                    {esPreview
+                      ? "¿Seguro? La lista queda aprobada para los acudientes y estos kits pasan a ser los del grado."
+                      : "¿Seguro? Se le avisa al acudiente y el trabajo sale de la cola."}
+                  </p>
                   <div className={styles.botonera}>
                     <button
                       type="button"
@@ -114,7 +144,7 @@ export default function DecisionTrabajo({
                       disabled={enviando}
                       onClick={() => void decidir("aprobar")}
                     >
-                      Sí, publicar y avisar
+                      {esPreview ? "Sí, aprobar y guardar" : "Sí, publicar y avisar"}
                     </button>
                     <button
                       type="button"
@@ -132,7 +162,7 @@ export default function DecisionTrabajo({
                   disabled={enviando}
                   onClick={() => setConfirmando(true)}
                 >
-                  Aprobar y publicar
+                  {esPreview ? "Aprobar y guardar como canónicos" : "Aprobar y publicar"}
                 </button>
               )}
             </div>

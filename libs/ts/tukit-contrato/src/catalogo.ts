@@ -397,6 +397,11 @@ export interface CrearConcepto {
   sinonimos?: string;
   tipo_item?: string;
   admite_personaje?: boolean;
+  // Los dos papeles del atributo: el discriminante FILTRA productos (un
+  // cuaderno cuadriculado no pasa por uno rayado) y el descriptivo solo
+  // informa. Un nombre no puede estar en las dos listas.
+  atributos_discriminantes?: string[];
+  atributos_descriptivos?: string[];
 }
 
 // La respuesta de crear un concepto: el codigo autogenerado con que ya se le
@@ -406,6 +411,8 @@ export interface ConceptoCreado {
   nombre_canonico: string;
   categoria: string;
   tipo_item: string;
+  atributos_discriminantes?: string[];
+  atributos_descriptivos?: string[];
 }
 
 // El cuerpo del alta de un util escrito a mano (`POST .../propuestas/util-manual`).

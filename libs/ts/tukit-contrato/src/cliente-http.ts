@@ -800,6 +800,10 @@ export class ClienteApi implements OrigenDatos {
     return this.json(`/v1/admin/trabajos/${encodeURIComponent(trabajoId)}/revision`, cuerpo);
   }
 
+  fijarCanonico(trabajoId: string, cuerpo: { nota?: string }): Promise<void> {
+    return this.json(`/v1/admin/trabajos/${encodeURIComponent(trabajoId)}/canonico`, cuerpo);
+  }
+
   eliminarTrabajo(trabajoId: string): Promise<void> {
     return this.pedir<void>(`/v1/admin/trabajos/${encodeURIComponent(trabajoId)}`, {
       method: "DELETE",
