@@ -553,6 +553,15 @@ class TestAplicarCanonico:
         # El punzon quedo sin match y la licencia no pasa por el catalogo.
         assert cola["trabajos"][0]["lineas_a_revisar"] == 1
 
+    async def test_la_cola_dice_de_que_colegio_y_grado_es(self, motor):
+        """Sin esto la consola mostraba "Sin identificar" en trabajos que si lo
+        sabian: el colegio y el grado viajan en los hijos del trabajo."""
+        await _crear_y_procesar(motor)
+        entrada = (await trabajos.cola(motor))["trabajos"][0]
+
+        assert entrada["colegios"] and entrada["grados"]
+        assert entrada["origen"]
+
     async def test_validar_sin_sku_una_linea_ambigua_toma_el_producto_de_los_kits(self, motor):
         """El "Confirmar las elegidas" llega sin sku. En una linea AMBIGUA la
         resolucion no tiene candidato (eligio el optimizador, kit por kit), y
