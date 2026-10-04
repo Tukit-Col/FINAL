@@ -690,9 +690,9 @@ export class ClienteApi implements OrigenDatos {
     // el contrato pide `{entradas:[{recibido_en, lineas_pendientes, ...}]}`.
     // Se normaliza aqui, igual que `trabajoAdmin`/`producto`, en vez de dejar
     // el cast crudo (que dejaba `entradas` undefined y reventaba la cola).
-    // `colegios`/`grados`/`lineas_totales` no viajan en la cola: viven en
-    // catalogo y unirlos aqui cruzaria la frontera de servicios. Se reportan
-    // vacios en vez de fingir un dato que este endpoint no tiene.
+    // `colegios`/`grados` son ids sacados de los hijos del trabajo (los nombres
+    // viven en identidad: la pagina los une). Los campos recientes se rellenan
+    // con su valor neutro para no romper la cola ante un backend viejo.
     const crudo = await this.pedir<{
       trabajos?: {
         trabajo_id: string;
@@ -702,6 +702,13 @@ export class ClienteApi implements OrigenDatos {
         lineas_a_revisar: number;
         origen?: string;
         version_id?: string | null;
+        usuario_id?: string | null;
+        colegios?: string[];
+        grados?: string[];
+        lineas_totales?: number;
+        lineas_sin_decidir?: number;
+        huecos?: number;
+        acudientes_esperando?: number;
       }[];
     }>("/v1/admin/cola");
     return {
@@ -710,12 +717,16 @@ export class ClienteApi implements OrigenDatos {
         estado: t.estado,
         recibido_en: t.creado_en,
         hijos: t.hijos,
-        lineas_totales: t.lineas_a_revisar,
+        lineas_totales: t.lineas_totales ?? t.lineas_a_revisar,
         lineas_pendientes: t.lineas_a_revisar,
-        colegios: [],
-        grados: [],
+        colegios: t.colegios ?? [],
+        grados: t.grados ?? [],
         origen: t.origen ?? "",
         version_id: t.version_id ?? null,
+        usuario_id: t.usuario_id ?? null,
+        lineas_sin_decidir: t.lineas_sin_decidir ?? 0,
+        huecos: t.huecos ?? 0,
+        acudientes_esperando: t.acudientes_esperando ?? 0,
       })),
     };
   }
@@ -732,6 +743,8 @@ export class ClienteApi implements OrigenDatos {
       ...crudo,
       kits: crudo.kits.map(normalizarKit),
       lineas_pendientes: crudo.lineas_pendientes ?? [],
+      lineas_sin_decidir: crudo.lineas_sin_decidir ?? 0,
+      huecos: crudo.huecos ?? 0,
     };
   }
 
@@ -947,6 +960,7 @@ export class ClienteApi implements OrigenDatos {
       items: (crudo.items ?? []).map(normalizarItemRevision),
       propuestas: (crudo.propuestas ?? []).map(normalizarPropuestaRevision),
       colegio_datos: crudo.colegio_datos ?? null,
+      tiene_contacto: Boolean(crudo.tiene_contacto),
     };
   }
 
@@ -1118,9 +1132,10 @@ export class ClienteApi implements OrigenDatos {
     // No tener vista previa es lo normal (la lista aun no se previsualizo):
     // el 404 se degrada a null, igual que `directorioColegio`.
     try {
-      return await this.pedir<VistaPreviaLista>(
+      const crudo = await this.pedir<VistaPreviaLista>(
         `/v1/admin/onboarding/${encodeURIComponent(versionId)}/preview`,
       );
+      return { ...crudo, desactualizada: Boolean(crudo.desactualizada) };
     } catch (causa) {
       if (causa instanceof ErrorTukit && causa.estado === 404) return null;
       throw causa;
@@ -1542,6 +1557,7 @@ interface RevisionCruda {
   items?: ItemRevisionCrudo[];
   propuestas?: PropuestaRevisionCruda[];
   colegio_datos?: DatosColegioNuevo | null;
+  tiene_contacto?: boolean;
 }
 
 interface ColegioDetalleCrudo {
