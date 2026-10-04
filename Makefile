@@ -10,6 +10,7 @@
         bd-migrar bd-revision bd-deriva bd-cargar bd-datos bd-enriquecer bd-completar \
         bd-demanda bd-revisar bd-vista bd-admin bd-nivelar bd-volcar bd-limpiar-candidatos fase1 \
         bd-sembrar bd-colegios bd-listas backend arriba reanudar abajo estado humo \
+        curaduria-exportar curaduria-importar \
         api-catalogo api-identidad api-inteligencia api-gateway \
         api-comercio api-operacion repartidor instantanea-metricas
 
@@ -245,6 +246,30 @@ bd-colegios:  ## (manual) Siembra los 17 colegios y sus sedes en Identidad. Dato
 bd-listas:  ## (manual) Siembra las listas oficiales por colegio y grado. Datos falsos, fuera del sembrado por defecto.
 	@cd servicios/catalogo && PYTHONPATH=".:../../libs/py/tukit_comun" \
 		../../$(PY) -m tukit_catalogo.cargador_listas --datos ../../datos/listas $(ARGS)
+
+# La curaduria de listas viaja por git en `datos/curaduria/` (y los conceptos
+# nuevos en `datos/catalogo/conceptos.csv`). Exportar escribe los CSV desde la
+# base; importar los aplica a la base. Van en este orden porque Identidad lee el
+# CSV que exporta Catalogo para saber que colegios hacen falta, y porque una
+# lista no se puede importar sin sus conceptos cargados.
+curaduria-exportar:  ## Escribe en datos/ listas revisadas, conceptos, colegios y productos curados
+	@cd servicios/catalogo && PYTHONPATH=".:../../libs/py/tukit_comun" \
+		../../$(PY) -m tukit_catalogo.curaduria exportar
+	@cd servicios/identidad && PYTHONPATH=".:../../libs/py/tukit_comun" \
+		../../$(PY) -m tukit_identidad.curaduria exportar
+	@cd servicios/catalogo && PYTHONPATH=".:../../libs/py/tukit_comun" \
+		../../$(PY) -m tukit_catalogo.representantes --escribir
+	@cd servicios/catalogo && PYTHONPATH=".:../../libs/py/tukit_comun" \
+		../../$(PY) -m tukit_catalogo.volcar --escribir
+	@cd servicios/catalogo && PYTHONPATH=".:../../libs/py/tukit_comun" \
+		../../$(PY) -m tukit_catalogo.nivelar --escribir
+	@$(MAKE) --no-print-directory bd-cargar
+
+curaduria-importar: bd-cargar  ## Aplica a la base la curaduria de datos/ (tras un git pull)
+	@cd servicios/identidad && PYTHONPATH=".:../../libs/py/tukit_comun" \
+		../../$(PY) -m tukit_identidad.curaduria importar
+	@cd servicios/catalogo && PYTHONPATH=".:../../libs/py/tukit_comun" \
+		../../$(PY) -m tukit_catalogo.curaduria importar
 
 bd-deriva:  ## Falla si el esquema migrado y los modelos no dicen lo mismo
 	@$(PY) arquitectura/verificar_deriva.py
