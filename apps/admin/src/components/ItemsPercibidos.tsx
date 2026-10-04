@@ -27,6 +27,7 @@ import type {
 import { agregarItemLista, editarItemLista, quitarItemLista, FalloListas } from "@/lib/api-listas";
 import type { OpcionConcepto } from "./PanelReclasificar";
 import NuevoConcepto from "./NuevoConcepto";
+import SelectorConcepto from "./SelectorConcepto";
 import type { VocabularioConceptos } from "@/lib/vocabulario-conceptos";
 import styles from "@/app/onboarding/Onboarding.module.css";
 
@@ -291,21 +292,17 @@ function RenglonEditable({
             <span>Texto del renglón</span>
             <input value={texto} onChange={(e) => setTexto(e.target.value)} disabled={guardando} />
           </label>
-          <label className={styles.campo}>
+          {/* div y no label: el selector es un botón con su propio buscador, y un
+              label alrededor le reenviaría los clics. */}
+          <div className={styles.campo}>
             <span>Concepto (vacío = sin concepto)</span>
             <span className={styles.conceptoFila}>
-              <select
-                value={concepto}
-                onChange={(e) => setConcepto(e.target.value)}
+              <SelectorConcepto
+                conceptos={conceptos}
+                valor={concepto}
+                onCambio={setConcepto}
                 disabled={guardando}
-              >
-                <option value="">— sin concepto —</option>
-                {conceptos.map((c) => (
-                  <option key={c.codigo} value={c.codigo}>
-                    {c.nombre} ({c.codigo})
-                  </option>
-                ))}
-              </select>
+              />
               {!creandoConcepto ? (
                 <button
                   type="button"
@@ -318,7 +315,7 @@ function RenglonEditable({
                 </button>
               ) : null}
             </span>
-          </label>
+          </div>
           {creandoConcepto ? (
             <NuevoConcepto
               compacto

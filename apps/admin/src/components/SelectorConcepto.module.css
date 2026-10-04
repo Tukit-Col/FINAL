@@ -1,0 +1,98 @@
+/* Se ve como los campos del editor de renglón (.campo select de Onboarding)
+ * y el panel se pinta SIEMPRE debajo. */
+
+.caja {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.campo {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  width: 100%;
+  padding: var(--espacio-2) var(--espacio-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.campo:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+
+.campo:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.etiqueta {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flecha {
+  color: var(--color-text-muted);
+}
+
+.panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 0.14);
+}
+
+.buscador {
+  margin: var(--espacio-2);
+  padding: 6px var(--espacio-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+
+.buscador:focus {
+  outline: 2px solid var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+
+.lista {
+  max-height: 280px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0 0 var(--espacio-1);
+  list-style: none;
+}
+
+.opcion {
+  padding: 6px var(--espacio-3);
+  cursor: pointer;
+}
+
+.activa {
+  background: var(--color-surface-2, #f1f5f9);
+}
+
+.elegida {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.vacio {
+  padding: 6px var(--espacio-3);
+  color: var(--color-text-muted);
+}
