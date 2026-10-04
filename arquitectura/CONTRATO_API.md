@@ -5,11 +5,23 @@
 > fronteras de *conversación*. Cambiar cualquiera de los dos sin avisar rompe a alguien
 > más, así que se cierran antes de repartir el trabajo y se versionan.
 
-- **Versión:** 1.4
+- **Versión:** 1.5
 - **Prefijo:** `/v1`
 - **URL base:** `http://127.0.0.1:8010` en desarrollo. Ver §12.1.
 - **Formato:** JSON UTF-8. Dinero en **pesos enteros** (nunca decimales flotantes).
 - **Idioma de los identificadores:** español sin tildes, como el resto del código.
+
+### Qué cambió en 1.5
+
+Ya no se arman siempre tres kits: se arman los que el acudiente pidió (ADR 0030).
+
+| Cambio | Dónde | Por qué |
+|---|---|---|
+| Siempre `Ahorrador` y `Premium`; `Fan` solo con `personaje_por_hijo`; `A tu Medida` solo con `prioridad: "equilibrio"` o un tope | §5 | Un kit que nadie pidió es ruido para el papá y trabajo para el revisor |
+| `PerfilKit` suma `"A tu Medida"`: la mejor marca que cabe en el tope o, sin tope, en la mitad de camino entre Ahorrador y Premium | §1.3, §6 | El punto medio tenía que ser un kit propio, no un Premium ajustado |
+| El Premium ya no se ajusta al presupuesto: siempre es la mejor marca | §6 | Ese lugar lo ocupa ahora `A tu Medida` |
+| Preferencias suma `prioridad` (`precio`, `equilibrio`, `calidad`) | §3 | Es lo que decide si se arma `A tu Medida` |
+| Los canónicos de una lista son Ahorrador y Premium; en la ruta rápida el Fan se arma para quien pide un personaje (el Ahorrador canónico con el personaje en las anclas) y `A tu Medida` no sale de la caché | §5 | Ambos dependen de cada acudiente |
 
 ### Qué cambió en 1.4
 
@@ -170,7 +182,9 @@ puede responder con una alternativa o una disculpa útil.
 
 ### 1.3 `PerfilKit`
 
-`Ahorrador | Fan | Premium`, tal como los nombra `OP-01` y `UI-02` del SRS.
+`Ahorrador | Fan | A tu Medida | Premium`. Los tres primeros los nombran `OP-01` y `UI-02` del
+SRS; `A tu Medida` llega en 1.5. Ahorrador y Premium salen siempre; Fan y A tu Medida solo si el
+acudiente los pide (§5, ADR 0030).
 
 **No confundir con el `nivel` de un producto** (`economico | confiable | premium`). Son
 ejes distintos que comparten la palabra "premium": el nivel describe un producto, el perfil
@@ -533,19 +547,20 @@ regla, derivada de la encuesta:
 - **`Fan`** solo con `personaje_por_hijo` explícito. El personaje quedó último en la P21
   (1,87 contra 2,85 del precio), y tiene sentido: el que paga es el papá y el que quiere el
   personaje es el hijo.
-- **Con `presupuesto_por_hijo`, `Premium`: la mejor marca que cabe.** El tope es
-  `presupuesto_por_hijo` tal cual: `disposicion_sobreprecio` no lo estira, porque dice cuánto
-  más pagaría el acudiente por marca sin tope, no cuánto se puede pasar del tope que él mismo
-  puso. Con tope, la prioridad elegida no cambia el kit marcado. Si el Premium de siempre no cabe,
-  ese kit se reemplaza por el punto del frente con mayor fidelidad cuyo costo cabe en el
-  tope, y `razon` dice que se ajustó al presupuesto. Siguen siendo tres kits: el ajustado
-  ocupa el lugar del Premium porque es su mismo arquetipo con la cota del acudiente. No se
-  ajusta si no mejora la marca del Ahorrador.
-- **Sin presupuesto, por defecto `Ahorrador`.** 42 de 60 encuestados pagan como máximo 5 %
-  más y 15 exigen precio igual o menor.
-- **`Premium`** sin presupuesto solo si el acudiente pone calidad primero **y** declara ≥10 %.
+- **`A tu Medida`** si el acudiente eligió el punto medio (`prioridad: "equilibrio"`) o
+  declaró un tope. Es el punto del frente con mayor fidelidad cuyo costo cabe en el tope; sin
+  tope, el tope implícito es la mitad de camino entre el total del Ahorrador y el del Premium.
+  El tope es `presupuesto_por_hijo` tal cual: `disposicion_sobreprecio` no lo estira, porque
+  dice cuánto más pagaría por marca sin tope, no cuánto se puede pasar del tope que él mismo
+  puso. Si no hay un kit distinto que armar (el tope alcanza para el Premium entero, o no
+  alcanza para subir ninguna marca), no se arma y `razon` dice por qué se marca el otro (ADR 0030).
+- **Por defecto `Ahorrador`.** 42 de 60 encuestados pagan como máximo 5 % más y 15 exigen
+  precio igual o menor.
+- **`Premium`** solo si el acudiente pone calidad primero **y** declara ≥10 %.
 - Si el recomendado excede el tope, se cae al kit de mejor marca que sí cabe (no al más
-  barato) y `razon` lo dice.
+  barato) y `razon` lo dice. Si ninguno cabe, se marca el más barato y `razon` dice cuánto
+  cuesta: "Ningún kit cabe en tu tope de $400.000: el más barato que se puede armar con esta
+  lista cuesta $443.255".
 
 El benchmark Laya vs NSGA-II (rama `bench/laya-vs-nsga`) midió por qué: caer al kit más
 barato lograba el 40 % de la calidad posible con presupuesto, mientras el frente ya traía

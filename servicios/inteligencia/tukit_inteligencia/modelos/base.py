@@ -101,6 +101,10 @@ class PerfilKit(enum.StrEnum):
 
     AHORRADOR = "Ahorrador"
     FAN = "Fan"
+    # El kit del punto medio (ADR 0030): la mejor marca que cabe en el tope del
+    # acudiente o, sin tope, en la mitad de camino entre Ahorrador y Premium.
+    # Como el Fan, solo existe si el acudiente lo pidio.
+    A_TU_MEDIDA = "A tu Medida"
     PREMIUM = "Premium"
 
 

@@ -113,7 +113,7 @@ class TestConsultar:
         assert vista["kits"] == []
 
         admin = (await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")).json()
-        assert len(admin["kits"]) == 3
+        assert len(admin["kits"]) == 2
 
     async def test_el_admin_ve_los_campos_de_consola_y_el_acudiente_no(self, cliente, motor):
         """La consola necesita `recibido_en`, `contacto_id` y
@@ -152,7 +152,7 @@ class TestLaColaYLaPublicacion:
 
         vista = (await cliente.get(f"/v1/trabajos/{trabajo_id}")).json()
         assert vista["estado"] == "publicado"
-        assert len(vista["kits"]) == 3
+        assert len(vista["kits"]) == 2
         assert vista["recomendado"]["perfil"] == "Ahorrador"
 
     async def test_revisar_un_trabajo_ya_publicado_es_409(self, cliente, motor):

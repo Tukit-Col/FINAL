@@ -42,7 +42,7 @@ interface Props {
 
 // El orden de las columnas es el del precio creciente, que es como el acudiente
 // las lee y como `KIT.total_cop` las ordena en el backend.
-const ORDEN_PERFIL: PerfilKit[] = ["Ahorrador", "Fan", "Premium"];
+const ORDEN_PERFIL: PerfilKit[] = ["Ahorrador", "Fan", "A tu Medida", "Premium"];
 
 interface Fila {
   itemId: string;

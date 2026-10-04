@@ -34,6 +34,7 @@ from .modelos import (
     EstadoEtapa,
     EstadoResolucion,
     EstadoTrabajo,
+    PerfilKit,
     puede_pasar,
 )
 from .modelos.trabajo import ETAPAS
@@ -1232,17 +1233,35 @@ async def ver(
                 # ponytail: 4 llamadas de catalogo dentro de la txn de lectura
                 # (SELECT puro, sin locks). Si molesta, resolver los swaps antes
                 # de abrir la txn con una pre-lectura de cabeza.
-                swaps = await _anclas_de_personaje(catalogo, hijo.get("personaje")) if catalogo else {}
-                perfiles = (
-                    await conexion.execute(
-                        select(KIT.c.perfil)
-                        .where(KIT.c.trabajo_id == uuid.UUID(str(canonico_id)))
-                        .order_by(KIT.c.total_cop)
-                    )
-                ).scalars()
+                personaje = hijo.get("personaje")
+                swaps = await _anclas_de_personaje(catalogo, personaje) if catalogo else {}
+                # Los canonicos traen Ahorrador y Premium (ADR 0030); uno viejo
+                # puede traer tambien un Fan, que ya no se muestra: el Fan es del
+                # acudiente que pidio un personaje, y se arma para el.
+                canonicos = [
+                    p
+                    for p in (
+                        await conexion.execute(
+                            select(KIT.c.perfil)
+                            .where(KIT.c.trabajo_id == uuid.UUID(str(canonico_id)))
+                            .order_by(KIT.c.total_cop)
+                        )
+                    ).scalars()
+                    if p != PerfilKit.FAN.value
+                ]
+                perfiles = list(canonicos)
+                if personaje and PerfilKit.AHORRADOR.value in canonicos:
+                    perfiles.insert(canonicos.index(PerfilKit.AHORRADOR.value) + 1, PerfilKit.FAN.value)
                 for perfil_kit in perfiles:
+                    # El Fan es el Ahorrador canonico con el personaje en las
+                    # anclas; los demas se pintan tal cual los reviso una persona.
+                    base, swaps_kit = (
+                        (PerfilKit.AHORRADOR.value, swaps)
+                        if perfil_kit == PerfilKit.FAN.value
+                        else (perfil_kit, {})
+                    )
                     lineas, total = await _lineas_aplicadas(
-                        conexion, uuid.UUID(str(canonico_id)), perfil_kit, swaps
+                        conexion, uuid.UUID(str(canonico_id)), base, swaps_kit
                     )
                     if cambios.get(perfil_kit):
                         lineas, total = _aplicar_cambios(lineas, cambios[perfil_kit])
@@ -2339,7 +2358,16 @@ async def aplicar_canonico(
         if canonico is None:
             raise TrabajoNoExiste(f"cache {colegio_id}/{grado}/{anio_lectivo}")
 
-        lineas_frias, total = await _lineas_aplicadas(conexion, canonico.trabajo_id, perfil, swaps)
+        # El Fan es el Ahorrador canonico con el personaje en las anclas: los
+        # canonicos ya no traen Fan (ADR 0030). Los demas perfiles no llevan
+        # personaje. `A tu Medida` no sale de la cache: depende de cada acudiente.
+        if perfil == PerfilKit.FAN.value:
+            base, swaps_kit = PerfilKit.AHORRADOR.value, swaps
+        elif perfil in (PerfilKit.AHORRADOR.value, PerfilKit.PREMIUM.value):
+            base, swaps_kit = perfil, {}
+        else:
+            raise TrabajoNoExiste(f"cache {colegio_id}/{grado}/{anio_lectivo}/{perfil}")
+        lineas_frias, total = await _lineas_aplicadas(conexion, canonico.trabajo_id, base, swaps_kit)
 
         # El trabajo del acudiente: un registro durable, sin etapas de pipeline.
         # `hijos` lleva la seleccion entera porque es la ENTRADA de este trabajo
