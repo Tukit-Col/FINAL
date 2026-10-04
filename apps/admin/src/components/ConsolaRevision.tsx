@@ -16,6 +16,7 @@ import { CheckCheck } from "lucide-react";
 import type { LineaKit, TrabajoAdmin } from "@tukit/contrato";
 import { agruparPorClase, formatearPesos } from "@tukit/contrato";
 import { FalloApi, validarLinea } from "@/lib/api-navegador";
+import { cuerpoValidarElegido } from "@/lib/lote";
 import MatrizComparacion from "./MatrizComparacion";
 import PersonajeFan from "./PersonajeFan";
 import styles from "./Revision.module.css";
@@ -68,8 +69,11 @@ export default function ConsolaRevision({ trabajo, personajes }: Props) {
       // trabajo en cada validación y una ráfaga simultánea pelearía por ese
       // recálculo. Si una falla, se sabe cuántas se alcanzaron a guardar.
       for (const linea of masivas) {
-        // Sin sku: "confirmo el que el sistema eligió".
-        await validarLinea(trabajo.trabajo_id, linea.item_id, {});
+        // Con el sku del elegido: "confirmo este producto" (ver `lib/lote`).
+        // `masivas` ya filtra las que tienen elegido, así que no queda null.
+        const cuerpo = cuerpoValidarElegido(linea);
+        if (cuerpo === null) continue;
+        await validarLinea(trabajo.trabajo_id, linea.item_id, cuerpo);
         hechas += 1;
       }
       setAvisoLote(`${hechas} línea(s) validadas con el producto que eligió el sistema.`);

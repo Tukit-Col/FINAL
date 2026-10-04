@@ -18,6 +18,7 @@ import {
   marcarSinCoincidencia,
   validarLinea,
 } from "@/lib/api-navegador";
+import { cuerpoValidarElegido } from "@/lib/lote";
 import { esPendiente, porcentaje, TITULO_MODO, TITULO_TIPO } from "@/lib/formato";
 import AltaProducto from "./AltaProducto";
 import styles from "./Revision.module.css";
@@ -40,7 +41,7 @@ interface Props {
   onToggleSeleccion?: (itemId: string) => void;
 }
 
-/** Sin `sku` la validacion se lee como "confirmo el que el sistema eligio". */
+/** La seleccion "confirmo el que el sistema eligio" (no cambia el producto). */
 const CONFIRMAR_EL_ELEGIDO = "";
 
 function precioMasBajo(producto: ProductoKit): number | null {
@@ -100,9 +101,10 @@ export default function LineaRevision({
   function alValidar(): void {
     const sku = seleccion === CONFIRMAR_EL_ELEGIDO ? undefined : seleccion;
     // Cambiar de producto en la matriz es una decision POR KIT: escribe la
-    // LINEA de este perfil y recalcula su subtotal. Confirmar el elegido (sin
-    // sku) sigue siendo la validacion por item —marca el emparejamiento como
-    // bueno en los tres kits, no cambia ningun producto—.
+    // LINEA de este perfil y recalcula su subtotal. Confirmar el elegido sigue
+    // siendo la validacion por item —marca el emparejamiento como bueno en los
+    // tres kits, no cambia ningun producto—, y manda el sku del elegido para
+    // que el backend valide justo ese aunque no sea candidato (`lib/lote`).
     if (sku && perfil) {
       void ejecutar(
         () => fijarProductoLinea(trabajoId, perfil, linea.item_id, sku),
@@ -113,7 +115,7 @@ export default function LineaRevision({
     void ejecutar(
       () =>
         validarLinea(trabajoId, linea.item_id, {
-          ...(sku ? { sku } : {}),
+          ...(sku ? { sku } : (cuerpoValidarElegido(linea) ?? {})),
           ...(nota.trim() ? { nota: nota.trim() } : {}),
         }),
       sku ? "Línea validada con la alternativa que elegiste." : "Línea validada.",

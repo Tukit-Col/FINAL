@@ -40,6 +40,7 @@ import {
 } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import Revelar from "@/components/Revelar";
+import { separarCola } from "@/lib/cola";
 import { tokenDeSesion } from "@/lib/sesion";
 import styles from "./Panel.module.css";
 
@@ -98,7 +99,9 @@ export default async function PaginaPanel() {
 
   // --- Cola de revisión ---
   const entradas = cola?.entradas ?? [];
-  const enEspera = entradas.filter((e) => e.estado === "espera_revision");
+  // Solo los de acudiente: una vista previa de lista también espera revisión,
+  // pero es el borrador del admin, no alguien esperando (ver `lib/cola`).
+  const enEspera = separarCola(entradas).deAcudiente;
   const lineasPendientes = enEspera.reduce((t, e) => t + e.lineas_pendientes, 0);
   const publicados = entradas.filter((e) => e.estado === "publicado").length;
   const porEstado = entradas.reduce<Record<EstadoTrabajo, number>>(

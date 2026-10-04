@@ -62,9 +62,10 @@ export default async function PaginaTrabajo({ params }: Props) {
   // eslint-disable-next-line react-hooks/purity
   const ahora = Date.now();
 
-  // Un preview de onboarding es un trabajo desechable que no se publica. La
-  // consola lo trata distinto: enlaza al revisor de su lista (el `version_id`
-  // que el preview guarda en su único hijo) en vez de ofrecer "Publicar".
+  // Un preview de onboarding no se publica desde aquí: se ajusta, y al aprobar
+  // su lista esos ajustes pasan a ser el kit del colegio y grado. La consola lo
+  // trata distinto: enlaza al revisor de su lista (el `version_id` que el
+  // preview guarda en su único hijo) en vez de ofrecer "Publicar".
   const esPreview = trabajo.origen === "preview_onboarding";
   const versionPreview = trabajo.hijos[0]?.version_id;
 
@@ -154,17 +155,18 @@ export default async function PaginaTrabajo({ params }: Props) {
       ) : null}
 
       {esPreview ? (
-        // Un preview de onboarding no se publica: no tiene acudiente a quien
-        // avisar (el backend lo rechaza con 409). Para servir al acudiente que
-        // subió la lista hay que APROBARLA en su revisor, que crea el colegio y
-        // arma el trabajo del padre. Se enlaza de vuelta en vez de ofrecer un
-        // "Publicar" que no funciona.
+        // Un preview de onboarding no se publica desde aquí: no tiene acudiente a
+        // quien avisar (el backend lo rechaza con 409). Se publica al APROBAR su
+        // lista en el revisor, que lo promueve —con estos ajustes— a kit del
+        // colegio y grado. Se enlaza de vuelta en vez de ofrecer un "Publicar"
+        // que no funciona.
         <section className={styles.avisoPreview}>
           <h2>Este es un preview de la lista</h2>
           <p>
-            No se publica: es una vista de solo lectura, sin acudiente a quien avisar. Para
-            servir al acudiente que subió la lista, apruébala en su revisión —eso crea el colegio
-            y arma su trabajo.
+            Ajusta aquí los tres kits: valida líneas, cambia productos o personaje. Cuando
+            apruebes la lista en su revisión, esta vista previa —con tus ajustes— pasa a ser el kit
+            de ese colegio y grado. Si al aprobar quedan líneas dudosas sin decidir, el kit queda en
+            la cola para terminarlo; si la lista cambió después de previsualizar, se arma de nuevo.
           </p>
           {versionPreview ? (
             <Link href={`/onboarding/${encodeURIComponent(versionPreview)}`} className={styles.enlaceRevisor}>

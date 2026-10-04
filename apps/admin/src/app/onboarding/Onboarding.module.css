@@ -204,6 +204,55 @@
   color: var(--color-text-muted);
 }
 
+/* Confirmar antes de reemplazar una vista previa ya ajustada: ocupa la fila
+   entera para que no se confunda con la ayuda del botón. */
+.confirmacion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  width: 100%;
+  padding: var(--espacio-3);
+  border: 1px solid var(--color-aviso-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-aviso-bg);
+  font-size: 13px;
+}
+
+.plano {
+  padding: var(--espacio-2) var(--espacio-4);
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.plano:hover {
+  color: var(--color-text-primary);
+}
+
+/* Región 4: ya existe una vista previa ajustada de esta versión. */
+.vistaPrevia {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--espacio-2) var(--espacio-3);
+  padding: var(--espacio-3) var(--espacio-4);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: 13px;
+}
+
+.vistaPrevia strong {
+  color: var(--color-text-primary);
+}
+
+.vistaPrevia a {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
 .errorCaja {
   padding: var(--espacio-3) var(--espacio-4);
   background: var(--color-danger-bg);
@@ -264,6 +313,22 @@
   font-size: 12px;
   font-weight: 700;
   font-family: var(--font-cifras);
+}
+
+/* Región 1 sin documento: ocupa lo mismo que el PDF para que la rejilla no
+   salte, pero dice por qué está vacía. */
+.sinDocumento {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: var(--espacio-4);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  text-align: center;
 }
 
 .marco {
