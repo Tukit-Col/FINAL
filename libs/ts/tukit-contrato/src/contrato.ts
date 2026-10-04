@@ -510,6 +510,16 @@ export interface EntradaCola {
   // son trabajo de un acudiente) y las enlaza a su revisor.
   origen: string;
   version_id: string | null;
+  // El acudiente dueño del trabajo; null en un kit de grado o una vista previa.
+  // Es lo que separa "kits de acudientes por aprobar" de las listas por verificar.
+  usuario_id: string | null;
+  // Las dudosas que nadie ha decidido (AMBIGUO o SIN_MATCH sin decisión) y los
+  // huecos de catálogo, contados aparte: un hueco no se arregla eligiendo.
+  lineas_sin_decidir: number;
+  huecos: number;
+  // Cuántos acudientes esperan a que este kit del grado se apruebe para recibir
+  // el suyo. Una fila con alguien esperando va primero en la cola.
+  acudientes_esperando: number;
 }
 
 // La vista previa vigente de una version, para el revisor de la lista: le
@@ -520,6 +530,9 @@ export interface VistaPreviaLista {
   estado: EstadoTrabajo;
   creado_en: string | null;
   lineas_sin_decidir: number;
+  // La lista cambió después de previsualizar: al aprobar, la vista previa no se
+  // promueve (se arma un kit nuevo), así que el revisor bloquea "Aprobar".
+  desactualizada: boolean;
 }
 
 export interface ColaAdmin {
@@ -543,6 +556,9 @@ export interface TrabajoAdmin extends Trabajo {
   // Los hijos como se recibieron. En un preview, el único "hijo" trae el
   // `version_id` de la lista de la que salió, para poder volver a su revisor.
   hijos: HijoSolicitud[];
+  // Las mismas cuentas que la cola, para la cabecera de la consola.
+  lineas_sin_decidir: number;
+  huecos: number;
 }
 
 // AD-02: validar es fijar el producto de la linea. Sin `sku` se lee

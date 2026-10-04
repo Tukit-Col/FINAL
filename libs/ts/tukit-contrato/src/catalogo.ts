@@ -490,6 +490,9 @@ export interface RevisionLista {
   // aliado: no hay identidad que crear ni perfil que completar. El revisor
   // completa estos campos con `completarColegioDeVersion` antes de aprobar.
   colegio_datos: DatosColegioNuevo | null;
+  // Si al aprobar hay un acudiente a quien publicarle el kit. Solo el hecho,
+  // nunca el contacto: cambia el aviso de "Aprobar y publicar".
+  tiene_contacto: boolean;
 }
 
 // El perfil del colegio nuevo que viaja en `colegio_datos` de una version en la
