@@ -284,6 +284,21 @@ class TestLaVistaDeRevision:
         assert cuerpo["propuestas"][0]["precio"] == 3500
         assert cuerpo["propuestas"][0]["nombre"].startswith("Chaquiras")
 
+    async def test_dice_si_hay_un_acudiente_detras(self, cliente):
+        # El revisor cambia el aviso de "Aprobar" segun haya o no a quien
+        # publicarle el kit; nunca viaja el contacto, solo el hecho.
+        sembrada = (await cliente.get(f"/v1/admin/listas/{cliente.ids['abierta']}/revision")).json()
+        assert sembrada["tiene_contacto"] is False
+        referencia = str(uuid.uuid4())
+        vid = (
+            await cliente.post(
+                "/v1/admin/listas/importar", json=_cuerpo_importar(contacto_referencia=referencia)
+            )
+        ).json()["version_id"]
+        cuerpo = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()
+        assert cuerpo["tiene_contacto"] is True
+        assert referencia not in str(cuerpo)
+
     async def test_una_version_que_no_existe_es_404(self, cliente):
         respuesta = await cliente.get(f"/v1/admin/listas/{uuid.uuid4()}/revision")
         assert respuesta.status_code == 404
