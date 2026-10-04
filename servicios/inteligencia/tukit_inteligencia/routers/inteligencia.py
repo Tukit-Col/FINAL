@@ -19,7 +19,7 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, Query, Request
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 from tukit_comun import derivar
 from tukit_comun.http import ErrorDominio
 
@@ -157,7 +157,9 @@ class PeticionTrabajo(BaseModel):
 
 class DecisionLinea(BaseModel):
     sku: str | None = Field(default=None, max_length=64)
-    motivo: str | None = Field(default=None, max_length=512)
+    # El contrato TS (`ValidarLinea`) lo llama `nota`; "sin coincidencia" manda
+    # `motivo`. Se aceptan los dos para que la nota de validar no se pierda.
+    motivo: str | None = Field(default=None, max_length=512, validation_alias=AliasChoices("motivo", "nota"))
     actor: uuid.UUID | None = None
 
 
@@ -781,11 +783,12 @@ async def preview_onboarding(version_id: str, peticion: PeticionPreview) -> dict
 
     El admin acaba de subir un PDF (`POST /v1/admin/onboarding`) y quiere ver
     como quedan Ahorrador/Fan/Premium antes de aprobar la version. Se crea un
-    trabajo DESECHABLE con `origen='preview_onboarding'` sobre ese
-    (colegio, grado, anio): como la version es vigente pero sin revisar, el
-    pipeline toma la ruta LENTA (emparejar + NSGA-II), que es exactamente la
-    previsualizacion. No se autopublica: el trabajo se queda en
-    `espera_revision`/`fallido` y solo sirve para pintar los kits.
+    trabajo con `origen='preview_onboarding'` sobre ese (colegio, grado, anio):
+    como la version es vigente pero sin revisar, el pipeline toma la ruta LENTA
+    (emparejar + NSGA-II), que es exactamente la previsualizacion. No se
+    autopublica: el trabajo se queda en `espera_revision`/`fallido` y el admin
+    puede ajustarlo. Al aprobar la LISTA, el poller lo promueve —con esos
+    ajustes— a kit del colegio y grado (`trabajos.promover_vista_previa`).
 
     Se corre de forma SINCRONICA (no `trabajos.lanzar`) para que los kits ya
     esten escritos cuando el admin lea `GET /v1/admin/trabajos/{id}`.
@@ -820,8 +823,9 @@ async def preview_onboarding(version_id: str, peticion: PeticionPreview) -> dict
 
     # Previsualizar es idempotente por version: si el admin ya previsualizo
     # este (colegio, grado, anio), su preview anterior se descarta antes de
-    # armar el nuevo. Sin esto, cada clic dejaba un trabajo desechable mas en
-    # la cola y no habia forma de limpiarlos.
+    # armar el nuevo —y con el sus ajustes; el revisor lo advierte antes de
+    # llamar aqui—. Sin esto, cada clic dejaba un preview mas en la cola y no
+    # habia forma de limpiarlos.
     for viejo in await trabajos.previews_de(
         api.app.state.motor, peticion.colegio_id, peticion.grado, peticion.anio_lectivo
     ):
@@ -836,8 +840,8 @@ async def preview_onboarding(version_id: str, peticion: PeticionPreview) -> dict
                 "grado": peticion.grado,
                 "anio_lectivo": peticion.anio_lectivo,
                 # La version de la que salio el preview: es a donde el revisor
-                # tiene que volver para aprobar la lista de verdad (el preview no
-                # se publica). Se guarda aqui para que la consola pueda enlazarla.
+                # tiene que volver para aprobar la lista de verdad, y la llave con
+                # la que el poller encuentra este preview para promoverlo.
                 "version_id": version_id,
             }
         ],
@@ -848,6 +852,27 @@ async def preview_onboarding(version_id: str, peticion: PeticionPreview) -> dict
     trabajo_id = uuid.UUID(respuesta["trabajo_id"])
     estado = await trabajos.procesar(api.app.state.motor, trabajo_id, catalogo=catalogo)
     return {"trabajo_id": str(trabajo_id), "estado": estado}
+
+
+@router.get(
+    "/v1/admin/onboarding/{version_id}/preview",
+    tags=["admin"],
+    summary="La vista previa vigente de una version, si la hay",
+)
+async def vista_previa_de_version(version_id: str) -> dict[str, Any]:
+    """Lo que el revisor necesita para avisar que hay una vista previa ajustada.
+
+    Volver a previsualizar la reemplaza y pierde sus ajustes; el revisor lo
+    advierte con esto antes de llamar al POST.
+    """
+    vista = await trabajos.vista_previa_de_version(api.app.state.motor, version_id)
+    if vista is None:
+        raise ErrorDominio(
+            "vista_previa_no_existe",
+            "Esa version no tiene una vista previa en espera.",
+            estado=404,
+        )
+    return vista
 
 
 # ---------------------------------------------------------------------------
@@ -935,6 +960,12 @@ async def eliminar_trabajo(trabajo_id: uuid.UUID) -> None:
     summary="AD-04: una persona da por bueno el emparejamiento",
 )
 async def validar_linea(trabajo_id: uuid.UUID, item_id: uuid.UUID, decision: DecisionLinea) -> dict[str, Any]:
+    """Sin `sku` confirma el producto que la linea tiene en el kit.
+
+    El catalogo va inyectado porque el producto validado puede no ser
+    candidato del item (personaje del Fan, producto fijado por kit) y hay que
+    registrarlo; si no hay producto por ningun lado, es un 422 con `campo`.
+    """
     try:
         return await trabajos.decidir_linea(
             api.app.state.motor,
@@ -944,9 +975,18 @@ async def validar_linea(trabajo_id: uuid.UUID, item_id: uuid.UUID, decision: Dec
             sku=decision.sku,
             actor=decision.actor,
             motivo=decision.motivo,
+            catalogo=api._catalogo(),
         )
     except trabajos.TrabajoNoExiste as error:
         raise ErrorDominio("linea_no_existe", "Ese trabajo no tiene esa linea.", estado=404) from error
+    except trabajos.SinProductoQueValidar as error:
+        mensaje = (
+            f"El producto {error.sku} no esta en el catalogo: elige otro o marca la linea sin coincidencia."
+            if error.sku
+            else "Esta linea no tiene producto que validar: elige una alternativa, da de alta un producto "
+            "o marcala sin coincidencia."
+        )
+        raise ErrorDominio("sin_producto_que_validar", mensaje, estado=422, campo="sku") from error
 
 
 @router.put(

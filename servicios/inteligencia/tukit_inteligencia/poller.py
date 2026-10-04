@@ -9,6 +9,11 @@ preferencias que dejo en el paso 3, y lo procesa. Al terminar, el pipeline deja
 `kits_publicados` en la bandeja de Inteligencia y el repartidor de Operacion le
 envia el correo con el enlace de pre-compra.
 
+Sin padre (lista de onboarding), antes de crear nada busca la vista previa que
+el admin armo y ajusto sobre ESA version: si la hay y sigue valiendo, la promueve
+a kit del colegio y grado en vez de armar otro trabajo que perderia los ajustes
+(`trabajos.promover_vista_previa`).
+
     python -m tukit_inteligencia.poller          # una pasada
     python -m tukit_inteligencia.poller --seguir  # bucle
 
@@ -80,10 +85,11 @@ class Poller:
         #     de ese padre; el pipeline lo publica directo y el repartidor le
         #     avisa (la revision fue sobre la LISTA, no hay segunda cola).
         #   - SIN padre (onboarding/colegio): anonimo + origen `colegio_grado`.
-        #     Entra a la cola de revision (`espera_revision`); al aprobarlo ahi
-        #     queda como kit CANONICO del grado —la cache que /empezar y el panel
-        #     NSGA del colegio consultan—. Aprobar la LISTA y aprobar el TRABAJO
-        #     sobre ella son los dos pasos que el flujo pide, en ese orden.
+        #     Si el admin dejo una vista previa ajustada de esta version, se
+        #     promueve (abajo). Si no, se arma un trabajo nuevo que entra a la
+        #     cola (`espera_revision`); al aprobarlo ahi queda como kit CANONICO
+        #     del grado —la cache que /empezar y el panel NSGA del colegio
+        #     consultan—.
         usuario_id: uuid.UUID | None = None
         origen = "colegio_grado"
         if contacto:
@@ -105,6 +111,27 @@ class Poller:
         # "Mis solicitudes" unir la lista aprobada con su trabajo en una sola
         # fila, en vez de mostrar dos. La carga no lo trae; el agregado si.
         hijo["version_id"] = str(fila.agregado_id)
+
+        if usuario_id is None:
+            # La vista previa ya es la revision del kit: el admin la ajusto antes
+            # de aprobar la lista. Promoverla conserva esos ajustes; sin ella (o
+            # si no tiene nada comprable, o la lista cambio desde que se armo)
+            # se sigue con el trabajo nuevo de siempre. Si el catalogo no
+            # responde al comparar, se REINTENTA el evento: armar un trabajo
+            # nuevo ahora tiraria los ajustes por un fallo pasajero.
+            try:
+                promovido = await trabajos.promover_vista_previa(
+                    self.motor_inteligencia,
+                    fila.agregado_id,
+                    colegio_id=str(colegio_id),
+                    grado=grado,
+                    anio_lectivo=anio,
+                    catalogo=self.catalogo,
+                )
+            except trabajos.RemotoCaido:
+                return Resultado.REINTENTAR
+            if promovido is not None:
+                return Resultado.HECHO
 
         # Las preferencias son las del paso 3 que el Catalogo guardo y reenvio en
         # la carga; {} para el kit del colegio (se arma con las preferencias base).

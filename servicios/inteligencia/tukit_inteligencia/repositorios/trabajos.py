@@ -207,7 +207,9 @@ class RepoTrabajos:
         al acudiente resolviendo su `usuario_id` desde `trabajo_pipeline`. Por eso
         este evento solo tiene sentido en un trabajo con acudiente; un preview
         (`usuario_id` NULL) no llega aca —`revisar` lo rechaza antes— para no dejar
-        un evento sin destinatario que el repartidor reintente sin fin.
+        un evento sin destinatario que el repartidor reintente sin fin. Por la
+        misma razon `promover_vista_previa` publica el preview sin emitir, y
+        `trabajos._publicar_evento` no llama aqui si el trabajo no tiene acudiente.
 
         No abre transaccion: el orquestador lo llama dentro del mismo `async with`
         que el paso a PUBLICADO, de modo que un rollback a mitad se lleva el evento
