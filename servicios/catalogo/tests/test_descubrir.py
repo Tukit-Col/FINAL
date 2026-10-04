@@ -249,7 +249,7 @@ class TestClasificarContraNuestroCatalogo:
             {"id": uuid.uuid4(), "nombre": "kit de lapices de dibujo", "sinonimos": ["lapiz serie durezas"]},
         ]
 
-        for renglon in ("Lápiz 2H-6B", "Lápices 2B a 6B", "lapiz 4H - 8B"):
+        for renglon in ("Lápiz 2H-6B", "Lápices 2B a 6B", "lapiz 4H - 8B", "Lápices HB, 2H, 2B, 6B"):
             assert clasificar(renglon, conceptos)[1] == "kit de lapices de dibujo", renglon
         assert clasificar("Lápiz negro HB", conceptos)[1] == "lapiz"
 

@@ -109,7 +109,8 @@ FRACCION = re.compile(r"\b\d+\s*/\s*\d+\b")
 # `Lapiz 2H-6B` no pide un lapiz 2H: pide la serie de durezas, que es el kit
 # de dibujo. Se reescribe como "serie durezas", que es como lo nombra ese
 # concepto, para que no caiga en el lapiz suelto con la primera dureza exigida.
-RANGO_DUREZA = re.compile(r"\b\d?[hb]{1,2}\s*(?:-|a|al|hasta)\s*\d?[hb]{1,2}\b")
+# Igual una lista de durezas (`Lapices HB, 2H, 2B, 6B`): dos o mas seguidas.
+RANGO_DUREZA = re.compile(r"\b\d?[hb]{1,2}(?:\s*(?:-|,|y|a|al|hasta)\s*\d?[hb]{1,2}\b)+")
 
 
 def consulta_desde_renglon(renglon: str) -> str:
