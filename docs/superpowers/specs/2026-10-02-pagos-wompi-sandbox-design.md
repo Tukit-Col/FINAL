@@ -2,7 +2,7 @@
 
 Fecha: 2026-10-02
 Rama: `feature/pagos-wompi-sandbox`
-Estado: propuesto (pendiente de aprobación)
+Estado: implementado, con cambios (ver "Lo que cambió durante la implementación", al final)
 
 ## Intención
 
@@ -305,3 +305,78 @@ El plan detallado, tarea por tarea, se escribe al aprobar este diseño.
 4. Contrato TS y ruta de servidor en `apps/web`.
 5. Página `/pago/resultado`, página de simulación y cambio en `VistaKits.tsx`.
 6. `.env.ejemplo`, README y prueba manual con llaves sandbox.
+
+## Lo que cambió durante la implementación
+
+Este diseño se aprobó el 2026-10-02 y se ejecutó con el plan
+`docs/superpowers/plans/2026-10-02-pagos-wompi-sandbox.md`. Lo de arriba queda como se aprobó,
+porque es el razonamiento con el que se empezó. Lo que sigue es lo que la realidad corrigió,
+en el orden en que apareció. Las decisiones que quedaron están en los ADR 0021 a 0024
+(`arquitectura/adr/`), y el contrato de la API (§9, versión 1.2) describe el estado final.
+
+### 1. El Web Checkout no puede volver a `localhost` (y se cambió al widget)
+
+Con llaves reales, el checkout abría bien desde el servidor y Wompi bloqueaba el navegador con
+un 403 de su CDN. Probando parámetro por parámetro, el único que lo dispara es `redirect-url`
+cuando apunta a `localhost` o a una IP privada; un dominio público pasa. El supuesto del diseño
+—"todo corre en localhost y no depende del webhook"— era cierto para la confirmación y falso
+para el retorno.
+
+Se probó primero un túnel (`cloudflared`) hacia la app web, que funciona pero obliga a abrir
+Tukit por otro dominio para pagar. A propuesta del dueño del proyecto se cambió al **enfoque B,
+el widget**, que aquí se había dejado como mejora visual: el pago se abre en un modal encima
+del kit, `comercio` firma sus datos y el acudiente no sale de Tukit. El túnel se retiró.
+
+### 2. PSE se lleva la pestaña al banco
+
+Con tarjeta el widget avisa a la página y todo cuadra. Con PSE no: el banco se lleva la pestaña
+entera, el modal desaparece con su aviso, y sin `redirectUrl` el comprobante de Wompi deja al
+acudiente ahí, sin botón de vuelta. Se devolvió `redirectUrl` a los datos del widget. La API de
+Wompi acepta `localhost` como retorno; el 403 era solo de la URL del checkout.
+
+### 3. El widget también mete la configuración en una URL
+
+Al devolver `redirectUrl` el modal empezó a girar sin fin, en el kit y en "Mis pedidos". Leyendo
+`widget.js`: por omisión el widget serializa su configuración en la URL de su iframe, que es la
+que el CDN bloquea. Con `bootstrapTransport: "postmessage"`, una opción que la documentación
+pública no menciona, la configuración viaja por mensaje. Una prueba fija esa opción.
+
+### 4. Lo que la revisión del código encontró
+
+Además de lo que el diseño ya preveía (la clave `<transacción>:<ESTADO>`, la validación de
+monto, la referencia por intento):
+
+- **Un pago aprobado podía retroceder** con un evento tardío. Los estados `aprobado` y
+  `reembolsado` ya no se pisan, y un `PENDING` tardío no revive uno `rechazado`.
+- **El webhook y la sincronización podían llegar a la vez** y el segundo chocaba con el índice
+  único. La sincronización reintenta una vez en una sesión nueva.
+- **La consulta pública de transacciones aceptaba cualquier comercio.** Ahora exige `COP` y, si
+  Wompi dice de qué comercio es, que sea el nuestro. En sandbox se confirmó que Wompi sí manda
+  `merchant.public_key`.
+- **"Volver" tras un rechazo usaba `history.back()`**, que con Wompi regresa a su página. Ahora
+  la respuesta trae `trabajo_id` y el botón es "Volver a mi kit".
+
+### 5. Lo que se agregó después, a pedido
+
+Ninguna de estas estaba en el diseño. Cada una se presentó en el chat y se aprobó antes de
+escribirla.
+
+- **Pantallas de resultado** con el pedido completo: total, medio, fecha, los pasos que siguen,
+  los productos agrupados y la entrega; rechazado con causas comunes y reintento.
+- **"Mis pedidos" con acciones:** pagar un pedido pendiente sin rearmarlo y cancelarlo. Cancelar
+  consulta antes a Wompi con la llave privada, porque un PSE en curso que se cancela cobraría sin
+  entregar; si la aprobación llega igual, queda una incidencia (ADR 0023).
+- **Vigencia de 24 horas** para pagar, derivada de `creado_en`, y **un pedido pendiente por
+  kit**: uno idéntico se reutiliza y uno distinto reemplaza al anterior. Esto saca de "Fuera de
+  alcance" el punto de los varios clics en Pagar.
+- **Estados por color y estado de compra en "Mis solicitudes"**, calculado cruzando pedidos por
+  kit en vez de guardado (ADR 0024).
+
+### 6. Lo que se probó y lo que no
+
+Con llaves de sandbox reales se verificaron la llave pública, la privada y la firma de
+integridad (una transacción por API con la tarjeta `4242`, aprobada), la búsqueda por referencia,
+la cancelación contra Wompi, y pagos con tarjeta aprobada, tarjeta rechazada y PSE en el
+navegador. La suite de `comercio` y `gateway` termina con 138 pruebas, y la app web estrena
+`npm test` con el runner nativo de Node. El webhook con túnel no se probó: la sincronización lo
+hace innecesario en desarrollo.

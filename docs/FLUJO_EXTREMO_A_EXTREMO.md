@@ -657,6 +657,21 @@ se ve el flujo funcionando; **M** = el flujo se ve pero cojo; **B** = mejora.
 | C6 | Ciclo editorial ejecutable: `propuesta_version` con su ventana de 3 días y su política de silencio. Modelado, sin código | catalogo | hueco | B | 3–4 |
 | C7 | Alta de un colegio nuevo. Hoy nadie puede crear uno | identidad | hueco | M | 1 |
 
+> **Actualización 2026-10-03, rama `feature/pagos-wompi-sandbox`.** Esta tabla es la del
+> análisis del 2026-09-22 y no se reescribe; dos filas cambiaron de estado:
+>
+> - **A7, checkout y Wompi: hecho contra Wompi sandbox.** El pago se abre con el widget de Wompi
+>   tras el puerto `PasarelaPago` (con el adaptador falso para pruebas), se confirma
+>   preguntándole a Wompi y no se guarda ningún medio de pago. Contrato §9 (versión 1.2), ADR
+>   0021 y 0022.
+> - **A8, seguimiento del pedido: en parte.** El acudiente ve sus pedidos con su estado en el
+>   panel, puede pagar o cancelar un pendiente y ve el resultado de cada pago con productos y
+>   entrega. Falta el seguimiento del envío (transportadora, guía, fecha estimada), que el modelo
+>   ya tiene y nadie llena. ADR 0023 y 0024.
+>
+> Sigue en pie lo que este documento dice de `[D4]`: sin registro empresarial no hay llaves de
+> producción, y la rama no tiene modo de producción a propósito.
+
 Suma aproximada de lo marcado **A**: unas 45–60 jornadas. Es la cifra honesta y conviene tenerla
 antes de prometer fechas.
 
