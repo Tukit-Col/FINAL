@@ -75,10 +75,15 @@ class IdentidadDoble:
     def __init__(self, usuario_id: str | None = "usr-1") -> None:
         self.usuario_id = usuario_id
         self.llamadas: list[dict] = []
+        # DANE -> datos DUEB que devolveria `/v1/directorio/{dane}`.
+        self.directorio: dict[str, dict] = {}
 
     async def registrar_contacto(self, correo: str, celular: str | None = None) -> str | None:
         self.llamadas.append({"correo": correo, "celular": celular})
         return self.usuario_id
+
+    async def datos_directorio(self, dane: str) -> dict | None:
+        return self.directorio.get(dane)
 
 
 @pytest.fixture()
@@ -296,6 +301,34 @@ class TestColegioPorDirectorioOEscrito:
         # Los datos del colegio viajan para la cola y la creacion de identidad.
         assert llamada["colegio_datos"]["dane"] == "311001105731"
         assert llamada["colegio_datos"]["nombre"] == "ACADEMIA CENTRAL DE SISTEMAS"
+
+    async def test_el_directorio_tapa_los_huecos_del_perfil_sin_pisar_la_subida(
+        self, cliente, catalogo, identidad
+    ):
+        # El DUEB pre-llena direccion y contacto del colegio nuevo; el nombre que
+        # trajo la subida manda sobre el del directorio.
+        identidad.directorio["311001105731"] = {
+            "dane": "311001105731",
+            "nombre": "ACADEMIA CENTRAL DE SISTEMAS (DUEB)",
+            "direccion": "CL 1 # 2-3",
+        }
+        cuerpo = _subida(
+            [
+                {
+                    "referencia": "hijo-1",
+                    "colegio_dane": "311001105731",
+                    "colegio_nombre": "ACADEMIA CENTRAL DE SISTEMAS",
+                    "grado": "Cuarto",
+                }
+            ],
+            contacto={"correo": "mama@ejemplo.com"},
+        )
+        respuesta = await cliente.post("/v1/listas/subir", **cuerpo)
+
+        assert respuesta.status_code == 202
+        datos = catalogo.llamadas[0]["colegio_datos"]
+        assert datos["direccion"] == "CL 1 # 2-3"
+        assert datos["nombre"] == "ACADEMIA CENTRAL DE SISTEMAS"
 
     async def test_colegio_escrito_a_mano_deriva_el_id_del_nombre_normalizado(self, cliente, catalogo):
         from tukit_comun import derivar

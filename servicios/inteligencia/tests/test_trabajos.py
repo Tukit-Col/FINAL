@@ -168,18 +168,26 @@ class TestFijarProductoPorNivel:
         kits = (await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"]
         ahorrador = next(k for k in kits if k["perfil"] == "Ahorrador")
         total_antes = ahorrador["total"]
-        cuaderno = next(l for l in ahorrador["lineas"] if l["descripcion"].startswith("2 cuadernos"))
+        cuaderno = next(
+            linea for linea in ahorrador["lineas"] if linea["descripcion"].startswith("2 cuadernos")
+        )
         assert cuaderno["producto_elegido"]["sku"] == "TK-C001-ECO"
 
         # Al premium: 2 cuadernos a 12000 en vez de 4500.
         await trabajos.fijar_producto_en_linea(
-            motor, trabajo_id, "Ahorrador", uuid.UUID(cuaderno["item_id"]), "TK-C001-PRE",
+            motor,
+            trabajo_id,
+            "Ahorrador",
+            uuid.UUID(cuaderno["item_id"]),
+            "TK-C001-PRE",
             catalogo=catalogo,
         )
 
         kits = (await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"]
         ahorrador = next(k for k in kits if k["perfil"] == "Ahorrador")
-        cuaderno = next(l for l in ahorrador["lineas"] if l["descripcion"].startswith("2 cuadernos"))
+        cuaderno = next(
+            linea for linea in ahorrador["lineas"] if linea["descripcion"].startswith("2 cuadernos")
+        )
         assert cuaderno["producto_elegido"]["sku"] == "TK-C001-PRE"
         assert cuaderno["subtotal_linea"] == 2 * 12000
         assert ahorrador["total"] == total_antes + 2 * (12000 - 4500)
@@ -189,7 +197,12 @@ class TestFijarProductoPorNivel:
         trabajo_id, _ = await _crear_y_procesar(motor, catalogo)
         with pytest.raises(trabajos.TrabajoNoExiste):
             await trabajos.fijar_producto_en_linea(
-                motor, trabajo_id, "Ahorrador", uuid.uuid4(), "TK-C001-PRE", catalogo=catalogo,
+                motor,
+                trabajo_id,
+                "Ahorrador",
+                uuid.uuid4(),
+                "TK-C001-PRE",
+                catalogo=catalogo,
             )
 
 
@@ -440,7 +453,7 @@ class TestAplicarCanonico:
                 for e in await conexion.execute(select(trabajos.BANDEJA))
                 if e.tipo == "pedido_solicitado" and e.agregado_id == parent_id
             )
-        c001 = next(l for l in pedido.carga["lineas"] if l.get("concepto") == "C001")
+        c001 = next(linea for linea in pedido.carga["lineas"] if linea.get("concepto") == "C001")
         assert c001["producto_elegido"]["personaje"] == "cars"
         assert c001["producto_elegido"]["sku"] == "TK-C001-FAN"
 
@@ -480,7 +493,7 @@ class TestAplicarCanonico:
         assert len(vista["kits"]) == 1
         assert vista["kits"][0]["perfil"] == "Ahorrador"
         assert vista["kits"][0]["total"] == resultado["total"]
-        c001 = next(l for l in vista["kits"][0]["lineas"] if l.get("concepto") == "C001")
+        c001 = next(linea for linea in vista["kits"][0]["lineas"] if linea.get("concepto") == "C001")
         assert c001["producto_elegido"]["sku"] == "TK-C001-FAN"
         # Los objetivos se calculan sobre las lineas aplicadas. Antes iban vacios
         # y la web pintaba "NaN% con precio confirmado".
@@ -496,57 +509,80 @@ class TestAplicarCanonico:
         canonico, _ = await _crear_y_procesar(motor)
         await trabajos.revisar(motor, canonico, decision="aprobar")
         aplicado = await trabajos.aplicar_canonico(
-            motor, colegio_id=COLEGIO, grado="Cuarto", anio_lectivo=2026,
-            perfil="Ahorrador", usuario_id=uuid.uuid4(), catalogo=_catalogo(),
+            motor,
+            colegio_id=COLEGIO,
+            grado="Cuarto",
+            anio_lectivo=2026,
+            perfil="Ahorrador",
+            usuario_id=uuid.uuid4(),
+            catalogo=_catalogo(),
         )
         parent_id = uuid.UUID(aplicado["trabajo_id"])
 
         class ComercioFalso:
             def __init__(self):
                 self.orden_enviada = None
+
             async def crear_orden(self, cuerpo):
                 self.orden_enviada = cuerpo
                 return 201, {"pedido_id": "ped-1", "total": cuerpo_total(cuerpo)}
+
             async def iniciar_pago(self, pedido_id, cuerpo):
                 return 201, {"pago_id": "pago-1", "url_redireccion": "https://pasarela/xy"}
 
         def cuerpo_total(c):
-            return sum(l["precio_unitario"] * l["cantidad"] for l in c["lineas"])
+            return sum(linea["precio_unitario"] * linea["cantidad"] for linea in c["lineas"])
 
         comercio = ComercioFalso()
         resultado = await trabajos.ordenar(
-            motor, parent_id, perfil="Ahorrador",
+            motor,
+            parent_id,
+            perfil="Ahorrador",
             entrega={"destinatario": "Ana", "direccion": "Calle 1", "ciudad": "Bogota"},
-            correo="ana@example.com", comercio=comercio, catalogo=_catalogo(),
+            correo="ana@example.com",
+            comercio=comercio,
+            catalogo=_catalogo(),
         )
         assert resultado["url_redireccion"] == "https://pasarela/xy"
         assert resultado["pedido_id"] == "ped-1"
         # RPO cero: ni una linea lleva id canonico, solo sku.
         assert comercio.orden_enviada["lineas"]
-        assert all("producto_canonico_id" not in l for l in comercio.orden_enviada["lineas"])
-        assert all(l["sku"] and l["precio_unitario"] > 0 for l in comercio.orden_enviada["lineas"])
+        assert all("producto_canonico_id" not in linea for linea in comercio.orden_enviada["lineas"])
+        assert all(
+            linea["sku"] and linea["precio_unitario"] > 0 for linea in comercio.orden_enviada["lineas"]
+        )
         assert comercio.orden_enviada["trabajo_id"] == str(parent_id)
 
     async def test_ordenar_reenvia_el_rechazo_de_negocio_de_comercio(self, motor):
         canonico, _ = await _crear_y_procesar(motor)
         await trabajos.revisar(motor, canonico, decision="aprobar")
         aplicado = await trabajos.aplicar_canonico(
-            motor, colegio_id=COLEGIO, grado="Cuarto", anio_lectivo=2026,
-            perfil="Ahorrador", usuario_id=uuid.uuid4(), catalogo=_catalogo(),
+            motor,
+            colegio_id=COLEGIO,
+            grado="Cuarto",
+            anio_lectivo=2026,
+            perfil="Ahorrador",
+            usuario_id=uuid.uuid4(),
+            catalogo=_catalogo(),
         )
         parent_id = uuid.UUID(aplicado["trabajo_id"])
 
         class ComercioRechaza:
             async def crear_orden(self, cuerpo):
                 return 422, {"error": "precio_cambiado", "mensaje": "cambio"}
+
             async def iniciar_pago(self, pedido_id, cuerpo):  # no se llega
                 raise AssertionError
 
         with pytest.raises(trabajos.CheckoutRechazado) as exc:
             await trabajos.ordenar(
-                motor, parent_id, perfil="Ahorrador",
+                motor,
+                parent_id,
+                perfil="Ahorrador",
                 entrega={"destinatario": "Ana", "direccion": "Calle 1", "ciudad": "Bogota"},
-                correo="ana@example.com", comercio=ComercioRechaza(), catalogo=_catalogo(),
+                correo="ana@example.com",
+                comercio=ComercioRechaza(),
+                catalogo=_catalogo(),
             )
         assert exc.value.estado == 422
         assert exc.value.cuerpo["error"] == "precio_cambiado"

@@ -1215,9 +1215,7 @@ async def ver(
                 # (SELECT puro, sin locks, un solo kit). Si molesta, resolver los
                 # swaps antes de abrir la txn con una pre-lectura de cabeza.
                 swaps = await _anclas_de_personaje(catalogo, hijo.get("personaje")) if catalogo else {}
-                lineas, total = await _lineas_aplicadas(
-                    conexion, uuid.UUID(str(canonico_id)), perfil, swaps
-                )
+                lineas, total = await _lineas_aplicadas(conexion, uuid.UUID(str(canonico_id)), perfil, swaps)
                 kits.append(
                     {
                         "perfil": perfil,
@@ -1596,9 +1594,7 @@ async def eliminar(motor: Any, trabajo_id: uuid.UUID) -> None:
         await conexion.execute(delete(TRABAJO).where(TRABAJO.c.id == trabajo_id))
 
 
-async def previews_de(
-    motor: Any, colegio_id: str, grado: str, anio_lectivo: int
-) -> list[uuid.UUID]:
+async def previews_de(motor: Any, colegio_id: str, grado: str, anio_lectivo: int) -> list[uuid.UUID]:
     """Los previews desechables vivos de un (colegio, grado, anio).
 
     El colegio/grado no son columnas: viven en el JSON `hijos`, tal como los
@@ -1843,9 +1839,7 @@ async def _fijar_canonico(conexion: Any, trabajo_id: uuid.UUID) -> None:
     Publicar de nuevo para el mismo grado REEMPLAZA el puntero (delete + insert
     sobre la llave unica): una sola cache bendita por grado.
     """
-    fila = (
-        await conexion.execute(select(TRABAJO.c.hijos).where(TRABAJO.c.id == trabajo_id))
-    ).one_or_none()
+    fila = (await conexion.execute(select(TRABAJO.c.hijos).where(TRABAJO.c.id == trabajo_id))).one_or_none()
     hijos = list(fila.hijos or ()) if fila else []
     if len(hijos) != 1:
         return
@@ -1929,9 +1923,7 @@ async def _cerrar_canonico_de_lista(conexion: Any, trabajo_id: uuid.UUID) -> str
     misma version —aprobar desde el preview, con sus ajustes— ese gana: este
     trabajo sobra y se borra en vez de pisarle el puntero.
     """
-    fila = (
-        await conexion.execute(select(TRABAJO.c.hijos).where(TRABAJO.c.id == trabajo_id))
-    ).one_or_none()
+    fila = (await conexion.execute(select(TRABAJO.c.hijos).where(TRABAJO.c.id == trabajo_id))).one_or_none()
     identidad = _identidad_de_grado(fila.hijos if fila else None)
     if identidad and identidad[3]:
         colegio_id, grado, anio, version = identidad
@@ -2012,9 +2004,7 @@ async def grados_canonicos(motor: Any, *, colegio_id: str | None = None) -> list
     ]
 
 
-async def _anclas_de_personaje(
-    catalogo: ClienteCatalogo, personaje: str | None
-) -> dict[str, dict[str, Any]]:
+async def _anclas_de_personaje(catalogo: ClienteCatalogo, personaje: str | None) -> dict[str, dict[str, Any]]:
     """Los productos de las cuatro anclas para un personaje, indexados por concepto.
 
     Vacio si no hay personaje. Es I/O de red: se resuelve FUERA de cualquier
@@ -2165,9 +2155,7 @@ async def aplicar_canonico(
         if canonico is None:
             raise TrabajoNoExiste(f"cache {colegio_id}/{grado}/{anio_lectivo}")
 
-        lineas_frias, total = await _lineas_aplicadas(
-            conexion, canonico.trabajo_id, perfil, swaps
-        )
+        lineas_frias, total = await _lineas_aplicadas(conexion, canonico.trabajo_id, perfil, swaps)
 
         # El trabajo del acudiente: un registro durable, sin etapas de pipeline.
         # `hijos` lleva la seleccion entera porque es la ENTRADA de este trabajo
