@@ -18,6 +18,7 @@ import pytest
 from tukit_catalogo.cargador import (
     COLUMNAS_ENRIQUECIDAS,
     Problema,
+    atributos_de_csv,
     isbn13_valido,
     normalizar_isbn,
     pesos_a_centavos,
@@ -196,3 +197,25 @@ class TestElCargadorNoDeshaceElEnriquecimiento:
         # Y lo que si debe seguir actualizandose desde el CSV, que es la razon
         # de que el upsert exista.
         assert {"nombre", "nivel", "concepto_id", "activo"} <= actualizables
+
+
+class TestLosAtributosViajanEnElCsv:
+    """Lo que se corrige a mano en el editor tiene que llegar a otra base.
+
+    Antes el cargador ponia `atributos` en `{}` y la tabla periodica que una
+    persona marco `tamano=grande` volvia a decir "26 x 20 cm" en la base de
+    cualquier otro: el renglon "tabla periodica (grande)" quedaba sin producto.
+    """
+
+    def test_lee_los_atributos_exportados(self):
+        assert atributos_de_csv('{"tamano": "grande"}') == {"tamano": "grande"}
+
+    def test_descarta_las_claves_de_legado(self):
+        crudo = '{"cantidades_declaradas": ["20:cm"], "frase_ancla": "tabla periodica", "color": "azul"}'
+        assert atributos_de_csv(crudo) == {"color": "azul"}
+
+    def test_lo_vacio_o_roto_es_un_diccionario_vacio(self):
+        assert atributos_de_csv("") == {}
+        assert atributos_de_csv(None) == {}
+        assert atributos_de_csv("{no es json") == {}
+        assert atributos_de_csv('["lista"]') == {}

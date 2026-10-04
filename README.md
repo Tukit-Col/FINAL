@@ -94,6 +94,39 @@ la demo:
 - `WOMPI_*` — la pasarela de pago. `WOMPI_MODO=falso` (por defecto) usa una pasarela simulada;
   no necesitas llaves reales para caminar el checkout.
 
+## Compartir la curaduría de listas
+
+Curar una lista (decidir a qué concepto corresponde cada renglón y cerrarla en la cola)
+queda en la base local, que es de una sola máquina. Para que llegue a los demás viaja por
+git como CSV:
+
+```bash
+make curaduria-exportar   # base -> datos/  (luego git add datos/ && git commit)
+make curaduria-importar   # datos/ -> base  (después de un git pull)
+```
+
+| Archivo | Qué lleva |
+|---|---|
+| `datos/curaduria/listas_revisadas.csv` | Un renglón por ítem de cada versión vigente y revisada, con el concepto por código |
+| `datos/catalogo/conceptos.csv` | Los conceptos creados curando se agregan; los existentes se actualizan |
+| `datos/curaduria/colegios.csv`, `sedes.csv` | Los colegios que esas listas nombran, para que la lista no quede huérfana |
+| `datos/catalogo/productos_canonicos.csv`, `ofertas_tienda.csv`, `precios_oferta.csv`, `productos_procedencia.csv` | Los productos aprobados en la cola, los reclasificados de concepto y sus **atributos corregidos a mano** (lo que hace que el filtro de atributos encuentre producto) |
+
+En Windows, `.\tukit.ps1 exportar` e `.\tukit.ps1 importar` hacen lo mismo.
+
+Los vectores de búsqueda semántica no viajan (no se versionan): después de importar,
+`make bd-enriquecer` los calcula para los productos nuevos. Gasta cupo de Gemini Embedding
+(una petición por producto); sin correrlo el emparejamiento funciona igual, solo por palabras.
+
+`curaduria-importar` corre `bd-cargar` primero (una lista no entra sin sus conceptos) y es
+idempotente: una lista que ya dice lo mismo no se toca, y una que cambió crea una versión
+nueva en vez de sobreescribir. No viajan el PDF original ni el contacto del colegio.
+
+Exporta **antes** de hacer `git pull`: `bd-cargar` actualiza los conceptos desde el CSV, y
+un sinónimo agregado en la base y no exportado se perdería. Los códigos de concepto nuevos
+(`C100`, `C101`…) se numeran en cada base, así que dos personas creando conceptos a la vez
+chocarían; mientras sea una sola persona la que cura, no pasa.
+
 ## Usuarios de prueba
 
 Las seis cuentas demo entran con la misma clave: **`demo1234`**. No es un secreto, es un
