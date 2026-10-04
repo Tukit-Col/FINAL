@@ -498,6 +498,11 @@ confianza de extracción por debajo del umbral configurable τ". Toda transició
 
 `POST .../revision` acepta `{ "decision": "aprobar" | "devolver", "nota": "..." }`. Aprobar
 publica y dispara la notificación; devolver reabre el trabajo sin avisar al acudiente.
+Aprobar un kit del grado (`colegio_grado`) publica también los kits de los acudientes que
+lo esperaban (`parent_apply` en `espera_revision`), con su pedido y su `kits_publicados`.
+Esos kits no se revisan aparte: `409 kit_de_acudiente_en_espera`. Descartar
+(`DELETE /v1/admin/trabajos/{id}`) un kit con acudientes esperando es
+`409 kit_con_acudientes_esperando`.
 
 ---
 
@@ -1161,8 +1166,8 @@ azar. Se ve, no se cobra y se explica.
 
 | Endpoint | Qué hace |
 |---|---|
-| `GET /v1/admin/cola` | Trabajos en `espera_revision`, del más viejo al más nuevo, con `lineas_a_revisar`. Cada entrada trae `origen` y `version_id` (la versión de lista de su hijo, o `null`): con eso el admin separa las vistas previas de lista (`preview_onboarding`) de los trabajos de acudiente |
-| `GET /v1/admin/onboarding/{version_id}/preview` | La vista previa vigente de esa versión (`preview_onboarding` en `espera_revision`, la más reciente): `{"trabajo_id", "estado", "creado_en", "lineas_sin_decidir"}`. `404 vista_previa_no_existe` si no hay |
+| `GET /v1/admin/cola` | Trabajos en `espera_revision`, del más viejo al más nuevo, con `lineas_a_revisar`. Cada entrada trae `origen` y `version_id` (la versión de lista de su hijo, o `null`): con eso el admin separa las vistas previas de lista (`preview_onboarding`) de los trabajos de acudiente. Trae además `usuario_id`, `colegios` y `grados` (ids de sus hijos), `lineas_totales`, `lineas_sin_decidir` (AMBIGUO o SIN_MATCH sin decisión), `huecos` y `acudientes_esperando`. No lista los `parent_apply`: el que espera va contado en el kit del grado que espera |
+| `GET /v1/admin/onboarding/{version_id}/preview` | La vista previa vigente de esa versión (`preview_onboarding` en `espera_revision`, la más reciente): `{"trabajo_id", "estado", "creado_en", "lineas_sin_decidir", "desactualizada"}`. `desactualizada` compara la lista de hoy con la previsualizada, con la misma huella que usa la promoción al aprobar. `404 vista_previa_no_existe` si no hay; `503 catalogo_no_disponible` si el catálogo no responde |
 | `GET /v1/admin/trabajos/{id}` | El mismo lector del acudiente **con los kits forzados**: Admin tiene que ver lo que todavía no se publica |
 | `POST /v1/admin/trabajos/{id}/lineas/{item_id}/validar` | `{"sku": "…", "motivo": "…", "actor": "…uuid…"}` (`nota` se acepta como sinónimo de `motivo`). Deja la línea en `RESUELTO_AUTO`. `sku` es opcional: sin él vale el producto de la línea en el kit recomendado (o el candidato actual). Si el sku no era candidato se registra como tal. Sin producto que validar es `422 sin_producto_que_validar` con `campo: "sku"` |
 | `POST /v1/admin/trabajos/{id}/lineas/{item_id}/sin-coincidencia` | Deja la línea en **`HUECO_CATALOGO`**, no en `SIN_MATCH`, y le quita el producto y el precio en los tres kits (recalcula sus totales): lo que "no tenemos" no se cobra |
