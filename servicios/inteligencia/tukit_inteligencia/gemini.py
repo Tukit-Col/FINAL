@@ -58,7 +58,8 @@ cada item lleva cantidad 1.
 No separes "tajalapiz o portaminas" ni un producto entero: "Kit de 12 pinceles (planos, redondos)".
 Cada uniforme es UN item con su nombre ("Uniforme de diario"), sin sus prendas.
 En `grados` lista cada grado o curso distinto que aparezca en la pagina, con su nombre (Cuarto, no 4°).
-Si la pagina esta cortada, borrosa o no alcanzas a leerla toda, pon `completa` en false.
+Si la imagen esta recortada, borrosa o no alcanzas a leerla toda, pon `completa` en false.
+Un texto que sigue en la pagina siguiente no es una pagina cortada: lee lo que hay y deja `completa` en true.
 No agregues items que no esten escritos."""
 
 _ESQUEMA = {
