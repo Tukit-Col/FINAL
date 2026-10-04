@@ -9,6 +9,8 @@ import { GRADOS_CANONICOS } from "./contrato";
 import type {
   AltaProducto,
   AplicarCanonico,
+  CambioDeProducto,
+  PerfilKit,
   Checkout,
   ColaAdmin,
   Contacto,
@@ -747,6 +749,26 @@ export class ClienteApi implements OrigenDatos {
         body: JSON.stringify(cuerpo),
       },
     );
+  }
+
+  cambiarProductoDeKit(
+    trabajoId: string,
+    perfil: PerfilKit,
+    itemId: string,
+    sku: string,
+    token?: string,
+  ): Promise<CambioDeProducto> {
+    const ruta =
+      `/v1/trabajos/${encodeURIComponent(trabajoId)}/kits/${encodeURIComponent(perfil)}` +
+      `/lineas/${encodeURIComponent(itemId)}/producto`;
+    return this.pedir<CambioDeProducto>(ruta, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ sku }),
+    });
   }
 
   iniciarPagoPedido(

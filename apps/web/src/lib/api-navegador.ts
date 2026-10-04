@@ -6,6 +6,7 @@
 
 import type {
   AplicarCanonico,
+  CambioDeProducto,
   CasoCreado,
   Checkout,
   Contacto,
@@ -95,6 +96,29 @@ export async function aplicarCanonico(cuerpo: AplicarCanonico): Promise<TrabajoA
  * + correo + dirección; el backend arma la orden en Comercio y devuelve la url
  * de la pasarela a la que redirigir. No viaja ningún id de producto.
  */
+/**
+ * El acudiente cambia un producto de su kit por el sugerido o una de sus
+ * alternativas. El total se recalcula en el servidor: después hay que volver
+ * a leer el trabajo (`router.refresh()`).
+ */
+export async function cambiarProductoDeKit(
+  trabajoId: string,
+  perfil: string,
+  itemId: string,
+  sku: string,
+): Promise<CambioDeProducto> {
+  const ruta =
+    `/api/trabajos/${encodeURIComponent(trabajoId)}/kits/${encodeURIComponent(perfil)}` +
+    `/lineas/${encodeURIComponent(itemId)}/producto`;
+  return leer<CambioDeProducto>(
+    await fetch(ruta, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sku }),
+    }),
+  );
+}
+
 export async function iniciarCheckout(
   trabajoId: string,
   cuerpo: SolicitudCheckout,

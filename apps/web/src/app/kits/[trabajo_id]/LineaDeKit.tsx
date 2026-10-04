@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeftRight, Check } from "lucide-react";
+import { cambiarProductoDeKit, FalloApi } from "@/lib/api-navegador";
 import {
   ETIQUETA_NIVEL,
   formatearPesos,
@@ -20,7 +23,17 @@ import styles from "./Kits.module.css";
  * muestran. Ocultar la que no se puede vender deja al acudiente con un hueco
  * que descubre tarde, que es justo el dolor que vino a evitar.
  */
-export default function LineaDeKit({ linea, clase }: { linea: LineaKit; clase: ClaseLinea }) {
+export default function LineaDeKit({
+  linea,
+  clase,
+  trabajoId,
+  perfil,
+}: {
+  linea: LineaKit;
+  clase: ClaseLinea;
+  trabajoId: string;
+  perfil: string;
+}) {
   const [abierto, setAbierto] = useState(false);
   const producto = linea.producto_elegido;
   const razon = razonDeNoCobrar(linea);
@@ -70,6 +83,9 @@ export default function LineaDeKit({ linea, clase }: { linea: LineaKit; clase: C
               </span>
               {producto.personaje && (
                 <span className={styles.personaje}>{producto.personaje}</span>
+              )}
+              {linea.cambiado_por_acudiente && (
+                <span className={styles.cambiadoPorTi}>Lo elegiste tú</span>
               )}
             </p>
           )}
@@ -140,34 +156,153 @@ export default function LineaDeKit({ linea, clase }: { linea: LineaKit; clase: C
         </div>
       </div>
 
-      {alternativas.length > 0 && (
+      {producto && alternativas.length > 0 && (
         <div className={styles.alternativas}>
           <button
             type="button"
-            className={styles.verAlternativas}
+            className={styles.botonCambiar}
             aria-expanded={abierto}
             onClick={() => setAbierto((a) => !a)}
           >
-            {abierto ? "Ocultar" : `Ver ${alternativas.length} opciones más`}
+            <ArrowLeftRight size={14} aria-hidden="true" strokeWidth={2.4} />
+            {abierto
+              ? "Cerrar"
+              : `Cambiar por otra opción · ${alternativas.length} ${
+                  alternativas.length === 1 ? "disponible" : "disponibles"
+                }`}
           </button>
           {abierto && (
-            <ul className={styles.listaAlternativas}>
-              {alternativas.map((alternativa) => (
-                <li key={alternativa.sku}>
-                  <span className={`${styles.nivel} ${styles[alternativa.nivel]}`}>
-                    {ETIQUETA_NIVEL[alternativa.nivel]}
-                  </span>
-                  <span className={styles.nombreAlternativa}>{alternativa.nombre}</span>
-                  <span className="cifra">
-                    {formatearPesos(alternativa.ofertas[0]?.precio ?? null)}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <OpcionesDeCambio
+              linea={linea}
+              producto={producto}
+              alternativas={alternativas}
+              trabajoId={trabajoId}
+              perfil={perfil}
+              onListo={() => setAbierto(false)}
+            />
           )}
         </div>
       )}
     </li>
+  );
+}
+
+/**
+ * Las opciones para cambiar el producto de un renglón: la que está en el kit y
+ * las alternativas que una persona revisó, como tarjetas para elegir. Elegir
+ * una la guarda en el trabajo del acudiente y recalcula el total en el
+ * servidor (`router.refresh()` trae el kit nuevo). La sugerida por Tukit queda
+ * siempre a la vista para volver a ella.
+ */
+function OpcionesDeCambio({
+  linea,
+  producto,
+  alternativas,
+  trabajoId,
+  perfil,
+  onListo,
+}: {
+  linea: LineaKit;
+  producto: ProductoKit;
+  alternativas: ProductoKit[];
+  trabajoId: string;
+  perfil: string;
+  onListo: () => void;
+}) {
+  const router = useRouter();
+  const [guardando, setGuardando] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const precioActual = producto.ofertas[0]?.precio ?? null;
+
+  async function elegir(sku: string) {
+    setGuardando(sku);
+    setError(null);
+    try {
+      await cambiarProductoDeKit(trabajoId, perfil, linea.item_id, sku);
+      router.refresh();
+      onListo();
+    } catch (causa) {
+      setError(
+        causa instanceof FalloApi ? causa.message : "No pudimos cambiar el producto. Intenta de nuevo.",
+      );
+    } finally {
+      setGuardando(null);
+    }
+  }
+
+  const opciones = [producto, ...alternativas];
+  return (
+    <div className={styles.panelCambio}>
+      <p className={styles.tituloCambio}>Elige el que prefieras para «{linea.descripcion}»</p>
+      <ul className={styles.opcionesCambio}>
+        {opciones.map((opcion) => {
+          const enKit = opcion.sku === producto.sku;
+          const sugerido = linea.cambiado_por_acudiente
+            ? opcion.sku === linea.sku_sugerido
+            : enKit;
+          const precio = opcion.ofertas[0]?.precio ?? null;
+          const diferencia =
+            precio !== null && precioActual !== null && !enKit ? precio - precioActual : null;
+          return (
+            <li
+              key={opcion.sku}
+              className={`${styles.opcionCambio} ${enKit ? styles.opcionEnKit : ""}`}
+            >
+              <div className={styles.opcionCabecera}>
+                <Foto producto={opcion} />
+                <div className={styles.opcionTexto}>
+                  <span className={`${styles.nivel} ${styles[opcion.nivel]}`}>
+                    {ETIQUETA_NIVEL[opcion.nivel]}
+                  </span>
+                  <span className={styles.opcionNombre}>{opcion.nombre}</span>
+                  {opcion.marca && <span className={styles.marca}>{opcion.marca}</span>}
+                </div>
+              </div>
+              <div className={styles.opcionPie}>
+                <span className={styles.opcionPrecio}>
+                  <span className="cifra">{formatearPesos(precio)}</span>
+                  {diferencia !== null && diferencia !== 0 && (
+                    <span
+                      className={`${styles.diferencia} ${
+                        diferencia > 0 ? styles.masCaro : styles.masBarato
+                      } cifra`}
+                      title="Diferencia de precio con el producto que tienes en el kit"
+                    >
+                      {diferencia > 0 ? "+" : "−"}
+                      {formatearPesos(Math.abs(diferencia))}
+                    </span>
+                  )}
+                </span>
+                {enKit ? (
+                  <span className={styles.enTuKit}>
+                    <Check size={14} aria-hidden="true" strokeWidth={3} />
+                    En tu kit
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.botonElegir}
+                    disabled={guardando !== null}
+                    onClick={() => void elegir(opcion.sku)}
+                  >
+                    {guardando === opcion.sku ? "Cambiando…" : "Elegir"}
+                  </button>
+                )}
+              </div>
+              {sugerido && <span className={styles.sugeridaTukit}>Sugerido por Tukit</span>}
+            </li>
+          );
+        })}
+      </ul>
+      {error && (
+        <p className={styles.errorCambio} role="alert">
+          {error}
+        </p>
+      )}
+      <p className={styles.notaCambio}>
+        El total del kit se actualiza al elegir. Solo cambia este kit ({perfil}).
+      </p>
+    </div>
   );
 }
 

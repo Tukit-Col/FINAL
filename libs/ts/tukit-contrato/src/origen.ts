@@ -13,6 +13,8 @@
 import type {
   AltaProducto,
   AplicarCanonico,
+  CambioDeProducto,
+  PerfilKit,
   Checkout,
   ColaAdmin,
   Contacto,
@@ -277,6 +279,17 @@ export interface OrigenDatos {
   // perfil + correo + direccion; Inteligencia arma la orden en Comercio y
   // devuelve la url de la pasarela a la que redirigir. No expone ids de base.
   iniciarCheckout(trabajoId: string, cuerpo: SolicitudCheckout): Promise<Checkout>;
+
+  // El acudiente cambia un producto de un kit publicado por el sugerido o una
+  // de sus alternativas. `token` es su sesión: si el trabajo tiene dueño, el
+  // backend exige que sea la suya.
+  cambiarProductoDeKit(
+    trabajoId: string,
+    perfil: PerfilKit,
+    itemId: string,
+    sku: string,
+    token?: string,
+  ): Promise<CambioDeProducto>;
 
   // §Pago — al regreso de la pasarela, sincroniza la transaccion con Wompi y
   // devuelve el estado del pago y del pedido (idempotente).

@@ -67,66 +67,110 @@ export default function VistaKits({ trabajo }: { trabajo: Trabajo }) {
     );
   }
 
+  // En la ruta rápida el "recomendado" es el kit que el acudiente eligió al
+  // empezar; en los demás trabajos, el que marcó el recomendador.
+  const eligioEl = trabajo.origen === "parent_apply";
+  const rotuloMarcado = eligioEl ? "Tu elección" : "Te recomendamos este";
+  const IconoActivo = ICONO_PERFIL[kit.perfil];
+  const viendoOtro = recomendado !== null && kit.perfil !== recomendado.perfil;
+
   return (
     <div className={styles.pagina}>
       <header className={styles.encabezado}>
-        <h1>Tus tres kits están listos</h1>
+        <h1>{eligioEl ? "Tu kit está listo" : "Tus tres kits están listos"}</h1>
         <p>
-          Los tres cubren la misma lista. Te marcamos uno, pero los otros dos siguen
-          aquí: cuál conviene depende de cosas que solo sabes tú.
+          {eligioEl
+            ? "Este es el kit que elegiste. Si quieres, compáralo con los otros dos o cambia cualquier producto por otra opción."
+            : "Los tres cubren la misma lista. Te marcamos uno, pero los otros dos siguen aquí: cuál conviene depende de cosas que solo sabes tú."}
         </p>
       </header>
 
-      {/* ---------------------------------------------- Comparador de kits */}
-      <div className={styles.comparador} role="tablist" aria-label="Los tres kits">
-        {trabajo.kits.map((otro) => {
-          const esRecomendado = otro.perfil === recomendado?.perfil;
-          const esActivo = otro.perfil === activo;
-          const IconoKit = ICONO_PERFIL[otro.perfil];
-          return (
-            <button
-              key={otro.perfil}
-              role="tab"
-              aria-selected={esActivo}
-              className={`${styles.tarjetaKit} ${esActivo ? styles.kitActivo : ""} ${
-                esRecomendado ? styles.kitRecomendado : ""
-              }`}
-              onClick={() => setActivo(otro.perfil)}
-            >
-              {esRecomendado && (
-                <span className={styles.chapaRecomendado}>
-                  <Star size={12} aria-hidden="true" fill="currentColor" strokeWidth={0} />
-                  Te recomendamos este
-                </span>
-              )}
-              <span className={styles.nombreKit}>
-                <span className={styles.iconoKit} aria-hidden="true">
-                  <IconoKit size={18} strokeWidth={2.4} />
-                </span>
+      {/* ------------------------------------- Selector discreto de kits. Los
+          tres siguen a un clic (el contrato exige mostrarlos), pero no
+          compiten con el kit que se está mirando. */}
+      {trabajo.kits.length > 1 && (
+        <div className={styles.selectorKits} role="tablist" aria-label="Ver otro kit">
+          <span className={styles.selectorRotulo}>Ver kit</span>
+          {trabajo.kits.map((otro) => {
+            const esActivo = otro.perfil === kit.perfil;
+            const esMarcado = otro.perfil === recomendado?.perfil;
+            return (
+              <button
+                key={otro.perfil}
+                type="button"
+                role="tab"
+                aria-selected={esActivo}
+                className={`${styles.opcionKit} ${esActivo ? styles.opcionKitActiva : ""}`}
+                onClick={() => setActivo(otro.perfil)}
+                title={esMarcado ? rotuloMarcado : undefined}
+              >
+                {esMarcado && (
+                  <Star
+                    size={12}
+                    aria-label={rotuloMarcado}
+                    fill="currentColor"
+                    strokeWidth={0}
+                    className={styles.estrellaKit}
+                  />
+                )}
                 {otro.perfil}
-              </span>
-              <span className={`${styles.totalKit} cifra`}>{formatearPesos(otro.total)}</span>
-              <span className={styles.promesa}>{PROMESA[otro.perfil]}</span>
-              {/* Un kit sin objetivos (los de la ruta rápida anteriores al
-                  cálculo) no pinta la línea: mejor nada que "NaN%". */}
-              {Number.isFinite(otro.objetivos?.disponibilidad) && (
-                <span className={styles.objetivos}>
-                  {Math.round(otro.objetivos.disponibilidad * 100)}% con precio confirmado
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+                <span className={`${styles.totalOpcion} cifra`}>{formatearPesos(otro.total)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-      {recomendado && (
+      {/* ------------------------------------------------ El kit que se mira */}
+      <section className={`${styles.tarjetaKit} ${styles.kitActivo}`} aria-live="polite">
+        {kit.perfil === recomendado?.perfil && (
+          <span className={styles.chapaRecomendado}>
+            <Star size={12} aria-hidden="true" fill="currentColor" strokeWidth={0} />
+            {rotuloMarcado}
+          </span>
+        )}
+        <span className={styles.nombreKit}>
+          <span className={styles.iconoKit} aria-hidden="true">
+            <IconoActivo size={18} strokeWidth={2.4} />
+          </span>
+          {kit.perfil}
+        </span>
+        <span className={`${styles.totalKit} cifra`}>{formatearPesos(kit.total)}</span>
+        <span className={styles.promesa}>{PROMESA[kit.perfil]}</span>
+        {/* Un kit sin objetivos (los de la ruta rápida anteriores al
+            cálculo) no pinta la línea: mejor nada que "NaN%". */}
+        {Number.isFinite(kit.objetivos?.disponibilidad) && (
+          <span className={styles.objetivos}>
+            {Math.round(kit.objetivos.disponibilidad * 100)}% con precio confirmado
+          </span>
+        )}
+      </section>
+
+      {viendoOtro ? (
         <p className={styles.razon}>
-          <strong>Por qué el {recomendado.perfil}:</strong> {recomendado.razon}
-          {/* `null` es "no puso tope": solo `false` es pasarse. */}
-          {recomendado.dentro_de_presupuesto === false && (
-            <em className={styles.fueraPresupuesto}> Ojo: se pasa del tope que pusiste.</em>
-          )}
+          Estás viendo el kit <strong>{kit.perfil}</strong>. Si lo pagas, es este el que te
+          llevamos.{" "}
+          <button
+            type="button"
+            className={styles.volverKit}
+            onClick={() => setActivo(recomendado.perfil)}
+          >
+            Volver a {eligioEl ? "mi kit" : "el recomendado"} ({recomendado.perfil})
+          </button>
         </p>
+      ) : (
+        recomendado && (
+          <p className={styles.razon}>
+            <strong>
+              {eligioEl ? "Tu kit:" : `Por qué el ${recomendado.perfil}:`}
+            </strong>{" "}
+            {recomendado.razon}
+            {/* `null` es "no puso tope": solo `false` es pasarse. */}
+            {recomendado.dentro_de_presupuesto === false && (
+              <em className={styles.fueraPresupuesto}> Ojo: se pasa del tope que pusiste.</em>
+            )}
+          </p>
+        )
       )}
 
       <ResumenKit kit={kit} />
@@ -148,7 +192,7 @@ export default function VistaKits({ trabajo }: { trabajo: Trabajo }) {
         </section>
       )}
 
-      <SeccionesDeLineas kit={kit} />
+      <SeccionesDeLineas kit={kit} trabajoId={trabajo.trabajo_id} />
 
       <Checkout trabajoId={trabajo.trabajo_id} perfil={kit.perfil} total={kit.total} />
     </div>
@@ -322,7 +366,7 @@ function ResumenKit({ kit }: { kit: Kit }) {
   );
 }
 
-function SeccionesDeLineas({ kit }: { kit: Kit }) {
+function SeccionesDeLineas({ kit, trabajoId }: { kit: Kit; trabajoId: string }) {
   const grupos = agruparPorClase(kit.lineas);
 
   return (
@@ -342,7 +386,13 @@ function SeccionesDeLineas({ kit }: { kit: Kit }) {
             </header>
             <ul className={styles.lineas}>
               {lineas.map((linea) => (
-                <LineaDeKit key={linea.item_id} linea={linea} clase={clasificar(linea)} />
+                <LineaDeKit
+                  key={linea.item_id}
+                  linea={linea}
+                  clase={clasificar(linea)}
+                  trabajoId={trabajoId}
+                  perfil={kit.perfil}
+                />
               ))}
             </ul>
           </section>

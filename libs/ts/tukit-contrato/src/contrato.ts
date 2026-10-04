@@ -186,6 +186,15 @@ export interface Entrega {
   ciudad: string;
 }
 
+// El acudiente cambia el producto de un renglón de su kit por el sugerido o por
+// una de sus alternativas. El cambio vive en SU trabajo, no en el kit canónico.
+export interface CambioDeProducto {
+  trabajo_id: string;
+  perfil: PerfilKit;
+  item_id: string;
+  sku: string;
+}
+
 export interface SolicitudCheckout {
   perfil: PerfilKit;
   correo: string;
@@ -350,6 +359,11 @@ export interface LineaKit {
   no_consolidable?: boolean;
   motivo_no_consolidable?: string | null;
 
+  // El acudiente cambió el producto sugerido por una alternativa: `sku_sugerido`
+  // es el que venía, para ofrecerle volver a él.
+  cambiado_por_acudiente?: boolean;
+  sku_sugerido?: string | null;
+
   // §5.2 — huecos de catalogo.
   concepto?: string | null;
   atributo_faltante?: Record<string, string> | null;
@@ -412,6 +426,9 @@ export interface Trabajo {
   kits: Kit[];
   recomendado: Recomendacion | null;
   degradaciones: Degradacion[];
+  // De dónde salió el trabajo. `parent_apply` es la ruta rápida: ahí el
+  // "recomendado" es el kit que el acudiente eligió al empezar.
+  origen?: string;
 }
 
 // ---------------------------------------------- §4.1 "Mis solicitudes" del panel
