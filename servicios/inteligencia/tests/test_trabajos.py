@@ -482,6 +482,12 @@ class TestAplicarCanonico:
         assert vista["kits"][0]["total"] == resultado["total"]
         c001 = next(l for l in vista["kits"][0]["lineas"] if l.get("concepto") == "C001")
         assert c001["producto_elegido"]["sku"] == "TK-C001-FAN"
+        # Los objetivos se calculan sobre las lineas aplicadas. Antes iban vacios
+        # y la web pintaba "NaN% con precio confirmado".
+        objetivos = vista["kits"][0]["objetivos"]
+        assert objetivos["costo"] == resultado["total"]
+        assert 0.0 <= objetivos["disponibilidad"] <= 1.0
+        assert 0.0 <= objetivos["fidelidad"] <= 1.0
 
     async def test_ordenar_arma_la_orden_server_to_server_sin_ids_de_base(self, motor):
         # El checkout: del kit publicado a la orden. Se verifica que Inteligencia
