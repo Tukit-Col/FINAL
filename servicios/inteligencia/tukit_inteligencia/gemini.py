@@ -55,7 +55,8 @@ Separa lo que se compra por aparte: "Cartuchera con: esferos, borrador" son 3 it
 vienen al final: "4 carpetas oficio con gancho. Colores: azul, rojo, verde, amarillo" son 4 items ("carpetas
 oficio con gancho azul"...). La cantidad total se reparte, nunca se repite: si es igual al numero de colores,
 cada item lleva cantidad 1.
-No separes "tajalapiz o portaminas" ni un producto entero: "Kit de 12 pinceles (planos, redondos)".
+No separes "tajalapiz o portaminas", un producto entero ("Kit de 12 pinceles (planos, redondos)")
+ni una serie de durezas: "Lapices HB, 2H, 2B, 6B" es un solo item.
 Cada uniforme es UN item con su nombre ("Uniforme de diario"), sin sus prendas.
 En `grados` lista cada grado o curso distinto que aparezca en la pagina, con su nombre (Cuarto, no 4°).
 Si la imagen esta recortada, borrosa o no alcanzas a leerla toda, pon `completa` en false.
