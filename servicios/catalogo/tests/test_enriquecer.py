@@ -449,6 +449,11 @@ class TestLosConceptosQueNadieLograbaCumplir:
         assert extraer_atributos("Flauta Dulce Hohner Soprano 9508", ("tipo",))["tipo"] == "dulce"
         assert extraer_atributos("Flauta soprano germana", ("tipo",))["tipo"] == "soprano"
 
+    def test_un_rango_de_durezas_no_exige_ninguna(self):
+        assert extraer_atributos("Lápiz 2H-6B", ("dureza",)).get("dureza") is None
+        assert extraer_atributos("Lápiz negro 2B", ("dureza",))["dureza"] == "2b"
+        assert extraer_atributos("Lápiz 8B", ("dureza",))["dureza"] == "8b"
+
     def test_para_un_morral_grande_si_es_un_tamano(self):
         assert extraer_atributos("Morral Escolar Frozen Grande", ("tamano",))["tamano"] == "grande"
         assert extraer_atributos("Morral Escolar Bluey Mediano Azul", ("tamano",))["tamano"] == "mediano"
