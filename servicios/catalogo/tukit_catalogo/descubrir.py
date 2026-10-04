@@ -112,6 +112,13 @@ FRACCION = re.compile(r"\b\d+\s*/\s*\d+\b")
 # Igual una lista de durezas (`Lapices HB, 2H, 2B, 6B`): dos o mas seguidas.
 RANGO_DUREZA = re.compile(r"\b\d?[hb]{1,2}(?:\s*(?:-|,|y|a|al|hasta)\s*\d?[hb]{1,2}\b)+")
 
+# `Escuadras 30° y 45°` es el par, que se vende como juego; una escuadra de 45°
+# sola sigue siendo una escuadra. Los numeros no cuentan en el parecido, asi que
+# sin esto el renglon empataba con `escuadras` y ganaba la escuadra suelta.
+PAR_DE_ESCUADRAS = re.compile(
+    r"\bescuadras?\b\D*\b(?:30|45|60)\s*(?:°|grados?)?\s*(?:y|,|-|/)?\s*(?:30|45|60)\b\s*(?:°|grados?)?"
+)
+
 
 def consulta_desde_renglon(renglon: str) -> str:
     """Convierte el renglon del colegio en algo que una tienda entienda.
@@ -282,6 +289,7 @@ def clasificar(
     """
     mejor_id, mejor_nombre, mejor = None, "", 0.0
     renglon = RANGO_DUREZA.sub(" serie durezas ", _plano(renglon))
+    renglon = PAR_DE_ESCUADRAS.sub(" escuadras juego ", renglon)
     nucleo = cabeza(renglon)
     for concepto in conceptos:
         cos = (

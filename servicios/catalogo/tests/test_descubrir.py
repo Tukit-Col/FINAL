@@ -253,6 +253,18 @@ class TestClasificarContraNuestroCatalogo:
             assert clasificar(renglon, conceptos)[1] == "kit de lapices de dibujo", renglon
         assert clasificar("Lápiz negro HB", conceptos)[1] == "lapiz"
 
+    def test_un_par_de_escuadras_es_el_juego(self):
+        """Los numeros no cuentan en el parecido: `escuadras 30° y 45°` empataba
+        con `escuadras` y ganaba la escuadra suelta."""
+        conceptos = [
+            {"id": uuid.uuid4(), "nombre": "escuadra", "sinonimos": ["escuadras", "escuadra grado"]},
+            {"id": uuid.uuid4(), "nombre": "juego de geometria", "sinonimos": ["escuadras juego"]},
+        ]
+
+        for renglon in ("escuadras 30° y 45°", "Escuadras de 45 y 60 grados", "2 escuadras 45° - 60°"):
+            assert clasificar(renglon, conceptos)[1] == "juego de geometria", renglon
+        assert clasificar("escuadra de 45 grados", conceptos)[1] == "escuadra"
+
 
 class TestLaConsultaQueSeLeMandaALaTienda:
     """Solo se construye para lo que NO tenemos, y describe QUE, no CUANTO."""
