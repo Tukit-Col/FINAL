@@ -1,0 +1,110 @@
+{
+  "multilingual/es/barato": {
+    "aciertos": 20,
+    "total": 60,
+    "acc": 0.333,
+    "ms": 127.3
+  },
+  "multilingual/es/premium": {
+    "aciertos": 19,
+    "total": 60,
+    "acc": 0.317,
+    "ms": 88.0
+  },
+  "multilingual/es/personaje": {
+    "aciertos": 19,
+    "total": 56,
+    "acc": 0.339,
+    "ms": 76.2
+  },
+  "multilingual/en/barato": {
+    "aciertos": 18,
+    "total": 60,
+    "acc": 0.3,
+    "ms": 84.4
+  },
+  "multilingual/en/premium": {
+    "aciertos": 23,
+    "total": 60,
+    "acc": 0.383,
+    "ms": 79.7
+  },
+  "multilingual/en/personaje": {
+    "aciertos": 18,
+    "total": 56,
+    "acc": 0.321,
+    "ms": 77.9
+  },
+  "typed-decisions/es/barato": {
+    "aciertos": 16,
+    "total": 60,
+    "acc": 0.267,
+    "ms": 101.4
+  },
+  "typed-decisions/es/premium": {
+    "aciertos": 23,
+    "total": 60,
+    "acc": 0.383,
+    "ms": 85.6
+  },
+  "typed-decisions/es/personaje": {
+    "aciertos": 36,
+    "total": 56,
+    "acc": 0.643,
+    "ms": 137.3
+  },
+  "typed-decisions/en/barato": {
+    "aciertos": 21,
+    "total": 60,
+    "acc": 0.35,
+    "ms": 135.9
+  },
+  "typed-decisions/en/premium": {
+    "aciertos": 22,
+    "total": 60,
+    "acc": 0.367,
+    "ms": 118.9
+  },
+  "typed-decisions/en/personaje": {
+    "aciertos": 33,
+    "total": 56,
+    "acc": 0.589,
+    "ms": 126.7
+  },
+  "english/es/barato": {
+    "aciertos": 18,
+    "total": 60,
+    "acc": 0.3,
+    "ms": 119.2
+  },
+  "english/es/premium": {
+    "aciertos": 21,
+    "total": 60,
+    "acc": 0.35,
+    "ms": 134.7
+  },
+  "english/es/personaje": {
+    "aciertos": 31,
+    "total": 56,
+    "acc": 0.554,
+    "ms": 135.0
+  },
+  "english/en/barato": {
+    "aciertos": 20,
+    "total": 60,
+    "acc": 0.333,
+    "ms": 140.8
+  },
+  "english/en/premium": {
+    "aciertos": 20,
+    "total": 60,
+    "acc": 0.333,
+    "ms": 138.2
+  },
+  "english/en/personaje": {
+    "aciertos": 37,
+    "total": 56,
+    "acc": 0.661,
+    "ms": 125.3
+  }
+}
