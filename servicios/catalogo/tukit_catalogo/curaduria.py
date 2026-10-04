@@ -156,7 +156,21 @@ def escribir_csv(ruta: Path, columnas: list[str], filas: list[dict[str, str]]) -
 
 
 def filas_de_listas(conexion: Connection) -> list[dict[str, str]]:
-    """Los renglones de toda version vigente y revisada, en orden estable."""
+    """Los renglones de la ultima version revisada de cada lista, en orden estable.
+
+    La ultima revisada y no la vigente: volver a subir una lista deja vigente
+    una version sin revisar, y exigir las dos cosas sacaba de git la lista ya
+    curada mientras la nueva esperaba en la cola.
+    """
+    otra = VERSION.alias("otra")
+    ultima_revisada = (
+        select(otra.c.id)
+        .where(otra.c.lista_id == LISTA.c.id, otra.c.revisada_en.is_not(None))
+        .order_by(otra.c.revisada_en.desc(), otra.c.numero.desc())
+        .limit(1)
+        .correlate(LISTA)
+        .scalar_subquery()
+    )
     consulta = (
         select(
             LISTA.c.colegio_id,
@@ -181,7 +195,7 @@ def filas_de_listas(conexion: Connection) -> list[dict[str, str]]:
             .join(ITEM, ITEM.c.version_id == VERSION.c.id)
             .outerjoin(CONCEPTO, CONCEPTO.c.id == ITEM.c.concepto_id)
         )
-        .where(VERSION.c.vigente.is_(True), VERSION.c.revisada_en.is_not(None))
+        .where(VERSION.c.id == ultima_revisada)
     )
     filas = [
         {

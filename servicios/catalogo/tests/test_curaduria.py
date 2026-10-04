@@ -12,7 +12,7 @@ import uuid
 from datetime import UTC, datetime
 
 from conftest import crear_concepto
-from sqlalchemy import create_engine, event, func, select
+from sqlalchemy import create_engine, event, func, select, update
 from sqlalchemy.orm import Session
 from tukit_catalogo.curaduria import (
     ITEM,
@@ -107,6 +107,20 @@ class TestExportar:
         sembrar_lista(sesion, None, revisada=False)
 
         assert filas_de_listas(sesion.connection()) == []
+
+    def test_volver_a_subir_la_lista_no_borra_la_curada(self, sesion: Session):
+        """Subir otra vez la lista deja vigente una version sin revisar. La
+        curada sigue siendo la ultima revisada y tiene que seguir viajando."""
+        concepto = crear_concepto(sesion, "C001")
+        lista_id = sembrar_lista(sesion, concepto.id)
+        sesion.execute(update(VERSION).where(VERSION.c.lista_id == lista_id).values(vigente=False))
+        sesion.execute(
+            VERSION.insert().values(id=uuid.uuid4(), lista_id=lista_id, numero=2, vigente=True, revisada_en=None)
+        )
+
+        filas = filas_de_listas(sesion.connection())
+
+        assert [f["concepto"] for f in filas] == ["C001", ""]
 
 
 class TestImportar:
