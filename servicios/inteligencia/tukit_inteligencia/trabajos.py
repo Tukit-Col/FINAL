@@ -48,6 +48,7 @@ from .optimizador import (
     Candidato,
     Renglon,
     armar_los_tres,
+    perfil_por_preferencias,
     unidades_a_comprar,
 )
 from .remoto import ClienteCatalogo, ClienteComercio, ClienteIdentidad, RemotoCaido
@@ -136,6 +137,24 @@ class PreviewNoPublicable(Exception):
     """Un `preview_onboarding` no se aprueba desde la cola: no tiene acudiente.
     Se aprueba la LISTA (Catalogo); al aprobarla, el poller promueve este preview
     —con sus ajustes— a kit `colegio_grado` (`promover_vista_previa`)."""
+
+
+class AcudienteEnEspera(Exception):
+    """El kit de un acudiente que espera al kit del grado no se revisa solo.
+
+    Es un `parent_apply` sin kits propios: apunta al kit del grado, que sigue en
+    la cola con dudosas. Se publica solo cuando el admin aprueba ESE kit
+    (`revisar`); aprobarlo o devolverlo aparte lo dejaria sin lineas o lo
+    mandaria al pipeline, que no sabe procesar un puntero."""
+
+
+class KitConAcudientesEsperando(Exception):
+    """Un kit del grado con acudientes esperandolo no se borra: los dejaria
+    apuntando a un trabajo que ya no existe, sin kit y sin aviso."""
+
+    def __init__(self, cuantos: int) -> None:
+        super().__init__(f"{cuantos} acudiente(s) esperan este kit")
+        self.cuantos = cuantos
 
 
 # ---------------------------------------------------------------------------
@@ -1061,6 +1080,11 @@ async def ver(
                 # enviar. Un trabajo de preview o anonimo no tiene usuario.
                 "contacto_id": str(cabeza.usuario_id) if cabeza.usuario_id else "",
                 "lineas_pendientes": [str(f.id) for f in pendientes],
+                # `lineas_pendientes` incluye los huecos; la cabecera de la
+                # consola cuenta aparte las dudosas que frenan la publicacion
+                # (la regla de `promover_vista_previa`) y los huecos, que no.
+                "lineas_sin_decidir": await _lineas_sin_decidir(conexion, trabajo_id),
+                "huecos": await _huecos(conexion, trabajo_id),
             }
 
     return {
@@ -1110,6 +1134,11 @@ async def ordenar(
     async with motor.engine.begin() as conexion:
         cabeza = (await conexion.execute(select(TRABAJO).where(TRABAJO.c.id == trabajo_id))).one_or_none()
         if cabeza is None:
+            raise TrabajoNoExiste(str(trabajo_id))
+        # El kit de un acudiente que espera la aprobacion del kit del grado aun
+        # no existe para el: su canonico tiene dudosas sin decidir. Se responde
+        # como si no hubiera kit, igual que `ver` sin `incluir_kits`.
+        if cabeza.origen == "parent_apply" and cabeza.estado != EstadoTrabajo.PUBLICADO.value:
             raise TrabajoNoExiste(str(trabajo_id))
         usuario_id = cabeza.usuario_id
         hijos = list(cabeza.hijos or ())
@@ -1190,20 +1219,48 @@ def _version_de(hijos: Any) -> str | None:
     return str(valor) if valor else None
 
 
+def _conteo_por_trabajo(*condiciones: Any, etiqueta: str) -> Any:
+    """Subconsulta `trabajo_id -> cuantos ITEM cumplen`, para la cola."""
+    return (
+        (
+            select(ITEM.c.trabajo_id.label("tid"), func.count().label(etiqueta))
+            .select_from(ITEM.join(RESOLUCION, RESOLUCION.c.item_crudo_id == ITEM.c.id, isouter=True))
+            .where(*condiciones)
+            .group_by(ITEM.c.trabajo_id)
+            .subquery()
+        )
+        if condiciones
+        else (
+            select(ITEM.c.trabajo_id.label("tid"), func.count().label(etiqueta))
+            .group_by(ITEM.c.trabajo_id)
+            .subquery()
+        )
+    )
+
+
 async def cola(motor: Any, *, pagina: int = 1, por_pagina: int = 50) -> dict[str, Any]:
     """Los trabajos esperando a una persona, del mas viejo al mas nuevo.
 
     El orden es por antiguedad y no por tamano ni por confianza: quien lleva
     mas esperando se atiende primero, que es la unica politica que no deja a
     nadie al final para siempre.
+
+    No entran los `parent_apply` en espera: no tienen kits propios ni nada que
+    decidir, se publican solos cuando se aprueba el kit del grado al que
+    apuntan. Lo que la cola dice de ellos es `acudientes_esperando` en ESE kit.
     """
-    a_revision = (
-        select(ITEM.c.trabajo_id.label("tid"), func.count().label("dudosos"))
-        .select_from(ITEM.join(RESOLUCION, RESOLUCION.c.item_crudo_id == ITEM.c.id))
-        .where(RESOLUCION.c.estado != EstadoResolucion.RESUELTO_AUTO.value)
-        .group_by(ITEM.c.trabajo_id)
-        .subquery()
+    a_revision = _conteo_por_trabajo(
+        RESOLUCION.c.estado != EstadoResolucion.RESUELTO_AUTO.value, etiqueta="dudosos"
     )
+    sin_decidir = _conteo_por_trabajo(
+        RESOLUCION.c.estado.in_((EstadoResolucion.AMBIGUO.value, EstadoResolucion.SIN_MATCH.value)),
+        RESOLUCION.c.decidido_en.is_(None),
+        etiqueta="sin_decidir",
+    )
+    huecos = _conteo_por_trabajo(
+        RESOLUCION.c.estado == EstadoResolucion.HUECO_CATALOGO.value, etiqueta="huecos"
+    )
+    totales = _conteo_por_trabajo(etiqueta="totales")
     consulta = (
         select(
             TRABAJO.c.id,
@@ -1211,31 +1268,60 @@ async def cola(motor: Any, *, pagina: int = 1, por_pagina: int = 50) -> dict[str
             TRABAJO.c.creado_en,
             TRABAJO.c.hijos,
             TRABAJO.c.origen,
+            TRABAJO.c.usuario_id,
             func.coalesce(a_revision.c.dudosos, 0).label("dudosos"),
+            func.coalesce(sin_decidir.c.sin_decidir, 0).label("sin_decidir"),
+            func.coalesce(huecos.c.huecos, 0).label("huecos"),
+            func.coalesce(totales.c.totales, 0).label("totales"),
         )
-        .select_from(TRABAJO.outerjoin(a_revision, a_revision.c.tid == TRABAJO.c.id))
-        .where(TRABAJO.c.estado == EstadoTrabajo.ESPERA_REVISION.value)
+        .select_from(
+            TRABAJO.outerjoin(a_revision, a_revision.c.tid == TRABAJO.c.id)
+            .outerjoin(sin_decidir, sin_decidir.c.tid == TRABAJO.c.id)
+            .outerjoin(huecos, huecos.c.tid == TRABAJO.c.id)
+            .outerjoin(totales, totales.c.tid == TRABAJO.c.id)
+        )
+        .where(
+            TRABAJO.c.estado == EstadoTrabajo.ESPERA_REVISION.value,
+            TRABAJO.c.origen != "parent_apply",
+        )
         .order_by(TRABAJO.c.creado_en)
     )
 
     async with motor.engine.begin() as conexion:
         total = int(await conexion.scalar(select(func.count()).select_from(consulta.subquery())) or 0)
-        filas = await conexion.execute(consulta.limit(por_pagina).offset((pagina - 1) * por_pagina))
-        datos = [
-            {
-                "trabajo_id": str(f.id),
-                "estado": f.estado,
-                "creado_en": f.creado_en.isoformat() if f.creado_en else None,
-                "hijos": len(list(f.hijos or ())),
-                "lineas_a_revisar": int(f.dudosos),
-                # `origen` y `version_id` dejan que Admin separe las vistas
-                # previas de lista (que no son trabajo de un acudiente) y las
-                # enlace a su revisor.
-                "origen": f.origen,
-                "version_id": _version_de(f.hijos),
-            }
-            for f in filas
-        ]
+        filas = list(await conexion.execute(consulta.limit(por_pagina).offset((pagina - 1) * por_pagina)))
+        esperando: dict[str, int] = {}
+        for espera in await _acudientes_en_espera(conexion):
+            canonico = str(uuid.UUID(str(espera.hijos[0]["canonico_trabajo_id"])))
+            esperando[canonico] = esperando.get(canonico, 0) + 1
+        datos = []
+        for f in filas:
+            hijos = list(f.hijos or ())
+            datos.append(
+                {
+                    "trabajo_id": str(f.id),
+                    "estado": f.estado,
+                    "creado_en": f.creado_en.isoformat() if f.creado_en else None,
+                    "hijos": len(hijos),
+                    "lineas_a_revisar": int(f.dudosos),
+                    # `origen` y `version_id` dejan que Admin ponga cada kit en
+                    # la fila de su lista y enlace las vistas previas a su
+                    # revisor; `usuario_id` separa los kits de acudientes.
+                    "origen": f.origen,
+                    "version_id": _version_de(f.hijos),
+                    "usuario_id": str(f.usuario_id) if f.usuario_id else None,
+                    # Ids y no nombres: los nombres de colegio son de Identidad
+                    # y los resuelve Admin con la lista de colegios que ya lee.
+                    "colegios": list(
+                        dict.fromkeys(str(h["colegio_id"]) for h in hijos if h.get("colegio_id"))
+                    ),
+                    "grados": list(dict.fromkeys(str(h["grado"]) for h in hijos if h.get("grado"))),
+                    "lineas_totales": int(f.totales),
+                    "lineas_sin_decidir": int(f.sin_decidir),
+                    "huecos": int(f.huecos),
+                    "acudientes_esperando": esperando.get(str(f.id), 0),
+                }
+            )
     return {"total": total, "pagina": pagina, "por_pagina": por_pagina, "trabajos": datos}
 
 
@@ -1256,6 +1342,10 @@ def _a_consciente(momento: Any) -> datetime:
     if isinstance(momento, str):
         momento = datetime.fromisoformat(momento)
     return momento if momento.tzinfo else momento.replace(tzinfo=UTC)
+
+
+# Los origenes de trabajo que nacen de aprobar una lista subida por el acudiente.
+_ORIGENES_DE_LISTA = ("lista_verificada", "parent_apply")
 
 
 async def mis_solicitudes(motor: Any, usuario_id: uuid.UUID, *, catalogo: Any) -> dict[str, Any]:
@@ -1298,10 +1388,12 @@ async def mis_solicitudes(motor: Any, usuario_id: uuid.UUID, *, catalogo: Any) -
         listas_disponibles = False
 
     # `version_id` -> trabajo, para unir una lista aprobada con el trabajo que
-    # engendro. Solo los de `lista_verificada` guardan ese id en `hijos[0]`.
+    # engendro. Lo guardan en `hijos[0]` los de `lista_verificada` y los
+    # `parent_apply` que salieron de una vista previa al aprobar la lista (los
+    # de la ruta rapida no lo tienen: no vienen de una lista subida).
     trabajo_por_version: dict[str, Any] = {}
     for fila in filas:
-        if fila.origen == "lista_verificada":
+        if fila.origen in _ORIGENES_DE_LISTA:
             hijos = list(fila.hijos or ())
             vid = hijos[0].get("version_id") if hijos else None
             if vid:
@@ -1347,7 +1439,7 @@ async def mis_solicitudes(motor: Any, usuario_id: uuid.UUID, *, catalogo: Any) -
     # Los trabajos que no salieron ya como una lista aprobada.
     for fila in filas:
         vid = None
-        if fila.origen == "lista_verificada":
+        if fila.origen in _ORIGENES_DE_LISTA:
             hijos = list(fila.hijos or ())
             vid = hijos[0].get("version_id") if hijos else None
         if vid and str(vid) in versiones_unidas:
@@ -1386,6 +1478,9 @@ async def eliminar(motor: Any, trabajo_id: uuid.UUID) -> None:
         actual = await _estado(conexion, trabajo_id)
         if actual == EstadoTrabajo.PUBLICADO.value:
             raise TrabajoProtegido(actual)
+        esperando = await _acudientes_en_espera(conexion, trabajo_id)
+        if esperando:
+            raise KitConAcudientesEsperando(len(esperando))
         await conexion.execute(delete(TRABAJO).where(TRABAJO.c.id == trabajo_id))
 
 
@@ -1475,23 +1570,77 @@ async def _lineas_sin_decidir(conexion: Any, trabajo_id: uuid.UUID) -> int:
     )
 
 
-async def vista_previa_de_version(motor: Any, version_id: str) -> dict[str, Any] | None:
+async def _huecos(conexion: Any, trabajo_id: uuid.UUID) -> int:
+    """Renglones que el catalogo no tiene (`HUECO_CATALOGO`): no frenan publicar,
+    pero la consola los cuenta aparte de las dudosas."""
+    return int(
+        await conexion.scalar(
+            select(func.count())
+            .select_from(RESOLUCION.join(ITEM, ITEM.c.id == RESOLUCION.c.item_crudo_id))
+            .where(
+                ITEM.c.trabajo_id == trabajo_id,
+                RESOLUCION.c.estado == EstadoResolucion.HUECO_CATALOGO.value,
+            )
+        )
+        or 0
+    )
+
+
+async def vista_previa_de_version(
+    motor: Any, version_id: str, *, catalogo: ClienteCatalogo
+) -> dict[str, Any] | None:
     """La vista previa vigente de una version, para el revisor de la lista.
 
     Es lo que le permite al revisor avisar "hay una vista previa ajustada" y
     advertir antes de reemplazarla: volver a previsualizar borra los ajustes.
+
+    `desactualizada` dice si la lista cambio despues de previsualizar, con la
+    MISMA comparacion que usa la promocion al aprobar (`_lista_cambio`): si el
+    revisor dijera "vigente" y la promocion "cambio", el admin aprobaria
+    creyendo que conserva sus ajustes y se armaria un kit nuevo. Un
+    `RemotoCaido` al releer la version se propaga.
     """
     async with motor.engine.begin() as conexion:
         fila = await _vista_previa_mas_reciente(conexion, version_id)
         if fila is None:
             return None
         sin_decidir = await _lineas_sin_decidir(conexion, fila.id)
+        huella = await _huella_de_trabajo(conexion, fila.id)
+    desactualizada = await _lista_cambio(catalogo, fila.hijos, huella)
     return {
         "trabajo_id": str(fila.id),
         "estado": EstadoTrabajo.ESPERA_REVISION.value,
         "creado_en": fila.creado_en.isoformat() if fila.creado_en else None,
         "lineas_sin_decidir": sin_decidir,
+        "desactualizada": desactualizada,
     }
+
+
+async def descartar_previas_de_version(motor: Any, version_id: Any) -> int:
+    """Borra las vistas previas que quedaron de una version ya cerrada.
+
+    El poller la llama al terminar un `lista_verificada`: la que se promovio ya
+    no es `preview_onboarding`, y cualquier otra de esa version (una vieja, una
+    sin nada comprable, una armada sobre otra lista) ya no tiene lista pendiente
+    que previsualizar. Se filtra por `version_id`, no por (colegio, grado): la
+    vista previa de OTRA version del mismo grado sigue siendo trabajo del admin.
+    Devuelve cuantas borro.
+    """
+    async with motor.engine.begin() as conexion:
+        filas = await conexion.execute(
+            select(TRABAJO.c.id, TRABAJO.c.hijos).where(
+                TRABAJO.c.origen == "preview_onboarding",
+                TRABAJO.c.estado != EstadoTrabajo.PUBLICADO.value,
+            )
+        )
+        huerfanas = [
+            f.id
+            for f in filas
+            if (hijo := next(iter(f.hijos or ()), None)) and _mismo_uuid(hijo.get("version_id"), version_id)
+        ]
+        if huerfanas:
+            await conexion.execute(delete(TRABAJO).where(TRABAJO.c.id.in_(huerfanas)))
+    return len(huerfanas)
 
 
 def _huella(renglones: list[dict[str, Any]]) -> list[tuple[Any, ...]]:
@@ -1515,6 +1664,22 @@ def _huella(renglones: list[dict[str, Any]]) -> list[tuple[Any, ...]]:
     )
 
 
+async def _huella_de_trabajo(conexion: Any, trabajo_id: uuid.UUID) -> list[tuple[Any, ...]]:
+    items = await conexion.execute(select(ITEM).where(ITEM.c.trabajo_id == trabajo_id))
+    return _huella([dict(f._mapping) for f in items])
+
+
+async def _lista_cambio(catalogo: ClienteCatalogo, hijos: Any, huella_previa: list[tuple[Any, ...]]) -> bool:
+    """True si la version ya no tiene los renglones sobre los que se armo la previa.
+
+    La version se relee igual que la leyo el preview (por el `version_id` de
+    sus hijos): si alguien edito un renglon despues de previsualizar, la huella
+    ya no coincide. Es I/O de red: se llama FUERA de toda transaccion.
+    """
+    crudos, _detalle = await _renglones_de_listas(catalogo, list(hijos or ()))
+    return _huella(_normalizar(crudos)) != huella_previa
+
+
 async def promover_vista_previa(
     motor: Any,
     version_id: Any,
@@ -1523,8 +1688,9 @@ async def promover_vista_previa(
     grado: str,
     anio_lectivo: Any,
     catalogo: ClienteCatalogo,
+    acudiente: dict[str, Any] | None = None,
 ) -> str | None:
-    """Al aprobar una lista sin acudiente, convierte su preview en el kit del grado.
+    """Al aprobar una lista, convierte su preview en el kit del grado.
 
     El admin ajusto los kits del preview (productos, validaciones) antes de
     aprobar la lista; armar un trabajo nuevo los perderia. Por eso el poller
@@ -1536,26 +1702,36 @@ async def promover_vista_previa(
     Queda como `colegio_grado`. Si no le queda ningun renglon sin decidir se
     publica y se fija como canonico; si le quedan, se deja en `espera_revision`
     para que el admin lo termine en la cola —un canonico con dudas sin mirar
-    llegaria tal cual al acudiente—. NO emite `kits_publicados`: no hay
-    acudiente, y el repartidor reintentaria sin fin un evento sin destinatario.
+    llegaria tal cual al acudiente—. El kit del grado NO emite
+    `kits_publicados`: no tiene acudiente, y el repartidor reintentaria sin fin
+    un evento sin destinatario.
 
-    Devuelve el estado final, o None si no habia nada que promover (el poller
-    sigue con el flujo de siempre). Un `RemotoCaido` al releer la version se
-    propaga: el poller reintenta el evento en vez de armar otro kit.
+    `acudiente` (`usuario_id`, `preferencias`, `personaje`) es el papa que subio
+    la lista. Su kit sale del kit del grado igual que en la ruta rapida —un
+    `parent_apply` con su nivel y su personaje—, en la MISMA transaccion: si el
+    kit del grado se publica, el suyo tambien, con su pedido y su aviso; si el
+    del grado queda en la cola, el suyo queda esperando y se publica cuando el
+    admin lo apruebe (`revisar`).
+
+    Devuelve el estado final del kit del grado, o None si no habia nada que
+    promover (el poller sigue con el flujo de siempre). Un `RemotoCaido` al
+    releer la version se propaga: el poller reintenta el evento en vez de armar
+    otro kit.
     """
     async with motor.engine.begin() as conexion:
         previa = await _vista_previa_mas_reciente(conexion, version_id)
         if previa is None or not await _tiene_lineas_comprables(conexion, previa.id):
             return None
-        items = await conexion.execute(select(ITEM).where(ITEM.c.trabajo_id == previa.id))
-        huella_previa = _huella([dict(f._mapping) for f in items])
+        huella_previa = await _huella_de_trabajo(conexion, previa.id)
 
-    # La version se relee igual que la leyo el preview (por su id): si alguien
-    # edito un renglon despues de previsualizar, la huella ya no coincide.
     hijos_previa = list(previa.hijos or ())
-    crudos, _detalle = await _renglones_de_listas(catalogo, hijos_previa)
-    if _huella(_normalizar(crudos)) != huella_previa:
+    if await _lista_cambio(catalogo, hijos_previa, huella_previa):
         return None
+
+    # Las anclas del personaje del papa son I/O de red: se resuelven aqui, antes
+    # de abrir la transaccion que escribe.
+    personaje = acudiente.get("personaje") if acudiente else None
+    swaps = await _anclas_de_personaje(catalogo, personaje) if acudiente else {}
 
     referencia_previa = str(hijos_previa[0].get("referencia") or "preview")
     hijo: dict[str, Any] = {"referencia": "hijo-1", "colegio_id": str(colegio_id), "grado": grado}
@@ -1591,14 +1767,35 @@ async def promover_vista_previa(
         )
 
         valores = {"origen": "colegio_grado", "hijos": [hijo]}
-        if await _lineas_sin_decidir(conexion, previa.id) == 0:
+        publicado = await _lineas_sin_decidir(conexion, previa.id) == 0
+        if publicado:
             await _pasar_a(
                 conexion, previa.id, EstadoTrabajo.PUBLICADO.value, terminado_en=ahora(), **valores
             )
             await _fijar_canonico(conexion, previa.id)
-            return EstadoTrabajo.PUBLICADO.value
-        await conexion.execute(update(TRABAJO).where(TRABAJO.c.id == previa.id).values(**valores))
-        return EstadoTrabajo.ESPERA_REVISION.value
+        else:
+            await conexion.execute(update(TRABAJO).where(TRABAJO.c.id == previa.id).values(**valores))
+
+        if acudiente is not None:
+            perfiles = set(await conexion.scalars(select(KIT.c.perfil).where(KIT.c.trabajo_id == previa.id)))
+            perfil, _razon = perfil_por_preferencias(
+                acudiente.get("preferencias") or {}, perfiles, con_personaje=bool(personaje)
+            )
+            await _crear_kit_aplicado(
+                conexion,
+                canonico_trabajo_id=previa.id,
+                usuario_id=acudiente["usuario_id"],
+                colegio_id=str(colegio_id),
+                grado=grado,
+                anio_lectivo=anio,
+                perfil=perfil,
+                personaje=personaje,
+                swaps=swaps,
+                version_id=str(version_id),
+                publicar=publicado,
+                avisar=True,
+            )
+        return EstadoTrabajo.PUBLICADO.value if publicado else EstadoTrabajo.ESPERA_REVISION.value
 
 
 async def _resolucion_de(conexion: Any, trabajo_id: uuid.UUID, item_id: uuid.UUID) -> Any:
@@ -1946,16 +2143,39 @@ async def revisar(
     decision: str,
     nota: str | None = None,
     actor: uuid.UUID | None = None,
+    catalogo: ClienteCatalogo | None = None,
 ) -> dict[str, Any]:
-    """AD-06: aprobar publica al acudiente, devolver reabre sin avisar."""
+    """AD-06: aprobar publica al acudiente, devolver reabre sin avisar.
+
+    Aprobar el kit de un grado publica tambien el de cada acudiente que lo
+    esperaba (subio la lista y su vista previa tenia dudosas): su `parent_apply`
+    pasa a publicado con su pedido y su aviso, en la misma transaccion. Para
+    eso hace falta `catalogo` (las anclas de su personaje); sin el, su kit sale
+    con los productos neutrales.
+    """
     # Devolver reencola: el trabajador durable (ADR 0024) lo retoma, no una tarea
     # en proceso. Antes iba a PROCESANDO y el API arrancaba la corrutina; ahora
     # queda ENCOLADO y el worker lo drena con SKIP LOCKED.
     nuevo = EstadoTrabajo.PUBLICADO.value if decision == "aprobar" else EstadoTrabajo.ENCOLADO.value
+
+    # Las anclas de personaje de los acudientes en espera son I/O de red: se
+    # resuelven antes de abrir la transaccion que publica.
+    swaps_por_personaje: dict[str, dict[str, dict[str, Any]]] = {}
+    if decision == "aprobar" and catalogo is not None:
+        async with motor.engine.begin() as conexion:
+            en_espera = await _acudientes_en_espera(conexion, trabajo_id)
+        for espera in en_espera:
+            personaje = espera.hijos[0].get("personaje")
+            if personaje and personaje not in swaps_por_personaje:
+                swaps_por_personaje[personaje] = await _anclas_de_personaje(catalogo, personaje)
+
     async with motor.engine.begin() as conexion:
         actual = await _estado(conexion, trabajo_id)
         if not puede_pasar(actual, nuevo):
             raise TransicionIlegal(actual, nuevo)
+        origen = await conexion.scalar(select(TRABAJO.c.origen).where(TRABAJO.c.id == trabajo_id))
+        if origen == "parent_apply":
+            raise AcudienteEnEspera()
         # Un preview de onboarding no tiene acudiente (`usuario_id` NULL): no es
         # el trabajo del padre, es la vista de los kits que saldrian de la lista.
         # Publicarlo aqui no avisa a nadie (el `kits_publicados` que emite se
@@ -1963,10 +2183,8 @@ async def revisar(
         # el colegio (eso lo hace aprobar la LISTA en Catalogo). Quien quiera
         # publicar, aprueba la lista: el poller promueve entonces este preview,
         # con sus ajustes, a kit del colegio y grado (`promover_vista_previa`).
-        if decision == "aprobar":
-            origen = await conexion.scalar(select(TRABAJO.c.origen).where(TRABAJO.c.id == trabajo_id))
-            if origen == "preview_onboarding":
-                raise PreviewNoPublicable()
+        if decision == "aprobar" and origen == "preview_onboarding":
+            raise PreviewNoPublicable()
         await conexion.execute(
             update(TRABAJO)
             .where(TRABAJO.c.id == trabajo_id)
@@ -2000,6 +2218,9 @@ async def revisar(
                 )
             await _publicar_evento(conexion, trabajo_id)
             await _fijar_canonico(conexion, trabajo_id)
+            for espera in await _acudientes_en_espera(conexion, trabajo_id):
+                personaje = espera.hijos[0].get("personaje")
+                await _publicar_kit_en_espera(conexion, espera, swaps_por_personaje.get(personaje or "", {}))
 
     return {"trabajo_id": str(trabajo_id), "estado": nuevo, "nota": nota}
 
@@ -2261,7 +2482,6 @@ async def aplicar_canonico(
     # es I/O de red y no debe tener una transaccion abierta esperandola.
     swaps = await _anclas_de_personaje(catalogo, personaje)
 
-    parent_id = uuid.uuid4()
     async with motor.engine.begin() as conexion:
         canonico = (
             await conexion.execute(
@@ -2275,51 +2495,141 @@ async def aplicar_canonico(
         if canonico is None:
             raise TrabajoNoExiste(f"cache {colegio_id}/{grado}/{anio_lectivo}")
 
-        lineas_frias, total = await _lineas_aplicadas(conexion, canonico.trabajo_id, perfil, swaps)
+        # La ruta rapida NO avisa: el acudiente esta frente a la pantalla y ve
+        # su kit en la respuesta.
+        return await _crear_kit_aplicado(
+            conexion,
+            canonico_trabajo_id=canonico.trabajo_id,
+            usuario_id=usuario_id,
+            colegio_id=colegio_id,
+            grado=grado,
+            anio_lectivo=anio_lectivo,
+            perfil=perfil,
+            personaje=personaje,
+            swaps=swaps,
+            publicar=True,
+            avisar=False,
+        )
 
-        # El trabajo del acudiente: un registro durable, sin etapas de pipeline.
-        # `hijos` lleva la seleccion entera porque es la ENTRADA de este trabajo
-        # (se lee completa o no se lee), igual que en un trabajo de onboarding.
-        await conexion.execute(
-            insert(TRABAJO).values(
-                id=parent_id,
-                usuario_id=usuario_id,
-                estado=EstadoTrabajo.PUBLICADO.value,
-                origen="parent_apply",
-                hijos=[
-                    {
-                        "colegio_id": colegio_id,
-                        "grado": grado,
-                        "anio_lectivo": anio_lectivo,
-                        "canonico_trabajo_id": str(canonico.trabajo_id),
-                        "perfil": perfil,
-                        "personaje": personaje,
-                    }
-                ],
-                terminado_en=ahora(),
-            )
+
+async def _acudientes_en_espera(conexion: Any, canonico_trabajo_id: uuid.UUID | None = None) -> list[Any]:
+    """Los `parent_apply` en espera (de un kit del grado, o de todos).
+
+    El kit al que apuntan vive en el JSON `hijos` (no es columna): se filtra en
+    memoria, como `previews_de`. Son pocos —solo existen mientras el kit del
+    grado tiene dudosas—.
+    """
+    filas = await conexion.execute(
+        select(TRABAJO.c.id, TRABAJO.c.usuario_id, TRABAJO.c.hijos).where(
+            TRABAJO.c.origen == "parent_apply",
+            TRABAJO.c.estado == EstadoTrabajo.ESPERA_REVISION.value,
         )
-        # El PEDIDO: el snapshot congelado de lo que se compra. Comercio (sin
-        # portar) lo recogera de aqui; mientras, se escribe y nadie lo consume,
-        # igual que `kits_publicados`.
-        await conexion.execute(
-            insert(BANDEJA).values(
-                tipo="pedido_solicitado",
-                agregado_tipo="trabajo_pipeline",
-                agregado_id=parent_id,
-                carga={
-                    "trabajo_id": str(parent_id),
-                    "canonico_trabajo_id": str(canonico.trabajo_id),
-                    "usuario_id": str(usuario_id) if usuario_id else None,
-                    "colegio_id": colegio_id,
-                    "grado": grado,
-                    "anio_lectivo": anio_lectivo,
-                    "perfil": perfil,
-                    "personaje": personaje,
-                    "total_cop": total,
-                    "lineas": lineas_frias,
-                    "solicitado_en": ahora().isoformat(),
-                },
-            )
+    )
+    en_espera = []
+    for fila in filas:
+        hijo = next(iter(fila.hijos or ()), None)
+        if not hijo or not hijo.get("canonico_trabajo_id"):
+            continue
+        if canonico_trabajo_id is None or _mismo_uuid(hijo["canonico_trabajo_id"], canonico_trabajo_id):
+            en_espera.append(fila)
+    return en_espera
+
+
+async def _solicitar_pedido(
+    conexion: Any,
+    parent_id: uuid.UUID,
+    hijo: dict[str, Any],
+    usuario_id: uuid.UUID | None,
+    swaps: dict[str, dict[str, Any]],
+) -> int:
+    """Congela el PEDIDO de un `parent_apply`: el snapshot de lo que se compra.
+
+    Comercio (sin portar) lo recogera de la bandeja; mientras, se escribe y
+    nadie lo consume, igual que `kits_publicados`. Devuelve el total congelado.
+    """
+    canonico_id = uuid.UUID(str(hijo["canonico_trabajo_id"]))
+    lineas_frias, total = await _lineas_aplicadas(conexion, canonico_id, str(hijo["perfil"]), swaps)
+    await conexion.execute(
+        insert(BANDEJA).values(
+            tipo="pedido_solicitado",
+            agregado_tipo="trabajo_pipeline",
+            agregado_id=parent_id,
+            carga={
+                "trabajo_id": str(parent_id),
+                "canonico_trabajo_id": str(canonico_id),
+                "usuario_id": str(usuario_id) if usuario_id else None,
+                "colegio_id": hijo["colegio_id"],
+                "grado": hijo["grado"],
+                "anio_lectivo": hijo.get("anio_lectivo"),
+                "perfil": hijo["perfil"],
+                "personaje": hijo.get("personaje"),
+                "total_cop": total,
+                "lineas": lineas_frias,
+                "solicitado_en": ahora().isoformat(),
+            },
         )
+    )
+    return total
+
+
+async def _crear_kit_aplicado(
+    conexion: Any,
+    *,
+    canonico_trabajo_id: uuid.UUID,
+    usuario_id: uuid.UUID | None,
+    colegio_id: str,
+    grado: str,
+    anio_lectivo: Any,
+    perfil: str,
+    personaje: str | None,
+    swaps: dict[str, dict[str, Any]],
+    version_id: str | None = None,
+    publicar: bool,
+    avisar: bool,
+) -> dict[str, Any]:
+    """El `parent_apply` de un acudiente sobre un kit del grado, dentro de `conexion`.
+
+    Es el mismo registro para la ruta rapida y para el papa cuya lista se
+    aprobo con vista previa: un puntero durable al kit del grado con su nivel y
+    su personaje, no una copia de los kits. Publicado, congela el pedido y,
+    con `avisar`, deja `kits_publicados` para que el repartidor le avise. Sin
+    publicar queda en `espera_revision`, sin pedido ni aviso, hasta que el kit
+    del grado se apruebe en la cola (`revisar`).
+    """
+    parent_id = uuid.uuid4()
+    # `hijos` lleva la seleccion entera porque es la ENTRADA de este trabajo (se
+    # lee completa o no se lee), igual que en un trabajo de onboarding. El
+    # `version_id` une el kit con la lista subida en "Mis solicitudes".
+    hijo: dict[str, Any] = {
+        "colegio_id": colegio_id,
+        "grado": grado,
+        "anio_lectivo": anio_lectivo,
+        "canonico_trabajo_id": str(canonico_trabajo_id),
+        "perfil": perfil,
+        "personaje": personaje,
+    }
+    if version_id is not None:
+        hijo["version_id"] = version_id
+    await conexion.execute(
+        insert(TRABAJO).values(
+            id=parent_id,
+            usuario_id=usuario_id,
+            estado=EstadoTrabajo.PUBLICADO.value if publicar else EstadoTrabajo.ESPERA_REVISION.value,
+            origen="parent_apply",
+            hijos=[hijo],
+            terminado_en=ahora() if publicar else None,
+        )
+    )
+    total = None
+    if publicar:
+        total = await _solicitar_pedido(conexion, parent_id, hijo, usuario_id, swaps)
+        if avisar:
+            await _publicar_evento(conexion, parent_id)
     return {"trabajo_id": str(parent_id), "perfil": perfil, "personaje": personaje, "total": total}
+
+
+async def _publicar_kit_en_espera(conexion: Any, espera: Any, swaps: dict[str, dict[str, Any]]) -> None:
+    """Publica el kit de un acudiente que esperaba al kit del grado: pedido y aviso."""
+    await _pasar_a(conexion, espera.id, EstadoTrabajo.PUBLICADO.value, terminado_en=ahora())
+    await _solicitar_pedido(conexion, espera.id, dict(espera.hijos[0]), espera.usuario_id, swaps)
+    await _publicar_evento(conexion, espera.id)

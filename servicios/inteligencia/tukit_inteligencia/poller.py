@@ -9,10 +9,12 @@ preferencias que dejo en el paso 3, y lo procesa. Al terminar, el pipeline deja
 `kits_publicados` en la bandeja de Inteligencia y el repartidor de Operacion le
 envia el correo con el enlace de pre-compra.
 
-Sin padre (lista de onboarding), antes de crear nada busca la vista previa que
-el admin armo y ajusto sobre ESA version: si la hay y sigue valiendo, la promueve
-a kit del colegio y grado en vez de armar otro trabajo que perderia los ajustes
-(`trabajos.promover_vista_previa`).
+Antes de crear nada busca la vista previa que el admin armo y ajusto sobre ESA
+version: si la hay y sigue valiendo, la promueve a kit del colegio y grado en vez
+de armar otro trabajo que perderia los ajustes (`trabajos.promover_vista_previa`).
+Con padre de un solo hijo, su kit sale de ese kit del grado con su nivel y su
+personaje, como en la ruta rapida. Al terminar, borra las vistas previas que
+quedaron de la version (`trabajos.descartar_previas_de_version`).
 
     python -m tukit_inteligencia.poller          # una pasada
     python -m tukit_inteligencia.poller --seguir  # bucle
@@ -70,6 +72,15 @@ class Poller:
         return await drenar(self.motor_catalogo, self._procesar, tipo=_TIPO, limite=limite)
 
     async def _procesar(self, conexion: Any, fila: Any) -> Resultado:
+        resultado = await self._armar(fila)
+        if resultado is Resultado.HECHO:
+            # La version ya no esta pendiente: lo que quede de sus vistas previas
+            # (la vieja, la que no se pudo promover) ya no tiene lista que
+            # previsualizar. Solo en HECHO: al REINTENTAR la promocion la necesita.
+            await trabajos.descartar_previas_de_version(self.motor_inteligencia, fila.agregado_id)
+        return resultado
+
+    async def _armar(self, fila: Any) -> Resultado:
         carga = fila.carga or {}
         colegio_id = carga.get("colegio_id")
         grado = carga.get("grado")
@@ -112,33 +123,43 @@ class Poller:
         # fila, en vez de mostrar dos. La carga no lo trae; el agregado si.
         hijo["version_id"] = str(fila.agregado_id)
 
-        if usuario_id is None:
-            # La vista previa ya es la revision del kit: el admin la ajusto antes
-            # de aprobar la lista. Promoverla conserva esos ajustes; sin ella (o
-            # si no tiene nada comprable, o la lista cambio desde que se armo)
-            # se sigue con el trabajo nuevo de siempre. Si el catalogo no
-            # responde al comparar, se REINTENTA el evento: armar un trabajo
-            # nuevo ahora tiraria los ajustes por un fallo pasajero.
-            try:
-                promovido = await trabajos.promover_vista_previa(
-                    self.motor_inteligencia,
-                    fila.agregado_id,
-                    colegio_id=str(colegio_id),
-                    grado=grado,
-                    anio_lectivo=anio,
-                    catalogo=self.catalogo,
-                )
-            except trabajos.RemotoCaido:
-                return Resultado.REINTENTAR
-            if promovido is not None:
-                return Resultado.HECHO
-
         # Las preferencias son las del paso 3 que el Catalogo guardo y reenvio en
         # la carga; {} para el kit del colegio (se arma con las preferencias base).
+        # `referencias_hijo` no es una preferencia: es la nota de `subir_listas`
+        # de que hijos comparten esta version, y no viaja al trabajo.
+        preferencias = dict(carga.get("preferencias") or {})
+        referencias = preferencias.pop("referencias_hijo", None)
+        acudiente = _acudiente_de_un_hijo(usuario_id, preferencias, referencias)
+
+        # La vista previa ya es la revision del kit: el admin la ajusto antes de
+        # aprobar la lista. Promoverla conserva esos ajustes; sin ella (o si no
+        # tiene nada comprable, o la lista cambio desde que se armo) se sigue
+        # con el trabajo nuevo de siempre. Si el catalogo no responde al
+        # comparar, se REINTENTA el evento: armar un trabajo nuevo ahora tiraria
+        # los ajustes por un fallo pasajero.
+        try:
+            promovido = await trabajos.promover_vista_previa(
+                self.motor_inteligencia,
+                fila.agregado_id,
+                colegio_id=str(colegio_id),
+                grado=grado,
+                anio_lectivo=anio,
+                catalogo=self.catalogo,
+                acudiente=acudiente,
+            )
+        except trabajos.RemotoCaido:
+            return Resultado.REINTENTAR
+        # Sin padre, o con el padre ya servido desde la vista previa, no queda
+        # nada que armar. Con un padre de varios hijos en esta version el kit del
+        # grado si sale de la vista previa, pero el suyo se arma como siempre:
+        # no hay UN personaje que aplicarle sobre el kit del grado.
+        if promovido is not None and (usuario_id is None or acudiente is not None):
+            return Resultado.HECHO
+
         respuesta = await trabajos.crear(
             self.motor_inteligencia,
             hijos=[hijo],
-            preferencias=carga.get("preferencias") or {},
+            preferencias=preferencias,
             origen=origen,
             usuario_id=usuario_id,
         )
@@ -164,6 +185,32 @@ class Poller:
         # el mismo padre.
         await trabajos.procesar(self.motor_inteligencia, trabajo_id, catalogo=self.catalogo)
         return Resultado.HECHO
+
+
+def _acudiente_de_un_hijo(
+    usuario_id: uuid.UUID | None, preferencias: dict[str, Any], referencias: Any
+) -> dict[str, Any] | None:
+    """El papa a quien armarle el kit desde la vista previa, o None.
+
+    Solo si la version es de UN hijo: su personaje (`personaje_por_hijo` por su
+    referencia) es el que se aplica sobre el kit del grado, como en la ruta
+    rapida. Una version subida antes de que `subir_listas` guardara las
+    referencias solo cuenta como de un hijo si no pidio personajes: sin saber
+    de que hijo es, aplicar el de otro seria peor que armarle el kit de siempre.
+    """
+    if usuario_id is None:
+        return None
+    personajes = preferencias.get("personaje_por_hijo") or {}
+    if isinstance(referencias, list):
+        if len(referencias) != 1:
+            return None
+        elegidos = personajes.get(str(referencias[0])) or []
+        personaje = str(elegidos[0]) if elegidos else None
+    elif personajes:
+        return None
+    else:
+        personaje = None
+    return {"usuario_id": usuario_id, "preferencias": preferencias, "personaje": personaje}
 
 
 def _motor_lectura(servicio: str) -> AsyncEngine:

@@ -9,7 +9,12 @@ Dos defectos que estas pruebas cierran:
   valida el producto que la linea tiene en el kit (registrandolo como
   candidato si no lo era) y, sin producto, se responde 422 con `campo`.
 - Al aprobar la lista, el poller armaba un trabajo nuevo y los ajustes del
-  preview se perdian. Ahora, sin padre, promueve el preview de ESA version.
+  preview se perdian. Ahora promueve el preview de ESA version y, con un padre
+  de un solo hijo, le arma su kit desde ese kit del grado.
+
+Y tres cosas que el revisor y la cola necesitan: si la vista previa quedo
+desactualizada, que las vistas previas huerfanas se borren al cerrar la version,
+y que un kit del grado con papas esperando no se pueda descartar.
 
 Todo corre sobre el SQLite en memoria y un catalogo en memoria (sin red).
 """
@@ -360,7 +365,9 @@ class TestColaYVistaPrevia:
         assert entrada["version_id"] == version_id
 
     async def test_get_vista_previa_de_una_version(self, motor, cliente, version_id):
-        trabajo_id = await _preview(motor, _catalogo(version_id), version_id)
+        catalogo = _catalogo(version_id)
+        app.state.catalogo = catalogo
+        trabajo_id = await _preview(motor, catalogo, version_id)
 
         respuesta = await cliente.get(f"/v1/admin/onboarding/{version_id}/preview")
 
@@ -368,6 +375,34 @@ class TestColaYVistaPrevia:
         cuerpo = respuesta.json()
         assert cuerpo["trabajo_id"] == str(trabajo_id)
         assert cuerpo["lineas_sin_decidir"] == 1  # la cartuchera AMBIGUO
+        assert cuerpo["desactualizada"] is False
+
+    async def test_si_la_lista_cambio_la_vista_previa_esta_desactualizada(self, motor, cliente, version_id):
+        # La misma comparacion que la promocion: si aqui dijera "vigente", el
+        # admin aprobaria creyendo que conserva sus ajustes.
+        catalogo = _catalogo(version_id)
+        app.state.catalogo = catalogo
+        await _preview(motor, catalogo, version_id)
+        catalogo.renglones[0] = renglon(1, CUADERNO, cantidad=3)
+
+        respuesta = await cliente.get(f"/v1/admin/onboarding/{version_id}/preview")
+
+        assert respuesta.status_code == 200
+        assert respuesta.json()["desactualizada"] is True
+
+    async def test_con_el_catalogo_caido_es_503(self, motor, cliente, version_id):
+        catalogo = _catalogo(version_id)
+        app.state.catalogo = catalogo
+        await _preview(motor, catalogo, version_id)
+
+        async def caido(_version_id):
+            raise RemotoCaido("catalogo", "no respondio")
+
+        catalogo.revision = caido
+        respuesta = await cliente.get(f"/v1/admin/onboarding/{version_id}/preview")
+
+        assert respuesta.status_code == 503
+        assert respuesta.json()["error"] == "catalogo_no_disponible"
 
     async def test_get_vista_previa_inexistente_es_404(self, cliente):
         respuesta = await cliente.get(f"/v1/admin/onboarding/{uuid.uuid4()}/preview")
@@ -504,9 +539,9 @@ class TestPromocion:
         assert await poller.pasada() == 1
 
         estados = {f.id: (f.estado, f.origen) for f in await _trabajos(motor)}
-        assert len(estados) == 2
         assert estados[nuevo] == (EstadoTrabajo.PUBLICADO.value, "colegio_grado")
-        assert estados[viejo] == (EstadoTrabajo.ESPERA_REVISION.value, "preview_onboarding")
+        # La vieja ya no tiene lista pendiente que previsualizar: se borra.
+        assert viejo not in estados
         assert await _canonico(motor) == nuevo
 
     async def test_sin_preview_arma_un_trabajo_nuevo(self, motor, version_id):
@@ -533,6 +568,8 @@ class TestPromocion:
 
         filas = {f.id: f for f in await _trabajos(motor)}
         assert len(filas) == 2
+        # La vista previa de OTRA version sigue siendo trabajo del admin: la
+        # limpieza es por version, no por (colegio, grado).
         assert filas[trabajo_id].origen == "preview_onboarding"
 
     async def test_preview_sin_lineas_comprables_no_se_promueve(self, motor, version_id):
@@ -543,9 +580,11 @@ class TestPromocion:
         poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
         assert await poller.pasada() == 1
 
-        filas = {f.id: f for f in await _trabajos(motor)}
-        assert len(filas) == 2  # se armo el trabajo de siempre
-        assert filas[trabajo_id].origen == "preview_onboarding"
+        filas = await _trabajos(motor)
+        # Se armo el trabajo de siempre y la vista previa, huerfana, se borro.
+        assert len(filas) == 1
+        assert filas[0].id != trabajo_id
+        assert filas[0].origen == "colegio_grado"
 
     async def test_si_la_lista_cambio_desde_el_preview_no_se_promueve(self, motor, version_id):
         catalogo = _catalogo(version_id)
@@ -558,9 +597,9 @@ class TestPromocion:
         poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
         assert await poller.pasada() == 1
 
-        filas = {f.id: f for f in await _trabajos(motor)}
-        assert len(filas) == 2
-        assert filas[trabajo_id].origen == "preview_onboarding"
+        filas = await _trabajos(motor)
+        assert len(filas) == 1
+        assert filas[0].id != trabajo_id
         assert await _canonico(motor) is None
 
     async def test_catalogo_caido_reintenta_el_evento(self, motor, version_id):
@@ -584,23 +623,302 @@ class TestPromocion:
             )
         assert pendiente is not None
 
-    async def test_con_padre_no_toca_el_preview(self, motor, version_id):
+    async def test_aprobar_la_lista_por_otro_camino_tambien_limpia(self, motor, version_id):
+        # Cualquier `lista_verificada` de la version cierra sus vistas previas,
+        # tambien las que estaban aun encoladas (sin kits que conservar).
+        catalogo = _catalogo(version_id)
+        encolada = await trabajos.crear(
+            motor,
+            hijos=[
+                {"referencia": "preview", "colegio_id": COLEGIO, "grado": "Cuarto", "version_id": version_id}
+            ],
+            preferencias={},
+            origen="preview_onboarding",
+        )
+        await _sembrar_bandeja(motor, agregado_id=uuid.UUID(version_id), **_carga_sin_padre())
+
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+        assert await poller.pasada() == 1
+
+        ids = {str(f.id) for f in await _trabajos(motor)}
+        assert encolada["trabajo_id"] not in ids
+
+
+# ---------------------------------------------------------------------------
+# Con padre: la vista previa tambien cuenta
+# ---------------------------------------------------------------------------
+
+CONTACTO = str(uuid.uuid4())
+
+
+def _carga_con_padre(preferencias: dict | None = None) -> dict:
+    return {
+        **_carga_sin_padre(),
+        "contacto_referencia": CONTACTO,
+        "preferencias": {"referencias_hijo": ["hijo-1"], **(preferencias or {})},
+    }
+
+
+async def _aplicados(motor):
+    return [f for f in await _trabajos(motor) if f.origen == "parent_apply"]
+
+
+async def _pedidos(motor):
+    async with motor.engine.begin() as conexion:
+        return list(
+            await conexion.execute(
+                select(trabajos.BANDEJA.c.agregado_id, trabajos.BANDEJA.c.carga).where(
+                    trabajos.BANDEJA.c.tipo == "pedido_solicitado"
+                )
+            )
+        )
+
+
+async def _avisados(motor) -> set[uuid.UUID]:
+    async with motor.engine.begin() as conexion:
+        return set(
+            await conexion.scalars(
+                select(trabajos.BANDEJA.c.agregado_id).where(trabajos.BANDEJA.c.tipo == "kits_publicados")
+            )
+        )
+
+
+class TestConPadre:
+    async def test_sin_dudosas_el_papa_recibe_su_kit_del_kit_del_grado(self, motor, version_id):
         catalogo = _catalogo(version_id)
         trabajo_id = await _preview(motor, catalogo, version_id)
         await _validar_todo(motor, trabajo_id, catalogo)
-        contacto = str(uuid.uuid4())
-        await _sembrar_bandeja(
-            motor,
-            agregado_id=uuid.UUID(version_id),
-            **{**_carga_sin_padre(), "contacto_referencia": contacto},
-        )
+        await _sembrar_bandeja(motor, agregado_id=uuid.UUID(version_id), **_carga_con_padre())
 
         poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
         assert await poller.pasada() == 1
 
         filas = {f.id: f for f in await _trabajos(motor)}
+        # La vista previa es el kit del grado (canonico) y no se armo otro.
+        assert filas[trabajo_id].origen == "colegio_grado"
+        assert filas[trabajo_id].estado == EstadoTrabajo.PUBLICADO.value
+        assert await _canonico(motor) == trabajo_id
+        [papa] = await _aplicados(motor)
         assert len(filas) == 2
-        assert filas[trabajo_id].origen == "preview_onboarding"
+        assert str(papa.usuario_id) == CONTACTO
+        assert papa.estado == EstadoTrabajo.PUBLICADO.value
+        hijo = papa.hijos[0]
+        assert uuid.UUID(hijo["canonico_trabajo_id"]) == trabajo_id
+        assert uuid.UUID(hijo["version_id"]) == uuid.UUID(version_id)
+        # Sin preferencias: la regla de la ruta rapida cae en Ahorrador.
+        assert hijo["perfil"] == "Ahorrador"
+        assert hijo["personaje"] is None
+        # Se le congela el pedido y se le avisa; al kit del grado no.
+        [pedido] = await _pedidos(motor)
+        assert pedido.agregado_id == papa.id
+        assert pedido.carga["perfil"] == "Ahorrador"
+        assert await _avisados(motor) == {papa.id}
+        # Y ve su kit con las lineas del kit del grado.
+        vista = await trabajos.ver(motor, papa.id, catalogo=catalogo)
+        assert [k["perfil"] for k in vista["kits"]] == ["Ahorrador"]
+        assert vista["kits"][0]["total"] == pedido.carga["total_cop"]
+
+    async def test_el_kit_del_papa_lleva_su_nivel_y_su_personaje(self, motor, version_id):
+        catalogo = _catalogo(version_id)
+        catalogo.respuestas[CUADERNO]["opciones"].append(
+            opcion("TK-C001-FRZ", "confiable", 7000, personaje="Frozen")
+        )
+        trabajo_id = await _preview(motor, catalogo, version_id)
+        await _validar_todo(motor, trabajo_id, catalogo)
+        preferencias = {
+            "pesos": {"precio": 0.2, "marca_exigida": 0.1, "calidad": 0.3, "personaje": 0.4},
+            "personaje_por_hijo": {"hijo-1": ["Frozen"]},
+        }
+        await _sembrar_bandeja(motor, agregado_id=uuid.UUID(version_id), **_carga_con_padre(preferencias))
+
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+        assert await poller.pasada() == 1
+
+        [papa] = await _aplicados(motor)
+        assert papa.hijos[0]["perfil"] == "Fan"
+        assert papa.hijos[0]["personaje"] == "Frozen"
+        [pedido] = await _pedidos(motor)
+        skus = {
+            linea["producto_elegido"]["sku"]
+            for linea in pedido.carga["lineas"]
+            if linea.get("producto_elegido")
+        }
+        assert "TK-C001-FRZ" in skus
+
+    async def test_calidad_primero_con_sobreprecio_es_premium(self, motor, version_id):
+        catalogo = _catalogo(version_id)
+        trabajo_id = await _preview(motor, catalogo, version_id)
+        await _validar_todo(motor, trabajo_id, catalogo)
+        preferencias = {
+            "pesos": {"precio": 0.2, "marca_exigida": 0.1, "calidad": 0.6, "personaje": 0.1},
+            "disposicion_sobreprecio": 0.15,
+        }
+        await _sembrar_bandeja(motor, agregado_id=uuid.UUID(version_id), **_carga_con_padre(preferencias))
+
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+        assert await poller.pasada() == 1
+
+        [papa] = await _aplicados(motor)
+        assert papa.hijos[0]["perfil"] == "Premium"
+
+    async def test_con_dudosas_el_papa_espera_y_se_publica_al_aprobar_el_kit(self, motor, version_id):
+        catalogo = _catalogo(version_id)
+        trabajo_id = await _preview(motor, catalogo, version_id)  # cartuchera AMBIGUO
+        await _sembrar_bandeja(motor, agregado_id=uuid.UUID(version_id), **_carga_con_padre())
+
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+        assert await poller.pasada() == 1
+
+        filas = {f.id: f for f in await _trabajos(motor)}
+        assert filas[trabajo_id].origen == "colegio_grado"
+        assert filas[trabajo_id].estado == EstadoTrabajo.ESPERA_REVISION.value
+        [papa] = await _aplicados(motor)
+        assert papa.estado == EstadoTrabajo.ESPERA_REVISION.value
+        assert await _pedidos(motor) == []
+        assert await _avisados(motor) == set()
+        # La cola muestra el kit del grado con su papa esperando, no al papa.
+        cola = await trabajos.cola(motor)
+        assert [t["trabajo_id"] for t in cola["trabajos"]] == [str(trabajo_id)]
+        assert cola["trabajos"][0]["acudientes_esperando"] == 1
+
+        await _validar_todo(motor, trabajo_id, catalogo)
+        await trabajos.revisar(motor, trabajo_id, decision="aprobar", catalogo=catalogo)
+
+        [papa] = await _aplicados(motor)
+        assert papa.estado == EstadoTrabajo.PUBLICADO.value
+        [pedido] = await _pedidos(motor)
+        assert pedido.agregado_id == papa.id
+        assert await _avisados(motor) == {papa.id}
+        assert await _canonico(motor) == trabajo_id
+
+    async def test_el_kit_del_papa_en_espera_no_se_revisa_aparte(self, motor, version_id):
+        catalogo = _catalogo(version_id)
+        trabajo_id = await _preview(motor, catalogo, version_id)
+        await _sembrar_bandeja(motor, agregado_id=uuid.UUID(version_id), **_carga_con_padre())
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+        await poller.pasada()
+        [papa] = await _aplicados(motor)
+
+        for decision in ("aprobar", "devolver"):
+            with pytest.raises(trabajos.AcudienteEnEspera):
+                await trabajos.revisar(motor, papa.id, decision=decision, catalogo=catalogo)
+        # Y el kit del grado que lo espera no se descarta.
+        with pytest.raises(trabajos.KitConAcudientesEsperando):
+            await trabajos.eliminar(motor, trabajo_id)
+
+    async def test_el_kit_del_papa_en_espera_no_se_puede_comprar(self, motor, version_id):
+        # Su kit sale de un kit del grado con dudosas sin decidir: comprarlo
+        # ahora cobraria productos que nadie confirmo.
+        catalogo = _catalogo(version_id)
+        await _preview(motor, catalogo, version_id)
+        await _sembrar_bandeja(motor, agregado_id=uuid.UUID(version_id), **_carga_con_padre())
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+        await poller.pasada()
+        [papa] = await _aplicados(motor)
+
+        with pytest.raises(trabajos.TrabajoNoExiste):
+            await trabajos.ordenar(
+                motor,
+                papa.id,
+                perfil="Ahorrador",
+                entrega={},
+                correo="papa@ejemplo.co",
+                comercio=None,
+                catalogo=catalogo,
+            )
+
+    async def test_descartar_el_kit_con_papa_esperando_es_409(self, motor, cliente, version_id):
+        catalogo = _catalogo(version_id)
+        trabajo_id = await _preview(motor, catalogo, version_id)
+        await _sembrar_bandeja(motor, agregado_id=uuid.UUID(version_id), **_carga_con_padre())
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+        await poller.pasada()
+
+        respuesta = await cliente.delete(f"/v1/admin/trabajos/{trabajo_id}")
+
+        assert respuesta.status_code == 409
+        assert respuesta.json()["error"] == "kit_con_acudientes_esperando"
+
+    async def test_varios_hijos_en_la_version_el_grado_si_el_papa_como_hoy(self, motor, version_id):
+        catalogo = _catalogo(version_id)
+        trabajo_id = await _preview(motor, catalogo, version_id)
+        await _validar_todo(motor, trabajo_id, catalogo)
+        carga = _carga_con_padre()
+        carga["preferencias"]["referencias_hijo"] = ["hijo-1", "hijo-2"]
+        await _sembrar_bandeja(motor, agregado_id=uuid.UUID(version_id), **carga)
+
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+        assert await poller.pasada() == 1
+
+        filas = {f.id: f for f in await _trabajos(motor)}
+        assert filas[trabajo_id].origen == "colegio_grado"
+        assert await _canonico(motor) == trabajo_id
+        assert await _aplicados(motor) == []
         nuevo = next(f for f in filas.values() if f.id != trabajo_id)
-        assert str(nuevo.usuario_id) == contacto
+        assert str(nuevo.usuario_id) == CONTACTO
         assert nuevo.origen == "lista_verificada"
+
+    async def test_sin_vista_previa_el_papa_como_hoy(self, motor, version_id):
+        catalogo = _catalogo(version_id)
+        await _sembrar_bandeja(motor, agregado_id=uuid.UUID(version_id), **_carga_con_padre())
+
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+        assert await poller.pasada() == 1
+
+        [fila] = await _trabajos(motor)
+        assert str(fila.usuario_id) == CONTACTO
+        assert fila.origen == "lista_verificada"
+        assert await _aplicados(motor) == []
+
+    async def test_con_la_vista_previa_desactualizada_el_papa_como_hoy(self, motor, version_id):
+        catalogo = _catalogo(version_id)
+        trabajo_id = await _preview(motor, catalogo, version_id)
+        await _validar_todo(motor, trabajo_id, catalogo)
+        catalogo.renglones[0] = renglon(1, CUADERNO, cantidad=3)
+        await _sembrar_bandeja(motor, agregado_id=uuid.UUID(version_id), **_carga_con_padre())
+
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+        assert await poller.pasada() == 1
+
+        [fila] = await _trabajos(motor)
+        assert fila.origen == "lista_verificada"
+        assert await _aplicados(motor) == []
+
+    async def test_las_preferencias_del_trabajo_no_llevan_las_referencias(self, motor, version_id):
+        catalogo = _catalogo(version_id)
+        await _sembrar_bandeja(motor, agregado_id=uuid.UUID(version_id), **_carga_con_padre())
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+        await poller.pasada()
+
+        [fila] = await _trabajos(motor)
+        [acudiente] = await trabajos.mis_trabajos(motor, usuario_id=fila.usuario_id)
+        assert "referencias_hijo" not in acudiente["preferencias"]
+
+
+class TestColaDetalle:
+    async def test_la_cola_trae_lo_que_admin_cuenta(self, motor, version_id):
+        catalogo = _catalogo(version_id)
+        catalogo.respuestas[CUADERNO]["opciones"] = []  # el cuaderno queda como hueco
+        trabajo_id = await _preview(motor, catalogo, version_id)
+
+        cola = await trabajos.cola(motor)
+
+        entrada = next(t for t in cola["trabajos"] if t["trabajo_id"] == str(trabajo_id))
+        assert entrada["usuario_id"] is None
+        assert entrada["colegios"] == [COLEGIO]
+        assert entrada["grados"] == ["Cuarto"]
+        assert entrada["lineas_totales"] == 2
+        assert entrada["lineas_sin_decidir"] == 1  # la cartuchera AMBIGUO
+        assert entrada["huecos"] == 1
+        assert entrada["acudientes_esperando"] == 0
+
+    async def test_ver_admin_separa_dudosas_y_huecos(self, motor, version_id):
+        catalogo = _catalogo(version_id)
+        catalogo.respuestas[CUADERNO]["opciones"] = []
+        trabajo_id = await _preview(motor, catalogo, version_id)
+
+        vista = await trabajos.ver(motor, trabajo_id, incluir_kits=True, incluir_admin=True)
+
+        assert vista["lineas_sin_decidir"] == 1
+        assert vista["huecos"] == 1
+        assert len(vista["lineas_pendientes"]) == 2

@@ -251,14 +251,32 @@ class TestSubirFeliz:
 
         assert respuesta.status_code == 202
         assert len(catalogo.llamadas) == 2
-        assert all(ll["preferencias"] == preferencias for ll in catalogo.llamadas)
+        # Cada version lleva ademas QUE hijo la subio: con eso el poller sabe
+        # de quien es el personaje al armarle al papa su kit.
+        assert [ll["preferencias"] for ll in catalogo.llamadas] == [
+            {**preferencias, "referencias_hijo": ["hijo-1"]},
+            {**preferencias, "referencias_hijo": ["hijo-2"]},
+        ]
 
-    async def test_sin_preferencias_no_se_manda_nada(self, cliente, catalogo):
+    async def test_sin_preferencias_solo_viaja_el_hijo(self, cliente, catalogo):
         cuerpo = _subida([{"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"}])
         respuesta = await cliente.post("/v1/listas/subir", **cuerpo)
 
         assert respuesta.status_code == 202
-        assert catalogo.llamadas[0]["preferencias"] is None
+        assert catalogo.llamadas[0]["preferencias"] == {"referencias_hijo": ["hijo-1"]}
+
+    async def test_dos_hijos_en_una_version_guardan_las_dos_referencias(self, cliente, catalogo):
+        cuerpo = _subida(
+            [
+                {"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"},
+                {"referencia": "hijo-2", "colegio_id": COLEGIO, "grado": "Cuarto"},
+            ]
+        )
+        respuesta = await cliente.post("/v1/listas/subir", **cuerpo)
+
+        assert respuesta.status_code == 202
+        assert len(catalogo.llamadas) == 1
+        assert catalogo.llamadas[0]["preferencias"]["referencias_hijo"] == ["hijo-1", "hijo-2"]
 
     async def test_dos_grados_distintos_son_dos_versiones(self, cliente, catalogo, monkeypatch):
         def _leer(_png: bytes, numero: int) -> PaginaLeida:
