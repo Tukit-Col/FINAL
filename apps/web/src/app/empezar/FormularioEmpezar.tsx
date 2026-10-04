@@ -69,6 +69,8 @@ interface HijoFormulario {
 //   • "Un punto medio"   -> Ahorrador por defecto de la encuesta (P21)
 //   • "Puedo estirarme"  -> Premium, si acepta pagar un poco más
 // El Fan no vive aquí: se dispara solo si en el paso 1 pediste un personaje.
+// Aparte va el tope de gasto (opcional): con tope, se marca la mejor marca que
+// cabe en él, sea cual sea la opción elegida.
 type ClavePrioridad = "precio" | "equilibrio" | "calidad";
 
 interface Prioridad {
@@ -100,7 +102,7 @@ const PRIORIDADES: Prioridad[] = [
   {
     clave: "calidad",
     titulo: "Puedo estirarme un poco",
-    detalle: "Marcas y acabados de gama alta. Te marcamos el Premium si cabe en tu tope.",
+    detalle: "Marcas y acabados de gama alta. Te marcamos el Premium.",
     pesos: { precio: 0.15, marca_exigida: 0.35, calidad: 0.4, personaje: 0.1 },
     disposicion_sobreprecio: 0.1,
   },
@@ -477,6 +479,9 @@ export default function FormularioEmpezar({
   const [clave, setClave] = useState("");
   const [celular, setCelular] = useState("");
   const [prioridad, setPrioridad] = useState<ClavePrioridad>("equilibrio");
+  // Solo dígitos: el tope viaja como entero en pesos (`presupuesto_por_hijo`).
+  const [presupuesto, setPresupuesto] = useState("");
+  const conTope = Number.parseInt(presupuesto, 10) > 0;
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Aviso NO bloqueante (ámbar): p.ej. no pudimos guardar los hijos nuevos en la
@@ -607,9 +612,12 @@ export default function FormularioEmpezar({
     // Las preferencias del paso 3 son del HOGAR: las mismas viajan por las dos
     // rutas. En la verificada las lee el recomendador ya; en la subida quedan
     // guardadas con la tarea para armar el kit cuando un administrador apruebe.
+    // El tope es opcional. Con tope, el recomendador marca la mejor marca que
+    // cabe en él (el Premium ajustado al presupuesto si el de siempre no cabe).
     const preferencias = {
       pesos: elegida.pesos,
       disposicion_sobreprecio: elegida.disposicion_sobreprecio,
+      ...(conTope ? { presupuesto_por_hijo: Number.parseInt(presupuesto, 10) } : {}),
       ...(Object.keys(personajePorHijo).length > 0
         ? { personaje_por_hijo: personajePorHijo }
         : {}),
@@ -724,7 +732,9 @@ export default function FormularioEmpezar({
           )
         : undefined;
 
-    if (soloHijo && canonicoDelHijo) {
+    // Con tope de gasto no hay ruta rápida: la cache aplica uno de los tres
+    // kits fijos, y el kit que cabe en el tope solo sale del optimizador.
+    if (soloHijo && canonicoDelHijo && !conTope) {
       const personaje = personajePorHijo[soloHijo.referencia]?.[0];
       try {
         const aplicado = await aplicarCanonico({
@@ -1227,13 +1237,18 @@ export default function FormularioEmpezar({
           <span className={styles.paso}>{pasoPrioridad}</span> Cuál de los tres te marcamos
         </h2>
         <p className={styles.explicacion}>
-          Los tres kits llevan la misma lista y la misma calidad. Lo único que cambia
-          es cuánto gastas. Dinos hasta dónde quieres estirar el bolsillo y te marcamos
-          uno; los otros dos quedan a la vista. No preguntamos por el estrato ni por
-          nada del hogar.
+          Los tres kits llevan la misma lista. Lo que cambia es la marca de cada
+          producto y, con ella, cuánto gastas. Dinos hasta dónde quieres estirar el
+          bolsillo y te marcamos uno; los otros dos quedan a la vista. No preguntamos
+          por el estrato ni por nada del hogar.
         </p>
 
-        <fieldset className={styles.opciones}>
+        {/* Con tope, la opción no cambia el kit marcado (manda la mejor marca que
+            cabe), así que se atenúa y se deshabilita en vez de prometer otra cosa. */}
+        <fieldset
+          className={`${styles.opciones} ${conTope ? styles.opcionesAtenuadas : ""}`}
+          disabled={conTope}
+        >
           <legend className={styles.leyendaSimple}>Cuánto quieres gastar</legend>
           {PRIORIDADES.map((opcion) => (
             <label
@@ -1256,6 +1271,25 @@ export default function FormularioEmpezar({
             </label>
           ))}
         </fieldset>
+
+        <label className={styles.campo}>
+          <span>
+            Tope de gasto para el kit <em>(opcional)</em>
+          </span>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={presupuesto ? `$ ${Number(presupuesto).toLocaleString("es-CO")}` : ""}
+            onChange={(e) => setPresupuesto(e.target.value.replace(/\D/g, "").slice(0, 9))}
+            placeholder="Ej.: 350.000"
+            aria-describedby={`${idBase}-ayuda-presupuesto`}
+          />
+          <em id={`${idBase}-ayuda-presupuesto`}>
+            {conTope
+              ? "Te marcamos el kit con la mejor marca que no pase de este tope. Las opciones de arriba ya no cambian cuál marcamos."
+              : "Si nos dices cuánto quieres gastar como máximo, te marcamos el kit con la mejor marca que no pase de ese tope."}
+          </em>
+        </label>
       </section>
 
       {error && (
