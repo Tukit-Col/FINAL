@@ -7,6 +7,12 @@
   min-width: 0;
 }
 
+/* En una fila de filtros, junto a su rótulo: tan ancho como lo que muestra. */
+.enLinea {
+  flex: none;
+  min-width: 96px;
+}
+
 .campo {
   display: flex;
   align-items: center;
@@ -105,6 +111,11 @@
 .elegida {
   font-weight: 600;
   color: var(--color-primary);
+}
+
+.deshabilitada {
+  color: var(--color-text-muted);
+  cursor: default;
 }
 
 .vacio {

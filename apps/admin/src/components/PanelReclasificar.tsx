@@ -7,6 +7,7 @@
 // hacia arriba con el código elegido. La llamada la hace `GestorCatalogo`.
 
 import { useState } from "react";
+import Desplegable from "./Desplegable";
 import styles from "./CatalogoSpa.module.css";
 
 export interface OpcionConcepto {
@@ -45,19 +46,19 @@ export default function PanelReclasificar({
       <div className={styles.reclasificarFila}>
         <div className={styles.campo} style={{ flex: 1 }}>
           <label htmlFor="reclasificar-concepto">Concepto destino</label>
-          <select
+          <Desplegable
             id="reclasificar-concepto"
-            value={destino}
-            onChange={(e) => setDestino(e.target.value)}
-          >
-            <option value="">— elegir concepto —</option>
-            {conceptos.map((c) => (
-              <option key={c.codigo} value={c.codigo} disabled={c.codigo === conceptoActual}>
-                {c.nombre}
-                {c.codigo === conceptoActual ? " (actual)" : ""}
-              </option>
-            ))}
-          </select>
+            tamano="compacto"
+            buscable
+            textoVacio="— elegir concepto —"
+            opciones={conceptos.map((c) => ({
+              valor: c.codigo,
+              texto: c.codigo === conceptoActual ? `${c.nombre} (actual)` : c.nombre,
+              deshabilitada: c.codigo === conceptoActual,
+            }))}
+            valor={destino}
+            onCambio={setDestino}
+          />
         </div>
         <button
           type="button"

@@ -27,6 +27,7 @@ import {
 } from "@/lib/api-catalogo";
 import { filasDeAtributos, type ParAtributo } from "@/lib/atributos-editor";
 import PanelReclasificar, { type OpcionConcepto } from "./PanelReclasificar";
+import Desplegable from "./Desplegable";
 import styles from "./CatalogoSpa.module.css";
 
 const UNIDADES: readonly UnidadBase[] = [
@@ -281,17 +282,13 @@ export default function EditorProducto({
 
         <div className={styles.campo}>
           <label htmlFor="ed-nivel">Nivel</label>
-          <select
+          <Desplegable
             id="ed-nivel"
-            value={nivel}
-            onChange={(e) => setNivel(e.target.value as Nivel)}
-          >
-            {NIVELES.map((n) => (
-              <option key={n} value={n}>
-                {ETIQUETA_NIVEL[n]}
-              </option>
-            ))}
-          </select>
+            tamano="compacto"
+            opciones={NIVELES.map((n) => ({ valor: n, texto: ETIQUETA_NIVEL[n] }))}
+            valor={nivel}
+            onCambio={(v) => setNivel(v as Nivel)}
+          />
         </div>
 
         <div className={styles.campo}>
@@ -344,17 +341,13 @@ export default function EditorProducto({
 
         <div className={styles.campo}>
           <label htmlFor="ed-unidad">Unidad base</label>
-          <select
+          <Desplegable
             id="ed-unidad"
-            value={unidadBase}
-            onChange={(e) => setUnidadBase(e.target.value as UnidadBase)}
-          >
-            {UNIDADES.map((u) => (
-              <option key={u} value={u}>
-                {u}
-              </option>
-            ))}
-          </select>
+            tamano="compacto"
+            opciones={UNIDADES.map((u) => ({ valor: u, texto: u }))}
+            valor={unidadBase}
+            onCambio={(v) => setUnidadBase(v as UnidadBase)}
+          />
         </div>
 
         <div className={styles.campo}>
