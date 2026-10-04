@@ -93,8 +93,14 @@ class ClienteCatalogo:
         except httpx.HTTPError as error:
             raise RemotoCaido("catalogo", f"{ruta} no respondio ({error})") from error
 
-    async def emparejar(self, renglones: list[str]) -> list[dict[str, Any]]:
-        cuerpo = await self._pedir("POST", "/v1/catalogo/emparejar", json={"renglones": renglones})
+    async def emparejar(
+        self, renglones: list[str], conceptos: list[str | None] | None = None
+    ) -> list[dict[str, Any]]:
+        """`conceptos`, si viene, es el codigo ya asignado a cada renglon (o None)."""
+        pedido: dict[str, Any] = {"renglones": renglones}
+        if conceptos is not None:
+            pedido["conceptos"] = conceptos
+        cuerpo = await self._pedir("POST", "/v1/catalogo/emparejar", json=pedido)
         return list(cuerpo.get("emparejamientos") or ())
 
     async def listas(self, *, colegio_id: str, grado: str, anio_lectivo: int | None = None) -> list[dict]:

@@ -322,6 +322,7 @@ async def _renglones_de_listas(
                     "url_externa": item.get("url_externa"),
                     "tipo_item_lista": item.get("tipo_item"),
                     "modo_lista": item.get("modo_adquisicion"),
+                    "concepto_lista": (item.get("concepto") or {}).get("codigo"),
                 }
             )
 
@@ -891,7 +892,9 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
         buscables = [r for r in normalizados if r["busca_en_catalogo"]]
         emparejados: dict[tuple[str, int], dict[str, Any]] = {}
         if buscables:
-            respuestas = await catalogo.emparejar([r["texto"] for r in buscables])
+            respuestas = await catalogo.emparejar(
+                [r["texto"] for r in buscables], conceptos=[r.get("concepto_lista") for r in buscables]
+            )
             for renglon, respuesta in zip(buscables, respuestas, strict=False):
                 if _tipo_del_concepto_manda(renglon, respuesta):
                     continue

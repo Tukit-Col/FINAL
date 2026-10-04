@@ -1212,9 +1212,15 @@ async def emparejar_renglones(cuerpo: dict[str, Any]) -> dict[str, Any]:
     # o el proveedor falla — misma contrato que `emparejar_en_catalogo`.
     async with app.state.motor.engine.begin() as conexion:
         conceptos, productos = await cargar_indice(conexion)
+    # `conceptos` es opcional y va en paralelo a `renglones`: el codigo que una
+    # persona ya asigno a ese renglon (o null). Si no cuadra en largo, se ignora.
+    asignados = cuerpo.get("conceptos")
+    if not isinstance(asignados, list) or len(asignados) != len(textos):
+        asignados = [None] * len(textos)
     vectores = calcular_vectores(textos, _embeder_por_entorno())
     resultados = [
-        emparejar(t, conceptos, productos, embedding_renglon=v) for t, v in zip(textos, vectores, strict=True)
+        emparejar(t, conceptos, productos, embedding_renglon=v, concepto_forzado=(str(a) if a else None))
+        for t, v, a in zip(textos, vectores, asignados, strict=True)
     ]
     return {"total": len(resultados), "emparejamientos": [r.a_dict() for r in resultados]}
 
