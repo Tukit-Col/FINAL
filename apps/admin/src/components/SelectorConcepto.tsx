@@ -41,6 +41,7 @@ export default function SelectorConcepto({
   const [activo, setActivo] = useState(0);
   const caja = useRef<HTMLDivElement>(null);
   const lista = useRef<HTMLUListElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
 
   // La opción vacía va primero y sale siempre, salvo que se esté buscando.
   const opciones = useMemo(() => {
@@ -63,6 +64,12 @@ export default function SelectorConcepto({
     }
     document.addEventListener("mousedown", fuera);
     return () => document.removeEventListener("mousedown", fuera);
+  }, [abierto]);
+
+  // El editor vive dentro de la lista de renglones, que tiene scroll propio:
+  // al abrir, que esa lista baje lo justo para mostrar el panel completo.
+  useEffect(() => {
+    if (abierto) panel.current?.scrollIntoView({ block: "nearest" });
   }, [abierto]);
 
   // Mantener visible la opción activa al moverse con el teclado.
@@ -118,7 +125,7 @@ export default function SelectorConcepto({
       </button>
 
       {abierto ? (
-        <div className={styles.panel}>
+        <div className={styles.panel} ref={panel}>
           <input
             className={styles.buscador}
             value={busqueda}
