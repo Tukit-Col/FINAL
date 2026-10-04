@@ -23,6 +23,7 @@ export type ClaseLinea =
   | "no_comprar" // "el disponible en casa"
   | "diferido" // se solicitara mas adelante
   | "fuera_de_alcance" // uniformes: declarado fuera de v1
+  | "por_su_cuenta" // tipo `otro`: Tukit decidio no venderlo (audifonos, un titere)
   | "informativa"; // la vende el colegio o la editorial, no Tukit
 
 export function clasificar(linea: LineaKit): ClaseLinea {
@@ -30,6 +31,9 @@ export function clasificar(linea: LineaKit): ClaseLinea {
   if (linea.tipo === "no_comprar") return "no_comprar";
   if (linea.tipo === "diferido") return "diferido";
   if (linea.tipo === "uniforme") return "fuera_de_alcance";
+  // Antes de `informativa`: un `otro` tambien es informativo, pero decirle al
+  // acudiente que "lo gestiona el colegio" era falso; lo compra el por su cuenta.
+  if (linea.tipo === "otro") return "por_su_cuenta";
   if (linea.informativa) return "informativa";
   if (linea.estado_resolucion === "HUECO_CATALOGO") return "hueco";
   if (linea.estado_resolucion === "SIN_MATCH") return "sin_match";
@@ -50,7 +54,8 @@ export function esInformativaOExterna(linea: LineaKit): boolean {
     clase === "licencia_digital" ||
     clase === "no_comprar" ||
     clase === "diferido" ||
-    clase === "fuera_de_alcance"
+    clase === "fuera_de_alcance" ||
+    clase === "por_su_cuenta"
   );
 }
 
@@ -69,6 +74,7 @@ export const TITULO_CLASE: Record<ClaseLinea, string> = {
   no_comprar: "No hay que comprarlo",
   diferido: "El colegio lo pedirá después",
   fuera_de_alcance: "Uniformes: fuera de Tukit por ahora",
+  por_su_cuenta: "Lo consigues por tu cuenta",
   informativa: "Lo gestiona el colegio",
 };
 
@@ -98,6 +104,8 @@ export function razonDeNoCobrar(linea: LineaKit): string | null {
       return "El colegio lo va a pedir durante el año. Te avisamos cuando se pueda comprar.";
     case "fuera_de_alcance":
       return "Los uniformes todavía no los surtimos. Te lo dejamos visible para que no se te pase.";
+    case "por_su_cuenta":
+      return linea.mensaje ?? "Tukit no lo vende: consíguelo por tu cuenta. Te lo dejamos visible para que no se te pase.";
     case "informativa":
       return (
         linea.instruccion_colegio ??
@@ -128,5 +136,6 @@ export const ORDEN_SECCIONES: readonly ClaseLinea[] = [
   "diferido",
   "no_comprar",
   "fuera_de_alcance",
+  "por_su_cuenta",
   "comprable",
 ];

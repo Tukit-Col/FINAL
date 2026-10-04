@@ -46,6 +46,7 @@ const EXPLICACION_SECCION: Partial<Record<ClaseLinea, string>> = {
   diferido: "El colegio los va a pedir durante el año.",
   no_comprar: "El colegio dice que uses el que ya tienes en casa.",
   fuera_de_alcance: "Los uniformes todavía no los surtimos.",
+  por_su_cuenta: "Tukit no los vende. Te los dejamos visibles para que los consigas por tu cuenta.",
   comprable: undefined,
 };
 
