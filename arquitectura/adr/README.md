@@ -1,0 +1,29 @@
+# ADR registrados desde el submódulo
+
+Los registros de decisión de arquitectura viven en `Arquitectura/adr/`, fuera de este
+repositorio, y su índice es la tabla del §4 de `Arquitectura/ARQUITECTURA.md`. El código los
+cita por número (`ADR 0012`, `ADR 0017`…) y los planes de `docs/planes/` los crean allá.
+
+Esta carpeta existe porque esa otra mitad no siempre está a la mano: la rama
+`feature/pagos-wompi-sandbox` se trabajó en una máquina sin `Arquitectura/`, y una decisión
+que solo vive en un mensaje de commit no es una decisión registrada. Se escriben aquí, en el
+mismo formato (Nygard: contexto, decisión, alternativas rechazadas, consecuencias), y se
+mueven cuando alguien con el repositorio de la tesis los incorpore.
+
+La numeración **continúa la serie externa**. El número más alto citado en el código al abrir
+la rama era el 0020 (formulación del optimizador multiobjetivo), así que estos empiezan en el
+0021. Si al incorporarlos el 0021 ya está tomado allá, se renumeran allá y se corrigen las
+citas aquí: el número es una etiqueta, el título es la decisión.
+
+| ADR | Decisión | Estado | Origen |
+|---|---|---|---|
+| [0021](0021-pago-con-widget-de-wompi.md) | El pago se abre con el widget de Wompi, con la configuración por `postMessage` | aceptada | `feature/pagos-wompi-sandbox` |
+| [0022](0022-confirmacion-del-pago-por-sincronizacion-y-webhook.md) | El pago se confirma preguntándole a Wompi, y webhook y sincronización comparten un aplicador idempotente | aceptada | `feature/pagos-wompi-sandbox` |
+| [0023](0023-cancelar-solo-con-wompi-consultado.md) | Un pedido pendiente se cancela solo después de consultar a Wompi; vence a las 24 horas y hay uno por kit | aceptada | `feature/pagos-wompi-sandbox` |
+| [0024](0024-estado-de-compra-calculado.md) | El estado de compra de una solicitud se calcula cruzando pedidos, no se guarda | aceptada | `feature/pagos-wompi-sandbox` |
+
+## Para incorporarlos
+
+1. Copiar cada archivo a `Arquitectura/adr/` con el mismo nombre.
+2. Agregar su fila a la tabla del §4 de `Arquitectura/ARQUITECTURA.md` con estado `aceptada`.
+3. Borrar esta carpeta en una rama que solo haga eso, para que la historia diga cuándo pasó.

@@ -141,12 +141,22 @@ usas) carga el `.env` solo.
 
 Elige un kit y paga, desde `localhost` como siempre. El pago se abre con el
 [widget de Wompi](https://docs.wompi.co/docs/colombia/widget-checkout-web/), un modal encima del
-kit: el acudiente nunca sale de Tukit. El backend firma los datos del widget (el secreto de
-integridad no llega al navegador) y no se manda `redirectUrl`, porque el checkout de Wompi
-rechaza con 403 volver a `localhost` o a una IP privada. Cuando Wompi reporta la transacción,
-la app va a `/pago/resultado?id=<transacción>`, y esa página le pregunta a Wompi, de servidor a
-servidor, cómo quedó el pago (`POST /v1/pagos/{id}/sincronizar`); lo que dice el navegador es
-solo informativo.
+kit: con tarjeta y Nequi el acudiente no sale de Tukit. El backend firma los datos del widget (el
+secreto de integridad no llega al navegador). PSE sí se lleva la pestaña al banco y vuelve por
+el `redirectUrl` a `/pago/resultado?id=<transacción>`. Esa página le pregunta a Wompi, de
+servidor a servidor, cómo quedó el pago (`POST /v1/pagos/{id}/sincronizar`); lo que dice el
+navegador es solo informativo.
+
+Un detalle que cuesta una tarde si no se sabe: el checkout de Wompi responde 403 cuando una URL
+suya lleva un retorno a `localhost` o a una IP privada. Por eso el widget se abre con
+`bootstrapTransport: "postmessage"`, que le pasa la configuración por mensaje y no por la URL
+de su iframe. Si algún día el modal se queda girando sin fin, es esto. El porqué completo está
+en el [ADR 0021](arquitectura/adr/0021-pago-con-widget-de-wompi.md).
+
+En "Mis pedidos" del panel, un pedido pendiente se paga o se cancela sin rearmar el kit. Se
+puede pagar durante 24 horas; después hay que rearmarlo para ver el precio de hoy. Cancelar le
+pregunta antes a Wompi si hay un pago en curso, porque cancelar un PSE que el banco todavía está
+aprobando cobraría sin entregar ([ADR 0023](arquitectura/adr/0023-cancelar-solo-con-wompi-consultado.md)).
 
 En modo falso los montos simulados viven en la memoria de Comercio: si lo reinicias entre
 "Pagar" y "Aprobar pago", obtendrás `transaccion_no_existe`; empieza de nuevo desde el kit.

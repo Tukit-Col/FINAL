@@ -5,11 +5,27 @@
 > fronteras de *conversación*. Cambiar cualquiera de los dos sin avisar rompe a alguien
 > más, así que se cierran antes de repartir el trabajo y se versionan.
 
-- **Versión:** 1.1
+- **Versión:** 1.2
 - **Prefijo:** `/v1`
 - **URL base:** `http://127.0.0.1:8010` en desarrollo. Ver §12.1.
 - **Formato:** JSON UTF-8. Dinero en **pesos enteros** (nunca decimales flotantes).
 - **Idioma de los identificadores:** español sin tildes, como el resto del código.
+
+### Qué cambió en 1.2
+
+El §9 pasa de declarado a implementado. Lo que estaba escrito era el diseño al que había que
+llegar; al llegar con Wompi de verdad (sandbox, llaves reales) aparecieron tres cosas que el
+diseño no podía saber, y se documentan donde muerden.
+
+| Cambio | Dónde | Por qué |
+|---|---|---|
+| §9 implementado: orden, pago, sincronización, webhook, cancelación y "mis pedidos" | §9 | `comercio` existe y la puerta lo rutea; las rutas ya no responden `501` |
+| El pago se abre con el **widget** de Wompi y `POST /pago` devuelve sus datos firmados | §9.1 | El checkout alojado por URL responde 403 si el retorno es `localhost`. ADR 0021 |
+| `POST /v1/pagos/{transaccion_id}/sincronizar` | §9.2 | Sin URL pública el webhook no llega, y el pedido se quedaba sin confirmar. ADR 0022 |
+| La clave de idempotencia es `<transacción>:<ESTADO>`, no el id del evento | §9.2 | Wompi no manda id de evento, y `PENDING` → `APPROVED` chocaba en el candado |
+| `POST /v1/ordenes/{id}/cancelar`, que consulta a Wompi antes | §9.3 | Cancelar con un PSE en curso cobraría sin entregar. ADR 0023 |
+| Un pedido se paga durante 24 horas; uno pendiente por kit | §9.4 | Cada clic en Pagar creaba un pedido, y uno viejo se cobraría a un precio viejo |
+| `comercio` en la tabla de puertos | §12.1 | Faltaba |
 
 ### Qué cambió en 1.1
 
@@ -527,35 +543,152 @@ Las degradaciones se reportan, no se esconden:
 
 ## 9. Pago (comercio)
 
-> **Estado en 1.1: declarada y no implementada.** El servicio `comercio` no existe todavía
-> —ni modelos, ni tablas, ni proceso—, así que estas rutas no tienen nadie detrás. La
-> puerta de enlace responde `501 no_implementado` con la sección de este documento, y no
-> `404`, para que quede claro que la URL del cliente es la correcta (§11). Lo de abajo es
-> el diseño al que hay que llegar, no lo que hay.
+> **Estado en 1.2: implementado contra Wompi sandbox.** Las rutas tienen servicio detrás
+> (`comercio`, puerto 8014) y la puerta las rutea; ya no responden `501`. Solo existe el modo de
+> **pruebas**: con `WOMPI_MODO=sandbox` el servicio no arranca si alguna llave no es de prueba, y
+> con `WOMPI_MODO=falso` (por omisión) una pasarela simulada permite caminar todo el flujo sin
+> red. Producción no está en este contrato. Las decisiones están en los ADR 0021 a 0023
+> (`arquitectura/adr/`).
 
-| Endpoint | Requisito |
+| Endpoint | Requisito | Qué hace |
+|---|---|---|
+| `POST /v1/trabajos/{id}/ordenar` | `FU-01`, `FU-03` | La entrada del navegador (la sirve `inteligencia`): arma la orden desde el kit elegido e inicia el pago |
+| `POST /v1/ordenes` | `FU-01` | Re-verifica precios, congela y reserva. Un pendiente idéntico del mismo kit se reutiliza (§9.4) |
+| `POST /v1/ordenes/{id}/pago` | `FU-03` | Un intento de pago nuevo: devuelve los datos firmados del widget de Wompi |
+| `POST /v1/pagos/{transaccion_id}/sincronizar` | `FU-03` | Pregunta a Wompi por la transacción y la aplica (§9.2) |
+| `POST /v1/webhooks/wompi` | `FU-03` | La misma aplicación, por el aviso firmado de Wompi |
+| `POST /v1/ordenes/{id}/cancelar` | `FU-01` | Cancela un pendiente, solo si Wompi no tiene un pago aprobado o en curso (§9.3) |
+| `GET /v1/ordenes/{id}` | `FU-01` + `UM-03` | Seguimiento: el pedido con líneas, último pago y envío |
+| `GET /v1/comercio/mis-pedidos?usuario_id=` | `UM-03` | Los pedidos de un acudiente, para su panel |
+| `POST /v1/ordenes/{id}/retracto` | `FU-04` | Registra la devolución y cancela si la transición lo permite |
+
+Tres invariantes que no se negocian, y siguen siendo los de 1.1:
+
+1. **Re-verificación antes de cobrar** (`UI-05`, `SC-05`): `POST /v1/ordenes` vuelve a leer el
+   precio de cada línea en `catalogo`; si cambió, `422 precio_cambiado` y la orden no se cierra.
+   Con `catalogo` caído, `503 catalogo_no_disponible`: no se cobra a ciegas.
+2. **El precio no se mueve después de confirmar** (`FU-08`, ADR 0012), con un límite nuevo: un
+   pedido se puede pagar durante **24 horas**. Después se cobraría un precio viejo, y el acudiente
+   vuelve a armar el kit, donde el precio se re-verifica (§9.4).
+3. **No se guardan medios de pago** (`SG-03`). La tarjeta, la cuenta y el celular se digitan en el
+   widget de Wompi y Tukit nunca los ve. Se persisten la referencia, el id de transacción, el
+   estado, el monto y el medio (`tarjeta`, `pse`, `nequi`) que Wompi reporta.
+
+### 9.1 Iniciar un pago: el widget
+
+`POST /v1/ordenes/{id}/pago` crea un **intento** (un pedido puede tener varios: uno rechazado se
+reintenta) con su propia referencia, `tukit-<pago_id>`. No llama a Wompi: devuelve lo que el
+navegador le pasa a `new WidgetCheckout({...})`, ya firmado.
+
+```json
+// POST /v1/ordenes/{id}/pago
+{ "correo_cliente": "ana@ejemplo.com", "metodo": "pse",
+  "url_redireccion": "http://localhost:3000/pago/resultado" }
+```
+
+```jsonc
+// 201
+{ "pago_id": "…", "referencia_wompi": "tukit-…", "transaccion_wompi": null,
+  "estado": "iniciado",
+  "url_redireccion": null,          // solo la pasarela simulada redirige
+  "widget": {
+    "publicKey": "pub_test_…", "currency": "COP", "amountInCents": 105603000,
+    "reference": "tukit-…",
+    "signature": { "integrity": "<sha256(referencia + centavos + COP + secreto)>" },
+    "customerData": { "email": "ana@ejemplo.com" },
+    "redirectUrl": "http://localhost:3000/pago/resultado" } }
+```
+
+La firma de integridad se calcula aquí porque necesita el secreto, que nunca sale del servidor.
+`redirectUrl` existe por PSE, que se lleva la pestaña al banco y vuelve por ahí con `?id=`.
+El navegador abre el widget **con `bootstrapTransport: "postmessage"`**: por omisión el widget
+mete la configuración en la URL de su iframe, y el CDN de Wompi responde 403 cuando ahí aparece
+un retorno a `localhost` (ADR 0021). Con `WOMPI_MODO=falso`, `widget` es `null` y
+`url_redireccion` apunta a `/pago/simulado`.
+
+Errores: `404 pedido_no_existe` · `409 pedido_no_pagable` (ya no está pendiente) ·
+`409 pedido_vencido` (más de 24 horas) · `422 metodo_invalido`.
+
+### 9.2 Confirmar un pago: sincronización y webhook
+
+El navegador nunca confirma un pago. Al terminar, el widget (tarjeta, Nequi) o el retorno de PSE
+entregan el id de la transacción, y la página de resultado pide:
+
+```jsonc
+// POST /v1/pagos/{transaccion_id}/sincronizar   → 200
+{ "pedido_id": "…", "total": 1056030, "estado_pago": "aprobado",
+  "estado_pedido": "pagado", "trabajo_id": "…" }
+```
+
+`comercio` consulta `GET /v1/transactions/{id}` en Wompi y aplica la respuesta con **el mismo
+aplicador que el webhook** (ADR 0022). Eso hace que funcione en `localhost` sin que Wompi pueda
+alcanzar el webhook, y que llegar por los dos caminos no aplique dos veces:
+
+- La idempotencia es contra `evento_pasarela_procesado` con la clave `<transacción>:<ESTADO>`:
+  `PENDING` y `APPROVED` de la misma transacción son eventos distintos; un reenvío del mismo
+  estado es `repetido`.
+- Un pago `aprobado` o `reembolsado` **no retrocede**, y un `PENDING` tardío no revive uno
+  `rechazado`.
+- Un monto distinto del congelado **no aprueba**: el pago queda `rechazado`.
+- En la primera aprobación el pedido pasa a `pagado` y `pedido_pagado` se escribe en la bandeja
+  de salida en la misma transacción (§10).
+- La consulta exige moneda `COP` y, si Wompi dice de qué comercio es, que sea el nuestro.
+
+`estado_pago` es `iniciado` mientras el banco no responde: la página de resultado vuelve a
+preguntar cada 3 s, hasta 20 veces. Errores: `404 transaccion_no_existe` (Wompi no la conoce) ·
+`404 pago_no_existe` (la conoce, pero no es de un pago de Tukit) · `502 pasarela_no_disponible`
+(se reintenta igual que un `iniciado`).
+
+El webhook responde `200` siempre que el cuerpo sea legible, para que Wompi no reintente en bucle
+un evento que nunca se va a aceptar: `{"estado": "ignorado", "motivo": "firma_invalida"}` si la
+firma no cuadra, `repetido` si ya se aplicó.
+
+### 9.3 Cancelar
+
+`POST /v1/ordenes/{id}/cancelar` cancela un pedido `pendiente_pago` y libera su reserva de
+inventario. Antes **busca en Wompi, con la llave privada, cada intento que siga `iniciado`**,
+porque un PSE puede estar en curso o ya aprobado sin que Tukit lo sepa (ADR 0023):
+
+| Lo que encuentra | Respuesta |
 |---|---|
-| `POST /v1/ordenes` | `FU-01` — congela precios y crea la orden |
-| `POST /v1/ordenes/{id}/pago` | `FU-03` — inicia el pago con Wompi |
-| `POST /v1/webhooks/wompi` | Confirmación asíncrona, idempotente |
-| `GET /v1/ordenes/{id}` | `FU-01` + `UM-03`, seguimiento |
-| `POST /v1/ordenes/{id}/retracto` | `FU-04` |
+| Nada, o solo rechazos | `200` con el pedido `cancelado` y la reserva `liberada` |
+| Un pago aprobado | Lo aplica y no cancela: `409 pedido_ya_pagado` |
+| Un pago en curso | No cancela: `409 pago_en_curso` |
+| Wompi no responde | No cancela: `502 pasarela_no_disponible` |
+| El pedido ya no está pendiente | `409 pedido_no_cancelable` |
 
-Tres invariantes que no se negocian:
+Si aun así llega una aprobación para un pedido cancelado, el pedido no se mueve (`cancelado` es
+terminal), el pago queda `aprobado` y se escribe una **`incidencia`** en la bandeja de salida con
+`motivo: "pago_tras_cancelacion"`: el acudiente recibe el aviso y operación ve el caso en su
+tablero.
 
-1. **Re-verificación antes de cobrar** (`UI-05`, `SC-05`): se vuelven a leer precio y
-   disponibilidad; si cambiaron, la orden no se cierra y el acudiente decide.
-2. **El precio no se mueve después de confirmar** (`FU-08`). Lo confirma la entrevista:
-   *"te lo tengo en este tiempo a este precio, sí o no"*.
-3. **No se guardan medios de pago** (`SG-03`): solo identificador de transacción y estado.
-   La captura ocurre en el dominio de la pasarela.
+### 9.4 Vigencia y un pedido por kit
 
-El webhook es idempotente contra `comercio.evento_pasarela_procesado`: una pasarela
-reintenta, y cobrar dos veces por un reintento sería el peor defecto posible en esta ruta.
+- **Vigencia.** Un pedido se puede pagar durante 24 horas desde su `creado_en`; no hay columna
+  nueva. Vencido, `POST /pago` responde `409 pedido_vencido`. Se puede cancelar, para liberar lo
+  reservado.
+- **Un pendiente por kit.** `POST /v1/ordenes` con `trabajo_id`: si el acudiente ya tiene un
+  pendiente **idéntico y vigente** para ese kit (mismos productos, cantidades, precios y entrega),
+  responde ese mismo pedido y el pago nuevo es otro intento sobre él. Si cambió algo, los
+  pendientes anteriores se cancelan con la consulta de §9.3; uno con pago en curso o aprobado, o
+  con Wompi caído, se deja como está. Las órdenes sin `trabajo_id` no se deduplican.
 
-**Nota de trazabilidad:** `FU-03` ya nombra **Wompi**, que entrega PSE, Nequi y tarjeta en
-una sola integración. La integración vive tras un puerto `PasarelaPago` con adaptador falso
-para las pruebas.
+### 9.5 El lado del navegador
+
+`apps/web` no habla con estas rutas directamente: lo hace a través de sus rutas de servidor, con
+la sesión de la cookie.
+
+| Ruta de `apps/web` | Llama a | Qué agrega |
+|---|---|---|
+| `POST /api/trabajos/{id}/ordenar` | `POST /v1/trabajos/{id}/ordenar` | — |
+| `POST /api/pagos/{transaccion_id}/sincronizar` | §9.2 | — |
+| `GET /api/pedidos/{id}` | `GET /v1/comercio/pedidos/{id}` | El detalle para la pantalla de resultado |
+| `POST /api/pedidos/{id}/pagar` | §9.1 | Exige sesión (`401`), que el pedido sea del acudiente (un ajeno es `404`), que siga pendiente y vigente; el correo sale de la sesión |
+| `POST /api/pedidos/{id}/cancelar` | §9.3 | Las mismas comprobaciones, menos la vigencia |
+
+**Nota de trazabilidad:** `FU-03` nombra **Wompi**, que entrega PSE, Nequi y tarjeta en una sola
+integración. La integración vive tras el puerto `PasarelaPago` (`comercio/pasarela.py`), con el
+adaptador `WompiSandbox` y uno falso para las pruebas y el desarrollo sin red.
 
 ---
 
@@ -612,6 +745,9 @@ error que no está. El cuerpo trae la sección de este documento donde la ruta s
   "seccion_contrato": "9" }
 ```
 
+Desde 1.2 `/v1/ordenes` sí tiene servicio detrás; el ejemplo queda porque muestra la forma del
+cuerpo, que es la misma para cualquier ruta declarada sin servicio.
+
 Nunca se devuelve al cliente lo que el cliente acaba de enviar en un mensaje de error: el
 manejador de validación del sistema anterior devolvía la contraseña recibida, y es uno de
 los defectos ya documentados. El manejador de errores de validación de los tres servicios
@@ -643,6 +779,7 @@ El backend son **cuatro procesos**. El frontend habla con uno solo.
 | identidad | 8011 | `/v1/colegios`, `/v1/grados`, `/v1/contactos` |
 | catalogo | 8012 | `/v1/catalogo/*`, `/v1/listas*` |
 | inteligencia | 8013 | `/v1/trabajos*`, `/v1/admin/*` |
+| comercio | 8014 | `/v1/ordenes*`, `/v1/pagos*`, `/v1/webhooks/wompi`, `/v1/comercio/*` |
 
 ```
 TUKIT_API_URL=http://127.0.0.1:8010
@@ -1191,7 +1328,7 @@ Sin rodeos, porque el frontend necesita saber contra qué puede programar hoy.
 | Optimizador | **Heurística, no NSGA-II** | Los tres kits salen y son comparables, pero no son un frente de Pareto: `Ahorrador` = el más barato, `Premium` = mejor nivel de marca, `Fan` = el del personaje pedido |
 | Consolidación entre hermanos | **Funciona**, probada | Solo se dispara cuando a dos hijos les toca el mismo sku y el empaque alcanza |
 | Notificación (§10) | **No implementada** | Al publicar se escribe `kits_publicados` en la bandeja de salida y **nadie la recoge**: no sale correo ni wa-link |
-| Pago (§9) | **No implementado** | `501 no_implementado` con la sección del contrato |
+| Pago (§9) | **Funciona contra Wompi sandbox** | Widget, sincronización, webhook y cancelación. Sin llaves (`WOMPI_MODO=falso`) una pasarela simulada camina el mismo flujo. No hay modo de producción |
 | Autenticación | **No existe** | Ninguna ruta pide token. `actor` se manda en el cuerpo |
 | Cifrado de `pesos_usados` | **Puerto sí, cifrado no** | Pasa por el puerto `Cifrador`; sin `TUKIT_LLAVE_CIFRADO` el adaptador guarda en claro y lo dice al arrancar |
 | Ejecución de fondo | **Tarea en proceso** | Si el servicio se reinicia con un trabajo en vuelo, queda en `procesando`. Se rescata con `POST /v1/trabajos/{id}/reintentar` |

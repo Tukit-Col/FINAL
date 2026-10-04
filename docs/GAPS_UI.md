@@ -276,11 +276,96 @@ que son afirmaciones de la tesis que el código invalida.
 
 ---
 
+## G-09 — "Pagar" se quedaba en *Llevándote a la pasarela…*  ✅ ARREGLADO
+
+- **Ruta/pantalla:** `/kits/[trabajo_id]`, formulario "¿A dónde te lo llevamos?".
+- **Persona:** Acudiente.
+- **Esperado:** al pulsar **Pagar** se abre la pasarela de pago.
+- **Observado:** el botón cambiaba a "Llevándote a la pasarela…" y no pasaba nada más.
+- **Causa:** con `WOMPI_MODO=falso` la pasarela devolvía como "url de pago" la misma
+  página del kit; con `sandbox`, `WompiSandbox.crear_transaccion` llamaba a
+  `POST /v1/transactions` de Wompi sin medio de pago, que Wompi rechaza.
+- **Arreglo aplicado:** rama `feature/pagos-wompi-sandbox`. Hoy el pago se abre con el
+  widget de Wompi y el modo falso lleva a `/pago/simulado`. Contrato §9; ADR 0021.
+
+---
+
+## G-10 — El checkout de Wompi responde 403 si el retorno es `localhost`  ✅ ARREGLADO
+
+- **Ruta/pantalla:** `checkout.wompi.co/p/?…`, al salir del kit.
+- **Persona:** Acudiente.
+- **Esperado:** el checkout alojado de Wompi abre y, al pagar, devuelve a Tukit.
+- **Observado:** 403 de CloudFront ("Request blocked") en el navegador.
+- **Causa (probada parámetro por parámetro):** el único que lo dispara es `redirect-url`
+  apuntando a `localhost`, `127.0.0.1` o una IP privada, codificado o no. Un dominio
+  público, incluido uno de túnel, pasa.
+- **Arreglo aplicado:** se cambió al widget de Wompi, que abre el pago en un modal y no
+  necesita salir de Tukit. Se probó antes un túnel (`cloudflared`) y se retiró. ADR 0021.
+
+---
+
+## G-11 — Después de pagar con PSE no había cómo volver a Tukit  ✅ ARREGLADO
+
+- **Ruta/pantalla:** `transaction-redirect.wompi.co/check`, tras el banco.
+- **Persona:** Acudiente.
+- **Esperado:** al terminar en el banco, volver a Tukit y ver el resultado.
+- **Observado:** el comprobante de Wompi ("¡Pago aprobado!") sin botón para regresar. En
+  Tukit el pedido seguía `pendiente_pago`, aunque Wompi lo había aprobado.
+- **Causa:** PSE se lleva la pestaña entera al banco (el widget hace
+  `window.location.href = url`), así que el modal y su aviso a la página se pierden. Sin
+  `redirectUrl`, Wompi no tiene a dónde devolver.
+- **Arreglo aplicado:** los datos del widget llevan `redirectUrl` a `/pago/resultado`, y esa
+  página confirma con el servidor. El pedido varado de la prueba se confirmó a mano con
+  `POST /v1/pagos/{id}/sincronizar`.
+
+---
+
+## G-12 — El modal de Wompi se quedaba cargando  ✅ ARREGLADO
+
+- **Ruta/pantalla:** `/kits/[trabajo_id]` y "Mis pedidos" en `/dashboard`.
+- **Persona:** Acudiente.
+- **Esperado:** al pulsar Pagar se abre el formulario de Wompi.
+- **Observado:** velo oscuro con el indicador girando, sin fin.
+- **Causa:** el widget, por omisión, mete toda su configuración en la URL de su iframe
+  (`bootstrapTransport: "query"`). Desde G-11 esa configuración lleva un `redirectUrl` a
+  `localhost`, y el CDN de Wompi responde 403 (G-10): el iframe no carga nunca.
+- **Arreglo aplicado:** el widget se abre con `bootstrapTransport: "postmessage"`
+  (`apps/web/src/lib/wompi.ts`), fijado por `apps/web/test/wompi.test.ts`. Lo introdujo el
+  arreglo de G-11 y se encontró al día siguiente.
+
+---
+
+## G-13 — Las acciones de "Mis pedidos" no cabían en la tarjeta  ✅ ARREGLADO
+
+- **Ruta/pantalla:** `/dashboard`, sección "Mis pedidos".
+- **Persona:** Acudiente.
+- **Esperado:** Pagar, Rearmar kit y Cancelar a la vista en cada pedido pendiente.
+- **Observado:** la quinta columna se apilaba en vertical y se cortaba por la derecha
+  ("Venc…", "Rea…", "Can…").
+- **Causa:** cinco columnas no caben en el ancho de la tarjeta del panel.
+- **Arreglo aplicado:** la tabla vuelve a cuatro columnas; las acciones van en una franja a
+  todo el ancho bajo el pedido, y "Vencido" pasa a la columna Estado.
+
+---
+
+## G-14 — El botón Pagar de "Mis pedidos" se veía como texto plano  ✅ SIN CAMBIO DE CÓDIGO
+
+- **Ruta/pantalla:** `/dashboard`, sección "Mis pedidos".
+- **Persona:** Acudiente.
+- **Observado:** "Pagar" sin fondo ni forma de botón.
+- **Investigación:** el CSS compilado en `.next/dev/static/chunks` sí traía la regla del
+  botón con su degradado. La pestaña tenía los estilos de antes del cambio.
+- **Resolución:** recargar la página. Igual que G-06, era el navegador y no el código.
+
+---
+
 ## Pendiente de recorrer
 
 - **Acudiente (:3000):** armar lista → resolución → los tres kits
   (Ahorrador/Premium/Fan) → inicio de checkout. Vigilar el display
-  `fidelidad` vs `resolucion_auto` (semántica cambiada en Parte B).
+  `fidelidad` vs `resolucion_auto` (semántica cambiada en Parte B). El tramo
+  **checkout → pago → resultado → "Mis pedidos"** se recorrió el 2026-10-02 y 03
+  con Wompi sandbox (tarjeta aprobada y rechazada, PSE): ver G-09 a G-14.
 - **Operador (:3001):** cola de revisión, validación de líneas, ruta rápida
   (`resueltos`). Desbloqueado (G-01 arreglado); pendiente de recorrer a mano.
 - **Colegio admin (:3001):** publicar/curar lista oficial, panel institucional.
