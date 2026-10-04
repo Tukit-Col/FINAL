@@ -475,7 +475,7 @@ Nunca se ocultan los otros dos.
 {
   "perfil": "Ahorrador",
   "razon": "Elegiste precio como lo más importante y el kit queda en $412.000, dentro de tu presupuesto.",
-  "dentro_de_presupuesto": true,
+  "dentro_de_presupuesto": true,   // null si no declaró presupuesto; solo false es pasarse
   "pesos_usados": { "precio": 0.35, "marca_exigida": 0.30, "calidad": 0.25, "personaje": 0.10 }
 }
 ```
