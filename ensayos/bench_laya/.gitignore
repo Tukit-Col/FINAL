@@ -1,0 +1,8 @@
+# Artefactos regenerables o pesados. Las instancias y el NSGA-II van comprimidos (.gz).
+instancias.json
+nsga.json
+resultados.json
+*.log
+*.avance.jsonl
+laya_B_fallida.json
+__pycache__/
