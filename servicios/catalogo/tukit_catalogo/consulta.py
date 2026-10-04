@@ -69,6 +69,10 @@ class Emparejamiento:
     atributos_impuestos: dict[str, Any]
     motivo: str
     opciones: tuple[Opcion, ...]
+    # El tipo del concepto reconocido (util, uniforme, no_comprar...). Viaja para
+    # que quien arma el kit sepa si el renglon se busca en el catalogo o es una
+    # linea informativa, sin adivinarlo del texto. Nulo si no se reconocio.
+    concepto_tipo_item: str | None = None
 
     def a_dict(self) -> dict[str, Any]:
         datos = asdict(self)
@@ -147,6 +151,7 @@ def emparejar(
             texto_corregido=corregido,
             estado="hueco_catalogo",
             concepto_codigo=concepto.get("codigo"),
+            concepto_tipo_item=concepto.get("tipo_item"),
             concepto_nombre=nombre,
             parecido=parecido,
             atributos_impuestos=impuestos,
@@ -164,6 +169,7 @@ def emparejar(
                 texto_corregido=corregido,
                 estado="abstencion",
                 concepto_codigo=concepto.get("codigo"),
+                concepto_tipo_item=concepto.get("tipo_item"),
                 concepto_nombre=nombre,
                 parecido=parecido,
                 atributos_impuestos=impuestos,
@@ -197,6 +203,7 @@ def emparejar(
         texto_corregido=corregido,
         estado="reconocido",
         concepto_codigo=concepto.get("codigo"),
+        concepto_tipo_item=concepto.get("tipo_item"),
         concepto_nombre=nombre,
         parecido=parecido,
         atributos_impuestos=impuestos,
@@ -246,6 +253,7 @@ async def cargar_indice(
             "nombre": f.nombre_canonico,
             "sinonimos": list(f.sinonimos or ()),
             "discriminantes": tuple(f.atributos_discriminantes or ()),
+            "tipo_item": f.tipo_item,
         }
         for f in await conexion.execute(
             select(
@@ -254,6 +262,7 @@ async def cargar_indice(
                 concepto.c.nombre_canonico,
                 concepto.c.sinonimos,
                 concepto.c.atributos_discriminantes,
+                concepto.c.tipo_item,
             ).where(concepto.c.activo.is_(True))
         )
     ]

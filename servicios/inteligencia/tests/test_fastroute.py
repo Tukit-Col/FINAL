@@ -244,6 +244,41 @@ class TestRutaRapidaVerificada:
         assert all(r.estado == EstadoResolucion.RESUELTO_AUTO.value for r in surtibles)
         assert {r.concepto_codigo for r in surtibles} == {"C001", "C009", "C004"}
 
+    async def test_un_concepto_sin_productos_no_tumba_el_trabajo(self, motor):
+        """Lo que paso con la lista de Jardin de CACS: "muda de ropa" (concepto
+        no_comprar, sin productos) y un util de un concepto recien creado sin
+        productos se resolvian RESUELTO_AUTO sin candidato, el CHECK lo rechazaba
+        y el acudiente veia "Algo se rompio" en vez de su kit."""
+        from sqlalchemy import select
+
+        catalogo = _catalogo_verificado()
+        catalogo.items_resueltos += [
+            _item_resuelto(5, "Muda de ropa marcada", "C067", [], tipo_item="no_comprar"),
+            _item_resuelto(6, "1 pliego de papel bond", "C129", []),
+        ]
+        trabajo_id, estado = await _crear_y_procesar(motor, catalogo)
+
+        assert estado == EstadoTrabajo.ESPERA_REVISION.value
+        async with motor.engine.begin() as conexion:
+            por_concepto = {
+                r.concepto_codigo: r.estado
+                for r in await conexion.execute(
+                    select(trabajos.RESOLUCION.c.concepto_codigo, trabajos.RESOLUCION.c.estado)
+                    .select_from(
+                        trabajos.RESOLUCION.join(
+                            trabajos.ITEM, trabajos.ITEM.c.id == trabajos.RESOLUCION.c.item_crudo_id
+                        )
+                    )
+                    .where(trabajos.ITEM.c.trabajo_id == trabajo_id)
+                )
+            }
+        # La muda no se busca en el catalogo: linea informativa, sin resolucion.
+        assert "C067" not in por_concepto
+        assert por_concepto["C129"] == EstadoResolucion.HUECO_CATALOGO.value
+        lineas = (await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"][0]["lineas"]
+        muda = next(linea for linea in lineas if linea["descripcion"].startswith("Muda"))
+        assert muda["informativa"] is True
+
     async def test_etapas_ok_con_fuente_lista_verificada(self, motor):
         catalogo = _catalogo_verificado()
         trabajo_id, _ = await _crear_y_procesar(motor, catalogo)

@@ -553,6 +553,64 @@ class TestAplicarCanonico:
         # El punzon quedo sin match y la licencia no pasa por el catalogo.
         assert cola["trabajos"][0]["lineas_a_revisar"] == 1
 
+    async def test_validar_sin_sku_una_linea_ambigua_toma_el_producto_de_los_kits(self, motor):
+        """El "Confirmar las elegidas" llega sin sku. En una linea AMBIGUA la
+        resolucion no tiene candidato (eligio el optimizador, kit por kit), y
+        validarla asi la dejaba resuelta y sin producto: 500 por el CHECK."""
+        from sqlalchemy import select, update
+
+        trabajo_id, _ = await _crear_y_procesar(motor)
+        async with motor.engine.begin() as conexion:
+            fila = (
+                await conexion.execute(
+                    select(trabajos.LINEA.c.item_crudo_id, trabajos.CANDIDATO.c.id)
+                    .select_from(
+                        trabajos.LINEA.join(trabajos.KIT, trabajos.KIT.c.id == trabajos.LINEA.c.kit_id).join(
+                            trabajos.CANDIDATO,
+                            (trabajos.CANDIDATO.c.item_crudo_id == trabajos.LINEA.c.item_crudo_id)
+                            & (trabajos.CANDIDATO.c.sku == trabajos.LINEA.c.sku),
+                        )
+                    )
+                    .where(trabajos.KIT.c.trabajo_id == trabajo_id)
+                    .limit(1)
+                )
+            ).first()
+            assert fila is not None, "el trabajo de prueba debe tener una linea con candidato"
+            item, candidato = fila
+            await conexion.execute(
+                update(trabajos.RESOLUCION)
+                .where(trabajos.RESOLUCION.c.item_crudo_id == item)
+                .values(estado=EstadoResolucion.AMBIGUO.value, candidato_item_id=None)
+            )
+
+        await trabajos.decidir_linea(motor, trabajo_id, item, estado=EstadoResolucion.RESUELTO_AUTO.value)
+
+        async with motor.engine.begin() as conexion:
+            resolucion = (
+                await conexion.execute(
+                    select(trabajos.RESOLUCION).where(trabajos.RESOLUCION.c.item_crudo_id == item)
+                )
+            ).one()
+        assert resolucion.estado == EstadoResolucion.RESUELTO_AUTO.value
+        assert resolucion.candidato_item_id == candidato
+
+    async def test_validar_una_linea_sin_ningun_producto_es_un_error_con_causa(self, motor):
+        from sqlalchemy import select
+
+        trabajo_id, _ = await _crear_y_procesar(motor)
+        async with motor.engine.begin() as conexion:
+            # El punzon (orden 4) quedo sin match: no hay candidato ni producto en los kits.
+            item = (
+                await conexion.execute(
+                    select(trabajos.ITEM.c.id).where(
+                        trabajos.ITEM.c.trabajo_id == trabajo_id, trabajos.ITEM.c.orden == 4
+                    )
+                )
+            ).scalar_one()
+
+        with pytest.raises(trabajos.SinProductoQueValidar):
+            await trabajos.decidir_linea(motor, trabajo_id, item, estado=EstadoResolucion.RESUELTO_AUTO.value)
+
     async def test_validar_una_linea_deja_quien_y_cuando(self, motor):
         from sqlalchemy import select
 

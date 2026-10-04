@@ -45,7 +45,7 @@ from .optimizador import (
     armar_los_tres,
     unidades_a_comprar,
 )
-from .parseo import mensaje_para_papa, parsear_renglon
+from .parseo import BUSCA_EN_CATALOGO, Demanda, mensaje_para_papa, parsear_renglon
 from .remoto import ClienteCatalogo, ClienteComercio, ClienteIdentidad, RemotoCaido
 
 TRABAJO = Base.metadata.tables["trabajo_pipeline"]
@@ -122,6 +122,10 @@ class TrabajoProtegido(Exception):
     def __init__(self, estado: str) -> None:
         super().__init__(f"un trabajo en {estado} esta protegido contra borrado")
         self.estado = estado
+
+
+class SinProductoQueValidar(Exception):
+    """Se pidio validar una linea que no tiene producto que confirmar."""
 
 
 class PreviewNoPublicable(Exception):
@@ -354,6 +358,34 @@ def _normalizar(renglones: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return normalizados
 
 
+def _mensaje_por_tipo(texto: str, tipo: str, modo: str) -> str:
+    """El aviso de una linea que no se busca en el catalogo, por su tipo y modo."""
+    return mensaje_para_papa(Demanda(texto=texto, tipo_item=tipo, modo_adquisicion=modo, cantidad=1))
+
+
+def _tipo_del_concepto_manda(renglon: dict[str, Any], respuesta: dict[str, Any]) -> bool:
+    """Si el concepto reconocido dice que el renglon NO se compra en el catalogo.
+
+    El parseo adivina el tipo por el texto y casi siempre dice `util`; el
+    concepto es un dato curado ("Uniforme", "Lo entrega el colegio",
+    "Audifonos de diadema" como `otro`). Cuando el concepto no se surte, el
+    renglon toma su tipo y queda como linea informativa, igual que en la ruta
+    rapida: sin esto, la previsualizacion intentaba venderle un uniforme al
+    acudiente y mostraba "sin producto". Un tipo que la lista oficial ya
+    declaro para el renglon manda sobre el del concepto.
+
+    Muta el renglon (es el mismo dict que lee la optimizacion) y devuelve si
+    hay que sacarlo de la resolucion.
+    """
+    tipo = respuesta.get("concepto_tipo_item")
+    if not tipo or tipo in BUSCA_EN_CATALOGO or renglon.get("tipo_item_lista"):
+        return False
+    renglon["tipo_item"] = tipo
+    renglon["busca_en_catalogo"] = False
+    renglon["mensaje"] = _mensaje_por_tipo(renglon["texto"], tipo, renglon["modo_adquisicion"])
+    return True
+
+
 def estado_desde_emparejamiento(emparejamiento: dict[str, Any], umbral: float) -> str:
     """Traduce el vocabulario del catalogo al `EstadoResolucion` del contrato.
 
@@ -568,7 +600,26 @@ async def _procesar_verificado(
                 ids_item[(hijo, orden)] = item_id
 
                 candidatos = tuple(_candidato(c) for c in (item.get("candidatos") or ()))
-                surtible = item.get("concepto_codigo") is not None
+                tipo = item.get("tipo_item") or "util"
+                modo = item.get("modo_adquisicion") or "mercado_abierto"
+                # La misma puerta que la ruta lenta (`busca_en_catalogo`): solo lo
+                # que se compra en el catalogo lleva resolucion con producto. Lo
+                # demas (no_comprar, uniforme, licencia, edicion exclusiva) es una
+                # linea informativa sin resolucion, como alla.
+                surtible = (
+                    item.get("concepto_codigo") is not None
+                    and tipo in BUSCA_EN_CATALOGO
+                    and modo in {"mercado_abierto", "libro_libre"}
+                )
+                estado = EstadoResolucion.RESUELTO_AUTO.value
+                if surtible and not candidatos:
+                    # Un util curado cuyo concepto todavia no tiene productos (un
+                    # concepto recien creado). Resolverlo sin producto violaba
+                    # `resolucion_resuelta_tiene_candidato` y tumbaba el trabajo
+                    # entero; es un hueco del catalogo y asi se marca.
+                    estado = EstadoResolucion.HUECO_CATALOGO.value
+                elif not surtible and tipo == "texto" and modo in {"mercado_abierto", "libro_libre"}:
+                    estado = EstadoResolucion.SIN_MATCH.value
 
                 await conexion.execute(
                     insert(ITEM).values(
@@ -579,8 +630,8 @@ async def _procesar_verificado(
                         texto=item["texto_original"],
                         cantidad=int(item.get("cantidad") or 1),
                         unidad_base=(candidatos[0].unidad_base if candidatos else "unidad"),
-                        tipo_item=item.get("tipo_item") or "util",
-                        modo_adquisicion=item.get("modo_adquisicion") or "mercado_abierto",
+                        tipo_item=tipo,
+                        modo_adquisicion=modo,
                         instruccion_colegio=item.get("instruccion_colegio"),
                         url_externa=item.get("url_externa"),
                         nota=None,
@@ -616,18 +667,23 @@ async def _procesar_verificado(
                             )
                         )
 
+                    motivo = (
+                        "resuelto desde lista verificada"
+                        if candidatos
+                        else "lista verificada: el concepto aun no tiene productos"
+                    )
                     resolucion_id = uuid.uuid4()
                     await conexion.execute(
                         insert(RESOLUCION).values(
                             id=resolucion_id,
                             item_crudo_id=item_id,
-                            estado=EstadoResolucion.RESUELTO_AUTO.value,
+                            estado=estado,
                             concepto_codigo=item.get("concepto_codigo"),
                             concepto_nombre=item.get("concepto_nombre"),
                             parecido=1.0,
                             candidato_item_id=elegido_id,
                             atributos_impuestos={},
-                            motivo="resuelto desde lista verificada",
+                            motivo=motivo,
                         )
                     )
                     await conexion.execute(
@@ -635,8 +691,8 @@ async def _procesar_verificado(
                             id=uuid.uuid4(),
                             resolucion_item_id=resolucion_id,
                             estado_anterior=None,
-                            estado_nuevo=EstadoResolucion.RESUELTO_AUTO.value,
-                            motivo="resuelto desde lista verificada",
+                            estado_nuevo=estado,
+                            motivo=motivo,
                         )
                     )
 
@@ -645,16 +701,22 @@ async def _procesar_verificado(
                         hijo=hijo,
                         orden=orden,
                         texto=item["texto_original"],
-                        tipo_item=item.get("tipo_item") or "util",
-                        modo_adquisicion=item.get("modo_adquisicion") or "mercado_abierto",
+                        tipo_item=tipo,
+                        modo_adquisicion=modo,
                         cantidad=int(item.get("cantidad") or 1),
-                        estado_resolucion=EstadoResolucion.RESUELTO_AUTO.value,
+                        estado_resolucion=estado,
                         unidad_base=(candidatos[0].unidad_base if candidatos else "unidad"),
                         concepto_codigo=item.get("concepto_codigo"),
                         concepto_nombre=item.get("concepto_nombre"),
                         parecido=1.0,
                         candidatos=candidatos,
-                        mensaje=None,
+                        # Lo que no se surte dice por que y que hacer, igual que
+                        # en la ruta lenta; antes salia mudo, como un faltante.
+                        mensaje=(
+                            None
+                            if surtible
+                            else _mensaje_por_tipo(item["texto_original"], tipo, modo) or None
+                        ),
                         instruccion_colegio=item.get("instruccion_colegio"),
                         url_externa=item.get("url_externa"),
                         nota=None,
@@ -831,6 +893,8 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
         if buscables:
             respuestas = await catalogo.emparejar([r["texto"] for r in buscables])
             for renglon, respuesta in zip(buscables, respuestas, strict=False):
+                if _tipo_del_concepto_manda(renglon, respuesta):
+                    continue
                 emparejados[(renglon["hijo"], renglon["orden"])] = respuesta
         ms = int((time.monotonic() - reloj) * 1000)
 
@@ -1574,6 +1638,18 @@ async def decidir_linea(
             )
             candidato_id = elegido
 
+        validando = estado == EstadoResolucion.RESUELTO_AUTO.value
+        if validando and candidato_id is None:
+            # "Confirmar el que eligio el sistema" llega sin sku. Una linea
+            # AMBIGUA no tiene candidato en la resolucion: quien eligio fue el
+            # optimizador, kit por kit, y eso vive en LINEA. Se toma el candidato
+            # que pusieron mas kits; sin esto, la validacion quedaba resuelta y
+            # sin producto, y el CHECK `resolucion_resuelta_tiene_candidato` la
+            # tumbaba con un 500.
+            candidato_id = await _candidato_elegido_en_kits(conexion, trabajo_id, item_id)
+        if validando and candidato_id is None:
+            raise SinProductoQueValidar(f"{trabajo_id}/{item_id}")
+
         await conexion.execute(
             insert(TRANSICION).values(
                 id=uuid.uuid4(),
@@ -1595,6 +1671,23 @@ async def decidir_linea(
             )
         )
     return {"item_id": str(item_id), "estado": estado, "sku": sku}
+
+
+async def _candidato_elegido_en_kits(conexion: Any, trabajo_id: uuid.UUID, item_id: uuid.UUID) -> Any:
+    """El candidato del item que mas kits de este trabajo pusieron en su linea."""
+    return await conexion.scalar(
+        select(CANDIDATO.c.id)
+        .select_from(
+            LINEA.join(KIT, KIT.c.id == LINEA.c.kit_id).join(
+                CANDIDATO,
+                and_(CANDIDATO.c.item_crudo_id == LINEA.c.item_crudo_id, CANDIDATO.c.sku == LINEA.c.sku),
+            )
+        )
+        .where(KIT.c.trabajo_id == trabajo_id, LINEA.c.item_crudo_id == item_id)
+        .group_by(CANDIDATO.c.id, CANDIDATO.c.sku)
+        .order_by(func.count().desc(), CANDIDATO.c.sku)
+        .limit(1)
+    )
 
 
 async def fijar_producto_en_linea(

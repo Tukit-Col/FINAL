@@ -980,6 +980,12 @@ async def validar_linea(trabajo_id: uuid.UUID, item_id: uuid.UUID, decision: Dec
         )
     except trabajos.TrabajoNoExiste as error:
         raise ErrorDominio("linea_no_existe", "Ese trabajo no tiene esa linea.", estado=404) from error
+    except trabajos.SinProductoQueValidar as error:
+        raise ErrorDominio(
+            "sin_producto_que_validar",
+            "Esta linea no tiene un producto elegido. Elige uno en la linea o marcala sin coincidencia.",
+            estado=409,
+        ) from error
 
 
 @app.put(
