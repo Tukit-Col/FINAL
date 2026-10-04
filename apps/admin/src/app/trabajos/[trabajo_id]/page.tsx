@@ -11,6 +11,7 @@ import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import BorrarTrabajo from "@/components/BorrarTrabajo";
 import ConsolaRevision from "@/components/ConsolaRevision";
 import DecisionTrabajo from "@/components/DecisionTrabajo";
+import { resumenPendientes } from "@/lib/consola";
 import {
   formatearFecha,
   haceCuanto,
@@ -103,10 +104,12 @@ export default async function PaginaTrabajo({ params }: Props) {
             </span>
             <span
               className={
-                trabajo.lineas_pendientes.length > 0 ? styles.pendientes : styles.sinPendientes
+                trabajo.lineas_sin_decidir + trabajo.huecos > 0
+                  ? styles.pendientes
+                  : styles.sinPendientes
               }
             >
-              {trabajo.lineas_pendientes.length} líneas pendientes
+              {resumenPendientes(trabajo.lineas_sin_decidir, trabajo.huecos)}
             </span>
           </div>
 

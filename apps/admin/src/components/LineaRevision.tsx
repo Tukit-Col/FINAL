@@ -193,7 +193,10 @@ export default function LineaRevision({
                 confianza {porcentaje(producto.confianza)}
               </span>
               {papel === "elegido" ? (
-                <span className={styles.insignia}>elegido por el sistema</span>
+                // "elegido" a secas: la línea no registra si lo eligió el
+                // sistema o un revisor (`fijar_producto_en_linea` no guarda
+                // quién), así que no se afirma ninguno de los dos.
+                <span className={styles.insignia}>elegido</span>
               ) : null}
             </span>
           </span>

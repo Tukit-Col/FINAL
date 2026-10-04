@@ -2,7 +2,8 @@
 // ve el panel entero, no la cola. La cola vive en `/cola`.
 //
 // TODAS las cifras salen de datos REALES del backend, leídas por el gateway:
-// la cola de revisión (`cola`), el catálogo (`catalogo`), los pedidos
+// la cola de revisión (`cola` + las listas pendientes, contadas con la misma
+// regla que `/cola` vía `lib/cola`), el catálogo (`catalogo`), los pedidos
 // (`pedidos`), los casos (`casos`), los colegios (`colegios` + `metricasColegio`
 // en vivo) y la traza congelada por día (`metricasSerie`). No se inventa ni un
 // número.
@@ -40,7 +41,7 @@ import {
 } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import Revelar from "@/components/Revelar";
-import { separarCola } from "@/lib/cola";
+import { armarCola } from "@/lib/cola";
 import { tokenDeSesion } from "@/lib/sesion";
 import styles from "./Panel.module.css";
 
@@ -77,8 +78,9 @@ export default async function PaginaPanel() {
 
   // Un solo golpe de lecturas independientes. `allSettled` para que una caída no
   // tumbe a las demás: cada sección decide qué pintar con lo que llegó.
-  const [colaR, catalogoR, pedidosR, casosR, colegiosR, serieR] = await Promise.allSettled([
+  const [colaR, listasR, catalogoR, pedidosR, casosR, colegiosR, serieR] = await Promise.allSettled([
     api.cola(),
+    api.listasAdmin({ revisada: false }),
     api.catalogo(),
     token ? api.pedidos(token) : Promise.reject(new ErrorTukit(401, "sesion_invalida", "Sin sesion.")),
     api.casos(),
@@ -87,6 +89,7 @@ export default async function PaginaPanel() {
   ]);
 
   const cola = colaR.status === "fulfilled" ? colaR.value : null;
+  const listasPendientes = listasR.status === "fulfilled" ? listasR.value : null;
   const catalogo = catalogoR.status === "fulfilled" ? catalogoR.value : null;
   const pedidos = pedidosR.status === "fulfilled" ? pedidosR.value : null;
   const pedidosSinPermiso =
@@ -99,10 +102,10 @@ export default async function PaginaPanel() {
 
   // --- Cola de revisión ---
   const entradas = cola?.entradas ?? [];
-  // Solo los de acudiente: una vista previa de lista también espera revisión,
-  // pero es el borrador del admin, no alguien esperando (ver `lib/cola`).
-  const enEspera = separarCola(entradas).deAcudiente;
-  const lineasPendientes = enEspera.reduce((t, e) => t + e.lineas_pendientes, 0);
+  // Los mismos conteos que `/cola`. Sin las listas pendientes (catálogo
+  // caído) no se sabe qué vistas previas siguen vigentes: esas cifras se
+  // muestran como "—" en vez de contar de menos.
+  const { conteos } = armarCola({ versiones: listasPendientes ?? [], entradas });
   const publicados = entradas.filter((e) => e.estado === "publicado").length;
   const porEstado = entradas.reduce<Record<EstadoTrabajo, number>>(
     (acc, e) => {
@@ -160,19 +163,27 @@ export default async function PaginaPanel() {
           <Revelar>
             <section className={styles.tarjetas} aria-label="Métricas de la cola">
               <Tarjeta
-                etiqueta="Esperando revisión"
-                valor={enEspera.length}
-                pista="Trabajos que necesitan una persona ahora"
+                etiqueta="Listas por verificar"
+                valor={listasPendientes ? conteos.listasPorVerificar : "—"}
+                pista="Una por lista pendiente, con su vista previa o su kit del grado"
                 Icono={ClipboardList}
-                aviso={enEspera.length > 0}
+                aviso={listasPendientes !== null && conteos.listasPorVerificar > 0}
                 href="/cola"
               />
               <Tarjeta
-                etiqueta="Líneas por resolver"
-                valor={lineasPendientes}
-                pista="Renglones pendientes en esos trabajos"
+                etiqueta="Kits de acudientes por aprobar"
+                valor={conteos.kitsDeAcudientes}
+                pista="Un acudiente espera que alguien los apruebe"
+                Icono={ClipboardList}
+                aviso={conteos.kitsDeAcudientes > 0}
+                href="/cola"
+              />
+              <Tarjeta
+                etiqueta="Dudosas sin decidir"
+                valor={listasPendientes ? conteos.dudosasSinDecidir : "—"}
+                pista="Productos por confirmar en lo que está en la cola"
                 Icono={TriangleAlert}
-                aviso={lineasPendientes > 0}
+                aviso={listasPendientes !== null && conteos.dudosasSinDecidir > 0}
                 href="/cola"
               />
               <Tarjeta

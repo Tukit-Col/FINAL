@@ -187,6 +187,11 @@ export default async function PaginaRevisionLista({ params }: Props) {
           {vistaPrevia && !revision.revisada ? (
             <div className={styles.vistaPrevia}>
               <strong>Hay una vista previa ajustada</strong>
+              {vistaPrevia.desactualizada ? (
+                // Misma comparación que hace la promoción al aprobar: si dice
+                // desactualizada, aprobar NO usaría estos ajustes.
+                <span>La lista cambió después de previsualizar: vuelve a previsualizar.</span>
+              ) : null}
               <span>
                 {vistaPrevia.lineas_sin_decidir === 0
                   ? "Todas sus líneas dudosas están decididas."
@@ -211,6 +216,8 @@ export default async function PaginaRevisionLista({ params }: Props) {
             colegioId={revision.colegio_id}
             grado={revision.grado}
             revisada={revision.revisada}
+            vistaPrevia={vistaPrevia}
+            tieneContacto={revision.tiene_contacto}
           />
         </section>
       </div>

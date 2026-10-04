@@ -30,9 +30,10 @@ export interface DatosRevisor {
   // null = la versión no tiene documento original (`sin_evidencia`).
   percepcion: PercepcionCruda | null;
   catalogo: Catalogo;
-  // null = no hay vista previa en espera (o no se pudo leer: es un aviso, no
-  // debe impedir revisar la lista).
-  vistaPrevia: VistaPreviaLista | null;
+  // null = no hay vista previa en espera; undefined = no se pudo leer (el
+  // catálogo no respondió al compararla). No impide revisar la lista, pero la
+  // guarda de "Aprobar" no puede afirmar que no la hay (ver `lib/aprobar`).
+  vistaPrevia: VistaPreviaLista | null | undefined;
 }
 
 function esError(causa: unknown, estado: number, codigo: string): boolean {
@@ -72,6 +73,6 @@ export async function cargarRevisor(
     revision: revision.value,
     percepcion: percepcionLeida,
     catalogo: catalogo.value,
-    vistaPrevia: vistaPrevia.status === "fulfilled" ? vistaPrevia.value : null,
+    vistaPrevia: vistaPrevia.status === "fulfilled" ? vistaPrevia.value : undefined,
   };
 }
