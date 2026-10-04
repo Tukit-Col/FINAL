@@ -23,9 +23,8 @@ del algoritmo se conserva palabra por palabra:
   DESPUES del frente, no dentro**: un frente de Pareto no debe esconder un kit
   valido por caro, sino ofrecerlo para que la capa de recomendacion elija con
   su explicacion (§6). Meter el presupuesto como restriccion del NSGA-II
-  recortaria el frente. En cambio, cuando el Premium no cabe, se toma del
-  frente ya calculado la mejor marca que si cabe
-  (`_ajustar_premium_al_presupuesto`).
+  recortaria el frente. En cambio, el kit `A tu Medida` toma del frente ya
+  calculado la mejor marca que cabe en el tope (`_armar_a_tu_medida`).
 
 **pymoo es dependencia dura.** No hay ruta "sin pymoo": si falta, el servicio no
 arranca (el import esta arriba, sin `try`). La version anterior degradaba a la
@@ -235,9 +234,6 @@ class KitArmado:
     recomendado: bool = False
     razon: str | None = None
     dentro_de_presupuesto: bool | None = None
-    # El Premium se reemplazo por la mejor marca que cabe en el presupuesto
-    # (`armar_los_tres`). Solo lo lee `recomendar` para explicar la razon.
-    ajustado_a_presupuesto: bool = False
 
 
 @dataclass(frozen=True)
@@ -957,9 +953,7 @@ def _tope(preferencias: dict[str, Any]) -> int | None:
     No se estira con `disposicion_sobreprecio`. Antes si (hasta un 10 %), y un
     acudiente que escribia "maximo $350.000" podia recibir un kit de $385.000:
     el sobreprecio dice cuanto mas pagaria por marca SIN tope, no cuanto se
-    puede pasar del tope que el mismo puso (§3: restriccion DURA). Lo comparten
-    `recomendar` y el ajuste del Premium en `armar_los_tres`, para que los dos
-    midan contra el mismo numero.
+    puede pasar del tope que el mismo puso (§3: restriccion DURA).
     """
     presupuesto = preferencias.get("presupuesto_por_hijo")
     if not isinstance(presupuesto, int) or presupuesto <= 0:
@@ -967,62 +961,114 @@ def _tope(preferencias: dict[str, Any]) -> int | None:
     return presupuesto
 
 
-def recomendar(kits: list[KitArmado], preferencias: dict[str, Any]) -> list[KitArmado]:
-    """Marca UNO y no oculta los otros dos. La regla sale de la encuesta.
+def _pesos(valor: int) -> str:
+    """Pesos como los lee un papa colombiano: `$443.255`, no `$443,255`."""
+    return "$" + f"{valor:,}".replace(",", ".")
 
-    - `Fan` solo con `personaje_por_hijo` explicito. El personaje quedo ultimo
-      en la P21, y tiene sentido: el que paga es el papa y el que quiere el
-      personaje es el hijo.
-    - Con presupuesto declarado, `Premium`: la mejor marca que cabe. Quien pone
-      un tope dice cuanto esta dispuesto a gastar, y dentro de ese tope gana la
-      calidad; quien solo quiere lo mas barato no necesita declarar un tope.
-      Cuando el Premium no cabe, `armar_los_tres` ya lo cambio por el mejor
-      punto del frente que si cabe (`ajustado_a_presupuesto`).
-    - Sin presupuesto, por omision `Ahorrador`: 42 de 60 encuestados pagan como
-      maximo 5 % mas y 15 exigen precio igual o menor.
-    - `Premium` sin presupuesto solo si el acudiente pone calidad primero Y
-      declara al menos un 10 % de disposicion a pagar de mas.
-    - Si el recomendado excede el presupuesto, se cae al kit de mejor marca que
-      si quepa (no al mas barato) y la razon lo dice.
+
+def quiere_fan(preferencias: dict[str, Any]) -> bool:
+    """El kit Fan solo existe si el acudiente pidio un personaje (ADR 0030)."""
+    return any(preferencias.get("personaje_por_hijo") or {})
+
+
+def quiere_a_tu_medida(preferencias: dict[str, Any]) -> bool:
+    """`A tu Medida` solo existe si eligio el punto medio o declaro un tope."""
+    return preferencias.get("prioridad") == "equilibrio" or _tope(preferencias) is not None
+
+
+def _tope_de_a_tu_medida(
+    preferencias: dict[str, Any], ahorrador: KitArmado, premium: KitArmado
+) -> tuple[int, bool]:
+    """El tope contra el que se arma `A tu Medida`, y si lo puso el acudiente.
+
+    Sin tope declarado se usa la mitad de camino entre el Ahorrador y el
+    Premium: subir de marca donde vale la pena sin llegar a pagar el Premium.
+    Es el mismo criterio con el que el benchmark Laya vs NSGA-II fijo el
+    presupuesto de su escenario intermedio.
+    """
+    tope = _tope(preferencias)
+    if tope is not None:
+        return tope, True
+    return (ahorrador.total_cop + premium.total_cop) // 2, False
+
+
+def _mismos_productos(a: KitArmado, b: KitArmado) -> bool:
+    def skus(kit: KitArmado) -> list[str | None]:
+        return [linea.elegido.sku if linea.elegido else None for linea in kit.lineas]
+
+    return skus(a) == skus(b)
+
+
+def recomendar(kits: list[KitArmado], preferencias: dict[str, Any]) -> list[KitArmado]:
+    """Marca UNO y no oculta los demas. La regla sale de la encuesta.
+
+    - `Fan` si el acudiente pidio un personaje: es el unico kit que lo trae.
+    - `A tu Medida` si eligio el punto medio (o declaro un tope): es el kit que
+      se armo para eso. Si no se armo —ninguna mejora de marca cabe, o el tope
+      alcanza para el Premium entero—, la razon dice por que se marca otro.
+    - `Premium` si pone la calidad primero Y declara al menos un 10 % de
+      disposicion a pagar de mas.
+    - Por omision `Ahorrador`: 42 de 60 encuestados pagan como maximo 5 % mas
+      y 15 exigen precio igual o menor.
+    - Con tope, si el marcado no cabe se cae al kit de mejor marca que si quepa
+      (no al mas barato); si ninguno cabe, se marca el mas barato y la razon dice
+      cuanto cuesta.
     """
     if not kits:
         return kits
 
     pesos = {**PESOS_POR_OMISION, **(preferencias.get("pesos") or {})}
-    presupuesto = preferencias.get("presupuesto_por_hijo")
     sobreprecio = float(preferencias.get("disposicion_sobreprecio") or 0.0)
-    personajes = preferencias.get("personaje_por_hijo") or {}
     tope = _tope(preferencias)
 
     por_perfil = {kit.perfil: kit for kit in kits}
+    ahorrador = por_perfil.get(PerfilKit.AHORRADOR.value)
+    premium = por_perfil.get(PerfilKit.PREMIUM.value)
     calidad_primero = pesos.get("calidad", 0) >= max(
         pesos.get("precio", 0), pesos.get("marca_exigida", 0), pesos.get("personaje", 0)
     )
 
-    if personajes and pesos.get("personaje", 0) > 0 and PerfilKit.FAN.value in por_perfil:
+    if quiere_fan(preferencias) and PerfilKit.FAN.value in por_perfil:
         elegido, razon = (
             PerfilKit.FAN.value,
-            "Pediste personajes para tus hijos, asi que este es el kit que los incluye.",
+            "Pediste un personaje, así que este es el kit que lo trae.",
         )
-    elif tope is not None and PerfilKit.PREMIUM.value in por_perfil:
-        elegido = PerfilKit.PREMIUM.value
-        if por_perfil[elegido].ajustado_a_presupuesto:
-            razon = (
-                f"Ajustamos el kit de mejor marca a tu presupuesto de ${presupuesto:,}: "
-                f"es la mejor calidad que cabe."
+    elif PerfilKit.A_TU_MEDIDA.value in por_perfil and ahorrador and premium:
+        elegido = PerfilKit.A_TU_MEDIDA.value
+        tope_kit, declarado = _tope_de_a_tu_medida(preferencias, ahorrador, premium)
+        razon = (
+            f"Es la mejor marca que cabe en tu tope de {_pesos(tope_kit)}."
+            if declarado
+            else (
+                "Sube de marca donde vale la pena, sin pasar de la mitad de camino al "
+                f"Premium ({_pesos(tope_kit)})."
             )
+        )
+    elif quiere_a_tu_medida(preferencias) and ahorrador and premium:
+        # Pidio el punto medio pero no hubo un kit distinto que armar.
+        tope_kit, declarado = _tope_de_a_tu_medida(preferencias, ahorrador, premium)
+        if premium.total_cop <= tope_kit:
+            elegido = PerfilKit.PREMIUM.value
+            razon = f"Tu tope de {_pesos(tope_kit)} alcanza para el kit de mejor marca."
         else:
-            razon = f"Con tu presupuesto de ${presupuesto:,} te alcanza para el kit de mejor marca."
-    elif calidad_primero and sobreprecio >= 0.10 and PerfilKit.PREMIUM.value in por_perfil:
+            elegido = PerfilKit.AHORRADOR.value
+            razon = (
+                f"Con {_pesos(tope_kit)} no alcanza para subir de marca: este es el kit que cabe."
+                if ahorrador.total_cop <= tope_kit
+                else "No hay un punto medio que mejore la marca sin subir el precio."
+            )
+    elif calidad_primero and sobreprecio >= 0.10 and premium:
         elegido, razon = (
             PerfilKit.PREMIUM.value,
-            "Pusiste la calidad primero y aceptas pagar hasta un 10 % mas.",
+            "Pusiste la calidad primero y aceptas pagar un poco más.",
         )
     else:
         elegido, razon = (
             PerfilKit.AHORRADOR.value,
-            "Elegiste precio como lo mas importante y este es el kit mas barato.",
+            "Elegiste gastar lo menos posible y este es el kit más barato.",
         )
+    if elegido not in por_perfil:
+        elegido = kits[0].perfil
 
     # El presupuesto es una cota DURA, no un gusto. Es el uso mas valioso de la
     # encuesta: convierte una opinion en una restriccion que se puede imponer.
@@ -1037,16 +1083,16 @@ def recomendar(kits: list[KitArmado], preferencias: dict[str, Any]) -> list[KitA
                 # dejaba el kit recomendado en el 40 % de la calidad posible.
                 elegido = max(caben, key=lambda k: (k.objetivos["fidelidad"], -k.total_cop)).perfil
                 razon = (
-                    f"El kit que pediste se pasa de tu presupuesto de ${presupuesto:,}, "
-                    f"asi que te recomiendo este, que si cabe."
+                    f"El kit que pediste se pasa de tu tope de {_pesos(tope)}, "
+                    "así que te marcamos este, que sí cabe."
                 )
                 cabe = True
             else:
-                razon = (
-                    f"Ningun kit cabe en tu presupuesto de ${presupuesto:,}. "
-                    f"Este es el mas barato que puedo armar."
-                )
                 elegido = mas_barato.perfil
+                razon = (
+                    f"Ningún kit cabe en tu tope de {_pesos(tope)}: el más barato que se puede "
+                    f"armar con esta lista cuesta {_pesos(mas_barato.total_cop)}."
+                )
 
     return [
         replace(
@@ -1062,13 +1108,17 @@ def recomendar(kits: list[KitArmado], preferencias: dict[str, Any]) -> list[KitA
 def armar_los_tres(
     renglones: list[Renglon], preferencias: dict[str, Any] | None = None, *, semilla: int = 0
 ) -> list[KitArmado]:
-    """Los tres perfiles, con uno marcado. El punto de entrada de la etapa.
+    """Los kits del acudiente, con uno marcado. El punto de entrada de la etapa.
 
-    Calcula UN frente de Pareto y proyecta cada perfil sobre el —los tres kits
-    son tres puntos del mismo frente, comparables entre si—. Si el frente esta
-    vacio (nada que optimizar) cae a la heuristica, que da el mismo kit. La
-    `semilla` hace el NSGA-II reproducible: los scripts no pueden llamar al RNG
-    en import, asi que se inyecta por parametro.
+    Siempre `Ahorrador` y `Premium`. `Fan` solo si pidio un personaje y `A tu
+    Medida` solo si eligio el punto medio o declaro un tope (ADR 0030): un kit
+    que nadie pidio es ruido en la pantalla y trabajo para el revisor. Por eso
+    los canonicos de una lista (sin preferencias) son solo dos.
+
+    Calcula UN frente de Pareto y proyecta cada perfil sobre el —los kits son
+    puntos del mismo frente, comparables entre si—. Si el frente esta vacio
+    (nada que optimizar) cae a la heuristica, que da el mismo kit. La `semilla`
+    hace el NSGA-II reproducible. (El nombre se conserva por sus llamadores.)
     """
     preferencias = preferencias or {}
     frente = optimizar_frente(renglones, preferencias, semilla=semilla)
@@ -1088,54 +1138,53 @@ def armar_los_tres(
             if clave in por_linea and sku in por_linea[clave]
         }
 
-    kits: list[KitArmado] = []
-    for perfil in PerfilKit:
+    def proyectado(perfil: PerfilKit) -> KitArmado:
         punto = _proyectar(frente, perfil.value) if frente else None
-        kits.append(armar_kit(renglones, perfil.value, preferencias, elecciones=elecciones_de(punto)))
+        return armar_kit(renglones, perfil.value, preferencias, elecciones=elecciones_de(punto))
 
-    kits = _ajustar_premium_al_presupuesto(kits, frente, renglones, preferencias, elecciones_de)
+    ahorrador = proyectado(PerfilKit.AHORRADOR)
+    premium = proyectado(PerfilKit.PREMIUM)
+    kits = [ahorrador]
+    if quiere_fan(preferencias):
+        kits.append(proyectado(PerfilKit.FAN))
+    if quiere_a_tu_medida(preferencias):
+        a_tu_medida = _armar_a_tu_medida(frente, renglones, preferencias, ahorrador, premium, elecciones_de)
+        if a_tu_medida is not None:
+            kits.append(a_tu_medida)
+    kits.append(premium)
     return recomendar(kits, preferencias)
 
 
-def _ajustar_premium_al_presupuesto(
-    kits: list[KitArmado],
+def _armar_a_tu_medida(
     frente: list[SolucionFrente],
     renglones: list[Renglon],
     preferencias: dict[str, Any],
+    ahorrador: KitArmado,
+    premium: KitArmado,
     elecciones_de: Callable[[SolucionFrente | None], dict[tuple[str, int], Candidato] | None],
-) -> list[KitArmado]:
-    """Con presupuesto, el Premium que no cabe pasa a ser la mejor marca que cabe.
+) -> KitArmado | None:
+    """La mejor marca del frente que cabe en el tope (o en la mitad de camino).
 
-    El contrato (§6) promete que, si el recomendado se pasa del presupuesto, se
-    cae "al siguiente punto del frente". Antes solo se miraban los tres kits y
-    se caia al mas barato: en el benchmark Laya vs NSGA-II eso lograba el 40 %
-    de la calidad posible, mientras el frente ya calculado traia un kit que
-    cabia y lograba el 94 %. Aqui se toma ese punto: el de mayor fidelidad con
-    costo dentro del tope (desempata el menor costo).
+    Es el punto de mayor fidelidad con costo dentro del tope (desempata el menor
+    costo). El benchmark Laya vs NSGA-II midio por que sale del frente y no de
+    los kits fijos: caer al mas barato lograba el 40 % de la calidad posible y el
+    frente traia un kit que cabia y lograba el 94 % (ADR 0029).
 
-    Ocupa el lugar del Premium porque es su mismo arquetipo —la mejor marca—
-    con la cota del acudiente, y asi el contrato, la base y las pantallas siguen
-    viendo tres kits. No se ajusta si no mejora la marca del Ahorrador: mostrar
-    dos veces el mismo kit esconderia el Premium sin ganar nada.
+    Devuelve `None` cuando no habria un kit distinto que mostrar: nada que
+    optimizar, ningun punto cabe, o el punto es el mismo Ahorrador o el mismo
+    Premium. Mostrar dos veces el mismo kit con otro nombre confunde.
     """
-    tope = _tope(preferencias)
-    por_perfil = {k.perfil: k for k in kits}
-    premium = por_perfil.get(PerfilKit.PREMIUM.value)
-    ahorrador = por_perfil.get(PerfilKit.AHORRADOR.value)
-    if tope is None or not frente or premium is None or premium.total_cop <= tope:
-        return kits
-
+    if not frente:
+        return None
+    tope, _ = _tope_de_a_tu_medida(preferencias, ahorrador, premium)
     caben = [s for s in frente if s.costo <= tope]
     if not caben:
-        return kits
+        return None
     punto = max(caben, key=lambda s: (s.fidelidad, -s.costo, s.disponibilidad))
-    ajustado = armar_kit(renglones, PerfilKit.PREMIUM.value, preferencias, elecciones=elecciones_de(punto))
-    if ajustado.total_cop > tope:
-        return kits
-    if ahorrador is not None and ajustado.objetivos["fidelidad"] <= ahorrador.objetivos["fidelidad"]:
-        return kits
-    ajustado = replace(ajustado, ajustado_a_presupuesto=True)
-    return [ajustado if k.perfil == PerfilKit.PREMIUM.value else k for k in kits]
+    kit = armar_kit(renglones, PerfilKit.A_TU_MEDIDA.value, preferencias, elecciones=elecciones_de(punto))
+    if kit.total_cop > tope or _mismos_productos(kit, ahorrador) or _mismos_productos(kit, premium):
+        return None
+    return kit
 
 
 def anclar_personaje(kit: KitArmado, personaje: str | None) -> KitArmado:

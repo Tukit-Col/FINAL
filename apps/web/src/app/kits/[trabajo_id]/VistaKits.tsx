@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Star, PiggyBank, Sparkles, Gem } from "lucide-react";
+import { Star, PiggyBank, Sparkles, Gem, SlidersHorizontal } from "lucide-react";
 import { prefiereMenosMovimiento } from "@tukit/contrato/motion";
 import {
   ORDEN_SECCIONES,
@@ -20,20 +20,26 @@ import { abrirWidgetWompi } from "@/lib/wompi";
 import LineaDeKit from "./LineaDeKit";
 import styles from "./Kits.module.css";
 
-// Un icono por perfil, para que los tres kits se distingan de un vistazo.
+// Un icono por perfil, para que los kits se distingan de un vistazo.
 const ICONO_PERFIL: Record<PerfilKit, typeof PiggyBank> = {
   Ahorrador: PiggyBank,
   Fan: Sparkles,
+  "A tu Medida": SlidersHorizontal,
   Premium: Gem,
 };
 
-// Que promete cada perfil, en una frase. Los tres tienen el MISMO alcance:
-// lo que cambia es el punto del frente de Pareto, no cuanto te resuelven.
+// Que promete cada perfil, en una frase. Todos tienen el MISMO alcance: lo que
+// cambia es el punto del frente de Pareto, no cuanto te resuelven.
 const PROMESA: Record<PerfilKit, string> = {
   Ahorrador: "Lo más barato que cumple con la lista.",
   Fan: "Con los personajes que pidió tu hijo, donde se puede.",
+  "A tu Medida": "La mejor marca que cabe en lo que quieres gastar.",
   Premium: "Las marcas que más aguantan el año.",
 };
+
+// Del más barato al de mejor marca: Ahorrador y Premium en las puntas y, entre
+// ellos, los que el acudiente pidió (Fan, A tu Medida).
+const ORDEN_PERFIL: PerfilKit[] = ["Ahorrador", "Fan", "A tu Medida", "Premium"];
 
 // Las secciones que NO se cobran se explican una vez, arriba del grupo, en
 // vez de repetir la misma aclaracion en cada renglon.
@@ -53,11 +59,15 @@ const EXPLICACION_SECCION: Partial<Record<ClaseLinea, string>> = {
 export default function VistaKits({ trabajo }: { trabajo: Trabajo }) {
   const recomendado = trabajo.recomendado;
   const [activo, setActivo] = useState<PerfilKit>(recomendado?.perfil ?? "Ahorrador");
-
-  const kit = useMemo(
-    () => trabajo.kits.find((k) => k.perfil === activo) ?? trabajo.kits[0],
-    [trabajo.kits, activo],
+  const kits = useMemo(
+    () =>
+      [...trabajo.kits].sort(
+        (a, b) => ORDEN_PERFIL.indexOf(a.perfil) - ORDEN_PERFIL.indexOf(b.perfil),
+      ),
+    [trabajo.kits],
   );
+
+  const kit = useMemo(() => kits.find((k) => k.perfil === activo) ?? kits[0], [kits, activo]);
 
   if (!kit) {
     return (
@@ -77,21 +87,21 @@ export default function VistaKits({ trabajo }: { trabajo: Trabajo }) {
   return (
     <div className={styles.pagina}>
       <header className={styles.encabezado}>
-        <h1>{eligioEl ? "Tu kit está listo" : "Tus tres kits están listos"}</h1>
+        <h1>{eligioEl ? "Tu kit está listo" : "Tus kits están listos"}</h1>
         <p>
           {eligioEl
-            ? "Este es el kit que elegiste. Si quieres, compáralo con los otros dos o cambia cualquier producto por otra opción."
-            : "Los tres cubren la misma lista. Te marcamos uno, pero los otros dos siguen aquí: cuál conviene depende de cosas que solo sabes tú."}
+            ? "Este es el kit que elegiste. Si quieres, compáralo con los otros o cambia cualquier producto por otra opción."
+            : "Todos cubren la misma lista. Te marcamos uno, pero los demás siguen aquí: cuál conviene depende de cosas que solo sabes tú."}
         </p>
       </header>
 
       {/* ------------------------------------- Selector discreto de kits. Los
           tres siguen a un clic (el contrato exige mostrarlos), pero no
           compiten con el kit que se está mirando. */}
-      {trabajo.kits.length > 1 && (
+      {kits.length > 1 && (
         <div className={styles.selectorKits} role="tablist" aria-label="Ver otro kit">
           <span className={styles.selectorRotulo}>Ver kit</span>
-          {trabajo.kits.map((otro) => {
+          {kits.map((otro) => {
             const esActivo = otro.perfil === kit.perfil;
             const esMarcado = otro.perfil === recomendado?.perfil;
             return (

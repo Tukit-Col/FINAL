@@ -59,9 +59,11 @@ export const MODOS_SURTIBLES: readonly ModoAdquisicion[] = ["mercado_abierto", "
 export type EstadoResolucion = "RESUELTO_AUTO" | "AMBIGUO" | "SIN_MATCH" | "HUECO_CATALOGO";
 
 // ------------------------------------------------------------- §1.3 PerfilKit
-export type PerfilKit = "Ahorrador" | "Fan" | "Premium";
+// Ahorrador y Premium salen siempre; Fan solo si se pidió un personaje y
+// "A tu Medida" solo con el punto medio o un tope (ADR 0030).
+export type PerfilKit = "Ahorrador" | "Fan" | "A tu Medida" | "Premium";
 
-export const PERFILES: readonly PerfilKit[] = ["Ahorrador", "Fan", "Premium"];
+export const PERFILES: readonly PerfilKit[] = ["Ahorrador", "Fan", "A tu Medida", "Premium"];
 
 // `nivel` de un producto, que NO es el perfil de un kit aunque compartan la
 // palabra "premium". Sale de `catalogo.modelos.base.Nivel`.
@@ -133,6 +135,8 @@ export interface Preferencias {
   disposicion_sobreprecio?: number;
   personaje_por_hijo?: Record<string, string[]>;
   dolor_declarado?: DolorDeclarado;
+  // Lo que eligió en el paso 3: `equilibrio` pide el kit "A tu Medida".
+  prioridad?: "precio" | "equilibrio" | "calidad";
 }
 
 export interface SolicitudTrabajo {

@@ -58,19 +58,17 @@ interface HijoFormulario {
 }
 
 // El paso 3 no es una encuesta socioeconómica: es la ÚNICA palanca del
-// acudiente sobre cuál de los tres kits le marcamos. Por eso pregunta lo que el
-// recomendador de verdad lee —los pesos y la disposición a pagar de más
-// (`optimizador.recomendar`)— y no un "dolor" que no movía nada.
+// acudiente sobre qué kit le marcamos. Por eso pregunta lo que el recomendador
+// de verdad lee (`optimizador.recomendar`) y no un "dolor" que no movía nada.
 //
-// El encuadre es cuánto gastar, NO precio contra calidad: la calidad asegurada
-// está en los tres kits, lo que cambia es la economía. Tres opciones, cada una
-// con su efecto declarado en pantalla:
-//   • "Lo más económico" -> Ahorrador (el gasto manda, sin sobreprecio)
-//   • "Un punto medio"   -> Ahorrador por defecto de la encuesta (P21)
-//   • "Puedo estirarme"  -> Premium, si acepta pagar un poco más
-// El Fan no vive aquí: se dispara solo si en el paso 1 pediste un personaje.
-// Aparte va el tope de gasto (opcional): con tope, se marca la mejor marca que
-// cabe en él, sea cual sea la opción elegida.
+// El encuadre es cuánto gastar. Siempre salen el Ahorrador y el Premium; lo que
+// cambia con cada opción es cuál se marca y si se arma un kit más (ADR 0030):
+//   • "Lo más económico" -> se marca el Ahorrador
+//   • "Un punto medio"   -> se arma «A tu Medida» y se marca. Aquí, y solo aquí,
+//                            el acudiente puede ponerle un tope; sin tope, el kit
+//                            no pasa de la mitad de camino al Premium
+//   • "Puedo estirarme"  -> se marca el Premium
+// El Fan no vive aquí: se arma solo si en el paso 1 pidió un personaje.
 type ClavePrioridad = "precio" | "equilibrio" | "calidad";
 
 interface Prioridad {
@@ -95,7 +93,7 @@ const PRIORIDADES: Prioridad[] = [
   {
     clave: "equilibrio",
     titulo: "Un punto medio",
-    detalle: "Sin gastar de más, pero con algo de marca. Te marcamos el Ahorrador y dejamos los otros dos a la vista.",
+    detalle: "Te armamos el kit «A tu Medida»: más marca que el Ahorrador, sin llegar al precio del Premium. Si quieres, ponle un tope.",
     pesos: { precio: 0.35, marca_exigida: 0.3, calidad: 0.25, personaje: 0.1 },
     disposicion_sobreprecio: 0.05,
   },
@@ -109,9 +107,10 @@ const PRIORIDADES: Prioridad[] = [
 ];
 
 // La ruta rapida no manda pesos: manda UN kit ya validado. El paso 3 (economia)
-// y el personaje del paso 1 se colapsan al perfil que se aplica. Decision del
-// usuario: personaje gana -> Fan; si no, precio/equilibrio -> Ahorrador,
-// calidad -> Premium.
+// y el personaje del paso 1 se colapsan al perfil que se aplica: personaje gana
+// -> Fan (el Ahorrador canonico con el personaje); si no, precio -> Ahorrador,
+// calidad -> Premium. El punto medio no pasa por aqui: «A tu Medida» depende de
+// cada acudiente y no sale de la cache.
 function perfilDeSeleccion(prioridad: ClavePrioridad, tienePersonaje: boolean): PerfilKit {
   if (tienePersonaje) return "Fan";
   return prioridad === "calidad" ? "Premium" : "Ahorrador";
@@ -481,7 +480,9 @@ export default function FormularioEmpezar({
   const [prioridad, setPrioridad] = useState<ClavePrioridad>("equilibrio");
   // Solo dígitos: el tope viaja como entero en pesos (`presupuesto_por_hijo`).
   const [presupuesto, setPresupuesto] = useState("");
-  const conTope = Number.parseInt(presupuesto, 10) > 0;
+  // El tope solo existe en el punto medio: con las otras dos opciones el
+  // campo no se muestra y lo que se haya escrito no viaja.
+  const conTope = prioridad === "equilibrio" && Number.parseInt(presupuesto, 10) > 0;
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Aviso NO bloqueante (ámbar): p.ej. no pudimos guardar los hijos nuevos en la
@@ -612,11 +613,12 @@ export default function FormularioEmpezar({
     // Las preferencias del paso 3 son del HOGAR: las mismas viajan por las dos
     // rutas. En la verificada las lee el recomendador ya; en la subida quedan
     // guardadas con la tarea para armar el kit cuando un administrador apruebe.
-    // El tope es opcional. Con tope, el recomendador marca la mejor marca que
-    // cabe en él (el Premium ajustado al presupuesto si el de siempre no cabe).
+    // `prioridad` dice qué kits armar: el punto medio pide «A tu Medida», y su
+    // tope (opcional) es la cota de ese kit.
     const preferencias = {
       pesos: elegida.pesos,
       disposicion_sobreprecio: elegida.disposicion_sobreprecio,
+      prioridad: elegida.clave,
       ...(conTope ? { presupuesto_por_hijo: Number.parseInt(presupuesto, 10) } : {}),
       ...(Object.keys(personajePorHijo).length > 0
         ? { personaje_por_hijo: personajePorHijo }
@@ -732,9 +734,9 @@ export default function FormularioEmpezar({
           )
         : undefined;
 
-    // Con tope de gasto no hay ruta rápida: la cache aplica uno de los tres
-    // kits fijos, y el kit que cabe en el tope solo sale del optimizador.
-    if (soloHijo && canonicoDelHijo && !conTope) {
+    // El punto medio no toma la ruta rápida: «A tu Medida» se arma para cada
+    // acudiente (con su tope o sin él) y la cache solo tiene Ahorrador y Premium.
+    if (soloHijo && canonicoDelHijo && prioridad !== "equilibrio") {
       const personaje = personajePorHijo[soloHijo.referencia]?.[0];
       try {
         const aplicado = await aplicarCanonico({
@@ -1234,21 +1236,16 @@ export default function FormularioEmpezar({
       {/* ----------------------------------------------------- Preferencias */}
       <section className={styles.bloque} aria-labelledby={`${idBase}-preferencias`}>
         <h2 id={`${idBase}-preferencias`} className={styles.tituloBloque}>
-          <span className={styles.paso}>{pasoPrioridad}</span> Cuál de los tres te marcamos
+          <span className={styles.paso}>{pasoPrioridad}</span> Cuál kit te marcamos
         </h2>
         <p className={styles.explicacion}>
-          Los tres kits llevan la misma lista. Lo que cambia es la marca de cada
-          producto y, con ella, cuánto gastas. Dinos hasta dónde quieres estirar el
-          bolsillo y te marcamos uno; los otros dos quedan a la vista. No preguntamos
-          por el estrato ni por nada del hogar.
+          Todos los kits llevan la misma lista; lo que cambia es la marca de cada
+          producto y, con ella, cuánto gastas. Siempre verás el Ahorrador y el
+          Premium, y te marcamos el que va con lo que elijas aquí. No preguntamos por
+          el estrato ni por nada del hogar.
         </p>
 
-        {/* Con tope, la opción no cambia el kit marcado (manda la mejor marca que
-            cabe), así que se atenúa y se deshabilita en vez de prometer otra cosa. */}
-        <fieldset
-          className={`${styles.opciones} ${conTope ? styles.opcionesAtenuadas : ""}`}
-          disabled={conTope}
-        >
+        <fieldset className={styles.opciones}>
           <legend className={styles.leyendaSimple}>Cuánto quieres gastar</legend>
           {PRIORIDADES.map((opcion) => (
             <label
@@ -1272,24 +1269,29 @@ export default function FormularioEmpezar({
           ))}
         </fieldset>
 
-        <label className={styles.campo}>
-          <span>
-            Tope de gasto para el kit <em>(opcional)</em>
-          </span>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={presupuesto ? `$ ${Number(presupuesto).toLocaleString("es-CO")}` : ""}
-            onChange={(e) => setPresupuesto(e.target.value.replace(/\D/g, "").slice(0, 9))}
-            placeholder="Ej.: 350.000"
-            aria-describedby={`${idBase}-ayuda-presupuesto`}
-          />
-          <em id={`${idBase}-ayuda-presupuesto`}>
-            {conTope
-              ? "Te marcamos el kit con la mejor marca que no pase de este tope. Las opciones de arriba ya no cambian cuál marcamos."
-              : "Si nos dices cuánto quieres gastar como máximo, te marcamos el kit con la mejor marca que no pase de ese tope."}
-          </em>
-        </label>
+        {/* El tope es del kit «A tu Medida»: solo aparece con el punto medio. */}
+        {prioridad === "equilibrio" && (
+          <div className={styles.panelTope}>
+            <label className={styles.campo}>
+              <span>
+                Tope para tu kit «A tu Medida» <em>(opcional)</em>
+              </span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={presupuesto ? `$ ${Number(presupuesto).toLocaleString("es-CO")}` : ""}
+                onChange={(e) => setPresupuesto(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                placeholder="Ej.: 350.000"
+                aria-describedby={`${idBase}-ayuda-presupuesto`}
+              />
+            </label>
+            <p id={`${idBase}-ayuda-presupuesto`} className={styles.ayudaTope}>
+              {conTope
+                ? "Te armamos la mejor marca que no pase de este tope. Si ni el kit más barato cabe, te lo decimos con su precio."
+                : "Sin tope, «A tu Medida» sube de marca donde vale la pena, sin pasar de la mitad de camino entre el precio del Ahorrador y el del Premium."}
+            </p>
+          </div>
+        )}
       </section>
 
       {error && (
@@ -1311,7 +1313,7 @@ export default function FormularioEmpezar({
 
       <div className={styles.barraAccion}>
         <button type="submit" className={styles.enviar} disabled={!listo || enviando}>
-          {enviando ? "Creando tu pedido…" : "Armar mis tres kits"}
+          {enviando ? "Creando tu pedido…" : "Armar mis kits"}
         </button>
         {!listo && (
           <p className={styles.faltante}>

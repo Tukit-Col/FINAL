@@ -362,17 +362,22 @@
   border: none;
 }
 
-/* Con tope de gasto la prioridad no decide el kit marcado: se ve, pero apagada. */
-.opcionesAtenuadas {
-  opacity: 0.5;
+/* El tope del kit «A tu Medida»: cuelga del punto medio, como una
+ * continuación de esa opción y no como un campo más del formulario. */
+.panelTope {
+  display: grid;
+  gap: var(--espacio-2);
+  margin-top: var(--espacio-2);
+  padding: var(--espacio-4);
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background: var(--clay-cielo-bg);
 }
 
-.opcionesAtenuadas .tarjetaPrioridad {
-  cursor: not-allowed;
-}
-
-.opcionesAtenuadas .tarjetaPrioridad:hover {
-  transform: none;
+.ayudaTope {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  max-width: 64ch;
 }
 
 .opcionEntrada {

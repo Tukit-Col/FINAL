@@ -120,6 +120,9 @@ class Preferencias(BaseModel):
     disposicion_sobreprecio: float | None = Field(default=None, ge=0, le=1)
     personaje_por_hijo: dict[str, list[str]] | None = None
     dolor_declarado: str | None = Field(default=None, max_length=64)
+    # Lo que eligio en el paso 3 de /empezar. `equilibrio` pide el kit `A tu
+    # Medida` (ADR 0030); los otros dos solo deciden cual se marca.
+    prioridad: str | None = Field(default=None, pattern="^(precio|equilibrio|calidad)$")
 
 
 class PeticionTrabajo(BaseModel):

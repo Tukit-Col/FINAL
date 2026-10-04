@@ -1,6 +1,6 @@
 # ADR 0029 — Con presupuesto se recomienda la mejor marca que cabe, tomada del frente
 
-- **Estado:** aceptada
+- **Estado:** aceptada; reemplazada en parte por el [ADR 0030](0030-solo-se-arman-los-kits-que-se-piden.md) (el kit con tope ya no ocupa el lugar del Premium: es `A tu Medida`)
 - **Fecha:** 2026-10-04
 - **Servicios tocados:** `inteligencia` (`optimizador`), contrato (§6, versión 1.3), `apps/web` (`/empezar`, paso 3)
 

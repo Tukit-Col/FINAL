@@ -175,7 +175,7 @@ async def _crear_y_procesar(motor, catalogo, preferencias=None):
 
 
 class TestRutaRapidaVerificada:
-    async def test_no_llama_emparejar_y_arma_tres_kits(self, motor):
+    async def test_no_llama_emparejar_y_arma_ahorrador_y_premium(self, motor):
         catalogo = _catalogo_verificado()
         trabajo_id, estado = await _crear_y_procesar(motor, catalogo)
         vista = await trabajos.ver(motor, trabajo_id, incluir_kits=True)
@@ -183,7 +183,7 @@ class TestRutaRapidaVerificada:
         assert "emparejar" not in catalogo.llamadas
         assert "resueltos" in catalogo.llamadas
         assert estado == EstadoTrabajo.ESPERA_REVISION.value
-        assert {k["perfil"] for k in vista["kits"]} == {"Ahorrador", "Fan", "Premium"}
+        assert {k["perfil"] for k in vista["kits"]} == {"Ahorrador", "Premium"}
 
     async def test_escribe_item_kit_linea_con_referencia_valida(self, motor):
         from sqlalchemy import func, select
@@ -212,7 +212,7 @@ class TestRutaRapidaVerificada:
             )
 
         assert len(item_ids) == 4
-        assert kits == 3
+        assert kits == 2
         assert lineas, "el kit debe tener lineas"
         for fila in lineas:
             assert fila.item_crudo_id in item_ids

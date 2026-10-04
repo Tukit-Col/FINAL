@@ -113,7 +113,7 @@ class TestElPipelineDejaTresKits:
             "resolucion": "ok",
             "optimizacion": "ok",
         }
-        assert {k["perfil"] for k in vista["kits"]} == {"Ahorrador", "Fan", "Premium"}
+        assert {k["perfil"] for k in vista["kits"]} == {"Ahorrador", "Premium"}
 
     async def test_el_acudiente_no_ve_kits_antes_de_que_los_revisen(self, motor):
         """La razon de ser de `espera_revision` y de AD-06. El mismo lector
@@ -122,7 +122,7 @@ class TestElPipelineDejaTresKits:
 
         assert (await trabajos.ver(motor, trabajo_id))["kits"] == []
         assert (await trabajos.ver(motor, trabajo_id))["recomendado"] is None
-        assert len((await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"]) == 3
+        assert len((await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"]) == 2
 
     async def test_la_licencia_digital_sale_informativa_y_fuera_del_total(self, motor):
         trabajo_id, _ = await _crear_y_procesar(motor)
@@ -274,7 +274,7 @@ class TestDegradarNuncaTumbar:
             items = await conexion.scalar(select(func.count()).select_from(trabajos.ITEM))
             kits = await conexion.scalar(select(func.count()).select_from(trabajos.KIT))
         assert items == 4
-        assert kits == 3
+        assert kits == 2
 
 
 class TestLaRevisionHumana:
@@ -288,7 +288,7 @@ class TestLaRevisionHumana:
         vista = await trabajos.ver(motor, trabajo_id)
         assert resultado["estado"] == EstadoTrabajo.PUBLICADO.value
         assert vista["estado"] == EstadoTrabajo.PUBLICADO.value
-        assert len(vista["kits"]) == 3
+        assert len(vista["kits"]) == 2
         assert vista["recomendado"]["perfil"] == "Ahorrador"
 
         async with motor.engine.begin() as conexion:
@@ -441,7 +441,7 @@ class TestAplicarCanonico:
             colegio_id=COLEGIO,
             grado="Cuarto",
             anio_lectivo=2026,
-            perfil="Ahorrador",
+            perfil="Fan",
             personaje="cars",
             catalogo=catalogo,
         )
@@ -483,17 +483,21 @@ class TestAplicarCanonico:
             colegio_id=COLEGIO,
             grado="Cuarto",
             anio_lectivo=2026,
-            perfil="Ahorrador",
+            perfil="Fan",
             personaje="cars",
             catalogo=catalogo,
         )
         parent_id = uuid.UUID(resultado["trabajo_id"])
 
         vista = await trabajos.ver(motor, parent_id, catalogo=catalogo)
-        # Los tres kits del canonico; el elegido va marcado como recomendado.
-        assert len(vista["kits"]) == 3
-        assert vista["recomendado"]["perfil"] == "Ahorrador"
-        elegido = next(k for k in vista["kits"] if k["perfil"] == "Ahorrador")
+        # Ahorrador y Premium del canonico, mas el Fan armado para este
+        # acudiente (el Ahorrador con el personaje); el elegido va marcado.
+        assert [k["perfil"] for k in vista["kits"]] == ["Ahorrador", "Fan", "Premium"]
+        assert vista["recomendado"]["perfil"] == "Fan"
+        ahorrador = next(k for k in vista["kits"] if k["perfil"] == "Ahorrador")
+        c001_ahorrador = next(linea for linea in ahorrador["lineas"] if linea.get("concepto") == "C001")
+        assert c001_ahorrador["producto_elegido"]["sku"] == "TK-C001-ECO"  # el personaje solo va en el Fan
+        elegido = next(k for k in vista["kits"] if k["perfil"] == "Fan")
         assert elegido["total"] == resultado["total"]
         c001 = next(linea for linea in elegido["lineas"] if linea.get("concepto") == "C001")
         assert c001["producto_elegido"]["sku"] == "TK-C001-FAN"
@@ -741,10 +745,11 @@ class TestElAcudienteCambiaSuKit:
         )
         return canonico, uuid.UUID(resultado["trabajo_id"])
 
-    async def test_la_ruta_rapida_trae_los_tres_kits_y_marca_el_elegido(self, motor):
+    async def test_la_ruta_rapida_trae_los_kits_del_canonico_y_marca_el_elegido(self, motor):
         _, parent_id = await self._ruta_rapida(motor)
         vista = await trabajos.ver(motor, parent_id, catalogo=_catalogo())
-        assert {k["perfil"] for k in vista["kits"]} == {"Ahorrador", "Fan", "Premium"}
+        # Sin personaje no hay Fan: solo los dos del canonico.
+        assert [k["perfil"] for k in vista["kits"]] == ["Ahorrador", "Premium"]
         assert vista["recomendado"]["perfil"] == "Ahorrador"
 
     async def test_cambiar_por_una_alternativa_recalcula_y_no_toca_el_canonico(self, motor):
