@@ -107,9 +107,13 @@ export default function VistaKits({ trabajo }: { trabajo: Trabajo }) {
               </span>
               <span className={`${styles.totalKit} cifra`}>{formatearPesos(otro.total)}</span>
               <span className={styles.promesa}>{PROMESA[otro.perfil]}</span>
-              <span className={styles.objetivos}>
-                {Math.round(otro.objetivos.disponibilidad * 100)}% con precio confirmado
-              </span>
+              {/* Un kit sin objetivos (los de la ruta rápida anteriores al
+                  cálculo) no pinta la línea: mejor nada que "NaN%". */}
+              {Number.isFinite(otro.objetivos?.disponibilidad) && (
+                <span className={styles.objetivos}>
+                  {Math.round(otro.objetivos.disponibilidad * 100)}% con precio confirmado
+                </span>
+              )}
             </button>
           );
         })}

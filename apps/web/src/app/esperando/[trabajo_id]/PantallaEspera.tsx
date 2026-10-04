@@ -31,9 +31,9 @@ const EXPLICACION: Record<NombreEtapa, { titulo: string; detalle: string }> = {
 };
 
 const ESTADO_TITULO: Record<Trabajo["estado"], string> = {
-  encolado: "Tu pedido está en la fila",
+  encolado: "Tu solicitud está en la fila",
   procesando: "Estamos armando tu kit",
-  espera_revision: "Una persona lo está revisando",
+  espera_revision: "Recibimos tu solicitud",
   publicado: "Tu kit esta listo",
   fallido: "Algo se rompió",
 };
@@ -73,9 +73,9 @@ export default function PantallaEspera({
     return (
       <div className={styles.pagina}>
         <div className={styles.tarjeta}>
-          <h1>No encontramos ese pedido</h1>
+          <h1>No encontramos esa solicitud</h1>
           <p>
-            El enlace puede estar incompleto o el pedido ya no existe. Puedes empezar
+            El enlace puede estar incompleto o la solicitud ya no existe. Puedes empezar
             uno nuevo.
           </p>
           <Link href="/empezar" className={styles.boton}>
@@ -89,17 +89,52 @@ export default function PantallaEspera({
   const estado = trabajo?.estado ?? "encolado";
   const etapas = trabajo?.etapas ?? [];
   const enRevision = estado === "espera_revision";
+  // Todavia no hay pedido: el pedido nace al pagar (Mis pedidos). Lo que
+  // existe aqui es la solicitud del kit, y asi se llama en el panel.
+  const chapa = <span className={styles.chapa}>Solicitud {trabajoId.slice(0, 8)}</span>;
+
+  if (enRevision) {
+    // La revision humana puede tardar horas: no tiene sentido tener al
+    // acudiente mirando una ruedita y un reloj. Se le confirma que la
+    // solicitud llego y que le escribimos al terminar (el repartidor de
+    // Operacion manda el correo al publicarse el kit).
+    return (
+      <div className={styles.pagina}>
+        <div className={styles.tarjeta}>
+          {chapa}
+          <span className={`${styles.marca} ${styles.marcaGrande}`} aria-hidden="true">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.4">
+              <path d="M3.5 8.5l3 3 6-7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <h1>Recibimos tu solicitud</h1>
+          <p className={styles.honestidad}>
+            Ya armamos tus kits y les estamos dando una última revisión para que
+            todo salga bien. Te escribimos al correo apenas estén listos; no
+            tienes que quedarte en esta página.
+          </p>
+          {conSesion ? (
+            <p className={styles.honestidad}>
+              Mientras tanto, la encuentras en <strong>Mis solicitudes</strong>.
+            </p>
+          ) : null}
+          <Link href={conSesion ? "/dashboard#solicitudes" : "/"} className={styles.boton}>
+            {conSesion ? "Ir a Mis solicitudes" : "Volver al inicio"}
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.pagina}>
       <div className={styles.tarjeta}>
-        <span className={styles.chapa}>Pedido {trabajoId.slice(0, 8)}</span>
+        {chapa}
         <h1>{ESTADO_TITULO[estado]}</h1>
 
         <p className={styles.honestidad}>
-          {enRevision
-            ? "Ya terminamos la parte automática. Ahora una persona de Tukit revisa tu kit antes de mostrártelo: nunca te mandamos un kit sin revisar."
-            : "Esto toma minutos, no segundos. Puedes cerrar esta pestaña: te avisamos al correo y al celular cuando esté listo."}
+          Recibimos tu solicitud. Puedes cerrar esta pestaña: te escribimos al
+          correo cuando tus kits estén listos.
         </p>
 
         <ol className={styles.etapas}>
@@ -107,18 +142,11 @@ export default function PantallaEspera({
             const etapa = etapas.find((e) => e.nombre === nombre);
             return <FilaEtapa key={nombre} nombre={nombre} etapa={etapa} />;
           })}
-          <li
-            className={`${styles.etapa} ${
-              enRevision ? styles.enCurso : estado === "publicado" ? styles.ok : ""
-            }`}
-          >
-            <Marca estado={enRevision ? "en_curso" : estado === "publicado" ? "ok" : "pendiente"} />
+          <li className={`${styles.etapa} ${estado === "publicado" ? styles.ok : ""}`}>
+            <Marca estado={estado === "publicado" ? "ok" : "pendiente"} />
             <div>
-              <strong>Revisión de una persona</strong>
-              <span>
-                La pausa que hace que el kit que recibes sea el que alguien dio por
-                bueno.
-              </span>
+              <strong>Última revisión</strong>
+              <span>Le damos una mirada final antes de mostrártelo.</span>
             </div>
           </li>
         </ol>
@@ -140,7 +168,7 @@ export default function PantallaEspera({
         {estado === "fallido" && (
           <div className={styles.error} role="alert">
             No pudimos terminar tu kit. Vuelve a intentarlo y, si sigue igual,
-            escríbenos: el pedido queda guardado.
+            escríbenos: la solicitud queda guardada.
           </div>
         )}
 
