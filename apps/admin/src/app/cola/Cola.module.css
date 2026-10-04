@@ -296,7 +296,7 @@
 
 /* "Revisar" y "Eliminar" en una sola linea; la confirmacion reemplaza a
    "Eliminar" en ese mismo lugar, asi la fila no cambia de alto. */
-.acciones {
+.accionesFila {
   display: flex;
   justify-content: flex-end;
   align-items: center;
