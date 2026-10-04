@@ -36,6 +36,7 @@ import type {
   TrabajoCreado,
   TrabajoResumen,
   ValidarLinea,
+  VistaPreviaLista,
 } from "./contrato";
 import type {
   AltaLibro,
@@ -699,6 +700,8 @@ export class ClienteApi implements OrigenDatos {
         creado_en: string;
         hijos: number;
         lineas_a_revisar: number;
+        origen?: string;
+        version_id?: string | null;
       }[];
     }>("/v1/admin/cola");
     return {
@@ -711,6 +714,8 @@ export class ClienteApi implements OrigenDatos {
         lineas_pendientes: t.lineas_a_revisar,
         colegios: [],
         grados: [],
+        origen: t.origen ?? "",
+        version_id: t.version_id ?? null,
       })),
     };
   }
@@ -1107,6 +1112,19 @@ export class ClienteApi implements OrigenDatos {
       },
     );
     return { trabajo_id: resp.trabajo_id };
+  }
+
+  async vistaPreviaDeVersion(versionId: string): Promise<VistaPreviaLista | null> {
+    // No tener vista previa es lo normal (la lista aun no se previsualizo):
+    // el 404 se degrada a null, igual que `directorioColegio`.
+    try {
+      return await this.pedir<VistaPreviaLista>(
+        `/v1/admin/onboarding/${encodeURIComponent(versionId)}/preview`,
+      );
+    } catch (causa) {
+      if (causa instanceof ErrorTukit && causa.estado === 404) return null;
+      throw causa;
+    }
   }
 
   private async pedirColegioDetalle(

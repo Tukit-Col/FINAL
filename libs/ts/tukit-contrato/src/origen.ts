@@ -35,6 +35,7 @@ import type {
   TrabajoCreado,
   TrabajoResumen,
   ValidarLinea,
+  VistaPreviaLista,
 } from "./contrato";
 import type {
   AltaLibro,
@@ -436,6 +437,10 @@ export interface OrigenDatos {
     versionId: string,
     ctx: { colegioId: string; grado: string; anioLectivo: number },
   ): Promise<{ trabajo_id: string }>;
+  // La vista previa vigente de esa version, o null si no hay. El revisor la
+  // usa para avisar que existe (y que previsualizar de nuevo la reemplaza).
+  // `GET /v1/admin/onboarding/{version_id}/preview`; 404 -> null.
+  vistaPreviaDeVersion(versionId: string): Promise<VistaPreviaLista | null>;
 
   // El backlog de sugerencias de padres, con la UNICA traza permitida
   // (`contacto_referencia`): nunca correo ni telefono.

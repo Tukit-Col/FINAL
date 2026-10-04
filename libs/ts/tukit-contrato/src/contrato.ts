@@ -505,6 +505,21 @@ export interface EntradaCola {
   lineas_pendientes: number;
   colegios: string[];
   grados: string[];
+  // De donde nacio el trabajo y, si salio de una lista, su version. Con esto
+  // la cola separa las vistas previas de lista (`preview_onboarding`, que no
+  // son trabajo de un acudiente) y las enlaza a su revisor.
+  origen: string;
+  version_id: string | null;
+}
+
+// La vista previa vigente de una version, para el revisor de la lista: le
+// deja avisar que ya hay una ajustada (y que previsualizar de nuevo la
+// reemplaza). `lineas_sin_decidir` son las dudosas que nadie ha decidido.
+export interface VistaPreviaLista {
+  trabajo_id: string;
+  estado: EstadoTrabajo;
+  creado_en: string | null;
+  lineas_sin_decidir: number;
 }
 
 export interface ColaAdmin {
@@ -519,8 +534,9 @@ export interface TrabajoAdmin extends Trabajo {
   contacto_id: string;
   lineas_pendientes: string[];
   nota_revision?: string | null;
-  // De dónde nació el trabajo. `preview_onboarding` es el caso especial: un
-  // preview desechable de una lista que NO se publica (no tiene acudiente); la
+  // De dónde nació el trabajo. `preview_onboarding` es el caso especial: la
+  // vista previa de una lista, sin acudiente, que no se publica desde la cola;
+  // sus ajustes pasan a ser el kit del colegio y grado al aprobar la lista. La
   // consola lo detecta para enlazar de vuelta al revisor en vez de ofrecer un
   // "Publicar" que el backend rechaza (409 `preview_no_publicable`).
   origen: string;
@@ -530,7 +546,9 @@ export interface TrabajoAdmin extends Trabajo {
 }
 
 // AD-02: validar es fijar el producto de la linea. Sin `sku` se lee
-// como "confirmo el que el sistema eligio".
+// como "confirmo el que la linea tiene en el kit"; si la linea no tiene
+// producto, el backend responde 422 `sin_producto_que_validar` (campo `sku`).
+// La consola manda siempre el sku que muestra, para no depender de esa regla.
 export interface ValidarLinea {
   sku?: string;
   nota?: string;
