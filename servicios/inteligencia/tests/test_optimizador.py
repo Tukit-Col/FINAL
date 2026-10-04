@@ -364,13 +364,16 @@ class TestElPresupuestoUsaElFrente:
         assert premium.recomendado is True
         assert premium.dentro_de_presupuesto is True
 
-    def test_el_sobreprecio_declarado_estira_el_tope(self):
-        """El tope es presupuesto * (1 + sobreprecio): 10.000 con 20 % es 12.000."""
+    def test_el_sobreprecio_declarado_no_estira_el_tope(self):
+        """El tope es el presupuesto tal cual: con 10.000 y 20 % de sobreprecio
+        no cabe el kit de 12.000, sino el mejor de 10.000 o menos (ECO+CON =
+        9.000). Quien escribe "maximo 10.000" no espera pagar 12.000."""
         kits = self._por_perfil(
             armar_los_tres(self.RENGLONES, {"presupuesto_por_hijo": 10000, "disposicion_sobreprecio": 0.2})
         )
-        assert kits["Premium"].total_cop == 12000
+        assert kits["Premium"].total_cop == 9000
         assert kits["Premium"].recomendado is True
+        assert kits["Premium"].dentro_de_presupuesto is True
 
     def test_sin_presupuesto_nada_cambia(self):
         kits = self._por_perfil(armar_los_tres(self.RENGLONES, {}))

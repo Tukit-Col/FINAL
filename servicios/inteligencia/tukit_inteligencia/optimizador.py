@@ -952,16 +952,19 @@ def armar_kit(
 
 
 def _tope(preferencias: dict[str, Any]) -> int | None:
-    """El tope de gasto: el presupuesto estirado por el sobreprecio declarado.
+    """El tope de gasto: el presupuesto tal cual, `None` si no hay.
 
-    `None` si no hay presupuesto. Lo comparten `recomendar` y el ajuste del
-    Premium en `armar_los_tres`, para que los dos midan contra el mismo numero.
+    No se estira con `disposicion_sobreprecio`. Antes si (hasta un 10 %), y un
+    acudiente que escribia "maximo $350.000" podia recibir un kit de $385.000:
+    el sobreprecio dice cuanto mas pagaria por marca SIN tope, no cuanto se
+    puede pasar del tope que el mismo puso (§3: restriccion DURA). Lo comparten
+    `recomendar` y el ajuste del Premium en `armar_los_tres`, para que los dos
+    midan contra el mismo numero.
     """
     presupuesto = preferencias.get("presupuesto_por_hijo")
     if not isinstance(presupuesto, int) or presupuesto <= 0:
         return None
-    sobreprecio = float(preferencias.get("disposicion_sobreprecio") or 0.0)
-    return int(presupuesto * max(1.0, 1.0 + sobreprecio))
+    return presupuesto
 
 
 def recomendar(kits: list[KitArmado], preferencias: dict[str, Any]) -> list[KitArmado]:

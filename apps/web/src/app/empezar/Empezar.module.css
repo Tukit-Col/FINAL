@@ -362,6 +362,19 @@
   border: none;
 }
 
+/* Con tope de gasto la prioridad no decide el kit marcado: se ve, pero apagada. */
+.opcionesAtenuadas {
+  opacity: 0.5;
+}
+
+.opcionesAtenuadas .tarjetaPrioridad {
+  cursor: not-allowed;
+}
+
+.opcionesAtenuadas .tarjetaPrioridad:hover {
+  transform: none;
+}
+
 .opcionEntrada {
   display: flex;
   align-items: center;
