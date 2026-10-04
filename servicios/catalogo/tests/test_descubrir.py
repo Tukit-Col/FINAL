@@ -196,6 +196,15 @@ class TestLaCabezaDeLaFrase:
         assert cabeza("2 paquetes de plastilina") == "plastilina"
         assert cabeza("1 cuaderno cosido de 100 hojas") == "cuaderno"
 
+    def test_el_metro_es_una_medida_y_no_lo_pedido(self):
+        """Con "metro" de cabeza, Lentejuelas ("metro lentejuelas") se llevaba
+        el cable estanado de una lista de robotica."""
+        assert cabeza("metro de cable estañado calibre 22") == "cable"
+        assert cabeza("2 metros de lana") == "lana"
+
+    def test_una_fraccion_no_nombra_la_cosa(self):
+        assert cabeza("paquete de (1/8 cartulina) color amarillo") == "cartulina"
+
 
 class TestClasificarContraNuestroCatalogo:
     def test_reconoce_lo_que_ya_sabemos_que_es(self):

@@ -112,6 +112,7 @@ TAMANOS = (
     ("1/4 de pliego", "cuarto de pliego"),
     ("1/2 pliego", "medio pliego"),
     ("pliego", "pliego"),
+    ("1/8", "octavo"),
     ("octavos", "octavo"),
     ("octavo", "octavo"),
     ("oficio", "oficio"),

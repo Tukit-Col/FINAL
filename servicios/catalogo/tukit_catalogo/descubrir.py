@@ -98,8 +98,13 @@ VACIAS = frozenset({"de", "del", "la", "el", "los", "las", "un", "una", "y", "o"
 # `aserrin de colores`.
 RUIDO = re.compile(
     r"\b(\d+\s*)?(unidades?|unds?|uds?|paquetes?|bolsas?|cajas?|docenas?|pares?|"
-    r"rollos?|tarros?|frascos?|pliegos?|hojas?|juegos?|sets?|x\d+)\b"
+    r"rollos?|tarros?|frascos?|pliegos?|hojas?|juegos?|sets?|metros?|x\d+)\b"
 )
+# `metros?` entra porque "metro de cable estanado" es una medida, no lo pedido:
+# sin esto la cabeza era "metro" y se la llevaba Lentejuelas ("metro
+# lentejuelas..."). Una fraccion suelta ("(1/8 cartulina)") tampoco nombra la
+# cosa; el tamano que dice se lee aparte, en `extraer_atributos`.
+FRACCION = re.compile(r"\b\d+\s*/\s*\d+\b")
 
 
 def consulta_desde_renglon(renglon: str) -> str:
@@ -113,6 +118,7 @@ def consulta_desde_renglon(renglon: str) -> str:
     """
     texto = _plano(renglon)
     texto = re.sub(r"[(),;:.]", " ", texto)
+    texto = FRACCION.sub(" ", texto)
     texto = RUIDO.sub(" ", texto)
     texto = re.sub(r"\b\d+\s*(gr?|grs|gramos?|ml|cc|cm|mm|mts?|metros?)\b", " ", texto)
     texto = re.sub(r"^\s*\d+\s+", "", texto)
