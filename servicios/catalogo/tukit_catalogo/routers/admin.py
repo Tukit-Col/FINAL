@@ -190,6 +190,10 @@ async def ver_revision(version_id: uuid.UUID) -> dict[str, Any]:
         # dane y lo que el revisor complete). None cuando la lista es de un
         # colegio ya aliado: no hay identidad que crear ni que completar.
         colegio_datos = await repo.colegio_datos_de(version_id)
+        # Si al aprobar hay un acudiente a quien publicarle el kit. Sale de la
+        # MISMA tarea que lee el evento `lista_verificada`, para que el aviso del
+        # revisor ("se le publica directo") diga lo que el poller va a hacer.
+        tarea = await repo.tarea_para_evento(version_id)
 
     return {
         "version_id": str(cabeza.id),
@@ -207,6 +211,7 @@ async def ver_revision(version_id: uuid.UUID) -> dict[str, Any]:
         "items": items,
         "propuestas": candidatos,
         "colegio_datos": colegio_datos,
+        "tiene_contacto": tarea is not None and tarea.contacto_referencia is not None,
     }
 
 
