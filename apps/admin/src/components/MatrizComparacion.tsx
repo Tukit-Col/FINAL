@@ -35,6 +35,9 @@ interface Props {
   trabajoId: string;
   kits: Kit[];
   recomendado: PerfilKit | undefined;
+  // Kits sin acudiente (vista previa, canónicos): el recomendado sigue sirviendo
+  // de columna de referencia, pero no se rotula, porque nadie lo eligió.
+  sinRotuloRecomendado?: boolean;
 }
 
 // El orden de las columnas es el del precio creciente, que es como el acudiente
@@ -56,7 +59,13 @@ function nivelDe(linea: LineaKit | undefined): string | null {
   return linea?.producto_elegido?.nivel ?? null;
 }
 
-export default function MatrizComparacion({ trabajoId, kits, recomendado }: Props) {
+export default function MatrizComparacion({
+  trabajoId,
+  kits,
+  recomendado,
+  sinRotuloRecomendado = false,
+}: Props) {
+  const rotulado = sinRotuloRecomendado ? undefined : recomendado;
   // (itemId, perfil) de la celda abierta. Una sola a la vez: desplegar todas
   // seria volver al muro de HTML que el `<details>` de `LineaRevision` evita.
   const [abierta, setAbierta] = useState<{ itemId: string; perfil: PerfilKit } | null>(null);
@@ -287,11 +296,11 @@ export default function MatrizComparacion({ trabajoId, kits, recomendado }: Prop
           return (
             <span
               key={perfil}
-              className={`${styles.matrizColTitulo} ${perfil === recomendado ? styles.matrizColReco : ""}`}
+              className={`${styles.matrizColTitulo} ${perfil === rotulado ? styles.matrizColReco : ""}`}
             >
               <span className={styles.perfilNombre}>
                 {perfil}
-                {perfil === recomendado ? <span className={styles.recomendado}>recomendado</span> : null}
+                {perfil === rotulado ? <span className={styles.recomendado}>recomendado</span> : null}
               </span>
               {kit ? <span className={`${styles.perfilTotal} cifra`}>{formatearPesos(kit.total)}</span> : null}
             </span>
