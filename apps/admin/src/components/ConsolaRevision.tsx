@@ -56,6 +56,11 @@ export default function ConsolaRevision({ trabajo, personajes }: Props) {
   const kitRef =
     trabajo.kits.find((k) => k.perfil === trabajo.recomendado?.perfil) ?? trabajo.kits[0]!;
   const masivas = pendientesConElegido(kitRef.lineas);
+  // Las vistas previas de onboarding y los canónicos de una lista aprobada se
+  // arman sin acudiente ni preferencias: `recomendar` les pone la razón por
+  // omisión ("Elegiste precio…"), que aquí sería falsa.
+  const sinAcudiente =
+    trabajo.origen === "preview_onboarding" || trabajo.origen === "canonico_lista";
 
   async function validarPendientes(): Promise<void> {
     if (masivas.length === 0) return;
@@ -88,13 +93,20 @@ export default function ConsolaRevision({ trabajo, personajes }: Props) {
 
   return (
     <section className={styles.consola}>
-      {trabajo.recomendado ? (
+      {sinAcudiente ? (
+        <p className={styles.razonRecomendacion}>
+          <strong>Kits del grado, sin acudiente.</strong> Salen de la lista del colegio y nadie
+          declaró preferencias, así que no se marca ninguno: a cada acudiente se le marca el
+          suyo cuando pide su kit.
+        </p>
+      ) : trabajo.recomendado ? (
         <p className={styles.razonRecomendacion}>
           <strong>Se le va a marcar {trabajo.recomendado.perfil}:</strong>{" "}
           {trabajo.recomendado.razon}{" "}
-          {trabajo.recomendado.dentro_de_presupuesto
-            ? ""
-            : "Ojo: queda fuera del presupuesto declarado."}
+          {/* `null` es "no declaró presupuesto": solo `false` es pasarse. */}
+          {trabajo.recomendado.dentro_de_presupuesto === false
+            ? "Ojo: queda fuera del presupuesto declarado."
+            : ""}
         </p>
       ) : null}
 
@@ -151,6 +163,7 @@ export default function ConsolaRevision({ trabajo, personajes }: Props) {
         trabajoId={trabajo.trabajo_id}
         kits={trabajo.kits}
         recomendado={trabajo.recomendado?.perfil}
+        sinRotuloRecomendado={sinAcudiente}
       />
     </section>
   );

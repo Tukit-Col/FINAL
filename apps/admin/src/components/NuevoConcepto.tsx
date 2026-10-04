@@ -130,7 +130,10 @@ export default function NuevoConcepto({
   }
 
   const listaCategorias = `${id}-categorias`;
-  const listaAtributos = `${id}-atributos`;
+  // Lo que ya usan otros conceptos y este todavía no tiene en ninguna lista.
+  const sugerenciasAtributo = atributosConocidos.filter(
+    (a) => !filtran.includes(a) && !informan.includes(a),
+  );
 
   return (
     <section className={compacto ? styles.conceptoCompacto : styles.spa}>
@@ -204,7 +207,7 @@ export default function NuevoConcepto({
           titulo="Atributos que filtran"
           ayuda="Si el renglón lo pide y el producto no lo cumple, se descarta. Ej.: rayado, hojas, tamaño."
           valores={filtran}
-          listaSugerencias={listaAtributos}
+          sugerencias={sugerenciasAtributo}
           onAgregar={(a) => agregarA("filtran", a)}
           onQuitar={(a) => setFiltran((v) => v.filter((x) => x !== a))}
         />
@@ -212,17 +215,10 @@ export default function NuevoConcepto({
           titulo="Atributos informativos"
           ayuda="Se muestran al acudiente pero no descartan productos. Ej.: color, marca, talla."
           valores={informan}
-          listaSugerencias={listaAtributos}
+          sugerencias={sugerenciasAtributo}
           onAgregar={(a) => agregarA("informan", a)}
           onQuitar={(a) => setInforman((v) => v.filter((x) => x !== a))}
         />
-        <datalist id={listaAtributos}>
-          {atributosConocidos
-            .filter((a) => !filtran.includes(a) && !informan.includes(a))
-            .map((a) => (
-              <option key={a} value={a} />
-            ))}
-        </datalist>
 
         <div className={`${styles.campo} ${styles.campoAncho}`}>
           <label htmlFor={`${id}-personaje`} className={styles.casilla}>
@@ -258,23 +254,32 @@ export default function NuevoConcepto({
 
 // ------------------------------------------------------- editor de atributos
 
+// Valor de la opción que cambia el menú por un campo de texto.
+const OTRO_ATRIBUTO = "__otro__";
+
 function EditorAtributos({
   titulo,
   ayuda,
   valores,
-  listaSugerencias,
+  sugerencias,
   onAgregar,
   onQuitar,
 }: {
   titulo: string;
   ayuda: string;
   valores: string[];
-  listaSugerencias: string;
+  sugerencias: string[];
   onAgregar: (atributo: string) => void;
   onQuitar: (atributo: string) => void;
 }) {
   const id = useId();
+  // Un menú como el de «Tipo» con los atributos que ya existen; «Otro» lo
+  // cambia por un campo para escribir uno nuevo. Sin sugerencias se escribe
+  // directo. (Antes era un `datalist`, cuyo desplegable es del navegador y no
+  // se parece a ningún otro menú del admin.)
+  const [escribiendo, setEscribiendo] = useState(false);
   const [borrador, setBorrador] = useState("");
+  const conCampo = escribiendo || sugerencias.length === 0;
 
   // Agrega lo escrito (puede venir más de uno separado por coma o |).
   function confirmar() {
@@ -283,43 +288,65 @@ function EditorAtributos({
       if (atributo) onAgregar(atributo);
     }
     setBorrador("");
+    setEscribiendo(false);
   }
 
   return (
     <div className={styles.campo}>
       <label htmlFor={id}>{titulo}</label>
-      <div className={styles.atributos}>
-        {valores.map((a) => (
-          <span key={a} className={styles.atributoChip}>
-            {a}
-            <button
-              type="button"
-              aria-label={`Quitar ${a}`}
-              className={styles.atributoQuitar}
-              onClick={() => onQuitar(a)}
-            >
-              ×
-            </button>
-          </span>
-        ))}
+      {valores.length > 0 && (
+        <div className={styles.atributoFichas}>
+          {valores.map((a) => (
+            <span key={a} className={styles.atributoChip}>
+              {a}
+              <button
+                type="button"
+                aria-label={`Quitar ${a}`}
+                className={styles.atributoQuitar}
+                onClick={() => onQuitar(a)}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      {conCampo ? (
         <input
           id={id}
-          className={styles.atributoEntrada}
           value={borrador}
-          list={listaSugerencias}
-          placeholder={valores.length ? "otro…" : "escribe y pulsa Enter"}
+          autoFocus={escribiendo}
+          placeholder="escribe y pulsa Enter"
           onChange={(e) => setBorrador(e.target.value)}
           onBlur={confirmar}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === ",") {
               e.preventDefault();
               confirmar();
-            } else if (e.key === "Backspace" && !borrador && valores.length) {
-              onQuitar(valores[valores.length - 1]!);
+            } else if (e.key === "Escape") {
+              setBorrador("");
+              setEscribiendo(false);
             }
           }}
         />
-      </div>
+      ) : (
+        <select
+          id={id}
+          value=""
+          onChange={(e) => {
+            if (e.target.value === OTRO_ATRIBUTO) setEscribiendo(true);
+            else if (e.target.value) onAgregar(e.target.value);
+          }}
+        >
+          <option value="">{valores.length ? "Agregar otro…" : "Elegir atributo…"}</option>
+          {sugerencias.map((a) => (
+            <option key={a} value={a}>
+              {a}
+            </option>
+          ))}
+          <option value={OTRO_ATRIBUTO}>Otro (escribir)…</option>
+        </select>
+      )}
       <span className={styles.ayudaCampo}>{ayuda}</span>
     </div>
   );
