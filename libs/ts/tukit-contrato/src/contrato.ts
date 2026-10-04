@@ -389,7 +389,9 @@ export interface Kit {
 export interface Recomendacion {
   perfil: PerfilKit;
   razon: string;
-  dentro_de_presupuesto: boolean;
+  // `null` cuando el acudiente no declaro presupuesto: no hay tope contra el
+  // que medir. Solo `false` significa "se pasa del tope".
+  dentro_de_presupuesto: boolean | null;
   pesos_usados: Pesos;
 }
 
