@@ -27,7 +27,7 @@ import type {
 import { agregarItemLista, editarItemLista, quitarItemLista, FalloListas } from "@/lib/api-listas";
 import type { OpcionConcepto } from "./PanelReclasificar";
 import NuevoConcepto from "./NuevoConcepto";
-import SelectorConcepto from "./SelectorConcepto";
+import Desplegable from "./Desplegable";
 import type { VocabularioConceptos } from "@/lib/vocabulario-conceptos";
 import styles from "@/app/onboarding/Onboarding.module.css";
 
@@ -297,11 +297,15 @@ function RenglonEditable({
           <div className={styles.campo}>
             <span>Concepto (vacío = sin concepto)</span>
             <span className={styles.conceptoFila}>
-              <SelectorConcepto
-                conceptos={conceptos}
+              <Desplegable
+                opciones={[
+                  { valor: "", texto: "— sin concepto —" },
+                  ...conceptos.map((c) => ({ valor: c.codigo, texto: `${c.nombre} (${c.codigo})` })),
+                ]}
                 valor={concepto}
                 onCambio={setConcepto}
                 disabled={guardando}
+                buscable
               />
               {!creandoConcepto ? (
                 <button
