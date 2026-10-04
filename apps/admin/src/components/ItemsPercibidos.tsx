@@ -97,14 +97,17 @@ function RenglonEditable({
 
   const [concepto, setConcepto] = useState(item.concepto_codigo ?? "");
   const [cantidad, setCantidad] = useState(String(item.cantidad));
-  const [modo, setModo] = useState<ModoAdquisicion | "">(item.modo_adquisicion ?? "");
+  // El select solo distingue los modos directos; cualquier otro modo guardado
+  // (mercado_abierto, libro_libre, diferido) se muestra como la opción vacía.
+  const modoGuardado = VALORES_DIRECTOS.has(item.modo_adquisicion ?? "") ? item.modo_adquisicion! : "";
+  const [modo, setModo] = useState<ModoAdquisicion | "">(modoGuardado);
   const [instruccion, setInstruccion] = useState(item.instruccion_colegio ?? "");
 
   // Adquisición directa del colegio: el colegio lo entrega, no se compra. No
   // tiene sentido mostrar concepto ni candidatos ("no lo ofrecemos"). Se toma
-  // del estado del editor (lo que el revisor está fijando) cayendo al valor
-  // guardado, para que el colapso reaccione al elegir el modo sin recargar.
-  const esDirecto = VALORES_DIRECTOS.has(modo || item.modo_adquisicion || "");
+  // del estado del editor (lo que el revisor está fijando), para que el
+  // colapso reaccione al elegir el modo sin recargar.
+  const esDirecto = VALORES_DIRECTOS.has(modo);
 
   // La confianza más alta entre los candidatos, para el semáforo del renglón.
   const confianza =
@@ -127,12 +130,12 @@ function RenglonEditable({
     setGuardando(true);
     setError(null);
     // Solo se manda lo que cambió (todos opcionales). El modo vacío = mercado
-    // abierto: se manda `null` para desligar la adquisición directa.
+    // abierto: la columna es NOT NULL, así que se manda el valor explícito.
     const cambios: ItemListaEditable = {};
     if (concepto !== (item.concepto_codigo ?? "")) cambios.concepto = concepto || null;
     const cantidadNum = Number(cantidad);
     if (Number.isFinite(cantidadNum) && cantidadNum !== item.cantidad) cambios.cantidad = cantidadNum;
-    if (modo !== (item.modo_adquisicion ?? "")) cambios.modo_adquisicion = modo || null;
+    if (modo !== modoGuardado) cambios.modo_adquisicion = modo || "mercado_abierto";
     if (instruccion !== (item.instruccion_colegio ?? ""))
       cambios.instruccion_colegio = instruccion || null;
 
