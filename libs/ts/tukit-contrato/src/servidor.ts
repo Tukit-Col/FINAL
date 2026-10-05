@@ -56,6 +56,7 @@ export type {
   RolAsignado,
   Sesion,
   Credenciales,
+  NuevaCuenta,
   MatriculaAcudiente,
   RegistroAcudiente,
   HijoNuevo,

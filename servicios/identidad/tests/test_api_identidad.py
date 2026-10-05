@@ -18,9 +18,10 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 from tukit_comun.bd import MotorServicio
 from tukit_comun.identificadores import derivar
-from tukit_identidad.api import GRADOS, app
+from tukit_identidad.api import app
+from tukit_identidad.dominio.sesiones import emitir_token, hashear_clave
 from tukit_identidad.modelos import AsignacionRol, Base, Colegio, Sede, Usuario
-from tukit_identidad.sesiones import emitir_token, hashear_clave
+from tukit_identidad.routers.identidad import GRADOS
 
 
 @pytest.fixture()
@@ -57,6 +58,16 @@ async def cliente():
     await engine.dispose()
 
 
+def test_las_rutas_vienen_de_un_router_incluido(cliente):
+    # ADR 0019: api.py es solo ensamblador; las rutas viven en routers/identidad.py.
+    from tukit_identidad.routers import router
+
+    montadas = {r.path for r in router.routes}
+    assert "/v1/colegios" in montadas
+    assert "/v1/sesiones" in montadas
+    assert "/v1/cuenta/direcciones/{direccion_id}" in montadas
+
+
 class TestElDirectorioNoFiltraDeMas:
     """`GET /v1/directorio/{dane}` sirve dos formas en la MISMA ruta. Por defecto
     solo los 7 campos del alta: es lo que la subida de listas vuelca sin filtrar
@@ -66,7 +77,7 @@ class TestElDirectorioNoFiltraDeMas:
     real del directorio (no uno inventado) para no acoplar la prueba a un codigo."""
 
     async def test_por_defecto_solo_devuelve_los_campos_del_alta(self, cliente):
-        from tukit_identidad.directorio_bogota import (
+        from tukit_identidad.dominio.directorio import (
             _indice_por_dane,
             datos_colegio_nuevo_por_dane,
         )
@@ -78,7 +89,7 @@ class TestElDirectorioNoFiltraDeMas:
         assert set(cuerpo) == set(datos_colegio_nuevo_por_dane(dane))
 
     async def test_completo_agrega_el_superconjunto_del_admin(self, cliente):
-        from tukit_identidad.directorio_bogota import _indice_por_dane
+        from tukit_identidad.dominio.directorio import _indice_por_dane
 
         dane = next(iter(_indice_por_dane()))
         cuerpo = (await cliente.get(f"/v1/directorio/{dane}?completo=true")).json()
@@ -636,12 +647,21 @@ class TestLaSuperficieDeMenoresNoEstaAbierta:
     async def test_no_hay_ruta_que_devuelva_datos_de_menores(self, cliente, ruta):
         assert (await cliente.get(ruta)).status_code in {404, 422}
 
+    async def test_hijos_sin_token_es_401_y_no_filtra_menores(self, cliente):
+        r = await cliente.get("/v1/cuenta/hijos")
+        assert r.status_code == 401
+        # El cuerpo del error nunca trae un apodo ni un nombre: es solo el sobre.
+        assert set(r.json().keys()) <= {"error", "mensaje", "campo"}
+
     def test_el_esquema_publicado_no_anuncia_ninguna(self):
         """Se mira el OpenAPI y no solo las respuestas: una ruta que existe
         y hoy nadie llama es una ruta que alguien llama manana."""
         rutas = set(app.openapi()["paths"])
         assert rutas == {
             "/salud",
+            # Liveness/readiness (ADR 0021): sondas sin PII, abiertas a proposito.
+            "/health/live",
+            "/health/ready",
             "/v1/colegios",
             "/v1/colegios/{colegio_id}",
             "/v1/grados",
@@ -650,6 +670,16 @@ class TestLaSuperficieDeMenoresNoEstaAbierta:
             # Operacion), sin devolver menor ni matricula: la contraparte de
             # POST /v1/contactos. Efimera, nadie la persiste.
             "/v1/contactos/{usuario_id}",
+            # Datos DUEB de un colegio del directorio de Bogota (direccion,
+            # contacto, sitio) para pre-llenar el perfil de un colegio nuevo. Es
+            # el registro publico de establecimientos: no toca menores ni
+            # matriculas, no abre la superficie sensible.
+            "/v1/directorio/{dane}",
+            # Nombres de acudientes ADULTOS por id, para el panel del back-office.
+            # Es PII PERSONAL (no menor): exige `usuario:leer:nombre` (solo admin
+            # y operador) y solo lee la tabla `usuario`, jamas `estudiante`. No
+            # abre la superficie sensible de menores.
+            "/v1/usuarios/nombres",
             # Autenticacion (seccion 12.4). Devuelven quien es el portador y sus
             # ROLES, nunca un estudiante ni un nombre de menor: la superficie
             # sensible sigue cerrada, es lo que fija la prueba de arriba.
@@ -661,6 +691,9 @@ class TestLaSuperficieDeMenoresNoEstaAbierta:
             "/v1/cuenta",
             "/v1/cuenta/direcciones",
             "/v1/cuenta/direcciones/{direccion_id}",
+            # "Mis hijos": apodos del portador, nunca nombres reales de menor.
+            # Exige token y solo devuelve lo propio (Ley 1581 / Anexo M).
+            "/v1/cuenta/hijos",
             # La tenencia del PROPIO portador. Este path ahora tiene GET y POST y
             # se ABRE deliberadamente sobre dato de menor, pero acotado: exige token
             # y filtra por usuario_id (no por rol), asi que un padre solo alcanza a
@@ -678,11 +711,6 @@ class TestLaSuperficieDeMenoresNoEstaAbierta:
             # El registro de verdad. Solo ESCRIBE (credencial + matriculas) y
             # nunca devuelve datos de menor: su respuesta es {usuario_id, creado}.
             "/v1/registro",
-            # Datos DUEB de un colegio del directorio de Bogota por DANE, para
-            # pre-llenar el perfil del colegio nuevo en la cola. Es dato
-            # INSTITUCIONAL del directorio publico (nombre, localidad), no de
-            # menores: no abre la superficie sensible.
-            "/v1/directorio/{dane}",
             # El padron de acudientes para el equipo interno. UNICA ruta que
             # expone dato de menor (el apodo) por la superficie publica, y por
             # eso GATEADA: 401 sin token, 403 sin rol admin/operador. Devuelve

@@ -154,7 +154,7 @@ export default async function DashboardPage() {
             <div className={styles.pageHeader}>
               <div className={styles.pageHeader__titles}>
                 <h1>Hola, {sesion.nombre}</h1>
-                <p>Tus pedidos, en un solo lugar.</p>
+                <p>Tus hijos y tus kits, en un solo lugar.</p>
               </div>
             </div>
 
@@ -163,7 +163,6 @@ export default async function DashboardPage() {
               <div className={styles.sectionHeader}>
                 <h2>Perfiles de hijos</h2>
               </div>
-
               {errorHijos ? (
                 <p className={styles.hijosError}>
                   No pudimos cargar los perfiles de tus hijos en este momento.

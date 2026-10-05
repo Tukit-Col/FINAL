@@ -7,15 +7,15 @@ crea un trabajo desechable con `origen='preview_onboarding'`, lo corre de forma
 SINCRONICA (no fire-and-forget) y devuelve el `trabajo_id`/`estado`. El admin
 lee los kits con el `GET /v1/admin/trabajos/{id}` de siempre.
 
-Como la version es vigente pero SIN revisar, el pipeline toma la ruta LENTA
-(emparejar + NSGA-II): eso es exactamente la vista previa que se quiere, y es
-lo que estas pruebas defienden observando que `emparejar` SI se llamo y que
-`resueltos` (la ruta rapida) NO.
+La version del PATH se previsualiza tal cual (vigente o borrador): el pipeline
+lee sus items por `version_id` con `revision()`. Como llega SIN revisar, toma la
+ruta LENTA (emparejar + NSGA-II): eso es exactamente la vista previa que se
+quiere, y es lo que estas pruebas defienden observando que `emparejar` SI se
+llamo y que `resueltos` (la ruta rapida) NO.
 
 Se prueba con `ASGITransport` y el motor en memoria, con un `CatalogoFalso`
-extendido que expone un `version_id` vigente controlable por (colegio, grado,
-anio). No hay Gemini: la ruta lenta llama a `emparejar`, que el doble responde
-desde memoria.
+extendido que expone `revision(version_id)` por (colegio, grado, anio). No hay
+Gemini: la ruta lenta llama a `emparejar`, que el doble responde desde memoria.
 """
 
 from __future__ import annotations
@@ -25,44 +25,38 @@ import pytest
 from conftest import CatalogoFalso, opcion, reconocido, renglon
 from tukit_inteligencia.api import app
 from tukit_inteligencia.modelos import EstadoTrabajo
+from tukit_inteligencia.remoto import RemotoCaido
 
 COLEGIO = "11111111-1111-5111-8111-111111111111"
 VERSION_VIGENTE = "ver-vigente-1"
 
 
 class CatalogoPreview(CatalogoFalso):
-    """CatalogoFalso con una version vigente concreta e items crudos para emparejar.
+    """CatalogoFalso que resuelve versiones por id con `revision()`.
 
-    `listas()` devuelve `[]` cuando el grado no coincide (para el 404) y una
-    lista con `version_id` conocido cuando si. `lista()` devuelve esa misma
-    version y NO revisada, para que el pipeline tome la ruta lenta. Registra
-    las llamadas en `self.llamadas` como el resto de los dobles.
+    `self.versiones` es el conjunto de version_id que EXISTEN para
+    (COLEGIO, self.grado, 2026); `revision(vid)` devuelve la cabecera + items de
+    una de ellas, o levanta `RemotoCaido` (que el endpoint traduce a 404) si no
+    existe —igual que el catalogo real, que resuelve `/revision` por version_id
+    sin importar si es la vigente—. Registra las llamadas en `self.llamadas`.
     """
 
-    def __init__(self, *, version_vigente: str | None = VERSION_VIGENTE, **kw):
+    def __init__(self, *, version_vigente: str | None = VERSION_VIGENTE, versiones=None, **kw):
         super().__init__(**kw)
-        self.version_vigente = version_vigente
+        if versiones is None:
+            versiones = [] if version_vigente is None else [version_vigente]
+        self.versiones = list(versiones)
 
-    async def listas(self, *, colegio_id: str, grado: str, anio_lectivo=None) -> list[dict]:
-        self.llamadas.append("listas")
-        if grado != self.grado or self.version_vigente is None:
-            return []
-        return [
-            {
-                "lista_id": "lista-1",
-                "version_id": self.version_vigente,
-                "grado": grado,
-                "anio_lectivo": anio_lectivo or 2026,
-                "revisada": False,
-            }
-        ]
-
-    async def lista(self, lista_id: str) -> dict:
-        self.llamadas.append("lista")
+    async def revision(self, version_id: str) -> dict:
+        self.llamadas.append("revision")
+        if version_id not in self.versiones:
+            raise RemotoCaido("catalogo", "/revision respondio 404")
         return {
-            "lista_id": lista_id,
-            "version_id": self.version_vigente,
+            "version_id": version_id,
+            "lista_id": "lista-1",
+            "colegio_id": COLEGIO,
             "grado": self.grado,
+            "anio_lectivo": 2026,
             "revisada": False,
             "total_items": len(self.renglones),
             "items": self.renglones,
@@ -140,15 +134,36 @@ class TestPreviewFeliz:
         trabajo_id = respuesta.json()["trabajo_id"]
 
         vista = await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")
-        assert vista.json()["origen"] == "preview_onboarding"
+        cuerpo = vista.json()
+        assert cuerpo["origen"] == "preview_onboarding"
+        # El hijo sintetico del preview guarda el version_id de su lista: es a
+        # donde la consola enlaza para aprobarla (el preview no se publica).
+        assert cuerpo["hijos"][0]["version_id"] == VERSION_VIGENTE
+
+
+class TestPreviewVersionAware:
+    async def test_previsualizar_un_borrador_no_vigente_funciona(self, motor):
+        # El caso de EDITAR: el borrador nace SIN vigencia (el acudiente sigue
+        # viendo la aprobada) y aun asi se previsualiza por su version_id. Antes
+        # esto era un 409 "existe una version mas nueva"; ahora se arma.
+        catalogo = _catalogo_con_lista()
+        catalogo.versiones = ["ver-borrador-2"]  # el borrador, NO la vigente vieja
+        app.state.motor = motor
+        app.state.catalogo = catalogo
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://prueba"
+        ) as http:
+            respuesta = await http.post("/v1/admin/onboarding/ver-borrador-2/preview", json=_cuerpo())
+        assert respuesta.status_code == 200
+        assert respuesta.json()["estado"] == EstadoTrabajo.ESPERA_REVISION.value
 
 
 class TestPreviewGuardas:
-    async def test_version_no_vigente_es_409(self, cliente, catalogo):
-        # La vigente del catalogo es VERSION_VIGENTE; se pide otra.
-        respuesta = await cliente.post("/v1/admin/onboarding/ver-vieja-0/preview", json=_cuerpo())
-        assert respuesta.status_code == 409
-        assert respuesta.json()["error"] == "version_no_vigente"
+    async def test_version_inexistente_es_404(self, cliente, catalogo):
+        # Un version_id que no existe en el catalogo: 404, no 409.
+        respuesta = await cliente.post("/v1/admin/onboarding/ver-que-no-existe/preview", json=_cuerpo())
+        assert respuesta.status_code == 404
+        assert respuesta.json()["error"] == "version_no_existe"
 
     async def test_sin_lista_es_404(self, motor):
         catalogo = _catalogo_con_lista(version_vigente=None)
@@ -161,13 +176,15 @@ class TestPreviewGuardas:
         assert respuesta.status_code == 404
         assert respuesta.json()["error"] == "version_no_existe"
 
-    async def test_grado_sin_lista_es_404(self, cliente, catalogo):
+    async def test_version_de_otro_grado_es_409(self, cliente, catalogo):
+        # La version existe pero es del grado Cuarto; se pide previsualizarla
+        # como si fuera de Quinto: no corresponde a ese (colegio, grado, anio).
         respuesta = await cliente.post(
             f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview",
             json=_cuerpo(grado="Quinto"),
         )
-        assert respuesta.status_code == 404
-        assert respuesta.json()["error"] == "version_no_existe"
+        assert respuesta.status_code == 409
+        assert respuesta.json()["error"] == "version_no_corresponde"
 
 
 class TestPreviewNoEsFireAndForget:
@@ -200,9 +217,7 @@ class TestPreviewEsIdempotente:
         # anterior del mismo (colegio, grado, anio): 3 clics -> 1 trabajo.
         ids = []
         for _ in range(3):
-            respuesta = await cliente.post(
-                f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo()
-            )
+            respuesta = await cliente.post(f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo())
             assert respuesta.status_code == 200
             ids.append(respuesta.json()["trabajo_id"])
 

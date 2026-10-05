@@ -259,6 +259,28 @@ class TestDegradarNuncaTumbar:
         assert vista["error"] == "dependencia_caida"
         assert "se puede reintentar" in vista["mensaje"]
 
+    async def test_un_hijo_sin_lista_degrada_percepcion_pero_no_tumba(self, motor):
+        # Caracterizacion (I-2): con DOS hijos donde solo uno tiene lista
+        # publicada, el trabajo NO falla —el otro hijo aporta renglones— pero
+        # la etapa percepcion queda DEGRADADA, no OK: la seccion 8 exige decir
+        # que falto en vez de fingir un kit completo. Es la rama
+        # `detalle["sin_lista"]` de procesar que ningun test cubria.
+        respuesta = await trabajos.crear(
+            motor,
+            hijos=[
+                {"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"},
+                {"referencia": "hijo-2", "colegio_id": COLEGIO, "grado": "Septimo"},
+            ],
+        )
+        trabajo_id = uuid.UUID(respuesta["trabajo_id"])
+        estado = await trabajos.procesar(motor, trabajo_id, catalogo=_catalogo())
+        vista = await trabajos.ver(motor, trabajo_id)
+
+        assert estado == EstadoTrabajo.ESPERA_REVISION.value
+        percepcion = next(e for e in vista["etapas"] if e["nombre"] == "percepcion")
+        assert percepcion["estado"] == "degradada"
+        assert [s["hijo"] for s in percepcion["detalle"]["sin_lista"]] == ["hijo-2"]
+
     async def test_reprocesar_no_duplica_items_ni_kits(self, motor):
         from sqlalchemy import func, select
 
@@ -275,6 +297,65 @@ class TestDegradarNuncaTumbar:
             kits = await conexion.scalar(select(func.count()).select_from(trabajos.KIT))
         assert items == 4
         assert kits == 2
+
+
+class TestPublicarDirectoDesdeListaVerificada:
+    """Caracterizacion (I-2) del `publicar_directo`: un trabajo con
+    origen='lista_verificada' (el kit del padre cuya lista un admin ya aprobo)
+    se publica SIN pasar por la cola de revision y deja `kits_publicados` en la
+    MISMA transaccion que el cambio a PUBLICADO. Es la rama de _finalizar que
+    solo cubria el preview (por la negativa) y `revisar` (por la ruta manual)."""
+
+    async def _crear_lista_verificada_y_procesar(self, motor):
+        respuesta = await trabajos.crear(
+            motor,
+            hijos=[{"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"}],
+            origen="lista_verificada",
+            usuario_id=uuid.uuid4(),
+        )
+        trabajo_id = uuid.UUID(respuesta["trabajo_id"])
+        estado = await trabajos.procesar(motor, trabajo_id, catalogo=_catalogo())
+        return trabajo_id, estado
+
+    async def test_se_publica_sin_pasar_por_revision(self, motor):
+        trabajo_id, estado = await self._crear_lista_verificada_y_procesar(motor)
+        assert estado == EstadoTrabajo.PUBLICADO.value
+        vista = await trabajos.ver(motor, trabajo_id, incluir_kits=True)
+        assert vista["estado"] == EstadoTrabajo.PUBLICADO.value
+        # Sin personaje ni `equilibrio` pedidos: Ahorrador y Premium (ADR 0030).
+        assert [k["perfil"] for k in vista["kits"]] == ["Ahorrador", "Premium"]
+
+    async def test_deja_kits_publicados_en_la_bandeja(self, motor):
+        from sqlalchemy import select
+
+        trabajo_id, _ = await self._crear_lista_verificada_y_procesar(motor)
+        async with motor.engine.begin() as conexion:
+            eventos = list(await conexion.execute(select(trabajos.BANDEJA)))
+        assert [e.tipo for e in eventos] == ["kits_publicados"]
+        assert eventos[0].agregado_id == trabajo_id
+
+
+class TestElEventoDeOutboxNoEsDualWrite:
+    """I3.d: `emitir_evento` no abre transaccion propia. Si el orquestador hace
+    rollback despues de emitirlo, la fila de la bandeja NO debe sobrevivir: eso
+    es lo que separa un outbox transaccional de un dual-write que deja eventos
+    huerfanos que el repartidor reintenta sin fin."""
+
+    async def test_la_fila_no_sobrevive_a_un_rollback_a_mitad(self, motor):
+        from sqlalchemy import func, select
+        from tukit_inteligencia.repositorios.trabajos import RepoTrabajos
+
+        trabajo_id = uuid.uuid4()
+        # Se emite el evento y se ABORTA la transaccion (rollback) sin commit:
+        # begin() hace rollback si el bloque sale por excepcion.
+        with pytest.raises(RuntimeError):
+            async with motor.engine.begin() as conexion:
+                await RepoTrabajos(conexion).emitir_evento(trabajo_id)
+                raise RuntimeError("aborta a mitad")
+
+        async with motor.engine.begin() as conexion:
+            cuantos = await conexion.scalar(select(func.count()).select_from(trabajos.BANDEJA))
+        assert cuantos == 0
 
 
 class TestLaRevisionHumana:
@@ -381,6 +462,40 @@ class TestLaRevisionHumana:
         # Una sola cache bendita por grado: el segundo desbanca al primero.
         assert len(puntero) == 1
         assert puntero[0].trabajo_id == segundo
+
+    async def test_aprobar_un_kit_sin_lineas_comprables_se_niega_y_no_fija_canonico(self, motor):
+        # Todos los renglones son licencia digital (informativos, sin precio): el
+        # kit no tiene NADA que Tukit pueda cobrar. Aprobarlo como canonico solo
+        # garantizaria el 404 "sin lineas comprables" en el checkout, asi que se
+        # niega con `CheckoutRechazado` y NO se fija el puntero ni se emite aviso.
+        from sqlalchemy import func, select
+
+        catalogo = CatalogoFalso(
+            renglones=[
+                renglon(
+                    1,
+                    "Plan lector virtual RAZ-PLUS",
+                    tipo_item="licencia_digital",
+                    modo_adquisicion="plataforma",
+                    instruccion_colegio="Se adquiere con QUOVIX.",
+                ),
+            ],
+            respuestas={},  # sin emparejamiento: el renglon no gana producto ni precio
+        )
+        trabajo_id, _ = await _crear_y_procesar(motor, catalogo=catalogo)
+
+        with pytest.raises(trabajos.CheckoutRechazado) as exc:
+            await trabajos.revisar(motor, trabajo_id, decision="aprobar")
+        assert exc.value.estado == 409
+        assert exc.value.cuerpo["error"] == "kit_sin_lineas"
+
+        # El rollback dejo el trabajo en espera de revision, sin canonico ni evento.
+        assert (await trabajos.ver(motor, trabajo_id))["estado"] == EstadoTrabajo.ESPERA_REVISION.value
+        async with motor.engine.begin() as conexion:
+            punteros = await conexion.scalar(select(func.count()).select_from(trabajos.KIT_CANONICO))
+            eventos = await conexion.scalar(select(func.count()).select_from(trabajos.BANDEJA))
+        assert punteros == 0
+        assert eventos == 0
 
 
 class TestAplicarCanonico:
@@ -553,10 +668,9 @@ class TestAplicarCanonico:
         assert resultado["pedido_id"] == "ped-1"
         # RPO cero: ni una linea lleva id canonico, solo sku.
         assert comercio.orden_enviada["lineas"]
-        assert all("producto_canonico_id" not in linea for linea in comercio.orden_enviada["lineas"])
-        assert all(
-            linea["sku"] and linea["precio_unitario"] > 0 for linea in comercio.orden_enviada["lineas"]
-        )
+        lineas_enviadas = comercio.orden_enviada["lineas"]
+        assert all("producto_canonico_id" not in linea for linea in lineas_enviadas)
+        assert all(linea["sku"] and linea["precio_unitario"] > 0 for linea in lineas_enviadas)
         assert comercio.orden_enviada["trabajo_id"] == str(parent_id)
 
     async def test_ordenar_reenvia_el_rechazo_de_negocio_de_comercio(self, motor):

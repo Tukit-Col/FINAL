@@ -115,7 +115,9 @@ class TestExportar:
         lista_id = sembrar_lista(sesion, concepto.id)
         sesion.execute(update(VERSION).where(VERSION.c.lista_id == lista_id).values(vigente=False))
         sesion.execute(
-            VERSION.insert().values(id=uuid.uuid4(), lista_id=lista_id, numero=2, vigente=True, revisada_en=None)
+            VERSION.insert().values(
+                id=uuid.uuid4(), lista_id=lista_id, numero=2, vigente=True, revisada_en=None
+            )
         )
 
         filas = filas_de_listas(sesion.connection())

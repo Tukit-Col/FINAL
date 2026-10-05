@@ -63,9 +63,17 @@ from typing import Any
 from urllib.parse import urlparse
 
 from . import tiendas
-from .cargador import _uuid_estable
 from .descubrir import _encolar, resolver
+from .dominio.propuesta import (  # re-exportados: la vista http.server y su test los usan por nombre
+    _ean_valido,  # noqa: F401
+    construir_propuesta_libro,
+    construir_propuesta_util,
+)
 from .modelos import Nivel, TipoItem
+
+# ponytail: `volcar` es CLI batch de un solo llamador HTTP (el boton "volcar" de
+# la consola); se invoca entero, no tiene SQL que un request reuse pieza a pieza
+# -> a repositorios solo si un endpoint necesitara sus consultas por separado.
 from .volcar import _principal as volcar_principal
 
 # Las tres tiendas que el catalogo ya usa, en el orden en que `completar` y
@@ -529,11 +537,6 @@ async def _tienda_por_slug(slug: str) -> uuid.UUID | None:
         await motor.cerrar()
 
 
-def _ean_valido(ean: str | None) -> str | None:
-    ean = (ean or "").strip()
-    return ean if ean.isdigit() and len(ean) in (8, 12, 13) else None
-
-
 def buscar_candidatos(consulta: str) -> list[tuple[str, tiendas.Oferta]]:
     """Las tres tiendas con el quinto filtro puesto, de mas barato a mas caro.
 
@@ -552,88 +555,6 @@ def buscar_candidatos(consulta: str) -> list[tuple[str, tiendas.Oferta]]:
             candidatos.append((slug, oferta))
     candidatos.sort(key=lambda par: par[1].precio_cop)
     return candidatos
-
-
-def construir_propuesta_util(
-    concepto_id: uuid.UUID,
-    nombre_concepto: str,
-    slug: str,
-    tienda_id: uuid.UUID,
-    oferta: tiendas.Oferta,
-    nivel: str,
-) -> dict[str, Any]:
-    """El dict de propuesta de un util elegido, listo para `_encolar`.
-
-    Funcion pura --sin I/O, sin motor-- para que la comparta el CLI (que encola
-    y aprueba en el acto) y la SPA (que solo encola, y una persona decide el
-    nivel al aprobar). El id sale de `_uuid_estable("util", slug, sku)` para que
-    reencolar el mismo candidato no lo duplique. Precio en CENTAVOS, puntaje 0.6
-    porque lo eligio una persona de una lista de candidatos reales.
-    """
-    return {
-        "id": _uuid_estable("util", slug, oferta.sku),
-        "concepto_id": concepto_id,
-        "concepto_sugerido": None,
-        "texto_origen": nombre_concepto,
-        "tienda_id": tienda_id,
-        "referencia_externa": oferta.sku,
-        "url": oferta.url or None,
-        "nombre": oferta.nombre[:512],
-        "marca": oferta.marca,
-        "ean": _ean_valido(oferta.ean),
-        "imagen_url": oferta.imagen_url,
-        "especificaciones": oferta.especificaciones or {},
-        "precio_centavos": oferta.precio_cop * 100,
-        "disponible": oferta.disponible,
-        "nivel_sugerido": nivel,
-        "puntaje": 0.6,
-        "estado": "pendiente",
-        "origen": "manual",
-        "version_lista_id": None,
-        "item_lista_id": None,
-    }
-
-
-def construir_propuesta_libro(
-    concepto_id: uuid.UUID,
-    nombre_concepto: str,
-    slug: str,
-    tienda_id: uuid.UUID,
-    isbn: str,
-    titulo: str,
-    precio_cop: int,
-    nivel: str,
-) -> dict[str, Any]:
-    """El dict de propuesta de un libro por ISBN, listo para `_encolar`.
-
-    Gemelo puro de `construir_propuesta_util` para libros: el ISBN es la
-    referencia (identifica la edicion, no un titulo) y va tambien en `ean` y en
-    `especificaciones`. Puntaje 0.9 porque un ISBN es un dato duro, no una
-    coincidencia de busqueda. Precio en CENTAVOS. `nombre_concepto` no se usa en
-    el dict pero se recibe por simetria con el util y para futuras trazas.
-    """
-    return {
-        "id": _uuid_estable("propuesta", slug, isbn),
-        "concepto_id": concepto_id,
-        "concepto_sugerido": None,
-        "texto_origen": titulo,
-        "tienda_id": tienda_id,
-        "referencia_externa": isbn,
-        "url": None,
-        "nombre": titulo[:512],
-        "marca": None,
-        "ean": isbn,
-        "imagen_url": None,
-        "especificaciones": {"isbn": isbn},
-        "precio_centavos": precio_cop * 100,
-        "disponible": True,
-        "nivel_sugerido": nivel,
-        "puntaje": 0.9,
-        "estado": "pendiente",
-        "origen": "manual",
-        "version_lista_id": None,
-        "item_lista_id": None,
-    }
 
 
 async def agregar_util(concepto_id: str, slug: str, oferta: tiendas.Oferta, nivel: str) -> tuple[bool, str]:

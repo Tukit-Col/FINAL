@@ -410,9 +410,7 @@ async def test_aprobar_propuesta_traduce_el_codigo(cliente, monkeypatch):
 
     monkeypatch.setattr(descubrir, "resolver", _falso_resolver)
     prop_id = cliente.ids["propuesta_pendiente"]
-    r = await cliente.post(
-        f"/v1/admin/catalogo/propuestas/{prop_id}/aprobar", json={"nivel": "confiable"}
-    )
+    r = await cliente.post(f"/v1/admin/catalogo/propuestas/{prop_id}/aprobar", json={"nivel": "confiable"})
     assert r.status_code == 200 and r.json()["estado"] == "aprobada"
 
 
@@ -464,9 +462,7 @@ async def test_aprobar_propuesta_sin_correcciones_no_manda_overrides(cliente, mo
 
     monkeypatch.setattr(descubrir, "resolver", _falso_resolver)
     prop_id = cliente.ids["propuesta_pendiente"]
-    r = await cliente.post(
-        f"/v1/admin/catalogo/propuestas/{prop_id}/aprobar", json={"nivel": "confiable"}
-    )
+    r = await cliente.post(f"/v1/admin/catalogo/propuestas/{prop_id}/aprobar", json={"nivel": "confiable"})
     assert r.status_code == 200
     assert visto["overrides"] is None
 
@@ -479,7 +475,5 @@ async def test_aprobar_propuesta_que_falla_es_409(cliente, monkeypatch):
 
     monkeypatch.setattr(descubrir, "resolver", _falso_resolver)
     prop_id = cliente.ids["propuesta_pendiente"]
-    r = await cliente.post(
-        f"/v1/admin/catalogo/propuestas/{prop_id}/aprobar", json={"nivel": "confiable"}
-    )
+    r = await cliente.post(f"/v1/admin/catalogo/propuestas/{prop_id}/aprobar", json={"nivel": "confiable"})
     assert r.status_code == 409 and r.json()["error"] == "no_se_pudo_aprobar"

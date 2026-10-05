@@ -20,7 +20,8 @@ import httpx
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
-from tukit_catalogo.api import app, pesos
+from tukit_catalogo.api import app
+from tukit_catalogo.dominio.catalogo import pesos
 from tukit_catalogo.modelos import (
     Base,
     Concepto,

@@ -22,6 +22,7 @@ export {
   type RolAsignado,
   type Sesion,
   type Credenciales,
+  type NuevaCuenta,
   type MatriculaAcudiente,
   type RegistroAcudiente,
   type HijoNuevo,

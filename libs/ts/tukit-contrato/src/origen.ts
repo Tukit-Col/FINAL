@@ -11,6 +11,7 @@
 // el cliente entero.
 
 import type {
+  AcudienteResumen,
   AltaProducto,
   AplicarCanonico,
   CambioDeProducto,
@@ -36,6 +37,7 @@ import type {
   TrabajoAdmin,
   TrabajoAplicado,
   TrabajoCreado,
+  TrabajoResumen,
   ValidarLinea,
 } from "./contrato";
 import type {
@@ -108,6 +110,12 @@ export interface Sesion {
 export interface Credenciales {
   correo: string;
   clave: string;
+}
+
+/** Alta de cuenta del acudiente: credenciales + celular opcional para el aviso. */
+export interface NuevaCuenta extends Credenciales {
+  nombre: string;
+  celular?: string;
 }
 
 /** Un hijo tal como lo manda el formulario: colegio y grado bastan para armar el
@@ -188,6 +196,9 @@ export interface OrigenDatos {
   // quien pone la cookie: el origen no toca cookies, igual que el resto de la
   // interfaz no sabe de HTTP.
   iniciarSesion(credenciales: Credenciales): Promise<{ sesion: Sesion; token: string }>;
+  // Alta de cuenta del acudiente (paso 1 de /empezar). Misma forma de retorno
+  // que `iniciarSesion`: el Route Handler pone la cookie con el token.
+  crearCuenta(cuenta: NuevaCuenta): Promise<{ sesion: Sesion; token: string }>;
   sesionActual(token: string): Promise<Sesion | null>;
   cerrarSesion(token: string): Promise<void>;
 
@@ -229,7 +240,16 @@ export interface OrigenDatos {
   acudientesAdmin(token: string, ids?: string[]): Promise<AcudienteAdmin[]>;
 
   // §2 y §4 — el ciclo asincrono.
-  crearTrabajo(solicitud: SolicitudTrabajo, archivos?: ArchivoLista[]): Promise<TrabajoCreado>;
+  // `token` (opcional) es la sesion del acudiente: el Route Handler lo saca de
+  // la cookie httpOnly y lo reenvia como Bearer para que el pipeline resuelva
+  // el usuario_id de la sesion y el kit no quede huerfano. Sin token, flujo
+  // anonimo (el contacto registra el destinatario). Igual en `subirListas` y
+  // `aplicarCanonico`.
+  crearTrabajo(
+    solicitud: SolicitudTrabajo,
+    archivos?: ArchivoLista[],
+    token?: string,
+  ): Promise<TrabajoCreado>;
   consultarTrabajo(trabajoId: string): Promise<Trabajo>;
 
   // §2 — la subida de listas de un acudiente (`POST /v1/listas/subir`). Percibe
@@ -243,6 +263,7 @@ export interface OrigenDatos {
     archivos: ArchivoLista[],
     contacto?: Contacto,
     preferencias?: Preferencias,
+    token?: string,
   ): Promise<SubidaListas>;
 
   // ASUMIDO — superficie de lectura de catalogo (1.1).
@@ -290,7 +311,7 @@ export interface OrigenDatos {
   // subir PDF) y `aplicarCanonico` aplica el nivel + personaje sin re-optimizar
   // ni entrar a la cola, dejando el pedido congelado para comercio.
   gradosCanonicos(colegioId?: string): Promise<GradoCanonico[]>;
-  aplicarCanonico(cuerpo: AplicarCanonico): Promise<TrabajoAplicado>;
+  aplicarCanonico(cuerpo: AplicarCanonico, token?: string): Promise<TrabajoAplicado>;
 
   // §Checkout — el acudiente paga el kit de un trabajo publicado. Manda solo
   // perfil + correo + direccion; Inteligencia arma la orden en Comercio y
@@ -324,6 +345,12 @@ export interface OrigenDatos {
   // §7 — revision humana.
   cola(): Promise<ColaAdmin>;
   trabajoAdmin(trabajoId: string): Promise<TrabajoAdmin>;
+  // Los acudientes de un colegio con el estado de su trabajo más reciente. Solo
+  // usuario_id + estado + fecha (Ley 1581, sin datos de menores).
+  acudientesDeColegio(colegioId: string): Promise<AcudienteResumen[]>;
+  // Nombres de acudientes ADULTOS por id (PII, §Anexo M): exige el Bearer de la
+  // sesión del admin. Mapa id→nombre; un id sin nombre no aparece.
+  nombresDeUsuarios(ids: string[], token: string): Promise<Record<string, string>>;
   validarLinea(trabajoId: string, itemId: string, cuerpo: ValidarLinea): Promise<void>;
   // Fija el producto de UN kit (por-nivel): escribe LINEA, no RESOLUCION, y
   // recalcula el subtotal. A diferencia de `validarLinea` (que confirma el item
@@ -468,6 +495,12 @@ export interface OrigenDatos {
   // la sesion de identidad sin cruzar la frontera (regla 1). Devuelve la lista
   // sin resumen; el dashboard no lo necesita.
   misPedidos(usuarioId: string): Promise<Pedido[]>;
+
+  // Las solicitudes de kit del acudiente (trabajos del pipeline, no pedidos
+  // pagados): lo que `/empezar` crea. A diferencia de `misPedidos`, inteligencia
+  // SÍ valida la sesión, así que se identifica por el `token` del portador —el
+  // mismo Bearer que ya reenvía `crearTrabajo`— y no por un `usuario_id` suelto.
+  misTrabajos(token?: string): Promise<TrabajoResumen[]>;
 
   // "Mis solicitudes" del panel del acudiente: sus listas subidas + sus
   // trabajos, unidas (`GET /v1/mis-solicitudes` en inteligencia). Viaja el

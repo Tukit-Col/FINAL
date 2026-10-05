@@ -31,30 +31,22 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import (
-    BigInteger,
-    Column,
-    DateTime,
-    Integer,
-    MetaData,
-    String,
-    Table,
-    Uuid,
-    select,
-    update,
-)
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from tukit_comun.bandeja import Resultado, drenar
 from tukit_comun.bd import MotorServicio, crear_motor
 from tukit_comun.cifrado import cifrador_desde_entorno
 from tukit_comun.config import url_desde_entorno
 
-# Import intra-servicio: `_materializar_hijos` es la funcion del registro, que su
-# propio docstring reserva "y a futuro el poller". Reusarla evita duplicar la
-# derivacion idempotente de estudiante + matricula + vinculo. `api.py` no importa
-# a `poller.py`, asi que no hay ciclo, y ambos viven en el mismo servicio (la
-# frontera solo prohibe importar OTRO servicio).
-from .api import GRADOS, HijoRegistro, _materializar_hijos
+# El grado y la forma plana del hijo viven en `dominio/matriculas.py` (puro); el
+# SQL derivado que materializa cada hijo (estudiante + matricula + vinculo) es un
+# metodo de `RepoIdentidad`, el mismo que usa el router del registro. Reusarlo
+# evita duplicar la derivacion idempotente. No hay ciclo: el repo no importa al
+# poller, y ambos viven en el mismo servicio (la frontera solo prohibe importar
+# OTRO servicio).
+from .dominio.matriculas import GRADOS, HijoMatricula
 from .modelos import Colegio, Sede, Usuario
+from .repositorios import RepoIdentidad
 
 # El unico tipo de evento que este poller atiende. La bandeja del Catalogo
 # lleva otros (`lista_verificada`, que drena Inteligencia); un tipo que no sea
@@ -83,30 +75,6 @@ def _dane_de_carga(carga: dict[str, Any]) -> str | None:
     return None
 
 
-def _bandeja_reflejada() -> Table:
-    """La bandeja del Catalogo, descrita con solo las columnas que se leen.
-
-    No se importa el modelo del Catalogo (regla 1): se declara aqui una tabla
-    con la forma comun de bandeja, identica en todos los servicios. `carga` se
-    lee como JSON portable; se declara con el tipo generico para no arrastrar el
-    `Texto` de un servicio ajeno.
-    """
-    from sqlalchemy import JSON
-
-    metadatos = MetaData()
-    return Table(
-        "bandeja_salida",
-        metadatos,
-        Column("id", BigInteger, primary_key=True),
-        Column("tipo", String(128)),
-        Column("agregado_tipo", String(64)),
-        Column("agregado_id", Uuid(as_uuid=True)),
-        Column("carga", JSON),
-        Column("publicado_en", DateTime(timezone=True)),
-        Column("intentos", Integer),
-    )
-
-
 @dataclass
 class Poller:
     """Drena `colegio_verificado` del Catalogo y da de alta el colegio.
@@ -126,45 +94,32 @@ class Poller:
 
     async def pasada(self, *, limite: int = 100) -> int:
         """Una pasada: procesa hasta `limite` eventos no publicados. Devuelve
-        cuantos colegios dio de alta o actualizo."""
-        bandeja = _bandeja_reflejada()
-        aplicados = 0
-        async with self.motor_catalogo.begin() as conexion:
-            pendientes = list(
-                await conexion.execute(
-                    select(bandeja)
-                    .where(bandeja.c.publicado_en.is_(None), bandeja.c.tipo == _TIPO)
-                    .order_by(bandeja.c.id)
-                    .limit(limite)
-                    .with_for_update(skip_locked=True)
-                )
-            )
-            for fila in pendientes:
-                ok = await self._procesar(fila)
-                # El evento se marca publicado pase lo que pase con el upsert:
-                # un evento sin `colegio_id` valido no le sirve a nadie y no debe
-                # reintentarse en cada pasada. Un upsert que sale bien tampoco.
-                await self._marcar_publicado(conexion, bandeja, fila.id)
-                if ok:
-                    aplicados += 1
-        return aplicados
+        cuantos colegios dio de alta o actualizo.
 
-    async def _procesar(self, fila: Any) -> bool:
-        """Da de alta (o actualiza) el colegio del evento. Devuelve si aplico."""
+        El drenar/SKIP LOCKED/marcar-publicado vive en `tukit_comun.bandeja`
+        (ADR 0022); aqui solo se aporta el `manejar` de `colegio_verificado`."""
+        return await drenar(self.motor_catalogo, self._procesar, tipo=_TIPO, limite=limite)
+
+    async def _procesar(self, conexion: Any, fila: Any) -> Resultado:
+        """Da de alta (o actualiza) el colegio del evento.
+
+        `OMITIR` (marca publicado, no cuenta) para un evento que no le sirve a
+        nadie —sin `colegio_id` valido o sin nombre—: reintentarlo cada pasada no
+        cambiaria nada. `HECHO` cuando el colegio se dio de alta o actualizo."""
         carga = fila.carga or {}
         crudo = carga.get("colegio_id")
         if not crudo:
-            return False
+            return Resultado.OMITIR
         try:
             colegio_id = uuid.UUID(str(crudo))
         except (ValueError, TypeError):
-            return False
+            return Resultado.OMITIR
         nombre = (carga.get("nombre") or "").strip()
         if not nombre:
             # Un colegio sin nombre no se puede mostrar en la tarjeta de aliado:
             # el nombre es el unico campo obligatorio del modelo. Sin el, no se
-            # da de alta (pero el evento se marca publicado igual, arriba).
-            return False
+            # da de alta (pero el evento se marca publicado igual: OMITIR).
+            return Resultado.OMITIR
 
         async with self.motor_identidad.sesion() as db:
             existente = (
@@ -214,11 +169,9 @@ class Poller:
         # subio la lista para este colegio y existe en Identidad, se matricula a
         # su hijo; si no, el colegio queda igual.
         await self._matricular_al_hijo_que_esperaba(carga, colegio_id)
-        return True
+        return Resultado.HECHO
 
-    async def _matricular_al_hijo_que_esperaba(
-        self, carga: dict[str, Any], colegio_id: uuid.UUID
-    ) -> None:
+    async def _matricular_al_hijo_que_esperaba(self, carga: dict[str, Any], colegio_id: uuid.UUID) -> None:
         """Reusa `_materializar_hijos` (el camino del registro) para que el hijo
         del padre que subio la lista quede matriculado al volverse aliado el
         colegio. Sin esto, el hijo nunca aparece en precarga ni en el padron.
@@ -245,22 +198,14 @@ class Poller:
             return
         try:
             async with self.motor_identidad.engine.begin() as conexion:
-                existe = await conexion.scalar(
-                    select(Usuario.id).where(Usuario.id == usuario_id)
-                )
+                existe = await conexion.scalar(select(Usuario.id).where(Usuario.id == usuario_id))
                 if existe is None:
                     return
-                hijo = HijoRegistro(colegio_id=colegio_id, grado=grado)  # apodo -> "" cifrado
-                await _materializar_hijos(
-                    conexion, usuario_id, [hijo], datetime.now(UTC).year, self.cifrador
-                )
+                hijo = HijoMatricula(colegio_id=colegio_id, grado=grado)  # apodo -> "" cifrado
+                repo = RepoIdentidad(conexion)
+                await repo.materializar_hijos(usuario_id, [hijo], datetime.now(UTC).year, self.cifrador)
         except Exception as error:  # noqa: BLE001 - best-effort; el colegio ya quedo dado de alta
             print(f"[poller-identidad] no se pudo matricular al hijo de {colegio_id}: {error}")
-
-    async def _marcar_publicado(self, conexion: Any, bandeja: Table, id_fila: int) -> None:
-        await conexion.execute(
-            update(bandeja).where(bandeja.c.id == id_fila).values(publicado_en=datetime.now(UTC))
-        )
 
 
 def _motor_lectura(servicio: str) -> AsyncEngine:

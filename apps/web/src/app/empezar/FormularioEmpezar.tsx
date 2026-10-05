@@ -764,7 +764,6 @@ export default function FormularioEmpezar({
 
       if (hijosVerificados.length > 0) {
         const solicitud: SolicitudTrabajo = {
-          contacto,
           hijos: hijosVerificados.map<HijoSolicitud>((hijo) => ({
             referencia: hijo.referencia,
             colegio_id: hijo.colegioId,
@@ -815,7 +814,7 @@ export default function FormularioEmpezar({
             referencia: hijo.referencia,
             archivo: hijo.archivo as File,
           })),
-          contacto,
+          undefined,
           preferencias,
         );
         // Wait-screen wins: aunque haya un kit listo, el hogar va a la pantalla

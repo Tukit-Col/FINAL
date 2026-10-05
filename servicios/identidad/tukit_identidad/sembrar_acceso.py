@@ -35,8 +35,8 @@ from datetime import UTC, datetime
 from tukit_comun import derivar
 from tukit_comun.cifrado import cifrador_desde_entorno
 
+from .dominio.sesiones import hashear_clave
 from .modelos import AmbitoTipo, Base, Clasificacion
-from .sesiones import hashear_clave
 
 # El colegio del piloto, para anclar el ambito del acudiente y del colegio en
 # algo que `cargador.py` tambien siembra (mismo UUID, derivado del codigo).
@@ -124,6 +124,22 @@ PERMISOS: list[dict[str, object]] = [
         "campo": None,
         "clasificacion_minima": Clasificacion.INTERNO.value,
     },
+    {
+        "codigo": "estudiante:leer:apodo",
+        "recurso": "estudiante",
+        "accion": "leer",
+        "campo": "apodo",
+        "clasificacion_minima": Clasificacion.MENOR.value,
+    },
+    {
+        "codigo": "usuario:leer:nombre",
+        "recurso": "usuario",
+        "accion": "leer",
+        "campo": "nombre",
+        # PERSONAL, no MENOR: es el nombre del acudiente adulto. La
+        # clasificacion mide sensibilidad del dato, no quien lo ve.
+        "clasificacion_minima": Clasificacion.PERSONAL.value,
+    },
 ]
 
 ROL_PERMISO: list[tuple[str, str]] = [
@@ -137,6 +153,9 @@ ROL_PERMISO: list[tuple[str, str]] = [
     ("admin", "linea:validar"),
     ("admin", "lista:publicar"),
     ("admin", "trabajo:leer"),
+    ("acudiente", "estudiante:leer:apodo"),
+    ("admin", "usuario:leer:nombre"),
+    ("operador", "usuario:leer:nombre"),
 ]
 
 

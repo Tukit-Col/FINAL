@@ -56,7 +56,7 @@ const EXPLICACION_SECCION: Partial<Record<ClaseLinea, string>> = {
   comprable: undefined,
 };
 
-export default function VistaKits({ trabajo }: { trabajo: Trabajo }) {
+export default function VistaKits({ trabajo, correo }: { trabajo: Trabajo; correo: string }) {
   const recomendado = trabajo.recomendado;
   const [activo, setActivo] = useState<PerfilKit>(recomendado?.perfil ?? "Ahorrador");
   const kits = useMemo(
@@ -204,7 +204,7 @@ export default function VistaKits({ trabajo }: { trabajo: Trabajo }) {
 
       <SeccionesDeLineas kit={kit} trabajoId={trabajo.trabajo_id} />
 
-      <Checkout trabajoId={trabajo.trabajo_id} perfil={kit.perfil} total={kit.total} />
+      <Checkout trabajoId={trabajo.trabajo_id} perfil={kit.perfil} total={kit.total} correo={correo} />
     </div>
   );
 }
@@ -216,10 +216,12 @@ function Checkout({
   trabajoId,
   perfil,
   total,
+  correo,
 }: {
   trabajoId: string;
   perfil: PerfilKit;
   total: number;
+  correo: string;
 }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
@@ -229,7 +231,9 @@ function Checkout({
     destinatario: "",
     direccion: "",
     ciudad: "",
-    correo: "",
+    // Prellenado con el correo de la sesion: al acudiente ya identificado no se
+    // le vuelve a pedir. Editable por si el comprobante va a otro correo.
+    correo,
   });
   const formRef = useRef<HTMLFormElement>(null);
   const primerCampoRef = useRef<HTMLInputElement>(null);
@@ -326,10 +330,19 @@ function Checkout({
             Ciudad
             <input value={datos.ciudad} onChange={cambiar("ciudad")} required />
           </label>
-          <label>
-            Correo para el comprobante
-            <input type="email" value={datos.correo} onChange={cambiar("correo")} required />
-          </label>
+          {/* El correo solo se pide a quien no tiene sesion: al acudiente ya
+              identificado no se le vuelve a pedir, su comprobante va al correo
+              de la cuenta. Anonimo => el campo aparece y es obligatorio. */}
+          {correo ? (
+            <p className={styles.notaTotal}>
+              El comprobante va a <strong>{correo}</strong>.
+            </p>
+          ) : (
+            <label>
+              Correo para el comprobante
+              <input type="email" value={datos.correo} onChange={cambiar("correo")} required />
+            </label>
+          )}
           {error && <p className={styles.errorPago}>{error}</p>}
           <button type="submit" className={styles.pagar} disabled={enviando}>
             {enviando ? "Llevándote a la pasarela…" : `Pagar ${formatearPesos(total)}`}

@@ -27,8 +27,9 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest_asyncio
-from sqlalchemy import insert, select
+from sqlalchemy import MetaData, insert, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from tukit_comun.bandeja import bandeja_reflejada
 from tukit_comun.bd import MotorServicio
 from tukit_identidad.modelos import (
     AcudienteMatricula,
@@ -39,12 +40,12 @@ from tukit_identidad.modelos import (
     Sede,
     Usuario,
 )
-from tukit_identidad.poller import Poller, _bandeja_reflejada
+from tukit_identidad.poller import Poller
 
 # La bandeja del Catalogo: la misma forma comun de bandeja (identica en todos los
 # servicios), montada aqui en su propio engine (base ajena), asi que la tabla
 # reflejada del poller la lee igual que en produccion.
-BANDEJA_CATALOGO = _bandeja_reflejada()
+BANDEJA_CATALOGO = bandeja_reflejada(MetaData())
 
 COLEGIO = str(uuid.uuid4())
 USUARIO_ID = str(uuid.uuid4())
@@ -129,9 +130,7 @@ class TestPollerDaDeAltaElColegio:
 
         assert aplicados == 1
         async with motor.sesion() as db:
-            colegio = (
-                await db.execute(select(Colegio).where(Colegio.id == uuid.UUID(COLEGIO)))
-            ).scalar_one()
+            colegio = (await db.execute(select(Colegio).where(Colegio.id == uuid.UUID(COLEGIO)))).scalar_one()
         # El id es el del evento: el mismo que el Catalogo derivo del DANE.
         assert str(colegio.id) == COLEGIO
         assert colegio.nombre == "ACADEMIA CENTRAL DE SISTEMAS"
@@ -150,9 +149,7 @@ class TestPollerDaDeAltaElColegio:
         await poller.pasada()
 
         async with motor.sesion() as db:
-            colegio = (
-                await db.execute(select(Colegio).where(Colegio.id == uuid.UUID(COLEGIO)))
-            ).scalar_one()
+            colegio = (await db.execute(select(Colegio).where(Colegio.id == uuid.UUID(COLEGIO)))).scalar_one()
         assert colegio.nit == "900.123.456-7"
         assert colegio.dane is None
 
@@ -190,9 +187,7 @@ class TestPollerDaDeAltaElColegio:
         assert await poller.pasada() == 1
 
         async with motor.sesion() as db:
-            colegio = (
-                await db.execute(select(Colegio).where(Colegio.id == uuid.UUID(COLEGIO)))
-            ).scalar_one()
+            colegio = (await db.execute(select(Colegio).where(Colegio.id == uuid.UUID(COLEGIO)))).scalar_one()
             sedes = list(
                 (await db.execute(select(Sede).where(Sede.colegio_id == uuid.UUID(COLEGIO)))).scalars()
             )
@@ -253,15 +248,11 @@ class TestPollerMatriculaAlHijo:
 
         async with motor.sesion() as db:
             matricula = (
-                await db.execute(
-                    select(Matricula).where(Matricula.colegio_id == uuid.UUID(COLEGIO))
-                )
+                await db.execute(select(Matricula).where(Matricula.colegio_id == uuid.UUID(COLEGIO)))
             ).scalar_one()
             vinculo = (
                 await db.execute(
-                    select(AcudienteMatricula).where(
-                        AcudienteMatricula.usuario_id == uuid.UUID(USUARIO_ID)
-                    )
+                    select(AcudienteMatricula).where(AcudienteMatricula.usuario_id == uuid.UUID(USUARIO_ID))
                 )
             ).scalar_one()
         # (colegio, "Sede principal", grado, año actual): el año es el mismo que el

@@ -36,6 +36,7 @@ async def motor():
         poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
+
     # SQLite ignora las FK (y por tanto ON DELETE CASCADE) salvo que se pida por
     # conexion. Postgres las respeta en produccion; sin este pragma las pruebas
     # no verian la cascada de borrado de un trabajo. Es la receta estandar.
@@ -116,9 +117,7 @@ class CatalogoFalso:
     async def producto_de_personaje(self, concepto: str, personaje: str) -> dict[str, Any] | None:
         """Primera opcion de un concepto ancla cuyo personaje coincide, o None."""
         self.llamadas.append("producto_de_personaje")
-        respuesta = next(
-            (r for r in self.respuestas.values() if r.get("concepto_codigo") == concepto), None
-        )
+        respuesta = next((r for r in self.respuestas.values() if r.get("concepto_codigo") == concepto), None)
         for op in (respuesta or {}).get("opciones", []):
             if str(op.get("personaje") or "").lower() == personaje.lower():
                 return {

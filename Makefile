@@ -5,14 +5,16 @@
 # invocacion distinta.
 
 .DEFAULT_GOAL := ayuda
-.PHONY: ayuda preparar fronteras prueba lint formato verificar limpiar \
-        bd-arriba bd-abajo bd-crear bd-limpiar bd-esquema bd-indices bd-verificar \
+.PHONY: ayuda preparar fronteras prueba lint formato tipos verificar limpiar \
+        bd-arriba bd-abajo bd-crear bd-limpiar bd-reiniciar-datos bd-esquema bd-indices bd-verificar \
         bd-migrar bd-revision bd-deriva bd-cargar bd-datos bd-enriquecer bd-completar \
         bd-demanda bd-revisar bd-vista bd-admin bd-nivelar bd-volcar bd-limpiar-candidatos fase1 \
         bd-sembrar bd-colegios bd-listas backend arriba reanudar abajo estado humo \
         curaduria-exportar curaduria-importar \
+        infra-arriba infra-abajo \
         api-catalogo api-identidad api-inteligencia api-gateway \
-        api-comercio api-operacion repartidor instantanea-metricas
+        api-comercio api-operacion repartidor instantanea-metricas \
+        poller poller-identidad trabajador barredor
 
 PY := .venv/bin/python
 PYTEST := .venv/bin/pytest
@@ -78,6 +80,9 @@ formato:  ## Aplica formato
 	@$(RUFF) check --fix .
 	@$(RUFF) format .
 
+tipos:  ## Revisa tipos (laxo global, estricto en tukit_comun; ADR 0026)
+	@.venv/bin/mypy libs/py/tukit_comun/tukit_comun
+
 verificar: lint prueba  ## Todo lo que corre la integracion continua
 
 limpiar:  ## Borra artefactos
@@ -119,11 +124,59 @@ bd-crear:  ## Crea el usuario y las 5 bases en un Postgres YA instalado (sin Doc
 		echo "  ok   tukit_$$base"; \
 	done
 
+infra-arriba:  ## Levanta el backbone opcional (RabbitMQ, Redis, Jaeger) bajo el perfil `infra`
+	@# El codigo corre sin esto (broker->NotifierSink, OTLP no-op). Levantarlo
+	@# activa entrega por broker y trazas: pon RABBITMQ_URL y
+	@# OTEL_EXPORTER_OTLP_ENDPOINT en tu .env. Consolas: RabbitMQ :15672,
+	@# Jaeger :16686.
+	@$(COMPOSE) --profile infra up -d
+	@echo "Backbone arriba: RabbitMQ :15672, Jaeger :16686, Redis :6379."
+
+infra-abajo:  ## Detiene el backbone opcional (conserva la cola de RabbitMQ)
+	@$(COMPOSE) --profile infra down
+
 bd-abajo:  ## Detiene Postgres, conservando los datos
 	@$(COMPOSE) down
 
 bd-limpiar:  ## Detiene Postgres y BORRA los datos (volumen incluido)
 	@$(COMPOSE) down -v
+
+# Los datos que NO se borran al reiniciar para una prueba desde cero: la semilla
+# curada (que `bd-sembrar` carga y tarda) y lo que hace posible entrar. Todo lo
+# demas -cuentas de prueba, hijos, listas subidas, trabajos, cola, pedidos,
+# casos, bandejas- es fruto de probar y se trunca. La lista es por-base; una
+# tabla nueva se borra por defecto (mas seguro para una prueba: nunca deja
+# residuo), asi que si se agrega una tabla que SI es semilla, va aqui.
+GUARDAR_identidad := rol permiso rol_permiso colegio sede
+GUARDAR_catalogo := concepto producto_canonico sustituibilidad_concepto grupo_variante concepto_ruta_categoria tienda edicion_libro configuracion_colegio_editorial oferta_tienda precio_oferta
+GUARDAR_inteligencia :=
+GUARDAR_comercio :=
+GUARDAR_operacion :=
+
+bd-reiniciar-datos:  ## Trunca los datos de PRUEBA (deja la semilla del catalogo y el acceso). Para probar el flujo del padre desde cero SIN re-sembrar.
+	@echo "Motor: $(BD_MODO)"
+	@echo "Esto BORRA cuentas, hijos, listas, trabajos, cola, pedidos y casos de prueba."
+	@echo "Conserva: catalogo curado, roles/permisos y el directorio de colegios."
+	@for base in identidad catalogo inteligencia comercio operacion; do \
+		guardar="$(GUARDAR_identidad)"; \
+		case $$base in \
+			catalogo) guardar="$(GUARDAR_catalogo)";; \
+			inteligencia) guardar="$(GUARDAR_inteligencia)";; \
+			comercio) guardar="$(GUARDAR_comercio)";; \
+			operacion) guardar="$(GUARDAR_operacion)";; \
+		esac; \
+		enlista=""; for t in $$guardar; do enlista="$$enlista,'$$t'"; done; enlista="$${enlista#,}"; \
+		[ -z "$$enlista" ] && enlista="''"; \
+		sql="DO \$$\$$ DECLARE t text; BEGIN FOR t IN SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename NOT IN ($$enlista) LOOP EXECUTE format('TRUNCATE TABLE %I CASCADE', t); END LOOP; END \$$\$$;"; \
+		echo "$$sql" | $(PSQL) -q -v ON_ERROR_STOP=1 -U tukit -d "tukit_$$base" || exit 1; \
+		echo "[$$base] datos de prueba truncados"; \
+	done
+	@# El truncado se llevo tambien los usuarios demo (admin@tukit.co, etc.):
+	@# sin ellos no hay con quien entrar a aprobar en la cola. `sembrar_acceso`
+	@# los re-crea idempotente (roles, permisos y logins con clave demo1234).
+	@cd servicios/identidad && PYTHONPATH=".:../../libs/py/tukit_comun" \
+		../../$(PY) -m tukit_identidad.sembrar_acceso
+	@echo "Listo. Reinicia los trabajadores (make reanudar) y prueba el flujo desde /empezar."
 
 # PYTHONPATH explicito para `python -m`: pytest usa el pythonpath del pyproject,
 # pero `python -m` no. Se listan la libreria compartida y cada servicio portado.
@@ -343,6 +396,12 @@ instantanea-metricas:  ## Congela el snapshot de hoy de cobertura/match por cole
 poller:  ## Drena lista_verificada del catalogo y arma el kit del padre (una pasada; s=--seguir para bucle)
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_inteligencia.poller $(s)
 
+trabajador:  ## Drena la cola de trabajos y corre el pipeline durable, ADR 0024 (una pasada; s=--seguir para bucle)
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_inteligencia.trabajador $(s)
+
+barredor:  ## Libera reservas de pedidos sin pagar por TTL, ADR 0023 C1 (una pasada; s=--seguir para bucle)
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_comercio.barredor $(s)
+
 poller-identidad:  ## Drena colegio_verificado del catalogo y da de alta el colegio aliado (s=--seguir para bucle)
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_identidad.poller $(s)
 
@@ -368,20 +427,27 @@ arriba:  ## Levanta los seis procesos HTTP en segundo plano
 		curl -fs http://127.0.0.1:$(PUERTO_GATEWAY)/v1/servicios 2>/dev/null | grep -q '"todos_arriba":true' && break; \
 		sleep 0.5; \
 	done
-	@# Los tres trabajadores de fondo (§10): sin ellos el aviso al acudiente no
-	@# sale (repartidor), el kit del padre no se arma (poller) y un colegio nuevo
-	@# nunca se vuelve aliado (poller-identidad). Antes se lanzaban a mano y se
-	@# olvidaban; ahora suben con el backend. Cada uno en --seguir con su pid.
+	@# Los trabajadores de fondo: sin ellos el aviso al acudiente no sale
+	@# (repartidor), el kit del padre no se arma (poller), un colegio nuevo nunca
+	@# se vuelve aliado (poller-identidad) y —desde ADR 0024— el pipeline no corre
+	@# (trabajador: drena la cola de trabajos `encolado`, antes era una asyncio.Task
+	@# del API que un reinicio dejaba colgada). Cada uno en --seguir con su pid.
 	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_operacion.repartidor --seguir \
 		> $(EJECUCION)/repartidor.log 2>&1 & echo $$! > $(EJECUCION)/repartidor.pid
 	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_inteligencia.poller --seguir \
 		> $(EJECUCION)/poller.log 2>&1 & echo $$! > $(EJECUCION)/poller.pid
+	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_inteligencia.trabajador --seguir \
+		> $(EJECUCION)/trabajador.log 2>&1 & echo $$! > $(EJECUCION)/trabajador.pid
 	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_identidad.poller --seguir \
 		> $(EJECUCION)/poller-identidad.log 2>&1 & echo $$! > $(EJECUCION)/poller-identidad.pid
+	@# El barredor libera la reserva de un pedido que nunca se pago (ADR 0023, C1):
+	@# sin el, un checkout abandonado bloquea stock para siempre.
+	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_comercio.barredor --seguir \
+		> $(EJECUCION)/barredor.log 2>&1 & echo $$! > $(EJECUCION)/barredor.pid
 	@$(MAKE) --no-print-directory estado
 
-abajo:  ## Detiene los seis procesos HTTP y los tres trabajadores de fondo
-	@for s in gateway operacion comercio inteligencia catalogo identidad repartidor poller poller-identidad; do \
+abajo:  ## Detiene los seis procesos HTTP y los trabajadores de fondo
+	@for s in gateway operacion comercio inteligencia catalogo identidad repartidor poller trabajador poller-identidad barredor; do \
 		[ -f $(EJECUCION)/$$s.pid ] && kill $$(cat $(EJECUCION)/$$s.pid) 2>/dev/null; \
 		rm -f $(EJECUCION)/$$s.pid; \
 	done; true
