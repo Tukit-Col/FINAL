@@ -16,6 +16,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import type {
+  AcudienteResumen,
   ColegioDetalle,
   DirectorioColegio,
   MetricasColegio,
@@ -33,6 +34,14 @@ export const dynamic = "force-dynamic";
 
 interface Props {
   params: Promise<{ colegio: string }>;
+}
+
+// Las preferencias del hogar en frases cortas para el panel: hoy solo el dolor
+// que declaró. Vacío si no pidió ninguna.
+function resumenPreferencias(p: AcudienteResumen["preferencias"]): string[] {
+  const partes: string[] = [];
+  if (p.dolor_declarado) partes.push(`Le duele: ${p.dolor_declarado.replace(/_/g, " ")}`);
+  return partes;
 }
 
 export default async function PaginaColegio({ params }: Props) {
@@ -114,6 +123,25 @@ export default async function PaginaColegio({ params }: Props) {
       }
     }
   }
+
+  // Los acudientes del colegio con el estado de su trabajo. Fail-soft: si el
+  // backend no responde, el panel queda vacío en vez de tumbar toda la ficha.
+  const acudientes = await origenDeDatos()
+    .acudientesDeColegio(colegioId)
+    .catch(() => []);
+
+  // El nombre del acudiente adulto (PII, §Anexo M) exige el Bearer del admin y
+  // el permiso `usuario:leer:nombre`. Fail-soft: sin token o si identidad no
+  // responde, el panel cae al id corto que ya mostraba. Reusa el `token` de la
+  // cookie de sesión leído arriba (mismo Bearer que pide los pedidos pagados).
+  const nombres = token
+    ? await origenDeDatos()
+        .nombresDeUsuarios(
+          acudientes.map((a) => a.usuario_id),
+          token,
+        )
+        .catch(() => ({}) as Record<string, string>)
+    : ({} as Record<string, string>);
 
   return (
     <div className={styles.pagina}>
@@ -380,6 +408,46 @@ export default async function PaginaColegio({ params }: Props) {
             <dd className="cifra">{metricas.kits_armados}</dd>
           </div>
         </dl>
+      </section>
+
+      <section className={styles.tarjeta}>
+        <h2 className={styles.subtitulo}>Acudientes</h2>
+        <p className={styles.bajada}>
+          Quiénes han pedido kits para este colegio, para qué grado y con qué preferencias.
+          Sin datos de menores: el identificador del acudiente, el grado que pidió y los
+          pesos del hogar —nunca el apodo ni el correo.
+        </p>
+        {acudientes.length === 0 ? (
+          <p className={styles.sinGrados}>Ningún acudiente todavía.</p>
+        ) : (
+          <ul className={styles.listaAcudientes}>
+            {acudientes.map((a) => {
+              const prefs = resumenPreferencias(a.preferencias);
+              return (
+                <li key={a.usuario_id}>
+                  {nombres[a.usuario_id] ? (
+                    <span className={styles.nombreAcudiente}>{nombres[a.usuario_id]}</span>
+                  ) : (
+                    <code>{a.usuario_id.slice(0, 8)}</code>
+                  )}
+                  {a.grados.length > 0 ? (
+                    <span className={styles.gradosAcudiente}>{a.grados.join(", ")}</span>
+                  ) : null}
+                  {/* El estado enlaza al trabajo: sus fases (percepción →
+                      optimización) y, cuando llega a `publicado`, el kit ya
+                      armado. Es la ventana para seguir el avance tras aprobar. */}
+                  <Link href={`/trabajos/${a.trabajo_id}`} className={styles.estadoTrabajo}>
+                    {a.estado}
+                  </Link>
+                  <time dateTime={a.actualizado_en}>{a.actualizado_en.slice(0, 10)}</time>
+                  {prefs.length > 0 ? (
+                    <span className={styles.prefsAcudiente}>{prefs.join(" · ")}</span>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
     </div>
   );

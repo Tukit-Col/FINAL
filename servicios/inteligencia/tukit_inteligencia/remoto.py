@@ -30,6 +30,7 @@ from typing import Any
 
 import httpx
 from tukit_comun.http import cliente_efimero
+from tukit_comun.resiliencia import CircuitoAbierto, disyuntor_de, reintentar_get
 
 # Puertos por omision del arranque local. Coinciden con los que documenta el
 # contrato y con los que levanta el ejecutor de tareas; se sobreescriben con
@@ -83,11 +84,30 @@ class ClienteCatalogo:
         return self.base or url_catalogo()
 
     async def _pedir(self, metodo: str, ruta: str, **kw: Any) -> Any:
-        try:
-            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+        """Una llamada al catalogo, protegida por disyuntor (ADR 0020).
+
+        El disyuntor por-destino corta la tormenta si el catalogo esta caido; se
+        aplica a GET y POST por igual (aislar el fallo no es reintentarlo). El
+        REINTENTO, en cambio, solo envuelve los GET idempotentes: reintentar el
+        POST de `emparejar`/`importar` a nivel de transporte podria duplicar una
+        importacion, asi que esos se dejan fallar y el pipeline los reintenta con
+        su propia semantica de estado. `CircuitoAbierto` degrada como `RemotoCaido`.
+        """
+
+        async def _una_vez() -> Any:
+            async with (
+                disyuntor_de("catalogo"),
+                cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente,
+            ):
                 respuesta = await cliente.request(metodo, f"{self._base()}{ruta}", **kw)
                 respuesta.raise_for_status()
                 return respuesta.json()
+
+        llamar = reintentar_get(_una_vez) if metodo.upper() == "GET" else _una_vez
+        try:
+            return await llamar()
+        except CircuitoAbierto as error:
+            raise RemotoCaido("catalogo", f"circuito abierto ({error})") from error
         except httpx.HTTPStatusError as error:
             raise RemotoCaido("catalogo", f"{ruta} respondio {error.response.status_code}") from error
         except httpx.HTTPError as error:
@@ -112,6 +132,17 @@ class ClienteCatalogo:
 
     async def lista(self, lista_id: str) -> dict[str, Any]:
         return await self._pedir("GET", f"/v1/listas/{lista_id}")
+
+    async def revision(self, version_id: str) -> dict[str, Any]:
+        """Los items de una version EXPLICITA (vigente o no, revisada o no).
+
+        `lista()` siempre devuelve la version vigente de una lista; esto sirve
+        para previsualizar un borrador de edicion —que nace SIN vigencia— por su
+        `version_id`. La respuesta tiene la misma forma que `lista()` (trae
+        `items`, `lista_id`, `grado`, `total_items`, `revisada`), asi que el
+        pipeline la consume por el mismo camino. 404 si la version no existe.
+        """
+        return await self._pedir("GET", f"/v1/admin/listas/{version_id}/revision")
 
     async def producto(self, sku: str) -> dict[str, Any]:
         """El producto autoritativo por sku, con precio y empaque frescos.
@@ -259,6 +290,21 @@ class ClienteIdentidad:
         except httpx.HTTPError:
             return None
 
+    async def usuario_del_token(self, token: str) -> str | None:
+        """Resuelve el Bearer a un usuario_id contra Identidad. `None` si no vale
+        o Identidad no responde: la subida degrada al flujo por contacto, no se
+        cae (mismo criterio que `registrar_contacto`)."""
+        try:
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.get(
+                    f"{self._base()}/v1/sesiones/actual",
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+                respuesta.raise_for_status()
+                return str(respuesta.json()["usuario_id"])
+        except (httpx.HTTPError, KeyError):
+            return None
+
     async def sesion(self, token: str) -> dict[str, Any] | None:
         """La sesion del portador del token contra identidad
         (`GET /v1/sesiones/actual`), o `None` si el token no vale (401).
@@ -355,9 +401,17 @@ class ClienteComercio:
         return list(respuesta.json().get("pedidos") or ())
 
     async def _postear(self, ruta: str, cuerpo: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+        # Disyuntor, pero SIN reintento: es un POST (crear orden / iniciar pago).
+        # Reintentar un checkout a ciegas es un doble cobro; si Comercio esta
+        # caido se degrada a `RemotoCaido` y el checkout responde 502.
         try:
-            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+            async with (
+                disyuntor_de("comercio"),
+                cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente,
+            ):
                 respuesta = await cliente.post(f"{self._base()}{ruta}", json=cuerpo)
+        except CircuitoAbierto as error:
+            raise RemotoCaido("comercio", f"circuito abierto ({error})") from error
         except httpx.HTTPError as error:
             raise RemotoCaido("comercio", str(error)) from error
         if respuesta.status_code >= 500:

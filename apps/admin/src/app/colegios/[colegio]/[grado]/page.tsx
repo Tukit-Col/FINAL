@@ -18,12 +18,15 @@ import type {
   ColegioDetalle,
   DirectorioColegio,
   ItemListaOficial,
+  Kit,
   ListaOficial,
   PedidosPorGrado,
+  Recomendacion,
   ResumenPedidosColegio,
 } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import EditarLista from "@/components/EditarLista";
+import KitsCanonicos from "./KitsCanonicos";
 import { COOKIE_SESION } from "@/lib/sesion";
 import styles from "../../Colegios.module.css";
 
@@ -84,6 +87,24 @@ export default async function PaginaListaGrado({ params }: Props) {
   } catch (causa) {
     if (causa instanceof ErrorTukit && causa.estado === 404) notFound();
     throw causa;
+  }
+
+  // Los 3 kits NSGA aprobados: solo del canónico de ESTE grado (el trabajo
+  // publicado que fijó la aprobación), nunca previews ni trabajos sin aprobar.
+  // Si el grado aún no tiene kit aprobado, no hay canónico y no se pinta el panel.
+  let kitsCanonicos: Kit[] = [];
+  let recomendadoCanonico: Recomendacion | null = null;
+  const canonico = (await origenDeDatos().gradosCanonicos(lista.colegio_id).catch(() => [])).find(
+    (g) => g.grado === lista.grado,
+  );
+  if (canonico) {
+    try {
+      const trabajo = await origenDeDatos().trabajoAdmin(canonico.trabajo_id);
+      kitsCanonicos = trabajo.kits;
+      recomendadoCanonico = trabajo.recomendado;
+    } catch (causa) {
+      console.error("no se pudo leer el trabajo canónico", causa);
+    }
   }
 
   // El documento cuelga de la versión; una lista sembrada/CLI no lo trae. Se
@@ -245,6 +266,17 @@ export default async function PaginaListaGrado({ params }: Props) {
           )}
         </section>
       </div>
+
+      {/* --------------------------------- Los 3 kits NSGA aprobados (caché) */}
+      {kitsCanonicos.length > 0 && (
+        <section className={styles.panel}>
+          <div className={styles.panelCabecera}>
+            <h2>Kits NSGA aprobados</h2>
+            <span className={styles.panelConteo}>caché del acudiente</span>
+          </div>
+          <KitsCanonicos kits={kitsCanonicos} recomendado={recomendadoCanonico} />
+        </section>
+      )}
 
       {/* Padres con pedido PAGADO de este colegio + grado, con su nº de niños en
           el grado. Reusa el cruce del perfil del colegio (`por_grado`). */}

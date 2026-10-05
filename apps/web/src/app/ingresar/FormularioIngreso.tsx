@@ -43,7 +43,7 @@ export default function FormularioIngreso({
       } else {
         // Navegación interna: `router.refresh()` tras `replace` obliga a la Cabecera
         // (Server Component que lee la sesión) a repintarse ya, sin F5, igual que
-        // hace SalirBoton al cerrar sesión.
+        // hace SalirBoton al cerrar sesión. La cookie de sesión ya está puesta.
         router.replace(url);
         router.refresh();
       }

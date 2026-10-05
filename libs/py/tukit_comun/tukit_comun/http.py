@@ -55,9 +55,7 @@ ORIGENES_POR_OMISION = ("http://localhost:3000", "http://127.0.0.1:3000")
 # convencion de facto (`x-correlation-id`), en minusculas porque HTTP no
 # distingue mayusculas y asi se compara sin normalizar.
 CABECERA_CORRELACION = "x-correlation-id"
-_correlacion: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-    "correlacion_id", default=None
-)
+_correlacion: contextvars.ContextVar[str | None] = contextvars.ContextVar("correlacion_id", default=None)
 
 
 def id_de_correlacion() -> str | None:
@@ -68,6 +66,22 @@ def id_de_correlacion() -> str | None:
     "no anexar cabecera".
     """
     return _correlacion.get()
+
+
+def fijar_correlacion(cid: str | None) -> contextvars.Token[str | None]:
+    """Fija el id de correlacion en el contexto actual y devuelve el token.
+
+    Lo usa el drenador de la bandeja (`tukit_comun.bandeja`) para RE-VINCULAR el
+    id que viajo en la carga del evento antes de manejarlo: asi un evento drenado
+    del outbox recupera el hilo de la peticion que lo origino (cierra el hueco de
+    §A.6). Quien lo llama debe hacer `_correlacion.reset(token)` al terminar, o
+    usar el mismo patron del middleware. `reset_correlacion` lo encapsula."""
+    return _correlacion.set(cid)
+
+
+def reset_correlacion(token: contextvars.Token[str | None]) -> None:
+    """Deshace un `fijar_correlacion`, para no filtrar el id al siguiente uso."""
+    _correlacion.reset(token)
 
 
 class ErrorDominio(Exception):
@@ -137,6 +151,36 @@ async def cliente_efimero(
         await propio.aclose()
 
 
+async def _sellar_correlacion(peticion: Any) -> None:
+    """Estampa el id de correlacion VIVO en cada peticion saliente del pool.
+
+    Un cliente de pool vive entre peticiones, asi que el id NO puede ir como
+    cabecera por omision (quedaria congelado el de la primera peticion). Este
+    hook lo lee del contextvar en cada salida, que es donde `cliente_efimero`
+    ponia la cabecera para el cliente efimero. Aditivo: sin id, no anexa nada;
+    una cabecera explicita del llamante ya viene puesta y no se pisa."""
+    cid = _correlacion.get()
+    if cid and CABECERA_CORRELACION not in peticion.headers:
+        peticion.headers[CABECERA_CORRELACION] = cid
+
+
+def crear_pool(*, espera: float, conexiones: int = 20) -> httpx.AsyncClient:
+    """Un cliente httpx de vida larga (bulkhead por destino, ADR 0020).
+
+    Reusa conexiones en vez de abrir una por llamada (lo que hacia el efimero),
+    y su `Limits` acota cuantas hay en vuelo hacia UN destino: si ese destino se
+    degrada, la saturacion no se derrama a los demas. El id de correlacion se
+    estampa por peticion via `event_hook` (no cabecera por omision, ver arriba).
+    Lo crea el `_arrancar` de cada servicio y lo cierra el `_apagar`."""
+    import httpx
+
+    return httpx.AsyncClient(
+        timeout=espera,
+        limits=httpx.Limits(max_connections=conexiones, max_keepalive_connections=conexiones),
+        event_hooks={"request": [_sellar_correlacion]},
+    )
+
+
 def origenes_permitidos() -> list[str]:
     crudo = os.environ.get("TUKIT_CORS_ORIGENES", "").strip()
     if not crudo:
@@ -161,8 +205,10 @@ def crear_app(
     """
     from contextlib import asynccontextmanager
 
+    from .registro import configurar_registro
+
     @asynccontextmanager
-    async def ciclo(app: FastAPI):
+    async def ciclo(app: FastAPI) -> AsyncIterator[None]:
         if al_arrancar is not None:
             await al_arrancar(app)
         try:
@@ -182,7 +228,7 @@ def crear_app(
     )
 
     @app.middleware("http")
-    async def _correlacion_mw(peticion: Request, siguiente):
+    async def _correlacion_mw(peticion: Request, siguiente: Callable[[Request], Any]) -> Any:
         # Toma el id que llega (el gateway lo acuña en el borde, ver
         # `tukit_gateway.api`), o acuña uno si esta peticion entra directo al
         # servicio. Se guarda en el contextvar de ESTA peticion para que las
@@ -223,8 +269,42 @@ def crear_app(
             },
         )
 
+    configurar_registro(titulo)
+
+    from .metricas import configurar_metricas
+    from .telemetria import configurar_telemetria
+
+    configurar_telemetria(app, titulo)
+    configurar_metricas()
+
     @app.get("/salud", tags=["salud"], summary="Sonda de vida del servicio")
     async def salud() -> dict[str, str]:
         return {"estado": "ok", "servicio": titulo, "version": version}
+
+    # Liveness vs readiness (ADR 0021): `/health/live` dice "el loop respira" (no
+    # toca base: si respondiera 200 solo con base arriba, un orquestador reiniciaria
+    # el proceso por una caida de base que el reinicio no arregla). `/health/ready`
+    # dice "puedo atender": prueba la base con un `SELECT 1` sobre el pool (que ya
+    # hace `pool_pre_ping`). `/salud` se conserva como alias de liveness.
+    @app.get("/health/live", tags=["salud"], summary="Liveness: el proceso responde")
+    async def live() -> dict[str, str]:
+        return {"estado": "vivo", "servicio": titulo}
+
+    @app.get("/health/ready", tags=["salud"], summary="Readiness: listo para atender")
+    async def ready() -> JSONResponse:
+        from sqlalchemy import text
+
+        motor = getattr(app.state, "motor", None)
+        if motor is None:  # un servicio sin base (el gateway) esta listo si responde
+            return JSONResponse({"estado": "listo", "servicio": titulo})
+        try:
+            async with motor.engine.connect() as conexion:
+                await conexion.execute(text("SELECT 1"))
+        except Exception as error:  # noqa: BLE001 — el detalle va al cuerpo, no se traga
+            return JSONResponse(
+                status_code=503,
+                content={"estado": "no_listo", "servicio": titulo, "detalle": str(error)},
+            )
+        return JSONResponse({"estado": "listo", "servicio": titulo})
 
     return app

@@ -236,9 +236,7 @@ class TestListarVersionesParaRevisar:
     async def test_una_version_importada_declara_su_procedencia(self, cliente):
         # Una version que nace de `importar` (onboarding) la trae etiquetada,
         # para que la cola distinga "el colegio la envio" de "un padre la subio".
-        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
-            "version_id"
-        ]
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
         cuerpo = (await cliente.get("/v1/admin/listas?revisada=false")).json()
         importada = next(v for v in cuerpo["listas"] if v["version_id"] == vid)
         assert importada["procedencia"] == "onboarding"
@@ -453,21 +451,19 @@ class TestCerrarLaRevision:
     async def test_cerrar_un_onboarding_sin_padre_no_arma_kit_de_padre(self, cliente):
         # El onboarding del colegio no deja padre esperando: aprobarlo no dispara
         # el kit de ningun acudiente (`lista_verificada`).
-        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
-            "version_id"
-        ]
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
 
         respuesta = await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
         assert respuesta.status_code == 200
+
+        # El kit del grado sale de `lista_aprobada` (ADR 0029), no de la cola.
         assert await self._bandeja("lista_verificada") == []
 
     async def test_cerrar_cualquier_version_emite_lista_aprobada(self, cliente):
         # Con o sin padre esperando, aprobar la lista le pide a Inteligencia que
         # arme sus kits canonicos: el proximo acudiente sin tope de gasto los
         # recibe sin volver a correr el optimizador.
-        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
-            "version_id"
-        ]
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
 
         assert (await cliente.post(f"/v1/admin/listas/{vid}/cerrar")).status_code == 200
 
@@ -475,7 +471,9 @@ class TestCerrarLaRevision:
         assert len(eventos) == 1
         evento = eventos[0]
         assert str(evento.agregado_id) == vid
-        assert evento.carga == {"colegio_id": str(COLEGIO), "grado": "Sexto", "anio_lectivo": 2026}
+        # `correlacion_id` lo agrega la bandeja (ADR 0022) para seguir el evento.
+        carga = {k: v for k, v in evento.carga.items() if k != "correlacion_id"}
+        assert carga == {"colegio_id": str(COLEGIO), "grado": "Sexto", "anio_lectivo": 2026}
         # Cerrar dos veces no arma dos veces: la segunda es un no-op.
         await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
         assert len(await self._bandeja("lista_aprobada")) == 1
@@ -487,9 +485,7 @@ class TestCerrarLaRevision:
         from sqlalchemy import delete
         from tukit_catalogo import canonicos
 
-        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
-            "version_id"
-        ]
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
         assert (await cliente.post(f"/v1/admin/listas/{vid}/cerrar")).status_code == 200
         motor = app.state.motor
         async with motor.sesion() as db:
@@ -574,9 +570,7 @@ class TestCerrarLaRevision:
     async def test_cerrar_un_colegio_aliado_conocido_no_emite_colegio_verificado(self, cliente):
         # Un colegio ya aliado (sin `colegio_datos`) no tiene identidad que crear:
         # aprobar su lista no emite el evento de colegio.
-        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
-            "version_id"
-        ]
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
         respuesta = await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
         assert respuesta.status_code == 200
         assert await self._bandeja("colegio_verificado") == []
@@ -856,9 +850,7 @@ class TestEditarDatosDelColegioEnLaRevision:
         assert vista["colegio_datos"]["nombre"] == "ACADEMIA CENTRAL DE SISTEMAS"
 
     async def test_la_revision_de_un_aliado_no_trae_datos_de_colegio(self, cliente):
-        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
-            "version_id"
-        ]
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
         vista = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()
         assert vista["colegio_datos"] is None
 
@@ -895,9 +887,7 @@ class TestEditarDatosDelColegioEnLaRevision:
 
     async def test_completar_un_aliado_sin_datos_de_colegio_es_409(self, cliente):
         # Una version de colegio ya aliado no tiene datos que completar.
-        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()[
-            "version_id"
-        ]
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
         respuesta = await cliente.patch(f"/v1/admin/listas/{vid}/colegio", json={"logo_url": "x"})
         assert respuesta.status_code == 409
 
@@ -1176,9 +1166,7 @@ class TestNuevaVersionParaCorregir:
 
         # Pero el acudiente sigue viendo la vigente aprobada (numero 1): la
         # lectura publica sigue atada a `vigente`, y el borrador no la toco.
-        publica = (
-            await cliente.get(f"/v1/listas?colegio_id={COLEGIO}&grado=Quinto&revisada=true")
-        ).json()
+        publica = (await cliente.get(f"/v1/listas?colegio_id={COLEGIO}&grado=Quinto&revisada=true")).json()
         assert publica["total"] == 1
         assert publica["listas"][0]["version"] == 1
 
@@ -1287,8 +1275,8 @@ class TestCrearConcepto:
         assert respuesta.json()["codigo"] == "C003"
 
         # El concepto quedo activo y con sus sinonimos: aparece en el vocabulario.
-        from tukit_catalogo.admin_http import CONCEPTO, _motor
         from sqlalchemy import select
+        from tukit_catalogo.admin_http import CONCEPTO, _motor
 
         async with _motor().engine.begin() as conexion:
             fila = (

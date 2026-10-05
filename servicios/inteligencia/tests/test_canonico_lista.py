@@ -20,13 +20,14 @@ import uuid
 from typing import Any
 
 import pytest
-from sqlalchemy import insert, select
+from sqlalchemy import MetaData, insert, select
 from test_fastroute import COLEGIO, _catalogo_verificado
+from tukit_comun.bandeja import bandeja_reflejada
 from tukit_inteligencia import trabajos
 from tukit_inteligencia.modelos import EstadoTrabajo
-from tukit_inteligencia.poller import Poller, _bandeja_reflejada
+from tukit_inteligencia.poller import Poller
 
-BANDEJA_CATALOGO = _bandeja_reflejada()
+BANDEJA_CATALOGO = bandeja_reflejada(MetaData())
 GRADO = "Cuarto"
 
 

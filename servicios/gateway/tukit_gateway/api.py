@@ -96,6 +96,9 @@ RUTAS: dict[str, str] = {
     "/v1/directorio": "identidad",
     "/v1/grados": "identidad",
     "/v1/contactos": "identidad",
+    # Nombres de acudientes adultos por id, para el panel del back-office
+    # (tras `usuario:leer:nombre`). Es de identidad, la unica que cifra nombres.
+    "/v1/usuarios": "identidad",
     # Alta del acudiente y sus hijos desde `/empezar` (camino "soy nuevo
     # usuario"): crea la credencial y las matriculas. Sin auth, como
     # `/v1/contactos`; la sirve IDENTIDAD.
@@ -185,11 +188,15 @@ async def servicios() -> dict[str, object]:
     Sin esto, `GET /salud` en la puerta responde `ok` con los tres servicios
     caidos, que es la clase de sonda que hace perder una tarde.
     """
+    # Se pregunta por READINESS, no liveness (ADR 0021): "arriba" tiene que
+    # significar "listo para atender" (base incluida), no solo "el proceso
+    # responde". Un servicio vivo con su base caida da 503 aqui, que es la verdad
+    # que evita perder la tarde con un 502 rio abajo.
     estado = {}
     async with httpx.AsyncClient(timeout=5.0) as cliente:
         for nombre, base in _servicios().items():
             try:
-                respuesta = await cliente.get(f"{base}/salud")
+                respuesta = await cliente.get(f"{base}/health/ready")
                 estado[nombre] = {"url": base, "arriba": respuesta.status_code == 200}
             except httpx.HTTPError as error:
                 estado[nombre] = {"url": base, "arriba": False, "detalle": str(error)}

@@ -19,6 +19,7 @@ from dataclasses import dataclass
 
 import httpx
 from tukit_comun.http import cliente_efimero
+from tukit_comun.resiliencia import CircuitoAbierto, disyuntor_de, reintentar_get
 
 URL_CATALOGO_POR_OMISION = "http://127.0.0.1:8012"
 ESPERA_SEGUNDOS = 30.0
@@ -52,9 +53,19 @@ class ClienteCatalogo:
         Comercio necesita el id canonico para congelar la linea y reservar, y
         ese id la superficie publica nunca lo expone (RPO cero, ADR 0017). La
         puerta no rutea `/interno`, asi que el navegador no lo alcanza.
+
+        Es un GET idempotente, asi que va protegido (ADR 0020): reintento con
+        backoff ante timeout/red, y disyuntor por-destino que corta la tormenta
+        si Catalogo esta caido. `CircuitoAbierto` se traduce a `CatalogoCaido`,
+        que es lo que el checkout ya sabe manejar (503, no cobra a ciegas).
         """
-        try:
-            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+
+        @reintentar_get
+        async def _pedir() -> tuple[uuid.UUID, int | None] | None:
+            async with (
+                disyuntor_de("catalogo"),
+                cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente,
+            ):
                 respuesta = await cliente.get(f"{self._base()}/interno/resolver-sku/{sku}")
                 if respuesta.status_code == 404:
                     return None
@@ -62,6 +73,11 @@ class ClienteCatalogo:
                 cuerpo = respuesta.json()
                 valor = cuerpo.get("precio_desde")
                 return uuid.UUID(cuerpo["producto_canonico_id"]), (int(valor) if valor is not None else None)
+
+        try:
+            return await _pedir()
+        except CircuitoAbierto as error:
+            raise CatalogoCaido(f"circuito abierto: {error}") from error
         except httpx.HTTPError as error:
             raise CatalogoCaido(str(error)) from error
 

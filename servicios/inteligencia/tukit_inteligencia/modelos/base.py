@@ -60,8 +60,16 @@ TRANSICIONES: dict[EstadoTrabajo, frozenset[EstadoTrabajo]] = {
     EstadoTrabajo.PROCESANDO: frozenset(
         {EstadoTrabajo.ESPERA_REVISION, EstadoTrabajo.FALLIDO, EstadoTrabajo.PUBLICADO}
     ),
+    # Devolver un trabajo en revision lo REENCOLA (ADR 0024): el trabajador
+    # durable lo retoma, en vez de que el API arranque la corrutina. PROCESANDO
+    # se conserva por si un flujo lo mueve directo (no lo hace hoy).
     EstadoTrabajo.ESPERA_REVISION: frozenset(
-        {EstadoTrabajo.PUBLICADO, EstadoTrabajo.PROCESANDO, EstadoTrabajo.CANCELADO}
+        {
+            EstadoTrabajo.PUBLICADO,
+            EstadoTrabajo.PROCESANDO,
+            EstadoTrabajo.ENCOLADO,
+            EstadoTrabajo.CANCELADO,
+        }
     ),
     EstadoTrabajo.PUBLICADO: frozenset({EstadoTrabajo.CANCELADO}),
     EstadoTrabajo.FALLIDO: frozenset({EstadoTrabajo.ENCOLADO, EstadoTrabajo.CANCELADO}),

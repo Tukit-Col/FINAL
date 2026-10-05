@@ -9,6 +9,7 @@
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { ArchivoLista, SolicitudTrabajo } from "@tukit/contrato";
 import { respuestaDeError } from "@/lib/respuesta";
+import { tokenDeSesion } from "@/lib/sesion";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -54,7 +55,7 @@ export async function POST(peticion: Request): Promise<Response> {
   }
 
   try {
-    const creado = await origenDeDatos().crearTrabajo(solicitud, archivos);
+    const creado = await origenDeDatos().crearTrabajo(solicitud, archivos, await tokenDeSesion());
     return Response.json(creado, { status: 202 });
   } catch (causa) {
     return respuestaDeError(causa);

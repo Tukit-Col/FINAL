@@ -214,13 +214,25 @@ async def test_wompi_consultar_traduce_estado_monto_y_metodo():
         assert "authorization" not in peticion.headers
         return httpx.Response(
             200,
-            json={"data": {"id": "tx-1", "reference": "tukit-1", "status": "APPROVED",
-                           "amount_in_cents": 900000, "payment_method_type": "CARD", "currency": "COP"}},
+            json={
+                "data": {
+                    "id": "tx-1",
+                    "reference": "tukit-1",
+                    "status": "APPROVED",
+                    "amount_in_cents": 900000,
+                    "payment_method_type": "CARD",
+                    "currency": "COP",
+                }
+            },
         )
 
     ev = await _wompi_con(_ok).consultar_transaccion("tx-1")
     assert (ev.evento_id, ev.referencia, ev.estado, ev.monto_centavos, ev.metodo) == (
-        "tx-1:APPROVED", "tukit-1", EstadoPago.APROBADO, 900000, "tarjeta",
+        "tx-1:APPROVED",
+        "tukit-1",
+        EstadoPago.APROBADO,
+        900000,
+        "tarjeta",
     )
 
 
@@ -228,9 +240,16 @@ async def test_wompi_consultar_metodo_desconocido_es_none():
     def _ok(peticion: httpx.Request) -> httpx.Response:
         return httpx.Response(
             200,
-            json={"data": {"id": "tx-1", "reference": "r", "status": "PENDING",
-                           "amount_in_cents": 1, "payment_method_type": "BANCOLOMBIA_TRANSFER",
-                           "currency": "COP"}},
+            json={
+                "data": {
+                    "id": "tx-1",
+                    "reference": "r",
+                    "status": "PENDING",
+                    "amount_in_cents": 1,
+                    "payment_method_type": "BANCOLOMBIA_TRANSFER",
+                    "currency": "COP",
+                }
+            },
         )
 
     ev = await _wompi_con(_ok).consultar_transaccion("tx-1")
@@ -262,7 +281,10 @@ async def test_falsa_consultar_descompone_el_id():
     await p.crear_transaccion(referencia="tukit-1", monto_centavos=700, correo_cliente="a@b.co", metodo="pse")
     ev = await p.consultar_transaccion("falsa-DECLINED-tukit-1")
     assert (ev.referencia, ev.estado, ev.monto_centavos, ev.metodo) == (
-        "tukit-1", EstadoPago.RECHAZADO, 700, "pse",
+        "tukit-1",
+        EstadoPago.RECHAZADO,
+        700,
+        "pse",
     )
 
 
@@ -275,8 +297,13 @@ async def test_falsa_consultar_formato_invalido_o_referencia_desconocida():
 
 
 def _tx(**extra):
-    datos = {"id": "tx-1", "reference": "tukit-1", "status": "APPROVED",
-             "amount_in_cents": 900000, "currency": "COP"}
+    datos = {
+        "id": "tx-1",
+        "reference": "tukit-1",
+        "status": "APPROVED",
+        "amount_in_cents": 900000,
+        "currency": "COP",
+    }
     datos.update(extra)
     return lambda p: httpx.Response(200, json={"data": datos})
 
@@ -348,12 +375,26 @@ async def test_wompi_consultar_por_referencia_usa_llave_privada_y_toma_la_mas_re
         assert peticion.headers["authorization"] == "Bearer prv_test_x"
         return httpx.Response(
             200,
-            json={"data": [
-                {"id": "tx-viejo", "reference": "tukit-1", "status": "DECLINED", "currency": "COP",
-                 "amount_in_cents": 100, "created_at": "2026-10-02T10:00:00.000Z"},
-                {"id": "tx-nuevo", "reference": "tukit-1", "status": "PENDING", "currency": "COP",
-                 "amount_in_cents": 100, "created_at": "2026-10-02T11:00:00.000Z"},
-            ]},
+            json={
+                "data": [
+                    {
+                        "id": "tx-viejo",
+                        "reference": "tukit-1",
+                        "status": "DECLINED",
+                        "currency": "COP",
+                        "amount_in_cents": 100,
+                        "created_at": "2026-10-02T10:00:00.000Z",
+                    },
+                    {
+                        "id": "tx-nuevo",
+                        "reference": "tukit-1",
+                        "status": "PENDING",
+                        "currency": "COP",
+                        "amount_in_cents": 100,
+                        "created_at": "2026-10-02T11:00:00.000Z",
+                    },
+                ]
+            },
         )
 
     wompi = WompiSandbox(

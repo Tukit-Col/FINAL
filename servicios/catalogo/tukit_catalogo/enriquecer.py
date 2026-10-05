@@ -578,7 +578,7 @@ GROSORES = (
 # mismo digito para decir otra cosa.
 _DUREZA = re.compile(r"\b(\d?[hb]{1,2})\b")
 _DUREZAS_VALIDAS = frozenset(
-    {"h", "b", "hb", "hh", "bb"} | {f"{n}{l}" for n in range(2, 10) for l in "hb"}
+    {"h", "b", "hb", "hh", "bb"} | {f"{n}{letra}" for n in range(2, 10) for letra in "hb"}
 )
 
 # Cuantos huecos o bolsillos trae algo que los cuenta. El colegio no escribe

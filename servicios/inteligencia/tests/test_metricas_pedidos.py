@@ -98,9 +98,7 @@ async def test_solo_pedidos_pagados_entran(motor):
         motor, hijos=[{"referencia": "h1", "colegio_id": COLEGIO, "grado": "Quinto"}]
     )
     # Este trabajo existe y es del colegio, pero NO tiene pedido pagado.
-    await _sembrar_trabajo(
-        motor, hijos=[{"referencia": "h9", "colegio_id": COLEGIO, "grado": "Cuarto"}]
-    )
+    await _sembrar_trabajo(motor, hijos=[{"referencia": "h9", "colegio_id": COLEGIO, "grado": "Cuarto"}])
     comercio = ComercioFalso([_pagado(pagado, "padre-1")])
 
     resumen = await resumen_pedidos_de_colegio(motor, COLEGIO, comercio)
@@ -111,9 +109,7 @@ async def test_solo_pedidos_pagados_entran(motor):
 
 async def test_dedupe_por_trabajo(motor):
     # El mismo trabajo con dos pedidos pagados (re-pedido) cuenta sus niños UNA vez.
-    t = await _sembrar_trabajo(
-        motor, hijos=[{"referencia": "h1", "colegio_id": COLEGIO, "grado": "Quinto"}]
-    )
+    t = await _sembrar_trabajo(motor, hijos=[{"referencia": "h1", "colegio_id": COLEGIO, "grado": "Quinto"}])
     comercio = ComercioFalso([_pagado(t, "padre-1"), _pagado(t, "padre-1")])
 
     resumen = await resumen_pedidos_de_colegio(motor, COLEGIO, comercio)

@@ -17,6 +17,12 @@ reportaba "sin deriva".
 
 Va con `batch_alter_table`, como `origen_lista_verificada`, porque SQLite no
 sabe alterar un CHECK en sitio. En Postgres es un DROP + ADD normal.
+
+Al unir con main: alli el mismo arreglo llego como `9a4b7c2e1d05`, que ahora va
+ANTES en la cadena. Esta revision se conserva porque las bases que siguieron
+esta rama ya la tienen aplicada; su upgrade reafirma el mismo CHECK (no cambia
+nada) y su downgrade no lo toca, porque quitar `parent_apply` le toca a
+`9a4b7c2e1d05`.
 """
 
 from __future__ import annotations
@@ -32,11 +38,7 @@ down_revision: str | None = "5c1e8b7d2a64"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-_ANTERIOR = "origen IN ('colegio_grado', 'archivo', 'preview_onboarding', 'lista_verificada')"
-_NUEVO = (
-    "origen IN ('colegio_grado', 'archivo', 'preview_onboarding', 'lista_verificada', "
-    "'parent_apply')"
-)
+_NUEVO = "origen IN ('colegio_grado', 'archivo', 'preview_onboarding', 'lista_verificada', 'parent_apply')"
 
 
 def upgrade() -> None:
@@ -46,6 +48,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    with op.batch_alter_table("trabajo_pipeline") as batch:
-        batch.drop_constraint("trabajo_origen_valido", type_="check")
-        batch.create_check_constraint("trabajo_origen_valido", sa.text(_ANTERIOR))
+    # `parent_apply` lo agrego `9a4b7c2e1d05`, que queda debajo: se deja.
+    pass

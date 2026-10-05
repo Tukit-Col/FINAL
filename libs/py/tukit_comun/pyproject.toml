@@ -7,6 +7,8 @@ dependencies = [
     "sqlalchemy>=2.0",
     "pydantic>=2.9",
     "pydantic-settings>=2.5",
+    "tenacity>=9.1.4",
+    "aio-pika>=9.5.0",
 ]
 
 [project.optional-dependencies]
@@ -22,6 +24,18 @@ postgres = ["asyncpg>=0.29"]
 # o aplica migraciones instala `tukit-comun[migraciones,postgres]`; los dos
 # extras van juntos porque una migracion sin driver no se puede aplicar.
 migraciones = ["alembic>=1.13"]
+
+# OpenTelemetry (ADR 0021). Opcional a proposito: sin `OTEL_EXPORTER_OTLP_ENDPOINT`
+# la instrumentacion es no-op TOTAL (ni siquiera importa esto), asi que la tesis
+# corre sin collector y la CI no lo instala. Quien quiera trazas contra Jaeger
+# instala `tukit-comun[otel]` y levanta la infra (`make infra-arriba`).
+otel = [
+    "opentelemetry-sdk>=1.27",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.27",
+    "opentelemetry-instrumentation-fastapi>=0.48b0",
+    "opentelemetry-instrumentation-httpx>=0.48b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.48b0",
+]
 
 [build-system]
 requires = ["hatchling"]

@@ -52,6 +52,12 @@ $trabajadores = [ordered]@{
     'repartidor'       = @('-m', 'tukit_operacion.repartidor', '--seguir')
     'poller'           = @('-m', 'tukit_inteligencia.poller', '--seguir')
     'poller-identidad' = @('-m', 'tukit_identidad.poller', '--seguir')
+    # Desde ADR 0024 el pipeline ya no corre dentro de la API: sin el
+    # trabajador, ningun trabajo sale de `encolado`.
+    'trabajador'       = @('-m', 'tukit_inteligencia.trabajador', '--seguir')
+    # Compensacion C1 de la saga (ADR 0023): libera reservas y cancela pedidos
+    # sin pagar cuando vence la ventana de pago.
+    'barredor'         = @('-m', 'tukit_comercio.barredor', '--seguir')
 }
 
 function Estado {

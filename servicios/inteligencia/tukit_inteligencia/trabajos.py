@@ -8,17 +8,16 @@ pierde los trabajos en vuelo, que `GET /v1/trabajos/{id}` puede responder
 desde otro proceso, y que reanudar no vuelve a pagar la percepcion, que es la
 etapa cara.
 
-La ejecucion de fondo es una `asyncio.Task` del mismo proceso, y eso **si**
-es una version simple a mejorar. Un trabajo que se este procesando cuando el
-servicio se caiga se queda en `procesando` para siempre hasta que alguien lo
-reencole; una cola de verdad (un trabajador aparte leyendo de la bandeja) lo
-retomaria solo. Se deja asi a proposito para que el ciclo completo corra con
-un comando, y se anota aqui para que no se confunda con lo definitivo.
+La ejecucion de fondo es DURABLE (ADR 0024): `lanzar` solo deja el trabajo
+`encolado`, y `tukit_inteligencia.trabajador` lo drena con `SELECT … FOR UPDATE
+SKIP LOCKED` —el mismo mecanismo del outbox—, lo mueve a `procesando` y corre
+`procesar`. Una caida de proceso ya no pierde el trabajo: la fila sigue en la
+base y otro worker (o el reinicio) la retoma. `procesar` es idempotente en el
+claim (borra ITEM/KIT y reejecuta), asi que retomar no duplica.
 """
 
 from __future__ import annotations
 
-import asyncio
 import os
 import time
 import uuid
@@ -28,8 +27,15 @@ from typing import Any
 from sqlalchemy import and_, delete, func, insert, select, update
 from tukit_comun.cifrado import cifrador_desde_entorno
 
+from .dominio.pipeline import (
+    _anclar_kits,
+    _candidato,
+    _normalizar,
+    _personaje_pedido,
+    estado_desde_emparejamiento,
+    inyectar_personaje_fan,
+)
 from .modelos import (
-    PESOS_POR_OMISION,
     Base,
     EstadoEtapa,
     EstadoResolucion,
@@ -43,12 +49,12 @@ from .optimizador import (
     ORDEN_NIVEL,
     Candidato,
     Renglon,
-    anclar_personaje,
     armar_los_tres,
     unidades_a_comprar,
 )
-from .parseo import BUSCA_EN_CATALOGO, Demanda, mensaje_para_papa, parsear_renglon
+from .parseo import BUSCA_EN_CATALOGO, Demanda, mensaje_para_papa
 from .remoto import ClienteCatalogo, ClienteComercio, ClienteIdentidad, RemotoCaido
+from .repositorios.trabajos import RepoTrabajos, TrabajoNoExiste, TransicionIlegal
 
 TRABAJO = Base.metadata.tables["trabajo_pipeline"]
 ETAPA = Base.metadata.tables["etapa_trabajo"]
@@ -94,10 +100,6 @@ def ahora() -> datetime:
     return datetime.now(UTC)
 
 
-class TrabajoNoExiste(Exception):
-    pass
-
-
 class SolicitudNoCancelable(Exception):
     """El acudiente pidio cancelar una solicitud que no se puede cancelar.
 
@@ -137,13 +139,6 @@ class CheckoutRechazado(Exception):
         super().__init__(str(cuerpo.get("error") or estado))
         self.estado = estado
         self.cuerpo = cuerpo
-
-
-class TransicionIlegal(Exception):
-    def __init__(self, actual: str, pedida: str) -> None:
-        super().__init__(f"no se puede pasar de {actual} a {pedida}")
-        self.actual = actual
-        self.pedida = pedida
 
 
 class TrabajoProtegido(Exception):
@@ -193,8 +188,16 @@ async def crear(
     origen: str = "colegio_grado",
     identidad: ClienteIdentidad | None = None,
     usuario_id: uuid.UUID | None = None,
+    en_proceso: bool = False,
 ) -> dict[str, Any]:
     """Crea el trabajo en `encolado` y devuelve el cuerpo del 202.
+
+    `en_proceso` lo crea ya `procesando`, para quien lo va a procesar en el acto
+    (el poller y el preview del admin). Si naciera `encolado`, el trabajador
+    durable (ADR 0024) podria reclamarlo entre el INSERT y el `procesar` del
+    llamador, y los dos armarian los kits a la vez. `procesando` lo saca del
+    claim normal; si el llamador muere a mitad, el trabajador lo retoma con su
+    pasada de colgados, igual que cualquier otro.
 
     El contacto se registra en Identidad y aqui solo queda su identificador.
     Si Identidad no responde, el trabajo se crea igual con la degradacion
@@ -229,7 +232,7 @@ async def crear(
             insert(TRABAJO).values(
                 id=trabajo_id,
                 usuario_id=usuario_id,
-                estado=EstadoTrabajo.ENCOLADO.value,
+                estado=(EstadoTrabajo.PROCESANDO if en_proceso else EstadoTrabajo.ENCOLADO).value,
                 origen=origen,
                 hijos=hijos,
                 preferencias_cifradas=cifrador.cifrar_json(preferencias or {}),
@@ -269,27 +272,15 @@ async def _marcar_etapa(
     ms: int | None = None,
     detalle: dict[str, Any] | None = None,
 ) -> None:
-    await conexion.execute(
-        update(ETAPA)
-        .where(ETAPA.c.trabajo_id == trabajo_id, ETAPA.c.nombre == nombre)
-        .values(estado=estado, ms=ms, detalle=detalle or {}, terminada_en=ahora())
-    )
+    await RepoTrabajos(conexion).marcar_etapa(trabajo_id, nombre, estado, ms=ms, detalle=detalle)
 
 
 async def _estado(conexion: Any, trabajo_id: uuid.UUID) -> str:
-    valor = await conexion.scalar(select(TRABAJO.c.estado).where(TRABAJO.c.id == trabajo_id))
-    if valor is None:
-        raise TrabajoNoExiste(str(trabajo_id))
-    return str(valor)
+    return await RepoTrabajos(conexion).estado(trabajo_id)
 
 
 async def _pasar_a(conexion: Any, trabajo_id: uuid.UUID, nuevo: str, **extra: Any) -> None:
-    actual = await _estado(conexion, trabajo_id)
-    if actual == nuevo:
-        return
-    if not puede_pasar(actual, nuevo):
-        raise TransicionIlegal(actual, nuevo)
-    await conexion.execute(update(TRABAJO).where(TRABAJO.c.id == trabajo_id).values(estado=nuevo, **extra))
+    await RepoTrabajos(conexion).pasar_a(trabajo_id, nuevo, **extra)
 
 
 async def _listas_por_hijo(
@@ -311,6 +302,26 @@ async def _listas_por_hijo(
         colegio_id = str(hijo.get("colegio_id") or "")
         grado = str(hijo.get("grado") or "")
         anio = int(hijo.get("anio_lectivo") or ANIO_LECTIVO_POR_OMISION)
+
+        # Un hijo con `version_id` explicito (el preview de una edicion) fija la
+        # version a leer: se trae POR SU ID —no la vigente—, para previsualizar
+        # un borrador que aun no es vigente. `revision()` devuelve la misma forma
+        # que `lista()`, asi que el resto del pipeline no distingue. El flujo del
+        # acudiente y el del poller no traen `version_id`: caen a la vigente,
+        # como siempre.
+        version_pedida = hijo.get("version_id")
+        if version_pedida:
+            completa = await catalogo.revision(str(version_pedida))
+            encontradas.append(
+                {
+                    "hijo": referencia,
+                    "colegio_id": colegio_id,
+                    "completa": completa,
+                    "version_id": completa.get("version_id") or version_pedida,
+                    "revisada": bool(completa.get("revisada")),
+                }
+            )
+            continue
 
         listas = await catalogo.listas(colegio_id=colegio_id, grado=grado, anio_lectivo=anio)
         if not listas:
@@ -375,36 +386,6 @@ async def _renglones_de_listas(
     return renglones, detalle
 
 
-def _normalizar(renglones: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Cada renglon a una demanda, con lo que la lista ya sabia por encima.
-
-    El parseo lee el texto; la lista oficial, cuando existe, ya trae el tipo
-    y el modo revisados por quien la cargo. Se prefiere lo de la lista porque
-    es un dato curado y el parseo es una heuristica sobre texto: adivinar
-    encima de un dato que ya esta es como se pierde informacion buena.
-    """
-    normalizados = []
-    for crudo in renglones:
-        demanda = parsear_renglon(crudo["texto"], cantidad=crudo.get("cantidad"))
-        tipo = crudo.get("tipo_item_lista") or demanda.tipo_item
-        modo = crudo.get("modo_lista") or demanda.modo_adquisicion
-        normalizados.append(
-            {
-                **crudo,
-                "tipo_item": tipo,
-                "modo_adquisicion": modo,
-                "cantidad": demanda.cantidad,
-                "unidad_base": demanda.unidad_base,
-                "url_externa": crudo.get("url_externa") or demanda.url_externa,
-                "nota": demanda.nota,
-                "mensaje": mensaje_para_papa(demanda),
-                "busca_en_catalogo": tipo in {"util", "libro_libre"}
-                and modo in {"mercado_abierto", "libro_libre"},
-            }
-        )
-    return normalizados
-
-
 def _mensaje_por_tipo(texto: str, tipo: str, modo: str) -> str:
     """El aviso de una linea que no se busca en el catalogo, por su tipo y modo."""
     return mensaje_para_papa(Demanda(texto=texto, tipo_item=tipo, modo_adquisicion=modo, cantidad=1))
@@ -433,74 +414,6 @@ def _tipo_del_concepto_manda(renglon: dict[str, Any], respuesta: dict[str, Any])
     return True
 
 
-def estado_desde_emparejamiento(emparejamiento: dict[str, Any], umbral: float) -> str:
-    """Traduce el vocabulario del catalogo al `EstadoResolucion` del contrato.
-
-    La traduccion que importa es la de `abstencion`. El catalogo se abstiene
-    cuando entendio el concepto y ningun producto declara el atributo que el
-    renglon exige ("block tamano oficio"), y eso es exactamente
-    `HUECO_CATALOGO`: te entendi y no lo tengo. Mandarlo a `SIN_MATCH` seria
-    decir "no te entendi", que es la confusion que el contrato separa a
-    proposito porque solo una de las dos se puede responder con una
-    alternativa.
-    """
-    estado = emparejamiento.get("estado")
-    if estado == "reconocido":
-        if not emparejamiento.get("opciones"):
-            return EstadoResolucion.HUECO_CATALOGO.value
-        parecido = float(emparejamiento.get("parecido") or 0.0)
-        return EstadoResolucion.RESUELTO_AUTO.value if parecido >= umbral else EstadoResolucion.AMBIGUO.value
-    if estado in {"hueco_catalogo", "abstencion"}:
-        return EstadoResolucion.HUECO_CATALOGO.value
-    return EstadoResolucion.SIN_MATCH.value
-
-
-def _candidato(opcion: dict[str, Any]) -> Candidato:
-    return Candidato(
-        sku=opcion.get("sku") or "",
-        nombre=opcion.get("nombre") or "",
-        nivel=opcion.get("nivel") or "confiable",
-        precio_cop=opcion.get("precio_cop"),
-        producto_id=opcion.get("producto_id"),
-        marca=opcion.get("marca"),
-        personaje=opcion.get("personaje"),
-        imagen_url=opcion.get("imagen_url"),
-        unidad_base=opcion.get("unidad_base") or "unidad",
-        unidades_por_empaque=int(opcion.get("unidades_por_empaque") or 1),
-        atributos=dict(opcion.get("atributos") or {}),
-        cumple=bool(opcion.get("cumple", True)),
-    )
-
-
-def _personaje_pedido(preferencias: dict[str, Any]) -> str | None:
-    """El personaje que el acudiente pidio, para anclar sus 4 items al tope.
-
-    El anclaje reordena el kit completo, asi que se toma el primer personaje
-    declarado en `personaje_por_hijo`. En el caso comun (un hijo con un
-    personaje) es exactamente el suyo; con varios hijos se ancla el primero,
-    que es suficiente para el gesto de "poner arriba lo del personaje" sin
-    reordenar de forma ambigua entre hermanos.
-    """
-    por_hijo = preferencias.get("personaje_por_hijo") or {}
-    for valores in por_hijo.values():
-        if valores:
-            return str(valores[0])
-    return None
-
-
-def _anclar_kits(kits: list[Any], preferencias: dict[str, Any]) -> list[Any]:
-    """Sube los 4 conceptos ancla del personaje pedido al tope de cada kit.
-
-    Post-proceso puro: no cambia totales ni que producto se eligio (NSGA-II
-    queda intacto). Si no se pidio personaje, `anclar_personaje` devuelve el
-    kit sin tocar.
-    """
-    personaje = _personaje_pedido(preferencias)
-    if personaje is None:
-        return kits
-    return [anclar_personaje(kit, personaje) for kit in kits]
-
-
 async def _escribir_kits(
     conexion: Any,
     trabajo_id: uuid.UUID,
@@ -512,82 +425,7 @@ async def _escribir_kits(
     ms: int,
 ) -> None:
     """Persiste KIT+LINEA y marca la etapa de optimizacion. Comun a las dos rutas."""
-    for kit in kits:
-        kit_id = uuid.uuid4()
-        await conexion.execute(
-            insert(KIT).values(
-                id=kit_id,
-                trabajo_id=trabajo_id,
-                perfil=kit.perfil,
-                total_cop=kit.total_cop,
-                objetivos=kit.objetivos,
-                recomendado=kit.recomendado,
-                razon_recomendacion=kit.razon,
-                dentro_de_presupuesto=kit.dentro_de_presupuesto,
-                pesos_usados_cifrados=cifrador.cifrar_json(
-                    {**PESOS_POR_OMISION, **(preferencias.get("pesos") or {})}
-                ),
-                consolidaciones=list(kit.consolidaciones),
-            )
-        )
-        for linea in kit.lineas:
-            elegido = linea.elegido
-            await conexion.execute(
-                insert(LINEA).values(
-                    id=uuid.uuid4(),
-                    kit_id=kit_id,
-                    item_crudo_id=ids_item[(linea.hijo, linea.orden)],
-                    producto_canonico_id=(
-                        uuid.UUID(elegido.producto_id) if elegido and elegido.producto_id else None
-                    ),
-                    hijo_referencia=linea.hijo,
-                    orden=linea.orden,
-                    descripcion=linea.descripcion,
-                    tipo=linea.tipo,
-                    estado_resolucion=linea.estado_resolucion,
-                    cantidad_pedida=linea.cantidad_pedida,
-                    unidad_base=linea.unidad_base,
-                    unidades_por_empaque=linea.unidades_por_empaque,
-                    unidades_a_comprar=linea.unidades_a_comprar,
-                    sku=elegido.sku if elegido else None,
-                    nombre_producto=elegido.nombre if elegido else None,
-                    marca=elegido.marca if elegido else None,
-                    nivel=elegido.nivel if elegido else None,
-                    personaje=elegido.personaje if elegido else None,
-                    imagen_url=elegido.imagen_url if elegido else None,
-                    confianza=None,
-                    precio_unitario_cop=linea.precio_unitario_cop,
-                    subtotal_cop=linea.subtotal_cop,
-                    informativa=linea.informativa,
-                    instruccion_colegio=linea.instruccion_colegio,
-                    url_externa=linea.url_externa,
-                    mensaje=linea.mensaje,
-                    no_consolidable=linea.no_consolidable,
-                    motivo_no_consolidable=linea.motivo_no_consolidable,
-                    alternativas=[
-                        {
-                            "sku": alternativa.sku,
-                            "nombre": alternativa.nombre,
-                            "nivel": alternativa.nivel,
-                            "precio_cop": alternativa.precio_cop,
-                            "imagen_url": alternativa.imagen_url,
-                        }
-                        for alternativa in linea.alternativas
-                    ],
-                )
-            )
-
-    await _marcar_etapa(
-        conexion,
-        trabajo_id,
-        "optimizacion",
-        EstadoEtapa.OK.value,
-        ms=ms,
-        detalle={
-            "kits": len(kits),
-            "recomendado": next((k.perfil for k in kits if k.recomendado), None),
-        },
-    )
+    await RepoTrabajos(conexion).escribir_kits(trabajo_id, kits, ids_item, preferencias, cifrador, ms=ms)
 
 
 async def _finalizar(motor: Any, trabajo_id: uuid.UUID, *, publicar_directo: bool = False) -> str:
@@ -800,8 +638,13 @@ async def _procesar_verificado(
             detalle={**fuente, "resueltos": resueltos, "a_revision": 0},
         )
 
+    # El producto de personaje de las anclas es I/O de red: se resuelve FUERA
+    # de la transaccion de escritura (misma consulta que el interruptor del Fan).
+    swaps = await _anclas_de_personaje(catalogo, _personaje_pedido(preferencias))
+
     reloj = time.monotonic()
     kits = armar_los_tres(renglones, preferencias)
+    kits = inyectar_personaje_fan(kits, swaps, preferencias)
     kits = _anclar_kits(kits, preferencias)
     ms = int((time.monotonic() - reloj) * 1000)
 
@@ -848,7 +691,14 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
         publicar_directo = fila.origen == "lista_verificada"
 
     async with motor.engine.begin() as conexion:
-        await _pasar_a(conexion, trabajo_id, EstadoTrabajo.PROCESANDO.value)
+        # Idempotente en el claim: el trabajador durable (ADR 0024) ya movio la
+        # fila a PROCESANDO bajo SKIP LOCKED antes de llamar aqui, y PROCESANDO
+        # no transiciona a si mismo. Solo se transiciona si aun venia ENCOLADO
+        # (la llamada directa de las pruebas y el reintento desde FALLIDO, que
+        # arriba se reencolo). Retomar un trabajo ya PROCESANDO tras un crash
+        # entra por aca sin volver a transicionar.
+        if fila.estado != EstadoTrabajo.PROCESANDO.value:
+            await _pasar_a(conexion, trabajo_id, EstadoTrabajo.PROCESANDO.value)
         # Reprocesar borra lo anterior. Sin esto, un reintento duplicaria
         # items y kits, y la unica senal seria que el total del kit se
         # duplico: un defecto que solo se ve sumando a mano.
@@ -1066,7 +916,9 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
                 )
             )
 
+        swaps = await _anclas_de_personaje(catalogo, _personaje_pedido(preferencias))
         kits = armar_los_tres(renglones, preferencias)
+        kits = inyectar_personaje_fan(kits, swaps, preferencias)
         kits = _anclar_kits(kits, preferencias)
         ms = int((time.monotonic() - reloj) * 1000)
 
@@ -1106,35 +958,35 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
         return EstadoTrabajo.FALLIDO.value
 
 
-def lanzar(motor: Any, trabajo_id: uuid.UUID) -> asyncio.Task:
-    """Arranca el procesamiento de fondo.
+async def lanzar(motor: Any, trabajo_id: uuid.UUID) -> None:
+    """Encola el trabajo; el trabajador durable lo procesa (ADR 0024).
 
-    Version simple y declarada: una tarea del mismo proceso. Si el servicio
-    se reinicia con un trabajo en vuelo, ese trabajo se queda en
-    `procesando` hasta que alguien lo reencole con
-    `POST /v1/trabajos/{id}/reintentar`. Un trabajador aparte leyendo de la
-    bandeja de salida lo retomaria solo, y es lo que va despues.
+    Ya NO arranca una `asyncio.Task` en el proceso del API —esa era la unica
+    parte del sistema donde una caida de proceso perdia trabajo del usuario, y su
+    propio docstring lo admitia—. Solo garantiza que el trabajo quede `encolado`
+    (transaccional, durable): `tukit_inteligencia.trabajador` lo toma con SKIP
+    LOCKED, lo mueve a `procesando` y corre `procesar`. La respuesta HTTP al
+    acudiente sigue siendo inmediata (202 + `consultar_en`).
+
+    Idempotente: un trabajo ya `encolado` (recien creado) no transiciona; uno
+    `fallido` (reintentar) o `en revision` devuelto se reencola para que el worker
+    lo retome. Un `procesando`/`publicado` no se puede reencolar (lo frena la
+    maquina de estados), que es justo lo que se quiere.
     """
-    return asyncio.create_task(procesar(motor, trabajo_id))
+    async with motor.engine.begin() as conexion:
+        actual = await _estado(conexion, trabajo_id)
+        if actual != EstadoTrabajo.ENCOLADO.value:
+            await _pasar_a(conexion, trabajo_id, EstadoTrabajo.ENCOLADO.value)
 
 
 async def _publicar_evento(conexion: Any, trabajo_id: uuid.UUID) -> None:
     """Deja `kits_publicados` en la bandeja, en la MISMA transaccion.
 
-    El repartidor de Operacion (`tukit_operacion.repartidor`) lo drena y avisa al
-    acudiente resolviendo su `usuario_id` desde `trabajo_pipeline`. Por eso este
-    evento solo tiene sentido en un trabajo con acudiente; un preview
-    (`usuario_id` NULL) no llega aca —`revisar` lo rechaza antes— para no dejar un
-    evento sin destinatario que el repartidor reintente sin fin.
+    Delegado a `RepoTrabajos.emitir_evento`, que NO abre transaccion: quien lo
+    llama (`_finalizar`, `revisar`) lo hace dentro del mismo `async with` que el
+    paso a PUBLICADO, para que el evento no sobreviva a un rollback (no dual-write).
     """
-    await conexion.execute(
-        insert(BANDEJA).values(
-            tipo="kits_publicados",
-            agregado_tipo="trabajo_pipeline",
-            agregado_id=trabajo_id,
-            carga={"trabajo_id": str(trabajo_id), "publicado_en": ahora().isoformat()},
-        )
-    )
+    await RepoTrabajos(conexion).emitir_evento(trabajo_id)
 
 
 # ---------------------------------------------------------------------------
@@ -1440,7 +1292,18 @@ async def ordenar(
             }
         )
     if not lineas:
-        raise TrabajoNoExiste(f"{trabajo_id}/{perfil} sin lineas comprables")
+        # El kit del perfil EXISTE, pero ninguna linea tiene producto+precio que
+        # Tukit pueda cobrar hoy: no es "no hay kit" (eso es el 404 de arriba),
+        # es un kit sin nada comprable. Se distingue para no mentirle al
+        # acudiente con "no tiene un kit de ese perfil". `CheckoutRechazado`
+        # lleva su propio estado y el router lo reenvia verbatim.
+        raise CheckoutRechazado(
+            409,
+            {
+                "error": "kit_sin_lineas",
+                "mensaje": "Este kit no tiene productos que Tukit pueda vender hoy.",
+            },
+        )
 
     colegios = sorted({h["colegio_id"] for h in hijos if h.get("colegio_id")})
     estado, orden = await comercio.crear_orden(
@@ -1784,13 +1647,7 @@ async def previews_de(motor: Any, colegio_id: str, grado: str, anio_lectivo: int
 
 
 async def _resolucion_de(conexion: Any, trabajo_id: uuid.UUID, item_id: uuid.UUID) -> Any:
-    return (
-        await conexion.execute(
-            select(RESOLUCION)
-            .select_from(RESOLUCION.join(ITEM, ITEM.c.id == RESOLUCION.c.item_crudo_id))
-            .where(ITEM.c.trabajo_id == trabajo_id, ITEM.c.id == item_id)
-        )
-    ).one_or_none()
+    return await RepoTrabajos(conexion).resolucion_de(trabajo_id, item_id)
 
 
 async def decidir_linea(
@@ -1940,10 +1797,7 @@ async def fijar_producto_en_linea(
 
 
 async def _recalcular_total_kit(conexion: Any, kit_id: uuid.UUID) -> None:
-    total = await conexion.scalar(
-        select(func.coalesce(func.sum(LINEA.c.subtotal_cop), 0)).where(LINEA.c.kit_id == kit_id)
-    )
-    await conexion.execute(update(KIT).where(KIT.c.id == kit_id).values(total_cop=int(total or 0)))
+    await RepoTrabajos(conexion).recalcular_total_kit(kit_id)
 
 
 async def revisar(
@@ -1955,7 +1809,10 @@ async def revisar(
     actor: uuid.UUID | None = None,
 ) -> dict[str, Any]:
     """AD-06: aprobar publica al acudiente, devolver reabre sin avisar."""
-    nuevo = EstadoTrabajo.PUBLICADO.value if decision == "aprobar" else EstadoTrabajo.PROCESANDO.value
+    # Devolver reencola: el trabajador durable (ADR 0024) lo retoma, no una tarea
+    # en proceso. Antes iba a PROCESANDO y el API arrancaba la corrutina; ahora
+    # queda ENCOLADO y el worker lo drena con SKIP LOCKED.
+    nuevo = EstadoTrabajo.PUBLICADO.value if decision == "aprobar" else EstadoTrabajo.ENCOLADO.value
     async with motor.engine.begin() as conexion:
         actual = await _estado(conexion, trabajo_id)
         if not puede_pasar(actual, nuevo):
@@ -1982,56 +1839,55 @@ async def revisar(
             )
         )
         if decision == "aprobar":
+            # No se bendice como canonico un kit del que nadie puede comprar
+            # nada: si NINGUNA linea de NINGUN perfil tiene producto+precio,
+            # fijar el puntero solo garantizaria el 404 "sin lineas comprables"
+            # en el checkout del acudiente. Se niega la aprobacion con un motivo
+            # claro (falta fijar producto/precio en las lineas), en vez de
+            # publicar una cache rota. Misma definicion de "comprable" que
+            # `ordenar`: no informativa, con sku y precio.
+            if not await _tiene_lineas_comprables(conexion, trabajo_id):
+                raise CheckoutRechazado(
+                    409,
+                    {
+                        "error": "kit_sin_lineas",
+                        "mensaje": (
+                            "Este trabajo no tiene ninguna linea con producto y precio "
+                            "que Tukit pueda vender. Fija el producto en las lineas antes "
+                            "de aprobarlo como canonico."
+                        ),
+                    },
+                )
             await _publicar_evento(conexion, trabajo_id)
             await _fijar_canonico(conexion, trabajo_id)
 
     return {"trabajo_id": str(trabajo_id), "estado": nuevo, "nota": nota}
 
 
-async def _fijar_canonico(conexion: Any, trabajo_id: uuid.UUID) -> None:
-    """Al publicar, apunta la cache canonica de (colegio, grado, anio) a este trabajo.
+async def _tiene_lineas_comprables(conexion: Any, trabajo_id: uuid.UUID) -> bool:
+    """True si algun kit del trabajo tiene una linea que Tukit pueda cobrar.
 
-    Solo cuando el trabajo tiene UNA identidad de grado clara: un solo hijo con
-    colegio y grado (el caso de onboarding y de la ruta de acudiente por grado).
-    Un trabajo multi-hogar, o sin colegio/grado, no define una cache de grado y
-    se deja sin puntero —publicar igual funciona, solo no se cachea—.
-
-    Publicar de nuevo para el mismo grado REEMPLAZA el puntero (delete + insert
-    sobre la llave unica): una sola cache bendita por grado.
+    Comprable = no informativa, con `sku` y `precio_unitario_cop`. Es la misma
+    condicion que filtra `ordenar` al armar la orden; se comparte aqui para que
+    aprobar y comprar no discrepen sobre que es un kit vendible.
     """
-    fila = (await conexion.execute(select(TRABAJO.c.hijos).where(TRABAJO.c.id == trabajo_id))).one_or_none()
-    hijos = list(fila.hijos or ()) if fila else []
-    if len(hijos) != 1:
-        return
-    hijo = hijos[0]
-    colegio_id = str(hijo.get("colegio_id") or "")
-    grado = str(hijo.get("grado") or "")
-    # Mismo anio bajo el que se construyeron los kits (ver `procesar`): si el
-    # hijo no lo trajo, se cachea bajo el de omision para que la busqueda por
-    # grado en /empezar caiga en la misma fila.
-    anio = int(hijo.get("anio_lectivo") or ANIO_LECTIVO_POR_OMISION)
-    if not (colegio_id and grado):
-        return
+    existe = await conexion.scalar(
+        select(LINEA.c.id)
+        .select_from(LINEA.join(KIT, KIT.c.id == LINEA.c.kit_id))
+        .where(
+            KIT.c.trabajo_id == trabajo_id,
+            LINEA.c.informativa.is_(False),
+            LINEA.c.sku.is_not(None),
+            LINEA.c.precio_unitario_cop.is_not(None),
+        )
+        .limit(1)
+    )
+    return existe is not None
 
-    # Reemplaza el puntero del grado: la cache es una sola. No es un upsert de
-    # ON CONFLICT para no atarse al dialecto —delete+insert corre igual en
-    # SQLite (pruebas) y en Postgres (real)—.
-    await conexion.execute(
-        delete(KIT_CANONICO).where(
-            KIT_CANONICO.c.colegio_id == colegio_id,
-            KIT_CANONICO.c.grado == grado,
-            KIT_CANONICO.c.anio_lectivo == anio,
-        )
-    )
-    await conexion.execute(
-        insert(KIT_CANONICO).values(
-            id=uuid.uuid4(),
-            colegio_id=colegio_id,
-            grado=grado,
-            anio_lectivo=anio,
-            trabajo_id=trabajo_id,
-        )
-    )
+
+async def _fijar_canonico(conexion: Any, trabajo_id: uuid.UUID) -> None:
+    """Al publicar, apunta la cache canonica de (colegio, grado, anio) a este trabajo."""
+    await RepoTrabajos(conexion).fijar_canonico(trabajo_id)
 
 
 def _identidad_de_grado(hijos: Any) -> tuple[str, str, int, str | None] | None:
@@ -2159,6 +2015,104 @@ async def grados_canonicos(motor: Any, *, colegio_id: str | None = None) -> list
             "grado": f.grado,
             "anio_lectivo": int(f.anio_lectivo),
             "trabajo_id": str(f.trabajo_id),
+        }
+        for f in filas
+    ]
+
+
+async def acudientes_de_colegio(motor: Any, *, colegio_id: str) -> list[dict[str, Any]]:
+    """Los acudientes de un colegio con el estado de su trabajo más reciente.
+
+    Agrupa por `usuario_id` (el identificador del acudiente, jamás su correo ni
+    el nombre de un menor) y se queda con el trabajo VIVO: el más nuevo de cada
+    acudiente. El colegio no es columna del trabajo —vive en el JSON `hijos`—,
+    así que el filtro es por ese campo. Los trabajos anónimos (sin `usuario_id`)
+    no se agrupan: no hay a quién listar.
+
+    Devuelve además los `grados` que ese acudiente pidió EN ESTE colegio (de los
+    hijos que le corresponden) y las `preferencias` del hogar descifradas —pesos,
+    presupuesto, personaje—: dato de negocio, no PII (no lleva correo ni el
+    nombre del menor), y es lo que el panel necesita para atenderlo sin abrir el
+    trabajo.
+    """
+    cifrador = cifrador_desde_entorno()
+    consulta = (
+        select(
+            TRABAJO.c.id,
+            TRABAJO.c.usuario_id,
+            TRABAJO.c.estado,
+            TRABAJO.c.actualizado_en,
+            TRABAJO.c.hijos,
+            TRABAJO.c.preferencias_cifradas,
+        )
+        .where(TRABAJO.c.usuario_id.is_not(None))
+        .order_by(TRABAJO.c.usuario_id, TRABAJO.c.actualizado_en.desc())
+    )
+    async with motor.engine.begin() as conexion:
+        filas = (await conexion.execute(consulta)).all()
+
+    # ponytail: filtro por colegio en Python sobre los trabajos recientes — un
+    # colegio tiene decenas de acudientes, no hace falta índice sobre el JSON.
+    # Subir a JSON containment (`hijos @> …`) si un colegio pasa de miles.
+    ultimos: dict[str, Any] = {}
+    for f in filas:  # ya vienen por usuario, más reciente primero
+        if any(h.get("colegio_id") == colegio_id for h in (f.hijos or ())):
+            ultimos.setdefault(str(f.usuario_id), f)
+
+    def _grados_en_colegio(f: Any) -> list[str]:
+        # Solo los grados de los hijos de ESTE colegio, sin repetir. Un hogar
+        # tiene uno o dos: orden alfabético basta, no vale un índice canónico.
+        grados = {h["grado"] for h in (f.hijos or ()) if h.get("colegio_id") == colegio_id and h.get("grado")}
+        return sorted(grados)
+
+    return [
+        {
+            "usuario_id": uid,
+            "estado": f.estado,
+            "actualizado_en": f.actualizado_en.isoformat() if f.actualizado_en else None,
+            "trabajo_id": str(f.id),
+            "grados": _grados_en_colegio(f),
+            "preferencias": cifrador.descifrar_json(f.preferencias_cifradas) or {}
+            if f.preferencias_cifradas
+            else {},
+        }
+        for uid, f in ultimos.items()
+    ]
+
+
+async def mis_trabajos(motor: Any, *, usuario_id: uuid.UUID) -> list[dict[str, Any]]:
+    """Los trabajos (solicitudes de kit) de UN acudiente, del mas nuevo al mas viejo.
+
+    Es la lectura del panel del acudiente: sus solicitudes de kit —lo que
+    `/empezar` crea—, que no son pedidos pagados (esos los sirve comercio) sino
+    trabajos del pipeline. Devuelve por cada uno el estado, los hijos (por
+    `referencia`/`colegio_id`/`grado`, jamas un nombre de menor) y las
+    preferencias del hogar descifradas, que son del titular y las pidio el.
+    """
+    cifrador = cifrador_desde_entorno()
+    consulta = (
+        select(
+            TRABAJO.c.id,
+            TRABAJO.c.estado,
+            TRABAJO.c.hijos,
+            TRABAJO.c.preferencias_cifradas,
+            TRABAJO.c.creado_en,
+        )
+        .where(TRABAJO.c.usuario_id == usuario_id)
+        .order_by(TRABAJO.c.creado_en.desc())
+    )
+    async with motor.engine.begin() as conexion:
+        filas = (await conexion.execute(consulta)).all()
+
+    return [
+        {
+            "trabajo_id": str(f.id),
+            "estado": f.estado,
+            "creado_en": f.creado_en.isoformat() if f.creado_en else None,
+            "hijos": list(f.hijos or ()),
+            "preferencias": cifrador.descifrar_json(f.preferencias_cifradas) or {}
+            if f.preferencias_cifradas
+            else {},
         }
         for f in filas
     ]

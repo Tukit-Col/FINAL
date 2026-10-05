@@ -1,7 +1,7 @@
 """tabla kit_canonico
 
 Revision: 5c1e8b7d2a64
-Anterior: 3d8f5a1c9e42
+Anterior: 9a4b7c2e1d05
 Fecha:    2026-09-28 19:00:00.000000+00:00
 
 Por que este cambio: el modelo `KitCanonico` (el puntero a los kits benditos de
@@ -19,7 +19,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "5c1e8b7d2a64"
-down_revision: str | None = "3d8f5a1c9e42"
+down_revision: str | None = "9a4b7c2e1d05"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

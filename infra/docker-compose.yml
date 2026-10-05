@@ -116,5 +116,69 @@ services:
     command: ["python", "-m", "tukit_gateway.api", "--puerto", "8010", "--host", "0.0.0.0"]
     ports: ["8010:8010"]
 
+  # --- Backbone: broker, trazas y cache, bajo el perfil `infra` ----------
+  #
+  # APAGADOS por omision, igual que el perfil `api`. `make bd-arriba` sigue
+  # levantando solo Postgres; `make infra-arriba` levanta este bloque.
+  #
+  #     docker compose -f infra/docker-compose.yml --profile infra up -d
+  #
+  # El codigo degrada honestamente sin este bloque (patron WOMPI_MODO=falso):
+  # sin `RABBITMQ_URL` el outbox se drena con el `NotifierSink` de siempre; sin
+  # `OTEL_EXPORTER_OTLP_ENDPOINT` la instrumentacion es no-op. Levantar esto es
+  # un upgrade de entrega y de observabilidad, no un requisito para correr.
+  #
+  # ADVERTENCIA HONESTA: como el bloque `api`, este bloque NO se ha ejecutado.
+  # La maquina donde se escribio no tiene Docker; esta revisado a ojo. Misma
+  # clase de deuda que ya documentan el Makefile y el perfil `api`: anotarla es
+  # lo que evita darla por probada.
+
+  rabbitmq:
+    profiles: ["infra"]
+    image: rabbitmq:3-management
+    container_name: tukit_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: tukit
+      RABBITMQ_DEFAULT_PASS: tukit
+    # 5672 = protocolo AMQP (lo usa `aio-pika`); 15672 = consola de gestion.
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - tukit_rabbitmq:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    profiles: ["infra"]
+    # Backend intercambiable del circuit breaker (hoy in-memory) y, mas
+    # adelante, adaptador de socket.io para la colaboracion admin (B.5).
+    image: redis:7
+    container_name: tukit_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  jaeger:
+    profiles: ["infra"]
+    # Recibe las trazas OTLP y las muestra. UI en :16686. `all-in-one` trae
+    # collector + almacen + UI en un contenedor, suficiente para el piloto.
+    image: jaegertracing/all-in-one:1.60
+    container_name: tukit_jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"  # UI
+      - "4317:4317"    # OTLP gRPC  (OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317)
+      - "4318:4318"    # OTLP HTTP
+
 volumes:
   tukit_pgdata:
+  tukit_rabbitmq:

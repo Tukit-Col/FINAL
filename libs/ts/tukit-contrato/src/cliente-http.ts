@@ -7,6 +7,7 @@
 
 import { GRADOS_CANONICOS } from "./contrato";
 import type {
+  AcudienteResumen,
   AltaProducto,
   AplicarCanonico,
   CambioDeProducto,
@@ -37,6 +38,7 @@ import type {
   TrabajoAdmin,
   TrabajoAplicado,
   TrabajoCreado,
+  TrabajoResumen,
   ValidarLinea,
 } from "./contrato";
 import type {
@@ -83,6 +85,7 @@ import {
   type AcudienteAdmin,
   type ArchivoLista,
   type Credenciales,
+  type NuevaCuenta,
   type HijoNuevo,
   type MatriculaAcudiente,
   type OrigenDatos,
@@ -167,6 +170,12 @@ export class ClienteApi implements OrigenDatos {
     return cuerpo as T;
   }
 
+  // El Bearer de la sesion del acudiente cuando el Route Handler lo reenvia
+  // desde la cookie; vacio en el flujo anonimo. Se esparce sobre las cabeceras.
+  private autoriza(token?: string): Record<string, string> {
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
   private json(ruta: string, cuerpo: unknown, metodo = "POST"): Promise<void> {
     return this.pedir<void>(ruta, {
       method: metodo,
@@ -187,6 +196,14 @@ export class ClienteApi implements OrigenDatos {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cred),
+    });
+  }
+
+  crearCuenta(cuenta: NuevaCuenta): Promise<{ sesion: Sesion; token: string }> {
+    return this.pedir<{ sesion: Sesion; token: string }>("/v1/cuenta", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuenta),
     });
   }
 
@@ -287,11 +304,12 @@ export class ClienteApi implements OrigenDatos {
   async crearTrabajo(
     solicitud: SolicitudTrabajo,
     archivos: ArchivoLista[] = [],
+    token?: string,
   ): Promise<TrabajoCreado> {
     if (archivos.length === 0) {
       return this.pedir<TrabajoCreado>("/v1/trabajos", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...this.autoriza(token) },
         body: JSON.stringify(solicitud),
       });
     }
@@ -304,7 +322,11 @@ export class ClienteApi implements OrigenDatos {
       forma.append("archivo", archivo.contenido, archivo.nombre);
       forma.append("referencia", archivo.referencia);
     }
-    return this.pedir<TrabajoCreado>("/v1/trabajos", { method: "POST", body: forma });
+    return this.pedir<TrabajoCreado>("/v1/trabajos", {
+      method: "POST",
+      headers: this.autoriza(token),
+      body: forma,
+    });
   }
 
   async consultarTrabajo(trabajoId: string): Promise<Trabajo> {
@@ -322,6 +344,7 @@ export class ClienteApi implements OrigenDatos {
     archivos: ArchivoLista[],
     contacto?: Contacto,
     preferencias?: Preferencias,
+    token?: string,
   ): Promise<SubidaListas> {
     const forma = new FormData();
     forma.append("hijos", JSON.stringify(hijos));
@@ -333,7 +356,11 @@ export class ClienteApi implements OrigenDatos {
       forma.append("archivo", archivo.contenido, archivo.nombre);
       forma.append("referencia", archivo.referencia);
     }
-    return this.pedir<SubidaListas>("/v1/listas/subir", { method: "POST", body: forma });
+    return this.pedir<SubidaListas>("/v1/listas/subir", {
+      method: "POST",
+      headers: this.autoriza(token),
+      body: forma,
+    });
   }
 
   // ------------------------------------------------------- ASUMIDO (v1.1)
@@ -739,6 +766,34 @@ export class ClienteApi implements OrigenDatos {
     };
   }
 
+  acudientesDeColegio(colegioId: string): Promise<AcudienteResumen[]> {
+    return this.pedir<{ acudientes: Partial<AcudienteResumen>[] }>(
+      `/v1/admin/colegios/${encodeURIComponent(colegioId)}/acudientes`,
+    ).then((r) =>
+      // `grados`/`preferencias` son recientes: un backend que aún no los sirva
+      // no debe romper el panel. Se rellenan vacíos, mismo cinturón que la cola.
+      (r.acudientes ?? []).map((a) => ({
+        ...(a as AcudienteResumen),
+        grados: a.grados ?? [],
+        preferencias: a.preferencias ?? {},
+      })),
+    );
+  }
+
+  // Nombres de acudientes ADULTOS por id, para poner cara al panel del colegio.
+  // Es PII (§Anexo M): identidad exige `usuario:leer:nombre`, asi que el panel
+  // reenvia el Bearer de la sesion del admin (leido de la cookie por el Server
+  // Component). Devuelve un mapa id→nombre; un id sin nombre no aparece.
+  async nombresDeUsuarios(ids: string[], token: string): Promise<Record<string, string>> {
+    if (ids.length === 0) return {};
+    const cola = ids.map((id) => `ids=${encodeURIComponent(id)}`).join("&");
+    const r = await this.pedir<{ nombres?: Record<string, string> }>(
+      `/v1/usuarios/nombres?${cola}`,
+      { headers: this.autoriza(token) },
+    );
+    return r.nombres ?? {};
+  }
+
   validarLinea(trabajoId: string, itemId: string, cuerpo: ValidarLinea): Promise<void> {
     return this.json(
       `/v1/admin/trabajos/${encodeURIComponent(trabajoId)}/lineas/${encodeURIComponent(itemId)}/validar`,
@@ -765,10 +820,10 @@ export class ClienteApi implements OrigenDatos {
     return resp.grados ?? [];
   }
 
-  aplicarCanonico(cuerpo: AplicarCanonico): Promise<TrabajoAplicado> {
+  aplicarCanonico(cuerpo: AplicarCanonico, token?: string): Promise<TrabajoAplicado> {
     return this.pedir<TrabajoAplicado>("/v1/trabajos/aplicar-canonico", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...this.autoriza(token) },
       body: JSON.stringify(cuerpo),
     });
   }
@@ -1250,6 +1305,16 @@ export class ClienteApi implements OrigenDatos {
       `/v1/comercio/mis-pedidos?usuario_id=${encodeURIComponent(usuarioId)}`,
     );
     return resp.pedidos ?? [];
+  }
+
+  // Las solicitudes de kit del acudiente (trabajos del pipeline). Inteligencia
+  // valida la sesion, asi que se identifica por el Bearer que reenvia el Route
+  // Handler. Responde `{total, trabajos}`; la pantalla solo usa la lista.
+  async misTrabajos(token?: string): Promise<TrabajoResumen[]> {
+    const resp = await this.pedir<{ total: number; trabajos: TrabajoResumen[] }>("/v1/trabajos", {
+      headers: { ...this.autoriza(token) },
+    });
+    return resp.trabajos ?? [];
   }
 
   // "Mis solicitudes": las listas subidas + los trabajos del portador, unidas.

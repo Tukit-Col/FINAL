@@ -24,16 +24,17 @@ import uuid
 from typing import Any
 
 from conftest import CatalogoFalso  # noqa: F401  (reexport para claridad)
-from sqlalchemy import insert, select
+from sqlalchemy import MetaData, insert, select
 from test_fastroute import COLEGIO, _catalogo_verificado
+from tukit_comun.bandeja import bandeja_reflejada
 from tukit_inteligencia import trabajos
 from tukit_inteligencia.modelos import EstadoTrabajo
-from tukit_inteligencia.poller import Poller, _bandeja_reflejada
+from tukit_inteligencia.poller import Poller
 
 # La bandeja del Catalogo, aqui montada sobre el MISMO SQLite de prueba: tiene
 # la forma comun de bandeja (identica en todos los servicios), asi que la tabla
 # reflejada del poller la lee igual que en produccion.
-BANDEJA_CATALOGO = _bandeja_reflejada()
+BANDEJA_CATALOGO = bandeja_reflejada(MetaData())
 
 
 class _CatalogoNoIdentidad:
@@ -142,9 +143,7 @@ class TestPollerArmaElKitDelPadre:
         from tukit_inteligencia.trabajos import cifrador_desde_entorno
 
         async with motor.engine.begin() as conexion:
-            cifradas = (
-                await conexion.execute(select(trabajos.TRABAJO.c.preferencias_cifradas))
-            ).scalar_one()
+            cifradas = (await conexion.execute(select(trabajos.TRABAJO.c.preferencias_cifradas))).scalar_one()
         guardadas = cifrador_desde_entorno().descifrar_json(cifradas)
         assert guardadas == preferencias
 
@@ -176,33 +175,53 @@ class TestPollerArmaElKitDelPadre:
         assert len(trabajos_creados) == 1
 
 
-class TestPollerIgnoraLoQueNoLeToca:
-    async def test_un_evento_sin_contacto_no_arma_nada_pero_se_marca_publicado(self, motor):
-        # Onboarding del colegio: sin padre esperando. No arma kit, pero se
-        # marca publicado para no reintentarlo en cada pasada.
+class TestPollerConColegioSinPadre:
+    async def test_un_evento_sin_contacto_arma_un_kit_de_colegio_para_revision(self, motor):
+        # Onboarding del colegio: sin padre esperando. Ya NO se descarta: arma un
+        # trabajo `colegio_grado` (anonimo) que entra a la cola de revision, para
+        # que al aprobarlo ahi quede como kit canonico del grado.
         await _sembrar_bandeja(
             motor, contacto_referencia=None, colegio_id=COLEGIO, grado="Cuarto", anio_lectivo=2026
         )
         catalogo = _catalogo_verificado()
         poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
 
-        assert await poller.pasada() == 0
+        assert await poller.pasada() == 1
         async with motor.engine.begin() as conexion:
-            trabajos_creados = list(await conexion.execute(select(trabajos.TRABAJO.c.id)))
+            fila = (
+                await conexion.execute(
+                    select(
+                        trabajos.TRABAJO.c.usuario_id,
+                        trabajos.TRABAJO.c.estado,
+                        trabajos.TRABAJO.c.origen,
+                    )
+                )
+            ).one()
             pendientes = list(
                 await conexion.execute(
                     select(BANDEJA_CATALOGO.c.id).where(BANDEJA_CATALOGO.c.publicado_en.is_(None))
                 )
             )
-        assert trabajos_creados == []
+        # Anonimo, origen de colegio, y en espera de revision (no publicado
+        # directo: no hay padre a quien avisar, la persona lo aprueba en la cola).
+        assert fila.usuario_id is None
+        assert fila.origen == "colegio_grado"
+        assert fila.estado == EstadoTrabajo.ESPERA_REVISION.value
         assert pendientes == []  # se marco publicado
 
-    async def test_un_contacto_que_no_es_uuid_se_descarta_sin_armar_kit(self, motor):
+    async def test_un_contacto_que_no_es_uuid_se_degrada_a_kit_de_colegio(self, motor):
+        # Un contacto ilegible no arma un kit DIRIGIDO (perderiamos a quien
+        # avisar), pero tampoco se descarta el evento: se degrada a kit de
+        # colegio para revision. Perder el kit del grado es peor que perder el
+        # aviso a un contacto que de todas formas no se puede resolver.
         await _sembrar_bandeja(motor, **_carga("no-es-un-uuid"))
         catalogo = _catalogo_verificado()
         poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
 
-        assert await poller.pasada() == 0
+        assert await poller.pasada() == 1
         async with motor.engine.begin() as conexion:
-            trabajos_creados = list(await conexion.execute(select(trabajos.TRABAJO.c.id)))
-        assert trabajos_creados == []
+            fila = (
+                await conexion.execute(select(trabajos.TRABAJO.c.usuario_id, trabajos.TRABAJO.c.origen))
+            ).one()
+        assert fila.usuario_id is None
+        assert fila.origen == "colegio_grado"

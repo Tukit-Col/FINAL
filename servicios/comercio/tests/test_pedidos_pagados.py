@@ -26,9 +26,7 @@ async def entorno() -> AsyncIterator[tuple[httpx.AsyncClient, MotorServicio]]:
     fabrica = async_sessionmaker(engine, expire_on_commit=False)
     motor = MotorServicio(servicio="prueba", engine=engine, _fabrica=fabrica)
     app.state.motor = motor
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://prueba"
-    ) as http:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
         yield http, motor
     await engine.dispose()
 

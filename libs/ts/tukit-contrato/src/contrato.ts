@@ -113,6 +113,10 @@ export interface HijoSolicitud {
   referencia: string;
   colegio_id: string;
   grado: string;
+  // Solo lo lleva el "hijo" sintético de un preview de onboarding: la versión
+  // de lista de la que salió, para enlazar de vuelta a su revisor. En una
+  // solicitud real de acudiente no aplica.
+  version_id?: string;
 }
 
 // ----------------------------------------------------------- §3 Preferencias
@@ -138,8 +142,6 @@ export type DolorDeclarado = "disponibilidad" | "libros" | "un_solo_lugar" | "pr
 
 export interface Preferencias {
   pesos?: Pesos;
-  // Restriccion DURA, no una pista.
-  presupuesto_por_hijo?: Dinero | null;
   disposicion_sobreprecio?: number;
   personaje_por_hijo?: Record<string, string[]>;
   dolor_declarado?: DolorDeclarado;
@@ -148,7 +150,10 @@ export interface Preferencias {
 }
 
 export interface SolicitudTrabajo {
-  contacto: Contacto;
+  // Opcional: cuando el acudiente ya viene autenticado (cookie→Bearer) el
+  // pipeline resuelve el usuario_id de la sesion y no hace falta contacto. Solo
+  // el flujo anonimo heredado lo envia para que Identidad registre a quien avisar.
+  contacto?: Contacto;
   hijos: HijoSolicitud[];
   preferencias?: Preferencias;
 }
@@ -443,6 +448,18 @@ export interface Trabajo {
   origen?: string;
 }
 
+// El panel del acudiente: una de SUS solicitudes de kit (un trabajo del
+// pipeline, no un pedido pagado). Trae el estado, los hijos como los mandó
+// —por referencia sintética/colegio/grado, jamás un nombre de menor— y las
+// preferencias del hogar. Lo sirve `GET /v1/trabajos` autenticado por Bearer.
+export interface TrabajoResumen {
+  trabajo_id: string;
+  estado: EstadoTrabajo;
+  creado_en: string;
+  hijos: HijoSolicitud[];
+  preferencias: Preferencias;
+}
+
 // ---------------------------------------------- §4.1 "Mis solicitudes" del panel
 // Una solicitud del acudiente es una de dos cosas —una lista que subio, o un
 // trabajo del pipeline— y a veces las dos son la misma (la lista aprobada
@@ -534,6 +551,20 @@ export function validarArchivo(archivo: File): string | null {
 // El §7 lista las rutas y sus requisitos pero no los cuerpos, salvo el de
 // `/revision`. Todo lo de abajo excepto `DecisionRevision` es INFERIDO a
 // partir de lo que cada requisito del SRS necesita para poder ejecutarse.
+
+// El panel de acudientes de un colegio: quién pidió kits y en qué va su
+// trabajo. El identificador del acudiente y el estado, más los grados que pidió
+// EN ESTE colegio y las preferencias del hogar (pesos, presupuesto, personaje).
+// Nunca el correo ni el apodo de un menor (Ley 1581): `grados` y `preferencias`
+// son dato de negocio, no PII.
+export interface AcudienteResumen {
+  usuario_id: string;
+  estado: EstadoTrabajo;
+  actualizado_en: string;
+  trabajo_id: string;
+  grados: string[];
+  preferencias: Preferencias;
+}
 
 // AD-01/AD-02/AD-03: la cola necesita, por trabajo, con que decidir a
 // cual entrar primero.

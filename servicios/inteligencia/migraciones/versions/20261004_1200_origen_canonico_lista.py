@@ -26,10 +26,7 @@ down_revision: str | None = "8a4d2f6c1b97"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-_ANTERIOR = (
-    "origen IN ('colegio_grado', 'archivo', 'preview_onboarding', 'lista_verificada', "
-    "'parent_apply')"
-)
+_ANTERIOR = "origen IN ('colegio_grado', 'archivo', 'preview_onboarding', 'lista_verificada', 'parent_apply')"
 _NUEVO = (
     "origen IN ('colegio_grado', 'archivo', 'preview_onboarding', 'lista_verificada', "
     "'parent_apply', 'canonico_lista')"

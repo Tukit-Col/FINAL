@@ -216,7 +216,7 @@ def _indice_por_dane() -> dict[str, ColegioDirectorio]:
     if _POR_DANE is None:
         from pathlib import Path
 
-        ruta = Path(__file__).parent / _FUENTE
+        ruta = Path(__file__).parent.parent / _FUENTE
         texto = ruta.read_text(encoding="utf-8", errors="replace")
         _POR_DANE = {c.dane: c for c in parsear_directorio(texto)}
     return _POR_DANE

@@ -13,7 +13,7 @@ comparan contra `tukit_comun.derivar`, no contra un UUID copiado a mano.
 from __future__ import annotations
 
 from tukit_comun import derivar
-from tukit_identidad.directorio_bogota import (
+from tukit_identidad.dominio.directorio import (
     parsear_directorio,
 )
 

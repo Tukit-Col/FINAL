@@ -28,8 +28,26 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from tukit_comercio.api import app
 from tukit_comercio.modelos import Base, EstadoPago, EstadoPedido
-from tukit_comercio.pasarela import PasarelaCaida, PasarelaFalsa, WompiSandbox, datos_widget
+from tukit_comercio.pasarela import (
+    PasarelaCaida,
+    PasarelaFalsa,
+    TransaccionCreada,
+    WompiSandbox,
+    datos_widget,
+)
 from tukit_comun.bd import MotorServicio
+
+
+class PasarelaQueNoResponde(PasarelaFalsa):
+    """Pasarela que revienta al cobrar, como Wompi caido o devolviendo 5xx.
+
+    Hereda la verificacion/parseo de firma de la falsa; solo `crear_transaccion`
+    lanza el error httpx que el adaptador real levantaria (`raise_for_status` o
+    un fallo de red), para probar que el checkout lo traduce a un sobre y no a un
+    500 con el traceback de la pasarela."""
+
+    async def crear_transaccion(self, **_: object) -> TransaccionCreada:
+        raise httpx.ConnectError("wompi no responde")
 
 
 class CatalogoFalso:
@@ -109,6 +127,38 @@ async def test_crear_orden_congela_precio_y_reserva(cliente):
     assert cuerpo["envio"]["ciudad"] == "Bogota"
 
 
+async def test_crear_orden_congela_los_datos_extendidos_de_entrega(cliente):
+    # telefono/departamento/documento/indicaciones son parte de la copia
+    # congelada del hecho de entrega (ADR 0015): entran por la solicitud y
+    # vuelven en el envio serializado, no apuntan a la libreta de Identidad.
+    orden = _orden()
+    orden["entrega"].update(
+        {
+            "telefono": "3001234567",
+            "departamento": "Cundinamarca",
+            "documento_destinatario": "CC 1020304050",
+            "indicaciones": "Dejar en porteria, torre 3",
+        }
+    )
+    cuerpo = (await cliente.post("/v1/ordenes", json=orden)).json()
+    envio = cuerpo["envio"]
+    assert envio["telefono"] == "3001234567"
+    assert envio["departamento"] == "Cundinamarca"
+    assert envio["documento_destinatario"] == "CC 1020304050"
+    assert envio["indicaciones"] == "Dejar en porteria, torre 3"
+
+
+async def test_crear_orden_sin_datos_extendidos_los_deja_nulos(cliente):
+    # La solicitud legada (solo destinatario/direccion/ciudad) sigue cerrando:
+    # los cuatro campos nuevos son nullable y quedan en None.
+    cuerpo = (await cliente.post("/v1/ordenes", json=_orden())).json()
+    envio = cuerpo["envio"]
+    assert envio["telefono"] is None
+    assert envio["departamento"] is None
+    assert envio["documento_destinatario"] is None
+    assert envio["indicaciones"] is None
+
+
 async def test_reverificacion_rechaza_si_el_precio_cambio(cliente):
     # El acudiente aprobo 4500, pero Catalogo ahora dice otro precio.
     app.state.catalogo = CatalogoFalso({"TK-C001-ECO": 5200})
@@ -132,7 +182,9 @@ async def test_iniciar_pago_guarda_solo_referencia_y_estado(cliente):
     )
     assert respuesta.status_code == 201
     cuerpo = respuesta.json()
-    assert cuerpo["referencia_wompi"] == f"tukit-{cuerpo['pago_id']}"
+    # El primer intento es `-1`; el sufijo de intento es lo que deja reintentar
+    # tras un rechazo sin chocar con el indice unico de la referencia.
+    assert cuerpo["referencia_wompi"] == f"tukit-{pedido_id}-1"
     assert cuerpo["estado"] == EstadoPago.INICIADO.value
 
 
@@ -144,8 +196,11 @@ async def test_iniciar_pago_en_sandbox_devuelve_el_widget_sin_redireccion(client
     cuerpo = (
         await cliente.post(
             f"/v1/ordenes/{pedido_id}/pago",
-            json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse",
-                  "url_redireccion": "http://localhost:3000/pago/resultado"},
+            json={
+                "correo_cliente": "ana@ejemplo.com",
+                "metodo": "pse",
+                "url_redireccion": "http://localhost:3000/pago/resultado",
+            },
         )
     ).json()
     assert cuerpo["url_redireccion"] is None
@@ -165,12 +220,28 @@ async def test_iniciar_pago_en_modo_falso_no_trae_widget(cliente):
     cuerpo = (
         await cliente.post(
             f"/v1/ordenes/{pedido_id}/pago",
-            json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse",
-                  "url_redireccion": "http://localhost:3000/pago/resultado"},
+            json={
+                "correo_cliente": "ana@ejemplo.com",
+                "metodo": "pse",
+                "url_redireccion": "http://localhost:3000/pago/resultado",
+            },
         )
     ).json()
     assert cuerpo["widget"] is None
     assert cuerpo["url_redireccion"].endswith("/pago/simulado?ref=" + cuerpo["referencia_wompi"])
+
+
+async def test_iniciar_pago_con_pasarela_caida_da_502(cliente):
+    # Wompi caido no puede volverse un 500 con el traceback de la pasarela: es
+    # un sobre tipado que el checkout puede mostrar y el cliente reintentar.
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+    app.state.pasarela = PasarelaQueNoResponde()
+    respuesta = await cliente.post(
+        f"/v1/ordenes/{pedido_id}/pago",
+        json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse"},
+    )
+    assert respuesta.status_code == 502
+    assert respuesta.json()["error"] == "pasarela_no_disponible"
 
 
 async def _flujo_hasta_webhook(cliente, estado_wompi: str):
@@ -305,6 +376,85 @@ async def test_webhook_rechazado_no_pasa_a_pagado(cliente):
     assert pedido["pago"]["estado"] == EstadoPago.RECHAZADO.value
 
 
+async def test_reintento_tras_rechazo_no_colisiona_la_referencia(cliente):
+    # El primer intento se rechaza y el acudiente reintenta. La referencia
+    # lleva el numero de intento (`-1`, `-2`), asi que el segundo pago no choca
+    # con el indice unico de `referencia_wompi` y no revienta con un 500.
+    pedido_id, evento = await _flujo_hasta_webhook(cliente, "DECLINED")
+    await cliente.post("/v1/webhooks/wompi", json=evento)
+
+    reintento = await cliente.post(
+        f"/v1/ordenes/{pedido_id}/pago",
+        json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse"},
+    )
+    assert reintento.status_code == 201
+    assert reintento.json()["referencia_wompi"] == f"tukit-{pedido_id}-2"
+
+
+async def _pedido_pagado(cliente) -> str:
+    pedido_id, evento = await _flujo_hasta_webhook(cliente, "APPROVED")
+    await cliente.post("/v1/webhooks/wompi", json=evento)
+    return pedido_id
+
+
+async def test_avanzar_pedido_pagado_a_en_preparacion(cliente):
+    pedido_id = await _pedido_pagado(cliente)
+    respuesta = await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", json={"destino": "en_preparacion"})
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == EstadoPedido.EN_PREPARACION.value
+
+
+async def test_avanzar_a_destino_ilegal_da_409(cliente):
+    # pagado -> entregado se salta pasos: la tabla lo rechaza con 409.
+    pedido_id = await _pedido_pagado(cliente)
+    respuesta = await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", json={"destino": "entregado"})
+    assert respuesta.status_code == 409
+    assert respuesta.json()["error"] == "transicion_invalida"
+
+
+async def test_despachar_sin_guia_da_422(cliente):
+    pedido_id = await _pedido_pagado(cliente)
+    await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", json={"destino": "en_preparacion"})
+    respuesta = await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", json={"destino": "despachado"})
+    assert respuesta.status_code == 422
+    assert respuesta.json()["error"] == "despacho_incompleto"
+
+
+async def test_despachar_con_guia_sella_el_envio(cliente):
+    pedido_id = await _pedido_pagado(cliente)
+    await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", json={"destino": "en_preparacion"})
+    respuesta = await cliente.post(
+        f"/v1/ordenes/{pedido_id}/avanzar",
+        json={"destino": "despachado", "transportadora": "Servientrega", "guia": "ABC123"},
+    )
+    assert respuesta.status_code == 200
+    pedido = (await cliente.get(f"/v1/ordenes/{pedido_id}")).json()
+    assert pedido["estado"] == EstadoPedido.DESPACHADO.value
+    assert pedido["envio"]["transportadora"] == "Servientrega"
+    assert pedido["envio"]["guia"] == "ABC123"
+
+
+async def test_avanzar_hasta_entregado_marca_entregado_en(cliente):
+    pedido_id = await _pedido_pagado(cliente)
+    for cuerpo in (
+        {"destino": "en_preparacion"},
+        {"destino": "despachado", "transportadora": "Servientrega", "guia": "ABC123"},
+        {"destino": "en_reparto"},
+        {"destino": "entregado"},
+    ):
+        respuesta = await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", json=cuerpo)
+        assert respuesta.status_code == 200, respuesta.json()
+    pedido = (await cliente.get(f"/v1/ordenes/{pedido_id}")).json()
+    assert pedido["estado"] == EstadoPedido.ENTREGADO.value
+    assert pedido["envio"]["entregado_en"] is not None
+
+
+async def test_avanzar_pedido_inexistente_da_404(cliente):
+    respuesta = await cliente.post(f"/v1/ordenes/{uuid.uuid4()}/avanzar", json={"destino": "en_preparacion"})
+    assert respuesta.status_code == 404
+    assert respuesta.json()["error"] == "pedido_no_existe"
+
+
 async def test_mis_pedidos_solo_devuelve_los_del_acudiente(cliente):
     # Dos pedidos del acudiente conocido y uno de otro usuario.
     await cliente.post("/v1/ordenes", json=_orden())
@@ -384,8 +534,11 @@ async def test_sincronizar_devuelve_el_trabajo_del_pedido(cliente):
     pago = (
         await cliente.post(
             f"/v1/ordenes/{pedido_id}/pago",
-            json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse",
-                  "url_redireccion": "http://localhost:3000/pago/resultado"},
+            json={
+                "correo_cliente": "ana@ejemplo.com",
+                "metodo": "pse",
+                "url_redireccion": "http://localhost:3000/pago/resultado",
+            },
         )
     ).json()
     r = await cliente.post(f"/v1/pagos/falsa-DECLINED-{pago['referencia_wompi']}/sincronizar")
@@ -471,22 +624,22 @@ async def test_sincronizar_con_pasarela_caida_es_502(cliente):
 
 async def test_sincronizar_reintenta_una_vez_si_choca_el_indice_unico(cliente, monkeypatch):
     """Webhook y regreso del usuario simultaneos: el segundo INSERT falla y se reintenta."""
-    from tukit_comercio import api as api_comercio
+    from tukit_comercio.repositorios import RepoPedidos
 
     pedido_id, ref = await _pedido_con_pago(cliente)
-    original = api_comercio._aplicar_resultado
+    original = RepoPedidos.aplicar_resultado
     llamadas = {"n": 0}
 
-    async def con_choque(conexion, datos):
+    async def con_choque(repo, datos):
         llamadas["n"] += 1
         if llamadas["n"] == 1:
             # La "otra entrega" gana la carrera: aplica y confirma en su sesion.
             async with app.state.motor.sesion() as otra:
-                await original(await otra.connection(), datos)
+                await original(RepoPedidos(await otra.connection()), datos)
             raise IntegrityError("INSERT", {}, Exception("UNIQUE evento_id"))
-        return await original(conexion, datos)
+        return await original(repo, datos)
 
-    monkeypatch.setattr(api_comercio, "_aplicar_resultado", con_choque)
+    monkeypatch.setattr(RepoPedidos, "aplicar_resultado", con_choque)
     r = await cliente.post(f"/v1/pagos/falsa-APPROVED-{ref}/sincronizar")
     assert r.status_code == 200
     assert r.json() == {
@@ -520,8 +673,11 @@ async def _pagar(cliente, pedido_id: str) -> dict:
     return (
         await cliente.post(
             f"/v1/ordenes/{pedido_id}/pago",
-            json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse",
-                  "url_redireccion": "http://localhost:3000/pago/resultado"},
+            json={
+                "correo_cliente": "ana@ejemplo.com",
+                "metodo": "pse",
+                "url_redireccion": "http://localhost:3000/pago/resultado",
+            },
         )
     ).json()
 

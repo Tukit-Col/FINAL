@@ -91,9 +91,7 @@ def test_filas_solo_incluye_colegios_con_kits():
     assert colegios == {"col-1"}  # col-2 no tiene kits -> no aporta traza
 
     # La cobertura del colegio activo va en puntos base.
-    cobertura = [
-        f["valor"] for f in filas if f["dimension"] == "colegio" and f["metrica"] == "cobertura_bps"
-    ]
+    cobertura = [f["valor"] for f in filas if f["dimension"] == "colegio" and f["metrica"] == "cobertura_bps"]
     assert cobertura == [9231]
 
     # Las siete cifras del catalogo se congelan como conteo directo.
@@ -145,9 +143,7 @@ async def test_escribir_es_idempotente(motor):
 @pytest_asyncio.fixture
 async def cliente_http(motor) -> AsyncIterator[httpx.AsyncClient]:
     app.state.motor = motor
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://prueba"
-    ) as http:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
         yield http
 
 
@@ -166,3 +162,22 @@ async def test_series_vacia_sin_snapshots(cliente_http):
     respuesta = await cliente_http.get("/v1/operacion/metricas")
     assert respuesta.status_code == 200
     assert respuesta.json()["puntos"] == []
+
+
+async def test_series_desde_invalida_da_422(cliente_http):
+    # `desde` que no es fecha ISO no es una serie vacia: es una entrada mala.
+    respuesta = await cliente_http.get("/v1/operacion/metricas", params={"desde": "no-es-fecha"})
+    assert respuesta.status_code == 422
+    assert respuesta.json()["error"] == "fecha_invalida"
+
+
+async def test_series_desde_valida_acota_por_fecha(motor, cliente_http):
+    # Dos dias congelados; `desde` el dia de hoy deja fuera el snapshot viejo.
+    ayer = date(HOY.year, HOY.month, HOY.day - 1)
+    await escribir_instantanea(motor, MetricasFalsas(), ayer)
+    await escribir_instantanea(motor, MetricasFalsas(), HOY)
+
+    respuesta = await cliente_http.get("/v1/operacion/metricas", params={"desde": HOY.isoformat()})
+    assert respuesta.status_code == 200
+    fechas = {p["fecha"] for p in respuesta.json()["puntos"]}
+    assert fechas == {HOY.isoformat()}
