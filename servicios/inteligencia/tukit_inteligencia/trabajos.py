@@ -98,6 +98,20 @@ class TrabajoNoExiste(Exception):
     pass
 
 
+class SolicitudNoCancelable(Exception):
+    """El acudiente pidio cancelar una solicitud que no se puede cancelar.
+
+    Lleva el codigo y el estado HTTP que la API devuelve tal cual, para que el
+    panel le diga al papa el motivo exacto (p. ej. que primero cancele el pedido).
+    """
+
+    def __init__(self, codigo: str, mensaje: str, estado: int = 409) -> None:
+        super().__init__(mensaje)
+        self.codigo = codigo
+        self.mensaje = mensaje
+        self.estado = estado
+
+
 class CambioNoPermitido(Exception):
     """El acudiente pidio un cambio de producto que no se puede hacer.
 
@@ -1549,7 +1563,7 @@ async def mis_solicitudes(motor: Any, usuario_id: uuid.UUID, *, catalogo: Any) -
             TRABAJO.c.hijos,
             TRABAJO.c.creado_en,
         )
-        .where(TRABAJO.c.usuario_id == usuario_id)
+        .where(TRABAJO.c.usuario_id == usuario_id, TRABAJO.c.estado != EstadoTrabajo.CANCELADO.value)
         .order_by(TRABAJO.c.creado_en.desc())
     )
     async with motor.engine.begin() as conexion:
@@ -1603,6 +1617,8 @@ async def mis_solicitudes(motor: Any, usuario_id: uuid.UUID, *, catalogo: Any) -
             solicitudes.append(
                 {
                     "tipo": "recibida",
+                    # Con esto el acudiente la cancela (`cancelar_lista_subida`).
+                    "tarea_id": lista_subida.get("tarea_id"),
                     "colegio_id": colegio_id,
                     "colegio_nombre": colegio_nombre,
                     "grado": grado,
@@ -1637,6 +1653,88 @@ async def mis_solicitudes(motor: Any, usuario_id: uuid.UUID, *, catalogo: Any) -
     for solicitud in solicitudes:
         del solicitud["_orden"]
     return {"solicitudes": solicitudes, "listas_disponibles": listas_disponibles}
+
+
+# Un pedido cancelado ya no frena la cancelacion de su solicitud. Uno vencido
+# sigue en `pendiente_pago` (§9.4): se cancela primero, como cualquier pendiente.
+_PEDIDO_SIN_EFECTO = frozenset({"cancelado"})
+
+
+async def cancelar_solicitud(
+    motor: Any,
+    trabajo_id: uuid.UUID,
+    *,
+    usuario_id: uuid.UUID,
+    comercio: ClienteComercio,
+    catalogo: ClienteCatalogo,
+) -> dict[str, Any]:
+    """El acudiente cancela una solicitud suya (ADR 0031).
+
+    El trabajo pasa a `cancelado`, terminal, y deja de salir en "Mis
+    solicitudes" y en la cola de revision. No se cancela:
+
+    - la solicitud de otro (`solicitud_ajena`, 403);
+    - un trabajo que el pipeline esta armando (`en_proceso`): se escribe en
+      medio y el resultado quedaria a medias;
+    - un kit con un pago pendiente (`pedido_pendiente`): primero se cancela el
+      pedido, que es lo que consulta a la pasarela antes de soltarlo (§9.3);
+    - un kit ya comprado (`kit_comprado`).
+
+    Si el trabajo salio de una lista que el acudiente subio, la lista tambien se
+    le desvincula en el Catalogo; si no, volveria a salir como "recibida". Sin
+    Comercio no se cancela a ciegas: `RemotoCaido`.
+    """
+    async with motor.engine.begin() as conexion:
+        cabeza = (
+            await conexion.execute(
+                select(TRABAJO.c.estado, TRABAJO.c.usuario_id, TRABAJO.c.origen, TRABAJO.c.hijos).where(
+                    TRABAJO.c.id == trabajo_id
+                )
+            )
+        ).one_or_none()
+    if cabeza is None:
+        raise TrabajoNoExiste(str(trabajo_id))
+    if cabeza.usuario_id != usuario_id:
+        raise SolicitudNoCancelable("solicitud_ajena", "Esta solicitud no es de tu cuenta.", 403)
+    if cabeza.estado == EstadoTrabajo.CANCELADO.value:
+        return {"trabajo_id": str(trabajo_id), "estado": EstadoTrabajo.CANCELADO.value}
+    if cabeza.estado == EstadoTrabajo.PROCESANDO.value:
+        raise SolicitudNoCancelable(
+            "en_proceso", "Estamos armando tu kit justo ahora. Intenta cancelarla en un minuto."
+        )
+
+    for pedido in await comercio.pedidos_de(str(usuario_id)):
+        if str(pedido.get("trabajo_id")) != str(trabajo_id) or pedido.get("estado") in _PEDIDO_SIN_EFECTO:
+            continue
+        if pedido.get("estado") == "pendiente_pago":
+            raise SolicitudNoCancelable(
+                "pedido_pendiente",
+                "Tienes un pedido de este kit esperando pago. Cancélalo primero en Mis pedidos.",
+            )
+        raise SolicitudNoCancelable(
+            "kit_comprado", "Ya compraste este kit, así que la solicitud no se cancela."
+        )
+
+    async with motor.engine.begin() as conexion:
+        await _pasar_a(conexion, trabajo_id, EstadoTrabajo.CANCELADO.value)
+
+    hijo = (list(cabeza.hijos or ()) or [{}])[0]
+    if cabeza.origen == "lista_verificada" and hijo.get("version_id"):
+        await catalogo.retirar_de_contacto(str(usuario_id), version_id=str(hijo["version_id"]))
+    return {"trabajo_id": str(trabajo_id), "estado": EstadoTrabajo.CANCELADO.value}
+
+
+async def cancelar_lista_subida(
+    usuario_id: uuid.UUID, tarea_id: str, *, catalogo: ClienteCatalogo
+) -> dict[str, Any]:
+    """El acudiente cancela una lista que subio y que todavia no tiene kit.
+
+    La lista no se borra: es una lista oficial del colegio y alguien la puede
+    curar igual. Solo deja de ser suya (no sale en "Mis solicitudes" ni le arma
+    un kit al aprobarse). El Catalogo solo desvincula tareas de este contacto.
+    """
+    retiradas = await catalogo.retirar_de_contacto(str(usuario_id), tarea_id=tarea_id)
+    return {"tarea_id": tarea_id, "retiradas": retiradas}
 
 
 async def eliminar(motor: Any, trabajo_id: uuid.UUID) -> None:

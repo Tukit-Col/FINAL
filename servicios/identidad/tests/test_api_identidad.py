@@ -344,7 +344,9 @@ class TestElRegistroDelAcudiente:
     async def test_no_pisa_una_cuenta_ya_registrada(self, cliente):
         """La ruta es publica: no debe dejar que un tercero cambie la clave de
         una cuenta que ya tiene credencial."""
-        await cliente.post("/v1/registro", json={"correo": "duena@ejemplo.com", "clave": "originaal", "hijos": []})
+        await cliente.post(
+            "/v1/registro", json={"correo": "duena@ejemplo.com", "clave": "originaal", "hijos": []}
+        )
         repetido = await cliente.post(
             "/v1/registro", json={"correo": "duena@ejemplo.com", "clave": "otraaaaa", "hijos": []}
         )
@@ -373,9 +375,7 @@ class TestElRegistroDelAcudiente:
             await cliente.post("/v1/sesiones", json={"correo": "conhijos@ejemplo.com", "clave": "clave1234"})
         ).json()["token"]
 
-        respuesta = await cliente.get(
-            "/v1/cuenta/matriculas", headers={"Authorization": f"Bearer {token}"}
-        )
+        respuesta = await cliente.get("/v1/cuenta/matriculas", headers={"Authorization": f"Bearer {token}"})
         assert respuesta.status_code == 200
         cuerpo = respuesta.json()
         assert cuerpo["total"] == 1
@@ -458,7 +458,9 @@ class TestMisMatriculasExigenToken:
                 "hijos": [{"colegio_id": colegio_id, "grado": "Quinto"}],
             },
         )
-        await cliente.post("/v1/registro", json={"correo": "sinkid@ejemplo.com", "clave": "clave1234", "hijos": []})
+        await cliente.post(
+            "/v1/registro", json={"correo": "sinkid@ejemplo.com", "clave": "clave1234", "hijos": []}
+        )
         token_ajeno = (
             await cliente.post("/v1/sesiones", json={"correo": "sinkid@ejemplo.com", "clave": "clave1234"})
         ).json()["token"]
@@ -474,9 +476,9 @@ class TestGuardarMatriculasConSesion:
 
     async def _token(self, cliente, correo: str) -> str:
         await cliente.post("/v1/registro", json={"correo": correo, "clave": "clave1234", "hijos": []})
-        return (
-            await cliente.post("/v1/sesiones", json={"correo": correo, "clave": "clave1234"})
-        ).json()["token"]
+        return (await cliente.post("/v1/sesiones", json={"correo": correo, "clave": "clave1234"})).json()[
+            "token"
+        ]
 
     async def test_sin_token_es_401(self, cliente):
         colegio_id = str(derivar("colegio", "2.4"))
@@ -668,6 +670,11 @@ class TestLaSuperficieDeMenoresNoEstaAbierta:
             # y POST comparten esta clave de path, asi que el `set` no gana una
             # entrada nueva —no hay "lista" que ampliar, solo esta documentacion—.
             "/v1/cuenta/matriculas",
+            # Quitar (DELETE) o cambiar de colegio (PUT) a UN hijo del portador.
+            # Misma regla: exige token, solo alcanza matriculas con vinculo del
+            # portador (404 si no es suya) y no devuelve dato de menor. Quitar no
+            # borra: cierra el vinculo y retira la matricula (ADR 0031).
+            "/v1/cuenta/matriculas/{matricula_id}",
             # El registro de verdad. Solo ESCRIBE (credencial + matriculas) y
             # nunca devuelve datos de menor: su respuesta es {usuario_id, creado}.
             "/v1/registro",
@@ -806,3 +813,102 @@ class TestElPadronDeAcudientes:
         fila = next(a for a in r.json()["acudientes"] if a["correo"] == "familia@ejemplo.com")
         assert set(fila) == {"usuario_id", "correo", "celular", "creado_en", "hijos"}
         assert set(fila["hijos"][0]) == {"apodo", "colegio_id", "colegio_nombre", "grado"}
+
+
+class TestQuitarYCambiarHijos:
+    """El acudiente quita a un hijo o lo cambia de colegio desde su panel.
+
+    Quitar no borra: cierra el vinculo (`vigente_hasta`) y retira la matricula,
+    que es lo que la retencion de datos de menores exige conservar. Cambiar de
+    colegio retira la matricula vieja y crea la nueva con el mismo apodo.
+    """
+
+    async def _cuenta_con_hijo(self, cliente, correo: str, apodo: str = "Pipe") -> tuple[dict, str]:
+        await cliente.post("/v1/registro", json={"correo": correo, "clave": "clave1234", "hijos": []})
+        token = (await cliente.post("/v1/sesiones", json={"correo": correo, "clave": "clave1234"})).json()[
+            "token"
+        ]
+        cabecera = {"Authorization": f"Bearer {token}"}
+        await cliente.post(
+            "/v1/cuenta/matriculas",
+            json={
+                "hijos": [{"colegio_id": str(derivar("colegio", "2.4")), "grado": "Quinto", "apodo": apodo}]
+            },
+            headers=cabecera,
+        )
+        return cabecera, (await cliente.get("/v1/cuenta/matriculas", headers=cabecera)).json()["matriculas"][
+            0
+        ]["matricula_id"]
+
+    async def _hijos(self, cliente, cabecera) -> list[dict]:
+        return (await cliente.get("/v1/cuenta/matriculas", headers=cabecera)).json()["matriculas"]
+
+    async def test_la_lista_trae_el_id_de_la_matricula(self, cliente):
+        cabecera, matricula_id = await self._cuenta_con_hijo(cliente, "id-hijo@ejemplo.com")
+        assert uuid.UUID(matricula_id)
+
+    async def test_quitar_un_hijo(self, cliente):
+        cabecera, matricula_id = await self._cuenta_con_hijo(cliente, "quitar@ejemplo.com")
+        respuesta = await cliente.delete(f"/v1/cuenta/matriculas/{matricula_id}", headers=cabecera)
+        assert respuesta.status_code == 204
+        assert await self._hijos(cliente, cabecera) == []
+
+    async def test_no_se_quita_el_hijo_de_otra_cuenta(self, cliente):
+        _, matricula_id = await self._cuenta_con_hijo(cliente, "duena@ejemplo.com")
+        otra, _ = await self._cuenta_con_hijo(cliente, "ajena@ejemplo.com", apodo="Otro")
+        respuesta = await cliente.delete(f"/v1/cuenta/matriculas/{matricula_id}", headers=otra)
+        assert respuesta.status_code == 404
+        assert (await cliente.delete(f"/v1/cuenta/matriculas/{matricula_id}")).status_code == 401
+
+    async def test_un_hijo_quitado_se_puede_volver_a_agregar(self, cliente):
+        """La derivacion cae en la misma matricula retirada: se reactiva."""
+        cabecera, matricula_id = await self._cuenta_con_hijo(cliente, "volver@ejemplo.com")
+        await cliente.delete(f"/v1/cuenta/matriculas/{matricula_id}", headers=cabecera)
+        respuesta = await cliente.post(
+            "/v1/cuenta/matriculas",
+            json={
+                "hijos": [
+                    {"colegio_id": str(derivar("colegio", "2.4")), "grado": "Quinto", "apodo": "Pipe 2"}
+                ]
+            },
+            headers=cabecera,
+        )
+        assert respuesta.json()["total"] == 1
+        hijos = await self._hijos(cliente, cabecera)
+        assert [h["apodo"] for h in hijos] == ["Pipe 2"]
+
+    async def test_cambiar_de_colegio_conserva_el_apodo(self, cliente):
+        # El colegio "9.9" del fixture no tiene sede: se le da una para recibirlo.
+        async with app.state.motor.sesion() as sesion:
+            sesion.add(
+                Sede(
+                    id=derivar("sede", "9.9", "Sede unica"),
+                    colegio_id=derivar("colegio", "9.9"),
+                    nombre="Sede unica",
+                )
+            )
+            await sesion.commit()
+        cabecera, matricula_id = await self._cuenta_con_hijo(cliente, "cambiar@ejemplo.com")
+
+        respuesta = await cliente.put(
+            f"/v1/cuenta/matriculas/{matricula_id}",
+            json={"colegio_id": str(derivar("colegio", "9.9")), "grado": "Sexto"},
+            headers=cabecera,
+        )
+        assert respuesta.status_code == 200
+        hijos = await self._hijos(cliente, cabecera)
+        assert len(hijos) == 1
+        assert hijos[0]["colegio_id"] == str(derivar("colegio", "9.9"))
+        assert hijos[0]["grado"] == "Sexto"
+        assert hijos[0]["apodo"] == "Pipe"
+
+    async def test_cambiar_a_un_grado_invalido_no_toca_nada(self, cliente):
+        cabecera, matricula_id = await self._cuenta_con_hijo(cliente, "malcambio@ejemplo.com")
+        respuesta = await cliente.put(
+            f"/v1/cuenta/matriculas/{matricula_id}",
+            json={"colegio_id": str(derivar("colegio", "2.4")), "grado": "5"},
+            headers=cabecera,
+        )
+        assert respuesta.status_code == 422
+        hijos = await self._hijos(cliente, cabecera)
+        assert [(h["grado"], h["apodo"]) for h in hijos] == [("Quinto", "Pipe")]

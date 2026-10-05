@@ -163,6 +163,43 @@ export async function cancelarPedido(pedidoId: string): Promise<Pedido> {
   );
 }
 
+/** Cancela una solicitud (un trabajo) del acudiente. ADR 0031. */
+export async function cancelarSolicitud(trabajoId: string): Promise<void> {
+  await leer<unknown>(
+    await fetch(`/api/solicitudes/${encodeURIComponent(trabajoId)}/cancelar`, { method: "POST" }),
+  );
+}
+
+/** Cancela una lista subida que todavía no tiene kit. ADR 0031. */
+export async function cancelarListaSubida(tareaId: string): Promise<void> {
+  await leer<unknown>(
+    await fetch(`/api/solicitudes/listas/${encodeURIComponent(tareaId)}/cancelar`, {
+      method: "POST",
+    }),
+  );
+}
+
+/** Quita a un hijo de la cuenta (cierra el vínculo; no borra datos). */
+export async function quitarHijo(matriculaId: string): Promise<void> {
+  await leer<unknown>(
+    await fetch(`/api/cuenta/matriculas/${encodeURIComponent(matriculaId)}`, { method: "DELETE" }),
+  );
+}
+
+/** Cambia a un hijo de colegio o de grado, conservando su apodo. */
+export async function cambiarHijo(
+  matriculaId: string,
+  cambio: { colegio_id: string; grado: string },
+): Promise<void> {
+  await leer<unknown>(
+    await fetch(`/api/cuenta/matriculas/${encodeURIComponent(matriculaId)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cambio),
+    }),
+  );
+}
+
 export async function pagarPedido(pedidoId: string): Promise<PagoIniciado> {
   return leer<PagoIniciado>(
     await fetch(`/api/pedidos/${encodeURIComponent(pedidoId)}/pagar`, { method: "POST" }),

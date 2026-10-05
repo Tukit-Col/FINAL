@@ -36,6 +36,7 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import FastAPI, Query, Response
+from pydantic import BaseModel
 from sqlalchemy import Select, and_, func, or_, select, update
 from tukit_comun.bd import crear_motor
 from tukit_comun.http import ErrorDominio, crear_app
@@ -700,6 +701,9 @@ async def listas_por_contacto(contacto_referencia: uuid.UUID) -> dict[str, Any]:
             nombre = dict(f.colegio_datos).get("nombre")
         listas.append(
             {
+                # La tarea mas reciente de la fila: es con lo que el acudiente
+                # cancela su solicitud (`retirar_de_contacto`).
+                "tarea_id": str(f.id),
                 "version_id": str(f.version_id) if f.version_id else None,
                 "colegio_id": str(f.colegio_id) if f.colegio_id else None,
                 "colegio_nombre": nombre,
@@ -710,6 +714,59 @@ async def listas_por_contacto(contacto_referencia: uuid.UUID) -> dict[str, Any]:
             }
         )
     return {"listas": listas}
+
+
+class RetiroDeContacto(BaseModel):
+    """Que solicitud deja de ser del acudiente: una tarea o toda una version."""
+
+    tarea_id: uuid.UUID | None = None
+    version_id: uuid.UUID | None = None
+
+
+@app.post(
+    "/interno/listas-por-contacto/{contacto_referencia}/retirar",
+    tags=["interno"],
+    include_in_schema=False,
+    summary="El acudiente cancela una lista que subio: deja de ser suya; NO es publica",
+)
+async def retirar_de_contacto(contacto_referencia: uuid.UUID, cuerpo: RetiroDeContacto) -> dict[str, Any]:
+    """Desvincula al acudiente de una lista que subio, sin borrar la lista.
+
+    Es la mitad del Catalogo de "cancelar solicitud": la lista sigue siendo una
+    lista oficial del colegio (otra persona la puede curar y aprobar), pero ya no
+    sale en "Mis solicitudes" y, al aprobarse, no le arma un kit a nadie (el
+    poller exige `contacto_referencia`). Se desvinculan TODAS las tareas del
+    contacto en esa version —la fila que el acudiente ve agrupa varias—, y solo
+    las suyas: una tarea de otro contacto no se toca aunque traigan su id.
+
+    Como `listas_por_contacto`, vive en `/interno`: el `contacto_referencia` lo
+    pone Inteligencia con el `usuario_id` de una sesion que ya valido.
+    """
+    async with app.state.motor.engine.begin() as conexion:
+        version_id = cuerpo.version_id
+        if version_id is None and cuerpo.tarea_id is not None:
+            fila = (
+                await conexion.execute(
+                    select(TAREA.c.id, TAREA.c.version_id).where(
+                        TAREA.c.id == cuerpo.tarea_id, TAREA.c.contacto_referencia == contacto_referencia
+                    )
+                )
+            ).one_or_none()
+            if fila is None:
+                return {"retiradas": 0}
+            version_id = fila.version_id
+        if version_id is not None:
+            filtro = TAREA.c.version_id == version_id
+        elif cuerpo.tarea_id is not None:
+            filtro = TAREA.c.id == cuerpo.tarea_id
+        else:
+            return {"retiradas": 0}
+        resultado = await conexion.execute(
+            update(TAREA)
+            .where(filtro, TAREA.c.contacto_referencia == contacto_referencia)
+            .values(contacto_referencia=None)
+        )
+    return {"retiradas": resultado.rowcount}
 
 
 # ---------------------------------------------------------------------------

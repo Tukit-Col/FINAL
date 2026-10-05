@@ -46,6 +46,7 @@ export const TITULO_ESTADO_TRABAJO: Record<EstadoTrabajo, string> = {
   espera_revision: "Espera revisión",
   publicado: "Publicado",
   fallido: "Fallido",
+  cancelado: "Cancelado por el acudiente",
 };
 
 export const TITULO_ESTADO_ETAPA: Record<EstadoEtapa, string> = {

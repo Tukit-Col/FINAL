@@ -27,6 +27,7 @@ citas aquí: el número es una etiqueta, el título es la decisión.
 | [0028](0028-los-cambios-del-acudiente-viven-en-su-trabajo.md) | Los cambios del acudiente viven en su trabajo, no en las líneas del kit | aceptada | `feature/integracion` |
 | [0029](0029-con-presupuesto-se-recomienda-la-mejor-marca-que-cabe.md) | Con presupuesto se recomienda la mejor marca que cabe, tomada del frente | aceptada, reemplazada en parte por 0030 | `feature/mejoras-benchmark-nsga` |
 | [0030](0030-solo-se-arman-los-kits-que-se-piden.md) | Solo se arman los kits que el acudiente pide: Ahorrador y Premium siempre, Fan y A tu Medida a pedido | aceptada | `feature/integracion` |
+| [0031](0031-el-acudiente-cancela-solicitudes-y-edita-a-sus-hijos.md) | El acudiente cancela sus solicitudes y quita o cambia de colegio a sus hijos | aceptada | `feature/integracion` |
 
 ## Para incorporarlos
 

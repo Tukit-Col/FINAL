@@ -97,7 +97,7 @@ export default async function PaginaPanel() {
       acc[e.estado] += 1;
       return acc;
     },
-    { encolado: 0, procesando: 0, espera_revision: 0, publicado: 0, fallido: 0 },
+    { encolado: 0, procesando: 0, espera_revision: 0, publicado: 0, fallido: 0, cancelado: 0 },
   );
   const totalCola = entradas.length || 1;
   const barras: { estado: EstadoTrabajo; etiqueta: string }[] = [

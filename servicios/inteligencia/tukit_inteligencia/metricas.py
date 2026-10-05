@@ -140,9 +140,7 @@ async def resumen_pedidos_de_colegio(motor: Any, colegio_id: str, cliente_comerc
 
     async with motor.sesion() as db:
         conexion = await db.connection()
-        trabajos = list(
-            await conexion.execute(select(TRABAJO.c.id, TRABAJO.c.hijos, TRABAJO.c.estado))
-        )
+        trabajos = list(await conexion.execute(select(TRABAJO.c.id, TRABAJO.c.hijos, TRABAJO.c.estado)))
 
     # Punto 4: estados de las solicitudes de kit del colegio (todas, no solo pagadas).
     estados = {

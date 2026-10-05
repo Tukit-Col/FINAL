@@ -235,6 +235,39 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
+  async quitarMatricula(token: string, matriculaId: string): Promise<void> {
+    await this.pedir<void>(`/v1/cuenta/matriculas/${encodeURIComponent(matriculaId)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
+
+  cambiarMatricula(
+    token: string,
+    matriculaId: string,
+    cambio: { colegio_id: string; grado: string; apodo?: string | null },
+  ): Promise<{ total: number }> {
+    return this.pedir<{ total: number }>(`/v1/cuenta/matriculas/${encodeURIComponent(matriculaId)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(cambio),
+    });
+  }
+
+  cancelarSolicitud(token: string, trabajoId: string): Promise<{ trabajo_id: string; estado: string }> {
+    return this.pedir(`/v1/trabajos/${encodeURIComponent(trabajoId)}/cancelar`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
+
+  cancelarListaSubida(token: string, tareaId: string): Promise<{ tarea_id: string; retiradas: number }> {
+    return this.pedir(`/v1/mis-solicitudes/listas/${encodeURIComponent(tareaId)}/cancelar`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
+
   // El padron de acudientes para el equipo interno (solo admin/operador:
   // identidad gatea con 401/403). `ids` opcional, separados por coma, acota a
   // esos usuarios. El backend envuelve en `{total, acudientes}`; se devuelve el

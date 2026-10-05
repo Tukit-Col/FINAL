@@ -45,15 +45,16 @@ import uuid
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import FastAPI, Header, Query
+from fastapi import FastAPI, Header, Query, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, insert, or_, select, update
 from tukit_comun.bd import crear_motor
 from tukit_comun.cifrado import cifrador_desde_entorno
-from tukit_comun.http import ErrorDominio, crear_app, iso as _iso
+from tukit_comun.http import ErrorDominio, crear_app
+from tukit_comun.http import iso as _iso
 from tukit_comun.identificadores import derivar
 
-from .modelos import Base
+from .modelos import Base, EstadoMatricula
 from .sesiones import emitir_token, hashear_clave, leer_token, verificar_clave
 
 PUERTO_POR_OMISION = 8011
@@ -527,7 +528,26 @@ async def _materializar_hijos(
             )
 
         matricula_id = derivar("matricula", str(estudiante_id), str(sede_id), hijo.grado, str(anio_lectivo))
-        if await conexion.scalar(select(MATRICULA.c.id).where(MATRICULA.c.id == matricula_id)) is None:
+        # Un hijo que el acudiente quito y vuelve a agregar cae en la MISMA fila
+        # derivada, que quedo retirada: se reactiva en vez de perderse (sin esto,
+        # el SELECT la encontraba y el hijo no volvia a aparecer). Su apodo nuevo,
+        # si viene, reemplaza al viejo.
+        estado_previo = await conexion.scalar(
+            select(MATRICULA.c.estado).where(MATRICULA.c.id == matricula_id)
+        )
+        if estado_previo is not None and estado_previo != EstadoMatricula.ACTIVA.value:
+            await conexion.execute(
+                update(MATRICULA)
+                .where(MATRICULA.c.id == matricula_id)
+                .values(estado=EstadoMatricula.ACTIVA.value, cerrado_en=None)
+            )
+            if hijo.apodo is not None:
+                await conexion.execute(
+                    update(ESTUDIANTE)
+                    .where(ESTUDIANTE.c.id == estudiante_id)
+                    .values(nombre_cifrado=cifrador.cifrar(hijo.apodo.encode("utf-8")))
+                )
+        if estado_previo is None:
             await conexion.execute(
                 insert(MATRICULA).values(
                     id=matricula_id,
@@ -539,13 +559,26 @@ async def _materializar_hijos(
                 )
             )
 
-        vinculo = await conexion.scalar(
-            select(ACUDIENTE_MATRICULA.c.usuario_id).where(
-                ACUDIENTE_MATRICULA.c.usuario_id == usuario_id,
-                ACUDIENTE_MATRICULA.c.matricula_id == matricula_id,
+        vinculo = (
+            await conexion.execute(
+                select(ACUDIENTE_MATRICULA.c.usuario_id, ACUDIENTE_MATRICULA.c.vigente_hasta).where(
+                    ACUDIENTE_MATRICULA.c.usuario_id == usuario_id,
+                    ACUDIENTE_MATRICULA.c.matricula_id == matricula_id,
+                )
             )
-        )
-        if vinculo is None:
+        ).one_or_none()
+        if vinculo is not None and vinculo.vigente_hasta is not None:
+            # El vinculo que el acudiente cerro al quitar al hijo se reabre.
+            await conexion.execute(
+                update(ACUDIENTE_MATRICULA)
+                .where(
+                    ACUDIENTE_MATRICULA.c.usuario_id == usuario_id,
+                    ACUDIENTE_MATRICULA.c.matricula_id == matricula_id,
+                )
+                .values(vigente_hasta=None)
+            )
+            creados += 1
+        elif vinculo is None:
             await conexion.execute(
                 insert(ACUDIENTE_MATRICULA).values(
                     usuario_id=usuario_id,
@@ -871,6 +904,7 @@ async def listar_matriculas(authorization: Annotated[str | None, Header()] = Non
         cifrador = cifrador_desde_entorno()
         filas = await conexion.execute(
             select(
+                MATRICULA.c.id,
                 MATRICULA.c.colegio_id,
                 MATRICULA.c.grado,
                 MATRICULA.c.anio_lectivo,
@@ -894,6 +928,9 @@ async def listar_matriculas(authorization: Annotated[str | None, Header()] = Non
             apodo = cifrador.descifrar(f.nombre_cifrado).decode("utf-8", errors="replace")
             matriculas.append(
                 {
+                    # El id de la MATRICULA (colegio + grado + anio), para quitar o
+                    # cambiar al hijo desde el panel. No es el del estudiante.
+                    "matricula_id": str(f.id),
                     "colegio_id": str(f.colegio_id),
                     "grado": f.grado,
                     "anio_lectivo": int(f.anio_lectivo),
@@ -961,11 +998,143 @@ async def guardar_matriculas(
             )
             .group_by(MATRICULA.c.colegio_id, MATRICULA.c.grado)
         )
-        conteo_inicial = {
-            (uuid.UUID(str(f.colegio_id)), f.grado): int(f.n) for f in filas_previas
-        }
+        conteo_inicial = {(uuid.UUID(str(f.colegio_id)), f.grado): int(f.n) for f in filas_previas}
         total = await _materializar_hijos(
             conexion, fila.id, cuerpo.hijos, anio_lectivo, cifrador, conteo_inicial
+        )
+    return {"total": total}
+
+
+class CambioDeHijo(BaseModel):
+    """El colegio y el grado nuevos de un hijo; el apodo, si se quiere cambiar."""
+
+    colegio_id: uuid.UUID
+    grado: str = Field(min_length=1, max_length=32)
+    apodo: str | None = Field(default=None, max_length=120)
+
+
+async def _matricula_del_portador(conexion: Any, usuario_id: uuid.UUID, matricula_id: uuid.UUID) -> Any:
+    """La matricula activa de un hijo del portador, con vinculo vigente.
+
+    404 si no existe o no es suya: no se distingue "no existe" de "no es tuya",
+    para no confirmarle a un tercero que esa matricula existe.
+    """
+    fila = (
+        await conexion.execute(
+            select(MATRICULA.c.id, MATRICULA.c.estudiante_id, ESTUDIANTE.c.nombre_cifrado)
+            .select_from(
+                ACUDIENTE_MATRICULA.join(
+                    MATRICULA, ACUDIENTE_MATRICULA.c.matricula_id == MATRICULA.c.id
+                ).join(ESTUDIANTE, MATRICULA.c.estudiante_id == ESTUDIANTE.c.id)
+            )
+            .where(
+                ACUDIENTE_MATRICULA.c.usuario_id == usuario_id,
+                ACUDIENTE_MATRICULA.c.matricula_id == matricula_id,
+                ACUDIENTE_MATRICULA.c.vigente_hasta.is_(None),
+                MATRICULA.c.estado == EstadoMatricula.ACTIVA.value,
+            )
+        )
+    ).one_or_none()
+    if fila is None:
+        raise ErrorDominio("hijo_no_existe", "Ese hijo no está en tu cuenta.", estado=404)
+    return fila
+
+
+async def _retirar_matricula(conexion: Any, usuario_id: uuid.UUID, matricula_id: uuid.UUID) -> None:
+    """Cierra el vinculo del portador y, si nadie mas la tiene, retira la matricula.
+
+    No borra: el vinculo queda con `vigente_hasta` y la matricula en `retirada`,
+    que es como el esquema distingue "se fue" de "nunca estuvo" y lo que la
+    politica de retencion de datos de menores consulta.
+    """
+    ahora_ = datetime.now(UTC)
+    await conexion.execute(
+        update(ACUDIENTE_MATRICULA)
+        .where(
+            ACUDIENTE_MATRICULA.c.usuario_id == usuario_id,
+            ACUDIENTE_MATRICULA.c.matricula_id == matricula_id,
+            ACUDIENTE_MATRICULA.c.vigente_hasta.is_(None),
+        )
+        .values(vigente_hasta=ahora_)
+    )
+    otros = await conexion.scalar(
+        select(func.count())
+        .select_from(ACUDIENTE_MATRICULA)
+        .where(
+            ACUDIENTE_MATRICULA.c.matricula_id == matricula_id, ACUDIENTE_MATRICULA.c.vigente_hasta.is_(None)
+        )
+    )
+    if not otros:
+        await conexion.execute(
+            update(MATRICULA)
+            .where(MATRICULA.c.id == matricula_id)
+            .values(estado=EstadoMatricula.RETIRADA.value, cerrado_en=ahora_)
+        )
+
+
+@app.delete(
+    "/v1/cuenta/matriculas/{matricula_id}",
+    tags=["cuenta"],
+    status_code=204,
+    summary="Quita a un hijo de MI cuenta (cierra el vinculo; no borra datos)",
+)
+async def quitar_matricula(
+    matricula_id: uuid.UUID, authorization: Annotated[str | None, Header()] = None
+) -> Response:
+    async with app.state.motor.engine.begin() as conexion:
+        fila = await _usuario_del_token(authorization, conexion)
+        await _matricula_del_portador(conexion, fila.id, matricula_id)
+        await _retirar_matricula(conexion, fila.id, matricula_id)
+    return Response(status_code=204)
+
+
+@app.put(
+    "/v1/cuenta/matriculas/{matricula_id}",
+    tags=["cuenta"],
+    summary="Cambia el colegio o el grado de un hijo de MI cuenta, con su apodo",
+)
+async def cambiar_matricula(
+    matricula_id: uuid.UUID,
+    cuerpo: CambioDeHijo,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    """Retira la matricula vieja y crea la del colegio y grado nuevos.
+
+    Todo en una transaccion: si el colegio no tiene sede o el grado no existe
+    (422), no se retira nada. El apodo se conserva salvo que venga uno nuevo.
+    Una matricula es (estudiante, sede, grado, anio), asi que cambiar de colegio
+    es otra matricula, no una edicion de la misma.
+    """
+    cifrador = cifrador_desde_entorno()
+    anio_lectivo = datetime.now(UTC).year
+    async with app.state.motor.engine.begin() as conexion:
+        fila = await _usuario_del_token(authorization, conexion)
+        actual = await _matricula_del_portador(conexion, fila.id, matricula_id)
+        apodo = cuerpo.apodo
+        if apodo is None:
+            apodo = cifrador.descifrar(actual.nombre_cifrado).decode("utf-8", errors="replace") or None
+        await _retirar_matricula(conexion, fila.id, matricula_id)
+        filas_previas = await conexion.execute(
+            select(MATRICULA.c.colegio_id, MATRICULA.c.grado, func.count().label("n"))
+            .select_from(
+                ACUDIENTE_MATRICULA.join(MATRICULA, ACUDIENTE_MATRICULA.c.matricula_id == MATRICULA.c.id)
+            )
+            .where(
+                ACUDIENTE_MATRICULA.c.usuario_id == fila.id,
+                ACUDIENTE_MATRICULA.c.vigente_hasta.is_(None),
+                MATRICULA.c.estado == EstadoMatricula.ACTIVA.value,
+                MATRICULA.c.anio_lectivo == anio_lectivo,
+            )
+            .group_by(MATRICULA.c.colegio_id, MATRICULA.c.grado)
+        )
+        conteo_inicial = {(uuid.UUID(str(f.colegio_id)), f.grado): int(f.n) for f in filas_previas}
+        total = await _materializar_hijos(
+            conexion,
+            fila.id,
+            [HijoRegistro(colegio_id=cuerpo.colegio_id, grado=cuerpo.grado, apodo=apodo)],
+            anio_lectivo,
+            cifrador,
+            conteo_inicial,
         )
     return {"total": total}
 
@@ -1197,9 +1366,7 @@ async def listar_acudientes(
                     COLEGIO.c.nombre,
                 )
                 .select_from(
-                    ACUDIENTE_MATRICULA.join(
-                        MATRICULA, ACUDIENTE_MATRICULA.c.matricula_id == MATRICULA.c.id
-                    )
+                    ACUDIENTE_MATRICULA.join(MATRICULA, ACUDIENTE_MATRICULA.c.matricula_id == MATRICULA.c.id)
                     .join(ESTUDIANTE, MATRICULA.c.estudiante_id == ESTUDIANTE.c.id)
                     .join(COLEGIO, MATRICULA.c.colegio_id == COLEGIO.c.id)
                 )

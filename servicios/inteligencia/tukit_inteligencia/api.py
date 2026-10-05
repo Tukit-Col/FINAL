@@ -292,6 +292,53 @@ async def cambiar_producto_del_acudiente(
         raise ErrorDominio(error.codigo, error.mensaje, estado=error.estado) from error
 
 
+@app.post(
+    "/v1/trabajos/{trabajo_id}/cancelar",
+    tags=["trabajos"],
+    summary="El acudiente cancela una solicitud suya (si no compro el kit)",
+)
+async def cancelar_solicitud(
+    trabajo_id: uuid.UUID, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    """Exige sesion: solo el dueno cancela, y el `usuario_id` sale del token."""
+    usuario_id = await _usuario_de_sesion(authorization)
+    try:
+        return await trabajos.cancelar_solicitud(
+            app.state.motor, trabajo_id, usuario_id=usuario_id, comercio=_comercio(), catalogo=_catalogo()
+        )
+    except trabajos.TrabajoNoExiste as error:
+        raise ErrorDominio(
+            "trabajo_no_existe", "No hay ninguna solicitud con ese identificador.", estado=404
+        ) from error
+    except trabajos.SolicitudNoCancelable as error:
+        raise ErrorDominio(error.codigo, error.mensaje, estado=error.estado) from error
+    except trabajos.RemotoCaido as error:
+        raise ErrorDominio(
+            "servicio_no_disponible",
+            "No pudimos confirmar si este kit tiene un pedido; intenta de nuevo en un momento.",
+            estado=503,
+        ) from error
+
+
+@app.post(
+    "/v1/mis-solicitudes/listas/{tarea_id}/cancelar",
+    tags=["trabajos"],
+    summary="El acudiente cancela una lista que subio y que aun no tiene kit",
+)
+async def cancelar_lista_subida(
+    tarea_id: uuid.UUID, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    usuario_id = await _usuario_de_sesion(authorization)
+    try:
+        return await trabajos.cancelar_lista_subida(usuario_id, str(tarea_id), catalogo=_catalogo())
+    except trabajos.RemotoCaido as error:
+        raise ErrorDominio(
+            "servicio_no_disponible",
+            "No pudimos cancelar la lista; intenta de nuevo en un momento.",
+            estado=503,
+        ) from error
+
+
 @app.get(
     "/v1/mis-solicitudes",
     tags=["trabajos"],
@@ -1055,7 +1102,9 @@ async def fijar_producto(
             app.state.motor, trabajo_id, perfil, item_id, cuerpo.sku, catalogo=_catalogo()
         )
     except trabajos.TrabajoNoExiste as error:
-        raise ErrorDominio("linea_no_existe", "Ese trabajo no tiene esa linea en ese kit.", estado=404) from error
+        raise ErrorDominio(
+            "linea_no_existe", "Ese trabajo no tiene esa linea en ese kit.", estado=404
+        ) from error
 
 
 @app.get(
