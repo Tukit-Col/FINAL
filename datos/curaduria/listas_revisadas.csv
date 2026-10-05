@@ -1,4 +1,117 @@
 colegio_id,sede_id,grado,anio_lectivo,revisada_en,orden,texto_original,concepto,cantidad,unidad,tipo_item,modo_adquisicion,instruccion_colegio,url_externa,atributos,requiere_revision
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,1,Cuadriculado 100 hojas grande Biología,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,2,Cuadriculado 50 hojas grande Química,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,3,Cuadriculado 50 hojas grande argollado Física,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,4,Cuadriculado 50 hojas grande Filosofía,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,5,Cuadriculado 50 hojas grande Ciencias Políticas,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,6,Cuadriculado 50 hojas grande Economía,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,7,Cuadriculado 50 hojas grande Educación Ética y en Valores Humanos,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,8,Cuadriculado 100 hojas grande Educación Religiosa y la mitad para música,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,9,Cuadriculado 100 hojas grande Artes,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,10,Cuadriculado 100 hojas grande Español Lengua Castellana,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,11,Cuadriculado 100 hojas grande Idioma Extranjero Ingles,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,12,Cuadriculado 100 hojas grande Trigonometría,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,13,"Cuadriculado 50 hojas grande Tecnología Informática, con todas las paginas enumeradas",C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,14,Cuadriculado 100 hojas grande Danzas y Diseño Básico,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,15,Cuadriculado de 100 hojas grande Control con todas las hojas numeradas Pasta Dura,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,16,Cuadriculado de 50 hojas argollado Línea de investigación,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,17,Martes de Prueba Milton Ochoa,C134,1,,,mercado_abierto,,,,true
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,18,"Lápices HB, 2H, 2B, 6B",C114,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,19,borrador miga de pan,C005,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,20,escuadras 30° y 45°,C019,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,21,tabla de diseño de formato 1/4,C092,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,22,Diccionario de Español,C034,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,23,Diccionario de inglés y lista de verbos irregulares,dic-ingles,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,25,Cartuchera,C009,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,26,Bata blanca,C024,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,27,Guantes de nitrilo,C062,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,28,Tapabocas,C146,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,29,Toalla de manos pequeña,C040,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,30,Pañitos húmedos,C040,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,31,Papel higiénico,C037,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,32,Uniforme diario mujeres,C131,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,33,Uniforme diario hombres,C131,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,34,Uniforme educación física,C131,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,35,"Dispositivo electrónico (computador, Tablet)",C147,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,36,Calculadora científica,C026,1,,,mercado_abierto,,,,true
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Decimo,2026,2026-10-04T14:54:44.765797+00:00,37,tabla periódica plastificada,C025,1,,,mercado_abierto,,,,true
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,1,Cuadriculado 100 hojas grande Biología,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,2,Cuadriculado 50 hojas grande Química,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,3,Cuadriculado 100 hojas grande Ciencias Sociales,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,4,Cuadriculado 50 hojas grande Educación Ética y en Valores Humanos,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,5,Cuadriculado 100 hojas grande Educación Religiosa y la mitad para música,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,6,Cuadriculado 100 hojas grande Artes,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,7,Cuadriculado 100 hojas grande Español Lengua Castellana,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,8,Cuadriculado 100 hojas grande Idioma Extranjero Ingles,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,9,Cuadriculado 100 hojas grande Álgebra,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,10,Cuadriculado 50 hojas grande Geometría y estadística,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,11,"Cuadriculado 100 hojas grande Tecnología Informática, enumerado.",C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,12,Cuadriculado 100 hojas grande Danzas y Diseño Básico,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,13,Cuadriculado de 100 hojas grande pasta dura Control con todas las hojas enumeradas,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,14,Cuadriculado de 50 hojas argollado Línea de investigación,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,15,Prueba de Prueba Milton Ochoa,C134,1,,,mercado_abierto,,,,true
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,16,Lápices HB,C002,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,20,borrador miga de pan,C005,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,21,escuadras 30° y 45°,C036,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,22,tabla de diseño de formato 1/4,C092,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,23,Diccionario de Español,C034,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,24,Diccionario de inglés,dic-ingles,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,26,Calculadora científica,C026,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,27,tabla periódica plastificada,C025,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,28,cartuchera,C009,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,29,bata blanca,C024,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,30,guantes de nitrilo,C062,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,31,tapabocas,C146,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,32,KIT ESCOLAR: toalla de manos pequeña,C040,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,33,pañitos húmedos,C040,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,34,papel higiénico,C037,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,35,Uniforme de diario mujeres,C131,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,36,Uniforme de diario hombres,C131,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Noveno,2026,2026-10-04T17:04:11.059001+00:00,37,Uniforme de educación física,C131,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,1,Cuadriculado 100 hojas grande Biología,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,2,Cuadriculado 50 hojas grande Química,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,3,Cuadriculado 50 hojas grande argollado Física,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,4,Cuadriculado 50 hojas grande Filosofía,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,5,Cuadriculado 50 hojas grande Ciencias Políticas,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,6,Cuadriculado 50 hojas grande Economía,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,7,Cuadriculado 50 hojas grande Educación Ética y en Valores Humanos,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,8,Cuadriculado 100 hojas grande Educación Religiosa y la mitad para música,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,9,Cuadriculado 100 hojas grande Artes,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,10,Cuadriculado 100 hojas grande Español Lengua Castellana,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,11,Cuadriculado 100 hojas grande Idioma Extranjero Ingles,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,12,Cuadriculado 100 hojas grande Cálculo,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,13,Cuadriculado 50 hojas grande Tecnología Informática,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,14,Cuadriculado 100 hojas grande Danzas y Diseño Básico,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,15,Cuadriculado de 100 hojas grande pasta dura Control con todas las paginas enumeradas,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,16,Cuadriculado de 50 hojas argollado Línea de investigación,C001,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,17,Martes de Prueba Milton Ochoa,C134,1,,,mercado_abierto,,,,true
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,19,Diccionario de Español,C034,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,20,Diccionario de inglés y lista de verbos irregulares,dic-ingles,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,22,Cartuchera,C009,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,23,Bata blanca de laboratorio,C024,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,24,Guantes de nitrilo,C062,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,25,Tapabocas,C146,1,,,mercado_abierto,,,,true
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,26,"Kit escolar: toalla de manos pequeña, pañitos húmedos, papel higiénico",C040,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,27,Uniforme de diario mujeres,C131,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,28,Uniforme de diario hombres,C131,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,29,Uniforme educación física,C131,1,,,mercado_abierto,,,,false
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,30,"Dispositivo electrónico (computador, Tablet)",C147,1,,,mercado_abierto,,,,true
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,31,"Lápices HB, 2H, 2B, 6B",C114,1,,,mercado_abierto,,,,true
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,32,tabla de diseño de formato 1/4,C092,1,,,mercado_abierto,,,,true
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,33,escuadras 30° y 45°,C036,1,,,mercado_abierto,,,,true
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,34,borrador miga de pan,C005,1,,,mercado_abierto,,,,true
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,35,Calculadora científica,C026,1,,,mercado_abierto,,,,true
+2030c794-3ff4-5b1a-a2ec-5c5d383de3f1,,Once,2026,2026-10-04T14:13:30.685598+00:00,36,tabla periódica plastificada,C025,1,,,mercado_abierto,,,,true
+4c06f0e5-cb44-5865-93e5-ea7b2f115d49,,Primero,2026,2026-10-04T16:57:38.145722+00:00,1,Flauta dulce,C066,1,,,mercado_abierto,,,,false
+4c06f0e5-cb44-5865-93e5-ea7b2f115d49,,Primero,2026,2026-10-04T16:57:38.145722+00:00,2,Biblia,C048,1,,,mercado_abierto,,,,false
+4c06f0e5-cb44-5865-93e5-ea7b2f115d49,,Primero,2026,2026-10-04T16:57:38.145722+00:00,3,Lazo para saltar,C072,1,,,mercado_abierto,,,,false
+4c06f0e5-cb44-5865-93e5-ea7b2f115d49,,Primero,2026,2026-10-04T16:57:38.145722+00:00,4,Plan Lector: Cada periodo se indicara el titulo del libro que se necesita.,C134,1,,,mercado_abierto,,,,false
+4c06f0e5-cb44-5865-93e5-ea7b2f115d49,,Primero,2026,2026-10-04T16:57:38.145722+00:00,5,"Plataforma de Ingles-Editorial Houghton Mifflin Harcourt (HMH) *En el mes de ENERO 2026 se enviara una circular con las instrucciones, fechas y medios de pago. Les agradecemos esperar la informacion institucional.",C133,1,,,mercado_abierto,,,,false
+4c06f0e5-cb44-5865-93e5-ea7b2f115d49,,Segundo,2026,2026-10-04T17:26:02.836305+00:00,1,Flauta dulce,C066,1,,,mercado_abierto,,,,false
+4c06f0e5-cb44-5865-93e5-ea7b2f115d49,,Segundo,2026,2026-10-04T17:26:02.836305+00:00,2,Biblia,C048,1,,,mercado_abierto,,,,false
+4c06f0e5-cb44-5865-93e5-ea7b2f115d49,,Segundo,2026,2026-10-04T17:26:02.836305+00:00,3,Lazo para saltar,C072,1,,,mercado_abierto,,,,false
+4c06f0e5-cb44-5865-93e5-ea7b2f115d49,,Segundo,2026,2026-10-04T17:26:02.836305+00:00,4,Plan Lector: Cada periodo se indicara el titulo del libro que se necesita.,C134,1,,,mercado_abierto,,,,false
+4c06f0e5-cb44-5865-93e5-ea7b2f115d49,,Segundo,2026,2026-10-04T17:26:02.836305+00:00,5,Plataforma de Ingles-Editorial Houghton Mifflin Harcourt (HMH),C133,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Jardin,2026,2026-10-02T04:38:30.199578+00:00,1,"Plan lector virtual RAZ- PLUS inglés y lengua castellana, administrada en Colombia por QUOVIX",,1,,,plataforma,Se accede mediante la plataforma,,,true
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Jardin,2026,2026-10-02T04:38:30.199578+00:00,3,"cuaderno rayado de 100 hojas grande, cosido Duralink",C001,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Jardin,2026,2026-10-02T04:38:30.199578+00:00,4,"cuaderno Cuadriculado cuadros de 1cm x 1 cm de 100 hojas, cosido Duralink",C001,1,,,mercado_abierto,,,,false
