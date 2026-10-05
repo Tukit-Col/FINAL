@@ -15,6 +15,7 @@ from conftest import crear_concepto
 from sqlalchemy import create_engine, event, func, select, update
 from sqlalchemy.orm import Session
 from tukit_catalogo.curaduria import (
+    BANDEJA,
     ITEM,
     LISTA,
     VERSION,
@@ -153,6 +154,25 @@ class TestImportar:
 
             assert len(segunda.al_dia) == 1
             assert otra.execute(select(func.count()).select_from(VERSION)).scalar_one() == 1
+
+    def test_cada_lista_importada_pide_sus_kits_canonicos(self, sesion: Session):
+        """Los kits canonicos no viajan en el CSV (viven en Inteligencia). Importar
+        deja el mismo `lista_aprobada` que aprobar, para que el poller los arme
+        aqui; tambien al reimportar, por si la base tenia la lista sin sus kits."""
+        concepto = crear_concepto(sesion, "C001")
+        sembrar_lista(sesion, concepto.id)
+        exportadas = filas_de_listas(sesion.connection())
+
+        with base_nueva() as otra:
+            crear_concepto(otra, "C001")
+            importar(otra, exportadas)
+            importar(otra, exportadas)
+
+            vigente = otra.execute(select(VERSION.c.id).where(VERSION.c.vigente.is_(True))).scalar_one()
+            eventos = otra.execute(select(BANDEJA.c.tipo, BANDEJA.c.agregado_id, BANDEJA.c.carga)).all()
+            assert [e.tipo for e in eventos] == ["lista_aprobada", "lista_aprobada"]
+            assert {e.agregado_id for e in eventos} == {vigente}
+            assert set(eventos[0].carga) == {"colegio_id", "grado", "anio_lectivo"}
 
     def test_reemplaza_un_borrador_sin_revisar_y_lo_conserva(self, sesion: Session):
         concepto = crear_concepto(sesion, "C001")
