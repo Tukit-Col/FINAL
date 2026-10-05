@@ -1,6 +1,6 @@
 "use client";
 
-// Región 4 del revisor: "Previsualizar los 3 kits" (P4, cierre de la brecha).
+// Región 4 del revisor: "Previsualizar los kits" (P4, cierre de la brecha).
 //
 // El administrador, parado sobre una versión curada, pide ver los tres kits que
 // saldrían de ella ANTES de publicar. Esto arma un trabajo de preview (no el del
@@ -57,11 +57,11 @@ export default function PrevisualizarKits({ versionId, colegioId, grado, anioLec
         disabled={armando}
       >
         <Eye size={15} strokeWidth={2.4} aria-hidden="true" />
-        {armando ? "Armando la vista previa…" : "Previsualizar los 3 kits"}
+        {armando ? "Armando la vista previa…" : "Previsualizar los kits"}
       </button>
       <span className={styles.faltante}>
-        Abre los kits que saldrían de esta versión en la consola de revisión, sin
-        publicarla: ahí puedes validar, editar y cambiar personaje. Publicar es el otro botón.
+        Opcional. Abre en la consola de revisión el Ahorrador y el Premium que saldrían de
+        esta versión, sin publicarla: ahí puedes validar y cambiar productos antes de guardarlos.
       </span>
       {error ? <p className={styles.errorCaja}>{error}</p> : null}
     </div>

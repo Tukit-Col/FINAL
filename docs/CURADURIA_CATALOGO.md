@@ -175,7 +175,13 @@ nombraban el concepto viejo después de reclasificar (ahora se re-acuñan, con s
 y se actualizan las referencias en `inteligencia`) y escaleras invertidas.
 
 **Lo que no viaja:** los vectores (cuestan cupo de Gemini Embedding; `make bd-enriquecer` los
-calcula después de importar), el PDF original y el contacto de los colegios.
+calcula después de importar), el PDF original, el contacto de los colegios y los **kits
+canónicos**. Estos viven en la base de `inteligencia`, que la curaduría no toca; en su lugar,
+`importar` deja por cada lista el mismo evento `lista_aprobada` que deja aprobarla en la cola, y
+el poller de `inteligencia` arma el Ahorrador y el Premium en la máquina que importó. Hace falta
+tener los servicios arriba (`.	ukit.ps1 arriba`) para que se armen; si se importa con todo
+apagado, los eventos esperan en la bandeja y salen al levantar. Una versión que ya tiene sus
+canónicos no se vuelve a optimizar, así que importar dos veces no cuesta nada.
 
 **Defecto encontrado al escribir este registro** (`6bffea2`): el exportador pedía versiones
 *vigentes y revisadas*. Volver a subir la lista de Jardín dejó vigente una versión sin revisar,

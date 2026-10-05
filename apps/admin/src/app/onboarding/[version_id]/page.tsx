@@ -181,9 +181,10 @@ export default async function PaginaRevisionLista({ params }: Props) {
             <h2>Aprobar y publicar</h2>
           </div>
           <p className={styles.bajada}>
-            Previsualiza los kits que saldrían de esta versión antes de publicar —una vista de
-            solo lectura, sobre un trabajo de preview desechable— y, cuando estés conforme, apruébala.
-            Aprobar deja la versión revisada y el par (colegio, grado) disponible para los acudientes.
+            Aprobar deja la versión revisada y el par (colegio, grado) disponible para los
+            acudientes, y arma solo sus kits canónicos (Ahorrador y Premium) en segundo plano.
+            Si quieres revisarlos o ajustarlos antes, previsualízalos primero y apruébalos desde la
+            consola: esos, con tus ajustes, quedan como los canónicos.
           </p>
           <PrevisualizarKits
             versionId={version_id}

@@ -104,6 +104,7 @@ LISTA = Base.metadata.tables["lista_oficial"]
 VERSION = Base.metadata.tables["version_lista_oficial"]
 ITEM = Base.metadata.tables["item_lista_oficial"]
 CONCEPTO = Base.metadata.tables["concepto"]
+BANDEJA = Base.metadata.tables["bandeja_salida"]
 
 
 # ---------------------------------------------------------------------------
@@ -372,6 +373,13 @@ def importar_listas(conexion: Connection, listas: list[ListaCurada]) -> Resultad
     crea una version nueva (numero siguiente) y la anterior deja de ser vigente:
     se versiona, no se sobreescribe, igual que al corregir desde la cola, para
     que quien compro contra la anterior siga sabiendo contra que compro.
+
+    Los kits canonicos no viajan en el CSV: viven en la base de Inteligencia, que
+    este servicio no toca. Por cada lista importada se deja el mismo
+    `lista_aprobada` que deja aprobarla en la cola, y el poller de Inteligencia
+    los arma en esta maquina. Tambien para las listas que ya estaban al dia: asi
+    importar de nuevo repara una base que tiene las listas pero no sus kits. El
+    poller no vuelve a optimizar una version que ya tiene canonico.
     """
     conceptos = {f.codigo: f.id for f in conexion.execute(select(CONCEPTO.c.codigo, CONCEPTO.c.id))}
     resultado = Resultado()
@@ -424,6 +432,7 @@ def importar_listas(conexion: Connection, listas: list[ListaCurada]) -> Resultad
                 )
             ]
             if _huella(actuales) == _huella(items):
+                _pedir_canonicos(conexion, lista, vigente.id)
                 resultado.al_dia.append(lista.nombre)
                 continue
 
@@ -449,9 +458,26 @@ def importar_listas(conexion: Connection, listas: list[ListaCurada]) -> Resultad
         conexion.execute(
             ITEM.insert(), [{"id": uuid.uuid4(), "version_id": version_id, **item} for item in items]
         )
+        _pedir_canonicos(conexion, lista, version_id)
         (resultado.actualizadas if existia and vigente is not None else resultado.nuevas).append(lista.nombre)
 
     return resultado
+
+
+def _pedir_canonicos(conexion: Connection, lista: ListaCurada, version_id: uuid.UUID) -> None:
+    """Deja `lista_aprobada` en la bandeja, igual que `cerrar_version` (ADR 0030)."""
+    conexion.execute(
+        BANDEJA.insert().values(
+            tipo="lista_aprobada",
+            agregado_tipo="version_lista_oficial",
+            agregado_id=version_id,
+            carga={
+                "colegio_id": str(lista.colegio_id),
+                "grado": lista.grado,
+                "anio_lectivo": lista.anio_lectivo,
+            },
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
