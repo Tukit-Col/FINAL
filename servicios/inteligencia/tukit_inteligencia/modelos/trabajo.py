@@ -95,7 +95,9 @@ class TrabajoPipeline(Base):
     # canonico del grado, el que reciben los demas acudientes por la ruta
     # rapida: el cambio de un papa no puede alterar el kit de otro. `ver` los
     # aplica al leer, y el pago lee `ver`.
-    cambios: Mapped[dict[str, Any]] = mapped_column(Texto, nullable=False, default=dict)
+    cambios: Mapped[dict[str, Any]] = mapped_column(
+        Texto, nullable=False, default=dict, server_default=text("'{}'")
+    )
 
     error: Mapped[str | None] = mapped_column(String(64), nullable=True)
     mensaje: Mapped[str | None] = mapped_column(Text, nullable=True)

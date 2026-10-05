@@ -387,11 +387,13 @@ vio.
 
 ---
 
-## 5. Los tres kits
+## 5. Los kits
 
-Son tres puntos del frente de Pareto que produce el optimizador, no tres consultas
-distintas. `OP-04` pide poder parametrizar los pesos, y eso es exactamente lo que los
-separa.
+Son puntos del frente de Pareto que produce el optimizador, no consultas distintas. `OP-04`
+pide poder parametrizar los pesos, y eso es exactamente lo que los separa. Desde 1.5 no son
+siempre tres (ADR 0030): `Ahorrador` y `Premium` salen siempre, `Fan` solo si el acudiente
+pidió un personaje y `A tu Medida` solo si eligió el punto medio o declaró un tope. Los
+canónicos de una lista (sin preferencias) son dos.
 
 ```jsonc
 {
@@ -1227,7 +1229,7 @@ vendemos" sin decir dónde conseguirlo deja al acudiente peor que antes.
 
 ### 12.6 El ciclo completo, con lo que de verdad responde hoy
 
-Lo que sigue son las tres llamadas que llevan de "no hay nada" a "tres kits en pantalla",
+Lo que sigue son las tres llamadas que llevan de "no hay nada" a "los kits en pantalla",
 ejecutadas contra el backend sembrado.
 
 **(1) Crear el trabajo.** Entrada (a) de §2: el colegio ya publicó la lista.
@@ -1295,7 +1297,8 @@ curl -X POST http://127.0.0.1:8010/v1/admin/trabajos/{id}/revision \
 > porque una válvula silenciosa acaba puesta en producción. **Por omisión está apagada** y
 > el contrato es el que manda: sin revisión humana no hay publicación.
 
-Y ahí sí, los tres kits:
+Y ahí sí, los kits. La petición declaró un tope de $700.000, así que además del Ahorrador y
+el Premium se arma `A tu Medida` y es el marcado (§6). Sin personaje no hay `Fan`:
 
 ```jsonc
 {"estado": "publicado",
@@ -1306,10 +1309,11 @@ Y ahí sí, los tres kits:
     "informativas": 5,
     "consolidaciones": [],
     "lineas": [ /* ver 12.7 */ ]},
-   {"perfil": "Fan",     "total": 516595, "objetivos": {…}, "lineas": […]},
+   {"perfil": "A tu Medida", "total": 695000 /* ilustrativo: la mejor marca que no pasa del tope */,
+    "objetivos": {…}, "lineas": […]},
    {"perfil": "Premium", "total": 864943, "objetivos": {…}, "lineas": […]}],
- "recomendado": {"perfil": "Ahorrador",
-                 "razon": "Elegiste precio como lo mas importante y este es el kit mas barato.",
+ "recomendado": {"perfil": "A tu Medida",
+                 "razon": "Es la mejor marca que cabe en tu tope de $700.000.",
                  "dentro_de_presupuesto": true}}
 ```
 
@@ -1410,12 +1414,12 @@ Sin rodeos, porque el frontend necesita saber contra qué puede programar hoy.
 | Qué | Estado | Qué pasa si lo llamas |
 |---|---|---|
 | §12.3, §12.4, §12.5 completas | **Funcionan** con datos reales | 100 conceptos, 347 productos con precio, 7 tiendas, 17 colegios, 175 listas, 4.719 renglones |
-| `POST /v1/trabajos` entrada (a), colegio y grado | **Funciona** | Tres kits en menos de un segundo |
-| `POST /v1/trabajos` entrada (b), `multipart/form-data` | **No implementada** | El endpoint solo acepta JSON: mandar `multipart` es `400`. Necesita `GEMINI_API_KEY` y render de PDF |
-| Optimizador | **Heurística, no NSGA-II** | Los tres kits salen y son comparables, pero no son un frente de Pareto: `Ahorrador` = el más barato, `Premium` = mejor nivel de marca, `Fan` = el del personaje pedido |
+| `POST /v1/trabajos` entrada (a), colegio y grado | **Funciona** | Los kits del §5, con lista verificada sin volver a percibir. Pasan por revisión humana salvo la ruta rápida (`aplicar-canonico`) |
+| Entrada (b), un archivo | **Funciona por otra ruta** | `POST /v1/trabajos` sigue siendo solo JSON (`multipart` es `400`). Los PDF entran por `POST /v1/listas/subir` (`multipart`), van a la cola de revisión de listas y al aprobarse arman el kit. Necesita `GEMINI_API_KEY` |
+| Optimizador | **NSGA-II** (pymoo), con enumeración exacta en listas chicas | Frente de 4 objetivos (costo, fidelidad, disponibilidad, personaje), sembrado con la heurística y la escalera de costo marginal. `Ahorrador` y `Premium` siempre; `Fan` y `A tu Medida` a pedido (ADR 0029, 0030) |
 | Consolidación entre hermanos | **Funciona**, probada | Solo se dispara cuando a dos hijos les toca el mismo sku y el empaque alcanza |
-| Notificación (§10) | **No implementada** | Al publicar se escribe `kits_publicados` en la bandeja de salida y **nadie la recoge**: no sale correo ni wa-link |
+| Notificación (§10) | **Funciona por correo** | El repartidor de `operacion` recoge `kits_publicados` y `pedido_pagado` de las bandejas y envía el correo (por consola si no hay SMTP). El wa-link se genera pero no se envía solo |
 | Pago (§9) | **Funciona contra Wompi sandbox** | Widget, sincronización, webhook y cancelación. Sin llaves (`WOMPI_MODO=falso`) una pasarela simulada camina el mismo flujo. No hay modo de producción |
-| Autenticación | **No existe** | Ninguna ruta pide token. `actor` se manda en el cuerpo |
+| Autenticación | **Funciona** (sesiones de `identidad`, `Authorization: Bearer`) | La exigen la cuenta del acudiente, "Mis solicitudes", cancelar, editar hijos y cambiar productos de un kit con dueño, y el admin. La superficie de lectura (catálogo, colegios, `GET /v1/trabajos/{id}`) sigue abierta |
 | Cifrado de `pesos_usados` | **Puerto sí, cifrado no** | Pasa por el puerto `Cifrador`; sin `TUKIT_LLAVE_CIFRADO` el adaptador guarda en claro y lo dice al arrancar |
 | Ejecución de fondo | **Tarea en proceso** | Si el servicio se reinicia con un trabajo en vuelo, queda en `procesando`. Se rescata con `POST /v1/trabajos/{id}/reintentar` |

@@ -51,9 +51,9 @@ esta.
 | `/` | Portada. Abre por el dolor declarado en la encuesta, no por el precio |
 | `/empezar` | Las dos entradas del §2: colegio y grado, o archivo. Contacto y preferencias |
 | `/esperando/[trabajo_id]` | La espera honesta: las cuatro etapas y la pausa humana |
-| `/kits/[trabajo_id]` | Los tres kits, con uno marcado y los otros dos a la vista |
+| `/kits/[trabajo_id]` | Los kits (Ahorrador y Premium; Fan y A tu Medida si se pidieron), con uno marcado y un selector para ver los demás. Cada producto se puede cambiar por una de sus alternativas |
 | `/catalogo` | Que hay hoy: conceptos, productos por nivel, personaje y precio por tienda |
-| `/dashboard` | Cuenta del acudiente: saludo (sesion de identidad), solicitudes y pedidos reales (`/v1/comercio/mis-pedidos`). Un pedido pendiente se paga o se cancela ahi mismo, y cada solicitud dice si su kit ya se compro |
+| `/dashboard` | Cuenta del acudiente: saludo (sesion de identidad), hijos, solicitudes y pedidos reales (`/v1/comercio/mis-pedidos`). Un hijo se cambia de colegio o se quita; una solicitud se cancela si el kit no se compro; un pedido pendiente se paga o se cancela ahi mismo |
 | `/pago/resultado` | La vuelta del pago: confirma con el servidor y muestra aprobado, rechazado o "estamos confirmando", con el pedido completo |
 | `/pago/simulado` | La pasarela de mentiras para `WOMPI_MODO=falso`: "Aprobar pago" o "Rechazar pago", sin red |
 
