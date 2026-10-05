@@ -9,8 +9,10 @@ import type {
   DecisionRevision,
   ErrorApi,
   MarcarNoDisponible,
+  PedidoConHistorial,
   ProductoDadoDeAlta,
   SinCoincidencia,
+  SolicitudAvancePedido,
   ValidarLinea,
 } from "@tukit/contrato";
 
@@ -111,4 +113,13 @@ export function guardarComoCanonico(trabajoId: string, cuerpo: { nota?: string }
  *  esta protegido: el backend responde 409 `trabajo_publicado_protegido`. */
 export function eliminarTrabajo(trabajoId: string): Promise<void> {
   return enviar(`/api/trabajos/${id(trabajoId)}/eliminar`, {});
+}
+
+/** Logistica: mueve el pedido un paso. El Route Handler pone el token de la
+ *  cookie; un 409/422 llega como `FalloApi` con el `campo` en `detalle`. */
+export function avanzarPedido(
+  pedidoId: string,
+  cuerpo: SolicitudAvancePedido,
+): Promise<PedidoConHistorial> {
+  return enviar(`/api/logistica/${id(pedidoId)}/avanzar`, cuerpo);
 }

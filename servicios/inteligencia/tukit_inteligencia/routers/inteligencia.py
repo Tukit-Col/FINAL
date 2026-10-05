@@ -19,7 +19,7 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, Query, Request
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 from tukit_comun import derivar
 from tukit_comun.http import ErrorDominio
 
@@ -160,7 +160,9 @@ class PeticionTrabajo(BaseModel):
 
 class DecisionLinea(BaseModel):
     sku: str | None = Field(default=None, max_length=64)
-    motivo: str | None = Field(default=None, max_length=512)
+    # El contrato TS (`ValidarLinea`) lo llama `nota`; "sin coincidencia" manda
+    # `motivo`. Se aceptan los dos para que la nota de validar no se pierda.
+    motivo: str | None = Field(default=None, max_length=512, validation_alias=AliasChoices("motivo", "nota"))
     actor: uuid.UUID | None = None
 
 
@@ -329,6 +331,7 @@ async def cancelar_solicitud(
             api.app.state.motor,
             trabajo_id,
             usuario_id=usuario_id,
+            token=_token_bearer(authorization) or "",
             comercio=api._comercio(),
             catalogo=api._catalogo(),
         )
@@ -1031,6 +1034,12 @@ async def eliminar_trabajo(trabajo_id: uuid.UUID) -> None:
     summary="AD-04: una persona da por bueno el emparejamiento",
 )
 async def validar_linea(trabajo_id: uuid.UUID, item_id: uuid.UUID, decision: DecisionLinea) -> dict[str, Any]:
+    """Sin `sku` confirma el producto que la linea tiene en el kit.
+
+    El catalogo va inyectado porque el producto validado puede no ser
+    candidato del item (personaje del Fan, producto fijado por kit) y hay que
+    registrarlo; si no hay producto por ningun lado, es un 422 con `campo`.
+    """
     try:
         return await trabajos.decidir_linea(
             api.app.state.motor,
@@ -1040,15 +1049,18 @@ async def validar_linea(trabajo_id: uuid.UUID, item_id: uuid.UUID, decision: Dec
             sku=decision.sku,
             actor=decision.actor,
             motivo=decision.motivo,
+            catalogo=api._catalogo(),
         )
     except trabajos.TrabajoNoExiste as error:
         raise ErrorDominio("linea_no_existe", "Ese trabajo no tiene esa linea.", estado=404) from error
     except trabajos.SinProductoQueValidar as error:
-        raise ErrorDominio(
-            "sin_producto_que_validar",
-            "Esta linea no tiene un producto elegido. Elige uno en la linea o marcala sin coincidencia.",
-            estado=409,
-        ) from error
+        mensaje = (
+            f"El producto {error.sku} no esta en el catalogo: elige otro o marca la linea sin coincidencia."
+            if error.sku
+            else "Esta linea no tiene producto que validar: elige una alternativa, da de alta un producto "
+            "o marcala sin coincidencia."
+        )
+        raise ErrorDominio("sin_producto_que_validar", mensaje, estado=422, campo="sku") from error
 
 
 @router.put(

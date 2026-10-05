@@ -24,11 +24,21 @@ _PLANTILLAS = {
     "kits_publicados": "kits_publicados",
     "pedido_pagado": "pedido_pagado",
     "incidencia": "incidencia",
+    # Los avances del back-office de logistica (reparto propio).
+    "pedido_despachado": "pedido_despachado",
+    "pedido_en_reparto": "pedido_en_reparto",
+    "pedido_entregado": "pedido_entregado",
 }
 
 # Los tipos cuyo destinatario viaja en la carga del evento (lo puso quien lo
 # escribio). `kits_publicados` NO esta: su usuario se lee de trabajo_pipeline.
-_USUARIO_EN_CARGA = frozenset({"pedido_pagado", "incidencia"})
+_USUARIO_EN_CARGA = frozenset(
+    {"pedido_pagado", "incidencia", "pedido_despachado", "pedido_en_reparto", "pedido_entregado"}
+)
+
+# Si el despacho llego sin nombre (un evento viejo o malformado), el aviso sale
+# igual: decir "va con nuestro repartidor" es mejor que no avisar.
+_REPARTIDOR_POR_OMISION = "nuestro repartidor"
 
 
 def plantilla_para(tipo: str) -> str | None:
@@ -51,7 +61,7 @@ def destinatario_en_carga(tipo: str, carga: dict[str, Any] | None) -> str | None
 def datos_plantilla(
     tipo: str, agregado_id: uuid.UUID, carga: dict[str, Any] | None, *, base_web: str
 ) -> dict[str, object]:
-    """Las variables de negocio del aviso: turno, pedido, enlace. Nunca contacto.
+    """Las variables de negocio del aviso: turno, pedido, enlace, repartidor. Nunca contacto.
 
     El turno es un identificador corto y estable del evento (los 8 primeros del
     id del agregado). Para `kits_publicados` se agrega el enlace de pre-compra,
@@ -64,4 +74,7 @@ def datos_plantilla(
         datos["pedido"] = str(carga["pedido_id"])[:8].upper()
     if tipo == "kits_publicados":
         datos["enlace"] = f"{base_web}/kits/{agregado_id}"
+    if tipo == "pedido_despachado":
+        # Solo el nombre: Comercio nunca pone el celular del repartidor en la carga.
+        datos["repartidor"] = str(carga.get("repartidor") or "").strip() or _REPARTIDOR_POR_OMISION
     return datos

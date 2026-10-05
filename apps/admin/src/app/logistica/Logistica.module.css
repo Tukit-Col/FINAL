@@ -145,6 +145,11 @@
   color: var(--color-text-primary);
 }
 
+.enlacePedido:hover code {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
 .enlaceTrabajo {
   font-size: 11px;
   color: var(--color-primary);
@@ -161,6 +166,12 @@
 .lista {
   max-width: 22ch;
   color: var(--color-text-secondary);
+}
+
+/* El correo del acudiente: largo y sin espacios, se parte para no ensanchar la tabla. */
+.correo {
+  max-width: 24ch;
+  overflow-wrap: anywhere;
 }
 
 .envio {
@@ -232,5 +243,11 @@
   background: var(--clay-surface-grad);
   border-radius: var(--radius-lg);
   box-shadow: var(--clay-shadow-sm);
+  color: var(--color-text-secondary);
+}
+
+.conteo {
+  margin-top: calc(-1 * var(--espacio-3));
+  font-size: 13px;
   color: var(--color-text-secondary);
 }

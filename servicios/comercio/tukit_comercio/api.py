@@ -4,7 +4,7 @@ La superficie (lectura de logística + escritura de checkout, §9 del contrato)
 vive en `routers/comercio.py`; el qué-decide-el-negocio en `dominio/`; el SQL en
 `repositorios/`. Aquí sólo se construye la `FastAPI` con `crear_app`, se cuelgan
 de `app.state` los singletons que el router lee en cada petición (el motor de
-base, la pasarela y el cliente de Catálogo) y se incluye el router. Esta
+base, la pasarela y los clientes de Catálogo e Identidad) y se incluye el router. Esta
 separación es la ADR 0019: capas internas de puertos-y-adaptadores ligero.
 
     python -m tukit_comercio.api            # localhost:8014
@@ -20,7 +20,7 @@ from tukit_comun.http import crear_app, crear_pool
 from tukit_comun.telemetria import instrumentar_motor
 
 from .pasarela import pasarela_desde_entorno
-from .remoto import ESPERA_SEGUNDOS, ClienteCatalogo
+from .remoto import ESPERA_SEGUNDOS, ClienteCatalogo, ClienteIdentidad
 from .routers import router
 
 PUERTO_POR_OMISION = 8014
@@ -38,10 +38,15 @@ async def _arrancar(app: FastAPI) -> None:
     # pruebas (`app.state.catalogo` con su doble) no pasa por aqui.
     app.state.pool_catalogo = crear_pool(espera=ESPERA_SEGUNDOS)
     app.state.catalogo = ClienteCatalogo(cliente=app.state.pool_catalogo)
+    # Identidad valida el Bearer de la logistica y de "mis pedidos". Pool propio:
+    # una Identidad lenta no debe agotar las conexiones del checkout a Catalogo.
+    app.state.pool_identidad = crear_pool(espera=ESPERA_SEGUNDOS)
+    app.state.identidad = ClienteIdentidad(cliente=app.state.pool_identidad)
 
 
 async def _apagar(app: FastAPI) -> None:
     await app.state.pool_catalogo.aclose()
+    await app.state.pool_identidad.aclose()
     await app.state.motor.cerrar()
 
 

@@ -77,7 +77,12 @@ import type {
   Sugerencia,
   VersionListaAdmin,
 } from "./catalogo";
-import type { Pedido, TableroComercio } from "./comercio";
+import type {
+  Pedido,
+  PedidoConHistorial,
+  SolicitudAvancePedido,
+  TableroComercio,
+} from "./comercio";
 import type { MetricasColegio, ResumenPedidosColegio, SerieMetricas } from "./metricas";
 import type { BandejaOperacion, Caso, CasoCreado, SolicitudCaso } from "./operacion";
 import {
@@ -859,21 +864,35 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
-  iniciarPagoPedido(
-    pedidoId: string,
-    cuerpo: { correo_cliente: string; url_redireccion?: string },
-  ): Promise<PagoIniciado> {
-    return this.pedir<PagoIniciado>(`/v1/ordenes/${encodeURIComponent(pedidoId)}/pago`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cuerpo),
+  // Las tres van por `/v1/comercio/mis-pedidos/{id}` con el Bearer: comercio
+  // saca al acudiente de la sesion y un pedido ajeno es 404. `/v1/ordenes/*` es
+  // interno y la puerta no lo expone.
+  miPedido(token: string, pedidoId: string): Promise<Pedido> {
+    return this.pedir<Pedido>(`/v1/comercio/mis-pedidos/${encodeURIComponent(pedidoId)}`, {
+      headers: this.autoriza(token),
     });
   }
 
-  cancelarPedido(pedidoId: string): Promise<Pedido> {
-    return this.pedir<Pedido>(`/v1/ordenes/${encodeURIComponent(pedidoId)}/cancelar`, {
-      method: "POST",
-    });
+  iniciarPagoPedido(
+    token: string,
+    pedidoId: string,
+    cuerpo: { correo_cliente: string; url_redireccion?: string },
+  ): Promise<PagoIniciado> {
+    return this.pedir<PagoIniciado>(
+      `/v1/comercio/mis-pedidos/${encodeURIComponent(pedidoId)}/pago`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...this.autoriza(token) },
+        body: JSON.stringify(cuerpo),
+      },
+    );
+  }
+
+  cancelarPedido(token: string, pedidoId: string): Promise<Pedido> {
+    return this.pedir<Pedido>(
+      `/v1/comercio/mis-pedidos/${encodeURIComponent(pedidoId)}/cancelar`,
+      { method: "POST", headers: this.autoriza(token) },
+    );
   }
 
   sincronizarPago(transaccionId: string): Promise<ResultadoPago> {
@@ -1290,19 +1309,43 @@ export class ClienteApi implements OrigenDatos {
   }
 
   // ------------------------------------------------- ASUMIDO (comercio 1.x)
-  pedidos(): Promise<TableroComercio> {
-    return this.pedir<TableroComercio>("/v1/comercio/pedidos");
+  // Logistica: solo staff. El Bearer lo reenvia el Server Component o el Route
+  // Handler del admin desde la cookie de sesion.
+  pedidos(token: string): Promise<TableroComercio> {
+    return this.pedir<TableroComercio>("/v1/comercio/pedidos", {
+      headers: this.autoriza(token),
+    });
   }
 
-  pedido(pedidoId: string): Promise<Pedido> {
-    return this.pedir<Pedido>(`/v1/comercio/pedidos/${encodeURIComponent(pedidoId)}`);
+  pedido(token: string, pedidoId: string): Promise<PedidoConHistorial> {
+    return this.pedir<PedidoConHistorial>(
+      `/v1/comercio/pedidos/${encodeURIComponent(pedidoId)}`,
+      { headers: this.autoriza(token) },
+    );
   }
 
-  // El historial del acudiente para su dashboard. Comercio responde
-  // `{total, pedidos}`; la pantalla solo usa la lista, asi que se propaga esa.
-  async misPedidos(usuarioId: string): Promise<Pedido[]> {
+  avanzarPedido(
+    token: string,
+    pedidoId: string,
+    cuerpo: SolicitudAvancePedido,
+  ): Promise<PedidoConHistorial> {
+    return this.pedir<PedidoConHistorial>(
+      `/v1/ordenes/${encodeURIComponent(pedidoId)}/avanzar`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...this.autoriza(token) },
+        body: JSON.stringify(cuerpo),
+      },
+    );
+  }
+
+  // Los pedidos del portador para su dashboard: sin `usuario_id` en la URL,
+  // comercio lo saca de la sesion. Responde `{total, pedidos}`; la pantalla
+  // solo usa la lista, asi que se propaga esa.
+  async misPedidos(token: string): Promise<Pedido[]> {
     const resp = await this.pedir<{ total: number; pedidos: Pedido[] }>(
-      `/v1/comercio/mis-pedidos?usuario_id=${encodeURIComponent(usuarioId)}`,
+      "/v1/comercio/mis-pedidos",
+      { headers: this.autoriza(token) },
     );
     return resp.pedidos ?? [];
   }
