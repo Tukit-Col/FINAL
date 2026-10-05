@@ -286,7 +286,7 @@ que son afirmaciones de la tesis que el código invalida.
   página del kit; con `sandbox`, `WompiSandbox.crear_transaccion` llamaba a
   `POST /v1/transactions` de Wompi sin medio de pago, que Wompi rechaza.
 - **Arreglo aplicado:** rama `feature/pagos-wompi-sandbox`. Hoy el pago se abre con el
-  widget de Wompi y el modo falso lleva a `/pago/simulado`. Contrato §9; ADR 0021.
+  widget de Wompi y el modo falso lleva a `/pago/simulado`. Contrato §9; ADR 0033.
 
 ---
 
@@ -300,7 +300,7 @@ que son afirmaciones de la tesis que el código invalida.
   apuntando a `localhost`, `127.0.0.1` o una IP privada, codificado o no. Un dominio
   público, incluido uno de túnel, pasa.
 - **Arreglo aplicado:** se cambió al widget de Wompi, que abre el pago en un modal y no
-  necesita salir de Tukit. Se probó antes un túnel (`cloudflared`) y se retiró. ADR 0021.
+  necesita salir de Tukit. Se probó antes un túnel (`cloudflared`) y se retiró. ADR 0033.
 
 ---
 

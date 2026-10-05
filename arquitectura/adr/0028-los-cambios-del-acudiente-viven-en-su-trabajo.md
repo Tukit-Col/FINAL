@@ -57,6 +57,6 @@ Escribir en `linea_kit` habría hecho que el cambio de un papá alterara el kit 
 - El precio del producto cambiado queda congelado al elegirlo, igual que el de las líneas del
   kit. Si cambia en el catálogo, el acudiente lo ve al volver a elegir.
 - Si el acudiente ya tenía un pedido pendiente de pago y cambia algo, el siguiente pago crea un
-  pedido nuevo con los cambios (ADR 0024: un pedido pendiente por kit, con firma de la orden).
+  pedido nuevo con los cambios (ADR 0035: un pedido pendiente por kit, con firma de la orden).
 - Un cambio sobre un renglón que la curaduría quite después del canónico deja de aplicarse en
   silencio: `ver` solo aplica cambios a líneas que existen.

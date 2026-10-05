@@ -13,8 +13,8 @@
 > **Estado (2026-10-03): ejecutado.** Las ocho tareas se completaron con revisión por tarea y
 > una revisión final de la rama. Este plan describe la primera versión, el Web Checkout por
 > redirección, que después se reemplazó por el widget de Wompi. Lo que cambió y por qué está en
-> la sección final del diseño, "Lo que cambió durante la implementación", y en los ADR 0021 a
-> 0024 (`arquitectura/adr/`).
+> la sección final del diseño, "Lo que cambió durante la implementación", y en los ADR 0033 a
+> 0036 (`arquitectura/adr/`).
 
 ## Global Constraints
 

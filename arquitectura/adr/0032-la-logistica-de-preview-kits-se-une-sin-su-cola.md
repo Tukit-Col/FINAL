@@ -17,7 +17,7 @@
 
 El rediseño de la cola se descartó: se mantienen las colas de esta rama y su flujo canónico
 (`lista_aprobada` arma el Ahorrador y el Premium del grado, ADR 0030). La logística sí se quiere,
-y tiene que convivir con los pagos de Wompi (ADR 0021 a 0023 de la carpeta local), que la rama
+y tiene que convivir con los pagos de Wompi (ADR 0033 a 0035), que la rama
 no conocía.
 
 ## Decisión
@@ -62,5 +62,5 @@ no conocía.
 - `apps/web` reenvía el Bearer de la cookie a Comercio en sus tres rutas de pedidos.
 - Las migraciones de Comercio de la rama (historial del pedido, correo del actor) quedan en la
   cadena después de `dc2ff5819083`.
-- La numeración de esta carpeta choca con los ADR 0019 a 0026 del backbone, que viven en el
-  repositorio de la tesis: hay que renumerar los locales al incorporarlos.
+- Los ADR locales 0021 a 0026 chocaban con los 0019 a 0026 del backbone, que viven en el
+  repositorio de la tesis; se renumeraron a 0033-0038 (ver el índice).

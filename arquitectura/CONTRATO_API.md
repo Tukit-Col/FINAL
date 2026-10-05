@@ -84,10 +84,10 @@ diseño no podía saber, y se documentan donde muerden.
 | Cambio | Dónde | Por qué |
 |---|---|---|
 | §9 implementado: orden, pago, sincronización, webhook, cancelación y "mis pedidos" | §9 | `comercio` existe y la puerta lo rutea; las rutas ya no responden `501` |
-| El pago se abre con el **widget** de Wompi y `POST /pago` devuelve sus datos firmados | §9.1 | El checkout alojado por URL responde 403 si el retorno es `localhost`. ADR 0021 |
-| `POST /v1/pagos/{transaccion_id}/sincronizar` | §9.2 | Sin URL pública el webhook no llega, y el pedido se quedaba sin confirmar. ADR 0022 |
+| El pago se abre con el **widget** de Wompi y `POST /pago` devuelve sus datos firmados | §9.1 | El checkout alojado por URL responde 403 si el retorno es `localhost`. ADR 0033 |
+| `POST /v1/pagos/{transaccion_id}/sincronizar` | §9.2 | Sin URL pública el webhook no llega, y el pedido se quedaba sin confirmar. ADR 0034 |
 | La clave de idempotencia es `<transacción>:<ESTADO>`, no el id del evento | §9.2 | Wompi no manda id de evento, y `PENDING` → `APPROVED` chocaba en el candado |
-| `POST /v1/ordenes/{id}/cancelar`, que consulta a Wompi antes | §9.3 | Cancelar con un PSE en curso cobraría sin entregar. ADR 0023 |
+| `POST /v1/ordenes/{id}/cancelar`, que consulta a Wompi antes | §9.3 | Cancelar con un PSE en curso cobraría sin entregar. ADR 0035 |
 | Un pedido se paga durante 24 horas; uno pendiente por kit | §9.4 | Cada clic en Pagar creaba un pedido, y uno viejo se cobraría a un precio viejo |
 | `comercio` en la tabla de puertos | §12.1 | Faltaba |
 
@@ -662,7 +662,7 @@ Las degradaciones se reportan, no se esconden:
 > (`comercio`, puerto 8014) y la puerta las rutea; ya no responden `501`. Solo existe el modo de
 > **pruebas**: con `WOMPI_MODO=sandbox` el servicio no arranca si alguna llave no es de prueba, y
 > con `WOMPI_MODO=falso` (por omisión) una pasarela simulada permite caminar todo el flujo sin
-> red. Producción no está en este contrato. Las decisiones están en los ADR 0021 a 0023
+> red. Producción no está en este contrato. Las decisiones están en los ADR 0033 a 0035
 > (`arquitectura/adr/`).
 
 | Endpoint | Requisito | Qué hace |
@@ -729,7 +729,7 @@ La firma de integridad se calcula aquí porque necesita el secreto, que nunca sa
 `redirectUrl` existe por PSE, que se lleva la pestaña al banco y vuelve por ahí con `?id=`.
 El navegador abre el widget **con `bootstrapTransport: "postmessage"`**: por omisión el widget
 mete la configuración en la URL de su iframe, y el CDN de Wompi responde 403 cuando ahí aparece
-un retorno a `localhost` (ADR 0021). Con `WOMPI_MODO=falso`, `widget` es `null` y
+un retorno a `localhost` (ADR 0033). Con `WOMPI_MODO=falso`, `widget` es `null` y
 `url_redireccion` apunta a `/pago/simulado`.
 
 Errores: `404 pedido_no_existe` · `409 pedido_no_pagable` (ya no está pendiente) ·
@@ -747,7 +747,7 @@ entregan el id de la transacción, y la página de resultado pide:
 ```
 
 `comercio` consulta `GET /v1/transactions/{id}` en Wompi y aplica la respuesta con **el mismo
-aplicador que el webhook** (ADR 0022). Eso hace que funcione en `localhost` sin que Wompi pueda
+aplicador que el webhook** (ADR 0034). Eso hace que funcione en `localhost` sin que Wompi pueda
 alcanzar el webhook, y que llegar por los dos caminos no aplique dos veces:
 
 - La idempotencia es contra `evento_pasarela_procesado` con la clave `<transacción>:<ESTADO>`:
@@ -773,7 +773,7 @@ firma no cuadra, `repetido` si ya se aplicó.
 
 `POST /v1/ordenes/{id}/cancelar` cancela un pedido `pendiente_pago` y libera su reserva de
 inventario. Antes **busca en Wompi, con la llave privada, cada intento que siga `iniciado`**,
-porque un PSE puede estar en curso o ya aprobado sin que Tukit lo sepa (ADR 0023):
+porque un PSE puede estar en curso o ya aprobado sin que Tukit lo sepa (ADR 0035):
 
 | Lo que encuentra | Respuesta |
 |---|---|

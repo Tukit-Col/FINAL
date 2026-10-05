@@ -5,8 +5,8 @@
 - **Rama:** `feature/curaduria-de-listas` (commits `c57c0b3` a `6bffea2`, sin fusionar a `main`).
 - **Material curado:** las listas 2026 del Colegio Agustiniano Ciudad Salitre (CACS), de
   Jardín a Undécimo, subidas una a una por el back-office.
-- **Decisiones registradas aparte:** ADR [0025](../arquitectura/adr/0025-la-curaduria-viaja-por-git.md),
-  [0026](../arquitectura/adr/0026-el-concepto-asignado-en-la-revision-manda.md) y
+- **Decisiones registradas aparte:** ADR [0037](../arquitectura/adr/0037-la-curaduria-viaja-por-git.md),
+  [0038](../arquitectura/adr/0038-el-concepto-asignado-en-la-revision-manda.md) y
   [0027](../arquitectura/adr/0027-lo-que-tukit-no-vende-se-clasifica.md).
 
 ---
@@ -76,7 +76,7 @@ El vocabulario de atributos es fijo y está en `enriquecer.py` (`TAMANOS`, durez
 | `otro` | no | **"Lo consigues por tu cuenta"**: Tukit decidió no venderlo |
 
 Si el renglón tiene tipo propio, manda sobre el del concepto; si no, el del concepto manda
-(ADR 0026). La clasificación de líneas para pintar vive una sola vez en
+(ADR 0038). La clasificación de líneas para pintar vive una sola vez en
 `libs/ts/tukit-contrato/src/linea.ts` y la comparten `web` y `admin`.
 
 ---
@@ -129,7 +129,7 @@ Los sinónimos se escriben sin tildes y en minúscula, como los compara el empar
      para que la próxima lista entre sola;
    - si no existe, crearlo con su tipo correcto (§1.3) y su categoría.
 3. *Previsualizar los kits* para ver lo que verá el acudiente. La previsualización respeta el
-   concepto asignado en la revisión (ADR 0026).
+   concepto asignado en la revisión (ADR 0038).
 4. Aprobar. La versión queda revisada y el pipeline la reutiliza para todos los acudientes de ese
    colegio y grado.
 5. Exportar y hacer commit:
@@ -150,7 +150,7 @@ Los compañeros, después de `git pull`, corren `.\tukit.ps1 importar` (o
 
 ## 4. La curaduría viaja por git
 
-Hasta esta rama, curar dejaba todo en la base local. Ahora (ADR 0025):
+Hasta esta rama, curar dejaba todo en la base local. Ahora (ADR 0037):
 
 | Archivo | Lo escribe | Qué lleva |
 |---|---|---|

@@ -8,9 +8,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
 import type { EstadoTrabajo } from "@tukit/contrato";
 import { eliminarTrabajo, FalloApi } from "@/lib/api-navegador";
-import styles from "./Revision.module.css";
+import barra from "./BorrarTrabajo.module.css";
 import fila from "./BorrarVersionLista.module.css";
 
 interface Props {
@@ -83,28 +84,38 @@ export default function BorrarTrabajo({ trabajoId, estado, volverA, enFila = fal
     );
   }
 
+  // En la barra del detalle: un boton discreto que, al pulsarlo, se vuelve una
+  // confirmacion en la misma linea. Borrar es irreversible; no merece un rojo
+  // gritando antes de que alguien lo pida.
   return (
-    <div className={styles.borrar}>
+    <div className={barra.contenedor}>
       {confirmando ? (
-        <div className={styles.botonera}>
+        <div className={barra.confirmacion} role="alertdialog" aria-label="Eliminar el trabajo">
+          <span className={barra.pregunta}>¿Eliminar este trabajo? No se puede deshacer.</span>
           <button
             type="button"
-            className={styles.peligro}
+            className={barra.confirmar}
             disabled={enviando}
             onClick={() => void borrar()}
           >
-            Sí, eliminar
+            {enviando ? "Eliminando…" : "Sí, eliminar"}
           </button>
-          <button type="button" className={styles.plano} onClick={() => setConfirmando(false)}>
+          <button
+            type="button"
+            className={barra.cancelar}
+            disabled={enviando}
+            onClick={() => setConfirmando(false)}
+          >
             Cancelar
           </button>
         </div>
       ) : (
-        <button type="button" className={styles.plano} onClick={() => setConfirmando(true)}>
+        <button type="button" className={barra.disparador} onClick={() => setConfirmando(true)}>
+          <Trash2 size={15} aria-hidden="true" />
           Eliminar trabajo
         </button>
       )}
-      {error ? <p className={styles.error}>{error}</p> : null}
+      {error ? <p className={barra.error}>{error}</p> : null}
     </div>
   );
 }

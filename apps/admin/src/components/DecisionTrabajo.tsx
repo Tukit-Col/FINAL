@@ -113,7 +113,7 @@ export default function DecisionTrabajo({
                 <>
                   <h3>Aprobar la lista y guardar estos kits</h3>
                   <p>
-                    Aprueba la lista del colegio y deja estos tres kits, con tus ajustes, como los
+                    Aprueba la lista del colegio y deja estos kits, con tus ajustes, como los
                     canónicos del grado. El próximo acudiente sin tope de gasto los recibe al
                     instante. No se avisa a nadie.
                   </p>
@@ -122,7 +122,7 @@ export default function DecisionTrabajo({
                 <>
                   <h3>Publicar al acudiente</h3>
                   <p>
-                    Publica los tres kits y dispara la notificación. El acudiente se entera y ya
+                    Publica sus kits y dispara la notificación. El acudiente se entera y ya
                     no hay vuelta atrás.
                   </p>
                 </>

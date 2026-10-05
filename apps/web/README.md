@@ -61,7 +61,7 @@ esta.
 
 El pago de verdad. Hay pago con Wompi, pero solo en modo de pruebas: el
 widget se abre con llaves `pub_test_` y Comercio no arranca con otras (contrato
-§9, ADR 0021). Llevarlo a produccion es otra decision, con llaves reales y un
+§9, ADR 0033). Llevarlo a produccion es otra decision, con llaves reales y un
 retorno publico.
 
 El seguimiento del envio: el pedido sabe si esta pagado, en preparacion o

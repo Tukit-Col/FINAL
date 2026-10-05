@@ -311,7 +311,7 @@ El plan detallado, tarea por tarea, se escribe al aprobar este diseño.
 Este diseño se aprobó el 2026-10-02 y se ejecutó con el plan
 `docs/superpowers/plans/2026-10-02-pagos-wompi-sandbox.md`. Lo de arriba queda como se aprobó,
 porque es el razonamiento con el que se empezó. Lo que sigue es lo que la realidad corrigió,
-en el orden en que apareció. Las decisiones que quedaron están en los ADR 0021 a 0024
+en el orden en que apareció. Las decisiones que quedaron están en los ADR 0033 a 0036
 (`arquitectura/adr/`), y el contrato de la API (§9, versión 1.2) describe el estado final.
 
 ### 1. El Web Checkout no puede volver a `localhost` (y se cambió al widget)
@@ -365,12 +365,12 @@ escribirla.
   los productos agrupados y la entrega; rechazado con causas comunes y reintento.
 - **"Mis pedidos" con acciones:** pagar un pedido pendiente sin rearmarlo y cancelarlo. Cancelar
   consulta antes a Wompi con la llave privada, porque un PSE en curso que se cancela cobraría sin
-  entregar; si la aprobación llega igual, queda una incidencia (ADR 0023).
+  entregar; si la aprobación llega igual, queda una incidencia (ADR 0035).
 - **Vigencia de 24 horas** para pagar, derivada de `creado_en`, y **un pedido pendiente por
   kit**: uno idéntico se reutiliza y uno distinto reemplaza al anterior. Esto saca de "Fuera de
   alcance" el punto de los varios clics en Pagar.
 - **Estados por color y estado de compra en "Mis solicitudes"**, calculado cruzando pedidos por
-  kit en vez de guardado (ADR 0024).
+  kit en vez de guardado (ADR 0036).
 
 ### 6. Lo que se probó y lo que no
 

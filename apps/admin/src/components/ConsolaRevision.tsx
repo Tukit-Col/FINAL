@@ -153,8 +153,12 @@ export default function ConsolaRevision({ trabajo, personajes }: Props) {
       ) : null}
 
       {(() => {
+        // El personaje es una preferencia del acudiente (ADR 0030): una lista que
+        // subio el colegio, o el canonico que sale de ella, no tiene a quien
+        // preguntarle, asi que aqui no se elige. Un Fan viejo de antes de esa
+        // regla se ve, pero no se toca.
         const fan = trabajo.kits.find((k) => k.perfil === "Fan");
-        return fan && personajes.length > 0 ? (
+        return fan && !sinAcudiente && personajes.length > 0 ? (
           <PersonajeFan trabajoId={trabajo.trabajo_id} fan={fan} personajes={personajes} />
         ) : null;
       })()}

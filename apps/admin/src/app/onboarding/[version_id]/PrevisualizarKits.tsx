@@ -60,7 +60,7 @@ export default function PrevisualizarKits({ versionId, colegioId, grado, anioLec
         {armando ? "Armando la vista previa…" : "Previsualizar los 3 kits"}
       </button>
       <span className={styles.faltante}>
-        Abre los tres kits que saldrían de esta versión en la consola de revisión, sin
+        Abre los kits que saldrían de esta versión en la consola de revisión, sin
         publicarla: ahí puedes validar, editar y cambiar personaje. Publicar es el otro botón.
       </span>
       {error ? <p className={styles.errorCaja}>{error}</p> : null}
