@@ -28,6 +28,7 @@ citas aquí: el número es una etiqueta, el título es la decisión.
 | [0029](0029-con-presupuesto-se-recomienda-la-mejor-marca-que-cabe.md) | Con presupuesto se recomienda la mejor marca que cabe, tomada del frente | aceptada, reemplazada en parte por 0030 | `feature/mejoras-benchmark-nsga` |
 | [0030](0030-solo-se-arman-los-kits-que-se-piden.md) | Solo se arman los kits que el acudiente pide: Ahorrador y Premium siempre, Fan y A tu Medida a pedido | aceptada | `feature/integracion` |
 | [0031](0031-el-acudiente-cancela-solicitudes-y-edita-a-sus-hijos.md) | El acudiente cancela sus solicitudes y quita o cambia de colegio a sus hijos | aceptada | `feature/integracion` |
+| [0032](0032-la-logistica-de-preview-kits-se-une-sin-su-cola.md) | La logística de `preview-kits` se une a los pagos; su cola y su vista previa no | aceptada | `feature/integracion-total` |
 
 ## Para incorporarlos
 

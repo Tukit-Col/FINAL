@@ -3,7 +3,10 @@
 Dos superficies, como en el §9 del contrato:
 
 - **Lectura** (`GET /v1/comercio/pedidos`, `/mis-pedidos`, `/{id}`): el tablero
-  del back-office de logística y el historial del acudiente.
+  del back-office de logística y el historial del acudiente. El tablero y el
+  detalle son SOLO para staff (operador/admin); "mis pedidos" exige sesión y usa
+  el usuario DE LA SESIÓN. Ambas puertas validan el Bearer contra Identidad y
+  fallan cerradas (503) si no responde.
 - **Escritura** (`POST /v1/ordenes`, `/{id}/pago`, `/v1/webhooks/wompi`,
   `/{id}/retracto`): el checkout. Tres invariantes que no se negocian:
   re-verificar precio antes de cobrar (`422 precio_cambiado`); precio CONGELADO
@@ -15,7 +18,7 @@ El router no calcula ni arma SQL: `reverificar_precios`/`total_orden`/
 `pedido_tras_pago` viven en `dominio/`, y todo el SQL en `repositorios/`. Aquí
 sólo se orquesta y se traducen los resultados a sobres de error.
 
-Los singletons (`pasarela`, `catalogo`, `motor`) se leen de `request.app.state`
+Los singletons (`pasarela`, `catalogo`, `identidad`, `motor`) se leen de `request.app.state`
 en cada petición, no se capturan al importar: así las pruebas pueden sustituir
 los dobles después de construir la app.
 """
@@ -23,22 +26,23 @@ los dobles después de construir la app.
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Annotated, Any
 
 import httpx
-from fastapi import APIRouter, Request
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Header, Request
+from pydantic import AwareDatetime, BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 from tukit_comun.http import ErrorDominio
 from tukit_comun.metricas import contar_orden_creada, contar_pago_aprobado
 
-from ..dominio.despacho import validar_avance
+from ..dominio.despacho import preparar_avance, validar_avance
 from ..dominio.ordenes import LineaResuelta, reverificar_precios, total_orden
 from ..dominio.pagos import firma_orden, vencido
 from ..modelos import EstadoPago, EstadoPedido, MetodoPago, transicion_valida
 from ..pasarela import EventoPasarela, PasarelaCaida, TransaccionNoExiste
-from ..remoto import CatalogoCaido
+from ..remoto import CatalogoCaido, IdentidadCaida
 from ..repositorios import RepoPedidos
 from ..repositorios.pedidos import ResultadoAplicacion
 
@@ -50,12 +54,85 @@ def _repo(conexion: Any) -> RepoPedidos:
 
 
 # ---------------------------------------------------------------------------
+# Sesion: quien llama. Mismas puertas y mismos sobres que inteligencia
+# (`_exigir_staff` / `_usuario_de_sesion`), para que el front trate igual un 401
+# de cualquier servicio.
+# ---------------------------------------------------------------------------
+
+# Los roles del equipo interno; el admin es superconjunto del operador.
+_ROLES_STAFF = frozenset({"admin", "operador"})
+
+
+def _token_bearer(authorization: str | None) -> str | None:
+    """El token del encabezado `Authorization`: `Bearer <token>` o el token pelado."""
+    if not authorization:
+        return None
+    partes = authorization.split(" ", 1)
+    if len(partes) == 2 and partes[0].lower() == "bearer":
+        return partes[1].strip()
+    return authorization.strip()
+
+
+async def _sesion_valida(request: Request, authorization: str | None) -> dict[str, Any]:
+    """La sesion del portador, validada contra Identidad por HTTP (Comercio no
+    lee la base de Identidad: regla 1). 401 sin token o con uno invalido; 503 si
+    Identidad no responde: FALLA CERRADA, no autorizar por no poder preguntar."""
+    token = _token_bearer(authorization)
+    if not token:
+        raise ErrorDominio("sesion_invalida", "El token no es valido o expiro.", estado=401)
+    try:
+        sesion = await request.app.state.identidad.sesion(token)
+    except IdentidadCaida as error:
+        raise ErrorDominio("identidad_no_disponible", "No se pudo validar la sesion.", estado=503) from error
+    if sesion is None:
+        raise ErrorDominio("sesion_invalida", "El token no es valido o expiro.", estado=401)
+    return sesion
+
+
+@dataclass(frozen=True)
+class Actor:
+    """Quien del equipo interno hace la peticion: lo que queda en el historial."""
+
+    usuario_id: uuid.UUID
+    correo: str | None
+
+
+async def _exigir_staff(request: Request, authorization: str | None) -> Actor:
+    """Puerta operador/admin: 401/503 como `_sesion_valida`, 403 si el rol no es
+    staff. Devuelve el actor (id y correo de la sesion), que queda en el historial."""
+    sesion = await _sesion_valida(request, authorization)
+    roles = {r.get("rol") for r in sesion.get("roles", [])}
+    if not roles & _ROLES_STAFF:
+        raise ErrorDominio(
+            "acceso_denegado", "Esta vista es solo para el equipo interno de Tukit.", estado=403
+        )
+    return Actor(usuario_id=uuid.UUID(str(sesion["usuario_id"])), correo=sesion.get("correo"))
+
+
+async def _usuario_de_sesion(request: Request, authorization: str | None) -> uuid.UUID:
+    """Puerta de portador: cualquier sesion valida, sin rol. Devuelve el
+    `usuario_id` DE LA SESION, nunca uno que venga del navegador."""
+    sesion = await _sesion_valida(request, authorization)
+    return uuid.UUID(str(sesion["usuario_id"]))
+
+
+async def _pedido_o_404(repo: RepoPedidos, pedido_id: uuid.UUID) -> Any:
+    fila = await repo.obtener(pedido_id)
+    if fila is None:
+        raise ErrorDominio("pedido_no_existe", "No hay ningun pedido con ese identificador.", estado=404)
+    return fila
+
+
+# ---------------------------------------------------------------------------
 # Lectura: tablero de logística e historial del acudiente
 # ---------------------------------------------------------------------------
 
 
 @router.get("/v1/comercio/pedidos", summary="Tablero de logistica: resumen + pedidos")
-async def tablero(request: Request) -> dict[str, Any]:
+async def tablero(request: Request, authorization: Annotated[str | None, Header()] = None) -> dict[str, Any]:
+    """Todos los pedidos con la direccion de quien recibe: solo staff. Sin el
+    celular del repartidor (eso solo en el detalle)."""
+    await _exigir_staff(request, authorization)
     async with request.app.state.motor.sesion() as db:
         repo = _repo(await db.connection())
         resumen = await repo.resumen()
@@ -64,16 +141,17 @@ async def tablero(request: Request) -> dict[str, Any]:
 
 
 @router.get("/v1/comercio/mis-pedidos", summary="El historial de pedidos de un acudiente, para su panel.")
-async def mis_pedidos(request: Request, usuario_id: uuid.UUID) -> dict[str, Any]:
-    """Los pedidos de UN acudiente, mas recientes primero, para el dashboard del
-    padre (que corria sobre datos de muestra por no existir esta superficie).
+async def mis_pedidos(
+    request: Request, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    """Los pedidos del PORTADOR del token, mas recientes primero, para el
+    dashboard del padre.
 
-    Filtra por `usuario_id` y no por el token: verificar el token exigiria
-    importar la logica de sesion de Identidad, y eso cruza la frontera (regla 1).
-    El id se lo da al frontend `GET /v1/cuenta` de Identidad, que si valida el
-    token; aqui Comercio solo devuelve lo de ese id. Es la misma postura que el
-    resto de la superficie de lectura, que hoy no exige sesion (ver el gateway).
+    El `usuario_id` sale de la sesion validada contra Identidad por HTTP, no del
+    navegador: antes se aceptaba `?usuario_id=` y cualquiera podia leer los
+    pedidos de otro. Si alguien lo sigue mandando, se ignora.
     """
+    usuario_id = await _usuario_de_sesion(request, authorization)
     async with request.app.state.motor.sesion() as db:
         repo = _repo(await db.connection())
         pedidos = await repo.pedidos_completos(await repo.listar_de_usuario(usuario_id))
@@ -91,8 +169,8 @@ async def pedidos_pagados(request: Request) -> dict[str, Any]:
     Comercio, que es su dueno.
 
     Lo consume Inteligencia server-to-server para armar las metricas de pedidos
-    por colegio; el navegador nunca lo llama. Sin token, como el resto de la
-    superficie de lectura (ver el gateway y `mis_pedidos`)."""
+    por colegio; el navegador nunca lo llama. Va sin token: la puerta la
+    responde como ruta inexistente (`RUTAS_BLOQUEADAS` del gateway)."""
     async with request.app.state.motor.sesion() as db:
         repo = _repo(await db.connection())
         filas = await repo.pagados_con_trabajo()
@@ -105,13 +183,20 @@ async def pedidos_pagados(request: Request) -> dict[str, Any]:
 
 
 @router.get("/v1/comercio/pedidos/{pedido_id}", summary="Un pedido, con lineas, pago y envio")
-async def ver_pedido(request: Request, pedido_id: uuid.UUID) -> dict[str, Any]:
+async def ver_pedido(
+    request: Request, pedido_id: uuid.UUID, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    """El detalle del back-office: solo staff. Es la unica lectura que trae el
+    celular del repartidor (para llamarlo) y el historial de avances."""
+    await _exigir_staff(request, authorization)
     async with request.app.state.motor.sesion() as db:
         repo = _repo(await db.connection())
-        fila = await repo.obtener(pedido_id)
-        if fila is None:
-            raise ErrorDominio("pedido_no_existe", "No hay ningun pedido con ese identificador.", estado=404)
-        return await repo.pedido_completo(fila)
+        return await _detalle_staff(repo, await _pedido_o_404(repo, pedido_id))
+
+
+async def _detalle_staff(repo: RepoPedidos, fila: Any) -> dict[str, Any]:
+    pedido = await repo.pedido_completo(fila, con_celular=True)
+    return {**pedido, "historial": await repo.historial_de(fila.id)}
 
 
 # ---------------------------------------------------------------------------
@@ -180,14 +265,22 @@ class SolicitudRetracto(BaseModel):
 class SolicitudAvance(BaseModel):
     """Lo que el back-office de logistica manda para avanzar un pedido.
 
-    `destino` es el siguiente estado de la cadena de entrega; transportadora,
-    guia y fecha estimada acompañan el despacho y se sellan en el envio. La
-    validez de la transicion y de los datos la decide `validar_avance`."""
+    `destino` es el siguiente estado de la cadena de entrega. Con reparto
+    propio, el despacho trae nombre y celular del repartidor (y la fecha
+    estimada); una incidencia trae su tipo y, si es `otro`, la nota. La validez
+    de la transicion y de los datos la decide `validar_avance`: por eso
+    `tipo_incidencia` es texto libre y no un `Literal`, para que el rechazo
+    llegue con el mensaje del dominio y no como un 400 generico.
+
+    `entrega_estimada` exige zona horaria (`AwareDatetime`): una fecha pelada
+    seria medianoche sin zona y se correria al guardarla en `timestamptz`."""
 
     destino: str = Field(min_length=1, max_length=24)
-    transportadora: str | None = Field(default=None, max_length=128)
-    guia: str | None = Field(default=None, max_length=128)
-    entrega_estimada: datetime | None = None
+    repartidor_nombre: str | None = Field(default=None, max_length=128)
+    repartidor_celular: str | None = Field(default=None, max_length=32)
+    tipo_incidencia: str | None = Field(default=None, max_length=32)
+    nota: str | None = Field(default=None, max_length=512)
+    entrega_estimada: AwareDatetime | None = None
 
 
 def _uuid_o_422(valor: str, campo: str) -> uuid.UUID:
@@ -599,14 +692,69 @@ async def cancelar_orden(request: Request, pedido_id: uuid.UUID) -> dict[str, An
         raise ErrorDominio(
             "pedido_no_cancelable", "Solo se pueden cancelar pedidos pendientes de pago.", estado=409
         )
-    return await ver_pedido(request, pedido_id)
+    return await ver_orden(request, pedido_id)
 
 
 @router.get("/v1/ordenes/{pedido_id}", summary="Seguimiento de una orden (FU-01 + UM-03)")
 async def ver_orden(request: Request, pedido_id: uuid.UUID) -> dict[str, Any]:
-    # El seguimiento reusa el serializador del pedido: la misma forma que la
-    # lectura de logistica, ahora del lado del acudiente.
-    return await ver_pedido(request, pedido_id)
+    # Interna (la puerta no la expone): reusa el serializador del pedido, sin el
+    # celular del repartidor ni el historial, que son solo del detalle staff.
+    async with request.app.state.motor.sesion() as db:
+        repo = _repo(await db.connection())
+        return await repo.pedido_completo(await _pedido_o_404(repo, pedido_id))
+
+
+# ---------------------------------------------------------------------------
+# El acudiente sobre SUS pedidos: ver, pagar y cancelar desde su panel
+# ---------------------------------------------------------------------------
+#
+# `/v1/ordenes/*` no sale por la puerta (solo `avanzar`): sin sesion, cualquiera
+# con el id de un pedido podria pagarlo o cancelarlo. Estas tres rutas son las
+# mismas operaciones con la puerta del portador: el `usuario_id` sale del token
+# y un pedido ajeno responde 404, igual que uno que no existe, para no confirmar
+# que existe.
+
+
+async def _pedido_del_portador(request: Request, pedido_id: uuid.UUID, authorization: str | None) -> None:
+    usuario_id = await _usuario_de_sesion(request, authorization)
+    async with request.app.state.motor.sesion() as db:
+        pedido = await _repo(await db.connection()).obtener(pedido_id)
+    if pedido is None or pedido.usuario_id != usuario_id:
+        raise ErrorDominio("pedido_no_existe", "No hay ningun pedido con ese identificador.", estado=404)
+
+
+@router.get("/v1/comercio/mis-pedidos/{pedido_id}", summary="Uno de MIS pedidos, sin datos del reparto")
+async def ver_mi_pedido(
+    request: Request, pedido_id: uuid.UUID, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    await _pedido_del_portador(request, pedido_id, authorization)
+    return await ver_orden(request, pedido_id)
+
+
+@router.post(
+    "/v1/comercio/mis-pedidos/{pedido_id}/pago",
+    status_code=201,
+    summary="Paga uno de MIS pedidos pendientes",
+)
+async def pagar_mi_pedido(
+    request: Request,
+    pedido_id: uuid.UUID,
+    solicitud: SolicitudPago,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    await _pedido_del_portador(request, pedido_id, authorization)
+    return await iniciar_pago(request, pedido_id, solicitud)
+
+
+@router.post(
+    "/v1/comercio/mis-pedidos/{pedido_id}/cancelar",
+    summary="Cancela uno de MIS pedidos pendientes, si Wompi no tiene un pago en curso",
+)
+async def cancelar_mi_pedido(
+    request: Request, pedido_id: uuid.UUID, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    await _pedido_del_portador(request, pedido_id, authorization)
+    return await cancelar_orden(request, pedido_id)
 
 
 @router.post("/v1/ordenes/{pedido_id}/retracto", status_code=201, summary="Retracto o devolucion (FU-04)")
@@ -645,48 +793,81 @@ async def retractar_orden(
 _MENSAJE_AVANCE = {
     "destino_invalido": "El estado destino no es uno de los del pedido.",
     "transicion_invalida": "No se puede pasar el pedido a ese estado desde el actual.",
-    "despacho_incompleto": "Un despacho necesita transportadora y guia para poder rastrearse.",
+    "despacho_incompleto": "Para despachar hacen falta el nombre y el celular del repartidor.",
+    "incidencia_sin_tipo": "Una incidencia necesita su tipo.",
+    "tipo_incidencia_invalido": "Ese tipo de incidencia no existe.",
+    "incidencia_sin_nota": "Si la incidencia es 'otro', describe lo ocurrido en la nota.",
 }
 
 
 @router.post("/v1/ordenes/{pedido_id}/avanzar", summary="Avanza un pedido por la cadena de entrega")
 async def avanzar_pedido(
-    request: Request, pedido_id: uuid.UUID, solicitud: SolicitudAvance
+    request: Request,
+    pedido_id: uuid.UUID,
+    solicitud: SolicitudAvance,
+    authorization: Annotated[str | None, Header()] = None,
 ) -> dict[str, Any]:
-    """Empuja el pedido al siguiente estado de entrega y sella el envio.
+    """Empuja el pedido al siguiente estado de entrega: solo staff.
 
-    La legalidad de la transicion la decide la tabla (`transicion_valida`, via
-    `validar_avance`); la unica regla extra —despachar exige transportadora y
-    guia— tambien. Si el dominio rechaza, se traduce a su sobre de error con el
-    codigo que trae. Si acepta, la transicion y el sello del envio se guardan en
-    la misma unidad de trabajo.
+    Que la transicion sea legal y le toque al back-office, y que vengan los
+    datos que el destino exige, lo decide `validar_avance`; un rechazo se
+    traduce a su sobre con el codigo y el campo que trae. Si acepta, en UNA
+    unidad de trabajo (todo o nada): el cambio de estado guardado contra
+    carreras, el sello del envio, la fila de historial con el actor, el aviso
+    al acudiente en la bandeja y, al cancelar, el pago marcado para reembolso
+    (como el retracto).
     """
+    actor = await _exigir_staff(request, authorization)
     async with request.app.state.motor.sesion() as db:
         repo = _repo(await db.connection())
-        pedido = await repo.obtener(pedido_id)
-        if pedido is None:
-            raise ErrorDominio("pedido_no_existe", "No hay ningun pedido con ese identificador.", estado=404)
+        pedido = await _pedido_o_404(repo, pedido_id)
 
-        rechazo = validar_avance(
-            pedido.estado,
-            solicitud.destino,
-            transportadora=solicitud.transportadora,
-            guia=solicitud.guia,
-        )
+        entradas = {
+            "repartidor_nombre": solicitud.repartidor_nombre,
+            "repartidor_celular": solicitud.repartidor_celular,
+            "tipo_incidencia": solicitud.tipo_incidencia,
+            "nota": solicitud.nota,
+        }
+        rechazo = validar_avance(pedido.estado, solicitud.destino, **entradas)
         if rechazo is not None:
             raise ErrorDominio(
                 rechazo.razon,
                 _MENSAJE_AVANCE.get(rechazo.razon, "El avance del pedido no procede."),
                 estado=rechazo.estado,
-                campo="destino",
+                campo=rechazo.campo,
             )
+        avance = preparar_avance(solicitud.destino, **entradas)
 
-        await repo.avanzar_despacho(
+        movido = await repo.avanzar_despacho(
             pedido_id=pedido_id,
+            desde=pedido.estado,
             destino=solicitud.destino,
-            transportadora=solicitud.transportadora,
-            guia=solicitud.guia,
+            repartidor_nombre=avance.repartidor_nombre,
+            repartidor_celular=avance.repartidor_celular,
             entrega_estimada=solicitud.entrega_estimada,
         )
-        fila = await repo.obtener(pedido_id)
-        return await repo.pedido_completo(fila)
+        if not movido:
+            # Otro avance gano la carrera entre la lectura y el UPDATE. Lanzar
+            # revierte la unidad de trabajo: no queda historial ni aviso huerfano.
+            raise ErrorDominio(
+                "avance_concurrente",
+                "Alguien mas movio este pedido mientras tanto; recarga y vuelve a intentar.",
+                estado=409,
+            )
+        await repo.registrar_historial(
+            pedido_id=pedido_id,
+            estado_desde=pedido.estado,
+            estado_hacia=solicitud.destino,
+            actor_id=actor.usuario_id,
+            actor_correo=actor.correo,
+            nota=avance.nota,
+            tipo_incidencia=avance.tipo_incidencia,
+        )
+        if avance.aviso is not None:
+            await repo.encolar_aviso_pedido(pedido, avance.aviso, repartidor=avance.repartidor_nombre)
+        if solicitud.destino == EstadoPedido.CANCELADO.value:
+            # Como el retracto: el pedido cancelado deja su pago aprobado marcado
+            # para reembolso, en la misma transaccion.
+            await repo.marcar_pago_reembolsado(pedido_id)
+
+        return await _detalle_staff(repo, await repo.obtener(pedido_id))

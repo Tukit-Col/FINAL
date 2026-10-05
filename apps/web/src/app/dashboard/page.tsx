@@ -26,7 +26,12 @@ import {
 } from "@tukit/contrato";
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import Sidebar from "@/components/Sidebar";
-import { sesionActual, matriculasDeLaSesion, solicitudesDeLaSesion } from "@/lib/sesion";
+import {
+  sesionActual,
+  matriculasDeLaSesion,
+  pedidosDeLaSesion,
+  solicitudesDeLaSesion,
+} from "@/lib/sesion";
 import {
   compraDeSolicitud,
   pedidoVencido,
@@ -76,13 +81,15 @@ const CLASE_TONO: Record<TonoEstado, string> = {
 // horas). Si comercio esta caido, no se tumba el panel entero: se muestran las
 // demas secciones y una fila vacia, sin inventar pedidos que no existen. El
 // "ahora" se toma al cargar los datos, una vez por peticion, no al pintar.
-async function pedidosConVigencia(
-  usuarioId: string,
-): Promise<{ filas: { pedido: Pedido; vencido: boolean }[]; ahora: number }> {
+async function pedidosConVigencia(): Promise<{
+  filas: { pedido: Pedido; vencido: boolean }[];
+  ahora: number;
+}> {
   const ahora = Date.now();
   let pedidos: Pedido[];
   try {
-    pedidos = await origenDeDatos().misPedidos(usuarioId);
+    // Comercio saca al acudiente de la sesion: viaja el token, no el id.
+    pedidos = await pedidosDeLaSesion();
   } catch {
     return { filas: [], ahora };
   }
@@ -96,7 +103,7 @@ export default async function DashboardPage() {
   const sesion = await sesionActual();
   if (!sesion) redirect("/ingresar");
 
-  const { filas: pedidos, ahora } = await pedidosConVigencia(sesion.usuario_id);
+  const { filas: pedidos, ahora } = await pedidosConVigencia();
 
   // Los perfiles de los hijos del portador. `matriculasDeLaSesion()` es
   // fail-closed a [] (no distingue "sin hijos" de "lectura fallida"), asi que

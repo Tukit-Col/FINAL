@@ -150,7 +150,17 @@ class TrabajoProtegido(Exception):
 
 
 class SinProductoQueValidar(Exception):
-    """Se pidio validar una linea que no tiene producto que confirmar."""
+    """Validar una linea exige un producto, y esta no tiene ninguno.
+
+    Ni llego `sku`, ni la linea del kit tiene producto, ni la resolucion
+    apuntaba a un candidato —o el `sku` pedido no existe en el catalogo—. Se
+    rechaza aqui, con un motivo, en vez de dejar que el CHECK
+    `resolucion_resuelta_tiene_candidato` lo convierta en un 500.
+    """
+
+    def __init__(self, sku: str | None) -> None:
+        super().__init__(sku or "sin_sku")
+        self.sku = sku
 
 
 class PreviewNoPublicable(Exception):
@@ -1528,10 +1538,13 @@ async def cancelar_solicitud(
     trabajo_id: uuid.UUID,
     *,
     usuario_id: uuid.UUID,
+    token: str,
     comercio: ClienteComercio,
     catalogo: ClienteCatalogo,
 ) -> dict[str, Any]:
     """El acudiente cancela una solicitud suya (ADR 0031).
+
+    `token` es la sesion del acudiente: con ella Comercio le dice sus pedidos.
 
     El trabajo pasa a `cancelado`, terminal, y deja de salir en "Mis
     solicitudes" y en la cola de revision. No se cancela:
@@ -1566,7 +1579,7 @@ async def cancelar_solicitud(
             "en_proceso", "Estamos armando tu kit justo ahora. Intenta cancelarla en un minuto."
         )
 
-    for pedido in await comercio.pedidos_de(str(usuario_id)):
+    for pedido in await comercio.pedidos_de(token):
         if str(pedido.get("trabajo_id")) != str(trabajo_id) or pedido.get("estado") in _PEDIDO_SIN_EFECTO:
             continue
         if pedido.get("estado") == "pendiente_pago":
@@ -1650,6 +1663,120 @@ async def _resolucion_de(conexion: Any, trabajo_id: uuid.UUID, item_id: uuid.UUI
     return await RepoTrabajos(conexion).resolucion_de(trabajo_id, item_id)
 
 
+async def _sku_a_validar(conexion: Any, trabajo_id: uuid.UUID, item_id: uuid.UUID, actual: Any) -> str | None:
+    """El producto que "validar el elegido" confirma cuando no llega `sku`.
+
+    Primero el que la LINEA tiene en el kit recomendado —es el que el admin ve
+    marcado como "elegido por el sistema"—, luego el de cualquier otro kit, y
+    al final el del candidato que la resolucion ya apuntaba. La LINEA va antes
+    que el candidato porque la ruta lenta deja `candidato_item_id` nulo en todo
+    lo que no es RESUELTO_AUTO, y el optimizador igual eligio un producto para
+    el kit: ese es el que hay que confirmar.
+    """
+    sku = await conexion.scalar(
+        select(LINEA.c.sku)
+        .select_from(LINEA.join(KIT, KIT.c.id == LINEA.c.kit_id))
+        .where(KIT.c.trabajo_id == trabajo_id, LINEA.c.item_crudo_id == item_id, LINEA.c.sku.is_not(None))
+        .order_by(KIT.c.recomendado.desc())
+        .limit(1)
+    )
+    if sku:
+        return str(sku)
+    if actual.candidato_item_id is not None:
+        previo = await conexion.scalar(
+            select(CANDIDATO.c.sku).where(CANDIDATO.c.id == actual.candidato_item_id)
+        )
+        if previo:
+            return str(previo)
+    return None
+
+
+async def _candidato_de(conexion: Any, item_id: uuid.UUID, sku: str) -> uuid.UUID | None:
+    return await conexion.scalar(
+        select(CANDIDATO.c.id).where(and_(CANDIDATO.c.item_crudo_id == item_id, CANDIDATO.c.sku == sku))
+    )
+
+
+async def _linea_con_sku(conexion: Any, trabajo_id: uuid.UUID, item_id: uuid.UUID, sku: str) -> Any:
+    return (
+        await conexion.execute(
+            select(LINEA)
+            .select_from(LINEA.join(KIT, KIT.c.id == LINEA.c.kit_id))
+            .where(KIT.c.trabajo_id == trabajo_id, LINEA.c.item_crudo_id == item_id, LINEA.c.sku == sku)
+            .order_by(KIT.c.recomendado.desc())
+            .limit(1)
+        )
+    ).first()
+
+
+async def _registrar_candidato(
+    conexion: Any,
+    trabajo_id: uuid.UUID,
+    item_id: uuid.UUID,
+    sku: str,
+    producto_catalogo: dict[str, Any] | None,
+) -> uuid.UUID | None:
+    """El CANDIDATO de (item, sku); si no existe, lo da de alta.
+
+    El producto que una linea muestra no siempre fue candidato del item: el
+    interruptor de personaje del Fan y `fijar_producto_en_linea` ponen en la
+    LINEA productos que el emparejamiento nunca ofrecio. Validarlo es una
+    decision legitima del revisor, y la resolucion exige un candidato
+    (CHECK `resolucion_resuelta_tiene_candidato`), asi que se registra uno con
+    los datos que ya tiene la LINEA —o, si no hay LINEA con ese sku, con los
+    del catalogo—. `confianza=1.0` porque lo confirmo una persona.
+    """
+    existente = await _candidato_de(conexion, item_id, sku)
+    if existente is not None:
+        return existente
+
+    linea = await _linea_con_sku(conexion, trabajo_id, item_id, sku)
+    if linea is not None:
+        datos = {
+            "producto_canonico_id": linea.producto_canonico_id,
+            "nombre": linea.nombre_producto or sku,
+            "marca": linea.marca,
+            "nivel": linea.nivel or "confiable",
+            "personaje": linea.personaje,
+            "imagen_url": linea.imagen_url,
+            "unidad_base": linea.unidad_base or "unidad",
+            "unidades_por_empaque": int(linea.unidades_por_empaque or 1),
+            "precio_cop": linea.precio_unitario_cop,
+        }
+    elif producto_catalogo is not None:
+        datos = {
+            "producto_canonico_id": None,
+            "nombre": producto_catalogo.get("nombre") or sku,
+            "marca": producto_catalogo.get("marca"),
+            "nivel": producto_catalogo.get("nivel") or "confiable",
+            "personaje": producto_catalogo.get("personaje"),
+            "imagen_url": producto_catalogo.get("imagen_url"),
+            "unidad_base": producto_catalogo.get("unidad_base") or "unidad",
+            "unidades_por_empaque": int(producto_catalogo.get("unidades_por_empaque") or 1),
+            "precio_cop": producto_catalogo.get("precio_desde"),
+        }
+    else:
+        return None
+
+    siguiente = await conexion.scalar(
+        select(func.coalesce(func.max(CANDIDATO.c.orden), -1) + 1).where(CANDIDATO.c.item_crudo_id == item_id)
+    )
+    candidato_id = uuid.uuid4()
+    await conexion.execute(
+        insert(CANDIDATO).values(
+            id=candidato_id,
+            item_crudo_id=item_id,
+            sku=sku,
+            atributos={},
+            confianza=1.0,
+            cumple_atributos=True,
+            orden=int(siguiente or 0),
+            **datos,
+        )
+    )
+    return candidato_id
+
+
 async def decidir_linea(
     motor: Any,
     trabajo_id: uuid.UUID,
@@ -1659,38 +1786,56 @@ async def decidir_linea(
     sku: str | None = None,
     actor: uuid.UUID | None = None,
     motivo: str | None = None,
+    catalogo: ClienteCatalogo | None = None,
 ) -> dict[str, Any]:
     """AD-04: una persona valida el emparejamiento o lo marca sin coincidencia.
 
     Escribe la transicion ANTES de cambiar el estado y en la misma
     transaccion, porque una decision humana sin rastro de quien la tomo es
     justo el control sin dueno que la cola existe para no ser.
+
+    Validar (RESUELTO_AUTO) sin `sku` confirma el producto que la linea tiene
+    en el kit (`_sku_a_validar`). Si ese producto no es candidato del item se
+    registra (`_registrar_candidato`); solo cuando no hay producto por ningun
+    lado se rechaza con `SinProductoQueValidar` —antes eso llegaba a la base
+    como RESUELTO_AUTO sin candidato y el CHECK lo convertia en un 500—.
+
+    El estado se copia tambien a las LINEA del item en los tres kits: la
+    consola clasifica por `linea.estado_resolucion`, y sin esto una linea ya
+    validada seguia apareciendo como pendiente.
     """
+    resuelto = estado == EstadoResolucion.RESUELTO_AUTO.value
+
+    # El catalogo se consulta FUERA de la transaccion (una llamada HTTP no debe
+    # sostener un lock), y solo cuando el sku no esta ni como candidato ni en
+    # una LINEA del item: es el caso raro, no el comun.
+    producto_catalogo: dict[str, Any] | None = None
+    if resuelto and sku and catalogo is not None:
+        async with motor.engine.begin() as conexion:
+            conocido = await _candidato_de(conexion, item_id, sku) is not None or (
+                await _linea_con_sku(conexion, trabajo_id, item_id, sku) is not None
+            )
+        if not conocido:
+            try:
+                producto_catalogo = await catalogo.producto(sku)
+            except (RemotoCaido, KeyError):
+                producto_catalogo = None
+
     async with motor.engine.begin() as conexion:
         actual = await _resolucion_de(conexion, trabajo_id, item_id)
         if actual is None:
             raise TrabajoNoExiste(f"{trabajo_id}/{item_id}")
 
-        candidato_id = actual.candidato_item_id
-        if sku:
-            elegido = await conexion.scalar(
-                select(CANDIDATO.c.id).where(
-                    and_(CANDIDATO.c.item_crudo_id == item_id, CANDIDATO.c.sku == sku)
+        candidato_id: uuid.UUID | None = None
+        sku_usado = sku
+        if resuelto:
+            sku_usado = sku or await _sku_a_validar(conexion, trabajo_id, item_id, actual)
+            if sku_usado:
+                candidato_id = await _registrar_candidato(
+                    conexion, trabajo_id, item_id, sku_usado, producto_catalogo
                 )
-            )
-            candidato_id = elegido
-
-        validando = estado == EstadoResolucion.RESUELTO_AUTO.value
-        if validando and candidato_id is None:
-            # "Confirmar el que eligio el sistema" llega sin sku. Una linea
-            # AMBIGUA no tiene candidato en la resolucion: quien eligio fue el
-            # optimizador, kit por kit, y eso vive en LINEA. Se toma el candidato
-            # que pusieron mas kits; sin esto, la validacion quedaba resuelta y
-            # sin producto, y el CHECK `resolucion_resuelta_tiene_candidato` la
-            # tumbaba con un 500.
-            candidato_id = await _candidato_elegido_en_kits(conexion, trabajo_id, item_id)
-        if validando and candidato_id is None:
-            raise SinProductoQueValidar(f"{trabajo_id}/{item_id}")
+            if candidato_id is None:
+                raise SinProductoQueValidar(sku)
 
         await conexion.execute(
             insert(TRANSICION).values(
@@ -1707,29 +1852,53 @@ async def decidir_linea(
             .where(RESOLUCION.c.id == actual.id)
             .values(
                 estado=estado,
-                candidato_item_id=candidato_id if estado == EstadoResolucion.RESUELTO_AUTO.value else None,
+                candidato_item_id=candidato_id,
                 decidido_por=actor,
                 decidido_en=ahora(),
             )
         )
-    return {"item_id": str(item_id), "estado": estado, "sku": sku}
-
-
-async def _candidato_elegido_en_kits(conexion: Any, trabajo_id: uuid.UUID, item_id: uuid.UUID) -> Any:
-    """El candidato del item que mas kits de este trabajo pusieron en su linea."""
-    return await conexion.scalar(
-        select(CANDIDATO.c.id)
-        .select_from(
-            LINEA.join(KIT, KIT.c.id == LINEA.c.kit_id).join(
-                CANDIDATO,
-                and_(CANDIDATO.c.item_crudo_id == LINEA.c.item_crudo_id, CANDIDATO.c.sku == LINEA.c.sku),
-            )
+        await conexion.execute(
+            update(LINEA).where(LINEA.c.item_crudo_id == item_id).values(estado_resolucion=estado)
         )
-        .where(KIT.c.trabajo_id == trabajo_id, LINEA.c.item_crudo_id == item_id)
-        .group_by(CANDIDATO.c.id, CANDIDATO.c.sku)
-        .order_by(func.count().desc(), CANDIDATO.c.sku)
-        .limit(1)
+        if not resuelto:
+            await _vaciar_producto_de_item(conexion, item_id)
+    return {"item_id": str(item_id), "estado": estado, "sku": sku_usado}
+
+
+async def _vaciar_producto_de_item(conexion: Any, item_id: uuid.UUID) -> None:
+    """Deja las LINEA del item como un hueco del optimizador: sin producto ni precio.
+
+    "Sin coincidencia" es decir "no lo tenemos". Si la linea conservara el
+    producto que el optimizador eligio, `ordenar` la cobraria (cobra toda linea
+    con sku y precio) mientras el acudiente la ve como hueco. Las alternativas
+    se conservan: el revisor puede fijar una despues con `fijar_producto_en_linea`.
+    """
+    kits = [
+        fila.kit_id
+        for fila in await conexion.execute(
+            select(LINEA.c.kit_id).where(LINEA.c.item_crudo_id == item_id).distinct()
+        )
+    ]
+    await conexion.execute(
+        update(LINEA)
+        .where(LINEA.c.item_crudo_id == item_id)
+        .values(
+            producto_canonico_id=None,
+            sku=None,
+            nombre_producto=None,
+            marca=None,
+            nivel=None,
+            personaje=None,
+            imagen_url=None,
+            confianza=None,
+            unidades_por_empaque=1,
+            unidades_a_comprar=0,
+            precio_unitario_cop=None,
+            subtotal_cop=None,
+        )
     )
+    for kit_id in kits:
+        await _recalcular_total_kit(conexion, kit_id)
 
 
 async def fijar_producto_en_linea(
@@ -1744,8 +1913,9 @@ async def fijar_producto_en_linea(
     """Fija un producto en UNA linea (un kit + un item) con su precio recalculado.
 
     La decision de producto es por-nivel (tres LINEA por item, una por kit),
-    no por-item: `decidir_linea` solo escribe RESOLUCION y nunca toca LINEA, asi
-    que el kit publicado seguia mostrando el producto del optimizador. Esta es la
+    no por-item: `decidir_linea` escribe RESOLUCION y solo copia su estado a la
+    LINEA —nunca cambia su producto—, asi que el kit publicado seguia mostrando
+    el producto del optimizador. Esta es la
     ruta de escritura que faltaba. El producto se pide al catalogo (no al
     CANDIDATO) porque un personaje puede no ser candidato del item y aun asi ser
     una eleccion valida del revisor.
@@ -1758,7 +1928,18 @@ async def fijar_producto_en_linea(
     async with motor.engine.begin() as conexion:
         fila = (
             await conexion.execute(
-                select(LINEA.c.id, LINEA.c.kit_id, LINEA.c.cantidad_pedida, LINEA.c.informativa)
+                select(
+                    LINEA.c.id,
+                    LINEA.c.kit_id,
+                    LINEA.c.cantidad_pedida,
+                    LINEA.c.informativa,
+                    LINEA.c.sku,
+                    LINEA.c.nombre_producto,
+                    LINEA.c.nivel,
+                    LINEA.c.precio_unitario_cop,
+                    LINEA.c.imagen_url,
+                    LINEA.c.alternativas,
+                )
                 .select_from(LINEA.join(KIT, KIT.c.id == LINEA.c.kit_id))
                 .where(
                     KIT.c.trabajo_id == trabajo_id,
@@ -1769,6 +1950,21 @@ async def fijar_producto_en_linea(
         ).one_or_none()
         if fila is None:
             raise TrabajoNoExiste(f"{trabajo_id}/{perfil}/{item_id}")
+
+        # El producto que sale pasa a ser alternativa y el que entra deja de
+        # serlo: sin esto la consola lo mostraba dos veces y el anterior ya no
+        # se podia volver a elegir. Mismo tope de dos que pone el armado.
+        alternativas = [a for a in (fila.alternativas or []) if a.get("sku") not in {sku, fila.sku}]
+        if fila.sku and fila.sku != sku:
+            anterior = {
+                "sku": fila.sku,
+                "nombre": fila.nombre_producto,
+                "nivel": fila.nivel,
+                "precio_cop": fila.precio_unitario_cop,
+                "imagen_url": fila.imagen_url,
+            }
+            alternativas = [anterior, *alternativas]
+        alternativas = alternativas[:2]
 
         # Una linea informativa no lleva precio (CHECK del modelo): fijarle un
         # producto no puede introducir un subtotal por la puerta de atras.
@@ -1790,6 +1986,7 @@ async def fijar_producto_en_linea(
                 unidades_a_comprar=unidades,
                 precio_unitario_cop=None if fila.informativa else precio,
                 subtotal_cop=subtotal,
+                alternativas=alternativas,
             )
         )
         await _recalcular_total_kit(conexion, fila.kit_id)

@@ -9,7 +9,7 @@
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { decidirAccionPedido } from "@/lib/pagar-pedido";
 import { respuestaDeError } from "@/lib/respuesta";
-import { sesionActual } from "@/lib/sesion";
+import { sesionActual, tokenDeSesion } from "@/lib/sesion";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,8 @@ export async function POST(
 ): Promise<Response> {
   const { pedido_id } = await contexto.params;
   const sesion = await sesionActual();
-  if (!sesion) {
+  const token = await tokenDeSesion();
+  if (!sesion || !token) {
     return respuestaDeError(
       new ErrorTukit(401, "sin_sesion", "Inicia sesión para cancelar tu pedido."),
     );
@@ -27,7 +28,7 @@ export async function POST(
   try {
     const origen = origenDeDatos();
     const decision = decidirAccionPedido(
-      await origen.misPedidos(sesion.usuario_id),
+      await origen.misPedidos(token),
       pedido_id,
       "cancelar",
       Date.now(),
@@ -35,7 +36,7 @@ export async function POST(
     if (!decision.ok) {
       return respuestaDeError(new ErrorTukit(decision.estado, decision.error, decision.mensaje));
     }
-    return Response.json(await origen.cancelarPedido(pedido_id));
+    return Response.json(await origen.cancelarPedido(token, pedido_id));
   } catch (causa) {
     return respuestaDeError(causa);
   }

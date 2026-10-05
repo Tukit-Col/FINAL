@@ -11,7 +11,7 @@ from .entrega import Envio, RutaReparto, ZonaEntrega
 from .eventos import BandejaSalida
 from .inventario import Inventario, ReservaInventario
 from .pagos import EventoPasarelaProcesado, Pago
-from .pedidos import Devolucion, LineaPedido, Pedido
+from .pedidos import Devolucion, HistorialPedido, LineaPedido, Pedido
 from .proveedores import (
     CondicionComercial,
     InventarioProveedor,
@@ -31,6 +31,7 @@ __all__ = [
     "EstadoPago",
     "EstadoPedido",
     "EventoPasarelaProcesado",
+    "HistorialPedido",
     "Inventario",
     "InventarioProveedor",
     "ItemPedidoMayorista",

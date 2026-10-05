@@ -22,6 +22,19 @@ export function formatearFecha(iso: string): string {
   return FECHA.format(fecha);
 }
 
+// Solo el dia, para la entrega estimada: es una fecha prometida, no un instante,
+// y mostrarle una hora ("00:00") al operador seria inventar precision.
+const DIA = new Intl.DateTimeFormat("es-CO", {
+  dateStyle: "medium",
+  timeZone: "America/Bogota",
+});
+
+export function formatearDia(iso: string): string {
+  const fecha = new Date(iso);
+  if (Number.isNaN(fecha.getTime())) return "—";
+  return DIA.format(fecha);
+}
+
 /**
  * "hace 4 min". Se calcula contra `ahora` recibido y no contra `Date.now()`
  * para que la llamada sea explicita sobre que esto solo puede pasar en un

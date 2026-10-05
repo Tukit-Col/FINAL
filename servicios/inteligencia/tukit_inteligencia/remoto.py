@@ -383,17 +383,20 @@ class ClienteComercio:
             raise RemotoCaido("comercio", str(error)) from error
         return list(respuesta.json().get("pedidos") or ())
 
-    async def pedidos_de(self, usuario_id: str) -> list[dict[str, Any]]:
-        """Los pedidos de un acudiente (`{pedido_id, trabajo_id, estado, ...}`).
+    async def pedidos_de(self, token: str) -> list[dict[str, Any]]:
+        """Los pedidos del portador del token (`{pedido_id, trabajo_id, estado, ...}`).
 
-        Lo usa cancelar una solicitud: un kit ya comprado no se cancela. Una
-        caida de Comercio es `RemotoCaido`: sin saber si hay pedido, no se
+        Lo usa cancelar una solicitud: un kit ya comprado no se cancela. Va con
+        el Bearer del acudiente porque Comercio saca al dueno de la sesion, no de
+        un `usuario_id` que le manden. Una caida de Comercio (o una sesion que
+        Comercio no acepta) es `RemotoCaido`: sin saber si hay pedido, no se
         cancela a ciegas.
         """
         try:
             async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
                 respuesta = await cliente.get(
-                    f"{self._base()}/v1/comercio/mis-pedidos", params={"usuario_id": usuario_id}
+                    f"{self._base()}/v1/comercio/mis-pedidos",
+                    headers={"Authorization": f"Bearer {token}"},
                 )
                 respuesta.raise_for_status()
         except httpx.HTTPError as error:

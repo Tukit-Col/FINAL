@@ -40,8 +40,9 @@ class CatalogoFalso:
 class ComercioFalso:
     pedidos: list[dict[str, Any]] = field(default_factory=list)
 
-    async def pedidos_de(self, usuario_id: str) -> list[dict[str, Any]]:
-        return [p for p in self.pedidos if p.get("usuario_id", str(PADRE)) == usuario_id]
+    async def pedidos_de(self, token: str) -> list[dict[str, Any]]:
+        # Comercio resuelve el token a su dueno; aqui el token ES el usuario_id.
+        return [p for p in self.pedidos if p.get("usuario_id", str(PADRE)) == token]
 
 
 HIJOS = [{"colegio_id": COLEGIO, "grado": "Quinto"}]
@@ -52,6 +53,7 @@ async def _cancelar(motor, trabajo_id, *, comercio=None, catalogo=None, usuario_
         motor,
         trabajo_id,
         usuario_id=usuario_id,
+        token=str(usuario_id),
         comercio=comercio or ComercioFalso(),
         catalogo=catalogo or CatalogoFalso(),
     )

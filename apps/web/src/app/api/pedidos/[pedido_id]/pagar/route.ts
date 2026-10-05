@@ -9,7 +9,7 @@
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { decidirAccionPedido } from "@/lib/pagar-pedido";
 import { respuestaDeError } from "@/lib/respuesta";
-import { sesionActual } from "@/lib/sesion";
+import { sesionActual, tokenDeSesion } from "@/lib/sesion";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,8 @@ export async function POST(
 ): Promise<Response> {
   const { pedido_id } = await contexto.params;
   const sesion = await sesionActual();
-  if (!sesion) {
+  const token = await tokenDeSesion();
+  if (!sesion || !token) {
     return respuestaDeError(
       new ErrorTukit(401, "sin_sesion", "Inicia sesión para pagar tu pedido."),
     );
@@ -27,7 +28,7 @@ export async function POST(
   try {
     const origen = origenDeDatos();
     const decision = decidirAccionPedido(
-      await origen.misPedidos(sesion.usuario_id),
+      await origen.misPedidos(token),
       pedido_id,
       "pagar",
       Date.now(),
@@ -37,7 +38,7 @@ export async function POST(
     }
     // PSE se lleva la pestana al banco y vuelve por aqui con `?id=`.
     const url_redireccion = `${new URL(peticion.url).origin}/pago/resultado`;
-    const pago = await origen.iniciarPagoPedido(pedido_id, {
+    const pago = await origen.iniciarPagoPedido(token, pedido_id, {
       correo_cliente: sesion.correo,
       url_redireccion,
     });

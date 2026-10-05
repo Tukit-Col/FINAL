@@ -1,4 +1,5 @@
-"""Lo que Comercio le pregunta a Catalogo por HTTP antes de cobrar, y nada mas.
+"""Lo que Comercio le pregunta a otros servicios por HTTP: a Catalogo antes de
+cobrar, y a Identidad quien es el portador de un token.
 
 La primera invariante del §9 no se negocia: antes de cerrar una orden se vuelven
 a leer precio y disponibilidad, y si cambiaron la orden no se cierra. Esa lectura
@@ -16,17 +17,23 @@ from __future__ import annotations
 import os
 import uuid
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
 from tukit_comun.http import cliente_efimero
 from tukit_comun.resiliencia import CircuitoAbierto, disyuntor_de, reintentar_get
 
 URL_CATALOGO_POR_OMISION = "http://127.0.0.1:8012"
+URL_IDENTIDAD_POR_OMISION = "http://127.0.0.1:8011"
 ESPERA_SEGUNDOS = 30.0
 
 
 def url_catalogo() -> str:
     return os.environ.get("TUKIT_CATALOGO_URL", URL_CATALOGO_POR_OMISION).rstrip("/")
+
+
+def url_identidad() -> str:
+    return os.environ.get("TUKIT_IDENTIDAD_URL", URL_IDENTIDAD_POR_OMISION).rstrip("/")
 
 
 class CatalogoCaido(Exception):
@@ -82,4 +89,52 @@ class ClienteCatalogo:
             raise CatalogoCaido(str(error)) from error
 
 
-__all__ = ["ClienteCatalogo", "CatalogoCaido", "url_catalogo", "ESPERA_SEGUNDOS"]
+class IdentidadCaida(Exception):
+    """Identidad no respondio. Sin poder validar la sesion, no se abre el acceso."""
+
+
+@dataclass
+class ClienteIdentidad:
+    """Valida un token contra Identidad (`GET /v1/sesiones/actual`).
+
+    Es lo que deja a Comercio exigir sesion y rol sin leer la base de Identidad
+    (regla 1 de las fronteras): pregunta por HTTP, como inteligencia.
+    """
+
+    base: str = ""
+    cliente: httpx.AsyncClient | None = None
+
+    def _base(self) -> str:
+        return self.base or url_identidad()
+
+    async def sesion(self, token: str) -> dict[str, Any] | None:
+        """La sesion del portador (`usuario_id`, `roles`), o `None` si el token
+        no vale (401).
+
+        FALLA CERRADA: una caida de Identidad es `IdentidadCaida`, no `None`, para
+        que quien valida nunca abra el acceso por no poder preguntar. Sin reintento
+        ni disyuntor, igual que en inteligencia: quien espera es una persona y un
+        503 claro le sirve mas que un reintento a ciegas."""
+        try:
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.get(
+                    f"{self._base()}/v1/sesiones/actual",
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+                if respuesta.status_code == 401:
+                    return None
+                respuesta.raise_for_status()
+                return dict(respuesta.json())
+        except httpx.HTTPError as error:
+            raise IdentidadCaida(str(error)) from error
+
+
+__all__ = [
+    "ClienteCatalogo",
+    "CatalogoCaido",
+    "ClienteIdentidad",
+    "IdentidadCaida",
+    "url_catalogo",
+    "url_identidad",
+    "ESPERA_SEGUNDOS",
+]

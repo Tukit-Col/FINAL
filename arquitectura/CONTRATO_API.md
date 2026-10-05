@@ -5,11 +5,27 @@
 > fronteras de *conversación*. Cambiar cualquiera de los dos sin avisar rompe a alguien
 > más, así que se cierran antes de repartir el trabajo y se versionan.
 
-- **Versión:** 1.6
+- **Versión:** 1.7
 - **Prefijo:** `/v1`
 - **URL base:** `http://127.0.0.1:8010` en desarrollo. Ver §12.1.
 - **Formato:** JSON UTF-8. Dinero en **pesos enteros** (nunca decimales flotantes).
 - **Idioma de los identificadores:** español sin tildes, como el resto del código.
+
+### Qué cambió en 1.7
+
+Se une la logística de pedidos de la rama `preview-kits` con los pagos de Wompi, y se rescatan
+de esa rama los arreglos de validar (no su cola ni su vista previa). Detalle en el ADR 0032.
+
+| Cambio | Dónde | Por qué |
+|---|---|---|
+| El tablero (`GET /v1/comercio/pedidos`), el detalle (`GET /v1/comercio/pedidos/{id}`) y `POST /v1/ordenes/{id}/avanzar` exigen sesión de operador o admin: `401` sin sesión, `403` con otro rol, `503` si identidad no responde | §9 | Exponían direcciones y datos del reparto sin sesión |
+| `GET /v1/comercio/mis-pedidos` saca al acudiente del Bearer; `?usuario_id=` se ignora | §9 | Cualquiera podía leer los pedidos de otro |
+| `GET /v1/comercio/mis-pedidos/{id}`, `POST .../pago` y `POST .../cancelar` con el Bearer del dueño; un pedido ajeno es `404` | §9.5 | La puerta ya no expone `/v1/ordenes/*` salvo `avanzar` |
+| `avanzar` lleva repartidor (nombre y celular), tipo de incidencia y nota; cada avance queda en el historial con el correo de quien lo hizo y avisa al acudiente | §9 | Reparto propio y trazabilidad del back-office |
+| La referencia de un intento de pago es `tukit-<pedido_id>-<n>` | §9.1 | Un reintento no choca con la anterior |
+| `validar` sin producto responde `422 sin_producto_que_validar` con `campo: "sku"` (antes `409`); un `sku` que no era candidato se registra y se valida, en vez de validar otro; acepta `nota` | §7 | Validar una línea ambigua daba `500` o confirmaba un producto distinto |
+| `sin-coincidencia` deja la línea sin producto ni precio en todos los kits y baja su total | §7 | El acudiente la veía como hueco y `ordenar` la cobraba |
+| Una reserva sin pagar vence a las 24 horas, igual que el pedido | §9.4 | El barredor la cancelaba a los 30 minutos, con un PSE quizá en curso |
 
 ### Qué cambió en 1.6
 
@@ -604,6 +620,16 @@ confianza de extracción por debajo del umbral configurable τ". Toda transició
 `POST .../revision` acepta `{ "decision": "aprobar" | "devolver", "nota": "..." }`. Aprobar
 publica y dispara la notificación; devolver reabre el trabajo sin avisar al acudiente.
 
+`POST .../validar` acepta `{ "sku"?, "nota"? }`. Sin `sku` confirma el producto que la línea
+tiene en el kit recomendado; un `sku` que no era candidato del renglón (el personaje del Fan, un
+producto fijado por kit) se registra como candidato y se valida. Sin producto por ningún lado,
+o con un `sku` que el catálogo no conoce, `422 sin_producto_que_validar` con `campo: "sku"`. El
+estado se copia a la línea en todos los kits, para que deje de salir como pendiente.
+
+`POST .../sin-coincidencia` deja la línea sin producto ni precio en todos los kits y recalcula
+sus totales: "no lo tenemos" no se puede cobrar. Las alternativas se conservan para fijar una
+después.
+
 ---
 
 ## 8. Degradación: degradar, nunca tumbar
@@ -648,8 +674,19 @@ Las degradaciones se reportan, no se esconden:
 | `POST /v1/webhooks/wompi` | `FU-03` | La misma aplicación, por el aviso firmado de Wompi |
 | `POST /v1/ordenes/{id}/cancelar` | `FU-01` | Cancela un pendiente, solo si Wompi no tiene un pago aprobado o en curso (§9.3) |
 | `GET /v1/ordenes/{id}` | `FU-01` + `UM-03` | Seguimiento: el pedido con líneas, último pago y envío |
-| `GET /v1/comercio/mis-pedidos?usuario_id=` | `UM-03` | Los pedidos de un acudiente, para su panel |
 | `POST /v1/ordenes/{id}/retracto` | `FU-04` | Registra la devolución y cancela si la transición lo permite |
+| `GET /v1/comercio/mis-pedidos` | `UM-03` | Los pedidos del portador del Bearer, para su panel |
+| `GET /v1/comercio/mis-pedidos/{id}` | `UM-03` | Uno de sus pedidos, sin datos del reparto. Ajeno: `404` |
+| `POST /v1/comercio/mis-pedidos/{id}/pago` | `FU-03` | §9.1 sobre un pedido suyo |
+| `POST /v1/comercio/mis-pedidos/{id}/cancelar` | `FU-01` | §9.3 sobre un pedido suyo |
+| `GET /v1/comercio/pedidos` | — | Tablero de logística. Solo operador o admin |
+| `GET /v1/comercio/pedidos/{id}` | — | Detalle con celular del repartidor e historial. Solo operador o admin |
+| `POST /v1/ordenes/{id}/avanzar` | — | Avanza el pedido por la entrega. Solo operador o admin |
+
+La puerta (§12.1) solo expone `POST /v1/ordenes/{id}/avanzar` bajo `/v1/ordenes`: crear, pagar,
+leer, cancelar y retractar una orden son llamadas internas (`inteligencia` le habla directo a
+`comercio`). El acudiente paga y cancela desde el navegador por `/v1/comercio/mis-pedidos/{id}`,
+donde `comercio` comprueba con la sesión que el pedido sea suyo.
 
 Tres invariantes que no se negocian, y siguen siendo los de 1.1:
 
@@ -666,7 +703,7 @@ Tres invariantes que no se negocian, y siguen siendo los de 1.1:
 ### 9.1 Iniciar un pago: el widget
 
 `POST /v1/ordenes/{id}/pago` crea un **intento** (un pedido puede tener varios: uno rechazado se
-reintenta) con su propia referencia, `tukit-<pago_id>`. No llama a Wompi: devuelve lo que el
+reintenta) con su propia referencia, `tukit-<pedido_id>-<n>`. No llama a Wompi: devuelve lo que el
 navegador le pasa a `new WidgetCheckout({...})`, ya firmado.
 
 ```json
@@ -771,9 +808,12 @@ la sesión de la cookie.
 |---|---|---|
 | `POST /api/trabajos/{id}/ordenar` | `POST /v1/trabajos/{id}/ordenar` | — |
 | `POST /api/pagos/{transaccion_id}/sincronizar` | §9.2 | — |
-| `GET /api/pedidos/{id}` | `GET /v1/comercio/pedidos/{id}` | El detalle para la pantalla de resultado |
-| `POST /api/pedidos/{id}/pagar` | §9.1 | Exige sesión (`401`), que el pedido sea del acudiente (un ajeno es `404`), que siga pendiente y vigente; el correo sale de la sesión |
-| `POST /api/pedidos/{id}/cancelar` | §9.3 | Las mismas comprobaciones, menos la vigencia |
+| `GET /api/pedidos/{id}` | `GET /v1/comercio/mis-pedidos/{id}` | El detalle para la pantalla de resultado; exige sesión |
+| `POST /api/pedidos/{id}/pagar` | `POST /v1/comercio/mis-pedidos/{id}/pago` | Exige sesión (`401`), que el pedido sea del acudiente (un ajeno es `404`), que siga pendiente y vigente; el correo sale de la sesión |
+| `POST /api/pedidos/{id}/cancelar` | `POST /v1/comercio/mis-pedidos/{id}/cancelar` | Las mismas comprobaciones, menos la vigencia |
+
+Las tres reenvían el Bearer de la cookie: `comercio` vuelve a comprobar que el pedido sea del
+portador, así que la verificación de `apps/web` es una cortesía para el mensaje, no la puerta.
 
 **Nota de trazabilidad:** `FU-03` nombra **Wompi**, que entrega PSE, Nequi y tarjeta en una sola
 integración. La integración vive tras el puerto `PasarelaPago` (`comercio/pasarela.py`), con el
