@@ -325,6 +325,104 @@
   color: var(--color-text-secondary);
 }
 
+/* Acciones de una tarjeta (hijo o solicitud): texto pequeño, sin caja, para
+   que no compitan con lo que la tarjeta dice. La de quitar o cancelar se
+   enrojece solo al pasar el mouse. */
+.accionesDiscretas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-3);
+  margin-top: var(--espacio-1);
+}
+
+.accionDiscreta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.accionDiscreta:hover {
+  color: var(--color-primary);
+}
+
+.accionDiscretaPeligro:hover {
+  color: var(--color-danger);
+}
+
+/* Confirmar en la misma tarjeta, sin ventana emergente. */
+.confirmacion {
+  display: grid;
+  gap: var(--espacio-2);
+  margin-top: var(--espacio-1);
+  padding: var(--espacio-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface, #fff);
+  box-shadow: var(--clay-shadow-sm);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.confirmacion p {
+  margin: 0;
+}
+
+.hijoForm {
+  display: grid;
+  gap: var(--espacio-2);
+}
+
+.hijoCampo {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.hijoCampo select {
+  min-height: 36px;
+  padding: 0 var(--espacio-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+  font: inherit;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.hijoAcciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+}
+
+.btnPeligro {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 var(--espacio-4);
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-danger);
+  color: var(--color-white);
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btnPeligro:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
 /* Vacio: mismo patron visual que .sinPedidos. */
 .sinHijos {
   padding: var(--espacio-4) var(--espacio-5);

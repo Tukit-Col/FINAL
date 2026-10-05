@@ -73,7 +73,15 @@ export type Nivel = "economico" | "confiable" | "premium";
 export type UnidadBase = "unidad" | "hoja" | "pliego" | "metro" | "gramo" | "mililitro";
 
 // ------------------------------------------------------------- §2 El trabajo
-export type EstadoTrabajo = "encolado" | "procesando" | "espera_revision" | "publicado" | "fallido";
+// `cancelado`: el acudiente cancelo la solicitud (ADR 0031). Terminal, y no
+// sale en "Mis solicitudes".
+export type EstadoTrabajo =
+  | "encolado"
+  | "procesando"
+  | "espera_revision"
+  | "publicado"
+  | "fallido"
+  | "cancelado";
 
 export type NombreEtapa = "percepcion" | "normalizacion" | "resolucion" | "optimizacion";
 
@@ -454,6 +462,8 @@ interface SolicitudBase {
 // Lista subida, aun sin aprobar: "una persona esta revisando tu lista".
 export interface SolicitudRecibida extends SolicitudBase {
   tipo: "recibida";
+  // Con esto el acudiente la cancela (`cancelarListaSubida`).
+  tarea_id?: string | null;
 }
 
 // Lista aprobada: su trabajo ya existe y el kit esta listo.

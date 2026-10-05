@@ -145,3 +145,44 @@ async def test_colegio_nombre_de_colegio_datos(cliente):
     assert por_grado["Tercero"]["version_id"] is None
     # Colegio aliado (sin colegio_datos): el nombre vive en identidad -> None.
     assert por_grado["Quinto"]["colegio_nombre"] is None
+
+
+async def test_cada_fila_trae_su_tarea_para_poder_retirarla(cliente):
+    cuerpo = (await cliente.get(f"/interno/listas-por-contacto/{PADRE}")).json()
+    assert all(fila["tarea_id"] for fila in cuerpo["listas"])
+
+
+async def test_retirar_desvincula_toda_la_version_y_solo_del_contacto(cliente):
+    """El acudiente cancela su solicitud: sus tareas de esa version dejan de ser
+    suyas (las dos, no solo la que se ve), la lista sigue en la cola del colegio,
+    y las listas de otro acudiente no se tocan."""
+    cuerpo = (await cliente.get(f"/interno/listas-por-contacto/{PADRE}")).json()
+    version_id = str(cliente.ids["version"])
+    fila = next(f for f in cuerpo["listas"] if f["version_id"] == version_id)
+
+    respuesta = await cliente.post(
+        f"/interno/listas-por-contacto/{PADRE}/retirar", json={"tarea_id": fila["tarea_id"]}
+    )
+    assert respuesta.status_code == 200
+    assert respuesta.json()["retiradas"] == 2
+
+    quedan = (await cliente.get(f"/interno/listas-por-contacto/{PADRE}")).json()["listas"]
+    assert [f["grado"] for f in quedan] == ["Tercero"]
+    otro = (await cliente.get(f"/interno/listas-por-contacto/{OTRO_PADRE}")).json()["listas"]
+    assert len(otro) == 1
+
+
+async def test_retirar_la_tarea_de_otro_no_hace_nada(cliente):
+    del_otro = (await cliente.get(f"/interno/listas-por-contacto/{OTRO_PADRE}")).json()["listas"][0]
+    respuesta = await cliente.post(
+        f"/interno/listas-por-contacto/{PADRE}/retirar", json={"tarea_id": del_otro["tarea_id"]}
+    )
+    assert respuesta.json()["retiradas"] == 0
+    assert len((await cliente.get(f"/interno/listas-por-contacto/{OTRO_PADRE}")).json()["listas"]) == 1
+
+
+async def test_retirar_por_version(cliente):
+    respuesta = await cliente.post(
+        f"/interno/listas-por-contacto/{PADRE}/retirar", json={"version_id": str(cliente.ids["version"])}
+    )
+    assert respuesta.json()["retiradas"] == 2

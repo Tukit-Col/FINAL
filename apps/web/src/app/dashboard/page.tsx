@@ -16,6 +16,7 @@ import { Fragment } from "react";
 import { Clock, LifeBuoy } from "lucide-react";
 import {
   ETIQUETA_ESTADO_PEDIDO,
+  GRADOS_CANONICOS,
   formatearPesos,
   type Colegio,
   type EstadoTrabajo,
@@ -33,6 +34,8 @@ import {
   type TonoEstado,
 } from "@/lib/pagar-pedido";
 import AccionesPedido from "./AccionesPedido";
+import CancelarSolicitud from "./CancelarSolicitud";
+import TarjetaHijo from "./TarjetaHijo";
 import styles from "./Dashboard.module.css";
 
 export const dynamic = "force-dynamic";
@@ -59,6 +62,7 @@ const PALABRAS_ESTADO: Record<EstadoTrabajo, string> = {
   espera_revision: "Una persona lo está revisando",
   publicado: "Listo",
   fallido: "Hubo un problema, lo estamos revisando",
+  cancelado: "Cancelaste esta solicitud",
 };
 
 // La clase de la etiqueta de estado segun su tono (verde, amarillo, rojo).
@@ -178,14 +182,16 @@ export default async function DashboardPage() {
                     // Nombre del colegio; el id crudo solo si no se encuentra.
                     const colegio = nombrePorColegio.get(hijo.colegio_id) ?? hijo.colegio_id;
                     return (
-                      <li
-                        key={`${hijo.colegio_id}-${hijo.grado}-${i}`}
-                        className={styles.hijoCard}
-                      >
-                        <span className={styles.hijoApodo}>{titulo}</span>
-                        <span className={styles.hijoMeta}>{colegio}</span>
-                        <span className={styles.hijoMeta}>{hijo.grado}</span>
-                      </li>
+                      <TarjetaHijo
+                        key={hijo.matricula_id}
+                        matriculaId={hijo.matricula_id}
+                        titulo={titulo}
+                        colegioId={hijo.colegio_id}
+                        colegioNombre={colegio}
+                        grado={hijo.grado}
+                        colegios={colegios}
+                        grados={GRADOS_CANONICOS}
+                      />
                     );
                   })}
                 </ul>
@@ -280,39 +286,54 @@ export default async function DashboardPage() {
                               </div>
                             </>
                           ) : solicitud.tipo === "recibida" ? (
-                            <p className={styles.solicitudEstado}>
-                              Recibida: una persona está revisando tu lista.
-                            </p>
+                            <>
+                              <p className={styles.solicitudEstado}>
+                                Recibida: una persona está revisando tu lista.
+                              </p>
+                              {solicitud.tarea_id && (
+                                <CancelarSolicitud tareaId={solicitud.tarea_id} />
+                              )}
+                            </>
                           ) : solicitud.tipo === "aprobada" ? (
                             <>
                               <p className={styles.solicitudEstado}>
                                 Aprobada: tu kit está listo. Te enviamos el enlace
                                 a tu correo.
                               </p>
-                              <Link
-                                href={`/kits/${solicitud.trabajo_id}`}
-                                className={styles.solicitudEnlace}
-                              >
-                                Ver mis kits
-                              </Link>
+                              <div className={styles.solicitudEnlaces}>
+                                <Link
+                                  href={`/kits/${solicitud.trabajo_id}`}
+                                  className={styles.solicitudEnlace}
+                                >
+                                  Ver mis kits
+                                </Link>
+                                <CancelarSolicitud trabajoId={solicitud.trabajo_id} />
+                              </div>
                             </>
                           ) : (
                             <>
                               <p className={styles.solicitudEstado}>
                                 {PALABRAS_ESTADO[solicitud.estado]}
                               </p>
-                              <Link
-                                href={
-                                  solicitud.estado === "publicado"
-                                    ? `/kits/${solicitud.trabajo_id}`
-                                    : `/esperando/${solicitud.trabajo_id}`
-                                }
-                                className={styles.solicitudEnlace}
-                              >
-                                {solicitud.estado === "publicado"
-                                  ? "Ver mis kits"
-                                  : "Ver el estado"}
-                              </Link>
+                              <div className={styles.solicitudEnlaces}>
+                                <Link
+                                  href={
+                                    solicitud.estado === "publicado"
+                                      ? `/kits/${solicitud.trabajo_id}`
+                                      : `/esperando/${solicitud.trabajo_id}`
+                                  }
+                                  className={styles.solicitudEnlace}
+                                >
+                                  {solicitud.estado === "publicado"
+                                    ? "Ver mis kits"
+                                    : "Ver el estado"}
+                                </Link>
+                                {/* Mientras el pipeline lo arma no se cancela: se
+                                    escribiría a medias. */}
+                                {solicitud.estado !== "procesando" && (
+                                  <CancelarSolicitud trabajoId={solicitud.trabajo_id} />
+                                )}
+                              </div>
                             </>
                           )}
                         </li>

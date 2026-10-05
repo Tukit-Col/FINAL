@@ -36,6 +36,7 @@ const ESTADO_TITULO: Record<Trabajo["estado"], string> = {
   espera_revision: "Recibimos tu solicitud",
   publicado: "Tu kit esta listo",
   fallido: "Algo se rompió",
+  cancelado: "Cancelaste esta solicitud",
 };
 
 export default function PantallaEspera({

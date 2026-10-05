@@ -126,6 +126,9 @@ export interface HijoNuevo {
  *  El apodo SI baja porque el PADRE puede ver el de SUS hijos —es el portador del
  *  token—, pero sigue sin traer nombre legal, documento ni `estudiante_id`. */
 export interface MatriculaAcudiente {
+  // El id de la matrícula (no del estudiante): con él se quita o se cambia de
+  // colegio al hijo desde el panel.
+  matricula_id: string;
   colegio_id: string;
   grado: string;
   anio_lectivo: number;
@@ -204,6 +207,20 @@ export interface OrigenDatos {
   // a sus propios hijos sin re-registrar la cuenta. Bearer; idempotente; solo
   // escribe tenencia del portador. Devuelve cuantas materializo.
   guardarMatriculas(token: string, hijos: HijoNuevo[]): Promise<{ total: number }>;
+
+  // Quitar a un hijo cierra su vínculo (no borra datos); cambiarlo de colegio
+  // retira la matrícula vieja y crea la nueva con el mismo apodo (ADR 0031).
+  quitarMatricula(token: string, matriculaId: string): Promise<void>;
+  cambiarMatricula(
+    token: string,
+    matriculaId: string,
+    cambio: { colegio_id: string; grado: string; apodo?: string | null },
+  ): Promise<{ total: number }>;
+
+  // El acudiente cancela una solicitud suya: un trabajo (si no compró el kit) o
+  // una lista que subió y aún no tiene kit (ADR 0031).
+  cancelarSolicitud(token: string, trabajoId: string): Promise<{ trabajo_id: string; estado: string }>;
+  cancelarListaSubida(token: string, tareaId: string): Promise<{ tarea_id: string; retiradas: number }>;
 
   // §Identidad — padron de acudientes para el equipo interno. Solo admin/
   // operador (identidad gatea: 401 sin token, 403 sin rol). Devuelve las
