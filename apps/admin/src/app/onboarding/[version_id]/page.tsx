@@ -181,7 +181,7 @@ export default async function PaginaRevisionLista({ params }: Props) {
             <h2>Aprobar y publicar</h2>
           </div>
           <p className={styles.bajada}>
-            Previsualiza los tres kits que saldrían de esta versión antes de publicar —una vista de
+            Previsualiza los kits que saldrían de esta versión antes de publicar —una vista de
             solo lectura, sobre un trabajo de preview desechable— y, cuando estés conforme, apruébala.
             Aprobar deja la versión revisada y el par (colegio, grado) disponible para los acudientes.
           </p>

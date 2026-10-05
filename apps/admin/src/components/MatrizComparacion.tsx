@@ -241,7 +241,7 @@ export default function MatrizComparacion({
         {celdaAbierta
           ? detalle(
               fila,
-              `Editando ${celdaAbierta.perfil}. Cambiar de producto se guarda solo en este kit y recalcula su total; confirmar el elegido vale para el concepto en los tres.`,
+              `Editando ${celdaAbierta.perfil}. Cambiar de producto se guarda solo en este kit y recalcula su total; confirmar el elegido vale para el concepto en todos los kits.`,
             )
           : null}
       </div>
@@ -257,7 +257,7 @@ export default function MatrizComparacion({
               {TITULO_CLASE[clase]}
               <span className={styles.conteo}>{filas.length}</span>
             </h3>
-            <p>Sin producto en ningún kit. Lo que decidas aquí vale para los tres.</p>
+            <p>Sin producto en ningún kit. Lo que decidas aquí vale para todos los kits.</p>
           </header>
           <ul className={styles.avisoLista}>
             {filas.map((fila) => {
@@ -281,7 +281,7 @@ export default function MatrizComparacion({
                       {activa ? "Cerrar" : "Resolver"}
                     </button>
                   </div>
-                  {detalle(fila, "Resolver este renglón lo deja igual en los tres kits.")}
+                  {detalle(fila, "Resolver este renglón lo deja igual en todos los kits.")}
                 </li>
               );
             })}

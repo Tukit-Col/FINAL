@@ -1,4 +1,4 @@
-# ADR 0023 — Un pedido pendiente se cancela solo después de consultar a Wompi; vence a las 24 horas y hay uno por kit
+# ADR 0035 — Un pedido pendiente se cancela solo después de consultar a Wompi; vence a las 24 horas y hay uno por kit
 
 - **Estado:** aceptada
 - **Fecha:** 2026-10-03

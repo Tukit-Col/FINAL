@@ -1,4 +1,4 @@
-# ADR 0024 — El estado de compra de una solicitud se calcula cruzando pedidos, no se guarda
+# ADR 0036 — El estado de compra de una solicitud se calcula cruzando pedidos, no se guarda
 
 - **Estado:** aceptada
 - **Fecha:** 2026-10-03
@@ -25,7 +25,7 @@ el panel ya carga (`compraDeSolicitud` en `apps/web/src/lib/pagar-pedido.ts`):
 
 - **Comprado:** el kit tiene un pedido pagado o en camino (`pagado`, `en_preparacion`,
   `despachado`, `en_reparto`, `entregado`); se enlaza el más reciente.
-- **Pago pendiente:** no lo tiene, pero hay uno `pendiente_pago` y vigente (ADR 0023).
+- **Pago pendiente:** no lo tiene, pero hay uno `pendiente_pago` y vigente (ADR 0035).
 - Si no, la solicitud se muestra como siempre.
 
 Nada se escribe en `inteligencia` ni en `comercio`. Los kits siguen visibles en modo consulta.

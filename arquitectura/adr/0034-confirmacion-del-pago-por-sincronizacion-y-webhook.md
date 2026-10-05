@@ -1,4 +1,4 @@
-# ADR 0022 — El pago se confirma preguntándole a Wompi, y webhook y sincronización comparten un aplicador idempotente
+# ADR 0034 — El pago se confirma preguntándole a Wompi, y webhook y sincronización comparten un aplicador idempotente
 
 - **Estado:** aceptada
 - **Fecha:** 2026-10-02

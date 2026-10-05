@@ -5,6 +5,7 @@
 // es donde la bandera y la URL del backend se quedan del lado del servidor.
 
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 import type { TrabajoAdmin } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
@@ -72,8 +73,11 @@ export default async function PaginaTrabajo({ params }: Props) {
 
   return (
     <div className={styles.pagina}>
-      <nav className={styles.migas}>
-        <Link href="/cola">← Cola de revisión</Link>
+      <nav className={styles.migas} aria-label="Navegación del trabajo">
+        <Link href="/cola" className={styles.volver}>
+          <ArrowLeft size={15} aria-hidden="true" />
+          Cola de revisión
+        </Link>
         <BorrarTrabajo trabajoId={trabajo.trabajo_id} estado={trabajo.estado} volverA="/cola" />
       </nav>
 

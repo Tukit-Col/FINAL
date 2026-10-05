@@ -1,4 +1,4 @@
-# ADR 0026 — El concepto asignado en la revisión manda sobre el texto, y su tipo decide si se busca
+# ADR 0038 — El concepto asignado en la revisión manda sobre el texto, y su tipo decide si se busca
 
 - **Estado:** aceptada
 - **Fecha:** 2026-10-04

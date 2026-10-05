@@ -1,4 +1,4 @@
-# ADR 0025 — La curaduría de listas y del catálogo viaja por git como CSV
+# ADR 0037 — La curaduría de listas y del catálogo viaja por git como CSV
 
 - **Estado:** aceptada
 - **Fecha:** 2026-10-04

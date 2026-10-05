@@ -663,11 +663,11 @@ se ve el flujo funcionando; **M** = el flujo se ve pero cojo; **B** = mejora.
 > - **A7, checkout y Wompi: hecho contra Wompi sandbox.** El pago se abre con el widget de Wompi
 >   tras el puerto `PasarelaPago` (con el adaptador falso para pruebas), se confirma
 >   preguntándole a Wompi y no se guarda ningún medio de pago. Contrato §9 (versión 1.2), ADR
->   0021 y 0022.
+>   0033 y 0034.
 > - **A8, seguimiento del pedido: en parte.** El acudiente ve sus pedidos con su estado en el
 >   panel, puede pagar o cancelar un pendiente y ve el resultado de cada pago con productos y
 >   entrega. Falta el seguimiento del envío (transportadora, guía, fecha estimada), que el modelo
->   ya tiene y nadie llena. ADR 0023 y 0024.
+>   ya tiene y nadie llena. ADR 0035 y 0036.
 >
 > Sigue en pie lo que este documento dice de `[D4]`: sin registro empresarial no hay llaves de
 > producción, y la rama no tiene modo de producción a propósito.

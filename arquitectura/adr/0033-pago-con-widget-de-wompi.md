@@ -1,4 +1,4 @@
-# ADR 0021 — El pago se abre con el widget de Wompi, con la configuración por `postMessage`
+# ADR 0033 — El pago se abre con el widget de Wompi, con la configuración por `postMessage`
 
 - **Estado:** aceptada
 - **Fecha:** 2026-10-02
@@ -44,7 +44,7 @@ la URL del checkout.
 4. El navegador abre el widget **siempre con `bootstrapTransport: "postmessage"`**
    (`opcionesWidget` en `apps/web/src/lib/wompi.ts`), fijado por una prueba.
 5. Lo que el callback o el retorno entregan es **informativo**: solo trae el id de la
-   transacción, y la confirmación sale del servidor (ADR 0022).
+   transacción, y la confirmación sale del servidor (ADR 0034).
 6. Solo **sandbox**: con `WOMPI_MODO=sandbox`, `comercio` no arranca si alguna llave no empieza
    por `pub_test_`, `prv_test_`, `test_events_` o `test_integrity_`. No hay modo de producción.
 
@@ -69,4 +69,4 @@ la URL del checkout.
 - Si el navegador no tiene `crypto.getRandomValues`, el widget cae solo al transporte por URL y
   el 403 vuelve. Todos los navegadores actuales lo tienen.
 - Producción necesita otra decisión: llaves reales, un retorno público y la verificación del
-  comercio obligatoria en la consulta de transacciones (ADR 0022).
+  comercio obligatoria en la consulta de transacciones (ADR 0034).
