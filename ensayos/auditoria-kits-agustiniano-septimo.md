@@ -202,3 +202,30 @@ Hoy son huecos, pero la cantidad curada está mal: #75 jumpers ×**10** paquetes
 3. Corregir en la curaduría de Séptimo: #9, #27, #69, #96 (no comprar o duplicados) y las cantidades #75–77.
 4. Reasignar conceptos de #12, #37, #41, #52, #55.
 5. Redefinir Premium como "mejor calidad **dentro de lo que cumple**", no "el más caro del concepto".
+
+---
+
+## Después del arreglo (2026-10-07, rama `feature/atributos-catalogo`)
+
+Kits regenerados con la ruta rápida nueva: candidatos por renglón sobre todo el catálogo, filtrados por atributos; hueco si nada cumple; sin personaje salvo último recurso.
+
+| | Antes Ahorrador | Después Ahorrador | Antes Premium | Después Premium |
+|---|---|---|---|---|
+| Líneas con producto | 74 | 59 | 74 | 59 |
+| Informativas (no se compran) | 0 | 2 (#27, #69) | 0 | 2 |
+| Huecos | 21 | 34 | 21 | 34 |
+| ✅ Cumple | 31 (42 %) | **49 (83 %)** | 31 (42 %) | **49 (83 %)** |
+| ⚠️ Parcial | 13 (18 %) | 7 (12 %) | 13 (18 %) | 8 (14 %) |
+| ❌ No cumple | 30 (41 %) | **3 (5 %)** | 30 (41 %) | **2 (3 %)** |
+| Total del kit | $1.012.840 | $796.889 | $2.243.458 | $1.368.377 |
+
+Los 13 huecos nuevos son **correctos**: el catálogo no tiene lo pedido y antes se cobraba otra cosa. Son 7 acrílicos, la regla de acero, el sketchbook carta, los marcadores acrílicos, la toalla de tela, la micropunta negra y el diccionario inglés–inglés.
+
+**Arreglados:** cuadernos (cuadriculado/cosido/argollado/50 hojas), Biblia completa en los dos kits, diccionario de español, block cuadriculado carta, tinta negra, silicona líquida, cinta de enmascarar, hojas iris surtidas, cartón de colores, palos de paleta, paleta de fórmica, compás de precisión, tabla Walter, hojas examen (Premium ya no da papel fotográfico), lápices (Premium ya no da jumbo).
+
+**Lo que sigue mal:**
+- ❌ #9 Libro de lectura libre guiada: Nacho (cartilla de preescolar) / Quijote en novela gráfica. Pendiente de decisión.
+- ❌ #37 Lienzo de pintura por números: da un lienzo en blanco. El concepto (Lienzo) no distingue "por números".
+- ❌ #39 Kit de 12 pinceles: da un solo Aquash. Queda marcado "revisar: forma".
+- ⚠️ #24/#54 bata manga corta talla XL en Premium; #36 lienzo 20×30 / 50×70; #40 Pilot Parallel (Ahorrador); #50 frascos de vidrio; #53 vaso de 700 ml con pitillo en Premium (aceptado, nota 3-a); #73 protoboard de 840; #82 resaltadores solo azul (Premium); #87 un solo Sharpie para "marcadores" (Ahorrador).
+- Los cuadernos argollados cuadriculados de 100 hojas salen con el **Cuaderno Stitch** (personaje), porque es el único que cumple: es el último recurso acordado.
