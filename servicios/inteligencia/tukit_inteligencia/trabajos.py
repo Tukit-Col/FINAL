@@ -174,6 +174,18 @@ class NoCanonizable(Exception):
     tope, y no puede servirle a otro."""
 
 
+class KitsPublicadosNoEditables(Exception):
+    """Los kits canonicos publicados no se editan en sitio: hay acudientes que
+    apuntan a ellos y deben seguir viendo lo que pagaron. Se edita su version
+    siguiente con `abrir_borrador` («Editar kits»)."""
+
+
+class BorradorDesactualizado(Exception):
+    """El canonico que se quiere editar (o del que salio el borrador) ya no es
+    el vigente de su grado: otro lo reemplazo mientras tanto, y publicar el
+    borrador pisaria esa version mas nueva."""
+
+
 # El trabajo que arma los kits canonicos de una lista recien aprobada. No tiene
 # acudiente ni preferencias: son los tres kits de siempre (Ahorrador, Fan,
 # Premium) que la ruta rapida le aplica a cualquier padre que no pida tope.
@@ -1387,6 +1399,9 @@ async def cola(motor: Any, *, pagina: int = 1, por_pagina: int = 50) -> dict[str
                 "colegios": sorted({h["colegio_id"] for h in f.hijos or () if h.get("colegio_id")}),
                 "grados": list(dict.fromkeys(h["grado"] for h in f.hijos or () if h.get("grado"))),
                 "lineas_a_revisar": int(f.dudosos),
+                # Un borrador de edicion de kits ya publicados: el canonico del
+                # que salio. None en todo lo demas.
+                "edicion_de": next(iter(f.hijos or ()), {}).get("basado_en"),
             }
             for f in filas
         ]
@@ -1822,6 +1837,7 @@ async def decidir_linea(
                 producto_catalogo = None
 
     async with motor.engine.begin() as conexion:
+        await _proteger_kits_publicados(conexion, trabajo_id)
         actual = await _resolucion_de(conexion, trabajo_id, item_id)
         if actual is None:
             raise TrabajoNoExiste(f"{trabajo_id}/{item_id}")
@@ -1923,9 +1939,14 @@ async def fijar_producto_en_linea(
     `subtotal = precio * techo(cantidad_pedida / unidades_por_empaque)`, la misma
     aritmetica del armado (optimizador._construir_linea). Recalcula KIT.total_cop.
     """
+    # Se niega antes de ir al catalogo: no tiene caso pagar la llamada HTTP.
+    # Se vuelve a mirar dentro de la transaccion que escribe.
+    async with motor.engine.begin() as conexion:
+        await _proteger_kits_publicados(conexion, trabajo_id)
     producto = await catalogo.producto(sku)
     precio = producto.get("precio_desde")
     async with motor.engine.begin() as conexion:
+        await _proteger_kits_publicados(conexion, trabajo_id)
         fila = (
             await conexion.execute(
                 select(
@@ -1991,6 +2012,26 @@ async def fijar_producto_en_linea(
         )
         await _recalcular_total_kit(conexion, fila.kit_id)
     return {"trabajo_id": str(trabajo_id), "perfil": perfil, "item_id": str(item_id), "sku": sku}
+
+
+async def _proteger_kits_publicados(conexion: Any, trabajo_id: uuid.UUID) -> None:
+    """Niega editar las lineas de unos kits canonicos ya publicados.
+
+    Canonico es lo que no tiene acudiente (preview fijado, `canonico_lista`) o
+    lo que la cache de su grado apunta hoy (un trabajo de acudiente aprobado
+    tambien la fija). El trabajo publicado de un acudiente que no es la cache
+    sigue el flujo de siempre.
+    """
+    fila = (
+        await conexion.execute(select(TRABAJO.c.estado, TRABAJO.c.origen).where(TRABAJO.c.id == trabajo_id))
+    ).one_or_none()
+    if fila is None or fila.estado != EstadoTrabajo.PUBLICADO.value:
+        return
+    apuntado = await conexion.scalar(
+        select(KIT_CANONICO.c.id).where(KIT_CANONICO.c.trabajo_id == trabajo_id).limit(1)
+    )
+    if fila.origen in ORIGENES_SIN_ACUDIENTE or apuntado is not None:
+        raise KitsPublicadosNoEditables()
 
 
 async def _recalcular_total_kit(conexion: Any, kit_id: uuid.UUID) -> None:
@@ -2175,6 +2216,14 @@ async def fijar_como_canonico(
         nuevo = EstadoTrabajo.PUBLICADO.value
         if not puede_pasar(fila.estado, nuevo):
             raise TransicionIlegal(fila.estado, nuevo)
+        # Un borrador de edicion solo reemplaza al canonico del que salio: si
+        # mientras tanto la lista se reaprobo, ese ya no es el vigente.
+        basado_en = await _basado_en(conexion, trabajo_id)
+        if basado_en and await _canonico_vigente_de(conexion, trabajo_id) != basado_en:
+            raise BorradorDesactualizado()
+        # La disponibilidad ("91% con precio confirmado") es la del armado; si
+        # el admin fijo o vacio productos, se recalcula sobre lo que se publica.
+        await _recalcular_objetivos(conexion, trabajo_id)
         await conexion.execute(
             update(TRABAJO)
             .where(TRABAJO.c.id == trabajo_id)
@@ -2190,28 +2239,193 @@ async def fijar_como_canonico(
     return {"trabajo_id": str(trabajo_id), "estado": nuevo, "nota": nota}
 
 
+# ---------------------------------------------------------------------------
+# Versiones de los kits canonicos: editar es copiar y volver a publicar
+# ---------------------------------------------------------------------------
+
+
+async def _basado_en(conexion: Any, trabajo_id: uuid.UUID) -> uuid.UUID | None:
+    """El canonico del que se copio este borrador, o None si no es un borrador."""
+    hijos = await conexion.scalar(select(TRABAJO.c.hijos).where(TRABAJO.c.id == trabajo_id))
+    origen = next(iter(hijos or ()), {}).get("basado_en")
+    return uuid.UUID(str(origen)) if origen else None
+
+
+async def _canonico_vigente_de(conexion: Any, trabajo_id: uuid.UUID) -> uuid.UUID | None:
+    """El trabajo al que apunta hoy la cache del (colegio, grado, anio) de este."""
+    hijos = await conexion.scalar(select(TRABAJO.c.hijos).where(TRABAJO.c.id == trabajo_id))
+    identidad = _identidad_de_grado(hijos)
+    if identidad is None:
+        return None
+    colegio_id, grado, anio, _ = identidad
+    return await conexion.scalar(
+        select(KIT_CANONICO.c.trabajo_id).where(
+            KIT_CANONICO.c.colegio_id == colegio_id,
+            KIT_CANONICO.c.grado == grado,
+            KIT_CANONICO.c.anio_lectivo == anio,
+        )
+    )
+
+
+async def _borrador_abierto(conexion: Any, canonico_id: uuid.UUID) -> uuid.UUID | None:
+    """El borrador sin publicar que ya salio de este canonico, si hay uno.
+
+    `basado_en` vive en el JSON `hijos`, no en una columna: se filtra en memoria
+    sobre los pocos `canonico_lista` en revision (los del poller se publican
+    solos y nunca quedan aqui).
+    """
+    filas = await conexion.execute(
+        select(TRABAJO.c.id, TRABAJO.c.hijos)
+        .where(
+            TRABAJO.c.origen == ORIGEN_CANONICO,
+            TRABAJO.c.estado == EstadoTrabajo.ESPERA_REVISION.value,
+        )
+        .order_by(TRABAJO.c.creado_en)
+    )
+    for fila in filas:
+        if str(next(iter(fila.hijos or ()), {}).get("basado_en")) == str(canonico_id):
+            return fila.id
+    return None
+
+
+async def _copiar_filas(
+    conexion: Any, tabla: Any, filas: list[Any], **remapeos: dict[Any, Any]
+) -> dict[Any, Any]:
+    """Inserta copias de `filas` con id nuevo; `remapeos` traduce sus FKs.
+
+    Devuelve {id viejo: id nuevo} para que la tabla hija remapee las suyas.
+    """
+    nuevos: dict[Any, Any] = {}
+    for fila in filas:
+        valores = dict(fila._mapping)
+        nuevos[valores["id"]] = valores["id"] = uuid.uuid4()
+        for columna, mapa in remapeos.items():
+            if valores.get(columna) is not None:
+                valores[columna] = mapa[valores[columna]]
+        await conexion.execute(insert(tabla).values(**valores))
+    return nuevos
+
+
+async def abrir_borrador(motor: Any, canonico_id: uuid.UUID) -> dict[str, Any]:
+    """Una copia editable de los kits canonicos vigentes de un grado.
+
+    Los kits publicados no se editan en sitio: el acudiente que ya empezo
+    apunta a ese trabajo (`hijos[0].canonico_trabajo_id`) y debe seguir viendo
+    lo que pago. Se copia el trabajo entero —items, candidatos, resoluciones,
+    kits y lineas, con ids nuevos— a un `canonico_lista` en `espera_revision`
+    que la consola de siempre corrige, y `fijar_como_canonico` lo publica como
+    la version nueva. El historial de transiciones no se copia: es del original.
+
+    Idempotente: si el canonico ya tiene un borrador abierto, devuelve ese.
+    """
+    async with motor.engine.begin() as conexion:
+        fila = (await conexion.execute(select(TRABAJO).where(TRABAJO.c.id == canonico_id))).one_or_none()
+        if fila is None:
+            raise TrabajoNoExiste(str(canonico_id))
+        # Cualquier canonico vigente, aunque haya salido del trabajo aprobado de
+        # un acudiente: la copia no lleva su usuario ni sus preferencias.
+        if await _canonico_vigente_de(conexion, canonico_id) != canonico_id:
+            raise BorradorDesactualizado()
+        abierto = await _borrador_abierto(conexion, canonico_id)
+        if abierto is not None:
+            return {"trabajo_id": str(abierto), "basado_en": str(canonico_id), "nuevo": False}
+
+        borrador_id = uuid.uuid4()
+        hijos = [dict(h) for h in fila.hijos or ()]
+        hijos[0]["basado_en"] = str(canonico_id)
+        await conexion.execute(
+            insert(TRABAJO).values(
+                id=borrador_id,
+                usuario_id=None,
+                estado=EstadoTrabajo.ESPERA_REVISION.value,
+                origen=ORIGEN_CANONICO,
+                hijos=hijos,
+                estimado_segundos=fila.estimado_segundos,
+                degradaciones=list(fila.degradaciones or ()),
+            )
+        )
+        etapas = list(await conexion.execute(select(ETAPA).where(ETAPA.c.trabajo_id == canonico_id)))
+        await _copiar_filas(conexion, ETAPA, etapas, trabajo_id={canonico_id: borrador_id})
+        items = list(await conexion.execute(select(ITEM).where(ITEM.c.trabajo_id == canonico_id)))
+        mapa_items = await _copiar_filas(conexion, ITEM, items, trabajo_id={canonico_id: borrador_id})
+        de_items = list(mapa_items)
+        candidatos = list(
+            await conexion.execute(select(CANDIDATO).where(CANDIDATO.c.item_crudo_id.in_(de_items)))
+        )
+        mapa_candidatos = await _copiar_filas(conexion, CANDIDATO, candidatos, item_crudo_id=mapa_items)
+        resoluciones = list(
+            await conexion.execute(select(RESOLUCION).where(RESOLUCION.c.item_crudo_id.in_(de_items)))
+        )
+        await _copiar_filas(
+            conexion,
+            RESOLUCION,
+            resoluciones,
+            item_crudo_id=mapa_items,
+            candidato_item_id=mapa_candidatos,
+        )
+        kits = list(await conexion.execute(select(KIT).where(KIT.c.trabajo_id == canonico_id)))
+        mapa_kits = await _copiar_filas(conexion, KIT, kits, trabajo_id={canonico_id: borrador_id})
+        lineas = list(await conexion.execute(select(LINEA).where(LINEA.c.kit_id.in_(list(mapa_kits)))))
+        await _copiar_filas(conexion, LINEA, lineas, kit_id=mapa_kits, item_crudo_id=mapa_items)
+    return {"trabajo_id": str(borrador_id), "basado_en": str(canonico_id), "nuevo": True}
+
+
+async def _recalcular_objetivos(conexion: Any, trabajo_id: uuid.UUID) -> None:
+    """Pone al dia costo, fidelidad y disponibilidad de cada kit del trabajo.
+
+    Misma regla que el kit aplicado de la ruta rapida (`_objetivos_de_lineas`);
+    las demas llaves del armado (p. ej. `resolucion_auto`) se conservan.
+    """
+    for kit in list(await conexion.execute(select(KIT).where(KIT.c.trabajo_id == trabajo_id))):
+        lineas = [
+            _linea_publica(f)
+            for f in await conexion.execute(select(LINEA).where(LINEA.c.kit_id == kit.id))
+        ]
+        total = sum(int(linea["subtotal_linea"] or 0) for linea in lineas)
+        objetivos = {**(kit.objetivos or {}), **_objetivos_de_lineas(lineas, total)}
+        await conexion.execute(
+            update(KIT).where(KIT.c.id == kit.id).values(objetivos=objetivos, total_cop=total)
+        )
+
+
 async def grados_canonicos(motor: Any, *, colegio_id: str | None = None) -> list[dict[str, Any]]:
     """Los (colegio, grado, anio) que ya tienen cache bendita, para el selector.
 
     Es lo que `/empezar` lista en vez de pedir un PDF: un grado que aparece aqui
     se puede aplicar al vuelo (ruta rapida); uno que no, entra al pipeline.
     """
-    consulta = select(
-        KIT_CANONICO.c.colegio_id,
-        KIT_CANONICO.c.grado,
-        KIT_CANONICO.c.anio_lectivo,
-        KIT_CANONICO.c.trabajo_id,
-    ).order_by(KIT_CANONICO.c.colegio_id, KIT_CANONICO.c.grado)
+    consulta = (
+        select(
+            KIT_CANONICO.c.colegio_id,
+            KIT_CANONICO.c.grado,
+            KIT_CANONICO.c.anio_lectivo,
+            KIT_CANONICO.c.trabajo_id,
+            TRABAJO.c.terminado_en,
+        )
+        .select_from(KIT_CANONICO.join(TRABAJO, TRABAJO.c.id == KIT_CANONICO.c.trabajo_id))
+        .order_by(KIT_CANONICO.c.colegio_id, KIT_CANONICO.c.grado)
+    )
     if colegio_id:
         consulta = consulta.where(KIT_CANONICO.c.colegio_id == colegio_id)
     async with motor.engine.begin() as conexion:
-        filas = await conexion.execute(consulta)
+        filas = list(await conexion.execute(consulta))
+        # Solo el admin de un colegio pregunta por su borrador; el selector de
+        # /empezar (sin colegio) no paga esa consulta.
+        borradores = (
+            {f.trabajo_id: await _borrador_abierto(conexion, f.trabajo_id) for f in filas}
+            if colegio_id
+            else {}
+        )
     return [
         {
             "colegio_id": f.colegio_id,
             "grado": f.grado,
             "anio_lectivo": int(f.anio_lectivo),
             "trabajo_id": str(f.trabajo_id),
+            "publicado_en": f.terminado_en.isoformat() if f.terminado_en else None,
+            "borrador_trabajo_id": (
+                str(borradores[f.trabajo_id]) if borradores.get(f.trabajo_id) else None
+            ),
         }
         for f in filas
     ]

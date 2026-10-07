@@ -175,6 +175,18 @@ export interface GradoCanonico {
   grado: string;
   anio_lectivo: number;
   trabajo_id: string;
+  /** Cuando se publico la version vigente de los kits. */
+  publicado_en?: string | null;
+  /** Solo con `colegio_id`: el borrador de la version siguiente, si hay uno abierto. */
+  borrador_trabajo_id?: string | null;
+}
+
+/** La copia editable de los kits canonicos vigentes (su version siguiente). */
+export interface BorradorKits {
+  trabajo_id: string;
+  basado_en: string;
+  /** false si ya habia un borrador abierto y se devolvio ese. */
+  nuevo: boolean;
 }
 
 export interface AplicarCanonico {
@@ -580,6 +592,8 @@ export interface EntradaCola {
   /** Ids de colegio: el nombre lo pone la consola con su directorio. */
   colegios: string[];
   grados: string[];
+  /** Un borrador de edicion de kits ya publicados: el canonico del que salio. */
+  edicion_de?: string | null;
 }
 
 export interface ColaAdmin {
@@ -606,6 +620,8 @@ export interface HijoDeTrabajo {
   grado?: string;
   anio_lectivo?: number;
   version_id?: string;
+  /** Un borrador de edicion de kits: el canonico que reemplazara al publicarse. */
+  basado_en?: string;
 }
 
 // AD-02: validar es fijar el producto de la linea. Sin `sku` se lee

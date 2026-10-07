@@ -61,6 +61,9 @@ export default function ConsolaRevision({ trabajo, personajes }: Props) {
   // omisión ("Elegiste precio…"), que aquí sería falsa.
   const sinAcudiente =
     trabajo.origen === "preview_onboarding" || trabajo.origen === "canonico_lista";
+  // Unos kits canónicos ya publicados no se editan en sitio (el backend lo
+  // niega con 409): su versión siguiente se abre con «Editar kits».
+  const soloLectura = sinAcudiente && trabajo.estado === "publicado";
 
   async function validarPendientes(): Promise<void> {
     if (masivas.length === 0) return;
@@ -110,7 +113,14 @@ export default function ConsolaRevision({ trabajo, personajes }: Props) {
         </p>
       ) : null}
 
-      {masivas.length > 0 ? (
+      {soloLectura ? (
+        <p className={styles.razonRecomendacion}>
+          <strong>Kits publicados, en solo lectura.</strong> Para corregirlos usa «Editar kits»
+          en la página del colegio: abre una versión nueva y estos no cambian hasta publicarla.
+        </p>
+      ) : null}
+
+      {masivas.length > 0 && !soloLectura ? (
         <div className={styles.barraLote}>
           <span className={styles.loteConteo}>
             {masivas.length} línea(s) con un producto elegido por el sistema, sin confirmar.
@@ -168,6 +178,7 @@ export default function ConsolaRevision({ trabajo, personajes }: Props) {
         kits={trabajo.kits}
         recomendado={trabajo.recomendado?.perfil}
         sinRotuloRecomendado={sinAcudiente}
+        soloLectura={soloLectura}
       />
     </section>
   );

@@ -21,12 +21,13 @@ import type {
   Kit,
   ListaOficial,
   PedidosPorGrado,
-  Recomendacion,
   ResumenPedidosColegio,
 } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
+import EditarKits from "@/components/EditarKits";
 import EditarLista from "@/components/EditarLista";
 import KitsCanonicos from "./KitsCanonicos";
+import { formatearFecha } from "@/lib/formato";
 import { COOKIE_SESION } from "@/lib/sesion";
 import styles from "../../Colegios.module.css";
 
@@ -93,7 +94,6 @@ export default async function PaginaListaGrado({ params }: Props) {
   // publicado que fijó la aprobación), nunca previews ni trabajos sin aprobar.
   // Si el grado aún no tiene kit aprobado, no hay canónico y no se pinta el panel.
   let kitsCanonicos: Kit[] = [];
-  let recomendadoCanonico: Recomendacion | null = null;
   const canonico = (await origenDeDatos().gradosCanonicos(lista.colegio_id).catch(() => [])).find(
     (g) => g.grado === lista.grado,
   );
@@ -101,7 +101,6 @@ export default async function PaginaListaGrado({ params }: Props) {
     try {
       const trabajo = await origenDeDatos().trabajoAdmin(canonico.trabajo_id);
       kitsCanonicos = trabajo.kits;
-      recomendadoCanonico = trabajo.recomendado;
     } catch (causa) {
       console.error("no se pudo leer el trabajo canónico", causa);
     }
@@ -268,13 +267,22 @@ export default async function PaginaListaGrado({ params }: Props) {
       </div>
 
       {/* --------------------------------- Los 3 kits NSGA aprobados (caché) */}
-      {kitsCanonicos.length > 0 && (
+      {canonico && kitsCanonicos.length > 0 && (
         <section className={styles.panel}>
           <div className={styles.panelCabecera}>
-            <h2>Kits NSGA aprobados</h2>
-            <span className={styles.panelConteo}>caché del acudiente</span>
+            <div>
+              <h2>Kits NSGA aprobados</h2>
+              <span className={styles.panelConteo}>
+                caché del acudiente
+                {canonico.publicado_en ? ` · versión publicada el ${formatearFecha(canonico.publicado_en)}` : ""}
+              </span>
+            </div>
+            <EditarKits
+              canonicoId={canonico.trabajo_id}
+              borradorId={canonico.borrador_trabajo_id ?? null}
+            />
           </div>
-          <KitsCanonicos kits={kitsCanonicos} recomendado={recomendadoCanonico} />
+          <KitsCanonicos trabajoId={canonico.trabajo_id} kits={kitsCanonicos} />
         </section>
       )}
 

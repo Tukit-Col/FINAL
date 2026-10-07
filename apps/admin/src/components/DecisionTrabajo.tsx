@@ -12,11 +12,22 @@
 // una lista) no tiene acudiente: ahi "publicar" es aprobar la lista del colegio
 // y quedarse con estos tres kits como los canonicos del grado, sin avisar a
 // nadie. Por eso la opcion principal cambia de texto y de destino.
+//
+// Un BORRADOR DE EDICION (la version siguiente de los kits ya publicados de un
+// grado, abierto con «Editar kits» en la pagina del colegio) tampoco tiene
+// acudiente: aprobar lo publica como el canonico nuevo —la lista ya estaba
+// aprobada— y el anterior queda para quien ya lo tenia. Devolver no aplica (no
+// hay pipeline que reabrir); en su lugar se descarta el borrador.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { EstadoTrabajo } from "@tukit/contrato";
-import { decidirRevision, FalloApi, guardarComoCanonico } from "@/lib/api-navegador";
+import {
+  decidirRevision,
+  eliminarTrabajo,
+  FalloApi,
+  guardarComoCanonico,
+} from "@/lib/api-navegador";
 import styles from "./Revision.module.css";
 
 interface Props {
@@ -26,6 +37,9 @@ interface Props {
   notaRevision: string | null | undefined;
   /** `preview_onboarding`: sin acudiente, se guarda como canónico. */
   esPreview?: boolean;
+  /** Borrador de la version siguiente de kits ya publicados: a donde volver
+   *  (la pagina del colegio y grado) al publicarlo o descartarlo. */
+  edicion?: { volverA: string };
 }
 
 export default function DecisionTrabajo({
@@ -34,6 +48,7 @@ export default function DecisionTrabajo({
   lineasPendientes,
   notaRevision,
   esPreview = false,
+  edicion,
 }: Props) {
   const router = useRouter();
   const [nota, setNota] = useState("");
@@ -49,11 +64,13 @@ export default function DecisionTrabajo({
     setEnviando(true);
     try {
       const conNota = nota.trim() ? { nota: nota.trim() } : {};
-      if (decision === "aprobar" && esPreview) await guardarComoCanonico(trabajoId, conNota);
-      else await decidirRevision(trabajoId, { decision, ...conNota });
+      if (decision === "aprobar" && (esPreview || edicion)) {
+        await guardarComoCanonico(trabajoId, conNota);
+      } else await decidirRevision(trabajoId, { decision, ...conNota });
       setConfirmando(false);
       setNota("");
-      router.refresh();
+      if (edicion) router.push(edicion.volverA);
+      else router.refresh();
     } catch (causa) {
       // El 409 `trabajo_ya_publicado` llega aqui cuando alguien publico el
       // mismo trabajo desde otra pestana. Se muestra su mensaje y el refresco
@@ -63,6 +80,112 @@ export default function DecisionTrabajo({
     } finally {
       setEnviando(false);
     }
+  }
+
+  async function descartar(): Promise<void> {
+    if (!edicion) return;
+    setError(null);
+    setEnviando(true);
+    try {
+      await eliminarTrabajo(trabajoId);
+      router.push(edicion.volverA);
+    } catch (causa) {
+      setError(causa instanceof FalloApi ? causa.message : "No pudimos descartar el borrador.");
+      setEnviando(false);
+    }
+  }
+
+  if (edicion) {
+    return (
+      <section className={styles.decision} aria-labelledby="decision-titulo">
+        <h2 id="decision-titulo">Nueva versión de los kits</h2>
+        {yaPublicado ? (
+          <p className={styles.publicado}>
+            Esta versión ya está publicada: es la que reciben los acudientes que empiecen desde
+            ahora. Los que ya habían empezado siguen con la anterior.
+          </p>
+        ) : (
+          <>
+            {lineasPendientes > 0 ? (
+              <p className={styles.advertencia}>
+                Quedan <strong>{lineasPendientes}</strong> líneas sin reconocer o sin validar. Si
+                publicas así, el acudiente las va a ver como huecos.
+              </p>
+            ) : (
+              <p className={styles.todoResuelto}>No quedan líneas pendientes en esta versión.</p>
+            )}
+
+            <label className={styles.campo} htmlFor="nota-revision">
+              Qué cambió en esta versión (opcional, queda en la auditoría)
+            </label>
+            <textarea
+              id="nota-revision"
+              rows={2}
+              value={nota}
+              onChange={(evento) => setNota(evento.target.value)}
+              placeholder="Fijé el cuaderno ferrocarril y la plastilina que no se reconocían."
+            />
+
+            <div className={styles.decisiones}>
+              <div className={styles.opcion}>
+                <h3>Publicar esta versión</h3>
+                <p>
+                  Reemplaza a los kits vigentes del grado. Los acudientes que ya empezaron o
+                  pagaron se quedan con la versión anterior. No se avisa a nadie.
+                </p>
+                {confirmando ? (
+                  <div className={styles.confirmacion}>
+                    <p>¿Seguro? Desde ahora los acudientes nuevos reciben estos kits.</p>
+                    <div className={styles.botonera}>
+                      <button
+                        type="button"
+                        className={styles.principal}
+                        disabled={enviando}
+                        onClick={() => void decidir("aprobar")}
+                      >
+                        Sí, publicar
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.plano}
+                        onClick={() => setConfirmando(false)}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.principal}
+                    disabled={enviando}
+                    onClick={() => setConfirmando(true)}
+                  >
+                    Publicar nueva versión
+                  </button>
+                )}
+              </div>
+
+              <div className={styles.opcion}>
+                <h3>Descartar el borrador</h3>
+                <p>
+                  Borra estos cambios. Los kits vigentes no se tocan en ningún caso.
+                </p>
+                <button
+                  type="button"
+                  className={styles.secundario}
+                  disabled={enviando}
+                  onClick={() => void descartar()}
+                >
+                  Descartar cambios
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+        {error ? <p className={styles.error}>{error}</p> : null}
+      </section>
+    );
   }
 
   return (

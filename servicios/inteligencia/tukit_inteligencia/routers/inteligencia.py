@@ -1061,6 +1061,13 @@ async def validar_linea(trabajo_id: uuid.UUID, item_id: uuid.UUID, decision: Dec
             "o marcala sin coincidencia."
         )
         raise ErrorDominio("sin_producto_que_validar", mensaje, estado=422, campo="sku") from error
+    except trabajos.KitsPublicadosNoEditables as error:
+        raise ErrorDominio(
+            "kits_publicados",
+            "Estos kits ya estan publicados y no se editan en sitio. Usa «Editar kits» en la "
+            "pagina del colegio: abre una version nueva y la vigente no cambia hasta publicarla.",
+            estado=409,
+        ) from error
 
 
 @router.put(
@@ -1085,6 +1092,13 @@ async def fijar_producto(
     except trabajos.TrabajoNoExiste as error:
         raise ErrorDominio(
             "linea_no_existe", "Ese trabajo no tiene esa linea en ese kit.", estado=404
+        ) from error
+    except trabajos.KitsPublicadosNoEditables as error:
+        raise ErrorDominio(
+            "kits_publicados",
+            "Estos kits ya estan publicados y no se editan en sitio. Usa «Editar kits» en la "
+            "pagina del colegio: abre una version nueva y la vigente no cambia hasta publicarla.",
+            estado=409,
         ) from error
 
 
@@ -1164,6 +1178,13 @@ async def sin_coincidencia(
         )
     except trabajos.TrabajoNoExiste as error:
         raise ErrorDominio("linea_no_existe", "Ese trabajo no tiene esa linea.", estado=404) from error
+    except trabajos.KitsPublicadosNoEditables as error:
+        raise ErrorDominio(
+            "kits_publicados",
+            "Estos kits ya estan publicados y no se editan en sitio. Usa «Editar kits» en la "
+            "pagina del colegio: abre una version nueva y la vigente no cambia hasta publicarla.",
+            estado=409,
+        ) from error
 
 
 @router.post(
@@ -1244,6 +1265,40 @@ async def fijar_canonico(trabajo_id: uuid.UUID, cuerpo: FijarCanonico) -> dict[s
         raise ErrorDominio(
             "estado_incompatible",
             f"Un trabajo en {error.actual} no se puede guardar como canonico.",
+            estado=409,
+        ) from error
+    except trabajos.BorradorDesactualizado as error:
+        raise ErrorDominio(
+            "borrador_desactualizado",
+            "Mientras editabas, los kits de este grado se volvieron a publicar. "
+            "Descarta este borrador y abre uno nuevo desde la version vigente.",
+            estado=409,
+        ) from error
+
+
+@router.post(
+    "/v1/admin/trabajos/{trabajo_id}/borrador",
+    tags=["admin"],
+    summary="Abre una copia editable de los kits canonicos vigentes (nueva version)",
+)
+async def abrir_borrador(trabajo_id: uuid.UUID) -> dict[str, Any]:
+    """Editar kits ya publicados es preparar su version siguiente.
+
+    Copia el canonico a un trabajo en revision que la consola corrige; al
+    guardarlo como canonico (`POST .../canonico`) pasa a ser el vigente y el
+    anterior queda para los acudientes que ya lo tenian. Si ya hay un borrador
+    abierto de ese canonico, devuelve ese.
+    """
+    try:
+        return await trabajos.abrir_borrador(api.app.state.motor, trabajo_id)
+    except trabajos.TrabajoNoExiste as error:
+        raise ErrorDominio(
+            "trabajo_no_existe", "No hay ningun trabajo con ese identificador.", estado=404
+        ) from error
+    except trabajos.BorradorDesactualizado as error:
+        raise ErrorDominio(
+            "canonico_no_vigente",
+            "Estos kits ya no son los vigentes de su grado; edita la version actual.",
             estado=409,
         ) from error
 

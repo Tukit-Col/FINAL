@@ -1,4 +1,5 @@
-// `POST /api/trabajos/{id}/canonico` — aprobar la lista desde su preview.
+// `POST /api/trabajos/{id}/canonico` — aprobar la lista desde su preview, o
+// publicar la versión nueva de los kits de una lista ya aprobada.
 //
 // Un preview no tiene acudiente, así que "publicar y avisar" no aplica. Lo que
 // sí tiene sentido es lo que el revisor quiere al mirarlo: aprobar la LISTA del
@@ -34,6 +35,14 @@ export async function POST(
   try {
     const origen = origenDeDatos();
     const trabajo = await origen.trabajoAdmin(trabajo_id);
+    // Un borrador de edición (la versión siguiente de kits ya publicados) no
+    // aprueba nada en Catálogo: la lista ya está aprobada. Solo se publica y
+    // pasa a ser el canónico; Inteligencia rechaza con 409 si mientras tanto
+    // otro canónico reemplazó al que se estaba editando.
+    if (trabajo.origen === "canonico_lista" && trabajo.hijos?.[0]?.basado_en) {
+      await origen.fijarCanonico(trabajo_id, nota ? { nota } : {});
+      return SIN_CONTENIDO();
+    }
     if (trabajo.origen !== "preview_onboarding") {
       throw new ErrorTukit(
         409,
