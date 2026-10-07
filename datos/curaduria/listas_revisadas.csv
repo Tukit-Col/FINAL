@@ -889,7 +889,7 @@ bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,24,"Bata de laboratorio de material antifluido, debidamente marcada y uso obligatorio para ingreso a laboratorios de ciencias naturales, procesos fisicoquímicos.",C024,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,25,cuaderno argollado 100 hojas cuadriculado grande,C001,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,26,Tabla periódica Walter (grande),C025,1,,,mercado_abierto,,,,false
-bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,27,Bata de laboratorio de material antifluido (misma bata de biología),C024,1,,,mercado_abierto,,,,false
+bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,27,Bata de laboratorio de material antifluido (misma bata de biología),C024,1,,no_comprar,mercado_abierto,Es la misma bata de laboratorio de biologia: no se compra otra.,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,28,cuaderno cuadriculado grande argollado de 100 hojas,C001,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,29,cuaderno cuadriculado Cosido 50 hojas,C001,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,30,juego de escuadras de 45° y 60°,C036,1,,,mercado_abierto,,,,false
@@ -931,14 +931,14 @@ bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,66,rollo de cinta de enmascarar de 2 cm de ancho,C015,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,67,Hojas iris,C113,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,68,octavos de cartón paja de colores,C041,4,,,mercado_abierto,,,,false
-bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,69,Cuaderno cuadriculado del año anterior,C001,1,,,mercado_abierto,,,,false
+bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,69,Cuaderno cuadriculado del año anterior,C001,1,,no_comprar,mercado_abierto,Se usa el cuaderno del año anterior: no se compra uno nuevo.,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,71,Broche de batería de 9V,C142,1,,,mercado_abierto,,,,true
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,72,Batería de 9V (se sugiere recargable),C103,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,73,Protoboard de 400 puntos mediana,C102,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,74,Paquete de Jumpers x 10 unidades de 10cm de largo,C121,1,,,mercado_abierto,,,,false
-bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,75,Paquete de Jumpers x 10 unidades de 10cm de largo (hembra - macho),C121,10,,,mercado_abierto,,,,false
-bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,76,Paquete de leds x 10 unidades (diferentes colores),C122,10,,,mercado_abierto,,,,false
-bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,77,Paquete de resistencias x 20 unidades 1/4W de diferentes valores,C125,20,,,mercado_abierto,,,,false
+bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,75,Paquete de Jumpers x 10 unidades de 10cm de largo (hembra - macho),C121,1,,,mercado_abierto,,,,false
+bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,76,Paquete de leds x 10 unidades (diferentes colores),C122,1,,,mercado_abierto,,,,false
+bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,77,Paquete de resistencias x 20 unidades 1/4W de diferentes valores,C125,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,78,pulsadores de 4 pines,C142,4,,,mercado_abierto,,,,true
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,79,motorreductor,C141,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,80,Cartuchera,C009,1,,,mercado_abierto,,,,false
