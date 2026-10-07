@@ -68,6 +68,8 @@ def _item_resuelto(
         "instruccion_colegio": kw.get("instruccion_colegio"),
         "url_externa": kw.get("url_externa"),
         "candidatos": candidatos,
+        "atributos_impuestos": kw.get("atributos_impuestos", {}),
+        "atributos_por_revisar": kw.get("atributos_por_revisar", []),
     }
 
 
@@ -293,6 +295,61 @@ class TestRutaRapidaVerificada:
         lineas = (await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"][0]["lineas"]
         muda = next(linea for linea in lineas if linea["descripcion"].startswith("Muda"))
         assert muda["informativa"] is True
+
+    async def test_la_resolucion_guarda_lo_exigido_y_explica_el_hueco(self, motor):
+        """Un renglon cuyo atributo exigido no cumple ningun producto llega sin
+        candidatos: es un hueco que dice que pidio, no un concepto vacio."""
+        from sqlalchemy import select
+
+        catalogo = _catalogo_verificado()
+        catalogo.items_resueltos[0]["atributos_impuestos"] = {"rayado": "cuadriculado"}
+        catalogo.items_resueltos += [
+            _item_resuelto(
+                5,
+                "cuaderno ferrocarril",
+                "C001",
+                [],
+                atributos_impuestos={"rayado": "ferrocarril"},
+            ),
+            _item_resuelto(
+                6,
+                "cuaderno rayado o cuadriculado",
+                "C001",
+                [_candidato_dict("TK-C001-ECO", "economico", 4500)],
+                atributos_por_revisar=["rayado"],
+            ),
+        ]
+        trabajo_id, estado = await _crear_y_procesar(motor, catalogo)
+
+        assert estado == EstadoTrabajo.ESPERA_REVISION.value
+        async with motor.engine.begin() as conexion:
+            por_texto = {
+                r.texto: r
+                for r in await conexion.execute(
+                    select(
+                        trabajos.ITEM.c.texto,
+                        trabajos.RESOLUCION.c.estado,
+                        trabajos.RESOLUCION.c.atributos_impuestos,
+                        trabajos.RESOLUCION.c.motivo,
+                    )
+                    .select_from(
+                        trabajos.RESOLUCION.join(
+                            trabajos.ITEM, trabajos.ITEM.c.id == trabajos.RESOLUCION.c.item_crudo_id
+                        )
+                    )
+                    .where(trabajos.ITEM.c.trabajo_id == trabajo_id)
+                )
+            }
+        cuadriculado = por_texto["cuaderno cuadriculado"]
+        assert cuadriculado.estado == EstadoResolucion.RESUELTO_AUTO.value
+        assert cuadriculado.atributos_impuestos == {"rayado": "cuadriculado"}
+
+        ferrocarril = por_texto["cuaderno ferrocarril"]
+        assert ferrocarril.estado == EstadoResolucion.HUECO_CATALOGO.value
+        assert ferrocarril.atributos_impuestos == {"rayado": "ferrocarril"}
+        assert "rayado=ferrocarril" in ferrocarril.motivo
+
+        assert "revisar: rayado" in por_texto["cuaderno rayado o cuadriculado"].motivo
 
     async def test_etapas_ok_con_fuente_lista_verificada(self, motor):
         catalogo = _catalogo_verificado()

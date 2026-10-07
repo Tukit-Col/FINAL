@@ -974,6 +974,52 @@ class TestResueltosLaRutaRapida:
             assert candidato["precio_cop"] is None or isinstance(candidato["precio_cop"], int)
             assert isinstance(candidato["atributos"], dict)
 
+    async def test_un_concepto_sin_atributos_que_filtren_ofrece_todos_sus_productos_lisos(self, cliente):
+        # Antes salia uno por nivel (tres a lo sumo) aunque el concepto tuviera
+        # cuarenta: el kit nunca veia el resto del catalogo.
+        await _con_cuadernos_extra(cliente)
+        vid = cliente.ids["cerrada"]
+        cuerpo = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()
+        skus = {c["sku"] for c in cuerpo["items"][0]["candidatos"]}
+        assert {"TK-C001-ECO", "TK-C001-CON", "TK-C001-PRE", "TK-REV-RAYADO"} <= skus
+        # El de personaje no entra mientras haya lisos.
+        assert "TK-REV-CARS" not in skus
+
+    async def test_un_renglon_que_exige_un_atributo_solo_ofrece_los_que_lo_cumplen(self, cliente):
+        await _con_cuadernos_extra(cliente, discriminantes=["rayado"])
+        vid = await _version_revisada_con(cliente, "cuaderno rayado de 100 hojas")
+        item = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"][0]
+        assert [c["sku"] for c in item["candidatos"]] == ["TK-REV-RAYADO"]
+        assert item["atributos_impuestos"] == {"rayado": "rayado"}
+        assert all(c["cumple"] for c in item["candidatos"])
+
+    async def test_si_ningun_producto_cumple_no_hay_candidatos(self, cliente):
+        # Un hueco, no un sustituto: el kit recomendaba un oleo para un acrilico.
+        await _con_cuadernos_extra(cliente, discriminantes=["rayado"])
+        vid = await _version_revisada_con(cliente, "cuaderno ferrocarril")
+        item = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"][0]
+        assert item["candidatos"] == []
+        assert item["atributos_impuestos"] == {"rayado": "ferrocarril"}
+
+    async def test_el_personaje_entra_solo_si_es_el_unico_que_cumple(self, cliente):
+        await _con_cuadernos_extra(cliente, discriminantes=["rayado"])
+        vid = await _version_revisada_con(cliente, "cuaderno doble linea")
+        item = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"][0]
+        assert [c["sku"] for c in item["candidatos"]] == ["TK-REV-CARS"]
+
+    async def test_lo_que_el_revisor_corrigio_en_la_curaduria_manda_sobre_lo_leido(self, cliente):
+        await _con_cuadernos_extra(cliente, discriminantes=["rayado"])
+        vid = await _version_revisada_con(cliente, "cuaderno ferrocarril", atributos={"rayado": "rayado"})
+        item = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"][0]
+        assert [c["sku"] for c in item["candidatos"]] == ["TK-REV-RAYADO"]
+
+    async def test_un_renglon_con_varios_valores_se_marca_para_revisar(self, cliente):
+        await _con_cuadernos_extra(cliente, discriminantes=["rayado"])
+        vid = await _version_revisada_con(cliente, "cuaderno rayado o cuadriculado")
+        item = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"][0]
+        assert item["atributos_impuestos"] == {}
+        assert item["atributos_por_revisar"] == ["rayado"]
+
     async def test_una_version_sin_revisar_es_409(self, cliente):
         vid = cliente.ids["abierta"]
         respuesta = await cliente.get(f"/v1/admin/listas/{vid}/resueltos")
@@ -983,6 +1029,85 @@ class TestResueltosLaRutaRapida:
     async def test_una_version_que_no_existe_es_404(self, cliente):
         respuesta = await cliente.get(f"/v1/admin/listas/{uuid.uuid4()}/resueltos")
         assert respuesta.status_code == 404
+
+
+async def _con_cuadernos_extra(cliente, discriminantes: list[str] | None = None) -> None:
+    """Dos cuadernos mas en C001: uno rayado aprobado en la cola y uno de
+    personaje doble linea. Con `discriminantes`, C001 filtra por ellos."""
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        concepto = Base.metadata.tables["concepto"]
+        producto = Base.metadata.tables["producto_canonico"]
+        if discriminantes:
+            await conexion.execute(
+                concepto.update()
+                .where(concepto.c.id == cliente.ids["cuaderno"])
+                .values(atributos_discriminantes=discriminantes)
+            )
+        for sku, atributos, personaje in (
+            ("TK-REV-RAYADO", {"rayado": "rayado"}, None),
+            ("TK-REV-CARS", {"rayado": "doble linea"}, "Cars"),
+        ):
+            await conexion.execute(
+                producto.insert().values(
+                    id=uuid.uuid4(),
+                    concepto_id=cliente.ids["cuaderno"],
+                    sku_interno=sku,
+                    nombre=f"Cuaderno {sku}",
+                    nivel="confiable",
+                    personaje=personaje,
+                    atributos=atributos,
+                    unidad_base="unidad",
+                    unidades_por_empaque=1,
+                    es_propio=False,
+                    es_representante_canonico=False,
+                    quality_score=0.85,
+                    activo=True,
+                    curado_por=CURADOR,
+                )
+            )
+        await db.commit()
+
+
+async def _version_revisada_con(cliente, texto: str, atributos: dict | None = None) -> uuid.UUID:
+    """Una lista revisada de un solo renglon de cuaderno con ese texto."""
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        tablas = Base.metadata.tables
+        lista_id, version_id = uuid.uuid4(), uuid.uuid4()
+        await conexion.execute(
+            tablas["lista_oficial"]
+            .insert()
+            .values(id=lista_id, colegio_id=COLEGIO, grado=f"G-{lista_id}", anio_lectivo=2026, activa=True)
+        )
+        await conexion.execute(
+            tablas["version_lista_oficial"]
+            .insert()
+            .values(
+                id=version_id,
+                lista_id=lista_id,
+                numero=1,
+                vigente=True,
+                revisada_en=datetime(2026, 3, 1, tzinfo=UTC),
+            )
+        )
+        await conexion.execute(
+            tablas["item_lista_oficial"]
+            .insert()
+            .values(
+                id=uuid.uuid4(),
+                version_id=version_id,
+                orden=1,
+                texto_original=texto,
+                cantidad=1,
+                concepto_id=cliente.ids["cuaderno"],
+                modo_adquisicion="mercado_abierto",
+                atributos=atributos or {},
+                requiere_revision=False,
+            )
+        )
+        await db.commit()
+    return version_id
 
 
 def _cuerpo_sugerencia(**extra) -> dict:

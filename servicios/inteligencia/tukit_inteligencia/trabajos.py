@@ -577,11 +577,21 @@ async def _procesar_verificado(
                             )
                         )
 
-                    motivo = (
-                        "resuelto desde lista verificada"
-                        if candidatos
-                        else "lista verificada: el concepto aun no tiene productos"
-                    )
+                    # Lo que el renglon exige lo decide el catalogo (`/resueltos`
+                    # filtra los candidatos por los atributos del renglon). Aqui se
+                    # guarda para que el hueco diga que se pidio y no parezca un
+                    # concepto vacio.
+                    impuestos = dict(item.get("atributos_impuestos") or {})
+                    por_revisar = list(item.get("atributos_por_revisar") or ())
+                    pedido = ", ".join(f"{k}={v}" for k, v in impuestos.items())
+                    if candidatos:
+                        motivo = "resuelto desde lista verificada"
+                    elif impuestos:
+                        motivo = f"lista verificada: ningun producto cumple {pedido}"
+                    else:
+                        motivo = "lista verificada: el concepto aun no tiene productos"
+                    if por_revisar:
+                        motivo += f"; revisar: {', '.join(por_revisar)} (el renglon nombra varios valores)"
                     resolucion_id = uuid.uuid4()
                     await conexion.execute(
                         insert(RESOLUCION).values(
@@ -592,7 +602,7 @@ async def _procesar_verificado(
                             concepto_nombre=item.get("concepto_nombre"),
                             parecido=1.0,
                             candidato_item_id=elegido_id,
-                            atributos_impuestos={},
+                            atributos_impuestos=impuestos,
                             motivo=motivo,
                         )
                     )
@@ -2378,8 +2388,7 @@ async def _recalcular_objetivos(conexion: Any, trabajo_id: uuid.UUID) -> None:
     """
     for kit in list(await conexion.execute(select(KIT).where(KIT.c.trabajo_id == trabajo_id))):
         lineas = [
-            _linea_publica(f)
-            for f in await conexion.execute(select(LINEA).where(LINEA.c.kit_id == kit.id))
+            _linea_publica(f) for f in await conexion.execute(select(LINEA).where(LINEA.c.kit_id == kit.id))
         ]
         total = sum(int(linea["subtotal_linea"] or 0) for linea in lineas)
         objetivos = {**(kit.objetivos or {}), **_objetivos_de_lineas(lineas, total)}
@@ -2423,9 +2432,7 @@ async def grados_canonicos(motor: Any, *, colegio_id: str | None = None) -> list
             "anio_lectivo": int(f.anio_lectivo),
             "trabajo_id": str(f.trabajo_id),
             "publicado_en": f.terminado_en.isoformat() if f.terminado_en else None,
-            "borrador_trabajo_id": (
-                str(borradores[f.trabajo_id]) if borradores.get(f.trabajo_id) else None
-            ),
+            "borrador_trabajo_id": (str(borradores[f.trabajo_id]) if borradores.get(f.trabajo_id) else None),
         }
         for f in filas
     ]
