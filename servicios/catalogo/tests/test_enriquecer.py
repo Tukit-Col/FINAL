@@ -15,6 +15,7 @@ from __future__ import annotations
 import pytest
 from tukit_catalogo.embeddings import MODELO_FALSO, embeder_falso
 from tukit_catalogo.enriquecer import (
+    atributos_combinados,
     atributos_de_ficha,
     embeddings_a_actualizar,
     extraer_atributos,
@@ -290,11 +291,11 @@ class TestAtributos:
         assert extraer_atributos("Paquete De Hojas Examen X100 Unds Cuadros", ("tipo",))["tipo"] == "examen"
 
     def test_prefiere_el_tipo_mas_especifico(self):
-        """`punta pincel` contiene `punta`: gana el termino largo."""
-        assert (
-            extraer_atributos("Plumones Punta Pincel Marcadores Faber Castell X10", ("tipo",))["tipo"]
-            == "punta pincel"
-        )
+        """`punta pincel` contiene `punta`: gana el termino largo. Es una punta,
+        no un tipo: el tipo de un marcador es su tinta."""
+        assert extraer_atributos("Plumones Punta Pincel Marcadores Faber Castell X10", ("tipo", "punta")) == {
+            "punta": "punta pincel"
+        }
 
     def test_calla_cuando_no_puede_leer(self):
         """Si el nombre no dice el tamano, la clave no aparece. No se rellena
@@ -681,3 +682,272 @@ class TestCuandoElSilencioSignificaAlgo:
         assert extraer_atributos("Cartuchera mediana", ("compartimentos",)) == {}
         # Un cuaderno que no dice su rayado no es de hojas blancas.
         assert extraer_atributos("Cuaderno cosido 100 hojas", ("rayado",)) == {}
+
+
+class TestLoQueSeptimoPediaYElNombreNoDecia:
+    """Atributos que la auditoria de Septimo (Agustiniano Salitre) encontro
+    sin leer, con renglones de esa lista y nombres reales del catalogo.
+
+    El kit recomendaba un oleo para `Pinturas acrilicas tubo de 45 cc:
+    blanco`, un cuaderno rayado para uno cuadriculado y argollado para uno
+    cosido. Ninguno era un error del filtro: el catalogo no declaraba lo que
+    habia que comparar, o el renglon lo escribia en plural y no se leia.
+    """
+
+    def test_rayas_es_rayado(self):
+        nombre = "Cuaderno Argollado 105 Scribe Master Pasta Dura Hombre 80 Hojas Rayas Pasta Dura Grande"
+        assert extraer_atributos(nombre, ("rayado",)) == {"rayado": "rayado"}
+
+    @pytest.mark.parametrize(
+        ("texto", "esperado"),
+        [
+            ("Cuaderno Cosido 100 Hojas Norma X-Presarte Cuadros Hombre", "cosido"),
+            ("Cuaderno Argollado 105 Norma Xpresarte Cuadros 80 Hojas", "argollado"),
+            ("cuaderno cuadriculado Cosido 50 hojas", "cosido"),
+            ("cuadernos cosidos de 100 hojas", "cosido"),
+            ("cuaderno cuadriculado cocido", "cosido"),
+            ("cuaderno doble linea grande sin espiral", "cosido"),
+            ("cuaderno argollado cuadriculado grande 100 hojas", "argollado"),
+        ],
+    )
+    def test_la_encuadernacion_del_cuaderno(self, texto, esperado):
+        assert extraer_atributos(texto, ("encuadernacion",)) == {"encuadernacion": esperado}
+
+    def test_un_cuaderno_que_no_dice_su_encuadernacion_no_la_inventa(self):
+        assert extraer_atributos("Cuaderno Stitch 100 Hojas", ("encuadernacion",)) == {}
+
+    @pytest.mark.parametrize(
+        ("texto", "esperado"),
+        [
+            ("Óleo franco magenta 50 ml", {"tipo": "oleo", "color": "magenta"}),
+            ("Pintura al óleo de 75 ml, verde permanente", {"tipo": "oleo", "color": "verde"}),
+            ("Pinturas acrílicas tubo de 45 cc: cian", {"tipo": "acrilico", "color": "cian"}),
+            ("Pinturas acrílicas tubo de 45 cc: amarillo 900", {"tipo": "acrilico", "color": "amarillo"}),
+            ("Pinturas acrílicas tubo de 45 cc: blanco", {"tipo": "acrilico", "color": "blanco"}),
+        ],
+    )
+    def test_el_tipo_y_el_color_de_la_pintura(self, texto, esperado):
+        assert extraer_atributos(texto, ("tipo", "color")) == esperado
+
+    def test_marcadores_acrilicos_en_plural(self):
+        assert extraer_atributos("estuche de marcadores acrílicos", ("tipo",)) == {"tipo": "acrilico"}
+
+    @pytest.mark.parametrize(
+        ("texto", "esperado"),
+        [
+            ("Micropunta negro", {"punta": "micropunta", "color": "negro"}),
+            ("Marcador Sharpie Punta Fina Negro", {"punta": "punta fina", "color": "negro"}),
+            ("Plumones Punta Pincel Marcadores Faber Castell X10", {"punta": "punta pincel"}),
+            ("MARCADOR PERMANENTE NEGRO FABER CASTELL", {"tipo": "permanente", "color": "negro"}),
+        ],
+    )
+    def test_la_tinta_y_la_punta_del_marcador_son_cosas_distintas(self, texto, esperado):
+        # Antes `punta` leia la tabla de tipos: un marcador permanente quedaba
+        # con `punta=permanente`, y uno de punta fina con `tipo=punta fina`.
+        assert extraer_atributos(texto, ("tipo", "punta", "color")) == esperado
+
+    def test_un_marcador_delgado_es_de_punta_fina(self):
+        assert extraer_atributos("Plumones delgados Keyroad x 12 unidades", ("punta",)) == {
+            "punta": "punta fina"
+        }
+
+    def test_la_punta_roma_de_las_tijeras_se_sigue_leyendo(self):
+        assert extraer_atributos("Tijera punta roma  NESSAN", ("punta",)) == {"punta": "punta roma"}
+
+    @pytest.mark.parametrize(
+        ("texto", "esperado"),
+        [
+            ("octavos de cartón paja de colores", "surtido"),
+            ("Paquete Carton Paja Octavos x10 Unds Colores", "surtido"),
+            ("Cartón paja color crema por 10 uds.", "crema"),
+        ],
+    )
+    def test_de_colores_es_surtido(self, texto, esperado):
+        assert extraer_atributos(texto, ("color",)) == {"color": esperado}
+
+    @pytest.mark.parametrize(
+        ("texto", "esperado"),
+        [
+            ("Biblia católica", "completa"),
+            ("La Biblia Latinoamericana Letra Grande", "completa"),
+            ("Libro Lecturas De La Biblia Para Nios Y Nias", "infantil"),
+            ("Biblia para niños", "infantil"),
+        ],
+    )
+    def test_una_seleccion_infantil_no_es_la_biblia(self, texto, esperado):
+        assert extraer_atributos(texto, ("edicion",)) == {"edicion": esperado}
+
+    @pytest.mark.parametrize(
+        ("texto", "esperado"),
+        [
+            ("Diccionario Inglés – Inglés", {"monolingue": True}),
+            ("Nacho: diccionario escolar ingles - espanol", {"monolingue": False}),
+            ("Diccionario School Larousse espanol-ingles/english-spanish", {"monolingue": False}),
+            # "Diccionario de ingles" a secas no dice cual: en Colombia casi
+            # siempre es el bilingue, y exigir uno u otro dejaria sin opcion
+            # a la mayoria de las listas.
+            ("Diccionario de inglés", {}),
+            ("Diccionario Oxford Pocket para estudiantes latinoamericanos", {}),
+        ],
+    )
+    def test_un_diccionario_ingles_ingles_es_monolingue(self, texto, esperado):
+        assert extraer_atributos(texto, ("monolingue",)) == esperado
+
+    @pytest.mark.parametrize(
+        "texto",
+        [
+            "Transportador 360 Grados FABER CASTELL",
+            "Transportador de 360° Eterna",
+            "transportador 360 grados",
+        ],
+    )
+    def test_los_grados_del_transportador(self, texto):
+        assert extraer_atributos(texto, ("grados",)) == {"grados": 360}
+
+    def test_la_regla_de_acero(self):
+        assert extraer_atributos("regla de acero inoxidable de 30 cm", ("material",)) == {"material": "acero"}
+
+    @pytest.mark.parametrize(
+        ("texto", "esperado"),
+        [
+            ("Palos de paleta", "paleta"),
+            ("Palos De Madera Para Paleta Color Natural X 500 Unidades", "paleta"),
+            ("Palo De Balso Cuadrado 5 X 5 Mm X 90 Cm 10 Unidades", "balso"),
+        ],
+    )
+    def test_el_tipo_de_palito(self, texto, esperado):
+        assert extraer_atributos(texto, ("tipo",)) == {"tipo": esperado}
+
+    @pytest.mark.parametrize(
+        ("texto", "esperado"),
+        [
+            ("Toalla pequeña", "tela"),
+            ("Pequeñin Toallitas Húmedas Original", "humeda"),
+            ("Paquete Pañitos Humedos Grandulones Panda X100 Unds", "humeda"),
+        ],
+    )
+    def test_una_toalla_no_es_un_panito_humedo(self, texto, esperado):
+        assert extraer_atributos(texto, ("tipo",)) == {"tipo": esperado}
+
+    @pytest.mark.parametrize(
+        ("texto", "esperado"),
+        [("vaso pequeño de plástico", "vaso"), ("Vaso plástico de 450 ml con pitillo unicornio", "vaso")],
+    )
+    def test_un_vaso_no_es_un_plato(self, texto, esperado):
+        assert extraer_atributos(texto, ("tipo",)) == {"tipo": esperado}
+
+    @pytest.mark.parametrize(
+        ("texto", "esperado"),
+        [
+            ("hojas papel durex tamaño 1/8", "octavo"),
+            ("Bloc de papel pergamino, 25 hojas de 1/8", "octavo"),
+            ("Sketchbook de papel durex 50 hojas tamaño carta", "carta"),
+        ],
+    )
+    def test_el_tamano_del_papel_de_dibujo(self, texto, esperado):
+        assert extraer_atributos(texto, ("tamano",)) == {"tamano": esperado}
+
+
+class TestHuecosDelVocabularioQueDejoVerElCatalogo:
+    """Productos que seguian sin atributo despues de enriquecer, no por
+    juicio sino porque la tabla no tenia la palabra (o la tenia escrita de
+    una forma que nunca llegaba)."""
+
+    def test_el_tamano_a4_se_lee_aunque_la_normalizacion_lo_despegue(self):
+        assert extraer_atributos("Block para bocetos A4, x 60 hojas 110g", ("tamano", "tipo")) == {
+            "tamano": "a4",
+            "tipo": "dibujo",
+        }
+
+    def test_el_sketch_book_es_un_block_de_dibujo(self):
+        assert extraer_atributos("Sketch Book  Snoopy Azul", ("tipo",)) == {"tipo": "dibujo"}
+
+    def test_el_cuaderno_pentagramado(self):
+        nombre = "Cuaderno Musical Pentagramado Profesional Grande Argollado Tamaño Oficio"
+        assert extraer_atributos(nombre, ("rayado",)) == {"rayado": "pentagramado"}
+
+    @pytest.mark.parametrize(
+        ("texto", "esperado"),
+        [("Óleo franco oro de 50 ml", "dorado"), ("Pintura al óleo de 75 ml, púrpura", "morado")],
+    )
+    def test_oro_y_purpura_son_colores(self, texto, esperado):
+        assert extraer_atributos(texto, ("color",)) == {"color": esperado}
+
+    def test_el_papel_fotografico_no_son_hojas_de_examen(self):
+        nombre = "Papel fotográfico carta a prueba de agua x 20 unidades"
+        assert extraer_atributos(nombre, ("tipo",)) == {"tipo": "fotografico"}
+
+
+class TestReleerLoQueUnVocabularioViejoLeyoMal:
+    """Lo guardado gana sobre lo leido, salvo en las claves que se piden releer.
+
+    Sin esta salida, `tipo=permanente` en `Pintura al oleo de 75 ml, verde
+    permanente` y `punta=permanente` en los marcadores no se iban nunca: el
+    enriquecedor solo agregaba claves nuevas.
+    """
+
+    def test_lo_guardado_gana_por_omision(self):
+        assert atributos_combinados({"tipo": "permanente"}, {"tipo": "oleo", "color": "verde"}) == {
+            "tipo": "permanente",
+            "color": "verde",
+        }
+
+    def test_releer_una_clave_deja_mandar_al_nombre(self):
+        assert atributos_combinados(
+            {"tipo": "permanente"}, {"tipo": "oleo", "color": "verde"}, frozenset({"tipo"})
+        ) == {"tipo": "oleo", "color": "verde"}
+
+    def test_si_al_releer_el_nombre_no_dice_nada_la_clave_se_va(self):
+        # `Marcador Sharpie Punta Fina` tenia `tipo=punta fina`: no dice su tinta.
+        assert atributos_combinados(
+            {"tipo": "punta fina", "punta": "punta fina"},
+            {"punta": "punta fina"},
+            frozenset({"tipo", "punta"}),
+        ) == {"punta": "punta fina"}
+
+    def test_releer_no_toca_las_demas_claves(self):
+        assert atributos_combinados({"tipo": "x", "colores": 12}, {"colores": 10}, frozenset({"tipo"})) == {
+            "colores": 12
+        }
+
+
+class TestUnRenglonQueEnumeraVariosValoresNoExigeNinguno:
+    """Si el renglon nombra varios valores del MISMO atributo, el colegio pide
+    un surtido, no uno de ellos. Antes se tomaba el primero de la tabla:
+    `Kit de 12 pinceles ... planos redondos y abanico` exigia pinceles planos,
+    lo contrario de lo pedido.
+
+    La regla vale para los atributos de una sola dimension (forma, color,
+    rayado, material, punta, presentacion, encuadernacion, grosor). `tipo` no
+    entra: su tabla mezcla dimensiones (`Block cuadriculado argollado` dice
+    dos tipos y los dos son ciertos), y ahi sigue ganando el mas especifico.
+    """
+
+    def test_el_kit_de_pinceles_surtidos_no_exige_forma(self):
+        renglon = "Kit de 12 pinceles sintéticos. delgados, planos redondos y abanico"
+        assert "forma" not in extraer_atributos(renglon, ("forma", "grosor"))
+
+    def test_pero_si_el_grosor_que_dice_una_sola_vez(self):
+        renglon = "Kit de 12 pinceles sintéticos. delgados, planos redondos y abanico"
+        assert extraer_atributos(renglon, ("forma", "grosor")) == {"grosor": "delgado"}
+
+    def test_un_cuaderno_cosido_o_argollado_no_exige_ninguno(self):
+        assert extraer_atributos("cuaderno cosido o argollado", ("encuadernacion",)) == {}
+
+    def test_dos_colores_no_exigen_ninguno(self):
+        assert extraer_atributos("cartulina blanca y negra", ("color",)) == {}
+
+    def test_una_variante_contenida_en_otra_no_cuenta_como_dos(self):
+        # `doble linea` contiene `linea`: es un solo rayado, no dos.
+        assert extraer_atributos("Cuaderno doble linea", ("rayado",)) == {"rayado": "doble linea"}
+        assert extraer_atributos("Cuaderno cuadricula grande", ("rayado",)) == {"rayado": "cuadricula grande"}
+
+    def test_cuaderno_cuadriculado_grande_es_un_cuaderno_grande(self):
+        # En las listas `grande` es el tamano del cuaderno, no el del cuadro:
+        # `cuaderno argollado cuadriculado grande 100 hojas` (Septimo, #14).
+        assert extraer_atributos("cuaderno cuadriculado grande", ("rayado",)) == {"rayado": "cuadriculado"}
+
+    def test_el_tipo_sigue_tomando_el_mas_especifico(self):
+        assert extraer_atributos("Block Repuesto Kiut Carta Cuadriculado KIUT", ("tipo",)) == {
+            "tipo": "cuadriculado"
+        }

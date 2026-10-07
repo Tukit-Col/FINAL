@@ -613,7 +613,10 @@ class Cargador:
                     # La razon de ser de esta semilla. Con el default `util`,
                     # el pipeline le buscaria papeleria a una biblia.
                     "tipo_item": "libro_libre",
-                    "atributos_discriminantes": [],
+                    # El de ingles filtra por `monolingue`: el colegio que pide
+                    # `ingles - ingles` no quiere el bilingue, y el que pide
+                    # `diccionario de ingles` a secas acepta cualquiera.
+                    "atributos_discriminantes": ["monolingue"] if codigo == "dic-ingles" else [],
                     "atributos_descriptivos": [],
                     "admite_personaje": False,
                     "frecuencia_demanda": demanda[codigo],
