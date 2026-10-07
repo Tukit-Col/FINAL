@@ -15,6 +15,7 @@ from __future__ import annotations
 import pytest
 from tukit_catalogo.embeddings import MODELO_FALSO, embeder_falso
 from tukit_catalogo.enriquecer import (
+    atributos_ambiguos,
     atributos_combinados,
     atributos_de_ficha,
     embeddings_a_actualizar,
@@ -946,6 +947,18 @@ class TestUnRenglonQueEnumeraVariosValoresNoExigeNinguno:
         # En las listas `grande` es el tamano del cuaderno, no el del cuadro:
         # `cuaderno argollado cuadriculado grande 100 hojas` (Septimo, #14).
         assert extraer_atributos("cuaderno cuadriculado grande", ("rayado",)) == {"rayado": "cuadriculado"}
+
+    @pytest.mark.parametrize(
+        ("texto", "esperado"),
+        [
+            ("cuaderno rayado o cuadriculado", ["rayado"]),
+            ("Kit de 12 pinceles sintéticos. delgados, planos redondos y abanico", ["forma"]),
+            ("cuaderno cuadriculado cosido", []),
+            ("Cuaderno doble linea", []),
+        ],
+    )
+    def test_lo_que_no_se_exige_por_ambiguo_queda_marcado(self, texto, esperado):
+        assert atributos_ambiguos(texto, ("rayado", "forma", "grosor", "encuadernacion")) == esperado
 
     def test_el_tipo_sigue_tomando_el_mas_especifico(self):
         assert extraer_atributos("Block Repuesto Kiut Carta Cuadriculado KIUT", ("tipo",)) == {

@@ -217,31 +217,19 @@ async def ver_revision(version_id: uuid.UUID) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def _candidatos_por_concepto(repo: RepoAdmin, codigos: list[str]) -> dict[str, list[dict[str, Any]]]:
-    """Los candidatos curados de un conjunto de conceptos, uno por nivel.
+_ORDEN_NIVEL = {"economico": 0, "confiable": 1, "premium": 2}
 
-    REUSA el mismo constructor de opciones que `emparejar`: la consulta de
-    productos con su precio vigente (`_consulta_productos`) y el corte de una
-    opcion por nivel (`_elegir_por_nivel`). La unica diferencia con la ruta de
-    emparejar es que aqui se entra por el concepto YA decidido —la lista esta
-    revisada— en vez de por busqueda de texto.
 
-    Se piden TODOS los conceptos de la version de una vez y se agrupan en
-    memoria por su codigo, para no hacer una consulta por renglon (el patron
-    N+1). El dict de salida mapea `concepto_codigo` a la lista de candidatos
-    con la forma EXACTA del `Candidato` del optimizador.
+async def _productos_por_concepto(repo: RepoAdmin, codigos: list[str]) -> dict[str, list[dict[str, Any]]]:
+    """Todos los productos activos de esos conceptos, con su precio vigente.
+
+    Se piden todos de una vez y se agrupan en memoria, para no hacer una
+    consulta por renglon (el patron N+1).
     """
-    from ..consulta import _elegir_por_nivel
-
     if not codigos:
         return {}
-
-    filas = await repo.productos_por_conceptos(codigos)
-
-    # Se agrupan los productos crudos por concepto en la forma que
-    # `_elegir_por_nivel` consume (las mismas llaves que arma `emparejar`).
     por_concepto: dict[str, list[dict[str, Any]]] = {}
-    for f in filas:
+    for f in await repo.productos_por_conceptos(codigos):
         por_concepto.setdefault(f.concepto_codigo, []).append(
             {
                 "id": f.id,
@@ -257,29 +245,77 @@ async def _candidatos_por_concepto(repo: RepoAdmin, codigos: list[str]) -> dict[
                 "precio_cop": None if f.centavos is None else int(f.centavos) // 100,
             }
         )
+    return por_concepto
 
-    salida: dict[Any, list[dict[str, Any]]] = {}
-    for concepto_id, productos in por_concepto.items():
-        salida[concepto_id] = [
-            {
-                "producto_id": None if p.get("id") is None else str(p["id"]),
-                "sku": p.get("sku") or "",
-                "nombre": p.get("nombre") or "",
-                "nivel": p.get("nivel") or "confiable",
-                "marca": p.get("marca"),
-                "personaje": p.get("personaje"),
-                "imagen_url": p.get("imagen_url"),
-                "unidad_base": p.get("unidad_base") or "unidad",
-                "unidades_por_empaque": int(p.get("unidades_por_empaque") or 1),
-                "atributos": dict(p.get("atributos") or {}),
-                "precio_cop": p.get("precio_cop"),
-                # La lista ya esta revisada: no hay atributo impuesto que filtrar,
-                # asi que todo candidato curado del concepto cumple.
-                "cumple": True,
-            }
-            for p in _elegir_por_nivel(productos)
-        ]
-    return salida
+
+def _renglon_resuelto(
+    texto: str,
+    curados: dict[str, Any],
+    productos: list[dict[str, Any]],
+    discriminantes: tuple[str, ...],
+) -> tuple[list[dict[str, Any]], dict[str, Any], list[str]]:
+    """Los candidatos de UN renglon, lo que el renglon exige y lo que hay que revisar.
+
+    Antes los candidatos eran del concepto, no del renglon: uno por nivel, tres
+    a lo sumo, todos marcados `cumple` porque "la lista ya esta revisada". Pero
+    revisar la lista decide el CONCEPTO, no el producto: `Pinturas acrilicas:
+    blanco` y `: negro` son el mismo concepto y recibian el mismo oleo magenta,
+    y un concepto con cuarenta cuadernos solo le mostraba tres al kit.
+
+    Ahora, con la misma regla que `emparejar`:
+
+    - Se exige lo que el renglon dice de los atributos discriminantes de su
+      concepto. Lo que el revisor corrigio en la curaduria (`atributos` del
+      item) manda sobre lo que se leyo del texto.
+    - Entran TODOS los productos que lo cumplen, no uno por nivel: el
+      optimizador elige entre ellos (Ahorrador el mas barato; Premium el de
+      mejor nivel y, dentro de el, el mas barato).
+    - Sin personaje: el canonico no tiene un acudiente que lo haya pedido. Un
+      producto con personaje entra solo si es el unico que cumple, porque
+      mejor un cuaderno de Cars que cumple que un hueco.
+    - Si nada cumple, no hay candidatos: es un hueco, no un sustituto.
+
+    Lo que el renglon nombra con varios valores (`rayado o cuadriculado`) no
+    se exige y se devuelve aparte para que una persona lo mire.
+    """
+    from ..consulta import _NO_SE_EXIGEN, _cumple
+    from ..enriquecer import atributos_ambiguos, extraer_atributos
+
+    impuestos = {
+        k: v for k, v in extraer_atributos(texto, discriminantes).items() if (k, v) not in _NO_SE_EXIGEN
+    }
+    impuestos.update({k: v for k, v in curados.items() if k in discriminantes and v not in (None, "")})
+    por_revisar = [a for a in atributos_ambiguos(texto, discriminantes) if a not in impuestos]
+
+    que_cumplen = [p for p in productos if _cumple(p, impuestos)]
+    elegibles = [p for p in que_cumplen if not p.get("personaje")] or que_cumplen
+    elegibles.sort(
+        key=lambda p: (
+            _ORDEN_NIVEL.get(p["nivel"] or "", 9),
+            p["precio_cop"] is None,
+            p["precio_cop"] or 0,
+            p["sku"],
+        )
+    )
+
+    candidatos = [
+        {
+            "producto_id": None if p.get("id") is None else str(p["id"]),
+            "sku": p.get("sku") or "",
+            "nombre": p.get("nombre") or "",
+            "nivel": p.get("nivel") or "confiable",
+            "marca": p.get("marca"),
+            "personaje": p.get("personaje"),
+            "imagen_url": p.get("imagen_url"),
+            "unidad_base": p.get("unidad_base") or "unidad",
+            "unidades_por_empaque": int(p.get("unidades_por_empaque") or 1),
+            "atributos": dict(p.get("atributos") or {}),
+            "precio_cop": p.get("precio_cop"),
+            "cumple": True,
+        }
+        for p in elegibles
+    ]
+    return candidatos, impuestos, por_revisar
 
 
 @router.get(
@@ -319,28 +355,38 @@ async def resueltos_de_version(version_id: uuid.UUID) -> dict[str, Any]:
         filas = await repo.items_resueltos(version_id)
 
         codigos = sorted({f.concepto_codigo for f in filas if f.concepto_codigo is not None})
-        candidatos_por_concepto = await _candidatos_por_concepto(repo, codigos)
+        productos = await _productos_por_concepto(repo, codigos)
+        discriminantes = await repo.discriminantes_por_codigo(codigos)
 
-        items = [
-            {
-                "item_id": str(f.id),
-                "orden": int(f.orden),
-                "texto_original": f.texto_original,
-                "cantidad": int(f.cantidad),
-                "tipo_item": f.tipo_item,
-                "modo_adquisicion": f.modo_adquisicion,
-                "concepto_codigo": f.concepto_codigo,
-                "concepto_nombre": f.concepto_nombre,
-                "instruccion_colegio": f.instruccion_colegio,
-                "url_externa": f.url_externa,
-                "candidatos": (
-                    candidatos_por_concepto.get(f.concepto_codigo, [])
-                    if f.concepto_codigo is not None
-                    else []
-                ),
-            }
-            for f in filas
-        ]
+        items = []
+        for f in filas:
+            candidatos: list[dict[str, Any]] = []
+            impuestos: dict[str, Any] = {}
+            por_revisar: list[str] = []
+            if f.concepto_codigo is not None:
+                candidatos, impuestos, por_revisar = _renglon_resuelto(
+                    f.texto_original,
+                    dict(f.atributos or {}),
+                    productos.get(f.concepto_codigo, []),
+                    discriminantes.get(f.concepto_codigo, ()),
+                )
+            items.append(
+                {
+                    "item_id": str(f.id),
+                    "orden": int(f.orden),
+                    "texto_original": f.texto_original,
+                    "cantidad": int(f.cantidad),
+                    "tipo_item": f.tipo_item,
+                    "modo_adquisicion": f.modo_adquisicion,
+                    "concepto_codigo": f.concepto_codigo,
+                    "concepto_nombre": f.concepto_nombre,
+                    "instruccion_colegio": f.instruccion_colegio,
+                    "url_externa": f.url_externa,
+                    "candidatos": candidatos,
+                    "atributos_impuestos": impuestos,
+                    "atributos_por_revisar": por_revisar,
+                }
+            )
 
     return {
         "version_id": str(cabeza.id),

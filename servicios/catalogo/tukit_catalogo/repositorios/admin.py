@@ -203,6 +203,17 @@ class RepoAdmin:
             await self.c.execute(_consulta_productos(precio_min).where(_CONCEPTO.c.codigo.in_(codigos)))
         )
 
+    async def discriminantes_por_codigo(self, codigos: list[str]) -> dict[str, tuple[str, ...]]:
+        """Los atributos que filtran, por codigo de concepto."""
+        if not codigos:
+            return {}
+        filas = await self.c.execute(
+            select(CONCEPTO.c.codigo, CONCEPTO.c.atributos_discriminantes).where(
+                CONCEPTO.c.codigo.in_(codigos)
+            )
+        )
+        return {f.codigo: tuple(f.atributos_discriminantes or ()) for f in filas}
+
     async def items_resueltos(self, version_id: uuid.UUID) -> list[Any]:
         return list(
             await self.c.execute(
@@ -215,6 +226,7 @@ class RepoAdmin:
                     ITEM.c.modo_adquisicion,
                     ITEM.c.instruccion_colegio,
                     ITEM.c.url_externa,
+                    ITEM.c.atributos,
                     ITEM.c.concepto_id,
                     CONCEPTO.c.codigo.label("concepto_codigo"),
                     CONCEPTO.c.nombre_canonico.label("concepto_nombre"),

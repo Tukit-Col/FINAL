@@ -705,13 +705,8 @@ def _cuantos_huecos(plano: str, palabras: tuple[str, ...]) -> int | None:
     return None
 
 
-def _valor_unico(plano: str, tabla: tuple[tuple[str, str], ...]) -> tuple[str, re.Match[str]] | None:
-    """El unico valor de `tabla` que nombra el texto, o None si nombra cero o varios.
-
-    Es para los atributos de UNA dimension (color, forma, rayado...). Un
-    renglon que enumera varios valores pide un surtido, y exigir el primero
-    de la tabla era exigir lo contrario: `pinceles planos, redondos y
-    abanico` pedia solo planos.
+def _coincidencias(plano: str, tabla: tuple[tuple[str, str], ...]) -> list[tuple[str, re.Match[str]]]:
+    """Los valores de `tabla` que nombra el texto, cada uno con donde aparece.
 
     Las coincidencias se toman de la mas larga a la mas corta y una que se
     monta sobre otra ya tomada no cuenta: `doble linea` es un rayado, no
@@ -728,11 +723,53 @@ def _valor_unico(plano: str, tabla: tuple[tuple[str, str], ...]) -> tuple[str, r
     for valor, m in halladas:
         if all(m.end() <= otra.start() or m.start() >= otra.end() for _, otra in tomadas):
             tomadas.append((valor, m))
+    return tomadas
 
-    valores = {valor for valor, _ in tomadas}
-    if len(valores) != 1:
+
+def _valor_unico(plano: str, tabla: tuple[tuple[str, str], ...]) -> tuple[str, re.Match[str]] | None:
+    """El unico valor de `tabla` que nombra el texto, o None si nombra cero o varios.
+
+    Es para los atributos de UNA dimension (color, forma, rayado...). Un
+    renglon que enumera varios valores pide un surtido, y exigir el primero
+    de la tabla era exigir lo contrario: `pinceles planos, redondos y
+    abanico` pedia solo planos.
+    """
+    tomadas = _coincidencias(plano, tabla)
+    if len({valor for valor, _ in tomadas}) != 1:
         return None
     return tomadas[0]
+
+
+def atributos_ambiguos(texto: str, requeridos: tuple[str, ...]) -> list[str]:
+    """Los atributos que el renglon nombra con varios valores y por eso no exige.
+
+    Son los que una persona tiene que mirar: `cuaderno rayado o cuadriculado`
+    no se le puede pedir a ningun producto, pero tampoco es un renglon sin
+    rayado. Que el filtro no lo exija evita un hueco falso; que quede marcado
+    evita que el silencio pase por respuesta.
+    """
+    plano = _normalizar(texto)
+    leidos = extraer_atributos(texto, requeridos)
+    return [
+        atributo
+        for atributo in requeridos
+        if atributo in _TABLAS_DE_UNA_DIMENSION
+        and atributo not in leidos
+        and len({valor for valor, _ in _coincidencias(plano, _TABLAS_DE_UNA_DIMENSION[atributo])}) > 1
+    ]
+
+
+# Los atributos de una sola dimension: los que la regla del valor unico cubre.
+_TABLAS_DE_UNA_DIMENSION: dict[str, tuple[tuple[str, str], ...]] = {
+    "color": COLORES,
+    "forma": FORMAS,
+    "rayado": RAYADOS,
+    "material": MATERIAL,
+    "punta": PUNTAS,
+    "presentacion": PRESENTACION,
+    "encuadernacion": ENCUADERNACIONES,
+    "grosor": GROSORES,
+}
 
 
 def extraer_atributos(nombre: str, requeridos: tuple[str, ...]) -> dict[str, Any]:
