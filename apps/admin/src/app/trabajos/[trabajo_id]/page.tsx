@@ -42,6 +42,16 @@ export default async function PaginaTrabajo({ params }: Props) {
     throw causa;
   }
 
+  // Un borrador de la versión siguiente de kits ya publicados (`basado_en`):
+  // al publicarlo o descartarlo se vuelve a la página de su colegio y grado.
+  const hijo = trabajo.hijos?.[0];
+  const edicion =
+    trabajo.origen === "canonico_lista" && hijo?.basado_en && hijo.colegio_id && hijo.grado
+      ? {
+          volverA: `/colegios/${encodeURIComponent(hijo.colegio_id)}/${encodeURIComponent(hijo.grado)}`,
+        }
+      : undefined;
+
   // Las franquicias del catálogo para el interruptor de personaje del kit Fan
   // (§7, 2d). Se lee aquí —Server Component— y se pasa como nombres; si el
   // catálogo está caído, se degrada a lista vacía (el interruptor no aparece).
@@ -157,6 +167,7 @@ export default async function PaginaTrabajo({ params }: Props) {
         lineasPendientes={trabajo.lineas_pendientes.length}
         notaRevision={trabajo.nota_revision}
         esPreview={trabajo.origen === "preview_onboarding"}
+        edicion={edicion}
       />
 
       <ConsolaRevision trabajo={trabajo} personajes={personajes} />

@@ -233,10 +233,13 @@ function Previsualizaciones({
   entradas,
   nombreColegio,
   ahora,
+  edicion = false,
 }: {
   entradas: EntradaCola[];
   nombreColegio: Map<string, string>;
   ahora: number;
+  /** Borradores de la versión siguiente de kits ya publicados («Editar kits»). */
+  edicion?: boolean;
 }) {
   const porColegio = agrupar(entradas, (e) =>
     e.colegios.map((id) => nombreColegio.get(id) ?? id).join(", ") || "Sin identificar",
@@ -244,11 +247,12 @@ function Previsualizaciones({
   return (
     <details className={styles.plegable}>
       <summary className={styles.plegableTitulo}>
-        <span>Previsualizaciones abiertas</span>
+        <span>{edicion ? "Ediciones de kits abiertas" : "Previsualizaciones abiertas"}</span>
         <span className={styles.conteo}>{entradas.length}</span>
         <span className={styles.plegablePista}>
-          Kits de prueba armados con «Previsualizar». Ningún acudiente los espera: se pueden
-          eliminar sin problema.
+          {edicion
+            ? "Versiones nuevas de kits ya publicados, abiertas con «Editar kits». Los kits vigentes no cambian hasta publicarlas; descartarlas no toca nada."
+            : "Kits de prueba armados con «Previsualizar». Ningún acudiente los espera: se pueden eliminar sin problema."}
         </span>
       </summary>
       <div className={styles.plegableCuerpo}>
@@ -258,7 +262,13 @@ function Previsualizaciones({
               <h3 className={styles.colegioNombre}>{nombre}</h3>
               <span className={styles.colegioMeta}>
                 <span className="cifra">{grupo.length}</span>{" "}
-                {grupo.length === 1 ? "previsualización" : "previsualizaciones"}
+                {edicion
+                  ? grupo.length === 1
+                    ? "edición"
+                    : "ediciones"
+                  : grupo.length === 1
+                    ? "previsualización"
+                    : "previsualizaciones"}
               </span>
             </header>
             <ul className={styles.grados}>
@@ -334,7 +344,12 @@ export default async function PaginaCola() {
   // La previsualizacion del revisor tambien queda en espera, pero nadie la
   // espera: se aparta para no hacerla pasar por la lista de un acudiente.
   const previsualizaciones = trabajosEnEspera.filter((e) => e.origen === "preview_onboarding");
-  const trabajosAcudiente = trabajosEnEspera.filter((e) => e.origen !== "preview_onboarding");
+  // Igual con la edición de kits ya publicados: es trabajo del admin, no de
+  // un acudiente que espera.
+  const ediciones = trabajosEnEspera.filter((e) => e.edicion_de);
+  const trabajosAcudiente = trabajosEnEspera.filter(
+    (e) => e.origen !== "preview_onboarding" && !e.edicion_de,
+  );
 
   const esperando = conAcudiente.length + trabajosAcudiente.length;
 
@@ -417,6 +432,15 @@ export default async function PaginaCola() {
                 />
               ))}
             </section>
+          ) : null}
+
+          {ediciones.length > 0 ? (
+            <Previsualizaciones
+              entradas={ediciones}
+              nombreColegio={nombreColegio}
+              ahora={ahora}
+              edicion
+            />
           ) : null}
 
           {previsualizaciones.length > 0 ? (

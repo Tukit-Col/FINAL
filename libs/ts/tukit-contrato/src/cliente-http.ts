@@ -17,6 +17,7 @@ import type {
   Contacto,
   DecisionRevision,
   EstadoTrabajo,
+  BorradorKits,
   GradoCanonico,
   SolicitudCheckout,
   HijoSubida,
@@ -739,6 +740,7 @@ export class ClienteApi implements OrigenDatos {
         colegios?: string[];
         grados?: string[];
         lineas_a_revisar: number;
+        edicion_de?: string | null;
       }[];
     }>("/v1/admin/cola");
     return {
@@ -752,6 +754,7 @@ export class ClienteApi implements OrigenDatos {
         lineas_pendientes: t.lineas_a_revisar,
         colegios: t.colegios ?? [],
         grados: t.grados ?? [],
+        edicion_de: t.edicion_de ?? null,
       })),
     };
   }
@@ -931,6 +934,13 @@ export class ClienteApi implements OrigenDatos {
 
   fijarCanonico(trabajoId: string, cuerpo: { nota?: string }): Promise<void> {
     return this.json(`/v1/admin/trabajos/${encodeURIComponent(trabajoId)}/canonico`, cuerpo);
+  }
+
+  abrirBorradorKits(trabajoId: string): Promise<BorradorKits> {
+    return this.pedir<BorradorKits>(
+      `/v1/admin/trabajos/${encodeURIComponent(trabajoId)}/borrador`,
+      { method: "POST" },
+    );
   }
 
   eliminarTrabajo(trabajoId: string): Promise<void> {

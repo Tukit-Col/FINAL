@@ -17,6 +17,9 @@
 // se consigue por su cuenta) no se pinta como tres celdas vacias: lo pendiente
 // sale arriba como aviso de ancho completo con su razon, y lo que ni se busca
 // en el catalogo baja al final como fichas compactas agrupadas por motivo.
+//
+// `soloLectura` es la misma vista sin editor: la usa la pagina del colegio
+// para mostrar los kits ya publicados, que solo cambian con «Editar kits».
 
 import { useState } from "react";
 import type { ClaseLinea, Kit, LineaKit, PerfilKit } from "@tukit/contrato";
@@ -38,6 +41,8 @@ interface Props {
   // Kits sin acudiente (vista previa, canónicos): el recomendado sigue sirviendo
   // de columna de referencia, pero no se rotula, porque nadie lo eligió.
   sinRotuloRecomendado?: boolean;
+  /** Kits publicados: se ven igual, pero ninguna celda abre el editor. */
+  soloLectura?: boolean;
 }
 
 // El orden de las columnas es el del precio creciente, que es como el acudiente
@@ -64,6 +69,7 @@ export default function MatrizComparacion({
   kits,
   recomendado,
   sinRotuloRecomendado = false,
+  soloLectura = false,
 }: Props) {
   const rotulado = sinRotuloRecomendado ? undefined : recomendado;
   // (itemId, perfil) de la celda abierta. Una sola a la vez: desplegar todas
@@ -131,6 +137,7 @@ export default function MatrizComparacion({
   const mostrarHijo = hijos.size > 1;
 
   function alternar(itemId: string, perfil: PerfilKit): void {
+    if (soloLectura) return;
     setAbierta((previa) =>
       previa && previa.itemId === itemId && previa.perfil === perfil
         ? null
@@ -200,7 +207,7 @@ export default function MatrizComparacion({
                 type="button"
                 className={`${styles.celda} ${activa ? styles.celdaActiva : ""} ${!linea ? styles.celdaVacia : ""}`}
                 aria-pressed={activa}
-                disabled={!linea}
+                disabled={soloLectura || !linea}
                 onClick={() => linea && alternar(fila.itemId, perfil)}
               >
                 {producto ? (
@@ -257,7 +264,11 @@ export default function MatrizComparacion({
               {TITULO_CLASE[clase]}
               <span className={styles.conteo}>{filas.length}</span>
             </h3>
-            <p>Sin producto en ningún kit. Lo que decidas aquí vale para todos los kits.</p>
+            <p>
+              {soloLectura
+                ? "Sin producto en ningún kit."
+                : "Sin producto en ningún kit. Lo que decidas aquí vale para todos los kits."}
+            </p>
           </header>
           <ul className={styles.avisoLista}>
             {filas.map((fila) => {
@@ -271,15 +282,17 @@ export default function MatrizComparacion({
                       {metaConcepto(fila)}
                     </div>
                     <p className={styles.avisoRazon}>{razonDeFila(fila)}</p>
-                    <button
-                      type="button"
-                      className={activa ? styles.avisoBotonActivo : styles.avisoBoton}
-                      aria-expanded={activa}
-                      disabled={!perfil}
-                      onClick={() => perfil && alternar(fila.itemId, perfil)}
-                    >
-                      {activa ? "Cerrar" : "Resolver"}
-                    </button>
+                    {soloLectura ? null : (
+                      <button
+                        type="button"
+                        className={activa ? styles.avisoBotonActivo : styles.avisoBoton}
+                        aria-expanded={activa}
+                        disabled={!perfil}
+                        onClick={() => perfil && alternar(fila.itemId, perfil)}
+                      >
+                        {activa ? "Cerrar" : "Resolver"}
+                      </button>
+                    )}
                   </div>
                   {detalle(fila, "Resolver este renglón lo deja igual en todos los kits.")}
                 </li>
@@ -324,7 +337,7 @@ export default function MatrizComparacion({
             <h3>No se buscan en el catálogo</h3>
             <p>
               No entran al total de ningún kit: el acudiente los ve como aviso para que no se le
-              pasen. Pulsa uno si hay que corregirlo.
+              pasen.{soloLectura ? "" : " Pulsa uno si hay que corregirlo."}
             </p>
           </header>
           <div className={styles.fueraGrupos}>
@@ -351,7 +364,7 @@ export default function MatrizComparacion({
                           type="button"
                           className={`${styles.ficha} ${activa ? styles.fichaActiva : ""}`}
                           aria-pressed={activa}
-                          disabled={!perfil}
+                          disabled={soloLectura || !perfil}
                           onClick={() => perfil && alternar(fila.itemId, perfil)}
                         >
                           <span className={styles.fichaNombre}>{fila.descripcion}</span>

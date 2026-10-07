@@ -20,6 +20,7 @@ import type {
   ColaAdmin,
   Contacto,
   DecisionRevision,
+  BorradorKits,
   GradoCanonico,
   SolicitudCheckout,
   HijoSubida,
@@ -382,6 +383,10 @@ export interface OrigenDatos {
   // Fija un preview (sin acudiente) como los kits canonicos de su grado: no
   // avisa a nadie. Aprobar la LISTA es aparte (`cerrarLista`).
   fijarCanonico(trabajoId: string, cuerpo: { nota?: string }): Promise<void>;
+  // Copia editable de los kits canonicos vigentes: la version siguiente. Se
+  // corrige en la consola y se publica con `fijarCanonico`; la anterior queda
+  // para los acudientes que ya la tenian. Si ya hay una abierta, devuelve esa.
+  abrirBorradorKits(trabajoId: string): Promise<BorradorKits>;
   // Borra un trabajo desechable (preview, encolado, fallido). Un `publicado`
   // esta protegido y el backend responde 409.
   eliminarTrabajo(trabajoId: string): Promise<void>;

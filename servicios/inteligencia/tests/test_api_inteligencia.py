@@ -207,6 +207,12 @@ class TestConsultar:
         assert respuesta.status_code == 404
         assert respuesta.json()["error"] == "trabajo_no_existe"
 
+    async def test_abrir_borrador_de_un_trabajo_que_no_existe_es_404(self, cliente):
+        respuesta = await cliente.post(f"/v1/admin/trabajos/{uuid.uuid4()}/borrador")
+
+        assert respuesta.status_code == 404
+        assert respuesta.json()["error"] == "trabajo_no_existe"
+
     async def test_mientras_no_este_publicado_kits_va_vacio(self, cliente, motor):
         creado = (await cliente.post("/v1/trabajos", json=_peticion())).json()
         trabajo_id = uuid.UUID(creado["trabajo_id"])
