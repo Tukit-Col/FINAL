@@ -490,6 +490,57 @@ class TestATuMedida:
         assert "se pasa de tu tope" in recomendado.razon
 
 
+class TestUnCandidatoSinPrecioNoGanaPorBarato:
+    """El costo del frente no suma lo que no tiene precio (su falta la mide la
+    disponibilidad), asi que un candidato sin precio parecia gratis: el
+    Ahorrador lo elegia y mostraba un total que no incluia esa linea, y el
+    Premium y A tu Medida lo tomaban como una marca que no costaba nada. Lo
+    que Tukit no puede surtir no gana una comparacion de precio, igual que en
+    la heuristica."""
+
+    RENGLONES = [
+        _renglon(
+            1, "Cuaderno", (_candidato("A-ECO", "economico", 3000), _candidato("A-SIN", "premium", None))
+        ),
+        _renglon(
+            2, "Colores", (_candidato("B-ECO", "economico", 2000), _candidato("B-PRE", "premium", 9000))
+        ),
+    ]
+
+    def _kits(self, preferencias=None):
+        return {k.perfil: k for k in armar_los_tres(self.RENGLONES, preferencias or {})}
+
+    def _skus(self, kit):
+        return [linea.elegido.sku for linea in kit.lineas]
+
+    def test_el_ahorrador_no_elige_lo_que_no_tiene_precio(self):
+        ahorrador = self._kits()["Ahorrador"]
+        assert self._skus(ahorrador) == ["A-ECO", "B-ECO"]
+        assert ahorrador.total_cop == 5000
+        assert ahorrador.objetivos["disponibilidad"] == 1.0
+
+    def test_el_premium_no_toma_una_marca_sin_precio_como_gratis(self):
+        premium = self._kits()["Premium"]
+        assert self._skus(premium) == ["A-ECO", "B-PRE"]
+        assert premium.total_cop == 12000
+
+    def test_a_tu_medida_no_cabe_gracias_a_lo_que_no_tiene_precio(self):
+        medida = self._kits({"prioridad": "equilibrio", "presupuesto_por_hijo": 12000})
+        assert all(linea.precio_unitario_cop is not None for k in medida.values() for linea in k.lineas)
+
+    def test_si_solo_hay_candidato_sin_precio_la_linea_igual_sale(self):
+        """Ofrecerlo diciendo "no conocemos el precio" es mejor que dejar la
+        linea vacia: puede ser el unico que cumple lo que el colegio exige."""
+        renglones = [
+            _renglon(1, "Cuaderno", (_candidato("A-SIN", "premium", None),)),
+            _renglon(
+                2, "Colores", (_candidato("B-ECO", "economico", 2000), _candidato("B-PRE", "premium", 9000))
+            ),
+        ]
+        ahorrador = next(k for k in armar_los_tres(renglones) if k.perfil == "Ahorrador")
+        assert self._skus(ahorrador) == ["A-SIN", "B-ECO"]
+
+
 def _hipervolumen(kits, ref_costo: int) -> float:
     """Hipervolumen 2D (costo vs nivel) de un conjunto de kits.
 
