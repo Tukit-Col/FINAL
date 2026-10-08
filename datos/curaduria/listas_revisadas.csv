@@ -163,7 +163,7 @@ bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Cuarto,2026,2026-10-05T04:58:30.341699+00:
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Cuarto,2026,2026-10-05T04:58:30.341699+00:00,50,Plato y vaso de plástico,C057,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Cuarto,2026,2026-10-05T04:58:30.341699+00:00,51,Toalla pequeña,C040,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Cuarto,2026,2026-10-05T04:58:30.341699+00:00,52,Curvígrafo,C060,1,,,mercado_abierto,,,,false
-bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Cuarto,2026,2026-10-05T04:58:30.341699+00:00,53,Caja de colores.,C007,1,,,mercado_abierto,,,,false
+bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Cuarto,2026,2026-10-05T04:58:30.341699+00:00,53,Caja de colores.,C004,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Cuarto,2026,2026-10-05T04:58:30.341699+00:00,54,Caja de plumones (acrílicos) doble punta de 12 o 18 unidades.,C006,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Cuarto,2026,2026-10-05T04:58:30.341699+00:00,55,2 hojas de acetato tamaño oficio,C030,2,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Cuarto,2026,2026-10-05T04:58:30.341699+00:00,56,2 hojas de papel pergamino,C120,2,,,mercado_abierto,,,,false
@@ -871,7 +871,7 @@ bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,6,Los secretos de Hafiz Mustafá - Francisco Leal Quevedo. Editorial Norma.,C134,1,,,mercado_abierto,,,,true
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,7,"Sherlock, Lupin y yo. Último acto en el teatro de la Ópera. Irene Adler. Editorial Planeta.",C134,1,,,mercado_abierto,,,,true
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,8,Valeria. En el reino de Malagana. Albeiro Echeverria. Editorial Panamericana.,C134,1,,,mercado_abierto,,,,true
-bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,9,"Libro de Lectura Libre Guiada: El estudiante debe elegir un libro, teniendo en cuenta las pautas del docente (literatura y autores sugeridos)",C044,1,,,mercado_abierto,,,,false
+bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,9,"Libro de Lectura Libre Guiada: El estudiante debe elegir un libro, teniendo en cuenta las pautas del docente (literatura y autores sugeridos)",C044,1,,otro,mercado_abierto,"Lo elige el estudiante con su docente, segun las pautas de la clase.",,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,10,cuadernos cosidos de 100 hojas,C001,2,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,11,GATEWAY TO THE WORLD B1 STUDENT'S BOOK. Editorial Macmillan Education.,C134,1,,,mercado_abierto,,,,true
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Septimo,2026,2026-10-05T04:59:51.580212+00:00,12,Diccionario Inglés – Inglés,dic-ingles,1,,,mercado_abierto,,,,false
