@@ -240,7 +240,7 @@ infra/         compose de Postgres 16 + pgvector (cinco bases), despliegue
 
 Un repositorio no es un desplegable. Que el código viva junto y se despliegue por separado
 son dos decisiones distintas, y aquí se toman distinto a propósito: el
-[ADR 0014](../Arquitectura/adr/0014-monorepo-con-despliegue-independiente.md) lo argumenta
+ADR 0014 (*monorepo con despliegue independiente*, en el repositorio externo `Arquitectura/`) lo argumenta
 con la norma 42010 y el modelo 4+1, que separan la vista de desarrollo de la vista física.
 
 La razón concreta de haber juntado el código: mover una función de redacción a la librería
@@ -294,7 +294,7 @@ resistiría la primera pregunta. Las tres razones que sí se sostienen:
 ## Por qué casi todo es Python
 
 Se midió antes de decidir. El resultado está en
-[`PERFILADO_PIPELINE.md`](../Arquitectura/PERFILADO_PIPELINE.md) y contradice la intuición
+`PERFILADO_PIPELINE.md` (repositorio externo `Arquitectura/`) y contradice la intuición
 de partida en algo importante: la latencia del pipeline **sí** era CPU de Python, un 96,3 %,
 pero el 95,3 % del total lo producía **una sola línea** que reconstruía un grafo de
 NetworkX completo en cada ítem. Construirlo cuesta 1.673 ms; consultarlo, 0,137 ms.
@@ -322,7 +322,7 @@ aptitud con sus pruebas, el ejecutor de tareas y la integración continua con ej
 selectiva por ruta. **Dos de los siete servicios están portados** (identidad con 16 tablas y
 catálogo con 18: modelos SQLAlchemy y pruebas de dominio); los otros cinco se llenan
 portando desde los repositorios anteriores, en el orden del
-[plan](../Arquitectura/PLAN_TUKIT_V2.md).
+plan `PLAN_TUKIT_V2.md` (repositorio externo `Arquitectura/`).
 
 La otra mitad de la superficie compartida es el [contrato de la API](docs/arquitectura/CONTRATO_API.md).
 El manifiesto fija las fronteras de *datos*; el contrato fija las de *conversación*. Son los

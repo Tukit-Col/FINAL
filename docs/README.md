@@ -16,6 +16,9 @@ reporta una medición.
 | [`registros/`](registros/) | Registros de aplicación de un trabajo ya hecho, con las reglas para continuarlo | Qué se hizo y cómo seguir haciéndolo |
 | [`informes/`](informes/) | Resultados de ensayos y auditorías, con sus cifras y los archivos de resultados | Mediciones fechadas. El código que las produce sigue en `ensayos/` y escribe aquí |
 
+Lo que quedó abierto (mediciones por repetir, documentos externos por traer, mejoras de los
+algoritmos, integración de ramas) está en [`PENDIENTES.md`](PENDIENTES.md).
+
 ## Índice
 
 ### Arquitectura (normativo)
