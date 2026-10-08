@@ -309,10 +309,10 @@ El plan detallado, tarea por tarea, se escribe al aprobar este diseño.
 ## Lo que cambió durante la implementación
 
 Este diseño se aprobó el 2026-10-02 y se ejecutó con el plan
-`docs/superpowers/plans/2026-10-02-pagos-wompi-sandbox.md`. Lo de arriba queda como se aprobó,
+`docs/diseno/planes/2026-10-02-pagos-wompi-sandbox.md`. Lo de arriba queda como se aprobó,
 porque es el razonamiento con el que se empezó. Lo que sigue es lo que la realidad corrigió,
 en el orden en que apareció. Las decisiones que quedaron están en los ADR 0033 a 0036
-(`arquitectura/adr/`), y el contrato de la API (§9, versión 1.2) describe el estado final.
+(`docs/arquitectura/adr/`), y el contrato de la API (§9, versión 1.2) describe el estado final.
 
 ### 1. El Web Checkout no puede volver a `localhost` (y se cambió al widget)
 

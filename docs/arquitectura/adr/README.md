@@ -2,7 +2,7 @@
 
 Los registros de decisión de arquitectura viven en `Arquitectura/adr/`, fuera de este
 repositorio, y su índice es la tabla del §4 de `Arquitectura/ARQUITECTURA.md`. El código los
-cita por número (`ADR 0012`, `ADR 0017`…) y los planes de `docs/planes/` los crean allá.
+cita por número (`ADR 0012`, `ADR 0017`…) y los planes de `docs/diseno/planes/` los crean allá.
 
 Esta carpeta existe porque esa otra mitad no siempre está a la mano: la rama
 `feature/pagos-wompi-sandbox` se trabajó en una máquina sin `Arquitectura/`, y una decisión

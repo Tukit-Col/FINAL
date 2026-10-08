@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.12 (FastAPI, SQLAlchemy async, pytest + httpx.ASGITransport + aiosqlite), TypeScript (contrato `libs/ts/tukit-contrato`), Next.js 16 App Router (`apps/admin`, Server Components + Route Handlers).
 
-**Spec:** `docs/superpowers/specs/2026-09-23-curaduria-catalogo-spa-design.md`
+**Spec:** `docs/diseno/specs/2026-09-23-curaduria-catalogo-spa-design.md`
 
 ## Global Constraints
 

@@ -55,7 +55,7 @@ Ya no se arman siempre tres kits: se arman los que el acudiente pidió (ADR 0030
 ### Qué cambió en 1.4
 
 El acudiente puede cambiar productos de su kit y, en la ruta rápida, ver y pagar cualquiera de
-los tres kits. Las decisiones están en el ADR 0028 (`arquitectura/adr/`).
+los tres kits. Las decisiones están en el ADR 0028 (`docs/arquitectura/adr/`).
 
 | Cambio | Dónde | Por qué |
 |---|---|---|
@@ -663,7 +663,7 @@ Las degradaciones se reportan, no se esconden:
 > **pruebas**: con `WOMPI_MODO=sandbox` el servicio no arranca si alguna llave no es de prueba, y
 > con `WOMPI_MODO=falso` (por omisión) una pasarela simulada permite caminar todo el flujo sin
 > red. Producción no está en este contrato. Las decisiones están en los ADR 0033 a 0035
-> (`arquitectura/adr/`).
+> (`docs/arquitectura/adr/`).
 
 | Endpoint | Requisito | Qué hace |
 |---|---|---|

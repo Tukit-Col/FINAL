@@ -1,6 +1,6 @@
 # Benchmark: Laya contra el optimizador NSGA-II
 
-**Fecha:** 4 de octubre de 2026 · **Rama:** `bench/laya-vs-nsga` · **Código y datos:** [ensayos/bench_laya/](bench_laya/)
+**Fecha:** 4 de octubre de 2026 · **Rama:** `bench/laya-vs-nsga` · **Código y datos:** [ensayos/bench_laya/](../../ensayos/bench_laya/)
 
 ## La pregunta
 
@@ -21,11 +21,11 @@ Hay dos hallazgos más, sobre el propio Tukit, que importan tanto como la compar
 
 ### Qué decide cada competidor
 
-Lo único que cambia entre competidores es **qué producto va en cada línea del kit**. Todo lo anterior (lectura de la lista, parseo, emparejamiento con el catálogo) y todo lo posterior (unidades a comprar, consolidación, total, `recomendar`) es idéntico. Los kits de todos se miden con las funciones de producción de [optimizador.py](../servicios/inteligencia/tukit_inteligencia/optimizador.py), así que "costo", "fidelidad" y "personaje" significan aquí lo mismo que en Tukit.
+Lo único que cambia entre competidores es **qué producto va en cada línea del kit**. Todo lo anterior (lectura de la lista, parseo, emparejamiento con el catálogo) y todo lo posterior (unidades a comprar, consolidación, total, `recomendar`) es idéntico. Los kits de todos se miden con las funciones de producción de [optimizador.py](../../servicios/inteligencia/tukit_inteligencia/optimizador.py), así que "costo", "fidelidad" y "personaje" significan aquí lo mismo que en Tukit.
 
 ### Datos
 
-- **175 listas oficiales** (17 colegios, todos sus grados; una no tiene ninguna línea comprable con candidatos, por eso los escenarios suman 174) de [items_lista.csv](../datos/listas/items_lista.csv), pasadas por la misma normalización y el mismo emparejamiento del pipeline (`trabajos._normalizar`, `consulta.emparejar`).
+- **175 listas oficiales** (17 colegios, todos sus grados; una no tiene ninguna línea comprable con candidatos, por eso los escenarios suman 174) de [items_lista.csv](../../datos/listas/items_lista.csv), pasadas por la misma normalización y el mismo emparejamiento del pipeline (`trabajos._normalizar`, `consulta.emparejar`).
 - **Una foto fija del catálogo** (135 conceptos, 684 productos, huella `d60ef70e9428f7e6`), congelada en `instancias.json`. Todos los competidores deciden sobre exactamente los mismos renglones y candidatos.
 - **Emparejamiento solo léxico.** La cuota de la API de Gemini se agotó durante la generación, así que todas las instancias se generaron sin el canal semántico. No afecta la comparación (todos reciben los mismos candidatos), pero el catálogo puede ofrecer menos candidatos de los que ofrecería en producción.
 - En promedio, cada lista tiene **17 líneas en las que hay que elegir**, con **2,4 candidatos por línea** (máximo 3). En **137 de las 175 listas** el espacio supera 4.096 combinaciones y el NSGA-II corre de verdad; en las demás, el optimizador enumera el frente exacto.
@@ -43,7 +43,7 @@ Lo único que cambia entre competidores es **qué producto va en cada línea del
 
 | Competidor | Qué es |
 |---|---|
-| **Óptimo exacto** | El techo. Los cuatro objetivos se suman línea por línea, así que los extremos se resuelven exactamente y el escenario de presupuesto es una mochila de elección múltiple, resuelta exactamente por programación dinámica. Verificado contra fuerza bruta con 27 pruebas ([test_comun.py](bench_laya/test_comun.py)). |
+| **Óptimo exacto** | El techo. Los cuatro objetivos se suman línea por línea, así que los extremos se resuelven exactamente y el escenario de presupuesto es una mochila de elección múltiple, resuelta exactamente por programación dinámica. Verificado contra fuerza bruta con 27 pruebas ([test_comun.py](../../ensayos/bench_laya/test_comun.py)). |
 | **NSGA-II (producción)** | `armar_los_tres` tal como corre en Tukit, con 5 semillas. En presupuesto se toma el kit que `recomendar` marca. |
 | **NSGA-II, mejor punto del frente** | Solo presupuesto: el mejor kit del frente que cabe. Es lo que el optimizador ya tiene y hoy no se entrega. |
 | **Regla simple del proyecto** | `elegir_por_perfil`, la heurística que el optimizador usa como semilla y referencia. |
@@ -54,11 +54,11 @@ Lo único que cambia entre competidores es **qué producto va en cada línea del
 | **Laya D: juez de kits** | Se arman 5 kits completos con reglas simples (sin NSGA-II) y Laya elige uno. Es su mejor caso: pocas opciones completas. |
 | **Al azar** | Un candidato al azar por línea. Sirve para leer a Laya. |
 
-**Versión y formato de Laya.** Se probaron tres versiones publicadas (multilingüe, inglesa y `typed-decisions`) y cuatro formas de preguntar, sobre casos sintéticos (una ronda de 60 y otra de 200), **antes de mirar las instancias** ([cordura.py](bench_laya/cordura.py), [cordura_variantes.py](bench_laya/cordura_variantes.py)). La mejor fue `typed-decisions` con las opciones descritas completas en español, y esa es la que corre en el benchmark. No se entrenó a Laya con nuestros datos: los únicos ejemplos disponibles serían los kits del propio NSGA-II, y eso mediría imitación, no competencia.
+**Versión y formato de Laya.** Se probaron tres versiones publicadas (multilingüe, inglesa y `typed-decisions`) y cuatro formas de preguntar, sobre casos sintéticos (una ronda de 60 y otra de 200), **antes de mirar las instancias** ([cordura.py](../../ensayos/bench_laya/cordura.py), [cordura_variantes.py](../../ensayos/bench_laya/cordura_variantes.py)). La mejor fue `typed-decisions` con las opciones descritas completas en español, y esa es la que corre en el benchmark. No se entrenó a Laya con nuestros datos: los únicos ejemplos disponibles serían los kits del propio NSGA-II, y eso mediría imitación, no competencia.
 
 ## Resultados
 
-![Porcentaje de listas en que cada competidor iguala el kit óptimo](bench_laya/fig_optimo.png)
+![Porcentaje de listas en que cada competidor iguala el kit óptimo](../../ensayos/bench_laya/fig_optimo.png)
 
 #### Ahorrador (más barato)
 
@@ -163,7 +163,7 @@ El NSGA-II entrega el mismo kit con las 5 semillas en el 94,5 % de las listas en
 
 **4. Donde el NSGA-II sí aporta es en el compromiso con presupuesto, y hoy no se usa.** El frente trae kits que caben y logran el 94 % de la calidad posible, contra el 40 % del kit que hoy se recomienda.
 
-![Frente del NSGA-II, kits de Laya y óptimo con presupuesto en la lista 2.14 Jardín](bench_laya/fig_frente_2.14_Jardin.png)
+![Frente del NSGA-II, kits de Laya y óptimo con presupuesto en la lista 2.14 Jardín](../../ensayos/bench_laya/fig_frente_2.14_Jardin.png)
 
 La figura muestra una lista típica (17 líneas). El kit que hoy se recomienda (la cruz) es el más barato. El frente trae kits que caben bajo la línea del presupuesto con fidelidad hasta 0,65. El óptimo exacto (la estrella, 0,70) queda por encima de todo el frente. De los kits de Laya, A y C se pasan del presupuesto, y D cabe pero con fidelidad 0,41. Los puntos celestes son del frente de 4 objetivos: en el plano costo-fidelidad parecen dominados, pero no lo están porque ganan en el eje de personaje.
 
@@ -189,7 +189,7 @@ La figura muestra una lista típica (17 líneas). El kit que hoy se recomienda (
 
 ## Cómo reproducirlo
 
-Para solo recalcular métricas sin la base de datos, basta descomprimir `instancias.json.gz` y `nsga.json.gz` en [bench_laya/](bench_laya/) y correr `evaluar.py` y `graficas.py`. Para repetir todo desde cero, desde la raíz de la rama y con la base del catálogo arriba:
+Para solo recalcular métricas sin la base de datos, basta descomprimir `instancias.json.gz` y `nsga.json.gz` en [bench_laya/](../../ensayos/bench_laya/) y correr `evaluar.py` y `graficas.py`. Para repetir todo desde cero, desde la raíz de la rama y con la base del catálogo arriba:
 
 ```bash
 # 1. Foto del catalogo (venv del proyecto)

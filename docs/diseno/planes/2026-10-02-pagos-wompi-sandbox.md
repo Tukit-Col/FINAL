@@ -8,13 +8,13 @@
 
 **Tech Stack:** Python 3.12, FastAPI, SQLAlchemy async, httpx, pytest-asyncio (SQLite en memoria); Next.js 16, React 19, TypeScript.
 
-**Spec:** `docs/superpowers/specs/2026-10-02-pagos-wompi-sandbox-design.md`
+**Spec:** `docs/diseno/specs/2026-10-02-pagos-wompi-sandbox-design.md`
 
 > **Estado (2026-10-03): ejecutado.** Las ocho tareas se completaron con revisión por tarea y
 > una revisión final de la rama. Este plan describe la primera versión, el Web Checkout por
 > redirección, que después se reemplazó por el widget de Wompi. Lo que cambió y por qué está en
 > la sección final del diseño, "Lo que cambió durante la implementación", y en los ADR 0033 a
-> 0036 (`arquitectura/adr/`).
+> 0036 (`docs/arquitectura/adr/`).
 
 ## Global Constraints
 
