@@ -78,6 +78,7 @@ COLUMNAS_LISTAS = [
     "url_externa",
     "atributos",
     "requiere_revision",
+    "avisos_descartados",
 ]
 
 COLUMNAS_CONCEPTOS = [
@@ -191,6 +192,7 @@ def filas_de_listas(conexion: Connection) -> list[dict[str, str]]:
             ITEM.c.url_externa,
             ITEM.c.atributos,
             ITEM.c.requiere_revision,
+            ITEM.c.avisos_descartados,
         )
         .select_from(
             LISTA.join(VERSION, VERSION.c.lista_id == LISTA.c.id)
@@ -217,6 +219,7 @@ def filas_de_listas(conexion: Connection) -> list[dict[str, str]]:
             "url_externa": _texto(f.url_externa),
             "atributos": _atributos(f.atributos),
             "requiere_revision": _bool(f.requiere_revision),
+            "avisos_descartados": "|".join(f.avisos_descartados or ()),
         }
         for f in conexion.execute(consulta)
     ]
@@ -348,6 +351,8 @@ def _item(renglon: dict[str, str], conceptos: dict[str, uuid.UUID]) -> dict[str,
         "url_externa": _nulo(renglon["url_externa"]),
         "atributos": json.loads(renglon["atributos"]) if renglon["atributos"] else {},
         "requiere_revision": renglon["requiere_revision"] == "true",
+        # Columna nueva: un CSV exportado antes de ella no la trae.
+        "avisos_descartados": [a for a in (renglon.get("avisos_descartados") or "").split("|") if a],
     }
 
 
@@ -363,6 +368,7 @@ _CAMPOS_ITEM = (
     "url_externa",
     "atributos",
     "requiere_revision",
+    "avisos_descartados",
 )
 
 
