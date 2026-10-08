@@ -59,6 +59,7 @@ import type {
   FiltrosListasAdmin,
   FiltrosProductos,
   ItemListaEditable,
+  AvisoLista,
   ListaOficial,
   PaginaProductos,
   Personaje,
@@ -452,6 +453,14 @@ export interface OrigenDatos {
     grado: string,
     anioLectivo: number,
   ): Promise<{ version_id: string }>;
+
+  // Los avisos de una version ya revisada (repetidos, atributos ambiguos,
+  // renglones sin producto) y sus dos decisiones: "son distintos" lo descarta
+  // sin crear version; "es el mismo" publica una version nueva con ese renglon
+  // como "no se compra" y los kits se rearman.
+  avisosLista(versionId: string): Promise<AvisoLista[]>;
+  descartarAviso(versionId: string, itemId: string, clave: string): Promise<void>;
+  noComprarRepetido(versionId: string, itemId: string, repiteA: number): Promise<{ version_id: string }>;
 
   // Completar el perfil del colegio NUEVO de una version antes de aprobarla,
   // para que se de de alta completo (logo, direccion, contacto...) y no solo

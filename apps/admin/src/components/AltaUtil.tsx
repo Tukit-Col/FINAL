@@ -39,13 +39,22 @@ interface Props {
   // Las tiendas registradas, para el modo manual (elegir o escribir un slug).
   tiendas: OpcionTienda[];
   onEncolado: () => void;
+  /** Concepto y búsqueda ya puestos, cuando se llega desde un aviso de una lista. */
+  conceptoInicial?: string;
+  consultaInicial?: string;
 }
 
-export default function AltaUtil({ conceptos, tiendas, onEncolado }: Props) {
+export default function AltaUtil({
+  conceptos,
+  tiendas,
+  onEncolado,
+  conceptoInicial,
+  consultaInicial,
+}: Props) {
   const [modo, setModo] = useState<Modo>("buscar");
 
   // Comunes a los dos modos.
-  const [concepto, setConcepto] = useState("");
+  const [concepto, setConcepto] = useState(conceptoInicial ?? "");
   const [nivel, setNivel] = useState<Nivel>("confiable");
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
@@ -53,7 +62,7 @@ export default function AltaUtil({ conceptos, tiendas, onEncolado }: Props) {
 
   // Modo buscar.
   const [slug, setSlug] = useState(TIENDAS_BUSCABLES[0]!.slug);
-  const [consulta, setConsulta] = useState("");
+  const [consulta, setConsulta] = useState(consultaInicial ?? "");
   const [candidatos, setCandidatos] = useState<CandidatoTienda[]>([]);
   const [buscando, setBuscando] = useState(false);
   const [elegido, setElegido] = useState<CandidatoTienda | null>(null);

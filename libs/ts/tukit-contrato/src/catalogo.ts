@@ -209,6 +209,26 @@ export interface ItemListaOficial {
   };
 }
 
+/**
+ * Lo que una persona tiene que decidir de una lista ya revisada
+ * (`GET /v1/admin/listas/{version_id}/avisos`). Sale del mismo calculo que arma
+ * los kits, asi que lo que se avisa es lo que le paso al kit.
+ */
+interface AvisoBase {
+  item_id: string;
+  orden: number;
+  texto: string;
+  concepto_codigo: string | null;
+  concepto_nombre: string | null;
+  /** La clave con que se descarta (`repetido:61`, `revisar:forma`, `sin_producto`). */
+  clave: string;
+}
+
+export type AvisoLista =
+  | (AvisoBase & { tipo: "posible_repetido"; repite_a: number; texto_repetido: string | null })
+  | (AvisoBase & { tipo: "revisar_atributo"; atributo: string })
+  | (AvisoBase & { tipo: "sin_producto"; exige: Record<string, unknown> });
+
 export interface ListaOficial {
   colegio_id: string;
   grado: string;
