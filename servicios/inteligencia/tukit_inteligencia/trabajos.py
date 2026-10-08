@@ -2192,7 +2192,11 @@ async def _cerrar_canonico_de_lista(conexion: Any, trabajo_id: uuid.UUID) -> str
     """
     fila = (await conexion.execute(select(TRABAJO.c.hijos).where(TRABAJO.c.id == trabajo_id))).one_or_none()
     identidad = _identidad_de_grado(fila.hijos if fila else None)
-    if identidad and identidad[3]:
+    # `regenera` lo pone solo `poller.regenerar_canonicos`, que ya salto los
+    # canonicos aprobados o corregidos a mano: ahi la version repetida es
+    # justamente lo que se pidio rearmar.
+    regenera = bool(next(iter(fila.hijos or ()), {}).get("regenera")) if fila else False
+    if identidad and identidad[3] and not regenera:
         colegio_id, grado, anio, version = identidad
         if await version_canonica(conexion, colegio_id, grado, anio) == version:
             await conexion.execute(delete(TRABAJO).where(TRABAJO.c.id == trabajo_id))

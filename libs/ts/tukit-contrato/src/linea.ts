@@ -89,7 +89,10 @@ export const TITULO_CLASE: Record<ClaseLinea, string> = {
 export function razonDeNoCobrar(linea: LineaKit): string | null {
   switch (clasificar(linea)) {
     case "comprable":
-      return null;
+      // En cero unidades porque otra linea ya la cubre: la herramienta pedida
+      // en varias materias o la que se compra junto con la del hermano. El
+      // mensaje dice donde quedo; sin el, se veia el producto y nada mas.
+      return linea.unidades_a_comprar === 0 && linea.mensaje ? linea.mensaje : null;
     case "hueco":
       return (
         linea.mensaje ?? "Entendimos que pides esto y hoy no lo tenemos en el catálogo."
