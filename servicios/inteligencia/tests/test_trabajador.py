@@ -17,6 +17,7 @@ Se fija aqui:
 from __future__ import annotations
 
 import uuid
+from datetime import timedelta
 
 from sqlalchemy import select, update
 from test_fastroute import COLEGIO, _catalogo_verificado
@@ -84,11 +85,16 @@ async def test_no_reclama_lo_que_otro_proceso_va_a_procesar(motor):
 
 
 async def test_retoma_un_procesando_colgado(motor):
-    # Simula un crash: el trabajo quedo `procesando` sin nadie ejecutandolo.
+    # Simula un crash: el trabajo quedo `procesando` sin nadie ejecutandolo, y
+    # hace rato (un `procesando` reciente es de alguien que lo esta armando).
     trabajo_id = await _encolar(motor)
     async with motor.engine.begin() as conexion:
         await conexion.execute(
-            update(TRABAJO).where(TRABAJO.c.id == trabajo_id).values(estado=EstadoTrabajo.PROCESANDO.value)
+            update(TRABAJO)
+            .where(TRABAJO.c.id == trabajo_id)
+            .values(
+                estado=EstadoTrabajo.PROCESANDO.value, actualizado_en=trabajos.ahora() - timedelta(hours=1)
+            )
         )
 
     n = await trabajador.pasada(motor, catalogo=_catalogo_verificado(), retomar_colgados=True)
@@ -99,3 +105,17 @@ async def test_retoma_un_procesando_colgado(motor):
     # Sin contacto/origen, `crear` da un trabajo `colegio_grado`: la ruta rapida
     # lo deja en revision (kit canonico del grado), no publicado directo.
     assert estado == EstadoTrabajo.ESPERA_REVISION.value
+
+
+async def test_no_le_roba_el_trabajo_a_quien_lo_esta_armando(motor):
+    # El poller crea el canonico ya `procesando` y lo arma en su propio
+    # proceso. Retomar colgados cada minuto lo tomaba tambien, los dos lo
+    # armaban a la vez y uno terminaba en "no se puede pasar de fallido a
+    # publicado": asi se perdio el rearmado de Octavo dos veces.
+    await trabajos.crear(
+        motor,
+        hijos=[{"referencia": "h1", "colegio_id": COLEGIO, "grado": "Cuarto"}],
+        preferencias={},
+        en_proceso=True,
+    )
+    assert await trabajador.pasada(motor, catalogo=_catalogo_verificado(), retomar_colgados=True) == 0
