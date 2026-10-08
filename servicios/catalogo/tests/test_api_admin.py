@@ -1037,6 +1037,26 @@ class TestResueltosLaRutaRapida:
         items = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"]
         assert [i["posible_repetido_de"] for i in items] == [None, None, 1]
 
+    async def test_dos_colores_de_la_misma_pintura_no_son_repetidos(self, cliente):
+        async with app.state.motor.sesion() as db:
+            conexion = await db.connection()
+            tabla = Base.metadata.tables["concepto"]
+            await conexion.execute(
+                tabla.update()
+                .where(tabla.c.id == cliente.ids["colores"])
+                .values(atributos_discriminantes=["color"])
+            )
+            await db.commit()
+        vid = await _version_revisada_con_renglones(
+            cliente,
+            [
+                ("Pinturas acrilicas tubo de 45 cc: cian", "colores"),
+                ("Pinturas acrilicas tubo de 45 cc: magenta", "colores"),
+            ],
+        )
+        items = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"]
+        assert [i["posible_repetido_de"] for i in items] == [None, None]
+
     async def test_un_cuaderno_por_materia_no_es_un_repetido(self, cliente):
         vid = await _version_revisada_con_renglones(
             cliente,
