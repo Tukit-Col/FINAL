@@ -106,6 +106,30 @@ jobs:
             echo "Sin pruebas todavia en ${SERVICIO}."
           fi
 
+  # Los ensayos no son un servicio, pero sus pruebas fijan cosas que la tesis
+  # cita: el optimo exacto contra el que se midio el NSGA-II, y el parseo y
+  # emparejamiento de punta a punta. Sin este trabajo nadie las corria, y se
+  # podian romper sin que nada se pusiera rojo. Son segundos, asi que corren
+  # siempre y no por ruta.
+  ensayos:
+    name: Pruebas de los ensayos
+    needs: fronteras
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv venv --python 3.12
+      - run: |
+          uv pip install pytest pytest-asyncio \
+            sqlalchemy pydantic pgvector aiosqlite \
+            fastapi httpx alembic greenlet \
+            numpy pymoo
+      - name: Pruebas de los ensayos
+        run: .venv/bin/pytest ensayos -q
+
   # Las migraciones necesitan un motor de verdad, asi que este trabajo no puede
   # ser un paso mas dentro de `pruebas`: las de dominio corren contra SQLite.
   #

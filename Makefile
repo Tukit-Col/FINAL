@@ -70,7 +70,7 @@ fronteras:  ## Verifica las fronteras de arquitectura (rapido, corre primero)
 	@$(PYTEST) arquitectura/ -q
 
 prueba: fronteras  ## Corre toda la suite, empezando por las fronteras
-	@$(PYTEST) libs servicios -q
+	@$(PYTEST) libs servicios ensayos -q
 
 lint:  ## Revisa estilo y errores estaticos
 	@$(RUFF) check .
