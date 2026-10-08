@@ -171,25 +171,94 @@ class Poller:
         if ya == version:
             return Resultado.OMITIR
 
-        respuesta = await trabajos.crear(
-            self.motor_inteligencia,
-            hijos=[
-                {
-                    "referencia": "canonico",
-                    "colegio_id": str(colegio_id),
-                    "grado": grado,
-                    "anio_lectivo": anio,
-                    "version_id": version,
-                }
-            ],
-            preferencias={},
-            origen=trabajos.ORIGEN_CANONICO,
-            en_proceso=True,
-        )
-        await trabajos.procesar(
-            self.motor_inteligencia, uuid.UUID(respuesta["trabajo_id"]), catalogo=self.catalogo
-        )
+        await armar_canonico(self.motor_inteligencia, self.catalogo, str(colegio_id), grado, anio, version)
         return Resultado.HECHO
+
+
+async def armar_canonico(
+    motor_inteligencia: Any,
+    catalogo: Any,
+    colegio_id: str,
+    grado: str,
+    anio: int,
+    version: str,
+    *,
+    regenera: bool = False,
+) -> uuid.UUID:
+    """Arma los kits canonicos de una version y los publica como vigentes del grado."""
+    respuesta = await trabajos.crear(
+        motor_inteligencia,
+        hijos=[
+            {
+                "referencia": "canonico",
+                "colegio_id": colegio_id,
+                "grado": grado,
+                "anio_lectivo": anio,
+                "version_id": version,
+                **({"regenera": True} if regenera else {}),
+            }
+        ],
+        preferencias={},
+        origen=trabajos.ORIGEN_CANONICO,
+        en_proceso=True,
+    )
+    trabajo_id = uuid.UUID(respuesta["trabajo_id"])
+    await trabajos.procesar(motor_inteligencia, trabajo_id, catalogo=catalogo)
+    return trabajo_id
+
+
+async def regenerar_canonicos(motor_inteligencia: Any, catalogo: Any) -> tuple[int, list[str]]:
+    """Vuelve a armar los kits canonicos que salieron del armado automatico.
+
+    El poller no rearma una version que ya tiene canonico, y esta bien: aprobar
+    dos veces no debe costar dos optimizaciones. Pero cuando cambia COMO se
+    arma (el filtro por atributos, juntar herramientas), los kits publicados se
+    quedan con la logica vieja. Esto los rearma con la misma version de lista.
+
+    Solo los de origen `canonico_lista`. Los que un admin aprobo desde la
+    previsualizacion, o los que corrigio con «Editar kits», pueden tener
+    lineas elegidas a mano, y rearmarlos las borraria: se saltan y se
+    devuelven para que una persona decida. Los kits anteriores siguen
+    publicados para el acudiente que ya los tenia.
+    """
+    from sqlalchemy import select
+
+    async with motor_inteligencia.engine.begin() as conexion:
+        filas = list(
+            await conexion.execute(
+                select(
+                    trabajos.KIT_CANONICO.c.colegio_id,
+                    trabajos.KIT_CANONICO.c.grado,
+                    trabajos.KIT_CANONICO.c.anio_lectivo,
+                    trabajos.TRABAJO.c.origen,
+                    trabajos.TRABAJO.c.hijos,
+                ).select_from(
+                    trabajos.KIT_CANONICO.join(
+                        trabajos.TRABAJO, trabajos.TRABAJO.c.id == trabajos.KIT_CANONICO.c.trabajo_id
+                    )
+                )
+            )
+        )
+    rearmados = 0
+    saltados: list[str] = []
+    for f in filas:
+        hijo = next(iter(f.hijos or ()), {})
+        nombre = f"{f.colegio_id[:8]} {f.grado} ({f.origen})"
+        if f.origen != trabajos.ORIGEN_CANONICO or hijo.get("basado_en") or not hijo.get("version_id"):
+            saltados.append(nombre)
+            continue
+        await armar_canonico(
+            motor_inteligencia,
+            catalogo,
+            f.colegio_id,
+            f.grado,
+            int(f.anio_lectivo),
+            str(hijo["version_id"]),
+            regenera=True,
+        )
+        rearmados += 1
+        print(f"[canonicos] rearmado {nombre}")
+    return rearmados, saltados
 
 
 def _motor_lectura(servicio: str) -> AsyncEngine:
@@ -219,6 +288,14 @@ async def correr_una_vez() -> int:
         await motor_inteligencia.cerrar()
 
 
+async def _regenerar() -> tuple[int, list[str]]:
+    motor_inteligencia = crear_motor("inteligencia")
+    try:
+        return await regenerar_canonicos(motor_inteligencia, ClienteCatalogo())
+    finally:
+        await motor_inteligencia.cerrar()
+
+
 async def _bucle(intervalo: float) -> None:
     while True:
         arrancados = await correr_una_vez()
@@ -233,7 +310,19 @@ def main(argv: list[str] | None = None) -> int:
     )
     analizador.add_argument("--seguir", action="store_true", help="Corre en bucle en vez de una pasada.")
     analizador.add_argument("--intervalo", type=float, default=5.0, help="Segundos entre pasadas.")
+    analizador.add_argument(
+        "--regenerar-canonicos",
+        action="store_true",
+        help="Rearma los kits canonicos automaticos con la logica actual (salta los editados a mano).",
+    )
     argumentos = analizador.parse_args(argv)
+
+    if argumentos.regenerar_canonicos:
+        rearmados, saltados = asyncio.run(_regenerar())
+        print(f"[canonicos] rearmados: {rearmados}")
+        for nombre in saltados:
+            print(f"[canonicos] saltado (puede tener lineas elegidas a mano): {nombre}")
+        return 0
 
     if argumentos.seguir:
         asyncio.run(_bucle(argumentos.intervalo))
