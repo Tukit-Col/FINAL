@@ -31,7 +31,7 @@
 > **1007** tests de Python del monorepo, verde en cada paso).
 >
 > **Documentos que gobiernan:** `arquitectura/manifiesto.toml` (fuente de verdad de las fronteras
-> de datos, la leen las pruebas) y `arquitectura/CONTRATO_API.md` (fronteras de conversación). El
+> de datos, la leen las pruebas) y `docs/arquitectura/CONTRATO_API.md` (fronteras de conversación). El
 > LOCK de fronteras es el manifiesto, verificado por `arquitectura/test_fronteras.py`.
 >
 > **Alcance.** El manifiesto declara **siete** componentes (`identidad`, `catalogo`,

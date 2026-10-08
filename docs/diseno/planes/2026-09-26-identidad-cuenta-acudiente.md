@@ -51,7 +51,7 @@ token va en cookie httpOnly puesta por Route Handlers, nunca lo ve el navegador.
 
 ## Spec
 
-`docs/superpowers/specs/2026-09-26-identidad-cuenta-acudiente-design.md`
+`docs/diseno/specs/2026-09-26-identidad-cuenta-acudiente-design.md`
 (APROBADA y commiteada). Decisiones fijas: contraseña en el paso 1; calidad
 tesis-grado (`REVISION_ARQUITECTURA.md` vinculante); extender el RBAC del
 ADR-0013, no inventar.

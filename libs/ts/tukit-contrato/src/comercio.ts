@@ -1,6 +1,6 @@
 // Superficie de LECTURA de `comercio`. ASUMIDA, no transcrita.
 //
-// `arquitectura/CONTRATO_API.md` v1.0 no publica todavia la superficie de
+// `docs/arquitectura/CONTRATO_API.md` v1.0 no publica todavia la superficie de
 // `comercio` (pedidos, inventario, reservas, pagos, entrega — §1 de
 // ARQUITECTURA.md). El §9 del contrato solo fija el borde del pago (Wompi:
 // id y estado). Todo este fichero es una inferencia a partir de la topologia

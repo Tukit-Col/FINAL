@@ -8,8 +8,8 @@ Complementa [auditoria-kits-agustiniano-septimo.md](auditoria-kits-agustiniano-s
   - **Discriminantes** (= *obligatorios*): filtran. Un producto que no declara el valor pedido se descarta. Si ninguno cumple, la línea queda como hueco, **sin sustituto**.
   - **Descriptivos**: se muestran al acudiente y no descartan nada.
 - **Obligatorio no significa "siempre se exige".** Solo se exige **cuando el renglón lo dice**. "Cuaderno" a secas no filtra por rayado; "cuaderno cuadriculado" sí.
-- La extracción ya existe (`extraer_atributos`, [enriquecer.py:609](../servicios/catalogo/tukit_catalogo/enriquecer.py#L609)) y el filtro también (`emparejar`, [consulta.py:120](../servicios/catalogo/tukit_catalogo/consulta.py#L120)).
-- **El bug:** la ruta rápida que arma los kits canónicos de listas revisadas no usa nada de eso. Toma los candidatos **por concepto** y marca todos como `cumple: True` ([routers/admin.py:276](../servicios/catalogo/tukit_catalogo/routers/admin.py#L276)). Por eso los 7 acrílicos reciben el mismo tubo.
+- La extracción ya existe (`extraer_atributos`, [enriquecer.py:609](../../servicios/catalogo/tukit_catalogo/enriquecer.py#L609)) y el filtro también (`emparejar`, [consulta.py:120](../../servicios/catalogo/tukit_catalogo/consulta.py#L120)).
+- **El bug:** la ruta rápida que arma los kits canónicos de listas revisadas no usa nada de eso. Toma los candidatos **por concepto** y marca todos como `cumple: True` ([routers/admin.py:276](../../servicios/catalogo/tukit_catalogo/routers/admin.py#L276)). Por eso los 7 acrílicos reciben el mismo tubo.
 
 Con tu definición, **Ahorrador = el más barato que cumple** y **Premium = el más caro que cumple**.
 

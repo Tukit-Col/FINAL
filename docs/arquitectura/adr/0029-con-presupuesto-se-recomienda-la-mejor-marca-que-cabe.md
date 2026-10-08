@@ -6,7 +6,7 @@
 
 ## Contexto
 
-El benchmark Laya contra NSGA-II (`ensayos/reporte-benchmark-laya-nsga.md`, rama
+El benchmark Laya contra NSGA-II (`docs/informes/reporte-benchmark-laya-nsga.md`, rama
 `bench/laya-vs-nsga`) mostró que, con presupuesto, el kit recomendado lograba el **40 %** de la
 calidad posible, mientras el frente que el NSGA-II acababa de calcular traía un kit que cabía y
 lograba el **94 %**. `recomendar` solo miraba los tres kits fijos y, si el recomendado no cabía,

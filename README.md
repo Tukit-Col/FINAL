@@ -8,6 +8,9 @@ Este repositorio reemplaza a los dieciséis anteriores. No es una reescritura: e
 bueno y probado se porta, y lo que cambia es el modelo de dominio, que era donde estaban
 los defectos.
 
+Toda la documentación (contrato de la API, ADR, requisitos, diseños, informes y el documento
+de los algoritmos) está en [`docs/`](docs/README.md), clasificada y con su índice.
+
 ```bash
 make preparar     # entorno y dependencias
 make fronteras    # verifica las fronteras de arquitectura
@@ -54,7 +57,7 @@ TUKIT_API_URL=http://127.0.0.1:8010
 
 `make estado` pregunta a la puerta cuáles de los tres responden; `make abajo` los detiene.
 Cada servicio publica su OpenAPI en `/docs`. La fuente de verdad, de todas formas, es
-[el contrato](arquitectura/CONTRATO_API.md), que desde la versión 1.1 documenta la
+[el contrato](docs/arquitectura/CONTRATO_API.md), que desde la versión 1.1 documenta la
 superficie de lectura completa con ejemplos de respuestas reales.
 
 `make humo` es la función de aptitud de la capa HTTP. No comprueba que responda `200`: un
@@ -128,7 +131,7 @@ un sinónimo agregado en la base y no exportado se perdería. Los códigos de co
 chocarían; mientras sea una sola persona la que cura, no pasa.
 
 Los criterios para curar (cuándo crear un concepto, qué tipo darle, dónde va un sinónimo) y
-el registro de lo curado están en [`docs/CURADURIA_CATALOGO.md`](docs/CURADURIA_CATALOGO.md).
+el registro de lo curado están en [`docs/registros/CURADURIA_CATALOGO.md`](docs/registros/CURADURIA_CATALOGO.md).
 
 ## Usuarios de prueba
 
@@ -187,12 +190,12 @@ Un detalle que cuesta una tarde si no se sabe: el checkout de Wompi responde 403
 suya lleva un retorno a `localhost` o a una IP privada. Por eso el widget se abre con
 `bootstrapTransport: "postmessage"`, que le pasa la configuración por mensaje y no por la URL
 de su iframe. Si algún día el modal se queda girando sin fin, es esto. El porqué completo está
-en el [ADR 0033](arquitectura/adr/0033-pago-con-widget-de-wompi.md).
+en el [ADR 0033](docs/arquitectura/adr/0033-pago-con-widget-de-wompi.md).
 
 En "Mis pedidos" del panel, un pedido pendiente se paga o se cancela sin rearmar el kit. Se
 puede pagar durante 24 horas; después hay que rearmarlo para ver el precio de hoy. Cancelar le
 pregunta antes a Wompi si hay un pago en curso, porque cancelar un PSE que el banco todavía está
-aprobando cobraría sin entregar ([ADR 0035](arquitectura/adr/0035-cancelar-solo-con-wompi-consultado.md)).
+aprobando cobraría sin entregar ([ADR 0035](docs/arquitectura/adr/0035-cancelar-solo-con-wompi-consultado.md)).
 
 En modo falso los montos simulados viven en la memoria de Comercio: si lo reinicias entre
 "Pagar" y "Aprobar pago", obtendrás `transaccion_no_existe`; empieza de nuevo desde el kit.
@@ -321,7 +324,7 @@ catálogo con 18: modelos SQLAlchemy y pruebas de dominio); los otros cinco se l
 portando desde los repositorios anteriores, en el orden del
 [plan](../Arquitectura/PLAN_TUKIT_V2.md).
 
-La otra mitad de la superficie compartida es el [contrato de la API](arquitectura/CONTRATO_API.md).
+La otra mitad de la superficie compartida es el [contrato de la API](docs/arquitectura/CONTRATO_API.md).
 El manifiesto fija las fronteras de *datos*; el contrato fija las de *conversación*. Son los
 dos únicos archivos que varios frentes tocan a la vez, así que se cierran antes de repartir
 trabajo.

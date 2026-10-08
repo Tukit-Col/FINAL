@@ -9,7 +9,7 @@
 //
 // Cada grupo se lee por separado y con su propio try/catch: si un servicio está
 // caído, se cae SU sección con un aviso honesto, no el panel entero. Es la misma
-// degradación que el resto del sistema (ver `arquitectura/REVISION_ARQUITECTURA.md`).
+// degradación que el resto del sistema (ver `docs/arquitectura/REVISION_ARQUITECTURA.md`).
 //
 // La traza de calidad por día no se calcula aquí: la congela `make
 // instantanea-metricas` en `operacion.metrica_diaria`, una foto por sesión. La
