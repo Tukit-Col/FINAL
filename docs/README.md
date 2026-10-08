@@ -13,6 +13,7 @@ reporta una medición.
 | [`diseno/specs/`](diseno/specs/) | Diseños de una funcionalidad antes de construirla | Qué se decidió construir y por qué |
 | [`diseno/planes/`](diseno/planes/) | Planes de implementación paso a paso de esos diseños | Cómo se construyó; el estado al inicio de cada uno dice si se ejecutó |
 | [`analisis/`](analisis/) | Análisis del sistema que no son diseño de una funcionalidad | Diagnósticos con su fecha: describen el estado en ese momento |
+| [`guias/`](guias/) | Guías de procedimiento para operar el sistema | Cómo hacer algo bien, paso a paso. Normativas para quien opera |
 | [`registros/`](registros/) | Registros de aplicación de un trabajo ya hecho, con las reglas para continuarlo | Qué se hizo y cómo seguir haciéndolo |
 | [`informes/`](informes/) | Resultados de ensayos y auditorías, con sus cifras y los archivos de resultados | Mediciones fechadas. El código que las produce sigue en `ensayos/` y escribe aquí |
 
@@ -61,6 +62,10 @@ Lo que se construyó puede diferir de la especificación. El documento de [algor
 
 - [Flujo de extremo a extremo por actor](analisis/FLUJO_EXTREMO_A_EXTREMO.md) — qué faltaba para cerrar el recorrido de cada actor (2026-09-22).
 - [Hallazgos del recorrido manual por la UI](analisis/GAPS_UI.md) — ruta, persona, esperado, observado y causa.
+
+### Guías
+
+- [Curaduría: conceptos, productos y atributos](guias/GUIA_CONCEPTOS_Y_PRODUCTOS.md) — cuándo crear un concepto y cómo llenar cada campo, cómo asociarle productos, el vocabulario y el formato de cada atributo, qué hacer después de curar y qué valores del catálogo no cumplen la guía hoy.
 
 ### Registros
 
