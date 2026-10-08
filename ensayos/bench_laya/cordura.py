@@ -4,13 +4,20 @@ import json
 import random
 import sys
 import time
+from pathlib import Path
 
 import laya
 
 random.seed(7)
 NIVELES = ["economico", "confiable", "premium"]
 PERSONAJES = [None, None, "bluey", "spiderman", "frozen"]
-PRODUCTOS = ["Cuaderno cuadriculado 100 hojas", "Lapiz negro HB", "Colores x24", "Pegante en barra", "Tijeras punta roma"]
+PRODUCTOS = [
+    "Cuaderno cuadriculado 100 hojas",
+    "Lapiz negro HB",
+    "Colores x24",
+    "Pegante en barra",
+    "Tijeras punta roma",
+]
 
 
 def caso(n: int):
@@ -45,12 +52,17 @@ def criterios(cands, idioma):
 PREGUNTAS = {
     "es": {
         "barato": "¿Cual opcion tiene el precio mas bajo?",
-        "premium": "¿Cual opcion es de la marca de mejor nivel (premium mejor que confiable, confiable mejor que economico)? Si hay empate, la mas barata.",
+        "premium": (
+            "¿Cual opcion es de la marca de mejor nivel (premium mejor que confiable, "
+            "confiable mejor que economico)? Si hay empate, la mas barata."
+        ),
         "personaje": "¿Cual opcion trae el personaje {p}? Si hay varias, la mas barata.",
     },
     "en": {
         "barato": "Which option has the lowest price?",
-        "premium": "Which option has the best brand tier (premium > confiable > economico)? On ties, the cheapest.",
+        "premium": (
+            "Which option has the best brand tier (premium > confiable > economico)? On ties, the cheapest."
+        ),
         "personaje": "Which option has the character {p}? If several, the cheapest.",
     },
 }
@@ -91,17 +103,40 @@ def main():
                             "criteria": criterios(cands, idioma),
                         }
                     }
-                    estado = f"Renglon de la lista escolar: {base}" if idioma == "es" else f"School list line: {base}"
-                    r = agente.predict(estado, q) if hasattr(agente, "predict") else agente.system_one(estado, q)
+                    estado = (
+                        f"Renglon de la lista escolar: {base}"
+                        if idioma == "es"
+                        else f"School list line: {base}"
+                    )
+                    r = (
+                        agente.predict(estado, q)
+                        if hasattr(agente, "predict")
+                        else agente.system_one(estado, q)
+                    )
                     eleg = r["answers"]["q"]["choice"]
                     ok += eleg == v
                     tot += 1
                 ms = (time.perf_counter() - t0) / max(tot, 1) * 1000
                 azar = sum(1 / len(c) for _, c in casos) / len(casos)
-                resumen[f"{nombre}/{idioma}/{tarea}"] = {"aciertos": ok, "total": tot, "acc": round(ok / tot, 3), "ms": round(ms, 1)}
-                print(nombre, idioma, tarea, f"{ok}/{tot}", f"acc={ok/tot:.2f}", f"azar~{azar:.2f}", f"{ms:.0f}ms", flush=True)
+                resumen[f"{nombre}/{idioma}/{tarea}"] = {
+                    "aciertos": ok,
+                    "total": tot,
+                    "acc": round(ok / tot, 3),
+                    "ms": round(ms, 1),
+                }
+                print(
+                    nombre,
+                    idioma,
+                    tarea,
+                    f"{ok}/{tot}",
+                    f"acc={ok / tot:.2f}",
+                    f"azar~{azar:.2f}",
+                    f"{ms:.0f}ms",
+                    flush=True,
+                )
         del agente
-    json.dump(resumen, open("cordura.json", "w"), indent=2)
+    salida = Path(__file__).resolve().parents[2] / "docs" / "informes" / "benchmark-laya" / "cordura.json"
+    salida.write_text(json.dumps(resumen, indent=2), encoding="utf-8")
 
 
 if __name__ == "__main__":

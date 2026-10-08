@@ -12,10 +12,10 @@ import json
 import random
 import sys
 import time
+from pathlib import Path
 
 import laya
-
-from cordura import NIVELES, caso, criterios, verdad
+from cordura import caso, criterios, verdad
 
 random.seed(11)
 
@@ -36,7 +36,10 @@ def palabra_precio(c, cands):
 
 INSTR = {
     "barato": "¿Cual opcion tiene el precio mas bajo?",
-    "premium": "¿Cual opcion es de la marca de mejor nivel (premium mejor que confiable, confiable mejor que economico)? Si hay empate, la mas barata.",
+    "premium": (
+        "¿Cual opcion es de la marca de mejor nivel (premium mejor que confiable, "
+        "confiable mejor que economico)? Si hay empate, la mas barata."
+    ),
     "personaje": "¿Cual opcion trae el personaje {p}? Si hay varias, la mas barata.",
 }
 NOUL = {
@@ -48,7 +51,13 @@ NOUL = {
 
 def correr(agente, variante, tarea, base, cands, p):
     if variante == "v1":
-        q = {"q": {"type": "choice", "instructions": INSTR[tarea].format(p=p), "criteria": criterios(cands, "es")}}
+        q = {
+            "q": {
+                "type": "choice",
+                "instructions": INSTR[tarea].format(p=p),
+                "criteria": criterios(cands, "es"),
+            }
+        }
         return agente.predict(f"Renglon de la lista escolar: {base}", q)["answers"]["q"]["choice"]
     estado = json.dumps({"renglon": base, "candidatos": cands}, ensure_ascii=False)
     if variante == "v2":
@@ -89,10 +98,28 @@ def main():
                     ok += correr(agente, variante, tarea, base, cands, p) == verdad(tarea, cands, p)
                     tot += 1
                 ms = (time.perf_counter() - t0) / tot * 1000
-                resumen[f"{nombre}/{variante}/{tarea}"] = {"acc": round(ok / tot, 3), "n": tot, "ms": round(ms, 1)}
-                print(nombre, variante, tarea, f"acc={ok/tot:.2f} (azar~{azar:.2f})", f"{ms:.0f}ms", flush=True)
+                resumen[f"{nombre}/{variante}/{tarea}"] = {
+                    "acc": round(ok / tot, 3),
+                    "n": tot,
+                    "ms": round(ms, 1),
+                }
+                print(
+                    nombre,
+                    variante,
+                    tarea,
+                    f"acc={ok / tot:.2f} (azar~{azar:.2f})",
+                    f"{ms:.0f}ms",
+                    flush=True,
+                )
         del agente
-    json.dump(resumen, open("cordura_variantes.json", "w"), indent=2)
+    salida = (
+        Path(__file__).resolve().parents[2]
+        / "docs"
+        / "informes"
+        / "benchmark-laya"
+        / "cordura_variantes.json"
+    )
+    salida.write_text(json.dumps(resumen, indent=2), encoding="utf-8")
 
 
 if __name__ == "__main__":

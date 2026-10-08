@@ -1,8 +1,5 @@
-# Artefactos regenerables o pesados. Las instancias y el NSGA-II van comprimidos (.gz).
-instancias.json
-nsga.json
-resultados.json
+# Las entradas van comprimidas (.gz); los resultados se escriben en docs/informes/benchmark-laya/.
+# Lo que sigue son artefactos locales de una corrida.
 *.log
 *.avance.jsonl
-laya_B_fallida.json
 __pycache__/

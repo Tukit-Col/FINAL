@@ -33,9 +33,9 @@ def _trabajo(instancia: dict, escenarios: list[dict], semilla: int) -> list[dict
 
     def asignacion_de(kit) -> dict[str, str]:
         return {
-            str(l.orden): l.elegido.sku
-            for l in kit.lineas
-            if not l.informativa and l.elegido is not None and str(l.orden) in claves_dec
+            str(linea.orden): linea.elegido.sku
+            for linea in kit.lineas
+            if not linea.informativa and linea.elegido is not None and str(linea.orden) in claves_dec
         }
 
     def armar(prefs: dict):
@@ -47,7 +47,9 @@ def _trabajo(instancia: dict, escenarios: list[dict], semilla: int) -> list[dict
             elecciones = None
             if punto is not None:
                 elecciones = {
-                    k: por_linea[k][sku] for k, sku in punto.asignacion.items() if k in por_linea and sku in por_linea[k]
+                    k: por_linea[k][sku]
+                    for k, sku in punto.asignacion.items()
+                    if k in por_linea and sku in por_linea[k]
                 }
             kits.append(armar_kit(renglones, perfil.value, prefs, elecciones=elecciones))
         kits = recomendar(kits, prefs)
@@ -71,7 +73,12 @@ def _trabajo(instancia: dict, escenarios: list[dict], semilla: int) -> list[dict
             "segundos": round(seg, 4),
             "metodo": "nsga2" if _uso_nsga(dec) else "exacto",
             "frente": [
-                {"costo": s.costo, "fidelidad": s.fidelidad, "disponibilidad": s.disponibilidad, "personaje": s.personaje}
+                {
+                    "costo": s.costo,
+                    "fidelidad": s.fidelidad,
+                    "disponibilidad": s.disponibilidad,
+                    "personaje": s.personaje,
+                }
                 for s in frente
             ],
         }
@@ -109,10 +116,10 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--procesos", type=int, default=6)
     ap.add_argument("--limite", type=int, default=0, help="solo las primeras N instancias (prueba)")
-    ap.add_argument("--salida", default="nsga.json")
+    ap.add_argument("--salida", default="nsga.json.gz")
     args = ap.parse_args()
 
-    instancias = {i["id"]: i for i in cargar_json("instancias.json")["instancias"]}
+    instancias = {i["id"]: i for i in cargar_json("instancias.json.gz")["instancias"]}
     escenarios = cargar_json("escenarios.json")["escenarios"]
     por_inst: dict[str, list[dict]] = {}
     for e in escenarios:

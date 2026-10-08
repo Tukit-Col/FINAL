@@ -1,4 +1,8 @@
-"""Mide a todos los competidores con la misma vara y escribe `resultados.json`.
+"""Mide a todos los competidores con la misma vara.
+
+Escribe en `docs/informes/benchmark-laya/` el detalle por lista
+(`resultados.json.gz`) y las metricas agregadas que cita el informe
+(`resumen.json`).
 
 Competidores:
 - `optimo`        el optimo exacto de cada escenario (techo).
@@ -19,6 +23,7 @@ from collections import defaultdict
 
 from comun import (
     CARPETA,
+    SALIDA,
     cargar_json,
     decidibles,
     domina,
@@ -26,11 +31,10 @@ from comun import (
     objetivos,
     renglones_de,
 )
-from tukit_inteligencia.modelos import PerfilKit
-from tukit_inteligencia.optimizador import _admisibles, armar_kit, elegir_por_perfil, recomendar
-
 from correr_laya import decidibles as decidibles_dict  # noqa: E402  (no importa laya al cargar)
 from correr_laya import kits_por_reglas  # noqa: E402
+from tukit_inteligencia.modelos import PerfilKit
+from tukit_inteligencia.optimizador import _admisibles, armar_kit, elegir_por_perfil, recomendar
 
 PERFIL = {"ahorrador": "Ahorrador", "premium": "Premium", "fan": "Fan"}
 
@@ -59,7 +63,11 @@ def _heuristica(renglones, dec, esc) -> dict[str, str]:
     kits = recomendar([armar_kit(renglones, p.value, prefs) for p in PerfilKit], prefs)
     kit = next(k for k in kits if k.recomendado)
     claves = {str(r.orden) for r in dec}
-    return {str(l.orden): l.elegido.sku for l in kit.lineas if l.elegido and str(l.orden) in claves}
+    return {
+        str(linea.orden): linea.elegido.sku
+        for linea in kit.lineas
+        if linea.elegido and str(linea.orden) in claves
+    }
 
 
 def _azar(dec, clave: str) -> dict[str, str]:
@@ -98,9 +106,9 @@ def _puntaje(esc: dict, obj: dict, opt: dict) -> dict[str, float]:
 
 
 def main() -> int:
-    instancias = {i["id"]: i for i in cargar_json("instancias.json")["instancias"]}
+    instancias = {i["id"]: i for i in cargar_json("instancias.json.gz")["instancias"]}
     escenarios = cargar_json("escenarios.json")["escenarios"]
-    nsga = cargar_json("nsga.json")["filas"]
+    nsga = cargar_json("nsga.json.gz")["filas"]
     nsga_por = defaultdict(dict)
     for f in nsga:
         nsga_por[(f["instancia"], f["escenario"])][f["semilla"]] = f
@@ -123,7 +131,11 @@ def main() -> int:
         n0 = nsga_por[clave].get(0)
         frente = n0["frente"] if n0 else []
 
-        competidores = {"optimo": esc["optimo"], "heuristica": _heuristica(renglones, dec, esc), "azar": _azar(dec, "|".join(clave))}
+        competidores = {
+            "optimo": esc["optimo"],
+            "heuristica": _heuristica(renglones, dec, esc),
+            "azar": _azar(dec, "|".join(clave)),
+        }
         if n0:
             competidores["nsga2"] = n0["asignacion"]
             if esc["escenario"] == "presupuesto" and n0.get("asignacion_frente"):
@@ -159,7 +171,13 @@ def main() -> int:
                 o = objetivos(dec, fs["asignacion"], prefs)
                 semillas.append({"escenario": esc["escenario"], "semilla": s, **_puntaje(esc, o, opt)})
         if n0:
-            semillas.append({"escenario": esc["escenario"], "semilla": 0, **_puntaje(esc, objetivos(dec, n0["asignacion"], prefs), opt)})
+            semillas.append(
+                {
+                    "escenario": esc["escenario"],
+                    "semilla": 0,
+                    **_puntaje(esc, objetivos(dec, n0["asignacion"], prefs), opt),
+                }
+            )
 
         for nombre, asign in competidores.items():
             obj = objetivos(dec, asign, prefs)
@@ -187,13 +205,22 @@ def main() -> int:
     variab = []
     for clave, por_semilla in nsga_por.items():
         vectores = {tuple(sorted(f["objetivos"].items())) for f in por_semilla.values()}
-        variab.append({"instancia": clave[0], "escenario": clave[1], "distintos": len(vectores), "metodo": por_semilla[0]["metodo"]})
+        variab.append(
+            {
+                "instancia": clave[0],
+                "escenario": clave[1],
+                "distintos": len(vectores),
+                "metodo": por_semilla[0]["metodo"],
+            }
+        )
 
     resumen = resumir(filas, variab)
     por_esc = defaultdict(list)
     for s in semillas:
         por_esc[s["escenario"]].append(s["optimo_ok"])
-    resumen["nsga2_optimo_pct_todas_las_semillas"] = {e: round(100 * st.mean(v), 1) for e, v in por_esc.items()}
+    resumen["nsga2_optimo_pct_todas_las_semillas"] = {
+        e: round(100 * st.mean(v), 1) for e, v in por_esc.items()
+    }
     con_dom = [d for d in frente_dominado if d["puntos_dominados"] > 0]
     resumen["frente_con_puntos_dominados_por_reglas"] = {
         "listas_escenario": len(frente_dominado),
@@ -205,9 +232,11 @@ def main() -> int:
         else None,
     }
     guardar_json(
-        "resultados.json",
+        "resultados.json.gz",
         {"resumen": resumen, "variabilidad_nsga": variab, "frente_dominado": frente_dominado, "filas": filas},
+        SALIDA,
     )
+    guardar_json("resumen.json", resumen, SALIDA)
     imprimir(resumen)
     return 0
 
@@ -229,7 +258,20 @@ def resumir(filas, variab):
     resumen = {}
     for (esc, comp), fs in sorted(grupos.items()):
         r = {"n": len(fs), "optimo_pct": round(100 * _media([f["optimo_ok"] for f in fs]), 1)}
-        for k in ("brecha_costo_pct", "brecha_fidelidad", "costo_vs_optimo_pct", "cobertura_personaje_vs_optimo", "cabe", "fidelidad_si_cabe", "puntaje", "exceso_pct", "dominado_por_frente", "domina_al_frente", "segundos", "confianza_media"):
+        for k in (
+            "brecha_costo_pct",
+            "brecha_fidelidad",
+            "costo_vs_optimo_pct",
+            "cobertura_personaje_vs_optimo",
+            "cabe",
+            "fidelidad_si_cabe",
+            "puntaje",
+            "exceso_pct",
+            "dominado_por_frente",
+            "domina_al_frente",
+            "segundos",
+            "confianza_media",
+        ):
             if any(k in f for f in fs):
                 r[k] = _media([f.get(k) for f in fs])
                 if k in ("brecha_costo_pct", "segundos", "exceso_pct"):

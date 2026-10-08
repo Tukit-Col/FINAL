@@ -14,7 +14,7 @@ reporta una medición.
 | [`diseno/planes/`](diseno/planes/) | Planes de implementación paso a paso de esos diseños | Cómo se construyó; el estado al inicio de cada uno dice si se ejecutó |
 | [`analisis/`](analisis/) | Análisis del sistema que no son diseño de una funcionalidad | Diagnósticos con su fecha: describen el estado en ese momento |
 | [`registros/`](registros/) | Registros de aplicación de un trabajo ya hecho, con las reglas para continuarlo | Qué se hizo y cómo seguir haciéndolo |
-| [`informes/`](informes/) | Resultados de ensayos y auditorías, con sus cifras | Mediciones fechadas. El código que las produce sigue en `ensayos/` |
+| [`informes/`](informes/) | Resultados de ensayos y auditorías, con sus cifras y los archivos de resultados | Mediciones fechadas. El código que las produce sigue en `ensayos/` y escribe aquí |
 
 ## Índice
 
@@ -65,10 +65,20 @@ Lo que se construyó puede diferir de la especificación. El documento de [algor
 
 ### Informes
 
-- [Benchmark: Laya contra el optimizador NSGA-II](informes/reporte-benchmark-laya-nsga.md) — código y datos en [`ensayos/bench_laya/`](../ensayos/bench_laya/).
+- [Benchmark: Laya contra el optimizador NSGA-II](informes/reporte-benchmark-laya-nsga.md) — sus resultados (métricas, detalle por lista, tablas, figuras, tiempos) están en [`informes/benchmark-laya/`](informes/benchmark-laya/README.md); el código y los datos de entrada, en [`ensayos/bench_laya/`](../ensayos/bench_laya/).
 - [Huecos del catálogo](informes/reporte-huecos-catalogo.md) — lo genera `ensayos/curaduria_huecos.py`, junto con su [JSON](informes/reporte-huecos-catalogo.json).
 - [Auditoría de los kits canónicos de Séptimo](informes/auditoria-kits-agustiniano-septimo.md) (2026-10-07).
-- [Propuesta de atributos obligatorios para Séptimo](informes/atributos-septimo-propuesta.md).
+- [Propuesta de atributos obligatorios para Séptimo](informes/atributos-septimo-propuesta.md), con su [hoja de revisión producto por producto](informes/propuestas-atributos-septimo.csv) (acción, atributo, valor propuesto, confianza y razón).
+
+### Código de los ensayos
+
+[`ensayos/`](../ensayos/) no tiene documentación: tiene el código que produce los informes y las herramientas de desarrollo. Sus pruebas corren con las del resto del repositorio.
+
+| Qué | Para qué |
+|---|---|
+| `ensayos/bench_laya/` | Reproducir el benchmark: scripts, pruebas del óptimo exacto y datos de entrada (`.json.gz`, `escenarios.json`, `laya_*.json`) |
+| `ensayos/curaduria_huecos.py` | Generar el informe de huecos del catálogo |
+| `ensayos/fase1.py` | Parsear y emparejar renglones de punta a punta desde la consola (`make fase1`) |
 
 ## Lo que no está aquí, a propósito
 
@@ -77,7 +87,6 @@ Lo que se construyó puede diferir de la especificación. El documento de [algor
 | `README.md` | raíz | Es la puerta de entrada del repositorio: cómo levantarlo y probarlo |
 | `apps/web/README.md` | su app | Instrucciones de esa app |
 | `apps/*/AGENTS.md`, `apps/admin/CLAUDE.md` | su app | Instrucciones para agentes de código; las herramientas las buscan en esa ruta |
-| `ensayos/bench_laya/tablas.md` | junto a su script | Lo genera `graficas.py`; es una salida, no un documento editado a mano |
 | `arquitectura/` (raíz) | raíz | Ya no tiene documentos: son las funciones de aptitud (`test_fronteras.py`, `manifiesto.toml`, `verificar_deriva.py`, `humo.py`) que el `Makefile` ejecuta |
 | ADR 0001–0026, `ARQUITECTURA.md`, el SRS | repositorio externo `Arquitectura/` | No forman parte de este repositorio; el código los cita por número |
 

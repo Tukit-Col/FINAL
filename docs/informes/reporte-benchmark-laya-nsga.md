@@ -58,7 +58,7 @@ Lo único que cambia entre competidores es **qué producto va en cada línea del
 
 ## Resultados
 
-![Porcentaje de listas en que cada competidor iguala el kit óptimo](../../ensayos/bench_laya/fig_optimo.png)
+![Porcentaje de listas en que cada competidor iguala el kit óptimo](benchmark-laya/fig_optimo.png)
 
 #### Ahorrador (más barato)
 
@@ -163,7 +163,7 @@ El NSGA-II entrega el mismo kit con las 5 semillas en el 94,5 % de las listas en
 
 **4. Donde el NSGA-II sí aporta es en el compromiso con presupuesto, y hoy no se usa.** El frente trae kits que caben y logran el 94 % de la calidad posible, contra el 40 % del kit que hoy se recomienda.
 
-![Frente del NSGA-II, kits de Laya y óptimo con presupuesto en la lista 2.14 Jardín](../../ensayos/bench_laya/fig_frente_2.14_Jardin.png)
+![Frente del NSGA-II, kits de Laya y óptimo con presupuesto en la lista 2.14 Jardín](benchmark-laya/fig_frente_2.14_Jardin.png)
 
 La figura muestra una lista típica (17 líneas). El kit que hoy se recomienda (la cruz) es el más barato. El frente trae kits que caben bajo la línea del presupuesto con fidelidad hasta 0,65. El óptimo exacto (la estrella, 0,70) queda por encima de todo el frente. De los kits de Laya, A y C se pasan del presupuesto, y D cabe pero con fidelidad 0,41. Los puntos celestes son del frente de 4 objetivos: en el plano costo-fidelidad parecen dominados, pero no lo están porque ganan en el eje de personaje.
 
@@ -189,7 +189,9 @@ La figura muestra una lista típica (17 líneas). El kit que hoy se recomienda (
 
 ## Cómo reproducirlo
 
-Para solo recalcular métricas sin la base de datos, basta descomprimir `instancias.json.gz` y `nsga.json.gz` en [bench_laya/](../../ensayos/bench_laya/) y correr `evaluar.py` y `graficas.py`. Para repetir todo desde cero, desde la raíz de la rama y con la base del catálogo arriba:
+El código y los datos de entrada (instancias, escenarios, corridas del NSGA-II y de Laya) están en [`ensayos/bench_laya/`](../../ensayos/bench_laya/). Los resultados que cita este informe (métricas, tablas, figuras, tiempos y pruebas de cordura) están en [`benchmark-laya/`](benchmark-laya/), y los scripts los escriben ahí.
+
+Para recalcular las métricas sin la base de datos basta correr `evaluar.py` y `graficas.py`: leen directamente los `.json.gz`. Hay que tener en cuenta que `evaluar.py` mide con el optimizador vigente, así que con un optimizador posterior al de este informe las cifras cambian (ver «Lo que cambió después», abajo). Para repetir todo desde cero, desde la raíz del repositorio y con la base del catálogo arriba:
 
 ```bash
 # 1. Foto del catalogo (venv del proyecto)
@@ -206,3 +208,13 @@ python graficas.py "<lista para la figura>"
 # Pruebas del optimo exacto
 python -m pytest test_comun.py
 ```
+
+## Lo que cambió después
+
+Las cifras de este informe son del optimizador del 4 de octubre de 2026 (versión v3 en el
+[documento de algoritmos](../algoritmos/main.tex)). Sus recomendaciones 1, 3 y 4 se aplicaron
+ese mismo día ([ADR 0029](../arquitectura/adr/0029-con-presupuesto-se-recomienda-la-mejor-marca-que-cabe.md)):
+en las 174 listas (semilla 0), el kit recomendado con presupuesto pasó a caber siempre y a igualar
+el óptimo exacto (antes 40 % de la calidad posible), la regla simple pasó a acertar el 100 % de los
+Ahorrador (antes 80 %) y la escalera de costo marginal dejó de dominar puntos del frente (antes 68 %).
+Los archivos de [`benchmark-laya/`](benchmark-laya/) conservan la medición original.
