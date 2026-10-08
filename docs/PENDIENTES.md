@@ -130,6 +130,19 @@ Armar hogares sintéticos de 2 a 4 hijos combinando listas de un mismo colegio.
 
 ---
 
+### 2.9 El personaje se escribe de dos formas
+
+La tabla de personajes de `enriquecer.py` (`PERSONAJES`) produce el nombre con mayúsculas
+(`Frozen`, `Mickey Mouse`), y es la que usa la aprobación de la cola; las semillas del corpus están
+en minúsculas (`frozen`). El kit Fan compara sin distinguir mayúsculas, pero la nivelación agrupa
+por el texto exacto, así que `Frozen` y `frozen` quedan en escaleras distintas, y el SKU semilla
+cambia. Hoy 24 de los 76 productos activos con personaje tienen mayúsculas. Arreglo: normalizar a
+minúsculas al escribir (salida de `extraer_personaje` y guardado del editor), y una pasada única
+sobre `productos_canonicos.csv`. La [guía de curaduría](guias/GUIA_CONCEPTOS_Y_PRODUCTOS.md) fija
+la forma en minúsculas mientras tanto.
+
+---
+
 ## 3. Ramas e integración
 
 - **Nada está publicado.** `docs/documentacion` sale de `feature/atributos-catalogo`, que va
