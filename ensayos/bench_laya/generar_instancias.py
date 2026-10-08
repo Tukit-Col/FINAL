@@ -7,7 +7,7 @@ congela en un JSON: todos los competidores deciden sobre exactamente los mismos
 renglones y candidatos, aunque el catalogo cambie despues.
 
 Uso (desde la raiz del worktree, con el .venv del proyecto):
-    python ensayos/bench_laya/generar_instancias.py --salida ensayos/bench_laya/instancias.json
+    python ensayos/bench_laya/generar_instancias.py --salida ensayos/bench_laya/instancias.json.gz
 """
 
 from __future__ import annotations
@@ -15,13 +15,14 @@ from __future__ import annotations
 import argparse
 import asyncio
 import csv
+import gzip
 import hashlib
 import json
 import os
 import sys
 import time
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
@@ -64,7 +65,7 @@ async def _indice():
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--salida", default=str(RAIZ / "ensayos/bench_laya/instancias.json"))
+    ap.add_argument("--salida", default=str(RAIZ / "ensayos/bench_laya/instancias.json.gz"))
     ap.add_argument("--env", default=str(RAIZ.parent / "FINAL" / ".env"))
     ap.add_argument("--sin-semantico", action="store_true", help="fuerza match lexico")
     args = ap.parse_args(argv)
@@ -144,18 +145,27 @@ def main(argv: list[str] | None = None) -> int:
                     "nota": r.get("nota"),
                 }
             )
-        instancias.append({"id": f"{colegio}|{grado}", "colegio": colegio, "grado": grado, "renglones": renglones})
+        instancias.append(
+            {"id": f"{colegio}|{grado}", "colegio": colegio, "grado": grado, "renglones": renglones}
+        )
         print(f"  {colegio} {grado}: {len(renglones)} renglones, {len(buscables)} buscados", flush=True)
 
     salida = {
-        "generado_en": datetime.now(timezone.utc).isoformat(),
+        "generado_en": datetime.now(UTC).isoformat(),
         "catalogo": {"conceptos": len(conceptos), "productos": len(productos), "huella": huella},
         "canal": dict(canal),
         "umbral_tau": umbral,
         "instancias": instancias,
     }
-    Path(args.salida).write_text(json.dumps(salida, ensure_ascii=False, default=str), encoding="utf-8")
-    print(f"{len(instancias)} instancias en {time.perf_counter() - t0:.0f}s -> {args.salida}; canal {dict(canal)}")
+    texto = json.dumps(salida, ensure_ascii=False, default=str)
+    if args.salida.endswith(".gz"):
+        # mtime=0: la misma foto da el mismo archivo, byte a byte.
+        with gzip.GzipFile(args.salida, "wb", mtime=0) as f:
+            f.write(texto.encode("utf-8"))
+    else:
+        Path(args.salida).write_text(texto, encoding="utf-8")
+    segundos = time.perf_counter() - t0
+    print(f"{len(instancias)} instancias en {segundos:.0f}s -> {args.salida}; canal {dict(canal)}")
     return 0
 
 

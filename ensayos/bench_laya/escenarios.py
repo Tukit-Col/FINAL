@@ -32,7 +32,7 @@ FRACCION_PRESUPUESTO = 0.5
 
 
 def main() -> int:
-    datos = cargar_json("instancias.json")
+    datos = cargar_json("instancias.json.gz")
     escenarios = []
     omitidos: dict[str, int] = {}
 
@@ -50,8 +50,12 @@ def main() -> int:
         a = optimo_ahorrador(dec)
         p = optimo_premium(dec)
         oa, op = objetivos(dec, a, {}), objetivos(dec, p, {})
-        escenarios.append({**base, "escenario": "ahorrador", "preferencias": {}, "optimo": a, "objetivos_optimo": oa})
-        escenarios.append({**base, "escenario": "premium", "preferencias": {}, "optimo": p, "objetivos_optimo": op})
+        escenarios.append(
+            {**base, "escenario": "ahorrador", "preferencias": {}, "optimo": a, "objetivos_optimo": oa}
+        )
+        escenarios.append(
+            {**base, "escenario": "premium", "preferencias": {}, "optimo": p, "objetivos_optimo": op}
+        )
 
         personaje = personaje_de_lista(dec)
         if personaje:
@@ -89,7 +93,9 @@ def main() -> int:
         else:
             omitir("presupuesto")
 
-    guardar_json("escenarios.json", {"catalogo": datos["catalogo"], "omitidos": omitidos, "escenarios": escenarios})
+    guardar_json(
+        "escenarios.json", {"catalogo": datos["catalogo"], "omitidos": omitidos, "escenarios": escenarios}
+    )
     cuenta: dict[str, int] = {}
     for e in escenarios:
         cuenta[e["escenario"]] = cuenta.get(e["escenario"], 0) + 1

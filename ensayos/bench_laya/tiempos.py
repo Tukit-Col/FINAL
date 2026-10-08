@@ -5,11 +5,13 @@ Lado Laya    (.venv-laya):          python tiempos.py laya [--cpu]
 
 Toma 30 listas fijas (cada sexta por id), un proceso, y mide el tiempo de pared
 de armar los kits de un papa sin preferencias (NSGA-II: los tres kits de una
-corrida; Laya: cada modalidad, escenario ahorrador). Escribe `tiempos_<lado>.json`.
+corrida; Laya: cada modalidad, escenario ahorrador). Escribe `tiempos_<lado>.json`
+en `docs/informes/benchmark-laya/`.
 """
 
 from __future__ import annotations
 
+import gzip
 import json
 import statistics as st
 import sys
@@ -17,18 +19,28 @@ import time
 from pathlib import Path
 
 CARPETA = Path(__file__).resolve().parent
+# Los tiempos son resultados del informe: van junto a el, no junto al codigo.
+SALIDA = CARPETA.parents[1] / "docs" / "informes" / "benchmark-laya"
 
 
 def _muestra():
-    inst = json.loads((CARPETA / "instancias.json").read_text(encoding="utf-8"))["instancias"]
+    with gzip.open(CARPETA / "instancias.json.gz", "rt", encoding="utf-8") as f:
+        inst = json.load(f)["instancias"]
     escs = json.loads((CARPETA / "escenarios.json").read_text(encoding="utf-8"))["escenarios"]
     ids = sorted({e["instancia"] for e in escs})[::6][:30]
     por_id = {i["id"]: i for i in inst}
-    return [por_id[i] for i in ids], [e for e in escs if e["instancia"] in ids and e["escenario"] == "ahorrador"]
+    return [por_id[i] for i in ids], [
+        e for e in escs if e["instancia"] in ids and e["escenario"] == "ahorrador"
+    ]
 
 
 def _resumen(xs):
-    return {"n": len(xs), "media_s": round(st.mean(xs), 3), "mediana_s": round(st.median(xs), 3), "max_s": round(max(xs), 3)}
+    return {
+        "n": len(xs),
+        "media_s": round(st.mean(xs), 3),
+        "mediana_s": round(st.median(xs), 3),
+        "max_s": round(max(xs), 3),
+    }
 
 
 def nsga():
@@ -47,7 +59,6 @@ def nsga():
 
 def laya(cpu: bool):
     import laya as lib
-
     from correr_laya import MODALIDADES
 
     instancias, escs = _muestra()
@@ -77,7 +88,7 @@ def main() -> int:
         cpu = "--cpu" in sys.argv
         datos = laya(cpu)
         nombre = f"tiempos_laya{'_cpu' if cpu else '_gpu'}.json"
-    (CARPETA / nombre).write_text(json.dumps(datos, indent=1), encoding="utf-8")
+    (SALIDA / nombre).write_text(json.dumps(datos, indent=1), encoding="utf-8")
     print(datos)
     return 0
 

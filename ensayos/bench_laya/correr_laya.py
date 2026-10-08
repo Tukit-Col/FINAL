@@ -1,7 +1,7 @@
 """El retador: Laya armando los mismos kits, en cuatro modalidades.
 
 Corre en `.venv-laya` (torch + laya), sin importar nada del proyecto: lee
-`instancias.json` y `escenarios.json` y escribe `laya_<modalidad>.json` con una
+`instancias.json.gz` y `escenarios.json` y escribe `laya_<modalidad>.json` con una
 asignacion `{orden: sku}` por (instancia, escenario). La evaluacion la hace
 `evaluar.py` con las funciones de produccion, igual que para el NSGA-II.
 
@@ -22,6 +22,7 @@ no mirando estas instancias.
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import math
 import time
@@ -81,13 +82,19 @@ def pesos(n: int) -> str:
 def describir(r: dict, c: dict) -> str:
     marca = f", marca {c['marca']}" if c.get("marca") else ""
     pj = f", personaje {c['personaje']}" if c.get("personaje") else ""
-    return f"{c['nombre']}{marca}, marca de nivel {c['nivel']}, {pesos(costo(r, c))} por {unidades(r, c)} unidad(es){pj}"
+    return (
+        f"{c['nombre']}{marca}, marca de nivel {c['nivel']}, "
+        f"{pesos(costo(r, c))} por {unidades(r, c)} unidad(es){pj}"
+    )
 
 
 def criterios(r: dict) -> tuple[dict[str, str], dict[str, str]]:
     """Opciones de una linea: {letra: descripcion} y {letra: sku}."""
     adm = admisibles(r)
-    return ({LETRAS[i]: describir(r, c) for i, c in enumerate(adm)}, {LETRAS[i]: c["sku"] for i, c in enumerate(adm)})
+    return (
+        {LETRAS[i]: describir(r, c) for i, c in enumerate(adm)},
+        {LETRAS[i]: c["sku"] for i, c in enumerate(adm)},
+    )
 
 
 def instruccion(esc: dict) -> str:
@@ -101,7 +108,10 @@ def instruccion(esc: dict) -> str:
         )
     if e == "fan":
         p = esc["personaje"]
-        return f"El papa pidio productos de {p}. ¿Cual opcion trae el personaje {p}? Si ninguna lo trae, la mas barata."
+        return (
+            f"El papa pidio productos de {p}. ¿Cual opcion trae el personaje {p}? "
+            "Si ninguna lo trae, la mas barata."
+        )
     return (
         f"El papa tiene un presupuesto de {pesos(esc['presupuesto'])} para todo el kit. "
         "Elige la opcion de mejor nivel de marca que no haga pasar el kit del presupuesto."
@@ -129,7 +139,9 @@ def modalidad_a(agente, inst, esc):
         if len(crit) == 1:
             asign[str(r["orden"])] = next(iter(skus.values()))
             continue
-        resp = agente.predict(renglon_txt(r), {"q": {"type": "choice", "instructions": instruccion(esc), "criteria": crit}})
+        resp = agente.predict(
+            renglon_txt(r), {"q": {"type": "choice", "instructions": instruccion(esc), "criteria": crit}}
+        )
         asign[str(r["orden"])], c = _elige(resp, "q", skus)
         confs.append(c)
     return asign, confs
@@ -197,8 +209,10 @@ def modalidad_c(agente, inst, esc):
             contexto = ""
             if tope is not None:
                 contexto = (
-                    f"Presupuesto total {pesos(tope)}. Ya se gastaron {pesos(gastado)}, quedan {pesos(tope - gastado)}. "
-                    f"Despues de este faltan {faltan} renglones que cuestan como minimo {pesos(minimo_resto)}. "
+                    f"Presupuesto total {pesos(tope)}. Ya se gastaron {pesos(gastado)}, "
+                    f"quedan {pesos(tope - gastado)}. "
+                    f"Despues de este faltan {faltan} renglones que cuestan como minimo "
+                    f"{pesos(minimo_resto)}. "
                 )
                 instr = (
                     "Elige la opcion de mejor nivel de marca cuyo precio deje dinero suficiente "
@@ -231,7 +245,9 @@ def kits_por_reglas(dec: list[dict], personaje: str | None) -> list[dict]:
         actual = barato[str(r["orden"])]
         for c in sorted(admisibles(r), key=rango):
             if rango(c) > rango(actual):
-                pasos.append(((costo(r, c) - costo(r, actual)) / (rango(c) - rango(actual)), str(r["orden"]), c))
+                pasos.append(
+                    ((costo(r, c) - costo(r, actual)) / (rango(c) - rango(actual)), str(r["orden"]), c)
+                )
                 actual = c
     pasos.sort(key=lambda t: t[0])
     kits = [{"nombre": "barato", "elec": barato}]
@@ -246,7 +262,7 @@ def kits_por_reglas(dec: list[dict], personaje: str | None) -> list[dict]:
         fan = {
             str(r["orden"]): min(
                 admisibles(r),
-                key=lambda c: (not (c.get("personaje") or "").lower() == personaje.lower(), costo(r, c)),
+                key=lambda c: ((c.get("personaje") or "").lower() != personaje.lower(), costo(r, c)),
             )
             for r in dec
         }
@@ -314,7 +330,8 @@ def main() -> int:
     ap.add_argument("--sufijo", default="")
     args = ap.parse_args()
 
-    instancias = {i["id"]: i for i in json.loads((CARPETA / "instancias.json").read_text(encoding="utf-8"))["instancias"]}
+    with gzip.open(CARPETA / "instancias.json.gz", "rt", encoding="utf-8") as f:
+        instancias = {i["id"]: i for i in json.load(f)["instancias"]}
     escenarios = json.loads((CARPETA / "escenarios.json").read_text(encoding="utf-8"))["escenarios"]
     if args.limite:
         ids = sorted({e["instancia"] for e in escenarios})[: args.limite]
@@ -327,7 +344,8 @@ def main() -> int:
         avance = CARPETA / f"laya_{m}{args.sufijo}.avance.jsonl"
         filas = []
         if avance.exists():
-            filas = [json.loads(l) for l in avance.read_text(encoding="utf-8").splitlines() if l.strip()]
+            lineas = avance.read_text(encoding="utf-8").splitlines()
+            filas = [json.loads(linea) for linea in lineas if linea.strip()]
         hechos = {(f["instancia"], f["escenario"]) for f in filas}
         t0 = time.perf_counter()
         for n, esc in enumerate(escenarios, 1):
@@ -366,7 +384,10 @@ def main() -> int:
             }
             filas.append(fila)
             if fila["segundos"] > 30 or error:
-                print(f"  lento/error {esc['instancia']} {esc['escenario']}: {fila['segundos']:.0f}s {error}", flush=True)
+                print(
+                    f"  lento/error {esc['instancia']} {esc['escenario']}: {fila['segundos']:.0f}s {error}",
+                    flush=True,
+                )
             with avance.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(fila, ensure_ascii=False) + "\n")
             if n % 100 == 0:
@@ -377,7 +398,10 @@ def main() -> int:
             encoding="utf-8",
         )
         errores = sum(1 for f in filas if f["error"])
-        print(f"{m}: {len(filas)} filas, {errores} errores, {time.perf_counter() - t0:.0f}s -> {salida.name}", flush=True)
+        print(
+            f"{m}: {len(filas)} filas, {errores} errores, {time.perf_counter() - t0:.0f}s -> {salida.name}",
+            flush=True,
+        )
     return 0
 
 

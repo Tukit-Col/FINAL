@@ -9,13 +9,18 @@ del unico hijo de la lista.
 
 from __future__ import annotations
 
+import gzip
 import json
 import sys
 from pathlib import Path
 from typing import Any
 
 RAIZ = Path(__file__).resolve().parents[2]
+# Los datos de entrada (instancias, escenarios, corridas) viven con el codigo;
+# los resultados que el informe cita (metricas, tablas, figuras, tiempos) van a
+# la documentacion, junto al informe que los lee.
 CARPETA = Path(__file__).resolve().parent
+SALIDA = RAIZ / "docs" / "informes" / "benchmark-laya"
 for sub in ("servicios/inteligencia", "libs/py/tukit_comun"):
     if str(RAIZ / sub) not in sys.path:
         sys.path.insert(0, str(RAIZ / sub))
@@ -33,12 +38,26 @@ HIJO = "hijo-1"
 TOPE_NIVEL = len(ORDEN_NIVEL) - 1
 
 
-def cargar_json(nombre: str) -> Any:
-    return json.loads((CARPETA / nombre).read_text(encoding="utf-8"))
+def cargar_json(nombre: str, carpeta: Path = CARPETA) -> Any:
+    """Lee un JSON; si el nombre termina en `.gz`, comprimido."""
+    ruta = carpeta / nombre
+    if ruta.suffix == ".gz":
+        with gzip.open(ruta, "rt", encoding="utf-8") as f:
+            return json.load(f)
+    return json.loads(ruta.read_text(encoding="utf-8"))
 
 
-def guardar_json(nombre: str, datos: Any) -> None:
-    (CARPETA / nombre).write_text(json.dumps(datos, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
+def guardar_json(nombre: str, datos: Any, carpeta: Path = CARPETA) -> None:
+    """Escribe un JSON; si el nombre termina en `.gz`, comprimido."""
+    carpeta.mkdir(parents=True, exist_ok=True)
+    texto = json.dumps(datos, ensure_ascii=False, indent=1, default=str)
+    ruta = carpeta / nombre
+    if ruta.suffix == ".gz":
+        # mtime=0: el mismo resultado da el mismo archivo, byte a byte.
+        with gzip.GzipFile(ruta, "wb", mtime=0) as f:
+            f.write(texto.encode("utf-8"))
+    else:
+        ruta.write_text(texto, encoding="utf-8")
 
 
 def renglones_de(instancia: dict[str, Any]) -> list[Renglon]:
@@ -63,7 +82,9 @@ def tiene_personaje(c: Candidato, pedidos: set[str]) -> bool:
     return bool(c.personaje) and (not pedidos or c.personaje.lower() in pedidos)
 
 
-def objetivos(dec: list[Renglon], asignacion: dict[str, str], preferencias: dict[str, Any]) -> dict[str, float]:
+def objetivos(
+    dec: list[Renglon], asignacion: dict[str, str], preferencias: dict[str, Any]
+) -> dict[str, float]:
     """Los cuatro ejes del frente para una asignacion, con la funcion de produccion."""
     elegidos = []
     for r in dec:
@@ -101,13 +122,15 @@ def domina(a: dict[str, float], b: dict[str, float]) -> bool:
 
 def optimo_ahorrador(dec: list[Renglon]) -> dict[str, str]:
     return {
-        str(r.orden): min(_admisibles(r), key=lambda c: (costo_linea(r, c), -c.rango_nivel, c.sku)).sku for r in dec
+        str(r.orden): min(_admisibles(r), key=lambda c: (costo_linea(r, c), -c.rango_nivel, c.sku)).sku
+        for r in dec
     }
 
 
 def optimo_premium(dec: list[Renglon]) -> dict[str, str]:
     return {
-        str(r.orden): min(_admisibles(r), key=lambda c: (-c.rango_nivel, costo_linea(r, c), c.sku)).sku for r in dec
+        str(r.orden): min(_admisibles(r), key=lambda c: (-c.rango_nivel, costo_linea(r, c), c.sku)).sku
+        for r in dec
     }
 
 
