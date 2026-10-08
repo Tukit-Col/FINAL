@@ -1210,6 +1210,84 @@ async def _version_revisada_con_renglones(cliente, renglones: list[tuple[str, st
     return version_id
 
 
+async def _aviso_de_repetido(cliente, version_id) -> dict | None:
+    avisos = (await cliente.get(f"/v1/admin/listas/{version_id}/avisos")).json()["avisos"]
+    return next((a for a in avisos if a["tipo"] == "posible_repetido"), None)
+
+
+class TestAvisosDeUnaListaRevisada:
+    """Lo que una persona tiene que decidir y la pagina del grado muestra."""
+
+    async def test_avisa_el_repetido_el_atributo_ambiguo_y_lo_que_no_tiene_producto(self, cliente):
+        await _con_cuadernos_extra(cliente, discriminantes=["rayado"])
+        vid = await _version_revisada_con_renglones(
+            cliente,
+            [
+                ("Pegante en barra", "colores"),
+                ("pegante en barra", "colores"),
+                ("cuaderno rayado o cuadriculado", "cuaderno"),
+                ("cuaderno ferrocarril", "cuaderno"),
+            ],
+        )
+        avisos = (await cliente.get(f"/v1/admin/listas/{vid}/avisos")).json()["avisos"]
+        por_tipo = {(a["tipo"], a["orden"]): a for a in avisos}
+
+        repetido = por_tipo[("posible_repetido", 2)]
+        assert repetido["repite_a"] == 1
+        assert repetido["texto_repetido"] == "Pegante en barra"
+        assert por_tipo[("revisar_atributo", 3)]["atributo"] == "rayado"
+        sin = por_tipo[("sin_producto", 4)]
+        assert sin["exige"] == {"rayado": "ferrocarril"}
+        assert sin["concepto_codigo"] == "C001"
+
+    async def test_un_aviso_descartado_no_vuelve(self, cliente):
+        vid = await _version_revisada_con_renglones(
+            cliente, [("Pegante en barra", "colores"), ("pegante en barra", "colores")]
+        )
+        aviso = await _aviso_de_repetido(cliente, vid)
+        respuesta = await cliente.post(
+            f"/v1/admin/listas/{vid}/avisos/descartar",
+            json={"item_id": aviso["item_id"], "clave": aviso["clave"]},
+        )
+        assert respuesta.status_code == 200
+        assert await _aviso_de_repetido(cliente, vid) is None
+
+    async def test_es_el_mismo_publica_una_version_donde_no_se_compra(self, cliente):
+        vid = await _version_revisada_con_renglones(
+            cliente, [("Pegante en barra", "colores"), ("pegante en barra", "colores")]
+        )
+        aviso = await _aviso_de_repetido(cliente, vid)
+        respuesta = await cliente.post(
+            f"/v1/admin/listas/{vid}/items/{aviso['item_id']}/no-comprar", json={"repite_a": 1}
+        )
+        assert respuesta.status_code == 201
+        nueva = respuesta.json()["version_id"]
+
+        items = (await cliente.get(f"/v1/admin/listas/{nueva}/resueltos")).json()["items"]
+        segundo = next(i for i in items if i["orden"] == 2)
+        assert segundo["tipo_item"] == "no_comprar"
+        assert "linea 1" in segundo["instruccion_colegio"]
+        # Aprobar la copia rearma los kits: el evento queda en la bandeja.
+        eventos = [f for f in await _bandeja_de(cliente) if f.tipo == "lista_aprobada"]
+        assert str(eventos[-1].agregado_id) == nueva
+        # Y el aviso de repetido ya no sale en la version nueva.
+        assert await _aviso_de_repetido(cliente, nueva) is None
+
+    async def test_no_se_corrige_una_version_que_ya_no_es_la_vigente(self, cliente):
+        vid = await _version_revisada_con_renglones(
+            cliente, [("Pegante en barra", "colores"), ("pegante en barra", "colores")]
+        )
+        aviso = await _aviso_de_repetido(cliente, vid)
+        await cliente.post(
+            f"/v1/admin/listas/{vid}/items/{aviso['item_id']}/no-comprar", json={"repite_a": 1}
+        )
+        otra_vez = await cliente.post(
+            f"/v1/admin/listas/{vid}/items/{aviso['item_id']}/no-comprar", json={"repite_a": 1}
+        )
+        assert otra_vez.status_code == 409
+        assert otra_vez.json()["error"] == "version_no_vigente"
+
+
 def _cuerpo_sugerencia(**extra) -> dict:
     """El cuerpo que el web manda cuando un padre sugiere su lista.
 

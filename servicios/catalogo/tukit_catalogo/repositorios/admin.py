@@ -203,18 +203,35 @@ class RepoAdmin:
             await self.c.execute(_consulta_productos(precio_min).where(_CONCEPTO.c.codigo.in_(codigos)))
         )
 
-    async def reglas_por_codigo(self, codigos: list[str]) -> dict[str, tuple[tuple[str, ...], bool]]:
-        """Por codigo de concepto: los atributos que filtran y si es uno por estudiante."""
+    async def reglas_por_codigo(self, codigos: list[str]) -> dict[str, tuple[tuple[str, ...], bool, str]]:
+        """Por codigo de concepto: atributos que filtran, si es uno por estudiante y su tipo."""
         if not codigos:
             return {}
         filas = await self.c.execute(
             select(
-                CONCEPTO.c.codigo, CONCEPTO.c.atributos_discriminantes, CONCEPTO.c.uno_por_estudiante
+                CONCEPTO.c.codigo,
+                CONCEPTO.c.atributos_discriminantes,
+                CONCEPTO.c.uno_por_estudiante,
+                CONCEPTO.c.tipo_item,
             ).where(CONCEPTO.c.codigo.in_(codigos))
         )
         return {
-            f.codigo: (tuple(f.atributos_discriminantes or ()), bool(f.uno_por_estudiante)) for f in filas
+            f.codigo: (tuple(f.atributos_discriminantes or ()), bool(f.uno_por_estudiante), f.tipo_item)
+            for f in filas
         }
+
+    async def descartar_aviso(self, item_id: uuid.UUID, version_id: uuid.UUID, clave: str) -> bool:
+        """Agrega `clave` a los avisos descartados del renglon. False si no existe."""
+        actual = await self.c.scalar(
+            select(ITEM.c.avisos_descartados).where(ITEM.c.id == item_id, ITEM.c.version_id == version_id)
+        )
+        if actual is None:
+            return False
+        if clave not in actual:
+            await self.c.execute(
+                update(ITEM).where(ITEM.c.id == item_id).values(avisos_descartados=[*actual, clave])
+            )
+        return True
 
     async def items_resueltos(self, version_id: uuid.UUID) -> list[Any]:
         return list(
@@ -229,6 +246,7 @@ class RepoAdmin:
                     ITEM.c.instruccion_colegio,
                     ITEM.c.url_externa,
                     ITEM.c.atributos,
+                    ITEM.c.avisos_descartados,
                     ITEM.c.concepto_id,
                     CONCEPTO.c.codigo.label("concepto_codigo"),
                     CONCEPTO.c.nombre_canonico.label("concepto_nombre"),
@@ -338,6 +356,11 @@ class RepoAdmin:
     async def item_por_id(self, item_id: uuid.UUID, version_id: uuid.UUID) -> Any:
         return (
             await self.c.execute(select(ITEM).where(ITEM.c.id == item_id, ITEM.c.version_id == version_id))
+        ).first()
+
+    async def item_por_orden(self, version_id: uuid.UUID, orden: int) -> Any:
+        return (
+            await self.c.execute(select(ITEM).where(ITEM.c.version_id == version_id, ITEM.c.orden == orden))
         ).first()
 
     async def actualizar_item(self, item_id: uuid.UUID, valores: dict[str, Any]) -> None:
@@ -482,6 +505,7 @@ class RepoAdmin:
                     ITEM.c.url_externa,
                     ITEM.c.atributos,
                     ITEM.c.requiere_revision,
+                    ITEM.c.avisos_descartados,
                 ).where(ITEM.c.version_id == version_id)
             )
         )
