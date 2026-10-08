@@ -292,8 +292,12 @@ def clasificar(
     renglon = PAR_DE_ESCUADRAS.sub(" escuadras juego ", renglon)
     nucleo = cabeza(renglon)
     for concepto in conceptos:
+        # Recortado en 0: un coseno negativo no es "menos parecido que nada",
+        # y dejarlo restaria en las ramas lexicas. Con el modelo de produccion
+        # los cosenos medidos no bajan de 0.43, pero la garantia hibrido >=
+        # lexico no puede depender de que modelo haya.
         cos = (
-            coseno(embedding_renglon, concepto["embedding"])
+            max(0.0, coseno(embedding_renglon, concepto["embedding"]))
             if embedding_renglon is not None and concepto.get("embedding")
             else 0.0
         )

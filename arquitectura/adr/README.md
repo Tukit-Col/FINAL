@@ -30,6 +30,7 @@ backbone. El número es una etiqueta; el título es la decisión.
 | [0036](0036-estado-de-compra-calculado.md) | El estado de compra de una solicitud se calcula cruzando pedidos, no se guarda | aceptada | `feature/pagos-wompi-sandbox` |
 | [0037](0037-la-curaduria-viaja-por-git.md) | La curaduría de listas y del catálogo viaja por git como CSV | aceptada | `feature/curaduria-de-listas` |
 | [0038](0038-el-concepto-asignado-en-la-revision-manda.md) | El concepto asignado en la revisión manda sobre el texto, y su tipo decide si se busca | aceptada | `feature/curaduria-de-listas` |
+| [0039](0039-lo-que-no-tiene-precio-no-gana-por-barato.md) | Lo que no tiene precio no gana por barato en el frente, y el coseno no resta en la fusión | aceptada | `feature/atributos-catalogo` |
 
 ## Para incorporarlos
 

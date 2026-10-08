@@ -699,20 +699,39 @@ def optimizar_frente(
     return _frente_nsga(decidibles, opciones, preferencias, semilla=semilla)
 
 
+def _surtibles(frente: list[SolucionFrente]) -> list[SolucionFrente]:
+    """Los puntos del frente con la mayor disponibilidad que el frente alcanza.
+
+    El costo no suma lo que no tiene precio (su falta la mide `disponibilidad`),
+    asi que cambiar un candidato con precio por uno sin precio BAJA el costo y
+    los dos puntos quedan en el frente sin dominarse. Proyectar sobre todo el
+    frente hacia que el Ahorrador eligiera lo que no tiene precio, con un total
+    que no incluia esa linea, y que el Premium y A tu Medida lo tomaran como una
+    marca gratis. Es la misma regla de la heuristica (`_costo_para_ordenar`): lo
+    que Tukit no puede surtir no gana una comparacion de precio, pero si una
+    linea SOLO tiene candidatos sin precio, todos los puntos los llevan y la
+    linea sigue saliendo.
+    """
+    tope = max(s.disponibilidad for s in frente)
+    return [s for s in frente if s.disponibilidad == tope]
+
+
 def _proyectar(frente: list[SolucionFrente], perfil: str) -> SolucionFrente | None:
     """Elige el punto del frente que corresponde a un perfil.
 
     Los tres perfiles son arquetipos, no los pesos del acudiente (esos solo
     deciden CUAL de los tres se recomienda, en `recomendar`). Por eso cada uno
-    proyecta el frente sobre un eje distinto:
+    proyecta el frente sobre un eje distinto, entre los puntos de maxima
+    disponibilidad (`_surtibles`):
 
-    - `Ahorrador`: minimo costo (desempata por mayor disponibilidad).
+    - `Ahorrador`: minimo costo.
     - `Premium`: maxima fidelidad de marca (desempata por menor costo).
     - `Fan`: maximo `personaje`; si el frente no ofrece personaje (nadie lo
       pidio), se comporta como `Ahorrador`, igual que la heuristica.
     """
     if not frente:
         return None
+    frente = _surtibles(frente)
     if perfil == PerfilKit.PREMIUM.value:
         return max(frente, key=lambda s: (s.fidelidad, -s.costo, s.disponibilidad))
     if perfil == PerfilKit.FAN.value:
@@ -1236,7 +1255,7 @@ def _armar_a_tu_medida(
     if not frente:
         return None
     tope, _ = _tope_de_a_tu_medida(preferencias, ahorrador, premium)
-    caben = [s for s in frente if s.costo <= tope]
+    caben = [s for s in _surtibles(frente) if s.costo <= tope]
     if not caben:
         return None
     punto = max(caben, key=lambda s: (s.fidelidad, -s.costo, s.disponibilidad))
