@@ -241,13 +241,14 @@ async def regenerar_canonicos(motor_inteligencia: Any, catalogo: Any) -> tuple[i
         )
     rearmados = 0
     saltados: list[str] = []
+    fallidos: list[str] = []
     for f in filas:
         hijo = next(iter(f.hijos or ()), {})
         nombre = f"{f.colegio_id[:8]} {f.grado} ({f.origen})"
         if f.origen != trabajos.ORIGEN_CANONICO or hijo.get("basado_en") or not hijo.get("version_id"):
             saltados.append(nombre)
             continue
-        await armar_canonico(
+        trabajo_id = await armar_canonico(
             motor_inteligencia,
             catalogo,
             f.colegio_id,
@@ -256,8 +257,17 @@ async def regenerar_canonicos(motor_inteligencia: Any, catalogo: Any) -> tuple[i
             str(hijo["version_id"]),
             regenera=True,
         )
+        async with motor_inteligencia.engine.begin() as conexion:
+            estado = await conexion.scalar(
+                select(trabajos.TRABAJO.c.estado).where(trabajos.TRABAJO.c.id == trabajo_id)
+            )
+        if estado != "publicado":
+            fallidos.append(f"{nombre}: {estado}")
+            continue
         rearmados += 1
         print(f"[canonicos] rearmado {nombre}")
+    for fallo in fallidos:
+        print(f"[canonicos] NO se rearmo {fallo}")
     return rearmados, saltados
 
 
