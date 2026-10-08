@@ -15,6 +15,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import type {
+  AvisoLista,
   ColegioDetalle,
   DirectorioColegio,
   ItemListaOficial,
@@ -24,6 +25,7 @@ import type {
   ResumenPedidosColegio,
 } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
+import AvisosLista from "@/components/AvisosLista";
 import EditarKits from "@/components/EditarKits";
 import EditarLista from "@/components/EditarLista";
 import KitsCanonicos from "./KitsCanonicos";
@@ -57,7 +59,7 @@ function adquisicion(modo: string): { etiqueta: string; clase: string } {
 function Renglon({ item }: { item: ItemListaOficial }) {
   const adq = adquisicion(item.modo_adquisicion);
   return (
-    <li className={styles.renglon}>
+    <li className={styles.renglon} id={`renglon-${item.orden}`}>
       <span className={styles.renglonNumero}>{item.orden}</span>
       <div className={styles.renglonCuerpo}>
         <p className={styles.renglonTexto}>{item.texto_generico ?? item.texto_original}</p>
@@ -121,6 +123,18 @@ export default async function PaginaListaGrado({ params }: Props) {
       if (causa instanceof ErrorTukit && causa.estado === 404) tipoDocumento = null;
       else tipoDocumento = "application/pdf";
     }
+  }
+
+  // Lo que una persona tiene que decidir de esta lista. Un fallo al leerlos no
+  // tumba la pagina: los avisos ayudan, la lista es lo que importa.
+  let avisos: AvisoLista[] = [];
+  if (lista.version_id) {
+    avisos = await origenDeDatos()
+      .avisosLista(lista.version_id)
+      .catch((causa) => {
+        console.error("no se pudieron leer los avisos de la lista", causa);
+        return [];
+      });
   }
 
   const urlDocumento = lista.version_id
@@ -217,6 +231,8 @@ export default async function PaginaListaGrado({ params }: Props) {
           anioLectivo={lista.anio_lectivo}
         />
       </header>
+
+      {lista.version_id ? <AvisosLista versionId={lista.version_id} avisos={avisos} /> : null}
 
       <div className={styles.paneles}>
         {/* -------------------------------------------- El documento original */}

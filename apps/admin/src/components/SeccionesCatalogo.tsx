@@ -43,6 +43,10 @@ interface Props {
   personajes: string[];
   tiendas: OpcionTienda[];
   vocabulario: VocabularioConceptos;
+  /** La pestaña con que abre (`?pestana=util`); por omisión, productos. */
+  pestanaInicial?: string;
+  /** Lo que el alta de útil trae ya puesto (desde un aviso de una lista). */
+  altaInicial?: { concepto?: string; consulta?: string };
 }
 
 export default function SeccionesCatalogo({
@@ -51,8 +55,12 @@ export default function SeccionesCatalogo({
   personajes,
   tiendas,
   vocabulario,
+  pestanaInicial,
+  altaInicial,
 }: Props) {
-  const [pestana, setPestana] = useState<Pestana>("productos");
+  const [pestana, setPestana] = useState<Pestana>(
+    PESTANAS.some((p) => p.id === pestanaInicial) ? (pestanaInicial as Pestana) : "productos",
+  );
   // Se incrementa al encolar algo; `ColaCuraduria` se remonta y recarga.
   const [versionCola, setVersionCola] = useState(0);
   // Los conceptos viven en estado para que uno recién creado aparezca de
@@ -110,7 +118,13 @@ export default function SeccionesCatalogo({
         />
       )}
       {pestana === "util" && (
-        <AltaUtil conceptos={conceptos} tiendas={tiendas} onEncolado={irALaCola} />
+        <AltaUtil
+          conceptos={conceptos}
+          tiendas={tiendas}
+          onEncolado={irALaCola}
+          conceptoInicial={altaInicial?.concepto}
+          consultaInicial={altaInicial?.consulta}
+        />
       )}
       {pestana === "libro" && (
         <AltaLibro conceptos={conceptos} tiendas={tiendas} onEncolado={irALaCola} />

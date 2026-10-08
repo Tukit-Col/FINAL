@@ -19,7 +19,14 @@ import { vocabularioDeConceptos } from "@/lib/vocabulario-conceptos";
 
 export const dynamic = "force-dynamic";
 
-export default async function PaginaCatalogo() {
+interface Props {
+  // `?pestana=util&concepto=C008&consulta=regla de acero`: el enlace «Agregar
+  // útil» de los avisos de una lista abre el alta con eso ya puesto.
+  searchParams: Promise<{ pestana?: string; concepto?: string; consulta?: string }>;
+}
+
+export default async function PaginaCatalogo({ searchParams }: Props) {
+  const { pestana, concepto, consulta } = await searchParams;
   const origen = origenDeDatos();
 
   // Las tres lecturas en paralelo: primera página, conceptos y personajes.
@@ -81,6 +88,8 @@ export default async function PaginaCatalogo() {
       </header>
 
       <SeccionesCatalogo
+          pestanaInicial={pestana}
+          altaInicial={{ concepto, consulta }}
         paginaInicial={paginaInicial}
         conceptos={conceptos}
         personajes={nombresPersonajes}

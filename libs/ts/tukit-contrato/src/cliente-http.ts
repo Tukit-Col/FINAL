@@ -62,6 +62,7 @@ import type {
   FiltrosProductos,
   ItemListaEditable,
   ItemRevision,
+  AvisoLista,
   ListaOficial,
   OfertaCatalogo,
   PaginaProductos,
@@ -1125,6 +1126,37 @@ export class ClienteApi implements OrigenDatos {
     const resp = await this.pedir<{ version_id: string; numero?: number; revisada?: boolean }>(
       `/v1/admin/listas/${encodeURIComponent(colegioId)}/${encodeURIComponent(grado)}/nueva-version?anio_lectivo=${anioLectivo}`,
       { method: "POST" },
+    );
+    return { version_id: resp.version_id };
+  }
+
+  async avisosLista(versionId: string): Promise<AvisoLista[]> {
+    const resp = await this.pedir<{ version_id: string; avisos: AvisoLista[] }>(
+      `/v1/admin/listas/${encodeURIComponent(versionId)}/avisos`,
+    );
+    return resp.avisos;
+  }
+
+  async descartarAviso(versionId: string, itemId: string, clave: string): Promise<void> {
+    await this.pedir<unknown>(`/v1/admin/listas/${encodeURIComponent(versionId)}/avisos/descartar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ item_id: itemId, clave }),
+    });
+  }
+
+  async noComprarRepetido(
+    versionId: string,
+    itemId: string,
+    repiteA: number,
+  ): Promise<{ version_id: string }> {
+    const resp = await this.pedir<{ version_id: string; numero: number }>(
+      `/v1/admin/listas/${encodeURIComponent(versionId)}/items/${encodeURIComponent(itemId)}/no-comprar`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repite_a: repiteA }),
+      },
     );
     return { version_id: resp.version_id };
   }
