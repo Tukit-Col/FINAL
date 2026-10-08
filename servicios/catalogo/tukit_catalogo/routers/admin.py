@@ -219,6 +219,43 @@ async def ver_revision(version_id: uuid.UUID) -> dict[str, Any]:
 
 _ORDEN_NIVEL = {"economico": 0, "confiable": 1, "premium": 2}
 
+# Un cuaderno por materia es la norma, no un repetido: marcarlos llenaria la
+# revision de avisos que nadie tiene que atender (136 en las 18 listas).
+_POR_MATERIA = frozenset({"C001"})
+
+
+def _palabras(texto: str) -> set[str]:
+    from ..enriquecer import _normalizar
+
+    return set(re.findall(r"[a-z0-9]+", _normalizar(texto)))
+
+
+def _posibles_repetidos(filas: list[Any], reglas: dict[str, tuple[tuple[str, ...], bool]]) -> dict[int, int]:
+    """`orden -> orden` de los renglones que parecen repetir a uno anterior.
+
+    Solo para lo que NO se junta solo: lo que se gasta (pegante, cinta) y los
+    textos (`Gateway B1 Student's Book` escrito dos veces de dos formas). Puede
+    ser uno por materia a proposito, asi que no se toca: se avisa, y el
+    revisor decide. Dos renglones se parecen si son del mismo concepto y
+    comparten al menos el 60 % de sus palabras.
+    """
+    vistos: dict[str, list[tuple[int, set[str]]]] = {}
+    salida: dict[int, int] = {}
+    for f in filas:
+        codigo = f.concepto_codigo
+        if codigo is None or codigo in _POR_MATERIA or reglas.get(codigo, ((), False))[1]:
+            continue
+        if (f.tipo_item or "util") in ("no_comprar", "uniforme", "licencia_digital", "diferido", "otro"):
+            continue
+        palabras = _palabras(f.texto_original)
+        for orden, otras in vistos.get(codigo, []):
+            union = palabras | otras
+            if union and len(palabras & otras) / len(union) >= 0.6:
+                salida[int(f.orden)] = orden
+                break
+        vistos.setdefault(codigo, []).append((int(f.orden), palabras))
+    return salida
+
 
 async def _productos_por_concepto(repo: RepoAdmin, codigos: list[str]) -> dict[str, list[dict[str, Any]]]:
     """Todos los productos activos de esos conceptos, con su precio vigente.
@@ -356,7 +393,8 @@ async def resueltos_de_version(version_id: uuid.UUID) -> dict[str, Any]:
 
         codigos = sorted({f.concepto_codigo for f in filas if f.concepto_codigo is not None})
         productos = await _productos_por_concepto(repo, codigos)
-        discriminantes = await repo.discriminantes_por_codigo(codigos)
+        reglas = await repo.reglas_por_codigo(codigos)
+        repetidos = _posibles_repetidos(filas, reglas)
 
         items = []
         for f in filas:
@@ -368,7 +406,7 @@ async def resueltos_de_version(version_id: uuid.UUID) -> dict[str, Any]:
                     f.texto_original,
                     dict(f.atributos or {}),
                     productos.get(f.concepto_codigo, []),
-                    discriminantes.get(f.concepto_codigo, ()),
+                    reglas.get(f.concepto_codigo, ((), False))[0],
                 )
             items.append(
                 {
@@ -385,6 +423,8 @@ async def resueltos_de_version(version_id: uuid.UUID) -> dict[str, Any]:
                     "candidatos": candidatos,
                     "atributos_impuestos": impuestos,
                     "atributos_por_revisar": por_revisar,
+                    "uno_por_estudiante": reglas.get(f.concepto_codigo, ((), False))[1],
+                    "posible_repetido_de": repetidos.get(int(f.orden)),
                 }
             )
 

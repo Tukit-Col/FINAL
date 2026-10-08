@@ -441,6 +441,7 @@ class Cargador:
                 "admite_personaje": _bool(f.get("admite_personaje")),
                 "frecuencia_demanda": int(f.get("frecuencia_demanda") or 0),
                 "activo": _bool(f.get("activo"), por_omision=True),
+                "uno_por_estudiante": _bool(f.get("uno_por_estudiante")),
             }
             for f in filas
         ]
@@ -618,6 +619,8 @@ class Cargador:
                     # `diccionario de ingles` a secas acepta cualquiera.
                     "atributos_discriminantes": ["monolingue"] if codigo == "dic-ingles" else [],
                     "atributos_descriptivos": [],
+                    # Un diccionario sirve para todas las materias del ano.
+                    "uno_por_estudiante": True,
                     "admite_personaje": False,
                     "frecuencia_demanda": demanda[codigo],
                     "activo": True,

@@ -247,6 +247,63 @@ class TestLaConsolidacionEntreHermanos:
         assert all(linea.unidades_a_comprar == 1 for linea in lineas)
 
 
+class TestUnaHerramientaSePideEnVariasMateriasYSeCompraUnaVez:
+    """Tijeras en artes, en tecnologia y en la cartuchera son las mismas
+    tijeras. El kit cobraba tres. Solo aplica a lo que dura todo el ano
+    (`uno_por_estudiante`); lo que se gasta (pegante, cinta) se respeta."""
+
+    TIJERAS = Candidato(sku="TK-TIJ", nombre="Tijeras Eterna", nivel="economico", precio_cop=5800)
+
+    def test_dos_renglones_de_la_misma_herramienta_se_compran_una_vez(self):
+        kit = armar_los_tres(
+            [
+                _renglon(59, "Tijeras", (self.TIJERAS,), uno_por_estudiante=True),
+                _renglon(91, "tijeras", (self.TIJERAS,), uno_por_estudiante=True),
+            ]
+        )[0]
+        primera, segunda = kit.lineas
+        assert primera.unidades_a_comprar == 1
+        assert segunda.unidades_a_comprar == 0
+        assert segunda.subtotal_cop == 0
+        assert "linea 59" in (segunda.mensaje or "")
+        assert kit.total_cop == 5800
+
+    def test_se_compra_la_cantidad_mayor_y_no_la_suma(self):
+        kit = armar_los_tres(
+            [
+                _renglon(1, "2 reglas", (self.TIJERAS,), cantidad=2, uno_por_estudiante=True),
+                _renglon(2, "regla", (self.TIJERAS,), cantidad=1, uno_por_estudiante=True),
+            ]
+        )[0]
+        assert [linea.unidades_a_comprar for linea in kit.lineas] == [2, 0]
+
+    def test_lo_que_se_gasta_no_se_junta(self):
+        pegante = Candidato(sku="TK-PEG", nombre="Pegante", nivel="economico", precio_cop=4900)
+        kit = armar_los_tres(
+            [_renglon(65, "Pegante en barra", (pegante,)), _renglon(89, "pegante en barra", (pegante,))]
+        )[0]
+        assert [linea.unidades_a_comprar for linea in kit.lineas] == [1, 1]
+
+    def test_dos_productos_distintos_no_se_juntan(self):
+        acero = Candidato(sku="TK-ACERO", nombre="Regla de acero", nivel="premium", precio_cop=12000)
+        kit = armar_los_tres(
+            [
+                _renglon(21, "regla 30 cm", (self.TIJERAS,), uno_por_estudiante=True),
+                _renglon(31, "regla de acero", (acero,), uno_por_estudiante=True),
+            ]
+        )[0]
+        assert [linea.unidades_a_comprar for linea in kit.lineas] == [1, 1]
+
+    def test_los_hermanos_no_se_juntan_aqui_cada_uno_necesita_las_suyas(self):
+        kit = armar_los_tres(
+            [
+                _renglon(1, "tijeras", (self.TIJERAS,), uno_por_estudiante=True, hijo="hijo-1"),
+                _renglon(1, "tijeras", (self.TIJERAS,), uno_por_estudiante=True, hijo="hijo-2"),
+            ]
+        )[0]
+        assert [linea.unidades_a_comprar for linea in kit.lineas] == [1, 1]
+
+
 class TestQueKitsSeArman:
     """Solo se arman los kits que el acudiente pidio (ADR 0030).
 

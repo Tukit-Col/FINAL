@@ -70,6 +70,8 @@ def _item_resuelto(
         "candidatos": candidatos,
         "atributos_impuestos": kw.get("atributos_impuestos", {}),
         "atributos_por_revisar": kw.get("atributos_por_revisar", []),
+        "uno_por_estudiante": kw.get("uno_por_estudiante", False),
+        "posible_repetido_de": kw.get("posible_repetido_de"),
     }
 
 
@@ -350,6 +352,20 @@ class TestRutaRapidaVerificada:
         assert "rayado=ferrocarril" in ferrocarril.motivo
 
         assert "revisar: rayado" in por_texto["cuaderno rayado o cuadriculado"].motivo
+
+    async def test_una_herramienta_repetida_se_cobra_una_vez(self, motor):
+        catalogo = _catalogo_verificado()
+        tijeras = [_candidato_dict("TK-C013-ECO", "economico", 5800)]
+        catalogo.items_resueltos += [
+            _item_resuelto(5, "Tijeras", "C013", tijeras, uno_por_estudiante=True),
+            _item_resuelto(6, "tijeras", "C013", tijeras, uno_por_estudiante=True, posible_repetido_de=None),
+        ]
+        trabajo_id, _ = await _crear_y_procesar(motor, catalogo)
+        kit = (await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"][0]
+        por_orden = {linea["orden"]: linea for linea in kit["lineas"]}
+        assert por_orden[5]["unidades_a_comprar"] == 1
+        assert por_orden[6]["unidades_a_comprar"] == 0
+        assert "linea 5" in por_orden[6]["mensaje"]
 
     async def test_etapas_ok_con_fuente_lista_verificada(self, motor):
         catalogo = _catalogo_verificado()
