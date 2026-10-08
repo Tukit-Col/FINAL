@@ -26,17 +26,24 @@ from __future__ import annotations
 import argparse
 import asyncio
 import uuid
+from datetime import timedelta
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import and_, or_, select, update
 from tukit_comun.metricas import contar_trabajo_publicado
 
 from .modelos import EstadoTrabajo
 from .remoto import ClienteCatalogo
-from .trabajos import TRABAJO, procesar
+from .trabajos import TRABAJO, ahora, procesar
 
 _RECLAMABLES_NORMAL = (EstadoTrabajo.ENCOLADO.value,)
 _RECLAMABLES_CON_COLGADOS = (EstadoTrabajo.ENCOLADO.value, EstadoTrabajo.PROCESANDO.value)
+# Un `procesando` es colgado si lleva este tiempo sin cambiar. Sin el umbral, la
+# vuelta de colgados (cada minuto) tomaba tambien el trabajo que el poller o un
+# preview estaban armando en ese momento en su propio proceso: los dos lo
+# armaban a la vez y uno terminaba "fallido". Un canonico tarda segundos y una
+# lista con PDF unos minutos; quince no los alcanza y un crash real se retoma.
+_COLGADO_DESDE = timedelta(minutes=15)
 # Un trabajo "publicado" para la metrica es el que termino en un estado exitoso:
 # publicado directo o a la espera de revision. `fallido` no cuenta.
 _TERMINALES_EXITOSOS = frozenset({EstadoTrabajo.PUBLICADO.value, EstadoTrabajo.ESPERA_REVISION.value})
@@ -51,11 +58,16 @@ async def _reclamar(motor: Any, *, limite: int, estados: tuple[str, ...]) -> lis
     ve la fila ya `procesando` y el `.in_(estados)` no la trae). `procesar` es
     idempotente en el claim (ya venia `procesando`), asi que no re-transiciona.
     """
+    procesando = EstadoTrabajo.PROCESANDO.value
+    reclamables = TRABAJO.c.estado.in_([e for e in estados if e != procesando])
+    if procesando in estados:
+        colgado = and_(TRABAJO.c.estado == procesando, TRABAJO.c.actualizado_en < ahora() - _COLGADO_DESDE)
+        reclamables = or_(reclamables, colgado)
     async with motor.engine.begin() as conexion:
         filas = list(
             await conexion.execute(
                 select(TRABAJO.c.id)
-                .where(TRABAJO.c.estado.in_(estados))
+                .where(reclamables)
                 .order_by(TRABAJO.c.creado_en)
                 .limit(limite)
                 .with_for_update(skip_locked=True)
