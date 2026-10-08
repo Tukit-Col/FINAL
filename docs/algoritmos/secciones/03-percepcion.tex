@@ -1,0 +1,350 @@
+% ============================================================================
+\section{Percepción: del archivo a los renglones}
+\label{sec:percepcion}
+% ============================================================================
+
+La percepción es la frontera entre el mundo visual del documento y el mundo
+simbólico del resto del sistema. Tiene dos responsabilidades, y conviene
+separarlas desde el principio:
+
+\begin{enumerate}
+  \item \textbf{Leer}: extraer de cada página los renglones de la lista, con su
+        descripción y su cantidad, respetando la estructura de tabla.
+  \item \textbf{Decidir si el archivo es aceptable}: si corresponde a la lista
+        de \emph{un solo} grado y si se leyó \emph{completo}.
+\end{enumerate}
+
+La primera se delega a un modelo multimodal. La segunda no se delega: es una
+regla de negocio implementada de forma determinista sobre lo que el modelo
+devuelve. Esta separación es la decisión de diseño más importante de la
+etapa, y el resto de la sección la desarrolla.
+
+\subsection{Definición del problema}
+
+\begin{definicion}[Problema de percepción]
+\label{def:percepcion}
+\textbf{Entrada:} una cadena de bytes $A$ (un PDF o una imagen).
+\textbf{Salida:} una tupla
+\[
+  \Phi_{\mathrm{per}}(A) = \bigl(\mathit{ok},\ G,\ P,\ I,\ \varepsilon\bigr)
+\]
+donde $\mathit{ok}\in\{0,1\}$ indica si el archivo se acepta, $G$ es la
+secuencia de grados distintos detectados, $P$ el número de páginas,
+$I=(\iota_1,\dots,\iota_m)$ la secuencia de ítems extraídos, cada uno
+$\iota=(x,q^\circ,\gamma)$ con descripción $x$, cantidad opcional $q^\circ$ y
+confianza opcional $\gamma$, y $\varepsilon$ un código de error que es nulo si
+y solo si $\mathit{ok}=1$.
+
+\noindent\textbf{Requisitos:}
+\begin{enumerate}[label=(R\arabic*)]
+  \item\label{req:completo} \emph{Completitud o rechazo.} Si
+        $\mathit{ok}=1$, entonces $I$ contiene los ítems de \emph{todas} las
+        páginas y ninguna página se reportó incompleta.
+  \item\label{req:grado} \emph{Unicidad de grado.} Si $\mathit{ok}=1$,
+        entonces $\card{G}\leq 1$.
+  \item\label{req:nofab} \emph{No fabricación.} Ningún ítem de $I$ se
+        produce fuera de la lectura del modelo, y un fallo del modelo nunca se
+        traduce en ítems inventados.
+\end{enumerate}
+\end{definicion}
+
+El requisito \ref{req:completo} existe por la asimetría de costos ya
+mencionada. Sea $c_{\mathrm{FA}}$ el costo de \emph{aceptar} un archivo que no
+debía aceptarse (una lista de otro grado o una lista truncada) y
+$c_{\mathrm{FR}}$ el costo de \emph{rechazar} uno válido. Un falso rechazo le
+cuesta a la familia volver a subir el archivo, con un mensaje que le dice qué
+hacer. Una falsa aceptación produce un kit con los útiles equivocados que la
+familia no puede detectar hasta que recibe el pedido. Como
+$c_{\mathrm{FA}}\gg c_{\mathrm{FR}}$, toda regla ambigua de esta etapa se
+inclina hacia el rechazo.
+
+\subsection{Por qué leer páginas como imágenes}
+
+La alternativa ingenua es extraer el texto del PDF y partirlo en líneas. Esa
+alternativa falla de forma sistemática con las listas escolares, que casi
+siempre son \emph{tablas}: una fila cuya descripción ocupa dos líneas
+visuales se convierte en dos renglones, y la columna de cantidad queda
+separada de su descripción. El error no es aleatorio sino estructural: aplanar
+un objeto bidimensional a una secuencia unidimensional destruye la relación
+fila-columna.
+
+Por eso cada página se \emph{rasteriza} y se entrega como imagen a un modelo
+multimodal, al que se le pide leerla \emph{como tabla}. La rasterización se
+hace a 150~DPI, es decir, con un factor de escala $s=150/72\approx 2{,}08$
+sobre las unidades de PDF (1/72 de pulgada). Una página carta queda en
+aproximadamente $1275\times 1650$ píxeles. Esa resolución basta para que una
+tabla de útiles se lea como tabla; aumentarla encarece cada llamada sin
+cambiar lo que el modelo alcanza a ver. Una imagen suelta (JPG, PNG) ya es una
+página y no se transforma.
+
+\subsection{Lectura estructurada de una página}
+\label{sec:per-lectura}
+
+La lectura de la página $j$ es una función
+\[
+  \mathrm{Leer}(I_j, j) = (G_j,\ \kappa_j,\ \iota_{j,1},\dots,\iota_{j,m_j})
+  \quad\text{o}\quad \textsc{Fallo},
+\]
+donde $G_j$ es la lista de grados que aparecen en la página y
+$\kappa_j\in\{0,1\}$ indica si la página se leyó completa. Su implementación
+tiene tres componentes:
+
+\paragraph{Decodificación restringida por esquema.} La salida del modelo se
+restringe a un esquema JSON con los campos \cod{grados} (arreglo de cadenas),
+\cod{completa} (booleano) e \cod{items} (arreglo de objetos con
+\cod{descripcion} obligatoria, \cod{cantidad} entera o nula y \cod{confianza}
+numérica o nula). El esquema se pide en dos lugares a la vez: en el texto de la
+instrucción, que es lo que el modelo usa para decidir cómo segmentar, y en la
+configuración de la llamada, que es lo que el proveedor valida. La respuesta se
+vuelve a validar localmente contra el mismo tipo; cualquier discrepancia
+(campo faltante, tipo incorrecto, JSON mal formado) se convierte en
+\textsc{Fallo}. La temperatura se fija en $0$, lo que equivale a decodificación
+voraz: sobre la misma imagen, el modelo devuelve la secuencia más probable, lo
+que reduce la variabilidad entre lecturas de la misma página.
+
+\paragraph{Especificación de segmentación.} La instrucción al modelo define una
+\emph{función de segmentación} de filas en ítems. Sus reglas, cada una
+originada en un caso real del corpus, son:
+
+\begin{enumerate}[label=(S\arabic*)]
+  \item \emph{Una fila es un ítem}, aunque ocupe dos líneas visuales. No se
+        corta una descripción a la mitad.
+  \item \emph{La cantidad sale de la columna de cantidad}. Si no hay columna,
+        el campo queda nulo; el modelo no la infiere.
+  \item \emph{Los contenidos se separan.} «Cartuchera con: esferos, borrador»
+        son tres ítems, contando la cartuchera.
+  \item \emph{Las enumeraciones de colores se expanden.} «Pinturas acrílicas:
+        cian, magenta y rojo» son tres ítems, uno por color, aunque los colores
+        aparezcan al final de la frase.
+  \item \emph{La cantidad total se reparte, no se repite.} Si la fila pide 4
+        carpetas en 4 colores, cada ítem resultante lleva cantidad 1. Formalmente,
+        si una fila con cantidad $Q$ se expande en $n$ ítems y $Q=n$, cada ítem
+        recibe $1$, de modo que $\sum_\ell q_\ell = Q$ se conserva.
+  \item \emph{No se separan las alternativas ni los productos enteros.}
+        «Tajalápiz o portaminas» es un solo ítem; «Kit de 12 pinceles (planos,
+        redondos)» también.
+  \item \emph{Una serie de durezas es un solo ítem.} «Lápices HB, 2H, 2B, 6B»
+        pide una serie, no cuatro lápices sueltos.
+  \item \emph{Un uniforme es un ítem con su nombre}, sin enumerar sus prendas.
+  \item \emph{Los grados se nombran}: «Cuarto», no «4°».
+  \item \emph{Completitud.} Si la imagen está recortada, borrosa o ilegible,
+        \cod{completa} es falso. Un texto que \emph{continúa} en la página
+        siguiente no es una página cortada.
+  \item \emph{No fabricación.} No se agregan ítems que no estén escritos.
+\end{enumerate}
+
+Las reglas S3 a S7 dan una tensión que la instrucción resuelve de forma
+explícita. Separar demasiado convierte un producto en varios; separar poco
+deja dos compras en un renglón. El criterio que las ordena es \emph{qué se
+compra por aparte}: lo que se compra por aparte se separa, lo que se vende como
+unidad se conserva.
+
+\paragraph{Política de reintento.} Cada llamada tiene un tiempo límite de
+$t_{\max}=40$~s. Los fallos se clasifican en \emph{pasajeros} (sin respuesta a
+tiempo, error de red, códigos HTTP 429, 500, 502, 503, 504) y
+\emph{permanentes} (cualquier otro código, como un 403 por credencial
+inválida, o una respuesta que no cumple el esquema). Ante un fallo pasajero se
+reintenta \emph{una} vez, después de una espera de 3~s. Ante uno permanente no
+se reintenta, porque repetir la petición no cambia el resultado y solo
+escondería el defecto. El peor caso por página es por tanto
+$t_{\max}+3+t_{\max}=83$~s.
+
+El beneficio del reintento crece con el número de páginas. Si cada llamada se
+cuelga de forma independiente con probabilidad $p$, la probabilidad de que un
+documento de $P$ páginas falle es
+\[
+  \Pr[\text{falla}]_{\text{sin reintento}} = 1-(1-p)^P,
+  \qquad
+  \Pr[\text{falla}]_{\text{con un reintento}} = 1-(1-p^2)^P.
+\]
+Como ilustración, con $p=0{,}05$ y $P=6$ la probabilidad baja de 26,5\,\%
+a 1,5\,\%. El supuesto de independencia es optimista ---los fallos del
+proveedor tienden a agruparse en el tiempo---, pero el efecto observado fue del
+mismo signo: una página que se quedó colgada 60~s respondió en 6~s al pedirla
+de nuevo. El efecto es importante porque, por el requisito
+\ref{req:completo}, un solo fallo invalida el documento completo, y volver a
+subirlo obliga a pagar la lectura de todas las páginas otra vez.
+
+\subsection{Normalización de grados}
+\label{sec:per-grados}
+
+Para verificar el requisito \ref{req:grado} hay que contar cuántos grados
+\emph{distintos} menciona el archivo. El modelo y el colegio escriben el mismo
+grado de formas distintas («4», «4°», «Cuarto», «grado cuarto», «4 de
+primaria»), así que primero se canonizan.
+
+\begin{definicion}[Canonización de grado]
+\label{def:canon-grado}
+Sea $\mathcal{G}$ el conjunto de nombres canónicos de grado (Prejardín,
+Jardín, Transición, Primero, \dots, Once) y $T\colon\Sigma^*\rightharpoonup
+\mathcal{G}$ una tabla finita de equivalencias («4»$\mapsto$Cuarto,
+«kinder»$\mapsto$Transición, «undecimo»$\mapsto$Once, \dots). La canonización
+$\eta\colon\Sigma^*\to\Sigma^*$ se define en cuatro pasos:
+\begin{enumerate}
+  \item $y\gets$ minúsculas de $x$ sin diacríticos (descomposición NFD y
+        eliminación de marcas combinantes), con los símbolos de ordinal
+        $^{\circ}$ y $^{\mathrm{o}}$ reemplazados por espacios, todo carácter
+        no alfanumérico reemplazado por espacio, los espacios colapsados y la
+        palabra «grado» eliminada.
+  \item Si $y\in\mathrm{dom}(T)$, $\eta(x)=T(y)$.
+  \item Si la primera palabra $y_1$ de $y$ está en $\mathrm{dom}(T)$,
+        $\eta(x)=T(y_1)$. Así «4 de primaria» y «cuarto de primaria» se
+        identifican.
+  \item En otro caso, $\eta(x)$ es $y$ con mayúscula inicial en cada palabra.
+\end{enumerate}
+El conjunto de grados distintos de un archivo es
+$G=\mathrm{únicos}\bigl(\eta(g) : g\in G_1\cdots G_P,\ \eta(g)\neq\varepsilon\bigr)$,
+en orden de primera aparición.
+\end{definicion}
+
+El paso 4 es deliberadamente \emph{conservador}. Un nombre de grado que la
+tabla no reconoce no se descarta: se conserva limpio y cuenta como un grado
+distinto. Descartarlo podría esconder que el archivo trae varios cursos y
+violar \ref{req:grado}. Mantenerlo puede, en el peor caso, rechazar un archivo
+válido, que es el error barato según la asimetría de costos.
+
+\begin{observacion}[Señal de grados frente a número de páginas]
+La señal de que un archivo no es la lista de un grado es el número de grados
+distintos, no el número de páginas. En el corpus hay listas de un solo grado
+que ocupan seis páginas y archivos con tres grados que caben en dos. Una regla
+basada en páginas produce los dos tipos de error a la vez.
+\end{observacion}
+
+\subsection{El algoritmo de aceptación}
+
+\Cref{alg:percibir} reúne las piezas. Es una cadena de guardas en un orden
+fijo, en el que las comprobaciones baratas van primero: las que no requieren
+llamar al modelo preceden a las que sí.
+
+\begin{algorithm}[htbp]
+\caption{Percibir un archivo: todo o nada}
+\label{alg:percibir}
+\begin{algorithmic}[1]
+\Require bytes $A$; puertos $\mathrm{Rend}$ (rasterizar) y $\mathrm{Leer}$ (modelo)
+\Ensure $(\mathit{ok}, G, P, I, \varepsilon)$
+\If{$A$ es vacío} \Return $(0,\varnothing,0,\varnothing,\textsc{ArchivoVacío})$ \EndIf
+\State intentar $(I_1,\dots,I_P)\gets\mathrm{Rend}(A)$; si falla
+       \Return $(0,\dots,\textsc{PdfIlegible})$
+\If{$P > 40$} \Return $(0,\varnothing,P,\varnothing,\textsc{DemasiadoLargo})$
+       \Comment{antes de gastar una llamada}
+\EndIf
+\If{$P = 0$} \Return $(0,\varnothing,0,\varnothing,\textsc{SinPáginas})$ \EndIf
+\State $I\gets()$;\quad $\Gamma\gets()$;\quad $\mathit{inc}\gets\varnothing$
+\For{$j\gets 1$ \textbf{hasta} $P$}
+  \State intentar $(G_j,\kappa_j,\iota_{j,\cdot})\gets\mathrm{Leer}(I_j,j)$
+  \State \quad si \textsc{Fallo}: \Return $(0,\varnothing,P,I,\textsc{PercepciónFallida})$
+         \Comment{no se devuelve lo leído como lista}
+  \If{$\kappa_j = 0$} $\mathit{inc}\gets\mathit{inc}\cup\{j\}$ \EndIf
+  \State $\Gamma\gets\Gamma\cdot G_j$
+  \State $I\gets I\cdot(\iota_{j,\ell} : \iota_{j,\ell}.x \text{ no es vacío})$
+\EndFor
+\State $G\gets$ grados distintos de $\Gamma$ bajo $\eta$ \Comment{\cref{def:canon-grado}}
+\If{$\card{G} > 1$} \Return $(0,G,P,I,\textsc{VariosGrados})$ \EndIf
+\If{$\mathit{inc}\neq\varnothing$} \Return $(0,G,P,I,\textsc{PáginaIncompleta})$ \EndIf
+\State \Return $(1,G,P,I,\varnothing)$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{proposicion}[Corrección del \cref{alg:percibir}]
+\label{prop:percibir}
+La salida del \cref{alg:percibir} satisface los requisitos
+\ref{req:completo}, \ref{req:grado} y \ref{req:nofab}.
+\end{proposicion}
+
+\begin{proof}
+La única instrucción que devuelve $\mathit{ok}=1$ es la última. Para llegar a
+ella, el ciclo debe haber terminado sus $P$ iteraciones sin \textsc{Fallo}
+---cualquier fallo retorna dentro del ciclo con $\mathit{ok}=0$---, así que
+$I$ es la concatenación de los ítems no vacíos de las $P$ páginas. Además
+$\mathit{inc}=\varnothing$, es decir, $\kappa_j=1$ para todo $j$, lo que
+prueba \ref{req:completo}. También debe valer $\card{G}\leq1$, por la guarda
+anterior, lo que prueba \ref{req:grado}. Los únicos elementos que se agregan a
+$I$ provienen de $\mathrm{Leer}$, y $\mathrm{Leer}$ devuelve \textsc{Fallo}, y
+no ítems, ante cualquier respuesta que no cumpla el esquema, lo que prueba
+\ref{req:nofab}.
+\end{proof}
+
+Cuando el archivo se rechaza por varios grados o por una página incompleta,
+la salida igual incluye $G$ e $I$. No se usan para armar nada: sirven para
+explicarle al acudiente qué se vio («Este archivo tiene la lista de 3 grados:
+Cuarto, Quinto, Sexto. Sube solo las páginas del grado de tu hijo»). En un
+hogar con varios hijos, la regla se extiende a todo el hogar: si se rechaza el
+archivo de un hijo, no se importa el de ninguno.
+
+\paragraph{El tope de páginas.} El límite de 40 páginas no es una señal de
+negocio sino una guarda contra archivos abusivos, y se fijó justo por encima
+del PDF más largo del corpus (39 páginas, un colegio con todos sus grados en
+un solo archivo). Ese archivo sí se lee, y se rechaza por tener trece grados,
+diciendo cuáles; esa respuesta le sirve al acudiente. Un archivo más largo que
+cualquiera observado se rechaza antes de hacer una sola llamada.
+
+\subsection{Complejidad}
+
+Sea $P$ el número de páginas y $t_j$ el tiempo de la llamada de la página $j$.
+La rasterización es lineal en el número total de píxeles,
+$\Theta(P\cdot s^2\cdot \mathrm{área})$, y su costo es despreciable frente a
+las llamadas. Las llamadas se hacen secuencialmente, así que el tiempo total
+es
+\[
+  T_{\mathrm{per}}(P) = \sum_{j=1}^{P} t_j \;\leq\; P\cdot(2t_{\max}+3),
+  \qquad P\leq 40,
+\]
+con un valor típico de $t_j\approx 5$~s por página. El número de llamadas es
+$\Theta(P)$ en el caso sin fallos y como máximo $2P$ con reintentos. La
+canonización de grados cuesta $O(\sum_g\card{g})$ y la verificación de
+unicidad es lineal en el número de grados mencionados. El costo dominante es
+entonces el de $\Theta(P)$ inferencias del modelo, lo que motiva la ruta
+rápida: una lista revisada no vuelve a percibirse.
+
+\begin{observacion}[Paralelismo]
+Las llamadas son independientes entre páginas, así que podrían hacerse en
+paralelo y reducir el tiempo a $\max_j t_j$. La implementación actual es
+secuencial, lo que simplifica el orden de los ítems y el control de cuota del
+proveedor. Es una mejora directa si la latencia de la primera lectura llega a
+ser importante.
+\end{observacion}
+
+\subsection{Lo que la percepción no hace}
+
+La percepción \emph{no corrige} lo que lee. Algunos colegios imprimen
+«SHSRPIE», «CARPERTAS» o «TAOLLA», y el modelo las transcribe tal cual. Esa
+fidelidad es deseable: una corrección hecha dentro del modelo no se puede
+auditar ni reproducir. La corrección ortográfica es un algoritmo aparte,
+determinista y conservador (\cref{sec:res-ortografia}), que opera contra el
+vocabulario del catálogo. Tampoco \emph{clasifica} los renglones ni decide su
+tipo: eso corresponde a la normalización (\cref{sec:normalizacion}).
+
+\begin{evolucion}[: percepción]
+\begin{itemize}
+  \item \textbf{Truncamiento silencioso $\to$ todo o nada.} Un sistema
+        anterior limitaba la lectura a las primeras cinco páginas y devolvía el
+        resultado como si fuera la lista completa. El efecto era un kit
+        incompleto presentado con toda la confianza. La versión vigente
+        rechaza el archivo entero cuando supera el tope, y el tope pasó de
+        ser un recorte a ser una guarda de 40 páginas, calibrada contra el
+        archivo más largo del corpus.
+  \item \textbf{Señal por páginas $\to$ señal por grados.} El criterio de
+        rechazo pasó a ser el número de grados distintos, con la canonización
+        de la \cref{def:canon-grado}.
+  \item \textbf{Falsos rechazos por página incompleta.} Dos listas reales
+        (Sexto y Décimo de un mismo colegio) se rechazaban porque su segunda
+        página terminaba a mitad de la descripción del uniforme, y el modelo
+        la marcaba como incompleta. Se agregó la regla S10: un texto que
+        continúa en la página siguiente no es una página cortada. La
+        protección contra imágenes recortadas o borrosas se mantiene.
+  \item \textbf{Segmentación.} Las reglas S3 a S8 se agregaron una por una a
+        partir de casos del corpus: contenidos de cartuchera, colores
+        enumerados al final, reparto de la cantidad total, alternativas con
+        «o», series de durezas y uniformes por nombre. Antes, los uniformes
+        salían unas veces prenda por prenda y otras solo con el título. La
+        instrucción creció lo mínimo, porque cada línea se paga en cada página
+        leída.
+  \item \textbf{Reintento único de transporte.} Se agregó tras medir que una
+        página colgada 60~s respondía en 6~s al reintentarla. El tiempo límite
+        bajó de 60 a 40~s, con lo que el peor caso por página queda en unos
+        83~s en lugar de un fallo a los 60.
+  \item \textbf{Corrección fuera del modelo.} La corrección ortográfica se
+        separó de la percepción para que fuera auditable
+        (\cref{sec:res-ortografia}).
+\end{itemize}
+\end{evolucion}
