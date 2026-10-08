@@ -1,0 +1,1073 @@
+% ============================================================================
+\section{Optimización multiobjetivo de kits}
+\label{sec:optimizacion}
+% ============================================================================
+
+Esta sección es el centro del documento. Con cada renglón ya resuelto a un
+conjunto de candidatos, hay que elegir un candidato por renglón. Ninguna
+elección es la mejor en todos los sentidos: el kit más barato no es el de
+mejor marca, y el que trae el personaje favorito no es ninguno de los dos. El
+problema es intrínsecamente \emph{multiobjetivo}, y el sistema lo trata como
+tal. Primero calcula un \emph{frente de Pareto} ---el conjunto de kits que no
+se pueden mejorar en un objetivo sin empeorar otro--- y después lo
+\emph{proyecta} en los kits que se le muestran al acudiente y en uno
+recomendado.
+
+La sección está organizada así. Las \cref{sec:opt-instancia,sec:opt-unidades,sec:opt-objetivos}
+formulan el problema. La \cref{sec:opt-estructura} analiza su estructura y
+prueba resultados que delimitan qué se puede resolver de forma exacta y a qué
+costo. Las \cref{sec:opt-exacto,sec:opt-nsga,sec:opt-escalera} describen los
+tres procedimientos que construyen el frente: la enumeración exacta, NSGA-II
+y la escalera de costo marginal. Las
+\cref{sec:opt-proyeccion,sec:opt-lineas,sec:opt-medida,sec:opt-recomendar,sec:opt-personaje}
+describen cómo el frente se convierte en kits. La \cref{sec:opt-completo}
+reúne el algoritmo completo y su complejidad, y la \cref{sec:opt-evolucion}
+cuenta su evolución.
+
+% ---------------------------------------------------------------------------
+\subsection{La instancia}
+\label{sec:opt-instancia}
+% ---------------------------------------------------------------------------
+
+\begin{definicion}[Instancia de optimización]
+\label{def:instancia}
+Sea $R=(r_1,\dots,r_N)$ la secuencia de renglones del hogar, cada uno con su
+hijo $h(r)$, su cantidad $q(r)$ y su conjunto de candidatos $K(r)$
+(las opciones $O$ de la \cref{sec:res-niveles}, con $\card{K(r)}\leq3$). Los
+candidatos \emph{admisibles} de un renglón son los que cumplen los atributos
+impuestos, o todos si ninguno cumple:
+\[
+  A(r)=\begin{cases}\{c\in K(r):\mathrm{cumple}(c)\} & \text{si no es vacío,}\\
+  K(r) & \text{en otro caso.}\end{cases}
+\]
+Las líneas \emph{decidibles} son
+$\Dec=\{r\in R : r \text{ no es informativo},\ A(r)\neq\varnothing\}$.
+Escribimos $\Dec=(r_1,\dots,r_n)$, $A_i=A(r_i)$, $k_i=\card{A_i}$ y
+$k=\max_i k_i\leq3$. El \emph{espacio de búsqueda} es
+\[
+  \Esp=A_1\times\cdots\times A_n,\qquad \card{\Esp}=\prod_{i=1}^n k_i\leq 3^n.
+\]
+Una \emph{asignación} es $\mathbf{x}=(x_1,\dots,x_n)\in\Esp$.
+\end{definicion}
+
+Que un candidato que no cumple el atributo entre «como último recurso»
+merece una explicación. La resolución ya se abstuvo cuando \emph{ningún}
+producto del concepto cumplía. Si los candidatos llegan, es porque al menos
+uno cumplía en la resolución. El caso residual (por ejemplo, un renglón
+validado a mano) no deja la línea vacía: ofrece el candidato y conserva su
+marca de incumplimiento visible.
+
+% ---------------------------------------------------------------------------
+\subsection{Aritmética de unidades y costo de línea}
+\label{sec:opt-unidades}
+% ---------------------------------------------------------------------------
+
+\begin{definicion}[Unidades a comprar y costo de línea]
+\label{def:unidades}
+Para el renglón $r_i$ y el candidato $c\in A_i$,
+\[
+  u_i(c)=\begin{cases}\techo{\dfrac{q(r_i)}{\max(1,\emp(c))}} & q(r_i)>0,\\[4pt] 0 & q(r_i)\leq0,\end{cases}
+  \qquad
+  \kappa_i(c)=\begin{cases}\precio(c)\,u_i(c) & \precio(c)\neq\sinprecio,\\ \sinprecio & \text{en otro caso.}\end{cases}
+\]
+\end{definicion}
+
+El $\max(1,\cdot)$ es redundante con la restricción de la base de datos
+($\emp\geq1$), pero se mantiene: una división por cero en esta etapa
+produciría un error en la única pantalla que el acudiente estaba esperando.
+
+\begin{lema}[El precio unitario no ordena el costo]
+\label{lem:precio-unitario}
+Existen candidatos $c,c'$ y una cantidad $q$ tales que
+$\precio(c)<\precio(c')$ y, sin embargo, $\kappa(c)>\kappa(c')$.
+\end{lema}
+
+\begin{proof}
+Con $q=12$, $c$ un lápiz suelto ($\precio=\$1.000$, $\emp=1$) y $c'$ una caja de
+doce ($\precio=\$9.000$, $\emp=12$): $\kappa(c)=\$12.000>\kappa(c')=\$9.000$.
+\end{proof}
+
+Todas las comparaciones de «más barato» del sistema se hacen por lo tanto
+sobre $\kappa$ y no sobre $\precio$. El orden total que usa la heurística es
+\[
+  \mathrm{ord}_i(c)=\begin{cases}(0,\ \kappa_i(c),\ \precio(c),\ \mathrm{sku}(c)) & \precio(c)\neq\sinprecio,\\
+  (1,\ 0,\ 0,\ \mathrm{sku}(c)) & \text{en otro caso,}\end{cases}
+\]
+comparado lexicográficamente: los candidatos con precio van primero, por costo
+de línea, y a igual costo por precio unitario. Un candidato sin precio no se
+descarta ---puede ser el único que cumple lo que el colegio exige---, pero no
+puede ganar una comparación de precio.
+
+% ---------------------------------------------------------------------------
+\subsection{Objetivos y dominancia}
+\label{sec:opt-objetivos}
+% ---------------------------------------------------------------------------
+
+Sea $\Pi_h$ el conjunto de personajes pedidos para el hijo $h$ (posiblemente
+vacío). Un candidato \emph{satisface el personaje} de la línea $i$ si
+\[
+  \varphi_i(c)=\ind{\mathrm{per}(c)\neq\varnothing\ \wedge\ \bigl(\Pi_{h(r_i)}=\varnothing
+  \ \vee\ \mathrm{per}(c)\in\Pi_{h(r_i)}\bigr)},
+\]
+comparando sin distinguir mayúsculas. Si nadie pidió un personaje, cuenta
+cualquiera: el kit Fan es «el kit divertido» aunque nadie lo haya pedido
+explícitamente. Si se pidió, solo cuenta el pedido.
+
+\begin{definicion}[Objetivos]
+\label{def:objetivos}
+Para $\mathbf{x}\in\Esp$:
+\begin{align*}
+  f_1(\mathbf{x}) &= \sum_{i:\,\precio(x_i)\neq\sinprecio}\kappa_i(x_i)
+    && \text{costo (a minimizar)},\\
+  f_2(\mathbf{x}) &= \frac{1}{n}\sum_{i=1}^n\frac{\nivel(x_i)}{2}
+    && \text{fidelidad de marca (a maximizar)},\\
+  f_3(\mathbf{x}) &= \frac{1}{n}\sum_{i=1}^n\ind{\precio(x_i)\neq\sinprecio}
+    && \text{disponibilidad (a maximizar)},\\
+  f_4(\mathbf{x}) &= \frac{1}{n}\sum_{i=1}^n\varphi_i(x_i)
+    && \text{personaje (a maximizar)}.
+\end{align*}
+Los tres últimos se redondean a seis decimales para que la comparación entre
+asignaciones sea exacta y reproducible.
+\end{definicion}
+
+Hay tres decisiones de modelado en estas definiciones:
+\begin{itemize}
+  \item \textbf{Los candidatos sin precio no entran al costo.} Su ausencia se
+        refleja en $f_3$. Contarlos como cero abarataría el kit de forma
+        engañosa; contarlos como infinito los haría inelegibles. La
+        \cref{obs:sin-precio} discute una consecuencia de esta decisión.
+  \item \textbf{La fidelidad es el nivel de marca promedio normalizado a
+        $[0,1]$.} Es lo que separa un kit Premium de uno Ahorrador.
+  \item \textbf{Las líneas informativas no participan.} Medirlas inflaría los
+        promedios con ítems que el sistema nunca iba a surtir, y el kit se
+        vería mejor cuanto menos pudiera vender.
+\end{itemize}
+
+\begin{definicion}[Dominancia y frente de Pareto]
+\label{def:dominancia}
+Sea $\mathbf{F}(\mathbf{x})=(f_1,f_2,f_3,f_4)(\mathbf{x})$. Decimos que
+$\mathbf{x}$ \emph{domina} a $\mathbf{y}$, $\mathbf{x}\domina\mathbf{y}$, si
+\[
+  f_1(\mathbf{x})\leq f_1(\mathbf{y}),\ \ f_j(\mathbf{x})\geq f_j(\mathbf{y})\ (j=2,3,4),
+  \ \ \text{y al menos una desigualdad es estricta.}
+\]
+El \emph{conjunto de Pareto} es $\Esp^\ast=\{\mathbf{x}\in\Esp:\nexists\,\mathbf{y}\in\Esp,\ \mathbf{y}\domina\mathbf{x}\}$
+y el \emph{frente de Pareto} es su imagen $\Front=\mathbf{F}(\Esp^\ast)$
+\cite{miettinen1999,ehrgott2005}. En la implementación, el frente se representa
+con una asignación por cada vector objetivo distinto, ordenado por
+$(f_1,-f_2,-f_3,-f_4)$ para que su presentación sea estable.
+\end{definicion}
+
+% ---------------------------------------------------------------------------
+\subsection{Estructura del problema}
+\label{sec:opt-estructura}
+% ---------------------------------------------------------------------------
+
+Antes de elegir un algoritmo conviene entender qué tan difícil es el
+problema. El análisis que sigue muestra que la formulación vigente tiene una
+estructura muy favorable y explica los resultados empíricos de la
+\cref{sec:evaluacion}.
+
+\begin{proposicion}[Separabilidad aditiva]
+\label{prop:separable}
+Cada objetivo es una suma de términos que dependen de una sola línea:
+$f_j(\mathbf{x})=\sum_{i=1}^n g_{j,i}(x_i)$ para funciones
+$g_{j,i}\colon A_i\to\R$ con
+$g_{1,i}(c)=\kappa_i(c)\ind{\precio(c)\neq\sinprecio}$,
+$g_{2,i}(c)=\nivel(c)/(2n)$, $g_{3,i}(c)=\ind{\precio(c)\neq\sinprecio}/n$ y
+$g_{4,i}(c)=\varphi_i(c)/n$.
+\end{proposicion}
+
+\begin{proof}
+Es inmediato de la \cref{def:objetivos}. Ningún término depende de la
+elección hecha en otra línea, en particular porque la consolidación entre
+hermanos (\cref{sec:opt-lineas}) se aplica \emph{después} de elegir y no forma
+parte de $f_1$.
+\end{proof}
+
+\begin{corolario}[Los extremos se resuelven línea por línea]
+\label{cor:extremos}
+Para cualquier orden lexicográfico de los objetivos, por ejemplo
+\emph{mínimo costo y, a igual costo, máxima disponibilidad}, la asignación
+óptima se obtiene eligiendo en cada línea, de forma independiente, el
+candidato óptimo bajo ese orden. El costo es $O(\sum_i k_i)=O(nk)$.
+\end{corolario}
+
+\begin{proof}
+Por la \cref{prop:separable}, $\min f_1=\sum_i\min_{c\in A_i}g_{1,i}(c)$, y
+el conjunto de minimizadores es el producto cartesiano de los minimizadores
+por línea. Dentro de ese producto, el segundo criterio también es separable,
+y el argumento se repite.
+\end{proof}
+
+Esto significa que los kits de los extremos ---el más barato, el de mejor
+marca y el de más personaje--- no requieren ninguna búsqueda: un algoritmo
+voraz que mira cada línea por separado es óptimo. El problema solo se vuelve
+interesante en los \emph{compromisos}, por ejemplo la mejor marca que cabe en
+un presupuesto.
+
+\begin{proposicion}[El compromiso con presupuesto es una mochila de elección múltiple]
+\label{prop:mckp}
+El problema
+\[
+  \max_{\mathbf{x}\in\Esp} f_2(\mathbf{x})\quad\text{sujeto a}\quad f_1(\mathbf{x})\leq B
+\]
+es una instancia del problema de la mochila de elección múltiple (MCKP)
+\cite{sinha1979mckp,kellerer2004}: hay $n$ clases disjuntas $A_i$, de cada
+clase se elige exactamente un ítem con peso $g_{1,i}$ y valor
+$g_{2,i}$, y se maximiza el valor total con el peso acotado por $B$.
+\end{proposicion}
+
+En general, el MCKP es NP-difícil: contiene a la mochila 0-1, cuya versión de
+decisión es NP-completa \cite{garey1979}, como el caso particular de clases
+$\{\text{tomar}, \text{no tomar}\}$. Sin embargo, el MCKP es NP-difícil solo en
+sentido \emph{débil}: admite algoritmos pseudopolinomiales cuyo costo depende
+de la magnitud de los valores o de los pesos \cite{kellerer2004}. En esta
+instancia, los valores tienen una magnitud muy pequeña:
+\[
+  n\,f_2(\mathbf{x})\cdot 2=\sum_i\nivel(x_i)\in\{0,1,\dots,2n\}.
+\]
+
+\begin{teorema}[El compromiso con presupuesto es polinomial]
+\label{teo:mckp-poli}
+El problema de la \cref{prop:mckp} se resuelve de forma exacta en tiempo
+$O(n^2k)$ y espacio $O(n)$ por estado, mediante la recurrencia
+\[
+  M_0(0)=0,\qquad M_0(s)=+\infty\ (s\neq0),\qquad
+  M_i(s)=\min_{c\in A_i,\ \nivel(c)\leq s}\Bigl\{M_{i-1}\bigl(s-\nivel(c)\bigr)+g_{1,i}(c)\Bigr\},
+\]
+donde $M_i(s)$ es el mínimo costo de una asignación parcial de las primeras
+$i$ líneas cuya suma de niveles es exactamente $s$. El óptimo es
+$s^\ast=\max\{s : M_n(s)\leq B\}$, con valor $f_2^\ast=s^\ast/(2n)$, y la
+asignación se recupera guardando el argumento que alcanza cada mínimo.
+\end{teorema}
+
+\begin{proof}
+\emph{Corrección}: por inducción sobre $i$. Toda asignación parcial de suma
+$s$ termina en algún $c\in A_i$ y su prefijo tiene suma $s-\nivel(c)$, con
+costo al menos $M_{i-1}(s-\nivel(c))$ por hipótesis inductiva. Esa cota se
+alcanza extendiendo el prefijo óptimo. Como $f_2$ es una función creciente de
+$s$, maximizar $f_2$ con $f_1\leq B$ equivale a encontrar el mayor $s$
+alcanzable con costo mínimo a lo sumo $B$. \emph{Costo}: hay $n$ etapas,
+cada una con a lo sumo $2n+1$ estados y $k$ transiciones por estado.
+\end{proof}
+
+Esta recurrencia es exactamente la que se usó como verdad de referencia en la
+evaluación (\cref{sec:evaluacion}). El mismo argumento se extiende al frente
+completo de los cuatro objetivos, porque los tres objetivos «de conteo»
+también toman pocos valores.
+
+\begin{teorema}[El frente exacto se calcula en tiempo polinomial]
+\label{teo:frente-poli}
+Sean $a(\mathbf{x})=\sum_i\nivel(x_i)$, $b(\mathbf{x})=\sum_i\ind{\precio(x_i)\neq\sinprecio}$
+y $p(\mathbf{x})=\sum_i\varphi_i(x_i)$, de modo que
+$(f_2,f_3,f_4)=\bigl(a/(2n),\ b/n,\ p/n\bigr)$. Sea
+\[
+  C^\ast(a,b,p)=\min\{f_1(\mathbf{x}) : \mathbf{x}\in\Esp,\ (a,b,p)(\mathbf{x})=(a,b,p)\},
+\]
+calculado por la recurrencia de la \cref{teo:mckp-poli} sobre estados
+$(a,b,p)\in[0,2n]\times[0,n]\times[0,n]$. Entonces:
+\begin{enumerate}
+  \item $\card{\Front}\leq(2n+1)(n+1)^2$.
+  \item $\Front$ es el conjunto de vectores no dominados de
+        $\bigl\{\bigl(C^\ast(a,b,p),\tfrac{a}{2n},\tfrac bn,\tfrac pn\bigr)\bigr\}$.
+  \item El frente se calcula en tiempo $O(n^4k)$.
+\end{enumerate}
+\end{teorema}
+
+\begin{proof}
+(1) Dos puntos distintos del frente no pueden compartir $(a,b,p)$: si lo
+hicieran, el de mayor costo estaría dominado por el otro. El número de ternas
+posibles es $(2n+1)(n+1)^2$.
+(2) Sea $\mathbf{x}\in\Esp^\ast$ con terna $(a,b,p)$. Por definición,
+$C^\ast(a,b,p)\leq f_1(\mathbf{x})$. Si la desigualdad fuera estricta, la
+asignación que alcanza $C^\ast$ tendría los mismos $f_2,f_3,f_4$ y menor
+costo, y dominaría a $\mathbf{x}$, lo que es una contradicción. Por lo tanto,
+todo punto del frente está en el conjunto de los $C^\ast$. Recíprocamente, sea
+$\mathbf{v}$ un punto de ese conjunto que no está dominado dentro de él, y
+supóngase que algún $\mathbf{y}\in\Esp$ lo domina. El punto $C^\ast$ de la
+terna de $\mathbf{y}$ tiene los mismos $f_2,f_3,f_4$ que $\mathbf{y}$ y un
+costo no mayor, así que también domina a $\mathbf{v}$, lo que contradice la
+hipótesis.
+(3) Tras procesar $i$ líneas hay a lo sumo $(2i+1)(i+1)^2=O(i^3)$ estados,
+cada uno con $k$ transiciones, así que la recurrencia cuesta
+$O\bigl(k\sum_{i\leq n}i^3\bigr)=O(n^4k)$. Para el filtro final, el punto de
+terna $t$ está dominado si y solo si existe $t'\geq t$ componente a componente,
+con $t'\neq t$ y $C^\ast(t')\leq C^\ast(t)$. El mínimo de $C^\ast$ sobre ese
+ortante se obtiene para todas las ternas con el mínimo acumulado
+$\mathrm{Suf}(t)=\min\{C^\ast(t),\mathrm{Suf}(t+e_1),\mathrm{Suf}(t+e_2),\mathrm{Suf}(t+e_3)\}$,
+en $O(n^3)$, así que el filtro no cambia el orden.
+\end{proof}
+
+\begin{observacion}[Verificación empírica]
+Se comparó una implementación directa de esta programación dinámica con la
+enumeración exacta del sistema (\cref{sec:opt-exacto}) en 300 instancias
+aleatorias de 2 a 6 líneas, con candidatos de nivel, precio (incluido
+$\sinprecio$), empaque y personaje aleatorios. Los dos frentes coincidieron
+en las 300 instancias. Para una lista típica ($n=17$, $k=3$), el número de
+estados es como máximo $35\cdot18^2=\num{11340}$, frente a
+$\card{\Esp}=3^{17}\approx1{,}3\times10^8$.
+\end{observacion}
+
+\begin{hallazgo}{Consecuencia para el diseño del optimizador}
+Bajo la formulación vigente, el frente de Pareto exacto se puede calcular en
+tiempo polinomial y con pocos estados. El NSGA-II
+(\cref{sec:opt-nsga}) es por lo tanto un método \emph{aproximado} aplicado a
+un problema que admite solución exacta. Eso explica dos resultados de la
+evaluación. Primero, en los extremos el NSGA-II iguala siempre al óptimo,
+pero una regla voraz corregida también lo hace (\cref{cor:extremos}).
+Segundo, el frente del NSGA-II no es exacto: una regla simple dominaba algún
+punto suyo en el 68\,\% de las listas antes de las correcciones de la
+\cref{sec:opt-escalera}.
+
+La justificación original del NSGA-II era un \emph{acoplamiento} entre líneas
+que la formulación vigente no tiene. El diseño proponía, entre otras cosas,
+un costo fijo por tienda utilizada, que depende de la asignación completa, e
+incorporar la consolidación entre hermanos \emph{dentro} de $f_1$, de modo que
+el costo de un producto dependa de la demanda agregada de todo el hogar. Con
+cualquiera de esos dos términos, la \cref{prop:separable} deja de valer y el
+problema deja de descomponerse. Mientras no se incorporen, la programación
+dinámica del \cref{teo:frente-poli} es una alternativa exacta y más barata
+(\cref{sec:discusion}).
+\end{hallazgo}
+
+% ---------------------------------------------------------------------------
+\subsection{Enumeración exacta para espacios pequeños}
+\label{sec:opt-exacto}
+% ---------------------------------------------------------------------------
+
+Cuando $\card{\Esp}\leq\Lambda_{\mathrm{enum}}=4096$, el sistema enumera el
+espacio completo y filtra los no dominados (\cref{alg:frente-exacto}). Se
+eligió una potencia de dos con un criterio de costo: $4096=2^{12}$
+asignaciones se evalúan y se filtran en milisegundos. Si $\card{\Esp}\leq1$
+---ninguna línea decidible, o todas con un único candidato---, no hay
+compromiso que optimizar y el frente se declara vacío. En ese caso, los kits
+salen de la heurística por perfil, que en ese escenario coincide con el
+óptimo.
+
+\begin{algorithm}[htbp]
+\caption{Frente exacto por enumeración y filtro de no dominancia}
+\label{alg:frente-exacto}
+\begin{algorithmic}[1]
+\Require líneas decidibles $\Dec$; admisibles $A_1,\dots,A_n$
+\Ensure frente $\Front$ (una asignación por vector objetivo)
+\State $S\gets\{(\mathbf{F}(\mathbf{x}),\mathbf{x}) : \mathbf{x}\in A_1\times\cdots\times A_n\}$
+\State $U\gets$ un representante por vector objetivo distinto de $S$ \Comment{deduplicación}
+\State $\Front\gets\{(\mathbf{v},\mathbf{x})\in U : \nexists(\mathbf{w},\cdot)\in U,\ \mathbf{w}\domina\mathbf{v}\}$
+\State ordenar $\Front$ por $(f_1,-f_2,-f_3,-f_4)$
+\State \Return $\Front$
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Complejidad.} Evaluar las $\card{\Esp}$ asignaciones cuesta
+$O(\card{\Esp}\,n)$. El filtro por pares cuesta $O(\card{U}^2M)$ con $M=4$
+objetivos. En el peor caso admitido son unos $1{,}7\times10^7$ comparaciones,
+que se resuelven en un tiempo menor que el de una sola llamada de red. La
+corrección es inmediata: el algoritmo aplica literalmente la
+\cref{def:dominancia} sobre todo el espacio.
+
+% ---------------------------------------------------------------------------
+\subsection{NSGA-II para espacios grandes}
+\label{sec:opt-nsga}
+% ---------------------------------------------------------------------------
+
+Cuando $\card{\Esp}>4096$ ---en el corpus, 137 de cada 175 listas---, el frente
+se aproxima con NSGA-II \cite{deb2002nsga2}, en la implementación de la
+biblioteca \emph{pymoo} \cite{blank2020pymoo}. Esta subsección describe el
+algoritmo en general y después cada decisión específica de su uso aquí.
+
+\subsubsection{El algoritmo}
+
+NSGA-II es un algoritmo evolutivo elitista que mantiene una población $P_t$ de
+$N$ soluciones y, en cada generación, produce $N$ descendientes $Q_t$ por
+selección, cruce y mutación. La población siguiente se elige de
+$R_t=P_t\cup Q_t$ con dos criterios: el \emph{rango de no dominancia} y la
+\emph{distancia de aglomeración}.
+
+\begin{definicion}[Ordenamiento no dominado]
+Los \emph{frentes} $\mathcal{F}_1,\mathcal{F}_2,\dots$ de un conjunto $R$ se
+definen recursivamente: $\mathcal{F}_1$ son los no dominados de $R$ y
+$\mathcal{F}_{j+1}$ son los no dominados de
+$R\setminus(\mathcal{F}_1\cup\cdots\cup\mathcal{F}_j)$. El \emph{rango} de una
+solución es el índice de su frente. El algoritmo rápido de Deb et al.
+\cite{deb2002nsga2} calcula todos los frentes en $O(M\card{R}^2)$, contando
+para cada solución cuántas la dominan y a cuáles domina.
+\end{definicion}
+
+\begin{definicion}[Distancia de aglomeración]
+Dentro de un frente $\mathcal{F}$, se ordenan las soluciones por cada objetivo
+$m$. A las dos soluciones extremas se les asigna distancia $+\infty$, y a cada
+solución interior $i$ se le suma
+\[
+  \mathrm{cd}(i)\mathrel{+}=\frac{f_m^{(i+1)}-f_m^{(i-1)}}{f_m^{\max}-f_m^{\min}},
+\]
+donde $(i-1)$ e $(i+1)$ son sus vecinas en el orden del objetivo $m$. La
+distancia mide qué tan aislada está una solución en el espacio de objetivos, y
+se calcula en $O(M\card{\mathcal{F}}\log\card{\mathcal{F}})$.
+\end{definicion}
+
+El \emph{orden de aglomeración} prefiere el menor rango y, a igual rango, la
+mayor distancia. La selección de padres es por \emph{torneo binario} con ese
+orden, y la supervivencia toma frentes completos en orden de rango hasta
+llenar $N$, desempatando el último frente por distancia. El resultado es la
+aproximación $\mathcal{F}_1$ de la última generación.
+
+\begin{algorithm}[htbp]
+\caption{NSGA-II (esquema general)}
+\label{alg:nsga2}
+\begin{algorithmic}[1]
+\Require tamaño $N$; generaciones $G$; población inicial $P_0$; semilla $\varsigma$
+\Ensure aproximación del frente
+\State evaluar $\mathbf{F}$ en $P_0$
+\For{$t\gets0$ \textbf{hasta} $G-1$}
+  \State $Q_t\gets\emptyset$
+  \While{$\card{Q_t}<N$}
+    \State elegir dos padres por torneo binario con el orden de aglomeración
+    \State producir dos hijos por cruce SBX y mutación polinomial; redondear y reparar
+    \State $Q_t\gets Q_t\cup\{\text{hijos que no estén duplicados}\}$
+  \EndWhile
+  \State evaluar $\mathbf{F}$ en $Q_t$;\quad $R_t\gets P_t\cup Q_t$
+  \State $(\mathcal{F}_1,\mathcal{F}_2,\dots)\gets$ ordenamiento no dominado de $R_t$
+  \State $P_{t+1}\gets\emptyset$;\quad $j\gets1$
+  \While{$\card{P_{t+1}}+\card{\mathcal{F}_j}\leq N$}
+    \State calcular la distancia de aglomeración en $\mathcal{F}_j$;\quad $P_{t+1}\gets P_{t+1}\cup\mathcal{F}_j$;\quad $j\gets j+1$
+  \EndWhile
+  \State completar $P_{t+1}$ con los elementos de $\mathcal{F}_j$ de mayor distancia
+\EndFor
+\State \Return los no dominados de $P_G$
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Codificación}
+
+La variable $x_i$ es directamente el \emph{índice} del candidato elegido en la
+línea $i$: $x_i\in\{0,\dots,k_i-1\}$, con cotas $x_i^{\mathrm{L}}=0$ y
+$x_i^{\mathrm{U}}=k_i-1$. Esta codificación tiene una propiedad importante:
+\emph{todo} vector entero dentro de las cotas es un kit válido. No hay
+restricciones que reparar y el problema se declara sin restricciones.
+
+pymoo minimiza, así que el vector que se optimiza es
+$(f_1,-f_2,-f_3,-f_4)$. La evaluación reutiliza literalmente la misma función
+de objetivos que la enumeración exacta y que la heurística. Tener una sola
+definición de los objetivos es una decisión deliberada: una copia vectorizada
+correría el riesgo de divergir de ella, que es precisamente la clase de
+defecto que hace que un frente «óptimo» no sea comparable con nada.
+
+\subsubsection{Operadores}
+
+\paragraph{Cruce binario simulado (SBX).} Con probabilidad $p_c=0{,}9$ por
+pareja, para cada variable se toma $u\sim\mathcal{U}(0,1)$ y
+\[
+  \beta_q=\begin{cases}(2u)^{1/(\eta_c+1)} & u\leq\tfrac12,\\[2pt]
+  \bigl(\tfrac{1}{2(1-u)}\bigr)^{1/(\eta_c+1)} & u>\tfrac12,\end{cases}
+  \qquad
+  y^{(1,2)}=\tfrac12\bigl[(x^{(1)}+x^{(2)})\mp\beta_q\,\abs{x^{(2)}-x^{(1)}}\bigr],
+\]
+con índice de distribución $\eta_c=15$ \cite{deb1995sbx}. Un $\eta$ grande
+concentra a los hijos cerca de los padres.
+
+\paragraph{Mutación polinomial (PM).} Cada individuo se muta con probabilidad
+$1$ y, dentro de él, cada variable con probabilidad $1/n$ (el valor por
+omisión de la biblioteca). Para una variable,
+\[
+  \delta_q=\begin{cases}(2u)^{1/(\eta_m+1)}-1 & u<\tfrac12,\\
+  1-\bigl(2(1-u)\bigr)^{1/(\eta_m+1)} & u\geq\tfrac12,\end{cases}
+  \qquad y=x+\delta_q\,(x^{\mathrm{U}}-x^{\mathrm{L}}),
+\]
+con $\eta_m=20$ \cite{deb1996pm}. La biblioteca usa la variante acotada, que
+ajusta $\delta_q$ según la distancia a cada cota.
+
+\paragraph{Reparación por redondeo.} Los dos operadores producen valores
+reales. Después de cruce y mutación, cada variable se redondea al entero más
+cercano y se recorta a $[x^{\mathrm{L}},x^{\mathrm{U}}]$. La evaluación vuelve
+a recortar por precaución, para no depender de esa invariante externa. Se
+eliminan además los individuos duplicados.
+
+\begin{hallazgo}{Sesgo ordinal sobre una variable nominal}
+SBX y PM son operadores \emph{ordinales}: suponen que índices vecinos
+representan soluciones vecinas, y en particular que el índice 3 está «entre»
+el 2 y el 4. Aquí el índice es una \emph{etiqueta nominal}, y el orden de los
+candidatos dentro de una línea no tiene significado en el espacio de
+objetivos. Los operadores siguen funcionando como perturbaciones, pero su
+sesgo hacia valores cercanos no corresponde a ninguna estructura real del
+problema. La evaluación midió el efecto: antes de las correcciones, una regla
+de subida por costo marginal dominaba algún punto del frente en el 68\,\% de
+las listas. El sesgo se corrigió \emph{sembrando} la población
+(\cref{sec:opt-siembra}), sin cambiar los operadores. Un cruce uniforme por
+variable y una mutación que reemplace el índice por otro al azar serían los
+operadores naturales para esta codificación.
+\end{hallazgo}
+
+\subsubsection{Tamaño de población y número de generaciones}
+
+Los dos parámetros se escalan con el tamaño del problema, para que el frente no
+se quede corto en una lista larga ni se gasten generaciones de más en una
+corta:
+\begin{align*}
+  N(n)&=N'+(N'\bmod 2),\qquad N'=\min\bigl(200,\ \max(40,\ 12n)\bigr),\\
+  G(\Esp)&=\piso{\min\Bigl(120,\ \max\bigl(30,\ 20\log_{10}\max(10,\card{\Esp})\bigr)\Bigr)}.
+\end{align*}
+$N$ se redondea a par porque los padres se emparejan de a dos y una población
+impar desperdicia un individuo por generación. $G$ crece con el
+\emph{logaritmo} del espacio porque el espacio crece multiplicativamente
+---es un producto de $k_i$--- y el esfuerzo útil crece con el número de
+dígitos, no con el tamaño. Para la lista típica ($n=17$, $\bar k=2{,}4$,
+$\card{\Esp}\approx2{,}9\times10^6$) se obtiene $N=200$ y $G=120$, es decir,
+los dos topes.
+
+\subsubsection{Siembra de la población inicial}
+\label{sec:opt-siembra}
+
+La población inicial no es aleatoria. Se siembra con:
+\begin{enumerate}
+  \item las asignaciones de la heurística por perfil
+        (\cref{def:heuristica}) para cada perfil, que garantizan los extremos
+        de mínimo costo, máximo nivel y máximo personaje; y
+  \item los peldaños de la escalera de costo marginal
+        (\cref{sec:opt-escalera}), que recorren el compromiso entre costo y
+        fidelidad entre esos extremos.
+\end{enumerate}
+Las semillas se deduplican. Si hay más semillas que cupos, se toman $N$ de
+ellas espaciadas uniformemente a lo largo de la lista (índices
+$\mathrm{round}(\mathrm{linspace}(0,\card{S}-1,N))$), de modo que se conserva
+el recorrido completo de barato a caro. El resto de la población se completa
+con asignaciones aleatorias generadas con un generador inicializado con la
+misma semilla del algoritmo.
+
+\begin{proposicion}[El frente no queda por debajo de sus semillas]
+\label{prop:siembra}
+Sea $\Front_{\mathrm{G}}$ el conjunto devuelto por el NSGA-II y $S$ el
+conjunto de semillas. El sistema devuelve
+$\Front=\mathrm{NoDom}(\Front_{\mathrm{G}}\cup S)$. Entonces ninguna semilla
+domina a un punto de $\Front$, y toda semilla está en $\Front$ o está dominada
+por un punto de $\Front$.
+\end{proposicion}
+
+\begin{proof}
+Toda semilla pertenece al conjunto sobre el que se aplica el filtro. Si una
+semilla dominara a un punto $\mathbf{v}$, ese punto habría sido eliminado y no
+estaría en $\Front$. Si una semilla no está en $\Front$, es porque algún punto
+del conjunto la domina. Como la dominancia es transitiva y el conjunto es
+finito, una cadena de dominancia termina en un no dominado, que está en
+$\Front$.
+\end{proof}
+
+La consecuencia práctica es una garantía de \emph{no regresión}: el NSGA-II
+puede perder una semilla buena durante la evolución, pero el resultado final
+nunca es peor que la heurística ni que la escalera. En particular, el frente
+nunca es dominado por la heurística, que es la referencia mínima que se le
+exige.
+
+\subsubsection{Reproducibilidad}
+
+La terminación es por número fijo de generaciones $G$, no por un criterio de
+convergencia. Un criterio de convergencia hace depender el punto de corte del
+azar de la corrida, y el requisito es que una semilla dada reproduzca el
+frente byte a byte. Por la misma razón, la población aleatoria inicial usa la
+semilla del algoritmo, y el frente final se ordena de forma total. Empíricamente
+(\cref{sec:evaluacion}), con cinco semillas distintas el kit resultante es el
+mismo en el 94,5\,\% de las listas donde corre el NSGA-II, y siempre en las que
+se enumeran.
+
+\subsubsection{Complejidad}
+
+Por generación, el ordenamiento no dominado cuesta $O(M(2N)^2)$; la
+distancia de aglomeración, $O(M\,2N\log 2N)$; y la evaluación de los $N$
+hijos, $O(Nn)$. El total es
+\[
+  T_{\mathrm{NSGA}}=O\bigl(G\,(MN^2+Nn)\bigr),
+\]
+que con $G=120$, $N=200$, $M=4$ y $n=17$ da del orden de $10^7$ operaciones
+elementales. El tiempo medido para producir los kits de una lista es de unos
+5~s (\cref{sec:evaluacion}). Compárese con los $O(n^4k)$ estados de la
+programación dinámica exacta (\cref{teo:frente-poli}), que para el mismo
+tamaño son unos $10^4$ estados.
+
+% ---------------------------------------------------------------------------
+\subsection{La escalera de costo marginal}
+\label{sec:opt-escalera}
+% ---------------------------------------------------------------------------
+
+La escalera es un procedimiento voraz que recorre el compromiso entre costo y
+fidelidad. Parte del kit más barato y, en cada paso, sube \emph{una} línea a un
+candidato de mejor nivel: la que tenga el menor costo extra por nivel ganado.
+
+\begin{algorithm}[htbp]
+\caption{Escalera de costo marginal}
+\label{alg:escalera}
+\begin{algorithmic}[1]
+\Require líneas $\Dec$; admisibles $A_1,\dots,A_n$
+\Ensure peldaños $\mathbf{x}^{(0)},\mathbf{x}^{(1)},\dots$
+\For{$i\gets1$ \textbf{hasta} $n$}
+  \State $x_i\gets\argmin_{c\in A_i}\bigl(\mathrm{ord}_i(c),\ -\nivel(c),\ \mathrm{sku}(c)\bigr)$ \Comment{kit más barato}
+\EndFor
+\State $\mathcal{S}\gets(\mathbf{x})$
+\Loop
+  \State $\mathit{mejor}\gets\varnothing$
+  \ForAll{$i$ y $c\in A_i$ con $\precio(c)\neq\sinprecio$ y $\nivel(c)>\nivel(x_i)$}
+    \State $\Delta\gets\kappa_i(c)-\kappa_i(x_i)$ \Comment{$\kappa_i(x_i)$ se toma como $0$ si es $\sinprecio$}
+    \State $e\gets\Delta/(\nivel(c)-\nivel(x_i))$ \Comment{costo por nivel ganado}
+    \State $\mathit{mejor}\gets\min_{\mathrm{lex}}\bigl(\mathit{mejor},\ (e,\Delta,i,c)\bigr)$
+  \EndFor
+  \If{$\mathit{mejor}=\varnothing$} \Return $\mathcal{S}$ \EndIf
+  \State $(\cdot,\cdot,i,c)\gets\mathit{mejor}$;\quad $x_i\gets c$;\quad $\mathcal{S}\gets\mathcal{S}\cdot(\mathbf{x})$
+\EndLoop
+\end{algorithmic}
+\end{algorithm}
+
+\begin{proposicion}[Terminación y costo]
+\label{prop:escalera}
+\Cref{alg:escalera} produce como máximo $2n+1$ peldaños y corre en
+$O(n^2k)$.
+\end{proposicion}
+
+\begin{proof}
+Cada paso aumenta estrictamente $a(\mathbf{x})=\sum_i\nivel(x_i)$, porque solo
+se aceptan candidatos de nivel mayor. Como $0\leq a\leq2n$, hay a lo sumo $2n$
+pasos. Cada paso examina $O(nk)$ pares.
+\end{proof}
+
+El criterio $e=\Delta/\Delta\nivel$ es el de \emph{eficiencia incremental} del
+algoritmo voraz clásico para la relajación lineal del MCKP
+\cite{sinha1979mckp}. Sin embargo, la escalera no implementa ese algoritmo de
+forma exacta: no descarta previamente los candidatos dominados por la
+envolvente convexa (los «LP-dominados»), así que sus peldaños aproximan la
+envolvente convexa inferior de la curva costo-fidelidad sin garantizar que
+estén sobre ella. Su papel no es ser exacta sino complementar al NSGA-II:
+recorre precisamente la región que los operadores ordinales no encuentran
+bien, y por eso siembra la población y entra al filtro final. Con esa
+siembra, en la evaluación la escalera dejó de dominar puntos del frente
+(de 68\,\% a 0\,\%).
+
+% ---------------------------------------------------------------------------
+\subsection{La heurística por perfil y la proyección del frente}
+\label{sec:opt-proyeccion}
+% ---------------------------------------------------------------------------
+
+\begin{definicion}[Heurística por perfil]
+\label{def:heuristica}
+Para una línea con admisibles $A_i$ y cantidad $q_i$:
+\begin{itemize}
+  \item \textbf{Ahorrador}: $\argmin_{c\in A_i}(\mathrm{ord}_i(c),\mathrm{sku}(c))$.
+  \item \textbf{Premium}: entre los de nivel máximo $\max_{c\in A_i}\nivel(c)$,
+        el de menor $(\mathrm{ord}_i,\mathrm{sku})$.
+  \item \textbf{Fan}: entre los que satisfacen el personaje ($\varphi_i=1$), el
+        de menor $(\mathrm{ord}_i,\mathrm{sku})$; si no hay ninguno, el
+        Ahorrador. La heurística no inventa un personaje.
+\end{itemize}
+\end{definicion}
+
+La heurística tiene hoy dos usos acotados: elegir en las líneas sin
+compromiso, cuando el frente es vacío, y servir de semilla y de referencia
+mínima para el frente. No es un plan alternativo para cuando falte la
+biblioteca de optimización. Esa biblioteca es una dependencia obligatoria: si
+falta, el servicio no arranca, porque una degradación silenciosa a la
+heurística serviría kits distintos de los del algoritmo sin avisar a nadie.
+
+\begin{definicion}[Proyección del frente en perfiles]
+\label{def:proyeccion}
+Dado un frente no vacío $\Front$, sea
+\[
+  \Front_{\mathrm{s}}=\Bigl\{\mathbf{x}\in\Front : f_3(\mathbf{x})=\max_{\mathbf{y}\in\Front}f_3(\mathbf{y})\Bigr\}
+\]
+el subconjunto de puntos \emph{surtibles}, los de máxima disponibilidad. Entonces
+\begin{align*}
+  \mathbf{x}_{\mathrm{Ah}} &= \lexmin_{\mathbf{x}\in\Front_{\mathrm{s}}}\ \bigl(f_1,\ -f_3,\ -f_2\bigr),\\
+  \mathbf{x}_{\mathrm{Pr}} &= \lexmax_{\mathbf{x}\in\Front_{\mathrm{s}}}\ \bigl(f_2,\ -f_1,\ f_3\bigr),\\
+  \mathbf{x}_{\mathrm{Fan}} &= \begin{cases}\lexmax_{\mathbf{x}\in\Front_{\mathrm{s}}}(f_4,-f_1,f_2) & \text{si ese máximo tiene } f_4>0,\\
+  \mathbf{x}_{\mathrm{Ah}} & \text{en otro caso.}\end{cases}
+\end{align*}
+\end{definicion}
+
+Los perfiles son \emph{arquetipos}: cada uno proyecta el frente sobre un eje
+distinto. Los pesos que declara el acudiente no intervienen aquí; solo deciden
+cuál de los kits se recomienda (\cref{sec:opt-recomendar}). Como los tres kits
+son puntos del mismo frente, son comparables entre sí con el mismo vocabulario
+de objetivos.
+
+\paragraph{Por qué se proyecta sobre los puntos surtibles.}
+\label{obs:sin-precio}
+Como $f_1$ excluye las líneas sin precio, cambiar un candidato con precio por
+uno sin precio \emph{reduce} $f_1$ y reduce $f_3$. Ninguno de los dos puntos
+domina al otro, así que ambos pueden estar en el frente. Una versión anterior
+proyectaba sobre todo $\Front$, y entonces un candidato sin precio parecía
+gratis. Con dos líneas, $A_1=\{\text{económico a }\$3.000,\ \text{premium sin
+precio}\}$ y $A_2=\{\text{económico a }\$2.000,\ \text{premium a }\$9.000\}$,
+el Ahorrador elegía el premium sin precio y reportaba un total de \$2.000 que
+no incluía esa línea. El Premium y A~tu~Medida tenían el mismo problema: una
+marca sin precio sumaba fidelidad sin sumar costo. La heurística nunca lo tuvo,
+porque pone lo que no tiene precio al final de su orden ($\mathrm{ord}_i$).
+Restringir la proyección a $\Front_{\mathrm{s}}$ aplica esa misma regla al
+frente. Lo que no se puede surtir no gana una comparación de precio, pero si
+una línea \emph{solo} tiene candidatos sin precio, todos los puntos los llevan
+y la línea sigue apareciendo en el kit. El frente en sí no cambia: sigue
+siendo el de cuatro objetivos, y el filtro forma parte de la proyección. En el
+catálogo vigente todos los productos activos tienen precio, así que la
+corrección no cambia ningún kit actual; evita que el defecto aparezca cuando
+una oferta venza.
+
+\begin{proposicion}[Un kit proyectado no deja de surtir lo que podía surtir]
+\label{prop:surtibles}
+En toda línea cuyos admisibles incluyen al menos un candidato con precio, los
+kits Ahorrador, Premium, Fan y A~tu~Medida proyectados eligen un candidato
+con precio.
+\end{proposicion}
+
+\begin{proof}
+Sea $b^\ast$ el número de líneas que admiten un candidato con precio; ninguna
+asignación tiene más de $b^\ast$ líneas con precio. Un óptimo lexicográfico de
+$(f_3,-f_1,f_2,f_4)$ es eficiente: cualquier asignación que lo dominara sería
+al menos igual en $f_3$, y mejor o igual en el resto, contradiciendo la
+optimalidad lexicográfica. Ese óptimo tiene $f_3=b^\ast/n$, así que hay un
+punto del frente exacto con esa disponibilidad. En el NSGA-II, la semilla
+Ahorrador de la heurística también tiene $f_3=b^\ast/n$, porque pone los
+candidatos con precio primero, y entra al filtro final
+(\cref{prop:siembra}). Por lo tanto, ella o un punto que la domine (con $f_3$
+al menos igual) queda en el frente devuelto. En ambos casos,
+$\max_{\Front}f_3=b^\ast/n$, y todo punto de $\Front_{\mathrm{s}}$ tiene precio
+en las $b^\ast$ líneas que lo admiten. Las cuatro proyecciones eligen dentro de
+$\Front_{\mathrm{s}}$.
+\end{proof}
+
+% ---------------------------------------------------------------------------
+\subsection{De la asignación al kit: líneas, herramientas y consolidación}
+\label{sec:opt-lineas}
+% ---------------------------------------------------------------------------
+
+Elegida la asignación, el kit se construye con tres transformaciones que no
+dependen del algoritmo que eligió.
+
+\paragraph{1. Construcción de líneas.} Cada renglón informativo produce una
+línea sin precio ni subtotal, con la instrucción del colegio. La base de datos
+impone que esas líneas no tengan precio. Cada renglón decidible con candidato
+$c$ produce una línea con $u_i(c)$ unidades, subtotal $\kappa_i(c)$ (o
+$\sinprecio$) y hasta dos alternativas. Un renglón decidible sin candidato
+produce una línea vacía con su mensaje.
+
+\paragraph{2. Juntar herramientas de un mismo hijo.} Las listas se escriben por
+materia, y cada profesor pide lo que usa: las tijeras aparecen en artes, en
+tecnología y en la cartuchera. Son las mismas tijeras. En las listas curadas,
+43 renglones de herramientas repetían a otro idéntico; un grado pedía tres
+calculadoras científicas. Para los conceptos marcados en el catálogo como
+\emph{uno por estudiante}, las líneas de un mismo hijo con el mismo producto
+elegido se agrupan:
+\[
+  \text{grupo } g=\{i : h(r_i)=h,\ x_i=c,\ c \text{ es uno por estudiante}\},
+  \qquad q_g=\max_{i\in g}q(r_i).
+\]
+Se compra la cantidad \emph{máxima}, no la suma: si artes pide dos reglas y la
+cartuchera una, dos alcanzan. La primera línea del grupo lleva
+$\techo{q_g/\emp(c)}$ unidades y las demás quedan con cero, con un mensaje que
+dice en qué línea quedó el producto. La agrupación es por \emph{hijo}, porque
+dos hermanos necesitan cada uno sus tijeras, y por \emph{producto elegido},
+porque «regla» y «regla de acero» no son la misma compra. Se limita a los
+conceptos uno por estudiante porque lo que se gasta (pegante, cinta,
+cuadernos) puede pedirse uno por materia a propósito, y juntarlo dejaría al
+niño sin material.
+
+\paragraph{3. Consolidar entre hermanos.} Sobre las líneas resultantes, las de
+\emph{distintos} hijos con el mismo producto elegido se consideran para una
+compra conjunta, excluyendo los textos (dos ediciones del mismo título no son
+sustituibles) y las líneas ya juntadas en el paso 2. Para un grupo $g$ con
+empaque $\emp$, se comparan
+\[
+  \text{juntas}=\techo{\frac{\sum_{i\in g}q(r_i)}{\emp}}
+  \qquad\text{y}\qquad
+  \text{sueltas}=\sum_{i\in g}\techo{\frac{q(r_i)}{\emp}},
+\]
+y se consolida solo si $\text{juntas}<\text{sueltas}$. En ese caso, la primera
+línea lleva las unidades conjuntas, las demás quedan en cero con su
+explicación, y se registra un ahorro de $\precio\cdot(\text{sueltas}-\text{juntas})$.
+
+\begin{lema}[Subaditividad del techo]
+\label{lem:techo}
+Para $a,b\in\N$ y $\emp\in\N_{\geq1}$,
+$\techo{(a+b)/\emp}\leq\techo{a/\emp}+\techo{b/\emp}$.
+\end{lema}
+
+\begin{proof}
+$\techo{a/\emp}+\techo{b/\emp}$ es un entero mayor o igual que
+$a/\emp+b/\emp=(a+b)/\emp$, y $\techo{(a+b)/\emp}$ es el menor entero con esa
+propiedad.
+\end{proof}
+
+\begin{corolario}[Consolidar nunca encarece]
+\label{cor:consolidar}
+Para cualquier grupo, $\text{juntas}\leq\text{sueltas}$ (por inducción sobre
+el \cref{lem:techo}), así que la consolidación nunca aumenta el total del kit.
+La condición estricta $\text{juntas}<\text{sueltas}$ evita además mover
+unidades entre hermanos cuando no hay beneficio, lo que solo haría más difícil
+leer la explicación.
+\end{corolario}
+
+\begin{ejemplo}
+Dos hermanos piden un borrador cada uno y el producto elegido es una caja de
+10 a \$9.000: sueltas $=1+1=2$ cajas, juntas $=\techo{2/10}=1$ caja, ahorro
+$=\$9.000$.
+\end{ejemplo}
+
+La consolidación se hace sobre el \emph{producto} elegido y no sobre el
+concepto. Si a dos hermanos se les eligieron productos distintos, forzarlos a
+compartir empaque cambiaría lo que recibe cada uno sin decirlo. Las líneas que
+quedan en cero no se borran: el colegio pidió ese ítem para ese hijo, y el
+acudiente tiene que poder encontrarlo. Esta es la razón de fondo para que una
+solicitud sea por \emph{hogar}: si cada hijo se pidiera por separado, nadie
+vería que una caja de diez sale mejor que dos sueltos.
+
+El \emph{total} del kit es la suma de los subtotales de las líneas no
+informativas. Lo que el sistema no puede entregar nunca se cobra.
+
+\begin{observacion}[Lo que el optimizador no ve]
+Las dos agrupaciones se aplican \emph{después} de elegir, así que $f_1$ no las
+ve. Una asignación que dé el mismo producto a dos hermanos puede resultar más
+barata, después de consolidar, que otra que el frente consideraba
+equivalente. Este es el acoplamiento que el diseño original proponía llevar
+dentro del objetivo (\cref{sec:opt-estructura}).
+\end{observacion}
+
+% ---------------------------------------------------------------------------
+\subsection{Qué kits se arman y el kit «A tu Medida»}
+\label{sec:opt-medida}
+% ---------------------------------------------------------------------------
+
+No se arman todos los kits posibles, sino los que el acudiente pidió:
+\begin{itemize}
+  \item \textbf{Ahorrador} y \textbf{Premium}, siempre.
+  \item \textbf{Fan}, solo si se pidió un personaje para algún hijo.
+  \item \textbf{A tu Medida}, solo si se eligió la prioridad de
+        \emph{equilibrio} o se declaró un tope de gasto.
+\end{itemize}
+Un kit que nadie pidió es ruido en la pantalla y trabajo de más para el
+revisor. Los kits \emph{canónicos} de una lista, que se arman sin
+preferencias para reutilizarlos, son por eso solo dos.
+
+\begin{definicion}[A tu Medida]
+\label{def:a-tu-medida}
+Sea $T$ el tope: el presupuesto declarado $B$, si existe; si no,
+$T=\piso{(\mathrm{total}(k_{\mathrm{Ah}})+\mathrm{total}(k_{\mathrm{Pr}}))/2}$, la
+mitad del camino entre el Ahorrador y el Premium. El kit es
+\[
+  \mathbf{x}_{\mathrm{AM}}=\lexmax_{\mathbf{x}\in\Front_{\mathrm{s}},\ f_1(\mathbf{x})\leq T}\ \bigl(f_2,\ -f_1,\ f_3\bigr),
+\]
+con $\Front_{\mathrm{s}}$ los puntos surtibles de la \cref{def:proyeccion},
+y no se arma (se devuelve $\varnothing$) si
+\begin{enumerate*}[label=(\roman*)]
+  \item el frente es vacío,
+  \item ningún punto cabe,
+  \item el total del kit construido, ya consolidado, supera $T$, o
+  \item el kit tiene exactamente los mismos productos que el Ahorrador o que
+        el Premium.
+\end{enumerate*}
+\end{definicion}
+
+Es la mejor marca que cabe en el tope, tomada del frente ya calculado. La
+condición (iv) evita mostrar el mismo kit dos veces con nombres distintos. El
+presupuesto se aplica \emph{después} del frente y no como restricción del
+NSGA-II: un frente de Pareto no debe esconder un kit válido porque es caro,
+sino ofrecerlo para que la capa de recomendación elija y lo explique. Meter el
+presupuesto en la optimización recortaría el frente. El tope es el presupuesto
+tal cual: la disposición a pagar sobreprecio no lo estira, porque indica
+cuánto más pagaría la familia por marca \emph{sin} tope, no cuánto se puede
+pasar del tope que ella misma puso.
+
+% ---------------------------------------------------------------------------
+\subsection{La recomendación}
+\label{sec:opt-recomendar}
+% ---------------------------------------------------------------------------
+
+Entre los kits armados se marca \emph{uno} como recomendado, sin ocultar los
+demás. La regla es una lista de decisión cuyas condiciones salen de una
+encuesta a 60 familias:
+
+\begin{enumerate}
+  \item Si se pidió un personaje y existe el Fan $\Rightarrow$ \textbf{Fan}
+        («es el único kit que lo trae»).
+  \item Si existe A~tu~Medida $\Rightarrow$ \textbf{A tu Medida}, con una
+        razón que dice si el tope lo puso el acudiente o es la mitad del camino.
+  \item Si se pidió el punto medio pero A~tu~Medida no se armó
+        $\Rightarrow$ \textbf{Premium}, si su total cabe en el tope, o
+        \textbf{Ahorrador} en otro caso, con la razón correspondiente.
+  \item Si el peso declarado para la calidad es al menos el de cada otro
+        criterio y la disposición a pagar sobreprecio es $\sigma\geq0{,}10$
+        $\Rightarrow$ \textbf{Premium}.
+  \item En otro caso $\Rightarrow$ \textbf{Ahorrador}. Es el valor por
+        omisión porque 42 de las 60 familias encuestadas pagarían como
+        máximo un 5\,\% más, y 15 exigen un precio igual o menor.
+\end{enumerate}
+
+\paragraph{El presupuesto como restricción dura.} Si hay un tope $B$ y el kit
+marcado no cabe, la marca se mueve al kit \emph{de mejor marca que sí cabe}:
+\[
+  k^\star=\lexmax_{k:\ \mathrm{total}(k)\leq B}\ \bigl(f_2(k),\ -\mathrm{total}(k)\bigr).
+\]
+Si ninguno cabe, se marca el más barato y la razón dice cuánto cuesta. Antes
+la marca caía al kit más barato, y eso dejaba al recomendado con presupuesto en
+el 40\,\% de la calidad posible.
+
+\paragraph{Relación con la teoría de la utilidad multiatributo.} El diseño
+original preveía que la recomendación fuera una escalarización aditiva
+$U(k)=\sum_jw_ju_j(k)$ de utilidades normalizadas sobre el rango observado en
+el frente, en la línea de la teoría de la utilidad multiatributo
+\cite{keeney1976}, con las reglas de la encuesta como distribuciones previas
+sobre los pesos. La versión vigente implementa las reglas directamente como
+lista de decisión, y los pesos declarados solo intervienen en la condición
+«calidad primero» del paso 4. La lista de decisión es más fácil de auditar y
+de explicar al acudiente. La escalarización permitiría usar toda la
+información de los pesos, pero exige suponer independencia preferencial
+entre los criterios, que es lo que justifica la forma aditiva. Hay además una
+diferencia documentada entre los pesos por omisión del código
+(precio 0,35; marca exigida 0,30; calidad 0,25; personaje 0,10) y los que
+resultan de normalizar la pregunta de prioridades de la encuesta
+(0,285; 0,273; 0,255; 0,187). Los del código exageran la separación entre
+criterios y le quitan al personaje casi la mitad de su peso medido.
+
+% ---------------------------------------------------------------------------
+\subsection{El personaje: inyección y anclaje}
+\label{sec:opt-personaje}
+% ---------------------------------------------------------------------------
+
+Los productos con personaje no compiten en la resolución
+(\cref{sec:res-niveles}), así que el frente no siempre tiene un candidato con
+personaje para elegir. Cuando el acudiente pide un personaje, dos
+post-procesos sobre el kit Fan cierran ese hueco:
+
+\paragraph{Inyección.} Para cada concepto \emph{ancla} (cuaderno, cartuchera,
+carpeta y maleta) que el catálogo surte con el personaje pedido, el producto
+elegido en la línea del Fan se reemplaza por el producto con personaje. Como
+el reemplazo cambia precios después de que el kit se armó, cada línea se
+devuelve a su forma previa a la consolidación, se vuelve a consolidar ---dos
+hermanos que comparten un ancla deben volver a compartir empaque--- y se
+recalculan el total, los objetivos y la recomendación completa. De lo
+contrario, el kit mostraría un total nuevo junto a objetivos y un veredicto
+de presupuesto calculados con los precios viejos.
+
+\paragraph{Anclaje.} Las líneas ancla cuyo producto trae el personaje pedido
+se mueven al principio del kit, en el orden canónico cuaderno, cartuchera,
+carpeta, maleta. El resto conserva su orden relativo; es una partición
+estable.
+
+\begin{proposicion}[El anclaje no cambia el kit]
+El anclaje preserva el total, las consolidaciones y los objetivos.
+\end{proposicion}
+
+\begin{proof}
+El anclaje es una permutación de las líneas. El total y los objetivos son
+sumas y promedios sobre las líneas, invariantes bajo permutaciones, y las
+consolidaciones ya se calcularon y no se recalculan.
+\end{proof}
+
+% ---------------------------------------------------------------------------
+\subsection{El algoritmo completo y su complejidad}
+\label{sec:opt-completo}
+% ---------------------------------------------------------------------------
+
+\begin{algorithm}[htbp]
+\caption{Armar los kits de un hogar}
+\label{alg:armar}
+\begin{algorithmic}[1]
+\Require renglones $R$ con candidatos; preferencias; semilla $\varsigma$
+\Ensure kits armados, uno marcado como recomendado
+\State $\Dec\gets$ renglones no informativos con $A(r)\neq\varnothing$;\quad $\Esp\gets\prod_iA_i$
+\If{$\Dec=\varnothing$ \OR $\card{\Esp}\leq1$} $\Front\gets\varnothing$
+\ElsIf{$\card{\Esp}\leq4096$} $\Front\gets\textsc{FrenteExacto}(\Dec)$ \Comment{\cref{alg:frente-exacto}}
+\Else
+  \State $S\gets$ heurística por perfil $\cup$ \textsc{Escalera}$(\Dec)$ \Comment{\cref{def:heuristica,alg:escalera}}
+  \State $\Front\gets\mathrm{NoDom}\bigl(\textsc{NSGA-II}(N(n),G(\Esp),S,\varsigma)\cup S\bigr)$ \Comment{\cref{alg:nsga2}}
+\EndIf
+\For{perfil $\in\{\text{Ahorrador},\text{Premium}\}$ y, si se piden, Fan}
+  \State $\mathbf{x}\gets$ proyección de $\Front$ (\cref{def:proyeccion}), o heurística si $\Front=\varnothing$
+  \State $k_{\text{perfil}}\gets\textsc{Consolidar}(\textsc{JuntarHerramientas}(\textsc{Líneas}(R,\mathbf{x})))$
+\EndFor
+\If{se pidió el punto medio o un tope} armar A~tu~Medida (\cref{def:a-tu-medida}) \EndIf
+\State marcar el recomendado (\cref{sec:opt-recomendar})
+\If{se pidió un personaje} inyectar y anclar en el Fan; volver a recomendar \EndIf
+\State \Return los kits
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Complejidad global.} Sea $N_R=\card{R}$. La construcción de líneas,
+la agrupación de herramientas y la consolidación cuestan $O(N_R)$ por kit con
+tablas de dispersión, y se arman como mucho cuatro kits. La proyección es
+lineal en $\card{\Front}$. El costo lo domina la construcción del frente:
+\[
+  T_{\mathrm{opt}}=\begin{cases}
+    O(nk) & \card{\Esp}\leq1,\\
+    O(\card{\Esp}\,n+\card{\Esp}^2) & \card{\Esp}\leq4096 \quad(\leq 1{,}7\times10^7),\\
+    O\bigl(G(MN^2+Nn)+n^2k\bigr) & \text{en otro caso.}
+  \end{cases}
+\]
+En la evaluación sobre 29 listas, producir todos los kits de una lista tomó en
+promedio 5,3~s, con mediana de 6,3~s y máximo de 9,0~s, en un solo proceso de
+CPU. Es el mismo orden de magnitud que leer una página con el modelo
+multimodal.
+
+% ---------------------------------------------------------------------------
+\subsection{Evolución del optimizador}
+\label{sec:opt-evolucion}
+% ---------------------------------------------------------------------------
+
+\begin{evolucion}[: optimizador, versión por versión]
+\begin{description}[style=nextline,leftmargin=0pt]
+  \item[v0 — Prototipo heredado.] Un NSGA-II con cuatro objetivos que eran
+        sumas sobre ítems independientes, una variable por ítem y
+        $\text{costo}=\text{precio}\times\text{cantidad}$. El problema era
+        completamente separable, y sus propias pruebas lo confirmaban: varias
+        afirmaban que el NSGA-II devolvía \emph{exactamente} lo mismo que la
+        fuerza bruta, lo que indicaba que no había nada que buscar. Tenía
+        además tres defectos: no había empaque (el error de las doce cajas),
+        con presupuesto se duplicaba el kit más barato hasta completar tres
+        (el acudiente podía recibir tres kits idénticos presentados como tres
+        opciones) y uno de sus objetivos valía siempre 1.
+  \item[v1 — Andamio heurístico.] Una regla de selección por perfil,
+        determinista y declarada como provisional en su propia documentación.
+        Su propósito era que el ciclo completo corriera y se pudiera probar
+        antes de que cada etapa fuera óptima. De esta versión se conservan sin
+        cambios la aritmética de unidades, las líneas informativas que no se
+        cobran y la forma de la recomendación.
+  \item[v2 — Primer NSGA-II.] Frente de Pareto con NSGA-II y enumeración
+        exacta para $\card{\Esp}\leq4096$. Las variables eran \emph{reales} en
+        $[0,k_i-10^{-6}]$ con $x_i\mapsto\piso{x_i}$, la relajación continua
+        estándar, con población fija de 60 y 40 generaciones.
+  \item[v3 — Codificación entera.] Las variables pasaron a ser enteras en
+        $[0,k_i-1]$ con reparación por redondeo, porque con la relajación
+        continua SBX interpolaba un índice nominal como si fuera una magnitud.
+        La población y las generaciones pasaron a escalarse con el problema.
+        La biblioteca de optimización pasó a ser una dependencia obligatoria
+        (antes se degradaba en silencio a la heurística). La «fidelidad» que se
+        mostraba pasó a ser el mismo eje que se optimiza; antes era la
+        fracción de líneas resueltas automáticamente, y los dos números solo
+        coincidían por correlación.
+  \item[v4 — Correcciones de la evaluación.] Tres cambios motivados por las
+        mediciones de la \cref{sec:evaluacion}:
+        \begin{enumerate*}[label=(\alph*)]
+          \item la heurística ordena por costo de línea y no por precio
+                unitario (\cref{lem:precio-unitario});
+          \item el NSGA-II se siembra con la escalera de costo marginal, que
+                también entra al filtro final (\cref{prop:siembra}); y
+          \item con presupuesto, se recomienda la mejor marca que cabe,
+                tomada del frente.
+        \end{enumerate*}
+        Efecto medido en las 174 listas (semilla 0): la heurística pasó de
+        acertar el 80\,\% de los Ahorrador al 100\,\%, la escalera pasó de
+        dominar algún punto del frente en el 68\,\% de las listas al 0\,\%, y
+        el recomendado con presupuesto pasó del 40\,\% de la calidad posible a
+        caber siempre e igualar el óptimo exacto.
+  \item[v5 — Kits a pedido.] Ahorrador y Premium siempre; Fan y A~tu~Medida
+        solo si se piden. El kit con tope dejó de llamarse «Premium ajustado» y
+        pasó a ser A~tu~Medida (\cref{def:a-tu-medida}). El tope dejó de
+        estirarse con la disposición a pagar sobreprecio: un acudiente que
+        escribía «máximo \$350.000» podía recibir un kit de \$385.000.
+  \item[v6 — Herramientas por hijo.] Agrupación de las herramientas pedidas
+        por varias materias (\cref{sec:opt-lineas}), motivada por los 43
+        renglones repetidos en las listas curadas.
+  \item[v7 — Proyección sobre lo surtible.] Al formalizar la proyección para
+        este documento apareció que un candidato sin precio parecía gratis en
+        el frente: el Ahorrador podía elegirlo con un total que no incluía esa
+        línea, y el Premium y A~tu~Medida podían tomarlo como una marca sin
+        costo. Desde entonces, las cuatro proyecciones eligen entre los puntos
+        de máxima disponibilidad (\cref{def:proyeccion,prop:surtibles}). El
+        catálogo vigente no tenía productos activos sin precio, así que ningún
+        kit cambió; la corrección cierra un defecto latente que habría
+        aparecido con la primera oferta vencida.
+\end{description}
+\end{evolucion}

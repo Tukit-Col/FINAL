@@ -1,0 +1,224 @@
+% ============================================================================
+\section{Modelo formal y notación}
+\label{sec:modelo}
+% ============================================================================
+
+Esta sección fija los objetos sobre los que operan todos los algoritmos. Las
+secciones siguientes usan esta notación sin volver a definirla.
+
+\subsection{El catálogo}
+
+\begin{definicion}[Concepto]
+\label{def:concepto}
+Un \emph{concepto} es una clase de productos intercambiables desde el punto de
+vista del colegio: si la lista pide un elemento del concepto, cualquier otro
+elemento del mismo concepto la satisface, salvo por los atributos que el
+renglón exija. Formalmente, un concepto es una tupla
+\[
+  c = \bigl(\mathrm{cod}(c),\ \mathrm{nom}(c),\ S(c),\ D(c),\ t(c)\bigr),
+\]
+donde $\mathrm{cod}(c)$ es un código estable (por ejemplo \cod{C001}),
+$\mathrm{nom}(c)$ el nombre canónico, $S(c)$ un conjunto finito de sinónimos
+(frases con las que los colegios nombran el concepto), $D(c)$ el conjunto de
+\emph{atributos discriminantes} (los que filtran productos, como
+\cod{tamano} o \cod{rayado}) y $t(c)\in\Tipos$ el tipo de renglón que el
+concepto representa. $\Cat$ denota el conjunto de conceptos activos.
+\end{definicion}
+
+El criterio para separar dos conceptos es operativo: se crea un concepto
+distinto solo cuando reemplazar uno por el otro \emph{no} satisface al colegio.
+Por ejemplo, la cartulina iris no reemplaza al papel iris porque su gramaje es
+distinto. En cambio, el cuaderno cuadriculado y el de cinco materias son el
+mismo concepto con atributos distintos.
+
+\begin{definicion}[Producto canónico]
+\label{def:producto}
+Un \emph{producto} es una tupla
+\[
+  p = \bigl(\mathrm{sku}(p),\ c(p),\ \nivel(p),\ \precio(p),\ \emp(p),\
+           \mathrm{per}(p),\ \alpha(p)\bigr),
+\]
+donde $c(p)\in\Cat$ es su concepto, $\nivel(p)\in\{0,1,2\}$ su nivel de marca
+(económico, confiable, premium), $\precio(p)\in\N\cup\{\sinprecio\}$ el menor
+precio vigente entre sus ofertas en tiendas, con $\sinprecio$ cuando no hay
+ninguno, $\emp(p)\in\N_{\geq 1}$ las unidades por empaque,
+$\mathrm{per}(p)$ el personaje que trae (o ninguno) y
+$\alpha(p)\colon \mathrm{Atr}\rightharpoonup \mathrm{Val}$ una función parcial
+de atributos declarados. $\Prod$ denota el conjunto de productos activos y
+$\Prod(c)=\{p\in\Prod : c(p)=c\}$.
+\end{definicion}
+
+\begin{observacion}[Nivel frente a perfil]
+El nivel $\nivel(p)$ describe un \emph{producto}. Los perfiles de kit
+(Ahorrador, Premium, Fan, A~tu~Medida) describen una \emph{preferencia sobre
+el kit completo}. Son ejes distintos aunque compartan la palabra «premium»: un
+kit Ahorrador puede contener un producto de nivel premium si resulta el más
+barato una vez se tiene en cuenta el empaque.
+\end{observacion}
+
+\subsection{Renglones, tipos y modos}
+
+\begin{definicion}[Tipos y modos]
+\label{def:tipos}
+El conjunto de \emph{tipos de renglón} es
+\begin{align*}
+  \Tipos = \{&\cod{util},\ \cod{libro\_libre},\ \cod{texto},\ \cod{licencia\_digital},\\
+             &\cod{no\_comprar},\ \cod{diferido},\ \cod{uniforme},\ \cod{otro}\},
+\end{align*}
+y el de \emph{modos de adquisición}
+\begin{align*}
+  \mathcal{M} = \{&\cod{mercado\_abierto},\ \cod{libro\_libre},\ \cod{venta\_directa\_editorial},\\
+                  &\cod{edicion\_exclusiva},\ \cod{plataforma},\ \cod{diferido}\}.
+\end{align*}
+Se distinguen los tipos \emph{buscables} $\Tipos_b=\{\cod{util},
+\cod{libro\_libre}\}$ y los modos \emph{surtibles}
+$\mathcal{M}_s=\{\cod{mercado\_abierto},\cod{libro\_libre}\}$.
+\end{definicion}
+
+\begin{definicion}[Renglón y demanda]
+\label{def:renglon}
+Un \emph{renglón crudo} es un par $\rho=(x,q^\circ)$ con $x\in\Sigma^*$ su
+texto y $q^\circ\in\N\cup\{\varnothing\}$ la cantidad leída en una columna, si
+existía. La normalización (\cref{sec:normalizacion}) lo convierte en una
+\emph{demanda}
+\[
+  r = \bigl(x,\ t(r),\ m(r),\ q(r),\ \emp^{\mathrm{txt}}(r)\bigr),
+\]
+con $t(r)\in\Tipos$, $m(r)\in\mathcal{M}$, $q(r)\in\N$ la cantidad pedida en
+unidades base y $\emp^{\mathrm{txt}}(r)$ el empaque que el propio texto
+declara, si lo hace. Un renglón \emph{se busca en el catálogo} si y solo si
+$t(r)\in\Tipos_b \wedge m(r)\in\mathcal{M}_s$, y es \emph{informativo} si y
+solo si $t(r)\notin\Tipos_b' \vee m(r)\notin\mathcal{M}_s$, donde
+$\Tipos_b'=\Tipos\setminus\{\cod{licencia\_digital},\cod{no\_comprar},
+\cod{diferido},\cod{uniforme},\cod{otro}\}$. Un renglón informativo se
+muestra al acudiente con su instrucción y \emph{nunca} se cobra.
+\end{definicion}
+
+Los dos predicados no coinciden: un renglón de tipo \cod{texto} en
+\cod{mercado\_abierto} no se busca en el catálogo de útiles, porque su
+respuesta es una edición concreta y no un parecido, pero tampoco es
+informativo, porque es papel que se puede comprar.
+
+\subsection{Resolución y estados}
+
+\begin{definicion}[Estados de resolución]
+\label{def:estados}
+El resultado de resolver un renglón contra el catálogo toma un valor en
+\[
+  \Est = \{\textsc{ResueltoAuto},\ \textsc{Ambiguo},\ \textsc{SinMatch},\
+          \textsc{HuecoCatálogo}\}.
+\]
+\textsc{SinMatch} significa «no entendí qué se pide»; \textsc{HuecoCatálogo}
+significa «entendí qué se pide y el catálogo no lo tiene» (o no tiene un
+producto con el atributo exigido). La distinción importa porque solo el
+segundo se puede atender con una alternativa o con una disculpa útil.
+\textsc{Ambiguo} significa que el sistema tiene una hipótesis, pero su
+confianza está por debajo del umbral $\tau$ y una persona debe confirmarla.
+\end{definicion}
+
+\subsection{Hogar, preferencias y kit}
+
+Una solicitud se hace \emph{por hogar} y no por hijo. Un hogar $H$ es un
+conjunto de hijos $h$, cada uno con su colegio y su grado, y por lo tanto con
+su lista. Las preferencias del acudiente son una tupla con: prioridad
+(\emph{lo más económico}, \emph{equilibrio}, \emph{puedo estirarme}), pesos
+declarados, disposición a pagar sobreprecio $\sigma\in[0,1]$, un tope de gasto
+opcional $B$ y, para cada hijo, un conjunto opcional de personajes pedidos
+$\Pi_h$.
+
+\begin{definicion}[Kit]
+\label{def:kit}
+Sea $R$ la secuencia de demandas de todos los hijos del hogar. Un \emph{kit}
+es una asignación $k\colon R\to\Prod\cup\{\varnothing\}$ que a cada renglón
+buscable le asigna un producto admisible (o ninguno si no hay) y a cada
+renglón informativo le asigna $\varnothing$, junto con la aritmética derivada:
+unidades a comprar, subtotales y total. Un kit lleva un \emph{perfil}, que es
+la regla que lo eligió.
+\end{definicion}
+
+\subsection{El sistema como composición}
+
+El sistema se puede escribir como una composición de funciones parciales, en
+la que cada etapa puede terminar en un estado de rechazo explícito:
+\begin{multline*}
+  \underbrace{\text{archivo}}_{\text{PDF / imagen}}
+  \xrightarrow{\ \Phi_{\mathrm{per}}\ }
+  \underbrace{(\rho_1,\dots,\rho_m)}_{\text{renglones}}
+  \xrightarrow{\ \text{revisión}\ }
+  \text{lista oficial}\\
+  \xrightarrow{\ \Phi_{\mathrm{nor}}\ }
+  (r_1,\dots,r_m)
+  \xrightarrow{\ \Phi_{\mathrm{res}}\ }
+  (r_i, e_i, A_i)_{i}
+  \xrightarrow{\ \Phi_{\mathrm{opt}}\ }
+  (k_{\text{Ah}}, k_{\text{Pr}}, \dots;\ k^\star)
+\end{multline*}
+donde $e_i\in\Est$ es el estado de resolución, $A_i$ el conjunto de candidatos
+admisibles del renglón $i$ y $k^\star$ el kit recomendado. La
+\cref{fig:pipeline} muestra el flujo con las dos rutas que existen en la
+práctica.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  node distance=6mm and 9mm,
+  etapa/.style={draw=azul, fill=azulclaro, rounded corners=2pt, align=center,
+                minimum height=10mm, text width=25mm, font=\small},
+  dato/.style={draw=gris, fill=grisclaro, align=center, font=\footnotesize,
+               text width=22mm, minimum height=8mm},
+  humano/.style={draw=verde, fill=verdeclaro, rounded corners=2pt, align=center,
+                 font=\small, text width=25mm, minimum height=10mm},
+  rechazo/.style={draw=rojo, fill=rojoclaro, align=center, font=\footnotesize,
+                  text width=40mm},
+  flecha/.style={-{Stealth[length=2.2mm]}, thick},
+]
+\node[dato] (pdf) {Archivo\\(PDF o imagen)};
+\node[etapa, right=of pdf] (per) {\textbf{Percepción}\\\cref{sec:percepcion}};
+\node[humano, right=of per] (rev) {Revisión humana de la lista};
+\node[dato, right=of rev] (lista) {Lista oficial revisada};
+\node[rechazo, above=of per] (rech) {Rechazo completo\\(varios grados, página incompleta, \dots)};
+
+\node[etapa, below=16mm of lista] (nor) {\textbf{Normalización}\\\cref{sec:normalizacion}};
+\node[etapa, left=of nor] (res) {\textbf{Resolución}\\\cref{sec:resolucion}};
+\node[etapa, left=of res] (opt) {\textbf{Optimización}\\\cref{sec:optimizacion}};
+\node[dato, left=of opt] (kits) {Kits y recomendado};
+\node[humano, below=of res] (hitl) {Revisión de líneas \textsc{Ambiguo}};
+\node[dato, below=of nor, text width=27mm] (cat) {Catálogo curado $(\Cat,\Prod)$\\\cref{sec:catalogo}};
+
+\draw[flecha] (pdf) -- (per);
+\draw[flecha] (per) -- (rev);
+\draw[flecha] (rev) -- (lista);
+\draw[flecha, rojo] (per) -- (rech);
+\draw[flecha] (lista) -- (nor);
+\draw[flecha] (nor) -- (res);
+\draw[flecha] (res) -- (opt);
+\draw[flecha] (opt) -- (kits);
+\draw[flecha, dashed] (res) -- (hitl);
+\draw[flecha, dashed] (cat) -- (res);
+\draw[flecha, verde, dashed, rounded corners]
+  (lista.east) -- ++(5mm,0) |- ($(hitl.south)+(0,-5mm)$) -| (opt.south)
+  node[pos=0.25, below, font=\footnotesize] {ruta rápida: el concepto ya está asignado};
+\end{tikzpicture}
+\caption{Flujo del núcleo. La percepción ocurre cuando se sube el archivo y
+alimenta una revisión humana de la lista. Una vez revisada, la lista se
+reutiliza para todas las familias del mismo colegio y grado. La ruta rápida
+(verde) evita volver a percibir y a resolver una lista ya revisada.}
+\label{fig:pipeline}
+\end{figure}
+
+\paragraph{Las dos rutas.} La \emph{ruta lenta} ejecuta las cuatro etapas: la
+lista llega por primera vez, se percibe, se normaliza, cada renglón buscable
+se resuelve contra el catálogo y el resultado se optimiza. Las líneas que
+quedan en \textsc{Ambiguo} pasan a revisión humana antes de que el acudiente
+vea el kit. La \emph{ruta rápida} aplica cuando todas las listas del hogar ya
+fueron revisadas: el concepto de cada renglón ya está asignado y los candidatos
+están curados, así que se va directamente a la optimización. El catálogo
+funciona entonces como una \emph{caché progresiva}: el costo de percibir y
+resolver una lista se paga una vez por colegio y grado, no una vez por
+familia.
+
+\paragraph{Escala de los datos.} Para dar un orden de magnitud a los análisis
+de complejidad: el corpus de listas oficiales tiene 175 listas de 17 colegios
+y unos \num{4700} renglones. El catálogo tiene del orden de 150 conceptos y
+700 productos, con como máximo 3 candidatos por renglón después de la
+resolución. Una lista típica tiene unas 17 líneas con decisión de compra.

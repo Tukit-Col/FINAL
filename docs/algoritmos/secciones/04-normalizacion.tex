@@ -1,0 +1,167 @@
+% ============================================================================
+\section{Normalización: del renglón a la demanda}
+\label{sec:normalizacion}
+% ============================================================================
+
+La normalización responde \emph{qué pidió el colegio} sin mirar todavía el
+catálogo. Que vaya antes de la resolución no es arbitrario: hay renglones que
+no se compran («el disponible en casa», «se pedirá más adelante», una licencia
+que se paga en una plataforma), y buscarles un producto sería un defecto, no
+cobertura.
+
+\subsection{Definición del problema}
+
+\begin{definicion}[Normalización]
+\textbf{Entrada:} un renglón crudo $\rho=(x,q^\circ)$ y, si existe, la
+información curada de la lista oficial para ese renglón: tipo $t^\ast$, modo
+$m^\ast$ y concepto asignado $c^\ast$.
+\textbf{Salida:} una demanda $r=(x,t,m,q,\emp^{\mathrm{txt}})$
+(\cref{def:renglon}) más una nota explicativa para los renglones que no se
+buscan.
+\end{definicion}
+
+La regla de prioridad es la del principio «lo curado manda sobre lo inferido»:
+\[
+  t(r) = \begin{cases} t^\ast & \text{si existe}\\ \hat t(x) & \text{si no}\end{cases}
+  \qquad
+  m(r) = \begin{cases} m^\ast & \text{si existe}\\ \hat m(x) & \text{si no}\end{cases}
+\]
+donde $(\hat t,\hat m)$ es la clasificación heurística sobre el texto que se
+describe a continuación.
+
+\subsection{Clasificación del tipo como lista de decisión}
+
+Sea $\bar x$ la forma plana del texto: minúsculas, sin diacríticos, con
+espacios colapsados y con «x12» separado como «x 12» para que el empaque no
+dependa de cómo se escribió. Sea $U(x)$ el predicado «el texto contiene una
+URL». La clasificación es una \emph{lista de decisión}
+\cite{rivest1987decision}: una secuencia ordenada de pares
+(condición, salida) que devuelve la salida de la primera condición
+verdadera.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Lista de decisión para el tipo y el modo de un renglón. Las frases
+de cada fila son subcadenas de $\bar x$; el orden de las filas es parte de la
+especificación.}
+\label{tab:lista-decision}
+\begin{tabular}{@{}r L{6.3cm} l l@{}}
+\toprule
+\# & Condición sobre $\bar x$ & $\hat t$ & $\hat m$ \\
+\midrule
+1 & contiene «en casa», «traer de casa», «ya lo tiene», \dots & \cod{no\_comprar} & \cod{mercado\_abierto}\\
+2 & contiene «se solicitarán», «más adelante», «durante el año», \dots & \cod{diferido} & \cod{diferido}\\
+3 & $U(x)$ o contiene «plataforma», «código de acceso», «link de pago», \dots & \cod{licencia\_digital} & \cod{plataforma}\\
+4 & contiene «para colorear», «de recortes», «pasatiempo», \dots & \cod{util} & \cod{mercado\_abierto}\\
+5 & contiene «cualquier editorial» & \cod{libro\_libre} & \cod{libro\_libre}\\
+6 & contiene «directamente en el jardín» & \cod{util} & \cod{venta\_directa\_ed.}\\
+7 & contiene «venta directa», «directamente con la editorial» & \cod{texto} & \cod{venta\_directa\_ed.}\\
+8 & contiene «edición exclusiva» & \cod{texto} & \cod{edicion\_exclusiva}\\
+9 & contiene «uniforme» & \cod{uniforme} & \cod{mercado\_abierto}\\
+10 & contiene «editorial», «autor», «isbn», «plan lector», « ed.» & \cod{texto} & \cod{mercado\_abierto}\\
+11 & (en otro caso) & \cod{util} & \cod{mercado\_abierto}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{observacion}[El orden es semántico]
+\label{obs:orden-decision}
+Una lista de decisión no es conmutativa: permutar sus filas cambia la función
+que calcula. El orden de la \cref{tab:lista-decision} codifica precedencias
+del dominio. Por ejemplo, «Diccionario: el disponible en casa» activa la fila
+1 antes de que una regla de libros lo trate como texto: es una instrucción de
+no comprar, no un pedido de diccionario. La fila 4 precede a la 10 porque
+«libro para colorear» es papelería sin ISBN, y tratarlo como texto escolar es
+justamente el error que esta etapa busca evitar.
+\end{observacion}
+
+\subsection{Cantidad frente a empaque}
+\label{sec:nor-cantidad}
+
+La decisión de modelado central de esta etapa es mantener \emph{separados} dos
+números que un sistema anterior colapsaba en uno:
+
+\begin{itemize}
+  \item $q(r)$, \emph{cuántas cosas pide el colegio}, en unidades base; y
+  \item $\emp(p)$, \emph{de a cuántas unidades viene cada producto}.
+\end{itemize}
+
+Cuando ambos se colapsan, aparece el defecto que llamaremos de las «doce
+cajas»: la lista pide doce lápices, el producto es una caja de doce y el
+carrito suma doce cajas. Con los dos números separados, la cantidad a comprar
+es la derivada de la \cref{def:unidades} (\cref{sec:optimizacion}),
+$\techo{q/\emp}$, que en el ejemplo da una caja.
+
+\paragraph{Cantidad pedida.} La cantidad se determina con la siguiente
+prioridad:
+\[
+  q(r) = \begin{cases}
+    0 & \text{si } t(r)=\cod{no\_comprar},\\
+    q^\circ & \text{si la percepción leyó una columna de cantidad},\\
+    n & \text{si } \bar x \text{ empieza por un número } n \text{ seguido de un no-dígito},\\
+    1 & \text{en otro caso.}
+  \end{cases}
+\]
+El cero de la primera fila es la respuesta honesta para «el disponible en
+casa». La segunda fila evita contar dos veces el mismo pedido: si la
+percepción separó la columna («2» $\mid$ «Cuaderno cuadriculado»), el número ya
+no está en el texto, y si el texto también lo trae, \emph{no se suman}.
+
+\paragraph{Empaque declarado en el texto.} El empaque del renglón se lee con
+dos patrones: «x $N$» o «por $N$», opcionalmente seguido de «unidades»,
+\emph{salvo que lo siga una unidad de medida} (cm, mm, ml, cc, gr, metros,
+\dots), y «caja/paquete/set/juego/bolsa de $N$». Con varias coincidencias
+gana la mayor. Así, «x 5 metros» describe una longitud y no cinco rollos. La
+misma regla, en una versión más rica, se aplica a los nombres de producto
+(\cref{sec:cat-empaque}). La aritmética del kit usa el empaque del
+\emph{producto} elegido, que es el que de verdad se compra. El del renglón se
+conserva como dato descriptivo.
+
+\paragraph{Limpieza previa.} Algunos colegios marcan los renglones con un
+símbolo «@» en el margen. Ese símbolo se elimina antes de cualquier análisis,
+porque pegado a la primera palabra impide reconocer el texto.
+
+\subsection{El tipo del concepto como segunda opinión}
+
+La clasificación textual casi siempre devuelve \cod{util} (fila 11 de la
+\cref{tab:lista-decision}). Cuando la resolución reconoce el concepto del
+renglón, el tipo curado del concepto $t(c)$ puede corregirla: si
+$t(c)\notin\Tipos_b$ ---el concepto es «Uniforme», «Lo entrega el colegio» o
+«Audífonos de diadema» con tipo \cod{otro}--- y la lista oficial no declaró un
+tipo para el renglón, el renglón toma $t(c)$, sale de la resolución y queda
+como línea informativa con el mensaje de su tipo. La precedencia completa es
+entonces
+\[
+  \text{tipo de la lista oficial} \;\succ\; \text{tipo del concepto reconocido}
+  \;\succ\; \text{tipo inferido del texto}.
+\]
+
+\subsection{Complejidad}
+
+Sea $\ell=\card{x}$ y $F$ el número total de frases clave de la
+\cref{tab:lista-decision}. La forma plana se calcula en $O(\ell)$. Cada prueba
+de subcadena cuesta $O(\ell)$ con un algoritmo lineal de búsqueda de patrones,
+así que la clasificación cuesta $O(F\ell)$ en el peor caso. Las expresiones
+regulares de cantidad y empaque son lineales en $\ell$. Como $F$ es una
+constante del sistema (unas cuarenta frases), la normalización de un renglón
+es $\Theta(\ell)$ y la de una lista es lineal en su longitud total.
+
+\begin{evolucion}[: normalización]
+\begin{itemize}
+  \item \textbf{Un número $\to$ dos números.} El sistema anterior representaba
+        cantidad y empaque con un solo número, y de ahí salía el defecto de las
+        doce cajas. La separación $q(r)$ / $\emp(p)$ y la fórmula
+        $\techo{q/\emp}$ son la corrección y no dependen del optimizador.
+  \item \textbf{Inferir sobre lo curado $\to$ lo curado manda.} Cuando la lista
+        oficial ya trae tipo y modo revisados, se usan en lugar de la
+        heurística, porque adivinar encima de un dato que ya existe es una
+        forma de perder información correcta.
+  \item \textbf{El tipo del concepto.} Antes, la previsualización de un kit
+        intentaba vender un uniforme y mostraba «sin producto». El tipo curado
+        del concepto pasó a decidir si un renglón se busca en el catálogo.
+  \item \textbf{Lo que Tukit no vende.} Se agregó el tipo \cod{otro} para lo
+        que el colegio pide y el sistema decide no vender (audífonos, un
+        títere, un computador). Antes caía como un producto faltante; ahora
+        es una nota que le dice al acudiente que lo consiga por su cuenta.
+\end{itemize}
+\end{evolucion}
