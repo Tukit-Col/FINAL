@@ -179,6 +179,9 @@ class Renglon:
     instruccion_colegio: str | None = None
     url_externa: str | None = None
     nota: str | None = None
+    # El concepto dura todo el ano y sirve para todas las materias (tijeras,
+    # regla, colores). Lo dice el catalogo; ver `juntar_herramientas`.
+    uno_por_estudiante: bool = False
 
     @property
     def informativa(self) -> bool:
@@ -222,6 +225,9 @@ class LineaKit:
     no_consolidable: bool = False
     motivo_no_consolidable: str | None = None
     concepto_codigo: str | None = None
+    uno_por_estudiante: bool = False
+    # El orden de la linea en la que ya va este producto, si se junto.
+    junto_a: int | None = None
 
 
 @dataclass(frozen=True)
@@ -788,7 +794,60 @@ def _linea_desde(renglon: Renglon, elegido: Candidato | None) -> LineaKit:
         no_consolidable=renglon.no_consolidable,
         motivo_no_consolidable=MOTIVO_NO_CONSOLIDABLE if renglon.no_consolidable else None,
         concepto_codigo=renglon.concepto_codigo,
+        uno_por_estudiante=renglon.uno_por_estudiante,
     )
+
+
+def juntar_herramientas(lineas: tuple[LineaKit, ...]) -> tuple[LineaKit, ...]:
+    """Una herramienta que varias materias piden se compra una vez por hijo.
+
+    Las listas se escriben por materia, y cada profesor pide lo que usa: las
+    tijeras salen en artes, en tecnologia y en la cartuchera. Son las mismas
+    tijeras, y el kit cobraba tres. En las 18 listas curadas, 43 renglones de
+    herramientas repetian a otro identico (Decimo pedia tres calculadoras
+    cientificas).
+
+    Solo para conceptos `uno_por_estudiante` (lo dice el catalogo): lo que se
+    gasta (pegante, cinta, cuadernos) puede ser uno por materia a proposito, y
+    juntarlo dejaria al nino sin material. Dentro de un MISMO hijo: dos
+    hermanos necesitan cada uno sus tijeras (eso lo decide `consolidar`, por
+    empaque). Y sobre el PRODUCTO elegido: `regla` y `regla de acero` no son la
+    misma compra.
+
+    Se compra la cantidad mayor, no la suma: si artes pide dos reglas y la
+    cartuchera una, dos alcanzan. La linea repetida sigue en el kit con cero
+    unidades y dice donde quedo, igual que la de un hermano consolidado: el
+    colegio la pidio y el acudiente tiene que poder encontrarla.
+    """
+    grupos: dict[tuple[str, str], list[int]] = {}
+    for indice, linea in enumerate(lineas):
+        if linea.elegido is None or linea.informativa or not linea.uno_por_estudiante:
+            continue
+        grupos.setdefault((linea.hijo, linea.elegido.sku), []).append(indice)
+
+    resultado = list(lineas)
+    for indices in grupos.values():
+        if len(indices) < 2:
+            continue
+        primera = lineas[indices[0]]
+        cantidad = max(lineas[i].cantidad_pedida for i in indices)
+        unidades = unidades_a_comprar(cantidad, primera.unidades_por_empaque)
+        precio = primera.precio_unitario_cop
+        resultado[indices[0]] = replace(
+            primera,
+            unidades_a_comprar=unidades,
+            subtotal_cop=None if precio is None else precio * unidades,
+        )
+        for i in indices[1:]:
+            otra = lineas[i]
+            resultado[i] = replace(
+                otra,
+                unidades_a_comprar=0,
+                subtotal_cop=0 if otra.precio_unitario_cop is not None else None,
+                junto_a=primera.orden,
+                mensaje=f"Ya va en la linea {primera.orden}: sirve para todas las materias.",
+            )
+    return tuple(resultado)
 
 
 def consolidar(lineas: tuple[LineaKit, ...]) -> tuple[tuple[LineaKit, ...], tuple[dict[str, Any], ...]]:
@@ -809,7 +868,7 @@ def consolidar(lineas: tuple[LineaKit, ...]) -> tuple[tuple[LineaKit, ...], tupl
     """
     grupos: dict[str, list[int]] = {}
     for indice, linea in enumerate(lineas):
-        if linea.elegido is None or linea.informativa or linea.no_consolidable:
+        if linea.elegido is None or linea.informativa or linea.no_consolidable or linea.junto_a is not None:
             continue
         grupos.setdefault(linea.elegido.sku, []).append(indice)
 
@@ -934,7 +993,7 @@ def armar_kit(
             )
         lineas_lista.append(_linea_desde(renglon, elegido))
 
-    lineas, consolidaciones = consolidar(tuple(lineas_lista))
+    lineas, consolidaciones = consolidar(juntar_herramientas(tuple(lineas_lista)))
     # El total suma SOLO lo no informativo. Es la promesa de la seccion 5.1.1
     # del contrato y la que impide cobrar lo que no se puede entregar.
     total = sum(linea.subtotal_cop or 0 for linea in lineas if not linea.informativa)

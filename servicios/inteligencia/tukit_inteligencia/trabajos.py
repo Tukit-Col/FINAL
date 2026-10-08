@@ -592,6 +592,8 @@ async def _procesar_verificado(
                         motivo = "lista verificada: el concepto aun no tiene productos"
                     if por_revisar:
                         motivo += f"; revisar: {', '.join(por_revisar)} (el renglon nombra varios valores)"
+                    if item.get("posible_repetido_de") is not None:
+                        motivo += f"; posible repetido de la linea {item['posible_repetido_de']}"
                     resolucion_id = uuid.uuid4()
                     await conexion.execute(
                         insert(RESOLUCION).values(
@@ -640,6 +642,7 @@ async def _procesar_verificado(
                         instruccion_colegio=item.get("instruccion_colegio"),
                         url_externa=item.get("url_externa"),
                         nota=None,
+                        uno_por_estudiante=bool(item.get("uno_por_estudiante")),
                     )
                 )
 

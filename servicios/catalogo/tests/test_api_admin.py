@@ -1020,6 +1020,34 @@ class TestResueltosLaRutaRapida:
         assert item["atributos_impuestos"] == {}
         assert item["atributos_por_revisar"] == ["rayado"]
 
+    async def test_dice_si_el_concepto_es_uno_por_estudiante(self, cliente):
+        await _marcar_uno_por_estudiante(cliente, "colores")
+        vid = await _version_revisada_con_renglones(
+            cliente, [("Caja de colores", "colores"), ("colores", "colores")]
+        )
+        items = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"]
+        assert [i["uno_por_estudiante"] for i in items] == [True, True]
+        # Lo que se junta solo no se marca como repetido: no hay nada que revisar.
+        assert [i["posible_repetido_de"] for i in items] == [None, None]
+
+    async def test_un_consumible_casi_igual_a_otro_se_marca_como_posible_repetido(self, cliente):
+        vid = await _version_revisada_con_renglones(
+            cliente, [("Pegante en barra", "colores"), ("cinta", "colores"), ("pegante en barra", "colores")]
+        )
+        items = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"]
+        assert [i["posible_repetido_de"] for i in items] == [None, None, 1]
+
+    async def test_un_cuaderno_por_materia_no_es_un_repetido(self, cliente):
+        vid = await _version_revisada_con_renglones(
+            cliente,
+            [
+                ("cuaderno cuadriculado 100 hojas", "cuaderno"),
+                ("cuaderno cuadriculado 100 hojas", "cuaderno"),
+            ],
+        )
+        items = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"]
+        assert [i["posible_repetido_de"] for i in items] == [None, None]
+
     async def test_una_version_sin_revisar_es_409(self, cliente):
         vid = cliente.ids["abierta"]
         respuesta = await cliente.get(f"/v1/admin/listas/{vid}/resueltos")
@@ -1106,6 +1134,58 @@ async def _version_revisada_con(cliente, texto: str, atributos: dict | None = No
                 requiere_revision=False,
             )
         )
+        await db.commit()
+    return version_id
+
+
+async def _marcar_uno_por_estudiante(cliente, concepto: str) -> None:
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        tabla = Base.metadata.tables["concepto"]
+        await conexion.execute(
+            tabla.update().where(tabla.c.id == cliente.ids[concepto]).values(uno_por_estudiante=True)
+        )
+        await db.commit()
+
+
+async def _version_revisada_con_renglones(cliente, renglones: list[tuple[str, str]]) -> uuid.UUID:
+    """Una lista revisada con esos (texto, concepto) en orden 1, 2, ..."""
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        tablas = Base.metadata.tables
+        lista_id, version_id = uuid.uuid4(), uuid.uuid4()
+        await conexion.execute(
+            tablas["lista_oficial"]
+            .insert()
+            .values(id=lista_id, colegio_id=COLEGIO, grado=f"G-{lista_id}", anio_lectivo=2026, activa=True)
+        )
+        await conexion.execute(
+            tablas["version_lista_oficial"]
+            .insert()
+            .values(
+                id=version_id,
+                lista_id=lista_id,
+                numero=1,
+                vigente=True,
+                revisada_en=datetime(2026, 3, 1, tzinfo=UTC),
+            )
+        )
+        for orden, (texto, concepto) in enumerate(renglones, start=1):
+            await conexion.execute(
+                tablas["item_lista_oficial"]
+                .insert()
+                .values(
+                    id=uuid.uuid4(),
+                    version_id=version_id,
+                    orden=orden,
+                    texto_original=texto,
+                    cantidad=1,
+                    concepto_id=cliente.ids[concepto],
+                    modo_adquisicion="mercado_abierto",
+                    atributos={},
+                    requiere_revision=False,
+                )
+            )
         await db.commit()
     return version_id
 

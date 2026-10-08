@@ -92,6 +92,7 @@ COLUMNAS_CONCEPTOS = [
     "admite_personaje",
     "frecuencia_demanda",
     "activo",
+    "uno_por_estudiante",
 ]
 
 # Columnas que el CSV conserva aunque la base diga otra cosa. `admite_personaje`
@@ -236,6 +237,7 @@ def _fila_concepto(f: Any) -> dict[str, str]:
         "admite_personaje": _bool(f.admite_personaje),
         "frecuencia_demanda": str(f.frecuencia_demanda),
         "activo": _bool(f.activo),
+        "uno_por_estudiante": _bool(f.uno_por_estudiante),
     }
 
 
@@ -258,7 +260,12 @@ def fusionar_conceptos(
         if viva is None or fila["codigo"] in CONCEPTOS_LIBRO:
             salida.append(fila)
             continue
-        nueva = {c: fila.get(c, "") if c in COLUMNAS_PROPIAS_DEL_CSV else viva[c] for c in COLUMNAS_CONCEPTOS}
+        # Una columna que la base todavia no tiene (una base sin la ultima
+        # migracion) no borra lo que el CSV ya decia.
+        nueva = {
+            c: fila.get(c, "") if c in COLUMNAS_PROPIAS_DEL_CSV else viva.get(c, fila.get(c, ""))
+            for c in COLUMNAS_CONCEPTOS
+        }
         if any(nueva[c] != fila.get(c, "") for c in COLUMNAS_CONCEPTOS):
             cambiados += 1
         salida.append(nueva)

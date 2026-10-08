@@ -117,6 +117,11 @@ class Concepto(Base):
 
     admite_personaje: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    # Dura todo el ano y sirve en todas las materias (tijeras, regla, colores):
+    # si la lista lo pide en varias, se compra una vez por hijo. Lo que se gasta
+    # (pegante, cinta, cuadernos) no lo es, aunque se repita.
+    uno_por_estudiante: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
     # `interno` y no `publico`: es una agregacion sobre las listas de 17
     # colegios concretos, o sea que revela que pide el mercado atendido.
     frecuencia_demanda: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
