@@ -47,7 +47,7 @@ dev = [
 [tool.pytest.ini_options]
 # `arquitectura/` primero a proposito: si una frontera se rompio, se sabe antes
 # de correr media hora de pruebas de dominio.
-testpaths = ["arquitectura", "libs", "servicios"]
+testpaths = ["arquitectura", "libs", "servicios", "ensayos"]
 asyncio_mode = "auto"
 # Cada servicio es un paquete raiz propio. Esto es lo que permite correr toda
 # la suite desde aqui sin instalar nada, y a la vez mantiene los paquetes
@@ -84,7 +84,11 @@ target-version = "py312"
 # copias del arbol en otra rama: lintearlas aqui haria que el trabajo a medio
 # hacer de un agente rompiera la CI del arbol principal. Cada worktree se
 # revisa en su propia rama, no desde la raiz.
-extend-exclude = [".claude/worktrees", ".worktrees"]
+#
+# `docs/` tampoco: desde la 0.16, ruff formatea los bloques de codigo de los
+# `.md`, y los de la documentacion son fragmentos que registran como estaba algo
+# en su momento (un plan, una spec). Reformatearlos reescribiria la historia.
+extend-exclude = [".claude/worktrees", ".worktrees", "docs"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
