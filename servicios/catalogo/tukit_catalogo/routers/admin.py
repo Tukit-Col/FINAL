@@ -236,10 +236,14 @@ def _posibles_repetidos(filas: list[Any], reglas: dict[str, tuple[tuple[str, ...
     Solo para lo que NO se junta solo: lo que se gasta (pegante, cinta) y los
     textos (`Gateway B1 Student's Book` escrito dos veces de dos formas). Puede
     ser uno por materia a proposito, asi que no se toca: se avisa, y el
-    revisor decide. Dos renglones se parecen si son del mismo concepto y
-    comparten al menos el 60 % de sus palabras.
+    revisor decide. Dos renglones se parecen si son del mismo concepto, exigen
+    los mismos atributos y comparten al menos el 60 % de sus palabras. Sin lo
+    de los atributos, `acrilico cian` y `acrilico magenta` salian repetidos:
+    se parecen en todo menos en lo unico que importa.
     """
-    vistos: dict[str, list[tuple[int, set[str]]]] = {}
+    from ..enriquecer import extraer_atributos
+
+    vistos: dict[tuple[str, tuple[tuple[str, str], ...]], list[tuple[int, set[str]]]] = {}
     salida: dict[int, int] = {}
     for f in filas:
         codigo = f.concepto_codigo
@@ -247,13 +251,15 @@ def _posibles_repetidos(filas: list[Any], reglas: dict[str, tuple[tuple[str, ...
             continue
         if (f.tipo_item or "util") in ("no_comprar", "uniforme", "licencia_digital", "diferido", "otro"):
             continue
+        exige = extraer_atributos(f.texto_original, reglas.get(codigo, ((), False))[0])
+        clave = (codigo, tuple(sorted((k, str(v)) for k, v in exige.items())))
         palabras = _palabras(f.texto_original)
-        for orden, otras in vistos.get(codigo, []):
+        for orden, otras in vistos.get(clave, []):
             union = palabras | otras
             if union and len(palabras & otras) / len(union) >= 0.6:
                 salida[int(f.orden)] = orden
                 break
-        vistos.setdefault(codigo, []).append((int(f.orden), palabras))
+        vistos.setdefault(clave, []).append((int(f.orden), palabras))
     return salida
 
 
