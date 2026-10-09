@@ -154,8 +154,9 @@ async def test_sin_broker_ni_collector_y_con_la_pasarela_falsa_el_stack_atiende(
 # Un aviso es una linea que el proceso escribe por su cuenta: `[servicio] ...`, como el de
 # identidad sin `TUKIT_LLAVE_SESION`, o una linea de registro. No cuentan los accesos de uvicorn
 # ni las llamadas salientes de httpx (`HTTP/1.1`), que nombran rutas como `/v1/webhooks/wompi`,
-# ni las trazas de una excepcion.
-_AVISO = re.compile(r"^(\[[\w-]+\]|INFO|WARNING|ERROR|CRITICAL)\b")
+# ni las trazas de una excepcion. El `\b` va solo tras el nivel: entre `]` y el espacio no hay
+# borde de palabra, y con el los avisos `[servicio]` nunca contarian.
+_AVISO = re.compile(r"^(\[[\w-]+\]|(INFO|WARNING|ERROR|CRITICAL)\b)")
 _PETICION = re.compile(r"HTTP/\d")
 _APAGADOS = {
     "broker": re.compile(r"rabbit|broker|amqp", re.IGNORECASE),
