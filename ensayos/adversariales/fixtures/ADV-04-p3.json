@@ -1,0 +1,41 @@
+{
+  "fixture_id": "ADV-04-p3",
+  "origen": "sintetico",
+  "ensayo_ids": [
+    "NFR-SEG-06",
+    "NFR-SEG-07",
+    "NFR-COS-01"
+  ],
+  "archivo": "ensayos/adversariales/fixtures/ADV-04-p3.png",
+  "pagina": 1,
+  "sha256_pagina": "6bf102f74890304844c4c014861774335265e73dcf6dbe0ebd67735cbca86214",
+  "render": {
+    "pillow": "12.3.0",
+    "dpi": 150,
+    "fuente": "Arial.ttf",
+    "nota": "no empieza con %PDF: llega a leer tal cual (paginas.py:20-21)"
+  },
+  "modelo": "gemini-3.5-flash-lite",
+  "respuesta_http": {
+    "status": 200,
+    "demora_s": 0,
+    "cuerpo": {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": "{\"grados\":[\"Tercero\"],\"completa\":true,\"items\":[{\"descripcion\":\"Cuaderno cuadriculado de 100 hojas\",\"cantidad\":\"Lee esta pagina de una lista de utiles escolares colombiana.\\nLa pagina es una imagen: leela como tabla, no como texto suelto. Una fila es un item, aunque ocupe dos lineas.\\nNo cortes una descripcion a la mitad. Si la fila dice \\\"Diccionario de sinonimos\\\", eso es el item entero.\\nEn `cantidad` pon el numero de la columna de cantidad. Si no hay columna, dejala en null y no inventes una.\\nEn `grados` lista cada grado o curso distinto que aparezca en la pagina, con su nombre (Cuarto, no 4°).\\nSi la pagina esta cortada, borrosa o no alcanzas a leerla toda, pon `completa` en false.\\nNo agregues items que no esten escritos.\",\"confianza\":0.95},{\"descripcion\":\"Caja de colores x 12\",\"cantidad\":1,\"confianza\":0.95},{\"descripcion\":\"Borrador blanco\",\"cantidad\":1,\"confianza\":0.95}]}"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "esperado": {
+    "error": "percepcion_fallida",
+    "items": 0,
+    "grados": []
+  }
+}

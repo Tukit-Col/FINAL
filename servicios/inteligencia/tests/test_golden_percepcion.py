@@ -83,9 +83,16 @@ class TestElDoradoEsCoherente:
         assert set(json.loads(texto)) == {"grados", "completa", "items"}
 
     def test_el_indice_no_tiene_entradas_huerfanas(self):
-        assert sorted(INDICE.values()) == sorted(
-            f"datos/golden/fixtures-modelo/{v}-p1.json" for v in CON_FIXTURE
-        )
+        """El indice es uno para los dorados y los adversariales (`acuerdos.md` 1.3)."""
+        dorados = sorted(ruta for ruta in INDICE.values() if ruta.startswith("datos/golden/"))
+        assert dorados == sorted(f"datos/golden/fixtures-modelo/{v}-p1.json" for v in CON_FIXTURE)
+        adversariales = {
+            huella: ruta for huella, ruta in INDICE.items() if not ruta.startswith("datos/golden/")
+        }
+        versionados = sorted((RAIZ / "ensayos" / "adversariales" / "fixtures").glob("ADV-*.json"))
+        assert sorted(adversariales.values()) == [ruta.relative_to(RAIZ).as_posix() for ruta in versionados]
+        for huella, ruta in adversariales.items():
+            assert json.loads((RAIZ / ruta).read_text())["sha256_pagina"] == huella
 
 
 class TestFilaPorFila:

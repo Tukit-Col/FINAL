@@ -1,0 +1,42 @@
+{
+  "fixture_id": "ADV-08-p1",
+  "origen": "sintetico",
+  "ensayo_ids": [
+    "NFR-SEG-06",
+    "NFR-COS-01"
+  ],
+  "archivo": "ensayos/adversariales/fixtures/ADV-08-p1.png",
+  "pagina": 1,
+  "sha256_pagina": "ca51d7ba6bd8afc77cd030173454cafe5918d7088fb42754a596902a701c0408",
+  "render": {
+    "pillow": "12.3.0",
+    "dpi": 150,
+    "fuente": "Arial.ttf",
+    "nota": "no empieza con %PDF: llega a leer tal cual (paginas.py:20-21)"
+  },
+  "modelo": "gemini-3.5-flash-lite",
+  "respuesta_http": {
+    "status": 200,
+    "demora_s": 0,
+    "cuerpo": {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": "{\"grados\":[\"Tercero\"],\"completa\":true,\"items\":[{\"descripcion\":\"Cuaderno cuadriculado de 100 hojas\",\"cantidad\":2,\"confianza\":0.95},{\"descripcion\":\"Caja de colores x 12\",\"cantidad\":1,\"confianza\":0.95},{\"descripcion\":\"Borrador blanco\",\"cantidad\":1,\"confianza\":0.95},{\"descripcion\":\"Gafas de protección para química\",\"cantidad\":1,\"confianza\":0.95,\"sku\":\"TK-GAF-QUI-001\",\"producto\":\"Gafas QuimiSafe QA\"}]}"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "esperado": {
+    "error": null,
+    "items": 4,
+    "grados": [
+      "Tercero"
+    ]
+  }
+}

@@ -687,6 +687,20 @@ def _json(objeto) -> bytes:
     return (json.dumps(objeto, ensure_ascii=False, indent=2) + "\n").encode()
 
 
+def indice_adversarial() -> dict[str, str]:
+    """Las entradas de los fixtures de la fase 5 (`ensayos/adversariales/fixtures/`).
+
+    El indice es uno solo para las dos carpetas (`Tukit-QA/acuerdos.md` 1.3) y
+    este script es su unico duenio: los fixtures ADV los escribe
+    `ensayos/adversariales/construir.py`, y aqui solo se leen los ya versionados.
+    """
+    carpeta = RAIZ / "ensayos" / "adversariales" / "fixtures"
+    entradas_adv: dict[str, str] = {}
+    for ruta in sorted(carpeta.glob("ADV-*.json")):
+        entradas_adv[json.loads(ruta.read_text())["sha256_pagina"]] = ruta.relative_to(RAIZ).as_posix()
+    return entradas_adv
+
+
 def archivos() -> dict[str, bytes]:
     """Todo lo que el script escribe, por ruta relativa a `datos/golden/`."""
     salida: dict[str, bytes] = {}
@@ -701,6 +715,7 @@ def archivos() -> dict[str, bytes]:
         ruta = f"fixtures-modelo/{variante}-p1.json"
         salida[ruta] = _json(datos)
         indice[datos["sha256_pagina"]] = f"datos/golden/{ruta}"
+    indice.update(indice_adversarial())
     salida["fixtures-modelo/indice.json"] = _json(dict(sorted(indice.items(), key=lambda par: par[1])))
     salida["esperado/oracle.json"] = _json(oraculo())
     return salida
