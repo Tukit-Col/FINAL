@@ -232,3 +232,92 @@ jobs:
           --cov=. --cov-config=.coveragerc
           --cov-report=term-missing:skip-covered
           --cov-fail-under=50
+
+  # Pruebas de integracion contra el stack vivo (fase 3 del plan de QA): los
+  # seis servicios y los trabajadores de `make arriba` sobre un Postgres real,
+  # migrado solo con las migraciones del repo, como el job `migraciones`. Lo
+  # que hoy falla del producto esta marcado `xfail(strict=True)` contra su
+  # hallazgo, asi que el job queda en verde y avisa el dia que se corrija.
+  #
+  # Se sincroniza con el extra `dev`, como `cobertura`: las pruebas arman
+  # imagenes con Pillow y leen las bases con `asyncpg`.
+  integracion:
+    name: Integracion contra el stack vivo
+    needs: fronteras
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: tukit
+          POSTGRES_PASSWORD: tukit
+          POSTGRES_DB: tukit_identidad
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tukit"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TUKIT_DB_HOST: localhost
+      TUKIT_DB_PORT: "5432"
+      PGGSSENCMODE: disable
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --all-packages --extra dev --frozen --python 3.12
+
+      - name: Instalar el cliente de Postgres
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+
+      - name: Crear las bases que faltan
+        env:
+          PGPASSWORD: tukit
+        run: |
+          set -euo pipefail
+          for base in catalogo inteligencia comercio operacion; do
+            psql -w -h localhost -U tukit -d postgres -c "CREATE DATABASE tukit_${base}"
+          done
+
+      - name: Migrar y sembrar
+        run: |
+          set -euo pipefail
+          make bd-migrar
+          make bd-cargar
+          make bd-colegios
+          # Los usuarios de demostracion de cada rol, con los que entran las
+          # pruebas de autorizacion (el mismo paso de `bd-reiniciar-datos`).
+          cd servicios/identidad && PYTHONPATH=".:../../libs/py/tukit_comun" \
+            ../../.venv/bin/python -m tukit_identidad.sembrar_acceso
+
+      - name: Levantar el stack
+        run: make arriba
+
+      # La prueba que atribuye cada conexion a la base de identidad a un
+      # proceso del stack cruza el puerto cliente de `pg_stat_activity` con
+      # `lsof`. Con Postgres en un contenedor, el proxy de Docker reescribe ese
+      # puerto y la atribucion no es posible: esa prueba corre solo con el
+      # motor en la misma maquina (evidencia de la fase 3 en Tukit-QA).
+      - name: Correr las pruebas de integracion
+        run: >-
+          .venv/bin/pytest ensayos/integracion -m integracion -rA
+          -o junit_family=xunit1 --junitxml=reportes/integracion.xml
+          --deselect ensayos/integracion/test_integracion_frontera.py::test_solo_los_procesos_de_identidad_abren_su_base
+
+      - name: Logs del stack
+        if: always()
+        run: tail -n 80 .ejecucion/*.log || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integracion-junit
+          path: reportes/integracion.xml
+          if-no-files-found: ignore
