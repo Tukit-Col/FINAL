@@ -1,0 +1,45 @@
+{
+  "fixture_id": "G08-p1",
+  "origen": "sintetico",
+  "ensayo_ids": [
+    "NFR-PRE-01",
+    "NFR-PRE-02",
+    "NFR-PRE-03",
+    "NFR-PRE-04",
+    "NFR-COS-01"
+  ],
+  "archivo": "datos/golden/listas/G08-pagina-cortada.png",
+  "pagina": 1,
+  "sha256_pagina": "f2a97da58f1a219aa2557d0948ab35ae7d2f6ba97272c212b528182e67ad2b0e",
+  "render": {
+    "pillow": "12.3.0",
+    "dpi": 150,
+    "fuente": "Arial.ttf",
+    "nota": "no empieza con %PDF: llega a leer tal cual (paginas.py:20-21)"
+  },
+  "modelo": "gemini-3.5-flash-lite",
+  "respuesta_http": {
+    "status": 200,
+    "demora_s": 0,
+    "cuerpo": {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": "{\"grados\":[\"Tercero\"],\"completa\":false,\"items\":[{\"descripcion\":\"Cuaderno cuadriculado grande cosido de 100 hojas\",\"cantidad\":4,\"confianza\":0.97},{\"descripcion\":\"Lápiz negro HB\",\"cantidad\":3,\"confianza\":0.96},{\"descripcion\":\"Caja de colores x 12\",\"cantidad\":1,\"confianza\":0.95},{\"descripcion\":\"Borrador blanco\",\"cantidad\":2,\"confianza\":0.95},{\"descripcion\":\"Tajalápiz metálico\",\"cantidad\":1,\"confianza\":0.94},{\"descripcion\":\"Regla de 30 cm\",\"cantidad\":1,\"confianza\":0.93},{\"descripcion\":\"Tijeras escolares\",\"cantidad\":1,\"confianza\":0.93},{\"descripcion\":\"Pegante en barra grande\",\"cantidad\":2,\"confianza\":0.92},{\"descripcion\":\"Block cuadriculado tamaño carta\",\"cantidad\":1,\"confianza\":0.92}]}"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "esperado": {
+    "error": "pagina_incompleta",
+    "items": 9,
+    "grados": [
+      "Tercero"
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "fixture_id": "G10-p1",
+  "origen": "sintetico",
+  "ensayo_ids": [
+    "NFR-PRE-01",
+    "NFR-PRE-02",
+    "NFR-PRE-03",
+    "NFR-PRE-04",
+    "NFR-COS-01"
+  ],
+  "archivo": "datos/golden/listas/G10-grados-variados.png",
+  "pagina": 1,
+  "sha256_pagina": "6e851747cfcb93b1e1a2c7069d9f70e22951e7a7aac23cf92175578e759097f5",
+  "render": {
+    "pillow": "12.3.0",
+    "dpi": 150,
+    "fuente": "Arial.ttf",
+    "nota": "no empieza con %PDF: llega a leer tal cual (paginas.py:20-21)"
+  },
+  "modelo": "gemini-3.5-flash-lite",
+  "respuesta_http": {
+    "status": 200,
+    "demora_s": 0,
+    "cuerpo": {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": "{\"grados\":[\"Cuarto\",\"4°\",\"Pre-Jardín\",\"3 A\"],\"completa\":true,\"items\":[{\"descripcion\":\"Cuaderno cuadriculado grande cosido de 100 hojas\",\"cantidad\":4,\"confianza\":0.97},{\"descripcion\":\"Lápiz negro HB\",\"cantidad\":3,\"confianza\":0.96},{\"descripcion\":\"Borrador blanco\",\"cantidad\":2,\"confianza\":0.95},{\"descripcion\":\"Regla de 30 cm\",\"cantidad\":1,\"confianza\":0.93},{\"descripcion\":\"Tijeras escolares\",\"cantidad\":1,\"confianza\":0.93},{\"descripcion\":\"Carpeta con gancho\",\"cantidad\":2,\"confianza\":0.9}]}"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "esperado": {
+    "error": "lista_de_varios_grados",
+    "items": 6,
+    "grados": [
+      "Cuarto",
+      "Prejardin",
+      "Tercero"
+    ]
+  }
+}

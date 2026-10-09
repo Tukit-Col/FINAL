@@ -1,0 +1,139 @@
+{
+  "variante": "G10",
+  "archivo": "listas/G10-grados-variados.png",
+  "descripcion": "Varios grados en la misma hoja (Cuarto, 4°, Pre-Jardín, 3 A)",
+  "aceptada": false,
+  "error": "lista_de_varios_grados",
+  "paginas": 1,
+  "degradaciones": [],
+  "grados": [
+    "Cuarto",
+    "Prejardin",
+    "Tercero"
+  ],
+  "completa": true,
+  "items": [
+    {
+      "descripcion": "Cuaderno cuadriculado grande cosido de 100 hojas",
+      "cantidad": 4,
+      "confianza": 0.97
+    },
+    {
+      "descripcion": "Lápiz negro HB",
+      "cantidad": 3,
+      "confianza": 0.96
+    },
+    {
+      "descripcion": "Borrador blanco",
+      "cantidad": 2,
+      "confianza": 0.95
+    },
+    {
+      "descripcion": "Regla de 30 cm",
+      "cantidad": 1,
+      "confianza": 0.93
+    },
+    {
+      "descripcion": "Tijeras escolares",
+      "cantidad": 1,
+      "confianza": 0.93
+    },
+    {
+      "descripcion": "Carpeta con gancho",
+      "cantidad": 2,
+      "confianza": 0.9
+    }
+  ],
+  "renglones": [
+    {
+      "orden": 1,
+      "texto": "Cuaderno cuadriculado grande cosido de 100 hojas",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 4,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C001",
+        "nivel": "facil"
+      }
+    },
+    {
+      "orden": 2,
+      "texto": "Lápiz negro HB",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 3,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C002",
+        "nivel": "exacto"
+      }
+    },
+    {
+      "orden": 3,
+      "texto": "Borrador blanco",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 2,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C005",
+        "nivel": "facil"
+      }
+    },
+    {
+      "orden": 4,
+      "texto": "Regla de 30 cm",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 1,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C008",
+        "nivel": "facil"
+      }
+    },
+    {
+      "orden": 5,
+      "texto": "Tijeras escolares",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 1,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C013",
+        "nivel": "facil"
+      }
+    },
+    {
+      "orden": 6,
+      "texto": "Carpeta con gancho",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 2,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C011",
+        "nivel": "facil"
+      }
+    }
+  ]
+}

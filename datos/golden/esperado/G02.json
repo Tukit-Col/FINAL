@@ -1,0 +1,13 @@
+{
+  "variante": "G02",
+  "archivo": "listas/G02-multipagina.pdf",
+  "descripcion": "PDF de 41 paginas: pasa el tope sin llamar al modelo",
+  "aceptada": false,
+  "error": "archivo_demasiado_largo",
+  "paginas": 41,
+  "llamadas_al_modelo": 0,
+  "grados": [],
+  "completa": null,
+  "items": [],
+  "renglones": []
+}

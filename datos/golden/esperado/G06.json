@@ -1,0 +1,377 @@
+{
+  "variante": "G06",
+  "archivo": "listas/G06-sin-columna-cantidad.png",
+  "descripcion": "Sin columna de cantidad: el numero va dentro del texto",
+  "aceptada": true,
+  "error": null,
+  "paginas": 1,
+  "degradaciones": [],
+  "grados": [
+    "Tercero"
+  ],
+  "completa": true,
+  "items": [
+    {
+      "descripcion": "4 Cuaderno cuadriculado grande cosido de 100 hojas",
+      "cantidad": null,
+      "confianza": 0.97
+    },
+    {
+      "descripcion": "3 Lápiz negro HB",
+      "cantidad": null,
+      "confianza": 0.96
+    },
+    {
+      "descripcion": "1 Caja de colores x 12",
+      "cantidad": null,
+      "confianza": 0.95
+    },
+    {
+      "descripcion": "2 Borrador blanco",
+      "cantidad": null,
+      "confianza": 0.95
+    },
+    {
+      "descripcion": "1 Tajalápiz metálico",
+      "cantidad": null,
+      "confianza": 0.94
+    },
+    {
+      "descripcion": "1 Regla de 30 cm",
+      "cantidad": null,
+      "confianza": 0.93
+    },
+    {
+      "descripcion": "1 Tijeras escolares",
+      "cantidad": null,
+      "confianza": 0.93
+    },
+    {
+      "descripcion": "2 Pegante en barra grande",
+      "cantidad": null,
+      "confianza": 0.92
+    },
+    {
+      "descripcion": "1 Block cuadriculado tamaño carta",
+      "cantidad": null,
+      "confianza": 0.92
+    },
+    {
+      "descripcion": "2 Carpeta con gancho",
+      "cantidad": null,
+      "confianza": 0.9
+    },
+    {
+      "descripcion": "1 Caja de crayones",
+      "cantidad": null,
+      "confianza": 0.9
+    },
+    {
+      "descripcion": "1 Diccionario",
+      "cantidad": null,
+      "confianza": 0.9
+    },
+    {
+      "descripcion": "1 Chaquiras de colores",
+      "cantidad": null,
+      "confianza": 0.88
+    },
+    {
+      "descripcion": "1 Paquete de arena decorativa",
+      "cantidad": null,
+      "confianza": 0.88
+    },
+    {
+      "descripcion": "1 Compás de precisión",
+      "cantidad": null,
+      "confianza": 0.9
+    },
+    {
+      "descripcion": "1 Plataforma de inglés: código de acceso",
+      "cantidad": null,
+      "confianza": 0.9
+    },
+    {
+      "descripcion": "1 Uniforme de educación física",
+      "cantidad": null,
+      "confianza": 0.9
+    },
+    {
+      "descripcion": "Diccionario de inglés: el disponible en casa",
+      "cantidad": null,
+      "confianza": 0.85
+    }
+  ],
+  "renglones": [
+    {
+      "orden": 1,
+      "texto": "4 Cuaderno cuadriculado grande cosido de 100 hojas",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 4,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C001",
+        "nivel": "facil"
+      }
+    },
+    {
+      "orden": 2,
+      "texto": "3 Lápiz negro HB",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 3,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C002",
+        "nivel": "exacto"
+      }
+    },
+    {
+      "orden": 3,
+      "texto": "1 Caja de colores x 12",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 1,
+        "unidades_por_empaque": 12
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C004",
+        "nivel": "facil"
+      }
+    },
+    {
+      "orden": 4,
+      "texto": "2 Borrador blanco",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 2,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C005",
+        "nivel": "facil"
+      }
+    },
+    {
+      "orden": 5,
+      "texto": "1 Tajalápiz metálico",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 1,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C007",
+        "nivel": "facil"
+      }
+    },
+    {
+      "orden": 6,
+      "texto": "1 Regla de 30 cm",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 1,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C008",
+        "nivel": "facil"
+      }
+    },
+    {
+      "orden": 7,
+      "texto": "1 Tijeras escolares",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 1,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C013",
+        "nivel": "facil"
+      }
+    },
+    {
+      "orden": 8,
+      "texto": "2 Pegante en barra grande",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 2,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C016",
+        "nivel": "exacto"
+      }
+    },
+    {
+      "orden": 9,
+      "texto": "1 Block cuadriculado tamaño carta",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 1,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C003",
+        "nivel": "exacto"
+      }
+    },
+    {
+      "orden": 10,
+      "texto": "2 Carpeta con gancho",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 2,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C011",
+        "nivel": "facil"
+      }
+    },
+    {
+      "orden": 11,
+      "texto": "1 Caja de crayones",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 1,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C053",
+        "nivel": "facil"
+      }
+    },
+    {
+      "orden": 12,
+      "texto": "1 Diccionario",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 1,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C034",
+        "nivel": "exacto"
+      }
+    },
+    {
+      "orden": 13,
+      "texto": "1 Chaquiras de colores",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 1,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "sin_match",
+        "concepto": null,
+        "nivel": "hueco"
+      }
+    },
+    {
+      "orden": 14,
+      "texto": "1 Paquete de arena decorativa",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 1,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "hueco_catalogo",
+        "concepto": "C095",
+        "nivel": "hueco"
+      }
+    },
+    {
+      "orden": 15,
+      "texto": "1 Compás de precisión",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 1,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "abstencion",
+        "concepto": "C018",
+        "nivel": "hueco"
+      }
+    },
+    {
+      "orden": 16,
+      "texto": "1 Plataforma de inglés: código de acceso",
+      "parseo": {
+        "tipo_item": "licencia_digital",
+        "modo_adquisicion": "plataforma",
+        "cantidad": 1,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "sin_match",
+        "concepto": null,
+        "nivel": "informativo"
+      }
+    },
+    {
+      "orden": 17,
+      "texto": "1 Uniforme de educación física",
+      "parseo": {
+        "tipo_item": "uniforme",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 1,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "sin_match",
+        "concepto": null,
+        "nivel": "informativo"
+      }
+    },
+    {
+      "orden": 18,
+      "texto": "Diccionario de inglés: el disponible en casa",
+      "parseo": {
+        "tipo_item": "no_comprar",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 0,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "abstencion",
+        "concepto": "C034",
+        "nivel": "informativo"
+      }
+    }
+  ]
+}
