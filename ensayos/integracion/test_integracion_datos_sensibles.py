@@ -51,6 +51,9 @@ async def _columnas(conexion: Any) -> list[tuple[str, str, str]]:
 # escribe una tarjeta. Los grupos no pueden venir pegados a un guion, para no
 # leer los bloques de un UUID como una tarjeta.
 _CANDIDATO = re.compile(r"(?<![\d-])(?:\d{4}[ -]){3}\d{4}(?![\d-])|(?<!\d)\d{13,19}(?!\d)")
+# Un `correlacion_id` son 32 hexadecimales (un SHA, 40 o 64) y los logs traen uno por peticion: una
+# racha de digitos dentro de uno (`72e1244ed4674852918273bc…`) no es una tarjeta.
+_HEXADECIMAL = re.compile(r"(?<![0-9a-fA-F])[0-9a-fA-F]{32,}(?![0-9a-fA-F])")
 _NOMBRES_DE_TARJETA = {"pan", "cvv", "cvc", "tarjeta", "card"}
 
 
@@ -83,7 +86,7 @@ def _marca(numero: str) -> str | None:
 
 def _tarjetas_en(valor: str) -> set[str]:
     encontradas = set()
-    for candidato in _CANDIDATO.findall(valor):
+    for candidato in _CANDIDATO.findall(_HEXADECIMAL.sub(" ", valor)):
         numero = re.sub(r"[ -]", "", candidato)
         if _marca(numero) and _luhn(numero):
             encontradas.add(numero)
