@@ -260,6 +260,8 @@ class TestLaSubidaNoDesplazaLaListaRevisada:
 
 @pytest.mark.nfr("NFR-SEG-07")
 class TestNadaSeFiltra:
+    # ADV-04 (LLM07) cuenta en NFR-SEG-06, como lo pone la matriz.
+    @pytest.mark.nfr("NFR-SEG-06")
     @pytest.mark.parametrize("fixture_id", ACEPTADOS)
     def test_el_202_no_trae_el_prompt_ni_lo_que_la_lista_dice(self, fixture_id, subidas, record_property):
         record_property("caso_adv", "ADV-04")
