@@ -62,15 +62,17 @@ def _textos_de_los_fixtures() -> list[str]:
     return textos
 
 
-@pytest.fixture(autouse=True)
-def _canal(record_property) -> None:
-    record_property("canal_vectorial", "embeder_falso")
-    record_property("embedding_model", MODELO_FALSO)
+def _canal(record_property, embebedor: str | None) -> None:
+    """La fila de `acuerdos.md` §1.6: `activo` o `inactivo`, y de donde sale el vector del renglon."""
+    record_property("canal_vectorial", "activo" if embebedor else "inactivo")
+    record_property("embedding_model", MODELO_FALSO if embebedor else "ninguno")
+    record_property("embebedor", embebedor or "ninguno: solo lexico")
 
 
 @pytest.mark.nfr("NFR-SEG-06")
 class TestADV07RankingPorEmbeddings:
     def test_el_canal_honesto_no_cambia_ningun_ganador_del_oro(self, record_property):
+        _canal(record_property, "embeder_falso sobre el renglon")
         cambios = []
         for par in PARES:
             resultado = emparejar(
@@ -93,6 +95,7 @@ class TestADV07RankingPorEmbeddings:
         "categoria, el canal vectorial cambia un ganador que el lexico solo acertaba",
     )
     def test_la_consulta_cargada_no_hunde_un_match_lexico(self, record_property):
+        _canal(record_property, "embeder_falso sobre el texto cargado")
         cargados = casos = hundidos = 0
         ejemplos = []
         for par in PARES:
@@ -126,6 +129,7 @@ class TestADV07RankingPorEmbeddings:
         "anclada; un vector envenenado cambia el concepto de la mitad de los pares del oro",
     )
     def test_el_vector_de_un_rival_no_le_quita_el_renglon_a_su_concepto(self, record_property):
+        _canal(record_property, "adversarial: vector del concepto rival")
         robados = []
         for par in PARES:
             for rival in RIVALES:
@@ -141,12 +145,12 @@ class TestADV07RankingPorEmbeddings:
                     robados.append(f"{par['texto']}: {par['concepto']}->{resultado.concepto_codigo}")
                     break
 
-        record_property("canal_vectorial", "adversarial: vector del concepto rival")
         record_property("pares_robados", len(robados))
         record_property("ejemplos", " | ".join(robados))
         assert robados == [], f"{len(robados)} de {len(PARES)} pares cambian de concepto"
 
-    def test_el_vector_del_rival_no_trae_productos_de_fuera_del_catalogo(self):
+    def test_el_vector_del_rival_no_trae_productos_de_fuera_del_catalogo(self, record_property):
+        _canal(record_property, "adversarial: vector del concepto rival")
         for par in PARES:
             for rival in RIVALES:
                 resultado = emparejar(
@@ -164,6 +168,7 @@ class TestADV08ProductoQueNoExiste:
     def test_las_gafas_de_quimica_son_un_hueco_sin_sku(self, con_vector, record_property):
         texto = "Gafas de protección para química"
         vector = embeder_falso([texto])[0] if con_vector else None
+        _canal(record_property, "embeder_falso sobre el renglon" if con_vector else None)
 
         resultado = emparejar(texto, CONCEPTOS_CON_VECTOR, PRODUCTOS, embedding_renglon=vector)
 
@@ -174,6 +179,7 @@ class TestADV08ProductoQueNoExiste:
 
     @pytest.mark.parametrize("texto", _textos_de_los_fixtures())
     def test_ningun_renglon_hostil_trae_un_sku_fuera_del_catalogo(self, texto, record_property):
+        _canal(record_property, None)
         resultado = emparejar(texto, CONCEPTOS, PRODUCTOS)
 
         # Lo que se reporta: que concepto le toca a cada renglon hostil. Un
