@@ -345,3 +345,187 @@ jobs:
           name: integracion-junit
           path: reportes/integracion.xml
           if-no-files-found: ignore
+
+  # E2E de API de la fase 4 contra el stack vivo, con el mismo arranque que
+  # `integracion`. La percepcion pasa por una copia de inteligencia que sirve las
+  # respuestas grabadas de `datos/golden/fixtures-modelo/`: sin clave y sin red
+  # hacia Gemini. Lo que hoy no cumple esta en `xfail(strict=True)` contra su
+  # hallazgo.
+  e2e-api:
+    name: E2E de API contra el stack vivo
+    needs: fronteras
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: tukit
+          POSTGRES_PASSWORD: tukit
+          POSTGRES_DB: tukit_identidad
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tukit"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TUKIT_DB_HOST: localhost
+      TUKIT_DB_PORT: "5432"
+      PGGSSENCMODE: disable
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --all-packages --extra dev --frozen --python 3.12
+
+      - name: Instalar el cliente de Postgres
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+
+      - name: Crear las bases que faltan
+        env:
+          PGPASSWORD: tukit
+        run: |
+          set -euo pipefail
+          for base in catalogo inteligencia comercio operacion; do
+            psql -w -h localhost -U tukit -d postgres -c "CREATE DATABASE tukit_${base}"
+          done
+
+      - name: Migrar y sembrar
+        run: |
+          set -euo pipefail
+          make bd-migrar
+          make bd-cargar
+          make bd-colegios
+          cd servicios/identidad && PYTHONPATH=".:../../libs/py/tukit_comun" \
+            ../../.venv/bin/python -m tukit_identidad.sembrar_acceso
+
+      - name: Levantar el stack
+        run: make arriba
+
+      - name: Correr los E2E de API
+        run: >-
+          .venv/bin/pytest ensayos/e2e -m e2e -rA
+          -o junit_family=xunit1 --junitxml=reportes/e2e-api.xml
+
+      - name: Logs del stack
+        if: always()
+        run: tail -n 80 .ejecucion/*.log || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-api-junit
+          path: reportes/e2e-api.xml
+          if-no-files-found: ignore
+
+  # E2E de UI de la fase 4 con Playwright: el flujo del acudiente en `apps/web`
+  # y la revision en `apps/admin`, contra el mismo stack que `e2e-api` y sobre el
+  # build de las dos apps (`next start`, que levanta el `webServer` de cada
+  # configuracion). Cada carpeta `e2e` tiene su propio `package.json` y lockfile,
+  # asi que el monorepo no cambia. Lo que hoy no cumple esta en `test.fail`
+  # contra su hallazgo; el navegador aborta toda peticion fuera de localhost.
+  e2e-ui:
+    name: E2E de UI con Playwright
+    needs: fronteras
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: tukit
+          POSTGRES_PASSWORD: tukit
+          POSTGRES_DB: tukit_identidad
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tukit"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TUKIT_DB_HOST: localhost
+      TUKIT_DB_PORT: "5432"
+      PGGSSENCMODE: disable
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --all-packages --extra dev --frozen --python 3.12
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Instalar el cliente de Postgres
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+
+      - name: Crear las bases que faltan
+        env:
+          PGPASSWORD: tukit
+        run: |
+          set -euo pipefail
+          for base in catalogo inteligencia comercio operacion; do
+            psql -w -h localhost -U tukit -d postgres -c "CREATE DATABASE tukit_${base}"
+          done
+
+      - name: Migrar y sembrar
+        run: |
+          set -euo pipefail
+          make bd-migrar
+          make bd-cargar
+          make bd-colegios
+          cd servicios/identidad && PYTHONPATH=".:../../libs/py/tukit_comun" \
+            ../../.venv/bin/python -m tukit_identidad.sembrar_acceso
+
+      - name: Levantar el stack
+        run: make arriba
+
+      - name: Construir la web y la consola
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run build:web
+          npm run build:admin
+
+      - name: Instalar Playwright y Chromium
+        run: |
+          set -euo pipefail
+          for app in web admin; do
+            ( cd "apps/${app}/e2e" && npm ci )
+          done
+          cd apps/web/e2e && npx playwright install --with-deps chromium
+
+      # Las dos suites corren aunque la primera falle; el paso falla si alguna fallo.
+      - name: Correr los E2E de UI
+        run: |
+          set -uo pipefail
+          estado=0
+          for app in web admin; do
+            ( cd "apps/${app}/e2e" \
+              && QA_JUNIT="${GITHUB_WORKSPACE}/reportes/e2e-ui-${app}.xml" npx playwright test ) || estado=1
+          done
+          exit "${estado}"
+
+      - name: Logs del stack
+        if: always()
+        run: tail -n 80 .ejecucion/*.log || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-ui-junit
+          path: |
+            reportes/e2e-ui-*.xml
+            apps/*/e2e/test-results/
+          if-no-files-found: ignore
