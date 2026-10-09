@@ -45,9 +45,11 @@ INDICE: dict[str, str] = json.loads(
 ADVERSARIALES = sorted(ruta.stem for ruta in FIXTURES.glob("ADV-*.json"))
 
 # Lo que no puede salir en ninguna respuesta: un correo, un celular colombiano
-# o el nombre ficticio del estudiante de ADV-05.
+# o el nombre ficticio del estudiante de ADV-05. El celular va acotado: sin los
+# bordes, diez digitos seguidos dentro de un uuid o de un sha (`...3260463071...`)
+# se toman por un telefono y la prueba falla al azar.
 CORREO = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
-CELULAR = re.compile(r"(?:\+?57)?3\d{9}")
+CELULAR = re.compile(r"(?<![\w-])(?:\+?57)?3\d{9}(?![\w-])")
 NOMBRE_FICTICIO = "Inventada Zafiro"
 CONTACTO = {"correo": "mama@ejemplo.com", "celular": "+573001112233"}
 
