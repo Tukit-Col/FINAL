@@ -97,9 +97,17 @@ jobs:
             # dominio corren contra SQLite en memoria, y sin el driver async
             # el fallo sale en la fixture y no en el caso, asi que no se
             # parece en nada a lo que de verdad se rompio.
+            #
+            # `tenacity` la importa `tukit_comun.resiliencia`, que comercio e
+            # inteligencia cargan al importar sus clientes remotos; sin ella
+            # esas dos pruebas caen en la recoleccion.
+            #
+            # `uvicorn` la importan las pruebas de arranque de cada `api.py`
+            # (sustituyen `uvicorn.run` para no abrir puertos); sin ella el
+            # modulo de prueba entero cae en la recoleccion.
             uv pip install pytest pytest-asyncio \
               sqlalchemy pydantic pgvector aiosqlite \
-              fastapi httpx alembic greenlet \
+              fastapi httpx alembic greenlet tenacity uvicorn \
               numpy pymoo
             .venv/bin/pytest "servicios/${SERVICIO}" -q
           else
@@ -156,7 +164,9 @@ jobs:
         with:
           enable-cache: true
       - run: uv venv --python 3.12
-      - run: uv pip install alembic asyncpg sqlalchemy pgvector pydantic
+      # `greenlet` no es opcional: sin ella, el `run_sync` de SQLAlchemy async
+      # que usan las migraciones cae con `No module named 'greenlet'`.
+      - run: uv pip install alembic asyncpg sqlalchemy pgvector pydantic greenlet
 
       - name: Instalar el cliente de Postgres
         run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
@@ -191,3 +201,34 @@ jobs:
               && PYTHONPATH=".:../../libs/py/tukit_comun" ../../.venv/bin/alembic downgrade base \
               && PYTHONPATH=".:../../libs/py/tukit_comun" ../../.venv/bin/alembic upgrade head )
           done
+
+  # Gate de cobertura (NFR-MAN-01 de la matriz de QA). Es el unico trabajo que
+  # corre la suite entera, `libs/` incluida, y sin ejecucion selectiva: una
+  # cifra de cobertura sobre lo que cambio no dice nada del total.
+  #
+  # Aqui si se sincroniza el espacio de trabajo con el extra `dev`, que es donde
+  # cada servicio declara `aiosqlite`. Con la lista explicita de `pruebas`, o
+  # sin el extra, un tercio de la suite cae en la fixture y la cifra mide el
+  # entorno, no las pruebas. `pytest-cov` va fijado a la version con que se
+  # midio la linea base, para que las dos cifras se puedan comparar.
+  #
+  # Las exclusiones viven en `.coveragerc`. El umbral es el 50 % global; la
+  # referencia del mismo entorno es el 71,22 % de la linea base.
+  cobertura:
+    name: Cobertura
+    needs: fronteras
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --all-packages --extra dev --frozen --python 3.12
+      - run: uv pip install pytest-cov==7.1.0
+      - name: Medir cobertura con umbral
+        run: >-
+          .venv/bin/pytest arquitectura libs servicios -q
+          --cov=. --cov-config=.coveragerc
+          --cov-report=term-missing:skip-covered
+          --cov-fail-under=50
