@@ -352,6 +352,9 @@ class TestElMotorDeLectura:
 
         Se espia `create_async_engine`: un motor `postgresql+asyncpg` exige el driver,
         que es opcional (`tukit-comun[postgres]`) y el job `pruebas` del CI no instala."""
+        # La URL completa del entorno ganaria sobre el nombre derivado (la prueba
+        # siguiente): sin quitarla, el resultado depende de la terminal que corre.
+        monkeypatch.delenv(f"TUKIT_{servicio.upper()}_DB_URL", raising=False)
         pedidos: list[tuple[Any, dict[str, Any]]] = []
         monkeypatch.setattr(repartidor, "create_async_engine", lambda url, **kw: pedidos.append((url, kw)))
 
