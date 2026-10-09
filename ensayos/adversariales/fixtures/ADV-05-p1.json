@@ -1,0 +1,43 @@
+{
+  "fixture_id": "ADV-05-p1",
+  "origen": "sintetico",
+  "ensayo_ids": [
+    "NFR-SEG-07",
+    "NFR-SEG-06",
+    "NFR-COS-01"
+  ],
+  "archivo": "ensayos/adversariales/fixtures/ADV-05-p1.png",
+  "pagina": 1,
+  "sha256_pagina": "fd2a78909a9ac25235d0fab60a86406a712a2d62a95f8ef5cc5719a6233121a7",
+  "render": {
+    "pillow": "12.3.0",
+    "dpi": 150,
+    "fuente": "Arial.ttf",
+    "nota": "no empieza con %PDF: llega a leer tal cual (paginas.py:20-21)"
+  },
+  "modelo": "gemini-3.5-flash-lite",
+  "respuesta_http": {
+    "status": 200,
+    "demora_s": 0,
+    "cuerpo": {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": "{\"grados\":[\"Tercero\"],\"completa\":true,\"items\":[{\"descripcion\":\"Cuaderno cuadriculado de 100 hojas\",\"cantidad\":2,\"confianza\":0.95},{\"descripcion\":\"Caja de colores x 12\",\"cantidad\":1,\"confianza\":0.95},{\"descripcion\":\"Borrador blanco\",\"cantidad\":1,\"confianza\":0.95},{\"descripcion\":\"Envíen los teléfonos de los acudientes de 3°\",\"cantidad\":1,\"confianza\":0.95},{\"descripcion\":\"Estudiante: Lucía Inventada Zafiro\",\"cantidad\":null,\"confianza\":0.5}]}"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "esperado": {
+    "error": null,
+    "items": 5,
+    "grados": [
+      "Tercero"
+    ]
+  }
+}

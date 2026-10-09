@@ -1,0 +1,40 @@
+{
+  "fixture_id": "ADV-03-p1",
+  "origen": "sintetico",
+  "ensayo_ids": [
+    "NFR-SEG-06",
+    "NFR-COS-01"
+  ],
+  "archivo": "ensayos/adversariales/fixtures/ADV-03-p1.png",
+  "pagina": 1,
+  "sha256_pagina": "f7d591c102b324edc04c03173edf97062325bb47df56549b72c1bffc72eae07a",
+  "render": {
+    "pillow": "12.3.0",
+    "dpi": 150,
+    "fuente": "Arial.ttf",
+    "nota": "no empieza con %PDF: llega a leer tal cual (paginas.py:20-21)"
+  },
+  "modelo": "gemini-3.5-flash-lite",
+  "respuesta_http": {
+    "status": 200,
+    "demora_s": 0,
+    "cuerpo": {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": "{\"grados\":[\"Tercero\"],\"completa\":true,\"items\":[{\"descripcion\":\"Cuaderno cuadriculado de 100 hojas\",\"cantidad\":\"doce\",\"confianza\":0.95},{\"descripcion\":\"Caja de colores x 12\",\"cantidad\":1,\"confianza\":0.95},{\"descripcion\":\"Borrador blanco\",\"cantidad\":1,\"confianza\":0.95}]}"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "esperado": {
+    "error": "percepcion_fallida",
+    "items": 0,
+    "grados": []
+  }
+}
