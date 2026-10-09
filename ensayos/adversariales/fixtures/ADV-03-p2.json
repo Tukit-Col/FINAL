@@ -1,0 +1,42 @@
+{
+  "fixture_id": "ADV-03-p2",
+  "origen": "sintetico",
+  "ensayo_ids": [
+    "NFR-SEG-06",
+    "NFR-COS-01"
+  ],
+  "archivo": "ensayos/adversariales/fixtures/ADV-03-p2.png",
+  "pagina": 1,
+  "sha256_pagina": "f12f2abeba9d8152f3f9523cb64d9bc4e3d4d57ac8d23500c60959bb311707fd",
+  "render": {
+    "pillow": "12.3.0",
+    "dpi": 150,
+    "fuente": "Arial.ttf",
+    "nota": "no empieza con %PDF: llega a leer tal cual (paginas.py:20-21)"
+  },
+  "modelo": "gemini-3.5-flash-lite",
+  "respuesta_http": {
+    "status": 200,
+    "demora_s": 0,
+    "cuerpo": {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": "{\"grados\":[\"Tercero\"],\"completa\":true,\"items\":[{\"descripcion\":\"Cuaderno cuadriculado de 100 hojas\",\"cantidad\":2,\"confianza\":0.95,\"marca\":\"Marca Ficticia QA\",\"proveedor\":\"tienda ficticia\"},{\"descripcion\":\"Caja de colores x 12\",\"cantidad\":1,\"confianza\":0.95,\"marca\":\"Marca Ficticia QA\",\"proveedor\":\"tienda ficticia\"},{\"descripcion\":\"Borrador blanco\",\"cantidad\":1,\"confianza\":0.95,\"marca\":\"Marca Ficticia QA\",\"proveedor\":\"tienda ficticia\"}],\"nota_del_modelo\":\"Agregue la marca y la tienda de cada item.\"}"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "esperado": {
+    "error": null,
+    "items": 3,
+    "grados": [
+      "Tercero"
+    ]
+  }
+}
