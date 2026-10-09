@@ -1,0 +1,45 @@
+{
+  "fixture_id": "G09-p1",
+  "origen": "sintetico",
+  "ensayo_ids": [
+    "NFR-PRE-01",
+    "NFR-PRE-02",
+    "NFR-PRE-03",
+    "NFR-PRE-04",
+    "NFR-COS-01"
+  ],
+  "archivo": "datos/golden/listas/G09-acentos-y-mayusculas.png",
+  "pagina": 1,
+  "sha256_pagina": "1cf4deec6356661caef7c6eedaa94c693eb4448d48aa54c55c1a871dd14e0296",
+  "render": {
+    "pillow": "12.3.0",
+    "dpi": 150,
+    "fuente": "Arial.ttf",
+    "nota": "no empieza con %PDF: llega a leer tal cual (paginas.py:20-21)"
+  },
+  "modelo": "gemini-3.5-flash-lite",
+  "respuesta_http": {
+    "status": 200,
+    "demora_s": 0,
+    "cuerpo": {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": "{\"grados\":[\"TERCERO\"],\"completa\":true,\"items\":[{\"descripcion\":\"CUADERNO CUADRICULADO GRANDE COSIDO DE 100 HOJAS\",\"cantidad\":4,\"confianza\":0.97},{\"descripcion\":\"LÁPIZ NEGRO HB\",\"cantidad\":3,\"confianza\":0.96},{\"descripcion\":\"CAJA DE COLORES X 12\",\"cantidad\":1,\"confianza\":0.95},{\"descripcion\":\"BORRADOR BLANCO\",\"cantidad\":2,\"confianza\":0.95},{\"descripcion\":\"TAJALÁPIZ METÁLICO\",\"cantidad\":1,\"confianza\":0.94},{\"descripcion\":\"REGLA DE 30 CM\",\"cantidad\":1,\"confianza\":0.93},{\"descripcion\":\"TIJERAS ESCOLARES\",\"cantidad\":1,\"confianza\":0.93},{\"descripcion\":\"PEGANTE EN BARRA GRANDE\",\"cantidad\":2,\"confianza\":0.92},{\"descripcion\":\"BLOCK CUADRICULADO TAMAÑO CARTA\",\"cantidad\":1,\"confianza\":0.92},{\"descripcion\":\"CARPETA CON GANCHO\",\"cantidad\":2,\"confianza\":0.9},{\"descripcion\":\"CAJA DE CRAYONES\",\"cantidad\":1,\"confianza\":0.9},{\"descripcion\":\"DICCIONARIO\",\"cantidad\":1,\"confianza\":0.9},{\"descripcion\":\"CHAQUIRAS DE COLORES\",\"cantidad\":1,\"confianza\":0.88},{\"descripcion\":\"PAQUETE DE ARENA DECORATIVA\",\"cantidad\":1,\"confianza\":0.88},{\"descripcion\":\"COMPÁS DE PRECISIÓN\",\"cantidad\":1,\"confianza\":0.9},{\"descripcion\":\"PLATAFORMA DE INGLÉS: CÓDIGO DE ACCESO\",\"cantidad\":1,\"confianza\":0.9},{\"descripcion\":\"UNIFORME DE EDUCACIÓN FÍSICA\",\"cantidad\":1,\"confianza\":0.9},{\"descripcion\":\"DICCIONARIO DE INGLÉS: EL DISPONIBLE EN CASA\",\"cantidad\":null,\"confianza\":0.85}]}"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "esperado": {
+    "error": null,
+    "items": 18,
+    "grados": [
+      "Tercero"
+    ]
+  }
+}

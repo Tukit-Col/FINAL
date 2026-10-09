@@ -1,0 +1,199 @@
+{
+  "variante": "G08",
+  "archivo": "listas/G08-pagina-cortada.png",
+  "descripcion": "Foto cortada: el modelo solo ve la primera mitad",
+  "aceptada": false,
+  "error": "pagina_incompleta",
+  "paginas": 1,
+  "degradaciones": [
+    "pagina_1_incompleta"
+  ],
+  "grados": [
+    "Tercero"
+  ],
+  "completa": false,
+  "items": [
+    {
+      "descripcion": "Cuaderno cuadriculado grande cosido de 100 hojas",
+      "cantidad": 4,
+      "confianza": 0.97
+    },
+    {
+      "descripcion": "Lápiz negro HB",
+      "cantidad": 3,
+      "confianza": 0.96
+    },
+    {
+      "descripcion": "Caja de colores x 12",
+      "cantidad": 1,
+      "confianza": 0.95
+    },
+    {
+      "descripcion": "Borrador blanco",
+      "cantidad": 2,
+      "confianza": 0.95
+    },
+    {
+      "descripcion": "Tajalápiz metálico",
+      "cantidad": 1,
+      "confianza": 0.94
+    },
+    {
+      "descripcion": "Regla de 30 cm",
+      "cantidad": 1,
+      "confianza": 0.93
+    },
+    {
+      "descripcion": "Tijeras escolares",
+      "cantidad": 1,
+      "confianza": 0.93
+    },
+    {
+      "descripcion": "Pegante en barra grande",
+      "cantidad": 2,
+      "confianza": 0.92
+    },
+    {
+      "descripcion": "Block cuadriculado tamaño carta",
+      "cantidad": 1,
+      "confianza": 0.92
+    }
+  ],
+  "renglones": [
+    {
+      "orden": 1,
+      "texto": "Cuaderno cuadriculado grande cosido de 100 hojas",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 4,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C001",
+        "nivel": "facil"
+      }
+    },
+    {
+      "orden": 2,
+      "texto": "Lápiz negro HB",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 3,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C002",
+        "nivel": "exacto"
+      }
+    },
+    {
+      "orden": 3,
+      "texto": "Caja de colores x 12",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 1,
+        "unidades_por_empaque": 12
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C004",
+        "nivel": "facil"
+      }
+    },
+    {
+      "orden": 4,
+      "texto": "Borrador blanco",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 2,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C005",
+        "nivel": "facil"
+      }
+    },
+    {
+      "orden": 5,
+      "texto": "Tajalápiz metálico",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 1,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C007",
+        "nivel": "facil"
+      }
+    },
+    {
+      "orden": 6,
+      "texto": "Regla de 30 cm",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 1,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C008",
+        "nivel": "facil"
+      }
+    },
+    {
+      "orden": 7,
+      "texto": "Tijeras escolares",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 1,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C013",
+        "nivel": "facil"
+      }
+    },
+    {
+      "orden": 8,
+      "texto": "Pegante en barra grande",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 2,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C016",
+        "nivel": "exacto"
+      }
+    },
+    {
+      "orden": 9,
+      "texto": "Block cuadriculado tamaño carta",
+      "parseo": {
+        "tipo_item": "util",
+        "modo_adquisicion": "mercado_abierto",
+        "cantidad": 1,
+        "unidades_por_empaque": null
+      },
+      "emparejamiento": {
+        "estado": "reconocido",
+        "concepto": "C003",
+        "nivel": "exacto"
+      }
+    }
+  ]
+}

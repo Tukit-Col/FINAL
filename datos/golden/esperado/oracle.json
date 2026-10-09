@@ -1,0 +1,625 @@
+{
+  "descripcion": "Concepto que un humano espera para cada renglon. exacto y facil: el top-1 se exige; dificil: se reporta; hueco: no puede salir ningun producto y tiene que haber motivo; informativo: lo resuelve el parseo, no el catalogo.",
+  "catalogo": "datos/catalogo/conceptos.csv",
+  "pares": [
+    {
+      "texto": "Cuaderno cuadriculado grande cosido de 100 hojas",
+      "estado": "reconocido",
+      "concepto": "C001",
+      "nivel": "facil",
+      "fuentes": [
+        "G01#1",
+        "G03#1",
+        "G05#1",
+        "G07#1",
+        "G08#1",
+        "G10#1"
+      ]
+    },
+    {
+      "texto": "Lápiz negro HB",
+      "estado": "reconocido",
+      "concepto": "C002",
+      "nivel": "exacto",
+      "fuentes": [
+        "G01#2",
+        "G03#2",
+        "G05#2",
+        "G07#2",
+        "G08#2",
+        "G10#2"
+      ]
+    },
+    {
+      "texto": "Caja de colores x 12",
+      "estado": "reconocido",
+      "concepto": "C004",
+      "nivel": "facil",
+      "fuentes": [
+        "G01#3",
+        "G03#3",
+        "G05#3",
+        "G07#3",
+        "G08#3"
+      ]
+    },
+    {
+      "texto": "Borrador blanco",
+      "estado": "reconocido",
+      "concepto": "C005",
+      "nivel": "facil",
+      "fuentes": [
+        "G01#4",
+        "G03#4",
+        "G05#4",
+        "G07#4",
+        "G08#4",
+        "G10#3"
+      ]
+    },
+    {
+      "texto": "Tajalápiz metálico",
+      "estado": "reconocido",
+      "concepto": "C007",
+      "nivel": "facil",
+      "fuentes": [
+        "G01#5",
+        "G03#5",
+        "G05#5",
+        "G07#5",
+        "G08#5"
+      ]
+    },
+    {
+      "texto": "Regla de 30 cm",
+      "estado": "reconocido",
+      "concepto": "C008",
+      "nivel": "facil",
+      "fuentes": [
+        "G01#6",
+        "G03#6",
+        "G05#6",
+        "G07#6",
+        "G08#6",
+        "G10#4"
+      ]
+    },
+    {
+      "texto": "Tijeras escolares",
+      "estado": "reconocido",
+      "concepto": "C013",
+      "nivel": "facil",
+      "fuentes": [
+        "G01#7",
+        "G03#7",
+        "G05#7",
+        "G07#7",
+        "G08#7",
+        "G10#5"
+      ]
+    },
+    {
+      "texto": "Pegante en barra grande",
+      "estado": "reconocido",
+      "concepto": "C016",
+      "nivel": "exacto",
+      "fuentes": [
+        "G01#8",
+        "G03#8",
+        "G05#8",
+        "G07#8",
+        "G08#8"
+      ]
+    },
+    {
+      "texto": "Block cuadriculado tamaño carta",
+      "estado": "reconocido",
+      "concepto": "C003",
+      "nivel": "exacto",
+      "fuentes": [
+        "G01#9",
+        "G03#9",
+        "G05#9",
+        "G07#9",
+        "G08#9"
+      ]
+    },
+    {
+      "texto": "Carpeta con gancho",
+      "estado": "reconocido",
+      "concepto": "C011",
+      "nivel": "facil",
+      "fuentes": [
+        "G01#10",
+        "G03#10",
+        "G05#10",
+        "G07#10",
+        "G10#6"
+      ]
+    },
+    {
+      "texto": "Caja de crayones",
+      "estado": "reconocido",
+      "concepto": "C053",
+      "nivel": "facil",
+      "fuentes": [
+        "G01#11",
+        "G03#11",
+        "G05#11",
+        "G07#11"
+      ]
+    },
+    {
+      "texto": "Diccionario",
+      "estado": "reconocido",
+      "concepto": "C034",
+      "nivel": "exacto",
+      "fuentes": [
+        "G01#12",
+        "G03#12",
+        "G05#12",
+        "G07#12"
+      ]
+    },
+    {
+      "texto": "Chaquiras de colores",
+      "estado": "sin_match",
+      "concepto": null,
+      "nivel": "hueco",
+      "fuentes": [
+        "G01#13",
+        "G03#13",
+        "G05#13",
+        "G07#13"
+      ]
+    },
+    {
+      "texto": "Paquete de arena decorativa",
+      "estado": "hueco_catalogo",
+      "concepto": "C095",
+      "nivel": "hueco",
+      "fuentes": [
+        "G01#14",
+        "G03#14",
+        "G05#14",
+        "G07#14"
+      ]
+    },
+    {
+      "texto": "Compás de precisión",
+      "estado": "abstencion",
+      "concepto": "C018",
+      "nivel": "hueco",
+      "fuentes": [
+        "G01#15",
+        "G03#15",
+        "G05#15",
+        "G07#15"
+      ]
+    },
+    {
+      "texto": "Plataforma de inglés: código de acceso",
+      "estado": "sin_match",
+      "concepto": null,
+      "nivel": "informativo",
+      "fuentes": [
+        "G01#16",
+        "G03#16",
+        "G05#16",
+        "G07#16"
+      ]
+    },
+    {
+      "texto": "Uniforme de educación física",
+      "estado": "sin_match",
+      "concepto": null,
+      "nivel": "informativo",
+      "fuentes": [
+        "G01#17",
+        "G03#17",
+        "G05#17",
+        "G07#17"
+      ]
+    },
+    {
+      "texto": "Diccionario de inglés: el disponible en casa",
+      "estado": "abstencion",
+      "concepto": "C034",
+      "nivel": "informativo",
+      "fuentes": [
+        "G01#18",
+        "G03#18",
+        "G05#18",
+        "G06#18",
+        "G07#18"
+      ]
+    },
+    {
+      "texto": "4 Cuaderno cuadriculado grande cosido de 100 hojas",
+      "estado": "reconocido",
+      "concepto": "C001",
+      "nivel": "dificil",
+      "fuentes": [
+        "G06#1"
+      ]
+    },
+    {
+      "texto": "3 Lápiz negro HB",
+      "estado": "reconocido",
+      "concepto": "C002",
+      "nivel": "dificil",
+      "fuentes": [
+        "G06#2"
+      ]
+    },
+    {
+      "texto": "1 Caja de colores x 12",
+      "estado": "reconocido",
+      "concepto": "C004",
+      "nivel": "dificil",
+      "fuentes": [
+        "G06#3"
+      ]
+    },
+    {
+      "texto": "2 Borrador blanco",
+      "estado": "reconocido",
+      "concepto": "C005",
+      "nivel": "dificil",
+      "fuentes": [
+        "G06#4"
+      ]
+    },
+    {
+      "texto": "1 Tajalápiz metálico",
+      "estado": "reconocido",
+      "concepto": "C007",
+      "nivel": "dificil",
+      "fuentes": [
+        "G06#5"
+      ]
+    },
+    {
+      "texto": "1 Regla de 30 cm",
+      "estado": "reconocido",
+      "concepto": "C008",
+      "nivel": "dificil",
+      "fuentes": [
+        "G06#6"
+      ]
+    },
+    {
+      "texto": "1 Tijeras escolares",
+      "estado": "reconocido",
+      "concepto": "C013",
+      "nivel": "dificil",
+      "fuentes": [
+        "G06#7"
+      ]
+    },
+    {
+      "texto": "2 Pegante en barra grande",
+      "estado": "reconocido",
+      "concepto": "C016",
+      "nivel": "dificil",
+      "fuentes": [
+        "G06#8"
+      ]
+    },
+    {
+      "texto": "1 Block cuadriculado tamaño carta",
+      "estado": "reconocido",
+      "concepto": "C003",
+      "nivel": "dificil",
+      "fuentes": [
+        "G06#9"
+      ]
+    },
+    {
+      "texto": "2 Carpeta con gancho",
+      "estado": "reconocido",
+      "concepto": "C011",
+      "nivel": "dificil",
+      "fuentes": [
+        "G06#10"
+      ]
+    },
+    {
+      "texto": "1 Caja de crayones",
+      "estado": "reconocido",
+      "concepto": "C053",
+      "nivel": "dificil",
+      "fuentes": [
+        "G06#11"
+      ]
+    },
+    {
+      "texto": "1 Diccionario",
+      "estado": "reconocido",
+      "concepto": "C034",
+      "nivel": "dificil",
+      "fuentes": [
+        "G06#12"
+      ]
+    },
+    {
+      "texto": "1 Chaquiras de colores",
+      "estado": "sin_match",
+      "concepto": null,
+      "nivel": "hueco",
+      "fuentes": [
+        "G06#13"
+      ]
+    },
+    {
+      "texto": "1 Paquete de arena decorativa",
+      "estado": "hueco_catalogo",
+      "concepto": "C095",
+      "nivel": "hueco",
+      "fuentes": [
+        "G06#14"
+      ]
+    },
+    {
+      "texto": "1 Compás de precisión",
+      "estado": "abstencion",
+      "concepto": "C018",
+      "nivel": "hueco",
+      "fuentes": [
+        "G06#15"
+      ]
+    },
+    {
+      "texto": "1 Plataforma de inglés: código de acceso",
+      "estado": "sin_match",
+      "concepto": null,
+      "nivel": "informativo",
+      "fuentes": [
+        "G06#16"
+      ]
+    },
+    {
+      "texto": "1 Uniforme de educación física",
+      "estado": "sin_match",
+      "concepto": null,
+      "nivel": "informativo",
+      "fuentes": [
+        "G06#17"
+      ]
+    },
+    {
+      "texto": "CUADERNO CUADRICULADO GRANDE COSIDO DE 100 HOJAS",
+      "estado": "reconocido",
+      "concepto": "C001",
+      "nivel": "dificil",
+      "fuentes": [
+        "G09#1"
+      ]
+    },
+    {
+      "texto": "LÁPIZ NEGRO HB",
+      "estado": "reconocido",
+      "concepto": "C002",
+      "nivel": "dificil",
+      "fuentes": [
+        "G09#2"
+      ]
+    },
+    {
+      "texto": "CAJA DE COLORES X 12",
+      "estado": "reconocido",
+      "concepto": "C004",
+      "nivel": "dificil",
+      "fuentes": [
+        "G09#3"
+      ]
+    },
+    {
+      "texto": "BORRADOR BLANCO",
+      "estado": "reconocido",
+      "concepto": "C005",
+      "nivel": "dificil",
+      "fuentes": [
+        "G09#4"
+      ]
+    },
+    {
+      "texto": "TAJALÁPIZ METÁLICO",
+      "estado": "reconocido",
+      "concepto": "C007",
+      "nivel": "dificil",
+      "fuentes": [
+        "G09#5"
+      ]
+    },
+    {
+      "texto": "REGLA DE 30 CM",
+      "estado": "reconocido",
+      "concepto": "C008",
+      "nivel": "dificil",
+      "fuentes": [
+        "G09#6"
+      ]
+    },
+    {
+      "texto": "TIJERAS ESCOLARES",
+      "estado": "reconocido",
+      "concepto": "C013",
+      "nivel": "dificil",
+      "fuentes": [
+        "G09#7"
+      ]
+    },
+    {
+      "texto": "PEGANTE EN BARRA GRANDE",
+      "estado": "reconocido",
+      "concepto": "C016",
+      "nivel": "dificil",
+      "fuentes": [
+        "G09#8"
+      ]
+    },
+    {
+      "texto": "BLOCK CUADRICULADO TAMAÑO CARTA",
+      "estado": "reconocido",
+      "concepto": "C003",
+      "nivel": "dificil",
+      "fuentes": [
+        "G09#9"
+      ]
+    },
+    {
+      "texto": "CARPETA CON GANCHO",
+      "estado": "reconocido",
+      "concepto": "C011",
+      "nivel": "dificil",
+      "fuentes": [
+        "G09#10"
+      ]
+    },
+    {
+      "texto": "CAJA DE CRAYONES",
+      "estado": "reconocido",
+      "concepto": "C053",
+      "nivel": "dificil",
+      "fuentes": [
+        "G09#11"
+      ]
+    },
+    {
+      "texto": "DICCIONARIO",
+      "estado": "reconocido",
+      "concepto": "C034",
+      "nivel": "dificil",
+      "fuentes": [
+        "G09#12"
+      ]
+    },
+    {
+      "texto": "CHAQUIRAS DE COLORES",
+      "estado": "sin_match",
+      "concepto": null,
+      "nivel": "hueco",
+      "fuentes": [
+        "G09#13"
+      ]
+    },
+    {
+      "texto": "PAQUETE DE ARENA DECORATIVA",
+      "estado": "hueco_catalogo",
+      "concepto": "C095",
+      "nivel": "hueco",
+      "fuentes": [
+        "G09#14"
+      ]
+    },
+    {
+      "texto": "COMPÁS DE PRECISIÓN",
+      "estado": "abstencion",
+      "concepto": "C018",
+      "nivel": "hueco",
+      "fuentes": [
+        "G09#15"
+      ]
+    },
+    {
+      "texto": "PLATAFORMA DE INGLÉS: CÓDIGO DE ACCESO",
+      "estado": "sin_match",
+      "concepto": null,
+      "nivel": "informativo",
+      "fuentes": [
+        "G09#16"
+      ]
+    },
+    {
+      "texto": "UNIFORME DE EDUCACIÓN FÍSICA",
+      "estado": "sin_match",
+      "concepto": null,
+      "nivel": "informativo",
+      "fuentes": [
+        "G09#17"
+      ]
+    },
+    {
+      "texto": "DICCIONARIO DE INGLÉS: EL DISPONIBLE EN CASA",
+      "estado": "abstencion",
+      "concepto": "C034",
+      "nivel": "informativo",
+      "fuentes": [
+        "G09#18"
+      ]
+    },
+    {
+      "texto": "Goma de borrar",
+      "estado": "reconocido",
+      "concepto": "C005",
+      "nivel": "dificil",
+      "fuentes": [
+        "DIFICILES"
+      ]
+    },
+    {
+      "texto": "Sacapuntas metálico",
+      "estado": "reconocido",
+      "concepto": "C007",
+      "nivel": "dificil",
+      "fuentes": [
+        "DIFICILES"
+      ]
+    },
+    {
+      "texto": "Lápices de colores largos",
+      "estado": "reconocido",
+      "concepto": "C004",
+      "nivel": "dificil",
+      "fuentes": [
+        "DIFICILES"
+      ]
+    },
+    {
+      "texto": "Crayolas gruesas",
+      "estado": "reconocido",
+      "concepto": "C053",
+      "nivel": "dificil",
+      "fuentes": [
+        "DIFICILES"
+      ]
+    },
+    {
+      "texto": "Colbón en barra",
+      "estado": "reconocido",
+      "concepto": "C016",
+      "nivel": "dificil",
+      "fuentes": [
+        "DIFICILES"
+      ]
+    },
+    {
+      "texto": "Cuaderno ferrocarril de 50 hojas",
+      "estado": "reconocido",
+      "concepto": "C001",
+      "nivel": "dificil",
+      "fuentes": [
+        "DIFICILES"
+      ]
+    },
+    {
+      "texto": "Hojas cuadriculadas en block",
+      "estado": "reconocido",
+      "concepto": "C003",
+      "nivel": "dificil",
+      "fuentes": [
+        "DIFICILES"
+      ]
+    },
+    {
+      "texto": "Folder con gancho legajador",
+      "estado": "reconocido",
+      "concepto": "C011",
+      "nivel": "dificil",
+      "fuentes": [
+        "DIFICILES"
+      ]
+    }
+  ]
+}

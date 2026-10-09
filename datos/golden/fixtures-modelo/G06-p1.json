@@ -1,0 +1,45 @@
+{
+  "fixture_id": "G06-p1",
+  "origen": "sintetico",
+  "ensayo_ids": [
+    "NFR-PRE-01",
+    "NFR-PRE-02",
+    "NFR-PRE-03",
+    "NFR-PRE-04",
+    "NFR-COS-01"
+  ],
+  "archivo": "datos/golden/listas/G06-sin-columna-cantidad.png",
+  "pagina": 1,
+  "sha256_pagina": "9abe7be610e28eeb3a9cf7c3025905d737ea395f487edcfabd5352656b0d89b4",
+  "render": {
+    "pillow": "12.3.0",
+    "dpi": 150,
+    "fuente": "Arial.ttf",
+    "nota": "no empieza con %PDF: llega a leer tal cual (paginas.py:20-21)"
+  },
+  "modelo": "gemini-3.5-flash-lite",
+  "respuesta_http": {
+    "status": 200,
+    "demora_s": 0,
+    "cuerpo": {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": "{\"grados\":[\"3\"],\"completa\":true,\"items\":[{\"descripcion\":\"4 Cuaderno cuadriculado grande cosido de 100 hojas\",\"cantidad\":null,\"confianza\":0.97},{\"descripcion\":\"3 Lápiz negro HB\",\"cantidad\":null,\"confianza\":0.96},{\"descripcion\":\"1 Caja de colores x 12\",\"cantidad\":null,\"confianza\":0.95},{\"descripcion\":\"2 Borrador blanco\",\"cantidad\":null,\"confianza\":0.95},{\"descripcion\":\"1 Tajalápiz metálico\",\"cantidad\":null,\"confianza\":0.94},{\"descripcion\":\"1 Regla de 30 cm\",\"cantidad\":null,\"confianza\":0.93},{\"descripcion\":\"1 Tijeras escolares\",\"cantidad\":null,\"confianza\":0.93},{\"descripcion\":\"2 Pegante en barra grande\",\"cantidad\":null,\"confianza\":0.92},{\"descripcion\":\"1 Block cuadriculado tamaño carta\",\"cantidad\":null,\"confianza\":0.92},{\"descripcion\":\"2 Carpeta con gancho\",\"cantidad\":null,\"confianza\":0.9},{\"descripcion\":\"1 Caja de crayones\",\"cantidad\":null,\"confianza\":0.9},{\"descripcion\":\"1 Diccionario\",\"cantidad\":null,\"confianza\":0.9},{\"descripcion\":\"1 Chaquiras de colores\",\"cantidad\":null,\"confianza\":0.88},{\"descripcion\":\"1 Paquete de arena decorativa\",\"cantidad\":null,\"confianza\":0.88},{\"descripcion\":\"1 Compás de precisión\",\"cantidad\":null,\"confianza\":0.9},{\"descripcion\":\"1 Plataforma de inglés: código de acceso\",\"cantidad\":null,\"confianza\":0.9},{\"descripcion\":\"1 Uniforme de educación física\",\"cantidad\":null,\"confianza\":0.9},{\"descripcion\":\"Diccionario de inglés: el disponible en casa\",\"cantidad\":null,\"confianza\":0.85}]}"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "esperado": {
+    "error": null,
+    "items": 18,
+    "grados": [
+      "Tercero"
+    ]
+  }
+}
