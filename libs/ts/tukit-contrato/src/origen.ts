@@ -74,6 +74,7 @@ import type {
 import type {
   Pedido,
   PedidoConHistorial,
+  PedidoDelAcudiente,
   SolicitudAvancePedido,
   TableroComercio,
 } from "./comercio";
@@ -340,8 +341,9 @@ export interface OrigenDatos {
   sincronizarPago(transaccionId: string): Promise<ResultadoPago>;
   // Las operaciones del acudiente sobre SUS pedidos. Viaja el token: comercio
   // saca la identidad de la sesion y un pedido ajeno responde 404.
-  // Uno de sus pedidos, sin datos del reparto (la pantalla del resultado del pago).
-  miPedido(token: string, pedidoId: string): Promise<Pedido>;
+  // Uno de sus pedidos, sin datos del staff, con su linea de tiempo
+  // (`/pedidos/[id]` y la pantalla del resultado del pago).
+  miPedido(token: string, pedidoId: string): Promise<PedidoDelAcudiente>;
   // Un intento de pago nuevo sobre un pedido pendiente (Comercio congela el
   // precio al crear el pedido; aqui no se re-arma la orden).
   iniciarPagoPedido(

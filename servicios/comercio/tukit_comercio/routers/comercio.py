@@ -38,6 +38,7 @@ from tukit_comun.http import ErrorDominio
 from tukit_comun.metricas import contar_orden_creada, contar_pago_aprobado
 
 from ..dominio.despacho import preparar_avance, validar_avance
+from ..dominio.linea_de_tiempo import linea_de_tiempo
 from ..dominio.ordenes import LineaResuelta, reverificar_precios, total_orden
 from ..dominio.pagos import CAMPOS_FIRMA_ENTREGA, firma_orden, vencido
 from ..modelos import EstadoPago, EstadoPedido, MetodoPago, transicion_valida
@@ -736,8 +737,23 @@ async def _pedido_del_portador(request: Request, pedido_id: uuid.UUID, authoriza
 async def ver_mi_pedido(
     request: Request, pedido_id: uuid.UUID, authorization: Annotated[str | None, Header()] = None
 ) -> dict[str, Any]:
+    """El pedido de la ruta interna mas su `linea_de_tiempo` para `/pedidos/[id]`.
+
+    La linea la arma `dominio.linea_de_tiempo` con vistas que no traen actor,
+    correo de staff, nota ni el celular del repartidor: el acudiente ve QUE paso
+    y CUANDO, no QUIEN lo movio."""
     await _pedido_del_portador(request, pedido_id, authorization)
-    return await ver_orden(request, pedido_id)
+    async with request.app.state.motor.sesion() as db:
+        repo = _repo(await db.connection())
+        fila = await _pedido_o_404(repo, pedido_id)
+        pedido = await repo.pedido_completo(fila)
+        pagos, historial, envio = await repo.vistas_para_linea_de_tiempo(fila.id)
+    return {
+        **pedido,
+        "linea_de_tiempo": linea_de_tiempo(
+            estado=fila.estado, creado_en=fila.creado_en, pagos=pagos, historial=historial, envio=envio
+        ),
+    }
 
 
 @router.post(

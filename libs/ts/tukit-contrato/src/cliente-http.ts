@@ -81,6 +81,7 @@ import type {
 import type {
   Pedido,
   PedidoConHistorial,
+  PedidoDelAcudiente,
   SolicitudAvancePedido,
   TableroComercio,
 } from "./comercio";
@@ -868,8 +869,8 @@ export class ClienteApi implements OrigenDatos {
   // Las tres van por `/v1/comercio/mis-pedidos/{id}` con el Bearer: comercio
   // saca al acudiente de la sesion y un pedido ajeno es 404. `/v1/ordenes/*` es
   // interno y la puerta no lo expone.
-  miPedido(token: string, pedidoId: string): Promise<Pedido> {
-    return this.pedir<Pedido>(`/v1/comercio/mis-pedidos/${encodeURIComponent(pedidoId)}`, {
+  miPedido(token: string, pedidoId: string): Promise<PedidoDelAcudiente> {
+    return this.pedir<PedidoDelAcudiente>(`/v1/comercio/mis-pedidos/${encodeURIComponent(pedidoId)}`, {
       headers: this.autoriza(token),
     });
   }

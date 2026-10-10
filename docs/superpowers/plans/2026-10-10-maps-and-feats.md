@@ -220,7 +220,7 @@ En cada commit hago `git add` con rutas explícitas, nunca `.sf/`, y cierro el m
 - [x] Verde parcial: comercio, inteligencia, contrato, web, typecheck y lint. Luego `make bd-migrar` y `make bd-deriva`, con `TUKIT_DB_HOST=127.0.0.1`. Hacer el commit C.
 
 ### 2. Página del pedido (commit D)
-- [ ] Comercio, nuevo `dominio/linea_de_tiempo.py`, una función pura:
+- [x] Comercio, nuevo `dominio/linea_de_tiempo.py`, una función pura:
 
   ```
   linea_de_tiempo(estado, creado_en, pagos, historial, envio, ahora) ->
@@ -247,27 +247,27 @@ En cada commit hago `git add` con rutas explícitas, nunca `.sf/`, y cierro el m
   - El paso de despacho lleva solo `repartidor_nombre`.
   - `pago_pendiente` sale de `VIGENCIA_PAGO` y `vencido`.
   - Por construcción, la función nunca recibe `actor_*`, `nota` ni el celular.
-- [ ] Tests en `tests/test_dominio_linea_de_tiempo.py`:
+- [x] Tests en `tests/test_dominio_linea_de_tiempo.py`:
   - cada estado;
   - incidencia en reparto y vuelta a preparación;
   - cancelado con y sin historial;
   - pendiente vigente y vencido;
   - fechas nulas;
   - que el despacho solo traiga el nombre.
-- [ ] Repositorio: `pagos_de(pedido_id)`. `ver_mi_pedido` agrega `linea_de_tiempo` y no quita nada.
+- [x] Repositorio: `vistas_para_linea_de_tiempo(pedido_id)` (pagos, historial y envío recortados en el SELECT). `ver_mi_pedido` agrega `linea_de_tiempo` y no quita nada.
   - Tests de endpoint en `test_checkout.py` o `test_logistica.py`, avanzando con el staff hasta `despachado` con nota y celular:
     - el acudiente ve la línea de tiempo;
     - el JSON no contiene `actor_id`, `actor_correo`, la nota ni el celular;
     - un pedido ajeno da 404;
     - sin token, 401.
-- [ ] Contrato:
+- [x] Contrato:
   - Tipos `PasoLineaDeTiempo`, `LineaDeTiempoPedido` y `PedidoDelAcudiente = Pedido & {linea_de_tiempo}` en `comercio.ts`.
   - `miPedido` devuelve `PedidoDelAcudiente` en `origen.ts` y `cliente-http.ts`.
   - `ETIQUETA_PASO_PEDIDO`.
-- [ ] Web, componentes compartidos:
+- [x] Web, componentes compartidos:
   - Extraer `Resumen` y `Entrega` de `ResultadoPago.tsx` a `apps/web/src/components/pedido/ResumenPedido.tsx` y `EntregaPedido.tsx`, con sus estilos movidos a un módulo propio.
   - `ResultadoPago` los usa. `Entrega` muestra también la localidad y las indicaciones.
-- [ ] Web, `app/pedidos/[pedido_id]/`:
+- [x] Web, `app/pedidos/[pedido_id]/`:
   - `page.tsx` con `force-dynamic`. Sin sesión, `redirect("/ingresar?destino=/pedidos/<id>")`. Si es ajeno o no existe, `notFound()` y su propio `not-found.tsx`.
   - `LineaDeTiempoPedido.tsx` va primero. Es una `<ol>` vertical; el paso actual lleva `aria-current="step"` y los futuros se ven atenuados.
     - Las fechas se muestran en es-CO con zona America/Bogota.
@@ -276,10 +276,10 @@ En cada commit hago `git add` con rutas explícitas, nunca `.sf/`, y cierro el m
     - Si el pago está pendiente, muestra `AccionesPedido` con `vencido` tal como viene del backend, y dice si ya venció.
   - Luego van el resumen, el método de pago y la entrega.
   - Los estilos usan tokens.
-- [ ] Dashboard:
+- [x] Dashboard:
   - Las filas de "Mis pedidos" enlazan a `/pedidos/<id>` con un stretched link. `AccionesPedido` queda por encima, en `z-index`, y no se anidan botones dentro de enlaces.
   - "Ver mi pedido" e "Ir a pagar" en solicitudes, y los enlaces de `ResultadoPago`, van a `/pedidos/<id>`.
-- [ ] Verde parcial: comercio, contrato y web. Hacer el commit D.
+- [x] Verde parcial: comercio, contrato y web. Hacer el commit D.
 
 ### Docs (commit E)
 - [ ] `arquitectura/CONTRATO_API.md`:
@@ -329,6 +329,13 @@ En cada commit hago `git add` con rutas explícitas, nunca `.sf/`, y cierro el m
 - **San Nicolás queda con logo `null`.**
 - **El directorio vive en `libs/ts/tukit-contrato/datos/`** y se sirve con un Route Handler estático en cada app. Las páginas de servidor importan el JSON y las funciones puras lo reciben por parámetro.
 - **En `/empezar` el buscador sigue recibiendo solo los aliados**, como hoy. En `/cola` recibe todos los colegios de Identidad.
+- **Un pedido cancelado no tiene paso en curso.** Los pasos alcanzados quedan hechos y el resto en futuro; el bloque "cancelado" lo explica.
+- **Cancelados sin fecha.** El historial solo lo escriben los avances del staff; el webhook, el barredor y el retracto no dejan fila. Un cancelado por vencimiento o retracto sale con `fecha: null` y la UI no muestra fecha.
+- **"Pago confirmado" solo toma la fecha de un pago aprobado.** El `actualizado_en` de uno reembolsado es la fecha del reembolso.
+- **Un paso alcanzado sin fecha dice "Sin fecha registrada"**, para pedidos movidos antes de que existiera el historial.
+- **Ajeno, inexistente o id que no es UUID dan el mismo not-found**, para no confirmar que un id ajeno existe. Una sesión vencida (401) vuelve a `/ingresar?destino=/pedidos/<id>`.
+- **La fila de "Mis pedidos" es un stretched link** sobre el código del pedido; `AccionesPedido` sigue en su propia fila, fuera del enlace. El ancla `#pedido-<id>` se conserva.
+- **En el resultado del pago, "Rechazado" también lleva a `/pedidos/<id>`** (antes iba al panel), donde están las acciones de pagar y cancelar.
 
 ## Verificación
 Comandos del bloque "hecho", con su salida real. El recorrido de las seis pruebas va con el navegador; si no está disponible, con HTTP (`curl` a las rutas Next y a los servicios), y lo declaro así en el informe.

@@ -23,6 +23,7 @@ from sqlalchemy import func, insert, select, update
 from tukit_comun.bandeja import con_correlacion
 from tukit_comun.http import iso as _iso
 
+from ..dominio.linea_de_tiempo import AvanceVisto, EnvioVisto, PagoVisto
 from ..dominio.pagos import CAMPOS_FIRMA_ENTREGA, ESTADOS_PAGO_FINALES, pedido_tras_pago
 from ..modelos import Base, EstadoPago, EstadoPedido, transicion_valida
 from ..pasarela import EventoPasarela
@@ -516,6 +517,55 @@ class RepoPedidos:
             select(HISTORIAL).where(HISTORIAL.c.pedido_id == pedido_id).order_by(HISTORIAL.c.id.asc())
         )
         return [_serializar_historial(f) for f in filas]
+
+    async def vistas_para_linea_de_tiempo(
+        self, pedido_id: uuid.UUID
+    ) -> tuple[list[PagoVisto], list[AvanceVisto], EnvioVisto | None]:
+        """Pagos, historial y envio recortados a lo que ve el acudiente: el
+        historial sin actor ni nota y el envio sin el celular del repartidor."""
+        pagos = [
+            PagoVisto(estado=f.estado, actualizado_en=f.actualizado_en)
+            for f in await self.conexion.execute(
+                select(PAGO.c.estado, PAGO.c.actualizado_en)
+                .where(PAGO.c.pedido_id == pedido_id)
+                .order_by(PAGO.c.creado_en.asc())
+            )
+        ]
+        historial = [
+            AvanceVisto(
+                estado_desde=f.estado_desde,
+                estado_hacia=f.estado_hacia,
+                tipo_incidencia=f.tipo_incidencia,
+                creado_en=f.creado_en,
+            )
+            for f in await self.conexion.execute(
+                select(
+                    HISTORIAL.c.estado_desde,
+                    HISTORIAL.c.estado_hacia,
+                    HISTORIAL.c.tipo_incidencia,
+                    HISTORIAL.c.creado_en,
+                )
+                .where(HISTORIAL.c.pedido_id == pedido_id)
+                .order_by(HISTORIAL.c.id.asc())
+            )
+        ]
+        envio = (
+            await self.conexion.execute(
+                select(ENVIO.c.repartidor_nombre, ENVIO.c.entrega_estimada, ENVIO.c.entregado_en).where(
+                    ENVIO.c.pedido_id == pedido_id
+                )
+            )
+        ).one_or_none()
+        visto = (
+            EnvioVisto(
+                repartidor_nombre=envio.repartidor_nombre,
+                entrega_estimada=envio.entrega_estimada,
+                entregado_en=envio.entregado_en,
+            )
+            if envio
+            else None
+        )
+        return pagos, historial, visto
 
     async def encolar_aviso_pedido(self, pedido: Any, tipo: str, *, repartidor: str | None = None) -> None:
         """Outbox: el aviso al acudiente de un avance, en la MISMA transaccion.
