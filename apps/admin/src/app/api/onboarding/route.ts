@@ -5,8 +5,15 @@
 // directamente: la URL del backend y la bandera del origen se quedan aqui, del
 // lado del servidor, igual que en `/api/trabajos`. La percepcion de un PDF
 // tarda mas que el corte de 30 s de un `rewrite`, otra razon para el salto.
+//
+// El colegio llega como `colegio_id`, o `colegio_dane` + `colegio_nombre` (del
+// directorio de Bogota), o solo `colegio_nombre` (escrito a mano). Un DANE que
+// ya es de un colegio de Tukit se reconduce a su `colegio_id` aqui, del lado
+// del servidor (`designarColegio`).
 
+import type { ColegioDesignado } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
+import { designarColegio } from "@/lib/designar-colegio";
 import { respuestaDeError } from "@/lib/respuesta";
 
 export const dynamic = "force-dynamic";
@@ -20,26 +27,29 @@ export async function POST(peticion: Request): Promise<Response> {
     );
   }
 
-  let colegioId: string;
+  let campos: { colegio_id: unknown; colegio_dane: unknown; colegio_nombre: unknown };
   let grado: string;
   let anioLectivo: number;
   let archivo: File;
   try {
     const forma = await peticion.formData();
-    const cId = forma.get("colegio_id");
+    campos = {
+      colegio_id: forma.get("colegio_id"),
+      colegio_dane: forma.get("colegio_dane"),
+      colegio_nombre: forma.get("colegio_nombre"),
+    };
     const gr = forma.get("grado");
     const anio = forma.get("anio_lectivo");
     const adjunto = forma.get("archivo");
-    if (typeof cId !== "string" || typeof gr !== "string" || !(adjunto instanceof File)) {
+    if (typeof gr !== "string" || !(adjunto instanceof File)) {
       return respuestaDeError(
         new ErrorTukit(
           400,
           "peticion_invalida",
-          "Faltan el colegio, el grado o el archivo de la lista.",
+          "Faltan el grado o el archivo de la lista.",
         ),
       );
     }
-    colegioId = cId;
     grado = gr;
     // Año lectivo entero; el borde vuelve a validar lo que la pantalla ya pide.
     anioLectivo = Number(anio);
@@ -57,8 +67,26 @@ export async function POST(peticion: Request): Promise<Response> {
     );
   }
 
+  let colegio: ColegioDesignado | null;
   try {
-    const version = await origenDeDatos().onboarding(colegioId, grado, anioLectivo, {
+    // Solo hace falta la lista de colegios para reconducir un DANE.
+    colegio = designarColegio(
+      campos,
+      campos.colegio_dane ? await origenDeDatos().colegios() : [],
+    );
+  } catch (causa) {
+    return respuestaDeError(causa);
+  }
+  if (!colegio) {
+    return respuestaDeError(
+      new ErrorTukit(400, "colegio_requerido", "Elige el colegio de la lista o escribe su nombre.", {
+        campo: "colegio",
+      }),
+    );
+  }
+
+  try {
+    const version = await origenDeDatos().onboarding(colegio, grado, anioLectivo, {
       contenido: archivo,
       nombre: archivo.name,
     });

@@ -18,9 +18,12 @@ import base64
 
 import httpx
 import pytest
+from tukit_comun import derivar
+from tukit_comun.http import ErrorDominio
 from tukit_inteligencia import api
 from tukit_inteligencia.api import app
 from tukit_inteligencia.percepcion import ItemExtraido, PaginaLeida, Percepcion
+from tukit_inteligencia.routers.inteligencia import ColegioElegido
 
 COLEGIO = "11111111-1111-5111-8111-111111111111"
 
@@ -41,6 +44,8 @@ class CatalogoImportador:
         documento_base64: str,
         percepcion_cruda: list[dict],
         origen: str = "onboarding",
+        colegio_datos: dict | None = None,
+        contacto_referencia: str | None = None,
         **_extra: object,
     ) -> dict:
         self.llamadas.append(
@@ -52,9 +57,23 @@ class CatalogoImportador:
                 "documento_base64": documento_base64,
                 "percepcion_cruda": percepcion_cruda,
                 "origen": origen,
+                "colegio_datos": colegio_datos,
+                "contacto_referencia": contacto_referencia,
             }
         )
         return {"version_id": "ver-1", "tarea_id": "tar-1", "items": len(items), "revisada": False}
+
+
+class IdentidadDirectorio:
+    """Doble de Identidad que solo responde `/v1/directorio/{dane}`."""
+
+    def __init__(self) -> None:
+        self.directorio: dict[str, dict] = {}
+        self.consultas: list[str] = []
+
+    async def datos_directorio(self, dane: str) -> dict | None:
+        self.consultas.append(dane)
+        return self.directorio.get(dane)
 
 
 @pytest.fixture()
@@ -63,9 +82,15 @@ def catalogo():
 
 
 @pytest.fixture()
-async def cliente(motor, catalogo, monkeypatch):
+def identidad():
+    return IdentidadDirectorio()
+
+
+@pytest.fixture()
+async def cliente(motor, catalogo, identidad, monkeypatch):
     app.state.motor = motor
     app.state.catalogo = catalogo
+    app.state.identidad = identidad
 
     # Los dos puertos de percepcion se sustituyen por dobles: una pagina con
     # un grado y dos items, uno de ellos sin cantidad.
@@ -92,6 +117,8 @@ async def cliente(motor, catalogo, monkeypatch):
 def _multipart(contenido: bytes = b"%PDF-falso", **campos):
     datos = {"colegio_id": COLEGIO, "grado": "Cuarto", "anio_lectivo": "2026"}
     datos.update({k: str(v) for k, v in campos.items()})
+    # `colegio_id=None` lo quita: el admin designo el colegio de otra forma.
+    datos = {k: v for k, v in datos.items() if v != "None"}
     return {"data": datos, "files": {"archivo": ("lista.pdf", contenido, "application/pdf")}}
 
 
@@ -170,3 +197,102 @@ class TestOnboardingRechazado:
         assert respuesta.status_code == 422
         assert respuesta.json()["error"] == "archivo_vacio"
         assert catalogo.llamadas == []
+
+
+DANE_SALITRE = "311001093652"
+
+
+class TestOnboardingDeUnColegioQueTukitNoTiene:
+    """El staff sube desde la cola la lista de un colegio que Tukit aun no
+    conoce: elegido del directorio de Bogota (DANE + nombre) o escrito a mano.
+    Se resuelve con la MISMA regla de la subida del acudiente (`ColegioElegido`),
+    y los datos del colegio viajan al catalogo para que la cola muestre su nombre
+    y la aprobacion lo cree en Identidad."""
+
+    async def test_del_directorio_deriva_el_id_del_dane_y_manda_sus_datos(self, cliente, catalogo, identidad):
+        identidad.directorio[DANE_SALITRE] = {
+            "dane": DANE_SALITRE,
+            "nombre": "COLEGIO AGUSTINIANO CIUDAD SALITRE",
+            "direccion": "CL 23 C # 69 B - 01",
+            "sitio_web": "www.agustinianosalitre.edu.co",
+        }
+        respuesta = await cliente.post(
+            "/v1/admin/onboarding",
+            **_multipart(colegio_id=None, colegio_dane=DANE_SALITRE, colegio_nombre="Agustiniano Salitre"),
+        )
+
+        assert respuesta.status_code == 200
+        llamada = catalogo.llamadas[0]
+        assert llamada["colegio_id"] == str(derivar("colegio", DANE_SALITRE))
+        # El nombre elegido manda; el directorio solo tapa huecos.
+        assert llamada["colegio_datos"] == {
+            "dane": DANE_SALITRE,
+            "nombre": "Agustiniano Salitre",
+            "direccion": "CL 23 C # 69 B - 01",
+            "sitio_web": "www.agustinianosalitre.edu.co",
+        }
+        assert identidad.consultas == [DANE_SALITRE]
+        # Es una subida del staff: no hay acudiente esperando ni cambia el origen.
+        assert llamada["origen"] == "onboarding"
+        assert llamada["contacto_referencia"] is None
+
+    async def test_escrito_a_mano_deriva_el_id_del_nombre_normalizado(self, cliente, catalogo, identidad):
+        respuesta = await cliente.post(
+            "/v1/admin/onboarding", **_multipart(colegio_id=None, colegio_nombre="  Gimnasio   del Bosque ")
+        )
+
+        assert respuesta.status_code == 200
+        llamada = catalogo.llamadas[0]
+        assert llamada["colegio_id"] == str(derivar("colegio", "libre", "gimnasio del bosque"))
+        assert llamada["colegio_datos"] == {"dane": None, "nombre": "Gimnasio del Bosque"}
+        assert identidad.consultas == []
+
+    async def test_con_colegio_id_no_viajan_datos_de_colegio(self, cliente, catalogo, identidad):
+        await cliente.post("/v1/admin/onboarding", **_multipart(colegio_dane=DANE_SALITRE))
+
+        llamada = catalogo.llamadas[0]
+        # Un colegio conocido gana sobre cualquier otra designacion: igual que hoy.
+        assert llamada["colegio_id"] == COLEGIO
+        assert llamada["colegio_datos"] is None
+        assert identidad.consultas == []
+
+    async def test_sin_colegio_es_422_y_no_toca_el_catalogo(self, cliente, catalogo):
+        respuesta = await cliente.post("/v1/admin/onboarding", **_multipart(colegio_id=None))
+
+        assert respuesta.status_code == 422
+        assert respuesta.json()["error"] == "colegio_requerido"
+        assert catalogo.llamadas == []
+
+    async def test_un_nombre_demasiado_largo_es_422(self, cliente, catalogo):
+        respuesta = await cliente.post(
+            "/v1/admin/onboarding", **_multipart(colegio_id=None, colegio_nombre="x" * 300)
+        )
+
+        assert respuesta.status_code == 422
+        assert catalogo.llamadas == []
+
+
+class TestColegioElegido:
+    """La regla que comparten la subida del acudiente y el onboarding del staff."""
+
+    def test_el_colegio_id_gana(self):
+        elegido = ColegioElegido(colegio_id=COLEGIO, colegio_dane=DANE_SALITRE, colegio_nombre="X")
+        assert elegido.resolver_colegio() == (COLEGIO, None)
+
+    def test_el_dane_deriva_el_id_y_lleva_el_nombre(self):
+        elegido = ColegioElegido(colegio_dane=DANE_SALITRE, colegio_nombre=" Salitre ")
+        assert elegido.resolver_colegio() == (
+            str(derivar("colegio", DANE_SALITRE)),
+            {"dane": DANE_SALITRE, "nombre": "Salitre"},
+        )
+
+    def test_el_dane_sin_nombre_deja_el_nombre_vacio(self):
+        assert ColegioElegido(colegio_dane=DANE_SALITRE).resolver_colegio()[1] == {
+            "dane": DANE_SALITRE,
+            "nombre": None,
+        }
+
+    def test_sin_nada_es_colegio_requerido(self):
+        with pytest.raises(ErrorDominio) as error:
+            ColegioElegido(colegio_nombre="   ").resolver_colegio()
+        assert error.value.error == "colegio_requerido"

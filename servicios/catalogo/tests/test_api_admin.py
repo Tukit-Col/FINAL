@@ -260,6 +260,26 @@ class TestListarVersionesParaRevisar:
         # Y el nombre del colegio nuevo viaja para que la cola no muestre el id.
         assert subida["colegio_nombre"] == "Colegio San Ejemplo"
 
+    async def test_el_onboarding_de_un_colegio_nuevo_entra_con_su_nombre_y_sin_contacto(self, cliente):
+        # El staff sube desde la cola la lista de un colegio del directorio que
+        # Tukit no tiene: `origen` onboarding, sin acudiente detras, con
+        # `colegio_datos`. La cola lo muestra por su nombre y la revision trae
+        # los datos para `CompletarColegio`.
+        colegio_datos = {"dane": "311001105731", "nombre": "ACADEMIA CENTRAL DE SISTEMAS"}
+        vid = (
+            await cliente.post(
+                "/v1/admin/listas/importar",
+                json=_cuerpo_importar(origen="onboarding", colegio_datos=colegio_datos),
+            )
+        ).json()["version_id"]
+        cuerpo = (await cliente.get("/v1/admin/listas?revisada=false")).json()
+        subida = next(v for v in cuerpo["listas"] if v["version_id"] == vid)
+        assert subida["procedencia"] == "onboarding"
+        assert subida["tiene_contacto"] is False
+        assert subida["colegio_nombre"] == "ACADEMIA CENTRAL DE SISTEMAS"
+        revision = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()
+        assert revision["colegio_datos"] == colegio_datos
+
     async def test_un_origen_desconocido_se_rechaza(self, cliente):
         respuesta = await cliente.post(
             "/v1/admin/listas/importar", json=_cuerpo_importar(origen="cualquier_cosa")

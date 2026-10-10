@@ -110,39 +110,41 @@ En cada commit hago `git add` con rutas explícitas, nunca `.sf/`, y cierro el m
 - [x] Verde parcial: contrato, web, `make prueba` de identidad, `npm run lint` y typecheck. Hacer el commit A.
 
 ### 4. Subir lista de cualquier colegio desde /cola (commit B)
-- [ ] Inteligencia, en `routers/inteligencia.py`:
+- [x] Inteligencia, en `routers/inteligencia.py`:
   - Extraer de `HijoSubida` la base `ColegioElegido(BaseModel)`. Lleva `colegio_id`, `colegio_dane` y `colegio_nombre`, con los mismos límites de hoy, y el método `resolver_colegio()`, movido sin copiarlo. `HijoSubida` hereda de ella.
   - Extraer el relleno con el DUEB a `async def _completar_con_directorio(colegio_datos)`, y que `subir_listas` lo use.
-- [ ] `POST /v1/admin/onboarding`:
+- [x] `POST /v1/admin/onboarding`:
   - Acepta `colegio_id`, o `colegio_dane` + `colegio_nombre`, o solo `colegio_nombre`. Cualquier campo de más se ignora.
-  - Sin colegio responde 422 `colegio_requerido`, campo `colegio`. Un largo inválido responde 422.
+  - Sin colegio responde 422 `colegio_requerido`, campo `colegio`. Un largo inválido responde 422 (`colegio_invalido`).
+  - Decisión: la designación se resuelve ANTES de percibir, para no gastar una lectura del PDF en una subida sin colegio. En la ruta del admin, un DANE sin nombre se rechaza (400 `colegio_requerido`), porque la cola no tendría cómo mostrarlo.
   - Resuelve con `ColegioElegido.resolver_colegio()`, completa con `datos_directorio(dane)` y le pasa `colegio_datos` a `importar_lista`. `origen` sigue siendo `onboarding`.
   - Si solo llega `colegio_id`, el comportamiento es idéntico al de hoy.
-- [ ] Tests en `servicios/inteligencia/tests/test_onboarding.py`, con el doble de catálogo y un `IdentidadDoble` con directorio:
+- [x] Tests en `servicios/inteligencia/tests/test_onboarding.py`, con el doble de catálogo y un `IdentidadDoble` con directorio:
   - DANE: deriva el id y manda `colegio_datos` con los datos del DUEB.
   - Solo nombre: id libre y nombre normalizado.
   - Solo `colegio_id`: sin `colegio_datos`.
   - Sin colegio: 422.
   - Tests unitarios de `resolver_colegio`.
-- [ ] Catálogo e Identidad: completar los tests que falten para cubrir la cadena "onboarding sin contacto y con `colegio_datos`".
+- [x] Catálogo e Identidad: completar los tests que falten para cubrir la cadena "onboarding sin contacto y con `colegio_datos`".
   - `test_api_admin.py`: importar con `origen=onboarding` y `colegio_datos`, que `colegio_nombre` aparezca en la revisión, cerrar, y que salga `colegio_verificado` con `contacto_referencia=None`.
   - `test_poller.py`: con esa carga, se crea el colegio con el nombre elegido, su DANE y la "Sede principal".
   - Se agrega solo lo que no esté ya cubierto.
-- [ ] Contrato:
+  - Hecho: el cierre con `colegio_verificado` sin contacto y el alta en el poller ya estaban cubiertos; se agregó en `test_api_admin.py` que el onboarding de un colegio nuevo entra a la cola con su nombre, sin contacto, y la revisión trae `colegio_datos`.
+- [x] Contrato:
   - Nuevo tipo `ColegioDesignado = {colegio_id} | {colegio_dane, colegio_nombre} | {colegio_nombre}`.
   - `OrigenDatos.onboarding(colegio: string | ColegioDesignado, …)`. Un string se sigue tratando como `colegio_id`, así que el cambio es compatible.
   - `cliente-http.ts` arma el `FormData` según el tipo.
-- [ ] Ruta `apps/admin/src/app/api/onboarding/route.ts`:
+- [x] Ruta `apps/admin/src/app/api/onboarding/route.ts`:
   - Lee las tres formas y valida que llegue al menos una.
   - Como defensa, reconduce del lado del servidor: si llega `colegio_dane` y un colegio existente tiene ese DANE, manda su `colegio_id`. El helper es puro, en `apps/admin/src/lib/designar-colegio.ts`, con test en `apps/admin/test/`.
-- [ ] UI, nuevo `apps/admin/src/components/BuscadorColegioOnboarding.tsx`, que reemplaza el `<select>` de `FormularioOnboarding`:
+- [x] UI, nuevo `apps/admin/src/components/BuscadorColegioOnboarding.tsx`, que reemplaza el `<select>` de `FormularioOnboarding`:
   - Combobox accesible. Carga perezosa de `/directorio-colegios.json`, la ruta del admin.
   - Mezcla todos los colegios de Identidad, marcando "Aliado" o "En Tukit", y luego el directorio con nombre, localidad, DANE y logo.
   - Al final, "No lo encuentro: usar '…' tal cual".
   - Usa `buscarColegios` del contrato.
   - Muestra el elegido con "Cambiar". Los estilos usan tokens, reutilizando `Onboarding.module.css`.
   - `api-onboarding.ts` manda la designación.
-- [ ] Verde parcial: inteligencia, catálogo, identidad, contrato y admin. Hacer el commit B.
+- [x] Verde parcial: inteligencia, catálogo, identidad, contrato y admin. Hacer el commit B.
 
 ### 1. Google Places en el checkout (commit C)
 - [ ] Contrato, nuevo `src/localidades.ts`, autocontenido:

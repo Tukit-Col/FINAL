@@ -50,6 +50,7 @@ import type {
   CandidatoTienda,
   Catalogo,
   Colegio,
+  ColegioDesignado,
   ColegioDetalle,
   ColegioEditable,
   ColegioNuevoEditable,
@@ -394,9 +395,10 @@ export interface OrigenDatos {
   // se acaba de crear. Los dos GET sirven la evidencia de esa version:
   // `documento` el PDF crudo (region 1), `percepcion` lo que el modelo ley
   // por pagina mas lo itemizado (region 2). Las rutas de edicion/aprobacion de
-  // P1 NO viven aqui: son un eslabon aparte.
+  // P1 NO viven aqui: son un eslabon aparte. El colegio va como
+  // `ColegioDesignado`; un string se sigue leyendo como `colegio_id`.
   onboarding(
-    colegio_id: string,
+    colegio: string | ColegioDesignado,
     grado: string,
     anio_lectivo: number,
     archivo: { contenido: Blob; nombre: string },

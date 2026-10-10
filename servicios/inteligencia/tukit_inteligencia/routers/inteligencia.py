@@ -19,7 +19,7 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, Query, Request
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field, ValidationError
 from tukit_comun import derivar
 from tukit_comun.http import ErrorDominio
 
@@ -563,26 +563,24 @@ def _items_desde_percepcion(percepcion: Percepcion) -> tuple[list[dict[str, Any]
     return items, percepcion_cruda
 
 
-class HijoSubida(BaseModel):
-    """Un hijo de una subida de listas: a que (colegio, grado) va su PDF.
+class ColegioElegido(BaseModel):
+    """A que colegio va una lista subida, tal como lo designo quien la sube.
 
-    El colegio se designa de UNA de tres formas, y el backend deriva de ellas un
-    `colegio_id` estable (`colegio_resuelto`):
-      • `colegio_id`: un colegio ALIADO ya conocido (ruta "lista_oficial").
-      • `colegio_dane` (+ `colegio_nombre`): elegido del directorio de Bogota al
-        subir el archivo; el colegio aun no existe en Tukit y nacera cuando un
-        administrador apruebe. El id se deriva del DANE con el contrato compartido.
+    La comparten la subida del acudiente (`HijoSubida`) y el onboarding del staff
+    desde la cola: las dos puertas designan el colegio igual y derivan el mismo
+    `colegio_id`. Se designa de UNA de tres formas:
+      • `colegio_id`: un colegio que Tukit ya conoce (ruta "lista_oficial").
+      • `colegio_dane` (+ `colegio_nombre`): elegido del directorio de Bogota; el
+        colegio aun no existe en Tukit y nacera cuando un administrador apruebe.
+        El id se deriva del DANE con el contrato compartido.
       • solo `colegio_nombre`: escrito a mano porque no estaba en el directorio;
-        el id se deriva del nombre normalizado para que dos acudientes que
-        escriban el mismo colegio converjan a la misma version.
+        el id se deriva del nombre normalizado para que dos subidas del mismo
+        colegio converjan a la misma version.
     """
 
-    referencia: str = Field(min_length=1, max_length=64)
     colegio_id: str | None = Field(default=None, max_length=64)
     colegio_dane: str | None = Field(default=None, max_length=32)
     colegio_nombre: str | None = Field(default=None, max_length=256)
-    grado: str = Field(min_length=1, max_length=32)
-    anio_lectivo: int | None = Field(default=None, ge=2020, le=2100)
 
     def resolver_colegio(self) -> tuple[str, dict[str, Any] | None]:
         """El `colegio_id` estable y, si el colegio aun no existe en Tukit, los
@@ -611,6 +609,28 @@ class HijoSubida(BaseModel):
             estado=422,
             campo="colegio",
         )
+
+
+class HijoSubida(ColegioElegido):
+    """Un hijo de una subida de listas: a que (colegio, grado) va su PDF. El
+    colegio se designa como en `ColegioElegido`."""
+
+    referencia: str = Field(min_length=1, max_length=64)
+    grado: str = Field(min_length=1, max_length=32)
+    anio_lectivo: int | None = Field(default=None, ge=2020, le=2100)
+
+
+async def _completar_con_directorio(colegio_datos: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Colegio nuevo elegido del directorio: se pre-llena su perfil (direccion,
+    contacto, sitio) con el DUEB para que la cola no muestre un bloque vacio.
+    El nombre/dane de la subida mandan; el directorio solo tapa huecos. Sin DANE
+    (escrito a mano) o con Identidad caida, quedan los datos tal cual."""
+    if not (colegio_datos and colegio_datos.get("dane")):
+        return colegio_datos
+    del_dueb = await api._identidad().datos_directorio(colegio_datos["dane"])
+    if not del_dueb:
+        return colegio_datos
+    return {**del_dueb, **{k: v for k, v in colegio_datos.items() if v}}
 
 
 @router.post(
@@ -768,13 +788,7 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
     anio_por_omision = 2026
     for hijo, grado, pdf, percepcion in percibidos:
         colegio_id, colegio_datos = hijo.resolver_colegio()
-        # Colegio nuevo elegido del directorio: se pre-llena su perfil (direccion,
-        # contacto, sitio) con el DUEB para que la cola no muestre un bloque vacio.
-        # El nombre/dane de la subida mandan; el directorio solo tapa huecos.
-        if colegio_datos and colegio_datos.get("dane"):
-            del_dueb = await api._identidad().datos_directorio(colegio_datos["dane"])
-            if del_dueb:
-                colegio_datos = {**del_dueb, **{k: v for k, v in colegio_datos.items() if v}}
+        colegio_datos = await _completar_con_directorio(colegio_datos)
         anio = hijo.anio_lectivo or anio_por_omision
         clave = (f"{colegio_id}|{grado}", anio)
         version_id = por_destino.get(clave)
@@ -807,6 +821,14 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
 async def onboarding(peticion: Request) -> dict[str, Any]:
     """De un PDF a una lista en el catalogo, pasando por la percepcion.
 
+    El colegio se designa como en la subida del acudiente (`ColegioElegido`):
+    `colegio_id` de uno que Tukit conoce, `colegio_dane` + `colegio_nombre` del
+    directorio de Bogota, o solo `colegio_nombre` escrito a mano. En los dos
+    ultimos el colegio aun no existe: sus datos viajan al catalogo
+    (`colegio_datos`) para que la cola muestre su nombre y la aprobacion lo cree
+    en Identidad. Sin `colegio_id` no hay acudiente esperando: el contacto va
+    vacio y el origen sigue siendo `onboarding`.
+
     La percepcion es la unica puerta: si rechaza el archivo (varios grados,
     pagina a medias, ilegible) no se importa nada y se responde 422 con el
     codigo del rechazo. Nunca se le devuelve al cliente el contenido que
@@ -819,11 +841,23 @@ async def onboarding(peticion: Request) -> dict[str, Any]:
         raise ErrorDominio("multipart_invalido", "Sube la lista como multipart/form-data.", estado=422)
     campos, archivos = _leer_multipart(await peticion.body(), tipo)
 
-    for requerido in ("colegio_id", "grado", "anio_lectivo"):
+    for requerido in ("grado", "anio_lectivo"):
         if requerido not in campos:
             raise ErrorDominio(
                 "campo_faltante", "Falta un campo del formulario de onboarding.", estado=422, campo=requerido
             )
+    try:
+        elegido = ColegioElegido(
+            colegio_id=campos.get("colegio_id") or None,
+            colegio_dane=campos.get("colegio_dane") or None,
+            colegio_nombre=campos.get("colegio_nombre") or None,
+        )
+    except ValidationError as error:
+        raise ErrorDominio(
+            "colegio_invalido", "El colegio de la lista no es valido.", estado=422, campo="colegio"
+        ) from error
+    # Antes de percibir: sin colegio no se gasta una lectura del PDF.
+    colegio_id, colegio_datos = elegido.resolver_colegio()
     archivo = archivos.get("archivo")
     if archivo is None:
         raise ErrorDominio(
@@ -848,12 +882,13 @@ async def onboarding(peticion: Request) -> dict[str, Any]:
     items, percepcion_cruda = _items_desde_percepcion(percepcion)
 
     respuesta = await api._catalogo().importar_lista(
-        colegio_id=campos["colegio_id"],
+        colegio_id=colegio_id,
         grado=percepcion.grados[0] if percepcion.grados else campos["grado"],
         anio_lectivo=anio_lectivo,
         items=items,
         documento_base64=base64.b64encode(archivo).decode(),
         percepcion_cruda=percepcion_cruda,
+        colegio_datos=await _completar_con_directorio(colegio_datos),
     )
     return {
         "version_id": respuesta["version_id"],

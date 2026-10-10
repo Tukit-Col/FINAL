@@ -91,6 +91,148 @@
   color: var(--color-danger);
 }
 
+.pistaCampo {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* ------------------------------------------- buscador del colegio (la cola) */
+
+.buscadorColegio {
+  position: relative;
+}
+
+.buscadorColegio input {
+  width: 100%;
+  padding-left: calc(var(--espacio-3) + 22px);
+}
+
+.iconoBuscar {
+  position: absolute;
+  top: 50%;
+  left: var(--espacio-3);
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.listaColegios {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 360px;
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--espacio-1);
+  list-style: none;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.listaColegios[hidden] {
+  display: none;
+}
+
+.opcionColegio,
+.colegioElegido {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-3);
+  padding: var(--espacio-2) var(--espacio-3);
+  border-radius: var(--radius-sm);
+}
+
+.opcionColegio {
+  cursor: pointer;
+}
+
+.opcionActiva {
+  background: var(--color-surface-2);
+}
+
+.opcionEscrita {
+  border-top: 1px solid var(--color-border-light);
+  color: var(--color-primary);
+}
+
+.colegioElegido {
+  border: 1px solid var(--color-primary);
+  background: var(--color-surface);
+}
+
+.logoColegio {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--color-neutro-bg);
+  color: var(--color-text-secondary);
+}
+
+.logoImagen {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.logoIniciales {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.opcionTexto {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.opcionNombre {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.opcionEscrita .opcionNombre {
+  color: var(--color-primary);
+}
+
+.opcionMeta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.marcaColegio {
+  flex: none;
+  padding: 2px var(--espacio-2);
+  border: 1px solid var(--color-info-border);
+  border-radius: var(--radius-full);
+  background: var(--color-info-bg);
+  color: var(--color-info);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.cambiarColegio {
+  flex: none;
+  padding: var(--espacio-1) var(--espacio-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 /* -------------------------------------------------------------- zona archivo */
 
 .zonaArchivo {
