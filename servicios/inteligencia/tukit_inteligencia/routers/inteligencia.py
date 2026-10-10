@@ -864,7 +864,7 @@ async def onboarding(peticion: Request) -> dict[str, Any]:
         )
     except ValidationError as error:
         raise ErrorDominio(
-            "colegio_invalido", "El colegio de la lista no es valido.", estado=422, campo="colegio"
+            "colegio_invalido", "El colegio de la lista no es válido.", estado=422, campo="colegio"
         ) from error
     # Antes de percibir: sin colegio no se gasta una lectura del PDF.
     colegio_id, colegio_datos = elegido.resolver_colegio()

@@ -149,13 +149,17 @@
   inset: 0;
 }
 
-.enlacePedido:focus-visible {
-  outline: none;
-}
+/* El foco se dibuja en la fila entera; sin `:has()` queda el anillo del
+   enlace, que es el de siempre. */
+@supports selector(:has(*)) {
+  .enlacePedido:focus-visible {
+    outline: none;
+  }
 
-.filaPedido:has(.enlacePedido:focus-visible) {
-  outline: 2px solid var(--color-primary);
-  outline-offset: -2px;
+  .filaPedido:has(.enlacePedido:focus-visible) {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+  }
 }
 
 /* Solo para lectores de pantalla. */

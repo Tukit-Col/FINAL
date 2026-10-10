@@ -287,7 +287,9 @@ function Checkout({
     setDatos((d) => ({ ...d, direccion, google_place_id: "" }));
 
   // Elegir una sugerencia fija la direccion de Google y pre-llena lo que se
-  // pudo derivar; lo que Google no trajo conserva lo que ya estaba escrito.
+  // pudo derivar. Ciudad y departamento que Google no trajo conservan lo
+  // escrito; la localidad siempre se reemplaza (la anterior era de otra
+  // direccion) y, si no se pudo derivar, queda vacia para elegirla.
   const elegirLugar = (lugar: LugarElegido) =>
     setDatos((d) => ({
       ...d,

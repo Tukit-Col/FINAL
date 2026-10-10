@@ -18,7 +18,10 @@ export default function ResumenPedido({ pedido, visibles }: { pedido: Pedido; vi
   return (
     <section className={styles.tarjeta}>
       <h2 className={styles.subtitulo}>
-        Tu pedido <span className={styles.contador}>{productos.length} productos</span>
+        Tu pedido{" "}
+        <span className={styles.contador}>
+          {productos.length} {productos.length === 1 ? "producto" : "productos"}
+        </span>
       </h2>
       <ul className={styles.productos}>
         {mostrados.map((p) => (
@@ -35,7 +38,7 @@ export default function ResumenPedido({ pedido, visibles }: { pedido: Pedido; vi
       </ul>
       {ocultos > 0 && (
         <button type="button" className={styles.verTodos} onClick={() => setTodos(true)}>
-          Ver los {ocultos} productos restantes
+          {ocultos === 1 ? "Ver el producto restante" : `Ver los ${ocultos} productos restantes`}
         </button>
       )}
       <div className={styles.totalLinea}>

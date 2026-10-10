@@ -56,14 +56,16 @@ export default function LineaDeTiempoPedido({
         <div className={`${styles.desvio} ${styles.desvioIncidencia}`}>
           <AlertTriangle size={20} aria-hidden className={styles.desvioIcono} />
           <p>
-            <strong>Tuvimos un inconveniente: {nombreIncidencia(especial.tipo_incidencia).toLowerCase()}.</strong>
+            <strong>Tuvimos un inconveniente con la entrega.</strong> Motivo:{" "}
+            {nombreIncidencia(especial.tipo_incidencia)}. Te contactaremos para resolverlo.
+            {/* La hora en es-CO ya termina en "p. m.": la fecha cierra la frase. */}
             {especial.fecha && (
               <>
                 {" "}
-                <time dateTime={especial.fecha}>{fechaHoraBogota(especial.fecha)}</time>.
+                Lo registramos el{" "}
+                <time dateTime={especial.fecha}>{fechaHoraBogota(especial.fecha)}</time>
               </>
-            )}{" "}
-            Te contactaremos para resolverlo.
+            )}
           </p>
         </div>
       )}
@@ -75,7 +77,8 @@ export default function LineaDeTiempoPedido({
             {especial.fecha && (
               <>
                 {" "}
-                <time dateTime={especial.fecha}>{fechaHoraBogota(especial.fecha)}</time>.
+                Lo cancelamos el{" "}
+                <time dateTime={especial.fecha}>{fechaHoraBogota(especial.fecha)}</time>
               </>
             )}
           </p>
@@ -123,7 +126,7 @@ export default function LineaDeTiempoPedido({
           {!pendiente.vencido && (
             <p className={styles.tenue}>
               Puedes pagarlo hasta el{" "}
-              <time dateTime={pendiente.vence_en}>{fechaHoraBogota(pendiente.vence_en)}</time>.
+              <time dateTime={pendiente.vence_en}>{fechaHoraBogota(pendiente.vence_en)}</time>
             </p>
           )}
           <AccionesPedido pedidoId={pedidoId} trabajoId={trabajoId} vencido={pendiente.vencido} />

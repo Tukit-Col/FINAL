@@ -41,10 +41,9 @@ interface Props {
   // Texto escrito a mano: quien lo recibe descarta el `place_id` anterior.
   onEscribir: (texto: string) => void;
   onElegir: (lugar: LugarElegido) => void;
-  campoRef?: React.Ref<HTMLInputElement>;
 }
 
-export default function CampoDireccion({ llave, valor, onEscribir, onElegir, campoRef }: Props) {
+export default function CampoDireccion({ llave, valor, onEscribir, onElegir }: Props) {
   const idBase = useId();
   const idLista = `${idBase}-lista`;
   const [places, setPlaces] = useState<google.maps.PlacesLibrary | null>(null);
@@ -128,13 +127,16 @@ export default function CampoDireccion({ llave, valor, onEscribir, onElegir, cam
   async function elegir(sugerencia: Sugerencia) {
     setAbierta(false);
     setSugerencias([]);
-    pedidoRef.current++;
+    // El mismo contador que descarta sugerencias viejas: si el acudiente sigue
+    // escribiendo mientras llegan los detalles, lo que escribio gana.
+    const numero = ++pedidoRef.current;
     const textoSugerido = [sugerencia.principal, sugerencia.secundario].filter(Boolean).join(", ");
     const lugar = sugerencia.prediccion.toPlace();
     // El `fetchFields` cierra la sesión: la siguiente búsqueda estrena token.
     tokenRef.current = null;
     try {
       await lugar.fetchFields({ fields: ["formattedAddress", "addressComponents"] });
+      if (numero !== pedidoRef.current) return;
       onElegir({
         direccion: lugar.formattedAddress || textoSugerido,
         google_place_id: lugar.id || null,
@@ -143,7 +145,7 @@ export default function CampoDireccion({ llave, valor, onEscribir, onElegir, cam
     } catch {
       // Sin detalles no hay nada que pre-llenar: queda el texto sugerido y el
       // acudiente completa ciudad y localidad a mano.
-      onEscribir(textoSugerido);
+      if (numero === pedidoRef.current) onEscribir(textoSugerido);
     }
   }
 
@@ -172,7 +174,6 @@ export default function CampoDireccion({ llave, valor, onEscribir, onElegir, cam
           formar parte del nombre accesible del campo. */}
       <label htmlFor={`${idBase}-campo`}>Dirección</label>
       <input
-        ref={campoRef}
         id={`${idBase}-campo`}
         value={valor}
         required
