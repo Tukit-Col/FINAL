@@ -297,15 +297,15 @@ En cada commit hago `git add` con rutas explícitas, nunca `.sf/`, y cierro el m
 - [x] Hacer el commit E.
 
 ### Verificación final
-- [ ] Revisar `git diff feature/integracion-total...HEAD` buscando:
+- [x] Revisar `git diff feature/integracion-total...HEAD` buscando:
   - datos de staff que lleguen al acudiente;
   - URLs de backend en el navegador;
   - campos de Places que no sean Essentials;
   - `console.log` o código muerto;
   - textos sin tilde;
   - estilos sin tokens.
-- [ ] Correr todos los comandos de "hecho": `make fronteras`, `make prueba`, ruff check y format, typecheck (antes borro `.next`), lint, los tests de contrato, web y admin, `bd-migrar`, `bd-deriva` y `make humo`.
-- [ ] Recorrido real: `make arriba`, `npm run dev:web` y `npm run dev:admin`, con el navegador o por HTTP.
+- [x] Correr todos los comandos de "hecho": `make fronteras`, `make prueba`, ruff check y format, typecheck (antes borro `.next`), lint, los tests de contrato, web y admin, `bd-migrar`, `bd-deriva` y `make humo`.
+- [x] Recorrido real: `make arriba`, `npm run dev:web` y `npm run dev:admin`, con el navegador o por HTTP.
   - (1) Checkout manual sin llave hasta `/pago/simulado`, por la ruta rápida de `/empezar` con CACS.
   - (2) `/dashboard` lleva a `/pedidos/<id>`.
   - (3) Avanzar desde `/logistica` cambia la línea de tiempo.
@@ -313,7 +313,7 @@ En cada commit hago `git add` con rutas explícitas, nunca `.sf/`, y cierro el m
   - (5) Subir desde `/cola` una lista de un colegio del directorio que no exista, con una imagen inventada de un solo grado. Entra con su nombre y aparece `CompletarColegio`. Luego "Borrar versión", sin aprobar.
   - (6) Logo en una página Agustiniano.
   - Al final, `make abajo`, apago los dev servers y confirmo que `git status` queda limpio salvo `.sf/`.
-- [ ] Escribir el "Informe final" en el plan y como último mensaje.
+- [x] Escribir el "Informe final" en el plan y como último mensaje.
 
 ## Decisiones tomadas solas
 - **La localidad se guarda con su nombre canónico visible.** El backend solo valida el largo: un checkout viejo tiene que seguir cerrando, y la regla de que sea obligatoria en Bogotá vive en el frontend.
@@ -339,3 +339,102 @@ En cada commit hago `git add` con rutas explícitas, nunca `.sf/`, y cierro el m
 
 ## Verificación
 Comandos del bloque "hecho", con su salida real. El recorrido de las seis pruebas va con el navegador; si no está disponible, con HTTP (`curl` a las rutas Next y a los servicios), y lo declaro así en el informe.
+
+## Informe final
+
+### Los puntos
+- **5. Directorio único con logos.** Hecho. El directorio vive en `@tukit/contrato` con `imageURL`, cada app lo sirve en `/directorio-colegios.json`, y los logos se ven en `/empezar` y en el admin (`/colegios` y la cabecera de cada colegio). El logo de Identidad gana; si no hay, se usa el `imageURL` por DANE, y si tampoco, las iniciales.
+- **4. Subir desde `/cola` una lista de cualquier colegio de Bogotá.** Hecho. El onboarding acepta `colegio_id`, DANE + nombre, o solo nombre. Si el DANE ya es de un colegio, reconduce a él. El colegio nuevo nace al aprobar la lista.
+- **1. Google Places en el checkout.** Hecho. El checkout tiene autocompletado (solo campos Essentials, con sesión), localidad obligatoria en Bogotá, indicaciones y departamento, y se guarda el `place_id`. Sin llave, o si Google falla, quedan los campos manuales. El admin ve la localidad y el enlace "Ver en Google Maps".
+- **2. Página del pedido.** Hecho. `/pedidos/[pedido_id]` muestra la línea de tiempo calculada en Comercio, sin datos de staff, junto con el resumen, el pago y la entrega. "Mis pedidos", las solicitudes y el resultado del pago llevan ahí.
+
+### Verificación (salida real)
+| Comando | Línea base | Final |
+|---|---|---|
+| `make fronteras` | 58 pass / 1 skip | 58 pass / 1 skip |
+| `make prueba` | 1507 | 1557 (+50) |
+| `ruff check` / `ruff format --check` | — | sin errores / 300 archivos ya formateados |
+| `npm run typecheck` (tras borrar `.next`) | — | exit 0 |
+| `npm run lint` | verde | verde |
+| Tests de contrato | 9 | 31 |
+| Tests de web | 12 | 16 |
+| Tests de admin | 17 | 23 |
+| `make bd-migrar` (`TUKIT_DB_HOST=127.0.0.1`) | — | las 5 historias al día, índices de catálogo aplicados |
+| `make bd-deriva` | — | identidad, catálogo y comercio sin deriva. Hay deriva ajena en inteligencia (3) y en operación (6), que no se tocó |
+| `make humo` | — | 19/19 en verde |
+
+En corridas sueltas, Comercio dio 228 y Inteligencia 328.
+
+**Recorrido real (por HTTP, con curl, porque el navegador disponible solo abre https)**
+1. Ruta rápida con CACS, Quinto 2026 y perfil Ahorrador: trabajo `ba56ec79…`, por $546.335. La llave de Maps llega como `null`. El checkout manual (Calle 26 # 69-76, Fontibón, "Torre 2, apto 503") creó el pedido `546f8dfa…`. Repetir la misma orden reutilizó el pedido pendiente. `/pago/simulado` respondió 200; al aprobar y sincronizar, el pedido quedó pagado.
+2. `/dashboard` tiene 2 enlaces a `/pedidos/<id>`. La página muestra la línea de tiempo con fechas es-CO, 30 productos, PSE, la entrega con las indicaciones y "Fontibón, Bogotá". Sin sesión, 307 a `/ingresar?destino=…`. Un id inexistente, uno que no es UUID o un pedido de otra cuenta dan 404 "No encontramos ese pedido".
+3. Desde el admin avancé el pedido: en preparación, despachado (Luis Gómez, entrega el 12 de octubre), en reparto e incidencia "no había nadie". La línea de tiempo siguió cada paso y no filtró el celular, las notas, `actor_*` ni el correo del staff.
+4. En `/logistica/<id>` se ven la dirección, las indicaciones, la localidad, la ciudad y el enlace de Maps (`query=…`, sin `place_id` porque la dirección fue manual). El tablero muestra la localidad.
+5. Onboarding de una imagen inventada de un solo grado (Tercero 2026) con "COLEGIO SAN BARTOLOME LA MERCED", DANE 311001010820, que no existe en Identidad. Fue 1 llamada real a Gemini: la versión `26280c96…` entró con 10 ítems y con el nombre del colegio, y aparece `CompletarColegio`. Luego la borré (204) sin aprobarla; Identidad sigue solo con el Colegio CACS.
+6. El logo del Salitre aparece en admin `/colegios` y en la cabecera de CACS. La URL remota responde 200 `image/png`, y las dos rutas `/directorio-colegios.json` responden 200.
+
+Al final hice `make abajo`, apagué los dev servers y restauré los `next-env.d.ts` que `next dev` había reescrito.
+
+### Commits
+| Commit | Mensaje |
+|---|---|
+| `288b0a1` | Directorio de colegios único en el contrato, con logo por DANE |
+| `3333398` | Subir lista desde la cola para cualquier colegio de Bogotá |
+| `557e015` | Dirección del checkout con Google Places, localidad e indicaciones |
+| `d4835d2` | Página del pedido con su línea de tiempo |
+| `e98733b` | Contrato 1.8, ADR 0039 y 0040, y cómo activar Google Maps |
+| `74f0bf9` | Ajustes de la revisión y del recorrido |
+
+A estos se suma el commit de este informe.
+
+### Migraciones, contrato y ADR
+- **Migración.** `servicios/comercio/migraciones/versions/20261010_1400_envio_guarda_localidad_y_place_id.py`, revisión `b619c58fc0c3`, `down_revision` `a58b45f8b14c`. Agrega `envio.localidad` String(64) y `envio.google_place_id` String(512), las dos nullable. No hay tablas nuevas.
+- **Contrato 1.8.** Tiene su tabla "Qué cambió en 1.8" y cubre:
+  - la entrega ampliada en el checkout y en las órdenes (`departamento`, `indicaciones`, `localidad`, `google_place_id`);
+  - `envio.localidad` y `envio.google_place_id`;
+  - `linea_de_tiempo` en `GET /v1/comercio/mis-pedidos/{id}` (§9.7);
+  - las tres formas de colegio en `POST /v1/admin/onboarding`;
+  - `imageURL` y `/directorio-colegios.json`;
+  - la nueva sección §9.6 "La entrega".
+- **ADR.** `0039-direcciones-con-google-places.md` y `0040-alta-de-colegios-no-aliados-desde-la-cola.md`, cada uno con su fila en `arquitectura/adr/README.md`.
+
+### Decisiones tomadas solas
+Están en "Decisiones tomadas solas", más arriba. Las principales:
+- la localidad se guarda con su nombre canónico y el backend solo valida el largo;
+- la firma de la orden incluye todos los campos de entrega salvo el `place_id`;
+- un cuerpo inválido da 400 `entrada_invalida`, el manejador compartido, y no 422;
+- la librería de Places carga al primer foco;
+- el directorio vive en `contrato/datos` y se sirve con una ruta por app;
+- San Nicolás queda con logo `null`;
+- un cancelado no tiene paso en curso;
+- un pedido ajeno, inexistente o con id que no es UUID da el mismo 404.
+
+### Lo que no pude verificar, o queda pendiente
+- **El checkout con llave real y el autocompletado.** No hay llave, y el navegador solo abre https. El marcado del checkout se arma en el cliente, así que por HTTP tampoco se ve. Lo cubren el typecheck, el lint y los tests puros de `direccionDesdeComponentes`.
+- **El logo en `/empezar`.** Solo se pinta en el cliente, en los resultados del buscador. La regla del logo sí está probada en el contrato.
+- **Los efectos de `make humo` en la base local.** Creó y aprobó el trabajo `aeaf3237…` (Séptimo 2029 CACS) y abrió el caso `fc87f791…`. Es lo que la prueba hace siempre.
+- **La deriva ajena en inteligencia y operación.** Viene de `d0c19b0`, de otra rama. Corregirla exige `DROP`, que está prohibido, así que no se tocó.
+- **El onboarding del admin no exige staff.** Ya era así antes de este trabajo y queda reportado.
+
+### Los 5 logos
+| Colegio | DANE | `imageURL` |
+|---|---|---|
+| Agustiniano Ciudad Salitre | 311001093652 | `https://agustinianosalitre.edu.co/wp-content/uploads/2023/05/cropped-Escudo-Agustiniano-Final.png` |
+| Agustiniano Norte | 311769000751 | `https://agustinianonorte.edu.co/wp-content/uploads/2020/03/cropped-logo-150x150-1.png` |
+| Agustiniano Suba | 311769000661 | `https://agustinianosuba.edu.co/wp-content/uploads/2025/06/cropped-logo-agustinianosuba.png` |
+| Agustiniano Tagaste | 311001109265 | `https://www.agustinianotagaste.edu.co/wp-content/uploads/2020/08/Escudo_CAT.png` |
+| Agustiniano de San Nicolás | 311001010811 | `null`: solo encontré imágenes en fbcdn, así que pinta las iniciales |
+
+### Cómo activar Google Maps
+1. En Google Cloud, crear un proyecto o elegir uno, con facturación activa.
+2. Habilitar "Maps JavaScript API" y "Places API (New)".
+3. Crear una llave de API.
+4. Restringir la llave.
+   - Por referrer HTTP: `http://localhost:3000/*`, `http://127.0.0.1:3000/*` y el dominio de producción.
+   - Por API: solo las dos de arriba.
+5. Bajar las cuotas diarias de Places y crear una alerta de presupuesto. La alerta solo avisa; lo que corta el gasto es la cuota.
+6. En `apps/web/.env.local`, completar la línea `GOOGLE_MAPS_API_KEY=` con la llave. Es una variable de servidor, sin `NEXT_PUBLIC_`.
+7. Reiniciar `npm run dev:web`.
+8. Comprobar que en el checkout, al escribir 3 letras en Dirección, salen las sugerencias con "Google Maps" al pie. Al elegir una, se llenan la ciudad y la localidad.
+
+Si la llave falla, el checkout sigue con los campos manuales.
