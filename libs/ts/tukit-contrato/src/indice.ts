@@ -13,6 +13,7 @@ export * from "./metricas";
 export * from "./dinero";
 export * from "./linea";
 export * from "./colegios-busqueda";
+export * from "./localidades";
 export {
   ErrorTukit,
   destinoDe,

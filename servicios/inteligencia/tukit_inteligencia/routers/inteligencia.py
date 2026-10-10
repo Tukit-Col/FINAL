@@ -193,11 +193,20 @@ class AplicarCanonico(BaseModel):
 
 
 class EntregaCheckout(BaseModel):
-    """La direccion a la que se entrega. Se COPIA congelada en Comercio (ADR 0015)."""
+    """La direccion a la que se entrega. Se COPIA congelada en Comercio (ADR 0015).
+
+    Los opcionales llegan del checkout con Google Places: `localidad` (una de las
+    20 de Bogota, por nombre), `indicaciones` (apartamento, torre, interior) y el
+    `google_place_id` de la sugerencia elegida. Mismos largos que Comercio. Un
+    campo desconocido (coordenadas, p. ej.) se descarta aqui y no cruza."""
 
     destinatario: str = Field(min_length=1, max_length=256)
     direccion: str = Field(min_length=1, max_length=512)
     ciudad: str = Field(min_length=1, max_length=128)
+    departamento: str | None = Field(default=None, max_length=128)
+    indicaciones: str | None = Field(default=None, max_length=512)
+    localidad: str | None = Field(default=None, max_length=64)
+    google_place_id: str | None = Field(default=None, max_length=512)
 
 
 class PeticionCheckout(BaseModel):
@@ -401,7 +410,8 @@ async def ordenar_trabajo(trabajo_id: uuid.UUID, cuerpo: PeticionCheckout) -> di
             api.app.state.motor,
             trabajo_id,
             perfil=cuerpo.perfil,
-            entrega=cuerpo.entrega.model_dump(),
+            # Sin los `None`: el checkout legado manda el mismo cuerpo de siempre.
+            entrega=cuerpo.entrega.model_dump(exclude_none=True),
             correo=cuerpo.correo,
             metodo=cuerpo.metodo,
             url_redireccion=cuerpo.url_redireccion,

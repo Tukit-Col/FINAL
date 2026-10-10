@@ -147,7 +147,7 @@ En cada commit hago `git add` con rutas explícitas, nunca `.sf/`, y cierro el m
 - [x] Verde parcial: inteligencia, catálogo, identidad, contrato y admin. Hacer el commit B.
 
 ### 1. Google Places en el checkout (commit C)
-- [ ] Contrato, nuevo `src/localidades.ts`, autocontenido:
+- [x] Contrato, nuevo `src/localidades.ts`, autocontenido:
   - `LOCALIDADES_BOGOTA`, las 20 con su nombre visible, y el tipo `LocalidadBogota`.
   - `localidadCanonica(texto)`: ignora acentos, mayúsculas, espacios y el prefijo "Localidad de". Así "Santafé" da "Santa Fe".
   - `esBogota(ciudad)`.
@@ -157,7 +157,7 @@ En cada commit hago `git add` con rutas explícitas, nunca `.sf/`, y cierro el m
     - `localidad` solo se llena en Bogotá. Busca, en este orden, en `sublocality_level_1`, `sublocality`, `administrative_area_level_3`, `administrative_area_level_2` y `neighborhood`, y se queda con la primera que case con el catálogo. Si ninguna casa, queda `""`.
   - `enlaceGoogleMaps({direccion, ciudad, google_place_id})`: arma `https://www.google.com/maps/search/?api=1&query=…&query_place_id=…`. Agrega la ciudad a la búsqueda solo si la dirección no la trae, y `query_place_id` solo si hay id.
   - `Entrega` gana los campos opcionales `departamento`, `indicaciones`, `localidad` y `google_place_id`, y `Envio` gana `localidad` y `google_place_id`.
-- [ ] Tests en `test/localidades.test.ts`:
+- [x] Tests en `test/localidades.test.ts`:
   - Bogotá con y sin `sublocality`.
   - "Localidad de Chapinero".
   - Acentos y "Santafé".
@@ -165,13 +165,13 @@ En cada commit hago `git add` con rutas explícitas, nunca `.sf/`, y cierro el m
   - Componentes faltantes o vacíos.
   - Las 20 localidades.
   - El enlace de Maps con y sin `place_id`.
-- [ ] Comercio:
+- [x] Comercio:
   - Migración `servicios/comercio/migraciones/versions/20261010_<hhmm>_envio_guarda_localidad_y_place_id.py`, escrita a mano con la plantilla. `down_revision="a58b45f8b14c"`. Agrega `localidad String(64)` y `google_place_id String(512)`, ambas nullables.
   - En `modelos/entrega.py`, las columnas del `Envio`.
   - `DireccionEntrega` acepta `localidad`, de máximo 64, y `google_place_id`, de máximo 512.
   - `insertar_orden` los guarda con el mismo patrón `getattr`.
   - `_serializar_envio` los serializa.
-- [ ] Decisión sobre la firma de la orden. `firma_orden` y `contenido_de` comparan `(destinatario, direccion, ciudad, localidad, departamento, indicaciones)`, con `None` igual a `""`.
+- [x] Decisión sobre la firma de la orden. `firma_orden` y `contenido_de` comparan `(destinatario, direccion, ciudad, localidad, departamento, indicaciones)`, con `None` igual a `""`.
   - El porqué va en un comentario en `_resolver_pendientes_del_kit` y en `firma_orden`. El envío es una copia congelada (ADR 0015): reutilizar un pendiente con otra localidad u otro apartamento despacharía con datos viejos. Que no case cuesta poco, porque se cancela el pendiente y se crea otro.
   - `google_place_id` queda fuera: apunta al mismo texto de la dirección.
   - Tests en `test_checkout.py`:
@@ -179,23 +179,23 @@ En cada commit hago `git add` con rutas explícitas, nunca `.sf/`, y cierro el m
     - Igual con localidad: reutiliza.
     - Se guardan y se serializan `localidad`, `place_id` e `indicaciones`.
     - Un largo de más da 422.
-- [ ] Inteligencia:
+- [x] Inteligencia:
   - `EntregaCheckout` agrega los opcionales `departamento`, `indicaciones`, `localidad` y `google_place_id`, con los mismos largos que Comercio.
   - `ordenar_trabajo` usa `model_dump(exclude_none=True)`, así el cuerpo viejo no cambia.
   - En `trabajos.ordenar`, el tipo de `entrega` pasa a `dict[str, str]`.
   - `remoto.py` solo reenvía el cuerpo. Se verifica, sin cambios.
   - Test en `test_trabajos.py`: los campos llegan a Comercio, y sin ellos el cuerpo es idéntico al de hoy.
-- [ ] Web, `kits/[trabajo_id]/page.tsx`:
+- [x] Web, `kits/[trabajo_id]/page.tsx`:
   - Lee la llave como `process.env.GOOGLE_MAPS_API_KEY?.trim() || null`, sin `NEXT_PUBLIC_`.
   - La pasa por props a `VistaKits` → `Checkout`.
-- [ ] Dependencias en `apps/web`: `npm install @googlemaps/js-api-loader` y `npm install -D @types/google.maps`.
+- [x] Dependencias en `apps/web`: `npm install @googlemaps/js-api-loader` y `npm install -D @types/google.maps`.
   - Toca `apps/web/package.json` y `package-lock.json`.
   - Si no hay red, uso el bootstrap oficial dentro de `lib/places.ts` y declaro los tipos mínimos. Lo anoto como decisión.
-- [ ] `apps/web/src/lib/places.ts`:
+- [x] `apps/web/src/lib/places.ts`:
   - `cargarPlaces(llave)`, memoizado. Hace `setOptions({key, v: "weekly", language: "es", region: "CO"})` y luego `importLibrary("places")`.
   - Escucha `window.gm_authFailure` para marcar la llave como inválida.
   - Ante cualquier fallo devuelve `null`. Nunca lanza.
-- [ ] `apps/web/src/app/kits/[trabajo_id]/CampoDireccion.tsx`, un combobox ARIA:
+- [x] `apps/web/src/app/kits/[trabajo_id]/CampoDireccion.tsx`, un combobox ARIA:
   - Atributos `role="combobox"`, `aria-expanded`, `aria-controls`, `aria-activedescendant` y `aria-autocomplete="list"`. Lista con `role="listbox"`.
   - Pide sugerencias desde 3 caracteres, con 250 ms de debounce. Flechas, Enter y Escape.
   - Hay un `AutocompleteSessionToken` por búsqueda. La llamada es `AutocompleteSuggestion.fetchAutocompleteSuggestions({input, sessionToken, includedRegionCodes: ["co"], locationBias: círculo de Bogotá, language: "es", region: "co"})`.
@@ -203,7 +203,7 @@ En cada commit hago `git add` con rutas explícitas, nunca `.sf/`, y cierro el m
   - Editar el texto después borra el `place_id`.
   - La atribución es el texto "Google Maps" con `translate="no"` al pie de la lista. Lleva el color que Google exige, con un comentario de por qué no es un token.
   - Sin llave, o si Google falla, el campo es un `<input>` libre, y un fallo de Google jamás bloquea el pago.
-- [ ] Checkout en `VistaKits.tsx`. Los campos quedan así:
+- [x] Checkout en `VistaKits.tsx`. Los campos quedan así:
   - Recibe.
   - Dirección.
   - "Apartamento, torre, interior o indicaciones", opcional, que va a `indicaciones`.
@@ -212,12 +212,12 @@ En cada commit hago `git add` con rutas explícitas, nunca `.sf/`, y cierro el m
   - Departamento, editable y opcional.
 
   `pagar` manda todo. Los estilos van en `Kits.module.css`, con tokens.
-- [ ] Admin, `logistica/[pedido]/page.tsx`:
+- [x] Admin, `logistica/[pedido]/page.tsx`:
   - Dirección con el enlace "Ver en Google Maps" (`enlaceGoogleMaps`, `target="_blank" rel="noopener noreferrer"`).
   - Filas de Localidad y Ciudad.
   - En el tablero `/logistica`, la `FilaPedido` muestra la localidad.
-- [ ] `apps/web/.env.local`: agregar al final solo la línea `GOOGLE_MAPS_API_KEY=`. Hago `tail -c1` antes y no toco nada más.
-- [ ] Verde parcial: comercio, inteligencia, contrato, web, typecheck y lint. Luego `make bd-migrar` y `make bd-deriva`, con `TUKIT_DB_HOST=127.0.0.1`. Hacer el commit C.
+- [x] `apps/web/.env.local`: agregar al final solo la línea `GOOGLE_MAPS_API_KEY=`. Hago `tail -c1` antes y no toco nada más.
+- [x] Verde parcial: comercio, inteligencia, contrato, web, typecheck y lint. Luego `make bd-migrar` y `make bd-deriva`, con `TUKIT_DB_HOST=127.0.0.1`. Hacer el commit C.
 
 ### 2. Página del pedido (commit D)
 - [ ] Comercio, nuevo `dominio/linea_de_tiempo.py`, una función pura:
@@ -317,7 +317,12 @@ En cada commit hago `git add` con rutas explícitas, nunca `.sf/`, y cierro el m
 
 ## Decisiones tomadas solas
 - **La localidad se guarda con su nombre canónico visible.** El backend solo valida el largo: un checkout viejo tiene que seguir cerrando, y la regla de que sea obligatoria en Bogotá vive en el frontend.
-- **Firma de la orden.** Compara todos los campos de entrega que manda el checkout, salvo `place_id`.
+- **Firma de la orden.** Compara todos los campos congelados del envío (`CAMPOS_FIRMA_ENTREGA` en `dominio/pagos.py`: destinatario, dirección, ciudad, localidad, departamento, indicaciones, teléfono y documento), salvo `place_id`, con `None` igual a `""`. Teléfono y documento entraron aunque el plan no los nombraba: reutilizar un pendiente con otro teléfono despacharía con el dato viejo.
+- **Un largo de más en Comercio da 400, no 422.** Es la convención de la casa para errores de cuerpo en Comercio; el test lo afirma así.
+- **`@types/google.maps` quedó en 3.66.5.** La 3.66.6 es más joven que la política de antigüedad de npm y la instalación la rechazó.
+- **Sin llave no se carga nada de Google.** La librería se pide al primer foco del campo de dirección, no al abrir el checkout; si Google rechaza la llave (`gm_authFailure`), el campo vuelve a ser texto libre.
+- **Al elegir una sugerencia**, lo que Google no trajo (ciudad o departamento) conserva lo que el acudiente ya había escrito; la localidad siempre se reemplaza, y si no casa queda vacía para elegirla del desplegable.
+- **`make bd-deriva` reporta deriva ajena en inteligencia (3) y operación (6).** Son objetos de `d0c19b0` (`mejoras/seguridad-ortografia-carrusel`) en la base compartida; arreglarlos exige `DROP`, que está prohibido. Comercio, catálogo e identidad salen sin deriva.
 - **El enlace de Maps agrega la ciudad** cuando la dirección escrita a mano no la trae.
 - **La reconducción por DANE se hace dos veces.** Una en el buscador, que es puro, y otra en la ruta del admin.
 - **Auth del onboarding.** No se agrega `_exigir_staff`; se reporta.

@@ -94,6 +94,12 @@ class Envio(Base):
     departamento: Mapped[str | None] = mapped_column(String(128), nullable=True)
     documento_destinatario: Mapped[str | None] = mapped_column(String(64), nullable=True)
     indicaciones: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    # La localidad de Bogota (nombre canonico, vacia fuera de Bogota) y el lugar
+    # de Google Places que eligio el acudiente, para el enlace a Maps del
+    # back-office. Nunca coordenadas: los terminos de Google no dejan guardarlas
+    # (ADR 0039). Nullable por lo mismo que los de arriba.
+    localidad: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    google_place_id: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
     zona_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("zona_entrega.id", ondelete="SET NULL"), nullable=True

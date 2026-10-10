@@ -23,7 +23,7 @@ from sqlalchemy import func, insert, select, update
 from tukit_comun.bandeja import con_correlacion
 from tukit_comun.http import iso as _iso
 
-from ..dominio.pagos import ESTADOS_PAGO_FINALES, pedido_tras_pago
+from ..dominio.pagos import CAMPOS_FIRMA_ENTREGA, ESTADOS_PAGO_FINALES, pedido_tras_pago
 from ..modelos import Base, EstadoPago, EstadoPedido, transicion_valida
 from ..pasarela import EventoPasarela
 
@@ -86,6 +86,8 @@ def _serializar_envio(fila: Any, *, con_celular: bool = False) -> dict[str, Any]
         "departamento": fila.departamento,
         "documento_destinatario": fila.documento_destinatario,
         "indicaciones": fila.indicaciones,
+        "localidad": fila.localidad,
+        "google_place_id": fila.google_place_id,
         "transportadora": fila.transportadora,
         "guia": fila.guia,
         "repartidor_nombre": fila.repartidor_nombre,
@@ -348,8 +350,8 @@ class RepoPedidos:
                     estado="activa",
                 )
             )
-        # Direccion congelada al envio (ADR 0015): copia, no llave. Los cuatro
-        # campos extendidos viajan por `getattr` con `None` por defecto para que
+        # Direccion congelada al envio (ADR 0015): copia, no llave. Los campos
+        # extendidos viajan por `getattr` con `None` por defecto para que
         # cualquier objeto de entrega (el legado o el nuevo) sirva sin ramas.
         await self.conexion.execute(
             insert(ENVIO).values(
@@ -362,6 +364,8 @@ class RepoPedidos:
                 departamento=getattr(entrega, "departamento", None),
                 documento_destinatario=getattr(entrega, "documento_destinatario", None),
                 indicaciones=getattr(entrega, "indicaciones", None),
+                localidad=getattr(entrega, "localidad", None),
+                google_place_id=getattr(entrega, "google_place_id", None),
             )
         )
         return (await self.conexion.execute(select(PEDIDO).where(PEDIDO.c.id == pedido_id))).one()
@@ -696,8 +700,9 @@ class RepoPedidos:
 
     async def contenido_de(
         self, pedido_id: uuid.UUID
-    ) -> tuple[list[tuple[str, int, int]], tuple[str, str, str]]:
-        """Las lineas (sku, cantidad, precio) y la entrega de un pedido, para compararlo."""
+    ) -> tuple[list[tuple[str, int, int]], tuple[str | None, ...]]:
+        """Las lineas (sku, cantidad, precio) y la entrega de un pedido, para
+        compararlo: los campos de `CAMPOS_FIRMA_ENTREGA`, en ese orden."""
         lineas = [
             (f.sku, int(f.cantidad), int(f.precio_unitario))
             for f in await self.conexion.execute(
@@ -707,7 +712,7 @@ class RepoPedidos:
         envio = (
             await self.conexion.execute(select(ENVIO).where(ENVIO.c.pedido_id == pedido_id))
         ).one_or_none()
-        entrega = (envio.destinatario, envio.direccion, envio.ciudad) if envio else ("", "", "")
+        entrega = tuple(getattr(envio, campo) if envio else None for campo in CAMPOS_FIRMA_ENTREGA)
         return lineas, entrega
 
     # -- escritura: retracto ----------------------------------------------
