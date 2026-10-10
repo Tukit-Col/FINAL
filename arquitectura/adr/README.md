@@ -30,6 +30,8 @@ backbone. El número es una etiqueta; el título es la decisión.
 | [0036](0036-estado-de-compra-calculado.md) | El estado de compra de una solicitud se calcula cruzando pedidos, no se guarda | aceptada | `feature/pagos-wompi-sandbox` |
 | [0037](0037-la-curaduria-viaja-por-git.md) | La curaduría de listas y del catálogo viaja por git como CSV | aceptada | `feature/curaduria-de-listas` |
 | [0038](0038-el-concepto-asignado-en-la-revision-manda.md) | El concepto asignado en la revisión manda sobre el texto, y su tipo decide si se busca | aceptada | `feature/curaduria-de-listas` |
+| [0039](0039-direcciones-con-google-places.md) | La dirección del checkout se autocompleta con Google Places (New), y sin Google sigue siendo un campo libre | aceptada | `feature/maps-and-feats` |
+| [0040](0040-alta-de-colegios-no-aliados-desde-la-cola.md) | El staff sube desde la cola la lista de cualquier colegio de Bogotá, con un solo directorio y una regla de logo | aceptada | `feature/maps-and-feats` |
 
 ## Para incorporarlos
 

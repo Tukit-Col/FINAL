@@ -282,19 +282,19 @@ En cada commit hago `git add` con rutas explícitas, nunca `.sf/`, y cierro el m
 - [x] Verde parcial: comercio, contrato y web. Hacer el commit D.
 
 ### Docs (commit E)
-- [ ] `arquitectura/CONTRATO_API.md`:
+- [x] `arquitectura/CONTRATO_API.md`:
   - Sube a 1.8, con la tabla "Qué cambió en 1.8".
   - Documenta `envio.localidad` y `envio.google_place_id`, `entrega` ampliada en checkout y órdenes, `linea_de_tiempo` en `GET /v1/comercio/mis-pedidos/{id}`, y las tres formas de colegio en `POST /v1/admin/onboarding`.
   - Documenta `imageURL` del directorio y `/directorio-colegios.json` en las dos apps.
-- [ ] ADR 0039 "Direcciones con Google Places (New)", en formato Nygard. Cubre:
+- [x] ADR 0039 "Direcciones con Google Places (New)", en formato Nygard. Cubre:
   - la llave de servidor pasada como prop;
   - la degradación a campos manuales;
   - lo que se guarda: `place_id` sí, coordenadas no, por los términos de Google;
   - las sesiones y los campos Essentials;
   - las cuotas y el presupuesto.
-- [ ] ADR 0040 "Alta de colegios no aliados desde la cola". Cubre el directorio como fuente única en el contrato, la regla del logo y la reconducción por DANE. Agrego las dos filas en `arquitectura/adr/README.md`.
-- [ ] README, sección frontend: qué es `GOOGLE_MAPS_API_KEY`, qué APIs requiere y cómo restringirla. `apps/web/.env.ejemplo` lleva la línea comentada.
-- [ ] Hacer el commit E.
+- [x] ADR 0040 "Alta de colegios no aliados desde la cola". Cubre el directorio como fuente única en el contrato, la regla del logo y la reconducción por DANE. Agrego las dos filas en `arquitectura/adr/README.md`.
+- [x] README, sección frontend: qué es `GOOGLE_MAPS_API_KEY`, qué APIs requiere y cómo restringirla. `apps/web/.env.ejemplo` lleva la línea comentada.
+- [x] Hacer el commit E.
 
 ### Verificación final
 - [ ] Revisar `git diff feature/integracion-total...HEAD` buscando:
