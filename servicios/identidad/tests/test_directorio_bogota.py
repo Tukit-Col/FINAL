@@ -12,8 +12,13 @@ comparan contra `tukit_comun.derivar`, no contra un UUID copiado a mano.
 
 from __future__ import annotations
 
+import json
+import sys
+
 from tukit_comun import derivar
+from tukit_identidad.dominio import directorio
 from tukit_identidad.dominio.directorio import (
+    generar_json_busqueda,
     parsear_directorio,
 )
 
@@ -140,3 +145,63 @@ class TestParaServirAlFrontend:
         assert ficha["rector"] == "SANDRA MILENA MURCIA CUENCA"
         assert ficha["telefonos"] == ["6012352887", "3223573876"]
         assert ficha["correos"] == ["acsi86.edu.co@gmail.com", "acsicolegio@gmail.com"]
+
+
+class TestRegenerarElJsonDeBusqueda:
+    """El JSON vive en `@tukit/contrato` y lleva un `imageURL` por colegio que el
+    DUEB no trae: se curo a mano. Regenerar desde la fuente no puede borrarlo."""
+
+    def test_cada_registro_lleva_image_url_nulo_por_omision(self):
+        registros = generar_json_busqueda(_BLOQUE)
+        assert [r["imageURL"] for r in registros] == [None, None]
+        assert list(registros[0]) == ["dane", "nombre", "localidad", "imageURL"]
+
+    def test_las_imagenes_se_asignan_por_dane(self):
+        registros = generar_json_busqueda(_BLOQUE, {"111848001097": "https://ejemplo.edu.co/escudo.png"})
+        por_dane = {r["dane"]: r["imageURL"] for r in registros}
+        assert por_dane == {"311001105731": None, "111848001097": "https://ejemplo.edu.co/escudo.png"}
+
+    def test_main_conserva_el_image_url_del_destino_existente(self, tmp_path, monkeypatch, capsys):
+        fuente = tmp_path / "colegios.txt"
+        fuente.write_text(_BLOQUE, encoding="utf-8")
+        destino = tmp_path / "directorio-colegios.json"
+        destino.write_text(
+            json.dumps(
+                [
+                    {
+                        "dane": "311001105731",
+                        "nombre": "VIEJO",
+                        "localidad": "X",
+                        "imageURL": "https://a.co/logo.png",
+                    },
+                    # Un DANE que ya no esta en la fuente no resucita.
+                    {
+                        "dane": "999999999999",
+                        "nombre": "BORRADO",
+                        "localidad": "Y",
+                        "imageURL": "https://b.co/l.png",
+                    },
+                ]
+            ),
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(sys, "argv", ["directorio", str(fuente), str(destino)])
+
+        directorio._main()
+
+        registros = json.loads(destino.read_text(encoding="utf-8"))
+        assert [(r["dane"], r["nombre"], r["imageURL"]) for r in registros] == [
+            ("311001105731", "ACADEMIA CENTRAL DE SISTEMAS", "https://a.co/logo.png"),
+            ("111848001097", "ACADEMIA LA SALLE SAN BENILDO", None),
+        ]
+        assert "2 colegios" in capsys.readouterr().out
+
+    def test_main_sin_destino_previo_escribe_imagenes_nulas(self, tmp_path, monkeypatch, capsys):
+        fuente = tmp_path / "colegios.txt"
+        fuente.write_text(_BLOQUE, encoding="utf-8")
+        destino = tmp_path / "nuevo.json"
+        monkeypatch.setattr(sys, "argv", ["directorio", str(fuente), str(destino)])
+
+        directorio._main()
+
+        assert all(r["imageURL"] is None for r in json.loads(destino.read_text(encoding="utf-8")))

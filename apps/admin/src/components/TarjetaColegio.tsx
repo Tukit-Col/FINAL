@@ -1,5 +1,6 @@
 // Tarjeta de un colegio en la BD de colegios y listas (P4). Muestra el logo del
-// aliado (si cargó marca), su nombre, si ya es aliado (tiene al menos un grado
+// colegio (`logo`, ya resuelto con la regla de `logoDeColegio`: el de Identidad
+// y si no, el del directorio por DANE; sin ninguno, iniciales), su nombre, si ya es aliado (tiene al menos un grado
 // revisado) y sus grados verificados.
 //
 // La tarjeta ENTERA es clicable hacia la ficha del colegio (patrón "stretched
@@ -14,25 +15,22 @@
 
 import Link from "next/link";
 import type { Colegio } from "@tukit/contrato";
+import LogoColegio from "@/components/LogoColegio";
 import styles from "@/app/colegios/Colegios.module.css";
 
-export default function TarjetaColegio({ colegio }: { colegio: Colegio }) {
+export default function TarjetaColegio({ colegio, logo }: { colegio: Colegio; logo: string | null }) {
   const esAliado = colegio.es_partner ?? colegio.grados.length > 0;
   const id = encodeURIComponent(colegio.colegio_id);
 
   return (
     <article className={styles.tarjeta}>
       <header className={styles.tarjetaCabecera}>
-        {colegio.logo_url ? (
-          // Logo del aliado tal como lo sirve identidad. No se usa next/image a
-          // propósito: la URL es externa y variable, y el logo es decorativo.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img className={styles.logo} src={colegio.logo_url} alt="" />
-        ) : (
-          <span className={styles.logoVacio} aria-hidden="true">
-            {colegio.nombre.slice(0, 1)}
-          </span>
-        )}
+        <LogoColegio
+          src={logo}
+          nombre={colegio.nombre}
+          claseImagen={styles.logo}
+          claseIniciales={styles.logoVacio}
+        />
         <div className={styles.tarjetaIdentidad}>
           <h2>
             <Link href={`/colegios/${id}`} className={styles.enlaceTarjeta}>
