@@ -438,3 +438,69 @@ Están en "Decisiones tomadas solas", más arriba. Las principales:
 8. Comprobar que en el checkout, al escribir 3 letras en Dirección, salen las sugerencias con "Google Maps" al pie. Al elegir una, se llenan la ciudad y la localidad.
 
 Si la llave falla, el checkout sigue con los campos manuales.
+
+## Correcciones de la revisión
+
+### Qué cambió en cada punto
+1. **Carrera entre la espera y `elegir` en `CampoDireccion`.**
+   - La regla de turnos ahora vive en `apps/web/src/lib/direccion-checkout.ts` (`crearTurnos`). Es pura, con un reloj inyectable y 6 pruebas.
+   - Cada tecla abre un turno nuevo, aunque no dispare búsqueda.
+   - `elegir` cancela la búsqueda pendiente antes de abrir su turno. Así la selección ya no se descarta ni abre un `AutocompleteSessionToken` de más, y lo que se escribe mientras llegan los detalles gana.
+   - El componente ya no usa `pedidoRef` ni `esperaRef`.
+2. **Places sin permisos.**
+   - `esRechazoDePermisos` reconoce un error de Google cuyo `code` es `PERMISSION_DENIED`, `REQUEST_DENIED` o `UNAUTHENTICATED`. Tiene prueba, y los errores pasajeros no cuentan.
+   - Ante ese error se llama a `rechazarLlave()`, nuevo en `places.ts` y el mismo camino que `gm_authFailure`. Avisa al campo, que hace `setPlaces(null)` y vacía las sugerencias, y vuelve `autoComplete="street-address"` del navegador.
+   - Cualquier otro error espera a la siguiente tecla.
+3. **`escribirDireccion` en `VistaKits`.** Usa `escribirDireccionAMano`, que es pura y tiene 2 pruebas. Si la dirección venía de Google (tenía `google_place_id`), al editarla a mano se borran el `place_id` y la localidad. Si se escribió a mano, la localidad elegida se conserva.
+4. **`neighborhood` sale de `TIPOS_LOCALIDAD`.** Se agregó la prueba "un barrio que se llama como una localidad no es esa localidad": el barrio Santa Fe, sin `sublocality`, deja la localidad vacía. Falló antes del arreglo (daba "Santa Fe") y pasa después.
+5. **`incidencia` entra en `ESTADOS_COMPRADOS`.** La prueba nueva, un kit con un pendiente y un pedido en incidencia, falló antes del arreglo y ahora da `comprado`. Si la incidencia termina en cancelado, la solicitud vuelve sola a "Listo".
+6. **`linea-de-tiempo.test.ts`.** Quité el test que comparaba un objeto falso consigo mismo. Queda el que prueba `ETIQUETA_PASO_PEDIDO`. La forma del JSON la prueban `test_dominio_linea_de_tiempo.py` y `test_logistica.py`. `cliente-http.ts` no corre con `node --test` (sus imports no llevan extensión), así que no había código real del contrato que probar ahí.
+7. **"Cambiar" en `BuscadorColegioOnboarding`.** Devuelve el foco al campo de búsqueda: el `ref` del input, más una bandera que un `useEffect` consume cuando el campo vuelve a pintarse. Antes el foco se perdía en el `body`.
+8. **El onboarding exige staff.**
+   - `POST /v1/admin/onboarding` llama a `_exigir_staff(authorization)` antes de leer el formulario: 401 sin sesión o con token inválido, 403 sin rol de staff, 503 si Identidad no responde.
+   - 5 pruebas nuevas en `test_onboarding.py` comprueban que en esos casos no se lee el archivo ni se importa nada, y que un admin sí sube. Las 4 de rechazo fallaron antes del arreglo (daban 200).
+   - El fixture manda por defecto `Bearer tok-operador`.
+   - `OrigenDatos.onboarding` y `ClienteApi.onboarding` reciben `token` como primer parámetro y lo mandan como Bearer.
+   - `apps/admin/src/app/api/onboarding/route.ts` reenvía `tokenDeSesion()` y, sin cookie, responde 401 antes de leer el PDF.
+   - `CONTRATO_API.md` 1.8 tiene una fila nueva en "Qué cambió en 1.8", la frase de "todo es aditivo" corregida, la fila de §12.8 y el párrafo "La sesión (1.8)". La consecuencia del ADR 0040 ya no lo da como deuda.
+9. **Logo del directorio en la ficha del colegio.**
+   - El contrato gana `logoDelDirectorio`, con prueba: devuelve el `imageURL` por DANE solo cuando el colegio no tiene logo propio. `logoDeColegio` lo usa.
+   - `colegios/[colegio]/page.tsx` se lo pasa a `PerfilColegio`. Con el campo vacío, "URL del logo" muestra esa URL como placeholder y una nota enlazada por `aria-describedby`: "Hoy se ve el logo del directorio de Bogotá, por el DANE. Escribe una URL para reemplazarlo."
+   - El valor sigue vacío y no se guarda.
+   - Cada campo del formulario pasó de `<label>` envolvente a `<div>` con `<label htmlFor>`, para que la nota no forme parte del nombre accesible. Agregué el selector `.campo > label:first-child`.
+
+### Decisiones tomadas solas
+- **El texto del punto 8 llegó cortado** ("`POST /v1/admin/oencia)`"). Lo leí como "`POST /v1/admin/onboarding` (en inteligencia)", que es la única ruta que lo encaja.
+- **`token` va primero en `onboarding(token, colegio, …)`**, como en `miPedido(token, …)` y `avanzarPedido(token, …)`.
+- **El rechazo por permisos es global** (`rechazarLlave`), no un simple `setPlaces(null)` en el componente. Si fuera local, el siguiente foco volvería a cargar la librería memoizada y a encender el combobox.
+- **Los códigos que cuentan como permisos son tres**: `PERMISSION_DENIED`, `REQUEST_DENIED` y `UNAUTHENTICATED`. La cuota agotada y la red caída no apagan el campo.
+- **Los puntos 7 y 9 no tienen prueba propia en la app.** Son solo interfaz: lo puro del 9 está probado en el contrato, y el admin no tiene pruebas de componentes.
+- **En el punto 1, las pruebas nacieron junto con la extracción.** La lógica vieja estaba dentro del componente y no había código puro que dejar en rojo primero. Las pruebas describen los dos escenarios de la carrera.
+
+### Lo que no pude verificar, o queda pendiente
+- No levanté `next dev` ni el navegador: el foco de "Cambiar", la nota del logo y el campo con Google real no se vieron en pantalla. Los `next-env.d.ts` no se tocaron.
+- No comprobé contra Google real con qué `code` rechaza Places cuando la API no está habilitada. Es lo que dicen los tipos (`MapsRequestError.code`).
+- **Visto de paso, sin tocar:** `POST /v1/admin/onboarding/{version_id}/preview` también corre sin `_exigir_staff`. Está fuera de los 9 puntos.
+
+### Verificación (salida real)
+| Comando | Antes | Ahora |
+|---|---|---|
+| `make fronteras` | 58 pass / 1 skip | 58 pass / 1 skip |
+| `make prueba` | 1557 | 1562 (+5, las de staff del onboarding) |
+| `.venv/bin/ruff check servicios libs arquitectura` | sin errores | sin errores |
+| `.venv/bin/ruff format --check servicios libs arquitectura` | 300 ya formateados | 300 ya formateados |
+| `npm run typecheck` (tras borrar los `.next`) | exit 0 | exit 0 |
+| `npm run lint` | exit 0 | exit 0 |
+| Tests de contrato | 31 | 32 (+1 Santa Fe, +1 `logoDelDirectorio`, −1 el test falso) |
+| Tests de web | 16 | 26 (+9 `direccion-checkout`, +1 incidencia) |
+| Tests de admin | 23 | 23 |
+
+### Commits
+| Commit | Mensaje |
+|---|---|
+| `2a9a382` | Contrato: la localidad no sale del barrio y el logo dice si es del directorio |
+| `d0d8da5` | Web: turnos del campo de dirección, Places sin permisos y pedido en incidencia |
+| `225ac63` | Admin: foco al cambiar de colegio y nota del logo del directorio |
+| `a87e313` | Inteligencia: el onboarding exige sesión de staff |
+
+A estos se suma el commit de esta sección. Sigue sin haber push, merge ni PR.
