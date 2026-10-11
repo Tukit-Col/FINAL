@@ -22,8 +22,19 @@ ESPERADOS: dict[str, dict[str, Any]] = {
     ruta.stem: json.loads(ruta.read_text()) for ruta in sorted((GOLDEN / "esperado").glob("G*.json"))
 }
 ACEPTADAS = sorted(v for v, e in ESPERADOS.items() if e["aceptada"])
+# `esperado/Gnn.json` es la respuesta grabada del modelo y no cambia. Lo que un humano
+# espera de cada renglon sale de `oracle.json`, que se recalibra contra el catalogo de hoy
+# (`construir.RECALIBRADO_CATALOGO`: desde 44309fa el compas de precision se surte, y la
+# plataforma y el uniforme tienen concepto propio).
+_ORO = {
+    fuente: {clave: par[clave] for clave in ("estado", "concepto", "nivel")}
+    for par in json.loads((GOLDEN / "esperado" / "oracle.json").read_text())["pares"]
+    for fuente in par["fuentes"]
+}
 ANIO_LECTIVO = 2026
-PERFILES = ("Ahorrador", "Fan", "Premium")
+# ADR 0030 (efb0827): siempre Ahorrador y Premium; el Fan solo si el acudiente pide un personaje.
+PERFILES = ("Ahorrador", "Premium")
+PERFILES_CON_PERSONAJE = ("Ahorrador", "Fan", "Premium")
 ETAPAS = ("percepcion", "normalizacion", "resolucion", "optimizacion")
 TERMINALES = ("publicado", "espera_revision", "fallido")
 _TIPOS_DE_ARCHIVO = {".png": "image/png", ".jpg": "image/jpeg", ".pdf": "application/pdf"}
@@ -34,7 +45,7 @@ def colegio_ficticio(variante: str) -> str:
     return f"Colegio Ficticio QA {variante} {uuid.uuid4().hex[:8]}"
 
 
-def registrar_acudiente(http: httpx.Client, colegio_id: str) -> dict[str, Any]:
+def registrar_acudiente(http: httpx.Client, colegio_id: str, grado: str = "Tercero") -> dict[str, Any]:
     """Registra un acudiente ficticio con un hijo y abre su sesion."""
     correo = f"qa-e2e-{uuid.uuid4().hex[:10]}@example.test"
     clave = "clave-ficticia-qa"
@@ -43,7 +54,7 @@ def registrar_acudiente(http: httpx.Client, colegio_id: str) -> dict[str, Any]:
         json={
             "correo": correo,
             "clave": clave,
-            "hijos": [{"colegio_id": colegio_id, "grado": "Tercero", "apodo": f"QA-{uuid.uuid4().hex[:6]}"}],
+            "hijos": [{"colegio_id": colegio_id, "grado": grado, "apodo": f"QA-{uuid.uuid4().hex[:6]}"}],
         },
     )
     assert registro.status_code == 201, registro.text
@@ -86,8 +97,8 @@ def quitar_concepto_sin_producto(
 ) -> list[int]:
     """La correccion minima del revisor: el renglon cuyo concepto no tiene producto queda sin concepto.
 
-    Es lo que la pantalla de revision permite (`PATCH` del renglon) y lo que
-    hace falta para que la aprobacion no deje al acudiente sin kit (H-A-41).
+    Es lo que la pantalla de revision permite (`PATCH` del renglon). Hasta b97ce00
+    hacia falta para que la aprobacion no dejara al acudiente sin kit (H-A-41).
     Devuelve el `orden` de los renglones corregidos.
     """
     corregidos = []
@@ -149,7 +160,13 @@ def lineas(vista: dict[str, Any]):
 
 
 def por_orden(variante: str) -> dict[int, dict[str, Any]]:
-    return {fila["orden"]: fila for fila in ESPERADOS[variante]["renglones"]}
+    return {
+        fila["orden"]: {
+            **fila,
+            "emparejamiento": {**fila["emparejamiento"], **_ORO.get(f"{variante}#{fila['orden']}", {})},
+        }
+        for fila in ESPERADOS[variante]["renglones"]
+    }
 
 
 def ordenes(variante: str, nivel: str) -> set[int]:
@@ -157,7 +174,12 @@ def ordenes(variante: str, nivel: str) -> set[int]:
 
 
 async def catalogo_vivo() -> dict[str, Any]:
-    """Lo que hay en el catalogo del stack: SKU e id de cada producto y los conceptos sin producto."""
+    """Lo que hay en el catalogo del stack: SKU e id de cada producto y los conceptos sin producto.
+
+    Solo cuentan los conceptos que se buscan en el catalogo (`parseo.BUSCA_EN_CATALOGO`): desde
+    44309fa hay conceptos informativos (uniforme, licencia digital) que no tienen producto a
+    proposito, y quitarles el concepto ya no es la revision minima.
+    """
     async with conexion_a("catalogo") as conexion:
         productos = (
             await conexion.execute(text("select id::text, sku_interno from producto_canonico"))
@@ -165,7 +187,8 @@ async def catalogo_vivo() -> dict[str, Any]:
         sin_producto = (
             await conexion.execute(
                 text(
-                    "select c.codigo from concepto c where c.activo and not exists "
+                    "select c.codigo from concepto c where c.activo "
+                    "and c.tipo_item in ('util', 'libro_libre') and not exists "
                     "(select 1 from producto_canonico p where p.concepto_id = c.id and p.activo)"
                 )
             )
