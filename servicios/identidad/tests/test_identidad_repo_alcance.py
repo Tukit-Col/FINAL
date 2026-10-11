@@ -879,11 +879,16 @@ class TestMatriculasDelTitular:
     async def test_devuelve_colegio_grado_anio_y_apodo_y_nada_mas(self, db):
         colegio, sede = await crear_colegio_con_sede(db, "Colegio Ficticio Uno")
         madre = await _usuario(db, "madre@example.test")
-        await _hijo(db, madre, sede, grado="Quinto", apodo="Estudiante Ficticio Uno", anio=2026)
+        hijo = await _hijo(db, madre, sede, grado="Quinto", apodo="Estudiante Ficticio Uno", anio=2026)
 
         [matricula] = await RepoIdentidad(db).matriculas_del_titular(madre.id)
 
+        # Desde 6864898 la lista trae `matricula_id` para que el panel quite o cambie
+        # de colegio a un hijo (identidad.py:762-764): es el id de la MATRICULA, nunca
+        # el del estudiante.
+        assert matricula["matricula_id"] != str(hijo.estudiante_id)
         assert matricula == {
+            "matricula_id": str(hijo.id),
             "colegio_id": str(colegio.id),
             "grado": "Quinto",
             "anio_lectivo": 2026,

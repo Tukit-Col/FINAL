@@ -485,11 +485,15 @@ class TestAlcancePorActor:
 
     async def test_las_matriculas_del_titular_solo_traen_colegio_grado_anio_y_apodo(self, mundo: Mundo):
         respuesta = await mundo.http.get("/v1/cuenta/matriculas", headers=mundo.con("mama"))
+        [suya] = [f.id for f in await mundo.filas("matricula") if f.estudiante_id == mundo.estudiante_mama]
 
+        # Desde 6864898 (contrato 1.6) cada fila trae `matricula_id`, el id de la
+        # MATRICULA con que el panel la quita o la cambia; el del estudiante no baja.
         assert respuesta.json() == {
             "total": 1,
             "matriculas": [
                 {
+                    "matricula_id": str(suya),
                     "colegio_id": str(mundo.colegio_a),
                     "grado": "Quinto",
                     "anio_lectivo": 2026,
