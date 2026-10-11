@@ -1,19 +1,25 @@
-// El flujo del acudiente en el navegador, de punta a punta: entrar, ver la solicitud aprobada, los
-// tres kits, pagar el recomendado y ver el pedido pagado en el tablero.
+// El flujo del acudiente en el navegador, de punta a punta: entrar, ver la solicitud aprobada, sus
+// kits, pagar el recomendado en la pasarela simulada y ver el pedido pagado en el tablero.
+//
+// Desde ADR 0030 (efb0827) un pedido sin personaje trae dos kits, Ahorrador y Premium; el Fan solo
+// sale si se pide. Los titulos de las pruebas conservan «tres kits» por trazabilidad con la matriz y
+// las evidencias de 58b9e47 (decision N-97).
 //
 // Lo que el navegador no puede hacer queda por el gateway, en `stack.mjs`:
-//   - el registro: vive en `/empezar`, que hoy responde 500 (H-A-01, primera prueba);
+//   - el registro: `/empezar` ya carga (H-A-01 corregido, primera prueba), pero registrarse ahi
+//     necesita la subida de la lista;
 //   - la subida de la lista: la percepcion necesita el modelo. Se escribe lo mismo que deja la subida
 //     tras percibir (una lista `sugerencia_padre` con el `usuario_id` del acudiente) y un administrador
-//     la cierra; el poller arma el trabajo por la ruta rapida (decision N-45);
-//   - el webhook de la pasarela falsa, firmado como `PasarelaFalsa.emitir_evento`.
+//     la cierra; el poller arma el trabajo por la ruta rapida (decision N-45).
+//
+// El pago va entero por el navegador: con WOMPI_MODO=falso, comercio manda al acudiente a
+// `/pago/simulado` y de ahi a `/pago/resultado`, que sincroniza el pago con la pasarela falsa.
 
 import { expect, test } from "@playwright/test";
 
 import * as stack from "./stack.mjs";
 
 const WEB = process.env.TUKIT_WEB_URL ?? "http://localhost:3000";
-const XFAIL = !process.env.QA_RUNXFAIL;
 
 let contexto;
 let pagina;
@@ -37,11 +43,8 @@ test.beforeEach(() => {
   anotar({ ensayo_id: "E2E-UI", correlacion_id: stack.CORRELACION });
 });
 
+// H-A-01 se corrigio en c57c0b3 (migracion de `kit_canonico`): queda como prueba de no regresion.
 test("empezar: el formulario del hogar carga", async ({ page }) => {
-  test.fail(
-    XFAIL,
-    "H-A-01: /empezar pide GET /v1/grados-canonicos y la tabla kit_canonico no existe; la pagina responde 500",
-  );
   anotar({ hallazgo: "H-A-01" });
   await stack.guardiaDeRed(page.context());
   const respuesta = await page.goto(`${WEB}/empezar`);
@@ -92,21 +95,23 @@ test.describe("flujo del acudiente", () => {
     await solicitudes.getByRole("link", { name: "Ver mis kits" }).click();
 
     await pagina.waitForURL(`${WEB}/kits/${vista.trabajo_id}`);
-    await expect(pagina.getByRole("heading", { name: "Tus tres kits están listos" })).toBeVisible();
+    await expect(pagina.getByRole("heading", { name: "Tus kits están listos" })).toBeVisible();
   });
 
   test("esperando: un trabajo ya publicado salta solo a sus kits", async () => {
     await pagina.goto(`${WEB}/esperando/${vista.trabajo_id}`);
     await pagina.waitForURL(`${WEB}/kits/${vista.trabajo_id}`);
-    await expect(pagina.getByRole("heading", { name: "Tus tres kits están listos" })).toBeVisible();
+    await expect(pagina.getByRole("heading", { name: "Tus kits están listos" })).toBeVisible();
   });
 
   test("kits: tres pestañas con los totales del trabajo y una sola recomendada", async () => {
-    const pestanas = pagina.getByRole("tablist", { name: "Los tres kits" }).getByRole("tab");
-    await expect(pestanas).toHaveCount(3);
-    expect(vista.kits.map((kit) => kit.perfil).sort()).toEqual(["Ahorrador", "Fan", "Premium"]);
+    const pestanas = pagina.getByRole("tablist", { name: "Ver otro kit" }).getByRole("tab");
+    // Sin personaje, Ahorrador y Premium (ADR 0030, `optimizador.quiere_fan`).
+    expect(vista.kits.map((kit) => kit.perfil).sort()).toEqual(["Ahorrador", "Premium"]);
+    await expect(pestanas).toHaveCount(vista.kits.length);
 
-    const recomendada = pestanas.filter({ hasText: "Te recomendamos este" });
+    // La recomendada lleva la estrella con el rotulo como nombre accesible (y como `title`).
+    const recomendada = pestanas.filter({ has: pagina.getByLabel("Te recomendamos este") });
     await expect(recomendada).toHaveCount(1);
     await expect(recomendada).toContainText(vista.recomendado.perfil);
     await expect(recomendada).toHaveAttribute("aria-selected", "true");
@@ -123,11 +128,11 @@ test.describe("flujo del acudiente", () => {
     }
   });
 
-  test("pago: la entrega crea el pedido del kit recomendado y el webhook aprobado lo deja pagado", async () => {
+  test("pago: la entrega crea el pedido del kit recomendado y la pasarela simulada lo deja pagado", async () => {
     const perfil = vista.recomendado.perfil;
     const kit = kitDe(perfil);
     await pagina
-      .getByRole("tablist", { name: "Los tres kits" })
+      .getByRole("tablist", { name: "Ver otro kit" })
       .getByRole("tab")
       .filter({ hasText: perfil })
       .click();
@@ -139,35 +144,47 @@ test.describe("flujo del acudiente", () => {
     await expect(pagina.getByLabel("Correo para el comprobante")).toHaveCount(0);
     await expect(pagina.getByText(`El comprobante va a ${acudiente.correo}`)).toBeVisible();
 
-    const orden = pagina.waitForResponse(
-      (r) => r.url().endsWith(`/api/trabajos/${vista.trabajo_id}/ordenar`) && r.request().method() === "POST",
-    );
-    // La pasarela falsa no redirige: la web avisa con un alert que el pedido quedo creado. Se acepta
-    // en cuanto aparece; mientras esta abierto, la pagina no entrega el cuerpo de la respuesta.
-    const dialogo = new Promise((listo) => {
-      pagina.once("dialog", async (aviso) => {
-        const texto = aviso.message();
-        await aviso.accept();
-        listo(texto);
+    // La web navega a la pasarela apenas llega la respuesta, y el navegador suelta su cuerpo: se lee
+    // al pasar, sin cambiarla.
+    const orden = new Promise((listo) => {
+      pagina.route(`**/api/trabajos/${vista.trabajo_id}/ordenar`, async (ruta) => {
+        const respuesta = await ruta.fetch();
+        listo({ estado: respuesta.status(), cuerpo: await respuesta.json() });
+        await ruta.fulfill({ response: respuesta });
       });
     });
     await pagina.getByRole("button", { name: /^Pagar / }).click();
-
     const respuesta = await orden;
-    const mensaje = await dialogo;
-    expect(respuesta.status()).toBe(201);
-    pedido = await respuesta.json();
+    expect(respuesta.estado).toBe(201);
+    pedido = respuesta.cuerpo;
     anotar({ pedido_id: pedido.pedido_id, perfil, total: pedido.total });
-    expect(mensaje).toContain(`Pedido ${pedido.pedido_id} creado por`);
-    expect(stack.pesos(mensaje.split("creado por")[1])).toBe(kit.total);
-    expect([pedido.estado, pedido.total]).toEqual(["iniciado", kit.total]);
+    expect([pedido.estado, pedido.total, pedido.widget]).toEqual(["iniciado", kit.total, null]);
 
-    const webhook = await stack.api("POST", "/v1/webhooks/wompi", {
-      cuerpo: stack.eventoAprobado(pedido.referencia_wompi, pedido.transaccion_wompi),
-    });
-    expect(webhook.estado).toBe(200);
-    expect(webhook.json.pedido_transicionado).toBe(true);
-    const pagada = await stack.exigir(200, "GET", `/v1/ordenes/${pedido.pedido_id}`, {
+    // WOMPI_MODO=falso: la pasarela falsa manda a `/pago/simulado?ref=<referencia>` (pasarela.py,
+    // `PasarelaFalsa.crear_transaccion`) y "Aprobar pago" vuelve a `/pago/resultado`, que sincroniza.
+    const simulado = `${WEB}/pago/simulado?ref=${encodeURIComponent(pedido.referencia_wompi)}`;
+    expect(pedido.url_redireccion).toBe(simulado);
+    await pagina.waitForURL(simulado);
+    await expect(pagina.getByRole("heading", { name: "Pasarela simulada (modo de pruebas sin Wompi)" })).toBeVisible();
+    const sincronizada = pagina.waitForResponse(
+      (r) => /\/api\/pagos\/[^/]+\/sincronizar$/.test(r.url()) && r.request().method() === "POST",
+    );
+    await pagina.getByRole("link", { name: "Aprobar pago" }).click();
+    await pagina.waitForURL(
+      `${WEB}/pago/resultado?id=${encodeURIComponent(`falsa-APPROVED-${pedido.referencia_wompi}`)}`,
+    );
+    const resultado = await (await sincronizada).json();
+    anotar({ estado_pago: resultado.estado_pago, estado_pedido: resultado.estado_pedido });
+    expect([resultado.pedido_id, resultado.estado_pago, resultado.estado_pedido, resultado.total]).toEqual([
+      pedido.pedido_id,
+      "aprobado",
+      "pagado",
+      kit.total,
+    ]);
+    await expect(pagina.getByRole("heading", { name: "¡Pago aprobado!" })).toBeVisible();
+
+    // El pedido se lee con la sesion del acudiente: `/v1/ordenes/{id}` ya no se sirve por la puerta (173ee80).
+    const pagada = await stack.exigir(200, "GET", `/v1/comercio/mis-pedidos/${pedido.pedido_id}`, {
       token: acudiente.token,
     });
     expect([pagada.estado, pagada.trabajo_id, pagada.total]).toEqual(["pagado", vista.trabajo_id, kit.total]);

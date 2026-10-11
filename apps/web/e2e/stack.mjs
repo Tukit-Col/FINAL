@@ -1,11 +1,11 @@
 // Lo que el E2E de UI del acudiente necesita del stack vivo, por el gateway y sin navegador:
-// sesiones, una lista verificada de un colegio ficticio, el acudiente ficticio y el webhook firmado
-// de la pasarela falsa. El navegador solo hace lo que haria el acudiente.
+// sesiones, una lista verificada de un colegio ficticio y el acudiente ficticio. El navegador solo
+// hace lo que haria el acudiente, pago incluido (la pasarela simulada de WOMPI_MODO=falso).
 //
 // Todas las llamadas llevan la cabecera de correlacion de la corrida (acuerdos.md §2.4). Las que hace
 // el servidor de Next por su cuenta no la llevan: `ClienteApi` no la propaga.
 
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 
 export const GATEWAY = process.env.TUKIT_API_URL ?? "http://127.0.0.1:8010";
 export const CORRELACION = process.env.QA_CORRELACION_ID ?? randomUUID().replaceAll("-", "");
@@ -17,8 +17,6 @@ export const ENTREGA_FICTICIA = {
   direccion: "Calle Ficticia 1 # 2-3",
   ciudad: "Bogota",
 };
-// Secreto de eventos por omision de `PasarelaFalsa` (WOMPI_MODO=falso).
-const SECRETO_EVENTOS_FALSO = "test_events_falso";
 
 /** Una peticion al gateway. Devuelve el codigo y el cuerpo, sin lanzar por un 4xx o un 5xx. */
 export async function api(metodo, ruta, { token, cuerpo } = {}) {
@@ -159,21 +157,6 @@ export async function trabajoDelAcudiente(token, versionId, plazoMs = 120_000) {
     await new Promise((listo) => setTimeout(listo, 500));
   }
   throw new Error(`el poller no armo el trabajo de la version ${versionId} en ${plazoMs / 1000} s`);
-}
-
-/** El webhook APPROVED con la misma forma y firma que `PasarelaFalsa.emitir_evento`. */
-export function eventoAprobado(referencia, transaccion) {
-  const timestamp = 1_700_000_000;
-  const checksum = createHash("sha256")
-    .update(`${transaccion}APPROVED${timestamp}${SECRETO_EVENTOS_FALSO}`)
-    .digest("hex");
-  return {
-    id: `evt-${transaccion}`,
-    event: "transaction.updated",
-    timestamp,
-    data: { transaction: { id: transaccion, reference: referencia, status: "APPROVED", amount_in_cents: 0 } },
-    signature: { properties: ["transaction.id", "transaction.status"], checksum },
-  };
 }
 
 /** Solo los digitos de una cifra en pesos tal como la pinta la UI ("$ 12.300" -> 12300). */
