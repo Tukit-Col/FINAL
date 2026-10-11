@@ -28,13 +28,18 @@ export function llaveFueRechazada(): boolean {
   return llaveRechazada;
 }
 
+// Google rechazó la llave: por `gm_authFailure`, o porque una llamada volvió con
+// un error de permisos (la API no está habilitada). Desde ahí, todo manual.
+export function rechazarLlave(): void {
+  if (llaveRechazada) return;
+  llaveRechazada = true;
+  for (const aviso of avisos) aviso();
+}
+
 export function cargarPlaces(llave: string): Promise<google.maps.PlacesLibrary | null> {
   if (llaveRechazada) return Promise.resolve(null);
   if (!promesa) {
-    window.gm_authFailure = () => {
-      llaveRechazada = true;
-      for (const aviso of avisos) aviso();
-    };
+    window.gm_authFailure = rechazarLlave;
     try {
       setOptions({ key: llave, v: "weekly", language: "es", region: "CO" });
       promesa = importLibrary("places").catch(() => null);

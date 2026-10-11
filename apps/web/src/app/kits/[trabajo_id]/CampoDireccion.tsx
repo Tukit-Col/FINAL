@@ -15,7 +15,8 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { direccionDesdeComponentes, type DireccionDerivada } from "@tukit/contrato";
-import { alRechazarLlave, cargarPlaces, llaveFueRechazada } from "@/lib/places";
+import { crearTurnos, esRechazoDePermisos } from "@/lib/direccion-checkout";
+import { alRechazarLlave, cargarPlaces, llaveFueRechazada, rechazarLlave } from "@/lib/places";
 import styles from "./Kits.module.css";
 
 const MINIMO_CARACTERES = 3;
@@ -51,8 +52,9 @@ export default function CampoDireccion({ llave, valor, onEscribir, onElegir }: P
   const [abierta, setAbierta] = useState(false);
   const [activa, setActiva] = useState(0);
   const tokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
-  const pedidoRef = useRef(0);
-  const esperaRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Qué respuesta de Google todavía vale y la espera entre teclas
+  // (`direccion-checkout.ts`).
+  const [turnos] = useState(() => crearTurnos(ESPERA_MS));
 
   useEffect(
     () =>
@@ -62,12 +64,7 @@ export default function CampoDireccion({ llave, valor, onEscribir, onElegir }: P
       }),
     [],
   );
-  useEffect(
-    () => () => {
-      if (esperaRef.current) clearTimeout(esperaRef.current);
-    },
-    [],
-  );
+  useEffect(() => () => turnos.cerrar(), [turnos]);
 
   // Se carga al primer foco, no al pintar el checkout: quien no llega a la
   // dirección no descarga la librería.
@@ -78,8 +75,7 @@ export default function CampoDireccion({ llave, valor, onEscribir, onElegir }: P
     });
   }
 
-  function pedirSugerencias(texto: string, libreria: google.maps.PlacesLibrary) {
-    const numero = ++pedidoRef.current;
+  function pedirSugerencias(texto: string, libreria: google.maps.PlacesLibrary, turno: number) {
     tokenRef.current ??= new libreria.AutocompleteSessionToken();
     libreria.AutocompleteSuggestion.fetchAutocompleteSuggestions({
       input: texto,
@@ -90,7 +86,7 @@ export default function CampoDireccion({ llave, valor, onEscribir, onElegir }: P
       region: "co",
     })
       .then(({ suggestions }) => {
-        if (numero !== pedidoRef.current) return;
+        if (!turnos.vigente(turno)) return;
         setSugerencias(
           suggestions.flatMap(({ placePrediction: p }) =>
             p
@@ -106,37 +102,40 @@ export default function CampoDireccion({ llave, valor, onEscribir, onElegir }: P
         );
         setActiva(0);
       })
-      .catch(() => {
-        if (numero === pedidoRef.current) setSugerencias([]);
+      .catch((error: unknown) => {
+        // Sin permisos (la API no está habilitada para la llave) no hay
+        // reintento que valga: el campo pasa a manual y vuelve el
+        // autocompletado del navegador. Otro error espera a la siguiente tecla.
+        if (esRechazoDePermisos(error)) rechazarLlave();
+        else if (turnos.vigente(turno)) setSugerencias([]);
       });
   }
 
   function escribir(texto: string) {
     onEscribir(texto);
     setAbierta(true);
-    if (esperaRef.current) clearTimeout(esperaRef.current);
     if (!places || texto.trim().length < MINIMO_CARACTERES) {
-      pedidoRef.current++;
+      turnos.teclear();
       setSugerencias([]);
       return;
     }
     const libreria = places;
-    esperaRef.current = setTimeout(() => pedirSugerencias(texto.trim(), libreria), ESPERA_MS);
+    turnos.teclear((turno) => pedirSugerencias(texto.trim(), libreria, turno));
   }
 
   async function elegir(sugerencia: Sugerencia) {
     setAbierta(false);
     setSugerencias([]);
-    // El mismo contador que descarta sugerencias viejas: si el acudiente sigue
-    // escribiendo mientras llegan los detalles, lo que escribio gana.
-    const numero = ++pedidoRef.current;
+    // Cancela la búsqueda que esperaba y abre el turno de los detalles: si el
+    // acudiente sigue escribiendo mientras llegan, lo que escribió gana.
+    const turno = turnos.elegir();
     const textoSugerido = [sugerencia.principal, sugerencia.secundario].filter(Boolean).join(", ");
     const lugar = sugerencia.prediccion.toPlace();
     // El `fetchFields` cierra la sesión: la siguiente búsqueda estrena token.
     tokenRef.current = null;
     try {
       await lugar.fetchFields({ fields: ["formattedAddress", "addressComponents"] });
-      if (numero !== pedidoRef.current) return;
+      if (!turnos.vigente(turno)) return;
       onElegir({
         direccion: lugar.formattedAddress || textoSugerido,
         google_place_id: lugar.id || null,
@@ -145,7 +144,7 @@ export default function CampoDireccion({ llave, valor, onEscribir, onElegir }: P
     } catch {
       // Sin detalles no hay nada que pre-llenar: queda el texto sugerido y el
       // acudiente completa ciudad y localidad a mano.
-      if (numero === pedidoRef.current) onEscribir(textoSugerido);
+      if (turnos.vigente(turno)) onEscribir(textoSugerido);
     }
   }
 

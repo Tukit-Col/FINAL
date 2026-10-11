@@ -18,6 +18,7 @@ import {
   type Trabajo,
 } from "@tukit/contrato";
 import { FalloApi, iniciarCheckout } from "@/lib/api-navegador";
+import { escribirDireccionAMano } from "@/lib/direccion-checkout";
 import { abrirWidgetWompi } from "@/lib/wompi";
 import CampoDireccion, { type LugarElegido } from "./CampoDireccion";
 import LineaDeKit from "./LineaDeKit";
@@ -282,9 +283,10 @@ function Checkout({
   // viaja, aunque el acudiente la hubiera elegido antes de cambiar la ciudad.
   const enBogota = esBogota(datos.ciudad);
 
-  // Editar la direccion a mano la desliga del lugar de Google que se eligio.
+  // Editar la direccion a mano la desliga del lugar de Google que se eligio, y
+  // suelta la localidad que Google derivo de el (`direccion-checkout.ts`).
   const escribirDireccion = (direccion: string) =>
-    setDatos((d) => ({ ...d, direccion, google_place_id: "" }));
+    setDatos((d) => escribirDireccionAMano(d, direccion));
 
   // Elegir una sugerencia fija la direccion de Google y pre-llena lo que se
   // pudo derivar. Ciudad y departamento que Google no trajo conservan lo

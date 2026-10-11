@@ -82,7 +82,8 @@ export function tonoEstadoPedido(estado: EstadoPedido): TonoEstado {
 // El cruce entre "Mis solicitudes" y "Mis pedidos" por kit (trabajo_id). La
 // solicitud no se cierra ni guarda un estado propio: se calcula cada vez, asi
 // que si el pedido se cancela o se reembolsa, la solicitud vuelve sola a "Listo".
-// - comprado: el kit tiene un pedido pagado o en camino (el mas reciente).
+// - comprado: el kit tiene un pedido pagado o en camino (el mas reciente). Una
+//   incidencia tambien: el pago ya se cobro y el pedido sigue vivo.
 // - por_pagar: no lo tiene, pero hay uno pendiente de pago y vigente.
 export type CompraSolicitud = { estado: "comprado" | "por_pagar"; pedidoId: string } | null;
 
@@ -92,6 +93,7 @@ const ESTADOS_COMPRADOS: ReadonlySet<EstadoPedido> = new Set([
   "despachado",
   "en_reparto",
   "entregado",
+  "incidencia",
 ]);
 
 type PedidoDeKit = PedidoMinimo & { trabajo_id: string | null };
