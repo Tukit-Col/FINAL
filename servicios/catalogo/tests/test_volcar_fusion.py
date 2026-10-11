@@ -12,7 +12,8 @@ pegamento:
   (nulo -> vacio, tres decimales, fechas ISO, atributos en JSON ordenado).
 - Como se fusiona con el CSV existente: el espejo de MEMBRESIA (lo que se borro en
   la base se borra del CSV) y la autoridad por columna (la base manda salvo
-  `nivel`, `quality_score` y `atributos`, que cura el CSV).
+  `quality_score`, que `nivelar` deriva sobre el CSV; `nivel` y `atributos`
+  son de la base desde 6c29c83).
 - Que el volcado es determinista e idempotente (dos corridas, mismo fichero byte
   a byte) y que el modo ensayo no toca el disco.
 
@@ -322,7 +323,13 @@ class TestFusionDeOfertasYPrecios:
 class TestFusionDeProductos:
     """La base manda, salvo en las columnas que cura el CSV."""
 
-    def test_la_base_pisa_lo_editado_pero_el_csv_conserva_nivel_calidad_y_atributos(self):
+    def test_la_base_pisa_lo_editado_nivel_y_atributos_incluidos_y_el_csv_conserva_la_calidad(self):
+        """Desde 6c29c83 `nivel` y `atributos` son de la base (volcar.py:322-343).
+
+        El nivel que se cambia en el editor y los atributos corregidos a mano
+        viven en la base, y el cargador ya lee los atributos del CSV; conservar
+        los del CSV los perdia al exportar. Solo `quality_score` sigue del CSV.
+        """
         existentes = [
             {
                 "id": "p1",
@@ -349,9 +356,9 @@ class TestFusionDeProductos:
                 "id": "p1",
                 "nombre": "Nombre editado en el dashboard",  # la base manda
                 "concepto_id": "concepto-nuevo",  # reasignar concepto llega al corpus
-                "nivel": "premium",  # el CSV manda
-                "quality_score": "0.950",
-                "atributos": '{"curado": "a mano"}',
+                "nivel": "economico",  # la base manda: lo edito el back-office
+                "quality_score": "0.950",  # el CSV manda
+                "atributos": "{}",  # la base manda
             }
         ]
         assert (nuevas, eliminadas) == (0, 0)
@@ -377,33 +384,45 @@ class TestFusionDeProductos:
         assert (nuevas, eliminadas) == (2, 2)
 
     def test_una_columna_propia_ausente_en_el_csv_viejo_no_rompe(self):
-        """Un CSV viejo sin `atributos` no puede borrar la columna al fusionar."""
+        """Un CSV viejo sin `quality_score` no puede borrar la columna al fusionar.
+
+        Desde 6c29c83 la unica columna propia del CSV es `quality_score`.
+        """
         existentes = [{"id": "p1", "nivel": "premium"}]
         desde_bd = {"p1": {"id": "p1", "nivel": "economico", "atributos": "{}", "quality_score": "0.4"}}
         filas, _, _ = volcar._fusionar_productos(existentes, desde_bd)
-        assert filas[0]["nivel"] == "premium"
+        assert filas[0]["nivel"] == "economico"
         assert filas[0]["atributos"] == "{}"
         assert filas[0]["quality_score"] == "0.4"
 
-    def test_las_columnas_del_csv_son_solo_tres(self):
-        """Ampliar este conjunto cambia quien manda sobre el corpus: se fija a proposito."""
-        assert set(volcar.COLUMNAS_PROPIAS_DEL_CSV) == {"nivel", "quality_score", "atributos"}
+    def test_la_unica_columna_del_csv_es_la_calidad(self):
+        """Ampliar este conjunto cambia quien manda sobre el corpus: se fija a proposito.
+
+        Eran tres hasta 6c29c83, que le devolvio `nivel` y `atributos` a la base
+        (volcar.py:343).
+        """
+        assert set(volcar.COLUMNAS_PROPIAS_DEL_CSV) == {"quality_score"}
 
 
 class TestFusionDeProcedencia:
     def test_se_identifica_por_producto_no_por_id_propio(self):
+        """La huella de origen se conserva; el SKU, desde 6c29c83, es el vigente de la base.
+
+        Un SKU re-acunado al reclasificar llega a la fila conservada (volcar.py:414-420).
+        """
         existentes = [
-            {"producto_id": "p1", "fichero_fuente": "feed.json"},  # semilla fijada por hash
-            {"producto_id": "borrado", "fichero_fuente": "feed.json"},
+            {"producto_id": "p1", "sku_interno": "TK-C001-A", "fichero_fuente": "feed.json"},  # semilla
+            {"producto_id": "borrado", "sku_interno": "TK-C001-X", "fichero_fuente": "feed.json"},
         ]
         nuevas = {
-            "p1": {"producto_id": "p1", "fichero_fuente": "cola_revision"},
-            "p2": {"producto_id": "p2", "fichero_fuente": "cola_revision"},
+            "p1": {"producto_id": "p1", "sku_interno": "TK-C002-A", "fichero_fuente": "cola_revision"},
+            "p2": {"producto_id": "p2", "sku_interno": "TK-C001-B", "fichero_fuente": "cola_revision"},
         }
         filas, agregadas, eliminadas = volcar._fusionar_procedencia(existentes, nuevas, {"p1", "p2"})
         assert filas == [
-            {"producto_id": "p1", "fichero_fuente": "feed.json"},  # la semilla no se pisa
-            {"producto_id": "p2", "fichero_fuente": "cola_revision"},
+            # la semilla no se pisa, salvo el SKU vigente
+            {"producto_id": "p1", "sku_interno": "TK-C002-A", "fichero_fuente": "feed.json"},
+            {"producto_id": "p2", "sku_interno": "TK-C001-B", "fichero_fuente": "cola_revision"},
         ]
         assert (agregadas, eliminadas) == (1, 1)
 
@@ -574,7 +593,10 @@ async def test_la_procedencia_elige_la_oferta_mas_barata_y_tolera_la_que_no_tien
 
 
 async def test_el_espejo_conserva_lo_curado_en_el_csv_y_quita_lo_borrado(bd, datos, capsys):
-    """Fusion contra un CSV previo: nivel del CSV, nombre de la base, fantasma eliminado."""
+    """Fusion contra un CSV previo: calidad del CSV; nombre, nivel y atributos de la base; fantasma eliminado.
+
+    `nivel` y `atributos` son de la base desde 6c29c83 (volcar.py:322-343).
+    """
     ids = _sembrar(bd)
     _escribir_csv(
         datos / "productos_canonicos.csv",
@@ -604,9 +626,9 @@ async def test_el_espejo_conserva_lo_curado_en_el_csv_y_quita_lo_borrado(bd, dat
     assert "TK-FANTASMA" not in productos
     curado = productos["TK-C001-A"]
     assert curado["nombre"] == "Cuaderno Ficticio Curado"  # la base manda sobre el nombre
-    assert curado["nivel"] == "premium"
+    assert curado["nivel"] == "confiable"  # y sobre el nivel
     assert curado["quality_score"] == "0.950"
-    assert curado["atributos"] == '{"curado": "a mano"}'
+    assert curado["atributos"] == "{}"  # y sobre los atributos
     salida = capsys.readouterr().out
     assert "+2 nuevos, -1 borrados" in salida
 

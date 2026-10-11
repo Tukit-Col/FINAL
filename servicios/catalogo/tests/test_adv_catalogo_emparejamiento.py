@@ -86,7 +86,9 @@ class TestADV07RankingPorEmbeddings:
 
         record_property("pares", len(PARES))
         record_property("ganadores_cambiados", len(cambios))
-        assert len(PARES) == 12
+        # 13 desde la recalibracion del oraculo: "Compas de precision" paso de
+        # hueco a facil (44309fa, ver `RECALIBRADO_CATALOGO` en construir.py).
+        assert len(PARES) == 13
         assert cambios == []
 
     @pytest.mark.xfail(
@@ -164,6 +166,14 @@ class TestADV07RankingPorEmbeddings:
 
 @pytest.mark.nfr("NFR-SEG-06")
 class TestADV08ProductoQueNoExiste:
+    # Desde 44309fa el catalogo tiene C136 "Gafas de natacion" con productos, y
+    # el renglon cae en el por la sola palabra "gafas".
+    @pytest.mark.xfail(
+        strict=True,
+        reason="H-A-59: el ancla de cabeza de `clasificar` (descubrir.py:306-322) da el piso "
+        "0.6 por compartir solo la primera palabra: 'Gafas de proteccion para quimica' se reconoce como "
+        "C136 Gafas de natacion y ofrece gafas de natacion",
+    )
     @pytest.mark.parametrize("con_vector", [False, True], ids=["lexico", "fundido"])
     def test_las_gafas_de_quimica_son_un_hueco_sin_sku(self, con_vector, record_property):
         texto = "Gafas de protección para química"

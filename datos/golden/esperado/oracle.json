@@ -187,9 +187,9 @@
     },
     {
       "texto": "Compás de precisión",
-      "estado": "abstencion",
+      "estado": "reconocido",
       "concepto": "C018",
-      "nivel": "hueco",
+      "nivel": "facil",
       "fuentes": [
         "G01#15",
         "G03#15",
@@ -199,8 +199,8 @@
     },
     {
       "texto": "Plataforma de inglés: código de acceso",
-      "estado": "sin_match",
-      "concepto": null,
+      "estado": "hueco_catalogo",
+      "concepto": "C133",
       "nivel": "informativo",
       "fuentes": [
         "G01#16",
@@ -211,8 +211,8 @@
     },
     {
       "texto": "Uniforme de educación física",
-      "estado": "sin_match",
-      "concepto": null,
+      "estado": "hueco_catalogo",
+      "concepto": "C131",
       "nivel": "informativo",
       "fuentes": [
         "G01#17",
@@ -362,17 +362,17 @@
     },
     {
       "texto": "1 Compás de precisión",
-      "estado": "abstencion",
+      "estado": "reconocido",
       "concepto": "C018",
-      "nivel": "hueco",
+      "nivel": "dificil",
       "fuentes": [
         "G06#15"
       ]
     },
     {
       "texto": "1 Plataforma de inglés: código de acceso",
-      "estado": "sin_match",
-      "concepto": null,
+      "estado": "hueco_catalogo",
+      "concepto": "C133",
       "nivel": "informativo",
       "fuentes": [
         "G06#16"
@@ -380,8 +380,8 @@
     },
     {
       "texto": "1 Uniforme de educación física",
-      "estado": "sin_match",
-      "concepto": null,
+      "estado": "hueco_catalogo",
+      "concepto": "C131",
       "nivel": "informativo",
       "fuentes": [
         "G06#17"
@@ -515,17 +515,17 @@
     },
     {
       "texto": "COMPÁS DE PRECISIÓN",
-      "estado": "abstencion",
+      "estado": "reconocido",
       "concepto": "C018",
-      "nivel": "hueco",
+      "nivel": "dificil",
       "fuentes": [
         "G09#15"
       ]
     },
     {
       "texto": "PLATAFORMA DE INGLÉS: CÓDIGO DE ACCESO",
-      "estado": "sin_match",
-      "concepto": null,
+      "estado": "hueco_catalogo",
+      "concepto": "C133",
       "nivel": "informativo",
       "fuentes": [
         "G09#16"
@@ -533,8 +533,8 @@
     },
     {
       "texto": "UNIFORME DE EDUCACIÓN FÍSICA",
-      "estado": "sin_match",
-      "concepto": null,
+      "estado": "hueco_catalogo",
+      "concepto": "C131",
       "nivel": "informativo",
       "fuentes": [
         "G09#17"

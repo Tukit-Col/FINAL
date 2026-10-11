@@ -336,14 +336,21 @@ async def test_reclasificar_un_producto_retirado_es_404_y_conserva_su_concepto(c
 
 
 async def test_reclasificar_un_producto_activo_lo_mueve_y_anula_su_embedding(cliente):
-    """El camino feliz: el producto cambia de concepto, vuelve reclasificado y su texto se invalida."""
+    """El camino feliz: el producto cambia de concepto, vuelve reclasificado y su texto se invalida.
+
+    Desde 4dfdd99 el SKU de una semilla nombra su concepto y se re-acuna al moverla
+    (repositorios/catalogo.py:399-417); `TK-C002-CON` ya existe, asi que lleva sufijo.
+    """
     respuesta = await cliente.post(
         "/v1/catalogo/productos/TK-C001-CON/reclasificar", json={"concepto": "C002"}
     )
 
     assert respuesta.status_code == 200
     assert respuesta.json()["concepto"]["codigo"] == "C002"
-    en_base = await _producto_en_base(cliente, "TK-C001-CON")
+    assert respuesta.json()["sku"] == "TK-C002-CON-2"
+    assert await _skus_activos(cliente) >= {"TK-C002-CON", "TK-C002-CON-2"}
+    assert "TK-C001-CON" not in await _skus_activos(cliente)
+    en_base = await _producto_en_base(cliente, "TK-C002-CON-2")
     assert en_base.texto_embedding is None
     assert en_base.embedding is not None  # no se re-embebe en la peticion: solo se invalida el texto
 

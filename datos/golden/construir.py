@@ -167,6 +167,26 @@ DIFICILES = [
     ("Folder con gancho legajador", "C011"),
 ]
 
+# Recalibracion del oraculo por cambios del catalogo (re-base de QA a `d4ea7cb`,
+# 2026-10-11). El oraculo se mide contra `datos/catalogo/` de hoy, y estos tres
+# renglones de la lista base cambiaron porque cambio el catalogo, no el
+# emparejador. Va solo al oraculo: `esperado/Gnn.json` conserva la respuesta
+# grabada que sirven las pruebas de inteligencia (`test_golden_kits.py`), que no
+# leen el catalogo. Por el texto de la lista base, con el commit que lo cambio:
+RECALIBRADO_CATALOGO = {
+    # 44309fa (atributos corregidos a mano): TK-C018-PRE, "Compas Precision Faber
+    # Castell", declara tipo=precision. El hueco por atributo dejo de existir y el
+    # renglon se surte con el compas de precision.
+    "Compás de precisión": {"estado": "reconocido", "concepto": "C018", "nivel": "facil"},
+    # 44309fa: C133 "Plan lector virtual", tipo licencia_digital (plataforma Raz
+    # Plus, plataforma de lectura). Se reconoce y no tiene producto: sigue sin
+    # comprarse en Tukit.
+    "Plataforma de inglés: código de acceso": {"estado": "hueco_catalogo", "concepto": "C133"},
+    # 44309fa: C131 "Uniforme", tipo uniforme, con el sinonimo "uniforme de
+    # educacion fisica". Se reconoce y no tiene producto.
+    "Uniforme de educación física": {"estado": "hueco_catalogo", "concepto": "C131"},
+}
+
 VARIANTES = {
     "G01": ("G01-tabla-limpia.png", "Tabla limpia, con columna de cantidad"),
     "G02": ("G02-multipagina.pdf", f"PDF de {TOPE_PAGINAS + 1} paginas: pasa el tope sin llamar al modelo"),
@@ -235,14 +255,20 @@ def leidos(variante: str) -> list[dict]:
     return items
 
 
+def _origen(variante: str) -> list[tuple]:
+    """Las filas de `BASE` que la variante deja ver, en su orden."""
+    if variante == "G08":
+        return BASE[:9]
+    if variante == "G10":
+        return [BASE[n] for n in (0, 1, 3, 5, 6, 9)]
+    return BASE
+
+
 def renglones_esperados(variante: str) -> list[dict]:
     """Lo que cada etapa tiene que producir para cada renglon que sobrevive a la percepcion."""
     filas = []
     leidos_sin_vacios = [i for i in leidos(variante) if i["descripcion"].strip()]
-    origen = BASE[:9] if variante == "G08" else BASE
-    if variante == "G10":
-        origen = [BASE[n] for n in (0, 1, 3, 5, 6, 9)]
-    for orden, (item, fila) in enumerate(zip(leidos_sin_vacios, origen, strict=True), start=1):
+    for orden, (item, fila) in enumerate(zip(leidos_sin_vacios, _origen(variante), strict=True), start=1):
         _, _, _, tipo, modo, cantidad, empaque, concepto, estado, nivel = fila
         filas.append(
             {
@@ -648,8 +674,8 @@ def oraculo() -> dict:
     """Pares texto -> concepto, de todos los renglones de las variantes y de `DIFICILES`."""
     pares: dict[str, dict] = {}
     for variante in ("G01", "G03", "G05", "G06", "G07", "G08", "G09", "G10"):
-        for fila in renglones_esperados(variante):
-            e = fila["emparejamiento"]
+        for fila, base in zip(renglones_esperados(variante), _origen(variante), strict=True):
+            e = {**fila["emparejamiento"], **RECALIBRADO_CATALOGO.get(base[0], {})}
             nivel = e["nivel"]
             if variante in ("G06", "G09") and nivel in ("exacto", "facil"):
                 nivel = "dificil"

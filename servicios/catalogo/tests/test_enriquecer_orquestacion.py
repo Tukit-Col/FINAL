@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import uuid
 from pathlib import Path
+from typing import Any
 
 import pytest
 from sqlalchemy import create_engine, event, select
@@ -245,7 +246,9 @@ class TestCargarContexto:
     async def test_junta_productos_atributos_requeridos_direcciones_y_nombres(self, bd):
         conceptos = _sembrar(bd)
 
-        productos, requeridos, urls, nombres = await enriquecer._cargar_contexto()
+        # Desde a50c334 el contexto trae tambien el codigo de cada concepto
+        # (enriquecer.py:1251, :1259).
+        productos, requeridos, urls, nombres, codigos = await enriquecer._cargar_contexto()
 
         assert {p["nombre"] for p in productos} >= {
             "Cuaderno Curado 50 Hojas",
@@ -260,10 +263,11 @@ class TestCargarContexto:
         assert requeridos[str(conceptos["cuaderno"].id)] == ("hojas", "material")
         assert requeridos[str(conceptos["tijeras"].id)] == ()
         assert nombres[str(conceptos["regla"].id)] == "regla"
+        assert codigos[str(conceptos["regla"].id)] == "C003"
 
     async def test_solo_cuentan_las_ofertas_con_direccion(self, bd):
         _sembrar(bd)
-        productos, _req, urls, _nombres = await enriquecer._cargar_contexto()
+        productos, _req, urls, _nombres, _codigos = await enriquecer._cargar_contexto()
         por_nombre = {p["nombre"]: str(p["id"]) for p in productos}
         assert urls[por_nombre["Cuaderno Ficticio 100 Hojas Cosido"]] == ["https://exito.example.test/p1"]
         assert (
@@ -555,26 +559,53 @@ class TestImagenDesdeFicha:
 
 
 class TestMain:
-    @pytest.fixture()
-    def principal(self, monkeypatch: pytest.MonkeyPatch) -> list[tuple[bool, bool, bool]]:
-        llamadas: list[tuple[bool, bool, bool]] = []
+    """Desde a50c334 `main` tambien pasa `--reextraer`, `--informe` y `--fichas` (enriquecer.py:1563-1585)."""
 
-        async def falso(con_imagenes: bool, solo_validar: bool, con_embeddings: bool = True) -> int:
-            llamadas.append((con_imagenes, solo_validar, con_embeddings))
+    @pytest.fixture()
+    def principal(self, monkeypatch: pytest.MonkeyPatch) -> list[tuple[Any, ...]]:
+        llamadas: list[tuple[Any, ...]] = []
+
+        async def falso(
+            con_imagenes: bool,
+            solo_validar: bool,
+            con_embeddings: bool = True,
+            reextraer: dict[str, frozenset[str]] | None = None,
+            informe: str | None = None,
+            con_fichas: bool = False,
+        ) -> int:
+            llamadas.append((con_imagenes, solo_validar, con_embeddings, reextraer, informe, con_fichas))
             return 7
 
         monkeypatch.setattr(enriquecer, "_principal", falso)
         return llamadas
 
     def test_por_omision_no_va_a_la_red_pero_si_calcula_embeddings(self, monkeypatch, principal):
+        """Ni portadas ni fichas (las dos van a la red de la tienda) sin pedirlas."""
         monkeypatch.setattr("sys.argv", ["enriquecer"])
         assert enriquecer.main() == 7
-        assert principal == [(False, False, True)]
+        assert principal == [(False, False, True, {}, None, False)]
 
     def test_cada_bandera_cambia_su_parametro(self, monkeypatch, principal):
-        monkeypatch.setattr("sys.argv", ["enriquecer", "--imagenes", "--solo-validar", "--sin-embeddings"])
+        monkeypatch.setattr(
+            "sys.argv",
+            [
+                "enriquecer",
+                "--imagenes",
+                "--solo-validar",
+                "--sin-embeddings",
+                "--reextraer",
+                "C006:tipo,punta",
+                "--reextraer",
+                "C006:color",
+                "--informe",
+                "informe-ficticio.csv",
+                "--fichas",
+            ],
+        )
         enriquecer.main()
-        assert principal == [(True, True, False)]
+        assert principal == [
+            (True, True, False, {"C006": frozenset({"tipo", "punta", "color"})}, "informe-ficticio.csv", True)
+        ]
 
 
 # ---------------------------------------------------------------------------

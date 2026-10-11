@@ -201,15 +201,12 @@ class TestClasificarHibrido:
     def test_sin_conceptos_no_hay_clasificacion(self):
         assert clasificar("cuaderno", []) == (None, "", 0.0)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-A-11: un coseno negativo RESTA al puntaje lexico (descubrir.py:297 y :299 suman "
-            "_APORTE_COSENO * cos sin piso en 0), contra el docstring de clasificar (l.259-261) 'Nunca resta'"
-        ),
-    )
     def test_el_canal_semantico_nunca_baja_el_puntaje_lexico(self):
-        """El docstring de `clasificar` promete que el hibrido nunca da menos que el lexico solo."""
+        """El docstring de `clasificar` promete que el hibrido nunca da menos que el lexico solo.
+
+        Era H-A-11: un coseno negativo restaba en las ramas lexicas. Desde `57dccb1`
+        el coseno se recorta en 0 (descubrir.py:300): queda como prueba de no regresion.
+        """
         sin_vector = clasificar("cuaderno cuadriculado", [CUADERNO])[2]
         opuesto = {**CUADERNO, "embedding": [-1.0, 0.0]}
         con_vector_opuesto = clasificar("cuaderno cuadriculado", [opuesto], embedding_renglon=[1.0, 0.0])[2]

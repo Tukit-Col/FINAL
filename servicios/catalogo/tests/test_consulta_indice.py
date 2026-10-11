@@ -349,11 +349,14 @@ async def test_el_emparejamiento_cruza_a_json_con_todas_sus_opciones(indice):
     datos = emparejar("block", conceptos, productos).a_dict()
     texto = json.dumps(datos)
     assert json.loads(texto)["opciones"][0]["sku"] == "TK-C003-ECO"
+    # `concepto_tipo_item` viaja desde b97ce00: el tipo del concepto manda en el kit
+    # (consulta.py:72-75).
     assert set(datos) == {
         "texto",
         "texto_corregido",
         "estado",
         "concepto_codigo",
+        "concepto_tipo_item",
         "concepto_nombre",
         "parecido",
         "atributos_impuestos",
