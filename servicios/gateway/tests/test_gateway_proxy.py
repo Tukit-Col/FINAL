@@ -9,9 +9,9 @@ destino, y que la sonda `/v1/servicios` dice la verdad de cada servicio.
 
 Importa porque la puerta es el unico punto por el que pasa todo el trafico del
 navegador: lo que reenvia mal (cabeceras de salto, correlacion) rompe a todos, y
-lo que deja pasar de lo interno queda expuesto sin autenticacion. Se caracteriza
-ademas un defecto: el bloqueo de rutas internas compara el camino CRUDO, de modo
-que una ruta con segmentos `..` lo esquiva.
+lo que deja pasar de lo interno queda expuesto sin autenticacion. Una ruta con
+segmentos `.` o `..` tampoco esquiva el bloqueo: era el defecto H-A-06, que
+`173ee80` corrigio con `ambigua` (api.py:178-189).
 """
 
 from __future__ import annotations
@@ -137,7 +137,8 @@ class TestUnServicioCaidoEsUn503:
 
         _poner(monkeypatch, caido)
 
-        respuesta = await _pedir("POST", "/v1/ordenes", json={})
+        # Bajo /v1/ordenes la puerta solo expone el avance (173ee80, api.py:154-161).
+        respuesta = await _pedir("POST", "/v1/ordenes/orden-ficticia/avanzar", json={})
 
         assert respuesta.status_code == 503
         assert "El servicio de comercio" in respuesta.json()["mensaje"]
@@ -208,26 +209,18 @@ class TestUnaRutaInternaSeVeComoInexistente:
         assert respuesta.status_code == 200
         assert [str(p.url) for p in atras.peticiones] == ["http://comercio.example.test/v1/comercio/pedidos"]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-A-06: RUTAS_BLOQUEADAS compara el camino crudo: con segmentos '..' "
-            "o '.' la ruta interna llega a comercio"
-        ),
-    )
     @pytest.mark.parametrize(
         "ruta",
         ["/v1/comercio/pedidos/../pedidos-pagados", "/v1/comercio/./pedidos-pagados"],
         ids=["punto-punto", "punto"],
     )
     async def test_un_camino_con_segmentos_de_punto_no_esquiva_el_bloqueo(self, monkeypatch, ruta):
-        """La ruta interna debe verse como inexistente desde fuera. Evidencia:
-        `bloqueada` (api.py:168-170) y `destino` (api.py:154-158) miran el camino
-        sin normalizar; `/v1/comercio/pedidos/../pedidos-pagados` empieza por el
-        prefijo permitido `/v1/comercio` y api.py:260 lo reenvia: httpx colapsa
-        los puntos al armar la peticion y comercio recibe
-        `/v1/comercio/pedidos-pagados`, la superficie servicio-a-servicio, sin
-        pasar por el bloqueo."""
+        """La ruta interna debe verse como inexistente desde fuera. Era H-A-06:
+        `bloqueada` y `destino` miraban el camino sin normalizar, y httpx
+        colapsaba los puntos al reenviar, asi que comercio recibia
+        `/v1/comercio/pedidos-pagados`. Desde `173ee80`, `ambigua`
+        (api.py:178-189) rechaza cualquier segmento `.`/`..` antes de rutear:
+        queda como prueba de no regresion."""
         atras = _poner(monkeypatch, lambda p: httpx.Response(200, json={"interno": True}))
 
         estado, _ = await _pedir_crudo(ruta)
@@ -242,7 +235,8 @@ class TestLoQueViajaHaciaAtras:
 
         respuesta = await _pedir(
             "POST",
-            "/v1/ordenes/orden-ficticia/pago?modo=falso&moneda=COP",
+            # El avance es la unica ruta de /v1/ordenes que la puerta expone (173ee80).
+            "/v1/ordenes/orden-ficticia/avanzar?modo=falso&moneda=COP",
             content=b'{"referencia": "ref-ficticia"}',
             headers={"content-type": "application/json"},
         )
@@ -252,7 +246,7 @@ class TestLoQueViajaHaciaAtras:
         assert peticion.method == "POST"
         assert peticion.url.scheme == "http"
         assert peticion.url.host == "comercio.example.test"
-        assert peticion.url.path == "/v1/ordenes/orden-ficticia/pago"
+        assert peticion.url.path == "/v1/ordenes/orden-ficticia/avanzar"
         assert dict(peticion.url.params) == {"modo": "falso", "moneda": "COP"}
         assert peticion.content == b'{"referencia": "ref-ficticia"}'
         assert peticion.headers["content-type"] == "application/json"
