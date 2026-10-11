@@ -82,8 +82,12 @@ async def _pedido_pagado(http: httpx.AsyncClient, usuario: str = ACUDIENTE) -> s
     pago = (
         await http.post(f"/v1/ordenes/{pedido_id}/pago", json={"correo_cliente": CORREO, "metodo": "pse"})
     ).json()
+    # Desde 7c2ae19 el evento firma el monto y desde fe8c030 el webhook lo coteja con el del pago.
     evento = app.state.pasarela.emitir_evento(
-        referencia=pago["referencia_wompi"], transaccion_id=pago["transaccion_wompi"], estado_wompi="APPROVED"
+        referencia=pago["referencia_wompi"],
+        transaccion_id=pago["transaccion_wompi"],
+        estado_wompi="APPROVED",
+        monto_centavos=app.state.pasarela.montos[pago["referencia_wompi"]],
     )
     assert (await http.post("/v1/webhooks/wompi", json=evento)).json()["estado"] == "aplicado"
     return pedido_id
@@ -270,7 +274,7 @@ async def test_un_retracto_un_dia_despues_de_la_entrega_se_acepta_y_registra_la_
     strict=True,
     reason=(
         "H-A-14: el retracto no valida la ventana de 5 dias habiles posteriores a la entrega "
-        "(Ley 1480; FU-04): routers/comercio.py:447-477 acepta un pedido entregado hace 30 dias"
+        "(Ley 1480; FU-04): routers/comercio.py:760-790 acepta un pedido entregado hace 30 dias"
     ),
 )
 async def test_un_retracto_fuera_de_la_ventana_de_5_dias_habiles_se_rechaza(entorno):
@@ -293,7 +297,8 @@ async def test_un_retracto_fuera_de_la_ventana_de_5_dias_habiles_se_rechaza(ento
     strict=True,
     reason=(
         "H-C-06: el retracto no identifica al actor ni comprueba que sea el titular del pedido: "
-        "routers/comercio.py:447-477 cancela y devuelve el pedido de cualquiera"
+        "routers/comercio.py:760-790 (sin `_pedido_del_portador`, que 63665ec si pone en "
+        "pago y cancelar, :734-757) cancela y devuelve el pedido de cualquiera"
     ),
 )
 async def test_el_retracto_de_un_pedido_ajeno_se_rechaza(entorno):
@@ -317,8 +322,8 @@ async def test_el_retracto_de_un_pedido_ajeno_se_rechaza(entorno):
     strict=True,
     reason=(
         "H-A-15: cancelar por retracto no libera la reserva de inventario "
-        "(modelos/inventario.py:56-60 promete liberarla al cancelar); repositorios/pedidos.py:472-475 "
-        "solo actualiza el pedido y el barredor ignora pedidos no pendientes (dominio/saga.py:41-44)"
+        "(modelos/inventario.py:56-60 promete liberarla al cancelar); repositorios/pedidos.py:734-737 "
+        "solo actualiza el pedido y el barredor ignora pedidos no pendientes (dominio/saga.py:41-43)"
     ),
 )
 async def test_el_retracto_de_un_pedido_pagado_libera_su_reserva_de_inventario(entorno):
@@ -339,7 +344,7 @@ async def test_el_retracto_de_un_pedido_pagado_libera_su_reserva_de_inventario(e
     strict=True,
     reason=(
         "H-A-16: la devolucion registra el total del pedido aunque nunca se pago, contra su propio "
-        "docstring ('el monto del reembolso es el total pagado'): routers/comercio.py:452 y :466"
+        "docstring ('el monto del reembolso es el total pagado'): routers/comercio.py:765 y :779"
     ),
 )
 async def test_la_devolucion_de_un_pedido_nunca_pagado_no_registra_dinero(entorno):

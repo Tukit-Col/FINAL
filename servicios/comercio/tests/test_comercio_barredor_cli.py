@@ -7,6 +7,9 @@ inyecta `ahora`, el cierre del motor aunque la pasada falle, el bucle `--seguir`
 cuando libero algo y duerme el intervalo pedido) y la invocacion real `python -m
 tukit_comercio.barredor` contra una base SQLite en archivo.
 
+Desde 271bd08 el TTL por omision es de 24 h (la misma ventana en que el pedido se puede pagar,
+`pagos.VIGENCIA_PAGO`), no de 30 min: las reservas "vencidas" de estas pruebas tienen 25 h.
+
 Sin red y sin esperas: el reloj y el `sleep` se inyectan; el unico motor "externo" es un archivo
 SQLite en `tmp_path`.
 """
@@ -25,6 +28,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
 from tukit_comercio import barredor
+from tukit_comercio.dominio.pagos import VIGENCIA_PAGO
 from tukit_comercio.dominio.saga import TTL_RESERVA
 from tukit_comercio.modelos import Base, EstadoPedido, Pedido, ReservaInventario
 
@@ -33,6 +37,7 @@ pytestmark = pytest.mark.nfr("NFR-MAN-01")
 AHORA = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
 PEDIDO = Pedido.__table__
 RESERVA = ReservaInventario.__table__
+VENCIDA_MIN = 25 * 60  # una hora mas que el TTL por omision (24 h)
 
 
 @pytest_asyncio.fixture
@@ -85,9 +90,11 @@ async def _estados(motor, pid: uuid.UUID) -> tuple[str, list[str]]:
 
 
 def test_ttl_por_omision_es_el_del_dominio(monkeypatch):
-    """Sin variable, el TTL es el conservador del dominio (30 min): nadie lo cambia por accidente."""
+    """Sin variable, el TTL es el del dominio: nadie lo cambia por accidente. Desde 271bd08 son 24 h,
+    la vigencia de pago del pedido: una reserva no vence mientras el pedido todavia se puede pagar."""
     monkeypatch.delenv("TUKIT_TTL_RESERVA_MIN", raising=False)
-    assert barredor._ttl() == TTL_RESERVA == timedelta(minutes=30)
+    assert barredor._ttl() == TTL_RESERVA == timedelta(hours=24)
+    assert TTL_RESERVA == VIGENCIA_PAGO
 
 
 @pytest.mark.parametrize(
@@ -119,7 +126,7 @@ async def test_el_ttl_del_entorno_decide_que_reserva_vence(motor, monkeypatch):
 async def test_pedido_con_varias_reservas_libera_todas_y_cuenta_reservas_no_pedidos(motor):
     """El conteo devuelto es de RESERVAS liberadas; el pedido abandonado se cancela una sola vez
     y las reservas de otro pedido todavia vigente no se tocan."""
-    abandonado = await _sembrar(motor, edad_min=45, reservas=3)
+    abandonado = await _sembrar(motor, edad_min=VENCIDA_MIN, reservas=3)
     reciente = await _sembrar(motor, edad_min=5, reservas=2)
 
     liberadas = await barredor.pasada(motor, ahora=AHORA)
@@ -131,8 +138,8 @@ async def test_pedido_con_varias_reservas_libera_todas_y_cuenta_reservas_no_pedi
 
 async def test_el_limite_acota_la_pasada_y_la_siguiente_termina_el_trabajo(motor):
     """`limite` topa las filas que una pasada toma; lo que quedo se barre en la pasada siguiente."""
-    a = await _sembrar(motor, edad_min=60)
-    b = await _sembrar(motor, edad_min=60)
+    a = await _sembrar(motor, edad_min=VENCIDA_MIN)
+    b = await _sembrar(motor, edad_min=VENCIDA_MIN)
 
     assert await barredor.pasada(motor, ahora=AHORA, limite=1) == 1
     pedidos_cancelados = [(await _estados(motor, pid))[0] == EstadoPedido.CANCELADO.value for pid in (a, b)]
@@ -145,9 +152,9 @@ async def test_el_limite_acota_la_pasada_y_la_siguiente_termina_el_trabajo(motor
 
 
 async def test_sin_ahora_inyectado_la_pasada_usa_el_reloj_real(motor):
-    """En produccion no se inyecta `ahora`: una reserva de hace 2 h ya vencio y una de hace 1 min no."""
+    """En produccion no se inyecta `ahora`: una reserva de hace 25 h ya vencio y una de hace 1 min no."""
     ahora_real = datetime.now(UTC)
-    vieja = await _sembrar(motor, edad_min=120, ahora=ahora_real)
+    vieja = await _sembrar(motor, edad_min=VENCIDA_MIN, ahora=ahora_real)
     fresca = await _sembrar(motor, edad_min=1, ahora=ahora_real)
 
     assert await barredor.pasada(motor) == 1
@@ -173,7 +180,7 @@ async def test_correr_una_vez_devuelve_el_conteo_y_cierra_el_motor(motor, monkey
     espia = _MotorEspia(motor)
     monkeypatch.setattr(barredor, "crear_motor", lambda servicio: espia)
     ahora_real = datetime.now(UTC)
-    pid = await _sembrar(motor, edad_min=90, reservas=2, ahora=ahora_real)
+    pid = await _sembrar(motor, edad_min=VENCIDA_MIN, reservas=2, ahora=ahora_real)
 
     assert await barredor.correr_una_vez() == 2
     assert espia.cerrado is True
@@ -263,7 +270,7 @@ def test_python_m_barredor_libera_contra_una_base_real_y_sale_con_cero(tmp_path,
         engine = create_async_engine(url)
         async with engine.begin() as conexion:
             await conexion.run_sync(Base.metadata.create_all)
-        pid = await _sembrar(engine, edad_min=120, reservas=2, ahora=datetime.now(UTC))
+        pid = await _sembrar(engine, edad_min=VENCIDA_MIN, reservas=2, ahora=datetime.now(UTC))
         await engine.dispose()
         return pid
 

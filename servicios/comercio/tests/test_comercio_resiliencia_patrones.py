@@ -11,9 +11,10 @@ cubre:
   las escrituras «se protegen con idempotencia de aplicacion» y nombra la
   cabecera `Idempotency-Key`. Un `POST /v1/ordenes` reenviado con la misma
   clave no deberia crear un segundo pedido (H-A-56).
-- **Idempotencia del webhook.** El candado es solo el `evento_id`. Dos casos:
-  la pasarela falsa (la de omision) reinicia su contador con el proceso y repite
-  ids; y dos entregas simultaneas del mismo evento, donde el indice unico salva
+- **Idempotencia del webhook.** El candado es solo el `evento_id` (desde
+  7c2ae19, `transaccion:ESTADO` y no el id del sobre). Dos casos: la pasarela
+  falsa (la de omision) reinicia su contador con el proceso y repite ids de
+  transaccion; y dos entregas simultaneas del mismo evento, donde el indice unico salva
   el efecto pero la que pierde responde 500 (H-A-57). La carrera se simula
   haciendo que el SELECT del candado no vea la primera entrega, que es lo que
   pasa cuando las dos transacciones se cruzan.
@@ -232,8 +233,9 @@ class TestUnaOrdenReenviadaNoSeDuplica:
 class TestElWebhookAplicaUnaSolaVez:
     @pytest.mark.xfail(
         strict=True,
-        reason="H-A-57: el candado del webhook es solo el evento_id; tras reiniciar Comercio la "
-        "pasarela falsa repite `falsa-1` y el pago del pedido nuevo se responde `repetido` y se pierde",
+        reason="H-A-57: el candado del webhook es solo el evento_id (`transaccion:ESTADO`, "
+        "pasarela.py:142); tras reiniciar Comercio la pasarela falsa repite `falsa-1` y el pago del "
+        "pedido nuevo se responde `repetido` y se pierde",
     )
     async def test_tras_reiniciar_la_pasarela_falsa_el_pago_nuevo_no_se_toma_por_repetido(
         self, comercio, record_property
@@ -243,6 +245,7 @@ class TestElWebhookAplicaUnaSolaVez:
             referencia=pago_antes["referencia_wompi"],
             transaccion_id=pago_antes["transaccion_wompi"],
             estado_wompi="APPROVED",
+            monto_centavos=app.state.pasarela.montos[pago_antes["referencia_wompi"]],
         )
         assert (await comercio.http.post("/v1/webhooks/wompi", json=evento_antes)).json()[
             "estado"
@@ -254,6 +257,7 @@ class TestElWebhookAplicaUnaSolaVez:
             referencia=pago_despues["referencia_wompi"],
             transaccion_id=pago_despues["transaccion_wompi"],
             estado_wompi="APPROVED",
+            monto_centavos=app.state.pasarela.montos[pago_despues["referencia_wompi"]],
         )
         respuesta = await comercio.http.post("/v1/webhooks/wompi", json=evento)
         estado_pedido, estado_pago = await comercio.estado(despues)
@@ -278,6 +282,7 @@ class TestElWebhookAplicaUnaSolaVez:
             referencia=pago["referencia_wompi"],
             transaccion_id=f"qa-{uuid.uuid4().hex}",
             estado_wompi="APPROVED",
+            monto_centavos=app.state.pasarela.montos[pago["referencia_wompi"]],
         )
         primera = await comercio.http.post("/v1/webhooks/wompi", json=evento)
         assert primera.json()["estado"] == "aplicado"
@@ -293,7 +298,9 @@ class TestElWebhookAplicaUnaSolaVez:
         self, comercio, monkeypatch, record_property
     ):
         pedido_id, evento, segunda = await self._carrera(comercio, monkeypatch)
-        eventos = await comercio.contar(EVENTO_PROCESADO, EVENTO_PROCESADO.c.evento_id == evento["id"])
+        # La clave de idempotencia es `transaccion:ESTADO` desde 7c2ae19, no el id del sobre.
+        clave = f"{evento['data']['transaction']['id']}:APPROVED"
+        eventos = await comercio.contar(EVENTO_PROCESADO, EVENTO_PROCESADO.c.evento_id == clave)
         avisos = await comercio.contar(
             BANDEJA, BANDEJA.c.tipo == "pedido_pagado", BANDEJA.c.agregado_id == uuid.UUID(pedido_id)
         )

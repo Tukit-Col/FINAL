@@ -13,10 +13,12 @@ pedido a medias:
 - `POST /v1/webhooks/wompi`: eventos incompletos o de una referencia desconocida no mueven nada pero
   quedan registrados; un segundo aprobado con otro id no duplica el aviso `pedido_pagado`; un aprobado
   sobre un pedido cancelado no lo resucita; la correlacion de la peticion viaja en el aviso.
-- `POST /v1/ordenes/{id}/avanzar`: la cadena de entrega solo avanza por transiciones legales, un
-  despacho exige transportadora Y guia, y lo sellado en el envio no se pierde al avanzar.
+- `POST /v1/ordenes/{id}/avanzar` (solo staff desde e82d03c): la cadena de entrega solo avanza por
+  transiciones legales, un despacho exige el nombre Y el celular del repartidor (reparto propio), una
+  incidencia su tipo, y lo sellado en el envio no se pierde al avanzar.
 
-Sin red: SQLite en memoria, `PasarelaFalsa` (que firma como Wompi) y Catalogo en memoria. Los contadores
+Sin red: SQLite en memoria, `PasarelaFalsa` (que firma como Wompi), Catalogo en memoria e
+`IdentidadFalsa` (las sesiones de `conftest.py`) para la puerta del staff. Los contadores
 de metricas se espian para comprobar que se cuentan solo cuando corresponde.
 """
 
@@ -30,6 +32,7 @@ from typing import Any
 import httpx
 import pytest
 import pytest_asyncio
+from conftest import OPERADOR, TOKEN_OPERADOR, IdentidadFalsa, bearer
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from tukit_comercio.api import app
@@ -44,7 +47,7 @@ from tukit_comercio.modelos import (
     Pedido,
     ReservaInventario,
 )
-from tukit_comercio.pasarela import PasarelaFalsa, TransaccionCreada
+from tukit_comercio.pasarela import PasarelaFalsa, TransaccionCreada, firma_evento
 from tukit_comercio.remoto import CatalogoCaido
 from tukit_comercio.routers import comercio as router_comercio
 from tukit_comun.bd import MotorServicio
@@ -116,6 +119,7 @@ async def entorno() -> AsyncIterator[tuple[httpx.AsyncClient, MotorServicio, Pas
     app.state.motor = motor
     app.state.pasarela = PasarelaEspia()
     app.state.catalogo = CatalogoFalso()
+    app.state.identidad = IdentidadFalsa()
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
         yield http, motor, app.state.pasarela
     await engine.dispose()
@@ -191,13 +195,27 @@ async def _iniciar_pago(http: httpx.AsyncClient, pedido_id: str, **extra: Any) -
     return respuesta.json()
 
 
-def _evento(pago: dict[str, Any], estado_wompi: str, **extra: Any) -> dict[str, Any]:
+def _evento(
+    pago: dict[str, Any], estado_wompi: str, *, transaccion_id: str | None = None, **extra: Any
+) -> dict[str, Any]:
+    """El webhook de Wompi para ese pago. Desde 7c2ae19 la firma cubre el monto y desde fe8c030 el
+    webhook lo coteja con el del pago: va el que la pasarela recibio al crear la transaccion."""
     evento = app.state.pasarela.emitir_evento(
         referencia=pago["referencia_wompi"],
-        transaccion_id=pago["transaccion_wompi"],
+        transaccion_id=transaccion_id or pago["transaccion_wompi"],
         estado_wompi=estado_wompi,
+        monto_centavos=app.state.pasarela.montos[pago["referencia_wompi"]],
     )
     return {**evento, **extra}
+
+
+def _refirmar_sin(evento: dict[str, Any], propiedad: str) -> dict[str, Any]:
+    """Quita `propiedad` de la transaccion y de las firmadas y vuelve a firmar con el secreto de la
+    falsa: un evento que Wompi si firmo, pero al que le falta ese dato."""
+    del evento["data"]["transaction"][propiedad.removeprefix("transaction.")]
+    evento["signature"]["properties"] = [p for p in evento["signature"]["properties"] if p != propiedad]
+    evento["signature"]["checksum"] = firma_evento(evento, app.state.pasarela.secreto_eventos)
+    return evento
 
 
 async def _pedido_pagado(http: httpx.AsyncClient) -> tuple[str, dict[str, Any]]:
@@ -385,7 +403,16 @@ async def test_el_pago_manda_centavos_a_la_pasarela_guarda_pesos_y_solo_ids_y_es
 
     assert respuesta.status_code == 201
     cuerpo = respuesta.json()
-    assert set(cuerpo) == {"pago_id", "referencia_wompi", "transaccion_wompi", "estado", "url_redireccion"}
+    # `widget` es del contrato desde c3dbbff; la pasarela falsa no lo arma.
+    assert set(cuerpo) == {
+        "pago_id",
+        "referencia_wompi",
+        "transaccion_wompi",
+        "estado",
+        "url_redireccion",
+        "widget",
+    }
+    assert cuerpo["widget"] is None
     assert cuerpo["estado"] == EstadoPago.INICIADO.value
     assert cuerpo["referencia_wompi"] == f"tukit-{pedido_id}-1"
     assert CORREO not in respuesta.text
@@ -499,12 +526,14 @@ async def test_si_la_pasarela_cae_no_queda_pago_huerfano_y_el_reintento_reusa_la
 
 @pytest.mark.parametrize("campo_ausente", ["id", "referencia"])
 async def test_un_evento_firmado_pero_incompleto_se_ignora_sin_mover_nada(entorno, campo_ausente):
+    """Desde 7c2ae19 la clave del evento es `<transaccion>:<ESTADO>` y el `id` del sobre no cuenta:
+    el caso `id` es ahora un evento firmado sin `transaction.id`."""
     http, motor, _ = entorno
     pedido_id = await _crear_orden(http)
     pago = await _iniciar_pago(http, pedido_id)
     evento = _evento(pago, "APPROVED")
     if campo_ausente == "id":
-        del evento["id"]
+        _refirmar_sin(evento, "transaction.id")
     else:
         del evento["data"]["transaction"]["reference"]  # no esta entre las propiedades firmadas
 
@@ -522,14 +551,17 @@ async def test_un_evento_de_una_referencia_desconocida_queda_registrado_y_no_mue
     http, motor, _ = entorno
     pedido_id = await _crear_orden(http)
     evento = app.state.pasarela.emitir_evento(
-        referencia="tukit-de-otro-comercio-1", transaccion_id="falsa-999", estado_wompi="APPROVED"
+        referencia="tukit-de-otro-comercio-1",
+        transaccion_id="falsa-999",
+        estado_wompi="APPROVED",
+        monto_centavos=900_000,
     )
 
     primera = await http.post("/v1/webhooks/wompi", json=evento)
     segunda = await http.post("/v1/webhooks/wompi", json=evento)
 
     assert primera.json() == {"estado": "sin_pago", "referencia": "tukit-de-otro-comercio-1"}
-    assert segunda.json() == {"estado": "repetido", "evento_id": "evt-falsa-999"}
+    assert segunda.json() == {"estado": "repetido", "evento_id": "falsa-999:APPROVED"}
     assert await _contar(motor, EventoPasarelaProcesado) == 1
     assert (await http.get(f"/v1/ordenes/{pedido_id}")).json()["estado"] == "pendiente_pago"
     assert metricas["pagos"] == 0
@@ -563,7 +595,7 @@ async def test_un_pago_pendiente_actualiza_el_pago_pero_no_el_pedido_ni_la_bande
 
     assert respuesta.json() == {
         "estado": "aplicado",
-        "evento_id": "evt-falsa-1",
+        "evento_id": "falsa-1:PENDING",
         "pago_estado": "iniciado",
         "pedido_transicionado": False,
     }
@@ -598,19 +630,21 @@ async def test_rechazado_y_luego_aprobado_en_un_reintento_termina_pagado_con_un_
 
 
 async def test_un_segundo_aprobado_con_otro_id_no_duplica_el_aviso_ni_la_metrica(entorno, metricas):
-    """El candado por id de evento no basta si Wompi manda otro id: la maquina de estados
-    (`pagado -> pagado` no es transicion) impide re-pagar el pedido y re-avisar al acudiente."""
+    """Otro `id` de sobre con la misma transaccion choca con el candado (`<transaccion>:<ESTADO>`,
+    7c2ae19). Otra transaccion aprobada para la misma referencia pasa el candado, pero un pago ya
+    aprobado es final (2c0a253): no re-paga el pedido ni re-avisa al acudiente."""
     http, motor, _ = entorno
     pedido_id, pago = await _pedido_pagado(http)
 
-    otra = await http.post("/v1/webhooks/wompi", json=_evento(pago, "APPROVED", id="evt-otro-id-ficticio"))
+    otro_sobre = await http.post(
+        "/v1/webhooks/wompi", json=_evento(pago, "APPROVED", id="evt-otro-id-ficticio")
+    )
+    otra = await http.post(
+        "/v1/webhooks/wompi", json=_evento(pago, "APPROVED", transaccion_id="falsa-otra-ficticia")
+    )
 
-    assert otra.json() == {
-        "estado": "aplicado",
-        "evento_id": "evt-otro-id-ficticio",
-        "pago_estado": "aprobado",
-        "pedido_transicionado": False,
-    }
+    assert otro_sobre.json() == {"estado": "repetido", "evento_id": f"{pago['transaccion_wompi']}:APPROVED"}
+    assert otra.json() == {"estado": "repetido", "evento_id": "falsa-otra-ficticia:APPROVED"}
     assert (await http.get(f"/v1/ordenes/{pedido_id}")).json()["estado"] == "pagado"
     assert await _contar(motor, BandejaSalida) == 1
     assert metricas["pagos"] == 1
@@ -618,7 +652,8 @@ async def test_un_segundo_aprobado_con_otro_id_no_duplica_el_aviso_ni_la_metrica
 
 async def test_un_aprobado_sobre_un_pedido_cancelado_no_lo_resucita_ni_avisa(entorno, metricas):
     """El barredor o un retracto cancelaron el pedido y luego llega el pago: `cancelado` es terminal,
-    no se pasa a `pagado`, no se encola `pedido_pagado` y no se cuenta como pago aprobado."""
+    no se pasa a `pagado`, no se encola `pedido_pagado` y no se cuenta como pago aprobado. Desde
+    270f584 el cobro no se pierde en silencio: queda UNA `incidencia` `pago_tras_cancelacion`."""
     http, motor, _ = entorno
     pedido_id = await _crear_orden(http)
     pago = await _iniciar_pago(http, pedido_id)
@@ -629,7 +664,11 @@ async def test_un_aprobado_sobre_un_pedido_cancelado_no_lo_resucita_ni_avisa(ent
     assert respuesta.status_code == 200
     assert respuesta.json()["pedido_transicionado"] is False
     assert (await http.get(f"/v1/ordenes/{pedido_id}")).json()["estado"] == "cancelado"
-    assert await _contar(motor, BandejaSalida) == 0
+    async with motor.sesion() as db:
+        avisos = list(await db.scalars(select(BandejaSalida)))
+    assert [(a.tipo, a.carga["motivo"], a.carga["monto"]) for a in avisos] == [
+        ("incidencia", "pago_tras_cancelacion", 9000)
+    ]
     assert metricas["pagos"] == 0
 
 
@@ -667,7 +706,11 @@ async def test_el_aviso_pedido_pagado_lleva_el_pedido_el_total_y_la_correlacion_
 
 
 async def _avanzar(http: httpx.AsyncClient, pedido_id: str, **cuerpo: Any) -> httpx.Response:
-    return await http.post(f"/v1/ordenes/{pedido_id}/avanzar", json=cuerpo)
+    """Avanza como operador: desde e82d03c `avanzar` es solo staff (sin sesion es 401)."""
+    return await http.post(f"/v1/ordenes/{pedido_id}/avanzar", json=cuerpo, headers=bearer(TOKEN_OPERADOR))
+
+
+REPARTIDOR = {"repartidor_nombre": "Repartidor Ficticio", "repartidor_celular": "3000000000"}
 
 
 async def test_un_destino_que_no_es_un_estado_es_422_y_el_pedido_no_cambia(entorno):
@@ -715,11 +758,19 @@ async def test_un_pedido_terminal_no_sale_de_su_estado(entorno, terminal, destin
 
 
 @pytest.mark.parametrize(
-    "faltante",
-    [{"transportadora": "Servientrega"}, {"guia": "GUIA-0001"}, {"transportadora": "", "guia": "GUIA-0001"}],
-    ids=["sin_guia", "sin_transportadora", "transportadora_vacia"],
+    ("faltante", "campo"),
+    [
+        ({"repartidor_nombre": "Repartidor Ficticio"}, "repartidor_celular"),
+        ({"repartidor_celular": "3000000000"}, "repartidor_nombre"),
+        ({"repartidor_nombre": "  ", "repartidor_celular": "3000000000"}, "repartidor_nombre"),
+    ],
+    ids=["sin_celular", "sin_nombre", "nombre_vacio"],
 )
-async def test_despachar_exige_transportadora_y_guia_y_no_cambia_el_estado(entorno, faltante):
+async def test_despachar_exige_nombre_y_celular_del_repartidor_y_no_cambia_el_estado(
+    entorno, faltante, campo
+):
+    """Con reparto propio (e82d03c) un despacho sin a quien llamar no sale; el campo culpable va en
+    el sobre y nada del repartidor queda sellado en el envio."""
     http, motor, _ = entorno
     pedido_id, _ = await _pedido_pagado(http)
     await _avanzar(http, pedido_id, destino="en_preparacion")
@@ -729,17 +780,18 @@ async def test_despachar_exige_transportadora_y_guia_y_no_cambia_el_estado(entor
     assert respuesta.status_code == 422
     assert respuesta.json() == {
         "error": "despacho_incompleto",
-        "mensaje": "Un despacho necesita transportadora y guia para poder rastrearse.",
-        "campo": "destino",
+        "mensaje": "Para despachar hacen falta el nombre y el celular del repartidor.",
+        "campo": campo,
     }
     pedido = (await http.get(f"/v1/ordenes/{pedido_id}")).json()
     assert pedido["estado"] == "en_preparacion"
-    assert pedido["envio"]["guia"] is None
+    assert pedido["envio"]["repartidor_nombre"] is None
 
 
 async def test_la_cadena_completa_sella_el_envio_y_no_borra_lo_ya_sellado(entorno):
-    """Despachar sella transportadora, guia y fecha estimada; los pasos siguientes (que no los
-    mandan) los conservan; entregar marca `entregado_en`. La respuesta es el pedido completo."""
+    """Despachar sella repartidor (nombre y celular) y fecha estimada; los pasos siguientes (que no
+    los mandan) los conservan; entregar marca `entregado_en`. La respuesta es el detalle del staff:
+    el pedido completo, con el celular y el historial de avances con su actor (e82d03c)."""
     http, _, _ = entorno
     pedido_id, _ = await _pedido_pagado(http)
     await _avanzar(http, pedido_id, destino="en_preparacion")
@@ -748,8 +800,7 @@ async def test_la_cadena_completa_sella_el_envio_y_no_borra_lo_ya_sellado(entorn
         http,
         pedido_id,
         destino="despachado",
-        transportadora="Servientrega",
-        guia="GUIA-0001",
+        **REPARTIDOR,
         entrega_estimada="2026-03-05T17:00:00+00:00",
     )
     assert despachado.status_code == 200
@@ -761,23 +812,36 @@ async def test_la_cadena_completa_sella_el_envio_y_no_borra_lo_ya_sellado(entorn
     entregado = await _avanzar(http, pedido_id, destino="entregado")
 
     assert reparto.json()["estado"] == "en_reparto"
-    assert reparto.json()["envio"]["guia"] == "GUIA-0001"
+    assert reparto.json()["envio"]["repartidor_nombre"] == "Repartidor Ficticio"
     cuerpo = entregado.json()
     assert cuerpo["estado"] == "entregado"
-    assert (cuerpo["envio"]["transportadora"], cuerpo["envio"]["guia"]) == ("Servientrega", "GUIA-0001")
+    assert (cuerpo["envio"]["repartidor_nombre"], cuerpo["envio"]["repartidor_celular"]) == (
+        "Repartidor Ficticio",
+        "3000000000",
+    )
     assert cuerpo["envio"]["entregado_en"] is not None
     assert cuerpo["pago"]["estado"] == "aprobado"  # la respuesta es la misma vista completa del pedido
+    assert [(h["estado_desde"], h["estado_hacia"], h["actor_id"]) for h in cuerpo["historial"]] == [
+        ("pagado", "en_preparacion", OPERADOR),
+        ("en_preparacion", "despachado", OPERADOR),
+        ("despachado", "en_reparto", OPERADOR),
+        ("en_reparto", "entregado", OPERADOR),
+    ]
+    # La vista interna, sin sesion, no lleva el celular del repartidor.
+    assert "repartidor_celular" not in (await http.get(f"/v1/ordenes/{pedido_id}")).json()["envio"]
 
 
 async def test_una_incidencia_vuelve_a_preparacion_o_cancela_pero_no_salta_pasos(entorno):
+    """Desde e82d03c una incidencia trae su tipo (`TIPOS_INCIDENCIA`)."""
     http, _, _ = entorno
     pedido_id, _ = await _pedido_pagado(http)
+    incidencia = {"destino": "incidencia", "tipo_incidencia": "no_habia_nadie"}
 
-    assert (await _avanzar(http, pedido_id, destino="incidencia")).json()["estado"] == "incidencia"
-    saltar = await _avanzar(http, pedido_id, destino="despachado", transportadora="X", guia="Y")
+    assert (await _avanzar(http, pedido_id, **incidencia)).json()["estado"] == "incidencia"
+    saltar = await _avanzar(http, pedido_id, destino="despachado", **REPARTIDOR)
     assert saltar.status_code == 409  # de incidencia no se despacha sin pasar por preparacion
     assert (await _avanzar(http, pedido_id, destino="en_preparacion")).json()["estado"] == "en_preparacion"
-    assert (await _avanzar(http, pedido_id, destino="incidencia")).json()["estado"] == "incidencia"
+    assert (await _avanzar(http, pedido_id, **incidencia)).json()["estado"] == "incidencia"
     assert (await _avanzar(http, pedido_id, destino="cancelado")).json()["estado"] == "cancelado"
 
 
