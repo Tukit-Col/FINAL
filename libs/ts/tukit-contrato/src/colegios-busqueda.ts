@@ -62,8 +62,16 @@ export function logoDeColegio(
   colegio: { logo_url?: string | null; dane?: string | null },
   imagenes: ReadonlyMap<string, string>,
 ): string | null {
-  const propio = colegio.logo_url?.trim();
-  if (propio) return propio;
+  return colegio.logo_url?.trim() || logoDelDirectorio(colegio, imagenes);
+}
+
+// El logo que se ve cuando sale del directorio: el `imageURL` por DANE, solo si
+// el colegio no cargo uno propio. Si no, `null`.
+export function logoDelDirectorio(
+  colegio: { logo_url?: string | null; dane?: string | null },
+  imagenes: ReadonlyMap<string, string>,
+): string | null {
+  if (colegio.logo_url?.trim()) return null;
   return (colegio.dane && imagenes.get(colegio.dane)) || null;
 }
 

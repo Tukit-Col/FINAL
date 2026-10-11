@@ -73,6 +73,17 @@ test("Bogota sin sublocality: la localidad queda vacia para elegirla", () => {
   assert.deepEqual(r, { ciudad: "Bogotá", localidad: "", departamento: "Bogotá, D.C." });
 });
 
+test("un barrio que se llama como una localidad no es esa localidad", () => {
+  // El barrio Santa Fe queda en Los Mártires, no en la localidad Santa Fe:
+  // sin sublocality, la localidad queda vacia para que el acudiente la elija.
+  const r = direccionDesdeComponentes([
+    c("Calle 22 #17-30", "street_address"),
+    c("Santa Fe", "neighborhood", "political"),
+    ...BOGOTA,
+  ]);
+  assert.deepEqual(r, { ciudad: "Bogotá", localidad: "", departamento: "Bogotá, D.C." });
+});
+
 test("Bogota solo como departamento sigue siendo Bogota", () => {
   const r = direccionDesdeComponentes([
     c("Suba", "sublocality_level_1", "political"),

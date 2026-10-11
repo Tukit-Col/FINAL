@@ -82,13 +82,14 @@ export interface DireccionDerivada {
 }
 
 // En que componentes buscar la localidad, en orden. Google la pone en
-// cualquiera de estos segun el barrio.
+// cualquiera de estos segun el barrio. `neighborhood` no: es el barrio, y hay
+// barrios que se llaman como otra localidad (el barrio Santa Fe queda en Los
+// Mártires). Sin localidad reconocible, la elige el acudiente.
 const TIPOS_LOCALIDAD = [
   "sublocality_level_1",
   "sublocality",
   "administrative_area_level_3",
   "administrative_area_level_2",
-  "neighborhood",
 ];
 
 // De los componentes de una direccion a lo que el checkout pre-llena. La

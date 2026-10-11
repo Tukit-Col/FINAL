@@ -9,6 +9,7 @@ import {
   imagenesPorDane,
   inicialesColegio,
   logoDeColegio,
+  logoDelDirectorio,
   normalizarBusqueda,
   prepararBusqueda,
   type EntradaDirectorio,
@@ -114,4 +115,14 @@ test("logo: manda el de Identidad, luego el del directorio por DANE, si no ningu
   assert.equal(logoDeColegio({ logo_url: "  ", dane: SALITRE.dane }, imagenes), SALITRE.imageURL);
   assert.equal(logoDeColegio({ logo_url: null, dane: NORTE.dane }, imagenes), null);
   assert.equal(logoDeColegio({ logo_url: null, dane: null }, imagenes), null);
+});
+
+test("logo del directorio: solo cuando el colegio no tiene uno propio", () => {
+  // Lo usa la ficha del admin para decir de donde sale el logo que se ve.
+  const imagenes = imagenesPorDane(DIRECTORIO);
+  assert.equal(logoDelDirectorio({ logo_url: null, dane: SALITRE.dane }, imagenes), SALITRE.imageURL);
+  assert.equal(logoDelDirectorio({ logo_url: " ", dane: SALITRE.dane }, imagenes), SALITRE.imageURL);
+  assert.equal(logoDelDirectorio({ logo_url: "https://tukit.co/cacs.png", dane: SALITRE.dane }, imagenes), null);
+  assert.equal(logoDelDirectorio({ logo_url: null, dane: NORTE.dane }, imagenes), null);
+  assert.equal(logoDelDirectorio({ logo_url: null, dane: null }, imagenes), null);
 });
