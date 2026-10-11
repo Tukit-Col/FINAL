@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from datetime import timedelta
 from typing import Any
 
 import pytest
@@ -75,9 +76,15 @@ async def _estado(motor, trabajo_id: uuid.UUID) -> str:
         return await conexion.scalar(select(TRABAJO.c.estado).where(TRABAJO.c.id == trabajo_id))
 
 
-async def _marcar(motor, trabajo_id: uuid.UUID, estado: EstadoTrabajo) -> None:
+async def _marcar(
+    motor, trabajo_id: uuid.UUID, estado: EstadoTrabajo, *, sin_cambiar: timedelta | None = None
+) -> None:
     # Un `fallido` sin diagnostico viola el CHECK de la tabla: se le pone uno.
     diagnostico = {"error": "dependencia_caida"} if estado is EstadoTrabajo.FALLIDO else {}
+    # `sin_cambiar`: cuanto lleva el trabajo sin tocarse. Desde 4b58080 un `procesando`
+    # solo es colgado si lleva 15 minutos asi (`trabajador._COLGADO_DESDE`).
+    if sin_cambiar is not None:
+        diagnostico["actualizado_en"] = trabajos.ahora() - sin_cambiar
     async with motor.engine.begin() as conexion:
         await conexion.execute(
             update(TRABAJO).where(TRABAJO.c.id == trabajo_id).values(estado=estado.value, **diagnostico)
@@ -216,7 +223,7 @@ class TestCorrerUnaVez:
         monkeypatch.setattr(trabajador, "ClienteCatalogo", lambda: catalogo)
         nuevo = await _encolar(motor, "h-nuevo")
         colgado = await _encolar(motor, "h-colgado")
-        await _marcar(motor, colgado, EstadoTrabajo.PROCESANDO)
+        await _marcar(motor, colgado, EstadoTrabajo.PROCESANDO, sin_cambiar=timedelta(hours=1))
 
         procesados = await trabajador.correr_una_vez()
 

@@ -7,9 +7,10 @@ que dar, con productos sacados de `datos/catalogo/` (los CSV que carga el
 catalogo) y, en los tres huecos, con el mismo motivo que da el catalogo real.
 
 Lo que se mide es lo que viene despues: la optimizacion y la respuesta. Tienen
-que salir los tres perfiles, ningun SKU ni `producto_canonico_id` fuera del
-catalogo, una linea por renglon en cada kit, la aritmetica del empaque y los
-huecos sin producto y con un motivo.
+que salir los perfiles que pide la lista (sin preferencias, Ahorrador y Premium:
+ADR 0030), ningun SKU ni `producto_canonico_id` fuera del catalogo, una linea
+por renglon en cada kit, la aritmetica del empaque y los huecos sin producto y
+con un motivo.
 """
 
 from __future__ import annotations
@@ -181,8 +182,11 @@ class TestLosTresKits:
     async def test_salen_los_tres_perfiles_y_uno_solo_recomendado(self, motor, variante):
         vista, _ = await _kits(motor, variante)
 
-        assert sorted(k["perfil"] for k in vista["kits"]) == sorted(p.value for p in PerfilKit)
-        assert vista["recomendado"]["perfil"] in {p.value for p in PerfilKit}
+        # Kits a pedido (ADR 0030, efb0827): sin personaje ni `prioridad=equilibrio`
+        # ni tope, solo salen los dos extremos.
+        perfiles = sorted(k["perfil"] for k in vista["kits"])
+        assert perfiles == sorted([PerfilKit.AHORRADOR.value, PerfilKit.PREMIUM.value])
+        assert vista["recomendado"]["perfil"] in perfiles
 
     @pytest.mark.nfr("NFR-PRE-02")
     async def test_cada_renglon_de_la_lista_tiene_su_linea_en_cada_kit(

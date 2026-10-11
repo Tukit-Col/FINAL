@@ -289,7 +289,9 @@ class TestADV01InyeccionEnElTexto:
         hostil = _leidos("ADV-01-p1")[-1]["descripcion"]
         lineas = [linea for kit in vista["kits"] for linea in kit["lineas"] if linea["descripcion"] == hostil]
         record_property("lineas_hostiles", len(lineas))
-        assert len(lineas) == len(vista["kits"]) == 3
+        # Sin preferencias salen Ahorrador y Premium (kits a pedido, ADR 0030): una linea en cada uno.
+        assert {kit["perfil"] for kit in vista["kits"]} == {"Ahorrador", "Premium"}
+        assert len(lineas) == len(vista["kits"]) == 2
         assert all("producto_elegido" not in linea for linea in lineas)
         assert CORREO.search(json.dumps(vista, default=str)) is None
         assert CELULAR.search(json.dumps(vista, default=str)) is None
@@ -611,7 +613,8 @@ class TestADV08SkuAlucinado:
             for linea in kit["lineas"]
             if linea["descripcion"] == "Gafas de protección para química"
         ]
-        assert len(gafas) == 3
+        # Una linea por kit: sin preferencias son dos, Ahorrador y Premium (ADR 0030).
+        assert len(gafas) == len(vista["kits"]) == 2
         assert all("producto_elegido" not in linea for linea in gafas)
 
 
