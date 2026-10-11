@@ -1,7 +1,9 @@
 """Fixtures de los E2E de la fase 4: el flujo del acudiente y el del colegio, contra el stack vivo.
 
 Como las de `ensayos/integracion`, no corren con `make prueba`: necesitan los
-seis procesos de `make backend` y las bases migradas y sembradas.
+seis procesos de `make backend` y las bases migradas y sembradas, y
+`ensayos/conftest.py` deja esta carpeta fuera de la recoleccion salvo que se
+pida (`-m e2e`, la ruta explicita o `TUKIT_QA_STACK=1`).
 
     make backend
     .venv/bin/pytest ensayos/e2e -m e2e

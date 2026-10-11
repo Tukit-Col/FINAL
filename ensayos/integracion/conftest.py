@@ -1,8 +1,9 @@
 """Fixtures de las pruebas de integracion: el stack vivo, no SQLite.
 
-Estas pruebas no corren con `make prueba` (que recoge `arquitectura libs
-servicios`): necesitan los seis procesos levantados con `make backend` y las
-bases de Postgres migradas. Se corren aparte:
+Estas pruebas no corren con `make prueba`: necesitan los seis procesos
+levantados con `make backend` y las bases de Postgres migradas, y
+`ensayos/conftest.py` deja esta carpeta fuera de la recoleccion salvo que se
+pida (`-m integracion`, la ruta explicita o `TUKIT_QA_STACK=1`). Se corren aparte:
 
     make backend
     .venv/bin/pytest ensayos/integracion -m integracion
