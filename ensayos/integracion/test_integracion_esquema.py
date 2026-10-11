@@ -5,7 +5,7 @@ esquema migrado dice lo mismo que los modelos (`arquitectura/verificar_deriva.py
 el mismo paso del job `migraciones`). Las bases del stack se crean solo con
 migraciones, como en CI, asi que lo que falte en una revision se ve aqui.
 
-NFR-MAN-04: las rutas de `arquitectura/CONTRATO_API.md` contra las que sirve
+NFR-MAN-04: las rutas de `docs/arquitectura/CONTRATO_API.md` contra las que sirve
 cada servicio segun su `openapi.json`, y cada ruta servida llega por la puerta
 al servicio que la atiende.
 """
@@ -69,23 +69,37 @@ def test_el_verificador_de_deriva_llega_a_las_cinco_bases(deriva: subprocess.Com
         assert re.search(rf"(ok|DERIVA) +{servicio}:", deriva.stdout), deriva.stdout
 
 
+_DERIVA_CATALOGO = pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "H-A-60: concepto.uno_por_estudiante (642a53d) e item_lista_oficial."
+        "avisos_descartados (9414819) tienen server_default en la migracion y no en el modelo; "
+        "el verificador sale con 1"
+    ),
+)
+
+
 @pytest.mark.nfr("NFR-MAN-03")
-@pytest.mark.xfail(
-    strict=True, reason="H-A-01: ninguna migracion crea `kit_canonico`; el verificador sale con 1"
+@pytest.mark.parametrize(
+    "servicio",
+    [pytest.param(s, marks=_DERIVA_CATALOGO) if s == "catalogo" else s for s in SERVICIOS_CON_BASE],
 )
 def test_el_esquema_migrado_coincide_con_los_modelos(
-    deriva: subprocess.CompletedProcess[str], record_property
+    deriva: subprocess.CompletedProcess[str], servicio: str, record_property
 ):
+    """Por servicio. En inteligencia es el control de no regresion de H-A-01: desde c57c0b3 la
+    migracion `20260928_1900_tabla_kit_canonico.py` crea `kit_canonico`."""
     record_property("salida_deriva", " | ".join(deriva.stdout.split("\n")[:8]))
-    assert deriva.returncode == 0, deriva.stdout
+    assert re.search(rf"ok +{servicio}:", deriva.stdout), deriva.stdout
 
 
 @pytest.mark.nfr("NFR-MAN-03")
-@pytest.mark.xfail(strict=True, reason="H-A-01: sobre bases solo migradas, /v1/grados-canonicos responde 500")
 def test_los_grados_canonicos_responden_sobre_una_base_migrada(cliente: httpx.Client):
+    """Control de no regresion de H-A-01: con `kit_canonico` migrada (c57c0b3), 200 y no 500."""
     respuesta = cliente.get("/v1/grados-canonicos")
 
     assert respuesta.status_code == 200, respuesta.text[:200]
+    assert isinstance(respuesta.json()["grados"], list)
 
 
 # --------------------------------------------------------------- NFR-MAN-04
@@ -99,7 +113,8 @@ def _forma(camino: str) -> str:
 
 
 def _documentadas() -> set[tuple[str, str]]:
-    contrato = (RAIZ / "arquitectura" / "CONTRATO_API.md").read_text()
+    # En `docs/arquitectura/` desde b96a7df (antes, `arquitectura/`).
+    contrato = (RAIZ / "docs" / "arquitectura" / "CONTRATO_API.md").read_text()
     return {(m, _forma(p)) for m, p in re.findall(r"`(GET|POST|PUT|PATCH|DELETE) (/v1/[^`\s]*)`", contrato)}
 
 
