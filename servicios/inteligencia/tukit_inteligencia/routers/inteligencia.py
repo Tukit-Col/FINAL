@@ -828,8 +828,14 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
     tags=["admin"],
     summary="Sube el PDF de una lista, lo percibe y lo importa al catalogo",
 )
-async def onboarding(peticion: Request) -> dict[str, Any]:
+async def onboarding(
+    peticion: Request, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
     """De un PDF a una lista en el catalogo, pasando por la percepcion.
+
+    Solo staff (`_exigir_staff`: 401 sin sesion, 403 sin rol, 503 si Identidad
+    no responde), y antes de leer el formulario: quien no puede subir no gasta
+    una lectura del PDF.
 
     El colegio se designa como en la subida del acudiente (`ColegioElegido`):
     `colegio_id` de uno que Tukit conoce, `colegio_dane` + `colegio_nombre` del
@@ -846,6 +852,7 @@ async def onboarding(peticion: Request) -> dict[str, Any]:
     se acepta, es el PDF en base64 y la percepcion cruda por pagina, para que
     la revision humana del catalogo pueda contrastar.
     """
+    await _exigir_staff(authorization)
     tipo = peticion.headers.get("content-type", "")
     if "multipart/form-data" not in tipo:
         raise ErrorDominio("multipart_invalido", "Sube la lista como multipart/form-data.", estado=422)

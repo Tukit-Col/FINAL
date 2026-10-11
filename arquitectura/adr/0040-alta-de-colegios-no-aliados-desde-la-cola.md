@@ -57,8 +57,9 @@ todos, se veían con iniciales en todas partes.
 
 - El staff puede sumar un colegio a Tukit subiendo una lista. Hasta que la aprueba, el colegio
   solo existe en la cola.
-- El onboarding sigue sin exigir sesión de staff en `inteligencia` (`_exigir_staff`): el BFF del
-  admin no reenvía el token a esa ruta. Queda como deuda, igual que antes de este cambio.
+- Subir una lista crea colegios, así que el onboarding exige sesión de staff: `inteligencia`
+  llama a `_exigir_staff` antes de leer el archivo, y el BFF del admin reenvía el token de la
+  sesión como Bearer (contrato 1.8, §12.8).
 - Un logo nuevo se agrega editando `imageURL` en el JSON del contrato. Regenerar el directorio
   no lo pierde.
 - El JSON pesa lo mismo que antes, más una clave por entrada. El navegador lo descarga una vez

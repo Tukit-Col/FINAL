@@ -15,7 +15,8 @@
 
 La dirección del checkout se autocompleta con Google Places (ADR 0039), el acudiente sigue su
 pedido en una línea de tiempo y el staff sube desde la cola la lista de cualquier colegio de
-Bogotá (ADR 0040). Todo es aditivo: un cliente de 1.7 sigue funcionando sin cambios.
+Bogotá (ADR 0040). Todo es aditivo, salvo una cosa: `POST /v1/admin/onboarding` ahora exige
+sesión de staff. Un cliente de 1.7 que ya mandaba el Bearer sigue funcionando sin cambios.
 
 | Cambio | Dónde | Por qué |
 |---|---|---|
@@ -24,6 +25,7 @@ Bogotá (ADR 0040). Todo es aditivo: un cliente de 1.7 sigue funcionando sin cam
 | La firma que decide si un pendiente se reutiliza compara todos los campos congelados de la entrega, salvo `google_place_id` | §9.4 | Otro apartamento u otra localidad no pueden despacharse con el dato viejo |
 | `GET /v1/comercio/mis-pedidos/{id}` agrega `linea_de_tiempo`; no quita nada | §9.7 | La página `/pedidos/{id}` del acudiente |
 | `POST /v1/admin/onboarding` designa el colegio con `colegio_id`, con `colegio_dane` + `colegio_nombre` o solo con `colegio_nombre`; sin ninguno, `422 colegio_requerido` | §12.8 | Subir desde la cola la lista de un colegio que Tukit aún no tiene |
+| `POST /v1/admin/onboarding` exige `Authorization: Bearer` de operador o admin: `401 sesion_invalida` sin sesión, `403 acceso_denegado` sin rol de staff, `503 identidad_no_disponible` si Identidad no responde. Se valida antes de leer el archivo. `OrigenDatos.onboarding` recibe el `token` primero | §12.8 | Antes cualquiera podía subir una lista a la cola y gastar una lectura de Gemini |
 | El directorio de colegios de Bogotá vive en `@tukit/contrato` (`directorio-colegios.json`), cada entrada con `imageURL`, y las dos apps lo sirven en `/directorio-colegios.json` | §12.4 | Una sola copia, y logo por DANE para los colegios sin `logo_url` |
 
 ### Qué cambió en 1.7
@@ -1516,7 +1518,7 @@ azar. Se ve, no se cobra y se explica.
 | `POST /v1/admin/trabajos/{id}/lineas/{item_id}/validar` | `{"sku": "…", "motivo": "…", "actor": "…uuid…"}`. Deja la línea en `RESUELTO_AUTO` |
 | `POST /v1/admin/trabajos/{id}/lineas/{item_id}/sin-coincidencia` | Deja la línea en **`HUECO_CATALOGO`**, no en `SIN_MATCH` |
 | `POST /v1/admin/trabajos/{id}/revision` | `{"decision": "aprobar"\|"devolver", "nota": "…"}` |
-| `POST /v1/admin/onboarding` | Multipart con `archivo`, `grado`, `anio_lectivo` y el colegio (abajo). Percibe el PDF o la imagen y lo importa a la cola |
+| `POST /v1/admin/onboarding` | Solo staff (Bearer de operador o admin, desde 1.8). Multipart con `archivo`, `grado`, `anio_lectivo` y el colegio (abajo). Percibe el PDF o la imagen y lo importa a la cola |
 
 **El colegio del onboarding (1.8)** se designa de una de tres formas, como en la subida del
 acudiente:
@@ -1530,6 +1532,13 @@ En las dos últimas el colegio todavía no existe. La cola muestra su nombre y l
 `identidad` al aprobar la lista. Sin ninguna de las tres, `422 colegio_requerido` con
 `campo: "colegio"`, antes de leer el archivo. `apps/admin` reconduce un DANE que ya es de un
 colegio existente a su `colegio_id`.
+
+**La sesión (1.8).** Antes que nada, inteligencia valida el Bearer contra
+`GET /v1/sesiones/actual`, con la misma semántica que `/v1/admin/acudientes`. Sin sesión
+responde `401 sesion_invalida`, sin rol de operador o admin `403 acceso_denegado`, y si
+Identidad no responde `503 identidad_no_disponible`, que falla cerrado. Así, quien no puede
+subir no gasta una lectura del archivo. `apps/admin` reenvía como Bearer el token de la
+cookie `tukit_sesion`, y sin cookie responde `401` sin llamar a inteligencia.
 
 `sin-coincidencia` marca `HUECO_CATALOGO` a propósito. Si una persona miró la línea,
 entendió qué pedía y concluyó que no lo tenemos, eso ya no es "no te entendí". Solo el

@@ -10,16 +10,28 @@
 // directorio de Bogota), o solo `colegio_nombre` (escrito a mano). Un DANE que
 // ya es de un colegio de Tukit se reconduce a su `colegio_id` aqui, del lado
 // del servidor (`designarColegio`).
+//
+// Es una ruta de staff: el token de la cookie httpOnly se reenvia como Bearer,
+// igual que en `/api/logistica/{pedido}/avanzar`, e inteligencia valida la
+// sesion y el rol. Sin sesion se corta aqui con 401, antes de leer el PDF.
 
 import type { ColegioDesignado } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { designarColegio } from "@/lib/designar-colegio";
 import { respuestaDeError } from "@/lib/respuesta";
+import { tokenDeSesion } from "@/lib/sesion";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 export async function POST(peticion: Request): Promise<Response> {
+  const token = await tokenDeSesion();
+  if (!token) {
+    return respuestaDeError(
+      new ErrorTukit(401, "sesion_invalida", "Tu sesión terminó. Vuelve a ingresar."),
+    );
+  }
+
   const tipo = peticion.headers.get("content-type") ?? "";
   if (!tipo.includes("multipart/form-data")) {
     return respuestaDeError(
@@ -86,7 +98,7 @@ export async function POST(peticion: Request): Promise<Response> {
   }
 
   try {
-    const version = await origenDeDatos().onboarding(colegio, grado, anioLectivo, {
+    const version = await origenDeDatos().onboarding(token, colegio, grado, anioLectivo, {
       contenido: archivo,
       nombre: archivo.name,
     });

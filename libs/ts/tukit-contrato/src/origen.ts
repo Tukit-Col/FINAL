@@ -398,8 +398,11 @@ export interface OrigenDatos {
   // `documento` el PDF crudo (region 1), `percepcion` lo que el modelo ley
   // por pagina mas lo itemizado (region 2). Las rutas de edicion/aprobacion de
   // P1 NO viven aqui: son un eslabon aparte. El colegio va como
-  // `ColegioDesignado`; un string se sigue leyendo como `colegio_id`.
+  // `ColegioDesignado`; un string se sigue leyendo como `colegio_id`. Es una
+  // ruta de staff: `token` es la sesion del operador y viaja como Bearer
+  // (inteligencia responde 401 sin el y 403 sin rol de staff).
   onboarding(
+    token: string,
     colegio: string | ColegioDesignado,
     grado: string,
     anio_lectivo: number,

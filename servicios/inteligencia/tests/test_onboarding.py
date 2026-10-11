@@ -10,6 +10,9 @@ Lo que se fija aqui es el contrato entre servicios: que percepcion se llame
 con los bytes subidos, que un `descripcion` se mapee a `texto_original`, que
 una `cantidad` en null se vuelva 1, que el PDF viaje en base64 y que un
 archivo de varios grados se rechace con 422 sin devolver el archivo.
+
+Es una ruta de staff: sin Bearer de operador/admin no se lee el formulario ni
+se gasta una percepcion. Las pruebas usan por defecto un token de operador.
 """
 
 from __future__ import annotations
@@ -23,6 +26,7 @@ from tukit_comun.http import ErrorDominio
 from tukit_inteligencia import api
 from tukit_inteligencia.api import app
 from tukit_inteligencia.percepcion import ItemExtraido, PaginaLeida, Percepcion
+from tukit_inteligencia.remoto import RemotoCaido
 from tukit_inteligencia.routers.inteligencia import ColegioElegido
 
 COLEGIO = "11111111-1111-5111-8111-111111111111"
@@ -65,15 +69,32 @@ class CatalogoImportador:
 
 
 class IdentidadDirectorio:
-    """Doble de Identidad que solo responde `/v1/directorio/{dane}`."""
+    """Doble de Identidad: `/v1/directorio/{dane}` y la sesion del portador.
+
+    `sesion` mapea token -> roles; un token ausente vale como invalido (`None`)
+    y `caida` simula que Identidad no responde."""
 
     def __init__(self) -> None:
         self.directorio: dict[str, dict] = {}
         self.consultas: list[str] = []
+        self.roles_por_token = {
+            "tok-operador": ["operador"],
+            "tok-admin": ["admin"],
+            "tok-acudiente": ["acudiente"],
+        }
+        self.caida = False
 
     async def datos_directorio(self, dane: str) -> dict | None:
         self.consultas.append(dane)
         return self.directorio.get(dane)
+
+    async def sesion(self, token: str) -> dict | None:
+        if self.caida:
+            raise RemotoCaido("identidad", "simulada")
+        if token not in self.roles_por_token:
+            return None
+        roles = [{"rol": r, "ambito": None} for r in self.roles_por_token[token]]
+        return {"usuario_id": f"u-{token}", "roles": roles}
 
 
 @pytest.fixture()
@@ -87,7 +108,13 @@ def identidad():
 
 
 @pytest.fixture()
-async def cliente(motor, catalogo, identidad, monkeypatch):
+def lecturas():
+    """Las paginas que leyo la percepcion: una lista vacia es que no se gasto."""
+    return []
+
+
+@pytest.fixture()
+async def cliente(motor, catalogo, identidad, lecturas, monkeypatch):
     app.state.motor = motor
     app.state.catalogo = catalogo
     app.state.identidad = identidad
@@ -97,7 +124,8 @@ async def cliente(motor, catalogo, identidad, monkeypatch):
     def _renderizar(_contenido: bytes) -> list[bytes]:
         return [b"p1"]
 
-    def _leer(_png: bytes, _numero: int) -> PaginaLeida:
+    def _leer(_png: bytes, numero: int) -> PaginaLeida:
+        lecturas.append(numero)
         return PaginaLeida(
             grados=["Cuarto"],
             completa=True,
@@ -110,7 +138,11 @@ async def cliente(motor, catalogo, identidad, monkeypatch):
     monkeypatch.setattr(api, "_RENDERIZAR", _renderizar)
     monkeypatch.setattr(api, "_LEER", _leer)
 
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://prueba",
+        headers={"Authorization": "Bearer tok-operador"},
+    ) as http:
         yield http
 
 
@@ -270,6 +302,45 @@ class TestOnboardingDeUnColegioQueTukitNoTiene:
 
         assert respuesta.status_code == 422
         assert catalogo.llamadas == []
+
+
+class TestOnboardingExigeStaff:
+    """La misma puerta que `/v1/admin/acudientes`: 401 sin sesion, 403 sin rol
+    de staff, 503 si Identidad no responde. Antes de leer el PDF."""
+
+    @pytest.mark.parametrize(
+        ("cabeceras", "estado", "error"),
+        [
+            ({"Authorization": ""}, 401, "sesion_invalida"),
+            ({"Authorization": "Bearer tok-vencido"}, 401, "sesion_invalida"),
+            ({"Authorization": "Bearer tok-acudiente"}, 403, "acceso_denegado"),
+        ],
+    )
+    async def test_sin_staff_no_percibe_ni_importa(
+        self, cliente, catalogo, lecturas, cabeceras, estado, error
+    ):
+        respuesta = await cliente.post("/v1/admin/onboarding", headers=cabeceras, **_multipart())
+
+        assert respuesta.status_code == estado
+        assert respuesta.json()["error"] == error
+        assert lecturas == []
+        assert catalogo.llamadas == []
+
+    async def test_identidad_caida_falla_cerrada(self, cliente, catalogo, identidad, lecturas):
+        identidad.caida = True
+        respuesta = await cliente.post("/v1/admin/onboarding", **_multipart())
+
+        assert respuesta.status_code == 503
+        assert lecturas == []
+        assert catalogo.llamadas == []
+
+    async def test_un_admin_tambien_sube(self, cliente, catalogo):
+        respuesta = await cliente.post(
+            "/v1/admin/onboarding", headers={"Authorization": "Bearer tok-admin"}, **_multipart()
+        )
+
+        assert respuesta.status_code == 200
+        assert len(catalogo.llamadas) == 1
 
 
 class TestColegioElegido:
