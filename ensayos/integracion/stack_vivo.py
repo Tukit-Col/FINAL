@@ -23,6 +23,11 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from tukit_comun.bd import crear_motor
 
 GATEWAY = os.environ.get("TUKIT_QA_GATEWAY_URL", "http://127.0.0.1:8010").rstrip("/")
+# CONTRATO_API §9 (desde 173ee80): bajo `/v1/ordenes` la puerta solo expone el
+# avance. Crear, pagar, leer, cancelar y retractar una orden son llamadas
+# internas, asi que los flujos las hacen directo a comercio, como inteligencia.
+# El webhook de Wompi sigue entrando por la puerta.
+COMERCIO = os.environ.get("TUKIT_COMERCIO_URL", "http://127.0.0.1:8014").rstrip("/")
 RAIZ = Path(__file__).resolve().parents[2]
 # Donde `make arriba` deja los logs y los pid de cada proceso.
 EJECUCION = Path(os.environ.get("TUKIT_QA_EJECUCION", RAIZ / ".ejecucion"))
@@ -61,8 +66,18 @@ def como_json(datos: bytes) -> Any:
 
 
 def crear_orden(
-    http: httpx.Client, usuario_id: str, producto: dict[str, Any], **extra: Any
+    http: httpx.Client,
+    usuario_id: str,
+    producto: dict[str, Any],
+    *,
+    comercio: str = COMERCIO,
+    **extra: Any,
 ) -> httpx.Response:
+    """`POST /v1/ordenes` de una linea, directo a `comercio` (la del stack o una copia).
+
+    Va con el cliente de la prueba (URL absoluta), asi que el `correlacion_id`
+    de su cabecera llega igual.
+    """
     linea = {
         "sku": producto["sku"],
         "nombre": producto["nombre"][:120],
@@ -71,26 +86,37 @@ def crear_orden(
     }
     linea.update(extra.pop("linea", {}))
     return http.post(
-        "/v1/ordenes",
+        f"{comercio}/v1/ordenes",
         json={"usuario_id": usuario_id, "lineas": [linea], "entrega": ENTREGA_FICTICIA, **extra},
     )
 
 
+def monto_centavos(http: httpx.Client, pedido_id: str) -> int:
+    """El total del pedido en centavos, leido en comercio: el webhook lo firma y comercio
+    lo compara con el pago (desde fe8c030)."""
+    orden = http.get(f"{COMERCIO}/v1/ordenes/{pedido_id}")
+    assert orden.status_code == 200, orden.text
+    return int(orden.json()["total"]) * 100
+
+
 def pagar(http: httpx.Client, pedido_id: str, estado_wompi: str = "APPROVED") -> dict[str, Any]:
-    """Inicia el pago y entrega el webhook firmado como lo haria Wompi.
+    """Inicia el pago directo en comercio y entrega el webhook firmado por la puerta, como Wompi.
 
     Con `WOMPI_MODO=falso` (el de omision) la pasarela firma con un secreto
     fijo, asi que el evento se arma con la misma `PasarelaFalsa` del producto.
     """
     from tukit_comercio.pasarela import PasarelaFalsa
 
-    pago = http.post(f"/v1/ordenes/{pedido_id}/pago", json={"correo_cliente": "acudiente@example.test"})
+    pago = http.post(
+        f"{COMERCIO}/v1/ordenes/{pedido_id}/pago", json={"correo_cliente": "acudiente@example.test"}
+    )
     assert pago.status_code == 201, pago.text
     datos = pago.json()
     evento = PasarelaFalsa().emitir_evento(
         referencia=datos["referencia_wompi"],
         transaccion_id=datos["transaccion_wompi"],
         estado_wompi=estado_wompi,
+        monto_centavos=monto_centavos(http, pedido_id),
     )
     webhook = http.post("/v1/webhooks/wompi", json=evento)
     assert webhook.status_code == 200, webhook.text

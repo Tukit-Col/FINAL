@@ -29,6 +29,9 @@ from tukit_gateway.api import RUTAS, RUTAS_BLOQUEADAS
 
 pytestmark = pytest.mark.integracion
 
+# Un pedido que no existe: lo que importa es quien contesta, no el pedido.
+_PEDIDO_QA = "00000000-0000-0000-0000-000000000000"
+
 # Una ruta GET que existe en cada servicio y no necesita sesion ni datos. Para
 # los prefijos de escritura o con sesion basta con que conteste el servicio y
 # no la puerta: el 404 de la puerta trae `ruta_desconocida`.
@@ -39,6 +42,9 @@ _RUTA_DE_PRUEBA = {
     "/v1/grados": "/v1/grados",
     "/v1/comercio": "/v1/comercio/pedidos",
     "/v1/operacion": "/v1/operacion/metricas",
+    # Desde 173ee80 la puerta solo expone el avance bajo `/v1/ordenes` (CONTRATO_API §9);
+    # un GET ahi lo contesta comercio (405), no la puerta.
+    "/v1/ordenes": f"/v1/ordenes/{_PEDIDO_QA}/avanzar",
 }
 
 
@@ -115,21 +121,40 @@ def test_la_ruta_interna_no_se_distingue_de_una_hermana_inexistente(cliente: htt
 
 
 @pytest.mark.nfr("NFR-SEG-05")
-@pytest.mark.xfail(
-    strict=True,
-    reason="H-A-06: el bloqueo compara el camino crudo; con '.' o '..' la ruta interna llega a comercio",
-)
 @pytest.mark.parametrize(
     "camino",
     ["/v1/comercio/x/../pedidos-pagados", "/v1/comercio/./pedidos-pagados"],
     ids=["punto-punto", "punto"],
 )
 def test_los_segmentos_de_punto_no_esquivan_el_bloqueo(stack: dict[str, Any], camino: str):
+    """Control de no regresion de H-A-06: desde 173ee80 `ambigua` (`tukit_gateway/api.py:178`)
+    rechaza cualquier camino con un segmento `.` o `..` antes de comparar con las bloqueadas."""
     estado, _, datos = _crudo(camino)
 
     assert estado == 404
     cuerpo = como_json(datos)
     assert isinstance(cuerpo, dict) and cuerpo.get("error") == "ruta_desconocida", datos[:200]
+
+
+@pytest.mark.nfr("NFR-SEG-05")
+@pytest.mark.parametrize(
+    ("metodo", "camino"),
+    [
+        ("POST", "/v1/ordenes"),
+        ("GET", f"/v1/ordenes/{_PEDIDO_QA}"),
+        ("POST", f"/v1/ordenes/{_PEDIDO_QA}/pago"),
+        ("POST", f"/v1/ordenes/{_PEDIDO_QA}/cancelar"),
+        ("POST", f"/v1/ordenes/{_PEDIDO_QA}/retracto"),
+    ],
+    ids=["crear", "leer", "pagar", "cancelar", "retractar"],
+)
+def test_bajo_ordenes_la_puerta_solo_expone_el_avance(cliente: httpx.Client, metodo: str, camino: str):
+    """CONTRATO_API §9 (173ee80, `bloqueada` en `tukit_gateway/api.py:191`): crear, leer, pagar,
+    cancelar y retractar una orden son llamadas internas; la puerta las contesta como desconocidas."""
+    respuesta = cliente.request(metodo, camino, json={})
+
+    assert respuesta.status_code == 404, respuesta.text[:200]
+    assert _lo_atendio_la_puerta(respuesta), respuesta.text[:200]
 
 
 @pytest.mark.nfr("NFR-SEG-05")

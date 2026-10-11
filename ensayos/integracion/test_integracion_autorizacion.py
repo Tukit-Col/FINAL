@@ -29,7 +29,13 @@ def _entrar(http: httpx.Client, rol: str) -> dict:
 # --------------------------------------------------------------- controles que hoy cumplen
 
 _CON_SESION = ["/v1/cuenta", "/v1/sesiones/actual", "/v1/trabajos", "/v1/mis-solicitudes"]
-_SOLO_STAFF = ["/v1/admin/acudientes", f"/v1/metricas/colegios/{_COLEGIO_DEMO}/pedidos"]
+# `/v1/comercio/pedidos` salio de H-C-06 con e82d03c: `_exigir_staff`
+# (`tukit_comercio/routers/comercio.py:100`) pide sesion y rol operador/admin.
+_SOLO_STAFF = [
+    "/v1/admin/acudientes",
+    f"/v1/metricas/colegios/{_COLEGIO_DEMO}/pedidos",
+    "/v1/comercio/pedidos",
+]
 
 
 @pytest.mark.nfr("NFR-SEG-04")
@@ -94,7 +100,6 @@ _ABIERTAS_SIN_TOKEN = [
     f"/v1/admin/colegios/{_COLEGIO_DEMO}/acudientes",
     f"/v1/metricas/colegios/{_COLEGIO_DEMO}",
     "/v1/admin/catalogo/propuestas",
-    "/v1/comercio/pedidos",
     "/v1/operacion/casos",
     "/v1/operacion/metricas",
 ]
@@ -114,9 +119,7 @@ def test_sin_token_la_ruta_de_staff_responde_401(cliente: httpx.Client, ruta: st
 
 @pytest.mark.nfr("NFR-SEG-04")
 @pytest.mark.xfail(strict=True, reason="H-C-06: la ruta de staff atiende a un acudiente")
-@pytest.mark.parametrize(
-    "ruta", ["/v1/admin/cola", "/v1/admin/listas", "/v1/comercio/pedidos", "/v1/operacion/casos"]
-)
+@pytest.mark.parametrize("ruta", ["/v1/admin/cola", "/v1/admin/listas", "/v1/operacion/casos"])
 def test_un_acudiente_no_entra_a_la_ruta_de_staff(cliente: httpx.Client, sesiones: dict, ruta: str):
     assert cliente.get(ruta, headers=portador(sesiones, "acudiente")).status_code == 403
 
@@ -167,13 +170,12 @@ def test_mis_pedidos_con_el_id_propio_trae_el_pedido(
 
 
 @pytest.mark.nfr("NFR-SEG-04")
-@pytest.mark.xfail(
-    strict=True, reason="H-C-06: mis-pedidos filtra por el usuario_id del cliente, no por el portador"
-)
 @pytest.mark.parametrize("quien", ["otro_acudiente", "anonimo"])
 def test_mis_pedidos_no_entrega_los_pedidos_de_otro(
     cliente: httpx.Client, sesiones: dict, pedido_de_mama: str, quien: str
 ):
+    """Control de no regresion de H-C-06 (mis-pedidos): desde e82d03c el `usuario_id` sale de
+    la sesion (`tukit_comercio/routers/comercio.py:143`) y el `?usuario_id=` se ignora."""
     cabeceras = portador(sesiones, "acudiente_2") if quien == "otro_acudiente" else {}
     respuesta = cliente.get(
         "/v1/comercio/mis-pedidos",
@@ -190,17 +192,19 @@ def test_mis_pedidos_no_entrega_los_pedidos_de_otro(
 
 
 @pytest.mark.nfr("NFR-SEG-04")
-@pytest.mark.xfail(strict=True, reason="H-C-06: el detalle de un pedido se entrega sin token")
 @pytest.mark.parametrize("plantilla", ["/v1/ordenes/{}", "/v1/comercio/pedidos/{}"])
 def test_sin_token_no_se_lee_un_pedido(cliente: httpx.Client, pedido_de_mama: str, plantilla: str):
+    """Control de no regresion de H-C-06 (detalle sin token): `/v1/ordenes/{id}` ya no sale por
+    la puerta (173ee80) y `/v1/comercio/pedidos/{id}` pide staff (e82d03c, `comercio.py:185`)."""
     respuesta = cliente.get(plantilla.format(pedido_de_mama))
 
     assert respuesta.status_code in (401, 404), respuesta.text[:200]
 
 
 @pytest.mark.nfr("NFR-SEG-04")
-@pytest.mark.xfail(strict=True, reason="H-C-06: avanzar el estado de un pedido no pide sesion ni rol")
 def test_otro_acudiente_no_avanza_un_pedido_ajeno(cliente: httpx.Client, sesiones: dict, producto: dict):
+    """Control de no regresion de H-C-06 (avanzar): desde e82d03c el avance pide rol de staff
+    (`_exigir_staff` en `comercio.py:803`)."""
     pedido = orden_pagada(cliente, sesiones["acudiente"]["usuario_id"], producto)
     respuesta = cliente.post(
         f"/v1/ordenes/{pedido}/avanzar",

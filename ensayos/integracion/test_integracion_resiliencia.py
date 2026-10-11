@@ -2,7 +2,9 @@
 
 Las pruebas de nivel 1 (`servicios/comercio/tests/test_comercio_resiliencia_patrones.py`)
 simulan la carrera del webhook y el reenvio de la orden sobre SQLite. Aqui se
-repite contra Postgres y los procesos de `make arriba`, por el gateway:
+repite contra Postgres y los procesos de `make arriba`: el webhook por el
+gateway y la orden y el pago directo a comercio, que desde 173ee80 son llamadas
+internas (CONTRATO_API §9):
 
 - **El webhook, diez veces a la vez.** Diez hilos, soltados juntos por una
   barrera, entregan el mismo evento aprobado. El efecto tiene que ser uno: una
@@ -31,7 +33,15 @@ from typing import Any
 
 import httpx
 import pytest
-from stack_vivo import ENTREGA_FICTICIA, GATEWAY, crear_orden, logs_del_stack, portador
+from stack_vivo import (
+    COMERCIO,
+    ENTREGA_FICTICIA,
+    GATEWAY,
+    crear_orden,
+    logs_del_stack,
+    monto_centavos,
+    portador,
+)
 
 pytestmark = [pytest.mark.integracion, pytest.mark.nfr("NFR-DIS-05")]
 
@@ -42,7 +52,9 @@ def _pago_iniciado(cliente: httpx.Client, sesiones: dict, producto: dict) -> tup
     orden = crear_orden(cliente, sesiones["acudiente"]["usuario_id"], producto)
     assert orden.status_code == 201, orden.text
     pedido_id = orden.json()["pedido_id"]
-    pago = cliente.post(f"/v1/ordenes/{pedido_id}/pago", json={"correo_cliente": "acudiente@example.test"})
+    pago = cliente.post(
+        f"{COMERCIO}/v1/ordenes/{pedido_id}/pago", json={"correo_cliente": "acudiente@example.test"}
+    )
     assert pago.status_code == 201, pago.text
     return pedido_id, pago.json()
 
@@ -72,12 +84,17 @@ async def test_diez_entregas_simultaneas_del_webhook_pagan_el_pedido_una_sola_ve
 
     pedido_id, pago = _pago_iniciado(cliente, sesiones, producto)
     evento = PasarelaFalsa().emitir_evento(
-        referencia=pago["referencia_wompi"], transaccion_id=f"qa-{uuid.uuid4().hex}", estado_wompi="APPROVED"
+        referencia=pago["referencia_wompi"],
+        transaccion_id=f"qa-{uuid.uuid4().hex}",
+        estado_wompi="APPROVED",
+        monto_centavos=monto_centavos(cliente, pedido_id),
     )
 
     respuestas = _a_la_vez(evento, correlacion_id)
+    # El candado es `transaccion:ESTADO` y no el id del evento (`pasarela.py:142`, desde 7c2ae19).
+    clave = f"{evento['data']['transaction']['id']}:APPROVED"
     eventos = await consultar(
-        "comercio", "select count(*) from evento_pasarela_procesado where evento_id = :e", e=evento["id"]
+        "comercio", "select count(*) from evento_pasarela_procesado where evento_id = :e", e=clave
     )
     avisos = await consultar(
         "comercio",
@@ -123,8 +140,8 @@ async def test_la_orden_reenviada_con_la_misma_idempotency_key_crea_un_solo_pedi
         "entrega": ENTREGA_FICTICIA,
     }
     cabeceras = {**portador(sesiones, "acudiente"), "Idempotency-Key": uuid.uuid4().hex}
-    primera = cliente.post("/v1/ordenes", json=cuerpo, headers=cabeceras)
-    segunda = cliente.post("/v1/ordenes", json=cuerpo, headers=cabeceras)
+    primera = cliente.post(f"{COMERCIO}/v1/ordenes", json=cuerpo, headers=cabeceras)
+    segunda = cliente.post(f"{COMERCIO}/v1/ordenes", json=cuerpo, headers=cabeceras)
     ids = {r.json().get("pedido_id") for r in (primera, segunda) if r.status_code == 201}
     filas = await consultar(
         "comercio", "select count(*) from pedido where id::text = any(:ids)", ids=[i for i in ids if i]
