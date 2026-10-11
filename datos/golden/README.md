@@ -39,6 +39,18 @@ La lista base tiene 18 renglones:
 - 3 huecos: un concepto que no existe, uno sin productos y uno con un atributo que ningún producto declara;
 - 3 informativos: una licencia digital, un uniforme y uno «disponible en casa».
 
+### Recalibración del oráculo (re-base a `d4ea7cb`)
+
+`oracle.json` se mide contra el `datos/catalogo/` de hoy, y el catálogo de `44309fa` cambió tres renglones.
+`construir.RECALIBRADO_CATALOGO` los recalibra solo en el oráculo:
+
+- «Compás de precisión» deja de ser un hueco: el compás de precisión ya declara `tipo=precision`, así que se
+  reconoce como C018 (nivel `facil`). El hueco por atributo ya no tiene caso en la lista base.
+- «Plataforma de inglés…» se reconoce como C133 (Plan lector virtual) y «Uniforme de educación física» como
+  C131 (Uniforme). Ninguno tiene producto, y los dos siguen siendo informativos.
+
+`esperado/Gnn.json` no cambia, porque es la respuesta grabada que sirven las pruebas de inteligencia.
+
 Las entradas son imágenes porque el stack no lee PDF sin el extra `pdf` de inteligencia (H-A-36 de QA). El
 único PDF es G02, y su caso es justamente el tope de páginas.
 

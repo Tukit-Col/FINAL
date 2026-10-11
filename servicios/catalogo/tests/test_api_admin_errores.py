@@ -718,11 +718,15 @@ async def test_crear_un_concepto_limpia_los_sinonimos_que_llegan_como_lista(clie
         json={"nombre": "Pegante", "categoria": "Arte", "sinonimos": [" colbon ", "", "goma"]},
     )
     assert respuesta.status_code == 201
+    # Desde d37c235 el alta devuelve tambien los dos papeles de atributo
+    # (routers/admin.py:1605-1611); sin pedirlos, las dos listas van vacias.
     assert respuesta.json() == {
         "codigo": "C003",
         "nombre_canonico": "Pegante",
         "categoria": "Arte",
         "tipo_item": "util",
+        "atributos_discriminantes": [],
+        "atributos_descriptivos": [],
     }
     sinonimos = Base.metadata.tables["concepto"].c.sinonimos
     codigo = Base.metadata.tables["concepto"].c.codigo
@@ -750,9 +754,12 @@ def _oferta(tienda: str, sku: str):
 
 async def test_encolar_un_util_que_ya_no_aparece_en_la_tienda_es_422(cliente, monkeypatch):
     """Si el candidato se agoto entre la busqueda y el alta, es `candidato_no_disponible`, no un 500."""
-    from tukit_catalogo import admin
+    from tukit_catalogo import tiendas
 
-    monkeypatch.setattr(admin, "buscar_candidatos", lambda consulta: [("exito", _oferta("exito", "OTRO"))])
+    # Desde 4dfdd99 el alta re-busca con `tiendas.buscar` (una tienda, sin el filtro
+    # de palabras; routers/admin.py:1664), no con `admin.buscar_candidatos`: sin
+    # este doble la prueba salia a la red de la tienda.
+    monkeypatch.setattr(tiendas, "buscar", lambda slug, consulta, cuantos=24: [_oferta(slug, "OTRO")])
     respuesta = await cliente.post(
         "/v1/admin/catalogo/propuestas/util",
         json={"concepto": "C001", "slug": "exito", "sku": "S-AGOTADO", "consulta": "cuaderno"},
@@ -764,11 +771,11 @@ async def test_encolar_un_util_que_ya_no_aparece_en_la_tienda_es_422(cliente, mo
 
 async def test_encolar_un_util_de_una_tienda_que_no_esta_en_la_bd_es_422(cliente, monkeypatch):
     """La busqueda en vivo puede traer una tienda que la BD no registra: `tienda_desconocida`."""
-    from tukit_catalogo import admin
+    from tukit_catalogo import tiendas
 
-    monkeypatch.setattr(
-        admin, "buscar_candidatos", lambda consulta: [("mercadolibre", _oferta("mercadolibre", "S1"))]
-    )
+    # El doble va en `tiendas.buscar`, que es lo que el alta consulta desde 4dfdd99
+    # (routers/admin.py:1664); la tienda se busca en la BD despues (:1683-1688).
+    monkeypatch.setattr(tiendas, "buscar", lambda slug, consulta, cuantos=24: [_oferta(slug, "S1")])
     respuesta = await cliente.post(
         "/v1/admin/catalogo/propuestas/util",
         json={"concepto": "C001", "slug": "mercadolibre", "sku": "S1", "consulta": "cuaderno"},

@@ -28,6 +28,8 @@ un motor falso que devuelve filas fijas: se afirma el mapeo, no el SQL.
 from __future__ import annotations
 
 import csv
+import json
+import re
 import uuid
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -720,7 +722,9 @@ class TestArmadoDeLibros:
         nuevo = _conceptos_por_codigo(self.armado)["dic-ingles"]
         assert nuevo["id"] == _uuid_estable("concepto", "dic-ingles")
         assert nuevo["tipo_item"] == "libro_libre"  # sin esto el pipeline le buscaria papeleria
-        assert nuevo["categoria"] == "libro"
+        # 8c6e273: la semilla usa la categoria del corpus (el filtro del catalogo
+        # publico), no "libro" (cargador.py:613).
+        assert nuevo["categoria"] == "Diccionario / Biblia / Libros / Constitución"
         assert nuevo["frecuencia_demanda"] == 2
         assert nuevo["admite_personaje"] is False
         assert "diccionario de ingles" in nuevo["sinonimos"]
@@ -826,6 +830,27 @@ def _activar_fk(conexion, _registro):  # noqa: ANN001
     conexion.execute("PRAGMA foreign_keys=ON")
 
 
+# Desde 6c29c83 la segunda carga COMBINA `atributos` con `||` (cargador.py:865-872),
+# que en Postgres es la fusion de jsonb: las claves del CSV ganan y las demas se
+# conservan. En SQLite `||` concatena texto y deja `{}{}`, que ya no es JSON. Para
+# seguir probando la escritura sin una base real, el motor de prueba traduce esa
+# fusion a una funcion con la misma regla que el `jsonb || jsonb` de objetos.
+_FUSION_ATRIBUTOS = re.compile(r"\(producto_canonico\.atributos \|\| excluded\.atributos\)")
+_FUSION_EN_SQLITE = "fusion_jsonb(producto_canonico.atributos, excluded.atributos)"
+
+
+def _fusion_jsonb(base: str | None, nuevo: str | None) -> str:
+    return json.dumps({**json.loads(base or "{}"), **json.loads(nuevo or "{}")})
+
+
+def _activar_fusion_jsonb(conexion, _registro):  # noqa: ANN001
+    conexion.create_function("fusion_jsonb", 2, _fusion_jsonb)
+
+
+def _traducir_fusion(_conexion, _cursor, sql, parametros, _contexto, _varios):  # noqa: ANN001
+    return _FUSION_ATRIBUTOS.sub(_FUSION_EN_SQLITE, sql), parametros
+
+
 @pytest.fixture()
 def bd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Sesion sincrona para consultar, y `crear_motor` apuntando al mismo fichero."""
@@ -837,6 +862,8 @@ def bd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     def fabricar(servicio: str, *, echo: bool = False) -> MotorServicio:
         motor = create_async_engine(f"sqlite+aiosqlite:///{archivo}")
         event.listen(motor.sync_engine, "connect", _activar_fk)
+        event.listen(motor.sync_engine, "connect", _activar_fusion_jsonb)
+        event.listen(motor.sync_engine, "before_cursor_execute", _traducir_fusion, retval=True)
         return MotorServicio(servicio, motor, async_sessionmaker(motor, expire_on_commit=False))
 
     monkeypatch.setattr("tukit_comun.bd.crear_motor", fabricar)
