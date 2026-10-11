@@ -7,9 +7,14 @@ se defiende es lo que, si falla, miente en pantalla o filtra de mas:
   (lo cancelado y lo pendiente de pago no son ingreso), con el pedido mas reciente primero.
 - Cada pedido trae lineas, el ULTIMO intento de pago y el envio; un pedido sin pago o sin envio los
   muestra en `null`, no revienta.
-- `mis-pedidos` separa a un acudiente de otro por `usuario_id` y devuelve vacio, no error, si no hay.
+- `mis-pedidos` separa a un acudiente de otro por la SESION (e82d03c: el `usuario_id` del
+  navegador se ignora) y devuelve vacio, no error, si no hay.
 - `pedidos-pagados` entrega solo identificadores (sin PII) y solo de pedidos confirmados con trabajo.
 - Una entrada mal formada es `400 entrada_invalida` y el sobre nunca repite lo que se envio.
+
+Desde e82d03c el tablero y el detalle son solo staff y `mis-pedidos` pide sesion: las lecturas van
+con el bearer del operador o del acudiente (`IdentidadFalsa` de `conftest.py`); lo que pasa SIN
+credencial lo fija `test_comercio_control_acceso.py`.
 
 Sin red: SQLite en memoria, `PasarelaFalsa` y un Catalogo en memoria. Las fechas se fijan a mano para
 que el orden "mas reciente primero" no dependa del reloj.
@@ -24,6 +29,7 @@ from datetime import UTC, datetime, timedelta
 import httpx
 import pytest
 import pytest_asyncio
+from conftest import TOKEN_ACUDIENTE, TOKEN_OPERADOR, TOKEN_OTRO, IdentidadFalsa, bearer
 from sqlalchemy import delete, insert, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from tukit_comercio.api import app
@@ -39,6 +45,7 @@ ENVIO = Base.metadata.tables["envio"]
 ACUDIENTE = "22222222-2222-5222-8222-222222222222"
 OTRO_ACUDIENTE = "33333333-3333-5333-8333-333333333333"
 BASE_TIEMPO = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
+STAFF = bearer(TOKEN_OPERADOR)
 
 
 class CatalogoFalso:
@@ -62,6 +69,7 @@ async def entorno() -> AsyncIterator[tuple[httpx.AsyncClient, MotorServicio]]:
     app.state.motor = motor
     app.state.pasarela = PasarelaFalsa()
     app.state.catalogo = CatalogoFalso()
+    app.state.identidad = IdentidadFalsa()
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
         yield http, motor
     await engine.dispose()
@@ -105,7 +113,7 @@ async def test_tablero_vacio_trae_el_resumen_en_ceros_con_todos_los_estados(ento
     """Sin pedidos el tablero no es un error: ceros en cada uno de los ocho estados y lista vacia."""
     http, _ = entorno
 
-    respuesta = await http.get("/v1/comercio/pedidos")
+    respuesta = await http.get("/v1/comercio/pedidos", headers=STAFF)
 
     assert respuesta.status_code == 200
     assert respuesta.json() == {
@@ -130,7 +138,7 @@ async def test_tablero_cuenta_ingresos_solo_de_lo_confirmado_y_entregas_pendient
     ):
         await _crear(http, motor, minutos=minutos, estado=estado)
 
-    cuerpo = (await http.get("/v1/comercio/pedidos")).json()
+    cuerpo = (await http.get("/v1/comercio/pedidos", headers=STAFF)).json()
 
     assert cuerpo["resumen"] == {
         "pedidos_totales": 6,
@@ -156,7 +164,7 @@ async def test_tablero_lista_primero_el_pedido_mas_reciente_con_lineas_y_envio_a
     medio = await _crear(http, motor, minutos=10, cantidad=3)
     nuevo = await _crear(http, motor, minutos=20)
 
-    pedidos = (await http.get("/v1/comercio/pedidos")).json()["pedidos"]
+    pedidos = (await http.get("/v1/comercio/pedidos", headers=STAFF)).json()["pedidos"]
 
     assert [p["pedido_id"] for p in pedidos] == [nuevo, medio, viejo]
     del_medio = pedidos[1]
@@ -191,8 +199,8 @@ async def test_tablero_muestra_el_ultimo_intento_de_pago_de_cada_pedido(entorno)
                 )
             )
 
-    en_tablero = (await http.get("/v1/comercio/pedidos")).json()["pedidos"][0]["pago"]
-    en_detalle = (await http.get(f"/v1/comercio/pedidos/{pedido_id}")).json()["pago"]
+    en_tablero = (await http.get("/v1/comercio/pedidos", headers=STAFF)).json()["pedidos"][0]["pago"]
+    en_detalle = (await http.get(f"/v1/comercio/pedidos/{pedido_id}", headers=STAFF)).json()["pago"]
 
     esperado = {"referencia_wompi": "ref-nueva", "metodo": "pse", "estado": "iniciado", "monto": 9000}
     assert en_tablero == esperado
@@ -207,12 +215,15 @@ async def test_detalle_de_un_pedido_trae_la_forma_completa_del_contrato(entorno)
     trabajo = str(uuid.uuid4())
     pedido_id = await _crear(http, motor, minutos=0, trabajo_id=trabajo)
 
-    respuesta = await http.get(f"/v1/comercio/pedidos/{pedido_id}")
+    respuesta = await http.get(f"/v1/comercio/pedidos/{pedido_id}", headers=STAFF)
 
     assert respuesta.status_code == 200
     cuerpo = respuesta.json()
+    # e82d03c agrega el dueno (`usuario_id`), el `historial` de avances y, en el envio, el
+    # repartidor; el celular del repartidor sale solo en este detalle del staff.
     assert set(cuerpo) == {
         "pedido_id",
+        "usuario_id",
         "trabajo_id",
         "estado",
         "creado_en",
@@ -222,7 +233,9 @@ async def test_detalle_de_un_pedido_trae_la_forma_completa_del_contrato(entorno)
         "lineas",
         "pago",
         "envio",
+        "historial",
     }
+    assert cuerpo["historial"] == []
     assert cuerpo["trabajo_id"] == trabajo
     assert cuerpo["estado"] == "pendiente_pago"
     assert (cuerpo["total"], cuerpo["hijos"], cuerpo["colegios"]) == (9000, 1, ["Colegio Ficticio"])
@@ -236,19 +249,26 @@ async def test_detalle_de_un_pedido_trae_la_forma_completa_del_contrato(entorno)
         "indicaciones",
         "transportadora",
         "guia",
+        "repartidor_nombre",
+        "repartidor_celular",
         "entrega_estimada",
         "entregado_en",
     }
 
 
 async def test_el_seguimiento_del_acudiente_y_el_detalle_de_logistica_son_la_misma_vista(entorno):
-    """`GET /v1/ordenes/{id}` reusa el serializador del detalle: dos formas distintas serian dos verdades."""
+    """`GET /v1/ordenes/{id}` reusa el serializador del detalle: dos formas distintas serian dos
+    verdades. Desde e82d03c el detalle del staff agrega SOLO el `historial` y el celular del
+    repartidor (dato de un tercero que el acudiente no necesita); todo lo demas coincide."""
     http, motor = entorno
     pedido_id = await _crear(http, motor, minutos=0)
 
     del_acudiente = (await http.get(f"/v1/ordenes/{pedido_id}")).json()
-    de_logistica = (await http.get(f"/v1/comercio/pedidos/{pedido_id}")).json()
+    de_logistica = (await http.get(f"/v1/comercio/pedidos/{pedido_id}", headers=STAFF)).json()
 
+    historial = de_logistica.pop("historial")
+    celular = de_logistica["envio"].pop("repartidor_celular")
+    assert (historial, celular) == ([], None)
     assert del_acudiente == de_logistica
 
 
@@ -256,7 +276,7 @@ async def test_el_seguimiento_del_acudiente_y_el_detalle_de_logistica_son_la_mis
 async def test_un_pedido_que_no_existe_es_404_con_el_sobre_del_contrato(entorno, ruta):
     http, _ = entorno
 
-    respuesta = await http.get(ruta.format(uuid.uuid4()))
+    respuesta = await http.get(ruta.format(uuid.uuid4()), headers=STAFF)
 
     assert respuesta.status_code == 404
     assert respuesta.json() == {
@@ -286,8 +306,8 @@ async def test_un_pedido_sin_envio_se_muestra_con_envio_nulo_en_detalle_y_tabler
     async with motor.sesion() as db:
         await db.execute(delete(ENVIO).where(ENVIO.c.pedido_id == uuid.UUID(pedido_id)))
 
-    detalle = await http.get(f"/v1/comercio/pedidos/{pedido_id}")
-    tablero = (await http.get("/v1/comercio/pedidos")).json()["pedidos"]
+    detalle = await http.get(f"/v1/comercio/pedidos/{pedido_id}", headers=STAFF)
+    tablero = (await http.get("/v1/comercio/pedidos", headers=STAFF)).json()["pedidos"]
 
     assert detalle.status_code == 200
     assert detalle.json()["envio"] is None
@@ -299,13 +319,20 @@ async def test_un_pedido_sin_envio_se_muestra_con_envio_nulo_en_detalle_y_tabler
 
 
 async def test_mis_pedidos_separa_acudientes_y_ordena_del_mas_reciente_al_mas_viejo(entorno):
+    """El acudiente sale de la sesion (e82d03c); un `?usuario_id=` ajeno se ignora."""
     http, motor = entorno
     primero = await _crear(http, motor, minutos=0)
     ajeno = await _crear(http, motor, minutos=5, usuario=OTRO_ACUDIENTE)
     segundo = await _crear(http, motor, minutos=10)
 
-    mios = (await http.get("/v1/comercio/mis-pedidos", params={"usuario_id": ACUDIENTE})).json()
-    suyos = (await http.get("/v1/comercio/mis-pedidos", params={"usuario_id": OTRO_ACUDIENTE})).json()
+    mios = (
+        await http.get(
+            "/v1/comercio/mis-pedidos",
+            params={"usuario_id": OTRO_ACUDIENTE},
+            headers=bearer(TOKEN_ACUDIENTE),
+        )
+    ).json()
+    suyos = (await http.get("/v1/comercio/mis-pedidos", headers=bearer(TOKEN_OTRO))).json()
 
     assert mios["total"] == 2
     assert [p["pedido_id"] for p in mios["pedidos"]] == [segundo, primero]
@@ -314,27 +341,31 @@ async def test_mis_pedidos_separa_acudientes_y_ordena_del_mas_reciente_al_mas_vi
 
 
 async def test_mis_pedidos_de_quien_no_ha_comprado_es_lista_vacia_y_no_error(entorno):
-    http, _ = entorno
+    http, motor = entorno
+    await _crear(http, motor, minutos=0, usuario=OTRO_ACUDIENTE)
 
-    respuesta = await http.get("/v1/comercio/mis-pedidos", params={"usuario_id": str(uuid.uuid4())})
+    respuesta = await http.get("/v1/comercio/mis-pedidos", headers=bearer(TOKEN_ACUDIENTE))
 
     assert respuesta.status_code == 200
     assert respuesta.json() == {"total": 0, "pedidos": []}
 
 
 @pytest.mark.parametrize(
-    ("params", "campo"),
-    [({}, "usuario_id"), ({"usuario_id": "acudiente-ficticio"}, "usuario_id")],
+    "params", [{}, {"usuario_id": "acudiente-ficticio"}], ids=["sin_usuario", "mal_formado"]
 )
-async def test_mis_pedidos_sin_usuario_o_con_usuario_mal_formado_es_400(entorno, params, campo):
+async def test_mis_pedidos_sin_sesion_es_401_y_el_usuario_del_navegador_no_cuenta(entorno, params):
+    """Antes de e82d03c el `usuario_id` venia en la query y faltar o venir mal era `400`. Ahora sale
+    de la sesion: sin bearer es `401 sesion_invalida` (sin eco de la entrada) y, con bearer, un
+    `usuario_id` mal formado en la query se ignora."""
     http, _ = entorno
 
-    respuesta = await http.get("/v1/comercio/mis-pedidos", params=params)
+    sin_sesion = await http.get("/v1/comercio/mis-pedidos", params=params)
+    con_sesion = await http.get("/v1/comercio/mis-pedidos", params=params, headers=bearer(TOKEN_ACUDIENTE))
 
-    assert respuesta.status_code == 400
-    assert respuesta.json()["error"] == "entrada_invalida"
-    assert respuesta.json()["campo"] == campo
-    assert "acudiente-ficticio" not in respuesta.text
+    assert sin_sesion.status_code == 401
+    assert sin_sesion.json() == {"error": "sesion_invalida", "mensaje": "El token no es valido o expiro."}
+    assert "acudiente-ficticio" not in sin_sesion.text
+    assert (con_sesion.status_code, con_sesion.json()) == (200, {"total": 0, "pedidos": []})
 
 
 # --- cruce interno: pedidos pagados -------------------------------------------------------------

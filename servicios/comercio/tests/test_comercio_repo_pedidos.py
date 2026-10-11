@@ -9,7 +9,8 @@ sentado y que, si cambia en silencio, corrompe datos sin que ninguna ruta lo not
   suma ingreso solo de lo confirmado.
 - El candado de idempotencia del webhook tiene respaldo duro: el mismo evento dos veces es una
   violacion de unicidad, no dos filas.
-- `avanzar_despacho` escribe solo lo que llega; `marcar_pago_reembolsado` toca solo el pago APROBADO
+- `avanzar_despacho` escribe solo lo que llega (desde e82d03c: repartidor y fecha estimada, y solo
+  si el pedido SIGUE en el estado de partida); `marcar_pago_reembolsado` toca solo el pago APROBADO
   del pedido pedido; el aviso `pedido_pagado` hereda la correlacion de la peticion y solo si existe.
 
 Sin red: SQLite en memoria; las fechas se fijan a mano.
@@ -365,31 +366,41 @@ async def _envio(repo: RepoPedidos, pedido_id: uuid.UUID) -> Any:
 
 
 async def test_avanzar_despacho_escribe_solo_los_campos_que_llegan(repo):
+    """Desde e82d03c el despacho es con reparto propio: el envio guarda el repartidor (nombre y
+    celular) y la fecha estimada en lugar de transportadora y guia, que el repositorio ya no toca."""
     pedido_id = await _orden(repo)
+    await _estado(repo, pedido_id, "en_preparacion")
     estimada = AHORA + timedelta(days=3)
 
-    await repo.avanzar_despacho(
+    assert await repo.avanzar_despacho(
         pedido_id=pedido_id,
+        desde="en_preparacion",
         destino="despachado",
-        transportadora="Servientrega",
-        guia=None,
+        repartidor_nombre="Repartidor Ficticio",
+        repartidor_celular=None,
         entrega_estimada=None,
     )
     parcial = await _envio(repo, pedido_id)
-    assert (parcial.transportadora, parcial.guia, parcial.entrega_estimada) == ("Servientrega", None, None)
+    assert (parcial.repartidor_nombre, parcial.repartidor_celular, parcial.entrega_estimada) == (
+        "Repartidor Ficticio",
+        None,
+        None,
+    )
 
-    await repo.avanzar_despacho(
+    assert await repo.avanzar_despacho(
         pedido_id=pedido_id,
+        desde="despachado",
         destino="en_reparto",
-        transportadora=None,
-        guia="GUIA-0001",
+        repartidor_nombre=None,
+        repartidor_celular="3000000000",
         entrega_estimada=estimada,
     )
     completo = await _envio(repo, pedido_id)
-    assert (completo.transportadora, completo.guia) == (
-        "Servientrega",
-        "GUIA-0001",
+    assert (completo.repartidor_nombre, completo.repartidor_celular) == (
+        "Repartidor Ficticio",
+        "3000000000",
     )  # lo anterior no se pierde
+    assert (completo.transportadora, completo.guia) == (None, None)
     assert completo.entrega_estimada.replace(tzinfo=UTC) == estimada
     assert completo.entregado_en is None
     assert (await repo.pedido_de(pedido_id)).estado == "en_reparto"
@@ -397,10 +408,16 @@ async def test_avanzar_despacho_escribe_solo_los_campos_que_llegan(repo):
 
 async def test_avanzar_a_entregado_marca_la_hora_de_entrega_con_el_reloj_real(repo):
     pedido_id = await _orden(repo)
+    await _estado(repo, pedido_id, "en_reparto")
     antes = datetime.now(UTC)
 
-    await repo.avanzar_despacho(
-        pedido_id=pedido_id, destino="entregado", transportadora=None, guia=None, entrega_estimada=None
+    assert await repo.avanzar_despacho(
+        pedido_id=pedido_id,
+        desde="en_reparto",
+        destino="entregado",
+        repartidor_nombre=None,
+        repartidor_celular=None,
+        entrega_estimada=None,
     )
 
     entregado = (await _envio(repo, pedido_id)).entregado_en.replace(tzinfo=UTC)
@@ -409,13 +426,40 @@ async def test_avanzar_a_entregado_marca_la_hora_de_entrega_con_el_reloj_real(re
 
 async def test_avanzar_sin_datos_de_envio_solo_cambia_el_estado_del_pedido(repo):
     pedido_id = await _orden(repo)
+    await _estado(repo, pedido_id, "pagado")
     antes = await _envio(repo, pedido_id)
 
-    await repo.avanzar_despacho(
-        pedido_id=pedido_id, destino="en_preparacion", transportadora=None, guia=None, entrega_estimada=None
+    assert await repo.avanzar_despacho(
+        pedido_id=pedido_id,
+        desde="pagado",
+        destino="en_preparacion",
+        repartidor_nombre=None,
+        repartidor_celular=None,
+        entrega_estimada=None,
     )
 
     assert (await repo.pedido_de(pedido_id)).estado == "en_preparacion"
+    assert await _envio(repo, pedido_id) == antes
+
+
+async def test_avanzar_desde_un_estado_que_ya_cambio_no_mueve_el_pedido_ni_el_envio(repo):
+    """La guarda de e82d03c contra dos operadores a la vez: si el pedido ya no esta en `desde` (el
+    estado que el router leyo y valido) devuelve `False` y no escribe nada; el router responde 409."""
+    pedido_id = await _orden(repo)
+    await _estado(repo, pedido_id, "despachado")
+    antes = await _envio(repo, pedido_id)
+
+    movido = await repo.avanzar_despacho(
+        pedido_id=pedido_id,
+        desde="en_preparacion",
+        destino="despachado",
+        repartidor_nombre="Repartidor Ficticio",
+        repartidor_celular="3000000000",
+        entrega_estimada=AHORA,
+    )
+
+    assert movido is False
+    assert (await repo.pedido_de(pedido_id)).estado == "despachado"
     assert await _envio(repo, pedido_id) == antes
 
 

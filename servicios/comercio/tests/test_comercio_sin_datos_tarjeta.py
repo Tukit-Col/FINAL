@@ -127,10 +127,15 @@ def _con_tarjeta(cuerpo: dict[str, Any]) -> dict[str, Any]:
 def _evento_con_tarjeta(pasarela: PasarelaFalsa, pago: dict[str, Any], estado: str) -> dict[str, Any]:
     """Un evento firmado como el de Wompi, con el `payment_method` completo dentro de la transaccion.
 
-    Las propiedades firmadas son `transaction.id` y `transaction.status`; agregar campos a la
-    transaccion no rompe la firma, asi que el evento se acepta y el reto es lo que se conserva."""
+    Las propiedades firmadas son `transaction.id`, `transaction.status` y, desde 7c2ae19,
+    `transaction.amount_in_cents` (el del pedido: 2 x $4.500, que el webhook coteja desde fe8c030);
+    agregar campos a la transaccion no rompe la firma, asi que el evento se acepta y el reto es lo
+    que se conserva."""
     evento = pasarela.emitir_evento(
-        referencia=pago["referencia_wompi"], transaccion_id=pago["transaccion_wompi"], estado_wompi=estado
+        referencia=pago["referencia_wompi"],
+        transaccion_id=pago["transaccion_wompi"],
+        estado_wompi=estado,
+        monto_centavos=900_000,
     )
     evento["data"]["transaction"]["payment_method"] = {
         "type": "CARD",
@@ -210,14 +215,17 @@ async def test_los_campos_de_tarjeta_de_una_peticion_de_pago_se_descartan_en_la_
     )
 
     assert respuesta.status_code == 201
-    # La respuesta no repite nada de la tarjeta ni agrega campos.
+    # La respuesta no repite nada de la tarjeta ni agrega campos. `widget` es del contrato desde
+    # c3dbbff (los datos firmados del widget de Wompi) y la pasarela falsa no lo arma.
     assert set(respuesta.json()) == {
         "pago_id",
         "referencia_wompi",
         "transaccion_wompi",
         "estado",
         "url_redireccion",
+        "widget",
     }
+    assert respuesta.json()["widget"] is None
     _sin_datos_de_tarjeta(respuesta.text)
     # Al puerto de la pasarela solo llegan los cinco argumentos del contrato, sin rastro de la tarjeta.
     (llamada,) = pasarela.llamadas
