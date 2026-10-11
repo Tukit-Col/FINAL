@@ -8,6 +8,10 @@
 //
 // Cada prueba lee el trabajo de nuevo y abre su propia pagina, asi que no depende de las anteriores:
 // con `QA_RUNXFAIL=1`, una que falla no deja a las demas sin correr.
+//
+// Desde `d4ea7cb` la cola pone en tarjetas los trabajos de acudiente que esperan (`af8db6b`) y la
+// matriz saca de la tabla los renglones sin producto en ningun kit: los pendientes van arriba, en
+// «Resolver» (`MatrizComparacion`, panel de avisos).
 
 import { expect, test } from "@playwright/test";
 
@@ -17,7 +21,7 @@ const WEB = process.env.TUKIT_WEB_URL ?? "http://localhost:3000";
 const ADMIN = process.env.TUKIT_ADMIN_URL ?? "http://localhost:3001";
 const XFAIL = !process.env.QA_RUNXFAIL;
 // El orden de las columnas de la matriz (`MatrizComparacion.ORDEN_PERFIL`).
-const ORDEN_PERFIL = ["Ahorrador", "Fan", "Premium"];
+const ORDEN_PERFIL = ["Ahorrador", "Fan", "A tu Medida", "Premium"];
 
 let contexto;
 let pagina;
@@ -67,6 +71,19 @@ async function abrirCelda(vista, descripcion, perfil) {
   // El cuerpo de la linea se pinta solo cuando esta abierta.
   await expect(detalle.getByRole("button", { name: "Sin coincidencia" })).toBeVisible();
   return detalle;
+}
+
+/** Abre en el panel de avisos el renglon pendiente sin producto en ningun kit. Devuelve su panel. */
+async function abrirAviso(descripcion) {
+  const aviso = pagina
+    .locator('[class*="avisoItem"]')
+    .filter({ has: pagina.locator('[class*="avisoConcepto"]').getByText(descripcion, { exact: true }) });
+  await aviso.getByRole("button", { name: "Resolver" }).click();
+  await expect(aviso.getByText("Resolver este renglón lo deja igual en todos los kits.")).toBeVisible();
+  const linea = aviso.locator("details");
+  if (!(await linea.evaluate((elemento) => elemento.open))) await linea.locator("summary").click();
+  await expect(aviso.getByRole("button", { name: "Sin coincidencia" })).toBeVisible();
+  return aviso;
 }
 
 /** La etiqueta de estado de resolucion que pinta el resumen de la linea abierta. */
@@ -127,10 +144,11 @@ test("cola: el trabajo en espera aparece con sus pendientes y lleva a su detalle
   expect(pendientes).toBeGreaterThan(0);
 
   await pagina.goto(`${ADMIN}/cola`);
-  const fila = pagina.getByRole("row").filter({ hasText: trabajoId.slice(0, 8).toUpperCase() });
-  await expect(fila).toHaveCount(1);
-  expect(stack.pesos(await fila.locator(".cifra").textContent())).toBe(pendientes);
-  await fila.getByRole("link", { name: "Revisar" }).click();
+  // Una tarjeta por trabajo de acudiente en espera; el enlace con el colegio lleva el id como `title`.
+  const tarjeta = pagina.locator("article").filter({ has: pagina.locator(`a[title="${trabajoId}"]`) });
+  await expect(tarjeta).toHaveCount(1);
+  await expect(tarjeta.getByText(`${pendientes} por resolver`, { exact: true })).toBeVisible();
+  await tarjeta.getByRole("link", { name: "Revisar" }).click();
 
   await pagina.waitForURL(`${ADMIN}/trabajos/${trabajoId}`);
   await expect(pagina.getByRole("heading", { level: 1 })).toContainText(trabajoId);
@@ -173,12 +191,11 @@ test("alternativa: elegir otra opcion cambia el producto solo en ese kit y recal
 
   await pagina.goto(`${ADMIN}/trabajos/${trabajoId}`);
   const detalle = await abrirCelda(antes, linea.descripcion, perfil);
-  await detalle
-    .locator("label")
-    .filter({ has: pagina.getByText(alternativa.sku, { exact: true }) })
-    .getByRole("radio")
-    .check();
-  await detalle.getByRole("button", { name: "Validar con la alternativa" }).click();
+  // Toda la tarjeta es la opcion: el radio va oculto y se elige pulsando la tarjeta.
+  const tarjeta = detalle.locator("label").filter({ has: pagina.getByText(alternativa.sku, { exact: true }) });
+  await tarjeta.click();
+  await expect(tarjeta.getByRole("radio")).toBeChecked();
+  await detalle.getByRole("button", { name: `Usar este producto en ${perfil}` }).click();
   await expect(detalle.getByText("Producto cambiado en este kit.")).toBeVisible();
 
   const despues = await stack.vistaAdmin(tokenAdmin, trabajoId);
@@ -207,8 +224,11 @@ test("sin coincidencia: la consola exige el motivo y confirma la marca del rengl
   expect(linea.estado_resolucion).toBe("SIN_MATCH");
   expect(antes.lineas_pendientes).toContain(linea.item_id);
 
+  // Sin producto en ningun kit, el renglon no tiene celdas: se resuelve desde el panel de avisos.
+  expect(antes.kits.every((kit) => !lineaDe(antes, kit.perfil, linea.item_id).producto_elegido)).toBe(true);
+
   await pagina.goto(`${ADMIN}/trabajos/${trabajoId}`);
-  const detalle = await abrirCelda(antes, linea.descripcion, perfil);
+  const detalle = await abrirAviso(linea.descripcion);
   expect(await estadoEnPantalla(detalle)).toEqual(["SIN_MATCH"]);
   await detalle.getByRole("button", { name: "Sin coincidencia" }).click();
   // Sin motivo no se marca: la consola lo pide antes de llamar al backend.
@@ -242,10 +262,8 @@ test("sin coincidencia: la consola exige el motivo y confirma la marca del rengl
 });
 
 test("sin coincidencia: la marca se ve en la linea de los tres kits", async () => {
-  test.fail(
-    XFAIL,
-    "H-A-47: la decision de una linea se escribe en resolucion_item y no en linea_kit; la consola y el kit siguen mostrando SIN_MATCH",
-  );
+  // H-A-47 se corrigio en 390966b (`trabajos.decidir_linea` copia el estado a las LINEA del item en
+  // todos los kits): queda como prueba de no regresion.
   anotar({ hallazgo: "H-A-47" });
   const antes = await stack.vistaAdmin(tokenAdmin, trabajoId);
   const perfil = antes.recomendado.perfil;
@@ -258,7 +276,7 @@ test("sin coincidencia: la marca se ve en la linea de los tres kits", async () =
   });
 
   await pagina.goto(`${ADMIN}/trabajos/${trabajoId}`);
-  const detalle = await abrirCelda(antes, linea.descripcion, perfil);
+  const detalle = await abrirAviso(linea.descripcion);
   const enPantalla = await estadoEnPantalla(detalle);
   const despues = await stack.vistaAdmin(tokenAdmin, trabajoId);
   const enLosKits = despues.kits.map((kit) => lineaDe(despues, kit.perfil, linea.item_id).estado_resolucion);
@@ -304,10 +322,7 @@ test("confianza: cada producto trae la confianza del emparejamiento y la consola
 });
 
 test("publicar: aprobar el trabajo lo publica al acudiente", async () => {
-  test.fail(
-    XFAIL,
-    "H-A-01: aprobar llama a _fijar_canonico y la tabla kit_canonico no existe; la revision responde 500 y el trabajo sigue en espera_revision",
-  );
+  // H-A-01 se corrigio en c57c0b3 (migracion de `kit_canonico`): queda como prueba de no regresion.
   anotar({ hallazgo: "H-A-01" });
   await pagina.goto(`${ADMIN}/trabajos/${trabajoId}`);
   const decision = pagina.getByRole("region", { name: "Decisión de revisión" });
