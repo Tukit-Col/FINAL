@@ -13,7 +13,7 @@
 // Combobox ARIA: el foco se queda en el campo y las flechas mueven la opción
 // activa (`aria-activedescendant`); Enter elige y Escape cierra la lista.
 
-import { useCallback, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Pencil, Search } from "lucide-react";
 import {
   buscarColegios,
@@ -63,6 +63,16 @@ export default function BuscadorColegioOnboarding({ colegios, onElegir }: Props)
   const [abierta, setAbierta] = useState(false);
   const [activa, setActiva] = useState(0);
   const [elegida, setElegida] = useState<Opcion | null>(null);
+  const campoRef = useRef<HTMLInputElement>(null);
+  // "Cambiar" desaparece al pulsarlo: el foco vuelve al campo de búsqueda, que
+  // se pinta en el render siguiente, y no se pierde en el `body`.
+  const enfocarRef = useRef(false);
+
+  useEffect(() => {
+    if (elegida || !enfocarRef.current) return;
+    enfocarRef.current = false;
+    campoRef.current?.focus();
+  }, [elegida]);
 
   const asegurarCargado = useCallback(() => {
     if (directorio.length === 0) cargarDirectorio().then(setDirectorio);
@@ -165,6 +175,7 @@ export default function BuscadorColegioOnboarding({ colegios, onElegir }: Props)
             type="button"
             className={styles.cambiarColegio}
             onClick={() => {
+              enfocarRef.current = true;
               setElegida(null);
               setAbierta(true);
               onElegir(null);
@@ -183,6 +194,7 @@ export default function BuscadorColegioOnboarding({ colegios, onElegir }: Props)
       <div className={styles.buscadorColegio}>
         <Search size={16} aria-hidden="true" className={styles.iconoBuscar} />
         <input
+          ref={campoRef}
           type="text"
           role="combobox"
           aria-labelledby={`${idBase}-rotulo`}

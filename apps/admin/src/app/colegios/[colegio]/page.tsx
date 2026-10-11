@@ -23,7 +23,7 @@ import type {
   ResumenPedidosColegio,
   Sugerencia,
 } from "@tukit/contrato";
-import { GRADOS_CANONICOS, formatearPesos, logoDeColegio } from "@tukit/contrato";
+import { GRADOS_CANONICOS, formatearPesos, logoDeColegio, logoDelDirectorio } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import LogoColegio from "@/components/LogoColegio";
 import PerfilColegio from "@/components/PerfilColegio";
@@ -258,7 +258,10 @@ export default async function PaginaColegio({ params }: Props) {
         {/* Lo editable: solo DANE (llave del directorio) y el logo (lo único que
             el padre ve en el selector de /empezar). El resto sale del DUEB. */}
         <h3 className={styles.subtitulo}>Editar</h3>
-        <PerfilColegio colegio={colegio} />
+        <PerfilColegio
+          colegio={colegio}
+          logoDelDirectorio={logoDelDirectorio(colegio, imagenesDelDirectorio())}
+        />
       </section>
 
       <section className={styles.tarjeta}>

@@ -6,8 +6,12 @@
 // dirección) sale del directorio oficial y se muestra —solo lectura— en la página
 // que envuelve a este formulario, así que aquí no se duplica ni se edita. Manda un
 // PATCH con solo lo que cambió y re-pinta con el detalle que el backend devuelve.
+//
+// Sin URL propia, el logo que se ve sale del directorio de Bogotá por el DANE
+// (`logoDelDirectorio`). El campo lo dice con una nota y lo muestra de
+// placeholder, pero sigue vacío: el logo del directorio no se guarda en la base.
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ColegioDetalle, ColegioEditable } from "@tukit/contrato";
 import { editarColegio, FalloListas } from "@/lib/api-listas";
@@ -15,6 +19,9 @@ import styles from "@/app/colegios/Colegios.module.css";
 
 interface Props {
   colegio: ColegioDetalle;
+  // El logo del directorio que se ve hoy, o `null` si el colegio tiene uno
+  // propio o el directorio no trae logo para su DANE.
+  logoDelDirectorio: string | null;
 }
 
 // Un campo del formulario: mapea a una clave de `ColegioEditable`.
@@ -53,7 +60,8 @@ function valorInicial(colegio: ColegioDetalle): Record<keyof ColegioEditable, st
   };
 }
 
-export default function PerfilColegio({ colegio }: Props) {
+export default function PerfilColegio({ colegio, logoDelDirectorio }: Props) {
+  const idBase = useId();
   const router = useRouter();
   const [actual, setActual] = useState<ColegioDetalle>(colegio);
   const [valores, setValores] = useState(valorInicial(colegio));
@@ -111,20 +119,34 @@ export default function PerfilColegio({ colegio }: Props) {
 
   return (
     <form className={styles.formularioPerfil} onSubmit={guardar}>
-      {CAMPOS.map(({ clave, etiqueta, tipo, maxLength, inputMode, pattern }) => (
-        <label key={clave} className={styles.campo}>
-          <span>{etiqueta}</span>
-          <input
-            type={tipo}
-            value={valores[clave]}
-            onChange={(e) => cambiar(clave, e.target.value)}
-            disabled={guardando}
-            maxLength={maxLength}
-            inputMode={inputMode}
-            pattern={pattern}
-          />
-        </label>
-      ))}
+      {CAMPOS.map(({ clave, etiqueta, tipo, maxLength, inputMode, pattern }) => {
+        const id = `${idBase}-${clave}`;
+        const delDirectorio =
+          clave === "logo_url" && !valores.logo_url.trim() ? logoDelDirectorio : null;
+        return (
+          <div key={clave} className={styles.campo}>
+            <label htmlFor={id}>{etiqueta}</label>
+            <input
+              id={id}
+              type={tipo}
+              value={valores[clave]}
+              onChange={(e) => cambiar(clave, e.target.value)}
+              disabled={guardando}
+              maxLength={maxLength}
+              inputMode={inputMode}
+              pattern={pattern}
+              placeholder={delDirectorio ?? undefined}
+              aria-describedby={delDirectorio ? `${id}-nota` : undefined}
+            />
+            {delDirectorio ? (
+              <span id={`${id}-nota`} className={styles.fuente}>
+                Hoy se ve el logo del directorio de Bogotá, por el DANE. Escribe una URL para
+                reemplazarlo.
+              </span>
+            ) : null}
+          </div>
+        );
+      })}
 
       {error ? <p className={styles.pistaError}>{error}</p> : null}
       {ok ? <p className={styles.perfilOk}>Datos guardados.</p> : null}
