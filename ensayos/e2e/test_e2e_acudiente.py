@@ -13,7 +13,7 @@ que ningun producto sale de fuera del catalogo y que la orden pagada tiene las
 lineas del kit.
 
 Lo que hoy no cumple queda como `xfail(strict=True)` con su hallazgo:
-H-A-36, H-A-38, H-A-39, H-A-40, H-A-41, H-A-42 y H-A-43.
+H-A-36, H-A-38, H-A-39, H-A-40, H-A-41, H-A-42, H-A-43 y H-A-62.
 """
 
 from __future__ import annotations
@@ -203,39 +203,88 @@ def sin_cambios(http_flujo: httpx.Client, admin: dict[str, str], colegio_aliado:
 
 class TestAprobarLaListaSinCambios:
     @pytest.mark.nfr("NFR-PRE-04")
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-A-41: un renglon cuyo concepto no tiene producto (C095, arena decorativa) rompe "
-            "`resolucion_resuelta_tiene_candidato` en la ruta rapida y el trabajo del padre queda fallido"
-        ),
-    )
     def test_el_acudiente_recibe_sus_tres_kits(self, sin_cambios, record_property):
+        """No regresion de H-A-41: desde b97ce00, en la ruta rapida un renglon cuyo concepto no
+        tiene producto (C095) queda `HUECO_CATALOGO` (`trabajos.py:525-530`) y el trabajo se
+        publica. Son dos kits y no tres por el ADR 0030 (efb0827); el nombre se conserva por
+        la trazabilidad."""
         record_property("estado", sin_cambios["estado"])
         record_property("error", sin_cambios["error"])
         record_property("etapas", ",".join(f"{e['nombre']}:{e['estado']}" for e in sin_cambios["etapas"]))
         assert sin_cambios["estado"] == "publicado"
         assert [k["perfil"] for k in sin_cambios["kits"]] == list(PERFILES)
 
+
+# ------------------------------------------------------- un trabajo que falla en la ruta rapida
+
+# El catalogo guarda cualquier cantidad mayor que cero (`routers/admin.py:821-830`); con un
+# millon en el renglon 1 el total del kit no cabe en `kit.total_cop` (integer) y el insert
+# falla dentro de `procesar`. Desde b97ce00 el renglon sin producto ya no tumba el trabajo
+# (H-A-41), asi que este es el disparador que queda para el manejador generico
+# (`trabajos.py:981-991`).
+CANTIDAD_DESBORDADA = 1_000_000
+
+
+@pytest.fixture(scope="module")
+def fallido(http_flujo: httpx.Client, admin: dict[str, str], colegio_aliado: str) -> dict[str, Any]:
+    """G01 con un millon de unidades en el renglon 1, cerrada por el administrador."""
+    padre = registrar_acudiente(http_flujo, colegio_aliado)
+    respuesta = subir(http_flujo, padre["cabecera"], "G01", colegio_ficticio("G01"))
+    assert respuesta.status_code == 202, respuesta.text
+    version_id = respuesta.json()["subidas"][0]["version_id"]
+    renglon = next(i for i in revision(http_flujo, admin, version_id)["items"] if i["orden"] == 1)
+    edicion = http_flujo.patch(
+        f"/v1/admin/listas/{version_id}/items/{renglon['item_id']}",
+        headers=admin,
+        json={"cantidad": CANTIDAD_DESBORDADA},
+    )
+    assert edicion.status_code == 200, edicion.text
+    cerrar(http_flujo, admin, version_id)
+    vista = esperar_trabajo_del_acudiente(http_flujo, padre["cabecera"], version_id)
+    sin_sesion = http_flujo.get(f"/v1/trabajos/{vista['trabajo_id']}")
+    return {**vista, "sin_sesion": sin_sesion.status_code}
+
+
+class TestElTrabajoQueFalla:
+    # Como H-A-35 (NFR-PRE-06): la cantidad no tiene tope antes de llegar al total.
+    @pytest.mark.nfr("NFR-PRE-06")
+    @pytest.mark.xfail(
+        strict=True,
+        reason=(
+            "H-A-62: el revisor puede guardar una cantidad de un millon y el total del kit desborda "
+            "`kit.total_cop` (integer): el trabajo del acudiente queda fallido con `error_interno`"
+        ),
+    )
+    def test_una_cantidad_que_el_revisor_guarda_no_tumba_el_trabajo(self, fallido, record_property):
+        record_property("estado", fallido["estado"])
+        record_property("error", fallido["error"])
+        assert (fallido["estado"], fallido["error"]) != ("fallido", "error_interno")
+
     @pytest.mark.nfr("NFR-REN-03")
     @pytest.mark.xfail(
         strict=True,
-        reason="H-A-41: el trabajo fallido deja las cuatro etapas en `pendiente`: no dice en cual fallo",
+        reason=(
+            "H-A-41: el trabajo fallido deja en `pendiente` la etapa en la que fallo (optimizacion): "
+            "ninguna dice que fallo"
+        ),
     )
-    def test_si_falla_el_sondeo_dice_en_que_etapa(self, sin_cambios):
-        assert sin_cambios["estado"] == "fallido"
-        assert any(e["estado"] not in ("pendiente", "ok") for e in sin_cambios["etapas"])
+    def test_si_falla_el_sondeo_dice_en_que_etapa(self, fallido, record_property):
+        record_property("etapas", ",".join(f"{e['nombre']}:{e['estado']}" for e in fallido["etapas"]))
+        assert fallido["estado"] == "fallido"
+        assert any(e["estado"] not in ("pendiente", "ok") for e in fallido["etapas"])
 
     @pytest.mark.xfail(
         strict=True,
         reason=(
             "H-A-43: el `mensaje` del trabajo fallido trae la sentencia SQL y sus parametros "
-            "(textos de la lista) y sale por GET /v1/trabajos/{id}, que no pide sesion"
+            "y sale por GET /v1/trabajos/{id}, que no pide sesion"
         ),
     )
-    def test_el_error_no_expone_la_base(self, sin_cambios, record_property):
-        mensaje = sin_cambios["mensaje"] or ""
+    def test_el_error_no_expone_la_base(self, fallido, record_property):
+        mensaje = fallido["mensaje"] or ""
         record_property("mensaje_inicio", mensaje[:120])
+        record_property("codigo_sin_sesion", fallido["sin_sesion"])
+        assert fallido["estado"] == "fallido"
         assert not any(marca in mensaje for marca in ("INSERT INTO", "sqlalchemy", "asyncpg", "[parameters:"))
 
 
@@ -429,11 +478,15 @@ class TestLaCompra:
             referencia=datos["referencia_wompi"],
             transaccion_id=datos["transaccion_wompi"],
             estado_wompi="APPROVED",
+            # Desde fe8c030 el webhook trae el monto y comercio lo compara con el pedido.
+            monto_centavos=datos["total"] * 100,
         )
         webhook = http_flujo.post("/v1/webhooks/wompi", json=evento)
         assert webhook.status_code == 200, webhook.text
         assert webhook.json()["pedido_transicionado"] is True
-        pagada = http_flujo.get(f"/v1/ordenes/{datos['pedido_id']}", headers=padre["cabecera"])
+        # Desde 173ee80 la puerta no sirve `GET /v1/ordenes/{id}` (CONTRATO_API §9): el
+        # acudiente lee su pedido en `mis-pedidos`, que comprueba que sea suyo (e82d03c).
+        pagada = http_flujo.get(f"/v1/comercio/mis-pedidos/{datos['pedido_id']}", headers=padre["cabecera"])
         assert pagada.status_code == 200, pagada.text
 
         cuerpo = pagada.json()

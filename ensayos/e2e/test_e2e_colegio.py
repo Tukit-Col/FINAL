@@ -18,7 +18,7 @@ Ademas se previsualiza la misma version (`/v1/admin/onboarding/{v}/preview`)
 y se compara renglon por renglon con el kit.
 
 Lo que hoy no cumple queda como `xfail(strict=True)` con su hallazgo:
-H-A-01, H-A-37, H-A-39, H-A-44 y H-A-45.
+H-A-37, H-A-39 y H-A-45.
 """
 
 from __future__ import annotations
@@ -209,14 +209,9 @@ class TestLaRutaLentaContraElOro:
         record_property("estados", ",".join(f"{o}:{kit[o]['estado_resolucion']}" for o in sorted(kit)))
         assert len(concepto) == len(reconocibles)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-A-44: el catalogo que siembra `make backend` no trae los atributos de los productos, y "
-            "los renglones con atributo (cuaderno de 100 hojas, lapiz HB, regla de 30 cm…) salen HUECO"
-        ),
-    )
     def test_lo_que_el_oro_reconoce_sale_con_producto(self, grado, record_property):
+        """No regresion de H-A-44: desde 6c29c83 el cargador del catalogo (el de `bd-sembrar`)
+        guarda los atributos del CSV (`cargador.py:504`, `atributos_de_csv`)."""
         reconocibles = ordenes("G01", "exacto") | ordenes("G01", "facil")
         kit = _por_orden(grado["admin"])
 
@@ -341,13 +336,9 @@ class TestLaColaDeRevision:
         record_property("codigo", orden.status_code)
         assert orden.status_code in (403, 409)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-A-01: aprobar un kit de grado lo fija en `kit_canonico`, una tabla que ninguna migracion crea"
-        ),
-    )
     def test_aprobar_el_kit_del_grado_lo_publica(self, http_flujo, admin, grado, record_property):
+        """No regresion de H-A-01: desde c57c0b3 la migracion `20260928_1900_tabla_kit_canonico`
+        crea `kit_canonico`."""
         respuesta = http_flujo.post(
             f"/v1/admin/trabajos/{grado['trabajo_id']}/revision", headers=admin, json={"decision": "aprobar"}
         )
