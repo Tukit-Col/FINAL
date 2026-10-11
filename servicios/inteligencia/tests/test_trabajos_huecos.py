@@ -215,7 +215,8 @@ class TestProcesarNuncaDejaColgado:
 
         assert reintento == EstadoTrabajo.ESPERA_REVISION.value
         assert vista["error"] is None and vista["mensaje"] is None
-        assert len(vista["kits"]) == 3
+        # Sin preferencias salen Ahorrador y Premium (kits a pedido, ADR 0030).
+        assert [kit["perfil"] for kit in vista["kits"]] == ["Ahorrador", "Premium"]
 
     async def test_la_dependencia_caida_dice_que_servicio_y_que_se_puede_reintentar(self, motor):
         class Caido(CatalogoFalso):
@@ -273,9 +274,10 @@ class TestUnTextoEscolar:
         consultados: list[str] = []
         emparejar = catalogo.emparejar
 
-        async def _espia(textos: list[str]) -> list[dict[str, Any]]:
+        # 677f749: el pipeline tambien manda el concepto de la lista (`conceptos=`).
+        async def _espia(textos: list[str], **kw: Any) -> list[dict[str, Any]]:
             consultados.extend(textos)
-            return await emparejar(textos)
+            return await emparejar(textos, **kw)
 
         catalogo.emparejar = _espia  # type: ignore[method-assign]
         return consultados
@@ -666,8 +668,20 @@ class TestCanonicoYSelector:
         del_colegio = await trabajos.grados_canonicos(motor, colegio_id=COLEGIO)
         de_otro = await trabajos.grados_canonicos(motor, colegio_id=str(uuid.uuid4()))
 
+        async with motor.engine.begin() as conexion:
+            publicado_en = await conexion.scalar(
+                select(trabajos.TRABAJO.c.terminado_en).where(trabajos.TRABAJO.c.id == canonico)
+            )
+        # edd9877 agrega cuando se publico y el borrador abierto (ninguno: nadie lo esta editando).
         esperado = [
-            {"colegio_id": COLEGIO, "grado": "Cuarto", "anio_lectivo": 2026, "trabajo_id": str(canonico)}
+            {
+                "colegio_id": COLEGIO,
+                "grado": "Cuarto",
+                "anio_lectivo": 2026,
+                "trabajo_id": str(canonico),
+                "publicado_en": publicado_en.isoformat(),
+                "borrador_trabajo_id": None,
+            }
         ]
         assert todos == esperado
         assert del_colegio == esperado

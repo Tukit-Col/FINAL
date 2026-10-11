@@ -715,7 +715,8 @@ class TestRevisionHumanaPorHttp:
         assert respuesta.status_code == 200
         cuerpo = respuesta.json()
         assert cuerpo["estado"] == EstadoTrabajo.ESPERA_REVISION.value
-        assert len(cuerpo["kits"]) == 3
+        # Sin preferencias salen Ahorrador y Premium (kits a pedido, ADR 0030).
+        assert [kit["perfil"] for kit in cuerpo["kits"]] == ["Ahorrador", "Premium"]
         assert len(cuerpo["lineas_pendientes"]) == 1  # el punzon, que nadie ha mirado
 
     async def test_un_trabajo_que_no_existe_es_404(self, entorno):
@@ -771,19 +772,33 @@ class TestRevisionHumanaPorHttp:
             )
         assert estado == EstadoResolucion.RESUELTO_AUTO.value
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-A-28: validar sin sku, o con un sku que no es candidato de la linea, intenta dejar "
-            "RESUELTO_AUTO sin candidato y revienta con el CHECK resolucion_resuelta_tiene_candidato: "
-            "sale un 500 en vez de un 4xx (trabajos.py:1411-1419,1431-1437; modelos/resolucion.py:204-208)"
-        ),
+    @pytest.mark.parametrize(
+        ("catalogo", "cuerpo"),
+        [(_catalogo_router, {}), (_catalogo_con_ambiguo, {"sku": "TK-NO-ES-CANDIDATO"})],
+        ids=["sin_sku", "sku_ajeno"],
     )
-    @pytest.mark.parametrize("cuerpo", [{}, {"sku": "TK-NO-ES-CANDIDATO"}], ids=["sin_sku", "sku_ajeno"])
-    async def test_validar_con_un_sku_que_no_es_candidato_es_un_error_del_cliente(self, entorno, cuerpo):
-        """Un dato mal elegido por quien revisa se devuelve como 4xx y la linea sigue esperando."""
-        trabajo_id, _ = await _crear_y_procesar(entorno.motor, _catalogo_con_ambiguo())
+    async def test_validar_con_un_sku_que_no_es_candidato_es_un_error_del_cliente(
+        self, entorno, catalogo, cuerpo
+    ):
+        """Validar sin nada que validar es un 4xx con motivo y la linea sigue esperando (H-A-28).
+
+        Desde 390966b, validar sin `sku` confirma el producto que la linea ya tiene en
+        el kit, y un `sku` que no es candidato pero esta en el catalogo se registra
+        (`trabajos.py:1825-1830,1861-1867`). El rechazo queda para cuando no hay producto por
+        ningun lado: el punzon sin coincidencia y sin `sku`, o un `sku` que el
+        catalogo no tiene. Antes, los dos llegaban al CHECK
+        `resolucion_resuelta_tiene_candidato` y salia un 500.
+        """
+        trabajo_id, _ = await _crear_y_procesar(entorno.motor, catalogo())
         item_id = await _item_de(entorno.motor, trabajo_id, 4)
+
+        async def _estado() -> str:
+            async with entorno.motor.engine.begin() as conexion:
+                return await conexion.scalar(
+                    select(trabajos.RESOLUCION.c.estado).where(trabajos.RESOLUCION.c.item_crudo_id == item_id)
+                )
+
+        antes = await _estado()
         transporte = httpx.ASGITransport(app=app, raise_app_exceptions=False)
 
         async with httpx.AsyncClient(transport=transporte, base_url="http://prueba") as http:
@@ -791,12 +806,11 @@ class TestRevisionHumanaPorHttp:
                 f"/v1/admin/trabajos/{trabajo_id}/lineas/{item_id}/validar", json=cuerpo, headers=OPERADOR
             )
 
-        assert 400 <= respuesta.status_code < 500
-        async with entorno.motor.engine.begin() as conexion:
-            estado = await conexion.scalar(
-                select(trabajos.RESOLUCION.c.estado).where(trabajos.RESOLUCION.c.item_crudo_id == item_id)
-            )
-        assert estado == EstadoResolucion.AMBIGUO.value
+        assert respuesta.status_code == 422
+        assert respuesta.json()["error"] == "sin_producto_que_validar"
+        assert respuesta.json()["campo"] == "sku"
+        assert antes != EstadoResolucion.RESUELTO_AUTO.value
+        assert await _estado() == antes
 
     async def test_validar_una_linea_que_no_es_del_trabajo_es_404(self, entorno):
         trabajo_id, _ = await _crear_y_procesar(entorno.motor, entorno.catalogo)
@@ -1006,11 +1020,18 @@ class TestSelectorYMetricas:
         del_colegio = await entorno.http.get("/v1/grados-canonicos", params={"colegio_id": COLEGIO})
         de_otro = await entorno.http.get("/v1/grados-canonicos", params={"colegio_id": str(INEXISTENTE)})
 
+        async with entorno.motor.engine.begin() as conexion:
+            publicado_en = await conexion.scalar(
+                select(trabajos.TRABAJO.c.terminado_en).where(trabajos.TRABAJO.c.id == trabajo_id)
+            )
+        # edd9877 agrega cuando se publico y el borrador abierto (ninguno: nadie lo esta editando).
         esperado = {
             "colegio_id": COLEGIO,
             "grado": "Cuarto",
             "anio_lectivo": 2026,
             "trabajo_id": str(trabajo_id),
+            "publicado_en": publicado_en.isoformat(),
+            "borrador_trabajo_id": None,
         }
         assert todos.json() == {"grados": [esperado]}
         assert del_colegio.json() == {"grados": [esperado]}
