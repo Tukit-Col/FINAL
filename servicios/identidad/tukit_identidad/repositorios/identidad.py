@@ -29,6 +29,7 @@ from ..modelos import (
     AsignacionRol,
     Base,
     Clasificacion,
+    EstadoMatricula,
     Matricula,
     Permiso,
     RolPermiso,
@@ -641,10 +642,26 @@ class RepoIdentidad:
             matricula_id = derivar(
                 "matricula", str(estudiante_id), str(sede_id), hijo.grado, str(anio_lectivo)
             )
-            if (
-                await self.conexion.scalar(select(MATRICULA.c.id).where(MATRICULA.c.id == matricula_id))
-                is None
-            ):
+            # Un hijo que el acudiente quito y vuelve a agregar cae en la MISMA fila
+            # derivada, que quedo retirada: se reactiva en vez de perderse (sin esto,
+            # el SELECT la encontraba y el hijo no volvia a aparecer). Su apodo nuevo,
+            # si viene, reemplaza al viejo.
+            estado_previo = await self.conexion.scalar(
+                select(MATRICULA.c.estado).where(MATRICULA.c.id == matricula_id)
+            )
+            if estado_previo is not None and estado_previo != EstadoMatricula.ACTIVA.value:
+                await self.conexion.execute(
+                    update(MATRICULA)
+                    .where(MATRICULA.c.id == matricula_id)
+                    .values(estado=EstadoMatricula.ACTIVA.value, cerrado_en=None)
+                )
+                if hijo.apodo is not None:
+                    await self.conexion.execute(
+                        update(ESTUDIANTE)
+                        .where(ESTUDIANTE.c.id == estudiante_id)
+                        .values(nombre_cifrado=cifrador.cifrar(hijo.apodo.encode("utf-8")))
+                    )
+            if estado_previo is None:
                 await self.conexion.execute(
                     insert(MATRICULA).values(
                         id=matricula_id,
@@ -656,13 +673,26 @@ class RepoIdentidad:
                     )
                 )
 
-            vinculo = await self.conexion.scalar(
-                select(ACUDIENTE_MATRICULA.c.usuario_id).where(
-                    ACUDIENTE_MATRICULA.c.usuario_id == usuario_id,
-                    ACUDIENTE_MATRICULA.c.matricula_id == matricula_id,
+            vinculo = (
+                await self.conexion.execute(
+                    select(ACUDIENTE_MATRICULA.c.usuario_id, ACUDIENTE_MATRICULA.c.vigente_hasta).where(
+                        ACUDIENTE_MATRICULA.c.usuario_id == usuario_id,
+                        ACUDIENTE_MATRICULA.c.matricula_id == matricula_id,
+                    )
                 )
-            )
-            if vinculo is None:
+            ).one_or_none()
+            if vinculo is not None and vinculo.vigente_hasta is not None:
+                # El vinculo que el acudiente cerro al quitar al hijo se reabre.
+                await self.conexion.execute(
+                    update(ACUDIENTE_MATRICULA)
+                    .where(
+                        ACUDIENTE_MATRICULA.c.usuario_id == usuario_id,
+                        ACUDIENTE_MATRICULA.c.matricula_id == matricula_id,
+                    )
+                    .values(vigente_hasta=None)
+                )
+                creados += 1
+            elif vinculo is None:
                 await self.conexion.execute(
                     insert(ACUDIENTE_MATRICULA).values(
                         usuario_id=usuario_id,
@@ -705,6 +735,7 @@ class RepoIdentidad:
         cifrador = cifrador_desde_entorno()
         filas = await self.conexion.execute(
             select(
+                MATRICULA.c.id,
                 MATRICULA.c.colegio_id,
                 MATRICULA.c.grado,
                 MATRICULA.c.anio_lectivo,
@@ -727,6 +758,9 @@ class RepoIdentidad:
             apodo = cifrador.descifrar(f.nombre_cifrado).decode("utf-8", errors="replace")
             matriculas.append(
                 {
+                    # El id de la MATRICULA (colegio + grado + anio), para quitar o
+                    # cambiar al hijo desde el panel. No es el del estudiante.
+                    "matricula_id": str(f.id),
                     "colegio_id": str(f.colegio_id),
                     "grado": f.grado,
                     "anio_lectivo": int(f.anio_lectivo),
@@ -734,6 +768,64 @@ class RepoIdentidad:
                 }
             )
         return matriculas
+
+    async def matricula_del_portador(self, usuario_id: uuid.UUID, matricula_id: uuid.UUID) -> Any:
+        """La matricula activa de un hijo del portador, con vinculo vigente.
+
+        404 si no existe o no es suya: no se distingue "no existe" de "no es tuya",
+        para no confirmarle a un tercero que esa matricula existe.
+        """
+        fila = (
+            await self.conexion.execute(
+                select(MATRICULA.c.id, MATRICULA.c.estudiante_id, ESTUDIANTE.c.nombre_cifrado)
+                .select_from(
+                    ACUDIENTE_MATRICULA.join(
+                        MATRICULA, ACUDIENTE_MATRICULA.c.matricula_id == MATRICULA.c.id
+                    ).join(ESTUDIANTE, MATRICULA.c.estudiante_id == ESTUDIANTE.c.id)
+                )
+                .where(
+                    ACUDIENTE_MATRICULA.c.usuario_id == usuario_id,
+                    ACUDIENTE_MATRICULA.c.matricula_id == matricula_id,
+                    ACUDIENTE_MATRICULA.c.vigente_hasta.is_(None),
+                    MATRICULA.c.estado == EstadoMatricula.ACTIVA.value,
+                )
+            )
+        ).one_or_none()
+        if fila is None:
+            raise ErrorDominio("hijo_no_existe", "Ese hijo no está en tu cuenta.", estado=404)
+        return fila
+
+    async def retirar_matricula(self, usuario_id: uuid.UUID, matricula_id: uuid.UUID) -> None:
+        """Cierra el vinculo del portador y, si nadie mas la tiene, retira la matricula.
+
+        No borra: el vinculo queda con `vigente_hasta` y la matricula en `retirada`,
+        que es como el esquema distingue "se fue" de "nunca estuvo" y lo que la
+        politica de retencion de datos de menores consulta.
+        """
+        ahora = datetime.now(UTC)
+        await self.conexion.execute(
+            update(ACUDIENTE_MATRICULA)
+            .where(
+                ACUDIENTE_MATRICULA.c.usuario_id == usuario_id,
+                ACUDIENTE_MATRICULA.c.matricula_id == matricula_id,
+                ACUDIENTE_MATRICULA.c.vigente_hasta.is_(None),
+            )
+            .values(vigente_hasta=ahora)
+        )
+        otros = await self.conexion.scalar(
+            select(func.count())
+            .select_from(ACUDIENTE_MATRICULA)
+            .where(
+                ACUDIENTE_MATRICULA.c.matricula_id == matricula_id,
+                ACUDIENTE_MATRICULA.c.vigente_hasta.is_(None),
+            )
+        )
+        if not otros:
+            await self.conexion.execute(
+                update(MATRICULA)
+                .where(MATRICULA.c.id == matricula_id)
+                .values(estado=EstadoMatricula.RETIRADA.value, cerrado_en=ahora)
+            )
 
     async def es_staff_vigente(self, usuario_id: uuid.UUID) -> bool:
         """¿Tiene el usuario un rol de staff (admin/operador) vigente? Mismo

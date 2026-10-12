@@ -89,6 +89,16 @@ class TrabajoPipeline(Base):
     # Lo que la seccion 8 del contrato obliga a reportar en vez de esconder.
     degradaciones: Mapped[list[dict[str, Any]]] = mapped_column(Texto, nullable=False, default=list)
 
+    # Los productos que el acudiente cambio en sus kits ya publicados:
+    # `{perfil: {item_id: producto}}`, con el producto congelado al elegirlo.
+    # Viven aqui y no en `linea_kit` porque esas lineas pueden ser el kit
+    # canonico del grado, el que reciben los demas acudientes por la ruta
+    # rapida: el cambio de un papa no puede alterar el kit de otro. `ver` los
+    # aplica al leer, y el pago lee `ver`.
+    cambios: Mapped[dict[str, Any]] = mapped_column(
+        Texto, nullable=False, default=dict, server_default=text("'{}'")
+    )
+
     error: Mapped[str | None] = mapped_column(String(64), nullable=True)
     mensaje: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -113,7 +123,7 @@ class TrabajoPipeline(Base):
         CheckConstraint(f"estado IN ({_ESTADOS})", name="trabajo_estado_valido"),
         CheckConstraint(
             "origen IN ('colegio_grado', 'archivo', 'preview_onboarding', "
-            "'lista_verificada', 'parent_apply')",
+            "'lista_verificada', 'parent_apply', 'canonico_lista')",
             name="trabajo_origen_valido",
         ),
         CheckConstraint("estimado_segundos > 0", name="trabajo_estimado_positivo"),

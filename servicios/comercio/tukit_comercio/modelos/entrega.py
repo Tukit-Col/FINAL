@@ -104,6 +104,11 @@ class Envio(Base):
 
     transportadora: Mapped[str | None] = mapped_column(String(128), nullable=True)
     guia: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    # Reparto propio: el repartidor no tiene cuenta, es un dato que pone el
+    # operador al despachar. `transportadora`/`guia` quedan para los envios
+    # viejos. El celular es dato personal de un tercero: solo lo ve el staff.
+    repartidor_nombre: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    repartidor_celular: Mapped[str | None] = mapped_column(String(32), nullable=True)
     entrega_estimada: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     entregado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

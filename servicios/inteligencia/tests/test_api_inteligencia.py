@@ -207,6 +207,12 @@ class TestConsultar:
         assert respuesta.status_code == 404
         assert respuesta.json()["error"] == "trabajo_no_existe"
 
+    async def test_abrir_borrador_de_un_trabajo_que_no_existe_es_404(self, cliente):
+        respuesta = await cliente.post(f"/v1/admin/trabajos/{uuid.uuid4()}/borrador")
+
+        assert respuesta.status_code == 404
+        assert respuesta.json()["error"] == "trabajo_no_existe"
+
     async def test_mientras_no_este_publicado_kits_va_vacio(self, cliente, motor):
         creado = (await cliente.post("/v1/trabajos", json=_peticion())).json()
         trabajo_id = uuid.UUID(creado["trabajo_id"])
@@ -217,7 +223,7 @@ class TestConsultar:
         assert vista["kits"] == []
 
         admin = (await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")).json()
-        assert len(admin["kits"]) == 3
+        assert len(admin["kits"]) == 2
 
     async def test_el_admin_ve_los_campos_de_consola_y_el_acudiente_no(self, cliente, motor):
         """La consola necesita `recibido_en`, `contacto_id` y
@@ -256,7 +262,7 @@ class TestLaColaYLaPublicacion:
 
         vista = (await cliente.get(f"/v1/trabajos/{trabajo_id}")).json()
         assert vista["estado"] == "publicado"
-        assert len(vista["kits"]) == 3
+        assert len(vista["kits"]) == 2
         assert vista["recomendado"]["perfil"] == "Ahorrador"
 
     async def test_revisar_un_trabajo_ya_publicado_es_409(self, cliente, motor):

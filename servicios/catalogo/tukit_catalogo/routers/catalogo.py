@@ -26,6 +26,7 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Query, Request, Response
+from pydantic import BaseModel
 from tukit_comun.http import ErrorDominio
 
 from ..dominio.catalogo import (
@@ -283,6 +284,9 @@ async def listas_por_contacto(peticion: Request, contacto_referencia: uuid.UUID)
             nombre = dict(f.colegio_datos).get("nombre")
         listas.append(
             {
+                # La tarea mas reciente de la fila: es con lo que el acudiente
+                # cancela su solicitud (`retirar_de_contacto`).
+                "tarea_id": str(f.id),
                 "version_id": str(f.version_id) if f.version_id else None,
                 "colegio_id": str(f.colegio_id) if f.colegio_id else None,
                 "colegio_nombre": nombre,
@@ -293,6 +297,39 @@ async def listas_por_contacto(peticion: Request, contacto_referencia: uuid.UUID)
             }
         )
     return {"listas": listas}
+
+
+class RetiroDeContacto(BaseModel):
+    """Que solicitud deja de ser del acudiente: una tarea o toda una version."""
+
+    tarea_id: uuid.UUID | None = None
+    version_id: uuid.UUID | None = None
+
+
+@router.post(
+    "/interno/listas-por-contacto/{contacto_referencia}/retirar",
+    tags=["interno"],
+    include_in_schema=False,
+    summary="El acudiente cancela una lista que subio: deja de ser suya; NO es publica",
+)
+async def retirar_de_contacto(
+    peticion: Request, contacto_referencia: uuid.UUID, cuerpo: RetiroDeContacto
+) -> dict[str, Any]:
+    """Desvincula al acudiente de una lista que subio, sin borrar la lista.
+
+    Es la mitad del Catalogo de "cancelar solicitud": la lista sigue siendo una
+    lista oficial del colegio (otra persona la puede curar y aprobar), pero ya no
+    sale en "Mis solicitudes" y, al aprobarse, no le arma un kit a nadie (el
+    poller exige `contacto_referencia`). Se desvinculan TODAS las tareas del
+    contacto en esa version —la fila que el acudiente ve agrupa varias—.
+
+    Como `listas_por_contacto`, vive en `/interno`: el `contacto_referencia` lo
+    pone Inteligencia con el `usuario_id` de una sesion que ya valido.
+    """
+    async with peticion.app.state.motor.sesion() as db:
+        repo = RepoCatalogo(await db.connection())
+        retiradas = await repo.retirar_de_contacto(contacto_referencia, cuerpo.tarea_id, cuerpo.version_id)
+    return {"retiradas": retiradas}
 
 
 # ---------------------------------------------------------------------------
@@ -367,8 +404,8 @@ async def reclasificar_producto(peticion: Request, sku: str, cuerpo: dict[str, A
             raise ErrorDominio(
                 "concepto_no_existe", f"No hay ningun concepto con el codigo {codigo}.", estado=404
             )
-        await repo.reclasificar_producto(sku, cid)
-        return await _refrescar_producto(repo, sku)
+        nuevo_sku = await repo.reclasificar_producto(sku, cid, str(codigo))
+        return await _refrescar_producto(repo, nuevo_sku)
 
 
 @router.delete(
@@ -589,8 +626,14 @@ async def emparejar_renglones(peticion: Request, cuerpo: dict[str, Any]) -> dict
     # falla — mismo contrato que `emparejar_en_catalogo`.
     async with peticion.app.state.motor.sesion() as db:
         conceptos, productos = await cargar_indice(await db.connection())
+    # `conceptos` es opcional y va en paralelo a `renglones`: el codigo que una
+    # persona ya asigno a ese renglon (o null). Si no cuadra en largo, se ignora.
+    asignados = cuerpo.get("conceptos")
+    if not isinstance(asignados, list) or len(asignados) != len(textos):
+        asignados = [None] * len(textos)
     vectores = calcular_vectores(textos, _embeder_por_entorno())
     resultados = [
-        emparejar(t, conceptos, productos, embedding_renglon=v) for t, v in zip(textos, vectores, strict=True)
+        emparejar(t, conceptos, productos, embedding_renglon=v, concepto_forzado=(str(a) if a else None))
+        for t, v, a in zip(textos, vectores, asignados, strict=True)
     ]
     return {"total": len(resultados), "emparejamientos": [r.a_dict() for r in resultados]}

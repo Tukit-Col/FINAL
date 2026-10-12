@@ -113,7 +113,7 @@ class TestElPipelineDejaTresKits:
             "resolucion": "ok",
             "optimizacion": "ok",
         }
-        assert {k["perfil"] for k in vista["kits"]} == {"Ahorrador", "Fan", "Premium"}
+        assert {k["perfil"] for k in vista["kits"]} == {"Ahorrador", "Premium"}
 
     async def test_el_acudiente_no_ve_kits_antes_de_que_los_revisen(self, motor):
         """La razon de ser de `espera_revision` y de AD-06. El mismo lector
@@ -122,7 +122,7 @@ class TestElPipelineDejaTresKits:
 
         assert (await trabajos.ver(motor, trabajo_id))["kits"] == []
         assert (await trabajos.ver(motor, trabajo_id))["recomendado"] is None
-        assert len((await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"]) == 3
+        assert len((await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"]) == 2
 
     async def test_la_licencia_digital_sale_informativa_y_fuera_del_total(self, motor):
         trabajo_id, _ = await _crear_y_procesar(motor)
@@ -296,7 +296,7 @@ class TestDegradarNuncaTumbar:
             items = await conexion.scalar(select(func.count()).select_from(trabajos.ITEM))
             kits = await conexion.scalar(select(func.count()).select_from(trabajos.KIT))
         assert items == 4
-        assert kits == 3
+        assert kits == 2
 
 
 class TestPublicarDirectoDesdeListaVerificada:
@@ -322,7 +322,8 @@ class TestPublicarDirectoDesdeListaVerificada:
         assert estado == EstadoTrabajo.PUBLICADO.value
         vista = await trabajos.ver(motor, trabajo_id, incluir_kits=True)
         assert vista["estado"] == EstadoTrabajo.PUBLICADO.value
-        assert len(vista["kits"]) == 3
+        # Sin personaje ni `equilibrio` pedidos: Ahorrador y Premium (ADR 0030).
+        assert [k["perfil"] for k in vista["kits"]] == ["Ahorrador", "Premium"]
 
     async def test_deja_kits_publicados_en_la_bandeja(self, motor):
         from sqlalchemy import select
@@ -368,7 +369,7 @@ class TestLaRevisionHumana:
         vista = await trabajos.ver(motor, trabajo_id)
         assert resultado["estado"] == EstadoTrabajo.PUBLICADO.value
         assert vista["estado"] == EstadoTrabajo.PUBLICADO.value
-        assert len(vista["kits"]) == 3
+        assert len(vista["kits"]) == 2
         assert vista["recomendado"]["perfil"] == "Ahorrador"
 
         async with motor.engine.begin() as conexion:
@@ -555,7 +556,7 @@ class TestAplicarCanonico:
             colegio_id=COLEGIO,
             grado="Cuarto",
             anio_lectivo=2026,
-            perfil="Ahorrador",
+            perfil="Fan",
             personaje="cars",
             catalogo=catalogo,
         )
@@ -597,18 +598,30 @@ class TestAplicarCanonico:
             colegio_id=COLEGIO,
             grado="Cuarto",
             anio_lectivo=2026,
-            perfil="Ahorrador",
+            perfil="Fan",
             personaje="cars",
             catalogo=catalogo,
         )
         parent_id = uuid.UUID(resultado["trabajo_id"])
 
         vista = await trabajos.ver(motor, parent_id, catalogo=catalogo)
-        assert len(vista["kits"]) == 1
-        assert vista["kits"][0]["perfil"] == "Ahorrador"
-        assert vista["kits"][0]["total"] == resultado["total"]
-        c001 = next(linea for linea in vista["kits"][0]["lineas"] if linea.get("concepto") == "C001")
+        # Ahorrador y Premium del canonico, mas el Fan armado para este
+        # acudiente (el Ahorrador con el personaje); el elegido va marcado.
+        assert [k["perfil"] for k in vista["kits"]] == ["Ahorrador", "Fan", "Premium"]
+        assert vista["recomendado"]["perfil"] == "Fan"
+        ahorrador = next(k for k in vista["kits"] if k["perfil"] == "Ahorrador")
+        c001_ahorrador = next(linea for linea in ahorrador["lineas"] if linea.get("concepto") == "C001")
+        assert c001_ahorrador["producto_elegido"]["sku"] == "TK-C001-ECO"  # el personaje solo va en el Fan
+        elegido = next(k for k in vista["kits"] if k["perfil"] == "Fan")
+        assert elegido["total"] == resultado["total"]
+        c001 = next(linea for linea in elegido["lineas"] if linea.get("concepto") == "C001")
         assert c001["producto_elegido"]["sku"] == "TK-C001-FAN"
+        # Los objetivos se calculan sobre las lineas aplicadas. Antes iban vacios
+        # y la web pintaba "NaN% con precio confirmado".
+        objetivos = elegido["objetivos"]
+        assert objetivos["costo"] == resultado["total"]
+        assert 0.0 <= objetivos["disponibilidad"] <= 1.0
+        assert 0.0 <= objetivos["fidelidad"] <= 1.0
 
     async def test_ordenar_arma_la_orden_server_to_server_sin_ids_de_base(self, motor):
         # El checkout: del kit publicado a la orden. Se verifica que Inteligencia
@@ -702,6 +715,73 @@ class TestAplicarCanonico:
         # El punzon quedo sin match y la licencia no pasa por el catalogo.
         assert cola["trabajos"][0]["lineas_a_revisar"] == 1
 
+    async def test_la_cola_dice_de_que_colegio_y_grado_es(self, motor):
+        """Sin esto la consola mostraba "Sin identificar" en trabajos que si lo
+        sabian: el colegio y el grado viajan en los hijos del trabajo."""
+        await _crear_y_procesar(motor)
+        entrada = (await trabajos.cola(motor))["trabajos"][0]
+
+        assert entrada["colegios"] and entrada["grados"]
+        assert entrada["origen"]
+
+    async def test_validar_sin_sku_una_linea_ambigua_toma_el_producto_de_los_kits(self, motor):
+        """El "Confirmar las elegidas" llega sin sku. En una linea AMBIGUA la
+        resolucion no tiene candidato (eligio el optimizador, kit por kit), y
+        validarla asi la dejaba resuelta y sin producto: 500 por el CHECK."""
+        from sqlalchemy import select, update
+
+        trabajo_id, _ = await _crear_y_procesar(motor)
+        async with motor.engine.begin() as conexion:
+            fila = (
+                await conexion.execute(
+                    select(trabajos.LINEA.c.item_crudo_id, trabajos.CANDIDATO.c.id)
+                    .select_from(
+                        trabajos.LINEA.join(trabajos.KIT, trabajos.KIT.c.id == trabajos.LINEA.c.kit_id).join(
+                            trabajos.CANDIDATO,
+                            (trabajos.CANDIDATO.c.item_crudo_id == trabajos.LINEA.c.item_crudo_id)
+                            & (trabajos.CANDIDATO.c.sku == trabajos.LINEA.c.sku),
+                        )
+                    )
+                    .where(trabajos.KIT.c.trabajo_id == trabajo_id)
+                    .limit(1)
+                )
+            ).first()
+            assert fila is not None, "el trabajo de prueba debe tener una linea con candidato"
+            item, candidato = fila
+            await conexion.execute(
+                update(trabajos.RESOLUCION)
+                .where(trabajos.RESOLUCION.c.item_crudo_id == item)
+                .values(estado=EstadoResolucion.AMBIGUO.value, candidato_item_id=None)
+            )
+
+        await trabajos.decidir_linea(motor, trabajo_id, item, estado=EstadoResolucion.RESUELTO_AUTO.value)
+
+        async with motor.engine.begin() as conexion:
+            resolucion = (
+                await conexion.execute(
+                    select(trabajos.RESOLUCION).where(trabajos.RESOLUCION.c.item_crudo_id == item)
+                )
+            ).one()
+        assert resolucion.estado == EstadoResolucion.RESUELTO_AUTO.value
+        assert resolucion.candidato_item_id == candidato
+
+    async def test_validar_una_linea_sin_ningun_producto_es_un_error_con_causa(self, motor):
+        from sqlalchemy import select
+
+        trabajo_id, _ = await _crear_y_procesar(motor)
+        async with motor.engine.begin() as conexion:
+            # El punzon (orden 4) quedo sin match: no hay candidato ni producto en los kits.
+            item = (
+                await conexion.execute(
+                    select(trabajos.ITEM.c.id).where(
+                        trabajos.ITEM.c.trabajo_id == trabajo_id, trabajos.ITEM.c.orden == 4
+                    )
+                )
+            ).scalar_one()
+
+        with pytest.raises(trabajos.SinProductoQueValidar):
+            await trabajos.decidir_linea(motor, trabajo_id, item, estado=EstadoResolucion.RESUELTO_AUTO.value)
+
     async def test_validar_una_linea_deja_quien_y_cuando(self, motor):
         from sqlalchemy import select
 
@@ -746,3 +826,190 @@ class TestAplicarCanonico:
             EstadoResolucion.HUECO_CATALOGO.value,
         ]
         assert transiciones[-1].decidida_por == actor
+
+
+def _linea(vista: dict, perfil: str, inicio: str) -> dict:
+    kit = next(k for k in vista["kits"] if k["perfil"] == perfil)
+    return next(linea for linea in kit["lineas"] if linea["descripcion"].startswith(inicio))
+
+
+def _total(vista: dict, perfil: str) -> int:
+    return next(k for k in vista["kits"] if k["perfil"] == perfil)["total"]
+
+
+class TestElAcudienteCambiaSuKit:
+    """El papa cambia un producto por una de sus alternativas, o se cambia de kit.
+
+    Sus cambios se guardan en SU trabajo (`cambios`), nunca en las lineas del
+    kit: esas lineas pueden ser el kit canonico del grado, el que reciben los
+    demas acudientes por la ruta rapida.
+    """
+
+    async def _ruta_rapida(self, motor, usuario_id=None):
+        canonico, _ = await _crear_y_procesar(motor)
+        await trabajos.revisar(motor, canonico, decision="aprobar")
+        resultado = await trabajos.aplicar_canonico(
+            motor,
+            colegio_id=COLEGIO,
+            grado="Cuarto",
+            anio_lectivo=2026,
+            perfil="Ahorrador",
+            usuario_id=usuario_id,
+            catalogo=_catalogo(),
+        )
+        return canonico, uuid.UUID(resultado["trabajo_id"])
+
+    async def test_la_ruta_rapida_trae_los_kits_del_canonico_y_marca_el_elegido(self, motor):
+        _, parent_id = await self._ruta_rapida(motor)
+        vista = await trabajos.ver(motor, parent_id, catalogo=_catalogo())
+        # Sin personaje no hay Fan: solo los dos del canonico.
+        assert [k["perfil"] for k in vista["kits"]] == ["Ahorrador", "Premium"]
+        assert vista["recomendado"]["perfil"] == "Ahorrador"
+
+    async def test_cambiar_por_una_alternativa_recalcula_y_no_toca_el_canonico(self, motor):
+        canonico, parent_id = await self._ruta_rapida(motor)
+        catalogo = _catalogo()
+        vista = await trabajos.ver(motor, parent_id, catalogo=catalogo)
+        cuaderno = _linea(vista, "Ahorrador", "2 cuadernos")
+        assert cuaderno["producto_elegido"]["sku"] == "TK-C001-ECO"
+        assert "TK-C001-PRE" in {a["sku"] for a in cuaderno["alternativas"]}
+        total_antes = _total(vista, "Ahorrador")
+
+        await trabajos.cambiar_producto_del_acudiente(
+            motor,
+            parent_id,
+            "Ahorrador",
+            uuid.UUID(cuaderno["item_id"]),
+            "TK-C001-PRE",
+            usuario_id=None,
+            catalogo=catalogo,
+        )
+
+        vista = await trabajos.ver(motor, parent_id, catalogo=catalogo)
+        cuaderno = _linea(vista, "Ahorrador", "2 cuadernos")
+        assert cuaderno["producto_elegido"]["sku"] == "TK-C001-PRE"
+        assert cuaderno["subtotal_linea"] == 2 * 12000
+        # El que dejo pasa a ser una alternativa: siempre se puede volver.
+        assert "TK-C001-ECO" in {a["sku"] for a in cuaderno["alternativas"]}
+        assert _total(vista, "Ahorrador") == total_antes + 2 * (12000 - 4500)
+        # El canonico sigue intacto para los demas acudientes.
+        del_canonico = await trabajos.ver(motor, canonico, incluir_kits=True)
+        assert _linea(del_canonico, "Ahorrador", "2 cuadernos")["producto_elegido"]["sku"] == "TK-C001-ECO"
+
+    async def test_volver_al_original_borra_el_cambio(self, motor):
+        _, parent_id = await self._ruta_rapida(motor)
+        catalogo = _catalogo()
+        item = uuid.UUID(
+            _linea(await trabajos.ver(motor, parent_id, catalogo=catalogo), "Ahorrador", "2 cuadernos")[
+                "item_id"
+            ]
+        )
+        for sku in ("TK-C001-PRE", "TK-C001-ECO"):
+            await trabajos.cambiar_producto_del_acudiente(
+                motor, parent_id, "Ahorrador", item, sku, usuario_id=None, catalogo=catalogo
+            )
+        vista = await trabajos.ver(motor, parent_id, catalogo=catalogo)
+        assert _linea(vista, "Ahorrador", "2 cuadernos")["producto_elegido"]["sku"] == "TK-C001-ECO"
+        assert vista["cambios"] == {}
+
+    async def test_solo_se_puede_elegir_entre_las_alternativas_de_la_linea(self, motor):
+        _, parent_id = await self._ruta_rapida(motor)
+        catalogo = _catalogo()
+        item = uuid.UUID(
+            _linea(await trabajos.ver(motor, parent_id, catalogo=catalogo), "Ahorrador", "2 cuadernos")[
+                "item_id"
+            ]
+        )
+        with pytest.raises(trabajos.CambioNoPermitido) as error:
+            await trabajos.cambiar_producto_del_acudiente(
+                motor, parent_id, "Ahorrador", item, "TK-C004-CON", usuario_id=None, catalogo=catalogo
+            )
+        assert error.value.codigo == "producto_no_permitido"
+
+    async def test_la_solicitud_de_otro_acudiente_no_se_toca(self, motor):
+        dueno = uuid.uuid4()
+        _, parent_id = await self._ruta_rapida(motor, usuario_id=dueno)
+        catalogo = _catalogo()
+        item = uuid.UUID(
+            _linea(await trabajos.ver(motor, parent_id, catalogo=catalogo), "Ahorrador", "2 cuadernos")[
+                "item_id"
+            ]
+        )
+        with pytest.raises(trabajos.CambioNoPermitido) as error:
+            await trabajos.cambiar_producto_del_acudiente(
+                motor, parent_id, "Ahorrador", item, "TK-C001-PRE", usuario_id=uuid.uuid4(), catalogo=catalogo
+            )
+        assert error.value.codigo == "solicitud_ajena"
+        await trabajos.cambiar_producto_del_acudiente(
+            motor, parent_id, "Ahorrador", item, "TK-C001-PRE", usuario_id=dueno, catalogo=catalogo
+        )
+
+    async def test_en_un_kit_propio_tampoco_se_escriben_las_lineas(self, motor):
+        catalogo = _catalogo()
+        trabajo_id, _ = await _crear_y_procesar(motor, catalogo)
+        await trabajos.revisar(motor, trabajo_id, decision="aprobar")
+        vista = await trabajos.ver(motor, trabajo_id)
+        item = uuid.UUID(_linea(vista, "Ahorrador", "2 cuadernos")["item_id"])
+
+        await trabajos.cambiar_producto_del_acudiente(
+            motor, trabajo_id, "Ahorrador", item, "TK-C001-PRE", usuario_id=None, catalogo=catalogo
+        )
+
+        vista = await trabajos.ver(motor, trabajo_id)
+        assert _linea(vista, "Ahorrador", "2 cuadernos")["producto_elegido"]["sku"] == "TK-C001-PRE"
+        # La linea del Ahorrador en la base sigue con el economico: el cambio
+        # vive en el trabajo, no en `linea_kit`.
+        from sqlalchemy import select
+
+        async with motor.engine.begin() as conexion:
+            sku_en_base = await conexion.scalar(
+                select(trabajos.LINEA.c.sku)
+                .select_from(trabajos.LINEA.join(trabajos.KIT, trabajos.KIT.c.id == trabajos.LINEA.c.kit_id))
+                .where(trabajos.LINEA.c.item_crudo_id == item, trabajos.KIT.c.perfil == "Ahorrador")
+            )
+        assert sku_en_base == "TK-C001-ECO"
+
+    async def test_sin_publicar_no_se_cambia(self, motor):
+        catalogo = _catalogo()
+        trabajo_id, _ = await _crear_y_procesar(motor, catalogo)  # queda en revision
+        vista = await trabajos.ver(motor, trabajo_id, incluir_kits=True)
+        item = uuid.UUID(_linea(vista, "Ahorrador", "2 cuadernos")["item_id"])
+        with pytest.raises(trabajos.CambioNoPermitido) as error:
+            await trabajos.cambiar_producto_del_acudiente(
+                motor, trabajo_id, "Ahorrador", item, "TK-C001-PRE", usuario_id=None, catalogo=catalogo
+            )
+        assert error.value.codigo == "kit_no_publicado"
+
+    async def test_el_pago_usa_el_producto_que_eligio_el_papa(self, motor):
+        dueno = uuid.uuid4()
+        _, parent_id = await self._ruta_rapida(motor, usuario_id=dueno)
+        catalogo = _catalogo()
+        vista = await trabajos.ver(motor, parent_id, catalogo=catalogo)
+        item = uuid.UUID(_linea(vista, "Premium", "2 cuadernos")["item_id"])
+        # Se cambia de kit (Premium) y en ese kit baja el cuaderno al economico.
+        await trabajos.cambiar_producto_del_acudiente(
+            motor, parent_id, "Premium", item, "TK-C001-ECO", usuario_id=dueno, catalogo=catalogo
+        )
+
+        class ComercioFalso:
+            orden = None
+
+            async def crear_orden(self, cuerpo):
+                self.orden = cuerpo
+                return 201, {"pedido_id": "ped-1", "total": 0}
+
+            async def iniciar_pago(self, pedido_id, cuerpo):
+                return 201, {"pago_id": "pago-1", "url_redireccion": "https://pasarela/xy"}
+
+        comercio = ComercioFalso()
+        await trabajos.ordenar(
+            motor,
+            parent_id,
+            perfil="Premium",
+            entrega={"destinatario": "Ana", "direccion": "Calle 1", "ciudad": "Bogota"},
+            correo="ana@example.com",
+            comercio=comercio,
+            catalogo=catalogo,
+        )
+        skus = {linea["sku"] for linea in comercio.orden["lineas"]}
+        assert "TK-C001-ECO" in skus and "TK-C001-PRE" not in skus

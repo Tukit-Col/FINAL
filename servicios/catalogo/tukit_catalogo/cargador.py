@@ -44,6 +44,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import csv
+import json
 import re
 import sys
 import uuid
@@ -84,6 +85,20 @@ def normalizar_isbn(crudo: str | None) -> str | None:
         return None
     limpio = re.sub(r"[^0-9Xx]", "", crudo).upper()
     return limpio or None
+
+
+def ean13(crudo: str | None) -> str | None:
+    """El codigo de barras en EAN-13, la forma en que el catalogo lo guarda.
+
+    Las tiendas devuelven a veces el UPC-A de 12 digitos (productos
+    norteamericanos, como los Speedball). Es el mismo numero con un cero
+    delante, y sin normalizarlo el mismo articulo podia quedar con dos llaves.
+    Lo que no tiene 12 ni 13 digitos no es un codigo de barras: `None`.
+    """
+    digitos = re.sub(r"\D", "", crudo or "")
+    if len(digitos) == 12:
+        return "0" + digitos
+    return digitos if len(digitos) == 13 else None
 
 
 def isbn13_valido(crudo: str | None) -> bool:
@@ -216,6 +231,26 @@ def _fecha(crudo: str | None) -> datetime:
     return valor if valor.tzinfo else valor.replace(tzinfo=UTC)
 
 
+# Claves que versiones viejas del CSV traian "por fidelidad" y que ningun filtro
+# usa. `cantidades_declaradas` mezclaba empaque y medidas (ver el modelo); hoy
+# eso vive en `unidades_por_empaque`. Cargarlas solo ensuciaria el producto.
+_ATRIBUTOS_LEGADO = frozenset({"cantidades_declaradas", "frase_ancla"})
+
+
+def atributos_de_csv(crudo: str | None) -> dict[str, Any]:
+    """Los atributos de un producto tal como los exporto `volcar`."""
+    texto = (crudo or "").strip()
+    if not texto:
+        return {}
+    try:
+        valor = json.loads(texto)
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(valor, dict):
+        return {}
+    return {k: v for k, v in valor.items() if k not in _ATRIBUTOS_LEGADO}
+
+
 def leer_csv(ruta: Path) -> list[dict[str, str]]:
     if not ruta.exists():
         return []
@@ -302,8 +337,16 @@ CONCEPTOS_LIBRO = {
     ),
     "C048": ("Biblia", ["biblia", "biblia catolica", "sagrada biblia"]),
     "dic-ingles": (
-        "Diccionario de ingles",
-        ["diccionario de ingles", "diccionario ingles espanol", "dicc ingles"],
+        "Diccionario de inglés",
+        # `diccionario ingles` vivia en C034 (diccionario de espanol) y se llevaba
+        # el "Diccionario ingles-ingles" de las listas al concepto equivocado.
+        [
+            "diccionario de ingles",
+            "diccionario ingles espanol",
+            "dicc ingles",
+            "diccionario ingles",
+            "diccionario ingles ingles",
+        ],
     ),
 }
 
@@ -398,6 +441,7 @@ class Cargador:
                 "admite_personaje": _bool(f.get("admite_personaje")),
                 "frecuencia_demanda": int(f.get("frecuencia_demanda") or 0),
                 "activo": _bool(f.get("activo"), por_omision=True),
+                "uno_por_estudiante": _bool(f.get("uno_por_estudiante")),
             }
             for f in filas
         ]
@@ -457,7 +501,7 @@ class Cargador:
                     "nivel": f.get("nivel") or "confiable",
                     "personaje": _texto(f.get("personaje")),
                     "imagen_url": _texto(f.get("imagen_url")),
-                    "atributos": {},
+                    "atributos": atributos_de_csv(f.get("atributos")),
                     "ruta_categoria": _texto(f.get("ruta_categoria")),
                     "es_propio": _bool(f.get("es_propio")),
                     "es_representante_canonico": _bool(f.get("es_representante_canonico")),
@@ -566,12 +610,17 @@ class Cargador:
                     "codigo": codigo,
                     "nombre_canonico": nombre,
                     "sinonimos": sinonimos,
-                    "categoria": "libro",
+                    "categoria": "Diccionario / Biblia / Libros / Constitución",
                     # La razon de ser de esta semilla. Con el default `util`,
                     # el pipeline le buscaria papeleria a una biblia.
                     "tipo_item": "libro_libre",
-                    "atributos_discriminantes": [],
+                    # El de ingles filtra por `monolingue`: el colegio que pide
+                    # `ingles - ingles` no quiere el bilingue, y el que pide
+                    # `diccionario de ingles` a secas acepta cualquiera.
+                    "atributos_discriminantes": ["monolingue"] if codigo == "dic-ingles" else [],
                     "atributos_descriptivos": [],
+                    # Un diccionario sirve para todas las materias del ano.
+                    "uno_por_estudiante": True,
                     "admite_personaje": False,
                     "frecuencia_demanda": demanda[codigo],
                     "activo": True,
@@ -813,6 +862,14 @@ class Cargador:
                         # tenia reglas de Barbie y balones de Avengers en 17.
                         and not (tabla == "concepto" and c.name == "admite_personaje")
                     }
+                    if tabla == "producto_canonico":
+                        # `atributos` sigue siendo una columna enriquecida (no se
+                        # REEMPLAZA desde el CSV), pero se COMBINA: en las claves
+                        # que el CSV declara gana el CSV —es lo que alguien curo
+                        # y exporto—, y lo demas que la base ya sabia se conserva.
+                        # Sin esto, la correccion a mano de un atributo nunca
+                        # llegaba a otra base.
+                        actualizables["atributos"] = objeto.c.atributos.op("||")(sentencia.excluded.atributos)
                     if actualizables:
                         sentencia = sentencia.on_conflict_do_update(
                             index_elements=[c.name for c in objeto.primary_key.columns],

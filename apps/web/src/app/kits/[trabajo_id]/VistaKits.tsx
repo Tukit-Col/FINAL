@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Star, PiggyBank, Sparkles, Gem } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Star, PiggyBank, Sparkles, Gem, SlidersHorizontal } from "lucide-react";
 import { prefiereMenosMovimiento } from "@tukit/contrato/motion";
 import {
   ORDEN_SECCIONES,
@@ -15,23 +16,30 @@ import {
   type Trabajo,
 } from "@tukit/contrato";
 import { FalloApi, iniciarCheckout } from "@/lib/api-navegador";
+import { abrirWidgetWompi } from "@/lib/wompi";
 import LineaDeKit from "./LineaDeKit";
 import styles from "./Kits.module.css";
 
-// Un icono por perfil, para que los tres kits se distingan de un vistazo.
+// Un icono por perfil, para que los kits se distingan de un vistazo.
 const ICONO_PERFIL: Record<PerfilKit, typeof PiggyBank> = {
   Ahorrador: PiggyBank,
   Fan: Sparkles,
+  "A tu Medida": SlidersHorizontal,
   Premium: Gem,
 };
 
-// Que promete cada perfil, en una frase. Los tres tienen el MISMO alcance:
-// lo que cambia es el punto del frente de Pareto, no cuanto te resuelven.
+// Que promete cada perfil, en una frase. Todos tienen el MISMO alcance: lo que
+// cambia es el punto del frente de Pareto, no cuanto te resuelven.
 const PROMESA: Record<PerfilKit, string> = {
   Ahorrador: "Lo más barato que cumple con la lista.",
   Fan: "Con los personajes que pidió tu hijo, donde se puede.",
+  "A tu Medida": "La mejor marca que cabe en lo que quieres gastar.",
   Premium: "Las marcas que más aguantan el año.",
 };
+
+// Del más barato al de mejor marca: Ahorrador y Premium en las puntas y, entre
+// ellos, los que el acudiente pidió (Fan, A tu Medida).
+const ORDEN_PERFIL: PerfilKit[] = ["Ahorrador", "Fan", "A tu Medida", "Premium"];
 
 // Las secciones que NO se cobran se explican una vez, arriba del grupo, en
 // vez de repetir la misma aclaracion en cada renglon.
@@ -44,17 +52,22 @@ const EXPLICACION_SECCION: Partial<Record<ClaseLinea, string>> = {
   diferido: "El colegio los va a pedir durante el año.",
   no_comprar: "El colegio dice que uses el que ya tienes en casa.",
   fuera_de_alcance: "Los uniformes todavía no los surtimos.",
+  por_su_cuenta: "Tukit no los vende. Te los dejamos visibles para que los consigas por tu cuenta.",
   comprable: undefined,
 };
 
 export default function VistaKits({ trabajo, correo }: { trabajo: Trabajo; correo: string }) {
   const recomendado = trabajo.recomendado;
   const [activo, setActivo] = useState<PerfilKit>(recomendado?.perfil ?? "Ahorrador");
-
-  const kit = useMemo(
-    () => trabajo.kits.find((k) => k.perfil === activo) ?? trabajo.kits[0],
-    [trabajo.kits, activo],
+  const kits = useMemo(
+    () =>
+      [...trabajo.kits].sort(
+        (a, b) => ORDEN_PERFIL.indexOf(a.perfil) - ORDEN_PERFIL.indexOf(b.perfil),
+      ),
+    [trabajo.kits],
   );
+
+  const kit = useMemo(() => kits.find((k) => k.perfil === activo) ?? kits[0], [kits, activo]);
 
   if (!kit) {
     return (
@@ -64,58 +77,110 @@ export default function VistaKits({ trabajo, correo }: { trabajo: Trabajo; corre
     );
   }
 
+  // En la ruta rápida el "recomendado" es el kit que el acudiente eligió al
+  // empezar; en los demás trabajos, el que marcó el recomendador.
+  const eligioEl = trabajo.origen === "parent_apply";
+  const rotuloMarcado = eligioEl ? "Tu elección" : "Te recomendamos este";
+  const IconoActivo = ICONO_PERFIL[kit.perfil];
+  const viendoOtro = recomendado !== null && kit.perfil !== recomendado.perfil;
+
   return (
     <div className={styles.pagina}>
       <header className={styles.encabezado}>
-        <h1>Tus tres kits están listos</h1>
+        <h1>{eligioEl ? "Tu kit está listo" : "Tus kits están listos"}</h1>
         <p>
-          Los tres cubren la misma lista. Te marcamos uno, pero los otros dos siguen
-          aquí: cuál conviene depende de cosas que solo sabes tú.
+          {eligioEl
+            ? "Este es el kit que elegiste. Si quieres, compáralo con los otros o cambia cualquier producto por otra opción."
+            : "Todos cubren la misma lista. Te marcamos uno, pero los demás siguen aquí: cuál conviene depende de cosas que solo sabes tú."}
         </p>
       </header>
 
-      {/* ---------------------------------------------- Comparador de kits */}
-      <div className={styles.comparador} role="tablist" aria-label="Los tres kits">
-        {trabajo.kits.map((otro) => {
-          const esRecomendado = otro.perfil === recomendado?.perfil;
-          const esActivo = otro.perfil === activo;
-          const IconoKit = ICONO_PERFIL[otro.perfil];
-          return (
-            <button
-              key={otro.perfil}
-              role="tab"
-              aria-selected={esActivo}
-              className={`${styles.tarjetaKit} ${esActivo ? styles.kitActivo : ""} ${
-                esRecomendado ? styles.kitRecomendado : ""
-              }`}
-              onClick={() => setActivo(otro.perfil)}
-            >
-              {esRecomendado && (
-                <span className={styles.chapaRecomendado}>
-                  <Star size={12} aria-hidden="true" fill="currentColor" strokeWidth={0} />
-                  Te recomendamos este
-                </span>
-              )}
-              <span className={styles.nombreKit}>
-                <span className={styles.iconoKit} aria-hidden="true">
-                  <IconoKit size={18} strokeWidth={2.4} />
-                </span>
+      {/* ------------------------------------- Selector discreto de kits. Los
+          tres siguen a un clic (el contrato exige mostrarlos), pero no
+          compiten con el kit que se está mirando. */}
+      {kits.length > 1 && (
+        <div className={styles.selectorKits} role="tablist" aria-label="Ver otro kit">
+          <span className={styles.selectorRotulo}>Ver kit</span>
+          {kits.map((otro) => {
+            const esActivo = otro.perfil === kit.perfil;
+            const esMarcado = otro.perfil === recomendado?.perfil;
+            return (
+              <button
+                key={otro.perfil}
+                type="button"
+                role="tab"
+                aria-selected={esActivo}
+                className={`${styles.opcionKit} ${esActivo ? styles.opcionKitActiva : ""}`}
+                onClick={() => setActivo(otro.perfil)}
+                title={esMarcado ? rotuloMarcado : undefined}
+              >
+                {esMarcado && (
+                  <Star
+                    size={12}
+                    aria-label={rotuloMarcado}
+                    fill="currentColor"
+                    strokeWidth={0}
+                    className={styles.estrellaKit}
+                  />
+                )}
                 {otro.perfil}
-              </span>
-              <span className={`${styles.totalKit} cifra`}>{formatearPesos(otro.total)}</span>
-              <span className={styles.promesa}>{PROMESA[otro.perfil]}</span>
-              <span className={styles.objetivos}>
-                {Math.round(otro.objetivos.disponibilidad * 100)}% con precio confirmado
-              </span>
-            </button>
-          );
-        })}
-      </div>
+                <span className={`${styles.totalOpcion} cifra`}>{formatearPesos(otro.total)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-      {recomendado && (
+      {/* ------------------------------------------------ El kit que se mira */}
+      <section className={`${styles.tarjetaKit} ${styles.kitActivo}`} aria-live="polite">
+        {kit.perfil === recomendado?.perfil && (
+          <span className={styles.chapaRecomendado}>
+            <Star size={12} aria-hidden="true" fill="currentColor" strokeWidth={0} />
+            {rotuloMarcado}
+          </span>
+        )}
+        <span className={styles.nombreKit}>
+          <span className={styles.iconoKit} aria-hidden="true">
+            <IconoActivo size={18} strokeWidth={2.4} />
+          </span>
+          {kit.perfil}
+        </span>
+        <span className={`${styles.totalKit} cifra`}>{formatearPesos(kit.total)}</span>
+        <span className={styles.promesa}>{PROMESA[kit.perfil]}</span>
+        {/* Un kit sin objetivos (los de la ruta rápida anteriores al
+            cálculo) no pinta la línea: mejor nada que "NaN%". */}
+        {Number.isFinite(kit.objetivos?.disponibilidad) && (
+          <span className={styles.objetivos}>
+            {Math.round(kit.objetivos.disponibilidad * 100)}% con precio confirmado
+          </span>
+        )}
+      </section>
+
+      {viendoOtro ? (
         <p className={styles.razon}>
-          <strong>Por qué el {recomendado.perfil}:</strong> {recomendado.razon}
+          Estás viendo el kit <strong>{kit.perfil}</strong>. Si lo pagas, es este el que te
+          llevamos.{" "}
+          <button
+            type="button"
+            className={styles.volverKit}
+            onClick={() => setActivo(recomendado.perfil)}
+          >
+            Volver a {eligioEl ? "mi kit" : "el recomendado"} ({recomendado.perfil})
+          </button>
         </p>
+      ) : (
+        recomendado && (
+          <p className={styles.razon}>
+            <strong>
+              {eligioEl ? "Tu kit:" : `Por qué el ${recomendado.perfil}:`}
+            </strong>{" "}
+            {recomendado.razon}
+            {/* `null` es "no puso tope": solo `false` es pasarse. */}
+            {recomendado.dentro_de_presupuesto === false && (
+              <em className={styles.fueraPresupuesto}> Ojo: se pasa del tope que pusiste.</em>
+            )}
+          </p>
+        )
       )}
 
       <ResumenKit kit={kit} />
@@ -137,7 +202,7 @@ export default function VistaKits({ trabajo, correo }: { trabajo: Trabajo; corre
         </section>
       )}
 
-      <SeccionesDeLineas kit={kit} />
+      <SeccionesDeLineas kit={kit} trabajoId={trabajo.trabajo_id} />
 
       <Checkout trabajoId={trabajo.trabajo_id} perfil={kit.perfil} total={kit.total} correo={correo} />
     </div>
@@ -158,6 +223,7 @@ function Checkout({
   total: number;
   correo: string;
 }) {
+  const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -196,17 +262,25 @@ function Checkout({
         perfil,
         correo,
         entrega: { destinatario, direccion, ciudad },
-        // La pasarela devuelve aqui tras pagar; el trabajo publicado es la
-        // pagina de vuelta natural.
-        url_redireccion: window.location.href,
+        // La pasarela simulada redirige aqui; con Wompi, solo PSE (que se lleva
+        // la pestana al banco) vuelve por esta URL.
+        url_redireccion: `${window.location.origin}/pago/resultado`,
       });
-      if (checkout.url_redireccion) {
+      if (checkout.widget) {
+        // Wompi abre el pago en un modal encima del kit. Al terminar, el id
+        // de la transaccion va a la pagina de resultado, que lo confirma con
+        // el servidor (el callback del widget es solo informativo).
+        await abrirWidgetWompi(checkout.widget, (transaccionId) => {
+          router.push(`/pago/resultado?id=${encodeURIComponent(transaccionId)}`);
+        });
+        // El modal ya cubre la pagina. Si el acudiente lo cierra sin pagar, el
+        // boton vuelve a quedar disponible.
+        setEnviando(false);
+      } else if (checkout.url_redireccion) {
         window.location.href = checkout.url_redireccion;
       } else {
-        // Sin pasarela (modo de prueba sin redireccion): el pedido quedo creado.
-        setError(null);
-        setAbierto(false);
-        window.alert(`Pedido ${checkout.pedido_id} creado por ${formatearPesos(checkout.total)}.`);
+        setError("No pudimos abrir la pasarela de pago.");
+        setEnviando(false);
       }
     } catch (causa) {
       const mensaje =
@@ -315,7 +389,7 @@ function ResumenKit({ kit }: { kit: Kit }) {
   );
 }
 
-function SeccionesDeLineas({ kit }: { kit: Kit }) {
+function SeccionesDeLineas({ kit, trabajoId }: { kit: Kit; trabajoId: string }) {
   const grupos = agruparPorClase(kit.lineas);
 
   return (
@@ -335,7 +409,13 @@ function SeccionesDeLineas({ kit }: { kit: Kit }) {
             </header>
             <ul className={styles.lineas}>
               {lineas.map((linea) => (
-                <LineaDeKit key={linea.item_id} linea={linea} clase={clasificar(linea)} />
+                <LineaDeKit
+                  key={linea.item_id}
+                  linea={linea}
+                  clase={clasificar(linea)}
+                  trabajoId={trabajoId}
+                  perfil={kit.perfil}
+                />
               ))}
             </ul>
           </section>

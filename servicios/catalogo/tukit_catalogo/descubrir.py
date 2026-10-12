@@ -61,7 +61,7 @@ from pathlib import Path
 from typing import Any
 
 from . import tiendas
-from .cargador import AGENTE_FIRECRAWL, _uuid_estable, isbn13_valido, normalizar_isbn
+from .cargador import AGENTE_FIRECRAWL, _uuid_estable, ean13, isbn13_valido, normalizar_isbn
 from .embeddings import coseno
 from .enriquecer import atributos_de_ficha, extraer_atributos, extraer_empaque, extraer_personaje
 
@@ -98,7 +98,25 @@ VACIAS = frozenset({"de", "del", "la", "el", "los", "las", "un", "una", "y", "o"
 # `aserrin de colores`.
 RUIDO = re.compile(
     r"\b(\d+\s*)?(unidades?|unds?|uds?|paquetes?|bolsas?|cajas?|docenas?|pares?|"
-    r"rollos?|tarros?|frascos?|pliegos?|hojas?|juegos?|sets?|x\d+)\b"
+    r"rollos?|tarros?|frascos?|pliegos?|hojas?|juegos?|sets?|metros?|x\d+)\b"
+)
+# `metros?` entra porque "metro de cable estanado" es una medida, no lo pedido:
+# sin esto la cabeza era "metro" y se la llevaba Lentejuelas ("metro
+# lentejuelas..."). Una fraccion suelta ("(1/8 cartulina)") tampoco nombra la
+# cosa; el tamano que dice se lee aparte, en `extraer_atributos`.
+FRACCION = re.compile(r"\b\d+\s*/\s*\d+\b")
+
+# `Lapiz 2H-6B` no pide un lapiz 2H: pide la serie de durezas, que es el kit
+# de dibujo. Se reescribe como "serie durezas", que es como lo nombra ese
+# concepto, para que no caiga en el lapiz suelto con la primera dureza exigida.
+# Igual una lista de durezas (`Lapices HB, 2H, 2B, 6B`): dos o mas seguidas.
+RANGO_DUREZA = re.compile(r"\b\d?[hb]{1,2}(?:\s*(?:-|,|y|a|al|hasta)\s*\d?[hb]{1,2}\b)+")
+
+# `Escuadras 30° y 45°` es el par, que se vende como juego; una escuadra de 45°
+# sola sigue siendo una escuadra. Los numeros no cuentan en el parecido, asi que
+# sin esto el renglon empataba con `escuadras` y ganaba la escuadra suelta.
+PAR_DE_ESCUADRAS = re.compile(
+    r"\bescuadras?\b\D*\b(?:30|45|60)\s*(?:°|grados?)?\s*(?:y|,|-|/)?\s*(?:30|45|60)\b\s*(?:°|grados?)?"
 )
 
 
@@ -113,6 +131,7 @@ def consulta_desde_renglon(renglon: str) -> str:
     """
     texto = _plano(renglon)
     texto = re.sub(r"[(),;:.]", " ", texto)
+    texto = FRACCION.sub(" ", texto)
     texto = RUIDO.sub(" ", texto)
     texto = re.sub(r"\b\d+\s*(gr?|grs|gramos?|ml|cc|cm|mm|mts?|metros?)\b", " ", texto)
     texto = re.sub(r"^\s*\d+\s+", "", texto)
@@ -269,10 +288,16 @@ def clasificar(
     eso los callers que aun no calculan el vector siguen valiendo.
     """
     mejor_id, mejor_nombre, mejor = None, "", 0.0
+    renglon = RANGO_DUREZA.sub(" serie durezas ", _plano(renglon))
+    renglon = PAR_DE_ESCUADRAS.sub(" escuadras juego ", renglon)
     nucleo = cabeza(renglon)
     for concepto in conceptos:
+        # Recortado en 0: un coseno negativo no es "menos parecido que nada",
+        # y dejarlo restaria en las ramas lexicas. Con el modelo de produccion
+        # los cosenos medidos no bajan de 0.43, pero la garantia hibrido >=
+        # lexico no puede depender de que modelo haya.
         cos = (
-            coseno(embedding_renglon, concepto["embedding"])
+            max(0.0, coseno(embedding_renglon, concepto["embedding"]))
             if embedding_renglon is not None and concepto.get("embedding")
             else 0.0
         )
@@ -700,7 +725,7 @@ async def resolver(
     conteo de huecos (`_medir_carencias` ya excluye `no_comprar`) y es la senal
     que el flujo del papa lee para mandarselo aparte en vez de sumarlo al kit.
     """
-    from sqlalchemy import Text, cast, select, update
+    from sqlalchemy import Text, cast, func, select, update
     from sqlalchemy.dialects.postgresql import insert
     from tukit_comun.bd import crear_motor
 
@@ -777,23 +802,43 @@ async def resolver(
             atributos_final = ov.get("atributos", atributos)
 
             pid = _uuid_estable("aprobado", str(fila.tienda_id), fila.referencia_externa)
+            nivel_final = nivel or fila.nivel_sugerido or "confiable"
+            producto = Base.metadata.tables["producto_canonico"]
+            # El primero que entra a una celda (concepto, nivel, personaje) es su
+            # representante; los siguientes son profundidad de compra. Antes
+            # siempre entraba en False y la primera aprobacion de un concepto
+            # nuevo dejaba la celda sin representante (la invariante de
+            # `test_una_celda_util_tiene_exactamente_un_representante`).
+            ya_hay_representante = await conexion.scalar(
+                select(func.count())
+                .select_from(producto)
+                .where(
+                    producto.c.concepto_id == fila.concepto_id,
+                    producto.c.nivel == nivel_final,
+                    producto.c.personaje.is_(None)
+                    if personaje_final is None
+                    else producto.c.personaje == personaje_final,
+                    producto.c.activo.is_(True),
+                    producto.c.es_representante_canonico.is_(True),
+                )
+            )
             await conexion.execute(
-                insert(Base.metadata.tables["producto_canonico"])
+                insert(producto)
                 .values(
                     id=pid,
                     concepto_id=fila.concepto_id,
-                    ean=fila.ean,
+                    ean=ean13(fila.ean),
                     sku_interno=f"TK-REV-{fila.referencia_externa}"[:64],
                     nombre=nombre_final[:255],
                     marca=marca_final,
-                    nivel=nivel or fila.nivel_sugerido or "confiable",
+                    nivel=nivel_final,
                     personaje=personaje_final,
                     imagen_url=imagen_final,
                     unidad_base=empaque.unidad_base,
                     unidades_por_empaque=empaque.unidades,
                     atributos=atributos_final,
                     es_propio=False,
-                    es_representante_canonico=False,
+                    es_representante_canonico=not ya_hay_representante,
                     activo=True,
                     # Lo miro una persona: vale mas que cualquier sugerencia
                     # automatica y menos que la curaduria original hecha sobre

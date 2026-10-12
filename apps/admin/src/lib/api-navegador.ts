@@ -6,11 +6,14 @@
 
 import type {
   AltaProducto,
+  BorradorKits,
   DecisionRevision,
   ErrorApi,
   MarcarNoDisponible,
+  PedidoConHistorial,
   ProductoDadoDeAlta,
   SinCoincidencia,
+  SolicitudAvancePedido,
   ValidarLinea,
 } from "@tukit/contrato";
 
@@ -101,8 +104,29 @@ export function decidirRevision(trabajoId: string, cuerpo: DecisionRevision): Pr
   return enviar(`/api/trabajos/${id(trabajoId)}/revision`, cuerpo);
 }
 
+/** Aprueba la lista de un preview y deja sus tres kits como los canónicos del
+ *  grado. No avisa a nadie: un preview no tiene acudiente. */
+export function guardarComoCanonico(trabajoId: string, cuerpo: { nota?: string }): Promise<void> {
+  return enviar(`/api/trabajos/${id(trabajoId)}/canonico`, cuerpo);
+}
+
+/** Abre (o retoma) la versión siguiente de los kits canónicos de un grado:
+ *  una copia editable del canónico vigente. Devuelve el trabajo a corregir. */
+export function abrirBorradorKits(canonicoId: string): Promise<BorradorKits> {
+  return enviar(`/api/trabajos/${id(canonicoId)}/borrador`, {});
+}
+
 /** Borra un trabajo desechable (preview, encolado, fallido). Un `publicado`
  *  esta protegido: el backend responde 409 `trabajo_publicado_protegido`. */
 export function eliminarTrabajo(trabajoId: string): Promise<void> {
   return enviar(`/api/trabajos/${id(trabajoId)}/eliminar`, {});
+}
+
+/** Logistica: mueve el pedido un paso. El Route Handler pone el token de la
+ *  cookie; un 409/422 llega como `FalloApi` con el `campo` en `detalle`. */
+export function avanzarPedido(
+  pedidoId: string,
+  cuerpo: SolicitudAvancePedido,
+): Promise<PedidoConHistorial> {
+  return enviar(`/api/logistica/${id(pedidoId)}/avanzar`, cuerpo);
 }

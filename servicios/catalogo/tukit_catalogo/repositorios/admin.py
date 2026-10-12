@@ -203,6 +203,36 @@ class RepoAdmin:
             await self.c.execute(_consulta_productos(precio_min).where(_CONCEPTO.c.codigo.in_(codigos)))
         )
 
+    async def reglas_por_codigo(self, codigos: list[str]) -> dict[str, tuple[tuple[str, ...], bool, str]]:
+        """Por codigo de concepto: atributos que filtran, si es uno por estudiante y su tipo."""
+        if not codigos:
+            return {}
+        filas = await self.c.execute(
+            select(
+                CONCEPTO.c.codigo,
+                CONCEPTO.c.atributos_discriminantes,
+                CONCEPTO.c.uno_por_estudiante,
+                CONCEPTO.c.tipo_item,
+            ).where(CONCEPTO.c.codigo.in_(codigos))
+        )
+        return {
+            f.codigo: (tuple(f.atributos_discriminantes or ()), bool(f.uno_por_estudiante), f.tipo_item)
+            for f in filas
+        }
+
+    async def descartar_aviso(self, item_id: uuid.UUID, version_id: uuid.UUID, clave: str) -> bool:
+        """Agrega `clave` a los avisos descartados del renglon. False si no existe."""
+        actual = await self.c.scalar(
+            select(ITEM.c.avisos_descartados).where(ITEM.c.id == item_id, ITEM.c.version_id == version_id)
+        )
+        if actual is None:
+            return False
+        if clave not in actual:
+            await self.c.execute(
+                update(ITEM).where(ITEM.c.id == item_id).values(avisos_descartados=[*actual, clave])
+            )
+        return True
+
     async def items_resueltos(self, version_id: uuid.UUID) -> list[Any]:
         return list(
             await self.c.execute(
@@ -215,6 +245,8 @@ class RepoAdmin:
                     ITEM.c.modo_adquisicion,
                     ITEM.c.instruccion_colegio,
                     ITEM.c.url_externa,
+                    ITEM.c.atributos,
+                    ITEM.c.avisos_descartados,
                     ITEM.c.concepto_id,
                     CONCEPTO.c.codigo.label("concepto_codigo"),
                     CONCEPTO.c.nombre_canonico.label("concepto_nombre"),
@@ -326,6 +358,11 @@ class RepoAdmin:
             await self.c.execute(select(ITEM).where(ITEM.c.id == item_id, ITEM.c.version_id == version_id))
         ).first()
 
+    async def item_por_orden(self, version_id: uuid.UUID, orden: int) -> Any:
+        return (
+            await self.c.execute(select(ITEM).where(ITEM.c.version_id == version_id, ITEM.c.orden == orden))
+        ).first()
+
     async def actualizar_item(self, item_id: uuid.UUID, valores: dict[str, Any]) -> None:
         await self.c.execute(update(ITEM).where(ITEM.c.id == item_id).values(**valores))
 
@@ -342,7 +379,34 @@ class RepoAdmin:
         return int(resultado.rowcount)
 
     async def borrar_version(self, version_id: uuid.UUID) -> None:
+        """Borra la version con su tarea (el PDF) y le devuelve la vigencia a otra.
+
+        Subir una lista nueva le QUITA la vigencia a la anterior. Si la que se
+        borra era la vigente, la vigencia vuelve a la ultima revisada de esa
+        lista, para que el acudiente no se quede sin la lista que ya estaba
+        aprobada. Si no queda ninguna version, se borra la lista.
+        """
+        version = (
+            await self.c.execute(
+                select(VERSION.c.lista_id, VERSION.c.vigente).where(VERSION.c.id == version_id)
+            )
+        ).one()
+        await self.c.execute(delete(TAREA).where(TAREA.c.version_id == version_id))
         await self.c.execute(delete(VERSION).where(VERSION.c.id == version_id))
+
+        restantes = list(
+            await self.c.execute(
+                select(VERSION.c.id, VERSION.c.revisada_en)
+                .where(VERSION.c.lista_id == version.lista_id)
+                .order_by(VERSION.c.numero.desc())
+            )
+        )
+        if not restantes:
+            await self.c.execute(delete(TAREA).where(TAREA.c.lista_id == version.lista_id))
+            await self.c.execute(delete(LISTA).where(LISTA.c.id == version.lista_id))
+        elif version.vigente:
+            heredera = next((r for r in restantes if r.revisada_en is not None), restantes[0])
+            await self.c.execute(update(VERSION).where(VERSION.c.id == heredera.id).values(vigente=True))
 
     async def tarea_colegio_datos(self, version_id: uuid.UUID) -> Any:
         return (
@@ -441,6 +505,7 @@ class RepoAdmin:
                     ITEM.c.url_externa,
                     ITEM.c.atributos,
                     ITEM.c.requiere_revision,
+                    ITEM.c.avisos_descartados,
                 ).where(ITEM.c.version_id == version_id)
             )
         )

@@ -39,6 +39,9 @@ class EstadoTrabajo(enum.StrEnum):
     ESPERA_REVISION = "espera_revision"
     PUBLICADO = "publicado"
     FALLIDO = "fallido"
+    # El acudiente cancelo su solicitud (ADR 0031). Terminal: no se reabre, y
+    # deja de salir en "Mis solicitudes" y en la cola de revision.
+    CANCELADO = "cancelado"
 
 
 # Desde donde se puede llegar a cada estado. Vive como dato y no como una
@@ -46,10 +49,14 @@ class EstadoTrabajo(enum.StrEnum):
 # "por que esta transicion es ilegal", y un diccionario la responde sola.
 #
 # Publicar dos veces no es idempotente sino un segundo aviso al acudiente, asi
-# que `publicado` es terminal. `fallido` si se puede reintentar: el trabajo
-# guarda su estado por etapas justo para no volver a pagar la percepcion.
+# que de `publicado` solo se sale cancelando. `fallido` si se puede reintentar:
+# el trabajo guarda su estado por etapas justo para no volver a pagar la
+# percepcion. `cancelado` se alcanza desde todo menos `procesando` (el pipeline
+# esta escribiendo; se cancela al terminar) y es terminal.
 TRANSICIONES: dict[EstadoTrabajo, frozenset[EstadoTrabajo]] = {
-    EstadoTrabajo.ENCOLADO: frozenset({EstadoTrabajo.PROCESANDO, EstadoTrabajo.FALLIDO}),
+    EstadoTrabajo.ENCOLADO: frozenset(
+        {EstadoTrabajo.PROCESANDO, EstadoTrabajo.FALLIDO, EstadoTrabajo.CANCELADO}
+    ),
     EstadoTrabajo.PROCESANDO: frozenset(
         {EstadoTrabajo.ESPERA_REVISION, EstadoTrabajo.FALLIDO, EstadoTrabajo.PUBLICADO}
     ),
@@ -57,10 +64,16 @@ TRANSICIONES: dict[EstadoTrabajo, frozenset[EstadoTrabajo]] = {
     # durable lo retoma, en vez de que el API arranque la corrutina. PROCESANDO
     # se conserva por si un flujo lo mueve directo (no lo hace hoy).
     EstadoTrabajo.ESPERA_REVISION: frozenset(
-        {EstadoTrabajo.PUBLICADO, EstadoTrabajo.PROCESANDO, EstadoTrabajo.ENCOLADO}
+        {
+            EstadoTrabajo.PUBLICADO,
+            EstadoTrabajo.PROCESANDO,
+            EstadoTrabajo.ENCOLADO,
+            EstadoTrabajo.CANCELADO,
+        }
     ),
-    EstadoTrabajo.PUBLICADO: frozenset(),
-    EstadoTrabajo.FALLIDO: frozenset({EstadoTrabajo.ENCOLADO}),
+    EstadoTrabajo.PUBLICADO: frozenset({EstadoTrabajo.CANCELADO}),
+    EstadoTrabajo.FALLIDO: frozenset({EstadoTrabajo.ENCOLADO, EstadoTrabajo.CANCELADO}),
+    EstadoTrabajo.CANCELADO: frozenset(),
 }
 
 
@@ -106,6 +119,10 @@ class PerfilKit(enum.StrEnum):
 
     AHORRADOR = "Ahorrador"
     FAN = "Fan"
+    # El kit del punto medio (ADR 0030): la mejor marca que cabe en el tope del
+    # acudiente o, sin tope, en la mitad de camino entre Ahorrador y Premium.
+    # Como el Fan, solo existe si el acudiente lo pidio.
+    A_TU_MEDIDA = "A tu Medida"
     PREMIUM = "Premium"
 
 

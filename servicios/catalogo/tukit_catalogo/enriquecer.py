@@ -112,14 +112,17 @@ TAMANOS = (
     ("1/4 de pliego", "cuarto de pliego"),
     ("1/2 pliego", "medio pliego"),
     ("pliego", "pliego"),
+    ("1/8", "octavo"),
     ("octavos", "octavo"),
     ("octavo", "octavo"),
     ("oficio", "oficio"),
     ("carta", "carta"),
     ("cuarto", "cuarto"),
     ("tabloide", "tabloide"),
-    ("a4", "a4"),
-    ("a3", "a3"),
+    # `_normalizar` despega la cifra de la letra, asi que `A4` llega como
+    # `a 4`. Escrito `a4`, este tamano no se leia nunca.
+    ("a 4", "a4"),
+    ("a 3", "a3"),
 )
 
 # Tamanos que no son de papel. Para un morral o una cartuchera, `Grande` SI
@@ -166,6 +169,10 @@ PRESENTACION = (
 # De que esta hecho. Importa cuando el colegio exige plastico por seguridad o
 # madera por durabilidad.
 MATERIAL = (
+    # `acero inoxidable` antes que nada: el colegio pide la regla de acero
+    # para el dibujo tecnico, y una de plastico no le sirve (Septimo, #31).
+    ("acero inoxidable", "acero"),
+    ("acero", "acero"),
     ("acrilico", "acrilico"),
     ("plastico", "plastico"),
     ("plastica", "plastico"),
@@ -196,17 +203,26 @@ MATERIAL = (
 # positivo es improbable. Lo que se pierde es cobertura, y esa es la
 # direccion correcta del error: el resolutor prefiere no saber a creer mal.
 TIPOS = (
+    # La clase de pintura va primero: `Pintura al oleo, verde permanente` es
+    # un oleo, y `permanente` ahi es el nombre del color. Un acrilico no se
+    # reemplaza por un oleo (Septimo pedia acrilicos y el kit daba oleos).
+    ("acrilico", "acrilico"),
+    ("acrilica", "acrilico"),
+    ("oleo", "oleo"),
+    ("vinilo", "vinilo"),
+    ("tempera", "tempera"),
+    ("acuarela", "acuarela"),
     ("doble faz", "doble faz"),
     ("enmascarar", "enmascarar"),
     ("transparente", "transparente"),
     ("aislante", "aislante"),
     ("quirurgico", "quirurgico"),
-    ("punta roma", "punta roma"),
-    ("punta fina", "punta fina"),
-    ("punta gruesa", "punta gruesa"),
-    ("punta pincel", "punta pincel"),
+    # La punta (`punta fina`, `punta roma`) ya no vive aqui: tiene su tabla,
+    # PUNTAS. Compartirla hacia que un marcador permanente declarara
+    # `punta=permanente` y uno de punta fina `tipo=punta fina`.
     ("permanente", "permanente"),
     ("borrable", "borrable"),
+    ("lavable", "lavable"),
     ("milimetrado", "milimetrado"),
     ("cuadriculado", "cuadriculado"),
     ("cuadriculada", "cuadriculado"),
@@ -242,8 +258,11 @@ TIPOS = (
     ("cientifica", "cientifica"),
     ("de escritorio", "de escritorio"),
     ("basica", "basica"),
-    ("soprano", "soprano"),
+    # `dulce` antes que `soprano`: dulce es el instrumento y soprano la voz. Una
+    # "Flauta Dulce Soprano" quedaba `soprano` y la lista que pide "flauta dulce"
+    # (la escolar de siempre) no encontraba ninguna.
     ("dulce", "dulce"),
+    ("soprano", "soprano"),
     ("traversa", "traversa"),
     ("precision", "precision"),
     ("fuelle", "fuelle"),
@@ -253,6 +272,30 @@ TIPOS = (
     ("montessori", "montessori"),
     ("rompecabezas", "rompecabezas"),
     ("celuguia", "celuguia"),
+    # Palitos: el de paleta (helado) no es la varilla de balso de maquetas.
+    # Se escribe con la frase entera porque `paleta` sola es tambien la de
+    # mezclar pintura.
+    ("palos de paleta", "paleta"),
+    ("palo de paleta", "paleta"),
+    ("palitos de paleta", "paleta"),
+    ("para paleta", "paleta"),
+    ("balso", "balso"),
+    # Una toalla es de tela; los panitos y toallitas son humedos. El humedo
+    # va antes para que `toalla humeda` no quede en tela.
+    ("humeda", "humeda"),
+    ("humedo", "humeda"),
+    ("panitos", "humeda"),
+    ("toallitas", "humeda"),
+    ("toalla de papel", "papel"),
+    ("toalla", "tela"),
+    ("vaso", "vaso"),
+    ("plato", "plato"),
+    ("fotografico", "fotografico"),
+    # El block de dibujo: `Sketch Book`, `para bocetos`. Va despues de
+    # `argollado` y `cuadriculado`, que si lo dicen son mas especificos.
+    ("sketch book", "dibujo"),
+    ("sketchbook", "dibujo"),
+    ("bocetos", "dibujo"),
     # `escolar` va de ultimo a proposito: aparece en medio catalogo y como
     # tipo dice poquisimo, asi que solo gana cuando no hay nada mejor.
     ("escolar", "escolar"),
@@ -262,6 +305,10 @@ TIPOS = (
 # `Negra` y el marcador es `Negro`. Buscar solo el masculino dejaba sin color
 # a todo lo femenino, que es medio catalogo (cartulina, cinta, tempera).
 COLORES = (
+    # `de colores` es como el colegio pide el surtido: `octavos de carton
+    # paja de colores` no es el carton crema (Septimo, #68).
+    ("de colores", "surtido"),
+    ("colores", "surtido"),
     ("surtido", "surtido"),
     ("surtida", "surtido"),
     ("surtidos", "surtido"),
@@ -298,8 +345,54 @@ COLORES = (
     ("neon", "neon"),
     ("crema", "crema"),
     ("kraft", "kraft"),
+    # Los primarios de la pintura (cian, magenta, amarillo): sin ellos un
+    # acrilico magenta no declaraba color y no se podia exigir.
+    ("oro", "dorado"),
+    ("purpura", "morado"),
+    ("cian", "cian"),
+    ("cyan", "cian"),
+    ("magenta", "magenta"),
 )
 
+# La punta de un marcador o de unas tijeras. Es la forma del extremo, no la
+# clase de tinta, y por eso no comparte tabla con TIPOS.
+PUNTAS = (
+    ("micropunta", "micropunta"),
+    ("punta roma", "punta roma"),
+    ("punta fina", "punta fina"),
+    ("punta extrafina", "punta fina"),
+    ("punta delgada", "punta fina"),
+    ("punta gruesa", "punta gruesa"),
+    ("punta pincel", "punta pincel"),
+    ("punta biselada", "punta biselada"),
+    ("punta bala", "punta bala"),
+    # `marcadores delgados` es como las listas piden la punta fina, y asi se
+    # llaman los productos (`Plumones delgados Keyroad`).
+    ("delgado", "punta fina"),
+    ("grueso", "punta gruesa"),
+)
+
+# Como esta armado el cuaderno. Cosido y argollado no se sustituyen: el
+# colegio pide cosido para que no se arranquen hojas. `sin espiral` es como
+# muchas listas dicen cosido; `cocido` es la errata mas frecuente del corpus.
+ENCUADERNACIONES = (
+    ("sin espiral", "cosido"),
+    ("sin argolla", "cosido"),
+    ("cosido", "cosido"),
+    ("cocido", "cosido"),
+    ("argollado", "argollado"),
+    ("anillado", "argollado"),
+    ("espiral", "argollado"),
+)
+
+# Lo que convierte una Biblia en una seleccion para ninos. Sin una de estas,
+# una Biblia es la completa: el colegio que pide `Biblia catolica` no quiere
+# `Lecturas de la Biblia para ninos` (Septimo, #1). `nios` y `nias` son como
+# una tienda escribio `ninos` y `ninas` al perder la enie.
+_BIBLIA_INFANTIL = re.compile(
+    r"\b(?:ninos?|ninas?|nios|nias|infantil(?:es)?|mi primera|"
+    r"(?:lecturas|historias|relatos) de la biblia)\b"
+)
 # Senales de que el paquete trae varios colores y no varias veces el mismo.
 # Sin una de estas, `x12 unidades` puede ser una docena de marcadores negros.
 # `fluorescente` no entra. En Osito de Miel, "vinilo escolar fluorescente
@@ -503,6 +596,10 @@ IDIOMAS = (
     ("latin", "latin"),
 )
 
+# Para saber si un diccionario es monolingue se cuentan las menciones de
+# idioma, y las tiendas los escriben tambien en ingles: `english-spanish`.
+_IDIOMAS_DE_DICCIONARIO = (*IDIOMAS, ("spanish", "espanol"), ("french", "frances"))
+
 # La forma de la cerda de un pincel o de la punta de un instrumento. Vive
 # aparte de TIPOS porque `plano` y `redondo` no describen la clase de objeto
 # sino su silueta, y mezclarlos hacia que `Pincel redondo` no leyera nada.
@@ -545,11 +642,17 @@ RAYADOS = (
     ("rayada", "rayado"),
     ("renglon", "rayado"),
     ("lineas", "rayado"),
+    ("rayas", "rayado"),
     ("cuadrovia", "cuadrovia"),
+    ("pentagramado", "pentagramado"),
     ("blanco", "blanco"),
     ("blanca", "blanco"),
     ("sin rayas", "blanco"),
-    ("cuadriculado grande", "cuadricula grande"),
+    # Aqui estaba `cuadriculado grande -> cuadricula grande`, y no ganaba
+    # nunca porque `cuadriculado` iba antes. Se quito al leer el rayado por
+    # la coincidencia mas larga, que lo habria activado: en las listas
+    # `cuaderno cuadriculado grande` es un cuaderno GRANDE, no de cuadro
+    # grande, y exigirlo dejaba sin cuaderno a Septimo.
 )
 
 # Lo que gradua un pincel o una mina. Va aparte de TAMANOS_RELATIVOS porque
@@ -574,7 +677,7 @@ GROSORES = (
 # mismo digito para decir otra cosa.
 _DUREZA = re.compile(r"\b(\d?[hb]{1,2})\b")
 _DUREZAS_VALIDAS = frozenset(
-    {"h", "b", "hb", "2b", "3b", "4b", "5b", "6b", "2h", "3h", "4h", "5h", "6h", "hh", "bb"}
+    {"h", "b", "hb", "hh", "bb"} | {f"{n}{letra}" for n in range(2, 10) for letra in "hb"}
 )
 
 # Cuantos huecos o bolsillos trae algo que los cuenta. El colegio no escribe
@@ -600,6 +703,73 @@ def _cuantos_huecos(plano: str, palabras: tuple[str, ...]) -> int | None:
         if re.search(rf"\b{aguja}\b", plano):
             return cuantos
     return None
+
+
+def _coincidencias(plano: str, tabla: tuple[tuple[str, str], ...]) -> list[tuple[str, re.Match[str]]]:
+    """Los valores de `tabla` que nombra el texto, cada uno con donde aparece.
+
+    Las coincidencias se toman de la mas larga a la mas corta y una que se
+    monta sobre otra ya tomada no cuenta: `doble linea` es un rayado, no
+    `doble linea` mas `linea`. El plural se admite porque las listas
+    escriben `cuadernos cosidos` y `marcadores acrilicos`.
+    """
+    halladas: list[tuple[str, re.Match[str]]] = []
+    for aguja, valor in tabla:
+        for m in re.finditer(rf"\b{re.escape(aguja)}s?\b", plano):
+            halladas.append((valor, m))
+    halladas.sort(key=lambda par: par[1].end() - par[1].start(), reverse=True)
+
+    tomadas: list[tuple[str, re.Match[str]]] = []
+    for valor, m in halladas:
+        if all(m.end() <= otra.start() or m.start() >= otra.end() for _, otra in tomadas):
+            tomadas.append((valor, m))
+    return tomadas
+
+
+def _valor_unico(plano: str, tabla: tuple[tuple[str, str], ...]) -> tuple[str, re.Match[str]] | None:
+    """El unico valor de `tabla` que nombra el texto, o None si nombra cero o varios.
+
+    Es para los atributos de UNA dimension (color, forma, rayado...). Un
+    renglon que enumera varios valores pide un surtido, y exigir el primero
+    de la tabla era exigir lo contrario: `pinceles planos, redondos y
+    abanico` pedia solo planos.
+    """
+    tomadas = _coincidencias(plano, tabla)
+    if len({valor for valor, _ in tomadas}) != 1:
+        return None
+    return tomadas[0]
+
+
+def atributos_ambiguos(texto: str, requeridos: tuple[str, ...]) -> list[str]:
+    """Los atributos que el renglon nombra con varios valores y por eso no exige.
+
+    Son los que una persona tiene que mirar: `cuaderno rayado o cuadriculado`
+    no se le puede pedir a ningun producto, pero tampoco es un renglon sin
+    rayado. Que el filtro no lo exija evita un hueco falso; que quede marcado
+    evita que el silencio pase por respuesta.
+    """
+    plano = _normalizar(texto)
+    leidos = extraer_atributos(texto, requeridos)
+    return [
+        atributo
+        for atributo in requeridos
+        if atributo in _TABLAS_DE_UNA_DIMENSION
+        and atributo not in leidos
+        and len({valor for valor, _ in _coincidencias(plano, _TABLAS_DE_UNA_DIMENSION[atributo])}) > 1
+    ]
+
+
+# Los atributos de una sola dimension: los que la regla del valor unico cubre.
+_TABLAS_DE_UNA_DIMENSION: dict[str, tuple[tuple[str, str], ...]] = {
+    "color": COLORES,
+    "forma": FORMAS,
+    "rayado": RAYADOS,
+    "material": MATERIAL,
+    "punta": PUNTAS,
+    "presentacion": PRESENTACION,
+    "encuadernacion": ENCUADERNACIONES,
+    "grosor": GROSORES,
+}
 
 
 def extraer_atributos(nombre: str, requeridos: tuple[str, ...]) -> dict[str, Any]:
@@ -645,24 +815,27 @@ def extraer_atributos(nombre: str, requeridos: tuple[str, ...]) -> dict[str, Any
                             break
 
         elif pedido == "color":
-            for aguja, valor in COLORES:
-                # El plural admitido por lo mismo que en la tinta: las listas
-                # escriben `carpetas rojas`, no `carpeta roja`.
-                if re.search(rf"\b{aguja}s?\b", plano):
-                    attrs["color"] = valor
-                    break
+            # El plural admitido por lo mismo que en la tinta: las listas
+            # escriben `carpetas rojas`, no `carpeta roja`.
+            unico = _valor_unico(plano, COLORES)
+            if unico:
+                attrs["color"] = unico[0]
+            elif re.search(r"\b(?:surtid[oa]s?|multicolor|de colores)\b", plano):
+                # Varios colores y ademas `surtido`: el nombre ya dijo que
+                # es un surtido, y eso si se puede afirmar.
+                attrs["color"] = "surtido"
 
         elif pedido == "rayado":
-            for aguja, valor in RAYADOS:
-                if re.search(rf"\b{aguja}s?\b", plano):
-                    # Si el rayado viene con medida, la medida es parte del
-                    # rayado: un cuadriculado de 1 cm y uno de 5 mm no se
-                    # sustituyen entre si en un cuaderno de primaria.
-                    medida = re.search(rf"\b{aguja}s?\s*(?:de\s*)?(\d{{1,2}}(?:\.\d)?)\s*(mm|cm)\b", plano)
-                    attrs["rayado"] = (
-                        f"{valor} {_entero_si_cabe(medida.group(1))} {medida.group(2)}" if medida else valor
-                    )
-                    break
+            unico = _valor_unico(plano, RAYADOS)
+            if unico:
+                valor, m = unico
+                # Si el rayado viene con medida, la medida es parte del
+                # rayado: un cuadriculado de 1 cm y uno de 5 mm no se
+                # sustituyen entre si en un cuaderno de primaria.
+                medida = re.match(r"\s*(?:de\s*)?(\d{1,2}(?:\.\d)?)\s*(mm|cm)\b", plano[m.end() :])
+                attrs["rayado"] = (
+                    f"{valor} {_entero_si_cabe(medida.group(1))} {medida.group(2)}" if medida else valor
+                )
 
         elif pedido == "idioma":
             hallados = [v for a, v in IDIOMAS if re.search(rf"\b{a}\b", plano)]
@@ -691,10 +864,9 @@ def extraer_atributos(nombre: str, requeridos: tuple[str, ...]) -> dict[str, Any
                 attrs[pedido] = cuantos
 
         elif pedido == "grosor":
-            for aguja, valor in GROSORES:
-                if re.search(rf"\b{aguja}\b", plano):
-                    attrs["grosor"] = valor
-                    break
+            unico = _valor_unico(plano, GROSORES)
+            if unico:
+                attrs["grosor"] = unico[0]
             else:
                 # La serie numerica del pincel, cuando no hay palabra. Se
                 # guarda con prefijo para que no se confunda con una medida
@@ -708,10 +880,11 @@ def extraer_atributos(nombre: str, requeridos: tuple[str, ...]) -> dict[str, Any
             # las cifras de las letras para poder leer `x12ml`, y de paso
             # convierte `2B` en `2 b`, con lo que la escala de grafito se
             # partia en dos y quedaba en `b`. Una mina 2B no es una B.
-            for candidato in _DUREZA.findall(_sin_tildes(nombre.lower())):
-                if candidato in _DUREZAS_VALIDAS:
-                    attrs["dureza"] = candidato
-                    break
+            # Con dos durezas distintas (`2H-6B`) es una serie, no una mina:
+            # exigir la primera dejaba sin opcion al renglon.
+            durezas = {c for c in _DUREZA.findall(_sin_tildes(nombre.lower())) if c in _DUREZAS_VALIDAS}
+            if len(durezas) == 1:
+                attrs["dureza"] = durezas.pop()
 
         elif pedido == "tinta":
             # La tinta de un esfero es el color que el colegio escribe:
@@ -726,19 +899,48 @@ def extraer_atributos(nombre: str, requeridos: tuple[str, ...]) -> dict[str, Any
             elif encontrados:
                 attrs["tinta"] = encontrados[0]
 
-        elif pedido in ("tipo", "presentacion", "material", "forma", "punta", "acabado"):
+        elif pedido in ("tipo", "acabado"):
+            # `tipo` mezcla dimensiones (`Block cuadriculado argollado` dice
+            # dos tipos y los dos son ciertos), asi que aqui no aplica la
+            # regla del valor unico: gana el primero de la tabla, que esta
+            # ordenada del termino mas especifico al menos.
+            for aguja, valor in TIPOS:
+                if re.search(rf"\b{re.escape(aguja)}s?\b", plano):
+                    attrs[pedido] = valor
+                    break
+
+        elif pedido in ("presentacion", "material", "forma", "punta", "encuadernacion"):
             tabla = {
-                "tipo": TIPOS,
                 "presentacion": PRESENTACION,
                 "material": MATERIAL,
                 "forma": FORMAS,
-                "punta": TIPOS,
-                "acabado": TIPOS,
+                "punta": PUNTAS,
+                "encuadernacion": ENCUADERNACIONES,
             }[pedido]
-            for aguja, valor in tabla:
-                if re.search(rf"\b{re.escape(aguja)}\b", plano):
-                    attrs[pedido] = valor
-                    break
+            unico = _valor_unico(plano, tabla)
+            if unico:
+                attrs[pedido] = unico[0]
+
+        elif pedido == "edicion":
+            if _BIBLIA_INFANTIL.search(plano):
+                attrs["edicion"] = "infantil"
+            elif re.search(r"\bbiblia\b", plano):
+                attrs["edicion"] = "completa"
+
+        elif pedido == "monolingue":
+            # Se cuentan las menciones, no los idiomas distintos: `ingles -
+            # ingles` nombra uno solo dos veces, y eso es lo que dice
+            # monolingue. `Diccionario de ingles` a secas no dice nada.
+            menciones = [v for a, v in _IDIOMAS_DE_DICCIONARIO for _ in re.finditer(rf"\b{a}\b", plano)]
+            if re.search(r"\bmonolingue\b", plano) or (len(menciones) >= 2 and len(set(menciones)) == 1):
+                attrs["monolingue"] = True
+            elif len(set(menciones)) >= 2 or re.search(r"\bbilingue\b", plano):
+                attrs["monolingue"] = False
+
+        elif pedido == "grados":
+            grados = re.search(r"\b(\d{2,3})\s*(?:grados?\b|°|º)", plano)
+            if grados:
+                attrs["grados"] = int(grados.group(1))
 
         elif pedido == "colores":
             cuantos = re.search(r"(\d{1,3})\s*colores\b", plano)
@@ -992,7 +1194,9 @@ def embeddings_a_actualizar(productos: list[dict[str, Any]], embeder: Embeder) -
 # ---------------------------------------------------------------------------
 
 
-async def _cargar_contexto() -> tuple[list[dict[str, Any]], dict[str, tuple[str, ...]], dict[str, list[str]]]:
+async def _cargar_contexto() -> tuple[
+    list[dict[str, Any]], dict[str, tuple[str, ...]], dict[str, list[str]], dict[str, str], dict[str, str]
+]:
     from sqlalchemy import select
     from tukit_comun.bd import crear_motor
 
@@ -1026,9 +1230,11 @@ async def _cargar_contexto() -> tuple[list[dict[str, Any]], dict[str, tuple[str,
             ]
             requeridos: dict[str, tuple[str, ...]] = {}
             nombres_concepto: dict[str, str] = {}
+            codigos_concepto: dict[str, str] = {}
             for f in await conexion.execute(
                 select(
                     concepto.c.id,
+                    concepto.c.codigo,
                     concepto.c.nombre_canonico,
                     concepto.c.atributos_discriminantes,
                     concepto.c.atributos_descriptivos,
@@ -1042,6 +1248,7 @@ async def _cargar_contexto() -> tuple[list[dict[str, Any]], dict[str, tuple[str,
                     f.atributos_descriptivos or ()
                 )
                 nombres_concepto[str(f.id)] = f.nombre_canonico
+                codigos_concepto[str(f.id)] = f.codigo
             urls: dict[str, list[str]] = {}
             for f in await conexion.execute(
                 select(oferta.c.producto_canonico_id, oferta.c.url).where(oferta.c.url.is_not(None))
@@ -1049,7 +1256,7 @@ async def _cargar_contexto() -> tuple[list[dict[str, Any]], dict[str, tuple[str,
                 urls.setdefault(str(f.producto_canonico_id), []).append(f.url)
     finally:
         await motor.cerrar()
-    return productos, requeridos, urls, nombres_concepto
+    return productos, requeridos, urls, nombres_concepto, codigos_concepto
 
 
 async def _guardar_embeddings(cambios: list[dict[str, Any]]) -> None:
@@ -1126,20 +1333,63 @@ async def _guardar(cambios: list[dict[str, Any]]) -> None:
         await motor.cerrar()
 
 
-async def _principal(con_imagenes: bool, solo_validar: bool, con_embeddings: bool = True) -> int:
-    productos, requeridos, urls, nombres_concepto = await _cargar_contexto()
+def atributos_combinados(
+    guardados: dict[str, Any], leidos: dict[str, Any], reextraer: frozenset[str] = frozenset()
+) -> dict[str, Any]:
+    """Lo guardado gana sobre lo leido, salvo en las claves que se piden releer.
+
+    Lo guardado gana porque puede ser curado a mano, y el juicio de una
+    persona vale mas que una expresion regular. Pero lo guardado tambien es lo
+    que una version vieja del vocabulario leyo mal (`punta=permanente` en un
+    marcador, `tipo=permanente` en un oleo verde permanente), y sin una forma
+    de releerlo ese error no se iba nunca. Releer es explicito y por clave:
+    en esas claves manda lo que el nombre dice HOY, y si hoy no dice nada, la
+    clave se va.
+    """
+    conservados = {k: v for k, v in guardados.items() if k not in reextraer}
+    return {**leidos, **conservados}
+
+
+def _leer_reextraer(pedidos: list[str]) -> dict[str, frozenset[str]]:
+    """`C006:tipo,punta` -> {"C006": {"tipo", "punta"}}."""
+    salida: dict[str, set[str]] = {}
+    for pedido in pedidos:
+        codigo, _, claves = pedido.partition(":")
+        if not codigo or not claves:
+            raise SystemExit(f"--reextraer espera CONCEPTO:clave[,clave], no {pedido!r}")
+        salida.setdefault(codigo.strip(), set()).update(c.strip() for c in claves.split(",") if c.strip())
+    return {c: frozenset(v) for c, v in salida.items()}
+
+
+async def _principal(
+    con_imagenes: bool,
+    solo_validar: bool,
+    con_embeddings: bool = True,
+    reextraer: dict[str, frozenset[str]] | None = None,
+    informe: str | None = None,
+    con_fichas: bool = False,
+) -> int:
+    productos, requeridos, urls, nombres_concepto, codigos = await _cargar_contexto()
+    reextraer = reextraer or {}
 
     imagenes: dict[str, str] = {}
     de_ficha: dict[str, dict[str, Any]] = {}
-    if con_imagenes:
+    if con_imagenes or con_fichas:
         # Una sola lectura por producto y de ahi sale todo lo que la tienda
         # sabe: la portada, los atributos de la ficha tecnica y el personaje
         # que la tienda declara. Leer la misma ficha tres veces, una por cada
         # dato, multiplicaba por tres el tiempo y el riesgo de que la tienda
         # cortara por exceso de peticiones.
-        pendientes = [
-            (p, urls.get(str(p["id"]), [])) for p in productos if not p["imagen_url"] or not p["atributos"]
-        ]
+        def le_falta_algo(p: dict[str, Any]) -> bool:
+            if con_imagenes and (not p["imagen_url"] or not p["atributos"]):
+                return True
+            # `--fichas`: lo que el nombre no dijo puede estar en la ficha.
+            # Se pide solo para quien le falta un atributo de su concepto,
+            # para no leer 685 fichas cuando el nombre ya lo dijo todo.
+            guardados = p["atributos"] or {}
+            return con_fichas and any(a not in guardados for a in requeridos.get(str(p["concepto_id"]), ()))
+
+        pendientes = [(p, urls.get(str(p["id"]), [])) for p in productos if le_falta_algo(p)]
         pendientes = [(p, u) for p, u in pendientes if u]
         print(f"Leyendo la ficha de {len(pendientes)} productos en las tiendas que ya se conocian...")
 
@@ -1193,13 +1443,20 @@ async def _principal(con_imagenes: bool, solo_validar: bool, con_embeddings: boo
                 "unidad_base": empaque.unidad_base,
                 # Lo leido no pisa lo curado a mano: si alguien ya reviso este
                 # producto, su juicio vale mas que una expresion regular.
-                "atributos": {**attrs, **(p["atributos"] or {})},
+                "atributos": atributos_combinados(
+                    p["atributos"] or {},
+                    attrs,
+                    reextraer.get(codigos.get(str(p["concepto_id"]), ""), frozenset()),
+                ),
                 "imagen_url": p["imagen_url"] or imagenes.get(str(p["id"])),
                 "personaje": (
                     p["personaje"] or extraer_personaje(p["nombre"]) or (ficha_p or {}).get("personaje")
                 ),
             }
         )
+
+    if informe:
+        _escribir_informe(informe, productos, cambios, codigos)
 
     con_personaje = sum(1 for c in cambios if c["personaje"])
     con_attrs = sum(1 for c in cambios if c["atributos"])
@@ -1248,6 +1505,40 @@ async def _principal(con_imagenes: bool, solo_validar: bool, con_embeddings: boo
     return 0
 
 
+def _escribir_informe(
+    ruta: str, productos: list[dict[str, Any]], cambios: list[dict[str, Any]], codigos: dict[str, str]
+) -> None:
+    """Un CSV con cada atributo que esta pasada agrega, cambia o quita.
+
+    Es lo que se revisa antes de escribir: el resumen dice cuantos productos
+    tienen atributos, pero no si los que se leyeron son ciertos.
+    """
+    import csv
+
+    por_pid = {str(c["pid"]): c for c in cambios}
+    filas = 0
+    with open(ruta, "w", encoding="utf-8", newline="") as salida:
+        escritor = csv.writer(salida)
+        escritor.writerow(["concepto", "producto_id", "nombre", "atributo", "antes", "despues"])
+        for p in productos:
+            antes = p["atributos"] or {}
+            despues = por_pid[str(p["id"])]["atributos"]
+            for clave in sorted(set(antes) | set(despues)):
+                if antes.get(clave) != despues.get(clave):
+                    escritor.writerow(
+                        [
+                            codigos.get(str(p["concepto_id"]), ""),
+                            p["id"],
+                            p["nombre"],
+                            clave,
+                            antes.get(clave, ""),
+                            despues.get(clave, ""),
+                        ]
+                    )
+                    filas += 1
+    print(f"  informe: {filas} cambios de atributo en {ruta}")
+
+
 def _embeder_por_entorno() -> Embeder | None:
     """El embeder real si hay clave, ninguno si no.
 
@@ -1269,8 +1560,30 @@ def main() -> int:
     analizador.add_argument("--imagenes", action="store_true", help="ir a la red por las portadas")
     analizador.add_argument("--sin-embeddings", action="store_true", help="no calcular el canal semantico")
     analizador.add_argument("--solo-validar", action="store_true")
+    analizador.add_argument(
+        "--reextraer",
+        action="append",
+        default=[],
+        metavar="CONCEPTO:clave[,clave]",
+        help="releer del nombre estas claves aunque ya esten guardadas (p. ej. C006:tipo,punta)",
+    )
+    analizador.add_argument("--informe", metavar="RUTA.csv", help="escribir cada cambio de atributo a un CSV")
+    analizador.add_argument(
+        "--fichas",
+        action="store_true",
+        help="leer la ficha de la tienda de los productos a los que les falta un atributo (va a la red)",
+    )
     args = analizador.parse_args()
-    return asyncio.run(_principal(args.imagenes, args.solo_validar, not args.sin_embeddings))
+    return asyncio.run(
+        _principal(
+            args.imagenes,
+            args.solo_validar,
+            not args.sin_embeddings,
+            reextraer=_leer_reextraer(args.reextraer),
+            informe=args.informe,
+            con_fichas=args.fichas,
+        )
+    )
 
 
 if __name__ == "__main__":

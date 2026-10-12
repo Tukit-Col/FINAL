@@ -8,6 +8,9 @@ Este repositorio reemplaza a los dieciséis anteriores. No es una reescritura: e
 bueno y probado se porta, y lo que cambia es el modelo de dominio, que era donde estaban
 los defectos.
 
+Toda la documentación (contrato de la API, ADR, requisitos, diseños, informes y el documento
+de los algoritmos) está en [`docs/`](docs/README.md), clasificada y con su índice.
+
 ```bash
 make preparar     # entorno y dependencias
 make fronteras    # verifica las fronteras de arquitectura
@@ -54,7 +57,7 @@ TUKIT_API_URL=http://127.0.0.1:8010
 
 `make estado` pregunta a la puerta cuáles de los tres responden; `make abajo` los detiene.
 Cada servicio publica su OpenAPI en `/docs`. La fuente de verdad, de todas formas, es
-[el contrato](arquitectura/CONTRATO_API.md), que desde la versión 1.1 documenta la
+[el contrato](docs/arquitectura/CONTRATO_API.md), que desde la versión 1.1 documenta la
 superficie de lectura completa con ejemplos de respuestas reales.
 
 `make humo` es la función de aptitud de la capa HTTP. No comprueba que responda `200`: un
@@ -94,6 +97,42 @@ la demo:
 - `WOMPI_*` — la pasarela de pago. `WOMPI_MODO=falso` (por defecto) usa una pasarela simulada;
   no necesitas llaves reales para caminar el checkout.
 
+## Compartir la curaduría de listas
+
+Curar una lista (decidir a qué concepto corresponde cada renglón y cerrarla en la cola)
+queda en la base local, que es de una sola máquina. Para que llegue a los demás viaja por
+git como CSV:
+
+```bash
+make curaduria-exportar   # base -> datos/  (luego git add datos/ && git commit)
+make curaduria-importar   # datos/ -> base  (después de un git pull)
+```
+
+| Archivo | Qué lleva |
+|---|---|
+| `datos/curaduria/listas_revisadas.csv` | Un renglón por ítem de la última versión revisada de cada lista, con el concepto por código |
+| `datos/catalogo/conceptos.csv` | Los conceptos creados curando se agregan; los existentes se actualizan |
+| `datos/curaduria/colegios.csv`, `sedes.csv` | Los colegios que esas listas nombran, para que la lista no quede huérfana |
+| `datos/catalogo/productos_canonicos.csv`, `ofertas_tienda.csv`, `precios_oferta.csv`, `productos_procedencia.csv` | Los productos aprobados en la cola, los reclasificados de concepto y sus **atributos corregidos a mano** (lo que hace que el filtro de atributos encuentre producto) |
+
+En Windows, `.\tukit.ps1 exportar` e `.\tukit.ps1 importar` hacen lo mismo.
+
+Los vectores de búsqueda semántica no viajan (no se versionan): después de importar,
+`make bd-enriquecer` los calcula para los productos nuevos. Gasta cupo de Gemini Embedding
+(una petición por producto); sin correrlo el emparejamiento funciona igual, solo por palabras.
+
+`curaduria-importar` corre `bd-cargar` primero (una lista no entra sin sus conceptos) y es
+idempotente: una lista que ya dice lo mismo no se toca, y una que cambió crea una versión
+nueva en vez de sobreescribir. No viajan el PDF original ni el contacto del colegio.
+
+Exporta **antes** de hacer `git pull`: `bd-cargar` actualiza los conceptos desde el CSV, y
+un sinónimo agregado en la base y no exportado se perdería. Los códigos de concepto nuevos
+(`C100`, `C101`…) se numeran en cada base, así que dos personas creando conceptos a la vez
+chocarían; mientras sea una sola persona la que cura, no pasa.
+
+Los criterios para curar (cuándo crear un concepto, qué tipo darle, dónde va un sinónimo) y
+el registro de lo curado están en [`docs/registros/CURADURIA_CATALOGO.md`](docs/registros/CURADURIA_CATALOGO.md).
+
 ## Usuarios de prueba
 
 Las seis cuentas demo entran con la misma clave: **`demo1234`**. No es un secreto, es un
@@ -116,6 +155,74 @@ El enrutado por rol vive en `libs/ts/tukit-contrato/src/origen.ts::destinoDe`: `
 `operador` van al back-office, `colegio_*` al portal de colegio, y el resto al dashboard del
 acudiente.
 
+## Pagos de prueba con Wompi
+
+Con `WOMPI_MODO=falso` el botón **Pagar** lleva a una página local (`/pago/simulado`) con
+"Aprobar pago" y "Rechazar pago"; no sale a la red. Con `WOMPI_MODO=sandbox` lleva al
+checkout real de Wompi (`https://checkout.wompi.co/p/`), pero en modo de **pruebas**: no se
+mueve dinero. Es un candado a propósito: Comercio se niega a arrancar si alguna llave no es de
+prueba, y no existe un modo de producción en esta rama.
+
+Las llaves salen de [comercios.wompi.co](https://comercios.wompi.co) → *Desarrolladores*, con el
+interruptor en modo de pruebas. Van en el `.env` de la raíz (copiado de `.env.ejemplo`):
+
+| Variable | Dónde está en el panel | Empieza por |
+|---|---|---|
+| `WOMPI_LLAVE_PUBLICA` | Llave pública | `pub_test_` |
+| `WOMPI_LLAVE_PRIVADA` | Llave privada | `prv_test_` |
+| `WOMPI_SECRETO_EVENTOS` | Secretos → Eventos | `test_events_` |
+| `WOMPI_SECRETO_INTEGRIDAD` | Secretos → Integridad | `test_integrity_` |
+
+Si no tienes `.env`, cópialo de `.env.ejemplo`. Con `WOMPI_MODO=sandbox` en el `.env`, reinicia
+el stack con esas variables cargadas: en Linux/macOS expórtalas en la shell antes de levantarlo
+(`set -a; . ./.env; set +a; make arriba`); en Windows, el ayudante local `tukit.ps1` (si lo
+usas) carga el `.env` solo.
+
+Elige un kit y paga, desde `localhost` como siempre. El pago se abre con el
+[widget de Wompi](https://docs.wompi.co/docs/colombia/widget-checkout-web/), un modal encima del
+kit: con tarjeta y Nequi el acudiente no sale de Tukit. El backend firma los datos del widget (el
+secreto de integridad no llega al navegador). PSE sí se lleva la pestaña al banco y vuelve por
+el `redirectUrl` a `/pago/resultado?id=<transacción>`. Esa página le pregunta a Wompi, de
+servidor a servidor, cómo quedó el pago (`POST /v1/pagos/{id}/sincronizar`); lo que dice el
+navegador es solo informativo.
+
+Un detalle que cuesta una tarde si no se sabe: el checkout de Wompi responde 403 cuando una URL
+suya lleva un retorno a `localhost` o a una IP privada. Por eso el widget se abre con
+`bootstrapTransport: "postmessage"`, que le pasa la configuración por mensaje y no por la URL
+de su iframe. Si algún día el modal se queda girando sin fin, es esto. El porqué completo está
+en el [ADR 0033](docs/arquitectura/adr/0033-pago-con-widget-de-wompi.md).
+
+En "Mis pedidos" del panel, un pedido pendiente se paga o se cancela sin rearmar el kit. Se
+puede pagar durante 24 horas; después hay que rearmarlo para ver el precio de hoy. Cancelar le
+pregunta antes a Wompi si hay un pago en curso, porque cancelar un PSE que el banco todavía está
+aprobando cobraría sin entregar ([ADR 0035](docs/arquitectura/adr/0035-cancelar-solo-con-wompi-consultado.md)).
+
+En modo falso los montos simulados viven en la memoria de Comercio: si lo reinicias entre
+"Pagar" y "Aprobar pago", obtendrás `transaccion_no_existe`; empieza de nuevo desde el kit.
+
+Datos de prueba de Wompi (según [docs.wompi.co](https://docs.wompi.co/docs/colombia/datos-de-prueba-en-sandbox/)):
+
+| Medio | Dato | Resultado |
+|---|---|---|
+| Tarjeta | `4242 4242 4242 4242`, cualquier CVC de 3 dígitos y fecha futura | Aprobado |
+| Tarjeta | `4111 1111 1111 1111`, cualquier CVC de 3 dígitos y fecha futura | Rechazado |
+| Tarjeta | cualquier otro número | Error |
+| Nequi | `3991111111` | Aprobado |
+| Nequi | `3992222222` | Rechazado |
+| Nequi | cualquier otro número | Error |
+| PSE | Banco "Banco que aprueba" (código `1` por API) | Aprobado |
+| PSE | Banco "Banco que rechaza" (código `2` por API) | Rechazado |
+
+**Webhook (opcional).** El webhook `POST /v1/webhooks/wompi` también confirma el pago, pero
+Wompi tiene que poder alcanzarlo. Para probarlo desde tu máquina expón el gateway con un túnel:
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:8010
+```
+
+y pega `https://<túnel>/v1/webhooks/wompi` como URL de eventos en el panel de Wompi (modo de
+pruebas). Sin túnel no pasa nada malo: la página de resultado confirma igual.
+
 ---
 
 ## Cómo está organizado, y por qué así
@@ -133,7 +240,7 @@ infra/         compose de Postgres 16 + pgvector (cinco bases), despliegue
 
 Un repositorio no es un desplegable. Que el código viva junto y se despliegue por separado
 son dos decisiones distintas, y aquí se toman distinto a propósito: el
-[ADR 0014](../Arquitectura/adr/0014-monorepo-con-despliegue-independiente.md) lo argumenta
+ADR 0014 (*monorepo con despliegue independiente*, en el repositorio externo `Arquitectura/`) lo argumenta
 con la norma 42010 y el modelo 4+1, que separan la vista de desarrollo de la vista física.
 
 La razón concreta de haber juntado el código: mover una función de redacción a la librería
@@ -187,7 +294,7 @@ resistiría la primera pregunta. Las tres razones que sí se sostienen:
 ## Por qué casi todo es Python
 
 Se midió antes de decidir. El resultado está en
-[`PERFILADO_PIPELINE.md`](../Arquitectura/PERFILADO_PIPELINE.md) y contradice la intuición
+`PERFILADO_PIPELINE.md` (repositorio externo `Arquitectura/`) y contradice la intuición
 de partida en algo importante: la latencia del pipeline **sí** era CPU de Python, un 96,3 %,
 pero el 95,3 % del total lo producía **una sola línea** que reconstruía un grafo de
 NetworkX completo en cada ítem. Construirlo cuesta 1.673 ms; consultarlo, 0,137 ms.
@@ -215,9 +322,9 @@ aptitud con sus pruebas, el ejecutor de tareas y la integración continua con ej
 selectiva por ruta. **Dos de los siete servicios están portados** (identidad con 16 tablas y
 catálogo con 18: modelos SQLAlchemy y pruebas de dominio); los otros cinco se llenan
 portando desde los repositorios anteriores, en el orden del
-[plan](../Arquitectura/PLAN_TUKIT_V2.md).
+plan `PLAN_TUKIT_V2.md` (repositorio externo `Arquitectura/`).
 
-La otra mitad de la superficie compartida es el [contrato de la API](arquitectura/CONTRATO_API.md).
+La otra mitad de la superficie compartida es el [contrato de la API](docs/arquitectura/CONTRATO_API.md).
 El manifiesto fija las fronteras de *datos*; el contrato fija las de *conversación*. Son los
 dos únicos archivos que varios frentes tocan a la vez, así que se cierran antes de repartir
 trabajo.

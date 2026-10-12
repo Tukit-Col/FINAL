@@ -263,3 +263,35 @@ async def test_fallo_de_envio_sube_intentos_y_no_publica(motor_operacion, motor_
     filas = await _contar_notificaciones(motor_operacion)
     assert len(filas) == 1
     assert filas[0].estado == "fallida"
+
+
+async def test_pedido_despachado_avisa_con_el_repartidor_y_sin_su_celular(motor_operacion, motor_origen):
+    # Comercio solo pone el NOMBRE en la carga; aun si un evento trajera mas, lo
+    # que se guarda son las variables de la plantilla, no la carga entera.
+    engine, bandeja, trabajo = motor_origen
+    pedido_id = uuid.UUID("abcd1234-0000-4000-8000-000000000000")
+    async with engine.begin() as conexion:
+        await conexion.execute(
+            insert(bandeja).values(
+                tipo="pedido_despachado",
+                agregado_tipo="pedido",
+                agregado_id=pedido_id,
+                carga={
+                    "usuario_id": str(USUARIO),
+                    "pedido_id": str(pedido_id),
+                    "repartidor": "Luis",
+                    "repartidor_celular": "3109998877",
+                },
+                intentos=0,
+            )
+        )
+
+    notificador = NotificadorFalso()
+    entregados = await _repartidor(motor_operacion, engine, notificador, IdentidadContacto()).pasada()
+
+    assert entregados == 1
+    filas = await _contar_notificaciones(motor_operacion)
+    assert filas[0].usuario_id == USUARIO
+    assert filas[0].plantilla == "pedido_despachado"
+    assert "3109998877" not in str(filas[0].datos)
+    assert notificador.enviados[0]["texto"] == "Tu pedido ABCD1234 salió y va con Luis."

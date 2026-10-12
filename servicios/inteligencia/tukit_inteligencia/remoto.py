@@ -113,8 +113,14 @@ class ClienteCatalogo:
         except httpx.HTTPError as error:
             raise RemotoCaido("catalogo", f"{ruta} no respondio ({error})") from error
 
-    async def emparejar(self, renglones: list[str]) -> list[dict[str, Any]]:
-        cuerpo = await self._pedir("POST", "/v1/catalogo/emparejar", json={"renglones": renglones})
+    async def emparejar(
+        self, renglones: list[str], conceptos: list[str | None] | None = None
+    ) -> list[dict[str, Any]]:
+        """`conceptos`, si viene, es el codigo ya asignado a cada renglon (o None)."""
+        pedido: dict[str, Any] = {"renglones": renglones}
+        if conceptos is not None:
+            pedido["conceptos"] = conceptos
+        cuerpo = await self._pedir("POST", "/v1/catalogo/emparejar", json=pedido)
         return list(cuerpo.get("emparejamientos") or ())
 
     async def listas(self, *, colegio_id: str, grado: str, anio_lectivo: int | None = None) -> list[dict]:
@@ -174,6 +180,21 @@ class ClienteCatalogo:
         """
         cuerpo = await self._pedir("GET", f"/interno/listas-por-contacto/{contacto_referencia}")
         return list(cuerpo.get("listas") or ())
+
+    async def retirar_de_contacto(
+        self, contacto_referencia: str, *, tarea_id: str | None = None, version_id: str | None = None
+    ) -> int:
+        """El acudiente cancela una lista que subio: deja de ser suya.
+
+        La lista sigue en el Catalogo (es del colegio); solo se desvinculan las
+        tareas del contacto. Mismo `/interno` y misma regla que
+        `listas_por_contacto`: el `contacto_referencia` sale de la sesion.
+        """
+        cuerpo = {k: v for k, v in (("tarea_id", tarea_id), ("version_id", version_id)) if v}
+        respuesta = await self._pedir(
+            "POST", f"/interno/listas-por-contacto/{contacto_referencia}/retirar", json=cuerpo
+        )
+        return int(respuesta.get("retiradas") or 0)
 
     async def resueltos(self, version_id: str) -> dict[str, Any]:
         """La ruta rapida: items ya resueltos + candidatos curados de una lista revisada.
@@ -357,6 +378,26 @@ class ClienteComercio:
         try:
             async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
                 respuesta = await cliente.get(f"{self._base()}/v1/comercio/pedidos-pagados")
+                respuesta.raise_for_status()
+        except httpx.HTTPError as error:
+            raise RemotoCaido("comercio", str(error)) from error
+        return list(respuesta.json().get("pedidos") or ())
+
+    async def pedidos_de(self, token: str) -> list[dict[str, Any]]:
+        """Los pedidos del portador del token (`{pedido_id, trabajo_id, estado, ...}`).
+
+        Lo usa cancelar una solicitud: un kit ya comprado no se cancela. Va con
+        el Bearer del acudiente porque Comercio saca al dueno de la sesion, no de
+        un `usuario_id` que le manden. Una caida de Comercio (o una sesion que
+        Comercio no acepta) es `RemotoCaido`: sin saber si hay pedido, no se
+        cancela a ciegas.
+        """
+        try:
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.get(
+                    f"{self._base()}/v1/comercio/mis-pedidos",
+                    headers={"Authorization": f"Bearer {token}"},
+                )
                 respuesta.raise_for_status()
         except httpx.HTTPError as error:
             raise RemotoCaido("comercio", str(error)) from error

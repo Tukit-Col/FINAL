@@ -38,7 +38,7 @@ app = crear_app(
     descripcion=(
         "Lectura del catalogo curado: conceptos, productos canonicos con sus niveles y "
         "personaje, ofertas por tienda con precio, y las listas oficiales de los colegios. "
-        "Contrato: arquitectura/CONTRATO_API.md seccion 12."
+        "Contrato: docs/arquitectura/CONTRATO_API.md seccion 12."
     ),
     al_arrancar=_arrancar,
     al_apagar=_apagar,

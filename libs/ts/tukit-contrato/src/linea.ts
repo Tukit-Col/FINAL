@@ -23,6 +23,7 @@ export type ClaseLinea =
   | "no_comprar" // "el disponible en casa"
   | "diferido" // se solicitara mas adelante
   | "fuera_de_alcance" // uniformes: declarado fuera de v1
+  | "por_su_cuenta" // tipo `otro`: Tukit decidio no venderlo (audifonos, un titere)
   | "informativa"; // la vende el colegio o la editorial, no Tukit
 
 export function clasificar(linea: LineaKit): ClaseLinea {
@@ -30,7 +31,14 @@ export function clasificar(linea: LineaKit): ClaseLinea {
   if (linea.tipo === "no_comprar") return "no_comprar";
   if (linea.tipo === "diferido") return "diferido";
   if (linea.tipo === "uniforme") return "fuera_de_alcance";
+  // Antes de `informativa`: un `otro` tambien es informativo, pero decirle al
+  // acudiente que "lo gestiona el colegio" era falso; lo compra el por su cuenta.
+  if (linea.tipo === "otro") return "por_su_cuenta";
   if (linea.informativa) return "informativa";
+  // Un texto con titulo y editorial (no informativo: se compra en libreria) no
+  // se busca en el catalogo y llega como SIN_MATCH, porque la edicion aun no se
+  // resuelve. Mostrarlo como "No entendimos que pide" era falso: se entendio.
+  if (linea.tipo === "texto" && !linea.producto_elegido) return "por_su_cuenta";
   if (linea.estado_resolucion === "HUECO_CATALOGO") return "hueco";
   if (linea.estado_resolucion === "SIN_MATCH") return "sin_match";
   if (linea.estado_resolucion === "AMBIGUO") return "pendiente_revision";
@@ -50,7 +58,8 @@ export function esInformativaOExterna(linea: LineaKit): boolean {
     clase === "licencia_digital" ||
     clase === "no_comprar" ||
     clase === "diferido" ||
-    clase === "fuera_de_alcance"
+    clase === "fuera_de_alcance" ||
+    clase === "por_su_cuenta"
   );
 }
 
@@ -69,6 +78,7 @@ export const TITULO_CLASE: Record<ClaseLinea, string> = {
   no_comprar: "No hay que comprarlo",
   diferido: "El colegio lo pedirá después",
   fuera_de_alcance: "Uniformes: fuera de Tukit por ahora",
+  por_su_cuenta: "Lo consigues por tu cuenta",
   informativa: "Lo gestiona el colegio",
 };
 
@@ -79,7 +89,10 @@ export const TITULO_CLASE: Record<ClaseLinea, string> = {
 export function razonDeNoCobrar(linea: LineaKit): string | null {
   switch (clasificar(linea)) {
     case "comprable":
-      return null;
+      // En cero unidades porque otra linea ya la cubre: la herramienta pedida
+      // en varias materias o la que se compra junto con la del hermano. El
+      // mensaje dice donde quedo; sin el, se veia el producto y nada mas.
+      return linea.unidades_a_comprar === 0 && linea.mensaje ? linea.mensaje : null;
     case "hueco":
       return (
         linea.mensaje ?? "Entendimos que pides esto y hoy no lo tenemos en el catálogo."
@@ -98,6 +111,8 @@ export function razonDeNoCobrar(linea: LineaKit): string | null {
       return "El colegio lo va a pedir durante el año. Te avisamos cuando se pueda comprar.";
     case "fuera_de_alcance":
       return "Los uniformes todavía no los surtimos. Te lo dejamos visible para que no se te pase.";
+    case "por_su_cuenta":
+      return linea.mensaje ?? "Tukit no lo vende: consíguelo por tu cuenta. Te lo dejamos visible para que no se te pase.";
     case "informativa":
       return (
         linea.instruccion_colegio ??
@@ -128,5 +143,6 @@ export const ORDEN_SECCIONES: readonly ClaseLinea[] = [
   "diferido",
   "no_comprar",
   "fuera_de_alcance",
+  "por_su_cuenta",
   "comprable",
 ];

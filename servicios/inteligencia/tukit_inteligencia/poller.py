@@ -40,6 +40,9 @@ from .remoto import ClienteCatalogo
 # lleva otros (ninguno hoy), y un tipo desconocido se marca publicado sin
 # actuar, para no reprocesarlo en cada pasada.
 _TIPO = "lista_verificada"
+# Toda version aprobada, con o sin padre esperando: arma los kits canonicos del
+# grado para que el proximo acudiente sin tope los reciba sin re-optimizar.
+_TIPO_CANONICO = "lista_aprobada"
 
 
 @dataclass
@@ -61,8 +64,15 @@ class Poller:
         cuantos kits arranco con exito.
 
         El drenar/SKIP LOCKED/marcar-publicado vive en `tukit_comun.bandeja`
-        (ADR 0022); aqui solo se aporta el `manejar` de `lista_verificada`."""
-        return await drenar(self.motor_catalogo, self._procesar, tipo=_TIPO, limite=limite)
+        (ADR 0022); aqui solo se aportan los `manejar` de `lista_verificada` y de
+        `lista_aprobada`. Se drena un tipo a la vez y no la bandeja entera: lleva
+        tambien eventos de otros consumidores (el poller de Identidad), y
+        drenarlos aqui los marcaria publicados sin que nadie los atienda."""
+        arrancados = await drenar(self.motor_catalogo, self._procesar, tipo=_TIPO, limite=limite)
+        arrancados += await drenar(
+            self.motor_catalogo, self._procesar_canonico, tipo=_TIPO_CANONICO, limite=limite
+        )
+        return arrancados
 
     async def _procesar(self, conexion: Any, fila: Any) -> Resultado:
         carga = fila.carga or {}
@@ -114,14 +124,16 @@ class Poller:
             preferencias=carga.get("preferencias") or {},
             origen=origen,
             usuario_id=usuario_id,
+            en_proceso=True,
         )
         trabajo_id = uuid.UUID(respuesta["trabajo_id"])
 
-        # El trabajo ya es durable en `encolado`: `drenar` marcara el evento
-        # publicado al devolver HECHO (dentro de la misma transaccion de la
-        # pasada). Si el proceso muere durante el pipeline, el trabajo queda
-        # reintentable (`POST /v1/trabajos/{id}/reintentar`) y el evento no se
-        # reprocesa —no se arma un segundo kit para el mismo padre—.
+        # El trabajo nace `procesando` (`en_proceso`): este poller lo procesa
+        # aqui mismo y el trabajador durable no lo reclama. `drenar` marcara el
+        # evento publicado al devolver HECHO (dentro de la misma transaccion de
+        # la pasada). Si el proceso muere durante el pipeline, el trabajador lo
+        # retoma como colgado y el evento no se reprocesa —no se arma un segundo
+        # kit para el mismo padre—.
 
         # La lista esta revisada: `procesar` toma la ruta rapida (sin Gemini,
         # con NSGA-II sobre los candidatos curados). El destino del trabajo
@@ -137,6 +149,126 @@ class Poller:
         # el mismo padre.
         await trabajos.procesar(self.motor_inteligencia, trabajo_id, catalogo=self.catalogo)
         return Resultado.HECHO
+
+    async def _procesar_canonico(self, conexion: Any, fila: Any) -> Resultado:
+        """Arma los kits canonicos de la version aprobada y los fija.
+
+        Sin acudiente y sin preferencias: son los kits neutros que la ruta rapida
+        le aplica a cualquiera (Ahorrador y Premium, ADR 0030). Si la version ya
+        tiene canonico —el admin aprobo desde el preview y fijo esos kits— no se
+        vuelve a optimizar.
+        """
+        carga = fila.carga or {}
+        colegio_id = carga.get("colegio_id")
+        grado = carga.get("grado")
+        if not colegio_id or not grado:
+            return Resultado.OMITIR
+        anio = int(carga.get("anio_lectivo") or trabajos.ANIO_LECTIVO_POR_OMISION)
+        version = str(fila.agregado_id)
+
+        async with self.motor_inteligencia.engine.begin() as propia:
+            ya = await trabajos.version_canonica(propia, str(colegio_id), grado, anio)
+        if ya == version:
+            return Resultado.OMITIR
+
+        await armar_canonico(self.motor_inteligencia, self.catalogo, str(colegio_id), grado, anio, version)
+        return Resultado.HECHO
+
+
+async def armar_canonico(
+    motor_inteligencia: Any,
+    catalogo: Any,
+    colegio_id: str,
+    grado: str,
+    anio: int,
+    version: str,
+    *,
+    regenera: bool = False,
+) -> uuid.UUID:
+    """Arma los kits canonicos de una version y los publica como vigentes del grado."""
+    respuesta = await trabajos.crear(
+        motor_inteligencia,
+        hijos=[
+            {
+                "referencia": "canonico",
+                "colegio_id": colegio_id,
+                "grado": grado,
+                "anio_lectivo": anio,
+                "version_id": version,
+                **({"regenera": True} if regenera else {}),
+            }
+        ],
+        preferencias={},
+        origen=trabajos.ORIGEN_CANONICO,
+        en_proceso=True,
+    )
+    trabajo_id = uuid.UUID(respuesta["trabajo_id"])
+    await trabajos.procesar(motor_inteligencia, trabajo_id, catalogo=catalogo)
+    return trabajo_id
+
+
+async def regenerar_canonicos(motor_inteligencia: Any, catalogo: Any) -> tuple[int, list[str]]:
+    """Vuelve a armar los kits canonicos que salieron del armado automatico.
+
+    El poller no rearma una version que ya tiene canonico, y esta bien: aprobar
+    dos veces no debe costar dos optimizaciones. Pero cuando cambia COMO se
+    arma (el filtro por atributos, juntar herramientas), los kits publicados se
+    quedan con la logica vieja. Esto los rearma con la misma version de lista.
+
+    Solo los de origen `canonico_lista`. Los que un admin aprobo desde la
+    previsualizacion, o los que corrigio con «Editar kits», pueden tener
+    lineas elegidas a mano, y rearmarlos las borraria: se saltan y se
+    devuelven para que una persona decida. Los kits anteriores siguen
+    publicados para el acudiente que ya los tenia.
+    """
+    from sqlalchemy import select
+
+    async with motor_inteligencia.engine.begin() as conexion:
+        filas = list(
+            await conexion.execute(
+                select(
+                    trabajos.KIT_CANONICO.c.colegio_id,
+                    trabajos.KIT_CANONICO.c.grado,
+                    trabajos.KIT_CANONICO.c.anio_lectivo,
+                    trabajos.TRABAJO.c.origen,
+                    trabajos.TRABAJO.c.hijos,
+                ).select_from(
+                    trabajos.KIT_CANONICO.join(
+                        trabajos.TRABAJO, trabajos.TRABAJO.c.id == trabajos.KIT_CANONICO.c.trabajo_id
+                    )
+                )
+            )
+        )
+    rearmados = 0
+    saltados: list[str] = []
+    fallidos: list[str] = []
+    for f in filas:
+        hijo = next(iter(f.hijos or ()), {})
+        nombre = f"{f.colegio_id[:8]} {f.grado} ({f.origen})"
+        if f.origen != trabajos.ORIGEN_CANONICO or hijo.get("basado_en") or not hijo.get("version_id"):
+            saltados.append(nombre)
+            continue
+        trabajo_id = await armar_canonico(
+            motor_inteligencia,
+            catalogo,
+            f.colegio_id,
+            f.grado,
+            int(f.anio_lectivo),
+            str(hijo["version_id"]),
+            regenera=True,
+        )
+        async with motor_inteligencia.engine.begin() as conexion:
+            estado = await conexion.scalar(
+                select(trabajos.TRABAJO.c.estado).where(trabajos.TRABAJO.c.id == trabajo_id)
+            )
+        if estado != "publicado":
+            fallidos.append(f"{nombre}: {estado}")
+            continue
+        rearmados += 1
+        print(f"[canonicos] rearmado {nombre}")
+    for fallo in fallidos:
+        print(f"[canonicos] NO se rearmo {fallo}")
+    return rearmados, saltados
 
 
 def _motor_lectura(servicio: str) -> AsyncEngine:
@@ -166,6 +298,14 @@ async def correr_una_vez() -> int:
         await motor_inteligencia.cerrar()
 
 
+async def _regenerar() -> tuple[int, list[str]]:
+    motor_inteligencia = crear_motor("inteligencia")
+    try:
+        return await regenerar_canonicos(motor_inteligencia, ClienteCatalogo())
+    finally:
+        await motor_inteligencia.cerrar()
+
+
 async def _bucle(intervalo: float) -> None:
     while True:
         arrancados = await correr_una_vez()
@@ -180,7 +320,19 @@ def main(argv: list[str] | None = None) -> int:
     )
     analizador.add_argument("--seguir", action="store_true", help="Corre en bucle en vez de una pasada.")
     analizador.add_argument("--intervalo", type=float, default=5.0, help="Segundos entre pasadas.")
+    analizador.add_argument(
+        "--regenerar-canonicos",
+        action="store_true",
+        help="Rearma los kits canonicos automaticos con la logica actual (salta los editados a mano).",
+    )
     argumentos = analizador.parse_args(argv)
+
+    if argumentos.regenerar_canonicos:
+        rearmados, saltados = asyncio.run(_regenerar())
+        print(f"[canonicos] rearmados: {rearmados}")
+        for nombre in saltados:
+            print(f"[canonicos] saltado (puede tener lineas elegidas a mano): {nombre}")
+        return 0
 
     if argumentos.seguir:
         asyncio.run(_bucle(argumentos.intervalo))

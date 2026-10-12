@@ -35,17 +35,22 @@ BASE_POR_OMISION = "http://127.0.0.1:8010"
 # cargada y empareja contra el catalogo local.
 ESPERA_TRABAJO = 90
 
+# El operador sembrado por `sembrar_acceso` (identidad). La clave de demo no es
+# un secreto: esta escrita alli y en pantalla.
+OPERADOR_DEMO = {"correo": "operador@tukit.co", "clave": "demo1234"}
+
 
 class Fallo(Exception):
     pass
 
 
-def _pedir(base: str, ruta: str, cuerpo: dict[str, Any] | None = None) -> Any:
+def _pedir(base: str, ruta: str, cuerpo: dict[str, Any] | None = None, *, token: str | None = None) -> Any:
     url = f"{base}{ruta}"
     datos = None if cuerpo is None else json.dumps(cuerpo).encode("utf-8")
-    peticion = urllib.request.Request(
-        url, data=datos, headers={"Content-Type": "application/json"} if datos else {}
-    )
+    cabeceras = {"Content-Type": "application/json"} if datos else {}
+    if token:
+        cabeceras["Authorization"] = f"Bearer {token}"
+    peticion = urllib.request.Request(url, data=datos, headers=cabeceras)
     try:
         with urllib.request.urlopen(peticion, timeout=120) as respuesta:
             return json.loads(respuesta.read().decode("utf-8"))
@@ -53,6 +58,24 @@ def _pedir(base: str, ruta: str, cuerpo: dict[str, Any] | None = None) -> Any:
         raise Fallo(f"{ruta} respondio {error.code}: {error.read()[:200]!r}") from error
     except OSError as error:
         raise Fallo(f"{ruta} no respondio: {error}") from error
+
+
+def _estado_http(base: str, ruta: str) -> int:
+    """El codigo HTTP de un GET, sin tratar el 4xx como fallo: sirve para
+    exigir que una ruta protegida RECHACE."""
+    try:
+        with urllib.request.urlopen(f"{base}{ruta}", timeout=30) as respuesta:
+            return respuesta.status
+    except urllib.error.HTTPError as error:
+        return error.code
+    except OSError as error:
+        raise Fallo(f"{ruta} no respondio: {error}") from error
+
+
+def _token_operador(base: str) -> str:
+    sesion = _pedir(base, "/v1/sesiones", OPERADOR_DEMO)
+    _exigir(bool(sesion.get("token")), "identidad no dio token al operador demo (falta `make sembrar`?)")
+    return sesion["token"]
 
 
 def _exigir(condicion: bool, mensaje: str) -> None:
@@ -176,7 +199,14 @@ def comprobar(base: str) -> list[tuple[str, str]]:
     # casos cuando el repartidor procesa la bandeja de salida. Un tablero vacio
     # es el estado honesto de una base recien migrada; lo que no puede faltar es
     # la estructura `resumen`+`lista` que el frontend espera.
-    tablero = _pedir(base, "/v1/comercio/pedidos")
+    # El tablero es de operador/admin: sin token tiene que rechazar (si
+    # respondiera 200 volveria a estar abierto a cualquiera), y con el del
+    # operador demo tiene que dar la forma completa.
+    sin_token = _estado_http(base, "/v1/comercio/pedidos")
+    _exigir(sin_token == 401, f"/v1/comercio/pedidos sin token respondio {sin_token}; deberia ser 401")
+    hechas.append(("/v1/comercio/pedidos sin token", "401, cerrado"))
+
+    tablero = _pedir(base, "/v1/comercio/pedidos", token=_token_operador(base))
     _exigir("resumen" in tablero and "pedidos" in tablero, "el tablero de comercio no trae resumen+pedidos")
     _exigir(
         "por_estado" in tablero["resumen"] and "ingresos_confirmados" in tablero["resumen"],
@@ -184,7 +214,7 @@ def comprobar(base: str) -> list[tuple[str, str]]:
     )
     hechas.append(
         (
-            "/v1/comercio/pedidos",
+            "/v1/comercio/pedidos (operador)",
             f"{tablero['resumen']['pedidos_totales']} pedidos, "
             f"${tablero['resumen']['ingresos_confirmados']:,} confirmados",
         )

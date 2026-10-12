@@ -56,6 +56,14 @@ export default function ConsolaRevision({ trabajo, personajes }: Props) {
   const kitRef =
     trabajo.kits.find((k) => k.perfil === trabajo.recomendado?.perfil) ?? trabajo.kits[0]!;
   const masivas = pendientesConElegido(kitRef.lineas);
+  // Las vistas previas de onboarding y los canónicos de una lista aprobada se
+  // arman sin acudiente ni preferencias: `recomendar` les pone la razón por
+  // omisión ("Elegiste precio…"), que aquí sería falsa.
+  const sinAcudiente =
+    trabajo.origen === "preview_onboarding" || trabajo.origen === "canonico_lista";
+  // Unos kits canónicos ya publicados no se editan en sitio (el backend lo
+  // niega con 409): su versión siguiente se abre con «Editar kits».
+  const soloLectura = sinAcudiente && trabajo.estado === "publicado";
 
   async function validarPendientes(): Promise<void> {
     if (masivas.length === 0) return;
@@ -88,14 +96,31 @@ export default function ConsolaRevision({ trabajo, personajes }: Props) {
 
   return (
     <section className={styles.consola}>
-      {trabajo.recomendado ? (
+      {sinAcudiente ? (
+        <p className={styles.razonRecomendacion}>
+          <strong>Kits del grado, sin acudiente.</strong> Salen de la lista del colegio y nadie
+          declaró preferencias, así que no se marca ninguno: a cada acudiente se le marca el
+          suyo cuando pide su kit.
+        </p>
+      ) : trabajo.recomendado ? (
         <p className={styles.razonRecomendacion}>
           <strong>Se le va a marcar {trabajo.recomendado.perfil}:</strong>{" "}
-          {trabajo.recomendado.razon}
+          {trabajo.recomendado.razon}{" "}
+          {/* `null` es "no declaró presupuesto": solo `false` es pasarse. */}
+          {trabajo.recomendado.dentro_de_presupuesto === false
+            ? "Ojo: queda fuera del presupuesto declarado."
+            : ""}
         </p>
       ) : null}
 
-      {masivas.length > 0 ? (
+      {soloLectura ? (
+        <p className={styles.razonRecomendacion}>
+          <strong>Kits publicados, en solo lectura.</strong> Para corregirlos usa «Editar kits»
+          en la página del colegio: abre una versión nueva y estos no cambian hasta publicarla.
+        </p>
+      ) : null}
+
+      {masivas.length > 0 && !soloLectura ? (
         <div className={styles.barraLote}>
           <span className={styles.loteConteo}>
             {masivas.length} línea(s) con un producto elegido por el sistema, sin confirmar.
@@ -138,8 +163,12 @@ export default function ConsolaRevision({ trabajo, personajes }: Props) {
       ) : null}
 
       {(() => {
+        // El personaje es una preferencia del acudiente (ADR 0030): una lista que
+        // subio el colegio, o el canonico que sale de ella, no tiene a quien
+        // preguntarle, asi que aqui no se elige. Un Fan viejo de antes de esa
+        // regla se ve, pero no se toca.
         const fan = trabajo.kits.find((k) => k.perfil === "Fan");
-        return fan && personajes.length > 0 ? (
+        return fan && !sinAcudiente && personajes.length > 0 ? (
           <PersonajeFan trabajoId={trabajo.trabajo_id} fan={fan} personajes={personajes} />
         ) : null;
       })()}
@@ -148,6 +177,8 @@ export default function ConsolaRevision({ trabajo, personajes }: Props) {
         trabajoId={trabajo.trabajo_id}
         kits={trabajo.kits}
         recomendado={trabajo.recomendado?.perfil}
+        sinRotuloRecomendado={sinAcudiente}
+        soloLectura={soloLectura}
       />
     </section>
   );

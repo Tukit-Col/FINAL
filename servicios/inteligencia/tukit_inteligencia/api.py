@@ -141,7 +141,7 @@ app = crear_app(
     titulo="Tukit Inteligencia",
     descripcion=(
         "El recurso `trabajo`: percepcion, normalizacion, resolucion y optimizacion de una "
-        "lista escolar en tres kits. Contrato: arquitectura/CONTRATO_API.md secciones 2 a 8."
+        "lista escolar en tres kits. Contrato: docs/arquitectura/CONTRATO_API.md secciones 2 a 8."
     ),
     al_arrancar=_arrancar,
     al_apagar=_apagar,

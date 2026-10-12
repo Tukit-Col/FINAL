@@ -169,6 +169,10 @@ class ItemListaOficial(Base):
     confianza_normalizacion: Mapped[float | None] = mapped_column(nullable=True)
     requiere_revision: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    # Los avisos de este renglon que el revisor ya decidio que no aplican
+    # (`repetido:61`, `revisar:forma`, `sin_producto`), para que no vuelvan.
+    avisos_descartados: Mapped[list[str]] = mapped_column(Texto, nullable=False, default=list)
+
     def tipo_efectivo(self, concepto: Concepto | None) -> str | None:
         """El tipo del renglon si lo declaro, y si no el de su concepto.
 

@@ -79,10 +79,9 @@ export function quitarItemLista(versionId: string, itemId: string): Promise<void
   return pedir<void>(`/api/listas/${id(versionId)}/items/${id(itemId)}`, { method: "DELETE" });
 }
 
-/** DELETE — descartar de la cola una versión SIN revisar (una sugerencia que no
- *  va, un onboarding equivocado). El backend alza 409 `lista_ya_revisada` si ya
- *  se aprobó: una lista oficial no se borra, se corrige con `nuevaVersion`. */
-export function eliminarVersion(versionId: string): Promise<void> {
+/** DELETE — sacar de la cola una versión sin revisar, con su PDF. Una revisada
+ *  responde 409 `lista_ya_revisada`. */
+export function eliminarVersionLista(versionId: string): Promise<void> {
   return pedir<void>(`/api/listas/${id(versionId)}`, { method: "DELETE" });
 }
 
@@ -144,4 +143,26 @@ export function nuevaVersion(
       body: JSON.stringify({ anio_lectivo: anioLectivo }),
     },
   );
+}
+
+/** POST — "son distintos": el aviso no aplica y no vuelve a salir. */
+export function descartarAviso(versionId: string, itemId: string, clave: string): Promise<void> {
+  return pedir<void>(`/api/listas/${id(versionId)}/avisos/descartar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ item_id: itemId, clave }),
+  });
+}
+
+/** POST — "es el mismo": publica una version nueva con el renglon como "no se compra". */
+export function noComprarRepetido(
+  versionId: string,
+  itemId: string,
+  repiteA: number,
+): Promise<{ version_id: string }> {
+  return pedir<{ version_id: string }>(`/api/listas/${id(versionId)}/items/${id(itemId)}/no-comprar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ repite_a: repiteA }),
+  });
 }

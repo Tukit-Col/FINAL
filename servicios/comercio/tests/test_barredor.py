@@ -16,9 +16,12 @@ import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine
 from tukit_comercio import barredor
+from tukit_comercio.dominio.saga import TTL_RESERVA
 from tukit_comercio.modelos import Base, EstadoPedido, Pedido, ReservaInventario
 
 AHORA = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+# El TTL por omision, en minutos: las edades se miden contra el, no contra un numero fijo.
+_TTL_MIN = int(TTL_RESERVA.total_seconds() // 60)
 
 
 @pytest_asyncio.fixture
@@ -67,7 +70,7 @@ async def _estados(motor, pid):
 
 async def test_libera_reserva_vieja_sin_pagar_y_cancela_el_pedido(motor):
     pid = await _pedido_con_reserva(
-        motor, edad_min=31, pedido_estado="pendiente_pago", reserva_estado="activa"
+        motor, edad_min=_TTL_MIN + 1, pedido_estado="pendiente_pago", reserva_estado="activa"
     )
 
     n = await barredor.pasada(motor, ahora=AHORA, limite=100)
@@ -78,7 +81,7 @@ async def test_libera_reserva_vieja_sin_pagar_y_cancela_el_pedido(motor):
 
 async def test_no_toca_reserva_reciente(motor):
     pid = await _pedido_con_reserva(
-        motor, edad_min=29, pedido_estado="pendiente_pago", reserva_estado="activa"
+        motor, edad_min=_TTL_MIN - 1, pedido_estado="pendiente_pago", reserva_estado="activa"
     )
 
     assert await barredor.pasada(motor, ahora=AHORA) == 0
@@ -86,7 +89,9 @@ async def test_no_toca_reserva_reciente(motor):
 
 
 async def test_no_toca_reserva_de_pedido_pagado(motor):
-    pid = await _pedido_con_reserva(motor, edad_min=99, pedido_estado="pagado", reserva_estado="activa")
+    pid = await _pedido_con_reserva(
+        motor, edad_min=_TTL_MIN * 2, pedido_estado="pagado", reserva_estado="activa"
+    )
 
     assert await barredor.pasada(motor, ahora=AHORA) == 0
     assert await _estados(motor, pid) == ("pagado", "activa")

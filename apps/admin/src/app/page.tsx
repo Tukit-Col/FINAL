@@ -9,7 +9,7 @@
 //
 // Cada grupo se lee por separado y con su propio try/catch: si un servicio está
 // caído, se cae SU sección con un aviso honesto, no el panel entero. Es la misma
-// degradación que el resto del sistema (ver `arquitectura/REVISION_ARQUITECTURA.md`).
+// degradación que el resto del sistema (ver `docs/arquitectura/REVISION_ARQUITECTURA.md`).
 //
 // La traza de calidad por día no se calcula aquí: la congela `make
 // instantanea-metricas` en `operacion.metrica_diaria`, una foto por sesión. La
@@ -38,8 +38,9 @@ import {
   type MetricasColegio,
   type PuntoMetrica,
 } from "@tukit/contrato";
-import { origenDeDatos } from "@tukit/contrato/servidor";
+import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import Revelar from "@/components/Revelar";
+import { tokenDeSesion } from "@/lib/sesion";
 import styles from "./Panel.module.css";
 
 export const dynamic = "force-dynamic";
@@ -68,13 +69,17 @@ function fechaCorta(iso: string): string {
 
 export default async function PaginaPanel() {
   const api = origenDeDatos();
+  // Los pedidos son solo de operador/admin: comercio exige la sesion. Sin
+  // cookie ni se pregunta; un 401/403 se pinta como "sin permiso", no como
+  // servicio caido, porque el arreglo es otro (entrar, o pedir el rol).
+  const token = await tokenDeSesion();
 
   // Un solo golpe de lecturas independientes. `allSettled` para que una caída no
   // tumbe a las demás: cada sección decide qué pintar con lo que llegó.
   const [colaR, catalogoR, pedidosR, casosR, colegiosR, serieR] = await Promise.allSettled([
     api.cola(),
     api.catalogo(),
-    api.pedidos(),
+    token ? api.pedidos(token) : Promise.reject(new ErrorTukit(401, "sesion_invalida", "Sin sesion.")),
     api.casos(),
     api.colegios(),
     api.metricasSerie({ dimension: "global" }),
@@ -83,6 +88,10 @@ export default async function PaginaPanel() {
   const cola = colaR.status === "fulfilled" ? colaR.value : null;
   const catalogo = catalogoR.status === "fulfilled" ? catalogoR.value : null;
   const pedidos = pedidosR.status === "fulfilled" ? pedidosR.value : null;
+  const pedidosSinPermiso =
+    pedidosR.status === "rejected" &&
+    pedidosR.reason instanceof ErrorTukit &&
+    (pedidosR.reason.estado === 401 || pedidosR.reason.estado === 403);
   const casos = casosR.status === "fulfilled" ? casosR.value : null;
   const colegios = colegiosR.status === "fulfilled" ? colegiosR.value : null;
   const serie = serieR.status === "fulfilled" ? serieR.value : null;
@@ -97,7 +106,7 @@ export default async function PaginaPanel() {
       acc[e.estado] += 1;
       return acc;
     },
-    { encolado: 0, procesando: 0, espera_revision: 0, publicado: 0, fallido: 0 },
+    { encolado: 0, procesando: 0, espera_revision: 0, publicado: 0, fallido: 0, cancelado: 0 },
   );
   const totalCola = entradas.length || 1;
   const barras: { estado: EstadoTrabajo; etiqueta: string }[] = [
@@ -263,6 +272,8 @@ export default async function PaginaPanel() {
             />
           </section>
         </Revelar>
+      ) : pedidosSinPermiso ? (
+        <SeccionSinPermiso que="los pedidos" />
       ) : (
         <SeccionCaida que="los pedidos (comercio)" />
       )}
@@ -430,6 +441,17 @@ function SeccionCaida({ que }: { que: string }) {
     <p className={styles.caida} role="status">
       <TriangleAlert size={15} strokeWidth={2.2} aria-hidden="true" />
       No pudimos leer {que}. Revisa que el servicio esté arriba (<code className={styles.codigo}>make estado</code>).
+    </p>
+  );
+}
+
+// No es una caida: el servicio respondio, pero esta sesion no puede ver esto
+// (sin sesion, vencida, o sin rol de operador/admin).
+function SeccionSinPermiso({ que }: { que: string }) {
+  return (
+    <p className={styles.caida} role="status">
+      <TriangleAlert size={15} strokeWidth={2.2} aria-hidden="true" />
+      Tu sesión no puede ver {que}: hace falta ingresar con una cuenta de operador o admin.
     </p>
   );
 }

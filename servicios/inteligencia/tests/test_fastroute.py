@@ -68,6 +68,10 @@ def _item_resuelto(
         "instruccion_colegio": kw.get("instruccion_colegio"),
         "url_externa": kw.get("url_externa"),
         "candidatos": candidatos,
+        "atributos_impuestos": kw.get("atributos_impuestos", {}),
+        "atributos_por_revisar": kw.get("atributos_por_revisar", []),
+        "uno_por_estudiante": kw.get("uno_por_estudiante", False),
+        "posible_repetido_de": kw.get("posible_repetido_de"),
     }
 
 
@@ -190,7 +194,7 @@ async def _crear_y_procesar(motor, catalogo, preferencias=None):
 
 
 class TestRutaRapidaVerificada:
-    async def test_no_llama_emparejar_y_arma_tres_kits(self, motor):
+    async def test_no_llama_emparejar_y_arma_ahorrador_y_premium(self, motor):
         catalogo = _catalogo_verificado()
         trabajo_id, estado = await _crear_y_procesar(motor, catalogo)
         vista = await trabajos.ver(motor, trabajo_id, incluir_kits=True)
@@ -198,7 +202,7 @@ class TestRutaRapidaVerificada:
         assert "emparejar" not in catalogo.llamadas
         assert "resueltos" in catalogo.llamadas
         assert estado == EstadoTrabajo.ESPERA_REVISION.value
-        assert {k["perfil"] for k in vista["kits"]} == {"Ahorrador", "Fan", "Premium"}
+        assert {k["perfil"] for k in vista["kits"]} == {"Ahorrador", "Premium"}
 
     async def test_escribe_item_kit_linea_con_referencia_valida(self, motor):
         from sqlalchemy import func, select
@@ -227,7 +231,7 @@ class TestRutaRapidaVerificada:
             )
 
         assert len(item_ids) == 4
-        assert kits == 3
+        assert kits == 2
         assert lineas, "el kit debe tener lineas"
         for fila in lineas:
             assert fila.item_crudo_id in item_ids
@@ -258,6 +262,110 @@ class TestRutaRapidaVerificada:
         assert surtibles, "debe haber resoluciones con concepto"
         assert all(r.estado == EstadoResolucion.RESUELTO_AUTO.value for r in surtibles)
         assert {r.concepto_codigo for r in surtibles} == {"C001", "C009", "C004"}
+
+    async def test_un_concepto_sin_productos_no_tumba_el_trabajo(self, motor):
+        """Lo que paso con la lista de Jardin de CACS: "muda de ropa" (concepto
+        no_comprar, sin productos) y un util de un concepto recien creado sin
+        productos se resolvian RESUELTO_AUTO sin candidato, el CHECK lo rechazaba
+        y el acudiente veia "Algo se rompio" en vez de su kit."""
+        from sqlalchemy import select
+
+        catalogo = _catalogo_verificado()
+        catalogo.items_resueltos += [
+            _item_resuelto(5, "Muda de ropa marcada", "C067", [], tipo_item="no_comprar"),
+            _item_resuelto(6, "1 pliego de papel bond", "C129", []),
+        ]
+        trabajo_id, estado = await _crear_y_procesar(motor, catalogo)
+
+        assert estado == EstadoTrabajo.ESPERA_REVISION.value
+        async with motor.engine.begin() as conexion:
+            por_concepto = {
+                r.concepto_codigo: r.estado
+                for r in await conexion.execute(
+                    select(trabajos.RESOLUCION.c.concepto_codigo, trabajos.RESOLUCION.c.estado)
+                    .select_from(
+                        trabajos.RESOLUCION.join(
+                            trabajos.ITEM, trabajos.ITEM.c.id == trabajos.RESOLUCION.c.item_crudo_id
+                        )
+                    )
+                    .where(trabajos.ITEM.c.trabajo_id == trabajo_id)
+                )
+            }
+        # La muda no se busca en el catalogo: linea informativa, sin resolucion.
+        assert "C067" not in por_concepto
+        assert por_concepto["C129"] == EstadoResolucion.HUECO_CATALOGO.value
+        lineas = (await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"][0]["lineas"]
+        muda = next(linea for linea in lineas if linea["descripcion"].startswith("Muda"))
+        assert muda["informativa"] is True
+
+    async def test_la_resolucion_guarda_lo_exigido_y_explica_el_hueco(self, motor):
+        """Un renglon cuyo atributo exigido no cumple ningun producto llega sin
+        candidatos: es un hueco que dice que pidio, no un concepto vacio."""
+        from sqlalchemy import select
+
+        catalogo = _catalogo_verificado()
+        catalogo.items_resueltos[0]["atributos_impuestos"] = {"rayado": "cuadriculado"}
+        catalogo.items_resueltos += [
+            _item_resuelto(
+                5,
+                "cuaderno ferrocarril",
+                "C001",
+                [],
+                atributos_impuestos={"rayado": "ferrocarril"},
+            ),
+            _item_resuelto(
+                6,
+                "cuaderno rayado o cuadriculado",
+                "C001",
+                [_candidato_dict("TK-C001-ECO", "economico", 4500)],
+                atributos_por_revisar=["rayado"],
+            ),
+        ]
+        trabajo_id, estado = await _crear_y_procesar(motor, catalogo)
+
+        assert estado == EstadoTrabajo.ESPERA_REVISION.value
+        async with motor.engine.begin() as conexion:
+            por_texto = {
+                r.texto: r
+                for r in await conexion.execute(
+                    select(
+                        trabajos.ITEM.c.texto,
+                        trabajos.RESOLUCION.c.estado,
+                        trabajos.RESOLUCION.c.atributos_impuestos,
+                        trabajos.RESOLUCION.c.motivo,
+                    )
+                    .select_from(
+                        trabajos.RESOLUCION.join(
+                            trabajos.ITEM, trabajos.ITEM.c.id == trabajos.RESOLUCION.c.item_crudo_id
+                        )
+                    )
+                    .where(trabajos.ITEM.c.trabajo_id == trabajo_id)
+                )
+            }
+        cuadriculado = por_texto["cuaderno cuadriculado"]
+        assert cuadriculado.estado == EstadoResolucion.RESUELTO_AUTO.value
+        assert cuadriculado.atributos_impuestos == {"rayado": "cuadriculado"}
+
+        ferrocarril = por_texto["cuaderno ferrocarril"]
+        assert ferrocarril.estado == EstadoResolucion.HUECO_CATALOGO.value
+        assert ferrocarril.atributos_impuestos == {"rayado": "ferrocarril"}
+        assert "rayado=ferrocarril" in ferrocarril.motivo
+
+        assert "revisar: rayado" in por_texto["cuaderno rayado o cuadriculado"].motivo
+
+    async def test_una_herramienta_repetida_se_cobra_una_vez(self, motor):
+        catalogo = _catalogo_verificado()
+        tijeras = [_candidato_dict("TK-C013-ECO", "economico", 5800)]
+        catalogo.items_resueltos += [
+            _item_resuelto(5, "Tijeras", "C013", tijeras, uno_por_estudiante=True),
+            _item_resuelto(6, "tijeras", "C013", tijeras, uno_por_estudiante=True, posible_repetido_de=None),
+        ]
+        trabajo_id, _ = await _crear_y_procesar(motor, catalogo)
+        kit = (await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"][0]
+        por_orden = {linea["orden"]: linea for linea in kit["lineas"]}
+        assert por_orden[5]["unidades_a_comprar"] == 1
+        assert por_orden[6]["unidades_a_comprar"] == 0
+        assert "linea 5" in por_orden[6]["mensaje"]
 
     async def test_etapas_ok_con_fuente_lista_verificada(self, motor):
         catalogo = _catalogo_verificado()
@@ -452,11 +560,11 @@ class TestPersonajeLlegaAlFan:
         ahorrador = next(k for k in vista["kits"] if k["perfil"] == "Ahorrador")
         assert all((li.get("producto_elegido") or {}).get("personaje") is None for li in ahorrador["lineas"])
 
-    async def test_sin_personaje_pedido_el_fan_no_pide_ni_trae_personaje(self, motor):
+    async def test_sin_personaje_pedido_no_hay_fan_ni_se_pide_personaje(self, motor):
+        # ADR 0030: el Fan solo se arma si el acudiente pidio un personaje.
         catalogo = _catalogo_realista()
         trabajo_id, _ = await _crear_y_procesar(motor, catalogo, preferencias={})
         vista = await trabajos.ver(motor, trabajo_id, incluir_kits=True)
 
         assert "producto_de_personaje" not in catalogo.llamadas
-        fan = next(k for k in vista["kits"] if k["perfil"] == "Fan")
-        assert all((li.get("producto_elegido") or {}).get("personaje") is None for li in fan["lineas"])
+        assert all(k["perfil"] != "Fan" for k in vista["kits"])

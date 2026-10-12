@@ -4,9 +4,11 @@ El §9 del contrato dice que la integracion vive tras un puerto `PasarelaPago`
 con adaptador falso para las pruebas, y aqui esta el puerto. Tres cosas hace
 una pasarela desde la vista de Comercio, y ninguna mas:
 
-- **crear_transaccion**: manda a cobrar y devuelve la referencia con la que el
-  webhook la va a encontrar mas tarde. En Wompi la transaccion nace SIEMPRE en
-  PENDIENTE; nunca se aprueba sincronica.
+- **crear_transaccion**: arma el cobro y devuelve la referencia con la que el
+  webhook la va a encontrar mas tarde. En Wompi (solo sandbox) no se llama a
+  ninguna API: se firman los datos del widget de Wompi, que el navegador abre
+  en un modal sin salir de Tukit; la transaccion nace SIEMPRE en PENDIENTE y
+  nunca se aprueba sincronica.
 - **verificar_firma**: dado el cuerpo crudo de un webhook, dice si de verdad lo
   firmo Wompi. Es lo unico que separa un cobro real de uno inventado, asi que
   un evento con firma que no cuadra se ignora.
@@ -14,16 +16,17 @@ una pasarela desde la vista de Comercio, y ninguna mas:
   (SG-03): el id del evento —para el candado de idempotencia—, la referencia,
   el id de transaccion y el estado ya traducido al vocabulario de `EstadoPago`.
 
-Ni una tarjeta, ni un `acceptance_token`, ni un dato de contacto se guardan:
-entran, viajan a Wompi y se olvidan. Las llaves salen del entorno y NUNCA del
+Ni una tarjeta ni un dato de contacto se guardan: el acudiente los digita en
+el widget de Wompi y aqui nunca se ven. Las llaves salen del entorno y NUNCA del
 codigo (`WOMPI_MODO`, `WOMPI_LLAVE_*`, `WOMPI_SECRETO_*`), mismo idioma que
-`cifrador_desde_entorno` de Identidad.
+`cifrador_desde_entorno` de Identidad. En modo sandbox solo se aceptan llaves
+de prueba (`pub_test_`, `prv_test_`, `test_events_`, `test_integrity_`).
 
 Las formulas de firma estan verificadas contra docs.wompi.co (Colombia):
 
 - Firma de integridad = SHA256("<referencia><monto_centavos><moneda><secreto>")
-  en hexadecimal. El monto va en CENTAVOS. Es lo que autentica el POST de
-  creacion.
+  en hexadecimal. El monto va en CENTAVOS. Es lo que autentica los datos del
+  widget (`signature.integrity`).
 - Firma del evento (webhook) = SHA256 de, en orden, los valores de los campos
   que el propio evento nombra en `signature.properties` (leidos de `data`),
   luego el `timestamp` (entero UNIX), y de ULTIMO el secreto de eventos. Se
@@ -36,6 +39,7 @@ import hashlib
 import os
 from dataclasses import dataclass, field
 from typing import Any, Protocol
+from urllib.parse import urljoin
 
 import httpx
 
@@ -58,6 +62,18 @@ _ESTADO_WOMPI = {
     "PENDING": EstadoPago.INICIADO,
 }
 
+# El `payment_method_type` de Wompi traducido a los medios de Tukit; otro valor
+# no se adivina y queda en `None`.
+_METODO_WOMPI = {"CARD": "tarjeta", "PSE": "pse", "NEQUI": "nequi"}
+
+
+class PasarelaCaida(Exception):
+    """La pasarela no respondio bien (red caida o 5xx): reintentar mas tarde."""
+
+
+class TransaccionNoExiste(Exception):
+    """La pasarela no conoce esa transaccion."""
+
 
 @dataclass(frozen=True)
 class TransaccionCreada:
@@ -69,6 +85,9 @@ class TransaccionCreada:
     # A donde mandar al acudiente para completar el pago, cuando la pasarela lo
     # da. `None` en flujos que no redirigen.
     url_redireccion: str | None = None
+    # Lo que el navegador le pasa a `new WidgetCheckout({...})` de Wompi para
+    # abrir el pago en un modal sin salir de Tukit. `None` si no hay widget.
+    widget: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -79,6 +98,8 @@ class EventoPasarela:
     referencia: str | None
     transaccion_id: str | None
     estado: EstadoPago
+    monto_centavos: int | None = None
+    metodo: str | None = None
 
 
 class PasarelaPago(Protocol):
@@ -94,6 +115,10 @@ class PasarelaPago(Protocol):
         url_redireccion: str | None = None,
     ) -> TransaccionCreada: ...
 
+    async def consultar_transaccion(self, transaccion_id: str) -> EventoPasarela: ...
+
+    async def consultar_por_referencia(self, referencia: str) -> EventoPasarela | None: ...
+
     def verificar_firma(self, evento: dict[str, Any]) -> bool: ...
 
     def parsear_evento(self, evento: dict[str, Any]) -> EventoPasarela: ...
@@ -107,6 +132,22 @@ def _traducir_estado(estado_wompi: str | None) -> EstadoPago:
     return _ESTADO_WOMPI.get((estado_wompi or "").upper(), EstadoPago.INICIADO)
 
 
+def _evento_desde_transaccion(transaccion: dict[str, Any]) -> EventoPasarela:
+    """Reduce una transaccion de Wompi a lo que se persiste. La clave de
+    idempotencia es `<transaccion>:<ESTADO>`: cada cambio de estado cuenta una
+    vez, pero un reenvio del mismo estado no."""
+    transaccion_id = transaccion.get("id")
+    estado_wompi = str(transaccion.get("status") or "")
+    return EventoPasarela(
+        evento_id=f"{transaccion_id or ''}:{estado_wompi.upper()}",
+        referencia=transaccion.get("reference"),
+        transaccion_id=transaccion_id,
+        estado=_traducir_estado(estado_wompi),
+        monto_centavos=transaccion.get("amount_in_cents"),
+        metodo=_METODO_WOMPI.get(str(transaccion.get("payment_method_type") or "").upper()),
+    )
+
+
 def firma_integridad(referencia: str, monto_centavos: int, secreto: str, moneda: str = MONEDA) -> str:
     """SHA256(referencia + monto_centavos + moneda + secreto). Monto en CENTAVOS.
 
@@ -114,6 +155,41 @@ def firma_integridad(referencia: str, monto_centavos: int, secreto: str, moneda:
     contra un vector conocido sin levantar la pasarela entera.
     """
     return _sha256(f"{referencia}{monto_centavos}{moneda}{secreto}")
+
+
+def datos_widget(
+    *,
+    llave_publica: str,
+    referencia: str,
+    monto_centavos: int,
+    secreto_integridad: str,
+    correo: str,
+    url_redireccion: str | None = None,
+) -> dict[str, Any]:
+    """Las opciones de `new WidgetCheckout({...})`, con los nombres de Wompi.
+
+    Se arman aqui y no en el navegador porque la firma de integridad necesita el
+    secreto, que nunca sale del servidor. Sin red.
+
+    `redirectUrl` hace falta para PSE: el banco se lleva la pestana entera, el
+    modal y su callback se pierden, y solo con `redirectUrl` el comprobante de
+    Wompi devuelve al acudiente a Tukit. Wompi acepta localhost como retorno,
+    pero su CDN responde 403 si `redirect-url` va en una URL: el navegador abre
+    el widget con `bootstrapTransport: "postmessage"` (apps/web/src/lib/wompi.ts)
+    para que la configuracion viaje por mensaje y no en la URL del iframe.
+    Con tarjeta o Nequi el modal sigue vivo y manda el callback.
+    """
+    datos: dict[str, Any] = {
+        "publicKey": llave_publica,
+        "currency": MONEDA,
+        "amountInCents": monto_centavos,
+        "reference": referencia,
+        "signature": {"integrity": firma_integridad(referencia, monto_centavos, secreto_integridad)},
+        "customerData": {"email": correo},
+    }
+    if url_redireccion:
+        datos["redirectUrl"] = url_redireccion
+    return datos
 
 
 def firma_evento(evento: dict[str, Any], secreto: str) -> str:
@@ -152,9 +228,9 @@ def _valor_por_ruta(datos: dict[str, Any], ruta: str) -> Any:
 class WompiSandbox:
     """Adaptador real contra Wompi. Las llaves salen del entorno.
 
-    Se inyecta un `cliente` httpx en las pruebas de integracion para no salir a
-    la red; en produccion abre el suyo por llamada. No guarda nada: es un puente
-    de ida (crear) y de verificacion (webhook).
+    Crear es puro (firma los datos del widget). El `cliente` httpx queda para
+    las consultas a la API de Wompi; se inyecta en las pruebas para no salir a
+    la red. No guarda nada.
     """
 
     llave_publica: str = ""
@@ -173,51 +249,22 @@ class WompiSandbox:
         metodo: str,
         url_redireccion: str | None = None,
     ) -> TransaccionCreada:
-        propio = self.cliente is None
-        cliente = self.cliente or httpx.AsyncClient(timeout=ESPERA_SEGUNDOS)
-        try:
-            token = await self._token_aceptacion(cliente)
-            cuerpo: dict[str, Any] = {
-                "acceptance_token": token,
-                "amount_in_cents": monto_centavos,
-                "currency": MONEDA,
-                "customer_email": correo_cliente,
-                "reference": referencia,
-                "signature": firma_integridad(referencia, monto_centavos, self.secreto_integridad),
-            }
-            if url_redireccion:
-                cuerpo["redirect_url"] = url_redireccion
-            respuesta = await cliente.post(
-                f"{self.base}/transactions",
-                headers={"Authorization": f"Bearer {self.llave_privada}"},
-                json=cuerpo,
-            )
-            respuesta.raise_for_status()
-            datos = respuesta.json().get("data") or {}
-            return TransaccionCreada(
+        # No hay llamada a Wompi: el navegador abre el widget con estos datos
+        # firmados. El id de transaccion llega despues, en el callback del
+        # widget (que lo manda a sincronizar) o por el webhook.
+        return TransaccionCreada(
+            referencia=referencia,
+            transaccion_id=None,
+            estado=EstadoPago.INICIADO,
+            widget=datos_widget(
+                llave_publica=self.llave_publica,
                 referencia=referencia,
-                transaccion_id=datos.get("id"),
-                estado=_traducir_estado(datos.get("status")),
-                url_redireccion=datos.get("redirect_url") or url_redireccion,
-            )
-        finally:
-            if propio:
-                await cliente.aclose()
-
-    async def _token_aceptacion(self, cliente: httpx.AsyncClient) -> str:
-        """El `acceptance_token` que la creacion de transaccion exige.
-
-        Sale de `GET /merchants/info` con la llave publica en cabecera; es lo
-        que representa la aceptacion de los terminos y no se guarda.
-        """
-        respuesta = await cliente.get(
-            f"{self.base}/merchants/info",
-            headers={"x-merchant-public-key": self.llave_publica},
+                monto_centavos=monto_centavos,
+                secreto_integridad=self.secreto_integridad,
+                correo=correo_cliente,
+                url_redireccion=url_redireccion,
+            ),
         )
-        respuesta.raise_for_status()
-        datos = respuesta.json().get("data") or {}
-        presigned = datos.get("presigned_acceptance") or {}
-        return presigned.get("acceptance_token", "")
 
     def verificar_firma(self, evento: dict[str, Any]) -> bool:
         firma = evento.get("signature") or {}
@@ -229,13 +276,81 @@ class WompiSandbox:
 
     def parsear_evento(self, evento: dict[str, Any]) -> EventoPasarela:
         datos = evento.get("data") or {}
-        transaccion = datos.get("transaction") or {}
-        return EventoPasarela(
-            evento_id=str(evento.get("id") or evento.get("event_id") or transaccion.get("id") or ""),
-            referencia=transaccion.get("reference"),
-            transaccion_id=transaccion.get("id"),
-            estado=_traducir_estado(transaccion.get("status")),
-        )
+        return _evento_desde_transaccion(datos.get("transaction") or {})
+
+    async def consultar_transaccion(self, transaccion_id: str) -> EventoPasarela:
+        """GET publico a `/transactions/{id}`: la fuente de verdad al regreso."""
+        propio = self.cliente is None
+        cliente = self.cliente or httpx.AsyncClient(timeout=ESPERA_SEGUNDOS)
+        try:
+            respuesta = await cliente.get(f"{self.base}/transactions/{transaccion_id}")
+        except httpx.HTTPError as exc:
+            raise PasarelaCaida(f"Wompi no responde: {exc}") from exc
+        finally:
+            if propio:
+                await cliente.aclose()
+        if 400 <= respuesta.status_code < 500:
+            # Cualquier 4xx (404, 422...) es "esa transaccion no existe" para nosotros.
+            raise TransaccionNoExiste(transaccion_id)
+        if respuesta.status_code >= 500:
+            raise PasarelaCaida(f"Wompi respondio {respuesta.status_code}")
+        try:
+            transaccion = respuesta.json()["data"]
+            moneda = transaccion.get("currency")
+            comercio = transaccion.get("merchant")
+        except (ValueError, KeyError, TypeError, AttributeError) as exc:
+            raise PasarelaCaida("Wompi devolvio una respuesta ilegible") from exc
+        # El GET es publico: cualquier comercio podria crear una transaccion con
+        # nuestra referencia. Se exige la moneda y, si Wompi dice de que comercio
+        # es, que sea el nuestro. En produccion esta verificacion del comercio debe
+        # ser obligatoria, y el campo `merchant.public_key` hay que confirmarlo en
+        # el primer pago real de sandbox (aqui, si falta, se acepta).
+        if moneda != MONEDA:
+            raise TransaccionNoExiste(transaccion_id)
+        if (
+            isinstance(comercio, dict)
+            and "public_key" in comercio
+            and comercio["public_key"] != self.llave_publica
+        ):
+            raise TransaccionNoExiste(transaccion_id)
+        try:
+            return _evento_desde_transaccion(transaccion)
+        except (ValueError, KeyError, TypeError) as exc:
+            raise PasarelaCaida("Wompi devolvio una respuesta ilegible") from exc
+
+    async def consultar_por_referencia(self, referencia: str) -> EventoPasarela | None:
+        """La transaccion mas reciente con esa referencia, o `None` si no hay.
+
+        Se usa antes de cancelar un pedido: un PSE puede estar en curso o ya
+        aprobado sin que Tukit lo sepa (el acudiente no volvio). Con la llave
+        privada Wompi solo devuelve transacciones de ESTE comercio, asi que aqui
+        no hace falta verificar de quien es.
+        """
+        propio = self.cliente is None
+        cliente = self.cliente or httpx.AsyncClient(timeout=ESPERA_SEGUNDOS)
+        try:
+            respuesta = await cliente.get(
+                f"{self.base}/transactions",
+                params={"reference": referencia},
+                headers={"Authorization": f"Bearer {self.llave_privada}"},
+            )
+        except httpx.HTTPError as exc:
+            raise PasarelaCaida(f"Wompi no responde: {exc}") from exc
+        finally:
+            if propio:
+                await cliente.aclose()
+        if respuesta.status_code >= 400:
+            # Sin poder saber si hay un pago en curso no se cancela nada.
+            raise PasarelaCaida(f"Wompi respondio {respuesta.status_code}")
+        try:
+            transacciones = list(respuesta.json()["data"])
+        except (ValueError, KeyError, TypeError) as exc:
+            raise PasarelaCaida("Wompi devolvio una respuesta ilegible") from exc
+        if not transacciones:
+            return None
+        # ISO 8601 en UTC: el orden de texto es el orden de tiempo.
+        reciente = max(transacciones, key=lambda t: str(t.get("created_at") or ""))
+        return _evento_desde_transaccion(reciente)
 
 
 @dataclass
@@ -251,6 +366,10 @@ class PasarelaFalsa:
     secreto_integridad: str = "test_integrity_falso"
     # Registro de lo creado, para que una prueba compruebe que se llamo.
     creadas: list[TransaccionCreada] = field(default_factory=list)
+    # Monto en centavos por referencia, para la pagina de pago simulado.
+    montos: dict[str, int] = field(default_factory=dict)
+    # Lo que "Wompi" diria al buscar por referencia; lo fija una prueba.
+    resultados: dict[str, str] = field(default_factory=dict)
     _contador: int = 0
 
     async def crear_transaccion(
@@ -272,8 +391,11 @@ class PasarelaFalsa:
             referencia=referencia,
             transaccion_id=f"falsa-{self._contador}",
             estado=EstadoPago.INICIADO,
-            url_redireccion=None,
+            url_redireccion=(
+                urljoin(url_redireccion, "/pago/simulado") + f"?ref={referencia}" if url_redireccion else None
+            ),
         )
+        self.montos[referencia] = monto_centavos
         self.creadas.append(creada)
         return creada
 
@@ -283,7 +405,9 @@ class PasarelaFalsa:
         referencia: str,
         transaccion_id: str,
         estado_wompi: str,
+        monto_centavos: int,
         timestamp: int = 1_700_000_000,
+        metodo_wompi: str | None = None,
     ) -> dict[str, Any]:
         """Un webhook con la MISMA forma y firma que mandaria Wompi.
 
@@ -296,16 +420,23 @@ class PasarelaFalsa:
                 "id": transaccion_id,
                 "reference": referencia,
                 "status": estado_wompi,
-                "amount_in_cents": 0,
+                "amount_in_cents": monto_centavos,
             }
         }
+        if metodo_wompi is not None:
+            # Informativo: no entra en las propiedades firmadas.
+            datos["transaction"]["payment_method_type"] = metodo_wompi
         evento: dict[str, Any] = {
             "id": f"evt-{transaccion_id}",
             "event": "transaction.updated",
             "timestamp": timestamp,
             "data": datos,
             "signature": {
-                "properties": ["transaction.id", "transaction.status"],
+                "properties": [
+                    "transaction.id",
+                    "transaction.status",
+                    "transaction.amount_in_cents",
+                ],
             },
         }
         evento["signature"]["checksum"] = firma_evento(evento, self.secreto_eventos)
@@ -320,13 +451,43 @@ class PasarelaFalsa:
 
     def parsear_evento(self, evento: dict[str, Any]) -> EventoPasarela:
         datos = evento.get("data") or {}
-        transaccion = datos.get("transaction") or {}
-        return EventoPasarela(
-            evento_id=str(evento.get("id") or ""),
-            referencia=transaccion.get("reference"),
-            transaccion_id=transaccion.get("id"),
-            estado=_traducir_estado(transaccion.get("status")),
+        return _evento_desde_transaccion(datos.get("transaction") or {})
+
+    async def consultar_transaccion(self, transaccion_id: str) -> EventoPasarela:
+        """Descompone `falsa-<ESTADO>-<referencia>`; el monto sale de `montos`."""
+        partes = transaccion_id.split("-", 2)
+        if len(partes) != 3 or partes[0] != "falsa" or partes[1] not in _ESTADO_WOMPI:
+            raise TransaccionNoExiste(transaccion_id)
+        _, estado_wompi, referencia = partes
+        if referencia not in self.montos:
+            raise TransaccionNoExiste(transaccion_id)
+        return _evento_desde_transaccion(
+            {
+                "id": transaccion_id,
+                "reference": referencia,
+                "status": estado_wompi,
+                "amount_in_cents": self.montos[referencia],
+                "payment_method_type": "PSE",
+            }
         )
+
+    def fijar_resultado(self, referencia: str, estado_wompi: str) -> None:
+        """Simula que en Wompi existe una transaccion con esa referencia."""
+        self.resultados[referencia] = estado_wompi
+
+    async def consultar_por_referencia(self, referencia: str) -> EventoPasarela | None:
+        estado_wompi = self.resultados.get(referencia)
+        if estado_wompi is None:
+            return None
+        return await self.consultar_transaccion(f"falsa-{estado_wompi}-{referencia}")
+
+
+_PREFIJOS_PRUEBA = {
+    "WOMPI_LLAVE_PUBLICA": "pub_test_",
+    "WOMPI_LLAVE_PRIVADA": "prv_test_",
+    "WOMPI_SECRETO_EVENTOS": "test_events_",
+    "WOMPI_SECRETO_INTEGRIDAD": "test_integrity_",
+}
 
 
 def pasarela_desde_entorno() -> PasarelaPago:
@@ -334,7 +495,9 @@ def pasarela_desde_entorno() -> PasarelaPago:
 
     `sandbox` exige las cuatro llaves en el entorno y falla ruidoso si falta
     alguna: una pasarela a medio configurar que cobrara de verdad es peor que
-    uno que no arranca. `falso` (por omision) no toca la red.
+    uno que no arranca. Ademas exige que cada llave tenga el prefijo de prueba
+    (`pub_test_`, `prv_test_`, `test_events_`, `test_integrity_`). `falso` (por
+    omision) no toca la red; cualquier otro modo es un error ruidoso.
     """
     modo = os.environ.get("WOMPI_MODO", "falso").strip().lower()
     if modo == "sandbox":
@@ -352,12 +515,20 @@ def pasarela_desde_entorno() -> PasarelaPago:
             raise RuntimeError(
                 "WOMPI_MODO=sandbox exige las llaves en el entorno; faltan: " + ", ".join(faltan)
             )
+        for nombre, prefijo in _PREFIJOS_PRUEBA.items():
+            if not os.environ[nombre].startswith(prefijo):
+                raise RuntimeError(
+                    f"{nombre} no es una llave de prueba (debe empezar por {prefijo}); "
+                    "esta rama solo opera en sandbox"
+                )
         return WompiSandbox(
             llave_publica=os.environ["WOMPI_LLAVE_PUBLICA"],
             llave_privada=os.environ["WOMPI_LLAVE_PRIVADA"],
             secreto_eventos=os.environ["WOMPI_SECRETO_EVENTOS"],
             secreto_integridad=os.environ["WOMPI_SECRETO_INTEGRIDAD"],
         )
+    if modo != "falso":
+        raise RuntimeError(f"WOMPI_MODO={modo!r} no es valido; usa 'falso' o 'sandbox'")
     return PasarelaFalsa()
 
 
@@ -365,11 +536,14 @@ __all__ = [
     "PasarelaPago",
     "TransaccionCreada",
     "EventoPasarela",
+    "PasarelaCaida",
+    "TransaccionNoExiste",
     "WompiSandbox",
     "PasarelaFalsa",
     "pasarela_desde_entorno",
     "firma_integridad",
     "firma_evento",
+    "datos_widget",
     "URL_SANDBOX",
     "URL_PRODUCCION",
 ]

@@ -21,6 +21,7 @@ import type { CandidatoTienda, Nivel } from "@tukit/contrato";
 import { buscarEnTienda, altaUtil, altaUtilManual, FalloCatalogo } from "@/lib/api-catalogo";
 import type { OpcionConcepto } from "./PanelReclasificar";
 import type { OpcionTienda } from "./SeccionesCatalogo";
+import Desplegable from "./Desplegable";
 import styles from "./CatalogoSpa.module.css";
 
 // Los slugs que el backend acepta para búsqueda en vivo (`tiendas.buscar`):
@@ -38,13 +39,22 @@ interface Props {
   // Las tiendas registradas, para el modo manual (elegir o escribir un slug).
   tiendas: OpcionTienda[];
   onEncolado: () => void;
+  /** Concepto y búsqueda ya puestos, cuando se llega desde un aviso de una lista. */
+  conceptoInicial?: string;
+  consultaInicial?: string;
 }
 
-export default function AltaUtil({ conceptos, tiendas, onEncolado }: Props) {
+export default function AltaUtil({
+  conceptos,
+  tiendas,
+  onEncolado,
+  conceptoInicial,
+  consultaInicial,
+}: Props) {
   const [modo, setModo] = useState<Modo>("buscar");
 
   // Comunes a los dos modos.
-  const [concepto, setConcepto] = useState("");
+  const [concepto, setConcepto] = useState(conceptoInicial ?? "");
   const [nivel, setNivel] = useState<Nivel>("confiable");
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
@@ -52,7 +62,7 @@ export default function AltaUtil({ conceptos, tiendas, onEncolado }: Props) {
 
   // Modo buscar.
   const [slug, setSlug] = useState(TIENDAS_BUSCABLES[0]!.slug);
-  const [consulta, setConsulta] = useState("");
+  const [consulta, setConsulta] = useState(consultaInicial ?? "");
   const [candidatos, setCandidatos] = useState<CandidatoTienda[]>([]);
   const [buscando, setBuscando] = useState(false);
   const [elegido, setElegido] = useState<CandidatoTienda | null>(null);
@@ -170,13 +180,14 @@ export default function AltaUtil({ conceptos, tiendas, onEncolado }: Props) {
           <div className={styles.buscadorFila}>
             <div className={styles.campo}>
               <label htmlFor="au-tienda">Tienda</label>
-              <select id="au-tienda" value={slug} onChange={(e) => setSlug(e.target.value)}>
-                {TIENDAS_BUSCABLES.map((t) => (
-                  <option key={t.slug} value={t.slug}>
-                    {t.nombre}
-                  </option>
-                ))}
-              </select>
+              <Desplegable
+                id="au-tienda"
+                tamano="compacto"
+                buscable={TIENDAS_BUSCABLES.length > 12}
+                opciones={TIENDAS_BUSCABLES.map((t) => ({ valor: t.slug, texto: t.nombre }))}
+                valor={slug}
+                onCambio={setSlug}
+              />
             </div>
             <div className={`${styles.campo} ${styles.campoBusqueda}`}>
               <label htmlFor="au-consulta">Buscar</label>
@@ -262,28 +273,25 @@ export default function AltaUtil({ conceptos, tiendas, onEncolado }: Props) {
               <div className={styles.acciones} style={{ border: "none", padding: 0 }}>
                 <div className={styles.campo}>
                   <label htmlFor="au-concepto">Concepto</label>
-                  <select
+                  <Desplegable
                     id="au-concepto"
-                    value={concepto}
-                    onChange={(e) => setConcepto(e.target.value)}
-                  >
-                    <option value="">— elegir concepto —</option>
-                    {conceptos.map((op) => (
-                      <option key={op.codigo} value={op.codigo}>
-                        {op.nombre}
-                      </option>
-                    ))}
-                  </select>
+                    tamano="compacto"
+                    buscable
+                    textoVacio="— elegir concepto —"
+                    opciones={conceptos.map((op) => ({ valor: op.codigo, texto: op.nombre }))}
+                    valor={concepto}
+                    onCambio={setConcepto}
+                  />
                 </div>
                 <label className={styles.bandera}>
                   Nivel sugerido
-                  <select value={nivel} onChange={(e) => setNivel(e.target.value as Nivel)}>
-                    {NIVELES.map((n) => (
-                      <option key={n} value={n}>
-                        {ETIQUETA_NIVEL[n]}
-                      </option>
-                    ))}
-                  </select>
+                  <Desplegable
+                    tamano="compacto"
+                    enLinea
+                    opciones={NIVELES.map((n) => ({ valor: n, texto: ETIQUETA_NIVEL[n] }))}
+                    valor={nivel}
+                    onCambio={(v) => setNivel(v as Nivel)}
+                  />
                 </label>
                 <button
                   type="button"
@@ -364,33 +372,26 @@ export default function AltaUtil({ conceptos, tiendas, onEncolado }: Props) {
 
             <div className={styles.campo}>
               <label htmlFor="aum-concepto">Concepto</label>
-              <select
+              <Desplegable
                 id="aum-concepto"
-                value={concepto}
-                onChange={(e) => setConcepto(e.target.value)}
-              >
-                <option value="">— elegir concepto —</option>
-                {conceptos.map((op) => (
-                  <option key={op.codigo} value={op.codigo}>
-                    {op.nombre}
-                  </option>
-                ))}
-              </select>
+                tamano="compacto"
+                buscable
+                textoVacio="— elegir concepto —"
+                opciones={conceptos.map((op) => ({ valor: op.codigo, texto: op.nombre }))}
+                valor={concepto}
+                onCambio={setConcepto}
+              />
             </div>
 
             <div className={styles.campo}>
               <label htmlFor="aum-nivel">Nivel sugerido</label>
-              <select
+              <Desplegable
                 id="aum-nivel"
-                value={nivel}
-                onChange={(e) => setNivel(e.target.value as Nivel)}
-              >
-                {NIVELES.map((n) => (
-                  <option key={n} value={n}>
-                    {ETIQUETA_NIVEL[n]}
-                  </option>
-                ))}
-              </select>
+                tamano="compacto"
+                opciones={NIVELES.map((n) => ({ valor: n, texto: ETIQUETA_NIVEL[n] }))}
+                valor={nivel}
+                onCambio={(v) => setNivel(v as Nivel)}
+              />
             </div>
           </div>
 

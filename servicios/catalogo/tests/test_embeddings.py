@@ -153,6 +153,19 @@ class TestLaFusionNoRompeLaCabezaAnclada:
         _i, _n, hibrido = clasificar(renglon, [exacto], embedding_renglon=consulta)
         assert hibrido <= 1.0
 
+    def test_un_coseno_negativo_no_resta(self):
+        # Hibrido >= lexico tiene que valer sin suponer nada del modelo. Con el
+        # de produccion los cosenos medidos nunca bajan de 0.43, pero un modelo
+        # distinto puede dar negativos, y entonces `0.15 * cos` restaba: el
+        # canal semantico hundia un match que el lexico acertaba.
+        renglon = "pompones de colores para manualidades"
+        (consulta,) = embeder_falso([renglon])
+        opuestos = [{**c, "embedding": [-x for x in consulta]} for c in CATALOGO]
+        _i, nombre_lexico, solo_lexico = clasificar(renglon, opuestos)
+        _i, nombre, hibrido = clasificar(renglon, opuestos, embedding_renglon=consulta)
+        assert nombre == nombre_lexico
+        assert hibrido >= solo_lexico
+
 
 class TestElRescateSemanticoLevantaLoQueElLexicoNoVe:
     """Un sinonimo que no esta en la lista de sinonimos. El lexico da 0 porque

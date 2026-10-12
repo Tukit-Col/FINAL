@@ -112,7 +112,7 @@ def _cuerpo(**kw):
 
 
 class TestPreviewFeliz:
-    async def test_arma_tres_kits_por_la_ruta_lenta(self, cliente, catalogo, motor):
+    async def test_arma_ahorrador_y_premium_por_la_ruta_lenta(self, cliente, catalogo, motor):
         respuesta = await cliente.post(f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo())
 
         assert respuesta.status_code == 200
@@ -127,7 +127,7 @@ class TestPreviewFeliz:
         vista = await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")
         assert vista.status_code == 200
         kits = vista.json()["kits"]
-        assert {k["perfil"] for k in kits} == {"Ahorrador", "Fan", "Premium"}
+        assert {k["perfil"] for k in kits} == {"Ahorrador", "Premium"}
 
     async def test_el_trabajo_lleva_origen_preview(self, cliente, catalogo):
         respuesta = await cliente.post(f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo())
@@ -194,7 +194,7 @@ class TestPreviewNoEsFireAndForget:
         respuesta = await cliente.post(f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo())
         trabajo_id = respuesta.json()["trabajo_id"]
         vista = await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")
-        assert len(vista.json()["kits"]) == 3
+        assert len(vista.json()["kits"]) == 2
 
     async def test_propaga_estado_fallido_si_no_hay_renglones(self, motor):
         # Una version vigente pero cuya lista no trae items: la ruta lenta cae

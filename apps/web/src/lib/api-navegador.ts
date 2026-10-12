@@ -6,14 +6,18 @@
 
 import type {
   AplicarCanonico,
+  CambioDeProducto,
   CasoCreado,
   Checkout,
   Contacto,
   ErrorApi,
   HijoNuevo,
   HijoSubida,
+  PagoIniciado,
+  Pedido,
   Preferencias,
   RegistroAcudiente,
+  ResultadoPago,
   SolicitudCaso,
   SolicitudCheckout,
   SolicitudTrabajo,
@@ -92,6 +96,29 @@ export async function aplicarCanonico(cuerpo: AplicarCanonico): Promise<TrabajoA
  * + correo + dirección; el backend arma la orden en Comercio y devuelve la url
  * de la pasarela a la que redirigir. No viaja ningún id de producto.
  */
+/**
+ * El acudiente cambia un producto de su kit por el sugerido o una de sus
+ * alternativas. El total se recalcula en el servidor: después hay que volver
+ * a leer el trabajo (`router.refresh()`).
+ */
+export async function cambiarProductoDeKit(
+  trabajoId: string,
+  perfil: string,
+  itemId: string,
+  sku: string,
+): Promise<CambioDeProducto> {
+  const ruta =
+    `/api/trabajos/${encodeURIComponent(trabajoId)}/kits/${encodeURIComponent(perfil)}` +
+    `/lineas/${encodeURIComponent(itemId)}/producto`;
+  return leer<CambioDeProducto>(
+    await fetch(ruta, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sku }),
+    }),
+  );
+}
+
 export async function iniciarCheckout(
   trabajoId: string,
   cuerpo: SolicitudCheckout,
@@ -102,6 +129,80 @@ export async function iniciarCheckout(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cuerpo),
     }),
+  );
+}
+
+/**
+ * Pago: al regresar de la pasarela, pide al servidor que sincronice la
+ * transacción con Wompi y devuelve el estado del pago y del pedido.
+ */
+export async function sincronizarPago(transaccionId: string): Promise<ResultadoPago> {
+  return leer<ResultadoPago>(
+    await fetch(`/api/pagos/${encodeURIComponent(transaccionId)}/sincronizar`, {
+      method: "POST",
+    }),
+  );
+}
+
+/**
+ * El detalle de un pedido (productos, medio de pago, entrega) para la pantalla
+ * de resultado del pago. El id sale de `sincronizarPago`.
+ */
+export async function verPedido(pedidoId: string): Promise<Pedido> {
+  return leer<Pedido>(await fetch(`/api/pedidos/${encodeURIComponent(pedidoId)}`));
+}
+
+/**
+ * Paga desde "Mis pedidos" un pedido que quedó pendiente. El servidor verifica
+ * con la sesión que sea del acudiente; devuelve el widget de Wompi (o la URL de
+ * la pasarela simulada).
+ */
+export async function cancelarPedido(pedidoId: string): Promise<Pedido> {
+  return leer<Pedido>(
+    await fetch(`/api/pedidos/${encodeURIComponent(pedidoId)}/cancelar`, { method: "POST" }),
+  );
+}
+
+/** Cancela una solicitud (un trabajo) del acudiente. ADR 0031. */
+export async function cancelarSolicitud(trabajoId: string): Promise<void> {
+  await leer<unknown>(
+    await fetch(`/api/solicitudes/${encodeURIComponent(trabajoId)}/cancelar`, { method: "POST" }),
+  );
+}
+
+/** Cancela una lista subida que todavía no tiene kit. ADR 0031. */
+export async function cancelarListaSubida(tareaId: string): Promise<void> {
+  await leer<unknown>(
+    await fetch(`/api/solicitudes/listas/${encodeURIComponent(tareaId)}/cancelar`, {
+      method: "POST",
+    }),
+  );
+}
+
+/** Quita a un hijo de la cuenta (cierra el vínculo; no borra datos). */
+export async function quitarHijo(matriculaId: string): Promise<void> {
+  await leer<unknown>(
+    await fetch(`/api/cuenta/matriculas/${encodeURIComponent(matriculaId)}`, { method: "DELETE" }),
+  );
+}
+
+/** Cambia a un hijo de colegio o de grado, conservando su apodo. */
+export async function cambiarHijo(
+  matriculaId: string,
+  cambio: { colegio_id: string; grado: string },
+): Promise<void> {
+  await leer<unknown>(
+    await fetch(`/api/cuenta/matriculas/${encodeURIComponent(matriculaId)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cambio),
+    }),
+  );
+}
+
+export async function pagarPedido(pedidoId: string): Promise<PagoIniciado> {
+  return leer<PagoIniciado>(
+    await fetch(`/api/pedidos/${encodeURIComponent(pedidoId)}/pagar`, { method: "POST" }),
   );
 }
 

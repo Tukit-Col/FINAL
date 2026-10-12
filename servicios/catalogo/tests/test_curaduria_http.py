@@ -168,7 +168,7 @@ async def test_buscar_en_tienda_desconocida_es_422(cliente):
 
 
 async def test_encolar_util_cae_en_la_cola(cliente, monkeypatch):
-    from tukit_catalogo import admin, tiendas
+    from tukit_catalogo import tiendas
 
     o = tiendas.Oferta(
         tienda="exito",
@@ -182,7 +182,7 @@ async def test_encolar_util_cae_en_la_cola(cliente, monkeypatch):
         marca="Norma",
         especificaciones={},
     )
-    monkeypatch.setattr(admin, "buscar_candidatos", lambda c: [("exito", o)])
+    monkeypatch.setattr(tiendas, "buscar", lambda slug, consulta, cuantos=24: [o])
     _encolar_en_motor_de_prueba(monkeypatch)
     r = await cliente.post(
         "/v1/admin/catalogo/propuestas/util",
@@ -200,7 +200,7 @@ async def test_encolar_util_cae_en_la_cola(cliente, monkeypatch):
 
 
 async def test_encolar_util_concepto_inexistente_es_422(cliente, monkeypatch):
-    from tukit_catalogo import admin, tiendas
+    from tukit_catalogo import tiendas
 
     o = tiendas.Oferta(
         tienda="exito",
@@ -214,13 +214,72 @@ async def test_encolar_util_concepto_inexistente_es_422(cliente, monkeypatch):
         marca=None,
         especificaciones={},
     )
-    monkeypatch.setattr(admin, "buscar_candidatos", lambda c: [("exito", o)])
+    monkeypatch.setattr(tiendas, "buscar", lambda slug, consulta, cuantos=24: [o])
     _encolar_en_motor_de_prueba(monkeypatch)
     r = await cliente.post(
         "/v1/admin/catalogo/propuestas/util",
         json={"concepto": "NOPE", "slug": "exito", "sku": "S", "consulta": "x", "nivel": "confiable"},
     )
     assert r.status_code == 422 and r.json()["error"] == "concepto_no_existe"
+
+
+def _oferta_exito(nombre: str, sku: str, *, disponible: bool = True, precio: int = 48760):
+    from tukit_catalogo import tiendas
+
+    return tiendas.Oferta(
+        tienda="exito",
+        nombre=nombre,
+        precio_cop=precio,
+        disponible=disponible,
+        imagen_url=None,
+        url="http://x",
+        sku=sku,
+        ean=None,
+        marca="Pilot",
+        especificaciones={},
+    )
+
+
+async def test_encolar_util_acepta_lo_elegido_aunque_no_tenga_todas_las_palabras(cliente, monkeypatch):
+    """El caso que lo destapo: la pantalla mostraba "Pilot Pluma Pen 2.4
+    Caligrafia" para "Pluma para caligrafia", y al elegirlo el alta respondia
+    "ya no esta disponible" porque el nombre no dice "para". El filtro de
+    palabras es para cuando elige la maquina; aqui eligio una persona."""
+    from tukit_catalogo import tiendas
+
+    o = _oferta_exito("Pilot Pluma Pen 2.4 Caligrafia", "101539370")
+    monkeypatch.setattr(tiendas, "buscar", lambda slug, consulta, cuantos=24: [o])
+    _encolar_en_motor_de_prueba(monkeypatch)
+    r = await cliente.post(
+        "/v1/admin/catalogo/propuestas/util",
+        json={
+            "concepto": cliente.ids["concepto_c001"],
+            "slug": "exito",
+            "sku": "101539370",
+            "consulta": "Pluma para caligrafía",
+            "nivel": "confiable",
+        },
+    )
+    assert r.status_code == 201
+
+
+async def test_encolar_util_agotado_es_422_con_causa(cliente, monkeypatch):
+    from tukit_catalogo import tiendas
+
+    o = _oferta_exito("Pilot Pluma Pen 2.4 Caligrafia", "101539370", disponible=False)
+    monkeypatch.setattr(tiendas, "buscar", lambda slug, consulta, cuantos=24: [o])
+    r = await cliente.post(
+        "/v1/admin/catalogo/propuestas/util",
+        json={
+            "concepto": cliente.ids["concepto_c001"],
+            "slug": "exito",
+            "sku": "101539370",
+            "consulta": "pluma",
+            "nivel": "confiable",
+        },
+    )
+    assert r.status_code == 422 and r.json()["error"] == "candidato_no_disponible"
+    assert "agotado" in r.json()["mensaje"]
 
 
 async def test_encolar_libro_valida_isbn(cliente):

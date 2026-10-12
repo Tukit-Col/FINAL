@@ -8,18 +8,22 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
 import type { EstadoTrabajo } from "@tukit/contrato";
 import { eliminarTrabajo, FalloApi } from "@/lib/api-navegador";
-import styles from "./Revision.module.css";
+import barra from "./BorrarTrabajo.module.css";
+import fila from "./BorrarVersionLista.module.css";
 
 interface Props {
   trabajoId: string;
   estado: EstadoTrabajo;
   /** A donde ir tras borrar. Sin valor, refresca la vista actual (la cola). */
   volverA?: string;
+  /** En una fila de la cola: boton en pastilla y confirmacion en la misma linea. */
+  enFila?: boolean;
 }
 
-export default function BorrarTrabajo({ trabajoId, estado, volverA }: Props) {
+export default function BorrarTrabajo({ trabajoId, estado, volverA, enFila = false }: Props) {
   const router = useRouter();
   const [confirmando, setConfirmando] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -46,28 +50,72 @@ export default function BorrarTrabajo({ trabajoId, estado, volverA }: Props) {
     }
   }
 
-  return (
-    <div className={styles.borrar}>
-      {confirmando ? (
-        <div className={styles.botonera}>
+  if (enFila) {
+    if (!confirmando) {
+      return (
+        <button type="button" className={fila.disparador} onClick={() => setConfirmando(true)}>
+          Eliminar
+        </button>
+      );
+    }
+    return (
+      <span>
+        <span className={fila.confirmacion} role="alertdialog" aria-label="Eliminar el trabajo">
+          <span className={fila.pregunta}>¿Eliminar?</span>
           <button
             type="button"
-            className={styles.peligro}
+            className={fila.confirmar}
             disabled={enviando}
             onClick={() => void borrar()}
           >
-            Sí, eliminar
+            {enviando ? "Eliminando…" : "Sí, eliminar"}
           </button>
-          <button type="button" className={styles.plano} onClick={() => setConfirmando(false)}>
+          <button
+            type="button"
+            className={fila.cancelar}
+            disabled={enviando}
+            onClick={() => setConfirmando(false)}
+          >
+            Cancelar
+          </button>
+        </span>
+        {error ? <span className={fila.error}>{error}</span> : null}
+      </span>
+    );
+  }
+
+  // En la barra del detalle: un boton discreto que, al pulsarlo, se vuelve una
+  // confirmacion en la misma linea. Borrar es irreversible; no merece un rojo
+  // gritando antes de que alguien lo pida.
+  return (
+    <div className={barra.contenedor}>
+      {confirmando ? (
+        <div className={barra.confirmacion} role="alertdialog" aria-label="Eliminar el trabajo">
+          <span className={barra.pregunta}>¿Eliminar este trabajo? No se puede deshacer.</span>
+          <button
+            type="button"
+            className={barra.confirmar}
+            disabled={enviando}
+            onClick={() => void borrar()}
+          >
+            {enviando ? "Eliminando…" : "Sí, eliminar"}
+          </button>
+          <button
+            type="button"
+            className={barra.cancelar}
+            disabled={enviando}
+            onClick={() => setConfirmando(false)}
+          >
             Cancelar
           </button>
         </div>
       ) : (
-        <button type="button" className={styles.plano} onClick={() => setConfirmando(true)}>
+        <button type="button" className={barra.disparador} onClick={() => setConfirmando(true)}>
+          <Trash2 size={15} aria-hidden="true" />
           Eliminar trabajo
         </button>
       )}
-      {error ? <p className={styles.error}>{error}</p> : null}
+      {error ? <p className={barra.error}>{error}</p> : null}
     </div>
   );
 }
