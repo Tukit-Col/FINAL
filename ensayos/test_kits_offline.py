@@ -71,6 +71,9 @@ class TestLoQueTrajoElSurtidoDelDoceDeOctubre:
             ("4#54", "TK-REV-124326044"),
             # Block de cartulina multicolor A4 en vez del paquete iris x100 de $63.800.
             ("5#66", "TK-REV-628655"),
+            ("T#55", "TK-REV-355583"),  # libro para colorear
+            # «papel iris octavos»: no hay papel iris en octavos; se cura a carta.
+            ("10#61", "TK-REV-3630108"),
         ],
     )
     def test_el_ahorrador_cobra_el_producto_nuevo(self, renglon, clave, sku):
