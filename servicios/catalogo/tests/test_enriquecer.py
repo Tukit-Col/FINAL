@@ -497,9 +497,10 @@ class TestLoQueLasListasSiPidenYNoSabiamosLeer:
     def test_un_diccionario_de_dos_idiomas_no_es_de_uno(self):
         # `diccionario de inglés y francés` aparece en el corpus, y darlo por
         # ingles a secas haria que un diccionario bilingue pasara por uno
-        # monolingue, que es otro libro y otro precio.
+        # monolingue, que es otro libro y otro precio. Los idiomas van en orden
+        # alfabetico, para que el orden en que se escribieron no los separe.
         assert extraer_atributos("diccionario de inglés y francés", ("idioma",)) == {
-            "idioma": "ingles-frances"
+            "idioma": "frances-ingles"
         }
 
     def test_el_deposito_del_tajalapiz(self):
