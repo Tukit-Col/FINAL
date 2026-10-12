@@ -1,8 +1,9 @@
 # Qué buscar con el scraper: huecos reales del Colegio Agustiniano (2026)
 
-- **Fuente:** los kits canónicos de las 13 listas del colegio, medidos con `ensayos/kits_offline.py` sobre `datos/` y comprobados contra la base: los dos dan **69 renglones en HUECO_CATALOGO** y los mismos totales ($9.738.197 el Ahorrador y $17.264.778 el Premium).
+- **Fuente:** los kits canónicos de las 13 listas del colegio, medidos con `ensayos/kits_offline.py` sobre `datos/` y comprobados contra la base: los dos dan **69 renglones en HUECO_CATALOGO** y los mismos totales ($7.922.375 el Ahorrador y $17.248.578 el Premium, tras la ronda de cobertura y la limpieza del catálogo del 2026-10-12).
 - **Fecha:** 2026-10-12. Reemplaza la versión del 2026-10-11, que salía de la [auditoría v2](auditoria-huecos-agustiniano/v2-d4ea7cb.md) y cubría 220 huecos. Entre las dos versiones se aprobó en la cola de revisión el surtido que trajo esa lista y se afinó la curaduría de los renglones; la sección 4 dice qué se resolvió. Actualizada el mismo día con una segunda búsqueda sobre los huecos que no son de electrónica (sección 1).
 - **Para qué:** la lista de búsqueda del scraper. Cada fila es un producto que el catálogo no tiene y que alguna lista del colegio pide. Las filas cubren los 69 renglones: 24 de papelería, arte y laboratorio, y 45 de electrónica.
+- **Por alimentar (sección 5):** además de los huecos, los renglones que se resuelven con un solo producto. No faltan, pero dependen de ese producto.
 - **Lo que esta lista no ve:** solo cuenta los renglones que el sistema declara hueco. Un renglón resuelto con un producto que no es lo pedido (A🔴 o C en las auditorías) no aparece aquí. Eso lo mide la siguiente auditoría.
 
 ## Cómo leer esta lista
@@ -128,3 +129,26 @@ De 220 renglones en hueco se pasó a 69. Las filas de la versión del 2026-10-11
 - **Ya no se compran:** el portabasura (16) pasó a «no comprar», y `1#57` (acetato) y `1#53` (papel crepe) repiten otro renglón de la misma lista.
 - **Acetato en hojas de oficio** (16b): `4#55` se cobra con un acetato de laminación de oficio x10 aprobado en la cola; ya no depende del acetato calibre 10, cuyo tamaño sigue sin confirmar.
 - **Segunda búsqueda del 2026-10-12:** el papel iris en octavos (`10#61`, `11#58`) no existe en las tiendas; por decisión del usuario se cura a papel iris carta y se cobra el block FINLANDEK x12 de $2.290. El libro para colorear (`T#55`) se cobra con «A colorear: oficios» de Panamericana, aprobado en la cola junto con otros dos; la «Cartilla Leito para colorear» de Éxito quedó en la cola.
+
+## 5. Por alimentar: renglones con una sola opción
+
+No son huecos: el kit los resuelve, pero con un único producto que cumple. Si ese producto se agota o sube de precio, el renglón queda en hueco o caro, y el Ahorrador y el Premium cobran lo mismo. Hoy son **40 renglones en 16 necesidades** (de 816 resueltos; otros 54 tienen dos opciones). Salen de la ronda de cobertura del 2026-10-12, que bajó los de una opción de 152 a 40.
+
+| # | Necesidad | Atributos que exige | Renglones | Única opción hoy | Por qué no hay más | Pista |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Sobre de acetato grueso, oficio | `grosor=grueso`, `tamano=oficio` (C106) | 1#11, 2#36, 3#20, 4#19, 5#27 | Bolsillo de acetato grueso oficio x25, Grancentral | Los de oficio no dicen el grosor; los gruesos son carta | Ficha de los de oficio de Panamericana y Éxito |
+| 2 | Kit de 12 pinceles mixto (planos, redondos, abanico) | `forma=mixto`, `unidades=12` (C021) | 7#39, 8#40, 9#48, 10#52, 11#48 | Set de pincel x15 piezas mixto | Restringido por calidad: los paquetes de 12 que hay son de una sola forma | Sets mixtos de 12 o más (Pelikan, Royal & Langnickel) |
+| 3 | Papel kraft en pliego | (C126) | J#39, J#83, T#38, 1#36, 2#64 | Papel kraft mano, pliego x25 | Lo demás son rollos de medida desconocida o industriales de 150–230 m | Pliegos sueltos o paquetes pequeños |
+| 4 | Bata para artes con mangas | `manga=larga` (C024) | 1#40, 2#74, 3#64, 4#62 | Bata de laboratorio escolar blanca en tela | La única otra de manga larga (Éxito, talla M, $80.000) se descartó | Reasignar estos renglones a C049 (delantal con mangas), que tiene más opciones |
+| 5 | Marcadores acrílicos doble punta x12 | `punta=doble punta`, `tipo=acrilico`, `unidades=12` (C006) | 4#54, 6#34, 11#54 | Marcadores acrílicos doble punta x12, Eterna | Restringido por calidad: los demás estuches acrílicos son de una punta | Estuches doble punta de 12 o 18 |
+| 6 | Lentejuelas | (C043) | J#52, T#48, 2#70 | Paquete de lentejuelas x9 colores, Grancentral | Es lo único que venden las tres tiendas | Tienda de manualidades |
+| 7 | Cartulina azul en octavos | `color=azul`, `tamano=octavo` (C010) | 5#20, 5#22 | Cartulina escolar 1/8 azul x10, Panamericana | Las María Gemma por color no dicen el tamaño | Ficha de las María Gemma |
+| 8 | Cartulina amarilla en octavos | `color=amarillo`, `tamano=octavo` | 5#19 | Cartulina escolar 1/8 amarilla x10, Panamericana | Igual que la azul | Igual |
+| 9 | Cartulina verde en octavos | `color=verde`, `tamano=octavo` | 5#21 | Cartulina escolar 1/8 verde x10, Panamericana | Igual que la azul | Igual |
+| 10 | Plastilina gigante larga x12 | `tipo=gigante`, `unidades=12` (C022) | J#11, T#12 | Plastilina en barra gigante Norma x12 (ahora en Panamericana y Éxito) | La comparación de `tipo` es exacta y las demás dicen «jumbo» | Si jumbo vale como gigante, entran 4 o 5 (Faber-Castell, Kores, Mi Trensito) |
+| 11 | Cartón paja blanco en octavos | `color=blanco`, `tamano=octavo` (C041) | J#41, T#39 | Cartón paja 1/8 blanco x10, Panamericana | Los de Formas y Colores se retuvieron: las unidades solo se leen en la foto | Confirmar las unidades con la tienda |
+| 12 | Pluma de caligrafía de puntas intercambiables | `tipo=intercambiable` (C116) | 7#40, 11#49 | Set de pluma Speedball, $80.200 | El set Mont Marte se retuvo por precio ($119.900) | Plumillas con mango de otras marcas |
+| 13 | Block milimetrado carta | `tipo=milimetrado`, `tamano=carta` (C003) | 10#21 | Bloc milimetrado A4 x20 | Solo hay oficio, 1/8 o agotado | El Norma milimetrado ya cargado (`TK-REV-789201`) no declara tamaño: si es carta, cuenta |
+| 14 | Papel celofán en pliego | `tipo=celofan`, `tamano=pliego` (C014) | T#77 | Celofán transparente surtido, pliego | Todo agotado salvo uno estampado navideño | Volver a buscar fuera de temporada |
+| 15 | Delantal plástico | `material=plastico` (C049) | 3#52 | Delantal antifluido niña, Grancentral | La versión niño se retuvo: trae un estampado sin especificar | Delantales plásticos lisos |
+| 16 | Jumpers macho-macho | (C121) | 8#62, 9#65 | Kit protoboard + 40 jumpers | Electrónica: espera la tienda de electrónica | — |
