@@ -480,6 +480,9 @@ class Cargador:
     def _productos(self, conceptos: list[dict[str, Any]]) -> list[dict[str, Any]]:
         del conceptos
         filas = leer_csv(self.dir / "productos_canonicos.csv")
+        # Desde 2026-10-11 el CSV trae el empaque (lo vuelca `volcar`). Si lo
+        # trae, manda sobre la base; un CSV viejo sin la columna no lo pisa.
+        self.empaque_en_csv = bool(filas) and "unidades_por_empaque" in filas[0]
         productos = []
         for f in filas:
             ean = normalizar_isbn(f.get("ean"))
@@ -838,6 +841,7 @@ class Cargador:
     # -- escritura --------------------------------------------------------
 
     async def escribir(self, datos: dict[str, list[dict[str, Any]]]) -> dict[str, int]:
+        from sqlalchemy import func, literal_column
         from sqlalchemy.dialects.postgresql import insert
         from tukit_comun.bd import crear_motor
 
@@ -873,13 +877,29 @@ class Cargador:
                         and not (tabla == "concepto" and c.name == "admite_personaje")
                     }
                     if tabla == "producto_canonico":
-                        # `atributos` sigue siendo una columna enriquecida (no se
-                        # REEMPLAZA desde el CSV), pero se COMBINA: en las claves
-                        # que el CSV declara gana el CSV —es lo que alguien curo
-                        # y exporto—, y lo demas que la base ya sabia se conserva.
-                        # Sin esto, la correccion a mano de un atributo nunca
-                        # llegaba a otra base.
-                        actualizables["atributos"] = objeto.c.atributos.op("||")(sentencia.excluded.atributos)
+                        # `atributos` se combinaba (base || CSV) para que una
+                        # correccion a mano llegara a otra base sin borrar lo que
+                        # `enriquecer` ya sabia. Desde que `volcar` exporta lo que
+                        # la base sabe, el CSV trae el producto completo: si
+                        # declara atributos, son TODOS, y los reemplaza.
+                        # Combinados, una clave que la curaduria quito del CSV (la
+                        # `forma` del pincel de agua) seguia viva en cada base que
+                        # ya la tenia. Vacio, no dice nada y la base conserva lo suyo.
+                        vacio = literal_column("'{}'::jsonb")
+                        actualizables["atributos"] = func.coalesce(
+                            func.nullif(sentencia.excluded.atributos, vacio), objeto.c.atributos
+                        )
+                        # Lo mismo con lo que el CSV sabe ahora y antes no: el
+                        # personaje y la portada mandan si vienen; el empaque, si
+                        # el CSV tiene la columna. Sin esto, recargar sobre una base
+                        # existente dejaba el kit de 40 jumpers en empaque 1.
+                        for columna in ("personaje", "imagen_url"):
+                            actualizables[columna] = func.coalesce(
+                                sentencia.excluded[columna], objeto.c[columna]
+                            )
+                        if getattr(self, "empaque_en_csv", False):
+                            for columna in ("unidades_por_empaque", "unidad_base"):
+                                actualizables[columna] = sentencia.excluded[columna]
                     if actualizables:
                         sentencia = sentencia.on_conflict_do_update(
                             index_elements=[c.name for c in objeto.primary_key.columns],
