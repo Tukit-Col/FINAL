@@ -1,7 +1,7 @@
 """Lo que la auditoria de huecos del Agustiniano (2026-10-11) encontro mal elegido.
 
 Cada prueba nombra el renglon de la auditoria que la motivo (`grado#orden`,
-ver `docs/informes/nuevo-reporte-huecos-agustiniano.md`). Los textos son los
+ver `docs/informes/auditoria-huecos-agustiniano/v2-d4ea7cb.md`). Los textos son los
 de la lista oficial, copiados tal cual, con sus erratas.
 """
 

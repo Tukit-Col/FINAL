@@ -77,7 +77,8 @@ Lo que se construyó puede diferir de la especificación. El documento de [algor
 - [Benchmark: Laya contra el optimizador NSGA-II](informes/reporte-benchmark-laya-nsga.md) — sus resultados (métricas, detalle por lista, tablas, figuras, tiempos) están en [`informes/benchmark-laya/`](informes/benchmark-laya/README.md); el código y los datos de entrada, en [`ensayos/bench_laya/`](../ensayos/bench_laya/).
 - [Huecos del catálogo](informes/reporte-huecos-catalogo.md) — lo genera `ensayos/curaduria_huecos.py`, junto con su [JSON](informes/reporte-huecos-catalogo.json).
 - [Auditoría de los kits canónicos de Séptimo](informes/auditoria-kits-agustiniano-septimo.md) (2026-10-07).
-- [Qué buscar con el scraper: huecos reales del Agustiniano](informes/surtido-huecos-agustiniano.md) (2026-10-11), sacado de la [auditoría de huecos del Agustiniano](informes/nuevo-reporte-huecos-agustiniano.md).
+- [Auditorías de huecos del Agustiniano](informes/auditoria-huecos-agustiniano/README.md): las tres versiones (sobre `a565aeb`, `d4ea7cb` y `02d8f24`), con su índice.
+- [Qué buscar con el scraper: huecos reales del Agustiniano](informes/surtido-huecos-agustiniano.md) (2026-10-11), sacado de la [auditoría v2](informes/auditoria-huecos-agustiniano/v2-d4ea7cb.md).
 - [Propuesta de atributos obligatorios para Séptimo](informes/atributos-septimo-propuesta.md), con su [hoja de revisión producto por producto](informes/propuestas-atributos-septimo.csv) (acción, atributo, valor propuesto, confianza y razón).
 
 ### Código de los ensayos
