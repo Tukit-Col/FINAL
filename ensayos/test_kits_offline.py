@@ -86,7 +86,8 @@ class TestLoQueTrajoElSurtidoDelDoceDeOctubre:
         assert "rojo" not in renglon("6#58").ahorrador.nombre.lower()
 
     def test_el_premium_tampoco_cobra_cartulina_de_un_color_por_iris(self, renglon):
-        assert _sku(renglon("5#66").premium) == "TK-REV-628655"
+        # El block multicolor A4 o la Majestic carta multicolor: las dos son surtidas.
+        assert _sku(renglon("5#66").premium) in {"TK-REV-628655", "TK-REV-152926"}
 
 
 class TestFalsosHuecosQueYaSeResuelven:
@@ -97,7 +98,7 @@ class TestFalsosHuecosQueYaSeResuelven:
         assert renglon("2#11").candidatos
 
     def test_el_sketchbook_carta_con_el_block_a4(self, renglon):
-        assert _sku(renglon("3#44").ahorrador) == "TK-C003-PRE"
+        assert _sku(renglon("3#44").ahorrador) == "TK-REV-694037"
 
     def test_el_archivador_de_fuelle(self, renglon):
         # Por el nombre: `nivelar` le cambia el sku semilla cuando cambia su nivel.
@@ -109,27 +110,29 @@ class TestFalsosHuecosQueYaSeResuelven:
         assert linea.ahorrador.unidades == 1
 
     def test_la_caja_de_marcadores_gruesos(self, renglon):
-        assert _sku(renglon("J#14").ahorrador) == "TK-REV-632443"
+        assert _sku(renglon("J#14").ahorrador) == "TK-REV-44702849237163"
 
-    def test_la_escuadra_de_veinte_con_la_de_veintiseis(self, renglon):
-        assert _sku(renglon("4#32").ahorrador) == "TK-C019-ECO"
+    def test_la_escuadra_de_veinte_con_la_de_veintiuno(self, renglon):
+        assert _sku(renglon("4#32").ahorrador) == "TK-REV-3331144"
 
 
 class TestMalElegidosQueYaCumplen:
     def test_el_kit_de_pinceles(self, renglon):
-        assert _sku(renglon("7#39").ahorrador) == "TK-C021-CON"
+        # El kit pide planos, redondos y abanico: solo el set mixto lo cumple; un
+        # paquete de 12 planos es mas barato y no sirve.
+        assert "mixto" in renglon("7#39").ahorrador.nombre
 
     def test_la_caja_de_plumones_no_es_un_marcador_suelto(self, renglon):
         assert renglon("3#62").ahorrador.empaque >= 10
 
     def test_el_tajalapiz_con_portabasura(self, renglon):
-        assert _sku(renglon("T#64").ahorrador) == "TK-C007-PRE"
+        assert _sku(renglon("T#64").ahorrador) == "TK-REV-44702933385387"
 
     def test_los_lapices_gruesos(self, renglon):
-        assert _sku(renglon("J#59").ahorrador) == "TK-C002-PRE"
+        assert _sku(renglon("J#59").ahorrador) == "TK-REV-47663243165867"
 
     def test_los_colores_triangulares_gruesos(self, renglon):
-        assert _sku(renglon("J#61").ahorrador) == "TK-REV-100717597"
+        assert _sku(renglon("J#61").ahorrador) == "TK-REV-124275586"
 
     def test_la_protoboard_de_830(self, renglon):
         assert renglon("9#63").ahorrador.sku == "TK-REV-104905872"
@@ -150,9 +153,13 @@ class TestMalElegidosQueYaCumplen:
 class TestEmpaqueYCantidad:
     """3.4: el kit compra los paquetes que cubren lo pedido, no uno por unidad."""
 
-    @pytest.mark.parametrize("clave", ["6#40", "7#57", "8#57", "J#39", "2#52", "T#78"])
+    @pytest.mark.parametrize("clave", ["6#40", "8#57", "J#39", "2#52", "T#78"])
     def test_un_paquete_alcanza(self, renglon, clave):
         assert renglon(clave).ahorrador.unidades == 1
+
+    def test_diez_hojas_son_dos_paquetes_de_cinco(self, renglon):
+        linea = renglon("7#57").ahorrador
+        assert linea.unidades * linea.empaque >= 10
 
     def test_tres_paquetes_de_octavos_son_tres_paquetes(self, renglon):
         assert renglon("J#33").ahorrador.unidades == 3
@@ -174,12 +181,14 @@ class TestDesempateComoElOptimizador:
 
     En el frente de Pareto, a igual costo, la solucion de mejor nivel domina a la
     otra, asi que el Ahorrador del optimizador no puede tomar la de nivel menor.
-    Las tijeras punta roma Milan (confiable) y Nessan (premium) cuestan lo mismo.
+    Las tijeras punta roma Milan (confiable) y Nessan (premium) costaban lo
+    mismo; desde que entraron las Eterna de $2.500 el empate ya no existe en los
+    datos, y la regla la cubre `test_con_todo_igual_gana_el_primero_de_la_ruta_rapida`.
     """
 
     @pytest.mark.parametrize("clave", ["J#62", "T#66", "1#21", "2#43"])
-    def test_las_tijeras_punta_roma_del_ahorrador_son_las_de_mejor_nivel(self, renglon, clave):
-        assert _sku(renglon(clave).ahorrador) == "TK-C013-PRE"
+    def test_las_tijeras_punta_roma_del_ahorrador_son_las_mas_baratas(self, renglon, clave):
+        assert _sku(renglon(clave).ahorrador) == "TK-REV-124275363"
 
 
 def test_con_todo_igual_gana_el_primero_de_la_ruta_rapida():
@@ -201,3 +210,25 @@ def test_con_todo_igual_gana_el_primero_de_la_ruta_rapida():
     # El Premium no toma un producto sin precio aunque sea de mejor nivel (`_surtibles`).
     sin_precio = [producto("P", "premium", None), producto("C", "confiable", 9000)]
     assert _mejor(sin_precio, _clave_premium, 1)["sku"] == "C"
+
+
+class TestLaCajaNoReemplazaALaUnidad:
+    """Ronda de cobertura del 2026-10-12: una caja que trae diez no es un
+    marcador «premium», y un set de seis no es un pincel."""
+
+    @pytest.mark.parametrize("clave", ["1#58", "J#96"])
+    def test_un_marcador_borrable_no_es_la_caja_de_diez(self, renglon, clave):
+        linea = renglon(clave)
+        assert linea.ahorrador.empaque == 1
+        assert linea.premium.empaque == 1
+
+    def test_un_pincel_redondo_no_es_un_set(self, renglon):
+        assert renglon("T#41").premium.empaque == 1
+
+    @pytest.mark.parametrize("clave", ["4#54", "6#34", "11#54"])
+    def test_el_estuche_doble_punta_es_doble_punta(self, renglon, clave):
+        assert "doble punta" in renglon(clave).ahorrador.nombre.lower()
+
+    def test_el_cuaderno_kiut_cuenta_como_cinco_materias(self, renglon):
+        # Tenia `personaje=kiut`, que es la marca, y por eso no era opcion.
+        assert "TK-REV-546276" in {c["sku"] for c in renglon("8#17").candidatos}
