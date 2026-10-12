@@ -4,7 +4,7 @@ Lo que quedó abierto, con lo necesario para retomarlo sin reconstruir el contex
 qué falta, por qué importa y cómo se hace. Cuando algo se resuelve, se borra de aquí y queda en el
 commit, el ADR o el documento que lo resolvió.
 
-- **Última revisión:** 2026-10-11.
+- **Última revisión:** 2026-10-11 (segunda pasada, contrastada con el código, los datos y git).
 
 ---
 
@@ -55,6 +55,10 @@ que no está en esta máquina ni en la organización de GitHub: `ARQUITECTURA.md
 README enlazaba quedaron como referencias de texto para no dejar enlaces rotos. Se buscaron el
 2026-10-08 en el perfil de usuario completo, en los repositorios de `Documents/TESIS` con su
 historial y en los repositorios de `Tukit-Col` en GitHub, sin resultado.
+
+Del SRS sí hay una versión anterior: `SRS_ISIS2610G19_v2 (1).docx`, en `Documents/Tesis Documentos/`
+(y una copia en `Documents/TESIS/TesisDocumentos/`). Es la v2, no la v6 que se cita; falta decidir
+si sirve para `docs/requisitos/` mientras aparece la v6.
 
 **Cómo.** Si aparecen, copiarlos a `docs/` según su tipo (los ADR a `arquitectura/adr/`, el
 perfilado a `analisis/`, el plan a `diseno/planes/`, el SRS a `requisitos/`), agregarlos al
@@ -134,24 +138,25 @@ Armar hogares sintéticos de 2 a 4 hijos combinando listas de un mismo colegio.
 
 La tabla de personajes de `enriquecer.py` (`PERSONAJES`) produce el nombre con mayúsculas
 (`Frozen`, `Mickey Mouse`), y es la que usa la aprobación de la cola; las semillas del corpus están
-en minúsculas (`frozen`). El kit Fan compara sin distinguir mayúsculas, pero la nivelación agrupa
-por el texto exacto, así que `Frozen` y `frozen` quedan en escaleras distintas, y el SKU semilla
-cambia. Hoy 24 de los 76 productos activos con personaje tienen mayúsculas. Arreglo: normalizar a
-minúsculas al escribir (salida de `extraer_personaje` y guardado del editor), y una pasada única
-sobre `productos_canonicos.csv`. La [guía de curaduría](guias/GUIA_CONCEPTOS_Y_PRODUCTOS.md) fija
-la forma en minúsculas mientras tanto.
+en minúsculas (`frozen`). El kit Fan compara sin distinguir mayúsculas, pero la nivelación
+(`nivelar.reacomodar`) agrupa por el texto exacto, así que `Frozen` y `frozen` quedan en escaleras
+distintas. El SKU no cambia (`nivelar.sku` pasa el personaje a mayúsculas), pero dos escaleras del
+mismo concepto y personaje pueden terminar con el mismo SKU. Hoy 24 de los 84 productos activos con
+personaje tienen mayúsculas, y hay un caso real: en C086 conviven `TK-C086-CON-FROZEN` (`frozen`) y
+`TK-REV-1395059`/`TK-REV-1395060` (`Frozen`), los tres representantes. También conviven
+`Mickey Mouse` y `mickey mouse`. Arreglo: normalizar a minúsculas al escribir (salida de
+`extraer_personaje` y overrides de la aprobación en `routers/admin.py`), y una pasada única sobre
+`productos_canonicos.csv`. La [guía de curaduría](guias/GUIA_CONCEPTOS_Y_PRODUCTOS.md) fija la
+forma en minúsculas mientras tanto.
 
 ---
 
 ## 3. Catálogo y kits (después del afinamiento del Agustiniano)
 
 El [plan del 2026-10-11](diseno/planes/2026-10-11-afinar-kits-agustiniano.md) se ejecutó sin poblar
-el catálogo. Lo que queda:
+el catálogo, y sus cambios ya están en la base de desarrollo (220 huecos, $8.959.420 el Ahorrador y
+$14.159.658 el Premium). Lo que queda:
 
-- **Aplicar los cambios a la base compartida.** Se midieron con `ensayos/kits_offline.py` y se
-  regeneraron de punta a punta en bases aisladas, que coinciden con la medición: 220 huecos, $8.959.420
-  (Ahorrador) y $14.159.658 (Premium). La base de desarrollo (`tukit_*`) no se tocó: falta
-  `.\tukit.ps1 importar` y `python -m tukit_inteligencia.poller --regenerar-canonicos`.
 - **Poblar el catálogo** con la [lista del scraper](informes/surtido-huecos-agustiniano.md), cargando
   cada producto con sus atributos y su empaque. Los conceptos marcados ⚠ en esa lista (resistencias,
   LED, interruptores, motores, caimanes, juego didáctico) necesitan su discriminante antes.
@@ -161,8 +166,13 @@ el catálogo. Lo que queda:
 - **Mal elegidos que quedan**, sin producto mejor en el catálogo: el vaso pequeño de plástico (se
   cobra uno de 700 ml), el juego de mesa de Primero y Quinto (un rompecabezas de 4 piezas), las notas
   adhesivas del Premium (transparentes x36), la escarcha en libra del Premium para «3 tubos».
-- **El revisor no tiene en la UI el valor `*`** para quitar un atributo leído: hoy se pone en
-  `listas_revisadas.csv`. Agregarlo a la página del grado.
+- **La UI no edita los atributos de un renglón.** El backend ya acepta `atributos` en el PATCH del
+  renglón y entiende el valor curado `*` (`NO_EXIGIR` en `routers/admin.py`), pero ninguna pantalla
+  los edita: el editor de la revisión (`ItemsPercibidos.tsx`) solo manda texto, concepto, cantidad,
+  modo e instrucción, y el aviso «Revisar atributo» de la página del grado solo ofrece «Está bien
+  así». Hoy se curan en `listas_revisadas.csv`. En revisión en la rama
+  `worktree-agent-a756c6230aa6bb862` (commits `b12973e` y `a2423d3`), que agrega esa sección al
+  editor del renglón; falta revisarla e integrarla.
 - **`ensayos/kits_offline.py` desempata distinto que el optimizador** entre dos productos del mismo
   precio (las tijeras punta roma de $10.490): el total no cambia, pero el SKU sí.
 
@@ -170,11 +180,15 @@ el catálogo. Lo que queda:
 
 ## 4. Ramas e integración
 
-- **Nada está publicado.** `docs/documentacion` sale de `feature/atributos-catalogo`, que va
-  218 commits por delante de `main`. Integrar primero atributos y después documentación; al revés,
-  la de documentación arrastra los commits de atributos.
-- **El trabajo `ensayos` de la CI** se verificó solo localmente. Confirmar que pasa en GitHub al
-  publicar la rama.
+- **Publicado hasta `d4ea7cb`.** `feature/atributos-catalogo` y `docs/documentacion` se juntaron por
+  avance rápido en `feature/integracion-total`, que está en `origin` en `d4ea7cb` (subida el
+  2026-10-10); las dos ramas ya no existen. Falta publicar los commits de
+  `feature/afinar-kits-agustiniano` y abrir el PR a `main`, que es ancestro de la rama y va más de
+  200 commits atrás.
+- **La CI nunca corrió sobre este trabajo.** `.github/workflows/ci.yml` solo corre en un PR o en un
+  push a `main`, y `feature/integracion-total` se publicó sin PR. El trabajo `ensayos` se verificó
+  solo localmente (`pytest ensayos` pasa). Además, la CI de `main` está en rojo desde el 2026-09-24
+  (todas sus corridas fallan): revisar por qué antes o junto con el PR.
 
 ---
 
@@ -182,5 +196,6 @@ el catálogo. Lo que queda:
 
 - `ensayos/curaduria_huecos.py` usa rutas `/tmp/...` (cachés de percepción); en Windows apuntan a
   `C:\tmp`. Pasarlas a una carpeta del repositorio ignorada por git o a una variable de entorno.
-- `ensayos/fase1.py` fuera de `make fase1` no carga `.env` y falla al conectarse a la base. Cargar
-  `.env` al arrancar, como hacen los servicios.
+- `ensayos/fase1.py` fuera de `make fase1` no carga `.env` y falla al conectarse a la base. Los
+  servicios tampoco lo leen en Python: lo carga `tukit.ps1` en el entorno antes de levantarlos.
+  Cargar `.env` al arrancar el script, sin pisar lo que ya esté en el entorno.

@@ -1,7 +1,7 @@
 # Afinar los kits del Agustiniano sin poblar el catálogo
 
 - **Fecha:** 2026-10-11.
-- **Estado:** ejecutado el 2026-10-11, salvo poblar el catálogo (fuera de alcance) y aplicar los cambios a la base compartida (ver [pendientes](../../PENDIENTES.md), §3). Resultado medido con `ensayos/kits_offline.py` y confirmado de punta a punta en bases aisladas: los huecos que ve el acudiente pasan de 385 a 220; los kits, de $9.857.452 a $8.959.420 (Ahorrador) y de $17.602.526 a $14.159.658 (Premium).
+- **Estado:** ejecutado el 2026-10-11, salvo poblar el catálogo (fuera de alcance; ver [pendientes](../../PENDIENTES.md), §3). Resultado medido con `ensayos/kits_offline.py`, confirmado de punta a punta en bases aisladas y aplicado después a la base de desarrollo (importar y regenerar los canónicos), con los mismos totales: los huecos que ve el acudiente pasan de 385 a 220; los kits, de $9.857.452 a $8.959.420 (Ahorrador) y de $17.602.526 a $14.159.658 (Premium).
 - **Origen:** la [auditoría de huecos del Agustiniano](../../informes/nuevo-reporte-huecos-agustiniano.md) (commit `d4ea7cb`).
 - **Alcance:** todo lo que se arregla con código, con la curaduría de las listas y con la curaduría de lo que ya está en el catálogo. Poblar el catálogo con el scraper queda fuera, a pedido del usuario, hasta terminar este afinamiento. La lista de lo que falta surtir está en [surtido-huecos-agustiniano.md](../../informes/surtido-huecos-agustiniano.md).
 
