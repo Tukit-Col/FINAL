@@ -392,6 +392,8 @@ export interface PropuestaCola {
   origen: string;
   /** Atributos que quien propuso verificó contra la ficha de la tienda ({} si no hay). */
   atributos_verificados?: Record<string, unknown>;
+  /** Los atributos con que nace el producto si se aprueba sin corregir nada. */
+  atributos_al_aprobar?: Record<string, unknown>;
 }
 
 // Un candidato de tienda tal como lo sirve `GET .../tiendas/{slug}/buscar`

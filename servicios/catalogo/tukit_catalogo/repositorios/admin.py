@@ -555,6 +555,8 @@ class RepoAdmin:
                 PROPUESTA.c.especificaciones,
                 CONCEPTO.c.codigo.label("concepto_codigo"),
                 CONCEPTO.c.nombre_canonico.label("concepto_nombre"),
+                CONCEPTO.c.atributos_discriminantes,
+                CONCEPTO.c.atributos_descriptivos,
             )
             .select_from(PROPUESTA.outerjoin(CONCEPTO, CONCEPTO.c.id == PROPUESTA.c.concepto_id))
             .where(PROPUESTA.c.estado == "pendiente")
