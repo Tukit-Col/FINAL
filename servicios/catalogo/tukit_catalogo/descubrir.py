@@ -842,6 +842,20 @@ async def resolver(
             pid = _uuid_estable("aprobado", str(fila.tienda_id), fila.referencia_externa)
             nivel_final = nivel or fila.nivel_sugerido or "confiable"
             producto = Base.metadata.tables["producto_canonico"]
+            # El mismo articulo (mismo EAN) puede estar ya en el catalogo con la
+            # oferta de otra tienda: la plastilina Norma gigante x12 entro por
+            # Panamericana y despues llego por Exito. Crear otro producto chocaba
+            # con el EAN unico, el ON CONFLICT se lo callaba y la oferta quedaba
+            # apuntando a un producto inexistente (500 al aprobar). Es otra tienda
+            # para el mismo producto: la oferta se cuelga del que ya esta.
+            ean_final = ean13(fila.ean)
+            existente = (
+                await conexion.scalar(select(producto.c.id).where(producto.c.ean == ean_final))
+                if ean_final
+                else None
+            )
+            if existente is not None:
+                pid = existente
             # El primero que entra a una celda (concepto, nivel, personaje) es su
             # representante; los siguientes son profundidad de compra. Antes
             # siempre entraba en False y la primera aprobacion de un concepto
@@ -865,7 +879,7 @@ async def resolver(
                 .values(
                     id=pid,
                     concepto_id=fila.concepto_id,
-                    ean=ean13(fila.ean),
+                    ean=ean_final,
                     sku_interno=f"TK-REV-{fila.referencia_externa}"[:64],
                     nombre=nombre_final[:255],
                     marca=marca_final,
