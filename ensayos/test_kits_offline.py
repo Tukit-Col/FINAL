@@ -66,6 +66,11 @@ class TestLoQueTrajoElSurtidoDelDoceDeOctubre:
             ("T#40", "TK-REV-124275171"),  # pincel plano #10
             ("7#12", "TK-REV-37779"),  # diccionario ingles-ingles
             ("1#11", "TK-REV-47124879278251"),  # sobre de acetato grueso oficio
+            ("2#19", "TK-REV-45126710231211"),  # metro de costura
+            # «de 12 o 18 unidades»: el renglon extrae 18 y la curaduria lo deja en 12.
+            ("4#54", "TK-REV-124326044"),
+            # Block de cartulina multicolor A4 en vez del paquete iris x100 de $63.800.
+            ("5#66", "TK-REV-628655"),
         ],
     )
     def test_el_ahorrador_cobra_el_producto_nuevo(self, renglon, clave, sku):
@@ -76,6 +81,9 @@ class TestLoQueTrajoElSurtidoDelDoceDeOctubre:
         # «lapices» a secas no es el lapiz rojo.
         assert renglon("J#75").ahorrador.sku != "TK-REV-124001157"
         assert "rojo" not in renglon("6#58").ahorrador.nombre.lower()
+
+    def test_el_premium_tampoco_cobra_cartulina_de_un_color_por_iris(self, renglon):
+        assert _sku(renglon("5#66").premium) == "TK-REV-628655"
 
 
 class TestFalsosHuecosQueYaSeResuelven:
