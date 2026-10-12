@@ -120,7 +120,9 @@ class Concepto(Base):
     # Dura todo el ano y sirve en todas las materias (tijeras, regla, colores):
     # si la lista lo pide en varias, se compra una vez por hijo. Lo que se gasta
     # (pegante, cinta, cuadernos) no lo es, aunque se repita.
-    uno_por_estudiante: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    uno_por_estudiante: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
 
     # `interno` y no `publico`: es una agregacion sobre las listas de 17
     # colegios concretos, o sea que revela que pide el mercado atendido.
