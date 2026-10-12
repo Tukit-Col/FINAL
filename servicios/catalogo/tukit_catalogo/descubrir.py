@@ -51,6 +51,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import re
 import sys
 import unicodedata
@@ -63,7 +64,7 @@ from typing import Any
 from . import tiendas
 from .cargador import AGENTE_FIRECRAWL, _uuid_estable, ean13, isbn13_valido, normalizar_isbn
 from .embeddings import coseno
-from .enriquecer import atributos_de_ficha, extraer_atributos, extraer_empaque, extraer_personaje
+from .enriquecer import Empaque, atributos_de_ficha, extraer_atributos, extraer_empaque, extraer_personaje
 
 # Cuanto puede costar algo de una lista escolar. Es un filtro grueso y basta:
 # lo que descarta son las garrafas industriales de veinte litros y los lotes
@@ -453,6 +454,26 @@ async def _contexto():
     return conceptos, slugs, decididos | ofertados, cobertura
 
 
+# Claves de `especificaciones` que no vienen de la ficha de la tienda sino de
+# quien propuso el producto, despues de verificarlo contra esa ficha. Viajan en
+# la propuesta para no perderse al aprobar: `resolver` vuelve a leer los
+# atributos del nombre, y un nombre que no dice el color lo dejaba sin color.
+ATRIBUTOS_VERIFICADOS = "atributos_verificados"
+EMPAQUE_VERIFICADO = "unidades_por_empaque_verificado"
+
+
+def atributos_verificados(especificaciones: dict[str, Any]) -> dict[str, Any]:
+    """Los atributos verificados de una propuesta, o {} si no trae o no se leen."""
+    crudo = especificaciones.get(ATRIBUTOS_VERIFICADOS)
+    if not crudo:
+        return {}
+    try:
+        valor = json.loads(crudo) if isinstance(crudo, str) else crudo
+    except ValueError:
+        return {}
+    return dict(valor) if isinstance(valor, dict) else {}
+
+
 async def _encolar(propuestas: list[dict[str, Any]]) -> int:
     from sqlalchemy.dialects.postgresql import insert
     from tukit_comun.bd import crear_motor
@@ -784,11 +805,18 @@ async def resolver(
             ).one()
             attrs_concepto = tuple(attrs_concepto[0] or ()) + tuple(attrs_concepto[1] or ())
 
+            especificaciones = dict(fila.especificaciones or {})
             empaque = extraer_empaque(fila.nombre, attrs_concepto)
             atributos = {
-                **atributos_de_ficha(fila.especificaciones or {}, attrs_concepto),
+                **atributos_de_ficha(especificaciones, attrs_concepto),
                 **extraer_atributos(fila.nombre, attrs_concepto),
+                # Lo que quien propuso verifico contra la ficha de la tienda (el
+                # color o el tamano que el nombre no dice). Pisa lo leido del
+                # nombre; las correcciones de la cola lo pisan a el.
+                **atributos_verificados(especificaciones),
             }
+            if especificaciones.get(EMPAQUE_VERIFICADO, "").isdigit():
+                empaque = Empaque(int(especificaciones[EMPAQUE_VERIFICADO]), empaque.unidad_base)
 
             # Correcciones a mano hechas en la cola. Cada clave presente pisa el
             # valor automatico; las ausentes lo conservan. `atributos` se
