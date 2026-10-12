@@ -552,6 +552,7 @@ class RepoAdmin:
                 PROPUESTA.c.concepto_sugerido,
                 PROPUESTA.c.puntaje,
                 PROPUESTA.c.origen,
+                PROPUESTA.c.especificaciones,
                 CONCEPTO.c.codigo.label("concepto_codigo"),
                 CONCEPTO.c.nombre_canonico.label("concepto_nombre"),
             )
