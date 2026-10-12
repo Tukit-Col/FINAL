@@ -173,8 +173,6 @@ $14.159.658 el Premium). Lo que queda:
   así». Hoy se curan en `listas_revisadas.csv`. En revisión en la rama
   `worktree-agent-a756c6230aa6bb862` (commits `b12973e` y `a2423d3`), que agrega esa sección al
   editor del renglón; falta revisarla e integrarla.
-- **`ensayos/kits_offline.py` desempata distinto que el optimizador** entre dos productos del mismo
-  precio (las tijeras punta roma de $10.490): el total no cambia, pero el SKU sí.
 
 ---
 
@@ -190,12 +188,3 @@ $14.159.658 el Premium). Lo que queda:
   solo localmente (`pytest ensayos` pasa). Además, la CI de `main` está en rojo desde el 2026-09-24
   (todas sus corridas fallan): revisar por qué antes o junto con el PR.
 
----
-
-## 5. Menores
-
-- `ensayos/curaduria_huecos.py` usa rutas `/tmp/...` (cachés de percepción); en Windows apuntan a
-  `C:\tmp`. Pasarlas a una carpeta del repositorio ignorada por git o a una variable de entorno.
-- `ensayos/fase1.py` fuera de `make fase1` no carga `.env` y falla al conectarse a la base. Los
-  servicios tampoco lo leen en Python: lo carga `tukit.ps1` en el entorno antes de levantarlos.
-  Cargar `.env` al arrancar el script, sin pisar lo que ya esté en el entorno.

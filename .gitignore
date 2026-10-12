@@ -38,3 +38,6 @@ datos/catalogo/demanda_atributos.json
 # Next.js lo regenera en cada `next dev` / `next build` (apunta a .next/dev/types o a
 # .next/types segun el ultimo comando), asi que versionarlo solo produce ruido.
 next-env.d.ts
+
+# Caches de los ensayos (lo que Gemini ya leyo): ensayos/entorno.py, TUKIT_CACHE_ENSAYOS.
+.cache/
