@@ -141,3 +141,37 @@ class TestHerramientasPedidasEnVariasMaterias:
         uno, otro = renglon("3#35").ahorrador, renglon("3#47").ahorrador
         assert uno.sku == otro.sku
         assert sorted([uno.unidades, otro.unidades]) == [0, 1]
+
+
+class TestDesempateComoElOptimizador:
+    """Dos productos con el mismo costo de linea: gana el de mejor nivel.
+
+    En el frente de Pareto, a igual costo, la solucion de mejor nivel domina a la
+    otra, asi que el Ahorrador del optimizador no puede tomar la de nivel menor.
+    Las tijeras punta roma Milan (confiable) y Nessan (premium) cuestan lo mismo.
+    """
+
+    @pytest.mark.parametrize("clave", ["J#62", "T#66", "1#21", "2#43"])
+    def test_las_tijeras_punta_roma_del_ahorrador_son_las_de_mejor_nivel(self, renglon, clave):
+        assert _sku(renglon(clave).ahorrador) == "TK-C013-PRE"
+
+
+def test_con_todo_igual_gana_el_primero_de_la_ruta_rapida():
+    from ensayos.kits_offline import _clave_ahorrador, _clave_premium, _mejor
+
+    def producto(sku, nivel, precio, personaje=None):
+        return {
+            "sku": sku,
+            "nivel": nivel,
+            "precio_cop": precio,
+            "unidades_por_empaque": 1,
+            "personaje": personaje,
+        }
+
+    candidatos = [producto("B", "confiable", 5000), producto("A", "confiable", 5000)]
+    assert _mejor(candidatos, _clave_ahorrador, 1)["sku"] == "B"
+    assert _mejor(candidatos, _clave_premium, 1)["sku"] == "B"
+
+    # El Premium no toma un producto sin precio aunque sea de mejor nivel (`_surtibles`).
+    sin_precio = [producto("P", "premium", None), producto("C", "confiable", 9000)]
+    assert _mejor(sin_precio, _clave_premium, 1)["sku"] == "C"

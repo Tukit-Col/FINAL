@@ -8,6 +8,8 @@ como lo proyecta el optimizador cuando cada linea tiene un solo renglon:
 - Ahorrador: el de menor costo de linea (empaque incluido).
 - Premium: el de mejor nivel y, dentro de el, el de menor costo de linea.
 
+Los empates se rompen como los rompe el optimizador (ver `_clave_ahorrador`).
+
 Despues junta las herramientas que un mismo hijo pide en varias materias, como
 `juntar_herramientas`. No reproduce lo que no cambia la eleccion (personaje
 pedido por el acudiente, hermanos, disponibilidad por tienda).
@@ -191,10 +193,54 @@ def renglones_de(colegio_id: str, ruta: Path = _RAIZ / "datos" / "curaduria" / "
     return por_grado
 
 
-def _costo(candidato: dict[str, Any], cantidad: int) -> tuple[bool, int, int, str]:
+def _costo_linea(candidato: dict[str, Any], cantidad: int) -> int:
     precio = candidato.get("precio_cop")
     unidades = math.ceil(max(cantidad, 1) / max(1, int(candidato.get("unidades_por_empaque") or 1)))
-    return (precio is None, (precio or 0) * unidades, precio or 0, candidato.get("sku") or "")
+    return (precio or 0) * unidades
+
+
+# Como desempata el optimizador, linea por linea. Sus cuatro objetivos se suman
+# por linea, asi que la proyeccion de `_proyectar` se descompone:
+#
+# 1. `_surtibles`: primero la mayor disponibilidad, o sea un candidato con
+#    precio si la linea tiene alguno.
+# 2. El eje del perfil: el Ahorrador minimiza el costo y luego maximiza la
+#    fidelidad (`-s.fidelidad`); el Premium maximiza la fidelidad y luego
+#    minimiza el costo.
+# 3. Lo que queda empatado lo decide la dominancia de `_no_dominadas`: a igual
+#    costo y nivel, el que trae personaje domina (sin personaje pedido cuenta
+#    cualquiera). En los canonicos casi nunca pesa, porque la ruta rapida solo
+#    deja productos con personaje cuando son los unicos que cumplen.
+# 4. Con el vector de objetivos identico, `_no_dominadas` se queda con la
+#    primera solucion enumerada, que lleva el primer candidato en el orden de la
+#    ruta rapida (nivel, precio, sku): de ahi el indice.
+#
+# Con NSGA-II (espacio de busqueda > `LIMITE_ENUMERACION`) el frente puede no
+# traer el punto exacto; esto replica el frente exacto.
+def _clave_ahorrador(
+    candidato: dict[str, Any], indice: int, cantidad: int
+) -> tuple[bool, int, int, bool, int]:
+    return (
+        candidato.get("precio_cop") is None,
+        _costo_linea(candidato, cantidad),
+        -_rango(candidato["nivel"]),
+        not candidato.get("personaje"),
+        indice,
+    )
+
+
+def _clave_premium(candidato: dict[str, Any], indice: int, cantidad: int) -> tuple[bool, int, int, bool, int]:
+    return (
+        candidato.get("precio_cop") is None,
+        -_rango(candidato["nivel"]),
+        _costo_linea(candidato, cantidad),
+        not candidato.get("personaje"),
+        indice,
+    )
+
+
+def _mejor(candidatos: list[dict[str, Any]], clave, cantidad: int) -> dict[str, Any]:
+    return min(enumerate(candidatos), key=lambda par: clave(par[1], par[0], cantidad))[1]
 
 
 def _eleccion(candidato: dict[str, Any], cantidad: int) -> Eleccion:
@@ -250,12 +296,8 @@ def armar_grado(grado: str, filas: list[SimpleNamespace], catalogo: Catalogo) ->
             uno_por_estudiante=bool(item.get("uno_por_estudiante")),
         )
         if candidatos:
-            barato = min(candidatos, key=lambda c: _costo(c, linea.cantidad))
-            mejor_nivel = max(_rango(c["nivel"]) for c in candidatos)
-            premium = min(
-                (c for c in candidatos if _rango(c["nivel"]) == mejor_nivel),
-                key=lambda c: _costo(c, linea.cantidad),
-            )
+            barato = _mejor(candidatos, _clave_ahorrador, linea.cantidad)
+            premium = _mejor(candidatos, _clave_premium, linea.cantidad)
             linea.ahorrador = _eleccion(barato, linea.cantidad)
             linea.premium = _eleccion(premium, linea.cantidad)
         lineas.append(linea)
