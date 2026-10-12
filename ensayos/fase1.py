@@ -26,9 +26,11 @@ for _ruta in (
     _RAIZ / "libs" / "py" / "tukit_comun",
     _RAIZ / "servicios" / "catalogo",
     _RAIZ / "servicios" / "inteligencia",
+    _RAIZ / "ensayos",
 ):
     sys.path.insert(0, str(_ruta))
 
+from entorno import cargar_env  # noqa: E402
 from tukit_catalogo.consulta import emparejar_en_catalogo  # noqa: E402
 from tukit_inteligencia.parseo import mensaje_para_papa, parsear_renglon  # noqa: E402
 
@@ -86,6 +88,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--texto", nargs="+", help="Renglones ya leidos, sin llamar a Gemini.")
     parser.add_argument("--json", action="store_true", help="Imprime el JSON en vez del resumen.")
     argumentos = parser.parse_args(argv)
+    # Fuera de `make fase1` nadie carga `.env`: sin esto la conexion a la base
+    # usa los valores por omision y falla.
+    cargar_env()
 
     if argumentos.texto:
         filas = asyncio.run(responder([(t, None) for t in argumentos.texto]))

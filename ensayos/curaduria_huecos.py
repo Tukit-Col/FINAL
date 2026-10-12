@@ -22,9 +22,11 @@ for _ruta in (
     _RAIZ / "libs" / "py" / "tukit_comun",
     _RAIZ / "servicios" / "catalogo",
     _RAIZ / "servicios" / "inteligencia",
+    _RAIZ / "ensayos",
 ):
     sys.path.insert(0, str(_ruta))
 
+from entorno import carpeta_cache  # noqa: E402
 from tukit_catalogo.consulta import cargar_indice, emparejar  # noqa: E402
 from tukit_inteligencia.gemini import pedir_pagina  # noqa: E402
 from tukit_inteligencia.paginas import renderizar  # noqa: E402
@@ -36,8 +38,9 @@ from tukit_inteligencia.percepcion import (  # noqa: E402
     normalizar_grado,
 )
 
-DIR_PERCEPCION = Path("/tmp/tukit-percepcion")
-OSITO_CACHE = Path("/tmp/ositodemiel-fase1.json")
+# Lo que Gemini ya leyo, para no volver a pedirlo (`TUKIT_CACHE_ENSAYOS`).
+DIR_PERCEPCION = carpeta_cache() / "percepcion"
+OSITO_CACHE = carpeta_cache() / "ositodemiel-fase1.json"
 OUT_MD = _RAIZ / "docs" / "informes" / "reporte-huecos-catalogo.md"
 OUT_JSON = _RAIZ / "docs" / "informes" / "reporte-huecos-catalogo.json"
 MAX_PDF_PARALELO = 2
@@ -224,7 +227,7 @@ def cargar_osito() -> dict:
     return {
         "archivo": "ositodemiel.pdf",
         "error": None,
-        "mensaje": "Reutilizado /tmp/ositodemiel-fase1.json (sin llamar a Gemini).",
+        "mensaje": f"Reutilizado {OSITO_CACHE.name} de la cache (sin llamar a Gemini).",
         "paginas": data.get("paginas") or 3,
         "paginas_fallidas": [],
         "grados": grados,

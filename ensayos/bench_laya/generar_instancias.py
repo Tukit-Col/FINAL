@@ -26,19 +26,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
-for sub in ("servicios/catalogo", "servicios/inteligencia", "libs/py/tukit_comun"):
+for sub in ("servicios/catalogo", "servicios/inteligencia", "libs/py/tukit_comun", "ensayos"):
     sys.path.insert(0, str(RAIZ / sub))
 
-
-def _cargar_env(ruta: Path) -> None:
-    if not ruta.exists():
-        return
-    for linea in ruta.read_text(encoding="utf-8").splitlines():
-        linea = linea.strip()
-        if not linea or linea.startswith("#") or "=" not in linea:
-            continue
-        clave, valor = linea.split("=", 1)
-        os.environ.setdefault(clave.strip(), valor.strip().strip('"').strip("'"))
+from entorno import cargar_env  # noqa: E402
 
 
 def _leer_listas() -> dict[tuple[str, str], list[dict]]:
@@ -66,11 +57,11 @@ async def _indice():
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--salida", default=str(RAIZ / "ensayos/bench_laya/instancias.json.gz"))
-    ap.add_argument("--env", default=str(RAIZ.parent / "FINAL" / ".env"))
+    ap.add_argument("--env", default=str(RAIZ / ".env"))
     ap.add_argument("--sin-semantico", action="store_true", help="fuerza match lexico")
     args = ap.parse_args(argv)
 
-    _cargar_env(Path(args.env))
+    cargar_env(Path(args.env))
     if args.sin_semantico:
         os.environ.pop("GEMINI_API_KEY", None)
 
