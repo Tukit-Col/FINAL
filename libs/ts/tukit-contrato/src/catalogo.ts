@@ -390,6 +390,8 @@ export interface PropuestaCola {
   puntaje: number;
   concepto: { codigo: string; nombre: string } | { sugerido: string | null };
   origen: string;
+  /** Atributos que quien propuso verificó contra la ficha de la tienda ({} si no hay). */
+  atributos_verificados?: Record<string, unknown>;
 }
 
 // Un candidato de tienda tal como lo sirve `GET .../tiendas/{slug}/buscar`
