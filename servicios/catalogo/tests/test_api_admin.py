@@ -356,9 +356,34 @@ class TestCurarLosAtributosDeUnRenglon:
         assert cuaderno["atributos_leidos"] == {"rayado": "cuadriculado"}
         assert cuaderno["atributos"] == {}
         assert cuaderno["atributos_exigidos"] == {"rayado": "cuadriculado"}
+        assert cuaderno["atributos_deducidos"] == []
         # Sin concepto no hay nada que exigir ni que curar.
         assert sin_concepto["atributos_discriminantes"] == []
         assert sin_concepto["atributos_exigidos"] == {}
+
+    async def test_el_mas_de_uno_deducido_se_marca_como_deducido(self, cliente):
+        # `chaquiras` en plural con cantidad uno: el texto no dice cuantas, la
+        # ruta rapida exige "mas de uno". El revisor tiene que saber que eso no
+        # lo escribio el colegio.
+        async with app.state.motor.sesion() as db:
+            conexion = await db.connection()
+            tabla = Base.metadata.tables["concepto"]
+            await conexion.execute(
+                tabla.update()
+                .where(tabla.c.id == cliente.ids["colores"])
+                .values(atributos_discriminantes=["unidades"])
+            )
+            await db.commit()
+        vid = cliente.ids["abierta"]
+        item_id = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()["items"][1]["item_id"]
+        respuesta = await cliente.patch(
+            f"/v1/admin/listas/{vid}/items/{item_id}",
+            json={"concepto_codigo": "C002", "requiere_revision": False},
+        )
+        assert respuesta.status_code == 200
+        chaquiras = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()["items"][1]
+        assert chaquiras["atributos_leidos"] == {"unidades": 2}
+        assert chaquiras["atributos_deducidos"] == ["unidades"]
 
     async def test_curar_cambia_un_valor_quita_otro_con_asterisco_y_agrega_uno(self, cliente):
         await _cuaderno_filtra_por(cliente, ["rayado", "hojas"])

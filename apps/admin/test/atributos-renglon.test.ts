@@ -28,8 +28,8 @@ const bitacora = {
 test("una fila por atributo leído o curado, en el orden del concepto", () => {
   const filas = filasDeExigencia(bitacora);
   assert.deepEqual(filas, [
-    { clave: "tipo", leido: "cartulina", curado: "dibujo", ajena: false },
-    { clave: "tamano", leido: "octavo", curado: "*", ajena: false },
+    { clave: "tipo", leido: "cartulina", curado: "dibujo", ajena: false, deducido: false },
+    { clave: "tamano", leido: "octavo", curado: "*", ajena: false, deducido: false },
   ]);
   // `hojas` ni se lee ni se cura: es lo que se puede agregar.
   assert.deepEqual(porAgregar(filas, bitacora.atributos_discriminantes), ["hojas"]);
@@ -44,22 +44,38 @@ test("lo exigido: lo curado manda, * lo quita, sin curar vale lo leído", () => 
   assert.equal(exigidoDe({ ...tamano, curado: "  " }), "octavo");
 });
 
+test("lo deducido (el «más de uno» de una caja) se marca, lo leído del texto no", () => {
+  const filas = filasDeExigencia({
+    atributos_discriminantes: ["unidades", "color"],
+    atributos_leidos: { unidades: 2, color: "rojo" },
+    atributos_deducidos: ["unidades"],
+    atributos: {},
+  });
+  assert.deepEqual(
+    filas.map((f) => [f.clave, f.deducido]),
+    [
+      ["unidades", true],
+      ["color", false],
+    ],
+  );
+});
+
 test("lo curado con una clave que el concepto no filtra sale aparte y no exige", () => {
   const filas = filasDeExigencia({
     atributos_discriminantes: ["rayado"],
     atributos_leidos: {},
     atributos: { color: "rojo" },
   });
-  assert.deepEqual(filas, [{ clave: "color", leido: null, curado: "rojo", ajena: true }]);
+  assert.deepEqual(filas, [{ clave: "color", leido: null, curado: "rojo", ajena: true, deducido: false }]);
   assert.equal(exigidoDe(filas[0]), null);
 });
 
 test("guardar manda solo lo curado, tipado, con el * tal cual", () => {
   const filas = [
     ...filasDeExigencia(bitacora),
-    { clave: "hojas", leido: null, curado: "15", ajena: false },
+    { clave: "hojas", leido: null, curado: "15", ajena: false, deducido: false },
     // Quitar la curaduría = volver a lo leído: no viaja.
-    { clave: "gramaje", leido: "40 g", curado: null, ajena: false },
+    { clave: "gramaje", leido: "40 g", curado: null, ajena: false, deducido: false },
   ];
   const cuerpo = serializarAtributos(paresCurados(filas));
   assert.deepEqual(cuerpo, { tipo: "dibujo", tamano: "*", hojas: 15 });

@@ -406,7 +406,10 @@ En `listas_revisadas.csv`, cada renglón puede llevar:
   exigir»** (guarda `*`), se agrega uno de los discriminantes que el texto no dice o se quita la
   curaduría para volver a lo leído; viaja en «Guardar cambios». Solo se pueden curar claves que el
   concepto filtra (la ruta rápida ignoraría otra: el backend la rechaza con
-  `atributo_no_exigible`). Si se cambia el concepto, se guarda primero y se vuelve a abrir: lo leído
+  `atributo_no_exigible`); lo que el renglón ya traía con el mismo valor se deja pasar, para no
+  romper lo curado antes ni lo que quedó de otro concepto: se rechaza solo una clave nueva o
+  cambiada. El «más de uno» que se deduce de `caja de…`, `kit` o un plural (§5.5) sale marcado
+  como *deducido*: el texto no lo dice, y si ningún juego cumple vale la pieza suelta. Si se cambia el concepto, se guarda primero y se vuelve a abrir: lo leído
   se recalcula con el concepto nuevo. Una lista ya revisada no se edita en su lugar: «Editar (nueva
   versión)» en la página del grado la clona y cae en esa misma pantalla. Después, **exportar**
   (§6) para que la curaduría llegue al CSV.
