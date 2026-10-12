@@ -3,7 +3,7 @@
 Corre sobre `datos/` tal como esta, sin base de datos (`kits_offline.py`). Si
 una curaduria o un cambio de codigo vuelve a romper uno de estos renglones, se
 sabe aqui y no en la siguiente auditoria. La referencia de cada caso es la
-seccion de `docs/informes/nuevo-reporte-huecos-agustiniano.md` que lo trata.
+seccion de `docs/informes/auditoria-huecos-agustiniano/v2-d4ea7cb.md` que lo trata.
 """
 
 from __future__ import annotations

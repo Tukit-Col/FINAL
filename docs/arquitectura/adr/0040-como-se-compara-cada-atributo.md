@@ -4,7 +4,7 @@
 - **Fecha:** 2026-10-11
 - **Servicios tocados:** `catalogo` (`consulta._cumple`, `routers/admin` ruta rápida, `enriquecer`,
   `cargador`, `volcar`)
-- **Origen:** la [auditoría de huecos del Agustiniano](../../informes/nuevo-reporte-huecos-agustiniano.md),
+- **Origen:** la [auditoría de huecos del Agustiniano](../../informes/auditoria-huecos-agustiniano/v2-d4ea7cb.md),
   sobre `d4ea7cb`: de 888 renglones comprables, 465 salían bien; 57 eran falsos huecos y 151 se
   resolvían con un producto que no cumplía.
 

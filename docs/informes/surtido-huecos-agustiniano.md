@@ -1,6 +1,6 @@
 # Qué buscar con el scraper: huecos reales del Colegio Agustiniano (2026)
 
-- **Fuente:** [auditoría de huecos del Agustiniano](nuevo-reporte-huecos-agustiniano.md) (commit `d4ea7cb`), secciones 4.1 (A🔴) y 4.2 (A).
+- **Fuente:** [auditoría de huecos del Agustiniano](auditoria-huecos-agustiniano/v2-d4ea7cb.md) (commit `d4ea7cb`), secciones 4.1 (A🔴) y 4.2 (A).
 - **Fecha:** 2026-10-11. Actualizada el mismo día después del afinamiento ([plan](../diseno/planes/2026-10-11-afinar-kits-agustiniano.md), [ADR 0040](../arquitectura/adr/0040-como-se-compara-cada-atributo.md)): los atributos que ya se agregaron a cada concepto están puestos y lo ya resuelto salió de la lista.
 - **Para qué:** la lista de búsqueda del scraper. Cada fila es un producto que el catálogo no tiene y que alguna lista del colegio pide. Hoy son **220 renglones** del colegio que salen como hueco; esta lista los cubre todos.
 
