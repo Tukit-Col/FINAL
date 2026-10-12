@@ -164,12 +164,16 @@ def filas_de_listas(conexion: Connection) -> list[dict[str, str]]:
     La ultima revisada y no la vigente: volver a subir una lista deja vigente
     una version sin revisar, y exigir las dos cosas sacaba de git la lista ya
     curada mientras la nueva esperaba en la cola.
+
+    Pero si la vigente esta revisada, va ella: `importar` la fecha con el
+    `revisada_en` del CSV, que puede ser anterior a una edicion hecha en el
+    admin, y por fecha se exportaba la version que la importacion reemplazo.
     """
     otra = VERSION.alias("otra")
     ultima_revisada = (
         select(otra.c.id)
         .where(otra.c.lista_id == LISTA.c.id, otra.c.revisada_en.is_not(None))
-        .order_by(otra.c.revisada_en.desc(), otra.c.numero.desc())
+        .order_by(otra.c.vigente.desc(), otra.c.revisada_en.desc(), otra.c.numero.desc())
         .limit(1)
         .correlate(LISTA)
         .scalar_subquery()
