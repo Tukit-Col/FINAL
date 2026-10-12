@@ -313,3 +313,43 @@ class TestLoQueEncontraronLosAgentesDeSurtido:
         }
         assert atributos_verificados({"Color": "Amarillo"}) == {}
         assert atributos_verificados({"atributos_verificados": "no es json"}) == {}
+
+
+class TestLasVariantesSoloSiSePiden:
+    """Lo que trajo el surtido del 2026-10-12: la variante barata se llevaba lo generico."""
+
+    def test_una_cartulina_generica_no_recibe_la_fluorescente(self):
+        productos = [
+            _p("fluor", {"acabado": "fluorescente", "tamano": "octavo"}, precio=3600),
+            _p("normal", {"tamano": "octavo"}, precio=4600),
+        ]
+        genericos, _, _ = _renglon_resuelto(
+            "paquete de cartulina arte por octavos", {}, productos, ("tamano", "acabado")
+        )
+        assert [c["sku"] for c in genericos] == ["normal"]
+        pedida, _, _ = _renglon_resuelto(
+            "cartulina fluorescente en octavos", {}, productos, ("tamano", "acabado")
+        )
+        assert [c["sku"] for c in pedida] == ["fluor"]
+
+    def test_un_cuaderno_sin_rayado_no_recibe_el_de_cuadros_de_un_centimetro(self):
+        productos = [
+            _p("preescolar", {"rayado": "cuadriculado 1 cm", "hojas": 100}),
+            _p("normal", {"rayado": "cuadriculado", "hojas": 100}),
+        ]
+        candidatos, _, _ = _renglon_resuelto(
+            "cuadernos cosidos de 100 hojas", {}, productos, ("hojas", "rayado")
+        )
+        assert [c["sku"] for c in candidatos] == ["normal"]
+
+    def test_si_solo_hay_la_variante_se_ofrece(self):
+        productos = [_p("fluor", {"acabado": "fluorescente"})]
+        candidatos, _, _ = _renglon_resuelto("cartulina", {}, productos, ("acabado",))
+        assert [c["sku"] for c in candidatos] == ["fluor"]
+
+    def test_un_lapiz_sin_color_es_negro(self):
+        productos = [_p("rojo", {"color": "rojo"}, precio=1200), _p("negro", {"color": "negro"}, precio=6500)]
+        candidatos, _, _ = _renglon_resuelto("lápices", {}, productos, ("color",), concepto="C002")
+        assert [c["sku"] for c in candidatos] == ["negro"]
+        rojos, _, _ = _renglon_resuelto("lápiz rojo delgado", {}, productos, ("color",), concepto="C002")
+        assert [c["sku"] for c in rojos] == ["rojo"]

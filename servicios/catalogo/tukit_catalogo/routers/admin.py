@@ -402,12 +402,50 @@ def _con_lo_curado(
     return impuestos
 
 
+# Lo que un renglon de cierto concepto quiere aunque no lo diga: un `lapiz` a
+# secas es negro. Sin esto, «lapices» se resolvia con el lapiz rojo, que es el
+# mas barato. Si ningun producto lo cumple, no se exige.
+_POR_OMISION: dict[str, dict[str, str]] = {"C002": {"color": "negro"}}
+
+
+def _variante_especial(atributo: str, valor: Any) -> bool:
+    """Si este valor solo le sirve a quien lo pidio por nombre.
+
+    Una cartulina fluorescente, un cuaderno de cuadros de 1 cm, un micropunta o
+    un sketchbook son variantes: el renglon que no las nombra quiere la
+    corriente. Sin esto, la variante mas barata se llevaba los renglones
+    genericos («cartulina arte por octavos» recibia la fluorescente).
+    """
+    texto = str(valor).lower()
+    if atributo == "acabado":
+        return True
+    if atributo == "rayado":
+        return any(c.isdigit() for c in texto) or texto.startswith("cuadricula ")
+    return (atributo, texto) in {("punta", "micropunta"), ("tipo", "dibujo")}
+
+
+def _sin_variantes_no_pedidas(
+    productos: list[dict[str, Any]], impuestos: dict[str, Any], discriminantes: tuple[str, ...]
+) -> list[dict[str, Any]]:
+    """Los productos sin variantes especiales que el renglon no pidio, o todos si no queda ninguno."""
+    corrientes = [
+        p
+        for p in productos
+        if not any(
+            k in discriminantes and k not in impuestos and _variante_especial(k, v)
+            for k, v in (p.get("atributos") or {}).items()
+        )
+    ]
+    return corrientes or productos
+
+
 def _renglon_resuelto(
     texto: str,
     curados: dict[str, Any],
     productos: list[dict[str, Any]],
     discriminantes: tuple[str, ...],
     cantidad: int = 1,
+    concepto: str | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any], list[str]]:
     """Los candidatos de UN renglon, lo que el renglon exige y lo que hay que revisar.
 
@@ -444,6 +482,15 @@ def _renglon_resuelto(
         # cumple, vale la pieza suelta (`Pinceles de punta redonda`, 3#88).
         del impuestos["unidades"]
         que_cumplen = [p for p in productos if _cumple(p, impuestos)]
+    por_omision = {
+        k: v
+        for k, v in _POR_OMISION.get(concepto or "", {}).items()
+        if k in discriminantes and k not in impuestos
+    }
+    if por_omision:
+        con_omision = [p for p in que_cumplen if _cumple(p, por_omision)]
+        que_cumplen = con_omision or que_cumplen
+    que_cumplen = _sin_variantes_no_pedidas(que_cumplen, impuestos, discriminantes)
     elegibles = [p for p in que_cumplen if not p.get("personaje")] or que_cumplen
     elegibles.sort(
         key=lambda p: (
@@ -508,6 +555,7 @@ def armar_items(
                 productos.get(f.concepto_codigo, []),
                 reglas.get(f.concepto_codigo, _SIN_REGLAS)[0],
                 int(f.cantidad),
+                f.concepto_codigo,
             )
         items.append(
             {
