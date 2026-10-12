@@ -10,11 +10,14 @@ import type {
   AcudienteResumen,
   AltaProducto,
   AplicarCanonico,
+  CambioDeProducto,
+  PerfilKit,
   Checkout,
   ColaAdmin,
   Contacto,
   DecisionRevision,
   EstadoTrabajo,
+  BorradorKits,
   GradoCanonico,
   SolicitudCheckout,
   HijoSubida,
@@ -24,6 +27,8 @@ import type {
   MisSolicitudes,
   PercepcionCruda,
   Preferencias,
+  PagoIniciado,
+  ResultadoPago,
   ProductoDadoDeAlta,
   ProductoKit,
   SinCoincidencia,
@@ -57,6 +62,7 @@ import type {
   FiltrosProductos,
   ItemListaEditable,
   ItemRevision,
+  AvisoLista,
   ListaOficial,
   OfertaCatalogo,
   PaginaProductos,
@@ -73,7 +79,12 @@ import type {
   Sugerencia,
   VersionListaAdmin,
 } from "./catalogo";
-import type { Pedido, TableroComercio } from "./comercio";
+import type {
+  Pedido,
+  PedidoConHistorial,
+  SolicitudAvancePedido,
+  TableroComercio,
+} from "./comercio";
 import type { MetricasColegio, ResumenPedidosColegio, SerieMetricas } from "./metricas";
 import type { BandejaOperacion, Caso, CasoCreado, SolicitudCaso } from "./operacion";
 import {
@@ -245,6 +256,39 @@ export class ClienteApi implements OrigenDatos {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ hijos }),
+    });
+  }
+
+  async quitarMatricula(token: string, matriculaId: string): Promise<void> {
+    await this.pedir<void>(`/v1/cuenta/matriculas/${encodeURIComponent(matriculaId)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
+
+  cambiarMatricula(
+    token: string,
+    matriculaId: string,
+    cambio: { colegio_id: string; grado: string; apodo?: string | null },
+  ): Promise<{ total: number }> {
+    return this.pedir<{ total: number }>(`/v1/cuenta/matriculas/${encodeURIComponent(matriculaId)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(cambio),
+    });
+  }
+
+  cancelarSolicitud(token: string, trabajoId: string): Promise<{ trabajo_id: string; estado: string }> {
+    return this.pedir(`/v1/trabajos/${encodeURIComponent(trabajoId)}/cancelar`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
+
+  cancelarListaSubida(token: string, tareaId: string): Promise<{ tarea_id: string; retiradas: number }> {
+    return this.pedir(`/v1/mis-solicitudes/listas/${encodeURIComponent(tareaId)}/cancelar`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
     });
   }
 
@@ -684,28 +728,34 @@ export class ClienteApi implements OrigenDatos {
     // el contrato pide `{entradas:[{recibido_en, lineas_pendientes, ...}]}`.
     // Se normaliza aqui, igual que `trabajoAdmin`/`producto`, en vez de dejar
     // el cast crudo (que dejaba `entradas` undefined y reventaba la cola).
-    // `colegios`/`grados`/`lineas_totales` no viajan en la cola: viven en
-    // catalogo y unirlos aqui cruzaria la frontera de servicios. Se reportan
-    // vacios en vez de fingir un dato que este endpoint no tiene.
+    // `colegios` (ids) y `grados` salen de los hijos del trabajo; el nombre
+    // del colegio lo pone la consola. Un backend viejo que no los mande deja
+    // listas vacias. `lineas_totales` no viaja: se reporta igual a pendientes.
     const crudo = await this.pedir<{
       trabajos?: {
         trabajo_id: string;
         estado: EstadoTrabajo;
+        origen?: string;
         creado_en: string;
         hijos: number;
+        colegios?: string[];
+        grados?: string[];
         lineas_a_revisar: number;
+        edicion_de?: string | null;
       }[];
     }>("/v1/admin/cola");
     return {
       entradas: (crudo.trabajos ?? []).map((t) => ({
         trabajo_id: t.trabajo_id,
         estado: t.estado,
+        origen: t.origen,
         recibido_en: t.creado_en,
         hijos: t.hijos,
         lineas_totales: t.lineas_a_revisar,
         lineas_pendientes: t.lineas_a_revisar,
-        colegios: [],
-        grados: [],
+        colegios: t.colegios ?? [],
+        grados: t.grados ?? [],
+        edicion_de: t.edicion_de ?? null,
       })),
     };
   }
@@ -798,6 +848,64 @@ export class ClienteApi implements OrigenDatos {
     );
   }
 
+  cambiarProductoDeKit(
+    trabajoId: string,
+    perfil: PerfilKit,
+    itemId: string,
+    sku: string,
+    token?: string,
+  ): Promise<CambioDeProducto> {
+    const ruta =
+      `/v1/trabajos/${encodeURIComponent(trabajoId)}/kits/${encodeURIComponent(perfil)}` +
+      `/lineas/${encodeURIComponent(itemId)}/producto`;
+    return this.pedir<CambioDeProducto>(ruta, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ sku }),
+    });
+  }
+
+  // Las tres van por `/v1/comercio/mis-pedidos/{id}` con el Bearer: comercio
+  // saca al acudiente de la sesion y un pedido ajeno es 404. `/v1/ordenes/*` es
+  // interno y la puerta no lo expone.
+  miPedido(token: string, pedidoId: string): Promise<Pedido> {
+    return this.pedir<Pedido>(`/v1/comercio/mis-pedidos/${encodeURIComponent(pedidoId)}`, {
+      headers: this.autoriza(token),
+    });
+  }
+
+  iniciarPagoPedido(
+    token: string,
+    pedidoId: string,
+    cuerpo: { correo_cliente: string; url_redireccion?: string },
+  ): Promise<PagoIniciado> {
+    return this.pedir<PagoIniciado>(
+      `/v1/comercio/mis-pedidos/${encodeURIComponent(pedidoId)}/pago`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...this.autoriza(token) },
+        body: JSON.stringify(cuerpo),
+      },
+    );
+  }
+
+  cancelarPedido(token: string, pedidoId: string): Promise<Pedido> {
+    return this.pedir<Pedido>(
+      `/v1/comercio/mis-pedidos/${encodeURIComponent(pedidoId)}/cancelar`,
+      { method: "POST", headers: this.autoriza(token) },
+    );
+  }
+
+  sincronizarPago(transaccionId: string): Promise<ResultadoPago> {
+    return this.pedir<ResultadoPago>(
+      `/v1/pagos/${encodeURIComponent(transaccionId)}/sincronizar`,
+      { method: "POST" },
+    );
+  }
+
   marcarSinCoincidencia(
     trabajoId: string,
     itemId: string,
@@ -823,6 +931,17 @@ export class ClienteApi implements OrigenDatos {
 
   decidirRevision(trabajoId: string, cuerpo: DecisionRevision): Promise<void> {
     return this.json(`/v1/admin/trabajos/${encodeURIComponent(trabajoId)}/revision`, cuerpo);
+  }
+
+  fijarCanonico(trabajoId: string, cuerpo: { nota?: string }): Promise<void> {
+    return this.json(`/v1/admin/trabajos/${encodeURIComponent(trabajoId)}/canonico`, cuerpo);
+  }
+
+  abrirBorradorKits(trabajoId: string): Promise<BorradorKits> {
+    return this.pedir<BorradorKits>(
+      `/v1/admin/trabajos/${encodeURIComponent(trabajoId)}/borrador`,
+      { method: "POST" },
+    );
   }
 
   eliminarTrabajo(trabajoId: string): Promise<void> {
@@ -982,8 +1101,8 @@ export class ClienteApi implements OrigenDatos {
     );
   }
 
-  eliminarVersion(versionId: string): Promise<void> {
-    // El backend responde 204 sin cuerpo; guarda 409 `lista_ya_revisada`.
+  eliminarVersionLista(versionId: string): Promise<void> {
+    // 204 sin cuerpo; 409 `lista_ya_revisada` si ya se aprobo.
     return this.pedir<void>(`/v1/admin/listas/${encodeURIComponent(versionId)}`, {
       method: "DELETE",
     });
@@ -1007,6 +1126,37 @@ export class ClienteApi implements OrigenDatos {
     const resp = await this.pedir<{ version_id: string; numero?: number; revisada?: boolean }>(
       `/v1/admin/listas/${encodeURIComponent(colegioId)}/${encodeURIComponent(grado)}/nueva-version?anio_lectivo=${anioLectivo}`,
       { method: "POST" },
+    );
+    return { version_id: resp.version_id };
+  }
+
+  async avisosLista(versionId: string): Promise<AvisoLista[]> {
+    const resp = await this.pedir<{ version_id: string; avisos: AvisoLista[] }>(
+      `/v1/admin/listas/${encodeURIComponent(versionId)}/avisos`,
+    );
+    return resp.avisos;
+  }
+
+  async descartarAviso(versionId: string, itemId: string, clave: string): Promise<void> {
+    await this.pedir<unknown>(`/v1/admin/listas/${encodeURIComponent(versionId)}/avisos/descartar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ item_id: itemId, clave }),
+    });
+  }
+
+  async noComprarRepetido(
+    versionId: string,
+    itemId: string,
+    repiteA: number,
+  ): Promise<{ version_id: string }> {
+    const resp = await this.pedir<{ version_id: string; numero: number }>(
+      `/v1/admin/listas/${encodeURIComponent(versionId)}/items/${encodeURIComponent(itemId)}/no-comprar`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repite_a: repiteA }),
+      },
     );
     return { version_id: resp.version_id };
   }
@@ -1201,19 +1351,43 @@ export class ClienteApi implements OrigenDatos {
   }
 
   // ------------------------------------------------- ASUMIDO (comercio 1.x)
-  pedidos(): Promise<TableroComercio> {
-    return this.pedir<TableroComercio>("/v1/comercio/pedidos");
+  // Logistica: solo staff. El Bearer lo reenvia el Server Component o el Route
+  // Handler del admin desde la cookie de sesion.
+  pedidos(token: string): Promise<TableroComercio> {
+    return this.pedir<TableroComercio>("/v1/comercio/pedidos", {
+      headers: this.autoriza(token),
+    });
   }
 
-  pedido(pedidoId: string): Promise<Pedido> {
-    return this.pedir<Pedido>(`/v1/comercio/pedidos/${encodeURIComponent(pedidoId)}`);
+  pedido(token: string, pedidoId: string): Promise<PedidoConHistorial> {
+    return this.pedir<PedidoConHistorial>(
+      `/v1/comercio/pedidos/${encodeURIComponent(pedidoId)}`,
+      { headers: this.autoriza(token) },
+    );
   }
 
-  // El historial del acudiente para su dashboard. Comercio responde
-  // `{total, pedidos}`; la pantalla solo usa la lista, asi que se propaga esa.
-  async misPedidos(usuarioId: string): Promise<Pedido[]> {
+  avanzarPedido(
+    token: string,
+    pedidoId: string,
+    cuerpo: SolicitudAvancePedido,
+  ): Promise<PedidoConHistorial> {
+    return this.pedir<PedidoConHistorial>(
+      `/v1/ordenes/${encodeURIComponent(pedidoId)}/avanzar`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...this.autoriza(token) },
+        body: JSON.stringify(cuerpo),
+      },
+    );
+  }
+
+  // Los pedidos del portador para su dashboard: sin `usuario_id` en la URL,
+  // comercio lo saca de la sesion. Responde `{total, pedidos}`; la pantalla
+  // solo usa la lista, asi que se propaga esa.
+  async misPedidos(token: string): Promise<Pedido[]> {
     const resp = await this.pedir<{ total: number; pedidos: Pedido[] }>(
-      `/v1/comercio/mis-pedidos?usuario_id=${encodeURIComponent(usuarioId)}`,
+      "/v1/comercio/mis-pedidos",
+      { headers: this.autoriza(token) },
     );
     return resp.pedidos ?? [];
   }

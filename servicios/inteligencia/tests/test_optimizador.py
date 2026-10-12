@@ -107,6 +107,35 @@ class TestCadaPerfilEligeLoQueDice:
         assert elegir_por_perfil(candidatos, "Ahorrador").sku == "CON"
         assert elegir_por_perfil((candidatos[0],), "Ahorrador").sku == "SIN"
 
+    def test_ahorrador_compara_lo_que_cuesta_la_linea_y_no_el_precio_unitario(self):
+        """Doce lapices: sueltos a $1.000 cuestan $12.000; la caja de doce a
+        $9.000 sale mas barata aunque su precio unitario sea mayor. Ordenar por
+        precio unitario hacia fallar el Ahorrador en el 20 % del benchmark."""
+        candidatos = (
+            _candidato("SUELTO", "economico", 1000),
+            _candidato("CAJA", "economico", 9000, unidades_por_empaque=12),
+        )
+        assert elegir_por_perfil(candidatos, "Ahorrador", cantidad=12).sku == "CAJA"
+        assert elegir_por_perfil(candidatos, "Ahorrador", cantidad=1).sku == "SUELTO"
+
+    def test_premium_desempata_el_nivel_por_lo_que_cuesta_la_linea(self):
+        candidatos = (
+            _candidato("PRE-SUELTO", "premium", 2000),
+            _candidato("PRE-CAJA", "premium", 15000, unidades_por_empaque=12),
+        )
+        assert elegir_por_perfil(candidatos, "Premium", cantidad=12).sku == "PRE-CAJA"
+
+    def test_el_kit_usa_la_cantidad_de_la_linea(self):
+        candidatos = (
+            _candidato("SUELTO", "economico", 1000),
+            _candidato("CAJA", "economico", 9000, unidades_por_empaque=12),
+        )
+        unica = [_renglon(1, "12 lapices", candidatos, cantidad=12)]
+        kits = armar_los_tres(unica)
+        ahorrador = next(k for k in kits if k.perfil == "Ahorrador")
+        assert ahorrador.lineas[0].elegido.sku == "CAJA"
+        assert ahorrador.total_cop == 9000
+
 
 class TestLoInformativoSeMuestraYNoSeCobra:
     def test_una_licencia_digital_no_entra_al_total(self):
@@ -218,6 +247,107 @@ class TestLaConsolidacionEntreHermanos:
         assert all(linea.unidades_a_comprar == 1 for linea in lineas)
 
 
+class TestUnaHerramientaSePideEnVariasMateriasYSeCompraUnaVez:
+    """Tijeras en artes, en tecnologia y en la cartuchera son las mismas
+    tijeras. El kit cobraba tres. Solo aplica a lo que dura todo el ano
+    (`uno_por_estudiante`); lo que se gasta (pegante, cinta) se respeta."""
+
+    TIJERAS = Candidato(sku="TK-TIJ", nombre="Tijeras Eterna", nivel="economico", precio_cop=5800)
+
+    def test_dos_renglones_de_la_misma_herramienta_se_compran_una_vez(self):
+        kit = armar_los_tres(
+            [
+                _renglon(59, "Tijeras", (self.TIJERAS,), uno_por_estudiante=True),
+                _renglon(91, "tijeras", (self.TIJERAS,), uno_por_estudiante=True),
+            ]
+        )[0]
+        primera, segunda = kit.lineas
+        assert primera.unidades_a_comprar == 1
+        assert segunda.unidades_a_comprar == 0
+        assert segunda.subtotal_cop == 0
+        assert "linea 59" in (segunda.mensaje or "")
+        assert kit.total_cop == 5800
+
+    def test_se_compra_la_cantidad_mayor_y_no_la_suma(self):
+        kit = armar_los_tres(
+            [
+                _renglon(1, "2 reglas", (self.TIJERAS,), cantidad=2, uno_por_estudiante=True),
+                _renglon(2, "regla", (self.TIJERAS,), cantidad=1, uno_por_estudiante=True),
+            ]
+        )[0]
+        assert [linea.unidades_a_comprar for linea in kit.lineas] == [2, 0]
+
+    def test_lo_que_se_gasta_no_se_junta(self):
+        pegante = Candidato(sku="TK-PEG", nombre="Pegante", nivel="economico", precio_cop=4900)
+        kit = armar_los_tres(
+            [_renglon(65, "Pegante en barra", (pegante,)), _renglon(89, "pegante en barra", (pegante,))]
+        )[0]
+        assert [linea.unidades_a_comprar for linea in kit.lineas] == [1, 1]
+
+    def test_dos_productos_distintos_no_se_juntan(self):
+        acero = Candidato(sku="TK-ACERO", nombre="Regla de acero", nivel="premium", precio_cop=12000)
+        kit = armar_los_tres(
+            [
+                _renglon(21, "regla 30 cm", (self.TIJERAS,), uno_por_estudiante=True),
+                _renglon(31, "regla de acero", (acero,), uno_por_estudiante=True),
+            ]
+        )[0]
+        assert [linea.unidades_a_comprar for linea in kit.lineas] == [1, 1]
+
+    def test_los_hermanos_no_se_juntan_aqui_cada_uno_necesita_las_suyas(self):
+        kit = armar_los_tres(
+            [
+                _renglon(1, "tijeras", (self.TIJERAS,), uno_por_estudiante=True, hijo="hijo-1"),
+                _renglon(1, "tijeras", (self.TIJERAS,), uno_por_estudiante=True, hijo="hijo-2"),
+            ]
+        )[0]
+        assert [linea.unidades_a_comprar for linea in kit.lineas] == [1, 1]
+
+
+class TestQueKitsSeArman:
+    """Solo se arman los kits que el acudiente pidio (ADR 0030).
+
+    Siempre Ahorrador y Premium; Fan solo con personaje y `A tu Medida` solo con
+    el punto medio o un tope. Por eso los canonicos de una lista son dos.
+    """
+
+    RENGLONES = [
+        _renglon(
+            orden,
+            texto,
+            (
+                _candidato(f"{prefijo}-ECO", "economico", 3000),
+                _candidato(f"{prefijo}-CON", "confiable", 6000),
+                _candidato(f"{prefijo}-PRE", "premium", 12000),
+                _candidato(f"{prefijo}-FAN", "economico", 4000, personaje="spiderman"),
+            ),
+        )
+        for orden, texto, prefijo in ((1, "Cuaderno", "C"), (2, "Colores", "K"))
+    ]
+
+    def _perfiles(self, preferencias):
+        return [k.perfil for k in armar_los_tres(self.RENGLONES, preferencias)]
+
+    def test_sin_preferencias_solo_ahorrador_y_premium(self):
+        assert self._perfiles({}) == ["Ahorrador", "Premium"]
+
+    def test_el_fan_solo_si_pidio_un_personaje(self):
+        assert self._perfiles({"personaje_por_hijo": {"hijo-1": ["spiderman"]}}) == [
+            "Ahorrador",
+            "Fan",
+            "Premium",
+        ]
+
+    def test_a_tu_medida_solo_con_el_punto_medio_o_un_tope(self):
+        assert self._perfiles({"prioridad": "equilibrio"}) == ["Ahorrador", "A tu Medida", "Premium"]
+        assert self._perfiles({"presupuesto_por_hijo": 12000}) == ["Ahorrador", "A tu Medida", "Premium"]
+        assert self._perfiles({"prioridad": "precio"}) == ["Ahorrador", "Premium"]
+
+    def test_se_marca_uno_solo(self):
+        kits = armar_los_tres(self.RENGLONES, {"prioridad": "equilibrio"})
+        assert sum(1 for kit in kits if kit.recomendado) == 1
+
+
 class TestLaRecomendacion:
     RENGLONES = [
         _renglon(
@@ -231,58 +361,184 @@ class TestLaRecomendacion:
         )
     ]
 
-    def test_se_marca_uno_y_se_devuelven_los_tres(self):
-        kits = armar_los_tres(self.RENGLONES)
-        assert len(kits) == 3
-        assert sum(1 for kit in kits if kit.recomendado) == 1
+    def _recomendado(self, preferencias=None):
+        return next(k for k in armar_los_tres(self.RENGLONES, preferencias) if k.recomendado)
 
     def test_por_omision_es_el_ahorrador(self):
-        kits = armar_los_tres(self.RENGLONES)
-        assert next(kit for kit in kits if kit.recomendado).perfil == "Ahorrador"
+        assert self._recomendado().perfil == "Ahorrador"
 
     def test_premium_solo_con_calidad_primero_y_diez_por_ciento_declarado(self):
-        kits = armar_los_tres(
-            self.RENGLONES,
-            {
-                "pesos": {"precio": 0.2, "marca_exigida": 0.2, "calidad": 0.5, "personaje": 0.1},
-                "disposicion_sobreprecio": 0.10,
-            },
-        )
-        assert next(kit for kit in kits if kit.recomendado).perfil == "Premium"
+        pesos = {"precio": 0.2, "marca_exigida": 0.2, "calidad": 0.5, "personaje": 0.1}
+        assert self._recomendado({"pesos": pesos, "disposicion_sobreprecio": 0.10}).perfil == "Premium"
+        assert self._recomendado({"pesos": pesos, "disposicion_sobreprecio": 0.0}).perfil == "Ahorrador"
 
-    def test_calidad_primero_sin_disposicion_sigue_siendo_ahorrador(self):
-        kits = armar_los_tres(
-            self.RENGLONES,
-            {
-                "pesos": {"precio": 0.2, "marca_exigida": 0.2, "calidad": 0.5, "personaje": 0.1},
-                "disposicion_sobreprecio": 0.0,
-            },
-        )
-        assert next(kit for kit in kits if kit.recomendado).perfil == "Ahorrador"
+    def test_fan_con_personaje_explicito(self):
+        assert self._recomendado({"personaje_por_hijo": {"hijo-1": ["spiderman"]}}).perfil == "Fan"
 
-    def test_fan_solo_con_personaje_explicito(self):
-        kits = armar_los_tres(self.RENGLONES, {"personaje_por_hijo": {"hijo-1": ["spiderman"]}})
-        assert next(kit for kit in kits if kit.recomendado).perfil == "Fan"
-
-    def test_el_presupuesto_es_una_cota_dura_y_se_cae_al_que_si_cabe(self):
-        kits = armar_los_tres(
-            self.RENGLONES,
-            {
-                "pesos": {"precio": 0.2, "marca_exigida": 0.2, "calidad": 0.5, "personaje": 0.1},
-                "disposicion_sobreprecio": 0.10,
-                "presupuesto_por_hijo": 10000,
-            },
-        )
-        recomendado = next(kit for kit in kits if kit.recomendado)
+    def test_si_ninguno_cabe_dice_cuanto_cuesta_el_mas_barato(self):
+        recomendado = self._recomendado({"presupuesto_por_hijo": 100})
         assert recomendado.perfil == "Ahorrador"
-        assert recomendado.dentro_de_presupuesto is True
-        assert "se pasa de tu presupuesto" in recomendado.razon
-
-    def test_si_ninguno_cabe_lo_dice_en_vez_de_callarlo(self):
-        kits = armar_los_tres(self.RENGLONES, {"presupuesto_por_hijo": 100})
-        recomendado = next(kit for kit in kits if kit.recomendado)
         assert recomendado.dentro_de_presupuesto is False
-        assert "Ningun kit cabe" in recomendado.razon
+        assert "Ningún kit cabe en tu tope de $100" in recomendado.razon
+        assert "$5.000" in recomendado.razon
+
+
+class TestATuMedida:
+    """El kit del punto medio sale del frente: la mejor marca que cabe.
+
+    El benchmark Laya vs NSGA-II mostro que el kit recomendado con presupuesto
+    lograba el 40 % de la calidad posible mientras el frente ya traia uno del
+    94 % que cabia (ADR 0029). Cada linea ofrece tres niveles: el Ahorrador
+    cuesta 6.000 y el Premium 24.000.
+    """
+
+    RENGLONES = [
+        _renglon(
+            orden,
+            texto,
+            (
+                _candidato(f"{prefijo}-ECO", "economico", 3000),
+                _candidato(f"{prefijo}-CON", "confiable", 6000),
+                _candidato(f"{prefijo}-PRE", "premium", 12000),
+            ),
+        )
+        for orden, texto, prefijo in ((1, "Cuaderno", "C"), (2, "Colores", "K"))
+    ]
+
+    def _kits(self, preferencias):
+        return {k.perfil: k for k in armar_los_tres(self.RENGLONES, preferencias)}
+
+    def test_con_tope_es_la_mejor_marca_que_cabe_y_se_recomienda(self):
+        kits = self._kits({"prioridad": "equilibrio", "presupuesto_por_hijo": 12000})
+        medida = kits["A tu Medida"]
+        assert medida.total_cop == 12000
+        assert medida.objetivos["fidelidad"] == 0.5
+        assert medida.recomendado is True
+        assert medida.dentro_de_presupuesto is True
+        assert "$12.000" in medida.razon
+        # El Premium sigue siendo el de mejor marca: ya no se ajusta.
+        assert kits["Premium"].total_cop == 24000
+
+    def test_sin_tope_va_hasta_la_mitad_de_camino(self):
+        """Sin tope, el tope implicito es (6.000 + 24.000) / 2 = 15.000."""
+        medida = self._kits({"prioridad": "equilibrio"})["A tu Medida"]
+        assert medida.total_cop <= 15000
+        assert medida.objetivos["fidelidad"] == 0.5
+        assert "mitad de camino" in medida.razon
+        assert "$15.000" in medida.razon
+
+    def test_si_el_tope_alcanza_para_el_premium_se_recomienda_el_premium(self):
+        kits = self._kits({"prioridad": "equilibrio", "presupuesto_por_hijo": 30000})
+        assert "A tu Medida" not in kits
+        assert kits["Premium"].recomendado is True
+        assert "alcanza" in kits["Premium"].razon
+
+    def test_si_no_alcanza_para_subir_de_marca_no_se_repite_el_ahorrador(self):
+        kits = self._kits({"prioridad": "equilibrio", "presupuesto_por_hijo": 6000})
+        assert "A tu Medida" not in kits
+        assert kits["Ahorrador"].recomendado is True
+        assert "no alcanza para subir de marca" in kits["Ahorrador"].razon
+
+    def test_el_sobreprecio_declarado_no_estira_el_tope(self):
+        """Con 10.000 y 20 % de sobreprecio el kit no pasa de 10.000 (ECO+CON =
+        9.000). Quien escribe "maximo 10.000" no espera pagar 12.000."""
+        kits = self._kits({"presupuesto_por_hijo": 10000, "disposicion_sobreprecio": 0.2})
+        assert kits["A tu Medida"].total_cop == 9000
+
+    def test_si_ninguno_cabe_lo_dice_con_el_precio_del_mas_barato(self):
+        kits = self._kits({"prioridad": "equilibrio", "presupuesto_por_hijo": 5000})
+        ahorrador = kits["Ahorrador"]
+        assert ahorrador.recomendado is True
+        assert ahorrador.dentro_de_presupuesto is False
+        assert "$5.000" in ahorrador.razon and "$6.000" in ahorrador.razon
+
+    def test_el_personaje_pedido_sigue_mandando_si_cabe(self):
+        renglones = [
+            _renglon(
+                1,
+                "Cuaderno",
+                (
+                    _candidato("ECO", "economico", 3000),
+                    _candidato("PRE", "premium", 12000),
+                    _candidato("FAN", "economico", 5000, personaje="spiderman"),
+                ),
+            )
+        ]
+        kits = armar_los_tres(
+            renglones, {"presupuesto_por_hijo": 6000, "personaje_por_hijo": {"hijo-1": ["spiderman"]}}
+        )
+        assert next(k for k in kits if k.recomendado).perfil == "Fan"
+
+    def test_si_lo_pedido_no_cabe_cae_a_la_mejor_marca_que_cabe_y_no_al_mas_barato(self):
+        renglones = [
+            _renglon(
+                1,
+                "Cuaderno",
+                (
+                    _candidato("ECO", "economico", 3000),
+                    _candidato("CON", "confiable", 5000),
+                    _candidato("FAN", "economico", 20000, personaje="spiderman"),
+                ),
+            )
+        ]
+        kits = armar_los_tres(
+            renglones, {"presupuesto_por_hijo": 6000, "personaje_por_hijo": {"hijo-1": ["spiderman"]}}
+        )
+        recomendado = next(k for k in kits if k.recomendado)
+        assert recomendado.lineas[0].elegido.sku == "CON"
+        assert recomendado.dentro_de_presupuesto is True
+        assert "se pasa de tu tope" in recomendado.razon
+
+
+class TestUnCandidatoSinPrecioNoGanaPorBarato:
+    """El costo del frente no suma lo que no tiene precio (su falta la mide la
+    disponibilidad), asi que un candidato sin precio parecia gratis: el
+    Ahorrador lo elegia y mostraba un total que no incluia esa linea, y el
+    Premium y A tu Medida lo tomaban como una marca que no costaba nada. Lo
+    que Tukit no puede surtir no gana una comparacion de precio, igual que en
+    la heuristica."""
+
+    RENGLONES = [
+        _renglon(
+            1, "Cuaderno", (_candidato("A-ECO", "economico", 3000), _candidato("A-SIN", "premium", None))
+        ),
+        _renglon(
+            2, "Colores", (_candidato("B-ECO", "economico", 2000), _candidato("B-PRE", "premium", 9000))
+        ),
+    ]
+
+    def _kits(self, preferencias=None):
+        return {k.perfil: k for k in armar_los_tres(self.RENGLONES, preferencias or {})}
+
+    def _skus(self, kit):
+        return [linea.elegido.sku for linea in kit.lineas]
+
+    def test_el_ahorrador_no_elige_lo_que_no_tiene_precio(self):
+        ahorrador = self._kits()["Ahorrador"]
+        assert self._skus(ahorrador) == ["A-ECO", "B-ECO"]
+        assert ahorrador.total_cop == 5000
+        assert ahorrador.objetivos["disponibilidad"] == 1.0
+
+    def test_el_premium_no_toma_una_marca_sin_precio_como_gratis(self):
+        premium = self._kits()["Premium"]
+        assert self._skus(premium) == ["A-ECO", "B-PRE"]
+        assert premium.total_cop == 12000
+
+    def test_a_tu_medida_no_cabe_gracias_a_lo_que_no_tiene_precio(self):
+        medida = self._kits({"prioridad": "equilibrio", "presupuesto_por_hijo": 12000})
+        assert all(linea.precio_unitario_cop is not None for k in medida.values() for linea in k.lineas)
+
+    def test_si_solo_hay_candidato_sin_precio_la_linea_igual_sale(self):
+        """Ofrecerlo diciendo "no conocemos el precio" es mejor que dejar la
+        linea vacia: puede ser el unico que cumple lo que el colegio exige."""
+        renglones = [
+            _renglon(1, "Cuaderno", (_candidato("A-SIN", "premium", None),)),
+            _renglon(
+                2, "Colores", (_candidato("B-ECO", "economico", 2000), _candidato("B-PRE", "premium", 9000))
+            ),
+        ]
+        ahorrador = next(k for k in armar_los_tres(renglones) if k.perfil == "Ahorrador")
+        assert self._skus(ahorrador) == ["A-SIN", "B-ECO"]
 
 
 def _hipervolumen(kits, ref_costo: int) -> float:
@@ -377,15 +633,13 @@ class TestElFrenteDePareto:
 
     def test_el_frente_domina_o_iguala_a_la_heuristica_en_hipervolumen(self):
         """La prueba de la tesis, en pequeno: el frente NSGA-II no puede tener
-        menos hipervolumen que los tres puntos que daba la heuristica."""
+        menos hipervolumen que los puntos que daba la heuristica."""
         kits_frente = armar_los_tres(self.RENGLONES, {})
         # La heuristica pura: se fuerza reconstruyendo los kits con
         # `elegir_por_perfil` linea a linea (misma que la ruta degradada).
         from tukit_inteligencia.optimizador import armar_kit
 
-        kits_heuristica = [
-            armar_kit(self.RENGLONES, perfil, {}) for perfil in ("Ahorrador", "Premium", "Fan")
-        ]
+        kits_heuristica = [armar_kit(self.RENGLONES, perfil, {}) for perfil in ("Ahorrador", "Premium")]
         ref = max(k.total_cop for k in kits_frente + kits_heuristica) + 1
         assert _hipervolumen(kits_frente, ref) >= _hipervolumen(kits_heuristica, ref)
 
@@ -469,6 +723,59 @@ class TestElFrenteNSGAEnEspacioGrande:
             optimizar_frente(renglones, {}, semilla=13)
         )
 
+    def _renglones_dispares(self):
+        """Doce lineas con precios distintos por linea: subir de marca cuesta
+        distinto en cada una, que es donde la escalera de costo marginal encuentra
+        kits que el cruce SBX no ve (benchmark: 68 % de las listas)."""
+        return [
+            _renglon(
+                i,
+                f"Item {i}",
+                (
+                    _candidato(f"D{i}-E", "economico", 1000 * i),
+                    _candidato(f"D{i}-C", "confiable", 1000 * i + 300 * (13 - i)),
+                    _candidato(f"D{i}-P", "premium", 1000 * i + 900 * (13 - i) + 50 * i * i),
+                ),
+                hijo="hijo-1",
+            )
+            for i in range(1, 13)
+        ]
+
+    def test_la_escalera_sube_de_marca_donde_cuesta_menos(self):
+        from tukit_inteligencia.optimizador import _admisibles, _escalera_costo_marginal
+
+        renglones = self._renglones_dispares()
+        opciones = [_admisibles(r) for r in renglones]
+        escalera = _escalera_costo_marginal(renglones, opciones)
+        # Arranca en el kit mas barato y termina en el de mejor marca.
+        assert all(opciones[i][j].nivel == "economico" for i, j in enumerate(escalera[0]))
+        assert all(opciones[i][j].nivel == "premium" for i, j in enumerate(escalera[-1]))
+        # Cada peldano sube la marca y no baja el costo.
+        costos = [sum(opciones[i][j].precio_cop for i, j in enumerate(p)) for p in escalera]
+        niveles = [sum(opciones[i][j].rango_nivel for i, j in enumerate(p)) for p in escalera]
+        assert costos == sorted(costos)
+        assert all(b > a for a, b in zip(niveles, niveles[1:], strict=False))
+        # El primer peldano sube la linea donde subir cuesta menos: la 12.
+        cambio = [i for i, (a, b) in enumerate(zip(escalera[0], escalera[1], strict=True)) if a != b]
+        assert cambio == [11]
+
+    def test_ningun_kit_de_la_escalera_domina_al_frente(self):
+        from tukit_inteligencia.optimizador import (
+            _admisibles,
+            _domina,
+            _escalera_costo_marginal,
+            _objetivos_de_asignacion,
+        )
+
+        renglones = self._renglones_dispares()
+        opciones = [_admisibles(r) for r in renglones]
+        frente = optimizar_frente(renglones, {}, semilla=0)
+        puntos = [(s.costo, s.fidelidad, s.disponibilidad, s.personaje) for s in frente]
+        for peldano in _escalera_costo_marginal(renglones, opciones):
+            elegidos = [opciones[i][j] for i, j in enumerate(peldano)]
+            kit = _objetivos_de_asignacion(renglones, elegidos, {})
+            assert not any(_domina(kit, p) for p in puntos), "la escalera domina un punto del frente"
+
 
 class TestBordesDelOptimizador:
     """Casos limite que antes no tenian prueba: sin lineas, todo informativo,
@@ -489,8 +796,8 @@ class TestBordesDelOptimizador:
         sin_cand = [_renglon(1, "Cuaderno", ())]
         assert optimizar_frente(sin_cand, {}) == []
         kits = armar_los_tres(sin_cand)
-        # Se arman los tres kits igual; la linea queda sin elegido, no revienta.
-        assert len(kits) == 3
+        # Se arman los kits igual; la linea queda sin elegido, no revienta.
+        assert [k.perfil for k in kits] == ["Ahorrador", "Premium"]
         assert all(kit.lineas[0].elegido is None for kit in kits)
 
     def test_un_kit_grande_corre_por_nsga_y_respeta_las_unidades(self):

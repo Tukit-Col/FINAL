@@ -69,6 +69,10 @@ class Emparejamiento:
     atributos_impuestos: dict[str, Any]
     motivo: str
     opciones: tuple[Opcion, ...]
+    # El tipo del concepto reconocido (util, uniforme, no_comprar...). Viaja para
+    # que quien arma el kit sepa si el renglon se busca en el catalogo o es una
+    # linea informativa, sin adivinarlo del texto. Nulo si no se reconocio.
+    concepto_tipo_item: str | None = None
 
     def a_dict(self) -> dict[str, Any]:
         datos = asdict(self)
@@ -100,6 +104,14 @@ def _elegir_por_nivel(productos: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [por_nivel[nivel] for nivel in _ORDEN_NIVEL if nivel in por_nivel]
 
 
+# Valores que el vocabulario lee de un renglon pero que no se le pueden exigir a
+# un producto. En una lista escolar casi todo dice "escolar": "Maleta escolar"
+# pedia `tipo=escolar` y ninguna de las 27 maletas (morrales, con ruedas) lo
+# declaraba, asi que el kit no ofrecia ninguna. Del lado del producto `escolar`
+# sigue leyendose (es el tipo de ultimo recurso); solo deja de filtrar.
+_NO_SE_EXIGEN = frozenset({("tipo", "escolar")})
+
+
 def _cumple(producto: dict[str, Any], impuestos: dict[str, Any]) -> bool:
     declarados = {k: str(v).lower() for k, v in (producto.get("atributos") or {}).items()}
     return all(declarados.get(k) == str(v).lower() for k, v in impuestos.items())
@@ -111,6 +123,7 @@ def emparejar(
     productos: list[dict[str, Any]],
     *,
     embedding_renglon: list[float] | None = None,
+    concepto_forzado: str | None = None,
 ) -> Emparejamiento:
     """Clasifica el renglon y, si el catalogo puede cumplirlo, da hasta tres opciones.
 
@@ -124,7 +137,15 @@ def emparejar(
     siempre.
     """
     corregido = corregir(texto, lexico_de(conceptos))
-    concepto_id, nombre, parecido = clasificar(corregido, conceptos, embedding_renglon=embedding_renglon)
+    # Un concepto que una persona ya le asigno al renglon (en la revision de la
+    # lista) no se vuelve a adivinar por el texto: se usa, y solo se buscan sus
+    # productos. Sin esto la previsualizacion ignoraba la curaduria y decia "no
+    # entendimos" a un renglon que el revisor ya habia resuelto.
+    asignado = next((c for c in conceptos if concepto_forzado and c.get("codigo") == concepto_forzado), None)
+    if asignado is not None:
+        concepto_id, nombre, parecido = asignado["id"], asignado["nombre"], 1.0
+    else:
+        concepto_id, nombre, parecido = clasificar(corregido, conceptos, embedding_renglon=embedding_renglon)
     if parecido < 0.5 or concepto_id is None:
         return Emparejamiento(
             texto=texto,
@@ -139,7 +160,11 @@ def emparejar(
         )
 
     concepto = next(c for c in conceptos if c["id"] == concepto_id)
-    impuestos = extraer_atributos(corregido, tuple(concepto.get("discriminantes") or ()))
+    impuestos = {
+        k: v
+        for k, v in extraer_atributos(corregido, tuple(concepto.get("discriminantes") or ())).items()
+        if (k, v) not in _NO_SE_EXIGEN
+    }
     del_concepto = [p for p in productos if p.get("concepto_id") == concepto_id]
     if not del_concepto:
         return Emparejamiento(
@@ -147,6 +172,7 @@ def emparejar(
             texto_corregido=corregido,
             estado="hueco_catalogo",
             concepto_codigo=concepto.get("codigo"),
+            concepto_tipo_item=concepto.get("tipo_item"),
             concepto_nombre=nombre,
             parecido=parecido,
             atributos_impuestos=impuestos,
@@ -164,6 +190,7 @@ def emparejar(
                 texto_corregido=corregido,
                 estado="abstencion",
                 concepto_codigo=concepto.get("codigo"),
+                concepto_tipo_item=concepto.get("tipo_item"),
                 concepto_nombre=nombre,
                 parecido=parecido,
                 atributos_impuestos=impuestos,
@@ -197,6 +224,7 @@ def emparejar(
         texto_corregido=corregido,
         estado="reconocido",
         concepto_codigo=concepto.get("codigo"),
+        concepto_tipo_item=concepto.get("tipo_item"),
         concepto_nombre=nombre,
         parecido=parecido,
         atributos_impuestos=impuestos,
@@ -246,6 +274,7 @@ async def cargar_indice(
             "nombre": f.nombre_canonico,
             "sinonimos": list(f.sinonimos or ()),
             "discriminantes": tuple(f.atributos_discriminantes or ()),
+            "tipo_item": f.tipo_item,
         }
         for f in await conexion.execute(
             select(
@@ -254,6 +283,7 @@ async def cargar_indice(
                 concepto.c.nombre_canonico,
                 concepto.c.sinonimos,
                 concepto.c.atributos_discriminantes,
+                concepto.c.tipo_item,
             ).where(concepto.c.activo.is_(True))
         )
     ]

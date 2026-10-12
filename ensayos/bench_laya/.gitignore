@@ -1,0 +1,5 @@
+# Las entradas van comprimidas (.gz); los resultados se escriben en docs/informes/benchmark-laya/.
+# Lo que sigue son artefactos locales de una corrida.
+*.log
+*.avance.jsonl
+__pycache__/

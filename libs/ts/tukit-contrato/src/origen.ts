@@ -14,10 +14,13 @@ import type {
   AcudienteResumen,
   AltaProducto,
   AplicarCanonico,
+  CambioDeProducto,
+  PerfilKit,
   Checkout,
   ColaAdmin,
   Contacto,
   DecisionRevision,
+  BorradorKits,
   GradoCanonico,
   SolicitudCheckout,
   HijoSubida,
@@ -25,6 +28,8 @@ import type {
   MisSolicitudes,
   PercepcionCruda,
   Preferencias,
+  PagoIniciado,
+  ResultadoPago,
   ProductoDadoDeAlta,
   SinCoincidencia,
   SolicitudTrabajo,
@@ -54,6 +59,7 @@ import type {
   FiltrosListasAdmin,
   FiltrosProductos,
   ItemListaEditable,
+  AvisoLista,
   ListaOficial,
   PaginaProductos,
   Personaje,
@@ -66,7 +72,12 @@ import type {
   Sugerencia,
   VersionListaAdmin,
 } from "./catalogo";
-import type { Pedido, TableroComercio } from "./comercio";
+import type {
+  Pedido,
+  PedidoConHistorial,
+  SolicitudAvancePedido,
+  TableroComercio,
+} from "./comercio";
 import type { MetricasColegio, ResumenPedidosColegio, SerieMetricas } from "./metricas";
 import type { BandejaOperacion, Caso, CasoCreado, SolicitudCaso } from "./operacion";
 
@@ -130,6 +141,9 @@ export interface HijoNuevo {
  *  El apodo SI baja porque el PADRE puede ver el de SUS hijos —es el portador del
  *  token—, pero sigue sin traer nombre legal, documento ni `estudiante_id`. */
 export interface MatriculaAcudiente {
+  // El id de la matrícula (no del estudiante): con él se quita o se cambia de
+  // colegio al hijo desde el panel.
+  matricula_id: string;
   colegio_id: string;
   grado: string;
   anio_lectivo: number;
@@ -211,6 +225,20 @@ export interface OrigenDatos {
   // a sus propios hijos sin re-registrar la cuenta. Bearer; idempotente; solo
   // escribe tenencia del portador. Devuelve cuantas materializo.
   guardarMatriculas(token: string, hijos: HijoNuevo[]): Promise<{ total: number }>;
+
+  // Quitar a un hijo cierra su vínculo (no borra datos); cambiarlo de colegio
+  // retira la matrícula vieja y crea la nueva con el mismo apodo (ADR 0031).
+  quitarMatricula(token: string, matriculaId: string): Promise<void>;
+  cambiarMatricula(
+    token: string,
+    matriculaId: string,
+    cambio: { colegio_id: string; grado: string; apodo?: string | null },
+  ): Promise<{ total: number }>;
+
+  // El acudiente cancela una solicitud suya: un trabajo (si no compró el kit) o
+  // una lista que subió y aún no tiene kit (ADR 0031).
+  cancelarSolicitud(token: string, trabajoId: string): Promise<{ trabajo_id: string; estado: string }>;
+  cancelarListaSubida(token: string, tareaId: string): Promise<{ tarea_id: string; retiradas: number }>;
 
   // §Identidad — padron de acudientes para el equipo interno. Solo admin/
   // operador (identidad gatea: 401 sin token, 403 sin rol). Devuelve las
@@ -297,6 +325,35 @@ export interface OrigenDatos {
   // devuelve la url de la pasarela a la que redirigir. No expone ids de base.
   iniciarCheckout(trabajoId: string, cuerpo: SolicitudCheckout): Promise<Checkout>;
 
+  // El acudiente cambia un producto de un kit publicado por el sugerido o una
+  // de sus alternativas. `token` es su sesión: si el trabajo tiene dueño, el
+  // backend exige que sea la suya.
+  cambiarProductoDeKit(
+    trabajoId: string,
+    perfil: PerfilKit,
+    itemId: string,
+    sku: string,
+    token?: string,
+  ): Promise<CambioDeProducto>;
+
+  // §Pago — al regreso de la pasarela, sincroniza la transaccion con Wompi y
+  // devuelve el estado del pago y del pedido (idempotente).
+  sincronizarPago(transaccionId: string): Promise<ResultadoPago>;
+  // Las operaciones del acudiente sobre SUS pedidos. Viaja el token: comercio
+  // saca la identidad de la sesion y un pedido ajeno responde 404.
+  // Uno de sus pedidos, sin datos del reparto (la pantalla del resultado del pago).
+  miPedido(token: string, pedidoId: string): Promise<Pedido>;
+  // Un intento de pago nuevo sobre un pedido pendiente (Comercio congela el
+  // precio al crear el pedido; aqui no se re-arma la orden).
+  iniciarPagoPedido(
+    token: string,
+    pedidoId: string,
+    cuerpo: { correo_cliente: string; url_redireccion?: string },
+  ): Promise<PagoIniciado>;
+  // Cancela un pedido pendiente. Comercio pregunta antes a Wompi: con un pago
+  // aprobado o en curso responde 409 y no cancela.
+  cancelarPedido(token: string, pedidoId: string): Promise<Pedido>;
+
   // §7 — revision humana.
   cola(): Promise<ColaAdmin>;
   trabajoAdmin(trabajoId: string): Promise<TrabajoAdmin>;
@@ -324,6 +381,13 @@ export interface OrigenDatos {
   altaProducto(cuerpo: AltaProducto): Promise<ProductoDadoDeAlta>;
   marcarNoDisponible(sku: string, cuerpo: MarcarNoDisponible): Promise<void>;
   decidirRevision(trabajoId: string, cuerpo: DecisionRevision): Promise<void>;
+  // Fija un preview (sin acudiente) como los kits canonicos de su grado: no
+  // avisa a nadie. Aprobar la LISTA es aparte (`cerrarLista`).
+  fijarCanonico(trabajoId: string, cuerpo: { nota?: string }): Promise<void>;
+  // Copia editable de los kits canonicos vigentes: la version siguiente. Se
+  // corrige en la consola y se publica con `fijarCanonico`; la anterior queda
+  // para los acudientes que ya la tenian. Si ya hay una abierta, devuelve esa.
+  abrirBorradorKits(trabajoId: string): Promise<BorradorKits>;
   // Borra un trabajo desechable (preview, encolado, fallido). Un `publicado`
   // esta protegido y el backend responde 409.
   eliminarTrabajo(trabajoId: string): Promise<void>;
@@ -380,16 +444,23 @@ export interface OrigenDatos {
   ): Promise<void>;
   agregarItemLista(versionId: string, item: ItemListaEditable): Promise<{ item_id: string }>;
   quitarItemLista(versionId: string, itemId: string): Promise<void>;
-  // Descartar una version SIN revisar de la cola (una sugerencia que no va, un
-  // onboarding equivocado). El backend alza 409 `lista_ya_revisada` si ya se
-  // aprobo —una lista oficial no se borra, se corrige con `nuevaVersion`—.
-  eliminarVersion(versionId: string): Promise<void>;
+  // Saca de la cola una version SIN revisar (y su PDF). Una revisada responde
+  // 409 `lista_ya_revisada`: es la que ve el acudiente.
+  eliminarVersionLista(versionId: string): Promise<void>;
   cerrarLista(versionId: string): Promise<void>;
   nuevaVersion(
     colegioId: string,
     grado: string,
     anioLectivo: number,
   ): Promise<{ version_id: string }>;
+
+  // Los avisos de una version ya revisada (repetidos, atributos ambiguos,
+  // renglones sin producto) y sus dos decisiones: "son distintos" lo descarta
+  // sin crear version; "es el mismo" publica una version nueva con ese renglon
+  // como "no se compra" y los kits se rearman.
+  avisosLista(versionId: string): Promise<AvisoLista[]>;
+  descartarAviso(versionId: string, itemId: string, clave: string): Promise<void>;
+  noComprarRepetido(versionId: string, itemId: string, repiteA: number): Promise<{ version_id: string }>;
 
   // Completar el perfil del colegio NUEVO de una version antes de aprobarla,
   // para que se de de alta completo (logo, direccion, contacto...) y no solo
@@ -436,23 +507,31 @@ export interface OrigenDatos {
   // (`contacto_referencia`): nunca correo ni telefono.
   sugerencias(): Promise<Sugerencia[]>;
 
-  // ASUMIDO — superficie de lectura de `comercio` (logistica del back-office).
-  // Ver `comercio.ts`: el contrato v1.0 aun no publica esto.
-  pedidos(): Promise<TableroComercio>;
-  pedido(pedidoId: string): Promise<Pedido>;
+  // Logistica del back-office (`comercio`). Solo operador/admin: comercio valida
+  // el Bearer contra identidad por HTTP (no lee su base, regla 1) y responde
+  // 401 sin sesion, 403 con otro rol y 503 si identidad no contesta. Por eso el
+  // token va primero y es obligatorio.
+  pedidos(token: string): Promise<TableroComercio>;
+  // El detalle trae ademas el celular del repartidor y el historial de avances.
+  pedido(token: string, pedidoId: string): Promise<PedidoConHistorial>;
+  // Mueve el pedido un paso; responde el detalle ya actualizado. 409 si la
+  // transicion no procede o alguien lo movio antes; 422 si faltan datos.
+  avanzarPedido(
+    token: string,
+    pedidoId: string,
+    cuerpo: SolicitudAvancePedido,
+  ): Promise<PedidoConHistorial>;
 
-  // El historial de UN acudiente, para su panel (`/v1/comercio/mis-pedidos`).
-  // A diferencia de `pedidos()` (el tablero de logistica, TODOS los pedidos),
-  // esto filtra por el `usuario_id` del portador de la sesion —que quien llama
-  // resuelve antes con `sesionActual`—, no por token: comercio no puede validar
-  // la sesion de identidad sin cruzar la frontera (regla 1). Devuelve la lista
-  // sin resumen; el dashboard no lo necesita.
-  misPedidos(usuarioId: string): Promise<Pedido[]>;
+  // Los pedidos del acudiente, para su panel (`/v1/comercio/mis-pedidos`).
+  // Viaja el token, no un `usuario_id`: comercio saca la identidad de la sesion
+  // que valida, para que el navegador nunca elija de quien leer los pedidos.
+  // Devuelve la lista sin resumen; el dashboard no lo necesita.
+  misPedidos(token: string): Promise<Pedido[]>;
 
   // Las solicitudes de kit del acudiente (trabajos del pipeline, no pedidos
-  // pagados): lo que `/empezar` crea. A diferencia de `misPedidos`, inteligencia
-  // SÍ valida la sesión, así que se identifica por el `token` del portador —el
-  // mismo Bearer que ya reenvía `crearTrabajo`— y no por un `usuario_id` suelto.
+  // pagados): lo que `/empezar` crea. Como `misPedidos`, se identifica por el
+  // `token` del portador —el mismo Bearer que ya reenvía `crearTrabajo`— y no
+  // por un `usuario_id` suelto.
   misTrabajos(token?: string): Promise<TrabajoResumen[]>;
 
   // "Mis solicitudes" del panel del acudiente: sus listas subidas + sus

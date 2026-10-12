@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import re
 import uuid
 from typing import Annotated, Any
 
@@ -216,31 +217,67 @@ async def ver_revision(version_id: uuid.UUID) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def _candidatos_por_concepto(repo: RepoAdmin, codigos: list[str]) -> dict[str, list[dict[str, Any]]]:
-    """Los candidatos curados de un conjunto de conceptos, uno por nivel.
+_ORDEN_NIVEL = {"economico": 0, "confiable": 1, "premium": 2}
 
-    REUSA el mismo constructor de opciones que `emparejar`: la consulta de
-    productos con su precio vigente (`_consulta_productos`) y el corte de una
-    opcion por nivel (`_elegir_por_nivel`). La unica diferencia con la ruta de
-    emparejar es que aqui se entra por el concepto YA decidido —la lista esta
-    revisada— en vez de por busqueda de texto.
+# Las reglas de un concepto que no aparecio: no filtra, no se junta, es un util.
+_SIN_REGLAS: tuple[tuple[str, ...], bool, str] = ((), False, "util")
 
-    Se piden TODOS los conceptos de la version de una vez y se agrupan en
-    memoria por su codigo, para no hacer una consulta por renglon (el patron
-    N+1). El dict de salida mapea `concepto_codigo` a la lista de candidatos
-    con la forma EXACTA del `Candidato` del optimizador.
+# Un cuaderno por materia es la norma, no un repetido: marcarlos llenaria la
+# revision de avisos que nadie tiene que atender (136 en las 18 listas).
+_POR_MATERIA = frozenset({"C001"})
+
+
+def _palabras(texto: str) -> set[str]:
+    from ..enriquecer import _normalizar
+
+    return set(re.findall(r"[a-z0-9]+", _normalizar(texto)))
+
+
+def _posibles_repetidos(
+    filas: list[Any], reglas: dict[str, tuple[tuple[str, ...], bool, str]]
+) -> dict[int, int]:
+    """`orden -> orden` de los renglones que parecen repetir a uno anterior.
+
+    Solo para lo que NO se junta solo: lo que se gasta (pegante, cinta) y los
+    textos (`Gateway B1 Student's Book` escrito dos veces de dos formas). Puede
+    ser uno por materia a proposito, asi que no se toca: se avisa, y el
+    revisor decide. Dos renglones se parecen si son del mismo concepto, exigen
+    los mismos atributos y comparten al menos el 60 % de sus palabras. Sin lo
+    de los atributos, `acrilico cian` y `acrilico magenta` salian repetidos:
+    se parecen en todo menos en lo unico que importa.
     """
-    from ..consulta import _elegir_por_nivel
+    from ..enriquecer import extraer_atributos
 
+    vistos: dict[tuple[str, tuple[tuple[str, str], ...]], list[tuple[int, set[str]]]] = {}
+    salida: dict[int, int] = {}
+    for f in filas:
+        codigo = f.concepto_codigo
+        if codigo is None or codigo in _POR_MATERIA or reglas.get(codigo, _SIN_REGLAS)[1]:
+            continue
+        if (f.tipo_item or "util") in ("no_comprar", "uniforme", "licencia_digital", "diferido", "otro"):
+            continue
+        exige = extraer_atributos(f.texto_original, reglas.get(codigo, _SIN_REGLAS)[0])
+        clave = (codigo, tuple(sorted((k, str(v)) for k, v in exige.items())))
+        palabras = _palabras(f.texto_original)
+        for orden, otras in vistos.get(clave, []):
+            union = palabras | otras
+            if union and len(palabras & otras) / len(union) >= 0.6:
+                salida[int(f.orden)] = orden
+                break
+        vistos.setdefault(clave, []).append((int(f.orden), palabras))
+    return salida
+
+
+async def _productos_por_concepto(repo: RepoAdmin, codigos: list[str]) -> dict[str, list[dict[str, Any]]]:
+    """Todos los productos activos de esos conceptos, con su precio vigente.
+
+    Se piden todos de una vez y se agrupan en memoria, para no hacer una
+    consulta por renglon (el patron N+1).
+    """
     if not codigos:
         return {}
-
-    filas = await repo.productos_por_conceptos(codigos)
-
-    # Se agrupan los productos crudos por concepto en la forma que
-    # `_elegir_por_nivel` consume (las mismas llaves que arma `emparejar`).
     por_concepto: dict[str, list[dict[str, Any]]] = {}
-    for f in filas:
+    for f in await repo.productos_por_conceptos(codigos):
         por_concepto.setdefault(f.concepto_codigo, []).append(
             {
                 "id": f.id,
@@ -256,29 +293,122 @@ async def _candidatos_por_concepto(repo: RepoAdmin, codigos: list[str]) -> dict[
                 "precio_cop": None if f.centavos is None else int(f.centavos) // 100,
             }
         )
+    return por_concepto
 
-    salida: dict[Any, list[dict[str, Any]]] = {}
-    for concepto_id, productos in por_concepto.items():
-        salida[concepto_id] = [
+
+def _renglon_resuelto(
+    texto: str,
+    curados: dict[str, Any],
+    productos: list[dict[str, Any]],
+    discriminantes: tuple[str, ...],
+) -> tuple[list[dict[str, Any]], dict[str, Any], list[str]]:
+    """Los candidatos de UN renglon, lo que el renglon exige y lo que hay que revisar.
+
+    Antes los candidatos eran del concepto, no del renglon: uno por nivel, tres
+    a lo sumo, todos marcados `cumple` porque "la lista ya esta revisada". Pero
+    revisar la lista decide el CONCEPTO, no el producto: `Pinturas acrilicas:
+    blanco` y `: negro` son el mismo concepto y recibian el mismo oleo magenta,
+    y un concepto con cuarenta cuadernos solo le mostraba tres al kit.
+
+    Ahora, con la misma regla que `emparejar`:
+
+    - Se exige lo que el renglon dice de los atributos discriminantes de su
+      concepto. Lo que el revisor corrigio en la curaduria (`atributos` del
+      item) manda sobre lo que se leyo del texto.
+    - Entran TODOS los productos que lo cumplen, no uno por nivel: el
+      optimizador elige entre ellos (Ahorrador el mas barato; Premium el de
+      mejor nivel y, dentro de el, el mas barato).
+    - Sin personaje: el canonico no tiene un acudiente que lo haya pedido. Un
+      producto con personaje entra solo si es el unico que cumple, porque
+      mejor un cuaderno de Cars que cumple que un hueco.
+    - Si nada cumple, no hay candidatos: es un hueco, no un sustituto.
+
+    Lo que el renglon nombra con varios valores (`rayado o cuadriculado`) no
+    se exige y se devuelve aparte para que una persona lo mire.
+    """
+    from ..consulta import _NO_SE_EXIGEN, _cumple
+    from ..enriquecer import atributos_ambiguos, extraer_atributos
+
+    impuestos = {
+        k: v for k, v in extraer_atributos(texto, discriminantes).items() if (k, v) not in _NO_SE_EXIGEN
+    }
+    impuestos.update({k: v for k, v in curados.items() if k in discriminantes and v not in (None, "")})
+    por_revisar = [a for a in atributos_ambiguos(texto, discriminantes) if a not in impuestos]
+
+    que_cumplen = [p for p in productos if _cumple(p, impuestos)]
+    elegibles = [p for p in que_cumplen if not p.get("personaje")] or que_cumplen
+    elegibles.sort(
+        key=lambda p: (
+            _ORDEN_NIVEL.get(p["nivel"] or "", 9),
+            p["precio_cop"] is None,
+            p["precio_cop"] or 0,
+            p["sku"],
+        )
+    )
+
+    candidatos = [
+        {
+            "producto_id": None if p.get("id") is None else str(p["id"]),
+            "sku": p.get("sku") or "",
+            "nombre": p.get("nombre") or "",
+            "nivel": p.get("nivel") or "confiable",
+            "marca": p.get("marca"),
+            "personaje": p.get("personaje"),
+            "imagen_url": p.get("imagen_url"),
+            "unidad_base": p.get("unidad_base") or "unidad",
+            "unidades_por_empaque": int(p.get("unidades_por_empaque") or 1),
+            "atributos": dict(p.get("atributos") or {}),
+            "precio_cop": p.get("precio_cop"),
+            "cumple": True,
+        }
+        for p in elegibles
+    ]
+    return candidatos, impuestos, por_revisar
+
+
+async def _renglones_resueltos(repo: RepoAdmin, version_id: uuid.UUID) -> list[dict[str, Any]]:
+    """Cada renglon de la version con sus candidatos, lo que exige y sus avisos."""
+    filas = await repo.items_resueltos(version_id)
+
+    codigos = sorted({f.concepto_codigo for f in filas if f.concepto_codigo is not None})
+    productos = await _productos_por_concepto(repo, codigos)
+    reglas = await repo.reglas_por_codigo(codigos)
+    repetidos = _posibles_repetidos(filas, reglas)
+
+    items = []
+    for f in filas:
+        candidatos: list[dict[str, Any]] = []
+        impuestos: dict[str, Any] = {}
+        por_revisar: list[str] = []
+        if f.concepto_codigo is not None:
+            candidatos, impuestos, por_revisar = _renglon_resuelto(
+                f.texto_original,
+                dict(f.atributos or {}),
+                productos.get(f.concepto_codigo, []),
+                reglas.get(f.concepto_codigo, _SIN_REGLAS)[0],
+            )
+        items.append(
             {
-                "producto_id": None if p.get("id") is None else str(p["id"]),
-                "sku": p.get("sku") or "",
-                "nombre": p.get("nombre") or "",
-                "nivel": p.get("nivel") or "confiable",
-                "marca": p.get("marca"),
-                "personaje": p.get("personaje"),
-                "imagen_url": p.get("imagen_url"),
-                "unidad_base": p.get("unidad_base") or "unidad",
-                "unidades_por_empaque": int(p.get("unidades_por_empaque") or 1),
-                "atributos": dict(p.get("atributos") or {}),
-                "precio_cop": p.get("precio_cop"),
-                # La lista ya esta revisada: no hay atributo impuesto que filtrar,
-                # asi que todo candidato curado del concepto cumple.
-                "cumple": True,
+                "item_id": str(f.id),
+                "orden": int(f.orden),
+                "texto_original": f.texto_original,
+                "cantidad": int(f.cantidad),
+                "tipo_item": f.tipo_item,
+                "modo_adquisicion": f.modo_adquisicion,
+                "concepto_codigo": f.concepto_codigo,
+                "concepto_nombre": f.concepto_nombre,
+                "instruccion_colegio": f.instruccion_colegio,
+                "url_externa": f.url_externa,
+                "candidatos": candidatos,
+                "atributos_impuestos": impuestos,
+                "atributos_por_revisar": por_revisar,
+                "uno_por_estudiante": reglas.get(f.concepto_codigo, _SIN_REGLAS)[1],
+                "posible_repetido_de": repetidos.get(int(f.orden)),
+                "tipo_concepto": reglas.get(f.concepto_codigo, _SIN_REGLAS)[2],
+                "avisos_descartados": list(f.avisos_descartados or ()),
             }
-            for p in _elegir_por_nivel(productos)
-        ]
-    return salida
+        )
+    return items
 
 
 @router.get(
@@ -315,32 +445,10 @@ async def resueltos_de_version(version_id: uuid.UUID) -> dict[str, Any]:
                 estado=409,
             )
 
-        filas = await repo.items_resueltos(version_id)
-
-        codigos = sorted({f.concepto_codigo for f in filas if f.concepto_codigo is not None})
-        candidatos_por_concepto = await _candidatos_por_concepto(repo, codigos)
-
         items = [
-            {
-                "item_id": str(f.id),
-                "orden": int(f.orden),
-                "texto_original": f.texto_original,
-                "cantidad": int(f.cantidad),
-                "tipo_item": f.tipo_item,
-                "modo_adquisicion": f.modo_adquisicion,
-                "concepto_codigo": f.concepto_codigo,
-                "concepto_nombre": f.concepto_nombre,
-                "instruccion_colegio": f.instruccion_colegio,
-                "url_externa": f.url_externa,
-                "candidatos": (
-                    candidatos_por_concepto.get(f.concepto_codigo, [])
-                    if f.concepto_codigo is not None
-                    else []
-                ),
-            }
-            for f in filas
+            {k: v for k, v in i.items() if k not in ("tipo_concepto", "avisos_descartados")}
+            for i in await _renglones_resueltos(repo, version_id)
         ]
-
     return {
         "version_id": str(cabeza.id),
         "revisada": True,
@@ -727,7 +835,10 @@ async def _valores_de_renglon(repo: RepoAdmin, cuerpo: dict[str, Any], *, nuevo:
     ):
         if campo in cuerpo:
             valor = cuerpo[campo]
-            if valor is not None and valor not in permitidos:
+            # modo_adquisicion es NOT NULL: un null es tan invalido como un
+            # valor fuera del vocabulario, y debe ser 422, no un 500.
+            nulo_invalido = valor is None and campo == "modo_adquisicion"
+            if nulo_invalido or (valor is not None and valor not in permitidos):
                 raise ErrorDominio(
                     f"{campo}_invalido",
                     f"'{valor}' no es un {campo} valido.",
@@ -823,10 +934,15 @@ async def quitar_item(version_id: uuid.UUID, item_id: uuid.UUID) -> None:
 )
 async def borrar_version(version_id: uuid.UUID) -> None:
     """Sacar de la cola una version que aun no se aprueba (una sugerencia que
-    no va, un onboarding equivocado). Solo SIN revisar: una version revisada es
-    la lista oficial del colegio y no se borra —se corrige con una nueva—, misma
-    puerta que editar. Los renglones y las propuestas caen por CASCADE; la tarea
-    de importacion queda (su `version_id` es SET NULL) como rastro de que se subio.
+    no va, un onboarding equivocado, una que se va a volver a subir). Solo SIN
+    revisar: una version revisada es la lista oficial del colegio y no se borra
+    —se corrige con una nueva—, misma puerta que editar. Los renglones y las
+    propuestas caen por CASCADE, y la tarea de importacion se borra con ella:
+    con SET NULL quedaria huerfana con el documento (el PDF de un acudiente)
+    adentro. Si era la vigente, la vigencia vuelve a la ultima revisada.
+
+    Un acudiente que esperaba esta version no se entera: su trabajo sigue en
+    espera. La pantalla lo advierte antes de confirmar.
     """
     async with _motor().sesion() as db:
         repo = RepoAdmin(await db.connection())
@@ -924,6 +1040,102 @@ async def rechazar_propuesta(prop_id: uuid.UUID, cuerpo: dict[str, Any] | None =
 # ---------------------------------------------------------------------------
 
 
+async def _aprobar(repo: RepoAdmin, version_id: uuid.UUID, cabeza: Any) -> None:
+    """Marca revisada la version, le pasa la vigencia y emite sus eventos."""
+    from datetime import UTC, datetime
+
+    await repo.marcar_revisada(version_id, datetime.now(UTC))
+
+    # Aprobar es lo que le pasa la vigencia a esta version: al editar, el
+    # borrador nacio SIN vigencia para que el acudiente siguiera viendo la
+    # anterior; ahora que se aprueba, se degrada la vigente actual y se
+    # promueve esta, en ESTA misma transaccion, para respetar el indice
+    # parcial de una sola vigente por lista. Es no-op en el onboarding de
+    # estreno: la version aprobada ya era la unica vigente (se degrada y se
+    # re-promueve la misma fila).
+    await repo.desvigar_versiones(cabeza.lista_id)
+    await repo.promover_vigente(version_id)
+
+    # Toda version aprobada estrena sus kits canonicos: Inteligencia drena
+    # `lista_aprobada`, arma Ahorrador y Premium sin preferencias (ADR 0030)
+    # y los fija como la cache del grado, para que el proximo acudiente sin
+    # tope de gasto los reciba sin volver a correr el optimizador. Va ANTES
+    # que `lista_verificada` (la bandeja se drena por id) y por la misma
+    # razon de grafo: Catalogo no llama a Inteligencia, le deja el evento.
+    await repo.emitir_evento(
+        tipo="lista_aprobada",
+        agregado_tipo="version_lista_oficial",
+        agregado_id=version_id,
+        carga={
+            "colegio_id": str(cabeza.colegio_id),
+            "grado": cabeza.grado,
+            "anio_lectivo": cabeza.anio_lectivo,
+        },
+    )
+
+    # Si un padre estaba esperando esta version (subio su PDF y quedo ligado
+    # por `contacto_referencia`), aprobarla dispara su kit: un
+    # `lista_verificada` en la bandeja, EN LA MISMA transaccion que el
+    # `revisada_en`, que el poller de Inteligencia drena para armar el
+    # trabajo de ruta rapida con sus preferencias. Catalogo NO llama a
+    # Inteligencia: esa arista cerraria un ciclo en el grafo de dependencias.
+    # Sin padre esperando no se emite: el kit del grado ya sale del
+    # `lista_aprobada` de arriba, sin pasar por la cola (ADR 0029).
+    tarea = await repo.tarea_para_evento(version_id)
+    contacto = tarea.contacto_referencia if tarea is not None else None
+    if contacto is not None:
+        await repo.emitir_evento(
+            tipo="lista_verificada",
+            agregado_tipo="version_lista_oficial",
+            agregado_id=version_id,
+            carga={
+                # El padre, por identificador; NUNCA su correo/telefono.
+                "contacto_referencia": str(contacto),
+                "colegio_id": str(cabeza.colegio_id),
+                "grado": cabeza.grado,
+                "anio_lectivo": cabeza.anio_lectivo,
+                # Lo que el padre pidio en el paso 3, para optimizar su kit.
+                "preferencias": tarea.preferencias or {},
+            },
+        )
+
+    # Si la lista se subio para un colegio que AUN NO existe en Tukit (trae
+    # `colegio_datos`: lo eligio del directorio de Bogota o lo escribio),
+    # aprobarla es lo que lo vuelve aliado. Catalogo NO llama a Identidad
+    # —esa arista tampoco existe en el grafo—: emite `colegio_verificado` en
+    # la MISMA transaccion, y un poller de Identidad crea el colegio con el
+    # MISMO `colegio_id` que Catalogo ya derivo (de forma estable del DANE o
+    # del nombre), de modo que la lista y el colegio quedan ligados sin FK
+    # entre bases. El `nit` es el DANE; el resto son datos que el revisor
+    # completo antes de aprobar. Un colegio aliado ya conocido no lo trae.
+    if tarea is not None and tarea.colegio_datos:
+        datos = dict(tarea.colegio_datos)
+        await repo.emitir_evento(
+            tipo="colegio_verificado",
+            agregado_tipo="colegio",
+            agregado_id=cabeza.colegio_id,
+            carga={
+                "colegio_id": str(cabeza.colegio_id),
+                "grado": cabeza.grado,
+                # El padre que esperaba este colegio, por identificador
+                # opaco; NUNCA su correo/telefono, igual que en
+                # `lista_verificada`. Va None en el onboarding de admin
+                # (colegio dado de alta sin padre esperando): el guard de
+                # este bloque es `colegio_datos`, no `contacto_referencia`.
+                "contacto_referencia": None if contacto is None else str(contacto),
+                "nombre": datos.get("nombre"),
+                # El DANE es el `nit` del colegio en Identidad.
+                "nit": datos.get("dane") or datos.get("nit"),
+                "logo_url": datos.get("logo_url"),
+                "sitio_web": datos.get("sitio_web"),
+                "direccion": datos.get("direccion"),
+                "contacto_nombre": datos.get("contacto_nombre"),
+                "contacto_email": datos.get("contacto_email"),
+                "contacto_telefono": datos.get("contacto_telefono"),
+            },
+        )
+
+
 @router.post(
     "/listas/{version_id}/cerrar",
     summary="Dar por revisada una version: la habilita para el acudiente",
@@ -936,7 +1148,6 @@ async def cerrar_version(version_id: uuid.UUID) -> dict[str, Any]:
     cerrada impide reabrir la busqueda. Marca `revisada_en` y desde ese momento
     la lista responde con el catalogo, sin consultar tiendas.
     """
-    from datetime import UTC, datetime
 
     async with _motor().sesion() as db:
         repo = RepoAdmin(await db.connection())
@@ -956,87 +1167,60 @@ async def cerrar_version(version_id: uuid.UUID) -> dict[str, Any]:
                 f"Quedan {pendientes} propuestas sin decidir. Resuelvelas antes de cerrar.",
                 estado=409,
             )
-        await repo.marcar_revisada(version_id, datetime.now(UTC))
+        await _aprobar(repo, version_id, cabeza)
+    return {"version_id": str(version_id), "revisada": True}
 
-        # Aprobar es lo que le pasa la vigencia a esta version: al editar, el
-        # borrador nacio SIN vigencia para que el acudiente siguiera viendo la
-        # anterior; ahora que se aprueba, se degrada la vigente actual y se
-        # promueve esta, en ESTA misma transaccion, para respetar el indice
-        # parcial de una sola vigente por lista. Es no-op en el onboarding de
-        # estreno: la version aprobada ya era la unica vigente (se degrada y se
-        # re-promueve la misma fila).
-        await repo.desvigar_versiones(cabeza.lista_id)
-        await repo.promover_vigente(version_id)
 
-        # Aprobar una version dispara SIEMPRE un `lista_verificada` en la bandeja
-        # de salida, EN LA MISMA transaccion que el `revisada_en`. Catalogo NO
-        # llama a Inteligencia —esa arista cerraria un ciclo en el grafo de
-        # dependencias, la misma razon por la que esta tabla no tiene `caso_id`—:
-        # el poller de Inteligencia lo drena y arma el trabajo. Dos casos, que el
-        # poller distingue por `contacto_referencia`:
-        #   - CON padre esperando (subio su PDF, quedo ligado): trabajo de ruta
-        #     rapida dirigido a el, se publica y se le avisa.
-        #   - SIN padre (onboarding del colegio, lista sembrada, o correccion ya
-        #     desligada): trabajo `colegio_grado` que entra a la cola de revision,
-        #     y al aprobarlo ahi queda como kit canonico del grado (la cache que
-        #     alimenta el selector de /empezar y el panel NSGA del colegio).
-        # `colegio_id`/`grado`/`anio` salen de la cabeza de la version, presentes
-        # con o sin tarea; el contacto y las preferencias, de la tarea si existe.
-        tarea = await repo.tarea_para_evento(version_id)
-        contacto = tarea.contacto_referencia if tarea is not None else None
-        await repo.emitir_evento(
-            tipo="lista_verificada",
-            agregado_tipo="version_lista_oficial",
-            agregado_id=version_id,
-            carga={
-                # El padre, por identificador; NUNCA su correo/telefono. None
-                # cuando no hay padre esperando (el poller lo lee como colegio).
-                "contacto_referencia": None if contacto is None else str(contacto),
-                "colegio_id": str(cabeza.colegio_id),
-                "grado": cabeza.grado,
-                "anio_lectivo": cabeza.anio_lectivo,
-                # Lo que el padre pidio en el paso 3, para optimizar su kit. {}
-                # sin tarea: el kit del colegio se arma con las preferencias base.
-                "preferencias": (tarea.preferencias if tarea is not None else {}) or {},
-            },
+async def _clonar_vigente(repo: RepoAdmin, lista: Any, vigente: Any) -> tuple[uuid.UUID, int]:
+    """Copia la version vigente en una nueva SIN revisar y sin vigencia."""
+    nuevo_numero = await repo.max_numero_version(lista.id) + 1
+    nuevo_id = uuid.uuid4()
+    await repo.crear_version(nuevo_id, lista.id, nuevo_numero, vigente=False)
+    for r in await repo.items_para_clonar(vigente.id):
+        await repo.crear_item(
+            id=uuid.uuid4(),
+            version_id=nuevo_id,
+            orden=r.orden,
+            texto_original=r.texto_original,
+            concepto_id=r.concepto_id,
+            cantidad=r.cantidad,
+            unidad=r.unidad,
+            tipo_item=r.tipo_item,
+            modo_adquisicion=r.modo_adquisicion,
+            instruccion_colegio=r.instruccion_colegio,
+            url_externa=r.url_externa,
+            atributos=dict(r.atributos or {}),
+            requiere_revision=r.requiere_revision,
+            avisos_descartados=list(r.avisos_descartados or ()),
         )
 
-        # Si la lista se subio para un colegio que AUN NO existe en Tukit (trae
-        # `colegio_datos`: lo eligio del directorio de Bogota o lo escribio),
-        # aprobarla es lo que lo vuelve aliado. Catalogo NO llama a Identidad
-        # —esa arista tampoco existe en el grafo—: emite `colegio_verificado` en
-        # la MISMA transaccion, y un poller de Identidad crea el colegio con el
-        # MISMO `colegio_id` que Catalogo ya derivo (de forma estable del DANE o
-        # del nombre), de modo que la lista y el colegio quedan ligados sin FK
-        # entre bases. El `nit` es el DANE; el resto son datos que el revisor
-        # completo antes de aprobar. Un colegio aliado ya conocido no lo trae.
-        if tarea is not None and tarea.colegio_datos:
-            datos = dict(tarea.colegio_datos)
-            await repo.emitir_evento(
-                tipo="colegio_verificado",
-                agregado_tipo="colegio",
-                agregado_id=cabeza.colegio_id,
-                carga={
-                    "colegio_id": str(cabeza.colegio_id),
-                    "grado": cabeza.grado,
-                    # El padre que esperaba este colegio, por identificador
-                    # opaco; NUNCA su correo/telefono, igual que en
-                    # `lista_verificada`. Va None en el onboarding de admin
-                    # (colegio dado de alta sin padre esperando): el guard de
-                    # este bloque es `colegio_datos`, no `contacto_referencia`.
-                    "contacto_referencia": None if contacto is None else str(contacto),
-                    "nombre": datos.get("nombre"),
-                    # El DANE es el `nit` del colegio en Identidad.
-                    "nit": datos.get("dane") or datos.get("nit"),
-                    "logo_url": datos.get("logo_url"),
-                    "sitio_web": datos.get("sitio_web"),
-                    "direccion": datos.get("direccion"),
-                    "contacto_nombre": datos.get("contacto_nombre"),
-                    "contacto_email": datos.get("contacto_email"),
-                    "contacto_telefono": datos.get("contacto_telefono"),
-                },
-            )
-    return {"version_id": str(version_id), "revisada": True}
+    # Copiar la evidencia (PDF + percepcion cruda) de la vigente al
+    # borrador, para que el revisor de 4 paneles de onboarding pueda abrirlo
+    # sin 404: `/documento` y `/percepcion` cuelgan de una `tarea_importacion`
+    # ligada por `version_id`, que el clonado de VERSION/ITEM no arrastra. Se
+    # anula `contacto_referencia` y `preferencias`: es una correccion del
+    # administrador, no la subida de un padre —al re-aprobar NO debe re-armar
+    # el kit de nadie (cerrar_version solo emite `lista_verificada` cuando
+    # hay contacto_referencia). Una lista sembrada/CLI sin tarea no se copia:
+    # queda sin evidencia, igual que hoy.
+    origen_tarea = await repo.tarea_origen(vigente.id)
+    if origen_tarea is not None:
+        await repo.crear_tarea(
+            id=uuid.uuid4(),
+            lista_id=lista.id,
+            origen=origen_tarea.origen,
+            estado="completada",
+            version_id=nuevo_id,
+            colegio_id=origen_tarea.colegio_id,
+            grado=origen_tarea.grado,
+            anio_lectivo=origen_tarea.anio_lectivo,
+            contacto_referencia=None,
+            preferencias=None,
+            colegio_datos=origen_tarea.colegio_datos,
+            documento=origen_tarea.documento,
+            percepcion_cruda=origen_tarea.percepcion_cruda,
+        )
+    return nuevo_id, nuevo_numero
 
 
 @router.post(
@@ -1085,53 +1269,157 @@ async def nueva_version(
         # numera con max(numero)+1, no vigente.numero+1, para que un segundo
         # Editar sobre la misma vigente no choque con el uq (lista_id, numero)
         # del borrador anterior.
-        nuevo_numero = await repo.max_numero_version(lista.id) + 1
-        nuevo_id = uuid.uuid4()
-        await repo.crear_version(nuevo_id, lista.id, nuevo_numero, vigente=False)
-        for r in await repo.items_para_clonar(vigente.id):
-            await repo.crear_item(
-                id=uuid.uuid4(),
-                version_id=nuevo_id,
-                orden=r.orden,
-                texto_original=r.texto_original,
-                concepto_id=r.concepto_id,
-                cantidad=r.cantidad,
-                unidad=r.unidad,
-                tipo_item=r.tipo_item,
-                modo_adquisicion=r.modo_adquisicion,
-                instruccion_colegio=r.instruccion_colegio,
-                url_externa=r.url_externa,
-                atributos=dict(r.atributos or {}),
-                requiere_revision=r.requiere_revision,
+        nuevo_id, nuevo_numero = await _clonar_vigente(repo, lista, vigente)
+    return {"version_id": str(nuevo_id), "numero": nuevo_numero, "revisada": False}
+
+
+# ---------------------------------------------------------------------------
+# Avisos de una lista revisada
+#
+# Lo que la revision automatica no puede decidir sola y una persona si: un
+# renglon que parece repetir a otro, uno que nombra varios valores de un
+# atributo (y por eso no se exigio ninguno) y uno que pide algo que ningun
+# producto cumple. Salen del MISMO calculo que la ruta rapida (`/resueltos`),
+# asi que lo que se avisa es exactamente lo que le paso al kit.
+# ---------------------------------------------------------------------------
+
+_BUSCA_EN_CATALOGO = frozenset({"util", "libro_libre"})
+
+
+def _avisos_de(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    por_orden = {i["orden"]: i for i in items}
+    avisos: list[dict[str, Any]] = []
+    for i in items:
+        base = {
+            "item_id": i["item_id"],
+            "orden": i["orden"],
+            "texto": i["texto_original"],
+            "concepto_codigo": i["concepto_codigo"],
+            "concepto_nombre": i["concepto_nombre"],
+        }
+        descartados = set(i.get("avisos_descartados") or ())
+        repite = i.get("posible_repetido_de")
+        if repite is not None and f"repetido:{repite}" not in descartados:
+            otro = por_orden.get(repite)
+            avisos.append(
+                {
+                    **base,
+                    "tipo": "posible_repetido",
+                    "clave": f"repetido:{repite}",
+                    "repite_a": repite,
+                    "texto_repetido": otro["texto_original"] if otro else None,
+                }
+            )
+        for atributo in i.get("atributos_por_revisar") or ():
+            if f"revisar:{atributo}" not in descartados:
+                avisos.append(
+                    {**base, "tipo": "revisar_atributo", "clave": f"revisar:{atributo}", "atributo": atributo}
+                )
+        tipo = i.get("tipo_item") or i.get("tipo_concepto") or "util"
+        surtible = (
+            i["concepto_codigo"] is not None
+            and tipo in _BUSCA_EN_CATALOGO
+            and i["modo_adquisicion"] in ("mercado_abierto", "libro_libre")
+        )
+        if surtible and not i["candidatos"] and "sin_producto" not in descartados:
+            avisos.append(
+                {**base, "tipo": "sin_producto", "clave": "sin_producto", "exige": i["atributos_impuestos"]}
+            )
+    return avisos
+
+
+async def _version_revisada(repo: RepoAdmin, version_id: uuid.UUID) -> Any:
+    cabeza = await repo.version_y_lista(version_id)
+    if cabeza is None:
+        raise ErrorDominio("version_no_existe", "No hay ninguna version con ese identificador.", estado=404)
+    if cabeza.revisada_en is None:
+        raise ErrorDominio(
+            "lista_no_revisada",
+            "Los avisos son de una lista ya revisada; esta aun esta en revision.",
+            estado=409,
+        )
+    return cabeza
+
+
+@router.get(
+    "/listas/{version_id}/avisos", summary="Lo que una persona tiene que decidir de una lista revisada"
+)
+async def avisos_de_version(version_id: uuid.UUID) -> dict[str, Any]:
+    async with _motor().sesion() as db:
+        repo = RepoAdmin(await db.connection())
+        await _version_revisada(repo, version_id)
+        avisos = _avisos_de(await _renglones_resueltos(repo, version_id))
+    return {"version_id": str(version_id), "avisos": avisos}
+
+
+@router.post(
+    "/listas/{version_id}/avisos/descartar",
+    summary='El aviso no aplica ("son distintos"): no vuelve a salir',
+)
+async def descartar_aviso(version_id: uuid.UUID, cuerpo: dict[str, Any]) -> dict[str, Any]:
+    """Se guarda en el renglon y no crea version: no cambia lo que se compra."""
+    clave = str(cuerpo.get("clave") or "").strip()
+    if not re.fullmatch(r"repetido:\d+|revisar:[a-z_]+|sin_producto", clave):
+        raise ErrorDominio("aviso_invalido", "Ese aviso no existe.", estado=400)
+    try:
+        item_id = uuid.UUID(str(cuerpo.get("item_id")))
+    except ValueError as error:
+        raise ErrorDominio("item_no_existe", "Ese renglon no esta en esta version.", estado=404) from error
+    async with _motor().sesion() as db:
+        repo = RepoAdmin(await db.connection())
+        await _version_revisada(repo, version_id)
+        if not await repo.descartar_aviso(item_id, version_id, clave):
+            raise ErrorDominio("item_no_existe", "Ese renglon no esta en esta version.", estado=404)
+    return {"item_id": str(item_id), "descartado": clave}
+
+
+@router.post(
+    "/listas/{version_id}/items/{item_id}/no-comprar",
+    status_code=201,
+    summary="El renglon repite a otro: no se compra. Publica una version nueva",
+)
+async def no_comprar_repetido(
+    version_id: uuid.UUID, item_id: uuid.UUID, cuerpo: dict[str, Any]
+) -> dict[str, Any]:
+    """ "Es el mismo": el renglon queda en la lista como "no se compra · ya va en
+    la linea N" y la lista se vuelve a publicar.
+
+    Es el mismo camino que «Editar» + «Aprobar» de la pagina del grado, en un
+    paso: clona la vigente, cambia ese renglon y aprueba la copia. Aprobar le
+    pasa la vigencia y emite `lista_aprobada`, asi que Inteligencia rearma los
+    kits canonicos con la lista corregida. La version anterior queda para quien
+    ya compro con ella.
+    """
+    repite_a = cuerpo.get("repite_a")
+    if not isinstance(repite_a, int):
+        raise ErrorDominio("repite_a_requerido", "Falta el renglon al que repite.", estado=400)
+    async with _motor().sesion() as db:
+        repo = RepoAdmin(await db.connection())
+        cabeza = await _version_revisada(repo, version_id)
+        actual = await repo.item_por_id(item_id, version_id)
+        if actual is None:
+            raise ErrorDominio("item_no_existe", "Ese renglon no esta en esta version.", estado=404)
+        lista = await repo.lista_por_llave(cabeza.colegio_id, cabeza.grado, cabeza.anio_lectivo)
+        vigente = await repo.version_vigente(lista.id)
+        if vigente is None or vigente.id != version_id:
+            raise ErrorDominio(
+                "version_no_vigente",
+                "Esa ya no es la lista vigente del grado; recarga la pagina.",
+                estado=409,
             )
 
-        # Copiar la evidencia (PDF + percepcion cruda) de la vigente al
-        # borrador, para que el revisor de 4 paneles de onboarding pueda abrirlo
-        # sin 404: `/documento` y `/percepcion` cuelgan de una `tarea_importacion`
-        # ligada por `version_id`, que el clonado de VERSION/ITEM no arrastra. Se
-        # anula `contacto_referencia` y `preferencias`: es una correccion del
-        # administrador, no la subida de un padre —al re-aprobar NO debe re-armar
-        # el kit de nadie (cerrar_version solo emite `lista_verificada` cuando
-        # hay contacto_referencia). Una lista sembrada/CLI sin tarea no se copia:
-        # queda sin evidencia, igual que hoy.
-        origen_tarea = await repo.tarea_origen(vigente.id)
-        if origen_tarea is not None:
-            await repo.crear_tarea(
-                id=uuid.uuid4(),
-                lista_id=lista.id,
-                origen=origen_tarea.origen,
-                estado="completada",
-                version_id=nuevo_id,
-                colegio_id=origen_tarea.colegio_id,
-                grado=origen_tarea.grado,
-                anio_lectivo=origen_tarea.anio_lectivo,
-                contacto_referencia=None,
-                preferencias=None,
-                colegio_datos=origen_tarea.colegio_datos,
-                documento=origen_tarea.documento,
-                percepcion_cruda=origen_tarea.percepcion_cruda,
-            )
-    return {"version_id": str(nuevo_id), "numero": nuevo_numero, "revisada": False}
+        nuevo_id, nuevo_numero = await _clonar_vigente(repo, lista, vigente)
+        copia = await repo.item_por_orden(nuevo_id, int(actual.orden))
+        await repo.actualizar_item(
+            copia.id,
+            {
+                "tipo_item": "no_comprar",
+                "instruccion_colegio": f"Es el mismo de la linea {repite_a}: no se compra dos veces.",
+            },
+        )
+        nueva = await repo.version_y_lista(nuevo_id)
+        await _aprobar(repo, nuevo_id, nueva)
+    return {"version_id": str(nuevo_id), "numero": nuevo_numero}
 
 
 # ---------------------------------------------------------------------------
@@ -1271,6 +1559,14 @@ async def crear_concepto(cuerpo: dict[str, Any]) -> dict[str, Any]:
         if isinstance(crudo, str)
         else [str(s).strip() for s in crudo if str(s).strip()]
     )
+    # Los dos papeles del atributo (ver `demanda_atributos`): el discriminante
+    # FILTRA (un cuaderno cuadriculado no pasa por uno rayado) y el descriptivo
+    # solo informa. Se normalizan a la forma del corpus (minusculas, `_` por
+    # espacio) y no pueden repetirse entre listas: la base lo prohibe.
+    discriminantes = _nombres_de_atributo(cuerpo.get("atributos_discriminantes"))
+    descriptivos = [
+        a for a in _nombres_de_atributo(cuerpo.get("atributos_descriptivos")) if a not in discriminantes
+    ]
 
     from ..cargador import _uuid_estable
 
@@ -1302,8 +1598,30 @@ async def crear_concepto(cuerpo: dict[str, Any]) -> dict[str, Any]:
             categoria=categoria,
             tipo_item=tipo_item,
             admite_personaje=bool(cuerpo.get("admite_personaje", False)),
+            atributos_discriminantes=discriminantes,
+            atributos_descriptivos=descriptivos,
         )
-    return {"codigo": codigo, "nombre_canonico": nombre, "categoria": categoria, "tipo_item": tipo_item}
+    return {
+        "codigo": codigo,
+        "nombre_canonico": nombre,
+        "categoria": categoria,
+        "tipo_item": tipo_item,
+        "atributos_discriminantes": discriminantes,
+        "atributos_descriptivos": descriptivos,
+    }
+
+
+def _nombres_de_atributo(crudo: Any) -> list[str]:
+    """Lista o texto separado por `|`/`,` a nombres de atributo sin repetir."""
+    if not crudo:
+        return []
+    partes = re.split(r"[|,]", crudo) if isinstance(crudo, str) else [str(p) for p in crudo]
+    vistos: list[str] = []
+    for parte in partes:
+        nombre = re.sub(r"\s+", "_", parte.strip().lower())
+        if nombre and nombre not in vistos:
+            vistos.append(nombre)
+    return vistos
 
 
 @router.post(
@@ -1314,14 +1632,24 @@ async def crear_concepto(cuerpo: dict[str, Any]) -> dict[str, Any]:
 async def encolar_util(cuerpo: dict[str, Any]) -> dict[str, Any]:
     """Encola el candidato elegido; la aprobacion es un paso aparte.
 
-    Re-busca por `(slug, sku)` con `admin.buscar_candidatos` --el mismo camino
-    que `admin._util`-- para no confiar en que el navegador arme la Oferta: el
-    precio y la ficha salen de la tienda, no del cliente. Si el candidato ya no
-    aparece (se agoto entre la busqueda y el alta), es un 422 con causa, no un
-    500. El concepto se resuelve por codigo (`concepto_no_existe` si no existe)
-    y el dict lo arma `construir_propuesta_util`, que HTTP y CLI comparten.
+    Re-busca por `(slug, sku)` para no confiar en que el navegador arme la
+    Oferta: el precio y la ficha salen de la tienda, no del cliente. La busqueda
+    es la MISMA que alimento la pantalla (`buscar_en_tienda`: una tienda, sin
+    filtrar), y no `admin.buscar_candidatos`. Aquella aplica el quinto filtro
+    (`_coincide`: TODAS las palabras de la consulta en el nombre), que existe
+    para cuando la maquina elige sola; aqui ya eligio una persona mirando el
+    producto. Con el filtro, "Pluma para caligrafia" rechazaba cualquier
+    "Pilot Pluma Pen Caligrafia" porque el nombre no dice "para", y el
+    revisor veia "ya no esta disponible" de un producto disponible.
+
+    Si el candidato ya no aparece, o aparece agotado o sin precio, es un 422
+    con causa, no un 500. El concepto se resuelve por codigo
+    (`concepto_no_existe` si no existe) y el dict lo arma
+    `construir_propuesta_util`, que HTTP y CLI comparten.
     """
-    from .. import admin
+    from starlette.concurrency import run_in_threadpool
+
+    from .. import tiendas
     from ..descubrir import _encolar
     from ..dominio.propuesta import construir_propuesta_util
 
@@ -1331,11 +1659,21 @@ async def encolar_util(cuerpo: dict[str, Any]) -> dict[str, Any]:
     nivel = str(cuerpo.get("nivel") or "confiable")
     codigo = str(cuerpo.get("concepto") or "")
 
-    elegida = next((o for s, o in admin.buscar_candidatos(consulta) if s == slug and o.sku == sku), None)
+    # El tope de `buscar_en_tienda`: el candidato pudo salir en cualquier
+    # posicion de lo que la pantalla mostro.
+    ofertas = await run_in_threadpool(tiendas.buscar, slug, consulta, 48)
+    elegida = next((o for o in ofertas if o.sku == sku), None)
     if elegida is None:
         raise ErrorDominio(
             "candidato_no_disponible",
-            "Ese candidato ya no esta disponible en la tienda; busca de nuevo.",
+            "Ese candidato ya no aparece en la tienda; busca de nuevo.",
+            estado=422,
+            campo="sku",
+        )
+    if not elegida.disponible or elegida.precio_cop <= 0:
+        raise ErrorDominio(
+            "candidato_no_disponible",
+            "La tienda tiene ese producto agotado o sin precio; elige otro.",
             estado=422,
             campo="sku",
         )

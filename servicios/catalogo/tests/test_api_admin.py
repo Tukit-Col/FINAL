@@ -355,23 +355,38 @@ class TestAgregarYQuitarRenglon:
         assert respuesta.status_code == 409
 
 
-class TestBorrarUnaVersion:
-    async def test_borrar_una_sin_revisar_la_saca_de_la_cola(self, cliente):
+class TestEliminarUnaVersionDeLaCola:
+    async def test_eliminar_una_version_sin_revisar_la_saca_de_la_cola(self, cliente):
         vid = cliente.ids["abierta"]
         assert (await cliente.delete(f"/v1/admin/listas/{vid}")).status_code == 204
-        # Ya no aparece entre las pendientes.
+
+        assert (await cliente.get(f"/v1/admin/listas/{vid}/revision")).status_code == 404
         pendientes = (await cliente.get("/v1/admin/listas?revisada=false")).json()
         assert all(v["version_id"] != str(vid) for v in pendientes["listas"])
-        # Y su revision ya no existe.
-        assert (await cliente.get(f"/v1/admin/listas/{vid}/revision")).status_code == 404
 
-    async def test_borrar_una_revisada_se_rechaza(self, cliente):
+    async def test_una_version_revisada_no_se_elimina(self, cliente):
+        """La revisada es la que ve el acudiente y contra la que alguien pudo
+        comprar: no sale por la puerta de la cola."""
         vid = cliente.ids["cerrada"]
         respuesta = await cliente.delete(f"/v1/admin/listas/{vid}")
         assert respuesta.status_code == 409
         assert respuesta.json()["error"] == "lista_ya_revisada"
 
-    async def test_borrar_una_que_no_existe_es_404(self, cliente):
+    async def test_eliminar_la_subida_nueva_le_devuelve_la_vigencia_a_la_aprobada(self, cliente):
+        """Subir una lista nueva le quita la vigencia a la aprobada. Si esa
+        subida se elimina, el acudiente no puede quedarse sin la aprobada."""
+        cerrada = cliente.ids["cerrada"]
+        nueva = (
+            await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar(grado="Quinto"))
+        ).json()["version_id"]
+        assert (await cliente.delete(f"/v1/admin/listas/{nueva}")).status_code == 204
+
+        resueltos = await cliente.get(f"/v1/admin/listas/{cerrada}/resueltos")
+        assert resueltos.status_code == 200
+        listas = (await cliente.get(f"/v1/listas?colegio_id={COLEGIO}&grado=Quinto")).json()
+        assert [v["version_id"] for v in listas["listas"]] == [str(cerrada)]
+
+    async def test_una_version_que_no_existe_es_404(self, cliente):
         respuesta = await cliente.delete(f"/v1/admin/listas/{uuid.uuid4()}")
         assert respuesta.status_code == 404
 
@@ -433,30 +448,59 @@ class TestCerrarLaRevision:
         assert evento.carga["anio_lectivo"] == 2026
         assert evento.carga["preferencias"] == preferencias
 
-    async def test_cerrar_un_onboarding_sin_padre_emite_lista_verificada_sin_contacto(self, cliente):
-        # El onboarding del colegio no deja padre esperando, pero aprobarlo SI
-        # emite `lista_verificada` —ahora con `contacto_referencia=None`—: el
-        # poller de Inteligencia lo lee como un kit de COLEGIO (origen
-        # `colegio_grado`) que entra a la cola de revision, y al aprobarlo ahi
-        # queda como kit canonico del grado. Sin este evento no habria canonico y
-        # el panel NSGA del colegio no tendria nada que pintar.
+    async def test_cerrar_un_onboarding_sin_padre_no_arma_kit_de_padre(self, cliente):
+        # El onboarding del colegio no deja padre esperando: aprobarlo no dispara
+        # el kit de ningun acudiente (`lista_verificada`).
         vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
 
         respuesta = await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
         assert respuesta.status_code == 200
 
-        eventos = await self._bandeja("lista_verificada")
+        # El kit del grado sale de `lista_aprobada` (ADR 0029), no de la cola.
+        assert await self._bandeja("lista_verificada") == []
+
+    async def test_cerrar_cualquier_version_emite_lista_aprobada(self, cliente):
+        # Con o sin padre esperando, aprobar la lista le pide a Inteligencia que
+        # arme sus kits canonicos: el proximo acudiente sin tope de gasto los
+        # recibe sin volver a correr el optimizador.
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
+
+        assert (await cliente.post(f"/v1/admin/listas/{vid}/cerrar")).status_code == 200
+
+        eventos = await self._bandeja("lista_aprobada")
         assert len(eventos) == 1
         evento = eventos[0]
-        assert evento.agregado_tipo == "version_lista_oficial"
         assert str(evento.agregado_id) == vid
-        assert evento.publicado_en is None
-        # Sin padre: el poller lo distingue por este None y arma un kit de colegio.
-        assert evento.carga["contacto_referencia"] is None
-        assert evento.carga["colegio_id"] == str(COLEGIO)
-        assert evento.carga["grado"] == "Sexto"
-        assert evento.carga["anio_lectivo"] == 2026
-        assert evento.carga["preferencias"] == {}
+        # `correlacion_id` lo agrega la bandeja (ADR 0022) para seguir el evento.
+        carga = {k: v for k, v in evento.carga.items() if k != "correlacion_id"}
+        assert carga == {"colegio_id": str(COLEGIO), "grado": "Sexto", "anio_lectivo": 2026}
+        # Cerrar dos veces no arma dos veces: la segunda es un no-op.
+        await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
+        assert len(await self._bandeja("lista_aprobada")) == 1
+
+    async def test_las_listas_aprobadas_antes_reciben_su_evento_una_sola_vez(self, cliente):
+        # Una lista aprobada antes de que existiera `lista_aprobada` no tiene
+        # kits canonicos: `canonicos.emitir` le deja el evento que le falto, y
+        # correrlo otra vez no lo repite.
+        from sqlalchemy import delete
+        from tukit_catalogo import canonicos
+
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
+        assert (await cliente.post(f"/v1/admin/listas/{vid}/cerrar")).status_code == 200
+        motor = app.state.motor
+        async with motor.sesion() as db:
+            conexion = await db.connection()
+            # Como si se hubiera aprobado antes del cambio: sin evento.
+            await conexion.execute(delete(BANDEJA).where(BANDEJA.c.tipo == "lista_aprobada"))
+            # La semilla trae otras listas aprobadas: tambien reciben el suyo.
+            emitidos = await canonicos.emitir(conexion)
+            assert emitidos >= 1
+            assert await canonicos.emitir(conexion) == 0
+            await db.commit()
+
+        eventos = {str(e.agregado_id): e for e in await self._bandeja("lista_aprobada")}
+        assert len(eventos) == emitidos
+        assert eventos[vid].carga["grado"] == "Sexto"
 
     async def test_cerrar_una_version_de_colegio_nuevo_emite_colegio_verificado(self, cliente):
         # Un acudiente subio la lista de un colegio que aun no existe en Tukit
@@ -930,6 +974,100 @@ class TestResueltosLaRutaRapida:
             assert candidato["precio_cop"] is None or isinstance(candidato["precio_cop"], int)
             assert isinstance(candidato["atributos"], dict)
 
+    async def test_un_concepto_sin_atributos_que_filtren_ofrece_todos_sus_productos_lisos(self, cliente):
+        # Antes salia uno por nivel (tres a lo sumo) aunque el concepto tuviera
+        # cuarenta: el kit nunca veia el resto del catalogo.
+        await _con_cuadernos_extra(cliente)
+        vid = cliente.ids["cerrada"]
+        cuerpo = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()
+        skus = {c["sku"] for c in cuerpo["items"][0]["candidatos"]}
+        assert {"TK-C001-ECO", "TK-C001-CON", "TK-C001-PRE", "TK-REV-RAYADO"} <= skus
+        # El de personaje no entra mientras haya lisos.
+        assert "TK-REV-CARS" not in skus
+
+    async def test_un_renglon_que_exige_un_atributo_solo_ofrece_los_que_lo_cumplen(self, cliente):
+        await _con_cuadernos_extra(cliente, discriminantes=["rayado"])
+        vid = await _version_revisada_con(cliente, "cuaderno rayado de 100 hojas")
+        item = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"][0]
+        assert [c["sku"] for c in item["candidatos"]] == ["TK-REV-RAYADO"]
+        assert item["atributos_impuestos"] == {"rayado": "rayado"}
+        assert all(c["cumple"] for c in item["candidatos"])
+
+    async def test_si_ningun_producto_cumple_no_hay_candidatos(self, cliente):
+        # Un hueco, no un sustituto: el kit recomendaba un oleo para un acrilico.
+        await _con_cuadernos_extra(cliente, discriminantes=["rayado"])
+        vid = await _version_revisada_con(cliente, "cuaderno ferrocarril")
+        item = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"][0]
+        assert item["candidatos"] == []
+        assert item["atributos_impuestos"] == {"rayado": "ferrocarril"}
+
+    async def test_el_personaje_entra_solo_si_es_el_unico_que_cumple(self, cliente):
+        await _con_cuadernos_extra(cliente, discriminantes=["rayado"])
+        vid = await _version_revisada_con(cliente, "cuaderno doble linea")
+        item = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"][0]
+        assert [c["sku"] for c in item["candidatos"]] == ["TK-REV-CARS"]
+
+    async def test_lo_que_el_revisor_corrigio_en_la_curaduria_manda_sobre_lo_leido(self, cliente):
+        await _con_cuadernos_extra(cliente, discriminantes=["rayado"])
+        vid = await _version_revisada_con(cliente, "cuaderno ferrocarril", atributos={"rayado": "rayado"})
+        item = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"][0]
+        assert [c["sku"] for c in item["candidatos"]] == ["TK-REV-RAYADO"]
+
+    async def test_un_renglon_con_varios_valores_se_marca_para_revisar(self, cliente):
+        await _con_cuadernos_extra(cliente, discriminantes=["rayado"])
+        vid = await _version_revisada_con(cliente, "cuaderno rayado o cuadriculado")
+        item = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"][0]
+        assert item["atributos_impuestos"] == {}
+        assert item["atributos_por_revisar"] == ["rayado"]
+
+    async def test_dice_si_el_concepto_es_uno_por_estudiante(self, cliente):
+        await _marcar_uno_por_estudiante(cliente, "colores")
+        vid = await _version_revisada_con_renglones(
+            cliente, [("Caja de colores", "colores"), ("colores", "colores")]
+        )
+        items = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"]
+        assert [i["uno_por_estudiante"] for i in items] == [True, True]
+        # Lo que se junta solo no se marca como repetido: no hay nada que revisar.
+        assert [i["posible_repetido_de"] for i in items] == [None, None]
+
+    async def test_un_consumible_casi_igual_a_otro_se_marca_como_posible_repetido(self, cliente):
+        vid = await _version_revisada_con_renglones(
+            cliente, [("Pegante en barra", "colores"), ("cinta", "colores"), ("pegante en barra", "colores")]
+        )
+        items = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"]
+        assert [i["posible_repetido_de"] for i in items] == [None, None, 1]
+
+    async def test_dos_colores_de_la_misma_pintura_no_son_repetidos(self, cliente):
+        async with app.state.motor.sesion() as db:
+            conexion = await db.connection()
+            tabla = Base.metadata.tables["concepto"]
+            await conexion.execute(
+                tabla.update()
+                .where(tabla.c.id == cliente.ids["colores"])
+                .values(atributos_discriminantes=["color"])
+            )
+            await db.commit()
+        vid = await _version_revisada_con_renglones(
+            cliente,
+            [
+                ("Pinturas acrilicas tubo de 45 cc: cian", "colores"),
+                ("Pinturas acrilicas tubo de 45 cc: magenta", "colores"),
+            ],
+        )
+        items = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"]
+        assert [i["posible_repetido_de"] for i in items] == [None, None]
+
+    async def test_un_cuaderno_por_materia_no_es_un_repetido(self, cliente):
+        vid = await _version_revisada_con_renglones(
+            cliente,
+            [
+                ("cuaderno cuadriculado 100 hojas", "cuaderno"),
+                ("cuaderno cuadriculado 100 hojas", "cuaderno"),
+            ],
+        )
+        items = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"]
+        assert [i["posible_repetido_de"] for i in items] == [None, None]
+
     async def test_una_version_sin_revisar_es_409(self, cliente):
         vid = cliente.ids["abierta"]
         respuesta = await cliente.get(f"/v1/admin/listas/{vid}/resueltos")
@@ -939,6 +1077,215 @@ class TestResueltosLaRutaRapida:
     async def test_una_version_que_no_existe_es_404(self, cliente):
         respuesta = await cliente.get(f"/v1/admin/listas/{uuid.uuid4()}/resueltos")
         assert respuesta.status_code == 404
+
+
+async def _con_cuadernos_extra(cliente, discriminantes: list[str] | None = None) -> None:
+    """Dos cuadernos mas en C001: uno rayado aprobado en la cola y uno de
+    personaje doble linea. Con `discriminantes`, C001 filtra por ellos."""
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        concepto = Base.metadata.tables["concepto"]
+        producto = Base.metadata.tables["producto_canonico"]
+        if discriminantes:
+            await conexion.execute(
+                concepto.update()
+                .where(concepto.c.id == cliente.ids["cuaderno"])
+                .values(atributos_discriminantes=discriminantes)
+            )
+        for sku, atributos, personaje in (
+            ("TK-REV-RAYADO", {"rayado": "rayado"}, None),
+            ("TK-REV-CARS", {"rayado": "doble linea"}, "Cars"),
+        ):
+            await conexion.execute(
+                producto.insert().values(
+                    id=uuid.uuid4(),
+                    concepto_id=cliente.ids["cuaderno"],
+                    sku_interno=sku,
+                    nombre=f"Cuaderno {sku}",
+                    nivel="confiable",
+                    personaje=personaje,
+                    atributos=atributos,
+                    unidad_base="unidad",
+                    unidades_por_empaque=1,
+                    es_propio=False,
+                    es_representante_canonico=False,
+                    quality_score=0.85,
+                    activo=True,
+                    curado_por=CURADOR,
+                )
+            )
+        await db.commit()
+
+
+async def _version_revisada_con(cliente, texto: str, atributos: dict | None = None) -> uuid.UUID:
+    """Una lista revisada de un solo renglon de cuaderno con ese texto."""
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        tablas = Base.metadata.tables
+        lista_id, version_id = uuid.uuid4(), uuid.uuid4()
+        await conexion.execute(
+            tablas["lista_oficial"]
+            .insert()
+            .values(id=lista_id, colegio_id=COLEGIO, grado=f"G-{lista_id}", anio_lectivo=2026, activa=True)
+        )
+        await conexion.execute(
+            tablas["version_lista_oficial"]
+            .insert()
+            .values(
+                id=version_id,
+                lista_id=lista_id,
+                numero=1,
+                vigente=True,
+                revisada_en=datetime(2026, 3, 1, tzinfo=UTC),
+            )
+        )
+        await conexion.execute(
+            tablas["item_lista_oficial"]
+            .insert()
+            .values(
+                id=uuid.uuid4(),
+                version_id=version_id,
+                orden=1,
+                texto_original=texto,
+                cantidad=1,
+                concepto_id=cliente.ids["cuaderno"],
+                modo_adquisicion="mercado_abierto",
+                atributos=atributos or {},
+                requiere_revision=False,
+            )
+        )
+        await db.commit()
+    return version_id
+
+
+async def _marcar_uno_por_estudiante(cliente, concepto: str) -> None:
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        tabla = Base.metadata.tables["concepto"]
+        await conexion.execute(
+            tabla.update().where(tabla.c.id == cliente.ids[concepto]).values(uno_por_estudiante=True)
+        )
+        await db.commit()
+
+
+async def _version_revisada_con_renglones(cliente, renglones: list[tuple[str, str]]) -> uuid.UUID:
+    """Una lista revisada con esos (texto, concepto) en orden 1, 2, ..."""
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        tablas = Base.metadata.tables
+        lista_id, version_id = uuid.uuid4(), uuid.uuid4()
+        await conexion.execute(
+            tablas["lista_oficial"]
+            .insert()
+            .values(id=lista_id, colegio_id=COLEGIO, grado=f"G-{lista_id}", anio_lectivo=2026, activa=True)
+        )
+        await conexion.execute(
+            tablas["version_lista_oficial"]
+            .insert()
+            .values(
+                id=version_id,
+                lista_id=lista_id,
+                numero=1,
+                vigente=True,
+                revisada_en=datetime(2026, 3, 1, tzinfo=UTC),
+            )
+        )
+        for orden, (texto, concepto) in enumerate(renglones, start=1):
+            await conexion.execute(
+                tablas["item_lista_oficial"]
+                .insert()
+                .values(
+                    id=uuid.uuid4(),
+                    version_id=version_id,
+                    orden=orden,
+                    texto_original=texto,
+                    cantidad=1,
+                    concepto_id=cliente.ids[concepto],
+                    modo_adquisicion="mercado_abierto",
+                    atributos={},
+                    requiere_revision=False,
+                )
+            )
+        await db.commit()
+    return version_id
+
+
+async def _aviso_de_repetido(cliente, version_id) -> dict | None:
+    avisos = (await cliente.get(f"/v1/admin/listas/{version_id}/avisos")).json()["avisos"]
+    return next((a for a in avisos if a["tipo"] == "posible_repetido"), None)
+
+
+class TestAvisosDeUnaListaRevisada:
+    """Lo que una persona tiene que decidir y la pagina del grado muestra."""
+
+    async def test_avisa_el_repetido_el_atributo_ambiguo_y_lo_que_no_tiene_producto(self, cliente):
+        await _con_cuadernos_extra(cliente, discriminantes=["rayado"])
+        vid = await _version_revisada_con_renglones(
+            cliente,
+            [
+                ("Pegante en barra", "colores"),
+                ("pegante en barra", "colores"),
+                ("cuaderno rayado o cuadriculado", "cuaderno"),
+                ("cuaderno ferrocarril", "cuaderno"),
+            ],
+        )
+        avisos = (await cliente.get(f"/v1/admin/listas/{vid}/avisos")).json()["avisos"]
+        por_tipo = {(a["tipo"], a["orden"]): a for a in avisos}
+
+        repetido = por_tipo[("posible_repetido", 2)]
+        assert repetido["repite_a"] == 1
+        assert repetido["texto_repetido"] == "Pegante en barra"
+        assert por_tipo[("revisar_atributo", 3)]["atributo"] == "rayado"
+        sin = por_tipo[("sin_producto", 4)]
+        assert sin["exige"] == {"rayado": "ferrocarril"}
+        assert sin["concepto_codigo"] == "C001"
+
+    async def test_un_aviso_descartado_no_vuelve(self, cliente):
+        vid = await _version_revisada_con_renglones(
+            cliente, [("Pegante en barra", "colores"), ("pegante en barra", "colores")]
+        )
+        aviso = await _aviso_de_repetido(cliente, vid)
+        respuesta = await cliente.post(
+            f"/v1/admin/listas/{vid}/avisos/descartar",
+            json={"item_id": aviso["item_id"], "clave": aviso["clave"]},
+        )
+        assert respuesta.status_code == 200
+        assert await _aviso_de_repetido(cliente, vid) is None
+
+    async def test_es_el_mismo_publica_una_version_donde_no_se_compra(self, cliente):
+        vid = await _version_revisada_con_renglones(
+            cliente, [("Pegante en barra", "colores"), ("pegante en barra", "colores")]
+        )
+        aviso = await _aviso_de_repetido(cliente, vid)
+        respuesta = await cliente.post(
+            f"/v1/admin/listas/{vid}/items/{aviso['item_id']}/no-comprar", json={"repite_a": 1}
+        )
+        assert respuesta.status_code == 201
+        nueva = respuesta.json()["version_id"]
+
+        items = (await cliente.get(f"/v1/admin/listas/{nueva}/resueltos")).json()["items"]
+        segundo = next(i for i in items if i["orden"] == 2)
+        assert segundo["tipo_item"] == "no_comprar"
+        assert "linea 1" in segundo["instruccion_colegio"]
+        # Aprobar la copia rearma los kits: el evento queda en la bandeja.
+        eventos = [f for f in await _bandeja_de(cliente) if f.tipo == "lista_aprobada"]
+        assert str(eventos[-1].agregado_id) == nueva
+        # Y el aviso de repetido ya no sale en la version nueva.
+        assert await _aviso_de_repetido(cliente, nueva) is None
+
+    async def test_no_se_corrige_una_version_que_ya_no_es_la_vigente(self, cliente):
+        vid = await _version_revisada_con_renglones(
+            cliente, [("Pegante en barra", "colores"), ("pegante en barra", "colores")]
+        )
+        aviso = await _aviso_de_repetido(cliente, vid)
+        await cliente.post(
+            f"/v1/admin/listas/{vid}/items/{aviso['item_id']}/no-comprar", json={"repite_a": 1}
+        )
+        otra_vez = await cliente.post(
+            f"/v1/admin/listas/{vid}/items/{aviso['item_id']}/no-comprar", json={"repite_a": 1}
+        )
+        assert otra_vez.status_code == 409
+        assert otra_vez.json()["error"] == "version_no_vigente"
 
 
 def _cuerpo_sugerencia(**extra) -> dict:
@@ -1242,6 +1589,40 @@ class TestCrearConcepto:
             ).one()
         assert list(fila.sinonimos) == ["raz plus", "plan lector virtual"]
         assert fila.tipo_item == "licencia_digital"
+
+    async def test_guarda_los_atributos_que_filtran_y_los_que_informan(self, cliente):
+        # El alta trae los dos papeles del atributo: el discriminante descarta
+        # productos (un cuaderno cuadriculado no pasa por uno rayado) y el
+        # descriptivo solo cuenta que se compra. Se normalizan a la forma del
+        # corpus y un nombre repetido entre listas se queda solo como filtro,
+        # porque la base prohibe que este en las dos.
+        respuesta = await cliente.post(
+            "/v1/admin/catalogo/conceptos",
+            json={
+                "nombre_canonico": "Bata de laboratorio",
+                "categoria": "Uniformes",
+                "atributos_discriminantes": ["Color", "manga larga"],
+                "atributos_descriptivos": "talla | color",
+            },
+        )
+        assert respuesta.status_code == 201
+        cuerpo = respuesta.json()
+        assert cuerpo["atributos_discriminantes"] == ["color", "manga_larga"]
+        assert cuerpo["atributos_descriptivos"] == ["talla"]
+
+        from sqlalchemy import select
+        from tukit_catalogo.admin_http import CONCEPTO, _motor
+
+        async with _motor().engine.begin() as conexion:
+            fila = (
+                await conexion.execute(
+                    select(CONCEPTO.c.atributos_discriminantes, CONCEPTO.c.atributos_descriptivos).where(
+                        CONCEPTO.c.codigo == cuerpo["codigo"]
+                    )
+                )
+            ).one()
+        assert list(fila.atributos_discriminantes) == ["color", "manga_larga"]
+        assert list(fila.atributos_descriptivos) == ["talla"]
 
     async def test_nombre_repetido_es_409(self, cliente):
         # "cuaderno" ya existe (C001): duplicarlo partiria el vocabulario, asi que

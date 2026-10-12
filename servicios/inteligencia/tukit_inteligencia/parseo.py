@@ -133,6 +133,8 @@ def mensaje_para_papa(demanda: Demanda) -> str:
         return "Es una licencia digital. No se busca en la tienda de útiles."
     if demanda.tipo_item == "uniforme":
         return "Aún no lo proveemos. El colegio indica cómo conseguirlo."
+    if demanda.tipo_item == "otro":
+        return "No lo vendemos en Tukit: consíguelo por tu cuenta."
     if demanda.modo_adquisicion == "edicion_exclusiva":
         return "Es una edición exclusiva del colegio. Tukit no lo incluye en la compra."
     if demanda.tipo_item == "texto":

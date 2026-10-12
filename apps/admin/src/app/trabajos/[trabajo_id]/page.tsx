@@ -5,6 +5,7 @@
 // es donde la bandera y la URL del backend se quedan del lado del servidor.
 
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 import type { TrabajoAdmin } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
@@ -41,6 +42,16 @@ export default async function PaginaTrabajo({ params }: Props) {
     throw causa;
   }
 
+  // Un borrador de la versión siguiente de kits ya publicados (`basado_en`):
+  // al publicarlo o descartarlo se vuelve a la página de su colegio y grado.
+  const hijo = trabajo.hijos?.[0];
+  const edicion =
+    trabajo.origen === "canonico_lista" && hijo?.basado_en && hijo.colegio_id && hijo.grado
+      ? {
+          volverA: `/colegios/${encodeURIComponent(hijo.colegio_id)}/${encodeURIComponent(hijo.grado)}`,
+        }
+      : undefined;
+
   // Las franquicias del catálogo para el interruptor de personaje del kit Fan
   // (§7, 2d). Se lee aquí —Server Component— y se pasa como nombres; si el
   // catálogo está caído, se degrada a lista vacía (el interruptor no aparece).
@@ -62,12 +73,6 @@ export default async function PaginaTrabajo({ params }: Props) {
   // eslint-disable-next-line react-hooks/purity
   const ahora = Date.now();
 
-  // Un preview de onboarding es un trabajo desechable que no se publica. La
-  // consola lo trata distinto: enlaza al revisor de su lista (el `version_id`
-  // que el preview guarda en su único hijo) en vez de ofrecer "Publicar".
-  const esPreview = trabajo.origen === "preview_onboarding";
-  const versionPreview = trabajo.hijos[0]?.version_id;
-
   // Los hijos no vienen sueltos en `TrabajoAdmin`: se derivan de las lineas,
   // que es donde el contrato pone la referencia de cada hijo.
   const hijos = [
@@ -78,8 +83,11 @@ export default async function PaginaTrabajo({ params }: Props) {
 
   return (
     <div className={styles.pagina}>
-      <nav className={styles.migas}>
-        <Link href="/cola">← Cola de revisión</Link>
+      <nav className={styles.migas} aria-label="Navegación del trabajo">
+        <Link href="/cola" className={styles.volver}>
+          <ArrowLeft size={15} aria-hidden="true" />
+          Cola de revisión
+        </Link>
         <BorrarTrabajo trabajoId={trabajo.trabajo_id} estado={trabajo.estado} volverA="/cola" />
       </nav>
 
@@ -153,37 +161,14 @@ export default async function PaginaTrabajo({ params }: Props) {
         </section>
       ) : null}
 
-      {esPreview ? (
-        // Un preview de onboarding no se publica: no tiene acudiente a quien
-        // avisar (el backend lo rechaza con 409). Para servir al acudiente que
-        // subió la lista hay que APROBARLA en su revisor, que crea el colegio y
-        // arma el trabajo del padre. Se enlaza de vuelta en vez de ofrecer un
-        // "Publicar" que no funciona.
-        <section className={styles.avisoPreview}>
-          <h2>Este es un preview de la lista</h2>
-          <p>
-            No se publica: es una vista de solo lectura, sin acudiente a quien avisar. Para
-            servir al acudiente que subió la lista, apruébala en su revisión —eso crea el colegio
-            y arma su trabajo.
-          </p>
-          {versionPreview ? (
-            <Link href={`/onboarding/${encodeURIComponent(versionPreview)}`} className={styles.enlaceRevisor}>
-              Ir a la revisión de la lista →
-            </Link>
-          ) : (
-            <Link href="/cola" className={styles.enlaceRevisor}>
-              Volver a la cola de verificación →
-            </Link>
-          )}
-        </section>
-      ) : (
-        <DecisionTrabajo
-          trabajoId={trabajo.trabajo_id}
-          estado={trabajo.estado}
-          lineasPendientes={trabajo.lineas_pendientes.length}
-          notaRevision={trabajo.nota_revision}
-        />
-      )}
+      <DecisionTrabajo
+        trabajoId={trabajo.trabajo_id}
+        estado={trabajo.estado}
+        lineasPendientes={trabajo.lineas_pendientes.length}
+        notaRevision={trabajo.nota_revision}
+        esPreview={trabajo.origen === "preview_onboarding"}
+        edicion={edicion}
+      />
 
       <ConsolaRevision trabajo={trabajo} personajes={personajes} />
     </div>

@@ -62,6 +62,9 @@ _PLANTILLAS = {
     "kits_publicados": "Tu cotizacion de kits esta lista. Turno {turno}. Revisala antes de comprar: {enlace}",
     "pedido_pagado": "Recibimos tu pago del pedido {pedido}. Turno {turno}. Te avisamos cuando salga.",
     "incidencia": "Hubo una novedad con tu pedido {pedido}. Turno {turno}. Te contactaremos.",
+    "pedido_despachado": "Tu pedido {pedido} salió y va con {repartidor}.",
+    "pedido_en_reparto": "Tu pedido {pedido} llega hoy.",
+    "pedido_entregado": "Tu pedido {pedido} fue entregado. ¡Gracias por confiar en Tukit!",
 }
 
 

@@ -1,0 +1,26 @@
+{
+ "laya_A_un_kit": {
+  "n": 29,
+  "media_s": 1.092,
+  "mediana_s": 0.997,
+  "max_s": 2.474
+ },
+ "laya_B_un_kit": {
+  "n": 29,
+  "media_s": 3.087,
+  "mediana_s": 2.061,
+  "max_s": 13.107
+ },
+ "laya_C_un_kit": {
+  "n": 29,
+  "media_s": 1.017,
+  "mediana_s": 0.918,
+  "max_s": 2.333
+ },
+ "laya_D_un_kit": {
+  "n": 29,
+  "media_s": 0.082,
+  "mediana_s": 0.082,
+  "max_s": 0.1
+ }
+}

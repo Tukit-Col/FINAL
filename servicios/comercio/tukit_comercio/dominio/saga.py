@@ -27,12 +27,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-# TTL por omision de una reserva sin pago confirmado. Conservador a proposito
-# (ADR 0023 lo declara como deuda a calibrar con datos de piloto): 30 min es
-# holgado para que un acudiente pague en la pasarela sin que la reserva venza en
-# medio del checkout, y corto para no bloquear stock un dia por una compra
-# abandonada. Se sobreescribe por entorno en el barredor.
-TTL_RESERVA = timedelta(minutes=30)
+# TTL por omision de una reserva sin pago confirmado (ADR 0023 lo declara como
+# deuda a calibrar con datos de piloto). Es la misma ventana en que el pedido se
+# puede pagar (`pagos.VIGENCIA_PAGO`, 24 h): un PSE puede quedar en curso horas
+# en el banco, y vencer la reserva antes cancelaria un pedido que el acudiente
+# todavia puede pagar. Se sobreescribe por entorno en el barredor.
+TTL_RESERVA = timedelta(hours=24)
 
 # El estado de una reserva que aun cuenta contra el stock y puede vencer. Una
 # `liberada` (ya la solto un barrido) o `consumida` (ya se despacho) no se toca.

@@ -15,6 +15,7 @@ import type { Nivel } from "@tukit/contrato";
 import { altaLibro, FalloCatalogo } from "@/lib/api-catalogo";
 import type { OpcionConcepto } from "./PanelReclasificar";
 import type { OpcionTienda } from "./SeccionesCatalogo";
+import Desplegable from "./Desplegable";
 import styles from "./CatalogoSpa.module.css";
 
 interface Props {
@@ -150,25 +151,26 @@ export default function AltaLibro({ conceptos, tiendas, onEncolado }: Props) {
 
         <div className={styles.campo}>
           <label htmlFor="al-concepto">Concepto</label>
-          <select id="al-concepto" value={concepto} onChange={(e) => setConcepto(e.target.value)}>
-            <option value="">— elegir concepto —</option>
-            {conceptos.map((op) => (
-              <option key={op.codigo} value={op.codigo}>
-                {op.nombre}
-              </option>
-            ))}
-          </select>
+          <Desplegable
+            id="al-concepto"
+            tamano="compacto"
+            buscable
+            textoVacio="— elegir concepto —"
+            opciones={conceptos.map((op) => ({ valor: op.codigo, texto: op.nombre }))}
+            valor={concepto}
+            onCambio={setConcepto}
+          />
         </div>
 
         <div className={styles.campo}>
           <label htmlFor="al-nivel">Nivel sugerido</label>
-          <select id="al-nivel" value={nivel} onChange={(e) => setNivel(e.target.value as Nivel)}>
-            {NIVELES.map((n) => (
-              <option key={n} value={n}>
-                {ETIQUETA_NIVEL[n]}
-              </option>
-            ))}
-          </select>
+          <Desplegable
+            id="al-nivel"
+            tamano="compacto"
+            opciones={NIVELES.map((n) => ({ valor: n, texto: ETIQUETA_NIVEL[n] }))}
+            valor={nivel}
+            onCambio={(v) => setNivel(v as Nivel)}
+          />
         </div>
       </div>
 

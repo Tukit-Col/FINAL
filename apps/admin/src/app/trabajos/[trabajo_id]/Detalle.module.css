@@ -4,13 +4,41 @@
   gap: var(--espacio-4);
 }
 
-.migas a {
-  color: var(--color-text-secondary);
-  font-size: 13px;
+/* La barra de arriba: volver a la cola a la izquierda, borrar a la derecha. */
+.migas {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-3);
+  flex-wrap: wrap;
 }
 
-.migas a:hover {
+.volver {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--clay-shadow-sm);
+  transition:
+    color var(--dur-rapido) var(--ease-suave),
+    transform var(--dur-rapido) var(--ease-suave);
+}
+
+.volver:hover {
   color: var(--color-primary);
+  transform: translateX(-2px);
+}
+
+.volver:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 /* ------------------------------------------------------------ encabezado */

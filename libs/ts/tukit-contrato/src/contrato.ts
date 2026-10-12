@@ -1,4 +1,4 @@
-// Tipos de la API de Tukit, derivados de `arquitectura/CONTRATO_API.md` v1.0.
+// Tipos de la API de Tukit, derivados de `docs/arquitectura/CONTRATO_API.md` v1.0.
 //
 // El contrato es de otro equipo y este fichero NO lo interpreta: lo transcribe.
 // Donde el documento deja un hueco (una forma que muestra un ejemplo pero no
@@ -59,9 +59,11 @@ export const MODOS_SURTIBLES: readonly ModoAdquisicion[] = ["mercado_abierto", "
 export type EstadoResolucion = "RESUELTO_AUTO" | "AMBIGUO" | "SIN_MATCH" | "HUECO_CATALOGO";
 
 // ------------------------------------------------------------- §1.3 PerfilKit
-export type PerfilKit = "Ahorrador" | "Fan" | "Premium";
+// Ahorrador y Premium salen siempre; Fan solo si se pidió un personaje y
+// "A tu Medida" solo con el punto medio o un tope (ADR 0030).
+export type PerfilKit = "Ahorrador" | "Fan" | "A tu Medida" | "Premium";
 
-export const PERFILES: readonly PerfilKit[] = ["Ahorrador", "Fan", "Premium"];
+export const PERFILES: readonly PerfilKit[] = ["Ahorrador", "Fan", "A tu Medida", "Premium"];
 
 // `nivel` de un producto, que NO es el perfil de un kit aunque compartan la
 // palabra "premium". Sale de `catalogo.modelos.base.Nivel`.
@@ -71,7 +73,15 @@ export type Nivel = "economico" | "confiable" | "premium";
 export type UnidadBase = "unidad" | "hoja" | "pliego" | "metro" | "gramo" | "mililitro";
 
 // ------------------------------------------------------------- §2 El trabajo
-export type EstadoTrabajo = "encolado" | "procesando" | "espera_revision" | "publicado" | "fallido";
+// `cancelado`: el acudiente cancelo la solicitud (ADR 0031). Terminal, y no
+// sale en "Mis solicitudes".
+export type EstadoTrabajo =
+  | "encolado"
+  | "procesando"
+  | "espera_revision"
+  | "publicado"
+  | "fallido"
+  | "cancelado";
 
 export type NombreEtapa = "percepcion" | "normalizacion" | "resolucion" | "optimizacion";
 
@@ -135,6 +145,8 @@ export interface Preferencias {
   disposicion_sobreprecio?: number;
   personaje_por_hijo?: Record<string, string[]>;
   dolor_declarado?: DolorDeclarado;
+  // Lo que eligió en el paso 3: `equilibrio` pide el kit "A tu Medida".
+  prioridad?: "precio" | "equilibrio" | "calidad";
 }
 
 export interface SolicitudTrabajo {
@@ -163,6 +175,18 @@ export interface GradoCanonico {
   grado: string;
   anio_lectivo: number;
   trabajo_id: string;
+  /** Cuando se publico la version vigente de los kits. */
+  publicado_en?: string | null;
+  /** Solo con `colegio_id`: el borrador de la version siguiente, si hay uno abierto. */
+  borrador_trabajo_id?: string | null;
+}
+
+/** La copia editable de los kits canonicos vigentes (su version siguiente). */
+export interface BorradorKits {
+  trabajo_id: string;
+  basado_en: string;
+  /** false si ya habia un borrador abierto y se devolvio ese. */
+  nuevo: boolean;
 }
 
 export interface AplicarCanonico {
@@ -191,6 +215,15 @@ export interface Entrega {
   ciudad: string;
 }
 
+// El acudiente cambia el producto de un renglón de su kit por el sugerido o por
+// una de sus alternativas. El cambio vive en SU trabajo, no en el kit canónico.
+export interface CambioDeProducto {
+  trabajo_id: string;
+  perfil: PerfilKit;
+  item_id: string;
+  sku: string;
+}
+
 export interface SolicitudCheckout {
   perfil: PerfilKit;
   correo: string;
@@ -206,7 +239,45 @@ export interface Checkout {
   referencia_wompi?: string;
   transaccion_wompi?: string;
   estado?: string;
+  // Modo simulado: a donde mandar al acudiente (la pasarela falsa).
   url_redireccion: string | null;
+  // Wompi: las opciones firmadas de `new WidgetCheckout({...})`. El pago se
+  // abre en un modal y el acudiente no sale de Tukit.
+  widget: WidgetWompi | null;
+}
+
+// Un intento de pago nuevo sobre un pedido que ya existe (pendiente de pago),
+// p. ej. desde "Mis pedidos". Misma forma que el pago de `Checkout`.
+export interface PagoIniciado {
+  pago_id: string;
+  referencia_wompi: string;
+  estado: string;
+  url_redireccion: string | null;
+  widget: WidgetWompi | null;
+}
+
+// Las opciones del widget de Wompi, con sus nombres. Las arma y firma el
+// backend: el secreto de integridad nunca llega al navegador.
+export interface WidgetWompi {
+  publicKey: string;
+  currency: string;
+  amountInCents: number;
+  reference: string;
+  signature: { integrity: string };
+  customerData?: { email?: string };
+  // Solo lo usa PSE: el banco se lleva la pestana y Wompi vuelve aqui con `?id=`.
+  redirectUrl?: string;
+}
+
+// El estado del pago tras consultarlo a la pasarela, cuando el acudiente
+// regresa de Wompi. `estado_pedido` es el del pedido en Comercio.
+export interface ResultadoPago {
+  pedido_id: string;
+  total: number;
+  estado_pago: "iniciado" | "aprobado" | "rechazado" | "reembolsado";
+  estado_pedido: string;
+  // El kit del que salió el pedido; `null` si el pedido no viene de uno.
+  trabajo_id: string | null;
 }
 
 // --------------------------------------------------- §2 Subida de listas (P2)
@@ -317,6 +388,11 @@ export interface LineaKit {
   no_consolidable?: boolean;
   motivo_no_consolidable?: string | null;
 
+  // El acudiente cambió el producto sugerido por una alternativa: `sku_sugerido`
+  // es el que venía, para ofrecerle volver a él.
+  cambiado_por_acudiente?: boolean;
+  sku_sugerido?: string | null;
+
   // §5.2 — huecos de catalogo.
   concepto?: string | null;
   atributo_faltante?: Record<string, string> | null;
@@ -356,6 +432,9 @@ export interface Kit {
 export interface Recomendacion {
   perfil: PerfilKit;
   razon: string;
+  // `null` cuando el acudiente no declaro presupuesto: no hay tope contra el
+  // que medir. Solo `false` significa "se pasa del tope".
+  dentro_de_presupuesto: boolean | null;
   pesos_usados: Pesos;
 }
 
@@ -376,6 +455,9 @@ export interface Trabajo {
   kits: Kit[];
   recomendado: Recomendacion | null;
   degradaciones: Degradacion[];
+  // De dónde salió el trabajo. `parent_apply` es la ruta rápida: ahí el
+  // "recomendado" es el kit que el acudiente eligió al empezar.
+  origen?: string;
 }
 
 // El panel del acudiente: una de SUS solicitudes de kit (un trabajo del
@@ -409,6 +491,8 @@ interface SolicitudBase {
 // Lista subida, aun sin aprobar: "una persona esta revisando tu lista".
 export interface SolicitudRecibida extends SolicitudBase {
   tipo: "recibida";
+  // Con esto el acudiente la cancela (`cancelarListaSubida`).
+  tarea_id?: string | null;
 }
 
 // Lista aprobada: su trabajo ya existe y el kit esta listo.
@@ -499,12 +583,17 @@ export interface AcudienteResumen {
 export interface EntradaCola {
   trabajo_id: string;
   estado: EstadoTrabajo;
+  /** `preview_onboarding` es la previsualizacion de un revisor, no un acudiente. */
+  origen?: string;
   recibido_en: string;
   hijos: number;
   lineas_totales: number;
   lineas_pendientes: number;
+  /** Ids de colegio: el nombre lo pone la consola con su directorio. */
   colegios: string[];
   grados: string[];
+  /** Un borrador de edicion de kits ya publicados: el canonico del que salio. */
+  edicion_de?: string | null;
 }
 
 export interface ColaAdmin {
@@ -519,14 +608,20 @@ export interface TrabajoAdmin extends Trabajo {
   contacto_id: string;
   lineas_pendientes: string[];
   nota_revision?: string | null;
-  // De dónde nació el trabajo. `preview_onboarding` es el caso especial: un
-  // preview desechable de una lista que NO se publica (no tiene acudiente); la
-  // consola lo detecta para enlazar de vuelta al revisor en vez de ofrecer un
-  // "Publicar" que el backend rechaza (409 `preview_no_publicable`).
-  origen: string;
-  // Los hijos como se recibieron. En un preview, el único "hijo" trae el
-  // `version_id` de la lista de la que salió, para poder volver a su revisor.
-  hijos: HijoSolicitud[];
+  /** `preview_onboarding`/`canonico_lista` no tienen acudiente a quien avisar. */
+  origen?: string;
+  /** Los hijos tal como se pidieron; un preview trae su `version_id`. */
+  hijos?: HijoDeTrabajo[];
+}
+
+export interface HijoDeTrabajo {
+  referencia?: string;
+  colegio_id?: string;
+  grado?: string;
+  anio_lectivo?: number;
+  version_id?: string;
+  /** Un borrador de edicion de kits: el canonico que reemplazara al publicarse. */
+  basado_en?: string;
 }
 
 // AD-02: validar es fijar el producto de la linea. Sin `sku` se lee

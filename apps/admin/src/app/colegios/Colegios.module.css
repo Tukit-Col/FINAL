@@ -589,11 +589,6 @@
   background: var(--color-surface);
 }
 
-.kitCardRecomendado {
-  border-color: var(--color-primary);
-  box-shadow: var(--clay-shadow-sm);
-}
-
 .kitCardCabecera {
   display: flex;
   align-items: center;
@@ -605,15 +600,6 @@
   font-size: 14px;
   font-weight: 700;
   color: var(--color-text-primary);
-}
-
-.kitCardChapa {
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  font-size: 10.5px;
-  font-weight: 700;
-  background: var(--clay-cielo-bg);
-  color: var(--color-primary);
 }
 
 .kitCardTotal {
@@ -740,6 +726,11 @@
   background: var(--color-info-bg);
   border-color: var(--color-info-border);
   color: var(--color-info);
+}
+
+/* «Ver ítems» de los kits aprobados: bajo las tarjetas, antes de la matriz. */
+.verItems {
+  align-self: flex-start;
 }
 
 /* ---------------------------------------------- formulario de perfil (P1b) */
@@ -896,4 +887,94 @@
   border-radius: var(--radius-sm);
   color: var(--color-aviso);
   font-size: 12.5px;
+}
+
+/* ------------------------------------------------- avisos: "Para revisar" */
+
+.avisos {
+  margin-bottom: var(--espacio-6);
+  padding: var(--espacio-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, var(--radius-sm));
+  background: var(--color-surface);
+}
+
+.listaAvisos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--espacio-3);
+}
+
+.aviso {
+  display: grid;
+  grid-template-columns: 9.5rem minmax(0, 1fr) auto;
+  gap: var(--espacio-3);
+  align-items: start;
+  padding-top: var(--espacio-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.aviso:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.avisoTipo {
+  justify-self: start;
+  padding: 2px var(--espacio-2);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--color-neutro-bg, var(--color-surface));
+  color: var(--color-text-muted);
+}
+
+.aviso_posible_repetido {
+  background: var(--color-warning-bg, #fff4d6);
+  color: var(--color-warning, #8a5a00);
+}
+
+.aviso_revisar_atributo {
+  background: var(--color-info-bg, #e6f0ff);
+  color: var(--color-info, #1d4ed8);
+}
+
+.aviso_sin_producto {
+  background: var(--color-danger-bg, #fde8e8);
+  color: var(--color-danger);
+}
+
+.avisoCuerpo {
+  min-width: 0;
+}
+
+.avisoTexto {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.avisoDetalle {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.avisoAcciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+  justify-content: flex-end;
+}
+
+@media (max-width: 720px) {
+  .aviso {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .avisoAcciones {
+    justify-content: flex-start;
+  }
 }

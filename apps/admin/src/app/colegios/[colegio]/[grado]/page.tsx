@@ -15,18 +15,21 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import type {
+  AvisoLista,
   ColegioDetalle,
   DirectorioColegio,
   ItemListaOficial,
   Kit,
   ListaOficial,
   PedidosPorGrado,
-  Recomendacion,
   ResumenPedidosColegio,
 } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
+import AvisosLista from "@/components/AvisosLista";
+import EditarKits from "@/components/EditarKits";
 import EditarLista from "@/components/EditarLista";
 import KitsCanonicos from "./KitsCanonicos";
+import { formatearFecha } from "@/lib/formato";
 import { COOKIE_SESION } from "@/lib/sesion";
 import styles from "../../Colegios.module.css";
 
@@ -56,7 +59,7 @@ function adquisicion(modo: string): { etiqueta: string; clase: string } {
 function Renglon({ item }: { item: ItemListaOficial }) {
   const adq = adquisicion(item.modo_adquisicion);
   return (
-    <li className={styles.renglon}>
+    <li className={styles.renglon} id={`renglon-${item.orden}`}>
       <span className={styles.renglonNumero}>{item.orden}</span>
       <div className={styles.renglonCuerpo}>
         <p className={styles.renglonTexto}>{item.texto_generico ?? item.texto_original}</p>
@@ -93,7 +96,6 @@ export default async function PaginaListaGrado({ params }: Props) {
   // publicado que fijó la aprobación), nunca previews ni trabajos sin aprobar.
   // Si el grado aún no tiene kit aprobado, no hay canónico y no se pinta el panel.
   let kitsCanonicos: Kit[] = [];
-  let recomendadoCanonico: Recomendacion | null = null;
   const canonico = (await origenDeDatos().gradosCanonicos(lista.colegio_id).catch(() => [])).find(
     (g) => g.grado === lista.grado,
   );
@@ -101,7 +103,6 @@ export default async function PaginaListaGrado({ params }: Props) {
     try {
       const trabajo = await origenDeDatos().trabajoAdmin(canonico.trabajo_id);
       kitsCanonicos = trabajo.kits;
-      recomendadoCanonico = trabajo.recomendado;
     } catch (causa) {
       console.error("no se pudo leer el trabajo canónico", causa);
     }
@@ -122,6 +123,18 @@ export default async function PaginaListaGrado({ params }: Props) {
       if (causa instanceof ErrorTukit && causa.estado === 404) tipoDocumento = null;
       else tipoDocumento = "application/pdf";
     }
+  }
+
+  // Lo que una persona tiene que decidir de esta lista. Un fallo al leerlos no
+  // tumba la pagina: los avisos ayudan, la lista es lo que importa.
+  let avisos: AvisoLista[] = [];
+  if (lista.version_id) {
+    avisos = await origenDeDatos()
+      .avisosLista(lista.version_id)
+      .catch((causa) => {
+        console.error("no se pudieron leer los avisos de la lista", causa);
+        return [];
+      });
   }
 
   const urlDocumento = lista.version_id
@@ -219,6 +232,8 @@ export default async function PaginaListaGrado({ params }: Props) {
         />
       </header>
 
+      {lista.version_id ? <AvisosLista versionId={lista.version_id} avisos={avisos} /> : null}
+
       <div className={styles.paneles}>
         {/* -------------------------------------------- El documento original */}
         <section className={styles.panel}>
@@ -268,13 +283,22 @@ export default async function PaginaListaGrado({ params }: Props) {
       </div>
 
       {/* --------------------------------- Los 3 kits NSGA aprobados (caché) */}
-      {kitsCanonicos.length > 0 && (
+      {canonico && kitsCanonicos.length > 0 && (
         <section className={styles.panel}>
           <div className={styles.panelCabecera}>
-            <h2>Kits NSGA aprobados</h2>
-            <span className={styles.panelConteo}>caché del acudiente</span>
+            <div>
+              <h2>Kits NSGA aprobados</h2>
+              <span className={styles.panelConteo}>
+                caché del acudiente
+                {canonico.publicado_en ? ` · versión publicada el ${formatearFecha(canonico.publicado_en)}` : ""}
+              </span>
+            </div>
+            <EditarKits
+              canonicoId={canonico.trabajo_id}
+              borradorId={canonico.borrador_trabajo_id ?? null}
+            />
           </div>
-          <KitsCanonicos kits={kitsCanonicos} recomendado={recomendadoCanonico} />
+          <KitsCanonicos trabajoId={canonico.trabajo_id} kits={kitsCanonicos} />
         </section>
       )}
 

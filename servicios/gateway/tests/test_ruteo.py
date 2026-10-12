@@ -82,6 +82,7 @@ class TestElPrefijoMasLargoGana:
             ("/v1/ordenes", "comercio"),
             ("/v1/ordenes/abc/pago", "comercio"),
             ("/v1/ordenes/abc/retracto", "comercio"),
+            ("/v1/pagos/abc/sincronizar", "comercio"),
             ("/v1/webhooks/wompi", "comercio"),
         ],
     )
@@ -134,10 +135,11 @@ class TestYaNoHayPagoPendiente:
 
 
 class TestLasRutasInternasNoSeExponen:
-    """`/v1/comercio/pedidos-pagados` es servicio-a-servicio (inteligencia le
-    pega directo a comercio por `TUKIT_COMERCIO_URL`), y desde fuera debe verse
-    como INEXISTENTE, no como prohibida: revelar que hay una superficie interna
-    es informacion que no le hace falta a nadie de fuera.
+    """`/v1/comercio/pedidos-pagados` y todo `/v1/ordenes` salvo el avance son
+    servicio-a-servicio (inteligencia le pega directo a comercio por
+    `TUKIT_COMERCIO_URL`), y desde fuera deben verse como INEXISTENTES, no como
+    prohibidas: revelar que hay una superficie interna es informacion que no le
+    hace falta a nadie de fuera.
     """
 
     def test_pedidos_pagados_esta_bloqueada(self):
@@ -164,6 +166,82 @@ class TestLasRutasInternasNoSeExponen:
         assert cuerpo["error"] == "ruta_desconocida"
         assert cuerpo["rutas"] == sorted(RUTAS)
         assert "/v1/comercio/pedidos-pagados" not in cuerpo["rutas"]
+
+
+async def _respuesta_cruda(ruta: str) -> tuple[int, bytes]:
+    """Llama a la puerta con la ruta TAL CUAL, sin pasar por httpx.
+
+    httpx normaliza `x/../` antes de enviar, asi que una prueba con su cliente
+    nunca ve el caso que importa: lo que un `curl --path-as-is` si manda. Se
+    arma el scope ASGI a mano, decodificando como lo hace el servidor real.
+    """
+    from urllib.parse import unquote
+
+    mensajes: list[dict] = []
+    alcance = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "GET",
+        "scheme": "http",
+        "path": unquote(ruta),
+        "raw_path": ruta.encode(),
+        "query_string": b"",
+        "root_path": "",
+        "headers": [(b"host", b"prueba")],
+        "server": ("prueba", 80),
+        "client": ("127.0.0.1", 1),
+    }
+
+    async def recibir() -> dict:
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def enviar(mensaje: dict) -> None:
+        mensajes.append(mensaje)
+
+    await app(alcance, recibir, enviar)
+    estado = next(m["status"] for m in mensajes if m["type"] == "http.response.start")
+    cuerpo = b"".join(m.get("body", b"") for m in mensajes if m["type"] == "http.response.body")
+    return estado, cuerpo
+
+
+class TestLosSegmentosPuntoNoSaltanElBloqueo:
+    """httpx normaliza la ruta al reenviar: sin este chequeo,
+    `/v1/comercio/x/../pedidos-pagados` pasaba como una ruta de comercio
+    cualquiera y llegaba al servicio como la ruta interna."""
+
+    @pytest.mark.parametrize(
+        "ruta",
+        [
+            "/v1/comercio/x/../pedidos-pagados",
+            "/v1/comercio/./pedidos-pagados",
+            "/v1/ordenes/../ordenes",
+            "/v1/catalogo/..",
+            "/v1/comercio\\pedidos-pagados",
+        ],
+    )
+    def test_una_ruta_ambigua_esta_bloqueada(self, ruta):
+        assert bloqueada(ruta) is True
+
+    def test_un_punto_dentro_de_un_segmento_no_es_ambiguo(self):
+        # `.` como parte de un nombre (un archivo, una version) es legitimo.
+        assert bloqueada("/v1/catalogo/imagen.png") is False
+        assert bloqueada("/v1/catalogo/v1..2") is False
+
+    @pytest.mark.parametrize(
+        "ruta",
+        [
+            "/v1/comercio/x/../pedidos-pagados",
+            "/v1/comercio/x/%2e%2e/pedidos-pagados",
+            "/v1/comercio/x/%2E%2E/pedidos-pagados",
+            "/v1/comercio/x%2f..%2fpedidos-pagados",
+            "/v1/comercio/x/../../v1/ordenes/abc/pago",
+        ],
+    )
+    async def test_la_ruta_cruda_responde_el_404_de_ruta_desconocida(self, ruta):
+        estado, cuerpo = await _respuesta_cruda(ruta)
+        assert estado == 404
+        assert b'"ruta_desconocida"' in cuerpo
 
 
 class TestElEndpointInternoDeCatalogoNoSeExpone:
@@ -311,3 +389,30 @@ class TestLaSondaDiceLaVerdadSobreLosTres:
             "comercio",
             "operacion",
         }
+
+    @pytest.mark.parametrize(
+        "ruta",
+        [
+            "/v1/ordenes",
+            "/v1/ordenes/abc",
+            "/v1/ordenes/abc/pago",
+            "/v1/ordenes/abc/retracto",
+            "/v1/ordenes/abc/avanzar/x",
+        ],
+    )
+    def test_ordenes_internas_estan_bloqueadas(self, ruta):
+        assert bloqueada(ruta) is True
+
+    def test_el_avance_de_ordenes_si_pasa(self):
+        # Es back-office: la puerta lo deja pasar y comercio exige el rol.
+        assert bloqueada("/v1/ordenes/abc/avanzar") is False
+        assert destino("/v1/ordenes/abc/avanzar") == "comercio"
+
+    async def test_crear_orden_responde_el_mismo_404(self):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://prueba"
+        ) as cliente:
+            respuesta = await cliente.post("/v1/ordenes", json={})
+
+        assert respuesta.status_code == 404
+        assert respuesta.json()["error"] == "ruta_desconocida"

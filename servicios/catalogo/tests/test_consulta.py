@@ -99,6 +99,34 @@ class TestSeAbstieneEnVezDeInventar:
         assert resultado.concepto_codigo == "C004"
         assert [o.nivel for o in resultado.opciones] == ["economico", "confiable", "premium"]
 
+    def test_un_concepto_ya_asignado_no_se_vuelve_a_adivinar(self):
+        """La previsualizacion manda el concepto que el revisor puso en la lista:
+        un texto que por si solo no se reconoce queda en ese concepto."""
+        sin_pista = emparejar("material de trabajo opciones varias", CONCEPTOS, PRODUCTOS)
+        asignado = emparejar(
+            "material de trabajo opciones varias", CONCEPTOS, PRODUCTOS, concepto_forzado="C004"
+        )
+
+        assert sin_pista.estado == "sin_match"
+        assert asignado.estado == "reconocido" and asignado.concepto_codigo == "C004"
+        assert [o.nivel for o in asignado.opciones] == ["economico", "confiable", "premium"]
+
+    def test_escolar_no_se_le_exige_a_un_producto(self):
+        """En una lista escolar casi todo dice "escolar": exigirlo como tipo
+        dejaba a "Maleta escolar" sin ninguna de las maletas del catalogo."""
+        maleta = uuid.UUID("00000000-0000-0000-0000-0000000000a8")
+        conceptos = [
+            {"id": maleta, "codigo": "C086", "nombre": "maleta", "sinonimos": [], "discriminantes": ("tipo",)}
+        ]
+        productos = [_producto(maleta, "TK-C086-CON", "Morral azul", "confiable", {"tipo": "morral"})]
+
+        escolar = emparejar("Maleta escolar", conceptos, productos)
+        morral = emparejar("Maleta tipo morral", conceptos, productos)
+
+        assert escolar.estado == "reconocido" and escolar.atributos_impuestos == {}
+        assert [o.sku for o in escolar.opciones] == ["TK-C086-CON"]
+        assert morral.atributos_impuestos == {"tipo": "morral"}
+
     def test_en_un_nivel_gana_el_de_marca_y_no_el_personaje(self):
         resultado = emparejar("block carta", CONCEPTOS, PRODUCTOS)
 

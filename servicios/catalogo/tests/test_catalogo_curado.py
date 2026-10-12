@@ -29,6 +29,7 @@ from typing import Any
 import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
+from tukit_catalogo.cargador import CONCEPTOS_LIBRO
 from tukit_catalogo.modelos import (
     CALIDAD_POR_NIVEL,
     UMBRAL_REVISION_MANUAL,
@@ -64,6 +65,18 @@ FICHEROS = (
 # corrector/balon con personaje (Kiut, Barbie, Avengers, Hot Wheels, unicornio...).
 # La BD manda sobre esta lista; el numero refleja lo que la curadora decidio.
 CONCEPTOS_CON_PERSONAJE_ESPERADOS = 18
+
+
+def del_corpus(codigo: str) -> bool:
+    """Si el concepto es uno de los 99 que midio el corpus (C001-C099).
+
+    La curaduria de listas agrega conceptos (C100 en adelante) y los exporta a
+    `conceptos.csv`. Las cifras de este archivo son mediciones de la tesis sobre
+    el corpus, asi que se comprueban sobre ESOS conceptos y los curados se
+    admiten aparte, en vez de romper la suite cada vez que se cura una lista.
+    """
+    return len(codigo) == 4 and codigo.startswith("C0") and codigo[1:].isdigit()
+
 
 # Niveles que una persona QUITO del catalogo a proposito, por concepto.
 #
@@ -335,17 +348,20 @@ class TestCargaEnElEsquema:
         de encontrar sus entradas y escriba cabeceras sin filas. Todo lo demas
         de este fichero pasaria sobre un catalogo vacio."""
         assert cargado.query(ProductoCanonico).count() >= 200
-        assert cargado.query(Concepto).count() == 99
+        assert sum(1 for c in cargado.query(Concepto) if del_corpus(c.codigo)) == 99
 
 
 class TestConceptoValido:
     def test_todo_producto_cuelga_de_un_concepto_del_corpus(self, cargado, catalogo):
         """La FK ya lo garantiza dentro de la base. Lo que se comprueba aqui
         es lo de fuera: que ese concepto sea uno de los 99 medidos sobre las
-        3.610 lineas y no uno inventado para acomodar un producto."""
+        3.610 lineas, o uno que la curaduria de listas dio de alta y quedo
+        versionado en `conceptos.csv` (C100 en adelante), y no uno inventado
+        para acomodar un producto."""
         del catalogo
         codigos = {c.codigo for c in cargado.query(Concepto)}
-        assert len(codigos) == 99
+        assert sum(1 for codigo in codigos if del_corpus(codigo)) == 99
+        assert all(del_corpus(c) or c.startswith("C1") or c in CONCEPTOS_LIBRO for c in codigos)
         for producto in cargado.query(ProductoCanonico):
             concepto = cargado.get(Concepto, producto.concepto_id)
             assert concepto is not None
@@ -461,7 +477,10 @@ class TestNiveles:
         """Un cuaderno de Spiderman es un producto; una resma de Spiderman es
         un error de etiquetado."""
         admiten = {c.id for c in cargado.query(Concepto) if c.admite_personaje}
-        assert len(admiten) == CONCEPTOS_CON_PERSONAJE_ESPERADOS
+        del_corpus_que_admiten = [
+            c for c in cargado.query(Concepto) if c.admite_personaje and del_corpus(c.codigo)
+        ]
+        assert len(del_corpus_que_admiten) == CONCEPTOS_CON_PERSONAJE_ESPERADOS
         for producto in cargado.query(ProductoCanonico):
             if producto.personaje:
                 assert producto.concepto_id in admiten

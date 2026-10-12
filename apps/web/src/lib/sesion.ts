@@ -12,7 +12,7 @@
 
 import "server-only";
 import { cookies } from "next/headers";
-import type { MisSolicitudes } from "@tukit/contrato";
+import type { MisSolicitudes, Pedido } from "@tukit/contrato";
 import {
   origenDeDatos,
   type MatriculaAcudiente,
@@ -81,4 +81,18 @@ export async function solicitudesDeLaSesion(): Promise<MisSolicitudes> {
   const token = (await cookies()).get(COOKIE_SESION)?.value;
   if (!token) return { solicitudes: [], listas_disponibles: true };
   return origenDeDatos().misSolicitudes(token);
+}
+
+/**
+ * Los pedidos del portador de la cookie, para la seccion de pedidos del panel.
+ * Comercio saca el usuario de la sesion que valida: aqui viaja el token, nunca
+ * un `usuario_id`.
+ *
+ * Como `solicitudesDeLaSesion()`, devuelve `[]` SOLO sin cookie y deja propagar
+ * el fallo del backend, para que quien llama decida como degradar.
+ */
+export async function pedidosDeLaSesion(): Promise<Pedido[]> {
+  const token = (await cookies()).get(COOKIE_SESION)?.value;
+  if (!token) return [];
+  return origenDeDatos().misPedidos(token);
 }

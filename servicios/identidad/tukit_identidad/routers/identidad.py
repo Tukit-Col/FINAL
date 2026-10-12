@@ -25,7 +25,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Header, Query, Request
+from fastapi import APIRouter, Header, Query, Request, Response
 from pydantic import BaseModel, Field
 from tukit_comun.cifrado import cifrador_desde_entorno
 from tukit_comun.http import ErrorDominio
@@ -577,6 +577,72 @@ async def guardar_matriculas(
         conteo_inicial = await repo.conteo_matriculas_por_par(fila.id, anio_lectivo)
         total = await repo.materializar_hijos(
             fila.id, [h.a_dominio() for h in cuerpo.hijos], anio_lectivo, cifrador, conteo_inicial
+        )
+    return {"total": total}
+
+
+class CambioDeHijo(BaseModel):
+    """El colegio y el grado nuevos de un hijo; el apodo, si se quiere cambiar."""
+
+    colegio_id: uuid.UUID
+    grado: str = Field(min_length=1, max_length=32)
+    apodo: str | None = Field(default=None, max_length=120)
+
+
+@router.delete(
+    "/v1/cuenta/matriculas/{matricula_id}",
+    tags=["cuenta"],
+    status_code=204,
+    summary="Quita a un hijo de MI cuenta (cierra el vinculo; no borra datos)",
+)
+async def quitar_matricula(
+    peticion: Request,
+    matricula_id: uuid.UUID,
+    authorization: Annotated[str | None, Header()] = None,
+) -> Response:
+    async with peticion.app.state.motor.sesion() as db:
+        repo = RepoIdentidad(await db.connection())
+        fila = await _usuario_del_token(authorization, repo)
+        await repo.matricula_del_portador(fila.id, matricula_id)
+        await repo.retirar_matricula(fila.id, matricula_id)
+    return Response(status_code=204)
+
+
+@router.put(
+    "/v1/cuenta/matriculas/{matricula_id}",
+    tags=["cuenta"],
+    summary="Cambia el colegio o el grado de un hijo de MI cuenta, con su apodo",
+)
+async def cambiar_matricula(
+    peticion: Request,
+    matricula_id: uuid.UUID,
+    cuerpo: CambioDeHijo,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    """Retira la matricula vieja y crea la del colegio y grado nuevos.
+
+    Todo en una transaccion: si el colegio no tiene sede o el grado no existe
+    (422), no se retira nada. El apodo se conserva salvo que venga uno nuevo.
+    Una matricula es (estudiante, sede, grado, anio), asi que cambiar de colegio
+    es otra matricula, no una edicion de la misma.
+    """
+    cifrador = cifrador_desde_entorno()
+    anio_lectivo = datetime.now(UTC).year
+    async with peticion.app.state.motor.sesion() as db:
+        repo = RepoIdentidad(await db.connection())
+        fila = await _usuario_del_token(authorization, repo)
+        actual = await repo.matricula_del_portador(fila.id, matricula_id)
+        apodo = cuerpo.apodo
+        if apodo is None:
+            apodo = cifrador.descifrar(actual.nombre_cifrado).decode("utf-8", errors="replace") or None
+        await repo.retirar_matricula(fila.id, matricula_id)
+        conteo_inicial = await repo.conteo_matriculas_por_par(fila.id, anio_lectivo)
+        total = await repo.materializar_hijos(
+            fila.id,
+            [HijoMatricula(colegio_id=cuerpo.colegio_id, grado=cuerpo.grado, apodo=apodo)],
+            anio_lectivo,
+            cifrador,
+            conteo_inicial,
         )
     return {"total": total}
 

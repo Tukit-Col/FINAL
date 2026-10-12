@@ -19,18 +19,27 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest_asyncio
-from sqlalchemy import select
+from conftest import TOKEN_ACUDIENTE, TOKEN_OPERADOR, TOKEN_OTRO, IdentidadFalsa, bearer
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from tukit_comercio.api import app
-from tukit_comercio.modelos import Base, EstadoPago, EstadoPedido
-from tukit_comercio.pasarela import PasarelaFalsa, TransaccionCreada
+from tukit_comercio.modelos import Base, EstadoPago, EstadoPedido, Pedido
+from tukit_comercio.pasarela import (
+    PasarelaCaida,
+    PasarelaFalsa,
+    TransaccionCreada,
+    WompiSandbox,
+    datos_widget,
+)
 from tukit_comun.bd import MotorServicio
 
 
-class PasarelaCaida(PasarelaFalsa):
+class PasarelaQueNoResponde(PasarelaFalsa):
     """Pasarela que revienta al cobrar, como Wompi caido o devolviendo 5xx.
 
     Hereda la verificacion/parseo de firma de la falsa; solo `crear_transaccion`
@@ -58,6 +67,11 @@ class CatalogoFalso:
             return None
         return uuid.uuid5(uuid.NAMESPACE_OID, sku), self.precios[sku]
 
+
+# Los avances son back-office: van con el token del operador.
+OPERADOR_HDR = bearer(TOKEN_OPERADOR)
+# Reparto propio: el despacho lleva a quien llamar.
+REPARTIDOR = {"repartidor_nombre": "Luis Gomez", "repartidor_celular": "3001234567"}
 
 PRODUCTO = "11111111-1111-5111-8111-111111111111"
 USUARIO = "22222222-2222-5222-8222-222222222222"
@@ -94,6 +108,7 @@ async def cliente() -> AsyncIterator[httpx.AsyncClient]:
     app.state.motor = MotorServicio(servicio="prueba", engine=engine, _fabrica=fabrica)
     app.state.pasarela = PasarelaFalsa()
     app.state.catalogo = CatalogoFalso({"TK-C001-ECO": 4500})
+    app.state.identidad = IdentidadFalsa()
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
         yield http
     await engine.dispose()
@@ -180,11 +195,54 @@ async def test_iniciar_pago_guarda_solo_referencia_y_estado(cliente):
     assert cuerpo["estado"] == EstadoPago.INICIADO.value
 
 
+async def test_iniciar_pago_en_sandbox_devuelve_el_widget_sin_redireccion(cliente):
+    # Con Wompi de verdad el navegador abre el widget en un modal; no hay URL a
+    # la que irse (Wompi rechaza volver a localhost).
+    app.state.pasarela = WompiSandbox(llave_publica="pub_test_x", secreto_integridad="test_integrity_x")
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+    cuerpo = (
+        await cliente.post(
+            f"/v1/ordenes/{pedido_id}/pago",
+            json={
+                "correo_cliente": "ana@ejemplo.com",
+                "metodo": "pse",
+                "url_redireccion": "http://localhost:3000/pago/resultado",
+            },
+        )
+    ).json()
+    assert cuerpo["url_redireccion"] is None
+    assert cuerpo["widget"]["redirectUrl"] == "http://localhost:3000/pago/resultado"
+    assert cuerpo["widget"] == datos_widget(
+        llave_publica="pub_test_x",
+        referencia=cuerpo["referencia_wompi"],
+        monto_centavos=900000,
+        secreto_integridad="test_integrity_x",
+        correo="ana@ejemplo.com",
+        url_redireccion="http://localhost:3000/pago/resultado",
+    )
+
+
+async def test_iniciar_pago_en_modo_falso_no_trae_widget(cliente):
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+    cuerpo = (
+        await cliente.post(
+            f"/v1/ordenes/{pedido_id}/pago",
+            json={
+                "correo_cliente": "ana@ejemplo.com",
+                "metodo": "pse",
+                "url_redireccion": "http://localhost:3000/pago/resultado",
+            },
+        )
+    ).json()
+    assert cuerpo["widget"] is None
+    assert cuerpo["url_redireccion"].endswith("/pago/simulado?ref=" + cuerpo["referencia_wompi"])
+
+
 async def test_iniciar_pago_con_pasarela_caida_da_502(cliente):
     # Wompi caido no puede volverse un 500 con el traceback de la pasarela: es
     # un sobre tipado que el checkout puede mostrar y el cliente reintentar.
     pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
-    app.state.pasarela = PasarelaCaida()
+    app.state.pasarela = PasarelaQueNoResponde()
     respuesta = await cliente.post(
         f"/v1/ordenes/{pedido_id}/pago",
         json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse"},
@@ -205,8 +263,82 @@ async def _flujo_hasta_webhook(cliente, estado_wompi: str):
         referencia=pago["referencia_wompi"],
         transaccion_id=pago["transaccion_wompi"],
         estado_wompi=estado_wompi,
+        monto_centavos=900000,
     )
     return pedido_id, evento
+
+
+async def test_webhook_con_monto_distinto_no_aprueba(cliente):
+    pedido_id, _ = await _flujo_hasta_webhook(cliente, "APPROVED")
+    creada = app.state.pasarela.creadas[-1]
+    evento = app.state.pasarela.emitir_evento(
+        referencia=creada.referencia,
+        transaccion_id=creada.transaccion_id,
+        estado_wompi="APPROVED",
+        monto_centavos=1,
+    )
+    respuesta = await cliente.post("/v1/webhooks/wompi", json=evento)
+    assert respuesta.json()["estado"] == "monto_no_coincide"
+    pedido = (await cliente.get(f"/v1/ordenes/{pedido_id}")).json()
+    assert pedido["estado"] == EstadoPedido.PENDIENTE_PAGO.value
+    assert pedido["pago"]["estado"] == EstadoPago.RECHAZADO.value
+
+
+async def test_reintento_tras_rechazo_crea_otro_pago(cliente):
+    pedido_id, evento = await _flujo_hasta_webhook(cliente, "DECLINED")
+    await cliente.post("/v1/webhooks/wompi", json=evento)
+    primera = app.state.pasarela.creadas[-1]
+
+    segundo = await cliente.post(
+        f"/v1/ordenes/{pedido_id}/pago",
+        json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse"},
+    )
+    assert segundo.status_code == 201
+    cuerpo = segundo.json()
+    assert cuerpo["referencia_wompi"] != primera.referencia
+
+    evento2 = app.state.pasarela.emitir_evento(
+        referencia=cuerpo["referencia_wompi"],
+        transaccion_id=cuerpo["transaccion_wompi"],
+        estado_wompi="APPROVED",
+        monto_centavos=900000,
+    )
+    await cliente.post("/v1/webhooks/wompi", json=evento2)
+    pedido = (await cliente.get(f"/v1/ordenes/{pedido_id}")).json()
+    assert pedido["estado"] == EstadoPedido.PAGADO.value
+
+
+async def test_webhook_guarda_el_metodo_que_reporta_wompi(cliente):
+    pedido_id, _ = await _flujo_hasta_webhook(cliente, "APPROVED")
+    creada = app.state.pasarela.creadas[-1]
+    evento = app.state.pasarela.emitir_evento(
+        referencia=creada.referencia,
+        transaccion_id=creada.transaccion_id,
+        estado_wompi="APPROVED",
+        monto_centavos=900000,
+        metodo_wompi="CARD",
+    )
+    await cliente.post("/v1/webhooks/wompi", json=evento)
+    pedido = (await cliente.get(f"/v1/ordenes/{pedido_id}")).json()
+    assert pedido["pago"]["metodo"] == "tarjeta"
+
+
+async def test_pago_aprobado_no_retrocede_con_eventos_tardios(cliente):
+    pedido_id, evento = await _flujo_hasta_webhook(cliente, "APPROVED")
+    await cliente.post("/v1/webhooks/wompi", json=evento)
+    creada = app.state.pasarela.creadas[-1]
+    for estado_wompi, monto in (("PENDING", 900000), ("DECLINED", 900000), ("APPROVED", 1)):
+        tardio = app.state.pasarela.emitir_evento(
+            referencia=creada.referencia,
+            transaccion_id=creada.transaccion_id,
+            estado_wompi=estado_wompi,
+            monto_centavos=monto,
+        )
+        respuesta = await cliente.post("/v1/webhooks/wompi", json=tardio)
+        assert respuesta.json()["estado"] == "repetido"
+        pedido = (await cliente.get(f"/v1/ordenes/{pedido_id}")).json()
+        assert pedido["estado"] == EstadoPedido.PAGADO.value
+        assert pedido["pago"]["estado"] == EstadoPago.APROBADO.value
 
 
 async def test_webhook_aprobado_transiciona_a_pagado(cliente):
@@ -274,7 +406,9 @@ async def _pedido_pagado(cliente) -> str:
 
 async def test_avanzar_pedido_pagado_a_en_preparacion(cliente):
     pedido_id = await _pedido_pagado(cliente)
-    respuesta = await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", json={"destino": "en_preparacion"})
+    respuesta = await cliente.post(
+        f"/v1/ordenes/{pedido_id}/avanzar", headers=OPERADOR_HDR, json={"destino": "en_preparacion"}
+    )
     assert respuesta.status_code == 200
     assert respuesta.json()["estado"] == EstadoPedido.EN_PREPARACION.value
 
@@ -282,42 +416,53 @@ async def test_avanzar_pedido_pagado_a_en_preparacion(cliente):
 async def test_avanzar_a_destino_ilegal_da_409(cliente):
     # pagado -> entregado se salta pasos: la tabla lo rechaza con 409.
     pedido_id = await _pedido_pagado(cliente)
-    respuesta = await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", json={"destino": "entregado"})
+    respuesta = await cliente.post(
+        f"/v1/ordenes/{pedido_id}/avanzar", headers=OPERADOR_HDR, json={"destino": "entregado"}
+    )
     assert respuesta.status_code == 409
     assert respuesta.json()["error"] == "transicion_invalida"
 
 
-async def test_despachar_sin_guia_da_422(cliente):
+async def test_despachar_sin_repartidor_da_422(cliente):
     pedido_id = await _pedido_pagado(cliente)
-    await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", json={"destino": "en_preparacion"})
-    respuesta = await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", json={"destino": "despachado"})
+    await cliente.post(
+        f"/v1/ordenes/{pedido_id}/avanzar", headers=OPERADOR_HDR, json={"destino": "en_preparacion"}
+    )
+    respuesta = await cliente.post(
+        f"/v1/ordenes/{pedido_id}/avanzar", headers=OPERADOR_HDR, json={"destino": "despachado"}
+    )
     assert respuesta.status_code == 422
     assert respuesta.json()["error"] == "despacho_incompleto"
+    assert respuesta.json()["campo"] == "repartidor_nombre"
 
 
-async def test_despachar_con_guia_sella_el_envio(cliente):
+async def test_despachar_con_repartidor_sella_el_envio(cliente):
     pedido_id = await _pedido_pagado(cliente)
-    await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", json={"destino": "en_preparacion"})
+    await cliente.post(
+        f"/v1/ordenes/{pedido_id}/avanzar", headers=OPERADOR_HDR, json={"destino": "en_preparacion"}
+    )
     respuesta = await cliente.post(
         f"/v1/ordenes/{pedido_id}/avanzar",
-        json={"destino": "despachado", "transportadora": "Servientrega", "guia": "ABC123"},
+        headers=OPERADOR_HDR,
+        json={"destino": "despachado", **REPARTIDOR},
     )
     assert respuesta.status_code == 200
+    # La respuesta del avance es el detalle de staff: trae el celular.
+    assert respuesta.json()["envio"]["repartidor_celular"] == "3001234567"
     pedido = (await cliente.get(f"/v1/ordenes/{pedido_id}")).json()
     assert pedido["estado"] == EstadoPedido.DESPACHADO.value
-    assert pedido["envio"]["transportadora"] == "Servientrega"
-    assert pedido["envio"]["guia"] == "ABC123"
+    assert pedido["envio"]["repartidor_nombre"] == "Luis Gomez"
 
 
 async def test_avanzar_hasta_entregado_marca_entregado_en(cliente):
     pedido_id = await _pedido_pagado(cliente)
     for cuerpo in (
         {"destino": "en_preparacion"},
-        {"destino": "despachado", "transportadora": "Servientrega", "guia": "ABC123"},
+        {"destino": "despachado", **REPARTIDOR},
         {"destino": "en_reparto"},
         {"destino": "entregado"},
     ):
-        respuesta = await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", json=cuerpo)
+        respuesta = await cliente.post(f"/v1/ordenes/{pedido_id}/avanzar", headers=OPERADOR_HDR, json=cuerpo)
         assert respuesta.status_code == 200, respuesta.json()
     pedido = (await cliente.get(f"/v1/ordenes/{pedido_id}")).json()
     assert pedido["estado"] == EstadoPedido.ENTREGADO.value
@@ -325,7 +470,9 @@ async def test_avanzar_hasta_entregado_marca_entregado_en(cliente):
 
 
 async def test_avanzar_pedido_inexistente_da_404(cliente):
-    respuesta = await cliente.post(f"/v1/ordenes/{uuid.uuid4()}/avanzar", json={"destino": "en_preparacion"})
+    respuesta = await cliente.post(
+        f"/v1/ordenes/{uuid.uuid4()}/avanzar", headers=OPERADOR_HDR, json={"destino": "en_preparacion"}
+    )
     assert respuesta.status_code == 404
     assert respuesta.json()["error"] == "pedido_no_existe"
 
@@ -338,11 +485,12 @@ async def test_mis_pedidos_solo_devuelve_los_del_acudiente(cliente):
     otro["usuario_id"] = "33333333-3333-5333-8333-333333333333"
     await cliente.post("/v1/ordenes", json=otro)
 
-    mios = (await cliente.get(f"/v1/comercio/mis-pedidos?usuario_id={USUARIO}")).json()
+    # El usuario sale del token, no de la URL.
+    mios = (await cliente.get("/v1/comercio/mis-pedidos", headers=bearer(TOKEN_ACUDIENTE))).json()
     assert mios["total"] == 2
     assert all(p["total"] == 9000 for p in mios["pedidos"])
 
-    ajenos = (await cliente.get(f"/v1/comercio/mis-pedidos?usuario_id={otro['usuario_id']}")).json()
+    ajenos = (await cliente.get("/v1/comercio/mis-pedidos", headers=bearer(TOKEN_OTRO))).json()
     assert ajenos["total"] == 1
 
 
@@ -361,3 +509,390 @@ async def test_retracto_cancela_y_marca_reembolso(cliente):
     pedido = (await cliente.get(f"/v1/ordenes/{pedido_id}")).json()
     assert pedido["estado"] == EstadoPedido.CANCELADO.value
     assert pedido["pago"]["estado"] == EstadoPago.REEMBOLSADO.value
+
+
+# --- Sincronizacion al regreso del acudiente ---------------------------------
+
+
+async def _pedido_con_pago(cliente) -> tuple[str, str]:
+    """Crea orden y pago; devuelve (pedido_id, referencia). Total: 9000."""
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+    pago = (
+        await cliente.post(
+            f"/v1/ordenes/{pedido_id}/pago",
+            json={
+                "correo_cliente": "ana@ejemplo.com",
+                "metodo": "pse",
+                "url_redireccion": "http://localhost:3000/pago/resultado",
+            },
+        )
+    ).json()
+    return pedido_id, pago["referencia_wompi"]
+
+
+async def _filas_bandeja(tipo: str) -> int:
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        tabla = Base.metadata.tables["bandeja_salida"]
+        return len(list(await conexion.execute(select(tabla).where(tabla.c.tipo == tipo))))
+
+
+async def test_sincronizar_aprobado_marca_pagado(cliente):
+    pedido_id, ref = await _pedido_con_pago(cliente)
+    r = await cliente.post(f"/v1/pagos/falsa-APPROVED-{ref}/sincronizar")
+    assert r.status_code == 200
+    assert r.json() == {
+        "pedido_id": pedido_id,
+        "total": 9000,
+        "estado_pago": "aprobado",
+        "estado_pedido": "pagado",
+        "trabajo_id": None,
+    }
+
+
+async def test_sincronizar_devuelve_el_trabajo_del_pedido(cliente):
+    trabajo = str(uuid.uuid4())
+    orden = {**_orden(), "trabajo_id": trabajo}
+    pedido_id = (await cliente.post("/v1/ordenes", json=orden)).json()["pedido_id"]
+    pago = (
+        await cliente.post(
+            f"/v1/ordenes/{pedido_id}/pago",
+            json={
+                "correo_cliente": "ana@ejemplo.com",
+                "metodo": "pse",
+                "url_redireccion": "http://localhost:3000/pago/resultado",
+            },
+        )
+    ).json()
+    r = await cliente.post(f"/v1/pagos/falsa-DECLINED-{pago['referencia_wompi']}/sincronizar")
+    assert r.status_code == 200
+    assert r.json()["trabajo_id"] == trabajo
+
+
+async def test_pendiente_tardio_no_revive_un_pago_rechazado(cliente):
+    _, ref = await _pedido_con_pago(cliente)
+    await cliente.post(f"/v1/pagos/falsa-DECLINED-{ref}/sincronizar")
+    r = await cliente.post(f"/v1/pagos/falsa-PENDING-{ref}/sincronizar")
+    assert r.status_code == 200
+    assert r.json()["estado_pago"] == "rechazado"
+    assert r.json()["estado_pedido"] == "pendiente_pago"
+
+
+async def test_sincronizar_dos_veces_no_duplica_el_aviso(cliente):
+    _, ref = await _pedido_con_pago(cliente)
+    primera = await cliente.post(f"/v1/pagos/falsa-APPROVED-{ref}/sincronizar")
+    segunda = await cliente.post(f"/v1/pagos/falsa-APPROVED-{ref}/sincronizar")
+    assert primera.status_code == segunda.status_code == 200
+    assert primera.json() == segunda.json()
+    assert await _filas_bandeja("pedido_pagado") == 1
+
+
+async def test_webhook_despues_de_sincronizar_es_repetido(cliente):
+    _, ref = await _pedido_con_pago(cliente)
+    await cliente.post(f"/v1/pagos/falsa-APPROVED-{ref}/sincronizar")
+    evento = app.state.pasarela.emitir_evento(
+        referencia=ref,
+        transaccion_id=f"falsa-APPROVED-{ref}",
+        estado_wompi="APPROVED",
+        monto_centavos=900000,
+    )
+    r = await cliente.post("/v1/webhooks/wompi", json=evento)
+    assert r.json()["estado"] == "repetido"
+    assert await _filas_bandeja("pedido_pagado") == 1
+
+
+async def test_pendiente_y_luego_aprobado_avanza(cliente):
+    _, ref = await _pedido_con_pago(cliente)
+    pendiente = await cliente.post(f"/v1/pagos/falsa-PENDING-{ref}/sincronizar")
+    assert pendiente.status_code == 200
+    assert pendiente.json()["estado_pago"] == "iniciado"
+    assert pendiente.json()["estado_pedido"] == "pendiente_pago"
+    aprobado = await cliente.post(f"/v1/pagos/falsa-APPROVED-{ref}/sincronizar")
+    assert aprobado.json()["estado_pago"] == "aprobado"
+    assert aprobado.json()["estado_pedido"] == "pagado"
+
+
+async def test_sincronizar_rechazado_deja_pendiente(cliente):
+    _, ref = await _pedido_con_pago(cliente)
+    r = await cliente.post(f"/v1/pagos/falsa-DECLINED-{ref}/sincronizar")
+    assert r.status_code == 200
+    assert r.json()["estado_pago"] == "rechazado"
+    assert r.json()["estado_pedido"] == "pendiente_pago"
+
+
+async def test_sincronizar_transaccion_desconocida_es_404(cliente):
+    r = await cliente.post("/v1/pagos/falsa-APPROVED-tukit-nada/sincronizar")
+    assert r.status_code == 404
+    assert r.json()["error"] == "transaccion_no_existe"
+
+
+async def test_sincronizar_referencia_sin_pago_es_404(cliente):
+    # La pasarela la conoce pero Comercio no tiene ese pago.
+    app.state.pasarela.montos["tukit-huerfano"] = 900000
+    r = await cliente.post("/v1/pagos/falsa-APPROVED-tukit-huerfano/sincronizar")
+    assert r.status_code == 404
+    assert r.json()["error"] == "pago_no_existe"
+
+
+async def test_sincronizar_con_pasarela_caida_es_502(cliente):
+    class PasarelaCaidaDoble:
+        async def consultar_transaccion(self, transaccion_id):
+            raise PasarelaCaida("sin red")
+
+    app.state.pasarela = PasarelaCaidaDoble()
+    r = await cliente.post("/v1/pagos/falsa-APPROVED-tukit-x/sincronizar")
+    assert r.status_code == 502
+    assert r.json()["error"] == "pasarela_no_disponible"
+
+
+async def test_sincronizar_reintenta_una_vez_si_choca_el_indice_unico(cliente, monkeypatch):
+    """Webhook y regreso del usuario simultaneos: el segundo INSERT falla y se reintenta."""
+    from tukit_comercio.repositorios import RepoPedidos
+
+    pedido_id, ref = await _pedido_con_pago(cliente)
+    original = RepoPedidos.aplicar_resultado
+    llamadas = {"n": 0}
+
+    async def con_choque(repo, datos):
+        llamadas["n"] += 1
+        if llamadas["n"] == 1:
+            # La "otra entrega" gana la carrera: aplica y confirma en su sesion.
+            async with app.state.motor.sesion() as otra:
+                await original(RepoPedidos(await otra.connection()), datos)
+            raise IntegrityError("INSERT", {}, Exception("UNIQUE evento_id"))
+        return await original(repo, datos)
+
+    monkeypatch.setattr(RepoPedidos, "aplicar_resultado", con_choque)
+    r = await cliente.post(f"/v1/pagos/falsa-APPROVED-{ref}/sincronizar")
+    assert r.status_code == 200
+    assert r.json() == {
+        "pedido_id": pedido_id,
+        "total": 9000,
+        "estado_pago": "aprobado",
+        "estado_pedido": "pagado",
+        "trabajo_id": None,
+    }
+    assert llamadas["n"] == 2
+    assert await _filas_bandeja("pedido_pagado") == 1
+
+
+# --- Cancelar, vencimiento y duplicados --------------------------------------
+
+TRABAJO = "33333333-3333-5333-8333-333333333333"
+
+
+def _orden_kit(**cambios) -> dict:
+    """Una orden ligada a un kit (trabajo), que es lo que deduplica Comercio."""
+    return {**_orden(), "trabajo_id": TRABAJO, **cambios}
+
+
+def _con_otra_direccion() -> dict:
+    orden = _orden_kit()
+    orden["entrega"] = {**orden["entrega"], "direccion": "Carrera 9 # 8-7"}
+    return orden
+
+
+async def _pagar(cliente, pedido_id: str) -> dict:
+    return (
+        await cliente.post(
+            f"/v1/ordenes/{pedido_id}/pago",
+            json={
+                "correo_cliente": "ana@ejemplo.com",
+                "metodo": "pse",
+                "url_redireccion": "http://localhost:3000/pago/resultado",
+            },
+        )
+    ).json()
+
+
+async def _envejecer(pedido_id: str, horas: int) -> None:
+    tabla = Base.metadata.tables["pedido"]
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        await conexion.execute(
+            update(tabla)
+            .where(tabla.c.id == uuid.UUID(pedido_id))
+            .values(creado_en=datetime.now(UTC) - timedelta(hours=horas))
+        )
+
+
+async def _reservas(pedido_id: str) -> list[str]:
+    tabla = Base.metadata.tables["reserva_inventario"]
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        filas = await conexion.execute(
+            select(tabla.c.estado).where(tabla.c.pedido_id == uuid.UUID(pedido_id))
+        )
+        return [f.estado for f in filas]
+
+
+async def _estado(cliente, pedido_id: str) -> str:
+    return (await cliente.get(f"/v1/ordenes/{pedido_id}")).json()["estado"]
+
+
+async def test_cancelar_sin_pago_en_wompi_cancela_y_libera_la_reserva(cliente):
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+    await _pagar(cliente, pedido_id)  # intento abandonado: Wompi no tiene nada
+    r = await cliente.post(f"/v1/ordenes/{pedido_id}/cancelar")
+    assert r.status_code == 200
+    assert r.json()["estado"] == EstadoPedido.CANCELADO.value
+    assert await _reservas(pedido_id) == ["liberada"]
+
+
+async def test_cancelar_con_pago_aprobado_en_wompi_lo_aplica_y_no_cancela(cliente):
+    # El acudiente pago por PSE y no volvio: Tukit no lo sabia. Cancelar a
+    # ciegas cobraria sin entregar.
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+    pago = await _pagar(cliente, pedido_id)
+    app.state.pasarela.fijar_resultado(pago["referencia_wompi"], "APPROVED")
+    r = await cliente.post(f"/v1/ordenes/{pedido_id}/cancelar")
+    assert r.status_code == 409
+    assert r.json()["error"] == "pedido_ya_pagado"
+    assert await _estado(cliente, pedido_id) == EstadoPedido.PAGADO.value
+    assert await _filas_bandeja("pedido_pagado") == 1
+
+
+async def test_cancelar_con_pago_en_curso_no_cancela(cliente):
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+    pago = await _pagar(cliente, pedido_id)
+    app.state.pasarela.fijar_resultado(pago["referencia_wompi"], "PENDING")
+    r = await cliente.post(f"/v1/ordenes/{pedido_id}/cancelar")
+    assert r.status_code == 409
+    assert r.json()["error"] == "pago_en_curso"
+    assert await _estado(cliente, pedido_id) == EstadoPedido.PENDIENTE_PAGO.value
+
+
+async def test_cancelar_un_pedido_pagado_es_409(cliente):
+    pedido_id, ref = await _pedido_con_pago(cliente)
+    await cliente.post(f"/v1/pagos/falsa-APPROVED-{ref}/sincronizar")
+    r = await cliente.post(f"/v1/ordenes/{pedido_id}/cancelar")
+    assert r.status_code == 409
+    assert r.json()["error"] == "pedido_no_cancelable"
+
+
+async def test_cancelar_con_wompi_caido_es_502_y_no_cancela(cliente):
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+    await _pagar(cliente, pedido_id)
+
+    class Caida(PasarelaFalsa):
+        async def consultar_por_referencia(self, referencia):
+            raise PasarelaCaida("sin red")
+
+    app.state.pasarela = Caida(montos=app.state.pasarela.montos)
+    r = await cliente.post(f"/v1/ordenes/{pedido_id}/cancelar")
+    assert r.status_code == 502
+    assert await _estado(cliente, pedido_id) == EstadoPedido.PENDIENTE_PAGO.value
+
+
+async def test_pago_aprobado_tras_cancelar_deja_una_incidencia(cliente):
+    # Red de seguridad: si aun asi llega una aprobacion para un pedido
+    # cancelado, el dinero no se pierde en silencio.
+    pedido_id, ref = await _pedido_con_pago(cliente)
+    await cliente.post(f"/v1/ordenes/{pedido_id}/cancelar")
+    r = await cliente.post(f"/v1/pagos/falsa-APPROVED-{ref}/sincronizar")
+    assert r.json()["estado_pedido"] == EstadoPedido.CANCELADO.value
+    assert r.json()["estado_pago"] == EstadoPago.APROBADO.value
+    assert await _filas_bandeja("incidencia") == 1
+    assert await _filas_bandeja("pedido_pagado") == 0
+
+
+async def test_pagar_un_pedido_de_mas_de_24_horas_es_409(cliente):
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+    await _envejecer(pedido_id, horas=25)
+    r = await cliente.post(
+        f"/v1/ordenes/{pedido_id}/pago", json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse"}
+    )
+    assert r.status_code == 409
+    assert r.json()["error"] == "pedido_vencido"
+
+
+async def test_pagar_un_pedido_de_23_horas_se_permite(cliente):
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+    await _envejecer(pedido_id, horas=23)
+    r = await cliente.post(
+        f"/v1/ordenes/{pedido_id}/pago", json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse"}
+    )
+    assert r.status_code == 201
+
+
+async def test_orden_identica_del_mismo_kit_reutiliza_el_pedido_pendiente(cliente):
+    primero = (await cliente.post("/v1/ordenes", json=_orden_kit())).json()
+    segundo = await cliente.post("/v1/ordenes", json=_orden_kit())
+    assert segundo.status_code == 201
+    assert segundo.json()["pedido_id"] == primero["pedido_id"]
+    tablero = (await cliente.get("/v1/comercio/pedidos", headers=OPERADOR_HDR)).json()
+    assert tablero["resumen"]["pedidos_totales"] == 1
+
+
+async def test_orden_distinta_del_mismo_kit_cancela_la_pendiente_anterior(cliente):
+    primero = (await cliente.post("/v1/ordenes", json=_orden_kit())).json()
+    segundo = (await cliente.post("/v1/ordenes", json=_con_otra_direccion())).json()
+    assert segundo["pedido_id"] != primero["pedido_id"]
+    assert await _estado(cliente, primero["pedido_id"]) == EstadoPedido.CANCELADO.value
+
+
+async def test_orden_distinta_no_cancela_la_anterior_si_su_pago_esta_en_curso(cliente):
+    primero = (await cliente.post("/v1/ordenes", json=_orden_kit())).json()
+    pago = await _pagar(cliente, primero["pedido_id"])
+    app.state.pasarela.fijar_resultado(pago["referencia_wompi"], "PENDING")
+    segundo = (await cliente.post("/v1/ordenes", json=_con_otra_direccion())).json()
+    assert segundo["pedido_id"] != primero["pedido_id"]
+    assert await _estado(cliente, primero["pedido_id"]) == EstadoPedido.PENDIENTE_PAGO.value
+
+
+async def test_orden_identica_pero_vencida_crea_otra_y_cancela_la_vieja(cliente):
+    primero = (await cliente.post("/v1/ordenes", json=_orden_kit())).json()
+    await _envejecer(primero["pedido_id"], horas=25)
+    segundo = (await cliente.post("/v1/ordenes", json=_orden_kit())).json()
+    assert segundo["pedido_id"] != primero["pedido_id"]
+    assert await _estado(cliente, primero["pedido_id"]) == EstadoPedido.CANCELADO.value
+
+
+async def test_ordenes_sin_kit_no_se_deduplican(cliente):
+    a = (await cliente.post("/v1/ordenes", json=_orden())).json()
+    b = (await cliente.post("/v1/ordenes", json=_orden())).json()
+    assert a["pedido_id"] != b["pedido_id"]
+
+
+# --- El acudiente sobre SUS pedidos (lo que la puerta si expone) -------------
+
+
+async def test_el_acudiente_ve_paga_y_cancela_su_pedido_con_su_sesion(cliente):
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+    propio = bearer(TOKEN_ACUDIENTE)
+
+    visto = await cliente.get(f"/v1/comercio/mis-pedidos/{pedido_id}", headers=propio)
+    assert visto.status_code == 200
+    assert visto.json()["pedido_id"] == pedido_id
+
+    pago = await cliente.post(
+        f"/v1/comercio/mis-pedidos/{pedido_id}/pago",
+        json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse"},
+        headers=propio,
+    )
+    assert pago.status_code == 201
+
+    cancelado = await cliente.post(f"/v1/comercio/mis-pedidos/{pedido_id}/cancelar", headers=propio)
+    assert cancelado.status_code == 200
+    assert cancelado.json()["estado"] == EstadoPedido.CANCELADO.value
+
+
+async def test_un_pedido_ajeno_es_404_y_sin_sesion_es_401(cliente):
+    pedido_id = (await cliente.post("/v1/ordenes", json=_orden())).json()["pedido_id"]
+
+    for metodo, ruta in (
+        ("GET", f"/v1/comercio/mis-pedidos/{pedido_id}"),
+        ("POST", f"/v1/comercio/mis-pedidos/{pedido_id}/cancelar"),
+    ):
+        ajeno = await cliente.request(metodo, ruta, headers=bearer(TOKEN_OTRO))
+        assert ajeno.status_code == 404
+        assert ajeno.json()["error"] == "pedido_no_existe"
+        assert (await cliente.request(metodo, ruta)).status_code == 401
+
+    # Nada se movio: el pedido del otro sigue pendiente.
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        estado = await conexion.scalar(
+            select(Pedido.__table__.c.estado).where(Pedido.__table__.c.id == uuid.UUID(pedido_id))
+        )
+    assert estado == EstadoPedido.PENDIENTE_PAGO.value

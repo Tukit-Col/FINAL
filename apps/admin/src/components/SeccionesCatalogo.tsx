@@ -17,6 +17,7 @@ import AltaUtil from "./AltaUtil";
 import AltaLibro from "./AltaLibro";
 import NuevoConcepto from "./NuevoConcepto";
 import type { OpcionConcepto } from "./PanelReclasificar";
+import type { VocabularioConceptos } from "@/lib/vocabulario-conceptos";
 import styles from "./CatalogoSpa.module.css";
 
 // Una tienda registrada para los selectores de alta (se puede elegir una o
@@ -41,6 +42,11 @@ interface Props {
   conceptos: OpcionConcepto[];
   personajes: string[];
   tiendas: OpcionTienda[];
+  vocabulario: VocabularioConceptos;
+  /** La pestaña con que abre (`?pestana=util`); por omisión, productos. */
+  pestanaInicial?: string;
+  /** Lo que el alta de útil trae ya puesto (desde un aviso de una lista). */
+  altaInicial?: { concepto?: string; consulta?: string };
 }
 
 export default function SeccionesCatalogo({
@@ -48,8 +54,13 @@ export default function SeccionesCatalogo({
   conceptos: conceptosIniciales,
   personajes,
   tiendas,
+  vocabulario,
+  pestanaInicial,
+  altaInicial,
 }: Props) {
-  const [pestana, setPestana] = useState<Pestana>("productos");
+  const [pestana, setPestana] = useState<Pestana>(
+    PESTANAS.some((p) => p.id === pestanaInicial) ? (pestanaInicial as Pestana) : "productos",
+  );
   // Se incrementa al encolar algo; `ColaCuraduria` se remonta y recarga.
   const [versionCola, setVersionCola] = useState(0);
   // Los conceptos viven en estado para que uno recién creado aparezca de
@@ -64,7 +75,12 @@ export default function SeccionesCatalogo({
   function alCrearConcepto(creado: ConceptoCreado) {
     setConceptos((previos) => [
       ...previos,
-      { codigo: creado.codigo, nombre: creado.nombre_canonico },
+      {
+        codigo: creado.codigo,
+        nombre: creado.nombre_canonico,
+        atributos_discriminantes: creado.atributos_discriminantes,
+        atributos_descriptivos: creado.atributos_descriptivos,
+      },
     ]);
   }
 
@@ -94,9 +110,21 @@ export default function SeccionesCatalogo({
       {pestana === "cola" && (
         <ColaCuraduria key={versionCola} conceptos={conceptos} personajes={personajes} />
       )}
-      {pestana === "concepto" && <NuevoConcepto onCreado={alCrearConcepto} />}
+      {pestana === "concepto" && (
+        <NuevoConcepto
+          onCreado={alCrearConcepto}
+          atributosConocidos={vocabulario.atributos}
+          categoriasConocidas={vocabulario.categorias}
+        />
+      )}
       {pestana === "util" && (
-        <AltaUtil conceptos={conceptos} tiendas={tiendas} onEncolado={irALaCola} />
+        <AltaUtil
+          conceptos={conceptos}
+          tiendas={tiendas}
+          onEncolado={irALaCola}
+          conceptoInicial={altaInicial?.concepto}
+          consultaInicial={altaInicial?.consulta}
+        />
       )}
       {pestana === "libro" && (
         <AltaLibro conceptos={conceptos} tiendas={tiendas} onEncolado={irALaCola} />

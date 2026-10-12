@@ -30,6 +30,7 @@ import type { DatosColegioNuevo, PercepcionCruda, RevisionLista } from "@tukit/c
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { OpcionConcepto } from "@/components/PanelReclasificar";
 import ItemsPercibidos from "@/components/ItemsPercibidos";
+import { vocabularioDeConceptos, type VocabularioConceptos } from "@/lib/vocabulario-conceptos";
 import AprobarLista from "@/components/AprobarLista";
 import CompletarColegio from "@/components/CompletarColegio";
 import PrevisualizarKits from "./PrevisualizarKits";
@@ -58,6 +59,7 @@ export default async function PaginaRevisionLista({ params }: Props) {
   let revision: RevisionLista;
   let percepcion: PercepcionCruda;
   let conceptos: OpcionConcepto[] = [];
+  let vocabulario: VocabularioConceptos = { atributos: [], categorias: [] };
   try {
     // La revisión es la fuente de las regiones 3/4; la percepción cruda es la
     // evidencia por página de la región 2; el catálogo puebla el selector de
@@ -72,6 +74,7 @@ export default async function PaginaRevisionLista({ params }: Props) {
     conceptos = catalogo.conceptos
       .map((c) => ({ codigo: c.codigo, nombre: c.nombre_canonico }))
       .sort((a, b) => a.nombre.localeCompare(b.nombre));
+    vocabulario = vocabularioDeConceptos(catalogo.conceptos);
   } catch (causa) {
     if (causa instanceof ErrorTukit && causa.estado === 404) notFound();
     throw causa;
@@ -150,6 +153,7 @@ export default async function PaginaRevisionLista({ params }: Props) {
             items={revision.items}
             propuestas={revision.propuestas}
             conceptos={conceptos}
+            vocabulario={vocabulario}
           />
         </section>
 
@@ -177,9 +181,10 @@ export default async function PaginaRevisionLista({ params }: Props) {
             <h2>Aprobar y publicar</h2>
           </div>
           <p className={styles.bajada}>
-            Previsualiza los tres kits que saldrían de esta versión antes de publicar —una vista de
-            solo lectura, sobre un trabajo de preview desechable— y, cuando estés conforme, apruébala.
-            Aprobar deja la versión revisada y el par (colegio, grado) disponible para los acudientes.
+            Aprobar deja la versión revisada y el par (colegio, grado) disponible para los
+            acudientes, y arma solo sus kits canónicos (Ahorrador y Premium) en segundo plano.
+            Si quieres revisarlos o ajustarlos antes, previsualízalos primero y apruébalos desde la
+            consola: esos, con tus ajustes, quedan como los canónicos.
           </p>
           <PrevisualizarKits
             versionId={version_id}

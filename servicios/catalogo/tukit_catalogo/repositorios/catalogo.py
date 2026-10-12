@@ -13,6 +13,7 @@ excepcion es `resumen`, que es puro conteo agregado sin forma que shapear.
 
 from __future__ import annotations
 
+import re
 import uuid
 from typing import Any
 
@@ -385,12 +386,35 @@ class RepoCatalogo:
     async def concepto_id_por_codigo(self, codigo: Any) -> Any | None:
         return await self.conexion.scalar(select(CONCEPTO.c.id).where(CONCEPTO.c.codigo == codigo))
 
-    async def reclasificar_producto(self, sku: str, concepto_id: Any) -> None:
+    async def reclasificar_producto(self, sku: str, concepto_id: Any, codigo: str) -> str:
+        """Mueve el producto de concepto y devuelve su sku (re-acunado si hizo falta)."""
+        nuevo_sku = await self.sku_reacunado(sku, codigo)
         await self.conexion.execute(
             update(PRODUCTO)
             .where(PRODUCTO.c.sku_interno == sku)
-            .values(concepto_id=concepto_id, texto_embedding=None)
+            .values(concepto_id=concepto_id, texto_embedding=None, sku_interno=nuevo_sku)
         )
+        return nuevo_sku
+
+    async def sku_reacunado(self, sku: str, codigo: str) -> str:
+        """El SKU de una semilla (`TK-<concepto>-<nivel>[-<personaje>]`) nombra su
+        concepto; al moverla de concepto se re-acuna para que no mienta
+        (`test_el_sku_nombra_al_concepto_y_al_nivel_que_dice_la_fila`). Los demas
+        tiers (`TK-REV-`, `TK-LIB-`, `TK-SUG-`) nombran otra cosa y no se tocan.
+        Si el SKU nuevo ya existe se le agrega un sufijo numerico."""
+        partes = sku.split("-")
+        if (
+            len(partes) < 3
+            or partes[0] != "TK"
+            or not re.fullmatch(r"C\d{3}", partes[1])
+            or partes[1] == codigo
+        ):
+            return sku
+        base = "-".join([partes[0], codigo, *partes[2:]])
+        candidato, n = base, 2
+        while await self.conexion.scalar(select(PRODUCTO.c.id).where(PRODUCTO.c.sku_interno == candidato)):
+            candidato, n = f"{base}-{n}", n + 1
+        return candidato
 
     async def retirar_producto(self, sku: str) -> None:
         await self.conexion.execute(
@@ -530,6 +554,37 @@ class RepoCatalogo:
             )
         )
         return cabeza, filas
+
+    async def retirar_de_contacto(
+        self, contacto_referencia: uuid.UUID, tarea_id: uuid.UUID | None, version_id: uuid.UUID | None
+    ) -> int:
+        """Desliga al acudiente de las tareas de una version (o de una tarea suelta).
+
+        Solo las suyas: una tarea de otro contacto no se toca aunque traigan su id.
+        """
+        if version_id is None and tarea_id is not None:
+            fila = (
+                await self.conexion.execute(
+                    select(TAREA.c.id, TAREA.c.version_id).where(
+                        TAREA.c.id == tarea_id, TAREA.c.contacto_referencia == contacto_referencia
+                    )
+                )
+            ).one_or_none()
+            if fila is None:
+                return 0
+            version_id = fila.version_id
+        if version_id is not None:
+            filtro = TAREA.c.version_id == version_id
+        elif tarea_id is not None:
+            filtro = TAREA.c.id == tarea_id
+        else:
+            return 0
+        resultado = await self.conexion.execute(
+            update(TAREA)
+            .where(filtro, TAREA.c.contacto_referencia == contacto_referencia)
+            .values(contacto_referencia=None)
+        )
+        return int(resultado.rowcount or 0)
 
     async def tareas_por_contacto(self, contacto_referencia: uuid.UUID) -> list[Any]:
         """Las tareas de un acudiente, con la `revisada_en` de su version si la tiene.

@@ -1,44 +1,66 @@
-// Los 3 kits NSGA aprobados de un grado, en solo-lectura. La fuente es EL
+"use client";
+
+// Los kits NSGA aprobados de un grado, en solo-lectura. La fuente es EL
 // canónico: el trabajo `publicado` que `_fijar_canonico` fijó al aprobar la
 // revisión (la "caché bendita" que el acudiente reusa por la ruta rápida).
 // Nunca previews ni trabajos sin aprobar: si el grado no tiene canónico, la
 // página no monta este panel.
 //
-// No reusa `ConsolaRevision` (es de edición): aquí solo se muestran los tres
-// puntos del frente de Pareto —perfil, total, disponibilidad— con el recomendado
-// marcado, para que el revisor vea de un vistazo qué quedó publicado.
-import { formatearPesos, type Kit, type Recomendacion } from "@tukit/contrato";
+// Cada tarjeta resume su punto del frente de Pareto —perfil, total,
+// disponibilidad—; «Ver ítems» despliega la misma matriz de la previsualización
+// (`MatrizComparacion`), en solo lectura: editar es «Editar kits», que abre una
+// versión nueva. Sin "Recomendado": el canónico no tiene acudiente ni
+// preferencias, así que el optimizador no recomienda nada real.
+import { useState } from "react";
+import { clasificar, formatearPesos, type Kit } from "@tukit/contrato";
+import MatrizComparacion from "@/components/MatrizComparacion";
 import styles from "../../Colegios.module.css";
 
-export default function KitsCanonicos({
-  kits,
-  recomendado,
-}: {
-  kits: Kit[];
-  recomendado: Recomendacion | null;
-}) {
+const POR_RESOLVER = new Set(["sin_match", "hueco", "pendiente_revision"]);
+
+export default function KitsCanonicos({ trabajoId, kits }: { trabajoId: string; kits: Kit[] }) {
+  const [abierto, setAbierto] = useState(false);
   if (kits.length === 0) return null;
+
   return (
-    <ul className={styles.kitsCanonicos}>
-      {kits.map((kit) => {
-        const esRecomendado = kit.perfil === recomendado?.perfil;
-        return (
-          <li
-            key={kit.perfil}
-            className={`${styles.kitCard} ${esRecomendado ? styles.kitCardRecomendado : ""}`}
-          >
-            <div className={styles.kitCardCabecera}>
-              <span className={styles.kitCardPerfil}>{kit.perfil}</span>
-              {esRecomendado && <span className={styles.kitCardChapa}>Recomendado</span>}
-            </div>
-            <span className={`${styles.kitCardTotal} cifra`}>{formatearPesos(kit.total)}</span>
-            <span className={styles.kitCardMeta}>
-              {Math.round(kit.objetivos.disponibilidad * 100)}% con precio confirmado ·{" "}
-              {kit.lineas.length} renglones
-            </span>
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      <ul className={styles.kitsCanonicos}>
+        {kits.map((kit) => {
+          const faltan = kit.lineas.filter((l) => POR_RESOLVER.has(clasificar(l))).length;
+          return (
+            <li key={kit.perfil} className={styles.kitCard}>
+              <div className={styles.kitCardCabecera}>
+                <span className={styles.kitCardPerfil}>{kit.perfil}</span>
+              </div>
+              <span className={`${styles.kitCardTotal} cifra`}>{formatearPesos(kit.total)}</span>
+              <span className={styles.kitCardMeta}>
+                {Math.round(kit.objetivos.disponibilidad * 100)}% con precio confirmado ·{" "}
+                {kit.lineas.length} renglones
+                {faltan > 0 ? ` · ${faltan} sin resolver` : ""}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+
+      <button
+        type="button"
+        className={`${styles.botonSecundario} ${styles.verItems}`}
+        aria-expanded={abierto}
+        onClick={() => setAbierto((previo) => !previo)}
+      >
+        {abierto ? "Ocultar ítems" : "Ver ítems"}
+      </button>
+
+      {abierto ? (
+        <MatrizComparacion
+          trabajoId={trabajoId}
+          kits={kits}
+          recomendado={undefined}
+          sinRotuloRecomendado
+          soloLectura
+        />
+      ) : null}
+    </>
   );
 }

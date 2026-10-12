@@ -1,0 +1,38 @@
+% ============================================================================
+\section{Correspondencia con la implementación}
+\label{ap:codigo}
+% ============================================================================
+
+Para quien quiera contrastar el documento con el código, esta tabla indica
+dónde vive cada algoritmo. Las rutas son relativas a \cod{servicios/}.
+
+\begin{table}[H]
+\centering\footnotesize
+\begin{tabular}{@{}L{5.4cm}L{9.6cm}@{}}
+\toprule
+Algoritmo & Módulo y función \\
+\midrule
+Percepción (\cref{alg:percibir}) & \cod{inteligencia/.../percepcion.py}: \cod{percibir}, \cod{normalizar\_grado} \\
+Rasterizado & \cod{inteligencia/.../paginas.py}: \cod{renderizar} \\
+Lectura estructurada y reintento & \cod{inteligencia/.../gemini.py}: \cod{pedir\_pagina}, \cod{\_llamar} \\
+Normalización & \cod{inteligencia/.../parseo.py}: \cod{parsear\_renglon}; \cod{dominio/pipeline.py}: \cod{\_normalizar} \\
+Corrección ortográfica & \cod{catalogo/.../transcripcion.py}: \cod{corregir}, \cod{\_distancia}, \cod{\_unica} \\
+Cabeza, singular, Jaccard & \cod{catalogo/.../descubrir.py}: \cod{cabeza}, \cod{singular}, \cod{\_parecido} \\
+Clasificación (\cref{alg:clasificar}) & \cod{catalogo/.../descubrir.py}: \cod{clasificar} \\
+Vectores y centroides & \cod{catalogo/.../embeddings.py}: \cod{coseno}, \cod{promedio}, \cod{texto\_de\_producto} \\
+Emparejamiento (\cref{alg:emparejar}) & \cod{catalogo/.../consulta.py}: \cod{emparejar}, \cod{cargar\_indice} \\
+Atributos y empaque & \cod{catalogo/.../enriquecer.py}: \cod{extraer\_atributos}, \cod{extraer\_empaque} \\
+Nivelación & \cod{catalogo/.../nivelar.py}: \cod{reacomodar} \\
+Búsqueda en tiendas & \cod{catalogo/.../descubrir.py}: \cod{buscar\_candidatos} \\
+Estado de resolución & \cod{inteligencia/.../dominio/pipeline.py}: \cod{estado\_desde\_emparejamiento} \\
+Frente exacto (\cref{alg:frente-exacto}) & \cod{inteligencia/.../optimizador.py}: \cod{\_frente\_exacto}, \cod{\_no\_dominadas} \\
+NSGA-II (\cref{alg:nsga2}) & \cod{inteligencia/.../optimizador.py}: \cod{\_frente\_nsga}, \cod{\_poblacion\_inicial} \\
+Escalera (\cref{alg:escalera}) & \cod{inteligencia/.../optimizador.py}: \cod{\_escalera\_costo\_marginal} \\
+Proyección y heurística & \cod{inteligencia/.../optimizador.py}: \cod{\_proyectar}, \cod{\_surtibles}, \cod{elegir\_por\_perfil} \\
+Herramientas y consolidación & \cod{inteligencia/.../optimizador.py}: \cod{juntar\_herramientas}, \cod{consolidar} \\
+A tu Medida y recomendación & \cod{inteligencia/.../optimizador.py}: \cod{\_armar\_a\_tu\_medida}, \cod{recomendar} \\
+Personaje & \cod{inteligencia/.../dominio/pipeline.py}: \cod{inyectar\_personaje\_fan}; \cod{optimizador.py}: \cod{anclar\_personaje} \\
+Orquestación (\cref{alg:armar}) & \cod{inteligencia/.../optimizador.py}: \cod{armar\_los\_tres}; \cod{trabajos.py}: \cod{procesar} \\
+\bottomrule
+\end{tabular}
+\end{table}

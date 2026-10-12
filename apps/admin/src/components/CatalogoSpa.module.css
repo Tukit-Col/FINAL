@@ -35,6 +35,12 @@
   min-width: 220px;
 }
 
+/* Los menús (Desplegable) toman el ancho de lo que muestran: en una fila de
+ * filtros se les da un ancho fijo para que no salten al elegir. */
+.buscadorFila > .campo:not(.campoBusqueda) {
+  width: 200px;
+}
+
 .campo {
   display: flex;
   flex-direction: column;
@@ -471,11 +477,6 @@
   flex-wrap: wrap;
 }
 
-.reclasificarFila select {
-  flex: 1;
-  min-width: 200px;
-}
-
 .nota {
   font-size: 11.5px;
   color: var(--color-text-secondary);
@@ -614,4 +615,67 @@
 .pestanaActiva {
   color: var(--color-text-primary);
   border-bottom-color: var(--color-primary);
+}
+
+/* ------------------------------------------- alta de concepto: atributos */
+
+/* La versión embebida en el editor de un renglón del revisor de listas. */
+.conceptoCompacto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  padding: var(--espacio-3);
+  border: 1px solid var(--color-primary-light);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+}
+
+/* Las fichas ya elegidas, encima del menú (que es un select como el de Tipo). */
+.atributoFichas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.atributoChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px 1px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info-border);
+  color: var(--color-info);
+  font-family: var(--font-cifras, monospace);
+  font-size: 12px;
+}
+
+.atributoQuitar {
+  padding: 0 4px;
+  font-size: 13px;
+  line-height: 1;
+  color: inherit;
+  cursor: pointer;
+}
+
+.atributoQuitar:hover {
+  color: var(--color-danger);
+}
+
+.ayudaCampo {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  line-height: 1.35;
+}
+
+.campo label.casilla {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
 }

@@ -1,0 +1,124 @@
+/* El menú de Desplegable.tsx. El campo se ve como los inputs del admin y el
+ * panel se pinta SIEMPRE debajo. */
+
+.caja {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+/* En una fila de filtros, junto a su rótulo: tan ancho como lo que muestra. */
+.enLinea {
+  flex: none;
+  min-width: 96px;
+}
+
+.campo {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  width: 100%;
+  padding: var(--espacio-2) var(--espacio-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Igual a `.campo input` de CatalogoSpa: los formularios densos del catálogo. */
+.compacto {
+  padding: 6px var(--espacio-2);
+  background: var(--color-white);
+  font-size: 13px;
+}
+
+.campo:focus-visible,
+.campo[aria-expanded="true"] {
+  outline: 2px solid var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+
+.campo:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.etiqueta {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.etiquetaVacia {
+  color: var(--color-text-muted);
+}
+
+.flecha {
+  color: var(--color-text-muted);
+}
+
+.panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 0.14);
+  font-size: 13px;
+}
+
+.buscador {
+  margin: var(--espacio-2);
+  padding: 6px var(--espacio-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+
+.buscador:focus {
+  outline: 2px solid var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+
+.lista {
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--espacio-1) 0;
+  list-style: none;
+}
+
+.opcion {
+  padding: 6px var(--espacio-3);
+  cursor: pointer;
+}
+
+.activa {
+  background: var(--color-surface-2);
+}
+
+.elegida {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.deshabilitada {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.vacio {
+  padding: 6px var(--espacio-3);
+  color: var(--color-text-muted);
+}

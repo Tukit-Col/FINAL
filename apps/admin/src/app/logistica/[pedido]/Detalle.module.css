@@ -1,0 +1,188 @@
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-4);
+}
+
+.migas a {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.migas a:hover {
+  color: var(--color-primary);
+}
+
+/* ------------------------------------------------------------ encabezado */
+
+.encabezado {
+  padding: var(--espacio-5);
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.identidad {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  min-width: 0;
+}
+
+.identidad h1 {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.identidad p {
+  color: var(--color-text-secondary);
+}
+
+.hechos {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-3);
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.hechos a {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.idCompleto {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+/* ---------------------------------------------------------------- estado */
+
+.estado {
+  display: inline-block;
+  padding: 1px 9px;
+  border-radius: var(--radius-full);
+  background: var(--color-neutro-bg);
+  box-shadow: inset 0 0 0 1px var(--color-neutro-border);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.estado_pendiente_pago {
+  background: var(--color-aviso-bg);
+  box-shadow: inset 0 0 0 1px var(--color-aviso-border);
+  color: var(--color-aviso);
+}
+
+.estado_pagado,
+.estado_en_preparacion,
+.estado_despachado,
+.estado_en_reparto {
+  background: var(--color-info-bg);
+  box-shadow: inset 0 0 0 1px var(--color-info-border);
+  color: var(--color-info);
+}
+
+.estado_entregado {
+  background: var(--color-success-bg);
+  box-shadow: inset 0 0 0 1px var(--color-success-border);
+  color: var(--color-success);
+}
+
+.estado_incidencia {
+  background: var(--color-danger-bg);
+  box-shadow: inset 0 0 0 1px var(--color-danger-border);
+  color: var(--color-danger);
+}
+
+.estado_cancelado {
+  color: var(--color-text-muted);
+}
+
+/* ---------------------------------------------------------------- bloques */
+
+.columnas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--espacio-4);
+}
+
+.bloque {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  padding: var(--espacio-4) var(--espacio-5);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.bloque h2 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.datos {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--espacio-1) var(--espacio-4);
+  font-size: 13px;
+}
+
+.datos dt {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.datos a {
+  color: var(--color-primary);
+}
+
+.tenue {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+/* -------------------------------------------------------------- historial */
+
+.historial {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  list-style: none;
+  padding: 0;
+}
+
+.historial li {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-left: var(--espacio-3);
+  border-left: 2px solid var(--color-border);
+  font-size: 13px;
+}
+
+.paso {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.quien {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.incidencia {
+  font-weight: 600;
+  color: var(--color-danger);
+}
+
+.nota {
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+}

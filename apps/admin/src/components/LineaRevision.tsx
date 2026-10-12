@@ -147,18 +147,24 @@ export default function LineaRevision({
 
   function tarjetaProducto(producto: ProductoKit, papel: "elegido" | "alternativa") {
     const precio = precioMasBajo(producto);
+    const marcado =
+      papel === "elegido"
+        ? seleccion === CONFIRMAR_EL_ELEGIDO || seleccion === producto.sku
+        : seleccion === producto.sku;
     return (
-      <li key={producto.sku} className={styles.producto}>
+      <li
+        key={producto.sku}
+        className={`${styles.producto} ${hayQueElegir && marcado ? styles.productoMarcado : ""}`}
+      >
+        {/* Toda la tarjeta es la opción: el radio queda oculto pero accesible
+            (teclado y lector), y el anillo de la tarjeta dice cuál va. */}
         <label className={styles.productoCabecera}>
           {hayQueElegir && (
             <input
               type="radio"
+              className={styles.radioOculto}
               name={`producto-${linea.item_id}`}
-              checked={
-                papel === "elegido"
-                  ? seleccion === CONFIRMAR_EL_ELEGIDO || seleccion === producto.sku
-                  : seleccion === producto.sku
-              }
+              checked={marcado}
               onChange={() =>
                 setSeleccion(papel === "elegido" ? CONFIRMAR_EL_ELEGIDO : producto.sku)
               }
@@ -174,45 +180,58 @@ export default function LineaRevision({
             <span className={styles.miniaturaVacia} aria-hidden="true" />
           )}
           <span className={styles.productoTexto}>
-            <span className={styles.productoNombre}>{producto.nombre}</span>
-            <span className={styles.productoMeta}>
-              <code>{producto.sku}</code>
-              {producto.marca ? <span>{producto.marca}</span> : null}
+            <span className={styles.productoPildoras}>
               <span className={`${styles.nivel} ${styles[`nivel_${producto.nivel}`]}`}>
                 {producto.nivel}
               </span>
               {producto.personaje ? (
                 <span className={styles.personaje}>{producto.personaje}</span>
               ) : null}
+              {papel === "elegido" ? (
+                <span className={styles.insignia}>Sugerido por el sistema</span>
+              ) : null}
+            </span>
+            <span className={styles.productoNombre}>{producto.nombre}</span>
+            <span className={styles.productoMeta}>
+              <code>{producto.sku}</code>
+              {producto.marca ? <span>{producto.marca}</span> : null}
               <span
                 className={producto.confianza < 0.6 ? styles.confianzaBaja : styles.confianza}
                 title="Confianza del emparejamiento"
               >
                 confianza {porcentaje(producto.confianza)}
               </span>
-              {papel === "elegido" ? (
-                <span className={styles.insignia}>elegido por el sistema</span>
-              ) : null}
             </span>
           </span>
-          <span className={`${styles.productoPrecio} cifra`}>{formatearPesos(precio)}</span>
+          {hayQueElegir && marcado ? (
+            <span className={styles.marcaElegida} aria-hidden="true">
+              ✓
+            </span>
+          ) : null}
         </label>
 
-        <ul className={styles.ofertas}>
-          {producto.ofertas.length === 0 ? (
-            <li className={styles.sinOferta}>Sin oferta vigente: no entra al total (§8).</li>
-          ) : (
-            producto.ofertas.map((oferta) => (
-              <li key={`${producto.sku}-${oferta.tienda}`}>
-                <span className={styles.tienda}>{oferta.tienda}</span>
-                <span className="cifra">{formatearPesos(oferta.precio)}</span>
-                {oferta.vigente_hasta ? (
-                  <span className={styles.vigencia}>hasta {oferta.vigente_hasta.slice(0, 10)}</span>
-                ) : null}
-              </li>
-            ))
-          )}
-        </ul>
+        <div className={styles.productoPie}>
+          <span className={`${styles.productoPrecio} cifra`}>{formatearPesos(precio)}</span>
+          <ul className={styles.ofertas}>
+            {producto.ofertas.length === 0 ? (
+              <li className={styles.sinOferta}>Sin oferta vigente: no entra al total (§8)</li>
+            ) : (
+              producto.ofertas.map((oferta) => (
+                <li
+                  key={`${producto.sku}-${oferta.tienda}`}
+                  title={
+                    oferta.vigente_hasta
+                      ? `Vigente hasta ${oferta.vigente_hasta.slice(0, 10)}`
+                      : undefined
+                  }
+                >
+                  <span className={styles.tienda}>{oferta.tienda}</span>
+                  <span className="cifra">{formatearPesos(oferta.precio)}</span>
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
 
         {skuAApagar === producto.sku ? (
           <div className={styles.formularioEnLinea}>
@@ -255,12 +274,13 @@ export default function LineaRevision({
           <button
             type="button"
             className={styles.enlaceAccion}
+            title="AD-05: apaga el producto en todo el catálogo"
             onClick={() => {
               setSkuAApagar(producto.sku);
               setMotivoApagado("");
             }}
           >
-            No está disponible (AD-05)
+            Marcar no disponible
           </button>
         )}
       </li>
@@ -289,7 +309,9 @@ export default function LineaRevision({
             }}
           />
         ) : null}
-        <code className={styles.itemId}>{linea.item_id}</code>
+        <code className={styles.itemId} title={linea.item_id}>
+          {linea.item_id.slice(0, 8)}
+        </code>
         <span className={styles.descripcion}>{linea.descripcion}</span>
         <span className={styles.etiquetas}>
           <span className={styles.etiqueta}>{TITULO_TIPO[linea.tipo]}</span>
@@ -313,22 +335,22 @@ export default function LineaRevision({
 
           <dl className={styles.datos}>
             <div>
-              <dt>Pedido en la lista</dt>
+              <dt>Pide</dt>
               <dd className="cifra">
                 {linea.cantidad_pedida ?? "—"} {linea.unidad_base ?? ""}
               </dd>
             </div>
             <div>
-              <dt>Unidades por empaque</dt>
+              <dt>Empaque</dt>
               <dd className="cifra">{linea.unidades_por_empaque ?? "—"}</dd>
             </div>
             <div>
-              <dt>Unidades a comprar</dt>
+              <dt>Compra</dt>
               <dd className="cifra">{linea.unidades_a_comprar ?? "—"}</dd>
             </div>
             {linea.modo_adquisicion ? (
               <div>
-                <dt>Modo de adquisición</dt>
+                <dt>Modo</dt>
                 <dd>{TITULO_MODO[linea.modo_adquisicion]}</dd>
               </div>
             ) : null}
@@ -393,7 +415,7 @@ export default function LineaRevision({
           ) : null}
 
           {elegido || alternativas.length > 0 ? (
-            <ul className={styles.productos}>
+            <ul className={styles.productos} aria-label="Opciones de producto">
               {elegido ? tarjetaProducto(elegido, "elegido") : null}
               {alternativas.map((alternativa) => tarjetaProducto(alternativa, "alternativa"))}
             </ul>
@@ -423,8 +445,10 @@ export default function LineaRevision({
                   onClick={alValidar}
                 >
                   {seleccion === CONFIRMAR_EL_ELEGIDO
-                    ? "Validar el elegido"
-                    : "Validar con la alternativa"}
+                    ? "Confirmar el sugerido"
+                    : perfil
+                      ? `Usar este producto en ${perfil}`
+                      : "Validar con la alternativa"}
                 </button>
               </>
             ) : null}

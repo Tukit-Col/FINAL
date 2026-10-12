@@ -1,0 +1,93 @@
+% ============================================================================
+\section{Evolución del núcleo}
+\label{sec:evolucion}
+% ============================================================================
+
+Cada sección cerró con un recuadro de evolución propio. Esta sección los
+ordena en el tiempo y extrae el patrón común. El sistema vigente reemplazó a
+un conjunto de repositorios anteriores. No fue una reescritura: lo probado se
+portó y lo que cambió fue el modelo de dominio, que era donde estaban los
+defectos. Todas las fechas son de 2026.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  hito/.style={circle, fill=azul, inner sep=1.6pt},
+  txt/.style={font=\footnotesize, align=left, text width=11.2cm, anchor=west},
+  fecha/.style={font=\footnotesize\bfseries, anchor=east},
+]
+\draw[thick, gris] (0,0.5) -- (0,-9.6);
+\foreach \y/\f/\t in {
+  0/{21 sep}/{Monorrepositorio nuevo. Se portan el catálogo y el ciclo editorial; el modelo de dominio se rehace (cantidad y empaque separados, estados \textsc{SinMatch} y \textsc{HuecoCatálogo} distintos).},
+  -1.5/{22 sep}/{Ciclo completo de punta a punta. Percepción todo-o-nada con rechazo por grados; normalización; emparejador léxico con cabeza anclada; optimizador \textbf{v1} (heurística declarada como andamio).},
+  -3.4/{23 sep}/{Resolución híbrida: canal semántico con centroides de concepto y fusión por guardas. Optimizador \textbf{v2} (NSGA-II, variables reales y piso) y, el mismo día, \textbf{v3} (codificación entera, reparación por redondeo, población y generaciones escaladas, la biblioteca de optimización como dependencia obligatoria).},
+  -5.6/{4 oct}/{\textbf{Evaluación} contra el óptimo exacto y un modelo de propósito general. Optimizador \textbf{v4} (costo de línea, siembra con la escalera, mejor marca que cabe) y \textbf{v5} (kits a pedido, A~tu~Medida, tope sin estirar). Curaduría de las 13 listas de un colegio: correcciones al emparejador caso por caso, concepto asignado que manda, tipo del concepto, reglas de segmentación y reintento en la percepción.},
+  -8.6/{7 oct}/{Optimizador \textbf{v6}: herramientas por hijo. Vectores recalculados con huella nueva. Atributos del catálogo que filtran por lo que el colegio pide. Tras la formalización de este documento, optimizador \textbf{v7} (proyección sobre lo surtible) y coseno recortado en 0 en la resolución.}
+}{
+  \node[hito] at (0,\y) {};
+  \node[fecha] at (-0.25,\y) {\f};
+  \node[txt] at (0.3,\y) {\t};
+}
+\end{tikzpicture}
+\caption{Línea de tiempo del núcleo algorítmico.}
+\label{fig:linea-tiempo}
+\end{figure}
+
+\subsection{El patrón: defecto medido, cambio mínimo, efecto medido}
+
+Casi todos los cambios del núcleo siguen el mismo ciclo:
+\begin{enumerate}
+  \item \textbf{Un defecto observable en un caso real}, no hipotético: un
+        renglón concreto que se clasificaba mal, una lista concreta que se
+        rechazaba, una cifra concreta de la evaluación.
+  \item \textbf{Un diagnóstico de la causa}, distinto del síntoma. Por
+        ejemplo, «lápices de colores» caía en esfero; el síntoma sugería
+        alargar el prefijo comparado, pero la causa era comparar formas
+        flexionadas, y la corrección fue singularizar.
+  \item \textbf{El cambio más pequeño que elimina la causa}, fijado por una
+        prueba con el caso original.
+  \item \textbf{La verificación de que los vecinos no se mueven}: al cambiar
+        un sinónimo o una regla, se vuelve a emparejar el corpus para comprobar
+        que ningún otro renglón cambió de concepto.
+\end{enumerate}
+
+\Cref{tab:evolucion-resumen} resume los cambios de mayor efecto.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Cambios de mayor efecto en el núcleo.}
+\label{tab:evolucion-resumen}
+\begin{tabular}{@{}L{2.2cm}L{4.6cm}L{4.2cm}L{3.6cm}@{}}
+\toprule
+Etapa & Antes & Después & Evidencia \\
+\midrule
+Percepción & tope de 5 páginas que recortaba en silencio & todo o nada; guarda de 40 páginas; rechazo por grados & kits incompletos presentados como completos \\
+Percepción & página que continúa marcada como incompleta & regla de continuación & 2 listas reales rechazadas \\
+Percepción & un fallo de red invalidaba la lista & un reintento de transporte & página colgada 60~s, 6~s al reintentar \\
+Normalización & cantidad y empaque en un número & $q$ y $\emp$ separados, $\techo{q/\emp}$ & «doce cajas» por doce lápices \\
+Resolución & contención en cualquier posición & cabeza anclada & chaquiras $\to$ lápices de colores \\
+Resolución & solo léxico & fusión con canal semántico & sinónimos no escritos («estuche») \\
+Resolución & canal semántico inactivo en producción & una sola carga del índice & coseno siempre 0 \\
+Catálogo & empaque 1 en todos los productos & regla «x$N$» salvo medida & la fórmula $\techo{q/\emp}$ no hacía nada \\
+Catálogo & escaleras de nivel invertidas & nivelación por permutación & Ahorrador más caro que Premium \\
+Optimización & NSGA-II separable que empataba con fuerza bruta & enumeración exacta + NSGA-II sembrado & pruebas del prototipo \\
+Optimización & índice real con piso & índice entero con redondeo & SBX interpolaba etiquetas \\
+Optimización & orden por precio unitario & orden por costo de línea & Ahorrador 80\,\% $\to$ 100\,\% \\
+Optimización & recomendado con presupuesto = más barato & mejor marca que cabe, del frente & calidad 40\,\% $\to$ óptimo \\
+Optimización & tres kits siempre & kits a pedido; A~tu~Medida & kits que nadie pedía \\
+Optimización & herramientas cobradas por materia & una por hijo (máximo, no suma) & 43 renglones repetidos \\
+Optimización & un candidato sin precio parecía gratis en el frente & proyección sobre los puntos de máxima disponibilidad & instancia de dos líneas (defecto latente) \\
+Resolución & un coseno negativo podía restar & $\kappa$ recortado en 0 & propiedad «híbrido $\geq$ léxico» \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Lo que se decidió no cambiar}
+
+La evolución también se ve en lo que se conservó a propósito. La aritmética
+de unidades, la regla de que lo informativo no se cobra y la separación entre
+\textsc{SinMatch} y \textsc{HuecoCatálogo} se definieron en la primera
+versión y no cambiaron en ninguna de las siguientes, porque no dependen del
+algoritmo. El optimizador se reemplazó tres veces sin tocarlas. Esa
+estabilidad es el resultado del principio «separar decidir de presentar»
+(\cref{sec:principios}).

@@ -19,6 +19,7 @@ import { buscarProductos, FalloCatalogo } from "@/lib/api-catalogo";
 import TablaProductos from "./TablaProductos";
 import EditorProducto from "./EditorProducto";
 import type { OpcionConcepto } from "./PanelReclasificar";
+import Desplegable from "./Desplegable";
 import styles from "./CatalogoSpa.module.css";
 
 const POR_PAGINA = 24;
@@ -130,34 +131,31 @@ export default function GestorCatalogo({ paginaInicial, conceptos, personajes }:
 
           <div className={styles.campo}>
             <label htmlFor="f-concepto">Concepto</label>
-            <select
+            <Desplegable
               id="f-concepto"
-              value={concepto}
-              onChange={(e) => setConcepto(e.target.value)}
-            >
-              <option value="">Todos</option>
-              {conceptos.map((c) => (
-                <option key={c.codigo} value={c.codigo}>
-                  {c.nombre}
-                </option>
-              ))}
-            </select>
+              tamano="compacto"
+              buscable
+              opciones={[
+                { valor: "", texto: "Todos" },
+                ...conceptos.map((c) => ({ valor: c.codigo, texto: c.nombre })),
+              ]}
+              valor={concepto}
+              onCambio={setConcepto}
+            />
           </div>
 
           <div className={styles.campo}>
             <label htmlFor="f-nivel">Nivel</label>
-            <select
+            <Desplegable
               id="f-nivel"
-              value={nivel}
-              onChange={(e) => setNivel(e.target.value as Nivel | "")}
-            >
-              <option value="">Todos</option>
-              {NIVELES.map((n) => (
-                <option key={n} value={n}>
-                  {ETIQUETA_NIVEL[n]}
-                </option>
-              ))}
-            </select>
+              tamano="compacto"
+              opciones={[
+                { valor: "", texto: "Todos" },
+                ...NIVELES.map((n) => ({ valor: n, texto: ETIQUETA_NIVEL[n] })),
+              ]}
+              valor={nivel}
+              onCambio={(v) => setNivel(v as Nivel | "")}
+            />
           </div>
 
           <div className={styles.campo}>
@@ -180,33 +178,45 @@ export default function GestorCatalogo({ paginaInicial, conceptos, personajes }:
         <div className={styles.banderas}>
           <label className={styles.bandera}>
             Con personaje
-            <select
-              value={conPersonaje}
-              onChange={(e) => setConPersonaje(e.target.value as TriEstado)}
-            >
-              <option value="">todos</option>
-              <option value="si">sí</option>
-              <option value="no">no</option>
-            </select>
+            <Desplegable
+              tamano="compacto"
+              enLinea
+              opciones={[
+                { valor: "", texto: "todos" },
+                { valor: "si", texto: "sí" },
+                { valor: "no", texto: "no" },
+              ]}
+              valor={conPersonaje}
+              onCambio={(v) => setConPersonaje(v as TriEstado)}
+            />
           </label>
           <label className={styles.bandera}>
             Con precio
-            <select value={conPrecio} onChange={(e) => setConPrecio(e.target.value as TriEstado)}>
-              <option value="">todos</option>
-              <option value="si">sí</option>
-              <option value="no">no</option>
-            </select>
+            <Desplegable
+              tamano="compacto"
+              enLinea
+              opciones={[
+                { valor: "", texto: "todos" },
+                { valor: "si", texto: "sí" },
+                { valor: "no", texto: "no" },
+              ]}
+              valor={conPrecio}
+              onCambio={(v) => setConPrecio(v as TriEstado)}
+            />
           </label>
           <label className={styles.bandera}>
             Con ofertas
-            <select
-              value={conOfertas}
-              onChange={(e) => setConOfertas(e.target.value as TriEstado)}
-            >
-              <option value="">todos</option>
-              <option value="si">sí</option>
-              <option value="no">no</option>
-            </select>
+            <Desplegable
+              tamano="compacto"
+              enLinea
+              opciones={[
+                { valor: "", texto: "todos" },
+                { valor: "si", texto: "sí" },
+                { valor: "no", texto: "no" },
+              ]}
+              valor={conOfertas}
+              onCambio={(v) => setConOfertas(v as TriEstado)}
+            />
           </label>
         </div>
       </div>

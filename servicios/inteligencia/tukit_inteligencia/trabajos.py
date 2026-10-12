@@ -40,16 +40,19 @@ from .modelos import (
     EstadoEtapa,
     EstadoResolucion,
     EstadoTrabajo,
+    PerfilKit,
     puede_pasar,
 )
 from .modelos.trabajo import ETAPAS
 from .optimizador import (
     CONCEPTOS_ANCLA,
+    ORDEN_NIVEL,
     Candidato,
     Renglon,
     armar_los_tres,
     unidades_a_comprar,
 )
+from .parseo import BUSCA_EN_CATALOGO, Demanda, mensaje_para_papa
 from .remoto import ClienteCatalogo, ClienteComercio, ClienteIdentidad, RemotoCaido
 from .repositorios.trabajos import RepoTrabajos, TrabajoNoExiste, TransicionIlegal
 
@@ -97,6 +100,34 @@ def ahora() -> datetime:
     return datetime.now(UTC)
 
 
+class SolicitudNoCancelable(Exception):
+    """El acudiente pidio cancelar una solicitud que no se puede cancelar.
+
+    Lleva el codigo y el estado HTTP que la API devuelve tal cual, para que el
+    panel le diga al papa el motivo exacto (p. ej. que primero cancele el pedido).
+    """
+
+    def __init__(self, codigo: str, mensaje: str, estado: int = 409) -> None:
+        super().__init__(mensaje)
+        self.codigo = codigo
+        self.mensaje = mensaje
+        self.estado = estado
+
+
+class CambioNoPermitido(Exception):
+    """El acudiente pidio un cambio de producto que no se puede hacer.
+
+    Lleva el codigo y el estado HTTP que la API devuelve tal cual, para que la
+    pantalla le diga al papa el motivo exacto.
+    """
+
+    def __init__(self, codigo: str, mensaje: str, estado: int = 409) -> None:
+        super().__init__(mensaje)
+        self.codigo = codigo
+        self.mensaje = mensaje
+        self.estado = estado
+
+
 class CheckoutRechazado(Exception):
     """Comercio rechazo la orden por una razon de negocio (p.ej. precio cambio).
 
@@ -118,9 +149,51 @@ class TrabajoProtegido(Exception):
         self.estado = estado
 
 
+class SinProductoQueValidar(Exception):
+    """Validar una linea exige un producto, y esta no tiene ninguno.
+
+    Ni llego `sku`, ni la linea del kit tiene producto, ni la resolucion
+    apuntaba a un candidato —o el `sku` pedido no existe en el catalogo—. Se
+    rechaza aqui, con un motivo, en vez de dejar que el CHECK
+    `resolucion_resuelta_tiene_candidato` lo convierta en un 500.
+    """
+
+    def __init__(self, sku: str | None) -> None:
+        super().__init__(sku or "sin_sku")
+        self.sku = sku
+
+
 class PreviewNoPublicable(Exception):
     """Un `preview_onboarding` no se publica: no tiene acudiente. Se aprueba la
     LISTA (Catalogo), que si crea el colegio y arma el trabajo del padre."""
+
+
+class NoCanonizable(Exception):
+    """Solo un trabajo SIN acudiente (un preview o el canonico de una lista) se
+    fija a mano como kit canonico: el de un padre lleva sus preferencias y su
+    tope, y no puede servirle a otro."""
+
+
+class KitsPublicadosNoEditables(Exception):
+    """Los kits canonicos publicados no se editan en sitio: hay acudientes que
+    apuntan a ellos y deben seguir viendo lo que pagaron. Se edita su version
+    siguiente con `abrir_borrador` («Editar kits»)."""
+
+
+class BorradorDesactualizado(Exception):
+    """El canonico que se quiere editar (o del que salio el borrador) ya no es
+    el vigente de su grado: otro lo reemplazo mientras tanto, y publicar el
+    borrador pisaria esa version mas nueva."""
+
+
+# El trabajo que arma los kits canonicos de una lista recien aprobada. No tiene
+# acudiente ni preferencias: son los tres kits de siempre (Ahorrador, Fan,
+# Premium) que la ruta rapida le aplica a cualquier padre que no pida tope.
+ORIGEN_CANONICO = "canonico_lista"
+
+# Los origenes que no tienen a quien avisar: publicarlos no emite
+# `kits_publicados`, solo fija la cache canonica del grado.
+ORIGENES_SIN_ACUDIENTE = frozenset({"preview_onboarding", ORIGEN_CANONICO})
 
 
 # ---------------------------------------------------------------------------
@@ -137,8 +210,16 @@ async def crear(
     origen: str = "colegio_grado",
     identidad: ClienteIdentidad | None = None,
     usuario_id: uuid.UUID | None = None,
+    en_proceso: bool = False,
 ) -> dict[str, Any]:
     """Crea el trabajo en `encolado` y devuelve el cuerpo del 202.
+
+    `en_proceso` lo crea ya `procesando`, para quien lo va a procesar en el acto
+    (el poller y el preview del admin). Si naciera `encolado`, el trabajador
+    durable (ADR 0024) podria reclamarlo entre el INSERT y el `procesar` del
+    llamador, y los dos armarian los kits a la vez. `procesando` lo saca del
+    claim normal; si el llamador muere a mitad, el trabajador lo retoma con su
+    pasada de colgados, igual que cualquier otro.
 
     El contacto se registra en Identidad y aqui solo queda su identificador.
     Si Identidad no responde, el trabajo se crea igual con la degradacion
@@ -173,7 +254,7 @@ async def crear(
             insert(TRABAJO).values(
                 id=trabajo_id,
                 usuario_id=usuario_id,
-                estado=EstadoTrabajo.ENCOLADO.value,
+                estado=(EstadoTrabajo.PROCESANDO if en_proceso else EstadoTrabajo.ENCOLADO).value,
                 origen=origen,
                 hijos=hijos,
                 preferencias_cifradas=cifrador.cifrar_json(preferencias or {}),
@@ -320,10 +401,39 @@ async def _renglones_de_listas(
                     "url_externa": item.get("url_externa"),
                     "tipo_item_lista": item.get("tipo_item"),
                     "modo_lista": item.get("modo_adquisicion"),
+                    "concepto_lista": (item.get("concepto") or {}).get("codigo"),
                 }
             )
 
     return renglones, detalle
+
+
+def _mensaje_por_tipo(texto: str, tipo: str, modo: str) -> str:
+    """El aviso de una linea que no se busca en el catalogo, por su tipo y modo."""
+    return mensaje_para_papa(Demanda(texto=texto, tipo_item=tipo, modo_adquisicion=modo, cantidad=1))
+
+
+def _tipo_del_concepto_manda(renglon: dict[str, Any], respuesta: dict[str, Any]) -> bool:
+    """Si el concepto reconocido dice que el renglon NO se compra en el catalogo.
+
+    El parseo adivina el tipo por el texto y casi siempre dice `util`; el
+    concepto es un dato curado ("Uniforme", "Lo entrega el colegio",
+    "Audifonos de diadema" como `otro`). Cuando el concepto no se surte, el
+    renglon toma su tipo y queda como linea informativa, igual que en la ruta
+    rapida: sin esto, la previsualizacion intentaba venderle un uniforme al
+    acudiente y mostraba "sin producto". Un tipo que la lista oficial ya
+    declaro para el renglon manda sobre el del concepto.
+
+    Muta el renglon (es el mismo dict que lee la optimizacion) y devuelve si
+    hay que sacarlo de la resolucion.
+    """
+    tipo = respuesta.get("concepto_tipo_item")
+    if not tipo or tipo in BUSCA_EN_CATALOGO or renglon.get("tipo_item_lista"):
+        return False
+    renglon["tipo_item"] = tipo
+    renglon["busca_en_catalogo"] = False
+    renglon["mensaje"] = _mensaje_por_tipo(renglon["texto"], tipo, renglon["modo_adquisicion"])
+    return True
 
 
 async def _escribir_kits(
@@ -352,6 +462,9 @@ async def _finalizar(motor: Any, trabajo_id: uuid.UUID, *, publicar_directo: boo
     valvula de desarrollo (`autopublicar`) hace lo mismo para todos los origenes.
     """
     async with motor.engine.begin() as conexion:
+        origen = await conexion.scalar(select(TRABAJO.c.origen).where(TRABAJO.c.id == trabajo_id))
+        if origen == ORIGEN_CANONICO:
+            return await _cerrar_canonico_de_lista(conexion, trabajo_id)
         if publicar_directo or autopublicar():
             await _pasar_a(conexion, trabajo_id, EstadoTrabajo.PUBLICADO.value, terminado_en=ahora())
             await _publicar_evento(conexion, trabajo_id)
@@ -397,7 +510,26 @@ async def _procesar_verificado(
                 ids_item[(hijo, orden)] = item_id
 
                 candidatos = tuple(_candidato(c) for c in (item.get("candidatos") or ()))
-                surtible = item.get("concepto_codigo") is not None
+                tipo = item.get("tipo_item") or "util"
+                modo = item.get("modo_adquisicion") or "mercado_abierto"
+                # La misma puerta que la ruta lenta (`busca_en_catalogo`): solo lo
+                # que se compra en el catalogo lleva resolucion con producto. Lo
+                # demas (no_comprar, uniforme, licencia, edicion exclusiva) es una
+                # linea informativa sin resolucion, como alla.
+                surtible = (
+                    item.get("concepto_codigo") is not None
+                    and tipo in BUSCA_EN_CATALOGO
+                    and modo in {"mercado_abierto", "libro_libre"}
+                )
+                estado = EstadoResolucion.RESUELTO_AUTO.value
+                if surtible and not candidatos:
+                    # Un util curado cuyo concepto todavia no tiene productos (un
+                    # concepto recien creado). Resolverlo sin producto violaba
+                    # `resolucion_resuelta_tiene_candidato` y tumbaba el trabajo
+                    # entero; es un hueco del catalogo y asi se marca.
+                    estado = EstadoResolucion.HUECO_CATALOGO.value
+                elif not surtible and tipo == "texto" and modo in {"mercado_abierto", "libro_libre"}:
+                    estado = EstadoResolucion.SIN_MATCH.value
 
                 await conexion.execute(
                     insert(ITEM).values(
@@ -408,8 +540,8 @@ async def _procesar_verificado(
                         texto=item["texto_original"],
                         cantidad=int(item.get("cantidad") or 1),
                         unidad_base=(candidatos[0].unidad_base if candidatos else "unidad"),
-                        tipo_item=item.get("tipo_item") or "util",
-                        modo_adquisicion=item.get("modo_adquisicion") or "mercado_abierto",
+                        tipo_item=tipo,
+                        modo_adquisicion=modo,
                         instruccion_colegio=item.get("instruccion_colegio"),
                         url_externa=item.get("url_externa"),
                         nota=None,
@@ -445,18 +577,35 @@ async def _procesar_verificado(
                             )
                         )
 
+                    # Lo que el renglon exige lo decide el catalogo (`/resueltos`
+                    # filtra los candidatos por los atributos del renglon). Aqui se
+                    # guarda para que el hueco diga que se pidio y no parezca un
+                    # concepto vacio.
+                    impuestos = dict(item.get("atributos_impuestos") or {})
+                    por_revisar = list(item.get("atributos_por_revisar") or ())
+                    pedido = ", ".join(f"{k}={v}" for k, v in impuestos.items())
+                    if candidatos:
+                        motivo = "resuelto desde lista verificada"
+                    elif impuestos:
+                        motivo = f"lista verificada: ningun producto cumple {pedido}"
+                    else:
+                        motivo = "lista verificada: el concepto aun no tiene productos"
+                    if por_revisar:
+                        motivo += f"; revisar: {', '.join(por_revisar)} (el renglon nombra varios valores)"
+                    if item.get("posible_repetido_de") is not None:
+                        motivo += f"; posible repetido de la linea {item['posible_repetido_de']}"
                     resolucion_id = uuid.uuid4()
                     await conexion.execute(
                         insert(RESOLUCION).values(
                             id=resolucion_id,
                             item_crudo_id=item_id,
-                            estado=EstadoResolucion.RESUELTO_AUTO.value,
+                            estado=estado,
                             concepto_codigo=item.get("concepto_codigo"),
                             concepto_nombre=item.get("concepto_nombre"),
                             parecido=1.0,
                             candidato_item_id=elegido_id,
-                            atributos_impuestos={},
-                            motivo="resuelto desde lista verificada",
+                            atributos_impuestos=impuestos,
+                            motivo=motivo,
                         )
                     )
                     await conexion.execute(
@@ -464,8 +613,8 @@ async def _procesar_verificado(
                             id=uuid.uuid4(),
                             resolucion_item_id=resolucion_id,
                             estado_anterior=None,
-                            estado_nuevo=EstadoResolucion.RESUELTO_AUTO.value,
-                            motivo="resuelto desde lista verificada",
+                            estado_nuevo=estado,
+                            motivo=motivo,
                         )
                     )
 
@@ -474,19 +623,26 @@ async def _procesar_verificado(
                         hijo=hijo,
                         orden=orden,
                         texto=item["texto_original"],
-                        tipo_item=item.get("tipo_item") or "util",
-                        modo_adquisicion=item.get("modo_adquisicion") or "mercado_abierto",
+                        tipo_item=tipo,
+                        modo_adquisicion=modo,
                         cantidad=int(item.get("cantidad") or 1),
-                        estado_resolucion=EstadoResolucion.RESUELTO_AUTO.value,
+                        estado_resolucion=estado,
                         unidad_base=(candidatos[0].unidad_base if candidatos else "unidad"),
                         concepto_codigo=item.get("concepto_codigo"),
                         concepto_nombre=item.get("concepto_nombre"),
                         parecido=1.0,
                         candidatos=candidatos,
-                        mensaje=None,
+                        # Lo que no se surte dice por que y que hacer, igual que
+                        # en la ruta lenta; antes salia mudo, como un faltante.
+                        mensaje=(
+                            None
+                            if surtible
+                            else _mensaje_por_tipo(item["texto_original"], tipo, modo) or None
+                        ),
                         instruccion_colegio=item.get("instruccion_colegio"),
                         url_externa=item.get("url_externa"),
                         nota=None,
+                        uno_por_estudiante=bool(item.get("uno_por_estudiante")),
                     )
                 )
 
@@ -670,8 +826,12 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
         buscables = [r for r in normalizados if r["busca_en_catalogo"]]
         emparejados: dict[tuple[str, int], dict[str, Any]] = {}
         if buscables:
-            respuestas = await catalogo.emparejar([r["texto"] for r in buscables])
+            respuestas = await catalogo.emparejar(
+                [r["texto"] for r in buscables], conceptos=[r.get("concepto_lista") for r in buscables]
+            )
             for renglon, respuesta in zip(buscables, respuestas, strict=False):
+                if _tipo_del_concepto_manda(renglon, respuesta):
+                    continue
                 emparejados[(renglon["hijo"], renglon["orden"])] = respuesta
         ms = int((time.monotonic() - reloj) * 1000)
 
@@ -958,30 +1118,71 @@ async def ver(
         mostrar = incluir_kits if incluir_kits is not None else cabeza.estado == EstadoTrabajo.PUBLICADO.value
         kits: list[dict[str, Any]] = []
         recomendado: dict[str, Any] | None = None
+        # Lo que el acudiente cambio en sus kits: se aplica al leer, nunca se
+        # escribe en `linea_kit` (ver `TrabajoPipeline.cambios`).
+        cambios: dict[str, Any] = dict(cabeza.cambios or {})
 
         if mostrar and cabeza.origen == "parent_apply":
             # Un puntero al canonico: no tiene kits propios. Se sigue
-            # `hijos[0].canonico_trabajo_id` y se pinta el unico kit del perfil
-            # elegido, con el personaje aplicado sobre las anclas.
+            # `hijos[0].canonico_trabajo_id` y se pintan los TRES kits del
+            # canonico, con el personaje aplicado sobre las anclas: el que eligio
+            # al empezar va marcado, y si prefiere otro puede pagar ese.
             hijo = (list(cabeza.hijos or ()) or [{}])[0]
             canonico_id = hijo.get("canonico_trabajo_id")
             perfil = str(hijo.get("perfil") or "")
             if canonico_id and perfil:
                 # ponytail: 4 llamadas de catalogo dentro de la txn de lectura
-                # (SELECT puro, sin locks, un solo kit). Si molesta, resolver los
-                # swaps antes de abrir la txn con una pre-lectura de cabeza.
-                swaps = await _anclas_de_personaje(catalogo, hijo.get("personaje")) if catalogo else {}
-                lineas, total = await _lineas_aplicadas(conexion, uuid.UUID(str(canonico_id)), perfil, swaps)
-                kits.append(
-                    {
-                        "perfil": perfil,
-                        "total": total,
-                        "objetivos": {},
-                        "lineas": lineas,
-                        "consolidaciones": [],
-                        "informativas": sum(1 for linea in lineas if linea["informativa"]),
-                    }
-                )
+                # (SELECT puro, sin locks). Si molesta, resolver los swaps antes
+                # de abrir la txn con una pre-lectura de cabeza.
+                personaje = hijo.get("personaje")
+                swaps = await _anclas_de_personaje(catalogo, personaje) if catalogo else {}
+                # Los canonicos traen Ahorrador y Premium (ADR 0030); uno viejo
+                # puede traer tambien un Fan, que ya no se muestra: el Fan es del
+                # acudiente que pidio un personaje, y se arma para el.
+                canonicos = [
+                    p
+                    for p in (
+                        await conexion.execute(
+                            select(KIT.c.perfil)
+                            .where(KIT.c.trabajo_id == uuid.UUID(str(canonico_id)))
+                            .order_by(KIT.c.total_cop)
+                        )
+                    ).scalars()
+                    if p != PerfilKit.FAN.value
+                ]
+                perfiles = list(canonicos)
+                if personaje and PerfilKit.AHORRADOR.value in canonicos:
+                    perfiles.insert(canonicos.index(PerfilKit.AHORRADOR.value) + 1, PerfilKit.FAN.value)
+                for perfil_kit in perfiles:
+                    # El Fan es el Ahorrador canonico con el personaje en las
+                    # anclas; los demas se pintan tal cual los reviso una persona.
+                    base, swaps_kit = (
+                        (PerfilKit.AHORRADOR.value, swaps)
+                        if perfil_kit == PerfilKit.FAN.value
+                        else (perfil_kit, {})
+                    )
+                    lineas, total = await _lineas_aplicadas(
+                        conexion, uuid.UUID(str(canonico_id)), base, swaps_kit
+                    )
+                    if cambios.get(perfil_kit):
+                        lineas, total = _aplicar_cambios(lineas, cambios[perfil_kit])
+                    kits.append(
+                        {
+                            "perfil": perfil_kit,
+                            "total": total,
+                            "objetivos": _objetivos_de_lineas(lineas, total),
+                            "lineas": lineas,
+                            "consolidaciones": [],
+                            "informativas": sum(1 for linea in lineas if linea["informativa"]),
+                        }
+                    )
+                recomendado = {
+                    "perfil": perfil,
+                    "razon": (
+                        "Es el kit que elegiste al empezar. Puedes mirar los otros y cambiarte si prefieres."
+                    ),
+                    "dentro_de_presupuesto": None,
+                }
         elif mostrar:
             for kit in await conexion.execute(
                 select(KIT).where(KIT.c.trabajo_id == trabajo_id).order_by(KIT.c.total_cop)
@@ -1001,10 +1202,15 @@ async def ver(
                         .order_by(LINEA.c.hijo_referencia, LINEA.c.orden)
                     )
                 ]
+                total = int(kit.total_cop)
+                objetivos = dict(kit.objetivos or {})
+                if cambios.get(kit.perfil):
+                    lineas, total = _aplicar_cambios(lineas, cambios[kit.perfil])
+                    objetivos = _objetivos_de_lineas(lineas, total)
                 cuerpo = {
                     "perfil": kit.perfil,
-                    "total": int(kit.total_cop),
-                    "objetivos": dict(kit.objetivos or {}),
+                    "total": total,
+                    "objetivos": objetivos,
                     "lineas": lineas,
                     "consolidaciones": list(kit.consolidaciones or ()),
                     "informativas": sum(1 for linea in lineas if linea["informativa"]),
@@ -1049,6 +1255,7 @@ async def ver(
         "etapas": etapas,
         "kits": kits,
         "recomendado": recomendado,
+        "cambios": cambios,
         "degradaciones": list(cabeza.degradaciones or ()),
         "error": cabeza.error,
         "mensaje": cabeza.mensaje,
@@ -1180,6 +1387,7 @@ async def cola(motor: Any, *, pagina: int = 1, por_pagina: int = 50) -> dict[str
         select(
             TRABAJO.c.id,
             TRABAJO.c.estado,
+            TRABAJO.c.origen,
             TRABAJO.c.creado_en,
             TRABAJO.c.hijos,
             func.coalesce(a_revision.c.dudosos, 0).label("dudosos"),
@@ -1197,8 +1405,16 @@ async def cola(motor: Any, *, pagina: int = 1, por_pagina: int = 50) -> dict[str
                 "trabajo_id": str(f.id),
                 "estado": f.estado,
                 "creado_en": f.creado_en.isoformat() if f.creado_en else None,
+                "origen": f.origen,
                 "hijos": len(list(f.hijos or ())),
+                # Lo que el trabajo ya sabe de sus hijos. El nombre del colegio
+                # no: ese lo pone quien lee, con el directorio que ya tiene.
+                "colegios": sorted({h["colegio_id"] for h in f.hijos or () if h.get("colegio_id")}),
+                "grados": list(dict.fromkeys(h["grado"] for h in f.hijos or () if h.get("grado"))),
                 "lineas_a_revisar": int(f.dudosos),
+                # Un borrador de edicion de kits ya publicados: el canonico del
+                # que salio. None en todo lo demas.
+                "edicion_de": next(iter(f.hijos or ()), {}).get("basado_en"),
             }
             for f in filas
         ]
@@ -1248,7 +1464,7 @@ async def mis_solicitudes(motor: Any, usuario_id: uuid.UUID, *, catalogo: Any) -
             TRABAJO.c.hijos,
             TRABAJO.c.creado_en,
         )
-        .where(TRABAJO.c.usuario_id == usuario_id)
+        .where(TRABAJO.c.usuario_id == usuario_id, TRABAJO.c.estado != EstadoTrabajo.CANCELADO.value)
         .order_by(TRABAJO.c.creado_en.desc())
     )
     async with motor.engine.begin() as conexion:
@@ -1302,6 +1518,8 @@ async def mis_solicitudes(motor: Any, usuario_id: uuid.UUID, *, catalogo: Any) -
             solicitudes.append(
                 {
                     "tipo": "recibida",
+                    # Con esto el acudiente la cancela (`cancelar_lista_subida`).
+                    "tarea_id": lista_subida.get("tarea_id"),
                     "colegio_id": colegio_id,
                     "colegio_nombre": colegio_nombre,
                     "grado": grado,
@@ -1336,6 +1554,91 @@ async def mis_solicitudes(motor: Any, usuario_id: uuid.UUID, *, catalogo: Any) -
     for solicitud in solicitudes:
         del solicitud["_orden"]
     return {"solicitudes": solicitudes, "listas_disponibles": listas_disponibles}
+
+
+# Un pedido cancelado ya no frena la cancelacion de su solicitud. Uno vencido
+# sigue en `pendiente_pago` (§9.4): se cancela primero, como cualquier pendiente.
+_PEDIDO_SIN_EFECTO = frozenset({"cancelado"})
+
+
+async def cancelar_solicitud(
+    motor: Any,
+    trabajo_id: uuid.UUID,
+    *,
+    usuario_id: uuid.UUID,
+    token: str,
+    comercio: ClienteComercio,
+    catalogo: ClienteCatalogo,
+) -> dict[str, Any]:
+    """El acudiente cancela una solicitud suya (ADR 0031).
+
+    `token` es la sesion del acudiente: con ella Comercio le dice sus pedidos.
+
+    El trabajo pasa a `cancelado`, terminal, y deja de salir en "Mis
+    solicitudes" y en la cola de revision. No se cancela:
+
+    - la solicitud de otro (`solicitud_ajena`, 403);
+    - un trabajo que el pipeline esta armando (`en_proceso`): se escribe en
+      medio y el resultado quedaria a medias;
+    - un kit con un pago pendiente (`pedido_pendiente`): primero se cancela el
+      pedido, que es lo que consulta a la pasarela antes de soltarlo (§9.3);
+    - un kit ya comprado (`kit_comprado`).
+
+    Si el trabajo salio de una lista que el acudiente subio, la lista tambien se
+    le desvincula en el Catalogo; si no, volveria a salir como "recibida". Sin
+    Comercio no se cancela a ciegas: `RemotoCaido`.
+    """
+    async with motor.engine.begin() as conexion:
+        cabeza = (
+            await conexion.execute(
+                select(TRABAJO.c.estado, TRABAJO.c.usuario_id, TRABAJO.c.origen, TRABAJO.c.hijos).where(
+                    TRABAJO.c.id == trabajo_id
+                )
+            )
+        ).one_or_none()
+    if cabeza is None:
+        raise TrabajoNoExiste(str(trabajo_id))
+    if cabeza.usuario_id != usuario_id:
+        raise SolicitudNoCancelable("solicitud_ajena", "Esta solicitud no es de tu cuenta.", 403)
+    if cabeza.estado == EstadoTrabajo.CANCELADO.value:
+        return {"trabajo_id": str(trabajo_id), "estado": EstadoTrabajo.CANCELADO.value}
+    if cabeza.estado == EstadoTrabajo.PROCESANDO.value:
+        raise SolicitudNoCancelable(
+            "en_proceso", "Estamos armando tu kit justo ahora. Intenta cancelarla en un minuto."
+        )
+
+    for pedido in await comercio.pedidos_de(token):
+        if str(pedido.get("trabajo_id")) != str(trabajo_id) or pedido.get("estado") in _PEDIDO_SIN_EFECTO:
+            continue
+        if pedido.get("estado") == "pendiente_pago":
+            raise SolicitudNoCancelable(
+                "pedido_pendiente",
+                "Tienes un pedido de este kit esperando pago. Cancélalo primero en Mis pedidos.",
+            )
+        raise SolicitudNoCancelable(
+            "kit_comprado", "Ya compraste este kit, así que la solicitud no se cancela."
+        )
+
+    async with motor.engine.begin() as conexion:
+        await _pasar_a(conexion, trabajo_id, EstadoTrabajo.CANCELADO.value)
+
+    hijo = (list(cabeza.hijos or ()) or [{}])[0]
+    if cabeza.origen == "lista_verificada" and hijo.get("version_id"):
+        await catalogo.retirar_de_contacto(str(usuario_id), version_id=str(hijo["version_id"]))
+    return {"trabajo_id": str(trabajo_id), "estado": EstadoTrabajo.CANCELADO.value}
+
+
+async def cancelar_lista_subida(
+    usuario_id: uuid.UUID, tarea_id: str, *, catalogo: ClienteCatalogo
+) -> dict[str, Any]:
+    """El acudiente cancela una lista que subio y que todavia no tiene kit.
+
+    La lista no se borra: es una lista oficial del colegio y alguien la puede
+    curar igual. Solo deja de ser suya (no sale en "Mis solicitudes" ni le arma
+    un kit al aprobarse). El Catalogo solo desvincula tareas de este contacto.
+    """
+    retiradas = await catalogo.retirar_de_contacto(str(usuario_id), tarea_id=tarea_id)
+    return {"tarea_id": tarea_id, "retiradas": retiradas}
 
 
 async def eliminar(motor: Any, trabajo_id: uuid.UUID) -> None:
@@ -1388,6 +1691,120 @@ async def _resolucion_de(conexion: Any, trabajo_id: uuid.UUID, item_id: uuid.UUI
     return await RepoTrabajos(conexion).resolucion_de(trabajo_id, item_id)
 
 
+async def _sku_a_validar(conexion: Any, trabajo_id: uuid.UUID, item_id: uuid.UUID, actual: Any) -> str | None:
+    """El producto que "validar el elegido" confirma cuando no llega `sku`.
+
+    Primero el que la LINEA tiene en el kit recomendado —es el que el admin ve
+    marcado como "elegido por el sistema"—, luego el de cualquier otro kit, y
+    al final el del candidato que la resolucion ya apuntaba. La LINEA va antes
+    que el candidato porque la ruta lenta deja `candidato_item_id` nulo en todo
+    lo que no es RESUELTO_AUTO, y el optimizador igual eligio un producto para
+    el kit: ese es el que hay que confirmar.
+    """
+    sku = await conexion.scalar(
+        select(LINEA.c.sku)
+        .select_from(LINEA.join(KIT, KIT.c.id == LINEA.c.kit_id))
+        .where(KIT.c.trabajo_id == trabajo_id, LINEA.c.item_crudo_id == item_id, LINEA.c.sku.is_not(None))
+        .order_by(KIT.c.recomendado.desc())
+        .limit(1)
+    )
+    if sku:
+        return str(sku)
+    if actual.candidato_item_id is not None:
+        previo = await conexion.scalar(
+            select(CANDIDATO.c.sku).where(CANDIDATO.c.id == actual.candidato_item_id)
+        )
+        if previo:
+            return str(previo)
+    return None
+
+
+async def _candidato_de(conexion: Any, item_id: uuid.UUID, sku: str) -> uuid.UUID | None:
+    return await conexion.scalar(
+        select(CANDIDATO.c.id).where(and_(CANDIDATO.c.item_crudo_id == item_id, CANDIDATO.c.sku == sku))
+    )
+
+
+async def _linea_con_sku(conexion: Any, trabajo_id: uuid.UUID, item_id: uuid.UUID, sku: str) -> Any:
+    return (
+        await conexion.execute(
+            select(LINEA)
+            .select_from(LINEA.join(KIT, KIT.c.id == LINEA.c.kit_id))
+            .where(KIT.c.trabajo_id == trabajo_id, LINEA.c.item_crudo_id == item_id, LINEA.c.sku == sku)
+            .order_by(KIT.c.recomendado.desc())
+            .limit(1)
+        )
+    ).first()
+
+
+async def _registrar_candidato(
+    conexion: Any,
+    trabajo_id: uuid.UUID,
+    item_id: uuid.UUID,
+    sku: str,
+    producto_catalogo: dict[str, Any] | None,
+) -> uuid.UUID | None:
+    """El CANDIDATO de (item, sku); si no existe, lo da de alta.
+
+    El producto que una linea muestra no siempre fue candidato del item: el
+    interruptor de personaje del Fan y `fijar_producto_en_linea` ponen en la
+    LINEA productos que el emparejamiento nunca ofrecio. Validarlo es una
+    decision legitima del revisor, y la resolucion exige un candidato
+    (CHECK `resolucion_resuelta_tiene_candidato`), asi que se registra uno con
+    los datos que ya tiene la LINEA —o, si no hay LINEA con ese sku, con los
+    del catalogo—. `confianza=1.0` porque lo confirmo una persona.
+    """
+    existente = await _candidato_de(conexion, item_id, sku)
+    if existente is not None:
+        return existente
+
+    linea = await _linea_con_sku(conexion, trabajo_id, item_id, sku)
+    if linea is not None:
+        datos = {
+            "producto_canonico_id": linea.producto_canonico_id,
+            "nombre": linea.nombre_producto or sku,
+            "marca": linea.marca,
+            "nivel": linea.nivel or "confiable",
+            "personaje": linea.personaje,
+            "imagen_url": linea.imagen_url,
+            "unidad_base": linea.unidad_base or "unidad",
+            "unidades_por_empaque": int(linea.unidades_por_empaque or 1),
+            "precio_cop": linea.precio_unitario_cop,
+        }
+    elif producto_catalogo is not None:
+        datos = {
+            "producto_canonico_id": None,
+            "nombre": producto_catalogo.get("nombre") or sku,
+            "marca": producto_catalogo.get("marca"),
+            "nivel": producto_catalogo.get("nivel") or "confiable",
+            "personaje": producto_catalogo.get("personaje"),
+            "imagen_url": producto_catalogo.get("imagen_url"),
+            "unidad_base": producto_catalogo.get("unidad_base") or "unidad",
+            "unidades_por_empaque": int(producto_catalogo.get("unidades_por_empaque") or 1),
+            "precio_cop": producto_catalogo.get("precio_desde"),
+        }
+    else:
+        return None
+
+    siguiente = await conexion.scalar(
+        select(func.coalesce(func.max(CANDIDATO.c.orden), -1) + 1).where(CANDIDATO.c.item_crudo_id == item_id)
+    )
+    candidato_id = uuid.uuid4()
+    await conexion.execute(
+        insert(CANDIDATO).values(
+            id=candidato_id,
+            item_crudo_id=item_id,
+            sku=sku,
+            atributos={},
+            confianza=1.0,
+            cumple_atributos=True,
+            orden=int(siguiente or 0),
+            **datos,
+        )
+    )
+    return candidato_id
+
+
 async def decidir_linea(
     motor: Any,
     trabajo_id: uuid.UUID,
@@ -1397,26 +1814,57 @@ async def decidir_linea(
     sku: str | None = None,
     actor: uuid.UUID | None = None,
     motivo: str | None = None,
+    catalogo: ClienteCatalogo | None = None,
 ) -> dict[str, Any]:
     """AD-04: una persona valida el emparejamiento o lo marca sin coincidencia.
 
     Escribe la transicion ANTES de cambiar el estado y en la misma
     transaccion, porque una decision humana sin rastro de quien la tomo es
     justo el control sin dueno que la cola existe para no ser.
+
+    Validar (RESUELTO_AUTO) sin `sku` confirma el producto que la linea tiene
+    en el kit (`_sku_a_validar`). Si ese producto no es candidato del item se
+    registra (`_registrar_candidato`); solo cuando no hay producto por ningun
+    lado se rechaza con `SinProductoQueValidar` —antes eso llegaba a la base
+    como RESUELTO_AUTO sin candidato y el CHECK lo convertia en un 500—.
+
+    El estado se copia tambien a las LINEA del item en los tres kits: la
+    consola clasifica por `linea.estado_resolucion`, y sin esto una linea ya
+    validada seguia apareciendo como pendiente.
     """
+    resuelto = estado == EstadoResolucion.RESUELTO_AUTO.value
+
+    # El catalogo se consulta FUERA de la transaccion (una llamada HTTP no debe
+    # sostener un lock), y solo cuando el sku no esta ni como candidato ni en
+    # una LINEA del item: es el caso raro, no el comun.
+    producto_catalogo: dict[str, Any] | None = None
+    if resuelto and sku and catalogo is not None:
+        async with motor.engine.begin() as conexion:
+            conocido = await _candidato_de(conexion, item_id, sku) is not None or (
+                await _linea_con_sku(conexion, trabajo_id, item_id, sku) is not None
+            )
+        if not conocido:
+            try:
+                producto_catalogo = await catalogo.producto(sku)
+            except (RemotoCaido, KeyError):
+                producto_catalogo = None
+
     async with motor.engine.begin() as conexion:
+        await _proteger_kits_publicados(conexion, trabajo_id)
         actual = await _resolucion_de(conexion, trabajo_id, item_id)
         if actual is None:
             raise TrabajoNoExiste(f"{trabajo_id}/{item_id}")
 
-        candidato_id = actual.candidato_item_id
-        if sku:
-            elegido = await conexion.scalar(
-                select(CANDIDATO.c.id).where(
-                    and_(CANDIDATO.c.item_crudo_id == item_id, CANDIDATO.c.sku == sku)
+        candidato_id: uuid.UUID | None = None
+        sku_usado = sku
+        if resuelto:
+            sku_usado = sku or await _sku_a_validar(conexion, trabajo_id, item_id, actual)
+            if sku_usado:
+                candidato_id = await _registrar_candidato(
+                    conexion, trabajo_id, item_id, sku_usado, producto_catalogo
                 )
-            )
-            candidato_id = elegido
+            if candidato_id is None:
+                raise SinProductoQueValidar(sku)
 
         await conexion.execute(
             insert(TRANSICION).values(
@@ -1433,12 +1881,53 @@ async def decidir_linea(
             .where(RESOLUCION.c.id == actual.id)
             .values(
                 estado=estado,
-                candidato_item_id=candidato_id if estado == EstadoResolucion.RESUELTO_AUTO.value else None,
+                candidato_item_id=candidato_id,
                 decidido_por=actor,
                 decidido_en=ahora(),
             )
         )
-    return {"item_id": str(item_id), "estado": estado, "sku": sku}
+        await conexion.execute(
+            update(LINEA).where(LINEA.c.item_crudo_id == item_id).values(estado_resolucion=estado)
+        )
+        if not resuelto:
+            await _vaciar_producto_de_item(conexion, item_id)
+    return {"item_id": str(item_id), "estado": estado, "sku": sku_usado}
+
+
+async def _vaciar_producto_de_item(conexion: Any, item_id: uuid.UUID) -> None:
+    """Deja las LINEA del item como un hueco del optimizador: sin producto ni precio.
+
+    "Sin coincidencia" es decir "no lo tenemos". Si la linea conservara el
+    producto que el optimizador eligio, `ordenar` la cobraria (cobra toda linea
+    con sku y precio) mientras el acudiente la ve como hueco. Las alternativas
+    se conservan: el revisor puede fijar una despues con `fijar_producto_en_linea`.
+    """
+    kits = [
+        fila.kit_id
+        for fila in await conexion.execute(
+            select(LINEA.c.kit_id).where(LINEA.c.item_crudo_id == item_id).distinct()
+        )
+    ]
+    await conexion.execute(
+        update(LINEA)
+        .where(LINEA.c.item_crudo_id == item_id)
+        .values(
+            producto_canonico_id=None,
+            sku=None,
+            nombre_producto=None,
+            marca=None,
+            nivel=None,
+            personaje=None,
+            imagen_url=None,
+            confianza=None,
+            unidades_por_empaque=1,
+            unidades_a_comprar=0,
+            precio_unitario_cop=None,
+            subtotal_cop=None,
+        )
+    )
+    for kit_id in kits:
+        await _recalcular_total_kit(conexion, kit_id)
 
 
 async def fijar_producto_en_linea(
@@ -1453,8 +1942,9 @@ async def fijar_producto_en_linea(
     """Fija un producto en UNA linea (un kit + un item) con su precio recalculado.
 
     La decision de producto es por-nivel (tres LINEA por item, una por kit),
-    no por-item: `decidir_linea` solo escribe RESOLUCION y nunca toca LINEA, asi
-    que el kit publicado seguia mostrando el producto del optimizador. Esta es la
+    no por-item: `decidir_linea` escribe RESOLUCION y solo copia su estado a la
+    LINEA —nunca cambia su producto—, asi que el kit publicado seguia mostrando
+    el producto del optimizador. Esta es la
     ruta de escritura que faltaba. El producto se pide al catalogo (no al
     CANDIDATO) porque un personaje puede no ser candidato del item y aun asi ser
     una eleccion valida del revisor.
@@ -1462,12 +1952,28 @@ async def fijar_producto_en_linea(
     `subtotal = precio * techo(cantidad_pedida / unidades_por_empaque)`, la misma
     aritmetica del armado (optimizador._construir_linea). Recalcula KIT.total_cop.
     """
+    # Se niega antes de ir al catalogo: no tiene caso pagar la llamada HTTP.
+    # Se vuelve a mirar dentro de la transaccion que escribe.
+    async with motor.engine.begin() as conexion:
+        await _proteger_kits_publicados(conexion, trabajo_id)
     producto = await catalogo.producto(sku)
     precio = producto.get("precio_desde")
     async with motor.engine.begin() as conexion:
+        await _proteger_kits_publicados(conexion, trabajo_id)
         fila = (
             await conexion.execute(
-                select(LINEA.c.id, LINEA.c.kit_id, LINEA.c.cantidad_pedida, LINEA.c.informativa)
+                select(
+                    LINEA.c.id,
+                    LINEA.c.kit_id,
+                    LINEA.c.cantidad_pedida,
+                    LINEA.c.informativa,
+                    LINEA.c.sku,
+                    LINEA.c.nombre_producto,
+                    LINEA.c.nivel,
+                    LINEA.c.precio_unitario_cop,
+                    LINEA.c.imagen_url,
+                    LINEA.c.alternativas,
+                )
                 .select_from(LINEA.join(KIT, KIT.c.id == LINEA.c.kit_id))
                 .where(
                     KIT.c.trabajo_id == trabajo_id,
@@ -1478,6 +1984,21 @@ async def fijar_producto_en_linea(
         ).one_or_none()
         if fila is None:
             raise TrabajoNoExiste(f"{trabajo_id}/{perfil}/{item_id}")
+
+        # El producto que sale pasa a ser alternativa y el que entra deja de
+        # serlo: sin esto la consola lo mostraba dos veces y el anterior ya no
+        # se podia volver a elegir. Mismo tope de dos que pone el armado.
+        alternativas = [a for a in (fila.alternativas or []) if a.get("sku") not in {sku, fila.sku}]
+        if fila.sku and fila.sku != sku:
+            anterior = {
+                "sku": fila.sku,
+                "nombre": fila.nombre_producto,
+                "nivel": fila.nivel,
+                "precio_cop": fila.precio_unitario_cop,
+                "imagen_url": fila.imagen_url,
+            }
+            alternativas = [anterior, *alternativas]
+        alternativas = alternativas[:2]
 
         # Una linea informativa no lleva precio (CHECK del modelo): fijarle un
         # producto no puede introducir un subtotal por la puerta de atras.
@@ -1499,10 +2020,31 @@ async def fijar_producto_en_linea(
                 unidades_a_comprar=unidades,
                 precio_unitario_cop=None if fila.informativa else precio,
                 subtotal_cop=subtotal,
+                alternativas=alternativas,
             )
         )
         await _recalcular_total_kit(conexion, fila.kit_id)
     return {"trabajo_id": str(trabajo_id), "perfil": perfil, "item_id": str(item_id), "sku": sku}
+
+
+async def _proteger_kits_publicados(conexion: Any, trabajo_id: uuid.UUID) -> None:
+    """Niega editar las lineas de unos kits canonicos ya publicados.
+
+    Canonico es lo que no tiene acudiente (preview fijado, `canonico_lista`) o
+    lo que la cache de su grado apunta hoy (un trabajo de acudiente aprobado
+    tambien la fija). El trabajo publicado de un acudiente que no es la cache
+    sigue el flujo de siempre.
+    """
+    fila = (
+        await conexion.execute(select(TRABAJO.c.estado, TRABAJO.c.origen).where(TRABAJO.c.id == trabajo_id))
+    ).one_or_none()
+    if fila is None or fila.estado != EstadoTrabajo.PUBLICADO.value:
+        return
+    apuntado = await conexion.scalar(
+        select(KIT_CANONICO.c.id).where(KIT_CANONICO.c.trabajo_id == trabajo_id).limit(1)
+    )
+    if fila.origen in ORIGENES_SIN_ACUDIENTE or apuntado is not None:
+        raise KitsPublicadosNoEditables()
 
 
 async def _recalcular_total_kit(conexion: Any, kit_id: uuid.UUID) -> None:
@@ -1530,11 +2072,11 @@ async def revisar(
         # el trabajo del padre, es la vista de los kits que saldrian de la lista.
         # Publicarlo no avisa a nadie (el `kits_publicados` que emite se queda
         # sin destinatario y el repartidor lo reintenta sin fin) y no crea el
-        # colegio (eso lo hace aprobar la LISTA en Catalogo). Quien quiera
-        # publicar, aprueba la lista; el preview solo se mira.
+        # colegio (eso lo hace aprobar la LISTA en Catalogo). Lo que se hace con
+        # un preview es fijarlo como canonico (`fijar_como_canonico`).
         if decision == "aprobar":
             origen = await conexion.scalar(select(TRABAJO.c.origen).where(TRABAJO.c.id == trabajo_id))
-            if origen == "preview_onboarding":
+            if origen in ORIGENES_SIN_ACUDIENTE:
                 raise PreviewNoPublicable()
         await conexion.execute(
             update(TRABAJO)
@@ -1599,28 +2141,305 @@ async def _fijar_canonico(conexion: Any, trabajo_id: uuid.UUID) -> None:
     await RepoTrabajos(conexion).fijar_canonico(trabajo_id)
 
 
+def _identidad_de_grado(hijos: Any) -> tuple[str, str, int, str | None] | None:
+    """(colegio, grado, anio, version_id) de un trabajo de UN solo hijo, o None."""
+    lista = list(hijos or ())
+    if len(lista) != 1:
+        return None
+    hijo = lista[0]
+    colegio_id = str(hijo.get("colegio_id") or "")
+    grado = str(hijo.get("grado") or "")
+    if not (colegio_id and grado):
+        return None
+    anio = int(hijo.get("anio_lectivo") or ANIO_LECTIVO_POR_OMISION)
+    version = hijo.get("version_id")
+    return colegio_id, grado, anio, str(version) if version else None
+
+
+async def version_canonica(conexion: Any, colegio_id: str, grado: str, anio: int) -> str | None:
+    """La version de lista con que se armo el canonico vigente del grado.
+
+    Sale del hijo del trabajo al que apunta la cache. None si no hay canonico o
+    si el trabajo es anterior a que los hijos cargaran su `version_id`.
+    """
+    fila = (
+        await conexion.execute(
+            select(TRABAJO.c.hijos)
+            .select_from(KIT_CANONICO.join(TRABAJO, TRABAJO.c.id == KIT_CANONICO.c.trabajo_id))
+            .where(
+                KIT_CANONICO.c.colegio_id == colegio_id,
+                KIT_CANONICO.c.grado == grado,
+                KIT_CANONICO.c.anio_lectivo == anio,
+            )
+        )
+    ).one_or_none()
+    if fila is None:
+        return None
+    identidad = _identidad_de_grado(fila.hijos)
+    return identidad[3] if identidad else None
+
+
+async def _cerrar_canonico_de_lista(conexion: Any, trabajo_id: uuid.UUID) -> str:
+    """El cierre de un `canonico_lista`: publica sin avisar y fija la cache.
+
+    No hay acudiente, asi que no se emite `kits_publicados` y no pasa por la
+    cola de revision: la persona ya reviso la LISTA, que es lo que la aprobacion
+    certifica, igual que en el kit del padre que esperaba (`lista_verificada`).
+
+    Si mientras el optimizador corria alguien fijo a mano un canonico de ESTA
+    misma version —aprobar desde el preview, con sus ajustes— ese gana: este
+    trabajo sobra y se borra en vez de pisarle el puntero.
+    """
+    fila = (await conexion.execute(select(TRABAJO.c.hijos).where(TRABAJO.c.id == trabajo_id))).one_or_none()
+    identidad = _identidad_de_grado(fila.hijos if fila else None)
+    # `regenera` lo pone solo `poller.regenerar_canonicos`, que ya salto los
+    # canonicos aprobados o corregidos a mano: ahi la version repetida es
+    # justamente lo que se pidio rearmar.
+    regenera = bool(next(iter(fila.hijos or ()), {}).get("regenera")) if fila else False
+    if identidad and identidad[3] and not regenera:
+        colegio_id, grado, anio, version = identidad
+        if await version_canonica(conexion, colegio_id, grado, anio) == version:
+            await conexion.execute(delete(TRABAJO).where(TRABAJO.c.id == trabajo_id))
+            return "descartado"
+    await _pasar_a(conexion, trabajo_id, EstadoTrabajo.PUBLICADO.value, terminado_en=ahora())
+    await _fijar_canonico(conexion, trabajo_id)
+    return EstadoTrabajo.PUBLICADO.value
+
+
+async def fijar_como_canonico(
+    motor: Any,
+    trabajo_id: uuid.UUID,
+    *,
+    nota: str | None = None,
+    actor: uuid.UUID | None = None,
+) -> dict[str, Any]:
+    """Publica un trabajo SIN acudiente y lo deja como kit canonico de su grado.
+
+    Es lo que hace "Aprobar la lista y guardar estos kits" desde un preview: el
+    admin ya miro (y quiza ajusto) los tres kits, asi que esos —y no un calculo
+    nuevo— son los que la ruta rapida le sirve al proximo acudiente. No emite
+    `kits_publicados`: no hay a quien avisar.
+    """
+    async with motor.engine.begin() as conexion:
+        fila = (
+            await conexion.execute(
+                select(TRABAJO.c.estado, TRABAJO.c.origen).where(TRABAJO.c.id == trabajo_id)
+            )
+        ).one_or_none()
+        if fila is None:
+            raise TrabajoNoExiste(str(trabajo_id))
+        if fila.origen not in ORIGENES_SIN_ACUDIENTE:
+            raise NoCanonizable()
+        nuevo = EstadoTrabajo.PUBLICADO.value
+        if not puede_pasar(fila.estado, nuevo):
+            raise TransicionIlegal(fila.estado, nuevo)
+        # Un borrador de edicion solo reemplaza al canonico del que salio: si
+        # mientras tanto la lista se reaprobo, ese ya no es el vigente.
+        basado_en = await _basado_en(conexion, trabajo_id)
+        if basado_en and await _canonico_vigente_de(conexion, trabajo_id) != basado_en:
+            raise BorradorDesactualizado()
+        # La disponibilidad ("91% con precio confirmado") es la del armado; si
+        # el admin fijo o vacio productos, se recalcula sobre lo que se publica.
+        await _recalcular_objetivos(conexion, trabajo_id)
+        await conexion.execute(
+            update(TRABAJO)
+            .where(TRABAJO.c.id == trabajo_id)
+            .values(
+                estado=nuevo,
+                revisado_por=actor,
+                revisado_en=ahora(),
+                nota_revision=nota,
+                terminado_en=ahora(),
+            )
+        )
+        await _fijar_canonico(conexion, trabajo_id)
+    return {"trabajo_id": str(trabajo_id), "estado": nuevo, "nota": nota}
+
+
+# ---------------------------------------------------------------------------
+# Versiones de los kits canonicos: editar es copiar y volver a publicar
+# ---------------------------------------------------------------------------
+
+
+async def _basado_en(conexion: Any, trabajo_id: uuid.UUID) -> uuid.UUID | None:
+    """El canonico del que se copio este borrador, o None si no es un borrador."""
+    hijos = await conexion.scalar(select(TRABAJO.c.hijos).where(TRABAJO.c.id == trabajo_id))
+    origen = next(iter(hijos or ()), {}).get("basado_en")
+    return uuid.UUID(str(origen)) if origen else None
+
+
+async def _canonico_vigente_de(conexion: Any, trabajo_id: uuid.UUID) -> uuid.UUID | None:
+    """El trabajo al que apunta hoy la cache del (colegio, grado, anio) de este."""
+    hijos = await conexion.scalar(select(TRABAJO.c.hijos).where(TRABAJO.c.id == trabajo_id))
+    identidad = _identidad_de_grado(hijos)
+    if identidad is None:
+        return None
+    colegio_id, grado, anio, _ = identidad
+    return await conexion.scalar(
+        select(KIT_CANONICO.c.trabajo_id).where(
+            KIT_CANONICO.c.colegio_id == colegio_id,
+            KIT_CANONICO.c.grado == grado,
+            KIT_CANONICO.c.anio_lectivo == anio,
+        )
+    )
+
+
+async def _borrador_abierto(conexion: Any, canonico_id: uuid.UUID) -> uuid.UUID | None:
+    """El borrador sin publicar que ya salio de este canonico, si hay uno.
+
+    `basado_en` vive en el JSON `hijos`, no en una columna: se filtra en memoria
+    sobre los pocos `canonico_lista` en revision (los del poller se publican
+    solos y nunca quedan aqui).
+    """
+    filas = await conexion.execute(
+        select(TRABAJO.c.id, TRABAJO.c.hijos)
+        .where(
+            TRABAJO.c.origen == ORIGEN_CANONICO,
+            TRABAJO.c.estado == EstadoTrabajo.ESPERA_REVISION.value,
+        )
+        .order_by(TRABAJO.c.creado_en)
+    )
+    for fila in filas:
+        if str(next(iter(fila.hijos or ()), {}).get("basado_en")) == str(canonico_id):
+            return fila.id
+    return None
+
+
+async def _copiar_filas(
+    conexion: Any, tabla: Any, filas: list[Any], **remapeos: dict[Any, Any]
+) -> dict[Any, Any]:
+    """Inserta copias de `filas` con id nuevo; `remapeos` traduce sus FKs.
+
+    Devuelve {id viejo: id nuevo} para que la tabla hija remapee las suyas.
+    """
+    nuevos: dict[Any, Any] = {}
+    for fila in filas:
+        valores = dict(fila._mapping)
+        nuevos[valores["id"]] = valores["id"] = uuid.uuid4()
+        for columna, mapa in remapeos.items():
+            if valores.get(columna) is not None:
+                valores[columna] = mapa[valores[columna]]
+        await conexion.execute(insert(tabla).values(**valores))
+    return nuevos
+
+
+async def abrir_borrador(motor: Any, canonico_id: uuid.UUID) -> dict[str, Any]:
+    """Una copia editable de los kits canonicos vigentes de un grado.
+
+    Los kits publicados no se editan en sitio: el acudiente que ya empezo
+    apunta a ese trabajo (`hijos[0].canonico_trabajo_id`) y debe seguir viendo
+    lo que pago. Se copia el trabajo entero —items, candidatos, resoluciones,
+    kits y lineas, con ids nuevos— a un `canonico_lista` en `espera_revision`
+    que la consola de siempre corrige, y `fijar_como_canonico` lo publica como
+    la version nueva. El historial de transiciones no se copia: es del original.
+
+    Idempotente: si el canonico ya tiene un borrador abierto, devuelve ese.
+    """
+    async with motor.engine.begin() as conexion:
+        fila = (await conexion.execute(select(TRABAJO).where(TRABAJO.c.id == canonico_id))).one_or_none()
+        if fila is None:
+            raise TrabajoNoExiste(str(canonico_id))
+        # Cualquier canonico vigente, aunque haya salido del trabajo aprobado de
+        # un acudiente: la copia no lleva su usuario ni sus preferencias.
+        if await _canonico_vigente_de(conexion, canonico_id) != canonico_id:
+            raise BorradorDesactualizado()
+        abierto = await _borrador_abierto(conexion, canonico_id)
+        if abierto is not None:
+            return {"trabajo_id": str(abierto), "basado_en": str(canonico_id), "nuevo": False}
+
+        borrador_id = uuid.uuid4()
+        hijos = [dict(h) for h in fila.hijos or ()]
+        hijos[0]["basado_en"] = str(canonico_id)
+        await conexion.execute(
+            insert(TRABAJO).values(
+                id=borrador_id,
+                usuario_id=None,
+                estado=EstadoTrabajo.ESPERA_REVISION.value,
+                origen=ORIGEN_CANONICO,
+                hijos=hijos,
+                estimado_segundos=fila.estimado_segundos,
+                degradaciones=list(fila.degradaciones or ()),
+            )
+        )
+        etapas = list(await conexion.execute(select(ETAPA).where(ETAPA.c.trabajo_id == canonico_id)))
+        await _copiar_filas(conexion, ETAPA, etapas, trabajo_id={canonico_id: borrador_id})
+        items = list(await conexion.execute(select(ITEM).where(ITEM.c.trabajo_id == canonico_id)))
+        mapa_items = await _copiar_filas(conexion, ITEM, items, trabajo_id={canonico_id: borrador_id})
+        de_items = list(mapa_items)
+        candidatos = list(
+            await conexion.execute(select(CANDIDATO).where(CANDIDATO.c.item_crudo_id.in_(de_items)))
+        )
+        mapa_candidatos = await _copiar_filas(conexion, CANDIDATO, candidatos, item_crudo_id=mapa_items)
+        resoluciones = list(
+            await conexion.execute(select(RESOLUCION).where(RESOLUCION.c.item_crudo_id.in_(de_items)))
+        )
+        await _copiar_filas(
+            conexion,
+            RESOLUCION,
+            resoluciones,
+            item_crudo_id=mapa_items,
+            candidato_item_id=mapa_candidatos,
+        )
+        kits = list(await conexion.execute(select(KIT).where(KIT.c.trabajo_id == canonico_id)))
+        mapa_kits = await _copiar_filas(conexion, KIT, kits, trabajo_id={canonico_id: borrador_id})
+        lineas = list(await conexion.execute(select(LINEA).where(LINEA.c.kit_id.in_(list(mapa_kits)))))
+        await _copiar_filas(conexion, LINEA, lineas, kit_id=mapa_kits, item_crudo_id=mapa_items)
+    return {"trabajo_id": str(borrador_id), "basado_en": str(canonico_id), "nuevo": True}
+
+
+async def _recalcular_objetivos(conexion: Any, trabajo_id: uuid.UUID) -> None:
+    """Pone al dia costo, fidelidad y disponibilidad de cada kit del trabajo.
+
+    Misma regla que el kit aplicado de la ruta rapida (`_objetivos_de_lineas`);
+    las demas llaves del armado (p. ej. `resolucion_auto`) se conservan.
+    """
+    for kit in list(await conexion.execute(select(KIT).where(KIT.c.trabajo_id == trabajo_id))):
+        lineas = [
+            _linea_publica(f) for f in await conexion.execute(select(LINEA).where(LINEA.c.kit_id == kit.id))
+        ]
+        total = sum(int(linea["subtotal_linea"] or 0) for linea in lineas)
+        objetivos = {**(kit.objetivos or {}), **_objetivos_de_lineas(lineas, total)}
+        await conexion.execute(
+            update(KIT).where(KIT.c.id == kit.id).values(objetivos=objetivos, total_cop=total)
+        )
+
+
 async def grados_canonicos(motor: Any, *, colegio_id: str | None = None) -> list[dict[str, Any]]:
     """Los (colegio, grado, anio) que ya tienen cache bendita, para el selector.
 
     Es lo que `/empezar` lista en vez de pedir un PDF: un grado que aparece aqui
     se puede aplicar al vuelo (ruta rapida); uno que no, entra al pipeline.
     """
-    consulta = select(
-        KIT_CANONICO.c.colegio_id,
-        KIT_CANONICO.c.grado,
-        KIT_CANONICO.c.anio_lectivo,
-        KIT_CANONICO.c.trabajo_id,
-    ).order_by(KIT_CANONICO.c.colegio_id, KIT_CANONICO.c.grado)
+    consulta = (
+        select(
+            KIT_CANONICO.c.colegio_id,
+            KIT_CANONICO.c.grado,
+            KIT_CANONICO.c.anio_lectivo,
+            KIT_CANONICO.c.trabajo_id,
+            TRABAJO.c.terminado_en,
+        )
+        .select_from(KIT_CANONICO.join(TRABAJO, TRABAJO.c.id == KIT_CANONICO.c.trabajo_id))
+        .order_by(KIT_CANONICO.c.colegio_id, KIT_CANONICO.c.grado)
+    )
     if colegio_id:
         consulta = consulta.where(KIT_CANONICO.c.colegio_id == colegio_id)
     async with motor.engine.begin() as conexion:
-        filas = await conexion.execute(consulta)
+        filas = list(await conexion.execute(consulta))
+        # Solo el admin de un colegio pregunta por su borrador; el selector de
+        # /empezar (sin colegio) no paga esa consulta.
+        borradores = (
+            {f.trabajo_id: await _borrador_abierto(conexion, f.trabajo_id) for f in filas}
+            if colegio_id
+            else {}
+        )
     return [
         {
             "colegio_id": f.colegio_id,
             "grado": f.grado,
             "anio_lectivo": int(f.anio_lectivo),
             "trabajo_id": str(f.trabajo_id),
+            "publicado_en": f.terminado_en.isoformat() if f.terminado_en else None,
+            "borrador_trabajo_id": (str(borradores[f.trabajo_id]) if borradores.get(f.trabajo_id) else None),
         }
         for f in filas
     ]
@@ -1740,6 +2559,178 @@ async def _anclas_de_personaje(catalogo: ClienteCatalogo, personaje: str | None)
     return swaps
 
 
+def _objetivos_de_lineas(lineas: list[dict[str, Any]], total: int) -> dict[str, float | int]:
+    """Los objetivos de display de un kit aplicado, desde sus lineas publicas.
+
+    El kit de la ruta rapida no tiene fila propia en `kit` (es un puntero al
+    canonico, con el personaje aplicado), asi que sus objetivos se recalculan
+    con la misma regla que `optimizador._objetivos`: solo lo comprable, la
+    fidelidad como nivel de marca promedio en [0, 1] y la disponibilidad como
+    fraccion de lineas con precio. Sin esto iban vacios y la web pintaba
+    "NaN% con precio confirmado".
+    """
+    comprables = [linea for linea in lineas if not linea["informativa"]]
+    if not comprables:
+        return {"costo": total, "fidelidad": 0.0, "disponibilidad": 0.0}
+    tope_nivel = max(1, len(ORDEN_NIVEL) - 1)
+    suma_fidelidad = 0.0
+    con_precio = 0
+    for linea in comprables:
+        producto = linea.get("producto_elegido") or {}
+        nivel = producto.get("nivel")
+        if nivel is not None:
+            rango = ORDEN_NIVEL.index(nivel) if nivel in ORDEN_NIVEL else len(ORDEN_NIVEL)
+            suma_fidelidad += rango / tope_nivel
+        if producto.get("precio") is not None:
+            con_precio += 1
+    return {
+        "costo": total,
+        "fidelidad": round(suma_fidelidad / len(comprables), 3),
+        "disponibilidad": round(con_precio / len(comprables), 3),
+    }
+
+
+def _alternativa_de(producto: dict[str, Any]) -> dict[str, Any]:
+    """Un producto elegido, con la forma de una alternativa guardada en la linea."""
+    return {
+        "sku": producto.get("sku"),
+        "nombre": producto.get("nombre"),
+        "nivel": producto.get("nivel"),
+        "precio_cop": producto.get("precio"),
+        "imagen_url": producto.get("imagen_url"),
+    }
+
+
+def _aplicar_cambios(
+    lineas: list[dict[str, Any]], cambios_del_kit: dict[str, Any]
+) -> tuple[list[dict[str, Any]], int]:
+    """Las lineas de un kit con los productos que el acudiente eligio, y su total.
+
+    Cada cambio reemplaza el producto de su linea con la misma aritmetica del
+    armado (techo(pedida/empaque)) y deja el producto sugerido como una
+    alternativa mas, para que siempre se pueda volver a el. La linea queda
+    marcada (`cambiado_por_acudiente`, `sku_sugerido`) para que la pantalla lo
+    diga. El total se vuelve a sumar desde las lineas, que es como lo suma el
+    armado (`_recalcular_total_kit`).
+    """
+    salida: list[dict[str, Any]] = []
+    for linea in lineas:
+        cambio = cambios_del_kit.get(str(linea.get("item_id")))
+        sugerido = linea.get("producto_elegido")
+        if cambio and sugerido and not linea["informativa"]:
+            linea = dict(linea)
+            empaque = int(cambio.get("unidades_por_empaque") or 1)
+            precio = cambio.get("precio")
+            unidades = unidades_a_comprar(int(linea.get("cantidad_pedida") or 0), empaque)
+            linea["producto_elegido"] = {
+                "sku": cambio.get("sku"),
+                "nombre": cambio.get("nombre"),
+                "marca": cambio.get("marca"),
+                "nivel": cambio.get("nivel"),
+                "personaje": cambio.get("personaje"),
+                "imagen_url": cambio.get("imagen_url"),
+                "precio": precio,
+            }
+            linea["unidades_por_empaque"] = empaque
+            linea["unidades_a_comprar"] = unidades
+            linea["subtotal_linea"] = None if precio is None else precio * unidades
+            linea["alternativas"] = [_alternativa_de(sugerido)] + [
+                a for a in (linea.get("alternativas") or []) if a.get("sku") != cambio.get("sku")
+            ]
+            linea["cambiado_por_acudiente"] = True
+            linea["sku_sugerido"] = sugerido.get("sku")
+        salida.append(linea)
+    total = sum(int(linea.get("subtotal_linea") or 0) for linea in salida if not linea["informativa"])
+    return salida, total
+
+
+async def cambiar_producto_del_acudiente(
+    motor: Any,
+    trabajo_id: uuid.UUID,
+    perfil: str,
+    item_id: uuid.UUID,
+    sku: str,
+    *,
+    usuario_id: uuid.UUID | None,
+    catalogo: ClienteCatalogo,
+) -> dict[str, Any]:
+    """El acudiente cambia el producto de una linea por una de sus alternativas.
+
+    Solo se acepta un producto que ya estaba en la linea (el sugerido o una de
+    sus alternativas): el papa elige entre lo que una persona reviso, no
+    cualquier sku. El cambio se guarda en `cambios` de SU trabajo y `ver` lo
+    aplica al leer; volver al sugerido borra el cambio. Si el trabajo tiene
+    dueno, solo el puede cambiarlo.
+    """
+    async with motor.engine.begin() as conexion:
+        cabeza = (
+            await conexion.execute(
+                select(TRABAJO.c.estado, TRABAJO.c.usuario_id, TRABAJO.c.cambios).where(
+                    TRABAJO.c.id == trabajo_id
+                )
+            )
+        ).one_or_none()
+    if cabeza is None:
+        raise TrabajoNoExiste(str(trabajo_id))
+    if cabeza.usuario_id is not None and cabeza.usuario_id != usuario_id:
+        raise CambioNoPermitido(
+            "solicitud_ajena", "Inicia sesión con la cuenta que hizo esta solicitud para cambiarla.", 403
+        )
+    if cabeza.estado != EstadoTrabajo.PUBLICADO.value:
+        raise CambioNoPermitido("kit_no_publicado", "Tu kit todavía no está listo para cambios.")
+
+    vista = await ver(motor, trabajo_id, catalogo=catalogo)
+    kit = next((k for k in vista["kits"] if k["perfil"] == perfil), None)
+    linea = next((ln for ln in (kit or {}).get("lineas", []) if ln["item_id"] == str(item_id)), None)
+    if kit is None or linea is None:
+        raise TrabajoNoExiste(f"{trabajo_id}/{perfil}/{item_id}")
+    actual = linea.get("producto_elegido")
+    if linea["informativa"] or not actual:
+        raise CambioNoPermitido("linea_sin_producto", "Este renglón no tiene un producto para cambiar.")
+    # Un producto que se compra junto con el de un hermano no se cambia por
+    # separado: la consolidacion lo comparte entre los dos.
+    if any(c.get("sku") == actual.get("sku") for c in kit.get("consolidaciones") or []):
+        raise CambioNoPermitido(
+            "linea_consolidada",
+            "Este producto se compra junto con el de tu otro hijo y no se cambia por separado.",
+        )
+    permitidos = {actual.get("sku")} | {a.get("sku") for a in linea.get("alternativas") or []}
+    if sku not in permitidos:
+        raise CambioNoPermitido(
+            "producto_no_permitido", "Ese producto no es una opción para este renglón.", 422
+        )
+    if sku == actual.get("sku"):
+        return {"trabajo_id": str(trabajo_id), "perfil": perfil, "item_id": str(item_id), "sku": sku}
+
+    cambios = {p: dict(c) for p, c in dict(cabeza.cambios or {}).items()}
+    del_kit = cambios.setdefault(perfil, {})
+    sugerido = linea.get("sku_sugerido") or actual.get("sku")
+    if sku == sugerido:
+        del_kit.pop(str(item_id), None)
+    else:
+        producto = await catalogo.producto(sku)
+        precio = producto.get("precio_desde")
+        if precio is None:
+            raise CambioNoPermitido("producto_sin_precio", "Ese producto no tiene precio hoy; elige otro.")
+        del_kit[str(item_id)] = {
+            "sku": sku,
+            "nombre": producto.get("nombre"),
+            "marca": producto.get("marca"),
+            "nivel": producto.get("nivel"),
+            "personaje": producto.get("personaje"),
+            "imagen_url": producto.get("imagen_url"),
+            "unidades_por_empaque": int(producto.get("unidades_por_empaque") or 1),
+            "precio": int(precio),
+        }
+    cambios = {p: c for p, c in cambios.items() if c}
+
+    async with motor.engine.begin() as conexion:
+        await conexion.execute(
+            update(TRABAJO).where(TRABAJO.c.id == trabajo_id).values(cambios=cambios, actualizado_en=ahora())
+        )
+    return {"trabajo_id": str(trabajo_id), "perfil": perfil, "item_id": str(item_id), "sku": sku}
+
+
 async def _lineas_aplicadas(
     conexion: Any, canonico_trabajo_id: uuid.UUID, perfil: str, swaps: dict[str, dict[str, Any]]
 ) -> tuple[list[dict[str, Any]], int]:
@@ -1844,7 +2835,16 @@ async def aplicar_canonico(
         if canonico is None:
             raise TrabajoNoExiste(f"cache {colegio_id}/{grado}/{anio_lectivo}")
 
-        lineas_frias, total = await _lineas_aplicadas(conexion, canonico.trabajo_id, perfil, swaps)
+        # El Fan es el Ahorrador canonico con el personaje en las anclas: los
+        # canonicos ya no traen Fan (ADR 0030). Los demas perfiles no llevan
+        # personaje. `A tu Medida` no sale de la cache: depende de cada acudiente.
+        if perfil == PerfilKit.FAN.value:
+            base, swaps_kit = PerfilKit.AHORRADOR.value, swaps
+        elif perfil in (PerfilKit.AHORRADOR.value, PerfilKit.PREMIUM.value):
+            base, swaps_kit = perfil, {}
+        else:
+            raise TrabajoNoExiste(f"cache {colegio_id}/{grado}/{anio_lectivo}/{perfil}")
+        lineas_frias, total = await _lineas_aplicadas(conexion, canonico.trabajo_id, base, swaps_kit)
 
         # El trabajo del acudiente: un registro durable, sin etapas de pipeline.
         # `hijos` lleva la seleccion entera porque es la ENTRADA de este trabajo

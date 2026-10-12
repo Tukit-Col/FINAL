@@ -196,6 +196,15 @@ class TestLaCabezaDeLaFrase:
         assert cabeza("2 paquetes de plastilina") == "plastilina"
         assert cabeza("1 cuaderno cosido de 100 hojas") == "cuaderno"
 
+    def test_el_metro_es_una_medida_y_no_lo_pedido(self):
+        """Con "metro" de cabeza, Lentejuelas ("metro lentejuelas") se llevaba
+        el cable estanado de una lista de robotica."""
+        assert cabeza("metro de cable estañado calibre 22") == "cable"
+        assert cabeza("2 metros de lana") == "lana"
+
+    def test_una_fraccion_no_nombra_la_cosa(self):
+        assert cabeza("paquete de (1/8 cartulina) color amarillo") == "cartulina"
+
 
 class TestClasificarContraNuestroCatalogo:
     def test_reconoce_lo_que_ya_sabemos_que_es(self):
@@ -231,6 +240,30 @@ class TestClasificarContraNuestroCatalogo:
         escribe en plural y el catalogo nombra en singular."""
         _, nombre, _ = clasificar("2 cuadernos cosidos", CATALOGO)
         assert nombre == "cuaderno"
+
+    def test_un_rango_de_durezas_es_el_kit_de_dibujo(self):
+        """`Lapiz 2H-6B` pide la serie, no un lapiz 2H: caia en el lapiz suelto,
+        exigia la dureza 2H y se quedaba sin opcion."""
+        conceptos = [
+            {"id": uuid.uuid4(), "nombre": "lapiz", "sinonimos": ["lapiz negro"]},
+            {"id": uuid.uuid4(), "nombre": "kit de lapices de dibujo", "sinonimos": ["lapiz serie durezas"]},
+        ]
+
+        for renglon in ("Lápiz 2H-6B", "Lápices 2B a 6B", "lapiz 4H - 8B", "Lápices HB, 2H, 2B, 6B"):
+            assert clasificar(renglon, conceptos)[1] == "kit de lapices de dibujo", renglon
+        assert clasificar("Lápiz negro HB", conceptos)[1] == "lapiz"
+
+    def test_un_par_de_escuadras_es_el_juego(self):
+        """Los numeros no cuentan en el parecido: `escuadras 30° y 45°` empataba
+        con `escuadras` y ganaba la escuadra suelta."""
+        conceptos = [
+            {"id": uuid.uuid4(), "nombre": "escuadra", "sinonimos": ["escuadras", "escuadra grado"]},
+            {"id": uuid.uuid4(), "nombre": "juego de geometria", "sinonimos": ["escuadras juego"]},
+        ]
+
+        for renglon in ("escuadras 30° y 45°", "Escuadras de 45 y 60 grados", "2 escuadras 45° - 60°"):
+            assert clasificar(renglon, conceptos)[1] == "juego de geometria", renglon
+        assert clasificar("escuadra de 45 grados", conceptos)[1] == "escuadra"
 
 
 class TestLaConsultaQueSeLeMandaALaTienda:

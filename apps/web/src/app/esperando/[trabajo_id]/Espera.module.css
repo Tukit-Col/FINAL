@@ -119,6 +119,21 @@
   height: 15px;
 }
 
+/* El visto de "Recibimos tu solicitud": la marca de etapa, en grande y verde. */
+.marcaGrande {
+  width: 52px;
+  height: 52px;
+  margin-top: var(--espacio-4);
+  background: var(--color-success);
+  color: var(--color-white);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.marcaGrande svg {
+  width: 26px;
+  height: 26px;
+}
+
 /* El indicador gira solo mientras algo de verdad esta corriendo. Una
  * animacion perpetua en una pantalla de espera deja de informar y pasa a ser
  * ruido. */

@@ -212,10 +212,11 @@ def _fecha_csv(valor: Any) -> str:
 def _atributos_csv(valor: Any) -> str:
     """dict/JSON de atributos a su forma de cadena.
 
-    `cargador._productos()` FUERZA `atributos` a `{}` al leer (los atributos
-    reales los siembra `enriquecer` en la base, no el CSV). Asi que este valor no
-    afecta la carga; se conserva por fidelidad para que el CSV volcado se parezca
-    al de la base y el diff cuente la verdad de lo que hay.
+    Es lo que `cargador._productos()` le lleva a otra base: lo que `enriquecer`
+    leyo del nombre MAS lo que una persona corrigio a mano en el editor (la
+    tabla periodica que dice "26 x 20 cm" y la lista pide "grande"). Antes el
+    cargador lo ignoraba y esas correcciones no salian de la base de quien las
+    hizo.
     """
     if not valor:
         return "{}"
@@ -321,10 +322,11 @@ def _fila_procedencia(
 # Columnas de las que el CSV es dueno y la base NO debe pisar al espejar. Son
 # las que herramientas que corren SOBRE el CSV producen, o que la base rellena
 # distinto a proposito:
-#   - `nivel`: `nivelar` lo reacomoda sobre el CSV por precio, no sobre la base.
+#   - `nivel` YA NO: ver la nota debajo de la constante.
 #   - `quality_score`: `nivelar` lo deriva del nivel para los SKU semilla.
-#   - `atributos`: el cargador los fuerza a `{}` al leer; el CSV los guarda por
-#     fidelidad y no deben perderse en el viaje.
+# `atributos` YA NO esta aqui. Era del CSV cuando el cargador los ignoraba; ahora
+# el cargador los lee, y lo que vale es lo de la base: lo que `enriquecer` saco
+# del nombre y lo que se corrigio a mano para que el filtro de atributos cumpla.
 # NO estan aqui `embedding_model`/`texto_embedding`: son la huella que `enriquecer`
 # computa CONTRA la base (el modelo usado y el texto embebido). La base manda sobre
 # ellos, asi el espejo REFLEJA que el corpus esta embebido en vez de re-vaciarlos.
@@ -334,7 +336,11 @@ def _fila_procedencia(
 # personaje, categoria, activo, curado_*) es autoridad de la base: es lo que el
 # administrador edita en el dashboard -reasignar concepto, corregir marca o
 # nombre- y por tanto es lo que el espejo debe traer de vuelta.
-COLUMNAS_PROPIAS_DEL_CSV = frozenset({"nivel", "quality_score", "atributos"})
+# `nivel` tampoco: el que se cambia en el editor del back-office vive en la base,
+# y conservar el del CSV lo perdia al exportar (y lo revertia en la propia base
+# en la siguiente carga). El orden por precio lo sigue imponiendo `nivelar`, que
+# `exportar` corre DESPUES de este volcado y antes de recargar.
+COLUMNAS_PROPIAS_DEL_CSV = frozenset({"quality_score"})
 
 
 def _fusionar(
@@ -405,6 +411,13 @@ def _fusionar_procedencia(
     """
     conservadas = [fila for fila in existentes if fila["producto_id"] in productos_vivos]
     eliminadas = len(existentes) - len(conservadas)
+    # El SKU no es procedencia, es el nombre vigente del producto: si se re-acuno
+    # al reclasificarlo, la fila conservada lo toma de la base. Lo demas (fichero,
+    # hash, indice) es la huella de origen y no se toca.
+    for fila in conservadas:
+        nueva = nuevas_por_producto.get(fila["producto_id"])
+        if nueva is not None:
+            fila["sku_interno"] = nueva["sku_interno"]
     vistos = {fila["producto_id"] for fila in conservadas}
     agregadas = [fila for pid, fila in nuevas_por_producto.items() if pid not in vistos]
     return conservadas + agregadas, len(agregadas), eliminadas

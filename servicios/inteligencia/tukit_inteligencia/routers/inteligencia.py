@@ -19,7 +19,7 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, Query, Request
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 from tukit_comun import derivar
 from tukit_comun.http import ErrorDominio
 
@@ -147,6 +147,9 @@ class Preferencias(BaseModel):
     disposicion_sobreprecio: float | None = Field(default=None, ge=0, le=1)
     personaje_por_hijo: dict[str, list[str]] | None = None
     dolor_declarado: str | None = Field(default=None, max_length=64)
+    # Lo que eligio en el paso 3 de /empezar. `equilibrio` pide el kit `A tu
+    # Medida` (ADR 0030); los otros dos solo deciden cual se marca.
+    prioridad: str | None = Field(default=None, pattern="^(precio|equilibrio|calidad)$")
 
 
 class PeticionTrabajo(BaseModel):
@@ -157,7 +160,9 @@ class PeticionTrabajo(BaseModel):
 
 class DecisionLinea(BaseModel):
     sku: str | None = Field(default=None, max_length=64)
-    motivo: str | None = Field(default=None, max_length=512)
+    # El contrato TS (`ValidarLinea`) lo llama `nota`; "sin coincidencia" manda
+    # `motivo`. Se aceptan los dos para que la nota de validar no se pierda.
+    motivo: str | None = Field(default=None, max_length=512, validation_alias=AliasChoices("motivo", "nota"))
     actor: uuid.UUID | None = None
 
 
@@ -167,6 +172,11 @@ class ProductoEnLinea(BaseModel):
 
 class DecisionRevision(BaseModel):
     decision: str = Field(pattern="^(aprobar|devolver)$")
+    nota: str | None = Field(default=None, max_length=1024)
+    actor: uuid.UUID | None = None
+
+
+class FijarCanonico(BaseModel):
     nota: str | None = Field(default=None, max_length=1024)
     actor: uuid.UUID | None = None
 
@@ -268,6 +278,93 @@ async def ver_trabajo(trabajo_id: uuid.UUID) -> dict[str, Any]:
     except trabajos.TrabajoNoExiste as error:
         raise ErrorDominio(
             "trabajo_no_existe", "No hay ningun trabajo con ese identificador.", estado=404
+        ) from error
+
+
+@router.put(
+    "/v1/trabajos/{trabajo_id}/kits/{perfil}/lineas/{item_id}/producto",
+    tags=["trabajos"],
+    summary="El acudiente cambia un producto de su kit por una de sus alternativas",
+)
+async def cambiar_producto_del_acudiente(
+    trabajo_id: uuid.UUID,
+    perfil: str,
+    item_id: uuid.UUID,
+    cuerpo: ProductoEnLinea,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    """Solo entre lo que la linea ya ofrece (el sugerido o sus alternativas).
+
+    La sesion es opcional porque la ruta rapida admite trabajos sin cuenta; si
+    el trabajo tiene dueno, `trabajos` exige que la sesion sea la suya. El
+    cambio se guarda en el trabajo del acudiente, nunca en el kit canonico.
+    """
+    usuario_id = await _usuario_de_sesion(authorization) if _token_bearer(authorization) else None
+    try:
+        return await trabajos.cambiar_producto_del_acudiente(
+            api.app.state.motor,
+            trabajo_id,
+            perfil,
+            item_id,
+            cuerpo.sku,
+            usuario_id=usuario_id,
+            catalogo=api._catalogo(),
+        )
+    except trabajos.TrabajoNoExiste as error:
+        raise ErrorDominio("linea_no_existe", "Ese kit no tiene ese renglón.", estado=404) from error
+    except trabajos.CambioNoPermitido as error:
+        raise ErrorDominio(error.codigo, error.mensaje, estado=error.estado) from error
+
+
+@router.post(
+    "/v1/trabajos/{trabajo_id}/cancelar",
+    tags=["trabajos"],
+    summary="El acudiente cancela una solicitud suya (si no compro el kit)",
+)
+async def cancelar_solicitud(
+    trabajo_id: uuid.UUID, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    """Exige sesion: solo el dueno cancela, y el `usuario_id` sale del token."""
+    usuario_id = await _usuario_de_sesion(authorization)
+    try:
+        return await trabajos.cancelar_solicitud(
+            api.app.state.motor,
+            trabajo_id,
+            usuario_id=usuario_id,
+            token=_token_bearer(authorization) or "",
+            comercio=api._comercio(),
+            catalogo=api._catalogo(),
+        )
+    except trabajos.TrabajoNoExiste as error:
+        raise ErrorDominio(
+            "trabajo_no_existe", "No hay ninguna solicitud con ese identificador.", estado=404
+        ) from error
+    except trabajos.SolicitudNoCancelable as error:
+        raise ErrorDominio(error.codigo, error.mensaje, estado=error.estado) from error
+    except RemotoCaido as error:
+        raise ErrorDominio(
+            "servicio_no_disponible",
+            "No pudimos confirmar si este kit tiene un pedido; intenta de nuevo en un momento.",
+            estado=503,
+        ) from error
+
+
+@router.post(
+    "/v1/mis-solicitudes/listas/{tarea_id}/cancelar",
+    tags=["trabajos"],
+    summary="El acudiente cancela una lista que subio y que aun no tiene kit",
+)
+async def cancelar_lista_subida(
+    tarea_id: uuid.UUID, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    usuario_id = await _usuario_de_sesion(authorization)
+    try:
+        return await trabajos.cancelar_lista_subida(usuario_id, str(tarea_id), catalogo=api._catalogo())
+    except RemotoCaido as error:
+        raise ErrorDominio(
+            "servicio_no_disponible",
+            "No pudimos cancelar la lista; intenta de nuevo en un momento.",
+            estado=503,
         ) from error
 
 
@@ -835,15 +932,17 @@ async def preview_onboarding(version_id: str, peticion: PeticionPreview) -> dict
                 "colegio_id": peticion.colegio_id,
                 "grado": peticion.grado,
                 "anio_lectivo": peticion.anio_lectivo,
-                # La version de la que salio el preview: es a donde el revisor
-                # tiene que volver para aprobar la lista de verdad (el preview no
-                # se publica). Se guarda aqui para que la consola pueda enlazarla.
+                # La version de la que salio el preview: si el admin lo fija como
+                # canonico, el poller de `lista_aprobada` sabe que esa version ya
+                # tiene sus kits y no vuelve a optimizar.
                 "version_id": version_id,
             }
         ],
         contacto=None,
         preferencias={},
         origen="preview_onboarding",
+        # Se procesa aqui mismo: que el trabajador no lo reclame a la vez.
+        en_proceso=True,
     )
     trabajo_id = uuid.UUID(respuesta["trabajo_id"])
     estado = await trabajos.procesar(api.app.state.motor, trabajo_id, catalogo=catalogo)
@@ -935,6 +1034,12 @@ async def eliminar_trabajo(trabajo_id: uuid.UUID) -> None:
     summary="AD-04: una persona da por bueno el emparejamiento",
 )
 async def validar_linea(trabajo_id: uuid.UUID, item_id: uuid.UUID, decision: DecisionLinea) -> dict[str, Any]:
+    """Sin `sku` confirma el producto que la linea tiene en el kit.
+
+    El catalogo va inyectado porque el producto validado puede no ser
+    candidato del item (personaje del Fan, producto fijado por kit) y hay que
+    registrarlo; si no hay producto por ningun lado, es un 422 con `campo`.
+    """
     try:
         return await trabajos.decidir_linea(
             api.app.state.motor,
@@ -944,9 +1049,25 @@ async def validar_linea(trabajo_id: uuid.UUID, item_id: uuid.UUID, decision: Dec
             sku=decision.sku,
             actor=decision.actor,
             motivo=decision.motivo,
+            catalogo=api._catalogo(),
         )
     except trabajos.TrabajoNoExiste as error:
         raise ErrorDominio("linea_no_existe", "Ese trabajo no tiene esa linea.", estado=404) from error
+    except trabajos.SinProductoQueValidar as error:
+        mensaje = (
+            f"El producto {error.sku} no esta en el catalogo: elige otro o marca la linea sin coincidencia."
+            if error.sku
+            else "Esta linea no tiene producto que validar: elige una alternativa, da de alta un producto "
+            "o marcala sin coincidencia."
+        )
+        raise ErrorDominio("sin_producto_que_validar", mensaje, estado=422, campo="sku") from error
+    except trabajos.KitsPublicadosNoEditables as error:
+        raise ErrorDominio(
+            "kits_publicados",
+            "Estos kits ya estan publicados y no se editan en sitio. Usa «Editar kits» en la "
+            "pagina del colegio: abre una version nueva y la vigente no cambia hasta publicarla.",
+            estado=409,
+        ) from error
 
 
 @router.put(
@@ -971,6 +1092,13 @@ async def fijar_producto(
     except trabajos.TrabajoNoExiste as error:
         raise ErrorDominio(
             "linea_no_existe", "Ese trabajo no tiene esa linea en ese kit.", estado=404
+        ) from error
+    except trabajos.KitsPublicadosNoEditables as error:
+        raise ErrorDominio(
+            "kits_publicados",
+            "Estos kits ya estan publicados y no se editan en sitio. Usa «Editar kits» en la "
+            "pagina del colegio: abre una version nueva y la vigente no cambia hasta publicarla.",
+            estado=409,
         ) from error
 
 
@@ -1050,6 +1178,13 @@ async def sin_coincidencia(
         )
     except trabajos.TrabajoNoExiste as error:
         raise ErrorDominio("linea_no_existe", "Ese trabajo no tiene esa linea.", estado=404) from error
+    except trabajos.KitsPublicadosNoEditables as error:
+        raise ErrorDominio(
+            "kits_publicados",
+            "Estos kits ya estan publicados y no se editan en sitio. Usa «Editar kits» en la "
+            "pagina del colegio: abre una version nueva y la vigente no cambia hasta publicarla.",
+            estado=409,
+        ) from error
 
 
 @router.post(
@@ -1096,6 +1231,76 @@ async def revisar(trabajo_id: uuid.UUID, decision: DecisionRevision) -> dict[str
     if decision.decision == "devolver":
         await trabajos.lanzar(api.app.state.motor, trabajo_id)
     return resultado
+
+
+@router.post(
+    "/v1/admin/trabajos/{trabajo_id}/canonico",
+    tags=["admin"],
+    summary="Fija un preview como los kits canonicos de su grado (sin avisar a nadie)",
+)
+async def fijar_canonico(trabajo_id: uuid.UUID, cuerpo: FijarCanonico) -> dict[str, Any]:
+    """La contraparte de "publicar" para un trabajo sin acudiente.
+
+    El admin previsualizo los kits de una lista, quiza los ajusto, y aprueba:
+    esos kits pasan a ser la cache canonica del (colegio, grado, anio) y el
+    proximo acudiente sin tope de gasto los recibe por la ruta rapida, sin
+    volver a correr el optimizador. Aprobar la LISTA es otra llamada (Catalogo);
+    la consola del admin hace las dos.
+    """
+    try:
+        return await trabajos.fijar_como_canonico(
+            api.app.state.motor, trabajo_id, nota=cuerpo.nota, actor=cuerpo.actor
+        )
+    except trabajos.TrabajoNoExiste as error:
+        raise ErrorDominio(
+            "trabajo_no_existe", "No hay ningun trabajo con ese identificador.", estado=404
+        ) from error
+    except trabajos.NoCanonizable as error:
+        raise ErrorDominio(
+            "trabajo_con_acudiente",
+            "Solo un preview se guarda como kit canonico; el trabajo de un acudiente se publica.",
+            estado=409,
+        ) from error
+    except trabajos.TransicionIlegal as error:
+        raise ErrorDominio(
+            "estado_incompatible",
+            f"Un trabajo en {error.actual} no se puede guardar como canonico.",
+            estado=409,
+        ) from error
+    except trabajos.BorradorDesactualizado as error:
+        raise ErrorDominio(
+            "borrador_desactualizado",
+            "Mientras editabas, los kits de este grado se volvieron a publicar. "
+            "Descarta este borrador y abre uno nuevo desde la version vigente.",
+            estado=409,
+        ) from error
+
+
+@router.post(
+    "/v1/admin/trabajos/{trabajo_id}/borrador",
+    tags=["admin"],
+    summary="Abre una copia editable de los kits canonicos vigentes (nueva version)",
+)
+async def abrir_borrador(trabajo_id: uuid.UUID) -> dict[str, Any]:
+    """Editar kits ya publicados es preparar su version siguiente.
+
+    Copia el canonico a un trabajo en revision que la consola corrige; al
+    guardarlo como canonico (`POST .../canonico`) pasa a ser el vigente y el
+    anterior queda para los acudientes que ya lo tenian. Si ya hay un borrador
+    abierto de ese canonico, devuelve ese.
+    """
+    try:
+        return await trabajos.abrir_borrador(api.app.state.motor, trabajo_id)
+    except trabajos.TrabajoNoExiste as error:
+        raise ErrorDominio(
+            "trabajo_no_existe", "No hay ningun trabajo con ese identificador.", estado=404
+        ) from error
+    except trabajos.BorradorDesactualizado as error:
+        raise ErrorDominio(
+            "canonico_no_vigente",
+            "Estos kits ya no son los vigentes de su grado; edita la version actual.",
+            estado=409,
+        ) from error
 
 
 @router.get(
