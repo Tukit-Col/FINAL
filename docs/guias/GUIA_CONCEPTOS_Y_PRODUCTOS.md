@@ -193,8 +193,9 @@ Cada concepto declara qué atributos **filtran** (discriminantes) y cuáles solo
 (descriptivos). Una clave no puede estar en las dos listas.
 
 - **Discriminante:** si el renglón lo menciona (`block oficio` → `tamano=oficio`), solo entran los
-  productos que lo declaren **igual**; si ninguno lo declara, el emparejador **se abstiene** y la
-  línea queda como hueco. Úsese solo para lo que, si no coincide, el colegio reclamaría.
+  productos que lo declaren y **cumplan** (igual, o con la tolerancia de §5.5); si ninguno cumple, el
+  emparejador **se abstiene** y la línea queda como hueco. Úsese solo para lo que, si no coincide,
+  el colegio reclamaría.
 - **Descriptivo:** se muestra y se edita, pero no filtra.
 
 Reglas:
@@ -210,7 +211,7 @@ Reglas:
 | Campo | Qué hace | Cómo se fija |
 |---|---|---|
 | `admite_personaje` | El concepto puede tener productos con personaje (cuaderno, cartuchera, maleta…). Hoy 19 conceptos | formulario |
-| `uno_por_estudiante` | Es una herramienta que dura todo el año: si varias materias la piden, se compra una vez por hijo (la cantidad mayor, no la suma). Hoy: Colores, Tajalápiz, Regla, Cartuchera, Tijeras, Compás, Transportador, Tabla periódica, Calculadora, Diccionario, Juego de geometría, Biblia | **solo en `conceptos.csv`** (`true`/`false`) |
+| `uno_por_estudiante` | Es una herramienta que dura todo el año: si varias materias la piden, se compra una vez por hijo (la cantidad mayor, no la suma). Antes de elegir, todos los renglones del concepto se quedan con los productos que sirven para todos (`compás` y `compás de precisión` compran un solo compás de precisión). Hoy: Colores, Tajalápiz, Regla, Cartuchera, Tijeras, Compás, Transportador, Tabla periódica, Calculadora, Diccionario, Juego de geometría, Biblia, Bata de laboratorio, Portabasura | **solo en `conceptos.csv`** (`true`/`false`) |
 | `frecuencia_demanda` | Cuántas veces lo piden las listas | lo calcula el sistema; no se edita |
 | `activo` | Un concepto fundido en otro se **desactiva**, no se borra | formulario / CSV |
 
@@ -250,7 +251,7 @@ su historia.
 | `nivel` | `economico`, `confiable` o `premium` (minúsculas, sin tildes). Dentro de cada concepto el precio tiene que ordenar el nivel: económico ≤ confiable ≤ premium. La exportación lo corrige permutando etiquetas (§6), pero conviene ponerlo bien desde el principio |
 | `personaje` | Vacío si no tiene. Si tiene: **minúsculas, sin tildes**, el nombre corto del personaje (`bluey`, `spiderman`, `paw patrol`, `stitch`). Ver §5.4 |
 | `unidad_base` | `unidad`, `hoja`, `pliego`, `metro`, `gramo` o `mililitro`: en qué se cuenta lo que pide la lista |
-| `unidades_por_empaque` | Entero ≥ 1: cuántas unidades base trae lo que se compra. Una caja de 12 lápices es 12; un cuaderno de 100 hojas es **1** (las hojas son atributo, no empaque) |
+| `unidades_por_empaque` | Entero ≥ 1: cuántas unidades base trae lo que se compra. Una caja de 12 lápices es 12; un cuaderno de 100 hojas es **1** (las hojas son atributo, no empaque). Es columna de `productos_canonicos.csv` desde 2026-10-11: antes solo vivía en la base y cada recarga lo dejaba en 1. `enriquecer` lo lee del nombre solo cuando vale 1; un valor mayor se respeta como curado |
 | `imagen_url` | URL de la ficha de la tienda, o vacío |
 | `quality_score` | Entre 0 y 1. Lo propuesto por una máquina entra bajo a propósito |
 | `atributos` | Ver §5 |
@@ -273,8 +274,9 @@ que no hace falta marcarlo a mano, pero sí revisar que el elegido sea razonable
 
 ### 5.1 Reglas generales
 
-El emparejador compara un atributo impuesto con el del producto como **texto en minúsculas**:
-`str(valor).lower()`. De ahí salen todas las reglas:
+El emparejador compara un atributo impuesto con el del producto como **texto en minúsculas**
+(`str(valor).lower()`), salvo los atributos que se miden, que admiten la tolerancia de §5.5. De ahí
+salen todas las reglas:
 
 1. **Un valor por clave, escalar:** texto, número o booleano. Listas y objetos se rechazan.
 2. **Texto en minúsculas y sin tildes:** `pequeno`, `espanol`, `cafe`. Las mayúsculas no rompen la
@@ -306,42 +308,46 @@ mismos.
 | `tinta` | texto | los mismos de `color` (es el color de la tinta, no del cuerpo) | `negro` |
 | `rayado` | texto | `blanco`, `cuadriculado`, `cuadricula grande`, `cuadricula pequena`, `cuadrovia`, `doble linea`, `ferrocarril`, `milimetrado`, `pentagramado`, `rayado`, `triple linea` | `cuadriculado` |
 | `encuadernacion` | texto | `cosido`, `argollado` | `cosido` |
-| `presentacion` | texto | `barra`, `bolsa`, `crema`, `dactilar`, `frasco`, `gel`, `liquido`, `paquete`, `pastilla`, `polvo`, `sobre`, `spray`, `tarro`, `tubo` | `barra` |
-| `material` | texto | `acero`, `acrilico`, `aluminio`, `carton`, `caucho`, `foamy`, `icopor`, `latex`, `madera`, `metal`, `nitrilo`, `plastico`, `silicona`, `tela`, `vidrio` | `plastico` |
+| `presentacion` | texto | `barra`, `bolsa`, `crema`, `dactilar`, `frasco`, `gel`, `liquido`, `paquete`, `pastilla`, `polvo`, `sobre`, `spray`, `tubo`. Un tarro es `frasco`: son lo mismo para el colegio | `barra` |
+| `material` | texto | `acero`, `acrilico`, `aluminio`, `antifluido`, `carton`, `caucho`, `foamy`, `icopor`, `latex`, `madera`, `metal`, `nitrilo`, `plastico`, `silicona`, `tela`, `vidrio` | `plastico` |
 | `forma` | texto | `abanico`, `biselado`, `cuadrado`, `ergonomico`, `espatulado`, `hexagonal`, `lengua de gato`, `plano`, `rectangular`, `redondo`, `triangular` | `redondo` |
 | `punta` | texto | `micropunta`, `punta bala`, `punta biselada`, `punta fina`, `punta gruesa`, `punta pincel`, `punta roma` | `punta roma` |
-| `grosor` | texto | `delgado`, `pequeno`, `mediano`, `grueso`, `extra grueso`; para pinceles, la serie `n` + número (`n5`); o una medida (`2 mm`) | `n6` |
+| `grosor` | texto | `delgado`, `pequeno`, `mediano`, `grueso`, `extra grueso` (`jumbo` se lee `grueso`); para pinceles, la serie `n` + número (`n5`, también escrita `# 5`); o una medida (`2 mm`). En Lápiz y Colores, el producto que no dice ser grueso lleva `delgado` | `n6` |
 | `dureza` | texto | `hb`, `b`, `bb`, `h`, `hh`, `2b`…`9b`, `2h`…`9h` | `hb` |
-| `tipo`, `acabado` | texto | un término del vocabulario de tipos: `acrilico`, `acuarela`, `aislante`, `argollado`, `baloncesto`, `balso`, `basica`, `bond`, `borrable`, `cartulina`, `celuguia`, `cientifica`, `con ruedas`, `cosido`, `cuadriculado`, `de escritorio`, `dibujo`, `doble faz`, `doble linea`, `dulce`, `enmascarar`, `escolar`, `examen`, `ferrocarril`, `fotografico`, `fuelle`, `futbol`, `futbol de salon`, `hexagonal`, `horizontal`, `humeda`, `iris`, `jumbo`, `kraft`, `lavable`, `legajador`, `mariposa`, `miga de pan`, `milimetrado`, `montessori`, `morral`, `nata`, `oleo`, `origami`, `paleta`, `papel`, `permanente`, `plato`, `precision`, `propalcote`, `quirurgico`, `retractil`, `rompecabezas`, `soprano`, `tela`, `tempera`, `transparente`, `traversa`, `triangular`, `universitario`, `vaso`, `vertical`, `vinilo`, `voleibol` | `oleo`, `iris` |
-| `idioma` | texto | `espanol`, `ingles`, `frances`, `aleman`, `latin`; bilingües unidos con `-` | `espanol-ingles` |
+| `tipo` | texto | un término del vocabulario de tipos: `acrilico`, `acuarela`, `aislante`, `argollado`, `baloncesto`, `balso`, `basica`, `blanco`, `bond`, `borrable`, `cartulina`, `celofan`, `celuguia`, `cientifica`, `colorear`, `con ruedas`, `cosido`, `cuadriculado`, `de escritorio`, `dibujo`, `doble faz`, `doble linea`, `dulce`, `enmascarar`, `escolar`, `examen`, `ferrocarril`, `fotografico`, `fuelle`, `futbol`, `futbol de salon`, `gigante`, `hembra-hembra`, `hexagonal`, `horizontal`, `humeda`, `intercambiable`, `iris`, `jumbo`, `kraft`, `lavable`, `legajador`, `lija`, `loza`, `macho-hembra`, `macho-macho`, `mariposa`, `miga de pan`, `milimetrado`, `montessori`, `morral`, `nata`, `oleo`, `origami`, `paleta`, `panuelo`, `papel`, `permanente`, `pincho`, `plato`, `por numeros`, `precision`, `propalcote`, `quirurgico`, `rayado`, `retractil`, `rompecabezas`, `soprano`, `tela`, `tempera`, `transparente`, `traversa`, `triangular`, `universitario`, `vaso`, `vertical`, `vinilo`, `voleibol` | `oleo`, `rayado` |
+| `acabado` | texto | `escarchado`, `figuras`, `fluorescente`, `iris`, `metalizado`. Tabla propia desde 2026-10-11: leído con la de tipos, el acabado de una témpera fluorescente era `tempera` | `fluorescente` |
+| `idioma` | texto | `espanol`, `ingles`, `frances`, `aleman`, `latin`; bilingües unidos con `-` en orden alfabético (`espanol-ingles`, sea cual sea el orden en que se escribieron). El monolingüe pedido a propósito (`Inglés – Inglés`) se escribe doble: `ingles-ingles` | `espanol-ingles` |
 | `edicion` | texto | `completa`, `infantil` (Biblias) | `infantil` |
 | `ano` | texto | años unidos con `-`, o `permanente` (agendas) | `2026-2027` |
 | `gramaje` | texto | número + ` g` o ` kg` | `75 g` |
 | `capacidad`, `volumen` | texto | número + ` ml` o ` l` | `450 ml` |
-| `longitud`, `calibre` | texto | número + ` mm`, ` cm` o ` m` | `30 cm` |
+| `longitud`, `calibre` | texto | número + ` mm`, ` cm`, ` m` o ` in` (pulgadas) | `30 cm`, `8.5 in` |
 | `hojas` | entero | número de hojas (cuando el concepto declara `hojas`, describe y no cuenta empaque) | `100` |
 | `unidades` | entero | unidades del empaque, mayor que 1 | `12` |
 | `colores` | entero | número de colores | `12` |
 | `piezas` | entero | piezas o fichas | `100` |
 | `grados` | entero | ángulo (transportadores) | `360` |
 | `compartimentos`, `orificios` | entero | cantidad | `2` |
-| `materias` | entero o texto | número de materias, o `multiple`. Es el **único** atributo con valor por omisión: un cuaderno que no dice nada es de `1` materia | `1`, `multiple` |
-| `deposito` | booleano | `true` / `false` (tajalápices) | `true` |
-| `monolingue` | booleano | `true` / `false` (diccionarios) | `false` |
+| `materias` | entero o texto | número de materias (también escrito en letras: `tres materias`), o `multiple`. Es el **único** atributo con valor por omisión: un cuaderno que no dice nada es de `1` materia. `multiple` no cumple ni 3 ni 5: hay que poner el número | `1`, `3` |
+| `notas` | entero | placas, notas o tonos (xilófonos) | `8` |
+| `puntos` | entero | puntos o contactos (protoboards) | `830` |
+| `manga` | texto | `corta`, `larga` (`con mangas` es `larga`) | `larga` |
+| `deposito` | booleano | `true` / `false` (tajalápices). `portabasura` se lee como depósito | `true` |
+| `monolingue` | booleano | en desuso desde 2026-10-11: los diccionarios filtran por `idioma` | — |
 
 Valores que el extractor lee pero que **no se le exigen a un producto**: `tipo = escolar`. Casi todo
 en una lista dice «escolar», y exigirlo dejaba sin opciones a 27 maletas.
 
 **Claves solo descriptivas** que hoy usan algunos conceptos y que el extractor no lee: `talla`,
-`manga`, `formato`, `ancho`, `largo`, `angulo`, `vigencia`, `titulo`, `caras`, `version`,
+`formato`, `ancho`, `largo`, `angulo`, `vigencia`, `titulo`, `caras`, `version`,
 `dimensiones`, `contenido`. Se llenan a mano, con las mismas reglas de §5.1, y **no** pueden ser
 discriminantes.
 
 ### 5.3 Valores compuestos
 
 - Medidas en dos dimensiones: `ancho x alto cm`, con espacios alrededor de la `x`: `20 x 20 cm`.
-- Idiomas y años: unidos con `-` sin espacios, en el orden en que aparecen: `espanol-ingles`,
-  `2026-2027`.
+- Idiomas: unidos con `-` sin espacios, en orden alfabético: `espanol-ingles`.
+- Años: unidos con `-` sin espacios, en el orden en que aparecen: `2026-2027`.
 
 ### 5.4 Personajes
 
@@ -354,6 +360,50 @@ nombre corto con que lo pide un acudiente (`spiderman`, `minnie`, `paw patrol`, 
 nombre del producto con una tabla que lo escribe con mayúsculas (`Frozen`, `Mickey Mouse`, `Kiut`).
 Hasta que eso se corrija en el código (ver [pendientes](../PENDIENTES.md)), hay que revisar el
 personaje del producto recién aprobado y pasarlo a minúsculas en el editor.
+
+### 5.5 Cómo se compara cada atributo
+
+Lo que cambia **qué cosa es** se compara exacto: `materias`, `rayado`, `tipo`, `color`, `punta`,
+`edicion`, `encuadernacion`, `forma`. Lo que **se mide** admite lo cercano (`consulta.py`,
+`_valor_cumple`):
+
+| Atributo | Cómo cumple | Ejemplo |
+|---|---|---|
+| `hojas` | al menos lo pedido y a lo sumo el doble | piden 80, sirve 100; no 200 |
+| `unidades`, `colores`, `piezas`, `notas`, `gramaje`, `peso`, `capacidad` | al menos lo pedido | piden caja x12, sirve x15; no x10 |
+| `puntos` | al menos lo pedido y a lo sumo 2,2 veces | piden 400, sirve 840; no 2.200 |
+| `longitud` | entre 0,85 y 1,35 veces lo pedido, en cualquier unidad | piden escuadra de 20 cm, sirve la de 26 |
+| `tamano` en medidas | cada lado con hasta un 25 % de diferencia, sin importar la orientación | piden lienzo de 25 x 25, sirve 20 x 30 |
+| `tamano` | `carta` y `a4` son equivalentes | sketchbook carta: sirve el A4 |
+| `material` | `plastico` y `antifluido` son equivalentes | delantal plástico: sirve el antifluido |
+| `idioma` | `ingles` a secas acepta también `espanol-ingles`; `ingles-ingles` solo el monolingüe | diccionario de inglés: sirve el bilingüe |
+
+**Lo que el producto no declara no cumple.** Es un hueco honesto, no un sustituto: si el producto
+sí sirve, se le agrega el atributo.
+
+**Varios a la vez.** En los conceptos que filtran por `unidades` (Marcador, Colores, Pincel,
+Plastilina), un renglón que dice `caja`, `estuche`, `paquete`, `set`, `kit` o `juego`, o que empieza
+en plural con cantidad 1 (`marcadores`), pide más de uno. Si ningún juego cumple, vale la pieza
+suelta. En un juego de piezas distintas (`kit de pinceles delgados, planos, redondos y abanico`)
+no se le exige al juego lo que describe cada pieza (`grosor`, `forma`).
+
+### 5.6 En la lista: lo que corrige el revisor
+
+En `listas_revisadas.csv`, cada renglón puede llevar:
+
+- **`tipo_item`**, cuando el colegio no pide comprarlo aunque el concepto se venda: `no_comprar`
+  para lo que ya se tiene (`cuaderno del año anterior`, `la misma bata`, `el disponible en casa`),
+  `otro` para lo que el estudiante elige o arma (`lectura libre guiada`, `libro de recortes`),
+  `uniforme` para lo que se hace «según modelo». Vacío, manda el tipo del concepto.
+- **`atributos`**, que mandan sobre lo leído del texto, con las mismas claves y valores de §5.2. El
+  valor `*` **quita** un atributo leído: la bitácora que trae la receta «15 hojas de cartulina…» se
+  cura con `{"tipo": "dibujo", "tamano": "*"}`.
+- **`cantidad` en unidad base**: «3 paquetes de octavos» son `30` octavos y «2 cajas de colores
+  x 12» son `24` colores. El kit compra los paquetes que hagan falta para cubrirla
+  (`techo(cantidad / unidades_por_empaque)`); con la cantidad en paquetes, compraría de menos.
+- **Un renglón por cosa.** «Transportador, compás de precisión» o «Gorro y gafas» se parten: la
+  segunda cosa va en un renglón nuevo al final del grado, con su concepto y un texto que dice de
+  qué renglón salió.
 
 ---
 
@@ -411,6 +461,9 @@ personaje del producto recién aprobado y pasarlo a minúsculas en el editor.
 - [ ] Está en el concepto cuyo reemplazo acepta el colegio.
 - [ ] Nivel coherente con el precio frente a los otros niveles del concepto.
 - [ ] `unidades_por_empaque` cuenta lo que se compra, no las hojas ni los mililitros.
+- [ ] Si el concepto filtra por algo que el nombre no dice (el tamaño de una carpeta, la manga de
+      una bata), el atributo está puesto a mano; sin él, el producto no le sirve a ningún renglón que
+      lo pida.
 - [ ] Atributos: claves en minúsculas, valores del vocabulario, números como números, medidas como
       `N unidad`, booleanos `true`/`false`, nada inventado.
 - [ ] Personaje en minúsculas, sin tildes, o vacío.

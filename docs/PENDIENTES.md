@@ -4,7 +4,7 @@ Lo que quedó abierto, con lo necesario para retomarlo sin reconstruir el contex
 qué falta, por qué importa y cómo se hace. Cuando algo se resuelve, se borra de aquí y queda en el
 commit, el ADR o el documento que lo resolvió.
 
-- **Última revisión:** 2026-10-08.
+- **Última revisión:** 2026-10-11.
 
 ---
 
@@ -143,7 +143,32 @@ la forma en minúsculas mientras tanto.
 
 ---
 
-## 3. Ramas e integración
+## 3. Catálogo y kits (después del afinamiento del Agustiniano)
+
+El [plan del 2026-10-11](diseno/planes/2026-10-11-afinar-kits-agustiniano.md) se ejecutó sin poblar
+el catálogo. Lo que queda:
+
+- **Aplicar los cambios a la base compartida.** Se midieron con `ensayos/kits_offline.py` y se
+  regeneraron de punta a punta en bases aisladas, que coinciden con la medición: 220 huecos, $8.959.420
+  (Ahorrador) y $14.159.658 (Premium). La base de desarrollo (`tukit_*`) no se tocó: falta
+  `.\tukit.ps1 importar` y `python -m tukit_inteligencia.poller --regenerar-canonicos`.
+- **Poblar el catálogo** con la [lista del scraper](informes/surtido-huecos-agustiniano.md), cargando
+  cada producto con sus atributos y su empaque. Los conceptos marcados ⚠ en esa lista (resistencias,
+  LED, interruptores, motores, caimanes, juego didáctico) necesitan su discriminante antes.
+- **Por confirmar con la ficha de la tienda:** el tamaño de la carpeta de fuelle Scribe
+  (`TK-C011-CON`, se declaró `oficio`) y del acetato x5 (`TK-C030-CON`), y cuántas materias trae el
+  cuaderno multimaterias de Spiderman.
+- **Mal elegidos que quedan**, sin producto mejor en el catálogo: el vaso pequeño de plástico (se
+  cobra uno de 700 ml), el juego de mesa de Primero y Quinto (un rompecabezas de 4 piezas), las notas
+  adhesivas del Premium (transparentes x36), la escarcha en libra del Premium para «3 tubos».
+- **El revisor no tiene en la UI el valor `*`** para quitar un atributo leído: hoy se pone en
+  `listas_revisadas.csv`. Agregarlo a la página del grado.
+- **`ensayos/kits_offline.py` desempata distinto que el optimizador** entre dos productos del mismo
+  precio (las tijeras punta roma de $10.490): el total no cambia, pero el SKU sí.
+
+---
+
+## 4. Ramas e integración
 
 - **Nada está publicado.** `docs/documentacion` sale de `feature/atributos-catalogo`, que va
   218 commits por delante de `main`. Integrar primero atributos y después documentación; al revés,
@@ -153,7 +178,7 @@ la forma en minúsculas mientras tanto.
 
 ---
 
-## 4. Menores
+## 5. Menores
 
 - `ensayos/curaduria_huecos.py` usa rutas `/tmp/...` (cachés de percepción); en Windows apuntan a
   `C:\tmp`. Pasarlas a una carpeta del repositorio ignorada por git o a una variable de entorno.
