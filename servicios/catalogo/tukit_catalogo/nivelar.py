@@ -150,6 +150,8 @@ def _principal() -> int:
         return 0
 
     por_id = {p["id"]: p for p in productos}
+    # Por id de producto, no por sku: el sku viejo de un inactivo que cede el
+    # suyo es justo el que toma otro, y por sku seria ambiguo.
     renombres: dict[str, str] = {}
     for pid, nivel in cambios.items():
         p = por_id[pid]
@@ -168,7 +170,19 @@ def _principal() -> int:
             p["quality_score"] = f"{CALIDAD_POR_NIVEL[Nivel(nivel)]:.3f}"
         p["sku_interno"] = nuevo
         if viejo != nuevo:
-            renombres[viejo] = nuevo
+            renombres[pid] = nuevo
+
+    # Un producto desactivado conserva su sku semilla y puede chocar con el que
+    # la permutacion le asigna a uno vivo (el galon de vinilo desactivado tenia
+    # `TK-C020-PRE` y el tarro de un kilo paso a premium). El vivo gana: el
+    # inactivo pasa a `<sku>-RET`, que dice que salio del surtido.
+    vivos = {p["sku_interno"] for p in productos if p["activo"].lower() in {"true", "1", "t"}}
+    for p in productos:
+        if p["activo"].lower() not in {"true", "1", "t"} and p["sku_interno"] in vivos:
+            retirado = f"{p['sku_interno']}-RET"
+            renombres[p["id"]] = retirado
+            print(f"  {p['sku_interno']:24} inactivo -> {retirado}")
+            p["sku_interno"] = retirado
 
     vistos = [p["sku_interno"] for p in productos]
     if len(set(vistos)) != len(vistos):
@@ -186,7 +200,7 @@ def _principal() -> int:
     # join. Si no se actualiza aqui, queda apuntando a un sku que ya no existe.
     procedencia = _leer("productos_procedencia")
     for fila in procedencia:
-        fila["sku_interno"] = renombres.get(fila["sku_interno"], fila["sku_interno"])
+        fila["sku_interno"] = renombres.get(fila["producto_id"], fila["sku_interno"])
     _guardar("productos_procedencia", procedencia)
     print("Escrito.")
     return 0

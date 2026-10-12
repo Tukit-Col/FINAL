@@ -859,6 +859,8 @@ class Cargador:
                         escritos[tabla] = 0
                         continue
                     objeto = Base.metadata.tables[tabla]
+                    if tabla == "producto_canonico":
+                        await _liberar_skus(conexion, objeto, filas)
                     sentencia = insert(objeto).values(filas)
                     # `ON CONFLICT DO UPDATE` sobre la llave primaria es lo que
                     # hace la carga repetible: los identificadores se derivan
@@ -912,6 +914,31 @@ class Cargador:
         finally:
             await motor.cerrar()
         return escritos
+
+
+async def _liberar_skus(conexion: Any, objeto: Any, filas: list[dict[str, Any]]) -> None:
+    """Aparta el sku de los productos que lo cambian antes del upsert.
+
+    `nivelar` permuta etiquetas, y con ellas los sku semilla: el economico pasa a
+    `TK-C011-PRE` y el premium a `TK-C011-ECO`. El upsert por id escribe fila por
+    fila y el indice unico de `sku_interno` se revisa en cada una, asi que la
+    primera fila choca con la que todavia tiene ese sku. Se les pone uno
+    provisional derivado del id (unico por construccion) y el upsert les da el
+    definitivo en la misma transaccion.
+    """
+    from sqlalchemy import String, cast, literal, select, update
+
+    nuevos = {f["id"]: f["sku_interno"] for f in filas}
+    actuales = await conexion.execute(
+        select(objeto.c.id, objeto.c.sku_interno).where(objeto.c.id.in_(list(nuevos)))
+    )
+    mueven = [pid for pid, sku in actuales if sku != nuevos[pid]]
+    if mueven:
+        await conexion.execute(
+            update(objeto)
+            .where(objeto.c.id.in_(mueven))
+            .values(sku_interno=literal("TMP-") + cast(objeto.c.id, String))
+        )
 
 
 async def medir_en_bd() -> dict[str, tuple[int, int]]:
