@@ -142,7 +142,9 @@ _TOLERANCIA_MEDIDAS = 0.25
 _EQUIVALENTES: dict[str, tuple[frozenset[str], ...]] = {
     "tamano": (frozenset({"carta", "a4"}),),
     "presentacion": (frozenset({"frasco", "tarro"}),),
-    "material": (frozenset({"plastico", "antifluido"}),),
+    # Una regla "metalica" es la regla de acero que pide el colegio
+    # (decision del 2026-10-12).
+    "material": (frozenset({"plastico", "antifluido"}), frozenset({"acero", "metal"})),
 }
 # A centimetros, para comparar longitudes escritas en unidades distintas.
 _A_CM = {"mm": 0.1, "cm": 1.0, "m": 100.0, "in": 2.54}

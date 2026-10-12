@@ -599,6 +599,12 @@ def extraer_empaque(nombre: str, atributos_del_concepto: tuple[str, ...] = ()) -
 
         if coincidencia.group(2):
             continue  # tiene decimales: es una medida
+        if 10 <= cantidad <= 999 and re.search(r"(?:^|[\s(])\d{2,3}\s*$", plano[: coincidencia.start() + 1]):
+            # `70 x 100`: dos medidas de dos o tres cifras a cada lado de la `x`
+            # son un tamano, no un empaque. «Cartulina pliego 70X100» se leia
+            # como cien pliegos. Con una cifra suelta delante (`Lapiz #2 X12`,
+            # `Mark 2 X5`) la `x` si cuenta unidades.
+            continue
         if palabra in MEDIDA:
             continue  # es cuanto trae o cuanto mide, no cuantos son
         if palabra and palabra not in CONTEO:
@@ -632,7 +638,8 @@ def extraer_empaque(nombre: str, atributos_del_concepto: tuple[str, ...] = ()) -
     # Sin `x` ni `por`: puede seguir habiendo un conteo suelto, como
     # `Block cuadriculado de 50 hojas`.
     if not hojas_son_atributo:
-        suelto = re.search(r"(?:^|\s)(\d{1,4})\s+(hojas?|pliegos?|unidades)\b", plano)
+        # Tambien entre parentesis y abreviado: `Lija (3 Unds)`.
+        suelto = re.search(r"(?:^|[\s(])(\d{1,4})\s+(hojas?|pliegos?|unidades|unds?|uds?)\b", plano)
         if suelto:
             return Empaque(int(suelto.group(1)), CONTEO.get(suelto.group(2), "unidad"))
 

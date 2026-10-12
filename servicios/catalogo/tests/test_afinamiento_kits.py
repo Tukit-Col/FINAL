@@ -287,3 +287,29 @@ class TestLosRenglonesDeUnaVersion:
             reglas,
         )
         assert [[c["sku"] for c in i["candidatos"]] for i in items] == [["plastica"], []]
+
+
+class TestLoQueEncontraronLosAgentesDeSurtido:
+    """Fallas que salieron al surtir el catalogo desde las tiendas (2026-10-12)."""
+
+    def test_dos_medidas_a_los_lados_de_la_x_no_son_un_empaque(self):
+        assert extraer_empaque("CARTULINA PLIEGO 70X100 BLANCO").unidades == 1
+        # Con una cifra suelta delante, la `x` si cuenta.
+        assert extraer_empaque("Caja De Lapiz Kores Jumbo Hb #2 X12 Negro").unidades == 12
+        assert extraer_empaque("Resaltador Mark 2 X5 Colores PELIKAN").unidades == 5
+
+    def test_las_unidades_entre_parentesis_y_abreviadas(self):
+        assert extraer_empaque("Lija Abracol (3 Unds)").unidades == 3
+        assert extraer_empaque("Copitos HIGIETEX de algodon (300  und)").unidades == 300
+
+    def test_una_regla_metalica_es_la_de_acero(self):
+        assert _cumple(_p("a", {"material": "metal"}), {"material": "acero"})
+
+    def test_la_cola_usa_los_atributos_verificados(self):
+        from tukit_catalogo.descubrir import atributos_verificados
+
+        assert atributos_verificados({"atributos_verificados": '{"color": "amarillo"}'}) == {
+            "color": "amarillo"
+        }
+        assert atributos_verificados({"Color": "Amarillo"}) == {}
+        assert atributos_verificados({"atributos_verificados": "no es json"}) == {}
