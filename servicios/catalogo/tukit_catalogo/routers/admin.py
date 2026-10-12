@@ -32,7 +32,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Query, Response
 from tukit_comun.http import ErrorDominio
 
-from ..descubrir import atributos_verificados, clasificar
+from ..descubrir import atributos_al_aprobar, atributos_verificados, clasificar
 from ..dominio.listas import (
     _cuidar_invariantes,
     _exigir_sin_revisar,
@@ -1665,9 +1665,15 @@ async def cola_propuestas(
                     else {"sugerido": p.concepto_sugerido}
                 ),
                 "origen": p.origen,
-                # Lo que quien propuso verifico contra la ficha de la tienda: el
-                # editor de la cola arranca con esto, y al aprobar se aplica.
+                # Lo que quien propuso verifico contra la ficha de la tienda, y
+                # los atributos con que nace el producto si se aprueba tal cual
+                # (eso mas lo que dice el nombre): el editor arranca con estos.
                 "atributos_verificados": atributos_verificados(dict(p.especificaciones or {})),
+                "atributos_al_aprobar": atributos_al_aprobar(
+                    p.nombre,
+                    dict(p.especificaciones or {}),
+                    tuple(p.atributos_discriminantes or ()) + tuple(p.atributos_descriptivos or ()),
+                ),
             }
             for p in filas
         ]

@@ -474,6 +474,23 @@ def atributos_verificados(especificaciones: dict[str, Any]) -> dict[str, Any]:
     return dict(valor) if isinstance(valor, dict) else {}
 
 
+def atributos_al_aprobar(
+    nombre: str, especificaciones: dict[str, Any], attrs_concepto: tuple[str, ...]
+) -> dict[str, Any]:
+    """Los atributos con que nace el producto si se aprueba sin corregir nada.
+
+    De menor a mayor prioridad: la ficha de la tienda, lo que dice el nombre, y
+    lo que quien propuso verifico contra la ficha (el color o el tamano que el
+    nombre no dice). Las correcciones de la cola pisan todo esto. La cola lo
+    muestra antes de aprobar, para que lo que se ve sea lo que queda.
+    """
+    return {
+        **atributos_de_ficha(especificaciones, attrs_concepto),
+        **extraer_atributos(nombre, attrs_concepto),
+        **atributos_verificados(especificaciones),
+    }
+
+
 async def _encolar(propuestas: list[dict[str, Any]]) -> int:
     from sqlalchemy.dialects.postgresql import insert
     from tukit_comun.bd import crear_motor
@@ -807,14 +824,7 @@ async def resolver(
 
             especificaciones = dict(fila.especificaciones or {})
             empaque = extraer_empaque(fila.nombre, attrs_concepto)
-            atributos = {
-                **atributos_de_ficha(especificaciones, attrs_concepto),
-                **extraer_atributos(fila.nombre, attrs_concepto),
-                # Lo que quien propuso verifico contra la ficha de la tienda (el
-                # color o el tamano que el nombre no dice). Pisa lo leido del
-                # nombre; las correcciones de la cola lo pisan a el.
-                **atributos_verificados(especificaciones),
-            }
+            atributos = atributos_al_aprobar(fila.nombre, especificaciones, attrs_concepto)
             if especificaciones.get(EMPAQUE_VERIFICADO, "").isdigit():
                 empaque = Empaque(int(especificaciones[EMPAQUE_VERIFICADO]), empaque.unidad_base)
 

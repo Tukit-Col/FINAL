@@ -188,10 +188,10 @@ function FilaPropuesta({ p, conceptos, personajes, ocupada, onAprobar, onRechaza
   const [imagenUrl, setImagenUrl] = useState(p.imagen_url ?? "");
 
   // Los atributos arrancan de las claves que el CONCEPTO declara (igual que el
-  // editor de catálogo), llenas con lo que quien propuso verificó contra la
-  // ficha de la tienda (`atributos_verificados`), si lo trae; lo demás nace
-  // vacío. Si no se cambia nada, NO se manda `atributos` y el backend conserva
-  // su derivación automática (que ya incluye esos verificados).
+  // editor de catálogo), llenas con lo que el producto tendría si se aprueba tal
+  // cual (`atributos_al_aprobar`: la ficha, el nombre y lo verificado). Así lo
+  // que se ve es lo que queda. Si no se cambia nada, NO se manda `atributos` y
+  // el backend aplica esa misma derivación.
   const conceptoDeLaPropuesta = useMemo(
     () => conceptos.find((c) => c.codigo === codigoConcepto(p)),
     [conceptos, p],
@@ -199,11 +199,11 @@ function FilaPropuesta({ p, conceptos, personajes, ocupada, onAprobar, onRechaza
   const gruposIniciales = useMemo(
     () =>
       filasDeAtributos(
-        p.atributos_verificados ?? {},
+        p.atributos_al_aprobar ?? p.atributos_verificados ?? {},
         conceptoDeLaPropuesta?.atributos_discriminantes ?? [],
         conceptoDeLaPropuesta?.atributos_descriptivos ?? [],
       ),
-    [conceptoDeLaPropuesta, p.atributos_verificados],
+    [conceptoDeLaPropuesta, p.atributos_al_aprobar, p.atributos_verificados],
   );
   const [discriminantes, setDiscriminantes] = useState<ParAtributo[]>(
     gruposIniciales.discriminantes,
