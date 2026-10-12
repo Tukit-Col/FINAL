@@ -171,7 +171,9 @@ class ItemListaOficial(Base):
 
     # Los avisos de este renglon que el revisor ya decidio que no aplican
     # (`repetido:61`, `revisar:forma`, `sin_producto`), para que no vuelvan.
-    avisos_descartados: Mapped[list[str]] = mapped_column(Texto, nullable=False, default=list)
+    avisos_descartados: Mapped[list[str]] = mapped_column(
+        Texto, nullable=False, default=list, server_default=text("'[]'")
+    )
 
     def tipo_efectivo(self, concepto: Concepto | None) -> str | None:
         """El tipo del renglon si lo declaro, y si no el de su concepto.
