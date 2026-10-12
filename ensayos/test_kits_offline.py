@@ -42,26 +42,40 @@ class TestLoQueNoSeVendeLlegaComoLinea:
 
 
 class TestHuecosReales:
+    """Lo que ninguna tienda registrada vende: sigue siendo hueco, no un sustituto."""
+
     @pytest.mark.parametrize(
         "clave",
-        [
-            "J#3",
-            "2#10",
-            "3#16",
-            "J#40",
-            "1#39",
-            "J#38",
-            "10#59",
-            "T#40",
-            "7#12",
-            "8#63",
-            "T#67",
-            "3#41",
-            "1#11",
-        ],
+        ["3#41", "8#63", "1#44", "1#45", "9#46", "2#71", "6#53", "7#43", "8#61"],
     )
     def test_no_se_cobra_un_sustituto(self, renglon, clave):
+        # Bata antifluido, jumpers macho-hembra, caimanes, LED, ecoline, piedras,
+        # motorreductor, acrilico cian y Arduino.
         assert renglon(clave).estado == "HUECO_CATALOGO"
+
+
+class TestLoQueTrajoElSurtidoDelDoceDeOctubre:
+    """Huecos de la auditoria v2 que se cerraron con productos aprobados en la cola."""
+
+    @pytest.mark.parametrize(
+        "clave, sku",
+        [
+            ("J#3", "TK-REV-45938454560939"),  # cuaderno de cuadros de 1 cm
+            ("2#10", "TK-REV-47148563103915"),  # block rayado carta
+            ("J#17", "TK-REV-44702907465899"),  # vinilo amarillo de 125 g
+            ("T#40", "TK-REV-124275171"),  # pincel plano #10
+            ("7#12", "TK-REV-37779"),  # diccionario ingles-ingles
+            ("1#11", "TK-REV-47124879278251"),  # sobre de acetato grueso oficio
+        ],
+    )
+    def test_el_ahorrador_cobra_el_producto_nuevo(self, renglon, clave, sku):
+        assert _sku(renglon(clave).ahorrador) == sku
+
+    def test_un_renglon_generico_no_recibe_la_variante(self, renglon):
+        # «paquete de cartulina arte por octavos» no es la fluorescente, y
+        # «lapices» a secas no es el lapiz rojo.
+        assert renglon("J#75").ahorrador.sku != "TK-REV-124001157"
+        assert "rojo" not in renglon("6#58").ahorrador.nombre.lower()
 
 
 class TestFalsosHuecosQueYaSeResuelven:
@@ -75,7 +89,8 @@ class TestFalsosHuecosQueYaSeResuelven:
         assert _sku(renglon("3#44").ahorrador) == "TK-C003-PRE"
 
     def test_el_archivador_de_fuelle(self, renglon):
-        assert _sku(renglon("1#47").ahorrador) == "TK-C011-CON"
+        # Por el nombre: `nivelar` le cambia el sku semilla cuando cambia su nivel.
+        assert "Fuelle" in renglon("1#47").ahorrador.nombre
 
     def test_los_jumpers_con_el_kit_de_cuarenta(self, renglon):
         linea = renglon("8#62")
