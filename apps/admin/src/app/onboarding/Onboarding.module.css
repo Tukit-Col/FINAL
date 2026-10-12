@@ -475,3 +475,82 @@
   flex: 1;
   min-width: 0;
 }
+
+/* «Atributos que se exigen» del renglón: lo leído del texto y lo curado. */
+.atributos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.atributo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--espacio-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: 12px;
+}
+
+.atributoCabeza,
+.atributoPie {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espacio-2);
+  flex-wrap: wrap;
+}
+
+.atributoOrigen {
+  color: var(--color-text-muted);
+}
+
+.atributoControles {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.atributoControles > input {
+  flex: 1;
+  min-width: 0;
+}
+
+.campo .atributoCheck input {
+  padding: 0;
+}
+
+.atributoCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  color: var(--color-text-secondary);
+}
+
+.atributoSeExige {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.atributoNoSeExige {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.atributosNota {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* El resumen de lo que se exige, visible sin abrir el editor. */
+.exige {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
