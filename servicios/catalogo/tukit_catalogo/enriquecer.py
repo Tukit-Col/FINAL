@@ -243,6 +243,15 @@ TIPOS = (
     ("puntas intercambiables", "intercambiable"),
     ("intercambiable", "intercambiable"),
     ("loza", "loza"),
+    # Electronica (2026-10-12): el interruptor se pide por como se acciona y el
+    # motor por si trae reductor. `motorreductor` antes que `motor`, aunque la
+    # frontera de palabra ya los separa.
+    ("balancin", "balancin"),
+    ("dos posiciones", "2 posiciones"),
+    ("2 posiciones", "2 posiciones"),
+    ("motorreductor", "motorreductor"),
+    ("motoreductor", "motorreductor"),
+    ("motor", "motor"),
     # Los jumpers se piden por sus dos puntas, y uno macho-macho no sirve donde
     # piden hembra. Da igual en que orden se nombren.
     ("macho-macho", "macho-macho"),
@@ -922,7 +931,9 @@ def extraer_atributos(nombre: str, requeridos: tuple[str, ...]) -> dict[str, Any
             unico = _valor_unico(plano, COLORES)
             if unico:
                 attrs["color"] = unico[0]
-            elif re.search(r"\b(?:surtid[oa]s?|multicolor|de colores)\b", plano):
+            elif re.search(
+                r"\b(?:surtid[oa]s?|multicolor|de colores|diferentes colores|varios colores)\b", plano
+            ):
                 # Varios colores y ademas `surtido`: el nombre ya dijo que
                 # es un surtido, y eso si se puede afirmar.
                 attrs["color"] = "surtido"
@@ -1125,7 +1136,28 @@ def extraer_atributos(nombre: str, requeridos: tuple[str, ...]) -> dict[str, Any
                 unidad = "ml" if vol.group(2) in ("ml", "cc") else "l"
                 attrs[pedido] = f"{_entero_si_cabe(vol.group(1))} {unidad}"
 
-        elif pedido in ("longitud", "grosor", "calibre"):
+        elif pedido == "calibre":
+            # El calibre de un cable es su numero AWG (`calibre 22`), no una
+            # longitud: la rama de abajo leia `22` sin unidad y no afirmaba nada.
+            calibre = re.search(r"\bcalibre\s*(\d{1,2})\b", plano) or re.search(r"\b(\d{1,2})\s*awg\b", plano)
+            if calibre:
+                attrs["calibre"] = f"{int(calibre.group(1))} awg"
+
+        elif pedido == "valor":
+            # El valor de una resistencia. `330 ohm o 1k ohm` nombra dos y no se
+            # exige ninguno, como cualquier atributo de una dimension; un kit de
+            # `diferentes valores` es un surtido. `0hm`, con cero, es como lo
+            # escribio la lista de Cuarto.
+            valores = {
+                f"{_entero_si_cabe(m.group(1))} {'kohm' if m.group(2) else 'ohm'}"
+                for m in re.finditer(r"(\d{1,4}(?:\.\d+)?)\s*(k)?\s*(?:ohms?|0\s?hms?|Ω)", plano)
+            }
+            if len(valores) == 1:
+                attrs["valor"] = valores.pop()
+            elif not valores and re.search(r"\b(?:surtid[oa]s|diferentes? (?:valores|amperaje))\b", plano):
+                attrs["valor"] = "surtido"
+
+        elif pedido in ("longitud", "grosor"):
             largo = re.search(
                 r"(\d{1,4}(?:\.\d+)?)\s*(mm|cm|m|metros?|centimetros?|milimetros?|pulgadas?)\b", plano
             )
@@ -1140,6 +1172,8 @@ def extraer_atributos(nombre: str, requeridos: tuple[str, ...]) -> dict[str, Any
         elif pedido == "manga":
             if re.search(r"\bmanga corta\b", plano):
                 attrs["manga"] = "corta"
+            elif re.search(r"\bsin mangas?\b", plano):
+                attrs["manga"] = "sin"
             elif re.search(r"\b(?:manga larga|mangas largas|con mangas?)\b", plano):
                 attrs["manga"] = "larga"
 
