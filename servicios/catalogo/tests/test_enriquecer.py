@@ -965,3 +965,12 @@ class TestUnRenglonQueEnumeraVariosValoresNoExigeNinguno:
         assert extraer_atributos("Block Repuesto Kiut Carta Cuadriculado KIUT", ("tipo",)) == {
             "tipo": "cuadriculado"
         }
+
+
+def test_doble_punta_no_se_lee_como_punta_fina():
+    # «doble punta fina y gruesa» es un marcador de dos puntas: si ganaba
+    # `punta fina`, el estuche doble punta que pide el colegio no se distinguia
+    # de un marcador delgado.
+    estuche = extraer_atributos("estuche de marcadores acrilicos doble punta", ("punta",))
+    assert estuche == {"punta": "doble punta"}
+    assert extraer_atributos("marcador doble punta fina y gruesa", ("punta",)) == {"punta": "doble punta"}
