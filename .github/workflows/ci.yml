@@ -100,7 +100,7 @@ jobs:
             uv pip install pytest pytest-asyncio \
               sqlalchemy pydantic pgvector aiosqlite \
               fastapi httpx alembic greenlet \
-              numpy pymoo
+              numpy pymoo tenacity
             .venv/bin/pytest "servicios/${SERVICIO}" -q
           else
             echo "Sin pruebas todavia en ${SERVICIO}."
@@ -180,7 +180,7 @@ jobs:
         with:
           enable-cache: true
       - run: uv venv --python 3.12
-      - run: uv pip install alembic asyncpg sqlalchemy pgvector pydantic
+      - run: uv pip install alembic asyncpg sqlalchemy pgvector pydantic greenlet
 
       - name: Instalar el cliente de Postgres
         run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
