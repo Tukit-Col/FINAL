@@ -141,6 +141,32 @@ async def listar_versiones(
     return {"total": len(datos), "listas": datos}
 
 
+def _lo_que_se_exige(fila: Any, reglas: dict[str, tuple[tuple[str, ...], bool, str]]) -> dict[str, Any]:
+    """Lo que la ruta rapida le exigiria a este renglon, separado por origen.
+
+    Para que el revisor cure los atributos en la pantalla y no en el CSV:
+    `atributos_leidos` es lo que se lee del texto (la misma regla de
+    `_renglon_resuelto`), `atributos` (ya en el renglon) lo curado, y
+    `atributos_exigidos` el resultado. `atributos_discriminantes` dice que
+    claves se pueden curar: las que filtran en el concepto asignado.
+    """
+    discriminantes = reglas.get(fila.concepto_codigo, _SIN_REGLAS)[0] if fila.concepto_codigo else ()
+    if not discriminantes:
+        return {
+            "atributos_discriminantes": [],
+            "atributos_leidos": {},
+            "atributos_exigidos": {},
+            "atributos_por_revisar": [],
+        }
+    leidos, por_revisar, _ = _lo_que_dice_el_texto(fila.texto_original, discriminantes, int(fila.cantidad))
+    return {
+        "atributos_discriminantes": list(discriminantes),
+        "atributos_leidos": leidos,
+        "atributos_exigidos": _con_lo_curado(leidos, dict(fila.atributos or {}), discriminantes),
+        "atributos_por_revisar": por_revisar,
+    }
+
+
 @router.get(
     "/listas/{version_id}/revision",
     summary="Los renglones de una version y sus propuestas pendientes",
@@ -162,7 +188,11 @@ async def ver_revision(version_id: uuid.UUID) -> dict[str, Any]:
                 "No hay ninguna version con ese identificador.",
                 estado=404,
             )
-        items = [_item_publico(f) for f in await repo.items_de_revision(version_id)]
+        filas = await repo.items_de_revision(version_id)
+        reglas = await repo.reglas_por_codigo(
+            sorted({f.concepto_codigo for f in filas if f.concepto_codigo is not None})
+        )
+        items = [{**_item_publico(f), **_lo_que_se_exige(f, reglas)} for f in filas]
 
         candidatos = [
             {
@@ -307,6 +337,64 @@ _DE_LA_PIEZA = ("grosor", "forma")
 NO_EXIGIR = "*"
 
 
+def _lo_que_dice_el_texto(
+    texto: str, discriminantes: tuple[str, ...], cantidad: int = 1
+) -> tuple[dict[str, Any], list[str], bool]:
+    """Lo que el TEXTO del renglon exige, antes de la curaduria.
+
+    Devuelve los atributos leidos, los que el renglon nombra con varios valores
+    (no se exigen; se avisan) y si el `unidades=2` se dedujo en vez de leerse.
+    Es la mitad de `_renglon_resuelto` que no mira productos, aparte para que
+    la revision de la lista le muestre al revisor exactamente lo que la ruta
+    rapida leeria, por la misma regla y no por una copia.
+    """
+    from ..consulta import _NO_SE_EXIGEN
+    from ..enriquecer import _normalizar, atributos_ambiguos, extraer_atributos
+
+    impuestos = {
+        k: v for k, v in extraer_atributos(texto, discriminantes).items() if (k, v) not in _NO_SE_EXIGEN
+    }
+    por_revisar = [a for a in atributos_ambiguos(texto, discriminantes) if a not in impuestos]
+    juego_inferido = False
+    if "unidades" in discriminantes:
+        plano = _normalizar(texto)
+        primera = plano.split()[0] if plano.split() else ""
+        if impuestos.get("unidades"):
+            # Un juego de piezas distintas (`delgados, planos, redondos y
+            # abanico`): lo que describe cada pieza no se le exige al juego.
+            # En uno de piezas iguales (`colores x 12 triangulares gruesos`)
+            # si se exige.
+            if por_revisar:
+                for atributo in _DE_LA_PIEZA:
+                    if impuestos.pop(atributo, None) is not None:
+                        por_revisar.append(atributo)
+        elif _PIDE_UN_JUEGO.search(plano) or (cantidad == 1 and primera.endswith("s")):
+            # `caja de plumones`, o `marcadores` con cantidad uno: mas de uno,
+            # aunque no diga cuantos. Sin esto ganaba un Sharpie suelto.
+            impuestos["unidades"] = 2
+            juego_inferido = True
+    return impuestos, por_revisar, juego_inferido
+
+
+def _con_lo_curado(
+    leidos: dict[str, Any], curados: dict[str, Any], discriminantes: tuple[str, ...]
+) -> dict[str, Any]:
+    """Lo leido del texto con la curaduria encima: lo curado manda, `*` lo quita.
+
+    Una clave curada que no es discriminante del concepto no filtra (puede
+    quedar de un concepto anterior del renglon) y un valor vacio no afirma nada.
+    """
+    impuestos = dict(leidos)
+    for k, v in curados.items():
+        if k not in discriminantes or v in (None, ""):
+            continue
+        if v == NO_EXIGIR:
+            impuestos.pop(k, None)
+        else:
+            impuestos[k] = v
+    return impuestos
+
+
 def _renglon_resuelto(
     texto: str,
     curados: dict[str, Any],
@@ -338,38 +426,10 @@ def _renglon_resuelto(
     Lo que el renglon nombra con varios valores (`rayado o cuadriculado`) no
     se exige y se devuelve aparte para que una persona lo mire.
     """
-    from ..consulta import _NO_SE_EXIGEN, _cumple
-    from ..enriquecer import _normalizar, atributos_ambiguos, extraer_atributos
+    from ..consulta import _cumple
 
-    impuestos = {
-        k: v for k, v in extraer_atributos(texto, discriminantes).items() if (k, v) not in _NO_SE_EXIGEN
-    }
-    por_revisar = [a for a in atributos_ambiguos(texto, discriminantes) if a not in impuestos]
-    juego_inferido = False
-    if "unidades" in discriminantes:
-        plano = _normalizar(texto)
-        primera = plano.split()[0] if plano.split() else ""
-        if impuestos.get("unidades"):
-            # Un juego de piezas distintas (`delgados, planos, redondos y
-            # abanico`): lo que describe cada pieza no se le exige al juego.
-            # En uno de piezas iguales (`colores x 12 triangulares gruesos`)
-            # si se exige.
-            if por_revisar:
-                for atributo in _DE_LA_PIEZA:
-                    if impuestos.pop(atributo, None) is not None:
-                        por_revisar.append(atributo)
-        elif _PIDE_UN_JUEGO.search(plano) or (cantidad == 1 and primera.endswith("s")):
-            # `caja de plumones`, o `marcadores` con cantidad uno: mas de uno,
-            # aunque no diga cuantos. Sin esto ganaba un Sharpie suelto.
-            impuestos["unidades"] = 2
-            juego_inferido = True
-    for k, v in curados.items():
-        if k not in discriminantes or v in (None, ""):
-            continue
-        if v == NO_EXIGIR:
-            impuestos.pop(k, None)
-        else:
-            impuestos[k] = v
+    leidos, por_revisar, juego_inferido = _lo_que_dice_el_texto(texto, discriminantes, cantidad)
+    impuestos = _con_lo_curado(leidos, curados, discriminantes)
 
     que_cumplen = [p for p in productos if _cumple(p, impuestos)]
     if not que_cumplen and juego_inferido and impuestos.get("unidades") == 2:
@@ -936,13 +996,56 @@ async def _valores_de_renglon(repo: RepoAdmin, cuerpo: dict[str, Any], *, nuevo:
         if campo in cuerpo:
             valores[campo] = cuerpo[campo]
     if "atributos" in cuerpo:
-        valores["atributos"] = dict(cuerpo["atributos"] or {})
+        atributos = cuerpo["atributos"] or {}
+        # La misma guarda que los atributos de un producto (`dominio/catalogo`):
+        # un mapa de valores simples. Una lista o un dict anidado no se compara
+        # contra nada y, sin esto, `dict([...])` afloraba como un 500.
+        if not isinstance(atributos, dict) or any(
+            v is not None and not isinstance(v, (str, int, float)) for v in atributos.values()
+        ):
+            raise ErrorDominio(
+                "atributos_invalido",
+                "Los atributos son un mapa de valores simples (texto, numero o «*»).",
+                estado=422,
+                campo="atributos",
+            )
+        valores["atributos"] = {str(k): v for k, v in atributos.items()}
     if "concepto_codigo" in cuerpo:
         codigo = cuerpo["concepto_codigo"]
         valores["concepto_id"] = None if codigo is None else await _concepto_id(repo, codigo)
     if "requiere_revision" in cuerpo:
         valores["requiere_revision"] = bool(cuerpo["requiere_revision"])
     return valores
+
+
+async def _exigir_atributos_curables(
+    repo: RepoAdmin, valores: dict[str, Any], concepto_id: uuid.UUID | None, previos: dict[str, Any]
+) -> None:
+    """Que lo curado sea algo que la ruta rapida va a mirar.
+
+    `_renglon_resuelto` ignora en silencio una clave que no es discriminante
+    del concepto: curarla no cambiaria nada y el revisor creeria que si. Por
+    eso se rechaza con el nombre de la clave. Lo que el renglon YA traia igual
+    (curado para un concepto anterior, o de antes de esta guarda) se deja
+    pasar: el editor devuelve el mapa entero y no debe fallar por lo que la
+    persona no toco.
+    """
+    if "atributos" not in valores:
+        return
+    discriminantes = set(await repo.discriminantes_de_concepto(concepto_id))
+    ajenos = sorted(
+        k
+        for k, v in valores["atributos"].items()
+        if k not in discriminantes and not (k in previos and previos[k] == v)
+    )
+    if ajenos:
+        permitidos = ", ".join(sorted(discriminantes)) or "ninguno: el concepto no filtra por atributos"
+        raise ErrorDominio(
+            "atributo_no_exigible",
+            f"El concepto no filtra por {', '.join(ajenos)}. Se puede curar: {permitidos}.",
+            estado=422,
+            campo="atributos",
+        )
 
 
 @router.patch(
@@ -964,6 +1067,7 @@ async def editar_item(version_id: uuid.UUID, item_id: uuid.UUID, cuerpo: dict[st
         modo = valores.get("modo_adquisicion", actual.modo_adquisicion)
         instruccion = valores.get("instruccion_colegio", actual.instruccion_colegio)
         _cuidar_invariantes(concepto_id, requiere, modo, instruccion)
+        await _exigir_atributos_curables(repo, valores, concepto_id, dict(actual.atributos or {}))
         if valores:
             await repo.actualizar_item(item_id, valores)
     return {"item_id": str(item_id), "actualizado": True}
@@ -990,6 +1094,7 @@ async def agregar_item(version_id: uuid.UUID, cuerpo: dict[str, Any]) -> dict[st
             valores.get("modo_adquisicion"),
             valores.get("instruccion_colegio"),
         )
+        await _exigir_atributos_curables(repo, valores, concepto_id, {})
 
         # El siguiente orden libre: el ultimo mas uno, para no chocar con el
         # indice unico (version_id, orden).
