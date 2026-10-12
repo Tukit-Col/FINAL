@@ -296,11 +296,23 @@ async def _productos_por_concepto(repo: RepoAdmin, codigos: list[str]) -> dict[s
     return por_concepto
 
 
+# Lo que convierte un renglon en un pedido de varios: `caja de plumones`,
+# `kit de pinceles`. Sin numero, el juego se exige como "mas de uno".
+_PIDE_UN_JUEGO = re.compile(r"\b(?:cajas?|estuches?|paquetes?|set|kit|juegos?)\b")
+# Lo que describe una pieza suelta y no un juego: en `kit de 12 pinceles
+# delgados, planos y redondos` ningun pincel es los tres.
+_DE_LA_PIEZA = ("grosor", "forma")
+# El valor que un revisor pone en la curaduria para que un atributo leido del
+# texto NO se exija (`15 hojas de cartulina` en la receta de una bitacora).
+NO_EXIGIR = "*"
+
+
 def _renglon_resuelto(
     texto: str,
     curados: dict[str, Any],
     productos: list[dict[str, Any]],
     discriminantes: tuple[str, ...],
+    cantidad: int = 1,
 ) -> tuple[list[dict[str, Any]], dict[str, Any], list[str]]:
     """Los candidatos de UN renglon, lo que el renglon exige y lo que hay que revisar.
 
@@ -327,15 +339,44 @@ def _renglon_resuelto(
     se exige y se devuelve aparte para que una persona lo mire.
     """
     from ..consulta import _NO_SE_EXIGEN, _cumple
-    from ..enriquecer import atributos_ambiguos, extraer_atributos
+    from ..enriquecer import _normalizar, atributos_ambiguos, extraer_atributos
 
     impuestos = {
         k: v for k, v in extraer_atributos(texto, discriminantes).items() if (k, v) not in _NO_SE_EXIGEN
     }
-    impuestos.update({k: v for k, v in curados.items() if k in discriminantes and v not in (None, "")})
     por_revisar = [a for a in atributos_ambiguos(texto, discriminantes) if a not in impuestos]
+    juego_inferido = False
+    if "unidades" in discriminantes:
+        plano = _normalizar(texto)
+        primera = plano.split()[0] if plano.split() else ""
+        if impuestos.get("unidades"):
+            # Un juego de piezas distintas (`delgados, planos, redondos y
+            # abanico`): lo que describe cada pieza no se le exige al juego.
+            # En uno de piezas iguales (`colores x 12 triangulares gruesos`)
+            # si se exige.
+            if por_revisar:
+                for atributo in _DE_LA_PIEZA:
+                    if impuestos.pop(atributo, None) is not None:
+                        por_revisar.append(atributo)
+        elif _PIDE_UN_JUEGO.search(plano) or (cantidad == 1 and primera.endswith("s")):
+            # `caja de plumones`, o `marcadores` con cantidad uno: mas de uno,
+            # aunque no diga cuantos. Sin esto ganaba un Sharpie suelto.
+            impuestos["unidades"] = 2
+            juego_inferido = True
+    for k, v in curados.items():
+        if k not in discriminantes or v in (None, ""):
+            continue
+        if v == NO_EXIGIR:
+            impuestos.pop(k, None)
+        else:
+            impuestos[k] = v
 
     que_cumplen = [p for p in productos if _cumple(p, impuestos)]
+    if not que_cumplen and juego_inferido and impuestos.get("unidades") == 2:
+        # Lo de "mas de uno" se dedujo, el renglon no lo dijo: si ningun juego
+        # cumple, vale la pieza suelta (`Pinceles de punta redonda`, 3#88).
+        del impuestos["unidades"]
+        que_cumplen = [p for p in productos if _cumple(p, impuestos)]
     elegibles = [p for p in que_cumplen if not p.get("personaje")] or que_cumplen
     elegibles.sort(
         key=lambda p: (
@@ -373,6 +414,19 @@ async def _renglones_resueltos(repo: RepoAdmin, version_id: uuid.UUID) -> list[d
     codigos = sorted({f.concepto_codigo for f in filas if f.concepto_codigo is not None})
     productos = await _productos_por_concepto(repo, codigos)
     reglas = await repo.reglas_por_codigo(codigos)
+    return armar_items(filas, productos, reglas)
+
+
+def armar_items(
+    filas: list[Any],
+    productos: dict[str, list[dict[str, Any]]],
+    reglas: dict[str, tuple[tuple[str, ...], bool, str]],
+) -> list[dict[str, Any]]:
+    """Los renglones de una version, ya resueltos, a partir de lo leido de la base.
+
+    Es la parte de `_renglones_resueltos` que no consulta nada, separada para
+    poder correrla sobre `datos/` sin base (`ensayos/kits_offline.py`).
+    """
     repetidos = _posibles_repetidos(filas, reglas)
 
     items = []
@@ -386,6 +440,7 @@ async def _renglones_resueltos(repo: RepoAdmin, version_id: uuid.UUID) -> list[d
                 dict(f.atributos or {}),
                 productos.get(f.concepto_codigo, []),
                 reglas.get(f.concepto_codigo, _SIN_REGLAS)[0],
+                int(f.cantidad),
             )
         items.append(
             {
@@ -393,7 +448,11 @@ async def _renglones_resueltos(repo: RepoAdmin, version_id: uuid.UUID) -> list[d
                 "orden": int(f.orden),
                 "texto_original": f.texto_original,
                 "cantidad": int(f.cantidad),
-                "tipo_item": f.tipo_item,
+                # Nulo en el renglon significa "lo que diga el concepto", no
+                # `util`: es la regla de `routers/catalogo.py`. Sin caer al del
+                # concepto, la ruta rapida recibia `util` para una muda de ropa
+                # o un uniforme y los mostraba como "No lo tenemos".
+                "tipo_item": f.tipo_item or reglas.get(f.concepto_codigo, _SIN_REGLAS)[2],
                 "modo_adquisicion": f.modo_adquisicion,
                 "concepto_codigo": f.concepto_codigo,
                 "concepto_nombre": f.concepto_nombre,
@@ -408,7 +467,34 @@ async def _renglones_resueltos(repo: RepoAdmin, version_id: uuid.UUID) -> list[d
                 "avisos_descartados": list(f.avisos_descartados or ()),
             }
         )
+    _un_producto_por_herramienta(items)
     return items
+
+
+def _un_producto_por_herramienta(items: list[dict[str, Any]]) -> None:
+    """Que la herramienta pedida en varias materias salga del mismo producto.
+
+    `juntar_herramientas` compra una sola vez lo que un hijo pide repetido,
+    pero junta por producto: si `compas` y `compas de precision` eligen dos
+    compases distintos, compra los dos (3#35 y 3#47, $59.600 de mas en los
+    Ahorradores). Aqui, antes de elegir, cada renglon de un concepto
+    uno-por-estudiante se queda con los candidatos que sirven para TODOS los
+    renglones de ese concepto: el compas de precision sirve para los dos. Si
+    no hay ninguno comun (`regla` y `regla de acero`, sin regla de acero), cada
+    renglon conserva los suyos.
+    """
+    grupos: dict[str, list[dict[str, Any]]] = {}
+    for item in items:
+        if item["uno_por_estudiante"] and item["candidatos"]:
+            grupos.setdefault(item["concepto_codigo"], []).append(item)
+    for grupo in grupos.values():
+        if len(grupo) < 2:
+            continue
+        comunes = set.intersection(*({c["sku"] for c in i["candidatos"]} for i in grupo))
+        if not comunes:
+            continue
+        for item in grupo:
+            item["candidatos"] = [c for c in item["candidatos"] if c["sku"] in comunes]
 
 
 @router.get(

@@ -54,6 +54,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from .enriquecer import extraer_atributos
+
 # ---------------------------------------------------------------------------
 # Piezas puras. Sin base de datos, sin lectura de ficheros: es lo que las
 # pruebas fijan, porque es donde estan las decisiones.
@@ -320,11 +322,13 @@ class Informe:
 # demanda en dos (C048 decia 11 y el duplicado 8, cuando son 19) y le dan al
 # clasificador dos destinos validos para el mismo renglon de la lista.
 #
-# `C034 diccionario` es el unico que SI se parte, y no por descuido: el corpus
-# pide diccionario de espanol 70 veces y de ingles unas 50, con atributos
-# incompatibles. Un solo concepto obligaria a ofrecer un diccionario de ingles
-# a quien pidio uno de espanol. C034 se queda con el de espanol, que es el uso
-# dominante, y el de ingles nace como concepto propio.
+# `C034 diccionario` se partio una vez en dos (espanol e ingles) para no
+# ofrecerle un diccionario de ingles a quien pidio uno de espanol. Ya no hace
+# falta: C034 filtra por `idioma`, y el idioma se escribe igual sin importar el
+# orden (`espanol-ingles`). Partido, el mismo diccionario ingles-espanol salia
+# bien en un grado (curado en C034) y como hueco en otro (curado en el de
+# ingles). La semilla todavia puede traer filas con `dic-ingles`: se leen como
+# C034.
 #
 # Lo que cambia sobre el concepto existente es `tipo_item`: pasa de `util` a
 # `libro_libre`, porque una biblia no es papeleria y el pipeline no debe
@@ -336,19 +340,9 @@ CONCEPTOS_LIBRO = {
         ["constitucion", "constitucion politica", "constitucion politica de colombia"],
     ),
     "C048": ("Biblia", ["biblia", "biblia catolica", "sagrada biblia"]),
-    "dic-ingles": (
-        "Diccionario de inglés",
-        # `diccionario ingles` vivia en C034 (diccionario de espanol) y se llevaba
-        # el "Diccionario ingles-ingles" de las listas al concepto equivocado.
-        [
-            "diccionario de ingles",
-            "diccionario ingles espanol",
-            "dicc ingles",
-            "diccionario ingles",
-            "diccionario ingles ingles",
-        ],
-    ),
 }
+# Codigos viejos de la semilla y el concepto en que viven ahora.
+CONCEPTOS_LIBRO_FUSIONADOS = {"dic-ingles": "C034"}
 
 
 def _uuid_estable(*partes: str) -> uuid.UUID:
@@ -588,6 +582,9 @@ class Cargador:
         # evita el duplicado.
         por_codigo = {c["codigo"]: c for c in conceptos}
 
+        for f in filas:
+            f["concepto_codigo"] = CONCEPTOS_LIBRO_FUSIONADOS.get(f["concepto_codigo"], f["concepto_codigo"])
+
         nuevos_conceptos = []
         demanda = defaultdict(int)
         for f in filas:
@@ -617,7 +614,7 @@ class Cargador:
                     # El de ingles filtra por `monolingue`: el colegio que pide
                     # `ingles - ingles` no quiere el bilingue, y el que pide
                     # `diccionario de ingles` a secas acepta cualquiera.
-                    "atributos_discriminantes": ["monolingue"] if codigo == "dic-ingles" else [],
+                    "atributos_discriminantes": [],
                     "atributos_descriptivos": [],
                     # Un diccionario sirve para todas las materias del ano.
                     "uno_por_estudiante": True,
@@ -630,6 +627,10 @@ class Cargador:
         productos: dict[str, dict[str, Any]] = {}
         ofertas: list[dict[str, Any]] = []
         precios: list[dict[str, Any]] = []
+        discriminantes = {
+            c["codigo"]: tuple(c.get("atributos_discriminantes") or ())
+            for c in [*conceptos, *nuevos_conceptos]
+        }
 
         # El nivel es propiedad del PRODUCTO, no de la oferta: una edicion no
         # es economica en una libreria y premium en otra. Como la semilla viene
@@ -690,7 +691,16 @@ class Cargador:
                     "nivel": f.get("nivel") or "confiable",
                     "personaje": None,
                     "imagen_url": _texto(f.get("imagen_url")),
-                    "atributos": {"isbn13": isbn},
+                    # Lo que el titulo dice de los atributos que filtran (la
+                    # edicion de una biblia, el idioma de un diccionario), lo
+                    # que la semilla corrige a mano en `atributos`, y el ISBN.
+                    # Con el ISBN solo, ninguna biblia declaraba `edicion` y
+                    # `Biblia catolica` quedaba como hueco en los once grados.
+                    "atributos": {
+                        **extraer_atributos(f["titulo"], discriminantes.get(f["concepto_codigo"], ())),
+                        **atributos_de_csv(f.get("atributos")),
+                        "isbn13": isbn,
+                    },
                     "ruta_categoria": "Libros",
                     "es_propio": False,
                     "es_representante_canonico": False,

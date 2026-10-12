@@ -52,7 +52,7 @@ from typing import Any
 from sqlalchemy import func, select, update
 from sqlalchemy.engine import Connection
 
-from .cargador import CONCEPTOS_LIBRO
+from .cargador import CONCEPTOS_LIBRO, CONCEPTOS_LIBRO_FUSIONADOS
 from .modelos import Base
 
 RAIZ = Path(__file__).resolve().parents[3]
@@ -253,14 +253,17 @@ def fusionar_conceptos(
     base a medio cargar, no una decision de quitarlo. Los conceptos de libros
     (`CONCEPTOS_LIBRO`) no se tocan: el cargador los reescribe en cada carga
     (su `tipo_item` pasa a `libro_libre`), asi que la base siempre diferiria del
-    CSV y el volcado los marcaria cambiados sin que nadie los curara.
+    CSV y el volcado los marcaria cambiados sin que nadie los curara. Los que
+    se fusionaron en otro (`dic-ingles`, hoy C034) tampoco vuelven: una base
+    vieja todavia los tiene.
     """
+    ajenos = {*CONCEPTOS_LIBRO, *CONCEPTOS_LIBRO_FUSIONADOS}
     por_codigo = {f["codigo"]: f for f in en_base}
     salida: list[dict[str, str]] = []
     cambiados = 0
     for fila in en_csv:
         viva = por_codigo.pop(fila["codigo"], None)
-        if viva is None or fila["codigo"] in CONCEPTOS_LIBRO:
+        if viva is None or fila["codigo"] in ajenos:
             salida.append(fila)
             continue
         # Una columna que la base todavia no tiene (una base sin la ultima
@@ -272,7 +275,7 @@ def fusionar_conceptos(
         if any(nueva[c] != fila.get(c, "") for c in COLUMNAS_CONCEPTOS):
             cambiados += 1
         salida.append(nueva)
-    nuevos = [f for codigo, f in sorted(por_codigo.items()) if codigo not in CONCEPTOS_LIBRO]
+    nuevos = [f for codigo, f in sorted(por_codigo.items()) if codigo not in ajenos]
     return salida + nuevos, len(nuevos), cambiados
 
 
