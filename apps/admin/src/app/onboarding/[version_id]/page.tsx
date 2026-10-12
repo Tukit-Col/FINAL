@@ -31,6 +31,7 @@ import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { OpcionConcepto } from "@/components/PanelReclasificar";
 import ItemsPercibidos from "@/components/ItemsPercibidos";
 import { vocabularioDeConceptos, type VocabularioConceptos } from "@/lib/vocabulario-conceptos";
+import { valoresDeProductos } from "@/lib/atributos-renglon";
 import AprobarLista from "@/components/AprobarLista";
 import CompletarColegio from "@/components/CompletarColegio";
 import PrevisualizarKits from "./PrevisualizarKits";
@@ -60,6 +61,7 @@ export default async function PaginaRevisionLista({ params }: Props) {
   let percepcion: PercepcionCruda;
   let conceptos: OpcionConcepto[] = [];
   let vocabulario: VocabularioConceptos = { atributos: [], categorias: [] };
+  let valoresAtributos: Record<string, Record<string, string[]>> = {};
   try {
     // La revisión es la fuente de las regiones 3/4; la percepción cruda es la
     // evidencia por página de la región 2; el catálogo puebla el selector de
@@ -75,6 +77,11 @@ export default async function PaginaRevisionLista({ params }: Props) {
       .map((c) => ({ codigo: c.codigo, nombre: c.nombre_canonico }))
       .sort((a, b) => a.nombre.localeCompare(b.nombre));
     vocabulario = vocabularioDeConceptos(catalogo.conceptos);
+    // Las sugerencias al curar los atributos de un renglón: los valores que
+    // declaran los productos de su concepto. Solo de los conceptos de esta
+    // lista, para no mandarle al navegador el catálogo entero.
+    const usados = new Set(rev.items.map((i) => i.concepto_codigo).filter(Boolean));
+    valoresAtributos = valoresDeProductos(catalogo.conceptos.filter((c) => usados.has(c.codigo)));
   } catch (causa) {
     if (causa instanceof ErrorTukit && causa.estado === 404) notFound();
     throw causa;
@@ -154,6 +161,7 @@ export default async function PaginaRevisionLista({ params }: Props) {
             propuestas={revision.propuestas}
             conceptos={conceptos}
             vocabulario={vocabulario}
+            valoresAtributos={valoresAtributos}
           />
         </section>
 

@@ -14,18 +14,32 @@
 // que filtran e informan) en vez de ir al catálogo y volver: nace con el texto
 // del renglón como nombre, entra a la lista de conceptos de toda la pantalla y
 // queda elegido en el editor, listo para «Guardar cambios».
+//
+// Lo que el renglón le exige al producto (los atributos discriminantes de su
+// concepto, leídos del texto) se cura también aquí, en «Atributos que se
+// exigen»: cambiar un valor, «No exigir» (guarda `*`) o agregar uno. Viaja como
+// `atributos` en el mismo PATCH, solo si cambió.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type {
-  ConceptoCreado,
-  ItemListaEditable,
-  ItemRevision,
-  ModoAdquisicion,
-  PropuestaRevision,
+import {
+  serializarAtributos,
+  type ConceptoCreado,
+  type ItemListaEditable,
+  type ItemRevision,
+  type ModoAdquisicion,
+  type PropuestaRevision,
 } from "@tukit/contrato";
 import { agregarItemLista, editarItemLista, quitarItemLista, FalloListas } from "@/lib/api-listas";
+import {
+  exigidoDe,
+  filasDeExigencia,
+  mismosAtributos,
+  paresCurados,
+  type FilaExigencia,
+} from "@/lib/atributos-renglon";
 import type { OpcionConcepto } from "./PanelReclasificar";
+import AtributosRenglon from "./AtributosRenglon";
 import NuevoConcepto from "./NuevoConcepto";
 import Desplegable from "./Desplegable";
 import type { VocabularioConceptos } from "@/lib/vocabulario-conceptos";
@@ -50,6 +64,19 @@ interface Props {
   propuestas: PropuestaRevision[];
   conceptos: OpcionConcepto[];
   vocabulario: VocabularioConceptos;
+  /** Por concepto y atributo, los valores que declaran sus productos (sugerencias). */
+  valoresAtributos?: Record<string, Record<string, string[]>>;
+}
+
+// El resumen de lo que se exige, para verlo sin abrir el editor.
+function resumenExigido(filas: FilaExigencia[]): string | null {
+  const partes = filas
+    .filter((f) => !f.ajena)
+    .map((f) => {
+      const exigido = exigidoDe(f);
+      return exigido === null ? `${f.clave}: no se exige` : `${f.clave} = ${exigido}`;
+    });
+  return partes.length ? partes.join(" · ") : null;
 }
 
 // Los candidatos de un renglón. La llave fiable es `item_id` (1:1 con el
@@ -69,6 +96,7 @@ export default function ItemsPercibidos({
   propuestas,
   conceptos: conceptosIniciales,
   vocabulario,
+  valoresAtributos = {},
 }: Props) {
   // En estado para que un concepto creado desde un renglón aparezca enseguida
   // en el selector de todos los demás, sin refrescar.
@@ -97,6 +125,7 @@ export default function ItemsPercibidos({
           candidatos={candidatosDe(item, propuestas)}
           conceptos={conceptos}
           vocabulario={vocabulario}
+          sugerencias={item.concepto_codigo ? (valoresAtributos[item.concepto_codigo] ?? {}) : {}}
           onConceptoCreado={alCrearConcepto}
         />
       ))}
@@ -114,6 +143,7 @@ function RenglonEditable({
   candidatos,
   conceptos,
   vocabulario,
+  sugerencias,
   onConceptoCreado,
 }: {
   versionId: string;
@@ -122,6 +152,7 @@ function RenglonEditable({
   candidatos: PropuestaRevision[];
   conceptos: OpcionConcepto[];
   vocabulario: VocabularioConceptos;
+  sugerencias: Record<string, string[]>;
   onConceptoCreado: (creado: ConceptoCreado) => void;
 }) {
   const router = useRouter();
@@ -140,6 +171,13 @@ function RenglonEditable({
   const modoGuardado = VALORES_DIRECTOS.has(item.modo_adquisicion ?? "") ? item.modo_adquisicion! : "";
   const [modo, setModo] = useState<ModoAdquisicion | "">(modoGuardado);
   const [instruccion, setInstruccion] = useState(item.instruccion_colegio ?? "");
+  // Lo que se exige, leído y curado. Se rearma al abrir el editor para tomar lo
+  // que el backend recalculó tras guardar (p. ej. con otro concepto).
+  const [filasAtributos, setFilasAtributos] = useState<FilaExigencia[]>(() =>
+    filasDeExigencia(item),
+  );
+  const conceptoCambiado = concepto !== (item.concepto_codigo ?? "");
+  const exige = resumenExigido(filasDeExigencia(item));
 
   // Adquisición directa del colegio: el colegio lo entrega, no se compra. No
   // tiene sentido mostrar concepto ni candidatos ("no lo ofrecemos"). Se toma
@@ -181,6 +219,12 @@ function RenglonEditable({
     if (modo !== modoGuardado) cambios.modo_adquisicion = modo || "mercado_abierto";
     if (instruccion !== (item.instruccion_colegio ?? ""))
       cambios.instruccion_colegio = instruccion || null;
+    // La curaduría de atributos, solo si cambió y solo si el concepto sigue
+    // siendo el mismo: lo que se ve es lo leído para el concepto guardado.
+    if (!conceptoCambiado && item.concepto_codigo) {
+      const curados = serializarAtributos(paresCurados(filasAtributos));
+      if (!mismosAtributos(curados, item.atributos)) cambios.atributos = curados;
+    }
 
     try {
       await editarItemLista(versionId, item.id, cambios);
@@ -220,6 +264,9 @@ function RenglonEditable({
               ? `Concepto: ${item.concepto_nombre} (${item.concepto_codigo})`
               : "Sin concepto — va a revisión"}
           </span>
+          {item.concepto_codigo && exige ? (
+            <span className={styles.exige}>Exige: {exige}</span>
+          ) : null}
           {!item.concepto_codigo && !revisada && !creandoConcepto ? (
             <button
               type="button"
@@ -251,6 +298,7 @@ function RenglonEditable({
           type="button"
           className={styles.botonMini}
           onClick={() => {
+            if (!abierto) setFilasAtributos(filasDeExigencia(item));
             setAbierto((v) => !v);
             setCreandoConcepto(false);
           }}
@@ -332,6 +380,18 @@ function RenglonEditable({
                 setConcepto(creado.codigo);
                 setCreandoConcepto(false);
               }}
+            />
+          ) : null}
+          {!esDirecto && (item.concepto_codigo || concepto) ? (
+            <AtributosRenglon
+              itemId={item.id}
+              filas={filasAtributos}
+              onCambio={setFilasAtributos}
+              discriminantes={item.atributos_discriminantes}
+              porRevisar={item.atributos_por_revisar}
+              sugerencias={sugerencias}
+              conceptoCambiado={conceptoCambiado}
+              disabled={guardando}
             />
           ) : null}
           <label className={styles.campo}>
