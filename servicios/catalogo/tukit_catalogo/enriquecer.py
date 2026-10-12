@@ -161,6 +161,9 @@ PRESENTACION = (
     ("frasco", "frasco"),
     ("pomo", "frasco"),
     ("tubo", "tubo"),
+    # La escarcha se vende en tubo o por libra (en bolsa): «3 tubos» no son 3
+    # libras.
+    ("libra", "bolsa"),
     ("pastilla", "pastilla"),
     ("crema", "crema"),
     ("bolsa", "bolsa"),
@@ -224,6 +227,8 @@ TIPOS = (
     ("quirurgico", "quirurgico"),
     # Antes de `argollado`: un `cuaderno de dibujo argollado` es de dibujo.
     ("de dibujo", "dibujo"),
+    # Antes de `cartulina`: una «Bitacora Cartulina Durex» es un sketchbook.
+    ("bitacora", "dibujo"),
     # Lo que la auditoria del Agustiniano encontro pedido y sin leer.
     ("gigante", "gigante"),
     ("rodachines", "con ruedas"),
@@ -299,6 +304,14 @@ TIPOS = (
     # `dulce` antes que `soprano`: dulce es el instrumento y soprano la voz. Una
     # "Flauta Dulce Soprano" quedaba `soprano` y la lista que pide "flauta dulce"
     # (la escolar de siempre) no encontraba ninguna.
+    # Juegos didacticos: lo que el colegio pide por nombre (C054).
+    ("juego de mesa", "juego de mesa"),
+    ("de mesa", "juego de mesa"),
+    ("juegos de mesa", "juego de mesa"),
+    ("loteria", "loteria"),
+    ("domino", "domino"),
+    ("ajedrez", "juego de mesa"),
+    ("parques", "juego de mesa"),
     ("dulce", "dulce"),
     ("soprano", "soprano"),
     ("traversa", "traversa"),
