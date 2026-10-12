@@ -398,6 +398,18 @@ En `listas_revisadas.csv`, cada renglón puede llevar:
 - **`atributos`**, que mandan sobre lo leído del texto, con las mismas claves y valores de §5.2. El
   valor `*` **quita** un atributo leído: la bitácora que trae la receta «15 hojas de cartulina…» se
   cura con `{"tipo": "dibujo", "tamano": "*"}`.
+
+  **Desde el admin**, sin tocar el CSV: en la revisión de la lista (`/onboarding/{version_id}`,
+  región 3) «Editar» un renglón muestra **«Atributos que se exigen»**: por cada atributo
+  discriminante del concepto, lo que se leyó del texto y lo curado, y lo que resulta exigido. Ahí
+  se cambia el valor (sugiere los que declaran los productos del concepto), se marca **«No
+  exigir»** (guarda `*`), se agrega uno de los discriminantes que el texto no dice o se quita la
+  curaduría para volver a lo leído; viaja en «Guardar cambios». Solo se pueden curar claves que el
+  concepto filtra (la ruta rápida ignoraría otra: el backend la rechaza con
+  `atributo_no_exigible`). Si se cambia el concepto, se guarda primero y se vuelve a abrir: lo leído
+  se recalcula con el concepto nuevo. Una lista ya revisada no se edita en su lugar: «Editar (nueva
+  versión)» en la página del grado la clona y cae en esa misma pantalla. Después, **exportar**
+  (§6) para que la curaduría llegue al CSV.
 - **`cantidad` en unidad base**: «3 paquetes de octavos» son `30` octavos y «2 cajas de colores
   x 12» son `24` colores. El kit compra los paquetes que hagan falta para cubrirla
   (`techo(cantidad / unidades_por_empaque)`); con la cantidad en paquetes, compraría de menos.
