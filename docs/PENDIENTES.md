@@ -153,13 +153,17 @@ forma en minúsculas mientras tanto.
 
 ## 3. Catálogo y kits (después del afinamiento del Agustiniano)
 
-El [plan del 2026-10-11](diseno/planes/2026-10-11-afinar-kits-agustiniano.md) se ejecutó sin poblar
-el catálogo, y sus cambios ya están en la base de desarrollo (220 huecos, $8.959.420 el Ahorrador y
-$14.159.658 el Premium). Lo que queda:
+El [plan del 2026-10-11](diseno/planes/2026-10-11-afinar-kits-agustiniano.md) se ejecutó, y el
+2026-10-12 se pobló el catálogo con el surtido aprobado en la cola de revisión. La base de desarrollo
+tiene 72 huecos, $9.723.617 el Ahorrador y $17.245.198 el Premium (antes, 220 huecos). Lo que queda:
 
-- **Poblar el catálogo** con la [lista del scraper](informes/surtido-huecos-agustiniano.md), cargando
-  cada producto con sus atributos y su empaque. Los conceptos marcados ⚠ en esa lista (resistencias,
-  LED, interruptores, motores, caimanes, juego didáctico) necesitan su discriminante antes.
+- **Los 72 huecos de la [lista del scraper](informes/surtido-huecos-agustiniano.md):** 27 de
+  papelería, arte y laboratorio (cuaderno de 3 materias, papel iris en octavos, acrílico cian,
+  ecoline, piedras, bata antifluido, libro para colorear) y 45 de electrónica, que espera una tienda
+  de electrónica. Los conceptos marcados ⚠ (resistencias, LED, interruptores, motores, caimanes,
+  cable) necesitan su discriminante antes.
+- **Auditoría v4:** la lista solo ve los huecos que el sistema declara. Los mal elegidos de abajo
+  son de la v3 y hay que volver a medirlos con el catálogo nuevo.
 - **Por confirmar con la ficha de la tienda:** el tamaño de la carpeta de fuelle Scribe
   (`TK-C011-CON`, se declaró `oficio`) y del acetato x5 (`TK-C030-CON`), y cuántas materias trae el
   cuaderno multimaterias de Spiderman.
