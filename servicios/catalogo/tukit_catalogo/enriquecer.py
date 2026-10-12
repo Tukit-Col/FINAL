@@ -424,6 +424,9 @@ COLORES = (
 # La punta de un marcador o de unas tijeras. Es la forma del extremo, no la
 # clase de tinta, y por eso no comparte tabla con TIPOS.
 PUNTAS = (
+    # Antes que `punta fina`: en «doble punta fina y gruesa» manda lo primero,
+    # y el estuche que el colegio pide de doble punta no es uno de punta fina.
+    ("doble punta", "doble punta"),
     ("micropunta", "micropunta"),
     ("punta roma", "punta roma"),
     # Asi, junto, lo escribe la lista de Jardin (J#62).
