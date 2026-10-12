@@ -155,7 +155,7 @@ forma en minúsculas mientras tanto.
 
 El [plan del 2026-10-11](diseno/planes/2026-10-11-afinar-kits-agustiniano.md) se ejecutó, y el
 2026-10-12 se pobló el catálogo con el surtido aprobado en la cola de revisión. La base de desarrollo
-tiene 69 huecos, $9.738.197 el Ahorrador y $17.264.778 el Premium (antes, 220 huecos). Lo que queda:
+tiene 69 huecos, $7.922.375 el Ahorrador y $17.248.578 el Premium (antes, 220 huecos), y 40 renglones con una sola opción (antes, 152; ver «Por alimentar» en la lista). Lo que queda:
 
 - **Los 69 huecos de la [lista del scraper](informes/surtido-huecos-agustiniano.md):** 24 de
   papelería, arte y laboratorio (cuaderno de 3 materias, acrílico cian, ecoline, piedras, bata
