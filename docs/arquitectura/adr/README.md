@@ -31,6 +31,7 @@ backbone. El número es una etiqueta; el título es la decisión.
 | [0037](0037-la-curaduria-viaja-por-git.md) | La curaduría de listas y del catálogo viaja por git como CSV | aceptada | `feature/curaduria-de-listas` |
 | [0038](0038-el-concepto-asignado-en-la-revision-manda.md) | El concepto asignado en la revisión manda sobre el texto, y su tipo decide si se busca | aceptada | `feature/curaduria-de-listas` |
 | [0039](0039-lo-que-no-tiene-precio-no-gana-por-barato.md) | Lo que no tiene precio no gana por barato en el frente, y el coseno no resta en la fusión | aceptada | `feature/atributos-catalogo` |
+| [0040](0040-como-se-compara-cada-atributo.md) | Cada atributo se compara a su manera (exacto lo que cambia qué cosa es, con tolerancia lo que se mide), y la cantidad del renglón va en unidad base | aceptada | `feature/integracion-total` |
 
 ## Para incorporarlos
 
