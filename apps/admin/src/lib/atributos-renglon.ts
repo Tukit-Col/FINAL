@@ -28,12 +28,17 @@ export interface FilaExigencia {
   /** Curado con una clave que el concepto no filtra: no cambia nada (p. ej.
    *  quedó de un concepto anterior). Se muestra para poder quitarlo. */
   ajena: boolean;
+  /** Lo leído no lo dice el texto: el backend lo dedujo (`atributos_deducidos`,
+   *  hoy el «más de uno» de `caja de…`), y la ruta rápida lo suelta si ningún
+   *  juego cumple. */
+  deducido: boolean;
 }
 
 interface Exigencia {
   atributos: Record<string, unknown>;
   atributos_leidos: Record<string, unknown>;
   atributos_discriminantes: readonly string[];
+  atributos_deducidos?: readonly string[];
 }
 
 /**
@@ -44,11 +49,13 @@ interface Exigencia {
  */
 export function filasDeExigencia(item: Exigencia): FilaExigencia[] {
   const discriminantes = new Set(item.atributos_discriminantes);
+  const deducidos = new Set(item.atributos_deducidos ?? []);
   const fila = (clave: string): FilaExigencia => ({
     clave,
     leido: clave in item.atributos_leidos ? comoTexto(item.atributos_leidos[clave]) : null,
     curado: clave in item.atributos ? comoTexto(item.atributos[clave]) : null,
     ajena: !discriminantes.has(clave),
+    deducido: deducidos.has(clave) && clave in item.atributos_leidos,
   });
   const propias = item.atributos_discriminantes
     .filter((k) => k in item.atributos_leidos || k in item.atributos)

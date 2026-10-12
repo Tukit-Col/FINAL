@@ -157,13 +157,20 @@ def _lo_que_se_exige(fila: Any, reglas: dict[str, tuple[tuple[str, ...], bool, s
             "atributos_leidos": {},
             "atributos_exigidos": {},
             "atributos_por_revisar": [],
+            "atributos_deducidos": [],
         }
-    leidos, por_revisar, _ = _lo_que_dice_el_texto(fila.texto_original, discriminantes, int(fila.cantidad))
+    leidos, por_revisar, juego_inferido = _lo_que_dice_el_texto(
+        fila.texto_original, discriminantes, int(fila.cantidad)
+    )
     return {
         "atributos_discriminantes": list(discriminantes),
         "atributos_leidos": leidos,
         "atributos_exigidos": _con_lo_curado(leidos, dict(fila.atributos or {}), discriminantes),
         "atributos_por_revisar": por_revisar,
+        # Lo leido que el texto no dijo: el `unidades=2` de `caja de...` o de un
+        # plural con cantidad uno. La ruta rapida lo suelta si ningun juego
+        # cumple, y el revisor tiene que saber que no lo escribio el colegio.
+        "atributos_deducidos": ["unidades"] if juego_inferido else [],
     }
 
 

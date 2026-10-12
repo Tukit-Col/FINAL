@@ -338,6 +338,10 @@ export interface ItemRevision {
   atributos_leidos: Record<string, unknown>;
   atributos_exigidos: Record<string, unknown>;
   atributos_por_revisar: string[];
+  // Lo leido que el texto no dijo sino que se dedujo: hoy solo `unidades`
+  // ("mas de uno" por `caja de...` o un plural). Si ningun juego cumple, la
+  // ruta rapida lo suelta y vale la pieza suelta.
+  atributos_deducidos: string[];
 }
 
 // Una propuesta de producto pendiente para un renglon, tal como la sirve la

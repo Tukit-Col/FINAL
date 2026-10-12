@@ -84,7 +84,7 @@ export default function AtributosRenglon({
   function agregar() {
     const clave = nueva || disponibles[0];
     if (!clave) return;
-    onCambio([...filas, { clave, leido: null, curado: "", ajena: false }]);
+    onCambio([...filas, { clave, leido: null, curado: "", ajena: false, deducido: false }]);
     setNueva("");
   }
 
@@ -110,11 +110,19 @@ export default function AtributosRenglon({
                   <span className={styles.atributoOrigen}>
                     {fila.ajena
                       ? "curado, pero el concepto no filtra por él"
-                      : fila.leido !== null
-                        ? `del texto: ${fila.leido}`
-                        : "el texto no lo dice"}
+                      : fila.deducido
+                        ? "deducido: más de uno"
+                        : fila.leido !== null
+                          ? `del texto: ${fila.leido}`
+                          : "el texto no lo dice"}
                   </span>
                 </div>
+                {fila.deducido ? (
+                  <p className={styles.atributosNota}>
+                    El texto no dice cuántos (pide una caja, un kit o va en plural): se exige más de
+                    uno. Si ningún juego cumple, vale la pieza suelta.
+                  </p>
+                ) : null}
                 {fila.ajena ? null : (
                   <div className={styles.atributoControles}>
                     <input
@@ -147,7 +155,11 @@ export default function AtributosRenglon({
                 )}
                 <div className={styles.atributoPie}>
                   <span className={exigido === null ? styles.atributoNoSeExige : styles.atributoSeExige}>
-                    {exigido === null ? "No se exige" : `Se exige: ${exigido}`}
+                    {exigido === null
+                      ? "No se exige"
+                      : fila.deducido && fila.curado === null
+                        ? "Se exige: más de uno"
+                        : `Se exige: ${exigido}`}
                     {fila.curado !== null && !fila.ajena ? " · curado" : ""}
                   </span>
                   {fila.curado !== null ? (
