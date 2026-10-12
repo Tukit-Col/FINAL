@@ -895,10 +895,15 @@ class Cargador:
                         # personaje y la portada mandan si vienen; el empaque, si
                         # el CSV tiene la columna. Sin esto, recargar sobre una base
                         # existente dejaba el kit de 40 jumpers en empaque 1.
-                        for columna in ("personaje", "imagen_url"):
-                            actualizables[columna] = func.coalesce(
-                                sentencia.excluded[columna], objeto.c[columna]
-                            )
+                        actualizables["imagen_url"] = func.coalesce(
+                            sentencia.excluded.imagen_url, objeto.c.imagen_url
+                        )
+                        # El personaje no se combina: vacio en el CSV es una
+                        # decision («Kiut» es la marca, no un personaje), y con
+                        # coalesce la base conservaba el viejo y el producto
+                        # seguia fuera de los kits canonicos. Desde que `volcar`
+                        # exporta la base, el CSV trae el personaje de todos.
+                        actualizables["personaje"] = sentencia.excluded.personaje
                         if getattr(self, "empaque_en_csv", False):
                             for columna in ("unidades_por_empaque", "unidad_base"):
                                 actualizables[columna] = sentencia.excluded[columna]
