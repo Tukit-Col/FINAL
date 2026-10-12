@@ -155,12 +155,12 @@ forma en minúsculas mientras tanto.
 
 El [plan del 2026-10-11](diseno/planes/2026-10-11-afinar-kits-agustiniano.md) se ejecutó, y el
 2026-10-12 se pobló el catálogo con el surtido aprobado en la cola de revisión. La base de desarrollo
-tiene 72 huecos, $9.723.617 el Ahorrador y $17.245.198 el Premium (antes, 220 huecos). Lo que queda:
+tiene 69 huecos, $9.738.197 el Ahorrador y $17.264.778 el Premium (antes, 220 huecos). Lo que queda:
 
-- **Los 72 huecos de la [lista del scraper](informes/surtido-huecos-agustiniano.md):** 27 de
-  papelería, arte y laboratorio (cuaderno de 3 materias, papel iris en octavos, acrílico cian,
-  ecoline, piedras, bata antifluido, libro para colorear) y 45 de electrónica, que espera una tienda
-  de electrónica. Los conceptos marcados ⚠ (resistencias, LED, interruptores, motores, caimanes,
+- **Los 69 huecos de la [lista del scraper](informes/surtido-huecos-agustiniano.md):** 24 de
+  papelería, arte y laboratorio (cuaderno de 3 materias, acrílico cian, ecoline, piedras, bata
+  antifluido) que las tiendas registradas no tienen —hace falta una tienda de arte, una de
+  manualidades y una de dotación— y 45 de electrónica, que espera una tienda de electrónica. Los conceptos marcados ⚠ (resistencias, LED, interruptores, motores, caimanes,
   cable) necesitan su discriminante antes.
 - **Auditoría v4:** la lista solo ve los huecos que el sistema declara. Los mal elegidos de abajo
   son de la v3 y hay que volver a medirlos con el catálogo nuevo.

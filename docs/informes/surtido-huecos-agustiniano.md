@@ -1,8 +1,8 @@
 # Qué buscar con el scraper: huecos reales del Colegio Agustiniano (2026)
 
-- **Fuente:** los kits canónicos de las 13 listas del colegio, medidos con `ensayos/kits_offline.py` sobre `datos/` y comprobados contra la base: los dos dan **72 renglones en HUECO_CATALOGO** y los mismos totales ($9.723.617 el Ahorrador y $17.245.198 el Premium).
-- **Fecha:** 2026-10-12. Reemplaza la versión del 2026-10-11, que salía de la [auditoría v2](auditoria-huecos-agustiniano/v2-d4ea7cb.md) y cubría 220 huecos. Entre las dos versiones se aprobó en la cola de revisión el surtido que trajo esa lista y se afinó la curaduría de los renglones; la sección 4 dice qué se resolvió.
-- **Para qué:** la lista de búsqueda del scraper. Cada fila es un producto que el catálogo no tiene y que alguna lista del colegio pide. Las filas cubren los 72 renglones: 27 de papelería, arte y laboratorio, y 45 de electrónica.
+- **Fuente:** los kits canónicos de las 13 listas del colegio, medidos con `ensayos/kits_offline.py` sobre `datos/` y comprobados contra la base: los dos dan **69 renglones en HUECO_CATALOGO** y los mismos totales ($9.738.197 el Ahorrador y $17.264.778 el Premium).
+- **Fecha:** 2026-10-12. Reemplaza la versión del 2026-10-11, que salía de la [auditoría v2](auditoria-huecos-agustiniano/v2-d4ea7cb.md) y cubría 220 huecos. Entre las dos versiones se aprobó en la cola de revisión el surtido que trajo esa lista y se afinó la curaduría de los renglones; la sección 4 dice qué se resolvió. Actualizada el mismo día con una segunda búsqueda sobre los huecos que no son de electrónica (sección 1).
+- **Para qué:** la lista de búsqueda del scraper. Cada fila es un producto que el catálogo no tiene y que alguna lista del colegio pide. Las filas cubren los 69 renglones: 24 de papelería, arte y laboratorio, y 45 de electrónica.
 - **Lo que esta lista no ve:** solo cuenta los renglones que el sistema declara hueco. Un renglón resuelto con un producto que no es lo pedido (A🔴 o C en las auditorías) no aparece aquí. Eso lo mide la siguiente auditoría.
 
 ## Cómo leer esta lista
@@ -14,17 +14,17 @@
 - **Renglones:** `grado#orden` (J Jardín, T Transición, 1–11). Entre paréntesis, la cantidad cuando es mayor que 1.
 - **Dónde:** tiendas ya registradas (`datos/catalogo/tiendas.csv`): Éxito (incluido su marketplace), Papelería Grancentral, Panamericana, Librería Nacional y Buscalibre. Lo que no tenga precio o esté agotado no se propone.
 
-## 1. Papelería, arte y laboratorio (27 renglones)
+## 1. Papelería, arte y laboratorio (24 renglones)
 
-| # | Qué buscar | Atributos al cargarlo | Concepto | Renglones | Dónde |
+La segunda búsqueda del 2026-10-12 recorrió Éxito, Panamericana y Grancentral para estas filas y no encontró ningún producto disponible y con precio que cumpla. La columna «Búsqueda del 12-10» dice lo que hay y por qué no sirve. Con las tiendas registradas no se van a cerrar: hace falta una tienda de arte (filas 2 y 3), una de manualidades o jardinería (fila 4) y una de dotación (fila 5).
+
+| # | Qué buscar | Atributos al cargarlo | Concepto | Renglones | Búsqueda del 12-10 |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Cuaderno **3 materias** cuadriculado, grande | `materias=3`, `rayado=cuadriculado` | C001 | 10#17, 10#24, 10#27, 11#21, 11#24 | Éxito, Panamericana, Grancentral |
-| 2 | **Papel iris en octavos** (paquete o block de papel, no cartulina). La cartulina iris en octavos ya está en C010, pero el renglón pide papel | `tamano=octavo`, `tipo=iris` | C113 | 10#61, 11#58 | Panamericana, Grancentral |
-| 3 | **Libro para colorear** infantil, de dibujos pequeños | `tipo=colorear` | C044 | T#55 | Panamericana, Éxito |
-| 4 | **Pintura acrílica cian** (tarro o tubo de unos 45–60 ml). Los demás colores de la serie ya los cubre el tarro Destellos de 60 cc; sirve el cian de esa línea u otro equivalente | `tipo=acrilico`, `color=cian` | C027 | 7#43, 8#42, 9#39, 10#45, 11#41 | Panamericana, Éxito |
-| 5 | **Ecoline** (acuarela líquida) blanco y negro | `color=blanco` / `color=negro` | C143 | 9#46 (blanco), 9#47 (negro) | Panamericana |
-| 6 | **Piedras decorativas**: de bisutería pequeñas y de colores para jardinería | Ninguno; con un producto de cada uno basta para empezar | C144 | 2#71 (bisutería), 2#91 (jardinería) | Éxito |
-| 7 | **Bata de laboratorio antifluido**, manga larga, tallas infantiles y juveniles | `material=antifluido`; si la ficha lo dice, `manga=larga` y `color=blanco` | C024 | 3#41, 4#38, 5#47, 6#25, 7#24, 8#22, 8#26, 9#22, 10#29, 11#26 | Éxito |
+| 1 | Cuaderno **3 materias** cuadriculado, grande | `materias=3`, `rayado=cuadriculado` | C001 | 10#17, 10#24, 10#27, 11#21, 11#24 | Solo los KEEPERMATE de Éxito, agotados; las otras tiendas traen de 4 materias en adelante |
+| 2 | **Pintura acrílica cian** (tarro o tubo de unos 45–60 ml). Los demás colores de la serie ya los cubre el tarro Destellos de 60 cc; sirve el cian de esa línea u otro equivalente | `tipo=acrilico`, `color=cian` | C027 | 7#43, 8#42, 9#39, 10#45, 11#41 | La línea Destellos no tiene cian; el único «cyan» (Pébéo 100 ml, Éxito) está agotado. El azul ftalo no se acepta como sustituto (decisión del usuario) |
+| 3 | **Ecoline** (acuarela líquida) blanco y negro | `color=blanco` / `color=negro` | C143 | 9#46 (blanco), 9#47 (negro) | No hay acuarela líquida en frasco en ninguna tienda; «ecoline» solo trae marcadores agotados o a $0 |
+| 4 | **Piedras decorativas**: de bisutería pequeñas y de colores para jardinería | Ninguno; con un producto de cada uno basta para empezar | C144 | 2#71 (bisutería), 2#91 (jardinería) | Solo joyas, cuarzos y bultos de 25–30 kg agotados |
+| 5 | **Bata de laboratorio antifluido**, manga larga, tallas infantiles y juveniles | `material=antifluido`; si la ficha lo dice, `manga=larga` y `color=blanco` | C024 | 3#41, 4#38, 5#47, 6#25, 7#24, 8#22, 8#26, 9#22, 10#29, 11#26 | Ninguna bata disponible dice antifluido (la única es médica de mujer, agotada). No se aceptan la bata manga larga sin antifluido ni el delantal antifluido (decisión del usuario) |
 
 ## 2. Electrónica (45 renglones)
 
@@ -32,19 +32,19 @@ La única tienda registrada que trae algo de esto es el marketplace de Éxito. C
 
 | # | Qué buscar | Atributos al cargarlo | Concepto | Renglones | Dónde |
 | --- | --- | --- | --- | --- | --- |
-| 8 | **Cables caimanes** (paquete de 10, de unos 15–30 cm) | ⚠ agregar `longitud` | C108 | 1#44 (4), 2#82 (4), 3#77 (2), 4#71 (4), 5#73 (4) | Éxito marketplace, tienda de electrónica |
-| 9 | **Jumpers de 10 cm, x10**: macho-macho y hembra-macho | `tipo=macho-macho` o `macho-hembra`, `longitud=10 cm`; "x10" en el nombre | C121 | M-M: 6#48, 7#74 · H-M: 6#49, 7#75 | Éxito marketplace, tienda de electrónica |
-| 10 | **Jumpers de 20 cm, x10**: macho-hembra y hembra-hembra | `tipo=macho-hembra` o `hembra-hembra`, `longitud=20 cm` | C121 | M-H: 8#63 (10), 9#66 (10) · H-H: 8#64 (10) | Éxito marketplace, tienda de electrónica |
-| 11 | **LEDs de 5 mm surtidos**, paquete x10 | ⚠ agregar `color`; "x10" en el nombre | C122 | 1#45 (4), 2#83 (3), 3#74 (2), 4#72 (3), 5#74 (6), 6#50, 7#76, 8#65 (10), 9#67 (10) | Éxito marketplace, tienda de electrónica |
-| 12 | **Arduino Uno R3** (la placa sola, con cable USB) | Ninguno | C123 | 8#61, 9#64 | Éxito marketplace, tienda de electrónica |
-| 13 | **Interruptor de balancín** (rocker) | ⚠ agregar `tipo` | C124 | 1#41, 5#70 | Éxito marketplace, tienda de electrónica |
-| 14 | **Interruptor** sencillo y **switch de dos posiciones (2 pines)** | `tipo=sencillo` / `tipo=2 posiciones` | C124 | 2#78, 3#71, 4#67 · 2 posiciones: 6#52 (2) | Éxito marketplace, tienda de electrónica |
-| 15 | **Resistencias de 330 Ω y de 1 kΩ, 1/4 W** (sueltas o en bolsa pequeña) | ⚠ agregar `valor` | C125 | 1#46 (2), 2#84 (3), 3#75 (2), 4#73 (3), 5#75 (3) | Tienda de electrónica |
-| 16 | **Kit de 20 resistencias surtidas de 1/4 W** | `valor=surtido`; "x20" en el nombre | C125 | 6#51, 7#77, 8#66, 9#68 (20) | Tienda de electrónica |
-| 17 | **Cable estañado calibre 22**, por metro | ⚠ agregar `calibre` | C138 | 5#76 | Tienda de electrónica |
-| 18 | **Servomotor** (tipo SG90) | Ninguno | C140 | 9#69 (2) | Éxito marketplace, tienda de electrónica |
-| 19 | **Motor DC pequeño** (motor generador escolar de 3–6 V, rectangular) | ⚠ agregar `tipo` (`motor`, `motorreductor`) | C141 | 2#79, 4#68, 9#70 | Éxito marketplace, tienda de electrónica |
-| 20 | **Motorreductor** (amarillo tipo TT, con rueda) | `tipo=motorreductor` | C141 | 6#53, 7#79 | Éxito marketplace, tienda de electrónica |
+| 6 | **Cables caimanes** (paquete de 10, de unos 15–30 cm) | ⚠ agregar `longitud` | C108 | 1#44 (4), 2#82 (4), 3#77 (2), 4#71 (4), 5#73 (4) | Éxito marketplace, tienda de electrónica |
+| 7 | **Jumpers de 10 cm, x10**: macho-macho y hembra-macho | `tipo=macho-macho` o `macho-hembra`, `longitud=10 cm`; "x10" en el nombre | C121 | M-M: 6#48, 7#74 · H-M: 6#49, 7#75 | Éxito marketplace, tienda de electrónica |
+| 8 | **Jumpers de 20 cm, x10**: macho-hembra y hembra-hembra | `tipo=macho-hembra` o `hembra-hembra`, `longitud=20 cm` | C121 | M-H: 8#63 (10), 9#66 (10) · H-H: 8#64 (10) | Éxito marketplace, tienda de electrónica |
+| 9 | **LEDs de 5 mm surtidos**, paquete x10 | ⚠ agregar `color`; "x10" en el nombre | C122 | 1#45 (4), 2#83 (3), 3#74 (2), 4#72 (3), 5#74 (6), 6#50, 7#76, 8#65 (10), 9#67 (10) | Éxito marketplace, tienda de electrónica |
+| 10 | **Arduino Uno R3** (la placa sola, con cable USB) | Ninguno | C123 | 8#61, 9#64 | Éxito marketplace, tienda de electrónica |
+| 11 | **Interruptor de balancín** (rocker) | ⚠ agregar `tipo` | C124 | 1#41, 5#70 | Éxito marketplace, tienda de electrónica |
+| 12 | **Interruptor** sencillo y **switch de dos posiciones (2 pines)** | `tipo=sencillo` / `tipo=2 posiciones` | C124 | 2#78, 3#71, 4#67 · 2 posiciones: 6#52 (2) | Éxito marketplace, tienda de electrónica |
+| 13 | **Resistencias de 330 Ω y de 1 kΩ, 1/4 W** (sueltas o en bolsa pequeña) | ⚠ agregar `valor` | C125 | 1#46 (2), 2#84 (3), 3#75 (2), 4#73 (3), 5#75 (3) | Tienda de electrónica |
+| 14 | **Kit de 20 resistencias surtidas de 1/4 W** | `valor=surtido`; "x20" en el nombre | C125 | 6#51, 7#77, 8#66, 9#68 (20) | Tienda de electrónica |
+| 15 | **Cable estañado calibre 22**, por metro | ⚠ agregar `calibre` | C138 | 5#76 | Tienda de electrónica |
+| 16 | **Servomotor** (tipo SG90) | Ninguno | C140 | 9#69 (2) | Éxito marketplace, tienda de electrónica |
+| 17 | **Motor DC pequeño** (motor generador escolar de 3–6 V, rectangular) | ⚠ agregar `tipo` (`motor`, `motorreductor`) | C141 | 2#79, 4#68, 9#70 | Éxito marketplace, tienda de electrónica |
+| 18 | **Motorreductor** (amarillo tipo TT, con rueda) | `tipo=motorreductor` | C141 | 6#53, 7#79 | Éxito marketplace, tienda de electrónica |
 
 ## 3. No se venden (decisión del 2026-10-11)
 
@@ -121,9 +121,10 @@ Por diseño son "Lo consigues por tu cuenta". Cuatro de los títulos que piden l
 
 ## 4. Resuelto desde la versión anterior
 
-De 220 renglones en hueco se pasó a 72. Las filas de la versión del 2026-10-11 que ya no tienen ningún renglón en hueco son estas (el número es el de esa versión):
+De 220 renglones en hueco se pasó a 69. Las filas de la versión del 2026-10-11 que ya no tienen ningún renglón en hueco son estas (el número es el de esa versión):
 
 - **Con productos aprobados en la cola** (surtido del 2026-10-12, cada oferta verificada contra la API de la tienda): cuaderno de cuadros de 1 cm (1), 5 materias (3), blocks rayados, blancos y milimetrado (6–10), sketchbook durex (11), carpetas legajadoras por color y de gancho (13, 14), sobre de acetato grueso (15), cartulinas en pliego, cuartos y fluorescente (17–19), cartón paja (20), celofán y lija (21, 22), papel bond en octavos (23), lápiz rojo delgado y grueso (24, 25), marcadores acrílicos (26), micropunta (27), regla de acero (28), tijeras de 8,5 in (29), metro de costura (30), pinceles (32, 33), lienzos (34–36), acrílicos por color salvo el cian y su estuche (37, 38), acuarelas en tubo (39), figuras de foami (41), palos de pincho y de paleta (42, 43), pañuelos, toalla, plato y vaso (45–48), antifaz (50), juego de mesa (51) y diccionario inglés-inglés (65).
 - **Con curaduría, sin producto nuevo:** el block de cartulina iris carta (12) se cobra con el block de cartulina multicolor A4 de $3.900 en vez del paquete iris x100 de $63.800; los marcadores acrílicos «de 12 o 18 unidades» aceptan el estuche de 12; la barra de 125 g (31) se tomó como mal pedida por el colegio y se cura a la más grande que existe, de 40 g.
 - **Ya no se compran:** el portabasura (16) pasó a «no comprar», y `1#57` (acetato) y `1#53` (papel crepe) repiten otro renglón de la misma lista.
 - **Acetato en hojas de oficio** (16b): `4#55` se cobra con un acetato de laminación de oficio x10 aprobado en la cola; ya no depende del acetato calibre 10, cuyo tamaño sigue sin confirmar.
+- **Segunda búsqueda del 2026-10-12:** el papel iris en octavos (`10#61`, `11#58`) no existe en las tiendas; por decisión del usuario se cura a papel iris carta y se cobra el block FINLANDEK x12 de $2.290. El libro para colorear (`T#55`) se cobra con «A colorear: oficios» de Panamericana, aprobado en la cola junto con otros dos; la «Cartilla Leito para colorear» de Éxito quedó en la cola.
