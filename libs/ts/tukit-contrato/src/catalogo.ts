@@ -323,10 +323,21 @@ export interface ItemRevision {
   modo_adquisicion: ModoAdquisicion | null;
   instruccion_colegio: string | null;
   url_externa: string | null;
+  // Lo CURADO por el revisor: manda sobre lo leido del texto, y el valor `*`
+  // (`NO_EXIGIR`) quita un atributo leido.
   atributos: Record<string, unknown>;
   requiere_revision: boolean;
   concepto_codigo: string | null;
   concepto_nombre: string | null;
+  // Lo que la ruta rapida le exigiria al renglon (`_lo_que_se_exige`): las
+  // claves curables (discriminantes del concepto asignado), lo leido del texto
+  // con la misma regla de `_renglon_resuelto`, el resultado con la curaduria
+  // encima y lo que el texto nombra con varios valores (no se exige). Vacios
+  // si el renglon no tiene concepto o el concepto no filtra por atributos.
+  atributos_discriminantes: string[];
+  atributos_leidos: Record<string, unknown>;
+  atributos_exigidos: Record<string, unknown>;
+  atributos_por_revisar: string[];
 }
 
 // Una propuesta de producto pendiente para un renglon, tal como la sirve la

@@ -1644,6 +1644,10 @@ interface ItemRevisionCrudo {
   atributos?: Record<string, unknown>;
   requiere_revision?: boolean;
   concepto?: { codigo: string; nombre: string } | null;
+  atributos_discriminantes?: string[];
+  atributos_leidos?: Record<string, unknown>;
+  atributos_exigidos?: Record<string, unknown>;
+  atributos_por_revisar?: string[];
 }
 
 interface PropuestaRevisionCruda {
@@ -1709,6 +1713,12 @@ function normalizarItemRevision(i: ItemRevisionCrudo): ItemRevision {
     requiere_revision: Boolean(i.requiere_revision),
     concepto_codigo: i.concepto?.codigo ?? null,
     concepto_nombre: i.concepto?.nombre ?? null,
+    // Un backend anterior a la curaduria desde el admin no los sirve: vacios,
+    // y la pantalla solo ofrece curar lo que ya estaba curado.
+    atributos_discriminantes: i.atributos_discriminantes ?? [],
+    atributos_leidos: i.atributos_leidos ?? {},
+    atributos_exigidos: i.atributos_exigidos ?? {},
+    atributos_por_revisar: i.atributos_por_revisar ?? [],
   };
 }
 
