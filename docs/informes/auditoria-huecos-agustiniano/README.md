@@ -10,13 +10,14 @@ reemplaza a la anterior: juntas muestran cómo evolucionó el sistema. La últim
 | [v1](v1-a565aeb.md) | `a565aeb` | 1.092 | 263 | 240 | $13.864.663 / $32.031.940 | Primera auditoría: 13 listas revisadas y exportadas |
 | [v2](v2-d4ea7cb.md) | `d4ea7cb` | 1.092 | 465 de 888 (52,4 %) | 385 | $9.857.452 / $17.602.526 | Atributos del catálogo, filtro por renglón, curaduría de Séptimo, juntar herramientas |
 | [v3](v3-02d8f24.md) | `02d8f24` | 1.098 | 617 de 886 (69,6 %) | 220 | $8.959.420 / $14.159.658 | [Afinamiento del Agustiniano](../../diseno/planes/2026-10-11-afinar-kits-agustiniano.md) y [ADR 0040](../../arquitectura/adr/0040-como-se-compara-cada-atributo.md) |
+| [v4](v4-4dc3bc8.md) | `4dc3bc8` | 1.102 | 758 de 885 (85,6 %) | 69 | $8.057.305 / $17.333.138 | Surtido del catálogo del 2026-10-12: cola de revisión, ronda de cobertura, limpieza y curaduría |
 
-Las tres usan las mismas categorías: A (hueco real), B (falso hueco), C (mal elegido) y D. A, B y C
+Las cuatro usan las mismas categorías: A (hueco real), B (falso hueco), C (mal elegido) y D. A, B y C
 hablan del catálogo y del armador; D, del alcance del negocio. Desde v3, D se llama «Fuera del
 surtido de Tukit»: uniformes, licencias, lo que se trae de casa o entrega el colegio, lo que Tukit
 decidió no vender y los textos con título. En v1 y v2 se llamaba «No es hueco»; es la misma
 categoría con otro nombre. Cada una trae una sección que la compara con la anterior: v2 §8 frente a v1, y v3 §8 frente
-a v2.
+a v2; v4 §8 frente a v3.
 
 - v1 se llamaba `nuevo-reporte-huecos-agustiniano-viejo.md`, y v2, `nuevo-reporte-huecos-agustiniano.md`.
   Se movieron aquí sin cambiar su contenido, así que los enlaces y rutas que citan dentro siguen
