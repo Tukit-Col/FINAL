@@ -205,7 +205,9 @@ def _valor_cumple(atributo: str, declarado: Any, pedido: Any) -> bool:
     if atributo == "tamano":
         tiene_m, pide_m = _medidas(declarado), _medidas(pedido)
         if tiene_m and pide_m:
-            return all(abs(t - p) <= p * _TOLERANCIA_MEDIDAS for t, p in zip(tiene_m, pide_m, strict=True))
+            # Estricto: en el borde (40 -> 30 es justo 25 %) un lienzo de 30 x 25
+            # pasaba por uno de 30 x 40 (auditoria v4, decision del 2026-10-12).
+            return all(abs(t - p) < p * _TOLERANCIA_MEDIDAS for t, p in zip(tiene_m, pide_m, strict=True))
     return False
 
 

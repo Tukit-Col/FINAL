@@ -59,6 +59,11 @@ class TestComoSeComparaCadaAtributo:
         assert _cumple(_p("a", {"tamano": "20 x 30 cm"}), {"tamano": "25 x 25 cm"})
         assert not _cumple(_p("a", {"tamano": "50 x 70 cm"}), {"tamano": "25 x 25 cm"})
 
+    def test_el_borde_del_veinticinco_por_ciento_no_entra(self):
+        # Auditoria v4: un lienzo de 30 x 25 pasaba por uno de 30 x 40 (40 -> 30 es
+        # justo 25 %) y el Premium lo cobraba habiendo el de 30 x 40.
+        assert not _cumple(_p("a", {"tamano": "30 x 25 cm"}), {"tamano": "30 x 40 cm"})
+
     def test_frasco_y_tarro_son_lo_mismo(self):
         assert _cumple(_p("a", {"presentacion": "tarro"}), {"presentacion": "frasco"})
 
@@ -353,3 +358,45 @@ class TestLasVariantesSoloSiSePiden:
         assert [c["sku"] for c in candidatos] == ["negro"]
         rojos, _, _ = _renglon_resuelto("lápiz rojo delgado", {}, productos, ("color",), concepto="C002")
         assert [c["sku"] for c in rojos] == ["rojo"]
+
+
+class TestElTamanoDelCuadernoSeExigeSiAlguienLoDeclara:
+    """Auditoria v4: «cuaderno grande» recibia un Finlandek de $5.990 que no dice
+    ser grande, habiendo la version grande. Exigir el tamano a todos dejaba en
+    hueco los cosidos grandes, que ningun cuaderno declara: se exige solo si
+    alguno de los que cumplen lo declara."""
+
+    def test_si_hay_uno_grande_el_que_no_dice_tamano_queda_fuera(self):
+        productos = [
+            _p("sin-tamano", {"rayado": "cuadriculado", "hojas": 100}, precio=5990),
+            _p("grande", {"rayado": "cuadriculado", "hojas": 100, "tamano": "grande"}, precio=10990),
+        ]
+        candidatos, _, _ = _renglon_resuelto(
+            "cuaderno argollado cuadriculado grande 100 hojas",
+            {},
+            productos,
+            ("hojas", "rayado"),
+            concepto="C001",
+        )
+        assert [c["sku"] for c in candidatos] == ["grande"]
+
+    def test_si_ninguno_lo_declara_no_se_exige(self):
+        productos = [_p("sin-tamano", {"rayado": "cuadriculado", "hojas": 100}, precio=5990)]
+        candidatos, _, _ = _renglon_resuelto(
+            "cuaderno cosido cuadriculado grande 100 hojas",
+            {},
+            productos,
+            ("hojas", "rayado"),
+            concepto="C001",
+        )
+        assert [c["sku"] for c in candidatos] == ["sin-tamano"]
+
+    def test_un_renglon_sin_tamano_no_filtra(self):
+        productos = [
+            _p("sin-tamano", {"rayado": "cuadriculado", "hojas": 100}, precio=5990),
+            _p("grande", {"rayado": "cuadriculado", "hojas": 100, "tamano": "grande"}, precio=10990),
+        ]
+        candidatos, _, _ = _renglon_resuelto(
+            "cuaderno cuadriculado 100 hojas", {}, productos, ("hojas", "rayado"), concepto="C001"
+        )
+        assert {c["sku"] for c in candidatos} == {"sin-tamano", "grande"}

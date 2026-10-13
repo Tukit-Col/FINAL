@@ -407,6 +407,30 @@ def _con_lo_curado(
 # mas barato. Si ningun producto lo cumple, no se exige.
 _POR_OMISION: dict[str, dict[str, str]] = {"C002": {"color": "negro"}}
 
+# Lo que se exige solo si algun producto que cumple lo demas lo declara. El
+# tamano del cuaderno: «cuaderno grande» recibia un Finlandek de $5.990 que no
+# dice ser grande habiendo la version grande (auditoria v4, 23 renglones), pero
+# exigirlo siempre dejaba en hueco los cosidos grandes, que ningun cuaderno del
+# catalogo declara. No es discriminante del concepto: no se exige a ciegas.
+_BLANDOS: dict[str, tuple[str, ...]] = {"C001": ("tamano",)}
+
+
+def _lo_blando(texto: str, curados: dict[str, Any], concepto: str | None) -> dict[str, Any]:
+    """Lo que el renglon pide de los atributos blandos de su concepto, con la curaduria encima."""
+    from ..enriquecer import extraer_atributos
+
+    blandos = _BLANDOS.get(concepto or "", ())
+    if not blandos:
+        return {}
+    pide = extraer_atributos(texto, blandos)
+    for k in blandos:
+        v = curados.get(k)
+        if v == NO_EXIGIR:
+            pide.pop(k, None)
+        elif v not in (None, ""):
+            pide[k] = v
+    return pide
+
 
 def _variante_especial(atributo: str, valor: Any) -> bool:
     """Si este valor solo le sirve a quien lo pidio por nombre.
@@ -490,6 +514,10 @@ def _renglon_resuelto(
     if por_omision:
         con_omision = [p for p in que_cumplen if _cumple(p, por_omision)]
         que_cumplen = con_omision or que_cumplen
+    blandos = _lo_blando(texto, curados, concepto)
+    if blandos:
+        con_blandos = [p for p in que_cumplen if _cumple(p, blandos)]
+        que_cumplen = con_blandos or que_cumplen
     que_cumplen = _sin_variantes_no_pedidas(que_cumplen, impuestos, discriminantes)
     elegibles = [p for p in que_cumplen if not p.get("personaje")] or que_cumplen
     elegibles.sort(
