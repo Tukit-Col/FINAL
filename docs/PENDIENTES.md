@@ -162,8 +162,11 @@ tiene 69 huecos, $7.922.375 el Ahorrador y $17.248.578 el Premium (antes, 220 hu
   antifluido) que las tiendas registradas no tienen —hace falta una tienda de arte, una de
   manualidades y una de dotación— y 45 de electrónica, que espera una tienda de electrónica. Los conceptos marcados ⚠ (resistencias, LED, interruptores, motores, caimanes,
   cable) necesitan su discriminante antes.
-- **Auditoría v4:** la lista solo ve los huecos que el sistema declara. Los mal elegidos de abajo
-  son de la v3 y hay que volver a medirlos con el catálogo nuevo.
+- **Auditoría v4 hecha** ([v4-4dc3bc8](informes/auditoria-huecos-agustiniano/v4-4dc3bc8.md)): 758 de 885
+  comprables cumplen (85,6 %). Quedan 55 mal elegidos con el producto disponible: sobre todo cuadernos
+  «grandes» que el Ahorrador surte con uno que no dice serlo (C001 no exige `tamano`), notas adhesivas
+  transparentes en el Premium y atributos que no se exigen (pastel, surtido, gráficos, 13 bolsillos).
+  Decisión pendiente: la tolerancia de 25 % por lado deja pasar un lienzo 30 × 25 por 30 × 40.
 - **Por confirmar con la ficha de la tienda:** el tamaño de la carpeta de fuelle Scribe
   (`TK-C011-CON`, se declaró `oficio`) y del acetato x5 (`TK-C030-CON`), y cuántas materias trae el
   cuaderno multimaterias de Spiderman.
