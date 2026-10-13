@@ -30,7 +30,7 @@ solo existía en la base (lo escribía `enriquecer`), así que cada recarga desd
    - `unidades`, `colores`, `piezas`, `notas`, `gramaje`, `capacidad`: al menos lo pedido.
    - `puntos`: entre lo pedido y 2,2 veces lo pedido.
    - `longitud`: entre 0,85 y 1,35 veces lo pedido.
-   - Medidas `a x b cm`: un 25 % por lado.
+   - Medidas `a x b cm`: menos de un 25 % por lado (estricto desde el 2026-10-12: en el borde, un lienzo de 30 × 25 pasaba por uno de 30 × 40).
    - Equivalencias: `carta` ≈ `a4`, `frasco` = `tarro`, `plastico` ≈ `antifluido`.
    - `idioma`: «de inglés» acepta el bilingüe con español; «inglés – inglés», solo el monolingüe.
 2. **Lo que el producto no declara no cumple.** Se descartó tratarlo como «por confirmar»: la
