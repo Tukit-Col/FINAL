@@ -41,3 +41,6 @@ next-env.d.ts
 
 # Caches de los ensayos (lo que Gemini ya leyo): ensayos/entorno.py, TUKIT_CACHE_ENSAYOS.
 .cache/
+
+# Resultados locales de Firecrawl (busquedas y paginas raspadas)
+.firecrawl/
