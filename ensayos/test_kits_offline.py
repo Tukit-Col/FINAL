@@ -44,14 +44,68 @@ class TestLoQueNoSeVendeLlegaComoLinea:
 class TestHuecosReales:
     """Lo que ninguna tienda registrada vende: sigue siendo hueco, no un sustituto."""
 
-    @pytest.mark.parametrize(
-        "clave",
-        ["3#41", "8#63", "1#44", "1#45", "9#46", "2#71", "6#53", "7#43", "8#61"],
-    )
+    @pytest.mark.parametrize("clave", ["2#71", "2#91", "10#17", "11#21"])
     def test_no_se_cobra_un_sustituto(self, renglon, clave):
-        # Bata antifluido, jumpers macho-hembra, caimanes, LED, ecoline, piedras,
-        # motorreductor, acrilico cian y Arduino.
+        # Piedras de bisuteria y de jardineria, y cuaderno de 3 materias grande.
         assert renglon(clave).estado == "HUECO_CATALOGO"
+
+
+class TestLoQueTrajoElSurtidoDelQuinceDeOctubre:
+    """Electronica (Zamux), batas antifluido (Maju), acrilico cian y ecoline
+    (Comercial Papelera): los huecos que la auditoria v4 daba por imposibles con
+    las tiendas registradas."""
+
+    @pytest.mark.parametrize(
+        "clave, sku",
+        [
+            ("6#48", "TK-REV-J01"),  # jumpers macho-macho 10 cm x10
+            ("6#49", "TK-REV-J02"),  # jumpers macho-hembra 10 cm x10
+            ("8#63", "TK-REV-J05"),  # jumpers macho-hembra 20 cm x10
+            ("8#64", "TK-REV-J06"),  # jumpers hembra-hembra 20 cm x10
+            ("1#44", "TK-REV-91c2c31c08ae"),  # caimanes de 15 cm
+            ("1#45", "TK-REV-6cc17be10276"),  # LEDs sueltos con el paquete surtido
+            ("6#50", "TK-REV-6cc17be10276"),  # paquete de LEDs de colores
+            ("1#46", "TK-REV-81893789"),  # resistencias de 330 ohm
+            ("6#51", "TK-REV-37e32267c9f2"),  # resistencias surtidas
+            ("1#41", "TK-REV-SW06"),  # interruptor de balancin
+            ("6#52", "TK-REV-SW35"),  # switch de 2 posiciones
+            ("2#79", "TK-REV-MJUG"),  # motor DC
+            ("6#53", "TK-REV-L37A"),  # motorreductor
+            ("8#61", "TK-REV-87e29b56aab5"),  # Arduino Uno
+            ("9#69", "TK-REV-SG90"),  # servomotor
+            ("5#76", "TK-REV-APP"),  # cable estanado calibre 22
+            ("7#43", "TK-REV-790637358"),  # acrilico cian
+        ],
+    )
+    def test_el_ahorrador_cobra_el_producto_nuevo(self, renglon, clave, sku):
+        assert _sku(renglon(clave).ahorrador) == sku
+
+    @pytest.mark.parametrize(
+        "clave, ahorrador, premium",
+        [
+            ("3#41", "TK-REV-7018", "TK-REV-8014"),  # bata con cremallera / bata de ninos
+            ("9#46", "TK-REV-777576887", "TK-REV-790642236"),  # ecoline blanco
+            ("9#47", "TK-REV-790635002", "TK-REV-790635380"),  # ecoline negro
+        ],
+    )
+    def test_cada_perfil_tiene_su_opcion(self, renglon, clave, ahorrador, premium):
+        linea = renglon(clave)
+        assert (_sku(linea.ahorrador), _sku(linea.premium)) == (ahorrador, premium)
+
+    @pytest.mark.parametrize("clave", ["J#63", "6#59", "11#64"])
+    def test_el_borrador_sigue_siendo_de_nata(self, renglon, clave):
+        # El de miga de pan que pide Bahia Solano entro al mismo concepto y
+        # ganaba en «borrador en nata» y en «borrador» a secas.
+        linea = renglon(clave)
+        assert "nata" in linea.ahorrador.nombre.lower()
+        assert "nata" in linea.premium.nombre.lower()
+
+    def test_septimo_compra_las_dos_cintas_y_un_pegante(self, renglon):
+        # La lista pide un rollo de cinta en cada bloque de Artes; el pegante de
+        # la cartuchera es el mismo de Artes.
+        assert renglon("7#61").ahorrador.unidades == 1
+        assert renglon("7#66").ahorrador.unidades == 1
+        assert renglon("7#89").ahorrador is None
 
 
 class TestLoQueTrajoElSurtidoDelDoceDeOctubre:
