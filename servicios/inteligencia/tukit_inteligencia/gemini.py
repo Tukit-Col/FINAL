@@ -16,6 +16,12 @@ unos 5 s. Sin el reintento, una sola pagina colgada rechazaba la lista entera y
 el acudiente volvia a subirla, pagando otra vez la lectura de TODAS las
 paginas. Una respuesta que llega mal formada no se reintenta: eso no es la red,
 es el modelo, y pedirlo de nuevo esconderia el fallo.
+
+SOLO RAMA `qa` (Tukit-QA, H-C-17; nunca va a `main`): con `GEMINI_BASE_URL`
+definida, la llamada va a esa base por HTTP, que es el `fake-gemini` de la
+carga, y no se lee ni se exige `GEMINI_API_KEY`. La clave que viaja es el
+literal `qa`, asi que una clave real no puede salir por este camino. Sin la
+variable, todo sigue igual que en `main`.
 """
 
 from __future__ import annotations
@@ -25,6 +31,7 @@ import json
 import os
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from pydantic import ValidationError
@@ -33,6 +40,7 @@ from .percepcion import PaginaLeida, PercepcionFallida
 
 MODELO_POR_DEFECTO = "gemini-3.5-flash-lite"
 _URL = "https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={clave}"
+_URL_QA = "{base}/v1beta/models/{modelo}:generateContent?key=qa"
 # Una pagina tipica responde en ~5 s; 40 s ya es una llamada colgada. Con el
 # reintento, el peor caso por pagina queda en ~85 s en vez de fallar a los 60.
 _TIEMPO_SEGUNDOS = 40
@@ -94,6 +102,18 @@ def _clave_y_modelo() -> tuple[str, str]:
     return clave, os.environ.get("GEMINI_MODELO", MODELO_POR_DEFECTO).strip() or MODELO_POR_DEFECTO
 
 
+def _url() -> str:
+    """La URL de la llamada. Con `GEMINI_BASE_URL` (rama `qa`), la del fake y sin clave."""
+    base = os.environ.get("GEMINI_BASE_URL", "").strip()
+    if not base:
+        clave, modelo = _clave_y_modelo()
+        return _URL.format(modelo=modelo, clave=clave)
+    if urllib.parse.urlsplit(base).scheme not in ("http", "https"):
+        raise PercepcionFallida("GEMINI_BASE_URL solo admite http:// o https://.")
+    modelo = os.environ.get("GEMINI_MODELO", MODELO_POR_DEFECTO).strip() or MODELO_POR_DEFECTO
+    return _URL_QA.format(base=base.rstrip("/"), modelo=modelo)
+
+
 def _llamar(pedido: urllib.request.Request) -> dict:
     """La llamada HTTP, con un reintento si el fallo es de transporte."""
     for intento in range(1, _INTENTOS + 1):
@@ -116,7 +136,7 @@ def _llamar(pedido: urllib.request.Request) -> dict:
 
 def pedir_pagina(png: bytes, numero: int) -> PaginaLeida:
     """Manda una pagina y devuelve solo lo que el esquema acepta."""
-    clave, modelo = _clave_y_modelo()
+    url = _url()
     cuerpo = {
         "contents": [
             {
@@ -134,7 +154,7 @@ def pedir_pagina(png: bytes, numero: int) -> PaginaLeida:
         },
     }
     pedido = urllib.request.Request(
-        _URL.format(modelo=modelo, clave=clave),
+        url,
         data=json.dumps(cuerpo).encode(),
         headers={"Content-Type": "application/json"},
         method="POST",
