@@ -238,13 +238,15 @@ async def correr_una_vez() -> int:
         await motor_identidad.cerrar()
 
 
-async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]] = asyncio.sleep) -> None:
+async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]] | None = None) -> None:
     async def _vuelta() -> None:
         aplicados = await correr_una_vez()
         if aplicados:
             print(f"[poller-identidad] colegios dados de alta/actualizados: {aplicados}")
 
-    await bucle_resiliente(_vuelta, intervalo=intervalo, proceso="identidad-poller", dormir=dormir)
+    await bucle_resiliente(
+        _vuelta, intervalo=intervalo, proceso="identidad-poller", dormir=dormir or asyncio.sleep
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

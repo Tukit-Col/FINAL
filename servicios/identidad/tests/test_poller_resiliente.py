@@ -15,6 +15,7 @@ import socket
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -128,6 +129,28 @@ async def test_un_error_de_programacion_sigue_terminando_el_poller(motor, motor_
         await poller._bucle(_INTERVALO, dormir=_dormir_que_corta(esperas))
 
     assert esperas == []
+
+
+async def test_el_bucle_duerme_con_el_asyncio_sleep_de_cuando_corre(monkeypatch):
+    # Sin `dormir`, el bucle usa el `asyncio.sleep` que ve el modulo al correr,
+    # no el de cuando se definio: asi lo sustituyen las pruebas de los procesos.
+    vueltas: list[int] = []
+
+    async def _nada() -> int:
+        # Si el bucle durmiera con el `asyncio.sleep` de verdad, la segunda vuelta corta.
+        vueltas.append(1)
+        if len(vueltas) > 1:
+            raise _Corte
+        return 0
+
+    esperas: list[float] = []
+    monkeypatch.setattr(poller, "correr_una_vez", _nada)
+    monkeypatch.setattr(poller, "asyncio", SimpleNamespace(sleep=_dormir_que_corta(esperas)))
+
+    with pytest.raises(_Corte):
+        await poller._bucle(_INTERVALO)
+
+    assert esperas == [_INTERVALO]
 
 
 def test_el_poller_configura_el_log_al_arrancar(monkeypatch):

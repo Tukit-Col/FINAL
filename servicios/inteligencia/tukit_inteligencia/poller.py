@@ -313,13 +313,15 @@ async def _regenerar() -> tuple[int, list[str]]:
         await motor_inteligencia.cerrar()
 
 
-async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]] = asyncio.sleep) -> None:
+async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]] | None = None) -> None:
     async def _vuelta() -> None:
         arrancados = await correr_una_vez()
         if arrancados:
             print(f"[poller] kits de ruta rapida arrancados: {arrancados}")
 
-    await bucle_resiliente(_vuelta, intervalo=intervalo, proceso="inteligencia-poller", dormir=dormir)
+    await bucle_resiliente(
+        _vuelta, intervalo=intervalo, proceso="inteligencia-poller", dormir=dormir or asyncio.sleep
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

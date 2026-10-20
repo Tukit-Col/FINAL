@@ -137,7 +137,7 @@ async def correr_una_vez() -> int:
         await motor.cerrar()
 
 
-async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]] = asyncio.sleep) -> None:
+async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]] | None = None) -> None:
     from tukit_comun.bd import crear_motor
 
     motor = crear_motor("inteligencia")
@@ -158,7 +158,9 @@ async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]]
             print(f"[trabajador] listas importadas: {importadas}")
 
     try:
-        await bucle_resiliente(_vuelta, intervalo=intervalo, proceso="inteligencia-trabajador", dormir=dormir)
+        await bucle_resiliente(
+            _vuelta, intervalo=intervalo, proceso="inteligencia-trabajador", dormir=dormir or asyncio.sleep
+        )
     finally:
         await motor.cerrar()
 
