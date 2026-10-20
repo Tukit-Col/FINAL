@@ -30,6 +30,7 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Query, Response
+from sqlalchemy.exc import IntegrityError
 from tukit_comun.http import ErrorDominio
 
 from ..descubrir import clasificar
@@ -482,6 +483,12 @@ async def importar_lista(cuerpo: dict[str, Any]) -> dict[str, Any]:
     forzarse al mas parecido. La evidencia (PDF + percepcion cruda) se guarda en
     una `tarea_importacion` completada, no en la version, porque es un hecho del
     proceso de importacion y no del contenido publicado.
+
+    Con `clave_idempotencia` el POST se puede reintentar (ADR 0040): si ya entro
+    una importacion con esa clave, se responde con ella, el mismo cuerpo, y no
+    se crea otra version. Es lo que hace seguro el reintento de inteligencia
+    cuando la respuesta de un intento que si entro se perdio. Sin clave, cada
+    POST es una version nueva, como siempre.
     """
     try:
         colegio_id = uuid.UUID(str(cuerpo["colegio_id"]))
@@ -563,6 +570,17 @@ async def importar_lista(cuerpo: dict[str, Any]) -> dict[str, Any]:
         )
     colegio_datos = colegio_datos_crudos or None
 
+    clave_cruda = cuerpo.get("clave_idempotencia")
+    try:
+        clave_idempotencia = uuid.UUID(str(clave_cruda)) if clave_cruda is not None else None
+    except (ValueError, TypeError) as exc:
+        raise ErrorDominio(
+            "clave_invalida",
+            "La clave de idempotencia no es un identificador valido.",
+            estado=422,
+            campo="clave_idempotencia",
+        ) from exc
+
     # Se validan TODOS los renglones antes de escribir nada, y el mensaje no
     # repite el texto del renglon: el documento puede traer nombres de menores y
     # un error no debe filtrarlos de vuelta al cliente.
@@ -589,6 +607,55 @@ async def importar_lista(cuerpo: dict[str, Any]) -> dict[str, Any]:
         confianza = it.get("confianza")
         renglones.append({"texto": texto, "cantidad": cantidad, "confianza": confianza})
 
+    if clave_idempotencia is not None:
+        async with _motor().sesion() as db:
+            ya_importada = await RepoAdmin(await db.connection()).importacion_por_clave(clave_idempotencia)
+        if ya_importada is not None:
+            return ya_importada
+
+    try:
+        return await _escribir_importacion(
+            colegio_id=colegio_id,
+            grado=grado,
+            anio_lectivo=anio_lectivo,
+            renglones=renglones,
+            origen=origen,
+            contacto_referencia=contacto_referencia,
+            preferencias=preferencias,
+            colegio_datos=colegio_datos,
+            documento=documento,
+            percepcion_cruda=percepcion_cruda,
+            clave_idempotencia=clave_idempotencia,
+        )
+    except IntegrityError:
+        # Dos intentos con la misma clave entraron a la vez y los dos miraron
+        # antes de que el otro escribiera. El indice unico frena al segundo y
+        # su transaccion entera (version y renglones incluidos) se deshace: se
+        # responde con la del primero.
+        if clave_idempotencia is None:
+            raise
+        async with _motor().sesion() as db:
+            ya_importada = await RepoAdmin(await db.connection()).importacion_por_clave(clave_idempotencia)
+        if ya_importada is None:
+            raise
+        return ya_importada
+
+
+async def _escribir_importacion(
+    *,
+    colegio_id: uuid.UUID,
+    grado: str,
+    anio_lectivo: int,
+    renglones: list[dict[str, Any]],
+    origen: str,
+    contacto_referencia: uuid.UUID | None,
+    preferencias: dict[str, Any] | None,
+    colegio_datos: dict[str, Any] | None,
+    documento: bytes,
+    percepcion_cruda: list[Any],
+    clave_idempotencia: uuid.UUID | None,
+) -> dict[str, Any]:
+    """La escritura de `importar_lista`, en una sola transaccion."""
     async with _motor().sesion() as db:
         repo = RepoAdmin(await db.connection())
 
@@ -639,6 +706,7 @@ async def importar_lista(cuerpo: dict[str, Any]) -> dict[str, Any]:
             colegio_datos=colegio_datos,
             documento=documento,
             percepcion_cruda=percepcion_cruda,
+            clave_idempotencia=clave_idempotencia,
         )
 
     return {

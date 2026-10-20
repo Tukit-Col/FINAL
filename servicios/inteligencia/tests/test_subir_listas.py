@@ -49,6 +49,7 @@ class CatalogoImportador:
         preferencias: dict | None = None,
         colegio_datos: dict | None = None,
         origen: str = "onboarding",
+        clave_idempotencia: str | None = None,
     ) -> dict:
         self._proximo += 1
         version_id = f"ver-{self._proximo}"
@@ -64,6 +65,7 @@ class CatalogoImportador:
                 "preferencias": preferencias,
                 "colegio_datos": colegio_datos,
                 "origen": origen,
+                "clave_idempotencia": clave_idempotencia,
             }
         )
         return {"version_id": version_id, "tarea_id": f"tar-{self._proximo}", "items": len(items)}

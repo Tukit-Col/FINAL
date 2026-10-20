@@ -314,6 +314,33 @@ class RepoAdmin:
     async def crear_tarea(self, **valores: Any) -> None:
         await self.c.execute(TAREA.insert().values(**valores))
 
+    async def importacion_por_clave(self, clave: uuid.UUID) -> dict[str, Any] | None:
+        """La importacion que ya entro con esta clave, con la respuesta que dio.
+
+        Es la que devuelve `importar_lista` cuando inteligencia reintenta
+        (ADR 0040): la misma version, la misma tarea y sus renglones.
+        """
+        fila = (
+            await self.c.execute(
+                select(TAREA.c.id, TAREA.c.version_id, VERSION.c.revisada_en)
+                .join(VERSION, VERSION.c.id == TAREA.c.version_id)
+                .where(TAREA.c.clave_idempotencia == clave)
+            )
+        ).first()
+        if fila is None:
+            return None
+        items = (
+            await self.c.execute(
+                select(func.count()).select_from(ITEM).where(ITEM.c.version_id == fila.version_id)
+            )
+        ).scalar_one()
+        return {
+            "version_id": str(fila.version_id),
+            "tarea_id": str(fila.id),
+            "items": int(items),
+            "revisada": fila.revisada_en is not None,
+        }
+
     async def listar_sugerencias(self) -> list[Any]:
         return list(
             await self.c.execute(

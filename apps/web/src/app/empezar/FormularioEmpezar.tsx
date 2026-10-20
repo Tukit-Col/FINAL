@@ -26,6 +26,7 @@ import {
   guardarMatriculas,
   FalloApi,
 } from "@/lib/api-navegador";
+import { rutaRecibimos } from "@/lib/recibimos";
 import SelectorPersonaje from "./SelectorPersonaje";
 import styles from "./Empezar.module.css";
 
@@ -818,10 +819,10 @@ export default function FormularioEmpezar({
           preferencias,
         );
         // Wait-screen wins: aunque haya un kit listo, el hogar va a la pantalla
-        // de verificación, con el kit instantáneo enlazado si existe.
-        const parametros = new URLSearchParams({ pendientes: String(resultado.subidas.length) });
-        if (trabajoInstantaneo) parametros.set("trabajo", trabajoInstantaneo);
-        router.push(`/recibimos?${parametros.toString()}`);
+        // de verificación, con el kit instantáneo enlazado si existe. Las listas
+        // que quedaron guardadas sin versión (catálogo caído) viajan como
+        // `diferidas`, para que la pantalla diga que no hay que volver a subirlas.
+        router.push(rutaRecibimos(resultado.subidas, trabajoInstantaneo));
         if (modo === "nuevo") router.refresh();
         return;
       }
