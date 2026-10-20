@@ -19,6 +19,13 @@ Lo que hace, por evento no publicado:
    resuelve el contacto contra Identidad EN EL MOMENTO del envio, envia por el
    `Notificador`, y marca la fila de origen como publicada (o sube `intentos`).
 
+**Un evento, un aviso** (H-B-03, ADR 0042). El aviso sale y su `notificacion` se
+guarda en la base de Operacion ANTES de que la bandeja de origen marque el
+evento y lo publique al broker. Si eso falla (RabbitMQ caido), la bandeja vuelve
+atras y la siguiente pasada trae el mismo evento. Por eso la notificacion
+guarda de que evento sale, y un evento que ya tiene su aviso `enviada` se da
+por entregado sin volver a enviar: la bandeja lo marca y lo publica.
+
 **La unica excepcion a la frontera de bases.** Un servicio no toca la base de
 otro; el patron outbox es la excepcion declarada, y esta es la que la ejerce:
 el repartidor abre motores de LECTURA a las bases de Inteligencia y Comercio. El
@@ -112,6 +119,12 @@ class Repartidor:
             # para no reprocesarlo en cada pasada. No es un fallo, es "no me toca".
             return Resultado.OMITIR
 
+        if await self._ya_avisado(fila.id):
+            # La bandeja reentrega un evento que ya se aviso (la pasada anterior
+            # envio y registro, pero no alcanzo a marcarlo ni a publicarlo). HECHO
+            # lo marca y lo publica; el acudiente no recibe un segundo aviso.
+            return Resultado.HECHO
+
         usuario_id = await self._destinatario(fila)
         if usuario_id is None:
             return Resultado.REINTENTAR
@@ -123,8 +136,12 @@ class Repartidor:
         contacto = await self._resolver_contacto(usuario_id)
         envio = await self.notificador.enviar(contacto, plantilla, datos)
 
-        await self._registrar_notificacion(usuario_id, envio.canal, plantilla, datos, envio.exito)
+        await self._registrar_notificacion(usuario_id, envio.canal, plantilla, datos, envio.exito, fila.id)
         return Resultado.HECHO if envio.exito else Resultado.REINTENTAR
+
+    async def _ya_avisado(self, evento_id: int) -> bool:
+        async with self.motor_operacion.sesion() as db:
+            return await RepoNotificaciones(await db.connection()).ya_avisado(self.origen, evento_id)
 
     async def _destinatario(self, fila: Any) -> str | None:
         # Si el tipo trae el usuario en la carga, el dominio lo saca (regla pura).
@@ -154,7 +171,13 @@ class Repartidor:
         )
 
     async def _registrar_notificacion(
-        self, usuario_id: str, canal: str, plantilla: str, datos: dict[str, object], exito: bool
+        self,
+        usuario_id: str,
+        canal: str,
+        plantilla: str,
+        datos: dict[str, object],
+        exito: bool,
+        evento_id: int,
     ) -> None:
         ahora = datetime.now(UTC)
         async with self.motor_operacion.sesion() as db:
@@ -165,6 +188,8 @@ class Repartidor:
                 datos=datos,
                 exito=exito,
                 ahora=ahora,
+                evento_origen=self.origen,
+                evento_id=evento_id,
             )
 
 

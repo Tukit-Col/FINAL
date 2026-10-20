@@ -220,9 +220,12 @@ async def test_tras_una_caida_de_rabbitmq_publica_el_evento(motor_operacion, ori
     assert esperas == [1.0, 2.0, _INTERVALO]
     assert sink.publicados == [evento_id]
     assert await _publicado(engine, bandeja, evento_id)
-    # Cuantas veces se avisa al acudiente mientras el broker no responde lo fija
-    # `test_aviso_idempotente.py` (H-B-03); aqui basta con que el aviso salio.
-    assert notificador.enviados
+    # El evento se entrego tres veces, pero el acudiente recibe un solo aviso y
+    # queda una sola notificacion, que es lo que mide CH-15 (H-B-03, ADR 0042).
+    assert [envio["plantilla"] for envio in notificador.enviados] == ["pedido_pagado"]
+    async with motor_operacion.engine.begin() as conexion:
+        plantillas = list(await conexion.scalars(select(repartidor.NOTIFICACION.c.plantilla)))
+    assert plantillas == ["pedido_pagado"]
 
 
 async def test_un_error_de_programacion_sigue_terminando_el_repartidor(
