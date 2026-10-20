@@ -5,11 +5,25 @@
 > fronteras de *conversación*. Cambiar cualquiera de los dos sin avisar rompe a alguien
 > más, así que se cierran antes de repartir el trabajo y se versionan.
 
-- **Versión:** 1.7
+- **Versión:** 1.8
 - **Prefijo:** `/v1`
 - **URL base:** `http://127.0.0.1:8010` en desarrollo. Ver §12.1.
 - **Formato:** JSON UTF-8. Dinero en **pesos enteros** (nunca decimales flotantes).
 - **Idioma de los identificadores:** español sin tildes, como el resto del código.
+
+### Qué cambió en 1.8
+
+Lo que hace la API cuando una dependencia propia se cae, según la verificación de caos de QA
+(fases 7 a 9). Detalle en los ADR 0040, 0041 y 0042.
+
+| Cambio | Dónde | Por qué |
+|---|---|---|
+| `POST /v1/listas/subir` con el catálogo caído responde `202` (antes `500`). El hijo cuya lista no se importó trae `version_id: null` y `estado: "pendiente"`; los demás, su `version_id`. La lista se importa sola cuando el catálogo vuelve, sin volver a subirla. Con el catálogo arriba, la respuesta es la de antes y no trae `estado` | §8, §12.9 | La lista se perdía y el acudiente no sabía si había entrado |
+| "Mis solicitudes" muestra esa lista como `recibida`, con `tarea_id: null` mientras espera al catálogo | §4 | Todavía no hay tarea que cancelar |
+| `POST /v1/admin/onboarding` con el catálogo caído responde `503 servicio_no_disponible` (antes `500`), con un mensaje que dice que la lista no se guardó | §8 | El admin necesita la versión en el acto y puede reintentar |
+| `POST /v1/admin/listas/importar` (catálogo, entre servicios) acepta `clave_idempotencia`, un UUID. Con una clave que ya entró responde la misma tarea y la misma versión, sin crear otra; una clave que no es UUID es `422 clave_invalida` | §8 | Para que el reintento no duplique la versión |
+| Los procesos de fondo (barredor, pollers, trabajador y repartidor) esperan a que vuelvan Postgres o RabbitMQ y siguen | §8 | Morían y no volvían: nadie avisaba ni importaba |
+| Un evento da un solo aviso, aunque la bandeja lo entregue otra vez | §10 | Un pago avisaba dos veces si RabbitMQ se caía a mitad |
 
 ### Qué cambió en 1.7
 
@@ -645,6 +659,9 @@ una respuesta parcial honesta.
 | Reranker | No disponible | Se ordena por el canal vectorial, que mide mejor que la fusión |
 | Precio vencido | `vigente_hasta` pasado | La línea no entra al total y se marca para revisión |
 | Pasarela | Sin respuesta | La orden queda `pendiente_pago`; nunca se confirma sin confirmación |
+| Catálogo, en la subida del acudiente (`POST /v1/listas/subir`) | Sin respuesta, 5xx, 408 o 429 | `202`. Lo que no se importó queda guardado con lo ya percibido, y su hijo trae `version_id: null` y `estado: "pendiente"`. El trabajador lo importa cuando el catálogo vuelve, con la misma `clave_idempotencia`: una sola versión (ADR 0040) |
+| Catálogo, en el onboarding del admin (`POST /v1/admin/onboarding`) | Sin respuesta, 5xx, 408 o 429 | `503 servicio_no_disponible`; la lista no se guarda y el admin reintenta (ADR 0040) |
+| Postgres o RabbitMQ, en los procesos de fondo | Sin respuesta | Barredor, pollers, trabajador y repartidor esperan (1 s, el doble cada vez, tope de 30 s) y siguen; un error de programación los termina (ADR 0041) |
 
 Las degradaciones se reportan, no se esconden:
 
@@ -847,6 +864,11 @@ después sin tocar el dominio.
 El contenido **no repite el correo ni el celular**: los referencia por identificador. Es la
 deuda que el manifiesto documenta en `operacion.notificacion`, donde el servicio anterior
 persistía el correo real del acudiente y el derecho al olvido no lo borraba.
+
+**Un evento, un aviso (desde 1.8, ADR 0042).** La bandeja entrega cada evento al menos una vez,
+así que puede entregarlo otra vez (por ejemplo, si RabbitMQ se cae justo después del envío). La
+`notificacion` guarda de qué evento sale, y un evento que ya tiene su aviso `enviada` no se vuelve
+a enviar. Un envío que falló sí se reintenta.
 
 ---
 
@@ -1455,10 +1477,10 @@ Sin rodeos, porque el frontend necesita saber contra qué puede programar hoy.
 |---|---|---|
 | §12.3, §12.4, §12.5 completas | **Funcionan** con datos reales | 100 conceptos, 347 productos con precio, 7 tiendas, 17 colegios, 175 listas, 4.719 renglones |
 | `POST /v1/trabajos` entrada (a), colegio y grado | **Funciona** | Los kits del §5, con lista verificada sin volver a percibir. Pasan por revisión humana salvo la ruta rápida (`aplicar-canonico`) |
-| Entrada (b), un archivo | **Funciona por otra ruta** | `POST /v1/trabajos` sigue siendo solo JSON (`multipart` es `400`). Los PDF entran por `POST /v1/listas/subir` (`multipart`), van a la cola de revisión de listas y al aprobarse arman el kit. Necesita `GEMINI_API_KEY` |
+| Entrada (b), un archivo | **Funciona por otra ruta** | `POST /v1/trabajos` sigue siendo solo JSON (`multipart` es `400`). Los PDF entran por `POST /v1/listas/subir` (`multipart`), van a la cola de revisión de listas y al aprobarse arman el kit. Necesita `GEMINI_API_KEY`. Con el catálogo caído responde `202` y la lista llega a la cola cuando el catálogo vuelve (§8) |
 | Optimizador | **NSGA-II** (pymoo), con enumeración exacta en listas chicas | Frente de 4 objetivos (costo, fidelidad, disponibilidad, personaje), sembrado con la heurística y la escalera de costo marginal. `Ahorrador` y `Premium` siempre; `Fan` y `A tu Medida` a pedido (ADR 0029, 0030) |
 | Consolidación entre hermanos | **Funciona**, probada | Solo se dispara cuando a dos hijos les toca el mismo sku y el empaque alcanza |
-| Notificación (§10) | **Funciona por correo** | El repartidor de `operacion` recoge `kits_publicados` y `pedido_pagado` de las bandejas y envía el correo (por consola si no hay SMTP). El wa-link se genera pero no se envía solo |
+| Notificación (§10) | **Funciona por correo** | El repartidor de `operacion` recoge `kits_publicados` y `pedido_pagado` de las bandejas y envía el correo (por consola si no hay SMTP), una vez por evento (§10). El wa-link se genera pero no se envía solo |
 | Pago (§9) | **Funciona contra Wompi sandbox** | Widget, sincronización, webhook y cancelación. Sin llaves (`WOMPI_MODO=falso`) una pasarela simulada camina el mismo flujo. No hay modo de producción |
 | Autenticación | **Funciona** (sesiones de `identidad`, `Authorization: Bearer`) | La exigen la cuenta del acudiente, "Mis solicitudes", cancelar, editar hijos y cambiar productos de un kit con dueño, y el admin. La superficie de lectura (catálogo, colegios, `GET /v1/trabajos/{id}`) sigue abierta |
 | Cifrado de `pesos_usados` | **Puerto sí, cifrado no** | Pasa por el puerto `Cifrador`; sin `TUKIT_LLAVE_CIFRADO` el adaptador guarda en claro y lo dice al arrancar |

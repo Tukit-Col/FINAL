@@ -19,6 +19,14 @@
 > `tukit_comun.*` (`make tipos`, verde). El conteo de 1007 que aparece abajo era el del diagnóstico
 > original y se conserva como foto de ese momento.
 
+> **Actualización 2026-10-19, rama `arreglos/h-b-01-03`.** La verificación de caos de QA (fases 7
+> a 9) encontró tres huecos en lo que B.2 y B.3 dan por hecho, y la rama los cierra:
+> - los procesos de fondo no sobrevivían a una caída de Postgres o de RabbitMQ (ADR 0041, §B.2);
+> - la subida de lista del acudiente daba `500` con el catálogo caído y perdía la lista (ADR 0040,
+>   §A.4 y §B.2);
+> - el repartidor no era idempotente ante la reentrega del outbox, y un pago avisaba dos veces
+>   (ADR 0042, §B.3).
+
 > **Dos partes.** La **Parte A (as-is)** es el diagnóstico verificado del sistema tal como está
 > hoy: qué fronteras se respetan, qué comunicación ya trae lo caro de hacer bien, y dónde está la
 > deuda real. La **Parte B (to-be)** es el diseño objetivo al que este documento eleva la
@@ -208,7 +216,10 @@ de la mezcla, y es el mismo en `catalogo/admin_http.py` y `inteligencia/trabajos
 - **Degradación honesta.** Los `remoto.py` devuelven `None` cuando la dependencia opcional no
   responde (caída de Identidad degrada el trabajo, no lo tumba). El cliente de Comercio pasa los
   rechazos de negocio como `(estado, cuerpo)` y solo levanta en 5xx/red. En el cobro, Catálogo caído
-  es `503`, nunca un cobro a ciegas (`comercio/remoto.py:56-66`).
+  es `503`, nunca un cobro a ciegas (`comercio/remoto.py:56-66`). En la subida de lista del
+  acudiente, desde la rama `arreglos/h-b-01-03`, Catálogo caído es `202`: lo que el catálogo no
+  recibió se guarda y se importa después (ADR 0040). En el onboarding del admin es
+  `503 servicio_no_disponible`, porque el admin necesita la versión en el acto y puede reintentar.
 - **Correlation-ID de punta a punta (YA implementado).** Ver §A.6.
 - **Sondas.** `GET /salud` en cada servicio (`tukit_comun/http.py:226-228`) y `GET /v1/servicios` en
   la puerta, que pega al `/salud` de los de atrás.
@@ -403,6 +414,22 @@ a uno, red verde tras cada uno.
   (servicio, destino) en `app.state.remotos`, con `httpx.Limits` explícito. `cliente_efimero` se
   conserva para el path inyectado (tests) y su propagación de correlation-ID; `remoto.py` pasa el
   cliente del pool a `cliente_efimero(self.cliente, …)`.
+- **La primera escritura entre servicios con clave de idempotencia (ADR 0040):**
+  `POST /v1/admin/listas/importar` acepta `clave_idempotencia`, única en `tarea_importacion`. Con
+  una clave que ya entró, el catálogo devuelve la versión que creó en vez de hacer otra. Es lo que
+  deja al `inteligencia-trabajador` reintentar la importación de una subida que llegó con el
+  catálogo caído, con una espera de 5 s que se dobla hasta 5 minutos, sin duplicar la versión.
+  `RemotoCaido` gana `estado` y `transitorio` para distinguir una caída (sin respuesta, 5xx, 408 o
+  429) de un rechazo, que no se reintenta.
+- **Los bucles de fondo sobreviven a las caídas (ADR 0041).** Lo de arriba protege las llamadas
+  HTTP. Los cinco procesos de fondo (barredor, los dos pollers, trabajador y repartidor) eran un
+  `while True` sin `except` y morían con Postgres o RabbitMQ caídos.
+  - Ahora corren sobre `bucle_resiliente(vuelta, *, intervalo, proceso)`, en
+    `tukit_comun.resiliencia` y sobre `tenacity`. Ante una caída transitoria espera 1 s, el doble
+    cada vez y como mucho 30 s, y repite la vuelta, con un WARNING en el log JSON.
+  - Qué es una caída lo decide `es_caida_transitoria`: un `OSError` de red, un `DBAPIError` con
+    `connection_invalidated` y, por nombre, los errores de conexión de asyncpg y aiormq.
+  - Un error de programación sigue terminando el proceso. No hay supervisor ni `restart`.
 
 ## B.3 Backbone de eventos: outbox como fuente de verdad + broker (ADR 0022 extiende 0007; saga 0023; pipeline durable 0024 concreta 0018)
 
@@ -445,6 +472,14 @@ Funciones de transición **puras** en `dominio/saga.py`, reusando `transicion_va
 Compensaciones: **C-reserve** (liberar `reserva_inventario` por TTL — *gap actual, añadir*),
 **C-charge** (reembolso, ya en `retractar_orden` `api.py:650-659`), **T4** = at-least-once
 (reintento, no compensación).
+
+**T4 es idempotente por evento (ADR 0042).** At-least-once exige un consumidor idempotente, y el
+repartidor no lo era. Envía el aviso y guarda la `notificacion` antes de que `drenar` marque el
+evento y lo publique. Si publicar falla, la bandeja vuelve atrás y la siguiente pasada trae el mismo
+evento. Ahora la `notificacion` guarda `evento_origen` y `evento_id`, y el repartidor no vuelve a
+enviar un evento que ya tiene su aviso `enviada`. Un índice único parcial
+(`uq_notificacion_evento_enviada`, `WHERE estado = 'enviada'`) lo respalda en la base sin impedir
+varios intentos `fallida`. `drenar` no cambia.
 
 ## B.4 Observabilidad (ADR 0021)
 
