@@ -17,6 +17,7 @@ from __future__ import annotations
 import socket
 import uuid
 from contextlib import asynccontextmanager
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -153,6 +154,27 @@ class TestElPollerVuelve:
         assert poller.main([]) == 0
         assert titulos == ["inteligencia-poller"]
 
+    async def test_el_bucle_duerme_con_el_asyncio_sleep_de_cuando_corre(self, monkeypatch):
+        # Sin `dormir`, el bucle usa el `asyncio.sleep` que ve el modulo al correr,
+        # no el de cuando se definio: asi lo sustituyen las pruebas de los procesos.
+        vueltas: list[int] = []
+
+        async def _nada() -> int:
+            # Si el bucle durmiera con el `asyncio.sleep` de verdad, la segunda vuelta corta.
+            vueltas.append(1)
+            if len(vueltas) > 1:
+                raise _Corte
+            return 0
+
+        esperas: list[float] = []
+        monkeypatch.setattr(poller, "correr_una_vez", _nada)
+        monkeypatch.setattr(poller, "asyncio", SimpleNamespace(sleep=_dormir_que_corta(esperas)))
+
+        with pytest.raises(_Corte):
+            await poller._bucle(_INTERVALO)
+
+        assert esperas == [_INTERVALO]
+
 
 class TestElTrabajadorVuelve:
     async def test_tras_una_caida_de_postgres_procesa_el_trabajo(self, motor, monkeypatch):
@@ -196,3 +218,26 @@ class TestElTrabajadorVuelve:
 
         assert trabajador.main([]) == 0
         assert titulos == ["inteligencia-trabajador"]
+
+    async def test_el_bucle_duerme_con_el_asyncio_sleep_de_cuando_corre(self, motor, monkeypatch):
+        # Sin `dormir`, el bucle usa el `asyncio.sleep` que ve el modulo al correr,
+        # no el de cuando se definio: asi lo sustituyen las pruebas de los procesos.
+        vueltas: list[int] = []
+
+        async def _pasada(_motor, **_kw) -> int:
+            # Si el bucle durmiera con el `asyncio.sleep` de verdad, la segunda vuelta corta.
+            vueltas.append(1)
+            if len(vueltas) > 1:
+                raise _Corte
+            return 0
+
+        monkeypatch.setattr(tukit_comun.bd, "crear_motor", lambda _servicio: _MotorDePrueba(motor))
+        monkeypatch.setattr(trabajador, "pasada", _pasada)
+        _sin_red(monkeypatch, trabajador)
+        esperas: list[float] = []
+        monkeypatch.setattr(trabajador, "asyncio", SimpleNamespace(sleep=_dormir_que_corta(esperas)))
+
+        with pytest.raises(_Corte):
+            await trabajador._bucle(_INTERVALO)
+
+        assert esperas == [_INTERVALO]

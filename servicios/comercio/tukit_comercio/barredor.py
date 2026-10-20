@@ -95,13 +95,15 @@ async def correr_una_vez() -> int:
         await motor.cerrar()
 
 
-async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]] = asyncio.sleep) -> None:
+async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]] | None = None) -> None:
     async def _vuelta() -> None:
         liberadas = await correr_una_vez()
         if liberadas:
             print(f"[barredor] reservas vencidas liberadas: {liberadas}")
 
-    await bucle_resiliente(_vuelta, intervalo=intervalo, proceso="comercio-barredor", dormir=dormir)
+    await bucle_resiliente(
+        _vuelta, intervalo=intervalo, proceso="comercio-barredor", dormir=dormir or asyncio.sleep
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

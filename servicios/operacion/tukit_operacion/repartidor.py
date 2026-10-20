@@ -244,14 +244,16 @@ async def correr_una_vez() -> dict[str, int]:
     return resultado
 
 
-async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]] = asyncio.sleep) -> None:
+async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]] | None = None) -> None:
     async def _vuelta() -> None:
         entregas = await correr_una_vez()
         total = sum(entregas.values())
         if total:
             print(f"[repartidor] entregados: {entregas}")
 
-    await bucle_resiliente(_vuelta, intervalo=intervalo, proceso="operacion-repartidor", dormir=dormir)
+    await bucle_resiliente(
+        _vuelta, intervalo=intervalo, proceso="operacion-repartidor", dormir=dormir or asyncio.sleep
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
