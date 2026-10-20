@@ -23,6 +23,12 @@ reejecuta), asi que retomar no duplica.
 **Las listas que esperan al catalogo** (ADR 0040). Una subida que llego con el
 catalogo caido deja su lista `pendiente` en `importacion_lista`; cada vuelta, y
 cada pasada suelta, reintenta importarlas (`importaciones.reintentar_pendientes`).
+
+**Una caida no lo mata** (ADR 0041). El bucle corre sobre `bucle_resiliente`:
+si Postgres no responde, espera y reintenta la vuelta con el mismo motor, que
+reconecta solo (`pool_pre_ping`). Un trabajo que quedo `procesando` cuando se
+cayo la base lo retoma la vuelta de colgados, pasado `_COLGADO_DESDE`. Un error
+de programacion sigue terminando el proceso.
 """
 
 from __future__ import annotations
@@ -30,11 +36,14 @@ from __future__ import annotations
 import argparse
 import asyncio
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import timedelta
 from typing import Any
 
 from sqlalchemy import and_, or_, select, update
 from tukit_comun.metricas import contar_trabajo_publicado
+from tukit_comun.registro import configurar_registro
+from tukit_comun.resiliencia import bucle_resiliente
 
 from . import importaciones
 from .modelos import EstadoTrabajo
@@ -128,25 +137,28 @@ async def correr_una_vez() -> int:
         await motor.cerrar()
 
 
-async def _bucle(intervalo: float) -> None:
+async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]] = asyncio.sleep) -> None:
     from tukit_comun.bd import crear_motor
 
     motor = crear_motor("inteligencia")
     catalogo = ClienteCatalogo()
     vuelta = 0
+
+    async def _vuelta() -> None:
+        nonlocal vuelta
+        # Cada 12 vueltas (un minuto a 5 s) se amplia el claim a los colgados,
+        # para retomar un `procesando` que quedo huerfano por un crash sin
+        # pisar un trabajo que otro worker acaba de tomar en la vuelta normal.
+        vuelta += 1
+        hechos = await pasada(motor, catalogo=catalogo, retomar_colgados=(vuelta % 12 == 0))
+        if hechos:
+            print(f"[trabajador] trabajos procesados: {hechos}")
+        importadas = await importaciones.reintentar_pendientes(motor, catalogo=catalogo)
+        if importadas:
+            print(f"[trabajador] listas importadas: {importadas}")
+
     try:
-        while True:
-            # Cada 12 vueltas (un minuto a 5 s) se amplia el claim a los colgados,
-            # para retomar un `procesando` que quedo huerfano por un crash sin
-            # pisar un trabajo que otro worker acaba de tomar en la vuelta normal.
-            vuelta += 1
-            hechos = await pasada(motor, catalogo=catalogo, retomar_colgados=(vuelta % 12 == 0))
-            if hechos:
-                print(f"[trabajador] trabajos procesados: {hechos}")
-            importadas = await importaciones.reintentar_pendientes(motor, catalogo=catalogo)
-            if importadas:
-                print(f"[trabajador] listas importadas: {importadas}")
-            await asyncio.sleep(intervalo)
+        await bucle_resiliente(_vuelta, intervalo=intervalo, proceso="inteligencia-trabajador", dormir=dormir)
     finally:
         await motor.cerrar()
 
@@ -158,6 +170,7 @@ def main(argv: list[str] | None = None) -> int:
     analizador.add_argument("--seguir", action="store_true", help="Corre en bucle en vez de una pasada.")
     analizador.add_argument("--intervalo", type=float, default=5.0, help="Segundos entre pasadas.")
     argumentos = analizador.parse_args(argv)
+    configurar_registro("inteligencia-trabajador")
 
     if argumentos.seguir:
         asyncio.run(_bucle(argumentos.intervalo))
