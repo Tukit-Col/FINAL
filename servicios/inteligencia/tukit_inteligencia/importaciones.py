@@ -2,14 +2,17 @@
 
 `POST /v1/listas/subir` percibe el PDF de cada hijo y lo importa al catalogo.
 Antes las dos cosas vivian solo dentro de la peticion: con el catalogo caido
-salia un 500 y lo ya percibido se perdia (H-B-01). Aqui la importacion se parte
-en dos mitades:
+salia un 500 y lo ya percibido se perdia (H-B-01). La peticion sigue intentando
+cada destino; lo que no entra porque el catalogo no responde queda aqui:
 
-- `guardar`, en la peticion y antes de llamar al catalogo, deja cada destino
-  `pendiente` en `importacion_lista` con todo lo que el catalogo necesita, en
-  una sola transaccion. La percepcion, que es la etapa cara, no se repite;
-- `importar_en_linea` lo intenta en la misma peticion, y `reintentar_pendientes`
-  reintenta lo que quedo, desde el bucle del trabajador.
+- `guardar` lo deja `pendiente` en `importacion_lista`, con todo lo que el
+  catalogo necesita, en una sola transaccion. La percepcion, que es la etapa
+  cara, no se repite;
+- `reintentar_pendientes` lo importa desde el bucle del trabajador.
+
+Con el catalogo arriba no se guarda nada: la copia de la lista, que puede traer
+lo que el modelo transcribio de la pagina, y la del PDF son las del catalogo.
+Inteligencia solo tiene la suya mientras la necesita.
 
 Cada destino viaja con su `clave_idempotencia`: dos intentos de la misma fila,
 o un reintento despues de una respuesta que se perdio, dan una sola version en
@@ -42,9 +45,9 @@ PENDIENTE = "pendiente"
 IMPORTADA = "importada"
 FALLIDA = "fallida"
 
-# Lo que una fila queda reservada mientras alguien la intenta: la peticion o
-# una vuelta del trabajador. Cubre de sobra la espera del cliente del catalogo
-# (`ESPERA_SEGUNDOS`, 60 s), para que el trabajador no la tome a la vez. Si
+# Lo que una fila queda reservada mientras una vuelta del trabajador la
+# intenta. Cubre de sobra la espera del cliente del catalogo
+# (`ESPERA_SEGUNDOS`, 60 s), para que otra vuelta no la tome a la vez. Si
 # igual coinciden, la clave hace que el catalogo cree una sola version.
 _EN_VUELO = timedelta(minutes=2)
 # La espera despues de cada caida: 5 s la primera, el doble cada vez y como
@@ -59,13 +62,15 @@ def _ahora() -> datetime:
     return datetime.now(UTC)
 
 
-def clave_de(subida_id: uuid.UUID, colegio_id: str, grado: str, anio_lectivo: int) -> uuid.UUID:
+def clave_de(subida_id: uuid.UUID, destino: Destino) -> uuid.UUID:
     """La clave de idempotencia de un destino de una subida.
 
     Es por subida y no por contenido: un acudiente que vuelve a subir la misma
     lista hace una version nueva, igual que antes.
     """
-    return derivar("importacion_lista", str(subida_id), colegio_id, grado, str(anio_lectivo))
+    return derivar(
+        "importacion_lista", str(subida_id), destino.colegio_id, destino.grado, str(destino.anio_lectivo)
+    )
 
 
 @dataclass
@@ -84,7 +89,7 @@ class Destino:
 
 @dataclass(frozen=True)
 class Intento:
-    """Como quedo una fila despues de intentarla (o de no intentarla)."""
+    """Como quedo una fila despues de intentarla."""
 
     estado: str
     version_id: str | None = None
@@ -93,24 +98,32 @@ class Intento:
 
 async def guardar(
     motor: Any,
+    subida_id: uuid.UUID,
     destinos: Sequence[Destino],
     *,
+    caida: RemotoCaido,
     contacto_referencia: str | None,
     preferencias: dict[str, Any] | None,
     origen: str = "sugerencia_padre",
 ) -> list[uuid.UUID]:
-    """Deja los destinos de una subida `pendiente`, todos o ninguno.
+    """Deja `pendiente` lo que el catalogo no recibio en la peticion, todo o nada.
 
-    Quedan reservados por `_EN_VUELO`: la peticion los intenta enseguida y el
-    trabajador no los toma mientras tanto. Devuelve los ids, en orden.
+    El primer destino es el que el catalogo no recibio (`caida`): cuenta como
+    un intento, y su espera corre desde ya. Los demas no se intentaron y el
+    trabajador puede tomarlos en su siguiente vuelta. Devuelve los ids, en orden.
     """
-    subida_id = uuid.uuid4()
-    reservada = _ahora() + _EN_VUELO
+    log.warning(
+        "subida %s: el catalogo no respondio (%s); %d destinos quedan pendientes",
+        subida_id,
+        caida,
+        len(destinos),
+    )
+    ahora = _ahora()
     filas = [
         {
             "id": uuid.uuid4(),
             "subida_id": subida_id,
-            "clave_idempotencia": clave_de(subida_id, d.colegio_id, d.grado, d.anio_lectivo),
+            "clave_idempotencia": clave_de(subida_id, d),
             "referencias": d.referencias,
             "contacto_referencia": contacto_referencia,
             "colegio_id": d.colegio_id,
@@ -125,37 +138,15 @@ async def guardar(
             },
             "documento": d.documento,
             "estado": PENDIENTE,
-            "intentos": 0,
-            "proximo_intento_en": reservada,
+            "intentos": 1 if posicion == 0 else 0,
+            "error": caida.detalle if posicion == 0 else None,
+            "proximo_intento_en": ahora + _espera(1) if posicion == 0 else ahora,
         }
-        for d in destinos
+        for posicion, d in enumerate(destinos)
     ]
     async with motor.engine.begin() as conexion:
         await conexion.execute(insert(IMPORTACION), filas)
     return [f["id"] for f in filas]
-
-
-async def importar_en_linea(motor: Any, ids: Sequence[uuid.UUID], *, catalogo: Any) -> list[Intento]:
-    """Intenta cada fila en la peticion. Devuelve un `Intento` por id, en orden.
-
-    Al primer destino que no se importa, no sigue: con el catalogo caido cada
-    intento puede costar la espera entera del cliente, y encadenarlos dejaria
-    al acudiente minutos esperando una respuesta. Lo que no se intento se
-    libera para que el trabajador lo tome en su siguiente vuelta.
-    """
-    resultado: list[Intento] = []
-    for posicion, fila_id in enumerate(ids):
-        async with motor.engine.begin() as conexion:
-            fila = (await conexion.execute(select(IMPORTACION).where(IMPORTACION.c.id == fila_id))).one()
-        intento = await _intentar(motor, fila, catalogo=catalogo)
-        resultado.append(intento)
-        if intento.estado != IMPORTADA:
-            resto = list(ids[posicion + 1 :])
-            if resto:
-                await _actualizar(motor, resto, proximo_intento_en=_ahora())
-            resultado.extend(Intento(PENDIENTE) for _ in resto)
-            break
-    return resultado
 
 
 async def reintentar_pendientes(
@@ -266,8 +257,8 @@ async def _intentar(motor: Any, fila: Any, *, catalogo: Any, ahora: datetime | N
 async def _actualizar(motor: Any, ids: Sequence[uuid.UUID], **valores: Any) -> None:
     """Escribe sobre filas que siguen `pendiente`; una importada no se toca.
 
-    Si la peticion y el trabajador llegaran a intentar la misma fila, el que
-    termina segundo no devuelve a `pendiente` la que el otro ya importo.
+    Si dos vueltas del trabajador llegaran a intentar la misma fila, la que
+    termina segunda no devuelve a `pendiente` la que la otra ya importo.
     """
     async with motor.engine.begin() as conexion:
         await conexion.execute(
@@ -286,6 +277,5 @@ __all__ = [
     "Intento",
     "clave_de",
     "guardar",
-    "importar_en_linea",
     "reintentar_pendientes",
 ]

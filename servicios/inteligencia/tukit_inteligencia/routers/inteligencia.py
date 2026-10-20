@@ -636,12 +636,12 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
     hijos del mismo (colegio, grado) comparten una sola version: se importa una
     vez para no pisar una lista con la otra.
 
-    Con todo percibido, lo que vale todo o nada es el GUARDADO (ADR 0040): cada
-    destino queda en `importacion_lista` antes de llamar al catalogo. Si el
-    catalogo no responde, la subida responde igual 202 y el hijo trae
-    `version_id: null, estado: "pendiente"`; el trabajador la importa cuando el
-    catalogo vuelve, con la misma clave de idempotencia y sin volver a percibir.
-    Con el catalogo arriba, la respuesta es la de siempre.
+    Si el catalogo no responde (ADR 0040), la subida responde igual 202: lo que
+    no alcanzo a importarse queda guardado en `importacion_lista`, todo junto y
+    con lo ya percibido, y su hijo trae `version_id: null, estado: "pendiente"`.
+    El trabajador lo importa cuando el catalogo vuelve, con la misma clave de
+    idempotencia y sin volver a percibir. Con el catalogo arriba, la respuesta
+    es la de siempre y aqui no queda copia de la lista ni del PDF.
     """
     tipo = peticion.headers.get("content-type", "")
     if "multipart/form-data" not in tipo:
@@ -799,25 +799,52 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
             colegio_datos=colegio_datos,
         )
 
-    # Lo percibido queda guardado ANTES de llamar al catalogo, todos los
-    # destinos o ninguno (ADR 0040): si el catalogo no responde, la subida
-    # igual se acepta y el trabajador importa lo pendiente cuando vuelva.
-    motor = api.app.state.motor
-    ids = await importaciones.guardar(
-        motor, list(por_destino.values()), contacto_referencia=contacto_referencia, preferencias=preferencias
-    )
-    intentos = await importaciones.importar_en_linea(motor, ids, catalogo=api._catalogo())
-    por_clave = dict(zip(por_destino, intentos, strict=True))
-    for intento in intentos:
-        # Un rechazo del catalogo no es una caida: sale como antes.
-        if intento.estado == importaciones.FALLIDA and intento.error is not None:
-            raise intento.error
+    # Cada destino viaja con su clave de idempotencia (ADR 0040). Un rechazo del
+    # catalogo (un 4xx) sale como antes. Si el catalogo no responde, no se
+    # insiste con el resto: cada intento puede costar la espera entera del
+    # cliente. Ese destino y los que faltan quedan guardados con lo ya percibido,
+    # y el trabajador los importa cuando el catalogo vuelva.
+    catalogo = api._catalogo()
+    subida_id = uuid.uuid4()
+    versiones: dict[tuple[str, int], str] = {}
+    caida: RemotoCaido | None = None
+    for clave, destino in por_destino.items():
+        try:
+            respuesta = await catalogo.importar_lista(
+                colegio_id=destino.colegio_id,
+                grado=destino.grado,
+                anio_lectivo=destino.anio_lectivo,
+                items=destino.items,
+                documento_base64=base64.b64encode(destino.documento).decode(),
+                percepcion_cruda=destino.percepcion_cruda,
+                contacto_referencia=contacto_referencia,
+                preferencias=preferencias,
+                colegio_datos=destino.colegio_datos,
+                origen="sugerencia_padre",
+                clave_idempotencia=str(importaciones.clave_de(subida_id, destino)),
+            )
+        except RemotoCaido as error:
+            if not error.transitorio:
+                raise
+            caida = error
+            break
+        versiones[clave] = str(respuesta["version_id"])
+
+    if caida is not None:
+        pendientes = [destino for clave, destino in por_destino.items() if clave not in versiones]
+        await importaciones.guardar(
+            api.app.state.motor,
+            subida_id,
+            pendientes,
+            caida=caida,
+            contacto_referencia=contacto_referencia,
+            preferencias=preferencias,
+        )
 
     subidas: list[dict[str, Any]] = []
     for hijo, grado, clave in destino_de_hijo:
-        intento = por_clave[clave]
-        if intento.estado == importaciones.IMPORTADA:
-            subidas.append({"referencia": hijo.referencia, "version_id": intento.version_id, "grado": grado})
+        if clave in versiones:
+            subidas.append({"referencia": hijo.referencia, "version_id": versiones[clave], "grado": grado})
         else:
             subidas.append(
                 {"referencia": hijo.referencia, "version_id": None, "grado": grado, "estado": "pendiente"}
