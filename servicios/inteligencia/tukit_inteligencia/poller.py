@@ -18,6 +18,10 @@ nombre de esa base NO se escribe aqui: `url_desde_entorno` lo deriva DENTRO de
 la libreria a partir del nombre del servicio (regla 3). El trabajo se crea en la
 base propia de Inteligencia con `trabajos.crear`, que es lo unico que este
 servicio escribe.
+
+**Una caida no lo mata** (ADR 0041). El bucle corre sobre `bucle_resiliente`:
+si Postgres no responde, espera y reintenta la pasada, y cada pasada abre sus
+motores de nuevo. Un error de programacion sigue terminando el proceso.
 """
 
 from __future__ import annotations
@@ -25,6 +29,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -32,6 +37,8 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from tukit_comun.bandeja import Resultado, drenar
 from tukit_comun.bd import crear_motor
 from tukit_comun.config import url_desde_entorno
+from tukit_comun.registro import configurar_registro
+from tukit_comun.resiliencia import bucle_resiliente
 
 from . import trabajos
 from .remoto import ClienteCatalogo
@@ -306,12 +313,13 @@ async def _regenerar() -> tuple[int, list[str]]:
         await motor_inteligencia.cerrar()
 
 
-async def _bucle(intervalo: float) -> None:
-    while True:
+async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]] = asyncio.sleep) -> None:
+    async def _vuelta() -> None:
         arrancados = await correr_una_vez()
         if arrancados:
             print(f"[poller] kits de ruta rapida arrancados: {arrancados}")
-        await asyncio.sleep(intervalo)
+
+    await bucle_resiliente(_vuelta, intervalo=intervalo, proceso="inteligencia-poller", dormir=dormir)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -326,6 +334,7 @@ def main(argv: list[str] | None = None) -> int:
         help="Rearma los kits canonicos automaticos con la logica actual (salta los editados a mano).",
     )
     argumentos = analizador.parse_args(argv)
+    configurar_registro("inteligencia-poller")
 
     if argumentos.regenerar_canonicos:
         rearmados, saltados = asyncio.run(_regenerar())
