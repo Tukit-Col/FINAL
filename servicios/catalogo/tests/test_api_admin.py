@@ -830,6 +830,90 @@ class TestImportarListaDesdeOnboarding:
         assert respuesta.json()["campo"] == "colegio_datos"
 
 
+class TestImportarConClaveDeIdempotencia:
+    """Inteligencia reintenta la importacion de una subida que encontro el
+    catalogo caido (ADR 0040). Si la primera entro y lo que se perdio fue la
+    respuesta, el reintento trae la misma `clave_idempotencia` y tiene que
+    recibir la version que ya existe, no crear otra."""
+
+    async def _versiones(self, cliente) -> list[dict]:
+        listas = (await cliente.get(f"/v1/admin/listas?colegio_id={COLEGIO}&grado=Sexto")).json()
+        return listas["listas"]
+
+    async def test_la_misma_clave_dos_veces_da_una_sola_version(self, cliente):
+        clave = str(uuid.uuid4())
+        primera = await cliente.post(
+            "/v1/admin/listas/importar", json=_cuerpo_importar(clave_idempotencia=clave)
+        )
+        segunda = await cliente.post(
+            "/v1/admin/listas/importar", json=_cuerpo_importar(clave_idempotencia=clave)
+        )
+
+        assert primera.status_code == segunda.status_code == 201
+        assert segunda.json() == primera.json()
+        [version] = await self._versiones(cliente)
+        assert version["numero"] == 1
+        async with app.state.motor.sesion() as db:
+            conexion = await db.connection()
+            tareas = list(
+                await conexion.execute(TAREA.select().where(TAREA.c.clave_idempotencia == uuid.UUID(clave)))
+            )
+        assert len(tareas) == 1
+
+    async def test_claves_distintas_son_versiones_distintas(self, cliente):
+        primera = (
+            await cliente.post(
+                "/v1/admin/listas/importar", json=_cuerpo_importar(clave_idempotencia=str(uuid.uuid4()))
+            )
+        ).json()
+        segunda = (
+            await cliente.post(
+                "/v1/admin/listas/importar", json=_cuerpo_importar(clave_idempotencia=str(uuid.uuid4()))
+            )
+        ).json()
+
+        assert primera["version_id"] != segunda["version_id"]
+        [vigente] = await self._versiones(cliente)
+        assert vigente["numero"] == 2
+
+    async def test_una_clave_invalida_es_422(self, cliente):
+        respuesta = await cliente.post(
+            "/v1/admin/listas/importar", json=_cuerpo_importar(clave_idempotencia="no-es-un-uuid")
+        )
+        assert respuesta.status_code == 422
+        assert respuesta.json()["campo"] == "clave_idempotencia"
+
+    async def test_si_dos_entran_a_la_vez_la_segunda_recibe_la_primera(self, cliente, monkeypatch):
+        # La carrera: las dos peticiones miran antes de escribir y ninguna ve a
+        # la otra. El indice unico frena la segunda y su transaccion entera
+        # (version y renglones incluidos) se deshace; responde con la primera.
+        from tukit_catalogo.repositorios.admin import RepoAdmin
+
+        clave = str(uuid.uuid4())
+        primera = (
+            await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar(clave_idempotencia=clave))
+        ).json()
+
+        original = RepoAdmin.importacion_por_clave
+        vistas = {"n": 0}
+
+        async def _ciega_la_primera_vez(self, clave_):
+            vistas["n"] += 1
+            if vistas["n"] == 1:
+                return None
+            return await original(self, clave_)
+
+        monkeypatch.setattr(RepoAdmin, "importacion_por_clave", _ciega_la_primera_vez)
+        segunda = await cliente.post(
+            "/v1/admin/listas/importar", json=_cuerpo_importar(clave_idempotencia=clave)
+        )
+
+        assert segunda.status_code == 201
+        assert segunda.json() == primera
+        [version] = await self._versiones(cliente)
+        assert version["numero"] == 1
+
+
 class TestEditarDatosDelColegioEnLaRevision:
     """El revisor completa los datos del colegio nuevo ANTES de aprobar, para que
     se vaya completo (logo, direccion, contacto...) y no solo con nombre y grado.

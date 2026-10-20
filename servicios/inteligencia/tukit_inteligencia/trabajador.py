@@ -19,6 +19,10 @@ lo toma la pasada normal —solo mira `encolado`—. `--retomar-colgados` (y el
 bucle, cada cierto numero de vueltas) amplia el claim a `procesando` para que un
 worker lo retome. `procesar` es idempotente en el claim (borra ITEM/KIT y
 reejecuta), asi que retomar no duplica.
+
+**Las listas que esperan al catalogo** (ADR 0040). Una subida que llego con el
+catalogo caido deja su lista `pendiente` en `importacion_lista`; cada vuelta, y
+cada pasada suelta, reintenta importarlas (`importaciones.reintentar_pendientes`).
 """
 
 from __future__ import annotations
@@ -32,6 +36,7 @@ from typing import Any
 from sqlalchemy import and_, or_, select, update
 from tukit_comun.metricas import contar_trabajo_publicado
 
+from . import importaciones
 from .modelos import EstadoTrabajo
 from .remoto import ClienteCatalogo
 from .trabajos import TRABAJO, ahora, procesar
@@ -114,7 +119,11 @@ async def correr_una_vez() -> int:
     motor = crear_motor("inteligencia")
     catalogo = ClienteCatalogo()
     try:
-        return await pasada(motor, catalogo=catalogo, retomar_colgados=True)
+        hechos = await pasada(motor, catalogo=catalogo, retomar_colgados=True)
+        importadas = await importaciones.reintentar_pendientes(motor, catalogo=catalogo)
+        if importadas:
+            print(f"[trabajador] listas importadas: {importadas}")
+        return hechos
     finally:
         await motor.cerrar()
 
@@ -134,6 +143,9 @@ async def _bucle(intervalo: float) -> None:
             hechos = await pasada(motor, catalogo=catalogo, retomar_colgados=(vuelta % 12 == 0))
             if hechos:
                 print(f"[trabajador] trabajos procesados: {hechos}")
+            importadas = await importaciones.reintentar_pendientes(motor, catalogo=catalogo)
+            if importadas:
+                print(f"[trabajador] listas importadas: {importadas}")
             await asyncio.sleep(intervalo)
     finally:
         await motor.cerrar()

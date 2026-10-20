@@ -21,6 +21,7 @@ import pytest
 from tukit_inteligencia import api
 from tukit_inteligencia.api import app
 from tukit_inteligencia.percepcion import ItemExtraido, PaginaLeida, Percepcion
+from tukit_inteligencia.remoto import RemotoCaido
 
 COLEGIO = "11111111-1111-5111-8111-111111111111"
 
@@ -170,3 +171,33 @@ class TestOnboardingRechazado:
         assert respuesta.status_code == 422
         assert respuesta.json()["error"] == "archivo_vacio"
         assert catalogo.llamadas == []
+
+
+class TestOnboardingConElCatalogoCaido:
+    """El administrador necesita el `version_id` en el acto para pasar a la
+    curaduria, asi que el onboarding no difiere la importacion como la subida
+    del acudiente (ADR 0040): responde un 503 claro y el reintento es suyo."""
+
+    async def test_es_503_y_dice_que_no_se_guardo(self, cliente, catalogo, monkeypatch):
+        async def _caido(**_kw):
+            raise RemotoCaido(
+                "catalogo", "/v1/admin/listas/importar no respondio (All connection attempts failed)"
+            )
+
+        monkeypatch.setattr(catalogo, "importar_lista", _caido)
+        marcador = b"%PDF-marcador-secreto-del-cliente"
+        respuesta = await cliente.post("/v1/admin/onboarding", **_multipart(marcador))
+
+        assert respuesta.status_code == 503
+        cuerpo = respuesta.json()
+        assert cuerpo["error"] == "servicio_no_disponible"
+        assert "no se guardo" in cuerpo["mensaje"]
+        assert "marcador-secreto" not in respuesta.text
+
+    async def test_un_rechazo_del_catalogo_no_se_disfraza_de_caida(self, cliente, catalogo, monkeypatch):
+        async def _rechazo(**_kw):
+            raise RemotoCaido("catalogo", "/v1/admin/listas/importar respondio 422", estado=422)
+
+        monkeypatch.setattr(catalogo, "importar_lista", _rechazo)
+        with pytest.raises(RemotoCaido):
+            await cliente.post("/v1/admin/onboarding", **_multipart())

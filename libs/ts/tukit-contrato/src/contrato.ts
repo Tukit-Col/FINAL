@@ -308,10 +308,15 @@ export interface HijoSubida {
 
 // El resultado por hijo: a que version pendiente quedo ligado y con que grado
 // (el grado real lo resuelve la percepcion del PDF, puede diferir del elegido).
+// Con el catalogo caido la lista igual queda recibida (ADR 0040): llega sin
+// version todavia (`version_id: null`) y con `estado: "pendiente"`; Tukit la
+// pasa a revision sola cuando el catalogo vuelve, sin que el acudiente la suba
+// otra vez. Con el catalogo arriba no trae `estado`.
 export interface SubidaHecha {
   referencia: string;
-  version_id: string;
+  version_id: string | null;
   grado: string;
+  estado?: "pendiente";
 }
 
 export interface SubidaListas {

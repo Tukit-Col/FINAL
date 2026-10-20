@@ -66,6 +66,7 @@ KIT = Base.metadata.tables["kit"]
 LINEA = Base.metadata.tables["linea_kit"]
 BANDEJA = Base.metadata.tables["bandeja_salida"]
 KIT_CANONICO = Base.metadata.tables["kit_canonico"]
+IMPORTACION = Base.metadata.tables["importacion_lista"]
 
 # Umbral de confianza por encima del cual el emparejamiento se da por bueno
 # sin que lo mire una persona. Es la tau configurable que pide PE-04, y se
@@ -1453,8 +1454,13 @@ async def mis_solicitudes(motor: Any, usuario_id: uuid.UUID, *, catalogo: Any) -
 
     Si el catalogo no responde, no se cae la vista: se devuelven los trabajos y
     `listas_disponibles=False` para que el panel muestre un aviso y aun asi
-    liste los trabajos (las filas `recibida`, que solo viven en el catalogo, no
+    liste los trabajos (las filas `recibida` que viven en el catalogo no
     aparecen mientras dure la caida).
+
+    Una lista que se subio con el catalogo caido todavia no esta en el catalogo:
+    espera en `importacion_lista` (ADR 0040). Tambien sale como `recibida`, con
+    `tarea_id: null` porque aun no hay tarea que cancelar, y deja de salir de
+    aqui en cuanto se importa: desde ahi la trae el catalogo.
     """
     consulta = (
         select(
@@ -1467,8 +1473,14 @@ async def mis_solicitudes(motor: Any, usuario_id: uuid.UUID, *, catalogo: Any) -
         .where(TRABAJO.c.usuario_id == usuario_id, TRABAJO.c.estado != EstadoTrabajo.CANCELADO.value)
         .order_by(TRABAJO.c.creado_en.desc())
     )
+    pendientes_consulta = (
+        select(IMPORTACION.c.colegio_id, IMPORTACION.c.grado, IMPORTACION.c.carga, IMPORTACION.c.creado_en)
+        .where(IMPORTACION.c.contacto_referencia == str(usuario_id), IMPORTACION.c.estado == "pendiente")
+        .order_by(IMPORTACION.c.creado_en.desc())
+    )
     async with motor.engine.begin() as conexion:
         filas = list(await conexion.execute(consulta))
+        pendientes = list(await conexion.execute(pendientes_consulta))
 
     # Las listas subidas del contacto. Una caida del catalogo degrada la vista,
     # no la tumba (se marca y se sigue con los trabajos).
@@ -1527,6 +1539,21 @@ async def mis_solicitudes(motor: Any, usuario_id: uuid.UUID, *, catalogo: Any) -
                     "_orden": _a_consciente(lista_subida.get("creada_en")),
                 }
             )
+
+    # Las listas que esperan aca a que el catalogo vuelva.
+    for pendiente in pendientes:
+        colegio_datos = (pendiente.carga or {}).get("colegio_datos") or {}
+        solicitudes.append(
+            {
+                "tipo": "recibida",
+                "tarea_id": None,
+                "colegio_id": pendiente.colegio_id,
+                "colegio_nombre": colegio_datos.get("nombre"),
+                "grado": pendiente.grado,
+                "creado_en": _a_consciente(pendiente.creado_en).isoformat(),
+                "_orden": _a_consciente(pendiente.creado_en),
+            }
+        )
 
     # Los trabajos que no salieron ya como una lista aprobada.
     for fila in filas:

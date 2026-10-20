@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, BellRing, Check, Clock, MailCheck } from "lucide-react";
+import { cuantasDiferidas } from "@/lib/recibimos";
 import espera from "../esperando/[trabajo_id]/Espera.module.css";
 import styles from "./Recibimos.module.css";
 
@@ -18,14 +19,29 @@ export const metadata = {
 // Si el hogar además tenía hijos con lista verificada, su kit instantáneo ya
 // existe y se enlaza aquí (parámetro `trabajo`), sin quitarle el protagonismo
 // a la verificación pendiente.
+//
+// Con el catálogo caído la subida igual responde (ADR 0040): la lista queda
+// guardada en Tukit y pasa sola a la fila de revisión cuando el catálogo
+// vuelve. Esas llegan como `diferidas` y la pantalla le dice al acudiente que
+// no tiene que volver a subirlas.
 export default async function Recibimos({
   searchParams,
 }: {
-  searchParams: Promise<{ pendientes?: string; trabajo?: string }>;
+  searchParams: Promise<{ pendientes?: string; diferidas?: string; trabajo?: string }>;
 }) {
-  const { pendientes, trabajo } = await searchParams;
+  const { pendientes, diferidas: crudas, trabajo } = await searchParams;
   const cuantas = Math.max(1, Number(pendientes) || 1);
   const plural = cuantas === 1 ? "tu lista" : `tus ${cuantas} listas`;
+  const diferidas = cuantasDiferidas(crudas, cuantas);
+  const cuales =
+    cuantas === 1
+      ? "tu lista"
+      : diferidas === cuantas
+        ? `tus ${cuantas} listas`
+        : diferidas === 1
+          ? "una de tus listas"
+          : `${diferidas} de tus listas`;
+  const pasa = diferidas === 1 ? "quedó guardada y pasa sola" : "quedaron guardadas y pasan solas";
 
   return (
     <div className={espera.pagina}>
@@ -50,6 +66,17 @@ export default async function Recibimos({
           apenas quede aprobada, te avisamos al correo y al celular con el enlace
           para ver tu kit antes de comprar. Puedes cerrar esta pestaña.
         </p>
+
+        {diferidas > 0 && (
+          <div className={espera.degradaciones} role="status">
+            <strong>Pasa a revisión en unos minutos</strong>
+            <p style={{ marginTop: "8px" }}>
+              Nuestro catálogo tardó en responder, así que {cuales} {pasa} a la fila de
+              revisión apenas vuelva. No tienes que volver a{" "}
+              {diferidas === 1 ? "subirla" : "subirlas"}.
+            </p>
+          </div>
+        )}
 
         <ol className={espera.etapas}>
           <li className={`${espera.etapa} ${espera.ok}`}>

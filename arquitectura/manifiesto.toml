@@ -30,7 +30,10 @@ version = "3"
 # 72: `comercio.historial_pedido`, un renglon por cada avance del pedido desde
 # el back-office (quien, de que estado a cual, con que nota), para que una
 # incidencia o una cancelacion tengan explicacion.
-total_tablas_esperado = 72
+# 73: `inteligencia.importacion_lista`, la lista que un acudiente subio con el
+# catalogo caido. Guarda lo percibido hasta que el trabajador la importa, con
+# una clave de idempotencia por subida y destino (ADR 0040).
+total_tablas_esperado = 73
 
 # Tablas que existen a proposito en varias bases. Son la excepcion declarada,
 # no un descuido: cada servicio necesita su propia bandeja de salida local para
@@ -132,6 +135,7 @@ tablas = [
     "etapa_trabajo",
     "bandeja_salida",
     "kit_canonico",
+    "importacion_lista",
 ]
 
 [servicios.comercio]
@@ -433,6 +437,17 @@ colegio vive en Identidad; aqui es la llave con la que el acudiente elige su
 grado en /empezar y con la que la ruta de aplicacion encuentra los kits ya
 validados. La integridad se apoya en que el colegio ya existia cuando su lista
 se importo (misma garantia que `catalogo.lista_oficial.colegio_id`)."""
+
+[[referencias_cruzadas]]
+desde = "inteligencia.importacion_lista.colegio_id"
+hacia = "identidad.colegio"
+nota = """
+El destino de una lista que un acudiente subio y que espera a que el catalogo
+vuelva (ADR 0040). Es el mismo `colegio_id` que viaja a
+`catalogo.tarea_importacion`: el de un aliado, o el derivado del DANE o del
+nombre de un colegio que aun no existe y nace al aprobar. Referencia logica,
+como la de la tarea: la tenencia del colegio vive en Identidad.
+"""
 
 [[referencias_cruzadas]]
 desde = "catalogo.tarea_importacion.colegio_id"

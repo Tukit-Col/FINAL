@@ -23,7 +23,7 @@ from pydantic import AliasChoices, BaseModel, Field
 from tukit_comun import derivar
 from tukit_comun.http import ErrorDominio
 
-from .. import api, metricas, trabajos
+from .. import api, importaciones, metricas, trabajos
 from ..modelos import EstadoResolucion, EstadoTrabajo
 from ..percepcion import Percepcion
 from ..remoto import RemotoCaido
@@ -630,11 +630,18 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
     ni telefono—. No se crea ningun trabajo: el padre espera a que un
     administrador apruebe la version, y recien ahi se arma su kit.
 
-    Es todo o nada por hogar: si la percepcion rechaza el archivo de un hijo
-    (varios grados, pagina a medias, ilegible) no se importa NADA y se responde
+    La percepcion es todo o nada por hogar: si rechaza el archivo de un hijo
+    (varios grados, pagina a medias, ilegible) no se guarda NADA y se responde
     422 con el codigo del rechazo, sin devolver jamas el contenido subido. Dos
     hijos del mismo (colegio, grado) comparten una sola version: se importa una
     vez para no pisar una lista con la otra.
+
+    Con todo percibido, lo que vale todo o nada es el GUARDADO (ADR 0040): cada
+    destino queda en `importacion_lista` antes de llamar al catalogo. Si el
+    catalogo no responde, la subida responde igual 202 y el hijo trae
+    `version_id: null, estado: "pendiente"`; el trabajador la importa cuando el
+    catalogo vuelve, con la misma clave de idempotencia y sin volver a percibir.
+    Con el catalogo arriba, la respuesta es la de siempre.
     """
     tipo = peticion.headers.get("content-type", "")
     if "multipart/form-data" not in tipo:
@@ -762,12 +769,17 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
     # DERIVA (del aliado elegido, del DANE del directorio o del nombre a mano) y
     # con el viajan los datos del colegio cuando este aun no existe en Tukit,
     # para que la cola lo muestre y la aprobacion cree su identidad.
-    catalogo = api._catalogo()
-    por_destino: dict[tuple[str, int], str] = {}
-    subidas: list[dict[str, Any]] = []
+    por_destino: dict[tuple[str, int], importaciones.Destino] = {}
+    destino_de_hijo: list[tuple[HijoSubida, str, tuple[str, int]]] = []
     anio_por_omision = 2026
     for hijo, grado, pdf, percepcion in percibidos:
         colegio_id, colegio_datos = hijo.resolver_colegio()
+        anio = hijo.anio_lectivo or anio_por_omision
+        clave = (f"{colegio_id}|{grado}", anio)
+        destino_de_hijo.append((hijo, grado, clave))
+        if clave in por_destino:
+            por_destino[clave].referencias.append(hijo.referencia)
+            continue
         # Colegio nuevo elegido del directorio: se pre-llena su perfil (direccion,
         # contacto, sitio) con el DUEB para que la cola no muestre un bloque vacio.
         # El nombre/dane de la subida mandan; el directorio solo tapa huecos.
@@ -775,26 +787,41 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
             del_dueb = await api._identidad().datos_directorio(colegio_datos["dane"])
             if del_dueb:
                 colegio_datos = {**del_dueb, **{k: v for k, v in colegio_datos.items() if v}}
-        anio = hijo.anio_lectivo or anio_por_omision
-        clave = (f"{colegio_id}|{grado}", anio)
-        version_id = por_destino.get(clave)
-        if version_id is None:
-            items, percepcion_cruda = _items_desde_percepcion(percepcion)
-            respuesta = await catalogo.importar_lista(
-                colegio_id=colegio_id,
-                grado=grado,
-                anio_lectivo=anio,
-                items=items,
-                documento_base64=base64.b64encode(pdf).decode(),
-                percepcion_cruda=percepcion_cruda,
-                contacto_referencia=contacto_referencia,
-                preferencias=preferencias,
-                colegio_datos=colegio_datos,
-                origen="sugerencia_padre",
+        items, percepcion_cruda = _items_desde_percepcion(percepcion)
+        por_destino[clave] = importaciones.Destino(
+            colegio_id=colegio_id,
+            grado=grado,
+            anio_lectivo=anio,
+            referencias=[hijo.referencia],
+            items=items,
+            percepcion_cruda=percepcion_cruda,
+            documento=pdf,
+            colegio_datos=colegio_datos,
+        )
+
+    # Lo percibido queda guardado ANTES de llamar al catalogo, todos los
+    # destinos o ninguno (ADR 0040): si el catalogo no responde, la subida
+    # igual se acepta y el trabajador importa lo pendiente cuando vuelva.
+    motor = api.app.state.motor
+    ids = await importaciones.guardar(
+        motor, list(por_destino.values()), contacto_referencia=contacto_referencia, preferencias=preferencias
+    )
+    intentos = await importaciones.importar_en_linea(motor, ids, catalogo=api._catalogo())
+    por_clave = dict(zip(por_destino, intentos, strict=True))
+    for intento in intentos:
+        # Un rechazo del catalogo no es una caida: sale como antes.
+        if intento.estado == importaciones.FALLIDA and intento.error is not None:
+            raise intento.error
+
+    subidas: list[dict[str, Any]] = []
+    for hijo, grado, clave in destino_de_hijo:
+        intento = por_clave[clave]
+        if intento.estado == importaciones.IMPORTADA:
+            subidas.append({"referencia": hijo.referencia, "version_id": intento.version_id, "grado": grado})
+        else:
+            subidas.append(
+                {"referencia": hijo.referencia, "version_id": None, "grado": grado, "estado": "pendiente"}
             )
-            version_id = str(respuesta["version_id"])
-            por_destino[clave] = version_id
-        subidas.append({"referencia": hijo.referencia, "version_id": version_id, "grado": grado})
 
     return {"subidas": subidas, "contacto_referencia": contacto_referencia}
 
@@ -847,14 +874,26 @@ async def onboarding(peticion: Request) -> dict[str, Any]:
     # Mismo mapeo (renglones + evidencia por pagina) que la subida del acudiente.
     items, percepcion_cruda = _items_desde_percepcion(percepcion)
 
-    respuesta = await api._catalogo().importar_lista(
-        colegio_id=campos["colegio_id"],
-        grado=percepcion.grados[0] if percepcion.grados else campos["grado"],
-        anio_lectivo=anio_lectivo,
-        items=items,
-        documento_base64=base64.b64encode(archivo).decode(),
-        percepcion_cruda=percepcion_cruda,
-    )
+    # A diferencia de la subida del acudiente, aqui no se difiere (ADR 0040):
+    # el formulario del administrador necesita el `version_id` en el acto para
+    # pasar a la curaduria, y el administrador puede volver a intentar.
+    try:
+        respuesta = await api._catalogo().importar_lista(
+            colegio_id=campos["colegio_id"],
+            grado=percepcion.grados[0] if percepcion.grados else campos["grado"],
+            anio_lectivo=anio_lectivo,
+            items=items,
+            documento_base64=base64.b64encode(archivo).decode(),
+            percepcion_cruda=percepcion_cruda,
+        )
+    except RemotoCaido as error:
+        if not error.transitorio:
+            raise
+        raise ErrorDominio(
+            "servicio_no_disponible",
+            "El catalogo no responde; la lista no se guardo. Intenta de nuevo en un momento.",
+            estado=503,
+        ) from error
     return {
         "version_id": respuesta["version_id"],
         "grado": percepcion.grados[0] if percepcion.grados else campos["grado"],
