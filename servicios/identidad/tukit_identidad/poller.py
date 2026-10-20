@@ -20,6 +20,11 @@ Catalogo para drenar su bandeja. El nombre de esa base NO se escribe aqui:
 `url_desde_entorno` lo deriva DENTRO de la libreria a partir del nombre del
 servicio (regla 3). El colegio se da de alta en la base propia de Identidad,
 que es lo unico que este servicio escribe.
+
+**Sobrevive a una caida de Postgres** (ADR 0041). El bucle corre sobre
+`bucle_resiliente`: si una base no responde, espera con backoff, deja el error
+en el log y vuelve a intentar; cada pasada abre sus motores, asi que reconecta
+sola. Un error de programacion sigue terminando el proceso.
 """
 
 from __future__ import annotations
@@ -27,6 +32,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -37,6 +43,8 @@ from tukit_comun.bandeja import Resultado, drenar
 from tukit_comun.bd import MotorServicio, crear_motor
 from tukit_comun.cifrado import cifrador_desde_entorno
 from tukit_comun.config import url_desde_entorno
+from tukit_comun.registro import configurar_registro
+from tukit_comun.resiliencia import bucle_resiliente
 
 # El grado y la forma plana del hijo viven en `dominio/matriculas.py` (puro); el
 # SQL derivado que materializa cada hijo (estudiante + matricula + vinculo) es un
@@ -230,12 +238,13 @@ async def correr_una_vez() -> int:
         await motor_identidad.cerrar()
 
 
-async def _bucle(intervalo: float) -> None:
-    while True:
+async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]] = asyncio.sleep) -> None:
+    async def _vuelta() -> None:
         aplicados = await correr_una_vez()
         if aplicados:
             print(f"[poller-identidad] colegios dados de alta/actualizados: {aplicados}")
-        await asyncio.sleep(intervalo)
+
+    await bucle_resiliente(_vuelta, intervalo=intervalo, proceso="identidad-poller", dormir=dormir)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -245,6 +254,7 @@ def main(argv: list[str] | None = None) -> int:
     analizador.add_argument("--seguir", action="store_true", help="Corre en bucle en vez de una pasada.")
     analizador.add_argument("--intervalo", type=float, default=5.0, help="Segundos entre pasadas.")
     argumentos = analizador.parse_args(argv)
+    configurar_registro("identidad-poller")
 
     if argumentos.seguir:
         asyncio.run(_bucle(argumentos.intervalo))
