@@ -25,6 +25,11 @@ el repartidor abre motores de LECTURA a las bases de Inteligencia y Comercio. El
 nombre de esas bases NO se escribe aqui: `url_desde_entorno` lo deriva en la
 libreria a partir del nombre del servicio, asi que este archivo no contiene el
 string de ninguna base ajena (regla 3 de las fronteras).
+
+**Una caida no lo mata** (ADR 0041). El bucle corre sobre `bucle_resiliente`:
+si Postgres o RabbitMQ no responden, espera y reintenta la pasada, y cada pasada
+abre de nuevo sus motores y su sink. Un error de programacion sigue terminando
+el proceso.
 """
 
 from __future__ import annotations
@@ -33,6 +38,7 @@ import argparse
 import asyncio
 import os
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -43,6 +49,8 @@ from tukit_comun.bandeja import Resultado, drenar
 from tukit_comun.bd import crear_motor
 from tukit_comun.broker import sink_desde_entorno
 from tukit_comun.config import url_desde_entorno
+from tukit_comun.registro import configurar_registro
+from tukit_comun.resiliencia import bucle_resiliente
 
 from .dominio.reparto import datos_plantilla, destinatario_en_carga, plantilla_para
 from .notificador import Contacto, Notificador, notificador_desde_entorno
@@ -211,13 +219,14 @@ async def correr_una_vez() -> dict[str, int]:
     return resultado
 
 
-async def _bucle(intervalo: float) -> None:
-    while True:
+async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]] = asyncio.sleep) -> None:
+    async def _vuelta() -> None:
         entregas = await correr_una_vez()
         total = sum(entregas.values())
         if total:
             print(f"[repartidor] entregados: {entregas}")
-        await asyncio.sleep(intervalo)
+
+    await bucle_resiliente(_vuelta, intervalo=intervalo, proceso="operacion-repartidor", dormir=dormir)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -225,6 +234,7 @@ def main(argv: list[str] | None = None) -> int:
     analizador.add_argument("--seguir", action="store_true", help="Corre en bucle en vez de una pasada.")
     analizador.add_argument("--intervalo", type=float, default=5.0, help="Segundos entre pasadas.")
     argumentos = analizador.parse_args(argv)
+    configurar_registro("operacion-repartidor")
 
     if argumentos.seguir:
         asyncio.run(_bucle(argumentos.intervalo))
