@@ -13,8 +13,9 @@ Lo que se fija aqui:
   percibido y sin volver a percibir;
 - dos reintentos, o una respuesta que se perdio, dan una sola version: cada
   destino viaja con la misma `clave_idempotencia`;
-- con el catalogo arriba la respuesta es la de siempre y la fila queda
-  `importada`, sin el PDF.
+- con el catalogo arriba la respuesta es la de siempre y aqui no queda copia
+  de la lista ni del PDF; si se cae a mitad de la subida, solo queda guardado
+  lo que no alcanzo a entrar.
 """
 
 from __future__ import annotations
@@ -52,14 +53,16 @@ class CatalogoIntermitente(CatalogoImportador):
     """El catalogo que se cae y vuelve, con la idempotencia del de verdad.
 
     Con `caido`, cada importacion lanza el `RemotoCaido` que lanza el cliente
-    cuando el catalogo no responde. Con una clave ya vista devuelve la version
-    que ya tenia, como `POST /v1/admin/listas/importar`. `llamadas` solo cuenta
-    las importaciones que de verdad crearon una version; `intentos`, todas.
+    cuando el catalogo no responde; con `caer_tras`, se cae despues de crear
+    esas versiones. Con una clave ya vista devuelve la version que ya tenia,
+    como `POST /v1/admin/listas/importar`. `llamadas` solo cuenta las
+    importaciones que de verdad crearon una version; `intentos`, todas.
     """
 
     def __init__(self) -> None:
         super().__init__()
         self.caido = False
+        self.caer_tras: int | None = None
         self.rechazo: int | None = None
         self.perder_respuesta = False
         self.intentos: list[str | None] = []
@@ -67,7 +70,7 @@ class CatalogoIntermitente(CatalogoImportador):
 
     async def importar_lista(self, *, clave_idempotencia: str | None = None, **kw) -> dict:
         self.intentos.append(clave_idempotencia)
-        if self.caido:
+        if self.caido or (self.caer_tras is not None and len(self.llamadas) >= self.caer_tras):
             raise RemotoCaido(
                 "catalogo", "/v1/admin/listas/importar no respondio (All connection attempts failed)"
             )
@@ -228,8 +231,7 @@ class TestConElCatalogoCaido:
         assert len(catalogo.intentos) == 1
         filas = await _filas(motor)
         assert {f.estado for f in filas} == {"pendiente"}
-        # Las dos quedan para dentro de segundos, no para cuando venza la
-        # reserva de la peticion.
+        # Las dos quedan para dentro de segundos: el trabajador las toma pronto.
         pronto = datetime.now(UTC) + timedelta(seconds=30)
         assert all(_con_zona(f.proximo_intento_en) < pronto for f in filas)
 
@@ -348,20 +350,38 @@ class TestCuandoElCatalogoVuelve:
 
 
 class TestConElCatalogoArriba:
-    async def test_la_respuesta_es_la_de_siempre_y_la_fila_queda_importada(self, cliente, catalogo, motor):
+    async def test_la_respuesta_es_la_de_siempre_y_aqui_no_queda_copia(self, cliente, catalogo, motor):
         respuesta = await cliente.post("/v1/listas/subir", **_subida([_un_hijo()]))
 
         assert respuesta.status_code == 202
         assert respuesta.json()["subidas"] == [
             {"referencia": "hijo-1", "version_id": "ver-1", "grado": "Cuarto"}
         ]
+        assert uuid.UUID(catalogo.llamadas[0]["clave_idempotencia"])
+        # La lista y el PDF quedan en el catalogo y en ningun otro lado.
+        assert await _filas(motor) == []
+
+    async def test_si_se_cae_a_mitad_solo_se_guarda_lo_que_no_entro(self, cliente, catalogo, motor):
+        catalogo.caer_tras = 1
+        quinto = str(uuid.uuid4())
+        respuesta = await cliente.post(
+            "/v1/listas/subir",
+            **_subida([_un_hijo(), _un_hijo(referencia="hijo-2", colegio_id=quinto)]),
+        )
+
+        assert respuesta.status_code == 202
+        assert respuesta.json()["subidas"] == [
+            {"referencia": "hijo-1", "version_id": "ver-1", "grado": "Cuarto"},
+            {"referencia": "hijo-2", "version_id": None, "grado": "Cuarto", "estado": "pendiente"},
+        ]
         [fila] = await _filas(motor)
-        assert (fila.estado, fila.version_id, fila.intentos) == ("importada", "ver-1", 1)
-        assert fila.documento is None
-        assert catalogo.llamadas[0]["clave_idempotencia"] == str(fila.clave_idempotencia)
-        # Nada queda para el trabajador.
-        assert await importaciones.reintentar_pendientes(motor, catalogo=catalogo, ahora=_despues()) == 0
-        assert len(catalogo.llamadas) == 1
+        assert (fila.colegio_id, fila.referencias) == (quinto, ["hijo-2"])
+        # La segunda se intento con la misma clave que guarda la fila.
+        assert catalogo.intentos[1] == str(fila.clave_idempotencia)
+
+        catalogo.caer_tras = None
+        assert await importaciones.reintentar_pendientes(motor, catalogo=catalogo, ahora=_despues()) == 1
+        assert [ll["colegio_id"] for ll in catalogo.llamadas] == [COLEGIO, quinto]
 
     async def test_cada_destino_lleva_su_propia_clave(self, cliente, catalogo):
         await cliente.post(
@@ -381,19 +401,29 @@ class TestConElCatalogoArriba:
 
 
 class TestUnRechazoDelCatalogo:
-    async def test_queda_fallida_y_no_se_reintenta(self, cliente, catalogo, motor):
+    async def test_en_la_subida_sale_como_antes(self, cliente, catalogo, motor):
         # Un 4xx no es una caida: reintentarlo daria lo mismo. Sale como antes
-        # y la fila queda con su diagnostico.
+        # y no queda nada para el trabajador.
         catalogo.rechazo = 422
         with pytest.raises(RemotoCaido):
             await cliente.post("/v1/listas/subir", **_subida([_un_hijo()]))
 
+        assert await _filas(motor) == []
+
+    async def test_en_un_reintento_queda_fallida_y_no_se_vuelve_a_intentar(self, cliente, catalogo, motor):
+        catalogo.caido = True
+        await cliente.post("/v1/listas/subir", **_subida([_un_hijo()]))
+        catalogo.caido = False
+        catalogo.rechazo = 422
+
+        assert await importaciones.reintentar_pendientes(motor, catalogo=catalogo, ahora=_despues()) == 0
         [fila] = await _filas(motor)
         assert fila.estado == "fallida"
         assert "422" in fila.error
 
         catalogo.rechazo = None
         assert await importaciones.reintentar_pendientes(motor, catalogo=catalogo, ahora=_despues()) == 0
+        assert len(catalogo.intentos) == 2
         assert catalogo.llamadas == []
 
     @pytest.mark.parametrize("estado", [408, 429, 502, 503])
