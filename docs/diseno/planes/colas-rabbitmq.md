@@ -136,8 +136,9 @@ Y estas, tomadas al leer el código:
       vaciar» para una pasada y modo continuo.
 - [x] `resiliencia.py`: las caídas de conexión de aiormq cuentan como transitorias.
 - [x] Pruebas unitarias con dobles, sin broker.
-- [ ] Pruebas de integración contra el RabbitMQ local, con el marcador `rabbitmq`, que se saltan
-      si no hay broker y usan nombres propios que borran al terminar.
+- [x] Pruebas de integración contra el RabbitMQ local, con el marcador `rabbitmq`, que se saltan
+      si no hay broker y usan nombres propios que borran al terminar. Corren con
+      `make prueba-colas`; `make prueba` las deja fuera.
 
 ### 2. Productores
 

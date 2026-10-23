@@ -5,7 +5,7 @@
 # invocacion distinta.
 
 .DEFAULT_GOAL := ayuda
-.PHONY: ayuda preparar fronteras prueba lint formato tipos verificar limpiar \
+.PHONY: ayuda preparar fronteras prueba prueba-colas lint formato tipos verificar limpiar \
         bd-arriba bd-abajo bd-crear bd-limpiar bd-reiniciar-datos bd-esquema bd-indices bd-verificar \
         bd-migrar bd-revision bd-deriva bd-cargar bd-datos bd-enriquecer bd-completar \
         bd-demanda bd-revisar bd-vista bd-admin bd-nivelar bd-volcar bd-limpiar-candidatos fase1 \
@@ -69,8 +69,14 @@ preparar:  ## Crea el entorno e instala las dependencias
 fronteras:  ## Verifica las fronteras de arquitectura (rapido, corre primero)
 	@$(PYTEST) arquitectura/ -q
 
+# Las pruebas contra RabbitMQ (marcador `rabbitmq`, ADR 0046) van aparte: dependen
+# de que haya un broker y tardan lo que el broker tarde en saludar. Sin ellas,
+# `prueba` da lo mismo con broker que sin el.
 prueba: fronteras  ## Corre toda la suite, empezando por las fronteras
-	@$(PYTEST) libs servicios ensayos -q
+	@$(PYTEST) libs servicios ensayos -q -m "not rabbitmq"
+
+prueba-colas:  ## Corre las pruebas de las colas contra RabbitMQ (TUKIT_PRUEBAS_RABBITMQ_URL)
+	@$(PYTEST) libs servicios ensayos -q -m rabbitmq -rs
 
 lint:  ## Revisa estilo y errores estaticos
 	@$(RUFF) check .
