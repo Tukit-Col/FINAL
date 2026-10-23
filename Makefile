@@ -106,11 +106,12 @@ limpiar:  ## Borra artefactos
 # `bd-esquema` encadena `bd-indices` al final, asi que no hay un tercer paso que
 # recordar ni una base que quede a medio construir.
 
-bd-arriba:  ## Levanta Postgres (5 bases + extensiones) y espera a que este listo
+bd-arriba:  ## Levanta Postgres (5 bases + extensiones) y RabbitMQ, y espera a Postgres
 	@$(COMPOSE) up -d
 	@echo "Esperando a Postgres..."
 	@$(COMPOSE) exec -T postgres sh -c 'until pg_isready -U tukit -q; do sleep 1; done'
 	@echo "Postgres listo en localhost:5432 (usuario tukit)."
+	@echo "RabbitMQ en localhost:5672 (guest), consola en :15672. make arriba lo comprueba."
 
 bd-crear:  ## Crea el usuario y las 5 bases en un Postgres YA instalado (sin Docker)
 	@echo "Motor: $(BD_MODO)"
@@ -131,13 +132,12 @@ bd-crear:  ## Crea el usuario y las 5 bases en un Postgres YA instalado (sin Doc
 		echo "  ok   tukit_$$base"; \
 	done
 
-infra-arriba:  ## Levanta el backbone opcional (RabbitMQ, Redis, Jaeger) bajo el perfil `infra`
-	@# El codigo corre sin esto (broker->NotifierSink, OTLP no-op). Levantarlo
-	@# activa entrega por broker y trazas: pon RABBITMQ_URL y
-	@# OTEL_EXPORTER_OTLP_ENDPOINT en tu .env. Consolas: RabbitMQ :15672,
-	@# Jaeger :16686.
+infra-arriba:  ## Levanta el backbone opcional (Redis, Jaeger) bajo el perfil `infra`
+	@# El codigo corre sin esto (OTLP no-op, breaker en memoria). Levantarlo
+	@# activa las trazas: pon OTEL_EXPORTER_OTLP_ENDPOINT en tu .env. Consola de
+	@# Jaeger en :16686. RabbitMQ ya no va aqui: lo levanta `bd-arriba` (ADR 0046).
 	@$(COMPOSE) --profile infra up -d
-	@echo "Backbone arriba: RabbitMQ :15672, Jaeger :16686, Redis :6379."
+	@echo "Backbone arriba: Jaeger :16686, Redis :6379."
 
 infra-abajo:  ## Detiene el backbone opcional (conserva la cola de RabbitMQ)
 	@$(COMPOSE) --profile infra down
@@ -360,6 +360,19 @@ bd-deriva:  ## Falla si el esquema migrado y los modelos no dicen lo mismo
 EJECUCION := .ejecucion
 API_PATH := $(ESQUEMA_PATH)
 
+# Con RabbitMQ (ADR 0046) los eventos viajan por el broker: cada productor
+# publica su bandeja y cada consumidor escucha su cola, sin leer bases ajenas.
+# `arriba` toma `RABBITMQ_URL` del entorno o, si no esta definida, la del broker
+# local (la del compose y la de `.env.ejemplo`). Si el broker no responde,
+# levanta todo sin la URL y los procesos sondean las bases como antes. La
+# decision es una sola para todos los procesos: un API que avisa por el broker
+# con un trabajador que sondea dejaria avisos que nadie lee.
+# `make arriba RABBITMQ_URL=` arranca sin broker a proposito.
+BROKER_LOCAL := amqp://guest:guest@localhost:5672/
+URL_BROKER = $(if $(filter undefined,$(origin RABBITMQ_URL)),$(BROKER_LOCAL),$(RABBITMQ_URL))
+# Cada proceso que lanza `arriba` recibe la URL que quedo decidida, o ninguna.
+CON_BROKER = RABBITMQ_URL="$$(cat $(EJECUCION)/broker 2>/dev/null)"
+
 PUERTO_GATEWAY ?= 8010
 PUERTO_IDENTIDAD ?= 8011
 PUERTO_CATALOGO ?= 8012
@@ -426,20 +439,27 @@ publicador-inteligencia:  ## Publica la bandeja de inteligencia en RabbitMQ (req
 
 reanudar: arriba  ## Reanuda tras un apagado: solo levanta los procesos, NO siembra (usa `backend` solo para reconstruir de cero)
 
-arriba:  ## Levanta los seis procesos HTTP en segundo plano
+arriba:  ## Levanta los seis procesos HTTP y los de fondo, con RabbitMQ si responde
 	@mkdir -p $(EJECUCION)
 	@$(MAKE) --no-print-directory abajo >/dev/null 2>&1 || true
-	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_identidad.api --puerto $(PUERTO_IDENTIDAD) \
+	@if [ -z "$(URL_BROKER)" ]; then \
+		echo "Sin RABBITMQ_URL: los procesos sondean las bases."; \
+	elif RABBITMQ_URL="$(URL_BROKER)" PYTHONPATH="$(API_PATH)" $(PY) -m tukit_comun.broker; then \
+		printf '%s' "$(URL_BROKER)" > $(EJECUCION)/broker; \
+	else \
+		echo "Los procesos arrancan sin RabbitMQ y sondean las bases."; \
+	fi
+	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_identidad.api --puerto $(PUERTO_IDENTIDAD) \
 		> $(EJECUCION)/identidad.log 2>&1 & echo $$! > $(EJECUCION)/identidad.pid
-	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_catalogo.api --puerto $(PUERTO_CATALOGO) \
+	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_catalogo.api --puerto $(PUERTO_CATALOGO) \
 		> $(EJECUCION)/catalogo.log 2>&1 & echo $$! > $(EJECUCION)/catalogo.pid
-	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_inteligencia.api --puerto $(PUERTO_INTELIGENCIA) \
+	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_inteligencia.api --puerto $(PUERTO_INTELIGENCIA) \
 		> $(EJECUCION)/inteligencia.log 2>&1 & echo $$! > $(EJECUCION)/inteligencia.pid
-	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_comercio.api --puerto $(PUERTO_COMERCIO) \
+	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_comercio.api --puerto $(PUERTO_COMERCIO) \
 		> $(EJECUCION)/comercio.log 2>&1 & echo $$! > $(EJECUCION)/comercio.pid
-	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_operacion.api --puerto $(PUERTO_OPERACION) \
+	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_operacion.api --puerto $(PUERTO_OPERACION) \
 		> $(EJECUCION)/operacion.log 2>&1 & echo $$! > $(EJECUCION)/operacion.pid
-	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_gateway.api --puerto $(PUERTO_GATEWAY) \
+	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_gateway.api --puerto $(PUERTO_GATEWAY) \
 		> $(EJECUCION)/gateway.log 2>&1 & echo $$! > $(EJECUCION)/gateway.pid
 	@echo "Esperando a que respondan..."
 	@for i in $$(seq 1 60); do \
@@ -451,25 +471,33 @@ arriba:  ## Levanta los seis procesos HTTP en segundo plano
 	@# se vuelve aliado (poller-identidad) y —desde ADR 0024— el pipeline no corre
 	@# (trabajador: drena la cola de trabajos `encolado`, antes era una asyncio.Task
 	@# del API que un reinicio dejaba colgada). Cada uno en --seguir con su pid.
-	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_operacion.repartidor --seguir \
+	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_operacion.repartidor --seguir \
 		> $(EJECUCION)/repartidor.log 2>&1 & echo $$! > $(EJECUCION)/repartidor.pid
-	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_inteligencia.poller --seguir \
+	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_inteligencia.poller --seguir \
 		> $(EJECUCION)/poller.log 2>&1 & echo $$! > $(EJECUCION)/poller.pid
-	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_inteligencia.trabajador --seguir \
+	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_inteligencia.trabajador --seguir \
 		> $(EJECUCION)/trabajador.log 2>&1 & echo $$! > $(EJECUCION)/trabajador.pid
-	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_identidad.poller --seguir \
+	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_identidad.poller --seguir \
 		> $(EJECUCION)/poller-identidad.log 2>&1 & echo $$! > $(EJECUCION)/poller-identidad.pid
+	@# Con broker, los publicadores llevan a RabbitMQ la bandeja de cada
+	@# productor (ADR 0046). Sin broker no hacen falta: los consumidores leen las
+	@# bandejas directo.
+	@if [ -s $(EJECUCION)/broker ]; then for p in catalogo comercio inteligencia; do \
+		$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_$$p.publicador --seguir \
+			> $(EJECUCION)/publicador-$$p.log 2>&1 & echo $$! > $(EJECUCION)/publicador-$$p.pid; \
+	done; fi
 	@# El barredor libera la reserva de un pedido que nunca se pago (ADR 0023, C1):
 	@# sin el, un checkout abandonado bloquea stock para siempre.
-	@PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_comercio.barredor --seguir \
+	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_comercio.barredor --seguir \
 		> $(EJECUCION)/barredor.log 2>&1 & echo $$! > $(EJECUCION)/barredor.pid
 	@$(MAKE) --no-print-directory estado
 
 abajo:  ## Detiene los seis procesos HTTP y los trabajadores de fondo
-	@for s in gateway operacion comercio inteligencia catalogo identidad repartidor poller trabajador poller-identidad barredor; do \
+	@for s in gateway operacion comercio inteligencia catalogo identidad repartidor poller trabajador poller-identidad barredor \
+		publicador-catalogo publicador-comercio publicador-inteligencia; do \
 		[ -f $(EJECUCION)/$$s.pid ] && kill $$(cat $(EJECUCION)/$$s.pid) 2>/dev/null; \
 		rm -f $(EJECUCION)/$$s.pid; \
-	done; true
+	done; rm -f $(EJECUCION)/broker; true
 	@echo "Procesos detenidos."
 
 estado:  ## Dice cuales de los seis estan arriba, preguntandoles

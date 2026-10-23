@@ -172,13 +172,19 @@ Y estas, tomadas al leer el código:
 
 ### 5. Infraestructura y CI
 
-- [ ] Compose: RabbitMQ fuera del perfil `infra`, con `guest`, y `RABBITMQ_URL` en el entorno de
-      los servicios.
-- [ ] `Makefile`: `make arriba` exporta `RABBITMQ_URL`, comprueba el broker, lanza los
-      publicadores y cae al sondeo si el broker no responde; `abajo` los detiene.
-- [ ] `.env.ejemplo` al día.
-- [ ] `ci.yml`: un trabajo nuevo con `rabbitmq:3.13-management-alpine` que corre las pruebas de
-      integración de las colas. Los demás trabajos no cambian.
+- [x] Compose: RabbitMQ fuera del perfil `infra`, con `guest`, y `RABBITMQ_URL` en el entorno de
+      los servicios. La imagen pasa a `rabbitmq:3.13-management-alpine`, la del banco de QA. No se
+      levantó con Docker, que la Mac no tiene; CI usa la misma imagen. El perfil `api` sigue sin los
+      procesos de fondo (ni comercio ni operación), como antes: quien lo use sin `make arriba` no
+      tiene trabajador ni publicadores.
+- [x] `Makefile`: `make arriba` exporta `RABBITMQ_URL`, comprueba el broker, lanza los
+      publicadores y cae al sondeo si el broker no responde; `abajo` los detiene. La comprobación
+      es `python -m tukit_comun.broker`, que no muestra la contraseña. La decisión se probó en sus
+      tres casos (broker arriba, abajo y `RABBITMQ_URL=` vacía).
+- [x] `.env.ejemplo` al día.
+- [x] `ci.yml`: un trabajo nuevo con `rabbitmq:3.13-management-alpine` que corre las pruebas de
+      integración de las colas. Los demás trabajos no cambian. Con
+      `TUKIT_PRUEBAS_RABBITMQ_OBLIGATORIO`, una prueba sin broker falla en vez de saltarse.
 - [ ] Fronteras: el manifiesto declara las lecturas cruzadas como respaldo sin broker, y una
       prueba exige que cada lectura cruzada del código esté declarada así.
 

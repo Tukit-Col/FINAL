@@ -9,23 +9,32 @@ colas de quien este usando el broker, ni deja residuo.
 No es `RABBITMQ_URL` a proposito: esa variable cambia el modo de los procesos, y
 una prueba no deberia cambiar de modo porque alguien la tenga exportada.
 
+Con `TUKIT_PRUEBAS_RABBITMQ_OBLIGATORIO`, una prueba sin broker falla en vez de
+saltarse. CI la pone: un servicio de RabbitMQ mal puesto no puede dejar el
+trabajo en verde con todo saltado.
+
 Vive en la libreria, como `bd.sesion_de_prueba`, porque la usan las pruebas de
 la libreria y las de los servicios.
 """
 
 from __future__ import annotations
 
-import asyncio
 import os
 import uuid
 from typing import Any
 
+from .broker import responde
 from .topologia import TOPOLOGIA, Topologia
 
 
 def url_de_pruebas() -> str:
     """El broker de las pruebas de integracion."""
     return os.environ.get("TUKIT_PRUEBAS_RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
+
+
+def broker_obligatorio() -> bool:
+    """Si una prueba sin broker debe fallar en vez de saltarse."""
+    return bool(os.environ.get("TUKIT_PRUEBAS_RABBITMQ_OBLIGATORIO"))
 
 
 # Si el broker respondio, por URL: se pregunta una vez por proceso, porque abrir
@@ -37,15 +46,7 @@ _disponible: dict[str, bool] = {}
 async def broker_disponible(url: str, *, espera: float = 15.0) -> bool:
     """Si el broker de `url` acepta una conexion en `espera` segundos."""
     if url not in _disponible:
-        try:
-            import aio_pika
-
-            conexion = await asyncio.wait_for(aio_pika.connect(url), timeout=espera)
-        except Exception:
-            _disponible[url] = False
-        else:
-            await conexion.close()
-            _disponible[url] = True
+        _disponible[url] = await responde(url, espera=espera) is None
     return _disponible[url]
 
 
