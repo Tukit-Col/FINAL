@@ -127,8 +127,8 @@ Y estas, tomadas al leer el código:
 
 ### 1. Base común en `tukit_comun`
 
-- [ ] `topologia.py`: exchange, colas, reintentos y descartados; declaración idempotente.
-- [ ] `mensajes.py`: el sobre (de fila a mensaje y de mensaje a `Evento`).
+- [x] `topologia.py`: exchange, colas, reintentos y descartados; declaración idempotente.
+- [x] `mensajes.py`: el sobre (de fila a mensaje y de mensaje a `Evento`).
 - [ ] `publicador.py`: drena la bandeja propia con SKIP LOCKED, publica con confirmación, marca
       tras confirmar, guarda lo confirmado si algo falla a mitad, y corre sobre `bucle_resiliente`.
 - [ ] `consumidor.py`: prefetch, confirmación y rechazo, reintentos acotados, descartados,
