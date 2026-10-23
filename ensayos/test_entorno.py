@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 
-from ensayos.entorno import RAIZ, cargar_env, carpeta_cache
+from entorno import RAIZ, cargar_env, carpeta_cache
 
 
 def test_cargar_env_no_pisa_lo_que_ya_esta(tmp_path, monkeypatch):

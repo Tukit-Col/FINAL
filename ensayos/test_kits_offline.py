@@ -9,8 +9,7 @@ seccion de `docs/informes/auditoria-huecos-agustiniano/v2-d4ea7cb.md` que lo tra
 from __future__ import annotations
 
 import pytest
-
-from ensayos.kits_offline import armar_colegio, por_clave
+from kits_offline import armar_colegio, por_clave
 
 
 @pytest.fixture(scope="module")
@@ -246,7 +245,7 @@ class TestDesempateComoElOptimizador:
 
 
 def test_con_todo_igual_gana_el_primero_de_la_ruta_rapida():
-    from ensayos.kits_offline import _clave_ahorrador, _clave_premium, _mejor
+    from kits_offline import _clave_ahorrador, _clave_premium, _mejor
 
     def producto(sku, nivel, precio, personaje=None):
         return {
