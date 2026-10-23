@@ -33,7 +33,10 @@ version = "3"
 # 73: `inteligencia.importacion_lista`, la lista que un acudiente subio con el
 # catalogo caido. Guarda lo percibido hasta que el trabajador la importa, con
 # una clave de idempotencia por subida y destino (ADR 0040).
-total_tablas_esperado = 73
+# 74: `inteligencia.evento_procesado`, los eventos que el sondeador de listas ya
+# proceso, por origen e id. Con RabbitMQ la entrega es al menos una vez, y un
+# `lista_verificada` repetido armaba otro kit (ADR 0046).
+total_tablas_esperado = 74
 
 # Tablas que existen a proposito en varias bases. Son la excepcion declarada,
 # no un descuido: cada servicio necesita su propia bandeja de salida local para
@@ -136,6 +139,7 @@ tablas = [
     "bandeja_salida",
     "kit_canonico",
     "importacion_lista",
+    "evento_procesado",
 ]
 
 [servicios.comercio]

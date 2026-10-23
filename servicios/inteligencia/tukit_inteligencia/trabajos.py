@@ -26,6 +26,7 @@ from typing import Any
 
 from sqlalchemy import and_, delete, func, insert, select, update
 from tukit_comun.cifrado import cifrador_desde_entorno
+from tukit_comun.consumidor import marcar_procesado
 
 from .dominio.pipeline import (
     _anclar_kits,
@@ -202,6 +203,10 @@ ORIGENES_SIN_ACUDIENTE = frozenset({"preview_onboarding", ORIGEN_CANONICO})
 # ---------------------------------------------------------------------------
 
 
+class EventoRepetido(Exception):
+    """El evento que pedia el trabajo ya se habia procesado: no se crea otro."""
+
+
 async def crear(
     motor: Any,
     *,
@@ -212,6 +217,7 @@ async def crear(
     identidad: ClienteIdentidad | None = None,
     usuario_id: uuid.UUID | None = None,
     en_proceso: bool = False,
+    evento: tuple[str, int] | None = None,
 ) -> dict[str, Any]:
     """Crea el trabajo en `encolado` y devuelve el cuerpo del 202.
 
@@ -231,6 +237,12 @@ async def crear(
     volver a llamar a Identidad: es lo que usa el poller de `lista_verificada`,
     donde el padre subio su lista hace rato y su `usuario_id` ya vive en la
     tarea. Si viene, gana sobre `contacto` (no se re-registra nada).
+
+    `evento` es el `(origen, id)` del evento que pide el trabajo, cuando llega
+    por una cola de RabbitMQ (ADR 0046). Se anota en `evento_procesado` en la
+    misma transaccion que el trabajo; si ya estaba, no se crea nada y levanta
+    `EventoRepetido`. Asi un evento entregado dos veces no arma dos kits, aunque
+    el proceso haya caido entre crear el trabajo y confirmar el mensaje.
     """
     degradaciones: list[dict[str, Any]] = []
     if usuario_id is None and contacto and contacto.get("correo"):
@@ -251,6 +263,8 @@ async def crear(
     trabajo_id = uuid.uuid4()
 
     async with motor.engine.begin() as conexion:
+        if evento is not None and not await marcar_procesado(conexion, *evento):
+            raise EventoRepetido(f"{evento[0]}:{evento[1]}")
         await conexion.execute(
             insert(TRABAJO).values(
                 id=trabajo_id,

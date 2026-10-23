@@ -29,6 +29,16 @@ from tukit_inteligencia.modelos import Base
 COLEGIO = "11111111-1111-5111-8111-111111111111"
 
 
+@pytest.fixture(autouse=True)
+def _sin_broker(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Las pruebas corren sin RabbitMQ aunque quien las lance tenga `RABBITMQ_URL`.
+
+    La variable cambia el modo del sondeador de listas y del trabajador (ADR
+    0046). Las que prueban el modo con broker la ponen ellas.
+    """
+    monkeypatch.delenv("RABBITMQ_URL", raising=False)
+
+
 @pytest.fixture()
 async def motor():
     engine = create_async_engine(
