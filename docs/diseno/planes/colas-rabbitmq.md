@@ -197,9 +197,19 @@ Y estas, tomadas al leer el código:
 
 ### 6. Documentación
 
-- [ ] ADR 0046, su fila en el índice y el rango «0027 a 0046» en `docs/README.md`.
-- [ ] `CONTRATO_API.md` 1.10: el viaje de los eventos (§10) y «Qué cambió en 1.10».
-- [ ] `REVISION_ARQUITECTURA.md` y lo demás que describa las colas.
+- [x] ADR 0046, su fila en el índice y el rango «0027 a 0046» en `docs/README.md`. No lleva la
+      línea «Fecha» de los demás ADR, porque los `.md` de esta rama no llevan fechas.
+- [x] `CONTRATO_API.md` 1.10: el viaje de los eventos (§10.1, nuevo) y «Qué cambió en 1.10». La
+      API HTTP no cambia. También dos filas del §8 (procesos de fondo y consumidores con broker) y
+      dos del §12.9: la de notificación, y la de ejecución de fondo, que seguía diciendo «tarea en
+      proceso» desde antes del trabajador durable.
+- [x] `REVISION_ARQUITECTURA.md` y lo demás que describa las colas. La revisión gana un aviso de
+      actualización y notas en §A.4 y §B.3 que remiten al ADR. El mapa del §B.0 dibuja el camino
+      con broker; antes mostraba la bandeja de identidad alimentando a operación, que nunca fue
+      así. La referencia `test_fronteras.py:400`, que ya no apuntaba al salto de `ingesta`, pasa
+      a ser el nombre de la prueba. En el `README.md` de la raíz: RabbitMQ en los requisitos,
+      `make bd-arriba`, qué lanza `make arriba` y, en la deuda conocida, dos entradas viejas sobre
+      el pipeline y el repartidor que ya no eran ciertas pasan a ser la del respaldo sin broker.
 
 ### 7. Verificación y PR
 

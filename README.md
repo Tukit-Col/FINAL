@@ -24,12 +24,14 @@ make verificar    # todo lo que corre la integración continua
 - **Node 20+** y **npm** (los frontends son un workspace de npm, no pnpm).
 - **Postgres 16 con `pgvector`** — o **Docker**, que lo levanta por ti con `make bd-arriba`
   (imagen `pgvector/pgvector:pg16`). Sin Docker necesitas Postgres 16 local y `make bd-crear`.
+- **RabbitMQ 3.13 o 4.x**, opcional. Sin él, los procesos de fondo sondean las bases. Con
+  Docker, `make bd-arriba` lo levanta junto a Postgres.
 
 ## Levantar el backend completo
 
 ```bash
 make preparar     # entorno y dependencias
-make bd-arriba    # Postgres con las 5 bases   (con Docker)
+make bd-arriba    # Postgres con las 5 bases y RabbitMQ   (con Docker)
 make bd-crear     # las 5 bases + extensiones  (sin Docker, Postgres 16 local)
 make backend      # migra, siembra y levanta los cuatro procesos HTTP
 make humo         # golpea la API y falla si algún endpoint viene vacío
@@ -56,6 +58,12 @@ TUKIT_API_URL=http://127.0.0.1:8010
 | inteligencia | 8013 | `/v1/trabajos*`, `/v1/admin/*` |
 
 `make estado` pregunta a la puerta cuáles de los tres responden; `make abajo` los detiene.
+
+`make arriba` lanza también los procesos de fondo: el trabajador, los sondeadores, el repartidor
+y el barredor. Antes pregunta si RabbitMQ responde en `RABBITMQ_URL`, que por omisión es
+`amqp://guest:guest@localhost:5672/`. Si responde, los lanza con el broker y suma los tres
+publicadores de bandeja. Si no responde, o si `RABBITMQ_URL` está vacía, sondean las bases como
+antes (ADR 0046).
 Cada servicio publica su OpenAPI en `/docs`. La fuente de verdad, de todas formas, es
 [el contrato](docs/arquitectura/CONTRATO_API.md), que desde la versión 1.1 documenta la
 superficie de lectura completa con ejemplos de respuestas reales.
@@ -438,13 +446,11 @@ funcionar.
   frente. Cambiarlo es reemplazar `optimizador.elegir_por_perfil` y nada más; lo que ya es
   definitivo (la aritmética de unidades, que lo informativo no se cobre, la regla de
   recomendación) está probado aparte para que sobreviva al reemplazo.
-- **El pipeline corre como tarea del propio proceso.** Un trabajo en vuelo cuando el
-  servicio se reinicia queda en `procesando` hasta que alguien lo reencole con
-  `POST /v1/trabajos/{id}/reintentar`. El estado sí está en la base, que es lo que hace
-  posible el rescate; lo que falta es el trabajador que lo haga solo.
-- **La bandeja de salida de Inteligencia no tiene repartidor.** Al publicar un trabajo se
-  escribe `kits_publicados` en la misma transacción y nadie lo recoge, así que el aviso al
-  acudiente no sale. Es la misma deuda que el manifiesto documenta del sistema anterior.
+- **Sin RabbitMQ, tres procesos leen la base de otro servicio.** El repartidor lee las
+  bandejas de inteligencia y de comercio, y los dos sondeadores la de catálogo. Con
+  `RABBITMQ_URL`, cada productor publica su bandeja y nadie lee bases ajenas. El manifiesto
+  declara esas lecturas como el respaldo sin broker (ADR 0046). Quitar el respaldo es una
+  decisión pendiente.
 - **El bloque `api` del compose nunca se ha ejecutado.** La máquina donde se escribió no
   tiene Docker. El camino verificado es `make arriba`, contra el árbol de trabajo.
 - **`make bd-deriva` no corre en integración continua.** Necesita un Postgres vivo y la

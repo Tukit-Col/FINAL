@@ -40,6 +40,7 @@ etiqueta; el título es la decisión.
 | [0043](0043-como-se-compara-cada-atributo.md) | Cada atributo se compara a su manera (exacto lo que cambia qué cosa es, con tolerancia lo que se mide), y la cantidad del renglón va en unidad base | aceptada | `feature/integracion-total` |
 | [0044](0044-direcciones-con-google-places.md) | La dirección del checkout se autocompleta con Google Places (New), y sin Google sigue siendo un campo libre | aceptada | `feature/maps-and-feats` |
 | [0045](0045-alta-de-colegios-no-aliados-desde-la-cola.md) | El staff sube desde la cola la lista de cualquier colegio de Bogotá, con un solo directorio y una regla de logo | aceptada | `feature/maps-and-feats` |
+| [0046](0046-las-colas-viajan-por-rabbitmq.md) | Los eventos y los trabajos viajan por RabbitMQ, y la base queda como respaldo: cada productor publica su bandeja y ningún consumidor lee la base de otro | aceptada | `feature/colas-rabbitmq` |
 
 ## Para incorporarlos
 
