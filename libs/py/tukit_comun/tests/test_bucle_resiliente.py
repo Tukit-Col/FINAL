@@ -97,6 +97,8 @@ def _con_causa(error: BaseException, causa: BaseException) -> BaseException:
         aiormq.exceptions.AMQPConnectionError("Connection refused"),
         aiormq.exceptions.ConnectionClosed(320, "CONNECTION_FORCED"),
         aiormq.exceptions.ChannelInvalidStateError("No active transport in channel"),
+        # El broker respondio nack a una publicacion confirmada.
+        aiormq.exceptions.DeliveryError(None, None),
         _dbapi(Exception("connection is closed"), invalidada=True),
         _dbapi(ConnectionDoesNotExistError("connection was closed")),
         _con_causa(RuntimeError("envoltorio"), ConnectionRefusedError()),

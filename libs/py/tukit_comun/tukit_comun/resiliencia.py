@@ -192,6 +192,10 @@ _CAIDAS_POR_NOMBRE = frozenset(
         "TooManyConnectionsError",
         # aiormq: el canal se quedo sin conexion debajo (RabbitMQ cayo).
         "ChannelInvalidStateError",
+        # aiormq: el broker respondio nack a una publicacion confirmada (no pudo
+        # guardar el mensaje); el publicador lo deja pendiente y reintenta. Las
+        # caidas de conexion de aiormq ya son `OSError` (`AMQPConnectionError`).
+        "DeliveryError",
     }
 )
 # Un `OSError` de archivos no es una caida de red: no se arregla esperando.
