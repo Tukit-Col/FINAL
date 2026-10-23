@@ -153,7 +153,7 @@ Y estas, tomadas al leer el código:
 ### 3. Consumidores
 
 - [x] Repartidor: consume `operacion.avisos` con broker; sin él, sondea como hoy.
-- [ ] Sondeador de colegios: consume `identidad.colegios`; prueba de un evento repetido.
+- [x] Sondeador de colegios: consume `identidad.colegios`; prueba de un evento repetido.
 - [ ] Sondeador de listas: consume `inteligencia.listas`; tabla `evento_procesado`, su migración y
       su reversa; prueba de un evento repetido.
 - [ ] Pruebas de que con broker ninguno abre un motor a una base ajena.
