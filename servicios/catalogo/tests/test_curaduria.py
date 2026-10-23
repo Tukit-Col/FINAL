@@ -125,6 +125,40 @@ class TestExportar:
 
         assert [f["concepto"] for f in filas] == ["C001", ""]
 
+    def test_la_vigente_revisada_gana_aunque_otra_tenga_fecha_mas_nueva(self, sesion: Session):
+        """`importar` fecha la version con el `revisada_en` del CSV, que puede
+        ser anterior a una edicion hecha en el admin. Si gana la fecha, la
+        exportacion devuelve la version reemplazada y la curaduria importada se
+        pierde en el siguiente viaje por git."""
+        concepto = crear_concepto(sesion, "C001")
+        lista_id = sembrar_lista(sesion, concepto.id)
+        sesion.execute(
+            update(VERSION)
+            .where(VERSION.c.lista_id == lista_id)
+            .values(vigente=False, revisada_en=datetime(2026, 10, 12, tzinfo=UTC))
+        )
+        nueva = uuid.uuid4()
+        sesion.execute(
+            VERSION.insert().values(id=nueva, lista_id=lista_id, numero=2, vigente=True, revisada_en=REVISADA)
+        )
+        sesion.execute(
+            ITEM.insert().values(
+                id=uuid.uuid4(),
+                version_id=nueva,
+                orden=1,
+                texto_original="Cuaderno de tres materias",
+                concepto_id=concepto.id,
+                cantidad=1,
+                atributos={"materias": 3},
+                requiere_revision=False,
+                modo_adquisicion="mercado_abierto",
+            )
+        )
+
+        filas = filas_de_listas(sesion.connection())
+
+        assert [f["texto_original"] for f in filas] == ["Cuaderno de tres materias"]
+
 
 class TestImportar:
     def test_ida_y_vuelta_reproduce_la_lista(self, sesion: Session):

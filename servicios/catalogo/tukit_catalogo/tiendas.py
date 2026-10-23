@@ -108,7 +108,7 @@ def _pedir(direccion: str, clave_cache: str, dias_frescura: int = 7) -> Any | No
         edad = (datetime.now(UTC).timestamp() - archivo.stat().st_mtime) / 86400
         if edad < dias_frescura:
             try:
-                return json.loads(archivo.read_text())["respuesta"]
+                return json.loads(archivo.read_text(encoding="utf-8"))["respuesta"]
             except (ValueError, KeyError):
                 pass
 
@@ -131,7 +131,13 @@ def _pedir(direccion: str, clave_cache: str, dias_frescura: int = 7) -> Any | No
                             "respuesta": datos,
                         },
                         ensure_ascii=False,
-                    )
+                    ),
+                    # Sin `encoding`, Windows escribe en cp1252: el primer
+                    # nombre con un caracter fuera de esa tabla hacia fallar la
+                    # escritura, el `except` lo tomaba por un fallo de red, y
+                    # Grancentral devolvia siempre una lista vacia. Parecia que
+                    # no tenia los productos.
+                    encoding="utf-8",
                 )
                 return datos
         except (urllib.error.URLError, TimeoutError, ValueError, OSError):

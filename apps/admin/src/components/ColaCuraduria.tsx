@@ -188,10 +188,10 @@ function FilaPropuesta({ p, conceptos, personajes, ocupada, onAprobar, onRechaza
   const [imagenUrl, setImagenUrl] = useState(p.imagen_url ?? "");
 
   // Los atributos arrancan de las claves que el CONCEPTO declara (igual que el
-  // editor de catálogo); la propuesta todavía no tiene atributos materializados
-  // —el backend los deriva al aprobar—, así que las filas nacen vacías, listas
-  // para llenar. Si se dejan todas vacías, NO se manda `atributos` y el backend
-  // conserva su derivación automática.
+  // editor de catálogo), llenas con lo que el producto tendría si se aprueba tal
+  // cual (`atributos_al_aprobar`: la ficha, el nombre y lo verificado). Así lo
+  // que se ve es lo que queda. Si no se cambia nada, NO se manda `atributos` y
+  // el backend aplica esa misma derivación.
   const conceptoDeLaPropuesta = useMemo(
     () => conceptos.find((c) => c.codigo === codigoConcepto(p)),
     [conceptos, p],
@@ -199,11 +199,11 @@ function FilaPropuesta({ p, conceptos, personajes, ocupada, onAprobar, onRechaza
   const gruposIniciales = useMemo(
     () =>
       filasDeAtributos(
-        {},
+        p.atributos_al_aprobar ?? p.atributos_verificados ?? {},
         conceptoDeLaPropuesta?.atributos_discriminantes ?? [],
         conceptoDeLaPropuesta?.atributos_descriptivos ?? [],
       ),
-    [conceptoDeLaPropuesta],
+    [conceptoDeLaPropuesta, p.atributos_al_aprobar, p.atributos_verificados],
   );
   const [discriminantes, setDiscriminantes] = useState<ParAtributo[]>(
     gruposIniciales.discriminantes,
@@ -242,7 +242,16 @@ function FilaPropuesta({ p, conceptos, personajes, ocupada, onAprobar, onRechaza
     // si quedó algo: un mapa vacío REEMPLAZARÍA la derivación automática por
     // nada, que no es lo que se quiere al no tocar los atributos.
     const mapa = serializarAtributos([...discriminantes, ...descriptivos, ...libres]);
-    if (Object.keys(mapa).length > 0) cuerpo.atributos = mapa;
+    const inicial = serializarAtributos([
+      ...gruposIniciales.discriminantes,
+      ...gruposIniciales.descriptivos,
+      ...gruposIniciales.libres,
+    ]);
+    // Solo si la persona cambió algo: lo que arrancó lleno ya lo aplica el
+    // backend, y mandarlo tal cual pisaría lo que él lee del nombre.
+    if (Object.keys(mapa).length > 0 && JSON.stringify(mapa) !== JSON.stringify(inicial)) {
+      cuerpo.atributos = mapa;
+    }
 
     return cuerpo;
   }
