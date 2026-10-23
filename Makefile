@@ -14,7 +14,8 @@
         infra-arriba infra-abajo \
         api-catalogo api-identidad api-inteligencia api-gateway \
         api-comercio api-operacion repartidor instantanea-metricas \
-        poller poller-identidad trabajador barredor
+        poller poller-identidad trabajador barredor \
+        publicador-catalogo publicador-comercio publicador-inteligencia
 
 PY := .venv/bin/python
 PYTEST := .venv/bin/pytest
@@ -410,6 +411,18 @@ barredor:  ## Libera reservas de pedidos sin pagar por TTL, ADR 0023 C1 (una pas
 
 poller-identidad:  ## Drena colegio_verificado del catalogo y da de alta el colegio aliado (s=--seguir para bucle)
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_identidad.poller $(s)
+
+# Los publicadores llevan la bandeja propia de cada productor a RabbitMQ (ADR
+# 0046). Solo corren con RABBITMQ_URL; sin ella dicen que falta y salen con 2,
+# porque sin broker los consumidores sondean la bandeja como siempre.
+publicador-catalogo:  ## Publica la bandeja de catalogo en RabbitMQ (requiere RABBITMQ_URL; s=--seguir para bucle)
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_catalogo.publicador $(s)
+
+publicador-comercio:  ## Publica la bandeja de comercio en RabbitMQ (requiere RABBITMQ_URL; s=--seguir para bucle)
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_comercio.publicador $(s)
+
+publicador-inteligencia:  ## Publica la bandeja de inteligencia en RabbitMQ (requiere RABBITMQ_URL; s=--seguir para bucle)
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_inteligencia.publicador $(s)
 
 reanudar: arriba  ## Reanuda tras un apagado: solo levanta los procesos, NO siembra (usa `backend` solo para reconstruir de cero)
 
