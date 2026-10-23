@@ -27,9 +27,16 @@ import pytest_asyncio
 from sqlalchemy import MetaData, insert, select
 from sqlalchemy.ext.asyncio import create_async_engine
 from tukit_comun.bandeja import Resultado, bandeja_reflejada
+from tukit_comun.broker import sin_clave
 from tukit_comun.consumidor import Consumidor, RegistroEnMemoria, escuchar
 from tukit_comun.mensajes import Evento, evento_de, evento_de_fila
-from tukit_comun.pruebas_colas import Sonda, broker_disponible, topologia_de_prueba, url_de_pruebas
+from tukit_comun.pruebas_colas import (
+    Sonda,
+    broker_disponible,
+    broker_obligatorio,
+    topologia_de_prueba,
+    url_de_pruebas,
+)
 from tukit_comun.publicador import PublicadorAmqp, vaciar
 from tukit_comun.topologia import CABECERA_INTENTOS, CABECERA_MOTIVO, Topologia, declarar
 
@@ -44,7 +51,9 @@ AGREGADO = uuid.UUID("11111111-2222-3333-4444-555555555555")
 @pytest_asyncio.fixture
 async def sonda() -> AsyncIterator[Sonda]:
     if not await broker_disponible(URL):
-        pytest.skip(f"no hay RabbitMQ en {URL}")
+        if broker_obligatorio():
+            pytest.fail(f"no hay RabbitMQ en {sin_clave(URL)} y TUKIT_PRUEBAS_RABBITMQ_OBLIGATORIO lo exige")
+        pytest.skip(f"no hay RabbitMQ en {sin_clave(URL)}")
     async with Sonda(URL) as sonda:
         yield sonda
 

@@ -1,7 +1,7 @@
 # Infraestructura local de desarrollo.
 #
 # Un solo Postgres 16 con la extension pgvector, que hospeda las CINCO bases
-# del sistema. Que sean cinco bases logicas en un motor, y no cinco motores, es
+# del sistema, y el RabbitMQ por el que viajan los eventos (ADR 0046). Que sean cinco bases logicas en un motor, y no cinco motores, es
 # deliberado para el piloto: el aislamiento que exige la arquitectura es de
 # ESQUEMA y de conexion (una base, un dueno, ver los cinco invariantes), no de
 # proceso. La funcion de aptitud `test_ningun_servicio_nombra_la_base_de_otro`
@@ -9,13 +9,13 @@
 # depende de que esten en motores separados. En produccion se pueden separar sin
 # tocar el codigo: cada servicio ya recibe su URL del entorno.
 #
-# Levantar:   make bd-arriba
+# Levantar:   make bd-arriba  (Postgres y RabbitMQ)
 # Bajar:      make bd-abajo
 # Reiniciar:  make bd-limpiar  (BORRA los datos)
 #
 # ---------------------------------------------------------------------------
 # Los cuatro procesos HTTP viven aqui bajo el perfil `api`, y estan APAGADOS
-# por omision. `make bd-arriba` sigue levantando solo Postgres.
+# por omision. `make bd-arriba` levanta solo Postgres y RabbitMQ.
 #
 #     docker compose -f infra/docker-compose.yml --profile api up -d
 #
@@ -88,6 +88,10 @@ services:
       TUKIT_CATALOGO_URL: http://catalogo:8012
       TUKIT_INTELIGENCIA_URL: http://inteligencia:8013
       TUKIT_CORS_ORIGENES: "http://localhost:3000,http://127.0.0.1:3000"
+      # Con la URL, Inteligencia deja el aviso de cada trabajo en su bandeja
+      # para el trabajador (ADR 0046). El broker se encuentra por nombre de
+      # servicio, igual que la base.
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
     depends_on:
       postgres:
         condition: service_healthy
@@ -116,30 +120,27 @@ services:
     command: ["python", "-m", "tukit_gateway.api", "--puerto", "8010", "--host", "0.0.0.0"]
     ports: ["8010:8010"]
 
-  # --- Backbone: broker, trazas y cache, bajo el perfil `infra` ----------
+  # --- El broker de los eventos, sin perfil -------------------------------
   #
-  # APAGADOS por omision, igual que el perfil `api`. `make bd-arriba` sigue
-  # levantando solo Postgres; `make infra-arriba` levanta este bloque.
+  # Encendido por omision, como Postgres: `make bd-arriba` lo levanta y
+  # `make arriba` lo comprueba antes de lanzar los procesos con `RABBITMQ_URL`.
+  # Cada productor publica su bandeja aqui y cada consumidor escucha su cola
+  # (ADR 0046). Si no responde, los procesos sondean las bases como antes: el
+  # broker acelera la entrega y quita las lecturas cruzadas, pero no es un
+  # requisito para correr.
   #
-  #     docker compose -f infra/docker-compose.yml --profile infra up -d
+  # La imagen es la del banco de QA y la de CI, que corre las pruebas de las
+  # colas contra ella. El usuario es `guest`, el de `.env.ejemplo`: la imagen
+  # oficial lo deja entrar desde fuera del contenedor, que es desde donde se
+  # conectan `make arriba` y CI.
   #
-  # El codigo degrada honestamente sin este bloque (patron WOMPI_MODO=falso):
-  # sin `RABBITMQ_URL` el outbox se drena con el `NotifierSink` de siempre; sin
-  # `OTEL_EXPORTER_OTLP_ENDPOINT` la instrumentacion es no-op. Levantar esto es
-  # un upgrade de entrega y de observabilidad, no un requisito para correr.
-  #
-  # ADVERTENCIA HONESTA: como el bloque `api`, este bloque NO se ha ejecutado.
-  # La maquina donde se escribio no tiene Docker; esta revisado a ojo. Misma
-  # clase de deuda que ya documentan el Makefile y el perfil `api`: anotarla es
-  # lo que evita darla por probada.
+  # ADVERTENCIA HONESTA: este servicio NO se ha levantado con Docker en la
+  # maquina donde se escribio, que no lo tiene. CI si usa la misma imagen como
+  # servicio, asi que la imagen, el usuario y el puerto estan probados ahi.
 
   rabbitmq:
-    profiles: ["infra"]
-    image: rabbitmq:3-management
+    image: rabbitmq:3.13-management-alpine
     container_name: tukit_rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: tukit
-      RABBITMQ_DEFAULT_PASS: tukit
     # 5672 = protocolo AMQP (lo usa `aio-pika`); 15672 = consola de gestion.
     ports:
       - "5672:5672"
@@ -151,6 +152,23 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # --- Backbone opcional: trazas y cache, bajo el perfil `infra` ---------
+  #
+  # APAGADOS por omision, igual que el perfil `api`; `make infra-arriba` los
+  # levanta.
+  #
+  #     docker compose -f infra/docker-compose.yml --profile infra up -d
+  #
+  # El codigo degrada honestamente sin este bloque (patron WOMPI_MODO=falso):
+  # sin `OTEL_EXPORTER_OTLP_ENDPOINT` la instrumentacion es no-op y sin
+  # `REDIS_URL` el breaker vive en memoria. Levantar esto es un upgrade de
+  # observabilidad, no un requisito para correr.
+  #
+  # ADVERTENCIA HONESTA: como el bloque `api`, este bloque NO se ha ejecutado.
+  # La maquina donde se escribio no tiene Docker; esta revisado a ojo. Misma
+  # clase de deuda que ya documentan el Makefile y el perfil `api`: anotarla es
+  # lo que evita darla por probada.
 
   redis:
     profiles: ["infra"]
