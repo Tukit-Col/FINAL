@@ -20,6 +20,7 @@ from test_fronteras import (
     _cadenas_no_docstring,
     _columnas_declaradas,
     _modulos_importados,
+    _revisar_lectura_cruzada,
     _tabla_apuntada,
     _tablas_declaradas,
 )
@@ -150,6 +151,85 @@ def test_no_marca_el_nombre_de_la_base_ajena_en_un_comentario():
     assert not any("tukit_catalogo" in c for c in cadenas), (
         "Un comentario no debe contar como conexion a la base ajena."
     )
+
+
+# --------------------------------------------------------------------------
+# Detector de lecturas cruzadas fuera del respaldo sin broker (regla 3b)
+# --------------------------------------------------------------------------
+
+# La forma del poller de Identidad: sin broker sondea la bandeja del Catalogo y
+# con broker escucha su cola, sin pasar por el motor ajeno.
+_POLLER_BIEN = """
+from tukit_comun.config import url_desde_entorno
+
+def _motor_lectura(servicio):
+    return create_async_engine(url_desde_entorno(servicio))
+
+async def correr_una_vez():
+    motor = _motor_lectura("catalogo")
+    return await Poller(motor_catalogo=motor).pasada()
+
+async def escuchar_cola(url, *, seguir):
+    poller = Poller(motor_catalogo=None)
+    return await consumir(url, Consumidor(cola=COLEGIOS, manejar=poller.manejar), seguir=seguir)
+
+class Poller:
+    async def manejar(self, evento):
+        return await self._procesar(None, evento)
+
+    async def _procesar(self, conexion, fila):
+        return Resultado.HECHO
+"""
+_DECLARADA = {"modulo": "tukit_identidad.poller", "modo": "sin_broker"}
+
+
+def test_acepta_la_lectura_cruzada_que_es_solo_respaldo():
+    assert _revisar_lectura_cruzada("tukit_identidad.poller", _arbol(_POLLER_BIEN), _DECLARADA) == []
+
+
+def test_detecta_la_lectura_cruzada_sin_declarar():
+    """Un modulo nuevo que abre la base de otro con `url_desde_entorno` pasa la
+    regla 3, porque no escribe el nombre de la base. Esta lo atrapa."""
+    problemas = _revisar_lectura_cruzada("tukit_comercio.espia", _arbol(_POLLER_BIEN), None)
+    assert len(problemas) == 1
+    assert "no esta en `[[lecturas_cruzadas]]`" in problemas[0]
+
+
+def test_detecta_la_lectura_cruzada_declarada_en_otro_modo():
+    problemas = _revisar_lectura_cruzada(
+        "tukit_identidad.poller", _arbol(_POLLER_BIEN), {**_DECLARADA, "modo": "siempre"}
+    )
+    assert any("solo vale" in p for p in problemas)
+
+
+def test_detecta_el_modulo_sin_camino_con_broker():
+    """Sin `escuchar_cola`, con RabbitMQ el modulo no tiene otra entrada que el
+    sondeo de la base ajena."""
+    fuente = _POLLER_BIEN.replace("async def escuchar_cola", "async def escuchar_otra_cosa")
+    problemas = _revisar_lectura_cruzada("tukit_identidad.poller", _arbol(fuente), _DECLARADA)
+    assert any("no tiene `escuchar_cola`" in p for p in problemas)
+
+
+def test_detecta_el_camino_con_broker_que_llega_al_motor_ajeno():
+    """El defecto que la regla evita: con broker, el modulo sigue abriendo la
+    base ajena. Aqui el manejador, que viaja como valor y no como llamada, pasa
+    por `_motor_lectura`."""
+    fuente = _POLLER_BIEN.replace(
+        "        return await self._procesar(None, evento)",
+        '        _motor_lectura("catalogo")\n        return await self._procesar(None, evento)',
+    )
+    problemas = _revisar_lectura_cruzada("tukit_identidad.poller", _arbol(fuente), _DECLARADA)
+    assert len(problemas) == 1
+    assert "llega a una lectura cruzada por _motor_lectura" in problemas[0]
+
+
+def test_detecta_el_motor_ajeno_abierto_dentro_de_escuchar_cola():
+    fuente = _POLLER_BIEN.replace(
+        "    poller = Poller(motor_catalogo=None)",
+        '    poller = Poller(motor_catalogo=create_async_engine(url_desde_entorno("catalogo")))',
+    )
+    problemas = _revisar_lectura_cruzada("tukit_identidad.poller", _arbol(fuente), _DECLARADA)
+    assert any("llega a una lectura cruzada por escuchar_cola" in p for p in problemas)
 
 
 # --------------------------------------------------------------------------
