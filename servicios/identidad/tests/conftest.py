@@ -30,6 +30,17 @@ from tukit_identidad.modelos import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _sin_broker(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Las pruebas corren sin RabbitMQ aunque quien las lance tenga `RABBITMQ_URL`.
+
+    La variable cambia el modo del sondeador de colegios (ADR 0046): con ella
+    consume su cola en vez de sondear. Las que prueban el modo con broker la
+    ponen ellas.
+    """
+    monkeypatch.delenv("RABBITMQ_URL", raising=False)
+
+
 @pytest_asyncio.fixture
 async def db() -> AsyncIterator[AsyncSession]:
     motor = create_async_engine("sqlite+aiosqlite:///:memory:")
