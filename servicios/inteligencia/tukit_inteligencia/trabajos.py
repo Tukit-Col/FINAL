@@ -25,6 +25,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import and_, delete, func, insert, select, update
+from tukit_comun.broker import url_broker
 from tukit_comun.cifrado import cifrador_desde_entorno
 from tukit_comun.consumidor import marcar_procesado
 
@@ -243,6 +244,9 @@ async def crear(
     misma transaccion que el trabajo; si ya estaba, no se crea nada y levanta
     `EventoRepetido`. Asi un evento entregado dos veces no arma dos kits, aunque
     el proceso haya caido entre crear el trabajo y confirmar el mensaje.
+
+    Con RabbitMQ, un trabajo que nace `encolado` deja su aviso
+    `trabajo_encolado` en la bandeja, en la misma transaccion (ADR 0046).
     """
     degradaciones: list[dict[str, Any]] = []
     if usuario_id is None and contacto and contacto.get("correo"):
@@ -285,6 +289,8 @@ async def crear(
             insert(ETAPA),
             [{"id": uuid.uuid4(), "trabajo_id": trabajo_id, "nombre": nombre} for nombre in ETAPAS],
         )
+        if not en_proceso:
+            await _avisar_encolado(conexion, trabajo_id)
 
     return {
         "trabajo_id": str(trabajo_id),
@@ -1022,11 +1028,25 @@ async def lanzar(motor: Any, trabajo_id: uuid.UUID) -> None:
     `fallido` (reintentar) o `en revision` devuelto se reencola para que el worker
     lo retome. Un `procesando`/`publicado` no se puede reencolar (lo frena la
     maquina de estados), que es justo lo que se quiere.
+
+    Con RabbitMQ, el paso a `encolado` deja su aviso en la bandeja, en la misma
+    transaccion; uno que ya estaba `encolado` tiene el suyo desde `crear`.
     """
     async with motor.engine.begin() as conexion:
         actual = await _estado(conexion, trabajo_id)
         if actual != EstadoTrabajo.ENCOLADO.value:
             await _pasar_a(conexion, trabajo_id, EstadoTrabajo.ENCOLADO.value)
+            await _avisar_encolado(conexion, trabajo_id)
+
+
+async def _avisar_encolado(conexion: Any, trabajo_id: uuid.UUID) -> None:
+    """Con RabbitMQ, el aviso de que el trabajo quedo `encolado` (ADR 0046).
+
+    Sin broker nadie lo lee, porque el trabajador sondea la tabla: escribirlo
+    solo cambiaria lo que hay en la bandeja.
+    """
+    if url_broker():
+        await RepoTrabajos(conexion).avisar_encolado(trabajo_id)
 
 
 async def _publicar_evento(conexion: Any, trabajo_id: uuid.UUID) -> None:

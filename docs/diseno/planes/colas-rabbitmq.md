@@ -105,9 +105,11 @@ Y estas, tomadas al leer el código:
     `encolado`, en la misma transacción. Si el aviso falta, el barrido lo cubre.
 15. **El trabajador reclama la fila del aviso** con un `UPDATE ... WHERE id = :id AND estado =
     'encolado'`. Si no la reclama (otro la tomó, se canceló, ya terminó), el aviso se da por
-    atendido. El barrido, con broker, toma solo los `encolado` que llevan más de un minuto sin
-    moverse, cada minuto, y los colgados cada doce vueltas como hoy. Las importaciones diferidas
-    (ADR 0040) siguen igual.
+    atendido. Con broker, el barrido corre al arrancar y después una vez por minuto (cada doce
+    vueltas de 5 s, la cadencia con que hoy se miran los colgados), y toma los `encolado` que
+    llevan más de un minuto sin moverse y los colgados. Un aviso a la vez (`prefetch=1`): cada
+    trabajo tarda y el siguiente aviso queda para otro trabajador. Las importaciones diferidas
+    (ADR 0040) se reintentan en cada vuelta, como hoy.
 16. **Inteligencia deduplica con la tabla `evento_procesado`** (origen, evento_id, procesado_en),
     con su migración sobre la cabeza `6a2f8c4e1d57`. Para `lista_verificada`, la marca entra en la
     misma transacción que crea el trabajo: un repetido no puede crear un segundo trabajo aunque el
@@ -162,10 +164,11 @@ Y estas, tomadas al leer el código:
 
 ### 4. Trabajos del pipeline
 
-- [ ] `trabajo_encolado` en `crear` y `lanzar`, en la misma transacción, solo con broker.
-- [ ] El trabajador consume `inteligencia.trabajos` y reclama la fila; el barrido sigue.
-- [ ] Pruebas: un aviso que llega dos veces, un aviso perdido que recoge el barrido y una
-      cancelación antes de procesar.
+- [x] `trabajo_encolado` en `crear` y `lanzar`, en la misma transacción, solo con broker.
+- [x] El trabajador consume `inteligencia.trabajos` y reclama la fila; el barrido sigue.
+- [x] Pruebas: un aviso que llega dos veces, un aviso perdido que recoge el barrido y una
+      cancelación antes de procesar. También: el barrido deja al aviso un `encolado` reciente, y
+      retoma los colgados.
 
 ### 5. Infraestructura y CI
 
