@@ -10,7 +10,9 @@ import estilos from "./Catalogo.module.css";
 // El mismo umbral con el que el resumen cuenta los `productos_sin_revisar`. Si
 // las dos cifras no salieran del mismo numero, la pantalla se contradiria con
 // su propio encabezado y no habria forma de saber cual de las dos miente.
-const UMBRAL_SIN_REVISAR = 0.5;
+// Es la calidad mas baja que asigna la curaduria (economico, 0,40): con 0,5 cada
+// producto economico curado a mano salia con la etiqueta «sin revisar».
+const UMBRAL_SIN_REVISAR = 0.4;
 
 // Los tres estados de `disponible` son tres, no dos. `null` es el caso normal
 // del canal mayorista, que no publica stock; leerlo como "agotado" borraria de

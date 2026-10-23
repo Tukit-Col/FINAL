@@ -220,6 +220,15 @@ class RepoAdmin:
             for f in filas
         }
 
+    async def discriminantes_de_concepto(self, concepto_id: uuid.UUID | None) -> tuple[str, ...]:
+        """Los atributos que filtran de un concepto; ninguno si no hay concepto."""
+        if concepto_id is None:
+            return ()
+        valor = await self.c.scalar(
+            select(CONCEPTO.c.atributos_discriminantes).where(CONCEPTO.c.id == concepto_id)
+        )
+        return tuple(valor or ())
+
     async def descartar_aviso(self, item_id: uuid.UUID, version_id: uuid.UUID, clave: str) -> bool:
         """Agrega `clave` a los avisos descartados del renglon. False si no existe."""
         actual = await self.c.scalar(
@@ -570,8 +579,11 @@ class RepoAdmin:
                 PROPUESTA.c.concepto_sugerido,
                 PROPUESTA.c.puntaje,
                 PROPUESTA.c.origen,
+                PROPUESTA.c.especificaciones,
                 CONCEPTO.c.codigo.label("concepto_codigo"),
                 CONCEPTO.c.nombre_canonico.label("concepto_nombre"),
+                CONCEPTO.c.atributos_discriminantes,
+                CONCEPTO.c.atributos_descriptivos,
             )
             .select_from(PROPUESTA.outerjoin(CONCEPTO, CONCEPTO.c.id == PROPUESTA.c.concepto_id))
             .where(PROPUESTA.c.estado == "pendiente")

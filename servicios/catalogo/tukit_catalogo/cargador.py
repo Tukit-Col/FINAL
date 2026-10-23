@@ -54,6 +54,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from .enriquecer import extraer_atributos
+
 # ---------------------------------------------------------------------------
 # Piezas puras. Sin base de datos, sin lectura de ficheros: es lo que las
 # pruebas fijan, porque es donde estan las decisiones.
@@ -320,11 +322,13 @@ class Informe:
 # demanda en dos (C048 decia 11 y el duplicado 8, cuando son 19) y le dan al
 # clasificador dos destinos validos para el mismo renglon de la lista.
 #
-# `C034 diccionario` es el unico que SI se parte, y no por descuido: el corpus
-# pide diccionario de espanol 70 veces y de ingles unas 50, con atributos
-# incompatibles. Un solo concepto obligaria a ofrecer un diccionario de ingles
-# a quien pidio uno de espanol. C034 se queda con el de espanol, que es el uso
-# dominante, y el de ingles nace como concepto propio.
+# `C034 diccionario` se partio una vez en dos (espanol e ingles) para no
+# ofrecerle un diccionario de ingles a quien pidio uno de espanol. Ya no hace
+# falta: C034 filtra por `idioma`, y el idioma se escribe igual sin importar el
+# orden (`espanol-ingles`). Partido, el mismo diccionario ingles-espanol salia
+# bien en un grado (curado en C034) y como hueco en otro (curado en el de
+# ingles). La semilla todavia puede traer filas con `dic-ingles`: se leen como
+# C034.
 #
 # Lo que cambia sobre el concepto existente es `tipo_item`: pasa de `util` a
 # `libro_libre`, porque una biblia no es papeleria y el pipeline no debe
@@ -336,19 +340,9 @@ CONCEPTOS_LIBRO = {
         ["constitucion", "constitucion politica", "constitucion politica de colombia"],
     ),
     "C048": ("Biblia", ["biblia", "biblia catolica", "sagrada biblia"]),
-    "dic-ingles": (
-        "Diccionario de inglés",
-        # `diccionario ingles` vivia en C034 (diccionario de espanol) y se llevaba
-        # el "Diccionario ingles-ingles" de las listas al concepto equivocado.
-        [
-            "diccionario de ingles",
-            "diccionario ingles espanol",
-            "dicc ingles",
-            "diccionario ingles",
-            "diccionario ingles ingles",
-        ],
-    ),
 }
+# Codigos viejos de la semilla y el concepto en que viven ahora.
+CONCEPTOS_LIBRO_FUSIONADOS = {"dic-ingles": "C034"}
 
 
 def _uuid_estable(*partes: str) -> uuid.UUID:
@@ -486,6 +480,9 @@ class Cargador:
     def _productos(self, conceptos: list[dict[str, Any]]) -> list[dict[str, Any]]:
         del conceptos
         filas = leer_csv(self.dir / "productos_canonicos.csv")
+        # Desde 2026-10-11 el CSV trae el empaque (lo vuelca `volcar`). Si lo
+        # trae, manda sobre la base; un CSV viejo sin la columna no lo pisa.
+        self.empaque_en_csv = bool(filas) and "unidades_por_empaque" in filas[0]
         productos = []
         for f in filas:
             ean = normalizar_isbn(f.get("ean"))
@@ -588,6 +585,9 @@ class Cargador:
         # evita el duplicado.
         por_codigo = {c["codigo"]: c for c in conceptos}
 
+        for f in filas:
+            f["concepto_codigo"] = CONCEPTOS_LIBRO_FUSIONADOS.get(f["concepto_codigo"], f["concepto_codigo"])
+
         nuevos_conceptos = []
         demanda = defaultdict(int)
         for f in filas:
@@ -617,7 +617,7 @@ class Cargador:
                     # El de ingles filtra por `monolingue`: el colegio que pide
                     # `ingles - ingles` no quiere el bilingue, y el que pide
                     # `diccionario de ingles` a secas acepta cualquiera.
-                    "atributos_discriminantes": ["monolingue"] if codigo == "dic-ingles" else [],
+                    "atributos_discriminantes": [],
                     "atributos_descriptivos": [],
                     # Un diccionario sirve para todas las materias del ano.
                     "uno_por_estudiante": True,
@@ -630,6 +630,10 @@ class Cargador:
         productos: dict[str, dict[str, Any]] = {}
         ofertas: list[dict[str, Any]] = []
         precios: list[dict[str, Any]] = []
+        discriminantes = {
+            c["codigo"]: tuple(c.get("atributos_discriminantes") or ())
+            for c in [*conceptos, *nuevos_conceptos]
+        }
 
         # El nivel es propiedad del PRODUCTO, no de la oferta: una edicion no
         # es economica en una libreria y premium en otra. Como la semilla viene
@@ -690,7 +694,16 @@ class Cargador:
                     "nivel": f.get("nivel") or "confiable",
                     "personaje": None,
                     "imagen_url": _texto(f.get("imagen_url")),
-                    "atributos": {"isbn13": isbn},
+                    # Lo que el titulo dice de los atributos que filtran (la
+                    # edicion de una biblia, el idioma de un diccionario), lo
+                    # que la semilla corrige a mano en `atributos`, y el ISBN.
+                    # Con el ISBN solo, ninguna biblia declaraba `edicion` y
+                    # `Biblia catolica` quedaba como hueco en los once grados.
+                    "atributos": {
+                        **extraer_atributos(f["titulo"], discriminantes.get(f["concepto_codigo"], ())),
+                        **atributos_de_csv(f.get("atributos")),
+                        "isbn13": isbn,
+                    },
                     "ruta_categoria": "Libros",
                     "es_propio": False,
                     "es_representante_canonico": False,
@@ -828,6 +841,7 @@ class Cargador:
     # -- escritura --------------------------------------------------------
 
     async def escribir(self, datos: dict[str, list[dict[str, Any]]]) -> dict[str, int]:
+        from sqlalchemy import func, literal_column
         from sqlalchemy.dialects.postgresql import insert
         from tukit_comun.bd import crear_motor
 
@@ -845,6 +859,8 @@ class Cargador:
                         escritos[tabla] = 0
                         continue
                     objeto = Base.metadata.tables[tabla]
+                    if tabla == "producto_canonico":
+                        await _liberar_skus(conexion, objeto, filas)
                     sentencia = insert(objeto).values(filas)
                     # `ON CONFLICT DO UPDATE` sobre la llave primaria es lo que
                     # hace la carga repetible: los identificadores se derivan
@@ -863,13 +879,34 @@ class Cargador:
                         and not (tabla == "concepto" and c.name == "admite_personaje")
                     }
                     if tabla == "producto_canonico":
-                        # `atributos` sigue siendo una columna enriquecida (no se
-                        # REEMPLAZA desde el CSV), pero se COMBINA: en las claves
-                        # que el CSV declara gana el CSV —es lo que alguien curo
-                        # y exporto—, y lo demas que la base ya sabia se conserva.
-                        # Sin esto, la correccion a mano de un atributo nunca
-                        # llegaba a otra base.
-                        actualizables["atributos"] = objeto.c.atributos.op("||")(sentencia.excluded.atributos)
+                        # `atributos` se combinaba (base || CSV) para que una
+                        # correccion a mano llegara a otra base sin borrar lo que
+                        # `enriquecer` ya sabia. Desde que `volcar` exporta lo que
+                        # la base sabe, el CSV trae el producto completo: si
+                        # declara atributos, son TODOS, y los reemplaza.
+                        # Combinados, una clave que la curaduria quito del CSV (la
+                        # `forma` del pincel de agua) seguia viva en cada base que
+                        # ya la tenia. Vacio, no dice nada y la base conserva lo suyo.
+                        vacio = literal_column("'{}'::jsonb")
+                        actualizables["atributos"] = func.coalesce(
+                            func.nullif(sentencia.excluded.atributos, vacio), objeto.c.atributos
+                        )
+                        # Lo mismo con lo que el CSV sabe ahora y antes no: el
+                        # personaje y la portada mandan si vienen; el empaque, si
+                        # el CSV tiene la columna. Sin esto, recargar sobre una base
+                        # existente dejaba el kit de 40 jumpers en empaque 1.
+                        actualizables["imagen_url"] = func.coalesce(
+                            sentencia.excluded.imagen_url, objeto.c.imagen_url
+                        )
+                        # El personaje no se combina: vacio en el CSV es una
+                        # decision («Kiut» es la marca, no un personaje), y con
+                        # coalesce la base conservaba el viejo y el producto
+                        # seguia fuera de los kits canonicos. Desde que `volcar`
+                        # exporta la base, el CSV trae el personaje de todos.
+                        actualizables["personaje"] = sentencia.excluded.personaje
+                        if getattr(self, "empaque_en_csv", False):
+                            for columna in ("unidades_por_empaque", "unidad_base"):
+                                actualizables[columna] = sentencia.excluded[columna]
                     if actualizables:
                         sentencia = sentencia.on_conflict_do_update(
                             index_elements=[c.name for c in objeto.primary_key.columns],
@@ -882,6 +919,31 @@ class Cargador:
         finally:
             await motor.cerrar()
         return escritos
+
+
+async def _liberar_skus(conexion: Any, objeto: Any, filas: list[dict[str, Any]]) -> None:
+    """Aparta el sku de los productos que lo cambian antes del upsert.
+
+    `nivelar` permuta etiquetas, y con ellas los sku semilla: el economico pasa a
+    `TK-C011-PRE` y el premium a `TK-C011-ECO`. El upsert por id escribe fila por
+    fila y el indice unico de `sku_interno` se revisa en cada una, asi que la
+    primera fila choca con la que todavia tiene ese sku. Se les pone uno
+    provisional derivado del id (unico por construccion) y el upsert les da el
+    definitivo en la misma transaccion.
+    """
+    from sqlalchemy import String, cast, literal, select, update
+
+    nuevos = {f["id"]: f["sku_interno"] for f in filas}
+    actuales = await conexion.execute(
+        select(objeto.c.id, objeto.c.sku_interno).where(objeto.c.id.in_(list(nuevos)))
+    )
+    mueven = [pid for pid, sku in actuales if sku != nuevos[pid]]
+    if mueven:
+        await conexion.execute(
+            update(objeto)
+            .where(objeto.c.id.in_(mueven))
+            .values(sku_interno=literal("TMP-") + cast(objeto.c.id, String))
+        )
 
 
 async def medir_en_bd() -> dict[str, tuple[int, int]]:

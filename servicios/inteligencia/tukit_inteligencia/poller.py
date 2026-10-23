@@ -255,13 +255,22 @@ async def regenerar_canonicos(motor_inteligencia: Any, catalogo: Any) -> tuple[i
         if f.origen != trabajos.ORIGEN_CANONICO or hijo.get("basado_en") or not hijo.get("version_id"):
             saltados.append(nombre)
             continue
+        # La version se relee justo antes de rearmar, no se toma de la lista leida
+        # al empezar. Mientras esto recorre los 18 grados, el poller puede fijar
+        # el canonico de una version nueva (la que deja `importar`), y rearmar
+        # con la version leida al principio lo pisaba con la vieja: le paso a
+        # Decimo y Once el 2026-10-12.
+        async with motor_inteligencia.engine.begin() as conexion:
+            version = await trabajos.version_canonica(
+                conexion, f.colegio_id, f.grado, int(f.anio_lectivo)
+            ) or str(hijo["version_id"])
         trabajo_id = await armar_canonico(
             motor_inteligencia,
             catalogo,
             f.colegio_id,
             f.grado,
             int(f.anio_lectivo),
-            str(hijo["version_id"]),
+            str(version),
             regenera=True,
         )
         async with motor_inteligencia.engine.begin() as conexion:
