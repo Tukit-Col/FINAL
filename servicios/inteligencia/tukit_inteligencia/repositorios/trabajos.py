@@ -228,6 +228,23 @@ class RepoTrabajos:
             )
         )
 
+    async def avisar_encolado(self, trabajo_id: uuid.UUID) -> None:
+        """Deja `trabajo_encolado` en la bandeja, en la MISMA transaccion (ADR 0046).
+
+        Con RabbitMQ, el publicador de Inteligencia lo lleva a la cola
+        `inteligencia.trabajos` y el trabajador reclama la fila al recibirlo, en
+        vez de sondear la tabla. Si el aviso se pierde, el barrido del trabajador
+        recoge el trabajo igual. Quien llama decide si hay broker.
+        """
+        await self.c.execute(
+            insert(BANDEJA).values(
+                tipo="trabajo_encolado",
+                agregado_tipo="trabajo_pipeline",
+                agregado_id=trabajo_id,
+                carga=con_correlacion({"trabajo_id": str(trabajo_id)}),
+            )
+        )
+
     # --- cache canonica del grado -----------------------------------------
 
     async def fijar_canonico(self, trabajo_id: uuid.UUID) -> None:
