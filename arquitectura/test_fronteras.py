@@ -351,6 +351,167 @@ def test_ningun_servicio_nombra_la_base_de_otro(nombre: str):
 
 
 # --------------------------------------------------------------------------
+# Regla 3b: las lecturas cruzadas son solo el respaldo sin broker
+# --------------------------------------------------------------------------
+
+LECTURAS_CRUZADAS: dict[str, dict] = {
+    lectura["modulo"]: lectura for lectura in DATOS.get("lecturas_cruzadas", [])
+}
+# La funcion con la que un servicio abre la base de otro. La propia se abre con
+# `crear_motor`, que no admite otro nombre que el del servicio.
+ABRE_BASE_AJENA = "url_desde_entorno"
+# Por donde entran los eventos con RabbitMQ en un modulo con lectura cruzada.
+ENTRADA_CON_BROKER = "escuchar_cola"
+TOPOLOGIA = RAIZ / "libs" / "py" / "tukit_comun" / "tukit_comun" / "topologia.py"
+
+
+def _modulo_de(servicio: Servicio, ruta: Path) -> str:
+    return ".".join(ruta.relative_to(servicio.ruta).with_suffix("").parts)
+
+
+def _llama(nodo: ast.AST, nombre: str) -> bool:
+    """Si dentro de `nodo` hay una llamada a `nombre`, como funcion o como metodo."""
+    for hijo in ast.walk(nodo):
+        if isinstance(hijo, ast.Call):
+            funcion = hijo.func
+            if isinstance(funcion, ast.Name) and funcion.id == nombre:
+                return True
+            if isinstance(funcion, ast.Attribute) and funcion.attr == nombre:
+                return True
+    return False
+
+
+def _funciones(arbol: ast.Module) -> dict[str, list[ast.AST]]:
+    """Las funciones y metodos del modulo, por nombre."""
+    funciones: dict[str, list[ast.AST]] = {}
+    for nodo in ast.walk(arbol):
+        if isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            funciones.setdefault(nodo.name, []).append(nodo)
+    return funciones
+
+
+def _alcanzables(arbol: ast.Module, desde: str) -> set[str]:
+    """Las funciones del modulo a las que se llega desde `desde`, ella incluida.
+
+    Se sigue por nombre y sin tipos: cualquier mencion cuenta, llamada o no,
+    porque un manejador viaja como valor (`manejar=poller.manejar`,
+    `functools.partial(atender_aviso, ...)`). Y `self.manejar` cuenta como
+    cualquier `manejar` del modulo. Sobra antes que faltar: un falso positivo
+    se ve, uno negativo no."""
+    funciones = _funciones(arbol)
+    vistas: set[str] = set()
+    pendientes = [desde]
+    while pendientes:
+        nombre = pendientes.pop()
+        if nombre in vistas or nombre not in funciones:
+            continue
+        vistas.add(nombre)
+        for definicion in funciones[nombre]:
+            for hijo in ast.walk(definicion):
+                if isinstance(hijo, ast.Name):
+                    pendientes.append(hijo.id)
+                elif isinstance(hijo, ast.Attribute):
+                    pendientes.append(hijo.attr)
+    return vistas
+
+
+def _colas_de_la_topologia() -> set[str]:
+    """Los nombres de las colas que declara `tukit_comun.topologia`, leidos del
+    AST: esta prueba corre sin las dependencias de la libreria."""
+    arbol = ast.parse(TOPOLOGIA.read_text(encoding="utf-8"))
+    return {
+        nodo.args[0].value
+        for nodo in ast.walk(arbol)
+        if isinstance(nodo, ast.Call)
+        and isinstance(nodo.func, ast.Name)
+        and nodo.func.id == "Cola"
+        and nodo.args
+        and isinstance(nodo.args[0], ast.Constant)
+        and isinstance(nodo.args[0].value, str)
+    }
+
+
+def _revisar_lectura_cruzada(modulo: str, arbol: ast.Module, declarada: dict | None) -> list[str]:
+    """Lo que esta mal en un modulo que abre la base de otro servicio, o nada.
+
+    Tiene que estar declarado con `modo = "sin_broker"`, tener `escuchar_cola`
+    (por donde le llegan los eventos con RabbitMQ) y no llegar desde ahi a
+    ninguna funcion que abra una base ajena."""
+    if declarada is None:
+        return [f"`{modulo}` abre la base de otro servicio y no esta en `[[lecturas_cruzadas]]`"]
+    problemas: list[str] = []
+    if declarada.get("modo") != "sin_broker":
+        problemas.append(f'`{modulo}` declara `modo = {declarada.get("modo")!r}`; solo vale "sin_broker"')
+    alcanzadas = _alcanzables(arbol, ENTRADA_CON_BROKER)
+    if not alcanzadas:
+        problemas.append(f"`{modulo}` no tiene `{ENTRADA_CON_BROKER}`: con broker no recibe sus eventos")
+    funciones = _funciones(arbol)
+    lectoras = sorted(
+        nombre
+        for nombre in alcanzadas
+        if any(_llama(definicion, ABRE_BASE_AJENA) for definicion in funciones[nombre])
+    )
+    if lectoras:
+        problemas.append(
+            f"`{modulo}.{ENTRADA_CON_BROKER}` llega a una lectura cruzada por {', '.join(lectoras)}"
+        )
+    return problemas
+
+
+@pytest.mark.parametrize("nombre", sorted(SERVICIOS))
+def test_toda_lectura_cruzada_es_respaldo_sin_broker(nombre: str):
+    """Con RabbitMQ, ningun servicio lee la base de otro (ADR 0046).
+
+    La regla 3 no ve estas lecturas: el nombre de la base lo deriva la
+    libreria. Esta las encuentra por `url_desde_entorno`, exige que esten
+    declaradas como respaldo sin broker y que el camino con broker
+    (`escuchar_cola`) no llegue a ellas."""
+    servicio = SERVICIOS[nombre]
+    infracciones: list[str] = []
+    for ruta in _archivos_python(servicio):
+        arbol = _arbol(ruta)
+        if arbol is None or not _llama(arbol, ABRE_BASE_AJENA):
+            continue
+        modulo = _modulo_de(servicio, ruta)
+        infracciones += [
+            f"  {p}" for p in _revisar_lectura_cruzada(modulo, arbol, LECTURAS_CRUZADAS.get(modulo))
+        ]
+
+    assert not infracciones, (
+        f"El servicio `{nombre}` lee la base de otro fuera del respaldo sin broker:\n"
+        + "\n".join(sorted(infracciones))
+        + "\n\nCon RabbitMQ los eventos llegan por la cola del consumidor. Si de verdad "
+        "hace falta leer la base ajena sin broker, declaralo en `[[lecturas_cruzadas]]`."
+    )
+
+
+def test_las_lecturas_cruzadas_declaradas_existen():
+    """Una declaracion que ya no corresponde a nada es una excepcion abierta
+    que nadie usa, y la siguiente lectura cruzada entraria por ella."""
+    colas = _colas_de_la_topologia()
+    problemas: list[str] = []
+    for modulo, lectura in sorted(LECTURAS_CRUZADAS.items()):
+        servicio = SERVICIOS.get(lectura.get("desde", ""))
+        if servicio is None:
+            problemas.append(f"  `{modulo}`: `desde = {lectura.get('desde')!r}` no es un servicio")
+            continue
+        ruta = servicio.ruta.joinpath(*modulo.split(".")).with_suffix(".py")
+        if not ruta.exists():
+            problemas.append(f"  `{modulo}`: no existe {_relativa(ruta)}")
+        elif not _llama(ast.parse(ruta.read_text(encoding="utf-8")), ABRE_BASE_AJENA):
+            problemas.append(f"  `{modulo}` ya no abre ninguna base ajena: borra la declaracion")
+        hacia = lectura.get("hacia", [])
+        if not hacia or any(h not in SERVICIOS or h == servicio.nombre for h in hacia):
+            problemas.append(f"  `{modulo}`: `hacia = {hacia!r}` tiene que nombrar otros servicios")
+        if lectura.get("cola") not in colas:
+            problemas.append(
+                f"  `{modulo}`: la cola {lectura.get('cola')!r} no esta en `tukit_comun.topologia`"
+            )
+
+    assert not problemas, "Lecturas cruzadas mal declaradas:\n" + "\n".join(problemas)
+
+
+# --------------------------------------------------------------------------
 # Regla 4: toda referencia a otro dominio esta declarada
 # --------------------------------------------------------------------------
 

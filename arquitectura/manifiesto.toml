@@ -214,6 +214,43 @@ cuello de botella.
 tablas = []
 
 
+# Lecturas cruzadas: los procesos que abren un motor a la base de otro
+# servicio. Las tres drenan la bandeja de salida ajena (ADR 0022) y abren el
+# motor con `url_desde_entorno`, que deriva el nombre de la base dentro de la
+# libreria, asi que la regla 3 no las ve: por eso se declaran aqui.
+#
+# Desde el ADR 0046 son solo el respaldo sin broker. Con `RABBITMQ_URL`, cada
+# proceso consume su cola (`cola`, declarada en `tukit_comun.topologia`) y no
+# abre ningun motor ajeno. `modo = "sin_broker"` es lo que lo dice, y la prueba
+# lo exige de dos formas: toda llamada a `url_desde_entorno` de un servicio esta
+# en un modulo declarado aqui con ese modo, y desde el `escuchar_cola` del
+# modulo no se llega a ninguna. Quitar el respaldo es una decision aparte; el
+# dia que se tome, estas entradas se borran y la prueba exige que no quede
+# ninguna lectura.
+[[lecturas_cruzadas]]
+modulo = "tukit_operacion.repartidor"
+desde = "operacion"
+hacia = ["comercio", "inteligencia"]
+lee = "Las bandejas de comercio e inteligencia, y `trabajo_pipeline.usuario_id` para el destinatario de un `kits_publicados`."
+modo = "sin_broker"
+cola = "operacion.avisos"
+
+[[lecturas_cruzadas]]
+modulo = "tukit_identidad.poller"
+desde = "identidad"
+hacia = ["catalogo"]
+lee = "`colegio_verificado` de la bandeja de catalogo."
+modo = "sin_broker"
+cola = "identidad.colegios"
+
+[[lecturas_cruzadas]]
+modulo = "tukit_inteligencia.poller"
+desde = "inteligencia"
+hacia = ["catalogo"]
+lee = "`lista_verificada` y `lista_aprobada` de la bandeja de catalogo."
+modo = "sin_broker"
+cola = "inteligencia.listas"
+
 # Referencias entre bases distintas. Como no pueden ser llaves foraneas fisicas,
 # la unica forma de que no se vuelvan invisibles es declararlas. Toda referencia
 # a un dominio ajeno que NO este aqui hace fallar la prueba.

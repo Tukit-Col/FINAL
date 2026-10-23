@@ -185,8 +185,15 @@ Y estas, tomadas al leer el código:
 - [x] `ci.yml`: un trabajo nuevo con `rabbitmq:3.13-management-alpine` que corre las pruebas de
       integración de las colas. Los demás trabajos no cambian. Con
       `TUKIT_PRUEBAS_RABBITMQ_OBLIGATORIO`, una prueba sin broker falla en vez de saltarse.
-- [ ] Fronteras: el manifiesto declara las lecturas cruzadas como respaldo sin broker, y una
-      prueba exige que cada lectura cruzada del código esté declarada así.
+- [x] Fronteras: el manifiesto declara las lecturas cruzadas como respaldo sin broker, y una
+      prueba exige que cada lectura cruzada del código esté declarada así. Es
+      `[[lecturas_cruzadas]]`, con `modo = "sin_broker"` y la cola que la reemplaza. La regla 3b
+      encuentra las lecturas por `url_desde_entorno` (la regla 3 no las ve, porque el nombre de la
+      base lo deriva la librería), exige que estén declaradas con ese modo y que desde
+      `escuchar_cola` no se llegue a ninguna. Otra prueba exige que lo declarado exista, para que no
+      quede una excepción abierta sin uso. Las pruebas de activación le dan de comer un módulo sin
+      declarar, uno en otro modo, uno sin `escuchar_cola` y dos caminos con broker que abren el
+      motor ajeno. Fronteras: de 58 a 72 pruebas, con la misma saltada.
 
 ### 6. Documentación
 
