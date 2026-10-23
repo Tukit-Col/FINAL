@@ -1,6 +1,6 @@
 # Las colas pasan a RabbitMQ, con la base como respaldo
 
-- **Estado:** en curso. Cada casilla se marca cuando su tarea queda en verde.
+- **Estado:** terminado. Todas las casillas están en verde; lo reservado a Juan queda abajo.
 - **Origen:** `PROMPT_RABBITMQ.md` (en `~/Desktop/TUKITDOC/`), que es la fuente de verdad.
 - **Rama:** `feature/colas-rabbitmq`, sobre `integracion/ramas-octubre` (`77bb105`). PR apilado
   encima del PR #1.
@@ -213,14 +213,22 @@ Y estas, tomadas al leer el código:
 
 ### 7. Verificación y PR
 
-- [ ] `make lint` y `make prueba` en verde, sin pruebas nuevas saltadas.
-- [ ] Pruebas de integración contra el RabbitMQ local en verde.
-- [ ] Viaje de punta a punta de un evento contra el RabbitMQ local.
-- [ ] Push y PR con base `integracion/ramas-octubre`; CI en verde.
+- [x] `make lint` y `make prueba` en verde, sin pruebas nuevas saltadas. Fronteras: 72 pasan y
+      1 se salta, la misma de antes. Suite: 2.042 pasan, y las 6 de integración quedan fuera.
+- [x] Pruebas de integración contra el RabbitMQ local en verde: `make prueba-colas`, con
+      `TUKIT_PRUEBAS_RABBITMQ_OBLIGATORIO=1`, da 6 de 6, sin saltar ninguna, en 77 s. No dejan
+      colas ni exchanges en el vhost `/`.
+- [x] Viaje de punta a punta de un evento contra el RabbitMQ local. Se hizo con los 14 procesos de
+      `make arriba`, sobre cinco bases propias `tukit_rmq_*` migradas a la cabeza (sin deriva), un
+      vhost propio y los puertos 18010 a 18015. Al terminar se borraron las bases y el vhost. Los
+      números están en «Resultado».
+- [x] Push y PR con base `integracion/ramas-octubre`; CI en verde. Es el PR #2
+      (https://github.com/Tukit-Col/FINAL/pull/2). La primera corrida destapó una carrera en una
+      prueba de integración contra el 3.13; tras el arreglo, los 12 trabajos pasan.
 
 ### 8. Cierre
 
-- [ ] Todas las casillas y la sección «Resultado».
+- [x] Todas las casillas y la sección «Resultado».
 
 ## Orden de commits
 
@@ -237,7 +245,9 @@ Y estas, tomadas al leer el código:
 11. `infra: RabbitMQ en el compose, en make arriba y en CI`
 12. `fronteras: las lecturas cruzadas quedan como respaldo sin broker`
 13. `docs: ADR 0046, contrato 1.10 y revision de arquitectura`
-14. `docs: resultado del plan de las colas`
+14. `comun: la prueba de la caida espera a que el mensaje vuelva a la cola`, el arreglo que pidió
+    CI.
+15. `docs: resultado del plan de las colas`
 
 Si una tarea pide partir o juntar commits, el orden se mantiene.
 
@@ -249,4 +259,135 @@ Si una tarea pide partir o juntar commits, el orden se mantiene.
 
 ## Resultado
 
-Pendiente.
+### Qué cambió
+
+- **`tukit_comun`**:
+  - Cinco módulos nuevos: `topologia`, `mensajes`, `publicador`, `consumidor` y `pruebas_colas`.
+  - `broker` gana `responde` y `python -m tukit_comun.broker`.
+  - `resiliencia` cuenta como transitorias las caídas de conexión de aiormq.
+- **Catálogo y comercio:** solo su publicador, `tukit_<servicio>.publicador`. Sus API y su dominio
+  no cambian.
+- **Inteligencia:**
+  - el publicador;
+  - el sondeador de listas, con su cola y `evento_procesado` (migración `3c7d9e1f5a28`);
+  - `trabajo_encolado` en `crear` y `lanzar`;
+  - el trabajador, con su cola, el reclamo de la fila y el barrido;
+  - `usuario_id` en la carga de `kits_publicados`.
+- **Operación:** el repartidor consume su cola y saca el destinatario de la carga.
+- **Identidad:** el sondeador de colegios consume su cola.
+- **Gateway e ingesta:** nada.
+- **Infraestructura y CI:**
+  - el compose;
+  - en el `Makefile`: `arriba`, `abajo`, `prueba-colas` y los tres objetivos de publicador;
+  - `.env.ejemplo`;
+  - el trabajo «Colas contra RabbitMQ».
+- **Fronteras:** `[[lecturas_cruzadas]]` y la regla 3b.
+- **Documentación:** ADR 0046, contrato 1.10, revisión de arquitectura y `README.md`.
+
+Son 49 archivos, 21 de ellos nuevos. Sin `RABBITMQ_URL`, el único cambio de comportamiento es el
+campo `usuario_id` en la carga de `kits_publicados`, que el repartidor sin broker ignora. Ninguna
+prueba mostró un error que obligara a cambiar más.
+
+### Cómo se probó
+
+| Pruebas | Antes | Después |
+|---|---|---|
+| Fronteras | 58, y 1 saltada | 72, y la misma saltada |
+| Suite (`make prueba`) | 1.961 | 2.042, en unos 20 s |
+| Integración con RabbitMQ (`make prueba-colas`) | no había | 6 de 6, en 77 s contra el 4.4 local |
+
+**De dónde salen las pruebas nuevas:**
+
+- **Suite (81):**
+  - 73 están en archivos nuevos: 30 del núcleo común (`test_colas.py`), 12 del trabajador, 10 del
+    repartidor, 9 del sondeador de listas, 5 del de colegios y 7 de los tres publicadores;
+  - las otras 8, en `test_broker.py` y `test_bucle_resiliente.py`.
+- **Fronteras (14):** la regla 3b, con una prueba por servicio y una de lo declarado, más 6 de
+  activación.
+
+**De punta a punta.** Se corrió contra el RabbitMQ local, con los 14 procesos de `make arriba`:
+seis API, cuatro consumidores, el barredor y los tres publicadores. Usó cinco bases `tukit_rmq_*`
+y un vhost propio.
+
+| Caso | Resultado |
+|---|---|
+| `colegio_verificado` en la bandeja de catálogo | El colegio y su sede aparecen en identidad. La primera publicación tardó 5,4 s, porque la conexión se abre con el primer evento y el RabbitMQ local tarda unos 5 s en saludar. Con la conexión abierta, tardó 0,7 s |
+| El mismo evento, republicado | Siguen un colegio y una sede, y un campo vaciado a mano se vuelve a llenar |
+| `pedido_pagado` en la bandeja de comercio | Un aviso `enviada` en operación, con `evento_origen=comercio` |
+| El mismo evento, republicado (0,24 s) | Sigue un aviso |
+| `kits_publicados` sin `usuario_id` | Cuatro reintentos, y a descartados a los 48 s, con `tukit-intentos=5` y el motivo. No hay aviso |
+| `trabajo_encolado` de un trabajo cancelado | Se entrega y se confirma. El trabajo sigue `cancelado`, sin etapas |
+| 200 `pedido_pagado` con dos publicadores sobre la misma bandeja | `SKIP LOCKED` los reparte 100 y 100: 200 avisos, sin ninguno repetido, en 6,1 s |
+| Repartidor caído | El evento espera en `operacion.avisos` (1 mensaje, 0 consumidores) y sale cuando el repartidor vuelve |
+
+**Los contadores del broker cuadran:**
+
+- `operacion.avisos`: 203 publicaciones, 207 entregas y 207 confirmaciones. Las cuatro de más son
+  los reintentos.
+- `identidad.colegios`: 2, 2 y 2.
+- `inteligencia.trabajos`: 1, 1 y 1.
+
+En los registros solo aparecen los cuatro avisos de reintento y el error del descarte. Hay dos
+casos que no se corrieron de punta a punta, porque procesar el trabajo abre el pipeline: el barrido
+de un `encolado` sin aviso y `lista_verificada`. Los cubren las pruebas del trabajador y del
+sondeador de listas.
+
+**CI.** En la primera corrida, el trabajo de las colas falló contra el 3.13 en
+`test_una_caida_en_mitad_del_manejo_devuelve_el_mensaje`:
+
+- **La causa:** el `nack` no tiene respuesta y la sonda mira por otra conexión, así que contaba
+  antes de que el mensaje volviera a la cola. En el 4.4 local, el saludo lento lo tapaba.
+- **El arreglo:** la prueba espera a que el mensaje vuelva. El código no cambia, porque el mensaje
+  no se pierde: vuelve a la cola, y el bucle reconecta tras su espera.
+
+Con el arreglo pasan los 12 trabajos. El de las colas corre las 6 pruebas en 7 s contra el 3.13.
+
+### Escenarios de caos de RabbitMQ para el banco de QA
+
+1. **Broker caído mientras se publica.** Los eventos esperan en la bandeja y salen al volver, sin
+   perder ni repetir ninguno. Hay que medir cuánto tarda en vaciarse.
+2. **Broker caído mientras se consume.** El mensaje en curso vuelve a la cola sin gastar intento,
+   y el consumidor reconecta con `bucle_resiliente`.
+3. **Postgres del consumidor caído.** Igual que el anterior: no se gastan intentos.
+4. **Mensaje venenoso.** Llega a descartados tras cinco intentos, unos 40 s, con su motivo. Los
+   demás siguen pasando.
+5. **Entrega repetida.** Al republicar un lote, cada evento da un aviso, un colegio o un trabajo.
+6. **Publicador muerto entre la confirmación y el commit.** El evento se publica otra vez y el
+   consumidor lo deduplica.
+7. **Consumidor muerto en mitad de un mensaje.** El mensaje sin confirmar vuelve a la cola y se
+   procesa una vez.
+8. **Aviso de trabajo perdido.** Se purga `inteligencia.trabajos`, y el barrido toma el trabajo en
+   menos de dos minutos.
+9. **Configuración mezclada.** Un proceso sin URL: hay que medir cuánto se demora el aviso y
+   comprobar que no se pierde.
+10. **Argumentos de cola distintos.** Se declara una cola con otro TTL: el proceso termina con
+    `PRECONDITION_FAILED` y lo dice.
+11. **Credencial mala.** Los procesos reintentan sin parar, y el banco debería verlo en los
+    registros.
+12. **Las dos versiones.** La batería, contra 3.13 y contra 4.x.
+13. **Carga.** El tiempo de punta a punta con varios publicadores y un repartidor.
+
+### Riesgos abiertos
+
+- **El modo es de todo el sistema.** Con una configuración mezclada, los dos caminos se pisan.
+  `make arriba` y el compose les dan la misma URL a todos.
+- **Sin publicador, nada sale.** El perfil `api` del compose no tiene procesos de fondo.
+- **Un mensaje en descartados se queda ahí.** No hay herramienta para devolverlo a su cola.
+- **Cambiar los argumentos de una cola exige borrarla antes.**
+- **Una credencial mala de RabbitMQ deja reintentando** a los consumidores y a los publicadores.
+- **La primera publicación de cada publicador paga el saludo del broker,** unos 5 s en el 4.4
+  local, con sus filas tomadas. Los demás publicadores se las saltan con `SKIP LOCKED`.
+- **`BrokerSink` queda sin uso.**
+- **El compose no se levantó con Docker,** que esta máquina no tiene. CI usa la misma imagen.
+- **No se probó tumbar el broker,** porque el de esta máquina es compartido. Es el primer escenario
+  de la lista de caos.
+
+### Para Juan
+
+- **Lo reservado sigue sin hacer:**
+  - RabbitMQ no es obligatorio y el sondeo de respaldo se queda. Quitarlo es una decisión aparte:
+    el manifiesto lo deja escrito en `[[lecturas_cruzadas]]`.
+  - La API HTTP pública no cambia.
+  - El flujo de pagos no cambia: `pedido_pagado` solo viaja por otro camino.
+- **No se instaló nada.** Falta Docker para levantar el compose.
+- **El PR va apilado sobre el #1.** Cuando el #1 esté en `main`, se reapunta a `main`.
