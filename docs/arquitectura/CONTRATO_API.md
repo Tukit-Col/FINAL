@@ -5,11 +5,24 @@
 > fronteras de *conversación*. Cambiar cualquiera de los dos sin avisar rompe a alguien
 > más, así que se cierran antes de repartir el trabajo y se versionan.
 
-- **Versión:** 1.9
+- **Versión:** 1.10
 - **Prefijo:** `/v1`
 - **URL base:** `http://127.0.0.1:8010` en desarrollo. Ver §12.1.
 - **Formato:** JSON UTF-8. Dinero en **pesos enteros** (nunca decimales flotantes).
 - **Idioma de los identificadores:** español sin tildes, como el resto del código.
+
+### Qué cambió en 1.10
+
+Cómo viajan los eventos entre servicios (ADR 0046). La API HTTP no cambia: un cliente de 1.9
+sigue funcionando igual. Cambia el contrato entre servicios, que se describe en el §10.1.
+
+| Cambio | Dónde | Por qué |
+|---|---|---|
+| Con `RABBITMQ_URL`, cada productor publica su bandeja en el exchange `tukit.eventos` y cada consumidor escucha su cola. Sin ella, los consumidores siguen leyendo las bandejas, como en 1.9 | §10.1 | Ningún consumidor lee la base de otro servicio, y un evento llega en cuanto se publica |
+| El mensaje es un sobre con `evento_id`, `origen`, `tipo`, `agregado_tipo`, `agregado_id`, `carga` y `correlacion_id` | §10.1 | Para deduplicar por origen e id y seguir el hilo de la petición |
+| La carga de `kits_publicados` agrega `usuario_id`, el acudiente al que va el aviso. Es aditivo | §10.1 | Con broker, el repartidor no lee `trabajo_pipeline` |
+| Evento nuevo, `trabajo_encolado`, en la bandeja de inteligencia y solo con broker | §10.1 | El aviso que lleva un trabajo al trabajador |
+| Un mensaje que falla se reintenta cada 10 s, y al quinto intento queda en `<cola>.descartados` | §8, §10.1 | Queda visible, en vez de reintentarse sin fin |
 
 ### Qué cambió en 1.9
 
@@ -678,7 +691,8 @@ una respuesta parcial honesta.
 | Pasarela | Sin respuesta | La orden queda `pendiente_pago`; nunca se confirma sin confirmación |
 | Catálogo, en la subida del acudiente (`POST /v1/listas/subir`) | Sin respuesta, 5xx, 408 o 429 | `202`. Lo que no se importó queda guardado con lo ya percibido, y su hijo trae `version_id: null` y `estado: "pendiente"`. El trabajador lo importa cuando el catálogo vuelve, con la misma `clave_idempotencia`: una sola versión (ADR 0040) |
 | Catálogo, en el onboarding del admin (`POST /v1/admin/onboarding`) | Sin respuesta, 5xx, 408 o 429 | `503 servicio_no_disponible`; la lista no se guarda y el admin reintenta (ADR 0040) |
-| Postgres o RabbitMQ, en los procesos de fondo | Sin respuesta | Barredor, pollers, trabajador y repartidor esperan (1 s, el doble cada vez, tope de 30 s) y siguen; un error de programación los termina (ADR 0041) |
+| Postgres o RabbitMQ, en los procesos de fondo | Sin respuesta | Barredor, pollers, trabajador, repartidor y publicadores esperan (1 s, el doble cada vez, tope de 30 s) y siguen; un error de programación los termina (ADR 0041). Con broker, un evento sin publicar espera en su bandeja, y un mensaje que se estaba procesando vuelve a su cola sin gastar un intento (ADR 0046) |
+| Un consumidor, con broker | El manejo de un evento falla | El mensaje vuelve a su cola a los 10 s; al quinto intento queda en `<cola>.descartados`, con el motivo, y se registra como error (ADR 0046) |
 
 Las degradaciones se reportan, no se esconden:
 
@@ -945,6 +959,52 @@ persistía el correo real del acudiente y el derecho al olvido no lo borraba.
 así que puede entregarlo otra vez (por ejemplo, si RabbitMQ se cae justo después del envío). La
 `notificacion` guarda de qué evento sale, y un evento que ya tiene su aviso `enviada` no se vuelve
 a enviar. Un envío que falló sí se reintenta.
+
+### 10.1 Cómo viajan los eventos (nuevo en 1.10)
+
+Ningún cliente HTTP ve los eventos. Se describen aquí porque son el contrato entre servicios.
+
+El evento se escribe siempre en la `bandeja_salida` del productor, en la misma transacción del
+cambio. Lo que depende del modo es cómo sale de ahí (ADR 0046):
+
+- **Sin `RABBITMQ_URL`,** como en 1.9: el repartidor y los sondeadores leen la bandeja del
+  productor, y el trabajador sondea `trabajo_pipeline`.
+- **Con `RABBITMQ_URL`,** el publicador de cada productor lleva su bandeja al exchange topic
+  `tukit.eventos`, con el tipo como routing key, y cada consumidor escucha su cola.
+
+| Tipo | Productor | Carga | Cola, con broker |
+|---|---|---|---|
+| `kits_publicados` | inteligencia | `trabajo_id`, `publicado_en` y `usuario_id` (nuevo en 1.10) | `operacion.avisos` |
+| `pedido_pagado`, `incidencia`, `pedido_despachado`, `pedido_en_reparto`, `pedido_entregado` | comercio | sin cambios | `operacion.avisos` |
+| `colegio_verificado` | catalogo | sin cambios | `identidad.colegios` |
+| `lista_verificada`, `lista_aprobada` | catalogo | sin cambios | `inteligencia.listas` |
+| `trabajo_encolado` (nuevo en 1.10, solo con broker) | inteligencia | `trabajo_id` | `inteligencia.trabajos` |
+| `pedido_solicitado` | inteligencia | sin cambios | ninguna: el broker lo descarta, como el repartidor lo omite sin broker |
+
+El cuerpo del mensaje es un sobre:
+
+```jsonc
+{
+  "evento_id": 42,                 // el id en la bandeja del productor
+  "origen": "comercio",            // el productor; con evento_id, identifica el evento
+  "tipo": "pedido_pagado",
+  "agregado_tipo": "pedido",
+  "agregado_id": "<uuid>",
+  "carga": { "pedido_id": "<uuid>", "usuario_id": "<uuid>" },   // la de la bandeja, tal cual
+  "correlacion_id": "<id o null>"
+}
+```
+
+Las propiedades AMQP repiten lo que sirve para mirar una cola sin abrir el mensaje: `message_id`
+es `<origen>:<evento_id>`, `type` es el tipo y `app_id` el origen. La entrega es persistente.
+
+**Al menos una vez.** Un evento puede llegar dos veces, y cada consumidor lo tolera: operación da
+un aviso por evento (arriba), identidad es idempotente y el sondeador de listas anota los eventos
+que procesó.
+
+**Lo que falla queda visible.** Un mensaje cuyo manejo falla vuelve a su cola a los 10 s. Al
+quinto intento queda en `<cola>.descartados`, con el motivo en la cabecera `tukit-motivo`. Una
+caída de la base o del broker no cuenta como intento.
 
 ---
 
@@ -1585,8 +1645,8 @@ Sin rodeos, porque el frontend necesita saber contra qué puede programar hoy.
 | Entrada (b), un archivo | **Funciona por otra ruta** | `POST /v1/trabajos` sigue siendo solo JSON (`multipart` es `400`). Los PDF entran por `POST /v1/listas/subir` (`multipart`), van a la cola de revisión de listas y al aprobarse arman el kit. Necesita `GEMINI_API_KEY`. Con el catálogo caído responde `202` y la lista llega a la cola cuando el catálogo vuelve (§8) |
 | Optimizador | **NSGA-II** (pymoo), con enumeración exacta en listas chicas | Frente de 4 objetivos (costo, fidelidad, disponibilidad, personaje), sembrado con la heurística y la escalera de costo marginal. `Ahorrador` y `Premium` siempre; `Fan` y `A tu Medida` a pedido (ADR 0029, 0030) |
 | Consolidación entre hermanos | **Funciona**, probada | Solo se dispara cuando a dos hijos les toca el mismo sku y el empaque alcanza |
-| Notificación (§10) | **Funciona por correo** | El repartidor de `operacion` recoge `kits_publicados` y `pedido_pagado` de las bandejas y envía el correo (por consola si no hay SMTP), una vez por evento (§10). El wa-link se genera pero no se envía solo |
+| Notificación (§10) | **Funciona por correo** | El repartidor de `operacion` recibe `kits_publicados` y los eventos del pedido por su cola de RabbitMQ, o sin broker de las bandejas, y envía el correo (por consola si no hay SMTP), una vez por evento (§10). El wa-link se genera pero no se envía solo |
 | Pago (§9) | **Funciona contra Wompi sandbox** | Widget, sincronización, webhook y cancelación. Sin llaves (`WOMPI_MODO=falso`) una pasarela simulada camina el mismo flujo. No hay modo de producción |
 | Autenticación | **Funciona** (sesiones de `identidad`, `Authorization: Bearer`) | La exigen la cuenta del acudiente, "Mis solicitudes", cancelar, editar hijos y cambiar productos de un kit con dueño, y el admin. La superficie de lectura (catálogo, colegios, `GET /v1/trabajos/{id}`) sigue abierta |
 | Cifrado de `pesos_usados` | **Puerto sí, cifrado no** | Pasa por el puerto `Cifrador`; sin `TUKIT_LLAVE_CIFRADO` el adaptador guarda en claro y lo dice al arrancar |
-| Ejecución de fondo | **Tarea en proceso** | Si el servicio se reinicia con un trabajo en vuelo, queda en `procesando`. Se rescata con `POST /v1/trabajos/{id}/reintentar` |
+| Ejecución de fondo | **Funciona con el trabajador** | El trabajo queda `encolado` en `trabajo_pipeline` y el trabajador lo toma: con RabbitMQ por su aviso `trabajo_encolado`, sin broker sondeando la tabla (§10.1). Uno que quedó `procesando` por una caída lo retoma el trabajador a los 15 minutos |

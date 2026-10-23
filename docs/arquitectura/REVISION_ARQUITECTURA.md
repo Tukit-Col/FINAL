@@ -27,6 +27,11 @@
 > - el repartidor no era idempotente ante la reentrega del outbox, y un pago avisaba dos veces
 >   (ADR 0042, §B.3).
 
+> **Actualización, rama `feature/colas-rabbitmq`.** Con `RABBITMQ_URL`, los eventos y los trabajos
+> viajan por RabbitMQ: cada productor publica su propia bandeja y cada consumidor escucha su cola,
+> así que ningún consumidor lee la base de otro servicio. Sin la URL, todo sigue como antes, y las
+> lecturas cruzadas quedan declaradas como ese respaldo (ADR 0046, §A.4, §B.0 y §B.3).
+
 > **Dos partes.** La **Parte A (as-is)** es el diagnóstico verificado del sistema tal como está
 > hoy: qué fronteras se respetan, qué comunicación ya trae lo caro de hacer bien, y dónde está la
 > deuda real. La **Parte B (to-be)** es el diseño objetivo al que este documento eleva la
@@ -46,7 +51,7 @@
 > `inteligencia`, `comercio`, `operacion`, `ingesta`, `gateway`); `servicios/` tiene hoy código para
 > **seis**. `ingesta` está declarado con `base_datos = ""` y `tablas = []`
 > (`manifiesto.toml:178-190`) y todavía no tiene directorio de código: las pruebas de frontera lo
-> saltan a propósito (`test_fronteras.py:400`). Es un desplegable planeado. Todo lo que sigue se
+> saltan a propósito (`test_el_lenguaje_declarado_coincide_con_el_codigo`). Es un desplegable planeado. Todo lo que sigue se
 > refiere a los seis que existen.
 
 ---
@@ -212,7 +217,9 @@ de la mezcla, y es el mismo en `catalogo/admin_http.py` y `inteligencia/trabajos
   (única tabla replicada, `manifiesto.toml:36`) y el evento se escribe en la MISMA transacción que
   el cambio que lo origina (`inteligencia/trabajos.py:1005`, `_publicar_evento`). Los drenadores
   usan bloqueo sin espera: `operacion/repartidor.py`, `identidad/poller.py`, `inteligencia/poller.py`
-  — todos `.with_for_update(skip_locked=True)`.
+  — todos `.with_for_update(skip_locked=True)`. Desde la rama `feature/colas-rabbitmq`, esos tres
+  drenadores son el camino sin broker. Con `RABBITMQ_URL`, cada productor vacía su bandeja hacia
+  RabbitMQ y los tres consumen su cola sin abrir la base ajena (ADR 0046, §B.3).
 - **Degradación honesta.** Los `remoto.py` devuelven `None` cuando la dependencia opcional no
   responde (caída de Identidad degrada el trabajo, no lo tumba). El cliente de Comercio pasa los
   rechazos de negocio como `(estado, cuerpo)` y solo levanta en 5xx/red. En el cobro, Catálogo caído
@@ -290,15 +297,21 @@ graph LR
   subgraph Outbox
     I -.evento.-> BI[(bandeja_salida)]
     C -.evento.-> BC[(bandeja_salida)]
-    ID -.evento.-> BID[(bandeja_salida)]
+    CT -.evento.-> BCT[(bandeja_salida)]
   end
-  BI --> OP
-  BC --> OP
-  BID --> OP
+  BI -->|publicador| MQ{{RabbitMQ<br/>tukit.eventos}}
+  BC -->|publicador| MQ
+  BCT -->|publicador| MQ
+  MQ -->|operacion.avisos| OP
+  MQ -->|identidad.colegios| ID
+  MQ -->|inteligencia.listas<br/>inteligencia.trabajos| I
 ```
 
 Cada servicio tiene su base (una por servicio, `manifiesto.toml`); las flechas punteadas son eventos
-por outbox, las sólidas son HTTP síncrono con degradación honesta.
+por outbox, las sólidas son HTTP síncrono con degradación honesta. El dibujo es el camino con
+`RABBITMQ_URL` (ADR 0046). Sin ella no hay broker: el repartidor lee las bandejas de inteligencia y
+de comercio, los dos sondeadores leen la de catálogo y el trabajador sondea `trabajo_pipeline`. Las
+bandejas de identidad y de operación no las lee nadie.
 
 ## B.1 Capas internas por servicio — puertos y adaptadores ligero (ADR 0019) · TDD
 
@@ -461,7 +474,7 @@ stateDiagram-v2
   Reservado --> PagoIniciado: T2 iniciar pago (Wompi)
   PagoIniciado --> Pagado: T3 webhook aprobado (emite pedido_pagado al outbox)
   PagoIniciado --> Cancelado: C-charge / timeout de reserva
-  Pagado --> Notificado: T4 repartidor drena (at-least-once)
+  Pagado --> Notificado: T4 repartidor avisa (at-least-once)
   Reservado --> Cancelado: C-reserve (liberar reserva por TTL)
   Cancelado --> [*]
   Notificado --> [*]
@@ -480,6 +493,16 @@ evento. Ahora la `notificacion` guarda `evento_origen` y `evento_id`, y el repar
 enviar un evento que ya tiene su aviso `enviada`. Un índice único parcial
 (`uq_notificacion_evento_enviada`, `WHERE estado = 'enviada'`) lo respalda en la base sin impedir
 varios intentos `fallida`. `drenar` no cambia.
+
+**Con broker, cada servicio vacía su propia bandeja (ADR 0046).** El `BrokerSink` de arriba
+publicaba después de que el consumidor drenara la bandeja ajena: no quitaba la lectura cruzada, y
+nadie consumía lo publicado. Con `RABBITMQ_URL`, el que publica es el productor (un publicador por
+servicio, con confirmación) y el que consume es un consumidor común por cola
+(`tukit_comun.consumidor`), con reintentos acotados y descartados. El trabajador recibe un aviso
+por trabajo y conserva un barrido de la tabla, que sigue siendo la cola de verdad. Sin la URL, los
+drenadores de arriba siguen siendo el camino. El manifiesto los declara como ese respaldo en
+`[[lecturas_cruzadas]]`, y la regla 3b de las fronteras verifica que el camino con broker no los
+use.
 
 ## B.4 Observabilidad (ADR 0021)
 
