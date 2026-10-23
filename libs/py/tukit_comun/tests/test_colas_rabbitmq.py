@@ -211,6 +211,9 @@ async def test_una_caida_en_mitad_del_manejo_devuelve_el_mensaje(topologia, sond
     with pytest.raises(ConnectionRefusedError):
         await escuchar(URL, consumidor, topologia=topologia, hasta_vaciar=True)
     # La caida no gasto el intento: el mensaje volvio a la principal tal cual.
+    # El nack no tiene respuesta y la sonda mira por otra conexion, asi que el
+    # mensaje puede tardar un poco en verse de vuelta (en CI, con 3.13, pasa).
+    await _esperar(lambda: _hay(sonda, cola.nombre))
     assert await sonda.cuantos(cola.nombre) == 1
     assert await sonda.cuantos(cola.reintentos) == 0
 
