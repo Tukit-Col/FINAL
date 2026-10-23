@@ -131,11 +131,11 @@ Y estas, tomadas al leer el código:
 - [x] `mensajes.py`: el sobre (de fila a mensaje y de mensaje a `Evento`).
 - [x] `publicador.py`: drena la bandeja propia con SKIP LOCKED, publica con confirmación, marca
       tras confirmar, guarda lo confirmado si algo falla a mitad, y corre sobre `bucle_resiliente`.
-- [ ] `consumidor.py`: prefetch, confirmación y rechazo, reintentos acotados, descartados,
+- [x] `consumidor.py`: prefetch, confirmación y rechazo, reintentos acotados, descartados,
       deduplicación por origen e id (registro en memoria y en tabla), correlación, modo «hasta
       vaciar» para una pasada y modo continuo.
 - [x] `resiliencia.py`: las caídas de conexión de aiormq cuentan como transitorias.
-- [ ] Pruebas unitarias con dobles, sin broker.
+- [x] Pruebas unitarias con dobles, sin broker.
 - [ ] Pruebas de integración contra el RabbitMQ local, con el marcador `rabbitmq`, que se saltan
       si no hay broker y usan nombres propios que borran al terminar.
 
