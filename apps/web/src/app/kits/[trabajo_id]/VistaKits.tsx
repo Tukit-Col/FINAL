@@ -9,14 +9,18 @@ import {
   TITULO_CLASE,
   agruparPorClase,
   clasificar,
+  esBogota,
   formatearPesos,
+  LOCALIDADES_BOGOTA,
   type ClaseLinea,
   type Kit,
   type PerfilKit,
   type Trabajo,
 } from "@tukit/contrato";
 import { FalloApi, iniciarCheckout } from "@/lib/api-navegador";
+import { escribirDireccionAMano } from "@/lib/direccion-checkout";
 import { abrirWidgetWompi } from "@/lib/wompi";
+import CampoDireccion, { type LugarElegido } from "./CampoDireccion";
 import LineaDeKit from "./LineaDeKit";
 import styles from "./Kits.module.css";
 
@@ -56,7 +60,15 @@ const EXPLICACION_SECCION: Partial<Record<ClaseLinea, string>> = {
   comprable: undefined,
 };
 
-export default function VistaKits({ trabajo, correo }: { trabajo: Trabajo; correo: string }) {
+export default function VistaKits({
+  trabajo,
+  correo,
+  llaveMaps,
+}: {
+  trabajo: Trabajo;
+  correo: string;
+  llaveMaps: string | null;
+}) {
   const recomendado = trabajo.recomendado;
   const [activo, setActivo] = useState<PerfilKit>(recomendado?.perfil ?? "Ahorrador");
   const kits = useMemo(
@@ -204,7 +216,13 @@ export default function VistaKits({ trabajo, correo }: { trabajo: Trabajo; corre
 
       <SeccionesDeLineas kit={kit} trabajoId={trabajo.trabajo_id} />
 
-      <Checkout trabajoId={trabajo.trabajo_id} perfil={kit.perfil} total={kit.total} correo={correo} />
+      <Checkout
+        trabajoId={trabajo.trabajo_id}
+        perfil={kit.perfil}
+        total={kit.total}
+        correo={correo}
+        llaveMaps={llaveMaps}
+      />
     </div>
   );
 }
@@ -217,11 +235,14 @@ function Checkout({
   perfil,
   total,
   correo,
+  llaveMaps,
 }: {
   trabajoId: string;
   perfil: PerfilKit;
   total: number;
   correo: string;
+  // La llave de Google Places, leida en el servidor; `null` => campos manuales.
+  llaveMaps: string | null;
 }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
@@ -230,7 +251,12 @@ function Checkout({
   const [datos, setDatos] = useState({
     destinatario: "",
     direccion: "",
+    indicaciones: "",
     ciudad: "",
+    localidad: "",
+    departamento: "",
+    // Solo si la direccion salio de una sugerencia de Google y no se edito.
+    google_place_id: "",
     // Prellenado con el correo de la sesion: al acudiente ya identificado no se
     // le vuelve a pedir. Editable por si el comprobante va a otro correo.
     correo,
@@ -249,8 +275,32 @@ function Checkout({
     primerCampoRef.current?.focus({ preventScroll: true });
   }, [abierto]);
 
-  const cambiar = (campo: keyof typeof datos) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setDatos((d) => ({ ...d, [campo]: e.target.value }));
+  const cambiar =
+    (campo: keyof typeof datos) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setDatos((d) => ({ ...d, [campo]: e.target.value }));
+
+  // La localidad solo aplica en Bogota: fuera de ella el campo se apaga y no
+  // viaja, aunque el acudiente la hubiera elegido antes de cambiar la ciudad.
+  const enBogota = esBogota(datos.ciudad);
+
+  // Editar la direccion a mano la desliga del lugar de Google que se eligio, y
+  // suelta la localidad que Google derivo de el (`direccion-checkout.ts`).
+  const escribirDireccion = (direccion: string) =>
+    setDatos((d) => escribirDireccionAMano(d, direccion));
+
+  // Elegir una sugerencia fija la direccion de Google y pre-llena lo que se
+  // pudo derivar. Ciudad y departamento que Google no trajo conservan lo
+  // escrito; la localidad siempre se reemplaza (la anterior era de otra
+  // direccion) y, si no se pudo derivar, queda vacia para elegirla.
+  const elegirLugar = (lugar: LugarElegido) =>
+    setDatos((d) => ({
+      ...d,
+      direccion: lugar.direccion,
+      google_place_id: lugar.google_place_id ?? "",
+      ciudad: lugar.ciudad || d.ciudad,
+      localidad: lugar.localidad,
+      departamento: lugar.departamento || d.departamento,
+    }));
 
   async function pagar(e: React.FormEvent) {
     e.preventDefault();
@@ -258,10 +308,23 @@ function Checkout({
     setError(null);
     try {
       const { destinatario, direccion, ciudad, correo } = datos;
+      // Los opcionales vacios no viajan: el cuerpo de quien no los llena es el
+      // mismo de siempre.
+      const opcionales = {
+        indicaciones: datos.indicaciones.trim(),
+        localidad: enBogota ? datos.localidad : "",
+        departamento: datos.departamento.trim(),
+        google_place_id: datos.google_place_id,
+      };
       const checkout = await iniciarCheckout(trabajoId, {
         perfil,
         correo,
-        entrega: { destinatario, direccion, ciudad },
+        entrega: {
+          destinatario,
+          direccion,
+          ciudad,
+          ...Object.fromEntries(Object.entries(opcionales).filter(([, valor]) => valor)),
+        },
         // La pasarela simulada redirige aqui; con Wompi, solo PSE (que se lleva
         // la pestana al banco) vuelve por esta URL.
         url_redireccion: `${window.location.origin}/pago/resultado`,
@@ -322,13 +385,56 @@ function Checkout({
               required
             />
           </label>
+          <CampoDireccion
+            llave={llaveMaps}
+            valor={datos.direccion}
+            onEscribir={escribirDireccion}
+            onElegir={elegirLugar}
+          />
           <label>
-            Dirección
-            <input value={datos.direccion} onChange={cambiar("direccion")} required />
+            Apartamento, torre, interior o indicaciones (opcional)
+            <input
+              value={datos.indicaciones}
+              onChange={cambiar("indicaciones")}
+              maxLength={512}
+              autoComplete="address-line2"
+            />
           </label>
+          <div className={styles.filaPago}>
+            <label>
+              Ciudad
+              <input
+                value={datos.ciudad}
+                onChange={cambiar("ciudad")}
+                required
+                autoComplete="address-level2"
+              />
+            </label>
+            <label>
+              Localidad
+              <select
+                value={enBogota ? datos.localidad : ""}
+                onChange={cambiar("localidad")}
+                required={enBogota}
+                disabled={!enBogota}
+              >
+                <option value="">{enBogota ? "Elige la localidad" : "Solo en Bogotá"}</option>
+                {LOCALIDADES_BOGOTA.map((localidad) => (
+                  <option key={localidad} value={localidad}>
+                    {localidad}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           <label>
-            Ciudad
-            <input value={datos.ciudad} onChange={cambiar("ciudad")} required />
+            Departamento (opcional)
+            <input
+              value={datos.departamento}
+              onChange={cambiar("departamento")}
+              maxLength={128}
+              autoComplete="address-level1"
+            />
           </label>
           {/* El correo solo se pide a quien no tiene sesion: al acudiente ya
               identificado no se le vuelve a pedir, su comprobante va al correo

@@ -5,11 +5,28 @@
 > fronteras de *conversación*. Cambiar cualquiera de los dos sin avisar rompe a alguien
 > más, así que se cierran antes de repartir el trabajo y se versionan.
 
-- **Versión:** 1.8
+- **Versión:** 1.9
 - **Prefijo:** `/v1`
 - **URL base:** `http://127.0.0.1:8010` en desarrollo. Ver §12.1.
 - **Formato:** JSON UTF-8. Dinero en **pesos enteros** (nunca decimales flotantes).
 - **Idioma de los identificadores:** español sin tildes, como el resto del código.
+
+### Qué cambió en 1.9
+
+La dirección del checkout se autocompleta con Google Places (ADR 0044), el acudiente sigue su
+pedido en una línea de tiempo y el staff sube desde la cola la lista de cualquier colegio de
+Bogotá (ADR 0045). Todo es aditivo, salvo una cosa: `POST /v1/admin/onboarding` ahora exige
+sesión de staff. Un cliente de 1.8 que ya mandaba el Bearer sigue funcionando sin cambios.
+
+| Cambio | Dónde | Por qué |
+|---|---|---|
+| `entrega` del checkout (`POST /v1/trabajos/{id}/ordenar`) y de `POST /v1/ordenes` acepta los opcionales `localidad` (≤ 64), `indicaciones` (≤ 512), `departamento` (≤ 128) y `google_place_id` (≤ 512). Nunca coordenadas | §9.6 | Dirección con Google Places, localidad de Bogotá y "apartamento, torre, interior" |
+| `envio` gana `localidad` y `google_place_id` (columnas nulables, migración `b619c58fc0c3`) en `GET /v1/ordenes/{id}`, `GET /v1/comercio/mis-pedidos/{id}` y el detalle de logística | §9.6 | Logística ve la localidad y abre la dirección en Google Maps |
+| La firma que decide si un pendiente se reutiliza compara todos los campos congelados de la entrega, salvo `google_place_id` | §9.4 | Otro apartamento u otra localidad no pueden despacharse con el dato viejo |
+| `GET /v1/comercio/mis-pedidos/{id}` agrega `linea_de_tiempo`; no quita nada | §9.7 | La página `/pedidos/{id}` del acudiente |
+| `POST /v1/admin/onboarding` designa el colegio con `colegio_id`, con `colegio_dane` + `colegio_nombre` o solo con `colegio_nombre`; sin ninguno, `422 colegio_requerido` | §12.8 | Subir desde la cola la lista de un colegio que Tukit aún no tiene |
+| `POST /v1/admin/onboarding` exige `Authorization: Bearer` de operador o admin: `401 sesion_invalida` sin sesión, `403 acceso_denegado` sin rol de staff, `503 identidad_no_disponible` si Identidad no responde. Se valida antes de leer el archivo. `OrigenDatos.onboarding` recibe el `token` primero | §12.8 | Antes cualquiera podía subir una lista a la cola y gastar una lectura de Gemini |
+| El directorio de colegios de Bogotá vive en `@tukit/contrato` (`directorio-colegios.json`), cada entrada con `imageURL`, y las dos apps lo sirven en `/directorio-colegios.json` | §12.4 | Una sola copia, y logo por DANE para los colegios sin `logo_url` |
 
 ### Qué cambió en 1.8
 
@@ -693,7 +710,7 @@ Las degradaciones se reportan, no se esconden:
 | `GET /v1/ordenes/{id}` | `FU-01` + `UM-03` | Seguimiento: el pedido con líneas, último pago y envío |
 | `POST /v1/ordenes/{id}/retracto` | `FU-04` | Registra la devolución y cancela si la transición lo permite |
 | `GET /v1/comercio/mis-pedidos` | `UM-03` | Los pedidos del portador del Bearer, para su panel |
-| `GET /v1/comercio/mis-pedidos/{id}` | `UM-03` | Uno de sus pedidos, sin datos del reparto. Ajeno: `404` |
+| `GET /v1/comercio/mis-pedidos/{id}` | `UM-03` | Uno de sus pedidos, sin datos del reparto, con su línea de tiempo (§9.7). Ajeno: `404` |
 | `POST /v1/comercio/mis-pedidos/{id}/pago` | `FU-03` | §9.1 sobre un pedido suyo |
 | `POST /v1/comercio/mis-pedidos/{id}/cancelar` | `FU-01` | §9.3 sobre un pedido suyo |
 | `GET /v1/comercio/pedidos` | — | Tablero de logística. Solo operador o admin |
@@ -825,7 +842,7 @@ la sesión de la cookie.
 |---|---|---|
 | `POST /api/trabajos/{id}/ordenar` | `POST /v1/trabajos/{id}/ordenar` | — |
 | `POST /api/pagos/{transaccion_id}/sincronizar` | §9.2 | — |
-| `GET /api/pedidos/{id}` | `GET /v1/comercio/mis-pedidos/{id}` | El detalle para la pantalla de resultado; exige sesión |
+| `GET /api/pedidos/{id}` | `GET /v1/comercio/mis-pedidos/{id}` | El detalle para la pantalla de resultado; exige sesión. La página `/pedidos/{id}` lo lee del lado del servidor, sin pasar por esta ruta |
 | `POST /api/pedidos/{id}/pagar` | `POST /v1/comercio/mis-pedidos/{id}/pago` | Exige sesión (`401`), que el pedido sea del acudiente (un ajeno es `404`), que siga pendiente y vigente; el correo sale de la sesión |
 | `POST /api/pedidos/{id}/cancelar` | `POST /v1/comercio/mis-pedidos/{id}/cancelar` | Las mismas comprobaciones, menos la vigencia |
 
@@ -835,6 +852,65 @@ portador, así que la verificación de `apps/web` es una cortesía para el mensa
 **Nota de trazabilidad:** `FU-03` nombra **Wompi**, que entrega PSE, Nequi y tarjeta en una sola
 integración. La integración vive tras el puerto `PasarelaPago` (`comercio/pasarela.py`), con el
 adaptador `WompiSandbox` y uno falso para las pruebas y el desarrollo sin red.
+
+### 9.6 La entrega (nuevo en 1.8)
+
+`entrega` se copia congelada en el `envio` del pedido (ADR 0015). Los tres primeros campos son
+los de siempre; el resto es opcional, y un checkout de 1.7 sigue cerrando sin ellos.
+
+| Campo | Largo | Qué es |
+|---|---|---|
+| `destinatario`, `direccion`, `ciudad` | 256, 512, 128 | Obligatorios |
+| `departamento` | ≤ 128 | Lo pre-llena Google o lo escribe el acudiente |
+| `indicaciones` | ≤ 512 | "Apartamento, torre, interior o indicaciones" |
+| `localidad` | ≤ 64 | El nombre canónico de una de las 20 de Bogotá (`LOCALIDADES_BOGOTA` en `@tukit/contrato`). El formulario la exige en Bogotá y la deja vacía fuera; el servidor solo valida el largo |
+| `google_place_id` | ≤ 512 | El `id` del lugar que el acudiente eligió de las sugerencias. Si edita la dirección después, no viaja |
+
+`inteligencia` descarta cualquier otro campo (coordenadas incluidas) antes de llamar a
+`comercio`. Un largo de más es `400 entrada_invalida` (con `campo`), en los dos servicios. El
+`envio` que se lee de vuelta trae `localidad` y `google_place_id` (o `null`); con ellos `apps/admin` arma el
+enlace `https://www.google.com/maps/search/?api=1&query=…&query_place_id=…`
+(`enlaceGoogleMaps`).
+
+### 9.7 La línea de tiempo del acudiente (nuevo en 1.8)
+
+`GET /v1/comercio/mis-pedidos/{id}` responde el mismo pedido de antes más `linea_de_tiempo`. La
+arma `comercio` (`dominio/linea_de_tiempo.py`), dueño de la máquina de estados; el navegador la
+pinta y no recalcula nada.
+
+```json
+{"linea_de_tiempo": {
+  "pasos": [
+    {"paso": "creado",         "estado": "hecho",  "fecha": "2026-10-01T13:00:00+00:00"},
+    {"paso": "pagado",         "estado": "hecho",  "fecha": "2026-10-01T13:05:00+00:00"},
+    {"paso": "en_preparacion", "estado": "hecho",  "fecha": "2026-10-02T14:00:00+00:00"},
+    {"paso": "despachado",     "estado": "actual", "fecha": "2026-10-03T09:00:00+00:00",
+     "repartidor_nombre": "Luis Gómez"},
+    {"paso": "en_reparto",     "estado": "futuro", "fecha": null},
+    {"paso": "entregado",      "estado": "futuro", "fecha": null}],
+  "especial": null,
+  "entrega_estimada": "2026-10-04T17:00:00+00:00",
+  "pago_pendiente": null}}
+```
+
+- **Seis pasos, siempre en este orden**, cada uno `hecho`, `actual` o `futuro`. El `actual` es el
+  estado del pedido **ahora**, no el paso más lejano al que llegó: tras
+  `en_reparto → incidencia → en_preparacion`, despachado y en reparto vuelven a `futuro`.
+- **Las fechas no se inventan.** Creado, de `pedido.creado_en`; pagado, del pago aprobado; el
+  resto, de la última fila del historial que llegó a ese paso; entregado, si no, de
+  `envio.entregado_en`. Sin dato, `null`. Un `futuro` nunca lleva fecha.
+- **`especial`**: `null`, `{"tipo": "incidencia", "tipo_incidencia", "fecha"}` (el pedido queda en
+  el paso desde el que salió) o `{"tipo": "cancelado", "fecha"}`. Un cancelado no tiene paso
+  `actual`: los alcanzados quedan `hecho`. El barredor y el retracto no escriben historial, así
+  que un cancelado por vencimiento trae `fecha: null`.
+- **`pago_pendiente`**: solo en `pendiente_pago`, `{"vence_en", "vencido"}` con la vigencia de
+  §9.4.
+- **Lo que nunca trae:** quién hizo cada avance (`actor_id`, `actor_correo`), la `nota` del staff
+  ni el celular del repartidor. Del despacho solo viaja `repartidor_nombre`. La función recibe
+  vistas recortadas a propósito y no puede filtrarlos.
+
+Los tipos son `LineaDeTiempoPedido` y `PedidoDelAcudiente` en `@tukit/contrato`
+(`miPedido` los devuelve), con `ETIQUETA_PASO_PEDIDO` para los nombres visibles.
 
 ---
 
@@ -1203,6 +1279,14 @@ curl http://127.0.0.1:8010/v1/colegios
   constante y no una consulta a propósito: derivarla de las listas cargadas haría que un
   colegio sin lista publicada desapareciera del desplegable.
 
+**El directorio de Bogotá (1.8).** Los colegios que Tukit todavía no tiene salen del directorio
+oficial, que vive en una sola copia en `@tukit/contrato/directorio-colegios.json`
+(`[{dane, nombre, localidad, imageURL}]`, lo regenera `identidad` y conserva cada `imageURL`).
+`apps/web` y `apps/admin` lo sirven estático en `/directorio-colegios.json` para buscar en el
+navegador sin llamar a ningún servicio. El logo de un colegio es su `logo_url` de `identidad`; si
+no tiene, el `imageURL` del directorio con su mismo DANE; si tampoco, sus iniciales
+(`logoDeColegio`, ADR 0045).
+
 #### `POST /v1/contactos`
 
 Convierte un correo en un identificador, y es lo que hace cumplible la regla de §2: el
@@ -1456,6 +1540,27 @@ azar. Se ve, no se cobra y se explica.
 | `POST /v1/admin/trabajos/{id}/lineas/{item_id}/validar` | `{"sku": "…", "motivo": "…", "actor": "…uuid…"}`. Deja la línea en `RESUELTO_AUTO` |
 | `POST /v1/admin/trabajos/{id}/lineas/{item_id}/sin-coincidencia` | Deja la línea en **`HUECO_CATALOGO`**, no en `SIN_MATCH` |
 | `POST /v1/admin/trabajos/{id}/revision` | `{"decision": "aprobar"\|"devolver", "nota": "…"}` |
+| `POST /v1/admin/onboarding` | Solo staff (Bearer de operador o admin, desde 1.8). Multipart con `archivo`, `grado`, `anio_lectivo` y el colegio (abajo). Percibe el PDF o la imagen y lo importa a la cola |
+
+**El colegio del onboarding (1.8)** se designa de una de tres formas, como en la subida del
+acudiente:
+
+- `colegio_id` de un colegio que Tukit ya tiene: igual que en 1.7.
+- `colegio_dane` + `colegio_nombre`, elegido del directorio: el id se deriva del DANE y
+  `colegio_datos` viaja al catálogo, completado con el directorio de `identidad`.
+- Solo `colegio_nombre`, escrito a mano: el id se deriva del nombre normalizado.
+
+En las dos últimas el colegio todavía no existe. La cola muestra su nombre y lo crea en
+`identidad` al aprobar la lista. Sin ninguna de las tres, `422 colegio_requerido` con
+`campo: "colegio"`, antes de leer el archivo. `apps/admin` reconduce un DANE que ya es de un
+colegio existente a su `colegio_id`.
+
+**La sesión (1.8).** Antes que nada, inteligencia valida el Bearer contra
+`GET /v1/sesiones/actual`, con la misma semántica que `/v1/admin/acudientes`. Sin sesión
+responde `401 sesion_invalida`, sin rol de operador o admin `403 acceso_denegado`, y si
+Identidad no responde `503 identidad_no_disponible`, que falla cerrado. Así, quien no puede
+subir no gasta una lectura del archivo. `apps/admin` reenvía como Bearer el token de la
+cookie `tukit_sesion`, y sin cookie responde `401` sin llamar a inteligencia.
 
 `sin-coincidencia` marca `HUECO_CATALOGO` a propósito. Si una persona miró la línea,
 entendió qué pedía y concluyó que no lo tenemos, eso ya no es "no te entendí". Solo el

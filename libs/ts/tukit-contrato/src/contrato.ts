@@ -213,6 +213,15 @@ export interface Entrega {
   destinatario: string;
   direccion: string;
   ciudad: string;
+  // Opcionales: un cliente viejo que manda solo los tres de arriba sigue
+  // cerrando. `localidad` es una de `LOCALIDADES_BOGOTA` (vacia fuera de
+  // Bogota); `indicaciones` es apartamento, torre, interior o como llegar;
+  // `google_place_id` sale de la sugerencia de Google Places elegida y se pierde
+  // si el acudiente edita la direccion despues. Nunca coordenadas.
+  departamento?: string;
+  indicaciones?: string;
+  localidad?: string;
+  google_place_id?: string;
 }
 
 // El acudiente cambia el producto de un renglón de su kit por el sugerido o por

@@ -610,6 +610,16 @@ export interface ColegioEditable {
   contacto_telefono?: string | null;
 }
 
+// A que colegio va una lista que el staff sube desde la cola
+// (`POST /v1/admin/onboarding`). Las mismas tres formas que la subida del
+// acudiente: un colegio que Tukit ya conoce, una entrada del directorio de
+// Bogota (el colegio nace al aprobar, con el id derivado del DANE) o un nombre
+// escrito a mano porque no estaba en el directorio.
+export type ColegioDesignado =
+  | { colegio_id: string }
+  | { colegio_dane: string; colegio_nombre: string }
+  | { colegio_nombre: string };
+
 // La ficha COMPLETA del directorio DUEB para el detalle del colegio en el admin
 // (`GET /v1/directorio/{dane}`). Es un superconjunto de `DatosColegioNuevo`:
 // repite sus 7 campos con el mismo nombre y significado y AGREGA sector,

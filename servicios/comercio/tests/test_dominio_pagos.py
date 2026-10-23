@@ -7,7 +7,7 @@ vive en `dominio/pagos.py` y se prueba sin webhook ni base.
 
 from __future__ import annotations
 
-from tukit_comercio.dominio.pagos import pedido_tras_pago
+from tukit_comercio.dominio.pagos import firma_orden, pedido_tras_pago
 from tukit_comercio.modelos import EstadoPago, EstadoPedido
 
 
@@ -26,3 +26,13 @@ def test_pago_reembolsado_no_mueve_el_pedido():
 
 def test_pago_iniciado_no_mueve_el_pedido():
     assert pedido_tras_pago(EstadoPago.INICIADO, EstadoPedido.PENDIENTE_PAGO.value) is None
+
+
+def test_la_firma_de_la_orden_no_distingue_campo_vacio_de_ausente():
+    lineas = [("TK-1", 2, 4500), ("TK-2", 1, 900)]
+    assert firma_orden(lineas, ("Ana", "Calle 1", "Bogota", None, None)) == firma_orden(
+        list(reversed(lineas)), ("Ana", "Calle 1", "Bogota", "", "")
+    )
+    assert firma_orden(lineas, ("Ana", "Calle 1", "Bogota", "Suba")) != firma_orden(
+        lineas, ("Ana", "Calle 1", "Bogota", "Usme")
+    )

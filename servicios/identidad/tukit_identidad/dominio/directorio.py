@@ -193,12 +193,19 @@ def parsear_directorio(texto: str) -> list[ColegioDirectorio]:
     return colegios
 
 
-def generar_json_busqueda(texto: str) -> list[dict[str, str | None]]:
-    """El arreglo que el web app sirve: un dict de busqueda por colegio,
-    ordenado por nombre para que el buscador de `/empezar` no tenga que hacerlo."""
+def generar_json_busqueda(
+    texto: str, imagenes: dict[str, str | None] | None = None
+) -> list[dict[str, str | None]]:
+    """El arreglo que sirven las apps: un dict de busqueda por colegio,
+    ordenado por nombre para que el buscador no tenga que hacerlo.
+
+    `imageURL` es el logo del colegio. El DUEB no lo trae: se cura a mano en el
+    JSON, y `imagenes` (DANE -> URL) es lo que ya estaba curado, para que
+    regenerar desde la fuente no lo borre. Sin curar, va `None`."""
     colegios = parsear_directorio(texto)
     colegios.sort(key=lambda c: c.nombre)
-    return [c.a_dict_busqueda() for c in colegios]
+    imagenes = imagenes or {}
+    return [{**c.a_dict_busqueda(), "imageURL": imagenes.get(c.dane)} for c in colegios]
 
 
 # --------------------------------------------------------------- lookup por DANE
@@ -239,11 +246,13 @@ def ficha_directorio_por_dane(dane: str) -> dict[str, Any] | None:
 
 
 def _main() -> None:
-    """Uso: python -m tukit_identidad.directorio_bogota <fuente.txt> <destino.json>
+    """Uso: python -m tukit_identidad.dominio.directorio <fuente.txt> <destino.json>
 
-    Parsea el volcado DUEB y escribe el JSON de busqueda que el web app sirve.
-    Es una herramienta de datos, no parte del servicio: se corre cuando el
-    directorio fuente cambia, no en cada arranque.
+    Parsea el volcado DUEB y escribe el JSON de busqueda que sirven las apps
+    (`libs/ts/tukit-contrato/datos/directorio-colegios.json`). Si el destino ya
+    existe, conserva el `imageURL` curado de cada DANE. Es una herramienta de
+    datos, no parte del servicio: se corre cuando el directorio fuente cambia,
+    no en cada arranque.
     """
     import json
     import sys
@@ -253,7 +262,10 @@ def _main() -> None:
         print(_main.__doc__)
         raise SystemExit(2)
     fuente, destino = Path(sys.argv[1]), Path(sys.argv[2])
-    registros = generar_json_busqueda(fuente.read_text(encoding="utf-8", errors="replace"))
+    imagenes: dict[str, str | None] = {}
+    if destino.exists():
+        imagenes = {r["dane"]: r.get("imageURL") for r in json.loads(destino.read_text(encoding="utf-8"))}
+    registros = generar_json_busqueda(fuente.read_text(encoding="utf-8", errors="replace"), imagenes)
     destino.write_text(json.dumps(registros, ensure_ascii=False, indent=0), encoding="utf-8")
     print(f"{len(registros)} colegios -> {destino}")
 

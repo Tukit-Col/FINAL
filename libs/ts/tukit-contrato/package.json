@@ -8,7 +8,8 @@
     ".": "./src/indice.ts",
     "./servidor": "./src/servidor.ts",
     "./motion": "./src/motion.ts",
-    "./tokens.css": "./src/tokens.css"
+    "./tokens.css": "./src/tokens.css",
+    "./directorio-colegios.json": "./datos/directorio-colegios.json"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
