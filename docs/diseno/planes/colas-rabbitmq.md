@@ -154,9 +154,11 @@ Y estas, tomadas al leer el código:
 
 - [x] Repartidor: consume `operacion.avisos` con broker; sin él, sondea como hoy.
 - [x] Sondeador de colegios: consume `identidad.colegios`; prueba de un evento repetido.
-- [ ] Sondeador de listas: consume `inteligencia.listas`; tabla `evento_procesado`, su migración y
-      su reversa; prueba de un evento repetido.
-- [ ] Pruebas de que con broker ninguno abre un motor a una base ajena.
+- [x] Sondeador de listas: consume `inteligencia.listas`; tabla `evento_procesado`, su migración y
+      su reversa; prueba de un evento repetido. La migración sube, baja y vuelve a subir contra un
+      Postgres local, y deja una sola cabeza. El manifiesto pasa a 74 tablas.
+- [x] Pruebas de que con broker ninguno abre un motor a una base ajena: en los tres, `main` con
+      `RABBITMQ_URL` consume su cola y una prueba falla si llama a `_motor_lectura`.
 
 ### 4. Trabajos del pipeline
 
