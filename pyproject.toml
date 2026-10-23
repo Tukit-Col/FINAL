@@ -63,6 +63,9 @@ pythonpath = [
     "libs/py/tukit_comun",
 ]
 filterwarnings = ["error::DeprecationWarning"]
+# Las pruebas contra un RabbitMQ de verdad (ADR 0046). Se saltan solas si no hay
+# broker en `TUKIT_PRUEBAS_RABBITMQ_URL` (por omision, el local de `.env.ejemplo`).
+markers = ["rabbitmq: pruebas contra un RabbitMQ de verdad; se saltan si no hay broker"]
 
 [tool.mypy]
 # Tipos incrementales (ADR 0026): laxo global para no exigir anotar 40k lineas de
