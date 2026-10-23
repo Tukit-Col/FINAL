@@ -277,12 +277,12 @@ export default async function DashboardPage() {
                                   : "Armaste un pedido con este kit y está esperando tu pago."}
                               </p>
                               <div className={styles.solicitudEnlaces}>
-                                <a
-                                  href={`#pedido-${compra.pedidoId}`}
+                                <Link
+                                  href={`/pedidos/${compra.pedidoId}`}
                                   className={styles.solicitudEnlace}
                                 >
                                   {compra.estado === "comprado" ? "Ver mi pedido" : "Ir a pagar"}
-                                </a>
+                                </Link>
                                 <Link
                                   href={`/kits/${trabajoId}`}
                                   className={styles.solicitudEnlaceSecundario}
@@ -375,12 +375,18 @@ export default async function DashboardPage() {
                       const pendiente = pedido.estado === "pendiente_pago";
                       return (
                         <Fragment key={pedido.pedido_id}>
+                          {/* Toda la fila abre el pedido: el enlace del codigo se
+                              estira sobre ella. Las acciones van en su propia
+                              fila, fuera del enlace. */}
                           <tr
                             id={`pedido-${pedido.pedido_id}`}
-                            className={pendiente ? styles.filaConAcciones : undefined}
+                            className={`${styles.filaPedido} ${pendiente ? styles.filaConAcciones : ""}`}
                           >
                             <td className={styles.pedidoId}>
-                              {pedido.pedido_id.slice(0, 8).toUpperCase()}
+                              <Link href={`/pedidos/${pedido.pedido_id}`} className={styles.enlacePedido}>
+                                <span className={styles.paraLectores}>Ver el pedido </span>
+                                {pedido.pedido_id.slice(0, 8).toUpperCase()}
+                              </Link>
                             </td>
                             <td className={styles.pedidoFecha}>
                               {fechaLegible(pedido.creado_en)}

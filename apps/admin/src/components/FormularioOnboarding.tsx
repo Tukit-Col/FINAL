@@ -1,7 +1,9 @@
 "use client";
 
 // El formulario de subida del onboarding (P4). Elegir (colegio, grado, año),
-// adjuntar el PDF de ESE grado y mandarlo a percibir.
+// adjuntar el PDF de ESE grado y mandarlo a percibir. El colegio sale de
+// `BuscadorColegioOnboarding`: uno de Tukit, uno del directorio de Bogotá o uno
+// escrito a mano.
 //
 // La UX de validación del archivo es la misma que la de `apps/web` (empezar):
 // se comprueba el formato y el tamaño ANTES de subir y se avisa que hay que
@@ -15,7 +17,9 @@ import {
   validarArchivo,
   EXTENSIONES_ACEPTADAS,
   type Colegio,
+  type ColegioDesignado,
 } from "@tukit/contrato";
+import BuscadorColegioOnboarding from "@/components/BuscadorColegioOnboarding";
 import { subirOnboarding, FalloApi } from "@/lib/api-onboarding";
 import styles from "@/app/onboarding/Onboarding.module.css";
 
@@ -35,7 +39,7 @@ export default function FormularioOnboarding({ colegios }: Props) {
   const router = useRouter();
   const idBase = useId();
 
-  const [colegioId, setColegioId] = useState("");
+  const [colegio, setColegio] = useState<ColegioDesignado | null>(null);
   const [grado, setGrado] = useState("");
   const [anio, setAnio] = useState(String(anioPorDefecto()));
   const [archivo, setArchivo] = useState<File | null>(null);
@@ -53,18 +57,18 @@ export default function FormularioOnboarding({ colegios }: Props) {
 
   const anioNum = Number(anio);
   const anioOk = Number.isInteger(anioNum) && anioNum >= 2000 && anioNum <= 2100;
-  const listo = colegioId !== "" && grado.trim() !== "" && archivo !== null && anioOk;
+  const listo = colegio !== null && grado.trim() !== "" && archivo !== null && anioOk;
 
   async function enviar(evento: React.FormEvent) {
     evento.preventDefault();
-    if (!listo || enviando || !archivo) return;
+    if (!listo || enviando || !archivo || !colegio) return;
     setEnviando(true);
     setError(null);
     setGradosDetectados([]);
 
     try {
       const version = await subirOnboarding({
-        colegioId,
+        colegio,
         grado: grado.trim(),
         anioLectivo: anioNum,
         archivo,
@@ -86,23 +90,9 @@ export default function FormularioOnboarding({ colegios }: Props) {
 
   return (
     <form className={styles.formulario} onSubmit={enviar}>
-      <div className={styles.dosColumnas}>
-        <label className={styles.campo}>
-          <span>Colegio</span>
-          <select
-            value={colegioId}
-            onChange={(e) => setColegioId(e.target.value)}
-            required
-          >
-            <option value="">Elige el colegio…</option>
-            {colegios.map((c) => (
-              <option key={c.colegio_id} value={c.colegio_id}>
-                {c.nombre}
-              </option>
-            ))}
-          </select>
-        </label>
+      <BuscadorColegioOnboarding colegios={colegios} onElegir={setColegio} />
 
+      <div className={styles.dosColumnas}>
         <label className={styles.campo}>
           <span>Grado</span>
           <input

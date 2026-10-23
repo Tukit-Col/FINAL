@@ -29,5 +29,10 @@ export default async function PaginaKits({
   // queda editable, como estaba.
   const sesion = await sesionActual();
 
-  return <VistaKits trabajo={trabajo} correo={sesion?.correo ?? ""} />;
+  // La llave de Google Places es de servidor (sin `NEXT_PUBLIC_`) y llega por
+  // props. Vacia o solo espacios => sin llave: el checkout pide la direccion a
+  // mano (ADR 0044).
+  const llaveMaps = process.env.GOOGLE_MAPS_API_KEY?.trim() || null;
+
+  return <VistaKits trabajo={trabajo} correo={sesion?.correo ?? ""} llaveMaps={llaveMaps} />;
 }

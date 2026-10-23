@@ -447,3 +447,72 @@ async def test_entrega_estimada_con_zona_queda_en_el_envio(cliente):
     respuesta = await _avanzar(cliente, pedido_id, cuerpo)
     assert respuesta.status_code == 200
     assert respuesta.json()["envio"]["entrega_estimada"].startswith("2026-10-05")
+
+
+# ---------------------------------------------------------------------------
+# La linea de tiempo del acudiente (`/pedidos/[id]`)
+# ---------------------------------------------------------------------------
+
+
+async def test_el_acudiente_ve_la_linea_de_tiempo_de_su_pedido_sin_datos_del_staff(cliente):
+    pedido_id = await _pedido_pagado(cliente)
+    await _avanzar(cliente, pedido_id, {"destino": "en_preparacion"})
+    await _avanzar(cliente, pedido_id, {"destino": "despachado", **REPARTIDOR})
+    await _avanzar(
+        cliente, pedido_id, {"destino": "incidencia", "tipo_incidencia": "otro", "nota": "Perro bravo"}
+    )
+
+    respuesta = await cliente.get(f"/v1/comercio/mis-pedidos/{pedido_id}", headers=bearer(TOKEN_ACUDIENTE))
+    assert respuesta.status_code == 200
+    cuerpo = respuesta.json()
+    # Lo de siempre sigue ahi: la linea se agrega, no reemplaza.
+    assert cuerpo["pedido_id"] == pedido_id
+    assert cuerpo["lineas"] and cuerpo["envio"]["direccion"]
+
+    linea = cuerpo["linea_de_tiempo"]
+    assert [(p["paso"], p["estado"]) for p in linea["pasos"]] == [
+        ("creado", "hecho"),
+        ("pagado", "hecho"),
+        ("en_preparacion", "hecho"),
+        ("despachado", "actual"),
+        ("en_reparto", "futuro"),
+        ("entregado", "futuro"),
+    ]
+    assert all(p["fecha"] for p in linea["pasos"][:4])
+    assert linea["pasos"][3]["repartidor_nombre"] == "Luis Gomez"
+    assert linea["especial"]["tipo"] == "incidencia"
+    assert linea["especial"]["tipo_incidencia"] == "otro"
+
+    # Nada del staff: ni el historial crudo, ni quien avanzo, ni la nota, ni el
+    # celular del repartidor.
+    texto = respuesta.text
+    assert "historial" not in cuerpo
+    for prohibido in ("actor_id", "actor_correo", "nota", "Perro bravo", CELULAR, OPERADOR, "@tukit.test"):
+        assert prohibido not in texto
+
+
+async def test_la_linea_de_tiempo_de_un_pedido_ajeno_o_inexistente_da_404(cliente):
+    pedido_id = await _pedido_pagado(cliente)
+    ajeno = await cliente.get(f"/v1/comercio/mis-pedidos/{pedido_id}", headers=bearer(TOKEN_OTRO))
+    assert ajeno.status_code == 404
+    assert "linea_de_tiempo" not in ajeno.text
+    inexistente = await cliente.get(
+        f"/v1/comercio/mis-pedidos/{uuid.uuid4()}", headers=bearer(TOKEN_ACUDIENTE)
+    )
+    assert inexistente.status_code == 404
+
+
+async def test_la_linea_de_tiempo_exige_sesion(cliente):
+    pedido_id = await _pedido_pagado(cliente)
+    assert (await cliente.get(f"/v1/comercio/mis-pedidos/{pedido_id}")).status_code == 401
+
+
+async def test_un_pedido_pendiente_trae_su_vencimiento(cliente):
+    orden = (await cliente.post("/v1/ordenes", json=_orden())).json()
+    respuesta = await cliente.get(
+        f"/v1/comercio/mis-pedidos/{orden['pedido_id']}", headers=bearer(TOKEN_ACUDIENTE)
+    )
+    linea = respuesta.json()["linea_de_tiempo"]
+    assert linea["pasos"][0]["estado"] == "actual"
+    assert linea["pago_pendiente"]["vencido"] is False
+    assert linea["pago_pendiente"]["vence_en"]

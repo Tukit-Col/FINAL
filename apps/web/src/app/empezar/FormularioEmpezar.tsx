@@ -9,7 +9,13 @@ import {
   validarArchivo,
   EXTENSIONES_ACEPTADAS,
   GRADOS_CANONICOS,
+  buscarColegios,
+  imagenesPorDane,
+  logoDeColegio,
+  normalizarBusqueda,
+  prepararBusqueda,
   type Colegio,
+  type EntradaDirectorio,
   type GradoCanonico,
   type HijoNuevo,
   type HijoSolicitud,
@@ -27,6 +33,7 @@ import {
   FalloApi,
 } from "@/lib/api-navegador";
 import { rutaRecibimos } from "@/lib/recibimos";
+import LogoColegio from "@/components/LogoColegio";
 import SelectorPersonaje from "./SelectorPersonaje";
 import styles from "./Empezar.module.css";
 
@@ -132,19 +139,6 @@ function hijoVacio(indice: number): HijoFormulario {
   };
 }
 
-// Iniciales del colegio para el avatar cuando no hay logo: dos letras de las
-// dos primeras palabras significativas, en mayúscula.
-function iniciales(nombre: string): string {
-  const palabras = nombre
-    .split(/\s+/)
-    .filter((p) => p.length > 2 && !/^(de|del|la|el|los|las|y)$/i.test(p));
-  const base = palabras.length > 0 ? palabras : nombre.split(/\s+/);
-  return base
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
 // Une una lista en español natural: "a", "a y b", "a, b y c". Se usa para armar
 // el mensaje de qué falta sin comas colgando.
 function unirEnLista(items: string[]): string {
@@ -157,17 +151,9 @@ function unirEnLista(items: string[]): string {
 // Un ÚNICO buscador por hijo que mezcla dos fuentes que el padre no distingue:
 // los colegios aliados de Tukit y el directorio de Bogotá. La búsqueda del
 // directorio es del lado del cliente sobre el JSON ya cargado; no pega a ningún
-// servicio (decisión: directorio buscable, no sembrado).
-
-// Una entrada del directorio estático de colegios de Bogotá
-// (`/directorio-colegios.json`, ~3k colegios). NO es un colegio aliado: es la
-// guía oficial para que el acudiente designe SU colegio aunque Tukit todavía no
-// lo tenga.
-interface EntradaDirectorio {
-  dane: string;
-  nombre: string;
-  localidad: string;
-}
+// servicio (decisión: directorio buscable, no sembrado). La lógica (mezcla,
+// reconducción por DANE, tope) es la pura de `@tukit/contrato`, la misma que usa
+// "Subir lista" en el admin.
 
 // El directorio se carga UNA vez y se comparte entre todos los hijos: es el
 // mismo JSON estático. Se memoiza en un módulo para no re-descargar 300 KB por
@@ -180,15 +166,6 @@ function cargarDirectorio(): Promise<EntradaDirectorio[]> {
       .catch(() => []);
   }
   return directorioPromesa;
-}
-
-// Plegado de mayúsculas y acentos, mismo idioma que el explorador del catálogo
-// (`ExploradorCatalogo.tsx`): así "agustiniano" encuentra "AGUSTINIANO".
-function normalizar(texto: string): string {
-  return texto
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
 }
 
 // La leyenda que el aliado muestra bajo su nombre, igual en la lista y en la
@@ -233,59 +210,19 @@ function BuscadorColegio({
     if (directorio.length === 0) cargarDirectorio().then(setDirectorio);
   }, [directorio.length]);
 
-  // Índices normalizados una sola vez (no por tecla): el de aliados incluye un
-  // mapa por DANE —primero-gana ante una colisión de DANE, saltando los nulos—
-  // que es la clave de reconducir al aliado en vez de duplicarlo.
-  const indexAliados = useMemo(() => {
-    const porDane = new Map<string, { colegio: Colegio; buscable: string }>();
-    const lista = colegiosAliados.map((c) => {
-      const entry = { colegio: c, buscable: normalizar(c.nombre) };
-      if (c.dane && !porDane.has(c.dane)) porDane.set(c.dane, entry);
-      return entry;
-    });
-    return { lista, porDane };
-  }, [colegiosAliados]);
-  const directorioNorm = useMemo(
-    () => directorio.map((entrada) => ({ entrada, buscable: normalizar(entrada.nombre) })),
-    [directorio],
+  // Índices normalizados una sola vez (no por tecla); la búsqueda reconduce al
+  // aliado la entrada del directorio que comparte su DANE (evita el duplicado).
+  const preparada = useMemo(
+    () => prepararBusqueda(colegiosAliados, directorio),
+    [colegiosAliados, directorio],
   );
-  const directorioDanes = useMemo(
-    () => new Set(directorio.map((e) => e.dane)),
-    [directorio],
-  );
+  const imagenes = useMemo(() => imagenesPorDane(directorio), [directorio]);
 
-  const qn = normalizar(busqueda.trim());
+  const qn = normalizarBusqueda(busqueda.trim());
   const resultados = useMemo(() => {
-    if (qn.length < 3) return { aliados: [] as { colegio: Colegio; etiqueta: string }[], directorio: [] as EntradaDirectorio[] };
-    const aliados: { colegio: Colegio; etiqueta: string }[] = [];
-    const yaAliado = new Set<string>();
-    // (a) Entradas del directorio que SON un aliado (comparten DANE). Casan por el
-    //     nombre del directorio O por el nombre Tukit del aliado, para que tanto
-    //     "agustiniano" como "cacs" den con la misma fila. Etiqueta compuesta.
-    for (const { entrada, buscable } of directorioNorm) {
-      const aliado = indexAliados.porDane.get(entrada.dane);
-      if (!aliado || yaAliado.has(aliado.colegio.colegio_id)) continue;
-      if (buscable.includes(qn) || aliado.buscable.includes(qn)) {
-        yaAliado.add(aliado.colegio.colegio_id);
-        aliados.push({ colegio: aliado.colegio, etiqueta: `${entrada.nombre} · ${aliado.colegio.nombre}` });
-      }
-    }
-    // (b) Aliados que NO están en el directorio (sin DANE, o su DANE no aparece):
-    //     los que casan por su nombre Tukit, con etiqueta simple.
-    for (const { colegio, buscable } of indexAliados.lista) {
-      if (colegio.dane && directorioDanes.has(colegio.dane)) continue;
-      if (buscable.includes(qn) && !yaAliado.has(colegio.colegio_id)) {
-        yaAliado.add(colegio.colegio_id);
-        aliados.push({ colegio, etiqueta: colegio.nombre });
-      }
-    }
-    // (2) Entradas del directorio que NO son aliados, tope 30 como antes.
-    const dir = directorioNorm
-      .filter(({ entrada, buscable }) => !indexAliados.porDane.has(entrada.dane) && buscable.includes(qn))
-      .slice(0, 30)
-      .map(({ entrada }) => entrada);
-    return { aliados, directorio: dir };
-  }, [directorioNorm, directorioDanes, indexAliados, qn]);
+    const { colegios, directorio: dir } = buscarColegios(preparada, busqueda);
+    return { aliados: colegios, directorio: dir };
+  }, [preparada, busqueda]);
 
   // Ya eligió (aliado, directorio o a mano): se muestra el elegido con opción de
   // cambiarlo, en vez de la lista, para que el paso quede claramente resuelto. El
@@ -298,12 +235,15 @@ function BuscadorColegio({
         <span className={styles.campoRotulo}>Busca el colegio de tu hijo</span>
         <div className={`${styles.tarjetaColegio} ${styles.colegioActivo}`}>
           <span className={styles.logoColegio} aria-hidden="true">
-            {aliado?.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={aliado.logo_url} alt="" />
-            ) : (
-              <span className={styles.logoIniciales}>{iniciales(nombre)}</span>
-            )}
+            <LogoColegio
+              src={
+                aliado
+                  ? logoDeColegio(aliado, imagenes)
+                  : (colegioDane && imagenes.get(colegioDane)) || null
+              }
+              nombre={nombre}
+              claseIniciales={styles.logoIniciales}
+            />
           </span>
           <span className={styles.colegioTexto}>
             <span className={styles.colegioNombre}>{nombre}</span>
@@ -359,12 +299,11 @@ function BuscadorColegio({
               onClick={() => onElegirAliado(colegio.colegio_id)}
             >
               <span className={styles.logoColegio} aria-hidden="true">
-                {colegio.logo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={colegio.logo_url} alt="" />
-                ) : (
-                  <span className={styles.logoIniciales}>{iniciales(colegio.nombre)}</span>
-                )}
+                <LogoColegio
+                  src={logoDeColegio(colegio, imagenes)}
+                  nombre={colegio.nombre}
+                  claseIniciales={styles.logoIniciales}
+                />
               </span>
               <span className={styles.colegioTexto}>
                 <span className={styles.colegioNombre}>{etiqueta}</span>
@@ -382,7 +321,11 @@ function BuscadorColegio({
               onClick={() => onElegirDirectorio({ dane: e.dane, nombre: e.nombre })}
             >
               <span className={styles.logoColegio} aria-hidden="true">
-                <span className={styles.logoIniciales}>{iniciales(e.nombre)}</span>
+                <LogoColegio
+                  src={e.imageURL}
+                  nombre={e.nombre}
+                  claseIniciales={styles.logoIniciales}
+                />
               </span>
               <span className={styles.colegioTexto}>
                 <span className={styles.colegioNombre}>{e.nombre}</span>

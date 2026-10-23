@@ -51,6 +51,7 @@ import type {
   CandidatoTienda,
   Catalogo,
   Colegio,
+  ColegioDesignado,
   ColegioDetalle,
   ColegioEditable,
   ColegioNuevoEditable,
@@ -75,6 +76,7 @@ import type {
 import type {
   Pedido,
   PedidoConHistorial,
+  PedidoDelAcudiente,
   SolicitudAvancePedido,
   TableroComercio,
 } from "./comercio";
@@ -341,8 +343,9 @@ export interface OrigenDatos {
   sincronizarPago(transaccionId: string): Promise<ResultadoPago>;
   // Las operaciones del acudiente sobre SUS pedidos. Viaja el token: comercio
   // saca la identidad de la sesion y un pedido ajeno responde 404.
-  // Uno de sus pedidos, sin datos del reparto (la pantalla del resultado del pago).
-  miPedido(token: string, pedidoId: string): Promise<Pedido>;
+  // Uno de sus pedidos, sin datos del staff, con su linea de tiempo
+  // (`/pedidos/[id]` y la pantalla del resultado del pago).
+  miPedido(token: string, pedidoId: string): Promise<PedidoDelAcudiente>;
   // Un intento de pago nuevo sobre un pedido pendiente (Comercio congela el
   // precio al crear el pedido; aqui no se re-arma la orden).
   iniciarPagoPedido(
@@ -400,9 +403,13 @@ export interface OrigenDatos {
   // se acaba de crear. Los dos GET sirven la evidencia de esa version:
   // `documento` el PDF crudo (region 1), `percepcion` lo que el modelo ley
   // por pagina mas lo itemizado (region 2). Las rutas de edicion/aprobacion de
-  // P1 NO viven aqui: son un eslabon aparte.
+  // P1 NO viven aqui: son un eslabon aparte. El colegio va como
+  // `ColegioDesignado`; un string se sigue leyendo como `colegio_id`. Es una
+  // ruta de staff: `token` es la sesion del operador y viaja como Bearer
+  // (inteligencia responde 401 sin el y 403 sin rol de staff).
   onboarding(
-    colegio_id: string,
+    token: string,
+    colegio: string | ColegioDesignado,
     grado: string,
     anio_lectivo: number,
     archivo: { contenido: Blob; nombre: string },

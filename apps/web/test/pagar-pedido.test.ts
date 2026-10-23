@@ -67,7 +67,7 @@ test("el tono del estado: verde pagado y entrega, amarillo pendiente, rojo cance
 const kit = "t-1";
 const pedidoDe = (
   pedido_id: string,
-  estado: "pendiente_pago" | "pagado" | "cancelado" | "entregado",
+  estado: "pendiente_pago" | "pagado" | "cancelado" | "entregado" | "incidencia",
   horas: number,
   trabajo_id: string | null = kit,
 ) => ({ pedido_id, estado, trabajo_id, creado_en: hace(horas) });
@@ -96,4 +96,10 @@ test("un pendiente vencido, uno cancelado o uno de otro kit no cambian la solici
     pedidoDe("otro", "pagado", 1, "t-2"),
   ];
   assert.equal(compraDeSolicitud(kit, pedidos, AHORA), null);
+});
+
+test("un pedido en incidencia ya esta pagado: la solicitud queda comprada", () => {
+  // Si no, se le ofreceria "Cancelar solicitud" a un kit que ya se cobro.
+  const pedidos = [pedidoDe("pend", "pendiente_pago", 1), pedidoDe("inc", "incidencia", 3)];
+  assert.deepEqual(compraDeSolicitud(kit, pedidos, AHORA), { estado: "comprado", pedidoId: "inc" });
 });

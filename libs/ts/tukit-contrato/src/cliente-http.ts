@@ -52,6 +52,7 @@ import type {
   CandidatoTienda,
   Catalogo,
   Colegio,
+  ColegioDesignado,
   ColegioDetalle,
   ColegioEditable,
   ColegioNuevoEditable,
@@ -82,6 +83,7 @@ import type {
 import type {
   Pedido,
   PedidoConHistorial,
+  PedidoDelAcudiente,
   SolicitudAvancePedido,
   TableroComercio,
 } from "./comercio";
@@ -871,8 +873,8 @@ export class ClienteApi implements OrigenDatos {
   // Las tres van por `/v1/comercio/mis-pedidos/{id}` con el Bearer: comercio
   // saca al acudiente de la sesion y un pedido ajeno es 404. `/v1/ordenes/*` es
   // interno y la puerta no lo expone.
-  miPedido(token: string, pedidoId: string): Promise<Pedido> {
-    return this.pedir<Pedido>(`/v1/comercio/mis-pedidos/${encodeURIComponent(pedidoId)}`, {
+  miPedido(token: string, pedidoId: string): Promise<PedidoDelAcudiente> {
+    return this.pedir<PedidoDelAcudiente>(`/v1/comercio/mis-pedidos/${encodeURIComponent(pedidoId)}`, {
       headers: this.autoriza(token),
     });
   }
@@ -953,24 +955,27 @@ export class ClienteApi implements OrigenDatos {
   // ---------------------------------------------------------- §Onboarding (P2)
   //
   // Inteligencia expone la ruta publica `POST /v1/admin/onboarding` como
-  // `multipart/form-data`: el PDF va en `archivo` y el destino (`colegio_id`,
-  // `grado`, `anio_lectivo`) en campos aparte, igual que `crearTrabajo` con
-  // archivos. Inteligencia percibe y escribe en catalogo por su cuenta; el
-  // cliente solo recibe la version creada.
+  // `multipart/form-data`: el PDF va en `archivo` y el destino (el colegio
+  // designado, `grado`, `anio_lectivo`) en campos aparte, igual que
+  // `crearTrabajo` con archivos. Inteligencia percibe y escribe en catalogo por
+  // su cuenta; el cliente solo recibe la version creada. El token del staff va
+  // como Bearer: inteligencia exige rol de operador o admin.
   async onboarding(
-    colegio_id: string,
+    token: string,
+    colegio: string | ColegioDesignado,
     grado: string,
     anio_lectivo: number,
     archivo: { contenido: Blob; nombre: string },
   ): Promise<{ version_id: string; grado: string; items: number }> {
     const forma = new FormData();
-    forma.append("colegio_id", colegio_id);
+    const designado = typeof colegio === "string" ? { colegio_id: colegio } : colegio;
+    for (const [campo, valor] of Object.entries(designado)) forma.append(campo, valor);
     forma.append("grado", grado);
     forma.append("anio_lectivo", String(anio_lectivo));
     forma.append("archivo", archivo.contenido, archivo.nombre);
     return this.pedir<{ version_id: string; grado: string; items: number }>(
       "/v1/admin/onboarding",
-      { method: "POST", body: forma },
+      { method: "POST", headers: this.autoriza(token), body: forma },
     );
   }
 

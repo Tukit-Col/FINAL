@@ -38,8 +38,9 @@ from tukit_comun.http import ErrorDominio
 from tukit_comun.metricas import contar_orden_creada, contar_pago_aprobado
 
 from ..dominio.despacho import preparar_avance, validar_avance
+from ..dominio.linea_de_tiempo import linea_de_tiempo
 from ..dominio.ordenes import LineaResuelta, reverificar_precios, total_orden
-from ..dominio.pagos import firma_orden, vencido
+from ..dominio.pagos import CAMPOS_FIRMA_ENTREGA, firma_orden, vencido
 from ..modelos import EstadoPago, EstadoPedido, MetodoPago, transicion_valida
 from ..pasarela import EventoPasarela, PasarelaCaida, TransaccionNoExiste
 from ..remoto import CatalogoCaido, IdentidadCaida
@@ -226,7 +227,12 @@ class DireccionEntrega(BaseModel):
 
     `telefono`/`departamento`/`documento_destinatario`/`indicaciones` son
     opcionales: el checkout legado manda solo los tres primeros y sigue
-    cerrando. El formulario nuevo los exige del lado del cliente."""
+    cerrando. El formulario nuevo los exige del lado del cliente.
+
+    `localidad` es el nombre canonico de una de las 20 de Bogota; aqui solo se
+    valida el largo, porque la regla "obligatoria en Bogota" es del formulario y
+    un cliente viejo tiene que seguir cerrando. `google_place_id` sale de la
+    sugerencia de Google Places; nunca se reciben coordenadas (ADR 0044)."""
 
     destinatario: str = Field(min_length=1, max_length=256)
     direccion: str = Field(min_length=1, max_length=512)
@@ -235,6 +241,8 @@ class DireccionEntrega(BaseModel):
     departamento: str | None = Field(default=None, max_length=128)
     documento_destinatario: str | None = Field(default=None, max_length=64)
     indicaciones: str | None = Field(default=None, max_length=512)
+    localidad: str | None = Field(default=None, max_length=64)
+    google_place_id: str | None = Field(default=None, max_length=512)
 
 
 class SolicitudOrden(BaseModel):
@@ -634,9 +642,11 @@ async def _resolver_pendientes_del_kit(
     como esta (cancelarlo podria cobrar sin entregar), y si Wompi no responde
     tambien se deja: duplicar es mejor que cancelar a ciegas.
     """
+    # La entrega compara toda la copia congelada salvo el place_id, localidad
+    # incluida: ver `CAMPOS_FIRMA_ENTREGA`.
     buscada = firma_orden(
         [(linea.sku, linea.cantidad, linea.precio_unitario) for linea in solicitud.lineas],
-        (solicitud.entrega.destinatario, solicitud.entrega.direccion, solicitud.entrega.ciudad),
+        tuple(getattr(solicitud.entrega, campo) for campo in CAMPOS_FIRMA_ENTREGA),
     )
     async with request.app.state.motor.sesion() as db:
         repo = _repo(await db.connection())
@@ -727,8 +737,23 @@ async def _pedido_del_portador(request: Request, pedido_id: uuid.UUID, authoriza
 async def ver_mi_pedido(
     request: Request, pedido_id: uuid.UUID, authorization: Annotated[str | None, Header()] = None
 ) -> dict[str, Any]:
+    """El pedido de la ruta interna mas su `linea_de_tiempo` para `/pedidos/[id]`.
+
+    La linea la arma `dominio.linea_de_tiempo` con vistas que no traen actor,
+    correo de staff, nota ni el celular del repartidor: el acudiente ve QUE paso
+    y CUANDO, no QUIEN lo movio."""
     await _pedido_del_portador(request, pedido_id, authorization)
-    return await ver_orden(request, pedido_id)
+    async with request.app.state.motor.sesion() as db:
+        repo = _repo(await db.connection())
+        fila = await _pedido_o_404(repo, pedido_id)
+        pedido = await repo.pedido_completo(fila)
+        pagos, historial, envio = await repo.vistas_para_linea_de_tiempo(fila.id)
+    return {
+        **pedido,
+        "linea_de_tiempo": linea_de_tiempo(
+            estado=fila.estado, creado_en=fila.creado_en, pagos=pagos, historial=historial, envio=envio
+        ),
+    }
 
 
 @router.post(

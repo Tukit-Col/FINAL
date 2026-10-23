@@ -7,8 +7,10 @@
 //
 // Server Component: `colegios()` sale del origen directamente.
 
+import { logoDeColegio } from "@tukit/contrato";
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import TarjetaColegio from "@/components/TarjetaColegio";
+import { imagenesDelDirectorio } from "@/lib/directorio";
 import styles from "./Colegios.module.css";
 
 export const dynamic = "force-dynamic";
@@ -46,7 +48,11 @@ export default async function PaginaColegios() {
       ) : (
         <div className={styles.rejilla}>
           {aliados.map((colegio) => (
-            <TarjetaColegio key={colegio.colegio_id} colegio={colegio} />
+            <TarjetaColegio
+              key={colegio.colegio_id}
+              colegio={colegio}
+              logo={logoDeColegio(colegio, imagenesDelDirectorio())}
+            />
           ))}
         </div>
       )}

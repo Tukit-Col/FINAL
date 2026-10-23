@@ -75,6 +75,11 @@ export interface Envio {
   departamento: string | null;
   documento_destinatario: string | null;
   indicaciones: string | null;
+  // Localidad de Bogota (nombre canonico de `LOCALIDADES_BOGOTA`) y el lugar de
+  // Google Places que eligio el acudiente. `null` fuera de Bogota, en pedidos
+  // legados o si la direccion se escribio a mano.
+  localidad: string | null;
+  google_place_id: string | null;
   // Envios viejos, de cuando se despachaba por transportadora. Con reparto
   // propio ya no se piden; se siguen mostrando si vienen.
   transportadora: string | null;
@@ -153,6 +158,60 @@ export interface EntradaHistorialPedido {
 // historial. Solo staff lo lee.
 export interface PedidoConHistorial extends Pedido {
   historial: EntradaHistorialPedido[];
+}
+
+// La linea de tiempo que el acudiente ve en `/pedidos/[id]`. La arma Comercio
+// (`dominio/linea_de_tiempo.py`) y el frontend solo la pinta: en que paso va el
+// pedido, cuando llego a cada uno y si se desvio. No es lineal: tras una
+// incidencia que vuelve a preparacion, los pasos siguientes regresan a
+// `futuro`. Nunca trae quien movio el pedido, la nota del staff ni el celular
+// del repartidor.
+export type PasoPedido =
+  | "creado"
+  | "pagado"
+  | "en_preparacion"
+  | "despachado"
+  | "en_reparto"
+  | "entregado";
+
+export const ETIQUETA_PASO_PEDIDO: Record<PasoPedido, string> = {
+  creado: "Pedido creado",
+  pagado: "Pago confirmado",
+  en_preparacion: "En preparación",
+  despachado: "Despachado",
+  en_reparto: "En reparto",
+  entregado: "Entregado",
+};
+
+// `actual` es la posicion del pedido; en un cancelado no hay paso actual.
+export type SituacionPaso = "hecho" | "actual" | "futuro";
+
+export interface PasoLineaDeTiempo {
+  paso: PasoPedido;
+  estado: SituacionPaso;
+  // ISO 8601 con zona, solo en los pasos alcanzados y solo si hay dato: una
+  // fecha que Comercio no tiene llega `null`, no inventada.
+  fecha: string | null;
+  // Solo en `despachado`: quien lleva el pedido (sin su celular).
+  repartidor_nombre?: string | null;
+}
+
+export type DesvioPedido =
+  | { tipo: "incidencia"; tipo_incidencia: string | null; fecha: string | null }
+  | { tipo: "cancelado"; fecha: string | null };
+
+export interface LineaDeTiempoPedido {
+  pasos: PasoLineaDeTiempo[];
+  especial: DesvioPedido | null;
+  entrega_estimada: string | null;
+  // Solo en `pendiente_pago`: hasta cuando se puede pagar y si ya vencio.
+  pago_pendiente: { vence_en: string; vencido: boolean } | null;
+}
+
+// `GET /v1/comercio/mis-pedidos/{id}`: el pedido del portador con su linea de
+// tiempo.
+export interface PedidoDelAcudiente extends Pedido {
+  linea_de_tiempo: LineaDeTiempoPedido;
 }
 
 // Lo que el admin manda a `POST /v1/ordenes/{id}/avanzar`. Comercio valida que
