@@ -142,11 +142,13 @@ Y estas, tomadas al leer el código:
 
 ### 2. Productores
 
-- [ ] `tukit_catalogo.publicador`, `tukit_comercio.publicador` y `tukit_inteligencia.publicador`.
-- [ ] Objetivos `publicador-catalogo`, `publicador-comercio` y `publicador-inteligencia` en el
+- [x] `tukit_catalogo.publicador`, `tukit_comercio.publicador` y `tukit_inteligencia.publicador`.
+- [x] Objetivos `publicador-catalogo`, `publicador-comercio` y `publicador-inteligencia` en el
       `Makefile`.
-- [ ] `kits_publicados` lleva `usuario_id` en la carga.
-- [ ] Pruebas por servicio.
+- [x] `kits_publicados` lleva `usuario_id` en la carga, en los dos modos: un evento escrito sin
+      broker tiene que servir si despues se enciende el broker. Es un campo nuevo; el repartidor
+      sin broker lo ignora y sigue leyendo `trabajo_pipeline`.
+- [x] Pruebas por servicio.
 
 ### 3. Consumidores
 
