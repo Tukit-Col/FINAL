@@ -5,11 +5,25 @@
 > fronteras de *conversación*. Cambiar cualquiera de los dos sin avisar rompe a alguien
 > más, así que se cierran antes de repartir el trabajo y se versionan.
 
-- **Versión:** 1.10
+- **Versión:** 1.11
 - **Prefijo:** `/v1`
 - **URL base:** `http://127.0.0.1:8010` en desarrollo. Ver §12.1.
 - **Formato:** JSON UTF-8. Dinero en **pesos enteros** (nunca decimales flotantes).
 - **Idioma de los identificadores:** español sin tildes, como el resto del código.
+
+### Qué cambió en 1.11
+
+El gateway limita la tasa, y Redis guarda la lectura de una lista y el vector de cada renglón
+(ADR 0047). Lo único nuevo para un cliente es el `429`. Un cliente de 1.10 sigue funcionando, y si
+no trata el `429` lo ve como cualquier error con `error` y `mensaje`.
+
+| Cambio | Dónde | Por qué |
+|---|---|---|
+| El gateway responde `429 demasiadas_peticiones`, con `Retry-After` y `reintentar_en_segundos`, cuando una petición pasa un tope de su nivel | §11.1 | Nada limitaba cuántas subidas o intentos de entrar hacía una persona (ESC-09) |
+| Quedan fuera del límite `/v1/servicios`, `/v1/webhooks/*`, las preflight `OPTIONS` y lo que no es `/v1/*` | §11.1 | La pasarela reintenta y no es un cliente, y una sonda no debe gastar cupo |
+| El gateway toma la IP de `X-Forwarded-For` solo si la conexión viene de un proxy de confianza (`TUKIT_PROXIES_CONFIANZA`), y el servidor de Next.js la reenvía | §11.1 | Sin eso, todas las familias contarían como la IP del servidor de la web |
+| Con `REDIS_URL`, la lectura aceptada de un archivo y el vector de cada renglón se guardan. Sin Redis, o si no responde, se calcula como en 1.10 | §8 | Las familias de un colegio suben el mismo PDF. El cruce con el catálogo y los precios se recalcula siempre |
+| `@tukit/contrato` exporta `ErrorDemasiadasPeticiones` y `conEspera`, y un `ErrorTukit` con estado `429` trae `reintentar_en_segundos` en su `detalle` | §11.1 | Para que la web y la consola digan la espera igual, aunque el `429` llegue sin cuerpo |
 
 ### Qué cambió en 1.10
 
@@ -693,6 +707,8 @@ una respuesta parcial honesta.
 | Catálogo, en el onboarding del admin (`POST /v1/admin/onboarding`) | Sin respuesta, 5xx, 408 o 429 | `503 servicio_no_disponible`; la lista no se guarda y el admin reintenta (ADR 0040) |
 | Postgres o RabbitMQ, en los procesos de fondo | Sin respuesta | Barredor, pollers, trabajador, repartidor y publicadores esperan (1 s, el doble cada vez, tope de 30 s) y siguen; un error de programación los termina (ADR 0041). Con broker, un evento sin publicar espera en su bandeja, y un mensaje que se estaba procesando vuelve a su cola sin gastar un intento (ADR 0046) |
 | Un consumidor, con broker | El manejo de un evento falla | El mensaje vuelve a su cola a los 10 s; al quinto intento queda en `<cola>.descartados`, con el motivo, y se registra como error (ADR 0046) |
+| Redis, en la caché de lecturas y de vectores | Sin respuesta, más de 250 ms o sin `REDIS_URL` | Se calcula como sin caché: la lista se vuelve a leer y los vectores se vuelven a pedir. La respuesta es la misma y no hay degradación que reportar, porque no se pierde nada. Un registro por episodio, no por petición (ADR 0047) |
+| Redis, en el límite de tasa del gateway | Sin respuesta, más de 250 ms o sin `REDIS_URL` | El gateway cuenta en su memoria. Con una réplica protege igual; con varias, cada una cuenta por su lado. Nunca un `500` (ADR 0047) |
 
 Las degradaciones se reportan, no se esconden:
 
@@ -1017,9 +1033,9 @@ caída de la base o del broker no cuenta como intento.
 ```
 
 `400` entrada inválida · `404` no existe · `409` estado incompatible (por ejemplo, revisar
-un trabajo ya publicado) · `422` entrada válida que el dominio rechaza · `501` ruta
-especificada en este contrato sin servicio detrás todavía · `502` dependencia externa
-caída · `503` servicio no disponible.
+un trabajo ya publicado) · `422` entrada válida que el dominio rechaza · `429` demasiadas
+peticiones (§11.1) · `501` ruta especificada en este contrato sin servicio detrás todavía ·
+`502` dependencia externa caída · `503` servicio no disponible.
 
 `501` se agregó en 1.1 y la distinción con `404` no es formalismo. Un `404` dice "te
 equivocaste de URL" y manda a revisar el cliente; un `501` dice "la URL es la correcta y el
@@ -1040,6 +1056,75 @@ manejador de validación del sistema anterior devolvía la contraseña recibida,
 los defectos ya documentados. El manejador de errores de validación de los tres servicios
 reescribe la respuesta por omisión del framework, que incluye el valor recibido en `input`,
 y deja solo `{error, mensaje, campo}`.
+
+### 11.1 Demasiadas peticiones (nuevo en 1.11)
+
+El gateway cuenta cada petición antes de reenviarla (ADR 0047). Si pasa un tope, responde así:
+
+```http
+HTTP/1.1 429 Too Many Requests
+Retry-After: 42
+```
+```json
+{ "error": "demasiadas_peticiones",
+  "mensaje": "Hiciste demasiadas peticiones en poco tiempo. Vuelve a intentarlo en 42 segundos.",
+  "reintentar_en_segundos": 42 }
+```
+
+`Retry-After` y `reintentar_en_segundos` son el mismo número de segundos, mínimo 1. El `mensaje`
+ya trae la espera, en segundos o en minutos, y es el que se muestra. En `@tukit/contrato` el
+cuerpo es `ErrorDemasiadasPeticiones`.
+
+**Los topes.** Estos son los de por omisión, y cada uno se cambia por entorno:
+
+| Nivel | Rutas | Ventana | Por token | Por IP |
+|---|---|---|---|---|
+| General | todo `/v1/*` | 60 s | 300 | 1.200 |
+| Estricto | cada una de las de abajo, por separado | 600 s | 30 | 60 |
+
+Las estrictas son estas, todas con `POST`:
+
+- `/v1/listas/subir`;
+- `/v1/trabajos`, `/v1/trabajos/{trabajo_id}/reintentar` y `/v1/trabajos/aplicar-canonico`;
+- `/v1/admin/onboarding` y `/v1/admin/onboarding/{version_id}/preview`;
+- `/v1/sesiones`, `/v1/cuenta` y `/v1/registro`;
+- `/v1/catalogo/emparejar`.
+
+Una estricta cuenta también en el general, y cada una tiene su propio cupo: los intentos de entrar
+no gastan el de las subidas. Una ruta desconocida también cuenta.
+
+**Lo que no cuenta:** `/v1/servicios`, `/v1/webhooks/*`, las preflight `OPTIONS` y lo que no es
+`/v1/*` (`/salud`, `/health/*`).
+
+**A quién se cuenta.** Cada petición cuenta dos claves por nivel, y tienen que pasar las dos: la
+del token, si trae `Authorization: Bearer`, y la de la IP. Sin token solo cuenta la IP. El gateway
+no valida el token para contar (eso sigue siendo de identidad), así que inventar uno en cada
+petición no da cupo.
+
+**Lo que el gateway espera de `X-Forwarded-For`:**
+
+- Que lo escriba un proxy de confianza. Por omisión es la misma máquina (`127.0.0.1` y `::1`), que
+  es donde corre la web; `TUKIT_PROXIES_CONFIANZA` acepta IP y redes separadas por comas.
+- Que cada proxy agregue a la derecha la IP de quien le habló, como hace cualquier proxy. El
+  gateway recorre la cabecera de derecha a izquierda, y la IP del cliente es la primera que no es
+  de confianza. Si todas lo son, es la de más a la izquierda.
+- Si la conexión no viene de un proxy de confianza, la cabecera se ignora y cuenta la IP de la
+  conexión.
+- El cliente de servidor de `@tukit/contrato` reenvía el `X-Forwarded-For` de la petición que
+  recibió Next.js. Next.js la pone con la dirección del socket solo si no viene, así que en
+  producción la web va detrás de un proxy que la escriba: si no, el navegador puede escribirla.
+
+**Qué hace el cliente.**
+
+- No reintenta solo.
+- Los manejadores de Next.js pasan el `429` tal cual, con su `Retry-After`.
+- La web y la consola muestran el `mensaje`. Si el `429` llega sin cuerpo (un proxy de por medio),
+  `conEspera` arma `error`, `mensaje` y `reintentar_en_segundos` a partir de `Retry-After`.
+- La pantalla de espera deja de sondear, dice que la solicitud sigue avanzando y ofrece un botón
+  para volver a consultar.
+
+El `429` de esta sección es el de la puerta al cliente. Los `429` del catálogo a inteligencia del
+§8 son otra cosa: una dependencia interna que pide esperar.
 
 ---
 
@@ -1085,7 +1170,8 @@ fácil y no chocan. Se cambian con `make arriba PUERTO_GATEWAY=9000`.
 La puerta **rutea por prefijo declarado**, no con comodín. Una ruta que no esté en su mapa
 devuelve `404 ruta_desconocida` con la lista de las que sí existen, en vez de reenviarla a
 un servicio al azar. Las que este contrato define y todavía no tiene nadie detrás
-devuelven `501 no_implementado` (§11).
+devuelven `501 no_implementado` (§11). Antes de reenviar, la puerta cuenta la petición y puede
+responder `429 demasiadas_peticiones` (§11.1).
 
 `GET /v1/servicios` dice si los tres de atrás responden. Existe porque `GET /salud` en la
 puerta contesta `ok` con los tres caídos, y esa es la clase de sonda que hace perder una

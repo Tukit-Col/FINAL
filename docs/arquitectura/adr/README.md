@@ -41,6 +41,7 @@ etiqueta; el título es la decisión.
 | [0044](0044-direcciones-con-google-places.md) | La dirección del checkout se autocompleta con Google Places (New), y sin Google sigue siendo un campo libre | aceptada | `feature/maps-and-feats` |
 | [0045](0045-alta-de-colegios-no-aliados-desde-la-cola.md) | El staff sube desde la cola la lista de cualquier colegio de Bogotá, con un solo directorio y una regla de logo | aceptada | `feature/maps-and-feats` |
 | [0046](0046-las-colas-viajan-por-rabbitmq.md) | Los eventos y los trabajos viajan por RabbitMQ, y la base queda como respaldo: cada productor publica su bandeja y ningún consumidor lee la base de otro | aceptada | `feature/colas-rabbitmq` |
+| [0047](0047-redis-guarda-lo-que-se-recalcula-y-cuenta-el-limite.md) | Redis guarda lo que se puede recalcular (la lectura aceptada de una lista y el vector de cada renglón) y cuenta el límite de tasa del gateway, y sin él todo sigue como antes salvo el límite, que cuenta en memoria | aceptada | `feature/cache-redis` |
 
 ## Para incorporarlos
 
