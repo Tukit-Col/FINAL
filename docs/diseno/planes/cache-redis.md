@@ -254,9 +254,9 @@ Y estas, tomadas al leer el código:
 
 ### 6. Documentación
 
-- [ ] ADR 0047, su fila en el índice y el rango de `docs/README.md` a «0027 a 0047».
-- [ ] `CONTRATO_API.md` a la 1.11, con «Qué cambió en 1.11», el 429 en el §11 y Redis en el §8.
-- [ ] `REVISION_ARQUITECTURA.md` y lo demás que describa Redis.
+- [x] ADR 0047, su fila en el índice y el rango de `docs/README.md` a «0027 a 0047».
+- [x] `CONTRATO_API.md` a la 1.11, con «Qué cambió en 1.11», el 429 en el §11.1 y Redis en el §8.
+- [x] `REVISION_ARQUITECTURA.md` y lo demás que describa Redis (el `README.md` de la raíz).
 
 ### 7. Verificación y PR
 

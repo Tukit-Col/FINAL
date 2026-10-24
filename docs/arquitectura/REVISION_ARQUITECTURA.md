@@ -32,6 +32,11 @@
 > así que ningún consumidor lee la base de otro servicio. Sin la URL, todo sigue como antes, y las
 > lecturas cruzadas quedan declaradas como ese respaldo (ADR 0046, §A.4, §B.0 y §B.3).
 
+> **Actualización, rama `feature/cache-redis`.** Con `REDIS_URL`, Redis guarda la lectura aceptada
+> de una lista y el vector de cada renglón, y la puerta cuenta en él su límite de tasa, compartido
+> entre réplicas. Sin la URL, o si Redis no responde, se calcula como antes y el límite cuenta en la
+> memoria de la puerta. Redis no guarda nada que sea la única copia (ADR 0047, §A.4, §A.5 y §B.2).
+
 > **Dos partes.** La **Parte A (as-is)** es el diagnóstico verificado del sistema tal como está
 > hoy: qué fronteras se respetan, qué comunicación ya trae lo caro de hacer bien, y dónde está la
 > deuda real. La **Parte B (to-be)** es el diseño objetivo al que este documento eleva la
@@ -232,7 +237,9 @@ de la mezcla, y es el mismo en `catalogo/admin_http.py` y `inteligencia/trabajos
   la puerta, que pega al `/salud` de los de atrás.
 - **Puerta con disciplina de códigos.** Ruteo por prefijo declarado: ruta desconocida →
   `404 ruta_desconocida`; ruta del contrato sin servicio → `501 no_implementado`; servicio caído →
-  `503 servicio_no_disponible` (no 502: "no falló, no está").
+  `503 servicio_no_disponible` (no 502: "no falló, no está"). Desde la rama `feature/cache-redis`,
+  antes de rutear cuenta la petición por token y por IP, y pasado un tope responde
+  `429 demasiadas_peticiones` con `Retry-After` (ADR 0047, §11.1 del contrato).
 
 ## A.5 Lo que NO está (y este documento añade)
 
@@ -245,6 +252,8 @@ de la mezcla, y es el mismo en `catalogo/admin_http.py` y `inteligencia/trabajos
 - **Ejecución de pipeline durable** — `lanzar` es un `asyncio.create_task` en proceso; un reinicio
   deja el trabajo en `procesando` (lo dice su propio docstring, `trabajos.py:994-1000`). → §B.3.
 - **Readiness distinta de liveness** — `/salud` dice "vivo", no "listo para servir". → §B.4.
+- **Límite de tasa** — la puerta reenviaba todo sin contar, y nada limitaba cuántas subidas hacía
+  una persona (ESC-09). Cerrado en la rama `feature/cache-redis` (ADR 0047).
 - **Frontend: límites de carga/error, componentes descompuestos, tiempo real** — cero
   `loading.tsx`/`error.tsx`/`Suspense`; god components; polling en vez de push. → §B.5, §B.6.
 
@@ -416,6 +425,10 @@ a uno, red verde tras cada uno.
     para multi-réplica). **Uno por destino** (`catalogo`, `identidad`, `comercio`, `wompi`) — el
     mismo límite es la frontera del bulkhead. Umbrales generosos (abre a 5 fallos, prueba a 30 s).
     (ADR 0020) *(Implementado así; el ADR 0020 recoge la corrección.)*
+  - **Redis ya está, pero no para el breaker.** Desde el ADR 0047 hay un cliente común
+    (`tukit_comun.cache`) con espera corta y degradación por episodio, que usan la caché y el
+    límite de tasa. El almacén del breaker sigue en memoria por proceso: pasarlo a Redis es otra
+    decisión.
   - **Retry (`tenacity`) SOLO en GET idempotentes** (`reintentable=True` permitido solo en lecturas:
     `ClienteCatalogo.emparejar/listas/lista/producto`). **POSTs NUNCA reintentan a nivel
     transporte** — un reintento ciego sobre `POST /v1/ordenes` es un doble cobro, el modo de falla

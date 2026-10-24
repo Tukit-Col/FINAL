@@ -26,7 +26,7 @@ algoritmos, integración de ramas) está en [`PENDIENTES.md`](PENDIENTES.md).
 
 - [Contrato de la API](arquitectura/CONTRATO_API.md) — la superficie HTTP del sistema, versionada. Fuente de verdad del frontend y de `libs/ts/tukit-contrato`.
 - [Revisión de arquitectura](arquitectura/REVISION_ARQUITECTURA.md) — diagnóstico y diseño objetivo del backbone (resiliencia, eventos, observabilidad).
-- [Decisiones de arquitectura (ADR)](arquitectura/adr/README.md) — 0027 a 0046, en formato Nygard, con su índice.
+- [Decisiones de arquitectura (ADR)](arquitectura/adr/README.md) — 0027 a 0047, en formato Nygard, con su índice.
 
 ### Algoritmos
 
