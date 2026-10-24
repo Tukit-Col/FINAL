@@ -140,8 +140,10 @@ Next.js 16 pone `X-Forwarded-For` solo si no viene (`??=`), con la dirección de
    - Si la conexión no viene de un proxy de confianza, la cabecera se ignora: la escribió el
      cliente.
    - Las IPv4 escritas como IPv6 (`::ffff:127.0.0.1`) se normalizan.
-   - uvicorn ya reescribe la dirección de la conexión con la misma regla y la misma lista por
-     omisión (`FORWARDED_ALLOW_IPS`). Aplicarla dos veces da la misma IP.
+   - Esta regla es la única. El gateway lanza uvicorn sin `proxy_headers`: por omisión, uvicorn
+     confía en `127.0.0.1` (`FORWARDED_ALLOW_IPS`) y reescribe la dirección de la conexión antes
+     del límite, así que una lista que no confiara en la máquina local no serviría. Lo encontró la
+     prueba de punta a punta, y lo fija una prueba con la pila que arma uvicorn.
 9. **Next.js reenvía la IP y muestra el 429.**
    - El cliente de servidor de `tukit-contrato` reenvía el `X-Forwarded-For` de la petición entrante
      en sus dos `fetch`. Lo lee de `headers()`.

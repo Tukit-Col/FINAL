@@ -333,7 +333,11 @@ def main(argv: list[str] | None = None) -> int:
 
     import uvicorn
 
-    uvicorn.run(app, host=argumentos.host, port=argumentos.puerto, log_level="info")
+    # Sin `proxy_headers`: de quien es `X-Forwarded-For` lo decide el limite con
+    # `TUKIT_PROXIES_CONFIANZA`. uvicorn lo lee por omision y confia en
+    # 127.0.0.1 (`FORWARDED_ALLOW_IPS`), asi que reescribiria la conexion antes
+    # del limite, y una lista que no confia en la maquina local no serviria.
+    uvicorn.run(app, host=argumentos.host, port=argumentos.puerto, log_level="info", proxy_headers=False)
     return 0
 
 
