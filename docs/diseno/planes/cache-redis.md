@@ -191,16 +191,16 @@ Y estas, tomadas al leer el código:
 
 ### 1. Base común en `tukit_comun`
 
-- [ ] `redis` como dependencia de `tukit_comun`, con `uv`, en su `pyproject.toml` y en `uv.lock`.
-- [ ] `cache.py`: `ClienteRedis`, `MotorRedis`, `MotorEnMemoria`, `cliente_redis()`, la
+- [x] `redis` como dependencia de `tukit_comun`, con `uv`, en su `pyproject.toml` y en `uv.lock`.
+- [x] `cache.py`: `ClienteRedis`, `MotorRedis`, `MotorEnMemoria`, `cliente_redis()`, la
       degradación por episodio y `python -m tukit_comun.cache` para que `make arriba` compruebe
       que Redis responde.
-- [ ] `metricas.py`: aciertos, fallos y degradaciones por uso, y rechazos del límite.
-- [ ] `pruebas_redis.py`: el doble `RedisEnMemoria` y lo que usan las pruebas de integración.
-- [ ] Pruebas unitarias con el doble: lectura, escritura, conteo, vencimiento, caído, lento, un
+- [x] `metricas.py`: aciertos, fallos y degradaciones por uso, y rechazos del límite.
+- [x] `pruebas_redis.py`: el doble `RedisEnMemoria` y lo que usan las pruebas de integración.
+- [x] Pruebas unitarias con el doble: lectura, escritura, conteo, vencimiento, caído, lento, un
       registro por episodio, vuelta, sin `REDIS_URL` y sin el paquete.
-- [ ] Pruebas de integración contra el Redis local, con el marcador `redis`.
-- [ ] El marcador en `pyproject.toml`, `make prueba` sin él y `make prueba-redis`.
+- [x] Pruebas de integración contra el Redis local, con el marcador `redis`.
+- [x] El marcador en `pyproject.toml`, `make prueba` sin él y `make prueba-redis`.
 
 ### 2. La lectura de la lista
 
