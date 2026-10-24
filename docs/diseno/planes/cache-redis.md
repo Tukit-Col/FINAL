@@ -189,10 +189,12 @@ Y estas, tomadas al leer el código:
     (`required: false`). El gateway confía también en la red de Docker (`172.16.0.0/12`), porque
     la web le llega desde fuera del compose.
 22. **CI.** Un trabajo `redis` nuevo, con `redis:7` como servicio, instala las dependencias de
-    `pruebas` más `redis`, comprueba que Redis responde con `python -m tukit_comun.cache`, corre las
+    `colas` más `redis`, comprueba que Redis responde con `python -m tukit_comun.cache`, corre las
     pruebas unitarias del cliente común (`test_cache.py`, que ningún trabajo corría) y las marcadas
     con `redis`, con `TUKIT_PRUEBAS_REDIS_OBLIGATORIO=1`. Los demás trabajos no cambian: sin el
-    paquete, las pruebas marcadas se saltan solas.
+    paquete, las pruebas marcadas se saltan solas. Las de `colas` y no las de `pruebas`, porque
+    recoger `libs` importa `test_bucle_resiliente.py`, que importa `aiormq` (llega con `aio-pika`):
+    la primera corrida de CI se cayó ahí, al recoger.
 23. **uvicorn no lee `X-Forwarded-For` en el gateway.** La prueba de punta a punta lo encontró: con
     `TUKIT_PROXIES_CONFIANZA=192.0.2.1` y 5 por IP, seis peticiones desde la máquina local con
     seis `X-Forwarded-For` distintos dieron seis 200. uvicorn trae `proxy_headers` encendido y
