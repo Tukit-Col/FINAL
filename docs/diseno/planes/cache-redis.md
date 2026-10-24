@@ -155,7 +155,8 @@ Y estas, tomadas al leer el código:
     recorre `X-Forwarded-For` de derecha a izquierda y la IP es la primera que no es de confianza;
     si todas lo son, la de más a la izquierda. Una entrada que no es una IP corta el recorrido y se
     usa la última de confianza. Si la conexión no viene de un proxy de confianza, la cabecera se
-    ignora. Las IPv4 escritas como IPv6 (`::ffff:127.0.0.1`) se normalizan.
+    ignora. Las IPv4 escritas como IPv6 (`::ffff:127.0.0.1`) se normalizan. El gateway lanza
+    uvicorn con `proxy_headers=False`, para que esta regla sea la única; ver la decisión 23.
 18. **El 429.** Cuerpo `{"error": "demasiadas_peticiones", "mensaje": "...", "reintentar_en_segundos": N}`
     y `Retry-After: N`, con N el mayor tiempo que le falta a una clave pasada (mínimo 1). El
     mensaje dice la espera en segundos o en minutos. Quedan fuera del límite `/v1/servicios`,
@@ -192,6 +193,15 @@ Y estas, tomadas al leer el código:
     pruebas unitarias del cliente común (`test_cache.py`, que ningún trabajo corría) y las marcadas
     con `redis`, con `TUKIT_PRUEBAS_REDIS_OBLIGATORIO=1`. Los demás trabajos no cambian: sin el
     paquete, las pruebas marcadas se saltan solas.
+23. **uvicorn no lee `X-Forwarded-For` en el gateway.** La prueba de punta a punta lo encontró: con
+    `TUKIT_PROXIES_CONFIANZA=192.0.2.1` y 5 por IP, seis peticiones desde la máquina local con
+    seis `X-Forwarded-For` distintos dieron seis 200. uvicorn trae `proxy_headers` encendido y
+    confía en `127.0.0.1` (`FORWARDED_ALLOW_IPS`), así que reescribía la dirección de la conexión
+    con la cabecera antes del límite. Con la lista por omisión daba la misma IP, y por eso las
+    pruebas con `ASGITransport` no lo veían. `tukit_gateway.api.main` lanza uvicorn con
+    `proxy_headers=False`, y una prueba arma la pila de uvicorn con los argumentos de `main` y
+    comprueba el 429. Solo cambia de dónde sale la IP del límite: nada más en el gateway lee la
+    dirección del cliente, ni el esquema.
 
 ## Tareas
 

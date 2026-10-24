@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import ipaddress
 import logging
+import sys
 
 import httpx
 import pytest
@@ -315,6 +316,50 @@ async def test_x_forwarded_for_desde_un_cliente_cualquiera_no_cambia_la_ip(atras
         ]
 
     assert estados == [200, 200, 429]
+
+
+def _como_se_lanza(monkeypatch) -> tuple[tuple, dict]:
+    """Con que argumentos lanza `api.main` a uvicorn, sin lanzarlo."""
+    lanzada: list[tuple[tuple, dict]] = []
+
+    class Uvicorn:
+        @staticmethod
+        def run(*args, **kwargs) -> None:
+            lanzada.append((args, kwargs))
+
+    with monkeypatch.context() as m:
+        m.setitem(sys.modules, "uvicorn", Uvicorn)
+        assert api.main(["--puerto", "18999"]) == 0
+    assert len(lanzada) == 1
+    return lanzada[0]
+
+
+def test_la_puerta_se_lanza_sin_que_uvicorn_lea_x_forwarded_for(monkeypatch):
+    _, opciones = _como_se_lanza(monkeypatch)
+
+    assert opciones["proxy_headers"] is False
+
+
+async def test_solo_la_puerta_decide_de_quien_es_x_forwarded_for(atras, redis, monkeypatch):
+    # Con la pila que arma uvicorn al lanzar la puerta. Si uvicorn leyera la
+    # cabecera, confiaria en 127.0.0.1 aunque `TUKIT_PROXIES_CONFIANZA` no, y
+    # cada IP inventada tendria su cupo.
+    uvicorn = pytest.importorskip("uvicorn")
+    args, opciones = _como_se_lanza(monkeypatch)
+    # Sin `log_config`, uvicorn reconfiguraria el registro de toda la corrida.
+    configuracion = uvicorn.Config(*args, **{**opciones, "log_config": None})
+    configuracion.load()
+    monkeypatch.setenv("TUKIT_PROXIES_CONFIANZA", "192.0.2.1")
+    monkeypatch.setenv("TUKIT_LIMITE_GENERAL_IP", "5")
+
+    transporte = httpx.ASGITransport(app=configuracion.loaded_app, client=("127.0.0.1", 50_000))
+    async with httpx.AsyncClient(transport=transporte, base_url="http://prueba") as http:
+        estados = [
+            (await http.get("/v1/colegios", headers={"X-Forwarded-For": f"198.51.100.{i}"})).status_code
+            for i in range(6)
+        ]
+
+    assert estados == [200] * 5 + [429]
 
 
 # --- Lo que no cuenta -------------------------------------------------------

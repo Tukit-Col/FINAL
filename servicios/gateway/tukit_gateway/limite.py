@@ -16,9 +16,9 @@ con un token inventado en cada peticion tambien, asi que inventarlos no da cupo.
 (`TUKIT_PROXIES_CONFIANZA`; por omision `127.0.0.1,::1`, que es donde corre la
 web), se recorre `X-Forwarded-For` de derecha a izquierda y la IP es la primera
 que no es de confianza. Si no viene de uno, la cabecera se ignora: la escribio
-el cliente. uvicorn ya reescribe la direccion de la conexion con la misma regla
-y la misma lista por omision (`FORWARDED_ALLOW_IPS`), y aplicarla dos veces da
-la misma IP.
+el cliente. Esta regla es la unica: `api.main` lanza uvicorn sin
+`proxy_headers`, porque uvicorn confia en 127.0.0.1 por su lado y reescribiria
+la conexion antes de que el limite la vea.
 
 **El conteo** es por ventana fija, en Redis si responde y en la memoria del
 proceso si no (`tukit_comun.cache`). Las claves llevan el SHA-256 del token y
