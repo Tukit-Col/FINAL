@@ -50,11 +50,14 @@ export default function PantallaEspera({
   const [trabajo, setTrabajo] = useState<Trabajo | null>(null);
   const [fallo, setFallo] = useState<FalloApi | null>(null);
   const [segundos, setSegundos] = useState(0);
+  // Cada vuelta arranca el sondeo otra vez; la sube el boton que aparece tras
+  // un 429, porque el sondeo no lo reintenta solo.
+  const [vuelta, setVuelta] = useState(0);
 
   useEffect(() => {
     const parar = sondear(trabajoId, setTrabajo, setFallo);
     return parar;
-  }, [trabajoId]);
+  }, [trabajoId, vuelta]);
 
   useEffect(() => {
     const reloj = setInterval(() => setSegundos((s) => s + 1), 1000);
@@ -171,6 +174,24 @@ export default function PantallaEspera({
             No pudimos terminar tu kit. Vuelve a intentarlo y, si sigue igual,
             escríbenos: la solicitud queda guardada.
           </div>
+        )}
+
+        {fallo?.estado === 429 && (
+          <>
+            <div className={styles.error} role="alert">
+              {fallo.message} Tu solicitud sigue avanzando mientras tanto.
+            </div>
+            <button
+              type="button"
+              className={styles.boton}
+              onClick={() => {
+                setFallo(null);
+                setVuelta((v) => v + 1);
+              }}
+            >
+              Consultar de nuevo
+            </button>
+          </>
         )}
 
         <footer className={styles.pie}>
