@@ -276,11 +276,11 @@ Y estas, tomadas al leer el código:
       `npm run typecheck`, en verde.
 - [x] Punta a punta con `make arriba` (`env -u GEMINI_API_KEY`) contra Redis y RabbitMQ locales:
       el límite con `curl` y con dos gateways; la lectura y los vectores como se dice arriba.
-- [ ] Push de la rama y PR con base `feature/colas-rabbitmq`; CI en verde.
+- [x] Push de la rama y PR con base `feature/colas-rabbitmq`; CI en verde.
 
 ### 8. Cierre
 
-- [ ] Todas las casillas y la sección «Resultado».
+- [x] Todas las casillas y la sección «Resultado».
 
 ## Orden de commits
 
@@ -293,7 +293,12 @@ Y estas, tomadas al leer el código:
 7. `infra: Redis en el compose, en make arriba y en CI`
 8. `fronteras: solo tukit_comun habla con Redis`
 9. `docs: ADR 0047, contrato 1.11 y revision de arquitectura`
-10. `docs: resultado del plan de Redis`
+10. `gateway: la puerta es la unica que lee X-Forwarded-For`, lo que encontró la prueba de punta a
+    punta (decisión 23)
+11. `docs: la verificacion del plan de Redis, en verde`
+12. `ci: el trabajo de Redis instala aio-pika para recoger las pruebas de libs`, lo que encontró la
+    primera corrida de CI (decisión 22)
+13. `docs: resultado del plan de Redis`
 
 Si una tarea pide partir o juntar commits, el orden se mantiene.
 
@@ -306,3 +311,188 @@ Si una tarea pide partir o juntar commits, el orden se mantiene.
   `POST /v1/ordenes` (que reserva inventario) merece el nivel estricto.
 - Los números del límite. Los de la decisión 16 no frenan a una familia normal; si la tesis o el
   banco de QA piden otros, se cambian por entorno.
+
+## Resultado
+
+### Qué cambió
+
+- **`tukit_comun`:**
+  - dos módulos nuevos: `cache` (el cliente, sus dos motores, `cliente_redis()`, `responde` y
+    `python -m tukit_comun.cache`) y `pruebas_redis` (el doble y lo que usan las pruebas de
+    integración);
+  - `metricas` gana los aciertos, los fallos y las degradaciones por uso, y los rechazos del
+    límite por nivel;
+  - `crear_app` cierra el cliente al apagar;
+  - `redis>=8.1.0`, en su `pyproject.toml` y en `uv.lock`.
+- **Inteligencia:** `cache_lecturas`. `_percibir_onboarding` pasa a `async`, con la caché, y sus
+  dos rutas la esperan. `gemini.modelo()` da el modelo efectivo.
+- **Catálogo:** `cache_vectores`. `calcular_vectores` pasa a `async`, con la caché, y la esperan
+  la consulta, la ruta de emparejamiento y el ensayo `bench_laya`. `embeddings.modelo_de` da el
+  modelo efectivo.
+- **Gateway:** `limite.py`, y `reenviar` limita antes de reenviar. `main` lanza uvicorn sin
+  `proxy_headers`.
+- **Identidad, comercio, operación e ingesta:** nada.
+- **`tukit-contrato`:** `espera.ts`, `cabeceras` en `ClienteApi`, el `X-Forwarded-For` desde
+  `servidor.ts` y la espera de un 429 en `ErrorTukit`.
+- **Web:** `respuestaDeError` con `Retry-After`, el mensaje con la espera en `api-navegador.ts` y
+  la pantalla de espera, que deja de sondear y ofrece volver a consultar.
+- **Consola:** `respuestaDeError` y sus cuatro ayudantes del navegador.
+- **Infraestructura y CI:**
+  - el compose;
+  - en el `Makefile`: `arriba` con `CON_REDIS`, `abajo` y `prueba-redis`;
+  - `.env.ejemplo` y el marcador `redis` en `pyproject.toml`;
+  - el trabajo «Cache y limite contra Redis».
+- **Fronteras:** la regla 6.
+- **Documentación:** ADR 0047, contrato 1.11, revisión de arquitectura y `README.md`.
+
+Son 57 archivos, 18 de ellos nuevos. Sin `REDIS_URL`, la caché calcula como antes. Hay dos cambios
+de comportamiento, y los dos tocan solo el límite:
+
+- El límite cuenta en la memoria de cada gateway, como pide la decisión 3.
+- uvicorn ya no reescribe la dirección del cliente con `X-Forwarded-For`, porque una prueba
+  demostró que eso dejaba pasar IP inventadas (decisión 23). Solo lo nota el límite, y el
+  registro de acceso de uvicorn, que ahora muestra la dirección de la conexión.
+
+### Cómo se probó
+
+| Pruebas | Antes | Después |
+|---|---|---|
+| Fronteras | 72, y 1 saltada | 75, y la misma saltada |
+| Suite (`make prueba`) | 2.042 | 2.179, en unos 21 s |
+| Integración con RabbitMQ (`make prueba-colas`) | 6 de 6 | 6 de 6, en 77 s |
+| Integración con Redis (`make prueba-redis`) | no había | 11 de 11, en 2 s contra el 8.10 local |
+| `tukit-contrato` (`node --test`) | 36 | 44 |
+| Web (`node --test`) | 30 | 30 |
+
+`make lint`, `make tipos`, `npm run lint` y `npm run typecheck` quedaron en verde.
+
+**De dónde salen las pruebas nuevas:**
+
+- **Suite (137):** 30 del cliente común (`test_cache.py`), 18 de la lectura guardada, 19 de los
+  vectores y 70 del límite.
+- **Fronteras (3):** la regla 6 y dos de activación.
+- **Redis (11):** 8 del cliente común y una por servicio: dos subidas del mismo PDF a la app de
+  inteligencia, dos listas a la de catálogo con el embeder falso y dos limitadores que comparten
+  el contador.
+- **`tukit-contrato` (8):** `espera.test.ts`.
+
+**De punta a punta.** Se corrió con los procesos de `make arriba`, arrancados con
+`env -u GEMINI_API_KEY`, y tres gateways más. Usó cinco bases `tukit_rds_*`, un vhost propio y la
+base 15 de Redis, y todo se borró al terminar.
+
+| Caso | Resultado |
+|---|---|
+| 1.205 `GET` desde una IP | 1.200 × 200 y 5 × 429 en 14 s, con `Retry-After: 47`. A esa IP le siguen respondiendo `/v1/servicios` y `/salud`, y otra IP pasa |
+| 61 `POST /v1/sesiones` desde una IP | 60 × 401 y el 429, con `Retry-After: 599` y «10 minutos». La misma IP sigue teniendo cupo en `/v1/registro` |
+| `POST /v1/trabajos` con un token desde 31 IP | 30 × 400 y el 429 |
+| `POST /v1/trabajos` con un token nuevo en cada petición desde una IP | 60 × 400 y el 429 |
+| Dos gateways, alternando | 30 + 30 × 401 y el 429 en la siguiente. El contador compartido queda en 61 |
+| Seis `X-Forwarded-For` distintos con `TUKIT_PROXIES_CONFIANZA=192.0.2.1` y 5 por IP | Seis 200: uvicorn leía la cabecera por su lado (decisión 23). Con el arreglo, 5 × 200 y el 429 |
+| Gateway con `REDIS_URL` a un puerto sin nada | 60 × 401 y el 429 contado en memoria, un WARNING y ningún 500. Otra IP pasa |
+| 61 `POST /api/sesion` a `next dev` con una IP en `X-Forwarded-For` | 60 × 401 y el 429, con su `Retry-After` y el cuerpo del gateway. Otra IP pasa. La clave de esa IP cuenta 61, y la de Next.js (`127.0.0.1`) no existe |
+| Las claves de Redis | Ninguna lleva un token, un correo o una IP en claro. El registro del 429 dice el nivel, la ruta y el tipo |
+
+**Lo que no se pudo correr de punta a punta.** Sin la llave, `make arriba` no tiene Gemini ni
+embeder, y usar los dobles desde la API pediría cambiar código de producción. Por eso la lectura
+guardada y los vectores se probaron con las apps contra el Redis local, en las pruebas de
+integración de arriba.
+
+**Redis lleno.** Se probó contra una instancia propia de 2 MB, en otro puerto y con
+`noeviction`, que se borró al terminar. Las escrituras dan `OutOfMemoryError`. El cliente abre un
+episodio con un WARNING, el límite cuenta en memoria y nada se cae. Mientras dura el episodio
+tampoco se lee lo guardado.
+
+**CI.** En la primera corrida falló el trabajo de Redis, al recoger. `test_bucle_resiliente.py`
+importa `aiormq`, que solo instalaba el trabajo de las colas. El trabajo de Redis ahora instala
+también `aio-pika` (decisión 22). Con eso pasan los 13 trabajos:
+
+- el de Redis corre las 30 pruebas del cliente común y las 11 de integración contra `redis:7`, en
+  7 s;
+- el del gateway corre 140 y salta 2: la de Redis, que no tiene el paquete, y la que arma la pila
+  de uvicorn, que no tiene uvicorn. La que comprueba `proxy_headers=False` sí corre.
+
+### Escenarios de caos de Redis para el banco de QA
+
+1. **Caído desde el arranque.** Los procesos arrancan con `REDIS_URL` y cada uno deja un WARNING.
+   La subida lee con el doble, el emparejamiento pide todos los vectores y el límite cuenta en
+   memoria, sin ningún 500.
+2. **Caído en mitad del tráfico.** Se apaga Redis con carga. Solo la primera petición de cada
+   episodio debe pagar la espera de 250 ms, y las de los 5 s siguientes no le preguntan a Redis.
+   Debe quedar un WARNING por episodio y proceso, y un INFO al volver. El contador en memoria
+   empieza de cero, así que hay que medir cuánto deja pasar a un script que ya iba en el tope.
+3. **Lento.** Con una latencia mayor que 250 ms (`CLIENT PAUSE` en una instancia propia, o un
+   proxy con latencia), cada operación se rinde a los 250 ms y abre un episodio. Con una latencia
+   menor nada se degrada, pero cada petición la paga. Hay que medir el p95 de la subida y del
+   emparejamiento con 100, 200 y 400 ms.
+4. **Lleno, con `noeviction`.** Es la política por omisión de Redis y la del local. Las escrituras
+   fallan y el cliente degrada, como se probó arriba. Hay que medir cuántas lecturas de más le
+   pide al doble de Gemini un Redis lleno, porque durante cada episodio tampoco se lee lo
+   guardado.
+5. **Lleno, con `allkeys-lru`.** Es la política del compose. Redis desaloja lo menos usado, y eso
+   puede incluir un contador del límite. Hay que llenarlo de vectores mientras un script empuja
+   contra el límite, y medir si el script consigue más que el tope.
+6. **Reiniciado con la caché vacía.** Sin persistencia, un reinicio borra las lecturas, los
+   vectores y los contadores.
+   - La primera subida de cada lista vuelve a leer, y el primer emparejamiento pide todos sus
+     vectores. Hay que medir las llamadas al doble y lo que tarda en volver la tasa de aciertos.
+   - Los contadores vuelven a cero, como en el escenario 2.
+7. **Un gateway sin Redis.** Dos gateways, uno con Redis y otro sin él: el segundo cuenta por su
+   lado y el tope real sube. Hay que medirlo con un script repartido entre los dos.
+8. **Un valor corrupto.** Basura en una clave `tukit:percepcion:*` o `tukit:vector:*` cuenta como
+   «no está», se recalcula y se sobrescribe. Lo cubren pruebas unitarias; el banco lo repite con
+   un Redis de verdad.
+9. **Un contador sin vencimiento.** Un `PERSIST` sobre un contador: el siguiente conteo le devuelve
+   la ventana. Lo cubre una prueba de integración.
+10. **Una URL o una credencial mala.** Un `REDIS_URL` con otra contraseña, o con un host que no
+    resuelve, se comporta como caído. Hay que comprobar que no deja un registro por petición.
+11. **Las dos versiones.** La batería, contra `redis:7` (el compose y CI) y contra 8.x (el local).
+12. **Muchas familias detrás de una IP.** Se simula la sala de cómputo de un colegio para medir si
+    los 60 por IP del nivel estricto alcanzan.
+
+### Riesgos abiertos
+
+- **La ventana fija deja pasar hasta el doble del tope** en el cambio de ventana. Las peticiones
+  rechazadas siguen sumando al contador (llegó a 62 con un tope de 60), pero no alargan la
+  ventana.
+- **Sin Redis, cada gateway cuenta por su lado,** y un episodio empieza el contador en memoria de
+  cero.
+- **`allkeys-lru` puede desalojar un contador,** y un reinicio los borra todos.
+- **Si Next.js queda expuesto sin un proxy delante, la IP se puede falsear,** porque Next.js deja
+  pasar el `X-Forwarded-For` del cliente.
+- **La confianza del compose en `172.16.0.0/12` está revisada a ojo,** y el compose no se levantó
+  con Docker. Si Docker presenta la conexión de la web desde otra red, todas las familias cuentan
+  como una sola IP. Al levantarlo, el registro del 429 y las claves lo muestran.
+- **La versión de la percepción mira tres archivos, pypdfium2 y el modelo.** Un cambio en otro
+  módulo que esos importen, o en el SDK de Gemini, no la mueve.
+- **Un proveedor que cambie un modelo sin cambiarle el nombre** daría vectores viejos hasta 24
+  horas.
+- **Un embeder que devuelve otro número de vectores** cuenta como un fallo del proveedor: no se
+  guarda nada y la tanda baja a léxico.
+- **Si una lista trae escrito el nombre de un niño y el modelo lo lee como renglón,** queda 30 días
+  en el valor guardado.
+- **El ensayo `bench_laya` corre `calcular_vectores` con un `asyncio.run` por lista.** Con
+  `REDIS_URL`, la conexión queda atada al primer bucle, y las listas siguientes degradan a
+  calcular sin caché. Hoy el ensayo corre sin la URL.
+- **`next` no es dependencia par de `@tukit/contrato`,** aunque `servidor.ts` importa
+  `next/headers`.
+- **Ningún trabajo de CI corre npm.** El lint, los tipos y las pruebas de TypeScript solo se
+  corren a mano.
+- **Una página del servidor que recibe un 429 degrada por sección,** como con cualquier fallo del
+  backend.
+- **La prueba con la pila de uvicorn no corre en CI,** que no instala uvicorn. Corre en
+  `make prueba`.
+- **`make arriba REDIS_URL=...` también le pasa la URL a identidad,** que no la usa.
+
+### Para Juan
+
+- **Lo reservado sigue sin hacer:**
+  - Redis no es obligatorio: sin él, todo funciona.
+  - Nada de lo que guarda es la única copia.
+  - El flujo de pagos no cambia. Las rutas de órdenes y pagos quedan en el nivel general, y
+    decidir si `POST /v1/ordenes` pasa al estricto es tuyo.
+  - Los números no frenan a una familia normal y se cambian por entorno. Si 60 por IP en el
+    estricto alcanzan para un colegio es el escenario 12.
+- **Dos cambios sin `REDIS_URL`, los dos en el límite:** el conteo en memoria (decisión 3) y
+  uvicorn sin `proxy_headers` (decisión 23).
+- **No se instaló nada.** Falta Docker para levantar el compose.
+- **El PR #3 va apilado sobre el #2.** Cuando el #2 se una, se reapunta.
