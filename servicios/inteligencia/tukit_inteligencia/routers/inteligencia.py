@@ -777,7 +777,7 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
     # del PDF (puede diferir del que el acudiente eligio) para deduplicar bien.
     percibidos: list[tuple[HijoSubida, str, bytes, Percepcion]] = []
     for hijo, pdf in zip(hijos, pdf_por_hijo, strict=True):
-        percepcion = api._percibir_onboarding(pdf)
+        percepcion = await api._percibir_onboarding(pdf)
         if not percepcion.aceptada:
             raise PercepcionRechazada(
                 percepcion.error or "percepcion_rechazada",
@@ -941,7 +941,7 @@ async def onboarding(
             "anio_invalido", "El anio lectivo tiene que ser un numero.", estado=422, campo="anio_lectivo"
         ) from error
 
-    percepcion = api._percibir_onboarding(archivo)
+    percepcion = await api._percibir_onboarding(archivo)
     if not percepcion.aceptada:
         raise PercepcionRechazada(
             percepcion.error or "percepcion_rechazada",

@@ -216,7 +216,7 @@ class TestOnboardingRechazado:
         assert catalogo.llamadas == []
 
     async def test_una_percepcion_rechazada_no_toca_el_catalogo(self, cliente, catalogo, monkeypatch):
-        def _percibir(_contenido, **_kw):
+        async def _percibir(_contenido, **_kw):
             return Percepcion(
                 aceptada=False,
                 error="archivo_vacio",
