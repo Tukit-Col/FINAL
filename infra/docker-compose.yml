@@ -98,15 +98,33 @@ services:
     command: ["python", "-m", "tukit_identidad.api", "--puerto", "8011", "--host", "0.0.0.0"]
     ports: ["8011:8011"]
 
+  # Catalogo, inteligencia y la puerta usan Redis (ADR 0047): los vectores, las
+  # lecturas y el limite de tasa. Lo esperan arrancado pero no lo exigen
+  # (`required: false`): sin el, la cache calcula como siempre y el limite
+  # cuenta en la memoria de la puerta.
   catalogo:
     <<: *servicio
-    environment: *entorno
+    environment: &entorno_redis
+      <<: *entorno
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+        required: false
     command: ["python", "-m", "tukit_catalogo.api", "--puerto", "8012", "--host", "0.0.0.0"]
     ports: ["8012:8012"]
 
   inteligencia:
     <<: *servicio
-    environment: *entorno
+    environment: *entorno_redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+        required: false
     command: ["python", "-m", "tukit_inteligencia.api", "--puerto", "8013", "--host", "0.0.0.0"]
     ports: ["8013:8013"]
 
@@ -115,8 +133,22 @@ services:
     # La puerta no tiene base ni dominio: solo necesita saber donde estan los
     # otros tres. Depende de ellos para que `docker compose up` no la deje
     # respondiendo 503 durante los primeros segundos.
-    depends_on: [identidad, catalogo, inteligencia]
-    environment: *entorno
+    depends_on:
+      identidad:
+        condition: service_started
+      catalogo:
+        condition: service_started
+      inteligencia:
+        condition: service_started
+      redis:
+        condition: service_started
+        required: false
+    environment:
+      <<: *entorno_redis
+      # La web corre fuera del compose y le llega por el puerto publicado, asi
+      # que la conexion viene de la red de Docker y no de 127.0.0.1. Sin esto el
+      # limite contaria a todas las familias como una sola IP.
+      TUKIT_PROXIES_CONFIANZA: "127.0.0.1,::1,172.16.0.0/12"
     command: ["python", "-m", "tukit_gateway.api", "--puerto", "8010", "--host", "0.0.0.0"]
     ports: ["8010:8010"]
 
@@ -162,8 +194,8 @@ services:
   #
   # El codigo degrada honestamente sin este bloque (patron WOMPI_MODO=falso):
   # sin `OTEL_EXPORTER_OTLP_ENDPOINT` la instrumentacion es no-op y sin
-  # `REDIS_URL` el breaker vive en memoria. Levantar esto es un upgrade de
-  # observabilidad, no un requisito para correr.
+  # `REDIS_URL` no hay cache y el limite de tasa cuenta en la memoria de la
+  # puerta. Levantar esto es una mejora, no un requisito para correr.
   #
   # ADVERTENCIA HONESTA: como el bloque `api`, este bloque NO se ha ejecutado.
   # La maquina donde se escribio no tiene Docker; esta revisado a ojo. Misma
@@ -171,11 +203,18 @@ services:
   # lo que evita darla por probada.
 
   redis:
-    profiles: ["infra"]
-    # Backend intercambiable del circuit breaker (hoy in-memory) y, mas
-    # adelante, adaptador de socket.io para la colaboracion admin (B.5).
+    # La cache de las lecturas aceptadas y de los vectores, y el contador del
+    # limite de tasa de la puerta (ADR 0047). Esta en `api` porque catalogo,
+    # inteligencia y la puerta lo usan, y sigue en `infra` para quien corre
+    # `make arriba`, que lo comprueba. Mas adelante, tambien el backend del
+    # circuit breaker (hoy en memoria) y el adaptador de socket.io (B.5).
+    profiles: ["infra", "api"]
     image: redis:7
     container_name: tukit_redis
+    # Sin persistencia y con un tope de memoria que desaloja lo menos usado:
+    # solo guarda lo que se puede recalcular y contadores que se pueden perder,
+    # asi que arrancar vacio no rompe nada. CI usa la misma imagen.
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru", "--save", ""]
     ports:
       - "6379:6379"
     healthcheck:
