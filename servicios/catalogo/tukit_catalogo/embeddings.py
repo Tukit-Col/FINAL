@@ -49,6 +49,7 @@ __all__ = [
     "coseno",
     "embeder_falso",
     "embeder_gemini",
+    "modelo_de",
     "promedio",
     "texto_de_concepto",
     "texto_de_producto",
@@ -216,7 +217,7 @@ def embeder_gemini(textos: Sequence[str]) -> list[list[float]]:
     `EmbeddingFallido` y quien llama decide, igual que hace la percepcion.
     """
     clave = _clave()
-    modelo = os.environ.get("GEMINI_MODELO_EMBEDDING", MODELO_GEMINI).strip() or MODELO_GEMINI
+    modelo = _modelo_gemini()
     salida: list[list[float]] = []
     for inicio in range(0, len(textos), _LOTE_GEMINI):
         lote = textos[inicio : inicio + _LOTE_GEMINI]
@@ -260,3 +261,19 @@ def embeder_gemini(textos: Sequence[str]) -> list[list[float]]:
 # para escribir `embedding_model` y para saber recalcular si el modelo cambia.
 embeder_gemini.modelo = MODELO_GEMINI  # type: ignore[attr-defined]
 embeder_falso.modelo = MODELO_FALSO  # type: ignore[attr-defined]
+
+
+def _modelo_gemini() -> str:
+    return os.environ.get("GEMINI_MODELO_EMBEDDING", MODELO_GEMINI).strip() or MODELO_GEMINI
+
+
+def modelo_de(embeder: Embeder) -> str | None:
+    """El modelo con que `embeder` calcula de verdad, o `None` si no declara uno.
+
+    Para `embeder_gemini` es el de `GEMINI_MODELO_EMBEDDING` si esta puesto: el
+    atributo `modelo` es solo el de por omision. La cache de vectores (ADR 0047)
+    lo lleva en la clave, y un embeder sin modelo conocido no se cachea."""
+    if embeder is embeder_gemini:
+        return _modelo_gemini()
+    modelo = getattr(embeder, "modelo", None)
+    return modelo if isinstance(modelo, str) and modelo else None
