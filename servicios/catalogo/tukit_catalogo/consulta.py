@@ -19,6 +19,7 @@ import sys
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from .cache_vectores import vectores_guardados
 from .descubrir import clasificar
 from .embeddings import Embeder, promedio
 from .enriquecer import extraer_atributos
@@ -485,25 +486,30 @@ async def emparejar_en_catalogo(
         embeder = _embeder_por_entorno()
     if embeder is None:
         log.debug("sin GEMINI_API_KEY: match lexico")
-    vectores = calcular_vectores(renglones, embeder)
+    vectores = await calcular_vectores(renglones, embeder)
     return [
         emparejar(renglon, conceptos, productos, embedding_renglon=vec)
         for renglon, vec in zip(renglones, vectores, strict=True)
     ]
 
 
-def calcular_vectores(renglones: list[str], embeder: Embeder | None) -> list[list[float] | None]:
+async def calcular_vectores(renglones: list[str], embeder: Embeder | None) -> list[list[float] | None]:
     """El vector de cada renglon en un solo lote, o `None` por renglon si no hay
     embeder o si la llamada falla.
 
     El canal semantico DEGRADA, no tumba: si el proveedor no responde, la consulta
     sigue dando el match lexico. Se registra el fallo (antes era un `except`
     silencioso) para que "de repente todo es solo lexico" deje rastro.
+
+    Los vectores ya calculados salen de Redis y al proveedor solo van los que
+    faltan (`cache_vectores`, ADR 0047). Si el proveedor falla, la tanda entera
+    baja a lexico, aunque algunos estuvieran guardados: es lo que promete el
+    contrato.
     """
     if embeder is None or not renglones:
         return [None] * len(renglones)
     try:
-        return list(embeder(list(renglones)))
+        return list(await vectores_guardados(renglones, embeder))
     except Exception as exc:  # noqa: BLE001 - degrada a lexico, no tumba la consulta
         log.warning("canal semantico degradado a lexico: %s", exc)
         return [None] * len(renglones)

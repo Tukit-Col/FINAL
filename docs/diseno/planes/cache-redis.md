@@ -213,12 +213,12 @@ Y estas, tomadas al leer el código:
 
 ### 3. Los vectores
 
-- [ ] `calcular_vectores` asíncrona, con la caché; sus tres llamadas la esperan.
-- [ ] `embeddings.modelo_de(embeder)` con el modelo efectivo.
-- [ ] Pruebas: lote mixto (el proveedor recibe solo los que faltan, en orden, y el resultado sale
+- [x] `calcular_vectores` asíncrona, con la caché; sus tres llamadas la esperan.
+- [x] `embeddings.modelo_de(embeder)` con el modelo efectivo.
+- [x] Pruebas: lote mixto (el proveedor recibe solo los que faltan, en orden, y el resultado sale
       en el orden original), fallo del proveedor, Redis caído, la duración de la clave y un
       embeder sin modelo.
-- [ ] Una prueba de integración con la app de catálogo y el embeder falso contra el Redis local.
+- [x] Una prueba de integración con la app de catálogo y el embeder falso contra el Redis local.
 
 ### 4. El límite de tasa
 
