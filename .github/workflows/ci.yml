@@ -269,3 +269,56 @@ jobs:
 
       - name: Pruebas de las colas
         run: .venv/bin/pytest libs servicios ensayos -q -m rabbitmq -rs
+
+  # La cache y el limite de tasa contra un Redis de verdad (ADR 0047), como
+  # `colas` con RabbitMQ: las pruebas con el marcador `redis` aqui son
+  # obligatorias, asi que un Redis que no responde pone el trabajo en rojo en
+  # vez de saltarlas. Corre tambien las pruebas unitarias del cliente comun,
+  # que `pruebas` no corre porque va por servicio.
+  redis:
+    name: Cache y limite contra Redis
+    needs: fronteras
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        # La misma imagen que el compose de `infra/`.
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # La base 15, nunca la 0: las pruebas borran lo suyo al terminar.
+      TUKIT_PRUEBAS_REDIS_URL: redis://localhost:6379/15
+      TUKIT_PRUEBAS_REDIS_OBLIGATORIO: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv venv --python 3.12
+      # Las de `pruebas` mas `redis`, con la version minima de `tukit_comun`.
+      - run: |
+          uv pip install pytest pytest-asyncio \
+            sqlalchemy pydantic pgvector aiosqlite \
+            fastapi httpx alembic greenlet \
+            numpy pymoo tenacity "redis>=8.1.0"
+
+      - name: Comprobar que Redis responde
+        env:
+          REDIS_URL: redis://localhost:6379/15
+          PYTHONPATH: libs/py/tukit_comun
+        run: .venv/bin/python -m tukit_comun.cache
+
+      - name: Pruebas unitarias del cliente comun
+        run: .venv/bin/pytest libs/py/tukit_comun/tests/test_cache.py -q
+
+      - name: Pruebas contra Redis
+        run: .venv/bin/pytest libs servicios ensayos -q -m redis -rs

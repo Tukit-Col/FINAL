@@ -136,11 +136,13 @@ bd-crear:  ## Crea el usuario y las 5 bases en un Postgres YA instalado (sin Doc
 	done
 
 infra-arriba:  ## Levanta el backbone opcional (Redis, Jaeger) bajo el perfil `infra`
-	@# El codigo corre sin esto (OTLP no-op, breaker en memoria). Levantarlo
-	@# activa las trazas: pon OTEL_EXPORTER_OTLP_ENDPOINT en tu .env. Consola de
-	@# Jaeger en :16686. RabbitMQ ya no va aqui: lo levanta `bd-arriba` (ADR 0046).
+	@# El codigo corre sin esto (OTLP no-op, sin cache y con el limite de tasa
+	@# en la memoria de la puerta). Levantarlo activa las trazas: pon
+	@# OTEL_EXPORTER_OTLP_ENDPOINT en tu .env. Consola de Jaeger en :16686. Redis
+	@# lo comprueba `make arriba` (ADR 0047). RabbitMQ ya no va aqui: lo levanta
+	@# `bd-arriba` (ADR 0046).
 	@$(COMPOSE) --profile infra up -d
-	@echo "Backbone arriba: Jaeger :16686, Redis :6379."
+	@echo "Backbone arriba: Jaeger :16686, Redis :6379 (cache y limite de tasa)."
 
 infra-abajo:  ## Detiene el backbone opcional (conserva la cola de RabbitMQ)
 	@$(COMPOSE) --profile infra down
@@ -376,6 +378,18 @@ URL_BROKER = $(if $(filter undefined,$(origin RABBITMQ_URL)),$(BROKER_LOCAL),$(R
 # Cada proceso que lanza `arriba` recibe la URL que quedo decidida, o ninguna.
 CON_BROKER = RABBITMQ_URL="$$(cat $(EJECUCION)/broker 2>/dev/null)"
 
+# Con Redis (ADR 0047) la puerta comparte el conteo del limite de tasa entre
+# procesos, catalogo guarda los vectores de los renglones e inteligencia las
+# lecturas aceptadas de las listas. `arriba` toma `REDIS_URL` del entorno o, si
+# no esta definida, la del Redis local (la del compose y la de `.env.ejemplo`).
+# Si no responde, levanta todo sin la URL: la cache calcula como siempre y el
+# limite cuenta en la memoria de la puerta. `make arriba REDIS_URL=` arranca
+# sin Redis a proposito.
+REDIS_LOCAL := redis://localhost:6379/0
+URL_REDIS = $(if $(filter undefined,$(origin REDIS_URL)),$(REDIS_LOCAL),$(REDIS_URL))
+# Solo la reciben los tres procesos que lo usan: la puerta, catalogo e inteligencia.
+CON_REDIS = REDIS_URL="$$(cat $(EJECUCION)/redis 2>/dev/null)"
+
 PUERTO_GATEWAY ?= 8010
 PUERTO_IDENTIDAD ?= 8011
 PUERTO_CATALOGO ?= 8012
@@ -442,7 +456,7 @@ publicador-inteligencia:  ## Publica la bandeja de inteligencia en RabbitMQ (req
 
 reanudar: arriba  ## Reanuda tras un apagado: solo levanta los procesos, NO siembra (usa `backend` solo para reconstruir de cero)
 
-arriba:  ## Levanta los seis procesos HTTP y los de fondo, con RabbitMQ si responde
+arriba:  ## Levanta los seis procesos HTTP y los de fondo, con RabbitMQ y Redis si responden
 	@mkdir -p $(EJECUCION)
 	@$(MAKE) --no-print-directory abajo >/dev/null 2>&1 || true
 	@if [ -z "$(URL_BROKER)" ]; then \
@@ -452,17 +466,24 @@ arriba:  ## Levanta los seis procesos HTTP y los de fondo, con RabbitMQ si respo
 	else \
 		echo "Los procesos arrancan sin RabbitMQ y sondean las bases."; \
 	fi
+	@if [ -z "$(URL_REDIS)" ]; then \
+		echo "Sin REDIS_URL: sin cache, y el limite de tasa cuenta en la memoria de la puerta."; \
+	elif REDIS_URL="$(URL_REDIS)" PYTHONPATH="$(API_PATH)" $(PY) -m tukit_comun.cache; then \
+		printf '%s' "$(URL_REDIS)" > $(EJECUCION)/redis; \
+	else \
+		echo "Los procesos arrancan sin Redis: sin cache, y el limite cuenta en la memoria de la puerta."; \
+	fi
 	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_identidad.api --puerto $(PUERTO_IDENTIDAD) \
 		> $(EJECUCION)/identidad.log 2>&1 & echo $$! > $(EJECUCION)/identidad.pid
-	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_catalogo.api --puerto $(PUERTO_CATALOGO) \
+	@$(CON_BROKER) $(CON_REDIS) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_catalogo.api --puerto $(PUERTO_CATALOGO) \
 		> $(EJECUCION)/catalogo.log 2>&1 & echo $$! > $(EJECUCION)/catalogo.pid
-	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_inteligencia.api --puerto $(PUERTO_INTELIGENCIA) \
+	@$(CON_BROKER) $(CON_REDIS) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_inteligencia.api --puerto $(PUERTO_INTELIGENCIA) \
 		> $(EJECUCION)/inteligencia.log 2>&1 & echo $$! > $(EJECUCION)/inteligencia.pid
 	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_comercio.api --puerto $(PUERTO_COMERCIO) \
 		> $(EJECUCION)/comercio.log 2>&1 & echo $$! > $(EJECUCION)/comercio.pid
 	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_operacion.api --puerto $(PUERTO_OPERACION) \
 		> $(EJECUCION)/operacion.log 2>&1 & echo $$! > $(EJECUCION)/operacion.pid
-	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_gateway.api --puerto $(PUERTO_GATEWAY) \
+	@$(CON_BROKER) $(CON_REDIS) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_gateway.api --puerto $(PUERTO_GATEWAY) \
 		> $(EJECUCION)/gateway.log 2>&1 & echo $$! > $(EJECUCION)/gateway.pid
 	@echo "Esperando a que respondan..."
 	@for i in $$(seq 1 60); do \
@@ -500,7 +521,7 @@ abajo:  ## Detiene los seis procesos HTTP y los trabajadores de fondo
 		publicador-catalogo publicador-comercio publicador-inteligencia; do \
 		[ -f $(EJECUCION)/$$s.pid ] && kill $$(cat $(EJECUCION)/$$s.pid) 2>/dev/null; \
 		rm -f $(EJECUCION)/$$s.pid; \
-	done; rm -f $(EJECUCION)/broker; true
+	done; rm -f $(EJECUCION)/broker $(EJECUCION)/redis; true
 	@echo "Procesos detenidos."
 
 estado:  ## Dice cuales de los seis estan arriba, preguntandoles
