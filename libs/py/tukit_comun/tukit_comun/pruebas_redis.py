@@ -10,7 +10,8 @@ Dos cosas:
   Redis de `TUKIT_PRUEBAS_REDIS_URL` (por omision la base 15 del local, nunca la
   0 de `.env.ejemplo`) y se saltan si no responde. Cada prueba usa un prefijo
   propio y borra sus claves al terminar, con `SCAN` y `DEL`, que solo usan las
-  pruebas.
+  pruebas. Para mirar lo que quedo guardado usan `lo_guardado`: ni las pruebas
+  de los servicios importan `redis` (lo vigila `arquitectura/test_fronteras.py`).
 
 No es `REDIS_URL` a proposito: esa variable cambia el modo de los procesos, y
 una prueba no deberia cambiar de modo porque alguien la tenga exportada. Con
@@ -26,6 +27,7 @@ import time
 import uuid
 from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from typing import Any
 
 from .broker import sin_clave
@@ -148,6 +150,32 @@ async def borrar_prefijo(url: str, prefijo: str) -> int:
         await conexion.aclose()
 
 
+@dataclass(frozen=True)
+class Guardado:
+    """Una clave tal como quedo en Redis: su valor y lo que le falta para vencer."""
+
+    valor: bytes
+    vence_en_ms: int
+
+
+async def lo_guardado(prefijo: str) -> dict[str, Guardado]:
+    """Lo que hay en el Redis de las pruebas bajo `prefijo`, por clave completa."""
+    import redis.asyncio as redis_asincrono
+
+    conexion = redis_asincrono.from_url(url_de_pruebas())
+    try:
+        guardado: dict[str, Guardado] = {}
+        claves = [clave.decode() async for clave in conexion.scan_iter(match=prefijo + "*", count=500)]
+        for clave in sorted(claves):
+            # Sin `decode_responses` el valor llega en bytes; `None` si vencio entre el SCAN y el GET.
+            valor = await conexion.get(clave)
+            if isinstance(valor, bytes):
+                guardado[clave] = Guardado(valor, await conexion.pttl(clave))
+        return guardado
+    finally:
+        await conexion.aclose()
+
+
 @asynccontextmanager
 async def clientes_de_prueba(cuantos: int = 1, *, espera: float = 1.0) -> AsyncIterator[list[ClienteRedis]]:
     """`cuantos` clientes contra el Redis de las pruebas, cada uno con su
@@ -172,12 +200,14 @@ async def clientes_de_prueba(cuantos: int = 1, *, espera: float = 1.0) -> AsyncI
 
 
 __all__ = [
+    "Guardado",
     "RedisCaido",
     "RedisEnMemoria",
     "borrar_prefijo",
     "cliente_en_memoria",
     "clientes_de_prueba",
     "exigir_redis",
+    "lo_guardado",
     "prefijo_de_prueba",
     "redis_disponible",
     "redis_obligatorio",

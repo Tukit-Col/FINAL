@@ -19,6 +19,7 @@ from test_fronteras import (
     _buscar_ciclo,
     _cadenas_no_docstring,
     _columnas_declaradas,
+    _hablan_con_redis,
     _modulos_importados,
     _revisar_lectura_cruzada,
     _tabla_apuntada,
@@ -379,3 +380,32 @@ def test_detecta_el_ciclo_largo_y_no_solo_el_de_dos():
 def test_un_servicio_que_se_referencia_a_si_mismo_no_cuenta():
     """Una llave foranea dentro de la misma base es normal y fisica."""
     assert _buscar_ciclo({"catalogo": {"catalogo"}, "identidad": set()}) is None
+
+
+# --------------------------------------------------------------------------
+# Detector de Redis fuera de `tukit_comun`
+# --------------------------------------------------------------------------
+
+
+def test_detecta_cada_forma_de_traer_redis():
+    for fuente in (
+        "import redis",
+        "import redis.asyncio as redis_asincrono",
+        "from redis.asyncio import Redis",
+        "from redis import exceptions",
+        "redis_asincrono = pytest.importorskip('redis.asyncio')",
+        "modulo = importlib.import_module('redis')",
+        "def f():\n    import redis.asyncio\n",
+    ):
+        assert _hablan_con_redis(_arbol(fuente)), fuente
+
+
+def test_no_confunde_el_cliente_comun_con_redis():
+    fuente = (
+        "from tukit_comun.cache import cliente_redis\n"
+        "from tukit_comun.pruebas_redis import lo_guardado\n"
+        "import redislite\n"
+        "url = 'redis://localhost:6379/15'\n"
+        "pytest.importorskip('pypdfium2')\n"
+    )
+    assert _hablan_con_redis(_arbol(fuente)) == []

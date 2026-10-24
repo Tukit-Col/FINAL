@@ -701,3 +701,80 @@ def test_el_grafo_de_dependencias_entre_servicios_es_aciclico():
         "origen publica el hecho y el de destino reacciona, en vez de guardar "
         "el identificador del otro dominio."
     )
+
+
+# --------------------------------------------------------------------------
+# Regla 6: solo `tukit_comun` habla con Redis
+# --------------------------------------------------------------------------
+
+COMUN = RAIZ / "libs" / "py" / "tukit_comun"
+# Donde hay Python que no es `tukit_comun`: los servicios, sus pruebas incluidas,
+# los ensayos, las otras librerias y estas mismas pruebas.
+CON_PYTHON = ("servicios", "ensayos", "libs", "arquitectura", "datos")
+# Las llamadas que importan un modulo por su nombre.
+IMPORTAN_POR_NOMBRE = frozenset({"importorskip", "import_module", "__import__"})
+
+
+def _nombre_llamado(funcion: ast.expr) -> str | None:
+    if isinstance(funcion, ast.Name):
+        return funcion.id
+    if isinstance(funcion, ast.Attribute):
+        return funcion.attr
+    return None
+
+
+def _hablan_con_redis(arbol: ast.Module) -> list[tuple[str, int]]:
+    """Lo que trae `redis` en un modulo, con su linea: los `import`, y las
+    llamadas como `pytest.importorskip("redis.asyncio")`."""
+
+    def de_redis(modulo: str) -> bool:
+        return modulo.split(".")[0] == "redis"
+
+    encontrados: list[tuple[str, int]] = []
+    for nodo in ast.walk(arbol):
+        if isinstance(nodo, ast.Import):
+            encontrados += [(alias.name, nodo.lineno) for alias in nodo.names if de_redis(alias.name)]
+        elif isinstance(nodo, ast.ImportFrom) and nodo.module and nodo.level == 0 and de_redis(nodo.module):
+            encontrados.append((nodo.module, nodo.lineno))
+        elif (
+            isinstance(nodo, ast.Call)
+            and _nombre_llamado(nodo.func) in IMPORTAN_POR_NOMBRE
+            and nodo.args
+            and isinstance(nodo.args[0], ast.Constant)
+            and isinstance(nodo.args[0].value, str)
+            and de_redis(nodo.args[0].value)
+        ):
+            encontrados.append((nodo.args[0].value, nodo.lineno))
+    return encontrados
+
+
+def _python_fuera_de_comun() -> list[Path]:
+    fuera = {".venv", "__pycache__", "node_modules"}
+    return [
+        ruta
+        for carpeta in CON_PYTHON
+        for ruta in (RAIZ / carpeta).rglob("*.py")
+        if not fuera & set(ruta.parts) and not ruta.is_relative_to(COMUN)
+    ]
+
+
+def test_solo_tukit_comun_habla_con_redis():
+    """Redis es cache y contador, nunca la unica copia de nada (ADR 0047), y lo
+    que lo hace opcional vive en un solo sitio: `tukit_comun.cache`, con su
+    espera corta, su pausa tras un fallo y su conteo en memoria. Un servicio
+    que importara `redis` por su cuenta se saltaria todo eso y se caeria con
+    Redis. Las pruebas tampoco: miran lo guardado con
+    `tukit_comun.pruebas_redis`."""
+    infracciones = [
+        f"  {_relativa(ruta)}:{linea} trae `{modulo}`"
+        for ruta in _python_fuera_de_comun()
+        if (arbol := _arbol(ruta)) is not None
+        for modulo, linea in _hablan_con_redis(arbol)
+    ]
+
+    assert not infracciones, (
+        "Fuera de `tukit_comun` hay codigo que habla con Redis directo:\n"
+        + "\n".join(sorted(infracciones))
+        + "\n\nUsa `tukit_comun.cache.cliente_redis()`, y en las pruebas "
+        "`tukit_comun.pruebas_redis`."
+    )
