@@ -304,12 +304,14 @@ jobs:
           enable-cache: true
       - run: uv python install 3.12
       - run: uv venv --python 3.12
-      # Las de `pruebas` mas `redis`, con la version minima de `tukit_comun`.
+      # Las de `colas` mas `redis`, con la version minima de `tukit_comun`. Como
+      # alli, se recogen todas las pruebas para elegir las marcadas, y algunas de
+      # `libs` importan `aiormq`, que llega con `aio-pika`.
       - run: |
           uv pip install pytest pytest-asyncio \
             sqlalchemy pydantic pgvector aiosqlite \
             fastapi httpx alembic greenlet \
-            numpy pymoo tenacity "redis>=8.1.0"
+            numpy pymoo tenacity aio-pika "redis>=8.1.0"
 
       - name: Comprobar que Redis responde
         env:
