@@ -270,9 +270,9 @@ Y estas, tomadas al leer el código:
 
 ### 7. Verificación y PR
 
-- [ ] `make lint`, `make prueba`, `make prueba-colas`, `make prueba-redis`, `npm run lint` y
+- [x] `make lint`, `make prueba`, `make prueba-colas`, `make prueba-redis`, `npm run lint` y
       `npm run typecheck`, en verde.
-- [ ] Punta a punta con `make arriba` (`env -u GEMINI_API_KEY`) contra Redis y RabbitMQ locales:
+- [x] Punta a punta con `make arriba` (`env -u GEMINI_API_KEY`) contra Redis y RabbitMQ locales:
       el límite con `curl` y con dos gateways; la lectura y los vectores como se dice arriba.
 - [ ] Push de la rama y PR con base `feature/colas-rabbitmq`; CI en verde.
 
