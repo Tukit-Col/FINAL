@@ -204,12 +204,12 @@ Y estas, tomadas al leer el código:
 
 ### 2. La lectura de la lista
 
-- [ ] `_percibir_onboarding` asíncrona, con la caché; sus dos rutas la esperan.
-- [ ] `gemini.modelo()` para leer el modelo efectivo en un solo sitio.
-- [ ] Pruebas, contando las lecturas del lector doble: el mismo archivo dos veces, otro archivo,
+- [x] `_percibir_onboarding` asíncrona, con la caché; sus dos rutas la esperan.
+- [x] `gemini.modelo()` para leer el modelo efectivo en un solo sitio.
+- [x] Pruebas, contando las lecturas del lector doble: el mismo archivo dos veces, otro archivo,
       un rechazo, un cambio de versión, Redis caído, Redis lento, y lo guardado sin datos de la
       persona ni del hijo.
-- [ ] Una prueba de integración con la app de inteligencia contra el Redis local.
+- [x] Una prueba de integración con la app de inteligencia contra el Redis local.
 
 ### 3. Los vectores
 
