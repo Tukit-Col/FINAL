@@ -21,9 +21,7 @@ from tukit_catalogo.embeddings import DIMENSION_EMBEDDING, MODELO_FALSO, embeder
 from tukit_catalogo.modelos import Base
 from tukit_comun.bd import MotorServicio
 from tukit_comun.cache import usar_cliente
-from tukit_comun.pruebas_redis import clientes_de_prueba, url_de_pruebas
-
-redis_asincrono = pytest.importorskip("redis.asyncio")
+from tukit_comun.pruebas_redis import clientes_de_prueba, lo_guardado
 
 pytestmark = pytest.mark.redis
 
@@ -60,14 +58,7 @@ async def test_la_segunda_lista_solo_calcula_el_renglon_nuevo_contra_redis(monke
             assert primera.status_code == segunda.status_code == 200
             assert lotes == [RENGLONES[:2], RENGLONES[2:]]
             assert not cliente.degradado
-
-            conexion = redis_asincrono.from_url(url_de_pruebas())
-            try:
-                claves = sorted([c.decode() async for c in conexion.scan_iter(match=cliente.prefijo + "*")])
-                valores = [await conexion.get(c) for c in claves]
-                ttls = [await conexion.ttl(c) for c in claves]
-            finally:
-                await conexion.aclose()
+            guardado = await lo_guardado(cliente.prefijo)
     finally:
         await engine.dispose()
 
@@ -75,7 +66,7 @@ async def test_la_segunda_lista_solo_calcula_el_renglon_nuevo_contra_redis(monke
         cliente.prefijo + cache_vectores.clave(MODELO_FALSO, texto): vector
         for texto, vector in zip(RENGLONES, embeder_falso(RENGLONES), strict=True)
     }
-    assert {c: cache_vectores.de_bytes(v) for c, v in zip(claves, valores, strict=True)} == esperados
-    assert all(len(v) == 8 * DIMENSION_EMBEDDING for v in valores)
-    assert all(24 * 3600 - 60 < ttl <= 24 * 3600 for ttl in ttls)
-    assert not any(b"cuaderno" in v or "cuaderno" in c for c, v in zip(claves, valores, strict=True))
+    assert {c: cache_vectores.de_bytes(g.valor) for c, g in guardado.items()} == esperados
+    assert all(len(g.valor) == 8 * DIMENSION_EMBEDDING for g in guardado.values())
+    assert all((24 * 3600 - 60) * 1000 < g.vence_en_ms <= 24 * 3600 * 1000 for g in guardado.values())
+    assert not any(b"cuaderno" in g.valor or "cuaderno" in c for c, g in guardado.items())

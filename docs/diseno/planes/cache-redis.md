@@ -179,11 +179,19 @@ Y estas, tomadas al leer el código:
     con `TUKIT_PRUEBAS_REDIS_OBLIGATORIO=1`, usan un prefijo por corrida y borran sus claves al
     terminar con `SCAN` y `DEL`, que solo usan las pruebas. Corren con `make prueba-redis`;
     `make prueba` las deja fuera. Los `conftest.py` de los servicios borran `REDIS_URL`, para que
-    una variable exportada en la terminal no meta Redis en las pruebas unitarias.
+    una variable exportada en la terminal no meta Redis en las pruebas unitarias. Las pruebas de
+    los servicios leen lo que quedó en Redis con `lo_guardado` (valor y vencimiento por clave), de
+    `pruebas_redis.py`, y no importan `redis`: así la frontera nueva no tiene excepciones.
 21. **El compose.** Redis entra también al perfil `api`, sin persistencia y con un tope de memoria
     que desaloja lo menos usado (`--maxmemory 256mb --maxmemory-policy allkeys-lru --save ""`).
-    Gateway, catálogo e inteligencia reciben `REDIS_URL` y dependen de él. El gateway confía
-    también en la red de Docker, porque la web le llega desde fuera del compose.
+    Gateway, catálogo e inteligencia reciben `REDIS_URL` y lo esperan arrancado, sin exigirlo
+    (`required: false`). El gateway confía también en la red de Docker (`172.16.0.0/12`), porque
+    la web le llega desde fuera del compose.
+22. **CI.** Un trabajo `redis` nuevo, con `redis:7` como servicio, instala las dependencias de
+    `pruebas` más `redis`, comprueba que Redis responde con `python -m tukit_comun.cache`, corre las
+    pruebas unitarias del cliente común (`test_cache.py`, que ningún trabajo corría) y las marcadas
+    con `redis`, con `TUKIT_PRUEBAS_REDIS_OBLIGATORIO=1`. Los demás trabajos no cambian: sin el
+    paquete, las pruebas marcadas se saltan solas.
 
 ## Tareas
 
@@ -238,11 +246,11 @@ Y estas, tomadas al leer el código:
 
 ### 5. Infraestructura y CI
 
-- [ ] `infra/docker-compose.yml`: Redis con los servicios que lo usan y su `REDIS_URL`.
-- [ ] `.env.ejemplo`: `REDIS_URL` y las variables nuevas, con su comentario.
-- [ ] `Makefile`: `arriba` con `CON_REDIS`, `abajo` y `prueba-redis`.
-- [ ] `ci.yml`: el trabajo `redis` con `redis:7`; los demás no cambian.
-- [ ] Fronteras: solo `tukit_comun` importa `redis`. Sus pruebas, en verde.
+- [x] `infra/docker-compose.yml`: Redis con los servicios que lo usan y su `REDIS_URL`.
+- [x] `.env.ejemplo`: `REDIS_URL` y las variables nuevas, con su comentario.
+- [x] `Makefile`: `arriba` con `CON_REDIS`, `abajo` y `prueba-redis`.
+- [x] `ci.yml`: el trabajo `redis` con `redis:7`; los demás no cambian.
+- [x] Fronteras: solo `tukit_comun` importa `redis`. Sus pruebas, en verde.
 
 ### 6. Documentación
 

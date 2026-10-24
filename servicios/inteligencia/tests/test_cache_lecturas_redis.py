@@ -14,12 +14,10 @@ import json
 import httpx
 import pytest
 from tukit_comun.cache import usar_cliente
-from tukit_comun.pruebas_redis import clientes_de_prueba, url_de_pruebas
+from tukit_comun.pruebas_redis import clientes_de_prueba, lo_guardado
 from tukit_inteligencia import api, cache_lecturas
 from tukit_inteligencia.api import app
 from tukit_inteligencia.percepcion import ItemExtraido, PaginaLeida
-
-redis_asincrono = pytest.importorskip("redis.asyncio")
 
 pytestmark = pytest.mark.redis
 
@@ -85,15 +83,10 @@ async def test_dos_subidas_del_mismo_pdf_leen_una_vez_contra_redis(motor, monkey
         assert lecturas == [1, 2]
         assert not cliente.degradado
 
-        conexion = redis_asincrono.from_url(url_de_pruebas())
-        try:
-            claves = [c.decode() async for c in conexion.scan_iter(match=cliente.prefijo + "*")]
-            assert claves == [cliente.prefijo + cache_lecturas.clave(pdf)]
-            valor = await conexion.get(claves[0])
-            ttl = await conexion.ttl(claves[0])
-        finally:
-            await conexion.aclose()
+        guardado = await lo_guardado(cliente.prefijo)
 
-    assert set(json.loads(valor)) == {"grados", "paginas", "items"}
-    assert CORREO.encode() not in valor
-    assert 30 * 24 * 3600 - 60 < ttl <= 30 * 24 * 3600
+    assert list(guardado) == [cliente.prefijo + cache_lecturas.clave(pdf)]
+    (lectura,) = guardado.values()
+    assert set(json.loads(lectura.valor)) == {"grados", "paginas", "items"}
+    assert CORREO.encode() not in lectura.valor
+    assert (30 * 24 * 3600 - 60) * 1000 < lectura.vence_en_ms <= 30 * 24 * 3600 * 1000
