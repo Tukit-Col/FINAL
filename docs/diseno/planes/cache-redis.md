@@ -222,12 +222,12 @@ Y estas, tomadas al leer el código:
 
 ### 4. El límite de tasa
 
-- [ ] `tukit_gateway/limite.py`: niveles, rutas estrictas y exentas, claves, IP del cliente y 429.
-- [ ] `reenviar` limita antes de reenviar.
-- [ ] Pruebas: por debajo y por encima del límite con `Retry-After`, las dos claves, el nivel
+- [x] `tukit_gateway/limite.py`: niveles, rutas estrictas y exentas, claves, IP del cliente y 429.
+- [x] `reenviar` limita antes de reenviar.
+- [x] Pruebas: por debajo y por encima del límite con `Retry-After`, las dos claves, el nivel
       estricto por ruta, `X-Forwarded-For` desde un proxy de confianza y desde uno que no lo es,
       las rutas exentas, Redis caído (cuenta en memoria) y la configuración por entorno.
-- [ ] Prueba de integración: dos limitadores con su propia conexión comparten el contador.
+- [x] Prueba de integración: dos limitadores con su propia conexión comparten el contador.
 - [ ] `tukit-contrato`: `cabeceras` en `ClienteApi`, `X-Forwarded-For` desde `servidor.ts` y
       `reintentar_en_segundos` en el 429.
 - [ ] La web y la consola: `Retry-After` en `respuestaDeError`, el mensaje con la espera en los

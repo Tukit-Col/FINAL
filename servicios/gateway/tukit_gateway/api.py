@@ -23,7 +23,12 @@ localmente para las rutas del pipeline, que hoy no exigen sesion. Forzar el
 token en ellas seria construir la mitad del mecanismo -autenticacion sin el
 resto de los servicios preparados- y creer que esta completo, que es justo lo
 que el Anexo M le reprocha al rediseno. El sitio donde iria ese chequeo local
-esta marcado en `_reenviar`. Tampoco limita la tasa aun.
+esta marcado en `_reenviar`.
+
+Lo que si hace antes de rutear es limitar la tasa (`limite.py`, ADR 0047): por
+token y por IP, en un nivel general y en uno estricto para las rutas que
+cuestan, con un 429 y `Retry-After`. Es el unico punto por el que pasa todo el
+trafico de fuera, igual que para la validacion del token.
 
 El mapa de prefijos es explicito y no un comodin. Una ruta que no este aqui
 devuelve 404 con la lista de las que si existen, en vez de reenviarla a un
@@ -42,6 +47,8 @@ import httpx
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from tukit_comun.http import CABECERA_CORRELACION, crear_app, id_de_correlacion
+
+from . import limite
 
 PUERTO_POR_OMISION = 8010
 
@@ -237,6 +244,12 @@ async def servicios() -> dict[str, object]:
 )
 async def reenviar(ruta: str, peticion: Request) -> Response:
     camino = "/" + ruta
+    # Antes que todo lo demas: una ruta desconocida o bloqueada tambien gasta
+    # cupo, o un escaner tendria las 404 gratis.
+    rechazo = await limite.revisar(peticion, camino)
+    if rechazo is not None:
+        return rechazo
+
     seccion = None if ambigua(camino) else pendiente(camino)
     if seccion is not None:
         return JSONResponse(
