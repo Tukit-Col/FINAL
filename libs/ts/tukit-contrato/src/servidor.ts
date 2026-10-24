@@ -10,6 +10,9 @@
 
 import "server-only";
 
+import { headers } from "next/headers";
+import { unstable_rethrow } from "next/navigation";
+
 import { ClienteApi } from "./cliente-http";
 import type { OrigenDatos } from "./origen";
 
@@ -41,11 +44,29 @@ export function urlWeb(): string {
   return process.env["TUKIT_WEB_URL"] ?? "http://localhost:3000";
 }
 
+/** Lo que se reenvia de la peticion entrante: solo `X-Forwarded-For`, para que
+ *  el limite de tasa del gateway cuente por la IP del cliente y no por la de
+ *  este servidor (ADR 0047). Next la pone con la direccion de la conexion si no
+ *  venia; si venia, la deja como esta, y un proxy delante tiene que agregar la
+ *  IP real a la derecha. Fuera de una peticion no hay nada que reenviar. */
+export async function cabecerasReenviadas(): Promise<Record<string, string>> {
+  let entrantes: Headers;
+  try {
+    entrantes = await headers();
+  } catch (causa) {
+    // Las senales internas de Next (renderizado dinamico) son suyas.
+    unstable_rethrow(causa);
+    return {};
+  }
+  const reenviada = entrantes.get("x-forwarded-for");
+  return reenviada ? { "X-Forwarded-For": reenviada } : {};
+}
+
 let cache: OrigenDatos | null = null;
 
 export function origenDeDatos(): OrigenDatos {
   if (cache) return cache;
-  cache = new ClienteApi({ urlBase: urlApi() });
+  cache = new ClienteApi({ urlBase: urlApi(), cabeceras: cabecerasReenviadas });
   return cache;
 }
 

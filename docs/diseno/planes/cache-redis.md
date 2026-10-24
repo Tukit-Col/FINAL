@@ -169,8 +169,11 @@ Y estas, tomadas al leer el código:
     - Un 429 lleva `reintentar_en_segundos` en el `detalle` de `ErrorTukit`, del cuerpo o del
       `Retry-After`.
     - `respuestaDeError`, en la web y en la consola, pone `Retry-After` en un 429.
-    - Los ayudantes del navegador (`api-navegador.ts` en las dos apps y `api-onboarding.ts`) arman
-      el mensaje con la espera si el cuerpo no lo trae, y `sondear` deja de sondear con un 429.
+    - Los ayudantes del navegador (`api-navegador.ts` en las dos apps, y `api-onboarding.ts`,
+      `api-listas.ts` y `api-catalogo.ts` en la consola) arman el mensaje con la espera si el
+      cuerpo no lo trae, con la misma función pura (`conEspera`, en `espera.ts`).
+    - `sondear` deja de sondear con un 429, y la pantalla de espera muestra el mensaje y un botón
+      para volver a consultar: sin él, la pantalla se quedaría quieta sin decir nada.
 20. **Las pruebas de integración** llevan el marcador `redis`, toman la URL de
     `TUKIT_PRUEBAS_REDIS_URL` (por omisión `redis://localhost:6379/15`), se saltan sin Redis salvo
     con `TUKIT_PRUEBAS_REDIS_OBLIGATORIO=1`, usan un prefijo por corrida y borran sus claves al
@@ -228,9 +231,9 @@ Y estas, tomadas al leer el código:
       estricto por ruta, `X-Forwarded-For` desde un proxy de confianza y desde uno que no lo es,
       las rutas exentas, Redis caído (cuenta en memoria) y la configuración por entorno.
 - [x] Prueba de integración: dos limitadores con su propia conexión comparten el contador.
-- [ ] `tukit-contrato`: `cabeceras` en `ClienteApi`, `X-Forwarded-For` desde `servidor.ts` y
+- [x] `tukit-contrato`: `cabeceras` en `ClienteApi`, `X-Forwarded-For` desde `servidor.ts` y
       `reintentar_en_segundos` en el 429.
-- [ ] La web y la consola: `Retry-After` en `respuestaDeError`, el mensaje con la espera en los
+- [x] La web y la consola: `Retry-After` en `respuestaDeError`, el mensaje con la espera en los
       ayudantes del navegador y `sondear` sin reintentar un 429.
 
 ### 5. Infraestructura y CI
