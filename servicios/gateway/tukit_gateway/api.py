@@ -44,9 +44,9 @@ import os
 import re
 
 import httpx
-from fastapi import Request, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
-from tukit_comun.http import CABECERA_CORRELACION, crear_app, id_de_correlacion
+from tukit_comun.http import CABECERA_CORRELACION, crear_app, crear_pool, id_de_correlacion
 
 from . import limite
 
@@ -55,6 +55,11 @@ PUERTO_POR_OMISION = 8010
 # Generoso porque detras hay un pipeline que tarda minutos. El proxy del
 # frontend actual ya convive con eso con una espera de 300 s.
 ESPERA_SEGUNDOS = 300.0
+
+# Cuantas conexiones puede tener en vuelo el cliente compartido, sumando los
+# cinco servicios. Mas que el pool de un servicio (20 por destino) porque aqui
+# confluye todo el trafico de fuera.
+CONEXIONES = 100
 
 # Cabeceras que NO se copian. `host` porque apunta a la puerta y confundiria
 # al de atras; las de longitud y codificacion porque httpx las recalcula y
@@ -206,12 +211,43 @@ def bloqueada(ruta: str) -> bool:
     return False
 
 
+async def _arrancar(app: FastAPI) -> None:
+    # UN cliente httpx para todo el proceso, y no uno por peticion. Construir un
+    # `AsyncClient` arma un `SSLContext` de forma sincrona (~480 ms en Windows)
+    # con el bucle congelado: con uno por peticion, cada reenvio tardaba medio
+    # segundo aunque el de atras respondiera en 9 ms, 100 concurrentes daban
+    # ReadTimeout y las esperas de Redis del limite vencian. Ademas reusa las
+    # conexiones con los servicios en vez de abrir una cada vez.
+    app.state.cliente = crear_pool(espera=ESPERA_SEGUNDOS, conexiones=CONEXIONES)
+
+
+async def _apagar(app: FastAPI) -> None:
+    cliente = getattr(app.state, "cliente", None)
+    if cliente is not None:
+        await cliente.aclose()
+
+
+def _cliente() -> httpx.AsyncClient:
+    """El cliente compartido que cuelga de `app.state`.
+
+    Si nadie corrio el arranque (un cliente de prueba sobre `ASGITransport`, que
+    no dispara el ciclo de vida) se crea en el primer uso y queda colgado igual:
+    sigue siendo uno por proceso, no uno por peticion."""
+    cliente = getattr(app.state, "cliente", None)
+    if cliente is None:
+        cliente = crear_pool(espera=ESPERA_SEGUNDOS, conexiones=CONEXIONES)
+        app.state.cliente = cliente
+    return cliente
+
+
 app = crear_app(
     titulo="Tukit Gateway",
     descripcion=(
         "Unica URL base del backend. Rutea por prefijo hacia catalogo, identidad e "
         "inteligencia. Contrato: docs/arquitectura/CONTRATO_API.md seccion 12.1."
     ),
+    al_arrancar=_arrancar,
+    al_apagar=_apagar,
 )
 
 
@@ -227,13 +263,13 @@ async def servicios() -> dict[str, object]:
     # responde". Un servicio vivo con su base caida da 503 aqui, que es la verdad
     # que evita perder la tarde con un 502 rio abajo.
     estado = {}
-    async with httpx.AsyncClient(timeout=5.0) as cliente:
-        for nombre, base in _servicios().items():
-            try:
-                respuesta = await cliente.get(f"{base}/health/ready")
-                estado[nombre] = {"url": base, "arriba": respuesta.status_code == 200}
-            except httpx.HTTPError as error:
-                estado[nombre] = {"url": base, "arriba": False, "detalle": str(error)}
+    cliente = _cliente()
+    for nombre, base in _servicios().items():
+        try:
+            respuesta = await cliente.get(f"{base}/health/ready", timeout=5.0)
+            estado[nombre] = {"url": base, "arriba": respuesta.status_code == 200}
+        except httpx.HTTPError as error:
+            estado[nombre] = {"url": base, "arriba": False, "detalle": str(error)}
     return {"servicios": estado, "todos_arriba": all(s["arriba"] for s in estado.values())}
 
 
@@ -286,8 +322,9 @@ async def reenviar(ruta: str, peticion: Request) -> Response:
     # La puerta es el borde de entrada: aqui se acuña el id de correlacion. El
     # middleware compartido ya leyo-o-acuñó uno para ESTA peticion; se estampa en
     # las cabeceras salientes para que el servicio de atras —y los que el llame
-    # despues— compartan el mismo id. Reenvia el suyo httpx crudo (no
-    # `cliente_efimero`), asi que se pega a mano.
+    # despues— compartan el mismo id. El hook del cliente compartido tambien lo
+    # estamparia, pero se pega a mano para no depender de que lo traiga quien
+    # sustituya el cliente (las pruebas).
     cid = id_de_correlacion()
     if cid:
         cabeceras[CABECERA_CORRELACION] = cid
@@ -296,14 +333,13 @@ async def reenviar(ruta: str, peticion: Request) -> Response:
     # cuando exista autenticacion. Es el unico punto por el que pasa todo el
     # trafico, que es lo que hace que ponerla aqui sirva de algo.
     try:
-        async with httpx.AsyncClient(timeout=ESPERA_SEGUNDOS) as cliente:
-            respuesta = await cliente.request(
-                peticion.method,
-                f"{base}{camino}",
-                params=dict(peticion.query_params),
-                headers=cabeceras,
-                content=cuerpo,
-            )
+        respuesta = await _cliente().request(
+            peticion.method,
+            f"{base}{camino}",
+            params=dict(peticion.query_params),
+            headers=cabeceras,
+            content=cuerpo,
+        )
     except httpx.HTTPError as error:
         # 503 y no 502: el de atras no fallo, no esta. La distincion le dice
         # a quien opera si hay que mirar un log o levantar un proceso.
