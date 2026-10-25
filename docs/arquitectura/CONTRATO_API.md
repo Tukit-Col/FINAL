@@ -322,6 +322,11 @@ Dos formas de entrar, las dos del SRS:
 > contrato. La ruta (a) cubre los 17 colegios del corpus con sus 175 listas cargadas, así
 > que el frontend puede construirse entero contra ella.
 
+Si **ningún** hijo tiene lista en el catálogo para su (colegio, grado, año), la petición se
+rechaza en el acto con `422 sin_lista_oficial` y no se encola nada: el grado sin lista va por
+`POST /v1/listas/subir`. Un hogar donde solo algunos hijos tienen lista sigue con `202` y
+el kit anota al que faltó. Con el catálogo caído no se puede saber y se encola como siempre.
+
 ### 2.1 Un archivo es la lista de UN grado, y eso se verifica
 
 **Regla de negocio, no límite técnico.** El archivo tiene que ser la lista del grado de ese
