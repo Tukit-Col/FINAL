@@ -19,6 +19,7 @@ import {
 } from "@tukit/contrato";
 import { FalloApi, iniciarCheckout } from "@/lib/api-navegador";
 import { escribirDireccionAMano } from "@/lib/direccion-checkout";
+import { etiquetasDeHijos, type ApodoMatricula } from "@/lib/kit-vista";
 import { abrirWidgetWompi } from "@/lib/wompi";
 import CampoDireccion, { type LugarElegido } from "./CampoDireccion";
 import LineaDeKit from "./LineaDeKit";
@@ -64,10 +65,13 @@ export default function VistaKits({
   trabajo,
   correo,
   llaveMaps,
+  matriculas,
 }: {
   trabajo: Trabajo;
   correo: string;
   llaveMaps: string | null;
+  // Colegio, grado y apodo de los hijos del portador (vacio sin sesion).
+  matriculas: ApodoMatricula[];
 }) {
   const recomendado = trabajo.recomendado;
   const [activo, setActivo] = useState<PerfilKit>(recomendado?.perfil ?? "Ahorrador");
@@ -80,6 +84,18 @@ export default function VistaKits({
   );
 
   const kit = useMemo(() => kits.find((k) => k.perfil === activo) ?? kits[0], [kits, activo]);
+
+  // El nombre de cada hijo del kit: su apodo, "Hijo N" o nada; nunca la
+  // referencia interna con la que viaja cada renglon.
+  const nombresHijos = useMemo(
+    () =>
+      etiquetasDeHijos(
+        trabajo.kits.flatMap((k) => k.lineas.map((l) => l.hijo)),
+        trabajo.hijos,
+        matriculas,
+      ),
+    [trabajo.kits, trabajo.hijos, matriculas],
+  );
 
   if (!kit) {
     return (
@@ -201,20 +217,23 @@ export default function VistaKits({
         <section className={styles.consolidaciones}>
           <h2>Lo que juntamos entre tus hijos</h2>
           <ul>
-            {kit.consolidaciones.map((c) => (
-              <li key={c.concepto}>
-                <strong>{c.explicacion}</strong>
-                <span>
-                  {c.concepto} · {c.hijos.join(" y ")} · ahorras{" "}
-                  <span className="cifra">{formatearPesos(c.ahorro)}</span>
-                </span>
-              </li>
-            ))}
+            {kit.consolidaciones.map((c) => {
+              const quienes = c.hijos.flatMap((h) => nombresHijos.get(h) ?? []);
+              return (
+                <li key={c.concepto}>
+                  <strong>{c.explicacion}</strong>
+                  <span>
+                    {c.concepto} · {quienes.length > 0 && `${quienes.join(" y ")} · `}ahorras{" "}
+                    <span className="cifra">{formatearPesos(c.ahorro)}</span>
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
 
-      <SeccionesDeLineas kit={kit} trabajoId={trabajo.trabajo_id} />
+      <SeccionesDeLineas kit={kit} trabajoId={trabajo.trabajo_id} nombresHijos={nombresHijos} />
 
       <Checkout
         trabajoId={trabajo.trabajo_id}
@@ -495,7 +514,15 @@ function ResumenKit({ kit }: { kit: Kit }) {
   );
 }
 
-function SeccionesDeLineas({ kit, trabajoId }: { kit: Kit; trabajoId: string }) {
+function SeccionesDeLineas({
+  kit,
+  trabajoId,
+  nombresHijos,
+}: {
+  kit: Kit;
+  trabajoId: string;
+  nombresHijos: Map<string, string>;
+}) {
   const grupos = agruparPorClase(kit.lineas);
 
   return (
@@ -519,6 +546,7 @@ function SeccionesDeLineas({ kit, trabajoId }: { kit: Kit; trabajoId: string }) 
                   key={linea.item_id}
                   linea={linea}
                   clase={clasificar(linea)}
+                  nombreHijo={linea.hijo ? nombresHijos.get(linea.hijo) : undefined}
                   trabajoId={trabajoId}
                   perfil={kit.perfil}
                 />

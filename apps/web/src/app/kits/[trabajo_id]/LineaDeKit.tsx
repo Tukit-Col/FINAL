@@ -26,11 +26,15 @@ import styles from "./Kits.module.css";
 export default function LineaDeKit({
   linea,
   clase,
+  nombreHijo,
   trabajoId,
   perfil,
 }: {
   linea: LineaKit;
   clase: ClaseLinea;
+  // El apodo del hijo (o "Hijo N"); `linea.hijo` es una referencia interna y
+  // no se pinta nunca.
+  nombreHijo?: string;
   trabajoId: string;
   perfil: string;
 }) {
@@ -52,7 +56,7 @@ export default function LineaDeKit({
           <p className={styles.descripcion}>{linea.descripcion}</p>
 
           <p className={styles.meta}>
-            {linea.hijo && <span className={styles.hijo}>{linea.hijo}</span>}
+            {nombreHijo && <span className={styles.hijo}>{nombreHijo}</span>}
             {typeof linea.cantidad_pedida === "number" && (
               <span>
                 pide {linea.cantidad_pedida}
