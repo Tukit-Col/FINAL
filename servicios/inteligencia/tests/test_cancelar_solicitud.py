@@ -19,6 +19,7 @@ from test_mis_solicitudes import COLEGIO, OTRO_PADRE, PADRE, IdentidadFalsa, _li
 from tukit_inteligencia import trabajos
 from tukit_inteligencia.api import app
 from tukit_inteligencia.modelos import EstadoTrabajo
+from tukit_inteligencia.repositorios.trabajos import RepoTrabajos
 
 
 @dataclass
@@ -189,3 +190,53 @@ async def test_cancelar_lista_con_sesion(cliente):
     )
     assert respuesta.status_code == 200
     assert app.state.catalogo.retiros[0]["contacto"] == str(PADRE)
+
+
+# --------------------------------------------------------------------------
+# El kit canonico del grado no se cancela (H-UI-04)
+# --------------------------------------------------------------------------
+
+
+async def _fijar_canonico(motor, trabajo_id):
+    async with motor.engine.begin() as conexion:
+        await RepoTrabajos(conexion).fijar_canonico(trabajo_id)
+
+
+async def test_el_trabajo_que_es_canonico_del_grado_no_se_cancela(motor):
+    """Aprobar el trabajo de un acudiente lo fija como cache de su grado: la
+    ruta rapida de los demas padres sale de ahi. Cancelarlo dejaria el puntero
+    apuntando a un trabajo cancelado."""
+    trabajo_id = await _sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
+    await _fijar_canonico(motor, trabajo_id)
+
+    with pytest.raises(trabajos.SolicitudNoCancelable) as error:
+        await _cancelar(motor, trabajo_id)
+    assert error.value.codigo == "kit_canonico"
+    assert error.value.estado == 409
+    assert (await trabajos.ver(motor, trabajo_id))["estado"] == EstadoTrabajo.PUBLICADO.value
+
+
+async def test_cancelar_la_ruta_rapida_no_toca_el_canonico_al_que_apunta(motor):
+    canonico_id = await _sembrar_trabajo(motor, usuario_id=OTRO_PADRE, hijos=HIJOS)
+    await _fijar_canonico(motor, canonico_id)
+    propio = await _sembrar_trabajo(
+        motor,
+        usuario_id=PADRE,
+        origen="parent_apply",
+        hijos=[{**HIJOS[0], "canonico_trabajo_id": str(canonico_id), "perfil": "Ahorrador"}],
+    )
+
+    await _cancelar(motor, propio)
+
+    assert (await trabajos.ver(motor, propio))["estado"] == EstadoTrabajo.CANCELADO.value
+    assert (await trabajos.ver(motor, canonico_id))["estado"] == EstadoTrabajo.PUBLICADO.value
+
+
+async def test_cancelar_el_canonico_por_http_responde_409(cliente, motor):
+    trabajo_id = await _sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
+    await _fijar_canonico(motor, trabajo_id)
+    respuesta = await cliente.post(
+        f"/v1/trabajos/{trabajo_id}/cancelar", headers={"Authorization": "Bearer tok-padre"}
+    )
+    assert respuesta.status_code == 409
+    assert "kit_canonico" in respuesta.text
