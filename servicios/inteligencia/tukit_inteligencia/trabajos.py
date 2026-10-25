@@ -1350,8 +1350,12 @@ async def ordenar(
     for linea in kit["lineas"]:
         elegido = linea.get("producto_elegido")
         # Una linea informativa (o sin producto/precio) no se compra: se muestra
-        # en el kit pero no entra a la orden.
+        # en el kit pero no entra a la orden. Tampoco la que quedo en cero por
+        # ir junto a otra ("Ya va en la linea N", o la de un hermano): Comercio
+        # exige cantidad > 0 y una sola en cero tumbaba el checkout entero.
         if linea["informativa"] or not elegido or elegido.get("precio") is None:
+            continue
+        if int(linea["unidades_a_comprar"]) <= 0:
             continue
         lineas.append(
             {
