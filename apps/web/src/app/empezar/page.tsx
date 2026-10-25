@@ -1,5 +1,6 @@
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import { sesionActual, matriculasDeLaSesion } from "@/lib/sesion";
+import { conAvisoDeLimite } from "@/components/ConAvisoDeLimite";
 import FormularioEmpezar from "./FormularioEmpezar";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,13 @@ export const metadata = {
 // crezca.
 const ANCLAS = ["C001", "C009", "C011", "C086"] as const;
 
+// Con el cupo agotado (429) se pinta el aviso del limite: "sin sesion" o "sin
+// hijos" haria que el acudiente con cuenta se registrara otra vez.
 export default async function Empezar() {
+  return conAvisoDeLimite(formulario);
+}
+
+async function formulario() {
   // Los colegios y los personajes se leen en el servidor y viajan como prop: el
   // selector necesita la lista entera de colegios para filtrar grados, y la lista
   // de personajes surtidos completos para pintar solo lo que sí cumplimos.
