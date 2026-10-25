@@ -92,7 +92,7 @@ a un hijo (ADR 0031).
 
 | Cambio | Dónde | Por qué |
 |---|---|---|
-| `POST /v1/trabajos/{id}/cancelar` (con sesión): el trabajo pasa a `cancelado`, terminal. No se cancela un kit comprado (`409 kit_comprado`), uno con pago pendiente (`409 pedido_pendiente`) ni uno en `procesando` (`409 en_proceso`); otra cuenta, `403 solicitud_ajena` | §4 | Antes una solicitud no se podía deshacer |
+| `POST /v1/trabajos/{id}/cancelar` (con sesión): el trabajo pasa a `cancelado`, terminal. No se cancela un kit comprado (`409 kit_comprado`), uno con pago pendiente (`409 pedido_pendiente`) ni uno en `procesando` (`409 en_proceso`), ni el que hoy es el kit canónico de su grado (`409 kit_canonico`); otra cuenta, `403 solicitud_ajena` | §4 | Antes una solicitud no se podía deshacer |
 | `POST /v1/mis-solicitudes/listas/{tarea_id}/cancelar` (con sesión): la lista subida deja de ser del acudiente, sin borrarse | §4 | La lista es del colegio y sirve a otros |
 | `EstadoTrabajo` suma `cancelado`; "Mis solicitudes" no lo devuelve y la lista `recibida` trae `tarea_id` | §4 | Para poder cancelarla |
 | `DELETE /v1/cuenta/matriculas/{matricula_id}` (204) y `PUT` con `{colegio_id, grado, apodo?}`: quitar cierra el vínculo sin borrar; cambiar retira la matrícula y crea la nueva con el mismo apodo | §12.4 | Corregir el colegio o quitar a un hijo desde el panel |
@@ -321,6 +321,11 @@ Dos formas de entrar, las dos del SRS:
 > pide `GEMINI_API_KEY` y el render de PDF, y ninguna de las dos es una decisión de
 > contrato. La ruta (a) cubre los 17 colegios del corpus con sus 175 listas cargadas, así
 > que el frontend puede construirse entero contra ella.
+
+Si **ningún** hijo tiene lista en el catálogo para su (colegio, grado, año), la petición se
+rechaza en el acto con `422 sin_lista_oficial` y no se encola nada: el grado sin lista va por
+`POST /v1/listas/subir`. Un hogar donde solo algunos hijos tienen lista sigue con `202` y
+el kit anota al que faltó. Con el catálogo caído no se puede saber y se encola como siempre.
 
 ### 2.1 Un archivo es la lista de UN grado, y eso se verifica
 

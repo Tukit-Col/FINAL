@@ -385,6 +385,31 @@ async def _listas_por_hijo(
     return encontradas, sin_lista
 
 
+async def alguna_lista_para(catalogo: ClienteCatalogo, hijos: list[dict[str, Any]]) -> bool:
+    """True si al menos un hijo tiene una lista que leer en el catalogo.
+
+    Es la condicion sin la que `procesar` termina en `sin_lista_oficial`; crear
+    la pregunta antes para rechazar en el acto en vez de encolar un trabajo que
+    va a fallar (H-C-03). Mismo anio por omision que `_listas_por_hijo`. Con el
+    catalogo caido no se sabe: se responde True y el trabajo se encola como
+    siempre, que el trabajador ya sabe esperar al catalogo.
+    """
+    for hijo in hijos:
+        if hijo.get("version_id"):
+            return True
+        anio = int(hijo.get("anio_lectivo") or ANIO_LECTIVO_POR_OMISION)
+        try:
+            if await catalogo.listas(
+                colegio_id=str(hijo.get("colegio_id") or ""),
+                grado=str(hijo.get("grado") or ""),
+                anio_lectivo=anio,
+            ):
+                return True
+        except RemotoCaido:
+            return True
+    return False
+
+
 async def _renglones_de_listas(
     catalogo: ClienteCatalogo, hijos: list[dict[str, Any]]
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -1645,6 +1670,8 @@ async def cancelar_solicitud(
     - la solicitud de otro (`solicitud_ajena`, 403);
     - un trabajo que el pipeline esta armando (`en_proceso`): se escribe en
       medio y el resultado quedaria a medias;
+    - el trabajo que hoy es el kit canonico de su grado (`kit_canonico`):
+      aprobarlo lo fijo como la cache de la que copian los demas acudientes;
     - un kit con un pago pendiente (`pedido_pendiente`): primero se cancela el
       pedido, que es lo que consulta a la pasarela antes de soltarlo (§9.3);
     - un kit ya comprado (`kit_comprado`).
@@ -1670,6 +1697,20 @@ async def cancelar_solicitud(
     if cabeza.estado == EstadoTrabajo.PROCESANDO.value:
         raise SolicitudNoCancelable(
             "en_proceso", "Estamos armando tu kit justo ahora. Intenta cancelarla en un minuto."
+        )
+    # Aprobar el trabajo de un acudiente lo fija como cache de su grado
+    # (`revisar`): la ruta rapida de los demas padres copia de ahi. Cancelarlo
+    # dejaria el puntero en un trabajo cancelado, asi que mientras sea el
+    # canonico no se toca; se cancela cuando otra publicacion lo reemplace.
+    async with motor.engine.begin() as conexion:
+        es_canonico = await conexion.scalar(
+            select(KIT_CANONICO.c.id).where(KIT_CANONICO.c.trabajo_id == trabajo_id).limit(1)
+        )
+    if es_canonico is not None:
+        raise SolicitudNoCancelable(
+            "kit_canonico",
+            "Este kit quedó como el kit de referencia de tu colegio y grado, así que no se "
+            "cancela. Si no lo necesitas, no tienes que comprarlo.",
         )
 
     for pedido in await comercio.pedidos_de(token):
