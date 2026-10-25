@@ -404,7 +404,10 @@ export default function FormularioEmpezar({
   // se cargan vacíos —dejaban el buscador en blanco y el botón bloqueado—: se
   // dice cuáles quedaron fuera y por qué (`precarga-hijos.ts`).
   const [precarga] = useState(() => precargarHijos(matriculasIniciales, colegios));
-  const avisosPrecarga = useMemo(() => avisosDePrecarga(precarga.fuera), [precarga]);
+  const avisosPrecarga = useMemo(
+    () => avisosDePrecarga(precarga.fuera, precarga.precargados.length),
+    [precarga],
+  );
   const [hijos, setHijos] = useState<HijoFormulario[]>(() =>
     precarga.precargados.length > 0
       ? precarga.precargados.map((m, i) => ({
