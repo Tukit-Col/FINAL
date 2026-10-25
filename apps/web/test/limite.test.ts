@@ -4,7 +4,13 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { avisoDeLimite, esLimiteDeTasa, fallaCerradoSalvoLimite } from "../src/lib/limite.ts";
+import {
+  avisoCuentaCreada,
+  avisoDeLimite,
+  cuentaCreadaSinSesion,
+  esLimiteDeTasa,
+  fallaCerradoSalvoLimite,
+} from "../src/lib/limite.ts";
 
 // La misma forma que `ErrorTukit` y `FalloApi`: estado, mensaje y detalle.
 class Fallo extends Error {
@@ -58,4 +64,19 @@ test("otro fallo no es un aviso de limite", () => {
   assert.equal(avisoDeLimite(new Fallo(503, "caido")), null);
   assert.equal(avisoDeLimite(new Error("x")), null);
   assert.equal(avisoDeLimite(null), null);
+});
+
+// H-R-01: el registro crea la cuenta, pero el login que lo sigue da 429.
+test("el 429 del login tras el registro dice que la cuenta quedo creada", () => {
+  const trasRegistro = new Fallo(429, MENSAJE, { reintentar_en_segundos: 30, cuenta_creada: true });
+  assert.equal(cuentaCreadaSinSesion(trasRegistro), true);
+  const texto = avisoCuentaCreada(trasRegistro);
+  assert.ok(texto.startsWith(MENSAJE), texto);
+  assert.match(texto, /cuenta ya quedó creada/);
+  assert.match(texto, /Armar mis kits/);
+});
+
+test("un 429 del propio registro no es 'cuenta creada'", () => {
+  assert.equal(cuentaCreadaSinSesion(limite), false);
+  assert.equal(cuentaCreadaSinSesion(new Fallo(401, "x", { cuenta_creada: true })), false);
 });
