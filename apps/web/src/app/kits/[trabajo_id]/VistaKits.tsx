@@ -19,6 +19,7 @@ import {
 } from "@tukit/contrato";
 import { FalloApi, iniciarCheckout } from "@/lib/api-navegador";
 import { escribirDireccionAMano } from "@/lib/direccion-checkout";
+import type { EntregaPrevia } from "@/lib/pagar-pedido";
 import { etiquetasDeHijos, type ApodoMatricula } from "@/lib/kit-vista";
 import { abrirWidgetWompi } from "@/lib/wompi";
 import CampoDireccion, { type LugarElegido } from "./CampoDireccion";
@@ -66,12 +67,16 @@ export default function VistaKits({
   correo,
   llaveMaps,
   matriculas,
+  entregaPrevia,
+  abrirPago,
 }: {
   trabajo: Trabajo;
   correo: string;
   llaveMaps: string | null;
   // Colegio, grado y apodo de los hijos del portador (vacio sin sesion).
   matriculas: ApodoMatricula[];
+  entregaPrevia: EntregaPrevia | null;
+  abrirPago: boolean;
 }) {
   const recomendado = trabajo.recomendado;
   const [activo, setActivo] = useState<PerfilKit>(recomendado?.perfil ?? "Ahorrador");
@@ -241,6 +246,8 @@ export default function VistaKits({
         total={kit.total}
         correo={correo}
         llaveMaps={llaveMaps}
+        entregaPrevia={entregaPrevia}
+        abrirPago={abrirPago}
       />
     </div>
   );
@@ -255,6 +262,8 @@ function Checkout({
   total,
   correo,
   llaveMaps,
+  entregaPrevia,
+  abrirPago,
 }: {
   trabajoId: string;
   perfil: PerfilKit;
@@ -262,9 +271,13 @@ function Checkout({
   correo: string;
   // La llave de Google Places, leida en el servidor; `null` => campos manuales.
   llaveMaps: string | null;
+  // La entrega del pedido pendiente de este kit (reintento tras un rechazo).
+  entregaPrevia: EntregaPrevia | null;
+  // Llegar con el formulario de entrega ya abierto ("Intentar de nuevo").
+  abrirPago: boolean;
 }) {
   const router = useRouter();
-  const [abierto, setAbierto] = useState(false);
+  const [abierto, setAbierto] = useState(abrirPago);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [datos, setDatos] = useState({
@@ -276,6 +289,8 @@ function Checkout({
     departamento: "",
     // Solo si la direccion salio de una sugerencia de Google y no se edito.
     google_place_id: "",
+    // Tras un pago rechazado, la entrega que ya se habia escrito.
+    ...entregaPrevia,
     // Prellenado con el correo de la sesion: al acudiente ya identificado no se
     // le vuelve a pedir. Editable por si el comprobante va a otro correo.
     correo,
