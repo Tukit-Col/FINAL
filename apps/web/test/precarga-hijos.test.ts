@@ -76,3 +76,13 @@ test("el aviso explica en palabras de papá qué quedó fuera y qué hacer", () 
   assert.match(avisos[1]!, /E \(Colegio Agustiniano · Tercero\)/);
   assert.deepEqual(avisosDePrecarga([]), []);
 });
+
+test("con el formulario lleno no manda a «Agregar otro hijo», que ya no aparece", () => {
+  const avisos = avisosDePrecarga(
+    [{ nombre: "Pipe", colegio: "Colegio CACS", grado: "Quinto", motivo: "sin_lista" }],
+    MAX_HIJOS,
+  );
+  assert.equal(avisos.length, 1);
+  assert.doesNotMatch(avisos[0]!, /Agregar otro hijo/);
+  assert.match(avisos[0]!, /otro pedido/);
+});

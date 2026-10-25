@@ -69,15 +69,19 @@ function unir(items: string[]): string {
   return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
 }
 
-// Un aviso por motivo, en palabras de papá y con lo que puede hacer.
-export function avisosDePrecarga(fuera: readonly HijoSinPrecargar[]): string[] {
+// Un aviso por motivo, en palabras de papá y con lo que puede hacer. Con
+// `cargados` en el tope, el formulario ya no muestra «Agregar otro hijo»: el
+// aviso no puede mandar a un botón que no está.
+export function avisosDePrecarga(fuera: readonly HijoSinPrecargar[], cargados = 0): string[] {
   const sinLista = fuera.filter((h) => h.motivo === "sin_lista").map(quien);
   const tope = fuera.filter((h) => h.motivo === "tope").map(quien);
   const avisos: string[] = [];
   if (sinLista.length > 0) {
     avisos.push(
       `No cargamos a ${unir(sinLista)}: su colegio todavía no tiene la lista de ese grado. ` +
-        "Si quieres su kit, usa «Agregar otro hijo» y sube la lista.",
+        (cargados >= MAX_HIJOS
+          ? "Puedes subir su lista y armar su kit en otro pedido."
+          : "Si quieres su kit, usa «Agregar otro hijo» y sube la lista."),
     );
   }
   if (tope.length > 0) {
