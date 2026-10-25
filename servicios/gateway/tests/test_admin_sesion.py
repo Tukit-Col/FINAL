@@ -33,6 +33,13 @@ RUTAS_DE_CONSOLA = [
     ("GET", "/v1/admin/catalogo/propuestas"),
     ("GET", "/v1/admin/sugerencias"),
     ("GET", "/v1/admin/acudientes"),
+    # Escrituras de la consola que viven fuera de `/v1/admin`: editar y retirar
+    # un producto, reclasificarlo, y editar el perfil de un colegio. Sin token
+    # respondian como cualquiera; su lectura (GET) sigue siendo publica.
+    ("PATCH", "/v1/catalogo/productos/TK-001"),
+    ("DELETE", "/v1/catalogo/productos/TK-001"),
+    ("POST", "/v1/catalogo/productos/TK-001/reclasificar"),
+    ("PATCH", "/v1/colegios/cccc"),
 ]
 
 
@@ -127,6 +134,13 @@ class TestLoQueNoEsConsolaNoCambia:
         respuesta = await _llamar("GET", "/v1/catalogo/conceptos")
         assert respuesta.status_code == 200
         assert atras.reenviadas == ["GET /v1/catalogo/conceptos"]
+
+    @pytest.mark.parametrize("ruta", ["/v1/catalogo/productos/TK-001", "/v1/colegios/cccc"])
+    async def test_leer_un_producto_o_un_colegio_sigue_abierto(self, atras, ruta):
+        """Solo se cierran las escrituras: la web lee productos y colegios sin sesion."""
+        respuesta = await _llamar("GET", ruta)
+        assert respuesta.status_code == 200
+        assert atras.reenviadas == [f"GET {ruta}"]
 
     async def test_un_prefijo_parecido_no_es_consola(self, atras):
         """`/v1/administrar` no es `/v1/admin`: la puerta ni lo rutea (404)."""

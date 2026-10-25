@@ -189,6 +189,22 @@ _ROLES_EQUIPO = frozenset({"admin", "operador"})
 # abiertas y no de cerradas a proposito: una ruta nueva de consola nace cerrada.
 _CONSOLA_ABIERTA: frozenset[tuple[str, str]] = frozenset({("POST", "/v1/admin/sugerencias")})
 
+# Escrituras de la consola que nacieron fuera de `/v1/admin`: editar, retirar y
+# reclasificar un producto del catalogo, y editar el perfil de un colegio. Solo
+# las escrituras: leer un producto o un colegio es publico (lo hace la web).
+_CONSOLA_FUERA_DE_ADMIN: tuple[tuple[frozenset[str], re.Pattern[str]], ...] = (
+    (frozenset({"PATCH", "DELETE"}), re.compile(r"/v1/catalogo/productos/[^/]+")),
+    (frozenset({"POST"}), re.compile(r"/v1/catalogo/productos/[^/]+/reclasificar")),
+    (frozenset({"PATCH"}), re.compile(r"/v1/colegios/[^/]+")),
+)
+
+# Leer un contacto (`GET /v1/contactos/{usuario_id}`) devuelve correo y celular:
+# es de servicio a servicio (comercio y operacion le pegan directo a
+# identidad). Por la puerta lo leia cualquiera, y el usuario_id es un uuid5 que
+# se calcula desde el correo. El alta (`POST /v1/contactos`, ruta exacta) sigue
+# expuesta, como dice el contrato.
+_PREFIJO_CONTACTOS = "/v1/contactos"
+
 # Cuanto se espera a identidad para validar la sesion. Corto: lo espera una
 # persona delante de la consola, y un 503 claro le sirve mas que el minuto.
 ESPERA_SESION_SEGUNDOS = 10.0
@@ -229,7 +245,7 @@ def bloqueada(ruta: str) -> bool:
         return True
     if ruta == _PREFIJO_ORDENES or ruta.startswith(_PREFIJO_ORDENES + "/"):
         return _ORDENES_EXPUESTAS.fullmatch(ruta) is None
-    return False
+    return ruta.startswith(_PREFIJO_CONTACTOS + "/")
 
 
 async def _arrancar(app: FastAPI) -> None:
@@ -263,9 +279,13 @@ def _cliente() -> httpx.AsyncClient:
 
 def es_consola(metodo: str, ruta: str) -> bool:
     """`True` si la ruta es de la consola interna y exige sesion del equipo."""
+    metodo = metodo.upper()
+    camino = ruta.rstrip("/")
+    if any(metodo in metodos and patron.fullmatch(camino) for metodos, patron in _CONSOLA_FUERA_DE_ADMIN):
+        return True
     if not (ruta == _PREFIJO_CONSOLA or ruta.startswith(_PREFIJO_CONSOLA + "/")):
         return False
-    return (metodo.upper(), ruta.rstrip("/")) not in _CONSOLA_ABIERTA
+    return (metodo, camino) not in _CONSOLA_ABIERTA
 
 
 def _token_bearer(authorization: str | None) -> str | None:

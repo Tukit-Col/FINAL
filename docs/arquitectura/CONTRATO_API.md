@@ -21,6 +21,8 @@ ahora recibe `401`.
 |---|---|---|
 | Toda ruta `/v1/admin/*` exige un Bearer válido con rol `admin` u `operador`: sin token o con uno que Identidad no reconoce, `401 sesion_invalida`; con uno sin rol del equipo, `403 acceso_denegado`; si Identidad no responde, `503 identidad_no_disponible` | §7, §12.1 | Por el gateway, sin token, se podían leer la cola y las listas y aprobar y publicar un kit |
 | La excepción es `POST /v1/admin/sugerencias`, que manda la web pública por un acudiente que puede no tener cuenta. `GET /v1/admin/sugerencias` es del equipo | §7 | Es la única ruta bajo `/v1/admin` que no es de la consola |
+| Las escrituras de consola fuera de `/v1/admin` exigen la misma sesión: `PATCH` y `DELETE /v1/catalogo/productos/{sku}`, `POST /v1/catalogo/productos/{sku}/reclasificar` y `PATCH /v1/colegios/{colegio_id}`. Leerlos (`GET`) sigue siendo público | §7 | Sin token se podía editar, retirar o reclasificar un producto y editar el perfil de un colegio |
+| `GET /v1/contactos/{usuario_id}` deja de estar expuesto en el gateway (404 como cualquier ruta interna). `POST /v1/contactos` sigue igual | §7 | Devolvía correo y celular de cualquier usuario sin token; solo lo usan los servicios entre ellos |
 | `apps/admin` reenvía como Bearer el token de la cookie `tukit_sesion` en todas sus llamadas | §12.8 | Antes solo lo hacía en el onboarding y en la logística |
 
 ### Qué cambió en 1.11
@@ -691,8 +693,10 @@ recomendado cabe siempre e iguala la mejor marca posible dentro del tope.
 `GET /v1/sesiones/actual` antes de reenviar, y sin sesión responde `401 sesion_invalida`, sin
 rol `admin` u `operador` `403 acceso_denegado`, y si Identidad no responde
 `503 identidad_no_disponible`. La única excepción es `POST /v1/admin/sugerencias` (la sugerencia
-de un acudiente desde la web pública). Las llamadas internas entre servicios no pasan por el
-gateway y no cambian.
+de un acudiente desde la web pública). La misma sesión cierran las escrituras de consola que
+viven fuera de `/v1/admin`: `PATCH`/`DELETE /v1/catalogo/productos/{sku}`,
+`POST /v1/catalogo/productos/{sku}/reclasificar` y `PATCH /v1/colegios/{colegio_id}`. Las
+llamadas internas entre servicios no pasan por el gateway y no cambian.
 
 La cola se alimenta de `PE-04`: "marcar para revisión de Admin Tukit los ítems con
 confianza de extracción por debajo del umbral configurable τ". Toda transición queda en
@@ -1469,7 +1473,9 @@ el derecho al olvido lo alcance en un solo sitio. Idempotente por correo.
 ```
 
 El frontend normalmente **no** necesita llamarlo: `POST /v1/trabajos` lo hace por dentro con
-el bloque `contacto`. Está expuesto por si hace falta registrar antes.
+el bloque `contacto`. Está expuesto por si hace falta registrar antes. Leer un contacto
+(`GET /v1/contactos/{usuario_id}`, correo y celular) es solo entre servicios: el gateway no lo
+expone (1.12).
 
 **Lo que NO hay en identidad, y la ausencia es deliberada:** ninguna ruta devuelve un
 estudiante, un nombre de menor ni una matrícula. Esa superficie necesita autenticación y

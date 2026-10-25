@@ -8,9 +8,19 @@
 
 const PREFIJO_CONSOLA = "/v1/admin";
 
+// Las escrituras de consola que nacieron fuera de `/v1/admin` (editar, retirar
+// y reclasificar un producto; editar un colegio). El gateway las cierra por
+// metodo; aqui basta la ruta: la lectura de esas mismas rutas es publica y un
+// Bearer de mas no la cambia.
+const CONSOLA_FUERA_DE_ADMIN = [
+  /^\/v1\/catalogo\/productos\/[^/]+(\/reclasificar)?$/,
+  /^\/v1\/colegios\/[^/]+$/,
+];
+
 /** `true` si la ruta (con o sin query) es de la consola interna. */
 export function esRutaDeConsola(ruta: string): boolean {
   const camino = ruta.split("?", 1)[0] ?? "";
+  if (CONSOLA_FUERA_DE_ADMIN.some((patron) => patron.test(camino))) return true;
   return camino === PREFIJO_CONSOLA || camino.startsWith(`${PREFIJO_CONSOLA}/`);
 }
 

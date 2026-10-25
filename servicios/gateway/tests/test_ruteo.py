@@ -144,6 +144,14 @@ class TestLasRutasInternasNoSeExponen:
     def test_pedidos_pagados_esta_bloqueada(self):
         assert bloqueada("/v1/comercio/pedidos-pagados") is True
 
+    def test_leer_un_contacto_esta_bloqueado(self):
+        # `GET /v1/contactos/{usuario_id}` devuelve correo y celular. Lo usan
+        # comercio y operacion directo contra identidad; por la puerta lo leia
+        # cualquiera, y el usuario_id es un uuid5 que se calcula desde el correo.
+        assert bloqueada("/v1/contactos/e1b0fb96-a9ee-5bb0-b0be-c2c88ace6b62") is True
+        # El alta (`POST /v1/contactos`) sigue expuesta, como dice el contrato.
+        assert bloqueada("/v1/contactos") is False
+
     def test_el_resto_de_comercio_no_esta_bloqueado(self):
         # El bloqueo es exacto sobre pedidos-pagados: el tablero de pedidos y lo
         # demas de comercio siguen ruteando.

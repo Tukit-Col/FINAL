@@ -14,6 +14,17 @@ test("las rutas de la consola se reconocen por su prefijo", () => {
   assert.equal(esRutaDeConsola("/v1/admin/trabajos/abc/revision"), true);
 });
 
+test("las escrituras de consola fuera de /v1/admin tambien llevan la sesion", () => {
+  // Editar, retirar o reclasificar un producto y editar un colegio: el gateway
+  // las cierra sin sesion del equipo aunque no cuelguen de /v1/admin.
+  assert.equal(esRutaDeConsola("/v1/catalogo/productos/TK-001"), true);
+  assert.equal(esRutaDeConsola("/v1/catalogo/productos/TK-001/reclasificar"), true);
+  assert.equal(esRutaDeConsola("/v1/colegios/abc"), true);
+  // El listado y lo que cuelga de un colegio no son esas escrituras.
+  assert.equal(esRutaDeConsola("/v1/colegios"), false);
+  assert.equal(esRutaDeConsola("/v1/colegios/abc/grados"), false);
+});
+
 test("lo que no es consola no se confunde por parecido", () => {
   assert.equal(esRutaDeConsola("/v1/administrar"), false);
   assert.equal(esRutaDeConsola("/v1/catalogo/productos"), false);
