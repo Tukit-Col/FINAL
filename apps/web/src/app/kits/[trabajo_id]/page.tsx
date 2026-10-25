@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import { sesionActual } from "@/lib/sesion";
+import { conAvisoDeLimite } from "@/components/ConAvisoDeLimite";
 import VistaKits from "./VistaKits";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,10 @@ export default async function PaginaKits({
   params: Promise<{ trabajo_id: string }>;
 }) {
   const { trabajo_id } = await params;
+  return conAvisoDeLimite(() => kits(trabajo_id));
+}
+
+async function kits(trabajo_id: string) {
   const trabajo = await origenDeDatos().consultarTrabajo(trabajo_id);
 
   // Mientras no este publicado, `kits` viene vacio y no hay nada que pintar:
