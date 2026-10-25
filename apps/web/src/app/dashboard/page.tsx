@@ -38,6 +38,7 @@ import {
   tonoEstadoPedido,
   type TonoEstado,
 } from "@/lib/pagar-pedido";
+import { saludoDeCuenta } from "@/lib/cuenta";
 import AccionesPedido from "./AccionesPedido";
 import CancelarSolicitud from "./CancelarSolicitud";
 import TarjetaHijo from "./TarjetaHijo";
@@ -160,7 +161,7 @@ export default async function DashboardPage() {
             {/* Encabezado */}
             <div className={styles.pageHeader}>
               <div className={styles.pageHeader__titles}>
-                <h1>Hola, {sesion.nombre}</h1>
+                <h1>{saludoDeCuenta(sesion.nombre)}</h1>
                 <p>Tus hijos y tus kits, en un solo lugar.</p>
               </div>
             </div>
