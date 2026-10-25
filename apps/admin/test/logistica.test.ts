@@ -15,6 +15,7 @@ import {
   filtrarPedidos,
   hayFiltros,
   leerFiltros,
+  motivoDeAcceso,
   motivoDeFallo,
   ordenarPorPrioridad,
 } from "../src/lib/logistica.ts";
@@ -113,4 +114,15 @@ test("motivoDeFallo distingue sesion, rol y caida", () => {
 
 test("un 429 es el limite de tasa, no un servicio caido ni una sesion vencida", () => {
   assert.equal(motivoDeFallo(429), "limite");
+});
+
+test("motivoDeAcceso: un error de sesion, rol o limite se pinta como aviso, lo demas sube", () => {
+  assert.equal(motivoDeAcceso({ estado: 401 }), "sesion_expirada");
+  assert.equal(motivoDeAcceso({ estado: 403 }), "sin_rol");
+  assert.equal(motivoDeAcceso({ estado: 429 }), "limite");
+  // Un 404 o una caida no son de acceso: la pagina decide (notFound o error).
+  assert.equal(motivoDeAcceso({ estado: 404 }), null);
+  assert.equal(motivoDeAcceso({ estado: 503 }), null);
+  assert.equal(motivoDeAcceso(new Error("red")), null);
+  assert.equal(motivoDeAcceso(undefined), null);
 });

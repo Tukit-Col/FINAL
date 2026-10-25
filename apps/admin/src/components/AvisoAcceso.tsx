@@ -1,4 +1,4 @@
-// Lo que ve quien llega a logistica y no puede verla. Cada motivo dice que
+// Lo que ve quien llega a la consola (o a logistica) y no puede verla. Cada motivo dice que
 // hacer: no es lo mismo "entra" que "pidele el rol a un admin" que "el
 // servicio esta caido". Server Component: sin estado ni JS en el navegador.
 
@@ -9,12 +9,12 @@ import styles from "./AvisoAcceso.module.css";
 const TEXTOS: Record<MotivoAcceso, { titulo: string; texto: string; ingresar: boolean }> = {
   sin_sesion: {
     titulo: "Necesitas ingresar",
-    texto: "Logística es del equipo interno. Ingresa con tu cuenta de operador o admin.",
+    texto: "La consola es del equipo interno. Ingresa con tu cuenta de operador o admin.",
     ingresar: true,
   },
   sesion_expirada: {
     titulo: "Tu sesión terminó",
-    texto: "Vuelve a ingresar para seguir moviendo pedidos.",
+    texto: "Vuelve a ingresar para seguir trabajando en la consola.",
     ingresar: true,
   },
   sin_rol: {

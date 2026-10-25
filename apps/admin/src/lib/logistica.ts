@@ -157,3 +157,13 @@ export function motivoDeFallo(estado: number): MotivoAcceso {
   if (estado === 429) return "limite";
   return "servicio_caido";
 }
+
+/** Si una lectura cayo por la sesion, el rol o el limite, el aviso que va en
+ *  su lugar; si no, `null` y la pagina decide (un 404 es `notFound`, una caida
+ *  sube). Desde que el gateway exige sesion en /v1/admin, un token vencido
+ *  rompia la pagina con un 500 en vez de decir "vuelve a ingresar". */
+export function motivoDeAcceso(causa: unknown): MotivoAcceso | null {
+  const estado = (causa as { estado?: unknown } | null | undefined)?.estado;
+  if (estado === 401 || estado === 403 || estado === 429) return motivoDeFallo(estado);
+  return null;
+}
