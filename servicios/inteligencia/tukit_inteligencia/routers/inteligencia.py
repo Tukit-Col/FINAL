@@ -251,9 +251,22 @@ async def crear_trabajo(peticion: PeticionTrabajo, solicitud: Request) -> dict[s
             campo="preferencias.pesos",
         )
 
+    hijos = [hijo.model_dump() for hijo in peticion.hijos]
+    # Sin lista para ningun hijo, el trabajo fallaria al procesarse con este
+    # mismo motivo: se dice ahora y no se encola (H-C-03). Un hogar con algun
+    # hijo sin lista sigue igual: ese hijo sale anotado en el kit.
+    if not await trabajos.alguna_lista_para(api._catalogo(), hijos):
+        raise ErrorDominio(
+            "sin_lista_oficial",
+            "No encontramos la lista oficial publicada para ese colegio y grado. "
+            "Sube el archivo de la lista o escoge otro grado.",
+            estado=422,
+            campo="hijos",
+        )
+
     respuesta = await trabajos.crear(
         api.app.state.motor,
-        hijos=[hijo.model_dump() for hijo in peticion.hijos],
+        hijos=hijos,
         contacto=peticion.contacto.model_dump() if peticion.contacto else None,
         preferencias=(peticion.preferencias.model_dump(exclude_none=True) if peticion.preferencias else {}),
         usuario_id=uuid.UUID(uid) if (uid := await api._usuario_de_la_peticion(solicitud)) else None,

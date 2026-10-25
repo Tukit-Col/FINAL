@@ -385,6 +385,31 @@ async def _listas_por_hijo(
     return encontradas, sin_lista
 
 
+async def alguna_lista_para(catalogo: ClienteCatalogo, hijos: list[dict[str, Any]]) -> bool:
+    """True si al menos un hijo tiene una lista que leer en el catalogo.
+
+    Es la condicion sin la que `procesar` termina en `sin_lista_oficial`; crear
+    la pregunta antes para rechazar en el acto en vez de encolar un trabajo que
+    va a fallar (H-C-03). Mismo anio por omision que `_listas_por_hijo`. Con el
+    catalogo caido no se sabe: se responde True y el trabajo se encola como
+    siempre, que el trabajador ya sabe esperar al catalogo.
+    """
+    for hijo in hijos:
+        if hijo.get("version_id"):
+            return True
+        anio = int(hijo.get("anio_lectivo") or ANIO_LECTIVO_POR_OMISION)
+        try:
+            if await catalogo.listas(
+                colegio_id=str(hijo.get("colegio_id") or ""),
+                grado=str(hijo.get("grado") or ""),
+                anio_lectivo=anio,
+            ):
+                return True
+        except RemotoCaido:
+            return True
+    return False
+
+
 async def _renglones_de_listas(
     catalogo: ClienteCatalogo, hijos: list[dict[str, Any]]
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
