@@ -391,7 +391,7 @@ export default async function DashboardPage() {
                             <td className={styles.pedidoFecha}>
                               {fechaLegible(pedido.creado_en)}
                             </td>
-                            <td>
+                            <td className={styles.pedidoEstado}>
                               {pendiente && vencido ? (
                                 <span className={`${styles.badge} ${styles.badgeAviso}`}>
                                   <Clock size={12} aria-hidden />
