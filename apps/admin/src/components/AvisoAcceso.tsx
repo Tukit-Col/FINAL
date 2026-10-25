@@ -27,10 +27,18 @@ const TEXTOS: Record<MotivoAcceso, { titulo: string; texto: string; ingresar: bo
     texto: "Comercio o identidad no responden. Revisa que los servicios estén arriba (make estado).",
     ingresar: false,
   },
+  // El texto de verdad es el `mensaje` del 429, que trae la espera.
+  limite: {
+    titulo: "Danos un momento",
+    texto: "Hiciste demasiadas peticiones en poco tiempo. Espera un momento y recarga la página.",
+    ingresar: false,
+  },
 };
 
-export default function AvisoAcceso({ motivo }: { motivo: MotivoAcceso }) {
-  const { titulo, texto, ingresar } = TEXTOS[motivo];
+export default function AvisoAcceso({ motivo, mensaje }: { motivo: MotivoAcceso; mensaje?: string }) {
+  const { titulo, ingresar } = TEXTOS[motivo];
+  // Con el limite de tasa manda el mensaje del gateway: dice cuanto esperar.
+  const texto = motivo === "limite" && mensaje ? mensaje : TEXTOS[motivo].texto;
   return (
     <section className={styles.aviso} role={motivo === "servicio_caido" ? "alert" : "status"}>
       <h2 className={styles.titulo}>{titulo}</h2>

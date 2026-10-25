@@ -56,6 +56,11 @@ export default async function PaginaClientes() {
         />
       );
     }
+    // El limite de tasa (ADR 0047): ni sesion vencida ni servicio caido. Su
+    // mensaje ya dice cuanto esperar.
+    if (error instanceof ErrorTukit && error.estado === 429) {
+      return <Aviso titulo="Danos un momento" cuerpo={error.message} />;
+    }
     if (error instanceof ErrorTukit && error.estado === 403) {
       return (
         <Aviso
