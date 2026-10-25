@@ -5,11 +5,23 @@
 > fronteras de *conversación*. Cambiar cualquiera de los dos sin avisar rompe a alguien
 > más, así que se cierran antes de repartir el trabajo y se versionan.
 
-- **Versión:** 1.11
+- **Versión:** 1.12
 - **Prefijo:** `/v1`
 - **URL base:** `http://127.0.0.1:8010` en desarrollo. Ver §12.1.
 - **Formato:** JSON UTF-8. Dinero en **pesos enteros** (nunca decimales flotantes).
 - **Idioma de los identificadores:** español sin tildes, como el resto del código.
+
+### Qué cambió en 1.12
+
+La consola interna exige sesión del equipo en el gateway. Un cliente de 1.11 que ya mandaba el
+Bearer del operador o del admin no cambia nada. Uno que llamaba a `/v1/admin/*` sin token, sí:
+ahora recibe `401`.
+
+| Cambio | Dónde | Por qué |
+|---|---|---|
+| Toda ruta `/v1/admin/*` exige un Bearer válido con rol `admin` u `operador`: sin token o con uno que Identidad no reconoce, `401 sesion_invalida`; con uno sin rol del equipo, `403 acceso_denegado`; si Identidad no responde, `503 identidad_no_disponible` | §7, §12.1 | Por el gateway, sin token, se podían leer la cola y las listas y aprobar y publicar un kit |
+| La excepción es `POST /v1/admin/sugerencias`, que manda la web pública por un acudiente que puede no tener cuenta. `GET /v1/admin/sugerencias` es del equipo | §7 | Es la única ruta bajo `/v1/admin` que no es de la consola |
+| `apps/admin` reenvía como Bearer el token de la cookie `tukit_sesion` en todas sus llamadas | §12.8 | Antes solo lo hacía en el onboarding y en la logística |
 
 ### Qué cambió en 1.11
 
@@ -675,6 +687,13 @@ recomendado cabe siempre e iguala la mejor marca posible dentro del tope.
 | `POST /v1/admin/productos/{sku}/no-disponible` | `AD-05` |
 | `POST /v1/admin/trabajos/{id}/revision` | `AD-06` — publica al acudiente |
 
+**La sesión (1.12).** Todo `/v1/admin/*` es del equipo: el gateway valida el Bearer contra
+`GET /v1/sesiones/actual` antes de reenviar, y sin sesión responde `401 sesion_invalida`, sin
+rol `admin` u `operador` `403 acceso_denegado`, y si Identidad no responde
+`503 identidad_no_disponible`. La única excepción es `POST /v1/admin/sugerencias` (la sugerencia
+de un acudiente desde la web pública). Las llamadas internas entre servicios no pasan por el
+gateway y no cambian.
+
 La cola se alimenta de `PE-04`: "marcar para revisión de Admin Tukit los ítems con
 confianza de extracción por debajo del umbral configurable τ". Toda transición queda en
 `operacion.registro_auditoria` con quién y cuándo, que es lo que exigen el criterio de
@@ -1176,7 +1195,7 @@ La puerta **rutea por prefijo declarado**, no con comodín. Una ruta que no est�
 devuelve `404 ruta_desconocida` con la lista de las que sí existen, en vez de reenviarla a
 un servicio al azar. Las que este contrato define y todavía no tiene nadie detrás
 devuelven `501 no_implementado` (§11). Antes de reenviar, la puerta cuenta la petición y puede
-responder `429 demasiadas_peticiones` (§11.1).
+responder `429 demasiadas_peticiones` (§11.1), y en `/v1/admin/*` exige la sesión del equipo (§7).
 
 `GET /v1/servicios` dice si los tres de atrás responden. Existe porque `GET /salud` en la
 puerta contesta `ok` con los tres caídos, y esa es la clase de sonda que hace perder una
