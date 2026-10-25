@@ -40,6 +40,7 @@ import {
   tonoEstadoPedido,
   type TonoEstado,
 } from "@/lib/pagar-pedido";
+import { saludoDeCuenta } from "@/lib/cuenta";
 import AccionesPedido from "./AccionesPedido";
 import CancelarSolicitud from "./CancelarSolicitud";
 import TarjetaHijo from "./TarjetaHijo";
@@ -172,7 +173,7 @@ async function panel() {
             {/* Encabezado */}
             <div className={styles.pageHeader}>
               <div className={styles.pageHeader__titles}>
-                <h1>Hola, {sesion.nombre}</h1>
+                <h1>{saludoDeCuenta(sesion.nombre)}</h1>
                 <p>Tus hijos y tus kits, en un solo lugar.</p>
               </div>
             </div>
@@ -403,7 +404,7 @@ async function panel() {
                             <td className={styles.pedidoFecha}>
                               {fechaLegible(pedido.creado_en)}
                             </td>
-                            <td>
+                            <td className={styles.pedidoEstado}>
                               {pendiente && vencido ? (
                                 <span className={`${styles.badge} ${styles.badgeAviso}`}>
                                   <Clock size={12} aria-hidden />
