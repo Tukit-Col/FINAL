@@ -363,8 +363,10 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
-  async consultarTrabajo(trabajoId: string): Promise<Trabajo> {
-    const crudo = await this.pedir<Trabajo>(`/v1/trabajos/${encodeURIComponent(trabajoId)}`);
+  async consultarTrabajo(trabajoId: string, token?: string): Promise<Trabajo> {
+    const crudo = await this.pedir<Trabajo>(`/v1/trabajos/${encodeURIComponent(trabajoId)}`, {
+      headers: this.autoriza(token),
+    });
     return normalizarTrabajo(crudo);
   }
 
