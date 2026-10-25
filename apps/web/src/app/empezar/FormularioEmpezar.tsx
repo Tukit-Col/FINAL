@@ -30,8 +30,10 @@ import {
   subirListas,
   registrarAcudiente,
   guardarMatriculas,
+  iniciarSesion,
   FalloApi,
 } from "@/lib/api-navegador";
+import { avisoCuentaCreada, cuentaCreadaSinSesion } from "@/lib/limite";
 import { rutaRecibimos } from "@/lib/recibimos";
 import LogoColegio from "@/components/LogoColegio";
 import SelectorPersonaje from "./SelectorPersonaje";
@@ -439,6 +441,9 @@ export default function FormularioEmpezar({
   // y no se duplica. Se limpia solo: al navegar con éxito, /empezar se desmonta.
   const [progreso, setProgreso] = useState<{
     registroFirma?: string;
+    // La cuenta quedó creada pero el login de después dio 429 (H-R-01): el
+    // reintento solo entra, sin volver a registrar.
+    sinSesion?: boolean;
     matriculasFirma?: string;
     trabajoId?: string;
     trabajoFirma?: string;
@@ -597,10 +602,24 @@ export default function FormularioEmpezar({
       if (progreso.registroFirma !== firmaRegistro) {
         try {
           await registrarAcudiente(registro);
-          setProgreso((p) => ({ ...p, registroFirma: firmaRegistro }));
+          setProgreso((p) => ({ ...p, registroFirma: firmaRegistro, sinSesion: false }));
         } catch (causa) {
-          if (causa instanceof FalloApi) setError(causa.message);
+          if (causa instanceof FalloApi && cuentaCreadaSinSesion(causa)) {
+            setProgreso((p) => ({ ...p, registroFirma: firmaRegistro, sinSesion: true }));
+            setError(avisoCuentaCreada(causa));
+          } else if (causa instanceof FalloApi) setError(causa.message);
           else setError("No pudimos crear tu cuenta. Intenta de nuevo.");
+          setEnviando(false);
+          return;
+        }
+      } else if (progreso.sinSesion) {
+        try {
+          await iniciarSesion({ correo: contacto.correo, clave });
+          setProgreso((p) => ({ ...p, sinSesion: false }));
+        } catch (causa) {
+          if (causa instanceof FalloApi && causa.estado === 429) setError(avisoCuentaCreada(causa));
+          else if (causa instanceof FalloApi) setError(causa.message);
+          else setError("No pudimos entrar a tu cuenta. Intenta de nuevo.");
           setEnviando(false);
           return;
         }

@@ -34,3 +34,20 @@ export async function fallaCerradoSalvoLimite<T>(leer: () => Promise<T>, siFalla
     return siFalla;
   }
 }
+
+/**
+ * El 429 del login que `/api/registro` hace enseguida del alta: la cuenta SI
+ * quedo creada, pero sin sesion, porque entrar comparte el cupo estricto de la
+ * IP (H-R-01). La ruta lo marca con `cuenta_creada: true` en el detalle.
+ */
+export function cuentaCreadaSinSesion(causa: unknown): boolean {
+  return esLimiteDeTasa(causa) && causa.detalle?.["cuenta_creada"] === true;
+}
+
+/** El mensaje del 429 (con su espera) y que hacer despues, sin perder lo llenado. */
+export function avisoCuentaCreada(causa: Error): string {
+  return (
+    `${causa.message} Tu cuenta ya quedó creada: cuando pase ese tiempo, presiona ` +
+    "«Armar mis kits» otra vez y seguimos con lo que llenaste."
+  );
+}
