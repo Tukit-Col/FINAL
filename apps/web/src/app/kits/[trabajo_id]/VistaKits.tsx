@@ -376,14 +376,17 @@ function Checkout({
 
   return (
     <>
+      {/* La franja pegada abajo lleva solo el total y el boton: en el celular
+          cualquier renglon de mas tapa el kit que se esta mirando. La
+          aclaracion de que entra en el total va justo encima, en el flujo. */}
+      <p className={styles.notaTotalKit}>
+        El total incluye solo lo que Tukit te puede vender. Lo que gestiona el
+        colegio no entra en esta cifra.
+      </p>
       <footer className={styles.pie}>
         <div>
           <span className={styles.etiquetaTotal}>Total del kit {perfil}</span>
           <span className={`${styles.totalPie} cifra`}>{formatearPesos(total)}</span>
-          <span className={styles.notaTotal}>
-            Solo lo que Tukit te puede vender. Lo que gestiona el colegio no entra en
-            esta cifra.
-          </span>
         </div>
         {!abierto && (
           <button type="button" className={styles.pagar} onClick={() => setAbierto(true)}>

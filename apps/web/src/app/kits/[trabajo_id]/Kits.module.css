@@ -719,6 +719,17 @@
   display: grid;
 }
 
+/* Lo que entra en el total, fuera de la franja pegada para que no la engorde. */
+.notaTotalKit {
+  margin-top: var(--espacio-6);
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.notaTotalKit + .pie {
+  margin-top: var(--espacio-3);
+}
+
 .etiquetaTotal {
   font-size: 12px;
   text-transform: uppercase;
@@ -912,5 +923,39 @@
 
   .notaPago {
     text-align: left;
+  }
+
+  /* En el celular la franja del total es una sola fila compacta (total a la
+   * izquierda, boton a la derecha), pegada al borde: antes envolvia en tres
+   * renglones y tapaba casi media pantalla del kit. */
+  .pie {
+    bottom: var(--espacio-2);
+    flex-wrap: nowrap;
+    gap: var(--espacio-3);
+    padding: var(--espacio-2) var(--espacio-2) var(--espacio-2) var(--espacio-4);
+  }
+
+  .pie > div {
+    min-width: 0;
+  }
+
+  .etiquetaTotal {
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .totalPie {
+    font-size: 21px;
+    line-height: 1.15;
+    white-space: nowrap;
+  }
+
+  .pie .pagar {
+    flex-shrink: 0;
+    min-height: 46px;
+    padding: 0 var(--espacio-5);
+    font-size: 15px;
   }
 }
