@@ -119,17 +119,18 @@ function ordenGrado(a: string, b: string): number {
 export interface OpcionesCliente {
   urlBase: string;
   tiempoMaximoMs?: number;
-  // Las cabeceras de la peticion entrante que viajan al backend en cada
-  // `fetch`. Hoy solo `X-Forwarded-For`, para que el limite de tasa del gateway
-  // cuente por la IP del cliente y no por la del servidor de Next (ADR 0047).
-  cabeceras?: () => Promise<Record<string, string>>;
+  // Las cabeceras que viajan al backend en cada `fetch`, segun la ruta que se
+  // pide: `X-Forwarded-For` en todas, para que el limite de tasa del gateway
+  // cuente por la IP del cliente y no por la del servidor de Next (ADR 0047), y
+  // el Bearer de la sesion en las de consola (`/v1/admin/*`, contrato 1.12).
+  cabeceras?: (ruta: string) => Promise<Record<string, string>>;
 }
 
 export class ClienteApi implements OrigenDatos {
   readonly nombre = "api" as const;
   private readonly urlBase: string;
   private readonly tiempoMaximoMs: number;
-  private readonly cabeceras: () => Promise<Record<string, string>>;
+  private readonly cabeceras: (ruta: string) => Promise<Record<string, string>>;
 
   constructor(opciones: OpcionesCliente) {
     this.urlBase = opciones.urlBase.replace(/\/+$/, "");
@@ -138,8 +139,8 @@ export class ClienteApi implements OrigenDatos {
   }
 
   // Las cabeceras de la llamada mas las reenviadas; las de la llamada ganan.
-  private async conReenviadas(init?: RequestInit): Promise<RequestInit> {
-    const reenviadas = Object.entries(await this.cabeceras());
+  private async conReenviadas(ruta: string, init?: RequestInit): Promise<RequestInit> {
+    const reenviadas = Object.entries(await this.cabeceras(ruta));
     if (reenviadas.length === 0) return init ?? {};
     const cabeceras = new Headers(init?.headers);
     for (const [nombre, valor] of reenviadas) {
@@ -150,7 +151,7 @@ export class ClienteApi implements OrigenDatos {
 
   private async pedir<T>(ruta: string, init?: RequestInit): Promise<T> {
     let respuesta: Response;
-    const conReenviadas = await this.conReenviadas(init);
+    const conReenviadas = await this.conReenviadas(ruta, init);
     try {
       respuesta = await fetch(`${this.urlBase}${ruta}`, {
         ...conReenviadas,
@@ -1331,16 +1332,14 @@ export class ClienteApi implements OrigenDatos {
   // `texto_original` y que falten `cantidad`/`confianza`.
   async documento(versionId: string): Promise<Blob> {
     let respuesta: Response;
-    const conReenviadas = await this.conReenviadas();
+    const ruta = `/v1/admin/listas/${encodeURIComponent(versionId)}/documento`;
+    const conReenviadas = await this.conReenviadas(ruta);
     try {
-      respuesta = await fetch(
-        `${this.urlBase}/v1/admin/listas/${encodeURIComponent(versionId)}/documento`,
-        {
-          ...conReenviadas,
-          signal: AbortSignal.timeout(this.tiempoMaximoMs),
-          cache: "no-store",
-        },
-      );
+      respuesta = await fetch(`${this.urlBase}${ruta}`, {
+        ...conReenviadas,
+        signal: AbortSignal.timeout(this.tiempoMaximoMs),
+        cache: "no-store",
+      });
     } catch (causa) {
       const nombre = (causa as { name?: string }).name;
       if (nombre === "TimeoutError") {

@@ -32,29 +32,22 @@ class Atras:
         atras = self
 
         class Cliente:
-            def __init__(self, *args, **kwargs) -> None:
-                pass
-
-            async def __aenter__(self):
-                return self
-
-            async def __aexit__(self, *args) -> bool:
-                return False
+            async def aclose(self) -> None:
+                return None
 
             async def request(self, metodo, url, **_kwargs) -> httpx.Response:
                 atras.peticiones.append((metodo, url))
                 return httpx.Response(200, json={"ok": True})
 
-        self.AsyncClient = Cliente
-        self.HTTPError = httpx.HTTPError
+        self.cliente = Cliente()
 
 
 @pytest.fixture()
-def atras(monkeypatch) -> Atras:
-    # Se cambia el `httpx` que ve `api`, no el de verdad, que usa el cliente de
-    # la prueba (comparten el modulo).
+def atras() -> Atras:
+    # Se cambia el cliente compartido de la puerta, no el `httpx` de verdad, que
+    # usa el cliente de la prueba. La limpieza del conftest lo retira al final.
     falso = Atras()
-    monkeypatch.setattr(api, "httpx", falso)
+    app.state.cliente = falso.cliente
     return falso
 
 
