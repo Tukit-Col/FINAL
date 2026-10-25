@@ -1106,7 +1106,9 @@ export default function FormularioEmpezar({
                       semilla. Lo revisamos, armamos tu kit y de paso el colegio y
                       el grado quedan verificados para el próximo acudiente del
                       mismo colegio. Un solo paso, no dos. */}
-                  {hijo.colegioNombre && hijo.grado && (
+                  {/* Con un error a la vista (lista rechazada, demasiados
+                      intentos) la promesa verde contradice al aviso rojo. */}
+                  {hijo.colegioNombre && hijo.grado && !error && (
                     <p className={styles.sugerenciaOk} role="status">
                       <Check size={16} strokeWidth={3} aria-hidden="true" />
                       Con esto revisamos tu lista, armamos tu kit y dejamos {hijo.colegioNombre} ·{" "}
