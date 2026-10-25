@@ -367,6 +367,52 @@ class TestRutaRapidaVerificada:
         assert por_orden[6]["unidades_a_comprar"] == 0
         assert "linea 5" in por_orden[6]["mensaje"]
 
+    async def test_la_herramienta_repetida_no_viaja_en_cero_al_checkout(self, motor):
+        # La linea repetida queda en el kit con 0 unidades para que el acudiente
+        # la encuentre, pero Comercio exige cantidad > 0: si viajaba, el checkout
+        # entero respondia 400 y el acudiente no podia pagar.
+        catalogo = _catalogo_verificado()
+        tijeras = [_candidato_dict("TK-C013-ECO", "economico", 5800)]
+        catalogo.items_resueltos += [
+            _item_resuelto(5, "Tijeras", "C013", tijeras, uno_por_estudiante=True),
+            _item_resuelto(6, "tijeras", "C013", tijeras, uno_por_estudiante=True, posible_repetido_de=None),
+        ]
+        canonico, _ = await _crear_y_procesar(motor, catalogo)
+        await trabajos.revisar(motor, canonico, decision="aprobar")
+        aplicado = await trabajos.aplicar_canonico(
+            motor,
+            colegio_id=COLEGIO,
+            grado="Cuarto",
+            anio_lectivo=2026,
+            perfil="Ahorrador",
+            usuario_id=uuid.uuid4(),
+            catalogo=catalogo,
+        )
+
+        class ComercioFalso:
+            orden: dict[str, Any] = {}
+
+            async def crear_orden(self, cuerpo):
+                self.orden = cuerpo
+                return 201, {"pedido_id": "ped-1", "total": 0}
+
+            async def iniciar_pago(self, pedido_id, cuerpo):
+                return 201, {"pago_id": "pago-1", "url_redireccion": "https://pasarela/xy"}
+
+        comercio = ComercioFalso()
+        await trabajos.ordenar(
+            motor,
+            uuid.UUID(aplicado["trabajo_id"]),
+            perfil="Ahorrador",
+            entrega={"destinatario": "Ana", "direccion": "Calle 1", "ciudad": "Bogota"},
+            correo="ana@example.com",
+            comercio=comercio,
+            catalogo=catalogo,
+        )
+        lineas = comercio.orden["lineas"]
+        assert all(linea["cantidad"] > 0 for linea in lineas)
+        assert [linea["cantidad"] for linea in lineas if linea["sku"] == "TK-C013-ECO"] == [1]
+
     async def test_etapas_ok_con_fuente_lista_verificada(self, motor):
         catalogo = _catalogo_verificado()
         trabajo_id, _ = await _crear_y_procesar(motor, catalogo)
