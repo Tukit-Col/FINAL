@@ -208,7 +208,9 @@ function Pasos() {
 // ---------------------------------------------------------------- Rechazado
 
 function Rechazado({ datos, pedido }: { datos: Resultado; pedido: Pedido | null }) {
-  const reintentar = datos.trabajo_id ? `/kits/${datos.trabajo_id}` : null;
+  // Vuelve al kit con la entrega ya abierta y llena (la del pedido pendiente):
+  // reintentar no obliga a escribir otra vez la direccion.
+  const reintentar = datos.trabajo_id ? `/kits/${datos.trabajo_id}?pagar=1` : null;
   return (
     <>
       <section className={`${styles.tarjeta} ${styles.cabecera}`}>
