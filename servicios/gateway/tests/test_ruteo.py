@@ -315,6 +315,10 @@ class TestElCuerpoMultipartViajaIntacto:
             async def aclose(self):
                 return None
 
+            async def get(self, url, **_kwargs):
+                # La validacion de la sesion de la consola: un operador.
+                return httpx.Response(200, json={"usuario_id": "u", "roles": [{"rol": "operador"}]})
+
             async def request(self, metodo, url, *, params, headers, content):
                 capturado["metodo"] = metodo
                 capturado["url"] = url
@@ -342,7 +346,9 @@ class TestElCuerpoMultipartViajaIntacto:
             transport=httpx.ASGITransport(app=app), base_url="http://prueba"
         ) as cliente:
             respuesta = await cliente.post(
-                "/v1/admin/listas/importar", content=cuerpo, headers={"content-type": tipo}
+                "/v1/admin/listas/importar",
+                content=cuerpo,
+                headers={"content-type": tipo, "authorization": "Bearer tok-operador"},
             )
 
         assert respuesta.status_code == 200
