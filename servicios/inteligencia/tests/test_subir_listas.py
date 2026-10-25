@@ -80,6 +80,11 @@ class IdentidadDoble:
         # DANE -> datos DUEB que devolveria `/v1/directorio/{dane}`.
         self.directorio: dict[str, dict] = {}
         self.usuario_por_token: dict[str, str] = {}
+        # Los colegios que Identidad ya tiene (`GET /v1/colegios`).
+        self.conocidos: list[dict] = []
+
+    async def colegios_conocidos(self) -> list[dict]:
+        return list(self.conocidos)
 
     async def registrar_contacto(self, correo: str, celular: str | None = None) -> str | None:
         self.llamadas.append({"correo": correo, "celular": celular})
@@ -373,6 +378,65 @@ class TestColegioPorDirectorioOEscrito:
         assert llamada["colegio_id"] == str(derivar("colegio", "libre", "gimnasio del norte"))
         assert llamada["colegio_datos"]["nombre"] == "Gimnasio Del Norte"
         assert llamada["colegio_datos"].get("dane") is None
+
+    async def test_escrito_a_mano_reusa_el_colegio_que_identidad_ya_tiene(self, cliente, catalogo, identidad):
+        # H-UG-01: Alamei existia en Identidad sin grado verificado, el papa lo
+        # escribio "tal cual" y la aprobacion dio de alta un segundo Alamei.
+        identidad.conocidos = [
+            {"colegio_id": "6375ea98-a4ff-5878-ad9d-8cb7e24574e3", "nombre": "Colegio Alamei", "dane": None}
+        ]
+        cuerpo = _subida(
+            [{"referencia": "hijo-1", "colegio_nombre": "  colegio   ALAMEÍ ", "grado": "Cuarto"}],
+            contacto={"correo": "mama@ejemplo.com"},
+        )
+        respuesta = await cliente.post("/v1/listas/subir", **cuerpo)
+
+        assert respuesta.status_code == 202
+        llamada = catalogo.llamadas[0]
+        assert llamada["colegio_id"] == "6375ea98-a4ff-5878-ad9d-8cb7e24574e3"
+        # Ya existe: no viajan datos, asi la aprobacion no da de alta otro.
+        assert llamada["colegio_datos"] is None
+
+    async def test_del_directorio_reusa_el_colegio_con_ese_dane(self, cliente, catalogo, identidad):
+        identidad.conocidos = [
+            {"colegio_id": "c-existente", "nombre": "Academia Central", "dane": "311001105731"}
+        ]
+        cuerpo = _subida(
+            [
+                {
+                    "referencia": "hijo-1",
+                    "colegio_dane": "311001105731",
+                    "colegio_nombre": "ACADEMIA CENTRAL DE SISTEMAS",
+                    "grado": "Cuarto",
+                }
+            ],
+            contacto={"correo": "mama@ejemplo.com"},
+        )
+        await cliente.post("/v1/listas/subir", **cuerpo)
+
+        llamada = catalogo.llamadas[0]
+        assert llamada["colegio_id"] == "c-existente"
+        assert llamada["colegio_datos"] is None
+
+    async def test_un_homonimo_con_otro_dane_no_se_reusa(self, cliente, catalogo, identidad):
+        # Dos colegios con el mismo nombre y DANE distinto son dos colegios.
+        identidad.conocidos = [{"colegio_id": "c-otro", "nombre": "Colegio Santa Ana", "dane": "111"}]
+        cuerpo = _subida(
+            [
+                {
+                    "referencia": "hijo-1",
+                    "colegio_dane": "222",
+                    "colegio_nombre": "Colegio Santa Ana",
+                    "grado": "Cuarto",
+                }
+            ],
+            contacto={"correo": "mama@ejemplo.com"},
+        )
+        await cliente.post("/v1/listas/subir", **cuerpo)
+
+        from tukit_comun import derivar
+
+        assert catalogo.llamadas[0]["colegio_id"] == str(derivar("colegio", "222"))
 
     async def test_sin_colegio_alguno_es_422(self, cliente, catalogo):
         # Ni id, ni dane, ni nombre: no hay a que (colegio, grado) importar.
