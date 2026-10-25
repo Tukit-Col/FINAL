@@ -32,6 +32,7 @@ import {
   guardarMatriculas,
   FalloApi,
 } from "@/lib/api-navegador";
+import { MAX_HIJOS, avisosDePrecarga, precargarHijos } from "@/lib/precarga-hijos";
 import { rutaRecibimos } from "@/lib/recibimos";
 import LogoColegio from "@/components/LogoColegio";
 import SelectorPersonaje from "./SelectorPersonaje";
@@ -396,28 +397,25 @@ export default function FormularioEmpezar({
     () => colegios.filter((c) => c.es_partner ?? c.grados.length > 0),
     [colegios],
   );
-  const [hijos, setHijos] = useState<HijoFormulario[]>(() => {
-    // Solo se precarga colegio+grado si la matrícula es de un aliado; si no, el
-    // hijo arranca vacío (como uno nuevo) para no dejar seleccionado un colegio
-    // que el selector, ya filtrado a aliados, no muestra.
-    const idsAliados = new Set(colegiosAliados.map((c) => c.colegio_id));
-    return matriculasIniciales.length > 0
-      ? matriculasIniciales.map((m, i) => {
-          const esAliado = idsAliados.has(m.colegio_id);
-          return {
-            ...hijoVacio(i + 1),
-            colegioId: esAliado ? m.colegio_id : "",
-            grado: esAliado ? m.grado : "",
-            // El apodo del propio hijo baja descifrado en la precarga; solo se
-            // conserva si el colegio es aliado (si no, el hijo arranca vacío).
-            apodo: esAliado ? (m.apodo ?? "") : "",
-            // Marcado como precargado solo si de verdad quedó con su matrícula
-            // (colegio aliado): así no se re-guarda ni pide apodo de nuevo.
-            precargado: esAliado,
-          };
-        })
-      : [hijoVacio(1)];
-  });
+  // Solo se precargan los hijos que se pueden usar tal cual (colegio con la
+  // lista de ese grado verificada) y hasta el tope del formulario. Los demás no
+  // se cargan vacíos —dejaban el buscador en blanco y el botón bloqueado—: se
+  // dice cuáles quedaron fuera y por qué (`precarga-hijos.ts`).
+  const [precarga] = useState(() => precargarHijos(matriculasIniciales, colegios));
+  const avisosPrecarga = useMemo(() => avisosDePrecarga(precarga.fuera), [precarga]);
+  const [hijos, setHijos] = useState<HijoFormulario[]>(() =>
+    precarga.precargados.length > 0
+      ? precarga.precargados.map((m, i) => ({
+          ...hijoVacio(i + 1),
+          colegioId: m.colegio_id,
+          grado: m.grado,
+          // El apodo del propio hijo baja descifrado en la precarga.
+          apodo: m.apodo ?? "",
+          // Ya está en la cuenta: no se re-guarda ni se pide el apodo de nuevo.
+          precargado: true,
+        }))
+      : [hijoVacio(1)],
+  );
   const [correo, setCorreo] = useState(sesion?.correo ?? "");
   const [clave, setClave] = useState("");
   const [celular, setCelular] = useState("");
@@ -489,12 +487,14 @@ export default function FormularioEmpezar({
     return true; // aliado con grado verificado: la lista ya existe
   }
 
-  // El camino "soy nuevo usuario" crea la cuenta, asi que ahi la clave es
-  // obligatoria; en los demas caminos no hay clave que pedir.
+  // Correo, clave y celular solo se piden en "soy nuevo usuario", que crea la
+  // cuenta. Con sesion la cuenta ya los tiene: el trabajo viaja con el token y
+  // el aviso sale al correo y al celular guardados en identidad, asi que no se
+  // vuelven a pedir (antes se pedian y no viajaban a ninguna parte).
+  const pideContacto = modo === "nuevo";
   const listo =
-    correo.trim().length > 3 &&
-    celular.trim().length > 6 &&
-    (modo !== "nuevo" || clave.length >= 6) &&
+    (!pideContacto ||
+      (correo.trim().length > 3 && celular.trim().length > 6 && clave.length >= 6)) &&
     hijos.every(hijoCompleto);
 
   // Qué falta EXACTAMENTE para poder enviar, traduciendo a texto los mismos
@@ -504,9 +504,11 @@ export default function FormularioEmpezar({
   // pintan hasta que hay colegio: pedir "el grado" sin colegio señalaría un campo
   // que aún no está en pantalla.
   const faltantesContacto: string[] = [];
-  if (correo.trim().length <= 3) faltantesContacto.push("tu correo");
-  if (modo === "nuevo" && clave.length < 6) faltantesContacto.push("una contraseña");
-  if (celular.trim().length <= 6) faltantesContacto.push("tu celular");
+  if (pideContacto) {
+    if (correo.trim().length <= 3) faltantesContacto.push("tu correo");
+    if (clave.length < 6) faltantesContacto.push("una contraseña");
+    if (celular.trim().length <= 6) faltantesContacto.push("tu celular");
+  }
 
   const faltantesHijos: string[] = [];
   hijos.forEach((hijo, i) => {
@@ -1124,11 +1126,25 @@ export default function FormularioEmpezar({
           );
         })}
 
-        {hijos.length < 4 && (
+        {modo === "autenticado" &&
+          avisosPrecarga.map((texto) => (
+            <p key={texto} className={styles.avisoCaja} role="status">
+              {texto}
+            </p>
+          ))}
+
+        {hijos.length < MAX_HIJOS && (
           <button
             type="button"
             className={styles.agregar}
-            onClick={() => setHijos((a) => [...a, hijoVacio(a.length + 1)])}
+            // La referencia nueva sigue a la mayor que haya: tras "Quitar" un
+            // hijo, contar los que quedan repetiría la de otro.
+            onClick={() =>
+              setHijos((a) => [
+                ...a,
+                hijoVacio(Math.max(0, ...a.map((h) => Number(h.referencia.slice(5)) || 0)) + 1),
+              ])
+            }
           >
             + Agregar otro hijo
           </button>
@@ -1137,8 +1153,8 @@ export default function FormularioEmpezar({
 
       {/* --------------------------------------------------------- Contacto */}
       {/* En "soy nuevo usuario" NO se pinta: el correo y el celular ya se
-          piden en Regístrate. En "autenticado" sí, porque la sesión trae el
-          correo pero no el celular, que hay que capturar aquí. */}
+          piden en Regístrate. Con sesión solo se informa: el aviso va a los
+          datos de la cuenta y no hay nada que volver a escribir. */}
       {modo !== "nuevo" && (
       <section className={styles.bloque} aria-labelledby={`${idBase}-contacto`}>
         <h2 id={`${idBase}-contacto`} className={styles.tituloBloque}>
@@ -1149,30 +1165,15 @@ export default function FormularioEmpezar({
           lista para que la calidad no falle. No tienes que quedarte mirando la
           pantalla: te escribimos cuando esté listo.
         </p>
-        <div className={styles.dosColumnas}>
-          <label className={styles.campo}>
-            <span>Correo</span>
-            <input
-              type="email"
-              value={correo}
-              onChange={(e) => setCorreo(e.target.value)}
-              placeholder="tucorreo@ejemplo.com"
-              autoComplete="email"
-              required
-            />
-          </label>
-          <label className={styles.campo}>
-            <span>Celular</span>
-            <input
-              type="tel"
-              value={celular}
-              onChange={(e) => setCelular(e.target.value)}
-              placeholder="+57 300 123 4567"
-              autoComplete="tel"
-              required
-            />
-          </label>
-        </div>
+        <p className={styles.explicacion}>
+          Te avisamos a los datos de tu cuenta
+          {sesion?.correo ? (
+            <>
+              : <strong>{sesion.correo}</strong>
+            </>
+          ) : null}
+          .
+        </p>
       </section>
       )}
 
