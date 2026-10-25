@@ -18,12 +18,16 @@ token con roles, ADR 0013/0016) y la puerta la rutea como cualquier otra. El
 vigente para poder revocar. El frontend la consulta en cada render protegido, y
 esa consulta pasa por aqui: la puerta ya es parte del camino de validacion.
 
-Lo que esta version **no** hace todavia, y a proposito: repetir esa validacion
-localmente para las rutas del pipeline, que hoy no exigen sesion. Forzar el
-token en ellas seria construir la mitad del mecanismo -autenticacion sin el
-resto de los servicios preparados- y creer que esta completo, que es justo lo
-que el Anexo M le reprocha al rediseno. El sitio donde iria ese chequeo local
-esta marcado en `_reenviar`.
+Lo que si exige es sesion del equipo para la consola interna: toda ruta
+`/v1/admin/*` (salvo la sugerencia que manda la web publica) pide un Bearer que
+identidad reconozca y que traiga rol admin u operador; si no, 401 o 403 y la
+peticion no llega atras. Va aqui porque catalogo e inteligencia sirven rutas de
+consola que no miraban el token, confiando en que nadie de fuera llegara, y la
+puerta es justo ese "de fuera". Se pregunta a `GET /v1/sesiones/actual`, la
+misma validacion autoritativa, asi que revocar sigue funcionando. Las llamadas
+internas entre servicios no pasan por aqui y no cambian. Lo que **no** hace
+todavia, a proposito: exigir sesion en las rutas del pipeline del acudiente;
+cada servicio decide alli, sobre el mismo token que la puerta deja pasar.
 
 Lo que si hace antes de rutear es limitar la tasa (`limite.py`, ADR 0047): por
 token y por IP, en un nivel general y en uno estricto para las rutas que
@@ -173,6 +177,23 @@ _PREFIJO_ORDENES = "/v1/ordenes"
 _ORDENES_EXPUESTAS = re.compile(r"/v1/ordenes/[^/]+/avanzar")
 
 
+# La consola interna (`apps/admin`): todo lo que cuelga de este prefijo es del
+# equipo de Tukit. Los mismos roles que identidad acepta en `/v1/admin/acudientes`
+# y que inteligencia y comercio llaman `_ROLES_STAFF`.
+_PREFIJO_CONSOLA = "/v1/admin"
+_ROLES_EQUIPO = frozenset({"admin", "operador"})
+
+# Las unicas (metodo, ruta) bajo `/v1/admin` que NO son de la consola. La
+# sugerencia de (colegio, grado) la manda la web publica por un acudiente que
+# puede no tener cuenta; leer el backlog (`GET`) si es del equipo. Lista de
+# abiertas y no de cerradas a proposito: una ruta nueva de consola nace cerrada.
+_CONSOLA_ABIERTA: frozenset[tuple[str, str]] = frozenset({("POST", "/v1/admin/sugerencias")})
+
+# Cuanto se espera a identidad para validar la sesion. Corto: lo espera una
+# persona delante de la consola, y un 503 claro le sirve mas que el minuto.
+ESPERA_SESION_SEGUNDOS = 10.0
+
+
 def destino(ruta: str) -> str | None:
     for prefijo in sorted(RUTAS, key=len, reverse=True):
         if ruta == prefijo or ruta.startswith(prefijo + "/"):
@@ -238,6 +259,59 @@ def _cliente() -> httpx.AsyncClient:
         cliente = crear_pool(espera=ESPERA_SEGUNDOS, conexiones=CONEXIONES)
         app.state.cliente = cliente
     return cliente
+
+
+def es_consola(metodo: str, ruta: str) -> bool:
+    """`True` si la ruta es de la consola interna y exige sesion del equipo."""
+    if not (ruta == _PREFIJO_CONSOLA or ruta.startswith(_PREFIJO_CONSOLA + "/")):
+        return False
+    return (metodo.upper(), ruta.rstrip("/")) not in _CONSOLA_ABIERTA
+
+
+def _token_bearer(authorization: str | None) -> str | None:
+    """El token del encabezado `Authorization`. Como `_token_del_encabezado` de
+    identidad: acepta `Bearer <token>` y tambien el token pelado."""
+    if not authorization:
+        return None
+    partes = authorization.split(" ", 1)
+    if len(partes) == 2 and partes[0].lower() == "bearer":
+        return partes[1].strip() or None
+    return authorization.strip() or None
+
+
+def _rechazo(estado: int, error: str, mensaje: str) -> JSONResponse:
+    return JSONResponse(status_code=estado, content={"error": error, "mensaje": mensaje})
+
+
+async def _exigir_equipo(peticion: Request) -> JSONResponse | None:
+    """La puerta de la consola: `None` si el portador es admin u operador, o la
+    respuesta que corta la peticion.
+
+    Misma semantica que `/v1/admin/acudientes` en identidad y `_exigir_staff` en
+    inteligencia: 401 sin token o con uno que identidad no reconoce (invalido,
+    vencido o revocado por `version_permisos`), 403 si es valido pero sin rol del
+    equipo. Falla CERRADA (503) si identidad no responde: no poder preguntar no
+    es razon para abrir la consola."""
+    token = _token_bearer(peticion.headers.get("authorization"))
+    if token is None:
+        return _rechazo(401, "sesion_invalida", "El token no es valido o expiro.")
+    base = _servicios()["identidad"]
+    try:
+        respuesta = await _cliente().get(
+            f"{base}/v1/sesiones/actual",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=ESPERA_SESION_SEGUNDOS,
+        )
+    except httpx.HTTPError:
+        respuesta = None
+    if respuesta is not None and respuesta.status_code == 401:
+        return _rechazo(401, "sesion_invalida", "El token no es valido o expiro.")
+    if respuesta is None or respuesta.status_code != 200:
+        return _rechazo(503, "identidad_no_disponible", "No se pudo validar la sesion.")
+    roles = {r.get("rol") for r in respuesta.json().get("roles", [])}
+    if not roles & _ROLES_EQUIPO:
+        return _rechazo(403, "acceso_denegado", "Esta vista es solo para el equipo interno de Tukit.")
+    return None
 
 
 app = crear_app(
@@ -315,6 +389,14 @@ async def reenviar(ruta: str, peticion: Request) -> Response:
 
     nombre = destino(camino)
 
+    # La consola interna pide sesion del equipo ANTES de reenviar: un 401/403
+    # aqui no llega nunca al servicio de atras. El token sigue viajando intacto
+    # para que el servicio aplique sus permisos finos (p. ej. ver nombres).
+    if es_consola(peticion.method, camino):
+        rechazo = await _exigir_equipo(peticion)
+        if rechazo is not None:
+            return rechazo
+
     base = _servicios()[nombre]
     cabeceras = {k: v for k, v in peticion.headers.items() if k.lower() not in CABECERAS_SALTADAS}
     cuerpo = await peticion.body()
@@ -329,9 +411,6 @@ async def reenviar(ruta: str, peticion: Request) -> Response:
     if cid:
         cabeceras[CABECERA_CORRELACION] = cid
 
-    # Aqui va la validacion del token y la comparacion de `version_permisos`
-    # cuando exista autenticacion. Es el unico punto por el que pasa todo el
-    # trafico, que es lo que hace que ponerla aqui sirva de algo.
     try:
         respuesta = await _cliente().request(
             peticion.method,
