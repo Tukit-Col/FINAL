@@ -110,3 +110,7 @@ test("motivoDeFallo distingue sesion, rol y caida", () => {
   assert.equal(motivoDeFallo(403), "sin_rol");
   assert.equal(motivoDeFallo(503), "servicio_caido");
 });
+
+test("un 429 es el limite de tasa, no un servicio caido ni una sesion vencida", () => {
+  assert.equal(motivoDeFallo(429), "limite");
+});

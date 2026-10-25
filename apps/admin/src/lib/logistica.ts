@@ -146,11 +146,14 @@ export function accionesDisponibles(estado: EstadoPedido): readonly AccionLogist
 
 // Por que la pantalla no puede mostrar logistica. Cada motivo tiene su texto
 // en `AvisoAcceso`.
-export type MotivoAcceso = "sin_sesion" | "sesion_expirada" | "sin_rol" | "servicio_caido";
+export type MotivoAcceso = "sin_sesion" | "sesion_expirada" | "sin_rol" | "servicio_caido" | "limite";
 
-/** El motivo a partir del HTTP con que fallo la lectura. */
+/** El motivo a partir del HTTP con que fallo la lectura. Un 429 es el limite de
+ *  tasa (ADR 0047): la sesion sigue viva y los servicios arriba, solo hay que
+ *  esperar. */
 export function motivoDeFallo(estado: number): MotivoAcceso {
   if (estado === 401) return "sesion_expirada";
   if (estado === 403) return "sin_rol";
+  if (estado === 429) return "limite";
   return "servicio_caido";
 }
