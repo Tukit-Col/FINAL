@@ -44,3 +44,12 @@ export function etiquetasDeHijos(
   });
   return etiquetas;
 }
+
+// La pista de tienda bajo el precio. La normalización del contrato sintetiza
+// una oferta con la tienda vacía cuando el backend solo manda el precio: sin
+// un nombre de verdad no hay pista, en vez de un "en" que no dice dónde.
+export function pistaDeTienda(ofertas: readonly { tienda: string }[]): string | null {
+  const tiendas = ofertas.map((o) => o.tienda.trim()).filter(Boolean);
+  if (tiendas.length === 0) return null;
+  return tiendas.length > 1 ? `en ${tiendas[0]} · ${tiendas.length} tiendas` : `en ${tiendas[0]}`;
+}

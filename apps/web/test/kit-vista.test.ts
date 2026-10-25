@@ -6,7 +6,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { etiquetasDeHijos } from "../src/lib/kit-vista.ts";
+import { etiquetasDeHijos, pistaDeTienda } from "../src/lib/kit-vista.ts";
 
 const COLEGIO = "4c06f0e5-cb44-5865-93e5-ea7b2f115d49";
 const OTRO = "2030c794-3ff4-5b1a-a2ec-5c5d383de3f1";
@@ -68,4 +68,19 @@ test("ninguna etiqueta es una referencia interna", () => {
   for (const valor of etiquetas.values()) {
     assert.ok(!referencias.includes(valor), `se coló la referencia ${valor}`);
   }
+});
+
+test("sin nombre de tienda no queda un «en» colgando", () => {
+  assert.equal(pistaDeTienda([]), null);
+  assert.equal(pistaDeTienda([{ tienda: "" }]), null);
+  assert.equal(pistaDeTienda([{ tienda: "   " }]), null);
+});
+
+test("con tienda dice dónde, y cuántas si hay varias", () => {
+  assert.equal(pistaDeTienda([{ tienda: "Éxito" }]), "en Éxito");
+  assert.equal(pistaDeTienda([{ tienda: "" }, { tienda: "Panamericana" }]), "en Panamericana");
+  assert.equal(
+    pistaDeTienda([{ tienda: "Éxito" }, { tienda: "Panamericana" }, { tienda: "" }]),
+    "en Éxito · 2 tiendas",
+  );
 });
