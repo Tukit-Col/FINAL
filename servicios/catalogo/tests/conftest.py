@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -17,8 +18,23 @@ from tukit_catalogo.modelos import (
     ProductoCanonico,
     Tienda,
 )
+from tukit_comun.cache import usar_cliente
 
 CURADOR = uuid.UUID("00000000-0000-0000-0000-0000000000c1")
+
+
+@pytest.fixture(autouse=True)
+def _sin_redis(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Las pruebas corren sin Redis aunque quien las lance tenga `REDIS_URL`.
+
+    Con la variable, el vector de un renglon se guardaria en Redis (ADR 0047) y
+    una prueba dejaria de llamar a su embeder. Las que prueban la cache ponen su
+    doble con `usar_cliente`.
+    """
+    monkeypatch.delenv("REDIS_URL", raising=False)
+    usar_cliente(None)
+    yield
+    usar_cliente(None)
 
 
 @pytest.fixture()

@@ -10,7 +10,11 @@
 
 import "server-only";
 
+import { cookies, headers } from "next/headers";
+import { unstable_rethrow } from "next/navigation";
+
 import { ClienteApi } from "./cliente-http";
+import { autorizacionDeConsola, esRutaDeConsola } from "./consola";
 import type { OrigenDatos } from "./origen";
 
 export function urlApi(): string {
@@ -41,11 +45,41 @@ export function urlWeb(): string {
   return process.env["TUKIT_WEB_URL"] ?? "http://localhost:3000";
 }
 
+// La cookie de sesion que comparten las dos apps. Mismo nombre que `COOKIE_SESION`
+// de `apps/web/src/lib/sesion.ts` y de `apps/admin/src/lib/sesion.ts`.
+const COOKIE_SESION = "tukit_sesion";
+
+/** Lo que se reenvia de la peticion entrante. `X-Forwarded-For`, para que el
+ *  limite de tasa del gateway cuente por la IP del cliente y no por la de este
+ *  servidor (ADR 0047): Next la pone con la direccion de la conexion si no
+ *  venia; si venia, la deja como esta, y un proxy delante tiene que agregar la
+ *  IP real a la derecha. Y en las rutas de consola (`/v1/admin/*`) el token de
+ *  la cookie como Bearer, porque el gateway cierra la consola sin sesion del
+ *  equipo (contrato 1.12); un `Authorization` explicito de la llamada gana.
+ *  Fuera de una peticion no hay nada que reenviar. */
+export async function cabecerasReenviadas(ruta = ""): Promise<Record<string, string>> {
+  let entrantes: Headers;
+  let token: string | undefined;
+  try {
+    entrantes = await headers();
+    if (esRutaDeConsola(ruta)) token = (await cookies()).get(COOKIE_SESION)?.value;
+  } catch (causa) {
+    // Las senales internas de Next (renderizado dinamico) son suyas.
+    unstable_rethrow(causa);
+    return {};
+  }
+  const reenviada = entrantes.get("x-forwarded-for");
+  return {
+    ...(reenviada ? { "X-Forwarded-For": reenviada } : {}),
+    ...autorizacionDeConsola(ruta, token),
+  };
+}
+
 let cache: OrigenDatos | null = null;
 
 export function origenDeDatos(): OrigenDatos {
   if (cache) return cache;
-  cache = new ClienteApi({ urlBase: urlApi() });
+  cache = new ClienteApi({ urlBase: urlApi(), cabeceras: cabecerasReenviadas });
   return cache;
 }
 

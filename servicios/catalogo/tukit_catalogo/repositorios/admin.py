@@ -112,6 +112,14 @@ class RepoAdmin:
         procedencia = select(TAREA.c.origen).where(TAREA.c.id == tarea_reciente).scalar_subquery()
         contacto = select(TAREA.c.contacto_referencia).where(TAREA.c.id == tarea_reciente).scalar_subquery()
         colegio_datos = select(TAREA.c.colegio_datos).where(TAREA.c.id == tarea_reciente).scalar_subquery()
+        # Retirada por el acudiente (H-07): alguna tarea de la version se retiro
+        # y ninguna sigue viva. Una version con otra tarea viva (onboarding, otro
+        # acudiente) sigue en la cola.
+        tareas_de_version = select(TAREA.c.id).where(TAREA.c.version_id == VERSION.c.id).correlate(VERSION)
+        retirada = and_(
+            tareas_de_version.where(TAREA.c.retirada_en.is_not(None)).exists(),
+            ~tareas_de_version.where(TAREA.c.retirada_en.is_(None)).exists(),
+        )
         consulta = select(
             LISTA.c.id.label("lista_id"),
             LISTA.c.colegio_id,
@@ -124,6 +132,7 @@ class RepoAdmin:
             procedencia.label("procedencia"),
             contacto.label("contacto_referencia"),
             colegio_datos.label("colegio_datos"),
+            retirada.label("retirada_por_acudiente"),
         ).select_from(
             LISTA.join(
                 VERSION, and_(VERSION.c.lista_id == LISTA.c.id, VERSION.c.numero == ultimo_numero)
@@ -132,7 +141,9 @@ class RepoAdmin:
         if revisada is True:
             consulta = consulta.where(VERSION.c.revisada_en.is_not(None))
         elif revisada is False:
-            consulta = consulta.where(VERSION.c.revisada_en.is_(None))
+            # La cola de verificacion: lo que alguien tiene que revisar. Una
+            # lista que su acudiente retiro ya no la espera nadie.
+            consulta = consulta.where(VERSION.c.revisada_en.is_(None), ~retirada)
         if colegio_id is not None:
             consulta = consulta.where(LISTA.c.colegio_id == colegio_id)
         if grado:

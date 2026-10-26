@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogIn, PlugZap } from "lucide-react";
+import { LogIn } from "lucide-react";
 import styles from "./Ingresar.module.css";
 
 export default function FormularioIngreso({
@@ -63,7 +63,7 @@ export default function FormularioIngreso({
         <h1 id="titulo-ingreso" className={styles.titulo}>
           Ingresa a Tukit
         </h1>
-        <p className={styles.subtitulo}>Autenticando contra identidad a través del gateway.</p>
+        <p className={styles.subtitulo}>Entra para ver tus kits, tus pedidos y a tus hijos.</p>
 
         <form className={styles.forma} onSubmit={enviar}>
           <label className={styles.campo} htmlFor={idCorreo}>
@@ -102,11 +102,6 @@ export default function FormularioIngreso({
             {enviando ? "Entrando…" : "Entrar"}
           </button>
         </form>
-
-        <p className={styles.cinta}>
-          <PlugZap size={14} strokeWidth={2.4} aria-hidden="true" />
-          api · vía gateway → identidad
-        </p>
       </section>
     </div>
   );

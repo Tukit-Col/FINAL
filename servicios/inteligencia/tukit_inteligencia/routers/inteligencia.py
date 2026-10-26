@@ -15,6 +15,7 @@ from __future__ import annotations
 import base64
 import json
 import re
+import unicodedata
 import uuid
 from typing import Annotated, Any
 
@@ -250,9 +251,22 @@ async def crear_trabajo(peticion: PeticionTrabajo, solicitud: Request) -> dict[s
             campo="preferencias.pesos",
         )
 
+    hijos = [hijo.model_dump() for hijo in peticion.hijos]
+    # Sin lista para ningun hijo, el trabajo fallaria al procesarse con este
+    # mismo motivo: se dice ahora y no se encola (H-C-03). Un hogar con algun
+    # hijo sin lista sigue igual: ese hijo sale anotado en el kit.
+    if not await trabajos.alguna_lista_para(api._catalogo(), hijos):
+        raise ErrorDominio(
+            "sin_lista_oficial",
+            "No encontramos la lista oficial publicada para ese colegio y grado. "
+            "Sube el archivo de la lista o escoge otro grado.",
+            estado=422,
+            campo="hijos",
+        )
+
     respuesta = await trabajos.crear(
         api.app.state.motor,
-        hijos=[hijo.model_dump() for hijo in peticion.hijos],
+        hijos=hijos,
         contacto=peticion.contacto.model_dump() if peticion.contacto else None,
         preferencias=(peticion.preferencias.model_dump(exclude_none=True) if peticion.preferencias else {}),
         usuario_id=uuid.UUID(uid) if (uid := await api._usuario_de_la_peticion(solicitud)) else None,
@@ -630,6 +644,46 @@ class HijoSubida(ColegioElegido):
     anio_lectivo: int | None = Field(default=None, ge=2020, le=2100)
 
 
+def _nombre_comparable(nombre: str | None) -> str:
+    """Minusculas, sin tildes y con espacios colapsados: "Colegio  ALAMEÍ" y
+    "colegio alamei" son el mismo nombre."""
+    sin_tildes = unicodedata.normalize("NFKD", nombre or "")
+    sin_tildes = "".join(c for c in sin_tildes if not unicodedata.combining(c))
+    return " ".join(sin_tildes.lower().split())
+
+
+async def _reusar_colegio_conocido(
+    colegio_id: str, colegio_datos: dict[str, Any] | None
+) -> tuple[str, dict[str, Any] | None]:
+    """Si el colegio "nuevo" ya existe en Identidad, su id y sin datos de alta.
+
+    El buscador de /empezar solo ofrece como aliado a los colegios con un grado
+    verificado; uno que existe sin listas hay que escribirlo "tal cual", y el id
+    derivado del nombre (o del DANE) no es el suyo: aprobar daba de alta un
+    duplicado (H-UG-01). Se pregunta a Identidad por su API, no por su base.
+    Coincide el mismo DANE, o el mismo nombre comparable si el que existe no
+    tiene DANE o tiene el mismo (dos homonimos con DANE distinto son dos
+    colegios). Sin Identidad, queda el id derivado de siempre.
+    """
+    if colegio_datos is None:
+        return colegio_id, colegio_datos
+    dane = colegio_datos.get("dane")
+    nombre = _nombre_comparable(colegio_datos.get("nombre"))
+    conocidos = await api._identidad().colegios_conocidos()
+    por_dane = [c for c in conocidos if dane and c.get("dane") == dane]
+    por_nombre = [
+        c
+        for c in conocidos
+        if nombre
+        and _nombre_comparable(c.get("nombre")) == nombre
+        and (not c.get("dane") or c.get("dane") == dane)
+    ]
+    for conocido in (*por_dane, *por_nombre):
+        if conocido.get("colegio_id"):
+            return str(conocido["colegio_id"]), None
+    return colegio_id, colegio_datos
+
+
 async def _completar_con_directorio(colegio_datos: dict[str, Any] | None) -> dict[str, Any] | None:
     """Colegio nuevo elegido del directorio: se pre-llena su perfil (direccion,
     contacto, sitio) con el DUEB para que la cola no muestre un bloque vacio.
@@ -777,7 +831,7 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
     # del PDF (puede diferir del que el acudiente eligio) para deduplicar bien.
     percibidos: list[tuple[HijoSubida, str, bytes, Percepcion]] = []
     for hijo, pdf in zip(hijos, pdf_por_hijo, strict=True):
-        percepcion = api._percibir_onboarding(pdf)
+        percepcion = await api._percibir_onboarding(pdf)
         if not percepcion.aceptada:
             raise PercepcionRechazada(
                 percepcion.error or "percepcion_rechazada",
@@ -803,7 +857,7 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
     destino_de_hijo: list[tuple[HijoSubida, str, tuple[str, int]]] = []
     anio_por_omision = 2026
     for hijo, grado, pdf, percepcion in percibidos:
-        colegio_id, colegio_datos = hijo.resolver_colegio()
+        colegio_id, colegio_datos = await _reusar_colegio_conocido(*hijo.resolver_colegio())
         anio = hijo.anio_lectivo or anio_por_omision
         clave = (f"{colegio_id}|{grado}", anio)
         destino_de_hijo.append((hijo, grado, clave))
@@ -941,7 +995,7 @@ async def onboarding(
             "anio_invalido", "El anio lectivo tiene que ser un numero.", estado=422, campo="anio_lectivo"
         ) from error
 
-    percepcion = api._percibir_onboarding(archivo)
+    percepcion = await api._percibir_onboarding(archivo)
     if not percepcion.aceptada:
         raise PercepcionRechazada(
             percepcion.error or "percepcion_rechazada",
@@ -952,6 +1006,7 @@ async def onboarding(
     # Mismo mapeo (renglones + evidencia por pagina) que la subida del acudiente.
     items, percepcion_cruda = _items_desde_percepcion(percepcion)
 
+    colegio_id, colegio_datos = await _reusar_colegio_conocido(colegio_id, colegio_datos)
     colegio_datos = await _completar_con_directorio(colegio_datos)
     # A diferencia de la subida del acudiente, aqui no se difiere (ADR 0040):
     # el formulario del administrador necesita el `version_id` en el acto para

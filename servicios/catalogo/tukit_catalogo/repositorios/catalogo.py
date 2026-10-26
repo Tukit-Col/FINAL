@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import Select, and_, func, or_, select, update
@@ -567,6 +568,8 @@ class RepoCatalogo:
         """Desliga al acudiente de las tareas de una version (o de una tarea suelta).
 
         Solo las suyas: una tarea de otro contacto no se toca aunque traigan su id.
+        Queda `retirada_en` para que la cola de verificacion la saque: sin
+        contacto ya nadie la espera, pero eso solo no la distingue del onboarding.
         """
         if version_id is None and tarea_id is not None:
             fila = (
@@ -588,7 +591,7 @@ class RepoCatalogo:
         resultado = await self.conexion.execute(
             update(TAREA)
             .where(filtro, TAREA.c.contacto_referencia == contacto_referencia)
-            .values(contacto_referencia=None)
+            .values(contacto_referencia=None, retirada_en=datetime.now(UTC))
         )
         return int(resultado.rowcount or 0)
 
