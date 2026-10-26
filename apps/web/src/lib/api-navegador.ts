@@ -281,6 +281,21 @@ export async function registrarAcudiente(
 }
 
 /**
+ * Entra con correo y clave: `/api/sesion` pone la cookie httpOnly. Lo usa
+ * `/empezar` cuando el registro creó la cuenta pero su login dio 429 (H-R-01):
+ * al reintentar no se vuelve a registrar, solo se entra.
+ */
+export async function iniciarSesion(credenciales: { correo: string; clave: string }): Promise<void> {
+  await leer<unknown>(
+    await fetch("/api/sesion", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(credenciales),
+    }),
+  );
+}
+
+/**
  * Guarda en la cuenta del acudiente autenticado las matrículas de sus hijos
  * NUEVOS (camino "ya tengo cuenta"). Habla con el Route Handler local, que pone
  * el Bearer desde la cookie httpOnly: el token nunca toca el navegador. Es

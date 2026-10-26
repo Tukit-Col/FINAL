@@ -18,6 +18,7 @@ import {
   type MatriculaAcudiente,
   type Sesion,
 } from "@tukit/contrato/servidor";
+import { fallaCerradoSalvoLimite } from "./limite";
 
 export const COOKIE_SESION = "tukit_sesion";
 
@@ -29,17 +30,17 @@ export async function tokenDeSesion(): Promise<string | undefined> {
   return (await cookies()).get(COOKIE_SESION)?.value;
 }
 
-/** La sesion actual, o `null` si no hay cookie o el token ya no vale. */
+/** La sesion actual, o `null` si no hay cookie o el token ya no vale.
+ *
+ *  Un 429 del limite de tasa (ADR 0047) NO es "sin sesion": se propaga, para
+ *  que la pantalla muestre la espera en vez de mandar a `/ingresar` a quien
+ *  tiene la cookie viva. */
 export async function sesionActual(): Promise<Sesion | null> {
   const token = (await cookies()).get(COOKIE_SESION)?.value;
   if (!token) return null;
-  try {
-    return await origenDeDatos().sesionActual(token);
-  } catch {
-    // Un token que el backend rechaza es como no tener sesion: fail-closed,
-    // igual que `puede()`.
-    return null;
-  }
+  // Un token que el backend rechaza es como no tener sesion: fail-closed,
+  // igual que `puede()`.
+  return fallaCerradoSalvoLimite(() => origenDeDatos().sesionActual(token), null);
 }
 
 /**
@@ -51,16 +52,13 @@ export async function sesionActual(): Promise<Sesion | null> {
  *
  * Fail-closed a lista vacia, igual que `sesionActual()`: sin cookie, con token
  * rechazado o si el backend no responde, el formulario simplemente arranca sin
- * precarga en vez de romper la pantalla.
+ * precarga en vez de romper la pantalla. Un 429 se propaga, tambien igual: con
+ * el cupo agotado, "[]" seria decirle que no tiene hijos.
  */
 export async function matriculasDeLaSesion(): Promise<MatriculaAcudiente[]> {
   const token = (await cookies()).get(COOKIE_SESION)?.value;
   if (!token) return [];
-  try {
-    return await origenDeDatos().matriculasDelAcudiente(token);
-  } catch {
-    return [];
-  }
+  return fallaCerradoSalvoLimite(() => origenDeDatos().matriculasDelAcudiente(token), []);
 }
 
 /**

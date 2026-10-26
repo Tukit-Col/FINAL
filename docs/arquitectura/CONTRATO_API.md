@@ -5,11 +5,27 @@
 > fronteras de *conversación*. Cambiar cualquiera de los dos sin avisar rompe a alguien
 > más, así que se cierran antes de repartir el trabajo y se versionan.
 
-- **Versión:** 1.11
+- **Versión:** 1.12
 - **Prefijo:** `/v1`
 - **URL base:** `http://127.0.0.1:8010` en desarrollo. Ver §12.1.
 - **Formato:** JSON UTF-8. Dinero en **pesos enteros** (nunca decimales flotantes).
 - **Idioma de los identificadores:** español sin tildes, como el resto del código.
+
+### Qué cambió en 1.12
+
+La consola interna exige sesión del equipo en el gateway. Un cliente de 1.11 que ya mandaba el
+Bearer del operador o del admin no cambia nada. Uno que llamaba a `/v1/admin/*` sin token, sí:
+ahora recibe `401`.
+
+| Cambio | Dónde | Por qué |
+|---|---|---|
+| Toda ruta `/v1/admin/*` exige un Bearer válido con rol `admin` u `operador`: sin token o con uno que Identidad no reconoce, `401 sesion_invalida`; con uno sin rol del equipo, `403 acceso_denegado`; si Identidad no responde, `503 identidad_no_disponible` | §7, §12.1 | Por el gateway, sin token, se podían leer la cola y las listas y aprobar y publicar un kit |
+| La excepción es `POST /v1/admin/sugerencias`, que manda la web pública por un acudiente que puede no tener cuenta. `GET /v1/admin/sugerencias` es del equipo | §7 | Es la única ruta bajo `/v1/admin` que no es de la consola |
+| Las escrituras de consola fuera de `/v1/admin` exigen la misma sesión: `PATCH` y `DELETE /v1/catalogo/productos/{sku}`, `POST /v1/catalogo/productos/{sku}/reclasificar` y `PATCH /v1/colegios/{colegio_id}`. Leerlos (`GET`) sigue siendo público | §7 | Sin token se podía editar, retirar o reclasificar un producto y editar el perfil de un colegio |
+| Aprobar el trabajo de un acudiente (`POST /v1/admin/trabajos/{id}/revision` con `aprobar`) lo publica para él y ya no lo vuelve el kit canónico de su grado. El canónico sale de la lista aprobada (`canonico_lista`) o de un preview fijado | §7 | El kit de un papá lleva sus preferencias; los papás siguientes recibían un kit armado con las de otro |
+| `POST /v1/sesiones/cierre` revoca el token: sube la `version_permisos` del portador, así que cierra la sesión en todos sus dispositivos. Sin token o con uno que ya no vale sigue respondiendo `204` | Identidad | Antes solo se borraba la cookie y el token seguía valiendo hasta expirar |
+| `GET /v1/contactos/{usuario_id}` deja de estar expuesto en el gateway (404 como cualquier ruta interna). `POST /v1/contactos` sigue igual | §7 | Devolvía correo y celular de cualquier usuario sin token; solo lo usan los servicios entre ellos |
+| `apps/admin` reenvía como Bearer el token de la cookie `tukit_sesion` en todas sus llamadas | §12.8 | Antes solo lo hacía en el onboarding y en la logística |
 
 ### Qué cambió en 1.11
 
@@ -92,7 +108,7 @@ a un hijo (ADR 0031).
 
 | Cambio | Dónde | Por qué |
 |---|---|---|
-| `POST /v1/trabajos/{id}/cancelar` (con sesión): el trabajo pasa a `cancelado`, terminal. No se cancela un kit comprado (`409 kit_comprado`), uno con pago pendiente (`409 pedido_pendiente`) ni uno en `procesando` (`409 en_proceso`); otra cuenta, `403 solicitud_ajena` | §4 | Antes una solicitud no se podía deshacer |
+| `POST /v1/trabajos/{id}/cancelar` (con sesión): el trabajo pasa a `cancelado`, terminal. No se cancela un kit comprado (`409 kit_comprado`), uno con pago pendiente (`409 pedido_pendiente`) ni uno en `procesando` (`409 en_proceso`), ni el que hoy es el kit canónico de su grado (`409 kit_canonico`); otra cuenta, `403 solicitud_ajena` | §4 | Antes una solicitud no se podía deshacer |
 | `POST /v1/mis-solicitudes/listas/{tarea_id}/cancelar` (con sesión): la lista subida deja de ser del acudiente, sin borrarse | §4 | La lista es del colegio y sirve a otros |
 | `EstadoTrabajo` suma `cancelado`; "Mis solicitudes" no lo devuelve y la lista `recibida` trae `tarea_id` | §4 | Para poder cancelarla |
 | `DELETE /v1/cuenta/matriculas/{matricula_id}` (204) y `PUT` con `{colegio_id, grado, apodo?}`: quitar cierra el vínculo sin borrar; cambiar retira la matrícula y crea la nueva con el mismo apodo | §12.4 | Corregir el colegio o quitar a un hijo desde el panel |
@@ -321,6 +337,11 @@ Dos formas de entrar, las dos del SRS:
 > pide `GEMINI_API_KEY` y el render de PDF, y ninguna de las dos es una decisión de
 > contrato. La ruta (a) cubre los 17 colegios del corpus con sus 175 listas cargadas, así
 > que el frontend puede construirse entero contra ella.
+
+Si **ningún** hijo tiene lista en el catálogo para su (colegio, grado, año), la petición se
+rechaza en el acto con `422 sin_lista_oficial` y no se encola nada: el grado sin lista va por
+`POST /v1/listas/subir`. Un hogar donde solo algunos hijos tienen lista sigue con `202` y
+el kit anota al que faltó. Con el catálogo caído no se puede saber y se encola como siempre.
 
 ### 2.1 Un archivo es la lista de UN grado, y eso se verifica
 
@@ -669,6 +690,15 @@ recomendado cabe siempre e iguala la mejor marca posible dentro del tope.
 | `POST /v1/admin/productos` | `AD-07` — alta manual con precio e imagen |
 | `POST /v1/admin/productos/{sku}/no-disponible` | `AD-05` |
 | `POST /v1/admin/trabajos/{id}/revision` | `AD-06` — publica al acudiente |
+
+**La sesión (1.12).** Todo `/v1/admin/*` es del equipo: el gateway valida el Bearer contra
+`GET /v1/sesiones/actual` antes de reenviar, y sin sesión responde `401 sesion_invalida`, sin
+rol `admin` u `operador` `403 acceso_denegado`, y si Identidad no responde
+`503 identidad_no_disponible`. La única excepción es `POST /v1/admin/sugerencias` (la sugerencia
+de un acudiente desde la web pública). La misma sesión cierran las escrituras de consola que
+viven fuera de `/v1/admin`: `PATCH`/`DELETE /v1/catalogo/productos/{sku}`,
+`POST /v1/catalogo/productos/{sku}/reclasificar` y `PATCH /v1/colegios/{colegio_id}`. Las
+llamadas internas entre servicios no pasan por el gateway y no cambian.
 
 La cola se alimenta de `PE-04`: "marcar para revisión de Admin Tukit los ítems con
 confianza de extracción por debajo del umbral configurable τ". Toda transición queda en
@@ -1171,7 +1201,7 @@ La puerta **rutea por prefijo declarado**, no con comodín. Una ruta que no est�
 devuelve `404 ruta_desconocida` con la lista de las que sí existen, en vez de reenviarla a
 un servicio al azar. Las que este contrato define y todavía no tiene nadie detrás
 devuelven `501 no_implementado` (§11). Antes de reenviar, la puerta cuenta la petición y puede
-responder `429 demasiadas_peticiones` (§11.1).
+responder `429 demasiadas_peticiones` (§11.1), y en `/v1/admin/*` exige la sesión del equipo (§7).
 
 `GET /v1/servicios` dice si los tres de atrás responden. Existe porque `GET /salud` en la
 puerta contesta `ok` con los tres caídos, y esa es la clase de sonda que hace perder una
@@ -1445,7 +1475,9 @@ el derecho al olvido lo alcance en un solo sitio. Idempotente por correo.
 ```
 
 El frontend normalmente **no** necesita llamarlo: `POST /v1/trabajos` lo hace por dentro con
-el bloque `contacto`. Está expuesto por si hace falta registrar antes.
+el bloque `contacto`. Está expuesto por si hace falta registrar antes. Leer un contacto
+(`GET /v1/contactos/{usuario_id}`, correo y celular) es solo entre servicios: el gateway no lo
+expone (1.12).
 
 **Lo que NO hay en identidad, y la ausencia es deliberada:** ninguna ruta devuelve un
 estudiante, un nombre de menor ni una matrícula. Esa superficie necesita autenticación y

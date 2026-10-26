@@ -18,6 +18,7 @@ import { MEDIOS_PAGO } from "@/components/pedido/medios";
 import ResumenPedido from "@/components/pedido/ResumenPedido";
 import { fechaHoraBogota } from "@/lib/pedido-vista";
 import { tokenDeSesion } from "@/lib/sesion";
+import { conAvisoDeLimite } from "@/components/ConAvisoDeLimite";
 import LineaDeTiempoPedido from "./LineaDeTiempoPedido";
 import styles from "./PaginaPedido.module.css";
 
@@ -26,6 +27,11 @@ export const metadata = { title: "Tu pedido — Tukit" };
 
 export default async function PaginaPedido({ params }: { params: Promise<{ pedido_id: string }> }) {
   const { pedido_id } = await params;
+  // Un 429 (cupo agotado) pinta el aviso con la espera, no un error.
+  return conAvisoDeLimite(() => paginaPedido(pedido_id));
+}
+
+async function paginaPedido(pedido_id: string) {
   const destino = `/ingresar?destino=${encodeURIComponent(`/pedidos/${pedido_id}`)}`;
   const token = await tokenDeSesion();
   if (!token) redirect(destino);

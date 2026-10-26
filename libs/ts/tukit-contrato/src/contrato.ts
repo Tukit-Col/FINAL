@@ -472,6 +472,9 @@ export interface Trabajo {
   // De dónde salió el trabajo. `parent_apply` es la ruta rápida: ahí el
   // "recomendado" es el kit que el acudiente eligió al empezar.
   origen?: string;
+  // Los hijos del trabajo por referencia, colegio y grado (nunca un nombre):
+  // con ellos la web le pone el apodo de la cuenta a cada renglón.
+  hijos?: HijoDeTrabajo[];
 }
 
 // El panel del acudiente: una de SUS solicitudes de kit (un trabajo del

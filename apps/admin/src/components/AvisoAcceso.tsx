@@ -1,4 +1,4 @@
-// Lo que ve quien llega a logistica y no puede verla. Cada motivo dice que
+// Lo que ve quien llega a la consola (o a logistica) y no puede verla. Cada motivo dice que
 // hacer: no es lo mismo "entra" que "pidele el rol a un admin" que "el
 // servicio esta caido". Server Component: sin estado ni JS en el navegador.
 
@@ -9,12 +9,12 @@ import styles from "./AvisoAcceso.module.css";
 const TEXTOS: Record<MotivoAcceso, { titulo: string; texto: string; ingresar: boolean }> = {
   sin_sesion: {
     titulo: "Necesitas ingresar",
-    texto: "Logística es del equipo interno. Ingresa con tu cuenta de operador o admin.",
+    texto: "La consola es del equipo interno. Ingresa con tu cuenta de operador o admin.",
     ingresar: true,
   },
   sesion_expirada: {
     titulo: "Tu sesión terminó",
-    texto: "Vuelve a ingresar para seguir moviendo pedidos.",
+    texto: "Vuelve a ingresar para seguir trabajando en la consola.",
     ingresar: true,
   },
   sin_rol: {
@@ -27,10 +27,18 @@ const TEXTOS: Record<MotivoAcceso, { titulo: string; texto: string; ingresar: bo
     texto: "Comercio o identidad no responden. Revisa que los servicios estén arriba (make estado).",
     ingresar: false,
   },
+  // El texto de verdad es el `mensaje` del 429, que trae la espera.
+  limite: {
+    titulo: "Danos un momento",
+    texto: "Hiciste demasiadas peticiones en poco tiempo. Espera un momento y recarga la página.",
+    ingresar: false,
+  },
 };
 
-export default function AvisoAcceso({ motivo }: { motivo: MotivoAcceso }) {
-  const { titulo, texto, ingresar } = TEXTOS[motivo];
+export default function AvisoAcceso({ motivo, mensaje }: { motivo: MotivoAcceso; mensaje?: string }) {
+  const { titulo, ingresar } = TEXTOS[motivo];
+  // Con el limite de tasa manda el mensaje del gateway: dice cuanto esperar.
+  const texto = motivo === "limite" && mensaje ? mensaje : TEXTOS[motivo].texto;
   return (
     <section className={styles.aviso} role={motivo === "servicio_caido" ? "alert" : "status"}>
       <h2 className={styles.titulo}>{titulo}</h2>
