@@ -377,8 +377,13 @@ class TestRutaRapidaVerificada:
             _item_resuelto(5, "Tijeras", "C013", tijeras, uno_por_estudiante=True),
             _item_resuelto(6, "tijeras", "C013", tijeras, uno_por_estudiante=True, posible_repetido_de=None),
         ]
-        canonico, _ = await _crear_y_procesar(motor, catalogo)
-        await trabajos.revisar(motor, canonico, decision="aprobar")
+        creado = await trabajos.crear(
+            motor,
+            hijos=[{"referencia": "canonico", "colegio_id": COLEGIO, "grado": "Cuarto"}],
+            preferencias={},
+            origen=trabajos.ORIGEN_CANONICO,
+        )
+        await trabajos.procesar(motor, uuid.UUID(creado["trabajo_id"]), catalogo=catalogo)
         aplicado = await trabajos.aplicar_canonico(
             motor,
             colegio_id=COLEGIO,

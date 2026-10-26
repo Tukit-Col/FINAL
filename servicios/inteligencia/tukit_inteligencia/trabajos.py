@@ -2137,9 +2137,9 @@ async def _proteger_kits_publicados(conexion: Any, trabajo_id: uuid.UUID) -> Non
     """Niega editar las lineas de unos kits canonicos ya publicados.
 
     Canonico es lo que no tiene acudiente (preview fijado, `canonico_lista`) o
-    lo que la cache de su grado apunta hoy (un trabajo de acudiente aprobado
-    tambien la fija). El trabajo publicado de un acudiente que no es la cache
-    sigue el flujo de siempre.
+    lo que la cache de su grado apunta hoy (datos de antes, cuando aprobar el
+    trabajo de un acudiente tambien la fijaba). El trabajo publicado de un
+    acudiente que no es la cache sigue el flujo de siempre.
     """
     fila = (
         await conexion.execute(select(TRABAJO.c.estado, TRABAJO.c.origen).where(TRABAJO.c.id == trabajo_id))
@@ -2196,13 +2196,12 @@ async def revisar(
             )
         )
         if decision == "aprobar":
-            # No se bendice como canonico un kit del que nadie puede comprar
-            # nada: si NINGUNA linea de NINGUN perfil tiene producto+precio,
-            # fijar el puntero solo garantizaria el 404 "sin lineas comprables"
-            # en el checkout del acudiente. Se niega la aprobacion con un motivo
-            # claro (falta fijar producto/precio en las lineas), en vez de
-            # publicar una cache rota. Misma definicion de "comprable" que
-            # `ordenar`: no informativa, con sku y precio.
+            # No se publica un kit del que nadie puede comprar nada: si NINGUNA
+            # linea de NINGUN perfil tiene producto+precio, el acudiente solo
+            # veria el 409 "sin lineas comprables" en el checkout. Se niega la
+            # aprobacion con un motivo claro (falta fijar producto/precio en las
+            # lineas). Misma definicion de "comprable" que `ordenar`: no
+            # informativa, con sku y precio.
             if not await _tiene_lineas_comprables(conexion, trabajo_id):
                 raise CheckoutRechazado(
                     409,
@@ -2211,12 +2210,15 @@ async def revisar(
                         "mensaje": (
                             "Este trabajo no tiene ninguna linea con producto y precio "
                             "que Tukit pueda vender. Fija el producto en las lineas antes "
-                            "de aprobarlo como canonico."
+                            "de aprobarlo."
                         ),
                     },
                 )
             await _publicar_evento(conexion, trabajo_id)
-            await _fijar_canonico(conexion, trabajo_id)
+            # Aprobar el trabajo de un acudiente NO lo vuelve el canonico de su
+            # grado: lleva sus preferencias (presupuesto, prioridad, personaje) y
+            # es solo suyo. El canonico sale de la LISTA aprobada
+            # (`canonico_lista`) o de un preview fijado (`fijar_como_canonico`).
 
     return {"trabajo_id": str(trabajo_id), "estado": nuevo, "nota": nota}
 
