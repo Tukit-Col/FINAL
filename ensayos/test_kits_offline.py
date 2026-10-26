@@ -45,6 +45,22 @@ def test_el_colegio_no_tiene_huecos():
     assert huecos == []
 
 
+class TestLasFichasBlancasSonBlancas:
+    """C078 distingue `color`: «fichas bibliograficas (blancas)» exige blanco, y
+    las azules del mismo precio ya no le ganan al Ahorrador."""
+
+    def test_cada_perfil_lleva_fichas_blancas(self, renglon):
+        linea = renglon("2#52")
+        assert (_sku(linea.ahorrador), _sku(linea.premium)) == (
+            "TK-REV-47365750194347",
+            "TK-REV-44702942134443",
+        )
+
+    def test_ninguna_candidata_es_de_otro_color(self, renglon):
+        colores = {(c.get("atributos") or {}).get("color") for c in renglon("2#52").candidatos}
+        assert colores == {"blanco"}
+
+
 class TestLasPiedrasDeTexturaSonUnSoloSet:
     """La lista de Artes de Segundo pide «materiales para generar textura como:
     (... piedras de bisuteria pequenas, ... piedras de colores de jardineria
