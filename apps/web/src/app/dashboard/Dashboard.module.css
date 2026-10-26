@@ -696,3 +696,78 @@
     flex-direction: column;
   }
 }
+
+/* En el celular la tabla de pedidos (≈520px) no cabe en la tarjeta y la
+   tarjeta recorta (`overflow: hidden`): el Estado salía cortado y el Total no
+   se veía. Cada pedido pasa a ser un bloque de dos renglones —código y total
+   arriba, fecha y estado abajo— y la franja de acciones va debajo, a lo ancho. */
+@media (max-width: 560px) {
+  .table,
+  .table tbody {
+    display: block;
+  }
+
+  .table thead {
+    display: none;
+  }
+
+  .filaPedido {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "codigo total"
+      "fecha estado";
+    align-items: center;
+    gap: 6px var(--espacio-3);
+    padding: 14px var(--espacio-4);
+    border-bottom: 1px solid var(--color-border-light);
+  }
+
+  .filaPedido td,
+  .filaConAcciones td {
+    padding: 0;
+    border-bottom: none;
+  }
+
+  .filaConAcciones {
+    border-bottom: none;
+    padding-bottom: 8px;
+  }
+
+  .filaPedido:hover {
+    background: var(--color-surface-2);
+  }
+
+  .filaPedido:hover td {
+    background: none;
+  }
+
+  .pedidoId {
+    grid-area: codigo;
+  }
+
+  .pedidoTotal {
+    grid-area: total;
+    text-align: right;
+  }
+
+  .pedidoFecha {
+    grid-area: fecha;
+  }
+
+  .pedidoEstado {
+    grid-area: estado;
+    justify-self: end;
+  }
+
+  .filaAcciones {
+    display: block;
+    border-bottom: 1px solid var(--color-border-light);
+  }
+
+  .filaAcciones td {
+    display: block;
+    padding: 0 var(--espacio-4) 14px;
+    border-bottom: none;
+  }
+}

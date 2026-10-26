@@ -132,6 +132,9 @@ async def listar_versiones(
                 # Si hay un acudiente detras a quien avisar al aprobar. Nunca el
                 # correo: solo el hecho de que exista una referencia.
                 "tiene_contacto": f.contacto_referencia is not None,
+                # El acudiente que la subio la cancelo y nadie mas la espera: ya
+                # no sale en `revisada=false` (la cola), pero se lista marcada.
+                "retirada_por_acudiente": bool(f.retirada_por_acudiente),
                 # El nombre del colegio NUEVO cuando aun no existe en Tukit, para
                 # que la cola lo muestre en vez del id derivado. None si es un
                 # colegio aliado (su nombre ya vive en la tabla `colegio`).

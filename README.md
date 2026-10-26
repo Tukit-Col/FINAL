@@ -26,6 +26,8 @@ make verificar    # todo lo que corre la integración continua
   (imagen `pgvector/pgvector:pg16`). Sin Docker necesitas Postgres 16 local y `make bd-crear`.
 - **RabbitMQ 3.13 o 4.x**, opcional. Sin él, los procesos de fondo sondean las bases. Con
   Docker, `make bd-arriba` lo levanta junto a Postgres.
+- **Redis 7 u 8**, opcional. Sin él no hay caché, y el límite de tasa cuenta en la memoria de la
+  puerta. Con Docker, `make infra-arriba` lo levanta.
 
 ## Levantar el backend completo
 
@@ -52,7 +54,7 @@ TUKIT_API_URL=http://127.0.0.1:8010
 
 | Proceso | Puerto | Qué atiende |
 |---|---|---|
-| **gateway** | **8010** | La única URL que el frontend conoce. Rutea por prefijo declarado |
+| **gateway** | **8010** | La única URL que el frontend conoce. Rutea por prefijo declarado y limita la tasa |
 | identidad | 8011 | `/v1/colegios`, `/v1/grados`, `/v1/contactos` |
 | catalogo | 8012 | `/v1/catalogo/*`, `/v1/listas*` |
 | inteligencia | 8013 | `/v1/trabajos*`, `/v1/admin/*` |
@@ -64,6 +66,12 @@ y el barredor. Antes pregunta si RabbitMQ responde en `RABBITMQ_URL`, que por om
 `amqp://guest:guest@localhost:5672/`. Si responde, los lanza con el broker y suma los tres
 publicadores de bandeja. Si no responde, o si `RABBITMQ_URL` está vacía, sondean las bases como
 antes (ADR 0046).
+
+Lo mismo hace con Redis en `REDIS_URL`, que por omisión es `redis://localhost:6379/0`. Si
+responde, catálogo, inteligencia y la puerta arrancan con él: una lista ya leída no se vuelve a
+leer, el vector de un renglón no se vuelve a pedir y el contador del límite de tasa es compartido.
+Si no responde, o con `make arriba REDIS_URL=`, arrancan sin caché y la puerta cuenta en su memoria
+(ADR 0047). `make prueba-redis` corre las pruebas contra Redis, en la base 15.
 Cada servicio publica su OpenAPI en `/docs`. La fuente de verdad, de todas formas, es
 [el contrato](docs/arquitectura/CONTRATO_API.md), que desde la versión 1.1 documenta la
 superficie de lectura completa con ejemplos de respuestas reales.

@@ -63,6 +63,21 @@ async def _crear_y_procesar(motor, catalogo=None, preferencias=None):
     return trabajo_id, estado
 
 
+async def _canonico(motor, catalogo=None):
+    """El kit canonico del grado como nace en produccion: de la LISTA aprobada
+    (`canonico_lista`, sin acudiente ni preferencias), no del trabajo de un papa."""
+    respuesta = await trabajos.crear(
+        motor,
+        hijos=[{"referencia": "canonico", "colegio_id": COLEGIO, "grado": "Cuarto"}],
+        preferencias={},
+        origen=trabajos.ORIGEN_CANONICO,
+    )
+    trabajo_id = uuid.UUID(respuesta["trabajo_id"])
+    estado = await trabajos.procesar(motor, trabajo_id, catalogo=catalogo or _catalogo())
+    assert estado == EstadoTrabajo.PUBLICADO.value
+    return trabajo_id
+
+
 class TestElTrabajoNaceConsultable:
     async def test_se_crea_encolado_y_con_las_cuatro_etapas_pendientes(self, motor):
         respuesta = await trabajos.crear(
@@ -436,30 +451,53 @@ class TestLaRevisionHumana:
         with pytest.raises(trabajos.TrabajoNoExiste):
             await trabajos.eliminar(motor, uuid.uuid4())
 
-    async def test_publicar_deja_el_puntero_canonico_del_grado(self, motor):
+    async def test_la_lista_aprobada_deja_el_puntero_canonico_del_grado(self, motor):
         from sqlalchemy import select
 
-        trabajo_id, _ = await _crear_y_procesar(motor)
-        await trabajos.revisar(motor, trabajo_id, decision="aprobar")
+        canonico = await _canonico(motor)
 
         async with motor.engine.begin() as conexion:
             puntero = list(await conexion.execute(select(trabajos.KIT_CANONICO)))
         assert len(puntero) == 1
         assert puntero[0].colegio_id == COLEGIO
         assert puntero[0].grado == "Cuarto"
-        assert puntero[0].trabajo_id == trabajo_id
+        assert puntero[0].trabajo_id == canonico
 
-    async def test_republicar_el_mismo_grado_reemplaza_el_puntero(self, motor):
+    async def test_aprobar_el_trabajo_de_un_acudiente_no_toca_el_canonico(self, motor):
+        """El canonico sale de la lista aprobada. El kit de un papa lleva sus
+        preferencias (presupuesto, prioridad, personaje) y es solo suyo: antes,
+        aprobarlo en la cola de revision lo volvia el canonico de su grado y los
+        papas siguientes recibian un kit armado con las preferencias de otro."""
         from sqlalchemy import select
 
-        primero, _ = await _crear_y_procesar(motor)
-        await trabajos.revisar(motor, primero, decision="aprobar")
-        segundo, _ = await _crear_y_procesar(motor)
-        await trabajos.revisar(motor, segundo, decision="aprobar")
+        canonico = await _canonico(motor)
+        del_papa, _ = await _crear_y_procesar(motor)
+        await trabajos.revisar(motor, del_papa, decision="aprobar")
+
+        assert (await trabajos.ver(motor, del_papa))["estado"] == EstadoTrabajo.PUBLICADO.value
+        async with motor.engine.begin() as conexion:
+            puntero = list(await conexion.execute(select(trabajos.KIT_CANONICO)))
+        assert [p.trabajo_id for p in puntero] == [canonico]
+
+    async def test_sin_canonico_aprobar_al_acudiente_no_crea_uno(self, motor):
+        from sqlalchemy import func, select
+
+        del_papa, _ = await _crear_y_procesar(motor)
+        await trabajos.revisar(motor, del_papa, decision="aprobar")
+
+        async with motor.engine.begin() as conexion:
+            punteros = await conexion.scalar(select(func.count()).select_from(trabajos.KIT_CANONICO))
+        assert punteros == 0
+
+    async def test_una_lista_reaprobada_reemplaza_el_puntero(self, motor):
+        from sqlalchemy import select
+
+        await _canonico(motor)
+        segundo = await _canonico(motor)
 
         async with motor.engine.begin() as conexion:
             puntero = list(await conexion.execute(select(trabajos.KIT_CANONICO)))
-        # Una sola cache bendita por grado: el segundo desbanca al primero.
+        # Una sola cache bendita por grado: la lista nueva desbanca a la vieja.
         assert len(puntero) == 1
         assert puntero[0].trabajo_id == segundo
 
@@ -504,8 +542,7 @@ class TestAplicarCanonico:
     async def test_aplicar_no_copia_kits_y_congela_el_pedido(self, motor):
         from sqlalchemy import func, select
 
-        canonico, _ = await _crear_y_procesar(motor)
-        await trabajos.revisar(motor, canonico, decision="aprobar")
+        canonico = await _canonico(motor)
 
         async with motor.engine.begin() as conexion:
             kits_antes = await conexion.scalar(select(func.count()).select_from(trabajos.KIT))
@@ -548,8 +585,7 @@ class TestAplicarCanonico:
         catalogo.respuestas["2 cuadernos cuadriculados"]["opciones"].append(
             opcion("TK-C001-FAN", "confiable", 9000, personaje="cars")
         )
-        canonico, _ = await _crear_y_procesar(motor, catalogo=catalogo)
-        await trabajos.revisar(motor, canonico, decision="aprobar")
+        await _canonico(motor, catalogo=catalogo)
 
         resultado = await trabajos.aplicar_canonico(
             motor,
@@ -590,8 +626,7 @@ class TestAplicarCanonico:
         catalogo.respuestas["2 cuadernos cuadriculados"]["opciones"].append(
             opcion("TK-C001-FAN", "confiable", 9000, personaje="cars")
         )
-        canonico, _ = await _crear_y_procesar(motor, catalogo=catalogo)
-        await trabajos.revisar(motor, canonico, decision="aprobar")
+        await _canonico(motor, catalogo=catalogo)
 
         resultado = await trabajos.aplicar_canonico(
             motor,
@@ -627,8 +662,7 @@ class TestAplicarCanonico:
         # El checkout: del kit publicado a la orden. Se verifica que Inteligencia
         # manda a Comercio SOLO sku+precio (nunca un id canonico: RPO cero) y que
         # devuelve la url de la pasarela para mandar al acudiente a pagar.
-        canonico, _ = await _crear_y_procesar(motor)
-        await trabajos.revisar(motor, canonico, decision="aprobar")
+        await _canonico(motor)
         aplicado = await trabajos.aplicar_canonico(
             motor,
             colegio_id=COLEGIO,
@@ -674,8 +708,7 @@ class TestAplicarCanonico:
         assert comercio.orden_enviada["trabajo_id"] == str(parent_id)
 
     async def test_ordenar_reenvia_el_rechazo_de_negocio_de_comercio(self, motor):
-        canonico, _ = await _crear_y_procesar(motor)
-        await trabajos.revisar(motor, canonico, decision="aprobar")
+        await _canonico(motor)
         aplicado = await trabajos.aplicar_canonico(
             motor,
             colegio_id=COLEGIO,
@@ -846,8 +879,7 @@ class TestElAcudienteCambiaSuKit:
     """
 
     async def _ruta_rapida(self, motor, usuario_id=None):
-        canonico, _ = await _crear_y_procesar(motor)
-        await trabajos.revisar(motor, canonico, decision="aprobar")
+        canonico = await _canonico(motor)
         resultado = await trabajos.aplicar_canonico(
             motor,
             colegio_id=COLEGIO,

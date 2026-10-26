@@ -10,6 +10,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Construction, GraduationCap } from "lucide-react";
 import { sesionActual } from "@/lib/sesion";
+import { conAvisoDeLimite } from "@/components/ConAvisoDeLimite";
 import SalirBoton from "@/components/SalirBoton";
 import styles from "./Portal.module.css";
 
@@ -19,6 +20,10 @@ export const metadata = { title: "Portal del colegio — Tukit" };
 const ROLES_COLEGIO = new Set(["colegio_admin", "colegio_docente"]);
 
 export default async function Portal() {
+  return conAvisoDeLimite(portal);
+}
+
+async function portal() {
   const sesion = await sesionActual();
   if (!sesion) redirect("/ingresar");
   const esColegio = sesion.roles.some((r) => ROLES_COLEGIO.has(r.rol));

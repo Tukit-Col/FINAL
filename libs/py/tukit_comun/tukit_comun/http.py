@@ -205,6 +205,7 @@ def crear_app(
     """
     from contextlib import asynccontextmanager
 
+    from .cache import cerrar_cliente
     from .registro import configurar_registro
 
     @asynccontextmanager
@@ -216,6 +217,8 @@ def crear_app(
         finally:
             if al_apagar is not None:
                 await al_apagar(app)
+            # La conexion a Redis, si alguien la abrio (ADR 0047).
+            await cerrar_cliente()
 
     app = FastAPI(title=titulo, description=descripcion, version=version, lifespan=ciclo)
 

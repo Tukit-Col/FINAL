@@ -22,6 +22,7 @@ import type {
   PropuestaEncolada,
   RechazarPropuesta,
 } from "@tukit/contrato";
+import { conEspera } from "@tukit/contrato";
 
 export class FalloCatalogo extends Error {
   constructor(
@@ -41,7 +42,12 @@ async function pedir<T>(ruta: string, init: RequestInit): Promise<T> {
   const leido: unknown = texto ? JSON.parse(texto) : null;
 
   if (!respuesta.ok) {
-    const error = (leido ?? {}) as ErrorApi & Record<string, unknown>;
+    // Un 429 llega con la espera en el mensaje aunque el cuerpo no la traiga.
+    const error = conEspera(
+      respuesta.status,
+      (leido ?? {}) as ErrorApi & Record<string, unknown>,
+      respuesta.headers.get("Retry-After"),
+    );
     // El mensaje que se muestra es el del backend, no uno inventado aquí: es
     // el único que sabe por qué rechazó (campo_no_editable, nivel_invalido,
     // empaque_invalido, concepto_no_existe…).

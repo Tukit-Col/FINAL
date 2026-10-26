@@ -259,7 +259,9 @@ export interface OrigenDatos {
     archivos?: ArchivoLista[],
     token?: string,
   ): Promise<TrabajoCreado>;
-  consultarTrabajo(trabajoId: string): Promise<Trabajo>;
+  // El token es opcional: el trabajo de la ruta rapida puede ser anonimo. Con
+  // sesion viaja para que el limite por cuenta del gateway lo cuente (ADR 0047).
+  consultarTrabajo(trabajoId: string, token?: string): Promise<Trabajo>;
 
   // §2 — la subida de listas de un acudiente (`POST /v1/listas/subir`). Percibe
   // el PDF de cada hijo y lo importa como una version PENDIENTE, ligada al padre

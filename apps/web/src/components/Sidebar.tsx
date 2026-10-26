@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { PlusCircle } from "lucide-react";
 import NavSecciones from "./NavSecciones";
+import SalirBoton from "./SalirBoton";
 import styles from "./Sidebar.module.css";
 
 // Navegacion honesta de la cuenta. El nombre de la cuenta sale de la sesion
 // real (la pagina lo resuelve a nombre o correo y lo pasa como prop); el nav
 // sigue apuntando solo a destinos reales: las secciones de esta misma pagina
 // (con desplazamiento suave, en `NavSecciones`) y el flujo real de armado
-// (/empezar). Nada de /perfil, /logout u otras rutas que el backend aun no sirve.
+// (/empezar). Nada de /perfil u otras rutas que el backend aun no sirve; cerrar
+// sesion es el mismo `SalirBoton` de la cabecera (DELETE /api/sesion).
 export default function Sidebar({ nombreCuenta }: { nombreCuenta: string }) {
   return (
     <aside className={styles.sidebar}>
@@ -29,6 +31,12 @@ export default function Sidebar({ nombreCuenta }: { nombreCuenta: string }) {
           </span>
           Nuevo pedido
         </Link>
+
+        {/* En el celular la cabecera esconde "Cerrar sesión" por espacio: aquí,
+            en la cuenta, es donde se cierra. En escritorio ya está arriba. */}
+        <div className={styles.sidebar__salir}>
+          <SalirBoton />
+        </div>
       </nav>
     </aside>
   );

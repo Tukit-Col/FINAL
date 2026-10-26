@@ -85,7 +85,7 @@ export default async function DetallePedido({ params }: Props) {
     return (
       <div className={styles.pagina}>
         <Migas />
-        <AvisoAcceso motivo={motivoDeFallo(causa.estado)} />
+        <AvisoAcceso motivo={motivoDeFallo(causa.estado)} mensaje={causa.message} />
       </div>
     );
   }

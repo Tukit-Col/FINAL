@@ -18,7 +18,13 @@ export async function POST(
   contexto: { params: Promise<{ pedido_id: string }> },
 ): Promise<Response> {
   const { pedido_id } = await contexto.params;
-  const sesion = await sesionActual();
+  // Un 429 al leer la sesion sale como 429 con su espera, no como "inicia sesion".
+  let sesion: Awaited<ReturnType<typeof sesionActual>>;
+  try {
+    sesion = await sesionActual();
+  } catch (causa) {
+    return respuestaDeError(causa);
+  }
   const token = await tokenDeSesion();
   if (!sesion || !token) {
     return respuestaDeError(
