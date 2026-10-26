@@ -43,10 +43,20 @@ class TestLoQueNoSeVendeLlegaComoLinea:
 class TestHuecosReales:
     """Lo que ninguna tienda registrada vende: sigue siendo hueco, no un sustituto."""
 
-    @pytest.mark.parametrize("clave", ["2#71", "2#91", "10#17", "11#21"])
+    @pytest.mark.parametrize("clave", ["2#71", "2#91"])
     def test_no_se_cobra_un_sustituto(self, renglon, clave):
-        # Piedras de bisuteria y de jardineria, y cuaderno de 3 materias grande.
+        # Piedras de bisuteria y de jardineria.
         assert renglon(clave).estado == "HUECO_CATALOGO"
+
+
+class TestElCuadernoDeTresMateriasEsElDeCinco:
+    """No hay cuaderno de 3 materias grande disponible: la curaduria lo cura a
+    `materias=5`, y los 105 de Panamericana declaran `tamano=grande`."""
+
+    @pytest.mark.parametrize("clave", ["10#17", "10#24", "10#27", "11#21", "11#24"])
+    def test_cada_perfil_tiene_su_cuaderno(self, renglon, clave):
+        linea = renglon(clave)
+        assert (_sku(linea.ahorrador), _sku(linea.premium)) == ("TK-REV-648753", "TK-REV-546276")
 
 
 class TestLoQueTrajoElSurtidoDelQuinceDeOctubre:
