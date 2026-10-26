@@ -83,6 +83,10 @@ class IdentidadDirectorio:
             "tok-acudiente": ["acudiente"],
         }
         self.caida = False
+        self.conocidos: list[dict] = []
+
+    async def colegios_conocidos(self) -> list[dict]:
+        return list(self.conocidos)
 
     async def datos_directorio(self, dane: str) -> dict | None:
         self.consultas.append(dane)
@@ -308,6 +312,17 @@ class TestOnboardingDeUnColegioQueTukitNoTiene:
         assert llamada["colegio_id"] == str(derivar("colegio", "libre", "gimnasio del bosque"))
         assert llamada["colegio_datos"] == {"dane": None, "nombre": "Gimnasio del Bosque"}
         assert identidad.consultas == []
+
+    async def test_escrito_a_mano_reusa_el_colegio_que_identidad_ya_tiene(self, cliente, catalogo, identidad):
+        identidad.conocidos = [{"colegio_id": "c-bosque", "nombre": "Gimnasio del Bosque", "dane": None}]
+        respuesta = await cliente.post(
+            "/v1/admin/onboarding", **_multipart(colegio_id=None, colegio_nombre="gimnasio DEL bosque")
+        )
+
+        assert respuesta.status_code == 200
+        llamada = catalogo.llamadas[0]
+        assert llamada["colegio_id"] == "c-bosque"
+        assert llamada["colegio_datos"] is None
 
     async def test_con_colegio_id_no_viajan_datos_de_colegio(self, cliente, catalogo, identidad):
         await cliente.post("/v1/admin/onboarding", **_multipart(colegio_dane=DANE_SALITRE))

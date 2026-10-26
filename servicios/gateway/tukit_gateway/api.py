@@ -18,12 +18,16 @@ token con roles, ADR 0013/0016) y la puerta la rutea como cualquier otra. El
 vigente para poder revocar. El frontend la consulta en cada render protegido, y
 esa consulta pasa por aqui: la puerta ya es parte del camino de validacion.
 
-Lo que esta version **no** hace todavia, y a proposito: repetir esa validacion
-localmente para las rutas del pipeline, que hoy no exigen sesion. Forzar el
-token en ellas seria construir la mitad del mecanismo -autenticacion sin el
-resto de los servicios preparados- y creer que esta completo, que es justo lo
-que el Anexo M le reprocha al rediseno. El sitio donde iria ese chequeo local
-esta marcado en `_reenviar`.
+Lo que si exige es sesion del equipo para la consola interna: toda ruta
+`/v1/admin/*` (salvo la sugerencia que manda la web publica) pide un Bearer que
+identidad reconozca y que traiga rol admin u operador; si no, 401 o 403 y la
+peticion no llega atras. Va aqui porque catalogo e inteligencia sirven rutas de
+consola que no miraban el token, confiando en que nadie de fuera llegara, y la
+puerta es justo ese "de fuera". Se pregunta a `GET /v1/sesiones/actual`, la
+misma validacion autoritativa, asi que revocar sigue funcionando. Las llamadas
+internas entre servicios no pasan por aqui y no cambian. Lo que **no** hace
+todavia, a proposito: exigir sesion en las rutas del pipeline del acudiente;
+cada servicio decide alli, sobre el mismo token que la puerta deja pasar.
 
 Lo que si hace antes de rutear es limitar la tasa (`limite.py`, ADR 0047): por
 token y por IP, en un nivel general y en uno estricto para las rutas que
@@ -44,9 +48,9 @@ import os
 import re
 
 import httpx
-from fastapi import Request, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
-from tukit_comun.http import CABECERA_CORRELACION, crear_app, id_de_correlacion
+from tukit_comun.http import CABECERA_CORRELACION, crear_app, crear_pool, id_de_correlacion
 
 from . import limite
 
@@ -55,6 +59,11 @@ PUERTO_POR_OMISION = 8010
 # Generoso porque detras hay un pipeline que tarda minutos. El proxy del
 # frontend actual ya convive con eso con una espera de 300 s.
 ESPERA_SEGUNDOS = 300.0
+
+# Cuantas conexiones puede tener en vuelo el cliente compartido, sumando los
+# cinco servicios. Mas que el pool de un servicio (20 por destino) porque aqui
+# confluye todo el trafico de fuera.
+CONEXIONES = 100
 
 # Cabeceras que NO se copian. `host` porque apunta a la puerta y confundiria
 # al de atras; las de longitud y codificacion porque httpx las recalcula y
@@ -168,6 +177,39 @@ _PREFIJO_ORDENES = "/v1/ordenes"
 _ORDENES_EXPUESTAS = re.compile(r"/v1/ordenes/[^/]+/avanzar")
 
 
+# La consola interna (`apps/admin`): todo lo que cuelga de este prefijo es del
+# equipo de Tukit. Los mismos roles que identidad acepta en `/v1/admin/acudientes`
+# y que inteligencia y comercio llaman `_ROLES_STAFF`.
+_PREFIJO_CONSOLA = "/v1/admin"
+_ROLES_EQUIPO = frozenset({"admin", "operador"})
+
+# Las unicas (metodo, ruta) bajo `/v1/admin` que NO son de la consola. La
+# sugerencia de (colegio, grado) la manda la web publica por un acudiente que
+# puede no tener cuenta; leer el backlog (`GET`) si es del equipo. Lista de
+# abiertas y no de cerradas a proposito: una ruta nueva de consola nace cerrada.
+_CONSOLA_ABIERTA: frozenset[tuple[str, str]] = frozenset({("POST", "/v1/admin/sugerencias")})
+
+# Escrituras de la consola que nacieron fuera de `/v1/admin`: editar, retirar y
+# reclasificar un producto del catalogo, y editar el perfil de un colegio. Solo
+# las escrituras: leer un producto o un colegio es publico (lo hace la web).
+_CONSOLA_FUERA_DE_ADMIN: tuple[tuple[frozenset[str], re.Pattern[str]], ...] = (
+    (frozenset({"PATCH", "DELETE"}), re.compile(r"/v1/catalogo/productos/[^/]+")),
+    (frozenset({"POST"}), re.compile(r"/v1/catalogo/productos/[^/]+/reclasificar")),
+    (frozenset({"PATCH"}), re.compile(r"/v1/colegios/[^/]+")),
+)
+
+# Leer un contacto (`GET /v1/contactos/{usuario_id}`) devuelve correo y celular:
+# es de servicio a servicio (comercio y operacion le pegan directo a
+# identidad). Por la puerta lo leia cualquiera, y el usuario_id es un uuid5 que
+# se calcula desde el correo. El alta (`POST /v1/contactos`, ruta exacta) sigue
+# expuesta, como dice el contrato.
+_PREFIJO_CONTACTOS = "/v1/contactos"
+
+# Cuanto se espera a identidad para validar la sesion. Corto: lo espera una
+# persona delante de la consola, y un 503 claro le sirve mas que el minuto.
+ESPERA_SESION_SEGUNDOS = 10.0
+
+
 def destino(ruta: str) -> str | None:
     for prefijo in sorted(RUTAS, key=len, reverse=True):
         if ruta == prefijo or ruta.startswith(prefijo + "/"):
@@ -203,7 +245,93 @@ def bloqueada(ruta: str) -> bool:
         return True
     if ruta == _PREFIJO_ORDENES or ruta.startswith(_PREFIJO_ORDENES + "/"):
         return _ORDENES_EXPUESTAS.fullmatch(ruta) is None
-    return False
+    return ruta.startswith(_PREFIJO_CONTACTOS + "/")
+
+
+async def _arrancar(app: FastAPI) -> None:
+    # UN cliente httpx para todo el proceso, y no uno por peticion. Construir un
+    # `AsyncClient` arma un `SSLContext` de forma sincrona (~480 ms en Windows)
+    # con el bucle congelado: con uno por peticion, cada reenvio tardaba medio
+    # segundo aunque el de atras respondiera en 9 ms, 100 concurrentes daban
+    # ReadTimeout y las esperas de Redis del limite vencian. Ademas reusa las
+    # conexiones con los servicios en vez de abrir una cada vez.
+    app.state.cliente = crear_pool(espera=ESPERA_SEGUNDOS, conexiones=CONEXIONES)
+
+
+async def _apagar(app: FastAPI) -> None:
+    cliente = getattr(app.state, "cliente", None)
+    if cliente is not None:
+        await cliente.aclose()
+
+
+def _cliente() -> httpx.AsyncClient:
+    """El cliente compartido que cuelga de `app.state`.
+
+    Si nadie corrio el arranque (un cliente de prueba sobre `ASGITransport`, que
+    no dispara el ciclo de vida) se crea en el primer uso y queda colgado igual:
+    sigue siendo uno por proceso, no uno por peticion."""
+    cliente = getattr(app.state, "cliente", None)
+    if cliente is None:
+        cliente = crear_pool(espera=ESPERA_SEGUNDOS, conexiones=CONEXIONES)
+        app.state.cliente = cliente
+    return cliente
+
+
+def es_consola(metodo: str, ruta: str) -> bool:
+    """`True` si la ruta es de la consola interna y exige sesion del equipo."""
+    metodo = metodo.upper()
+    camino = ruta.rstrip("/")
+    if any(metodo in metodos and patron.fullmatch(camino) for metodos, patron in _CONSOLA_FUERA_DE_ADMIN):
+        return True
+    if not (ruta == _PREFIJO_CONSOLA or ruta.startswith(_PREFIJO_CONSOLA + "/")):
+        return False
+    return (metodo, camino) not in _CONSOLA_ABIERTA
+
+
+def _token_bearer(authorization: str | None) -> str | None:
+    """El token del encabezado `Authorization`. Como `_token_del_encabezado` de
+    identidad: acepta `Bearer <token>` y tambien el token pelado."""
+    if not authorization:
+        return None
+    partes = authorization.split(" ", 1)
+    if len(partes) == 2 and partes[0].lower() == "bearer":
+        return partes[1].strip() or None
+    return authorization.strip() or None
+
+
+def _rechazo(estado: int, error: str, mensaje: str) -> JSONResponse:
+    return JSONResponse(status_code=estado, content={"error": error, "mensaje": mensaje})
+
+
+async def _exigir_equipo(peticion: Request) -> JSONResponse | None:
+    """La puerta de la consola: `None` si el portador es admin u operador, o la
+    respuesta que corta la peticion.
+
+    Misma semantica que `/v1/admin/acudientes` en identidad y `_exigir_staff` en
+    inteligencia: 401 sin token o con uno que identidad no reconoce (invalido,
+    vencido o revocado por `version_permisos`), 403 si es valido pero sin rol del
+    equipo. Falla CERRADA (503) si identidad no responde: no poder preguntar no
+    es razon para abrir la consola."""
+    token = _token_bearer(peticion.headers.get("authorization"))
+    if token is None:
+        return _rechazo(401, "sesion_invalida", "El token no es valido o expiro.")
+    base = _servicios()["identidad"]
+    try:
+        respuesta = await _cliente().get(
+            f"{base}/v1/sesiones/actual",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=ESPERA_SESION_SEGUNDOS,
+        )
+    except httpx.HTTPError:
+        respuesta = None
+    if respuesta is not None and respuesta.status_code == 401:
+        return _rechazo(401, "sesion_invalida", "El token no es valido o expiro.")
+    if respuesta is None or respuesta.status_code != 200:
+        return _rechazo(503, "identidad_no_disponible", "No se pudo validar la sesion.")
+    roles = {r.get("rol") for r in respuesta.json().get("roles", [])}
+    if not roles & _ROLES_EQUIPO:
+        return _rechazo(403, "acceso_denegado", "Esta vista es solo para el equipo interno de Tukit.")
+    return None
 
 
 app = crear_app(
@@ -212,6 +340,8 @@ app = crear_app(
         "Unica URL base del backend. Rutea por prefijo hacia catalogo, identidad e "
         "inteligencia. Contrato: docs/arquitectura/CONTRATO_API.md seccion 12.1."
     ),
+    al_arrancar=_arrancar,
+    al_apagar=_apagar,
 )
 
 
@@ -227,13 +357,13 @@ async def servicios() -> dict[str, object]:
     # responde". Un servicio vivo con su base caida da 503 aqui, que es la verdad
     # que evita perder la tarde con un 502 rio abajo.
     estado = {}
-    async with httpx.AsyncClient(timeout=5.0) as cliente:
-        for nombre, base in _servicios().items():
-            try:
-                respuesta = await cliente.get(f"{base}/health/ready")
-                estado[nombre] = {"url": base, "arriba": respuesta.status_code == 200}
-            except httpx.HTTPError as error:
-                estado[nombre] = {"url": base, "arriba": False, "detalle": str(error)}
+    cliente = _cliente()
+    for nombre, base in _servicios().items():
+        try:
+            respuesta = await cliente.get(f"{base}/health/ready", timeout=5.0)
+            estado[nombre] = {"url": base, "arriba": respuesta.status_code == 200}
+        except httpx.HTTPError as error:
+            estado[nombre] = {"url": base, "arriba": False, "detalle": str(error)}
     return {"servicios": estado, "todos_arriba": all(s["arriba"] for s in estado.values())}
 
 
@@ -279,6 +409,14 @@ async def reenviar(ruta: str, peticion: Request) -> Response:
 
     nombre = destino(camino)
 
+    # La consola interna pide sesion del equipo ANTES de reenviar: un 401/403
+    # aqui no llega nunca al servicio de atras. El token sigue viajando intacto
+    # para que el servicio aplique sus permisos finos (p. ej. ver nombres).
+    if es_consola(peticion.method, camino):
+        rechazo = await _exigir_equipo(peticion)
+        if rechazo is not None:
+            return rechazo
+
     base = _servicios()[nombre]
     cabeceras = {k: v for k, v in peticion.headers.items() if k.lower() not in CABECERAS_SALTADAS}
     cuerpo = await peticion.body()
@@ -286,24 +424,21 @@ async def reenviar(ruta: str, peticion: Request) -> Response:
     # La puerta es el borde de entrada: aqui se acuña el id de correlacion. El
     # middleware compartido ya leyo-o-acuñó uno para ESTA peticion; se estampa en
     # las cabeceras salientes para que el servicio de atras —y los que el llame
-    # despues— compartan el mismo id. Reenvia el suyo httpx crudo (no
-    # `cliente_efimero`), asi que se pega a mano.
+    # despues— compartan el mismo id. El hook del cliente compartido tambien lo
+    # estamparia, pero se pega a mano para no depender de que lo traiga quien
+    # sustituya el cliente (las pruebas).
     cid = id_de_correlacion()
     if cid:
         cabeceras[CABECERA_CORRELACION] = cid
 
-    # Aqui va la validacion del token y la comparacion de `version_permisos`
-    # cuando exista autenticacion. Es el unico punto por el que pasa todo el
-    # trafico, que es lo que hace que ponerla aqui sirva de algo.
     try:
-        async with httpx.AsyncClient(timeout=ESPERA_SEGUNDOS) as cliente:
-            respuesta = await cliente.request(
-                peticion.method,
-                f"{base}{camino}",
-                params=dict(peticion.query_params),
-                headers=cabeceras,
-                content=cuerpo,
-            )
+        respuesta = await _cliente().request(
+            peticion.method,
+            f"{base}{camino}",
+            params=dict(peticion.query_params),
+            headers=cabeceras,
+            content=cuerpo,
+        )
     except httpx.HTTPError as error:
         # 503 y no 502: el de atras no fallo, no esta. La distincion le dice
         # a quien opera si hay que mirar un log o levantar un proceso.

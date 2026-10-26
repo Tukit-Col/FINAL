@@ -363,6 +363,19 @@ class ClienteIdentidad:
         except httpx.HTTPError:
             return None
 
+    async def colegios_conocidos(self) -> list[dict[str, Any]]:
+        """Los colegios que Identidad ya tiene (`GET /v1/colegios`): `colegio_id`,
+        `nombre` y `dane`. Sirve para que un colegio escrito a mano o elegido del
+        directorio reuse el id del que ya existe en vez de derivar otro. Lista
+        vacia si identidad no responde: la subida degrada al id derivado."""
+        try:
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.get(f"{self._base()}/v1/colegios")
+                respuesta.raise_for_status()
+                return list(respuesta.json().get("colegios") or [])
+        except (httpx.HTTPError, ValueError):
+            return []
+
 
 @dataclass
 class ClienteComercio:

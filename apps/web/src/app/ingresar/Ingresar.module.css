@@ -116,20 +116,6 @@
   cursor: not-allowed;
 }
 
-.cinta {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin-top: var(--espacio-5);
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--color-text-muted);
-  background: var(--color-white);
-  padding: 7px 14px;
-  border-radius: var(--radius-full);
-  box-shadow: var(--clay-shadow-sm);
-}
-
 .demo {
   margin-top: var(--espacio-5);
   padding-top: var(--espacio-5);
