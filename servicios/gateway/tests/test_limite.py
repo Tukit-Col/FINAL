@@ -224,6 +224,7 @@ async def test_el_nivel_estricto_cuenta_por_ruta(atras, redis, monkeypatch):
         ("POST", "/v1/cuenta", "cuenta"),
         ("POST", "/v1/registro", "registro"),
         ("POST", "/v1/catalogo/emparejar", "catalogo-emparejar"),
+        ("POST", "/v1/admin/sugerencias", "sugerencias"),
         ("GET", "/v1/trabajos", None),
         ("POST", "/v1/sesiones/cierre", None),
         ("POST", "/v1/trabajos/8a1c", None),

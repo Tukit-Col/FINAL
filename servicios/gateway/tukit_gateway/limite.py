@@ -62,6 +62,9 @@ RUTAS_ESTRICTAS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("cuenta", re.compile(r"/v1/cuenta")),
     ("registro", re.compile(r"/v1/registro")),
     ("catalogo-emparejar", re.compile(r"/v1/catalogo/emparejar")),
+    # La sugerencia del acudiente sube un archivo sin sesion: misma cuenta que
+    # una lista subida, no la general de lectura.
+    ("sugerencias", re.compile(r"/v1/admin/sugerencias")),
 )
 
 Red = ipaddress.IPv4Network | ipaddress.IPv6Network
