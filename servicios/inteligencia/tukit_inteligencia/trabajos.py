@@ -1330,6 +1330,7 @@ async def ordenar(
     motor: Any,
     trabajo_id: uuid.UUID,
     *,
+    portador: uuid.UUID | None = None,
     perfil: str,
     entrega: dict[str, str],
     correo: str,
@@ -1358,6 +1359,12 @@ async def ordenar(
             raise TrabajoNoExiste(str(trabajo_id))
         usuario_id = cabeza.usuario_id
         hijos = list(cabeza.hijos or ())
+    # Un trabajo con dueno solo lo paga su dueno (`portador` es la sesion de
+    # quien llama): el id del trabajo viaja en enlaces y no es un secreto.
+    if usuario_id is not None and usuario_id != portador:
+        raise CambioNoPermitido(
+            "solicitud_ajena", "Inicia sesión con la cuenta que hizo esta solicitud para pagarla.", 403
+        )
 
     if usuario_id is None:
         cliente = identidad or ClienteIdentidad()

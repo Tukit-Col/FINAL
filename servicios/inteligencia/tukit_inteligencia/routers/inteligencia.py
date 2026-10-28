@@ -412,17 +412,25 @@ async def mis_solicitudes(authorization: Annotated[str | None, Header()] = None)
     status_code=201,
     summary="Checkout: arma la orden del kit elegido y arranca el pago (server-to-server)",
 )
-async def ordenar_trabajo(trabajo_id: uuid.UUID, cuerpo: PeticionCheckout) -> dict[str, Any]:
+async def ordenar_trabajo(
+    trabajo_id: uuid.UUID,
+    cuerpo: PeticionCheckout,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
     """El acudiente elige perfil + direccion; Inteligencia arma la orden en Comercio.
 
     El navegador no habla con Comercio: manda `trabajo_id` + perfil + correo +
     direccion, y aqui se resuelve el kit y se cobra. Devuelve la
-    `url_redireccion` de la pasarela para mandar al acudiente a pagar.
+    `url_redireccion` de la pasarela para mandar al acudiente a pagar. La sesion
+    es opcional como al cambiar un producto: la ruta rapida admite trabajos sin
+    cuenta, pero si el trabajo tiene dueno solo el lo paga.
     """
+    portador = await _usuario_de_sesion(authorization) if _token_bearer(authorization) else None
     try:
         return await trabajos.ordenar(
             api.app.state.motor,
             trabajo_id,
+            portador=portador,
             perfil=cuerpo.perfil,
             # Sin los `None`: el checkout legado manda el mismo cuerpo de siempre.
             entrega=cuerpo.entrega.model_dump(exclude_none=True),
@@ -439,6 +447,8 @@ async def ordenar_trabajo(trabajo_id: uuid.UUID, cuerpo: PeticionCheckout) -> di
             "Ese trabajo no tiene un kit de ese perfil para comprar.",
             estado=404,
         ) from error
+    except trabajos.CambioNoPermitido as error:
+        raise ErrorDominio(error.codigo, error.mensaje, estado=error.estado) from error
     except trabajos.CheckoutRechazado as error:
         # Comercio rechazo por negocio (p.ej. precio_cambiado): se reenvia su
         # cuerpo verbatim y su estado, para que el acudiente vea el motivo.

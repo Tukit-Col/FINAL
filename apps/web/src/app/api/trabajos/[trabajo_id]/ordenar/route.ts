@@ -8,6 +8,7 @@
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { SolicitudCheckout } from "@tukit/contrato";
 import { respuestaDeError } from "@/lib/respuesta";
+import { tokenDeSesion } from "@/lib/sesion";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,13 @@ export async function POST(
   }
 
   try {
-    const checkout = await origenDeDatos().iniciarCheckout(trabajo_id, cuerpo);
+    // Con el Bearer de la cookie: si el trabajo tiene dueño, el backend exige
+    // que sea quien paga (sin esto, cualquiera con el id pagaba un kit ajeno).
+    const checkout = await origenDeDatos().iniciarCheckout(
+      trabajo_id,
+      cuerpo,
+      await tokenDeSesion(),
+    );
     return Response.json(checkout, { status: 201 });
   } catch (causa) {
     return respuestaDeError(causa);
