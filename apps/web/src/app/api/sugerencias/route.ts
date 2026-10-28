@@ -10,6 +10,7 @@
 
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { respuestaDeError } from "@/lib/respuesta";
+import { cuerpoDemasiadoGrande, motivoDeRechazo } from "@/lib/subida";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -25,6 +26,11 @@ export async function POST(peticion: Request): Promise<Response> {
 
   try {
     if (tipo.includes("multipart/form-data")) {
+      if (cuerpoDemasiadoGrande(peticion)) {
+        return respuestaDeError(
+          new ErrorTukit(413, "archivo_muy_grande", "El archivo pesa más de 10 MB. Prueba con una foto más liviana o con el PDF del colegio."),
+        );
+      }
       const forma = await peticion.formData();
       colegioId = String(forma.get("colegio_id") ?? "");
       grado = String(forma.get("grado") ?? "");
@@ -33,6 +39,10 @@ export async function POST(peticion: Request): Promise<Response> {
       referencia = typeof ref === "string" && ref ? ref : undefined;
       const adjunto = forma.get("archivo");
       if (adjunto instanceof File) {
+        const rechazado = motivoDeRechazo(adjunto);
+        if (rechazado) {
+          return respuestaDeError(new ErrorTukit(415, "archivo_no_admitido", rechazado));
+        }
         archivo = { contenido: adjunto, nombre: adjunto.name };
       }
     } else {

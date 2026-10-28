@@ -11,6 +11,7 @@ import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { ArchivoLista, Contacto, HijoSubida, Preferencias } from "@tukit/contrato";
 import { respuestaDeError } from "@/lib/respuesta";
 import { tokenDeSesion } from "@/lib/sesion";
+import { cuerpoDemasiadoGrande, motivoDeRechazo } from "@/lib/subida";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -22,6 +23,11 @@ export async function POST(peticion: Request): Promise<Response> {
   const archivos: ArchivoLista[] = [];
 
   try {
+    if (cuerpoDemasiadoGrande(peticion)) {
+      return respuestaDeError(
+        new ErrorTukit(413, "archivo_muy_grande", "El archivo pesa más de 10 MB. Prueba con una foto más liviana o con el PDF del colegio."),
+      );
+    }
     const forma = await peticion.formData();
 
     const crudoHijos = forma.get("hijos");
@@ -47,6 +53,10 @@ export async function POST(peticion: Request): Promise<Response> {
     // Los archivos y sus referencias van APAREADOS POR ORDEN: `archivo` y
     // `referencia` se emiten de a pares, un par por hijo.
     const adjuntos = forma.getAll("archivo").filter((v): v is File => v instanceof File);
+    const rechazado = adjuntos.map(motivoDeRechazo).find((m) => m !== null);
+    if (rechazado) {
+      return respuestaDeError(new ErrorTukit(415, "archivo_no_admitido", rechazado));
+    }
     const referencias = forma.getAll("referencia").map(String);
     adjuntos.forEach((archivo, indice) => {
       archivos.push({
