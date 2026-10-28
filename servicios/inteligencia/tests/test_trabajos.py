@@ -669,7 +669,7 @@ class TestAplicarCanonico:
             grado="Cuarto",
             anio_lectivo=2026,
             perfil="Ahorrador",
-            usuario_id=uuid.uuid4(),
+            usuario_id=(acudiente := uuid.uuid4()),
             catalogo=_catalogo(),
         )
         parent_id = uuid.UUID(aplicado["trabajo_id"])
@@ -692,6 +692,7 @@ class TestAplicarCanonico:
         resultado = await trabajos.ordenar(
             motor,
             parent_id,
+            portador=acudiente,
             perfil="Ahorrador",
             entrega={"destinatario": "Ana", "direccion": "Calle 1", "ciudad": "Bogota"},
             correo="ana@example.com",
@@ -715,7 +716,7 @@ class TestAplicarCanonico:
             grado="Cuarto",
             anio_lectivo=2026,
             perfil="Ahorrador",
-            usuario_id=uuid.uuid4(),
+            usuario_id=(acudiente := uuid.uuid4()),
             catalogo=_catalogo(),
         )
         parent_id = uuid.UUID(aplicado["trabajo_id"])
@@ -731,6 +732,7 @@ class TestAplicarCanonico:
             await trabajos.ordenar(
                 motor,
                 parent_id,
+                portador=acudiente,
                 perfil="Ahorrador",
                 entrega={"destinatario": "Ana", "direccion": "Calle 1", "ciudad": "Bogota"},
                 correo="ana@example.com",
@@ -739,6 +741,43 @@ class TestAplicarCanonico:
             )
         assert exc.value.estado == 422
         assert exc.value.cuerpo["error"] == "precio_cambiado"
+
+    async def test_ordenar_un_trabajo_ajeno_se_rechaza_sin_tocar_comercio(self, motor):
+        # El id del trabajo viaja en enlaces (/kits, /esperando): sin la sesion
+        # de su dueno no se arma orden ni pago, ni anonimo ni con otra cuenta.
+        await _canonico(motor)
+        aplicado = await trabajos.aplicar_canonico(
+            motor,
+            colegio_id=COLEGIO,
+            grado="Cuarto",
+            anio_lectivo=2026,
+            perfil="Ahorrador",
+            usuario_id=uuid.uuid4(),
+            catalogo=_catalogo(),
+        )
+        parent_id = uuid.UUID(aplicado["trabajo_id"])
+
+        class ComercioIntacto:
+            async def crear_orden(self, cuerpo):  # no se llega
+                raise AssertionError
+
+            async def iniciar_pago(self, pedido_id, cuerpo):  # no se llega
+                raise AssertionError
+
+        for portador in (None, uuid.uuid4()):
+            with pytest.raises(trabajos.CambioNoPermitido) as exc:
+                await trabajos.ordenar(
+                    motor,
+                    parent_id,
+                    portador=portador,
+                    perfil="Ahorrador",
+                    entrega={"destinatario": "Ana", "direccion": "Calle 1", "ciudad": "Bogota"},
+                    correo="otra@example.com",
+                    comercio=ComercioIntacto(),
+                    catalogo=_catalogo(),
+                )
+            assert exc.value.estado == 403
+            assert exc.value.codigo == "solicitud_ajena"
 
     async def test_la_cola_lista_lo_que_espera_a_una_persona(self, motor):
         await _crear_y_procesar(motor)
@@ -1037,6 +1076,7 @@ class TestElAcudienteCambiaSuKit:
         await trabajos.ordenar(
             motor,
             parent_id,
+            portador=dueno,
             perfil="Premium",
             entrega={"destinatario": "Ana", "direccion": "Calle 1", "ciudad": "Bogota"},
             correo="ana@example.com",

@@ -327,7 +327,8 @@ export interface OrigenDatos {
   // §Checkout — el acudiente paga el kit de un trabajo publicado. Manda solo
   // perfil + correo + direccion; Inteligencia arma la orden en Comercio y
   // devuelve la url de la pasarela a la que redirigir. No expone ids de base.
-  iniciarCheckout(trabajoId: string, cuerpo: SolicitudCheckout): Promise<Checkout>;
+  // `token` es su sesión: si el trabajo tiene dueño, solo él lo paga.
+  iniciarCheckout(trabajoId: string, cuerpo: SolicitudCheckout, token?: string): Promise<Checkout>;
 
   // El acudiente cambia un producto de un kit publicado por el sugerido o una
   // de sus alternativas. `token` es su sesión: si el trabajo tiene dueño, el

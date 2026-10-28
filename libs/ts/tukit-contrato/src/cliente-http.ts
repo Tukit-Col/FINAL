@@ -867,12 +867,12 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
-  iniciarCheckout(trabajoId: string, cuerpo: SolicitudCheckout): Promise<Checkout> {
+  iniciarCheckout(trabajoId: string, cuerpo: SolicitudCheckout, token?: string): Promise<Checkout> {
     return this.pedir<Checkout>(
       `/v1/trabajos/${encodeURIComponent(trabajoId)}/ordenar`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...this.autoriza(token) },
         body: JSON.stringify(cuerpo),
       },
     );

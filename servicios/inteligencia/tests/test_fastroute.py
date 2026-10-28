@@ -390,7 +390,7 @@ class TestRutaRapidaVerificada:
             grado="Cuarto",
             anio_lectivo=2026,
             perfil="Ahorrador",
-            usuario_id=uuid.uuid4(),
+            usuario_id=(acudiente := uuid.uuid4()),
             catalogo=catalogo,
         )
 
@@ -408,6 +408,7 @@ class TestRutaRapidaVerificada:
         await trabajos.ordenar(
             motor,
             uuid.UUID(aplicado["trabajo_id"]),
+            portador=acudiente,
             perfil="Ahorrador",
             entrega={"destinatario": "Ana", "direccion": "Calle 1", "ciudad": "Bogota"},
             correo="ana@example.com",
