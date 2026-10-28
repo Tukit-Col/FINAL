@@ -11,11 +11,10 @@
 // lista ordenada normal. La animación es el adorno, no el contenido.
 //
 // Las siete etapas son el flujo del negocio de punta a punta, no las cuatro que
-// mostraba el prototipo. La última —pagar y recibir en casa— va marcada
-// `proximamente` a propósito: es lo que el gateway responde con 501 para
-// `/v1/ordenes` y el webhook de pago (sección 9 del contrato). Prometer en la
-// portada algo que el backend todavía contesta "no implementado" sería la clase
-// de mentira barata que el resto del producto evita.
+// mostraba el prototipo. La última —pagar y recibir en casa— estuvo marcada
+// `proximamente` mientras el gateway respondía 501 para el pago; ya hay
+// checkout (Wompi, simulado en el entorno de prueba), así que se dice tal cual
+// y la marca queda para la próxima etapa que todavía no exista.
 
 import { useRef, type ElementType } from "react";
 import {
@@ -85,9 +84,8 @@ const ETAPAS: Etapa[] = [
     Icono: Truck,
     titulo: "Pagas y te llega a casa",
     texto:
-      "Un pago, y el pedido llega armado a tu puerta. Esta parte todavía la estamos construyendo: te lo decimos aquí en vez de prometerla antes de tiempo.",
-    actor: "Próximamente",
-    proximamente: true,
+      "Un pago, y el pedido llega armado a tu puerta. En esta versión de prueba el pago es simulado: no se cobra nada.",
+    actor: "Pagas tú",
   },
 ];
 

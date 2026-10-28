@@ -57,7 +57,7 @@ const PREGUNTAS = [
     Icono: Lock,
     pregunta: "¿Ya puedo pagar?",
     respuesta:
-      "Todavía no. El pago vive en el servicio de comercio y aún no está arriba, así que el botón de pagar está apagado a propósito y te dice por qué. Cuando ese servicio se conecte, se habilita; al confirmar, el precio se congela.",
+      "Sí. Eliges el kit, pones la dirección de entrega y pagas en la pasarela. En esta versión de prueba el pago es simulado y no se cobra nada. Al confirmar, el precio queda congelado.",
   },
 ];
 
