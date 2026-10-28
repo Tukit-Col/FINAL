@@ -236,6 +236,7 @@ def hijo_demo_de_mama() -> dict[str, dict[str, object]]:
 
 
 async def sembrar(clave: str) -> dict[str, int]:
+    from sqlalchemy import select
     from sqlalchemy.dialects.postgresql import insert
     from tukit_comun.bd import crear_motor
 
@@ -304,7 +305,23 @@ async def sembrar(clave: str) -> dict[str, int]:
 
             # El hijo de mama. UUID derivados, asi que re-sembrar cae en las
             # mismas filas y no duplica. Depende de que `cargador.py` ya haya
-            # sembrado el colegio piloto y su sede (mismo UUID derivado).
+            # sembrado el colegio piloto y su sede (mismo UUID derivado). Desde
+            # que colegios y listas no se siembran, una base que solo trae la
+            # curaduria no tiene ese colegio: sin el, se omite el hijo en vez
+            # de tumbar la transaccion y dejar la cola sin quien la apruebe.
+            colegio = Base.metadata.tables["colegio"]
+            sede = Base.metadata.tables["sede"]
+            piloto = (
+                await conexion.execute(
+                    select(colegio.c.id).where(colegio.c.id == hijo["matricula"]["colegio_id"])
+                )
+            ).first()
+            sede_piloto = (
+                await conexion.execute(select(sede.c.id).where(sede.c.id == hijo["matricula"]["sede_id"]))
+            ).first()
+            if piloto is None or sede_piloto is None:
+                print(f"(sin el colegio piloto {COLEGIO_PILOTO}: no se siembra el hijo de mama)")
+                return escritos
             await conexion.execute(
                 insert(estudiante).values(hijo["estudiante"]).on_conflict_do_nothing(index_elements=["id"])
             )
