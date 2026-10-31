@@ -343,8 +343,8 @@ NetworkX completo en cada ítem. Construirlo cuesta 1.673 ms; consultarlo, 0,137
 
 Cacheándolo, una lista de veinte ítems baja de 35,1 s a 1,7 s. Reescribir en Go lo que
 queda daría, por la ley de Amdahl, entre 20,0 % y 21,7 %, y casi todo sería reimplementar
-pymoo, que no tiene equivalente en Go y con el que se produjeron los resultados de
-hipervolumen de la tesis.
+pymoo, que no tiene equivalente en Go: con él corre el NSGA-II del optimizador y se
+produjeron los resultados de hipervolumen de la tesis.
 
 Por eso **seis de siete componentes son Python**. El único con argumento real para Go es
 `ingesta`, y aun ahí sus cuellos de hoy son estructurales y no de lenguaje: los vendedores
@@ -449,11 +449,6 @@ funcionar.
   Inteligencia tienen su revisión aplicada y sin deriva. Comercio y Operación todavía no
   tienen modelos; se agregan a `SERVICIOS_CON_MIGRACIONES` en el Makefile el día que los
   tengan.
-- **El optimizador es una heurística, no NSGA-II.** Los tres kits salen, son comparables y
-  usan el mismo vocabulario de objetivos que usaría el frente de Pareto, pero no son un
-  frente. Cambiarlo es reemplazar `optimizador.elegir_por_perfil` y nada más; lo que ya es
-  definitivo (la aritmética de unidades, que lo informativo no se cobre, la regla de
-  recomendación) está probado aparte para que sobreviva al reemplazo.
 - **Sin RabbitMQ, tres procesos leen la base de otro servicio.** El repartidor lee las
   bandejas de inteligencia y de comercio, y los dos sondeadores la de catálogo. Con
   `RABBITMQ_URL`, cada productor publica su bandeja y nadie lee bases ajenas. El manifiesto
