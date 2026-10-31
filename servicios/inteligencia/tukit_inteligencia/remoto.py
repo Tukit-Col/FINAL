@@ -47,12 +47,24 @@ ESPERA_SEGUNDOS = 60.0
 
 
 class RemotoCaido(Exception):
-    """Una dependencia externa no respondio. No es un defecto del kit."""
+    """Una dependencia externa no respondio. No es un defecto del kit.
 
-    def __init__(self, servicio: str, detalle: str) -> None:
+    `estado` es el codigo HTTP cuando el otro servicio SI respondio, con un
+    error; queda en None cuando no respondio (conexion, tiempo de espera,
+    circuito abierto). La diferencia importa a quien decide si reintentar: un
+    4xx que no es 408 ni 429 es un rechazo, y reintentarlo daria lo mismo.
+    """
+
+    def __init__(self, servicio: str, detalle: str, estado: int | None = None) -> None:
         super().__init__(f"{servicio}: {detalle}")
         self.servicio = servicio
         self.detalle = detalle
+        self.estado = estado
+
+    @property
+    def transitorio(self) -> bool:
+        """Una caida que puede pasar sola: sin respuesta, 5xx, 408 o 429."""
+        return self.estado is None or self.estado >= 500 or self.estado in (408, 429)
 
 
 def url_catalogo() -> str:
@@ -109,7 +121,8 @@ class ClienteCatalogo:
         except CircuitoAbierto as error:
             raise RemotoCaido("catalogo", f"circuito abierto ({error})") from error
         except httpx.HTTPStatusError as error:
-            raise RemotoCaido("catalogo", f"{ruta} respondio {error.response.status_code}") from error
+            codigo = error.response.status_code
+            raise RemotoCaido("catalogo", f"{ruta} respondio {codigo}", estado=codigo) from error
         except httpx.HTTPError as error:
             raise RemotoCaido("catalogo", f"{ruta} no respondio ({error})") from error
 
@@ -220,6 +233,7 @@ class ClienteCatalogo:
         preferencias: dict[str, Any] | None = None,
         colegio_datos: dict[str, Any] | None = None,
         origen: str = "onboarding",
+        clave_idempotencia: str | None = None,
     ) -> dict[str, Any]:
         """Escribe una lista percibida en el catalogo, con su evidencia.
 
@@ -237,6 +251,11 @@ class ClienteCatalogo:
         del directorio de Bogota o lo escribio a mano): trae su nombre y DANE
         para que la cola lo muestre y la aprobacion cree su identidad. Un colegio
         aliado ya conocido no lo trae.
+
+        `clave_idempotencia` hace seguro el reintento de este POST (ADR 0040):
+        con una clave que ya entro, el catalogo devuelve la version que creo en
+        vez de hacer otra. La subida de un acudiente la manda siempre, una por
+        subida y destino; el onboarding no la necesita, porque no reintenta.
         """
         cuerpo: dict[str, Any] = {
             "colegio_id": colegio_id,
@@ -255,6 +274,8 @@ class ClienteCatalogo:
             cuerpo["preferencias"] = preferencias
         if colegio_datos:
             cuerpo["colegio_datos"] = colegio_datos
+        if clave_idempotencia is not None:
+            cuerpo["clave_idempotencia"] = clave_idempotencia
         return await self._pedir("POST", "/v1/admin/listas/importar", json=cuerpo)
 
 
@@ -341,6 +362,19 @@ class ClienteIdentidad:
                 return dict(respuesta.json())
         except httpx.HTTPError:
             return None
+
+    async def colegios_conocidos(self) -> list[dict[str, Any]]:
+        """Los colegios que Identidad ya tiene (`GET /v1/colegios`): `colegio_id`,
+        `nombre` y `dane`. Sirve para que un colegio escrito a mano o elegido del
+        directorio reuse el id del que ya existe en vez de derivar otro. Lista
+        vacia si identidad no responde: la subida degrada al id derivado."""
+        try:
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.get(f"{self._base()}/v1/colegios")
+                respuesta.raise_for_status()
+                return list(respuesta.json().get("colegios") or [])
+        except (httpx.HTTPError, ValueError):
+            return []
 
 
 @dataclass

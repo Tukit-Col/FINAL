@@ -155,10 +155,15 @@ PRESENTACION = (
     ("polvo", "polvo"),
     ("spray", "spray"),
     ("aerosol", "spray"),
-    ("tarro", "tarro"),
+    # Para el colegio un tarro y un frasco son lo mismo (decision del
+    # 2026-10-11): se leen igual para que ninguno deje fuera al otro.
+    ("tarro", "frasco"),
     ("frasco", "frasco"),
     ("pomo", "frasco"),
     ("tubo", "tubo"),
+    # La escarcha se vende en tubo o por libra (en bolsa): «3 tubos» no son 3
+    # libras.
+    ("libra", "bolsa"),
     ("pastilla", "pastilla"),
     ("crema", "crema"),
     ("bolsa", "bolsa"),
@@ -172,6 +177,9 @@ MATERIAL = (
     # `acero inoxidable` antes que nada: el colegio pide la regla de acero
     # para el dibujo tecnico, y una de plastico no le sirve (Septimo, #31).
     ("acero inoxidable", "acero"),
+    # La bata y el delantal antifluido: el colegio lo pide por nombre y una
+    # bata de tela no le sirve.
+    ("antifluido", "antifluido"),
     ("acero", "acero"),
     ("acrilico", "acrilico"),
     ("plastico", "plastico"),
@@ -217,6 +225,43 @@ TIPOS = (
     ("transparente", "transparente"),
     ("aislante", "aislante"),
     ("quirurgico", "quirurgico"),
+    # Antes de `argollado`: un `cuaderno de dibujo argollado` es de dibujo.
+    ("de dibujo", "dibujo"),
+    # Antes de `cartulina`: una «Bitacora Cartulina Durex» es un sketchbook.
+    ("bitacora", "dibujo"),
+    # Lo que la auditoria del Agustiniano encontro pedido y sin leer.
+    ("gigante", "gigante"),
+    ("rodachines", "con ruedas"),
+    ("de ruedas", "con ruedas"),
+    ("panuelos faciales", "panuelo"),
+    ("panuelo", "panuelo"),
+    ("pincho", "pincho"),
+    ("celofan", "celofan"),
+    ("lija", "lija"),
+    ("para colorear", "colorear"),
+    ("por numeros", "por numeros"),
+    ("puntas intercambiables", "intercambiable"),
+    ("intercambiable", "intercambiable"),
+    ("loza", "loza"),
+    # Electronica (2026-10-12): el interruptor se pide por como se acciona y el
+    # motor por si trae reductor. `motorreductor` antes que `motor`, aunque la
+    # frontera de palabra ya los separa.
+    ("balancin", "balancin"),
+    ("dos posiciones", "2 posiciones"),
+    ("2 posiciones", "2 posiciones"),
+    ("motorreductor", "motorreductor"),
+    ("motoreductor", "motorreductor"),
+    ("motor", "motor"),
+    # Los jumpers se piden por sus dos puntas, y uno macho-macho no sirve donde
+    # piden hembra. Da igual en que orden se nombren.
+    ("macho-macho", "macho-macho"),
+    ("macho - macho", "macho-macho"),
+    ("macho-hembra", "macho-hembra"),
+    ("macho - hembra", "macho-hembra"),
+    ("hembra-macho", "macho-hembra"),
+    ("hembra - macho", "macho-hembra"),
+    ("hembra-hembra", "hembra-hembra"),
+    ("hembra - hembra", "hembra-hembra"),
     # La punta (`punta fina`, `punta roma`) ya no vive aqui: tiene su tabla,
     # PUNTAS. Compartirla hacia que un marcador permanente declarara
     # `punta=permanente` y uno de punta fina `tipo=punta fina`.
@@ -228,6 +273,13 @@ TIPOS = (
     ("cuadriculada", "cuadriculado"),
     ("ferrocarril", "ferrocarril"),
     ("doble linea", "doble linea"),
+    # Como el colegio pide un block: `a rayas`, `de hojas blancas`.
+    ("a rayas", "rayado"),
+    ("rayado", "rayado"),
+    ("rayada", "rayado"),
+    ("hojas blancas", "blanco"),
+    ("sin rayas", "blanco"),
+    ("block blanco", "blanco"),
     ("origami", "origami"),
     ("iris", "iris"),
     ("kraft", "kraft"),
@@ -261,6 +313,14 @@ TIPOS = (
     # `dulce` antes que `soprano`: dulce es el instrumento y soprano la voz. Una
     # "Flauta Dulce Soprano" quedaba `soprano` y la lista que pide "flauta dulce"
     # (la escolar de siempre) no encontraba ninguna.
+    # Juegos didacticos: lo que el colegio pide por nombre (C054).
+    ("juego de mesa", "juego de mesa"),
+    ("de mesa", "juego de mesa"),
+    ("juegos de mesa", "juego de mesa"),
+    ("loteria", "loteria"),
+    ("domino", "domino"),
+    ("ajedrez", "juego de mesa"),
+    ("parques", "juego de mesa"),
     ("dulce", "dulce"),
     ("soprano", "soprano"),
     ("traversa", "traversa"),
@@ -299,6 +359,22 @@ TIPOS = (
     # `escolar` va de ultimo a proposito: aparece en medio catalogo y como
     # tipo dice poquisimo, asi que solo gana cuando no hay nada mejor.
     ("escolar", "escolar"),
+)
+
+# El acabado de un papel, un foamy o una pintura. Tenia que tener tabla propia:
+# leido con TIPOS, el de una tempera fluorescente era `tempera` (la clase de
+# pintura va primero alli) y el de una cartulina fluorescente, `cartulina`.
+ACABADOS = (
+    ("fluorescente", "fluorescente"),
+    ("fluorecente", "fluorescente"),  # asi lo escriben varias tiendas
+    ("escarchado", "escarchado"),
+    ("escarchada", "escarchado"),
+    ("metalizado", "metalizado"),
+    ("metalizada", "metalizado"),
+    ("iris", "iris"),
+    # No es un acabado, pero es lo que distingue un paquete de figuras de foamy
+    # (J#49) de las laminas lisas, y el foamy solo tiene esta dimension libre.
+    ("figuras", "figuras"),
 )
 
 # Las tiendas concuerdan el color con el genero del producto: la cartulina es
@@ -357,8 +433,13 @@ COLORES = (
 # La punta de un marcador o de unas tijeras. Es la forma del extremo, no la
 # clase de tinta, y por eso no comparte tabla con TIPOS.
 PUNTAS = (
+    # Antes que `punta fina`: en «doble punta fina y gruesa» manda lo primero,
+    # y el estuche que el colegio pide de doble punta no es uno de punta fina.
+    ("doble punta", "doble punta"),
     ("micropunta", "micropunta"),
     ("punta roma", "punta roma"),
+    # Asi, junto, lo escribe la lista de Jardin (J#62).
+    ("puntaroma", "punta roma"),
     ("punta fina", "punta fina"),
     ("punta extrafina", "punta fina"),
     ("punta delgada", "punta fina"),
@@ -543,6 +624,12 @@ def extraer_empaque(nombre: str, atributos_del_concepto: tuple[str, ...] = ()) -
 
         if coincidencia.group(2):
             continue  # tiene decimales: es una medida
+        if 10 <= cantidad <= 999 and re.search(r"(?:^|[\s(])\d{2,3}\s*$", plano[: coincidencia.start() + 1]):
+            # `70 x 100`: dos medidas de dos o tres cifras a cada lado de la `x`
+            # son un tamano, no un empaque. «Cartulina pliego 70X100» se leia
+            # como cien pliegos. Con una cifra suelta delante (`Lapiz #2 X12`,
+            # `Mark 2 X5`) la `x` si cuenta unidades.
+            continue
         if palabra in MEDIDA:
             continue  # es cuanto trae o cuanto mide, no cuantos son
         if palabra and palabra not in CONTEO:
@@ -566,13 +653,18 @@ def extraer_empaque(nombre: str, atributos_del_concepto: tuple[str, ...] = ()) -
     if escrito and (mejor is None or int(escrito.group(1)) > mejor.unidades):
         mejor = Empaque(int(escrito.group(1)), "unidad")
 
+    if mejor is None and re.search(r"\bdocena\b", plano):
+        # `Docena Barra Silicona Gruesa` (J#93) se compraba de a una barra.
+        mejor = Empaque(6 if re.search(r"\bmedia docena\b", plano) else 12, "unidad")
+
     if mejor is not None:
         return mejor
 
     # Sin `x` ni `por`: puede seguir habiendo un conteo suelto, como
     # `Block cuadriculado de 50 hojas`.
     if not hojas_son_atributo:
-        suelto = re.search(r"(?:^|\s)(\d{1,4})\s+(hojas?|pliegos?|unidades)\b", plano)
+        # Tambien entre parentesis y abreviado: `Lija (3 Unds)`.
+        suelto = re.search(r"(?:^|[\s(])(\d{1,4})\s+(hojas?|pliegos?|unidades|unds?|uds?)\b", plano)
         if suelto:
             return Empaque(int(suelto.group(1)), CONTEO.get(suelto.group(2), "unidad"))
 
@@ -659,6 +751,8 @@ RAYADOS = (
 # un pincel `grueso` no es un pincel `grande`: lo grueso es la cerda.
 GROSORES = (
     ("extra grueso", "extra grueso"),
+    # Un lapiz o un color jumbo es el grueso de las listas de preescolar.
+    ("jumbo", "grueso"),
     ("muy grueso", "extra grueso"),
     ("grueso", "grueso"),
     ("gruesa", "grueso"),
@@ -679,6 +773,20 @@ _DUREZA = re.compile(r"\b(\d?[hb]{1,2})\b")
 _DUREZAS_VALIDAS = frozenset(
     {"h", "b", "hb", "hh", "bb"} | {f"{n}{letra}" for n in range(2, 10) for letra in "hb"}
 )
+
+# Los numeros como los escribe una lista: `cuaderno tres materias`.
+_NUMEROS_ESCRITOS = {
+    "una": 1,
+    "uno": 1,
+    "dos": 2,
+    "tres": 3,
+    "cuatro": 4,
+    "cinco": 5,
+    "seis": 6,
+    "siete": 7,
+    "ocho": 8,
+    "diez": 10,
+}
 
 # Cuantos huecos o bolsillos trae algo que los cuenta. El colegio no escribe
 # `2`: escribe `doble servicio`, `doble`, `sencillo`.
@@ -715,7 +823,8 @@ def _coincidencias(plano: str, tabla: tuple[tuple[str, str], ...]) -> list[tuple
     """
     halladas: list[tuple[str, re.Match[str]]] = []
     for aguja, valor in tabla:
-        for m in re.finditer(rf"\b{re.escape(aguja)}s?\b", plano):
+        # El plural en `s` y en `es`: `marcadores acrilicos`, `colores triangulares`.
+        for m in re.finditer(rf"\b{re.escape(aguja)}(?:s|es)?\b", plano):
             halladas.append((valor, m))
     halladas.sort(key=lambda par: par[1].end() - par[1].start(), reverse=True)
 
@@ -793,13 +902,15 @@ def extraer_atributos(nombre: str, requeridos: tuple[str, ...]) -> dict[str, Any
     for pedido in requeridos:
         if pedido == "tamano":
             for aguja, valor in TAMANOS:
-                if re.search(rf"\b{re.escape(aguja)}\b", plano):
+                # Con el plural: las listas piden `cuartos de cartulina` y
+                # `pliegos de papel`, y sin la `s` no se leia ninguno.
+                if re.search(rf"\b{re.escape(aguja)}s?\b", plano):
                     attrs["tamano"] = valor
                     break
             else:
                 # Sin tamano escolar, unas medidas en centimetros tambien
                 # dicen de que tamano es: `Bloc origami (15 x 15 cm)`.
-                medidas = re.search(r"(\d{1,3}(?:\.\d+)?)\s*x\s*(\d{1,3}(?:\.\d+)?)\s*cm\b", plano)
+                medidas = re.search(r"(\d{1,3}(?:\.\d+)?)\s*x\s*(\d{1,3}(?:\.\d+)?)\s*cms?\b", plano)
                 if medidas:
                     attrs["tamano"] = (
                         f"{_entero_si_cabe(medidas.group(1))} x {_entero_si_cabe(medidas.group(2))} cm"
@@ -820,7 +931,9 @@ def extraer_atributos(nombre: str, requeridos: tuple[str, ...]) -> dict[str, Any
             unico = _valor_unico(plano, COLORES)
             if unico:
                 attrs["color"] = unico[0]
-            elif re.search(r"\b(?:surtid[oa]s?|multicolor|de colores)\b", plano):
+            elif re.search(
+                r"\b(?:surtid[oa]s?|multicolor|de colores|diferentes colores|varios colores)\b", plano
+            ):
                 # Varios colores y ademas `surtido`: el nombre ya dijo que
                 # es un surtido, y eso si se puede afirmar.
                 attrs["color"] = "surtido"
@@ -843,7 +956,18 @@ def extraer_atributos(nombre: str, requeridos: tuple[str, ...]) -> dict[str, Any
                 # Se unen en vez de quedarse con el primero: `diccionario de
                 # ingles y frances` es un bilingue, y darlo por ingles a
                 # secas lo confunde con otro libro y otro precio.
-                attrs["idioma"] = "-".join(dict.fromkeys(hallados))
+                # En orden alfabetico: `ingles - espanol` y `espanol - ingles`
+                # son el mismo diccionario, y en el orden en que se escribieron
+                # no se reconocian entre si.
+                distintos = sorted(set(hallados))
+                menciones = [v for a, v in _IDIOMAS_DE_DICCIONARIO for _ in re.finditer(rf"\b{a}\b", plano)]
+                if len(distintos) == 1 and (re.search(r"\bmonolingue\b", plano) or len(menciones) >= 2):
+                    # `Ingles - Ingles`: el monolingue, dicho a proposito. Se
+                    # escribe doble para no confundirlo con `de ingles` a secas,
+                    # que en una lista suele ser el bilingue con espanol.
+                    attrs["idioma"] = f"{distintos[0]}-{distintos[0]}"
+                else:
+                    attrs["idioma"] = "-".join(distintos)
 
         elif pedido == "deposito":
             # Solo se afirma cuando el texto lo dice. Un tajalapiz que no
@@ -851,7 +975,7 @@ def extraer_atributos(nombre: str, requeridos: tuple[str, ...]) -> dict[str, Any
             # no lo tiene es inventarse una ausencia.
             if re.search(r"\bsin deposito\b", plano):
                 attrs["deposito"] = False
-            elif re.search(r"\b(?:con )?deposito\b", plano):
+            elif re.search(r"\b(?:con )?(?:deposito|portabasura)\b", plano):
                 attrs["deposito"] = True
 
         elif pedido in ("orificios", "compartimentos"):
@@ -871,7 +995,7 @@ def extraer_atributos(nombre: str, requeridos: tuple[str, ...]) -> dict[str, Any
                 # La serie numerica del pincel, cuando no hay palabra. Se
                 # guarda con prefijo para que no se confunda con una medida
                 # y para que quede claro que es una escala de marca.
-                serie = re.search(r"(?:\bn\s*[o°]?\s*|#)(\d{1,2})\b", plano)
+                serie = re.search(r"(?:\bn\s*[o°]?\s*|#\s*)(\d{1,2})\b", plano)
                 if serie:
                     attrs["grosor"] = f"n{int(serie.group(1))}"
 
@@ -899,14 +1023,20 @@ def extraer_atributos(nombre: str, requeridos: tuple[str, ...]) -> dict[str, Any
             elif encontrados:
                 attrs["tinta"] = encontrados[0]
 
-        elif pedido in ("tipo", "acabado"):
+        elif pedido == "acabado":
+            for aguja, valor in ACABADOS:
+                if re.search(rf"\b{re.escape(aguja)}(?:s|es)?\b", plano):
+                    attrs["acabado"] = valor
+                    break
+
+        elif pedido == "tipo":
             # `tipo` mezcla dimensiones (`Block cuadriculado argollado` dice
             # dos tipos y los dos son ciertos), asi que aqui no aplica la
             # regla del valor unico: gana el primero de la tabla, que esta
             # ordenada del termino mas especifico al menos.
             for aguja, valor in TIPOS:
-                if re.search(rf"\b{re.escape(aguja)}s?\b", plano):
-                    attrs[pedido] = valor
+                if re.search(rf"\b{re.escape(aguja)}(?:s|es)?\b", plano):
+                    attrs["tipo"] = valor
                     break
 
         elif pedido in ("presentacion", "material", "forma", "punta", "encuadernacion"):
@@ -970,13 +1100,20 @@ def extraer_atributos(nombre: str, requeridos: tuple[str, ...]) -> dict[str, Any
                 attrs["materias"] = "multiple"
             else:
                 cuantas = re.search(r"(\d{1,2})\s*materias\b", plano)
+                escrita = re.search(rf"\b({'|'.join(_NUMEROS_ESCRITOS)})\s+materias\b", plano)
                 # Uno por omision, y es el UNICO atributo que lo tiene. En la
                 # papeleria colombiana lo multiple siempre viene marcado, asi
                 # que un cuaderno callado es de una materia: no es un dato que
                 # falte, es el dato. Sin esto, 16 de los 17 cuadernos del
                 # catalogo quedaban incompletos por algo que ya sabiamos, y
                 # C001 es el concepto mas pedido del corpus.
-                attrs["materias"] = int(cuantas.group(1)) if cuantas else 1
+                if cuantas:
+                    attrs["materias"] = int(cuantas.group(1))
+                elif escrita:
+                    # `cuaderno tres materias` (11#21) se leia de una materia.
+                    attrs["materias"] = _NUMEROS_ESCRITOS[escrita.group(1)]
+                else:
+                    attrs["materias"] = 1
 
         elif pedido == "hojas":
             cuantas = re.search(r"(\d{1,4})\s*(?:hojas?|hjs?)\b", plano)
@@ -999,10 +1136,52 @@ def extraer_atributos(nombre: str, requeridos: tuple[str, ...]) -> dict[str, Any
                 unidad = "ml" if vol.group(2) in ("ml", "cc") else "l"
                 attrs[pedido] = f"{_entero_si_cabe(vol.group(1))} {unidad}"
 
-        elif pedido in ("longitud", "grosor", "calibre"):
-            largo = re.search(r"(\d{1,4}(?:\.\d+)?)\s*(mm|cm|m|metros?|centimetros?|milimetros?)\b", plano)
+        elif pedido == "calibre":
+            # El calibre de un cable es su numero AWG (`calibre 22`), no una
+            # longitud: la rama de abajo leia `22` sin unidad y no afirmaba nada.
+            calibre = re.search(r"\bcalibre\s*(\d{1,2})\b", plano) or re.search(r"\b(\d{1,2})\s*awg\b", plano)
+            if calibre:
+                attrs["calibre"] = f"{int(calibre.group(1))} awg"
+
+        elif pedido == "valor":
+            # El valor de una resistencia. `330 ohm o 1k ohm` nombra dos y no se
+            # exige ninguno, como cualquier atributo de una dimension; un kit de
+            # `diferentes valores` es un surtido. `0hm`, con cero, es como lo
+            # escribio la lista de Cuarto.
+            valores = {
+                f"{_entero_si_cabe(m.group(1))} {'kohm' if m.group(2) else 'ohm'}"
+                for m in re.finditer(r"(\d{1,4}(?:\.\d+)?)\s*(k)?\s*(?:ohms?|0\s?hms?|Ω)", plano)
+            }
+            if len(valores) == 1:
+                attrs["valor"] = valores.pop()
+            elif not valores and re.search(r"\b(?:surtid[oa]s|diferentes? (?:valores|amperaje))\b", plano):
+                attrs["valor"] = "surtido"
+
+        elif pedido in ("longitud", "grosor"):
+            largo = re.search(
+                r"(\d{1,4}(?:\.\d+)?)\s*(mm|cm|m|metros?|centimetros?|milimetros?|pulgadas?)\b", plano
+            )
             if largo:
                 attrs[pedido] = f"{_entero_si_cabe(largo.group(1))} {_unidad_corta(largo.group(2))}"
+
+        elif pedido == "puntos":
+            puntos = re.search(r"(\d{3,4})\s*(?:puntos|contactos|pines)\b", plano)
+            if puntos:
+                attrs["puntos"] = int(puntos.group(1))
+
+        elif pedido == "manga":
+            if re.search(r"\bmanga corta\b", plano):
+                attrs["manga"] = "corta"
+            elif re.search(r"\bsin mangas?\b", plano):
+                attrs["manga"] = "sin"
+            elif re.search(r"\b(?:manga larga|mangas largas|con mangas?)\b", plano):
+                attrs["manga"] = "larga"
+
+        elif pedido == "notas":
+            # Un xilofono se pide por placas y se vende por notas o tonos.
+            notas = re.search(r"(\d{1,2})\s*(?:placas|notas|tonos|teclas)\b", plano)
+            if notas:
+                attrs["notas"] = int(notas.group(1))
 
         elif pedido == "piezas":
             piezas = re.search(r"(\d{1,5})\s*(?:piezas?|fichas?)\b", plano)
@@ -1120,6 +1299,8 @@ def _entero_si_cabe(texto: str) -> str:
 
 
 def _unidad_corta(palabra: str) -> str:
+    if palabra.startswith("pulgada"):
+        return "in"
     if palabra.startswith("mili") or palabra == "mm":
         return "mm"
     if palabra.startswith("centi") or palabra == "cm":
@@ -1218,6 +1399,7 @@ async def _cargar_contexto() -> tuple[
                         producto.c.concepto_id,
                         producto.c.imagen_url,
                         producto.c.unidades_por_empaque,
+                        producto.c.unidad_base,
                         producto.c.atributos,
                         producto.c.personaje,
                         # La huella del embedding: con que texto y que modelo se
@@ -1333,6 +1515,19 @@ async def _guardar(cambios: list[dict[str, Any]]) -> None:
         await motor.cerrar()
 
 
+def empaque_combinado(unidades_guardadas: int | None, unidad_guardada: str | None, leido: Empaque) -> Empaque:
+    """El empaque guardado gana sobre el leido del nombre, salvo que sea el 1 por omision.
+
+    Desde que el empaque es columna de `productos_canonicos.csv`, lo guardado
+    puede ser una correccion a mano (la UI de admin la permite), y una pasada
+    de `enriquecer` no puede deshacerla. Un 1 no se distingue del default, asi
+    que ahi si manda lo que dice el nombre.
+    """
+    if unidades_guardadas and unidades_guardadas > 1:
+        return Empaque(unidades_guardadas, unidad_guardada or leido.unidad_base)
+    return leido
+
+
 def atributos_combinados(
     guardados: dict[str, Any], leidos: dict[str, Any], reextraer: frozenset[str] = frozenset()
 ) -> dict[str, Any]:
@@ -1431,6 +1626,7 @@ async def _principal(
         if ficha_p:
             attrs = {**atributos_de_ficha(ficha_p["especificaciones"], attrs_concepto), **attrs}
 
+        empaque = empaque_combinado(p["unidades_por_empaque"], p.get("unidad_base"), empaque)
         if empaque.unidades != p["unidades_por_empaque"]:
             empaques_nuevos += 1
         if attrs and not p["atributos"]:

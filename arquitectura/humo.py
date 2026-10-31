@@ -167,16 +167,23 @@ def comprobar(base: str) -> list[tuple[str, str]]:
     etapas = {e["nombre"]: e["estado"] for e in actual["etapas"]}
     hechas.append((f"GET /v1/trabajos/{trabajo_id}", f"estado {estado}, etapas {etapas}"))
 
+    # La consola es del equipo: por la puerta, sin token, tiene que rechazar
+    # (si respondiera 200, cualquiera podria aprobar y publicar un kit).
+    sin_token = _estado_http(base, "/v1/admin/cola")
+    _exigir(sin_token == 401, f"/v1/admin/cola sin token respondio {sin_token}; deberia ser 401")
+    hechas.append(("/v1/admin/cola sin token", "401, cerrado"))
+
     if estado == "espera_revision":
-        cola = _pedir(base, "/v1/admin/cola")
+        operador = _token_operador(base)
+        cola = _pedir(base, "/v1/admin/cola", token=operador)
         _exigir(cola["total"] > 0, "el trabajo no aparece en la cola de revision")
         hechas.append(("/v1/admin/cola", f"{cola['total']} trabajo(s) esperando"))
 
-        admin = _pedir(base, f"/v1/admin/trabajos/{trabajo_id}")
+        admin = _pedir(base, f"/v1/admin/trabajos/{trabajo_id}", token=operador)
         _exigir(len(admin["kits"]) == 3, f"Admin ve {len(admin['kits'])} kits y deberian ser 3")
         hechas.append((f"/v1/admin/trabajos/{trabajo_id}", "los 3 kits visibles antes de publicar"))
 
-        _pedir(base, f"/v1/admin/trabajos/{trabajo_id}/revision", {"decision": "aprobar"})
+        _pedir(base, f"/v1/admin/trabajos/{trabajo_id}/revision", {"decision": "aprobar"}, token=operador)
         hechas.append((f"POST /v1/admin/trabajos/{trabajo_id}/revision", "aprobado"))
 
     publicado = _pedir(base, f"/v1/trabajos/{trabajo_id}")

@@ -117,6 +117,10 @@ COLUMNAS_PRODUCTO = [
     "personaje",
     "imagen_url",
     "atributos",
+    # El empaque es curaduria: sin el, cada carga lo dejaba en 1 y el kit
+    # compraba un paquete de veinte hojas por cada hoja que pedia el colegio.
+    "unidad_base",
+    "unidades_por_empaque",
     "ruta_categoria",
     "es_propio",
     "grupo_variante_id",
@@ -240,6 +244,8 @@ def _fila_producto(p: Any) -> dict[str, str]:
         "personaje": _s(p.personaje),
         "imagen_url": _s(p.imagen_url),
         "atributos": _atributos_csv(p.atributos),
+        "unidad_base": _s(p.unidad_base),
+        "unidades_por_empaque": _s(p.unidades_por_empaque),
         "ruta_categoria": _s(p.ruta_categoria),
         "es_propio": _bool_csv(p.es_propio),
         "grupo_variante_id": _s(p.grupo_variante_id),

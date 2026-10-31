@@ -58,6 +58,19 @@ def destinatario_en_carga(tipo: str, carga: dict[str, Any] | None) -> str | None
     return str(usuario) if usuario else None
 
 
+def destinatario_de_la_cola(tipo: str, carga: dict[str, Any] | None) -> str | None:
+    """El `usuario_id` de un evento que llega por RabbitMQ (ADR 0046).
+
+    Con broker el repartidor no lee `trabajo_pipeline`: todo tipo con plantilla
+    trae su destinatario en la carga, `kits_publicados` incluido (Inteligencia lo
+    pone al emitirlo).
+    """
+    if tipo not in _PLANTILLAS:
+        return None
+    usuario = (carga or {}).get("usuario_id")
+    return str(usuario) if usuario else None
+
+
 def datos_plantilla(
     tipo: str, agregado_id: uuid.UUID, carga: dict[str, Any] | None, *, base_web: str
 ) -> dict[str, object]:

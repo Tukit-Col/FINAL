@@ -25,7 +25,14 @@ export async function POST(peticion: Request): Promise<Response> {
   // La ruta rapida debe tener dueño: el usuario_id lo pone el servidor desde la
   // cookie de sesion, NUNCA el navegador (que podria mentir). Sin sesion, el
   // trabajo queda anonimo igual que hoy (usuario_id undefined -> se omite -> NULL).
-  const sesion = await sesionActual();
+  // Un 429 al leer la sesion sale como 429: tomarlo por "sin sesion" dejaria el
+  // kit huerfano.
+  let sesion: Awaited<ReturnType<typeof sesionActual>>;
+  try {
+    sesion = await sesionActual();
+  } catch (causa) {
+    return respuestaDeError(causa);
+  }
   const cuerpoConUsuario: AplicarCanonico = { ...cuerpo, usuario_id: sesion?.usuario_id };
 
   try {

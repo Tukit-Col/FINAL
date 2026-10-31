@@ -82,7 +82,8 @@ export function tonoEstadoPedido(estado: EstadoPedido): TonoEstado {
 // El cruce entre "Mis solicitudes" y "Mis pedidos" por kit (trabajo_id). La
 // solicitud no se cierra ni guarda un estado propio: se calcula cada vez, asi
 // que si el pedido se cancela o se reembolsa, la solicitud vuelve sola a "Listo".
-// - comprado: el kit tiene un pedido pagado o en camino (el mas reciente).
+// - comprado: el kit tiene un pedido pagado o en camino (el mas reciente). Una
+//   incidencia tambien: el pago ya se cobro y el pedido sigue vivo.
 // - por_pagar: no lo tiene, pero hay uno pendiente de pago y vigente.
 export type CompraSolicitud = { estado: "comprado" | "por_pagar"; pedidoId: string } | null;
 
@@ -92,6 +93,7 @@ const ESTADOS_COMPRADOS: ReadonlySet<EstadoPedido> = new Set([
   "despachado",
   "en_reparto",
   "entregado",
+  "incidencia",
 ]);
 
 type PedidoDeKit = PedidoMinimo & { trabajo_id: string | null };
@@ -111,4 +113,55 @@ export function compraDeSolicitud(
   );
   if (pendiente) return { estado: "por_pagar", pedidoId: pendiente.pedido_id };
   return null;
+}
+
+// La entrega que el checkout del kit precarga al volver de un pago rechazado
+// ("Intentar de nuevo"): la del pedido pendiente y vigente mas reciente de ese
+// kit, que es el que Comercio reutiliza. Asi no se escribe otra vez toda la
+// direccion. Sin ese pedido (o sin sesion) el formulario arranca vacio.
+export interface EntregaPrevia {
+  destinatario: string;
+  direccion: string;
+  ciudad: string;
+  indicaciones: string;
+  localidad: string;
+  departamento: string;
+  google_place_id: string;
+}
+
+type EnvioMinimo = {
+  destinatario: string;
+  direccion: string;
+  ciudad: string;
+  indicaciones: string | null;
+  localidad: string | null;
+  departamento: string | null;
+  google_place_id: string | null;
+};
+
+export function entregaParaReintento(
+  pedidos: readonly (PedidoDeKit & { envio: EnvioMinimo | null })[],
+  trabajoId: string,
+  ahora: number,
+): EntregaPrevia | null {
+  const pedido = pedidos
+    .filter(
+      (p) =>
+        p.trabajo_id === trabajoId &&
+        p.estado === "pendiente_pago" &&
+        !pedidoVencido(p.creado_en, ahora) &&
+        p.envio !== null,
+    )
+    .sort((a, b) => Date.parse(b.creado_en) - Date.parse(a.creado_en))[0];
+  if (!pedido?.envio) return null;
+  const e = pedido.envio;
+  return {
+    destinatario: e.destinatario,
+    direccion: e.direccion,
+    ciudad: e.ciudad,
+    indicaciones: e.indicaciones ?? "",
+    localidad: e.localidad ?? "",
+    departamento: e.departamento ?? "",
+    google_place_id: e.google_place_id ?? "",
+  };
 }

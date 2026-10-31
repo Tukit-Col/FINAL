@@ -12,12 +12,23 @@ envia el correo con el enlace de pre-compra.
     python -m tukit_inteligencia.poller          # una pasada
     python -m tukit_inteligencia.poller --seguir  # bucle
 
-**La unica excepcion a la frontera de bases**, igual que el repartidor: se abre
+**Con RabbitMQ** (`RABBITMQ_URL`, ADR 0046) no sondea la bandeja del Catalogo:
+consume la cola `inteligencia.listas`, a la que el publicador del Catalogo lleva
+los dos eventos, y no abre ningun motor a esa base. La entrega es al menos una
+vez, asi que cada evento se anota en `evento_procesado` por origen e id. Para
+`lista_verificada` la marca entra en la misma transaccion que crea el trabajo:
+un evento repetido no arma un segundo kit aunque el proceso caiga a mitad.
+
+**La unica excepcion a la frontera de bases**, y solo sin broker, igual que el repartidor: se abre
 un motor de LECTURA/marcado a la base del Catalogo para drenar su bandeja. El
 nombre de esa base NO se escribe aqui: `url_desde_entorno` lo deriva DENTRO de
 la libreria a partir del nombre del servicio (regla 3). El trabajo se crea en la
 base propia de Inteligencia con `trabajos.crear`, que es lo unico que este
 servicio escribe.
+
+**Una caida no lo mata** (ADR 0041). El bucle corre sobre `bucle_resiliente`:
+si Postgres no responde, espera y reintenta la pasada, y cada pasada abre sus
+motores de nuevo. Un error de programacion sigue terminando el proceso.
 """
 
 from __future__ import annotations
@@ -25,13 +36,20 @@ from __future__ import annotations
 import argparse
 import asyncio
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from tukit_comun.bandeja import Resultado, drenar
 from tukit_comun.bd import crear_motor
+from tukit_comun.broker import url_broker
 from tukit_comun.config import url_desde_entorno
+from tukit_comun.consumidor import Consumidor, RegistroEnTabla, consumir
+from tukit_comun.mensajes import Evento
+from tukit_comun.registro import configurar_registro
+from tukit_comun.resiliencia import bucle_resiliente
+from tukit_comun.topologia import LISTAS
 
 from . import trabajos
 from .remoto import ClienteCatalogo
@@ -52,11 +70,12 @@ class Poller:
     Los motores y el catalogo se inyectan para poder probar sin Postgres ni
     red; en produccion salen del entorno. `motor_inteligencia` es la base
     propia (donde se crea el trabajo); `motor_catalogo` es la ajena (de donde
-    se drena la bandeja, la excepcion outbox declarada).
+    se drena la bandeja, la excepcion outbox declarada); con RabbitMQ va en
+    `None` y los eventos llegan a `manejar`.
     """
 
     motor_inteligencia: Any
-    motor_catalogo: AsyncEngine
+    motor_catalogo: AsyncEngine | None
     catalogo: ClienteCatalogo
 
     async def pasada(self, *, limite: int = 100) -> int:
@@ -68,13 +87,30 @@ class Poller:
         `lista_aprobada`. Se drena un tipo a la vez y no la bandeja entera: lleva
         tambien eventos de otros consumidores (el poller de Identidad), y
         drenarlos aqui los marcaria publicados sin que nadie los atienda."""
+        if self.motor_catalogo is None:
+            raise ValueError("sin la bandeja del Catalogo no hay pasada: con RabbitMQ se usa `manejar`")
         arrancados = await drenar(self.motor_catalogo, self._procesar, tipo=_TIPO, limite=limite)
         arrancados += await drenar(
             self.motor_catalogo, self._procesar_canonico, tipo=_TIPO_CANONICO, limite=limite
         )
         return arrancados
 
-    async def _procesar(self, conexion: Any, fila: Any) -> Resultado:
+    async def manejar(self, evento: Evento) -> Resultado:
+        """Un evento que llega por la cola `inteligencia.listas` (ADR 0046).
+
+        El `Evento` tiene la forma de una fila de la bandeja, asi que el manejo
+        es el mismo. `lista_verificada` lleva su origen e id hasta `crear`, que
+        los anota con el trabajo; `lista_aprobada` ya es idempotente (compara la
+        version con la del canonico vigente) y lo anota el consumidor."""
+        if evento.tipo == _TIPO:
+            return await self._procesar(None, evento, evento=(evento.origen, evento.id))
+        if evento.tipo == _TIPO_CANONICO:
+            return await self._procesar_canonico(None, evento)
+        return Resultado.OMITIR
+
+    async def _procesar(
+        self, conexion: Any, fila: Any, *, evento: tuple[str, int] | None = None
+    ) -> Resultado:
         carga = fila.carga or {}
         colegio_id = carga.get("colegio_id")
         grado = carga.get("grado")
@@ -118,14 +154,19 @@ class Poller:
 
         # Las preferencias son las del paso 3 que el Catalogo guardo y reenvio en
         # la carga; {} para el kit del colegio (se arma con las preferencias base).
-        respuesta = await trabajos.crear(
-            self.motor_inteligencia,
-            hijos=[hijo],
-            preferencias=carga.get("preferencias") or {},
-            origen=origen,
-            usuario_id=usuario_id,
-            en_proceso=True,
-        )
+        try:
+            respuesta = await trabajos.crear(
+                self.motor_inteligencia,
+                hijos=[hijo],
+                preferencias=carga.get("preferencias") or {},
+                origen=origen,
+                usuario_id=usuario_id,
+                en_proceso=True,
+                evento=evento,
+            )
+        except trabajos.EventoRepetido:
+            # Solo con broker: otra entrega del mismo evento ya creo su trabajo.
+            return Resultado.OMITIR
         trabajo_id = uuid.UUID(respuesta["trabajo_id"])
 
         # El trabajo nace `procesando` (`en_proceso`): este poller lo procesa
@@ -248,13 +289,22 @@ async def regenerar_canonicos(motor_inteligencia: Any, catalogo: Any) -> tuple[i
         if f.origen != trabajos.ORIGEN_CANONICO or hijo.get("basado_en") or not hijo.get("version_id"):
             saltados.append(nombre)
             continue
+        # La version se relee justo antes de rearmar, no se toma de la lista leida
+        # al empezar. Mientras esto recorre los 18 grados, el poller puede fijar
+        # el canonico de una version nueva (la que deja `importar`), y rearmar
+        # con la version leida al principio lo pisaba con la vieja: le paso a
+        # Decimo y Once el 2026-10-12.
+        async with motor_inteligencia.engine.begin() as conexion:
+            version = await trabajos.version_canonica(
+                conexion, f.colegio_id, f.grado, int(f.anio_lectivo)
+            ) or str(hijo["version_id"])
         trabajo_id = await armar_canonico(
             motor_inteligencia,
             catalogo,
             f.colegio_id,
             f.grado,
             int(f.anio_lectivo),
-            str(hijo["version_id"]),
+            str(version),
             regenera=True,
         )
         async with motor_inteligencia.engine.begin() as conexion:
@@ -298,6 +348,28 @@ async def correr_una_vez() -> int:
         await motor_inteligencia.cerrar()
 
 
+async def escuchar_cola(url: str, *, seguir: bool, intervalo: float = 5.0) -> int:
+    """Con RabbitMQ (ADR 0046): consume `inteligencia.listas` en vez de sondear.
+
+    Solo abre la base de Inteligencia, donde tambien vive `evento_procesado`.
+    Sin `seguir`, procesa lo que hay en la cola y vuelve; con `seguir`, escucha
+    sobre `bucle_resiliente`."""
+    motor_inteligencia = crear_motor("inteligencia")
+    poller = Poller(motor_inteligencia=motor_inteligencia, motor_catalogo=None, catalogo=ClienteCatalogo())
+    try:
+        return await consumir(
+            url,
+            Consumidor(
+                cola=LISTAS, manejar=poller.manejar, registro=RegistroEnTabla(motor_inteligencia.engine)
+            ),
+            seguir=seguir,
+            proceso="inteligencia-poller",
+            intervalo=intervalo,
+        )
+    finally:
+        await motor_inteligencia.cerrar()
+
+
 async def _regenerar() -> tuple[int, list[str]]:
     motor_inteligencia = crear_motor("inteligencia")
     try:
@@ -306,12 +378,15 @@ async def _regenerar() -> tuple[int, list[str]]:
         await motor_inteligencia.cerrar()
 
 
-async def _bucle(intervalo: float) -> None:
-    while True:
+async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]] | None = None) -> None:
+    async def _vuelta() -> None:
         arrancados = await correr_una_vez()
         if arrancados:
             print(f"[poller] kits de ruta rapida arrancados: {arrancados}")
-        await asyncio.sleep(intervalo)
+
+    await bucle_resiliente(
+        _vuelta, intervalo=intervalo, proceso="inteligencia-poller", dormir=dormir or asyncio.sleep
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -326,6 +401,7 @@ def main(argv: list[str] | None = None) -> int:
         help="Rearma los kits canonicos automaticos con la logica actual (salta los editados a mano).",
     )
     argumentos = analizador.parse_args(argv)
+    configurar_registro("inteligencia-poller")
 
     if argumentos.regenerar_canonicos:
         rearmados, saltados = asyncio.run(_regenerar())
@@ -334,6 +410,12 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[canonicos] saltado (puede tener lineas elegidas a mano): {nombre}")
         return 0
 
+    url = url_broker()
+    if url:
+        procesados = asyncio.run(escuchar_cola(url, seguir=argumentos.seguir, intervalo=argumentos.intervalo))
+        if not argumentos.seguir:
+            print(f"[poller] mensajes de {LISTAS.nombre}: {procesados}")
+        return 0
     if argumentos.seguir:
         asyncio.run(_bucle(argumentos.intervalo))
     else:

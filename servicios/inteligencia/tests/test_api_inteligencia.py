@@ -19,6 +19,7 @@ import pytest
 from conftest import CatalogoFalso, opcion, reconocido, renglon
 from tukit_inteligencia import trabajos
 from tukit_inteligencia.api import app
+from tukit_inteligencia.remoto import RemotoCaido
 
 COLEGIO = "11111111-1111-5111-8111-111111111111"
 
@@ -39,9 +40,12 @@ async def cliente(motor, monkeypatch):
         lanzados.append(trabajo_id)
 
     monkeypatch.setattr(trabajos, "lanzar", _lanzar_falso)
+    # Crear pregunta al catalogo si hay lista: nunca al de verdad.
+    app.state.catalogo = _catalogo()
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
         http.lanzados = lanzados
         yield http
+    del app.state.catalogo
 
 
 class IdentidadDoble:
@@ -113,6 +117,48 @@ class TestCrearDevuelve202:
         assert cuerpo["error"] == "entrada_invalida"
         assert "input" not in respuesta.text
         assert set(cuerpo) <= {"error", "mensaje", "campo"}
+
+
+class TestSinListaSeRechazaAlCrear:
+    """H-C-03: sin lista para ningun hijo el trabajo nacia con 202 y fallaba
+    1,7 s despues con `sin_lista_oficial`. Ahora se dice en el acto."""
+
+    async def test_ningun_hijo_con_lista_es_422_y_no_encola(self, cliente):
+        respuesta = await cliente.post(
+            "/v1/trabajos",
+            json=_peticion(hijos=[{"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Primero"}]),
+        )
+
+        assert respuesta.status_code == 422
+        cuerpo = respuesta.json()
+        assert cuerpo["error"] == "sin_lista_oficial"
+        assert "Sube el archivo de la lista" in cuerpo["mensaje"]
+        assert cliente.lanzados == []
+
+    async def test_basta_con_que_un_hijo_tenga_lista(self, cliente):
+        respuesta = await cliente.post(
+            "/v1/trabajos",
+            json=_peticion(
+                hijos=[
+                    {"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"},
+                    {"referencia": "hijo-2", "colegio_id": COLEGIO, "grado": "Primero"},
+                ]
+            ),
+        )
+        assert respuesta.status_code == 202
+
+    async def test_con_el_catalogo_caido_se_encola_como_antes(self, cliente):
+        class CatalogoCaido:
+            async def listas(self, **_kw):
+                raise RemotoCaido("catalogo", "simulado")
+
+        app.state.catalogo = CatalogoCaido()
+        respuesta = await cliente.post(
+            "/v1/trabajos",
+            json=_peticion(hijos=[{"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Primero"}]),
+        )
+        assert respuesta.status_code == 202
+        assert len(cliente.lanzados) == 1
 
 
 class TestLaSesionEsLaProdiedad:

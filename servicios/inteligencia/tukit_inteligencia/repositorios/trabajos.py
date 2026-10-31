@@ -203,8 +203,10 @@ class RepoTrabajos:
     async def emitir_evento(self, trabajo_id: uuid.UUID) -> None:
         """Deja `kits_publicados` en la bandeja, en la MISMA transaccion.
 
-        El repartidor de Operacion (`tukit_operacion.repartidor`) lo drena y avisa
-        al acudiente resolviendo su `usuario_id` desde `trabajo_pipeline`. Por eso
+        El repartidor de Operacion (`tukit_operacion.repartidor`) lo recibe y avisa
+        al acudiente. La carga trae su `usuario_id` (ADR 0046): con RabbitMQ el
+        repartidor no lee `trabajo_pipeline`, asi que el destinatario tiene que
+        viajar en el evento. Sin broker lo sigue resolviendo desde la tabla. Por eso
         este evento solo tiene sentido en un trabajo con acudiente; un preview
         (`usuario_id` NULL) no llega aca —`revisar` lo rechaza antes— para no dejar
         un evento sin destinatario que el repartidor reintente sin fin.
@@ -213,12 +215,33 @@ class RepoTrabajos:
         que el paso a PUBLICADO, de modo que un rollback a mitad se lleva el evento
         con el cambio de estado (no dual-write).
         """
+        usuario_id = await self.c.scalar(select(TRABAJO.c.usuario_id).where(TRABAJO.c.id == trabajo_id))
+        carga: dict[str, Any] = {"trabajo_id": str(trabajo_id), "publicado_en": _ahora().isoformat()}
+        if usuario_id is not None:
+            carga["usuario_id"] = str(usuario_id)
         await self.c.execute(
             insert(BANDEJA).values(
                 tipo="kits_publicados",
                 agregado_tipo="trabajo_pipeline",
                 agregado_id=trabajo_id,
-                carga=con_correlacion({"trabajo_id": str(trabajo_id), "publicado_en": _ahora().isoformat()}),
+                carga=con_correlacion(carga),
+            )
+        )
+
+    async def avisar_encolado(self, trabajo_id: uuid.UUID) -> None:
+        """Deja `trabajo_encolado` en la bandeja, en la MISMA transaccion (ADR 0046).
+
+        Con RabbitMQ, el publicador de Inteligencia lo lleva a la cola
+        `inteligencia.trabajos` y el trabajador reclama la fila al recibirlo, en
+        vez de sondear la tabla. Si el aviso se pierde, el barrido del trabajador
+        recoge el trabajo igual. Quien llama decide si hay broker.
+        """
+        await self.c.execute(
+            insert(BANDEJA).values(
+                tipo="trabajo_encolado",
+                agregado_tipo="trabajo_pipeline",
+                agregado_id=trabajo_id,
+                carga=con_correlacion({"trabajo_id": str(trabajo_id)}),
             )
         )
 

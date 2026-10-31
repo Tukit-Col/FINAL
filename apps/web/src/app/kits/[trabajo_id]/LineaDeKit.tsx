@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeftRight, Check } from "lucide-react";
 import { cambiarProductoDeKit, FalloApi } from "@/lib/api-navegador";
+import { pistaDeTienda } from "@/lib/kit-vista";
 import {
   ETIQUETA_NIVEL,
   formatearPesos,
@@ -26,11 +27,15 @@ import styles from "./Kits.module.css";
 export default function LineaDeKit({
   linea,
   clase,
+  nombreHijo,
   trabajoId,
   perfil,
 }: {
   linea: LineaKit;
   clase: ClaseLinea;
+  // El apodo del hijo (o "Hijo N"); `linea.hijo` es una referencia interna y
+  // no se pinta nunca.
+  nombreHijo?: string;
   trabajoId: string;
   perfil: string;
 }) {
@@ -38,6 +43,7 @@ export default function LineaDeKit({
   const producto = linea.producto_elegido;
   const razon = razonDeNoCobrar(linea);
   const alternativas = linea.alternativas ?? [];
+  const pista = producto ? pistaDeTienda(producto.ofertas ?? []) : null;
 
   return (
     <li className={styles.linea}>
@@ -52,7 +58,7 @@ export default function LineaDeKit({
           <p className={styles.descripcion}>{linea.descripcion}</p>
 
           <p className={styles.meta}>
-            {linea.hijo && <span className={styles.hijo}>{linea.hijo}</span>}
+            {nombreHijo && <span className={styles.hijo}>{nombreHijo}</span>}
             {typeof linea.cantidad_pedida === "number" && (
               <span>
                 pide {linea.cantidad_pedida}
@@ -146,13 +152,8 @@ export default function LineaDeKit({
           )}
           {/* Las ofertas por tienda son opcionales: el backend las omite en la
               línea del kit (el producto ya trae su `precio`). Se pinta la pista
-              de tienda solo cuando existe, en vez de asumir que siempre viene. */}
-          {producto && (producto.ofertas?.length ?? 0) > 0 && (
-            <span className={styles.tienda}>
-              en {producto.ofertas![0]?.tienda}
-              {producto.ofertas!.length > 1 && ` · ${producto.ofertas!.length} tiendas`}
-            </span>
-          )}
+              de tienda solo cuando trae un nombre, en vez de un "en" vacío. */}
+          {pista && <span className={styles.tienda}>{pista}</span>}
         </div>
       </div>
 

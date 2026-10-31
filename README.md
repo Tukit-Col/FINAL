@@ -24,12 +24,16 @@ make verificar    # todo lo que corre la integración continua
 - **Node 20+** y **npm** (los frontends son un workspace de npm, no pnpm).
 - **Postgres 16 con `pgvector`** — o **Docker**, que lo levanta por ti con `make bd-arriba`
   (imagen `pgvector/pgvector:pg16`). Sin Docker necesitas Postgres 16 local y `make bd-crear`.
+- **RabbitMQ 3.13 o 4.x**, opcional. Sin él, los procesos de fondo sondean las bases. Con
+  Docker, `make bd-arriba` lo levanta junto a Postgres.
+- **Redis 7 u 8**, opcional. Sin él no hay caché, y el límite de tasa cuenta en la memoria de la
+  puerta. Con Docker, `make infra-arriba` lo levanta.
 
 ## Levantar el backend completo
 
 ```bash
 make preparar     # entorno y dependencias
-make bd-arriba    # Postgres con las 5 bases   (con Docker)
+make bd-arriba    # Postgres con las 5 bases y RabbitMQ   (con Docker)
 make bd-crear     # las 5 bases + extensiones  (sin Docker, Postgres 16 local)
 make backend      # migra, siembra y levanta los cuatro procesos HTTP
 make humo         # golpea la API y falla si algún endpoint viene vacío
@@ -50,12 +54,24 @@ TUKIT_API_URL=http://127.0.0.1:8010
 
 | Proceso | Puerto | Qué atiende |
 |---|---|---|
-| **gateway** | **8010** | La única URL que el frontend conoce. Rutea por prefijo declarado |
+| **gateway** | **8010** | La única URL que el frontend conoce. Rutea por prefijo declarado y limita la tasa |
 | identidad | 8011 | `/v1/colegios`, `/v1/grados`, `/v1/contactos` |
 | catalogo | 8012 | `/v1/catalogo/*`, `/v1/listas*` |
 | inteligencia | 8013 | `/v1/trabajos*`, `/v1/admin/*` |
 
 `make estado` pregunta a la puerta cuáles de los tres responden; `make abajo` los detiene.
+
+`make arriba` lanza también los procesos de fondo: el trabajador, los sondeadores, el repartidor
+y el barredor. Antes pregunta si RabbitMQ responde en `RABBITMQ_URL`, que por omisión es
+`amqp://guest:guest@localhost:5672/`. Si responde, los lanza con el broker y suma los tres
+publicadores de bandeja. Si no responde, o si `RABBITMQ_URL` está vacía, sondean las bases como
+antes (ADR 0046).
+
+Lo mismo hace con Redis en `REDIS_URL`, que por omisión es `redis://localhost:6379/0`. Si
+responde, catálogo, inteligencia y la puerta arrancan con él: una lista ya leída no se vuelve a
+leer, el vector de un renglón no se vuelve a pedir y el contador del límite de tasa es compartido.
+Si no responde, o con `make arriba REDIS_URL=`, arrancan sin caché y la puerta cuenta en su memoria
+(ADR 0047). `make prueba-redis` corre las pruebas contra Redis, en la base 15.
 Cada servicio publica su OpenAPI en `/docs`. La fuente de verdad, de todas formas, es
 [el contrato](docs/arquitectura/CONTRATO_API.md), que desde la versión 1.1 documenta la
 superficie de lectura completa con ejemplos de respuestas reales.
@@ -87,6 +103,32 @@ real a traves del gateway: solo hay que decirle donde esta. `TUKIT_API_URL` es o
 # apps/web/.env.local  y  apps/admin/.env.local
 TUKIT_API_URL=http://127.0.0.1:8010
 ```
+
+### Google Maps en el checkout (opcional)
+
+`apps/web` puede sugerir la dirección de entrega con Google Places (ADR 0044). Sin llave, la
+dirección es un campo de texto libre y todo lo demás funciona igual. Desarrollo y CI no la
+necesitan.
+
+La llave es `GOOGLE_MAPS_API_KEY` en `apps/web/.env.local`, **sin** `NEXT_PUBLIC_`. La lee la
+página de servidor del kit y solo llega al navegador en el checkout. Como toda llave de Maps
+JavaScript, el navegador la ve, así que se restringe:
+
+1. En Google Cloud, un proyecto con facturación activa.
+2. Habilita **Maps JavaScript API** y **Places API (New)**.
+3. Crea una llave en *APIs y servicios → Credenciales*.
+4. Restríngela:
+   - por **sitios web (referrer)**: `http://localhost:3000/*`, `http://127.0.0.1:3000/*` y el
+     dominio de producción;
+   - por **API**: solo las dos de arriba.
+5. Baja las cuotas diarias de las dos APIs y pon una alerta de presupuesto. La alerta solo
+   avisa; la cuota es lo que corta el gasto.
+6. Pégala en `apps/web/.env.local` como `GOOGLE_MAPS_API_KEY=...` y reinicia `npm run dev:web`.
+7. Verifica: en el checkout, escribe tres letras de una dirección y deben salir sugerencias con
+   "Google Maps" al pie. Si la llave es rechazada, el campo vuelve a ser texto libre.
+
+El checkout solo pide campos Essentials (`formattedAddress`, `addressComponents`), usa un token
+de sesión por búsqueda y guarda el `place_id`, nunca coordenadas.
 
 El `.env` del backend se copia de [`.env.ejemplo`](.env.ejemplo). Todo tiene defaults de
 desarrollo, así que puedes arrancar sin tocarlo. Dos variables son opcionales pero mejoran
@@ -301,8 +343,8 @@ NetworkX completo en cada ítem. Construirlo cuesta 1.673 ms; consultarlo, 0,137
 
 Cacheándolo, una lista de veinte ítems baja de 35,1 s a 1,7 s. Reescribir en Go lo que
 queda daría, por la ley de Amdahl, entre 20,0 % y 21,7 %, y casi todo sería reimplementar
-pymoo, que no tiene equivalente en Go y con el que se produjeron los resultados de
-hipervolumen de la tesis.
+pymoo, que no tiene equivalente en Go: con él corre el NSGA-II del optimizador y se
+produjeron los resultados de hipervolumen de la tesis.
 
 Por eso **seis de siete componentes son Python**. El único con argumento real para Go es
 `ingesta`, y aun ahí sus cuellos de hoy son estructurales y no de lenguaje: los vendedores
@@ -407,18 +449,11 @@ funcionar.
   Inteligencia tienen su revisión aplicada y sin deriva. Comercio y Operación todavía no
   tienen modelos; se agregan a `SERVICIOS_CON_MIGRACIONES` en el Makefile el día que los
   tengan.
-- **El optimizador es una heurística, no NSGA-II.** Los tres kits salen, son comparables y
-  usan el mismo vocabulario de objetivos que usaría el frente de Pareto, pero no son un
-  frente. Cambiarlo es reemplazar `optimizador.elegir_por_perfil` y nada más; lo que ya es
-  definitivo (la aritmética de unidades, que lo informativo no se cobre, la regla de
-  recomendación) está probado aparte para que sobreviva al reemplazo.
-- **El pipeline corre como tarea del propio proceso.** Un trabajo en vuelo cuando el
-  servicio se reinicia queda en `procesando` hasta que alguien lo reencole con
-  `POST /v1/trabajos/{id}/reintentar`. El estado sí está en la base, que es lo que hace
-  posible el rescate; lo que falta es el trabajador que lo haga solo.
-- **La bandeja de salida de Inteligencia no tiene repartidor.** Al publicar un trabajo se
-  escribe `kits_publicados` en la misma transacción y nadie lo recoge, así que el aviso al
-  acudiente no sale. Es la misma deuda que el manifiesto documenta del sistema anterior.
+- **Sin RabbitMQ, tres procesos leen la base de otro servicio.** El repartidor lee las
+  bandejas de inteligencia y de comercio, y los dos sondeadores la de catálogo. Con
+  `RABBITMQ_URL`, cada productor publica su bandeja y nadie lee bases ajenas. El manifiesto
+  declara esas lecturas como el respaldo sin broker (ADR 0046). Quitar el respaldo es una
+  decisión pendiente.
 - **El bloque `api` del compose nunca se ha ejecutado.** La máquina donde se escribió no
   tiene Docker. El camino verificado es `make arriba`, contra el árbol de trabajo.
 - **`make bd-deriva` no corre en integración continua.** Necesita un Postgres vivo y la

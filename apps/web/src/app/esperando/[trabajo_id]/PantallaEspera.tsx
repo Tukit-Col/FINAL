@@ -50,11 +50,14 @@ export default function PantallaEspera({
   const [trabajo, setTrabajo] = useState<Trabajo | null>(null);
   const [fallo, setFallo] = useState<FalloApi | null>(null);
   const [segundos, setSegundos] = useState(0);
+  // Cada vuelta arranca el sondeo otra vez; la sube el boton que aparece tras
+  // un 429, porque el sondeo no lo reintenta solo.
+  const [vuelta, setVuelta] = useState(0);
 
   useEffect(() => {
     const parar = sondear(trabajoId, setTrabajo, setFallo);
     return parar;
-  }, [trabajoId]);
+  }, [trabajoId, vuelta]);
 
   useEffect(() => {
     const reloj = setInterval(() => setSegundos((s) => s + 1), 1000);
@@ -94,6 +97,27 @@ export default function PantallaEspera({
   // existe aqui es la solicitud del kit, y asi se llama en el panel.
   const chapa = <span className={styles.chapa}>Solicitud {trabajoId.slice(0, 8)}</span>;
 
+  // El 429 del sondeo (cupo de la cuenta agotado): el sondeo no lo reintenta
+  // solo, asi que el boton lo arranca otra vez. Sale tambien en la revision,
+  // que sigue sondeando hasta que se publique.
+  const avisoLimite = fallo?.estado === 429 && (
+    <>
+      <div className={styles.error} role="alert">
+        {fallo.message} Tu solicitud sigue avanzando mientras tanto.
+      </div>
+      <button
+        type="button"
+        className={styles.boton}
+        onClick={() => {
+          setFallo(null);
+          setVuelta((v) => v + 1);
+        }}
+      >
+        Consultar de nuevo
+      </button>
+    </>
+  );
+
   if (enRevision) {
     // La revision humana puede tardar horas: no tiene sentido tener al
     // acudiente mirando una ruedita y un reloj. Se le confirma que la
@@ -119,6 +143,7 @@ export default function PantallaEspera({
               Mientras tanto, la encuentras en <strong>Mis solicitudes</strong>.
             </p>
           ) : null}
+          {avisoLimite}
           <Link href={conSesion ? "/dashboard#solicitudes" : "/"} className={styles.boton}>
             {conSesion ? "Ir a Mis solicitudes" : "Volver al inicio"}
           </Link>
@@ -172,6 +197,8 @@ export default function PantallaEspera({
             escríbenos: la solicitud queda guardada.
           </div>
         )}
+
+        {avisoLimite}
 
         <footer className={styles.pie}>
           <span className="cifra">{formatearReloj(segundos)} esperando</span>

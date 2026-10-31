@@ -153,6 +153,9 @@
 
 .ms {
   margin-left: auto;
+  /* "1.5 s" se partia en dos renglones ("1.5 / s") en el celular. */
+  white-space: nowrap;
+  flex-shrink: 0;
   font-size: 12px;
   color: var(--color-success);
   font-weight: 700;

@@ -297,6 +297,20 @@ class TareaImportacion(Base):
     # conocido (o el onboarding de administrador) no trae datos que crear.
     colegio_datos: Mapped[Any | None] = mapped_column(JSON, nullable=True)
 
+    # La clave con que inteligencia reintenta una importacion (ADR 0040): una
+    # subida que encontro el catalogo caido se importa despues, y si un intento
+    # entro pero su respuesta se perdio, el siguiente trae la misma clave y
+    # recibe esta tarea en vez de crear otra version. Unica, y nullable porque
+    # el onboarding de administrador y las tareas de antes no la traen.
+    clave_idempotencia: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+
+    # Cuando el acudiente cancelo esta subida desde "Mis solicitudes". Retirar
+    # borra `contacto_referencia`, y sin contacto no se distingue de una tarea
+    # que nunca lo tuvo (onboarding): esta marca es la que saca de la cola de
+    # verificacion una lista que ya nadie espera (H-07). Nullable: casi
+    # ninguna tarea se retira.
+    retirada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # NO hay `caso_id` aqui, y la ausencia es deliberada.
     #
     # La version anterior de esta tabla lo tenia, apuntando a `operacion.caso`.
@@ -332,6 +346,7 @@ class TareaImportacion(Base):
         # para satisfacer su propia invariante.
         CheckConstraint("estado <> 'fallida' OR error IS NOT NULL", name="tarea_fallida_tiene_diagnostico"),
         Index("ix_tarea_pendiente", "estado", "actualizada_en"),
+        Index("uq_tarea_clave_idempotencia", "clave_idempotencia", unique=True),
     )
 
 

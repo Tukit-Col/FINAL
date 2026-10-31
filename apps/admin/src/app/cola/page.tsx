@@ -23,8 +23,10 @@ import type { EntradaCola, VersionListaAdmin } from "@tukit/contrato";
 import { GRADOS_CANONICOS } from "@tukit/contrato";
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import BorrarTrabajo from "@/components/BorrarTrabajo";
+import AvisoAcceso from "@/components/AvisoAcceso";
 import BorrarVersionLista from "@/components/BorrarVersionLista";
 import { formatearFecha, haceCuanto } from "@/lib/formato";
+import { motivoDeAcceso } from "@/lib/logistica";
 import SubirLista from "./SubirLista";
 import styles from "./Cola.module.css";
 
@@ -311,11 +313,19 @@ export default async function PaginaCola() {
   // Dos lecturas del mismo origen: las versiones PENDIENTES (el item real de la
   // cola) y los trabajos en vuelo (el ingreso de acudiente que aún no se ha
   // migrado a versión). Los colegios dan el nombre legible de cada `colegio_id`.
-  const [pendientes, { entradas }, colegios] = await Promise.all([
-    origenDeDatos().listasAdmin({ revisada: false }),
-    origenDeDatos().cola(),
-    origenDeDatos().colegios(),
-  ]);
+  let lecturas;
+  try {
+    lecturas = await Promise.all([
+      origenDeDatos().listasAdmin({ revisada: false }),
+      origenDeDatos().cola(),
+      origenDeDatos().colegios(),
+    ]);
+  } catch (causa) {
+    const motivo = motivoDeAcceso(causa);
+    if (motivo) return <AvisoAcceso motivo={motivo} mensaje={(causa as Error).message} />;
+    throw causa;
+  }
+  const [pendientes, { entradas }, colegios] = lecturas;
 
   const nombreColegio = new Map(colegios.map((c) => [c.colegio_id, c.nombre]));
   const nombreDe = (v: VersionListaAdmin): string =>

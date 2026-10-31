@@ -146,11 +146,24 @@ export function accionesDisponibles(estado: EstadoPedido): readonly AccionLogist
 
 // Por que la pantalla no puede mostrar logistica. Cada motivo tiene su texto
 // en `AvisoAcceso`.
-export type MotivoAcceso = "sin_sesion" | "sesion_expirada" | "sin_rol" | "servicio_caido";
+export type MotivoAcceso = "sin_sesion" | "sesion_expirada" | "sin_rol" | "servicio_caido" | "limite";
 
-/** El motivo a partir del HTTP con que fallo la lectura. */
+/** El motivo a partir del HTTP con que fallo la lectura. Un 429 es el limite de
+ *  tasa (ADR 0047): la sesion sigue viva y los servicios arriba, solo hay que
+ *  esperar. */
 export function motivoDeFallo(estado: number): MotivoAcceso {
   if (estado === 401) return "sesion_expirada";
   if (estado === 403) return "sin_rol";
+  if (estado === 429) return "limite";
   return "servicio_caido";
+}
+
+/** Si una lectura cayo por la sesion, el rol o el limite, el aviso que va en
+ *  su lugar; si no, `null` y la pagina decide (un 404 es `notFound`, una caida
+ *  sube). Desde que el gateway exige sesion en /v1/admin, un token vencido
+ *  rompia la pagina con un 500 en vez de decir "vuelve a ingresar". */
+export function motivoDeAcceso(causa: unknown): MotivoAcceso | null {
+  const estado = (causa as { estado?: unknown } | null | undefined)?.estado;
+  if (estado === 401 || estado === 403 || estado === 429) return motivoDeFallo(estado);
+  return null;
 }

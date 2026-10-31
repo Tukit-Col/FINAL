@@ -74,7 +74,7 @@ export default async function PaginaLogistica({ searchParams }: Props) {
     return (
       <div className={styles.pagina}>
         <Encabezado />
-        <AvisoAcceso motivo={motivoDeFallo(causa.estado)} />
+        <AvisoAcceso motivo={motivoDeFallo(causa.estado)} mensaje={causa.message} />
       </div>
     );
   }
@@ -221,6 +221,10 @@ function FilaPedido({ pedido, etiquetas }: { pedido: Pedido; etiquetas: Etiqueta
       <td className={`${styles.num} cifra`}>{pedido.hijos}</td>
       <td className={styles.lista}>{nombresDeColegios(pedido.colegios, etiquetas.colegios) || "—"}</td>
       <td className={styles.envio}>
+        {pedido.envio ? (
+          // La localidad ordena la ruta del dia; fuera de Bogota, la ciudad.
+          <span className={styles.lugar}>{pedido.envio.localidad || pedido.envio.ciudad}</span>
+        ) : null}
         {pedido.envio?.repartidor_nombre ? (
           <span>{pedido.envio.repartidor_nombre}</span>
         ) : pedido.envio?.transportadora ? (

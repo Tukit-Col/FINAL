@@ -119,9 +119,22 @@
   margin: var(--espacio-2) var(--espacio-4);
 }
 
+/* Cerrar sesión: solo donde la cabecera no lo muestra (mismo corte, 680px). */
+.sidebar__salir {
+  display: none;
+}
+
 @media (max-width: 780px) {
   .sidebar {
     width: 100%;
     position: static;
+  }
+}
+
+@media (max-width: 680px) {
+  .sidebar__salir {
+    display: flex;
+    justify-content: center;
+    margin-top: var(--espacio-2);
   }
 }

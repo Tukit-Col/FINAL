@@ -323,10 +323,25 @@ export interface ItemRevision {
   modo_adquisicion: ModoAdquisicion | null;
   instruccion_colegio: string | null;
   url_externa: string | null;
+  // Lo CURADO por el revisor: manda sobre lo leido del texto, y el valor `*`
+  // (`NO_EXIGIR`) quita un atributo leido.
   atributos: Record<string, unknown>;
   requiere_revision: boolean;
   concepto_codigo: string | null;
   concepto_nombre: string | null;
+  // Lo que la ruta rapida le exigiria al renglon (`_lo_que_se_exige`): las
+  // claves curables (discriminantes del concepto asignado), lo leido del texto
+  // con la misma regla de `_renglon_resuelto`, el resultado con la curaduria
+  // encima y lo que el texto nombra con varios valores (no se exige). Vacios
+  // si el renglon no tiene concepto o el concepto no filtra por atributos.
+  atributos_discriminantes: string[];
+  atributos_leidos: Record<string, unknown>;
+  atributos_exigidos: Record<string, unknown>;
+  atributos_por_revisar: string[];
+  // Lo leido que el texto no dijo sino que se dedujo: hoy solo `unidades`
+  // ("mas de uno" por `caja de...` o un plural). Si ningun juego cumple, la
+  // ruta rapida lo suelta y vale la pieza suelta.
+  atributos_deducidos: string[];
 }
 
 // Una propuesta de producto pendiente para un renglon, tal como la sirve la
@@ -375,6 +390,10 @@ export interface PropuestaCola {
   puntaje: number;
   concepto: { codigo: string; nombre: string } | { sugerido: string | null };
   origen: string;
+  /** Atributos que quien propuso verificó contra la ficha de la tienda ({} si no hay). */
+  atributos_verificados?: Record<string, unknown>;
+  /** Los atributos con que nace el producto si se aprueba sin corregir nada. */
+  atributos_al_aprobar?: Record<string, unknown>;
 }
 
 // Un candidato de tienda tal como lo sirve `GET .../tiendas/{slug}/buscar`
@@ -590,6 +609,16 @@ export interface ColegioEditable {
   contacto_email?: string | null;
   contacto_telefono?: string | null;
 }
+
+// A que colegio va una lista que el staff sube desde la cola
+// (`POST /v1/admin/onboarding`). Las mismas tres formas que la subida del
+// acudiente: un colegio que Tukit ya conoce, una entrada del directorio de
+// Bogota (el colegio nace al aprobar, con el id derivado del DANE) o un nombre
+// escrito a mano porque no estaba en el directorio.
+export type ColegioDesignado =
+  | { colegio_id: string }
+  | { colegio_dane: string; colegio_nombre: string }
+  | { colegio_nombre: string };
 
 // La ficha COMPLETA del directorio DUEB para el detalle del colegio en el admin
 // (`GET /v1/directorio/{dane}`). Es un superconjunto de `DatosColegioNuevo`:

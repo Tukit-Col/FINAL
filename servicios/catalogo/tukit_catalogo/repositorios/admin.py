@@ -112,6 +112,14 @@ class RepoAdmin:
         procedencia = select(TAREA.c.origen).where(TAREA.c.id == tarea_reciente).scalar_subquery()
         contacto = select(TAREA.c.contacto_referencia).where(TAREA.c.id == tarea_reciente).scalar_subquery()
         colegio_datos = select(TAREA.c.colegio_datos).where(TAREA.c.id == tarea_reciente).scalar_subquery()
+        # Retirada por el acudiente (H-07): alguna tarea de la version se retiro
+        # y ninguna sigue viva. Una version con otra tarea viva (onboarding, otro
+        # acudiente) sigue en la cola.
+        tareas_de_version = select(TAREA.c.id).where(TAREA.c.version_id == VERSION.c.id).correlate(VERSION)
+        retirada = and_(
+            tareas_de_version.where(TAREA.c.retirada_en.is_not(None)).exists(),
+            ~tareas_de_version.where(TAREA.c.retirada_en.is_(None)).exists(),
+        )
         consulta = select(
             LISTA.c.id.label("lista_id"),
             LISTA.c.colegio_id,
@@ -124,6 +132,7 @@ class RepoAdmin:
             procedencia.label("procedencia"),
             contacto.label("contacto_referencia"),
             colegio_datos.label("colegio_datos"),
+            retirada.label("retirada_por_acudiente"),
         ).select_from(
             LISTA.join(
                 VERSION, and_(VERSION.c.lista_id == LISTA.c.id, VERSION.c.numero == ultimo_numero)
@@ -132,7 +141,9 @@ class RepoAdmin:
         if revisada is True:
             consulta = consulta.where(VERSION.c.revisada_en.is_not(None))
         elif revisada is False:
-            consulta = consulta.where(VERSION.c.revisada_en.is_(None))
+            # La cola de verificacion: lo que alguien tiene que revisar. Una
+            # lista que su acudiente retiro ya no la espera nadie.
+            consulta = consulta.where(VERSION.c.revisada_en.is_(None), ~retirada)
         if colegio_id is not None:
             consulta = consulta.where(LISTA.c.colegio_id == colegio_id)
         if grado:
@@ -219,6 +230,15 @@ class RepoAdmin:
             f.codigo: (tuple(f.atributos_discriminantes or ()), bool(f.uno_por_estudiante), f.tipo_item)
             for f in filas
         }
+
+    async def discriminantes_de_concepto(self, concepto_id: uuid.UUID | None) -> tuple[str, ...]:
+        """Los atributos que filtran de un concepto; ninguno si no hay concepto."""
+        if concepto_id is None:
+            return ()
+        valor = await self.c.scalar(
+            select(CONCEPTO.c.atributos_discriminantes).where(CONCEPTO.c.id == concepto_id)
+        )
+        return tuple(valor or ())
 
     async def descartar_aviso(self, item_id: uuid.UUID, version_id: uuid.UUID, clave: str) -> bool:
         """Agrega `clave` a los avisos descartados del renglon. False si no existe."""
@@ -313,6 +333,33 @@ class RepoAdmin:
 
     async def crear_tarea(self, **valores: Any) -> None:
         await self.c.execute(TAREA.insert().values(**valores))
+
+    async def importacion_por_clave(self, clave: uuid.UUID) -> dict[str, Any] | None:
+        """La importacion que ya entro con esta clave, con la respuesta que dio.
+
+        Es la que devuelve `importar_lista` cuando inteligencia reintenta
+        (ADR 0040): la misma version, la misma tarea y sus renglones.
+        """
+        fila = (
+            await self.c.execute(
+                select(TAREA.c.id, TAREA.c.version_id, VERSION.c.revisada_en)
+                .join(VERSION, VERSION.c.id == TAREA.c.version_id)
+                .where(TAREA.c.clave_idempotencia == clave)
+            )
+        ).first()
+        if fila is None:
+            return None
+        items = (
+            await self.c.execute(
+                select(func.count()).select_from(ITEM).where(ITEM.c.version_id == fila.version_id)
+            )
+        ).scalar_one()
+        return {
+            "version_id": str(fila.version_id),
+            "tarea_id": str(fila.id),
+            "items": int(items),
+            "revisada": fila.revisada_en is not None,
+        }
 
     async def listar_sugerencias(self) -> list[Any]:
         return list(
@@ -543,8 +590,11 @@ class RepoAdmin:
                 PROPUESTA.c.concepto_sugerido,
                 PROPUESTA.c.puntaje,
                 PROPUESTA.c.origen,
+                PROPUESTA.c.especificaciones,
                 CONCEPTO.c.codigo.label("concepto_codigo"),
                 CONCEPTO.c.nombre_canonico.label("concepto_nombre"),
+                CONCEPTO.c.atributos_discriminantes,
+                CONCEPTO.c.atributos_descriptivos,
             )
             .select_from(PROPUESTA.outerjoin(CONCEPTO, CONCEPTO.c.id == PROPUESTA.c.concepto_id))
             .where(PROPUESTA.c.estado == "pendiente")

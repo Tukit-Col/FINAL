@@ -15,15 +15,16 @@ from __future__ import annotations
 import base64
 import json
 import re
+import unicodedata
 import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, Query, Request
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field, ValidationError
 from tukit_comun import derivar
 from tukit_comun.http import ErrorDominio
 
-from .. import api, metricas, trabajos
+from .. import api, importaciones, metricas, trabajos
 from ..modelos import EstadoResolucion, EstadoTrabajo
 from ..percepcion import Percepcion
 from ..remoto import RemotoCaido
@@ -193,11 +194,20 @@ class AplicarCanonico(BaseModel):
 
 
 class EntregaCheckout(BaseModel):
-    """La direccion a la que se entrega. Se COPIA congelada en Comercio (ADR 0015)."""
+    """La direccion a la que se entrega. Se COPIA congelada en Comercio (ADR 0015).
+
+    Los opcionales llegan del checkout con Google Places: `localidad` (una de las
+    20 de Bogota, por nombre), `indicaciones` (apartamento, torre, interior) y el
+    `google_place_id` de la sugerencia elegida. Mismos largos que Comercio. Un
+    campo desconocido (coordenadas, p. ej.) se descarta aqui y no cruza."""
 
     destinatario: str = Field(min_length=1, max_length=256)
     direccion: str = Field(min_length=1, max_length=512)
     ciudad: str = Field(min_length=1, max_length=128)
+    departamento: str | None = Field(default=None, max_length=128)
+    indicaciones: str | None = Field(default=None, max_length=512)
+    localidad: str | None = Field(default=None, max_length=64)
+    google_place_id: str | None = Field(default=None, max_length=512)
 
 
 class PeticionCheckout(BaseModel):
@@ -241,9 +251,22 @@ async def crear_trabajo(peticion: PeticionTrabajo, solicitud: Request) -> dict[s
             campo="preferencias.pesos",
         )
 
+    hijos = [hijo.model_dump() for hijo in peticion.hijos]
+    # Sin lista para ningun hijo, el trabajo fallaria al procesarse con este
+    # mismo motivo: se dice ahora y no se encola (H-C-03). Un hogar con algun
+    # hijo sin lista sigue igual: ese hijo sale anotado en el kit.
+    if not await trabajos.alguna_lista_para(api._catalogo(), hijos):
+        raise ErrorDominio(
+            "sin_lista_oficial",
+            "No encontramos la lista oficial publicada para ese colegio y grado. "
+            "Sube el archivo de la lista o escoge otro grado.",
+            estado=422,
+            campo="hijos",
+        )
+
     respuesta = await trabajos.crear(
         api.app.state.motor,
-        hijos=[hijo.model_dump() for hijo in peticion.hijos],
+        hijos=hijos,
         contacto=peticion.contacto.model_dump() if peticion.contacto else None,
         preferencias=(peticion.preferencias.model_dump(exclude_none=True) if peticion.preferencias else {}),
         usuario_id=uuid.UUID(uid) if (uid := await api._usuario_de_la_peticion(solicitud)) else None,
@@ -401,7 +424,8 @@ async def ordenar_trabajo(trabajo_id: uuid.UUID, cuerpo: PeticionCheckout) -> di
             api.app.state.motor,
             trabajo_id,
             perfil=cuerpo.perfil,
-            entrega=cuerpo.entrega.model_dump(),
+            # Sin los `None`: el checkout legado manda el mismo cuerpo de siempre.
+            entrega=cuerpo.entrega.model_dump(exclude_none=True),
             correo=cuerpo.correo,
             metodo=cuerpo.metodo,
             url_redireccion=cuerpo.url_redireccion,
@@ -563,26 +587,24 @@ def _items_desde_percepcion(percepcion: Percepcion) -> tuple[list[dict[str, Any]
     return items, percepcion_cruda
 
 
-class HijoSubida(BaseModel):
-    """Un hijo de una subida de listas: a que (colegio, grado) va su PDF.
+class ColegioElegido(BaseModel):
+    """A que colegio va una lista subida, tal como lo designo quien la sube.
 
-    El colegio se designa de UNA de tres formas, y el backend deriva de ellas un
-    `colegio_id` estable (`colegio_resuelto`):
-      • `colegio_id`: un colegio ALIADO ya conocido (ruta "lista_oficial").
-      • `colegio_dane` (+ `colegio_nombre`): elegido del directorio de Bogota al
-        subir el archivo; el colegio aun no existe en Tukit y nacera cuando un
-        administrador apruebe. El id se deriva del DANE con el contrato compartido.
+    La comparten la subida del acudiente (`HijoSubida`) y el onboarding del staff
+    desde la cola: las dos puertas designan el colegio igual y derivan el mismo
+    `colegio_id`. Se designa de UNA de tres formas:
+      • `colegio_id`: un colegio que Tukit ya conoce (ruta "lista_oficial").
+      • `colegio_dane` (+ `colegio_nombre`): elegido del directorio de Bogota; el
+        colegio aun no existe en Tukit y nacera cuando un administrador apruebe.
+        El id se deriva del DANE con el contrato compartido.
       • solo `colegio_nombre`: escrito a mano porque no estaba en el directorio;
-        el id se deriva del nombre normalizado para que dos acudientes que
-        escriban el mismo colegio converjan a la misma version.
+        el id se deriva del nombre normalizado para que dos subidas del mismo
+        colegio converjan a la misma version.
     """
 
-    referencia: str = Field(min_length=1, max_length=64)
     colegio_id: str | None = Field(default=None, max_length=64)
     colegio_dane: str | None = Field(default=None, max_length=32)
     colegio_nombre: str | None = Field(default=None, max_length=256)
-    grado: str = Field(min_length=1, max_length=32)
-    anio_lectivo: int | None = Field(default=None, ge=2020, le=2100)
 
     def resolver_colegio(self) -> tuple[str, dict[str, Any] | None]:
         """El `colegio_id` estable y, si el colegio aun no existe en Tukit, los
@@ -613,6 +635,68 @@ class HijoSubida(BaseModel):
         )
 
 
+class HijoSubida(ColegioElegido):
+    """Un hijo de una subida de listas: a que (colegio, grado) va su PDF. El
+    colegio se designa como en `ColegioElegido`."""
+
+    referencia: str = Field(min_length=1, max_length=64)
+    grado: str = Field(min_length=1, max_length=32)
+    anio_lectivo: int | None = Field(default=None, ge=2020, le=2100)
+
+
+def _nombre_comparable(nombre: str | None) -> str:
+    """Minusculas, sin tildes y con espacios colapsados: "Colegio  ALAMEÍ" y
+    "colegio alamei" son el mismo nombre."""
+    sin_tildes = unicodedata.normalize("NFKD", nombre or "")
+    sin_tildes = "".join(c for c in sin_tildes if not unicodedata.combining(c))
+    return " ".join(sin_tildes.lower().split())
+
+
+async def _reusar_colegio_conocido(
+    colegio_id: str, colegio_datos: dict[str, Any] | None
+) -> tuple[str, dict[str, Any] | None]:
+    """Si el colegio "nuevo" ya existe en Identidad, su id y sin datos de alta.
+
+    El buscador de /empezar solo ofrece como aliado a los colegios con un grado
+    verificado; uno que existe sin listas hay que escribirlo "tal cual", y el id
+    derivado del nombre (o del DANE) no es el suyo: aprobar daba de alta un
+    duplicado (H-UG-01). Se pregunta a Identidad por su API, no por su base.
+    Coincide el mismo DANE, o el mismo nombre comparable si el que existe no
+    tiene DANE o tiene el mismo (dos homonimos con DANE distinto son dos
+    colegios). Sin Identidad, queda el id derivado de siempre.
+    """
+    if colegio_datos is None:
+        return colegio_id, colegio_datos
+    dane = colegio_datos.get("dane")
+    nombre = _nombre_comparable(colegio_datos.get("nombre"))
+    conocidos = await api._identidad().colegios_conocidos()
+    por_dane = [c for c in conocidos if dane and c.get("dane") == dane]
+    por_nombre = [
+        c
+        for c in conocidos
+        if nombre
+        and _nombre_comparable(c.get("nombre")) == nombre
+        and (not c.get("dane") or c.get("dane") == dane)
+    ]
+    for conocido in (*por_dane, *por_nombre):
+        if conocido.get("colegio_id"):
+            return str(conocido["colegio_id"]), None
+    return colegio_id, colegio_datos
+
+
+async def _completar_con_directorio(colegio_datos: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Colegio nuevo elegido del directorio: se pre-llena su perfil (direccion,
+    contacto, sitio) con el DUEB para que la cola no muestre un bloque vacio.
+    El nombre/dane de la subida mandan; el directorio solo tapa huecos. Sin DANE
+    (escrito a mano) o con Identidad caida, quedan los datos tal cual."""
+    if not (colegio_datos and colegio_datos.get("dane")):
+        return colegio_datos
+    del_dueb = await api._identidad().datos_directorio(colegio_datos["dane"])
+    if not del_dueb:
+        return colegio_datos
+    return {**del_dueb, **{k: v for k, v in colegio_datos.items() if v}}
+
+
 @router.post(
     "/v1/listas/subir",
     tags=["listas"],
@@ -630,11 +714,18 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
     ni telefono—. No se crea ningun trabajo: el padre espera a que un
     administrador apruebe la version, y recien ahi se arma su kit.
 
-    Es todo o nada por hogar: si la percepcion rechaza el archivo de un hijo
-    (varios grados, pagina a medias, ilegible) no se importa NADA y se responde
+    La percepcion es todo o nada por hogar: si rechaza el archivo de un hijo
+    (varios grados, pagina a medias, ilegible) no se guarda NADA y se responde
     422 con el codigo del rechazo, sin devolver jamas el contenido subido. Dos
     hijos del mismo (colegio, grado) comparten una sola version: se importa una
     vez para no pisar una lista con la otra.
+
+    Si el catalogo no responde (ADR 0040), la subida responde igual 202: lo que
+    no alcanzo a importarse queda guardado en `importacion_lista`, todo junto y
+    con lo ya percibido, y su hijo trae `version_id: null, estado: "pendiente"`.
+    El trabajador lo importa cuando el catalogo vuelve, con la misma clave de
+    idempotencia y sin volver a percibir. Con el catalogo arriba, la respuesta
+    es la de siempre y aqui no queda copia de la lista ni del PDF.
     """
     tipo = peticion.headers.get("content-type", "")
     if "multipart/form-data" not in tipo:
@@ -740,7 +831,7 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
     # del PDF (puede diferir del que el acudiente eligio) para deduplicar bien.
     percibidos: list[tuple[HijoSubida, str, bytes, Percepcion]] = []
     for hijo, pdf in zip(hijos, pdf_por_hijo, strict=True):
-        percepcion = api._percibir_onboarding(pdf)
+        percepcion = await api._percibir_onboarding(pdf)
         if not percepcion.aceptada:
             raise PercepcionRechazada(
                 percepcion.error or "percepcion_rechazada",
@@ -762,39 +853,80 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
     # DERIVA (del aliado elegido, del DANE del directorio o del nombre a mano) y
     # con el viajan los datos del colegio cuando este aun no existe en Tukit,
     # para que la cola lo muestre y la aprobacion cree su identidad.
-    catalogo = api._catalogo()
-    por_destino: dict[tuple[str, int], str] = {}
-    subidas: list[dict[str, Any]] = []
+    por_destino: dict[tuple[str, int], importaciones.Destino] = {}
+    destino_de_hijo: list[tuple[HijoSubida, str, tuple[str, int]]] = []
     anio_por_omision = 2026
     for hijo, grado, pdf, percepcion in percibidos:
-        colegio_id, colegio_datos = hijo.resolver_colegio()
-        # Colegio nuevo elegido del directorio: se pre-llena su perfil (direccion,
-        # contacto, sitio) con el DUEB para que la cola no muestre un bloque vacio.
-        # El nombre/dane de la subida mandan; el directorio solo tapa huecos.
-        if colegio_datos and colegio_datos.get("dane"):
-            del_dueb = await api._identidad().datos_directorio(colegio_datos["dane"])
-            if del_dueb:
-                colegio_datos = {**del_dueb, **{k: v for k, v in colegio_datos.items() if v}}
+        colegio_id, colegio_datos = await _reusar_colegio_conocido(*hijo.resolver_colegio())
         anio = hijo.anio_lectivo or anio_por_omision
         clave = (f"{colegio_id}|{grado}", anio)
-        version_id = por_destino.get(clave)
-        if version_id is None:
-            items, percepcion_cruda = _items_desde_percepcion(percepcion)
+        destino_de_hijo.append((hijo, grado, clave))
+        if clave in por_destino:
+            por_destino[clave].referencias.append(hijo.referencia)
+            continue
+        colegio_datos = await _completar_con_directorio(colegio_datos)
+        items, percepcion_cruda = _items_desde_percepcion(percepcion)
+        por_destino[clave] = importaciones.Destino(
+            colegio_id=colegio_id,
+            grado=grado,
+            anio_lectivo=anio,
+            referencias=[hijo.referencia],
+            items=items,
+            percepcion_cruda=percepcion_cruda,
+            documento=pdf,
+            colegio_datos=colegio_datos,
+        )
+
+    # Cada destino viaja con su clave de idempotencia (ADR 0040). Un rechazo del
+    # catalogo (un 4xx) sale como antes. Si el catalogo no responde, no se
+    # insiste con el resto: cada intento puede costar la espera entera del
+    # cliente. Ese destino y los que faltan quedan guardados con lo ya percibido,
+    # y el trabajador los importa cuando el catalogo vuelva.
+    catalogo = api._catalogo()
+    subida_id = uuid.uuid4()
+    versiones: dict[tuple[str, int], str] = {}
+    caida: RemotoCaido | None = None
+    for clave, destino in por_destino.items():
+        try:
             respuesta = await catalogo.importar_lista(
-                colegio_id=colegio_id,
-                grado=grado,
-                anio_lectivo=anio,
-                items=items,
-                documento_base64=base64.b64encode(pdf).decode(),
-                percepcion_cruda=percepcion_cruda,
+                colegio_id=destino.colegio_id,
+                grado=destino.grado,
+                anio_lectivo=destino.anio_lectivo,
+                items=destino.items,
+                documento_base64=base64.b64encode(destino.documento).decode(),
+                percepcion_cruda=destino.percepcion_cruda,
                 contacto_referencia=contacto_referencia,
                 preferencias=preferencias,
-                colegio_datos=colegio_datos,
+                colegio_datos=destino.colegio_datos,
                 origen="sugerencia_padre",
+                clave_idempotencia=str(importaciones.clave_de(subida_id, destino)),
             )
-            version_id = str(respuesta["version_id"])
-            por_destino[clave] = version_id
-        subidas.append({"referencia": hijo.referencia, "version_id": version_id, "grado": grado})
+        except RemotoCaido as error:
+            if not error.transitorio:
+                raise
+            caida = error
+            break
+        versiones[clave] = str(respuesta["version_id"])
+
+    if caida is not None:
+        pendientes = [destino for clave, destino in por_destino.items() if clave not in versiones]
+        await importaciones.guardar(
+            api.app.state.motor,
+            subida_id,
+            pendientes,
+            caida=caida,
+            contacto_referencia=contacto_referencia,
+            preferencias=preferencias,
+        )
+
+    subidas: list[dict[str, Any]] = []
+    for hijo, grado, clave in destino_de_hijo:
+        if clave in versiones:
+            subidas.append({"referencia": hijo.referencia, "version_id": versiones[clave], "grado": grado})
+        else:
+            subidas.append(
+                {"referencia": hijo.referencia, "version_id": None, "grado": grado, "estado": "pendiente"}
+            )
 
     return {"subidas": subidas, "contacto_referencia": contacto_referencia}
 
@@ -804,8 +936,22 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
     tags=["admin"],
     summary="Sube el PDF de una lista, lo percibe y lo importa al catalogo",
 )
-async def onboarding(peticion: Request) -> dict[str, Any]:
+async def onboarding(
+    peticion: Request, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
     """De un PDF a una lista en el catalogo, pasando por la percepcion.
+
+    Solo staff (`_exigir_staff`: 401 sin sesion, 403 sin rol, 503 si Identidad
+    no responde), y antes de leer el formulario: quien no puede subir no gasta
+    una lectura del PDF.
+
+    El colegio se designa como en la subida del acudiente (`ColegioElegido`):
+    `colegio_id` de uno que Tukit conoce, `colegio_dane` + `colegio_nombre` del
+    directorio de Bogota, o solo `colegio_nombre` escrito a mano. En los dos
+    ultimos el colegio aun no existe: sus datos viajan al catalogo
+    (`colegio_datos`) para que la cola muestre su nombre y la aprobacion lo cree
+    en Identidad. Sin `colegio_id` no hay acudiente esperando: el contacto va
+    vacio y el origen sigue siendo `onboarding`.
 
     La percepcion es la unica puerta: si rechaza el archivo (varios grados,
     pagina a medias, ilegible) no se importa nada y se responde 422 con el
@@ -814,16 +960,29 @@ async def onboarding(peticion: Request) -> dict[str, Any]:
     se acepta, es el PDF en base64 y la percepcion cruda por pagina, para que
     la revision humana del catalogo pueda contrastar.
     """
+    await _exigir_staff(authorization)
     tipo = peticion.headers.get("content-type", "")
     if "multipart/form-data" not in tipo:
         raise ErrorDominio("multipart_invalido", "Sube la lista como multipart/form-data.", estado=422)
     campos, archivos = _leer_multipart(await peticion.body(), tipo)
 
-    for requerido in ("colegio_id", "grado", "anio_lectivo"):
+    for requerido in ("grado", "anio_lectivo"):
         if requerido not in campos:
             raise ErrorDominio(
                 "campo_faltante", "Falta un campo del formulario de onboarding.", estado=422, campo=requerido
             )
+    try:
+        elegido = ColegioElegido(
+            colegio_id=campos.get("colegio_id") or None,
+            colegio_dane=campos.get("colegio_dane") or None,
+            colegio_nombre=campos.get("colegio_nombre") or None,
+        )
+    except ValidationError as error:
+        raise ErrorDominio(
+            "colegio_invalido", "El colegio de la lista no es válido.", estado=422, campo="colegio"
+        ) from error
+    # Antes de percibir: sin colegio no se gasta una lectura del PDF.
+    colegio_id, colegio_datos = elegido.resolver_colegio()
     archivo = archivos.get("archivo")
     if archivo is None:
         raise ErrorDominio(
@@ -836,7 +995,7 @@ async def onboarding(peticion: Request) -> dict[str, Any]:
             "anio_invalido", "El anio lectivo tiene que ser un numero.", estado=422, campo="anio_lectivo"
         ) from error
 
-    percepcion = api._percibir_onboarding(archivo)
+    percepcion = await api._percibir_onboarding(archivo)
     if not percepcion.aceptada:
         raise PercepcionRechazada(
             percepcion.error or "percepcion_rechazada",
@@ -847,14 +1006,29 @@ async def onboarding(peticion: Request) -> dict[str, Any]:
     # Mismo mapeo (renglones + evidencia por pagina) que la subida del acudiente.
     items, percepcion_cruda = _items_desde_percepcion(percepcion)
 
-    respuesta = await api._catalogo().importar_lista(
-        colegio_id=campos["colegio_id"],
-        grado=percepcion.grados[0] if percepcion.grados else campos["grado"],
-        anio_lectivo=anio_lectivo,
-        items=items,
-        documento_base64=base64.b64encode(archivo).decode(),
-        percepcion_cruda=percepcion_cruda,
-    )
+    colegio_id, colegio_datos = await _reusar_colegio_conocido(colegio_id, colegio_datos)
+    colegio_datos = await _completar_con_directorio(colegio_datos)
+    # A diferencia de la subida del acudiente, aqui no se difiere (ADR 0040):
+    # el formulario del administrador necesita el `version_id` en el acto para
+    # pasar a la curaduria, y el administrador puede volver a intentar.
+    try:
+        respuesta = await api._catalogo().importar_lista(
+            colegio_id=colegio_id,
+            grado=percepcion.grados[0] if percepcion.grados else campos["grado"],
+            anio_lectivo=anio_lectivo,
+            items=items,
+            documento_base64=base64.b64encode(archivo).decode(),
+            percepcion_cruda=percepcion_cruda,
+            colegio_datos=colegio_datos,
+        )
+    except RemotoCaido as error:
+        if not error.transitorio:
+            raise
+        raise ErrorDominio(
+            "servicio_no_disponible",
+            "El catalogo no responde; la lista no se guardo. Intenta de nuevo en un momento.",
+            estado=503,
+        ) from error
     return {
         "version_id": respuesta["version_id"],
         "grado": percepcion.grados[0] if percepcion.grados else campos["grado"],

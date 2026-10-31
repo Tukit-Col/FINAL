@@ -225,6 +225,9 @@ graph TB
     %% caminos no felices
     a2 -.->|"PDF de 13 grados"| e1["422 lista_de_varios_grados"]
     a2 -.->|"colegio desconocido"| e2["Alta de colegio nuevo<br/>QUIEN LO HACE?"]
+    a2 -.->|"catalogo caido"| e9["202 · la lista queda guardada<br/>y se importa sola al volver<br/>ADR 0040"]
+    pipe -.->|"Postgres o RabbitMQ caidos"| e10["Los procesos de fondo<br/>esperan y siguen · ADR 0041"]
+    vb -.->|"el evento llega otra vez"| e11["Un solo aviso por evento<br/>ADR 0042"]
     pipe -.->|"sin candidato admisible"| e3["SIN_MATCH · va a la cola"]
     pipe -.->|"entendido, no lo tengo"| e4["HUECO_CATALOGO<br/>ofrece sustituto"]
     marca -.->|"uniforme"| e5["fuera_de_alcance<br/>linea informativa"]
@@ -253,6 +256,14 @@ prototipo, que truncaba a cinco páginas en silencio. El corpus lo justifica: el
 Lo que falta en la ruta del acudiente, en orden de gravedad: la captura de contacto no existe en
 ninguna pantalla; no hay pantalla de espera ni número de solicitud; la selección de colegio y
 grado es mock (`mock-data.ts`); y el aviso no existe porque `operacion` está vacío.
+
+> **Actualización 2026-10-19, rama `arreglos/h-b-01-03`.** La entrada B ya no depende de que el
+> catálogo responda en el momento. Con el catálogo caído, `POST /v1/listas/subir` responde `202`.
+> Lo que el catálogo no recibió queda guardado en `inteligencia.importacion_lista`, con lo ya
+> percibido. El trabajador lo importa cuando el catálogo vuelve, sin volver a percibir, y una clave
+> de idempotencia por subida y destino impide que el reintento duplique la versión (ADR 0040). La
+> pantalla "Recibimos tu lista" le dice al acudiente que no tiene que volver a subirla, y "Mis
+> solicitudes" la muestra como recibida. Con el catálogo arriba, la subida es la de antes.
 
 ### 2.3 El admin
 
@@ -347,6 +358,17 @@ construcción, y es el único actor cuyo panel completo está por hacer.
 | El papá nunca escribe por WhatsApp | El correo (`FU-02`) queda como canal de respaldo | **Sin política de caducidad.** Ver §6, decisión abierta 2 |
 | El colegio publica lista nueva a mitad de año | Nueva `version_lista_oficial` con `numero+1` y `vigente=true`; la anterior deja de serlo | El índice único parcial `uq_version_lista_vigente` ya lo garantiza. Lo que falta es el efecto sobre los kits ya entregados. Ver §4.4 |
 | Llegan los textos diferidos | Reabrir el trabajo del acudiente | **Sin mecanismo.** Ver §4.4 |
+
+> **Actualización 2026-10-19, rama `arreglos/h-b-01-03`.** La verificación de caos de QA (fases 7
+> a 9) recorrió caminos no felices que esta tabla no tenía, y fallaban. La rama los corrige, junto
+> con el onboarding del administrador, que hace la misma llamada al catálogo:
+>
+> | Situación | Qué pasa ahora | Dónde |
+> |---|---|---|
+> | El catálogo no responde cuando el acudiente sube su lista | `202`. El hijo afectado trae `version_id: null` y `estado: "pendiente"`, y la lista se importa sola cuando el catálogo vuelve, una sola vez. Antes: `500`, y la lista se perdía | ADR 0040 |
+> | El catálogo no responde en el onboarding del administrador | `503 servicio_no_disponible`, con un mensaje que dice que la lista no se guardó, y el administrador vuelve a intentar. Antes: `500` | ADR 0040 |
+> | Postgres o RabbitMQ se caen y vuelven | El barredor, los dos pollers, el trabajador y el repartidor esperan, con un WARNING en el log, y siguen. Antes morían y no volvían. Un error de programación los sigue terminando | ADR 0041 |
+> | El broker falla después de que salió un aviso | La bandeja entrega el evento otra vez y el repartidor no vuelve a avisar. Antes, un pago avisaba dos veces | ADR 0042 |
 
 ---
 
@@ -671,6 +693,16 @@ se ve el flujo funcionando; **M** = el flujo se ve pero cojo; **B** = mejora.
 >
 > Sigue en pie lo que este documento dice de `[D4]`: sin registro empresarial no hay llaves de
 > producción, y la rama no tiene modo de producción a propósito.
+
+> **Actualización 2026-10-19, rama `arreglos/h-b-01-03`.** Dos filas que ya estaban construidas
+> tenían un defecto ante las caídas, y la rama lo corrige:
+>
+> - **A4, el aviso al acudiente.** Si RabbitMQ se caía después del envío, la bandeja entregaba el
+>   evento otra vez y un pago avisaba dos veces. Ahora la `notificacion` guarda de qué evento sale,
+>   y un evento que ya se avisó no se vuelve a enviar (ADR 0042).
+> - **P3 y P4, los procesos de fondo** de los trabajos durables y de `operacion`. Con Postgres o
+>   RabbitMQ caídos, el trabajador, los pollers, el barredor y el repartidor morían y no volvían.
+>   Ahora esperan, con un tope de 30 s, y siguen (ADR 0041).
 
 Suma aproximada de lo marcado **A**: unas 45–60 jornadas. Es la cifra honesta y conviene tenerla
 antes de prometer fechas.

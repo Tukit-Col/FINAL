@@ -6,14 +6,10 @@ import {
   AlertTriangle,
   Check,
   CheckCircle2,
-  CreditCard,
   Home,
-  Landmark,
   Loader2,
-  MapPin,
   Package,
   PackageCheck,
-  Smartphone,
   Truck,
 } from "lucide-react";
 import {
@@ -21,6 +17,9 @@ import {
   type Pedido,
   type ResultadoPago as Resultado,
 } from "@tukit/contrato";
+import EntregaPedido from "@/components/pedido/EntregaPedido";
+import { MEDIOS_PAGO } from "@/components/pedido/medios";
+import ResumenPedido from "@/components/pedido/ResumenPedido";
 import { FalloApi, sincronizarPago, verPedido } from "@/lib/api-navegador";
 import styles from "../Pago.module.css";
 
@@ -164,12 +163,13 @@ function Aprobado({ datos, pedido }: { datos: Resultado; pedido: Pedido | null }
 
       <Pasos />
 
-      {pedido && <Resumen pedido={pedido} />}
-      {pedido?.envio && <Entrega pedido={pedido} />}
+      {pedido && <ResumenPedido pedido={pedido} visibles={PRODUCTOS_VISIBLES} />}
+      {pedido?.envio && <EntregaPedido envio={pedido.envio} />}
 
       <div className={styles.acciones}>
-        <Link href="/dashboard" className={styles.boton}>
-          <Package size={18} aria-hidden /> Ver mis pedidos
+        {/* La pagina del pedido sigue su camino hasta la puerta de la casa. */}
+        <Link href={`/pedidos/${datos.pedido_id}`} className={styles.boton}>
+          <Package size={18} aria-hidden /> Ver mi pedido
         </Link>
         <Link href="/" className={`${styles.boton} ${styles.secundario}`}>
           <Home size={18} aria-hidden /> Volver al inicio
@@ -208,7 +208,9 @@ function Pasos() {
 // ---------------------------------------------------------------- Rechazado
 
 function Rechazado({ datos, pedido }: { datos: Resultado; pedido: Pedido | null }) {
-  const reintentar = datos.trabajo_id ? `/kits/${datos.trabajo_id}` : null;
+  // Vuelve al kit con la entrega ya abierta y llena (la del pedido pendiente):
+  // reintentar no obliga a escribir otra vez la direccion.
+  const reintentar = datos.trabajo_id ? `/kits/${datos.trabajo_id}?pagar=1` : null;
   return (
     <>
       <section className={`${styles.tarjeta} ${styles.cabecera}`}>
@@ -238,11 +240,12 @@ function Rechazado({ datos, pedido }: { datos: Resultado; pedido: Pedido | null 
             Intentar de nuevo
           </Link>
         )}
+        {/* El pedido sigue pendiente: desde su pagina se paga otra vez o se cancela. */}
         <Link
-          href="/dashboard"
+          href={`/pedidos/${datos.pedido_id}`}
           className={reintentar ? `${styles.boton} ${styles.secundario}` : styles.boton}
         >
-          Ir a mi panel
+          Ver mi pedido
         </Link>
       </div>
     </>
@@ -251,15 +254,9 @@ function Rechazado({ datos, pedido }: { datos: Resultado; pedido: Pedido | null 
 
 // ------------------------------------------------------------ Piezas comunes
 
-const MEDIOS = {
-  tarjeta: { nombre: "Tarjeta", Icono: CreditCard },
-  pse: { nombre: "PSE", Icono: Landmark },
-  nequi: { nombre: "Nequi", Icono: Smartphone },
-} as const;
-
 // Total, medio de pago, fecha y numero de pedido, en una franja.
 function Franja({ datos, pedido }: { datos: Resultado; pedido: Pedido | null }) {
-  const medio = pedido?.pago ? MEDIOS[pedido.pago.metodo] : null;
+  const medio = pedido?.pago ? MEDIOS_PAGO[pedido.pago.metodo] : null;
   const fecha = pedido
     ? new Date(pedido.creado_en).toLocaleString("es-CO", {
         dateStyle: "medium",
@@ -291,71 +288,6 @@ function Franja({ datos, pedido }: { datos: Resultado; pedido: Pedido | null }) 
         <dd className={styles.codigo}>{datos.pedido_id.slice(0, 8).toUpperCase()}</dd>
       </div>
     </dl>
-  );
-}
-
-// Los productos del pedido. Un kit repite el mismo producto por hijo: se
-// agrupan por sku para que la lista diga "x 3" y no lo mismo tres veces.
-function Resumen({ pedido }: { pedido: Pedido }) {
-  const [todos, setTodos] = useState(false);
-  const agrupados = new Map<string, { sku: string; nombre: string; cantidad: number; subtotal: number }>();
-  for (const l of pedido.lineas) {
-    const previo = agrupados.get(l.sku);
-    const subtotal = l.cantidad * l.precio_unitario;
-    if (previo) {
-      previo.cantidad += l.cantidad;
-      previo.subtotal += subtotal;
-    } else {
-      agrupados.set(l.sku, { sku: l.sku, nombre: l.nombre, cantidad: l.cantidad, subtotal });
-    }
-  }
-  const productos = [...agrupados.values()];
-  const visibles = todos ? productos : productos.slice(0, PRODUCTOS_VISIBLES);
-  const ocultos = productos.length - visibles.length;
-
-  return (
-    <section className={styles.tarjeta}>
-      <h2 className={styles.subtitulo}>
-        Tu pedido <span className={styles.contador}>{productos.length} productos</span>
-      </h2>
-      <ul className={styles.productos}>
-        {visibles.map((p) => (
-          <li key={p.sku} className={styles.producto}>
-            <span className={styles.productoNombre}>
-              {p.nombre}
-              <span className={styles.cantidad}> × {p.cantidad}</span>
-            </span>
-            <span className="cifra">{formatearPesos(p.subtotal)}</span>
-          </li>
-        ))}
-      </ul>
-      {ocultos > 0 && (
-        <button type="button" className={styles.verTodos} onClick={() => setTodos(true)}>
-          Ver los {ocultos} productos restantes
-        </button>
-      )}
-      <div className={styles.totalLinea}>
-        <span>Total</span>
-        <span className="cifra">{formatearPesos(pedido.total)}</span>
-      </div>
-    </section>
-  );
-}
-
-function Entrega({ pedido }: { pedido: Pedido }) {
-  const envio = pedido.envio!;
-  return (
-    <section className={styles.tarjeta}>
-      <h2 className={styles.subtitulo}>Entrega</h2>
-      <p className={styles.entrega}>
-        <MapPin size={18} aria-hidden className={styles.entregaIcono} />
-        <span>
-          <strong>{envio.destinatario}</strong>
-          <br />
-          {envio.direccion}, {envio.ciudad}
-        </span>
-      </p>
-    </section>
   );
 }
 

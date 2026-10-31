@@ -26,7 +26,7 @@ algoritmos, integración de ramas) está en [`PENDIENTES.md`](PENDIENTES.md).
 
 - [Contrato de la API](arquitectura/CONTRATO_API.md) — la superficie HTTP del sistema, versionada. Fuente de verdad del frontend y de `libs/ts/tukit-contrato`.
 - [Revisión de arquitectura](arquitectura/REVISION_ARQUITECTURA.md) — diagnóstico y diseño objetivo del backbone (resiliencia, eventos, observabilidad).
-- [Decisiones de arquitectura (ADR)](arquitectura/adr/README.md) — 0027 a 0039, en formato Nygard, con su índice.
+- [Decisiones de arquitectura (ADR)](arquitectura/adr/README.md) — 0027 a 0047, en formato Nygard, con su índice.
 
 ### Algoritmos
 
@@ -55,6 +55,7 @@ Cada especificación tiene su plan con la misma fecha y el mismo nombre.
 | 2026-09-23 | Curaduría del catálogo en la SPA | [spec](diseno/specs/2026-09-23-curaduria-catalogo-spa-design.md) | [plan](diseno/planes/2026-09-23-curaduria-catalogo-spa.md) |
 | 2026-09-26 | Identidad y cuenta del acudiente | [spec](diseno/specs/2026-09-26-identidad-cuenta-acudiente-design.md) | [plan](diseno/planes/2026-09-26-identidad-cuenta-acudiente.md) (con sus secciones en `diseno/planes/.secciones-identidad-cuenta/`) |
 | 2026-10-02 | Pagos de prueba con Wompi | [spec](diseno/specs/2026-10-02-pagos-wompi-sandbox-design.md) | [plan](diseno/planes/2026-10-02-pagos-wompi-sandbox.md) |
+| 2026-10-11 | Afinar los kits del Agustiniano sin poblar el catálogo | — (la auditoría de huecos y el [ADR 0043](arquitectura/adr/0043-como-se-compara-cada-atributo.md)) | [plan](diseno/planes/2026-10-11-afinar-kits-agustiniano.md) |
 
 Lo que se construyó puede diferir de la especificación. El documento de [algoritmos](algoritmos/main.tex) dice, para OE3 y OE4, qué se implementó y qué no.
 
@@ -74,8 +75,9 @@ Lo que se construyó puede diferir de la especificación. El documento de [algor
 ### Informes
 
 - [Benchmark: Laya contra el optimizador NSGA-II](informes/reporte-benchmark-laya-nsga.md) — sus resultados (métricas, detalle por lista, tablas, figuras, tiempos) están en [`informes/benchmark-laya/`](informes/benchmark-laya/README.md); el código y los datos de entrada, en [`ensayos/bench_laya/`](../ensayos/bench_laya/).
-- [Huecos del catálogo](informes/reporte-huecos-catalogo.md) — lo genera `ensayos/curaduria_huecos.py`, junto con su [JSON](informes/reporte-huecos-catalogo.json).
 - [Auditoría de los kits canónicos de Séptimo](informes/auditoria-kits-agustiniano-septimo.md) (2026-10-07).
+- [Auditorías de huecos del Agustiniano](informes/auditoria-huecos-agustiniano/README.md): las cuatro versiones (sobre `a565aeb`, `d4ea7cb`, `02d8f24` y `4dc3bc8`), con su índice.
+- [Qué buscar con el scraper: huecos reales del Agustiniano](informes/surtido-huecos-agustiniano.md) (2026-10-12): los 69 renglones que siguen en hueco después del surtido aprobado en la cola.
 - [Propuesta de atributos obligatorios para Séptimo](informes/atributos-septimo-propuesta.md), con su [hoja de revisión producto por producto](informes/propuestas-atributos-septimo.csv) (acción, atributo, valor propuesto, confianza y razón).
 
 ### Código de los ensayos
@@ -87,6 +89,7 @@ Lo que se construyó puede diferir de la especificación. El documento de [algor
 | `ensayos/bench_laya/` | Reproducir el benchmark: scripts, pruebas del óptimo exacto y datos de entrada (`.json.gz`, `escenarios.json`, `laya_*.json`) |
 | `ensayos/curaduria_huecos.py` | Generar el informe de huecos del catálogo |
 | `ensayos/fase1.py` | Parsear y emparejar renglones de punta a punta desde la consola (`make fase1`) |
+| `ensayos/kits_offline.py` | Armar, desde `datos/` y sin base de datos, los kits Ahorrador y Premium de un colegio, para medir un cambio de curaduría o de código antes de cargarlo. Sus pruebas (`test_kits_offline.py`) fijan los renglones de la auditoría del Agustiniano |
 
 ## Lo que no está aquí, a propósito
 

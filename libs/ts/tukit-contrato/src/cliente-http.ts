@@ -6,6 +6,7 @@
 // en el proxy del prototipo, y se conserva.
 
 import { GRADOS_CANONICOS } from "./contrato";
+import { conEspera } from "./espera";
 import type {
   AcudienteResumen,
   AltaProducto,
@@ -52,6 +53,7 @@ import type {
   CandidatoTienda,
   Catalogo,
   Colegio,
+  ColegioDesignado,
   ColegioDetalle,
   ColegioEditable,
   ColegioNuevoEditable,
@@ -82,6 +84,7 @@ import type {
 import type {
   Pedido,
   PedidoConHistorial,
+  PedidoDelAcudiente,
   SolicitudAvancePedido,
   TableroComercio,
 } from "./comercio";
@@ -116,23 +119,42 @@ function ordenGrado(a: string, b: string): number {
 export interface OpcionesCliente {
   urlBase: string;
   tiempoMaximoMs?: number;
+  // Las cabeceras que viajan al backend en cada `fetch`, segun la ruta que se
+  // pide: `X-Forwarded-For` en todas, para que el limite de tasa del gateway
+  // cuente por la IP del cliente y no por la del servidor de Next (ADR 0047), y
+  // el Bearer de la sesion en las de consola (`/v1/admin/*`, contrato 1.12).
+  cabeceras?: (ruta: string) => Promise<Record<string, string>>;
 }
 
 export class ClienteApi implements OrigenDatos {
   readonly nombre = "api" as const;
   private readonly urlBase: string;
   private readonly tiempoMaximoMs: number;
+  private readonly cabeceras: (ruta: string) => Promise<Record<string, string>>;
 
   constructor(opciones: OpcionesCliente) {
     this.urlBase = opciones.urlBase.replace(/\/+$/, "");
     this.tiempoMaximoMs = opciones.tiempoMaximoMs ?? TIEMPO_MAXIMO_MS;
+    this.cabeceras = opciones.cabeceras ?? (async () => ({}));
+  }
+
+  // Las cabeceras de la llamada mas las reenviadas; las de la llamada ganan.
+  private async conReenviadas(ruta: string, init?: RequestInit): Promise<RequestInit> {
+    const reenviadas = Object.entries(await this.cabeceras(ruta));
+    if (reenviadas.length === 0) return init ?? {};
+    const cabeceras = new Headers(init?.headers);
+    for (const [nombre, valor] of reenviadas) {
+      if (!cabeceras.has(nombre)) cabeceras.set(nombre, valor);
+    }
+    return { ...init, headers: cabeceras };
   }
 
   private async pedir<T>(ruta: string, init?: RequestInit): Promise<T> {
     let respuesta: Response;
+    const conReenviadas = await this.conReenviadas(ruta, init);
     try {
       respuesta = await fetch(`${this.urlBase}${ruta}`, {
-        ...init,
+        ...conReenviadas,
         signal: AbortSignal.timeout(this.tiempoMaximoMs),
         cache: "no-store",
       });
@@ -163,7 +185,13 @@ export class ClienteApi implements OrigenDatos {
     }
 
     if (!respuesta.ok) {
-      const detalle = (cuerpo ?? {}) as Record<string, unknown>;
+      // Un 429 del limite de tasa trae la espera en el detalle, del cuerpo o de
+      // `Retry-After`, para que el manejador la reenvie (ADR 0047).
+      const detalle = conEspera(
+        respuesta.status,
+        (cuerpo ?? {}) as Record<string, unknown>,
+        respuesta.headers.get("Retry-After"),
+      );
       throw new ErrorTukit(
         respuesta.status,
         typeof detalle["error"] === "string" ? detalle["error"] : "error_desconocido",
@@ -336,8 +364,10 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
-  async consultarTrabajo(trabajoId: string): Promise<Trabajo> {
-    const crudo = await this.pedir<Trabajo>(`/v1/trabajos/${encodeURIComponent(trabajoId)}`);
+  async consultarTrabajo(trabajoId: string, token?: string): Promise<Trabajo> {
+    const crudo = await this.pedir<Trabajo>(`/v1/trabajos/${encodeURIComponent(trabajoId)}`, {
+      headers: this.autoriza(token),
+    });
     return normalizarTrabajo(crudo);
   }
 
@@ -871,8 +901,8 @@ export class ClienteApi implements OrigenDatos {
   // Las tres van por `/v1/comercio/mis-pedidos/{id}` con el Bearer: comercio
   // saca al acudiente de la sesion y un pedido ajeno es 404. `/v1/ordenes/*` es
   // interno y la puerta no lo expone.
-  miPedido(token: string, pedidoId: string): Promise<Pedido> {
-    return this.pedir<Pedido>(`/v1/comercio/mis-pedidos/${encodeURIComponent(pedidoId)}`, {
+  miPedido(token: string, pedidoId: string): Promise<PedidoDelAcudiente> {
+    return this.pedir<PedidoDelAcudiente>(`/v1/comercio/mis-pedidos/${encodeURIComponent(pedidoId)}`, {
       headers: this.autoriza(token),
     });
   }
@@ -953,24 +983,27 @@ export class ClienteApi implements OrigenDatos {
   // ---------------------------------------------------------- §Onboarding (P2)
   //
   // Inteligencia expone la ruta publica `POST /v1/admin/onboarding` como
-  // `multipart/form-data`: el PDF va en `archivo` y el destino (`colegio_id`,
-  // `grado`, `anio_lectivo`) en campos aparte, igual que `crearTrabajo` con
-  // archivos. Inteligencia percibe y escribe en catalogo por su cuenta; el
-  // cliente solo recibe la version creada.
+  // `multipart/form-data`: el PDF va en `archivo` y el destino (el colegio
+  // designado, `grado`, `anio_lectivo`) en campos aparte, igual que
+  // `crearTrabajo` con archivos. Inteligencia percibe y escribe en catalogo por
+  // su cuenta; el cliente solo recibe la version creada. El token del staff va
+  // como Bearer: inteligencia exige rol de operador o admin.
   async onboarding(
-    colegio_id: string,
+    token: string,
+    colegio: string | ColegioDesignado,
     grado: string,
     anio_lectivo: number,
     archivo: { contenido: Blob; nombre: string },
   ): Promise<{ version_id: string; grado: string; items: number }> {
     const forma = new FormData();
-    forma.append("colegio_id", colegio_id);
+    const designado = typeof colegio === "string" ? { colegio_id: colegio } : colegio;
+    for (const [campo, valor] of Object.entries(designado)) forma.append(campo, valor);
     forma.append("grado", grado);
     forma.append("anio_lectivo", String(anio_lectivo));
     forma.append("archivo", archivo.contenido, archivo.nombre);
     return this.pedir<{ version_id: string; grado: string; items: number }>(
       "/v1/admin/onboarding",
-      { method: "POST", body: forma },
+      { method: "POST", headers: this.autoriza(token), body: forma },
     );
   }
 
@@ -1299,11 +1332,14 @@ export class ClienteApi implements OrigenDatos {
   // `texto_original` y que falten `cantidad`/`confianza`.
   async documento(versionId: string): Promise<Blob> {
     let respuesta: Response;
+    const ruta = `/v1/admin/listas/${encodeURIComponent(versionId)}/documento`;
+    const conReenviadas = await this.conReenviadas(ruta);
     try {
-      respuesta = await fetch(
-        `${this.urlBase}/v1/admin/listas/${encodeURIComponent(versionId)}/documento`,
-        { signal: AbortSignal.timeout(this.tiempoMaximoMs), cache: "no-store" },
-      );
+      respuesta = await fetch(`${this.urlBase}${ruta}`, {
+        ...conReenviadas,
+        signal: AbortSignal.timeout(this.tiempoMaximoMs),
+        cache: "no-store",
+      });
     } catch (causa) {
       const nombre = (causa as { name?: string }).name;
       if (nombre === "TimeoutError") {
@@ -1317,6 +1353,11 @@ export class ClienteApi implements OrigenDatos {
     }
     if (respuesta.status === 404) {
       throw new ErrorTukit(404, "sin_evidencia", "Esta lista no tiene documento adjunto.");
+    }
+    if (respuesta.status === 429) {
+      const cuerpo = (await respuesta.json().catch(() => ({}))) as Record<string, unknown>;
+      const detalle = conEspera(429, cuerpo, respuesta.headers.get("Retry-After"));
+      throw new ErrorTukit(429, String(detalle["error"]), String(detalle["mensaje"]), detalle);
     }
     if (!respuesta.ok) {
       throw new ErrorTukit(
@@ -1644,6 +1685,11 @@ interface ItemRevisionCrudo {
   atributos?: Record<string, unknown>;
   requiere_revision?: boolean;
   concepto?: { codigo: string; nombre: string } | null;
+  atributos_discriminantes?: string[];
+  atributos_leidos?: Record<string, unknown>;
+  atributos_exigidos?: Record<string, unknown>;
+  atributos_por_revisar?: string[];
+  atributos_deducidos?: string[];
 }
 
 interface PropuestaRevisionCruda {
@@ -1709,6 +1755,13 @@ function normalizarItemRevision(i: ItemRevisionCrudo): ItemRevision {
     requiere_revision: Boolean(i.requiere_revision),
     concepto_codigo: i.concepto?.codigo ?? null,
     concepto_nombre: i.concepto?.nombre ?? null,
+    // Un backend anterior a la curaduria desde el admin no los sirve: vacios,
+    // y la pantalla solo ofrece curar lo que ya estaba curado.
+    atributos_discriminantes: i.atributos_discriminantes ?? [],
+    atributos_leidos: i.atributos_leidos ?? {},
+    atributos_exigidos: i.atributos_exigidos ?? {},
+    atributos_por_revisar: i.atributos_por_revisar ?? [],
+    atributos_deducidos: i.atributos_deducidos ?? [],
   };
 }
 
