@@ -472,6 +472,9 @@ export interface Trabajo {
   // De dónde salió el trabajo. `parent_apply` es la ruta rápida: ahí el
   // "recomendado" es el kit que el acudiente eligió al empezar.
   origen?: string;
+  // Los hijos del trabajo por referencia, colegio y grado (nunca un nombre):
+  // con ellos la web le pone el apodo de la cuenta a cada renglón.
+  hijos?: HijoDeTrabajo[];
 }
 
 // El panel del acudiente: una de SUS solicitudes de kit (un trabajo del
@@ -550,6 +553,12 @@ export interface ErrorVariosGrados extends ErrorApi {
 
 export function esErrorVariosGrados(valor: ErrorApi): valor is ErrorVariosGrados {
   return valor.error === "lista_de_varios_grados";
+}
+
+// §11 — el 429 del limite de tasa del gateway, con `Retry-After` (ADR 0047).
+export interface ErrorDemasiadasPeticiones extends ErrorApi {
+  error: "demasiadas_peticiones";
+  reintentar_en_segundos: number;
 }
 
 // ------------------------------------------------- §2 Limites de los archivos

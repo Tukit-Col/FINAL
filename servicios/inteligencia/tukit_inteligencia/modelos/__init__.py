@@ -1,4 +1,4 @@
-"""Las 11 tablas del servicio de Inteligencia, tal como las declara el manifiesto."""
+"""Las 12 tablas del servicio de Inteligencia, tal como las declara el manifiesto."""
 
 from .base import (
     PESOS_POR_OMISION,
@@ -10,6 +10,7 @@ from .base import (
     PerfilKit,
     Texto,
 )
+from .evento import EventoProcesado
 from .importacion import ImportacionLista
 from .kit import Kit, LineaKit
 from .resolucion import CandidatoItem, ItemCrudo, ResolucionItem, TransicionResolucion
@@ -33,6 +34,7 @@ __all__ = [
     "EstadoResolucion",
     "EstadoTrabajo",
     "EtapaTrabajo",
+    "EventoProcesado",
     "ImportacionLista",
     "ItemCrudo",
     "Kit",

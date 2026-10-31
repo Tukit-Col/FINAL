@@ -333,6 +333,14 @@ class RepoIdentidad:
     async def usuario_del_token(self, usuario_id: uuid.UUID) -> Any:
         return (await self.conexion.execute(select(USUARIO).where(USUARIO.c.id == usuario_id))).one_or_none()
 
+    async def revocar_sesiones(self, usuario_id: uuid.UUID) -> None:
+        """Sube `version_permisos`: todo token emitido antes deja de valer."""
+        await self.conexion.execute(
+            update(USUARIO)
+            .where(USUARIO.c.id == usuario_id)
+            .values(version_permisos=USUARIO.c.version_permisos + 1)
+        )
+
     async def nombres_de(self, ids: list[uuid.UUID]) -> dict[str, str]:
         """Los nombres descifrados de esos usuarios ADULTOS, por id. Solo entran
         los que tienen `nombre_cifrado`; un contacto invitado (sin nombre) no

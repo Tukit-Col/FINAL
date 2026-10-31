@@ -74,7 +74,7 @@ export default async function PaginaLogistica({ searchParams }: Props) {
     return (
       <div className={styles.pagina}>
         <Encabezado />
-        <AvisoAcceso motivo={motivoDeFallo(causa.estado)} />
+        <AvisoAcceso motivo={motivoDeFallo(causa.estado)} mensaje={causa.message} />
       </div>
     );
   }

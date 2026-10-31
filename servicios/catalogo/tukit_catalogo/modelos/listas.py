@@ -304,6 +304,13 @@ class TareaImportacion(Base):
     # el onboarding de administrador y las tareas de antes no la traen.
     clave_idempotencia: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
 
+    # Cuando el acudiente cancelo esta subida desde "Mis solicitudes". Retirar
+    # borra `contacto_referencia`, y sin contacto no se distingue de una tarea
+    # que nunca lo tuvo (onboarding): esta marca es la que saca de la cola de
+    # verificacion una lista que ya nadie espera (H-07). Nullable: casi
+    # ninguna tarea se retira.
+    retirada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # NO hay `caso_id` aqui, y la ausencia es deliberada.
     #
     # La version anterior de esta tabla lo tenia, apuntando a `operacion.caso`.

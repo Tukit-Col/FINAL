@@ -76,7 +76,7 @@ dd7466e8-fdf4-55f3-b64c-6dfc20afafa1,C073,Punzón,plastico punta metalica|punzon
 2c480946-bb8f-5b43-a361-d6d3e69fc7a7,C075,Bolsa de basura,bolsa negra basura,"Elementos de aseo (papel higiénico, jabón, gel, toallas, paños)",util,,tamano,false,3,true,false
 08c424b6-ab69-5248-afad-d721b613bb8a,C076,Carboncillo,caja pastel seco|carboncillo|difumino,Otros / Varios,util,,tipo,false,3,true,false
 af44d461-0456-52be-b1f7-16f7b7ff9316,C077,Cojín,cojin,Otros / Varios,util,,tamano,false,3,true,false
-38dd688e-7888-53ae-b9e2-5c0431d0de8a,C078,Fichas bibliográficas,bolsita ficha bibliografica|ficha bibliografica|paquete ficha bibliografica,Otros / Varios,util,,tamano|unidades,false,3,true,false
+38dd688e-7888-53ae-b9e2-5c0431d0de8a,C078,Fichas bibliográficas,bolsita ficha bibliografica|ficha bibliografica|paquete ficha bibliografica,Otros / Varios,util,color,tamano|unidades,false,3,true,false
 4c3b077b-604a-5417-a5ff-41d6efdddcf3,C079,Instrumento de percusión,baquetas|juego baquetas|tambor ludico baquetas,Instrumentos musicales,util,,tipo,false,3,true,false
 dc421493-888b-537d-9a3c-ce323752a388,C080,Jabón,frasco jabon liquido,"Elementos de aseo (papel higiénico, jabón, gel, toallas, paños)",util,presentacion,,false,3,true,false
 08feaae2-ee12-52c7-91a7-0b89bf4a7f21,C081,Ábaco,abaco|abaco cerrado,Balón / Juegos / Rompecabezas / Ábaco / Lazo,util,,tipo,false,2,true,false

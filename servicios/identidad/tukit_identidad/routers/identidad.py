@@ -727,12 +727,23 @@ async def sesion_actual(
     "/v1/sesiones/cierre",
     tags=["sesion"],
     status_code=204,
-    summary="Cierra la sesion. El estado de sesion vive en el cliente.",
+    summary="Cierra la sesion y revoca el token.",
 )
-async def cerrar_sesion(authorization: Annotated[str | None, Header()] = None) -> None:
-    """Sin estado de servidor que invalidar: el token es autocontenido y la
-    cookie la borra quien la puso. Para invalidar TODOS los tokens de un usuario
-    ya existe la palanca correcta: incrementar su `version_permisos`."""
+async def cerrar_sesion(peticion: Request, authorization: Annotated[str | None, Header()] = None) -> None:
+    """Revoca el token subiendo la `version_permisos` del portador.
+
+    El token es autocontenido: borrar la cookie no bastaba, porque quien lo
+    hubiera copiado seguia entrando hasta que expirara. La revocacion es por
+    cuenta y no por token, asi que cierra la sesion en todos sus dispositivos:
+    es lo mas seguro y no pide guardar una lista de tokens revocados. Cerrar es
+    idempotente: sin token, o con uno que ya no vale, responde igual."""
+    async with peticion.app.state.motor.sesion() as db:
+        repo = RepoIdentidad(await db.connection())
+        try:
+            fila = await _usuario_del_token(authorization, repo)
+        except ErrorDominio:
+            return None
+        await repo.revocar_sesiones(fila.id)
     return None
 
 

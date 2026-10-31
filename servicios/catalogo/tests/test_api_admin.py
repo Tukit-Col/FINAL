@@ -280,6 +280,34 @@ class TestListarVersionesParaRevisar:
         revision = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()
         assert revision["colegio_datos"] == colegio_datos
 
+    async def _subida_de(self, cliente, contacto: uuid.UUID) -> str:
+        cuerpo = _cuerpo_importar(origen="sugerencia_padre", contacto_referencia=str(contacto))
+        return (await cliente.post("/v1/admin/listas/importar", json=cuerpo)).json()["version_id"]
+
+    async def test_la_lista_que_el_acudiente_cancela_sale_de_la_cola(self, cliente):
+        # H-07: tras cancelar ya nadie la espera; seguia como pendiente y sin
+        # contacto. Sale de `revisada=false` y queda marcada en el listado.
+        padre = uuid.uuid4()
+        vid = await self._subida_de(cliente, padre)
+        retiro = await cliente.post(f"/interno/listas-por-contacto/{padre}/retirar", json={"version_id": vid})
+        assert retiro.json()["retiradas"] == 1
+
+        cola = (await cliente.get("/v1/admin/listas?revisada=false")).json()
+        assert vid not in [v["version_id"] for v in cola["listas"]]
+        todas = (await cliente.get("/v1/admin/listas")).json()
+        retirada = next(v for v in todas["listas"] if v["version_id"] == vid)
+        assert retirada["retirada_por_acudiente"] is True
+        assert retirada["tiene_contacto"] is False
+
+    async def test_una_lista_sin_acudiente_que_nadie_retiro_sigue_en_la_cola(self, cliente):
+        # Sin contacto no es lo mismo que retirada: el onboarding nunca lo tuvo.
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
+
+        cola = (await cliente.get("/v1/admin/listas?revisada=false")).json()
+        sigue = next(v for v in cola["listas"] if v["version_id"] == vid)
+        assert sigue["retirada_por_acudiente"] is False
+        assert sigue["tiene_contacto"] is False
+
     async def test_un_origen_desconocido_se_rechaza(self, cliente):
         respuesta = await cliente.post(
             "/v1/admin/listas/importar", json=_cuerpo_importar(origen="cualquier_cosa")

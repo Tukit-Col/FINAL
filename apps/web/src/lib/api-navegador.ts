@@ -26,6 +26,7 @@ import type {
   TrabajoAplicado,
   TrabajoCreado,
 } from "@tukit/contrato";
+import { conEspera } from "@tukit/contrato";
 
 export class FalloApi extends Error {
   constructor(
@@ -42,7 +43,12 @@ async function leer<T>(respuesta: Response): Promise<T> {
   const texto = await respuesta.text();
   const cuerpo: unknown = texto ? JSON.parse(texto) : null;
   if (!respuesta.ok) {
-    const error = (cuerpo ?? {}) as ErrorApi & Record<string, unknown>;
+    // Un 429 llega con la espera en el mensaje aunque el cuerpo no la traiga.
+    const error = conEspera(
+      respuesta.status,
+      (cuerpo ?? {}) as ErrorApi & Record<string, unknown>,
+      respuesta.headers.get("Retry-After"),
+    );
     throw new FalloApi(
       respuesta.status,
       error.error ?? "error_desconocido",
@@ -275,6 +281,21 @@ export async function registrarAcudiente(
 }
 
 /**
+ * Entra con correo y clave: `/api/sesion` pone la cookie httpOnly. Lo usa
+ * `/empezar` cuando el registro creó la cuenta pero su login dio 429 (H-R-01):
+ * al reintentar no se vuelve a registrar, solo se entra.
+ */
+export async function iniciarSesion(credenciales: { correo: string; clave: string }): Promise<void> {
+  await leer<unknown>(
+    await fetch("/api/sesion", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(credenciales),
+    }),
+  );
+}
+
+/**
  * Guarda en la cuenta del acudiente autenticado las matrículas de sus hijos
  * NUEVOS (camino "ya tengo cuenta"). Habla con el Route Handler local, que pone
  * el Bearer desde la cookie httpOnly: el token nunca toca el navegador. Es
@@ -333,8 +354,10 @@ export function sondear(
       if (!vivo) return;
       if (causa instanceof FalloApi) {
         alFallar(causa);
-        // Un 404 no se arregla esperando; una caida momentanea si.
-        if (causa.estado === 404) return;
+        // Un 404 no se arregla esperando; una caida momentanea si. Un 429
+        // tampoco se reintenta solo: seguir preguntando gasta el cupo que lo
+        // levanta, y la persona ya ve cuanto esperar.
+        if (causa.estado === 404 || causa.estado === 429) return;
       }
     }
     intervalo = Math.min(intervalo * 1.4, 8000);

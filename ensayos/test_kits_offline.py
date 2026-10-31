@@ -40,13 +40,49 @@ class TestLoQueNoSeVendeLlegaComoLinea:
         assert linea.ahorrador is None and linea.premium is None
 
 
-class TestHuecosReales:
-    """Lo que ninguna tienda registrada vende: sigue siendo hueco, no un sustituto."""
+def test_el_colegio_no_tiene_huecos():
+    huecos = [k for k, linea in por_clave(armar_colegio()).items() if linea.estado == "HUECO_CATALOGO"]
+    assert huecos == []
 
-    @pytest.mark.parametrize("clave", ["2#71", "2#91", "10#17", "11#21"])
-    def test_no_se_cobra_un_sustituto(self, renglon, clave):
-        # Piedras de bisuteria y de jardineria, y cuaderno de 3 materias grande.
-        assert renglon(clave).estado == "HUECO_CATALOGO"
+
+class TestLasFichasBlancasSonBlancas:
+    """C078 distingue `color`: «fichas bibliograficas (blancas)» exige blanco, y
+    las azules del mismo precio ya no le ganan al Ahorrador."""
+
+    def test_cada_perfil_lleva_fichas_blancas(self, renglon):
+        linea = renglon("2#52")
+        assert (_sku(linea.ahorrador), _sku(linea.premium)) == (
+            "TK-REV-47365750194347",
+            "TK-REV-44702942134443",
+        )
+
+    def test_ninguna_candidata_es_de_otro_color(self, renglon):
+        colores = {(c.get("atributos") or {}).get("color") for c in renglon("2#52").candidatos}
+        assert colores == {"blanco"}
+
+
+class TestLasPiedrasDeTexturaSonUnSoloSet:
+    """La lista de Artes de Segundo pide «materiales para generar textura como:
+    (... piedras de bisuteria pequenas, ... piedras de colores de jardineria
+    pequenas, etc)»: son ejemplos, y un set de cuentas cubre los dos."""
+
+    def test_la_bisuteria_lleva_el_set(self, renglon):
+        linea = renglon("2#71")
+        assert (_sku(linea.ahorrador), _sku(linea.premium)) == ("TK-REV-603855", "TK-REV-603851")
+
+    def test_la_jardineria_no_compra_otro(self, renglon):
+        linea = renglon("2#91")
+        assert linea.ahorrador is None and linea.premium is None
+
+
+class TestElCuadernoDeTresMateriasEsElDeCinco:
+    """No hay cuaderno de 3 materias grande disponible: la curaduria lo cura a
+    `materias=5`, y los 105 de Panamericana declaran `tamano=grande`."""
+
+    @pytest.mark.parametrize("clave", ["10#17", "10#24", "10#27", "11#21", "11#24"])
+    def test_cada_perfil_tiene_su_cuaderno(self, renglon, clave):
+        linea = renglon(clave)
+        assert (_sku(linea.ahorrador), _sku(linea.premium)) == ("TK-REV-648753", "TK-REV-546276")
 
 
 class TestLoQueTrajoElSurtidoDelQuinceDeOctubre:
