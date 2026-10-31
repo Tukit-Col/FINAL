@@ -1,4 +1,5 @@
-import { sesionActual } from "@/lib/sesion";
+import { esLimiteDeTasa } from "@/lib/limite";
+import { sesionActual, tokenDeSesion } from "@/lib/sesion";
 import PantallaEspera from "./PantallaEspera";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,14 @@ export default async function Esperando({
   const { trabajo_id } = await params;
   // Quien llega con sesion (desde "Mis solicitudes") vuelve a su panel; sin
   // sesion no hay panel al que volver y el pie lleva al inicio.
-  const sesion = await sesionActual();
-  return <PantallaEspera trabajoId={trabajo_id} conSesion={sesion !== null} />;
+  // Con el cupo agotado (429) la cookie sigue viva: cuenta como con sesion, y
+  // el aviso de la espera lo pinta el sondeo de la pantalla.
+  let conSesion: boolean;
+  try {
+    conSesion = (await sesionActual()) !== null;
+  } catch (causa) {
+    if (!esLimiteDeTasa(causa)) throw causa;
+    conSesion = Boolean(await tokenDeSesion());
+  }
+  return <PantallaEspera trabajoId={trabajo_id} conSesion={conSesion} />;
 }

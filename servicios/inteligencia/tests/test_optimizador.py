@@ -218,6 +218,52 @@ class TestLaConsolidacionEntreHermanos:
         assert nota["ahorro"] == 8000
         assert kit.total_cop == 8000
 
+    CAJA = Candidato(
+        sku="TK-CART-X25", nombre="Block x25", nivel="economico", precio_cop=9000, unidades_por_empaque=25
+    )
+
+    def test_el_mensaje_no_usa_la_referencia_interna_del_hijo(self):
+        # H-C-04: decia "Se compra junto con el de hijo-1", el id interno.
+        lineas, _ = consolidar(
+            armar_los_tres(
+                [
+                    _renglon(7, "2 cartulinas", (self.CAJA,), cantidad=2, hijo="hijo-0"),
+                    _renglon(4, "2 cartulinas", (self.CAJA,), cantidad=2, hijo="hijo-1"),
+                ]
+            )[0].lineas
+        )
+        mensaje = next(linea.mensaje for linea in lineas if linea.unidades_a_comprar == 0)
+        assert "hijo-" not in mensaje
+        assert (
+            mensaje
+            == "Se compra junto con la línea 7 de tu otro hijo: un empaque de 25 alcanza para los dos."
+        )
+
+    def test_el_mensaje_de_una_linea_del_mismo_hijo_no_lo_llama_otro(self):
+        # Dos renglones del mismo hijo con el mismo producto, mas el hermano.
+        lineas, _ = consolidar(
+            armar_los_tres(
+                [
+                    _renglon(49, "2 cartulinas", (self.CAJA,), cantidad=2, hijo="hijo-1"),
+                    _renglon(50, "2 cartulinas pastel", (self.CAJA,), cantidad=2, hijo="hijo-1"),
+                    _renglon(3, "2 cartulinas", (self.CAJA,), cantidad=2, hijo="hijo-0"),
+                ]
+            )[0].lineas
+        )
+        por_orden = {linea.orden: linea for linea in lineas}
+        primera = next(linea for linea in lineas if linea.unidades_a_comprar > 0)
+        for linea in lineas:
+            if linea is primera:
+                continue
+            assert "hijo-" not in (linea.mensaje or "")
+            if linea.hijo == primera.hijo:
+                assert linea.mensaje == (
+                    f"Se compra junto con la línea {primera.orden}: un empaque de 25 alcanza para todos."
+                )
+            else:
+                assert "de tu otro hijo" in (linea.mensaje or "")
+        assert len(por_orden) == 3
+
     def test_los_textos_nunca_se_consolidan_y_el_kit_dice_por_que(self):
         libro = Candidato(sku="TK-LIB", nombre="Don Quijote", nivel="confiable", precio_cop=50000)
         lineas = armar_los_tres(

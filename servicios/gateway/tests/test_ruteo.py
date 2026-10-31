@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import httpx
 import pytest
-from tukit_gateway import api
 from tukit_gateway.api import CABECERAS_SALTADAS, RUTAS, app, bloqueada, destino
 
 
@@ -144,6 +143,14 @@ class TestLasRutasInternasNoSeExponen:
 
     def test_pedidos_pagados_esta_bloqueada(self):
         assert bloqueada("/v1/comercio/pedidos-pagados") is True
+
+    def test_leer_un_contacto_esta_bloqueado(self):
+        # `GET /v1/contactos/{usuario_id}` devuelve correo y celular. Lo usan
+        # comercio y operacion directo contra identidad; por la puerta lo leia
+        # cualquiera, y el usuario_id es un uuid5 que se calcula desde el correo.
+        assert bloqueada("/v1/contactos/e1b0fb96-a9ee-5bb0-b0be-c2c88ace6b62") is True
+        # El alta (`POST /v1/contactos`) sigue expuesta, como dice el contrato.
+        assert bloqueada("/v1/contactos") is False
 
     def test_el_resto_de_comercio_no_esta_bloqueado(self):
         # El bloqueo es exacto sobre pedidos-pagados: el tablero de pedidos y lo
@@ -309,18 +316,16 @@ class TestElCuerpoMultipartViajaIntacto:
     def test_content_type_no_se_salta(self):
         assert "content-type" not in CABECERAS_SALTADAS
 
-    async def test_reenvia_el_multipart_sin_alterarlo(self, monkeypatch):
+    async def test_reenvia_el_multipart_sin_alterarlo(self):
         capturado: dict[str, object] = {}
 
         class ClienteEspia:
-            def __init__(self, *args, **kwargs):
-                pass
+            async def aclose(self):
+                return None
 
-            async def __aenter__(self):
-                return self
-
-            async def __aexit__(self, *args):
-                return False
+            async def get(self, url, **_kwargs):
+                # La validacion de la sesion de la consola: un operador.
+                return httpx.Response(200, json={"usuario_id": "u", "roles": [{"rol": "operador"}]})
 
             async def request(self, metodo, url, *, params, headers, content):
                 capturado["metodo"] = metodo
@@ -329,14 +334,9 @@ class TestElCuerpoMultipartViajaIntacto:
                 capturado["content"] = content
                 return httpx.Response(200, content=b"ok")
 
-        # Se reemplaza el modulo `httpx` que ve `api` por un envoltorio que
-        # solo cambia `AsyncClient`, para no tocar el `httpx` real que usa el
-        # cliente de prueba de esta misma suite (comparten el modulo).
-        class HttpxEnvuelto:
-            AsyncClient = ClienteEspia
-            HTTPError = httpx.HTTPError
-
-        monkeypatch.setattr(api, "httpx", HttpxEnvuelto)
+        # Se sustituye el cliente compartido de la puerta (el que crea el
+        # arranque) por el espia; la limpieza del conftest lo retira al final.
+        app.state.cliente = ClienteEspia()
 
         # Un multipart armado a mano con un boundary explicito, para poder
         # verificar byte a byte que llega igual y que el boundary sobrevive.
@@ -354,7 +354,9 @@ class TestElCuerpoMultipartViajaIntacto:
             transport=httpx.ASGITransport(app=app), base_url="http://prueba"
         ) as cliente:
             respuesta = await cliente.post(
-                "/v1/admin/listas/importar", content=cuerpo, headers={"content-type": tipo}
+                "/v1/admin/listas/importar",
+                content=cuerpo,
+                headers={"content-type": tipo, "authorization": "Bearer tok-operador"},
             )
 
         assert respuesta.status_code == 200

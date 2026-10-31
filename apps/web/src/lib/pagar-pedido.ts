@@ -114,3 +114,54 @@ export function compraDeSolicitud(
   if (pendiente) return { estado: "por_pagar", pedidoId: pendiente.pedido_id };
   return null;
 }
+
+// La entrega que el checkout del kit precarga al volver de un pago rechazado
+// ("Intentar de nuevo"): la del pedido pendiente y vigente mas reciente de ese
+// kit, que es el que Comercio reutiliza. Asi no se escribe otra vez toda la
+// direccion. Sin ese pedido (o sin sesion) el formulario arranca vacio.
+export interface EntregaPrevia {
+  destinatario: string;
+  direccion: string;
+  ciudad: string;
+  indicaciones: string;
+  localidad: string;
+  departamento: string;
+  google_place_id: string;
+}
+
+type EnvioMinimo = {
+  destinatario: string;
+  direccion: string;
+  ciudad: string;
+  indicaciones: string | null;
+  localidad: string | null;
+  departamento: string | null;
+  google_place_id: string | null;
+};
+
+export function entregaParaReintento(
+  pedidos: readonly (PedidoDeKit & { envio: EnvioMinimo | null })[],
+  trabajoId: string,
+  ahora: number,
+): EntregaPrevia | null {
+  const pedido = pedidos
+    .filter(
+      (p) =>
+        p.trabajo_id === trabajoId &&
+        p.estado === "pendiente_pago" &&
+        !pedidoVencido(p.creado_en, ahora) &&
+        p.envio !== null,
+    )
+    .sort((a, b) => Date.parse(b.creado_en) - Date.parse(a.creado_en))[0];
+  if (!pedido?.envio) return null;
+  const e = pedido.envio;
+  return {
+    destinatario: e.destinatario,
+    direccion: e.direccion,
+    ciudad: e.ciudad,
+    indicaciones: e.indicaciones ?? "",
+    localidad: e.localidad ?? "",
+    departamento: e.departamento ?? "",
+    google_place_id: e.google_place_id ?? "",
+  };
+}

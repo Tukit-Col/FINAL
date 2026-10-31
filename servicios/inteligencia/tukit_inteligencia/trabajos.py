@@ -25,7 +25,9 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import and_, delete, func, insert, select, update
+from tukit_comun.broker import url_broker
 from tukit_comun.cifrado import cifrador_desde_entorno
+from tukit_comun.consumidor import marcar_procesado
 
 from .dominio.pipeline import (
     _anclar_kits,
@@ -202,6 +204,10 @@ ORIGENES_SIN_ACUDIENTE = frozenset({"preview_onboarding", ORIGEN_CANONICO})
 # ---------------------------------------------------------------------------
 
 
+class EventoRepetido(Exception):
+    """El evento que pedia el trabajo ya se habia procesado: no se crea otro."""
+
+
 async def crear(
     motor: Any,
     *,
@@ -212,6 +218,7 @@ async def crear(
     identidad: ClienteIdentidad | None = None,
     usuario_id: uuid.UUID | None = None,
     en_proceso: bool = False,
+    evento: tuple[str, int] | None = None,
 ) -> dict[str, Any]:
     """Crea el trabajo en `encolado` y devuelve el cuerpo del 202.
 
@@ -231,6 +238,15 @@ async def crear(
     volver a llamar a Identidad: es lo que usa el poller de `lista_verificada`,
     donde el padre subio su lista hace rato y su `usuario_id` ya vive en la
     tarea. Si viene, gana sobre `contacto` (no se re-registra nada).
+
+    `evento` es el `(origen, id)` del evento que pide el trabajo, cuando llega
+    por una cola de RabbitMQ (ADR 0046). Se anota en `evento_procesado` en la
+    misma transaccion que el trabajo; si ya estaba, no se crea nada y levanta
+    `EventoRepetido`. Asi un evento entregado dos veces no arma dos kits, aunque
+    el proceso haya caido entre crear el trabajo y confirmar el mensaje.
+
+    Con RabbitMQ, un trabajo que nace `encolado` deja su aviso
+    `trabajo_encolado` en la bandeja, en la misma transaccion (ADR 0046).
     """
     degradaciones: list[dict[str, Any]] = []
     if usuario_id is None and contacto and contacto.get("correo"):
@@ -251,6 +267,8 @@ async def crear(
     trabajo_id = uuid.uuid4()
 
     async with motor.engine.begin() as conexion:
+        if evento is not None and not await marcar_procesado(conexion, *evento):
+            raise EventoRepetido(f"{evento[0]}:{evento[1]}")
         await conexion.execute(
             insert(TRABAJO).values(
                 id=trabajo_id,
@@ -271,6 +289,8 @@ async def crear(
             insert(ETAPA),
             [{"id": uuid.uuid4(), "trabajo_id": trabajo_id, "nombre": nombre} for nombre in ETAPAS],
         )
+        if not en_proceso:
+            await _avisar_encolado(conexion, trabajo_id)
 
     return {
         "trabajo_id": str(trabajo_id),
@@ -363,6 +383,31 @@ async def _listas_por_hijo(
         )
 
     return encontradas, sin_lista
+
+
+async def alguna_lista_para(catalogo: ClienteCatalogo, hijos: list[dict[str, Any]]) -> bool:
+    """True si al menos un hijo tiene una lista que leer en el catalogo.
+
+    Es la condicion sin la que `procesar` termina en `sin_lista_oficial`; crear
+    la pregunta antes para rechazar en el acto en vez de encolar un trabajo que
+    va a fallar (H-C-03). Mismo anio por omision que `_listas_por_hijo`. Con el
+    catalogo caido no se sabe: se responde True y el trabajo se encola como
+    siempre, que el trabajador ya sabe esperar al catalogo.
+    """
+    for hijo in hijos:
+        if hijo.get("version_id"):
+            return True
+        anio = int(hijo.get("anio_lectivo") or ANIO_LECTIVO_POR_OMISION)
+        try:
+            if await catalogo.listas(
+                colegio_id=str(hijo.get("colegio_id") or ""),
+                grado=str(hijo.get("grado") or ""),
+                anio_lectivo=anio,
+            ):
+                return True
+        except RemotoCaido:
+            return True
+    return False
 
 
 async def _renglones_de_listas(
@@ -1008,11 +1053,25 @@ async def lanzar(motor: Any, trabajo_id: uuid.UUID) -> None:
     `fallido` (reintentar) o `en revision` devuelto se reencola para que el worker
     lo retome. Un `procesando`/`publicado` no se puede reencolar (lo frena la
     maquina de estados), que es justo lo que se quiere.
+
+    Con RabbitMQ, el paso a `encolado` deja su aviso en la bandeja, en la misma
+    transaccion; uno que ya estaba `encolado` tiene el suyo desde `crear`.
     """
     async with motor.engine.begin() as conexion:
         actual = await _estado(conexion, trabajo_id)
         if actual != EstadoTrabajo.ENCOLADO.value:
             await _pasar_a(conexion, trabajo_id, EstadoTrabajo.ENCOLADO.value)
+            await _avisar_encolado(conexion, trabajo_id)
+
+
+async def _avisar_encolado(conexion: Any, trabajo_id: uuid.UUID) -> None:
+    """Con RabbitMQ, el aviso de que el trabajo quedo `encolado` (ADR 0046).
+
+    Sin broker nadie lo lee, porque el trabajador sondea la tabla: escribirlo
+    solo cambiaria lo que hay en la bandeja.
+    """
+    if url_broker():
+        await RepoTrabajos(conexion).avisar_encolado(trabajo_id)
 
 
 async def _publicar_evento(conexion: Any, trabajo_id: uuid.UUID) -> None:
@@ -1316,8 +1375,12 @@ async def ordenar(
     for linea in kit["lineas"]:
         elegido = linea.get("producto_elegido")
         # Una linea informativa (o sin producto/precio) no se compra: se muestra
-        # en el kit pero no entra a la orden.
+        # en el kit pero no entra a la orden. Tampoco la que quedo en cero por
+        # ir junto a otra ("Ya va en la linea N", o la de un hermano): Comercio
+        # exige cantidad > 0 y una sola en cero tumbaba el checkout entero.
         if linea["informativa"] or not elegido or elegido.get("precio") is None:
+            continue
+        if int(linea["unidades_a_comprar"]) <= 0:
             continue
         lineas.append(
             {
@@ -1607,6 +1670,8 @@ async def cancelar_solicitud(
     - la solicitud de otro (`solicitud_ajena`, 403);
     - un trabajo que el pipeline esta armando (`en_proceso`): se escribe en
       medio y el resultado quedaria a medias;
+    - el trabajo que hoy es el kit canonico de su grado (`kit_canonico`):
+      aprobarlo lo fijo como la cache de la que copian los demas acudientes;
     - un kit con un pago pendiente (`pedido_pendiente`): primero se cancela el
       pedido, que es lo que consulta a la pasarela antes de soltarlo (§9.3);
     - un kit ya comprado (`kit_comprado`).
@@ -1632,6 +1697,20 @@ async def cancelar_solicitud(
     if cabeza.estado == EstadoTrabajo.PROCESANDO.value:
         raise SolicitudNoCancelable(
             "en_proceso", "Estamos armando tu kit justo ahora. Intenta cancelarla en un minuto."
+        )
+    # Aprobar el trabajo de un acudiente lo fija como cache de su grado
+    # (`revisar`): la ruta rapida de los demas padres copia de ahi. Cancelarlo
+    # dejaria el puntero en un trabajo cancelado, asi que mientras sea el
+    # canonico no se toca; se cancela cuando otra publicacion lo reemplace.
+    async with motor.engine.begin() as conexion:
+        es_canonico = await conexion.scalar(
+            select(KIT_CANONICO.c.id).where(KIT_CANONICO.c.trabajo_id == trabajo_id).limit(1)
+        )
+    if es_canonico is not None:
+        raise SolicitudNoCancelable(
+            "kit_canonico",
+            "Este kit quedó como el kit de referencia de tu colegio y grado, así que no se "
+            "cancela. Si no lo necesitas, no tienes que comprarlo.",
         )
 
     for pedido in await comercio.pedidos_de(token):
@@ -2058,9 +2137,9 @@ async def _proteger_kits_publicados(conexion: Any, trabajo_id: uuid.UUID) -> Non
     """Niega editar las lineas de unos kits canonicos ya publicados.
 
     Canonico es lo que no tiene acudiente (preview fijado, `canonico_lista`) o
-    lo que la cache de su grado apunta hoy (un trabajo de acudiente aprobado
-    tambien la fija). El trabajo publicado de un acudiente que no es la cache
-    sigue el flujo de siempre.
+    lo que la cache de su grado apunta hoy (datos de antes, cuando aprobar el
+    trabajo de un acudiente tambien la fijaba). El trabajo publicado de un
+    acudiente que no es la cache sigue el flujo de siempre.
     """
     fila = (
         await conexion.execute(select(TRABAJO.c.estado, TRABAJO.c.origen).where(TRABAJO.c.id == trabajo_id))
@@ -2117,13 +2196,12 @@ async def revisar(
             )
         )
         if decision == "aprobar":
-            # No se bendice como canonico un kit del que nadie puede comprar
-            # nada: si NINGUNA linea de NINGUN perfil tiene producto+precio,
-            # fijar el puntero solo garantizaria el 404 "sin lineas comprables"
-            # en el checkout del acudiente. Se niega la aprobacion con un motivo
-            # claro (falta fijar producto/precio en las lineas), en vez de
-            # publicar una cache rota. Misma definicion de "comprable" que
-            # `ordenar`: no informativa, con sku y precio.
+            # No se publica un kit del que nadie puede comprar nada: si NINGUNA
+            # linea de NINGUN perfil tiene producto+precio, el acudiente solo
+            # veria el 409 "sin lineas comprables" en el checkout. Se niega la
+            # aprobacion con un motivo claro (falta fijar producto/precio en las
+            # lineas). Misma definicion de "comprable" que `ordenar`: no
+            # informativa, con sku y precio.
             if not await _tiene_lineas_comprables(conexion, trabajo_id):
                 raise CheckoutRechazado(
                     409,
@@ -2132,12 +2210,15 @@ async def revisar(
                         "mensaje": (
                             "Este trabajo no tiene ninguna linea con producto y precio "
                             "que Tukit pueda vender. Fija el producto en las lineas antes "
-                            "de aprobarlo como canonico."
+                            "de aprobarlo."
                         ),
                     },
                 )
             await _publicar_evento(conexion, trabajo_id)
-            await _fijar_canonico(conexion, trabajo_id)
+            # Aprobar el trabajo de un acudiente NO lo vuelve el canonico de su
+            # grado: lleva sus preferencias (presupuesto, prioridad, personaje) y
+            # es solo suyo. El canonico sale de la LISTA aprobada
+            # (`canonico_lista`) o de un preview fijado (`fijar_como_canonico`).
 
     return {"trabajo_id": str(trabajo_id), "estado": nuevo, "nota": nota}
 

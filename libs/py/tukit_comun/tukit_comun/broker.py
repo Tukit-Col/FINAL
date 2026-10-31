@@ -9,7 +9,11 @@ colas de cada consumidor y las DLQ.
 **Degrada honestamente:** `sink_desde_entorno()` devuelve `None` si no hay
 `RABBITMQ_URL`, y `drenar(..., sink=None)` se comporta igual que hoy (solo el
 `manejar`/NotifierSink). La tesis corre sin RabbitMQ; quien lo quiera lo levanta
-con `make infra-arriba` y exporta la URL.
+con `make bd-arriba` y exporta la URL.
+
+`python -m tukit_comun.broker` dice si el broker de `RABBITMQ_URL` responde.
+Es lo que usa `make arriba` para decidir si los procesos van por RabbitMQ o
+sondean las bases (ADR 0046).
 
 `aio-pika` se importa DENTRO de las funciones a proposito: importar este modulo
 no debe fallar ni cargar el driver en un proceso que no publica al broker (las
@@ -20,11 +24,15 @@ proxima pasada (at-least-once; los consumidores son idempotentes, ADR 0022).
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import sys
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 # El nombre del exchange topic al que se publican todos los eventos del outbox.
 # Uno solo para todo el monorepo: el routing key (el tipo del evento) y los
@@ -100,4 +108,57 @@ def sink_desde_entorno() -> BrokerSink | None:
     return BrokerSink(url=url) if url else None
 
 
-__all__ = ["EXCHANGE", "BrokerSink", "sink_desde_entorno", "url_broker"]
+async def responde(
+    url: str, *, espera: float = 15.0, conectar: Callable[[str], Awaitable[Any]] | None = None
+) -> str | None:
+    """`None` si el broker de `url` acepta una conexion antes de `espera`
+    segundos; si no, el motivo.
+
+    Usa `aio_pika.connect` y no `connect_robust`, que reintenta sin fin. La
+    espera es holgada porque un RabbitMQ 4.x en la propia maquina tarda hasta
+    5 s en saludar. `conectar` se inyecta en las pruebas."""
+    try:
+        if conectar is None:
+            import aio_pika
+
+            conectar = aio_pika.connect
+        conexion = await asyncio.wait_for(conectar(url), espera)
+    except TimeoutError:
+        return f"no saludo en {espera:g} s"
+    except Exception as error:  # noqa: BLE001 - cualquier fallo es un "no responde"
+        return f"{type(error).__name__}: {error}" if str(error) else type(error).__name__
+    await conexion.close()
+    return None
+
+
+def sin_clave(url: str) -> str:
+    """La URL con la contrasena tapada, para escribirla en un log."""
+    partes = urlsplit(url)
+    if partes.password is None:
+        return url
+    usuario = partes.username or ""
+    servidor = partes.hostname or ""
+    if partes.port is not None:
+        servidor = f"{servidor}:{partes.port}"
+    return urlunsplit(partes._replace(netloc=f"{usuario}:***@{servidor}"))
+
+
+def main(*, espera: float = 15.0, conectar: Callable[[str], Awaitable[Any]] | None = None) -> int:
+    """0 si el broker de `RABBITMQ_URL` responde, 1 si no, 2 si no hay URL."""
+    url = url_broker()
+    if url is None:
+        print("Sin RABBITMQ_URL: no hay broker que comprobar.", file=sys.stderr)
+        return 2
+    motivo = asyncio.run(responde(url, espera=espera, conectar=conectar))
+    if motivo is not None:
+        print(f"RabbitMQ no responde en {sin_clave(url)} ({motivo}).", file=sys.stderr)
+        return 1
+    print(f"RabbitMQ responde en {sin_clave(url)}.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+
+__all__ = ["EXCHANGE", "BrokerSink", "main", "responde", "sin_clave", "sink_desde_entorno", "url_broker"]

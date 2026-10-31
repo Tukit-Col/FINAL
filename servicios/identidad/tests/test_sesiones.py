@@ -153,3 +153,29 @@ class TestSesionActualYRevocacion:
 
     async def test_cerrar_sesion_responde_204(self, cliente):
         assert (await cliente.post("/v1/sesiones/cierre")).status_code == 204
+
+    async def test_cerrar_sesion_revoca_el_token(self, cliente):
+        """Antes cerrar sesion solo borraba la cookie: el token seguia valiendo
+        hasta expirar, y quien lo hubiera copiado seguia entrando."""
+        token = (
+            await cliente.post("/v1/sesiones", json={"correo": "mama@ejemplo.com", "clave": "demo1234"})
+        ).json()["token"]
+        cabeceras = {"Authorization": f"Bearer {token}"}
+
+        assert (await cliente.post("/v1/sesiones/cierre", headers=cabeceras)).status_code == 204
+
+        respuesta = await cliente.get("/v1/sesiones/actual", headers=cabeceras)
+        assert respuesta.status_code == 401
+        assert respuesta.json()["error"] == "sesion_revocada"
+        # Volver a entrar da un token nuevo que si vale.
+        nuevo = (
+            await cliente.post("/v1/sesiones", json={"correo": "mama@ejemplo.com", "clave": "demo1234"})
+        ).json()["token"]
+        assert (
+            await cliente.get("/v1/sesiones/actual", headers={"Authorization": f"Bearer {nuevo}"})
+        ).status_code == 200
+
+    async def test_cerrar_con_un_token_invalido_no_falla(self, cliente):
+        """Cerrar es idempotente: un token vencido o inventado no es un error."""
+        respuesta = await cliente.post("/v1/sesiones/cierre", headers={"Authorization": "Bearer inventado"})
+        assert respuesta.status_code == 204

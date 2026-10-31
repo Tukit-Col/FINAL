@@ -36,14 +36,21 @@ def _meter() -> Any | None:
     return metrics.get_meter("tukit")
 
 
-def _contar(nombre: str, descripcion: str) -> None:
-    """Suma 1 a un contador de dominio; no-op si OTel no esta disponible."""
+def _contar(
+    nombre: str, descripcion: str, cantidad: int = 1, atributos: dict[str, str] | None = None
+) -> None:
+    """Suma `cantidad` a un contador de dominio; no-op si OTel no esta disponible."""
+    if cantidad <= 0:
+        return
     if nombre not in _contadores:
         meter = _meter()
         if meter is None:
             return
         _contadores[nombre] = meter.create_counter(nombre, description=descripcion)
-    _contadores[nombre].add(1)
+    if atributos:
+        _contadores[nombre].add(cantidad, atributos)
+    else:
+        _contadores[nombre].add(cantidad)
 
 
 def contar_orden_creada() -> None:
@@ -56,6 +63,25 @@ def contar_pago_aprobado() -> None:
 
 def contar_trabajo_publicado() -> None:
     _contar("tukit.trabajos.publicados", "Trabajos del pipeline que llegaron a publicado/revision.")
+
+
+# La cache y el limite sobre Redis (ADR 0047). `uso` es `percepcion`, `vector`
+# o `limite`: el panel separa una cache que no acierta de un Redis caido.
+def contar_cache(uso: str, *, aciertos: int, fallos: int) -> None:
+    _contar("tukit.cache.aciertos", "Lecturas de la cache que encontraron el valor.", aciertos, {"uso": uso})
+    _contar("tukit.cache.fallos", "Lecturas de la cache que no lo encontraron.", fallos, {"uso": uso})
+
+
+def contar_redis_degradado(uso: str) -> None:
+    _contar(
+        "tukit.redis.degradaciones",
+        "Operaciones con Redis que fallaron o vencieron y degradaron.",
+        atributos={"uso": uso},
+    )
+
+
+def contar_limite_rechazado(nivel: str) -> None:
+    _contar("tukit.limite.rechazos", "Peticiones que el gateway rechazo con 429.", atributos={"nivel": nivel})
 
 
 def configurar_metricas() -> None:
@@ -93,7 +119,10 @@ def configurar_metricas() -> None:
 
 __all__ = [
     "configurar_metricas",
+    "contar_cache",
+    "contar_limite_rechazado",
     "contar_orden_creada",
     "contar_pago_aprobado",
+    "contar_redis_degradado",
     "contar_trabajo_publicado",
 ]

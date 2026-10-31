@@ -13,6 +13,8 @@ ensambla y conserva el wiring que las rutas y las pruebas necesitan:
 - Los puertos de percepcion (`_RENDERIZAR`/`_LEER`/`_percibir_onboarding`) viven
   aqui como indireccion de modulo para que el onboarding se pueda probar sin
   pypdfium2 ni una llave de Gemini: las pruebas los sustituyen por dobles.
+  `_percibir_onboarding` reaprovecha la lectura guardada en Redis de un archivo
+  ya leido (`cache_lecturas`, ADR 0047).
 - Los clientes remotos (`_catalogo`/`_identidad`/`_comercio`) leen de
   `app.state`, inyectable en pruebas.
 - La ejecucion de fondo es una tarea del mismo proceso (`trabajos.lanzar`); es
@@ -34,7 +36,7 @@ from tukit_comun.bd import crear_motor
 from tukit_comun.http import crear_app, crear_pool
 from tukit_comun.telemetria import instrumentar_motor
 
-from . import gemini, paginas, trabajos
+from . import cache_lecturas, gemini, paginas, trabajos
 from .percepcion import LeerPagina, Percepcion, Renderizar, percibir
 from .remoto import (
     ESPERA_SEGUNDOS,
@@ -67,9 +69,15 @@ _RENDERIZAR: Renderizar = paginas.renderizar
 _LEER: LeerPagina = gemini.pedir_pagina
 
 
-def _percibir_onboarding(contenido: bytes) -> Percepcion:
-    """Envoltorio con los puertos por omision, monkeypatcheable en pruebas."""
-    return percibir(contenido, renderizar=_RENDERIZAR, leer=_LEER)
+async def _percibir_onboarding(contenido: bytes) -> Percepcion:
+    """Envoltorio con los puertos por omision y la cache de lecturas,
+    monkeypatcheable en pruebas.
+
+    La lectura sigue siendo la llamada sincrona de siempre; el envoltorio es
+    asincrono para preguntarle a Redis sin bloquear el bucle."""
+    return await cache_lecturas.percibir_guardada(
+        contenido, lambda archivo: percibir(archivo, renderizar=_RENDERIZAR, leer=_LEER)
+    )
 
 
 def _catalogo() -> Any:

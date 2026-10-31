@@ -9,6 +9,7 @@ import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 import type { TrabajoAdmin } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
+import AvisoAcceso from "@/components/AvisoAcceso";
 import BorrarTrabajo from "@/components/BorrarTrabajo";
 import ConsolaRevision from "@/components/ConsolaRevision";
 import DecisionTrabajo from "@/components/DecisionTrabajo";
@@ -18,6 +19,7 @@ import {
   TITULO_ESTADO_ETAPA,
   TITULO_ESTADO_TRABAJO,
 } from "@/lib/formato";
+import { motivoDeAcceso } from "@/lib/logistica";
 import styles from "./Detalle.module.css";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +41,8 @@ export default async function PaginaTrabajo({ params }: Props) {
     trabajo = await origenDeDatos().trabajoAdmin(trabajo_id);
   } catch (causa) {
     if (causa instanceof ErrorTukit && causa.estado === 404) notFound();
+    const motivo = motivoDeAcceso(causa);
+    if (motivo) return <AvisoAcceso motivo={motivo} mensaje={(causa as Error).message} />;
     throw causa;
   }
 

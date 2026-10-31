@@ -5,11 +5,54 @@
 > fronteras de *conversación*. Cambiar cualquiera de los dos sin avisar rompe a alguien
 > más, así que se cierran antes de repartir el trabajo y se versionan.
 
-- **Versión:** 1.9
+- **Versión:** 1.12
 - **Prefijo:** `/v1`
 - **URL base:** `http://127.0.0.1:8010` en desarrollo. Ver §12.1.
 - **Formato:** JSON UTF-8. Dinero en **pesos enteros** (nunca decimales flotantes).
 - **Idioma de los identificadores:** español sin tildes, como el resto del código.
+
+### Qué cambió en 1.12
+
+La consola interna exige sesión del equipo en el gateway. Un cliente de 1.11 que ya mandaba el
+Bearer del operador o del admin no cambia nada. Uno que llamaba a `/v1/admin/*` sin token, sí:
+ahora recibe `401`.
+
+| Cambio | Dónde | Por qué |
+|---|---|---|
+| Toda ruta `/v1/admin/*` exige un Bearer válido con rol `admin` u `operador`: sin token o con uno que Identidad no reconoce, `401 sesion_invalida`; con uno sin rol del equipo, `403 acceso_denegado`; si Identidad no responde, `503 identidad_no_disponible` | §7, §12.1 | Por el gateway, sin token, se podían leer la cola y las listas y aprobar y publicar un kit |
+| La excepción es `POST /v1/admin/sugerencias`, que manda la web pública por un acudiente que puede no tener cuenta. `GET /v1/admin/sugerencias` es del equipo | §7 | Es la única ruta bajo `/v1/admin` que no es de la consola |
+| Las escrituras de consola fuera de `/v1/admin` exigen la misma sesión: `PATCH` y `DELETE /v1/catalogo/productos/{sku}`, `POST /v1/catalogo/productos/{sku}/reclasificar` y `PATCH /v1/colegios/{colegio_id}`. Leerlos (`GET`) sigue siendo público | §7 | Sin token se podía editar, retirar o reclasificar un producto y editar el perfil de un colegio |
+| Aprobar el trabajo de un acudiente (`POST /v1/admin/trabajos/{id}/revision` con `aprobar`) lo publica para él y ya no lo vuelve el kit canónico de su grado. El canónico sale de la lista aprobada (`canonico_lista`) o de un preview fijado | §7 | El kit de un papá lleva sus preferencias; los papás siguientes recibían un kit armado con las de otro |
+| `POST /v1/sesiones/cierre` revoca el token: sube la `version_permisos` del portador, así que cierra la sesión en todos sus dispositivos. Sin token o con uno que ya no vale sigue respondiendo `204` | Identidad | Antes solo se borraba la cookie y el token seguía valiendo hasta expirar |
+| `GET /v1/contactos/{usuario_id}` deja de estar expuesto en el gateway (404 como cualquier ruta interna). `POST /v1/contactos` sigue igual | §7 | Devolvía correo y celular de cualquier usuario sin token; solo lo usan los servicios entre ellos |
+| `apps/admin` reenvía como Bearer el token de la cookie `tukit_sesion` en todas sus llamadas | §12.8 | Antes solo lo hacía en el onboarding y en la logística |
+
+### Qué cambió en 1.11
+
+El gateway limita la tasa, y Redis guarda la lectura de una lista y el vector de cada renglón
+(ADR 0047). Lo único nuevo para un cliente es el `429`. Un cliente de 1.10 sigue funcionando, y si
+no trata el `429` lo ve como cualquier error con `error` y `mensaje`.
+
+| Cambio | Dónde | Por qué |
+|---|---|---|
+| El gateway responde `429 demasiadas_peticiones`, con `Retry-After` y `reintentar_en_segundos`, cuando una petición pasa un tope de su nivel | §11.1 | Nada limitaba cuántas subidas o intentos de entrar hacía una persona (ESC-09) |
+| Quedan fuera del límite `/v1/servicios`, `/v1/webhooks/*`, las preflight `OPTIONS` y lo que no es `/v1/*` | §11.1 | La pasarela reintenta y no es un cliente, y una sonda no debe gastar cupo |
+| El gateway toma la IP de `X-Forwarded-For` solo si la conexión viene de un proxy de confianza (`TUKIT_PROXIES_CONFIANZA`), y el servidor de Next.js la reenvía | §11.1 | Sin eso, todas las familias contarían como la IP del servidor de la web |
+| Con `REDIS_URL`, la lectura aceptada de un archivo y el vector de cada renglón se guardan. Sin Redis, o si no responde, se calcula como en 1.10 | §8 | Las familias de un colegio suben el mismo PDF. El cruce con el catálogo y los precios se recalcula siempre |
+| `@tukit/contrato` exporta `ErrorDemasiadasPeticiones` y `conEspera`, y un `ErrorTukit` con estado `429` trae `reintentar_en_segundos` en su `detalle` | §11.1 | Para que la web y la consola digan la espera igual, aunque el `429` llegue sin cuerpo |
+
+### Qué cambió en 1.10
+
+Cómo viajan los eventos entre servicios (ADR 0046). La API HTTP no cambia: un cliente de 1.9
+sigue funcionando igual. Cambia el contrato entre servicios, que se describe en el §10.1.
+
+| Cambio | Dónde | Por qué |
+|---|---|---|
+| Con `RABBITMQ_URL`, cada productor publica su bandeja en el exchange `tukit.eventos` y cada consumidor escucha su cola. Sin ella, los consumidores siguen leyendo las bandejas, como en 1.9 | §10.1 | Ningún consumidor lee la base de otro servicio, y un evento llega en cuanto se publica |
+| El mensaje es un sobre con `evento_id`, `origen`, `tipo`, `agregado_tipo`, `agregado_id`, `carga` y `correlacion_id` | §10.1 | Para deduplicar por origen e id y seguir el hilo de la petición |
+| La carga de `kits_publicados` agrega `usuario_id`, el acudiente al que va el aviso. Es aditivo | §10.1 | Con broker, el repartidor no lee `trabajo_pipeline` |
+| Evento nuevo, `trabajo_encolado`, en la bandeja de inteligencia y solo con broker | §10.1 | El aviso que lleva un trabajo al trabajador |
+| Un mensaje que falla se reintenta cada 10 s, y al quinto intento queda en `<cola>.descartados` | §8, §10.1 | Queda visible, en vez de reintentarse sin fin |
 
 ### Qué cambió en 1.9
 
@@ -65,7 +108,7 @@ a un hijo (ADR 0031).
 
 | Cambio | Dónde | Por qué |
 |---|---|---|
-| `POST /v1/trabajos/{id}/cancelar` (con sesión): el trabajo pasa a `cancelado`, terminal. No se cancela un kit comprado (`409 kit_comprado`), uno con pago pendiente (`409 pedido_pendiente`) ni uno en `procesando` (`409 en_proceso`); otra cuenta, `403 solicitud_ajena` | §4 | Antes una solicitud no se podía deshacer |
+| `POST /v1/trabajos/{id}/cancelar` (con sesión): el trabajo pasa a `cancelado`, terminal. No se cancela un kit comprado (`409 kit_comprado`), uno con pago pendiente (`409 pedido_pendiente`) ni uno en `procesando` (`409 en_proceso`), ni el que hoy es el kit canónico de su grado (`409 kit_canonico`); otra cuenta, `403 solicitud_ajena` | §4 | Antes una solicitud no se podía deshacer |
 | `POST /v1/mis-solicitudes/listas/{tarea_id}/cancelar` (con sesión): la lista subida deja de ser del acudiente, sin borrarse | §4 | La lista es del colegio y sirve a otros |
 | `EstadoTrabajo` suma `cancelado`; "Mis solicitudes" no lo devuelve y la lista `recibida` trae `tarea_id` | §4 | Para poder cancelarla |
 | `DELETE /v1/cuenta/matriculas/{matricula_id}` (204) y `PUT` con `{colegio_id, grado, apodo?}`: quitar cierra el vínculo sin borrar; cambiar retira la matrícula y crea la nueva con el mismo apodo | §12.4 | Corregir el colegio o quitar a un hijo desde el panel |
@@ -294,6 +337,11 @@ Dos formas de entrar, las dos del SRS:
 > pide `GEMINI_API_KEY` y el render de PDF, y ninguna de las dos es una decisión de
 > contrato. La ruta (a) cubre los 17 colegios del corpus con sus 175 listas cargadas, así
 > que el frontend puede construirse entero contra ella.
+
+Si **ningún** hijo tiene lista en el catálogo para su (colegio, grado, año), la petición se
+rechaza en el acto con `422 sin_lista_oficial` y no se encola nada: el grado sin lista va por
+`POST /v1/listas/subir`. Un hogar donde solo algunos hijos tienen lista sigue con `202` y
+el kit anota al que faltó. Con el catálogo caído no se puede saber y se encola como siempre.
 
 ### 2.1 Un archivo es la lista de UN grado, y eso se verifica
 
@@ -643,6 +691,15 @@ recomendado cabe siempre e iguala la mejor marca posible dentro del tope.
 | `POST /v1/admin/productos/{sku}/no-disponible` | `AD-05` |
 | `POST /v1/admin/trabajos/{id}/revision` | `AD-06` — publica al acudiente |
 
+**La sesión (1.12).** Todo `/v1/admin/*` es del equipo: el gateway valida el Bearer contra
+`GET /v1/sesiones/actual` antes de reenviar, y sin sesión responde `401 sesion_invalida`, sin
+rol `admin` u `operador` `403 acceso_denegado`, y si Identidad no responde
+`503 identidad_no_disponible`. La única excepción es `POST /v1/admin/sugerencias` (la sugerencia
+de un acudiente desde la web pública). La misma sesión cierran las escrituras de consola que
+viven fuera de `/v1/admin`: `PATCH`/`DELETE /v1/catalogo/productos/{sku}`,
+`POST /v1/catalogo/productos/{sku}/reclasificar` y `PATCH /v1/colegios/{colegio_id}`. Las
+llamadas internas entre servicios no pasan por el gateway y no cambian.
+
 La cola se alimenta de `PE-04`: "marcar para revisión de Admin Tukit los ítems con
 confianza de extracción por debajo del umbral configurable τ". Toda transición queda en
 `operacion.registro_auditoria` con quién y cuándo, que es lo que exigen el criterio de
@@ -678,7 +735,10 @@ una respuesta parcial honesta.
 | Pasarela | Sin respuesta | La orden queda `pendiente_pago`; nunca se confirma sin confirmación |
 | Catálogo, en la subida del acudiente (`POST /v1/listas/subir`) | Sin respuesta, 5xx, 408 o 429 | `202`. Lo que no se importó queda guardado con lo ya percibido, y su hijo trae `version_id: null` y `estado: "pendiente"`. El trabajador lo importa cuando el catálogo vuelve, con la misma `clave_idempotencia`: una sola versión (ADR 0040) |
 | Catálogo, en el onboarding del admin (`POST /v1/admin/onboarding`) | Sin respuesta, 5xx, 408 o 429 | `503 servicio_no_disponible`; la lista no se guarda y el admin reintenta (ADR 0040) |
-| Postgres o RabbitMQ, en los procesos de fondo | Sin respuesta | Barredor, pollers, trabajador y repartidor esperan (1 s, el doble cada vez, tope de 30 s) y siguen; un error de programación los termina (ADR 0041) |
+| Postgres o RabbitMQ, en los procesos de fondo | Sin respuesta | Barredor, pollers, trabajador, repartidor y publicadores esperan (1 s, el doble cada vez, tope de 30 s) y siguen; un error de programación los termina (ADR 0041). Con broker, un evento sin publicar espera en su bandeja, y un mensaje que se estaba procesando vuelve a su cola sin gastar un intento (ADR 0046) |
+| Un consumidor, con broker | El manejo de un evento falla | El mensaje vuelve a su cola a los 10 s; al quinto intento queda en `<cola>.descartados`, con el motivo, y se registra como error (ADR 0046) |
+| Redis, en la caché de lecturas y de vectores | Sin respuesta, más de 250 ms o sin `REDIS_URL` | Se calcula como sin caché: la lista se vuelve a leer y los vectores se vuelven a pedir. La respuesta es la misma y no hay degradación que reportar, porque no se pierde nada. Un registro por episodio, no por petición (ADR 0047) |
+| Redis, en el límite de tasa del gateway | Sin respuesta, más de 250 ms o sin `REDIS_URL` | El gateway cuenta en su memoria. Con una réplica protege igual; con varias, cada una cuenta por su lado. Nunca un `500` (ADR 0047) |
 
 Las degradaciones se reportan, no se esconden:
 
@@ -946,6 +1006,52 @@ así que puede entregarlo otra vez (por ejemplo, si RabbitMQ se cae justo despu�
 `notificacion` guarda de qué evento sale, y un evento que ya tiene su aviso `enviada` no se vuelve
 a enviar. Un envío que falló sí se reintenta.
 
+### 10.1 Cómo viajan los eventos (nuevo en 1.10)
+
+Ningún cliente HTTP ve los eventos. Se describen aquí porque son el contrato entre servicios.
+
+El evento se escribe siempre en la `bandeja_salida` del productor, en la misma transacción del
+cambio. Lo que depende del modo es cómo sale de ahí (ADR 0046):
+
+- **Sin `RABBITMQ_URL`,** como en 1.9: el repartidor y los sondeadores leen la bandeja del
+  productor, y el trabajador sondea `trabajo_pipeline`.
+- **Con `RABBITMQ_URL`,** el publicador de cada productor lleva su bandeja al exchange topic
+  `tukit.eventos`, con el tipo como routing key, y cada consumidor escucha su cola.
+
+| Tipo | Productor | Carga | Cola, con broker |
+|---|---|---|---|
+| `kits_publicados` | inteligencia | `trabajo_id`, `publicado_en` y `usuario_id` (nuevo en 1.10) | `operacion.avisos` |
+| `pedido_pagado`, `incidencia`, `pedido_despachado`, `pedido_en_reparto`, `pedido_entregado` | comercio | sin cambios | `operacion.avisos` |
+| `colegio_verificado` | catalogo | sin cambios | `identidad.colegios` |
+| `lista_verificada`, `lista_aprobada` | catalogo | sin cambios | `inteligencia.listas` |
+| `trabajo_encolado` (nuevo en 1.10, solo con broker) | inteligencia | `trabajo_id` | `inteligencia.trabajos` |
+| `pedido_solicitado` | inteligencia | sin cambios | ninguna: el broker lo descarta, como el repartidor lo omite sin broker |
+
+El cuerpo del mensaje es un sobre:
+
+```jsonc
+{
+  "evento_id": 42,                 // el id en la bandeja del productor
+  "origen": "comercio",            // el productor; con evento_id, identifica el evento
+  "tipo": "pedido_pagado",
+  "agregado_tipo": "pedido",
+  "agregado_id": "<uuid>",
+  "carga": { "pedido_id": "<uuid>", "usuario_id": "<uuid>" },   // la de la bandeja, tal cual
+  "correlacion_id": "<id o null>"
+}
+```
+
+Las propiedades AMQP repiten lo que sirve para mirar una cola sin abrir el mensaje: `message_id`
+es `<origen>:<evento_id>`, `type` es el tipo y `app_id` el origen. La entrega es persistente.
+
+**Al menos una vez.** Un evento puede llegar dos veces, y cada consumidor lo tolera: operación da
+un aviso por evento (arriba), identidad es idempotente y el sondeador de listas anota los eventos
+que procesó.
+
+**Lo que falla queda visible.** Un mensaje cuyo manejo falla vuelve a su cola a los 10 s. Al
+quinto intento queda en `<cola>.descartados`, con el motivo en la cabecera `tukit-motivo`. Una
+caída de la base o del broker no cuenta como intento.
+
 ---
 
 ## 11. Errores
@@ -957,9 +1063,9 @@ a enviar. Un envío que falló sí se reintenta.
 ```
 
 `400` entrada inválida · `404` no existe · `409` estado incompatible (por ejemplo, revisar
-un trabajo ya publicado) · `422` entrada válida que el dominio rechaza · `501` ruta
-especificada en este contrato sin servicio detrás todavía · `502` dependencia externa
-caída · `503` servicio no disponible.
+un trabajo ya publicado) · `422` entrada válida que el dominio rechaza · `429` demasiadas
+peticiones (§11.1) · `501` ruta especificada en este contrato sin servicio detrás todavía ·
+`502` dependencia externa caída · `503` servicio no disponible.
 
 `501` se agregó en 1.1 y la distinción con `404` no es formalismo. Un `404` dice "te
 equivocaste de URL" y manda a revisar el cliente; un `501` dice "la URL es la correcta y el
@@ -980,6 +1086,75 @@ manejador de validación del sistema anterior devolvía la contraseña recibida,
 los defectos ya documentados. El manejador de errores de validación de los tres servicios
 reescribe la respuesta por omisión del framework, que incluye el valor recibido en `input`,
 y deja solo `{error, mensaje, campo}`.
+
+### 11.1 Demasiadas peticiones (nuevo en 1.11)
+
+El gateway cuenta cada petición antes de reenviarla (ADR 0047). Si pasa un tope, responde así:
+
+```http
+HTTP/1.1 429 Too Many Requests
+Retry-After: 42
+```
+```json
+{ "error": "demasiadas_peticiones",
+  "mensaje": "Hiciste demasiadas peticiones en poco tiempo. Vuelve a intentarlo en 42 segundos.",
+  "reintentar_en_segundos": 42 }
+```
+
+`Retry-After` y `reintentar_en_segundos` son el mismo número de segundos, mínimo 1. El `mensaje`
+ya trae la espera, en segundos o en minutos, y es el que se muestra. En `@tukit/contrato` el
+cuerpo es `ErrorDemasiadasPeticiones`.
+
+**Los topes.** Estos son los de por omisión, y cada uno se cambia por entorno:
+
+| Nivel | Rutas | Ventana | Por token | Por IP |
+|---|---|---|---|---|
+| General | todo `/v1/*` | 60 s | 300 | 1.200 |
+| Estricto | cada una de las de abajo, por separado | 600 s | 30 | 60 |
+
+Las estrictas son estas, todas con `POST`:
+
+- `/v1/listas/subir`;
+- `/v1/trabajos`, `/v1/trabajos/{trabajo_id}/reintentar` y `/v1/trabajos/aplicar-canonico`;
+- `/v1/admin/onboarding` y `/v1/admin/onboarding/{version_id}/preview`;
+- `/v1/sesiones`, `/v1/cuenta` y `/v1/registro`;
+- `/v1/catalogo/emparejar`.
+
+Una estricta cuenta también en el general, y cada una tiene su propio cupo: los intentos de entrar
+no gastan el de las subidas. Una ruta desconocida también cuenta.
+
+**Lo que no cuenta:** `/v1/servicios`, `/v1/webhooks/*`, las preflight `OPTIONS` y lo que no es
+`/v1/*` (`/salud`, `/health/*`).
+
+**A quién se cuenta.** Cada petición cuenta dos claves por nivel, y tienen que pasar las dos: la
+del token, si trae `Authorization: Bearer`, y la de la IP. Sin token solo cuenta la IP. El gateway
+no valida el token para contar (eso sigue siendo de identidad), así que inventar uno en cada
+petición no da cupo.
+
+**Lo que el gateway espera de `X-Forwarded-For`:**
+
+- Que lo escriba un proxy de confianza. Por omisión es la misma máquina (`127.0.0.1` y `::1`), que
+  es donde corre la web; `TUKIT_PROXIES_CONFIANZA` acepta IP y redes separadas por comas.
+- Que cada proxy agregue a la derecha la IP de quien le habló, como hace cualquier proxy. El
+  gateway recorre la cabecera de derecha a izquierda, y la IP del cliente es la primera que no es
+  de confianza. Si todas lo son, es la de más a la izquierda.
+- Si la conexión no viene de un proxy de confianza, la cabecera se ignora y cuenta la IP de la
+  conexión.
+- El cliente de servidor de `@tukit/contrato` reenvía el `X-Forwarded-For` de la petición que
+  recibió Next.js. Next.js la pone con la dirección del socket solo si no viene, así que en
+  producción la web va detrás de un proxy que la escriba: si no, el navegador puede escribirla.
+
+**Qué hace el cliente.**
+
+- No reintenta solo.
+- Los manejadores de Next.js pasan el `429` tal cual, con su `Retry-After`.
+- La web y la consola muestran el `mensaje`. Si el `429` llega sin cuerpo (un proxy de por medio),
+  `conEspera` arma `error`, `mensaje` y `reintentar_en_segundos` a partir de `Retry-After`.
+- La pantalla de espera deja de sondear, dice que la solicitud sigue avanzando y ofrece un botón
+  para volver a consultar.
+
+El `429` de esta sección es el de la puerta al cliente. Los `429` del catálogo a inteligencia del
+§8 son otra cosa: una dependencia interna que pide esperar.
 
 ---
 
@@ -1025,7 +1200,8 @@ fácil y no chocan. Se cambian con `make arriba PUERTO_GATEWAY=9000`.
 La puerta **rutea por prefijo declarado**, no con comodín. Una ruta que no esté en su mapa
 devuelve `404 ruta_desconocida` con la lista de las que sí existen, en vez de reenviarla a
 un servicio al azar. Las que este contrato define y todavía no tiene nadie detrás
-devuelven `501 no_implementado` (§11).
+devuelven `501 no_implementado` (§11). Antes de reenviar, la puerta cuenta la petición y puede
+responder `429 demasiadas_peticiones` (§11.1), y en `/v1/admin/*` exige la sesión del equipo (§7).
 
 `GET /v1/servicios` dice si los tres de atrás responden. Existe porque `GET /salud` en la
 puerta contesta `ok` con los tres caídos, y esa es la clase de sonda que hace perder una
@@ -1299,7 +1475,9 @@ el derecho al olvido lo alcance en un solo sitio. Idempotente por correo.
 ```
 
 El frontend normalmente **no** necesita llamarlo: `POST /v1/trabajos` lo hace por dentro con
-el bloque `contacto`. Está expuesto por si hace falta registrar antes.
+el bloque `contacto`. Está expuesto por si hace falta registrar antes. Leer un contacto
+(`GET /v1/contactos/{usuario_id}`, correo y celular) es solo entre servicios: el gateway no lo
+expone (1.12).
 
 **Lo que NO hay en identidad, y la ausencia es deliberada:** ninguna ruta devuelve un
 estudiante, un nombre de menor ni una matrícula. Esa superficie necesita autenticación y
@@ -1585,8 +1763,8 @@ Sin rodeos, porque el frontend necesita saber contra qué puede programar hoy.
 | Entrada (b), un archivo | **Funciona por otra ruta** | `POST /v1/trabajos` sigue siendo solo JSON (`multipart` es `400`). Los PDF entran por `POST /v1/listas/subir` (`multipart`), van a la cola de revisión de listas y al aprobarse arman el kit. Necesita `GEMINI_API_KEY`. Con el catálogo caído responde `202` y la lista llega a la cola cuando el catálogo vuelve (§8) |
 | Optimizador | **NSGA-II** (pymoo), con enumeración exacta en listas chicas | Frente de 4 objetivos (costo, fidelidad, disponibilidad, personaje), sembrado con la heurística y la escalera de costo marginal. `Ahorrador` y `Premium` siempre; `Fan` y `A tu Medida` a pedido (ADR 0029, 0030) |
 | Consolidación entre hermanos | **Funciona**, probada | Solo se dispara cuando a dos hijos les toca el mismo sku y el empaque alcanza |
-| Notificación (§10) | **Funciona por correo** | El repartidor de `operacion` recoge `kits_publicados` y `pedido_pagado` de las bandejas y envía el correo (por consola si no hay SMTP), una vez por evento (§10). El wa-link se genera pero no se envía solo |
+| Notificación (§10) | **Funciona por correo** | El repartidor de `operacion` recibe `kits_publicados` y los eventos del pedido por su cola de RabbitMQ, o sin broker de las bandejas, y envía el correo (por consola si no hay SMTP), una vez por evento (§10). El wa-link se genera pero no se envía solo |
 | Pago (§9) | **Funciona contra Wompi sandbox** | Widget, sincronización, webhook y cancelación. Sin llaves (`WOMPI_MODO=falso`) una pasarela simulada camina el mismo flujo. No hay modo de producción |
 | Autenticación | **Funciona** (sesiones de `identidad`, `Authorization: Bearer`) | La exigen la cuenta del acudiente, "Mis solicitudes", cancelar, editar hijos y cambiar productos de un kit con dueño, y el admin. La superficie de lectura (catálogo, colegios, `GET /v1/trabajos/{id}`) sigue abierta |
 | Cifrado de `pesos_usados` | **Puerto sí, cifrado no** | Pasa por el puerto `Cifrador`; sin `TUKIT_LLAVE_CIFRADO` el adaptador guarda en claro y lo dice al arrancar |
-| Ejecución de fondo | **Tarea en proceso** | Si el servicio se reinicia con un trabajo en vuelo, queda en `procesando`. Se rescata con `POST /v1/trabajos/{id}/reintentar` |
+| Ejecución de fondo | **Funciona con el trabajador** | El trabajo queda `encolado` en `trabajo_pipeline` y el trabajador lo toma: con RabbitMQ por su aviso `trabajo_encolado`, sin broker sondeando la tabla (§10.1). Uno que quedó `procesando` por una caída lo retoma el trabajador a los 15 minutos |

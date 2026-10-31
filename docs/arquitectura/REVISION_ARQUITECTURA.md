@@ -27,6 +27,16 @@
 > - el repartidor no era idempotente ante la reentrega del outbox, y un pago avisaba dos veces
 >   (ADR 0042, §B.3).
 
+> **Actualización, rama `feature/colas-rabbitmq`.** Con `RABBITMQ_URL`, los eventos y los trabajos
+> viajan por RabbitMQ: cada productor publica su propia bandeja y cada consumidor escucha su cola,
+> así que ningún consumidor lee la base de otro servicio. Sin la URL, todo sigue como antes, y las
+> lecturas cruzadas quedan declaradas como ese respaldo (ADR 0046, §A.4, §B.0 y §B.3).
+
+> **Actualización, rama `feature/cache-redis`.** Con `REDIS_URL`, Redis guarda la lectura aceptada
+> de una lista y el vector de cada renglón, y la puerta cuenta en él su límite de tasa, compartido
+> entre réplicas. Sin la URL, o si Redis no responde, se calcula como antes y el límite cuenta en la
+> memoria de la puerta. Redis no guarda nada que sea la única copia (ADR 0047, §A.4, §A.5 y §B.2).
+
 > **Dos partes.** La **Parte A (as-is)** es el diagnóstico verificado del sistema tal como está
 > hoy: qué fronteras se respetan, qué comunicación ya trae lo caro de hacer bien, y dónde está la
 > deuda real. La **Parte B (to-be)** es el diseño objetivo al que este documento eleva la
@@ -46,7 +56,7 @@
 > `inteligencia`, `comercio`, `operacion`, `ingesta`, `gateway`); `servicios/` tiene hoy código para
 > **seis**. `ingesta` está declarado con `base_datos = ""` y `tablas = []`
 > (`manifiesto.toml:178-190`) y todavía no tiene directorio de código: las pruebas de frontera lo
-> saltan a propósito (`test_fronteras.py:400`). Es un desplegable planeado. Todo lo que sigue se
+> saltan a propósito (`test_el_lenguaje_declarado_coincide_con_el_codigo`). Es un desplegable planeado. Todo lo que sigue se
 > refiere a los seis que existen.
 
 ---
@@ -212,7 +222,9 @@ de la mezcla, y es el mismo en `catalogo/admin_http.py` y `inteligencia/trabajos
   (única tabla replicada, `manifiesto.toml:36`) y el evento se escribe en la MISMA transacción que
   el cambio que lo origina (`inteligencia/trabajos.py:1005`, `_publicar_evento`). Los drenadores
   usan bloqueo sin espera: `operacion/repartidor.py`, `identidad/poller.py`, `inteligencia/poller.py`
-  — todos `.with_for_update(skip_locked=True)`.
+  — todos `.with_for_update(skip_locked=True)`. Desde la rama `feature/colas-rabbitmq`, esos tres
+  drenadores son el camino sin broker. Con `RABBITMQ_URL`, cada productor vacía su bandeja hacia
+  RabbitMQ y los tres consumen su cola sin abrir la base ajena (ADR 0046, §B.3).
 - **Degradación honesta.** Los `remoto.py` devuelven `None` cuando la dependencia opcional no
   responde (caída de Identidad degrada el trabajo, no lo tumba). El cliente de Comercio pasa los
   rechazos de negocio como `(estado, cuerpo)` y solo levanta en 5xx/red. En el cobro, Catálogo caído
@@ -225,7 +237,9 @@ de la mezcla, y es el mismo en `catalogo/admin_http.py` y `inteligencia/trabajos
   la puerta, que pega al `/salud` de los de atrás.
 - **Puerta con disciplina de códigos.** Ruteo por prefijo declarado: ruta desconocida →
   `404 ruta_desconocida`; ruta del contrato sin servicio → `501 no_implementado`; servicio caído →
-  `503 servicio_no_disponible` (no 502: "no falló, no está").
+  `503 servicio_no_disponible` (no 502: "no falló, no está"). Desde la rama `feature/cache-redis`,
+  antes de rutear cuenta la petición por token y por IP, y pasado un tope responde
+  `429 demasiadas_peticiones` con `Retry-After` (ADR 0047, §11.1 del contrato).
 
 ## A.5 Lo que NO está (y este documento añade)
 
@@ -238,6 +252,8 @@ de la mezcla, y es el mismo en `catalogo/admin_http.py` y `inteligencia/trabajos
 - **Ejecución de pipeline durable** — `lanzar` es un `asyncio.create_task` en proceso; un reinicio
   deja el trabajo en `procesando` (lo dice su propio docstring, `trabajos.py:994-1000`). → §B.3.
 - **Readiness distinta de liveness** — `/salud` dice "vivo", no "listo para servir". → §B.4.
+- **Límite de tasa** — la puerta reenviaba todo sin contar, y nada limitaba cuántas subidas hacía
+  una persona (ESC-09). Cerrado en la rama `feature/cache-redis` (ADR 0047).
 - **Frontend: límites de carga/error, componentes descompuestos, tiempo real** — cero
   `loading.tsx`/`error.tsx`/`Suspense`; god components; polling en vez de push. → §B.5, §B.6.
 
@@ -290,15 +306,21 @@ graph LR
   subgraph Outbox
     I -.evento.-> BI[(bandeja_salida)]
     C -.evento.-> BC[(bandeja_salida)]
-    ID -.evento.-> BID[(bandeja_salida)]
+    CT -.evento.-> BCT[(bandeja_salida)]
   end
-  BI --> OP
-  BC --> OP
-  BID --> OP
+  BI -->|publicador| MQ{{RabbitMQ<br/>tukit.eventos}}
+  BC -->|publicador| MQ
+  BCT -->|publicador| MQ
+  MQ -->|operacion.avisos| OP
+  MQ -->|identidad.colegios| ID
+  MQ -->|inteligencia.listas<br/>inteligencia.trabajos| I
 ```
 
 Cada servicio tiene su base (una por servicio, `manifiesto.toml`); las flechas punteadas son eventos
-por outbox, las sólidas son HTTP síncrono con degradación honesta.
+por outbox, las sólidas son HTTP síncrono con degradación honesta. El dibujo es el camino con
+`RABBITMQ_URL` (ADR 0046). Sin ella no hay broker: el repartidor lee las bandejas de inteligencia y
+de comercio, los dos sondeadores leen la de catálogo y el trabajador sondea `trabajo_pipeline`. Las
+bandejas de identidad y de operación no las lee nadie.
 
 ## B.1 Capas internas por servicio — puertos y adaptadores ligero (ADR 0019) · TDD
 
@@ -403,6 +425,10 @@ a uno, red verde tras cada uno.
     para multi-réplica). **Uno por destino** (`catalogo`, `identidad`, `comercio`, `wompi`) — el
     mismo límite es la frontera del bulkhead. Umbrales generosos (abre a 5 fallos, prueba a 30 s).
     (ADR 0020) *(Implementado así; el ADR 0020 recoge la corrección.)*
+  - **Redis ya está, pero no para el breaker.** Desde el ADR 0047 hay un cliente común
+    (`tukit_comun.cache`) con espera corta y degradación por episodio, que usan la caché y el
+    límite de tasa. El almacén del breaker sigue en memoria por proceso: pasarlo a Redis es otra
+    decisión.
   - **Retry (`tenacity`) SOLO en GET idempotentes** (`reintentable=True` permitido solo en lecturas:
     `ClienteCatalogo.emparejar/listas/lista/producto`). **POSTs NUNCA reintentan a nivel
     transporte** — un reintento ciego sobre `POST /v1/ordenes` es un doble cobro, el modo de falla
@@ -461,7 +487,7 @@ stateDiagram-v2
   Reservado --> PagoIniciado: T2 iniciar pago (Wompi)
   PagoIniciado --> Pagado: T3 webhook aprobado (emite pedido_pagado al outbox)
   PagoIniciado --> Cancelado: C-charge / timeout de reserva
-  Pagado --> Notificado: T4 repartidor drena (at-least-once)
+  Pagado --> Notificado: T4 repartidor avisa (at-least-once)
   Reservado --> Cancelado: C-reserve (liberar reserva por TTL)
   Cancelado --> [*]
   Notificado --> [*]
@@ -480,6 +506,16 @@ evento. Ahora la `notificacion` guarda `evento_origen` y `evento_id`, y el repar
 enviar un evento que ya tiene su aviso `enviada`. Un índice único parcial
 (`uq_notificacion_evento_enviada`, `WHERE estado = 'enviada'`) lo respalda en la base sin impedir
 varios intentos `fallida`. `drenar` no cambia.
+
+**Con broker, cada servicio vacía su propia bandeja (ADR 0046).** El `BrokerSink` de arriba
+publicaba después de que el consumidor drenara la bandeja ajena: no quitaba la lectura cruzada, y
+nadie consumía lo publicado. Con `RABBITMQ_URL`, el que publica es el productor (un publicador por
+servicio, con confirmación) y el que consume es un consumidor común por cola
+(`tukit_comun.consumidor`), con reintentos acotados y descartados. El trabajador recibe un aviso
+por trabajo y conserva un barrido de la tabla, que sigue siendo la cola de verdad. Sin la URL, los
+drenadores de arriba siguen siendo el camino. El manifiesto los declara como ese respaldo en
+`[[lecturas_cruzadas]]`, y la regla 3b de las fronteras verifica que el camino con broker no los
+use.
 
 ## B.4 Observabilidad (ADR 0021)
 
