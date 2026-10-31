@@ -26,6 +26,8 @@ import {
 } from "@tukit/contrato";
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import Sidebar from "@/components/Sidebar";
+import { conAvisoDeLimite } from "@/components/ConAvisoDeLimite";
+import { esLimiteDeTasa } from "@/lib/limite";
 import {
   sesionActual,
   matriculasDeLaSesion,
@@ -38,6 +40,7 @@ import {
   tonoEstadoPedido,
   type TonoEstado,
 } from "@/lib/pagar-pedido";
+import { saludoDeCuenta } from "@/lib/cuenta";
 import AccionesPedido from "./AccionesPedido";
 import CancelarSolicitud from "./CancelarSolicitud";
 import TarjetaHijo from "./TarjetaHijo";
@@ -90,7 +93,9 @@ async function pedidosConVigencia(): Promise<{
   try {
     // Comercio saca al acudiente de la sesion: viaja el token, no el id.
     pedidos = await pedidosDeLaSesion();
-  } catch {
+  } catch (causa) {
+    // Con el cupo agotado (429) no se finge una tabla vacia: va al aviso.
+    if (esLimiteDeTasa(causa)) throw causa;
     return { filas: [], ahora };
   }
   return {
@@ -99,7 +104,13 @@ async function pedidosConVigencia(): Promise<{
   };
 }
 
+// Un 429 en cualquiera de las lecturas (sesion incluida) pinta el aviso del
+// limite con su espera: ni "no tienes hijos" ni la vuelta a /ingresar.
 export default async function DashboardPage() {
+  return conAvisoDeLimite(panel);
+}
+
+async function panel() {
   const sesion = await sesionActual();
   if (!sesion) redirect("/ingresar");
 
@@ -121,7 +132,8 @@ export default async function DashboardPage() {
       matriculasDeLaSesion(),
       origenDeDatos().colegios(),
     ]);
-  } catch {
+  } catch (causa) {
+    if (esLimiteDeTasa(causa)) throw causa;
     errorHijos = true;
   }
 
@@ -139,7 +151,8 @@ export default async function DashboardPage() {
     const r = await solicitudesDeLaSesion();
     solicitudes = r.solicitudes;
     listasDisponibles = r.listas_disponibles;
-  } catch {
+  } catch (causa) {
+    if (esLimiteDeTasa(causa)) throw causa;
     errorSolicitudes = true;
   }
 
@@ -160,7 +173,7 @@ export default async function DashboardPage() {
             {/* Encabezado */}
             <div className={styles.pageHeader}>
               <div className={styles.pageHeader__titles}>
-                <h1>Hola, {sesion.nombre}</h1>
+                <h1>{saludoDeCuenta(sesion.nombre)}</h1>
                 <p>Tus hijos y tus kits, en un solo lugar.</p>
               </div>
             </div>
@@ -277,12 +290,12 @@ export default async function DashboardPage() {
                                   : "Armaste un pedido con este kit y está esperando tu pago."}
                               </p>
                               <div className={styles.solicitudEnlaces}>
-                                <a
-                                  href={`#pedido-${compra.pedidoId}`}
+                                <Link
+                                  href={`/pedidos/${compra.pedidoId}`}
                                   className={styles.solicitudEnlace}
                                 >
                                   {compra.estado === "comprado" ? "Ver mi pedido" : "Ir a pagar"}
-                                </a>
+                                </Link>
                                 <Link
                                   href={`/kits/${trabajoId}`}
                                   className={styles.solicitudEnlaceSecundario}
@@ -375,17 +388,23 @@ export default async function DashboardPage() {
                       const pendiente = pedido.estado === "pendiente_pago";
                       return (
                         <Fragment key={pedido.pedido_id}>
+                          {/* Toda la fila abre el pedido: el enlace del codigo se
+                              estira sobre ella. Las acciones van en su propia
+                              fila, fuera del enlace. */}
                           <tr
                             id={`pedido-${pedido.pedido_id}`}
-                            className={pendiente ? styles.filaConAcciones : undefined}
+                            className={`${styles.filaPedido} ${pendiente ? styles.filaConAcciones : ""}`}
                           >
                             <td className={styles.pedidoId}>
-                              {pedido.pedido_id.slice(0, 8).toUpperCase()}
+                              <Link href={`/pedidos/${pedido.pedido_id}`} className={styles.enlacePedido}>
+                                <span className={styles.paraLectores}>Ver el pedido </span>
+                                {pedido.pedido_id.slice(0, 8).toUpperCase()}
+                              </Link>
                             </td>
                             <td className={styles.pedidoFecha}>
                               {fechaLegible(pedido.creado_en)}
                             </td>
-                            <td>
+                            <td className={styles.pedidoEstado}>
                               {pendiente && vencido ? (
                                 <span className={`${styles.badge} ${styles.badgeAviso}`}>
                                   <Clock size={12} aria-hidden />

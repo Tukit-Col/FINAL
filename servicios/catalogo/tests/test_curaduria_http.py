@@ -102,6 +102,10 @@ async def test_lista_propuestas_pendientes(cliente):
     assert len(p["id_corto"]) == 8
     assert p["precio"] == 5500  # centavos // 100
     assert p["concepto"] == {"codigo": "C001", "nombre": "cuaderno"}
+    # Sin atributos verificados en sus especificaciones, el mapa viene vacio.
+    assert p["atributos_verificados"] == {}
+    # Lo que el nombre dice ya viene en lo que quedaria al aprobar.
+    assert isinstance(p["atributos_al_aprobar"], dict)
 
 
 def _encolar_en_motor_de_prueba(monkeypatch):

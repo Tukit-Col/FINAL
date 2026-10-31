@@ -51,6 +51,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import re
 import sys
 import unicodedata
@@ -63,7 +64,7 @@ from typing import Any
 from . import tiendas
 from .cargador import AGENTE_FIRECRAWL, _uuid_estable, ean13, isbn13_valido, normalizar_isbn
 from .embeddings import coseno
-from .enriquecer import atributos_de_ficha, extraer_atributos, extraer_empaque, extraer_personaje
+from .enriquecer import Empaque, atributos_de_ficha, extraer_atributos, extraer_empaque, extraer_personaje
 
 # Cuanto puede costar algo de una lista escolar. Es un filtro grueso y basta:
 # lo que descarta son las garrafas industriales de veinte litros y los lotes
@@ -453,6 +454,43 @@ async def _contexto():
     return conceptos, slugs, decididos | ofertados, cobertura
 
 
+# Claves de `especificaciones` que no vienen de la ficha de la tienda sino de
+# quien propuso el producto, despues de verificarlo contra esa ficha. Viajan en
+# la propuesta para no perderse al aprobar: `resolver` vuelve a leer los
+# atributos del nombre, y un nombre que no dice el color lo dejaba sin color.
+ATRIBUTOS_VERIFICADOS = "atributos_verificados"
+EMPAQUE_VERIFICADO = "unidades_por_empaque_verificado"
+
+
+def atributos_verificados(especificaciones: dict[str, Any]) -> dict[str, Any]:
+    """Los atributos verificados de una propuesta, o {} si no trae o no se leen."""
+    crudo = especificaciones.get(ATRIBUTOS_VERIFICADOS)
+    if not crudo:
+        return {}
+    try:
+        valor = json.loads(crudo) if isinstance(crudo, str) else crudo
+    except ValueError:
+        return {}
+    return dict(valor) if isinstance(valor, dict) else {}
+
+
+def atributos_al_aprobar(
+    nombre: str, especificaciones: dict[str, Any], attrs_concepto: tuple[str, ...]
+) -> dict[str, Any]:
+    """Los atributos con que nace el producto si se aprueba sin corregir nada.
+
+    De menor a mayor prioridad: la ficha de la tienda, lo que dice el nombre, y
+    lo que quien propuso verifico contra la ficha (el color o el tamano que el
+    nombre no dice). Las correcciones de la cola pisan todo esto. La cola lo
+    muestra antes de aprobar, para que lo que se ve sea lo que queda.
+    """
+    return {
+        **atributos_de_ficha(especificaciones, attrs_concepto),
+        **extraer_atributos(nombre, attrs_concepto),
+        **atributos_verificados(especificaciones),
+    }
+
+
 async def _encolar(propuestas: list[dict[str, Any]]) -> int:
     from sqlalchemy.dialects.postgresql import insert
     from tukit_comun.bd import crear_motor
@@ -784,11 +822,11 @@ async def resolver(
             ).one()
             attrs_concepto = tuple(attrs_concepto[0] or ()) + tuple(attrs_concepto[1] or ())
 
+            especificaciones = dict(fila.especificaciones or {})
             empaque = extraer_empaque(fila.nombre, attrs_concepto)
-            atributos = {
-                **atributos_de_ficha(fila.especificaciones or {}, attrs_concepto),
-                **extraer_atributos(fila.nombre, attrs_concepto),
-            }
+            atributos = atributos_al_aprobar(fila.nombre, especificaciones, attrs_concepto)
+            if especificaciones.get(EMPAQUE_VERIFICADO, "").isdigit():
+                empaque = Empaque(int(especificaciones[EMPAQUE_VERIFICADO]), empaque.unidad_base)
 
             # Correcciones a mano hechas en la cola. Cada clave presente pisa el
             # valor automatico; las ausentes lo conservan. `atributos` se
@@ -804,6 +842,20 @@ async def resolver(
             pid = _uuid_estable("aprobado", str(fila.tienda_id), fila.referencia_externa)
             nivel_final = nivel or fila.nivel_sugerido or "confiable"
             producto = Base.metadata.tables["producto_canonico"]
+            # El mismo articulo (mismo EAN) puede estar ya en el catalogo con la
+            # oferta de otra tienda: la plastilina Norma gigante x12 entro por
+            # Panamericana y despues llego por Exito. Crear otro producto chocaba
+            # con el EAN unico, el ON CONFLICT se lo callaba y la oferta quedaba
+            # apuntando a un producto inexistente (500 al aprobar). Es otra tienda
+            # para el mismo producto: la oferta se cuelga del que ya esta.
+            ean_final = ean13(fila.ean)
+            existente = (
+                await conexion.scalar(select(producto.c.id).where(producto.c.ean == ean_final))
+                if ean_final
+                else None
+            )
+            if existente is not None:
+                pid = existente
             # El primero que entra a una celda (concepto, nivel, personaje) es su
             # representante; los siguientes son profundidad de compra. Antes
             # siempre entraba en False y la primera aprobacion de un concepto
@@ -827,7 +879,7 @@ async def resolver(
                 .values(
                     id=pid,
                     concepto_id=fila.concepto_id,
-                    ean=ean13(fila.ean),
+                    ean=ean_final,
                     sku_interno=f"TK-REV-{fila.referencia_externa}"[:64],
                     nombre=nombre_final[:255],
                     marca=marca_final,

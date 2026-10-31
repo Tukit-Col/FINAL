@@ -23,9 +23,11 @@ import type {
   ResumenPedidosColegio,
   Sugerencia,
 } from "@tukit/contrato";
-import { GRADOS_CANONICOS, formatearPesos } from "@tukit/contrato";
+import { GRADOS_CANONICOS, formatearPesos, logoDeColegio, logoDelDirectorio } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
+import LogoColegio from "@/components/LogoColegio";
 import PerfilColegio from "@/components/PerfilColegio";
+import { imagenesDelDirectorio } from "@/lib/directorio";
 import { COOKIE_SESION } from "@/lib/sesion";
 import { demandaPorGrado } from "@/lib/metricas-colegio";
 import styles from "../Colegios.module.css";
@@ -151,14 +153,13 @@ export default async function PaginaColegio({ params }: Props) {
 
       <header className={styles.encabezado}>
         <div className={styles.perfilIdentidad}>
-          {colegio.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img className={styles.logoGrande} src={colegio.logo_url} alt="" />
-          ) : (
-            <span className={styles.logoVacioGrande} aria-hidden="true">
-              {titulo.slice(0, 1)}
-            </span>
-          )}
+          {/* El logo de Identidad manda; sin el, el del directorio por DANE. */}
+          <LogoColegio
+            src={logoDeColegio(colegio, imagenesDelDirectorio())}
+            nombre={titulo}
+            claseImagen={styles.logoGrande}
+            claseIniciales={styles.logoVacioGrande}
+          />
           <div>
             <h1>{titulo}</h1>
             <span className={esAliado ? styles.insigniaAliado : styles.insigniaBorrador}>
@@ -257,7 +258,10 @@ export default async function PaginaColegio({ params }: Props) {
         {/* Lo editable: solo DANE (llave del directorio) y el logo (lo único que
             el padre ve en el selector de /empezar). El resto sale del DUEB. */}
         <h3 className={styles.subtitulo}>Editar</h3>
-        <PerfilColegio colegio={colegio} />
+        <PerfilColegio
+          colegio={colegio}
+          logoDelDirectorio={logoDelDirectorio(colegio, imagenesDelDirectorio())}
+        />
       </section>
 
       <section className={styles.tarjeta}>

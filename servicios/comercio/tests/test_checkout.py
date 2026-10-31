@@ -22,6 +22,7 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 
 import httpx
+import pytest
 import pytest_asyncio
 from conftest import TOKEN_ACUDIENTE, TOKEN_OPERADOR, TOKEN_OTRO, IdentidadFalsa, bearer
 from sqlalchemy import select, update
@@ -164,6 +165,39 @@ async def test_crear_orden_sin_datos_extendidos_los_deja_nulos(cliente):
     assert envio["departamento"] is None
     assert envio["documento_destinatario"] is None
     assert envio["indicaciones"] is None
+    assert envio["localidad"] is None
+    assert envio["google_place_id"] is None
+
+
+async def test_crear_orden_congela_la_localidad_y_el_lugar_de_google(cliente):
+    # El checkout con Google Places manda la localidad canonica y el place_id
+    # de la sugerencia elegida; los dos quedan en la copia del envio.
+    orden = _orden()
+    orden["entrega"].update(
+        {
+            "localidad": "Chapinero",
+            "google_place_id": "ChIJx9Lr6tqZP44RQ1rNpuKDdeA",
+            "indicaciones": "Apto 502, torre 2",
+        }
+    )
+    cuerpo = (await cliente.post("/v1/ordenes", json=orden)).json()
+    envio = cuerpo["envio"]
+    assert envio["localidad"] == "Chapinero"
+    assert envio["google_place_id"] == "ChIJx9Lr6tqZP44RQ1rNpuKDdeA"
+    assert envio["indicaciones"] == "Apto 502, torre 2"
+    # Y vuelve igual al leer el pedido.
+    leido = (await cliente.get(f"/v1/comercio/pedidos/{cuerpo['pedido_id']}", headers=OPERADOR_HDR)).json()
+    assert leido["envio"]["localidad"] == "Chapinero"
+    assert leido["envio"]["google_place_id"] == "ChIJx9Lr6tqZP44RQ1rNpuKDdeA"
+
+
+@pytest.mark.parametrize(("campo", "largo"), [("localidad", 65), ("google_place_id", 513)])
+async def test_una_localidad_o_un_place_id_demasiado_largos_se_rechazan(cliente, campo, largo):
+    # Como todo cuerpo que no cumple el esquema en Comercio: 400.
+    orden = _orden()
+    orden["entrega"][campo] = "x" * largo
+    respuesta = await cliente.post("/v1/ordenes", json=orden)
+    assert respuesta.status_code == 400
 
 
 async def test_reverificacion_rechaza_si_el_precio_cambio(cliente):
@@ -822,6 +856,46 @@ async def test_orden_identica_del_mismo_kit_reutiliza_el_pedido_pendiente(client
     assert segundo.json()["pedido_id"] == primero["pedido_id"]
     tablero = (await cliente.get("/v1/comercio/pedidos", headers=OPERADOR_HDR)).json()
     assert tablero["resumen"]["pedidos_totales"] == 1
+
+
+def _con_entrega(**campos) -> dict:
+    orden = _orden_kit()
+    orden["entrega"] = {**orden["entrega"], **campos}
+    return orden
+
+
+async def test_orden_identica_con_localidad_reutiliza_aunque_cambie_el_place_id(cliente):
+    # El place_id apunta al mismo texto de la direccion: no hace otra entrega.
+    primero = (
+        await cliente.post("/v1/ordenes", json=_con_entrega(localidad="Suba", google_place_id="a"))
+    ).json()
+    segundo = (
+        await cliente.post("/v1/ordenes", json=_con_entrega(localidad="Suba", google_place_id="b"))
+    ).json()
+    assert segundo["pedido_id"] == primero["pedido_id"]
+
+
+async def test_orden_identica_sin_localidad_reutiliza_la_legada(cliente):
+    # Un campo ausente y uno vacio son la misma entrega.
+    primero = (await cliente.post("/v1/ordenes", json=_orden_kit())).json()
+    segundo = (await cliente.post("/v1/ordenes", json=_con_entrega(localidad="", indicaciones=""))).json()
+    assert segundo["pedido_id"] == primero["pedido_id"]
+
+
+@pytest.mark.parametrize(
+    "cambio",
+    [{"localidad": "Usaquén"}, {"indicaciones": "Apto 301"}, {"departamento": "Cundinamarca"}],
+)
+async def test_orden_del_mismo_kit_con_otra_entrega_cancela_y_crea(cliente, cambio):
+    # El envio es una copia congelada (ADR 0015): reutilizar el pendiente con
+    # otra localidad u otro apartamento despacharia con los datos viejos.
+    primero = (await cliente.post("/v1/ordenes", json=_con_entrega(localidad="Chapinero"))).json()
+    segundo = (
+        await cliente.post("/v1/ordenes", json=_con_entrega(**{"localidad": "Chapinero", **cambio}))
+    ).json()
+    assert segundo["pedido_id"] != primero["pedido_id"]
+    assert segundo["envio"] == {**segundo["envio"], **cambio}
+    assert await _estado(cliente, primero["pedido_id"]) == EstadoPedido.CANCELADO.value
 
 
 async def test_orden_distinta_del_mismo_kit_cancela_la_pendiente_anterior(cliente):

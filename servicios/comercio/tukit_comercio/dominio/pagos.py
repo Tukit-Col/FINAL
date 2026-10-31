@@ -35,9 +35,28 @@ def vencido(creado_en: datetime, ahora: datetime | None = None) -> bool:
     return (ahora or datetime.now(UTC)) - creado_en > VIGENCIA_PAGO
 
 
-def firma_orden(lineas: list[tuple[str, int, int]], entrega: tuple[str, str, str]) -> tuple[Any, ...]:
-    """Lo que hace "la misma orden": productos (sin importar el orden) y entrega."""
-    return (tuple(sorted(lineas)), entrega)
+# Los campos de la entrega que hacen "la misma orden": toda la copia congelada
+# del envio (ADR 0015) menos el `google_place_id`. Reutilizar un pendiente con
+# otra localidad u otro apartamento despacharia con los datos viejos; que no
+# case cuesta poco (se cancela el pendiente y se crea otro). El place_id apunta
+# al mismo texto de la direccion, asi que no hace otra entrega.
+CAMPOS_FIRMA_ENTREGA = (
+    "destinatario",
+    "direccion",
+    "ciudad",
+    "localidad",
+    "departamento",
+    "indicaciones",
+    "telefono",
+    "documento_destinatario",
+)
+
+
+def firma_orden(lineas: list[tuple[str, int, int]], entrega: tuple[str | None, ...]) -> tuple[Any, ...]:
+    """Lo que hace "la misma orden": productos (sin importar el orden) y entrega.
+    Un campo ausente (`None`, el checkout legado) y uno vacio son la misma
+    entrega."""
+    return (tuple(sorted(lineas)), tuple(campo or "" for campo in entrega))
 
 
 def pedido_tras_pago(estado_pago: EstadoPago, estado_actual: str) -> str | None:

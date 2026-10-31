@@ -15,11 +15,13 @@ from __future__ import annotations
 
 import re
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import Select, and_, func, or_, select, update
 
 from ..modelos import Base
+from ..modelos.base import CALIDAD_POR_NIVEL
 
 CONCEPTO = Base.metadata.tables["concepto"]
 PRODUCTO = Base.metadata.tables["producto_canonico"]
@@ -34,7 +36,12 @@ TAREA = Base.metadata.tables["tarea_importacion"]
 _ORDEN_NIVEL = ("economico", "confiable", "premium")
 
 # Por debajo de esto un producto lo sugirio la busqueda y nadie lo confirmo.
-UMBRAL_SIN_REVISAR = 0.5
+# Por debajo de la calidad mas baja que asigna la curaduria (economico, 0,40).
+# Con 0,5 el resumen contaba como «sin revisar» a todos los economicos curados
+# a mano: su puntaje sale del nivel, no de una revision pendiente. Lo que entra
+# por la cola de revision vale 0,85; sin revisar solo queda lo que una carga
+# automatica deje por debajo de cualquier nivel.
+UMBRAL_SIN_REVISAR = min(CALIDAD_POR_NIVEL.values())
 
 
 def _precio_minimo_vigente() -> Any:
@@ -561,6 +568,8 @@ class RepoCatalogo:
         """Desliga al acudiente de las tareas de una version (o de una tarea suelta).
 
         Solo las suyas: una tarea de otro contacto no se toca aunque traigan su id.
+        Queda `retirada_en` para que la cola de verificacion la saque: sin
+        contacto ya nadie la espera, pero eso solo no la distingue del onboarding.
         """
         if version_id is None and tarea_id is not None:
             fila = (
@@ -582,7 +591,7 @@ class RepoCatalogo:
         resultado = await self.conexion.execute(
             update(TAREA)
             .where(filtro, TAREA.c.contacto_referencia == contacto_referencia)
-            .values(contacto_referencia=None)
+            .values(contacto_referencia=None, retirada_en=datetime.now(UTC))
         )
         return int(resultado.rowcount or 0)
 

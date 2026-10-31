@@ -213,6 +213,15 @@ export interface Entrega {
   destinatario: string;
   direccion: string;
   ciudad: string;
+  // Opcionales: un cliente viejo que manda solo los tres de arriba sigue
+  // cerrando. `localidad` es una de `LOCALIDADES_BOGOTA` (vacia fuera de
+  // Bogota); `indicaciones` es apartamento, torre, interior o como llegar;
+  // `google_place_id` sale de la sugerencia de Google Places elegida y se pierde
+  // si el acudiente edita la direccion despues. Nunca coordenadas.
+  departamento?: string;
+  indicaciones?: string;
+  localidad?: string;
+  google_place_id?: string;
 }
 
 // El acudiente cambia el producto de un renglón de su kit por el sugerido o por
@@ -308,10 +317,15 @@ export interface HijoSubida {
 
 // El resultado por hijo: a que version pendiente quedo ligado y con que grado
 // (el grado real lo resuelve la percepcion del PDF, puede diferir del elegido).
+// Con el catalogo caido la lista igual queda recibida (ADR 0040): llega sin
+// version todavia (`version_id: null`) y con `estado: "pendiente"`; Tukit la
+// pasa a revision sola cuando el catalogo vuelve, sin que el acudiente la suba
+// otra vez. Con el catalogo arriba no trae `estado`.
 export interface SubidaHecha {
   referencia: string;
-  version_id: string;
+  version_id: string | null;
   grado: string;
+  estado?: "pendiente";
 }
 
 export interface SubidaListas {
@@ -458,6 +472,9 @@ export interface Trabajo {
   // De dónde salió el trabajo. `parent_apply` es la ruta rápida: ahí el
   // "recomendado" es el kit que el acudiente eligió al empezar.
   origen?: string;
+  // Los hijos del trabajo por referencia, colegio y grado (nunca un nombre):
+  // con ellos la web le pone el apodo de la cuenta a cada renglón.
+  hijos?: HijoDeTrabajo[];
 }
 
 // El panel del acudiente: una de SUS solicitudes de kit (un trabajo del
@@ -536,6 +553,12 @@ export interface ErrorVariosGrados extends ErrorApi {
 
 export function esErrorVariosGrados(valor: ErrorApi): valor is ErrorVariosGrados {
   return valor.error === "lista_de_varios_grados";
+}
+
+// §11 — el 429 del limite de tasa del gateway, con `Retry-After` (ADR 0047).
+export interface ErrorDemasiadasPeticiones extends ErrorApi {
+  error: "demasiadas_peticiones";
+  reintentar_en_segundos: number;
 }
 
 // ------------------------------------------------- §2 Limites de los archivos

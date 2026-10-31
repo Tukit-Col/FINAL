@@ -1,0 +1,81 @@
+"""La entrega del checkout tal como Inteligencia la reenvia a Comercio.
+
+El navegador manda la direccion en `POST /v1/trabajos/{id}/ordenar` y aqui solo
+se valida y se pasa: la copia congelada vive en Comercio (ADR 0015). Se fija que
+los campos nuevos del checkout con Google Places (localidad, indicaciones,
+departamento, place_id) lleguen, y que sin ellos el cuerpo sea el de siempre
+(un `None` de mas haria que Comercio viera otra entrega).
+"""
+
+from __future__ import annotations
+
+import uuid
+
+import httpx
+import pytest
+from tukit_inteligencia import trabajos
+from tukit_inteligencia.api import app
+
+TRABAJO = uuid.UUID("44444444-4444-5444-8444-444444444444")
+LEGADA = {"destinatario": "Ana Perez", "direccion": "Calle 72 # 10-34", "ciudad": "Bogotá"}
+
+
+@pytest.fixture()
+async def cliente_y_entregas(monkeypatch):
+    entregas: list[dict] = []
+
+    async def _ordenar(_motor, _trabajo_id, *, entrega, **_resto):
+        entregas.append(entrega)
+        return {"pedido_id": "ped-1", "url_redireccion": "https://pasarela/xy"}
+
+    monkeypatch.setattr(trabajos, "ordenar", _ordenar)
+    monkeypatch.setattr(app.state, "motor", None, raising=False)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
+        yield http, entregas
+
+
+def _cuerpo(entrega: dict) -> dict:
+    return {"perfil": "Ahorrador", "correo": "ana@ejemplo.com", "entrega": entrega}
+
+
+async def test_sin_los_campos_nuevos_la_entrega_viaja_como_siempre(cliente_y_entregas):
+    cliente, entregas = cliente_y_entregas
+    respuesta = await cliente.post(f"/v1/trabajos/{TRABAJO}/ordenar", json=_cuerpo(LEGADA))
+    assert respuesta.status_code == 201
+    assert entregas == [LEGADA]
+
+
+async def test_localidad_indicaciones_y_place_id_llegan_a_comercio(cliente_y_entregas):
+    cliente, entregas = cliente_y_entregas
+    completa = {
+        **LEGADA,
+        "departamento": "Bogotá, D.C.",
+        "indicaciones": "Apto 502, torre 2",
+        "localidad": "Chapinero",
+        "google_place_id": "ChIJx9Lr6tqZP44RQ1rNpuKDdeA",
+    }
+    respuesta = await cliente.post(f"/v1/trabajos/{TRABAJO}/ordenar", json=_cuerpo(completa))
+    assert respuesta.status_code == 201
+    assert entregas == [completa]
+
+
+async def test_un_campo_desconocido_no_cruza(cliente_y_entregas):
+    # Coordenadas: ni se guardan ni se reenvian (ADR 0044).
+    cliente, entregas = cliente_y_entregas
+    respuesta = await cliente.post(
+        f"/v1/trabajos/{TRABAJO}/ordenar", json=_cuerpo({**LEGADA, "lat": 4.65, "lng": -74.05})
+    )
+    assert respuesta.status_code == 201
+    assert entregas == [LEGADA]
+
+
+@pytest.mark.parametrize(
+    ("campo", "largo"), [("localidad", 65), ("google_place_id", 513), ("indicaciones", 513)]
+)
+async def test_un_campo_demasiado_largo_no_llega_a_comercio(cliente_y_entregas, campo, largo):
+    cliente, entregas = cliente_y_entregas
+    respuesta = await cliente.post(
+        f"/v1/trabajos/{TRABAJO}/ordenar", json=_cuerpo({**LEGADA, campo: "x" * largo})
+    )
+    assert respuesta.status_code in (400, 422)
+    assert entregas == []

@@ -260,6 +260,54 @@ class TestListarVersionesParaRevisar:
         # Y el nombre del colegio nuevo viaja para que la cola no muestre el id.
         assert subida["colegio_nombre"] == "Colegio San Ejemplo"
 
+    async def test_el_onboarding_de_un_colegio_nuevo_entra_con_su_nombre_y_sin_contacto(self, cliente):
+        # El staff sube desde la cola la lista de un colegio del directorio que
+        # Tukit no tiene: `origen` onboarding, sin acudiente detras, con
+        # `colegio_datos`. La cola lo muestra por su nombre y la revision trae
+        # los datos para `CompletarColegio`.
+        colegio_datos = {"dane": "311001105731", "nombre": "ACADEMIA CENTRAL DE SISTEMAS"}
+        vid = (
+            await cliente.post(
+                "/v1/admin/listas/importar",
+                json=_cuerpo_importar(origen="onboarding", colegio_datos=colegio_datos),
+            )
+        ).json()["version_id"]
+        cuerpo = (await cliente.get("/v1/admin/listas?revisada=false")).json()
+        subida = next(v for v in cuerpo["listas"] if v["version_id"] == vid)
+        assert subida["procedencia"] == "onboarding"
+        assert subida["tiene_contacto"] is False
+        assert subida["colegio_nombre"] == "ACADEMIA CENTRAL DE SISTEMAS"
+        revision = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()
+        assert revision["colegio_datos"] == colegio_datos
+
+    async def _subida_de(self, cliente, contacto: uuid.UUID) -> str:
+        cuerpo = _cuerpo_importar(origen="sugerencia_padre", contacto_referencia=str(contacto))
+        return (await cliente.post("/v1/admin/listas/importar", json=cuerpo)).json()["version_id"]
+
+    async def test_la_lista_que_el_acudiente_cancela_sale_de_la_cola(self, cliente):
+        # H-07: tras cancelar ya nadie la espera; seguia como pendiente y sin
+        # contacto. Sale de `revisada=false` y queda marcada en el listado.
+        padre = uuid.uuid4()
+        vid = await self._subida_de(cliente, padre)
+        retiro = await cliente.post(f"/interno/listas-por-contacto/{padre}/retirar", json={"version_id": vid})
+        assert retiro.json()["retiradas"] == 1
+
+        cola = (await cliente.get("/v1/admin/listas?revisada=false")).json()
+        assert vid not in [v["version_id"] for v in cola["listas"]]
+        todas = (await cliente.get("/v1/admin/listas")).json()
+        retirada = next(v for v in todas["listas"] if v["version_id"] == vid)
+        assert retirada["retirada_por_acudiente"] is True
+        assert retirada["tiene_contacto"] is False
+
+    async def test_una_lista_sin_acudiente_que_nadie_retiro_sigue_en_la_cola(self, cliente):
+        # Sin contacto no es lo mismo que retirada: el onboarding nunca lo tuvo.
+        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
+
+        cola = (await cliente.get("/v1/admin/listas?revisada=false")).json()
+        sigue = next(v for v in cola["listas"] if v["version_id"] == vid)
+        assert sigue["retirada_por_acudiente"] is False
+        assert sigue["tiene_contacto"] is False
+
     async def test_un_origen_desconocido_se_rechaza(self, cliente):
         respuesta = await cliente.post(
             "/v1/admin/listas/importar", json=_cuerpo_importar(origen="cualquier_cosa")
@@ -326,6 +374,148 @@ class TestEditarUnRenglon:
             json={"concepto_codigo": None, "requiere_revision": False},
         )
         assert respuesta.status_code == 422
+
+
+async def _cuaderno_filtra_por(cliente, discriminantes: list[str]) -> None:
+    async with app.state.motor.sesion() as db:
+        conexion = await db.connection()
+        tabla = Base.metadata.tables["concepto"]
+        await conexion.execute(
+            tabla.update()
+            .where(tabla.c.id == cliente.ids["cuaderno"])
+            .values(atributos_discriminantes=discriminantes)
+        )
+        await db.commit()
+
+
+class TestCurarLosAtributosDeUnRenglon:
+    """Curar lo que se exige desde la pantalla de revision, no desde el CSV.
+
+    La revision muestra lo leido del texto y lo curado por separado (con la
+    misma regla de la ruta rapida), y el PATCH guarda la curaduria solo con
+    claves que el concepto de verdad filtra.
+    """
+
+    async def test_la_revision_separa_lo_leido_de_lo_curado(self, cliente):
+        await _cuaderno_filtra_por(cliente, ["rayado", "hojas"])
+        vid = cliente.ids["abierta"]
+        cuaderno, sin_concepto = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()["items"]
+        assert cuaderno["atributos_discriminantes"] == ["rayado", "hojas"]
+        assert cuaderno["atributos_leidos"] == {"rayado": "cuadriculado"}
+        assert cuaderno["atributos"] == {}
+        assert cuaderno["atributos_exigidos"] == {"rayado": "cuadriculado"}
+        assert cuaderno["atributos_deducidos"] == []
+        # Sin concepto no hay nada que exigir ni que curar.
+        assert sin_concepto["atributos_discriminantes"] == []
+        assert sin_concepto["atributos_exigidos"] == {}
+
+    async def test_el_mas_de_uno_deducido_se_marca_como_deducido(self, cliente):
+        # `chaquiras` en plural con cantidad uno: el texto no dice cuantas, la
+        # ruta rapida exige "mas de uno". El revisor tiene que saber que eso no
+        # lo escribio el colegio.
+        async with app.state.motor.sesion() as db:
+            conexion = await db.connection()
+            tabla = Base.metadata.tables["concepto"]
+            await conexion.execute(
+                tabla.update()
+                .where(tabla.c.id == cliente.ids["colores"])
+                .values(atributos_discriminantes=["unidades"])
+            )
+            await db.commit()
+        vid = cliente.ids["abierta"]
+        item_id = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()["items"][1]["item_id"]
+        respuesta = await cliente.patch(
+            f"/v1/admin/listas/{vid}/items/{item_id}",
+            json={"concepto_codigo": "C002", "requiere_revision": False},
+        )
+        assert respuesta.status_code == 200
+        chaquiras = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()["items"][1]
+        assert chaquiras["atributos_leidos"] == {"unidades": 2}
+        assert chaquiras["atributos_deducidos"] == ["unidades"]
+
+    async def test_curar_cambia_un_valor_quita_otro_con_asterisco_y_agrega_uno(self, cliente):
+        await _cuaderno_filtra_por(cliente, ["rayado", "hojas"])
+        vid = cliente.ids["abierta"]
+        item_id = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()["items"][0]["item_id"]
+
+        respuesta = await cliente.patch(
+            f"/v1/admin/listas/{vid}/items/{item_id}", json={"atributos": {"rayado": "*", "hojas": 100}}
+        )
+        assert respuesta.status_code == 200
+
+        cuaderno = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()["items"][0]
+        assert cuaderno["atributos"] == {"rayado": "*", "hojas": 100}
+        # Lo leido no cambia: es el texto. Lo exigido si.
+        assert cuaderno["atributos_leidos"] == {"rayado": "cuadriculado"}
+        assert cuaderno["atributos_exigidos"] == {"hojas": 100}
+
+    async def test_quitar_la_curaduria_vuelve_a_lo_leido(self, cliente):
+        await _cuaderno_filtra_por(cliente, ["rayado", "hojas"])
+        vid = cliente.ids["abierta"]
+        item_id = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()["items"][0]["item_id"]
+        url = f"/v1/admin/listas/{vid}/items/{item_id}"
+        assert (await cliente.patch(url, json={"atributos": {"rayado": "*"}})).status_code == 200
+        assert (await cliente.patch(url, json={"atributos": {}})).status_code == 200
+
+        cuaderno = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()["items"][0]
+        assert cuaderno["atributos_exigidos"] == {"rayado": "cuadriculado"}
+
+    async def test_una_clave_que_el_concepto_no_filtra_se_rechaza(self, cliente):
+        # La ruta rapida la ignoraria en silencio: el revisor creeria haberla curado.
+        await _cuaderno_filtra_por(cliente, ["rayado"])
+        vid = cliente.ids["abierta"]
+        item_id = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()["items"][0]["item_id"]
+        respuesta = await cliente.patch(
+            f"/v1/admin/listas/{vid}/items/{item_id}", json={"atributos": {"color": "rojo"}}
+        )
+        assert respuesta.status_code == 422
+        assert respuesta.json()["error"] == "atributo_no_exigible"
+        assert "color" in respuesta.json()["mensaje"]
+
+    async def test_lo_que_el_renglon_ya_traia_no_se_rechaza_si_no_se_toco(self, cliente):
+        # Curado antes para otro concepto: devolver el mapa entero no debe fallar.
+        await _cuaderno_filtra_por(cliente, ["rayado"])
+        vid = cliente.ids["abierta"]
+        item_id = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()["items"][0]["item_id"]
+        async with app.state.motor.sesion() as db:
+            conexion = await db.connection()
+            tabla = Base.metadata.tables["item_lista_oficial"]
+            await conexion.execute(
+                tabla.update().where(tabla.c.id == uuid.UUID(item_id)).values(atributos={"color": "rojo"})
+            )
+            await db.commit()
+        respuesta = await cliente.patch(
+            f"/v1/admin/listas/{vid}/items/{item_id}",
+            json={"atributos": {"color": "rojo", "rayado": "*"}},
+        )
+        assert respuesta.status_code == 200
+        # Pero cambiarle el valor si es curar algo que no filtra.
+        respuesta = await cliente.patch(
+            f"/v1/admin/listas/{vid}/items/{item_id}", json={"atributos": {"color": "azul"}}
+        )
+        assert respuesta.status_code == 422
+
+    async def test_un_valor_que_no_es_simple_se_rechaza(self, cliente):
+        await _cuaderno_filtra_por(cliente, ["rayado"])
+        vid = cliente.ids["abierta"]
+        item_id = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()["items"][0]["item_id"]
+        for malo in ({"rayado": ["a", "b"]}, ["rayado"]):
+            respuesta = await cliente.patch(
+                f"/v1/admin/listas/{vid}/items/{item_id}", json={"atributos": malo}
+            )
+            assert respuesta.status_code == 422
+            assert respuesta.json()["error"] == "atributos_invalido"
+
+    async def test_lo_exigido_de_la_revision_es_lo_que_usa_la_ruta_rapida(self, cliente):
+        # La misma regla, no una copia: sobre una version revisada coinciden.
+        await _con_cuadernos_extra(cliente, discriminantes=["rayado", "hojas"])
+        vid = await _version_revisada_con(
+            cliente, "cuaderno ferrocarril de 100 hojas", atributos={"rayado": "rayado", "hojas": "*"}
+        )
+        revision = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()["items"][0]
+        resuelto = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"][0]
+        assert revision["atributos_leidos"] == {"rayado": "ferrocarril", "hojas": 100}
+        assert revision["atributos_exigidos"] == resuelto["atributos_impuestos"] == {"rayado": "rayado"}
 
 
 class TestAgregarYQuitarRenglon:
@@ -828,6 +1018,90 @@ class TestImportarListaDesdeOnboarding:
         respuesta = await cliente.post("/v1/admin/listas/importar", json=cuerpo)
         assert respuesta.status_code == 422
         assert respuesta.json()["campo"] == "colegio_datos"
+
+
+class TestImportarConClaveDeIdempotencia:
+    """Inteligencia reintenta la importacion de una subida que encontro el
+    catalogo caido (ADR 0040). Si la primera entro y lo que se perdio fue la
+    respuesta, el reintento trae la misma `clave_idempotencia` y tiene que
+    recibir la version que ya existe, no crear otra."""
+
+    async def _versiones(self, cliente) -> list[dict]:
+        listas = (await cliente.get(f"/v1/admin/listas?colegio_id={COLEGIO}&grado=Sexto")).json()
+        return listas["listas"]
+
+    async def test_la_misma_clave_dos_veces_da_una_sola_version(self, cliente):
+        clave = str(uuid.uuid4())
+        primera = await cliente.post(
+            "/v1/admin/listas/importar", json=_cuerpo_importar(clave_idempotencia=clave)
+        )
+        segunda = await cliente.post(
+            "/v1/admin/listas/importar", json=_cuerpo_importar(clave_idempotencia=clave)
+        )
+
+        assert primera.status_code == segunda.status_code == 201
+        assert segunda.json() == primera.json()
+        [version] = await self._versiones(cliente)
+        assert version["numero"] == 1
+        async with app.state.motor.sesion() as db:
+            conexion = await db.connection()
+            tareas = list(
+                await conexion.execute(TAREA.select().where(TAREA.c.clave_idempotencia == uuid.UUID(clave)))
+            )
+        assert len(tareas) == 1
+
+    async def test_claves_distintas_son_versiones_distintas(self, cliente):
+        primera = (
+            await cliente.post(
+                "/v1/admin/listas/importar", json=_cuerpo_importar(clave_idempotencia=str(uuid.uuid4()))
+            )
+        ).json()
+        segunda = (
+            await cliente.post(
+                "/v1/admin/listas/importar", json=_cuerpo_importar(clave_idempotencia=str(uuid.uuid4()))
+            )
+        ).json()
+
+        assert primera["version_id"] != segunda["version_id"]
+        [vigente] = await self._versiones(cliente)
+        assert vigente["numero"] == 2
+
+    async def test_una_clave_invalida_es_422(self, cliente):
+        respuesta = await cliente.post(
+            "/v1/admin/listas/importar", json=_cuerpo_importar(clave_idempotencia="no-es-un-uuid")
+        )
+        assert respuesta.status_code == 422
+        assert respuesta.json()["campo"] == "clave_idempotencia"
+
+    async def test_si_dos_entran_a_la_vez_la_segunda_recibe_la_primera(self, cliente, monkeypatch):
+        # La carrera: las dos peticiones miran antes de escribir y ninguna ve a
+        # la otra. El indice unico frena la segunda y su transaccion entera
+        # (version y renglones incluidos) se deshace; responde con la primera.
+        from tukit_catalogo.repositorios.admin import RepoAdmin
+
+        clave = str(uuid.uuid4())
+        primera = (
+            await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar(clave_idempotencia=clave))
+        ).json()
+
+        original = RepoAdmin.importacion_por_clave
+        vistas = {"n": 0}
+
+        async def _ciega_la_primera_vez(self, clave_):
+            vistas["n"] += 1
+            if vistas["n"] == 1:
+                return None
+            return await original(self, clave_)
+
+        monkeypatch.setattr(RepoAdmin, "importacion_por_clave", _ciega_la_primera_vez)
+        segunda = await cliente.post(
+            "/v1/admin/listas/importar", json=_cuerpo_importar(clave_idempotencia=clave)
+        )
+
+        assert segunda.status_code == 201
+        assert segunda.json() == primera
+        [version] = await self._versiones(cliente)
+        assert version["numero"] == 1
 
 
 class TestEditarDatosDelColegioEnLaRevision:

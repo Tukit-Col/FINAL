@@ -497,9 +497,10 @@ class TestLoQueLasListasSiPidenYNoSabiamosLeer:
     def test_un_diccionario_de_dos_idiomas_no_es_de_uno(self):
         # `diccionario de inglés y francés` aparece en el corpus, y darlo por
         # ingles a secas haria que un diccionario bilingue pasara por uno
-        # monolingue, que es otro libro y otro precio.
+        # monolingue, que es otro libro y otro precio. Los idiomas van en orden
+        # alfabetico, para que el orden en que se escribieron no los separe.
         assert extraer_atributos("diccionario de inglés y francés", ("idioma",)) == {
-            "idioma": "ingles-frances"
+            "idioma": "frances-ingles"
         }
 
     def test_el_deposito_del_tajalapiz(self):
@@ -964,3 +965,39 @@ class TestUnRenglonQueEnumeraVariosValoresNoExigeNinguno:
         assert extraer_atributos("Block Repuesto Kiut Carta Cuadriculado KIUT", ("tipo",)) == {
             "tipo": "cuadriculado"
         }
+
+
+def test_doble_punta_no_se_lee_como_punta_fina():
+    # «doble punta fina y gruesa» es un marcador de dos puntas: si ganaba
+    # `punta fina`, el estuche doble punta que pide el colegio no se distinguia
+    # de un marcador delgado.
+    estuche = extraer_atributos("estuche de marcadores acrilicos doble punta", ("punta",))
+    assert estuche == {"punta": "doble punta"}
+    assert extraer_atributos("marcador doble punta fina y gruesa", ("punta",)) == {"punta": "doble punta"}
+
+
+class TestVocabularioDeElectronica:
+    """Los discriminantes de electronica del 2026-10-12 solo sirven si el texto se lee."""
+
+    def test_el_valor_de_una_resistencia(self):
+        assert extraer_atributos("resistencias de 330 ohm", ("valor",)) == {"valor": "330 ohm"}
+        assert extraer_atributos("Resistencia 1K Ohm 1/4W x10", ("valor",)) == {"valor": "1 kohm"}
+
+    def test_dos_valores_no_se_exigen_y_diferentes_es_surtido(self):
+        assert extraer_atributos("resistencias de 330 ohm o 1k 0hm", ("valor",)) == {}
+        assert extraer_atributos("resistencias diferente amperaje", ("valor",)) == {"valor": "surtido"}
+
+    def test_el_calibre_de_un_cable_no_es_una_longitud(self):
+        assert extraer_atributos("metro de cable estanado calibre 22", ("calibre",)) == {"calibre": "22 awg"}
+
+    def test_interruptores_y_motores(self):
+        assert extraer_atributos("switch tipo balancin", ("tipo",)) == {"tipo": "balancin"}
+        assert extraer_atributos("2 switch de dos posiciones", ("tipo",)) == {"tipo": "2 posiciones"}
+        assert extraer_atributos("motoreductor", ("tipo",)) == {"tipo": "motorreductor"}
+        assert extraer_atributos("motor DC rectangular", ("tipo",)) == {"tipo": "motor"}
+
+    def test_leds_de_diferentes_colores_son_surtidos(self):
+        assert extraer_atributos("10 LEDs de diferentes colores", ("color",)) == {"color": "surtido"}
+
+    def test_sin_mangas(self):
+        assert extraer_atributos("Delantal Style Sin Mangas", ("manga",)) == {"manga": "sin"}

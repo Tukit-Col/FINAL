@@ -16,6 +16,7 @@ alternativa del puerto, que es lo que permite probar la orquestacion completa
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -24,9 +25,34 @@ from sqlalchemy import event
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 from tukit_comun.bd import MotorServicio
+from tukit_comun.cache import usar_cliente
 from tukit_inteligencia.modelos import Base
 
 COLEGIO = "11111111-1111-5111-8111-111111111111"
+
+
+@pytest.fixture(autouse=True)
+def _sin_broker(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Las pruebas corren sin RabbitMQ aunque quien las lance tenga `RABBITMQ_URL`.
+
+    La variable cambia el modo del sondeador de listas y del trabajador (ADR
+    0046). Las que prueban el modo con broker la ponen ellas.
+    """
+    monkeypatch.delenv("RABBITMQ_URL", raising=False)
+
+
+@pytest.fixture(autouse=True)
+def _sin_redis(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Las pruebas corren sin Redis aunque quien las lance tenga `REDIS_URL`.
+
+    Con la variable, la lectura de una lista se guardaria en Redis (ADR 0047) y
+    una prueba dejaria de leer lo que le pasa a su lector doble. Las que prueban
+    la cache ponen su doble con `usar_cliente`.
+    """
+    monkeypatch.delenv("REDIS_URL", raising=False)
+    usar_cliente(None)
+    yield
+    usar_cliente(None)
 
 
 @pytest.fixture()

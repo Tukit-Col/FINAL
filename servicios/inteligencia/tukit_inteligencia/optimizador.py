@@ -920,15 +920,19 @@ def consolidar(lineas: tuple[LineaKit, ...]) -> tuple[tuple[LineaKit, ...], tupl
             unidades_a_comprar=juntas,
             subtotal_cop=None if precio is None else precio * juntas,
         )
+        # El texto lo lee el acudiente: nunca el id interno del hijo ("hijo-1").
+        # Se nombra la linea que si se compra, y de quien es si no es de este
+        # mismo hijo (el grupo puede traer dos renglones del mismo hijo).
+        para_quienes = "los dos" if len(indices) == 2 else "todos"
+        de_otro = "tu otro hijo" if len(hijos) == 2 else "otro de tus hijos"
         for i in indices[1:]:
             otra = lineas[i]
+            donde = f"la línea {primera.orden}" + ("" if otra.hijo == primera.hijo else f" de {de_otro}")
             resultado[i] = replace(
                 otra,
                 unidades_a_comprar=0,
                 subtotal_cop=0 if otra.precio_unitario_cop is not None else None,
-                mensaje=(
-                    f"Se compra junto con el de {primera.hijo}: un empaque de {empaque} alcanza para los dos."
-                ),
+                mensaje=f"Se compra junto con {donde}: un empaque de {empaque} alcanza para {para_quienes}.",
             )
 
         notas.append(

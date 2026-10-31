@@ -11,6 +11,7 @@ import type { EstadoPedido, PedidoConHistorial, TipoIncidencia } from "@tukit/co
 import {
   ETIQUETA_ESTADO_PEDIDO,
   ETIQUETA_TIPO_INCIDENCIA,
+  enlaceGoogleMaps,
   formatearPesos,
 } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
@@ -84,7 +85,7 @@ export default async function DetallePedido({ params }: Props) {
     return (
       <div className={styles.pagina}>
         <Migas />
-        <AvisoAcceso motivo={motivoDeFallo(causa.estado)} />
+        <AvisoAcceso motivo={motivoDeFallo(causa.estado)} mensaje={causa.message} />
       </div>
     );
   }
@@ -129,7 +130,21 @@ export default async function DetallePedido({ params }: Props) {
               <dt>Recibe</dt>
               <dd>{envio.destinatario}</dd>
               <dt>Dirección</dt>
-              <dd>{envio.direccion}</dd>
+              <dd>
+                {envio.direccion}
+                {/* Sin coordenadas: Maps busca por el texto y, si el checkout
+                    guardo el lugar de Google, abre ese exacto (ADR 0044). */}
+                <a
+                  href={enlaceGoogleMaps(envio)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.enlaceMapa}
+                >
+                  Ver en Google Maps
+                </a>
+              </dd>
+              <dt>Localidad</dt>
+              <dd>{envio.localidad || "—"}</dd>
               <dt>Ciudad</dt>
               <dd>
                 {envio.ciudad}

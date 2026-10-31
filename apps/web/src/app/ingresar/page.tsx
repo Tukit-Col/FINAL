@@ -7,6 +7,7 @@
 import { redirect } from "next/navigation";
 import { destinoDe, urlAdmin } from "@tukit/contrato/servidor";
 import { sesionActual } from "@/lib/sesion";
+import { conAvisoDeLimite } from "@/components/ConAvisoDeLimite";
 import FormularioIngreso from "./FormularioIngreso";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,12 @@ export default async function Ingresar({
   // envolver el formulario en <Suspense>).
   searchParams: Promise<{ destino?: string }>;
 }) {
+  // Con el cupo agotado (429) no se ofrece entrar de nuevo: la sesion sigue
+  // viva y otro intento gastaria el cupo de entrar de la IP.
+  return conAvisoDeLimite(() => formulario(searchParams));
+}
+
+async function formulario(searchParams: Promise<{ destino?: string }>) {
   const sesion = await sesionActual();
   if (sesion) {
     const destino = destinoDe(sesion);

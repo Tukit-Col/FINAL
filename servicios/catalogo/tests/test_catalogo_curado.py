@@ -156,8 +156,9 @@ UMBRAL_ACEPTACION = 0.740
 # Rango plausible de precio, en centavos. Son los p01-p99 medidos por fuente en
 # `PERFILADO_DATOS.md` §5.2 (2.890-854.160 COP en el feed del scraper,
 # 650-208.596 COP en GranCentral), tomados por la union porque el CSV de
-# precios ya no dice de que fuente salio cada uno.
-PRECIO_MIN_CENTAVOS = 650 * 100
+# precios ya no dice de que fuente salio cada uno. El piso baja a 500 por los
+# componentes electronicos sueltos (resistencias en bolsa de 10 a $500).
+PRECIO_MIN_CENTAVOS = 500 * 100
 PRECIO_MAX_CENTAVOS = 854_160 * 100
 
 

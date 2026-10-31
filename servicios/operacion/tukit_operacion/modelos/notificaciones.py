@@ -18,12 +18,14 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     DateTime,
     Index,
     String,
     Uuid,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -36,6 +38,13 @@ class Notificacion(Base):
     `canal` es `wa_link` o `correo`. `estado` sigue el envio (pendiente,
     enviada, fallida). `datos` lleva las variables de la plantilla (por ejemplo
     el turno o el numero de pedido), nunca el correo ni el celular.
+
+    `evento_origen` y `evento_id` dicen de que evento de bandeja sale el aviso
+    (el servicio dueno de la bandeja y el `id` de la fila). Con ellos el
+    repartidor no vuelve a avisar un evento que la bandeja le reentrega
+    (H-B-03, ADR 0042), y el indice unico parcial lo respalda: un solo aviso
+    `enviada` por evento, y tantos `fallida` como intentos. Son nulos en los
+    avisos que no salen de una bandeja y en los de antes de la columna.
     """
 
     __tablename__ = "notificacion"
@@ -51,10 +60,22 @@ class Notificacion(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     enviada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    evento_origen: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # El `id` de la fila en la bandeja de `evento_origen`. Referencia logica a
+    # otra base, sin llave foranea, como `usuario_id`.
+    evento_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
     __table_args__ = (
         Index("ix_notificacion_usuario", "usuario_id"),
         Index("ix_notificacion_estado", "estado"),
+        Index(
+            "uq_notificacion_evento_enviada",
+            "evento_origen",
+            "evento_id",
+            unique=True,
+            postgresql_where=text("estado = 'enviada'"),
+            sqlite_where=text("estado = 'enviada'"),
+        ),
     )
 
 

@@ -1,0 +1,106 @@
+/* Las piezas de un pedido que comparten `/pago/resultado` y `/pedidos/[id]`:
+   la tarjeta de productos y la de entrega. Mismo lenguaje clay del pago. */
+
+.tarjeta {
+  width: 100%;
+  display: grid;
+  gap: var(--espacio-3);
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-xl);
+  padding: var(--espacio-5);
+  box-shadow: var(--clay-shadow-lg);
+}
+
+.subtitulo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espacio-2);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+/* Productos del pedido. */
+.contador {
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.productos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.producto {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--espacio-3);
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--color-border);
+  font-size: 14px;
+}
+
+.productoNombre {
+  display: grid;
+  gap: 2px;
+  color: var(--color-text-primary);
+}
+
+.cantidad {
+  color: var(--color-text-muted);
+  font-weight: 700;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.verTodos {
+  justify-self: start;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.verTodos:hover {
+  text-decoration: underline;
+}
+
+.totalLinea {
+  display: flex;
+  justify-content: space-between;
+  padding-top: var(--espacio-2);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--color-text-primary);
+}
+
+/* Entrega. */
+.entrega {
+  display: flex;
+  gap: var(--espacio-3);
+  align-items: flex-start;
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.entregaIcono {
+  flex: none;
+  margin-top: 3px;
+  color: var(--color-primary);
+}
+
+.indicaciones {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}

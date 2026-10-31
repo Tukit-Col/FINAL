@@ -14,6 +14,11 @@ La decision de QUE reservas vencieron es pura (`dominio/saga.reservas_vencidas`)
 aqui vive solo el I/O: el join reserva↔pedido, el SKIP LOCKED y la escritura. El
 TTL sale del entorno (`TUKIT_TTL_RESERVA_MIN`), con el default conservador del
 dominio; es la deuda que el ADR declara calibrar con datos de piloto.
+
+**Sobrevive a una caida de Postgres** (ADR 0041). El bucle corre sobre
+`bucle_resiliente`: si la base no responde, espera con backoff, deja el error en
+el log y vuelve a intentar; cada pasada abre su motor, asi que reconecta sola.
+Un error de programacion sigue terminando el proceso.
 """
 
 from __future__ import annotations
@@ -21,11 +26,14 @@ from __future__ import annotations
 import argparse
 import asyncio
 import os
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select, update
 from tukit_comun.bd import crear_motor
+from tukit_comun.registro import configurar_registro
+from tukit_comun.resiliencia import bucle_resiliente
 
 from .dominio.saga import TTL_RESERVA, reservas_vencidas
 from .modelos import Base, EstadoPedido
@@ -87,12 +95,15 @@ async def correr_una_vez() -> int:
         await motor.cerrar()
 
 
-async def _bucle(intervalo: float) -> None:
-    while True:
+async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]] | None = None) -> None:
+    async def _vuelta() -> None:
         liberadas = await correr_una_vez()
         if liberadas:
             print(f"[barredor] reservas vencidas liberadas: {liberadas}")
-        await asyncio.sleep(intervalo)
+
+    await bucle_resiliente(
+        _vuelta, intervalo=intervalo, proceso="comercio-barredor", dormir=dormir or asyncio.sleep
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -102,6 +113,7 @@ def main(argv: list[str] | None = None) -> int:
     analizador.add_argument("--seguir", action="store_true", help="Corre en bucle en vez de una pasada.")
     analizador.add_argument("--intervalo", type=float, default=60.0, help="Segundos entre pasadas.")
     argumentos = analizador.parse_args(argv)
+    configurar_registro("comercio-barredor")
 
     if argumentos.seguir:
         asyncio.run(_bucle(argumentos.intervalo))

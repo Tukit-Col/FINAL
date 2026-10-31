@@ -16,7 +16,12 @@ export function respuestaDeError(causa: unknown): Response {
       mensaje: causa.message,
       ...causa.detalle,
     };
-    return Response.json({ error, mensaje, ...resto }, { status: causa.estado });
+    // El 429 del limite de tasa sale con su `Retry-After`, tal como lo dio el
+    // gateway (ADR 0047): el navegador no tiene que adivinar cuanto esperar.
+    const espera = causa.detalle["reintentar_en_segundos"];
+    const cabeceras: Record<string, string> =
+      causa.estado === 429 && typeof espera === "number" ? { "Retry-After": String(espera) } : {};
+    return Response.json({ error, mensaje, ...resto }, { status: causa.estado, headers: cabeceras });
   }
 
   console.error("[tukit] fallo no controlado", causa);

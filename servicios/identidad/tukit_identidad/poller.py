@@ -14,12 +14,24 @@ llave foranea entre bases.
     python -m tukit_identidad.poller           # una pasada
     python -m tukit_identidad.poller --seguir   # bucle
 
-**La unica excepcion a la frontera de bases**, igual que el repartidor y el
-poller de Inteligencia: se abre un motor de LECTURA/marcado a la base del
-Catalogo para drenar su bandeja. El nombre de esa base NO se escribe aqui:
+**Con RabbitMQ** (`RABBITMQ_URL`, ADR 0046) no sondea la bandeja del Catalogo:
+consume la cola `identidad.colegios`, a la que el publicador del Catalogo lleva
+el evento, y no abre ningun motor a esa base. Dar de alta es idempotente por
+naturaleza (crea si falta, completa solo lo vacio, la matricula tiene id
+derivado), asi que un evento que el broker entrega dos veces deja la base
+igual y no hace falta guardar cuales se procesaron.
+
+**La unica excepcion a la frontera de bases**, y solo sin broker, igual que el
+repartidor y el poller de Inteligencia: se abre un motor de LECTURA/marcado a
+la base del Catalogo para drenar su bandeja. El nombre de esa base NO se escribe aqui:
 `url_desde_entorno` lo deriva DENTRO de la libreria a partir del nombre del
 servicio (regla 3). El colegio se da de alta en la base propia de Identidad,
 que es lo unico que este servicio escribe.
+
+**Sobrevive a una caida de Postgres** (ADR 0041). El bucle corre sobre
+`bucle_resiliente`: si una base no responde, espera con backoff, deja el error
+en el log y vuelve a intentar; cada pasada abre sus motores, asi que reconecta
+sola. Un error de programacion sigue terminando el proceso.
 """
 
 from __future__ import annotations
@@ -27,6 +39,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -35,8 +48,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from tukit_comun.bandeja import Resultado, drenar
 from tukit_comun.bd import MotorServicio, crear_motor
+from tukit_comun.broker import url_broker
 from tukit_comun.cifrado import cifrador_desde_entorno
 from tukit_comun.config import url_desde_entorno
+from tukit_comun.consumidor import Consumidor, consumir
+from tukit_comun.mensajes import Evento
+from tukit_comun.registro import configurar_registro
+from tukit_comun.resiliencia import bucle_resiliente
+from tukit_comun.topologia import COLEGIOS
 
 # El grado y la forma plana del hijo viven en `dominio/matriculas.py` (puro); el
 # SQL derivado que materializa cada hijo (estudiante + matricula + vinculo) es un
@@ -82,11 +101,11 @@ class Poller:
     Los motores se inyectan para poder probar sin Postgres; en produccion salen
     del entorno. `motor_identidad` es la base propia (donde se crea el colegio);
     `motor_catalogo` es la ajena (de donde se drena la bandeja, la excepcion
-    outbox declarada).
+    outbox declarada); con RabbitMQ va en `None` y los eventos llegan a `manejar`.
     """
 
     motor_identidad: MotorServicio
-    motor_catalogo: AsyncEngine
+    motor_catalogo: AsyncEngine | None
     # Se resuelve una vez, igual que cada peticion de la API. `cifrador_desde_entorno`
     # nunca levanta (cae a claro), asi que el default es seguro y las pruebas
     # pueden construir el Poller sin pasarlo.
@@ -98,7 +117,18 @@ class Poller:
 
         El drenar/SKIP LOCKED/marcar-publicado vive en `tukit_comun.bandeja`
         (ADR 0022); aqui solo se aporta el `manejar` de `colegio_verificado`."""
+        if self.motor_catalogo is None:
+            raise ValueError("sin la bandeja del Catalogo no hay pasada: con RabbitMQ se usa `manejar`")
         return await drenar(self.motor_catalogo, self._procesar, tipo=_TIPO, limite=limite)
+
+    async def manejar(self, evento: Evento) -> Resultado:
+        """Un `colegio_verificado` que llega por la cola `identidad.colegios` (ADR 0046).
+
+        El `Evento` tiene la forma de una fila de la bandeja, asi que el alta es
+        la misma. La cola solo recibe este tipo; otro se omite por si acaso."""
+        if evento.tipo != _TIPO:
+            return Resultado.OMITIR
+        return await self._procesar(None, evento)
 
     async def _procesar(self, conexion: Any, fila: Any) -> Resultado:
         """Da de alta (o actualiza) el colegio del evento.
@@ -230,12 +260,34 @@ async def correr_una_vez() -> int:
         await motor_identidad.cerrar()
 
 
-async def _bucle(intervalo: float) -> None:
-    while True:
+async def escuchar_cola(url: str, *, seguir: bool, intervalo: float = 5.0) -> int:
+    """Con RabbitMQ (ADR 0046): consume `identidad.colegios` en vez de sondear.
+
+    Solo abre la base de Identidad. Sin `seguir`, procesa lo que hay en la cola y
+    vuelve; con `seguir`, escucha sobre `bucle_resiliente`."""
+    motor_identidad = crear_motor("identidad")
+    poller = Poller(motor_identidad=motor_identidad, motor_catalogo=None)
+    try:
+        return await consumir(
+            url,
+            Consumidor(cola=COLEGIOS, manejar=poller.manejar),
+            seguir=seguir,
+            proceso="identidad-poller",
+            intervalo=intervalo,
+        )
+    finally:
+        await motor_identidad.cerrar()
+
+
+async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]] | None = None) -> None:
+    async def _vuelta() -> None:
         aplicados = await correr_una_vez()
         if aplicados:
             print(f"[poller-identidad] colegios dados de alta/actualizados: {aplicados}")
-        await asyncio.sleep(intervalo)
+
+    await bucle_resiliente(
+        _vuelta, intervalo=intervalo, proceso="identidad-poller", dormir=dormir or asyncio.sleep
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -245,7 +297,14 @@ def main(argv: list[str] | None = None) -> int:
     analizador.add_argument("--seguir", action="store_true", help="Corre en bucle en vez de una pasada.")
     analizador.add_argument("--intervalo", type=float, default=5.0, help="Segundos entre pasadas.")
     argumentos = analizador.parse_args(argv)
+    configurar_registro("identidad-poller")
 
+    url = url_broker()
+    if url:
+        procesados = asyncio.run(escuchar_cola(url, seguir=argumentos.seguir, intervalo=argumentos.intervalo))
+        if not argumentos.seguir:
+            print(f"[poller-identidad] mensajes de {COLEGIOS.nombre}: {procesados}")
+        return 0
     if argumentos.seguir:
         asyncio.run(_bucle(argumentos.intervalo))
     else:
@@ -258,4 +317,4 @@ if __name__ == "__main__":
     raise SystemExit(main())
 
 
-__all__ = ["Poller", "correr_una_vez", "main"]
+__all__ = ["Poller", "correr_una_vez", "escuchar_cola", "main"]

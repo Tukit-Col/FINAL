@@ -179,7 +179,7 @@ calcula después de importar), el PDF original, el contacto de los colegios y lo
 canónicos**. Estos viven en la base de `inteligencia`, que la curaduría no toca; en su lugar,
 `importar` deja por cada lista el mismo evento `lista_aprobada` que deja aprobarla en la cola, y
 el poller de `inteligencia` arma el Ahorrador y el Premium en la máquina que importó. Hace falta
-tener los servicios arriba (`.	ukit.ps1 arriba`) para que se armen; si se importa con todo
+tener los servicios arriba (`.\tukit.ps1 arriba`) para que se armen; si se importa con todo
 apagado, los eventos esperan en la bandeja y salen al levantar. Una versión que ya tiene sus
 canónicos no se vuelve a optimizar, así que importar dos veces no cuesta nada.
 
@@ -321,6 +321,39 @@ gasta ninguno de los dos.
   emparejador reescribe un rango (§5).
 - **Libro** pierde `plan lector`, que hacía buscar en el catálogo una licencia.
 - Todos los nombres se normalizaron (§2.6).
+
+### 8.3 Afinamiento con la auditoría del Agustiniano (2026-10-11)
+
+Plan: [`2026-10-11-afinar-kits-agustiniano`](../diseno/planes/2026-10-11-afinar-kits-agustiniano.md).
+Decisión de diseño: [ADR 0043](../arquitectura/adr/0043-como-se-compara-cada-atributo.md).
+
+| Concepto | Cambio | Por qué |
+|---|---|---|
+| C071 Kit de tecnología | **desactivado**. Las protoboards pasan a C102; el kit protoboard + 40 jumpers, a C121; el L298N, el sensor MQ135, el kit de circuitos y el kit Arduino, a C142 (no se vende); las herramientas para celulares se desactivan | decisión del usuario: C142 no se vende y C071 mezclaba productos de naturaleza distinta |
+| `dic-ingles` | **fundido en C034**, que filtra por `idioma` | partido, el mismo diccionario salía bien en un grado y como hueco en otro |
+| C149 Portabasura | **creado**, `util`, sin productos | 1#64 estaba curado en Carpeta |
+| C002, C004 | discriminante `grosor`; los productos que no dicen ser gruesos llevan `delgado` | lápices y colores gruesos (preescolar) |
+| C006, C021 | discriminante `unidades` | una caja o un kit no se resuelve con una pieza suelta |
+| C010, C029, C051 | `acabado` con tabla propia (fluorescente, escarchado, metalizado, iris, figuras) | cartulina y témpera fluorescentes, foamy escarchado |
+| C013 | discriminante `longitud` | tijeras de 8,5 pulgadas |
+| C014, C044, C097, C116 | discriminante `tipo` | celofán y lija; libro para colorear; esponja de loza; pluma de puntas intercambiables |
+| C016 | discriminante `gramaje` | pegante en barra de 125 g |
+| C020 | discriminante `color`; todos sus productos `presentacion=frasco` | pintura escolar por color; tarro y frasco son lo mismo |
+| C022 | discriminante `tipo` (`gigante`) | plastilina gigante |
+| C024 | discriminantes `material` y `manga`; `uno_por_estudiante` | bata antifluido; bata de artes con mangas; una bata sirve para todas las materias |
+| C033 | discriminante `color` | palos de paleta de colores |
+| C050 | discriminantes `tamano` y `tipo` | lienzo por medidas; lienzo de pintura por números |
+| C086 | discriminante `longitud` | maleta que cabe una carpeta oficio |
+| C102 | discriminante `puntos` | protoboard de 400 o de 830 puntos |
+| C106 | discriminantes `tamano` y `grosor` | sobre de acetato grueso oficio |
+| C107 | discriminante `notas` | xilófono de 8 placas |
+| C113 | discriminante `tamano` | block de plegado 15 x 15 |
+| C121 | discriminantes `tipo` y `longitud` | jumpers macho-macho, macho-hembra, hembra-hembra, de 10 o 20 cm |
+
+Productos: el empaque pasa a `productos_canonicos.csv`; 8 productos de personaje sin marcar
+(Moana, Princesas, Toy Story, Tigger, Mickey, Among Us, Marvel); 14 libros recuperan el título; se
+desactivan el computador didáctico (C054), el set para hacer pompones (C089) y el galón de vinilo
+(C020); los sets de herramientas de arte pasan a C148 Espátulas.
 
 ---
 

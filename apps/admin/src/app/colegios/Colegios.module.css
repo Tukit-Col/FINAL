@@ -751,7 +751,8 @@
   gap: 6px;
 }
 
-.campo > span:first-child {
+.campo > span:first-child,
+.campo > label:first-child {
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text-secondary);

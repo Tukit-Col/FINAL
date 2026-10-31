@@ -10,9 +10,20 @@ from __future__ import annotations
 import uuid
 from collections.abc import AsyncIterator
 
+import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from tukit_operacion.modelos import Base
+
+
+@pytest.fixture(autouse=True)
+def _sin_broker(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Las pruebas corren sin RabbitMQ aunque quien las lance tenga `RABBITMQ_URL`.
+
+    La variable cambia el modo del repartidor (ADR 0046): con ella consume su
+    cola en vez de sondear. Las que prueban el modo con broker la ponen ellas.
+    """
+    monkeypatch.delenv("RABBITMQ_URL", raising=False)
 
 
 @pytest_asyncio.fixture

@@ -4,7 +4,13 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { compraDeSolicitud, decidirAccionPedido, pedidoVencido, tonoEstadoPedido } from "../src/lib/pagar-pedido.ts";
+import {
+  compraDeSolicitud,
+  decidirAccionPedido,
+  entregaParaReintento,
+  pedidoVencido,
+  tonoEstadoPedido,
+} from "../src/lib/pagar-pedido.ts";
 
 const AHORA = Date.parse("2026-10-03T12:00:00Z");
 const hace = (horas: number) => new Date(AHORA - horas * 3600_000).toISOString();
@@ -67,7 +73,7 @@ test("el tono del estado: verde pagado y entrega, amarillo pendiente, rojo cance
 const kit = "t-1";
 const pedidoDe = (
   pedido_id: string,
-  estado: "pendiente_pago" | "pagado" | "cancelado" | "entregado",
+  estado: "pendiente_pago" | "pagado" | "cancelado" | "entregado" | "incidencia",
   horas: number,
   trabajo_id: string | null = kit,
 ) => ({ pedido_id, estado, trabajo_id, creado_en: hace(horas) });
@@ -96,4 +102,52 @@ test("un pendiente vencido, uno cancelado o uno de otro kit no cambian la solici
     pedidoDe("otro", "pagado", 1, "t-2"),
   ];
   assert.equal(compraDeSolicitud(kit, pedidos, AHORA), null);
+});
+
+test("un pedido en incidencia ya esta pagado: la solicitud queda comprada", () => {
+  // Si no, se le ofreceria "Cancelar solicitud" a un kit que ya se cobro.
+  const pedidos = [pedidoDe("pend", "pendiente_pago", 1), pedidoDe("inc", "incidencia", 3)];
+  assert.deepEqual(compraDeSolicitud(kit, pedidos, AHORA), { estado: "comprado", pedidoId: "inc" });
+});
+
+// "Intentar de nuevo" tras un pago rechazado: el kit precarga la entrega del
+// pedido que quedo pendiente, para no volver a escribir la direccion.
+const envio = {
+  destinatario: "Ana Pérez",
+  direccion: "Calle 1 # 2-3",
+  ciudad: "Bogotá",
+  indicaciones: "Torre 2",
+  localidad: "Suba",
+  departamento: null,
+  google_place_id: null,
+};
+
+test("el reintento recupera la entrega del pedido pendiente mas reciente del kit", () => {
+  const pedidos = [
+    { ...pedidoDe("viejo", "pendiente_pago", 5), envio: { ...envio, direccion: "Vieja 9" } },
+    { ...pedidoDe("nuevo", "pendiente_pago", 1), envio },
+    { ...pedidoDe("otro", "pendiente_pago", 0.5, "t-2"), envio: { ...envio, direccion: "Otro kit" } },
+  ];
+  assert.deepEqual(entregaParaReintento(pedidos, kit, AHORA), {
+    destinatario: "Ana Pérez",
+    direccion: "Calle 1 # 2-3",
+    ciudad: "Bogotá",
+    indicaciones: "Torre 2",
+    localidad: "Suba",
+    departamento: "",
+    google_place_id: "",
+  });
+});
+
+test("sin pedido pendiente y vigente del kit no hay entrega que precargar", () => {
+  assert.equal(entregaParaReintento([], kit, AHORA), null);
+  assert.equal(entregaParaReintento([{ ...pedidoDe("pag", "pagado", 1), envio }], kit, AHORA), null);
+  assert.equal(
+    entregaParaReintento([{ ...pedidoDe("venc", "pendiente_pago", 30), envio }], kit, AHORA),
+    null,
+  );
+  assert.equal(
+    entregaParaReintento([{ ...pedidoDe("sin", "pendiente_pago", 1), envio: null }], kit, AHORA),
+    null,
+  );
 });

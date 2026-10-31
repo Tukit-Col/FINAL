@@ -85,13 +85,21 @@ _ESQUEMA = {
 }
 
 
+def modelo() -> str:
+    """El modelo que lee las paginas: `GEMINI_MODELO`, o el de por defecto.
+
+    Lo usa tambien la version de la cache de lecturas (ADR 0047): una lectura
+    guardada con otro modelo no se reaprovecha."""
+    return os.environ.get("GEMINI_MODELO", MODELO_POR_DEFECTO).strip() or MODELO_POR_DEFECTO
+
+
 def _clave_y_modelo() -> tuple[str, str]:
     clave = os.environ.get("GEMINI_API_KEY", "").strip()
     if not clave:
         raise PercepcionFallida(
             "Falta GEMINI_API_KEY. Sin ella no leo la lista, y no voy a inventar los renglones."
         )
-    return clave, os.environ.get("GEMINI_MODELO", MODELO_POR_DEFECTO).strip() or MODELO_POR_DEFECTO
+    return clave, modelo()
 
 
 def _llamar(pedido: urllib.request.Request) -> dict:

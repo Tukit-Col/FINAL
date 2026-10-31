@@ -12,7 +12,7 @@
 // `/ingresar`. Asi esta ruta publica nunca abre una cuenta ajena con otra clave.
 
 import { NextResponse } from "next/server";
-import { origenDeDatos, type RegistroAcudiente } from "@tukit/contrato/servidor";
+import { ErrorTukit, origenDeDatos, type RegistroAcudiente } from "@tukit/contrato/servidor";
 import { respuestaDeError } from "@/lib/respuesta";
 import { COOKIE_SESION } from "@/lib/sesion";
 
@@ -50,9 +50,21 @@ export async function POST(peticion: Request): Promise<Response> {
         path: "/",
         maxAge: 60 * 60 * 8,
       });
-    } catch {
+    } catch (causa) {
       // El alta ya fue exitosa; un login fallido no la invalida. Devolvemos
       // `resultado` sin cookie y el padre podra entrar luego por `/ingresar`.
+      // Salvo un 429 (entrar comparte el cupo estricto de la IP, ADR 0047): ese
+      // sale como 429 con su espera y `cuenta_creada`, para que /empezar se lo
+      // diga y vuelva a entrar al reintentar en vez de seguir sin sesion.
+      if (causa instanceof ErrorTukit && causa.estado === 429) {
+        return respuestaDeError(
+          new ErrorTukit(429, causa.codigo, causa.message, {
+            ...causa.detalle,
+            ...resultado,
+            cuenta_creada: true,
+          }),
+        );
+      }
     }
     return respuesta;
   } catch (causa) {

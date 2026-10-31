@@ -16,6 +16,7 @@ import type {
   SolicitudAvancePedido,
   ValidarLinea,
 } from "@tukit/contrato";
+import { conEspera } from "@tukit/contrato";
 
 export class FalloApi extends Error {
   constructor(
@@ -39,7 +40,12 @@ async function enviar<T>(ruta: string, cuerpo: unknown): Promise<T> {
   const leido: unknown = texto ? JSON.parse(texto) : null;
 
   if (!respuesta.ok) {
-    const error = (leido ?? {}) as ErrorApi & Record<string, unknown>;
+    // Un 429 llega con la espera en el mensaje aunque el cuerpo no la traiga.
+    const error = conEspera(
+      respuesta.status,
+      (leido ?? {}) as ErrorApi & Record<string, unknown>,
+      respuesta.headers.get("Retry-After"),
+    );
     // El mensaje que se muestra es el del backend, no uno inventado aqui: es
     // el unico que sabe por que rechazo la accion (motivo vacio, precio con
     // decimales, trabajo ya publicado).

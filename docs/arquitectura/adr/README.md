@@ -14,7 +14,10 @@ La numeración **continúa la serie externa**. Los primeros de esta carpeta naci
 0021-0026, pero el backbone (resiliencia, eventos, observabilidad) registró allá sus propios
 0019 a 0026 y el código cita los dos. Por eso los de pagos y curaduría se renumeraron a
 0033-0038 al unir las ramas: en el código, `ADR 0021` a `ADR 0026` son siempre los del
-backbone. El número es una etiqueta; el título es la decisión.
+backbone. Lo mismo pasó al unir `feature/afinar-kits-agustiniano` y `feature/maps-and-feats`
+después de `arreglos/h-b-01-03`: el de atributos nació como 0040 y es 0043, y los de Google
+Places y del alta de colegios nacieron como 0039 y 0040 y son 0044 y 0045. El número es una
+etiqueta; el título es la decisión.
 
 | ADR | Decisión | Estado | Origen |
 |---|---|---|---|
@@ -31,6 +34,14 @@ backbone. El número es una etiqueta; el título es la decisión.
 | [0037](0037-la-curaduria-viaja-por-git.md) | La curaduría de listas y del catálogo viaja por git como CSV | aceptada | `feature/curaduria-de-listas` |
 | [0038](0038-el-concepto-asignado-en-la-revision-manda.md) | El concepto asignado en la revisión manda sobre el texto, y su tipo decide si se busca | aceptada | `feature/curaduria-de-listas` |
 | [0039](0039-lo-que-no-tiene-precio-no-gana-por-barato.md) | Lo que no tiene precio no gana por barato en el frente, y el coseno no resta en la fusión | aceptada | `feature/atributos-catalogo` |
+| [0040](0040-la-lista-que-el-catalogo-no-recibe-se-importa-despues.md) | La lista que el catálogo no recibe se guarda y se importa después, con una clave de idempotencia; el onboarding responde `503` | aceptada | `arreglos/h-b-01-03` |
+| [0041](0041-los-procesos-de-fondo-se-recuperan-solos.md) | Los procesos de fondo se recuperan solos de una caída de Postgres o de RabbitMQ; un error de programación los sigue terminando | aceptada | `arreglos/h-b-01-03` |
+| [0042](0042-un-evento-da-un-solo-aviso.md) | Un evento da un solo aviso, aunque la bandeja lo entregue otra vez | aceptada | `arreglos/h-b-01-03` |
+| [0043](0043-como-se-compara-cada-atributo.md) | Cada atributo se compara a su manera (exacto lo que cambia qué cosa es, con tolerancia lo que se mide), y la cantidad del renglón va en unidad base | aceptada | `feature/integracion-total` |
+| [0044](0044-direcciones-con-google-places.md) | La dirección del checkout se autocompleta con Google Places (New), y sin Google sigue siendo un campo libre | aceptada | `feature/maps-and-feats` |
+| [0045](0045-alta-de-colegios-no-aliados-desde-la-cola.md) | El staff sube desde la cola la lista de cualquier colegio de Bogotá, con un solo directorio y una regla de logo | aceptada | `feature/maps-and-feats` |
+| [0046](0046-las-colas-viajan-por-rabbitmq.md) | Los eventos y los trabajos viajan por RabbitMQ, y la base queda como respaldo: cada productor publica su bandeja y ningún consumidor lee la base de otro | aceptada | `feature/colas-rabbitmq` |
+| [0047](0047-redis-guarda-lo-que-se-recalcula-y-cuenta-el-limite.md) | Redis guarda lo que se puede recalcular (la lectura aceptada de una lista y el vector de cada renglón) y cuenta el límite de tasa del gateway, y sin él todo sigue como antes salvo el límite, que cuenta en memoria | aceptada | `feature/cache-redis` |
 
 ## Para incorporarlos
 

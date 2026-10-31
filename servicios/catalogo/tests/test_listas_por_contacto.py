@@ -154,7 +154,7 @@ async def test_cada_fila_trae_su_tarea_para_poder_retirarla(cliente):
 
 async def test_retirar_desvincula_toda_la_version_y_solo_del_contacto(cliente):
     """El acudiente cancela su solicitud: sus tareas de esa version dejan de ser
-    suyas (las dos, no solo la que se ve), la lista sigue en la cola del colegio,
+    suyas (las dos, no solo la que se ve), la lista sigue siendo del colegio,
     y las listas de otro acudiente no se tocan."""
     cuerpo = (await cliente.get(f"/interno/listas-por-contacto/{PADRE}")).json()
     version_id = str(cliente.ids["version"])

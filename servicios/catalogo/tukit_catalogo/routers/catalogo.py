@@ -631,7 +631,7 @@ async def emparejar_renglones(peticion: Request, cuerpo: dict[str, Any]) -> dict
     asignados = cuerpo.get("conceptos")
     if not isinstance(asignados, list) or len(asignados) != len(textos):
         asignados = [None] * len(textos)
-    vectores = calcular_vectores(textos, _embeder_por_entorno())
+    vectores = await calcular_vectores(textos, _embeder_por_entorno())
     resultados = [
         emparejar(t, conceptos, productos, embedding_renglon=v, concepto_forzado=(str(a) if a else None))
         for t, v, a in zip(textos, vectores, asignados, strict=True)

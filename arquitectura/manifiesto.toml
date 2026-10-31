@@ -30,7 +30,13 @@ version = "3"
 # 72: `comercio.historial_pedido`, un renglon por cada avance del pedido desde
 # el back-office (quien, de que estado a cual, con que nota), para que una
 # incidencia o una cancelacion tengan explicacion.
-total_tablas_esperado = 72
+# 73: `inteligencia.importacion_lista`, la lista que un acudiente subio con el
+# catalogo caido. Guarda lo percibido hasta que el trabajador la importa, con
+# una clave de idempotencia por subida y destino (ADR 0040).
+# 74: `inteligencia.evento_procesado`, los eventos que el sondeador de listas ya
+# proceso, por origen e id. Con RabbitMQ la entrega es al menos una vez, y un
+# `lista_verificada` repetido armaba otro kit (ADR 0046).
+total_tablas_esperado = 74
 
 # Tablas que existen a proposito en varias bases. Son la excepcion declarada,
 # no un descuido: cada servicio necesita su propia bandeja de salida local para
@@ -132,6 +138,8 @@ tablas = [
     "etapa_trabajo",
     "bandeja_salida",
     "kit_canonico",
+    "importacion_lista",
+    "evento_procesado",
 ]
 
 [servicios.comercio]
@@ -205,6 +213,43 @@ cuello de botella.
 """
 tablas = []
 
+
+# Lecturas cruzadas: los procesos que abren un motor a la base de otro
+# servicio. Las tres drenan la bandeja de salida ajena (ADR 0022) y abren el
+# motor con `url_desde_entorno`, que deriva el nombre de la base dentro de la
+# libreria, asi que la regla 3 no las ve: por eso se declaran aqui.
+#
+# Desde el ADR 0046 son solo el respaldo sin broker. Con `RABBITMQ_URL`, cada
+# proceso consume su cola (`cola`, declarada en `tukit_comun.topologia`) y no
+# abre ningun motor ajeno. `modo = "sin_broker"` es lo que lo dice, y la prueba
+# lo exige de dos formas: toda llamada a `url_desde_entorno` de un servicio esta
+# en un modulo declarado aqui con ese modo, y desde el `escuchar_cola` del
+# modulo no se llega a ninguna. Quitar el respaldo es una decision aparte; el
+# dia que se tome, estas entradas se borran y la prueba exige que no quede
+# ninguna lectura.
+[[lecturas_cruzadas]]
+modulo = "tukit_operacion.repartidor"
+desde = "operacion"
+hacia = ["comercio", "inteligencia"]
+lee = "Las bandejas de comercio e inteligencia, y `trabajo_pipeline.usuario_id` para el destinatario de un `kits_publicados`."
+modo = "sin_broker"
+cola = "operacion.avisos"
+
+[[lecturas_cruzadas]]
+modulo = "tukit_identidad.poller"
+desde = "identidad"
+hacia = ["catalogo"]
+lee = "`colegio_verificado` de la bandeja de catalogo."
+modo = "sin_broker"
+cola = "identidad.colegios"
+
+[[lecturas_cruzadas]]
+modulo = "tukit_inteligencia.poller"
+desde = "inteligencia"
+hacia = ["catalogo"]
+lee = "`lista_verificada` y `lista_aprobada` de la bandeja de catalogo."
+modo = "sin_broker"
+cola = "inteligencia.listas"
 
 # Referencias entre bases distintas. Como no pueden ser llaves foraneas fisicas,
 # la unica forma de que no se vuelvan invisibles es declararlas. Toda referencia
@@ -433,6 +478,17 @@ colegio vive en Identidad; aqui es la llave con la que el acudiente elige su
 grado en /empezar y con la que la ruta de aplicacion encuentra los kits ya
 validados. La integridad se apoya en que el colegio ya existia cuando su lista
 se importo (misma garantia que `catalogo.lista_oficial.colegio_id`)."""
+
+[[referencias_cruzadas]]
+desde = "inteligencia.importacion_lista.colegio_id"
+hacia = "identidad.colegio"
+nota = """
+El destino de una lista que un acudiente subio y que espera a que el catalogo
+vuelva (ADR 0040). Es el mismo `colegio_id` que viaja a
+`catalogo.tarea_importacion`: el de un aliado, o el derivado del DANE o del
+nombre de un colegio que aun no existe y nace al aprobar. Referencia logica,
+como la de la tarea: la tenencia del colegio vive en Identidad.
+"""
 
 [[referencias_cruzadas]]
 desde = "catalogo.tarea_importacion.colegio_id"

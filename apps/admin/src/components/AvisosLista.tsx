@@ -102,13 +102,15 @@ export default function AvisosLista({ versionId, avisos }: Props) {
                   {aviso.tipo === "revisar_atributo" && (
                     <>
                       Nombra varios valores de <strong>{aviso.atributo}</strong>; no se exigió
-                      ninguno.
+                      ninguno. Si sabes cuál es, fíjalo con «Editar (nueva versión)» en
+                      «Atributos que se exigen» del renglón.
                     </>
                   )}
                   {aviso.tipo === "sin_producto" && (
                     <>
                       Ningún producto de {aviso.concepto_nombre ?? "su concepto"} cumple:{" "}
-                      {exigeComoTexto(aviso.exige)}.
+                      {exigeComoTexto(aviso.exige)}. Si algo de eso no debería exigirse, se
+                      cura con «Editar (nueva versión)» en «Atributos que se exigen».
                     </>
                   )}
                 </p>

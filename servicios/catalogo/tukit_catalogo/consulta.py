@@ -14,10 +14,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import sys
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from .cache_vectores import vectores_guardados
 from .descubrir import clasificar
 from .embeddings import Embeder, promedio
 from .enriquecer import extraer_atributos
@@ -112,9 +114,112 @@ def _elegir_por_nivel(productos: list[dict[str, Any]]) -> list[dict[str, Any]]:
 _NO_SE_EXIGEN = frozenset({("tipo", "escolar")})
 
 
+# Como se compara cada atributo. Lo que no esta en ninguna de estas tablas se
+# compara exacto, y es la mayoria: lo que cambia QUE cosa es (materias, rayado,
+# tipo, idioma, edicion, color, punta) no admite nada cercano. Lo que se MIDE si
+# (la auditoria de huecos del Agustiniano, 2026-10-11): una escuadra de 26 cm
+# sirve donde piden 20, y un ferrocarril de 100 hojas donde piden 80.
+#
+# "Al menos": el producto tiene que traer lo pedido o mas. El tope, si lo hay,
+# es cuantas veces lo pedido se acepta: un cuaderno de 200 hojas no es el de 80.
+_AL_MENOS: dict[str, float | None] = {
+    "hojas": 2.0,
+    "unidades": None,
+    "colores": None,
+    "piezas": None,
+    "notas": None,
+    # Una protoboard de 840 puntos sirve donde piden 400; una de 2.200 ya es
+    # otra cosa.
+    "puntos": 2.2,
+    "peso": None,
+    "gramaje": None,
+    "capacidad": None,
+}
+# Rango aceptado como multiplo de lo pedido: algo menos y algo mas.
+_TOLERANCIA: dict[str, tuple[float, float]] = {"longitud": (0.85, 1.35)}
+# Medidas `a x b cm`: cada lado puede variar hasta esta fraccion.
+_TOLERANCIA_MEDIDAS = 0.25
+# Valores distintos que, para el colegio, son lo mismo.
+_EQUIVALENTES: dict[str, tuple[frozenset[str], ...]] = {
+    "tamano": (frozenset({"carta", "a4"}),),
+    "presentacion": (frozenset({"frasco", "tarro"}),),
+    # Una regla "metalica" es la regla de acero que pide el colegio
+    # (decision del 2026-10-12).
+    "material": (frozenset({"plastico", "antifluido"}), frozenset({"acero", "metal"})),
+    # Plastilina, crayones y lapices: «gigante» y «jumbo» nombran el mismo
+    # formato grueso (decision del 2026-10-12).
+    "tipo": (frozenset({"gigante", "jumbo"}),),
+}
+# A centimetros, para comparar longitudes escritas en unidades distintas.
+_A_CM = {"mm": 0.1, "cm": 1.0, "m": 100.0, "in": 2.54}
+
+
+def _numero(valor: Any) -> tuple[float, str] | None:
+    """`"30 cm"` -> (30.0, "cm"); `12` -> (12.0, ""). None si no empieza por cifra."""
+    if isinstance(valor, bool):
+        return None
+    if isinstance(valor, int | float):
+        return float(valor), ""
+    m = re.match(r"\s*(\d+(?:\.\d+)?)\s*([a-z]*)", str(valor).lower())
+    return (float(m.group(1)), m.group(2)) if m else None
+
+
+def _medidas(valor: Any) -> list[float] | None:
+    """`"20 x 30 cm"` -> [20.0, 30.0], ordenadas para que la orientacion no importe."""
+    m = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)\s*cm\s*", str(valor).lower())
+    return sorted((float(m.group(1)), float(m.group(2)))) if m else None
+
+
+def _idioma_cumple(declarado: str, pedido: str) -> bool:
+    """`de ingles` acepta el de ingles y el bilingue con espanol; `ingles-ingles`, solo el monolingue.
+
+    En una lista colombiana, `diccionario de ingles` a secas es casi siempre el
+    bilingue espanol-ingles; el monolingue se pide nombrando el idioma dos veces
+    (`Ingles - Ingles`). El de espanol a secas es el de espanol.
+    """
+    if "-" in pedido or pedido == "espanol":
+        return declarado == pedido or (pedido.split("-") == [declarado] * 2)
+    return declarado in (pedido, f"{pedido}-{pedido}", "-".join(sorted({"espanol", pedido})))
+
+
+def _valor_cumple(atributo: str, declarado: Any, pedido: Any) -> bool:
+    texto_declarado, texto_pedido = str(declarado).lower(), str(pedido).lower()
+    if texto_declarado == texto_pedido:
+        return True
+    if atributo == "idioma":
+        return _idioma_cumple(texto_declarado, texto_pedido)
+    if any({texto_declarado, texto_pedido} <= clase for clase in _EQUIVALENTES.get(atributo, ())):
+        return True
+    if atributo in _AL_MENOS:
+        tiene, pide = _numero(declarado), _numero(pedido)
+        if tiene is None or pide is None or tiene[1] != pide[1]:
+            return False
+        tope = _AL_MENOS[atributo]
+        return tiene[0] >= pide[0] and (tope is None or tiene[0] <= pide[0] * tope)
+    if atributo in _TOLERANCIA:
+        tiene, pide = _numero(declarado), _numero(pedido)
+        if tiene is None or pide is None or tiene[1] not in _A_CM or pide[1] not in _A_CM or not pide[0]:
+            return False
+        bajo, alto = _TOLERANCIA[atributo]
+        razon = (tiene[0] * _A_CM[tiene[1]]) / (pide[0] * _A_CM[pide[1]])
+        return bajo <= razon <= alto
+    if atributo == "tamano":
+        tiene_m, pide_m = _medidas(declarado), _medidas(pedido)
+        if tiene_m and pide_m:
+            # Estricto: en el borde (40 -> 30 es justo 25 %) un lienzo de 30 x 25
+            # pasaba por uno de 30 x 40 (auditoria v4, decision del 2026-10-12).
+            return all(abs(t - p) < p * _TOLERANCIA_MEDIDAS for t, p in zip(tiene_m, pide_m, strict=True))
+    return False
+
+
 def _cumple(producto: dict[str, Any], impuestos: dict[str, Any]) -> bool:
-    declarados = {k: str(v).lower() for k, v in (producto.get("atributos") or {}).items()}
-    return all(declarados.get(k) == str(v).lower() for k, v in impuestos.items())
+    """Si el producto declara todo lo que el renglon exige, cada cosa a su manera.
+
+    Lo que el producto no declara no cumple: no se sabe, y un hueco honesto vale
+    mas que un sustituto que nadie verifico.
+    """
+    declarados = {str(k): v for k, v in (producto.get("atributos") or {}).items()}
+    return all(k in declarados and _valor_cumple(k, declarados[k], v) for k, v in impuestos.items())
 
 
 def emparejar(
@@ -381,25 +486,30 @@ async def emparejar_en_catalogo(
         embeder = _embeder_por_entorno()
     if embeder is None:
         log.debug("sin GEMINI_API_KEY: match lexico")
-    vectores = calcular_vectores(renglones, embeder)
+    vectores = await calcular_vectores(renglones, embeder)
     return [
         emparejar(renglon, conceptos, productos, embedding_renglon=vec)
         for renglon, vec in zip(renglones, vectores, strict=True)
     ]
 
 
-def calcular_vectores(renglones: list[str], embeder: Embeder | None) -> list[list[float] | None]:
+async def calcular_vectores(renglones: list[str], embeder: Embeder | None) -> list[list[float] | None]:
     """El vector de cada renglon en un solo lote, o `None` por renglon si no hay
     embeder o si la llamada falla.
 
     El canal semantico DEGRADA, no tumba: si el proveedor no responde, la consulta
     sigue dando el match lexico. Se registra el fallo (antes era un `except`
     silencioso) para que "de repente todo es solo lexico" deje rastro.
+
+    Los vectores ya calculados salen de Redis y al proveedor solo van los que
+    faltan (`cache_vectores`, ADR 0047). Si el proveedor falla, la tanda entera
+    baja a lexico, aunque algunos estuvieran guardados: es lo que promete el
+    contrato.
     """
     if embeder is None or not renglones:
         return [None] * len(renglones)
     try:
-        return list(embeder(list(renglones)))
+        return list(await vectores_guardados(renglones, embeder))
     except Exception as exc:  # noqa: BLE001 - degrada a lexico, no tumba la consulta
         log.warning("canal semantico degradado a lexico: %s", exc)
         return [None] * len(renglones)

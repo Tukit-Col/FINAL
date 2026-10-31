@@ -9,7 +9,13 @@ import {
   validarArchivo,
   EXTENSIONES_ACEPTADAS,
   GRADOS_CANONICOS,
+  buscarColegios,
+  imagenesPorDane,
+  logoDeColegio,
+  normalizarBusqueda,
+  prepararBusqueda,
   type Colegio,
+  type EntradaDirectorio,
   type GradoCanonico,
   type HijoNuevo,
   type HijoSolicitud,
@@ -24,8 +30,13 @@ import {
   subirListas,
   registrarAcudiente,
   guardarMatriculas,
+  iniciarSesion,
   FalloApi,
 } from "@/lib/api-navegador";
+import { avisoCuentaCreada, cuentaCreadaSinSesion } from "@/lib/limite";
+import { MAX_HIJOS, avisosDePrecarga, precargarHijos } from "@/lib/precarga-hijos";
+import { rutaRecibimos } from "@/lib/recibimos";
+import LogoColegio from "@/components/LogoColegio";
 import SelectorPersonaje from "./SelectorPersonaje";
 import styles from "./Empezar.module.css";
 
@@ -131,19 +142,6 @@ function hijoVacio(indice: number): HijoFormulario {
   };
 }
 
-// Iniciales del colegio para el avatar cuando no hay logo: dos letras de las
-// dos primeras palabras significativas, en mayúscula.
-function iniciales(nombre: string): string {
-  const palabras = nombre
-    .split(/\s+/)
-    .filter((p) => p.length > 2 && !/^(de|del|la|el|los|las|y)$/i.test(p));
-  const base = palabras.length > 0 ? palabras : nombre.split(/\s+/);
-  return base
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
 // Une una lista en español natural: "a", "a y b", "a, b y c". Se usa para armar
 // el mensaje de qué falta sin comas colgando.
 function unirEnLista(items: string[]): string {
@@ -156,17 +154,9 @@ function unirEnLista(items: string[]): string {
 // Un ÚNICO buscador por hijo que mezcla dos fuentes que el padre no distingue:
 // los colegios aliados de Tukit y el directorio de Bogotá. La búsqueda del
 // directorio es del lado del cliente sobre el JSON ya cargado; no pega a ningún
-// servicio (decisión: directorio buscable, no sembrado).
-
-// Una entrada del directorio estático de colegios de Bogotá
-// (`/directorio-colegios.json`, ~3k colegios). NO es un colegio aliado: es la
-// guía oficial para que el acudiente designe SU colegio aunque Tukit todavía no
-// lo tenga.
-interface EntradaDirectorio {
-  dane: string;
-  nombre: string;
-  localidad: string;
-}
+// servicio (decisión: directorio buscable, no sembrado). La lógica (mezcla,
+// reconducción por DANE, tope) es la pura de `@tukit/contrato`, la misma que usa
+// "Subir lista" en el admin.
 
 // El directorio se carga UNA vez y se comparte entre todos los hijos: es el
 // mismo JSON estático. Se memoiza en un módulo para no re-descargar 300 KB por
@@ -179,15 +169,6 @@ function cargarDirectorio(): Promise<EntradaDirectorio[]> {
       .catch(() => []);
   }
   return directorioPromesa;
-}
-
-// Plegado de mayúsculas y acentos, mismo idioma que el explorador del catálogo
-// (`ExploradorCatalogo.tsx`): así "agustiniano" encuentra "AGUSTINIANO".
-function normalizar(texto: string): string {
-  return texto
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
 }
 
 // La leyenda que el aliado muestra bajo su nombre, igual en la lista y en la
@@ -232,59 +213,19 @@ function BuscadorColegio({
     if (directorio.length === 0) cargarDirectorio().then(setDirectorio);
   }, [directorio.length]);
 
-  // Índices normalizados una sola vez (no por tecla): el de aliados incluye un
-  // mapa por DANE —primero-gana ante una colisión de DANE, saltando los nulos—
-  // que es la clave de reconducir al aliado en vez de duplicarlo.
-  const indexAliados = useMemo(() => {
-    const porDane = new Map<string, { colegio: Colegio; buscable: string }>();
-    const lista = colegiosAliados.map((c) => {
-      const entry = { colegio: c, buscable: normalizar(c.nombre) };
-      if (c.dane && !porDane.has(c.dane)) porDane.set(c.dane, entry);
-      return entry;
-    });
-    return { lista, porDane };
-  }, [colegiosAliados]);
-  const directorioNorm = useMemo(
-    () => directorio.map((entrada) => ({ entrada, buscable: normalizar(entrada.nombre) })),
-    [directorio],
+  // Índices normalizados una sola vez (no por tecla); la búsqueda reconduce al
+  // aliado la entrada del directorio que comparte su DANE (evita el duplicado).
+  const preparada = useMemo(
+    () => prepararBusqueda(colegiosAliados, directorio),
+    [colegiosAliados, directorio],
   );
-  const directorioDanes = useMemo(
-    () => new Set(directorio.map((e) => e.dane)),
-    [directorio],
-  );
+  const imagenes = useMemo(() => imagenesPorDane(directorio), [directorio]);
 
-  const qn = normalizar(busqueda.trim());
+  const qn = normalizarBusqueda(busqueda.trim());
   const resultados = useMemo(() => {
-    if (qn.length < 3) return { aliados: [] as { colegio: Colegio; etiqueta: string }[], directorio: [] as EntradaDirectorio[] };
-    const aliados: { colegio: Colegio; etiqueta: string }[] = [];
-    const yaAliado = new Set<string>();
-    // (a) Entradas del directorio que SON un aliado (comparten DANE). Casan por el
-    //     nombre del directorio O por el nombre Tukit del aliado, para que tanto
-    //     "agustiniano" como "cacs" den con la misma fila. Etiqueta compuesta.
-    for (const { entrada, buscable } of directorioNorm) {
-      const aliado = indexAliados.porDane.get(entrada.dane);
-      if (!aliado || yaAliado.has(aliado.colegio.colegio_id)) continue;
-      if (buscable.includes(qn) || aliado.buscable.includes(qn)) {
-        yaAliado.add(aliado.colegio.colegio_id);
-        aliados.push({ colegio: aliado.colegio, etiqueta: `${entrada.nombre} · ${aliado.colegio.nombre}` });
-      }
-    }
-    // (b) Aliados que NO están en el directorio (sin DANE, o su DANE no aparece):
-    //     los que casan por su nombre Tukit, con etiqueta simple.
-    for (const { colegio, buscable } of indexAliados.lista) {
-      if (colegio.dane && directorioDanes.has(colegio.dane)) continue;
-      if (buscable.includes(qn) && !yaAliado.has(colegio.colegio_id)) {
-        yaAliado.add(colegio.colegio_id);
-        aliados.push({ colegio, etiqueta: colegio.nombre });
-      }
-    }
-    // (2) Entradas del directorio que NO son aliados, tope 30 como antes.
-    const dir = directorioNorm
-      .filter(({ entrada, buscable }) => !indexAliados.porDane.has(entrada.dane) && buscable.includes(qn))
-      .slice(0, 30)
-      .map(({ entrada }) => entrada);
-    return { aliados, directorio: dir };
-  }, [directorioNorm, directorioDanes, indexAliados, qn]);
+    const { colegios, directorio: dir } = buscarColegios(preparada, busqueda);
+    return { aliados: colegios, directorio: dir };
+  }, [preparada, busqueda]);
 
   // Ya eligió (aliado, directorio o a mano): se muestra el elegido con opción de
   // cambiarlo, en vez de la lista, para que el paso quede claramente resuelto. El
@@ -297,12 +238,15 @@ function BuscadorColegio({
         <span className={styles.campoRotulo}>Busca el colegio de tu hijo</span>
         <div className={`${styles.tarjetaColegio} ${styles.colegioActivo}`}>
           <span className={styles.logoColegio} aria-hidden="true">
-            {aliado?.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={aliado.logo_url} alt="" />
-            ) : (
-              <span className={styles.logoIniciales}>{iniciales(nombre)}</span>
-            )}
+            <LogoColegio
+              src={
+                aliado
+                  ? logoDeColegio(aliado, imagenes)
+                  : (colegioDane && imagenes.get(colegioDane)) || null
+              }
+              nombre={nombre}
+              claseIniciales={styles.logoIniciales}
+            />
           </span>
           <span className={styles.colegioTexto}>
             <span className={styles.colegioNombre}>{nombre}</span>
@@ -358,12 +302,11 @@ function BuscadorColegio({
               onClick={() => onElegirAliado(colegio.colegio_id)}
             >
               <span className={styles.logoColegio} aria-hidden="true">
-                {colegio.logo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={colegio.logo_url} alt="" />
-                ) : (
-                  <span className={styles.logoIniciales}>{iniciales(colegio.nombre)}</span>
-                )}
+                <LogoColegio
+                  src={logoDeColegio(colegio, imagenes)}
+                  nombre={colegio.nombre}
+                  claseIniciales={styles.logoIniciales}
+                />
               </span>
               <span className={styles.colegioTexto}>
                 <span className={styles.colegioNombre}>{etiqueta}</span>
@@ -381,7 +324,11 @@ function BuscadorColegio({
               onClick={() => onElegirDirectorio({ dane: e.dane, nombre: e.nombre })}
             >
               <span className={styles.logoColegio} aria-hidden="true">
-                <span className={styles.logoIniciales}>{iniciales(e.nombre)}</span>
+                <LogoColegio
+                  src={e.imageURL}
+                  nombre={e.nombre}
+                  claseIniciales={styles.logoIniciales}
+                />
               </span>
               <span className={styles.colegioTexto}>
                 <span className={styles.colegioNombre}>{e.nombre}</span>
@@ -452,28 +399,28 @@ export default function FormularioEmpezar({
     () => colegios.filter((c) => c.es_partner ?? c.grados.length > 0),
     [colegios],
   );
-  const [hijos, setHijos] = useState<HijoFormulario[]>(() => {
-    // Solo se precarga colegio+grado si la matrícula es de un aliado; si no, el
-    // hijo arranca vacío (como uno nuevo) para no dejar seleccionado un colegio
-    // que el selector, ya filtrado a aliados, no muestra.
-    const idsAliados = new Set(colegiosAliados.map((c) => c.colegio_id));
-    return matriculasIniciales.length > 0
-      ? matriculasIniciales.map((m, i) => {
-          const esAliado = idsAliados.has(m.colegio_id);
-          return {
-            ...hijoVacio(i + 1),
-            colegioId: esAliado ? m.colegio_id : "",
-            grado: esAliado ? m.grado : "",
-            // El apodo del propio hijo baja descifrado en la precarga; solo se
-            // conserva si el colegio es aliado (si no, el hijo arranca vacío).
-            apodo: esAliado ? (m.apodo ?? "") : "",
-            // Marcado como precargado solo si de verdad quedó con su matrícula
-            // (colegio aliado): así no se re-guarda ni pide apodo de nuevo.
-            precargado: esAliado,
-          };
-        })
-      : [hijoVacio(1)];
-  });
+  // Solo se precargan los hijos que se pueden usar tal cual (colegio con la
+  // lista de ese grado verificada) y hasta el tope del formulario. Los demás no
+  // se cargan vacíos —dejaban el buscador en blanco y el botón bloqueado—: se
+  // dice cuáles quedaron fuera y por qué (`precarga-hijos.ts`).
+  const [precarga] = useState(() => precargarHijos(matriculasIniciales, colegios));
+  const avisosPrecarga = useMemo(
+    () => avisosDePrecarga(precarga.fuera, precarga.precargados.length),
+    [precarga],
+  );
+  const [hijos, setHijos] = useState<HijoFormulario[]>(() =>
+    precarga.precargados.length > 0
+      ? precarga.precargados.map((m, i) => ({
+          ...hijoVacio(i + 1),
+          colegioId: m.colegio_id,
+          grado: m.grado,
+          // El apodo del propio hijo baja descifrado en la precarga.
+          apodo: m.apodo ?? "",
+          // Ya está en la cuenta: no se re-guarda ni se pide el apodo de nuevo.
+          precargado: true,
+        }))
+      : [hijoVacio(1)],
+  );
   const [correo, setCorreo] = useState(sesion?.correo ?? "");
   const [clave, setClave] = useState("");
   const [celular, setCelular] = useState("");
@@ -495,6 +442,9 @@ export default function FormularioEmpezar({
   // y no se duplica. Se limpia solo: al navegar con éxito, /empezar se desmonta.
   const [progreso, setProgreso] = useState<{
     registroFirma?: string;
+    // La cuenta quedó creada pero el login de después dio 429 (H-R-01): el
+    // reintento solo entra, sin volver a registrar.
+    sinSesion?: boolean;
     matriculasFirma?: string;
     trabajoId?: string;
     trabajoFirma?: string;
@@ -545,12 +495,14 @@ export default function FormularioEmpezar({
     return true; // aliado con grado verificado: la lista ya existe
   }
 
-  // El camino "soy nuevo usuario" crea la cuenta, asi que ahi la clave es
-  // obligatoria; en los demas caminos no hay clave que pedir.
+  // Correo, clave y celular solo se piden en "soy nuevo usuario", que crea la
+  // cuenta. Con sesion la cuenta ya los tiene: el trabajo viaja con el token y
+  // el aviso sale al correo y al celular guardados en identidad, asi que no se
+  // vuelven a pedir (antes se pedian y no viajaban a ninguna parte).
+  const pideContacto = modo === "nuevo";
   const listo =
-    correo.trim().length > 3 &&
-    celular.trim().length > 6 &&
-    (modo !== "nuevo" || clave.length >= 6) &&
+    (!pideContacto ||
+      (correo.trim().length > 3 && celular.trim().length > 6 && clave.length >= 6)) &&
     hijos.every(hijoCompleto);
 
   // Qué falta EXACTAMENTE para poder enviar, traduciendo a texto los mismos
@@ -560,9 +512,11 @@ export default function FormularioEmpezar({
   // pintan hasta que hay colegio: pedir "el grado" sin colegio señalaría un campo
   // que aún no está en pantalla.
   const faltantesContacto: string[] = [];
-  if (correo.trim().length <= 3) faltantesContacto.push("tu correo");
-  if (modo === "nuevo" && clave.length < 6) faltantesContacto.push("una contraseña");
-  if (celular.trim().length <= 6) faltantesContacto.push("tu celular");
+  if (pideContacto) {
+    if (correo.trim().length <= 3) faltantesContacto.push("tu correo");
+    if (clave.length < 6) faltantesContacto.push("una contraseña");
+    if (celular.trim().length <= 6) faltantesContacto.push("tu celular");
+  }
 
   const faltantesHijos: string[] = [];
   hijos.forEach((hijo, i) => {
@@ -653,10 +607,24 @@ export default function FormularioEmpezar({
       if (progreso.registroFirma !== firmaRegistro) {
         try {
           await registrarAcudiente(registro);
-          setProgreso((p) => ({ ...p, registroFirma: firmaRegistro }));
+          setProgreso((p) => ({ ...p, registroFirma: firmaRegistro, sinSesion: false }));
         } catch (causa) {
-          if (causa instanceof FalloApi) setError(causa.message);
+          if (causa instanceof FalloApi && cuentaCreadaSinSesion(causa)) {
+            setProgreso((p) => ({ ...p, registroFirma: firmaRegistro, sinSesion: true }));
+            setError(avisoCuentaCreada(causa));
+          } else if (causa instanceof FalloApi) setError(causa.message);
           else setError("No pudimos crear tu cuenta. Intenta de nuevo.");
+          setEnviando(false);
+          return;
+        }
+      } else if (progreso.sinSesion) {
+        try {
+          await iniciarSesion({ correo: contacto.correo, clave });
+          setProgreso((p) => ({ ...p, sinSesion: false }));
+        } catch (causa) {
+          if (causa instanceof FalloApi && causa.estado === 429) setError(avisoCuentaCreada(causa));
+          else if (causa instanceof FalloApi) setError(causa.message);
+          else setError("No pudimos entrar a tu cuenta. Intenta de nuevo.");
           setEnviando(false);
           return;
         }
@@ -818,10 +786,10 @@ export default function FormularioEmpezar({
           preferencias,
         );
         // Wait-screen wins: aunque haya un kit listo, el hogar va a la pantalla
-        // de verificación, con el kit instantáneo enlazado si existe.
-        const parametros = new URLSearchParams({ pendientes: String(resultado.subidas.length) });
-        if (trabajoInstantaneo) parametros.set("trabajo", trabajoInstantaneo);
-        router.push(`/recibimos?${parametros.toString()}`);
+        // de verificación, con el kit instantáneo enlazado si existe. Las listas
+        // que quedaron guardadas sin versión (catálogo caído) viajan como
+        // `diferidas`, para que la pantalla diga que no hay que volver a subirlas.
+        router.push(rutaRecibimos(resultado.subidas, trabajoInstantaneo));
         if (modo === "nuevo") router.refresh();
         return;
       }
@@ -1160,7 +1128,9 @@ export default function FormularioEmpezar({
                       semilla. Lo revisamos, armamos tu kit y de paso el colegio y
                       el grado quedan verificados para el próximo acudiente del
                       mismo colegio. Un solo paso, no dos. */}
-                  {hijo.colegioNombre && hijo.grado && (
+                  {/* Con un error a la vista (lista rechazada, demasiados
+                      intentos) la promesa verde contradice al aviso rojo. */}
+                  {hijo.colegioNombre && hijo.grado && !error && (
                     <p className={styles.sugerenciaOk} role="status">
                       <Check size={16} strokeWidth={3} aria-hidden="true" />
                       Con esto revisamos tu lista, armamos tu kit y dejamos {hijo.colegioNombre} ·{" "}
@@ -1180,11 +1150,25 @@ export default function FormularioEmpezar({
           );
         })}
 
-        {hijos.length < 4 && (
+        {modo === "autenticado" &&
+          avisosPrecarga.map((texto) => (
+            <p key={texto} className={styles.avisoCaja} role="status">
+              {texto}
+            </p>
+          ))}
+
+        {hijos.length < MAX_HIJOS && (
           <button
             type="button"
             className={styles.agregar}
-            onClick={() => setHijos((a) => [...a, hijoVacio(a.length + 1)])}
+            // La referencia nueva sigue a la mayor que haya: tras "Quitar" un
+            // hijo, contar los que quedan repetiría la de otro.
+            onClick={() =>
+              setHijos((a) => [
+                ...a,
+                hijoVacio(Math.max(0, ...a.map((h) => Number(h.referencia.slice(5)) || 0)) + 1),
+              ])
+            }
           >
             + Agregar otro hijo
           </button>
@@ -1193,8 +1177,8 @@ export default function FormularioEmpezar({
 
       {/* --------------------------------------------------------- Contacto */}
       {/* En "soy nuevo usuario" NO se pinta: el correo y el celular ya se
-          piden en Regístrate. En "autenticado" sí, porque la sesión trae el
-          correo pero no el celular, que hay que capturar aquí. */}
+          piden en Regístrate. Con sesión solo se informa: el aviso va a los
+          datos de la cuenta y no hay nada que volver a escribir. */}
       {modo !== "nuevo" && (
       <section className={styles.bloque} aria-labelledby={`${idBase}-contacto`}>
         <h2 id={`${idBase}-contacto`} className={styles.tituloBloque}>
@@ -1205,30 +1189,15 @@ export default function FormularioEmpezar({
           lista para que la calidad no falle. No tienes que quedarte mirando la
           pantalla: te escribimos cuando esté listo.
         </p>
-        <div className={styles.dosColumnas}>
-          <label className={styles.campo}>
-            <span>Correo</span>
-            <input
-              type="email"
-              value={correo}
-              onChange={(e) => setCorreo(e.target.value)}
-              placeholder="tucorreo@ejemplo.com"
-              autoComplete="email"
-              required
-            />
-          </label>
-          <label className={styles.campo}>
-            <span>Celular</span>
-            <input
-              type="tel"
-              value={celular}
-              onChange={(e) => setCelular(e.target.value)}
-              placeholder="+57 300 123 4567"
-              autoComplete="tel"
-              required
-            />
-          </label>
-        </div>
+        <p className={styles.explicacion}>
+          Te avisamos a los datos de tu cuenta
+          {sesion?.correo ? (
+            <>
+              : <strong>{sesion.correo}</strong>
+            </>
+          ) : null}
+          .
+        </p>
       </section>
       )}
 
