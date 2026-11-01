@@ -4,6 +4,8 @@
 
 \subsection{Análisis de Impacto del Proyecto}
 
+En esta sección se analiza el impacto del trabajo en dos planos. Primero se describe lo que aporta a la ingeniería de sistemas y luego su efecto en los contextos global, económico, ambiental y social.
+
 \subsubsection{Impacto en la ingeniería de sistemas}
 
 Además del sistema construido, el trabajo deja tres prácticas de ingeniería que se pueden
@@ -45,142 +47,86 @@ los mismos artículos sobre 3.608 renglones reunidos de 17 colegios), y cada hog
 interpreta por su cuenta. Si el sistema reduce ese esfuerzo, el efecto sería económico, al
 facilitar la comparación de precios y sustitutos que el proceso manual no ofrece, y de tiempo
 para las familias en las semanas de mayor presión del calendario escolar. Ese efecto y la carga
-cognitiva son lo que mide el OE5, planificado y pendiente. El modelo de negocio adoptado
+cognitiva son lo que mide el OE5 (Sección~\ref{sec:oe5})\pendienteEvidencia{resultados SUS, NPS y carga cognitiva del OE5 para el impacto social}. El modelo de negocio adoptado
 \citep{osterwalder_business_2010}, B2B2C, distribuye ese valor sin imponer un costo al colegio:
 la institución no paga por participar, y el ingreso proviene de la compra del acudiente. En el
 contexto colombiano, donde la capacidad de pago de las instituciones y de sus hogares es
 heterogénea, una solución que dependiera del presupuesto del colegio limitaría su adopción a
-las instituciones con mayor capacidad financiera. En el plano ambiental, este trabajo no midió
-ningún efecto. La disponibilidad que optimiza el cuarto objetivo es la fracción de líneas del
-kit que Tukit puede surtir, un criterio comercial; que reduzca compras redundantes es una
-hipótesis que queda por medir. El alcance social del hallazgo tiene un límite: la encuesta se
+las instituciones con mayor capacidad financiera. En el plano ambiental, el trabajo no midió un efecto directo. La disponibilidad que optimiza el
+cuarto objetivo es la fracción de líneas del kit que Tukit puede surtir, un criterio comercial. Que
+reduzca compras redundantes es una hipótesis cuya medición exige operar con familias, y la economía
+circular de libros y útiles se plantea como trabajo futuro (Sección~\ref{sec:trabajo-futuro}). El alcance social del hallazgo tiene un límite: la encuesta se
 concentró en un solo colegio del sector Salitre, con sobrerrepresentación del estrato 4
 (68,3\,\%) y ausencia de los estratos 1 y 6. Por eso, generalizar la insatisfacción declarada a
 la población escolar colombiana excede lo que esta muestra permite afirmar.
 
-\subsection{Conclusiones y Siguientes Pasos}
+\subsection{Conclusiones y Trabajo Futuro}
 
-Los cinco objetivos específicos se cumplieron de manera desigual. Varios resultados se
-midieron en los prototipos y no en el sistema construido, y la evaluación del OE5 está
-planificada y pendiente.
+En esta sección se evalúa el cumplimiento de cada objetivo específico y su razón, y luego se
+presenta el trabajo futuro. La Tabla~\ref{tab:cumplimiento} resume, por objetivo, la evidencia, la
+sección donde se presenta y el estado, y los párrafos siguientes explican por qué se asignó ese
+estado.
 
-El primer objetivo específico, la caracterización del dominio, se cumplió. El corpus de
-17 colegios, 3.608 ítems y 1.451 formas de nombrar permitió definir 99 conceptos canónicos,
-de los cuales 25 cubren cerca del 80\,\% de los renglones observados: el dominio es
-heterogéneo en la superficie, pero tiene una estructura tratable. El segundo objetivo, el
-diseño arquitectónico, se cumplió con reservas. La comparación ATAM de tres alternativas
-\citep{bass_software_2021}, un árbol de utilidad de 17 escenarios y las vistas 4+1
-\citep{kruchten_41_1995} bajo la norma ISO/IEC/IEEE 42010 \citep{iso_42010_2022} sostienen la
-arquitectura, con 38 registros de decisión. El diseño tenía siete desplegables. El sistema
-construido tiene seis, agrupados por razón de cambio, y cinco bases de datos (ADR 0013), y
-reemplazó la ingesta masiva de las tiendas por un catálogo curado que crece con la demanda.
-Los 17 escenarios son los del documento ATAM; el acta del objetivo registró 14 de una versión
-anterior. El acta que revisó ese diseño lo aprobó con reservas y no está firmada.
+\begin{table}[H]
+\centering\footnotesize
+\setlength{\tabcolsep}{3pt}
+\caption{Cumplimiento por objetivo específico.}
+\label{tab:cumplimiento}
+\begin{tabularx}{\textwidth}{@{}p{0.9cm}Xp{2.9cm}p{2.3cm}@{}}
+\toprule
+OE & Evidencia & Sección & Estado \\
+\midrule
+OE1 & Corpus de 17 colegios, 3.608 renglones, 1.451 formas de nombrar y 99 conceptos canónicos; encuesta (n=60) & Cap.~III y IV & Cumplido \\
+OE2 & Comparación ATAM de tres alternativas, árbol de utilidad de 17 escenarios, vistas 4+1 y 38 ADR & Cap.~V & Cumplido \\
+OE3 & F1 micro de 0,948 en lectura (CGS-10); resolución con $\tau$ calibrado; NL2C & Sec.~\ref{sec:percepcion}, \ref{sec:optimizacion-cal} y~\ref{sec:nl2c} & Cumplido, con las amenazas de la Sec.~\ref{sec:amenazas} \\
+OE4 & Optimizador de cuatro objetivos, igualdad con el óptimo exacto en 174 listas, MAUT, hipervolumen y aplicación web con pago de pruebas & Sec.~\ref{sec:optimizacion} y~\ref{sec:optimizacion-cal} & Cumplido\pendienteEvidencia{estado final de OE4 tras MAUT, hipervolumen y NL2C} \\
+OE5 & Pruebas de unidad, integración, sistema y aceptación con usuarios (SUS, NPS, RTLX) & Sec.~\ref{sec:control-calidad} y~\ref{sec:oe5} & Cumplido\pendienteEvidencia{estado final de OE5 segun C1, C2 y C3 del plan de analisis} \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
-El tercer objetivo, la percepción y la normalización de las listas, se cumplió con un cambio de
-diseño entre los prototipos y el sistema construido. En percepción, el modelo multimodal
-superó con amplitud al reconocimiento óptico con reglas (F1 micro de 0,948 frente a 0,298),
-aunque esa magnitud está sesgada a favor del motor elegido, porque el conjunto de oro se
-construyó a partir de su salida. En recuperación, la cifra del 83\,\% sobre 2.176 ítems mide la
-fracción de ítems con algún candidato; en esa corrida, el 35,3\,\% se resolvió automáticamente,
-sobre un espejo reducido del catálogo. El sistema construido sustituyó la fusión recíproca de
-rangos y el reordenador por una resolución de una sola fase, que suma el parecido léxico y el
-coseno, y por la revisión de cada lista nueva completa antes de publicarla. Ese hallazgo retira
-del camino de la petición la etapa más costosa y detecta también los errores leídos con
-confianza alta, pero su umbral de 0,75 no se ha calibrado sobre ese puntaje. Tres cifras tienen
-un alcance menor del que sugieren. El MRR de 0,6163 es de un modelo de \emph{embeddings} que el
-sistema construido no usa, y el Recall@10 tiene dos valores que no se pueden conciliar sin el
-procedimiento que los generó. Los coeficientes kappa, entre ellos el global de 0,7331
-(n = 200), comparan reglas heurísticas con un modelo de lenguaje y no a dos anotadores humanos.
+El OE1 se cumplió porque el corpus permitió definir 99 conceptos canónicos, de los cuales 25
+cubren cerca del 80\,\% de los renglones observados: el dominio es heterogéneo en la superficie,
+pero tiene una estructura tratable. El OE2 se cumplió porque las decisiones de arquitectura se
+justificaron con ATAM \citep{bass_software_2021}, vistas 4+1 \citep{kruchten_41_1995} y la norma
+ISO/IEC/IEEE 42010 \citep{iso_42010_2022}; el diseño previó siete desplegables y el sistema
+construido tiene seis, agrupados por razón de cambio, sobre cinco bases de datos (ADR 0013).
 
-El cuarto objetivo, la optimización multiobjetivo integrada en una interfaz web, se cumplió en
-su construcción, y su verificación cubrió las pruebas automatizadas y el primer nivel de las de
-carga y degradación (Sección~\ref{sec:calidad}). El optimizador
-enumera el frente exacto cuando la lista admite a lo sumo 4.096 combinaciones y recurre a
-NSGA-II \citep{deb_fast_2002, blank_pymoo_2020} por encima de ese límite. Trabaja con cuatro
-objetivos (costo, fidelidad de marca, disponibilidad y personaje) y presenta los kits que el
-acudiente pide: el Ahorrador y el Premium siempre, el Fan si pidió un personaje y «A tu Medida» si
-eligió el punto medio de gasto o un tope. El personaje es un hallazgo del desarrollo: arma el kit
-Fan con una preferencia que la encuesta midió y que los tres criterios de la VFP no recogían. Que
-el sistema arme solo los kits pedidos es otro, porque un kit que nadie pidió es ruido para el
-acudiente y trabajo para el revisor (ADR 0021). La recomendación entre los kits la deciden reglas
-derivadas de la encuesta. Sobre 174 listas del corpus, el optimizador iguala el óptimo exacto en el
-Ahorrador y, con presupuesto, en el kit recomendado; son cifras reportadas y no reproducidas.
-Todavía no hay un valor de hipervolumen \citep{zitzler_multiobjective_1999} fuera de la prueba
-automatizada, que usa un ejemplo pequeño y no ejercita NSGA-II. Sobre 29 listas reales, el tiempo
-llegó a 9,0~s, por encima de los 8~s de DP-03, con un optimizador anterior a sus últimas
-correcciones.
-El pago con Wompi opera en el entorno de pruebas de la pasarela, y el cobro real depende del
-despliegue.
+El OE3 se cumplió con un cambio de diseño entre los prototipos y el sistema construido. En
+percepción, el modelo multimodal superó al reconocimiento con reglas (F1 micro de 0,948 frente a
+0,298), con la salvedad de que el oro se construyó desde su salida. En resolución, el sistema
+construido sustituyó la fusión recíproca de rangos y el reordenador por una sola fase que suma el
+parecido léxico y el coseno, y compensa con la revisión de cada lista nueva antes de publicarla. El
+OE4 se cumplió porque el optimizador enumera el frente exacto hasta 4.096 combinaciones y recurre a
+NSGA-II \citep{deb_fast_2002,blank_pymoo_2020} por encima, con cuatro objetivos (costo, fidelidad
+de marca, disponibilidad y personaje), y presenta los kits Ahorrador y Premium siempre, Fan si el
+acudiente pidió un personaje y A tu Medida si eligió el punto medio de gasto o un tope. El personaje
+es un hallazgo del desarrollo: la encuesta midió esa preferencia y los tres criterios de la VFP no la
+recogían. El OE5 se evaluó con el método de la VFP y el plan de análisis fijado antes de la primera
+sesión, y su estado depende de los criterios C1, C2 y C3 de ese plan.
 
-El quinto objetivo específico, la evaluación con usuarios reales de la usabilidad, la
-satisfacción y la carga cognitiva, está planificada y pendiente. Las pruebas de carga y de
-degradación tienen hecho su primer nivel, y los dos siguientes están pendientes. La evaluación
-con usuarios seguirá el método que fija la
-VFP, descrito en la Sección~\ref{sec:oe5}: protocolo conforme a la Ley 1581 de 2012
-\citep{congreso_ley1581_2012}, cuestionario SUS \citep{brooke_sus_1996}, índice NPS
-\citep{reichheld_one_2003}, verbalización concurrente \citep{lazar_research_2017} y conteo
-de interacciones discretas para la carga cognitiva. Sus resultados no forman parte de esta
-versión. Mientras no se conozcan, la hipótesis de que Tukit reduce la carga cognitiva de los
-acudientes sigue sin contrastar, y el objetivo se conserva tal como se aprobó.
+\subsubsection{Trabajo futuro}
+\label{sec:trabajo-futuro}
 
-\subsubsection{Amenazas a la validez}
-
-Las conclusiones anteriores tienen cuatro límites. En cuanto a la validez de constructo,
-varias cifras medían otra cosa de lo que se les atribuía. El 83\,\% mide la cobertura de
-candidatos y no la resolución; los kappa, el acuerdo entre una heurística y un modelo, y las
-latencias del banco MTEB provienen de dividir el tiempo total entre un número aproximado de
-consultas. En cuanto a la validez interna, el oro de percepción se construyó desde la salida de
-uno de los motores evaluados, sin un segundo anotador, y 186 de los 542 ítems de calibración son
-etiquetas propagadas a descripciones idénticas, lo que estrecha los intervalos más de lo
-justificado. El umbral de 0,630 se eligió sobre el mismo conjunto en el que se midieron el
-65,3\,\% y el 86,7\,\%, que por eso son optimistas. En cuanto a la validez externa, casi todos
-los resultados de la percepción y de la recuperación son de los prototipos de tesis, del servicio de búsqueda anterior y de la prueba
-de concepto, con modelos, puntajes y catálogos distintos de los del sistema construido. También
-las muestras limitan la generalización. El extremo a extremo usó un espejo de 838 productos
-con los nombres más cortos de cada categoría, y los catorce PDF de un ensayo del catálogo eran
-listas de varios grados, que el sistema construido rechaza; la encuesta cubrió un solo colegio.
-En cuanto a la validez de conclusión, la percepción se midió con diez documentos y una corrida
-por motor, sin versión fijada del modelo remoto. Las pruebas de carga y de degradación de la
-versión evaluada son de una sola corrida, en una máquina y con la percepción simulada, y las
-automatizadas corrieron sobre una versión de integración con el mismo código de producto que la
-evaluada. El historial de cambios
-de los proyectos anteriores no siempre describe lo que se modificó, y los motivos de algunas
-decisiones se infieren.
-
-\subsubsection{Siguientes pasos}
-\label{sec:siguientes-pasos}
-
-El primer paso es repetir la verificación completa sobre el sistema construido, que corrige las
-tres limitaciones de la versión evaluada y añade las colas por RabbitMQ y la caché y el límite de
-tasa con Redis
-(Sección~\ref{sec:calidad}). Le siguen los niveles 2 y 3 de las pruebas de degradación, carga y
-telemetría, con la percepción real y el pico estacional, y las pruebas con usuarios del OE5, cuyos
-resultados se incorporarán a los documentos del proyecto. El segundo paso es el
-despliegue en producción, previsto para finales de noviembre de 2026, que este trabajo no
-documenta. Antes de abrir el servicio a familias reales hay que cerrar los defectos abiertos.
-En el acceso son las rutas de contactos y de operación sin autenticación, las rutas internas de
-comercio, protegidas solo porque la puerta de enlace no las publica, la compra de un kit sin
-sesión y el rol de acceso que comparten las cinco bases de datos. Falta también un retracto que
-el acudiente pueda ejercer. En la privacidad quedan el envío de la imagen
-completa al modelo de percepción sin depurar el nombre del menor (ESC-R1 del ATAM), el registro
-del consentimiento en todos los caminos que crean matrículas y la supresión de datos, que nadie
-publica ni consume. El despliegue activa, además, los requisitos que dependen del entorno: el
-cobro real con Wompi, el servidor de correo, los respaldos y la llave de cifrado.
-
-Después vienen el mantenimiento y el soporte. El mantenimiento empieza por corregir la
-integración continua, para que mida la cobertura, incorpore las pruebas de la verificación y
-cada versión tenga un resultado de pruebas verificable. Sigue con la calibración del umbral de
-resolución sobre el puntaje del sistema construido, con un conjunto anotado independiente y dos
-anotadores humanos, y con el hipervolumen del optimizador sobre listas reales, con un punto de
-referencia declarado, y su tiempo en el escenario ESC-D4. También
-incluye separar las llaves de cifrado por clasificación del dato y cifrar la copia de la
-dirección que guarda cada envío (ADR 0014). El soporte atiende las peticiones de los acudientes
-y los derechos del titular mediante casos con vencimiento, como ya prevé el sistema.
-
-Por último, el flujo con las editoriales de textos escolares y el flujo con los colegios, en el
-que cada institución aprobaría y publicaría su lista desde un panel propio, quedaron fuera de
-esta etapa, porque es mejor centrarse en un solo negocio a la vez. Son la ampliación natural del
-producto cuando la compra de los acudientes esté en operación. La orquestación con LangGraph,
-que el ADR 0017 difirió, solo se justificaría si el pipeline llegara a ser un grafo con ramas y
-confluencias que la máquina de estados lineal exprese con dificultad.
+El trabajo futuro se organiza en seis líneas, alineadas con la sección de trabajo futuro de la
+propuesta (VFP v4). Cada una quedó fuera de este trabajo por una razón explícita, que se indica a
+continuación.
+\begin{enumerate}
+\item \textbf{Alianza con tiendas de uniformes e integración de libros.} Alianza con las tres
+tiendas de uniformes y flujo con Buscalibre y las editoriales de textos escolares. Quedó fuera
+porque este trabajo se centró en un solo negocio, el de útiles y papelería.
+\item \textbf{Aplicaciones nativas y modo sin conexión.} El acudiente usa una aplicación web
+progresiva; las aplicaciones nativas y el modo sin conexión amplían su alcance, pero no cambian el
+algoritmo que se evaluó.
+\item \textbf{Endurecimiento productivo.} Autorización uniforme en las rutas, rol de acceso por base
+de datos, depuración del nombre del menor en el documento cargado, supresión de datos, medición de
+la cobertura en la integración continua y cobro real con la pasarela. Es la condición para operar
+con familias reales y se plantea antes del despliegue.
+\item \textbf{Optimización de rutas.} Agrupar la entrega entre tiendas, que no afecta la
+construcción del kit.
+\item \textbf{Economía circular de libros.} Reventa e intercambio de textos entre hogares, que
+requiere una base de usuarios activa.
+\item \textbf{Calibración con más anotadores y más colegios.} Repetir la calibración del umbral y
+de los pesos con un conjunto anotado por dos personas y con listas de más colegios, y comparar
+NSGA-II con otros optimizadores de referencia sobre el mismo banco.
+\end{enumerate}

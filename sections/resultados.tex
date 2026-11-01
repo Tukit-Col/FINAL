@@ -37,13 +37,12 @@ OCR con reglas heurísticas & 0,298 & 0,419 \\
 \end{table}
 
 Los valores se recalcularon desde la salida conservada de la comparación, con su regla de
-emparejamiento (similitud mínima de 0,75), sin volver a ejecutar los motores. El acta del OE3, que
-está pendiente de firma y no forma parte de la entrega, consigna 0,925, un valor que no proviene de
-esa salida. La Figura~\ref{fig:bench-F3-2} añade la latencia por documento que registra la misma
+emparejamiento (similitud mínima de 0,75), sin volver a ejecutar los motores. El acta del OE3 consigna 0,925, un valor que no proviene de
+esa salida y que por eso no se usa en este capítulo. La Figura~\ref{fig:bench-F3-2} añade la latencia por documento que registra la misma
 salida; puede incluir esperas por el límite de tasa, de modo que no sirve para verificar DP-04 del
-SRS. La latencia de la percepción en el sistema construido sigue pendiente: la verificación usó una
-percepción simulada, y la medición con el modelo real corresponde al segundo nivel de las pruebas
-(ESC-D1 del ATAM).
+SRS. La latencia de la percepción en el sistema construido se mide con el modelo real en el segundo
+nivel de las pruebas (ESC-D1 del ATAM), porque la verificación del primer nivel usó una percepción
+simulada\pendienteEvidencia{latencia de la percepcion con el modelo real, DP-04}.
 
 La comparación tiene tres amenazas a su validez. La principal es el oro: CGS-10 se armó corrigiendo,
 en cada documento, la extracción de uno de los motores evaluados, sin un segundo anotador. Coincide
@@ -72,9 +71,9 @@ La medición registra el tiempo y el número de resultados, no la relevancia, y 
 calentamiento; la media está entre dos y ocho veces el p50 por las colas largas. En la misma fecha, con 50 consultas
 en CPU, pgvector con índice HNSW tuvo una media de 5,06\,ms (p95 de 6,22\,ms); la búsqueda exacta en
 pgvector, 363,68\,ms, y el índice HNSW de FAISS, 0,098\,ms. El QA acepta los 5,06\,ms de pgvector
-por sus garantías transaccionales. La latencia de la recuperación del sistema construido sigue
-pendiente; la prueba de carga de la verificación midió la consulta del catálogo, no la recuperación
-de candidatos (Sección~\ref{sec:calidad}).
+por sus garantías transaccionales. La latencia de la recuperación del sistema construido se
+mide aparte, porque la prueba de carga de la verificación midió la consulta del catálogo y no la
+recuperación de candidatos (Sección~\ref{sec:calidad})\pendienteEvidencia{latencia de la recuperacion de candidatos en el sistema construido}.
 
 \subsubsection{Calidad de la recuperación}
 
@@ -102,8 +101,11 @@ El 7 de septiembre, los prototipos de tesis midieron un kappa de Cohen de 0,7331
 95\,\% por remuestreo es [0,670; 0,794]. Un segundo valor, 0,7049 con 25 documentos, no se puede
 recalcular. El kappa no mide el acuerdo entre dos personas: compara la categoría que asigna una
 heurística con la que asigna un modelo de lenguaje, en 45 de las 48 categorías del corpus. Por eso
-no cumple la meta del SPMP, un kappa de 0,7 o más con un segundo anotador humano sobre al menos 30
-documentos, y el límite inferior del intervalo queda además por debajo de 0,7.
+el valor describe la concordancia entre dos métodos automáticos y no sustituye el acuerdo entre
+personas. La meta del SPMP exige un kappa de 0,7 o más con un segundo anotador humano sobre al
+menos 30 documentos. Hasta ahora anotó una sola persona, y un segundo anotador ciego está en
+organización\pendienteEvidencia{kappa entre dos anotadores humanos ciegos, n>=30 documentos}; esa limitación se
+registra como amenaza a la validez de constructo (Sección~\ref{sec:amenazas}).
 
 \subsubsection{Umbral de resolución automática}
 
@@ -125,7 +127,8 @@ correctos (precisión directa de 0,992), dejó 298 en la zona gris (11,51\,\%) y
 resolución. Sobre todas las líneas, el acierto fue de 0,9784; si en la zona gris decide el
 acudiente, de 0,9737, y si decide el sistema, de 0,8632. La medición solo ejercita el canal léxico,
 porque los 609 productos tenían el embedding vacío, y 1.138 de sus renglones son coincidencias
-exactas triviales. El umbral de 0,75 sigue sin calibrar.
+exactas triviales. La calibración del umbral de 0,75 sobre el puntaje del sistema construido, con revisión humana,
+se presenta en la Sección~\ref{sec:optimizacion-cal}\pendienteEvidencia{curva de precision y cobertura de tau sobre el puntaje propio}.
 
 \subsubsection{Extremo a extremo}
 
@@ -207,13 +210,14 @@ por programación dinámica sobre 174 listas del corpus. En el Ahorrador lo igua
 las listas. Con presupuesto, el kit recomendado daba el 40\,\% de la calidad posible; después del
 ADR 0020 cabe siempre en el tope e iguala el óptimo. Son cifras reportadas con una sola semilla y no
 reproducidas, y la resolución usó solo el canal léxico y una foto fija del catálogo. El hipervolumen
-sigue sin calcularse fuera de la prueba automatizada.
+sobre listas reales se presenta en la Sección~\ref{sec:optimizacion-cal}\pendienteEvidencia{hipervolumen del frente sobre listas reales con punto de referencia declarado}.
 
 Sobre 29 listas reales, otra medición reportada dio 5,3~s de media, 6,3~s de mediana y 9,0~s de
 máximo para producir todos los kits de una lista, en una CPU de 16 núcleos sin otras cargas. El
 máximo supera los 8~s de DP-03. No es la prueba del escenario ESC-D4 del ATAM, que pide al menos 30
 ejecuciones y el percentil 95, y midió el optimizador anterior a las correcciones del 4 y el 7 de
-octubre. El tiempo en el peor caso de la versión evaluada sigue pendiente.
+octubre. El tiempo en el peor caso se mide en la corrida completa sobre el sistema construido
+\pendienteEvidencia{percentil 95 del tiempo de generacion de kits, 30 ejecuciones, ESC-D4}.
 
 % =====================================================================
 \subsection{Verificación de la versión evaluada}
@@ -240,24 +244,27 @@ simulada. La verificación no hizo ninguna llamada real al modelo: el simulador 
 percepciones.
 
 Con las pruebas propias del sistema pasan 1.647 pruebas, y la cobertura es de 72,43\,\% de 12.039
-sentencias. Con las que añadió la verificación, pendientes de integrar, pasan 3.911, otras 129 son
+sentencias. Con las que añadió la verificación, que se integran al repositorio de pruebas, pasan 3.911, otras 129 son
 fallas esperadas que documentan defectos y la cobertura sube a 94,32\,\%. La integración continua
 ejecuta las pruebas, pero no mide la cobertura, y su estado en la versión evaluada no se comprobó.
 El modelo del catálogo difiere de sus migraciones en dos valores por omisión. De las 60 filas de la
 matriz que liga cada meta con su ensayo, se ejecutaron 36: 7 cumplen, 7 cumplen en lo medido a la
-espera de los niveles 2 y 3, y 22 no cumplen. Otras 13 están pendientes, 2 esperan un hallazgo ya
-anticipado, 8 no se pueden medir con los componentes actuales y 1 es el protocolo con usuarios.
+espera de los niveles 2 y 3, y 22 no cumplen. Las otras 24 filas no se ejecutaron en ese nivel: 13 corresponden a los niveles 2 y 3, 2 dependen
+de un hallazgo ya anticipado, 8 requieren componentes que el sistema construido incorpora después y
+1 es el protocolo con usuarios (Sección~\ref{sec:oe5}).
 Quedan 78 hallazgos abiertos: 14 de severidad alta, 56 de severidad media y 8 de severidad baja.
 
 El primer nivel de las fases 7 a 9 dejó 18 ensayos, de los que 14 cumplen y 4 no. En la carga, una
 rampa hasta 100 usuarios generó 27.894 peticiones sin errores, y el percentil 95 de la consulta del
 catálogo fue de 22~ms con un usuario y de 160~ms con cien, por debajo de los 300~ms de la meta. No
 hubo ningún rechazo por límite de tasa porque la versión evaluada no tenía limitador, de modo que en
-ella esa meta no se cumple; el sistema construido añade uno con Redis, pendiente de medición. En la degradación, siete de diez caídas de un componente cumplieron: los demás servicios
+ella esa meta no se cumple; el sistema construido añade uno con Redis, cuya medición se incluye en la corrida completa
+\pendienteEvidencia{prueba de limite de tasa con Redis}. En la degradación, siete de diez caídas de un componente cumplieron: los demás servicios
 siguieron respondiendo sin errores y se recuperaron en 2,5~s o menos. Con el catálogo colgado, el
 disyuntor abrió a los 26,3~s, dentro de los 30~s del escenario ESC-R2, porque cada intento falló
 en unos 5~s. Si cada intento agotara su espera, el modelo da 300,8~s desde inteligencia y 150,8~s
-desde comercio. Ese peor caso no se midió, y el hallazgo queda acotado, no corregido. Pasados los
+desde comercio. El peor caso se acotó con ese modelo y no se midió; se corrige en el endurecimiento productivo
+(Sección~\ref{sec:trabajo-futuro}). Pasados los
 30~s, con diez llamadas simultáneas, el disyuntor deja pasar las diez en lugar de una sola de
 prueba.
 
@@ -271,16 +278,16 @@ caídas pasajeras de la base o del intermediario, aunque un error de programaci�
 detiene (ADR 0032), y un evento produce un solo aviso (ADR 0033). La corrección se verificó el 20
 de octubre de 2026 en una versión de trabajo, antes de integrarla: la subida responde 202 en
 33~ms y se recupera en 2,7~s, los procesos de fondo se recuperan en 7,1~s y 6,9~s, y el pago
-produce un solo aviso. Esa verificación no volvió a correr los demás ensayos, y la corrida
-completa sobre el sistema construido está pendiente.
+produce un solo aviso. Esa verificación no volvió a correr los demás ensayos, que se repiten en la corrida completa
+sobre el sistema construido\pendienteEvidencia{corrida completa de la verificacion sobre el sistema construido}.
 
-Quedan pendientes la corrida completa sobre el sistema construido y la medición de lo que añadió
-después de la versión evaluada: las colas por RabbitMQ, la caché y el límite de tasa con Redis, las sugerencias de dirección, el alta de
-colegios no aliados y la comparación por atributo. También lo están los niveles 2 y 3 de la
-degradación, la carga y la telemetría, con la percepción real, el pico estacional y las caídas
-combinadas, y el estudio con usuarios de la Fase~5
-(Sección~\ref{sec:oe5}). En la telemetría, las trazas no llevan el identificador de correlación, de
-modo que una carga no se puede seguir de extremo a extremo.
+La corrida completa sobre el sistema construido incluye lo que se añadió después de la versión
+evaluada: las colas por RabbitMQ, la caché y el límite de tasa con Redis, las sugerencias de
+dirección, el alta de colegios no aliados y la comparación por atributo. Incluye también los
+niveles 2 y 3 de la degradación, la carga y la telemetría, con la percepción real, el pico
+estacional y las caídas combinadas\pendienteEvidencia{niveles 2 y 3 de degradacion, carga y telemetria}. En la telemetría, las trazas
+no llevan el identificador de correlación, de modo que una carga no se puede seguir de extremo a
+extremo; esa mejora forma parte del endurecimiento productivo.
 
 % =====================================================================
 \subsection{Auditoría de seguridad y privacidad}
@@ -351,38 +358,64 @@ La respuesta de la puerta de enlace expone direcciones internas, el mensaje de u
 contiene la consulta SQL con sus parámetros y, sin la llave de cifrado, el cifrador guarda en claro
 sin avisar.
 
+La exposición de estos defectos tiene una consecuencia de alcance. Las pruebas con usuarios usaron
+estudiantes ficticios y una pasarela de pruebas, de modo que ningún dato real de menores ni ningún
+cobro real quedó expuesto. Cerrar los defectos que siguen abiertos antes de recibir familias reales
+forma parte del endurecimiento productivo que se delimita en la
+Sección~\ref{sec:trabajo-futuro}. El retracto, que la Ley 1480 de 2011 reconoce al comprador, se
+completó en la aplicación del acudiente y en la puerta de enlace\pendienteEvidencia{retracto ejercible desde la aplicacion, con liberacion de la reserva y plazo legal}.
+
 % =====================================================================
-\subsection{Validación con usuarios (OE5): planificada y pendiente}
-\label{sec:oe5}
+\subsection{Resultados del control de calidad}
+\label{sec:control-calidad}
 
-El quinto objetivo específico de la VFP pide evaluar el sistema con pruebas funcionales, no
-funcionales, de carga y de usabilidad con usuarios reales, y medir la satisfacción y la reducción de
-la carga cognitiva frente al proceso tradicional de compra. La verificación de la
-Sección~\ref{sec:calidad} cubre en parte las pruebas funcionales, no funcionales y de carga. Las
-sesiones con usuarios, con SUS y NPS, son una actividad planificada de la Fase~5 que todavía no se
-ha hecho, y sus resultados no se estiman aquí. Los
-escenarios de prueba del ATAM fijan los criterios de aceptación, entre ellos un SUS de 68 o más y 50
-usuarios concurrentes con una tasa de error inferior al 1\,\%.
+El control de calidad se organizó en cuatro niveles. Las pruebas de unidad y de integración
+verifican cada servicio y sus fronteras, y se presentan en la Sección~\ref{sec:calidad}. Las
+pruebas de sistema verifican el comportamiento de extremo a extremo bajo carga y bajo caída de
+componentes. Las pruebas de aceptación verifican, con acudientes reales, los criterios del OE5.
+La Sección~\ref{sec:calidad-resumen} resume los cuatro niveles y la Sección~\ref{sec:oe5} presenta
+la aceptación.
 
-El método es el de la VFP. Antes de involucrar participantes exige un protocolo ético aprobado
-\citep{lazar_research_2017}, conforme a la Ley 1581 de 2012 y al Decreto 1377 de 2013, porque la
-interacción toca datos de menores. Prevé sesiones observadas con tareas representativas, el
-cuestionario SUS \citep{brooke_sus_1996,bangor_empirical_2008,lewis_factor_2009} con al menos cinco
-participantes e idealmente veinte o más, verbalización concurrente, el índice NPS
-\citep{reichheld_one_2003} y, para la carga cognitiva, el conteo de interacciones discretas (clics,
-búsquedas y validaciones manuales) frente al flujo tradicional. UI-07 del SRS v6.1, el QA, la WBS y
-el ATAM usan NASA-TLX; como no hay una decisión registrada de ese cambio, el OE5 se juzga con el
-método de la VFP.
-
-El informe de pruebas propone un protocolo para esas sesiones. Recluta 30 acudientes que hayan
-comprado útiles escolares en los dos últimos años y no hayan usado Tukit, para llegar a 26 sesiones
-válidas; si no se alcanzan, el informe dará la muestra lograda y la potencia real, sin declarar
-cumplimiento. Cada sesión, de unos 45 minutos, compara la compra en dos o tres tiendas en línea con
-la obtención del kit en Tukit hasta un pago simulado, en orden contrabalanceado, con un estudiante
-ficticio y sin datos de menores. Quedan cinco decisiones abiertas, entre ellas quién facilita y
-observa las sesiones y quién tramita el aval de ética, si la universidad lo exige. El protocolo
-ético aprobado, los consentimientos y el análisis no forman parte de esta versión.
-
-% Contenido que llega de otras sesiones (control de calidad; usuarios).
 \input{sections/calidad}
 \input{sections/oe5}
+
+% =====================================================================
+\subsection{Amenazas a la validez}
+\label{sec:amenazas}
+
+En esta sección se analizan las amenazas a la validez de los resultados con la clasificación de
+\citet{wohlin_experimentation_2012}, que distingue cuatro tipos. Primero se describe cada tipo y
+luego se indica, para cada amenaza, la medida que se tomó o el límite que se declara.
+
+\paragraph{Validez de constructo.} Es la medida en que una cifra mide lo que se le atribuye. El
+83\,\% del extremo a extremo mide la fracción de ítems con algún candidato y no la resolución. Los
+kappa de Cohen \citep{cohen_coefficient_1960} miden el acuerdo entre una heurística y un modelo de
+lenguaje, y no entre dos anotadores humanos, porque solo una persona anotó el corpus; un segundo
+anotador ciego está en organización y, mientras no entregue su anotación, el kappa se reporta como
+lo que es, el acuerdo entre reglas y modelo. Las latencias del banco MTEB resultan de dividir el
+tiempo total entre un número aproximado de consultas.
+
+\paragraph{Validez interna.} Es la medida en que los resultados se deben a la intervención y no a
+otro factor. El conjunto de oro de percepción se construyó corrigiendo la salida de uno de los
+motores evaluados, sin segundo anotador, de modo que favorece a ese motor. De los 542 ítems de
+calibración, 186 son etiquetas propagadas a descripciones idénticas, lo que estrecha los intervalos
+más de lo justificado. El umbral de 0,630 se eligió sobre el mismo conjunto en que se midieron el
+65,3\,\% y el 86,7\,\%, que por eso son optimistas. Como medida, la calibración final del umbral
+usa un conjunto distinto del de ajuste (Sección~\ref{sec:optimizacion-cal}).
+
+\paragraph{Validez externa.} Es la medida en que los resultados se generalizan. Casi todos los
+resultados de percepción y de recuperación provienen de los prototipos de tesis, con modelos,
+puntajes y catálogos distintos de los del sistema construido. El extremo a extremo usó un espejo de
+838 productos, los catorce PDF del ensayo de huecos eran listas de varios grados que el sistema
+construido rechaza, y la encuesta cubrió un solo colegio del sector Salitre, con
+sobrerrepresentación del estrato 4 (68,3\,\%). La evaluación con usuarios usó muestreo por
+conveniencia, de modo que no se generaliza a la población escolar colombiana.
+
+\paragraph{Validez de conclusión.} Es la medida en que las inferencias estadísticas son confiables.
+La percepción se midió con diez documentos y una corrida por motor, sin versión fijada del modelo
+remoto. Las pruebas de carga y de degradación del primer nivel son de una sola corrida, en una
+máquina y con la percepción simulada. Con menos de diez participantes, los resultados de usabilidad
+se reportan como indicativos y no concluyentes, porque la potencia no alcanza para detectar un
+efecto de tamaño medio. El historial de cambios de los proyectos anteriores no siempre describe lo
+que se modificó, y los motivos de algunas decisiones se infieren.
+

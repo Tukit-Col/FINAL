@@ -71,7 +71,7 @@ prevista para la sustituibilidad, estaba apagada por configuración y el grafo d
 cabía en memoria, por lo que el ADR 0006 la retiró y resolvió el grafo en proceso; su
 evaluación como GraphRAG consta en el anexo CRISP-DM. El sistema construido sustituyó a su
 vez ese grafo por una tabla curada y dirigida de sustituciones en el servicio de catálogo,
-que tiene modelo, migración y pruebas, aunque ningún servicio la consulta todavía.
+que tiene modelo, migración y pruebas. Ningún servicio la consulta en la versión evaluada, de modo que la sustitución se delimitó como línea de la evolución del catálogo (Sección~\ref{sec:trabajo-futuro}).
 
 El ADR 0001 aplicó los tres criterios de la Tabla~\ref{tab:impulsores} y redujo los catorce
 servicios a seis más la puerta de enlace. Los microservicios anteriores, desarrollados entre
@@ -231,7 +231,8 @@ como la entidad matrícula, con una relación de muchos a muchos con los acudien
 el eje de las políticas de visibilidad. Se ubica en la \emph{línea} del pedido y no en su
 cabecera, porque en la cabecera dos hermanos obligarían a dos pedidos y a dos pagos, lo que
 contradice la propuesta de valor del producto. La comprobación de que cada línea apunta a
-una matrícula visible para el acudiente está pendiente.
+una matrícula visible para el acudiente se delimitó como parte del endurecimiento productivo
+(Sección~\ref{sec:trabajo-futuro}).
 
 \subsubsection{Asimetría entre lectura y escritura}
 
@@ -291,8 +292,8 @@ función aquí especificada no tiene ninguna rama que conceda por ausencia de in
 
 En el sistema construido, identidad guarda las asignaciones de rol con su vigencia y los
 pares de rol y permiso, y evalúa los permisos con ámbito (ADR 0012); las rutas protegidas
-de inteligencia fallan cerradas (SG-06). La aplicación uniforme está pendiente (AD-03 y
-SG-02): solo una ruta de producción consulta la función de permiso, y varias rutas que
+de inteligencia fallan cerradas (SG-06). La aplicación uniforme (AD-03 y SG-02) se delimitó como
+endurecimiento productivo (Sección~\ref{sec:trabajo-futuro}): solo una ruta de producción consulta la función de permiso, y varias rutas que
 devuelven datos personales no exigen sesión ni rol. Tampoco hay políticas de seguridad a
 nivel de fila, de modo que la evaluación local del ADR 0015 sigue siendo diseño
 (Sección~\ref{sec:defectos}).
@@ -577,4 +578,5 @@ fronteras se trazaron de nuevo. El segundo es la matrícula, una entidad que el 
 anterior no tenía y que permite expresar tenencia, autoridad con ámbito y revocación
 parcial del consentimiento. El tercero es que las fronteras entre servicios dejaron de ser
 afirmaciones y pasaron a ser aserciones verificables de forma continua. La autorización
-uniforme y la depuración del nombre del menor en el documento cargado siguen pendientes.
+uniforme y la depuración del nombre del menor en el documento cargado se delimitaron como
+endurecimiento productivo (Sección~\ref{sec:trabajo-futuro}).
