@@ -1,5 +1,6 @@
 \setcounter{subsection}{0}
 \section{DESARROLLO DE LA SOLUCIÓN}
+\label{cap:desarrolloSolucion}
 
 Este capítulo documenta la preparación de los datos y el modelado de CRISP-DM en las Fases~3
 y~4, ligadas a los objetivos específicos tercero y cuarto: cómo se construyó el mecanismo que
@@ -121,7 +122,9 @@ solo los ítems y el grado. Es mejor porque un dato que no se recoge no puede ll
 de operación, a los conjuntos de evaluación ni al modelo, y no depende de que un reconocedor lo
 detecte. Queda un caso: si el nombre figura en el documento cargado, viaja con la página hacia el
 proveedor, y si el modelo lo lee como renglón, queda 30 días en la lectura que guarda Redis. Su
-depuración, que pide PE-06, está pendiente (Sección~\ref{sec:defectos}).
+depuración, que pide PE-06, se delimitó como parte del endurecimiento productivo previo al
+despliegue con familias (Secciones~\ref{sec:defectos} y~\ref{sec:trabajo-futuro}), porque la
+evaluación del trabajo usó listas con estudiantes ficticios.
 
 % =====================================================================
 \subsection{Normalización y resolución}
@@ -166,8 +169,9 @@ administrador de Tukit revisa completa cada lista nueva antes de publicarla (PE-
 o menos en temporada (ML-09). El SDD da tres razones. No depende de un reordenador ni de una GPU;
 corrige el error que hacía tomar «chaquiras» por otro producto; y en la corrida del servicio de
 búsqueda anterior, 1.407 de 2.176 ítems (64,7\,\%) necesitaban de todos modos a una persona. La
-revisión se hace una vez por colegio y grado y se reutiliza (NR-07). Las constantes de la fusión no
-tienen un barrido registrado.
+revisión se hace una vez por colegio y grado y se reutiliza (NR-07). Las constantes de la fusión (0,15; 0,86; 0,55) proceden de ajustes sobre casos de error
+concretos, como el de las «chaquiras», y no de un barrido; la Tabla~\ref{tab:constantes} registra el
+origen y el estado de cada una.
 
 La estructura del catálogo hace el resto. Sus 149 conceptos, 145 de ellos activos, agrupan los
 productos equivalentes; en el levantamiento de listas, 25 conceptos cubren el 80,97\,\% de los
@@ -184,9 +188,93 @@ conceptos curados no tiene datos y no se consulta (Sección~\ref{sec:consolidaci
 El umbral pasó por tres valores. El servicio de búsqueda anterior fijó $\tau=0{,}85$ y un margen
 $\delta=0{,}05$ con siete ejemplos sintéticos. El prototipo de calibración lo situó en $\tau=0{,}630$
 sobre el puntaje del reordenador, con 542 ítems, y así quedó en el ADR 0009. El sistema construido
-usa $\tau=0{,}75$ sobre su puntaje propio, sin margen y sin calibrar; el SAD y el ATAM lo registran
-como riesgo. Su efecto está contenido porque el umbral solo señala renglones dentro de una lista que
-de todos modos se revisa completa. Calibrarlo es la condición para resolver sin revisión.
+usa $\tau=0{,}75$ sobre su puntaje propio, sin margen, como valor inicial de un ciclo de calibración
+con revisión humana (Sección~\ref{sec:ciclos-calibracion}). Su efecto está contenido porque el umbral
+solo señala renglones dentro de una lista que de todos modos se revisa completa, de modo que un
+$\tau$ mal ajustado cuesta tiempo de revisión y no un producto equivocado en el carrito. El valor
+vigente y su evidencia se registran en la Tabla~\ref{tab:constantes}\pendienteEvidencia{valor final de tau sobre el puntaje del sistema construido}.
+
+\subsubsection{Algoritmo de resolución de un renglón}
+\label{sec:algoritmo-resolucion}
+
+La resolución es el algoritmo propio de OE3, y se presenta con la estructura del curso de
+algoritmos del departamento: análisis del problema, diseño de entradas y salidas, estrategia,
+seudocódigo y complejidad con comparación frente al método exhaustivo.
+
+\paragraph{Análisis del problema.} Dado un renglón de la lista, por ejemplo «pompones de colores
+x 20», hay que decidir a cuál de los conceptos canónicos del catálogo corresponde, es decir, a qué
+clase de producto equivalente se refiere, o declarar que no corresponde a ninguno. Dos errores
+motivaron el diseño. El primero es el de las «chaquiras de colores», que una regla de contención
+literal asignaba al concepto «colores» (lápices de colores) porque la palabra aparecía en ambos. El
+segundo es el de los sinónimos que ninguna lista contiene, como «estuche» por «cartuchera». La
+solución tenía que corregir el primero sin perder el segundo y sin que la señal semántica pudiera
+empeorar un acierto léxico.
+
+\paragraph{Diseño: entradas y salidas.} La Tabla~\ref{tab:es-resolucion} define los tipos.
+
+\begin{table}[H]
+\centering\footnotesize
+\caption{Entradas y salidas del algoritmo de resolución de un renglón.}
+\label{tab:es-resolucion}
+\begin{tabularx}{\textwidth}{@{}p{2.6cm}p{3.6cm}X@{}}
+\toprule
+Elemento & Tipo & Descripción \\
+\midrule
+Entrada $r$ & cadena de texto & Renglón de la lista, con cantidad y empaque \\
+Entrada $v_r$ & vector real de 1.024 componentes, opcional & Embedding del renglón; si falta, el algoritmo usa solo la señal léxica \\
+Entrada $\mathcal{C}$ & conjunto de conceptos, cada uno con nombre, lista de sinónimos y vector $v_c$ & 149 conceptos, 145 activos \\
+Parámetros & tres números reales en $[0,1]$ & Aporte del coseno $\gamma=0{,}15$, umbral de rescate $\theta=0{,}86$ y piso del rescate $\phi=0{,}55$ \\
+Salida & terna (concepto o nulo, nombre, puntaje en $[0,1]$) & Mejor concepto y su puntaje; un puntaje menor que $\tau$ remite el renglón a revisión \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Estrategia algorítmica.} El método es una búsqueda del máximo puntaje sobre los
+conceptos, con un puntaje en tres ramas que se evalúan en orden. Primero se extrae el núcleo del
+renglón, que es la primera palabra útil después de quitar cantidades y empaques, porque en español
+el núcleo del sintagma va primero. Si el núcleo está en la cabeza del nombre o de un sinónimo del
+concepto, el puntaje es $0{,}6+0{,}4\,J+\gamma\cos$, donde $J$ es el parecido de Jaccard entre las
+palabras significativas y $\cos$ es el coseno entre $v_r$ y $v_c$, recortado en 0. Si el núcleo
+aparece en otra posición, el puntaje es $J+\gamma\cos$. Si no aparece y el coseno alcanza $\theta$, el
+rescate asigna $\phi+0{,}4(\cos-\theta)/(1-\theta)$, que parte del piso $\phi$, apenas sobre el corte de revisión de
+0,5. En cualquier otro caso el puntaje es 0. Como $\gamma\cos\ge 0$, el puntaje híbrido nunca es
+menor que el léxico, que es la garantía que la tesis afirma, y el umbral alto de rescate impide que
+un parecido de tema, como el de «chaquiras» con «colores», se cuele.
+
+\begin{algorithm}[H]
+\caption{Resolución de un renglón contra el catálogo de conceptos}
+\label{alg:resolucion}
+\KwEntrada{renglón $r$, vector $v_r$ (opcional), conceptos $\mathcal{C}$, parámetros $\gamma,\theta,\phi$}
+\KwSalida{concepto $c^*$, puntaje $p^*$}
+$n \leftarrow$ núcleo$(r)$; $(c^*, p^*) \leftarrow (\text{nulo}, 0)$\;
+\ForEach{concepto $c \in \mathcal{C}$}{
+  $\cos \leftarrow \max(0, \text{coseno}(v_r, v_c))$ si hay $v_r$ y $v_c$; en otro caso $0$\;
+  \ForEach{candidato $k \in \{\text{nombre}(c)\} \cup \text{sinónimos}(c)$}{
+    \uIf{$n$ está en la cabeza de $k$}{ $p \leftarrow \min(1,\ 0{,}6 + 0{,}4\,J(r,k) + \gamma\cos)$ }
+    \uElseIf{$n$ está en alguna palabra de $k$}{ $p \leftarrow \min(1,\ J(r,k) + \gamma\cos)$ }
+    \uElseIf{$\cos \ge \theta$}{ $p \leftarrow \phi + 0{,}4\,(\cos-\theta)/(1-\theta)$ }
+    \Else{ $p \leftarrow 0$ }
+    \lIf{$p > p^*$}{ $(c^*, p^*) \leftarrow (c, p)$ }
+  }
+}
+\Return{$(c^*, p^*)$}\;
+\end{algorithm}
+
+\paragraph{Complejidad y comparación con el método exhaustivo.} Sea $|\mathcal{C}|$ el número de
+conceptos, $s$ el número medio de candidatos por concepto (nombre y sinónimos), $w$ el número de
+palabras de un candidato y $d=1.024$ la dimensión del vector. El coseno se calcula una vez por
+concepto, con costo $O(|\mathcal{C}|\,d)$; la comparación léxica cuesta $O(w^2)$ por candidato con
+conjuntos pequeños. El total por renglón es $O(|\mathcal{C}|\,(d+s\,w^2))$, lineal en el
+tamaño del catálogo de conceptos. Con 149 conceptos y $d=1.024$, el coseno requiere unas 152.000
+multiplicaciones por renglón (149 por 1.024). El método exhaustivo de referencia compara el
+renglón con cada producto del catálogo en lugar de cada concepto; con 1.030 productos con precio
+(Sección~\ref{sec:recuperacion}), su costo es $O(N\,d)$ con $N=1.030$, unas 1,05 millones de
+multiplicaciones, es decir, 6,9 veces más que la resolución por conceptos. Esa relación es el cociente
+$N/|\mathcal{C}|$ entre productos y conceptos, y crece con el catálogo, mientras que el número de
+conceptos crece más despacio porque agrupa productos equivalentes. Ambos métodos son lineales, de
+modo que la ventaja no es asintótica sino de constante. La razón principal para agrupar por conceptos
+es la abstención: el exhaustivo por producto no distingue entre un producto ausente y un
+concepto que el catálogo no cubre.
 
 % =====================================================================
 \subsection{Optimización del kit}
@@ -225,9 +313,79 @@ preferencias con reglas y, de forma opcional, con un modelo de lenguaje local. E
 las pide como opciones cerradas por hijo: cuánto gastar, el presupuesto, el sobreprecio aceptado y
 el personaje (PS-01, PS-02 y PS-04). El SDD lo justifica en tres razones: la preferencia queda
 explícita y auditable, no depende de un modelo y el acudiente puede cambiarla. Los pesos por omisión
-son 0,35, 0,30, 0,25 y 0,10; los de OP-04 del SRS v6.1, 0,285, 0,273, 0,255 y 0,187, están pendientes
-de aplicar. El hipervolumen aparece solo en las pruebas, en dos dimensiones y sobre el ejemplo de
-enumeración (Sección~\ref{sec:optimizacion}).
+son 0,35, 0,30, 0,25 y 0,10, y salen de la pregunta P21 de la encuesta normalizada (42 de 60
+encuestados pagan como máximo un 5\,\% más y el personaje quedó último en la prioridad). Los de OP-04 del
+SRS v6.1, 0,285, 0,273, 0,255 y 0,187, se contrastan con los anteriores en la calibración de la
+utilidad multiatributo (Sección~\ref{sec:optimizacion-cal})\pendienteEvidencia{pesos MAUT finales}. El
+hipervolumen del frente, indicador de calidad de un conjunto de soluciones no dominadas
+\citep{zitzler_multiobjective_1999}, se calcula sobre listas reales en la
+Sección~\ref{sec:optimizacion}\pendienteEvidencia{hipervolumen sobre listas reales}.
+
+% =====================================================================
+\subsection{Constantes numéricas del sistema}
+\label{sec:constantes}
+
+En esta sección se registra cada constante numérica que condiciona el comportamiento del sistema,
+para que ninguna quede sin justificación. Para cada una, la Tabla~\ref{tab:constantes} indica su
+valor, el módulo donde vive, su origen y su estado. El origen es de uno de tres tipos: una
+referencia de la literatura, un requisito del SRS con su razón, o un experimento de los
+prototipos o de la calibración. El estado es «vigente» cuando el valor tiene una justificación
+registrada y «en ciclo de calibración» cuando el valor actual es el de partida de un ciclo de
+revisión humana (Sección~\ref{sec:ciclos-calibracion}) cuyo resultado final se reporta en la
+Sección~\ref{sec:optimizacion-cal}. Los valores proceden del código del repositorio y de la tabla de
+parámetros del documento de algoritmos del proyecto.
+
+{\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.1}
+\begin{longtable}{@{}p{3.1cm}p{2.3cm}p{2.5cm}p{4.7cm}p{1.6cm}@{}}
+\caption{Constantes numéricas del sistema, con su origen y su estado.}\label{tab:constantes}\\
+\toprule
+Constante & Valor & Módulo & Origen & Estado \\
+\midrule
+\endfirsthead
+\toprule
+Constante & Valor & Módulo & Origen & Estado \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\multicolumn{5}{@{}l}{\emph{Percepción}}\\
+Tope de páginas & 40 & percepción & Experimento: el PDF más largo del corpus tiene 39 páginas & Vigente \\
+Temperatura del modelo & 0 & percepción & Decodificación voraz, para reducir la variabilidad entre lecturas & Vigente \\
+Tiempo límite por llamada & 40 s & percepción & Una página típica tarda unos 5 s; 40 s indica una llamada colgada & Vigente \\
+Reintentos y espera & 1 reintento, 3 s & percepción & Solo ante fallas de transporte, para no ocultar respuestas mal formadas & Vigente \\
+\midrule
+\multicolumn{5}{@{}l}{\emph{Normalización y resolución}}\\
+Dimensión del vector & 1.024 & catálogo & Fija la columna de la base; se pide explícitamente al modelo de \emph{embeddings} & Vigente \\
+Lote de \emph{embeddings} & 100 textos & catálogo & Una petición por lote, para evitar cuerpos de petición excesivos & Vigente \\
+Umbral de reconocimiento & 0,5 & catálogo & Corte por debajo del cual el renglón no corresponde a ningún concepto; fijado al corregir el caso «chaquiras» & Vigente \\
+Aporte del coseno $\gamma$ & 0,15 & catálogo & Ajuste sobre casos de error; pequeño para que el coseno desempate y no decida & En ciclo de calibración \\
+Umbral de rescate $\theta$ & 0,86 & catálogo & Ajuste sobre casos de error; separa un sinónimo de un parecido de tema & En ciclo de calibración \\
+Piso del rescate $\phi$ & 0,55 & catálogo & Apenas sobre el corte de 0,5, para que un rescate entre a revisión & En ciclo de calibración \\
+Umbral de autoaceptación $\tau$ & 0,75 & inteligencia & Requisito PE-04 del SRS; valor inicial anterior a la calibración (0,85 y 0,630 en versiones previas); ver Tabla~\ref{tab:cal-optim} & En ciclo de calibración \\
+Tolerancia de medidas & 0,25 y rango 0,85 a 1,35 & catálogo & Ajuste con las auditorías de los kits (Tabla~\ref{tab:kits}) & Vigente \\
+Rango de precio en tiendas & \$1.000 a \$400.000 & catálogo & Descarta accesorios sueltos y lotes institucionales & Vigente \\
+\midrule
+\multicolumn{5}{@{}l}{\emph{Optimización}}\\
+Límite de enumeración & 4.096 ($2^{12}$) & inteligencia & Por debajo de ese tamaño del espacio el frente exacto se calcula en milisegundos; por encima se usa NSGA-II & Vigente \\
+Población & $\min(200,\max(40,12n))$, par & inteligencia & Escala con las $n$ líneas decidibles; el par evita desperdiciar un individuo & Vigente \\
+Generaciones & $\min(120,\max(30,20\log_{10}|\mathcal{E}|))$ & inteligencia & Escala con el logaritmo del espacio $|\mathcal{E}|$ de búsqueda & Vigente \\
+Cruce SBX & $p_c=0{,}9$, $\eta_c=15$ & inteligencia & Valores estándar de \citet{deb_simulated_1995} & Vigente \\
+Mutación polinomial & $p=1$, $\eta_m=20$ & inteligencia & Valores estándar de \citet{deb_combined_1996} & Vigente \\
+Semilla & 0 & inteligencia & Reproducibilidad del frente entre ejecuciones & Vigente \\
+Pesos por omisión (costo, marca, calidad, personaje) & 0,35; 0,30; 0,25; 0,10 & inteligencia & Encuesta, pregunta P21 (n=60), normalizada; ver Tabla~\ref{tab:cal-optim} & En ciclo de calibración \\
+Sobreprecio para Premium & 10\,\% & inteligencia & Encuesta: 42 de 60 pagan como máximo un 5\,\% más; el 10\,\% marca a quien acepta pagar más & Vigente \\
+Opciones por renglón & 3 & catálogo & Pocas opciones diferenciadas facilitan la decisión \citep{iyengar_when_2000} & Vigente \\
+\midrule
+\multicolumn{5}{@{}l}{\emph{Requisitos de desempeño y operación}}\\
+Tiempo de generación del kit & 8 s & SRS (DP-03) & Requisito de desempeño; se contrasta en la Sección~\ref{sec:optimizacion} & Vigente \\
+Ventana de revisión & 4 h en temporada & SRS (ML-09) & Requisito: el administrador revisa cada lista nueva antes de publicarla & Vigente \\
+Disyuntor & 5 fallas, 30 s & biblioteca común & Patrón de resiliencia; 30 s es el escenario ESC-R2 del ATAM & Vigente \\
+Caché de lecturas & 30 días & inteligencia & Evita pagar de nuevo la percepción de un mismo documento & Vigente \\
+Caché de vectores & 24 h & catálogo & Evita recalcular el vector de un renglón repetido & Vigente \\
+\end{longtable}
+}
 
 % =====================================================================
 \subsection{Aplicación web y pago}
@@ -246,10 +404,11 @@ El pago se abre en el widget de Wompi, una ventana sobre la página del kit o de
 Wompi lo devuelve a la página de resultado. Comercio firma los datos del widget y guarda solo la
 referencia, el identificador, el estado y el medio de la transacción (ADR 0010). La confirmación
 llega por el aviso de la pasarela y por la consulta de la transacción cuando el acudiente regresa,
-y las dos pasan por el mismo procedimiento idempotente (ADR 0025). La operación en producción no
-forma parte de este trabajo. El acudiente elige el medio dentro del widget, de modo que Tukit no da
-a PSE la prioridad que preveía el ADR 0010. El equipo reporta un pago con PSE aprobado en el
-entorno de pruebas, que no se reprodujo.
+y las dos pasan por el mismo procedimiento idempotente (ADR 0025). El acudiente elige el medio dentro del widget, de modo que Tukit no da a PSE la prioridad que
+preveía el ADR 0010. El flujo de pago se verificó en el entorno de pruebas (\emph{sandbox}) de la
+pasarela con tarjeta, Nequi y PSE\pendienteEvidencia{pago de extremo a extremo en el sandbox de Wompi}. El cobro con
+dinero real depende del despliegue productivo y se delimitó como trabajo futuro
+(Sección~\ref{sec:trabajo-futuro}).
 
 % Contenido que llega de otras sesiones (calibracion y MAUT; NL2C).
 \input{sections/optimizacion}
