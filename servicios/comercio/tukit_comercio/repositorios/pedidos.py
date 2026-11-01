@@ -731,6 +731,27 @@ class RepoPedidos:
             )
         )
 
+    async def devolucion_de(self, pedido_id: uuid.UUID) -> Any:
+        """La devolucion ya registrada de un pedido, o `None`. Un pedido tiene a lo
+        sumo una: pedir el retracto dos veces no abre dos."""
+        return (
+            await self.conexion.execute(
+                select(DEVOLUCION).where(DEVOLUCION.c.pedido_id == pedido_id).order_by(DEVOLUCION.c.creado_en)
+            )
+        ).first()
+
+    async def pago_aprobado_en(self, pedido_id: uuid.UUID) -> Any:
+        """Cuando se aprobo el pago del pedido (o se reembolso), o `None`."""
+        return await self.conexion.scalar(
+            select(PAGO.c.actualizado_en)
+            .where(
+                PAGO.c.pedido_id == pedido_id,
+                PAGO.c.estado.in_([EstadoPago.APROBADO.value, EstadoPago.REEMBOLSADO.value]),
+            )
+            .order_by(PAGO.c.actualizado_en.desc())
+            .limit(1)
+        )
+
     async def cancelar_pedido(self, pedido_id: uuid.UUID) -> None:
         await self.conexion.execute(
             update(PEDIDO).where(PEDIDO.c.id == pedido_id).values(estado=EstadoPedido.CANCELADO.value)

@@ -512,6 +512,20 @@ class RepoIdentidad:
         )
         return matricula_id
 
+    async def registrar_consentimiento_titular(self, usuario_id: uuid.UUID, version: str) -> None:
+        """Deja constancia de que el titular acepto la politica de datos y los
+        terminos de esa `version` (regimen `registro_titular`, sin matricula)."""
+        await self.conexion.execute(
+            insert(CONSENTIMIENTO).values(
+                id=uuid.uuid4(),
+                usuario_id=usuario_id,
+                regimen="registro_titular",
+                version=version,
+                matricula_id=None,
+                aceptado_en=datetime.now(UTC),
+            )
+        )
+
     async def hijos_del_padre(self, usuario_id: uuid.UUID) -> list[dict[str, Any]]:
         """Los apodos que este titular puede ver, filtrados por las matriculas
         que alcanza. Reusa `matriculas_visibles` (Fase 1): solo lo propio."""
