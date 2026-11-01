@@ -2,6 +2,7 @@ import { origenDeDatos } from "@tukit/contrato/servidor";
 import { sesionActual, matriculasDeLaSesion } from "@/lib/sesion";
 import { conAvisoDeLimite } from "@/components/ConAvisoDeLimite";
 import FormularioEmpezar from "./FormularioEmpezar";
+import AsistenteSlot from "./AsistenteSlot";
 
 export const dynamic = "force-dynamic";
 
@@ -53,12 +54,15 @@ async function formulario() {
     .map((p) => p.nombre.toLowerCase());
 
   return (
-    <FormularioEmpezar
-      colegios={colegios}
-      surtidos={surtidos}
-      canonicos={canonicos}
-      sesion={sesion ? { correo: sesion.correo } : null}
-      matriculasIniciales={matriculasIniciales}
-    />
+    <>
+      <AsistenteSlot />
+      <FormularioEmpezar
+        colegios={colegios}
+        surtidos={surtidos}
+        canonicos={canonicos}
+        sesion={sesion ? { correo: sesion.correo } : null}
+        matriculasIniciales={matriculasIniciales}
+      />
+    </>
   );
 }
