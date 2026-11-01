@@ -153,6 +153,19 @@ class ClienteCatalogo:
         """
         return await self._pedir("GET", f"/v1/catalogo/productos/{sku}")
 
+    async def productos_del_concepto(self, concepto: str, *, maximo: int = 40) -> list[dict[str, Any]]:
+        """Los productos con precio de un concepto, para ofrecer opciones del mismo tipo.
+
+        Es lo que alimenta el carrusel de "cambiar por otra opcion": mismo
+        concepto (la misma clase de util), de cualquier marca, nivel o empaque.
+        """
+        cuerpo = await self._pedir(
+            "GET",
+            "/v1/catalogo/productos",
+            params={"concepto": concepto, "con_precio": "true", "por_pagina": maximo},
+        )
+        return list(cuerpo.get("productos") or ())
+
     async def producto_de_personaje(self, concepto: str, personaje: str) -> dict[str, Any] | None:
         """El producto de un concepto ancla para un personaje, o None si no hay.
 

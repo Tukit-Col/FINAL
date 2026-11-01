@@ -1316,7 +1316,13 @@ async def ordenar(
         elegido = linea.get("producto_elegido")
         # Una linea informativa (o sin producto/precio) no se compra: se muestra
         # en el kit pero no entra a la orden.
-        if linea["informativa"] or not elegido or elegido.get("precio") is None:
+        # Lo que el acudiente descarto ("ya lo tengo") tampoco se cobra.
+        if (
+            linea["informativa"]
+            or linea.get("descartado")
+            or not elegido
+            or elegido.get("precio") is None
+        ):
             continue
         lineas.append(
             {
@@ -2569,7 +2575,7 @@ def _objetivos_de_lineas(lineas: list[dict[str, Any]], total: int) -> dict[str, 
     fraccion de lineas con precio. Sin esto iban vacios y la web pintaba
     "NaN% con precio confirmado".
     """
-    comprables = [linea for linea in lineas if not linea["informativa"]]
+    comprables = [linea for linea in lineas if not linea["informativa"] and not linea.get("descartado")]
     if not comprables:
         return {"costo": total, "fidelidad": 0.0, "disponibilidad": 0.0}
     tope_nivel = max(1, len(ORDEN_NIVEL) - 1)
@@ -2604,14 +2610,18 @@ def _alternativa_de(producto: dict[str, Any]) -> dict[str, Any]:
 def _aplicar_cambios(
     lineas: list[dict[str, Any]], cambios_del_kit: dict[str, Any]
 ) -> tuple[list[dict[str, Any]], int]:
-    """Las lineas de un kit con los productos que el acudiente eligio, y su total.
+    """Las lineas de un kit con lo que el acudiente cambio, y su total.
 
-    Cada cambio reemplaza el producto de su linea con la misma aritmetica del
-    armado (techo(pedida/empaque)) y deja el producto sugerido como una
-    alternativa mas, para que siempre se pueda volver a el. La linea queda
-    marcada (`cambiado_por_acudiente`, `sku_sugerido`) para que la pantalla lo
-    diga. El total se vuelve a sumar desde las lineas, que es como lo suma el
-    armado (`_recalcular_total_kit`).
+    Un cambio puede traer un producto elegido (`sku`) y/o la marca `descartado`.
+    El producto elegido reemplaza al de su linea con la misma aritmetica del
+    armado (techo(pedida/empaque)) y deja el sugerido como una alternativa mas,
+    para que siempre se pueda volver a el; la linea queda marcada
+    (`cambiado_por_acudiente`, `sku_sugerido`) para que la pantalla lo diga.
+    Una linea descartada ("ya lo tengo") se queda en el kit, marcada
+    `descartado`, pero sin subtotal: no suma al total y no entra a la orden. Su
+    subtotal anterior viaja en `subtotal_descartado` para poder mostrar cuanto
+    se ahorra y deshacerlo. El total se vuelve a sumar desde las lineas, que es
+    como lo suma el armado (`_recalcular_total_kit`).
     """
     salida: list[dict[str, Any]] = []
     for linea in lineas:
@@ -2619,48 +2629,56 @@ def _aplicar_cambios(
         sugerido = linea.get("producto_elegido")
         if cambio and sugerido and not linea["informativa"]:
             linea = dict(linea)
-            empaque = int(cambio.get("unidades_por_empaque") or 1)
-            precio = cambio.get("precio")
-            unidades = unidades_a_comprar(int(linea.get("cantidad_pedida") or 0), empaque)
-            linea["producto_elegido"] = {
-                "sku": cambio.get("sku"),
-                "nombre": cambio.get("nombre"),
-                "marca": cambio.get("marca"),
-                "nivel": cambio.get("nivel"),
-                "personaje": cambio.get("personaje"),
-                "imagen_url": cambio.get("imagen_url"),
-                "precio": precio,
-            }
-            linea["unidades_por_empaque"] = empaque
-            linea["unidades_a_comprar"] = unidades
-            linea["subtotal_linea"] = None if precio is None else precio * unidades
-            linea["alternativas"] = [_alternativa_de(sugerido)] + [
-                a for a in (linea.get("alternativas") or []) if a.get("sku") != cambio.get("sku")
-            ]
-            linea["cambiado_por_acudiente"] = True
-            linea["sku_sugerido"] = sugerido.get("sku")
+            if cambio.get("sku"):
+                empaque = int(cambio.get("unidades_por_empaque") or 1)
+                precio = cambio.get("precio")
+                unidades = unidades_a_comprar(int(linea.get("cantidad_pedida") or 0), empaque)
+                linea["producto_elegido"] = {
+                    "sku": cambio.get("sku"),
+                    "nombre": cambio.get("nombre"),
+                    "marca": cambio.get("marca"),
+                    "nivel": cambio.get("nivel"),
+                    "personaje": cambio.get("personaje"),
+                    "imagen_url": cambio.get("imagen_url"),
+                    "precio": precio,
+                }
+                linea["unidades_por_empaque"] = empaque
+                linea["unidades_a_comprar"] = unidades
+                linea["subtotal_linea"] = None if precio is None else precio * unidades
+                linea["alternativas"] = [_alternativa_de(sugerido)] + [
+                    a for a in (linea.get("alternativas") or []) if a.get("sku") != cambio.get("sku")
+                ]
+                linea["cambiado_por_acudiente"] = True
+                linea["sku_sugerido"] = sugerido.get("sku")
+            if cambio.get("descartado"):
+                linea["descartado"] = True
+                linea["subtotal_descartado"] = linea.get("subtotal_linea")
+                linea["subtotal_linea"] = None
         salida.append(linea)
-    total = sum(int(linea.get("subtotal_linea") or 0) for linea in salida if not linea["informativa"])
+    total = sum(
+        int(linea.get("subtotal_linea") or 0)
+        for linea in salida
+        if not linea["informativa"] and not linea.get("descartado")
+    )
     return salida, total
 
 
-async def cambiar_producto_del_acudiente(
+async def _linea_para_cambiar(
     motor: Any,
     trabajo_id: uuid.UUID,
     perfil: str,
     item_id: uuid.UUID,
-    sku: str,
     *,
     usuario_id: uuid.UUID | None,
     catalogo: ClienteCatalogo,
-) -> dict[str, Any]:
-    """El acudiente cambia el producto de una linea por una de sus alternativas.
+) -> tuple[Any, dict[str, Any], dict[str, Any]]:
+    """La cabeza del trabajo, su kit y la linea que el acudiente quiere tocar.
 
-    Solo se acepta un producto que ya estaba en la linea (el sugerido o una de
-    sus alternativas): el papa elige entre lo que una persona reviso, no
-    cualquier sku. El cambio se guarda en `cambios` de SU trabajo y `ver` lo
-    aplica al leer; volver al sugerido borra el cambio. Si el trabajo tiene
-    dueno, solo el puede cambiarlo.
+    Las reglas de quien puede cambiar y que se puede cambiar viven aqui, en un
+    solo sitio, porque las comparten cambiar el producto y descartarlo: el
+    trabajo con dueno solo lo toca el dueno, el kit tiene que estar publicado, y
+    una linea sin producto o consolidada con la de un hermano no se toca por
+    separado.
     """
     async with motor.engine.begin() as conexion:
         cabeza = (
@@ -2694,41 +2712,204 @@ async def cambiar_producto_del_acudiente(
             "linea_consolidada",
             "Este producto se compra junto con el de tu otro hijo y no se cambia por separado.",
         )
-    permitidos = {actual.get("sku")} | {a.get("sku") for a in linea.get("alternativas") or []}
-    if sku not in permitidos:
-        raise CambioNoPermitido(
-            "producto_no_permitido", "Ese producto no es una opción para este renglón.", 422
-        )
-    if sku == actual.get("sku"):
-        return {"trabajo_id": str(trabajo_id), "perfil": perfil, "item_id": str(item_id), "sku": sku}
+    return cabeza, kit, linea
 
-    cambios = {p: dict(c) for p, c in dict(cabeza.cambios or {}).items()}
-    del_kit = cambios.setdefault(perfil, {})
-    sugerido = linea.get("sku_sugerido") or actual.get("sku")
-    if sku == sugerido:
-        del_kit.pop(str(item_id), None)
-    else:
-        producto = await catalogo.producto(sku)
-        precio = producto.get("precio_desde")
-        if precio is None:
-            raise CambioNoPermitido("producto_sin_precio", "Ese producto no tiene precio hoy; elige otro.")
-        del_kit[str(item_id)] = {
-            "sku": sku,
-            "nombre": producto.get("nombre"),
-            "marca": producto.get("marca"),
-            "nivel": producto.get("nivel"),
-            "personaje": producto.get("personaje"),
-            "imagen_url": producto.get("imagen_url"),
-            "unidades_por_empaque": int(producto.get("unidades_por_empaque") or 1),
-            "precio": int(precio),
-        }
+
+async def _guardar_cambios(motor: Any, trabajo_id: uuid.UUID, cambios: dict[str, Any]) -> None:
+    cambios = {p: {i: c for i, c in kit.items() if c} for p, kit in cambios.items()}
     cambios = {p: c for p, c in cambios.items() if c}
-
     async with motor.engine.begin() as conexion:
         await conexion.execute(
             update(TRABAJO).where(TRABAJO.c.id == trabajo_id).values(cambios=cambios, actualizado_en=ahora())
         )
-    return {"trabajo_id": str(trabajo_id), "perfil": perfil, "item_id": str(item_id), "sku": sku}
+
+
+async def cambiar_producto_del_acudiente(
+    motor: Any,
+    trabajo_id: uuid.UUID,
+    perfil: str,
+    item_id: uuid.UUID,
+    sku: str,
+    *,
+    usuario_id: uuid.UUID | None,
+    catalogo: ClienteCatalogo,
+) -> dict[str, Any]:
+    """El acudiente cambia el producto de una linea por una de sus alternativas.
+
+    Solo se acepta un producto que ya estaba en la linea (el sugerido o una de
+    sus alternativas): el papa elige entre lo que una persona reviso, no
+    cualquier sku. El cambio se guarda en `cambios` de SU trabajo y `ver` lo
+    aplica al leer; volver al sugerido borra el cambio. Si el trabajo tiene
+    dueno, solo el puede cambiarlo.
+    """
+    cabeza, _kit, linea = await _linea_para_cambiar(
+        motor, trabajo_id, perfil, item_id, usuario_id=usuario_id, catalogo=catalogo
+    )
+    actual = linea["producto_elegido"]
+    permitidos = {actual.get("sku")} | {a.get("sku") for a in linea.get("alternativas") or []}
+    producto: dict[str, Any] | None = None
+    if sku not in permitidos:
+        # Fuera de las alternativas revisadas, se acepta cualquier producto del
+        # MISMO concepto: es el mismo tipo de util, solo cambia marca o empaque.
+        producto = await _producto_del_mismo_concepto(catalogo, sku, linea.get("concepto"))
+        if producto is None:
+            raise CambioNoPermitido(
+                "producto_no_permitido", "Ese producto no es una opción para este renglón.", 422
+            )
+    respuesta = {"trabajo_id": str(trabajo_id), "perfil": perfil, "item_id": str(item_id), "sku": sku}
+    if sku == actual.get("sku"):
+        return respuesta
+
+    cambios = {p: {i: dict(c) for i, c in kit.items()} for p, kit in dict(cabeza.cambios or {}).items()}
+    del_item = cambios.setdefault(perfil, {}).setdefault(str(item_id), {})
+    sugerido = linea.get("sku_sugerido") or actual.get("sku")
+    if sku == sugerido:
+        # Volver al sugerido borra el producto pero respeta un descarte vigente.
+        descartado = del_item.get("descartado")
+        del_item.clear()
+        if descartado:
+            del_item["descartado"] = True
+    else:
+        producto = producto or await catalogo.producto(sku)
+        precio = producto.get("precio_desde")
+        if precio is None:
+            raise CambioNoPermitido("producto_sin_precio", "Ese producto no tiene precio hoy; elige otro.")
+        del_item.update(
+            {
+                "sku": sku,
+                "nombre": producto.get("nombre"),
+                "marca": producto.get("marca"),
+                "nivel": producto.get("nivel"),
+                "personaje": producto.get("personaje"),
+                "imagen_url": producto.get("imagen_url"),
+                "unidades_por_empaque": int(producto.get("unidades_por_empaque") or 1),
+                "precio": int(precio),
+            }
+        )
+    await _guardar_cambios(motor, trabajo_id, cambios)
+    return respuesta
+
+
+async def _producto_del_mismo_concepto(
+    catalogo: ClienteCatalogo, sku: str, concepto: str | None
+) -> dict[str, Any] | None:
+    """El producto `sku` si pertenece al `concepto` de la linea; `None` si no."""
+    if not concepto:
+        return None
+    try:
+        producto = await catalogo.producto(sku)
+    except (KeyError, RemotoCaido):
+        return None
+    if (producto.get("concepto") or {}).get("codigo") != concepto:
+        return None
+    return producto
+
+
+async def opciones_de_la_linea(
+    motor: Any,
+    trabajo_id: uuid.UUID,
+    perfil: str,
+    item_id: uuid.UUID,
+    *,
+    catalogo: ClienteCatalogo,
+) -> dict[str, Any]:
+    """Las opciones del mismo concepto para una linea, con lo que cambiaria el total.
+
+    Es la lectura del carrusel de "cambiar por otra opcion": cada producto
+    trae imagen, marca, nivel, precio del empaque, empaque y el subtotal que
+    tendria la linea con el (misma aritmetica del armado). `diferencia` es contra
+    lo que cuesta hoy la linea; `en_kit` marca el elegido y `sugerido` el que
+    traia el kit antes de cualquier cambio.
+    """
+    vista = await ver(motor, trabajo_id, catalogo=catalogo)
+    kit = next((k for k in vista["kits"] if k["perfil"] == perfil), None)
+    linea = next((ln for ln in (kit or {}).get("lineas", []) if ln["item_id"] == str(item_id)), None)
+    if kit is None or linea is None:
+        raise TrabajoNoExiste(f"{trabajo_id}/{perfil}/{item_id}")
+    actual = linea.get("producto_elegido") or {}
+    concepto = linea.get("concepto")
+    if linea["informativa"] or not actual or not concepto:
+        return {"item_id": str(item_id), "concepto": concepto, "opciones": []}
+    # Si la linea esta descartada, el subtotal "de hoy" es el que tendria
+    # reactivada: asi la diferencia no se compara contra cero.
+    subtotal_hoy = linea.get("subtotal_descartado") if linea.get("descartado") else linea.get("subtotal_linea")
+    sugerido = linea.get("sku_sugerido") or actual.get("sku")
+    pedida = int(linea.get("cantidad_pedida") or 0)
+
+    productos = await catalogo.productos_del_concepto(str(concepto))
+    por_sku = {p["sku"]: p for p in productos}
+    # El elegido y las alternativas revisadas siempre estan, aunque el catalogo
+    # ya no los devuelva en la pagina.
+    for conocido in [actual, *(linea.get("alternativas") or [])]:
+        sku = conocido.get("sku")
+        if sku and sku not in por_sku:
+            precio = conocido.get("precio", conocido.get("precio_cop"))
+            if precio is not None:
+                por_sku[sku] = {**conocido, "precio_desde": precio, "unidades_por_empaque": 1}
+
+    opciones = []
+    for p in por_sku.values():
+        precio = p.get("precio_desde")
+        if precio is None:
+            continue
+        empaque = int(p.get("unidades_por_empaque") or 1)
+        unidades = unidades_a_comprar(pedida, empaque)
+        subtotal = int(precio) * unidades
+        opciones.append(
+            {
+                "sku": p["sku"],
+                "nombre": p.get("nombre"),
+                "marca": p.get("marca"),
+                "nivel": p.get("nivel"),
+                "personaje": p.get("personaje"),
+                "imagen_url": p.get("imagen_url"),
+                "precio": int(precio),
+                "unidades_por_empaque": empaque,
+                "unidades_a_comprar": unidades,
+                "subtotal": subtotal,
+                "diferencia": None if subtotal_hoy is None else subtotal - int(subtotal_hoy),
+                "en_kit": p["sku"] == actual.get("sku"),
+                "sugerido": p["sku"] == sugerido,
+            }
+        )
+    # El del kit primero, luego de menor a mayor precio de la linea.
+    opciones.sort(key=lambda o: (not o["en_kit"], o["subtotal"]))
+    return {"item_id": str(item_id), "concepto": concepto, "opciones": opciones}
+
+
+async def descartar_linea_del_acudiente(
+    motor: Any,
+    trabajo_id: uuid.UUID,
+    perfil: str,
+    item_id: uuid.UUID,
+    *,
+    descartar: bool,
+    usuario_id: uuid.UUID | None,
+    catalogo: ClienteCatalogo,
+) -> dict[str, Any]:
+    """El acudiente quita una linea de su kit ("ya lo tengo") o la vuelve a poner.
+
+    Se guarda como una marca en `cambios` de SU trabajo, igual que un cambio de
+    producto: `ver` la aplica al leer (la linea no suma al total) y `ordenar`
+    lee `ver`, asi que lo descartado tampoco se cobra. Es reversible y no toca
+    las filas del kit, que pueden ser el canonico de otros acudientes.
+    """
+    cabeza, _kit, _linea = await _linea_para_cambiar(
+        motor, trabajo_id, perfil, item_id, usuario_id=usuario_id, catalogo=catalogo
+    )
+    cambios = {p: {i: dict(c) for i, c in kit.items()} for p, kit in dict(cabeza.cambios or {}).items()}
+    del_item = cambios.setdefault(perfil, {}).setdefault(str(item_id), {})
+    if descartar:
+        del_item["descartado"] = True
+    else:
+        del_item.pop("descartado", None)
+    await _guardar_cambios(motor, trabajo_id, cambios)
+    return {
+        "trabajo_id": str(trabajo_id),
+        "perfil": perfil,
+        "item_id": str(item_id),
+        "descartado": descartar,
+    }
 
 
 async def _lineas_aplicadas(
