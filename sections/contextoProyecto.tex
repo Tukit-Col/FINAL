@@ -1,0 +1,349 @@
+\setcounter{subsection}{0}
+\section{CONTEXTO DEL PROYECTO}
+
+La compra de útiles escolares parece, a primera vista, una tarea sencilla de comercio. Sin
+embargo, automatizarla exige resolver problemas que pertenecen a campos distintos, como la
+lectura de documentos sin un formato común, la interpretación de un vocabulario que cada
+colegio escribe a su manera, la elección entre una gran cantidad de combinaciones de
+productos y la presentación de esas opciones de forma que no abrumen a quien decide. Este
+capítulo reúne el contexto necesario para comprender cómo Tukit aborda cada uno de esos
+retos. En primer lugar, se presentan los antecedentes conceptuales, que parten del proceso
+general del sistema y describen las técnicas en que se apoya cada una de sus etapas, junto
+con la arquitectura y las tecnologías que lo sostienen. Posteriormente, se analiza el
+entorno en el que surge el proyecto, a partir de la caracterización del dominio escolar y
+de la comparación con las soluciones que existen hoy en el mercado, con el fin de evidenciar
+el vacío que la propuesta busca cubrir.\par
+
+\subsection{Antecedentes}
+
+En esta sección se presentan los conceptos necesarios para comprender el funcionamiento de
+Tukit. Se parte del dominio, es decir, de la lista escolar y de los retos que plantea
+convertirla en una compra, y a partir de ellos se introducen el tipo de sistema que se
+construyó y las técnicas que resuelven cada uno de esos retos.\par
+
+\subsubsection{La lista escolar y los retos de convertirla en una compra}
+
+La lista de útiles es el documento con el que un colegio indica a las familias qué
+materiales necesita cada estudiante para el año escolar. Aunque su propósito es el mismo en
+todas las instituciones, cada colegio la elabora a su manera. Algunas listas se publican
+como tablas con varias columnas, otras como textos con viñetas, y muchas llegan a las
+familias como fotografías compartidas en grupos de mensajería. Además, el mismo artículo se
+nombra de formas distintas, como ``cartulina en octavos de colores'' o ``cartulina octavos
+surtida'', mientras que nombres casi iguales, como ``block oficio'' y ``block carta'',
+corresponden a productos diferentes.\par
+
+Convertir esa lista en una compra completa implica superar varios retos sucesivos. El
+primero es leer el documento sin perder renglones, sin importar su formato ni la calidad de
+la imagen. El segundo es entender qué pide cada renglón, a pesar de los errores de
+ortografía, de los sinónimos y de la diferencia entre la cantidad que solicita el colegio y
+el empaque en que se vende el producto. El tercero es encontrar en el catálogo el producto
+que corresponde, sin ofrecer uno parecido pero equivocado, ya que la familia solo descubre
+ese error cuando ya ha comprado. El cuarto es elegir, entre todas las combinaciones de
+productos posibles, aquellas que mejor equilibran el costo, la calidad y las preferencias de
+la familia. Finalmente, el quinto es presentar esas alternativas de manera que faciliten la
+decisión en lugar de dificultarla. Los conceptos que se exponen a continuación responden a
+estos retos.\par
+
+\subsubsection{Sistemas de recomendación}
+
+Un sistema de recomendación es un software que sugiere a una persona los elementos que con
+mayor probabilidad le resultan útiles, a partir de información sobre sus necesidades, sus
+preferencias o el comportamiento de otros usuarios \citep{adomavicius_toward_2005}. La
+literatura distingue varios enfoques. Los sistemas basados en contenido recomiendan
+elementos parecidos a los que la persona ya eligió, los de filtrado colaborativo recomiendan
+lo que eligieron usuarios con gustos similares, y los basados en conocimiento razonan sobre
+las necesidades explícitas del usuario y sobre las características de cada producto
+\citep{burke_hybrid_2002}. Los sistemas híbridos combinan varios de estos enfoques para
+aprovechar sus fortalezas.\par
+
+En la compra escolar, el filtrado colaborativo resulta poco útil, porque una familia compra
+útiles una vez al año y su lista depende del colegio y del grado, no de lo que compraron
+otras familias. Por esta razón, Tukit se apoya en el enfoque basado en conocimiento, ya que
+recomienda a partir de los requerimientos de la lista oficial y de las preferencias que
+declara el acudiente. A diferencia de la mayoría de los sistemas, que recomiendan productos
+individuales, Tukit recomienda conjuntos completos, un problema conocido como recomendación
+de paquetes, en el que importa la coherencia entre los elementos que se ofrecen juntos
+\citep{avny_brosh_bruce_2022}. Como cada paquete debe equilibrar varios criterios al mismo
+tiempo, el sistema se clasifica como un sistema de recomendación multiobjetivo.\par
+
+\subsubsection{Comprensión de documentos y modelos multimodales}
+
+El primer reto, leer la lista, pertenece al campo de la comprensión de documentos, que
+estudia cómo convertir una imagen o un archivo en información estructurada. El enfoque
+tradicional es el reconocimiento óptico de caracteres (OCR), que identifica en la imagen las
+zonas con texto y reconoce cada carácter \citep{smith_overview_2007}. Este enfoque funciona
+bien con documentos impresos y nítidos, pero lee línea por línea sin comprender la
+estructura de la página, de modo que no distingue si dos líneas pertenecen a la misma fila
+de una tabla o si una viñeta continúa el renglón anterior.\par
+
+Los modelos multimodales de lenguaje superan esa limitación, porque reciben al mismo tiempo
+una imagen y una instrucción escrita y razonan sobre la disposición y el contenido de la
+página en conjunto. Evaluaciones recientes muestran que, a partir de la imagen únicamente,
+estos modelos alcanzan un desempeño comparable al de los flujos que combinan OCR y modelos
+de lenguaje \citep{shen_ocr_2026}, aunque su precisión disminuye con el texto manuscrito
+\citep{liu_ocrbench_2024}. Para reducir el riesgo de que el modelo produzca información que
+no está en el documento, se le exige responder con un formato fijo que se verifica antes de
+aceptarse. Este es el enfoque que utiliza Tukit para leer listas en fotografía, PDF o
+texto.\par
+
+\subsubsection{Representación vectorial y búsqueda híbrida}
+
+El segundo y el tercer reto, entender cada renglón y encontrar su producto, corresponden a un
+problema de búsqueda. La búsqueda léxica compara las palabras de dos textos y tolera
+errores de ortografía mediante la distancia de edición, que cuenta cuántas letras deben
+cambiarse para pasar de una palabra a otra. Su limitación es que no reconoce sinónimos, de
+modo que ``estuche'' y ``cartuchera'' le resultan completamente distintos.\par
+
+La búsqueda semántica resuelve ese problema mediante la representación vectorial del texto.
+Un modelo de lenguaje convierte cada frase en un vector, conocido como \emph{embedding}, que
+funciona como un conjunto de coordenadas en un espacio donde las frases con significado
+parecido quedan cerca \citep{reimers_sentence-bert_2019}. La cercanía entre dos vectores se
+mide con la similitud coseno, y a este tipo de búsqueda se le denomina recuperación densa
+\citep{karpukhin_dense_2020}. Sin embargo, la búsqueda semántica presenta el riesgo
+contrario al de la léxica, ya que puede considerar parecidos dos textos que tratan del mismo
+tema sin pedir lo mismo.\par
+
+Estas técnicas suelen integrarse en la generación aumentada por recuperación (RAG), en la
+que un modelo de lenguaje redacta una respuesta a partir de los documentos recuperados
+\citep{lewis_retrieval-augmented_2020}. En Tukit no es necesario redactar ninguna respuesta,
+porque el resultado de la búsqueda es el concepto del catálogo y sus productos. Por ello, el
+sistema toma de este esquema la indexación y la recuperación, y combina ambas búsquedas de
+forma que la léxica determina qué conceptos son admisibles y la semántica desempata entre
+ellos o reconoce sinónimos que no están registrados en el catálogo.\par
+
+\subsubsection{Optimización multiobjetivo y algoritmo NSGA-II}
+
+El cuarto reto consiste en elegir un producto para cada renglón de la lista. Si cada renglón
+tiene tres productos posibles, una lista de \(n\) renglones admite \(3^{n}\) combinaciones,
+una cantidad que crece tan rápido que una lista de cuarenta renglones supera los
+\(10^{19}\) kits. Además, no existe un único kit que sea el mejor, porque el más barato no
+es el de mejores marcas, y el que incluye los personajes que pidió el niño no es el más
+económico. Los problemas en los que varios criterios compiten entre sí se estudian en la
+optimización multiobjetivo \citep{ehrgott_multiobjective_2002}.\par
+
+En este tipo de problemas se dice que una solución domina a otra cuando no es peor en ningún
+criterio y es mejor en al menos uno. Las soluciones que ninguna otra domina forman el frente
+de Pareto, es decir, el conjunto de alternativas en las que solo es posible mejorar un
+criterio cediendo en otro. Cuando las combinaciones son pocas, el frente se puede obtener
+revisándolas todas; cuando son muchas, se recurre a algoritmos que lo aproximan en un tiempo
+razonable. El más utilizado para problemas con pocos objetivos es NSGA-II
+\citep{deb_fast_2002}, un algoritmo genético que mantiene una población de soluciones, las
+combina y las modifica en cada generación, y conserva las que pertenecen a los mejores
+frentes y las que mantienen mayor variedad entre sí. La calidad del frente obtenido puede
+medirse con el hipervolumen, que calcula el espacio de criterios que el frente domina
+\citep{zitzler_multiobjective_1999}. Tukit utiliza este enfoque para construir sus kits y
+toma del frente la alternativa que mejor responde a cada perfil.\par
+
+\subsubsection{Revisión humana en sistemas de inteligencia artificial}
+
+Ninguna de las técnicas anteriores es infalible, y en la compra escolar un error tiene un
+costo directo para la familia. Por esta razón, los sistemas de inteligencia artificial que
+toman decisiones con consecuencias para las personas suelen incorporar la revisión humana
+en los casos de menor certeza, un esquema conocido como \emph{human-in-the-loop}. Las pautas
+de interacción entre personas e inteligencia artificial recomiendan que el sistema indique
+con claridad lo que no sabe y que facilite la corrección de sus errores
+\citep{amershi_guidelines_2019}. En Tukit, los renglones que el sistema no resuelve con
+certeza suficiente pasan a una cola de revisión del equipo antes de que la lista llegue a
+las familias.\par
+
+\subsubsection{Carga cognitiva y arquitectura de la decisión}
+
+El último reto se relaciona con la forma en que las personas toman decisiones. La teoría de
+la carga cognitiva establece que la memoria de trabajo tiene una capacidad limitada, y que
+cuando una tarea exige procesar demasiada información a la vez, la calidad de las decisiones
+disminuye \citep{sweller_cognitive_2011}. En la misma línea, se ha demostrado que un número
+excesivo de opciones puede desalentar la elección en lugar de facilitarla
+\citep{iyengar_when_2000}. La arquitectura de la decisión propone que la forma de presentar
+las alternativas, es decir, cuántas son, en qué orden aparecen y cuál se sugiere, influye en
+la elección sin limitar la libertad de la persona \citep{thaler_nudge_2008}. A partir de
+estos principios, Tukit presenta pocos kits bien diferenciados, cada uno con una razón clara
+para elegirlo, y permite que el acudiente modifique cualquier producto antes de pagar.\par
+
+
+
+
+
+\subsection{Análisis del Contexto}
+\label{sec:analisis-contexto}
+
+\subsubsection{Soluciones existentes}
+
+A nivel internacional, varias plataformas han buscado simplificar la compra de útiles
+escolares a partir de la lista que publica cada institución. En Estados Unidos, TeacherLists
+reúne las listas de cerca de dos millones de salones de clase y las pone a disposición de
+cadenas minoristas, que pueden convertir cada lista en un carrito de compra prellenado
+\citep{teacherlists_retail_2026}. Amazon School Lists ofrece un servicio similar dentro de
+su propia tienda, en el que los docentes publican la lista y los padres agregan sus
+artículos al carrito \citep{amazon_schoollists_2025}. Por su parte, 1st Day
+School Supplies vende kits armados con los artículos exactos que solicita cada docente y los
+entrega en el hogar o en el colegio \citep{firstday_faqs_2026}. Estas soluciones confirman
+que pasar de la lista al carrito de forma automática es viable y que las familias valoran
+esa comodidad. Sin embargo, todas dependen de que la lista se registre manualmente en su
+plataforma con un formato estructurado, ofrecen una sola forma de completarla y no están
+disponibles en Colombia. En el caso de 1st Day School Supplies, además, solo pueden
+comprar las familias de colegios aliados, dentro de fechas límite de pedido y con las
+marcas que define la empresa.\par
+
+En el contexto colombiano, las alternativas disponibles tampoco parten de la lista oficial
+de cada colegio. Panamericana y Éxito organizan su oferta escolar por categorías o por
+nivel educativo \citep{panamericana_cotizador_2025,exito_listas_2025}, Primavera permite
+que el acudiente arme manualmente su lista sobre el catálogo propio
+\citep{primavera_armatulista_2026}, y MercadoLibre comercializa kits fijos que arma cada
+vendedor \citep{mercadolibre_kits_2025}. En todos los casos, la familia debe traducir por su
+cuenta cada renglón de la lista en un producto, comparar alternativas y verificar que la
+compra quede completa, lo que mantiene la carga cognitiva del proceso tradicional
+\citep{sweller_cognitive_2011}.\par
+
+En el ámbito académico, la recomendación de paquetes estudia cómo sugerir conjuntos de
+productos coherentes entre sí, por ejemplo mediante representaciones vectoriales de los
+artículos que componen cada paquete \citep{avny_brosh_bruce_2022,du_enhancing_2025} o
+mediante modelos de lenguaje que generan o evalúan paquetes completos
+\citep{liu_llmcbr_2025,bayrak_evaluating_2024}. De forma paralela, la generación aumentada
+por recuperación se ha aplicado al comercio electrónico para responder preguntas sobre
+productos \citep{xu_itemrag_2026} o completar las búsquedas de los usuarios
+\citep{sun_product-aware_2024}. Estos trabajos aportan técnicas valiosas, pero suponen un
+historial de interacciones o una consulta escrita por el usuario, y no abordan el caso en
+el que el punto de partida es un documento institucional sin formato fijo que debe
+cumplirse completo.\par
+
+\subsubsection{Alternativas de solución consideradas}
+
+Ante este panorama, se analizaron distintas formas de resolver el problema, considerando su
+viabilidad técnica y su efecto sobre la experiencia de las familias y la operación del
+servicio. A continuación, se describen estas alternativas.\par
+
+\begin{enumerate}
+  \item \textbf{Listas digitalizadas manualmente.} Siguiendo el modelo de TeacherLists, el
+        colegio o el equipo de Tukit transcribe cada lista en un formulario estructurado, y
+        cada renglón se asocia de antemano con un producto.
+        \begin{itemize}
+          \item \textit{Fortaleza:} la correspondencia entre renglón y producto es exacta,
+                porque la define una persona.
+          \item \textit{Debilidad:} exige transcribir cada lista y cada cambio de lista, no
+                permite que el acudiente cargue la suya y no escala a cientos de colegios.
+        \end{itemize}
+
+  \item \textbf{Kits preconfigurados por colegio y grado.} Siguiendo el modelo de 1st Day
+        School Supplies, se arma un único kit fijo para cada lista.
+        \begin{itemize}
+          \item \textit{Fortaleza:} la compra se resuelve en un solo paso y la operación es
+                sencilla.
+          \item \textit{Debilidad:} ofrece una sola alternativa, sin considerar el
+                presupuesto ni las preferencias de cada familia, y requiere armar y
+                actualizar manualmente cada kit.
+        \end{itemize}
+
+  \item \textbf{Generación directa con un modelo de lenguaje.} Un modelo de lenguaje recibe
+        la lista y redacta el kit completo, siguiendo el esquema de generación aumentada
+        por recuperación \citep{lewis_retrieval-augmented_2020}.
+        \begin{itemize}
+          \item \textit{Fortaleza:} se adapta con facilidad a listas redactadas de formas
+                muy distintas.
+          \item \textit{Debilidad:} puede proponer productos, cantidades o precios que no
+                están en el catálogo, sus resultados son difíciles de auditar y no garantiza
+                el mejor equilibrio entre costo, calidad y preferencias.
+        \end{itemize}
+
+  \item \textbf{Reconocimiento óptico de caracteres con reglas y búsqueda exacta.} La lista
+        se lee con OCR tradicional \citep{smith_overview_2007} y cada renglón se busca en el
+        catálogo por coincidencia exacta de palabras.
+        \begin{itemize}
+          \item \textit{Fortaleza:} es económica y sus resultados son fáciles de explicar.
+          \item \textit{Debilidad:} falla con fotografías inclinadas, con tablas de varias
+                columnas y con las múltiples formas de nombrar un mismo artículo.
+        \end{itemize}
+
+\item \textbf{Análisis de maquetación con Docling.} Docling, desarrollado por IBM,
+      combina el reconocimiento de caracteres con modelos que identifican la estructura
+      del documento, como títulos, párrafos, tablas y columnas, y la convierte en un
+      formato organizado \citep{auer_docling_2024}.
+      \begin{itemize}
+        \item \textit{Fortaleza:} recupera con fidelidad las tablas y las columnas de los
+              documentos PDF con una estructura definida, es de código abierto y puede
+              ejecutarse en la infraestructura propia.
+        \item \textit{Debilidad:} su desempeño disminuye con las fotografías tomadas con
+              el celular, que son frecuentes entre las listas que comparten las familias,
+              y no interpreta el contenido. Por ejemplo, no reconoce que ``Cartuchera con
+              esferos y borrador'' describe tres artículos que se compran por separado, de
+              modo que la separación de renglones y su normalización quedarían por
+              resolver.
+      \end{itemize}
+        \item \textbf{Plataformas comerciales de análisis documental.} Servicios como Amazon
+      Textract \citep{aws_textract_2026} e IBM Watson Discovery \citep{ibm_discovery_2026}
+      extraen el texto, las tablas y los campos de un documento en la nube, y permiten
+      buscar información dentro de grandes colecciones de archivos.
+      \begin{itemize}
+        \item \textit{Fortaleza:} ofrecen alta precisión en la extracción de texto y
+              tablas, y no requieren desarrollar ni mantener un modelo propio.
+        \item \textit{Debilidad:} su costo crece con cada página procesada y los documentos
+              se tratan en la infraestructura de un tercero. Además, solo resuelven la
+              lectura, ya que no interpretan el vocabulario escolar ni asocian cada
+              renglón con un producto del catálogo, de modo que la normalización y la
+              construcción de los kits quedarían por resolver.
+      \end{itemize}
+\end{enumerate}
+
+
+
+Frente a estas alternativas, la solución presentada en la Propuesta de Solución combina
+lo mejor de cada una. Conserva la lista oficial del colegio como punto de partida, igual que
+las listas digitalizadas, pero la lee de forma automática en cualquier formato mediante un
+modelo multimodal \citep{shen_ocr_2026}. Aprovecha la flexibilidad de los modelos de
+lenguaje, pero solo para leer la lista, mientras que la asociación con el catálogo se
+resuelve con una búsqueda híbrida que no inventa productos \citep{karpukhin_dense_2020}. En
+lugar de un único kit fijo, construye varias alternativas que equilibran el costo, la
+calidad y las preferencias mediante optimización multiobjetivo \citep{deb_fast_2002}, y
+mantiene la revisión humana en los casos dudosos, lo que permite auditar cada resultado.\par
+
+\subsubsection{Comparación con la solución propuesta}
+
+La Tabla~\ref{tab:comparacion-soluciones} resume cómo se comparan las soluciones existentes
+con Tukit en los aspectos que más pesan para las familias colombianas.\par
+
+\begin{table}[H]
+\centering\footnotesize
+\setlength{\tabcolsep}{2pt}
+\renewcommand{\arraystretch}{1.35}
+\newcommand{\enc}[2]{{\scriptsize\begin{tabular}[b]{@{}c@{}}#1\\#2\end{tabular}}}
+\caption{Comparación de Tukit con las soluciones existentes.}
+\label{tab:comparacion-soluciones}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{3.4cm}
+  >{\centering\arraybackslash}p{1.25cm}
+  >{\centering\arraybackslash}p{1.55cm}
+  *{5}{>{\centering\arraybackslash}p{1.25cm}}
+  >{\columncolor{gray!15}\centering\arraybackslash}p{1.25cm}@{}}
+\toprule
+\enc{}{\textbf{Capacidad}} &
+\enc{Teacher-}{Lists} &
+\enc{Amazon}{School Lists} &
+\enc{1st Day}{Supplies} &
+\enc{Pana-}{mericana} &
+\enc{Grupo}{Éxito} &
+\enc{Papelería}{Primavera} &
+\enc{Mercado}{Libre} &
+\enc{\textbf{Tukit}}{} \\
+\midrule
+Parte de la lista oficial del colegio
+  & \cumple & \cumple & \cumple & \nocumple & \nocumple & \nocumple & \nocumple & \cumple \\
+Lee listas en foto, PDF o texto
+  & \nocumple & \nocumple & \nocumple & \nocumple & \nocumple & \nocumple & \nocumple & \cumple \\
+Reconoce el vocabulario escolar local
+  & \nocumple & \nocumple & \nocumple & \nocumple & \nocumple & \nocumple & \nocumple & \cumple \\
+Arma el kit completo
+  & \parcial & \parcial & \cumple & \nocumple & \parcial & \parcial & \parcial & \cumple \\
+Ofrece un catálogo general, más allá de la lista escolar
+  & \parcial & \cumple & \nocumple & \cumple & \cumple & \cumple & \cumple & \nocumple \\
+Considera productos de varias tiendas
+  & \parcial & \nocumple & \nocumple & \nocumple & \nocumple & \nocumple & \parcial & \cumple \\
+Controla directamente su inventario y disponibilidad
+  & \nocumple & \cumple & \cumple & \cumple & \cumple & \cumple & \parcial & \nocumple \\
+Ofrece varias alternativas según presupuesto y preferencias
+  & \nocumple & \nocumple & \nocumple & \nocumple & \parcial & \nocumple & \parcial & \cumple \\
+Disponible en Colombia
+  & \nocumple & \nocumple & \nocumple & \cumple & \cumple & \cumple & \cumple & \cumple \\
+\bottomrule
+\end{tabular}
+
+\vspace{2pt}
+{\footnotesize \cumple\ Cumple \quad \parcial\ Cumple parcialmente \quad \nocumple\ No cumple}
+\end{table}

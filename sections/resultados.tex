@@ -1,0 +1,384 @@
+\setcounter{subsection}{0}
+\section{RESULTADOS}
+
+Este capítulo presenta los resultados de las Fases~3, 4 y~5 del proyecto, ligadas a los objetivos
+tercero, cuarto y quinto. Los de los componentes de datos y de recuperación siguen la fase de
+evaluación de CRISP-DM, y los del código, el plan del informe de pruebas
+(Sección~\ref{sec:calidad}). Cada cifra va con su muestra, su condición y su grado de respaldo: recalculada desde una
+salida conservada, respaldada por una salida existente o solo reportada. Cuando dos fuentes
+discrepan o falta el programa que produjo una cifra, el texto lo dice en lugar de dar un valor.
+
+% =====================================================================
+\subsection{Percepción documental}
+\label{sec:percepcion}
+
+El primer criterio del árbol de utilidad exige extraer de una lista escolar, entregada como imagen
+o PDF sin estructura, los renglones con su cantidad y su descripción. El 1 de septiembre de 2026,
+los prototipos de tesis compararon cinco motores sobre CGS-10, un conjunto de oro de diez documentos
+y 1.293 ítems. La métrica es F1 en sus variantes micro, agregada sobre todos los renglones, y macro,
+promediada por documento (Tabla~\ref{tab:percepcion}).
+
+\begin{table}[htbp]
+\centering
+\caption{Percepción documental en los prototipos de tesis (CGS-10, diez documentos)}
+\label{tab:percepcion}
+\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\textbf{Enfoque} & \textbf{F1 micro} & \textbf{F1 macro} \\
+\midrule
+Gemini (multimodal) & 0,948 & 0,944 \\
+Google Vision & 0,673 & 0,672 \\
+GOT-OCR2.0 & 0,597 & 0,569 \\
+Docling & 0,364 & 0,424 \\
+OCR con reglas heurísticas & 0,298 & 0,419 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Los valores se recalcularon desde la salida conservada de la comparación, con su regla de
+emparejamiento (similitud mínima de 0,75), sin volver a ejecutar los motores. El acta del OE3, que
+está pendiente de firma y no forma parte de la entrega, consigna 0,925, un valor que no proviene de
+esa salida. La Figura~\ref{fig:bench-F3-2} añade la latencia por documento que registra la misma
+salida; puede incluir esperas por el límite de tasa, de modo que no sirve para verificar DP-04 del
+SRS. La latencia de la percepción en el sistema construido sigue pendiente: la verificación usó una
+percepción simulada, y la medición con el modelo real corresponde al segundo nivel de las pruebas
+(ESC-D1 del ATAM).
+
+La comparación tiene tres amenazas a su validez. La principal es el oro: CGS-10 se armó corrigiendo,
+en cada documento, la extracción de uno de los motores evaluados, sin un segundo anotador. Coincide
+con la salida de Gemini en el 86,7\,\% de los ítems literales y en el 93,1\,\% sin tildes ni
+puntuación, así que el 0,948 no es independiente de esa salida. La segunda es la muestra: diez
+documentos y una sola corrida por motor. La tercera es que el sistema construido usa otro modelo de
+Gemini, con temperatura 0 y sin semilla. La ventaja del modelo multimodal frente a las reglas es
+amplia, pero su magnitud está sesgada a favor del motor elegido.
+
+\input{\graficasdir/F3-2.tex}
+
+% =====================================================================
+\subsection{Recuperación y normalización}
+\label{sec:recuperacion}
+
+El 2 de septiembre, los prototipos de tesis compararon cuatro estrategias sobre PostgreSQL con
+pgvector: léxica pura, léxica expandida, vectorial densa e híbrida con fusión recíproca de rangos
+(RRF, $k=60$). El sistema construido adoptó en su lugar la fusión aditiva de una sola fase
+descrita en la Sección~\ref{sec:normalizacion}.
+
+\subsubsection{Latencia}
+
+La léxica pura tuvo un p50 de 6,66\,ms y una media de 40,60\,ms; la léxica expandida, de 6,59 y
+52,76\,ms; la vectorial densa, de 46,51 y 106,61\,ms, y la híbrida con RRF, de 53,17 y 155,51\,ms.
+La medición registra el tiempo y el número de resultados, no la relevancia, y no documenta un
+calentamiento; la media está entre dos y ocho veces el p50 por las colas largas. En la misma fecha, con 50 consultas
+en CPU, pgvector con índice HNSW tuvo una media de 5,06\,ms (p95 de 6,22\,ms); la búsqueda exacta en
+pgvector, 363,68\,ms, y el índice HNSW de FAISS, 0,098\,ms. El QA acepta los 5,06\,ms de pgvector
+por sus garantías transaccionales. La latencia de la recuperación del sistema construido sigue
+pendiente; la prueba de carga de la verificación midió la consulta del catálogo, no la recuperación
+de candidatos (Sección~\ref{sec:calidad}).
+
+\subsubsection{Calidad de la recuperación}
+
+Con la biblioteca de MTEB \citep{muennighoff_mteb_2023} se compararon dos modelos de embedding en
+la tarea SpanishPassageRetrievalS2P, de pasajes de salud y de dominio distinto al escolar.
+multilingual-e5-large obtuvo un MRR@10 de 0,6163, frente a 0,4735 de
+paraphrase-multilingual-mpnet-base-v2; las salidas no registran la versión de la biblioteca. Los
+550,14\,ms y 69,88\,ms que algunos documentos técnicos presentan como latencia por consulta resultan
+de dividir el tiempo total de la tarea entre un número aproximado de consultas (1.088,20\,s entre
+1.978,03 en el modelo grande), así que no lo son. El resultado tampoco describe el sistema
+construido, que calcula los embeddings con gemini-embedding-001 desde el 23 de septiembre de 2026.
+
+Sobre Recall@10 hay una discrepancia sin resolver. Un informe de los prototipos reporta 1,0000. La
+única salida conservada, la de las 50 consultas, da 0,10 tanto para FAISS como para pgvector con
+HNSW frente a la búsqueda exacta, y el programa que la produjo no se conserva. En el banco de
+alternativas, la búsqueda exacta sobre 10.000 vectores sintéticos mantuvo un Recall@10 de 1,0. Este
+capítulo no afirma un valor de Recall@10 para los índices aproximados.
+
+\input{\graficasdir/F5-2.tex}
+
+\subsubsection{Acuerdo en la clasificación del corpus}
+
+El 7 de septiembre, los prototipos de tesis midieron un kappa de Cohen de 0,7331 sobre 200 pares de
+12 documentos, que se reprodujo desde las entradas conservadas; su intervalo de confianza del
+95\,\% por remuestreo es [0,670; 0,794]. Un segundo valor, 0,7049 con 25 documentos, no se puede
+recalcular. El kappa no mide el acuerdo entre dos personas: compara la categoría que asigna una
+heurística con la que asigna un modelo de lenguaje, en 45 de las 48 categorías del corpus. Por eso
+no cumple la meta del SPMP, un kappa de 0,7 o más con un segundo anotador humano sobre al menos 30
+documentos, y el límite inferior del intervalo queda además por debajo de 0,7.
+
+\subsubsection{Umbral de resolución automática}
+
+Los tres valores del umbral (Sección~\ref{sec:normalizacion}) operan sobre escalas distintas y no
+son intercambiables. El de 0,630 se calibró con 542 ítems y un AUC de 0,880, pero 186 de sus
+etiquetas (34,3\,\%) se propagaron a descripciones idénticas. La muestra efectiva es de 356
+descripciones, así que los intervalos que tratan los 542 ítems como independientes son más estrechos
+de lo justificado, y el mismo conjunto sirvió para elegir el umbral y para medirlo. La
+Figura~\ref{fig:bench-F5-2} muestra cómo cambian la cobertura y la precisión del primer candidato
+al desplazarlo; en 0,630 se resuelven 354 de los 542 ítems (65,3\,\%), y 307 de ellos (86,7\,\%)
+correctamente.
+
+La única medición del umbral de 0,75 pertenece a una línea de desarrollo del 4 de octubre, anterior
+a la versión evaluada y no integrada en el sistema construido. Un conjunto de oro de 2.588
+renglones, tomados de 4.719 ítems y 98 conceptos, midió la regla de una versión anterior. Las
+versiones evaluada y construida conservan el umbral, pero cambiaron el análisis del renglón y el
+catálogo, de modo que la medición no las describe. Aquella regla resolvió de forma directa 2.252 renglones, 2.234 de ellos
+correctos (precisión directa de 0,992), dejó 298 en la zona gris (11,51\,\%) y 38 fuera de la
+resolución. Sobre todas las líneas, el acierto fue de 0,9784; si en la zona gris decide el
+acudiente, de 0,9737, y si decide el sistema, de 0,8632. La medición solo ejercita el canal léxico,
+porque los 609 productos tenían el embedding vacío, y 1.138 de sus renglones son coincidencias
+exactas triviales. El umbral de 0,75 sigue sin calibrar.
+
+\subsubsection{Extremo a extremo}
+
+La cifra de 83\,\% sobre 60 sublistas y 2.176 ítems, del servicio de búsqueda anterior, mide la
+fracción de ítems con al menos un candidato recuperado (83,04\,\%), no la resolución. En esa
+corrida, 769 ítems (35,3\,\%) se resolvieron de forma automática, 795 (36,5\,\%) pasaron a revisión
+y 612 (28,1\,\%) quedaron sin correspondencia. Se ejecutó sin conexión, en una base de prueba, sobre
+un espejo de 838 productos con los 48 nombres más cortos de cada categoría.
+
+De las primeras versiones del sistema construido hay una medición de distribución, no de precisión. Entre el 21 y el 23 de
+septiembre, un ensayo de huecos aplicó el pipeline a 14 PDF de listas, con 199 páginas y 4.414
+renglones. Se reconocieron 2.202; 926 terminaron en abstención (20,98\,\%), 626 sin coincidencia,
+66 como hueco del catálogo y 594 en una clase «fuera» que los documentos no definen. El ensayo dejó
+1.397 faltantes únicos para la curaduría del catálogo.
+
+\subsubsection{Auditoría de los kits}
+
+Las mediciones anteriores evalúan la resolución de cada renglón. Una línea de afinamiento de los
+kits evaluó además el resultado que recibe la familia. Una auditoría previa, del 7 de octubre,
+revisó los kits de un grado, Séptimo: al incorporar los atributos del catálogo, las líneas del
+Ahorrador que cumplen pasaron de 31 a 49 y las que no cumplen, de 30 a 3, y de ahí salieron los
+atributos y el filtro por renglón. El 11 y el 12 de octubre de 2026 se auditaron cuatro veces, renglón por renglón, los kits
+Ahorrador y Premium de las trece listas de 2026 del Colegio Agustiniano Ciudad Salitre. Un renglón
+cumple si los dos perfiles cobran lo que pide la lista, y son comprables todos los renglones salvo
+los que Tukit no vende, como los uniformes o los textos con título. Entre una auditoría y la
+siguiente se ajustaron la comparación de atributos y la curaduría de las listas y del catálogo, y
+antes de la cuarta el catálogo pasó de 679 a 1.030 productos con precio (Tabla~\ref{tab:kits}).
+
+\begin{table}[htbp]
+\centering
+\caption[Auditorías de los kits del Colegio Agustiniano Ciudad Salitre]{Auditorías de los kits del Colegio Agustiniano Ciudad Salitre, 11 y 12 de octubre de
+2026; las dos últimas, posteriores a la versión evaluada (cifras reportadas; costo de los trece kits de cada perfil)}
+\label{tab:kits}
+\small
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+\textbf{Auditoría} & \textbf{Comprables} & \textbf{Huecos} & \textbf{Cobros} &
+\multicolumn{2}{c}{\textbf{Costo (millones de pesos)}} \\
+\cmidrule(l){5-6}
+ & \textbf{que cumplen} & \textbf{declarados} & \textbf{sin cumplir} & \textbf{Ahorrador} &
+\textbf{Premium} \\
+\midrule
+1 (11 oct.) & 263 de 888 (29,6\,\%) & 240 & 589 & 13,9 & 32,0 \\
+2 (11 oct.) & 465 de 888 (52,4\,\%) & 385 & 242 & 9,9 & 17,6 \\
+3 (11 oct.) & 617 de 886 (69,6\,\%) & 220 & 49 & 9,0 & 14,2 \\
+4 (12 oct.) & 758 de 885 (85,6\,\%) & 69 & 58 & 8,1 & 17,3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+El cumplimiento subió en cada auditoría. Los cobros de un producto que no corresponde a lo pedido
+bajaron de 589 a 49 en las tres primeras y subieron a 58 en la cuarta, sobre todo por 23 renglones
+en los que el Ahorrador cobra un cuaderno que no dice ser grande. Los huecos no bajaron de forma
+continua: los 240 iniciales incluían 180 renglones que Tukit no vende, y de los 69 finales, 45 son
+de electrónica, que las tiendas registradas no ofrecen. El Premium se encareció en la cuarta
+auditoría porque cobra 151 renglones que antes eran huecos. Las cifras provienen de los informes de
+auditoría y cubren un solo colegio, cuyas listas se cargaron desde datos curados. Dependen de una
+clasificación humana de cada renglón. Las auditorías 1 y 2 midieron versiones del 5 y el 8 de
+octubre, que forman parte de la historia de la versión evaluada, y la segunda tiene su mismo código
+de producto. Las auditorías 3 y 4 midieron versiones intermedias del afinamiento, que el sistema
+construido integra con cambios posteriores en la tolerancia de las medidas, el tamaño del cuaderno
+y el catálogo, de modo que ninguna auditoría mide el sistema construido. El anexo
+CRISP-DM detalla cada iteración y sus límites.
+
+% =====================================================================
+\subsection{Optimización}
+\label{sec:optimizacion}
+
+Sobre la calidad del optimizador (Sección~\ref{sec:optimizacion-dev}) hay tres evidencias de
+alcance distinto. El 31 de julio, el banco de alternativas comparó NSGA-II con un algoritmo voraz y
+uno aleatorio en nueve instancias sintéticas: halló el óptimo en ocho y quedó a un 0,07\,\% de él,
+frente al 11,92\,\% del voraz y el 159,34\,\% del aleatorio. Solo se conserva el informe, y el
+problema tenía tres objetivos, de modo que no valida el optimizador del sistema construido. En este,
+las pruebas calculan un hipervolumen \citep{zitzler_multiobjective_1999} en dos dimensiones sobre un
+ejemplo de enumeración y comprueban, con 65.536 combinaciones, que el frente de NSGA-II no tenga
+soluciones dominadas y que la semilla lo haga reproducible; no hay registro de su ejecución. Un
+banco del 4 de octubre, que forma parte de la versión evaluada, compara NSGA-II con un óptimo exacto
+por programación dinámica sobre 174 listas del corpus. En el Ahorrador lo iguala en el 100\,\% de
+las listas. Con presupuesto, el kit recomendado daba el 40\,\% de la calidad posible; después del
+ADR 0020 cabe siempre en el tope e iguala el óptimo. Son cifras reportadas con una sola semilla y no
+reproducidas, y la resolución usó solo el canal léxico y una foto fija del catálogo. El hipervolumen
+sigue sin calcularse fuera de la prueba automatizada.
+
+Sobre 29 listas reales, otra medición reportada dio 5,3~s de media, 6,3~s de mediana y 9,0~s de
+máximo para producir todos los kits de una lista, en una CPU de 16 núcleos sin otras cargas. El
+máximo supera los 8~s de DP-03. No es la prueba del escenario ESC-D4 del ATAM, que pide al menos 30
+ejecuciones y el percentil 95, y midió el optimizador anterior a las correcciones del 4 y el 7 de
+octubre. El tiempo en el peor caso de la versión evaluada sigue pendiente.
+
+% =====================================================================
+\subsection{Verificación de la versión evaluada}
+\label{sec:calidad}
+
+Los porcentajes de cobertura que citan algunos documentos sobre los microservicios anteriores no
+son mediciones. Son los umbrales mínimos que su integración continua exigía para aprobar: 90\,\% en
+cuentas y en comercio, 84\,\% en instituciones y 80\,\% en búsqueda. Esas ejecuciones terminaron con
+éxito el 18 de septiembre de 2026, de modo que la cobertura alcanzó al menos el umbral, pero no se
+conserva el valor medido.
+
+La versión evaluada se verificó con un plan de diez fases, distintas de las cinco del proyecto:
+la línea base (0), la matriz de requisitos no funcionales (1), las pruebas unitarias, de
+integración, funcionales con conjuntos de oro, adversariales de la IA y de los patrones de
+resiliencia (2 a 6), la degradación de componentes (7), la carga (8), la telemetría (9) y el
+informe (10). Es un resultado de la Fase~4 de la VFP, que espera pruebas automatizadas del motor de
+optimización y de las interfaces, y cubre en parte las pruebas funcionales, no funcionales y de
+carga de la Fase~5. El informe de pruebas de la entrega reúne el método, las evidencias y los
+resultados. Las fases 0 a 6 corrieron sobre la versión de integración del 8 de octubre de 2026,
+cuyo código de producto es el mismo de la versión evaluada salvo la integración continua y dos
+valores por omisión de la base de datos. El primer nivel de las fases 7 a 9 corrió sobre la versión
+evaluada, en una sola corrida, en una máquina virtual de 4 procesadores y 8~GiB y con la percepción
+simulada. La verificación no hizo ninguna llamada real al modelo: el simulador atendió 2.342
+percepciones.
+
+Con las pruebas propias del sistema pasan 1.647 pruebas, y la cobertura es de 72,43\,\% de 12.039
+sentencias. Con las que añadió la verificación, pendientes de integrar, pasan 3.911, otras 129 son
+fallas esperadas que documentan defectos y la cobertura sube a 94,32\,\%. La integración continua
+ejecuta las pruebas, pero no mide la cobertura, y su estado en la versión evaluada no se comprobó.
+El modelo del catálogo difiere de sus migraciones en dos valores por omisión. De las 60 filas de la
+matriz que liga cada meta con su ensayo, se ejecutaron 36: 7 cumplen, 7 cumplen en lo medido a la
+espera de los niveles 2 y 3, y 22 no cumplen. Otras 13 están pendientes, 2 esperan un hallazgo ya
+anticipado, 8 no se pueden medir con los componentes actuales y 1 es el protocolo con usuarios.
+Quedan 78 hallazgos abiertos: 14 de severidad alta, 56 de severidad media y 8 de severidad baja.
+
+El primer nivel de las fases 7 a 9 dejó 18 ensayos, de los que 14 cumplen y 4 no. En la carga, una
+rampa hasta 100 usuarios generó 27.894 peticiones sin errores, y el percentil 95 de la consulta del
+catálogo fue de 22~ms con un usuario y de 160~ms con cien, por debajo de los 300~ms de la meta. No
+hubo ningún rechazo por límite de tasa porque la versión evaluada no tenía limitador, de modo que en
+ella esa meta no se cumple; el sistema construido añade uno con Redis, pendiente de medición. En la degradación, siete de diez caídas de un componente cumplieron: los demás servicios
+siguieron respondiendo sin errores y se recuperaron en 2,5~s o menos. Con el catálogo colgado, el
+disyuntor abrió a los 26,3~s, dentro de los 30~s del escenario ESC-R2, porque cada intento falló
+en unos 5~s. Si cada intento agotara su espera, el modelo da 300,8~s desde inteligencia y 150,8~s
+desde comercio. Ese peor caso no se midió, y el hallazgo queda acotado, no corregido. Pasados los
+30~s, con diez llamadas simultáneas, el disyuntor deja pasar las diez en lugar de una sola de
+prueba.
+
+Las tres caídas que no cumplieron dejaron ver tres limitaciones de la versión evaluada. Con el
+catálogo detenido, subir una lista respondía con un error 500 y la lista no se guardaba. Después de
+caer la base de datos o el intermediario de mensajes, los procesos de fondo morían y no se
+reiniciaban. Y un mismo pago producía dos avisos al acudiente, sin cobro doble. El sistema
+construido corrige las tres. Con el catálogo caído, la subida responde 202, guarda lo percibido y
+la lista se importa cuando el catálogo vuelve (ADR 0031). Los procesos de fondo sobreviven a las
+caídas pasajeras de la base o del intermediario, aunque un error de programación todavía los
+detiene (ADR 0032), y un evento produce un solo aviso (ADR 0033). La corrección se verificó el 20
+de octubre de 2026 en una versión de trabajo, antes de integrarla: la subida responde 202 en
+33~ms y se recupera en 2,7~s, los procesos de fondo se recuperan en 7,1~s y 6,9~s, y el pago
+produce un solo aviso. Esa verificación no volvió a correr los demás ensayos, y la corrida
+completa sobre el sistema construido está pendiente.
+
+Quedan pendientes la corrida completa sobre el sistema construido y la medición de lo que añadió
+después de la versión evaluada: las colas por RabbitMQ, la caché y el límite de tasa con Redis, las sugerencias de dirección, el alta de
+colegios no aliados y la comparación por atributo. También lo están los niveles 2 y 3 de la
+degradación, la carga y la telemetría, con la percepción real, el pico estacional y las caídas
+combinadas, y el estudio con usuarios de la Fase~5
+(Sección~\ref{sec:oe5}). En la telemetría, las trazas no llevan el identificador de correlación, de
+modo que una carga no se puede seguir de extremo a extremo.
+
+% =====================================================================
+\subsection{Auditoría de seguridad y privacidad}
+\label{sec:defectos}
+
+Dentro del OE2 se hicieron dos auditorías, listadas en la Tabla~\ref{tab:anexos}: la de
+autorización y la de tratamiento de datos personales (Anexo~M), esta conforme a la Ley 1581 de 2012
+\citep{congreso_ley1581_2012} y al Decreto 1377 de 2013 \citep{presidencia_decreto1377_2013}. Las
+dos revisaron el código de los microservicios anteriores. La de autorización revisó 152 puntos de
+entrada y encontró 22 sin una comparación completa de ámbito: 8 sin ninguna y 14 con una parcial.
+El Anexo~M registra catorce defectos, dos críticos y cinco de severidad alta.
+
+\subsubsection{Defectos de los microservicios anteriores}
+
+El de mayor alcance estaba en las políticas de seguridad a nivel de fila de las tablas con datos de
+estudiantes. La condición base concedía visibilidad de la tabla completa cuando el contexto de
+usuario no estaba establecido, de modo que el error más probable en un sistema distribuido, que un
+servicio olvide fijar ese contexto, otorgaba acceso irrestricto. Una segunda cláusula daba acceso
+completo al rol de administrador comparando solo el identificador del usuario, sin ancla de ámbito,
+y ese defecto motivó el modelo de autorización con ámbito del capítulo de diseño. El ADR 0015 lo
+registra en 16 tablas de cinco servicios y advierte que corregirlo va antes que su propia decisión;
+las migraciones posteriores conservaban la apertura, sin pruebas de regresión. Entre los demás, el
+manejador genérico de errores de validación devolvía al cliente el valor rechazado, contraseña
+incluida, y la supresión de datos se marcaba como completada sin confirmación de los servicios.
+
+\subsubsection{Estado en el sistema construido}
+
+El sistema construido no tiene políticas de seguridad a nivel de fila. El ámbito se controla en la
+aplicación, con la cadena de contención de identidad, que falla cerrada
+(Sección~\ref{sec:autorizacion}); las cifras de 152 y 22 son las de la auditoría, no una medición
+propia. De los catorce defectos del Anexo~M, dos están corregidos: el valor rechazado ya no vuelve
+al cliente, y el correo del acudiente ya no queda en un registro que la supresión no alcanza. El
+texto de la lista sin depurar se corrigió para la lista oficial, pero sigue en el documento que
+carga el acudiente; la depuración del nombre se sustituyó por la minimización
+(Sección~\ref{sec:percepcion-dev}), salvo en ese mismo documento. Los tres defectos de la supresión
+cambiaron de forma, pero la supresión sigue sin mecanismo: el estado de propagación existe en el
+modelo, sin publicador ni consumidor del evento.
+
+Cuatro siguen vigentes: la gestión de cuentas no deja registro de auditoría, el consentimiento por
+finalidad no se escribe ni se consulta, la respuesta de la importación de listas guarda el extracto
+completo del documento y ninguna tabla de auditoría tiene una política de purga. Otro no tiene
+efecto mientras no se escriba el registro de auditoría. Uno es parcial: las preferencias y los pesos
+del acudiente están cifrados, pero la razón de la recomendación queda en claro y no se borra. El de
+la anonimización no es evaluable, porque no hay ese proceso.
+
+Un defecto de comercio quedó corregido en la versión evaluada. La consulta de los pedidos del
+acudiente toma el usuario de la sesión, validada con identidad, e ignora el que llegue en la
+consulta; el detalle, el pago y la cancelación de un pedido propio también exigen sesión, y un
+pedido ajeno responde 404. La puerta de enlace sigue sin exigir sesión.
+
+En el sistema construido siguen abiertos otros defectos. La consulta de contactos del servicio de identidad devuelve el correo de
+cualquier usuario activo sin autenticación, y las rutas de los paneles de catálogo, inteligencia y
+operación no exigen sesión ni rol. Cuatro caminos crean matrículas, y solo uno, el registro de un
+hijo desde la cuenta del acudiente, escribe el consentimiento del menor. El celular del acudiente se
+guarda sin cifrar en la base de identidad.
+
+Las pruebas propias del sistema no detectaron ninguno de estos defectos. Medir cuánto código
+ejecutan no dice si buscan las condiciones adversas correctas, y varias comprueban garantías leyendo
+el código fuente en lugar de ejecutar el comportamiento. La verificación de la versión evaluada
+(Sección~\ref{sec:calidad}) los confirmó y encontró otros. Un kit se puede comprar sin sesión, aun
+mientras espera revisión, y varias rutas internas aceptan llamadas sin verificar quién llama. Las
+cinco bases de datos comparten un mismo rol de acceso, de modo que las credenciales de cualquier
+servicio leen los usuarios de identidad. La página del documento cargado sale sin depurar hacia el
+proveedor del modelo (\mbox{PE-06}), y el nombre ficticio de las pruebas quedó guardado. El retracto existe
+en comercio, pero ninguna aplicación lo ofrece y la puerta de enlace no lo expone; además, se acepta
+pasado el plazo legal y no libera la reserva. Un pedido de 100.000 unidades fue aceptado para pago.
+La respuesta de la puerta de enlace expone direcciones internas, el mensaje de un trabajo fallido
+contiene la consulta SQL con sus parámetros y, sin la llave de cifrado, el cifrador guarda en claro
+sin avisar.
+
+% =====================================================================
+\subsection{Validación con usuarios (OE5): planificada y pendiente}
+\label{sec:oe5}
+
+El quinto objetivo específico de la VFP pide evaluar el sistema con pruebas funcionales, no
+funcionales, de carga y de usabilidad con usuarios reales, y medir la satisfacción y la reducción de
+la carga cognitiva frente al proceso tradicional de compra. La verificación de la
+Sección~\ref{sec:calidad} cubre en parte las pruebas funcionales, no funcionales y de carga. Las
+sesiones con usuarios, con SUS y NPS, son una actividad planificada de la Fase~5 que todavía no se
+ha hecho, y sus resultados no se estiman aquí. Los
+escenarios de prueba del ATAM fijan los criterios de aceptación, entre ellos un SUS de 68 o más y 50
+usuarios concurrentes con una tasa de error inferior al 1\,\%.
+
+El método es el de la VFP. Antes de involucrar participantes exige un protocolo ético aprobado
+\citep{lazar_research_2017}, conforme a la Ley 1581 de 2012 y al Decreto 1377 de 2013, porque la
+interacción toca datos de menores. Prevé sesiones observadas con tareas representativas, el
+cuestionario SUS \citep{brooke_sus_1996,bangor_empirical_2008,lewis_factor_2009} con al menos cinco
+participantes e idealmente veinte o más, verbalización concurrente, el índice NPS
+\citep{reichheld_one_2003} y, para la carga cognitiva, el conteo de interacciones discretas (clics,
+búsquedas y validaciones manuales) frente al flujo tradicional. UI-07 del SRS v6.1, el QA, la WBS y
+el ATAM usan NASA-TLX; como no hay una decisión registrada de ese cambio, el OE5 se juzga con el
+método de la VFP.
+
+El informe de pruebas propone un protocolo para esas sesiones. Recluta 30 acudientes que hayan
+comprado útiles escolares en los dos últimos años y no hayan usado Tukit, para llegar a 26 sesiones
+válidas; si no se alcanzan, el informe dará la muestra lograda y la potencia real, sin declarar
+cumplimiento. Cada sesión, de unos 45 minutos, compara la compra en dos o tres tiendas en línea con
+la obtención del kit en Tukit hasta un pago simulado, en orden contrabalanceado, con un estudiante
+ficticio y sin datos de menores. Quedan cinco decisiones abiertas, entre ellas quién facilita y
+observa las sesiones y quién tramita el aval de ética, si la universidad lo exige. El protocolo
+ético aprobado, los consentimientos y el análisis no forman parte de esta versión.

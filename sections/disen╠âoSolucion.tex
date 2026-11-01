@@ -1,0 +1,580 @@
+\setcounter{subsection}{0}
+\section{DISEÑO DE LA SOLUCIÓN}
+
+Este capítulo presenta el resultado de la Fase~2: la arquitectura de Tukit y las decisiones del
+diseño detallado. Su
+argumento central es que las fronteras entre servicios se justifican por las propiedades que
+los datos no pueden compartir, no por la carga que el sistema va a soportar.
+
+La exposición sigue la norma ISO/IEC/IEEE 42010 \citep{iso_42010_2022} en la separación
+entre preocupaciones de los interesados, puntos de vista y vistas, y el modelo 4+1 de
+Kruchten \citep{kruchten_41_1995} para distinguir la vista de desarrollo de la vista
+física, distinción que resulta central en la Sección~\ref{sec:monorepo}. Las alternativas se
+evaluaron con ATAM y las decisiones quedaron en registros de decisión de arquitectura.
+
+% =====================================================================
+\subsection{Impulsores arquitectónicos}
+\label{sec:impulsores}
+
+El diseño inicial justificaba la descomposición en microservicios por
+\emph{escalabilidad}. Un cálculo de carga con las cifras del mercado objetivo (diecisiete
+colegios en el corpus y una demanda concentrada en las semanas previas al inicio del año
+lectivo) mostró que la infraestructura mínima excede la demanda proyectada en unos tres
+órdenes de magnitud. Esa justificación no se sostenía. El rediseño condujo a tres criterios,
+ninguno de rendimiento, que resume la Tabla~\ref{tab:impulsores}.
+
+\begin{table}[htbp]
+\centering
+\caption{Impulsores arquitectónicos de la descomposición en servicios}
+\label{tab:impulsores}
+\small
+\begin{tabular}{@{}p{3.1cm}p{5.0cm}p{5.6cm}@{}}
+\toprule
+\textbf{Criterio} & \textbf{Fundamento} & \textbf{Qué separa} \\
+\midrule
+Recuperabilidad asimétrica &
+El objetivo de punto de recuperación difiere en órdenes de magnitud entre almacenes &
+El catálogo se reconstruye desde sus archivos de datos, una vez exportada al repositorio la
+curaduría del panel, y admite perder un día de cambios (CF-02a); un pedido no puede perder un
+solo byte. Compartir almacén obliga a dimensionar el
+respaldo por el más exigente y a exponer el crítico a la carga de escritura del volátil \\
+\addlinespace
+Frontera de cumplimiento &
+Ley 1581 de 2012 \citep{congreso_ley1581_2012} y Decreto 1377 de 2013
+\citep{presidencia_decreto1377_2013} &
+Los datos de menores de edad se aíslan en un servicio con base, proceso y llaves propios.
+La superficie que un auditor debe examinar se reduce a un solo componente \\
+\addlinespace
+Perfil de recurso &
+Heterogeneidad de la demanda computacional &
+La inferencia de modelos y la optimización multiobjetivo son intensivas en CPU y memoria;
+la gestión transaccional requiere disponibilidad y consistencia fuerte. Colocarlas juntas
+obliga a dimensionar todo por la más exigente \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Con estos criterios, el número de servicios que ya corría en los prototipos resultó
+aproximadamente adecuado; lo que estaba mal era la ubicación de algunas fronteras.
+
+% =====================================================================
+\subsection{De catorce servicios documentados a seis desplegables}
+\label{sec:consolidacion}
+
+La arquitectura de los documentos académicos iniciales proponía trece microservicios de
+dominio y una puerta de enlace, para separar al máximo las responsabilidades. Dos hechos la
+cuestionaron. El primero fue de costo y operabilidad: catorce desplegables implican catorce
+canales de integración y despliegue, catorce bases candidatas y una malla de red que un
+equipo de cuatro personas no puede operar, frente a una demanda proyectada de unos treinta y
+seis pedidos diarios en temporada. El segundo fue empírico: la base de grafos Neo4j,
+prevista para la sustituibilidad, estaba apagada por configuración y el grafo de conceptos
+cabía en memoria, por lo que el ADR 0006 la retiró y resolvió el grafo en proceso; su
+evaluación como GraphRAG consta en el anexo CRISP-DM. El sistema construido sustituyó a su
+vez ese grafo por una tabla curada y dirigida de sustituciones en el servicio de catálogo,
+que tiene modelo, migración y pruebas, aunque ningún servicio la consulta todavía.
+
+El ADR 0001 aplicó los tres criterios de la Tabla~\ref{tab:impulsores} y redujo los catorce
+servicios a seis más la puerta de enlace. Los microservicios anteriores, desarrollados entre
+el 2 y el 18 de septiembre de 2026, hicieron esa fusión el 10 de septiembre. Identidad y
+privacidad quedaron en un servicio de cuentas; catálogo, pedidos y última milla, en uno de
+comercio, y PQRS, analítica y notificaciones, en uno de plataforma. Aparte quedaron
+instituciones, una fachada para el panel de administración y el servicio de búsqueda.
+
+Esa reagrupación
+dejaba un servicio de respaldo para el panel de administración y un servicio de
+instituciones separado de las cuentas. Con la razón de cambio como criterio, los colegios
+pasaron a identidad, el catálogo se separó de comercio (ADR 0011), el panel consume la misma
+API que la aplicación del acudiente y la auditoría pasó a ser una biblioteca compartida
+(ADR 0002). El servicio de búsqueda anterior se dividió entre catálogo e inteligencia,
+porque sus objetivos de recuperación no permiten compartir almacén. El resultado es mejor
+para un equipo de cuatro personas: hay menos procesos que operar, cada servicio tiene un
+solo motivo para cambiar y ningún contrato se duplica. El sistema construido tiene seis
+desplegables con código, cinco servicios de dominio (identidad, catálogo, inteligencia,
+comercio y operación) y la puerta de enlace, sobre cinco bases.
+
+El diseño de la
+Fase 2 preveía un séptimo desplegable, ingesta, que extraía de forma masiva los productos y
+precios de las tiendas. El sistema construido lo reemplazó por un catálogo curado que crece
+con la demanda: un producto entra cuando una lista lo pide y el equipo confirma la
+correspondencia. Es mejor porque concentra el esfuerzo en los productos que las listas
+piden, reduce los candidatos de cada concepto de miles a decenas y evita publicar un
+producto parecido pero equivocado. En el sistema construido reúne 1.050 productos (1.040
+activos), 1.057 ofertas de ocho tiendas y 149 conceptos en archivos de datos versionados, y las herramientas que
+consultan las tiendas solo completan o enriquecen productos. Lo que el equipo cura en el
+panel queda en la base del catálogo hasta que se exporta a esos archivos (ADR 0028).
+
+% =====================================================================
+\subsection{Alternativas evaluadas}
+\label{sec:alternativas}
+
+Se compararon tres alternativas mediante el método ATAM \citep{bass_software_2021}, cuyos
+resultados completos se consignan en el documento de evaluación ATAM. La
+Tabla~\ref{tab:alternativas} sintetiza el contraste.
+
+\begin{table}[htbp]
+\centering
+\caption{Alternativas arquitectónicas evaluadas}
+\label{tab:alternativas}
+\small
+\begin{tabular}{@{}p{2.6cm}p{3.5cm}p{3.5cm}p{4.1cm}@{}}
+\toprule
+& \textbf{A. Monolito modular} & \textbf{B. Microservicios de grano fino} & \textbf{B$'$. Grano grueso (elegida)} \\
+\midrule
+Componentes & 1 desplegable, módulos internos & 13 servicios y puerta de enlace & 5 servicios de dominio y puerta de enlace, 5 bases \\
+\addlinespace
+Aislamiento de datos de menores & Por convención de código & Por servicio & Por servicio, base y llaves \\
+\addlinespace
+Punto de recuperación & Único para todo & Por servicio & Diferenciado por criticidad \\
+\addlinespace
+Complejidad operativa & Baja & Alta: coordinación distribuida en cada transacción & Media \\
+\addlinespace
+Costo de infraestructura & Mínimo & Alto & Moderado \\
+\addlinespace
+Puntaje ponderado (sobre 5,00) & 2,82 & 3,44 & 3,91 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La alternativa~A se descarta por el primer criterio de la Tabla~\ref{tab:impulsores}: un
+almacén único impone un mismo objetivo de recuperación a datos cuyo valor difiere en
+órdenes de magnitud. La alternativa~B se descarta por complejidad operativa: fragmentar la
+gestión de pedidos, inventario y pago en servicios separados convierte cada compra en una
+transacción distribuida, y el equipo no dispone de los recursos de operación que eso exige
+\citep{newman_building_2021}. La alternativa~B$'$ conserva el aislamiento donde el
+cumplimiento y la recuperabilidad lo exigen, y mantiene junta la transaccionalidad que
+debe permanecer junta. La matriz ponderada del ATAM le da 3,91 sobre 5,00, frente a 3,44 de
+la granularidad fina y 2,82 del monolito modular.
+
+La Figura~\ref{fig:c4-contexto} sitúa el sistema frente a sus actores y sistemas externos, y
+la Figura~\ref{fig:c4-contenedores} materializa la alternativa elegida: cinco servicios de
+dominio y la puerta de enlace sobre cinco bases de datos, con una bandeja de salida en cada
+base para entregar los eventos. Las dos salen del código fuente: la primera es una vista UML
+del modelo de arquitectura, y la segunda sigue el modelo C4. La vista de contenedores añade los procesos en segundo plano de cada servicio y numera
+los pasos de tres flujos: la subida de la lista y los kits, el pago y los avisos.
+
+Con RabbitMQ, un publicador por servicio productor lleva los eventos de su bandeja a una cola
+por consumidor, con una cola de reintentos y otra de descartados, y la entrega es al menos una
+vez, con consumidores idempotentes (ADR 0037). La bandeja sigue siendo la fuente de verdad. Sin
+RabbitMQ, cada consumidor lee la bandeja en la base del productor, sin tope de intentos ni cola
+de descartados. El manifiesto declara esas lecturas como respaldo, y una función de aptitud
+impide que el camino con RabbitMQ lea bases ajenas.
+
+\begin{figure}[!htb]
+\centering
+\includegraphics[width=\textwidth]{img/modelo/contexto.jpg}
+\caption[Vista de contexto: Tukit frente a sus actores y sistemas externos.]{Vista de contexto,
+en notación UML: Tukit frente a sus actores (el padre es el acudiente) y a los sistemas externos,
+agrupados por función. Cada flecha lleva la información que pasa entre las partes.}
+\label{fig:c4-contexto}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\input{img/arquitectura/c4-contenedores.tex}
+\caption{Vista de contenedores (C4 nivel 2) del sistema construido, con los procesos en
+segundo plano de cada servicio y los pasos de la subida de la lista y los kits (A), el pago (B)
+y los avisos (C).}
+\label{fig:c4-contenedores}
+\end{figure}
+
+Redis es opcional y solo guarda lo que se puede recalcular o perder (ADR 0038): el vector de cada
+renglón durante 24 horas, la lectura aceptada de cada lista durante 30 días y los contadores del
+límite de tasa de la puerta de enlace. Si no responde en 250~ms, cada servicio calcula sin caché
+y la puerta de enlace cuenta el límite en su memoria.
+
+% =====================================================================
+\subsection{Modelo de dominio y contextos delimitados}
+\label{sec:dominio}
+
+La descomposición sigue el enfoque de diseño guiado por el dominio \citep{evans_domain-driven_2004}.
+Cada servicio corresponde a un contexto delimitado con un lenguaje ubicuo propio, y las
+traducciones entre contextos ocurren explícitamente en los adaptadores.
+
+Las migraciones del sistema construido crean 74 tablas en cinco bases de datos, una por
+servicio (Tabla~\ref{tab:reparto}); la bandeja de salida de eventos se repite en las cinco,
+de modo que hay 70 nombres distintos. El recuento cambió durante la implementación, entre
+67 y 74 tablas según la versión.
+
+\begin{table}[htbp]
+\centering
+\caption{Reparto de tablas por contexto delimitado}
+\label{tab:reparto}
+\small
+\begin{tabular}{@{}lrp{8.4cm}@{}}
+\toprule
+\textbf{Servicio} & \textbf{Tablas} & \textbf{Responsabilidad} \\
+\midrule
+Identidad     & 16 & Personas, tenencia, autorización y consentimiento. Frontera de cumplimiento \\
+Catálogo      & 19 & Qué productos existen y a qué precio público. Reconstruible desde sus archivos de datos (CF-02a) \\
+Inteligencia  & 12 & Percepción, normalización, resolución y optimización \\
+Comercio      & 18 & Pedidos, inventario, pagos y entrega. Irremplazable \\
+Operación     & 9  & Casos, notificaciones, auditoría y telemetría. Solo anexar \\
+\midrule
+\textbf{Total} & \textbf{74} & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{La matrícula como ancla de tenencia}
+
+El modelo de datos de los microservicios anteriores no sabía a qué colegio pertenecían los
+pedidos ni los usuarios: el identificador de institución aparecía cero veces en los
+servicios de comercio y de cuentas. Donde sí existía, lo enviaba el cliente en el cuerpo de
+la petición sin validación alguna, lo cual es peor que su ausencia porque aparenta un
+control que no existe.
+
+La solución aparentemente obvia, un identificador de colegio en el usuario, es incorrecta,
+porque un acudiente puede tener hijos en colegios distintos (CO-04). La tenencia reside, en
+cambio, en la relación $\langle$estudiante, sede, grado, año lectivo$\rangle$, que se modela
+como la entidad matrícula, con una relación de muchos a muchos con los acudientes
+(ADR 0012). Su identificador viaja a los otros cuatro servicios como referencia lógica y es
+el eje de las políticas de visibilidad. Se ubica en la \emph{línea} del pedido y no en su
+cabecera, porque en la cabecera dos hermanos obligarían a dos pedidos y a dos pagos, lo que
+contradice la propuesta de valor del producto. La comprobación de que cada línea apunta a
+una matrícula visible para el acudiente está pendiente.
+
+\subsubsection{Asimetría entre lectura y escritura}
+
+Las políticas de visibilidad son deliberadamente asimétricas. Para \emph{leer} un recurso
+basta que toque alguna matrícula visible para el solicitante; para \emph{escribirlo} se
+exige que \emph{todas} las matrículas que el recurso referencia estén contenidas en su
+ámbito. Un pedido con dos hermanos, uno visible y otro no, puede consultarse pero no
+modificarse. La simetría ingenua produciría, en ese escenario, una fuga de información o un
+sistema inutilizable.
+
+% =====================================================================
+\subsection{Autorización con ámbito y seguridad a nivel de campo}
+\label{sec:autorizacion}
+
+El modelo de autorización de los microservicios anteriores representaba el rol como una
+cadena de texto en la tabla de usuarios, y el control de acceso se reducía a verificar que
+esa cadena perteneciera a un conjunto permitido. Dos usuarios con el mismo rol sobre
+colegios distintos superaban, así, exactamente el mismo control. La única defensa consistía
+en que cada punto de entrada recordara comparar el colegio del token con el del recurso
+solicitado, y la auditoría de los 152 puntos de entrada de esos servicios encontró 22 en los
+que esa comparación faltaba o era parcial (Sección~\ref{sec:defectos}).
+
+El diagnóstico requiere precisión. Uno de esos servicios, el de instituciones, ya definía
+una relación de pertenencia con la tripla \emph{(usuario, institución, rol)}, introducida
+para corregir una referencia directa insegura real. Expresar autoridad con ámbito no era,
+por tanto, imposible: el defecto era de alcance y de completitud. El mecanismo cubría un
+servicio de siete; admitía un único nivel de ámbito, la institución, cuando el recurso
+protegido pertenece a una sede y un grado; permitía un solo rol por institución, y carecía
+de vigencia temporal. Esta última carencia producía una contradicción ilustrativa: la
+documentación del modelo justificaba conservar el vínculo para auditar quién tuvo acceso y
+cuándo, pero la única forma de revocarlo era eliminarlo. El diseño generaliza esa solución,
+ya validada contra un ataque real, con la jerarquía de ámbitos, la vigencia temporal y la
+aplicación uniforme a todos los servicios.
+
+Con el control de acceso basado en roles con ámbito, la pregunta que el sistema responde
+deja de ser \emph{qué es este usuario} y pasa a ser \emph{qué puede hacer este usuario sobre
+este recurso concreto}:
+
+\begin{equation}
+\mathrm{puede}(u, p, a) \iff \exists\, r \in \mathcal{R}_{\text{vig}}(u, a) : (r, p) \in \mathcal{P}
+\end{equation}
+
+\noindent donde $\mathcal{P}$ es el conjunto de pares de rol y permiso, y
+$\mathcal{R}_{\text{vig}}(u, a)$ el de roles vigentes del usuario $u$ sobre el ámbito $a$ o
+sobre cualquier ámbito que lo contenga, según la jerarquía
+$\text{global} \succ \text{colegio} \succ \text{sede} \succ \text{matrícula}$. La contención
+opera en un solo sentido: un rol otorgado sobre un colegio alcanza sus sedes, pero ser
+acudiente de una matrícula no confiere autoridad sobre la sede.
+
+\subsubsection{La función falla cerrada}
+
+Las políticas de seguridad a nivel de fila de los microservicios anteriores iniciaban su
+condición base verificando si el contexto de usuario era nulo, de modo que toda conexión sin
+contexto establecido veía la tabla completa. El control fallaba \emph{abierto}, y su modo de
+fallo más probable, omitir el contexto, era precisamente el que concedía acceso total. La
+función aquí especificada no tiene ninguna rama que conceda por ausencia de información.
+
+En el sistema construido, identidad guarda las asignaciones de rol con su vigencia y los
+pares de rol y permiso, y evalúa los permisos con ámbito (ADR 0012); las rutas protegidas
+de inteligencia fallan cerradas (SG-06). La aplicación uniforme está pendiente (AD-03 y
+SG-02): solo una ruta de producción consulta la función de permiso, y varias rutas que
+devuelven datos personales no exigen sesión ni rol. Tampoco hay políticas de seguridad a
+nivel de fila, de modo que la evaluación local del ADR 0015 sigue siendo diseño
+(Sección~\ref{sec:defectos}).
+
+\subsubsection{Dos ejes independientes, no uno}
+
+La seguridad a nivel de campo usa el mismo mecanismo, con un componente de campo en el
+permiso: leer un estudiante y leer su nombre son permisos distintos. El rediseño inicial
+afirmó que esos permisos se derivaban \emph{automáticamente} del metadato de clasificación de
+datos, y el análisis del registro de tratamiento mostró que no es así. La clasificación mide
+sensibilidad y el permiso expresa quién puede ver qué: son dos ejes independientes. De la
+clasificación solo se deriva el valor por omisión, de modo que todo campo clasificado como
+dato de menor o como personal sensible nace denegado y todo campo público nace permitido.
+Colapsar ambos ejes conduce a implementar la mitad del mecanismo creyendo que está completo.
+
+% =====================================================================
+\subsection{Protección de datos personales desde el diseño}
+\label{sec:datos}
+
+El sistema trata datos de menores de edad, datos personales de los acudientes, como el
+contacto y la dirección de entrega, y datos de las instituciones educativas. La Ley 1581 de
+2012 \citep{congreso_ley1581_2012} rige los dos primeros, y los terceros cuando identifican
+a personas naturales: exige autorización previa y una finalidad legítima informada al
+titular, y reconoce el derecho de supresión.
+
+Se adoptó un esquema de cinco niveles de clasificación (público, interno, personal,
+personal sensible y dato de menor), aplicado campo por campo en el registro de tratamiento
+(Anexo~M), que cubre las cinco bases del sistema construido. Su primera versión, sobre los
+microservicios anteriores, revisó 398 columnas de 50 tablas y encontró 126 campos con datos
+personales, 20 de ellos clasificados como dato de menor.
+
+\subsubsection{Políticas que el esquema anterior no podía sostener}
+
+El ejercicio reveló un patrón recurrente: políticas correctamente enunciadas en la
+documentación que el esquema hacía inejecutables. La Tabla~\ref{tab:politicas} recoge los
+casos y su corrección.
+
+\begin{table}[htbp]
+\centering
+\caption{Políticas inejecutables y su corrección en el esquema}
+\label{tab:politicas}
+\small
+\begin{tabular}{@{}p{4.3cm}p{5.0cm}p{4.4cm}@{}}
+\toprule
+\textbf{Política enunciada} & \textbf{Por qué era inejecutable} & \textbf{Corrección} \\
+\midrule
+Revocar el consentimiento del tratamiento de un menor &
+La tabla registraba que el acudiente autorizó el tratamiento de un hijo, pero ninguna
+columna indicaba de cuál. Con dos hijos, una fila los cubría de forma indistinguible &
+Referencia a la matrícula, con restricción de coherencia contra el régimen \\
+\addlinespace
+Destruir la llave de la matrícula 12 meses después del cierre &
+No existía columna que registrara el cierre &
+Fecha de cierre de la matrícula \\
+\addlinespace
+Informar al titular que su dato fue suprimido &
+El proceso marcaba la solicitud como completada tras anonimizar la fila local, sin esperar
+confirmación de ningún otro servicio &
+Estado de propagación y registro de los servicios que confirmaron \\
+\addlinespace
+Conservar evidencia de lo revocado &
+Una actualización sobrescribía la fila, eliminando la constancia de qué se autorizó y
+cuándo &
+Columnas de vigencia con índice único parcial sobre la fila vigente \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+El patrón tiene valor metodológico más allá de este proyecto: una política de tratamiento
+de datos es verificable solo si el modelo lógico expone las columnas que la hacen
+computable. Documentar la política sin instrumentar el esquema produce cumplimiento
+aparente. El riesgo inverso también existe: el sistema construido tiene esas columnas, pero
+la supresión propagada existe en el modelo y no como flujo de extremo a extremo
+(Sección~\ref{sec:defectos}). El SRS v6.1 deja la supresión propagada, el panel de privacidad
+y la retención automática fuera del alcance de este trabajo, y atiende los derechos del
+titular mediante un caso de soporte.
+
+\subsubsection{Minimización por columna: la dirección de entrega}
+
+Los microservicios anteriores no tenían ninguna dirección de entrega, en un negocio cuya
+propuesta de valor consiste en entregar el kit en el domicilio. Tampoco figuraba en el
+esquema objetivo, de modo que la omisión se arrastraba del código al diseño: un defecto por
+omisión sobrevive más que uno por comisión, porque nada lo señala.
+
+El dato es sensible de forma poco habitual: más que información de contacto, es la
+ubicación física del hogar de una familia con menores, cruzada con el colegio al que
+asisten. El ADR 0014 distingue dos cosas que se parecen sin ser la misma: la libreta de
+direcciones reutilizables del acudiente, en identidad, editable y sujeta a supresión, y la
+copia congelada en el envío, en comercio, inmutable una vez confirmado el pedido. El
+razonamiento es análogo al de congelar el precio en la línea del pedido: un hecho histórico
+y un dato editable son entidades distintas aunque se escriban igual. Si el envío
+referenciara la libreta, corregir un número de apartamento reescribiría el destino de una
+entrega pasada.
+
+La partición de columnas responde al principio de minimización. La ciudad y la localidad
+quedan en claro porque de ellas depende la asignación de la zona de reparto, mientras que
+la calle, el número y el teléfono se cifran en la aplicación: planificar una ruta requiere
+conocer la zona, no el apartamento. En el sistema construido esa partición rige para la
+libreta, que guarda cifrados la dirección y el contacto. La copia del envío conserva el
+destinatario y la dirección en claro, como prueba ante un reclamo de la Ley 1480 de 2011, de
+modo que la minimización por columna no cubre todavía el dato congelado.
+
+% =====================================================================
+\subsection{Organización del código y funciones de aptitud}
+\label{sec:monorepo}
+
+\subsubsection{Un repositorio no es un desplegable}
+
+La implementación se organiza en un monorrepositorio con seis desplegables independientes
+(ADR 0013). La decisión exige justificación porque contradice la asociación habitual entre
+microservicio y repositorio, asociación que carece de fundamento normativo. La norma
+ISO/IEC/IEEE 42010 \citep{iso_42010_2022} compone una descripción arquitectónica de vistas
+que responden a preocupaciones distintas, y el modelo 4+1 \citep{kruchten_41_1995} separa
+la \emph{vista de desarrollo}, que organiza módulos y bibliotecas, de la \emph{vista
+física}, que asigna el software a nodos de ejecución. Dónde vive el código y cómo se
+despliega son decisiones de vistas diferentes; en la terminología del modelo C4, un
+contenedor no equivale a un repositorio.
+
+La motivación concreta es medible. En los microservicios anteriores, trasladar una función
+de redacción de datos a la biblioteca compartida exigió modificar siete archivos de
+configuración de dependencias y publicar una etiqueta de versión antes de que cualquier
+servicio pudiera instalarla. En el monorrepositorio es un único cambio.
+
+\subsubsection{Fronteras verificadas, no declaradas}
+
+La objeción legítima al repositorio único es que facilita la erosión de las fronteras. La
+respuesta de este diseño es instrumentarlas mediante funciones de aptitud
+\citep{ford_building_2017}: pruebas automáticas y continuas sobre una característica
+arquitectónica. Un manifiesto declara, para cada servicio, su lenguaje, su base de datos,
+las tablas de las que es dueño y las referencias que cruzan hacia otros dominios, y doce
+pruebas lo verifican en cada cambio. Cinco revisan el código: que ningún servicio importe
+código de otro, declare una tabla de un dominio ajeno ni mencione la base de datos de otro;
+que toda referencia a otro dominio esté declarada, y que el lenguaje coincida con el
+declarado. Las otras cuatro revisan el propio manifiesto: que cuadre con el esquema
+objetivo, que sus referencias cruzadas sean coherentes, que ninguna tabla tenga dos dueños y
+que el grafo de dependencias entre servicios sea acíclico. Dos más, añadidas con las
+colas, comprueban que toda lectura de la base de otro servicio esté declarada, exista y sirva
+solo de respaldo sin RabbitMQ, y la última, añadida con Redis, que solo la biblioteca común de
+los servicios hable con Redis. Los registros de esas
+ejecuciones no forman parte de la entrega, así que aquí se describe lo que las pruebas
+comprueban y no su historial de resultados.
+
+La justificación de este mecanismo proviene del propio proyecto. El defecto más grave que
+encontró el rediseño fue que la tabla de productos del catálogo estaba declarada como
+maestra en dos servicios a la vez. No se produjo por falta de criterio, sino porque nada
+verificaba el criterio de forma continua, y esa falla de la disciplina humana sobre este
+mismo código basta para no depender solo de ella.
+
+Una función de aptitud que nunca ha fallado no está demostrada, pues podría no estar
+midiendo nada. Por ello el conjunto incluye un segundo nivel, con veintiocho pruebas, que
+suministra a los detectores infracciones plantadas y verifica que las detecten, además de
+casos que no deben marcarse. Entre esas infracciones están una tabla ajena declarada como
+el doble maestro y el ciclo de dependencias que existió. Ante una infracción plantada, la
+integración falla e indica el archivo, la línea, el dominio invadido y la remediación
+sugerida.
+
+% =====================================================================
+\subsection{Asignación de lenguajes: una decisión medida}
+\label{sec:lenguajes}
+
+La hipótesis de partida sostenía que los componentes intensivos en cómputo debían
+reescribirse en un lenguaje compilado. Antes de comprometer esfuerzo se perfiló una lista
+escolar de veinte ítems, la mediana del corpus real, contra un catálogo de 3.187 productos.
+Las cifras de esta sección son reportadas: las registra la documentación del código fuente,
+que remite a un informe de perfilado que no forma parte de la entrega, y el código del grafo
+perfilado ya no existe en el sistema construido. Sus salidas originales no se examinaron,
+aunque la aritmética entre las cifras es coherente.
+
+El resultado refutó la hipótesis por una vía inesperada. El 96,3\% de la latencia
+corresponde, en efecto, a cómputo en el intérprete de Python, pero el 95,3\% del total lo
+produce una sola línea, que reconstruye un grafo de sustituibilidad completo en cada ítem
+procesado. Construir el grafo cuesta 1.673~ms y consultarlo, 0,137~ms: cuatro órdenes de
+magnitud de diferencia. La Tabla~\ref{tab:latencia} presenta el desglose.
+
+\begin{table}[htbp]
+\centering
+\caption{Desglose de latencia por etapa (lista de 20 ítems, mediana)}
+\label{tab:latencia}
+\small
+\begin{tabular}{@{}p{6.2cm}rrp{3.2cm}@{}}
+\toprule
+\textbf{Etapa} & \textbf{p50 (ms)} & \textbf{\% total} & \textbf{Naturaleza} \\
+\midrule
+Expansión por grafo de sustituibilidad & 33.470,0 & 95,28 & CPU en Python \\
+Embedding de la consulta & 832,0 & 2,37 & CPU nativo (torch) \\
+Optimización NSGA-II & 362,2 & 1,03 & CPU en Python \\
+Percepción por reconocimiento óptico & 183,2 & 0,52 & CPU nativo \\
+Consultas a la base de datos & 274,3 & 0,78 & Espera de E/S \\
+Resto & 5,5 & 0,02 & \\
+\midrule
+\textbf{Total} & \textbf{35.127,2} & \textbf{100,00} & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Según la ley de Amdahl \citep{amdahl_validity_1967}, sobre el código tal como estaba y con
+una fracción paralelizable $P = 0{,}9633$, una aceleración de $50\times$ produciría una
+reducción del 94,4\%, cifra que en apariencia justificaría la reescritura. No la justifica,
+porque el mismo efecto se obtiene almacenando el grafo en caché. Corregido ese defecto, la
+latencia total desciende a 1.657~ms y la fracción de cómputo en Python cae a
+$P = 0{,}2219$, con lo que la reducción alcanzable por cambio de lenguaje queda entre el
+20,0\% y el 21,7\%. Las fuentes no declaran las aceleraciones supuestas; esos dos valores
+corresponden a $10\times$ y $50\times$ en $P\,(1 - 1/s)$. La cota se refiere al pipeline de
+resolución, no al servicio de comercio, cuyo desempeño no tiene medición (ADR 0003).
+
+Esa cota superior es además generosa. El 98,5\% de la fracción residual corresponde al
+optimizador NSGA-II \citep{deb_fast_2002} implementado sobre pymoo \citep{blank_pymoo_2020},
+biblioteca de la que no se documentó un equivalente maduro en Go. Migrar exigiría
+reimplementar el algoritmo, el operador de selección por pseudopesos y el cálculo de
+hipervolumen \citep{zitzler_multiobjective_1999}, es decir, reconstruir una biblioteca de
+investigación validada para recuperar 362~ms, el 1,03\% del total.
+
+Los seis desplegables del sistema construido están, por tanto, en Python. El único
+componente con un argumento técnico para un lenguaje compilado era la ingesta, por su perfil
+de concurrencia de red, y el catálogo curado la reemplazó (Sección~\ref{sec:consolidacion}).
+La estructura sigue siendo políglota: el manifiesto declara el lenguaje de cada servicio y
+una prueba lo verifica, de modo que incorporar un componente en otro lenguaje es una adición
+y no una reestructuración.
+
+% =====================================================================
+\subsection{Decisiones registradas}
+\label{sec:adr}
+
+Las decisiones arquitectónicas se documentan como registros en el formato propuesto por
+Nygard \citep{nygard_documenting_2011} (título, contexto, decisión, estado y consecuencias),
+al que el proyecto añade un apartado de alternativas consideradas. La entrega reúne
+treinta y ocho registros, numerados de 0001 a 0038, en el registro de decisiones de
+arquitectura (Tabla~\ref{tab:anexos}); la Tabla~\ref{tab:adr} destaca los que estructuran el
+diseño de este capítulo.
+
+El ADR 0015 ilustra una propiedad del método. Más que de una necesidad nueva, nació de una
+contradicción entre decisiones previas que solo se hizo visible al intentar implementarlas.
+Al redactar el criterio de aceptación de un requisito hubo que decir dónde se evaluaba una
+política de seguridad, y resultó que no podía evaluarse en ninguno de los tres servicios
+donde hacía falta, porque la matrícula vive en la base de identidad. Un registro de
+decisión, además de documentar lo decidido, hace detectables las contradicciones entre
+decisiones, porque obliga a escribir el fundamento en un lugar donde puede contrastarse con
+otro.
+
+\begin{table}[H]
+\centering
+\caption{Registros de decisión arquitectónica estructurales}
+\label{tab:adr}
+\small
+\begin{tabular}{@{}cp{5.0cm}p{7.6cm}@{}}
+\toprule
+\textbf{ADR} & \textbf{Decisión} & \textbf{Fundamento} \\
+\midrule
+0011 & Separar el catálogo del comercio & Elimina el doble maestro del catálogo. Los precios
+no se unifican: el costo contractual y el precio público observado son hechos distintos en
+lados opuestos de la asimetría de recuperación \\
+\addlinespace
+0012 & Matrícula como ancla de tenencia y roles con ámbito & Un acudiente puede tener hijos
+en colegios distintos: la tenencia no reside en la persona \\
+\addlinespace
+0013 & Monorrepositorio con despliegue independiente & Separación entre vista de
+desarrollo y vista física; fronteras instrumentadas con funciones de aptitud \\
+\addlinespace
+0014 & Dirección de entrega: libreta y copia congelada & Un hecho histórico y un dato
+editable son entidades distintas aunque se escriban igual \\
+\addlinespace
+0015 & Dónde se evalúa el ámbito cuando el ancla vive en otra base & Una política de fila
+no puede unirse contra otra base: se copia la clave de ámbito, no la lista de matrículas, y
+se deniega por omisión. Sigue siendo diseño (Sección~\ref{sec:defectos}) \\
+\addlinespace
+0037 & Eventos y trabajos por RabbitMQ, con la base de datos como respaldo & Una cola por
+consumidor, con reintentos y descartados; sin RabbitMQ, el sistema sigue por sondeo de las
+bandejas de salida \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =====================================================================
+\subsection{Síntesis}
+
+El diseño presentado se distingue del original en tres aspectos, que constituyen el aporte
+de ingeniería de este objetivo específico. El primero es la justificación de la
+descomposición, que pasó de la escalabilidad, refutada por el cálculo de carga, a la
+recuperabilidad asimétrica, la frontera de cumplimiento y el perfil de recurso. Con ella,
+los catorce servicios documentados se redujeron a seis desplegables con código, cuyas
+fronteras se trazaron de nuevo. El segundo es la matrícula, una entidad que el modelo
+anterior no tenía y que permite expresar tenencia, autoridad con ámbito y revocación
+parcial del consentimiento. El tercero es que las fronteras entre servicios dejaron de ser
+afirmaciones y pasaron a ser aserciones verificables de forma continua. La autorización
+uniforme y la depuración del nombre del menor en el documento cargado siguen pendientes.
