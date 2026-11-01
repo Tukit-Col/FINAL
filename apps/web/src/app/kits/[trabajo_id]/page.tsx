@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import { sesionActual } from "@/lib/sesion";
 import VistaKits from "./VistaKits";
+import AsistenteKitSlot from "./AsistenteKitSlot";
 
 export const dynamic = "force-dynamic";
 
@@ -29,5 +30,10 @@ export default async function PaginaKits({
   // queda editable, como estaba.
   const sesion = await sesionActual();
 
-  return <VistaKits trabajo={trabajo} correo={sesion?.correo ?? ""} />;
+  return (
+    <>
+      <AsistenteKitSlot />
+      <VistaKits trabajo={trabajo} correo={sesion?.correo ?? ""} />
+    </>
+  );
 }
