@@ -4,6 +4,7 @@ import { conAvisoDeLimite } from "@/components/ConAvisoDeLimite";
 import { entregaParaReintento, type EntregaPrevia } from "@/lib/pagar-pedido";
 import { matriculasDeLaSesion, pedidosDeLaSesion, sesionActual } from "@/lib/sesion";
 import VistaKits from "./VistaKits";
+import AsistenteKitSlot from "./AsistenteKitSlot";
 
 export const dynamic = "force-dynamic";
 
@@ -62,15 +63,18 @@ async function kits(trabajo_id: string, searchParams: Promise<{ pagar?: string }
   const llaveMaps = process.env.GOOGLE_MAPS_API_KEY?.trim() || null;
 
   return (
-    <VistaKits
-      trabajo={trabajo}
-      correo={sesion?.correo ?? ""}
-      llaveMaps={llaveMaps}
-      matriculas={matriculas.map(({ colegio_id, grado, apodo }) => ({ colegio_id, grado, apodo }))}
-      entregaPrevia={entrega}
-      // "Intentar de nuevo" (pago rechazado) llega con `?pagar=1`: el
-      // formulario de entrega ya abierto y lleno.
-      abrirPago={consulta.pagar === "1"}
-    />
+    <>
+      <AsistenteKitSlot trabajoId={trabajo_id} />
+      <VistaKits
+        trabajo={trabajo}
+        correo={sesion?.correo ?? ""}
+        llaveMaps={llaveMaps}
+        matriculas={matriculas.map(({ colegio_id, grado, apodo }) => ({ colegio_id, grado, apodo }))}
+        entregaPrevia={entrega}
+        // "Intentar de nuevo" (pago rechazado) llega con `?pagar=1`: el
+        // formulario de entrega ya abierto y lleno.
+        abrirPago={consulta.pagar === "1"}
+  />
+    </>
   );
 }
