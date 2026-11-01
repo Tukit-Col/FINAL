@@ -249,15 +249,17 @@ Bogotá durante 2026.
 \subsection{Marco metodológico, entregables, estándares y justificación}
 
 El proyecto siguió una metodología híbrida contenedora, llamada así porque reúne varios
-marcos de trabajo y le asigna a cada uno una función distinta. SCRUM [53] organizó la
+marcos de trabajo y le asigna a cada uno una función distinta. SCRUM \citep{schwaber_scrum_2020} organizó la
 construcción en ciclos cortos de dos semanas, en los que el equipo planeaba, construía y
 revisaba un avance funcional del sistema, y un tablero Kanban registró el estado de cada
-tarea. Design Thinking [55] guió el entendimiento de las familias y de los colegios, y con
-él la propuesta de valor y el modelo de negocio. RUP [54] aportó la gestión de riesgos y la
+tarea. Design Thinking \citep{brown_design_2008} guió el entendimiento de las familias y de los colegios, y con
+él la propuesta de valor y el modelo de negocio. RUP \citep{kruchten_rup_2003} aportó la gestión de riesgos y la
 trazabilidad, es decir, la posibilidad de seguir cada requerimiento hasta el componente de
-la arquitectura que lo atiende y la prueba que lo verifica. CRISP-DM [4] fue el proceso de
-referencia para los componentes que dependen de datos como la lectura de las listas, su
-correspondencia con el catálogo y el armado de los kits. Por último, las normas IEEE e ISO
+la arquitectura que lo atiende y la prueba que lo verifica. CRISP-DM \citep{chapman_crisp-dm_2000,wirth_crisp-dm_2000} fue el proceso de
+referencia para todos los componentes que dependen de datos: la lectura de las listas, su
+correspondencia con el catálogo, la traducción de preferencias en lenguaje natural y el armado de
+los kits. Para ello se extendió más allá de su primera etapa, la comprensión del negocio, como
+se detalla en la Tabla~\ref{tab:crispdm-oe}. Por último, las normas IEEE e ISO
 definieron la estructura de los documentos de ingeniería.
 
 El trabajo se dividió en cinco fases, una por cada objetivo específico, de modo que el
@@ -287,12 +289,13 @@ utilidad, ATAM sobre tres alternativas \citep{bass_software_2021} y vistas 4+1
 \citep{kruchten_41_1995} &
 Arquitectura y documento de diseño \\
 Percepción y normalización & OE3 & Datos, preparación, modelado y evaluación &
-Corpus anotado por dos evaluadores, con kappa de Cohen \citep{cohen_coefficient_1960};
-comparación de motores de lectura y de estrategias de búsqueda &
+Corpus de oro anotado por una persona; kappa de Cohen \citep{cohen_coefficient_1960} entre
+las reglas y un modelo de lenguaje; comparación de motores de lectura y de estrategias de
+búsqueda; calibración del umbral con revisión humana &
 Módulos de percepción y normalización \\
 Optimización e integración & OE4 & Modelado, evaluación y despliegue &
-Formulación multiobjetivo, NSGA-II \citep{deb_fast_2002} y búsqueda exacta, e
-integración en sprints &
+Formulación multiobjetivo, NSGA-II \citep{deb_fast_2002}, búsqueda exacta, utilidad
+multiatributo (MAUT), traducción de preferencias (NL2C) e integración en sprints &
 Optimizador, aplicación web y aplicación de administración \\
 Validación & OE5 & Evaluación &
 Pruebas funcionales, no funcionales y de carga; SUS \citep{brooke_sus_1996}, NPS
@@ -302,14 +305,81 @@ Informe de pruebas y evaluación con usuarios \\
 \end{tabularx}
 \end{table}
 
-Las etapas de CRISP-DM se recorrieron en varias iteraciones. En la lectura de las listas, en la
-búsqueda contra el catálogo y en el optimizador, cada evaluación podía mostrar que un
-componente no alcanzaba el desempeño esperado. En esos casos el equipo volvía a preparar
-los datos o a ajustar el modelo, y repetía la evaluación. El Capítulo~V describe estas
-iteraciones junto a cada componente: qué se probó, con qué datos, qué resultado se obtuvo y
-qué se cambió. La última etapa de CRISP-DM, el despliegue, corresponde a la integración de
-estos componentes en el sistema construido. Su puesta en operación con colegios y familias
-se presenta entre los siguientes pasos, en el Capítulo~VII.
+\subsubsection{Extensión de CRISP-DM a los componentes que dependen de datos}
+\label{sec:crispdm-extension}
+
+CRISP-DM \citep{chapman_crisp-dm_2000,wirth_crisp-dm_2000} define seis etapas: comprensión del
+negocio, comprensión de los datos, preparación de los datos, modelado, evaluación y despliegue.
+La metodología se aplicó en la Fase~1 solo a su primera etapa. A partir de la Fase~3 se extendió a
+todos los componentes cuyo comportamiento depende de datos, es decir, la percepción y la
+normalización del OE3 y la optimización, la utilidad multiatributo (MAUT) y la traducción de
+preferencias en lenguaje natural a restricciones (NL2C) del OE4. Para cada uno se recorrieron las
+seis etapas, y la Tabla~\ref{tab:crispdm-oe} resume, por objetivo, la actividad de cada etapa, la
+evidencia que produjo y la sección de esta memoria donde se presenta.
+
+\begin{table}[H]
+\centering\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.1}
+\caption{Extensión de CRISP-DM por objetivo: etapa, actividad, evidencia y sección.}
+\label{tab:crispdm-oe}
+\begin{tabularx}{\textwidth}{@{}p{0.9cm}p{2.4cm}XXp{1.9cm}@{}}
+\toprule
+OE & Etapa & Actividad & Evidencia & Sección \\
+\midrule
+OE1 & Comprensión del negocio & Entrevistas, encuesta a acudientes (N=65 recibidas, n=60
+analizables) y levantamiento de listas de 17 colegios & Dossier de negocio y SRS &
+Cap.~III y IV \\
+\midrule
+OE3 & Comprensión de los datos & Caracterización del corpus de listas (3.608 renglones) y
+armado del conjunto de oro CGS-10 (diez documentos, 1.293 ítems) & Corpus y conjunto de oro &
+Sec.~\ref{sec:percepcion} \\
+OE3 & Preparación & Limpieza del texto, corrección ortográfica con el léxico del catálogo, núcleo
+en singular y separación de atributos & Código de normalización &
+Sec.~\ref{sec:normalizacion} \\
+OE3 & Modelado & Cinco enfoques de lectura; cuatro estrategias de recuperación; resolución
+léxica con aporte del coseno & Bancos de los prototipos &
+Sec.~\ref{sec:percepcion-dev} y \ref{sec:normalizacion} \\
+OE3 & Evaluación & F1 de la lectura; AUC y precisión del umbral $\tau$ con 542 ítems; revisión
+humana de los renglones dudosos & Tablas de resultados &
+Sec.~\ref{sec:percepcion} y \ref{sec:recuperacion} \\
+OE3 & Despliegue & Servicios de inteligencia y de catálogo; cola de revisión del administrador &
+Sistema construido & Sec.~\ref{sec:pipeline} \\
+\midrule
+OE4 & Comprensión de los datos & Encuesta de preferencias (pregunta P21, 60 respuestas) y 174
+listas del corpus & Dossier de negocio y banco de listas & Sec.~\ref{sec:optimizacion-dev} \\
+OE4 & Preparación & Líneas comprables, candidatos por renglón y curaduría del catálogo &
+Auditorías de los kits & Sec.~\ref{sec:optimizacion-dev} \\
+OE4 & Modelado & NSGA-II con cuatro objetivos, frente exacto, MAUT y NL2C &
+Código y banco de calibración & Sec.~\ref{sec:optimizacion-cal} y \ref{sec:nl2c} \\
+OE4 & Evaluación & Comparación con el óptimo exacto, hipervolumen y cuatro auditorías de kits &
+Tablas de resultados & Sec.~\ref{sec:optimizacion} \\
+OE4 & Despliegue & Aplicación web, aplicación de administración y pago & Sistema
+construido & Sec.~\ref{sec:web} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsubsection{Ciclos de calibración con revisión humana}
+\label{sec:ciclos-calibracion}
+
+Las etapas de CRISP-DM se recorrieron en varios ciclos, y en los componentes de percepción,
+normalización y optimización cada ciclo incluyó una revisión humana. Un ciclo tuvo cuatro pasos.
+Primero, se ejecutó el componente sobre una muestra. Segundo, una persona revisó los resultados:
+el administrador de Tukit en la cola de renglones dudosos, o el equipo, al auditar los kits renglón
+por renglón. Tercero, esa revisión produjo etiquetas o correcciones, es decir, qué producto era el
+correcto y qué regla había fallado. Cuarto, el equipo ajustó los datos, las reglas o las constantes
+del componente y repitió la evaluación con la misma métrica. Las cuatro auditorías de los kits de la
+Tabla~\ref{tab:kits} son un ejemplo: en cada una, una persona clasificó cada renglón y, a partir de
+esa clasificación, se ajustaron la comparación de atributos y la curaduría. Estos ciclos no son
+aprendizaje por refuerzo, porque no hay una señal de recompensa ni una política que se actualice
+sola. Los parámetros los cambia el equipo después de leer los resultados, y cada cambio queda
+registrado con su evidencia en la Tabla~\ref{tab:constantes}. El diseño sigue las pautas de
+interacción humano-IA de Amershi et al. \citep{amershi_guidelines_2019}, entre ellas mostrar
+la incertidumbre del sistema y permitir la corrección por parte de la persona. El Capítulo~VI
+describe cada ciclo junto a su componente. La última etapa, el despliegue, corresponde a la
+integración en el sistema construido, y su operación con colegios y familias se presenta como
+trabajo futuro en el Capítulo~VIII.
 
 Los entregables del proyecto, el objetivo especifico (OE), los estándares que guiaron su elaboración y la razón de cada
 uno se resumen en la Tabla~\ref{tab:entregables}.
