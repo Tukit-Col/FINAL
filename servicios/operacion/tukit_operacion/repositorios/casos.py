@@ -21,7 +21,13 @@ from tukit_comun.http import iso as _iso
 from ..modelos import Base, EstadoCaso, OrigenCaso, Prioridad
 
 CASO = Base.metadata.tables["caso"]
+EVENTO_CASO = Base.metadata.tables["evento_caso"]
 METRICA = Base.metadata.tables["metrica_diaria"]
+
+
+# Los eventos de un caso son mas que mensajes (asignaciones, notas internas);
+# los del acudiente llevan este tipo y son los unicos que vuelven a su pantalla.
+TIPO_COMENTARIO_ACUDIENTE = "comentario_acudiente"
 
 
 def serializar_caso(fila: Any) -> dict[str, Any]:
@@ -132,6 +138,7 @@ class RepoCasos:
         trabajo_id: uuid.UUID | None,
         abierto_en: datetime,
         vence_en: datetime | None,
+        pedido_id: uuid.UUID | None = None,
     ) -> None:
         """Abre un caso de origen ACUDIENTE. El contacto ya se resolvio a
         `usuario_id` fuera de aqui y no se guarda."""
@@ -146,7 +153,41 @@ class RepoCasos:
                 descripcion=descripcion,
                 usuario_id=usuario_id,
                 trabajo_id=trabajo_id,
+                pedido_id=pedido_id,
                 abierto_en=abierto_en,
                 vence_en=vence_en,
+            )
+        )
+
+    # -- lo que el acudiente ve de SUS casos ---------------------------------
+
+    async def listar_de_usuario(self, usuario_id: uuid.UUID) -> list[Any]:
+        """Los casos cuyo titular es `usuario_id`, los mas recientes primero."""
+        return list(
+            await self.conexion.execute(
+                select(CASO).where(CASO.c.usuario_id == usuario_id).order_by(CASO.c.abierto_en.desc())
+            )
+        )
+
+    async def comentarios_de(self, caso_id: uuid.UUID) -> list[dict[str, Any]]:
+        """Los mensajes del acudiente en un caso, en el orden en que los escribio.
+
+        Solo se leen los del acudiente: los eventos internos (asignacion, nota del
+        equipo) son del back-office y no salen por esta puerta."""
+        filas = await self.conexion.execute(
+            select(EVENTO_CASO)
+            .where(EVENTO_CASO.c.caso_id == caso_id, EVENTO_CASO.c.tipo == TIPO_COMENTARIO_ACUDIENTE)
+            .order_by(EVENTO_CASO.c.creado_en)
+        )
+        return [{"texto": f.datos.get("texto", ""), "creado_en": _iso(f.creado_en)} for f in filas]
+
+    async def agregar_comentario(self, caso_id: uuid.UUID, usuario_id: uuid.UUID, texto: str) -> None:
+        await self.conexion.execute(
+            insert(EVENTO_CASO).values(
+                id=uuid.uuid4(),
+                caso_id=caso_id,
+                tipo=TIPO_COMENTARIO_ACUDIENTE,
+                datos={"texto": texto},
+                actor_id=usuario_id,
             )
         )

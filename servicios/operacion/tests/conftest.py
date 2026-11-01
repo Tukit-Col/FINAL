@@ -36,3 +36,28 @@ class IdentidadFalsa:
     async def resolver_contacto(self, correo: str, celular: str | None = None) -> str | None:
         self.llamadas.append((correo, celular))
         return self.usuario_id
+
+
+ACUDIENTE = "22222222-2222-5222-8222-222222222222"
+OTRO_ACUDIENTE = "33333333-3333-5333-8333-333333333333"
+TOKEN_ACUDIENTE = "token-acudiente"
+TOKEN_OTRO = "token-otro"
+
+
+class IdentidadConSesiones(IdentidadFalsa):
+    """Como `IdentidadFalsa`, y ademas valida tokens de sesion (token -> usuario)."""
+
+    def __init__(self, caida: bool = False) -> None:
+        super().__init__()
+        self.caida = caida
+        self.sesiones = {
+            TOKEN_ACUDIENTE: {"usuario_id": ACUDIENTE, "correo": "a@x.com", "roles": []},
+            TOKEN_OTRO: {"usuario_id": OTRO_ACUDIENTE, "correo": "b@x.com", "roles": []},
+        }
+
+    async def sesion(self, token: str):
+        from tukit_operacion.remoto import IdentidadCaida
+
+        if self.caida:
+            raise IdentidadCaida("no responde")
+        return self.sesiones.get(token)
