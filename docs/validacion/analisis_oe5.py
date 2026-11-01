@@ -116,17 +116,19 @@ def pareada(tradicional: list[float], tukit: list[float]) -> Prueba:
 def leer(ruta: str) -> list[dict[str, str]]:
     with open(ruta, newline="", encoding="utf-8") as archivo:
         filas = list(csv.DictReader(archivo))
-    faltan = [c for c in COLUMNAS if filas and c not in filas[0]]
-    if faltan:
-        raise SystemExit(f"faltan columnas: {', '.join(faltan)}")
+    # La sesion corta (15 min) no mide RTLX ni T2, T3, T5 y T7: lo que falta queda vacio.
+    for fila in filas:
+        for columna in COLUMNAS:
+            fila.setdefault(columna, "")
     return filas
 
 
 def analizar(filas: list[dict[str, str]]) -> str:
     sus = [puntaje_sus([int(f[f"sus{i}"]) for i in range(1, 11)]) for f in filas]
     nps_v = [int(f["nps"]) for f in filas]
-    tlx_trad = [np.mean([float(f[f"tlx_trad_{i}"]) for i in range(1, 7)]) for f in filas]
-    tlx_tukit = [np.mean([float(f[f"tlx_tukit_{i}"]) for i in range(1, 7)]) for f in filas]
+    con_tlx = [f for f in filas if all(f[f"tlx_{m}_{i}"] for m in ("trad", "tukit") for i in range(1, 7))]
+    tlx_trad = [np.mean([float(f[f"tlx_trad_{i}"]) for i in range(1, 7)]) for f in con_tlx]
+    tlx_tukit = [np.mean([float(f[f"tlx_tukit_{i}"]) for i in range(1, 7)]) for f in con_tlx]
     salida = [f"n = {len(filas)} participantes"]
 
     c1 = contra_umbral(sus)
@@ -135,15 +137,32 @@ def analizar(filas: list[dict[str, str]]) -> str:
         f"{c1.nombre}: media {c1.efecto:.1f}, IC95 [{c1.ic[0]:.1f}, {c1.ic[1]:.1f}], "
         f"{c1.prueba} p = {c1.p:.4f} -> {'cumple' if cumple_c1 else 'NO cumple'} (regla estricta)"
     )
+    if len(con_tlx) < 2:
+        salida.append("C2 RTLX: no medido en esta version de la sesion")
+    else:
+        salida.append(_c2(tlx_trad, tlx_tukit))
+    salida.extend(_tareas(filas))
+    bajo, alto = ic_bootstrap_nps(nps_v)
+    salida.append(f"S1 NPS = {nps(nps_v):.0f}, IC95 bootstrap [{bajo:.0f}, {alto:.0f}]")
+    return "\n".join(salida)
+
+
+def _c2(tlx_trad: list[float], tlx_tukit: list[float]) -> str:
     c2 = pareada(tlx_trad, tlx_tukit)
     cumple_c2 = c2.ic[0] > 0 and c2.efecto >= 0.5
-    salida.append(
+    return (
         f"{c2.nombre}: diferencia media {np.mean(np.subtract(tlx_trad, tlx_tukit)):.1f}, "
         f"IC95 [{c2.ic[0]:.1f}, {c2.ic[1]:.1f}], dz = {c2.efecto:.2f}, {c2.prueba} p = {c2.p:.4f} "
         f"-> {'cumple' if cumple_c2 else 'NO cumple'}"
     )
+
+
+def _tareas(filas: list[dict[str, str]]) -> list[str]:
+    salida = []
     for tarea in TAREAS:
         validas = [f[tarea] for f in filas if f[tarea] in ("S", "A", "F")]
+        if not validas:
+            continue
         exitos = sum(v == "S" for v in validas)
         bajo, alto = wilson(exitos, len(validas))
         marca = ""
@@ -162,9 +181,7 @@ def analizar(filas: list[dict[str, str]]) -> str:
             f"interacciones mediana {np.median(interacciones) if interacciones else math.nan:.0f}; "
             f"segundos mediana {np.median(segundos) if segundos else math.nan:.0f}"
         )
-    bajo, alto = ic_bootstrap_nps(nps_v)
-    salida.append(f"S1 NPS = {nps(nps_v):.0f}, IC95 bootstrap [{bajo:.0f}, {alto:.0f}]")
-    return "\n".join(salida)
+    return salida
 
 
 def sintetico(n: int = 10, semilla: int = 2610) -> list[dict[str, str]]:
