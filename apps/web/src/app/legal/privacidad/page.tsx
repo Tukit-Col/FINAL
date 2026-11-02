@@ -1,3 +1,4 @@
+import Link from "next/link";
 import DocumentoLegal, { Dato } from "../DocumentoLegal";
 import { RESPONSABLE } from "../datos-legales";
 
@@ -65,7 +66,11 @@ export default function PaginaPrivacidad() {
 
       <h2>6. Cómo ejercerlos</h2>
       <p>
-        Escribe a <Dato valor={RESPONSABLE.correo} /> o abre un caso desde la sección Ayuda con tu sesión iniciada,
+        Con tu sesión iniciada, en <Link href="/privacidad">Privacidad y mis datos</Link> puedes ver lo que
+        guardamos, descargar una copia, retirar tu autorización y pedir que borremos tus datos.
+      </p>
+      <p>
+        También puedes escribir a <Dato valor={RESPONSABLE.correo} /> o abrir un caso desde la sección Ayuda con tu sesión iniciada,
         indicando qué quieres hacer. Una consulta se responde en máximo 10 días hábiles y un reclamo en máximo 15
         días hábiles; si necesitamos más tiempo, te avisamos antes de que venza el plazo y te decimos cuándo
         responderemos.

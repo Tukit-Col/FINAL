@@ -30,6 +30,7 @@ import type {
   Trabajo,
   TrabajoAplicado,
   TrabajoCreado,
+  ResultadoSupresion,
 } from "@tukit/contrato";
 import { conEspera } from "@tukit/contrato";
 
@@ -251,6 +252,24 @@ export async function cancelarListaSubida(tareaId: string): Promise<void> {
     await fetch(`/api/solicitudes/listas/${encodeURIComponent(tareaId)}/cancelar`, {
       method: "POST",
     }),
+  );
+}
+
+/** Borra los datos del titular (Ley 1581). La cookie se borra en el servidor. */
+export async function suprimirMisDatos(confirmacion: string): Promise<ResultadoSupresion> {
+  return leer<ResultadoSupresion>(
+    await fetch("/api/cuenta/supresion", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirmacion }),
+    }),
+  );
+}
+
+/** Retira la autorizacion de tratamiento sin borrar la cuenta. */
+export async function revocarConsentimientos(): Promise<{ revocados: number }> {
+  return leer<{ revocados: number }>(
+    await fetch("/api/cuenta/consentimientos/revocar", { method: "POST" }),
   );
 }
 

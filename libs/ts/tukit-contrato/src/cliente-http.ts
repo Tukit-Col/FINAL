@@ -102,6 +102,7 @@ import type {
   SolicitudMiCaso,
 } from "./operacion";
 import type { CasoDetalleAdmin, PedidoAdmin, SolicitudAvanceAdmin } from "./admin";
+import { nombreArchivoMisDatos, type MisDatos, type ResultadoSupresion } from "./privacidad";
 import {
   ErrorTukit,
   type AcudienteAdmin,
@@ -977,6 +978,32 @@ export class ClienteApi implements OrigenDatos {
         body: JSON.stringify({ motivo }),
       },
     );
+  }
+
+  misDatos(token: string): Promise<MisDatos> {
+    return this.pedir<MisDatos>("/v1/cuenta/mis-datos", { headers: this.autoriza(token) });
+  }
+
+  async exportarMisDatos(token: string): Promise<{ contenido: string; nombreArchivo: string }> {
+    const datos = await this.pedir<unknown>("/v1/cuenta/mis-datos/exportar", {
+      headers: this.autoriza(token),
+    });
+    return { contenido: JSON.stringify(datos, null, 2), nombreArchivo: nombreArchivoMisDatos(new Date()) };
+  }
+
+  suprimirMisDatos(token: string, confirmacion: string): Promise<ResultadoSupresion> {
+    return this.pedir<ResultadoSupresion>("/v1/cuenta/supresion", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...this.autoriza(token) },
+      body: JSON.stringify({ confirmacion }),
+    });
+  }
+
+  revocarConsentimientos(token: string): Promise<{ revocados: number }> {
+    return this.pedir<{ revocados: number }>("/v1/cuenta/consentimientos/revocar", {
+      method: "POST",
+      headers: this.autoriza(token),
+    });
   }
 
   async misCasos(token: string): Promise<MiCaso[]> {

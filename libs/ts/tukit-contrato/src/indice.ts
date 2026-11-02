@@ -16,6 +16,7 @@ export * from "./linea";
 export * from "./colegios-busqueda";
 export * from "./localidades";
 export * from "./espera";
+export * from "./privacidad";
 export {
   ErrorTukit,
   destinoDe,

@@ -1,0 +1,123 @@
+/* Privacidad y mis datos: reusa las tarjetas del panel (Dashboard.module.css);
+   aqui solo van las listas de datos y el flujo de borrado. */
+
+.datos {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px var(--espacio-4);
+  margin: 0;
+  padding: 0 var(--espacio-5) var(--espacio-3);
+  font-size: 13.5px;
+}
+
+.datos dt {
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.datos dd {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--espacio-5) var(--espacio-3);
+  display: grid;
+  gap: 8px;
+  font-size: 13.5px;
+}
+
+.lista li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--espacio-2);
+  color: var(--color-text-secondary);
+}
+
+.lista strong {
+  color: var(--color-text-primary);
+}
+
+.nota {
+  margin: 0;
+  padding: 0 var(--espacio-5) var(--espacio-4);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.cuerpo {
+  display: grid;
+  gap: var(--espacio-3);
+  justify-items: start;
+  padding: 0 var(--espacio-5) var(--espacio-5);
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.cuerpo p {
+  margin: 0;
+}
+
+.cuerpo .nota {
+  padding: 0;
+}
+
+.peligro {
+  box-shadow: var(--clay-shadow), inset 0 0 0 1.5px var(--color-danger-border);
+}
+
+.flujo {
+  display: grid;
+  gap: var(--espacio-2);
+  width: 100%;
+}
+
+.flujo h3 {
+  margin: var(--espacio-2) 0 0;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.items {
+  margin: 0;
+  padding-left: var(--espacio-5);
+  display: grid;
+  gap: 6px;
+}
+
+.fundamento {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  opacity: 0.85;
+}
+
+.campo {
+  display: grid;
+  gap: 6px;
+  margin-top: var(--espacio-2);
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.campo input {
+  min-height: 38px;
+  max-width: 320px;
+  padding: 0 var(--espacio-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+  font: inherit;
+  letter-spacing: 0.02em;
+}
+
+.campo input:focus-visible {
+  outline: 2px solid var(--color-danger);
+  outline-offset: 1px;
+}
