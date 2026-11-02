@@ -742,6 +742,100 @@ def _proyectar(frente: list[SolucionFrente], perfil: str) -> SolucionFrente | No
     return min(frente, key=lambda s: (s.costo, -s.disponibilidad, -s.fidelidad))
 
 
+# Los criterios de la P21 que entran a la utilidad, con el eje del frente que
+# mide cada uno. Marca exigida y calidad se leen las dos sobre la fidelidad,
+# porque el frente no separa "la marca que el colegio pidio" de "la marca de
+# mejor nivel": ambas suben con el nivel de marca del candidato elegido.
+_CRITERIOS_MAUT = ("precio", "marca_exigida", "calidad", "personaje")
+
+
+def _utilidad_normalizada(valor: float, minimo: float, maximo: float, *, creciente: bool) -> float:
+    """Utilidad de un atributo en [0, 1] sobre el rango observado en el frente.
+
+    Si todos los puntos tienen el mismo valor el atributo no distingue entre
+    ellos y aporta 0 a todos.
+    """
+    if maximo <= minimo:
+        return 0.0
+    fraccion = (valor - minimo) / (maximo - minimo)
+    return fraccion if creciente else 1.0 - fraccion
+
+
+def elegir_recomendado_maut(
+    frente: list[SolucionFrente],
+    pesos: dict[str, float],
+    *,
+    tope: int | None = None,
+    sobreprecio: float | None = None,
+) -> SolucionFrente | None:
+    """El punto del frente de mayor utilidad aditiva, elegido a posteriori.
+
+    Sigue la teoria de la utilidad multiatributo (Keeney y Raiffa, 1976) en su
+    uso a posteriori sobre un frente de Pareto (Miettinen, 1999, cap. 2.2):
+    primero se calcula el frente y despues los pesos del acudiente escogen un
+    punto. La utilidad es
+
+        U(x) = w_precio * u_costo(x) + (w_marca_exigida + w_calidad) * u_fidelidad(x)
+               + w_personaje * u_personaje(x),
+
+    con los pesos renormalizados para que sumen 1 y cada `u` lineal en [0, 1]
+    sobre el rango que el frente alcanza (`u_costo` decreciente, las demas
+    crecientes). La forma aditiva supone independencia preferencial entre los
+    criterios. Solo se consideran los puntos de maxima disponibilidad
+    (`_surtibles`), por la misma razon que en `_proyectar`.
+
+    `tope` y `sobreprecio` son restricciones duras: el costo no puede pasar del
+    tope ni de `(1 + sobreprecio)` veces el punto mas barato. Si ningun punto
+    las cumple devuelve `None`. Los empates se resuelven por menor costo, mayor
+    fidelidad y mayor personaje, de modo que el resultado no depende del orden
+    del frente.
+    """
+    if not frente:
+        return None
+    puntos = _surtibles(frente)
+    total = sum(max(0.0, float(pesos.get(c, 0.0))) for c in _CRITERIOS_MAUT)
+    w = {c: (max(0.0, float(pesos.get(c, 0.0))) / total if total > 0 else 0.0) for c in _CRITERIOS_MAUT}
+    w_fidelidad = w["marca_exigida"] + w["calidad"]
+
+    costos = [s.costo for s in puntos]
+    fidelidades = [s.fidelidad for s in puntos]
+    personajes = [s.personaje for s in puntos]
+
+    rango_costo = (min(costos), max(costos))
+    rango_fidelidad = (min(fidelidades), max(fidelidades))
+    rango_personaje = (min(personajes), max(personajes))
+
+    def utilidad(s: SolucionFrente) -> float:
+        return (
+            w["precio"] * _utilidad_normalizada(s.costo, *rango_costo, creciente=False)
+            + w_fidelidad * _utilidad_normalizada(s.fidelidad, *rango_fidelidad, creciente=True)
+            + w["personaje"] * _utilidad_normalizada(s.personaje, *rango_personaje, creciente=True)
+        )
+
+    validos = puntos
+    if sobreprecio is not None:
+        cota = (1.0 + max(0.0, sobreprecio)) * min(costos)
+        validos = [s for s in validos if s.costo <= cota]
+    if tope is not None:
+        validos = [s for s in validos if s.costo <= tope]
+    if not validos:
+        return None
+    return max(validos, key=lambda s: (round(utilidad(s), 12), -s.costo, s.fidelidad, s.personaje))
+
+
+def _punto_de_kit(kit: KitArmado) -> SolucionFrente:
+    """Un kit armado visto como punto de los cuatro ejes del frente."""
+    comprables = [linea for linea in kit.lineas if not linea.informativa]
+    con_personaje = sum(1 for linea in comprables if linea.elegido and linea.elegido.personaje)
+    return SolucionFrente(
+        {},
+        kit.total_cop,
+        float(kit.objetivos.get("fidelidad", 0.0)),
+        float(kit.objetivos.get("disponibilidad", 0.0)),
+        round(con_personaje / len(comprables), 6) if comprables else 0.0,
+    )
+
+
 def _linea_desde(renglon: Renglon, elegido: Candidato | None) -> LineaKit:
     """Construye la linea del kit a partir del candidato ya elegido.
 
@@ -1077,6 +1171,13 @@ def _mismos_productos(a: KitArmado, b: KitArmado) -> bool:
     return skus(a) == skus(b)
 
 
+def _maut_prefiere(kits: list[KitArmado], pesos: dict[str, float], kit: KitArmado) -> bool:
+    """Si la utilidad aditiva de `pesos` entre los kits armados elige `kit`."""
+    puntos = [_punto_de_kit(k) for k in kits]
+    elegido = elegir_recomendado_maut(puntos, pesos)
+    return elegido is not None and elegido is puntos[kits.index(kit)]
+
+
 def recomendar(kits: list[KitArmado], preferencias: dict[str, Any]) -> list[KitArmado]:
     """Marca UNO y no oculta los demas. La regla sale de la encuesta.
 
@@ -1084,8 +1185,10 @@ def recomendar(kits: list[KitArmado], preferencias: dict[str, Any]) -> list[KitA
     - `A tu Medida` si eligio el punto medio (o declaro un tope): es el kit que
       se armo para eso. Si no se armo —ninguna mejora de marca cabe, o el tope
       alcanza para el Premium entero—, la razon dice por que se marca otro.
-    - `Premium` si pone la calidad primero Y declara al menos un 10 % de
-      disposicion a pagar de mas.
+    - Si declara al menos un 10 % de disposicion a pagar de mas, decide la
+      utilidad aditiva de sus pesos entre los kits armados
+      (`elegir_recomendado_maut`): sale `Premium` cuando el peso de marca y
+      calidad supera al del precio sobre el rango de esos kits.
     - Por omision `Ahorrador`: 42 de 60 encuestados pagan como maximo 5 % mas
       y 15 exigen precio igual o menor.
     - Con tope, si el marcado no cabe se cae al kit de mejor marca que si quepa
@@ -1102,9 +1205,6 @@ def recomendar(kits: list[KitArmado], preferencias: dict[str, Any]) -> list[KitA
     por_perfil = {kit.perfil: kit for kit in kits}
     ahorrador = por_perfil.get(PerfilKit.AHORRADOR.value)
     premium = por_perfil.get(PerfilKit.PREMIUM.value)
-    calidad_primero = pesos.get("calidad", 0) >= max(
-        pesos.get("precio", 0), pesos.get("marca_exigida", 0), pesos.get("personaje", 0)
-    )
 
     if quiere_fan(preferencias) and PerfilKit.FAN.value in por_perfil:
         elegido, razon = (
@@ -1135,10 +1235,10 @@ def recomendar(kits: list[KitArmado], preferencias: dict[str, Any]) -> list[KitA
                 if ahorrador.total_cop <= tope_kit
                 else "No hay un punto medio que mejore la marca sin subir el precio."
             )
-    elif calidad_primero and sobreprecio >= 0.10 and premium:
+    elif sobreprecio >= 0.10 and premium and _maut_prefiere(kits, pesos, premium):
         elegido, razon = (
             PerfilKit.PREMIUM.value,
-            "Pusiste la calidad primero y aceptas pagar un poco más.",
+            "Con tus prioridades la marca pesa más que el precio, y aceptas pagar un poco más.",
         )
     else:
         elegido, razon = (
