@@ -122,7 +122,7 @@ export default function MapaConfirmacion({ latitud, longitud, onMover }: Props) 
   return (
     <div className={styles.confirmacionMapa}>
       <p className={styles.ayudaMapa}>
-        Confirma el punto: arrastra el pin o toca el mapa donde queda tu puerta.
+        Confirma el punto: arrastra el pin o toca el mapa donde queda tu puerta. Con teclado, enfoca el pin y muévelo con las flechas.
       </p>
       <div ref={contenedor} className={styles.mapaEntrega} role="group" aria-label="Mapa para confirmar la dirección de entrega" />
     </div>

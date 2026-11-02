@@ -893,6 +893,11 @@
 /* Dirección con OpenStreetMap (sin llave de Google, ADR 0049): el campo y el
    botón Buscar van en fila; en pantallas angostas el botón baja debajo para que
    ninguno quede por debajo de 44 px de toque. */
+/* Ancla de la lista de resultados: ver `CampoDireccionOsm`. */
+.anclaListaDireccion {
+  position: relative;
+}
+
 .filaBuscarDireccion {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
