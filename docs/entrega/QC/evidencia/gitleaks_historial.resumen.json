@@ -1,0 +1,16 @@
+[
+  {
+    "regla": "github-pat",
+    "archivo": ".opencode/handoff/history/handoff-2026-10-03T17-15-17-206Z.md",
+    "linea": 14,
+    "commit": "d0c19b0f",
+    "fecha": "2026-10-04T16:07:10Z"
+  },
+  {
+    "regla": "github-pat",
+    "archivo": ".opencode/handoff/history/handoff-2026-10-04T02-24-36-889Z.md",
+    "linea": 15,
+    "commit": "d0c19b0f",
+    "fecha": "2026-10-04T16:07:10Z"
+  }
+]
