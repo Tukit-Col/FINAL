@@ -1,0 +1,26 @@
+{
+  "A_lexica_pura": {
+    "p50_ms": 6.66,
+    "avg_ms": 40.6,
+    "max_ms": 130.1,
+    "avg_resultados": 11.9
+  },
+  "B_lexica_expandida": {
+    "p50_ms": 6.59,
+    "avg_ms": 52.76,
+    "max_ms": 182.85,
+    "avg_resultados": 4
+  },
+  "C_vectorial": {
+    "p50_ms": 46.51,
+    "avg_ms": 106.61,
+    "max_ms": 944.99,
+    "avg_resultados": 20
+  },
+  "D_hibrida": {
+    "p50_ms": 53.17,
+    "avg_ms": 155.51,
+    "max_ms": 1099.25,
+    "avg_resultados": 20
+  }
+}
