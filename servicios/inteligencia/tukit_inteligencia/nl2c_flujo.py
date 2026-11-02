@@ -182,11 +182,12 @@ async def proponer_en_kit(
     )
     if res.ayuda and not res.propuestas and res.explicacion is None and res.lote is None:
         return {**nl2c_kit.respuesta_ayuda(ctx), **base}, res
-    componentes = (
-        ([res.resumen] if res.resumen else [])
-        + list(res.propuestas)
-        + ([res.explicacion] if res.explicacion else [])
-    )
+    # Resumen + hasta MAX_PROPUESTAS_LOTE propuestas ya llenan el tope de componentes que acepta
+    # el navegador (MAX_COMPONENTES en espec.ts); si ademas viniera la explicacion, la UI entera
+    # se descartaria como invalida. La explicacion se omite en ese caso extremo.
+    base_ui = ([res.resumen] if res.resumen else []) + list(res.propuestas)
+    explicacion = [res.explicacion] if res.explicacion and len(base_ui) < nl2c.MAX_PROPUESTAS_LOTE + 1 else []
+    componentes = base_ui + explicacion
     if not componentes:
         return (
             {
