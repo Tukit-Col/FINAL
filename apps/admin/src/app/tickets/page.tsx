@@ -30,6 +30,7 @@ import {
   estaVencido,
   filtrarCasos,
   hayFiltrosTickets,
+  instanteActual,
   leerFiltrosTickets,
   textoVencimiento,
 } from "@/lib/tickets";
@@ -85,7 +86,7 @@ export default async function PaginaTickets({ searchParams }: Props) {
   const { resumen } = bandeja;
   const filtros = leerFiltrosTickets(await searchParams);
   const casos = filtrarCasos(bandeja.casos, filtros);
-  const ahora = Date.now();
+  const ahora = instanteActual();
 
   // Lo activo primero; dentro de lo activo, lo más urgente arriba. Lo resuelto
   // y cerrado baja al final como historial.
