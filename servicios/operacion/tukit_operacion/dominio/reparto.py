@@ -28,12 +28,21 @@ _PLANTILLAS = {
     "pedido_despachado": "pedido_despachado",
     "pedido_en_reparto": "pedido_en_reparto",
     "pedido_entregado": "pedido_entregado",
+    # La respuesta del equipo a un ticket (bandeja de la propia Operacion).
+    "caso_respuesta": "caso_respuesta",
 }
 
 # Los tipos cuyo destinatario viaja en la carga del evento (lo puso quien lo
 # escribio). `kits_publicados` NO esta: su usuario se lee de trabajo_pipeline.
 _USUARIO_EN_CARGA = frozenset(
-    {"pedido_pagado", "incidencia", "pedido_despachado", "pedido_en_reparto", "pedido_entregado"}
+    {
+        "pedido_pagado",
+        "incidencia",
+        "pedido_despachado",
+        "pedido_en_reparto",
+        "pedido_entregado",
+        "caso_respuesta",
+    }
 )
 
 # Si el despacho llego sin nombre (un evento viejo o malformado), el aviso sale
@@ -72,6 +81,9 @@ def datos_plantilla(
     datos: dict[str, object] = {"turno": str(agregado_id)[:8].upper()}
     if carga.get("pedido_id"):
         datos["pedido"] = str(carga["pedido_id"])[:8].upper()
+    if tipo == "caso_respuesta":
+        # El texto de la respuesta NO viaja: el aviso solo invita a leerla en Tukit.
+        datos["caso"] = str(agregado_id)[:8].upper()
     if tipo == "kits_publicados":
         datos["enlace"] = f"{base_web}/kits/{agregado_id}"
     if tipo == "pedido_despachado":

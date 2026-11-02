@@ -180,7 +180,9 @@ def _motor_lectura(servicio: str) -> AsyncEngine:
 
 
 async def correr_una_vez() -> dict[str, int]:
-    """Una pasada sobre las dos bandejas de origen. Para el cron o el arranque."""
+    """Una pasada sobre las tres bandejas de origen. Para el cron o el arranque.
+
+    La de Operacion lleva las respuestas a tickets del back-office."""
     motor_operacion = crear_motor("operacion")
     notificador = notificador_desde_entorno()
     identidad = ClienteIdentidad()
@@ -190,7 +192,7 @@ async def correr_una_vez() -> dict[str, int]:
     sink = sink_desde_entorno()
     resultado: dict[str, int] = {}
     try:
-        for origen in ("inteligencia", "comercio"):
+        for origen in ("inteligencia", "comercio", "operacion"):
             motor_origen = _motor_lectura(origen)
             try:
                 repartidor = Repartidor(
