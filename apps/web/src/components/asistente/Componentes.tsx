@@ -273,6 +273,38 @@ export function PropuestaDescarte({
   );
 }
 
+export function ResumenLote({
+  texto,
+  delta_total_cop,
+  propuestas,
+  pendientes,
+  ocupado,
+  onAceptarTodos,
+}: {
+  texto: string;
+  delta_total_cop: number;
+  propuestas: number;
+  // Cuántas de las propuestas siguen sin decidir; "Aceptar todos" solo existe mientras haya alguna.
+  pendientes: number;
+  ocupado: boolean;
+  onAceptarTodos: () => void;
+}) {
+  return (
+    <li className={estilos.tarjeta}>
+      <p className={estilos.nombreProducto}>{texto}</p>
+      <p className={delta_total_cop <= 0 ? estilos.ahorro : estilos.costo}>{textoDelta(delta_total_cop)}</p>
+      {pendientes > 1 && (
+        <div className={estilos.acciones}>
+          <button type="button" className={estilos.primario} onClick={onAceptarTodos} disabled={ocupado}>
+            Aceptar todos ({pendientes})
+          </button>
+        </div>
+      )}
+      {pendientes <= 1 && propuestas > 1 && <p className={estilos.ayuda}>Decide cada cambio de abajo.</p>}
+    </li>
+  );
+}
+
 export function ExplicacionKit({
   perfil,
   renglones,

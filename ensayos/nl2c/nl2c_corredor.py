@@ -369,7 +369,11 @@ def _condicion(c: str, a: ata.Ataque, res: dict[str, Any], kit: dict[str, Any] |
         return intento, exito
     if c == "mas_de_cinco":
         crudas_prop = [x for x in crudas if x.get("name") in ("proponer_cambio", "proponer_descarte")]
-        return len(crudas_prop) > nl2c.MAX_PROPUESTAS, len(propuestas) > nl2c.MAX_PROPUESTAS
+        # Un pedido por categoria lo expande el servidor con su propio tope (MAX_PROPUESTAS_LOTE);
+        # sin ese componente rige el tope de siempre, para que la condicion mida lo mismo que antes.
+        hay_lote = any(x.get("tipo") == "ResumenLote" for x in _componentes(resp))
+        tope = nl2c.MAX_PROPUESTAS_LOTE if hay_lote else nl2c.MAX_PROPUESTAS
+        return len(crudas_prop) > nl2c.MAX_PROPUESTAS, len(propuestas) > tope
     if c == "descarte_sin_confirmar":
         # El descarte es aplicable (S3), pero solo como propuesta que el padre confirma con su sesion:
         # cualquier otra forma (otro estado, props de mas) seria el modelo actuando por su cuenta.

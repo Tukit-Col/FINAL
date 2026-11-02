@@ -8,9 +8,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MessageCircle, Send, X } from "lucide-react";
-import { validarEspec, type Componente } from "./espec";
-import { aplicacionDePropuesta, type PropuestaAplicable } from "./aplicar";
-import { ExplicacionKit, PropuestaCambio, PropuestaDescarte } from "./Componentes";
+import { ejemplosSeguros, pedidoAnteriorSeguro, validarEspec, type Componente, type PedidoAnterior } from "./espec";
+import { aplicacionDePropuesta, pendientesDelTurno, type PropuestaAplicable } from "./aplicar";
+import { ExplicacionKit, PropuestaCambio, PropuestaDescarte, ResumenLote } from "./Componentes";
 import estilos from "./Asistente.module.css";
 
 type Estado = "pendiente" | "aplicada" | "rechazada";
@@ -18,6 +18,7 @@ type Estado = "pendiente" | "aplicada" | "rechazada";
 type Respuesta =
   | { tipo: "pensando" }
   | { tipo: "texto"; texto: string }
+  | { tipo: "ayuda"; texto: string; ejemplos: string[] }
   | { tipo: "propuesta"; propuestaId: string; componentes: Componente[] };
 
 interface Turno {
@@ -25,7 +26,7 @@ interface Turno {
   respuesta: Respuesta;
 }
 
-const EJEMPLOS = ["Más barato en cuadernos", "¿Por qué este kit cuesta eso?", "Quita lo que no necesito"];
+const EJEMPLOS = ["¿Qué puedes hacer?", "Más barato en cuadernos", "Más variedad en mi kit", "¿Por qué este kit cuesta eso?"];
 
 async function avisarDecision(propuesta_id: string, decision: "aceptada" | "rechazada", tipo: "cambio" | "descarte") {
   try {
@@ -47,6 +48,9 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
   const [estados, setEstados] = useState<Record<string, Estado>>({});
   const [ocupado, setOcupado] = useState(false);
   const [retirado, setRetirado] = useState(false);
+  // El ultimo pedido por categoria, para que "y en colores tambien" se entienda en el turno
+  // siguiente. Son dos palabras que devolvio el servidor, no lo que escribio el padre.
+  const [anterior, setAnterior] = useState<PedidoAnterior | null>(null);
   const entrada = useRef<HTMLTextAreaElement>(null);
   const fondo = useRef<HTMLDivElement>(null);
 
@@ -81,7 +85,7 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
       const respuesta = await fetch(`/api/asistente/kits/${encodeURIComponent(trabajoId)}/proponer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texto: pregunta, perfil }),
+        body: JSON.stringify({ texto: pregunta, perfil, ...(anterior ? { anterior } : {}) }),
       });
       const cuerpo = (await respuesta.json().catch(() => null)) as Record<string, unknown> | null;
       if (respuesta.status === 503) {
@@ -98,6 +102,14 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
         });
         return;
       }
+      if (cuerpo["estado"] === "ayuda") {
+        responder({
+          tipo: "ayuda",
+          texto: typeof cuerpo["mensaje"] === "string" ? cuerpo["mensaje"] : "Puedo ajustar el kit.",
+          ejemplos: ejemplosSeguros(cuerpo["ejemplos"]),
+        });
+        return;
+      }
       if (cuerpo["estado"] !== "propuesta") {
         responder({
           tipo: "texto",
@@ -110,34 +122,61 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
         setRetirado(true);
         return;
       }
+      const contexto = pedidoAnteriorSeguro(cuerpo["contexto"]);
+      if (contexto) setAnterior(contexto);
       responder({ tipo: "propuesta", propuestaId: String(cuerpo["propuesta_id"]), componentes: ui.componentes });
     } catch {
       setRetirado(true);
     }
   }
 
-  // Lo aplica el padre, no el modelo: la misma llamada que hace el renglón del kit,
-  // con su sesión; el servidor exige que el kit sea suyo.
-  async function aceptar(clave: string, propuestaId: string, c: PropuestaAplicable) {
+  // Lo aplica el padre, no el modelo: la misma llamada que hace el renglon del kit,
+  // con su sesion; el servidor exige que el kit sea suyo. Devuelve si el servidor lo acepto.
+  async function aplicarUna(clave: string, propuestaId: string, c: PropuestaAplicable): Promise<boolean> {
     const aplicacion = aplicacionDePropuesta(c);
-    if (!aplicacion) return;
+    if (!aplicacion) return false;
+    const respuesta = await fetch(aplicacion.url, {
+      method: aplicacion.metodo,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(aplicacion.cuerpo),
+    });
+    if (!respuesta.ok) return false;
+    setEstados((e) => ({ ...e, [clave]: "aplicada" }));
+    void avisarDecision(propuestaId, "aceptada", aplicacion.tipo);
+    return true;
+  }
+
+  function avisarFallo() {
+    setTurnos((t) => [
+      ...t,
+      { pregunta: "", respuesta: { tipo: "texto", texto: "No pude hacer ese cambio. Puedes hacerlo a mano en el renglón del kit." } },
+    ]);
+  }
+
+  async function aceptar(clave: string, propuestaId: string, c: PropuestaAplicable) {
     setOcupado(true);
     try {
-      const respuesta = await fetch(aplicacion.url, {
-        method: aplicacion.metodo,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(aplicacion.cuerpo),
-      });
-      if (!respuesta.ok) {
-        setTurnos((t) => [
-          ...t,
-          { pregunta: "", respuesta: { tipo: "texto", texto: "No pude hacer ese cambio. Puedes hacerlo a mano en el renglón del kit." } },
-        ]);
-        return;
+      if (await aplicarUna(clave, propuestaId, c)) router.refresh();
+      else avisarFallo();
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  // "Aceptar todos": una llamada PUT por propuesta, una tras otra y con la sesion del padre.
+  // Si una falla se detiene ahi y lo ya aplicado queda aplicado; no existe escritura en lote.
+  async function aceptarTodos(turno: number, propuestaId: string, componentes: Componente[]) {
+    setOcupado(true);
+    let fallo = false;
+    try {
+      for (const { clave, componente } of pendientesDelTurno(componentes, turno, estados)) {
+        if (!(await aplicarUna(clave, propuestaId, componente))) {
+          fallo = true;
+          break;
+        }
       }
-      setEstados((e) => ({ ...e, [clave]: "aplicada" }));
-      void avisarDecision(propuestaId, "aceptada", aplicacion.tipo);
       router.refresh();
+      if (fallo) avisarFallo();
     } finally {
       setOcupado(false);
     }
@@ -173,7 +212,7 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
 
       <div className={estilos.mensajes} aria-live="polite">
         <p className={estilos.msgTukit}>
-          Hola. Dime qué quieres cambiar del kit y te muestro la propuesta. No toco nada sin tu sí.
+          Hola. Dime qué quieres cambiar del kit y te muestro la propuesta. No toco nada sin tu sí. Si no sabes por dónde empezar, toca «¿Qué puedes hacer?».
         </p>
         {turnos.length === 0 && (
           <div className={estilos.ejemplos}>
@@ -189,11 +228,35 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
             {turno.pregunta && <p className={estilos.msgPadre}>{turno.pregunta}</p>}
             {turno.respuesta.tipo === "pensando" && <p className={`${estilos.msgTukit} ${estilos.pensando}`}>Pensando…</p>}
             {turno.respuesta.tipo === "texto" && <p className={estilos.msgTukit}>{turno.respuesta.texto}</p>}
+            {turno.respuesta.tipo === "ayuda" && (
+              <>
+                <p className={estilos.msgTukit}>{turno.respuesta.texto}</p>
+                <div className={estilos.ejemplos}>
+                  {turno.respuesta.ejemplos.map((e) => (
+                    <button key={e} type="button" className={estilos.ejemplo} disabled={cargando} onClick={() => void proponer(e)}>
+                      {e}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
             {turno.respuesta.tipo === "propuesta" && (
               <ul className={estilos.lista}>
                 {turno.respuesta.componentes.map((c, i) => {
                   const clave = `${t}-${i}`;
                   const propuestaId = (turno.respuesta as { propuestaId: string }).propuestaId;
+                  const todas = (turno.respuesta as { componentes: Componente[] }).componentes;
+                  if (c.tipo === "ResumenLote") {
+                    return (
+                      <ResumenLote
+                        key={clave}
+                        {...c.props}
+                        pendientes={pendientesDelTurno(todas, t, estados).length}
+                        ocupado={ocupado}
+                        onAceptarTodos={() => void aceptarTodos(t, propuestaId, todas)}
+                      />
+                    );
+                  }
                   if (c.tipo === "PropuestaCambio") {
                     return (
                       <PropuestaCambio
@@ -250,7 +313,7 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
               void proponer(texto);
             }
           }}
-          placeholder="Ej.: más barato en cuadernos"
+          placeholder="Ej.: más barato en todos los cuadernos"
         />
         <button type="submit" className={estilos.enviar} disabled={cargando || !texto.trim()} aria-label="Enviar">
           <Send size={18} aria-hidden="true" />

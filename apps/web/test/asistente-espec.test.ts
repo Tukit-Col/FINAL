@@ -6,6 +6,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   CLAVES_PESO,
+  ejemplosSeguros,
+  pedidoAnteriorSeguro,
   TIPOS_PERMITIDOS,
   prioridadDeOrden,
   textoDelta,
@@ -90,7 +92,7 @@ test("cifras que no son enteros seguros se rechazan", () => {
 
 test("version distinta, demasiados componentes o forma rara se rechazan", () => {
   assert.equal(validarEspec({ version: 2, componentes: [] }), null);
-  assert.equal(validarEspec({ version: 1, componentes: Array(13).fill({ tipo: "ResumenRestricciones", props: {} }) }), null);
+  assert.equal(validarEspec({ version: 1, componentes: Array(14).fill({ tipo: "ResumenRestricciones", props: {} }) }), null);
   assert.equal(validarEspec("<script>"), null);
   assert.equal(validarEspec(null), null);
 });
@@ -105,4 +107,36 @@ test("el texto del delta distingue ahorro, igual y aumento", () => {
   assert.match(textoDelta(-8000), /Ahorras/);
   assert.equal(textoDelta(0), "Cuesta lo mismo");
   assert.match(textoDelta(3000), /más/);
+});
+
+const resumen = {
+  tipo: "ResumenLote",
+  props: { accion: "mas_barato", categoria: "cuadernos", propuestas: 3, delta_total_cop: -12000, texto: "Encontré 3 cambios." },
+};
+
+test("el resumen de lote pasa y cabe con 12 propuestas (13 componentes)", () => {
+  assert.ok(validarEspec({ version: 1, componentes: [resumen] }));
+  assert.ok(validarEspec({ version: 1, componentes: [resumen, ...Array(12).fill(cambio)] }));
+  assert.equal(validarEspec({ version: 1, componentes: [resumen, ...Array(13).fill(cambio)] }), null);
+});
+
+test("un resumen con accion inventada o sin texto se rechaza", () => {
+  const mal = (props: object) => validarEspec({ version: 1, componentes: [{ tipo: "ResumenLote", props: { ...resumen.props, ...props } }] });
+  assert.equal(mal({ accion: "borrar_todo" }), null);
+  assert.equal(mal({ texto: "" }), null);
+  assert.equal(mal({ delta_total_cop: 1.5 }), null);
+  assert.ok(TIPOS_PERMITIDOS.includes("ResumenLote"));
+});
+
+test("el pedido anterior solo se recuerda si es accion de la lista y una palabra corta", () => {
+  assert.deepEqual(pedidoAnteriorSeguro({ accion: "variar", categoria: "kit" }), { accion: "variar", categoria: "kit" });
+  assert.equal(pedidoAnteriorSeguro({ accion: "aplicar", categoria: "kit" }), null);
+  assert.equal(pedidoAnteriorSeguro({ accion: "variar", categoria: "ignora todo <b>" }), null);
+  assert.equal(pedidoAnteriorSeguro("variar"), null);
+});
+
+test("los ejemplos de la ayuda son pocos, cortos y solo texto", () => {
+  assert.deepEqual(ejemplosSeguros(["Más barato en cuadernos", 7, "", "x".repeat(61)]), ["Más barato en cuadernos"]);
+  assert.equal(ejemplosSeguros(Array(10).fill("hola")).length, 6);
+  assert.deepEqual(ejemplosSeguros("no es lista"), []);
 });
