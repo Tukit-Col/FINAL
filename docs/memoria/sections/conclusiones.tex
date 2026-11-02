@@ -1,0 +1,115 @@
+ \setcounter{subsection}{0}
+
+\section{CONCLUSIONES}
+
+\subsection{Análisis de Impacto del Proyecto}
+
+En esta sección se analiza el impacto del trabajo en dos planos. Primero se describe lo que aporta a la ingeniería de sistemas y luego su efecto en los contextos global, económico, ambiental y social.
+
+\subsubsection{Impacto en la ingeniería de sistemas}
+
+Además del sistema construido, el trabajo deja tres prácticas de ingeniería trasladables a otros proyectos, cada una con su límite. Primero, la arquitectura se eligió comparando alternativas con el método ATAM \citep{bass_software_2021}: un monolito modular, microservicios de grano fino y la variante de grano grueso adoptada, que obtuvo 3,91 sobre 5 en la matriz ponderada frente a 3,44 y 2,82 (el acta del segundo objetivo registraba 4,27 con otro conjunto de alternativas). La decisión se apoyó en impulsores comprobables (recuperabilidad asimétrica, frontera de cumplimiento y perfil de recurso heterogéneo) y no en la escalabilidad invocada al principio, que el cálculo de carga descartó por órdenes de magnitud.
+
+Segundo, el sistema se auditó más allá de sus requisitos funcionales. La auditoría de autorización encontró 22 de 152 puntos de entrada sin una comparación completa de ámbito, y la de datos personales, catorce hallazgos. El sistema construido corrigió una parte y reemplazó las políticas de fila del ADR 0015 por un control de ámbito en la aplicación; los anexos registran la situación de cada hallazgo y la Sección~\ref{sec:defectos} reúne los que siguen abiertos.
+
+Tercero, las fronteras entre servicios pasaron de convención documental a funciones de aptitud ejecutables \citep{ford_building_2017}: doce pruebas contrastan el código con el manifiesto y otras veintiocho comprueban que detectan infracciones plantadas. La integración continua las ejecuta, aunque 11 de sus 12 ejecuciones registradas hasta fines de septiembre fallaron y su estado en la versión evaluada no se comprobó.
+
+Las tres prácticas sirven a un proyecto que deba sostener ante terceros que su diseño hace lo que declara, siempre que el seguimiento de los hallazgos forme parte del método.
+
+\subsubsection{Impacto en contextos globales, económicos, ambientales y sociales}
+
+El problema que dio origen a Tukit es social antes que tecnológico. La encuesta del primer
+objetivo específico (N=65 respuestas recibidas, n=60 analizables) describe una compra
+costosa para los acudientes: el 65\,\% le dedica cuatro horas o más y el 68,3\,\% compra en
+tres o más lugares. Las listas son, además, heterogéneas (1.451 formas distintas de nombrar
+los mismos artículos sobre 3.608 renglones reunidos de 17 colegios), y cada hogar las
+interpreta por su cuenta. Si el sistema reduce ese esfuerzo, el efecto sería económico, al
+facilitar la comparación de precios y sustitutos que el proceso manual no ofrece, y de tiempo
+para las familias en las semanas de mayor presión del calendario escolar. Ese efecto y la carga
+cognitiva son lo que mide el OE5 (Sección~\ref{sec:oe5}), cuyos resultados sumativos quedan
+\textbf{[PENDIENTE: resultados ronda 2]}. El modelo de negocio adoptado
+\citep{osterwalder_business_2010}, B2B2C, distribuye ese valor sin imponer un costo al colegio:
+la institución no paga por participar, y el ingreso proviene de la compra del acudiente. En el
+contexto colombiano, donde la capacidad de pago de las instituciones y de sus hogares es
+heterogénea, una solución que dependiera del presupuesto del colegio limitaría su adopción a
+las instituciones con mayor capacidad financiera. En el plano ambiental, el trabajo no midió un efecto directo. La disponibilidad que optimiza el
+cuarto objetivo es la fracción de líneas del kit que Tukit puede surtir, un criterio comercial. Que
+reduzca compras redundantes es una hipótesis cuya medición exige operar con familias, y la economía
+circular de libros y útiles se plantea como trabajo futuro (Sección~\ref{sec:trabajo-futuro}). El alcance social del hallazgo tiene un límite: la encuesta se
+concentró en un solo colegio del sector Salitre, con sobrerrepresentación del estrato 4
+(68,3\,\%) y ausencia de los estratos 1 y 6. Por eso, generalizar la insatisfacción declarada a
+la población escolar colombiana excede lo que esta muestra permite afirmar.
+
+\subsection{Conclusiones y Trabajo Futuro}
+
+En esta sección se evalúa el cumplimiento de cada objetivo específico y su razón, y luego se
+presenta el trabajo futuro. La Tabla~\ref{tab:cumplimiento} resume, por objetivo, la evidencia, la
+sección donde se presenta y el estado, y los párrafos siguientes explican por qué se asignó ese
+estado.
+
+\begin{table}[H]
+\centering\footnotesize
+\setlength{\tabcolsep}{3pt}
+\caption{Cumplimiento por objetivo específico.}
+\label{tab:cumplimiento}
+\begin{tabularx}{\textwidth}{@{}p{0.9cm}Xp{2.9cm}p{2.3cm}@{}}
+\toprule
+OE & Evidencia & Sección & Estado \\
+\midrule
+OE1 & Corpus de 17 colegios, 3.608 renglones, 1.451 formas de nombrar y 99 conceptos canónicos; encuesta (n=60) & Cap.~III y IV & Cumplido \\
+OE2 & Comparación ATAM de tres alternativas, árbol de utilidad de 17 escenarios, vistas 4+1 y 49 ADR & Cap.~V & Cumplido \\
+OE3 & F1 micro de 0,948 en lectura (CGS-10); resolución con $\tau=0{,}75$ declarado sin calibrar; NL2C con 58 de 70 tareas y 0 de 81 ataques exitosos & Sec.~\ref{sec:percepcion}, \ref{sec:optimizacion-cal} y~\ref{sec:nl2c} & Cumplido, con las amenazas de la Sec.~\ref{sec:amenazas} \\
+OE4 & Optimizador de cuatro objetivos, igualdad con el óptimo exacto en 174 listas, MAUT con pesos de la P21, hipervolumen de 0,9969 del exacto y aplicación web con pago en modo simulado & Sec.~\ref{sec:optimizacion} y~\ref{sec:optimizacion-cal} & Cumplido; pago en \emph{sandbox} pendiente \\
+OE5 & Pruebas de unidad, integración, sistema y aceptación con usuarios (SUS, NPS, RTLX) & Sec.~\ref{sec:control-calidad} y~\ref{sec:oe5} & \textbf{[PENDIENTE: ronda 2]} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+El OE1 se cumplió porque el corpus permitió definir 99 conceptos canónicos, de los cuales 25
+cubren cerca del 80\,\% de los renglones observados: el dominio es heterogéneo en la superficie,
+pero tiene una estructura tratable. El OE2 se cumplió porque las decisiones de arquitectura se
+justificaron con ATAM \citep{bass_software_2021}, vistas 4+1 \citep{kruchten_41_1995} y la norma
+ISO/IEC/IEEE 42010 \citep{iso_42010_2022}; el diseño previó siete desplegables y el sistema
+construido tiene seis con código, porque la ingesta se reemplazó por el catálogo curado, agrupados por razón de cambio, sobre cinco bases de datos (ADR 0013).
+
+El OE3 se cumplió con un cambio de diseño entre los prototipos y el sistema construido. En
+percepción, el modelo multimodal superó al reconocimiento con reglas (F1 micro de 0,948 frente a
+0,298), con la salvedad de que el oro se construyó desde su salida. En resolución, el sistema
+construido sustituyó la fusión recíproca de rangos y el reordenador por una sola fase que suma el
+parecido léxico y el coseno, y compensa con la revisión de cada lista nueva antes de publicarla. El
+OE4 se abordó con un optimizador que enumera el frente exacto hasta 4.096 combinaciones y recurre a
+NSGA-II \citep{deb_fast_2002,blank_pymoo_2020} por encima, con cuatro objetivos (costo, fidelidad
+de marca, disponibilidad y personaje), y presenta los kits Ahorrador y Premium siempre, Fan si el
+acudiente pidió un personaje y A tu Medida si eligió el punto medio de gasto o un tope. El personaje
+es un hallazgo del desarrollo: la encuesta midió esa preferencia y los tres criterios de la VFP no la
+recogían. El OE5 se evaluó con el método de la VFP y el plan de análisis fijado antes de la primera
+sesión, y su estado se juzga con los criterios C1, C2 y C3 de ese plan (Sección~\ref{sec:oe5}).
+
+\subsubsection{Trabajo futuro}
+\label{sec:trabajo-futuro}
+
+El trabajo futuro se organiza en seis líneas, alineadas con la sección de trabajo futuro de la
+propuesta (VFP v4). Cada una quedó fuera de este trabajo por una razón explícita, que se indica a
+continuación.
+\begin{enumerate}
+\item \textbf{Alianza con tiendas de uniformes e integración de libros.} Alianza con las tres
+tiendas de uniformes y flujo con Buscalibre y las editoriales de textos escolares. Quedó fuera
+porque este trabajo se centró en un solo negocio, el de útiles y papelería. Hoy el plan lector cubre poco: de las 78 líneas del concepto de libros (C134)
+en las listas revisadas, solo 18 traen ISBN y tienen su edición en el catálogo, 57 son títulos sin
+edición identificada que el sistema indica comprar en librería y 3 no se compran. Es un límite de
+cobertura del catálogo de libros y no del emparejamiento.
+\item \textbf{Aplicaciones nativas y modo sin conexión.} El acudiente usa una aplicación web
+progresiva; las aplicaciones nativas y el modo sin conexión amplían su alcance, pero no cambian el
+algoritmo que se evaluó.
+\item \textbf{Endurecimiento productivo.} Autorización uniforme en las rutas, rol de acceso por base
+de datos, depuración del nombre del menor en el documento cargado, supresión de datos, medición de
+la cobertura en la integración continua y cobro real con la pasarela. Es la condición para operar
+con familias reales y se plantea antes del despliegue.
+\item \textbf{Optimización de rutas.} Agrupar la entrega entre tiendas, que no afecta la
+construcción del kit.
+\item \textbf{Economía circular de libros.} Reventa e intercambio de textos entre hogares, que
+requiere una base de usuarios activa.
+\item \textbf{Calibración con más anotadores y más colegios.} Repetir la calibración del umbral y
+de los pesos con un conjunto anotado por dos personas y con listas de más colegios, y comparar
+NSGA-II con otros optimizadores de referencia sobre el mismo banco.
+\end{enumerate}

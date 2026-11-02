@@ -1,0 +1,383 @@
+\setcounter{subsection}{0}
+\section{DESARROLLO DE LA SOLUCIÓN}
+\label{cap:desarrolloSolucion}
+
+Este capítulo documenta la preparación de los datos y el modelado de CRISP-DM en las Fases~3
+y~4, ligadas a los objetivos específicos tercero y cuarto: cómo se construyó el mecanismo que
+convierte una lista escolar fotografiada en un kit de útiles concreto. El capítulo de diseño
+(Sección~\ref{sec:impulsores} y siguientes) estableció dónde viven los componentes y por qué las
+fronteras entre servicios se trazan así. Este explica cómo se modeló el comportamiento dentro de
+esas fronteras, qué alternativas se descartaron y qué se reemplazó por una opción mejor durante la
+construcción.
+
+% =====================================================================
+\subsection{El pipeline de resolución}
+\label{sec:pipeline}
+
+El problema se descompone en cuatro etapas secuenciales, y cada una consume la salida de la
+anterior. La percepción extrae los renglones de una imagen o un PDF sin estructura. La
+normalización recupera del catálogo los productos candidatos de cada renglón. La resolución decide
+cuál corresponde o marca el renglón como ambiguo, y la optimización arma con los productos
+resueltos los kits que pide el acudiente, que equilibran costo, fidelidad de marca, disponibilidad y personaje. La
+percepción, la resolución y la optimización se alojan en el servicio de inteligencia, cuya carga
+intensiva en CPU y memoria motivó su separación en el diseño. La recuperación de candidatos la
+ejecuta el catálogo sobre su propia base.
+
+La orquestación de las cuatro etapas se decidió en el ADR 0017. El pipeline se modela como trabajos
+durables con estado persistido, reanudables por etapa y con una espera explícita para la revisión
+humana. El registro consideró LangGraph, con persistencia de estado sobre PostgreSQL, y lo difirió:
+los trabajos durables ya dan reanudación, reintentos idempotentes y auditoría con dependencias que
+el equipo controla, y adoptarlo después no cambiaría el modelo de datos. Descartó también un motor
+externo como Temporal o Airflow, desproporcionado para un pipeline que cabe en dos tablas, y dejó
+LangGraph como camino de crecimiento si el pipeline llega a tener ramas.
+
+El ADR 0017 preveía una biblioteca de máquinas de estados y una clave de reanudación
+formada por el trabajo, la etapa y el intento. El sistema construido usa una tabla de transiciones
+propia, con seis estados del trabajo, y registra cada etapa una sola vez por trabajo. El sexto,
+cancelado, es terminal y se alcanza cuando el acudiente cancela su solicitud. Según el SAD,
+la solución es más simple y basta para reintentar: un reintento vuelve a encolar el trabajo y
+recalcula sus ítems y sus kits sin que el acudiente suba otra vez el documento ni se pague de nuevo
+la percepción. Su costo es que no conserva el historial de intentos de cada etapa.
+
+% =====================================================================
+\subsection{De los prototipos al sistema construido}
+\label{sec:lenguajes-dev}
+
+La solución llegó a su forma actual por iteraciones sucesivas, cada una en su propio proyecto de
+código. La prueba de concepto (29 de junio al 6 de septiembre de 2026) reunió por primera vez el
+pipeline completo, con Tesseract, un índice FAISS y un NSGA-II de tres objetivos; el 30 de julio la
+búsqueda pasó a PostgreSQL con pgvector. Un banco de alternativas (31 de julio al 6 de agosto)
+comparó almacenes vectoriales y dejó planteada la tarea como una correspondencia con el catálogo,
+sin generación de texto. Del 29 de agosto al 21 de septiembre, los prototipos de tesis sometieron
+cada etapa a experimentos con muestra y métrica: percepción, acuerdo de anotación, embeddings,
+bases de datos y calibración del umbral. En paralelo, el producto se organizó como una flota de
+microservicios con librerías comunes.
+
+El sistema construido, desde el 22 de septiembre y hasta el 24 de octubre, reunió ese trabajo en un
+monorrepositorio con despliegue independiente por servicio (ADR 0013): seis desplegables con
+código, cinco servicios de dominio y la puerta de enlace, sobre cinco bases de datos. El séptimo
+previsto, la ingesta, se reemplazó por el catálogo curado desde la demanda de las listas
+(Sección~\ref{sec:consolidacion}). Las cuatro etapas se implementaron en Python, incluida la
+optimización con pymoo \citep{blank_pymoo_2020}, porque el cálculo de Amdahl
+\citep{amdahl_validity_1967} acotó en un 21,7\,\% como máximo la reducción de latencia de
+reescribirlas en un lenguaje compilado (Sección~\ref{sec:lenguajes}). La migración empezó por
+identidad, que concentraba la frontera de cumplimiento más urgente, y por catálogo, que tenía el
+defecto de doble maestro (Sección~\ref{sec:monorepo}). La medición del umbral de resolución del 4
+de octubre pertenece a una línea de desarrollo no integrada en el sistema construido, y sus cifras
+se citan como reportadas. El afinamiento de los kits (11 al 15 de octubre) se integró el 22 de
+octubre, y entre el 19 y el 24 de octubre se añadieron la recuperación ante caídas, las
+sugerencias de dirección, el alta de colegios no aliados, las colas por RabbitMQ y la caché con
+Redis (ADR 0031 a 0038).
+
+La Tabla~\ref{tab:rag-fases} resume, por fase de CRISP-DM, el resultado de esas iteraciones para
+las 84 estrategias de recuperación: las implementadas en el sistema construido, las que quedaron en
+prototipos, las evaluadas y descartadas y las que no se consideraron, no se evaluaron o no aplican
+al dominio. El anexo CRISP-DM, listado en la Tabla~\ref{tab:anexos}, describe cada estrategia
+dentro de su fase, con su evidencia, sus resultados y su justificación. Dos rasgos dominan.
+Veinte estrategias existen solo en prototipos, de modo que sus cifras no describen el sistema
+construido. Y la última etapa no genera texto libre: el kit es una selección de productos del
+catálogo validada por esquema, aunque la base no impone esa pertenencia con una clave foránea,
+porque la línea del kit y el catálogo están en bases distintas.
+
+
+% =====================================================================
+\subsection{Percepción documental}
+\label{sec:percepcion-dev}
+
+La primera etapa recibe una fotografía o un PDF sin estructura garantizada y debe producir los
+renglones con su cantidad y su descripción. El 1 de septiembre de 2026, los prototipos de tesis
+compararon cinco enfoques: un flujo clásico de reconocimiento óptico de caracteres (PyMuPDF,
+Tesseract y un analizador de expresiones regulares), Google Vision, GOT-OCR2.0, Docling y el modelo
+multimodal Gemini. Se evaluaron con F1 sobre un conjunto de oro propio, en la línea de los bancos de
+OCR para modelos multimodales \citep{liu_ocrbench_2024} y de extracción clave-valor
+\citep{shen_ocr_2026}. La razón para preferir un modelo multimodal es estructural. El
+reconocimiento con reglas depende de que el documento tenga una disposición regular de renglones, y
+buena parte del corpus del objetivo primero son fotografías de listas manuscritas o impresas,
+tomadas con el teléfono del acudiente y sin luz controlada. Un modelo que generaliza sobre la
+disposición visual, en vez de suponer una, era la única familia compatible con esa variabilidad.
+Las cifras están en la Sección~\ref{sec:percepcion}; la elección no tiene un ADR propio.
+
+En el sistema construido, cada página se convierte en imagen y se envía a Gemini con un prompt en
+español y el esquema de la respuesta, con salida JSON y temperatura 0. Si la respuesta no es JSON o
+no cumple el esquema, el trabajo falla con su motivo: no hay reintento escondido ni renglón
+inventado. Solo la falla del transporte tiene un reintento, declarado y único.
+
+El nombre del menor es un dato
+protegido por la Ley 1581 de 2012 \citep{congreso_ley1581_2012}, y la propuesta inicial era
+anonimizarlo antes de guardar la lista y antes de invocar el modelo externo; los prototipos lo
+intentaron con expresiones regulares y con un reconocedor de entidades. El sistema construido lo
+protege de otra forma, por minimización: no lo recoge. Según PV-03 del SRS, no pide el nombre legal del menor, el
+apodo con que el acudiente lo identifica es opcional y se cifra en reposo, y la percepción extrae
+solo los ítems y el grado. Es mejor porque un dato que no se recoge no puede llegar a los registros
+de operación, a los conjuntos de evaluación ni al modelo, y no depende de que un reconocedor lo
+detecte. Queda un caso: si el nombre figura en el documento cargado, viaja con la página hacia el
+proveedor, y si el modelo lo lee como renglón, queda 30 días en la lectura que guarda Redis. Su
+depuración, que pide PE-06, se delimitó como parte del endurecimiento productivo previo al
+despliegue con familias (Secciones~\ref{sec:defectos} y~\ref{sec:trabajo-futuro}), porque la
+evaluación del trabajo usó listas con estudiantes ficticios.
+
+% =====================================================================
+\subsection{Normalización y resolución}
+\label{sec:normalizacion}
+
+Cada renglón extraído se busca en el catálogo con recuperación híbrida: una señal léxica, que
+captura coincidencias exactas de marca y referencia, y una señal densa, que captura equivalencias de
+significado entre descripciones redactadas de forma distinta
+\citep{reimers_sentence-bert_2019,karpukhin_dense_2020}. Del marco de generación aumentada por
+recuperación \citep{lewis_retrieval-augmented_2020}, esta etapa toma solo el componente de
+recuperación. Antes de buscar, el texto se limpia, se
+corrige la ortografía con el léxico del catálogo, se reduce al núcleo en singular y se separan los
+atributos impuestos por la lista, como el color, el tamaño o la marca; los sinónimos viven en cada
+concepto del catálogo.
+
+La
+prueba de concepto guardó los vectores en un índice FAISS \citep{johnson_billion-scale_2021} hasta
+el 30 de julio. El sistema construido guarda el vector de 1024 dimensiones de cada producto en el
+PostgreSQL del catálogo, con pgvector (Sección~\ref{sec:dominio}), junto con el modelo y el texto
+del que se calculó. Así el vector se respalda con el producto, sin un segundo almacén
+que sincronizar \citep{kleppmann_designing_2017}, y una huella del texto indica cuándo recalcularlo.
+Los archivos versionados del catálogo no lo llevan: un proceso por lotes lo calcula contra la base.
+La búsqueda se hace en memoria, con el coseno calculado en el proceso: los índices HNSW y de
+trigramas existen, pero no se consultan. El SAD advierte que harán falta antes de llegar a los
+50.000 productos del escenario ESC-E4.
+
+La comparación con MTEB
+\citep{muennighoff_mteb_2023} eligió e5-large, de 560 millones de parámetros, que habría que alojar
+y servir. El sistema construido usa gemini-embedding-001, del mismo proveedor que la percepción. La
+ventaja es operativa (no hay modelo que alojar ni GPU) y no una mejora de calidad demostrada, porque
+los dos no se compararon sobre el corpus. El vector del renglón se calcula en cada solicitud y el de
+cada concepto es el promedio de sus productos. Si el servicio de embeddings falla, la búsqueda sigue
+solo con la señal léxica y el resultado lo advierte.
+
+Los prototipos
+fusionaban las dos señales por rangos (RRF) y reordenaban con un codificador cruzado. Sobre los
+2.710 pares del conjunto de calibración, el área bajo la curva fue de 0,728 para la señal léxica,
+0,805 para la densa, 0,739 para RRF y 0,880 para el reordenador. El sistema construido resuelve en
+una sola fase: un puntaje léxico anclado en el núcleo del renglón más 0,15 veces el coseno, con un
+rescate por coseno de 0,86 o más cuando el puntaje léxico no supera 0,55. A cambio, el
+administrador de Tukit revisa completa cada lista nueva antes de publicarla (PE-04), en cuatro horas
+o menos en temporada (ML-09). El SDD da tres razones. No depende de un reordenador ni de una GPU;
+corrige el error que hacía tomar «chaquiras» por otro producto; y en la corrida del servicio de
+búsqueda anterior, 1.407 de 2.176 ítems (64,7\,\%) necesitaban de todos modos a una persona. La
+revisión se hace una vez por colegio y grado y se reutiliza (NR-07). Las constantes de la fusión (0,15; 0,86; 0,55) proceden de ajustes sobre casos de error
+concretos, como el de las «chaquiras», y no de un barrido; la Tabla~\ref{tab:constantes} registra el
+origen y el estado de cada una.
+
+La estructura del catálogo hace el resto. Sus 149 conceptos, 145 de ellos activos, agrupan los
+productos equivalentes; en el levantamiento de listas, 25 conceptos cubren el 80,97\,\% de los
+renglones con concepto. Los atributos y los niveles distinguen
+las variantes, y el sistema se abstiene cuando el producto contradice un atributo impuesto. Cada
+atributo se compara a su manera (exacto, como mínimo, con tolerancia o por equivalencias), y el
+que el producto no declara no cumple (ADR 0034). Un grafo
+de sustitución entre productos se evaluó y se descartó: subía la cobertura del 41,3\,\% al
+65,3\,\%, pero bajaba la precisión del 86,7\,\% al 83,5\,\%. La tabla de sustitución dirigida entre
+conceptos curados no tiene datos y no se consulta (Sección~\ref{sec:consolidacion}).
+
+\subsubsection{Umbral de resolución}
+
+El umbral pasó por tres valores. El servicio de búsqueda anterior fijó $\tau=0{,}85$ y un margen
+$\delta=0{,}05$ con siete ejemplos sintéticos. El prototipo de calibración lo situó en $\tau=0{,}630$
+sobre el puntaje del reordenador, con 542 ítems, y así quedó en el ADR 0009. El sistema construido
+usa $\tau=0{,}75$ sobre su puntaje propio, sin margen, como valor inicial de un ciclo de calibración
+con revisión humana (Sección~\ref{sec:ciclos-calibracion}). Su efecto está contenido porque el umbral
+solo señala renglones dentro de una lista que de todos modos se revisa completa, de modo que un
+$\tau$ mal ajustado cuesta tiempo de revisión y no un producto equivocado en el carrito. El valor no
+se pudo calibrar, porque no hay decisiones humanas registradas sobre ese puntaje, y se declara como
+limitación (Sección~\ref{sec:optimizacion-cal}).
+
+\subsubsection{Algoritmo de resolución de un renglón}
+\label{sec:algoritmo-resolucion}
+
+La resolución es el algoritmo propio de OE3, y se presenta con la estructura del curso de
+algoritmos del departamento: análisis del problema, diseño de entradas y salidas, estrategia,
+seudocódigo y complejidad con comparación frente al método exhaustivo.
+
+\paragraph{Análisis del problema.} Dado un renglón de la lista, por ejemplo «pompones de colores
+x 20», hay que decidir a cuál de los conceptos canónicos del catálogo corresponde, es decir, a qué
+clase de producto equivalente se refiere, o declarar que no corresponde a ninguno. Dos errores
+motivaron el diseño. El primero es el de las «chaquiras de colores», que una regla de contención
+literal asignaba al concepto «colores» (lápices de colores) porque la palabra aparecía en ambos. El
+segundo es el de los sinónimos que ninguna lista contiene, como «estuche» por «cartuchera». La
+solución tenía que corregir el primero sin perder el segundo y sin que la señal semántica pudiera
+empeorar un acierto léxico.
+
+\paragraph{Diseño: entradas y salidas.} La Tabla~\ref{tab:es-resolucion} define los tipos.
+
+\begin{table}[H]
+\centering\footnotesize
+\caption{Entradas y salidas del algoritmo de resolución de un renglón.}
+\label{tab:es-resolucion}
+\begin{tabularx}{\textwidth}{@{}p{2.6cm}p{3.6cm}X@{}}
+\toprule
+Elemento & Tipo & Descripción \\
+\midrule
+Entrada $r$ & cadena de texto & Renglón de la lista, con cantidad y empaque \\
+Entrada $v_r$ & vector real de 1.024 componentes, opcional & Embedding del renglón; si falta, el algoritmo usa solo la señal léxica \\
+Entrada $\mathcal{C}$ & conjunto de conceptos, cada uno con nombre, lista de sinónimos y vector $v_c$ & 149 conceptos, 145 activos \\
+Parámetros & tres números reales en $[0,1]$ & Aporte del coseno $\gamma=0{,}15$, umbral de rescate $\theta=0{,}86$ y piso del rescate $\phi=0{,}55$ \\
+Salida & terna (concepto o nulo, nombre, puntaje en $[0,1]$) & Mejor concepto y su puntaje; un puntaje menor que $\tau$ remite el renglón a revisión \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Estrategia algorítmica.} El método es una búsqueda del máximo puntaje sobre los
+conceptos, con un puntaje en tres ramas que se evalúan en orden. Primero se extrae el núcleo del
+renglón, que es la primera palabra útil después de quitar cantidades y empaques, porque en español
+el núcleo del sintagma va primero. Si el núcleo está en la cabeza del nombre o de un sinónimo del
+concepto, el puntaje es $0{,}6+0{,}4\,J+\gamma\cos$, donde $J$ es el parecido de Jaccard entre las
+palabras significativas y $\cos$ es el coseno entre $v_r$ y $v_c$, recortado en 0. Si el núcleo
+aparece en otra posición, el puntaje es $J+\gamma\cos$. Si no aparece y el coseno alcanza $\theta$, el
+rescate asigna $\phi+0{,}4(\cos-\theta)/(1-\theta)$, que parte del piso $\phi$, apenas sobre el corte de revisión de
+0,5. En cualquier otro caso el puntaje es 0. Como $\gamma\cos\ge 0$, el puntaje híbrido nunca es
+menor que el léxico, que es la garantía que la tesis afirma, y el umbral alto de rescate impide que
+un parecido de tema, como el de «chaquiras» con «colores», se cuele.
+
+\begin{algorithm}[H]
+\caption{Resolución de un renglón contra el catálogo de conceptos}
+\label{alg:resolucion}
+\KwEntrada{renglón $r$, vector $v_r$ (opcional), conceptos $\mathcal{C}$, parámetros $\gamma,\theta,\phi$}
+\KwSalida{concepto $c^*$, puntaje $p^*$}
+$n \leftarrow$ núcleo$(r)$; $(c^*, p^*) \leftarrow (\text{nulo}, 0)$\;
+\ForEach{concepto $c \in \mathcal{C}$}{
+  $\cos \leftarrow \max(0, \text{coseno}(v_r, v_c))$ si hay $v_r$ y $v_c$; en otro caso $0$\;
+  \ForEach{candidato $k \in \{\text{nombre}(c)\} \cup \text{sinónimos}(c)$}{
+    \uIf{$n$ está en la cabeza de $k$}{ $p \leftarrow \min(1,\ 0{,}6 + 0{,}4\,J(r,k) + \gamma\cos)$ }
+    \uElseIf{$n$ está en alguna palabra de $k$}{ $p \leftarrow \min(1,\ J(r,k) + \gamma\cos)$ }
+    \uElseIf{$\cos \ge \theta$}{ $p \leftarrow \phi + 0{,}4\,(\cos-\theta)/(1-\theta)$ }
+    \Else{ $p \leftarrow 0$ }
+    \lIf{$p > p^*$}{ $(c^*, p^*) \leftarrow (c, p)$ }
+  }
+}
+\Return{$(c^*, p^*)$}\;
+\end{algorithm}
+
+\paragraph{Complejidad y comparación con el método exhaustivo.} Sea $|\mathcal{C}|$ el número de
+conceptos, $s$ el número medio de candidatos por concepto (nombre y sinónimos), $w$ el número de
+palabras de un candidato y $d=1.024$ la dimensión del vector. El coseno se calcula una vez por
+concepto, con costo $O(|\mathcal{C}|\,d)$; la comparación léxica cuesta $O(w^2)$ por candidato con
+conjuntos pequeños. El total por renglón es $O(|\mathcal{C}|\,(d+s\,w^2))$, lineal en el
+tamaño del catálogo de conceptos. Con 149 conceptos y $d=1.024$, el coseno requiere unas 152.000
+multiplicaciones por renglón (149 por 1.024). El método exhaustivo de referencia compara el
+renglón con cada producto del catálogo en lugar de cada concepto; con 1.030 productos con precio
+(Sección~\ref{sec:recuperacion}), su costo es $O(N\,d)$ con $N=1.030$, unas 1,05 millones de
+multiplicaciones, es decir, 6,9 veces más que la resolución por conceptos. Esa relación es el cociente
+$N/|\mathcal{C}|$ entre productos y conceptos, y crece con el catálogo, mientras que el número de
+conceptos crece más despacio porque agrupa productos equivalentes. Ambos métodos son lineales, de
+modo que la ventaja no es asintótica sino de constante. La razón principal para agrupar por conceptos
+es la abstención: el exhaustivo por producto no distingue entre un producto ausente y un
+concepto que el catálogo no cubre.
+
+% =====================================================================
+\subsection{Optimización del kit}
+\label{sec:optimizacion-dev}
+
+Con los productos resueltos, el kit se arma sobre las líneas comprables con cuatro objetivos: costo,
+fidelidad de marca, disponibilidad y personaje. Ninguna ponderación fija representa a todos los
+acudientes, así que el sistema construye el frente de Pareto en vez de optimizar una función de
+utilidad única \citep{zitzler_multiobjective_1999}.
+
+La prueba de concepto usaba NSGA-II
+\citep{deb_fast_2002} con una población de 60, 100 generaciones, un tope de 50 ítems y 30 segundos,
+y fundía la calidad con el personaje. En el banco de alternativas, sobre nueve instancias
+sintéticas, quedó a un 0,07\,\% del óptimo, frente al 11,92\,\% de un algoritmo voraz. El sistema
+construido conserva el algoritmo, con pymoo \citep{blank_pymoo_2020}, y cambia tres cosas. Calcula
+el frente exacto cuando hay 4.096 combinaciones o menos; separa el personaje como objetivo propio; y
+hace crecer la población y las generaciones con la lista, con una semilla fija. El servicio no
+arranca sin pymoo.
+
+Del frente salen siempre el Ahorrador y el Premium. El Fan sale solo si el acudiente pidió un
+personaje, y «A tu Medida», el de mejor marca que cabe en el tope o, sin tope, a mitad de camino
+entre los otros dos, solo si eligió el punto medio de gasto o declaró un tope (ADR 0021). Ofrecer
+pocas opciones bien diferenciadas facilita decidir
+\citep{thaler_nudge_2008,iyengar_when_2000,schwartz_paradox_2003} (NR-02), y un kit que nadie
+pidió es ruido para el acudiente y trabajo para el revisor. La regla de recomendación marca el Fan
+cuando hay personaje y «A tu Medida» cuando se armó; si no, el Premium cuando el acudiente acepta
+un sobreprecio de al menos el 10\,\% y la utilidad multiatributo lo prefiere al Ahorrador
+(Sección~\ref{sec:optimizacion-cal}), y en los demás casos el Ahorrador. La regla sale
+de la encuesta del Dossier OE1, en la que el 70\,\% de los acudientes no pagaría más de un 5\,\% de
+sobreprecio. El tope es el presupuesto por hijo, sin ampliarlo por el sobreprecio aceptado. Si el
+kit marcado no cabe, se marca el de mejor marca que sí cabe y, solo si ninguno cabe, el más barato,
+con la razón y su costo (ADR 0020). El presupuesto acota la recomendación, no el frente: los demás
+kits siguen a la vista.
+
+Los prototipos inferían las
+preferencias con reglas y, de forma opcional, con un modelo de lenguaje local. El sistema construido
+las pide como opciones cerradas por hijo: cuánto gastar, el presupuesto, el sobreprecio aceptado y
+el personaje (PS-01, PS-02 y PS-04). El SDD lo justifica en tres razones: la preferencia queda
+explícita y auditable, no depende de un modelo y el acudiente puede cambiarla. Los pesos por omisión
+de precio, marca exigida, calidad y personaje son 0,285, 0,273, 0,255 y 0,187, los de OP-04 del SRS
+v6.1, y salen del orden que dieron los encuestados en la pregunta P21. Reemplazaron en el código a
+los anteriores (0,35, 0,30, 0,25 y 0,10), que no venían de ninguna medición. Su derivación, la
+población y las generaciones de NSGA-II y el hipervolumen del frente sobre listas reales se presentan
+en la Sección~\ref{sec:optimizacion-cal}.
+
+% =====================================================================
+\subsection{Constantes numéricas del sistema}
+\label{sec:constantes}
+
+En esta sección se registra cada constante numérica que condiciona el comportamiento del sistema,
+para que ninguna quede sin justificación. Para cada una, la Tabla~\ref{tab:constantes}, del Anexo~\ref{anx:constantes}, indica su
+valor, el módulo donde vive, su origen y su estado. El origen es de uno de tres tipos: una
+referencia de la literatura, un requisito del SRS con su razón, o un experimento de los
+prototipos o de la calibración. El estado es «vigente» cuando el valor tiene una justificación
+registrada y «en ciclo de calibración» cuando el valor actual es el de partida de un ciclo de
+revisión humana (Sección~\ref{sec:ciclos-calibracion}) cuyo resultado final se reporta en la
+Sección~\ref{sec:optimizacion-cal}. Los valores proceden del código del repositorio y de la tabla de
+parámetros del documento de algoritmos del proyecto.
+
+% =====================================================================
+\subsection{Aplicación web y pago}
+\label{sec:web}
+
+El acudiente usa una aplicación web progresiva. Siguiendo las pautas de interacción con sistemas de
+IA \citep{amershi_guidelines_2019}, la interfaz muestra el estado de cada renglón en nueve clases y
+dice «Lo está revisando una persona» cuando la lista espera la revisión. La integración sobre la
+rama de validación del OE5 añadió cuatro capacidades al flujo del acudiente.
+
+\begin{itemize}
+\item \textbf{Descarte y cambio de producto.} El acudiente puede descartar un renglón del kit o
+cambiar su producto por el sugerido o por una de las opciones del mismo concepto canónico. La
+decisión se guarda en su solicitud, el orden de compra salta las líneas descartadas y las que
+quedan en cero, y la cantidad se cobra tal como queda (ADR 0019). Los precios nunca se muestran en
+cero: un producto sin precio se presenta como no disponible. El kit se presenta en un carrusel por
+línea, con secciones separadas para libros y uniformes y con la franja del kit Fan resaltada.
+\item \textbf{Retracto.} Comercio calcula el plazo del derecho de retracto del artículo 47 de la
+Ley 1480 de 2011 \citep{congreso_ley1480_2011}: cinco días hábiles desde la entrega y reembolso en
+un máximo de treinta días calendario. Un solo módulo de dominio, sin tabla de festivos (se calculan
+con la fecha de Pascua y la regla Emiliani) y con hora de Bogotá, alimenta el panel del acudiente y
+el detalle del pedido del administrador, de modo que ambos muestran el mismo vencimiento. Una
+prueba de dominio cubre el cálculo.
+\item \textbf{Casos y páginas legales.} El acudiente abre casos desde «Mis pedidos» y ve en una
+sola conversación sus mensajes y las respuestas del equipo (el \emph{autor} es acudiente o equipo,
+sin exponer al agente que responde). Las páginas \emph{/legal} publican la política de privacidad
+(Ley 1581 de 2012), los términos y la información de retracto, y el registro pide aceptar los
+términos y deja constancia del consentimiento del titular.
+\item \textbf{Pago.} El pago se abre en el widget de Wompi, sobre la página del kit o de «Mis
+pedidos» (ADR 0024). Con tarjeta o Nequi el acudiente no sale de Tukit; con PSE, el banco toma la
+pestaña y Wompi lo devuelve a la página de resultado. Comercio firma los datos del widget y guarda
+solo la referencia, el identificador, el estado y el medio de la transacción (ADR 0010). La
+confirmación llega por el aviso de la pasarela y por la consulta de la transacción al regresar, y
+las dos pasan por el mismo procedimiento idempotente (ADR 0025). El acudiente elige el medio dentro
+del widget, así que Tukit no da a PSE la prioridad que preveía el ADR 0010.
+\item \textbf{Dirección.} Con una llave de Google, el servicio sugiere direcciones (ADR 0044).
+Sin ella, el acudiente pulsa «Buscar», el servidor consulta OpenStreetMap con Nominatim, a una
+consulta cada 1,1~s, y el acudiente confirma el punto en un mapa (ADR 0049). Nominatim prohíbe el
+autocompletado, y como OpenStreetMap tiene menos numeración de casas, muchas búsquedas dan la calle
+y no el portón; por eso la confirmación en el mapa es parte de la decisión.
+\end{itemize}
+
+El panel de administración recibió, en la misma integración, el detalle completo del pedido (con el
+estado del retracto y el despacho por transportadora), la bandeja de tickets con filtros,
+conversación, respuesta, cambio de estado y vínculo al pedido, y un mapa de entregas pendientes en
+logística con el consolidado por colegio. El mapa usa OpenStreetMap con Leaflet; las direcciones se
+geocodifican en el servidor con Nominatim, a una consulta por segundo, una sola vez por dirección y
+con caché también de las que no se encuentran, para cumplir su política de uso.
+
+El flujo de pago se probó con la pasarela en modo simulado (\texttt{WOMPI\_MODO=falso}), que es
+el modo por omisión del sistema. La prueba con las llaves del entorno de pruebas (\emph{sandbox})
+de Wompi queda pendiente\pendienteEvidencia{pago de extremo a extremo en el sandbox de Wompi}, y
+el cobro con dinero real depende del despliegue productivo (Sección~\ref{sec:trabajo-futuro}).
+
+% Contenido que llega de otras sesiones (calibracion y MAUT; NL2C).
+\input{sections/optimizacion}
+\input{sections/nl2c}

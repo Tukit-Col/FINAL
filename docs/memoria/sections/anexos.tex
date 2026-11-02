@@ -1,0 +1,139 @@
+\section{ANEXOS}
+
+Los anexos acompañan a esta memoria en la carpeta Anexos de la entrega, cada uno con su fuente
+editable y su PDF. La Tabla~\ref{tab:anexos} los lista con su contenido y su estado. Los
+documentos técnicos de soporte (VFP, SRS, SPMP, WBS, SAD, SDD, documento maestro de diseño,
+informes ATAM y QA, informe de pruebas, que está en la carpeta QA, Dossier de OE1 y diagramas
+de OE2) están en sus carpetas de la entrega y se citan en el texto cuando se usan.
+
+\begin{table}[htbp]
+\centering
+\caption{Índice de anexos de la entrega}
+\label{tab:anexos}
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}p{4.2cm}p{7.4cm}p{2.4cm}@{}}
+\toprule
+\textbf{Anexo} & \textbf{Contenido} & \textbf{Estado} \\
+\midrule
+Registros de decisión (ADR) & Cuarenta y nueve registros de decisión de arquitectura (0001 a 0049),
+  en formato Nygard, reunidos en un solo documento & Entregado \\
+\addlinespace
+Actas de aprobación & Actas de los hitos OE1 y OE2 & Entregadas; sin firmas \\
+\addlinespace
+Auditoría de autorización & Autorización de los servicios anteriores y del sistema construido,
+  con la situación de cada hallazgo & Entregado \\
+\addlinespace
+Anexo M, datos personales & Registro de tratamiento de datos personales del sistema
+  construido, con la clasificación de los datos de menores y su base legal (Ley 1581 de 2012) &
+  Entregado \\
+\addlinespace
+Diccionario de datos & Diccionario de datos y esquema objetivo & Entregado \\
+\addlinespace
+Empatía y entrevistas & Guiones de entrevista y mapas de empatía por actor & Entregado \\
+\addlinespace
+Matriz de evidencia & Matriz de objetivos específicos y evidencia & Entregado \\
+\addlinespace
+Priorización MoSCoW & Priorización de los requisitos del SRS v6.1, con su estado en el sistema
+  construido & Entregado \\
+\addlinespace
+CRISP-DM de recuperación & Recuperación ordenada por las seis fases de CRISP-DM, con la
+  evolución desde los prototipos y el estado, las pruebas y la justificación de cada
+  estrategia & Entregado \\
+\addlinespace
+Diagramas de clases & Clases de los servicios y de la biblioteca común & Entregado \\
+\midrule
+Previstos en la WBS & Protocolo ético y consentimientos, instrumentos de validación con
+  usuarios, kits e hipervolumen del frente de Pareto y demostración del incremento con su
+  retrospectiva. La cobertura se reporta en el informe de pruebas & Se incorporan con la entrega final \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+El protocolo ético, los consentimientos y los instrumentos de validación corresponden al OE5
+(Sección~\ref{sec:oe5})\pendienteEvidencia{anexo de protocolo etico, consentimiento e instrumentos del OE5}. Los diagramas de contexto y de contenedores
+de la alternativa elegida son las Figuras~\ref{fig:c4-contexto} y~\ref{fig:c4-contenedores};
+los de las tres alternativas evaluadas están en el informe ATAM y en los diagramas de OE2, y
+los de componentes y de despliegue, en el SAD.
+
+\subsection{Tabla de constantes numéricas}
+\label{anx:constantes}
+
+La Tabla~\ref{tab:constantes} reúne cada constante numérica del sistema con su valor, su módulo, su origen y su estado, según se explica en la Sección~\ref{sec:constantes}.
+
+{\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.1}
+\begin{longtable}{@{}p{2.6cm}p{4.3cm}p{1.9cm}p{3.7cm}p{1.5cm}@{}}
+\caption{Constantes numéricas del sistema, con su origen y su estado.}\label{tab:constantes}\\
+\toprule
+Constante & Valor & Módulo & Origen & Estado \\
+\midrule
+\endfirsthead
+\toprule
+Constante & Valor & Módulo & Origen & Estado \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\multicolumn{5}{@{}l}{\emph{Percepción}}\\
+Tope de páginas & 40 & percepción & Experimento: el PDF más largo del corpus tiene 39 páginas & Vigente \\
+Temperatura del modelo & 0 & percepción & Decodificación voraz, para reducir la variabilidad entre lecturas & Vigente \\
+Tiempo límite por llamada & 40 s & percepción & Una página típica tarda unos 5 s; 40 s indica una llamada colgada & Vigente \\
+Reintentos y espera & 1 reintento, 3 s & percepción & Solo ante fallas de transporte, para no ocultar respuestas mal formadas & Vigente \\
+\midrule
+\multicolumn{5}{@{}l}{\emph{Normalización y resolución}}\\
+Dimensión del vector & 1.024 & catálogo & Fija la columna de la base; se pide explícitamente al modelo de \emph{embeddings} & Vigente \\
+Lote de \emph{embeddings} & 100 textos & catálogo & Una petición por lote, para evitar cuerpos de petición excesivos & Vigente \\
+Umbral de reconocimiento & 0,5 & catálogo & Corte por debajo del cual el renglón no corresponde a ningún concepto; fijado al corregir el caso «chaquiras» & Vigente \\
+Aporte del coseno $\gamma$ & 0,15 & catálogo & Ajuste sobre casos de error; pequeño para que el coseno desempate y no decida & En ciclo de calibración \\
+Umbral de rescate $\theta$ & 0,86 & catálogo & Ajuste sobre casos de error; separa un sinónimo de un parecido de tema & En ciclo de calibración \\
+Piso del rescate $\phi$ & 0,55 & catálogo & Apenas sobre el corte de 0,5, para que un rescate entre a revisión & En ciclo de calibración \\
+Umbral de autoaceptación $\tau$ & 0,75 & inteligencia & Requisito PE-04 del SRS (0,85 y 0,630 en versiones previas); sin decisiones humanas para calibrarlo, ver Sección~\ref{sec:optimizacion-cal} & Sin calibrar, declarado \\
+Tolerancia de medidas & 0,25 y rango 0,85 a 1,35 & catálogo & Ajuste con las auditorías de los kits (Tabla~\ref{tab:kits}) & Vigente \\
+Rango de precio en tiendas & \$1.000 a \$400.000 & catálogo & Descarta accesorios sueltos y lotes institucionales & Vigente \\
+\midrule
+\multicolumn{5}{@{}l}{\emph{Optimización}}\\
+Límite de enumeración & 4.096 ($2^{12}$) & inteligencia & Medido: la enumeración alcanza a NSGA-II en $S\approx4.932$ (mediana) y $2.380$ (percentil 95); ver Tabla~\ref{tab:calopt-umbral} & Vigente \\
+Población & $\min(100,\max(20,6n))$, par & inteligencia & Mitad de la fórmula de partida, elegida por validación cruzada agrupada por colegio (Tabla~\ref{tab:calopt-rejilla}); el par evita desperdiciar un individuo & Vigente \\
+Generaciones &\raggedright $\min(60,\max(15,\,10\log_{10}|\mathcal{E}|))$ & inteligencia & Escala con el logaritmo del espacio $|\mathcal{E}|$; mitad de la de partida, misma calibración & Vigente \\
+Cruce SBX & $p_c=0{,}9$, $\eta_c=15$ & inteligencia & Valores estándar de Deb y Agrawal \citep{deb_simulated_1995} & Vigente \\
+Mutación polinomial & $p=1$, $\eta_m=20$ & inteligencia & Valores estándar de Deb y Goyal \citep{deb_combined_1996} & Vigente \\
+Semilla & 0 & inteligencia & Reproducibilidad del frente entre ejecuciones & Vigente \\
+Pesos por omisión (costo, marca, calidad, personaje) & 0,285; 0,273; 0,255; 0,187 & inteligencia & Encuesta, pregunta P21 (n=60), con IC 95\,\% \emph{bootstrap}; reemplazan 0,35; 0,30; 0,25; 0,10 (Sección~\ref{sec:optimizacion-cal}) & Vigente \\
+Sobreprecio para Premium & 10\,\% & inteligencia & Encuesta: 42 de 60 pagan como máximo un 5\,\% más; con al menos 10\,\%, MAUT decide si se marca el Premium & Vigente \\
+Opciones por renglón & 3 & catálogo & Pocas opciones diferenciadas facilitan la decisión \citep{iyengar_when_2000} & Vigente \\
+\midrule
+\multicolumn{5}{@{}l}{\emph{Requisitos de desempeño y operación}}\\
+Tiempo de generación del kit & 8 s & SRS (DP-03) & Requisito de desempeño; se contrasta en la Sección~\ref{sec:optimizacion} & Vigente \\
+Ventana de revisión & 4 h en temporada & SRS (ML-09) & Requisito: el administrador revisa cada lista nueva antes de publicarla & Vigente \\
+Disyuntor & 5 fallas, 30 s & biblioteca común & Patrón de resiliencia; 30 s es el escenario ESC-R2 del ATAM & Vigente \\
+Caché de lecturas & 30 días & inteligencia & Evita pagar de nuevo la percepción de un mismo documento & Vigente \\
+Caché de vectores & 24 h & catálogo & Evita recalcular el vector de un renglón repetido & Vigente \\
+\end{longtable}
+}
+
+\subsection{Glosario}
+\label{anx:glosario}
+
+\begin{description}[leftmargin=2.5cm,style=nextline]
+\item[MAUT] Teoría de utilidad multiatributo: método que resume varios criterios en un solo valor de utilidad mediante pesos que suman uno.
+\item[NSGA-II] Algoritmo genético de ordenamiento no dominado que aproxima el frente de Pareto de un problema multiobjetivo \citep{deb_fast_2002}.
+\item[Frente de Pareto] Conjunto de soluciones no dominadas, es decir, aquellas en las que ninguna otra mejora un objetivo sin empeorar otro.
+\item[Hipervolumen] Volumen del espacio de objetivos que un frente domina respecto de un punto de referencia; mide la calidad de un conjunto de soluciones \citep{zitzler_multiobjective_1999}.
+\item[NL2C] Traducción de una preferencia en lenguaje natural a restricciones estructuradas que el optimizador entiende.
+\item[$\tau$] Umbral de autoaceptación: puntaje por encima del cual un renglón se da por resuelto sin revisión individual.
+\item[$\delta$] Margen mínimo entre el mejor y el segundo candidato que usó una versión anterior del umbral.
+\item[$\kappa$] Coeficiente kappa de Cohen: acuerdo entre dos clasificadores corregido por el azar \citep{cohen_coefficient_1960}.
+\item[SUS] Escala de usabilidad del sistema, de 0 a 100 \citep{brooke_sus_1996}.
+\item[NPS] Índice de recomendación neta, de $-100$ a $100$ \citep{reichheld_one_2003}.
+\item[RTLX] Versión sin ponderar del índice de carga de trabajo NASA-TLX, de 0 a 100 \citep{hart_development_1988,hart_nasa_2006}.
+\item[CRISP-DM] Proceso de seis etapas para proyectos de datos \citep{chapman_crisp-dm_2000,wirth_crisp-dm_2000}.
+\item[ATAM] Método de evaluación de arquitecturas por compromisos entre atributos de calidad \citep{bass_software_2021}.
+\item[ADR] Registro de decisión de arquitectura.
+\item[Concepto canónico] Clase de productos equivalentes del catálogo a la que se asigna un renglón de la lista.
+\end{description}
+\input{sections/anexo_tablas}
+\input{sections/anexo_figuras}
+\input{sections/anexo_ampliaciones}
+\input{sections/anexo_calibracion}

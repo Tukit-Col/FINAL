@@ -1,0 +1,200 @@
+\subsection{Ampliaciones técnicas de los capítulos V y VII}
+\label{anx:ampliaciones}
+
+En este anexo se reúne el detalle técnico que los capítulos V y VII resumen. Cada apartado indica la sección que lo remite.
+
+\subsubsection{Asignación de lenguajes: el perfilado y la cota de Amdahl}
+
+La hipótesis de partida sostenía que los componentes intensivos en cómputo debían
+reescribirse en un lenguaje compilado. Antes de comprometer esfuerzo se perfiló una lista
+escolar de veinte ítems, la mediana del corpus real, contra un catálogo de 3.187 productos.
+Las cifras de esta sección son reportadas: las registra la documentación del código fuente,
+que remite a un informe de perfilado que no forma parte de la entrega, y el código del grafo
+perfilado ya no existe en el sistema construido. Sus salidas originales no se examinaron,
+aunque la aritmética entre las cifras es coherente.
+
+El resultado refutó la hipótesis por una vía inesperada. El 96,3\% de la latencia
+corresponde, en efecto, a cómputo en el intérprete de Python, pero el 95,3\% del total lo
+produce una sola línea, que reconstruye un grafo de sustituibilidad completo en cada ítem
+procesado. Construir el grafo cuesta 1.673~ms y consultarlo, 0,137~ms: cuatro órdenes de
+magnitud de diferencia. La Tabla~\ref{tab:latencia} presenta el desglose.
+
+% Tabla tab:latencia movida al Anexo A.3 (tablas del cuerpo)
+
+
+Según la ley de Amdahl \citep{amdahl_validity_1967}, sobre el código tal como estaba y con
+una fracción paralelizable $P = 0{,}9633$, una aceleración de $50\times$ produciría una
+reducción del 94,4\%, cifra que en apariencia justificaría la reescritura. No la justifica,
+porque el mismo efecto se obtiene almacenando el grafo en caché. Corregido ese defecto, la
+latencia total desciende a 1.657~ms y la fracción de cómputo en Python cae a
+$P = 0{,}2219$, con lo que la reducción alcanzable por cambio de lenguaje queda entre el
+20,0\% y el 21,7\%. Las fuentes no declaran las aceleraciones supuestas; esos dos valores
+corresponden a $10\times$ y $50\times$ en $P\,(1 - 1/s)$. La cota se refiere al pipeline de
+resolución, no al servicio de comercio, cuyo desempeño no tiene medición (ADR 0003).
+
+Esa cota superior es además generosa. El 98,5\% de la fracción residual corresponde al
+optimizador NSGA-II \citep{deb_fast_2002} implementado sobre pymoo \citep{blank_pymoo_2020},
+biblioteca de la que no se documentó un equivalente maduro en Go. Migrar exigiría
+reimplementar el algoritmo, el operador de selección por pseudopesos y el cálculo de
+hipervolumen \citep{zitzler_multiobjective_1999}, es decir, reconstruir una biblioteca de
+investigación validada para recuperar 362~ms, el 1,03\% del total.
+
+Los seis desplegables del sistema construido están, por tanto, en Python. El único
+componente con un argumento técnico para un lenguaje compilado era la ingesta, por su perfil
+de concurrencia de red, y el catálogo curado la reemplazó (Sección~\ref{sec:consolidacion}).
+La estructura sigue siendo políglota: el manifiesto declara el lenguaje de cada servicio y
+una prueba lo verifica, de modo que incorporar un componente en otro lenguaje es una adición
+y no una reestructuración.
+
+\subsubsection{Las doce pruebas de fronteras}
+
+Un manifiesto declara, para cada servicio, su lenguaje, su base de datos,
+las tablas de las que es dueño y las referencias que cruzan hacia otros dominios, y doce
+pruebas lo verifican en cada cambio. Cinco revisan el código: que ningún servicio importe
+código de otro, declare una tabla de un dominio ajeno ni mencione la base de datos de otro;
+que toda referencia a otro dominio esté declarada, y que el lenguaje coincida con el
+declarado. Las otras cuatro revisan el propio manifiesto: que cuadre con el esquema
+objetivo, que sus referencias cruzadas sean coherentes, que ninguna tabla tenga dos dueños y
+que el grafo de dependencias entre servicios sea acíclico. Dos más, añadidas con las
+colas, comprueban que toda lectura de la base de otro servicio esté declarada, exista y sirva
+solo de respaldo sin RabbitMQ, y la última, añadida con Redis, que solo la biblioteca común de
+los servicios hable con Redis. Los registros de esas
+ejecuciones no forman parte de la entrega, así que aquí se describe lo que las pruebas
+comprueban y no su historial de resultados.
+
+La justificación de este mecanismo proviene del propio proyecto. El defecto más grave que
+encontró el rediseño fue que la tabla de productos del catálogo estaba declarada como
+maestra en dos servicios a la vez. No se produjo por falta de criterio, sino porque nada
+verificaba el criterio de forma continua, y esa falla de la disciplina humana sobre este
+mismo código basta para no depender solo de ella.
+
+\subsubsection{Auditoría de seguridad: defectos y estado}
+
+
+El de mayor alcance estaba en las políticas de seguridad a nivel de fila de las tablas con datos de
+estudiantes. La condición base concedía visibilidad de la tabla completa cuando el contexto de
+usuario no estaba establecido, de modo que el error más probable en un sistema distribuido, que un
+servicio olvide fijar ese contexto, otorgaba acceso irrestricto. Una segunda cláusula daba acceso
+completo al rol de administrador comparando solo el identificador del usuario, sin ancla de ámbito,
+y ese defecto motivó el modelo de autorización con ámbito del capítulo de diseño. El ADR 0015 lo
+registra en 16 tablas de cinco servicios y advierte que corregirlo va antes que su propia decisión;
+las migraciones posteriores conservaban la apertura, sin pruebas de regresión. Entre los demás, el
+manejador genérico de errores de validación devolvía al cliente el valor rechazado, contraseña
+incluida, y la supresión de datos se marcaba como completada sin confirmación de los servicios.
+
+
+El sistema construido no tiene políticas de seguridad a nivel de fila. El ámbito se controla en la
+aplicación, con la cadena de contención de identidad, que falla cerrada
+(Sección~\ref{sec:autorizacion}); las cifras de 152 y 22 son las de la auditoría, no una medición
+propia. De los catorce defectos del Anexo~M, dos están corregidos: el valor rechazado ya no vuelve
+al cliente, y el correo del acudiente ya no queda en un registro que la supresión no alcanza. El
+texto de la lista sin depurar se corrigió para la lista oficial, pero sigue en el documento que
+carga el acudiente; la depuración del nombre se sustituyó por la minimización
+(Sección~\ref{sec:percepcion-dev}), salvo en ese mismo documento. Los tres defectos de la supresión
+cambiaron de forma, pero la supresión sigue sin mecanismo: el estado de propagación existe en el
+modelo, sin publicador ni consumidor del evento.
+
+Cuatro siguen vigentes: la gestión de cuentas no deja registro de auditoría, el consentimiento por
+finalidad no se escribe ni se consulta, la respuesta de la importación de listas guarda el extracto
+completo del documento y ninguna tabla de auditoría tiene una política de purga. Otro no tiene
+efecto mientras no se escriba el registro de auditoría. Uno es parcial: las preferencias y los pesos
+del acudiente están cifrados, pero la razón de la recomendación queda en claro y no se borra. El de
+la anonimización no es evaluable, porque no hay ese proceso.
+
+Un defecto de comercio quedó corregido en la versión evaluada. La consulta de los pedidos del
+acudiente toma el usuario de la sesión, validada con identidad, e ignora el que llegue en la
+consulta; el detalle, el pago y la cancelación de un pedido propio también exigen sesión, y un
+pedido ajeno responde 404. La puerta de enlace sigue sin exigir sesión.
+
+En el sistema construido siguen abiertos otros defectos. La consulta de contactos del servicio de identidad devuelve el correo de
+cualquier usuario activo sin autenticación, y las rutas de los paneles de catálogo, inteligencia y
+operación no exigen sesión ni rol. Cuatro caminos crean matrículas, y solo uno, el registro de un
+hijo desde la cuenta del acudiente, escribe el consentimiento del menor. El celular del acudiente se
+guarda sin cifrar en la base de identidad.
+
+Las pruebas propias del sistema no detectaron ninguno de estos defectos. Medir cuánto código
+ejecutan no dice si buscan las condiciones adversas correctas, y varias comprueban garantías leyendo
+el código fuente en lugar de ejecutar el comportamiento. La verificación de la versión evaluada
+(Sección~\ref{sec:calidad}) los confirmó y encontró otros. Un kit se puede comprar sin sesión, aun
+mientras espera revisión, y varias rutas internas aceptan llamadas sin verificar quién llama. Las
+cinco bases de datos comparten un mismo rol de acceso, de modo que las credenciales de cualquier
+servicio leen los usuarios de identidad. La página del documento cargado sale sin depurar hacia el
+proveedor del modelo (\mbox{PE-06}), y el nombre ficticio de las pruebas quedó guardado. El retracto existe
+en comercio, pero ninguna aplicación lo ofrece y la puerta de enlace no lo expone; además, se acepta
+pasado el plazo legal y no libera la reserva. Un pedido de 100.000 unidades fue aceptado para pago.
+La respuesta de la puerta de enlace expone direcciones internas, el mensaje de un trabajo fallido
+contiene la consulta SQL con sus parámetros y, sin la llave de cifrado, el cifrador guarda en claro
+sin avisar.
+
+La exposición de estos defectos tiene una consecuencia de alcance. Las pruebas con usuarios usaron
+estudiantes ficticios y una pasarela de pruebas, de modo que ningún dato real de menores ni ningún
+cobro real quedó expuesto. Cerrar los defectos que siguen abiertos antes de recibir familias reales
+forma parte del endurecimiento productivo que se delimita en la
+Sección~\ref{sec:trabajo-futuro}. El retracto, que la Ley 1480 de 2011 reconoce al comprador, se
+completó en la aplicación del acudiente y en la puerta de enlace\pendienteEvidencia{retracto ejercible desde la aplicacion, con liberacion de la reserva y plazo legal}.
+
+\subsubsection{Estado de recuperación por fase de CRISP-DM}
+
+La Tabla~\ref{tab:rag-fases} resume, por fase de CRISP-DM, las 84 estrategias de recuperación evaluadas.
+
+\input{sections/tabla_rag_fases.tex}
+
+\subsection*{Ampliación de la Sección VII: verificación de la versión del 8 de octubre}
+
+Las fases 0 a 6 corrieron sobre la versión de integración del 8 de octubre de 2026, cuyo código de
+producto es el mismo de la versión evaluada salvo la integración continua y dos valores por omisión
+de la base de datos. El primer nivel de las fases 7 a 9 corrió sobre la versión evaluada, en una
+sola corrida, en una máquina virtual de 4 procesadores y 8~GiB y con la percepción simulada; el
+simulador atendió 2.342 percepciones, sin ninguna llamada real al modelo. Con las pruebas que añadió
+la verificación pasaban 3.911, otras 129 eran fallas esperadas que documentan defectos y la
+cobertura subía a 94,32\,\%. La integración continua ejecuta las pruebas pero no mide la cobertura,
+y su estado en esa versión no se comprobó. De las 60 filas de la matriz que liga cada meta con su
+ensayo se ejecutaron 36; de las otras 24, 13 corresponden a los niveles 2 y 3, 2 dependen de un
+hallazgo ya anticipado, 8 requieren componentes que el sistema construido incorpora después y 1 es
+el protocolo con usuarios. Los 78 hallazgos abiertos se reparten en 14 de severidad alta, 56 media
+y 8 baja. En la telemetría, las trazas no llevan el identificador de correlación, así que una carga
+no se puede seguir de extremo a extremo.
+
+\subsection*{Ampliación de la Sección VII: carga, degradación y defectos de seguridad}
+
+El primer nivel de las fases 7 a 9 dejó 18 ensayos, de los que 14 cumplen y 4 no. En la carga, una
+rampa hasta 100 usuarios generó 27.894 peticiones sin errores, y el percentil 95 de la consulta del
+catálogo fue de 22~ms con un usuario y de 160~ms con cien, por debajo de los 300~ms de la meta. No
+hubo ningún rechazo por límite de tasa porque la versión evaluada no tenía limitador, de modo que en
+ella esa meta no se cumple; el sistema construido añade uno con Redis, que en la corrida del 2 de noviembre respondió 429 a
+30.257 peticiones que superaban el límite, con cinco usuarios a través de la puerta de enlace. En la degradación, siete de diez caídas de un componente cumplieron: los demás servicios
+siguieron respondiendo sin errores y se recuperaron en 2,5~s o menos. Con el catálogo colgado, el
+disyuntor abrió a los 26,3~s, dentro de los 30~s del escenario ESC-R2, porque cada intento falló
+en unos 5~s. Si cada intento agotara su espera, el modelo da 300,8~s desde inteligencia y 150,8~s
+desde comercio. El peor caso se acotó con ese modelo y no se midió; se corrige en el endurecimiento productivo
+(Sección~\ref{sec:trabajo-futuro}). Pasados los
+30~s, con diez llamadas simultáneas, el disyuntor deja pasar las diez en lugar de una sola de
+prueba.
+
+Las tres caídas que no cumplieron revelaron tres limitaciones de la versión evaluada: con el
+catálogo detenido, subir una lista respondía con un error 500 y no se guardaba; tras caer la base o
+el intermediario, los procesos de fondo morían sin reiniciarse; y un mismo pago producía dos avisos.
+El sistema construido corrige las tres (ADR 0031, 0032 y 0033). La corrección se verificó el 20 de
+octubre de 2026 en una versión de trabajo: la subida responde 202 en 33~ms y se recupera en 2,7~s,
+los procesos de fondo se recuperan en 7,1~s y 6,9~s, y el pago produce un solo aviso. Esa
+verificación no volvió a correr los demás ensayos, que se repiten en la corrida completa sobre el
+sistema construido\pendienteEvidencia{corrida completa de la verificacion sobre el sistema construido}.
+
+
+La auditoría de los microservicios anteriores encontró defectos de gravedad desigual. El de mayor
+alcance estaba en las políticas de seguridad a nivel de fila: la condición base concedía la tabla
+completa cuando el contexto de usuario no estaba fijado, de modo que el error más probable en un
+sistema distribuido, olvidar fijarlo, otorgaba acceso irrestricto (ADR 0015, 16 tablas de cinco
+servicios). El sistema construido no tiene políticas de fila: controla el ámbito en la aplicación,
+con la cadena de contención de identidad, que falla cerrada (Sección~\ref{sec:autorizacion}).
+De los catorce defectos del Anexo~M, dos están corregidos (el valor rechazado ya no vuelve al
+cliente y el correo del acudiente ya no queda en un registro que la supresión no alcanza), uno es
+parcial, cuatro siguen vigentes y uno no es evaluable. En comercio, la consulta de pedidos toma el
+usuario de la sesión y un pedido ajeno responde 404. Siguen abiertos defectos de acceso (rutas de
+catálogo, inteligencia y operación sin sesión ni rol, y un rol de acceso compartido por las cinco
+bases) y de privacidad (el nombre del menor dentro del documento cargado y la supresión de datos
+sin mecanismo). Las pruebas propias del sistema no detectaron ninguno, porque medir cuánto código
+ejecutan no dice si buscan las condiciones adversas correctas; la verificación de la versión
+evaluada (Sección~\ref{sec:calidad}) los confirmó. El detalle de cada defecto está en el
+Anexo~\ref{anx:ampliaciones}.
+

@@ -1,0 +1,192 @@
+\subsection{Optimización y calibración}
+\label{sec:optimizacion-cal}
+
+En esta sección se presenta el algoritmo que arma los kits a partir de una lista ya resuelta contra
+el catálogo, con la misma estructura del algoritmo de resolución
+(Sección~\ref{sec:algoritmo-resolucion}). Para ello, primero se analiza el problema y se fijan sus
+entradas y salidas; luego se justifican la estrategia y su seudocódigo, y se deriva la complejidad
+frente al método exhaustivo. Al final se explica de dónde sale cada constante y se declaran las
+amenazas a la validez. Todas las cifras salen de los archivos de la calibración, generados por los
+scripts del repositorio; el detalle completo, con las tablas por nivel, la rejilla, la sensibilidad
+y el hipervolumen por perfil, está en el Anexo~\ref{anx:calibracion}.
+
+\paragraph{Análisis del problema.} Después de la resolución, cada renglón comprable de la lista
+tiene uno o más productos que lo satisfacen, llamados \emph{candidatos}. Sea $n$ el número de
+\emph{líneas decidibles}, es decir, los renglones con al menos un candidato admisible, y sea $C_i$
+el conjunto de candidatos de la línea $i$. Un kit es una asignación
+$\mathbf{x}=(x_1,\dots,x_n)$ con $x_i\in C_i$, y el espacio de búsqueda tiene
+$S=\prod_{i=1}^{n}|C_i|$ asignaciones, de modo que crece de forma exponencial con las líneas:
+basta con dos candidatos por línea para que $S\geq 2^n$. Cada kit se evalúa con cuatro objetivos
+($M=4$): el costo $f_1$, que se minimiza, y la fidelidad de marca $f_2$, la disponibilidad $f_3$ y
+el personaje $f_4$, normalizados en $[0,1]$, que se maximizan. Como el candidato más barato rara
+vez es el de mejor marca, no existe en general un kit que sea el mejor en los cuatro. Por eso se
+busca el \emph{frente de Pareto} $\mathcal{P}$, el conjunto de kits que ningún otro domina, donde
+un kit domina a otro si no es peor en ningún objetivo y es mejor en al menos uno. En el corpus, las
+\calListas{} instancias del banco salen de 174 listas de \calColegios{} colegios: \calListasNsga{}
+superan el umbral de enumeración, \calListasExacto{} quedan por debajo, una no tiene ninguna
+decisión que tomar, y el espacio más grande es del orden de $10^{\calEspacioMaxLog}$. Además, el
+acudiente necesita un kit y no un frente, así que sobre $\mathcal{P}$ hay que escoger un punto con
+sus preferencias.
+
+\paragraph{Diseño: entradas y salidas.} La Tabla~\ref{tab:es-optimizador} define los tipos.
+
+\begin{table}[H]
+\centering\footnotesize
+\caption{Entradas y salidas del optimizador del kit.}
+\label{tab:es-optimizador}
+\begin{tabularx}{\textwidth}{@{}p{2.6cm}p{4.4cm}X@{}}
+\toprule
+Elemento & Tipo & Descripción \\
+\midrule
+Entrada $C_1,\dots,C_n$ & conjuntos no vacíos de candidatos & Cada candidato trae precio en pesos (o ninguno), unidades por empaque, nivel de marca en $\{0,1,2\}$ y personaje; cada línea trae su cantidad \\
+Entrada $\mathbf{w}$ & cuatro reales no negativos & Pesos de precio, marca exigida, calidad y personaje; por omisión, los de la encuesta \\
+Entradas $B$ y $\sigma$ & entero positivo y real en $[0,1]$, opcionales & Tope de gasto por hijo y sobreprecio aceptado sobre el kit más barato \\
+Parámetros & entero $\Lambda$ y semilla $s$ & Umbral de enumeración y semilla del generador, para que el frente sea reproducible \\
+Salida $\mathcal{P}$ & kits no dominados con su vector $(f_1,\dots,f_4)$ & Exacto si $S\leq\Lambda$ y aproximado si $S>\Lambda$, ordenado por costo \\
+Salida $\mathbf{x}^\star$ & kit de $\mathcal{P}$ o nulo & Kit recomendado; nulo si ninguno cumple el tope y el sobreprecio \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Estrategia algorítmica.} La estrategia tiene dos fases: primero se calcula el frente y
+después se escoge un punto sobre él. Para la primera fase, el tamaño del espacio decide el método.
+Si $S\leq\Lambda$, se enumeran las $S$ asignaciones y se conservan las no dominadas, lo que da el
+frente exacto sin depender de ninguna semilla. Si $S>\Lambda$, se corre NSGA-II
+\citep{deb_fast_2002} sobre pymoo \citep{blank_pymoo_2020}, un algoritmo evolutivo que mantiene una
+\emph{población} de $N$ kits y, en cada una de las $G$ \emph{generaciones}, produce descendientes
+por cruce y mutación y conserva los mejores según el orden no dominado y la distancia de
+apiñamiento. La población inicial se siembra con los kits de la heurística por perfil, de modo que
+el frente aproximado nunca queda por debajo de ellos, y la corrida termina tras un número fijo de
+generaciones para que la misma semilla reproduzca el mismo frente.
+
+La segunda fase usa la teoría de la utilidad multiatributo (MAUT) \citep{keeney_decisions_1976}
+\emph{a posteriori}, es decir, primero se calcula el frente y después las preferencias escogen sobre
+él \citep{miettinen_nonlinear_1999}. Para cada objetivo se define una utilidad $u_j$, lineal entre
+el peor y el mejor valor que alcanza el frente, y la utilidad del kit es
+$U=\hat w_{\mathrm{precio}}\,u_1+(\hat w_{\mathrm{marca}}+\hat w_{\mathrm{calidad}})\,u_2+\hat w_{\mathrm{personaje}}\,u_4$,
+donde $\hat{\mathbf{w}}$ son los pesos renormalizados para que sumen 1. La marca exigida y la
+calidad pesan sobre la misma utilidad porque el frente mide ambas con el nivel de marca. La forma
+aditiva supone \emph{independencia preferencial}, es decir, que la preferencia entre dos valores de
+un criterio no depende de los valores de los demás, y ese supuesto se declara. En el código, esta
+fase es la función \texttt{elegir\_recomendado\_maut}, y la regla de recomendación la usa para
+decidir el Premium: lo marca cuando el acudiente acepta al menos un 10\,\% de sobreprecio y MAUT lo
+prefiere al Ahorrador. El Algoritmo~\ref{alg:frente-maut} reúne las dos fases.
+
+El Fan no es un quinto objetivo, sino una regla de presentación posterior al frente: para cada hijo
+y concepto, el producto de personaje va una vez en la línea donde mejor encaja sin contradecir sus
+atributos exigidos, y solo se repite donde la línea pide surtido, con costo $O(n\cdot a)$.
+
+\begin{algorithm}[H]
+\caption{Construcción del frente y selección del kit recomendado}
+\label{alg:frente-maut}
+\KwEntrada{candidatos $C_1,\dots,C_n$; pesos $\mathbf{w}$; tope $B$; sobreprecio $\sigma$; umbral $\Lambda$; semilla $s$}
+\KwSalida{frente $\mathcal{P}$ y kit recomendado $\mathbf{x}^\star$ (o nulo)}
+$S \leftarrow \prod_{i=1}^{n}|C_i|$\;
+\uIf{$S\leq 1$}{\Return{(vacío, nulo)} \tcp*{no hay decisión que tomar}}
+\uElseIf{$S\leq\Lambda$}{$\mathcal{P}\leftarrow$ no dominados de $\{\mathbf{F}(\mathbf{x}) : \mathbf{x}\in C_1\times\cdots\times C_n\}$ \tcp*{exhaustivo}}
+\Else{
+  $N\leftarrow\mathrm{par}(\min(100,\max(20,6n)))$;\quad $G\leftarrow\min(60,\max(15,10\log_{10}S))$\;
+  $Q_0\leftarrow$ kits heurísticos por perfil, completados al azar con la semilla $s$ hasta $N$\;
+  \For{$g = 1,\dots,G$}{
+    $R\leftarrow Q_{g-1}\cup{}$ CruceYMutación$(Q_{g-1})$\;
+    $Q_g\leftarrow$ los $N$ mejores de $R$ por frente no dominado y apiñamiento\;
+  }
+  $\mathcal{P}\leftarrow$ no dominados de $Q_G\cup Q_0$\;
+}
+$D\leftarrow$ kits de $\mathcal{P}$ con la máxima disponibilidad $f_3$ \tcp*{solo lo surtible}
+$c_{\min}\leftarrow$ menor costo $f_1$ en $D$\;
+$K\leftarrow\{\mathbf{x}\in D : f_1(\mathbf{x})\leq B,\ f_1(\mathbf{x})\leq(1+\sigma)\,c_{\min}\}$\;
+\lIf{$K$ es vacío}{\Return{$(\mathcal{P}$, nulo$)$}}
+\Return{$(\mathcal{P},\ \arg\max_{\mathbf{x}\in K}U(\mathbf{x}))$} \tcp*{empates: menor costo}
+\end{algorithm}
+
+\paragraph{Complejidad y comparación con el método exhaustivo.} El exhaustivo visita las $S$
+asignaciones y evalúa en cada una $M$ objetivos, con un costo de $\Theta(S\cdot M)$ evaluaciones, y
+luego filtra los $V\leq S$ vectores distintos comparándolos por pares, con un costo de $O(V^2M)$ en
+el peor caso; su tiempo crece, por tanto, con el tamaño del espacio. NSGA-II, en cambio, ordena en
+cada generación $2N$ individuos con un costo de $O(MN^2)$ \citep{deb_fast_2002}, así que su
+total es $O(G\cdot M\cdot N^2)$ y no depende de $S$; a cambio, el frente que devuelve es una
+aproximación. MAUT recorre el frente un número constante de veces, con un costo de
+$O(|\mathcal{P}|\,M)$, despreciable frente a la construcción del frente. Para saber desde qué tamaño conviene NSGA-II se igualan los dos costos, con la población y las
+generaciones típicas cerca del umbral ($n=\calNTipico$, $N=\calPobTipica$ y $G=\calGenTipica$). Si
+domina el filtro en su peor caso, con $V=S$, la igualdad $S^2M=GMN^2$ da $S=N\sqrt{G}=42\cdot 6=252\approx
+2^{\calSTeoricoLog}$. Si domina la evaluación, la igualdad $SM=GMN^2$ da $S=GN^2=36\cdot
+1.764=63.504\approx 2^{\calSCuadradoLog}$. El cruce queda, entonces, entre esos dos valores. La
+teoría no lo precisa más porque las constantes de cada operación son distintas, así que el umbral
+se fijó con la medición.
+
+Para medirlo se armaron \calSubproblemas{} subproblemas con líneas reales y espacios entre $2^{\calNivelMin}$
+y $2^{\calNivelMax}$, y en cada uno se midió en serie el tiempo de pared de los dos métodos. Un
+ajuste por mínimos cuadrados en escala logarítmica sobre los \calSubproblemasExacto{} subproblemas
+enumerados da $t_{\mathrm{exh}}(S)\approx\calConstante\cdot S^{\calExponente}$~s; el exponente es
+mayor que 1 porque el filtro de no dominados crece más rápido que la evaluación. NSGA-II, con la
+configuración elegida, tardó una mediana de \calTNsgaElegidaMediana~s, y el ajuste la alcanza en
+$S\approx\calCruceElegida$, o en $S\approx\calCruceElegidaP$ si se toma el percentil 95 del ajuste.
+Por eso se fijó $\Lambda=\calLimite=2^{\calLimiteLog}$, entre los dos cruces y dentro del rango que
+predice la teoría. Por debajo de ese umbral, la enumeración fue más rápida en
+\calExactoGanaBajoElegida{} subproblemas y, por encima, solo en \calExactoGanaSobreElegida. La
+diferencia de calidad entre los dos métodos es pequeña: sobre \calCorridasHV{} corridas, la razón de
+\emph{hipervolumen}, el volumen del espacio de objetivos que domina un frente hasta un punto de
+referencia \citep{zitzler_multiobjective_1999}, entre el frente de NSGA-II y el exacto tuvo mediana
+\calRazonHVMediana{} y mínimo \calRazonHVMin, con los cuatro ejes normalizados en $[0,1]$ y la
+referencia en 1,1. En cambio, el exhaustivo pasa de dos minutos cerca de $2^{\calNivelMaxExacto}$,
+mientras que una lista real llega a $10^{\calEspacioMaxLog}$ asignaciones.
+
+\paragraph{Calibración de las constantes.} Los experimentos corrieron en un \calCPU{} de
+\calNucleos{} núcleos con \calRAM~GiB de memoria, Python \calPython{} y pymoo \calPymoo, con semillas
+fijas. Los pesos por omisión salen de la pregunta P21 de la encuesta, que pide ordenar los cuatro
+criterios: el primero recibe 4 puntos y el último 1, y el peso es el puntaje medio dividido entre 10.
+Con \calEncuestados{} respuestas e intervalos \emph{bootstrap} del 95\,\%
+\citep{efron_bootstrap_1979}, los pesos son precio \calWPrecio{} [\calWPrecioBajo; \calWPrecioAlto],
+marca exigida \calWMarca{} [\calWMarcaBajo; \calWMarcaAlto], calidad \calWCalidad{}
+[\calWCalidadBajo; \calWCalidadAlto] y personaje \calWPersonaje{} [\calWPersonajeBajo;
+\calWPersonajeAlto]. Estos valores reemplazaron en el código a los anteriores (\calWPrecioAntes;
+\calWMarcaAntes; \calWCalidadAntes; \calWPersonajeAntes), que no venían de ninguna medición. Como los
+tres primeros intervalos se solapan, la encuesta no permite ordenar precio, marca y calidad entre sí,
+y solo el personaje queda claramente por debajo.
+
+Las fórmulas de partida de la población y de las generaciones eran
+\[N=\min(200,\max(40,12n)),\qquad G=\min(120,\max(30,20\log_{10}S)).\] La calibración multiplicó la primera por $a$ y la segunda por
+$b$, con $a,b\in\{\calFactores\}$, y escogió la configuración más barata cuyo hipervolumen medio no
+bajara más de \calUmbralHV{} del mejor de la rejilla. La partición fue por colegio, porque dos grados
+de un mismo colegio comparten productos y marcas, y mezclarlos entre ajuste y prueba inflaría el
+resultado. Antes de mirar ningún resultado se apartaron \calPrueba{} listas de \calColegiosPrueba{}
+colegios como prueba, y el resto se repartió en \calPliegues{} pliegues. La regla eligió $a=b=\calA$,
+que da en producción las fórmulas del Algoritmo~\ref{alg:frente-maut}, y al dejar fuera cada pliegue
+eligió lo mismo en \calPlieguesIguales. En el conjunto de prueba, usado una sola vez, la elegida
+obtuvo un hipervolumen relativo medio de \calPruebaElegidaHV{} contra \calPruebaActualHV{} de la de
+partida, una diferencia de \calDifHV{} con intervalo [\calDifHVBajo; \calDifHVAlto]
+y $p<0{,}001$ en la prueba de rangos con signo de Wilcoxon \citep{wilcoxon_individual_1945}. La
+pérdida es pequeña pero real, y a cambio el tiempo medio por lista bajó de \calPruebaActualT~s a
+\calPruebaElegidaT~s.
+
+El umbral de similitud $\tau=0{,}75$ de la resolución no se pudo calibrar. La tabla de transiciones
+registra \calTauTransiciones{} resoluciones, todas automáticas y todas con parecido 1, y la única
+fuente humana es la curaduría de un solo revisor, que se une con \calTauPares{} renglones de
+\calTauColegios{} colegios, \calTauColegioMayor{} de ellos de uno solo. Por eso $\tau$ se mantiene en
+su valor por omisión y se declara sin calibrar. En cuanto a la sensibilidad, cuando los pesos se
+sortean dentro de sus intervalos de la P21, el kit recomendado se mantiene en el 96,5\,\%, el
+98,6\,\% y el 94,6\,\% de los sorteos con sobreprecios de 5, 10 y 20\,\%, aunque en la peor lista baja
+al 54\,\%. Por último, en las \calHVListas{} listas de prueba el frente de producción alcanzó
+\calHVFrente{} del hipervolumen exacto, mientras que un solo kit domina una fracción menor
+(\calHVMAUTPesos{} el elegido por MAUT, \calHVAhorrador{} el Ahorrador y \calHVPremium{} el
+Premium), porque un punto no cubre todo el frente.
+
+\paragraph{Amenazas a la validez.} Los resultados anteriores tienen seis limitaciones, que se
+declaran para que se lean con su alcance.
+\begin{enumerate}[label=\textbf{A\arabic*.},leftmargin=*,itemsep=1pt,topsep=2pt]
+\item \emph{Preferencias declaradas.} Los pesos salen de lo que \calEncuestados{} acudientes dicen y
+no de lo que compran, y la muestra es sobre todo de estrato 4.
+\item \emph{Corpus pequeño y agrupado.} Son 174 listas de \calColegios{} colegios; por eso la
+validación cruzada se agrupó por colegio, y la prueba tiene solo \calColegiosPrueba{} colegios.
+\item \emph{$\tau$ sin calibrar.} No hay decisiones humanas registradas, y la única anotación es la
+de un revisor concentrada en un colegio.
+\item \emph{Sin kit óptimo de referencia.} El hipervolumen mide qué tan bien se resuelve la
+optimización y no si el kit satisface al acudiente; esa validez externa la evalúa el OE5
+(Sección~\ref{sec:oe5}).
+\item \emph{Calibración retrospectiva.} Se usaron listas ya recolectadas; el conjunto de prueba se
+apartó antes y se usó una sola vez, pero no reemplaza una evaluación con listas nuevas.
+\item \emph{Una sola máquina.} Los tiempos son de un \calCPU{} con \calRAM~GiB; en otra máquina
+cambian las constantes del ajuste y el punto de cruce, aunque no el exponente ni el orden de las
+curvas.
+\end{enumerate}

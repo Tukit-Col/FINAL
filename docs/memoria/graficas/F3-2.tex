@@ -1,0 +1,12 @@
+% Figura F3-2 del anexo CRISP-DM, con la leyenda adaptada a la memoria.
+\begin{figure}[!htbp]
+\centering
+\pgfplotstableread[col sep=semicolon]{\graficasdir/F3-2.dat}\tablaG
+\begin{tikzpicture}
+\begin{axis}[width=0.93\linewidth, height=6.4cm, xmode=log, xtick={0.1,1,10,100,1000}, xticklabels={{0,1},1,10,100,{1.000}}, xlabel={Mediana de la latencia por documento (s, eje logarítmico)}, ylabel={F1 micro}, ymin=0, ymax=1.1, enlarge x limits=0.2, grid=major, tick label style={font=\footnotesize}, point meta=explicit symbolic, nodes near coords, nodes near coords style={font=\footnotesize, anchor=south}]
+\addplot[only marks, mark=*, mark size=2.5pt, blue] table[x=lat, y=f1, meta=etiqueta]{\tablaG};
+\end{axis}
+\end{tikzpicture}
+\caption[{Calidad y latencia de los motores de percepción}]{Calidad y latencia de los motores de percepción. Fuente:\allowbreak{} salida de la comparación de motores de los prototipos de tesis, 1 de septiembre de 2026. Muestra:\allowbreak{} n~=~10 documentos y 1.293 ítems de referencia. Métrica:\allowbreak{} F1 micro frente a la mediana de la latencia por documento. Resultado:\allowbreak{} recalculado desde la salida conservada, sin volver a ejecutar los motores. La latencia es por documento y no por página, y en los servicios remotos puede incluir esperas por límite de tasa (SRS v6.1, DP-04). Los nombres de los motores son los de la salida.}
+\label{fig:bench-F3-2}
+\end{figure}

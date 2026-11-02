@@ -1,0 +1,191 @@
+\subsection{Detalle de la calibración del optimizador}
+\label{anx:calibracion}
+
+En este anexo se reúnen las tablas y figuras de la calibración que resume la
+Sección~\ref{sec:optimizacion-cal}. Todas salen de los archivos JSON de la calibración,
+entre ellos \texttt{umbral.json}, \texttt{umbral\_elegida.json}, \texttt{calibracion\_nsga.json},
+\texttt{sensibilidad.json} y \texttt{hipervolumen\_prueba.json}, medidos en un \calCPU{} con
+\calRAM~GiB de memoria.
+
+\paragraph{Umbral de enumeración.} La Tabla~\ref{tab:calopt-umbral} da los tiempos por nivel del
+espacio y la Figura~\ref{fig:calopt-umbral} los muestra junto con el ajuste. Con la configuración
+de partida, NSGA-II tardaba una mediana de \calTNsgaMediana~s y el cruce quedaba en
+$S\approx\calCruce$; con la elegida baja a \calTNsgaElegidaMediana~s y el cruce, a
+$S\approx\calCruceElegida$.
+
+\begin{table}[htbp]
+\centering
+\caption{Tiempo de pared de la enumeración exhaustiva y de NSGA-II por nivel $b$ del espacio
+($S\in[2^b,2^{b+1})$), con la configuración de partida y con la elegida. «Exacto más rápido» y
+«HV mínimo» se refieren a la elegida; \calSubproblemas{} subproblemas y \calSemillasHV{} semillas por
+subproblema para el hipervolumen.}
+\label{tab:calopt-umbral}
+\small
+\begin{tabular}{rrrrrrrr}
+\toprule
+ & & \multicolumn{2}{c}{exacto (s)} & \multicolumn{2}{c}{NSGA-II, mediana (s)} & & \\
+$b$ & subproblemas & mediana & máx. & partida & elegida & exacto más rápido & HV mínimo \\
+\midrule
+\input{sections/tablas/calibracion/tabla_umbral.tex}
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{img/calibracion/umbral.png}
+\caption{Izquierda: tiempo de la enumeración exacta y de NSGA-II según $S$, con el ajuste
+$t\approx\calConstante\cdot S^{\calExponente}$ y su percentil 95. Derecha: razón de hipervolumen de
+NSGA-II contra el frente exacto, mediana y mínimo por nivel.}
+\label{fig:calopt-umbral}
+\end{figure}
+
+\paragraph{Población y generaciones.} La Tabla~\ref{tab:calopt-rejilla} da la rejilla completa sobre
+los pliegues de validación (\calCVListas{} listas, \calSemillasCV{} semillas por lista; los pliegues
+tienen \calPlieguesListas{} listas) y la Figura~\ref{fig:calopt-rejilla} la muestra. El pliegue en
+que la regla eligió otra configuración escogió una todavía más barata, que quedó por fuera del margen
+en su pliegue apartado, lo que indica que reducir más el presupuesto ya cuesta calidad. En la prueba,
+el \calFraccionHV{} de las corridas de la elegida alcanzó al menos 0,999 del hipervolumen exacto, la
+peor corrida llegó a \calRazonMinPrueba{} y el mínimo por lista fue \calPruebaElegidaHVMin. La rejilla
+es reducida y se declara: 2 semillas por lista en la validación y 5 en la prueba.
+
+\begin{table}[htbp]
+\centering
+\caption{Rejilla de población ($a$) y generaciones ($b$) sobre los pliegues de validación.
+$\star$: configuración elegida; $\circ$: configuración de partida.}
+\label{tab:calopt-rejilla}
+\small
+\begin{tabular}{rrrrrrc}
+\toprule
+$a$ & $b$ & evaluaciones medias & HV medio & HV mínimo por lista & tiempo medio (s) & \\
+\midrule
+\input{sections/tablas/calibracion/tabla_rejilla.tex}
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.65\linewidth]{img/calibracion/rejilla.png}
+\caption{Hipervolumen relativo contra evaluaciones por lista para cada configuración de la rejilla;
+la línea punteada marca el margen de \calUmbralHV{} bajo el mejor.}
+\label{fig:calopt-rejilla}
+\end{figure}
+
+\paragraph{Umbral $\tau$.} Con la curaduría disponible, en $\tau=0{,}75$ se acepta el
+\calTauAceptada{} de los renglones con una precisión del \calTauPrecision, pero el parecido solo toma
+\calTauValores{} valores distintos y la validación cruzada agrupada elige valores entre
+\calTauCVMin{} y \calTauCVMax{} según el pliegue. Por esa inestabilidad, y porque la anotación es de
+un solo revisor, estas cifras no se usan como calibración y $\tau$ queda en su valor por omisión.
+
+\paragraph{Sensibilidad del kit recomendado.} En las \calSensListas{} listas de prueba con al menos
+dos puntos en el frente (mediana de \calSensFrenteMediana{} puntos) se sortearon
+\calSensPerturbaciones{} vectores de pesos por lista y celda. Sin sobreprecio la estabilidad es 1 por
+construcción, porque la cota de sobreprecio deja admisible solo el kit más barato. En el primer
+esquema cada peso se sortea dentro de su intervalo del 95\,\% de la P21; en el segundo, los pesos
+siguen una distribución de Dirichlet centrada en los de la P21 con concentración $\kappa$, que admite
+perturbaciones más anchas. La Tabla~\ref{tab:calopt-sensibilidad} da todas las celdas y la
+Figura~\ref{fig:calopt-sensibilidad} las muestra.
+
+\begin{table}[htbp]
+\centering
+\caption{Fracción de sorteos de pesos en que el kit recomendado por MAUT es el mismo que con los
+pesos de la P21. DE: desviación estándar del peso del precio bajo la perturbación.}
+\label{tab:calopt-sensibilidad}
+\small
+\begin{tabular}{rlrrlr}
+\toprule
+sobreprecio & perturbación & DE & media & IC 95\,\% & mínimo por lista \\
+\midrule
+\input{sections/tablas/calibracion/tabla_sensibilidad.tex}
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.65\linewidth]{img/calibracion/sensibilidad.png}
+\caption{Estabilidad del kit recomendado bajo la perturbación de Dirichlet, según la desviación
+estándar del peso del precio y el sobreprecio declarado.}
+\label{fig:calopt-sensibilidad}
+\end{figure}
+
+\paragraph{Hipervolumen por perfil.} La Tabla~\ref{tab:calopt-hv} da el hipervolumen relativo al
+frente exacto en las \calHVListas{} listas de prueba (\calHVListasNsga{} de ellas con NSGA-II), y la
+Figura~\ref{fig:calopt-hv} lo muestra. El mínimo del frente de producción fue \calHVFrenteMin.
+
+\begin{table}[htbp]
+\centering
+\caption{Hipervolumen relativo al frente exacto en las listas de prueba, con intervalo
+\emph{bootstrap} del 95\,\%.}
+\label{tab:calopt-hv}
+\small
+\begin{tabular}{lrl}
+\toprule
+conjunto & media & IC 95\,\% \\
+\midrule
+\input{sections/tablas/calibracion/tabla_hipervolumen.tex}
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.55\linewidth]{img/calibracion/hipervolumen_prueba.png}
+\caption{Hipervolumen relativo del frente de producción y de cada kit en las listas de prueba.}
+\label{fig:calopt-hv}
+\end{figure}
+
+\subsection{Detalle de la evaluación del asistente NL2C}
+\label{anx:nl2c}
+
+En este anexo se reúnen las tablas de la ronda 3 de la evaluación del asistente que resume la
+Sección~\ref{sec:nl2c}. La Tabla~\ref{tab:nl2c-rondas} compara las dos últimas rondas, que usaron el
+mismo modelo, las mismas frases y los mismos ataques; las demás desglosan la ronda 3.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Resultados de las rondas 2 y 3 del asistente NL2C.}
+\label{tab:nl2c-rondas}
+\begin{tabular}{@{}p{5.4cm}p{3.9cm}p{3.9cm}@{}}\toprule
+Medida & Ronda 2 (criterio original) & Ronda 3 (criterio nuevo)\\\midrule
+Tarea completa & 57 de 70 (81,4\,\%) & 58 de 70 (82,9\,\%)\\
+F1 de personajes y marcas & 1,000 & 1,000\\
+Latencia p50 / p95 (ms) & 999 / 1.344 & 1.000 / 1.177\\
+Ataques exitosos (ASR) & 0 de 81 & 0 de 81\\
+El modelo lo intentó & 5 de 81 & 6 de 81\\
+Utilidad bajo ataque & 36 de 60 & 36 de 60\\
+Controles sin ataque & 12 de 12 & 12 de 12\\\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering\small
+\caption{Coincidencia con el oro por campo de $\mathcal{R}$ en la ronda 3.}
+\label{tab:nl2c-campos}
+\input{sections/tablas/nl2c/ronda3_campos.tex}
+\end{table}
+
+\begin{table}[htbp]
+\centering\small
+\caption{Ataques de inyección por categoría en la ronda 3.}
+\label{tab:nl2c-asr}
+\input{sections/tablas/nl2c/ronda3_asr.tex}
+\end{table}
+
+\begin{table}[htbp]
+\centering\small
+\caption{Condiciones de éxito del atacante en la ronda 3.}
+\label{tab:nl2c-condiciones}
+\input{sections/tablas/nl2c/ronda3_condiciones.tex}
+\end{table}
+
+\begin{table}[htbp]
+\centering\small
+\caption{Costo y latencia de la ronda 3. El costo usa un precio de lista supuesto, no medido.}
+\label{tab:nl2c-costo}
+\input{sections/tablas/nl2c/ronda3_costo.tex}
+\end{table}
+
+\begin{table}[htbp]
+\centering\small
+\caption{Utilidad bajo ataque y controles en la ronda 3.}
+\label{tab:nl2c-utilidad}
+\input{sections/tablas/nl2c/ronda3_utilidad_ataque.tex}
+\end{table}
