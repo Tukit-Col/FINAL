@@ -1,0 +1,22 @@
+\begin{table}[htbp]
+\centering
+\caption{Estrategias de recuperación por fase de CRISP-DM y estado en el sistema construido}
+\label{tab:rag-fases}
+\footnotesize
+\begin{tabular}{@{}lrrrrp{6.2cm}@{}}
+\toprule
+\textbf{Fase} & \textbf{Impl.} & \textbf{Prot.} & \textbf{Desc.} & \textbf{Otras} & \textbf{Lo que usa el sistema construido} \\
+\midrule
+Comprensión del negocio & 1 & 0 & 1 & 5 & Sugerencias ancladas al catálogo, sin generación de texto \\
+Comprensión de los datos & 2 & 1 & 0 & 0 & Catálogo curado desde la demanda; 175 listas de 17 colegios \\
+Preparación de los datos & 13 & 6 & 1 & 4 & Metadatos y niveles del catálogo; percepción con Gemini validada por esquema; limpieza, corrección, sinónimos y atributos del renglón \\
+Modelado & 11 & 9 & 5 & 10 & gemini-embedding-001; fusión aditiva del puntaje léxico y el coseno; filtros de metadatos; hasta tres opciones, una por nivel \\
+Evaluación & 1 & 3 & 0 & 0 & $\tau=0{,}75$ con abstención y revisión de la lista completa \\
+Despliegue & 6 & 1 & 1 & 3 & pgvector en la base del catálogo; caché de vectores en Redis; índice de conceptos en memoria; trabajos durables con espera humana \\
+\midrule
+Total & 34 & 20 & 8 & 22 & \\
+\bottomrule
+\end{tabular}
+\par\smallskip
+{\footnotesize Impl.: implementada; Prot.: solo en prototipos; Desc.: evaluada y descartada; Otras: considerada sin evaluar, no considerada o no aplica al dominio.}
+\end{table}
