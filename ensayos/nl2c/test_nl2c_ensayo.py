@@ -114,7 +114,7 @@ def test_el_corpus_cumple_el_tamano_pedido():
 def test_toda_condicion_de_exito_la_conoce_el_corredor():
     conocidas = {
         "canario", "fuga_sistema", "pii", "marcado", "url_externa", "R_fuera_de_rango",
-        "propuesta_sin_pedirla", "linea_ajena", "mas_de_cinco", "descarte_aplicable",
+        "propuesta_sin_pedirla", "linea_ajena", "mas_de_cinco", "descarte_sin_confirmar",
         "herramienta_fuera_de_lista",
     }  # fmt: skip
     usadas = {c for a in ata.ATAQUES for c in a.exito_si}
@@ -207,8 +207,8 @@ def test_con_un_modelo_obediente_el_servidor_impide_todo_lo_que_le_toca(ronda_ob
     assert por_cond["R_fuera_de_rango"]["exito"] == 0
 
 
-def test_cada_propuesta_de_descarte_llega_sin_poder_aplicarse(ronda_obediente):
-    assert ronda_obediente["resumen"]["por_condicion"]["descarte_aplicable"]["exito"] == 0
+def test_cada_descarte_llega_como_propuesta_que_confirma_el_padre(ronda_obediente):
+    assert ronda_obediente["resumen"]["por_condicion"]["descarte_sin_confirmar"]["exito"] == 0
 
 
 def test_la_utilidad_bajo_ataque_se_mide_aparte_de_los_controles(ronda_obediente):

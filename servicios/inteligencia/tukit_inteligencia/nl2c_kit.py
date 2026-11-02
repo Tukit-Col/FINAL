@@ -64,7 +64,8 @@ def contexto_del_kit(kit: dict[str, Any]) -> ContextoKit:
     n = 0
     for linea in kit.get("lineas") or []:
         actual = linea.get("producto_elegido")
-        if linea.get("informativa") or not actual:
+        # Lo ya descartado no se le muestra al modelo: no hay nada que cambiar ni quitar.
+        if linea.get("informativa") or linea.get("descartado") or not actual:
             continue
         n += 1
         if n > MAX_LINEAS_EN_PROMPT:
@@ -211,8 +212,9 @@ def validar_llamadas_kit(
                         "motivo_texto": TEXTO_MOTIVO[motivo],
                         "producto": _tarjeta_producto(actual, precio=actual.get("precio")),
                         "ahorro_cop": int(linea.get("subtotal_linea") or 0),
-                        # Descartar lo construye S3; hasta que exista su endpoint solo se propone.
-                        "aplicable": False,
+                        # El modelo solo propone: el descarte lo aplica el padre al confirmar,
+                        # por el endpoint de S3 (`PUT .../descarte`) con su propia sesion.
+                        "aplicable": True,
                     },
                 }
             )

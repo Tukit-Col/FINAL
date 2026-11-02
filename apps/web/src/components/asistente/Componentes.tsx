@@ -215,12 +215,20 @@ export function PropuestaDescarte({
   producto,
   ahorro_cop,
   aplicable,
+  estado,
+  ocupado,
+  onAceptar,
+  onRechazar,
 }: {
   descripcion: string;
   motivo_texto: string;
   producto: TarjetaProducto;
   ahorro_cop: number;
   aplicable: boolean;
+  estado: "pendiente" | "aplicada" | "rechazada";
+  ocupado: boolean;
+  onAceptar: () => void;
+  onRechazar: () => void;
 }) {
   return (
     <li className={estilos.tarjeta}>
@@ -228,8 +236,21 @@ export function PropuestaDescarte({
       <Producto etiqueta="Podrías quitar" p={producto} />
       <p className={estilos.ayuda}>{motivo_texto}</p>
       <p className={estilos.ahorro}>Ahorrarías {formatearCop(ahorro_cop)}</p>
-      {!aplicable && (
+      {!aplicable ? (
         <p className={estilos.aviso}>Por ahora no lo quitamos desde aquí. Si quieres, puedes quitarlo en el renglón de tu kit.</p>
+      ) : estado === "pendiente" ? (
+        <div className={estilos.acciones}>
+          <button type="button" className={estilos.primario} onClick={onAceptar} disabled={ocupado}>
+            Sí, quitarlo
+          </button>
+          <button type="button" className={estilos.secundario} onClick={onRechazar} disabled={ocupado}>
+            No, dejarlo
+          </button>
+        </div>
+      ) : (
+        <p className={estilos.ayuda}>
+          {estado === "aplicada" ? "Listo, lo quitamos. Puedes volver a ponerlo en el renglón del kit." : "Lo dejamos en tu kit."}
+        </p>
       )}
     </li>
   );
