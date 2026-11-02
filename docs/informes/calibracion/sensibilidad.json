@@ -1,0 +1,251 @@
+{
+ "pesos": {
+  "precio": 0.285,
+  "marca_exigida": 0.273,
+  "calidad": 0.255,
+  "personaje": 0.187
+ },
+ "perturbaciones": 1000,
+ "listas": 40,
+ "puntos_del_frente_mediana": 45.5,
+ "celdas": [
+  {
+   "kappa": 20,
+   "sobreprecio": 0.0,
+   "listas": 40,
+   "sd_componente_precio": 0.09850670753086528,
+   "estable_medio": 1.0,
+   "ic95": [
+    1.0,
+    1.0
+   ],
+   "estable_minimo_lista": 1.0
+  },
+  {
+   "kappa": 20,
+   "sobreprecio": 0.05,
+   "listas": 40,
+   "sd_componente_precio": 0.09850670753086528,
+   "estable_medio": 0.89175,
+   "ic95": [
+    0.8297687499999999,
+    0.9465018749999999
+   ],
+   "estable_minimo_lista": 0.429
+  },
+  {
+   "kappa": 20,
+   "sobreprecio": 0.1,
+   "listas": 40,
+   "sd_componente_precio": 0.09850670753086528,
+   "estable_medio": 0.8679250000000002,
+   "ic95": [
+    0.822421875,
+    0.9126274999999999
+   ],
+   "estable_minimo_lista": 0.541
+  },
+  {
+   "kappa": 20,
+   "sobreprecio": 0.2,
+   "listas": 40,
+   "sd_componente_precio": 0.09850670753086528,
+   "estable_medio": 0.735475,
+   "ic95": [
+    0.663271875,
+    0.803350625
+   ],
+   "estable_minimo_lista": 0.168
+  },
+  {
+   "kappa": 50,
+   "sobreprecio": 0.0,
+   "listas": 40,
+   "sd_componente_precio": 0.06321066551851924,
+   "estable_medio": 1.0,
+   "ic95": [
+    1.0,
+    1.0
+   ],
+   "estable_minimo_lista": 1.0
+  },
+  {
+   "kappa": 50,
+   "sobreprecio": 0.05,
+   "listas": 40,
+   "sd_componente_precio": 0.06321066551851924,
+   "estable_medio": 0.9183749999999999,
+   "ic95": [
+    0.865696875,
+    0.9649749999999999
+   ],
+   "estable_minimo_lista": 0.502
+  },
+  {
+   "kappa": 50,
+   "sobreprecio": 0.1,
+   "listas": 40,
+   "sd_componente_precio": 0.06321066551851924,
+   "estable_medio": 0.92655,
+   "ic95": [
+    0.8881737499999999,
+    0.959675625
+   ],
+   "estable_minimo_lista": 0.558
+  },
+  {
+   "kappa": 50,
+   "sobreprecio": 0.2,
+   "listas": 40,
+   "sd_componente_precio": 0.06321066551851924,
+   "estable_medio": 0.8275750000000001,
+   "ic95": [
+    0.76482375,
+    0.8856793749999999
+   ],
+   "estable_minimo_lista": 0.287
+  },
+  {
+   "kappa": 100,
+   "sobreprecio": 0.0,
+   "listas": 40,
+   "sd_componente_precio": 0.04491741597004154,
+   "estable_medio": 1.0,
+   "ic95": [
+    1.0,
+    1.0
+   ],
+   "estable_minimo_lista": 1.0
+  },
+  {
+   "kappa": 100,
+   "sobreprecio": 0.05,
+   "listas": 40,
+   "sd_componente_precio": 0.04491741597004154,
+   "estable_medio": 0.931475,
+   "ic95": [
+    0.884373125,
+    0.97370125
+   ],
+   "estable_minimo_lista": 0.52
+  },
+  {
+   "kappa": 100,
+   "sobreprecio": 0.1,
+   "listas": 40,
+   "sd_componente_precio": 0.04491741597004154,
+   "estable_medio": 0.9533249999999999,
+   "ic95": [
+    0.9229693749999999,
+    0.9779512499999998
+   ],
+   "estable_minimo_lista": 0.618
+  },
+  {
+   "kappa": 100,
+   "sobreprecio": 0.2,
+   "listas": 40,
+   "sd_componente_precio": 0.04491741597004154,
+   "estable_medio": 0.875525,
+   "ic95": [
+    0.817719375,
+    0.9263824999999999
+   ],
+   "estable_minimo_lista": 0.379
+  },
+  {
+   "kappa": 200,
+   "sobreprecio": 0.0,
+   "listas": 40,
+   "sd_componente_precio": 0.031840319881390224,
+   "estable_medio": 1.0,
+   "ic95": [
+    1.0,
+    1.0
+   ],
+   "estable_minimo_lista": 1.0
+  },
+  {
+   "kappa": 200,
+   "sobreprecio": 0.05,
+   "listas": 40,
+   "sd_componente_precio": 0.031840319881390224,
+   "estable_medio": 0.944875,
+   "ic95": [
+    0.9026231249999999,
+    0.9802037500000002
+   ],
+   "estable_minimo_lista": 0.557
+  },
+  {
+   "kappa": 200,
+   "sobreprecio": 0.1,
+   "listas": 40,
+   "sd_componente_precio": 0.031840319881390224,
+   "estable_medio": 0.9727,
+   "ic95": [
+    0.9463974999999999,
+    0.993050625
+   ],
+   "estable_minimo_lista": 0.632
+  },
+  {
+   "kappa": 200,
+   "sobreprecio": 0.2,
+   "listas": 40,
+   "sd_componente_precio": 0.031840319881390224,
+   "estable_medio": 0.9101250000000001,
+   "ic95": [
+    0.85661625,
+    0.9561256249999999
+   ],
+   "estable_minimo_lista": 0.456
+  }
+ ],
+ "dentro_ic95_p21": [
+  {
+   "sobreprecio": 0.0,
+   "listas": 40,
+   "estable_medio": 1.0,
+   "ic95": [
+    1.0,
+    1.0
+   ],
+   "estable_minimo_lista": 1.0,
+   "listas_estables_100": 40
+  },
+  {
+   "sobreprecio": 0.05,
+   "listas": 40,
+   "estable_medio": 0.9650500000000001,
+   "ic95": [
+    0.9324693749999999,
+    0.9911518749999999
+   ],
+   "estable_minimo_lista": 0.61,
+   "listas_estables_100": 34
+  },
+  {
+   "sobreprecio": 0.1,
+   "listas": 40,
+   "estable_medio": 0.986,
+   "ic95": [
+    0.9643,
+    1.0
+   ],
+   "estable_minimo_lista": 0.692,
+   "listas_estables_100": 38
+  },
+  {
+   "sobreprecio": 0.2,
+   "listas": 40,
+   "estable_medio": 0.9455,
+   "ic95": [
+    0.903724375,
+    0.9812
+   ],
+   "estable_minimo_lista": 0.54,
+   "listas_estables_100": 32
+  }
+ ]
+}
