@@ -1051,7 +1051,9 @@
 
 .carrusel:focus-visible {
   outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  /* Hacia adentro: la máscara de difuminado recorta todo lo que cae fuera de la
+   * caja de la pista, y un contorno externo desaparecería al enfocar con teclado. */
+  outline-offset: -2px;
   border-radius: var(--radius-md);
 }
 

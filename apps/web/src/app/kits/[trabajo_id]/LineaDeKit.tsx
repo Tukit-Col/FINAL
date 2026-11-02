@@ -441,7 +441,9 @@ function CarruselDeOpciones({
       )}
       {opciones !== null && opciones.length > 1 && (
         <p className={styles.pistaCarrusel}>
-          {opciones.length} opciones · desliza para ver más
+          {opciones.length} opciones
+          {/* Solo se invita a deslizar si de verdad hay algo fuera de la vista. */}
+          {(hayIzq || hayDer) && " · desliza para ver más"}
         </p>
       )}
       {error && (
