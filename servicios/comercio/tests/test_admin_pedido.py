@@ -26,6 +26,7 @@ async def test_detalle_trae_la_transaccion_de_wompi_solo_para_staff(cliente):
     pedido_id = await _pedido_pagado(cliente)
     staff = (await _detalle(cliente, pedido_id)).json()
     assert staff["pago"]["transaccion_wompi"]
+    assert staff["pago"]["actualizado_en"]
     # El portador lo ve por la ruta del acudiente y esa no lleva la transaccion.
     suyo = await cliente.get(f"/v1/comercio/mis-pedidos/{pedido_id}", headers=bearer(TOKEN_ACUDIENTE))
     assert "transaccion_wompi" not in (suyo.json().get("pago") or {})

@@ -198,7 +198,7 @@ async def _detalle_staff(repo: RepoPedidos, fila: Any) -> dict[str, Any]:
     pedido = await repo.pedido_completo(fila, con_celular=True)
     if pedido["pago"] is not None:
         # El id de transaccion de Wompi solo lo necesita el staff para conciliar.
-        pedido["pago"]["transaccion_wompi"] = await repo.transaccion_de_pago(fila.id)
+        pedido["pago"] |= await repo.datos_de_pago_staff(fila.id)
     entregado_en = _a_datetime(pedido["envio"]["entregado_en"]) if pedido["envio"] else None
     return {
         **pedido,
