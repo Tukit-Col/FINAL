@@ -31,7 +31,7 @@ _PALABRAS_VACIAS = frozenset(
     barato barata baratos baratas economico economica mejor mejores calidad marca marcas
     surtido surtidos surtida variedad variar repetido repetidos tambien igual demasiado
     cambia cambiar cambio cambios dame poner pon hay tiene tienen quita quitar
-    """.split()
+    """.split()  # noqa: SIM905  (lista larga: mas legible como texto corrido)
 )
 # Una etiqueta que se le muestra al padre: solo letras, sin nada que pueda ser marcado.
 _RE_ETIQUETA = re.compile(r"[a-zñáéíóúü]{3,24}")
@@ -39,11 +39,18 @@ _RE_ETIQUETA = re.compile(r"[a-zñáéíóúü]{3,24}")
 # "que puedes hacer", "cuales son los cambios que puedes hacer", "ayuda", "como funcionas".
 # Corta a proposito: un texto largo (con posible inyeccion) siempre pasa por el modelo.
 _MAX_LARGO_AYUDA = 80
+# La pregunta debe TERMINAR ahi (`$`) y no ir tras "lo": asi "mas barato en cuadernos, lo que
+# puedes" o "que haces con los cuadernos" siguen siendo pedidos reales y llegan al modelo en
+# vez de responderse con la lista de capacidades.
 _RE_AYUDA = re.compile(
-    r"\b(?:ayuda|ayudame|help|como\s+funcionas?|como\s+te\s+uso|que\s+haces|para\s+que\s+sirves"
-    r"|que\s+(?:puedes|sabes|podes)\b"
-    r"|que\s+puedo\s+(?:pedir|hacer|cambiar)|que\s+se\s+puede\s+(?:hacer|pedir|cambiar)"
-    r"|(?:cambios|cosas|opciones)\s+(?:que\s+)?(?:puedes|puedo)\b)"
+    r"(?:^|\s)(?:"
+    r"(?:ayuda|ayudame|help)"
+    r"|como\s+(?:funcionas?|te\s+uso)"
+    r"|para\s+que\s+sirves"
+    r"|(?<!lo\s)que\s+(?:haces|puedes|sabes|podes)(?:\s+(?:hacer|cambiar|pedir|ofrecer|ayudar))?(?:\s+(?:por\s+mi|aqui))?"
+    r"|que\s+(?:puedo|se\s+puede)\s+(?:pedir|hacer|cambiar)"
+    r"|(?:cambios|cosas|opciones)\s+(?:que\s+)?(?:puedes|puedo)(?:\s+(?:hacer|pedir))?"
+    r")\s*$"
 )
 
 
@@ -85,7 +92,8 @@ def _raices(texto: str) -> set[str]:
 
 def pide_ayuda(texto_limpio: str) -> bool:
     """El padre pregunta que puede pedir. Se responde sin llamar al modelo."""
-    p = re.sub(r"\s+", " ", plano(texto_limpio)).strip()
+    # Sin signos (¿?!.,) para que la pregunta se lea igual con o sin ellos.
+    p = re.sub(r"\s+", " ", re.sub(r"[^a-z0-9 ]", " ", plano(texto_limpio))).strip()
     return 0 < len(p) <= _MAX_LARGO_AYUDA and bool(_RE_AYUDA.search(p))
 
 
