@@ -20,6 +20,7 @@ import {
   formatearPesos,
   type Colegio,
   type EstadoTrabajo,
+  type MiCaso,
   type MatriculaAcudiente,
   type Pedido,
   type Solicitud,
@@ -31,6 +32,7 @@ import {
   matriculasDeLaSesion,
   pedidosDeLaSesion,
   solicitudesDeLaSesion,
+  tokenDeSesion,
 } from "@/lib/sesion";
 import {
   compraDeSolicitud,
@@ -39,6 +41,8 @@ import {
   type TonoEstado,
 } from "@/lib/pagar-pedido";
 import AccionesPedido from "./AccionesPedido";
+import DetallePedido from "./DetallePedido";
+import MisCasos from "./MisCasos";
 import CancelarSolicitud from "./CancelarSolicitud";
 import TarjetaHijo from "./TarjetaHijo";
 import styles from "./Dashboard.module.css";
@@ -99,11 +103,24 @@ async function pedidosConVigencia(): Promise<{
   };
 }
 
+// Los casos del portador. Si Operación no responde, la sección avisa y el resto
+// del panel sigue vivo (`null` = no se pudieron leer, distinto de "no hay").
+async function casosDeLaSesion(): Promise<MiCaso[] | null> {
+  const token = await tokenDeSesion();
+  if (!token) return [];
+  try {
+    return await origenDeDatos().misCasos(token);
+  } catch {
+    return null;
+  }
+}
+
 export default async function DashboardPage() {
   const sesion = await sesionActual();
   if (!sesion) redirect("/ingresar");
 
   const { filas: pedidos, ahora } = await pedidosConVigencia();
+  const casos = await casosDeLaSesion();
 
   // Los perfiles de los hijos del portador. `matriculasDeLaSesion()` es
   // fail-closed a [] (no distingue "sin hijos" de "lectura fallida"), asi que
@@ -404,7 +421,7 @@ export default async function DashboardPage() {
                               {formatearPesos(pedido.total)}
                             </td>
                           </tr>
-                          {pendiente && (
+                          {pendiente ? (
                             <tr className={styles.filaAcciones}>
                               <td colSpan={4}>
                                 <AccionesPedido
@@ -414,12 +431,32 @@ export default async function DashboardPage() {
                                 />
                               </td>
                             </tr>
+                          ) : (
+                            <tr className={styles.filaAcciones}>
+                              <td colSpan={4}>
+                                <DetallePedido pedido={pedido} />
+                              </td>
+                            </tr>
                           )}
                         </Fragment>
                       );
                     })}
                   </tbody>
                 </table>
+              )}
+            </section>
+
+            {/* ---- Mis casos ---- */}
+            <section id="casos" className={styles.card}>
+              <div className={styles.sectionHeader}>
+                <h2>Mis casos</h2>
+              </div>
+              {casos === null ? (
+                <p className={styles.hijosError}>
+                  No pudimos cargar tus casos en este momento. Vuelve a intentarlo en unos minutos.
+                </p>
+              ) : (
+                <MisCasos iniciales={casos} />
               )}
             </section>
 

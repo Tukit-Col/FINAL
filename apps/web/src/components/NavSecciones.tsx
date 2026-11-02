@@ -8,7 +8,7 @@
 // componentes y no pueden cruzar como props de servidor a cliente.
 
 import { useEffect, useState, type MouseEvent } from "react";
-import { Users, Package, ClipboardList } from "lucide-react";
+import { Users, Package, ClipboardList, LifeBuoy } from "lucide-react";
 import { prefiereMenosMovimiento } from "@tukit/contrato/motion";
 import styles from "./Sidebar.module.css";
 
@@ -16,6 +16,7 @@ const SECCIONES = [
   { id: "hijos", label: "Perfiles de hijos", icon: Users },
   { id: "solicitudes", label: "Mis solicitudes", icon: ClipboardList },
   { id: "pedidos", label: "Mis pedidos", icon: Package },
+  { id: "casos", label: "Mis casos", icon: LifeBuoy },
 ];
 
 export default function NavSecciones() {
