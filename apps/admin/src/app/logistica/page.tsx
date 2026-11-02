@@ -17,6 +17,7 @@ import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import AvisoAcceso from "@/components/AvisoAcceso";
 import FiltrosLogistica from "@/components/FiltrosLogistica";
 import Revelar from "@/components/Revelar";
+import SeccionMapa from "@/components/SeccionMapa";
 import { formatearFecha } from "@/lib/formato";
 import {
   claveFiltros,
@@ -136,6 +137,8 @@ export default async function PaginaLogistica({ searchParams }: Props) {
           ))}
         </section>
       </Revelar>
+
+      <SeccionMapa pedidos={pedidos} nombresColegio={etiquetas.colegios} />
 
       {pedidos.length > 0 ? (
         // `next/form` con action de texto no acepta `key`: el envoltorio

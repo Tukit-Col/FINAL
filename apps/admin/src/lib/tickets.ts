@@ -103,3 +103,9 @@ export function textoVencimiento(caso: Caso, ahora: number): string | null {
   if (horas < 48) return `vence en ${horas} h`;
   return `vence en ${Math.round(horas / 24)} d`;
 }
+
+/** El instante actual, en una funcion aparte: la pagina es un Server Component
+ *  (se pinta una vez por peticion) y la regla de pureza de React no distingue. */
+export function instanteActual(): number {
+  return Date.now();
+}
