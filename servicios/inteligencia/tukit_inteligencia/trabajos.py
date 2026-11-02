@@ -3014,7 +3014,8 @@ async def opciones_de_una_linea(
         return {"item_id": str(item_id), "concepto": concepto, "opciones": []}
     # Si la linea esta descartada, el subtotal "de hoy" es el que tendria
     # reactivada: asi la diferencia no se compara contra cero.
-    subtotal_hoy = linea.get("subtotal_descartado") if linea.get("descartado") else linea.get("subtotal_linea")
+    clave_subtotal = "subtotal_descartado" if linea.get("descartado") else "subtotal_linea"
+    subtotal_hoy = linea.get(clave_subtotal)
     sugerido = linea.get("sku_sugerido") or actual.get("sku")
     pedida = int(linea.get("cantidad_pedida") or 0)
 
