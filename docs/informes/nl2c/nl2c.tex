@@ -320,7 +320,7 @@ Riesgo \citep{owasp2025llm} & Mecanismo\\\midrule
 LLM01 Inyecci\'on de prompt & Texto como dato entre marcas, saneado, lista blanca de funciones, plan fijo, proyecci\'on de $\R$\\
 LLM02 Informaci\'on sensible & Redacci\'on de PII antes de la llamada, bit\'acora con huellas y no texto, mismo 404 para kit ajeno e inexistente\\
 LLM05 Manejo de la salida & Validaci\'on con esquema estricto, plantillas del servidor, la web vuelve a validar $U$ y no pinta HTML\\
-LLM06 Agencia excesiva & Solo propone; el descarte nace con \cod{aplicable=false}; a lo m\'as 5 propuestas\\
+LLM06 Agencia excesiva & Solo propone; cambio y descarte los aplica el padre al confirmar, con su sesi\'on; a lo m\'as 5 propuestas\\
 LLM10 Consumo ilimitado & 1000 caracteres, 400 tokens, 12\,s, un turno y l\'imite estricto en el gateway\\\bottomrule
 \end{tabular}
 \caption{Riesgos OWASP 2025 y mecanismo que los cubre. Fuente: \cod{docs/diseno/nl2c.md}, secci\'on 3.}

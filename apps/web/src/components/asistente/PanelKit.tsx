@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { validarEspec, type Componente } from "./espec";
+import { aplicacionDePropuesta, type PropuestaAplicable } from "./aplicar";
 import { ExplicacionKit, PropuestaCambio, PropuestaDescarte } from "./Componentes";
 import estilos from "./Asistente.module.css";
 
@@ -86,23 +87,24 @@ export default function PanelKit({ trabajoId }: { trabajoId: string }) {
     }
   }
 
-  async function aceptar(indice: number, c: Extract<Componente, { tipo: "PropuestaCambio" }>) {
+  // Lo aplica el padre, no el modelo: la misma llamada que hace el renglón del kit
+  // (endpoints de S3), con su sesión; el servidor exige que el kit sea suyo.
+  async function aceptar(indice: number, c: PropuestaAplicable) {
+    const aplicacion = aplicacionDePropuesta(c);
+    if (!aplicacion) return;
     setOcupado(true);
     try {
-      const url =
-        `/api/trabajos/${encodeURIComponent(c.props.trabajo_id)}/kits/${encodeURIComponent(c.props.perfil)}` +
-        `/lineas/${encodeURIComponent(c.props.item_id)}/producto`;
-      const respuesta = await fetch(url, {
-        method: "PUT",
+      const respuesta = await fetch(aplicacion.url, {
+        method: aplicacion.metodo,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sku: c.props.despues.sku }),
+        body: JSON.stringify(aplicacion.cuerpo),
       });
       if (!respuesta.ok) {
         setAviso("No pudimos hacer ese cambio. Puedes hacerlo a mano en el renglón del kit.");
         return;
       }
       setEstados((e) => ({ ...e, [indice]: "aplicada" }));
-      if (propuestaId) void avisarDecision(propuestaId, "aceptada", "cambio");
+      if (propuestaId) void avisarDecision(propuestaId, "aceptada", aplicacion.tipo);
       router.refresh();
     } catch {
       setAviso("No pudimos hacer ese cambio. Puedes hacerlo a mano en el renglón del kit.");
@@ -111,9 +113,9 @@ export default function PanelKit({ trabajoId }: { trabajoId: string }) {
     }
   }
 
-  function rechazar(indice: number) {
+  function rechazar(indice: number, tipo: "cambio" | "descarte") {
     setEstados((e) => ({ ...e, [indice]: "rechazada" }));
-    if (propuestaId) void avisarDecision(propuestaId, "rechazada", "cambio");
+    if (propuestaId) void avisarDecision(propuestaId, "rechazada", tipo);
   }
 
   return (
@@ -181,11 +183,22 @@ export default function PanelKit({ trabajoId }: { trabajoId: string }) {
                       estado={estados[i] ?? "pendiente"}
                       ocupado={ocupado || !c.props.aplicable}
                       onAceptar={() => void aceptar(i, c)}
-                      onRechazar={() => rechazar(i)}
+                      onRechazar={() => rechazar(i, "cambio")}
                     />
                   );
                 }
-                if (c.tipo === "PropuestaDescarte") return <PropuestaDescarte key={i} {...c.props} />;
+                if (c.tipo === "PropuestaDescarte") {
+                  return (
+                    <PropuestaDescarte
+                      key={i}
+                      {...c.props}
+                      estado={estados[i] ?? "pendiente"}
+                      ocupado={ocupado || !c.props.aplicable}
+                      onAceptar={() => void aceptar(i, c)}
+                      onRechazar={() => rechazar(i, "descarte")}
+                    />
+                  );
+                }
                 if (c.tipo === "ExplicacionKit") return <ExplicacionKit key={i} {...c.props} />;
                 return null;
               })}

@@ -461,3 +461,23 @@ async def test_decision_solo_cita_propuestas_emitidas_al_mismo_portador(cliente,
 def test_el_modelo_ve_el_perfil_del_kit_para_poder_pedir_su_explicacion():
     ctx = nl2c_kit.contexto_del_kit(_kit())
     assert ctx.texto.startswith("Perfil del kit: Ahorrador\n<renglones_del_kit>")
+
+
+def test_el_descarte_propuesto_es_aplicable_y_apunta_al_renglon_del_kit():
+    # Lo aplica el padre al confirmar, por el PUT .../descarte de S3 (con su sesion
+    # y el chequeo de dueno de `trabajos`); el modelo solo deja la propuesta.
+    ctx = nl2c_kit.contexto_del_kit(_kit())
+    llamada = {"name": "proponer_descarte", "args": {"linea": "L2", "motivo": "ya_lo_tengo"}}
+    res = nl2c_kit.validar_llamadas_kit([llamada], ctx, _kit(), "t")
+    (p,) = res.propuestas
+    assert p["tipo"] == "PropuestaDescarte" and p["props"]["aplicable"] is True
+    assert p["props"]["item_id"] == _kit()["lineas"][1]["item_id"]
+    assert p["props"]["perfil"] == "Ahorrador" and p["props"]["ahorro_cop"] == 12000
+
+
+def test_un_renglon_ya_descartado_no_se_le_muestra_al_modelo():
+    kit = _kit()
+    kit["lineas"][0]["descartado"] = True
+    ctx = nl2c_kit.contexto_del_kit(kit)
+    assert all(linea["item_id"] != kit["lineas"][0]["item_id"] for linea in ctx.lineas.values())
+    assert "Cuaderno" not in ctx.texto

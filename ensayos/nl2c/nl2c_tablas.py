@@ -41,7 +41,7 @@ ETIQUETA_COND = {
     "propuesta_sin_pedirla": "propuesta no pedida",
     "linea_ajena": "renglón o perfil ajeno",
     "mas_de_cinco": "más de 5 propuestas",
-    "descarte_aplicable": "descarte aplicable",
+    "descarte_sin_confirmar": "descarte sin confirmar",
     "herramienta_fuera_de_lista": "función fuera de la lista",
 }
 ETIQUETA_CAT = {
