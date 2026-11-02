@@ -177,3 +177,137 @@ Disponible en Colombia
 \bottomrule
 \end{tabular}
 \end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Impulsores arquitectónicos de la descomposición en servicios}
+\label{tab:impulsores}
+\small
+\begin{tabular}{@{}p{3.1cm}p{5.0cm}p{5.6cm}@{}}
+\toprule
+\textbf{Criterio} & \textbf{Fundamento} & \textbf{Qué separa} \\
+\midrule
+Recuperabilidad asimétrica &
+El objetivo de punto de recuperación difiere en órdenes de magnitud entre almacenes &
+El catálogo se reconstruye desde sus archivos de datos, una vez exportada al repositorio la
+curaduría del panel, y admite perder un día de cambios (CF-02a); un pedido no puede perder un
+solo byte. Compartir almacén obliga a dimensionar el
+respaldo por el más exigente y a exponer el crítico a la carga de escritura del volátil \\
+\addlinespace
+Frontera de cumplimiento &
+Ley 1581 de 2012 \citep{congreso_ley1581_2012} y Decreto 1377 de 2013
+\citep{presidencia_decreto1377_2013} &
+Los datos de menores de edad se aíslan en un servicio con base, proceso y llaves propios.
+La superficie que un auditor debe examinar se reduce a un solo componente \\
+\addlinespace
+Perfil de recurso &
+Heterogeneidad de la demanda computacional &
+La inferencia de modelos y la optimización multiobjetivo son intensivas en CPU y memoria;
+la gestión transaccional requiere disponibilidad y consistencia fuerte. Colocarlas juntas
+obliga a dimensionar todo por la más exigente \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Alternativas arquitectónicas evaluadas}
+\label{tab:alternativas}
+\small
+\begin{tabular}{@{}p{2.6cm}p{3.5cm}p{3.5cm}p{4.1cm}@{}}
+\toprule
+& \textbf{A. Monolito modular} & \textbf{B. Microservicios de grano fino} & \textbf{B$'$. Grano grueso (elegida)} \\
+\midrule
+Componentes & 1 desplegable, módulos internos & 13 servicios y puerta de enlace & 5 servicios de dominio y puerta de enlace, 5 bases \\
+\addlinespace
+Aislamiento de datos de menores & Por convención de código & Por servicio & Por servicio, base y llaves \\
+\addlinespace
+Punto de recuperación & Único para todo & Por servicio & Diferenciado por criticidad \\
+\addlinespace
+Complejidad operativa & Baja & Alta: coordinación distribuida en cada transacción & Media \\
+\addlinespace
+Costo de infraestructura & Mínimo & Alto & Moderado \\
+\addlinespace
+Puntaje ponderado (sobre 5,00) & 2,82 & 3,44 & 3,91 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.1}
+\caption{Entregables, objetivos, estándares asociados y justificación.}
+\label{tab:entregables}
+\begin{tabularx}{\textwidth}{@{}p{3cm}p{1.4cm}p{3.2cm}X@{}}
+\toprule
+Entregable & Objetivo & Estándares asociados & Justificación \\
+\midrule
+Memoria de trabajo de grado &  &
+Formato de trabajo de grado del programa de Ingeniería de Sistemas &
+Reúne en un solo documento el problema, la solución, su desarrollo y los resultados de los
+cinco objetivos específicos. \\
+Dossier de negocio & OE1 &
+Design Thinking \citep{brown_design_2008}, lienzo del modelo de negocio
+\citep{osterwalder_business_2010} &
+Documenta el entendimiento de las familias y de los colegios, con las entrevistas, los mapas
+de empatía, la propuesta de valor, el modelo de negocio y el análisis FODA. \\
+Especificación de requerimientos (SRS) & OE1 &
+IEEE 830 \citep{ieee_830_1998}, ISO/IEC/IEEE 29148 \citep{iso_29148_2018} &
+Define qué debe hacer el sistema, con requerimientos funcionales y no funcionales
+priorizados con el método MoSCoW y relacionados con las restricciones legales y de
+negocio. \\
+Documento de Diseño Maestro (ATAM, SDD, SAD) & OE2 &
+Richards y Ford \citep{richards_fundamentals_2025}, ISO/IEC 25010 \citep{iso_25010_2011},
+ATAM \citep{bass_software_2021}, IEEE 1016 \citep{ieee_1016_2009}, ISO/IEC/IEEE 42010
+\citep{iso_42010_2022}, vistas 4+1 \citep{kruchten_41_1995} &
+Documenta la arquitectura por vistas, los atributos de calidad que guiaron su diseño y la
+comparación entre las tres alternativas evaluadas, de modo que cada decisión tenga su
+razón explícita. \\
+Anexo de experimentación & OE3, OE4 y OE5 &
+CRISP-DM \citep{chapman_crisp-dm_2000} &
+Registra, etapa por etapa, los experimentos de los componentes que dependen de datos, con
+los datos usados, las métricas, los resultados y las decisiones que se tomaron a partir de
+ellos. \\
+Sistema Tukit & &
+ISO/IEC 25010 \citep{iso_25010_2011} &
+Implementa la solución en seis servicios con sus propias bases de datos, una aplicación
+web para el acudiente y una aplicación de administración para el equipo de Tukit. \\
+Documento de pruebas & OE5 &
+ISO/IEC 25010 \citep{iso_25010_2011} &
+Registra las pruebas que verifican cada componente y su integración en cada cambio del
+código, de modo que un error se detecte antes de llegar a la versión entregada. \\
+Informe de evaluación con usuarios y consentimiento informado & OE5 &
+Lazar et al. \citep{lazar_research_2017}, SUS \citep{brooke_sus_1996}, NPS
+\citep{reichheld_one_2003}, Ley 1581 de 2012 \citep{congreso_ley1581_2012}, Decreto 1377
+de 2013 \citep{presidencia_decreto1377_2013} &
+Documenta la evaluación de la usabilidad y de la carga cognitiva con acudientes, y el
+consentimiento que exige la ley colombiana para tratar datos personales, incluidos los de
+menores de edad. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\caption{Distribución de los requerimientos por componente y prioridad.}
+\label{tab:moscow}
+\begin{tabular}{@{}lccclccc@{}}
+\toprule
+\textbf{Componente} & \textbf{M} & \textbf{S} & \textbf{C} &
+\textbf{Componente} & \textbf{M} & \textbf{S} & \textbf{C} \\
+\midrule
+Catálogo & 5 & 1 & 0 & Pedidos y pagos & 10 & 3 & 0 \\
+Percepción & 7 & 0 & 0 & Desempeño & 2 & 3 & 0 \\
+Normalización & 7 & 1 & 0 & Restricciones de diseño & 1 & 0 & 0 \\
+Optimización & 5 & 3 & 0 & Atributos de calidad & 18 & 1 & 1 \\
+Aplicación del acudiente & 6 & 1 & 0 & Modelo de datos & 12 & 1 & 0 \\
+Panel de administración & 6 & 1 & 0 & Despacho & 0 & 1 & 0 \\
+Listas y matrículas & 2 & 0 & 0 & \textbf{Total (98)} & \textbf{81} & \textbf{16} &
+\textbf{1} \\
+\bottomrule
+\end{tabular}
+\end{table}
+

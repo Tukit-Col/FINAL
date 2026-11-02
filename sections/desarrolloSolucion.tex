@@ -331,21 +331,47 @@ parámetros del documento de algoritmos del proyecto.
 
 El acudiente usa una aplicación web progresiva. Siguiendo las pautas de interacción con sistemas de
 IA \citep{amershi_guidelines_2019}, la interfaz muestra el estado de cada renglón en nueve clases y
-dice «Lo está revisando una persona» cuando la lista espera la revisión. El acudiente elige uno de
-sus kits y puede cambiar el producto de una línea por el sugerido o por una de sus alternativas:
-el cambio se guarda en su solicitud, se aplica al leer el kit y se cobra (ADR 0019). La dirección
-de entrega se completa con las sugerencias de Google Places y, sin ese servicio, se escribe a
-mano (ADR 0035).
+dice «Lo está revisando una persona» cuando la lista espera la revisión. La integración sobre la
+rama de validación del OE5 añadió cuatro capacidades al flujo del acudiente.
 
-El pago se abre en el widget de Wompi, una ventana sobre la página del kit o de «Mis pedidos»
-(ADR 0024). Con tarjeta o Nequi el acudiente no sale de Tukit; con PSE, el banco toma la pestaña y
-Wompi lo devuelve a la página de resultado. Comercio firma los datos del widget y guarda solo la
-referencia, el identificador, el estado y el medio de la transacción (ADR 0010). La confirmación
-llega por el aviso de la pasarela y por la consulta de la transacción cuando el acudiente regresa,
-y las dos pasan por el mismo procedimiento idempotente (ADR 0025). El acudiente elige el medio dentro del widget, de modo que Tukit no da a PSE la prioridad que
-preveía el ADR 0010. El flujo de pago se verificó en el entorno de pruebas (\emph{sandbox}) de la
-pasarela con tarjeta, Nequi y PSE\pendienteEvidencia{pago de extremo a extremo en el sandbox de Wompi}. El cobro con
-dinero real depende del despliegue productivo y se delimitó como trabajo futuro
+\begin{itemize}
+\item \textbf{Descarte y cambio de producto.} El acudiente puede descartar un renglón del kit o
+cambiar su producto por el sugerido o por una de las opciones del mismo concepto canónico. La
+decisión se guarda en su solicitud, el orden de compra salta las líneas descartadas y las que
+quedan en cero, y la cantidad se cobra tal como queda (ADR 0019). Los precios nunca se muestran en
+cero: un producto sin precio se presenta como no disponible. El kit se presenta en un carrusel por
+línea, con secciones separadas para libros y uniformes y con la franja del kit Fan resaltada.
+\item \textbf{Retracto.} Comercio calcula el plazo del derecho de retracto del artículo 47 de la
+Ley 1480 de 2011 \citep{congreso_ley1480_2011}: cinco días hábiles desde la entrega y reembolso en
+un máximo de treinta días calendario. Un solo módulo de dominio, sin tabla de festivos (se calculan
+con la fecha de Pascua y la regla Emiliani) y con hora de Bogotá, alimenta el panel del acudiente y
+el detalle del pedido del administrador, de modo que ambos muestran el mismo vencimiento. Una
+prueba de dominio cubre el cálculo.
+\item \textbf{Casos y páginas legales.} El acudiente abre casos desde «Mis pedidos» y ve en una
+sola conversación sus mensajes y las respuestas del equipo (el \emph{autor} es acudiente o equipo,
+sin exponer al agente que responde). Las páginas \emph{/legal} publican la política de privacidad
+(Ley 1581 de 2012), los términos y la información de retracto, y el registro pide aceptar los
+términos y deja constancia del consentimiento del titular.
+\item \textbf{Pago.} El pago se abre en el widget de Wompi, sobre la página del kit o de «Mis
+pedidos» (ADR 0024). Con tarjeta o Nequi el acudiente no sale de Tukit; con PSE, el banco toma la
+pestaña y Wompi lo devuelve a la página de resultado. Comercio firma los datos del widget y guarda
+solo la referencia, el identificador, el estado y el medio de la transacción (ADR 0010). La
+confirmación llega por el aviso de la pasarela y por la consulta de la transacción al regresar, y
+las dos pasan por el mismo procedimiento idempotente (ADR 0025). El acudiente elige el medio dentro
+del widget, de modo que Tukit no da a PSE la prioridad que preveía el ADR 0010. La dirección de
+entrega se completa con Google Places y, sin ese servicio, se escribe a mano (ADR 0035).
+\end{itemize}
+
+El panel de administración recibió, en la misma integración, el detalle completo del pedido (con el
+estado del retracto y el despacho por transportadora), la bandeja de tickets con filtros,
+conversación, respuesta, cambio de estado y vínculo al pedido, y un mapa de entregas pendientes en
+logística con el consolidado por colegio. El mapa usa OpenStreetMap con Leaflet; las direcciones se
+geocodifican en el servidor con Nominatim, a una consulta por segundo, una sola vez por dirección y
+con caché también de las que no se encuentran, para cumplir su política de uso.
+
+El flujo de pago se verificó en el entorno de pruebas (\emph{sandbox}) de la pasarela con tarjeta,
+Nequi y PSE\pendienteEvidencia{pago de extremo a extremo en el sandbox de Wompi}. El cobro con dinero
+real depende del despliegue productivo y se delimitó como trabajo futuro
 (Sección~\ref{sec:trabajo-futuro}).
 
 % Contenido que llega de otras sesiones (calibracion y MAUT; NL2C).

@@ -1,19 +1,23 @@
-# Presupuesto de paginas (Introduccion a Conclusiones, tope 60)
+# Presupuesto de paginas, ronda 2 (Introduccion a Conclusiones, tope 50 antes de los cuatro \input)
 
-Medido con `bash compilar.sh` el 1-nov (paginas del PDF; la Introduccion empieza en la 1).
+Medido con `bash compilar.sh` el 1-nov (paginas del PDF; la Introduccion empieza en la 1). Los \input de optimizacion, nl2c, oe5 y calidad son hoy stubs de una frase; agregan unas 8 a 10 paginas.
 
-| Capitulo | Inicio | Paginas hoy | Objetivo |
-|---|---|---|---|
-| I Introduccion | 1 | 2 | 2 |
-| II Descripcion general | 3 | 7 | 8 (mapeo CRISP-DM por OE) |
-| III Contexto | 10 | 7 | 7 |
-| IV Analisis del problema | 17 | 8 | 8 |
-| V Diseno de la solucion | 25 | 12 | 11 |
-| VI Desarrollo | 38 | 9 | 12 maximo (incluye optimizacion y NL2C que llegan por \input) |
-| VII Resultados | 47 | 10 | 10 (incluye amenazas; calidad y OE5 por \input) |
-| VIII Conclusiones | 57 | 3 | 4 |
-| Total I a VIII | | 59 | <= 60 |
+| Capitulo | Inicio | Paginas |
+|---|---|---|
+| I Introduccion | 1 | 2 |
+| II Descripcion general | 3 | 8 |
+| III Contexto | 11 | 6 |
+| IV Analisis del problema | 17 | 7 |
+| V Diseno de la solucion | 24 | 8 |
+| VI Desarrollo | 32 | 9 |
+| VII Resultados | 41 | 7 |
+| VIII Conclusiones | 48 | 3 |
+| Total I a VIII | | 50 |
 
-Actualizacion tras las tareas 2 a 6 (paginas del PDF, Introduccion en la 1): III empieza en la 11, IV en la 18, V en la 26, VI en la 38, VII en la 47, VIII en la 57, referencias en la 60 y anexos en la 66. La tabla de constantes (longtable) se movio al Anexo para no consumir paginas. Los insumos de optimizacion, NL2C, calidad y OE5 sumaran paginas: hay que recortar en V (Diseno) y III para no pasar de 60.
+Referencias desde la 51 y anexos desde la 57 (fuera del tope).
 
-Referencias (desde la 57) y anexos (desde la 63) quedan fuera del tope.
+## Movido a anexos (solo tablas, figuras y detalle; la prosa de I a IV no se recorto)
+
+- Anexo `anx:tablas`: III comparacion-soluciones; IV moscow; II entregables; V reparto, politicas, latencia, adr, impulsores, alternativas; VII kits.
+- Anexo `anx:figuras`: fig. c4-contexto (V) y graficas F3-2 y F5-2 (VII).
+- Anexo `anx:ampliaciones`: detalle de lenguajes y Amdahl, doce pruebas de frontera, defectos de seguridad, carga y degradacion (V y VII), tabla RAG por fase (VI).

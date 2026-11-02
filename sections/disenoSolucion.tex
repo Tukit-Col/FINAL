@@ -21,38 +21,9 @@ El diseño inicial justificaba la descomposición en microservicios por
 colegios en el corpus y una demanda concentrada en las semanas previas al inicio del año
 lectivo) mostró que la infraestructura mínima excede la demanda proyectada en unos tres
 órdenes de magnitud. Esa justificación no se sostenía. El rediseño condujo a tres criterios,
-ninguno de rendimiento, que resume la Tabla~\ref{tab:impulsores}.
+ninguno de rendimiento, que resume la Tabla~\ref{tab:impulsores} (Anexo~\ref{anx:tablas}).
 
-\begin{table}[htbp]
-\centering
-\caption{Impulsores arquitectónicos de la descomposición en servicios}
-\label{tab:impulsores}
-\small
-\begin{tabular}{@{}p{3.1cm}p{5.0cm}p{5.6cm}@{}}
-\toprule
-\textbf{Criterio} & \textbf{Fundamento} & \textbf{Qué separa} \\
-\midrule
-Recuperabilidad asimétrica &
-El objetivo de punto de recuperación difiere en órdenes de magnitud entre almacenes &
-El catálogo se reconstruye desde sus archivos de datos, una vez exportada al repositorio la
-curaduría del panel, y admite perder un día de cambios (CF-02a); un pedido no puede perder un
-solo byte. Compartir almacén obliga a dimensionar el
-respaldo por el más exigente y a exponer el crítico a la carga de escritura del volátil \\
-\addlinespace
-Frontera de cumplimiento &
-Ley 1581 de 2012 \citep{congreso_ley1581_2012} y Decreto 1377 de 2013
-\citep{presidencia_decreto1377_2013} &
-Los datos de menores de edad se aíslan en un servicio con base, proceso y llaves propios.
-La superficie que un auditor debe examinar se reduce a un solo componente \\
-\addlinespace
-Perfil de recurso &
-Heterogeneidad de la demanda computacional &
-La inferencia de modelos y la optimización multiobjetivo son intensivas en CPU y memoria;
-la gestión transaccional requiere disponibilidad y consistencia fuerte. Colocarlas juntas
-obliga a dimensionar todo por la más exigente \\
-\bottomrule
-\end{tabular}
-\end{table}
+% [movida al Anexo: tab:impulsores]
 
 Con estos criterios, el número de servicios que ya corría en los prototipos resultó
 aproximadamente adecuado; lo que estaba mal era la ubicación de algunas fronteras.
@@ -109,31 +80,9 @@ panel queda en la base del catálogo hasta que se exporta a esos archivos (ADR 0
 
 Se compararon tres alternativas mediante el método ATAM \citep{bass_software_2021}, cuyos
 resultados completos se consignan en el documento de evaluación ATAM. La
-Tabla~\ref{tab:alternativas} sintetiza el contraste.
+Tabla~\ref{tab:alternativas} (Anexo~\ref{anx:tablas}) sintetiza el contraste.
 
-\begin{table}[htbp]
-\centering
-\caption{Alternativas arquitectónicas evaluadas}
-\label{tab:alternativas}
-\small
-\begin{tabular}{@{}p{2.6cm}p{3.5cm}p{3.5cm}p{4.1cm}@{}}
-\toprule
-& \textbf{A. Monolito modular} & \textbf{B. Microservicios de grano fino} & \textbf{B$'$. Grano grueso (elegida)} \\
-\midrule
-Componentes & 1 desplegable, módulos internos & 13 servicios y puerta de enlace & 5 servicios de dominio y puerta de enlace, 5 bases \\
-\addlinespace
-Aislamiento de datos de menores & Por convención de código & Por servicio & Por servicio, base y llaves \\
-\addlinespace
-Punto de recuperación & Único para todo & Por servicio & Diferenciado por criticidad \\
-\addlinespace
-Complejidad operativa & Baja & Alta: coordinación distribuida en cada transacción & Media \\
-\addlinespace
-Costo de infraestructura & Mínimo & Alto & Moderado \\
-\addlinespace
-Puntaje ponderado (sobre 5,00) & 2,82 & 3,44 & 3,91 \\
-\bottomrule
-\end{tabular}
-\end{table}
+% [movida al Anexo: tab:alternativas]
 
 La alternativa~A se descarta por el primer criterio de la Tabla~\ref{tab:impulsores}: un
 almacén único impone un mismo objetivo de recuperación a datos cuyo valor difiere en
