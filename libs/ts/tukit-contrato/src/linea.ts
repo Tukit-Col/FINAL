@@ -192,7 +192,8 @@ export function instruccionCorta(linea: LineaKit): string | null {
   if (pregunta) return pregunta[0];
   const compra = texto.match(/^Se (?:compra|adquiere|consigue) (?:en|con) [^:.;]+/i);
   if (compra) return compra[0].trim();
-  const frase = texto.split(/[:.;]/, 1)[0].trim();
+  // split siempre devuelve al menos un trozo, pero el tipo no lo garantiza.
+  const frase = (texto.split(/[:.;]/, 1)[0] ?? "").trim();
   return frase && frase.length <= 60 ? frase : null;
 }
 
