@@ -12,7 +12,7 @@ pruebas ejercen contra SQLite real, no un doble (ADR 0019).
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, insert, select, update
@@ -266,7 +266,7 @@ class RepoCasos:
         filas = await self.conexion.execute(
             select(EVENTO)
             .where(EVENTO.c.caso_id == caso_id, EVENTO.c.tipo.in_([TIPO_COMENTARIO_ACUDIENTE, TIPO_RESPUESTA_EQUIPO]))
-            .order_by(EVENTO.c.creado_en, EVENTO.c.id)
+            .order_by(EVENTO.c.creado_en)
         )
         return [
             {
@@ -285,5 +285,8 @@ class RepoCasos:
                 tipo=TIPO_COMENTARIO_ACUDIENTE,
                 datos={"texto": texto},
                 actor_id=usuario_id,
+                # Con hora de la app (microsegundos), como `registrar_evento`: la
+                # conversacion acudiente+equipo se ordena por `creado_en`.
+                creado_en=datetime.now(UTC),
             )
         )

@@ -89,6 +89,8 @@ AVISOS = Cola(
         "pedido_despachado",
         "pedido_en_reparto",
         "pedido_entregado",
+        # Respuesta del back-office a un caso (S5): aviso por plantilla, sin el texto.
+        "caso_respuesta",
     ),
 )
 COLEGIOS = Cola("identidad.colegios", ("colegio_verificado",))

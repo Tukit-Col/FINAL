@@ -125,10 +125,11 @@ async def motor_operacion() -> AsyncIterator[MotorServicio]:
 
 @pytest_asyncio.fixture
 async def origenes() -> AsyncIterator[dict[str, Any]]:
-    """Las bases de Inteligencia y de Comercio, cada una con su bandeja."""
+    """Las bases de Inteligencia, Comercio y Operacion (respuestas a tickets, S5),
+    cada una con su bandeja: `correr_una_vez` recorre las tres."""
     bandejas: dict[str, Any] = {}
     engines = []
-    for origen in ("inteligencia", "comercio"):
+    for origen in ("inteligencia", "comercio", "operacion"):
         metadatos, bandeja, _trabajo = _tablas_origen()
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         async with engine.begin() as conexion:
