@@ -20,10 +20,6 @@ from typing import Any
 import httpx
 from tukit_comun.http import cliente_efimero
 
-class IdentidadCaida(Exception):
-    """Identidad no respondio al validar una sesion."""
-
-
 URL_IDENTIDAD_POR_OMISION = "http://127.0.0.1:8011"
 URL_CATALOGO_POR_OMISION = "http://127.0.0.1:8012"
 URL_INTELIGENCIA_POR_OMISION = "http://127.0.0.1:8013"
@@ -88,22 +84,6 @@ class ClienteIdentidad:
                 return str(respuesta.json().get("usuario_id"))
         except httpx.HTTPError:
             return None
-
-    async def sesion(self, token: str) -> dict[str, Any] | None:
-        """La sesion del portador (`usuario_id`, `correo`, `roles`), o `None` si el
-        token no vale (401). Una caida de Identidad se propaga como `IdentidadCaida`:
-        quien valida falla cerrado, no abre el acceso por no poder preguntar."""
-        try:
-            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
-                respuesta = await cliente.get(
-                    f"{self._base()}/v1/sesiones/actual", headers={"Authorization": f"Bearer {token}"}
-                )
-                if respuesta.status_code == 401:
-                    return None
-                respuesta.raise_for_status()
-                return dict(respuesta.json())
-        except httpx.HTTPError as error:
-            raise IdentidadCaida(str(error)) from error
 
     async def contacto_de(self, usuario_id: str) -> dict[str, str | None] | None:
         """Resuelve un `usuario_id` a su contacto para enviar el aviso, sin

@@ -6,6 +6,7 @@
 // decide). Al terminar, la cookie ya se borro en el Route Handler y se muestra
 // que se borro y que se guardo, con su fundamento.
 
+import Link from "next/link";
 import { useState } from "react";
 import { Download, ShieldOff, Trash2 } from "lucide-react";
 import {
@@ -82,9 +83,12 @@ export default function AccionesPrivacidad({ frase, suprimido, conservado, autor
             </p>
           )}
           <ListaConservado conservado={resultado.conservado} />
-          <a href="/" className={dashboard.btnContactar}>
+          {/* Link y no <a>: la navegacion interna va por el router de Next. La cookie
+              ya se borro en el Route Handler, asi que la pagina de inicio se pide
+              sin sesion. */}
+          <Link href="/" className={dashboard.btnContactar}>
             Volver al inicio
-          </a>
+          </Link>
         </div>
       </section>
     );

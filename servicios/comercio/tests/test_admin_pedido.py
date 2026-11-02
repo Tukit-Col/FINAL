@@ -7,15 +7,21 @@ Reusa el banco de `test_logistica` (SQLite en memoria, pasarela e Identidad fals
 from __future__ import annotations
 
 import pytest
+import test_logistica
 from conftest import TOKEN_ACUDIENTE, bearer
-from test_logistica import (  # noqa: F401  (cliente es una fixture)
+from test_logistica import (
     OPERADOR_HDR,
     REPARTIDOR,
     _avanzar,
     _pedido_pagado,
     _poner_estado,
-    cliente,
 )
+
+# La fixture se reexpone por asignacion y no con `from ... import cliente`: importada
+# por nombre, ruff la marca como redefinida (F811) en cada prueba que la recibe como
+# parametro, y un noqa global taparia otros F811 reales. Pytest la sigue encontrando
+# como `cliente` en este modulo.
+cliente = test_logistica.cliente
 
 
 async def _detalle(cliente, pedido_id, headers=OPERADOR_HDR):
@@ -72,7 +78,8 @@ async def test_despacho_por_transportadora_guarda_guia_y_no_repartidor(cliente):
 async def test_despacho_con_transportadora_sin_guia_da_422(cliente):
     pedido_id = await _pedido_pagado(cliente)
     await _poner_estado(pedido_id, "en_preparacion")
-    respuesta = await _avanzar(cliente, pedido_id, {"destino": "despachado", "transportadora": "Servientrega"})
+    cuerpo = {"destino": "despachado", "transportadora": "Servientrega"}
+    respuesta = await _avanzar(cliente, pedido_id, cuerpo)
     assert respuesta.status_code == 422
     assert respuesta.json()["campo"] == "guia"
     assert (await _detalle(cliente, pedido_id)).json()["estado"] == "en_preparacion"

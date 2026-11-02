@@ -16,12 +16,19 @@ casi siempre, que es la forma de que una prueba deje de significar algo.
 
     make humo
     python arquitectura/humo.py --base http://127.0.0.1:8010
+
+La clave del operador no vive en este archivo: se pasa por TUKIT_HUMO_CLAVE. En
+la maquina de desarrollo sale del llavero de macOS (item `tukit-staff-oe5`):
+
+    TUKIT_HUMO_CLAVE=$(security find-generic-password -s tukit-staff-oe5 -w) \\
+        python arquitectura/humo.py
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 import urllib.error
@@ -35,9 +42,12 @@ BASE_POR_OMISION = "http://127.0.0.1:8010"
 # cargada y empareja contra el catalogo local.
 ESPERA_TRABAJO = 90
 
-# El operador sembrado por `sembrar_acceso` (identidad). La clave de demo no es
-# un secreto: esta escrita alli y en pantalla.
-OPERADOR_DEMO = {"correo": "operador@tukit.co", "clave": "demo1234"}
+# El operador sembrado por `sembrar_acceso` (identidad). La clave se rota y no se
+# escribe aqui: un valor fijo en el repositorio queda en el historial aunque despues
+# se cambie. Se lee del entorno en el momento de usarla, no al importar, para que
+# importar el modulo (pruebas, trazas) no exija tenerla.
+CORREO_OPERADOR = "operador@tukit.co"
+VARIABLE_CLAVE = "TUKIT_HUMO_CLAVE"
 
 
 class Fallo(Exception):
@@ -73,7 +83,13 @@ def _estado_http(base: str, ruta: str) -> int:
 
 
 def _token_operador(base: str) -> str:
-    sesion = _pedir(base, "/v1/sesiones", OPERADOR_DEMO)
+    clave = os.environ.get(VARIABLE_CLAVE, "")
+    if not clave:
+        raise Fallo(
+            f"falta {VARIABLE_CLAVE} (clave del operador). En macOS: "
+            f"{VARIABLE_CLAVE}=$(security find-generic-password -s tukit-staff-oe5 -w) make humo"
+        )
+    sesion = _pedir(base, "/v1/sesiones", {"correo": CORREO_OPERADOR, "clave": clave})
     _exigir(bool(sesion.get("token")), "identidad no dio token al operador demo (falta `make sembrar`?)")
     return sesion["token"]
 
@@ -227,7 +243,8 @@ def comprobar(base: str) -> list[tuple[str, str]]:
         )
     )
 
-    bandeja = _pedir(base, "/v1/operacion/casos")
+    # La bandeja es solo de staff; el alta de mas abajo es publica (la abre el acudiente).
+    bandeja = _pedir(base, "/v1/operacion/casos", token=_token_operador(base))
     _exigir("resumen" in bandeja and "casos" in bandeja, "la bandeja de operacion no trae resumen+casos")
     _exigir(
         {"abiertos", "urgentes", "vencen_hoy", "resueltos_semana"} <= set(bandeja["resumen"]),
