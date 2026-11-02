@@ -1,0 +1,266 @@
+{
+ "OCR Baseline": {
+  "documentos": 10,
+  "micro": {
+   "precision": 0.1801,
+   "recall": 0.8608,
+   "f1": 0.2978
+  },
+  "macro": {
+   "precision": 0.319,
+   "recall": 0.8473,
+   "f1": 0.4189
+  },
+  "tp": 1113,
+  "fp": 5068,
+  "fn": 180,
+  "latencia_mediana_s": 0.18,
+  "latencia_media_s": 0.32,
+  "latencia_p50_publicado_s": 0.2,
+  "latencia_min_s": 0.09,
+  "latencia_max_s": 0.96,
+  "costo_total_usd": 0,
+  "costo_medio_usd": 0
+ },
+ "Google Vision": {
+  "documentos": 10,
+  "micro": {
+   "precision": 0.5611,
+   "recall": 0.8415,
+   "f1": 0.6733
+  },
+  "macro": {
+   "precision": 0.5877,
+   "recall": 0.8305,
+   "f1": 0.6718
+  },
+  "tp": 1088,
+  "fp": 851,
+  "fn": 205,
+  "latencia_mediana_s": 6.33,
+  "latencia_media_s": 7.16,
+  "latencia_p50_publicado_s": 6.38,
+  "latencia_min_s": 4.5,
+  "latencia_max_s": 12.51,
+  "costo_total_usd": 0.015,
+  "costo_medio_usd": 0.0015,
+  "paginas_leidas": 46,
+  "costo_total_usd_por_pagina": 0.069,
+  "costo_medio_usd_por_pagina": 0.0069
+ },
+ "Baidu GOT-OCR": {
+  "documentos": 10,
+  "micro": {
+   "precision": 0.5591,
+   "recall": 0.6404,
+   "f1": 0.597
+  },
+  "macro": {
+   "precision": 0.5418,
+   "recall": 0.6287,
+   "f1": 0.5688
+  },
+  "tp": 828,
+  "fp": 653,
+  "fn": 465,
+  "latencia_mediana_s": 213.04,
+  "latencia_media_s": 201.78,
+  "latencia_p50_publicado_s": 216.94,
+  "latencia_min_s": 86.2,
+  "latencia_max_s": 294.18,
+  "costo_total_usd": 0,
+  "costo_medio_usd": 0
+ },
+ "Docling": {
+  "documentos": 10,
+  "micro": {
+   "precision": 0.2412,
+   "recall": 0.7386,
+   "f1": 0.3637
+  },
+  "macro": {
+   "precision": 0.3276,
+   "recall": 0.7452,
+   "f1": 0.4237
+  },
+  "tp": 955,
+  "fp": 3004,
+  "fn": 338,
+  "latencia_mediana_s": 24.43,
+  "latencia_media_s": 46.49,
+  "latencia_p50_publicado_s": 28.87,
+  "latencia_min_s": 13.14,
+  "latencia_max_s": 152.71,
+  "costo_total_usd": 0,
+  "costo_medio_usd": 0
+ },
+ "Gemini (LMM)": {
+  "documentos": 10,
+  "micro": {
+   "precision": 0.9655,
+   "recall": 0.9304,
+   "f1": 0.9476
+  },
+  "macro": {
+   "precision": 0.9587,
+   "recall": 0.9352,
+   "f1": 0.9442
+  },
+  "tp": 1203,
+  "fp": 43,
+  "fn": 90,
+  "latencia_mediana_s": 312.46,
+  "latencia_media_s": 329.64,
+  "latencia_p50_publicado_s": 342.2,
+  "latencia_min_s": 54.08,
+  "latencia_max_s": 806.05,
+  "costo_total_usd": 0.01666,
+  "costo_medio_usd": 0.00167
+ },
+ "_subconjunto_documentos_hasta_5_paginas": {
+  "OCR Baseline": {
+   "documentos": 2,
+   "items_gold": 232,
+   "micro": {
+    "precision": 0.6894,
+    "recall": 0.8707,
+    "f1": 0.7695
+   }
+  },
+  "Google Vision": {
+   "documentos": 2,
+   "items_gold": 232,
+   "micro": {
+    "precision": 0.7013,
+    "recall": 0.9009,
+    "f1": 0.7887
+   }
+  },
+  "Baidu GOT-OCR": {
+   "documentos": 2,
+   "items_gold": 232,
+   "micro": {
+    "precision": 0.6504,
+    "recall": 0.7457,
+    "f1": 0.6948
+   }
+  },
+  "Docling": {
+   "documentos": 2,
+   "items_gold": 232,
+   "micro": {
+    "precision": 0.6769,
+    "recall": 0.8578,
+    "f1": 0.7567
+   }
+  },
+  "Gemini (LMM)": {
+   "documentos": 2,
+   "items_gold": 232,
+   "micro": {
+    "precision": 0.9871,
+    "recall": 0.9871,
+    "f1": 0.9871
+   }
+  }
+ },
+ "_fraccion_gold_identica_a_la_prediccion": {
+  "OCR Baseline": 0.7154,
+  "Google Vision": 0.7084,
+  "Baidu GOT-OCR": 0.5012,
+  "Docling": 0.4888,
+  "Gemini (LMM)": 0.9281
+ },
+ "_items_predichos_por_documento": {
+  "mper_205426_TRANSICION - LISTA TEXTOS Y UTILES.pdf": {
+   "paginas": 2,
+   "gold": 58,
+   "OCR Baseline": 49,
+   "Google Vision": 50,
+   "Baidu GOT-OCR": 52,
+   "Docling": 46,
+   "Gemini (LMM)": 58
+  },
+  "ilovepdf_merged.pdf": {
+   "paginas": 4,
+   "gold": 174,
+   "OCR Baseline": 244,
+   "Google Vision": 248,
+   "Baidu GOT-OCR": 214,
+   "Docling": 248,
+   "Gemini (LMM)": 174
+  },
+  "LISTA-DE-UTILES-2025.pdf": {
+   "paginas": 8,
+   "gold": 89,
+   "OCR Baseline": 362,
+   "Google Vision": 271,
+   "Baidu GOT-OCR": 181,
+   "Docling": 378,
+   "Gemini (LMM)": 91
+  },
+  "1102_merged_merged.pdf": {
+   "paginas": 27,
+   "gold": 173,
+   "OCR Baseline": 1232,
+   "Google Vision": 220,
+   "Baidu GOT-OCR": 167,
+   "Docling": 747,
+   "Gemini (LMM)": 173
+  },
+  "TEXTOS-Y-UTILES-ESCOLARES-2026-CACS.docx-1.pdf": {
+   "paginas": 39,
+   "gold": 161,
+   "OCR Baseline": 2124,
+   "Google Vision": 256,
+   "Baidu GOT-OCR": 137,
+   "Docling": 648,
+   "Gemini (LMM)": 110
+  },
+  "Listas 2026.pdf.pdf": {
+   "paginas": 14,
+   "gold": 99,
+   "OCR Baseline": 681,
+   "Google Vision": 221,
+   "Baidu GOT-OCR": 52,
+   "Docling": 555,
+   "Gemini (LMM)": 101
+  },
+  "LISTA-DE-TEXTOS-Y-UTILES-2021.pdf": {
+   "paginas": 11,
+   "gold": 130,
+   "OCR Baseline": 337,
+   "Google Vision": 175,
+   "Baidu GOT-OCR": 203,
+   "Docling": 293,
+   "Gemini (LMM)": 130
+  },
+  "LISTAS-DE-TEXTOS-ESCOLARES-COLEGIO-SAN-JOSE-DE-FONTIBON.pdf": {
+   "paginas": 14,
+   "gold": 145,
+   "OCR Baseline": 418,
+   "Google Vision": 181,
+   "Baidu GOT-OCR": 168,
+   "Docling": 437,
+   "Gemini (LMM)": 145
+  },
+  "LISTA-DE-ÚTILES-2026.pdf": {
+   "paginas": 14,
+   "gold": 160,
+   "OCR Baseline": 403,
+   "Google Vision": 153,
+   "Baidu GOT-OCR": 159,
+   "Docling": 314,
+   "Gemini (LMM)": 156
+  },
+  "JARDÍN_merged.pdf": {
+   "paginas": 13,
+   "gold": 104,
+   "OCR Baseline": 331,
+   "Google Vision": 164,
+   "Baidu GOT-OCR": 148,
+   "Docling": 293,
+   "Gemini (LMM)": 108
+  }
+ }
+}
