@@ -71,3 +71,25 @@ def test_cada_edicion_cargada_tiene_url_precio_e_imagen():
         assert int(libro["precio_cop"]) > 0, libro["titulo"]
         assert libro["imagen_url"].startswith("https://"), libro["titulo"]
         assert libro["observado_en"] == "2026-11-01", libro["titulo"]
+
+
+def test_un_libro_ya_cubierto_por_otra_linea_del_grado_no_se_ofrece_como_pendiente_de_libreria():
+    """El mismo libro listado dos veces ("Libro de ingles Gateway ... student's book") no debe quedar como `otro`.
+
+    La lista del colegio nombra el Gateway una vez con editorial (esa linea lleva ISBN y entra al carrito) y otra
+    vez sin editorial. La segunda caia en "Se compra en libreria" y el acudiente la leia como un libro mas que
+    Tukit no consigue, cuando ya esta resuelto arriba. Cuando el grado ya tiene la edicion con ISBN, el repetido
+    es `no_comprar` ("es el mismo de la linea N"), como ya estaba en Septimo.
+    """
+    por_grado: dict[str, list[dict[str, str]]] = {}
+    for linea in _leer("curaduria/listas_revisadas.csv"):
+        if linea["concepto"] == "C134" and "gateway" in linea["texto_original"].lower():
+            por_grado.setdefault(linea["grado"], []).append(linea)
+    revisados = 0
+    for grado, lineas in por_grado.items():
+        if not any(l["tipo_item"] == "libro_libre" and l["atributos"] for l in lineas):
+            continue  # sin edicion resuelta en el grado, `otro` es la respuesta honesta
+        for linea in lineas:
+            revisados += 1
+            assert linea["tipo_item"] != "otro", f"{grado} #{linea['orden']} repite una edicion ya resuelta"
+    assert revisados >= 3
