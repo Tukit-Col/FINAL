@@ -87,6 +87,7 @@ import type {
 } from "./comercio";
 import type { MetricasColegio, ResumenPedidosColegio, SerieMetricas } from "./metricas";
 import type { BandejaOperacion, Caso, CasoCreado, SolicitudCaso } from "./operacion";
+import type { CasoDetalleAdmin, PedidoAdmin, SolicitudAvanceAdmin } from "./admin";
 import {
   ErrorTukit,
   type AcudienteAdmin,
@@ -1418,12 +1419,69 @@ export class ClienteApi implements OrigenDatos {
   }
 
   // ------------------------------------------------ ASUMIDO (operacion 1.x)
-  casos(): Promise<BandejaOperacion> {
-    return this.pedir<BandejaOperacion>("/v1/operacion/casos");
+  casos(token?: string): Promise<BandejaOperacion> {
+    return this.pedir<BandejaOperacion>("/v1/operacion/casos", { headers: this.autoriza(token) });
   }
 
-  caso(casoId: string): Promise<Caso> {
-    return this.pedir<Caso>(`/v1/operacion/casos/${encodeURIComponent(casoId)}`);
+  caso(casoId: string, token?: string): Promise<Caso> {
+    return this.pedir<Caso>(`/v1/operacion/casos/${encodeURIComponent(casoId)}`, {
+      headers: this.autoriza(token),
+    });
+  }
+
+  // ------------------------------------------- back-office (admin.ts)
+  pedidoAdmin(token: string, pedidoId: string): Promise<PedidoAdmin> {
+    return this.pedir<PedidoAdmin>(`/v1/comercio/pedidos/${encodeURIComponent(pedidoId)}`, {
+      headers: this.autoriza(token),
+    });
+  }
+
+  avanzarPedidoAdmin(
+    token: string,
+    pedidoId: string,
+    cuerpo: SolicitudAvanceAdmin,
+  ): Promise<PedidoAdmin> {
+    return this.pedir<PedidoAdmin>(`/v1/ordenes/${encodeURIComponent(pedidoId)}/avanzar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...this.autoriza(token) },
+      body: JSON.stringify(cuerpo),
+    });
+  }
+
+  casoAdmin(token: string, casoId: string): Promise<CasoDetalleAdmin> {
+    return this.pedir<CasoDetalleAdmin>(`/v1/operacion/casos/${encodeURIComponent(casoId)}`, {
+      headers: this.autoriza(token),
+    });
+  }
+
+  private postCaso(token: string, casoId: string, accion: string, cuerpo: unknown): Promise<CasoDetalleAdmin> {
+    return this.pedir<CasoDetalleAdmin>(`/v1/operacion/casos/${encodeURIComponent(casoId)}/${accion}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...this.autoriza(token) },
+      body: JSON.stringify(cuerpo),
+    });
+  }
+
+  responderCaso(token: string, casoId: string, texto: string): Promise<CasoDetalleAdmin> {
+    return this.postCaso(token, casoId, "responder", { texto });
+  }
+
+  cambiarEstadoCaso(token: string, casoId: string, destino: string): Promise<CasoDetalleAdmin> {
+    return this.postCaso(token, casoId, "estado", { destino });
+  }
+
+  vincularPedidoCaso(token: string, casoId: string, pedidoId: string): Promise<CasoDetalleAdmin> {
+    return this.postCaso(token, casoId, "pedido", { pedido_id: pedidoId });
+  }
+
+  async productoPublico(sku: string): Promise<ProductoCatalogo | null> {
+    try {
+      const crudo = await this.pedir<ProductoCrudo>(`/v1/catalogo/productos/${encodeURIComponent(sku)}`);
+      return normalizarProductoCatalogo(crudo);
+    } catch (causa) {
+      if (causa instanceof ErrorTukit && causa.estado === 404) return null;
+      throw causa;
+    }
   }
 
   crearCaso(solicitud: SolicitudCaso): Promise<CasoCreado> {
