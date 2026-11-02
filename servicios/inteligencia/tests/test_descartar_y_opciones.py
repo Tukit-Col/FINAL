@@ -12,7 +12,7 @@ import uuid
 
 import pytest
 from conftest import CatalogoFalso, opcion, reconocido
-from test_trabajos import COLEGIO, _catalogo, _crear_y_procesar, _linea, _total
+from test_trabajos import COLEGIO, _canonico, _catalogo, _linea, _total
 from tukit_inteligencia import trabajos
 
 
@@ -33,8 +33,9 @@ def _catalogo_con_cuatro_cuadernos() -> CatalogoFalso:
 
 
 async def _publicado(motor, usuario_id=None) -> uuid.UUID:
-    canonico, _ = await _crear_y_procesar(motor, _catalogo_con_cuatro_cuadernos())
-    await trabajos.revisar(motor, canonico, decision="aprobar")
+    # En oe5 la cache bendita nace de la LISTA aprobada (`canonico_lista`), no
+    # de aprobar el trabajo de un papa.
+    await _canonico(motor, _catalogo_con_cuatro_cuadernos())
     resultado = await trabajos.aplicar_canonico(
         motor,
         colegio_id=COLEGIO,
@@ -106,7 +107,7 @@ async def test_la_orden_no_cobra_lo_descartado_y_suma_lo_demas(motor):
 
     comercio = ComercioFalso()
     resultado = await trabajos.ordenar(
-        motor, parent_id, perfil="Ahorrador", entrega=ENTREGA, correo="ana@example.com",
+        motor, parent_id, portador=dueno, perfil="Ahorrador", entrega=ENTREGA, correo="ana@example.com",
         comercio=comercio, catalogo=catalogo,
     )
     skus = {ln["sku"] for ln in comercio.orden["lineas"]}
@@ -131,7 +132,7 @@ async def test_descartar_y_cambiar_en_la_misma_linea_no_cobra_la_linea(motor):
     )
     comercio = ComercioFalso()
     await trabajos.ordenar(
-        motor, parent_id, perfil="Ahorrador", entrega=ENTREGA, correo="ana@example.com",
+        motor, parent_id, portador=dueno, perfil="Ahorrador", entrega=ENTREGA, correo="ana@example.com",
         comercio=comercio, catalogo=catalogo,
     )
     assert all(not ln["sku"].startswith("TK-C001") for ln in comercio.orden["lineas"])
@@ -160,7 +161,7 @@ async def test_si_se_descartan_todas_las_lineas_no_hay_orden(motor):
 
     with pytest.raises(trabajos.CheckoutRechazado) as exc:
         await trabajos.ordenar(
-            motor, parent_id, perfil="Ahorrador", entrega=ENTREGA, correo="ana@example.com",
+            motor, parent_id, portador=dueno, perfil="Ahorrador", entrega=ENTREGA, correo="ana@example.com",
             comercio=ComercioFalso(), catalogo=catalogo,
         )
     assert exc.value.estado == 409
