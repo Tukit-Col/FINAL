@@ -20,7 +20,7 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, Query, Request
-from pydantic import AliasChoices, BaseModel, Field, ValidationError
+from pydantic import AliasChoices, BaseModel, Field, ValidationError, model_validator
 from tukit_comun import derivar
 from tukit_comun.http import ErrorDominio
 
@@ -264,8 +264,10 @@ class EntregaCheckout(BaseModel):
 
     Los opcionales llegan del checkout con Google Places: `localidad` (una de las
     20 de Bogota, por nombre), `indicaciones` (apartamento, torre, interior) y el
-    `google_place_id` de la sugerencia elegida. Mismos largos que Comercio. Un
-    campo desconocido (coordenadas, p. ej.) se descarta aqui y no cruza."""
+    `google_place_id` de la sugerencia elegida. Mismos largos que Comercio. Las
+    coordenadas (`latitud`/`longitud`) solo cruzan las del pin confirmado en el
+    mapa de OpenStreetMap (ADR 0049), juntas y dentro de Colombia. Cualquier otro
+    campo desconocido se descarta aqui y no cruza."""
 
     destinatario: str = Field(min_length=1, max_length=256)
     direccion: str = Field(min_length=1, max_length=512)
@@ -274,6 +276,14 @@ class EntregaCheckout(BaseModel):
     indicaciones: str | None = Field(default=None, max_length=512)
     localidad: str | None = Field(default=None, max_length=64)
     google_place_id: str | None = Field(default=None, max_length=512)
+    latitud: float | None = Field(default=None, ge=-4.3, le=13.6)
+    longitud: float | None = Field(default=None, ge=-81.8, le=-66.8)
+
+    @model_validator(mode="after")
+    def _coordenadas_completas(self) -> EntregaCheckout:
+        if (self.latitud is None) != (self.longitud is None):
+            raise ValueError("latitud y longitud van juntas")
+        return self
 
 
 class PeticionCheckout(BaseModel):

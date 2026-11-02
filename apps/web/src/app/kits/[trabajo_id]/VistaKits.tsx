@@ -45,6 +45,7 @@ import type { EntregaPrevia } from "@/lib/pagar-pedido";
 import { etiquetasDeHijos, type ApodoMatricula } from "@/lib/kit-vista";
 import { abrirWidgetWompi } from "@/lib/wompi";
 import CampoDireccion, { type LugarElegido } from "./CampoDireccion";
+import CampoDireccionOsm from "./CampoDireccionOsm";
 import LineaDeKit from "./LineaDeKit";
 import AsistenteKitSlot from "./AsistenteKitSlot";
 import styles from "./Kits.module.css";
@@ -304,6 +305,9 @@ function Checkout({
     departamento: "",
     // Solo si la direccion salio de una sugerencia de Google y no se edito.
     google_place_id: "",
+    // El pin confirmado en el mapa de OpenStreetMap (sin llave de Google).
+    latitud: null as number | null,
+    longitud: null as number | null,
     // Tras un pago rechazado, la entrega que ya se habia escrito.
     ...entregaPrevia,
     // Prellenado con el correo de la sesion: al acudiente ya identificado no se
@@ -346,10 +350,16 @@ function Checkout({
       ...d,
       direccion: lugar.direccion,
       google_place_id: lugar.google_place_id ?? "",
+      latitud: lugar.latitud ?? null,
+      longitud: lugar.longitud ?? null,
       ciudad: lugar.ciudad || d.ciudad,
       localidad: lugar.localidad,
       departamento: lugar.departamento || d.departamento,
     }));
+
+  // Mover el pin confirma otro punto sin tocar el texto ni la localidad.
+  const moverPin = (latitud: number, longitud: number) =>
+    setDatos((d) => ({ ...d, latitud, longitud }));
 
   async function pagar(e: React.FormEvent) {
     e.preventDefault();
@@ -364,6 +374,9 @@ function Checkout({
         localidad: enBogota ? datos.localidad : "",
         departamento: datos.departamento.trim(),
         google_place_id: datos.google_place_id,
+        // Juntas o ninguna: Comercio rechaza una sola.
+        latitud: datos.latitud !== null && datos.longitud !== null ? datos.latitud : undefined,
+        longitud: datos.latitud !== null && datos.longitud !== null ? datos.longitud : undefined,
       };
       const checkout = await iniciarCheckout(trabajoId, {
         perfil,
@@ -447,12 +460,25 @@ function Checkout({
               required
             />
           </label>
-          <CampoDireccion
-            llave={llaveMaps}
-            valor={datos.direccion}
-            onEscribir={escribirDireccion}
-            onElegir={elegirLugar}
-          />
+          {/* Con llave de Google, sus sugerencias (ADR 0044). Sin llave, la
+              búsqueda en OpenStreetMap con mapa de confirmación (ADR 0049). */}
+          {llaveMaps ? (
+            <CampoDireccion
+              llave={llaveMaps}
+              valor={datos.direccion}
+              onEscribir={escribirDireccion}
+              onElegir={elegirLugar}
+            />
+          ) : (
+            <CampoDireccionOsm
+              valor={datos.direccion}
+              latitud={datos.latitud}
+              longitud={datos.longitud}
+              onEscribir={escribirDireccion}
+              onElegir={elegirLugar}
+              onMoverPin={moverPin}
+            />
+          )}
           <label>
             Apartamento, torre, interior o indicaciones (opcional)
             <input

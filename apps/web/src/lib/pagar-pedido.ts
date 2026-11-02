@@ -127,6 +127,8 @@ export interface EntregaPrevia {
   localidad: string;
   departamento: string;
   google_place_id: string;
+  latitud: number | null;
+  longitud: number | null;
 }
 
 type EnvioMinimo = {
@@ -137,6 +139,8 @@ type EnvioMinimo = {
   localidad: string | null;
   departamento: string | null;
   google_place_id: string | null;
+  latitud?: number | null;
+  longitud?: number | null;
 };
 
 export function entregaParaReintento(
@@ -163,5 +167,7 @@ export function entregaParaReintento(
     localidad: e.localidad ?? "",
     departamento: e.departamento ?? "",
     google_place_id: e.google_place_id ?? "",
+    latitud: e.latitud ?? null,
+    longitud: e.longitud ?? null,
   };
 }

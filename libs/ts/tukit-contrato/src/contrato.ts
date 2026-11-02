@@ -217,11 +217,15 @@ export interface Entrega {
   // cerrando. `localidad` es una de `LOCALIDADES_BOGOTA` (vacia fuera de
   // Bogota); `indicaciones` es apartamento, torre, interior o como llegar;
   // `google_place_id` sale de la sugerencia de Google Places elegida y se pierde
-  // si el acudiente edita la direccion despues. Nunca coordenadas.
+  // si el acudiente edita la direccion despues. `latitud`/`longitud` salen del
+  // pin que confirmo en el mapa de OpenStreetMap (ADR 0049) y se pierden igual;
+  // de Google nunca viajan coordenadas (ADR 0044).
   departamento?: string;
   indicaciones?: string;
   localidad?: string;
   google_place_id?: string;
+  latitud?: number;
+  longitud?: number;
 }
 
 // El acudiente cambia el producto de un renglón de su kit por el sugerido o por
