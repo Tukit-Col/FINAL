@@ -953,5 +953,5 @@ class TestPesosPorOmision:
         from tukit_inteligencia.modelos import PESOS_POR_OMISION
 
         esperados = {"precio": 0.285, "marca_exigida": 0.273, "calidad": 0.255, "personaje": 0.187}
-        assert PESOS_POR_OMISION == esperados
+        assert esperados == PESOS_POR_OMISION
         assert abs(sum(PESOS_POR_OMISION.values()) - 1.0) < 1e-9
