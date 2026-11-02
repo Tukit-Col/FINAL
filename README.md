@@ -157,7 +157,7 @@ acudiente.
 
 ## Pagos de prueba con Wompi
 
-Con `WOMPI_MODO=falso` el botón **Pagar** lleva a una página local (`/pago/simulado`) con
+una pantalla "Procesando pago de prueba" que aprueba sola (con `?resultado=rechazado` se fuerza el rechazo); no sale a la red. Con `WOMPI_MODO=sandbox` lleva al
 "Aprobar pago" y "Rechazar pago"; no sale a la red. Con `WOMPI_MODO=sandbox` lleva al
 checkout real de Wompi (`https://checkout.wompi.co/p/`), pero en modo de **pruebas**: no se
 mueve dinero. Es un candado a propósito: Comercio se niega a arrancar si alguna llave no es de
@@ -198,7 +198,7 @@ pregunta antes a Wompi si hay un pago en curso, porque cancelar un PSE que el ba
 aprobando cobraría sin entregar ([ADR 0035](docs/arquitectura/adr/0035-cancelar-solo-con-wompi-consultado.md)).
 
 En modo falso los montos simulados viven en la memoria de Comercio: si lo reinicias entre
-"Pagar" y "Aprobar pago", obtendrás `transaccion_no_existe`; empieza de nuevo desde el kit.
+"Pagar" y la aprobación, obtendrás `transaccion_no_existe`; empieza de nuevo desde el kit.
 
 Datos de prueba de Wompi (según [docs.wompi.co](https://docs.wompi.co/docs/colombia/datos-de-prueba-en-sandbox/)):
 
