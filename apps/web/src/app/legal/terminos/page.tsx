@@ -12,8 +12,8 @@ export default function PaginaTerminos() {
     >
       <h2>1. Quiénes somos</h2>
       <p>
-        Tukit es un servicio de <Dato valor={RESPONSABLE.razonSocial} />{" "}
-        (NIT <Dato valor={RESPONSABLE.nit} />, <Dato valor={RESPONSABLE.domicilio} />) que arma el kit escolar de
+        Tukit es {RESPONSABLE.naturaleza}, con domicilio en <Dato valor={RESPONSABLE.domicilio} />. Es un
+        servicio que arma el kit escolar de
         tus hijos a partir de la lista de útiles de su colegio y te lo vende en un solo pedido. Contacto:{" "}
         <Dato valor={RESPONSABLE.correo} />.
       </p>
