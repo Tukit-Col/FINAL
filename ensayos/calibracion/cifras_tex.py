@@ -86,7 +86,9 @@ def main() -> int:
     macros["calNivelMax"] = str(max(f["bits"] for f in filas))
     macros["calNivelMaxExacto"] = str(max(f["bits"] for f in con_exacto))
     macros["calExponente"] = num(k, 2)
-    macros["calConstante"] = f"{math.exp(logc):.2e}".replace(".", "{,}").replace("e-0", "\\times10^{-") + "}"
+    macros["calConstante"] = (
+        f"{math.exp(logc):.2e}".replace(".", "{,}").replace("e-0", "e-").replace("e-", "\\times10^{-") + "}"
+    )
     macros["calSdResiduo"] = num(sd, 2)
     macros["calTNsgaMediana"] = num(t_nsga_med, 2)
     macros["calCruce"] = entero(round(cruce))
@@ -128,7 +130,7 @@ def main() -> int:
             f"{b} & {len(xs)} & {te_txt} & {te_max} & {num(float(np.median(tn)), 3)} & "
             f"{gana} & {num(min(rz), 4)} \\\\"
         )
-    (SAL / "tabla_umbral.tex").write_text("\n".join(lineas) + "\n", encoding="utf-8")
+    (SAL / "tabla_umbral.tex").write_text("\n".join([*lineas, "\\bottomrule"]) + "\n", encoding="utf-8")
 
     # ------------------------------------------------------------ corpus
     insts = n.instancias()
@@ -197,7 +199,10 @@ def main() -> int:
         macros["calDifT"] = num(d["media"], 2)
         macros["calDifTBajo"] = num(d["ic95"][0], 2)
         macros["calDifTAlto"] = num(d["ic95"][1], 2)
-        macros["calDifTp"] = f"{d['wilcoxon_p']:.1e}".replace(".", "{,}").replace("e-0", "\\times10^{-") + "}"
+        macros["calDifTp"] = (
+            f"{d['wilcoxon_p']:.1e}".replace(".", "{,}").replace("e-0", "e-").replace("e-", "\\times10^{-")
+            + "}"
+        )
         macros["calFraccionHV"] = pct(pr["fraccion_corridas_elegida_hv_ge_0999"])
         macros["calRazonMinPrueba"] = num(pr["razon_min_corrida_elegida"], 4)
         macros["calTRejillaMin"] = str(round(c["t_rejilla_s"] / 60))
@@ -222,7 +227,7 @@ def main() -> int:
                 f"{num(r['hv_medio'], 4)} & {num(r['hv_min_lista'], 4)} & "
                 f"{num(r['t_medio_s'], 2)} & {marca} \\\\"
             )
-        (SAL / "tabla_rejilla.tex").write_text("\n".join(lineas) + "\n", encoding="utf-8")
+        (SAL / "tabla_rejilla.tex").write_text("\n".join([*lineas, "\\bottomrule"]) + "\n", encoding="utf-8")
 
     # ------------------------------------------------------------ sensibilidad
     s = leer("sensibilidad.json")
@@ -243,11 +248,14 @@ def main() -> int:
                 f"{num(d['estable_medio'], 3)} & [{num(d['ic95'][0], 3)}; {num(d['ic95'][1], 3)}] & "
                 f"{num(d['estable_minimo_lista'], 3)} \\\\"
             )
-        (SAL / "tabla_sensibilidad.tex").write_text("\n".join(lineas) + "\n", encoding="utf-8")
+        (SAL / "tabla_sensibilidad.tex").write_text(
+            "\n".join([*lineas, "\\bottomrule"]) + "\n", encoding="utf-8"
+        )
         sin = next(d for d in s["dentro_ic95_p21"] if d["sobreprecio"] == 0.0)
         macros["calSensIC"] = num(sin["estable_medio"], 3)
-        macros["calSensICMin"] = num(min(d["estable_medio"] for d in s["dentro_ic95_p21"]), 3)
-        macros["calSensICMinLista"] = num(min(d["estable_minimo_lista"] for d in s["dentro_ic95_p21"]), 3)
+        con_sigma = [d for d in s["dentro_ic95_p21"] if d["sobreprecio"] > 0]
+        macros["calSensICMin"] = num(min(d["estable_medio"] for d in con_sigma), 3)
+        macros["calSensICMinLista"] = num(min(d["estable_minimo_lista"] for d in con_sigma), 3)
         k20 = [d for d in s["celdas"] if d["kappa"] == min(x["kappa"] for x in s["celdas"])]
         macros["calSensKappaMin"] = str(k20[0]["kappa"])
         macros["calSensKappaMinEstable"] = num(min(d["estable_medio"] for d in k20), 3)
@@ -270,11 +278,13 @@ def main() -> int:
         ]
         nombres = {"Ahorrador": "Ahorrador", "Premium": "Premium", "MAUT_P21": "MAUT con pesos P21"}
         for p, d in h["hv_relativo_por_perfil"].items():
-            macros[f"calHV{p.replace('_', '')}"] = num(d["media"], 3)
+            macros[f"calHV{p.replace('_P21', 'Pesos').replace('_', '')}"] = num(d["media"], 3)
             lineas.append(
                 f"{nombres[p]} & {num(d['media'], 3)} & [{num(d['ic95'][0], 3)}; {num(d['ic95'][1], 3)}] \\\\"
             )
-        (SAL / "tabla_hipervolumen.tex").write_text("\n".join(lineas) + "\n", encoding="utf-8")
+        (SAL / "tabla_hipervolumen.tex").write_text(
+            "\n".join([*lineas, "\\bottomrule"]) + "\n", encoding="utf-8"
+        )
 
     # ------------------------------------------------------------ umbral con la configuracion elegida
     ue = leer("umbral_elegida.json")
@@ -307,6 +317,25 @@ def main() -> int:
         macros["calSTeoricoLog"] = num(math.log2(pob * math.sqrt(gen)), 1)
         macros["calSEvals"] = entero(pob * gen)
         macros["calSEvalsLog"] = num(math.log2(pob * gen), 1)
+        macros["calSCuadrado"] = entero(gen * pob**2)
+        macros["calSCuadradoLog"] = num(math.log2(gen * pob**2), 1)
+        # Tabla por nivel con las dos configuraciones del NSGA-II.
+        lineas = []
+        for b in sorted({f["bits"] for f in filas}):
+            xs = [f for f in filas if f["bits"] == b]
+            ys = [f for f in ue["filas"] if f["bits"] == b]
+            te = [f["exacto"]["t_total"] for f in xs if f["exacto"]]
+            tn = [float(np.mean(f["t_nsga_s"])) for f in xs]
+            tne = [float(np.mean(f["t_nsga_s"])) for f in ys]
+            rz = [r for f in ys for r in f["razon_hv"]]
+            gana = sum(1 for f in ys if f["t_exacto"] and f["t_exacto"] < np.mean(f["t_nsga_s"]))
+            te_txt = num(float(np.median(te)), 3) if te else "---"
+            te_max = num(max(te), 3) if te else "---"
+            lineas.append(
+                f"{b} & {len(xs)} & {te_txt} & {te_max} & {num(float(np.median(tn)), 3)} & "
+                f"{num(float(np.median(tne)), 3)} & {gana} & {num(min(rz), 4)} \\\\"
+            )
+        (SAL / "tabla_umbral.tex").write_text("\n".join([*lineas, "\\bottomrule"]) + "\n", encoding="utf-8")
 
     texto = ["% Generado por ensayos/calibracion/cifras_tex.py. No editar a mano."]
     texto += [f"\\newcommand{{\\{k}}}{{{v}}}" for k, v in macros.items()]

@@ -318,13 +318,15 @@ el filtro por pares del exhaustivo en su peor caso, $S^2M=GMN^2$, queda en
 $S^{\ast}=N\sqrt{G}$. Con la configuración elegida
 (\cref{sec:calopt-calibracion}) y $n=\calNTipico$ líneas, que es la mediana
 de los subproblemas cercanos al umbral, la población es $N=\calPobTipica$ y
-las generaciones son $G=\calGenTipica$. Entonces $N\sqrt{G}\approx\calSTeorico$
-($2^{\calSTeoricoLog}$) y el número de evaluaciones del NSGA-II es
-$N G=\calSEvals$ ($2^{\calSEvalsLog}$). Las dos cotas dejan el umbral entre
-unos pocos miles y unas decenas de miles de asignaciones. La teoría no lo
-precisa más porque las constantes de cada operación son distintas: evaluar una
-asignación en Python cuesta mucho más que comparar dos vectores dentro de
-pymoo. Por eso el umbral se fija con la medición.
+las generaciones son $G=\calGenTipica$. Entonces la primera cota da
+$GN^2=\calSCuadrado$ ($2^{\calSCuadradoLog}$) y la segunda da
+$N\sqrt{G}\approx\calSTeorico$ ($2^{\calSTeoricoLog}$); como referencia, el
+NSGA-II hace $NG=\calSEvals$ evaluaciones ($2^{\calSEvalsLog}$). El umbral
+queda, por tanto, entre $2^{\calSTeoricoLog}$ y $2^{\calSCuadradoLog}$. La
+teoría no lo precisa más porque las constantes de cada operación son
+distintas: evaluar una asignación en Python cuesta mucho más que comparar dos
+vectores dentro de pymoo, y el filtro rara vez llega a su peor caso porque
+$U<S$. Por eso el umbral se fija con la medición.
 
 \paragraph{Umbral medido.} Para medirlo se armaron \calSubproblemas{}
 subproblemas con líneas reales, con espacios $S\in[2^{b},2^{b+1})$ para
@@ -349,18 +351,20 @@ partida y la \cref{fig:calopt-umbral} los muestra junto con el ajuste.
 \begin{table}[htbp]
 \centering
 \caption{Tiempo de pared de la enumeración exhaustiva y del NSGA-II con la
-configuración de partida, por nivel $b$ del espacio ($S\in[2^b,2^{b+1})$).
-Fuente: \texttt{umbral.json}; \calSubproblemas{} subproblemas,
+configuración de partida y con la elegida, por nivel $b$ del espacio
+($S\in[2^b,2^{b+1})$). «Exacto más rápido» y «HV mínimo» se refieren a la
+configuración elegida.
+Fuente: \texttt{umbral.json} y \texttt{umbral\_elegida.json}; \calSubproblemas{} subproblemas,
 \calSemillasHV{} semillas por subproblema para el hipervolumen; máquina
 \calCPU{} con \calRAM~GiB.}
 \label{tab:calopt-umbral}
 \small
-\begin{tabular}{rrrrrrr}
+\begin{tabular}{rrrrrrrr}
 \toprule
-$b$ & subproblemas & exacto, mediana (s) & exacto, máx.\ (s) & NSGA-II, mediana (s) & exacto más rápido & HV mínimo \\
+ & & \multicolumn{2}{c}{exacto (s)} & \multicolumn{2}{c}{NSGA-II, mediana (s)} & & \\
+$b$ & subproblemas & mediana & máx. & partida & elegida & exacto más rápido & HV mínimo \\
 \midrule
 \input{tabla_umbral.tex}
-\bottomrule
 \end{tabular}
 \end{table}
 
@@ -375,13 +379,15 @@ subproblemas; los valores están en la \cref{tab:calopt-umbral}.}
 \label{fig:calopt-umbral}
 \end{figure}
 
-A partir de esas dos cifras se fija $\Lambda=\calLimite=2^{\calLimiteLog}$. Es
-la potencia de dos más cercana por debajo del cruce de la mediana y queda
-cerca del cruce del percentil 95, de modo que la enumeración no tarda más que
-el NSGA-II aun en subproblemas lentos. Por debajo del umbral la enumeración
-fue más rápida en \calExactoGanaBajoElegida{} subproblemas y tardó como mucho
-\calExactoMaxBajo~s; por encima lo fue solo en \calExactoGanaSobreElegida{}.
-Además, el umbral cae dentro del rango que predice la teoría.
+A partir de esas dos cifras se fija $\Lambda=\calLimite=2^{\calLimiteLog}$,
+que queda entre el cruce del percentil 95 y el de la mediana y dentro del rango
+que predice la teoría. Por debajo del umbral la enumeración fue más rápida que
+el NSGA-II calibrado en \calExactoGanaBajoElegida{} subproblemas y tardó como
+mucho \calExactoMaxBajo~s; por encima lo fue solo en
+\calExactoGanaSobreElegida. Un umbral menor perdería el frente exacto en
+espacios donde enumerar todavía es barato, y uno mayor haría esperar segundos
+por un frente que el NSGA-II encuentra casi igual en una fracción de ese
+tiempo.
 
 \paragraph{Comparación con el exhaustivo.} El exhaustivo da el frente óptimo,
 pero su tiempo crece como $S^{\calExponente}$ y pasa de dos minutos cerca de
@@ -463,7 +469,6 @@ Fuente: \texttt{calibracion\_nsga.json}; $n=\calCVListas$ listas,
 $a$ & $b$ & evaluaciones medias & HV medio & HV mínimo por lista & tiempo medio (s) & \\
 \midrule
 \input{tabla_rejilla.tex}
-\bottomrule
 \end{tabular}
 \end{table}
 
@@ -512,14 +517,20 @@ del \calTauPrecision, y la validación cruzada agrupada elige valores entre
 \paragraph{Sensibilidad del kit recomendado.} Para medir cuánto depende la
 recomendación de los pesos, en las \calSensListas{} listas de prueba con al
 menos dos puntos en el frente (mediana de \calSensFrenteMediana{} puntos) se
-sortearon \calSensPerturbaciones{} vectores de pesos por lista. En el primer
-esquema cada peso se sortea uniforme dentro de su intervalo del 95\,\% de la
-P21 y se renormaliza; el kit recomendado fue el mismo en una fracción media de
-\calSensIC{} de los sorteos sin sobreprecio, y nunca bajó de \calSensICMin{}
-para ningún sobreprecio. En el segundo esquema los pesos siguen una Dirichlet
-centrada en los de la P21 con concentración $\kappa$; con la perturbación más
-ancha ($\kappa=\calSensKappaMin$) la fracción media fue al menos
-\calSensKappaMinEstable. La \cref{tab:calopt-sensibilidad} da todas las celdas
+sortearon \calSensPerturbaciones{} vectores de pesos por lista. Sin sobreprecio la estabilidad es 1 por construcción, porque la cota
+$f_1\leq(1+\sigma)\min_{\mathcal{P}}f_1$ con $\sigma=0$ deja admisible solo el
+kit más barato; las cifras útiles son las de $\sigma>0$. En el primer esquema
+cada peso se sortea uniforme dentro de su intervalo del 95\,\% de la P21 y se
+renormaliza. Con $\sigma>0$ el kit recomendado fue el mismo en una fracción
+media de al menos \calSensICMin{} de los sorteos, aunque en alguna lista bajó
+hasta \calSensICMinLista. En el segundo esquema los pesos siguen una Dirichlet
+centrada en los de la P21 con concentración $\kappa$, que permite
+perturbaciones más anchas que el intervalo; con la más ancha
+($\kappa=\calSensKappaMin$) la fracción media no bajó de
+\calSensKappaMinEstable. En consecuencia, dentro de lo que la encuesta no
+puede descartar la recomendación casi no cambia, y solo se vuelve sensible
+cuando el sobreprecio admitido abre muchos kits y los pesos se alejan de los
+medidos. La \cref{tab:calopt-sensibilidad} da todas las celdas
 y la \cref{fig:calopt-sensibilidad} las muestra.
 
 \begin{table}[htbp]
@@ -535,7 +546,6 @@ listas de prueba, \calSensPerturbaciones{} sorteos por lista y celda.}
 sobreprecio & perturbación & DE & media & IC 95\,\% & mínimo por lista \\
 \midrule
 \input{tabla_sensibilidad.tex}
-\bottomrule
 \end{tabular}
 \end{table}
 
@@ -568,7 +578,6 @@ Fuente: \texttt{hipervolumen\_prueba.json}; $n=\calHVListas$ listas.}
 conjunto & media & IC 95\,\% \\
 \midrule
 \input{tabla_hipervolumen.tex}
-\bottomrule
 \end{tabular}
 \end{table}
 
@@ -589,7 +598,7 @@ constante, su fuente y la evidencia que la sostiene.
 \caption{Constantes del optimizador, con su fuente y su evidencia.}
 \label{tab:calopt-constantes}
 \small
-\begin{tabular}{p{0.24\linewidth}p{0.18\linewidth}p{0.2\linewidth}p{0.28\linewidth}}
+\begin{tabular}{p{0.14\linewidth}p{0.33\linewidth}p{0.16\linewidth}p{0.25\linewidth}}
 \toprule
 constante & valor & fuente & evidencia \\
 \midrule
