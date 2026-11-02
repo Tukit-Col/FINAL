@@ -6,7 +6,12 @@
 
 import type {
   AplicarCanonico,
+  CambioDeDescarte,
   CambioDeProducto,
+  MiCaso,
+  MiCasoDetalle,
+  OpcionesDeLinea,
+  RetractoSolicitado,
   CasoCreado,
   Checkout,
   Contacto,
@@ -18,7 +23,7 @@ import type {
   Preferencias,
   RegistroAcudiente,
   ResultadoPago,
-  SolicitudCaso,
+  SolicitudMiCaso,
   SolicitudCheckout,
   SolicitudTrabajo,
   SubidaListas,
@@ -115,6 +120,70 @@ export async function cambiarProductoDeKit(
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sku }),
+    }),
+  );
+}
+
+/** Quita un renglón del kit ("ya lo tengo") o lo vuelve a poner. Reversible. */
+export async function descartarLineaDeKit(
+  trabajoId: string,
+  perfil: string,
+  itemId: string,
+  descartado: boolean,
+): Promise<CambioDeDescarte> {
+  const ruta =
+    `/api/trabajos/${encodeURIComponent(trabajoId)}/kits/${encodeURIComponent(perfil)}` +
+    `/lineas/${encodeURIComponent(itemId)}/descarte`;
+  return leer<CambioDeDescarte>(
+    await fetch(ruta, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ descartado }),
+    }),
+  );
+}
+
+/** Los productos del mismo concepto para un renglón, con la diferencia de precio. */
+export async function opcionesDeLinea(
+  trabajoId: string,
+  perfil: string,
+  itemId: string,
+): Promise<OpcionesDeLinea> {
+  const ruta =
+    `/api/trabajos/${encodeURIComponent(trabajoId)}/kits/${encodeURIComponent(perfil)}` +
+    `/lineas/${encodeURIComponent(itemId)}/opciones`;
+  return leer<OpcionesDeLinea>(await fetch(ruta, { cache: "no-store" }));
+}
+
+/** Retracto (Ley 1480, art. 47) de uno de mis pedidos. */
+export async function pedirRetracto(pedidoId: string, motivo: string): Promise<RetractoSolicitado> {
+  return leer<RetractoSolicitado>(
+    await fetch(`/api/pedidos/${encodeURIComponent(pedidoId)}/retracto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ motivo }),
+    }),
+  );
+}
+
+/** Mis casos. */
+export async function verMisCasos(): Promise<MiCaso[]> {
+  const cuerpo = await leer<{ casos: MiCaso[] }>(await fetch("/api/casos", { cache: "no-store" }));
+  return cuerpo.casos;
+}
+
+export async function verMiCaso(casoId: string): Promise<MiCasoDetalle> {
+  return leer<MiCasoDetalle>(
+    await fetch(`/api/casos/${encodeURIComponent(casoId)}`, { cache: "no-store" }),
+  );
+}
+
+export async function comentarMiCaso(casoId: string, texto: string): Promise<void> {
+  await leer<unknown>(
+    await fetch(`/api/casos/${encodeURIComponent(casoId)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texto }),
     }),
   );
 }
@@ -290,7 +359,7 @@ export async function guardarMatriculas(hijos: HijoNuevo[]): Promise<{ total: nu
   );
 }
 
-export async function crearCaso(solicitud: SolicitudCaso): Promise<CasoCreado> {
+export async function crearCaso(solicitud: SolicitudMiCaso): Promise<CasoCreado> {
   return leer<CasoCreado>(
     await fetch("/api/casos", {
       method: "POST",

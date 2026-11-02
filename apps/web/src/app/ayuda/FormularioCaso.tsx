@@ -3,12 +3,14 @@
 // El formulario para abrir una PQRS desde el centro de ayuda.
 //
 // Es la mitad de cliente de la escritura de `operacion`: recoge lo mínimo
-// (tipo, asunto, descripción, contacto) y llama a `/api/casos`, que habla con el
-// backend. No inventa un canal que no existe —el caso queda de verdad en la
+// (tipo, asunto, descripción) y llama a `/api/casos`, que habla con el backend.
+// El caso queda a nombre de la sesión: no se pide ni se acepta un correo, así
+// nadie abre casos a nombre de otra familia. Sin sesión se invita a ingresar. No inventa un canal que no existe —el caso queda de verdad en la
 // bandeja del back-office— y, al crearlo, muestra el
 // número de radicado y el término legal de respuesta, para que la promesa quede
 // por escrito y no como adorno.
 
+import Link from "next/link";
 import { useId, useState } from "react";
 import { CheckCircle2, Send, Ticket } from "lucide-react";
 import {
@@ -40,19 +42,15 @@ function fechaLegible(iso: string): string {
   });
 }
 
-export default function FormularioCaso() {
+export default function FormularioCaso({ conSesion }: { conSesion: boolean }) {
   const idCategoria = useId();
   const idAsunto = useId();
   const idDescripcion = useId();
-  const idCorreo = useId();
-  const idCelular = useId();
   const idTrabajo = useId();
 
   const [categoria, setCategoria] = useState<CategoriaCaso>("peticion");
   const [asunto, setAsunto] = useState("");
   const [descripcion, setDescripcion] = useState("");
-  const [correo, setCorreo] = useState("");
-  const [celular, setCelular] = useState("");
   const [trabajoId, setTrabajoId] = useState("");
 
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +66,6 @@ export default function FormularioCaso() {
         categoria,
         asunto,
         descripcion,
-        contacto: { correo, celular },
         trabajo_id: trabajoId.trim() || null,
       });
       setCreado(caso);
@@ -83,6 +80,21 @@ export default function FormularioCaso() {
     }
   }
 
+  if (!conSesion) {
+    return (
+      <div className={styles.exito} role="status">
+        <h3>Ingresa para abrir una solicitud</h3>
+        <p>
+          Así el caso queda en tu cuenta y puedes seguirlo desde “Mis casos”, sin tener que
+          guardar un número.
+        </p>
+        <Link href="/ingresar" className={styles.otroBoton}>
+          Ingresar a mi cuenta
+        </Link>
+      </div>
+    );
+  }
+
   // Estado de éxito: el radicado y el término de respuesta. Reemplaza al
   // formulario para que quede claro que ya se envió y no se manda dos veces.
   if (creado) {
@@ -94,8 +106,8 @@ export default function FormularioCaso() {
         <h3>Radicamos tu solicitud</h3>
         <p>
           Tu número es{" "}
-          <strong className={styles.radicado}>{creado.caso_id}</strong>. Guárdalo para
-          hacerle seguimiento.
+          <strong className={styles.radicado}>{creado.caso_id}</strong>. Lo ves y le haces
+          seguimiento en <Link href="/dashboard#casos">Mis casos</Link>.
         </p>
         {creado.vence_en ? (
           <p className={styles.plazo}>
@@ -104,8 +116,8 @@ export default function FormularioCaso() {
           </p>
         ) : (
           <p className={styles.plazo}>
-            La tomamos en cuenta. Si necesita respuesta, te escribimos al correo que
-            dejaste.
+            La tomamos en cuenta. Si necesita respuesta, te escribimos al correo de tu
+            cuenta.
           </p>
         )}
         <button
@@ -166,34 +178,6 @@ export default function FormularioCaso() {
           rows={5}
           required
         />
-      </div>
-
-      <div className={styles.fila}>
-        <div className={styles.campo}>
-          <label htmlFor={idCorreo}>Correo</label>
-          <input
-            id={idCorreo}
-            type="email"
-            autoComplete="email"
-            value={correo}
-            onChange={(e) => setCorreo(e.target.value)}
-            placeholder="tucorreo@ejemplo.com"
-            required
-          />
-        </div>
-        <div className={styles.campo}>
-          <label htmlFor={idCelular}>Celular</label>
-          <input
-            id={idCelular}
-            type="tel"
-            autoComplete="tel"
-            inputMode="tel"
-            value={celular}
-            onChange={(e) => setCelular(e.target.value)}
-            placeholder="300 000 0000"
-            required
-          />
-        </div>
       </div>
 
       <div className={styles.campo}>

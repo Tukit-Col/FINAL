@@ -12,6 +12,7 @@ import {
   MessagesSquare,
 } from "lucide-react";
 import Revelar from "@/components/Revelar";
+import { sesionActual } from "@/lib/sesion";
 import SobreSoporte from "./SobreSoporte";
 import FormularioCaso from "./FormularioCaso";
 import styles from "./Ayuda.module.css";
@@ -61,7 +62,10 @@ const PREGUNTAS = [
   },
 ];
 
-export default function AyudaPage() {
+export const dynamic = "force-dynamic";
+
+export default async function AyudaPage() {
+  const sesion = await sesionActual();
   return (
     <div className={styles.pagina}>
       <Revelar as="section" className={styles.encabezado} modo="una">
@@ -129,7 +133,7 @@ export default function AyudaPage() {
 
         {/* Segunda tarjeta: el formulario real. */}
         <Revelar as="div" className={styles.tarjetaForma} modo="una" retraso={0.08}>
-          <FormularioCaso />
+          <FormularioCaso conSesion={Boolean(sesion)} />
         </Revelar>
       </section>
 

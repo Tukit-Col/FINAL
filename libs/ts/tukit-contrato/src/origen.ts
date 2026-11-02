@@ -170,6 +170,8 @@ export interface RegistroAcudiente {
   clave: string;
   celular?: string;
   hijos: HijoNuevo[];
+  // El titular marco la casilla de la politica de datos y los terminos.
+  acepta_terminos?: boolean;
 }
 
 /** Un hijo de un acudiente tal como lo devuelve el padron interno
