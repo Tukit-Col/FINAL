@@ -1,19 +1,29 @@
 "use client";
 
-// El panel «Pidenos un cambio» de /kits. El modelo solo propone; un cambio se
-// aplica unicamente cuando el acudiente lo confirma, y por la ruta de siempre
-// (`PUT /api/trabajos/{id}/kits/{perfil}/lineas/{item}/producto`).
+// El asistente de /kits: un chat flotante en la esquina. El modelo solo
+// propone; un cambio se aplica unicamente cuando el acudiente lo confirma, y
+// por la ruta de siempre (`PUT /api/trabajos/{id}/kits/{perfil}/lineas/{item}/producto`).
+// El kit sobre el que se habla es el que el acudiente esta mirando.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { MessageCircle, Send, X } from "lucide-react";
 import { validarEspec, type Componente } from "./espec";
 import { aplicacionDePropuesta, type PropuestaAplicable } from "./aplicar";
 import { ExplicacionKit, PropuestaCambio, PropuestaDescarte } from "./Componentes";
 import estilos from "./Asistente.module.css";
 
-const PERFILES = ["Ahorrador", "Fan", "A tu Medida", "Premium"] as const;
-type Perfil = (typeof PERFILES)[number];
 type Estado = "pendiente" | "aplicada" | "rechazada";
+
+type Respuesta =
+  | { tipo: "pensando" }
+  | { tipo: "texto"; texto: string }
+  | { tipo: "propuesta"; propuestaId: string; componentes: Componente[] };
+
+interface Turno {
+  pregunta: string;
+  respuesta: Respuesta;
+}
 
 const EJEMPLOS = ["Más barato en cuadernos", "¿Por qué este kit cuesta eso?", "Quita lo que no necesito"];
 
@@ -29,32 +39,49 @@ async function avisarDecision(propuesta_id: string, decision: "aceptada" | "rech
   }
 }
 
-export default function PanelKit({ trabajoId }: { trabajoId: string }) {
+export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; perfil: string }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
-  const [perfil, setPerfil] = useState<Perfil>("Ahorrador");
   const [texto, setTexto] = useState("");
-  const [cargando, setCargando] = useState(false);
-  const [aviso, setAviso] = useState<string | null>(null);
-  const [retirado, setRetirado] = useState(false);
-  const [propuestaId, setPropuestaId] = useState<string | null>(null);
-  const [componentes, setComponentes] = useState<Componente[]>([]);
-  const [estados, setEstados] = useState<Record<number, Estado>>({});
+  const [turnos, setTurnos] = useState<Turno[]>([]);
+  const [estados, setEstados] = useState<Record<string, Estado>>({});
   const [ocupado, setOcupado] = useState(false);
+  const [retirado, setRetirado] = useState(false);
+  const entrada = useRef<HTMLTextAreaElement>(null);
+  const fondo = useRef<HTMLDivElement>(null);
+
+  const cargando = turnos.at(-1)?.respuesta.tipo === "pensando";
+
+  useEffect(() => {
+    if (abierto) entrada.current?.focus();
+  }, [abierto]);
+
+  useEffect(() => {
+    fondo.current?.scrollIntoView({ block: "end" });
+  }, [turnos]);
+
+  useEffect(() => {
+    if (!abierto) return;
+    const alEscape = (e: KeyboardEvent) => e.key === "Escape" && setAbierto(false);
+    window.addEventListener("keydown", alEscape);
+    return () => window.removeEventListener("keydown", alEscape);
+  }, [abierto]);
 
   if (retirado) return null;
 
-  async function proponer() {
-    if (!texto.trim() || cargando) return;
-    setCargando(true);
-    setAviso(null);
-    setComponentes([]);
-    setEstados({});
+  function responder(respuesta: Respuesta) {
+    setTurnos((t) => [...t.slice(0, -1), { pregunta: t.at(-1)?.pregunta ?? "", respuesta }]);
+  }
+
+  async function proponer(pregunta: string) {
+    if (!pregunta.trim() || cargando) return;
+    setTexto("");
+    setTurnos((t) => [...t, { pregunta, respuesta: { tipo: "pensando" } }]);
     try {
       const respuesta = await fetch(`/api/asistente/kits/${encodeURIComponent(trabajoId)}/proponer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texto, perfil }),
+        body: JSON.stringify({ texto: pregunta, perfil }),
       });
       const cuerpo = (await respuesta.json().catch(() => null)) as Record<string, unknown> | null;
       if (respuesta.status === 503) {
@@ -62,15 +89,20 @@ export default function PanelKit({ trabajoId }: { trabajoId: string }) {
         return;
       }
       if (!respuesta.ok || !cuerpo) {
-        setAviso(
-          respuesta.status === 404
-            ? "No encontramos ese kit en tu cuenta. Entra con tu cuenta para pedir cambios."
-            : "No pudimos leer eso. Prueba de nuevo.",
-        );
+        responder({
+          tipo: "texto",
+          texto:
+            respuesta.status === 404
+              ? "No encontré ese kit en tu cuenta. Entra con tu cuenta para pedir cambios."
+              : "No pude leer eso. ¿Lo intentas de nuevo con otras palabras?",
+        });
         return;
       }
       if (cuerpo["estado"] !== "propuesta") {
-        setAviso(typeof cuerpo["mensaje"] === "string" ? cuerpo["mensaje"] : "No encontramos un cambio con eso.");
+        responder({
+          tipo: "texto",
+          texto: typeof cuerpo["mensaje"] === "string" ? cuerpo["mensaje"] : "No encontré un cambio con eso.",
+        });
         return;
       }
       const ui = validarEspec(cuerpo["ui"]);
@@ -78,18 +110,15 @@ export default function PanelKit({ trabajoId }: { trabajoId: string }) {
         setRetirado(true);
         return;
       }
-      setPropuestaId(String(cuerpo["propuesta_id"]));
-      setComponentes(ui.componentes);
+      responder({ tipo: "propuesta", propuestaId: String(cuerpo["propuesta_id"]), componentes: ui.componentes });
     } catch {
       setRetirado(true);
-    } finally {
-      setCargando(false);
     }
   }
 
-  // Lo aplica el padre, no el modelo: la misma llamada que hace el renglón del kit
-  // (endpoints de S3), con su sesión; el servidor exige que el kit sea suyo.
-  async function aceptar(indice: number, c: PropuestaAplicable) {
+  // Lo aplica el padre, no el modelo: la misma llamada que hace el renglón del kit,
+  // con su sesión; el servidor exige que el kit sea suyo.
+  async function aceptar(clave: string, propuestaId: string, c: PropuestaAplicable) {
     const aplicacion = aplicacionDePropuesta(c);
     if (!aplicacion) return;
     setOcupado(true);
@@ -100,112 +129,133 @@ export default function PanelKit({ trabajoId }: { trabajoId: string }) {
         body: JSON.stringify(aplicacion.cuerpo),
       });
       if (!respuesta.ok) {
-        setAviso("No pudimos hacer ese cambio. Puedes hacerlo a mano en el renglón del kit.");
+        setTurnos((t) => [
+          ...t,
+          { pregunta: "", respuesta: { tipo: "texto", texto: "No pude hacer ese cambio. Puedes hacerlo a mano en el renglón del kit." } },
+        ]);
         return;
       }
-      setEstados((e) => ({ ...e, [indice]: "aplicada" }));
-      if (propuestaId) void avisarDecision(propuestaId, "aceptada", aplicacion.tipo);
+      setEstados((e) => ({ ...e, [clave]: "aplicada" }));
+      void avisarDecision(propuestaId, "aceptada", aplicacion.tipo);
       router.refresh();
-    } catch {
-      setAviso("No pudimos hacer ese cambio. Puedes hacerlo a mano en el renglón del kit.");
     } finally {
       setOcupado(false);
     }
   }
 
-  function rechazar(indice: number, tipo: "cambio" | "descarte") {
-    setEstados((e) => ({ ...e, [indice]: "rechazada" }));
-    if (propuestaId) void avisarDecision(propuestaId, "rechazada", tipo);
+  function rechazar(clave: string, propuestaId: string, tipo: "cambio" | "descarte") {
+    setEstados((e) => ({ ...e, [clave]: "rechazada" }));
+    void avisarDecision(propuestaId, "rechazada", tipo);
+  }
+
+  if (!abierto) {
+    return (
+      <button type="button" className={estilos.burbuja} onClick={() => setAbierto(true)}>
+        <MessageCircle size={22} aria-hidden="true" />
+        <span>¿Cambiamos algo?</span>
+      </button>
+    );
   }
 
   return (
-    <section className={estilos.panel} aria-labelledby="asistente-kit-titulo">
-      <h2 id="asistente-kit-titulo" className={estilos.titulo}>
-        Pídenos un cambio
-      </h2>
-      {!abierto ? (
-        <div className={estilos.acciones}>
-          <button type="button" className={estilos.secundario} onClick={() => setAbierto(true)}>
-            Contarle a la asistente qué quieres cambiar
-          </button>
+    <section className={estilos.ventana} role="dialog" aria-labelledby="asistente-kit-titulo">
+      <header className={estilos.cabeceraChat}>
+        <div>
+          <h2 id="asistente-kit-titulo" className={estilos.titulo}>
+            Asistente de tu kit
+          </h2>
+          <p className={estilos.ayuda}>Hablamos del kit {perfil}. Te propongo y tú decides.</p>
         </div>
-      ) : (
-        <>
-          <p className={estilos.ayuda}>Te proponemos el cambio y tú decides. No tocamos nada sin tu sí.</p>
-          <label className={estilos.rotulo} htmlFor="asistente-perfil">
-            Kit
-          </label>
-          <select
-            id="asistente-perfil"
-            className={estilos.entrada}
-            style={{ minHeight: 48 }}
-            value={perfil}
-            onChange={(e) => setPerfil(e.target.value as Perfil)}
-          >
-            {PERFILES.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-          <label className={estilos.rotulo} htmlFor="asistente-kit-texto">
-            Qué quieres cambiar
-          </label>
-          <textarea
-            id="asistente-kit-texto"
-            className={estilos.entrada}
-            value={texto}
-            maxLength={1000}
-            onChange={(e) => setTexto(e.target.value)}
-            placeholder="Más barato en cuadernos"
-          />
+        <button type="button" className={estilos.cerrar} onClick={() => setAbierto(false)} aria-label="Cerrar el asistente">
+          <X size={20} aria-hidden="true" />
+        </button>
+      </header>
+
+      <div className={estilos.mensajes} aria-live="polite">
+        <p className={estilos.msgTukit}>
+          Hola. Dime qué quieres cambiar del kit y te muestro la propuesta. No toco nada sin tu sí.
+        </p>
+        {turnos.length === 0 && (
           <div className={estilos.ejemplos}>
             {EJEMPLOS.map((e) => (
-              <button key={e} type="button" className={estilos.ejemplo} onClick={() => setTexto(e)}>
+              <button key={e} type="button" className={estilos.ejemplo} onClick={() => void proponer(e)}>
                 {e}
               </button>
             ))}
           </div>
-          <div className={estilos.acciones}>
-            <button type="button" className={estilos.primario} onClick={proponer} disabled={cargando || !texto.trim()}>
-              {cargando ? "Pensando…" : "Proponer cambio"}
-            </button>
+        )}
+        {turnos.map((turno, t) => (
+          <div key={t} className={estilos.turno}>
+            {turno.pregunta && <p className={estilos.msgPadre}>{turno.pregunta}</p>}
+            {turno.respuesta.tipo === "pensando" && <p className={`${estilos.msgTukit} ${estilos.pensando}`}>Pensando…</p>}
+            {turno.respuesta.tipo === "texto" && <p className={estilos.msgTukit}>{turno.respuesta.texto}</p>}
+            {turno.respuesta.tipo === "propuesta" && (
+              <ul className={estilos.lista}>
+                {turno.respuesta.componentes.map((c, i) => {
+                  const clave = `${t}-${i}`;
+                  const propuestaId = (turno.respuesta as { propuestaId: string }).propuestaId;
+                  if (c.tipo === "PropuestaCambio") {
+                    return (
+                      <PropuestaCambio
+                        key={clave}
+                        {...c.props}
+                        estado={estados[clave] ?? "pendiente"}
+                        ocupado={ocupado || !c.props.aplicable}
+                        onAceptar={() => void aceptar(clave, propuestaId, c)}
+                        onRechazar={() => rechazar(clave, propuestaId, "cambio")}
+                      />
+                    );
+                  }
+                  if (c.tipo === "PropuestaDescarte") {
+                    return (
+                      <PropuestaDescarte
+                        key={clave}
+                        {...c.props}
+                        estado={estados[clave] ?? "pendiente"}
+                        ocupado={ocupado || !c.props.aplicable}
+                        onAceptar={() => void aceptar(clave, propuestaId, c)}
+                        onRechazar={() => rechazar(clave, propuestaId, "descarte")}
+                      />
+                    );
+                  }
+                  if (c.tipo === "ExplicacionKit") return <ExplicacionKit key={clave} {...c.props} />;
+                  return null;
+                })}
+              </ul>
+            )}
           </div>
-          <div aria-live="polite">{aviso && <p className={estilos.aviso}>{aviso}</p>}</div>
-          {componentes.length > 0 && (
-            <ul className={estilos.lista}>
-              {componentes.map((c, i) => {
-                if (c.tipo === "PropuestaCambio") {
-                  return (
-                    <PropuestaCambio
-                      key={i}
-                      {...c.props}
-                      estado={estados[i] ?? "pendiente"}
-                      ocupado={ocupado || !c.props.aplicable}
-                      onAceptar={() => void aceptar(i, c)}
-                      onRechazar={() => rechazar(i, "cambio")}
-                    />
-                  );
-                }
-                if (c.tipo === "PropuestaDescarte") {
-                  return (
-                    <PropuestaDescarte
-                      key={i}
-                      {...c.props}
-                      estado={estados[i] ?? "pendiente"}
-                      ocupado={ocupado || !c.props.aplicable}
-                      onAceptar={() => void aceptar(i, c)}
-                      onRechazar={() => rechazar(i, "descarte")}
-                    />
-                  );
-                }
-                if (c.tipo === "ExplicacionKit") return <ExplicacionKit key={i} {...c.props} />;
-                return null;
-              })}
-            </ul>
-          )}
-        </>
-      )}
+        ))}
+        <div ref={fondo} />
+      </div>
+
+      <form
+        className={estilos.redactar}
+        onSubmit={(e) => {
+          e.preventDefault();
+          void proponer(texto);
+        }}
+      >
+        <textarea
+          id="asistente-kit-texto"
+          aria-label="Qué quieres cambiar"
+          ref={entrada}
+          className={estilos.entradaChat}
+          value={texto}
+          rows={1}
+          maxLength={1000}
+          onChange={(e) => setTexto(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              void proponer(texto);
+            }
+          }}
+          placeholder="Ej.: más barato en cuadernos"
+        />
+        <button type="submit" className={estilos.enviar} disabled={cargando || !texto.trim()} aria-label="Enviar">
+          <Send size={18} aria-hidden="true" />
+        </button>
+      </form>
     </section>
   );
 }
