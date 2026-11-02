@@ -70,6 +70,7 @@ filterwarnings = ["error::DeprecationWarning"]
 markers = [
     "rabbitmq: pruebas contra un RabbitMQ de verdad; se saltan si no hay broker",
     "redis: pruebas contra un Redis de verdad; se saltan si no hay Redis",
+    "nl2c_vivo: ensayos del asistente NL2C contra Gemini de verdad; opt-in con -m nl2c_vivo",
 ]
 
 [tool.mypy]

@@ -59,6 +59,31 @@ def test_pesos_se_normalizan_acotan_y_suman_uno():
     assert all(nl2c.PESO_MIN - 1e-9 <= v <= nl2c.PESO_MAX + 1e-9 for v in pesos.values())
 
 
+@pytest.mark.parametrize(
+    "crudos",
+    [
+        {"precio": 1000, "marca_exigida": 0, "calidad": 0, "personaje": 0},
+        {"precio": 0, "marca_exigida": 0, "calidad": 0, "personaje": 0.001},
+        {"precio": 1, "marca_exigida": 1, "calidad": 1, "personaje": 1},
+        {"precio": 0.9, "marca_exigida": 0.9, "calidad": 0.01, "personaje": 0},
+    ],
+)
+def test_pesos_con_ceros_o_extremos_quedan_en_rango_y_suman_uno(crudos):
+    pesos = nl2c.normalizar_pesos(crudos)
+    assert abs(sum(pesos.values()) - 1.0) < 1e-9
+    assert all(nl2c.PESO_MIN - 1e-9 <= v <= nl2c.PESO_MAX + 1e-9 for v in pesos.values())
+
+
+def test_marca_que_el_padre_no_escribio_se_descarta():
+    r, ajustes = nl2c.proyectar_R(
+        {"filtros_duros": {"marcas_excluidas": ["Faber-Castell", "PWNED"]}},
+        PERSONAJES,
+        texto_base="No quiero la marca Faber-Castell",
+    )
+    assert r.filtros_duros.marcas_excluidas == ["Faber-Castell"]
+    assert ajustes
+
+
 def test_presupuesto_se_recorta_al_rango_y_se_avisa():
     r, ajustes = nl2c.proyectar_R({"filtros_duros": {"presupuesto_max_cop": 99_000_000}}, PERSONAJES)
     assert r.filtros_duros.presupuesto_max_cop == nl2c.PRESUPUESTO_MAX_COP

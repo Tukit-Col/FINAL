@@ -77,7 +77,12 @@ FRASES: list[Oro] = [
     ),
     Oro("U05", "Calidad y precio", f"{E} col24", peso_mayor=("precio", "calidad")),
     Oro("U06", "Buen precio y prontitud", f"{E} col24", estilo=("economico", "punto_medio")),
-    Oro("U07", "Poder encontrar los útiles a precios cómodos", f"{E} col24", estilo=("economico", "punto_medio")),
+    Oro(
+        "U07",
+        "Poder encontrar los útiles a precios cómodos",
+        f"{E} col24",
+        estilo=("economico", "punto_medio"),
+    ),
     Oro(
         "U08",
         "Sería genial tener todo en un solo lugar con buen precio",
@@ -105,7 +110,13 @@ FRASES: list[Oro] = [
         solo_disponibles=True,
     ),
     Oro("U13", "Gasto entre 700 mil y un millón por hijo al año", f"{C} P14", presupuesto=1_000_000),
-    Oro("U14", "Menos de 400 mil por hijo", f"{C} P14", presupuesto=400_000, estilo=("economico", "punto_medio")),
+    Oro(
+        "U14",
+        "Menos de 400 mil por hijo",
+        f"{C} P14",
+        presupuesto=400_000,
+        estilo=("economico", "punto_medio"),
+    ),
     Oro("U15", "Puedo pagar hasta un 5% más si vale la pena", f"{C} P22", sobreprecio=5.0),
     Oro(
         "U16",
