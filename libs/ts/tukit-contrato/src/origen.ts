@@ -95,6 +95,7 @@ import type {
   SolicitudMiCaso,
 } from "./operacion";
 import type { CasoDetalleAdmin, PedidoAdmin, SolicitudAvanceAdmin } from "./admin";
+import type { MisDatos, ResultadoSupresion } from "./privacidad";
 
 /** Los roles del sistema (filas de `rol` en identidad, ADR 0013). No es un
  *  enum del dominio: el codigo pregunta `puede(...)`, nunca `if rol in (...)`.
@@ -390,6 +391,14 @@ export interface OrigenDatos {
   // Retracto (Ley 1480, art. 47) de UNO de sus pedidos. Comercio verifica el
   // dueno con la sesion (403 si es ajeno) y el plazo (409 si ya vencio).
   retractarPedido(token: string, pedidoId: string, motivo: string): Promise<RetractoSolicitado>;
+
+  // Panel de privacidad (Ley 1581): todo del PORTADOR del token.
+  misDatos(token: string): Promise<MisDatos>;
+  // La copia completa, como texto JSON listo para descargar.
+  exportarMisDatos(token: string): Promise<{ contenido: string; nombreArchivo: string }>;
+  // Exige la frase escrita (422 `confirmacion_requerida`); revoca la sesion.
+  suprimirMisDatos(token: string, confirmacion: string): Promise<ResultadoSupresion>;
+  revocarConsentimientos(token: string): Promise<{ revocados: number }>;
 
   // Los casos del acudiente: dueno = sesion. Un caso ajeno es 403.
   misCasos(token: string): Promise<MiCaso[]>;

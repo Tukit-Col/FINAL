@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, ShieldCheck } from "lucide-react";
 import NavSecciones from "./NavSecciones";
 import SalirBoton from "./SalirBoton";
 import styles from "./Sidebar.module.css";
@@ -8,7 +8,7 @@ import styles from "./Sidebar.module.css";
 // real (la pagina lo resuelve a nombre o correo y lo pasa como prop); el nav
 // sigue apuntando solo a destinos reales: las secciones de esta misma pagina
 // (con desplazamiento suave, en `NavSecciones`) y el flujo real de armado
-// (/empezar). Nada de /perfil u otras rutas que el backend aun no sirve; cerrar
+// (/empezar), mas el panel de privacidad (/privacidad). Nada de /perfil u otras rutas que el backend aun no sirve; cerrar
 // sesion es el mismo `SalirBoton` de la cabecera (DELETE /api/sesion).
 export default function Sidebar({ nombreCuenta }: { nombreCuenta: string }) {
   return (
@@ -22,9 +22,17 @@ export default function Sidebar({ nombreCuenta }: { nombreCuenta: string }) {
       <nav className={styles.sidebar__nav}>
         <NavSecciones />
 
+        {/* Los derechos del titular (Ley 1581): consultar, descargar y borrar. */}
+        <Link href="/privacidad" className={styles.sidebar__item}>
+          <span className={styles.sidebar__icon}>
+            <ShieldCheck size={17} strokeWidth={2} aria-hidden="true" />
+          </span>
+          Privacidad y mis datos
+        </Link>
+
         <div className={styles.sidebar__separator} />
 
-        {/* Unico enlace a ruta real: el flujo de armado de kit. */}
+        {/* El flujo de armado de kit. */}
         <Link href="/empezar" className={styles["sidebar__cta"]}>
           <span className={styles.sidebar__icon}>
             <PlusCircle size={17} strokeWidth={2} aria-hidden="true" />

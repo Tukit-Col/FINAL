@@ -493,6 +493,17 @@ async function panel() {
                 Ir al centro de ayuda
               </Link>
             </section>
+
+            {/* ---- Privacidad (Ley 1581) ---- */}
+            <section className={styles.card}>
+              <div className={styles.sectionHeader}>
+                <h2>Privacidad y mis datos</h2>
+              </div>
+              <p className={styles.sinHijos}>
+                Mira qué datos tuyos guardamos, descarga una copia o pide que los borremos.{" "}
+                <Link href="/privacidad">Ir a privacidad y mis datos</Link>
+              </p>
+            </section>
           </div>
         </div>
       </div>
