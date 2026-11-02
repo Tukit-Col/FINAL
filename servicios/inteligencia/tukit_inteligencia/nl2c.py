@@ -178,28 +178,44 @@ def _numero(valor: Any) -> float | None:
 
 
 def normalizar_pesos(crudos: dict[str, float]) -> dict[str, float]:
-    """Pesos acotados a [PESO_MIN, PESO_MAX] que suman 1.00 con dos decimales."""
+    """Pesos en [PESO_MIN, PESO_MAX] que suman 1.00 con dos decimales.
+
+    Cada peso parte del piso; el resto (1 - 4 * piso) se reparte en proporcion a lo
+    pedido y, si alguno pasa el tope, el sobrante se reparte entre los que no lo
+    alcanzaron (por igual si ninguno pidio nada). Siempre hay solucion porque
+    4 * PESO_MAX >= 1. Un reparto proporcional puro no basta: con ceros en lo pedido
+    los pesos quedan en el piso y la suma no llega a 1.
+    """
     p = {k: max(0.0, crudos.get(k, 0.0)) for k in CLAVES_PESO}
-    total = sum(p.values())
-    if total <= 0:
+    if sum(p.values()) <= 0:
         return dict(PESOS_POR_ESTILO["punto_medio"])
-
-    # Escala unica lambda tal que sum(clip(lambda * v)) = 1: la suma crece con
-    # lambda, asi que se busca por biseccion. Es el reparto proporcional que respeta piso y tope.
-    def suma(escala: float) -> float:
-        return sum(min(PESO_MAX, max(PESO_MIN, v * escala)) for v in p.values())
-
-    bajo, alto = 0.0, 1e6
-    for _ in range(80):
-        medio = (bajo + alto) / 2
-        bajo, alto = (medio, alto) if suma(medio) < 1.0 else (bajo, medio)
-    p = {k: min(PESO_MAX, max(PESO_MIN, v * alto)) for k, v in p.items()}
-    total = sum(p.values())
-    p = {k: v / total for k, v in p.items()}
-    redondos = {k: round(v, 2) for k, v in p.items()}
-    mayor = max(redondos, key=lambda k: redondos[k])
-    redondos[mayor] = round(redondos[mayor] + (1.0 - sum(redondos.values())), 2)
-    return redondos
+    w = dict.fromkeys(CLAVES_PESO, PESO_MIN)
+    libres = set(CLAVES_PESO)
+    resto = 1.0 - PESO_MIN * len(CLAVES_PESO)
+    while resto > 1e-12 and libres:
+        total = sum(p[k] for k in libres)
+        parte = {k: (p[k] / total if total > 0 else 1 / len(libres)) * resto for k in libres}
+        pasados = {k for k in libres if w[k] + parte[k] > PESO_MAX}
+        if not pasados:
+            for k in libres:
+                w[k] += parte[k]
+            break
+        for k in pasados:
+            resto -= PESO_MAX - w[k]
+            w[k] = PESO_MAX
+        libres -= pasados
+    # Centavos enteros por mayor resto, sin pasar el tope:
+    # el residuo del redondeo no puede sacar un peso del rango.
+    tope, piso = round(PESO_MAX * 100), round(PESO_MIN * 100)
+    centavos = {k: min(tope, max(piso, int(v * 100 + 1e-9))) for k, v in w.items()}
+    faltan = 100 - sum(centavos.values())
+    for k in sorted(w, key=lambda k: -(w[k] * 100 - centavos[k])):
+        if faltan <= 0:
+            break
+        if centavos[k] < tope:
+            centavos[k] += 1
+            faltan -= 1
+    return {k: v / 100 for k, v in centavos.items()}
 
 
 def _clave_personaje(nombre: str) -> str:
@@ -207,12 +223,28 @@ def _clave_personaje(nombre: str) -> str:
     return re.sub(r"[^a-z0-9]", "", base.lower())
 
 
-def proyectar_R(args: dict[str, Any], catalogo_personajes: list[str]) -> tuple[RestriccionesR, list[str]]:
+def _en_texto(fragmento: str, texto: str) -> bool:
+    """El fragmento aparece en el texto, sin importar mayusculas ni tildes."""
+
+    def plano(x: str) -> str:
+        base = unicodedata.normalize("NFKD", x).encode("ascii", "ignore").decode()
+        return re.sub(r"\s+", " ", base.lower()).strip()
+
+    return bool(plano(fragmento)) and plano(fragmento) in plano(texto)
+
+
+def proyectar_R(
+    args: dict[str, Any], catalogo_personajes: list[str], *, texto_base: str | None = None
+) -> tuple[RestriccionesR, list[str]]:
     """Valida los argumentos del modelo y los proyecta a dominios validos.
 
     Lo que no tiene forma (clave desconocida, tipo equivocado) se rechaza con
     `ArgumentosInvalidos`; lo que tiene forma pero sale del rango se recorta y
     queda anotado en `ajustes` para mostrarselo al padre.
+
+    Con `texto_base` (el texto ya saneado del padre), una marca o un nombre de
+    personaje que el modelo devuelva y que no aparezca en ese texto se descarta:
+    el texto libre que llega a la pantalla tiene que venir de lo que el padre escribio.
     """
     if not isinstance(args, dict) or set(args) - {"filtros_duros", "pesos_NSGA", "preferencias_PRM"}:
         raise ArgumentosInvalidos("argumentos con claves fuera del esquema")
@@ -250,6 +282,11 @@ def proyectar_R(args: dict[str, Any], catalogo_personajes: list[str]) -> tuple[R
         raise ArgumentosInvalidos("marcas_excluidas debe ser una lista de textos")
     marcas = [re.sub(r"\s+", " ", m).strip() for m in marcas][:10]
     marcas = [m for m in marcas if re.fullmatch(r"[\w .&'-]{1,40}", m)]
+    if texto_base is not None:
+        antes = len(marcas)
+        marcas = [m for m in marcas if _en_texto(m, texto_base)]
+        if len(marcas) != antes:
+            ajustes.append("Dejamos fuera una marca que no escribiste.")
     solo_disp = duros_in.get("solo_disponibles", False)
     if not isinstance(solo_disp, bool):
         raise ArgumentosInvalidos("solo_disponibles debe ser verdadero o falso")
@@ -274,7 +311,10 @@ def proyectar_R(args: dict[str, Any], catalogo_personajes: list[str]) -> tuple[R
         if encontrado and encontrado not in personajes:
             personajes.append(encontrado)
         elif not encontrado:
-            ajustes.append(f"Hoy no tenemos productos de «{nombre[:30]}»; lo dejamos fuera.")
+            if texto_base is None or _en_texto(nombre, texto_base):
+                ajustes.append(f"Hoy no tenemos productos de «{nombre[:30]}»; lo dejamos fuera.")
+            else:
+                ajustes.append("Hoy no tenemos productos de uno de los personajes; lo dejamos fuera.")
     personajes = personajes[:3]
 
     if pesos_in is None:

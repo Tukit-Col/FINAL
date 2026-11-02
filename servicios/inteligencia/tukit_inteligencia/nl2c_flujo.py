@@ -70,7 +70,7 @@ async def interpretar_texto(texto: str, personajes: list[str], usuario: Any = No
             **base,
         }
     try:
-        r, ajustes = nl2c.proyectar_R(fijar["args"], personajes)
+        r, ajustes = nl2c.proyectar_R(fijar["args"], personajes, texto_base=limpio.texto)
     except nl2c.ArgumentosInvalidos as error:
         nl2c.auditar(
             "interpretar_argumentos_invalidos",
