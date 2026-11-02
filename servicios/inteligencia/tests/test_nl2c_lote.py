@@ -11,11 +11,17 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from tukit_inteligencia import api, nl2c, nl2c_flujo, nl2c_kit, nl2c_lote  # noqa: F401  (api antes que routers)
-from tukit_inteligencia.routers import nl2c as ruta
 
 # Reutiliza el montaje de rutas de test_nl2c (identidad falsa, trabajo sembrado, kit ajeno).
-from test_nl2c import H, OTRO, cliente, sembrar  # noqa: F401  (cliente es una fixture)
+from test_nl2c import OTRO, H, cliente, sembrar  # noqa: F401  (cliente es una fixture)
+from tukit_inteligencia import (  # noqa: F401  (api antes que routers)
+    api,
+    nl2c,
+    nl2c_flujo,
+    nl2c_kit,
+    nl2c_lote,
+)
+from tukit_inteligencia.routers import nl2c as ruta
 
 TID = "t-lote"
 
@@ -305,6 +311,25 @@ async def test_una_frase_larga_con_la_palabra_ayuda_pasa_por_el_modelo():
     assert not nl2c_lote.pide_ayuda(largo)
 
 
+@pytest.mark.parametrize(
+    "texto",
+    [
+        "lo mas barato que puedes en cuadernos",
+        "hazme los colores mas baratos, lo que puedes",
+        "que haces con los cuadernos",
+        "ayuda con los cuadernos",
+    ],
+)
+def test_un_pedido_real_que_menciona_puedes_no_se_toma_por_pregunta_de_ayuda(texto):
+    # Antes cualquier "que puedes" se respondia con la lista de capacidades y el pedido se perdia.
+    assert not nl2c_lote.pide_ayuda(texto)
+
+
+@pytest.mark.parametrize("texto", ["¿Qué puedes hacer?", "que puedes cambiar", "¿Cómo funcionas?"])
+def test_la_pregunta_de_capacidades_se_reconoce_con_o_sin_signos(texto):
+    assert nl2c_lote.pide_ayuda(texto)
+
+
 # --- 4. Contexto conversacional ------------------------------------------------------------
 async def test_y_en_colores_tambien_se_resuelve_contra_el_pedido_anterior(monkeypatch):
     resp, _ = await correr(
@@ -416,7 +441,7 @@ async def test_un_pedido_igual_que_antes_con_accion_forjada_no_ejecuta_nada(monk
 
 
 # --- Rutas: dueno del kit, limites y esquema estricto ----------------------------------------
-async def test_la_ruta_acepta_el_pedido_anterior_y_lo_devuelve_como_contexto(cliente, motor, monkeypatch):
+async def test_la_ruta_acepta_el_pedido_anterior_y_lo_devuelve_como_contexto(cliente, motor, monkeypatch):  # noqa: F811
     tid = await sembrar(motor)
     monkeypatch.setattr(nl2c, "_LLAMAR", modelo_que_devuelve(pedir("igual_que_antes", "tijeras")))
     r = await cliente.post(
@@ -439,7 +464,7 @@ async def test_la_ruta_acepta_el_pedido_anterior_y_lo_devuelve_como_contexto(cli
         {"accion": "mas_barato", "categoria": "x" * 40},
     ],
 )
-async def test_la_ruta_rechaza_un_contexto_fuera_del_esquema(cliente, motor, anterior):
+async def test_la_ruta_rechaza_un_contexto_fuera_del_esquema(cliente, motor, anterior):  # noqa: F811
     tid = await sembrar(motor)
     r = await cliente.post(
         f"/v1/kits/{tid}/asistente/proponer",
@@ -449,7 +474,7 @@ async def test_la_ruta_rechaza_un_contexto_fuera_del_esquema(cliente, motor, ant
     assert r.status_code == 400
 
 
-async def test_la_ruta_de_kit_ajeno_sigue_siendo_404_con_un_pedido_por_categoria(cliente, motor, monkeypatch):
+async def test_la_ruta_de_kit_ajeno_sigue_siendo_404_con_un_pedido_por_categoria(cliente, motor, monkeypatch):  # noqa: F811
     ajeno = await sembrar(motor, usuario=OTRO)
     monkeypatch.setattr(nl2c, "_LLAMAR", modelo_que_devuelve(pedir("mas_barato", "cuadernos")))
     r = await cliente.post(
@@ -458,7 +483,7 @@ async def test_la_ruta_de_kit_ajeno_sigue_siendo_404_con_un_pedido_por_categoria
     assert r.status_code == 404 and "propuesta_id" not in r.json()
 
 
-async def test_el_lote_por_la_ruta_trae_propuestas_del_kit_del_portador(cliente, motor, monkeypatch):
+async def test_el_lote_por_la_ruta_trae_propuestas_del_kit_del_portador(cliente, motor, monkeypatch):  # noqa: F811
     tid = await sembrar(motor)
     monkeypatch.setattr(nl2c, "_LLAMAR", modelo_que_devuelve(pedir("mas_barato", "cuadernos")))
     r = await cliente.post(
