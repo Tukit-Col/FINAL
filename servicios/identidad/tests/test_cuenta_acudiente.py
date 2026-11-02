@@ -38,7 +38,13 @@ async def cliente():
 async def test_crear_cuenta_devuelve_sesion_y_token(cliente):
     r = await cliente.post(
         "/v1/cuenta",
-        json={"correo": "nueva@ejemplo.com", "clave": "clave1234", "nombre": "Ana", "celular": "+57 300"},
+        json={
+            "correo": "nueva@ejemplo.com",
+            "clave": "clave1234",
+            "nombre": "Ana",
+            "celular": "+57 300",
+            "acepta_terminos": True,
+        },
     )
     assert r.status_code == 201
     cuerpo = r.json()
@@ -46,8 +52,34 @@ async def test_crear_cuenta_devuelve_sesion_y_token(cliente):
     assert cuerpo["token"]
 
 
+async def test_crear_cuenta_sin_aceptar_terminos_es_422_y_no_crea_nada(cliente):
+    datos = {"correo": "sin@ejemplo.com", "clave": "clave1234", "nombre": "Ana"}
+    r = await cliente.post("/v1/cuenta", json=datos)
+    assert r.status_code == 422
+    assert r.json()["error"] == "consentimiento_requerido"
+    # La cuenta no nacio: aceptando ahora el correo se crea (no es un 409).
+    assert (await cliente.post("/v1/cuenta", json={**datos, "acepta_terminos": True})).status_code == 201
+
+
+async def test_crear_cuenta_deja_el_consentimiento_del_titular(cliente):
+    from sqlalchemy import select
+    from tukit_identidad.modelos import Consentimiento
+
+    datos = {"correo": "con@ejemplo.com", "clave": "clave1234", "nombre": "Ana", "acepta_terminos": True}
+    assert (await cliente.post("/v1/cuenta", json=datos)).status_code == 201
+    async with app.state.motor.sesion() as db:
+        filas = (await db.execute(select(Consentimiento))).scalars().all()
+    assert [f.regimen for f in filas] == ["registro_titular"]
+
+
 async def test_correo_con_credencial_es_409(cliente):
-    datos = {"correo": "dup@ejemplo.com", "clave": "clave1234", "nombre": "Ana", "celular": None}
+    datos = {
+        "correo": "dup@ejemplo.com",
+        "clave": "clave1234",
+        "nombre": "Ana",
+        "celular": None,
+        "acepta_terminos": True,
+    }
     await cliente.post("/v1/cuenta", json=datos)
     r = await cliente.post("/v1/cuenta", json=datos)
     assert r.status_code == 409
@@ -56,7 +88,14 @@ async def test_correo_con_credencial_es_409(cliente):
 
 async def test_clave_corta_es_422(cliente):
     r = await cliente.post(
-        "/v1/cuenta", json={"correo": "x@ejemplo.com", "clave": "corta", "nombre": "Ana", "celular": None}
+        "/v1/cuenta",
+        json={
+            "correo": "x@ejemplo.com",
+            "clave": "corta",
+            "nombre": "Ana",
+            "celular": None,
+            "acepta_terminos": True,
+        },
     )
     assert r.status_code == 422
     assert r.json()["error"] == "clave_debil"
@@ -66,7 +105,13 @@ async def test_registrar_hijo_sin_colegio_es_422(cliente):
     login = (
         await cliente.post(
             "/v1/cuenta",
-            json={"correo": "papa@ejemplo.com", "clave": "clave1234", "nombre": "Papa", "celular": None},
+            json={
+                "correo": "papa@ejemplo.com",
+                "clave": "clave1234",
+                "nombre": "Papa",
+                "celular": None,
+                "acepta_terminos": True,
+            },
         )
     ).json()
     tok = {"Authorization": f"Bearer {login['token']}"}
@@ -83,7 +128,13 @@ async def test_registrar_hijo_sin_consentimiento_es_422(cliente):
     login = (
         await cliente.post(
             "/v1/cuenta",
-            json={"correo": "mama@ejemplo.com", "clave": "clave1234", "nombre": "Mama", "celular": None},
+            json={
+                "correo": "mama@ejemplo.com",
+                "clave": "clave1234",
+                "nombre": "Mama",
+                "celular": None,
+                "acepta_terminos": True,
+            },
         )
     ).json()
     tok = {"Authorization": f"Bearer {login['token']}"}
@@ -109,7 +160,13 @@ async def test_registrar_hijo_y_listarlo_devuelve_apodo(cliente):
     login = (
         await cliente.post(
             "/v1/cuenta",
-            json={"correo": "tia@ejemplo.com", "clave": "clave1234", "nombre": "Tia", "celular": None},
+            json={
+                "correo": "tia@ejemplo.com",
+                "clave": "clave1234",
+                "nombre": "Tia",
+                "celular": None,
+                "acepta_terminos": True,
+            },
         )
     ).json()
     tok = {"Authorization": f"Bearer {login['token']}"}

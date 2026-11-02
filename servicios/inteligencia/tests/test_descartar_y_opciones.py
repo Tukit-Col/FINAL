@@ -240,3 +240,42 @@ async def test_se_puede_elegir_un_producto_del_mismo_concepto_fuera_de_las_alter
             motor, parent_id, "Ahorrador", item, "TK-C004-CON", usuario_id=None, catalogo=catalogo
         )
     assert error.value.codigo == "producto_no_permitido"
+
+
+async def _con_filtros(motor, trabajo_id, preferencias) -> None:
+    """Deja las preferencias del trabajo como las dejaria el asistente al pedirlo."""
+    from sqlalchemy import update
+    from tukit_comun.cifrado import cifrador_desde_entorno
+    TRABAJO = trabajos.TRABAJO
+
+    async with motor.engine.begin() as conexion:
+        await conexion.execute(
+            update(TRABAJO)
+            .where(TRABAJO.c.id == trabajo_id)
+            .values(preferencias_cifradas=cifrador_desde_entorno().cifrar_json(preferencias))
+        )
+
+
+async def test_el_carrusel_no_ofrece_la_marca_que_el_acudiente_excluyo(motor):
+    parent_id = await _publicado(motor)
+    await _con_filtros(motor, parent_id, {"marcas_excluidas": ["Norma"]})
+    catalogo = _catalogo_con_cuatro_cuadernos()
+    vista = await trabajos.ver(motor, parent_id, catalogo=catalogo)
+    item = uuid.UUID(_linea(vista, "Ahorrador", "2 cuadernos")["item_id"])
+
+    cuerpo = await trabajos.opciones_de_la_linea(motor, parent_id, "Ahorrador", item, catalogo=catalogo)
+    assert {o["sku"] for o in cuerpo["opciones"]} == {"TK-C001-ECO", "TK-C001-CON", "TK-C001-PRE"}
+
+
+async def test_no_se_puede_cambiar_a_la_marca_excluida_aunque_sea_del_concepto(motor):
+    parent_id = await _publicado(motor)
+    await _con_filtros(motor, parent_id, {"marcas_excluidas": ["Norma"]})
+    catalogo = _catalogo_con_cuatro_cuadernos()
+    vista = await trabajos.ver(motor, parent_id, catalogo=catalogo)
+    item = uuid.UUID(_linea(vista, "Ahorrador", "2 cuadernos")["item_id"])
+
+    with pytest.raises(trabajos.CambioNoPermitido) as error:
+        await trabajos.cambiar_producto_del_acudiente(
+            motor, parent_id, "Ahorrador", item, "TK-C001-LUJ", usuario_id=None, catalogo=catalogo
+        )
+    assert error.value.codigo == "producto_excluido"
