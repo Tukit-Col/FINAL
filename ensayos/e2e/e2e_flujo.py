@@ -15,7 +15,7 @@ from typing import Any
 import httpx
 import pytest
 from sqlalchemy import text
-from stack_vivo import RAIZ, conexion_a
+from stack_vivo import RAIZ, cabecera_de_familia, conexion_a
 
 GOLDEN = RAIZ / "datos" / "golden"
 ESPERADOS: dict[str, dict[str, Any]] = {
@@ -46,11 +46,16 @@ def colegio_ficticio(variante: str) -> str:
 
 
 def registrar_acudiente(http: httpx.Client, colegio_id: str, grado: str = "Tercero") -> dict[str, Any]:
-    """Registra un acudiente ficticio con un hijo y abre su sesion."""
+    """Registra un acudiente ficticio con un hijo y abre su sesion.
+
+    Cada acudiente es una familia con su IP (N-120): el registro, la sesion y todo lo que vaya con
+    su `cabecera` llegan a la puerta desde esa IP, y el limite (ADR 0047) le cuenta su cupo aparte."""
     correo = f"qa-e2e-{uuid.uuid4().hex[:10]}@example.test"
     clave = "clave-ficticia-qa"
+    ip = cabecera_de_familia()
     registro = http.post(
         "/v1/registro",
+        headers=ip,
         json={
             "correo": correo,
             "clave": clave,
@@ -58,13 +63,13 @@ def registrar_acudiente(http: httpx.Client, colegio_id: str, grado: str = "Terce
         },
     )
     assert registro.status_code == 201, registro.text
-    sesion = http.post("/v1/sesiones", json={"correo": correo, "clave": clave})
+    sesion = http.post("/v1/sesiones", headers=ip, json={"correo": correo, "clave": clave})
     assert sesion.status_code == 200, sesion.text
     cuerpo = sesion.json()
     return {
         "correo": correo,
         "usuario_id": cuerpo["sesion"]["usuario_id"],
-        "cabecera": {"authorization": f"Bearer {cuerpo['token']}"},
+        "cabecera": {"authorization": f"Bearer {cuerpo['token']}", **ip},
         "registro": registro.json(),
     }
 

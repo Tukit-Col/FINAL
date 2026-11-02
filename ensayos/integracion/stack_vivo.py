@@ -7,8 +7,10 @@ Va aparte del `conftest.py` para poder importarlo desde las pruebas
 from __future__ import annotations
 
 import contextlib
+import ipaddress
 import json
 import os
+import random
 import socket
 import subprocess
 import sys
@@ -51,8 +53,32 @@ ENTREGA_FICTICIA = {
 }
 
 
+# El limite de la puerta (ADR 0047, 45dc0b7) cuenta por token y por IP, y la puerta confia en el
+# `X-Forwarded-For` que le llega desde 127.0.0.1 (`PROXIES_POR_OMISION`). Cada familia simulada
+# manda su propia IP de 198.18.0.0/15 (RFC 2544, reservada para pruebas de red), como si llegara
+# por su lado (decision N-120). Es al azar para que dos corridas seguidas dentro de la misma
+# ventana no compartan cupo.
+_RED_DE_FAMILIAS = ipaddress.IPv4Network("198.18.0.0/15")
+CABECERA_IP = "x-forwarded-for"
+
+
+def ip_de_familia() -> str:
+    """Una IP de 198.18.0.0/15 que ninguna otra familia de la corrida usa, salvo por azar."""
+    return str(_RED_DE_FAMILIAS[random.randrange(1, _RED_DE_FAMILIAS.num_addresses - 1)])
+
+
+def cabecera_de_familia(ip: str | None = None) -> dict[str, str]:
+    """La cabecera con que una familia llega a la puerta: la IP dada o una nueva."""
+    return {CABECERA_IP: ip or ip_de_familia()}
+
+
 def portador(sesiones: dict[str, dict[str, str]], rol: str) -> dict[str, str]:
-    return {"authorization": f"Bearer {sesiones[rol]['token']}"}
+    """El token del rol y, si la sesion la trae, la IP con que ese usuario entro."""
+    sesion = sesiones[rol]
+    return {
+        "authorization": f"Bearer {sesion['token']}",
+        **({CABECERA_IP: sesion["ip"]} if "ip" in sesion else {}),
+    }
 
 
 def como_json(datos: bytes) -> Any:

@@ -35,7 +35,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "integracion"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from e2e_flujo import catalogo_vivo  # noqa: E402
-from stack_vivo import CLAVE_DEMO, GATEWAY, RAIZ, USUARIOS_DEMO, conexion_a, instancia  # noqa: E402
+from stack_vivo import (  # noqa: E402
+    CLAVE_DEMO,
+    GATEWAY,
+    RAIZ,
+    USUARIOS_DEMO,
+    cabecera_de_familia,
+    conexion_a,
+    instancia,
+)
 from tukit_comun.http import CABECERA_CORRELACION  # noqa: E402
 
 
@@ -115,9 +123,14 @@ def catalogo(stack: dict[str, Any]) -> dict[str, Any]:
 
 @pytest.fixture(scope="module")
 def http_flujo(puerta: dict[str, Any]) -> Iterator[httpx.Client]:
-    """El cliente de los flujos que comparten las pruebas de un modulo, con su propio `correlacion_id`."""
+    """El cliente de los flujos que comparten las pruebas de un modulo, con su propio `correlacion_id`.
+
+    Llega con la IP de una familia propia del modulo (N-120); lo que va con la `cabecera` de un
+    acudiente lleva la IP de ese acudiente, que pisa a esta."""
     with httpx.Client(
-        base_url=puerta["base"], timeout=60.0, headers={CABECERA_CORRELACION: uuid.uuid4().hex}
+        base_url=puerta["base"],
+        timeout=60.0,
+        headers={CABECERA_CORRELACION: uuid.uuid4().hex, **cabecera_de_familia()},
     ) as http:
         yield http
 
@@ -133,22 +146,30 @@ def _correlacion_del_flujo(request: pytest.FixtureRequest, record_property) -> N
 
 @pytest.fixture
 def cliente(puerta: dict[str, Any], correlacion_id: str) -> Iterator[httpx.Client]:
-    """Cliente contra la puerta de los E2E que manda el `correlacion_id` de la prueba."""
+    """Cliente contra la puerta de los E2E que manda el `correlacion_id` de la prueba, con la IP de
+    una familia propia de la prueba (N-120)."""
     with httpx.Client(
-        base_url=puerta["base"], timeout=60.0, headers={CABECERA_CORRELACION: correlacion_id}
+        base_url=puerta["base"],
+        timeout=60.0,
+        headers={CABECERA_CORRELACION: correlacion_id, **cabecera_de_familia()},
     ) as http:
         yield http
 
 
 @pytest.fixture(scope="session")
 def admin(stack: dict[str, Any]) -> dict[str, str]:
-    """La cabecera del administrador de demostracion (revisa y aprueba las listas)."""
+    """La cabecera del administrador de demostracion (revisa y aprueba las listas), con su token y
+    la IP con que entro: el equipo es una familia mas para el limite (N-120)."""
+    ip = cabecera_de_familia()
     respuesta = httpx.post(
-        f"{GATEWAY}/v1/sesiones", json={"correo": USUARIOS_DEMO["admin"], "clave": CLAVE_DEMO}, timeout=30.0
+        f"{GATEWAY}/v1/sesiones",
+        json={"correo": USUARIOS_DEMO["admin"], "clave": CLAVE_DEMO},
+        headers=ip,
+        timeout=30.0,
     )
     if respuesta.status_code != 200:
         pytest.fail(f"no se pudo entrar como administrador ({respuesta.status_code}): falta sembrar_acceso")
-    return {"authorization": f"Bearer {respuesta.json()['token']}"}
+    return {"authorization": f"Bearer {respuesta.json()['token']}", **ip}
 
 
 @pytest.fixture

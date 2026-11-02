@@ -29,7 +29,7 @@ from typing import Any
 import httpx
 import pytest
 from sqlalchemy import text
-from stack_vivo import CLAVE_DEMO, GATEWAY, USUARIOS_DEMO, conexion_a
+from stack_vivo import CLAVE_DEMO, GATEWAY, USUARIOS_DEMO, cabecera_de_familia, conexion_a, ip_de_familia
 from tukit_comun.http import CABECERA_CORRELACION
 
 
@@ -49,24 +49,34 @@ def stack() -> dict[str, Any]:
 
 @pytest.fixture
 def cliente(stack: dict[str, Any], correlacion_id: str) -> Iterator[httpx.Client]:
-    """Cliente contra el gateway que manda el `correlacion_id` de la prueba."""
-    with httpx.Client(base_url=GATEWAY, timeout=30.0, headers={CABECERA_CORRELACION: correlacion_id}) as http:
+    """Cliente contra el gateway que manda el `correlacion_id` de la prueba y llega con la IP de
+    una familia propia (N-120): el cupo por IP del limite (ADR 0047) es de cada prueba."""
+    cabeceras = {CABECERA_CORRELACION: correlacion_id, **cabecera_de_familia()}
+    with httpx.Client(base_url=GATEWAY, timeout=30.0, headers=cabeceras) as http:
         yield http
 
 
 @pytest.fixture(scope="session")
 def sesiones(stack: dict[str, Any]) -> dict[str, dict[str, str]]:
-    """Token y `usuario_id` de cada usuario de demostracion, por rol."""
+    """Token, `usuario_id` e IP de cada usuario de demostracion, por rol. Cada rol es una familia
+    con su IP (N-120), y `portador` la manda junto con el token."""
     resultado: dict[str, dict[str, str]] = {}
     with httpx.Client(base_url=GATEWAY, timeout=30.0) as http:
         for rol, correo in USUARIOS_DEMO.items():
-            respuesta = http.post("/v1/sesiones", json={"correo": correo, "clave": CLAVE_DEMO})
+            ip = ip_de_familia()
+            respuesta = http.post(
+                "/v1/sesiones", json={"correo": correo, "clave": CLAVE_DEMO}, headers=cabecera_de_familia(ip)
+            )
             if respuesta.status_code != 200:
                 pytest.fail(
                     f"no se pudo entrar como {correo} ({respuesta.status_code}): falta sembrar_acceso"
                 )
             cuerpo = respuesta.json()
-            resultado[rol] = {"token": cuerpo["token"], "usuario_id": cuerpo["sesion"]["usuario_id"]}
+            resultado[rol] = {
+                "token": cuerpo["token"],
+                "usuario_id": cuerpo["sesion"]["usuario_id"],
+                "ip": ip,
+            }
     return resultado
 
 
