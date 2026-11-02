@@ -4,3 +4,8 @@ id,slug,nombre,tipo,url_base,activa
 01462dc7-31d0-5d82-95d6-042db6251508,panamericana,Panamericana,minorista,https://www.panamericana.com.co,true
 62284ce0-e633-56bc-a5c7-adf8da64d7ec,librerianacional,Libreria Nacional,minorista,https://www.librerianacional.com,true
 185aeb7a-64b5-5415-a1a1-d025d3012580,buscalibre,Buscalibre Colombia,minorista,https://www.buscalibre.com.co,true
+2aa1856e-fd21-5610-b244-cb4002257170,comercialpapelera,Comercial Papelera,minorista,https://www.comercialpapelera.com.co,true
+247ac56a-0461-5cf2-9629-2b8569e3d664,edileyer,Edileyer,minorista,https://edileyer.com,true
+d67ad3fd-7abb-51a1-9d1e-1e7bc5638986,majuuniformes,Maju Uniformes,minorista,https://majuauniformes.com,true
+34f596f8-27a9-540e-a21a-07c592d2dfe4,tirant,Tirant lo Blanch Colombia,minorista,https://editorial.tirant.com/co,true
+65160f73-9cdd-58dd-9c71-0b2a8776d8fd,zamux,Zamux Electrónica,minorista,https://www.zamux.co,true
