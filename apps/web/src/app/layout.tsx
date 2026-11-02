@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Cabecera from "@/components/Cabecera";
+import PieDelSitio from "@/components/PieDelSitio";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body suppressHydrationWarning>
         <Cabecera />
         <main>{children}</main>
+        <PieDelSitio />
       </body>
     </html>
   );

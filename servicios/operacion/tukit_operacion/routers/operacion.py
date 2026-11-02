@@ -407,3 +407,162 @@ async def abrir_caso(request: Request, solicitud: SolicitudCaso) -> dict[str, An
         "recibido_en": _iso(ahora),
         "vence_en": _iso(vence),
     }
+
+
+# ---------------------------------------------------------------------------
+# El acudiente sobre SUS casos: abrir, ver y seguir (dueno = la sesion)
+# ---------------------------------------------------------------------------
+#
+# El dueno sale del token validado contra Identidad, nunca de un campo del
+# formulario: con `POST /v1/operacion/casos` cualquiera podia poner el correo de
+# otra familia y colgarle el caso. Un caso ajeno responde 403.
+
+
+def _token_bearer(authorization: str | None) -> str | None:
+    if not authorization:
+        return None
+    partes = authorization.split(" ", 1)
+    if len(partes) == 2 and partes[0].lower() == "bearer":
+        return partes[1].strip()
+    return authorization.strip()
+
+
+async def _usuario_de_sesion(request: Request, authorization: str | None) -> uuid.UUID:
+    """El `usuario_id` de la sesion. 401 sin token valido; 503 si Identidad no
+    responde (falla cerrada)."""
+    token = _token_bearer(authorization)
+    if not token:
+        raise ErrorDominio("sesion_invalida", "Inicia sesión para ver y abrir tus casos.", estado=401)
+    try:
+        sesion = await request.app.state.identidad.sesion(token)
+    except IdentidadCaida as error:
+        raise ErrorDominio("identidad_no_disponible", "No se pudo validar la sesión.", estado=503) from error
+    if sesion is None:
+        raise ErrorDominio("sesion_invalida", "Tu sesión expiró. Vuelve a ingresar.", estado=401)
+    return uuid.UUID(str(sesion["usuario_id"]))
+
+
+class SolicitudMiCaso(BaseModel):
+    """Lo que el acudiente con sesion manda para abrir un caso: sin contacto,
+    porque ya se sabe quien es."""
+
+    categoria: str = Field(max_length=24)
+    asunto: str = Field(min_length=1, max_length=256)
+    descripcion: str = Field(min_length=1, max_length=4096)
+    trabajo_id: str | None = None
+    pedido_id: str | None = None
+
+
+class ComentarioCaso(BaseModel):
+    texto: str = Field(min_length=1, max_length=1024)
+
+
+async def _caso_del_portador(repo: RepoCasos, caso_id: uuid.UUID, usuario_id: uuid.UUID) -> Any:
+    fila = await repo.obtener(caso_id)
+    if fila is None:
+        raise ErrorDominio("caso_no_existe", "No hay ningun caso con ese identificador.", estado=404)
+    if fila.usuario_id != usuario_id:
+        raise ErrorDominio("caso_ajeno", "Este caso no es de tu cuenta.", estado=403)
+    return fila
+
+
+def _uuid_opcional(valor: str | None, campo: str) -> uuid.UUID | None:
+    if not valor:
+        return None
+    try:
+        return uuid.UUID(valor)
+    except ValueError:
+        raise ErrorDominio(
+            "identificador_invalido", f"El campo {campo} no tiene forma de identificador.", estado=422, campo=campo
+        ) from None
+
+
+@router.get("/v1/operacion/mis-casos", summary="Mis casos: los del portador del token")
+async def mis_casos(
+    request: Request, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    usuario_id = await _usuario_de_sesion(request, authorization)
+    async with request.app.state.motor.sesion() as db:
+        filas = await RepoCasos(await db.connection()).listar_de_usuario(usuario_id)
+    casos = [serializar_caso(f) for f in filas]
+    return {"total": len(casos), "casos": casos}
+
+
+@router.post(
+    "/v1/operacion/mis-casos",
+    status_code=201,
+    summary="Abre una PQRS a nombre de la sesion",
+)
+async def abrir_mi_caso(
+    request: Request, solicitud: SolicitudMiCaso, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    usuario_id = await _usuario_de_sesion(request, authorization)
+    categoria = admitir_categoria_acudiente(solicitud.categoria)
+    if isinstance(categoria, CategoriaRechazada):
+        raise ErrorDominio(
+            categoria.razon, _MENSAJE_CATEGORIA[categoria.razon], estado=categoria.estado, campo="categoria"
+        )
+    trabajo_id = _uuid_opcional(solicitud.trabajo_id, "trabajo_id")
+    pedido_id = _uuid_opcional(solicitud.pedido_id, "pedido_id")
+
+    ahora = datetime.now(UTC)
+    caso_id = uuid.uuid4()
+    vence = vence_en(categoria, ahora)
+    async with request.app.state.motor.sesion() as db:
+        await RepoCasos(await db.connection()).insertar_caso(
+            caso_id=caso_id,
+            categoria=categoria.value,
+            prioridad=prioridad_inicial(categoria).value,
+            asunto=solicitud.asunto,
+            descripcion=solicitud.descripcion,
+            usuario_id=usuario_id,
+            trabajo_id=trabajo_id,
+            pedido_id=pedido_id,
+            abierto_en=ahora,
+            vence_en=vence,
+        )
+    return {
+        "caso_id": str(caso_id),
+        "estado": EstadoCaso.ABIERTO.value,
+        "categoria": categoria.value,
+        "recibido_en": _iso(ahora),
+        "vence_en": _iso(vence),
+    }
+
+
+@router.get("/v1/operacion/mis-casos/{caso_id}", summary="Uno de mis casos, con mis mensajes")
+async def ver_mi_caso(
+    request: Request, caso_id: uuid.UUID, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    usuario_id = await _usuario_de_sesion(request, authorization)
+    async with request.app.state.motor.sesion() as db:
+        repo = RepoCasos(await db.connection())
+        fila = await _caso_del_portador(repo, caso_id, usuario_id)
+        return {
+            **serializar_caso(fila),
+            "descripcion": fila.descripcion,
+            "comentarios": await repo.comentarios_de(caso_id),
+        }
+
+
+@router.post(
+    "/v1/operacion/mis-casos/{caso_id}/comentarios",
+    status_code=201,
+    summary="El acudiente agrega un mensaje a uno de sus casos abiertos",
+)
+async def comentar_mi_caso(
+    request: Request,
+    caso_id: uuid.UUID,
+    comentario: ComentarioCaso,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    usuario_id = await _usuario_de_sesion(request, authorization)
+    async with request.app.state.motor.sesion() as db:
+        repo = RepoCasos(await db.connection())
+        fila = await _caso_del_portador(repo, caso_id, usuario_id)
+        if fila.estado in {e.value for e in EstadoCaso.inactivos()}:
+            raise ErrorDominio(
+                "caso_cerrado", "Este caso ya está cerrado. Abre uno nuevo si sigue el problema.", estado=409
+            )
+        await repo.agregar_comentario(caso_id, usuario_id, comentario.texto.strip())
+    return {"caso_id": str(caso_id), "recibido_en": _iso(datetime.now(UTC))}

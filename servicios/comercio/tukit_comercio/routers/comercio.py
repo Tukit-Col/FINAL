@@ -41,6 +41,7 @@ from ..dominio.despacho import preparar_avance, validar_avance
 from ..dominio.linea_de_tiempo import linea_de_tiempo
 from ..dominio.ordenes import LineaResuelta, reverificar_precios, total_orden
 from ..dominio.pagos import CAMPOS_FIRMA_ENTREGA, firma_orden, vencido
+from ..dominio.retracto import evaluar_retracto, pasos_del_pedido
 from ..modelos import EstadoPago, EstadoPedido, MetodoPago, transicion_valida
 from ..pasarela import EventoPasarela, PasarelaCaida, TransaccionNoExiste
 from ..remoto import CatalogoCaido, IdentidadCaida
@@ -156,7 +157,66 @@ async def mis_pedidos(
     async with request.app.state.motor.sesion() as db:
         repo = _repo(await db.connection())
         pedidos = await repo.pedidos_completos(await repo.listar_de_usuario(usuario_id))
+        pedidos = [await _con_seguimiento(repo, p) for p in pedidos]
     return {"total": len(pedidos), "pedidos": pedidos}
+
+
+def _ahora() -> datetime:
+    """El reloj del retracto; las pruebas lo sustituyen."""
+    return datetime.now(UTC)
+
+
+def _fecha(valor: Any) -> datetime | None:
+    """Una fecha ISO del serializador (o ya datetime) como `datetime`, o `None`."""
+    if valor is None or isinstance(valor, datetime):
+        return valor
+    return datetime.fromisoformat(str(valor))
+
+
+async def _con_seguimiento(repo: RepoPedidos, pedido: dict[str, Any]) -> dict[str, Any]:
+    """Un pedido del acudiente con su linea de tiempo y lo que puede hacer con el retracto.
+
+    Del historial interno solo salen el estado y la hora (nunca el actor, la nota
+    ni la incidencia). El plazo del retracto (Ley 1480, art. 47) corre desde la
+    entrega; la regla vive en `dominio/retracto`.
+    """
+    pedido_id = uuid.UUID(pedido["pedido_id"])
+    historial = await repo.historial_de(pedido_id)
+    pago_en = await repo.pago_aprobado_en(pedido_id)
+    devolucion = await repo.devolucion_de(pedido_id)
+    envio = pedido.get("envio") or {}
+    entregado_en = _fecha(envio.get("entregado_en"))
+    pasos = pasos_del_pedido(
+        creado_en=_fecha(pedido["creado_en"]),  # type: ignore[arg-type]
+        pago_aprobado_en=_fecha(pago_en),
+        historial=[{**h, "creado_en": _fecha(h["creado_en"])} for h in historial],
+        entregado_en=entregado_en,
+    )
+    estado = evaluar_retracto(
+        pedido["estado"], entregado_en, _ahora(), ya_solicitado=devolucion is not None
+    )
+    # El historial interno y el celular del repartidor no son del acudiente.
+    envio_publico = {k: v for k, v in envio.items() if k != "repartidor_celular"} or None
+    return {
+        **pedido,
+        "envio": envio_publico,
+        "seguimiento": [{**p, "en": _iso_o_none(p["en"])} for p in pasos],
+        "retracto": {
+            "puede": estado.puede,
+            "razon": estado.razon,
+            "vence_en": _iso_o_none(estado.vence_en),
+            "antes_de_entrega": estado.antes_de_entrega,
+            "solicitado_en": _iso_o_none(devolucion.creado_en) if devolucion is not None else None,
+        },
+    }
+
+
+def _iso_o_none(valor: datetime | None) -> str | None:
+    if valor is None:
+        return None
+    if valor.tzinfo is None:
+        valor = valor.replace(tzinfo=UTC)
+    return valor.isoformat()
 
 
 @router.get(
@@ -761,8 +821,10 @@ async def ver_mi_pedido(
     async with request.app.state.motor.sesion() as db:
         repo = _repo(await db.connection())
         fila = await _pedido_o_404(repo, pedido_id)
-        pedido = await repo.pedido_completo(fila)
+        pedido = await _con_seguimiento(repo, await repo.pedido_completo(fila))
         pagos, historial, envio = await repo.vistas_para_linea_de_tiempo(fila.id)
+    # La linea de tiempo de `/pedidos/[id]` es la de `dominio.linea_de_tiempo`;
+    # `seguimiento` y `retracto` (panel) viajan al lado.
     return {
         **pedido,
         "linea_de_tiempo": linea_de_tiempo(
@@ -795,6 +857,79 @@ async def cancelar_mi_pedido(
 ) -> dict[str, Any]:
     await _pedido_del_portador(request, pedido_id, authorization)
     return await cancelar_orden(request, pedido_id)
+
+
+@router.post(
+    "/v1/comercio/mis-pedidos/{pedido_id}/retracto",
+    status_code=201,
+    summary="El acudiente ejerce el retracto de UNO de sus pedidos (Ley 1480, art. 47)",
+)
+async def retractar_mi_pedido(
+    request: Request,
+    pedido_id: uuid.UUID,
+    solicitud: SolicitudRetracto,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    """Solo el dueno del pedido, y solo dentro del plazo: 5 dias habiles desde la entrega.
+
+    El `usuario_id` sale de la sesion. Un pedido ajeno responde 403 (no se
+    revela nada que no se supiera: el id es un UUID imposible de adivinar) y uno
+    que no existe, 404. Antes de la entrega el retracto cancela el pedido y
+    marca el pago para reembolso; ya entregado, deja la solicitud registrada y el
+    equipo coordina la recogida y el reembolso. Pedirlo dos veces no abre dos.
+    """
+    usuario_id = await _usuario_de_sesion(request, authorization)
+    async with request.app.state.motor.sesion() as db:
+        repo = _repo(await db.connection())
+        pedido = await _pedido_o_404(repo, pedido_id)
+        if pedido.usuario_id != usuario_id:
+            raise ErrorDominio(
+                "pedido_ajeno", "Este pedido no es de tu cuenta, así que no puedes pedir su retracto.", estado=403
+            )
+        envio = (await repo.pedido_completo(pedido)).get("envio") or {}
+        previa = await repo.devolucion_de(pedido_id)
+        estado = evaluar_retracto(
+            pedido.estado, _fecha(envio.get("entregado_en")), _ahora(), ya_solicitado=previa is not None
+        )
+        if not estado.puede:
+            raise ErrorDominio(
+                f"retracto_{estado.razon}",
+                _MENSAJE_RETRACTO.get(estado.razon or "", "Este pedido no admite retracto."),
+                estado=409,
+            )
+
+        devolucion_id = uuid.uuid4()
+        await repo.registrar_devolucion(
+            devolucion_id=devolucion_id,
+            pedido_id=pedido_id,
+            usuario_id=pedido.usuario_id,
+            motivo=solicitud.motivo,
+            monto=int(pedido.total),
+        )
+        # Si la maquina de estados no deja cancelar (ya despachado, en reparto),
+        # queda la solicitud registrada para que el equipo detenga el envio.
+        cancelado = estado.antes_de_entrega and transicion_valida(pedido.estado, EstadoPedido.CANCELADO.value)
+        if cancelado:
+            await repo.cancelar_pedido(pedido_id)
+            await repo.marcar_pago_reembolsado(pedido_id)
+
+    return {
+        "devolucion_id": str(devolucion_id),
+        "pedido_id": str(pedido_id),
+        "cancelado": cancelado,
+        "estado": EstadoPedido.CANCELADO.value if cancelado else pedido.estado,
+        "monto": int(pedido.total),
+    }
+
+
+_MENSAJE_RETRACTO = {
+    "ya_solicitado": "Ya pediste el retracto de este pedido. Te escribiremos con los pasos.",
+    "plazo_vencido": "El plazo de 5 días hábiles desde la entrega ya terminó.",
+    "sin_pagar": "Este pedido no se pagó, así que no hay nada que devolver. Puedes cancelarlo desde Mis pedidos.",
+    "cancelado": "Este pedido ya está cancelado.",
+    "sin_fecha_de_entrega": "No tenemos la fecha de entrega de este pedido. Escríbenos desde Mis casos y lo resolvemos.",
+    "estado_no_permite": "Este pedido no admite retracto en su estado actual.",
+}
 
 
 @router.post("/v1/ordenes/{pedido_id}/retracto", status_code=201, summary="Retracto o devolucion (FU-04)")
