@@ -407,8 +407,8 @@ bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Noveno,2026,2026-10-05T05:00:47.318561+00:
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Noveno,2026,2026-10-05T05:00:47.318561+00:00,43,Pinturas acrílicas tubo de 45 cc: azul primario,C027,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Noveno,2026,2026-10-05T05:00:47.318561+00:00,44,Pinturas acrílicas tubo de 45 cc: rojo primario,C027,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Noveno,2026,2026-10-05T05:00:47.318561+00:00,45,"frascos transparentes para almacenar pintura de 3,5 gramos.",C118,1,,,mercado_abierto,,,,false
-bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Noveno,2026,2026-10-05T05:00:47.318561+00:00,46,Ecolines de colores primarios: blanco,C143,1,,,mercado_abierto,,,,true
-bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Noveno,2026,2026-10-05T05:00:47.318561+00:00,47,Ecolines de colores primarios: negro,C143,1,,,mercado_abierto,,,,true
+bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Noveno,2026,2026-10-05T05:00:47.318561+00:00,46,Ecolines de colores primarios: blanco,C143,1,,,mercado_abierto,,,"{""color"": ""blanco""}",true
+bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Noveno,2026,2026-10-05T05:00:47.318561+00:00,47,Ecolines de colores primarios: negro,C143,1,,,mercado_abierto,,,"{""color"": ""negro""}",true
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Noveno,2026,2026-10-05T05:00:47.318561+00:00,48,"Kit de 12 pinceles sintéticos (delgados, planos redondos y abanico)",C021,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Noveno,2026,2026-10-05T05:00:47.318561+00:00,49,Caja de colores,C004,1,,,mercado_abierto,,,,false
 bccf0294-f6b2-5203-84dd-e7fc643ae17f,,Noveno,2026,2026-10-05T05:00:47.318561+00:00,50,Micropunta negro,C006,1,,,mercado_abierto,,,,false
