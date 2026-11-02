@@ -5,7 +5,9 @@ calcula el frente con la configuracion de produccion y el punto que elige
 `elegir_recomendado_maut` con los pesos de la P21. Luego se generan 1.000 pesos
 perturbados con una Dirichlet de parametros kappa * w (media w, desviacion
 estandar sqrt(w_i (1 - w_i) / (kappa + 1)) por componente) y se cuenta en que
-fraccion de los casos el punto elegido es el mismo.
+fraccion de los casos el punto elegido es el mismo. Ademas se sortea cada peso
+uniforme dentro de su IC 95 % de la P21 (`pesos_p21.json`) y se renormaliza: es
+la perturbacion "dentro del intervalo" que la encuesta no puede descartar.
 
 Se reporta, por kappa y por sobreprecio declarado, el promedio sobre listas de esa
 fraccion con un intervalo bootstrap del 95 % (remuestreo de listas).
@@ -31,7 +33,8 @@ SEMILLA_FRENTE = 0
 
 
 def listas_de_prueba() -> list[dict]:
-    colegios = set(json.loads((n.SALIDA / "calibracion_nsga.json").read_text())["colegios"]["prueba"])
+    datos = json.loads((n.SALIDA / "calibracion_nsga.json").read_text())
+    colegios = set(datos["particion"]["colegios_prueba"])
     return [i for i in n.instancias() if i["colegio"] in colegios]
 
 
@@ -39,10 +42,20 @@ def clave(s) -> tuple:
     return (s.costo, s.fidelidad, s.disponibilidad, s.personaje)
 
 
+def mismo_punto(frente, w, s, base) -> bool:
+    return clave(
+        elegir_recomendado_maut(frente, dict(zip(CRITERIOS, w, strict=True)), sobreprecio=s)
+    ) == clave(base)
+
+
 def main() -> int:
     rng = np.random.default_rng(n.SEMILLA_BASE)
     w0 = np.array([PESOS_POR_OMISION[c] for c in CRITERIOS])
+    ic = json.loads((n.SALIDA / "pesos_p21.json").read_text())["ic95"]
+    bajos = np.array([ic[c][0] for c in CRITERIOS])
+    altos = np.array([ic[c][1] for c in CRITERIOS])
     por_celda: dict[tuple[int, float], list[float]] = {(k, s): [] for k in KAPPAS for s in SOBREPRECIOS}
+    en_ic: dict[float, list[float]] = {s: [] for s in SOBREPRECIOS}
     tamanos = []
     for inst in listas_de_prueba():
         renglones = n.renglones_de(inst)
@@ -54,12 +67,12 @@ def main() -> int:
             base = elegir_recomendado_maut(frente, dict(zip(CRITERIOS, w0, strict=True)), sobreprecio=s)
             for k in KAPPAS:
                 ws = rng.dirichlet(k * w0, size=PERTURBACIONES)
-                iguales = sum(
-                    clave(elegir_recomendado_maut(frente, dict(zip(CRITERIOS, w, strict=True)), sobreprecio=s))
-                    == clave(base)
-                    for w in ws
-                )
+                iguales = sum(mismo_punto(frente, w, s, base) for w in ws)
                 por_celda[(k, s)].append(iguales / PERTURBACIONES)
+            ws = rng.uniform(bajos, altos, size=(PERTURBACIONES, len(CRITERIOS)))
+            ws = ws / ws.sum(axis=1, keepdims=True)
+            iguales = sum(mismo_punto(frente, w, s, base) for w in ws)
+            en_ic[s].append(iguales / PERTURBACIONES)
 
     celdas = []
     for (k, s), xs in por_celda.items():
@@ -76,6 +89,20 @@ def main() -> int:
                 "estable_minimo_lista": float(x.min()),
             }
         )
+    dentro_ic = []
+    for s, xs in en_ic.items():
+        x = np.array(xs)
+        medias = [x[rng.integers(0, len(x), len(x))].mean() for _ in range(5000)]
+        dentro_ic.append(
+            {
+                "sobreprecio": s,
+                "listas": len(x),
+                "estable_medio": float(x.mean()),
+                "ic95": [float(v) for v in np.percentile(medias, [2.5, 97.5])],
+                "estable_minimo_lista": float(x.min()),
+                "listas_estables_100": int((x == 1.0).sum()),
+            }
+        )
     n.guardar(
         "sensibilidad.json",
         {
@@ -84,6 +111,7 @@ def main() -> int:
             "listas": len(tamanos),
             "puntos_del_frente_mediana": float(np.median(tamanos)),
             "celdas": celdas,
+            "dentro_ic95_p21": dentro_ic,
         },
     )
     return 0
