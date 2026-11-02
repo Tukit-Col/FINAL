@@ -322,6 +322,7 @@ export default async function PaginaListaGrado({ params }: Props) {
                 los identificadores.
               </p>
             ) : null}
+            <div className={styles.tablaMarco}>
             <table className={styles.tabla}>
               <thead>
                 <tr>
@@ -340,6 +341,7 @@ export default async function PaginaListaGrado({ params }: Props) {
                 ))}
               </tbody>
             </table>
+            </div>
           </>
         )}
       </section>

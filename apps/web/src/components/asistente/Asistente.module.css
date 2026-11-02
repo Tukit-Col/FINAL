@@ -328,12 +328,17 @@
 }
 
 /* ------------------------------------------------ Chat flotante de /kits */
-/* La burbuja vive en la esquina, por encima de la franja del total. */
+/* La burbuja vive en la esquina, por encima de la franja del total. La franja
+ * pegada de /kits (`.pie`) mide ~97 px en escritorio y se pega a 12 px del borde
+ * (≈109 px) con "Ir a pagar" a la derecha, justo bajo la burbuja. 144 px deja
+ * ~35 px de holgura para que no lo tape ni cuando el rótulo del total se parte
+ * en dos renglones. En móvil la franja es de una sola fila (~70 px con su
+ * margen); ahí bastan 124 px (12 px de aire sobre la franja). */
 
 .burbuja {
   position: fixed;
   right: 20px;
-  bottom: 128px;
+  bottom: 144px;
   z-index: 40;
   display: inline-flex;
   align-items: center;
@@ -362,12 +367,12 @@
 .ventana {
   position: fixed;
   right: 20px;
-  bottom: 128px;
+  bottom: 144px;
   z-index: 40;
   display: flex;
   flex-direction: column;
   width: min(400px, calc(100vw - 32px));
-  height: min(600px, calc(100vh - 168px));
+  height: min(600px, calc(100dvh - 184px));
   border-radius: var(--radius-xl);
   background: var(--color-white);
   box-shadow: var(--clay-shadow-lg);
@@ -492,7 +497,7 @@
 @media (max-width: 640px) {
   .burbuja {
     right: 16px;
-    bottom: 112px;
+    bottom: 124px;
   }
 
   .burbuja span {
@@ -510,7 +515,8 @@
     left: 0;
     bottom: 0;
     width: 100%;
-    height: min(85vh, 100dvh);
+    /* dvh: en el celular 85vh incluye la barra del navegador y la ventana se salía. */
+    height: 85dvh;
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   }
 }
