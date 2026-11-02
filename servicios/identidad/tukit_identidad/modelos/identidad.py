@@ -141,8 +141,13 @@ class BandejaSalida(Base):
         primary_key=True,
         autoincrement=True,
     )
-    tipo_evento: Mapped[str] = mapped_column(String(128), nullable=False)
-    clave_agregado: Mapped[str] = mapped_column(String(128), nullable=False)
+    # La misma forma que las bandejas de Comercio, Catalogo e Inteligencia
+    # (`tukit_comun.bandeja.bandeja_reflejada`), para que `tukit_comun.publicador`
+    # la lleve a RabbitMQ sin traduccion. Nacio como `tipo_evento`/`clave_agregado`
+    # y sin `agregado_tipo`; la revision `b7d4e1f20a93` la alinea (ADR 0048).
+    tipo: Mapped[str] = mapped_column(String(128), nullable=False)
+    agregado_tipo: Mapped[str] = mapped_column(String(64), nullable=False)
+    agregado_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     carga: Mapped[dict[str, Any]] = mapped_column(JSON().with_variant(JSONB(), "postgresql"), nullable=False)
     creado_en: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

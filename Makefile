@@ -15,7 +15,8 @@
         api-catalogo api-identidad api-inteligencia api-gateway \
         api-comercio api-operacion repartidor instantanea-metricas \
         poller poller-identidad trabajador barredor \
-        publicador-catalogo publicador-comercio publicador-inteligencia
+        publicador-catalogo publicador-comercio publicador-inteligencia publicador-identidad \
+        supresion-comercio supresion-operacion supresion-inteligencia supresion-identidad
 
 PY := .venv/bin/python
 PYTEST := .venv/bin/pytest
@@ -454,6 +455,24 @@ publicador-comercio:  ## Publica la bandeja de comercio en RabbitMQ (requiere RA
 publicador-inteligencia:  ## Publica la bandeja de inteligencia en RabbitMQ (requiere RABBITMQ_URL; s=--seguir para bucle)
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_inteligencia.publicador $(s)
 
+publicador-identidad:  ## Publica la bandeja de identidad en RabbitMQ (titular_suprimido; requiere RABBITMQ_URL)
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_identidad.publicador $(s)
+
+# La supresion del titular (Ley 1581, ADR 0048): cada servicio con datos del
+# titular consume `titular_suprimido` y confirma; identidad cierra la solicitud.
+# Solo con RabbitMQ.
+supresion-comercio:  ## Enmascara el envio del titular suprimido (requiere RABBITMQ_URL; s=--seguir)
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_comercio.supresion $(s)
+
+supresion-operacion:  ## Redacta los casos del titular suprimido (requiere RABBITMQ_URL; s=--seguir)
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_operacion.supresion $(s)
+
+supresion-inteligencia:  ## Borra preferencias y archivos del titular suprimido (requiere RABBITMQ_URL; s=--seguir)
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_inteligencia.supresion $(s)
+
+supresion-identidad:  ## Cierra la solicitud de supresion cuando confirman los tres (requiere RABBITMQ_URL; s=--seguir)
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_identidad.supresion $(s)
+
 reanudar: arriba  ## Reanuda tras un apagado: solo levanta los procesos, NO siembra (usa `backend` solo para reconstruir de cero)
 
 arriba:  ## Levanta los seis procesos HTTP y los de fondo, con RabbitMQ y Redis si responden
@@ -506,9 +525,12 @@ arriba:  ## Levanta los seis procesos HTTP y los de fondo, con RabbitMQ y Redis 
 	@# Con broker, los publicadores llevan a RabbitMQ la bandeja de cada
 	@# productor (ADR 0046). Sin broker no hacen falta: los consumidores leen las
 	@# bandejas directo.
-	@if [ -s $(EJECUCION)/broker ]; then for p in catalogo comercio inteligencia; do \
+	@if [ -s $(EJECUCION)/broker ]; then for p in catalogo comercio inteligencia identidad; do \
 		$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_$$p.publicador --seguir \
 			> $(EJECUCION)/publicador-$$p.log 2>&1 & echo $$! > $(EJECUCION)/publicador-$$p.pid; \
+	done; for p in comercio operacion inteligencia identidad; do \
+		$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_$$p.supresion --seguir \
+			> $(EJECUCION)/supresion-$$p.log 2>&1 & echo $$! > $(EJECUCION)/supresion-$$p.pid; \
 	done; fi
 	@# El barredor libera la reserva de un pedido que nunca se pago (ADR 0023, C1):
 	@# sin el, un checkout abandonado bloquea stock para siempre.
@@ -518,7 +540,8 @@ arriba:  ## Levanta los seis procesos HTTP y los de fondo, con RabbitMQ y Redis 
 
 abajo:  ## Detiene los seis procesos HTTP y los trabajadores de fondo
 	@for s in gateway operacion comercio inteligencia catalogo identidad repartidor poller trabajador poller-identidad barredor \
-		publicador-catalogo publicador-comercio publicador-inteligencia; do \
+		publicador-catalogo publicador-comercio publicador-inteligencia publicador-identidad \
+		supresion-comercio supresion-operacion supresion-inteligencia supresion-identidad; do \
 		[ -f $(EJECUCION)/$$s.pid ] && kill $$(cat $(EJECUCION)/$$s.pid) 2>/dev/null; \
 		rm -f $(EJECUCION)/$$s.pid; \
 	done; rm -f $(EJECUCION)/broker $(EJECUCION)/redis; true

@@ -83,7 +83,18 @@ def test_la_topologia_tiene_una_cola_por_consumidor():
         "identidad.colegios",
         "inteligencia.listas",
         "inteligencia.trabajos",
+        "comercio.supresion",
+        "operacion.supresion",
+        "inteligencia.supresion",
+        "identidad.supresion",
     ]
+    # La supresion del titular llega a los tres servicios que guardan sus datos.
+    assert [c.nombre for c in TOPOLOGIA.colas if "titular_suprimido" in c.claves] == [
+        "comercio.supresion",
+        "operacion.supresion",
+        "inteligencia.supresion",
+    ]
+    assert TOPOLOGIA.cola("identidad.supresion").claves == ("supresion_confirmada",)
     assert TOPOLOGIA.exchange == "tukit.eventos"
     assert TOPOLOGIA.cola("inteligencia.trabajos").claves == ("trabajo_encolado",)
 

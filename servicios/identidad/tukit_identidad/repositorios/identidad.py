@@ -16,9 +16,11 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import and_, func, insert, or_, select, update
+from tukit_comun.bandeja import con_correlacion
 from tukit_comun.cifrado import cifrador_desde_entorno
 from tukit_comun.http import ErrorDominio, iso
 from tukit_comun.identificadores import derivar
+from tukit_comun.supresion import TITULAR_SUPRIMIDO
 
 from ..dominio.autorizacion import Ambito
 from ..dominio.matriculas import GRADOS, HijoMatricula
@@ -1127,13 +1129,16 @@ class RepoIdentidad:
         # Sin datos personales: solo identificadores seudonimos y la hora.
         await self.conexion.execute(
             insert(tablas["bandeja_salida"]).values(
-                tipo_evento="titular_suprimido",
-                clave_agregado=str(usuario_id),
-                carga={
-                    "usuario_id": str(usuario_id),
-                    "solicitud_id": str(solicitud_id),
-                    "suprimido_en": iso(ahora),
-                },
+                tipo=TITULAR_SUPRIMIDO,
+                agregado_tipo="solicitud_supresion",
+                agregado_id=solicitud_id,
+                carga=con_correlacion(
+                    {
+                        "usuario_id": str(usuario_id),
+                        "solicitud_id": str(solicitud_id),
+                        "suprimido_en": iso(ahora),
+                    }
+                ),
                 creado_en=ahora,
             )
         )
