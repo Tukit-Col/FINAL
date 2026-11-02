@@ -65,8 +65,16 @@ _DATOS_DEL_KIT = {
 
 
 _PROPS_DESCARTE = {
-    "trabajo_id", "perfil", "item_id", "descripcion", "motivo", "motivo_texto", "producto", "ahorro_cop", "aplicable",
-}  # fmt: skip
+    "trabajo_id",
+    "perfil",
+    "item_id",
+    "descripcion",
+    "motivo",
+    "motivo_texto",
+    "producto",
+    "ahorro_cop",
+    "aplicable",
+}
 
 
 # --- Un intento contra el flujo ----------------------------------------------
