@@ -225,6 +225,11 @@ async def test_el_nivel_estricto_cuenta_por_ruta(atras, redis, monkeypatch):
         ("POST", "/v1/registro", "registro"),
         ("POST", "/v1/catalogo/emparejar", "catalogo-emparejar"),
         ("POST", "/v1/admin/sugerencias", "sugerencias"),
+        ("POST", "/v1/cuenta/supresion", "cuenta-supresion"),
+        ("POST", "/v1/cuenta/supresion/", "cuenta-supresion"),
+        ("POST", "/v1/cuenta/consentimientos/revocar", "cuenta-consentimientos"),
+        ("GET", "/v1/cuenta/mis-datos", None),
+        ("GET", "/v1/cuenta/mis-datos/exportar", None),
         ("GET", "/v1/trabajos", None),
         ("POST", "/v1/sesiones/cierre", None),
         ("POST", "/v1/trabajos/8a1c", None),
@@ -238,6 +243,24 @@ async def test_el_nivel_estricto_cuenta_por_ruta(atras, redis, monkeypatch):
 )
 def test_las_rutas_estrictas(metodo, ruta, nombre):
     assert limite.ruta_estricta(metodo, ruta) == nombre
+
+
+def test_la_supresion_va_con_su_propio_nivel_mas_corto_que_el_estricto():
+    por_contar = limite.cuentas("POST", "/v1/cuenta/supresion", "tok-ana", "203.0.113.7")
+    supresion = [c for c in por_contar if c.ruta == "cuenta-supresion"]
+    _, estricto = limite.niveles()
+    assert {c.nivel for c in supresion} == {"supresion"}
+    assert {c.tipo: c.tope for c in supresion} == {"token": 5, "ip": 10}
+    assert all(c.tope < estricto.por_token for c in supresion)
+    assert all(c.ventana == 3600 for c in supresion)
+    # Y sigue contando en el general, como toda estricta.
+    assert any(c.nivel == "general" for c in por_contar)
+
+
+async def test_el_sexto_intento_de_suprimir_es_429(atras, redis):
+    async with _http() as http:
+        estados = await _estados(http, 6, "POST", "/v1/cuenta/supresion", headers=_bearer("tok-ana"))
+    assert estados == [200, 200, 200, 200, 200, 429]
 
 
 def test_cada_ruta_estricta_existe_en_el_mapa_de_la_puerta():

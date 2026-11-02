@@ -3,6 +3,8 @@
 Dos niveles, y en cada uno dos claves que tienen que pasar las dos:
 
 - **General**, todo `/v1/*`: 300 por token y 1.200 por IP cada 60 s.
+- **Supresion**, solo `POST /v1/cuenta/supresion`: 5 por token y 10 por IP
+  cada hora, en lugar del estricto.
 - **Estricto**, por ruta, en las que cuestan (leer un PDF, crear un trabajo,
   derivar una clave): 30 por token y 60 por IP cada 600 s. Una ruta estricta
   cuenta tambien en el general, y cada una tiene su propio cupo: los intentos de
@@ -68,7 +70,14 @@ RUTAS_ESTRICTAS: tuple[tuple[str, re.Pattern[str]], ...] = (
     # Cada llamada del asistente cuesta una llamada a un modelo de pago (OWASP LLM10).
     ("nl2c", re.compile(r"/v1/nl2c/(?:interpretar|decision)")),
     ("nl2c-kit", re.compile(r"/v1/kits/[^/]+/asistente/proponer")),
+    # Suprimir los datos del titular no tiene vuelta atras: cuenta en su propio
+    # nivel, mas corto que el estricto (`nivel_supresion`).
+    ("cuenta-supresion", re.compile(r"/v1/cuenta/supresion")),
+    ("cuenta-consentimientos", re.compile(r"/v1/cuenta/consentimientos/revocar")),
 )
+
+# Las estrictas que, ademas, van con el nivel de supresion y no con el estricto.
+RUTAS_SUPRESION = frozenset({"cuenta-supresion"})
 
 Red = ipaddress.IPv4Network | ipaddress.IPv6Network
 Ip = ipaddress.IPv4Address | ipaddress.IPv6Address
@@ -124,6 +133,24 @@ def _niveles(_crudos: tuple[str, ...]) -> tuple[Nivel, Nivel]:
         )
 
     return nivel("general", 60, 300, 1200), nivel("estricto", 600, 30, 60)
+
+
+def nivel_supresion() -> Nivel:
+    """5 por token y 10 por IP cada hora (`TUKIT_LIMITE_SUPRESION_*`). Un titular
+    suprime una vez; los reintentos de una red inestable caben, un barrido no."""
+    return _nivel_supresion(
+        tuple(os.environ.get(f"TUKIT_LIMITE_SUPRESION_{c}", "") for c in ("VENTANA", "TOKEN", "IP"))
+    )
+
+
+@functools.cache
+def _nivel_supresion(_crudos: tuple[str, ...]) -> Nivel:
+    return Nivel(
+        nombre="supresion",
+        ventana=entero_de_entorno("TUKIT_LIMITE_SUPRESION_VENTANA", 3600),
+        por_token=entero_de_entorno("TUKIT_LIMITE_SUPRESION_TOKEN", 5),
+        por_ip=entero_de_entorno("TUKIT_LIMITE_SUPRESION_IP", 10),
+    )
 
 
 def proxies_de_confianza() -> tuple[Red, ...]:
@@ -215,7 +242,7 @@ def cuentas(metodo: str, camino: str, token: str | None, ip: str) -> list[Cuenta
     por_nivel = [(general, "v1")]
     estricta = ruta_estricta(metodo, camino)
     if estricta is not None:
-        por_nivel.append((estricto, estricta))
+        por_nivel.append((nivel_supresion() if estricta in RUTAS_SUPRESION else estricto, estricta))
     salida: list[Cuenta] = []
     for nivel, ruta in por_nivel:
         if nivel.ventana <= 0:

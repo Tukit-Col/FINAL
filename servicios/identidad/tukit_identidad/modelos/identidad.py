@@ -135,7 +135,12 @@ class BandejaSalida(Base):
 
     __tablename__ = "bandeja_salida"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        # `Integer` en SQLite: solo autoincrementa un INTEGER PRIMARY KEY (como en Comercio).
+        BigInteger().with_variant(Integer, "sqlite"),
+        primary_key=True,
+        autoincrement=True,
+    )
     tipo_evento: Mapped[str] = mapped_column(String(128), nullable=False)
     clave_agregado: Mapped[str] = mapped_column(String(128), nullable=False)
     carga: Mapped[dict[str, Any]] = mapped_column(JSON().with_variant(JSONB(), "postgresql"), nullable=False)
