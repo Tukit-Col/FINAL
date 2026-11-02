@@ -15,7 +15,7 @@ import math
 
 import nucleo as n
 import numpy as np
-from calibrar_nsga import generaciones_con, poblacion_con
+from calibrar_nsga import PARTIDA, generaciones_con, poblacion_con
 from tukit_inteligencia import optimizador as opt
 
 SAL = n.SALIDA
@@ -201,10 +201,18 @@ def main() -> int:
         macros["calFraccionHV"] = pct(pr["fraccion_corridas_elegida_hv_ge_0999"])
         macros["calRazonMinPrueba"] = num(pr["razon_min_corrida_elegida"], 4)
         macros["calTRejillaMin"] = str(round(c["t_rejilla_s"] / 60))
-        macros["calPobMin"] = str(opt._POBLACION_MIN)
-        macros["calPobMax"] = str(opt._POBLACION_MAX)
-        macros["calGenMin"] = str(opt._GENERACIONES_MIN)
-        macros["calGenMax"] = str(opt._GENERACIONES_MAX)
+        macros["calPobMin"] = str(PARTIDA["pob_min"])
+        macros["calPobMax"] = str(PARTIDA["pob_max"])
+        macros["calGenMin"] = str(PARTIDA["gen_min"])
+        macros["calGenMax"] = str(PARTIDA["gen_max"])
+        macros["calPobProdMin"] = str(opt._POBLACION_MIN)
+        macros["calPobProdMax"] = str(opt._POBLACION_MAX)
+        macros["calPobProdLinea"] = str(opt._POBLACION_POR_LINEA)
+        macros["calGenProdMin"] = str(opt._GENERACIONES_MIN)
+        macros["calGenProdMax"] = str(opt._GENERACIONES_MAX)
+        macros["calGenProdDecada"] = str(opt._GENERACIONES_POR_DECADA)
+        partida = next(r for r in c["rejilla"] if (r["a"], r["b"]) == (1.0, 1.0))
+        macros["calEvalsCVPartida"] = entero(round(partida["evals_medios"]))
         lineas = []
         for r in c["rejilla"]:
             marca = "$\\star$" if (r["a"], r["b"]) == (e["a"], e["b"]) else ""

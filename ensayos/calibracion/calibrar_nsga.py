@@ -47,9 +47,21 @@ FACTORES = (0.25, 0.5, 1.0, 2.0)
 UMBRAL_HV = 0.001
 
 
+# Las formulas de partida del optimizador, antes de calibrar.
+PARTIDA = {
+    "pob_por_linea": 12,
+    "pob_min": 40,
+    "pob_max": 200,
+    "gen_por_decada": 20,
+    "gen_min": 30,
+    "gen_max": 120,
+}
+
+
 def poblacion_con(a: float):
     def f(nlineas: int) -> int:
-        cruda = min(a * 200, max(a * 40, a * 12 * nlineas))
+        p = PARTIDA
+        cruda = min(a * p["pob_max"], max(a * p["pob_min"], a * p["pob_por_linea"] * nlineas))
         cruda = max(4, int(round(cruda)))
         return cruda + (cruda & 1)
 
@@ -58,7 +70,9 @@ def poblacion_con(a: float):
 
 def generaciones_con(b: float):
     def f(espacio: int) -> int:
-        return max(2, int(min(b * 120, max(b * 30, b * 20 * math.log10(max(10, espacio))))))
+        p = PARTIDA
+        crudas = b * p["gen_por_decada"] * math.log10(max(10, espacio))
+        return max(2, int(min(b * p["gen_max"], max(b * p["gen_min"], crudas))))
 
     return f
 
