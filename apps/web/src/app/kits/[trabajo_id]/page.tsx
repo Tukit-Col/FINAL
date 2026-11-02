@@ -74,7 +74,7 @@ async function kits(trabajo_id: string, searchParams: Promise<{ pagar?: string }
         // "Intentar de nuevo" (pago rechazado) llega con `?pagar=1`: el
         // formulario de entrega ya abierto y lleno.
         abrirPago={consulta.pagar === "1"}
-  />
+      />
     </>
   );
 }
