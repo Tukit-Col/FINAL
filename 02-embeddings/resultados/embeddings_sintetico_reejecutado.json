@@ -1,0 +1,68 @@
+[
+  {
+    "MRR@10": 0.8627,
+    "Recall@5": 0.9655,
+    "Recall@10": 0.9885,
+    "carga_modelo_s": 1.13,
+    "latencia_ms_por_doc": 7.82,
+    "latencia_ms_por_query": 10.2,
+    "dim": 384,
+    "modelo": "paraphrase-multilingual-MiniLM-L12-v2",
+    "tipo": "multilingüe ligero"
+  },
+  {
+    "MRR@10": 0.8508,
+    "Recall@5": 0.9195,
+    "Recall@10": 0.954,
+    "carga_modelo_s": 3.4,
+    "latencia_ms_por_doc": 8.9,
+    "latencia_ms_por_query": 9.36,
+    "dim": 768,
+    "modelo": "paraphrase-multilingual-mpnet-base-v2",
+    "tipo": "multilingüe"
+  },
+  {
+    "MRR@10": 0.9722,
+    "Recall@5": 0.9885,
+    "Recall@10": 0.9885,
+    "carga_modelo_s": 0.8,
+    "latencia_ms_por_doc": 11.75,
+    "latencia_ms_por_query": 10.23,
+    "dim": 768,
+    "modelo": "jina-embeddings-v2-base-es",
+    "tipo": "español dedicado"
+  },
+  {
+    "MRR@10": 0.9943,
+    "Recall@5": 1.0,
+    "Recall@10": 1.0,
+    "carga_modelo_s": 3.91,
+    "latencia_ms_por_doc": 34.97,
+    "latencia_ms_por_query": 29.8,
+    "dim": 1024,
+    "modelo": "multilingual-e5-large",
+    "tipo": "multilingüe (producción)"
+  },
+  {
+    "MRR@10": 0.9573,
+    "Recall@5": 1.0,
+    "Recall@10": 1.0,
+    "carga_modelo_s": 0.17,
+    "latencia_ms_por_doc": 2.27,
+    "latencia_ms_por_query": 2.38,
+    "dim": 384,
+    "modelo": "all-MiniLM-L6-v2",
+    "tipo": "monolingüe EN"
+  },
+  {
+    "MRR@10": 0.9943,
+    "Recall@5": 1.0,
+    "Recall@10": 1.0,
+    "carga_modelo_s": 0.02,
+    "latencia_ms_por_doc": 0.0,
+    "latencia_ms_por_query": 0.0,
+    "dim": 975,
+    "modelo": "ngram-3-5 (pg_trgm approx)",
+    "tipo": "léxico"
+  }
+]

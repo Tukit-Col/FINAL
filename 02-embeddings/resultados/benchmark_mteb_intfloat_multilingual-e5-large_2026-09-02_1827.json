@@ -1,0 +1,19 @@
+{
+    "model": "intfloat/multilingual-e5-large",
+    "device": "cuda",
+    "timestamp": "2026-09-02T18:46:44.750685",
+    "latency_total_s": 1088.1997120380402,
+    "latency_per_query_ms": 550.1428421878117,
+    "total_queries_approx": 1978.0312104225159,
+    "metrics": {
+        "STS22": {
+            "spearman": 0.682316
+        },
+        "SpanishPassageRetrievalS2P": {
+            "ndcg_at_10": 0.39456,
+            "recall_at_5": 0.30726,
+            "recall_at_10": 0.40833,
+            "mrr_at_10": 0.616317
+        }
+    }
+}
