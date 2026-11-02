@@ -157,7 +157,13 @@ UMBRAL_ACEPTACION = 0.740
 # `PERFILADO_DATOS.md` §5.2 (2.890-854.160 COP en el feed del scraper,
 # 650-208.596 COP en GranCentral), tomados por la union porque el CSV de
 # precios ya no dice de que fuente salio cada uno.
-PRECIO_MIN_CENTAVOS = 650 * 100
+#
+# El minimo baja de 650 a 500 COP: zamux.co vende componentes electronicos por unidad
+# (resistencia 1/4w a 500 COP, switch corredera a 600 COP; precio leido en la ficha y en
+# su JSON-LD el 2026-11-01). Son precios reales, no un error de carga, y el piso previo
+# salia de los percentiles de otras fuentes. Un piso de 500 sigue atrapando un precio en
+# pesos de un digito o en unidades equivocadas.
+PRECIO_MIN_CENTAVOS = 500 * 100
 PRECIO_MAX_CENTAVOS = 854_160 * 100
 
 
