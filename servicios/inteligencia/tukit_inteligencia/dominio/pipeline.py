@@ -23,6 +23,7 @@ from ..optimizador import (
     anclar_personaje,
     consolidar,
     recomendar,
+    renglones_con_personaje,
     unidades_a_comprar,
 )
 from ..parseo import mensaje_para_papa, parsear_renglon
@@ -139,7 +140,9 @@ def _candidato_de_swap(swap: dict[str, Any]) -> Candidato:
         imagen_url=swap.get("imagen_url"),
         unidad_base=swap.get("unidad_base") or "unidad",
         unidades_por_empaque=int(swap.get("unidades_por_empaque") or 1),
-        atributos={},
+        # Los atributos del producto de personaje deciden en que renglones cabe
+        # (un cuaderno argollado no entra donde el colegio pidio cosido).
+        atributos=dict(swap.get("atributos") or {}),
         cumple=True,
     )
 
@@ -184,14 +187,20 @@ def inyectar_personaje_fan(
         # producto de personaje hubiera sido candidato. Ambos hermanos reciben el
         # MISMO producto por concepto (los swaps se indexan por concepto), asi que
         # el grupo vuelve a unirse y las notas se regeneran con el sku correcto.
+        #
+        # El producto de personaje NO va en todos los renglones del concepto: el
+        # catalogo entrega uno solo por concepto y personaje, y ponerlo en cada
+        # cuaderno de la lista (cuadriculado, cosido, grande, argollado...)
+        # repetia el mismo Spiderman de $36.900 cinco veces. `llevan` elige en
+        # cuales cabe, una vez por hijo (ver `renglones_con_personaje`); el resto
+        # conserva el producto neutral que el optimizador ya habia elegido.
+        llevan = _lineas_con_swap(kit.lineas, swaps)
         crudas = tuple(
             _linea_con_producto(
                 linea,
-                _candidato_de_swap(swaps[linea.concepto_codigo])
-                if linea.concepto_codigo in swaps
-                else linea.elegido,
+                _candidato_de_swap(swaps[linea.concepto_codigo]) if indice in llevan else linea.elegido,
             )
-            for linea in kit.lineas
+            for indice, linea in enumerate(kit.lineas)
         )
         lineas, consolidaciones = consolidar(crudas)
         total = sum(li.subtotal_cop or 0 for li in lineas if not li.informativa)
@@ -208,6 +217,25 @@ def inyectar_personaje_fan(
     # El Fan cambio de precio: la marca del recomendado y el veredicto de
     # presupuesto se recalculan sobre los tres kits ya con el precio verdadero.
     return recomendar(recomputados, preferencias)
+
+
+def _lineas_con_swap(lineas: Any, swaps: dict[str, dict[str, Any]]) -> set[int]:
+    """Los indices de las lineas del kit que reciben el producto de personaje.
+
+    Agrupa las lineas comprables por concepto (solo los que tienen swap) y deja
+    que `renglones_con_personaje` decida, concepto por concepto, en cuales cabe.
+    """
+    grupos: dict[str, list[tuple[int, str, dict[str, Any], str]]] = {}
+    for indice, linea in enumerate(lineas):
+        if linea.informativa or linea.concepto_codigo not in swaps:
+            continue
+        grupos.setdefault(linea.concepto_codigo, []).append(
+            (indice, linea.hijo, linea.atributos_impuestos, linea.descripcion)
+        )
+    llevan: set[int] = set()
+    for concepto, renglones in grupos.items():
+        llevan |= renglones_con_personaje(renglones, swaps[concepto].get("atributos") or {})
+    return llevan
 
 
 def _linea_con_producto(linea: Any, elegido: Any) -> Any:
