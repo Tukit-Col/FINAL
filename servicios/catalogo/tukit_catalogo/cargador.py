@@ -340,6 +340,11 @@ CONCEPTOS_LIBRO = {
         ["constitucion", "constitucion politica", "constitucion politica de colombia"],
     ),
     "C048": ("Biblia", ["biblia", "biblia catolica", "sagrada biblia"]),
+    # El libro con titulo del plan lector y los textos. Era `texto`, que el
+    # pipeline no busca en el catalogo: todo kit lo mostraba en cero. Con ISBN
+    # verificado en una libreria es un libro que se compra, y se filtra por
+    # `isbn13` para que cada linea reciba su edicion y no cualquier libro.
+    "C134": ("Libro o texto con título", ["plan lector", "libro plan lector", "plan lector libro"]),
 }
 # Codigos viejos de la semilla y el concepto en que viven ahora.
 CONCEPTOS_LIBRO_FUSIONADOS = {"dic-ingles": "C034"}
