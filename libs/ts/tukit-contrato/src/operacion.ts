@@ -155,3 +155,37 @@ export interface BandejaOperacion {
 export function casoActivo(caso: Caso): boolean {
   return caso.estado !== "resuelto" && caso.estado !== "cerrado";
 }
+
+// ------------------------------------------------------ Mis casos (la sesion)
+//
+// Los casos que el acudiente ve de SI MISMO: el dueno sale de la sesion, no de
+// un correo en el formulario. Sale por `/v1/operacion/mis-casos`.
+
+export interface SolicitudMiCaso {
+  categoria: CategoriaCaso;
+  asunto: string;
+  descripcion: string;
+  trabajo_id?: string | null;
+  pedido_id?: string | null;
+}
+
+export interface MiCaso {
+  caso_id: string;
+  categoria: CategoriaCaso;
+  estado: EstadoCaso;
+  asunto: string;
+  abierto_en: string;
+  vence_en: string | null;
+  trabajo_id: string | null;
+  pedido_id: string | null;
+}
+
+export interface ComentarioDeCaso {
+  texto: string;
+  creado_en: string;
+}
+
+export interface MiCasoDetalle extends MiCaso {
+  descripcion: string;
+  comentarios: ComentarioDeCaso[];
+}

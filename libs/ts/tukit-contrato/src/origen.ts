@@ -23,6 +23,8 @@ import type {
   BorradorKits,
   GradoCanonico,
   SolicitudCheckout,
+  CambioDeDescarte,
+  OpcionesDeLinea,
   HijoSubida,
   MarcarNoDisponible,
   MisSolicitudes,
@@ -75,11 +77,20 @@ import type {
 import type {
   Pedido,
   PedidoConHistorial,
+  RetractoSolicitado,
   SolicitudAvancePedido,
   TableroComercio,
 } from "./comercio";
 import type { MetricasColegio, ResumenPedidosColegio, SerieMetricas } from "./metricas";
-import type { BandejaOperacion, Caso, CasoCreado, SolicitudCaso } from "./operacion";
+import type {
+  BandejaOperacion,
+  Caso,
+  CasoCreado,
+  MiCaso,
+  MiCasoDetalle,
+  SolicitudCaso,
+  SolicitudMiCaso,
+} from "./operacion";
 
 /** Los roles del sistema (filas de `rol` en identidad, ADR 0013). No es un
  *  enum del dominio: el codigo pregunta `puede(...)`, nunca `if rol in (...)`.
@@ -336,6 +347,19 @@ export interface OrigenDatos {
     token?: string,
   ): Promise<CambioDeProducto>;
 
+  // El acudiente quita un renglon de su kit ("ya lo tengo") o lo vuelve a poner.
+  // Se guarda en SU trabajo; el total y la orden se calculan sin lo descartado.
+  descartarLineaDeKit(
+    trabajoId: string,
+    perfil: PerfilKit,
+    itemId: string,
+    descartado: boolean,
+    token?: string,
+  ): Promise<CambioDeDescarte>;
+  // Los productos del mismo concepto que se pueden elegir para un renglon, con
+  // lo que cambiaria el total (el carrusel de "cambiar por otra opcion").
+  opcionesDeLinea(trabajoId: string, perfil: PerfilKit, itemId: string): Promise<OpcionesDeLinea>;
+
   // §Pago — al regreso de la pasarela, sincroniza la transaccion con Wompi y
   // devuelve el estado del pago y del pedido (idempotente).
   sincronizarPago(transaccionId: string): Promise<ResultadoPago>;
@@ -353,6 +377,15 @@ export interface OrigenDatos {
   // Cancela un pedido pendiente. Comercio pregunta antes a Wompi: con un pago
   // aprobado o en curso responde 409 y no cancela.
   cancelarPedido(token: string, pedidoId: string): Promise<Pedido>;
+  // Retracto (Ley 1480, art. 47) de UNO de sus pedidos. Comercio verifica el
+  // dueno con la sesion (403 si es ajeno) y el plazo (409 si ya vencio).
+  retractarPedido(token: string, pedidoId: string, motivo: string): Promise<RetractoSolicitado>;
+
+  // Los casos del acudiente: dueno = sesion. Un caso ajeno es 403.
+  misCasos(token: string): Promise<MiCaso[]>;
+  miCaso(token: string, casoId: string): Promise<MiCasoDetalle>;
+  abrirMiCaso(token: string, solicitud: SolicitudMiCaso): Promise<CasoCreado>;
+  comentarMiCaso(token: string, casoId: string, texto: string): Promise<void>;
 
   // §7 — revision humana.
   cola(): Promise<ColaAdmin>;

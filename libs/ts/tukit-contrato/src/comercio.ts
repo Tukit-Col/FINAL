@@ -98,6 +98,43 @@ export interface LineaPedido {
   precio_unitario: Dinero;
 }
 
+/** Un paso en la vida del pedido, en palabras del acudiente. */
+export interface PasoDePedido {
+  estado: EstadoPedido;
+  /** ISO 8601. */
+  en: string;
+  etiqueta: string;
+}
+
+/**
+ * Lo que el acudiente puede hacer con el retracto de un pedido (Ley 1480 de
+ * 2011, art. 47: 5 dias habiles desde la entrega). `vence_en` es el cierre del
+ * plazo, o `null` mientras el pedido no se haya entregado.
+ */
+export interface EstadoRetracto {
+  puede: boolean;
+  razon:
+    | "ya_solicitado"
+    | "plazo_vencido"
+    | "sin_pagar"
+    | "cancelado"
+    | "sin_fecha_de_entrega"
+    | "estado_no_permite"
+    | null;
+  vence_en: string | null;
+  /** El pedido aun no llega: retractarse lo cancela y devuelve el pago. */
+  antes_de_entrega: boolean;
+  solicitado_en: string | null;
+}
+
+export interface RetractoSolicitado {
+  devolucion_id: string;
+  pedido_id: string;
+  cancelado: boolean;
+  estado: EstadoPedido;
+  monto: Dinero;
+}
+
 export interface Pedido {
   pedido_id: string;
   // El acudiente dueño del pedido (usuario de identidad). El back-office lo
@@ -114,6 +151,11 @@ export interface Pedido {
   lineas: LineaPedido[];
   pago: Pago | null;
   envio: Envio | null;
+  // Solo en las lecturas del propio acudiente (`mis-pedidos`): los pasos del
+  // pedido y su derecho de retracto. Opcionales porque el tablero del
+  // back-office no los trae.
+  linea_de_tiempo?: PasoDePedido[];
+  retracto?: EstadoRetracto;
 }
 
 // Los tipos de incidencia viven en el codigo de comercio (sin CHECK en la base,
