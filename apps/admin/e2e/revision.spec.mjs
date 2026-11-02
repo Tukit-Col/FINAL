@@ -12,6 +12,10 @@
 // Desde `d4ea7cb` la cola pone en tarjetas los trabajos de acudiente que esperan (`af8db6b`) y la
 // matriz saca de la tabla los renglones sin producto en ningun kit: los pendientes van arriba, en
 // «Resolver» (`MatrizComparacion`, panel de avisos).
+//
+// El navegador del administrador llega a la puerta con la IP del equipo (`extraHTTPHeaders`; el
+// servidor de Next la reenvia), la misma de sus llamadas por el gateway, porque el limite de tasa
+// cuenta por IP (ADR 0047, decision N-120).
 
 import { expect, test } from "@playwright/test";
 
@@ -104,13 +108,13 @@ test.beforeAll(async ({ browser }) => {
   tokenAdmin = await stack.abrirSesion(stack.ADMIN_DEMO);
   const acudiente = await stack.registrarAcudiente();
   const lista = await stack.listaSinRevisar(tokenAdmin);
-  const trabajo = await stack.trabajoEnRevision(acudiente.token, lista.colegioId);
+  const trabajo = await stack.trabajoEnRevision(acudiente, lista.colegioId);
   trabajoId = trabajo.trabajo_id;
   if (trabajo.estado !== "espera_revision") {
     throw new Error(`el trabajo ${trabajoId} quedo en ${trabajo.estado}`);
   }
 
-  contexto = await browser.newContext();
+  contexto = await browser.newContext({ extraHTTPHeaders: { [stack.CABECERA_IP]: stack.IP_DEL_EQUIPO } });
   intentos = await stack.guardiaDeRed(contexto);
   pagina = await contexto.newPage();
   // El back-office no tiene login propio: se entra por el de la web, que pone la cookie de sesion y
@@ -345,4 +349,9 @@ test("costo: el navegador no hizo ninguna peticion a Gemini", async () => {
     peticiones_externas_abortadas: intentos.externas.length,
   });
   expect(intentos.gemini).toEqual([]);
+});
+
+test("costo: el navegador no hizo ninguna peticion a Google Places", async () => {
+  anotar({ nfr: "NFR-COS-01", intentos_places: intentos.places.length });
+  expect(intentos.places).toEqual([]);
 });

@@ -19,6 +19,8 @@ const ENTORNO = {
   TUKIT_WEB_URL: WEB,
   TUKIT_ADMIN_URL: ADMIN,
   NEXT_TELEMETRY_DISABLED: "1",
+  // La web que se levanta aqui tampoco carga Google Places (ADR 0044, decision N-129).
+  GOOGLE_MAPS_API_KEY: "",
 };
 
 export default defineConfig({
