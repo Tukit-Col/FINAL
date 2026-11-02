@@ -196,7 +196,8 @@ def partir(tex: str) -> dict[str, str]:
     for trozo in trozos:
         for clave, nombre in NOMBRES.items():
             if f"%%FIN_TABLA_{clave}" in trozo:
-                limpio = "\n".join(ln for ln in trozo.splitlines() if not ln.startswith(("%%", "INICIO_TABLA_"))).strip()
+                lineas = [ln for ln in trozo.splitlines() if not ln.startswith(("%%", "INICIO_TABLA_"))]
+                limpio = "\n".join(lineas).strip()
                 salida[nombre] = limpio + "\n"
     return salida
 
