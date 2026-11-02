@@ -139,6 +139,8 @@ export interface Credenciales {
 export interface NuevaCuenta extends Credenciales {
   nombre: string;
   celular?: string;
+  // El titular marco la casilla de la politica de datos y los terminos.
+  acepta_terminos?: boolean;
 }
 
 /** Un hijo tal como lo manda el formulario: colegio y grado bastan para armar el
@@ -368,7 +370,14 @@ export interface OrigenDatos {
   ): Promise<CambioDeDescarte>;
   // Los productos del mismo concepto que se pueden elegir para un renglon, con
   // lo que cambiaria el total (el carrusel de "cambiar por otra opcion").
-  opcionesDeLinea(trabajoId: string, perfil: PerfilKit, itemId: string): Promise<OpcionesDeLinea>;
+  // El Bearer es el del dueno: si su cuenta tiene clave, inteligencia solo le
+  // abre el kit a esa sesion.
+  opcionesDeLinea(
+    trabajoId: string,
+    perfil: PerfilKit,
+    itemId: string,
+    token?: string,
+  ): Promise<OpcionesDeLinea>;
 
   // §Pago — al regreso de la pasarela, sincroniza la transaccion con Wompi y
   // devuelve el estado del pago y del pedido (idempotente).

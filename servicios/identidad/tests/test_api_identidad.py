@@ -319,7 +319,13 @@ class TestElRegistroDelAcudiente:
     async def test_crea_una_cuenta_con_credencial_usable(self, cliente):
         respuesta = await cliente.post(
             "/v1/registro",
-            json={"correo": "nueva@ejemplo.com", "clave": "clave1234", "celular": "3001112233", "hijos": []},
+            json={
+                "correo": "nueva@ejemplo.com",
+                "acepta_terminos": True,
+                "clave": "clave1234",
+                "celular": "3001112233",
+                "hijos": [],
+            },
         )
         assert respuesta.status_code == 201
         assert respuesta.json()["creado"] is True
@@ -340,7 +346,13 @@ class TestElRegistroDelAcudiente:
 
         registro = (
             await cliente.post(
-                "/v1/registro", json={"correo": "mixta@ejemplo.com", "clave": "clave1234", "hijos": []}
+                "/v1/registro",
+                json={
+                    "correo": "mixta@ejemplo.com",
+                    "acepta_terminos": True,
+                    "clave": "clave1234",
+                    "hijos": [],
+                },
             )
         ).json()
         assert registro["creado"] is True
@@ -356,10 +368,12 @@ class TestElRegistroDelAcudiente:
         """La ruta es publica: no debe dejar que un tercero cambie la clave de
         una cuenta que ya tiene credencial."""
         await cliente.post(
-            "/v1/registro", json={"correo": "duena@ejemplo.com", "clave": "originaal", "hijos": []}
+            "/v1/registro",
+            json={"correo": "duena@ejemplo.com", "acepta_terminos": True, "clave": "originaal", "hijos": []},
         )
         repetido = await cliente.post(
-            "/v1/registro", json={"correo": "duena@ejemplo.com", "clave": "otraaaaa", "hijos": []}
+            "/v1/registro",
+            json={"correo": "duena@ejemplo.com", "acepta_terminos": True, "clave": "otraaaaa", "hijos": []},
         )
         assert repetido.status_code == 201
         assert repetido.json()["creado"] is False
@@ -378,6 +392,7 @@ class TestElRegistroDelAcudiente:
             "/v1/registro",
             json={
                 "correo": "conhijos@ejemplo.com",
+                "acepta_terminos": True,
                 "clave": "clave1234",
                 "hijos": [{"colegio_id": colegio_id, "grado": "Quinto", "apodo": "Pipe"}],
             },
@@ -403,9 +418,9 @@ class TestElRegistroDelAcudiente:
 
         cuerpo = {"correo": "acepta@ejemplo.com", "clave": "clave1234", "acepta_terminos": True}
         assert (await cliente.post("/v1/registro", json=cuerpo)).status_code == 201
-        # Sin la casilla no se registra nada.
+        # Sin la casilla el alta se rechaza y no deja ni la cuenta ni el consentimiento.
         sin = {"correo": "sinmarca@ejemplo.com", "clave": "clave1234"}
-        assert (await cliente.post("/v1/registro", json=sin)).status_code == 201
+        assert (await cliente.post("/v1/registro", json=sin)).status_code == 422
 
         async with app.state.motor.sesion() as db:
             filas = (await db.execute(select(Consentimiento))).scalars().all()
@@ -414,10 +429,49 @@ class TestElRegistroDelAcudiente:
         assert titulares[0].matricula_id is None
         assert titulares[0].version
 
+    async def test_sin_aceptar_los_terminos_es_422_y_no_crea_la_cuenta(self, cliente):
+        from sqlalchemy import select
+        from tukit_identidad.modelos import Usuario
+
+        for cuerpo in (
+            {"correo": "sinmarca@ejemplo.com", "clave": "clave1234"},
+            {"correo": "sinmarca@ejemplo.com", "clave": "clave1234", "acepta_terminos": False},
+        ):
+            r = await cliente.post("/v1/registro", json=cuerpo)
+            assert r.status_code == 422
+            assert r.json()["error"] == "consentimiento_requerido"
+            assert r.json()["campo"] == "acepta_terminos"
+
+        async with app.state.motor.sesion() as db:
+            correos = (await db.execute(select(Usuario.correo))).scalars().all()
+        assert "sinmarca@ejemplo.com" not in correos
+
+    async def test_el_contacto_del_pago_sigue_sin_pedir_consentimiento(self, cliente):
+        """`POST /v1/contactos` es el alta interna del pipeline: no tiene casilla."""
+        r = await cliente.post("/v1/contactos", json={"correo": "contacto@ejemplo.com"})
+        assert r.status_code == 201
+
+    async def test_credencial_distingue_contacto_de_cuenta_con_clave(self, cliente):
+        contacto = (await cliente.post("/v1/contactos", json={"correo": "solo@ejemplo.com"})).json()
+        cuenta = (
+            await cliente.post(
+                "/v1/registro",
+                json={"correo": "conclave@ejemplo.com", "clave": "clave1234", "acepta_terminos": True},
+            )
+        ).json()
+
+        sin = await cliente.get(f"/v1/contactos/{contacto['usuario_id']}/credencial")
+        con = await cliente.get(f"/v1/contactos/{cuenta['usuario_id']}/credencial")
+        desconocido = await cliente.get(f"/v1/contactos/{uuid.uuid4()}/credencial")
+        assert sin.json() == {"tiene_credencial": False}
+        assert con.json() == {"tiene_credencial": True}
+        assert desconocido.json() == {"tiene_credencial": False}
+
     async def test_reenviar_el_mismo_formulario_no_duplica_matriculas(self, cliente):
         colegio_id = str(derivar("colegio", "2.4"))
         cuerpo = {
             "correo": "repite@ejemplo.com",
+            "acepta_terminos": True,
             "clave": "clave1234",
             "hijos": [{"colegio_id": colegio_id, "grado": "Quinto"}],
         }
@@ -439,6 +493,7 @@ class TestElRegistroDelAcudiente:
             "/v1/registro",
             json={
                 "correo": "malgrado@ejemplo.com",
+                "acepta_terminos": True,
                 "clave": "clave1234",
                 "hijos": [{"colegio_id": colegio_id, "grado": "5"}],
             },
@@ -454,6 +509,7 @@ class TestElRegistroDelAcudiente:
             "/v1/registro",
             json={
                 "correo": "gemelos@ejemplo.com",
+                "acepta_terminos": True,
                 "clave": "clave1234",
                 "hijos": [
                     {"colegio_id": colegio_id, "grado": "Quinto", "apodo": "Ana"},
@@ -482,12 +538,14 @@ class TestMisMatriculasExigenToken:
             "/v1/registro",
             json={
                 "correo": "conkid@ejemplo.com",
+                "acepta_terminos": True,
                 "clave": "clave1234",
                 "hijos": [{"colegio_id": colegio_id, "grado": "Quinto"}],
             },
         )
         await cliente.post(
-            "/v1/registro", json={"correo": "sinkid@ejemplo.com", "clave": "clave1234", "hijos": []}
+            "/v1/registro",
+            json={"correo": "sinkid@ejemplo.com", "acepta_terminos": True, "clave": "clave1234", "hijos": []},
         )
         token_ajeno = (
             await cliente.post("/v1/sesiones", json={"correo": "sinkid@ejemplo.com", "clave": "clave1234"})
@@ -503,7 +561,10 @@ class TestGuardarMatriculasConSesion:
     """`POST /v1/cuenta/matriculas`: un acudiente autenticado agrega a sus hijos."""
 
     async def _token(self, cliente, correo: str) -> str:
-        await cliente.post("/v1/registro", json={"correo": correo, "clave": "clave1234", "hijos": []})
+        await cliente.post(
+            "/v1/registro",
+            json={"correo": correo, "acepta_terminos": True, "clave": "clave1234", "hijos": []},
+        )
         return (await cliente.post("/v1/sesiones", json={"correo": correo, "clave": "clave1234"})).json()[
             "token"
         ]
@@ -607,6 +668,7 @@ class TestGuardarMatriculasConSesion:
             "/v1/registro",
             json={
                 "correo": "dos-hijos@ejemplo.com",
+                "acepta_terminos": True,
                 "clave": "clave1234",
                 "hijos": [{"colegio_id": colegio_id, "grado": "Quinto", "apodo": "Pipe"}],
             },
@@ -634,6 +696,7 @@ class TestGuardarMatriculasConSesion:
             "/v1/registro",
             json={
                 "correo": "trillizos@ejemplo.com",
+                "acepta_terminos": True,
                 "clave": "clave1234",
                 "hijos": [
                     {"colegio_id": colegio_id, "grado": "Quinto", "apodo": "Ana"},
@@ -687,6 +750,7 @@ class TestLaSuperficieDeMenoresNoEstaAbierta:
             # Operacion), sin devolver menor ni matricula: la contraparte de
             # POST /v1/contactos. Efimera, nadie la persiste.
             "/v1/contactos/{usuario_id}",
+            "/v1/contactos/{usuario_id}/credencial",
             # Datos DUEB de un colegio del directorio de Bogota (direccion,
             # contacto, sitio) para pre-llenar el perfil de un colegio nuevo. Es
             # el registro publico de establecimientos: no toca menores ni
@@ -777,7 +841,13 @@ class TestElPadronDeAcudientes:
             hijo["apodo"] = apodo
         respuesta = await cliente.post(
             "/v1/registro",
-            json={"correo": correo, "clave": "clave1234", "celular": "3001112233", "hijos": [hijo]},
+            json={
+                "correo": correo,
+                "acepta_terminos": True,
+                "clave": "clave1234",
+                "celular": "3001112233",
+                "hijos": [hijo],
+            },
         )
         assert respuesta.status_code == 201
         return respuesta.json()["usuario_id"]
@@ -877,7 +947,10 @@ class TestQuitarYCambiarHijos:
     """
 
     async def _cuenta_con_hijo(self, cliente, correo: str, apodo: str = "Pipe") -> tuple[dict, str]:
-        await cliente.post("/v1/registro", json={"correo": correo, "clave": "clave1234", "hijos": []})
+        await cliente.post(
+            "/v1/registro",
+            json={"correo": correo, "acepta_terminos": True, "clave": "clave1234", "hijos": []},
+        )
         token = (await cliente.post("/v1/sesiones", json={"correo": correo, "clave": "clave1234"})).json()[
             "token"
         ]

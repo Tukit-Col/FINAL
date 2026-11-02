@@ -931,11 +931,16 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
-  opcionesDeLinea(trabajoId: string, perfil: PerfilKit, itemId: string): Promise<OpcionesDeLinea> {
+  opcionesDeLinea(
+    trabajoId: string,
+    perfil: PerfilKit,
+    itemId: string,
+    token?: string,
+  ): Promise<OpcionesDeLinea> {
     const ruta =
       `/v1/trabajos/${encodeURIComponent(trabajoId)}/kits/${encodeURIComponent(perfil)}` +
       `/lineas/${encodeURIComponent(itemId)}/opciones`;
-    return this.pedir<OpcionesDeLinea>(ruta);
+    return this.pedir<OpcionesDeLinea>(ruta, { headers: this.autoriza(token) });
   }
 
   // Las tres van por `/v1/comercio/mis-pedidos/{id}` con el Bearer: comercio
