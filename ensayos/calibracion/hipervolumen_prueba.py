@@ -6,7 +6,8 @@ Espacio de los 4 objetivos normalizado a [0, 1] con 0 como lo mejor (ver
 - HV del frente de produccion (30 semillas cuando corre NSGA-II) dividido entre el
   HV del frente exacto (poda por linea);
 - HV de cada perfil: el volumen que domina el punto de ese kit hasta la
-  referencia;
+  referencia, dividido entre el HV del frente exacto (Ahorrador, Premium y el
+  punto MAUT con los pesos P21);
 - cobertura de los kits: HV del conjunto {Ahorrador, Premium} dividido entre el HV
   del frente exacto, o sea que parte del volumen del frente dominan los dos kits
   que siempre se muestran.
@@ -22,7 +23,13 @@ import math
 import nucleo as n
 import numpy as np
 from sensibilidad import listas_de_prueba
-from tukit_inteligencia.optimizador import LIMITE_ENUMERACION, _proyectar, optimizar_frente
+from tukit_inteligencia.modelos import PESOS_POR_OMISION
+from tukit_inteligencia.optimizador import (
+    LIMITE_ENUMERACION,
+    _proyectar,
+    elegir_recomendado_maut,
+    optimizar_frente,
+)
 
 SEMILLAS = tuple(range(30))
 PERFILES = ("Ahorrador", "Premium")
@@ -47,7 +54,8 @@ def main() -> int:
             razones.append(n.hipervolumen(frente, lo, hi) / hv_exacto)
         frente0 = optimizar_frente(renglones, {}, semilla=0)
         puntos = {p: _proyectar(frente0, p) for p in PERFILES}
-        por_perfil = {p: n.hipervolumen([pt], lo, hi) for p, pt in puntos.items()}
+        puntos["MAUT_P21"] = elegir_recomendado_maut(frente0, PESOS_POR_OMISION)
+        por_perfil = {p: n.hipervolumen([pt], lo, hi) / hv_exacto for p, pt in puntos.items()}
         filas.append(
             {
                 "lista": inst["id"],
@@ -58,7 +66,7 @@ def main() -> int:
                 "hv_frente_exacto": hv_exacto,
                 "razon_hv_frente": [float(r) for r in razones],
                 "hv_por_perfil": por_perfil,
-                "cobertura_dos_kits": n.hipervolumen(list(puntos.values()), lo, hi) / hv_exacto,
+                "cobertura_dos_kits": n.hipervolumen([puntos[p] for p in PERFILES], lo, hi) / hv_exacto,
             }
         )
     razon = np.array([np.mean(f["razon_hv_frente"]) for f in filas])
@@ -66,8 +74,16 @@ def main() -> int:
     rng = np.random.default_rng(n.SEMILLA_BASE)
 
     def ic(x):
-        return [float(v) for v in np.percentile([x[rng.integers(0, len(x), len(x))].mean() for _ in range(5000)], [2.5, 97.5])]
+        medias = [x[rng.integers(0, len(x), len(x))].mean() for _ in range(5000)]
+        return [float(v) for v in np.percentile(medias, [2.5, 97.5])]
 
+    perfiles = {
+        p: {
+            "media": float(np.mean([f["hv_por_perfil"][p] for f in filas])),
+            "ic95": ic(np.array([f["hv_por_perfil"][p] for f in filas])),
+        }
+        for p in (*PERFILES, "MAUT_P21")
+    }
     n.guardar(
         "hipervolumen_prueba.json",
         {
@@ -79,6 +95,8 @@ def main() -> int:
             "razon_hv_frente_minima": float(razon.min()),
             "cobertura_dos_kits_media": float(cob.mean()),
             "cobertura_dos_kits_ic95": ic(cob),
+            "hv_relativo_por_perfil": perfiles,
+            "semillas": len(SEMILLAS),
             "filas": filas,
         },
     )

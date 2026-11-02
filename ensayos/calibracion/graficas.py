@@ -46,8 +46,9 @@ def fig_umbral():
     xs = np.logspace(np.log10(S.min()), np.log10(sn.max()), 50)
     ax[0].loglog(xs, c * xs**k, "-", color=AZUL, lw=1, label=f"ajuste exacto: {c:.1e}·S^{k:.2f}")
     ax[0].loglog(xs, c * np.exp(1.645 * sd) * xs**k, "--", color=AZUL, lw=1, label="percentil 95 del ajuste")
-    ax[0].axvline(4096, color=GRIS, ls=":")
-    ax[0].text(4096 * 1.1, ax[0].get_ylim()[0] * 3, "4096", color=GRIS)
+    limite = d.get("limite_enumeracion", 4096)
+    ax[0].axvline(limite, color=GRIS, ls=":")
+    ax[0].text(limite * 1.1, ax[0].get_ylim()[0] * 3, str(limite), color=GRIS)
     ax[0].axhline(4.0, color="k", ls="--", lw=0.8)
     ax[0].text(S.min(), 4.4, "mitad de DP-03 (4 s)", fontsize=8)
     ax[0].set_xlabel("tamaño del espacio S")
@@ -72,14 +73,14 @@ def fig_umbral():
 def fig_rejilla():
     d = leer("calibracion_nsga.json")
     fig, ax = plt.subplots(figsize=(6, 4))
-    for nombre, marca, color in (("entrenamiento", "o", GRIS), ("validacion", "s", AZUL)):
-        r = d[nombre]
-        ax.plot([x["evals_medios"] for x in r], [x["hv_medio"] for x in r], marca, color=color, label=nombre)
+    r = d["rejilla"]
+    ax.plot([x["evals_medios"] for x in r], [x["hv_medio"] for x in r], "s", color=AZUL, label="rejilla")
     e = d["elegida"]
-    v = next(x for x in d["validacion"] if x["a"] == e["a"] and x["b"] == e["b"])
-    a = next(x for x in d["validacion"] if x["a"] == 1.0 and x["b"] == 1.0)
+    v = next(x for x in r if x["a"] == e["a"] and x["b"] == e["b"])
+    a = next(x for x in r if x["a"] == 1.0 and x["b"] == 1.0)
     ax.plot(v["evals_medios"], v["hv_medio"], "*", ms=14, color=NARANJA, label="elegida")
-    ax.plot(a["evals_medios"], a["hv_medio"], "D", ms=8, mfc="none", color="k", label="actual")
+    ax.plot(a["evals_medios"], a["hv_medio"], "D", ms=8, mfc="none", color="k", label="de partida")
+    ax.axhline(max(x["hv_medio"] for x in r) - d["umbral_hv"], color=GRIS, ls=":", lw=1)
     ax.set_xscale("log")
     ax.set_xlabel("evaluaciones por lista (población × generaciones)")
     ax.set_ylabel("hipervolumen / frente exacto")
@@ -96,7 +97,13 @@ def fig_pesos():
     w = [d["pesos"][c] for c in cs]
     err = [[d["pesos"][c] - d["ic95"][c][0] for c in cs], [d["ic95"][c][1] - d["pesos"][c] for c in cs]]
     ax.bar(x - 0.2, w, 0.4, yerr=err, capsize=3, color=AZUL, label="encuesta P21 (IC 95 %)")
-    ax.bar(x + 0.2, [d["pesos_anteriores_del_codigo"][c] for c in cs], 0.4, color=GRIS, label="valores anteriores del código")
+    ax.bar(
+        x + 0.2,
+        [d["pesos_anteriores_del_codigo"][c] for c in cs],
+        0.4,
+        color=GRIS,
+        label="valores anteriores del código",
+    )
     ax.set_xticks(x, cs)
     ax.set_ylabel("peso")
     ax.legend(fontsize=8)
@@ -107,13 +114,21 @@ def fig_pesos():
 def fig_sensibilidad():
     d = leer("sensibilidad.json")
     fig, ax = plt.subplots(figsize=(6, 4))
-    for s, color in zip(sorted({c["sobreprecio"] for c in d["celdas"]}), (GRIS, AZUL, NARANJA, "#548235"), strict=False):
+    for s, color in zip(
+        sorted({c["sobreprecio"] for c in d["celdas"]}), (GRIS, AZUL, NARANJA, "#548235"), strict=False
+    ):
         cs = [c for c in d["celdas"] if c["sobreprecio"] == s]
         ax.errorbar(
             [c["sd_componente_precio"] for c in cs],
             [c["estable_medio"] for c in cs],
-            yerr=[[c["estable_medio"] - c["ic95"][0] for c in cs], [c["ic95"][1] - c["estable_medio"] for c in cs]],
-            marker="o", capsize=3, color=color, label=f"sobreprecio {s:.0%}",
+            yerr=[
+                [c["estable_medio"] - c["ic95"][0] for c in cs],
+                [c["ic95"][1] - c["estable_medio"] for c in cs],
+            ],
+            marker="o",
+            capsize=3,
+            color=color,
+            label=f"sobreprecio {s:.0%}",
         )
     ax.set_xlabel("desviación estándar de la perturbación del peso de precio")
     ax.set_ylabel("fracción con el mismo kit recomendado")
@@ -127,8 +142,16 @@ def fig_tau():
     d = leer("tau.json")
     fig, ax = plt.subplots(figsize=(6, 3.5))
     c = d["curva"]
-    ax.plot([x["tau"] for x in c], [x["precision"] for x in c], "o-", color=AZUL, label="precisión de lo aceptado")
-    ax.plot([x["tau"] for x in c], [x["fraccion_aceptada"] for x in c], "s-", color=NARANJA, label="fracción aceptada")
+    ax.plot(
+        [x["tau"] for x in c], [x["precision"] for x in c], "o-", color=AZUL, label="precisión de lo aceptado"
+    )
+    ax.plot(
+        [x["tau"] for x in c],
+        [x["fraccion_aceptada"] for x in c],
+        "s-",
+        color=NARANJA,
+        label="fracción aceptada",
+    )
     ax.axvline(0.75, color=GRIS, ls=":")
     ax.set_xlabel("τ")
     ax.legend(fontsize=8)
@@ -136,8 +159,27 @@ def fig_tau():
     fig.savefig(SAL / "tau.png", dpi=150)
 
 
+def fig_hipervolumen():
+    d = leer("hipervolumen_prueba.json")
+    perfiles = d["hv_relativo_por_perfil"]
+    nombres = list(perfiles)
+    fig, ax = plt.subplots(figsize=(6, 3.5))
+    x = np.arange(len(nombres) + 1)
+    medias = [d["razon_hv_frente_media"]] + [perfiles[p]["media"] for p in nombres]
+    ics = [d["razon_hv_frente_ic95"]] + [perfiles[p]["ic95"] for p in nombres]
+    err = [
+        [m - i[0] for m, i in zip(medias, ics, strict=True)],
+        [i[1] - m for m, i in zip(medias, ics, strict=True)],
+    ]
+    ax.bar(x, medias, 0.6, yerr=err, capsize=3, color=[AZUL] + [NARANJA] * len(nombres))
+    ax.set_xticks(x, ["frente"] + nombres)
+    ax.set_ylabel("hipervolumen / frente exacto")
+    fig.tight_layout()
+    fig.savefig(SAL / "hipervolumen_prueba.png", dpi=150)
+
+
 if __name__ == "__main__":
-    for f in (fig_umbral, fig_rejilla, fig_pesos, fig_sensibilidad, fig_tau):
+    for f in (fig_umbral, fig_rejilla, fig_pesos, fig_sensibilidad, fig_tau, fig_hipervolumen):
         try:
             f()
             print("ok", f.__name__)
