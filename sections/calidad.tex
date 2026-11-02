@@ -1,4 +1,46 @@
 \subsection{Resumen del control de calidad}
 \label{sec:calidad-resumen}
 
-En esta sección se resumen las pruebas de unidad, integración, sistema y aceptación del sistema construido.
+En esta sección se resumen los cuatro niveles del control de calidad sobre el sistema construido,
+con las cifras de la última corrida completa, que se hizo el 2 de noviembre de 2026 sobre la rama
+\texttt{validacion/oe5} después de los commits que cierran los hallazgos de seguridad y llevan los
+filtros duros al optimizador (\texttt{a201f4c} a \texttt{976deb1}). Las cifras de la versión de
+integración del 8 de octubre (Sección~\ref{sec:calidad}) y las de la primera corrida del control de
+calidad (\texttt{a664810}, con 2.573 pruebas Python) quedan como antecedentes: cuando difieren, vale
+la corrida del 2 de noviembre, porque es la que corresponde al código entregado.
+
+\paragraph{Unidad e integración.} En esa corrida pasaron 2.542 pruebas Python, ninguna falló y una
+quedó saltada. La saltada es la prueba en vivo del asistente NL2C, que necesita la llave del modelo
+y por eso se evalúa aparte (Sección~\ref{sec:nl2c}). Las pruebas de fronteras entre servicios dieron
+75 aprobadas y una saltada, y en la parte web pasaron 86 pruebas de la aplicación de acudientes,
+57 del panel de administración y 67 del contrato entre la web y la API, con la verificación de tipos
+limpia en los tres proyectos. La cobertura de sentencias, medida con \texttt{pytest-cov}, fue de
+77\,\% en identidad, 54\,\% en catálogo, 88\,\% en inteligencia, 83\,\% en comercio, 81\,\% en
+operación, 98\,\% en la puerta de enlace y 85\,\% en la biblioteca común. Ningún servicio tiene un
+umbral de cobertura que haga fallar la integración, así que estas cifras describen el estado y no
+una meta cumplida. Después de las fusiones de ese mismo día se repitieron solo algunas suites, y se
+citan como corridas parciales: inteligencia con 643 pruebas aprobadas, comercio con 278, el contrato
+con 68 de 68 y la web con 107 de 107.
+
+\paragraph{Sistema.} La prueba de humo, que levanta todos los servicios y recorre el flujo
+principal, pasó sus 20 comprobaciones. La carga de lectura sobre el catálogo, con 1 a 20 usuarios
+concurrentes, no tuvo errores, con un percentil 95 entre 9,6 y 48,7~ms y un máximo de 962
+peticiones por segundo. Esa prueba no cubre la meta DP-02, que pide 50 acudientes concurrentes
+generando kits y pagando. A través de la puerta de enlace, con cinco usuarios, 1.200 peticiones
+recibieron una respuesta exitosa y 30.257 recibieron el código 429, es decir, el limitador de tasa actuó como
+se diseñó. En seguridad, la auditoría de dependencias de las dos aplicaciones web quedó en cero
+vulnerabilidades y la lectura de un kit ajeno, que antes era posible por identificador, ahora
+responde 401 sin sesión y 404 con otra cuenta. De los seis hallazgos de esa revisión, cuatro se
+cerraron, uno es parcial (los avisos del analizador estático bajaron de 62 a 51) y uno sigue
+abierto, un token que quedó en el historial del repositorio.
+
+El recorrido de extremo a extremo con pago simulado tuvo un resultado distinto en dos corridas. El 1
+de noviembre el pedido llegó a «pagado» y la solicitud de retracto se aceptó. En la corrida del 2 de
+noviembre el pedido quedó en «pendiente de pago», porque la consulta del estado de la transacción
+respondió que no existía y el retracto respondió con un conflicto (409). Por eso no se afirma que el
+recorrido completo pase de forma estable \pendienteEvidencia{repetir e2e con pago simulado}. No se
+ejecutó el pago con las llaves de sandbox de Wompi, ni pruebas en dispositivos, ni una auditoría de
+dependencias de Python.
+
+\paragraph{Aceptación.} El cuarto nivel es la evaluación con acudientes del OE5, que se presenta a
+continuación.

@@ -13,8 +13,8 @@ sus clases.\par
 
 En Bogotá hay más de 1,17 millones de estudiantes matriculados
 \citep{noauthor_estadisticas_nodate}, y este proyecto estudió el problema de cerca en el
-Colegio Agustiniano Ciudad Salitre. Una encuesta a sus acudientes, con 60 respuestas
-válidas, mostró que el 65\,\% dedica cuatro horas o más a la compra, que el 68,3\,\% compra
+Colegio Agustiniano Ciudad Salitre. Una encuesta a sus acudientes, con 65 respuestas
+recibidas y 60 analizables, mostró que el 65\,\% dedica cuatro horas o más a la compra, que el 68,3\,\% compra
 en tres o más lugares y que la queja más frecuente es no encontrar el producto o que esté
 agotado (43,3\,\%). Las entrevistas con directivos, docentes y acudientes confirmaron esa
 fricción.
@@ -55,9 +55,10 @@ cualquier producto antes de pagar en línea. Para llegar a esos kits, el sistema
 Esta estrategia toma de un esquema RAG la indexación del catálogo y la recuperación de los
 productos, pero en lugar de que un modelo de lenguaje redacte la respuesta, los kits los
 construye el optimizador y el equipo de Tukit los revisa antes de publicarlos
-(\emph{human-in-the-loop}). Todo corre sobre una arquitectura de seis servicios con cinco
-bases de datos, elegida entre tres alternativas con el método ATAM
-\citep{bass_software_2021}.\par
+(\emph{human-in-the-loop}). Todo corre sobre cinco servicios de dominio con base propia y una
+puerta de enlace, es decir, seis desplegables con código. El diseño previó un séptimo, la ingesta,
+que el sistema construido reemplazó por un catálogo curado. La arquitectura se eligió entre tres
+alternativas con el método ATAM \citep{bass_software_2021}.\par
 
 El trabajo siguió una metodología híbrida contenedora organizada en cinco fases, una por cada
 objetivo específico. SCRUM \citep{schwaber_scrum_2020} organizó la construcción en ciclos de

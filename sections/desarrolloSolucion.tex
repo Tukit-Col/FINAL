@@ -358,8 +358,12 @@ pestaña y Wompi lo devuelve a la página de resultado. Comercio firma los datos
 solo la referencia, el identificador, el estado y el medio de la transacción (ADR 0010). La
 confirmación llega por el aviso de la pasarela y por la consulta de la transacción al regresar, y
 las dos pasan por el mismo procedimiento idempotente (ADR 0025). El acudiente elige el medio dentro
-del widget, de modo que Tukit no da a PSE la prioridad que preveía el ADR 0010. La dirección de
-entrega se completa con Google Places y, sin ese servicio, se escribe a mano (ADR 0035).
+del widget, así que Tukit no da a PSE la prioridad que preveía el ADR 0010.
+\item \textbf{Dirección.} Con una llave de Google, el servicio sugiere direcciones (ADR 0044).
+Sin ella, el acudiente pulsa «Buscar», el servidor consulta OpenStreetMap con Nominatim, a una
+consulta cada 1,1~s, y el acudiente confirma el punto en un mapa (ADR 0049). Nominatim prohíbe el
+autocompletado, y como OpenStreetMap tiene menos numeración de casas, muchas búsquedas dan la calle
+y no el portón; por eso la confirmación en el mapa es parte de la decisión.
 \end{itemize}
 
 El panel de administración recibió, en la misma integración, el detalle completo del pedido (con el
@@ -369,10 +373,10 @@ logística con el consolidado por colegio. El mapa usa OpenStreetMap con Leaflet
 geocodifican en el servidor con Nominatim, a una consulta por segundo, una sola vez por dirección y
 con caché también de las que no se encuentran, para cumplir su política de uso.
 
-El flujo de pago se verificó en el entorno de pruebas (\emph{sandbox}) de la pasarela con tarjeta,
-Nequi y PSE\pendienteEvidencia{pago de extremo a extremo en el sandbox de Wompi}. El cobro con dinero
-real depende del despliegue productivo y se delimitó como trabajo futuro
-(Sección~\ref{sec:trabajo-futuro}).
+El flujo de pago se probó con la pasarela en modo simulado (\texttt{WOMPI\_MODO=falso}), que es
+el modo por omisión del sistema. La prueba con las llaves del entorno de pruebas (\emph{sandbox})
+de Wompi queda pendiente\pendienteEvidencia{pago de extremo a extremo en el sandbox de Wompi}, y
+el cobro con dinero real depende del despliegue productivo (Sección~\ref{sec:trabajo-futuro}).
 
 % Contenido que llega de otras sesiones (calibracion y MAUT; NL2C).
 \input{sections/optimizacion}

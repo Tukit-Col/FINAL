@@ -90,9 +90,15 @@ entrada, el inicio del pedido y la página del kit, pero en la versión que usar
 la ronda 2 de OE5 solo se monta en la página del kit, como el asistente que recibe pedidos de cambio
 del tipo «más barato en cuadernos». En el inicio el equipo dejó el formulario guiado, porque el
 acudiente todavía no ha visto ningún kit y el formulario le muestra de una vez qué puede elegir. El
-servicio de interpretación es el mismo en los dos casos, de modo que la evaluación de esta sección
+servicio de interpretación es el mismo en los dos casos, así que la evaluación de esta sección
 vale para el asistente del kit; el panel del inicio sigue en el código detrás de una bandera
 apagada.
+
+Después de la ronda 3, el asistente cambió sin cambiar sus barandas. Ante un pedido por categoría,
+como «más barato en cuadernos», el modelo solo clasifica la acción y la categoría, y reglas del
+servidor eligen renglones, producto y precio, con hasta 12 propuestas y el ahorro total; «Aceptar
+todos» envía cambios individuales con la sesión del acudiente. El contexto se reduce a la acción y
+la categoría anteriores, validadas contra el kit, y el modelo no recibe datos personales.
 
 \paragraph{Evaluación.} El asistente se midió con 35 frases en español, 22 de la encuesta y 13
 construidas, cuya etiqueta de oro se escribió antes de correr el modelo, y con 27 ataques de
@@ -114,11 +120,19 @@ preregistrado; en esa condición las dos rondas dieron 6 evaluaciones y 0 éxito
 servicios levantados, 4 pedidos contra un kit real de 36 renglones dieron la respuesta esperada en
 786 a 885~ms cada uno, lo que con $n=4$ es una comprobación de funcionamiento y no una tasa.
 
+El arnés sin conexión, que usa un modelo que obedece toda orden hostil y mide solo las barandas,
+da 7 éxitos en 27 ataques, igual antes y después del cambio: cinco son ecos del propio texto del
+acudiente y dos son propuestas válidas que él no pidió, que detiene su confirmación. Es el peor caso
+de las barandas y no se compara con el 0 de 81 del modelo real; la ronda en vivo con Gemini sobre el
+asistente nuevo queda \textbf{[PENDIENTE: ronda en vivo con el asistente por categoría]}.
+
 \paragraph{Limitaciones.} Con 0 éxitos en 81 intentos, el límite superior del intervalo de confianza
-del 95\,\% es de cerca de 3,7\,\% (regla de tres), de modo que solo se puede afirmar que no se encontró
+del 95\,\% es de cerca de 3,7\,\% (regla de tres), por lo que solo se puede afirmar que no se encontró
 un ataque exitoso con estos casos. Las repeticiones a temperatura 0 no son independientes, el modelo
 y la fecha son uno solo, el kit y el catálogo de las rondas son sintéticos y los ataques los escribió
-quien construyó las defensas. Por último, hay una brecha de integración: \texttt{marcas\_excluidas} y
-\texttt{solo\_disponibles} se interpretan y se le muestran al acudiente, pero todavía no llegan al
-optimizador, porque la traducción a sus preferencias solo transmite el presupuesto, los pesos, el
-sobreprecio, el estilo de gasto y los personajes.
+quien construyó las defensas. Los filtros duros sí llegan al optimizador (commit \texttt{0059f6d}):
+\texttt{marcas\_excluidas} y \texttt{solo\_disponibles} se aplican antes del frente de Pareto, y
+también en el carrusel de opciones y en el cambio de producto, pero no quitan una marca que el
+colegio exige en el renglón. La ruta rápida, que publica el kit canónico sin recalcular, los
+rechaza con el error 422 \texttt{filtros\_requieren\_recalculo}. Su límite es que
+\texttt{solo\_disponibles} usa la oferta activa con precio vigente y no el inventario por tienda.

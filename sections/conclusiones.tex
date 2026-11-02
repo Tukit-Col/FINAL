@@ -10,7 +10,11 @@ En esta sección se analiza el impacto del trabajo en dos planos. Primero se des
 
 Además del sistema construido, el trabajo deja tres prácticas de ingeniería trasladables a otros proyectos, cada una con su límite. Primero, la arquitectura se eligió comparando alternativas con el método ATAM \citep{bass_software_2021}: un monolito modular, microservicios de grano fino y la variante de grano grueso adoptada, que obtuvo 3,91 sobre 5 en la matriz ponderada frente a 3,44 y 2,82 (el acta del segundo objetivo registraba 4,27 con otro conjunto de alternativas). La decisión se apoyó en impulsores comprobables (recuperabilidad asimétrica, frontera de cumplimiento y perfil de recurso heterogéneo) y no en la escalabilidad invocada al principio, que el cálculo de carga descartó por órdenes de magnitud.
 
-Segundo, el sistema se auditó más allá de sus requisitos funcionales. La auditoría de autorización encontró 22 de 152 puntos de entrada sin una comparación completa de ámbito, y la de datos personales, catorce hallazgos. El sistema construido corrigió una parte y reemplazó las políticas de fila del ADR 0015 por un control de ámbito en la aplicación; los anexos registran la situación de cada hallazgo y la Sección~\ref{sec:defectos} reúne los que siguen abiertos. Tercero, las fronteras entre servicios pasaron de convención documental a funciones de aptitud ejecutables \citep{ford_building_2017}: doce pruebas contrastan el código con el manifiesto y otras veintiocho comprueban que detectan infracciones plantadas. La integración continua las ejecuta, aunque 11 de sus 12 ejecuciones registradas hasta fines de septiembre fallaron y su estado en la versión evaluada no se comprobó. Las tres prácticas sirven a un proyecto que deba sostener ante terceros que su diseño hace lo que declara, siempre que el seguimiento de los hallazgos forme parte del método.
+Segundo, el sistema se auditó más allá de sus requisitos funcionales. La auditoría de autorización encontró 22 de 152 puntos de entrada sin una comparación completa de ámbito, y la de datos personales, catorce hallazgos. El sistema construido corrigió una parte y reemplazó las políticas de fila del ADR 0015 por un control de ámbito en la aplicación; los anexos registran la situación de cada hallazgo y la Sección~\ref{sec:defectos} reúne los que siguen abiertos.
+
+Tercero, las fronteras entre servicios pasaron de convención documental a funciones de aptitud ejecutables \citep{ford_building_2017}: doce pruebas contrastan el código con el manifiesto y otras veintiocho comprueban que detectan infracciones plantadas. La integración continua las ejecuta, aunque 11 de sus 12 ejecuciones registradas hasta fines de septiembre fallaron y su estado en la versión evaluada no se comprobó.
+
+Las tres prácticas sirven a un proyecto que deba sostener ante terceros que su diseño hace lo que declara, siempre que el seguimiento de los hallazgos forme parte del método.
 
 \subsubsection{Impacto en contextos globales, económicos, ambientales y sociales}
 
@@ -22,7 +26,8 @@ los mismos artículos sobre 3.608 renglones reunidos de 17 colegios), y cada hog
 interpreta por su cuenta. Si el sistema reduce ese esfuerzo, el efecto sería económico, al
 facilitar la comparación de precios y sustitutos que el proceso manual no ofrece, y de tiempo
 para las familias en las semanas de mayor presión del calendario escolar. Ese efecto y la carga
-cognitiva son lo que mide el OE5 (Sección~\ref{sec:oe5})\pendienteEvidencia{resultados SUS, NPS y carga cognitiva del OE5 para el impacto social}. El modelo de negocio adoptado
+cognitiva son lo que mide el OE5 (Sección~\ref{sec:oe5}), cuyos resultados sumativos quedan
+\textbf{[PENDIENTE: resultados ronda 2]}. El modelo de negocio adoptado
 \citep{osterwalder_business_2010}, B2B2C, distribuye ese valor sin imponer un costo al colegio:
 la institución no paga por participar, y el ingreso proviene de la compra del acudiente. En el
 contexto colombiano, donde la capacidad de pago de las instituciones y de sus hogares es
@@ -52,10 +57,10 @@ estado.
 OE & Evidencia & Sección & Estado \\
 \midrule
 OE1 & Corpus de 17 colegios, 3.608 renglones, 1.451 formas de nombrar y 99 conceptos canónicos; encuesta (n=60) & Cap.~III y IV & Cumplido \\
-OE2 & Comparación ATAM de tres alternativas, árbol de utilidad de 17 escenarios, vistas 4+1 y 38 ADR & Cap.~V & Cumplido \\
+OE2 & Comparación ATAM de tres alternativas, árbol de utilidad de 17 escenarios, vistas 4+1 y 49 ADR & Cap.~V & Cumplido \\
 OE3 & F1 micro de 0,948 en lectura (CGS-10); resolución con $\tau=0{,}75$ declarado sin calibrar; NL2C con 58 de 70 tareas y 0 de 81 ataques exitosos & Sec.~\ref{sec:percepcion}, \ref{sec:optimizacion-cal} y~\ref{sec:nl2c} & Cumplido, con las amenazas de la Sec.~\ref{sec:amenazas} \\
-OE4 & Optimizador de cuatro objetivos, igualdad con el óptimo exacto en 174 listas, MAUT con pesos de la P21, hipervolumen de 0,9969 del exacto y aplicación web con pago de pruebas & Sec.~\ref{sec:optimizacion} y~\ref{sec:optimizacion-cal} & Ver Sec.~\ref{sec:optimizacion}\pendienteEvidencia{estado OE4} \\
-OE5 & Pruebas de unidad, integración, sistema y aceptación con usuarios (SUS, NPS, RTLX) & Sec.~\ref{sec:control-calidad} y~\ref{sec:oe5} & Ver Sec.~\ref{sec:oe5}\pendienteEvidencia{estado OE5} \\
+OE4 & Optimizador de cuatro objetivos, igualdad con el óptimo exacto en 174 listas, MAUT con pesos de la P21, hipervolumen de 0,9969 del exacto y aplicación web con pago en modo simulado & Sec.~\ref{sec:optimizacion} y~\ref{sec:optimizacion-cal} & Cumplido; pago en \emph{sandbox} pendiente \\
+OE5 & Pruebas de unidad, integración, sistema y aceptación con usuarios (SUS, NPS, RTLX) & Sec.~\ref{sec:control-calidad} y~\ref{sec:oe5} & \textbf{[PENDIENTE: ronda 2]} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -65,7 +70,7 @@ cubren cerca del 80\,\% de los renglones observados: el dominio es heterogéneo 
 pero tiene una estructura tratable. El OE2 se cumplió porque las decisiones de arquitectura se
 justificaron con ATAM \citep{bass_software_2021}, vistas 4+1 \citep{kruchten_41_1995} y la norma
 ISO/IEC/IEEE 42010 \citep{iso_42010_2022}; el diseño previó siete desplegables y el sistema
-construido tiene seis, agrupados por razón de cambio, sobre cinco bases de datos (ADR 0013).
+construido tiene seis con código, porque la ingesta se reemplazó por el catálogo curado, agrupados por razón de cambio, sobre cinco bases de datos (ADR 0013).
 
 El OE3 se cumplió con un cambio de diseño entre los prototipos y el sistema construido. En
 percepción, el modelo multimodal superó al reconocimiento con reglas (F1 micro de 0,948 frente a
@@ -89,7 +94,10 @@ continuación.
 \begin{enumerate}
 \item \textbf{Alianza con tiendas de uniformes e integración de libros.} Alianza con las tres
 tiendas de uniformes y flujo con Buscalibre y las editoriales de textos escolares. Quedó fuera
-porque este trabajo se centró en un solo negocio, el de útiles y papelería.
+porque este trabajo se centró en un solo negocio, el de útiles y papelería. Hoy el plan lector cubre poco: de las 78 líneas del concepto de libros (C134)
+en las listas revisadas, solo 18 traen ISBN y tienen su edición en el catálogo, 57 son títulos sin
+edición identificada que el sistema indica comprar en librería y 3 no se compran. Es un límite de
+cobertura del catálogo de libros y no del emparejamiento.
 \item \textbf{Aplicaciones nativas y modo sin conexión.} El acudiente usa una aplicación web
 progresiva; las aplicaciones nativas y el modo sin conexión amplían su alcance, pero no cambian el
 algoritmo que se evaluó.

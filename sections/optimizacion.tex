@@ -72,6 +72,10 @@ fase es la función \texttt{elegir\_recomendado\_maut}, y la regla de recomendac
 decidir el Premium: lo marca cuando el acudiente acepta al menos un 10\,\% de sobreprecio y MAUT lo
 prefiere al Ahorrador. El Algoritmo~\ref{alg:frente-maut} reúne las dos fases.
 
+El Fan no es un quinto objetivo, sino una regla de presentación posterior al frente: para cada hijo
+y concepto, el producto de personaje va una vez en la línea donde mejor encaja sin contradecir sus
+atributos exigidos, y solo se repite donde la línea pide surtido, con costo $O(n\cdot a)$.
+
 \begin{algorithm}[H]
 \caption{Construcción del frente y selección del kit recomendado}
 \label{alg:frente-maut}
@@ -98,15 +102,16 @@ $K\leftarrow\{\mathbf{x}\in D : f_1(\mathbf{x})\leq B,\ f_1(\mathbf{x})\leq(1+\s
 
 \paragraph{Complejidad y comparación con el método exhaustivo.} El exhaustivo visita las $S$
 asignaciones y evalúa en cada una $M$ objetivos, con un costo de $\Theta(S\cdot M)$ evaluaciones, y
-luego filtra los $U\leq S$ vectores distintos comparándolos por pares, con un costo de $O(U^2M)$ en
+luego filtra los $V\leq S$ vectores distintos comparándolos por pares, con un costo de $O(V^2M)$ en
 el peor caso; su tiempo crece, por tanto, con el tamaño del espacio. NSGA-II, en cambio, ordena en
-cada generación $2N$ individuos con un costo de $O(MN^2)$ \citep{deb_fast_2002}, de modo que su
+cada generación $2N$ individuos con un costo de $O(MN^2)$ \citep{deb_fast_2002}, así que su
 total es $O(G\cdot M\cdot N^2)$ y no depende de $S$; a cambio, el frente que devuelve es una
 aproximación. MAUT recorre el frente un número constante de veces, con un costo de
-$O(|\mathcal{P}|\,M)$, despreciable frente a la construcción del frente. Si se igualan los dos
-costos con la población y las generaciones típicas cerca del umbral ($n=\calNTipico$, $N=\calPobTipica$
-y $G=\calGenTipica$), el cruce queda entre $N\sqrt{G}\approx 2^{\calSTeoricoLog}$, con el filtro en
-su peor caso, y $GN^2\approx 2^{\calSCuadradoLog}$, con la evaluación como operación dominante. La
+$O(|\mathcal{P}|\,M)$, despreciable frente a la construcción del frente. Para saber desde qué tamaño conviene NSGA-II se igualan los dos costos, con la población y las
+generaciones típicas cerca del umbral ($n=\calNTipico$, $N=\calPobTipica$ y $G=\calGenTipica$). Si
+domina el filtro en su peor caso, con $V=S$, la igualdad $S^2M=GMN^2$ da $S=N\sqrt{G}=42\cdot 6=252\approx
+2^{\calSTeoricoLog}$. Si domina la evaluación, la igualdad $SM=GMN^2$ da $S=GN^2=36\cdot
+1.764=63.504\approx 2^{\calSCuadradoLog}$. El cruce queda, entonces, entre esos dos valores. La
 teoría no lo precisa más porque las constantes de cada operación son distintas, así que el umbral
 se fijó con la medición.
 

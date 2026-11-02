@@ -290,8 +290,13 @@ quedan en claro porque de ellas depende la asignación de la zona de reparto, mi
 la calle, el número y el teléfono se cifran en la aplicación: planificar una ruta requiere
 conocer la zona, no el apartamento. En el sistema construido esa partición rige para la
 libreta, que guarda cifrados la dirección y el contacto. La copia del envío conserva el
-destinatario y la dirección en claro, como prueba ante un reclamo de la Ley 1480 de 2011, de
-modo que la minimización por columna no cubre todavía el dato congelado.
+destinatario y la dirección en claro, como prueba ante un reclamo de la Ley 1480 de 2011. Desde el
+ADR 0049 guarda además la latitud y la longitud del punto confirmado en el mapa, ambas nulables:
+los pedidos anteriores y los que usan Google quedan sin coordenadas. El ADR 0044 había descartado
+guardarlas por los términos de Google, mientras que la licencia ODbL de OpenStreetMap sí lo
+permite. La supresión del titular borra las dos columnas y la firma del pedido las incluye, para
+que un cambio posterior se note. Aun así, la minimización por columna no cubre todavía el dato
+congelado.
 
 % =====================================================================
 \subsection{Organización del código y funciones de aptitud}
@@ -300,7 +305,7 @@ modo que la minimización por columna no cubre todavía el dato congelado.
 \subsubsection{Un repositorio no es un desplegable}
 
 La implementación se organiza en un monorrepositorio con seis desplegables independientes
-(ADR 0013). La decisión exige justificación porque contradice la asociación habitual entre
+con código (ADR 0013); el séptimo previsto, la ingesta, se reemplazó por el catálogo curado. La decisión exige justificación porque contradice la asociación habitual entre
 microservicio y repositorio, asociación que carece de fundamento normativo. La norma
 ISO/IEC/IEEE 42010 \citep{iso_42010_2022} compone una descripción arquitectónica de vistas
 que responden a preocupaciones distintas, y el modelo 4+1 \citep{kruchten_41_1995} separa
@@ -361,7 +366,7 @@ Anexo~\ref{anx:ampliaciones}.
 Las decisiones arquitectónicas se documentan como registros en el formato propuesto por
 Nygard \citep{nygard_documenting_2011} (título, contexto, decisión, estado y consecuencias),
 al que el proyecto añade un apartado de alternativas consideradas. La entrega reúne
-treinta y ocho registros, numerados de 0001 a 0038, en el registro de decisiones de
+cuarenta y nueve registros, numerados de 0001 a 0049, en el registro de decisiones de
 arquitectura (Tabla~\ref{tab:anexos}); la Tabla~\ref{tab:adr} destaca los que estructuran el
 diseño de este capítulo.
 

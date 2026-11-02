@@ -1,4 +1,81 @@
 \subsection{Evaluación con usuarios}
 \label{sec:oe5}
 
-En esta sección se presentan los resultados de la evaluación del sistema con acudientes reales.
+En esta sección se presenta la evaluación del sistema con acudientes, que corresponde al OE5 y al
+nivel de aceptación del control de calidad. Primero se describen el método y los instrumentos,
+luego las dos rondas y la regla que decide qué se reporta, y al final las amenazas a la validez.
+El plan de análisis se preregistró el 28 de octubre de 2026 en el repositorio
+(\texttt{docs/validacion/plan\_analisis\_oe5.md}), antes de la primera sesión, y fija las
+variables, los criterios y las pruebas estadísticas que se aplican.
+
+\paragraph{Método.} Cada sesión es una prueba de usabilidad moderada y remota con pensamiento en voz
+alta \citep{lazar_research_2017}: el acudiente comparte pantalla, recibe tareas sin instrucciones de
+cómo hacerlas y dice lo que piensa mientras las hace. El moderador solo ayuda cuando pasan 90
+segundos sin avance, y cada tarea se codifica como éxito sin ayuda (S), éxito con ayuda (A), fallo
+(F) o no intentada (N). Las tareas siguen la compra de un kit: crear la cuenta y elegir colegio y
+grado (T1), declarar preferencias (T2), esperar la generación (T3), elegir un kit (T4), cambiar un
+producto (T5), pagar (T6) y encontrar el pedido (T7). T1, T4 y T6 son las críticas. El pago usa la
+pasarela en modo simulado (\texttt{WOMPI\_MODO=falso}) y una tarjeta de prueba, de modo que ningún
+participante paga con dinero real. La versión evaluada se congela durante cada ronda: los problemas
+que aparecen se anotan, pero no se corrigen entre sesiones de la misma ronda.
+
+\paragraph{Instrumentos.} La medida principal de carga cognitiva es el número de interacciones
+discretas que requiere cada tarea, que se cuenta en la grabación. Como medida complementaria se usa
+el RTLX, la versión sin ponderar del NASA-TLX \citep{hart_development_1988,hart_nasa_2006}, con sus
+seis subescalas de 0 a 10. El acudiente lo responde dos veces: una sobre su última compra de útiles
+por el canal tradicional y otra sobre la compra con TUKIT, lo que da una comparación pareada. Al
+terminar cada tarea responde la pregunta única de facilidad (SEQ, de 1 a 7). Al final responde la
+escala SUS de diez ítems \citep{brooke_sus_1996}, que se interpreta con el umbral de 68
+\citep{bangor_empirical_2008}, y la pregunta de recomendación neta (NPS, de 0 a 10)
+\citep{reichheld_one_2003}, más preguntas abiertas sobre medio de pago y disposición a pagar un
+sobreprecio.
+
+\paragraph{Criterios preregistrados.} El OE5 se da por cumplido solo si se cumplen los tres
+criterios principales. C1 pide que la media del SUS sea de al menos 68 y que el límite inferior de
+su intervalo de confianza del 95\,\% supere 68. C2 pide que la diferencia pareada del RTLX entre el
+canal tradicional y TUKIT tenga un intervalo que excluya el cero y un tamaño de efecto $d_z$ de al
+menos 0,5. C3 pide al menos un 80\,\% de éxito sin ayuda en T1, T4 y T6, con intervalo de Wilson.
+Como criterios secundarios, el NPS debe ser positivo según un \emph{bootstrap} de 10.000
+remuestreos, y el SEQ y las subescalas del RTLX se analizan como exploratorios, con la prueba de
+Wilcoxon y la corrección de Holm. Un segundo codificador recodifica el 30\,\% de las sesiones, con
+una meta de $\kappa\geq 0{,}6$.
+
+\paragraph{Participantes y rondas.} El reclutamiento es por conveniencia y bola de nieve entre
+acudientes de colegios de Bogotá, con un único moderador. El mínimo es de cinco participantes por
+ronda, que en una prueba formativa basta para encontrar la mayoría de los problemas de uso
+\citep{nielsen_estimating_1994}; con menos de 20 participantes, los resultados se leen como
+exploratorios. La evaluación tiene dos rondas, que no se mezclan en el análisis. La ronda 1, formativa,
+se hizo entre el 29 y el 31 de octubre de 2026 con consentimiento verbal grabado al inicio de cada
+sesión, y su propósito fue encontrar problemas de uso antes de la ronda sumativa
+\textbf{[PENDIENTE: número de participantes y problemas encontrados en la ronda 1]}. La ronda 2,
+sumativa, se hizo el 2 de noviembre de 2026 sobre la versión congelada \texttt{976deb1}, con
+sesiones de 15 minutos y consentimiento escrito antes de grabar, conforme a la Ley 1581 de 2012
+\citep{congreso_ley1581_2012}: los datos de investigación se eliminan 12 meses después de la
+aprobación del trabajo y las grabaciones a los 30 días.
+
+La regla de reporte se fijó antes de la ronda 2. Si la ronda 2 reúne al menos cinco sesiones
+completas, se reportan sus criterios; si no, solo se reporta la ronda 1, como formativa. Con entre
+cinco y nueve sesiones, C1 y C2 se informan como indicativos, y C3 con cinco participantes exige
+cuatro éxitos de cinco en cada tarea crítica.
+
+\textbf{[PENDIENTE: resultados ronda 2]} (número de sesiones completas, SUS con intervalo, RTLX
+pareado con $d_z$, éxito sin ayuda en T1, T4 y T6 con intervalo de Wilson, NPS, interacciones por
+tarea y acuerdo entre codificadores).
+
+\paragraph{Desviaciones del plan.} Se declaran seis desviaciones respecto del plan aprobado. El
+reclutamiento fue por bola de nieve y no a través del colegio; el formulario fue en línea; hubo una
+sola ronda sumativa y un solo moderador; el panel de privacidad salió de T7, y el kit A tu Medida se
+aprobó en la cola de revisión antes de las sesiones. Además, la ronda 2 agregó una tarea T8, pedirle
+un cambio al asistente del kit (Sección~\ref{sec:nl2c}), que no está en el plan preregistrado. Por
+eso T8 y su SEQ se reportan como exploratorios y no entran en C1 a C3. El análisis automatizado
+del plan tampoco lee todavía el SEQ ni T8, que se resumen de forma descriptiva.
+
+\paragraph{Amenazas a la validez.} La muestra es pequeña y de conveniencia, de modo que los
+resultados no se generalizan a los acudientes de Bogotá. Un solo moderador conduce y codifica, lo
+que puede sesgar la ayuda y la codificación, y por eso se recodifica una parte con un segundo
+codificador. Hay riesgo de contaminación entre participantes, porque varios acudientes pertenecen
+al mismo grupo de padres y pueden haber comentado la aplicación antes de su sesión. El RTLX del
+canal tradicional es retrospectivo y depende de la memoria del acudiente. La pantalla de pago
+simulado aprueba la transacción sola tras 1,2 segundos, así que T6 mide la navegación hasta el
+pago y no la interacción con una pasarela real. Por último, T8 se agregó después del
+preregistro y se trata solo como exploratoria.

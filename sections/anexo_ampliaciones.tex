@@ -139,14 +139,30 @@ La Tabla~\ref{tab:rag-fases} resume, por fase de CRISP-DM, las 84 estrategias de
 
 \input{sections/tabla_rag_fases.tex}
 
+\subsection*{Ampliación de la Sección VII: verificación de la versión del 8 de octubre}
+
+Las fases 0 a 6 corrieron sobre la versión de integración del 8 de octubre de 2026, cuyo código de
+producto es el mismo de la versión evaluada salvo la integración continua y dos valores por omisión
+de la base de datos. El primer nivel de las fases 7 a 9 corrió sobre la versión evaluada, en una
+sola corrida, en una máquina virtual de 4 procesadores y 8~GiB y con la percepción simulada; el
+simulador atendió 2.342 percepciones, sin ninguna llamada real al modelo. Con las pruebas que añadió
+la verificación pasaban 3.911, otras 129 eran fallas esperadas que documentan defectos y la
+cobertura subía a 94,32\,\%. La integración continua ejecuta las pruebas pero no mide la cobertura,
+y su estado en esa versión no se comprobó. De las 60 filas de la matriz que liga cada meta con su
+ensayo se ejecutaron 36; de las otras 24, 13 corresponden a los niveles 2 y 3, 2 dependen de un
+hallazgo ya anticipado, 8 requieren componentes que el sistema construido incorpora después y 1 es
+el protocolo con usuarios. Los 78 hallazgos abiertos se reparten en 14 de severidad alta, 56 media
+y 8 baja. En la telemetría, las trazas no llevan el identificador de correlación, así que una carga
+no se puede seguir de extremo a extremo.
+
 \subsection*{Ampliación de la Sección VII: carga, degradación y defectos de seguridad}
 
 El primer nivel de las fases 7 a 9 dejó 18 ensayos, de los que 14 cumplen y 4 no. En la carga, una
 rampa hasta 100 usuarios generó 27.894 peticiones sin errores, y el percentil 95 de la consulta del
 catálogo fue de 22~ms con un usuario y de 160~ms con cien, por debajo de los 300~ms de la meta. No
 hubo ningún rechazo por límite de tasa porque la versión evaluada no tenía limitador, de modo que en
-ella esa meta no se cumple; el sistema construido añade uno con Redis, cuya medición se incluye en la corrida completa
-\pendienteEvidencia{prueba de limite de tasa con Redis}. En la degradación, siete de diez caídas de un componente cumplieron: los demás servicios
+ella esa meta no se cumple; el sistema construido añade uno con Redis, que en la corrida del 2 de noviembre respondió 429 a
+30.257 peticiones que superaban el límite, con cinco usuarios a través de la puerta de enlace. En la degradación, siete de diez caídas de un componente cumplieron: los demás servicios
 siguieron respondiendo sin errores y se recuperaron en 2,5~s o menos. Con el catálogo colgado, el
 disyuntor abrió a los 26,3~s, dentro de los 30~s del escenario ESC-R2, porque cada intento falló
 en unos 5~s. Si cada intento agotara su espera, el modelo da 300,8~s desde inteligencia y 150,8~s
