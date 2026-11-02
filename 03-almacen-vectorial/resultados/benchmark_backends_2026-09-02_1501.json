@@ -1,0 +1,24 @@
+{
+    "timestamp": "2026-09-02T15:01:22.924290",
+    "device": "cpu",
+    "total_queries": 50,
+    "backends": {
+        "pgvector_exact_gt": {
+            "mean_latency_ms": 363.6794185638428,
+            "p50_latency_ms": 337.2061252593994,
+            "p95_latency_ms": 541.8809771537777
+        },
+        "faiss_hnswflat": {
+            "mean_latency_ms": 0.09820938110351562,
+            "p50_latency_ms": 0.019669532775878906,
+            "p95_latency_ms": 0.1496315002441404,
+            "mean_recall_at_10": 0.09999999999999998
+        },
+        "pgvector_hnsw": {
+            "mean_latency_ms": 5.063471794128418,
+            "p50_latency_ms": 4.916071891784668,
+            "p95_latency_ms": 6.22401237487793,
+            "mean_recall_at_10": 0.09999999999999998
+        }
+    }
+}
