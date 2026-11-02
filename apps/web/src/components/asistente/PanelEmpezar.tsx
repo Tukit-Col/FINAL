@@ -26,12 +26,20 @@ export interface RestriccionesConfirmadas {
   prioridad: "precio" | "equilibrio" | "calidad";
   pesos: Record<ClavePeso, number>;
   disposicion_sobreprecio: number;
+  // Filtros duros que el servidor ya validó; sin ellos el optimizador nunca se entera.
+  marcas_excluidas: string[];
+  solo_disponibles: boolean;
 }
 
 interface Propuesta {
   propuesta_id: string;
   ui: Componente[];
-  preferencias: { pesos: Record<ClavePeso, number>; disposicion_sobreprecio: number };
+  preferencias: {
+    pesos: Record<ClavePeso, number>;
+    disposicion_sobreprecio: number;
+    marcas_excluidas?: string[];
+    solo_disponibles?: boolean;
+  };
 }
 
 const EJEMPLOS = [
@@ -127,6 +135,8 @@ export default function PanelEmpezar() {
       prioridad: prioridadDeOrden(orden),
       pesos,
       disposicion_sobreprecio: propuesta.preferencias.disposicion_sobreprecio,
+      marcas_excluidas: propuesta.preferencias.marcas_excluidas ?? [],
+      solo_disponibles: propuesta.preferencias.solo_disponibles === true,
     };
     try {
       sessionStorage.setItem(CLAVE_ALMACEN, JSON.stringify(salida));
@@ -221,6 +231,8 @@ export default function PanelEmpezar() {
             personajes={propuesta.ui.flatMap((c) => (c.tipo === "TarjetaPersonaje" ? [c.props.nombre] : []))}
             presupuesto={presupuesto}
             orden={orden}
+            marcasExcluidas={propuesta.preferencias.marcas_excluidas ?? []}
+            soloDisponibles={propuesta.preferencias.solo_disponibles === true}
           />
           {confirmado ? (
             <p className={estilos.exito} role="status">

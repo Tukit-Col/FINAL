@@ -155,6 +155,15 @@ independientes, el modelo y la fecha son uno solo, el kit y el cat\'alogo de las
 escribi\'o quien construy\'o las defensas. Como el modelo intent\'o solo 6 de 81, las barandas se ejercitaron en pocos intentos;
 el resto lo cubren pruebas con un modelo doble obediente.
 
+\paragraph{Consumo de los filtros duros.} Los campos \cod{marcas\_excluidas} y \cod{solo\_disponibles} de $F$ llegan al
+optimizador. Se aplican a los candidatos de cada rengl\'on antes de calcular el frente de Pareto, no como un peso; la marca que el
+colegio nombra en el texto del rengl\'on se conserva, y un rengl\'on que se queda sin candidatos sale como hueco con un mensaje en
+lugar de usar la marca excluida. La ruta r\'apida que reutiliza un kit precalculado rechaza estos filtros y obliga a recalcular. Lo
+respaldan las pruebas \cod{test\_filtros\_duros.py} (por ejemplo \cod{test\_la\_marca\_no\_sale\_en\_ningun\_kit\_ni\_sus\_alternativas},
+\cod{test\_la\_marca\_que\_exige\_el\_colegio\_se\_conserva\_y\_se\_explica} y
+\cod{test\_linea\_sin\_candidatos\_queda\_como\_hueco\_con\_mensaje}) y \cod{test\_a\_preferencias\_pasa\_marcas\_excluidas\_y\_solo\_disponibles\_al\_optimizador}.
+Esta comprobaci\'on es de c\'odigo con datos de prueba y no mide el efecto sobre el cat\'alogo real.
+
 \bibliographystyle{plainnat}
 \bibliography{nl2c}
 

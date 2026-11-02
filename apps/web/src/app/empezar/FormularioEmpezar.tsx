@@ -42,6 +42,7 @@ import {
   CLAVE_RESTRICCIONES,
   aplicarPersonajes,
   cambiosDelAsistente,
+  filtrosDePreferencias,
   leerRestriccionesGuardadas,
 } from "@/lib/restricciones-asistente";
 import LogoColegio from "@/components/LogoColegio";
@@ -442,6 +443,12 @@ export default function FormularioEmpezar({
   // El tope solo existe en el punto medio: con las otras dos opciones el
   // campo no se muestra y lo que se haya escrito no viaja.
   const conTope = prioridad === "equilibrio" && Number.parseInt(presupuesto, 10) > 0;
+  // Filtros duros que dejó el asistente (marcas que no quiere, solo productos con
+  // oferta vigente). No hay campo para escribirlos a mano: llegan del asistente y
+  // aquí se ven y se pueden quitar antes de enviar.
+  const [marcasExcluidas, setMarcasExcluidas] = useState<string[]>([]);
+  const [soloDisponibles, setSoloDisponibles] = useState(false);
+  const hayFiltros = marcasExcluidas.length > 0 || soloDisponibles;
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Aviso NO bloqueante (ámbar): p.ej. no pudimos guardar los hijos nuevos en la
@@ -456,9 +463,20 @@ export default function FormularioEmpezar({
   useEffect(() => {
     function tomar(crudo: unknown) {
       const cambios = cambiosDelAsistente(crudo);
-      if (!cambios) return;
+      if (!cambios) {
+        // Una confirmación vacía (el acudiente quitó todo en el asistente) no debe
+        // dejar los filtros de la anterior: seguirían viajando en silencio. Sin
+        // payload (null) no hay confirmación y no se toca nada.
+        if (crudo && typeof crudo === "object") {
+          setMarcasExcluidas([]);
+          setSoloDisponibles(false);
+        }
+        return;
+      }
       if (cambios.prioridad) setPrioridad(cambios.prioridad);
       setPresupuesto(cambios.presupuesto);
+      setMarcasExcluidas(cambios.marcasExcluidas);
+      setSoloDisponibles(cambios.soloDisponibles);
       setHijos((actuales) => aplicarPersonajes(actuales, cambios.personajes));
     }
     tomar(leerRestriccionesGuardadas(typeof window === "undefined" ? undefined : window.sessionStorage));
@@ -611,6 +629,7 @@ export default function FormularioEmpezar({
       ...(Object.keys(personajePorHijo).length > 0
         ? { personaje_por_hijo: personajePorHijo }
         : {}),
+      ...filtrosDePreferencias(marcasExcluidas, soloDisponibles),
     };
 
     // Camino "soy nuevo usuario": ANTES de armar nada se da de alta la cuenta y
@@ -739,7 +758,9 @@ export default function FormularioEmpezar({
 
     // El punto medio no toma la ruta rápida: «A tu Medida» se arma para cada
     // acudiente (con su tope o sin él) y la cache solo tiene Ahorrador y Premium.
-    if (soloHijo && canonicoDelHijo && prioridad !== "equilibrio") {
+    // Con filtros duros tampoco: la cache no se re-optimiza, así que no puede
+    // sacar una marca ni los productos sin oferta; hay que armar el kit de nuevo.
+    if (soloHijo && canonicoDelHijo && prioridad !== "equilibrio" && !hayFiltros) {
       const personaje = personajePorHijo[soloHijo.referencia]?.[0];
       try {
         const aplicado = await aplicarCanonico({
@@ -1304,6 +1325,24 @@ export default function FormularioEmpezar({
             </label>
           ))}
         </fieldset>
+
+        {hayFiltros && (
+          <p className={styles.explicacion}>
+            Tu kit va {marcasExcluidas.length > 0 ? `sin ${marcasExcluidas.join(", ")}` : ""}
+            {marcasExcluidas.length > 0 && soloDisponibles ? " y " : ""}
+            {soloDisponibles ? "solo con productos que hay hoy" : ""}.{" "}
+            <button
+              type="button"
+              className={styles.quitar}
+              onClick={() => {
+                setMarcasExcluidas([]);
+                setSoloDisponibles(false);
+              }}
+            >
+              Quitar
+            </button>
+          </p>
+        )}
 
         {/* El tope es del kit «A tu Medida»: solo aparece con el punto medio. */}
         {prioridad === "equilibrio" && (

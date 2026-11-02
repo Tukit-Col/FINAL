@@ -3,7 +3,8 @@
 // recibir el evento `tukit:asistente-restricciones` o al leer sessionStorage con
 // la misma clave, y el acudiente sigue viendo y editando todo antes de enviar.
 //
-// Del payload solo se usan personajes, tope y prioridad. `pesos` y
+// Del payload se usan personajes, tope, prioridad y los dos filtros duros
+// (marcas excluidas, solo disponibles). `pesos` y
 // `disposicion_sobreprecio` no se copian: el formulario manda los de la
 // prioridad elegida (`PRIORIDADES`), asi que lo que el acudiente ve en pantalla
 // es exactamente lo que viaja.
@@ -20,7 +21,16 @@ export interface CambiosDelAsistente {
   prioridad: PrioridadFormulario | null;
   // Solo digitos, como el campo `presupuesto`; "" si no hay tope.
   presupuesto: string;
+  // Filtros duros: viajan en las preferencias y el optimizador los aplica a los
+  // candidatos. Vacio / false = no filtra.
+  marcasExcluidas: string[];
+  soloDisponibles: boolean;
 }
+
+// Los mismos topes que el backend (`FiltrosDuros` en nl2c.py): el payload viene del
+// navegador y no se confia en que respete el limite.
+const MAX_MARCAS = 10;
+const MAX_LARGO_MARCA = 40;
 
 // El payload llega del navegador (evento o sessionStorage): se valida campo a
 // campo y lo que no cuadra se ignora. `null` si no hay nada utilizable.
@@ -53,11 +63,34 @@ export function cambiosDelAsistente(crudo: unknown): CambiosDelAsistente | null 
   // acudiente le dio una cifra al asistente, esa es la opcion que la respeta.
   if (tope !== null) prioridad = "equilibrio";
 
-  if (personajes.length === 0 && prioridad === null && tope === null) return null;
+  const marcasExcluidas = Array.isArray(p.marcas_excluidas)
+    ? [
+        ...new Set(
+          p.marcas_excluidas
+            .filter((x): x is string => typeof x === "string")
+            .map((x) => x.trim())
+            .filter((x) => x.length > 0 && x.length <= MAX_LARGO_MARCA),
+        ),
+      ].slice(0, MAX_MARCAS)
+    : [];
+  // Solo un `true` de verdad: un "false" en texto no debe encender el filtro.
+  const soloDisponibles = p.solo_disponibles === true;
+
+  if (
+    personajes.length === 0 &&
+    prioridad === null &&
+    tope === null &&
+    marcasExcluidas.length === 0 &&
+    !soloDisponibles
+  ) {
+    return null;
+  }
   return {
     personajes: personajes.length > 0 ? personajes.join(", ") : null,
     prioridad,
     presupuesto: tope !== null ? String(tope) : "",
+    marcasExcluidas,
+    soloDisponibles,
   };
 }
 
@@ -79,4 +112,17 @@ export function leerRestriccionesGuardadas(almacen: Pick<Storage, "getItem"> | u
   } catch {
     return null;
   }
+}
+
+// Los filtros duros que van en `preferencias`. Solo se incluyen los que el
+// acudiente tiene activos: unas preferencias sin filtros quedan idénticas a las
+// de antes (y la firma del trabajo, que decide si se reutiliza, no cambia).
+export function filtrosDePreferencias(
+  marcasExcluidas: readonly string[],
+  soloDisponibles: boolean,
+): { marcas_excluidas?: string[]; solo_disponibles?: true } {
+  return {
+    ...(marcasExcluidas.length > 0 ? { marcas_excluidas: [...marcasExcluidas] } : {}),
+    ...(soloDisponibles ? { solo_disponibles: true as const } : {}),
+  };
 }

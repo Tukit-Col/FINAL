@@ -119,10 +119,14 @@ export function ResumenRestricciones({
   personajes,
   presupuesto,
   orden,
+  marcasExcluidas = [],
+  soloDisponibles = false,
 }: {
   personajes: string[];
   presupuesto: number | null;
   orden: ClavePeso[];
+  marcasExcluidas?: string[];
+  soloDisponibles?: boolean;
 }) {
   return (
     <div className={estilos.tarjeta}>
@@ -134,6 +138,19 @@ export function ResumenRestricciones({
         <dd>{presupuesto === null ? "Sin tope" : formatearCop(presupuesto)}</dd>
         <dt>Lo más importante</dt>
         <dd>{ETIQUETA_PESO[orden[0] ?? CLAVES_PESO[0]!]}</dd>
+        {/* Los filtros solo se listan si el acudiente los pidió: lo que viaja es lo que ve. */}
+        {marcasExcluidas.length > 0 && (
+          <>
+            <dt>Sin estas marcas</dt>
+            <dd>{marcasExcluidas.join(", ")}</dd>
+          </>
+        )}
+        {soloDisponibles && (
+          <>
+            <dt>Productos</dt>
+            <dd>Solo los que hay hoy</dd>
+          </>
+        )}
       </dl>
     </div>
   );
