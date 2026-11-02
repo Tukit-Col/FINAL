@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeftRight, Check, RotateCcw, X } from "lucide-react";
 import {
@@ -314,6 +314,29 @@ function CarruselDeOpciones({
     }
   }
 
+  // Hay más opciones a cada lado de la pista? Decide qué flechas se muestran y
+  // qué borde se difumina, para que quien mira sepa que se puede seguir.
+  const [hayIzq, setHayIzq] = useState(false);
+  const [hayDer, setHayDer] = useState(false);
+
+  const medirBordes = useCallback(() => {
+    const el = pista.current;
+    if (!el) return;
+    // 2 px de holgura: con zoom o subpíxeles scrollLeft nunca llega justo al tope.
+    setHayIzq(el.scrollLeft > 2);
+    setHayDer(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  }, []);
+
+  useEffect(() => {
+    const el = pista.current;
+    if (!el) return;
+    medirBordes();
+    // La pista cambia de ancho al girar el celular o al cambiar el panel.
+    const observador = new ResizeObserver(medirBordes);
+    observador.observe(el);
+    return () => observador.disconnect();
+  }, [opciones, medirBordes]);
+
   function mover(direccion: 1 | -1) {
     const el = pista.current;
     if (el) el.scrollBy({ left: direccion * (el.clientWidth * 0.8), behavior: "smooth" });
@@ -331,17 +354,24 @@ function CarruselDeOpciones({
       ) : opciones.length <= 1 ? (
         <p className={styles.notaCambio}>Por ahora no tenemos otra opción para este renglón.</p>
       ) : (
-        <div className={styles.carruselMarco}>
-          <button
-            type="button"
-            className={`${styles.flechaCarrusel} ${styles.flechaIzq}`}
-            onClick={() => mover(-1)}
-            aria-label="Ver opciones anteriores"
-          >
-            ‹
-          </button>
+        <div
+          className={`${styles.carruselMarco} ${hayIzq ? styles.hayIzq : ""} ${
+            hayDer ? styles.hayDer : ""
+          }`}
+        >
+          {hayIzq && (
+            <button
+              type="button"
+              className={`${styles.flechaCarrusel} ${styles.flechaIzq}`}
+              onClick={() => mover(-1)}
+              aria-label="Ver opciones anteriores"
+            >
+              ‹
+            </button>
+          )}
           <ul
             ref={pista}
+            onScroll={medirBordes}
             className={styles.carrusel}
             tabIndex={0}
             aria-label="Opciones del mismo tipo de producto"
@@ -397,15 +427,24 @@ function CarruselDeOpciones({
               </li>
             ))}
           </ul>
-          <button
-            type="button"
-            className={`${styles.flechaCarrusel} ${styles.flechaDer}`}
-            onClick={() => mover(1)}
-            aria-label="Ver más opciones"
-          >
-            ›
-          </button>
+          {hayDer && (
+            <button
+              type="button"
+              className={`${styles.flechaCarrusel} ${styles.flechaDer}`}
+              onClick={() => mover(1)}
+              aria-label="Ver más opciones"
+            >
+              ›
+            </button>
+          )}
         </div>
+      )}
+      {opciones !== null && opciones.length > 1 && (
+        <p className={styles.pistaCarrusel}>
+          {opciones.length} opciones
+          {/* Solo se invita a deslizar si de verdad hay algo fuera de la vista. */}
+          {(hayIzq || hayDer) && " · desliza para ver más"}
+        </p>
       )}
       {error && (
         <p className={styles.errorCambio} role="alert">
