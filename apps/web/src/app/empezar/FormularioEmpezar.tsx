@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Search, Check, School, LogIn, UserPlus, Pencil } from "lucide-react";
@@ -38,6 +38,12 @@ import {
 import { avisoCuentaCreada, cuentaCreadaSinSesion } from "@/lib/limite";
 import { MAX_HIJOS, avisosDePrecarga, precargarHijos } from "@/lib/precarga-hijos";
 import { rutaRecibimos } from "@/lib/recibimos";
+import {
+  CLAVE_RESTRICCIONES,
+  aplicarPersonajes,
+  cambiosDelAsistente,
+  leerRestriccionesGuardadas,
+} from "@/lib/restricciones-asistente";
 import LogoColegio from "@/components/LogoColegio";
 import SelectorPersonaje from "./SelectorPersonaje";
 import styles from "./Empezar.module.css";
@@ -442,6 +448,24 @@ export default function FormularioEmpezar({
   // cuenta, pero el kit se arma igual. Distinto de `error`, que sí detiene.
   const [aviso, setAviso] = useState<string | null>(null);
   const [gradosDetectados, setGradosDetectados] = useState<string[]>([]);
+
+  // Lo que el asistente (S4) dejo confirmado: llega por evento si el panel esta
+  // abierto, o por sessionStorage si el acudiente confirmo antes de montar el
+  // formulario. Solo PRELLENA personajes, tope y prioridad; el acudiente los ve y
+  // los edita antes de enviar, y nada viaja hasta que pulse el boton.
+  useEffect(() => {
+    function tomar(crudo: unknown) {
+      const cambios = cambiosDelAsistente(crudo);
+      if (!cambios) return;
+      if (cambios.prioridad) setPrioridad(cambios.prioridad);
+      setPresupuesto(cambios.presupuesto);
+      setHijos((actuales) => aplicarPersonajes(actuales, cambios.personajes));
+    }
+    tomar(leerRestriccionesGuardadas(typeof window === "undefined" ? undefined : window.sessionStorage));
+    const alRecibir = (evento: Event) => tomar((evento as CustomEvent<unknown>).detail);
+    window.addEventListener(CLAVE_RESTRICCIONES, alRecibir);
+    return () => window.removeEventListener(CLAVE_RESTRICCIONES, alRecibir);
+  }, []);
   // Lo que ya salió bien en un envío que aún no terminó, para no repetirlo al
   // reintentar. La "firma" es el payload serializado del paso: si el acudiente
   // cambia esos datos deja de coincidir y el paso se rehace; si no, se reutiliza
