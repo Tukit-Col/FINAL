@@ -60,6 +60,17 @@ export type Componente =
       };
     }
   | {
+      // El resumen de un pedido por categoria: el texto lo redacta el servidor.
+      tipo: "ResumenLote";
+      props: {
+        accion: "mas_barato" | "mejor_calidad" | "variar";
+        categoria: string;
+        propuestas: number;
+        delta_total_cop: number;
+        texto: string;
+      };
+    }
+  | {
       tipo: "ExplicacionKit";
       props: {
         perfil: string;
@@ -81,10 +92,12 @@ export const TIPOS_PERMITIDOS = [
   "ResumenRestricciones",
   "PropuestaCambio",
   "PropuestaDescarte",
+  "ResumenLote",
   "ExplicacionKit",
 ] as const;
 
-const MAX_COMPONENTES = 12;
+// Un resumen de lote más hasta 12 propuestas (MAX_PROPUESTAS_LOTE del servidor).
+const MAX_COMPONENTES = 13;
 const MAX_TEXTO = 160;
 
 type Obj = Record<string, unknown>;
@@ -174,6 +187,16 @@ function componente(v: unknown): Componente | null {
         props: { trabajo_id, perfil, item_id, descripcion, motivo_texto, producto, ahorro_cop, aplicable: p["aplicable"] },
       };
     }
+    case "ResumenLote": {
+      const accion = p["accion"];
+      const categoria = texto(p["categoria"]);
+      const propuestas = entero(p["propuestas"]);
+      const delta = entero(p["delta_total_cop"]);
+      const t = texto(p["texto"]);
+      if (accion !== "mas_barato" && accion !== "mejor_calidad" && accion !== "variar") return null;
+      if (!categoria || propuestas === null || propuestas < 0 || delta === null || !t) return null;
+      return { tipo: "ResumenLote", props: { accion, categoria, propuestas, delta_total_cop: delta, texto: t } };
+    }
     case "ExplicacionKit": {
       const perfil = texto(p["perfil"]);
       const renglones = entero(p["renglones"]);
@@ -233,4 +256,25 @@ export function formatearCop(valor: number): string {
 export function textoDelta(delta: number): string {
   if (delta === 0) return "Cuesta lo mismo";
   return delta < 0 ? `Ahorras ${formatearCop(-delta)}` : `Cuesta ${formatearCop(delta)} más`;
+}
+
+/** El pedido que el navegador recuerda para el turno siguiente ("y en colores también"). */
+export interface PedidoAnterior {
+  accion: "mas_barato" | "mejor_calidad" | "variar";
+  categoria: string;
+}
+
+/** Lo que el servidor devolvió como contexto, solo si es una acción de la lista y una palabra corta. */
+export function pedidoAnteriorSeguro(v: unknown): PedidoAnterior | null {
+  if (!esObj(v)) return null;
+  const { accion, categoria } = v;
+  if (accion !== "mas_barato" && accion !== "mejor_calidad" && accion !== "variar") return null;
+  if (typeof categoria !== "string" || !/^[a-zñáéíóúü]{3,24}$/.test(categoria)) return null;
+  return { accion, categoria };
+}
+
+/** Los ejemplos tocables de la respuesta de ayuda: pocos, cortos y solo texto. */
+export function ejemplosSeguros(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter((e): e is string => typeof e === "string" && e.length > 0 && e.length <= 60).slice(0, 6);
 }

@@ -2995,6 +2995,19 @@ async def opciones_de_la_linea(
     linea = next((ln for ln in (kit or {}).get("lineas", []) if ln["item_id"] == str(item_id)), None)
     if kit is None or linea is None:
         raise TrabajoNoExiste(f"{trabajo_id}/{perfil}/{item_id}")
+    return await opciones_de_una_linea(motor, trabajo_id, linea, catalogo=catalogo)
+
+
+async def opciones_de_una_linea(
+    motor: Any, trabajo_id: uuid.UUID, linea: dict[str, Any], *, catalogo: ClienteCatalogo
+) -> dict[str, Any]:
+    """Las opciones de una linea que el llamador ya leyo del kit.
+
+    Es el cuerpo de `opciones_de_la_linea` sin releer el trabajo: el asistente del kit
+    pide las opciones de varios renglones en una sola respuesta y `ver` es lo caro, asi
+    que lo lee una vez y reutiliza esta misma regla (filtros del trabajo incluidos).
+    """
+    item_id = linea["item_id"]
     actual = linea.get("producto_elegido") or {}
     concepto = linea.get("concepto")
     if linea["informativa"] or not actual or not concepto:

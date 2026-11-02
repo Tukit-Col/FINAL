@@ -26,3 +26,23 @@ export function aplicacionDePropuesta(c: PropuestaAplicable): Aplicacion | null 
   }
   return { url: `${base}/descarte`, metodo: "PUT", cuerpo: { descartado: true }, tipo: "descarte" };
 }
+
+/**
+ * Las propuestas de un turno que el padre todavia no decidio, para "Aceptar todos".
+ * Cada una se aplica despues con su propia llamada PUT (`aplicacionDePropuesta`): esto solo
+ * elige cuales, nunca aplica nada ni junta varias en una sola escritura.
+ */
+export function pendientesDelTurno(
+  componentes: readonly Componente[],
+  turno: number,
+  estados: Readonly<Record<string, "pendiente" | "aplicada" | "rechazada">>,
+): { clave: string; componente: PropuestaAplicable }[] {
+  const salida: { clave: string; componente: PropuestaAplicable }[] = [];
+  componentes.forEach((c, i) => {
+    if (c.tipo !== "PropuestaCambio" && c.tipo !== "PropuestaDescarte") return;
+    const clave = `${turno}-${i}`;
+    if (!c.props.aplicable || (estados[clave] ?? "pendiente") !== "pendiente") return;
+    salida.push({ clave, componente: c });
+  });
+  return salida;
+}
