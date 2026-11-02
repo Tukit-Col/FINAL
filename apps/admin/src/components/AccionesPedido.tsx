@@ -14,7 +14,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import type { EstadoPedido, SolicitudAvancePedido, TipoIncidencia } from "@tukit/contrato";
+import type { EstadoPedido, SolicitudAvanceAdmin, TipoIncidencia } from "@tukit/contrato";
 import { ETIQUETA_TIPO_INCIDENCIA, TIPOS_INCIDENCIA } from "@tukit/contrato";
 import { avanzarPedido, FalloApi } from "@/lib/api-navegador";
 import { accionesDisponibles, fechaEstimadaIso, type AccionLogistica } from "@/lib/logistica";
@@ -38,7 +38,7 @@ export default function AccionesPedido({ pedidoId, estado }: Props) {
 
   const acciones = accionesDisponibles(estado);
 
-  async function avanzar(cuerpo: SolicitudAvancePedido): Promise<void> {
+  async function avanzar(cuerpo: SolicitudAvanceAdmin): Promise<void> {
     setFallo(null);
     setEnviando(true);
     try {
@@ -133,7 +133,7 @@ export default function AccionesPedido({ pedidoId, estado }: Props) {
 interface PropsFormulario {
   enviando: boolean;
   onCancelar: () => void;
-  onEnviar: (cuerpo: SolicitudAvancePedido) => Promise<void>;
+  onEnviar: (cuerpo: SolicitudAvanceAdmin) => Promise<void>;
 }
 
 interface PropsConCampos extends PropsFormulario {
@@ -141,8 +141,11 @@ interface PropsConCampos extends PropsFormulario {
 }
 
 function FormDespacho({ enviando, invalido, onCancelar, onEnviar }: PropsConCampos) {
+  const [modo, setModo] = useState<"propio" | "transportadora">("propio");
   const [nombre, setNombre] = useState("");
   const [celular, setCelular] = useState("");
+  const [transportadora, setTransportadora] = useState("");
+  const [guia, setGuia] = useState("");
   const [dia, setDia] = useState("");
 
   function enviar(evento: FormEvent<HTMLFormElement>): void {
@@ -150,44 +153,95 @@ function FormDespacho({ enviando, invalido, onCancelar, onEnviar }: PropsConCamp
     const entrega = fechaEstimadaIso(dia);
     void onEnviar({
       destino: "despachado",
-      repartidor_nombre: nombre,
-      repartidor_celular: celular,
+      ...(modo === "propio"
+        ? { repartidor_nombre: nombre, repartidor_celular: celular }
+        : { transportadora, guia }),
       ...(entrega ? { entrega_estimada: entrega } : {}),
     });
   }
 
   return (
     <form className={styles.formulario} onSubmit={enviar}>
-      <h3>Despachar con reparto propio</h3>
-      <div className={styles.campo}>
-        <label htmlFor="repartidor-nombre">Nombre del repartidor</label>
-        <input
-          id="repartidor-nombre"
-          required
-          maxLength={128}
-          autoComplete="off"
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
-          aria-invalid={invalido("repartidor_nombre")}
-        />
-      </div>
-      <div className={styles.campo}>
-        <label htmlFor="repartidor-celular">Celular del repartidor</label>
-        <input
-          id="repartidor-celular"
-          type="tel"
-          required
-          maxLength={32}
-          autoComplete="off"
-          value={celular}
-          onChange={(e) => setCelular(e.target.value)}
-          aria-invalid={invalido("repartidor_celular")}
-          aria-describedby="repartidor-celular-ayuda"
-        />
-        <span id="repartidor-celular-ayuda" className={styles.ayuda}>
-          Solo lo ve el equipo interno; al acudiente le llega el nombre.
-        </span>
-      </div>
+      <h3>Despachar</h3>
+      <fieldset className={styles.modos}>
+        <legend>Cómo sale</legend>
+        <label>
+          <input type="radio" name="modo-despacho" checked={modo === "propio"} onChange={() => setModo("propio")} />
+          Reparto propio
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="modo-despacho"
+            checked={modo === "transportadora"}
+            onChange={() => setModo("transportadora")}
+          />
+          Transportadora
+        </label>
+      </fieldset>
+
+      {modo === "propio" ? (
+        <>
+          <div className={styles.campo}>
+            <label htmlFor="repartidor-nombre">Nombre del repartidor</label>
+            <input
+              id="repartidor-nombre"
+              required
+              maxLength={128}
+              autoComplete="off"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              aria-invalid={invalido("repartidor_nombre")}
+            />
+          </div>
+          <div className={styles.campo}>
+            <label htmlFor="repartidor-celular">Celular del repartidor</label>
+            <input
+              id="repartidor-celular"
+              type="tel"
+              required
+              maxLength={32}
+              autoComplete="off"
+              value={celular}
+              onChange={(e) => setCelular(e.target.value)}
+              aria-invalid={invalido("repartidor_celular")}
+              aria-describedby="repartidor-celular-ayuda"
+            />
+            <span id="repartidor-celular-ayuda" className={styles.ayuda}>
+              Solo lo ve el equipo interno; al acudiente le llega el nombre.
+            </span>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className={styles.campo}>
+            <label htmlFor="transportadora">Transportadora</label>
+            <input
+              id="transportadora"
+              required
+              maxLength={128}
+              autoComplete="off"
+              placeholder="Servientrega, Coordinadora…"
+              value={transportadora}
+              onChange={(e) => setTransportadora(e.target.value)}
+              aria-invalid={invalido("transportadora")}
+            />
+          </div>
+          <div className={styles.campo}>
+            <label htmlFor="guia">Número de guía</label>
+            <input
+              id="guia"
+              required
+              maxLength={128}
+              autoComplete="off"
+              value={guia}
+              onChange={(e) => setGuia(e.target.value)}
+              aria-invalid={invalido("guia")}
+            />
+          </div>
+        </>
+      )}
+
       <div className={styles.campo}>
         <label htmlFor="entrega-estimada">Entrega estimada (opcional)</label>
         <input

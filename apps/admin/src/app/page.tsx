@@ -80,7 +80,7 @@ export default async function PaginaPanel() {
     api.cola(),
     api.catalogo(),
     token ? api.pedidos(token) : Promise.reject(new ErrorTukit(401, "sesion_invalida", "Sin sesion.")),
-    api.casos(),
+    token ? api.casos(token) : Promise.reject(new ErrorTukit(401, "sesion_invalida", "Sin sesion.")),
     api.colegios(),
     api.metricasSerie({ dimension: "global" }),
   ]);
