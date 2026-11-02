@@ -4,7 +4,6 @@ import { conAvisoDeLimite } from "@/components/ConAvisoDeLimite";
 import { entregaParaReintento, type EntregaPrevia } from "@/lib/pagar-pedido";
 import { matriculasDeLaSesion, pedidosDeLaSesion, sesionActual } from "@/lib/sesion";
 import VistaKits from "./VistaKits";
-import AsistenteKitSlot from "./AsistenteKitSlot";
 
 export const dynamic = "force-dynamic";
 
@@ -63,8 +62,6 @@ async function kits(trabajo_id: string, searchParams: Promise<{ pagar?: string }
   const llaveMaps = process.env.GOOGLE_MAPS_API_KEY?.trim() || null;
 
   return (
-    <>
-      <AsistenteKitSlot trabajoId={trabajo.trabajo_id} />
       <VistaKits
         trabajo={trabajo}
         correo={sesion?.correo ?? ""}
@@ -75,6 +72,5 @@ async function kits(trabajo_id: string, searchParams: Promise<{ pagar?: string }
         // formulario de entrega ya abierto y lleno.
         abrirPago={consulta.pagar === "1"}
       />
-    </>
   );
 }
