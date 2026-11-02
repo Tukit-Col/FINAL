@@ -21,9 +21,12 @@ misma que usan los servicios. Las constantes y los flujos compartidos viven en
 
 from __future__ import annotations
 
+import os
+import re
 import socket
 import uuid
 from collections.abc import Awaitable, Callable, Iterator
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -31,6 +34,24 @@ import pytest
 from sqlalchemy import text
 from stack_vivo import CLAVE_DEMO, GATEWAY, USUARIOS_DEMO, cabecera_de_familia, conexion_a, ip_de_familia
 from tukit_comun.http import CABECERA_CORRELACION
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Las de esta carpeta que ademas llevan `redis` quedan fuera salvo que se pidan (N-143).
+
+    Se piden con `redis` en la expresion de `-m` o con `TUKIT_PRUEBAS_REDIS_OBLIGATORIO=1`, que el
+    lanzador exporta en el modo completo. Pedidas, si no hay Redis fallan: no se saltan.
+    """
+    expresion = config.getoption("markexpr", default="") or ""
+    if os.environ.get("TUKIT_PRUEBAS_REDIS_OBLIGATORIO") or re.search(r"\bredis\b", expresion):
+        return
+    carpeta = Path(__file__).resolve().parent
+    fuera = [
+        i for i in items if i.get_closest_marker("redis") and Path(str(i.fspath)).resolve().parent == carpeta
+    ]
+    if fuera:
+        config.hook.pytest_deselected(items=fuera)
+        items[:] = [i for i in items if i not in fuera]
 
 
 @pytest.fixture(scope="session")
