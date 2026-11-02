@@ -21,7 +21,9 @@ from ..optimizador import (
     PerfilKit,
     _objetivos,
     anclar_personaje,
+    candidato_permitido,
     consolidar,
+    filtros_de,
     recomendar,
     unidades_a_comprar,
 )
@@ -169,6 +171,11 @@ def inyectar_personaje_fan(
     if not swaps:
         return kits
 
+    # El producto de personaje viene del catalogo por una via aparte y no pasa por
+    # `armar_los_tres`, asi que los filtros duros del acudiente se aplican aqui
+    # tambien: sin esto el Fan podia traer justo la marca que pidio no ver.
+    filtros = filtros_de(preferencias)
+
     recomputados: list[Any] = []
     for kit in kits:
         if kit.perfil != PerfilKit.FAN.value:
@@ -184,15 +191,19 @@ def inyectar_personaje_fan(
         # producto de personaje hubiera sido candidato. Ambos hermanos reciben el
         # MISMO producto por concepto (los swaps se indexan por concepto), asi que
         # el grupo vuelve a unirse y las notas se regeneran con el sku correcto.
-        crudas = tuple(
-            _linea_con_producto(
-                linea,
-                _candidato_de_swap(swaps[linea.concepto_codigo])
-                if linea.concepto_codigo in swaps
-                else linea.elegido,
-            )
-            for linea in kit.lineas
-        )
+        def producto_de(linea: Any) -> Any:
+            if linea.concepto_codigo not in swaps:
+                return linea.elegido
+            # Una linea que los filtros dejaron sin producto sigue sin producto:
+            # el swap no la puede resucitar con otro que el acudiente no vio.
+            if filtros.activos and linea.elegido is None:
+                return linea.elegido
+            candidato = _candidato_de_swap(swaps[linea.concepto_codigo])
+            if not candidato_permitido(candidato, linea.descripcion, filtros):
+                return linea.elegido
+            return candidato
+
+        crudas = tuple(_linea_con_producto(linea, producto_de(linea)) for linea in kit.lineas)
         lineas, consolidaciones = consolidar(crudas)
         total = sum(li.subtotal_cop or 0 for li in lineas if not li.informativa)
         recomputados.append(

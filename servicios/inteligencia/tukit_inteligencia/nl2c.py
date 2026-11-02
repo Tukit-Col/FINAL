@@ -346,8 +346,10 @@ def proyectar_R(
 def a_preferencias(r: RestriccionesR, *, hijo: str = "hijo-1") -> dict[str, Any]:
     """R traducido a la forma que ya consume el recomendador (`Preferencias`).
 
-    `marcas_excluidas` y `solo_disponibles` aun no tienen consumidor en el
-    optimizador: se devuelven en `r` para mostrarlos, pero no viajan aqui.
+    `marcas_excluidas` y `solo_disponibles` viajan como filtros duros: el
+    optimizador (`aplicar_filtros_duros`) saca esos candidatos ANTES de armar
+    el frente. Solo se incluyen cuando el padre los pidio, para que unas
+    preferencias sin filtros queden byte a byte iguales a las de antes.
     """
     prm = r.preferencias_PRM
     salida: dict[str, Any] = {
@@ -357,6 +359,10 @@ def a_preferencias(r: RestriccionesR, *, hijo: str = "hijo-1") -> dict[str, Any]
     }
     if r.filtros_duros.presupuesto_max_cop:
         salida["presupuesto_por_hijo"] = r.filtros_duros.presupuesto_max_cop
+    if r.filtros_duros.marcas_excluidas:
+        salida["marcas_excluidas"] = list(r.filtros_duros.marcas_excluidas)
+    if r.filtros_duros.solo_disponibles:
+        salida["solo_disponibles"] = True
     if prm.personajes:
         salida["personaje_por_hijo"] = {hijo: [p.lower() for p in prm.personajes]}
     return salida

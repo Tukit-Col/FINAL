@@ -17,6 +17,7 @@ from sqlalchemy import insert
 from tukit_inteligencia import nl2c, nl2c_kit, trabajos
 from tukit_inteligencia.api import app
 from tukit_inteligencia.modelos import Base, EstadoTrabajo
+from tukit_inteligencia.optimizador import filtros_de
 
 TRABAJO = Base.metadata.tables["trabajo_pipeline"]
 PADRE = uuid.UUID("aaaaaaaa-aaaa-5aaa-8aaa-aaaaaaaaaaaa")
@@ -154,7 +155,30 @@ def test_a_preferencias_usa_la_forma_que_ya_consume_el_recomendador():
         "prioridad",
         "presupuesto_por_hijo",
         "personaje_por_hijo",
+        "marcas_excluidas",
+        "solo_disponibles",
     }
+
+
+def test_a_preferencias_pasa_marcas_excluidas_y_solo_disponibles_al_optimizador():
+    r, _ = nl2c.proyectar_R(
+        {"filtros_duros": {"marcas_excluidas": ["Faber-Castell"], "solo_disponibles": True}},
+        PERSONAJES,
+        texto_base="sin Faber-Castell y solo lo que haya",
+    )
+    p = nl2c.a_preferencias(r)
+    assert p["marcas_excluidas"] == ["Faber-Castell"]
+    assert p["solo_disponibles"] is True
+    # Lo que sale de aqui es lo que el optimizador lee, no un campo decorativo.
+    filtros = filtros_de(p)
+    assert [plana for plana, _ in filtros.marcas_excluidas] == ["faber castell"]
+    assert filtros.solo_disponibles
+
+
+def test_a_preferencias_sin_filtros_no_agrega_claves():
+    r, _ = nl2c.proyectar_R({}, PERSONAJES)
+    p = nl2c.a_preferencias(r)
+    assert "marcas_excluidas" not in p and "solo_disponibles" not in p
 
 
 def test_la_spec_de_ui_solo_usa_componentes_de_la_lista_blanca():
