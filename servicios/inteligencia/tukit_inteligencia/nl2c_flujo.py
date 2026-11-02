@@ -9,9 +9,10 @@ en el kit ni en las preferencias.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from typing import Any
 
-from . import nl2c, nl2c_kit
+from . import nl2c, nl2c_kit, nl2c_lote
 
 
 class TextoVacio(Exception):
@@ -108,18 +109,44 @@ async def interpretar_texto(texto: str, personajes: list[str], usuario: Any = No
     }
 
 
+# Lee las opciones del carrusel de UNA linea (la misma regla que `GET .../opciones`).
+OpcionesDe = Callable[[dict[str, Any]], Awaitable[list[dict[str, Any]]]]
+
+
 async def proponer_en_kit(
-    texto: str, kit: dict[str, Any], usuario: Any, trabajo_id: str
+    texto: str,
+    kit: dict[str, Any],
+    usuario: Any,
+    trabajo_id: str,
+    *,
+    anterior: Any = None,
+    opciones_de: OpcionesDe | None = None,
 ) -> tuple[dict[str, Any], nl2c_kit.ResultadoPropuestas | None]:
     """Pedido sobre un kit -> (respuesta JSON, resultado de validacion).
 
     El resultado de validacion (con los codigos de rechazo) es para el banco de
     ensayos; la ruta solo devuelve la respuesta.
+
+    `anterior` es el pedido previo ({accion, categoria}) que el navegador recuerda para
+    resolver "y en colores tambien"; se valida contra el kit antes de usarlo. `opciones_de`
+    trae las opciones del carrusel de un renglon para el pedido de variedad; sin el, se
+    usan las alternativas guardadas en el kit.
     """
-    ctx = nl2c_kit.contexto_del_kit(kit)
+    ctx = nl2c_kit.contexto_del_kit(kit, anterior)
     limpio = nl2c.sanitizar(texto)
     if not limpio.texto or not ctx.lineas:
         raise TextoVacio
+    # "Que puedes hacer" no necesita al modelo: antes se lo llevaba a "explicar el kit".
+    # Es una regla corta sobre un texto corto; no hay nada que inyectar ni que cobrar.
+    if nl2c_lote.pide_ayuda(limpio.texto):
+        nl2c.auditar(
+            "proponer_ayuda",
+            usuario=nl2c.huella_usuario(usuario),
+            trabajo=trabajo_id,
+            huella=limpio.huella,
+            via="regla",
+        )
+        return nl2c_kit.respuesta_ayuda(ctx), None
     try:
         respuesta, ms = await nl2c.consultar_modelo(
             nl2c.SISTEMA_KIT,
@@ -137,6 +164,7 @@ async def proponer_en_kit(
         raise
 
     res = nl2c_kit.validar_llamadas_kit(respuesta.llamadas, ctx, kit, trabajo_id)
+    await nl2c_kit.completar_variar(res, ctx, trabajo_id, opciones_de)
     propuesta_id = nl2c_kit.registrar_emision(usuario, trabajo_id)
     base = _medidas(respuesta, ms)
     nl2c.auditar(
@@ -149,25 +177,34 @@ async def proponer_en_kit(
         propuestas=[(p["tipo"], p["props"]["item_id"]) for p in res.propuestas],
         rechazadas=res.rechazadas,
         sin_accion=res.sin_accion,
+        lote=res.lote,
         **base,
     )
-    componentes = list(res.propuestas) + ([res.explicacion] if res.explicacion else [])
+    if res.ayuda and not res.propuestas and res.explicacion is None and res.lote is None:
+        return {**nl2c_kit.respuesta_ayuda(ctx), **base}, res
+    # Resumen + hasta MAX_PROPUESTAS_LOTE propuestas ya llenan el tope de componentes que acepta
+    # el navegador (MAX_COMPONENTES en espec.ts); si ademas viniera la explicacion, la UI entera
+    # se descartaria como invalida. La explicacion se omite en ese caso extremo.
+    base_ui = ([res.resumen] if res.resumen else []) + list(res.propuestas)
+    explicacion = [res.explicacion] if res.explicacion and len(base_ui) < nl2c.MAX_PROPUESTAS_LOTE + 1 else []
+    componentes = base_ui + explicacion
     if not componentes:
         return (
             {
                 "estado": "sin_accion",
-                "mensaje": "No encontramos un cambio que hacer con eso. "
-                "Prueba, por ejemplo: «mas barato en cuadernos».",
+                "mensaje": res.mensaje
+                or "No encontré qué cambiar con eso. Pregúntame «¿qué puedes hacer?» y te muestro ejemplos.",
                 **base,
             },
             res,
         )
-    return (
-        {
-            "estado": "propuesta",
-            "propuesta_id": propuesta_id,
-            "ui": {"version": 1, "componentes": componentes},
-            **base,
-        },
-        res,
-    )
+    cuerpo: dict[str, Any] = {
+        "estado": "propuesta",
+        "propuesta_id": propuesta_id,
+        "ui": {"version": 1, "componentes": componentes},
+        **base,
+    }
+    if res.lote:
+        # Lo que el navegador recuerda para el turno siguiente: dos palabras acotadas.
+        cuerpo["contexto"] = {"accion": res.lote["accion"], "categoria": res.lote["categoria"]}
+    return cuerpo, res
