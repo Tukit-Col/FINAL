@@ -421,6 +421,20 @@ class TestLaRecomendacion:
     def test_fan_con_personaje_explicito(self):
         assert self._recomendado({"personaje_por_hijo": {"hijo-1": ["spiderman"]}}).perfil == "Fan"
 
+    def test_con_diez_por_ciento_decide_la_utilidad_aditiva_de_los_pesos(self):
+        """Entre Ahorrador y Premium la utilidad normalizada es w_precio contra
+        w_marca_exigida + w_calidad: con los pesos P21 (0,285 contra 0,528) gana
+        el Premium; si el precio pesa mas que marca y calidad juntas, el Ahorrador."""
+        assert self._recomendado({"disposicion_sobreprecio": 0.10}).perfil == "Premium"
+        precio_primero = {"precio": 0.6, "marca_exigida": 0.1, "calidad": 0.1, "personaje": 0.2}
+        recomendado = self._recomendado({"pesos": precio_primero, "disposicion_sobreprecio": 0.10})
+        assert recomendado.perfil == "Ahorrador"
+
+    def test_sin_diez_por_ciento_los_pesos_no_suben_al_premium(self):
+        calidad_primero = {"precio": 0.1, "marca_exigida": 0.3, "calidad": 0.6, "personaje": 0.0}
+        recomendado = self._recomendado({"pesos": calidad_primero, "disposicion_sobreprecio": 0.05})
+        assert recomendado.perfil == "Ahorrador"
+
     def test_si_ninguno_cabe_dice_cuanto_cuesta_el_mas_barato(self):
         recomendado = self._recomendado({"presupuesto_por_hijo": 100})
         assert recomendado.perfil == "Ahorrador"
@@ -868,3 +882,122 @@ class TestBordesDelOptimizador:
         ahorrador = next(k for k in kits if k.perfil == "Ahorrador")
         # El mas barato posible: los ocho candidatos "A".
         assert ahorrador.total_cop == sum(1000 + o for o in range(1, 9))
+
+
+class TestSeleccionMAUT:
+    """Seleccion a posteriori sobre el frente: utilidad aditiva normalizada.
+
+    `elegir_recomendado_maut(frente, pesos, tope=None, sobreprecio=None)` toma el
+    punto del frente con mayor utilidad `U = w_precio*u_costo + (w_calidad +
+    w_marca_exigida)*u_fidelidad + w_personaje*u_personaje`, con los pesos
+    renormalizados para que sumen 1 y cada `u` normalizada a [0, 1] sobre el
+    rango observado en el frente. Restricciones duras: el tope de gasto y el
+    sobreprecio maximo sobre el punto mas barato.
+    """
+
+    @staticmethod
+    def _punto(costo, fidelidad, personaje=0.0, disponibilidad=1.0):
+        from tukit_inteligencia.optimizador import SolucionFrente
+
+        return SolucionFrente({}, costo, fidelidad, disponibilidad, personaje)
+
+    def _frente(self):
+        return [
+            self._punto(10000, 0.0),
+            self._punto(12000, 0.5),
+            self._punto(20000, 1.0),
+            self._punto(15000, 0.2, personaje=1.0),
+        ]
+
+    def test_frente_vacio_no_elige_nada(self):
+        from tukit_inteligencia.optimizador import elegir_recomendado_maut
+
+        assert elegir_recomendado_maut([], {"precio": 1.0}) is None
+
+    def test_un_solo_punto_es_el_elegido(self):
+        from tukit_inteligencia.optimizador import elegir_recomendado_maut
+
+        unico = self._punto(5000, 0.3)
+        assert elegir_recomendado_maut([unico], {"precio": 1.0}) is unico
+
+    def test_solo_precio_elige_el_mas_barato_y_solo_calidad_el_de_mejor_marca(self):
+        from tukit_inteligencia.optimizador import elegir_recomendado_maut
+
+        frente = self._frente()
+        assert elegir_recomendado_maut(frente, {"precio": 1.0}).costo == 10000
+        assert elegir_recomendado_maut(frente, {"calidad": 1.0}).costo == 20000
+
+    def test_solo_personaje_elige_el_de_mas_personaje(self):
+        from tukit_inteligencia.optimizador import elegir_recomendado_maut
+
+        assert elegir_recomendado_maut(self._frente(), {"personaje": 1.0}).personaje == 1.0
+
+    def test_la_utilidad_se_normaliza_sobre_el_rango_del_frente(self):
+        """Con pesos iguales precio/calidad gana (12000, 0.5): pierde 0.2 de
+        utilidad de costo (2000/10000) y gana 0.5 de fidelidad."""
+        from tukit_inteligencia.optimizador import elegir_recomendado_maut
+
+        elegido = elegir_recomendado_maut(self._frente(), {"precio": 0.5, "calidad": 0.5})
+        assert (elegido.costo, elegido.fidelidad) == (12000, 0.5)
+
+    def test_marca_exigida_y_calidad_pesan_ambas_sobre_la_fidelidad(self):
+        from tukit_inteligencia.optimizador import elegir_recomendado_maut
+
+        frente = self._frente()
+        assert elegir_recomendado_maut(frente, {"precio": 0.3, "calidad": 0.7}).costo == 20000
+        assert elegir_recomendado_maut(frente, {"precio": 0.3, "marca_exigida": 0.7}).costo == 20000
+        mixto = {"precio": 0.3, "marca_exigida": 0.4, "calidad": 0.3}
+        assert elegir_recomendado_maut(frente, mixto).costo == 20000
+
+    def test_los_pesos_se_renormalizan(self):
+        from tukit_inteligencia.optimizador import elegir_recomendado_maut
+
+        frente = self._frente()
+        assert elegir_recomendado_maut(frente, {"precio": 0.1, "calidad": 0.9}).costo == 20000
+        assert elegir_recomendado_maut(frente, {"precio": 1, "calidad": 9}).costo == 20000
+        assert elegir_recomendado_maut(frente, {"precio": 0.4, "calidad": 0.3}).costo == 12000
+
+    def test_el_sobreprecio_acota_sobre_el_punto_mas_barato(self):
+        from tukit_inteligencia.optimizador import elegir_recomendado_maut
+
+        frente = self._frente()
+        solo_calidad = {"calidad": 1.0}
+        assert elegir_recomendado_maut(frente, solo_calidad).costo == 20000  # sin cota
+        assert elegir_recomendado_maut(frente, solo_calidad, sobreprecio=0.0).costo == 10000
+        assert elegir_recomendado_maut(frente, solo_calidad, sobreprecio=0.20).costo == 12000
+        assert elegir_recomendado_maut(frente, solo_calidad, sobreprecio=1.0).costo == 20000
+
+    def test_el_tope_es_restriccion_dura_y_sin_punto_que_quepa_no_elige(self):
+        from tukit_inteligencia.optimizador import elegir_recomendado_maut
+
+        frente = self._frente()
+        assert elegir_recomendado_maut(frente, {"calidad": 1.0}, tope=13000).costo == 12000
+        assert elegir_recomendado_maut(frente, {"calidad": 1.0}, tope=5000) is None
+
+    def test_pesos_vacios_desempatan_por_menor_costo(self):
+        from tukit_inteligencia.optimizador import elegir_recomendado_maut
+
+        assert elegir_recomendado_maut(self._frente(), {}).costo == 10000
+
+    def test_no_depende_del_orden_del_frente(self):
+        from tukit_inteligencia.optimizador import elegir_recomendado_maut
+
+        frente = self._frente()
+        pesos = {"precio": 0.3, "calidad": 0.5, "personaje": 0.2}
+        assert elegir_recomendado_maut(frente, pesos) == elegir_recomendado_maut(frente[::-1], pesos)
+
+    def test_solo_considera_los_puntos_de_maxima_disponibilidad(self):
+        from tukit_inteligencia.optimizador import elegir_recomendado_maut
+
+        sin_precio = self._punto(1000, 1.0, disponibilidad=0.5)
+        surtible = self._punto(9000, 0.1)
+        assert elegir_recomendado_maut([sin_precio, surtible], {"calidad": 1.0}) is surtible
+
+
+class TestPesosPorOmision:
+    def test_son_los_de_la_encuesta_p21_y_suman_uno(self):
+        from tukit_inteligencia.modelos import PESOS_POR_OMISION
+
+        esperados = {"precio": 0.285, "marca_exigida": 0.273, "calidad": 0.255, "personaje": 0.187}
+        assert esperados == PESOS_POR_OMISION
+        assert abs(sum(PESOS_POR_OMISION.values()) - 1.0) < 1e-9

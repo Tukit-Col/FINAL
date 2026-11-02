@@ -95,25 +95,29 @@ MOTIVO_NO_CONSOLIDABLE = "Dos ediciones del mismo titulo no son sustituibles."
 CONCEPTOS_ANCLA = ("C001", "C009", "C011", "C086")
 
 # Por encima de este tamano del espacio de busqueda (producto de candidatos por
-# linea) se corre NSGA-II; por debajo se enumera el frente exacto. La
-# enumeracion da el frente OPTIMO y es instantanea para kits chicos —que es lo
-# que se prueba—, y el NSGA-II gana justo cuando el espacio explota, que es el
-# corpus real de listas con decenas de renglones y varios candidatos cada uno.
+# linea) se corre NSGA-II; por debajo se enumera el frente exacto. 4096 = 2^12
+# queda entre el cruce medido de la enumeracion con el NSGA-II calibrado en la
+# mediana (S ~ 4932) y en el percentil 95 del ajuste (S ~ 2380). Fuente:
+# docs/informes/calibracion/umbral.json y umbral_elegida.json, seccion
+# "Complejidad" de docs/informes/calibracion/optimizacion.tex.
 LIMITE_ENUMERACION = 4096
 
-# Presupuesto de busqueda del NSGA-II. Se escala con el tamano del problema —el
-# numero de lineas decidibles `n` y el espacio de busqueda `espacio`— en vez de
-# ser fijo, para que el frente no se quede corto en una lista de decenas de
-# renglones y no gaste generaciones de mas en una de tres. Los topes evitan que
-# una lista enorme dispare el tiempo del pipeline. La terminacion sigue siendo
-# por numero fijo de generaciones (no por convergencia): el frente de una
-# semilla dada tiene que reproducirse byte a byte, y un criterio de convergencia
-# como `DefaultMultiObjectiveTermination` haria depender el corte del azar de la
-# corrida. Reproducibilidad es requisito de la tesis, asi que se rechaza.
-_POBLACION_MIN = 40
-_POBLACION_MAX = 200
-_GENERACIONES_MIN = 30
-_GENERACIONES_MAX = 120
+# Presupuesto de busqueda del NSGA-II, escalado con el numero de lineas
+# decidibles `n` y con el espacio de busqueda `espacio`, con topes para que una
+# lista enorme no dispare el tiempo del pipeline. Los valores son la mitad de
+# las formulas de partida (factores a = b = 0,5), elegidos por validacion
+# cruzada agrupada por colegio: la configuracion mas barata cuyo hipervolumen
+# medio queda a menos de 0,1 % del mejor de la rejilla. Fuente:
+# docs/informes/calibracion/calibracion_nsga.json, seccion "Calibracion y
+# amenazas a la validez" de docs/informes/calibracion/optimizacion.tex.
+# La terminacion es por numero fijo de generaciones y no por convergencia,
+# porque el frente de una semilla dada tiene que reproducirse byte a byte.
+_POBLACION_POR_LINEA = 6
+_POBLACION_MIN = 20
+_POBLACION_MAX = 100
+_GENERACIONES_POR_DECADA = 10
+_GENERACIONES_MIN = 15
+_GENERACIONES_MAX = 60
 
 
 def _poblacion(n: int) -> int:
@@ -122,7 +126,7 @@ def _poblacion(n: int) -> int:
     Par porque el emparejamiento de padres de NSGA-II trabaja de a dos y una
     poblacion impar desperdicia un individuo por generacion.
     """
-    cruda = min(_POBLACION_MAX, max(_POBLACION_MIN, 12 * n))
+    cruda = min(_POBLACION_MAX, max(_POBLACION_MIN, _POBLACION_POR_LINEA * n))
     return cruda + (cruda & 1)
 
 
@@ -130,10 +134,10 @@ def _generaciones(espacio: int) -> int:
     """Generaciones escaladas al log10 del espacio de busqueda.
 
     El espacio crece multiplicativamente (producto de candidatos por linea), asi
-    que el esfuerzo util crece con su logaritmo, no linealmente. `max(10, ...)`
-    evita `log10(0)`/valores negativos en el piso.
+    que el esfuerzo util crece con su logaritmo. `max(10, ...)` evita
+    `log10(0)` y valores negativos en el piso.
     """
-    crudas = 20 * math.log10(max(10, espacio))
+    crudas = _GENERACIONES_POR_DECADA * math.log10(max(10, espacio))
     return int(min(_GENERACIONES_MAX, max(_GENERACIONES_MIN, crudas)))
 
 
@@ -742,6 +746,100 @@ def _proyectar(frente: list[SolucionFrente], perfil: str) -> SolucionFrente | No
     return min(frente, key=lambda s: (s.costo, -s.disponibilidad, -s.fidelidad))
 
 
+# Los criterios de la P21 que entran a la utilidad, con el eje del frente que
+# mide cada uno. Marca exigida y calidad se leen las dos sobre la fidelidad,
+# porque el frente no separa "la marca que el colegio pidio" de "la marca de
+# mejor nivel": ambas suben con el nivel de marca del candidato elegido.
+_CRITERIOS_MAUT = ("precio", "marca_exigida", "calidad", "personaje")
+
+
+def _utilidad_normalizada(valor: float, minimo: float, maximo: float, *, creciente: bool) -> float:
+    """Utilidad de un atributo en [0, 1] sobre el rango observado en el frente.
+
+    Si todos los puntos tienen el mismo valor el atributo no distingue entre
+    ellos y aporta 0 a todos.
+    """
+    if maximo <= minimo:
+        return 0.0
+    fraccion = (valor - minimo) / (maximo - minimo)
+    return fraccion if creciente else 1.0 - fraccion
+
+
+def elegir_recomendado_maut(
+    frente: list[SolucionFrente],
+    pesos: dict[str, float],
+    *,
+    tope: int | None = None,
+    sobreprecio: float | None = None,
+) -> SolucionFrente | None:
+    """El punto del frente de mayor utilidad aditiva, elegido a posteriori.
+
+    Sigue la teoria de la utilidad multiatributo (Keeney y Raiffa, 1976) en su
+    uso a posteriori sobre un frente de Pareto (Miettinen, 1999, cap. 2.2):
+    primero se calcula el frente y despues los pesos del acudiente escogen un
+    punto. La utilidad es
+
+        U(x) = w_precio * u_costo(x) + (w_marca_exigida + w_calidad) * u_fidelidad(x)
+               + w_personaje * u_personaje(x),
+
+    con los pesos renormalizados para que sumen 1 y cada `u` lineal en [0, 1]
+    sobre el rango que el frente alcanza (`u_costo` decreciente, las demas
+    crecientes). La forma aditiva supone independencia preferencial entre los
+    criterios. Solo se consideran los puntos de maxima disponibilidad
+    (`_surtibles`), por la misma razon que en `_proyectar`.
+
+    `tope` y `sobreprecio` son restricciones duras: el costo no puede pasar del
+    tope ni de `(1 + sobreprecio)` veces el punto mas barato. Si ningun punto
+    las cumple devuelve `None`. Los empates se resuelven por menor costo, mayor
+    fidelidad y mayor personaje, de modo que el resultado no depende del orden
+    del frente.
+    """
+    if not frente:
+        return None
+    puntos = _surtibles(frente)
+    total = sum(max(0.0, float(pesos.get(c, 0.0))) for c in _CRITERIOS_MAUT)
+    w = {c: (max(0.0, float(pesos.get(c, 0.0))) / total if total > 0 else 0.0) for c in _CRITERIOS_MAUT}
+    w_fidelidad = w["marca_exigida"] + w["calidad"]
+
+    costos = [s.costo for s in puntos]
+    fidelidades = [s.fidelidad for s in puntos]
+    personajes = [s.personaje for s in puntos]
+
+    rango_costo = (min(costos), max(costos))
+    rango_fidelidad = (min(fidelidades), max(fidelidades))
+    rango_personaje = (min(personajes), max(personajes))
+
+    def utilidad(s: SolucionFrente) -> float:
+        return (
+            w["precio"] * _utilidad_normalizada(s.costo, *rango_costo, creciente=False)
+            + w_fidelidad * _utilidad_normalizada(s.fidelidad, *rango_fidelidad, creciente=True)
+            + w["personaje"] * _utilidad_normalizada(s.personaje, *rango_personaje, creciente=True)
+        )
+
+    validos = puntos
+    if sobreprecio is not None:
+        cota = (1.0 + max(0.0, sobreprecio)) * min(costos)
+        validos = [s for s in validos if s.costo <= cota]
+    if tope is not None:
+        validos = [s for s in validos if s.costo <= tope]
+    if not validos:
+        return None
+    return max(validos, key=lambda s: (round(utilidad(s), 12), -s.costo, s.fidelidad, s.personaje))
+
+
+def _punto_de_kit(kit: KitArmado) -> SolucionFrente:
+    """Un kit armado visto como punto de los cuatro ejes del frente."""
+    comprables = [linea for linea in kit.lineas if not linea.informativa]
+    con_personaje = sum(1 for linea in comprables if linea.elegido and linea.elegido.personaje)
+    return SolucionFrente(
+        {},
+        kit.total_cop,
+        float(kit.objetivos.get("fidelidad", 0.0)),
+        float(kit.objetivos.get("disponibilidad", 0.0)),
+        round(con_personaje / len(comprables), 6) if comprables else 0.0,
+    )
+
+
 def _linea_desde(renglon: Renglon, elegido: Candidato | None) -> LineaKit:
     """Construye la linea del kit a partir del candidato ya elegido.
 
@@ -1081,6 +1179,13 @@ def _mismos_productos(a: KitArmado, b: KitArmado) -> bool:
     return skus(a) == skus(b)
 
 
+def _maut_prefiere(kits: list[KitArmado], pesos: dict[str, float], kit: KitArmado) -> bool:
+    """Si la utilidad aditiva de `pesos` entre los kits armados elige `kit`."""
+    puntos = [_punto_de_kit(k) for k in kits]
+    elegido = elegir_recomendado_maut(puntos, pesos)
+    return elegido is not None and elegido is puntos[kits.index(kit)]
+
+
 def recomendar(kits: list[KitArmado], preferencias: dict[str, Any]) -> list[KitArmado]:
     """Marca UNO y no oculta los demas. La regla sale de la encuesta.
 
@@ -1088,8 +1193,10 @@ def recomendar(kits: list[KitArmado], preferencias: dict[str, Any]) -> list[KitA
     - `A tu Medida` si eligio el punto medio (o declaro un tope): es el kit que
       se armo para eso. Si no se armo —ninguna mejora de marca cabe, o el tope
       alcanza para el Premium entero—, la razon dice por que se marca otro.
-    - `Premium` si pone la calidad primero Y declara al menos un 10 % de
-      disposicion a pagar de mas.
+    - Si declara al menos un 10 % de disposicion a pagar de mas, decide la
+      utilidad aditiva de sus pesos entre los kits armados
+      (`elegir_recomendado_maut`): sale `Premium` cuando el peso de marca y
+      calidad supera al del precio sobre el rango de esos kits.
     - Por omision `Ahorrador`: 42 de 60 encuestados pagan como maximo 5 % mas
       y 15 exigen precio igual o menor.
     - Con tope, si el marcado no cabe se cae al kit de mejor marca que si quepa
@@ -1106,9 +1213,6 @@ def recomendar(kits: list[KitArmado], preferencias: dict[str, Any]) -> list[KitA
     por_perfil = {kit.perfil: kit for kit in kits}
     ahorrador = por_perfil.get(PerfilKit.AHORRADOR.value)
     premium = por_perfil.get(PerfilKit.PREMIUM.value)
-    calidad_primero = pesos.get("calidad", 0) >= max(
-        pesos.get("precio", 0), pesos.get("marca_exigida", 0), pesos.get("personaje", 0)
-    )
 
     if quiere_fan(preferencias) and PerfilKit.FAN.value in por_perfil:
         elegido, razon = (
@@ -1139,10 +1243,10 @@ def recomendar(kits: list[KitArmado], preferencias: dict[str, Any]) -> list[KitA
                 if ahorrador.total_cop <= tope_kit
                 else "No hay un punto medio que mejore la marca sin subir el precio."
             )
-    elif calidad_primero and sobreprecio >= 0.10 and premium:
+    elif sobreprecio >= 0.10 and premium and _maut_prefiere(kits, pesos, premium):
         elegido, razon = (
             PerfilKit.PREMIUM.value,
-            "Pusiste la calidad primero y aceptas pagar un poco más.",
+            "Con tus prioridades la marca pesa más que el precio, y aceptas pagar un poco más.",
         )
     else:
         elegido, razon = (

@@ -126,12 +126,16 @@ class PerfilKit(enum.StrEnum):
     PREMIUM = "Premium"
 
 
-# Los pesos por omision, medidos en la P21 de la encuesta y normalizados. No
-# son un invento: 42 de 60 encuestados pagan como maximo 5 % mas, y el
-# personaje quedo ultimo (1,87 contra 2,85 del precio).
+# Los pesos por omision son los puntajes medios de la pregunta P21 de la
+# encuesta a acudientes (n = 60; 4 puntos al primer lugar, 1 al ultimo),
+# divididos entre 10 para que sumen 1. Fuente: docs/informes/calibracion/
+# pesos_p21.json y la seccion "Calibracion y amenazas a la validez" de
+# docs/informes/calibracion/optimizacion.tex, que da tambien el IC 95 %
+# bootstrap de cada peso. Sustituyen a 0,35/0,30/0,25/0,10, que no venian de
+# ninguna medicion.
 PESOS_POR_OMISION: dict[str, float] = {
-    "precio": 0.35,
-    "marca_exigida": 0.30,
-    "calidad": 0.25,
-    "personaje": 0.10,
+    "precio": 0.285,
+    "marca_exigida": 0.273,
+    "calidad": 0.255,
+    "personaje": 0.187,
 }
