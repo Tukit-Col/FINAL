@@ -1,18 +1,28 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Star, PiggyBank, Sparkles, Gem, SlidersHorizontal } from "lucide-react";
+import { Star, PiggyBank, Sparkles, Gem, SlidersHorizontal, BookOpen, Shirt } from "lucide-react";
 import { prefiereMenosMovimiento } from "@tukit/contrato/motion";
 import {
   ORDEN_SECCIONES,
   TITULO_CLASE,
   agruparPorClase,
   clasificar,
+  dondeComprar,
   esBogota,
+  esLibro,
+  esUniforme,
+  estadoDePrecio,
   formatearPesos,
+  hayQueCobrar,
   LOCALIDADES_BOGOTA,
+  personajesDelKit,
+  productosDelPersonaje,
+  razonDeNoCobrar,
   type ClaseLinea,
+  type LineaKit,
   type Kit,
   type PerfilKit,
   type Trabajo,
@@ -157,7 +167,9 @@ export default function VistaKits({
                   />
                 )}
                 {otro.perfil}
-                <span className={`${styles.totalOpcion} cifra`}>{formatearPesos(otro.total)}</span>
+                <span className={`${styles.totalOpcion} cifra`}>
+                  {hayQueCobrar(otro.total) ? formatearPesos(otro.total) : "—"}
+                </span>
               </button>
             );
           })}
@@ -178,7 +190,9 @@ export default function VistaKits({
           </span>
           {kit.perfil}
         </span>
-        <span className={`${styles.totalKit} cifra`}>{formatearPesos(kit.total)}</span>
+        <span className={`${styles.totalKit} cifra`}>
+          {hayQueCobrar(kit.total) ? formatearPesos(kit.total) : "Sin productos con precio"}
+        </span>
         <span className={styles.promesa}>{PROMESA[kit.perfil]}</span>
         {/* Un kit sin objetivos (los de la ruta rápida anteriores al
             cálculo) no pinta la línea: mejor nada que "NaN%". */}
@@ -215,6 +229,8 @@ export default function VistaKits({
           </p>
         )
       )}
+
+      {kit.perfil === "Fan" && <FranjaFan lineas={kit.lineas} />}
 
       <ResumenKit kit={kit} />
 
@@ -401,10 +417,22 @@ function Checkout({
       <footer className={styles.pie}>
         <div>
           <span className={styles.etiquetaTotal}>Total del kit {perfil}</span>
-          <span className={`${styles.totalPie} cifra`}>{formatearPesos(total)}</span>
+          <span className={`${styles.totalPie} cifra`}>
+            {hayQueCobrar(total) ? formatearPesos(total) : "Sin productos con precio"}
+          </span>
+          <span className={styles.notaTotal}>
+            Solo lo que Tukit te puede vender. Lo que no tiene precio aquí (libros,
+            uniformes, licencias, lo que ya tienes y lo que gestiona el colegio) no
+            entra en esta cifra.
+          </span>
         </div>
         {!abierto && (
-          <button type="button" className={styles.pagar} onClick={() => setAbierto(true)}>
+          <button
+            type="button"
+            className={styles.pagar}
+            disabled={!hayQueCobrar(total)}
+            onClick={() => setAbierto(true)}
+          >
             Ir a pagar
           </button>
         )}
@@ -413,6 +441,9 @@ function Checkout({
       {abierto && (
         <form ref={formRef} className={styles.formPago} onSubmit={pagar}>
           <p className={styles.tituloPago}>¿A dónde te lo llevamos?</p>
+          <p className={styles.totalAntesDePagar}>
+            Vas a pagar <strong className="cifra">{formatearPesos(total)}</strong> por el kit {perfil}.
+          </p>
           <label>
             Nombre de quien recibe
             <input
@@ -487,7 +518,12 @@ function Checkout({
             </label>
           )}
           {error && <p className={styles.errorPago}>{error}</p>}
-          <button type="submit" className={styles.pagar} disabled={enviando}>
+          <p className={styles.avisoLegal}>
+            Al pagar aceptas los <Link href="/legal/terminos">términos y condiciones</Link>, la{" "}
+            <Link href="/legal/privacidad">política de datos personales</Link> y conoces tu{" "}
+            <Link href="/legal/retracto">derecho de retracto y garantía</Link>.
+          </p>
+          <button type="submit" className={styles.pagar} disabled={enviando || !hayQueCobrar(total)}>
             {enviando ? "Llevándote a la pasarela…" : `Pagar ${formatearPesos(total)}`}
           </button>
         </form>
@@ -503,7 +539,8 @@ function Checkout({
 
 function ResumenKit({ kit }: { kit: Kit }) {
   const grupos = agruparPorClase(kit.lineas);
-  const comprables = grupos.get("comprable")?.length ?? 0;
+  const comprables = (grupos.get("comprable") ?? []).filter((l) => !l.descartado).length;
+  const quitados = kit.lineas.filter((l) => l.descartado).length;
   const huecos = (grupos.get("hueco")?.length ?? 0) + (grupos.get("sin_match")?.length ?? 0);
   const gestionaColegio =
     (grupos.get("informativa")?.length ?? 0) +
@@ -524,11 +561,110 @@ function ResumenKit({ kit }: { kit: Kit }) {
         <dt>Los gestiona el colegio</dt>
         <dd className="cifra">{gestionaColegio}</dd>
       </div>
+      {quitados > 0 && (
+        <div>
+          <dt>Quitaste (ya los tienes)</dt>
+          <dd className="cifra">{quitados}</dd>
+        </div>
+      )}
       <div>
         <dt>Renglones de la lista</dt>
         <dd className="cifra">{kit.lineas.length}</dd>
       </div>
     </dl>
+  );
+}
+
+function FranjaFan({ lineas }: { lineas: LineaKit[] }) {
+  const productos = productosDelPersonaje(lineas);
+  if (productos.length === 0) return null;
+  const personajes = personajesDelKit(lineas);
+  return (
+    <section className={styles.franjaFan} aria-labelledby="titulo-franja-fan">
+      <h2 id="titulo-franja-fan">
+        {personajes.length === 1 ? `Tu kit de ${personajes[0]}` : "Tu kit con personajes"}
+      </h2>
+      <p>
+        Por esto es el kit Fan: {productos.length}{" "}
+        {productos.length === 1 ? "producto" : "productos"} con el personaje que pidió tu hijo.
+        Abajo está la lista completa.
+      </p>
+      <ul className={styles.tarjetasFan}>
+        {productos.map((linea) => {
+          const producto = linea.producto_elegido!;
+          return (
+            <li key={producto.sku} className={styles.tarjetaFan}>
+              {producto.imagen_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img className={styles.fotoOpcion} src={producto.imagen_url} alt="" loading="lazy" />
+              ) : (
+                <span className={styles.fotoOpcion} aria-hidden="true">
+                  sin foto
+                </span>
+              )}
+              <span className={styles.tarjetaFanNombre}>{producto.nombre}</span>
+              <span className={styles.tarjetaFanConcepto}>{linea.descripcion}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+// Libros y uniformes se compran fuera de Tukit o con otras reglas: van en su
+// propia seccion, con foto, tienda y como comprarlos, no mezclados con los utiles.
+function TarjetaAparte({
+  linea,
+  Icono,
+  nombreHijo,
+}: {
+  linea: LineaKit;
+  Icono: typeof BookOpen;
+  nombreHijo?: string;
+}) {
+  const producto = linea.producto_elegido;
+  const precio = estadoDePrecio(linea);
+  const donde = dondeComprar(linea);
+  const razon = razonDeNoCobrar(linea);
+  return (
+    <li className={styles.tarjetaAparte}>
+      {producto?.imagen_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className={styles.iconoAparte} src={producto.imagen_url} alt="" loading="lazy" />
+      ) : (
+        <span className={styles.iconoAparte} aria-hidden="true">
+          <Icono size={26} strokeWidth={2} />
+        </span>
+      )}
+      <div className={styles.lineaTexto}>
+        <p className={styles.descripcion}>{linea.descripcion}</p>
+        {linea.hijo && (
+          <p className={styles.meta}>
+            <span className={styles.hijo}>{nombreHijo ?? linea.hijo}</span>
+          </p>
+        )}
+        {linea.edicion?.titulo && (
+          <p className={styles.edicion}>
+            Edición exigida: <strong>{linea.edicion.titulo}</strong>
+            {linea.edicion.editorial && ` · ${linea.edicion.editorial}`}
+          </p>
+        )}
+        {precio.tipo === "sin_cobro" && <p className={styles.comoComprar}>{precio.titulo}</p>}
+        {donde && <span className={styles.dondeComprar}>{donde}</span>}
+        {razon && <p className={styles.razonNoCobro}>{razon}</p>}
+        {linea.url_externa && (
+          <a
+            className={styles.enlacePago}
+            href={linea.url_externa}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Cómo comprarlo →
+          </a>
+        )}
+      </div>
+    </li>
   );
 }
 
@@ -541,7 +677,12 @@ function SeccionesDeLineas({
   trabajoId: string;
   nombresHijos: Map<string, string>;
 }) {
-  const grupos = agruparPorClase(kit.lineas);
+  // Libros y uniformes salen del flujo normal y van a su propia seccion. Un
+  // libro que Tukit SI vende (con producto y precio) se queda con los utiles.
+  const aparte = (l: LineaKit) => (esLibro(l) || esUniforme(l)) && clasificar(l) !== "comprable";
+  const libros = kit.lineas.filter((l) => esLibro(l) && aparte(l));
+  const uniformes = kit.lineas.filter((l) => esUniforme(l) && aparte(l));
+  const grupos = agruparPorClase(kit.lineas.filter((l) => !aparte(l)));
 
   return (
     <div className={styles.secciones}>
@@ -573,6 +714,56 @@ function SeccionesDeLineas({
           </section>
         );
       })}
+
+      {libros.length > 0 && (
+        <section className={`${styles.seccion} ${styles.seccion_libros}`}>
+          <header className={styles.cabeceraSeccion}>
+            <h2>
+              <BookOpen size={20} aria-hidden="true" /> Libros{" "}
+              <span className={`${styles.conteo} cifra`}>{libros.length}</span>
+            </h2>
+            <p>
+              Los libros los venden las editoriales y las librerías, y a veces el colegio. No van
+              en el total de abajo; te decimos dónde conseguir cada uno.
+            </p>
+          </header>
+          <ul className={styles.lineas}>
+            {libros.map((l) => (
+              <TarjetaAparte
+                key={l.item_id}
+                linea={l}
+                Icono={BookOpen}
+                nombreHijo={l.hijo ? nombresHijos.get(l.hijo) : undefined}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {uniformes.length > 0 && (
+        <section className={`${styles.seccion} ${styles.seccion_uniformes}`}>
+          <header className={styles.cabeceraSeccion}>
+            <h2>
+              <Shirt size={20} aria-hidden="true" /> Uniformes{" "}
+              <span className={`${styles.conteo} cifra`}>{uniformes.length}</span>
+            </h2>
+            <p>
+              Los uniformes todavía no los vendemos. Te los dejamos aquí para que sepas qué hace
+              falta y dónde buscarlos; no van en el total de abajo.
+            </p>
+          </header>
+          <ul className={styles.lineas}>
+            {uniformes.map((l) => (
+              <TarjetaAparte
+                key={l.item_id}
+                linea={l}
+                Icono={Shirt}
+                nombreHijo={l.hijo ? nombresHijos.get(l.hijo) : undefined}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

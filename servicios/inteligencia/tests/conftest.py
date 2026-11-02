@@ -137,8 +137,35 @@ class CatalogoFalso:
                         "unidad_base": op.get("unidad_base", "unidad"),
                         "unidades_por_empaque": op.get("unidades_por_empaque", 1),
                         "precio_desde": op.get("precio_cop"),
+                        "concepto": {"codigo": respuesta.get("concepto_codigo"), "nombre": ""},
                     }
         raise KeyError(sku)
+
+    async def productos_del_concepto(self, concepto: str, *, maximo: int = 40) -> list[dict[str, Any]]:
+        """Todas las opciones con precio de un concepto, en forma publica."""
+        self.llamadas.append("productos_del_concepto")
+        salida: list[dict[str, Any]] = []
+        for respuesta in self.respuestas.values():
+            if respuesta.get("concepto_codigo") != concepto:
+                continue
+            for op in respuesta.get("opciones", []):
+                if op.get("precio_cop") is None:
+                    continue
+                salida.append(
+                    {
+                        "sku": op["sku"],
+                        "nombre": op["nombre"],
+                        "marca": op.get("marca"),
+                        "nivel": op["nivel"],
+                        "personaje": op.get("personaje"),
+                        "imagen_url": op.get("imagen_url"),
+                        "unidad_base": op.get("unidad_base", "unidad"),
+                        "unidades_por_empaque": op.get("unidades_por_empaque", 1),
+                        "precio_desde": op.get("precio_cop"),
+                        "concepto": {"codigo": concepto, "nombre": ""},
+                    }
+                )
+        return salida[:maximo]
 
     async def producto_de_personaje(self, concepto: str, personaje: str) -> dict[str, Any] | None:
         """Primera opcion de un concepto ancla cuyo personaje coincide, o None."""

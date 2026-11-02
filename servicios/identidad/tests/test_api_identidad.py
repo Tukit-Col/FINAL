@@ -397,6 +397,23 @@ class TestElRegistroDelAcudiente:
         # servidor; sigue sin salir nombre legal, documento ni estudiante_id.
         assert cuerpo["matriculas"][0]["apodo"] == "Pipe"
 
+    async def test_aceptar_los_terminos_deja_el_consentimiento_del_titular(self, cliente):
+        from sqlalchemy import select
+        from tukit_identidad.modelos import Consentimiento
+
+        cuerpo = {"correo": "acepta@ejemplo.com", "clave": "clave1234", "acepta_terminos": True}
+        assert (await cliente.post("/v1/registro", json=cuerpo)).status_code == 201
+        # Sin la casilla no se registra nada.
+        sin = {"correo": "sinmarca@ejemplo.com", "clave": "clave1234"}
+        assert (await cliente.post("/v1/registro", json=sin)).status_code == 201
+
+        async with app.state.motor.sesion() as db:
+            filas = (await db.execute(select(Consentimiento))).scalars().all()
+        titulares = [f for f in filas if f.regimen == "registro_titular"]
+        assert len(titulares) == 1
+        assert titulares[0].matricula_id is None
+        assert titulares[0].version
+
     async def test_reenviar_el_mismo_formulario_no_duplica_matriculas(self, cliente):
         colegio_id = str(derivar("colegio", "2.4"))
         cuerpo = {

@@ -159,6 +159,22 @@ class TestLasRutasInternasNoSeExponen:
         assert bloqueada("/v1/comercio/mis-pedidos") is False
         assert destino("/v1/comercio/pedidos") == "comercio"
 
+    @pytest.mark.parametrize(
+        ("ruta", "servicio"),
+        [
+            ("/v1/comercio/mis-pedidos/abc/retracto", "comercio"),
+            ("/v1/operacion/mis-casos", "operacion"),
+            ("/v1/operacion/mis-casos/abc/comentarios", "operacion"),
+            ("/v1/trabajos/abc/kits/Fan/lineas/xyz/descarte", "inteligencia"),
+            ("/v1/trabajos/abc/kits/Fan/lineas/xyz/opciones", "inteligencia"),
+        ],
+    )
+    def test_las_rutas_del_acudiente_pasan_por_la_puerta(self, ruta, servicio):
+        # Retracto, casos propios y cambios del kit: el dueno lo decide cada
+        # servicio con el token, la puerta solo las rutea.
+        assert bloqueada(ruta) is False
+        assert destino(ruta) == servicio
+
     async def test_responde_404_indistinguible_de_ruta_desconocida(self):
         """El 404 de la ruta interna es identico al de una ruta que no existe, y
         la ruta bloqueada NO aparece en la lista de rutas: desde fuera no hay

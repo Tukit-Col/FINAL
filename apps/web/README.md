@@ -55,7 +55,7 @@ esta.
 | `/catalogo` | Que hay hoy: conceptos, productos por nivel, personaje y precio por tienda |
 | `/dashboard` | Cuenta del acudiente: saludo (sesion de identidad), hijos, solicitudes y pedidos reales (`/v1/comercio/mis-pedidos`). Un hijo se cambia de colegio o se quita; una solicitud se cancela si el kit no se compro; un pedido pendiente se paga o se cancela ahi mismo |
 | `/pago/resultado` | La vuelta del pago: confirma con el servidor y muestra aprobado, rechazado o "estamos confirmando", con el pedido completo |
-| `/pago/simulado` | La pasarela de mentiras para `WOMPI_MODO=falso`: "Aprobar pago" o "Rechazar pago", sin red |
+| `/pago/simulado` | La pasarela de mentiras para `WOMPI_MODO=falso`: pantalla "Procesando pago de prueba" que aprueba sola (`?resultado=rechazado` fuerza el rechazo en pruebas), sin red |
 
 ## Lo que NO esta
 

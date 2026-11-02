@@ -171,6 +171,10 @@ class ProductoEnLinea(BaseModel):
     sku: str = Field(max_length=64)
 
 
+class DescarteDeLinea(BaseModel):
+    descartado: bool = True
+
+
 class DecisionRevision(BaseModel):
     decision: str = Field(pattern="^(aprobar|devolver)$")
     nota: str | None = Field(default=None, max_length=1024)
@@ -330,6 +334,54 @@ async def cambiar_producto_del_acudiente(
             perfil,
             item_id,
             cuerpo.sku,
+            usuario_id=usuario_id,
+            catalogo=api._catalogo(),
+        )
+    except trabajos.TrabajoNoExiste as error:
+        raise ErrorDominio("linea_no_existe", "Ese kit no tiene ese renglón.", estado=404) from error
+    except trabajos.CambioNoPermitido as error:
+        raise ErrorDominio(error.codigo, error.mensaje, estado=error.estado) from error
+
+
+@router.get(
+    "/v1/trabajos/{trabajo_id}/kits/{perfil}/lineas/{item_id}/opciones",
+    tags=["trabajos"],
+    summary="Los productos del mismo concepto que el acudiente puede elegir para un renglon",
+)
+async def opciones_de_la_linea(trabajo_id: uuid.UUID, perfil: str, item_id: uuid.UUID) -> dict[str, Any]:
+    try:
+        return await trabajos.opciones_de_la_linea(
+            api.app.state.motor, trabajo_id, perfil, item_id, catalogo=api._catalogo()
+        )
+    except trabajos.TrabajoNoExiste as error:
+        raise ErrorDominio("linea_no_existe", "Ese kit no tiene ese renglón.", estado=404) from error
+    except RemotoCaido as error:
+        raise ErrorDominio(
+            "catalogo_no_disponible", "No pudimos traer más opciones ahora. Intenta de nuevo.", estado=503
+        ) from error
+
+
+@router.put(
+    "/v1/trabajos/{trabajo_id}/kits/{perfil}/lineas/{item_id}/descarte",
+    tags=["trabajos"],
+    summary="El acudiente quita un renglon de su kit (ya lo tiene) o lo vuelve a poner",
+)
+async def descartar_linea_del_acudiente(
+    trabajo_id: uuid.UUID,
+    perfil: str,
+    item_id: uuid.UUID,
+    cuerpo: DescarteDeLinea,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    """Mismas reglas de dueno que el cambio de producto; reversible."""
+    usuario_id = await _usuario_de_sesion(authorization) if _token_bearer(authorization) else None
+    try:
+        return await trabajos.descartar_linea_del_acudiente(
+            api.app.state.motor,
+            trabajo_id,
+            perfil,
+            item_id,
+            descartar=cuerpo.descartado,
             usuario_id=usuario_id,
             catalogo=api._catalogo(),
         )

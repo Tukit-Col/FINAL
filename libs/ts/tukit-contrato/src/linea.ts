@@ -7,7 +7,7 @@
 // son reglas del contrato, no decisiones de diseno, y repetirlas en `web` y en
 // `admin` es como se desincronizan.
 
-import type { LineaKit } from "./contrato";
+import type { Dinero, LineaKit } from "./contrato";
 
 /**
  * Para que sirve cada linea en pantalla. El orden en que se prueba importa:
@@ -146,3 +146,186 @@ export const ORDEN_SECCIONES: readonly ClaseLinea[] = [
   "por_su_cuenta",
   "comprable",
 ];
+
+// ------------------------------------------------ Lo que el acudiente lee
+//
+// Reglas de presentacion que dependen del contrato y no de un componente: que
+// se muestra donde habria un precio, que lineas son libros o uniformes, como se
+// dice un empaque, que productos hacen "Fan" a un kit y las reglas de la
+// contrasena. Viven aqui, junto a `clasificar`, para probarlas sin pintar nada.
+
+/** Un libro de texto o de lectura: se compra donde la editorial o la libreria. */
+export function esLibro(linea: LineaKit): boolean {
+  return linea.tipo === "texto" || linea.tipo === "libro_libre";
+}
+
+export function esUniforme(linea: LineaKit): boolean {
+  return linea.tipo === "uniforme";
+}
+
+function nombreDeSitio(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname.replace(/^www\./, "") || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Donde se compra lo que Tukit no cobra, con el dato mas especifico que haya:
+ * lo que diga el catalogo (`se_compra_en`), la editorial de la edicion exigida,
+ * el sitio del proveedor o la tienda de la primera oferta. `null` si nada lo
+ * dice: la pantalla usa entonces un texto generico en vez de inventar un nombre.
+ */
+export function dondeComprar(linea: LineaKit): string | null {
+  const dicho = linea.se_compra_en?.trim();
+  if (dicho) return dicho;
+  const editorial = linea.edicion?.editorial?.trim();
+  if (editorial && esLibro(linea)) return editorial;
+  const sitio = nombreDeSitio(linea.url_externa);
+  if (sitio) return sitio;
+  const tienda = linea.producto_elegido?.ofertas?.[0]?.tienda?.trim();
+  return tienda || null;
+}
+
+/**
+ * Lo que se pinta en lugar del precio de una linea. Nunca `$ 0`: o hay un valor
+ * real que cobrar, o una frase que dice por que no se cobra y donde se
+ * consigue.
+ */
+export type EstadoPrecio =
+  | { tipo: "precio"; valor: Dinero }
+  | { tipo: "descartado"; ahorro: Dinero | null }
+  | { tipo: "sin_cobro"; titulo: string };
+
+export function estadoDePrecio(linea: LineaKit): EstadoPrecio {
+  if (linea.descartado) {
+    return { tipo: "descartado", ahorro: linea.subtotal_descartado ?? null };
+  }
+  const clase = clasificar(linea);
+  const donde = dondeComprar(linea);
+  const libro = esLibro(linea);
+  switch (clase) {
+    case "comprable":
+      if (typeof linea.subtotal_linea === "number" && linea.subtotal_linea > 0) {
+        return { tipo: "precio", valor: linea.subtotal_linea };
+      }
+      if (linea.unidades_a_comprar === 0) {
+        return { tipo: "sin_cobro", titulo: "Ya va en otro renglón" };
+      }
+      return {
+        tipo: "sin_cobro",
+        titulo: donde ? `Sin precio aún — se compra en ${donde}` : "Sin precio aún",
+      };
+    case "hueco":
+      return { tipo: "sin_cobro", titulo: "Todavía no lo tenemos" };
+    case "sin_match":
+    case "pendiente_revision":
+      return { tipo: "sin_cobro", titulo: "Una persona lo está revisando" };
+    case "licencia_digital":
+      return {
+        tipo: "sin_cobro",
+        titulo: `Licencia digital: se compra en ${donde ?? "la plataforma del proveedor"}`,
+      };
+    case "informativa":
+      return {
+        tipo: "sin_cobro",
+        titulo: libro
+          ? `Libro: se compra en ${donde ?? "la editorial o la librería"}`
+          : donde
+            ? `Lo vende ${donde}`
+            : "Lo entrega el colegio",
+      };
+    case "diferido":
+      return { tipo: "sin_cobro", titulo: "El colegio lo pedirá después" };
+    case "no_comprar":
+      return { tipo: "sin_cobro", titulo: "Ya lo tienes en casa" };
+    case "fuera_de_alcance":
+      return {
+        tipo: "sin_cobro",
+        titulo: `Uniforme: se compra en ${donde ?? "la tienda que indique el colegio"}`,
+      };
+    case "por_su_cuenta":
+      return {
+        tipo: "sin_cobro",
+        titulo: libro
+          ? `Libro: se compra en ${donde ?? "la editorial o la librería"}`
+          : donde
+            ? `Se compra por tu cuenta en ${donde}`
+            : "Se compra por tu cuenta",
+      };
+  }
+}
+
+/** Hay algo que cobrar: un total en cero no se muestra como `$ 0`, se explica. */
+export function hayQueCobrar(total: Dinero | null | undefined): total is Dinero {
+  return typeof total === "number" && total > 0;
+}
+
+/**
+ * Como se dice el empaque de una opcion: "Empaque de 12" y no "12". Si se
+ * compra mas de un empaque, lo dice.
+ */
+export function etiquetaEmpaque(unidadesPorEmpaque: number, unidadesAComprar: number): string {
+  const empaque = unidadesPorEmpaque > 1 ? `Empaque de ${unidadesPorEmpaque}` : "Por unidad";
+  return unidadesAComprar > 1 ? `${empaque} · compras ${unidadesAComprar}` : empaque;
+}
+
+/** Las lineas de un kit que SUMAN al total hoy: con precio y sin descartar. */
+export function lineasQueSuman(lineas: readonly LineaKit[]): LineaKit[] {
+  return lineas.filter((l) => !l.descartado && entraAlTotal(l));
+}
+
+/**
+ * Los productos con personaje de un kit, sin repetir y sin los descartados: lo
+ * que hace "Fan" a un kit Fan. Se muestra primero, antes de la lista completa.
+ */
+export function productosDelPersonaje(lineas: readonly LineaKit[]): LineaKit[] {
+  const vistos = new Set<string>();
+  const salida: LineaKit[] = [];
+  for (const linea of lineas) {
+    const producto = linea.producto_elegido;
+    if (!producto?.personaje || linea.descartado || linea.informativa) continue;
+    if (vistos.has(producto.sku)) continue;
+    vistos.add(producto.sku);
+    salida.push(linea);
+  }
+  return salida;
+}
+
+/** Los personajes distintos de un kit, para el titular de la franja Fan. */
+export function personajesDelKit(lineas: readonly LineaKit[]): string[] {
+  return [...new Set(productosDelPersonaje(lineas).map((l) => l.producto_elegido!.personaje!))];
+}
+
+// ------------------------------------------------- Contrasena y consentimiento
+
+/** Una regla de la contrasena, dicha en palabras sencillas. */
+export interface ReglaDeClave {
+  id: string;
+  texto: string;
+  cumple: boolean;
+}
+
+/** Largo minimo que exige Identidad (`CLAVE_MINIMA`). */
+export const CLAVE_MINIMA = 8;
+
+/**
+ * Las reglas de la contrasena y cuales ya cumple lo escrito. Hoy el unico
+ * requisito real es el largo (Identidad no exige mayusculas ni simbolos); la
+ * lista se arma aqui para que la pantalla muestre las reglas ANTES de escribir.
+ */
+export function reglasDeClave(clave: string): ReglaDeClave[] {
+  return [
+    {
+      id: "largo",
+      texto: `Al menos ${CLAVE_MINIMA} caracteres`,
+      cumple: clave.length >= CLAVE_MINIMA,
+    },
+  ];
+}
+
+export function claveValida(clave: string): boolean {
+  return reglasDeClave(clave).every((r) => r.cumple);
+}

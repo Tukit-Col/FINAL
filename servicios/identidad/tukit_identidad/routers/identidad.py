@@ -379,6 +379,9 @@ class NuevoHijo(BaseModel):
 
 
 _VERSION_CONSENTIMIENTO_MENOR = "2026-09"
+# Version de la politica de datos y los terminos que el titular acepta al
+# registrarse (los textos de `/legal` en la web). Sube cuando el texto cambie.
+_VERSION_TERMINOS_TITULAR = "2026-11"
 
 
 class HijoRegistro(BaseModel):
@@ -404,6 +407,9 @@ class Registro(BaseModel):
     clave: str = Field(min_length=8, max_length=256)
     celular: str | None = Field(default=None, max_length=32)
     hijos: list[HijoRegistro] = Field(default_factory=list)
+    # El titular marco la casilla de la politica de datos y los terminos. Se
+    # registra como consentimiento `registro_titular` solo al crear la cuenta.
+    acepta_terminos: bool = False
 
 
 class MatriculasNuevas(BaseModel):
@@ -453,6 +459,8 @@ async def registrar_acudiente(peticion: Request, registro: Registro) -> dict[str
             anio_lectivo,
             cifrador,
         )
+        if creado and registro.acepta_terminos:
+            await repo.registrar_consentimiento_titular(usuario_id, _VERSION_TERMINOS_TITULAR)
     return {"usuario_id": str(usuario_id), "creado": creado}
 
 

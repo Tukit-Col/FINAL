@@ -14,6 +14,8 @@ import {
   logoDeColegio,
   normalizarBusqueda,
   prepararBusqueda,
+  claveValida,
+  reglasDeClave,
   type Colegio,
   type EntradaDirectorio,
   type GradoCanonico,
@@ -423,6 +425,10 @@ export default function FormularioEmpezar({
   );
   const [correo, setCorreo] = useState(sesion?.correo ?? "");
   const [clave, setClave] = useState("");
+  // La casilla de la politica de datos y los terminos: sin ella no se crea la
+  // cuenta, y el servidor deja constancia de la aceptacion.
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
+  const idReglasClave = useId();
   const [celular, setCelular] = useState("");
   const [prioridad, setPrioridad] = useState<ClavePrioridad>("equilibrio");
   // Solo dígitos: el tope viaja como entero en pesos (`presupuesto_por_hijo`).
@@ -502,7 +508,10 @@ export default function FormularioEmpezar({
   const pideContacto = modo === "nuevo";
   const listo =
     (!pideContacto ||
-      (correo.trim().length > 3 && celular.trim().length > 6 && clave.length >= 6)) &&
+      (correo.trim().length > 3 &&
+        celular.trim().length > 6 &&
+        claveValida(clave) &&
+        aceptaTerminos)) &&
     hijos.every(hijoCompleto);
 
   // Qué falta EXACTAMENTE para poder enviar, traduciendo a texto los mismos
@@ -514,7 +523,8 @@ export default function FormularioEmpezar({
   const faltantesContacto: string[] = [];
   if (pideContacto) {
     if (correo.trim().length <= 3) faltantesContacto.push("tu correo");
-    if (clave.length < 6) faltantesContacto.push("una contraseña");
+    if (!claveValida(clave)) faltantesContacto.push("una contraseña de al menos 8 caracteres");
+    if (!aceptaTerminos) faltantesContacto.push("aceptar la política de datos y los términos");
     if (celular.trim().length <= 6) faltantesContacto.push("tu celular");
   }
 
@@ -590,6 +600,7 @@ export default function FormularioEmpezar({
       const registro = {
         correo: contacto.correo,
         clave,
+        acepta_terminos: aceptaTerminos,
         celular: contacto.celular,
         hijos: hijos
           .filter((hijo) => hijo.colegioId)
@@ -889,17 +900,31 @@ export default function FormularioEmpezar({
                 required
               />
             </label>
-            <label className={styles.campo}>
-              <span>Contraseña</span>
+            <div className={styles.campo}>
+              <label htmlFor={`${idReglasClave}-clave`}>
+                <span>Contraseña</span>
+              </label>
               <input
+                id={`${idReglasClave}-clave`}
                 type="password"
                 value={clave}
                 onChange={(e) => setClave(e.target.value)}
                 placeholder="Elige una contraseña"
                 autoComplete="new-password"
+                aria-describedby={idReglasClave}
                 required
               />
-            </label>
+              {/* Las reglas se ven ANTES de escribir y se marcan al cumplirse. */}
+              <ul id={idReglasClave} className={styles.reglasClave} aria-live="polite">
+                {reglasDeClave(clave).map((regla) => (
+                  <li key={regla.id} className={regla.cumple ? styles.reglaCumple : styles.reglaPendiente}>
+                    <Check size={13} aria-hidden="true" strokeWidth={3} />
+                    {regla.texto}
+                    <span className={styles.soloLectores}>{regla.cumple ? " (listo)" : " (falta)"}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
             <label className={styles.campo}>
               <span>Celular</span>
               <input
@@ -912,6 +937,25 @@ export default function FormularioEmpezar({
               />
             </label>
           </div>
+          <label className={styles.casillaTerminos}>
+            <input
+              type="checkbox"
+              checked={aceptaTerminos}
+              onChange={(e) => setAceptaTerminos(e.target.checked)}
+              required
+            />
+            <span>
+              Leí y acepto la{" "}
+              <Link href="/legal/privacidad" target="_blank" rel="noopener noreferrer">
+                política de tratamiento de datos personales
+              </Link>{" "}
+              y los{" "}
+              <Link href="/legal/terminos" target="_blank" rel="noopener noreferrer">
+                términos y condiciones
+              </Link>
+              .
+            </span>
+          </label>
         </section>
       )}
 

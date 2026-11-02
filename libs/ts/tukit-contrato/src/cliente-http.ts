@@ -21,6 +21,8 @@ import type {
   BorradorKits,
   GradoCanonico,
   SolicitudCheckout,
+  CambioDeDescarte,
+  OpcionesDeLinea,
   HijoSubida,
   Kit,
   LineaKit,
@@ -85,11 +87,20 @@ import type {
   Pedido,
   PedidoConHistorial,
   PedidoDelAcudiente,
+  RetractoSolicitado,
   SolicitudAvancePedido,
   TableroComercio,
 } from "./comercio";
 import type { MetricasColegio, ResumenPedidosColegio, SerieMetricas } from "./metricas";
-import type { BandejaOperacion, Caso, CasoCreado, SolicitudCaso } from "./operacion";
+import type {
+  BandejaOperacion,
+  Caso,
+  CasoCreado,
+  MiCaso,
+  MiCasoDetalle,
+  SolicitudCaso,
+  SolicitudMiCaso,
+} from "./operacion";
 import type { CasoDetalleAdmin, PedidoAdmin, SolicitudAvanceAdmin } from "./admin";
 import {
   ErrorTukit,
@@ -899,6 +910,33 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
+  descartarLineaDeKit(
+    trabajoId: string,
+    perfil: PerfilKit,
+    itemId: string,
+    descartado: boolean,
+    token?: string,
+  ): Promise<CambioDeDescarte> {
+    const ruta =
+      `/v1/trabajos/${encodeURIComponent(trabajoId)}/kits/${encodeURIComponent(perfil)}` +
+      `/lineas/${encodeURIComponent(itemId)}/descarte`;
+    return this.pedir<CambioDeDescarte>(ruta, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ descartado }),
+    });
+  }
+
+  opcionesDeLinea(trabajoId: string, perfil: PerfilKit, itemId: string): Promise<OpcionesDeLinea> {
+    const ruta =
+      `/v1/trabajos/${encodeURIComponent(trabajoId)}/kits/${encodeURIComponent(perfil)}` +
+      `/lineas/${encodeURIComponent(itemId)}/opciones`;
+    return this.pedir<OpcionesDeLinea>(ruta);
+  }
+
   // Las tres van por `/v1/comercio/mis-pedidos/{id}` con el Bearer: comercio
   // saca al acudiente de la sesion y un pedido ajeno es 404. `/v1/ordenes/*` es
   // interno y la puerta no lo expone.
@@ -928,6 +966,46 @@ export class ClienteApi implements OrigenDatos {
       `/v1/comercio/mis-pedidos/${encodeURIComponent(pedidoId)}/cancelar`,
       { method: "POST", headers: this.autoriza(token) },
     );
+  }
+
+  retractarPedido(token: string, pedidoId: string, motivo: string): Promise<RetractoSolicitado> {
+    return this.pedir<RetractoSolicitado>(
+      `/v1/comercio/mis-pedidos/${encodeURIComponent(pedidoId)}/retracto`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...this.autoriza(token) },
+        body: JSON.stringify({ motivo }),
+      },
+    );
+  }
+
+  async misCasos(token: string): Promise<MiCaso[]> {
+    const resp = await this.pedir<{ total: number; casos: MiCaso[] }>("/v1/operacion/mis-casos", {
+      headers: this.autoriza(token),
+    });
+    return resp.casos ?? [];
+  }
+
+  miCaso(token: string, casoId: string): Promise<MiCasoDetalle> {
+    return this.pedir<MiCasoDetalle>(`/v1/operacion/mis-casos/${encodeURIComponent(casoId)}`, {
+      headers: this.autoriza(token),
+    });
+  }
+
+  abrirMiCaso(token: string, solicitud: SolicitudMiCaso): Promise<CasoCreado> {
+    return this.pedir<CasoCreado>("/v1/operacion/mis-casos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...this.autoriza(token) },
+      body: JSON.stringify(solicitud),
+    });
+  }
+
+  async comentarMiCaso(token: string, casoId: string, texto: string): Promise<void> {
+    await this.pedir<unknown>(`/v1/operacion/mis-casos/${encodeURIComponent(casoId)}/comentarios`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...this.autoriza(token) },
+      body: JSON.stringify({ texto }),
+    });
   }
 
   sincronizarPago(transaccionId: string): Promise<ResultadoPago> {

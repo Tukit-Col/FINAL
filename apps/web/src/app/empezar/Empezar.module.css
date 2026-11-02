@@ -625,3 +625,65 @@
   font-size: 13px;
   color: var(--color-text-muted);
 }
+
+
+/* ------------------------------------------ Reglas de la contraseña y términos */
+
+.reglasClave {
+  list-style: none;
+  margin-top: 6px;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.reglasClave li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reglaPendiente {
+  color: var(--color-text-muted);
+}
+
+.reglaPendiente svg {
+  opacity: 0.35;
+}
+
+.reglaCumple {
+  color: var(--color-success);
+  font-weight: 700;
+}
+
+.soloLectores {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.casillaTerminos {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: var(--espacio-4);
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.casillaTerminos input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  accent-color: var(--color-primary);
+}
+
+.casillaTerminos a {
+  color: var(--color-primary);
+  text-decoration: underline;
+}

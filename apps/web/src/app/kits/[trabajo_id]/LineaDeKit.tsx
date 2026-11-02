@@ -1,16 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight, Check } from "lucide-react";
-import { cambiarProductoDeKit, FalloApi } from "@/lib/api-navegador";
+import { ArrowLeftRight, Check, RotateCcw, X } from "lucide-react";
+import {
+  cambiarProductoDeKit,
+  descartarLineaDeKit,
+  FalloApi,
+  opcionesDeLinea,
+} from "@/lib/api-navegador";
 import { pistaDeTienda } from "@/lib/kit-vista";
 import {
   ETIQUETA_NIVEL,
+  estadoDePrecio,
+  etiquetaEmpaque,
   formatearPesos,
   razonDeNoCobrar,
   type ClaseLinea,
   type LineaKit,
+  type OpcionDeLinea,
   type ProductoKit,
 } from "@tukit/contrato";
 import styles from "./Kits.module.css";
@@ -39,14 +47,36 @@ export default function LineaDeKit({
   trabajoId: string;
   perfil: string;
 }) {
+  const router = useRouter();
   const [abierto, setAbierto] = useState(false);
+  const [quitando, setQuitando] = useState(false);
+  const [errorDescarte, setErrorDescarte] = useState<string | null>(null);
   const producto = linea.producto_elegido;
   const razon = razonDeNoCobrar(linea);
-  const alternativas = linea.alternativas ?? [];
   const pista = producto ? pistaDeTienda(producto.ofertas ?? []) : null;
+  const precio = estadoDePrecio(linea);
+  const descartado = linea.descartado === true;
+  // Se puede cambiar o quitar lo que Tukit vende (tiene producto elegido).
+  const sePuedeTocar = clase === "comprable" && Boolean(producto);
+
+  async function descartar(quitar: boolean) {
+    setQuitando(true);
+    setErrorDescarte(null);
+    try {
+      await descartarLineaDeKit(trabajoId, perfil, linea.item_id, quitar);
+      setAbierto(false);
+      router.refresh();
+    } catch (causa) {
+      setErrorDescarte(
+        causa instanceof FalloApi ? causa.message : "No pudimos hacer el cambio. Intenta de nuevo.",
+      );
+    } finally {
+      setQuitando(false);
+    }
+  }
 
   return (
-    <li className={styles.linea}>
+    <li className={`${styles.linea} ${descartado ? styles.lineaDescartada : ""}`}>
       <div className={styles.lineaPrincipal}>
         {producto ? (
           <Foto producto={producto} />
@@ -73,11 +103,11 @@ export default function LineaDeKit({
               linea.unidades_por_empaque > 1 && (
                 <span>empaque de {linea.unidades_por_empaque}</span>
               )}
-            {typeof linea.unidades_a_comprar === "number" && linea.unidades_a_comprar > 0 && (
-              <span className={styles.compramos}>
-                compramos {linea.unidades_a_comprar}
-              </span>
-            )}
+            {typeof linea.unidades_a_comprar === "number" &&
+              linea.unidades_a_comprar > 0 &&
+              !descartado && (
+                <span className={styles.compramos}>compramos {linea.unidades_a_comprar}</span>
+              )}
           </p>
 
           {producto && (
@@ -90,7 +120,7 @@ export default function LineaDeKit({
               {producto.personaje && (
                 <span className={styles.personaje}>{producto.personaje}</span>
               )}
-              {linea.cambiado_por_acudiente && (
+              {linea.cambiado_por_acudiente && !descartado && (
                 <span className={styles.cambiadoPorTi}>Lo elegiste tú</span>
               )}
             </p>
@@ -109,7 +139,13 @@ export default function LineaDeKit({
             </p>
           )}
 
-          {razon && <p className={styles.razonNoCobro}>{razon}</p>}
+          {descartado ? (
+            <p className={styles.razonNoCobro}>
+              Lo quitaste de tu kit porque ya lo tienes. No se cobra y no entra en el total.
+            </p>
+          ) : (
+            razon && <p className={styles.razonNoCobro}>{razon}</p>
+          )}
 
           {linea.url_externa && (
             <a
@@ -143,40 +179,69 @@ export default function LineaDeKit({
         </div>
 
         <div className={styles.lineaPrecio}>
-          {linea.subtotal_linea !== null ? (
-            <span className={`${styles.subtotal} cifra`}>
-              {formatearPesos(linea.subtotal_linea)}
+          {/* Nunca "$ 0": o hay un precio real o una frase que dice por que no
+              se cobra y donde se consigue. */}
+          {precio.tipo === "precio" ? (
+            <span className={`${styles.subtotal} cifra`}>{formatearPesos(precio.valor)}</span>
+          ) : precio.tipo === "descartado" ? (
+            <span className={styles.noCobrado}>
+              Quitado
+              {precio.ahorro ? ` · ahorras ${formatearPesos(precio.ahorro)}` : ""}
             </span>
           ) : (
-            <span className={styles.noCobrado}>No se cobra</span>
+            <span className={styles.noCobrado}>{precio.titulo}</span>
           )}
           {/* Las ofertas por tienda son opcionales: el backend las omite en la
               línea del kit (el producto ya trae su `precio`). Se pinta la pista
               de tienda solo cuando trae un nombre, en vez de un "en" vacío. */}
-          {pista && <span className={styles.tienda}>{pista}</span>}
+          {pista && !descartado && <span className={styles.tienda}>{pista}</span>}
         </div>
       </div>
 
-      {producto && alternativas.length > 0 && (
+      {sePuedeTocar && (
         <div className={styles.alternativas}>
-          <button
-            type="button"
-            className={styles.botonCambiar}
-            aria-expanded={abierto}
-            onClick={() => setAbierto((a) => !a)}
-          >
-            <ArrowLeftRight size={14} aria-hidden="true" strokeWidth={2.4} />
-            {abierto
-              ? "Cerrar"
-              : `Cambiar por otra opción · ${alternativas.length} ${
-                  alternativas.length === 1 ? "disponible" : "disponibles"
-                }`}
-          </button>
-          {abierto && (
-            <OpcionesDeCambio
+          <div className={styles.accionesLinea}>
+            {!descartado && (
+              <button
+                type="button"
+                className={styles.botonCambiar}
+                aria-expanded={abierto}
+                onClick={() => setAbierto((a) => !a)}
+              >
+                <ArrowLeftRight size={14} aria-hidden="true" strokeWidth={2.4} />
+                {abierto ? "Cerrar opciones" : "Cambiar por otra opción"}
+              </button>
+            )}
+            {descartado ? (
+              <button
+                type="button"
+                className={styles.botonCambiar}
+                disabled={quitando}
+                onClick={() => void descartar(false)}
+              >
+                <RotateCcw size={14} aria-hidden="true" strokeWidth={2.4} />
+                {quitando ? "Volviendo a ponerlo…" : "Volver a ponerlo en mi kit"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={`${styles.botonCambiar} ${styles.botonQuitar}`}
+                disabled={quitando}
+                onClick={() => void descartar(true)}
+              >
+                <X size={14} aria-hidden="true" strokeWidth={2.4} />
+                {quitando ? "Quitando…" : "No lo necesito / ya lo tengo"}
+              </button>
+            )}
+          </div>
+          {errorDescarte && (
+            <p className={styles.errorCambio} role="alert">
+              {errorDescarte}
+            </p>
+          )}
+          {abierto && !descartado && producto && (
+            <CarruselDeOpciones
               linea={linea}
-              producto={producto}
-              alternativas={alternativas}
               trabajoId={trabajoId}
               perfil={perfil}
               onListo={() => setAbierto(false)}
@@ -189,31 +254,49 @@ export default function LineaDeKit({
 }
 
 /**
- * Las opciones para cambiar el producto de un renglón: la que está en el kit y
- * las alternativas que una persona revisó, como tarjetas para elegir. Elegir
- * una la guarda en el trabajo del acudiente y recalcula el total en el
- * servidor (`router.refresh()` trae el kit nuevo). La sugerida por Tukit queda
+ * Las opciones del MISMO tipo de útil (mismo concepto) para un renglón, como un
+ * carrusel horizontal: foto, marca, precio, empaque y cuánto cambia el total.
+ * Elegir una la guarda en el trabajo del acudiente y el servidor recalcula el
+ * total (`router.refresh()` trae el kit nuevo). La sugerida por Tukit queda
  * siempre a la vista para volver a ella.
  */
-function OpcionesDeCambio({
+function CarruselDeOpciones({
   linea,
-  producto,
-  alternativas,
   trabajoId,
   perfil,
   onListo,
 }: {
   linea: LineaKit;
-  producto: ProductoKit;
-  alternativas: ProductoKit[];
   trabajoId: string;
   perfil: string;
   onListo: () => void;
 }) {
   const router = useRouter();
+  const [opciones, setOpciones] = useState<OpcionDeLinea[] | null>(null);
   const [guardando, setGuardando] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const precioActual = producto.ofertas[0]?.precio ?? null;
+  const pista = useRef<HTMLUListElement>(null);
+
+  useEffect(() => {
+    let vivo = true;
+    opcionesDeLinea(trabajoId, perfil, linea.item_id)
+      .then((r) => {
+        if (vivo) setOpciones(r.opciones);
+      })
+      .catch((causa) => {
+        if (!vivo) return;
+        // Si no se pudieron traer todas, se ofrecen al menos las ya revisadas.
+        setOpciones(opcionesDeRespaldo(linea));
+        setError(
+          causa instanceof FalloApi
+            ? causa.message
+            : "No pudimos traer más opciones. Te mostramos las que ya tenemos.",
+        );
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [trabajoId, perfil, linea]);
 
   async function elegir(sku: string) {
     setGuardando(sku);
@@ -231,50 +314,72 @@ function OpcionesDeCambio({
     }
   }
 
-  const opciones = [producto, ...alternativas];
+  function mover(direccion: 1 | -1) {
+    const el = pista.current;
+    if (el) el.scrollBy({ left: direccion * (el.clientWidth * 0.8), behavior: "smooth" });
+  }
+
   return (
     <div className={styles.panelCambio}>
-      <p className={styles.tituloCambio}>Elige el que prefieras para «{linea.descripcion}»</p>
-      <ul className={styles.opcionesCambio}>
-        {opciones.map((opcion) => {
-          const enKit = opcion.sku === producto.sku;
-          const sugerido = linea.cambiado_por_acudiente
-            ? opcion.sku === linea.sku_sugerido
-            : enKit;
-          const precio = opcion.ofertas[0]?.precio ?? null;
-          const diferencia =
-            precio !== null && precioActual !== null && !enKit ? precio - precioActual : null;
-          return (
-            <li
-              key={opcion.sku}
-              className={`${styles.opcionCambio} ${enKit ? styles.opcionEnKit : ""}`}
-            >
-              <div className={styles.opcionCabecera}>
-                <Foto producto={opcion} />
-                <div className={styles.opcionTexto}>
-                  <span className={`${styles.nivel} ${styles[opcion.nivel]}`}>
-                    {ETIQUETA_NIVEL[opcion.nivel]}
-                  </span>
-                  <span className={styles.opcionNombre}>{opcion.nombre}</span>
-                  {opcion.marca && <span className={styles.marca}>{opcion.marca}</span>}
-                </div>
-              </div>
-              <div className={styles.opcionPie}>
-                <span className={styles.opcionPrecio}>
-                  <span className="cifra">{formatearPesos(precio)}</span>
-                  {diferencia !== null && diferencia !== 0 && (
-                    <span
-                      className={`${styles.diferencia} ${
-                        diferencia > 0 ? styles.masCaro : styles.masBarato
-                      } cifra`}
-                      title="Diferencia de precio con el producto que tienes en el kit"
-                    >
-                      {diferencia > 0 ? "+" : "−"}
-                      {formatearPesos(Math.abs(diferencia))}
-                    </span>
-                  )}
+      <p className={styles.tituloCambio}>
+        Otras opciones para «{linea.descripcion}». El precio es lo que costaría este renglón.
+      </p>
+      {opciones === null ? (
+        <p className={styles.notaCambio} role="status">
+          Buscando opciones…
+        </p>
+      ) : opciones.length <= 1 ? (
+        <p className={styles.notaCambio}>Por ahora no tenemos otra opción para este renglón.</p>
+      ) : (
+        <div className={styles.carruselMarco}>
+          <button
+            type="button"
+            className={`${styles.flechaCarrusel} ${styles.flechaIzq}`}
+            onClick={() => mover(-1)}
+            aria-label="Ver opciones anteriores"
+          >
+            ‹
+          </button>
+          <ul
+            ref={pista}
+            className={styles.carrusel}
+            tabIndex={0}
+            aria-label="Opciones del mismo tipo de producto"
+          >
+            {opciones.map((opcion) => (
+              <li
+                key={opcion.sku}
+                className={`${styles.tarjetaOpcion} ${opcion.en_kit ? styles.opcionEnKit : ""}`}
+              >
+                <FotoOpcion url={opcion.imagen_url} />
+                <span className={`${styles.nivel} ${styles[opcion.nivel]}`}>
+                  {ETIQUETA_NIVEL[opcion.nivel]}
                 </span>
-                {enKit ? (
+                <span className={styles.opcionNombre}>{opcion.nombre}</span>
+                {opcion.marca && <span className={styles.marca}>{opcion.marca}</span>}
+                {opcion.personaje && <span className={styles.personaje}>{opcion.personaje}</span>}
+                <span className={`${styles.opcionPrecioGrande} cifra`}>
+                  {formatearPesos(opcion.subtotal)}
+                </span>
+                <span className={styles.opcionEmpaque}>
+                  {etiquetaEmpaque(opcion.unidades_por_empaque, opcion.unidades_a_comprar)}
+                  {opcion.unidades_por_empaque > 1 || opcion.unidades_a_comprar > 1
+                    ? ` · ${formatearPesos(opcion.precio)} c/u`
+                    : ""}
+                </span>
+                {!opcion.en_kit && opcion.diferencia !== null && opcion.diferencia !== 0 && (
+                  <span
+                    className={`${styles.diferencia} ${
+                      opcion.diferencia > 0 ? styles.masCaro : styles.masBarato
+                    } cifra`}
+                    title="Diferencia con lo que tienes hoy en el kit"
+                  >
+                    {opcion.diferencia > 0 ? "+" : "−"}
+                    {formatearPesos(Math.abs(opcion.diferencia))} en tu total
+                  </span>
+                )}
+                {opcion.sugerido && <span className={styles.sugeridaTukit}>Sugerido por Tukit</span>}
+                {opcion.en_kit ? (
                   <span className={styles.enTuKit}>
                     <Check size={14} aria-hidden="true" strokeWidth={3} />
                     En tu kit
@@ -289,12 +394,19 @@ function OpcionesDeCambio({
                     {guardando === opcion.sku ? "Cambiando…" : "Elegir"}
                   </button>
                 )}
-              </div>
-              {sugerido && <span className={styles.sugeridaTukit}>Sugerido por Tukit</span>}
-            </li>
-          );
-        })}
-      </ul>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            className={`${styles.flechaCarrusel} ${styles.flechaDer}`}
+            onClick={() => mover(1)}
+            aria-label="Ver más opciones"
+          >
+            ›
+          </button>
+        </div>
+      )}
       {error && (
         <p className={styles.errorCambio} role="alert">
           {error}
@@ -305,6 +417,47 @@ function OpcionesDeCambio({
       </p>
     </div>
   );
+}
+
+/** Si el servidor no responde, las ya revisadas (la del kit y sus alternativas). */
+function opcionesDeRespaldo(linea: LineaKit): OpcionDeLinea[] {
+  const actual = linea.producto_elegido;
+  if (!actual) return [];
+  const precioActual = actual.ofertas[0]?.precio ?? null;
+  const salida: OpcionDeLinea[] = [];
+  for (const p of [actual, ...(linea.alternativas ?? [])]) {
+    const precio = p.ofertas[0]?.precio;
+    if (precio === undefined) continue;
+    const enKit = p.sku === actual.sku;
+    salida.push({
+        sku: p.sku,
+        nombre: p.nombre,
+        marca: p.marca,
+        nivel: p.nivel,
+        personaje: p.personaje,
+        imagen_url: p.imagen_url,
+        precio,
+        unidades_por_empaque: 1,
+        unidades_a_comprar: 1,
+        subtotal: precio,
+        diferencia: precioActual === null || enKit ? 0 : precio - precioActual,
+        en_kit: enKit,
+        sugerido: linea.cambiado_por_acudiente ? p.sku === linea.sku_sugerido : enKit,
+    });
+  }
+  return salida;
+}
+
+function FotoOpcion({ url }: { url: string | null }) {
+  if (!url) {
+    return (
+      <span className={styles.fotoOpcion} aria-hidden="true">
+        sin foto
+      </span>
+    );
+  }
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img className={styles.fotoOpcion} src={url} alt="" loading="lazy" />;
 }
 
 function Foto({ producto }: { producto: ProductoKit }) {
