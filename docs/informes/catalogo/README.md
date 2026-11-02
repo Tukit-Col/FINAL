@@ -57,14 +57,25 @@ La web ya recibe ese texto en `linea_kit.instruccion_colegio` de las líneas inf
 `monolingue: false`. Sin eso, la lista que pide "Diccionario inglés-inglés" quedaba sin candidatos. El concepto
 `dic-ingles` ahora está declarado en `conceptos.csv`.
 
+## Segunda ronda (2026-11-01)
+
+- **Plan lector (C134):** pasa de `texto` a `libro_libre` con `isbn13` como atributo que discrimina. Se hizo con datos
+  y con el cargador (`CONCEPTOS_LIBRO`), sin tocar inteligencia. Las 75 líneas que quedaban en SIN_MATCH son hoy 0.
+  19 líneas piden una edición verificada en Buscalibre Colombia (17 libros con ISBN-13 válido, precio, imagen y URL,
+  leídos el 2026-11-01). Las otras 56 llevan la instrucción "Se compra en librería".
+- **Cuaderno de 3 materias y bitácora/sketchbook octavo:** 9 líneas con instrucción "Se compra en papelería". No se
+  forzó ningún producto. Huecos de catálogo en los kits recomendados: 8 antes, 0 ahora.
+- **Calidad:** 34 productos tenían `quality_score` distinto del que fija su nivel; quedaron alineados.
+- **Precios de zamux:** la ficha y su JSON-LD confirman 500 y 600 COP por unidad. El dato era correcto y el piso del
+  test (650) no; bajó a 500 con la justificación en el test.
+- **Encuesta:** `Resultados_encuesta.xlsx` no tiene ninguna pregunta por personajes, así que no se pueden derivar los
+  cinco más pedidos. Con las cuatro anclas hay 8 personajes con 4 o más productos reales: stitch 6, frozen 6, minnie 6,
+  disney 6, spiderman 5, cars 4, paw patrol 4, bluey 4.
+
 ## Límites
 
-- **Textos del plan lector (C134, 75 líneas):** el tipo `texto` no está en `BUSCA_EN_CATALOGO`, así que cargar ediciones
-  reales no cambia su estado. Hace falta decidir si se reclasifican como `libro_libre` (código de inteligencia, no mío).
-- **Sin producto real encontrado:** cuaderno de 3 materias cuadriculado grande (Éxito solo lo tiene sin stock; Panamericana
-  no lo vende) y bitácora o sketchbook octavo argollada. Siguen como hueco y no se inventó ningún dato.
+- **Sin producto real encontrado:** 56 líneas del plan lector y 9 de cuaderno/bitácora se resuelven con instrucción, no
+  con producto. La web debe mostrar `linea_kit.instruccion_colegio` en esas líneas informativas.
 - **614 productos sin descripción:** la ficha de la tienda era publicitaria o no tenía texto.
 - **Pendientes del lote N2:** 34 productos sin marca, 9 duplicados por nombre, `unidades_por_empaque` en 1 para todos.
-- **Tests:** `test_la_puntuacion_de_calidad_se_deriva_del_nivel` y `test_todo_precio_es_entero_de_centavos_y_esta_en_rango`
-  fallan desde el volcar base (3 precios de zamux fuera de rango y puntaje 0.4 frente a 0.7), no por estos cambios.
 - `make bd-deriva` reporta diferencias de esquema ajenas a este trabajo.
