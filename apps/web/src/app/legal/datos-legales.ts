@@ -8,13 +8,16 @@
 export const VERSION_TEXTOS_LEGALES = "2026-11";
 export const FECHA_VIGENCIA = "1 de noviembre de 2026";
 
+// Tukit todavía no está constituido como empresa: no tiene razón social ni NIT,
+// y por eso la pantalla no los muestra en vez de dejar un hueco. Tampoco hay
+// teléfono de atención; el canal es el correo y los casos de la sección Ayuda.
+// Cuando se constituya, se agregan aquí y en las páginas que los citan.
 export const RESPONSABLE = {
   nombre: "Tukit",
-  razonSocial: "[Razón social]",
-  nit: "[NIT]",
-  domicilio: "[Dirección y ciudad]",
-  correo: "[correo de contacto]",
-  telefono: "[teléfono de contacto]",
+  naturaleza:
+    "un proyecto de trabajo de grado de Ingeniería de Sistemas de la Pontificia Universidad Javeriana, que aún no está constituido como empresa",
+  domicilio: "Bogotá, Colombia",
+  correo: "tukit.ayuda@gmail.com",
 } as const;
 
 /** Un valor es un pendiente si todavía está entre corchetes. */

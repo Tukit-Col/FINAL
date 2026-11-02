@@ -12,10 +12,9 @@ export default function PaginaPrivacidad() {
     >
       <h2>1. Quién es el responsable</h2>
       <p>
-        El responsable del tratamiento es {RESPONSABLE.nombre} (<Dato valor={RESPONSABLE.razonSocial} />, NIT{" "}
-        <Dato valor={RESPONSABLE.nit} />
-        ), con domicilio en <Dato valor={RESPONSABLE.domicilio} />. Puedes escribirnos a{" "}
-        <Dato valor={RESPONSABLE.correo} /> o llamar al <Dato valor={RESPONSABLE.telefono} />.
+        El responsable del tratamiento es el equipo de {RESPONSABLE.nombre}, {RESPONSABLE.naturaleza}, con
+        domicilio en <Dato valor={RESPONSABLE.domicilio} />. Puedes escribirnos a{" "}
+        <Dato valor={RESPONSABLE.correo} />; por ahora no tenemos línea telefónica de atención.
       </p>
 
       <h2>2. Qué datos recogemos</h2>
@@ -82,7 +81,17 @@ export default function PaginaPrivacidad() {
         conservamos mientras tengas cuenta y el tiempo que la ley exija para soportes contables y de garantía.
       </p>
 
-      <h2>8. Vigencia</h2>
+      <h2>8. Si participaste en nuestro estudio de usabilidad</h2>
+      <p>
+        Si aceptaste participar en las sesiones de prueba de Tukit (parte de nuestro trabajo de grado), tus
+        respuestas se guardan con un código de participante y no con tu nombre. Las conservamos hasta que se
+        apruebe el trabajo de grado y 12 meses más, y después las borramos. Las grabaciones de pantalla o de audio,
+        si las autorizaste, se borran cuando verificamos el análisis o la transcripción y, a más tardar, a los 30
+        días. Puedes retirar tu autorización y pedir que borremos tus datos del estudio escribiendo a{" "}
+        <Dato valor={RESPONSABLE.correo} />.
+      </p>
+
+      <h2>9. Vigencia</h2>
       <p>
         Esta política rige desde la fecha indicada arriba. Si la cambiamos de forma importante, te lo avisaremos y
         volveremos a pedir tu autorización cuando la ley lo exija.
