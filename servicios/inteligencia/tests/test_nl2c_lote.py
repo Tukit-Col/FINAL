@@ -330,6 +330,25 @@ def test_la_pregunta_de_capacidades_se_reconoce_con_o_sin_signos(texto):
     assert nl2c_lote.pide_ayuda(texto)
 
 
+async def test_un_lote_lleno_mas_explicacion_no_pasa_el_tope_de_componentes_de_la_web(monkeypatch):
+    # 14 cuadernos, todos con una alternativa mas barata: el lote llega al tope de 12 propuestas.
+    kit = {
+        "perfil": "Fan",
+        "total": {"monto": 1},
+        "consolidaciones": [],
+        "lineas": [
+            _linea(n, "Cuaderno rayado", f"CU-{n}", 5000, [(f"AL-{n}", 3000, "economico")])
+            for n in range(1, 15)
+        ],
+    }
+    llamadas = [*pedir("mas_barato", "cuadernos"), {"name": "explicar_kit", "args": {"perfil": "Fan"}}]
+    resp, _ = await correr(monkeypatch, llamadas, "todos los cuadernos y explicame", kit=kit)
+    tipos_ui = tipos(resp)
+    assert tipos_ui.count("PropuestaCambio") == 12 and tipos_ui[0] == "ResumenLote"
+    # Espejo de MAX_COMPONENTES en apps/web/src/components/asistente/espec.ts: pasarlo anula toda la UI.
+    assert len(tipos_ui) <= 13
+
+
 # --- 4. Contexto conversacional ------------------------------------------------------------
 async def test_y_en_colores_tambien_se_resuelve_contra_el_pedido_anterior(monkeypatch):
     resp, _ = await correr(
