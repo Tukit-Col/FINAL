@@ -127,14 +127,21 @@ export function direccionDesdeComponentes(
   return { ciudad, localidad, departamento };
 }
 
-// El enlace "Ver en Google Maps" de un envio. Sin coordenadas: busca por el
-// texto de la direccion (con la ciudad si no la trae) y, si el checkout guardo
-// el `place_id`, lo fija para que Maps abra ese lugar exacto.
+// El enlace "Ver en Google Maps" de un envio. Con coordenadas (la direccion se
+// confirmo en el mapa de OpenStreetMap, ADR 0049) abre ese punto exacto. Sin
+// ellas busca por el texto de la direccion (con la ciudad si no la trae) y, si
+// el checkout guardo el `place_id`, lo fija para que Maps abra ese lugar.
 export function enlaceGoogleMaps(envio: {
   direccion: string;
   ciudad?: string | null;
   google_place_id?: string | null;
+  latitud?: number | null;
+  longitud?: number | null;
 }): string {
+  const { latitud, longitud } = envio;
+  if (typeof latitud === "number" && typeof longitud === "number") {
+    return `https://www.google.com/maps/search/?api=1&query=${latitud},${longitud}`;
+  }
   const direccion = envio.direccion.trim();
   const ciudad = envio.ciudad?.trim() ?? "";
   const consulta = ciudad && !clave(direccion).includes(clave(ciudad)) ? `${direccion}, ${ciudad}` : direccion;
@@ -142,4 +149,42 @@ export function enlaceGoogleMaps(envio: {
   const lugar = envio.google_place_id?.trim();
   if (lugar) url += `&query_place_id=${encodeURIComponent(lugar)}`;
   return url;
+}
+
+// La direccion de una respuesta de Nominatim (OpenStreetMap, `addressdetails=1`)
+// a lo que el checkout pre-llena. OSM no usa los tipos de Google: en Bogota
+// escribe la ciudad como "Bogotá ciudad", el departamento como "Bogotá,
+// Distrito Capital" y la localidad en `suburb` como "Localidad Chapinero".
+// `localidadCanonica` ya ignora el prefijo "Localidad", asi que basta probar los
+// campos donde OSM la suele poner. `neighbourhood` no: es el barrio (ver
+// `TIPOS_LOCALIDAD`). Sin localidad reconocible la elige el acudiente.
+const CAMPOS_LOCALIDAD_OSM = ["suburb", "city_district", "borough", "quarter"] as const;
+const CAMPOS_CIUDAD_OSM = ["city", "town", "village", "municipality"] as const;
+
+export function direccionDesdeNominatim(
+  direccion: Readonly<Record<string, string | undefined>> | null | undefined,
+): DireccionDerivada {
+  const a = direccion ?? {};
+  const estado = a["state"]?.trim() ?? "";
+  const ciudadOsm = CAMPOS_CIUDAD_OSM.map((campo) => a[campo]?.trim() ?? "").find(Boolean) ?? "";
+  // Sin `\b`: en JavaScript la "á" no cuenta como letra y el borde de palabra
+  // nunca casaria tras "Bogotá".
+  const enBogota = /^bogot[aá]/i.test(estado) || /^bogot[aá]/i.test(ciudadOsm);
+
+  // Bogota es distrito capital: la ciudad y el departamento se normalizan a los
+  // nombres que ya usa el resto del sistema (`esBogota` los reconoce).
+  const ciudad = enBogota ? "Bogotá" : ciudadOsm;
+  const departamento = enBogota ? "Bogotá, D.C." : estado;
+
+  let localidad: LocalidadBogota | "" = "";
+  if (enBogota) {
+    for (const campo of CAMPOS_LOCALIDAD_OSM) {
+      const casada = localidadCanonica(a[campo]);
+      if (casada) {
+        localidad = casada;
+        break;
+      }
+    }
+  }
+  return { ciudad, localidad, departamento };
 }

@@ -890,6 +890,116 @@
   text-align: right;
 }
 
+/* Dirección con OpenStreetMap (sin llave de Google, ADR 0049): el campo y el
+   botón Buscar van en fila; en pantallas angostas el botón baja debajo para que
+   ninguno quede por debajo de 44 px de toque. */
+.filaBuscarDireccion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--espacio-2);
+}
+
+@media (max-width: 420px) {
+  .filaBuscarDireccion {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.botonBuscarDireccion {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espacio-2);
+  min-height: 46px;
+  min-width: 44px;
+  padding: 0 var(--espacio-4);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--color-primary);
+  color: var(--color-white);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.botonBuscarDireccion:disabled {
+  background: var(--color-border);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+/* Cada resultado es un blanco de toque de al menos 44 px. */
+.sugerenciasDireccion .sugerenciaDireccion {
+  min-height: 44px;
+  align-content: center;
+}
+
+.estadoDireccion {
+  min-height: 1.2em;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+/* La licencia de OSM pide atribuir; en la lista y, abajo, sobre el mapa mismo. */
+.atribucionOsm {
+  padding: var(--espacio-1) var(--espacio-4) var(--espacio-2);
+  border-top: 1px solid var(--color-border-light);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+.confirmacionMapa {
+  display: grid;
+  gap: var(--espacio-2);
+  min-width: 0;
+}
+
+.ayudaMapa {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* `min-width: 0` y ancho al 100%: el mapa nunca ensancha el formulario. */
+.mapaEntrega,
+.mapaCargando {
+  width: 100%;
+  min-width: 0;
+  height: clamp(220px, 45vh, 320px);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  /* Leaflet apila sus paneles con z-index altos: se encierran aqui para que no
+     pasen por encima de la barra fija ni de la lista de resultados. */
+  isolation: isolate;
+}
+
+.mapaCargando {
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* Leaflet inyecta el divIcon fuera del arbol de React: la clase del modulo va en
+   el contenedor y el dibujo en el span. Una gota con la punta abajo. */
+.pinEntrega {
+  background: none;
+  border: 0;
+}
+
+.pinEntrega span {
+  display: block;
+  width: 34px;
+  height: 34px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: var(--color-primary);
+  border: 3px solid var(--color-white);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+}
+
 .formPago .pagar {
   justify-content: center;
   margin-top: var(--espacio-2);

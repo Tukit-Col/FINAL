@@ -32,7 +32,7 @@ from typing import Annotated, Any
 
 import httpx
 from fastapi import APIRouter, Header, Request
-from pydantic import AwareDatetime, BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field, model_validator
 from sqlalchemy.exc import IntegrityError
 from tukit_comun.http import ErrorDominio
 from tukit_comun.metricas import contar_orden_creada, contar_pago_aprobado
@@ -304,7 +304,9 @@ class DireccionEntrega(BaseModel):
     `localidad` es el nombre canonico de una de las 20 de Bogota; aqui solo se
     valida el largo, porque la regla "obligatoria en Bogota" es del formulario y
     un cliente viejo tiene que seguir cerrando. `google_place_id` sale de la
-    sugerencia de Google Places; nunca se reciben coordenadas (ADR 0044)."""
+    sugerencia de Google Places (ADR 0044). `latitud`/`longitud` salen del pin
+    que el acudiente confirmo en el mapa de OpenStreetMap (ADR 0049): van juntas
+    o ninguna, y dentro de Colombia (un punto fuera es un error del cliente)."""
 
     destinatario: str = Field(min_length=1, max_length=256)
     direccion: str = Field(min_length=1, max_length=512)
@@ -315,6 +317,14 @@ class DireccionEntrega(BaseModel):
     indicaciones: str | None = Field(default=None, max_length=512)
     localidad: str | None = Field(default=None, max_length=64)
     google_place_id: str | None = Field(default=None, max_length=512)
+    latitud: float | None = Field(default=None, ge=-4.3, le=13.6)
+    longitud: float | None = Field(default=None, ge=-81.8, le=-66.8)
+
+    @model_validator(mode="after")
+    def _coordenadas_completas(self) -> DireccionEntrega:
+        if (self.latitud is None) != (self.longitud is None):
+            raise ValueError("latitud y longitud van juntas")
+        return self
 
 
 class SolicitudOrden(BaseModel):

@@ -90,6 +90,8 @@ def _serializar_envio(fila: Any, *, con_celular: bool = False) -> dict[str, Any]
         "indicaciones": fila.indicaciones,
         "localidad": fila.localidad,
         "google_place_id": fila.google_place_id,
+        "latitud": fila.latitud,
+        "longitud": fila.longitud,
         "transportadora": fila.transportadora,
         "guia": fila.guia,
         "repartidor_nombre": fila.repartidor_nombre,
@@ -403,6 +405,8 @@ class RepoPedidos:
                 indicaciones=getattr(entrega, "indicaciones", None),
                 localidad=getattr(entrega, "localidad", None),
                 google_place_id=getattr(entrega, "google_place_id", None),
+                latitud=getattr(entrega, "latitud", None),
+                longitud=getattr(entrega, "longitud", None),
             )
         )
         return (await self.conexion.execute(select(PEDIDO).where(PEDIDO.c.id == pedido_id))).one()

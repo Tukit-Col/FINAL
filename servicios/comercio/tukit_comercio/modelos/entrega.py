@@ -17,6 +17,7 @@ from datetime import datetime
 from sqlalchemy import (
     Boolean,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     String,
@@ -100,6 +101,11 @@ class Envio(Base):
     # (ADR 0044). Nullable por lo mismo que los de arriba.
     localidad: Mapped[str | None] = mapped_column(String(64), nullable=True)
     google_place_id: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    # El punto que el acudiente confirmo en el mapa de OpenStreetMap (ADR 0049).
+    # A diferencia de Google, la licencia ODbL de OSM si deja guardarlas. Son
+    # dato personal (un domicilio con menores): la supresion las borra.
+    latitud: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitud: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     zona_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("zona_entrega.id", ondelete="SET NULL"), nullable=True

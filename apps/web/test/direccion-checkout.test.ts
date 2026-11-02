@@ -143,3 +143,25 @@ test("editar una dirección escrita a mano conserva la localidad elegida", () =>
     direccion: "Calle 26 # 69-76",
   });
 });
+
+test("editar a mano una dirección con pin de OpenStreetMap suelta el pin y la localidad", () => {
+  const conPin = {
+    direccion: "Calle 72 # 10-34",
+    google_place_id: "",
+    localidad: "Chapinero",
+    latitud: 4.65,
+    longitud: -74.05,
+  };
+  assert.deepEqual(escribirDireccionAMano(conPin, "Calle 73 # 10-34"), {
+    direccion: "Calle 73 # 10-34",
+    google_place_id: "",
+    localidad: "",
+    latitud: null,
+    longitud: null,
+  });
+});
+
+test("sin pin ni lugar elegido, escribir solo cambia el texto", () => {
+  const manual = { direccion: "Cl", google_place_id: "", localidad: "Suba", latitud: null, longitud: null };
+  assert.deepEqual(escribirDireccionAMano(manual, "Cll 1"), { ...manual, direccion: "Cll 1" });
+});
