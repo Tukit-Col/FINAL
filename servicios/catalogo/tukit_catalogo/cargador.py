@@ -690,7 +690,12 @@ class Cargador:
                     "nivel": f.get("nivel") or "confiable",
                     "personaje": None,
                     "imagen_url": _texto(f.get("imagen_url")),
-                    "atributos": {"isbn13": isbn},
+                    # El diccionario de ingles filtra por `monolingue`. Los libros
+                    # de este archivo son bilingues (el titulo de cada ficha lo
+                    # dice: ingles-espanol), asi que declaran `monolingue: false`
+                    # y el que pide `ingles - ingles` no los recibe por error.
+                    # Los monolingues viven en productos_canonicos.csv.
+                    "atributos": {"isbn13": isbn, **({"monolingue": False} if f["concepto_codigo"] == "dic-ingles" else {})},
                     "ruta_categoria": "Libros",
                     "es_propio": False,
                     "es_representante_canonico": False,
