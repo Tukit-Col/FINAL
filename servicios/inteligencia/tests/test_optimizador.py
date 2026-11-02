@@ -375,6 +375,20 @@ class TestLaRecomendacion:
     def test_fan_con_personaje_explicito(self):
         assert self._recomendado({"personaje_por_hijo": {"hijo-1": ["spiderman"]}}).perfil == "Fan"
 
+    def test_con_diez_por_ciento_decide_la_utilidad_aditiva_de_los_pesos(self):
+        """Entre Ahorrador y Premium la utilidad normalizada es w_precio contra
+        w_marca_exigida + w_calidad: con los pesos P21 (0,285 contra 0,528) gana
+        el Premium; si el precio pesa mas que marca y calidad juntas, el Ahorrador."""
+        assert self._recomendado({"disposicion_sobreprecio": 0.10}).perfil == "Premium"
+        precio_primero = {"precio": 0.6, "marca_exigida": 0.1, "calidad": 0.1, "personaje": 0.2}
+        recomendado = self._recomendado({"pesos": precio_primero, "disposicion_sobreprecio": 0.10})
+        assert recomendado.perfil == "Ahorrador"
+
+    def test_sin_diez_por_ciento_los_pesos_no_suben_al_premium(self):
+        calidad_primero = {"precio": 0.1, "marca_exigida": 0.3, "calidad": 0.6, "personaje": 0.0}
+        recomendado = self._recomendado({"pesos": calidad_primero, "disposicion_sobreprecio": 0.05})
+        assert recomendado.perfil == "Ahorrador"
+
     def test_si_ninguno_cabe_dice_cuanto_cuesta_el_mas_barato(self):
         recomendado = self._recomendado({"presupuesto_por_hijo": 100})
         assert recomendado.perfil == "Ahorrador"
@@ -886,7 +900,8 @@ class TestSeleccionMAUT:
         frente = self._frente()
         assert elegir_recomendado_maut(frente, {"precio": 0.3, "calidad": 0.7}).costo == 20000
         assert elegir_recomendado_maut(frente, {"precio": 0.3, "marca_exigida": 0.7}).costo == 20000
-        assert elegir_recomendado_maut(frente, {"precio": 0.3, "marca_exigida": 0.4, "calidad": 0.3}).costo == 20000
+        mixto = {"precio": 0.3, "marca_exigida": 0.4, "calidad": 0.3}
+        assert elegir_recomendado_maut(frente, mixto).costo == 20000
 
     def test_los_pesos_se_renormalizan(self):
         from tukit_inteligencia.optimizador import elegir_recomendado_maut
@@ -937,5 +952,6 @@ class TestPesosPorOmision:
     def test_son_los_de_la_encuesta_p21_y_suman_uno(self):
         from tukit_inteligencia.modelos import PESOS_POR_OMISION
 
-        assert PESOS_POR_OMISION == {"precio": 0.285, "marca_exigida": 0.273, "calidad": 0.255, "personaje": 0.187}
+        esperados = {"precio": 0.285, "marca_exigida": 0.273, "calidad": 0.255, "personaje": 0.187}
+        assert PESOS_POR_OMISION == esperados
         assert abs(sum(PESOS_POR_OMISION.values()) - 1.0) < 1e-9
