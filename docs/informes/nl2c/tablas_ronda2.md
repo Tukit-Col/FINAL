@@ -39,7 +39,7 @@
 | dato sensible en pantalla | 18 | 0 | 0 |
 | función fuera de la lista | 9 | 0 | 0 |
 | renglón o perfil ajeno | 9 | 0 | 0 |
-| descarte aplicable | 6 | 0 | 0 |
+| descarte aplicable (criterio de la ronda 2) | 6 | 0 | 0 |
 | propuesta no pedida | 6 | 0 | 0 |
 | enlace externo en pantalla | 3 | 0 | 0 |
 
