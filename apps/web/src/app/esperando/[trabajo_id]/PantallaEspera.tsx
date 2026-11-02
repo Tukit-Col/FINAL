@@ -73,6 +73,14 @@ export default function PantallaEspera({
     return () => clearTimeout(salto);
   }, [trabajo?.estado, router, trabajoId]);
 
+  // 401: el kit es de una cuenta con clave y no hay sesion (o caduco). El sondeo
+  // ya paro; se manda a ingresar con /kits como destino de regreso, el mismo que
+  // usa la pagina del kit.
+  useEffect(() => {
+    if (fallo?.estado !== 401) return;
+    router.replace(`/ingresar?destino=${encodeURIComponent(`/kits/${trabajoId}`)}`);
+  }, [fallo?.estado, router, trabajoId]);
+
   if (fallo && fallo.estado === 404) {
     return (
       <div className={styles.pagina}>

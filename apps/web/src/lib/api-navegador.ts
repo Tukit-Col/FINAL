@@ -444,8 +444,10 @@ export function sondear(
         alFallar(causa);
         // Un 404 no se arregla esperando; una caida momentanea si. Un 429
         // tampoco se reintenta solo: seguir preguntando gasta el cupo que lo
-        // levanta, y la persona ya ve cuanto esperar.
-        if (causa.estado === 404 || causa.estado === 429) return;
+        // levanta, y la persona ya ve cuanto esperar. Un 401 (el kit es de una
+        // cuenta con clave y no hay sesion, o caduco) tampoco: la pantalla manda
+        // a ingresar en vez de dejar el spinner para siempre.
+        if (causa.estado === 401 || causa.estado === 404 || causa.estado === 429) return;
       }
     }
     intervalo = Math.min(intervalo * 1.4, 8000);

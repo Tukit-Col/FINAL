@@ -75,7 +75,14 @@ async def entorno():
 
 async def _cuenta(http, correo: str, nombre: str = "Ana Ruiz", celular: str | None = "+57 300 555 4567"):
     r = await http.post(
-        "/v1/cuenta", json={"correo": correo, "clave": CLAVE, "nombre": nombre, "celular": celular}
+        "/v1/cuenta",
+        json={
+            "correo": correo,
+            "clave": CLAVE,
+            "nombre": nombre,
+            "celular": celular,
+            "acepta_terminos": True,
+        },
     )
     assert r.status_code == 201, r.text
     cuerpo = r.json()
