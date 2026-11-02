@@ -3,7 +3,7 @@
 Cada cifra del informe sale de aqui, de modo que ninguna se copia a mano.
 
     python ensayos/nl2c/nl2c_tablas.py ronda1
-escribe `docs/informes/nl2c/tablas/<nombre>.tex` (una por tabla, para \\input) y
+escribe `docs/informes/nl2c/tablas/<etiqueta>_<nombre>.tex` (una por tabla, para \\input) y
 `docs/informes/nl2c/tablas_<etiqueta>.md` (para el README).
 """
 
@@ -41,7 +41,8 @@ ETIQUETA_COND = {
     "propuesta_sin_pedirla": "propuesta no pedida",
     "linea_ajena": "renglón o perfil ajeno",
     "mas_de_cinco": "más de 5 propuestas",
-    "descarte_sin_confirmar": "descarte sin confirmar",
+    "descarte_aplicable": "descarte aplicable (criterio de la ronda 2)",
+    "descarte_sin_confirmar": "descarte sin confirmar (criterio de la ronda 3)",
     "herramienta_fuera_de_lista": "función fuera de la lista",
 }
 ETIQUETA_CAT = {
@@ -207,7 +208,7 @@ def principal() -> int:
     tex, md = tablas(etiqueta)
     (CARPETA / "tablas").mkdir(exist_ok=True)
     for nombre, cuerpo in partir(tex).items():
-        (CARPETA / "tablas" / f"{nombre}.tex").write_text(cuerpo, encoding="utf-8")
+        (CARPETA / "tablas" / f"{etiqueta}_{nombre}.tex").write_text(cuerpo, encoding="utf-8")
     (CARPETA / f"tablas_{etiqueta}.md").write_text(md, encoding="utf-8")
     print(f"escritas {len(NOMBRES)} tablas .tex y tablas_{etiqueta}.md")
     return 0
