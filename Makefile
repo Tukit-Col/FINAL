@@ -16,7 +16,7 @@
         api-comercio api-operacion repartidor instantanea-metricas \
         poller poller-identidad trabajador barredor \
         publicador-catalogo publicador-comercio publicador-inteligencia publicador-identidad \
-        supresion-comercio supresion-operacion supresion-inteligencia supresion-identidad
+        supresion-comercio supresion-operacion supresion-inteligencia supresion-identidad barrido-supresion
 
 PY := .venv/bin/python
 PYTEST := .venv/bin/pytest
@@ -473,6 +473,9 @@ supresion-inteligencia:  ## Borra preferencias y archivos del titular suprimido 
 supresion-identidad:  ## Cierra la solicitud de supresion cuando confirman los tres (requiere RABBITMQ_URL; s=--seguir)
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_identidad.supresion $(s)
 
+barrido-supresion:  ## Reenvia y avisa de las supresiones atascadas en propagando (no necesita broker; s=--seguir)
+	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_identidad.barrido_supresion $(s)
+
 reanudar: arriba  ## Reanuda tras un apagado: solo levanta los procesos, NO siembra (usa `backend` solo para reconstruir de cero)
 
 arriba:  ## Levanta los seis procesos HTTP y los de fondo, con RabbitMQ y Redis si responden
@@ -492,6 +495,9 @@ arriba:  ## Levanta los seis procesos HTTP y los de fondo, con RabbitMQ y Redis 
 	else \
 		echo "Los procesos arrancan sin Redis: sin cache, y el limite cuenta en la memoria de la puerta."; \
 	fi
+	@# Identidad se levanta ANTES que inteligencia: la puerta de lectura de los kits le
+	@# pregunta GET /v1/contactos/{id}/credencial y falla cerrada (503) si no la tiene.
+	@# Al reiniciar a mano, reinicia identidad primero o ambos juntos (`make arriba`).
 	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_identidad.api --puerto $(PUERTO_IDENTIDAD) \
 		> $(EJECUCION)/identidad.log 2>&1 & echo $$! > $(EJECUCION)/identidad.pid
 	@$(CON_BROKER) $(CON_REDIS) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_catalogo.api --puerto $(PUERTO_CATALOGO) \
@@ -557,8 +563,9 @@ backend: bd-migrar bd-sembrar arriba  ## De cero a backend vivo: migra, siembra 
 	@echo "Backend listo. El frontend apunta a http://127.0.0.1:$(PUERTO_GATEWAY)"
 	@echo "Documentacion viva: http://127.0.0.1:$(PUERTO_CATALOGO)/docs y :$(PUERTO_INTELIGENCIA)/docs"
 
-humo:  ## Golpea los endpoints vivos y falla si alguno no devuelve datos
-	@$(PY) arquitectura/humo.py
+humo:  ## Golpea los endpoints vivos y falla si alguno no devuelve datos (clave: TUKIT_HUMO_CLAVE o llavero)
+	@TUKIT_HUMO_CLAVE="$${TUKIT_HUMO_CLAVE:-$$(security find-generic-password -s tukit-staff-oe5 -w 2>/dev/null)}" \
+		$(PY) arquitectura/humo.py
 
 bd-verificar:  ## Comprueba contra el motor vivo que extensiones e indices existan
 	@echo "Motor: $(BD_MODO)"

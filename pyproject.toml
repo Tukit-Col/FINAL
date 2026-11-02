@@ -24,6 +24,8 @@ package = false
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
+    # Medir cobertura por servicio (`--cov=tukit_<svc>`); sin umbral de falla.
+    "pytest-cov>=5.0",
     "ruff>=0.6",
     # Estos dos son extras opcionales de `tukit-comun` (ver su pyproject), pero
     # en desarrollo se quieren siempre: sin ellos `make bd-migrar` falla justo
