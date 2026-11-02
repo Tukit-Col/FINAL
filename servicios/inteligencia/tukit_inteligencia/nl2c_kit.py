@@ -83,8 +83,10 @@ def contexto_del_kit(kit: dict[str, Any]) -> ContextoKit:
                 f"{pesos_fmt(alt.get('precio_cop'))} ({alt.get('nivel')})"
             )
         filas.append(" | ".join(partes))
-    texto = "<renglones_del_kit>\n" + "\n".join(filas) + "\n</renglones_del_kit>"
-    return ContextoKit(texto, lineas, alternativas, consolidados, str(kit.get("perfil") or ""))
+    perfil = str(kit.get("perfil") or "")
+    # El perfil va fuera del bloque de datos: explicar_kit lo pide y el modelo no debe adivinarlo.
+    texto = f"Perfil del kit: {perfil}\n<renglones_del_kit>\n" + "\n".join(filas) + "\n</renglones_del_kit>"
+    return ContextoKit(texto, lineas, alternativas, consolidados, perfil)
 
 
 def _tarjeta_producto(p: dict[str, Any], *, precio: int | None) -> dict[str, Any]:
