@@ -129,6 +129,10 @@ RUTAS: dict[str, str] = {
     # Prefijo propio y no bajo `/v1/trabajos` para no chocar con
     # `/v1/trabajos/{trabajo_id}` (que toma un UUID); la sirve INTELIGENCIA.
     "/v1/mis-solicitudes": "inteligencia",
+    # El asistente NL2C: interpretar y decision viven bajo /v1/nl2c; el pedido sobre
+    # un kit cuelga de /v1/kits/{id}/asistente. Las sirve INTELIGENCIA tras TUKIT_ASISTENTE.
+    "/v1/nl2c": "inteligencia",
+    "/v1/kits": "inteligencia",
     # Los (colegio, grado) con cache bendita, para la ruta rapida de /empezar.
     # Cuelga fuera de `/v1/trabajos` (no es un trabajo, es el indice de la cache).
     "/v1/grados-canonicos": "inteligencia",
