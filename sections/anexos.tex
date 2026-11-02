@@ -89,19 +89,19 @@ Umbral de reconocimiento & 0,5 & catálogo & Corte por debajo del cual el rengl�
 Aporte del coseno $\gamma$ & 0,15 & catálogo & Ajuste sobre casos de error; pequeño para que el coseno desempate y no decida & En ciclo de calibración \\
 Umbral de rescate $\theta$ & 0,86 & catálogo & Ajuste sobre casos de error; separa un sinónimo de un parecido de tema & En ciclo de calibración \\
 Piso del rescate $\phi$ & 0,55 & catálogo & Apenas sobre el corte de 0,5, para que un rescate entre a revisión & En ciclo de calibración \\
-Umbral de autoaceptación $\tau$ & 0,75 & inteligencia & Requisito PE-04 del SRS; valor inicial anterior a la calibración (0,85 y 0,630 en versiones previas); ver Tabla~\ref{tab:cal-optim} & En ciclo de calibración \\
+Umbral de autoaceptación $\tau$ & 0,75 & inteligencia & Requisito PE-04 del SRS (0,85 y 0,630 en versiones previas); sin decisiones humanas para calibrarlo, ver Sección~\ref{sec:optimizacion-cal} & Sin calibrar, declarado \\
 Tolerancia de medidas & 0,25 y rango 0,85 a 1,35 & catálogo & Ajuste con las auditorías de los kits (Tabla~\ref{tab:kits}) & Vigente \\
 Rango de precio en tiendas & \$1.000 a \$400.000 & catálogo & Descarta accesorios sueltos y lotes institucionales & Vigente \\
 \midrule
 \multicolumn{5}{@{}l}{\emph{Optimización}}\\
-Límite de enumeración & 4.096 ($2^{12}$) & inteligencia & Por debajo de ese tamaño del espacio el frente exacto se calcula en milisegundos; por encima se usa NSGA-II & Vigente \\
-Población & $\min(200,\max(40,12n))$, par & inteligencia & Escala con las $n$ líneas decidibles; el par evita desperdiciar un individuo & Vigente \\
-Generaciones &\raggedright $\min(120,\max(30,\,20\log_{10}|\mathcal{E}|))$ & inteligencia & Escala con el logaritmo del espacio $|\mathcal{E}|$ de búsqueda & Vigente \\
-Cruce SBX & $p_c=0{,}9$, $\eta_c=15$ & inteligencia & Valores estándar de \citet{deb_simulated_1995} & Vigente \\
-Mutación polinomial & $p=1$, $\eta_m=20$ & inteligencia & Valores estándar de \citet{deb_combined_1996} & Vigente \\
+Límite de enumeración & 4.096 ($2^{12}$) & inteligencia & Medido: la enumeración alcanza a NSGA-II en $S\approx4.932$ (mediana) y $2.380$ (percentil 95); ver Tabla~\ref{tab:calopt-umbral} & Vigente \\
+Población & $\min(100,\max(20,6n))$, par & inteligencia & Mitad de la fórmula de partida, elegida por validación cruzada agrupada por colegio (Tabla~\ref{tab:calopt-rejilla}); el par evita desperdiciar un individuo & Vigente \\
+Generaciones &\raggedright $\min(60,\max(15,\,10\log_{10}|\mathcal{E}|))$ & inteligencia & Escala con el logaritmo del espacio $|\mathcal{E}|$; mitad de la de partida, misma calibración & Vigente \\
+Cruce SBX & $p_c=0{,}9$, $\eta_c=15$ & inteligencia & Valores estándar de Deb y Agrawal \citep{deb_simulated_1995} & Vigente \\
+Mutación polinomial & $p=1$, $\eta_m=20$ & inteligencia & Valores estándar de Deb y Goyal \citep{deb_combined_1996} & Vigente \\
 Semilla & 0 & inteligencia & Reproducibilidad del frente entre ejecuciones & Vigente \\
-Pesos por omisión (costo, marca, calidad, personaje) & 0,35; 0,30; 0,25; 0,10 & inteligencia & Encuesta, pregunta P21 (n=60), normalizada; ver Tabla~\ref{tab:cal-optim} & En ciclo de calibración \\
-Sobreprecio para Premium & 10\,\% & inteligencia & Encuesta: 42 de 60 pagan como máximo un 5\,\% más; el 10\,\% marca a quien acepta pagar más & Vigente \\
+Pesos por omisión (costo, marca, calidad, personaje) & 0,285; 0,273; 0,255; 0,187 & inteligencia & Encuesta, pregunta P21 (n=60), con IC 95\,\% \emph{bootstrap}; reemplazan 0,35; 0,30; 0,25; 0,10 (Sección~\ref{sec:optimizacion-cal}) & Vigente \\
+Sobreprecio para Premium & 10\,\% & inteligencia & Encuesta: 42 de 60 pagan como máximo un 5\,\% más; con al menos 10\,\%, MAUT decide si se marca el Premium & Vigente \\
 Opciones por renglón & 3 & catálogo & Pocas opciones diferenciadas facilitan la decisión \citep{iyengar_when_2000} & Vigente \\
 \midrule
 \multicolumn{5}{@{}l}{\emph{Requisitos de desempeño y operación}}\\
@@ -136,3 +136,4 @@ Caché de vectores & 24 h & catálogo & Evita recalcular el vector de un rengló
 \input{sections/anexo_tablas}
 \input{sections/anexo_figuras}
 \input{sections/anexo_ampliaciones}
+\input{sections/anexo_calibracion}

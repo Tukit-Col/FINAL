@@ -181,8 +181,9 @@ sobre el puntaje del reordenador, con 542 ítems, y así quedó en el ADR 0009. 
 usa $\tau=0{,}75$ sobre su puntaje propio, sin margen, como valor inicial de un ciclo de calibración
 con revisión humana (Sección~\ref{sec:ciclos-calibracion}). Su efecto está contenido porque el umbral
 solo señala renglones dentro de una lista que de todos modos se revisa completa, de modo que un
-$\tau$ mal ajustado cuesta tiempo de revisión y no un producto equivocado en el carrito. El valor
-vigente y su evidencia se registran en la Tabla~\ref{tab:constantes}\pendienteEvidencia{valor final de tau sobre el puntaje del sistema construido}.
+$\tau$ mal ajustado cuesta tiempo de revisión y no un producto equivocado en el carrito. El valor no
+se pudo calibrar, porque no hay decisiones humanas registradas sobre ese puntaje, y se declara como
+limitación (Sección~\ref{sec:optimizacion-cal}).
 
 \subsubsection{Algoritmo de resolución de un renglón}
 \label{sec:algoritmo-resolucion}
@@ -290,8 +291,9 @@ entre los otros dos, solo si eligió el punto medio de gasto o declaró un tope 
 pocas opciones bien diferenciadas facilita decidir
 \citep{thaler_nudge_2008,iyengar_when_2000,schwartz_paradox_2003} (NR-02), y un kit que nadie
 pidió es ruido para el acudiente y trabajo para el revisor. La regla de recomendación marca el Fan
-cuando hay personaje y «A tu Medida» cuando se armó; si no, el Premium cuando el acudiente pone la
-calidad primero y acepta un sobreprecio del 10\,\%, y en los demás casos el Ahorrador. La regla sale
+cuando hay personaje y «A tu Medida» cuando se armó; si no, el Premium cuando el acudiente acepta
+un sobreprecio de al menos el 10\,\% y la utilidad multiatributo lo prefiere al Ahorrador
+(Sección~\ref{sec:optimizacion-cal}), y en los demás casos el Ahorrador. La regla sale
 de la encuesta del Dossier OE1, en la que el 70\,\% de los acudientes no pagaría más de un 5\,\% de
 sobreprecio. El tope es el presupuesto por hijo, sin ampliarlo por el sobreprecio aceptado. Si el
 kit marcado no cabe, se marca el de mejor marca que sí cabe y, solo si ninguno cabe, el más barato,
@@ -303,13 +305,11 @@ preferencias con reglas y, de forma opcional, con un modelo de lenguaje local. E
 las pide como opciones cerradas por hijo: cuánto gastar, el presupuesto, el sobreprecio aceptado y
 el personaje (PS-01, PS-02 y PS-04). El SDD lo justifica en tres razones: la preferencia queda
 explícita y auditable, no depende de un modelo y el acudiente puede cambiarla. Los pesos por omisión
-son 0,35, 0,30, 0,25 y 0,10, y salen de la pregunta P21 de la encuesta normalizada (42 de 60
-encuestados pagan como máximo un 5\,\% más y el personaje quedó último en la prioridad). Los de OP-04 del
-SRS v6.1, 0,285, 0,273, 0,255 y 0,187, se contrastan con los anteriores en la calibración de la
-utilidad multiatributo (Sección~\ref{sec:optimizacion-cal})\pendienteEvidencia{pesos MAUT finales}. El
-hipervolumen del frente, indicador de calidad de un conjunto de soluciones no dominadas
-\citep{zitzler_multiobjective_1999}, se calcula sobre listas reales en la
-Sección~\ref{sec:optimizacion}\pendienteEvidencia{hipervolumen sobre listas reales}.
+de precio, marca exigida, calidad y personaje son 0,285, 0,273, 0,255 y 0,187, los de OP-04 del SRS
+v6.1, y salen del orden que dieron los encuestados en la pregunta P21. Reemplazaron en el código a
+los anteriores (0,35, 0,30, 0,25 y 0,10), que no venían de ninguna medición. Su derivación, la
+población y las generaciones de NSGA-II y el hipervolumen del frente sobre listas reales se presentan
+en la Sección~\ref{sec:optimizacion-cal}.
 
 % =====================================================================
 \subsection{Constantes numéricas del sistema}

@@ -127,8 +127,9 @@ correctos (precisión directa de 0,992), dejó 298 en la zona gris (11,51\,\%) y
 resolución. Sobre todas las líneas, el acierto fue de 0,9784; si en la zona gris decide el
 acudiente, de 0,9737, y si decide el sistema, de 0,8632. La medición solo ejercita el canal léxico,
 porque los 609 productos tenían el embedding vacío, y 1.138 de sus renglones son coincidencias
-exactas triviales. La calibración del umbral de 0,75 sobre el puntaje del sistema construido, con revisión humana,
-se presenta en la Sección~\ref{sec:optimizacion-cal}\pendienteEvidencia{curva de precision y cobertura de tau sobre el puntaje propio}.
+exactas triviales. Sobre el puntaje del sistema construido el umbral de 0,75 no se pudo calibrar, porque las 1.265
+resoluciones registradas son automáticas y ninguna la revisó una persona; queda como limitación
+declarada (Sección~\ref{sec:optimizacion-cal}).
 
 \subsubsection{Extremo a extremo}
 
@@ -190,8 +191,9 @@ banco del 4 de octubre, que forma parte de la versión evaluada, compara NSGA-II
 por programación dinámica sobre 174 listas del corpus. En el Ahorrador lo iguala en el 100\,\% de
 las listas. Con presupuesto, el kit recomendado daba el 40\,\% de la calidad posible; después del
 ADR 0020 cabe siempre en el tope e iguala el óptimo. Son cifras reportadas con una sola semilla y no
-reproducidas, y la resolución usó solo el canal léxico y una foto fija del catálogo. El hipervolumen
-sobre listas reales se presenta en la Sección~\ref{sec:optimizacion-cal}\pendienteEvidencia{hipervolumen del frente sobre listas reales con punto de referencia declarado}.
+reproducidas, y la resolución usó solo el canal léxico y una foto fija del catálogo. Sobre listas reales, en cambio, el frente de producción
+alcanzó en promedio 0,9969 del hipervolumen exacto en 40 listas de prueba, con un punto de referencia
+de 1,1 en cada eje normalizado (Sección~\ref{sec:optimizacion-cal}).
 
 Sobre 29 listas reales, otra medición reportada dio 5,3~s de media, 6,3~s de mediana y 9,0~s de
 máximo para producir todos los kits de una lista, en una CPU de 16 núcleos sin otras cargas. El
@@ -274,7 +276,7 @@ la aceptación.
 \label{sec:amenazas}
 
 En esta sección se analizan las amenazas a la validez de los resultados con la clasificación de
-\citet{wohlin_experimentation_2012}, que distingue cuatro tipos. Primero se describe cada tipo y
+Wohlin et al. \citep{wohlin_experimentation_2012}, que distingue cuatro tipos. Primero se describe cada tipo y
 luego se indica, para cada amenaza, la medida que se tomó o el límite que se declara.
 
 \paragraph{Validez de constructo.} Es la medida en que una cifra mide lo que se le atribuye. El
@@ -290,8 +292,8 @@ otro factor. El conjunto de oro de percepción se construyó corrigiendo la sali
 motores evaluados, sin segundo anotador, de modo que favorece a ese motor. De los 542 ítems de
 calibración, 186 son etiquetas propagadas a descripciones idénticas, lo que estrecha los intervalos
 más de lo justificado. El umbral de 0,630 se eligió sobre el mismo conjunto en que se midieron el
-65,3\,\% y el 86,7\,\%, que por eso son optimistas. Como medida, la calibración final del umbral
-usa un conjunto distinto del de ajuste (Sección~\ref{sec:optimizacion-cal}).
+65,3\,\% y el 86,7\,\%, que por eso son optimistas. Como medida, la calibración del optimizador apartó un conjunto de prueba por colegio antes de
+mirar los resultados y lo usó una sola vez (Sección~\ref{sec:optimizacion-cal}).
 
 \paragraph{Validez externa.} Es la medida en que los resultados se generalizan. Casi todos los
 resultados de percepción y de recuperación provienen de los prototipos de tesis, con modelos,

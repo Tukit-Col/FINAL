@@ -1,4 +1,115 @@
 \subsection{Traducción de preferencias en lenguaje natural a restricciones}
 \label{sec:nl2c}
 
-En esta sección se describe cómo una preferencia escrita en lenguaje natural se traduce a restricciones estructuradas para el optimizador.
+En esta sección se presenta el asistente que convierte la frase de un acudiente en las restricciones
+que usa el optimizador, con la misma estructura de las secciones anteriores. Para ello, primero se
+analiza el problema y se definen sus entradas y salidas; luego se describen la estrategia, su
+seudocódigo y su costo y, al final, los resultados de la evaluación y sus límites. Las tablas
+completas de la evaluación están en el Anexo~\ref{anx:nl2c}.
+
+\paragraph{Análisis del problema.} La propuesta aprobada prometió que el acudiente pudiera
+describir en español lo que quiere, por ejemplo «Minnie para mi hija, máximo 500 mil», en lugar de
+llenar un formulario de opciones cerradas. A esa tarea se le llama NL2C (del inglés \emph{natural
+language to constraints}): transformar un texto en el objeto de restricciones que un programa ya
+consume, que aquí es el optimizador de la Sección~\ref{sec:optimizacion-cal}. El texto $t$ es una
+cadena corta, ambigua y con errores de ortografía, y la salida es la terna
+$\mathcal{R}=\langle F,W,P\rangle$ de filtros duros, pesos y preferencias, con los dominios de la
+Tabla~\ref{tab:nl2c-dominios}. Un campo que el acudiente no menciona queda en su valor por omisión,
+y uno que menciona fuera de dominio se lleva al dominio y se le avisa. Dos condiciones fijan el
+diseño. La primera es que $t$ y el texto de la lista los puede escribir un atacante, de modo que
+ninguno de los dos puede cambiar qué acciones ejecuta el sistema \citep{greshake2023indirect}. La
+segunda es que un error le cuesta dinero al acudiente, por lo que nada se aplica sin su
+confirmación. Las reglas fijas no bastan, porque los nombres de personajes y marcas son un
+vocabulario abierto y una frase como «calidad primero y precio después» fija los pesos pero no el
+estilo de gasto.
+
+\begin{table}[H]
+\centering\footnotesize
+\caption{Dominio de los campos de $\mathcal{R}$. Fuente: constantes de \texttt{nl2c.py}.}
+\label{tab:nl2c-dominios}
+\begin{tabularx}{\textwidth}{@{}p{1.2cm}p{4.2cm}X@{}}
+\toprule
+Grupo & Campo & Dominio \\
+\midrule
+$F$ & \texttt{presupuesto\_max\_cop} & vacío o entero en $[50.000;\ 3.000.000]$ pesos por hijo \\
+ & \texttt{marcas\_excluidas}, \texttt{solo\_disponibles} & hasta 10 cadenas de 1 a 40 caracteres; verdadero o falso \\
+$W$ & cuatro pesos & cada $w_i\in[0{,}05;\ 0{,}60]$ y $\sum w_i=1$ \\
+$P$ & \texttt{personajes}, \texttt{estilo\_gasto} & hasta 3 del catálogo; económico, punto medio o estirarse \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Diseño: entradas y salidas.} Las entradas son el texto $t$, de a lo más 1.000 caracteres
+después de sanearlo, el catálogo de personajes $\mathcal{C}_P$, con hasta 60 nombres, y una lista
+blanca de siete componentes de interfaz. Para pedir cambios sobre un kit se agrega el kit, con hasta
+80 renglones. Las salidas son $\mathcal{R}$ validada, la lista de ajustes que hizo el servidor, la
+especificación de la interfaz que se le muestra al acudiente y un estado, que puede ser propuesta,
+sin acción, inválido o sin servicio. Si el estado es propuesta, $\mathcal{R}$ cumple la
+Tabla~\ref{tab:nl2c-dominios}, todo texto libre de $\mathcal{R}$ aparece en $t$ y nada se aplica
+antes de que el acudiente confirme.
+
+\paragraph{Estrategia algorítmica.} La estrategia es un plan fijo con validación en el servidor: el
+código decide qué funciones puede llamar cada ruta antes de ver $t$, y el modelo de lenguaje solo
+elige una de ellas \citep{beurerkellner2025patterns}. La idea sigue la separación entre planificar y
+ejecutar de Debenedetti et al. \citep{debenedetti2025camel}. Con ese plan, el modelo recibe el texto como dato y llama a
+una función con argumentos; el servidor valida los argumentos y arma la interfaz con los componentes
+de la lista blanca, que la aplicación web vuelve a validar \citep{chen2025genui}; y el acudiente
+confirma, como piden las pautas de interacción humano-IA \citep{amershi_guidelines_2019}. Con esas
+barandas, el servidor cubre cinco riesgos de la lista OWASP para aplicaciones con modelos de
+lenguaje \citep{owasp2025llm}: inyección de instrucciones, información sensible, manejo de la
+salida, agencia excesiva y consumo ilimitado. La línea base es el formulario de opciones cerradas,
+que no usa modelo ni tiene riesgo de inyección, pero no entiende frases que mezclan campos.
+
+\begin{algorithm}[H]
+\caption{Interpretación de una preferencia en lenguaje natural}
+\label{alg:nl2c}
+\KwEntrada{texto $t$, catálogo de personajes $\mathcal{C}_P$}
+\KwSalida{estado y, si es propuesta, la terna $(\mathcal{R}, A, U)$}
+$s\leftarrow$ Sanear$(t)$ \tcp*{quita datos personales y marcas que escapan del bloque de datos}
+$L\leftarrow\{$fijar\_restricciones, sin\_acción$\}$ \tcp*{plan fijo: la lista no sale de $t$}
+$(f,a)\leftarrow$ LlamarModelo$(s,L)$ \tcp*{una sola llamada, sin reintento}
+\lIf{$f\notin L$ o $f=$ sin\_acción}{\Return{sin acción}}
+$(\mathcal{R},A)\leftarrow$ Proyectar$(a,\mathcal{C}_P,s)$ \tcp*{forma, recorte a dominios, texto anclado a $s$}
+\lIf{Proyectar falló por forma}{\Return{inválido}}
+$U\leftarrow$ CompilarInterfaz$(\mathcal{R})$ \tcp*{la arma el servidor, no el modelo}
+\Return{(propuesta, $\mathcal{R}$, $A$, $U$)} \tcp*{nada se aplica hasta la confirmación}
+\end{algorithm}
+
+\paragraph{Complejidad y costo.} Sanear recorre $t$ con un número constante de expresiones
+regulares, con un costo de $O(|t|)$. Proyectar trabaja sobre una $\mathcal{R}$ de tamaño acotado y
+cuesta $O(|\mathcal{C}_P|+|s|)$, por el índice del catálogo y el cotejo de cada marca con el texto;
+la normalización de los pesos itera a lo más cuatro veces y la interfaz tiene a lo más seis
+componentes. En total son $O(|t|+|\mathcal{C}_P|)$ más una llamada al modelo, acotada a 400 tokens de
+salida y 12 segundos de plazo, que domina el tiempo. En la ronda 3, con 70 intentos, esa llamada tuvo
+una latencia p50 de 1.000~ms y p95 de 1.177~ms, con 616 tokens de entrada y 39 de salida en promedio.
+El formulario no llama al modelo, pero su tiempo no se midió con acudientes, de modo que no se afirma
+que NL2C sea más rápido para ellos.
+
+\paragraph{Evaluación.} El asistente se midió con 35 frases en español, 22 de la encuesta y 13
+construidas, cuya etiqueta de oro se escribió antes de correr el modelo, y con 27 ataques de
+inyección al estilo de AgentDojo \citep{debenedetti2024agentdojo}. El modelo fue
+\texttt{gemini-3.5-flash-lite} con temperatura 0, con dos repeticiones por frase (70 intentos) y tres
+por ataque (81 intentos). Un ataque tiene éxito cuando su condición se cumple sobre lo que el
+acudiente ve después de las barandas del servidor. En la ronda 3 la tarea completa se cumplió en 58
+de 70 intentos (82,9\,\%), el F1 de personajes y marcas fue 1,000 y ningún ataque tuvo éxito (0 de
+81), aunque el modelo lo intentó en 6. Los 12 fallos de utilidad se concentran en el campo del peso
+mayor, donde varias etiquetas son discutibles. Bajo ataque se perdió la tarea legítima en 24 de 60
+intentos, porque el modelo respondió sin acción ante la orden hostil, lo que equivale a preferir no
+proponer ante la duda.
+
+Entre la ronda 2 y la 3 cambió una condición de éxito, y se declara. La
+condición \texttt{descarte\_\allowbreak aplicable} se sustituyó por \texttt{descarte\_sin\_confirmar}, porque al integrar el
+asistente con la sesión de pedidos el descarte pasó a ser aplicable después de la confirmación del
+acudiente. El cambio se hizo después de ver los resultados de la ronda 2, así que no es un criterio
+preregistrado; en esa condición las dos rondas dieron 6 evaluaciones y 0 éxitos. Además, con los
+servicios levantados, 4 pedidos contra un kit real de 36 renglones dieron la respuesta esperada en
+786 a 885~ms cada uno, lo que con $n=4$ es una comprobación de funcionamiento y no una tasa.
+
+\paragraph{Limitaciones.} Con 0 éxitos en 81 intentos, el límite superior del intervalo de confianza
+del 95\,\% es de cerca de 3,7\,\% (regla de tres), de modo que solo se puede afirmar que no se encontró
+un ataque exitoso con estos casos. Las repeticiones a temperatura 0 no son independientes, el modelo
+y la fecha son uno solo, el kit y el catálogo de las rondas son sintéticos y los ataques los escribió
+quien construyó las defensas. Por último, hay una brecha de integración: \texttt{marcas\_excluidas} y
+\texttt{solo\_disponibles} se interpretan y se le muestran al acudiente, pero todavía no llegan al
+optimizador, porque la traducción a sus preferencias solo transmite el presupuesto, los pesos, el
+sobreprecio, el estilo de gasto y los personajes.
