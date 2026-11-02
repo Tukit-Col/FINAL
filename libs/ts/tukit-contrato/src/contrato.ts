@@ -224,6 +224,44 @@ export interface CambioDeProducto {
   sku: string;
 }
 
+/** Quitar un renglon del kit ("ya lo tengo") o volver a ponerlo. */
+export interface CambioDeDescarte {
+  trabajo_id: string;
+  perfil: PerfilKit;
+  item_id: string;
+  descartado: boolean;
+}
+
+/**
+ * Una opcion del mismo concepto para un renglon, con lo que le pasaria al total
+ * si se elige. `diferencia` es contra lo que cuesta hoy el renglon (`null` si
+ * hoy no tiene precio); `en_kit` marca la elegida y `sugerido` la que traia el
+ * kit antes de cualquier cambio.
+ */
+export interface OpcionDeLinea {
+  sku: string;
+  nombre: string;
+  marca: string | null;
+  nivel: Nivel;
+  personaje: string | null;
+  imagen_url: string | null;
+  /** Precio de una unidad de venta (un empaque). */
+  precio: Dinero;
+  unidades_por_empaque: number;
+  unidades_a_comprar: number;
+  /** Lo que costaria el renglon con esta opcion. */
+  subtotal: Dinero;
+  diferencia: Dinero | null;
+  en_kit: boolean;
+  sugerido: boolean;
+}
+
+export interface OpcionesDeLinea {
+  item_id: string;
+  concepto: string | null;
+  opciones: OpcionDeLinea[];
+}
+
 export interface SolicitudCheckout {
   perfil: PerfilKit;
   correo: string;
@@ -401,6 +439,18 @@ export interface LineaKit {
 
   precio?: Dinero | null;
   subtotal_linea: Dinero | null;
+
+  // El acudiente la quito de su kit ("ya lo tengo"): sigue visible pero no suma
+  // al total ni se cobra. `subtotal_descartado` es lo que costaba, para decir
+  // cuanto se ahorra y poder deshacerlo.
+  descartado?: boolean;
+  subtotal_descartado?: Dinero | null;
+
+  // Donde se compra lo que Tukit no vende, si el catalogo lo sabe (p. ej. el
+  // nombre de la libreria o la tienda de uniformes). Opcional: la pantalla
+  // degrada a un texto generico cuando no viene.
+  se_compra_en?: string | null;
+  url_compra?: string | null;
 }
 
 export interface Consolidacion {
