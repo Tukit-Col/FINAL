@@ -84,6 +84,17 @@ def contar_limite_rechazado(nivel: str) -> None:
     _contar("tukit.limite.rechazos", "Peticiones que el gateway rechazo con 429.", atributos={"nivel": nivel})
 
 
+def contar_supresion_atascada(motivo: str, cantidad: int = 1) -> None:
+    """Solicitudes de supresion que el barrido encontro sin cerrar. `motivo`:
+    `reenviada` (se republico el evento) o `vencida` (paso el plazo legal)."""
+    _contar(
+        "tukit.supresion.atascadas",
+        "Solicitudes de supresion en propagando que el barrido reenvio o encontro vencidas.",
+        cantidad,
+        {"motivo": motivo},
+    )
+
+
 def configurar_metricas() -> None:
     """Registra el gauge observable del disyuntor. Idempotente; no-op sin OTel.
 
@@ -124,5 +135,6 @@ __all__ = [
     "contar_orden_creada",
     "contar_pago_aprobado",
     "contar_redis_degradado",
+    "contar_supresion_atascada",
     "contar_trabajo_publicado",
 ]

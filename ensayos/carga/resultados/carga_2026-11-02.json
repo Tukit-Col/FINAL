@@ -1,0 +1,605 @@
+{
+  "fecha": "2026-11-02T12:51:03+00:00",
+  "hardware": {
+    "cpu": "Apple M4",
+    "nucleos_logicos": "10",
+    "memoria_gb": 32.0,
+    "sistema": "Darwin 27.0.0",
+    "python": "3.13.11",
+    "httpx": "0.28.1",
+    "nota": "Generador, servicios y Postgres comparten esta maquina."
+  },
+  "solo_lectura": true,
+  "parametros": {
+    "niveles_usuarios": [
+      1,
+      5,
+      10,
+      20
+    ],
+    "duracion_por_nivel_s": 30.0,
+    "calentamiento_s": 3.0,
+    "tiempo_maximo_peticion_s": 10.0,
+    "pausa_entre_peticiones": "ninguna (bucle cerrado)"
+  },
+  "capacidad": {
+    "destino": "puertos de los servicios (sin gateway)",
+    "endpoints": [
+      {
+        "nombre": "grados-canonicos",
+        "url": "http://127.0.0.1:8013/v1/grados-canonicos"
+      },
+      {
+        "nombre": "catalogo-productos",
+        "url": "http://127.0.0.1:8012/v1/catalogo/productos?limite=5"
+      },
+      {
+        "nombre": "catalogo-tiendas",
+        "url": "http://127.0.0.1:8012/v1/catalogo/tiendas"
+      },
+      {
+        "nombre": "trabajo-publicado",
+        "url": "http://127.0.0.1:8013/v1/trabajos/d3e4a038-7074-439b-8c82-67e0fc51686a"
+      }
+    ],
+    "niveles": [
+      {
+        "usuarios": 1,
+        "duracion_s": 30.0,
+        "global": {
+          "peticiones": 5122,
+          "exitosas_2xx": 5122,
+          "limitadas_429": 0,
+          "errores": 0,
+          "tasa_error_pct": 0.0,
+          "tasa_429_pct": 0.0,
+          "estados": {
+            "200": 5122
+          },
+          "peticiones_por_s": 170.7,
+          "exitosas_por_s": 170.7,
+          "latencia_ms": {
+            "p50": 3.98,
+            "p95": 14.44,
+            "p99": 17.08,
+            "max": 49.82
+          },
+          "bytes_recibidos": 142215567
+        },
+        "por_endpoint": {
+          "grados-canonicos": {
+            "peticiones": 1281,
+            "exitosas_2xx": 1281,
+            "limitadas_429": 0,
+            "errores": 0,
+            "tasa_error_pct": 0.0,
+            "tasa_429_pct": 0.0,
+            "estados": {
+              "200": 1281
+            },
+            "peticiones_por_s": 42.7,
+            "exitosas_por_s": 42.7,
+            "latencia_ms": {
+              "p50": 2.09,
+              "p95": 2.74,
+              "p99": 4.36,
+              "max": 14.94
+            },
+            "bytes_recibidos": 5377638
+          },
+          "catalogo-productos": {
+            "peticiones": 1281,
+            "exitosas_2xx": 1281,
+            "limitadas_429": 0,
+            "errores": 0,
+            "tasa_error_pct": 0.0,
+            "tasa_429_pct": 0.0,
+            "estados": {
+              "200": 1281
+            },
+            "peticiones_por_s": 42.7,
+            "exitosas_por_s": 42.7,
+            "latencia_ms": {
+              "p50": 13.02,
+              "p95": 16.45,
+              "p99": 20.84,
+              "max": 40.37
+            },
+            "bytes_recibidos": 42028329
+          },
+          "catalogo-tiendas": {
+            "peticiones": 1280,
+            "exitosas_2xx": 1280,
+            "limitadas_429": 0,
+            "errores": 0,
+            "tasa_error_pct": 0.0,
+            "tasa_429_pct": 0.0,
+            "estados": {
+              "200": 1280
+            },
+            "peticiones_por_s": 42.7,
+            "exitosas_por_s": 42.7,
+            "latencia_ms": {
+              "p50": 2.87,
+              "p95": 3.77,
+              "p99": 5.15,
+              "max": 49.82
+            },
+            "bytes_recibidos": 1606400
+          },
+          "trabajo-publicado": {
+            "peticiones": 1280,
+            "exitosas_2xx": 1280,
+            "limitadas_429": 0,
+            "errores": 0,
+            "tasa_error_pct": 0.0,
+            "tasa_429_pct": 0.0,
+            "estados": {
+              "200": 1280
+            },
+            "peticiones_por_s": 42.7,
+            "exitosas_por_s": 42.7,
+            "latencia_ms": {
+              "p50": 4.83,
+              "p95": 6.19,
+              "p99": 8.27,
+              "max": 33.47
+            },
+            "bytes_recibidos": 93203200
+          }
+        }
+      },
+      {
+        "usuarios": 5,
+        "duracion_s": 30.0,
+        "global": {
+          "peticiones": 26663,
+          "exitosas_2xx": 26663,
+          "limitadas_429": 0,
+          "errores": 0,
+          "tasa_error_pct": 0.0,
+          "tasa_429_pct": 0.0,
+          "estados": {
+            "200": 26663
+          },
+          "peticiones_por_s": 888.8,
+          "exitosas_por_s": 888.8,
+          "latencia_ms": {
+            "p50": 4.99,
+            "p95": 9.6,
+            "p99": 11.63,
+            "max": 54.78
+          },
+          "bytes_recibidos": 740186284
+        },
+        "por_endpoint": {
+          "grados-canonicos": {
+            "peticiones": 6667,
+            "exitosas_2xx": 6667,
+            "limitadas_429": 0,
+            "errores": 0,
+            "tasa_error_pct": 0.0,
+            "tasa_429_pct": 0.0,
+            "estados": {
+              "200": 6667
+            },
+            "peticiones_por_s": 222.2,
+            "exitosas_por_s": 222.2,
+            "latencia_ms": {
+              "p50": 3.09,
+              "p95": 5.98,
+              "p99": 6.88,
+              "max": 35.49
+            },
+            "bytes_recibidos": 27988066
+          },
+          "catalogo-productos": {
+            "peticiones": 6667,
+            "exitosas_2xx": 6667,
+            "limitadas_429": 0,
+            "errores": 0,
+            "tasa_error_pct": 0.0,
+            "tasa_429_pct": 0.0,
+            "estados": {
+              "200": 6667
+            },
+            "peticiones_por_s": 222.2,
+            "exitosas_por_s": 222.2,
+            "latencia_ms": {
+              "p50": 8.33,
+              "p95": 11.01,
+              "p99": 14.97,
+              "max": 54.78
+            },
+            "bytes_recibidos": 218737603
+          },
+          "catalogo-tiendas": {
+            "peticiones": 6667,
+            "exitosas_2xx": 6667,
+            "limitadas_429": 0,
+            "errores": 0,
+            "tasa_error_pct": 0.0,
+            "tasa_429_pct": 0.0,
+            "estados": {
+              "200": 6667
+            },
+            "peticiones_por_s": 222.2,
+            "exitosas_por_s": 222.2,
+            "latencia_ms": {
+              "p50": 3.22,
+              "p95": 4.45,
+              "p99": 5.67,
+              "max": 22.99
+            },
+            "bytes_recibidos": 8367085
+          },
+          "trabajo-publicado": {
+            "peticiones": 6662,
+            "exitosas_2xx": 6662,
+            "limitadas_429": 0,
+            "errores": 0,
+            "tasa_error_pct": 0.0,
+            "tasa_429_pct": 0.0,
+            "estados": {
+              "200": 6662
+            },
+            "peticiones_por_s": 222.1,
+            "exitosas_por_s": 222.1,
+            "latencia_ms": {
+              "p50": 7.24,
+              "p95": 9.37,
+              "p99": 11.32,
+              "max": 37.2
+            },
+            "bytes_recibidos": 485093530
+          }
+        }
+      },
+      {
+        "usuarios": 10,
+        "duracion_s": 30.0,
+        "global": {
+          "peticiones": 28864,
+          "exitosas_2xx": 28864,
+          "limitadas_429": 0,
+          "errores": 0,
+          "tasa_error_pct": 0.0,
+          "tasa_429_pct": 0.0,
+          "estados": {
+            "200": 28864
+          },
+          "peticiones_por_s": 962.1,
+          "exitosas_por_s": 962.1,
+          "latencia_ms": {
+            "p50": 8.96,
+            "p95": 22.48,
+            "p99": 33.08,
+            "max": 73.8
+          },
+          "bytes_recibidos": 801448677
+        },
+        "por_endpoint": {
+          "grados-canonicos": {
+            "peticiones": 7215,
+            "exitosas_2xx": 7215,
+            "limitadas_429": 0,
+            "errores": 0,
+            "tasa_error_pct": 0.0,
+            "tasa_429_pct": 0.0,
+            "estados": {
+              "200": 7215
+            },
+            "peticiones_por_s": 240.5,
+            "exitosas_por_s": 240.5,
+            "latencia_ms": {
+              "p50": 5.86,
+              "p95": 13.36,
+              "p99": 18.47,
+              "max": 42.59
+            },
+            "bytes_recibidos": 30288570
+          },
+          "catalogo-productos": {
+            "peticiones": 7218,
+            "exitosas_2xx": 7218,
+            "limitadas_429": 0,
+            "errores": 0,
+            "tasa_error_pct": 0.0,
+            "tasa_429_pct": 0.0,
+            "estados": {
+              "200": 7218
+            },
+            "peticiones_por_s": 240.6,
+            "exitosas_por_s": 240.6,
+            "latencia_ms": {
+              "p50": 15.01,
+              "p95": 28.26,
+              "p99": 40.32,
+              "max": 73.8
+            },
+            "bytes_recibidos": 236815362
+          },
+          "catalogo-tiendas": {
+            "peticiones": 7217,
+            "exitosas_2xx": 7217,
+            "limitadas_429": 0,
+            "errores": 0,
+            "tasa_error_pct": 0.0,
+            "tasa_429_pct": 0.0,
+            "estados": {
+              "200": 7217
+            },
+            "peticiones_por_s": 240.6,
+            "exitosas_por_s": 240.6,
+            "latencia_ms": {
+              "p50": 5.47,
+              "p95": 13.48,
+              "p99": 20.44,
+              "max": 42.26
+            },
+            "bytes_recibidos": 9057335
+          },
+          "trabajo-publicado": {
+            "peticiones": 7214,
+            "exitosas_2xx": 7214,
+            "limitadas_429": 0,
+            "errores": 0,
+            "tasa_error_pct": 0.0,
+            "tasa_429_pct": 0.0,
+            "estados": {
+              "200": 7214
+            },
+            "peticiones_por_s": 240.5,
+            "exitosas_por_s": 240.5,
+            "latencia_ms": {
+              "p50": 10.29,
+              "p95": 21.15,
+              "p99": 33.37,
+              "max": 59.31
+            },
+            "bytes_recibidos": 525287410
+          }
+        }
+      },
+      {
+        "usuarios": 20,
+        "duracion_s": 30.0,
+        "global": {
+          "peticiones": 26726,
+          "exitosas_2xx": 26726,
+          "limitadas_429": 0,
+          "errores": 0,
+          "tasa_error_pct": 0.0,
+          "tasa_429_pct": 0.0,
+          "estados": {
+            "200": 26726
+          },
+          "peticiones_por_s": 890.9,
+          "exitosas_por_s": 890.9,
+          "latencia_ms": {
+            "p50": 18.89,
+            "p95": 48.74,
+            "p99": 71.32,
+            "max": 141.55
+          },
+          "bytes_recibidos": 741894086
+        },
+        "por_endpoint": {
+          "grados-canonicos": {
+            "peticiones": 6692,
+            "exitosas_2xx": 6692,
+            "limitadas_429": 0,
+            "errores": 0,
+            "tasa_error_pct": 0.0,
+            "tasa_429_pct": 0.0,
+            "estados": {
+              "200": 6692
+            },
+            "peticiones_por_s": 223.1,
+            "exitosas_por_s": 223.1,
+            "latencia_ms": {
+              "p50": 14.75,
+              "p95": 32.57,
+              "p99": 46.86,
+              "max": 77.31
+            },
+            "bytes_recibidos": 28093016
+          },
+          "catalogo-productos": {
+            "peticiones": 6680,
+            "exitosas_2xx": 6680,
+            "limitadas_429": 0,
+            "errores": 0,
+            "tasa_error_pct": 0.0,
+            "tasa_429_pct": 0.0,
+            "estados": {
+              "200": 6680
+            },
+            "peticiones_por_s": 222.7,
+            "exitosas_por_s": 222.7,
+            "latencia_ms": {
+              "p50": 26.91,
+              "p95": 59.08,
+              "p99": 84.16,
+              "max": 141.55
+            },
+            "bytes_recibidos": 219164120
+          },
+          "catalogo-tiendas": {
+            "peticiones": 6676,
+            "exitosas_2xx": 6676,
+            "limitadas_429": 0,
+            "errores": 0,
+            "tasa_error_pct": 0.0,
+            "tasa_429_pct": 0.0,
+            "estados": {
+              "200": 6676
+            },
+            "peticiones_por_s": 222.5,
+            "exitosas_por_s": 222.5,
+            "latencia_ms": {
+              "p50": 12.7,
+              "p95": 31.08,
+              "p99": 51.05,
+              "max": 92.35
+            },
+            "bytes_recibidos": 8378380
+          },
+          "trabajo-publicado": {
+            "peticiones": 6678,
+            "exitosas_2xx": 6678,
+            "limitadas_429": 0,
+            "errores": 0,
+            "tasa_error_pct": 0.0,
+            "tasa_429_pct": 0.0,
+            "estados": {
+              "200": 6678
+            },
+            "peticiones_por_s": 222.6,
+            "exitosas_por_s": 222.6,
+            "latencia_ms": {
+              "p50": 24.46,
+              "p95": 54.49,
+              "p99": 72.53,
+              "max": 102.03
+            },
+            "bytes_recibidos": 486258570
+          }
+        }
+      }
+    ]
+  },
+  "limite": {
+    "destino": "gateway (puerto 8010) con X-Forwarded-For de documentacion",
+    "ip_simulada": "203.0.113.77",
+    "endpoints": [
+      {
+        "nombre": "grados-canonicos",
+        "url": "http://127.0.0.1:8010/v1/grados-canonicos"
+      },
+      {
+        "nombre": "catalogo-productos",
+        "url": "http://127.0.0.1:8010/v1/catalogo/productos?limite=5"
+      },
+      {
+        "nombre": "catalogo-tiendas",
+        "url": "http://127.0.0.1:8010/v1/catalogo/tiendas"
+      },
+      {
+        "nombre": "trabajo-publicado",
+        "url": "http://127.0.0.1:8010/v1/trabajos/d3e4a038-7074-439b-8c82-67e0fc51686a"
+      }
+    ],
+    "resultado": {
+      "usuarios": 5,
+      "duracion_s": 15.0,
+      "global": {
+        "peticiones": 31457,
+        "exitosas_2xx": 1200,
+        "limitadas_429": 30257,
+        "errores": 0,
+        "tasa_error_pct": 0.0,
+        "tasa_429_pct": 96.185,
+        "estados": {
+          "200": 1200,
+          "429": 30257
+        },
+        "peticiones_por_s": 2097.1,
+        "exitosas_por_s": 80.0,
+        "latencia_ms": {
+          "p50": 7.14,
+          "p95": 12.02,
+          "p99": 28.72,
+          "max": 48.26
+        },
+        "bytes_recibidos": 38052941
+      },
+      "por_endpoint": {
+        "grados-canonicos": {
+          "peticiones": 7864,
+          "exitosas_2xx": 300,
+          "limitadas_429": 7564,
+          "errores": 0,
+          "tasa_error_pct": 0.0,
+          "tasa_429_pct": 96.185,
+          "estados": {
+            "200": 300,
+            "429": 7564
+          },
+          "peticiones_por_s": 524.3,
+          "exitosas_por_s": 20.0,
+          "latencia_ms": {
+            "p50": 5.35,
+            "p95": 7.63,
+            "p99": 23.16,
+            "max": 40.57
+          },
+          "bytes_recibidos": 2431820
+        },
+        "catalogo-productos": {
+          "peticiones": 7865,
+          "exitosas_2xx": 299,
+          "limitadas_429": 7566,
+          "errores": 0,
+          "tasa_error_pct": 0.0,
+          "tasa_429_pct": 96.198,
+          "estados": {
+            "200": 299,
+            "429": 7566
+          },
+          "peticiones_por_s": 524.3,
+          "exitosas_por_s": 19.9,
+          "latencia_ms": {
+            "p50": 10.33,
+            "p95": 13.74,
+            "p99": 32.86,
+            "max": 48.26
+          },
+          "bytes_recibidos": 10982621
+        },
+        "catalogo-tiendas": {
+          "peticiones": 7865,
+          "exitosas_2xx": 300,
+          "limitadas_429": 7565,
+          "errores": 0,
+          "tasa_error_pct": 0.0,
+          "tasa_429_pct": 96.186,
+          "estados": {
+            "200": 300,
+            "429": 7565
+          },
+          "peticiones_por_s": 524.3,
+          "exitosas_por_s": 20.0,
+          "latencia_ms": {
+            "p50": 5.54,
+            "p95": 7.39,
+            "p99": 8.21,
+            "max": 27.56
+          },
+          "bytes_recibidos": 1549075
+        },
+        "trabajo-publicado": {
+          "peticiones": 7863,
+          "exitosas_2xx": 301,
+          "limitadas_429": 7562,
+          "errores": 0,
+          "tasa_error_pct": 0.0,
+          "tasa_429_pct": 96.172,
+          "estados": {
+            "200": 301,
+            "429": 7562
+          },
+          "peticiones_por_s": 524.2,
+          "exitosas_por_s": 20.1,
+          "latencia_ms": {
+            "p50": 8.57,
+            "p95": 11.55,
+            "p99": 23.22,
+            "max": 32.92
+          },
+          "bytes_recibidos": 23089425
+        }
+      }
+    }
+  }
+}
