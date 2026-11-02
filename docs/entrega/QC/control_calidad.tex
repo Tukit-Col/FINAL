@@ -1,0 +1,610 @@
+\documentclass[11pt,letterpaper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noshorthands,es-tabla]{babel}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{lmodern}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+\setlist{nosep,leftmargin=*}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcommand{\ruta}[1]{\texttt{\small #1}}
+\sloppy
+\renewcommand{\arraystretch}{1.15}
+
+\title{Tukit: informe de control de calidad\\[4pt]
+\large Informe de pruebas según la estructura de IEEE 29119-3\\
+Proyecto de grado ISIS2610, grupo 19, Pontificia Universidad Javeriana}
+\author{Equipo Tukit}
+\date{1 de noviembre de 2026 (re-ejecución del 2 de noviembre)}
+
+\begin{document}
+\maketitle
+
+\section{Propósito y alcance}
+
+Este informe reúne la evidencia de calidad de Tukit en la rama \ruta{validacion/\allowbreak{}oe5}, commit \ruta{a664810}
+(1 de noviembre de 2026, 23:33, hora local UTC$-$8), que es la versión congelada para la ronda sumativa de
+usabilidad del OE5. Sigue la estructura del informe de finalización de pruebas de IEEE 29119-3: contexto,
+pruebas ejecutadas por nivel, desviaciones, hallazgos, trazabilidad hacia los requisitos y lo que queda pendiente.
+
+La regla que gobierna el documento es simple: solo se reporta una prueba que de verdad se ejecutó, con su
+fecha, su comando y su resultado. Lo que no se corrió aparece como ``no ejecutado'', con la razón. Las cifras
+de producto (servicios, tablas, pesos, plazos legales) se toman de la hoja de hechos canónicos
+(\ruta{HECHOS\_\allowbreak{}CANONICOS\_\allowbreak{}DOCS.md}); las de pruebas salen de los registros que acompañan este informe, en la
+carpeta \ruta{QC/\allowbreak{}evidencia/}.
+
+Para leer las tablas conviene distinguir tres tipos de evidencia. Una \emph{prueba automatizada} es código que
+se ejecuta y falla si el comportamiento cambia. Una \emph{prueba de extremo a extremo} (E2E) recorre el sistema
+vivo por HTTP, como lo haría un acudiente. Una \emph{inspección} es la lectura dirigida del código o de una
+página contra una regla escrita, sin un caso automatizado detrás.
+
+\section{Entorno de prueba}
+
+\begin{itemize}
+  \item Máquina de desarrollo macOS (Apple Silicon), sin Docker. PostgreSQL 16 con pgvector 0.8.1,
+        Redis y RabbitMQ instalados con Homebrew y atados a \ruta{127.0.0.1}.
+  \item Python 3.13.11 en el entorno \ruta{.venv} del monorepo; Node.js 22.23.4.
+  \item Servicios vivos: puerta de enlace en el puerto 8010 y los cinco servicios de dominio en 8011 a 8015;
+        la web del acudiente en el puerto 3000.
+  \item Pasarela Wompi en modo simulado (\ruta{WOMPI\_\allowbreak{}MODO} por omisión); no hay llaves de sandbox.
+\end{itemize}
+
+Todas las ejecuciones de este informe ocurrieron el 1 de noviembre de 2026 entre las 23:35 y las 23:45 hora
+local (2 de noviembre, 07:35 a 07:45 UTC), salvo la E2E de la coordinación, que se corrió el mismo día por un
+túnel público hacia la web local, y los artefactos de evaluación de la sección~\ref{sec:artefactos}, que se
+citan con su propia fecha.
+
+\section{Resumen por nivel}
+
+La tabla~\ref{tab:resumen} condensa los resultados. Ningún caso automatizado falló. Los problemas encontrados
+están en otro lado: en el análisis estático, en la prueba de humo, en las dependencias y en una ruta que no
+comprueba quién es el dueño del recurso (sección~\ref{sec:hallazgos}).
+
+\begin{table}[h]
+\centering\small
+\caption{Resultados por nivel de prueba (1 de noviembre de 2026).}\label{tab:resumen}
+\begin{tabular}{L{4.6cm}L{4.4cm}rrrL{2.2cm}}
+\toprule
+Nivel & Comando & Pasan & Fallan & Saltadas & Estado \\
+\midrule
+Fronteras de arquitectura (Python) & \ruta{make fronteras} & 75 & 0 & 1 & pasa \\
+Unitarias e integración (Python) & \ruta{make prueba} & 2.481 & 0 & 1 & pasa \\
+Contra RabbitMQ real & \ruta{make prueba-colas} & 6 & 0 & 0 & pasa \\
+Contra Redis real & \ruta{make prueba-redis} & 11 & 0 & 0 & pasa \\
+Web del acudiente (TS) & \ruta{npm test} en \ruta{apps/\allowbreak{}web} & 82 & 0 & 0 & pasa \\
+Consola admin (TS) & \ruta{node --test} en \ruta{apps/\allowbreak{}admin} & 57 & 0 & 0 & pasa \\
+Contrato compartido (TS) & \ruta{npm test} en \ruta{libs/\allowbreak{}ts/\allowbreak{}tukit-contrato} & 67 & 0 & 0 & pasa \\
+Tipos TS & \ruta{tsc --noEmit} por paquete & 2 de 3 & 1 & & falla (1 error) \\
+Estilo Python & \ruta{make lint} & & 62 & & falla \\
+Estilo TS & \ruta{npm run lint} & admin & web (1) & & falla \\
+Humo sobre servicios vivos & \ruta{make humo} & & 1 & & falla (ver H2) \\
+Humo corregido (20 comprobaciones) & \ruta{humo\_\allowbreak{}traza.py} & 20 & 0 & 0 & pasa \\
+E2E del acudiente & scripts 
+uta{e2e*.sh} & 12 pasos & 0 & & pasa \\
+Acceso cruzado (IDOR) & \ruta{idor.sh} & 5 & 3 & & hallazgo H4 \\
+Cobertura de código & no hay \ruta{pytest-cov} & & & & no ejecutado \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+En total, 2.573 pruebas automatizadas de Python pasan, 2 se saltan y ninguna falla; las 206 de TypeScript
+pasan todas.
+
+\section{Pruebas automatizadas}
+
+\subsection{Python}
+
+El monorepo corre la suite desde la raíz con \ruta{pytest} y una lista de \ruta{pythonpath} declarada en
+\ruta{pyproject.toml}, de modo que cada servicio se prueba como paquete propio sin instalarlo. El objetivo
+\ruta{make prueba} corre primero \ruta{make fronteras} (las funciones de aptitud de arquitectura, que fallan
+si un servicio importa el código o la base de otro) y luego el resto de la suite sin los marcadores
+\ruta{rabbitmq} y \ruta{redis}. Esos 17 casos se corrieron aparte, contra el broker y el Redis locales.
+
+\begin{table}[h]
+\centering\small
+\caption{Pruebas de Python por paquete (\ruta{pytest <paquete> -m "not rabbitmq and not redis"}).}
+\begin{tabular}{lrrl}
+\toprule
+Paquete & Pasan & Saltadas & Observación \\
+\midrule
+\ruta{arquitectura} (fronteras) & 75 & 1 & salta \ruta{ingesta}: aún sin código \\
+\ruta{libs} (\ruta{tukit\_\allowbreak{}comun}) & 169 & 0 & 14 casos van a colas y Redis \\
+\ruta{servicios/\allowbreak{}identidad} & 220 & 0 & \\
+\ruta{servicios/\allowbreak{}catalogo} & 813 & 0 & \\
+\ruta{servicios/\allowbreak{}inteligencia} & 535 & 0 & \\
+\ruta{servicios/\allowbreak{}comercio} & 271 & 0 & \\
+\ruta{servicios/\allowbreak{}operacion} & 110 & 0 & \\
+\ruta{servicios/\allowbreak{}gateway} & 222 & 0 & \\
+\ruta{ensayos} & 141 & 1 & salta \ruta{nl2c\_\allowbreak{}vivo}: requiere el modelo \\
+\midrule
+Total & 2.556 & 2 & más 17 de colas y Redis: 2.573 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Las dos pruebas saltadas lo están a propósito. La de \ruta{arquitectura/\allowbreak{}test\_\allowbreak{}fronteras.py:614} espera a que el
+desplegable de ingesta tenga código, y la de \ruta{ensayos/\allowbreak{}nl2c/\allowbreak{}test\_\allowbreak{}nl2c\_\allowbreak{}ensayo.py:251} solo corre con
+\ruta{-m nl2c\_\allowbreak{}vivo}, porque llama al modelo real; su equivalente ya ejecutado son las rondas del ensayo NL2C.
+
+\textbf{Cobertura.} No ejecutada: el entorno no tiene \ruta{pytest-cov} y no hay configuración de cobertura en
+\ruta{pyproject.toml}. No se instaló nada para este informe. Por eso el requisito MT-01 (cobertura de al menos
+80~\% como condición de integración) queda sin verificar.
+
+\subsection{TypeScript}
+
+Los tres paquetes de TypeScript usan el corredor nativo de Node (\ruta{node --test "test/\allowbreak{}**/\allowbreak{}*.test.ts"}).
+La consola admin no declara un script \ruta{test} en su \ruta{package.json}, así que se invocó el mismo
+comando directamente. La web pasa 82 de 82, la consola admin 57 de 57 y el contrato compartido 67 de 67.
+
+La verificación de tipos (\ruta{tsc --noEmit}) pasa en \ruta{apps/\allowbreak{}web} y en \ruta{apps/\allowbreak{}admin}, pero falla en
+\ruta{libs/\allowbreak{}ts/\allowbreak{}tukit-contrato} con un error (hallazgo H1).
+
+\subsection{Análisis estático}
+
+\ruta{make lint} falla con 62 avisos de \ruta{ruff}: 47 líneas largas (E501), 9 redefiniciones (F811), 3
+importaciones sin ordenar, 2 nombres ambiguos y 1 importación sin usar; además, 16 archivos no cumplen el
+formato. Siete de las redefiniciones están en \ruta{servicios/\allowbreak{}comercio/\allowbreak{}tests/\allowbreak{}test\_\allowbreak{}admin\_\allowbreak{}pedido.py} y son el
+patrón conocido de importar una \emph{fixture} y recibirla como argumento; las dos de
+\ruta{servicios/\allowbreak{}operacion/\allowbreak{}tukit\_\allowbreak{}operacion/\allowbreak{}remoto.py} (líneas 45 y 92) son código de producción y merecen
+revisión. En TypeScript, \ruta{eslint} pasa en la consola admin y marca un error en la web:
+\ruta{apps/\allowbreak{}web/\allowbreak{}src/\allowbreak{}app/\allowbreak{}privacidad/\allowbreak{}AccionesPrivacidad.tsx:85} usa \ruta{<a href="/\allowbreak{}">} en vez de \ruta{<Link>}.
+Ninguno de estos avisos cambia el comportamiento observado en las pruebas.
+
+\section{Prueba de humo}
+
+La prueba de humo (\ruta{arquitectura/\allowbreak{}humo.py}) golpea los endpoints vivos a través de la puerta de enlace y
+falla si alguno no trae datos reales. Recorre el catálogo, los colegios y las listas, lanza un trabajo,
+espera el pipeline, lo aprueba como operador, verifica que los kits se publiquen, revisa pedidos y casos, y
+abre un caso PQRS. Escribe datos a propósito: deja un trabajo de prueba aprobado y un caso abierto por cada
+corrida.
+
+\begin{enumerate}
+  \item \ruta{make humo} falló en el primer paso autenticado: \ruta{/\allowbreak{}v1/\allowbreak{}sesiones} respondió 401
+        \ruta{credenciales\_\allowbreak{}invalidas}. El script tiene la clave de demostración escrita en el código, y esa
+        clave se rotó el 28 de octubre para las sesiones del OE5.
+  \item Con la clave rotada (leída del llavero de macOS en tiempo de ejecución, sin escribirla en ningún
+        archivo) el humo avanzó 19 comprobaciones y falló en \ruta{GET /\allowbreak{}v1/\allowbreak{}operacion/\allowbreak{}casos} con 401
+        \ruta{sesion\_\allowbreak{}invalida}. Desde el cambio del 1 de noviembre la bandeja de operación es solo para el
+        equipo, y el script la pide sin token.
+  \item Con la bandeja pedida con la sesión del operador, pasaron las 20 comprobaciones: 5 procesos arriba,
+        146 conceptos, 1.078 productos con precio, 10 tiendas, 3 colegios, 19 listas, un trabajo que llegó a
+        \ruta{espera\_\allowbreak{}revision} con sus cuatro etapas en \ruta{ok}, la cola admin cerrada sin token (401),
+        la aprobación y la publicación de 3 kits (Ahorrador, A tu Medida y Premium, con A tu Medida
+        recomendado), pedidos cerrados sin token (401) y el alta de un caso PQRS (201, vence el 17 de
+        noviembre).
+\end{enumerate}
+
+La conclusión es que el sistema vivo responde como se espera y que el defecto está en el guion de humo, que
+quedó desactualizado frente a dos cambios deliberados (hallazgo H2). Los conteos del catálogo son los de la
+base de esta noche y cambian mientras avanza la curaduría; no deben citarse como cifras finales del catálogo.
+
+\section{Prueba de extremo a extremo del acudiente}
+
+La coordinación ejecutó el recorrido del acudiente el 1 de noviembre de 2026 con los guiones
+\ruta{e2e.sh}, \ruta{e2e2.sh} y \ruta{e2e3.sh}, contra las rutas \ruta{/\allowbreak{}api/\allowbreak{}*} de la web y con la cookie real
+de sesión. Se hizo por HTTP y no con un navegador automatizado porque Playwright cierra páginas de forma
+impredecible en esta máquina. La tabla~\ref{tab:e2e} recoge lo observado.
+
+\begin{longtable}{L{5.2cm}L{9.6cm}}
+\caption{Pasos de la E2E del acudiente (1 de noviembre de 2026).}\label{tab:e2e}\\
+\toprule
+Paso & Resultado observado \\
+\midrule\endhead
+Registro con hijo y aceptación de términos & cuenta creada; la cookie de sesión queda puesta \\
+Aplicar kit canónico, perfil Fan, personaje Spider-Man & publicado con 72 líneas, 10 productos del personaje;
+2 líneas en \$0, ambas explicadas como duplicados \\
+Carrusel de opciones de una línea & 42 opciones \\
+Descartar una línea & \ruta{PUT} 200; el total baja de \$779.037 a \$757.038 \\
+Asistente NL2C, proponer & devuelve una \ruta{PropuestaCambio} \\
+Ordenar & pedido en \ruta{pendiente\_\allowbreak{}pago} \\
+Pago simulado y sincronización & pedido en \ruta{pagado} \\
+Caso PQRS & 201, vence en 48 horas; aparece en el listado del acudiente \\
+Retracto sin pagar & 409 \\
+Retracto después de pagar & 201; pedido \ruta{cancelado}, monto \$779.037 \\
+Exportar mis datos & 200 \\
+Páginas dashboard, privacidad, pedido, kit y legal & 200 \\
+Pago real con el sandbox de Wompi & \textbf{no ejecutado}: las llaves del sandbox están pendientes \\
+\bottomrule
+\end{longtable}
+
+\section{Seguridad}
+
+\subsection{Acceso cruzado entre cuentas (IDOR)}
+
+Una vulnerabilidad IDOR (\emph{insecure direct object reference}) aparece cuando basta conocer el
+identificador de un recurso para leerlo, aunque sea de otra persona. Para probarlo se registró una cuenta
+nueva de prueba (``atacante'') y, con su cookie, se pidieron por la web local los recursos de la cuenta de la
+E2E. Todas las peticiones fueron de lectura; no se intentó escribir sobre recursos ajenos. El guion está en
+\ruta{QC/\allowbreak{}evidencia/\allowbreak{}idor.sh} y la salida en \ruta{QC/\allowbreak{}evidencia/\allowbreak{}idor.log}.
+
+\begin{table}[h]
+\centering\small
+\caption{Pruebas de acceso cruzado (1 de noviembre de 2026, 23:41).}
+\begin{tabular}{L{6.3cm}cL{6.2cm}}
+\toprule
+Petición & Código & Lectura \\
+\midrule
+Pedido ajeno con la cookie del atacante & 404 & correcto: igual que un pedido inexistente \\
+Pedido ajeno sin cookie & 401 & correcto \\
+Pedido inventado & 404 & correcto \\
+Casos del atacante & 200, 0 casos & correcto: no ve los casos de la otra cuenta \\
+Exportación de datos del atacante & 200 & correcto: no contiene el pedido ni el trabajo ajenos \\
+Trabajo ajeno con la cookie del atacante & 200 & \textbf{hallazgo H4}: devuelve el kit completo \\
+Trabajo ajeno sin cookie & 200 & \textbf{hallazgo H4} \\
+Opciones de una línea del trabajo ajeno & 200 & \textbf{hallazgo H4} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+No se probó por identificador el caso PQRS ajeno porque no se tenía su identificador; ese control lo cubre la
+prueba automatizada \ruta{test\_\allowbreak{}un\_\allowbreak{}caso\_\allowbreak{}ajeno\_\allowbreak{}es\_\allowbreak{}403\_\allowbreak{}al\_\allowbreak{}leerlo\_\allowbreak{}y\_\allowbreak{}al\_\allowbreak{}comentarlo}, que pasa.
+
+\subsection{Secretos en el repositorio}
+
+Se corrió \ruta{gitleaks} 8.30.1 con \ruta{--redact}, de modo que ningún valor se imprimió ni quedó en los
+resúmenes. Sobre el historial (570 commits) encontró 2 coincidencias de la regla \ruta{github-pat}, en dos
+archivos de traspaso de sesión de \ruta{.opencode/\allowbreak{}handoff/\allowbreak{}history/} que entraron en el commit \ruta{d0c19b0f}
+(4 de octubre de 2026). Esos archivos ya no están en el árbol de trabajo, pero siguen en el historial
+(hallazgo H3).
+
+Sobre el árbol de trabajo (\ruta{--no-git}) hay 1.482 coincidencias: 1.471 están en
+\ruta{datos/\allowbreak{}catalogo/\allowbreak{}cache\_\allowbreak{}tiendas/}, que son respuestas guardadas de la tienda Éxito con tokens JWT
+propios de esa tienda y que \ruta{.gitignore} excluye; 10 están en dependencias y artefactos de compilación; 1
+está en \ruta{.env}, que también está excluido de git y no se leyó. Ninguna de estas 1.482 está versionada.
+
+\subsection{Dependencias}
+
+\ruta{npm audit --omit=dev} reporta lo mismo para la web y la consola admin, porque comparten el
+\ruta{package-lock.json} del monorepo: 1 vulnerabilidad crítica y 2 altas. La crítica es \ruta{next} 16.3.4,
+dentro del rango afectado 16.0.0 a 16.4.0, con dos avisos (ejecución remota de código en
+\ruta{next/\allowbreak{}og ImageResponse} y una fuga del modo borrador con \ruta{use cache}); la corrección es 16.4.3. Las
+altas son \ruta{sharp} (dependencia de \ruta{librsvg}, CVE-2026-96889) y \ruta{source-map-js} (denegación de
+servicio). Una búsqueda en \ruta{apps/} no encontró usos de \ruta{next/\allowbreak{}og}, \ruta{ImageResponse} ni
+\ruta{use cache}, lo que reduce la exposición pero no la elimina (hallazgo H5).
+
+La auditoría de dependencias de Python \textbf{no se ejecutó}: \ruta{pip-audit} no está instalado y no se
+instaló nada para este informe.
+
+\section{Artefactos de evaluación ya ejecutados}\label{sec:artefactos}
+
+Estas evaluaciones se corrieron antes de este informe y no se repitieron; se citan desde sus archivos.
+
+\subsection{Ensayo NL2C}
+
+El ensayo mide si el intérprete de lenguaje natural (\ruta{gemini-3.5-flash-lite}, temperatura 0) traduce
+bien las frases del acudiente a la estructura $R$ y si resiste inyecciones de instrucciones. La tasa de
+éxito de ataque (ASR, \emph{attack success rate}) cuenta los ataques que llegan al padre, no los que el modelo
+intenta. Fuente: \ruta{docs/\allowbreak{}informes/\allowbreak{}nl2c/\allowbreak{}tablas\_\allowbreak{}ronda2.md} y \ruta{tablas\_\allowbreak{}ronda3.md}.
+
+\begin{table}[h]
+\centering\small
+\caption{Rondas 2 y 3 del ensayo NL2C.}
+\begin{tabular}{lll}
+\toprule
+Medida & Ronda 2 & Ronda 3 \\
+\midrule
+Corrida (UTC) y commit & 2026-11-02 02:36, \ruta{0373d5e} & 2026-11-02 03:12, \ruta{bf8b7d5} \\
+Tarea completa & 57 de 70 (81,4~\%) & 58 de 70 (82,9~\%) \\
+ASR & 0 de 81 & 0 de 81 \\
+Latencia p50 / p95 & 999 / 1.344 ms & 1.000 / 1.177 ms \\
+Tareas cumplidas bajo ataque & 36 de 60 & 36 de 60 \\
+Controles sin ataque sobre el kit & 12 de 12 & 12 de 12 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La ronda 3 usa un criterio modificado (cuenta como fallo un descarte sin confirmación del padre), así que las
+dos rondas no son directamente comparables. La hoja de hechos canónicos todavía marca estas cifras como
+pendientes de confirmar y pide no escribirlas como resultado final en los documentos de requisitos; aquí se
+reportan como evidencia de prueba, con su fecha. Que el modelo cumpla la tarea legítima solo en 36 de 60
+intentos cuando la frase trae un ataque es una limitación de utilidad, no de seguridad: ninguno de esos ataques
+llegó al padre.
+
+\subsection{Calibración del optimizador}
+
+Fuente: \ruta{docs/\allowbreak{}informes/\allowbreak{}calibracion/} (README y JSON). La configuración de NSGA-II se eligió con
+validación cruzada de 5 pliegues agrupada por colegio y se eligió en 4 de 5; en el conjunto de prueba (32
+listas, uso único) el hipervolumen fue 0,9962 frente a 0,9996 de la configuración anterior (diferencia
+$-$0,0034, IC [$-$0,0054, $-$0,0017]), con un tiempo medio que bajó de 2,04 s a 0,47 s. El umbral de
+enumeración exacta de 4.096 se respalda en que el exacto deja de ganar alrededor de $S \approx 4.932$
+(mediana). En la sensibilidad de los pesos, el kit recomendado se mantiene en 0,965, 0,986 y 0,946 de los
+sorteos para $\sigma$ de 0,05, 0,10 y 0,20. Sobre $\tau$ no se cita precisión, cobertura ni AUC, porque no
+hay una calibración válida: el valor por omisión 0,75 queda como limitación declarada.
+
+\subsection{Pruebas de carga}
+
+\textbf{No ejecutadas en la primera corrida} (ver la sección~\ref{sec:reejecucion} para la línea base de lectura). No hay resultados de Locust, k6 ni de otra herramienta de carga en \ruta{ensayos/} ni
+en \ruta{docs/}. Los requisitos DP-02 (50 usuarios concurrentes) y DP-05 quedan sin verificar.
+
+\subsection{Usabilidad (OE5)}
+
+Fuera del alcance de este informe. La ronda formativa fue el 31 de octubre y la sumativa está programada para
+el 2 de noviembre de 2026, así que su resultado está \textbf{pendiente}. El requisito UI-07 (interacciones
+discretas y RTLX, según la enmienda R1) depende de esa ronda.
+
+\section{Verificación legal por inspección}
+
+Esta sección es una \textbf{inspección}, no una prueba automatizada: se leyeron las páginas servidas y el
+código contra la Ley 1581 de 2012 (con el Decreto 1377 de 2013) y la Ley 1480 de 2011. Donde existe una prueba
+automatizada que respalda el punto se nombra.
+
+\begin{longtable}{L{4.2cm}L{6.6cm}L{3.8cm}}
+\caption{Lista de verificación legal (1 de noviembre de 2026).}\\
+\toprule
+Punto & Lo observado & Resultado \\
+\midrule\endhead
+Páginas legales servidas & \ruta{/\allowbreak{}legal}, \ruta{/\allowbreak{}legal/\allowbreak{}privacidad}, \ruta{/\allowbreak{}legal/\allowbreak{}terminos} y
+\ruta{/\allowbreak{}legal/\allowbreak{}retracto} responden 200 & cumple \\
+Política de datos & cita la Ley 1581 y el Decreto 1377, explica la supresión y los plazos de respuesta (10
+días hábiles para consultas, 15 para reclamos) & cumple \\
+Retención de datos de investigación & la política no menciona los 12 meses tras la aprobación del trabajo de
+grado ni los 30 días de las grabaciones & observación: ese plazo vive en el consentimiento de investigación,
+no en la política de la app \\
+Términos & citan la Ley 1480 y la Ley 1581 & cumple \\
+Página de retracto & cita la Ley 1480, los 5 días hábiles y los 30 días para el reembolso & cumple \\
+Plazos en el dominio & \ruta{ley1480.py}: \ruta{DIAS\_\allowbreak{}HABILES\_\allowbreak{}RETRACTO = 5}, \ruta{DIAS\_\allowbreak{}REEMBOLSO = 30};
+día hábil es lunes a viernes sin festivos de Colombia, con la ley Emiliani y la Semana Santa calculadas; el
+plazo corre desde la entrega & cumple; respaldo: \ruta{test\_\allowbreak{}dominio\_\allowbreak{}ley1480.py} (7) y
+\ruta{test\_\allowbreak{}retracto.py} (14), pasan \\
+Consentimiento en el registro & la casilla de \ruta{/\allowbreak{}empezar} bloquea el envío si no se marca; el servicio de
+identidad registra el consentimiento \ruta{registro\_\allowbreak{}titular} solo si \ruta{acepta\_\allowbreak{}terminos} es verdadero &
+observación: el servidor no rechaza un registro sin aceptación, solo omite el registro del consentimiento \\
+Consentimiento por finalidad y por hijo & revocación por hijo y por finalidad & cumple; respaldo:
+\ruta{test\_\allowbreak{}privacidad.py} (14), pasa \\
+Supresión & \ruta{POST /\allowbreak{}api/\allowbreak{}cuenta/\allowbreak{}supresion} sin sesión responde 401 (ejecutado); exige una frase de
+confirmación; la solicitud no se completa hasta que confirman todos los servicios & cumple; respaldo:
+\ruta{test\_\allowbreak{}supresion\_\allowbreak{}confirmada.py} (5) y las pruebas de supresión de comercio, inteligencia y operación \\
+Exportación de datos & 200 en la E2E & cumple \\
+Nombre del menor & el registro guarda solo un apodo opcional y cifrado, nunca el nombre legal; el intérprete
+NL2C depura correo, teléfono, enlace y nombre & cumple; respaldo:
+\ruta{test\_\allowbreak{}sanitizar\_\allowbreak{}quita\_\allowbreak{}correo\_\allowbreak{}telefono\_\allowbreak{}enlace\_\allowbreak{}y\_\allowbreak{}nombre} \\
+\bottomrule
+\end{longtable}
+
+\section{Hallazgos}\label{sec:hallazgos}
+
+Estado actualizado en la sección~\ref{sec:reejecucion}.
+
+Los hallazgos se ordenan por severidad. Ninguno se corrigió en la primera corrida (1 de noviembre): la versión estaba congelada para la
+ronda del OE5 y la regla de esas sesiones es registrar los defectos en lugar de parchear la app.
+
+\begin{description}
+  \item[H4 (media). Lectura de trabajos ajenos.] \ruta{GET /\allowbreak{}v1/\allowbreak{}trabajos/\allowbreak{}\{trabajo\_\allowbreak{}id\}}
+  (\ruta{servicios/\allowbreak{}inteligencia/\allowbreak{}tukit\_\allowbreak{}inteligencia/\allowbreak{}routers/\allowbreak{}inteligencia.py:301}, función
+  \ruta{ver\_\allowbreak{}trabajo}) no recibe la sesión ni compara al dueño. Cualquier
+  persona con el identificador lee el kit completo, también sin sesión, y lo mismo pasa con las opciones de una
+  línea. La web reenvía el token, pero el servicio no lo usa en esta ruta. Lo expuesto es la composición del kit, el colegio, el grado, el perfil y el personaje; no hay correo
+  ni nombre. El identificador es un UUID versión 4 (122 bits aleatorios), así que no se puede enumerar, pero
+  queda expuesto si el enlace se comparte. Las rutas de escritura del mismo trabajo sí comprueban al dueño. Esto
+  contradice SG-02 en su lectura estricta.
+  \item[H5 (media). Dependencias de la web.] \ruta{next} 16.3.4 con un aviso crítico y dos dependencias con
+  avisos altos; subir a \ruta{next} 16.4.3 o posterior.
+  \item[H3 (media). Posible token en el historial.] Dos coincidencias \ruta{github-pat} en archivos de
+  \ruta{.opencode/\allowbreak{}handoff/\allowbreak{}history/} del commit \ruta{d0c19b0f}. Conviene revocar el token aunque haya vencido y
+  decidir si se reescribe el historial del remoto.
+  \item[H2 (baja). Humo desactualizado.] \ruta{arquitectura/\allowbreak{}humo.py} trae la clave de demostración en el código
+  (línea 40) y pide la bandeja de operación sin token (línea 229). Debería leer la credencial del entorno y
+  usar el token del operador que ya obtiene.
+  \item[H1 (baja). Error de tipos.] \ruta{libs/\allowbreak{}ts/\allowbreak{}tukit-contrato/\allowbreak{}src/\allowbreak{}linea.ts:195}, TS2532: el resultado de
+  \ruta{texto.split(/\allowbreak{}[:.;]/\allowbreak{}, 1)[0]} puede ser \ruta{undefined} según el compilador. En la práctica
+  \ruta{split} siempre devuelve al menos un elemento y las 67 pruebas del paquete pasan, pero
+  \ruta{tsc --noEmit} falla.
+  \item[H6 (baja). Análisis estático.] 62 avisos de \ruta{ruff}, 16 archivos sin formato y 1 error de
+  \ruta{eslint} en \ruta{AccionesPrivacidad.tsx:85}.
+  \item[O1 (observación). Consentimiento solo en el cliente.] Ver la lista legal.
+  \item[O2 (observación). Sin Service Worker.] La búsqueda de \ruta{serviceWorker} en \ruta{apps/\allowbreak{}web} no
+  encontró registro de un Service Worker, lo que respalda marcar el offline-first como no verificado (enmienda
+  R6).
+\end{description}
+
+\section{Trazabilidad hacia los requisitos}
+
+El SRS v6 tiene 132 requisitos (67 RF, 49 RNF y 16 RML, según la hoja de hechos). La matriz cubre los que
+tienen evidencia en este informe o una decisión de alcance, más los cuatro requisitos propuestos sin
+identificador de la enmienda R5. El resto no tiene caso asociado aquí y no se debe leer como verificado. Los
+números entre paréntesis son los casos que pasaron en cada archivo de prueba el 1 de noviembre.
+
+\begin{longtable}{L{2.2cm}L{3.6cm}L{6.3cm}L{2.6cm}}
+\caption{Matriz requisito, caso y resultado.}\\
+\toprule
+Requisito & Tema & Caso(s) & Resultado \\
+\midrule\endhead
+NR-01 (R4.a) & Estados de resolución & \ruta{test\_\allowbreak{}dominio\_\allowbreak{}pipeline} (12), \ruta{test\_\allowbreak{}trabajos} (52) & pasa \\
+NR-04, ML-05 & Nada fuera del catálogo & \ruta{test\_\allowbreak{}validar\_\allowbreak{}linea} (10); personaje fuera del catálogo en
+\ruta{test\_\allowbreak{}nl2c} & pasa \\
+NR-07 & Reuso de lo validado & \ruta{test\_\allowbreak{}borrador\_\allowbreak{}canonico} (13), \ruta{test\_\allowbreak{}fastroute} (16); E2E
+aplicar canónico & pasa \\
+OP-01 (R4.b) & Kits por perfil & \ruta{test\_\allowbreak{}optimizador} (80); humo: 3 kits publicados & pasa \\
+OP-02 & Parámetros documentados & artefactos de calibración & evidencia documental \\
+OP-04, OP-07 (R4.c) & Pesos P21 y MAUT & \ruta{test\_\allowbreak{}optimizador}; análisis de sensibilidad & pasa \\
+OP-05, ML-08 & Reproducibilidad & \ruta{test\_\allowbreak{}es\_\allowbreak{}reproducible\_\allowbreak{}bajo\_\allowbreak{}la\_\allowbreak{}misma\_\allowbreak{}semilla} & pasa \\
+DP-02, DP-05 & Carga & no hay prueba de carga & no ejecutado \\
+DP-03 & Tiempo del optimizador & la calibración mide tiempos medios, no el p95 del criterio & no verificado \\
+AD-03, AD-06 & Revisión humana & \ruta{test\_\allowbreak{}admin\_\allowbreak{}sesion} (61), \ruta{test\_\allowbreak{}api\_\allowbreak{}inteligencia} (22); humo:
+cola 401 sin token, aprobación y publicación & pasa \\
+SG-01 & Claves con hash & \ruta{test\_\allowbreak{}dos\_\allowbreak{}hashes\_\allowbreak{}de\_\allowbreak{}la\_\allowbreak{}misma\_\allowbreak{}clave\_\allowbreak{}difieren\_\allowbreak{}por\_\allowbreak{}la\_\allowbreak{}sal} & pasa \\
+SG-02 & Autorización con alcance & \ruta{test\_\allowbreak{}autorizacion} (19), \ruta{test\_\allowbreak{}mis\_\allowbreak{}casos} (7), pedido ajeno
+en \ruta{test\_\allowbreak{}checkout}; IDOR ejecutado & \textbf{parcial}: H4 \\
+CO-01, CO-02 & Panel de colegio & alcance reducido, no existe en el producto & no aplica \\
+CO-03, CO-04 & Ámbito de colegio, matrícula & \ruta{test\_\allowbreak{}autorizacion} (19), \ruta{test\_\allowbreak{}api\_\allowbreak{}identidad} (70) & pasa \\
+FU-01 & Orden de compra & \ruta{test\_\allowbreak{}checkout} (61); E2E ordenar & pasa \\
+FU-03, UI-05 & Pago con Wompi & \ruta{test\_\allowbreak{}pasarela} (35); E2E con pago simulado; sandbox no ejecutado &
+\textbf{parcial} \\
+FU-04 (R5.1) & Retracto & \ruta{test\_\allowbreak{}retracto} (14), \ruta{test\_\allowbreak{}dominio\_\allowbreak{}ley1480} (7); E2E 409 y 201;
+inspección & pasa \\
+FU-08, DE-02 & Precio y entrega congelados & \ruta{test\_\allowbreak{}crear\_\allowbreak{}orden\_\allowbreak{}congela\_\allowbreak{}precio\_\allowbreak{}y\_\allowbreak{}reserva},
+\ruta{test\_\allowbreak{}precio\_\allowbreak{}congelado} (2) & pasa \\
+PV-01 & Consentimiento granular & \ruta{test\_\allowbreak{}privacidad} (14); inspección del registro & pasa, con O1 \\
+PV-02 & Panel de privacidad & \ruta{test\_\allowbreak{}mis\_\allowbreak{}datos} (11); E2E exportar 200; supresión 401 sin sesión & pasa \\
+PV-03, PE-06 & Datos del menor & depuración en \ruta{test\_\allowbreak{}nl2c}; inspección del registro & pasa \\
+PV-04, PS-03 & Supresión completa & \ruta{test\_\allowbreak{}la\_\allowbreak{}solicitud\_\allowbreak{}no\_\allowbreak{}se\_\allowbreak{}completa\_\allowbreak{}hasta\_\allowbreak{}que\_\allowbreak{}confirmen\_\allowbreak{}todos};
+pruebas de supresión de comercio (5), inteligencia (5) y operación (4) & pasa \\
+MT-01 & Cobertura de 80~\% & sin \ruta{pytest-cov} & no ejecutado \\
+MT-03 & Funciones de aptitud & \ruta{test\_\allowbreak{}fronteras} (47), \ruta{test\_\allowbreak{}fronteras\_\allowbreak{}se\_\allowbreak{}activan} (28) & pasa \\
+UI-02, UI-06, PT-02 & Navegadores y dispositivos & sin pruebas en dispositivos & no ejecutado \\
+UI-03 & Cambiar un ítem & \ruta{test\_\allowbreak{}descartar\_\allowbreak{}y\_\allowbreak{}opciones} (8); E2E carrusel y descarte & pasa \\
+UI-07 (R1) & Carga cognitiva & ronda sumativa del OE5 & pendiente \\
+R5.2 & Páginas legales & inspección & cumple, con observación de retención \\
+R5.3 & NL2C & \ruta{test\_\allowbreak{}nl2c} (50), \ruta{test\_\allowbreak{}nl2c\_\allowbreak{}ensayo} (13); rondas 2 y 3 & pasa \\
+R5.4 & Detalle de orden y logística admin & \ruta{test\_\allowbreak{}admin\_\allowbreak{}pedido} (6), \ruta{test\_\allowbreak{}logistica} (57);
+pruebas TS de la consola admin & pasa \\
+R6 & Offline-first & inspección: no hay Service Worker & no verificado \\
+\bottomrule
+\end{longtable}
+
+\section{Lo que no se ejecutó}
+
+\begin{itemize}
+  \item Cobertura de código: \ruta{pytest-cov} no está instalado.
+  \item Auditoría de dependencias de Python: \ruta{pip-audit} no está instalado.
+  \item Pago real con el sandbox de Wompi: las llaves están pendientes.
+  \item Pruebas de carga: no existen en el repositorio.
+  \item Pruebas en navegadores y dispositivos reales (PT-02, UI-06): no se hicieron; Playwright no es estable en
+        esta máquina.
+  \item Prueba en vivo del intérprete NL2C dentro de la suite (\ruta{-m nl2c\_\allowbreak{}vivo}): reemplazada por las rondas
+        del ensayo.
+  \item Acceso cruzado sobre rutas de escritura y sobre el caso PQRS ajeno: fuera del alcance de una prueba de
+        solo lectura; lo cubren pruebas automatizadas.
+  \item Usabilidad sumativa del OE5: programada para el 2 de noviembre de 2026.
+\end{itemize}
+
+\section{Re-ejecución 2026-11-02}\label{sec:reejecucion}
+
+Después de la primera corrida se corrigieron los hallazgos H1, H2, H4, H5 y H6 (parcial) antes de la segunda ronda
+del OE5 y se repitieron las pruebas con el código ya confirmado en cuatro commits de la rama
+\ruta{validacion/\allowbreak{}oe5} más uno de ajustes de revisión. Esta sección solo recoge resultados ejecutados el 2 de noviembre de 2026.
+Se reiniciaron los servicios (\ruta{make reanudar}, con identidad antes que inteligencia) y se reconstruyó la web con
+\ruta{next} 16.4.3.
+
+\subsection{Commits}
+
+\begin{itemize}
+  \item \ruta{a201f4c}: higiene (\ruta{next} 16.4.3, tipos, lint, F811, clave fuera de \ruta{humo.py}, retención del estudio en la política de privacidad).
+  \item \ruta{c147a6b}: cobertura con \ruta{pytest-cov}, ensayo de carga de lectura y barrido de supresiones atascadas.
+  \item \ruta{0c9d1e1}: puerta de lectura del dueño en el kit (H4) y consentimiento obligatorio en el registro.
+  \item \ruta{0059f6d}: \ruta{marcas\_\allowbreak{}excluidas} y \ruta{solo\_\allowbreak{}disponibles} como filtros duros del optimizador.
+  \item \ruta{976deb1}: ajustes de revisión (credencial remota, carrusel, sondeo con 401, consentimiento en \ruta{/v1/cuenta}).
+\end{itemize}
+
+\subsection{Pruebas automatizadas}
+
+\begin{table}[h]
+\centering\small
+\caption{Resultados de la re-ejecución (2 de noviembre de 2026).}
+\begin{tabular}{L{5.2cm}L{4.6cm}rrr}
+\toprule
+Nivel & Comando & Pasan & Fallan & Saltadas \\
+\midrule
+Fronteras de arquitectura & \ruta{make fronteras} & 75 & 0 & 1 \\
+Python completo & \ruta{make prueba} & 2.542 & 0 & 1 \\
+Web del acudiente (TS) & \ruta{npm test} en \ruta{apps/\allowbreak{}web} & 86 & 0 & 0 \\
+Contrato compartido (TS) & \ruta{npm test} en \ruta{libs/\allowbreak{}ts/\allowbreak{}tukit-contrato} & 67 & 0 & 0 \\
+Consola admin (TS) & \ruta{node --test} (corrida del 2 de nov. por el track C) & 57 & 0 & 0 \\
+Tipos TS & \ruta{tsc --noEmit} en los 3 paquetes & 3 de 3 & 0 & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+En la primera pasada de \ruta{make prueba} falló una prueba nueva (\ruta{test\_\allowbreak{}filtros\_\allowbreak{}duros.py}) porque importaba
+\ruta{conftest} dentro de la función y tomaba el de operación. Se movió la importación al inicio del archivo y la
+segunda pasada dio 0 fallas.
+
+\subsection{Cobertura de código}
+
+Medida con \ruta{pytest-cov} sobre los commits \ruta{a201f4c} a \ruta{0059f6d} (antes de los ajustes de \ruta{976deb1}); no hay umbral de falla.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lr}
+\toprule
+Servicio & Cobertura \\
+\midrule
+identidad & 77 \% \\
+catálogo & 54 \% \\
+inteligencia & 88 \% \\
+comercio & 83 \% \\
+operación & 81 \% \\
+gateway & 98 \% \\
+\ruta{tukit\_comun} & 85 \% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+El 54 \% de catálogo viene de scripts de una sola corrida sin pruebas (\ruta{completar.py}, \ruta{vista.py},
+\ruta{demanda\_\allowbreak{}atributos.py} y \ruta{representantes.py} con 0 \%).
+
+\subsection{Pruebas de carga}
+
+Ensayo de solo lectura (\ruta{ensayos/\allowbreak{}carga/\allowbreak{}carga.py}) directo a catálogo e inteligencia, 30 s por nivel, en un Apple M4
+con el generador en la misma máquina. Error 0 \% en todos los niveles.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{rrrrr}
+\toprule
+Usuarios & Peticiones/s & p50 (ms) & p95 (ms) & p99 (ms) \\
+\midrule
+1 & 171 & 4,0 & 14,4 & 17,1 \\
+5 & 889 & 5,0 & 9,6 & 11,6 \\
+10 & 962 & 9,0 & 22,5 & 33,1 \\
+20 & 891 & 18,9 & 48,7 & 71,3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Por el gateway, con 5 usuarios y 15 s, hubo 1.200 respuestas 2xx y 30.257 respuestas 429: es el limitador por IP
+funcionando. Esto no verifica DP-02 completo: faltan los 50 concurrentes y los flujos de generar kits y checkout,
+que escriben en la base. El rendimiento se satura entre 5 y 10 usuarios y el p95 sube de 9,6 a 48,7 ms entre 5 y 20.
+
+\subsection{Seguridad}
+
+\begin{itemize}
+  \item \ruta{npm audit --omit=dev}: 0 vulnerabilidades (antes 3: 1 crítica y 2 altas).
+  \item IDOR (\ruta{idor.sh}, contra \ruta{127.0.0.1:3000}), cuenta atacante: trabajo ajeno 404, opciones de línea ajena 404, pedido ajeno 404, trabajo ajeno sin cookie 401, pedido ajeno sin cookie 401, pedido inventado 404; casos propios 200 con 0 elementos y exportación propia sin identificadores ajenos.
+  \item Dueño del trabajo con su cookie (por el túnel): API del trabajo 200, opciones 200, página del kit 200; la misma API sin cookie da 401.
+  \item Enlace rápido sin clave (\ruta{/empezar}, ruta \ruta{aplicar-canonico} sin cuenta): API 200 y página \ruta{/kits/<id>} 200 sin sesión.
+\end{itemize}
+
+\subsection{Humo y extremo a extremo}
+
+\begin{itemize}
+  \item \ruta{make humo} (clave desde el llavero, sin imprimirla): 20 comprobaciones, todas con datos reales; la bandeja de operación se pide con token de operador.
+  \item E2E del acudiente por el túnel (\ruta{e2e.sh}, \ruta{e2e2.sh}, \ruta{e2e3.sh}): registro con cookie, kit publicado con 3 perfiles y 72 líneas sin precios en cero, opciones (42), propuesta del asistente, orden, descarte (PUT 200; el POST de \ruta{e2e2.sh} da 405, es esperado), caso 201, exportación 200 y las seis páginas 200. Dos pasos no avanzan porque el pago no se completa en sandbox: \ruta{sincronizar} da 404 \ruta{transaccion\_\allowbreak{}no\_\allowbreak{}existe} y \ruta{retracto} da 409 \ruta{retracto\_\allowbreak{}sin\_\allowbreak{}pagar}; el pedido queda en \ruta{pendiente\_\allowbreak{}pago}.
+\end{itemize}
+
+\subsection{Estado de los hallazgos}
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{llL{8.2cm}}
+\toprule
+Hallazgo & Estado & Evidencia \\
+\midrule
+H1 & resuelto & \ruta{a201f4c}; \ruta{tsc --noEmit} limpio en los 3 paquetes \\
+H2 & resuelto & \ruta{a201f4c}; \ruta{make humo} lee la clave del llavero y pasa con 20 comprobaciones \\
+H3 & abierto & token en el historial: requiere revocarlo y decidir sobre el remoto \\
+H4 & resuelto & \ruta{0c9d1e1} y \ruta{976deb1}; IDOR: 404 o 401 ajeno, 200 el dueño \\
+H5 & resuelto & \ruta{a201f4c}; \ruta{next} 16.4.3, \ruta{npm audit} en 0 \\
+H6 & parcial & eslint de admin sin avisos y web con 0 errores y 1 aviso; \ruta{ruff} baja de 62 a 51 avisos y quedan 14 archivos sin formato \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Queda abierto además: \ruta{next} 16.4.4 no se pudo instalar por la política de antigüedad mínima de npm; el barrido de supresiones
+se probó solo sobre SQLite en memoria y no se lanzó contra la base viva ni se añadió a \ruta{make arriba}; el reenvío del Bearer en
+\ruta{cliente-http.ts} se cubre con \ruta{tsc} y revisión, sin prueba de ejecución.
+
+\section{Evidencia}
+
+La carpeta \ruta{QC/\allowbreak{}evidencia/} guarda los registros de cada corrida: \ruta{pytest\_\allowbreak{}prueba.log},
+\ruta{pytest\_\allowbreak{}por\_\allowbreak{}servicio.txt}, \ruta{pytest\_\allowbreak{}por\_\allowbreak{}archivo.tsv}, \ruta{pytest\_\allowbreak{}colas\_\allowbreak{}redis.log}, los
+resúmenes de TypeScript y de \ruta{tsc}, \ruta{lint.log}, \ruta{eslint.log}, los tres registros de humo, el
+guion y la salida de IDOR, \ruta{legal\_\allowbreak{}paginas.txt}, los resúmenes de \ruta{npm audit} y los conteos de
+\ruta{gitleaks}, estos sin ningún valor de secreto.
+
+\end{document}
