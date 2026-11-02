@@ -336,6 +336,25 @@ async def resolver_contacto(peticion: Request, usuario_id: uuid.UUID) -> dict[st
 
 
 @router.get(
+    "/v1/contactos/{usuario_id}/credencial",
+    tags=["contacto"],
+    summary="Si el usuario puede iniciar sesion. Interno: no devuelve datos personales.",
+)
+async def credencial_del_contacto(peticion: Request, usuario_id: uuid.UUID) -> dict[str, bool]:
+    """Lo consulta Inteligencia para decidir si un kit exige la sesion de su dueno.
+
+    El acudiente de la ruta rapida es un contacto sin clave: no puede iniciar
+    sesion, asi que su unico acceso al kit es el enlace del correo. Quien si
+    tiene clave debe abrir su kit con su sesion. La respuesta es un booleano y
+    nada mas, para que preguntarlo no filtre el correo ni el nombre. Cuelga de
+    `/v1/contactos/`, que la puerta del gateway ya bloquea: solo se llega de
+    servicio a servicio."""
+    async with peticion.app.state.motor.sesion() as db:
+        tiene = await RepoIdentidad(await db.connection()).tiene_credencial(usuario_id)
+    return {"tiene_credencial": tiene}
+
+
+@router.get(
     "/v1/usuarios/nombres",
     tags=["contacto"],
     summary="Nombres de acudientes adultos por id, para el panel del back-office.",
@@ -367,6 +386,7 @@ class NuevaCuenta(BaseModel):
     clave: str = Field(min_length=1, max_length=256)
     nombre: str = Field(min_length=1, max_length=256)
     celular: str | None = Field(default=None, max_length=32)
+    acepta_terminos: bool = False
 
 
 class NuevoHijo(BaseModel):
@@ -432,6 +452,18 @@ async def registrar_acudiente(peticion: Request, registro: Registro) -> dict[str
     deriva para ser idempotente; y si el correo ya tiene credencial REAL no
     escribe nada, para que un tercero sin sesion no inyecte matriculas en la
     cuenta de otra familia."""
+    # El consentimiento se exige aqui y no solo en la casilla del formulario: un
+    # cliente que llame directo a la API se saltaria la casilla y la cuenta
+    # nacera sin el registro de consentimiento que pide la Ley 1581. Se rechaza
+    # antes de tocar nada. Los demas altas (contacto del pago, cuenta, staff) son
+    # otras rutas y no pasan por aqui.
+    if not registro.acepta_terminos:
+        raise ErrorDominio(
+            "consentimiento_requerido",
+            "Para crear la cuenta debes aceptar la politica de datos y los terminos.",
+            estado=422,
+            campo="acepta_terminos",
+        )
     correo = str(registro.correo).strip().lower()
     if not _FORMA_CORREO.fullmatch(correo):
         raise ErrorDominio(
@@ -459,7 +491,7 @@ async def registrar_acudiente(peticion: Request, registro: Registro) -> dict[str
             anio_lectivo,
             cifrador,
         )
-        if creado and registro.acepta_terminos:
+        if creado:
             await repo.registrar_consentimiento_titular(usuario_id, _VERSION_TERMINOS_TITULAR)
     return {"usuario_id": str(usuario_id), "creado": creado}
 
@@ -468,6 +500,15 @@ async def registrar_acudiente(peticion: Request, registro: Registro) -> dict[str
 async def crear_cuenta(peticion: Request, datos: NuevaCuenta) -> dict[str, Any]:
     from ..dominio.cuenta import ClaveDebil, Decision, validar_clave
 
+    # Mismo consentimiento que pide /v1/registro: esta ruta tambien crea cuentas
+    # con clave, y sin esta exigencia seria el camino para saltarse la Ley 1581.
+    if not datos.acepta_terminos:
+        raise ErrorDominio(
+            "consentimiento_requerido",
+            "Para crear la cuenta debes aceptar la politica de datos y los terminos.",
+            estado=422,
+            campo="acepta_terminos",
+        )
     try:
         validar_clave(datos.clave)
     except ClaveDebil:
@@ -493,6 +534,7 @@ async def crear_cuenta(peticion: Request, datos: NuevaCuenta) -> dict[str, Any]:
                 estado=409,
                 campo="correo",
             )
+        await repo.registrar_consentimiento_titular(fila.id, _VERSION_TERMINOS_TITULAR)
         sesion = await repo.armar_sesion(fila)
     token = emitir_token(fila.id, fila.version_permisos)
     return {"sesion": sesion, "token": token}

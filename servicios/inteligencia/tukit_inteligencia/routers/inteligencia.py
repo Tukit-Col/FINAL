@@ -91,6 +91,54 @@ async def _usuario_de_sesion(authorization: str | None) -> uuid.UUID:
     return uuid.UUID(str(sesion["usuario_id"]))
 
 
+async def _exigir_dueno_del_trabajo(trabajo_id: uuid.UUID, authorization: str | None) -> None:
+    """Puerta de lectura de un trabajo del acudiente (hallazgo H4 del control de calidad).
+
+    Un trabajo cuyo dueno tiene clave real solo lo lee la sesion de ese dueno (o
+    la del equipo interno): con la sesion de otra cuenta es 404, para no confirmar
+    que el id existe. Sin sesion es 401, a proposito: la web lo usa para mandar a
+    la madre a /ingresar, y eso deja distinguir un id con dueno con clave de uno
+    inexistente; se acepta porque el id es un UUIDv4 aleatorio. Si el dueno es un contacto sin clave (ruta
+    rapida con correo) o no hay dueno, el enlace del correo es su unico acceso:
+    no puede iniciar sesion, asi que se lee por id, que es un UUIDv4 aleatorio.
+
+    Identidad solo se consulta cuando hace falta decidir; si no responde en ese
+    momento la puerta falla CERRADA (503), no abre el kit de una cuenta con clave.
+    """
+    try:
+        propietario = await trabajos.dueno(api.app.state.motor, trabajo_id)
+    except trabajos.TrabajoNoExiste as error:
+        raise ErrorDominio(
+            "trabajo_no_existe", "No hay ningun trabajo con ese identificador.", estado=404
+        ) from error
+    if propietario is None:
+        return
+
+    token = _token_bearer(authorization)
+    sesion: dict[str, Any] | None = None
+    if token:
+        try:
+            sesion = await api._identidad().sesion(token)
+        except RemotoCaido:
+            # Sin poder validar la sesion solo se sigue si el dueno no tiene clave;
+            # la consulta de abajo falla cerrada si identidad sigue caida.
+            sesion = None
+    if sesion is not None:
+        roles = {r.get("rol") for r in sesion.get("roles", [])}
+        if roles & set(_ROLES_STAFF) or str(sesion.get("usuario_id")) == str(propietario):
+            return
+
+    try:
+        con_clave = await api._identidad().tiene_credencial(str(propietario))
+    except RemotoCaido as error:
+        raise ErrorDominio("identidad_no_disponible", "No se pudo validar la sesion.", estado=503) from error
+    if not con_clave:
+        return
+    if sesion is None:
+        raise ErrorDominio("sesion_requerida", "Inicia sesion para ver este kit.", estado=401)
+    raise ErrorDominio("trabajo_no_existe", "No hay ningun trabajo con ese identificador.", estado=404)
+
+
 class PercepcionRechazada(ErrorDominio):
     """Un rechazo de percepcion que ademas puede nombrar los grados vistos.
 
@@ -147,6 +195,14 @@ class Preferencias(BaseModel):
     presupuesto_por_hijo: int | None = Field(default=None, gt=0)
     disposicion_sobreprecio: float | None = Field(default=None, ge=0, le=1)
     personaje_por_hijo: dict[str, list[str]] | None = None
+    # Filtros duros del asistente NL2C: el optimizador los aplica a los
+    # candidatos antes de armar el frente. Los mismos limites que `FiltrosDuros`
+    # de nl2c, porque este es el borde por el que entra todo lo que viene del
+    # navegador y un tope aqui evita listas enormes en la preferencia guardada.
+    marcas_excluidas: list[Annotated[str, Field(min_length=1, max_length=40)]] | None = Field(
+        default=None, max_length=10
+    )
+    solo_disponibles: bool | None = None
     dolor_declarado: str | None = Field(default=None, max_length=64)
     # Lo que eligio en el paso 3 de /empezar. `equilibrio` pide el kit `A tu
     # Medida` (ADR 0030); los otros dos solo deciden cual se marca.
@@ -195,6 +251,12 @@ class AplicarCanonico(BaseModel):
     perfil: str = Field(max_length=16)
     personaje: str | None = Field(default=None, max_length=64)
     usuario_id: uuid.UUID | None = None
+    # La cache bendita no guarda la marca de las alternativas ni se re-optimiza, asi
+    # que NO puede honrar estos filtros. Se aceptan solo para rechazarlos con un
+    # error claro en vez de ignorarlos en silencio: el cliente debe crear un
+    # trabajo normal, que si re-optimiza con los filtros.
+    marcas_excluidas: list[str] | None = Field(default=None, max_length=10)
+    solo_disponibles: bool | None = None
 
 
 class EntregaCheckout(BaseModel):
@@ -274,6 +336,7 @@ async def crear_trabajo(peticion: PeticionTrabajo, solicitud: Request) -> dict[s
         contacto=peticion.contacto.model_dump() if peticion.contacto else None,
         preferencias=(peticion.preferencias.model_dump(exclude_none=True) if peticion.preferencias else {}),
         usuario_id=uuid.UUID(uid) if (uid := await api._usuario_de_la_peticion(solicitud)) else None,
+        identidad=api._identidad(),
     )
     await trabajos.lanzar(api.app.state.motor, uuid.UUID(respuesta["trabajo_id"]))
     return respuesta
@@ -299,7 +362,10 @@ async def mis_trabajos(solicitud: Request) -> dict[str, Any]:
 
 
 @router.get("/v1/trabajos/{trabajo_id}", tags=["trabajos"], summary="Estado, etapas y kits del trabajo")
-async def ver_trabajo(trabajo_id: uuid.UUID) -> dict[str, Any]:
+async def ver_trabajo(
+    trabajo_id: uuid.UUID, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    await _exigir_dueno_del_trabajo(trabajo_id, authorization)
     try:
         return await trabajos.ver(api.app.state.motor, trabajo_id, catalogo=api._catalogo())
     except trabajos.TrabajoNoExiste as error:
@@ -348,7 +414,13 @@ async def cambiar_producto_del_acudiente(
     tags=["trabajos"],
     summary="Los productos del mismo concepto que el acudiente puede elegir para un renglon",
 )
-async def opciones_de_la_linea(trabajo_id: uuid.UUID, perfil: str, item_id: uuid.UUID) -> dict[str, Any]:
+async def opciones_de_la_linea(
+    trabajo_id: uuid.UUID,
+    perfil: str,
+    item_id: uuid.UUID,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    await _exigir_dueno_del_trabajo(trabajo_id, authorization)
     try:
         return await trabajos.opciones_de_la_linea(
             api.app.state.motor, trabajo_id, perfil, item_id, catalogo=api._catalogo()
@@ -1365,6 +1437,12 @@ async def aplicar_canonico(cuerpo: AplicarCanonico, solicitud: Request) -> dict[
     # La sesion manda: si el acudiente viene autenticado, su usuario_id sale del
     # token y no del cuerpo (que el navegador ya no envia). El body queda como
     # respaldo del flujo server-to-server.
+    if cuerpo.marcas_excluidas or cuerpo.solo_disponibles:
+        raise ErrorDominio(
+            "filtros_requieren_recalculo",
+            "Con marcas excluidas o solo disponibles el kit se recalcula: crea un trabajo normal.",
+            estado=422,
+        )
     desde_token = await api._usuario_de_la_peticion(solicitud)
     usuario_id = uuid.UUID(desde_token) if desde_token else cuerpo.usuario_id
     try:

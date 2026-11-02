@@ -1,8 +1,9 @@
-import { redirect } from "next/navigation";
-import { origenDeDatos } from "@tukit/contrato/servidor";
+import { notFound, redirect } from "next/navigation";
+import type { Trabajo } from "@tukit/contrato";
+import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { conAvisoDeLimite } from "@/components/ConAvisoDeLimite";
 import { entregaParaReintento, type EntregaPrevia } from "@/lib/pagar-pedido";
-import { matriculasDeLaSesion, pedidosDeLaSesion, sesionActual } from "@/lib/sesion";
+import { matriculasDeLaSesion, pedidosDeLaSesion, sesionActual, tokenDeSesion } from "@/lib/sesion";
 import VistaKits from "./VistaKits";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +35,23 @@ export default async function PaginaKits({
 }
 
 async function kits(trabajo_id: string, searchParams: Promise<{ pagar?: string }>) {
-  const trabajo = await origenDeDatos().consultarTrabajo(trabajo_id);
+  // Con el Bearer de la cookie: el kit de una cuenta con clave solo lo abre su
+  // dueno. El acudiente de la ruta rapida (sin clave) llega sin cookie desde el
+  // enlace del correo y el backend lo deja pasar por el id.
+  let trabajo: Trabajo;
+  try {
+    trabajo = await origenDeDatos().consultarTrabajo(trabajo_id, await tokenDeSesion());
+  } catch (causa) {
+    if (causa instanceof ErrorTukit) {
+      // Sin sesion (o vencida): a ingresar y de vuelta al kit.
+      if (causa.estado === 401) {
+        redirect(`/ingresar?destino=${encodeURIComponent(`/kits/${trabajo_id}`)}`);
+      }
+      // Ajeno o inexistente es el mismo 404, para no confirmar que el id existe.
+      if (causa.estado === 404) notFound();
+    }
+    throw causa;
+  }
 
   // Mientras no este publicado, `kits` viene vacio y no hay nada que pintar:
   // el acudiente nunca ve un kit sin revisar. La pantalla de espera es la que

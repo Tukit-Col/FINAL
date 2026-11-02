@@ -291,6 +291,15 @@ class RepoIdentidad:
             )
         ).one_or_none()
 
+    async def tiene_credencial(self, usuario_id: uuid.UUID) -> bool:
+        """`True` si el usuario puede iniciar sesion: tiene una clave real y no el
+        centinela de contacto. Un id que no existe da `False`, porque no hay
+        nadie que pueda reclamar nada con una sesion."""
+        clave_hash = (
+            await self.conexion.execute(select(USUARIO.c.clave_hash).where(USUARIO.c.id == usuario_id))
+        ).scalar_one_or_none()
+        return clave_hash is not None and clave_hash != "sin-credencial"
+
     async def armar_sesion(self, fila_usuario: Any) -> dict[str, Any]:
         """La Sesion publica: quien es y que roles vigentes tiene. Los roles
         salen de `asignacion_rol` (vigentes, sin caducar); el nombre va

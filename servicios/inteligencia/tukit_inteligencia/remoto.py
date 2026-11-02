@@ -361,6 +361,29 @@ class ClienteIdentidad:
         except httpx.HTTPError as error:
             raise RemotoCaido("identidad", str(error)) from error
 
+    async def tiene_credencial(self, usuario_id: str) -> bool:
+        """Si el usuario puede iniciar sesion (`GET /v1/contactos/{id}/credencial`).
+
+        FALLA CERRADA: si identidad no responde es `RemotoCaido` y no `False`.
+        Contestar "no tiene clave" por no poder preguntar dejaria leer por id el
+        kit de una cuenta con clave, que es justo lo que esta puerta evita."""
+        try:
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.get(f"{self._base()}/v1/contactos/{usuario_id}/credencial")
+                if respuesta.status_code == 404:
+                    # La ruta no se pregunta por un id inexistente (da `False`): un
+                    # 404 aqui es una identidad vieja, sin la ruta. Se sigue
+                    # fallando cerrado, pero con un mensaje que nombra la causa
+                    # real en vez de un "no se pudo validar" opaco.
+                    raise RemotoCaido(
+                        "identidad",
+                        "identidad no tiene GET /v1/contactos/{id}/credencial: reiniciala antes",
+                    )
+                respuesta.raise_for_status()
+                return bool(respuesta.json()["tiene_credencial"])
+        except (httpx.HTTPError, KeyError, ValueError) as error:
+            raise RemotoCaido("identidad", str(error)) from error
+
     async def datos_directorio(self, dane: str) -> dict[str, Any] | None:
         """Los datos DUEB (direccion, contacto, sitio) del colegio con ese DANE,
         para pre-llenar el perfil del colegio nuevo. `None` si el DANE no esta en

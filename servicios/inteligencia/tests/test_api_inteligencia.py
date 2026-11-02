@@ -22,6 +22,8 @@ from tukit_inteligencia.api import app
 from tukit_inteligencia.remoto import RemotoCaido
 
 COLEGIO = "11111111-1111-5111-8111-111111111111"
+CONTACTO_ID = "44444444-4444-5444-8444-444444444444"
+PADRE_ID = "22222222-2222-5222-8222-222222222222"
 
 
 @pytest.fixture()
@@ -42,10 +44,14 @@ async def cliente(motor, monkeypatch):
     monkeypatch.setattr(trabajos, "lanzar", _lanzar_falso)
     # Crear pregunta al catalogo si hay lista: nunca al de verdad.
     app.state.catalogo = _catalogo()
+    # Sin esto una prueba que crea con correo registraria el contacto en la
+    # identidad real del equipo si esta levantada, y heredaria el doble de otra.
+    app.state.identidad = IdentidadDoble()
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
         http.lanzados = lanzados
         yield http
     del app.state.catalogo
+    del app.state.identidad
 
 
 class IdentidadDoble:
@@ -54,13 +60,22 @@ class IdentidadDoble:
     def __init__(self) -> None:
         self.usuario_por_token: dict[str, str] = {}
         self.contactos: list[str] = []
+        # Los usuarios con clave real: el resto son contactos sin credencial.
+        self.con_clave: set[str] = set()
 
     async def usuario_del_token(self, token: str) -> str | None:
         return self.usuario_por_token.get(token)
 
+    async def sesion(self, token: str) -> dict | None:
+        usuario = self.usuario_por_token.get(token)
+        return None if usuario is None else {"usuario_id": usuario, "roles": []}
+
+    async def tiene_credencial(self, usuario_id: str) -> bool:
+        return usuario_id in self.con_clave
+
     async def registrar_contacto(self, correo: str, celular: str | None = None) -> str | None:
         self.contactos.append(correo)
-        return "usr-contacto"
+        return CONTACTO_ID
 
 
 def _peticion(**kw):
@@ -70,6 +85,21 @@ def _peticion(**kw):
     }
     cuerpo.update(kw)
     return cuerpo
+
+
+async def _crear_del_acudiente(cliente, motor, token: str = "tok-acud") -> uuid.UUID:
+    """Un trabajo procesado cuyo dueno es un acudiente CON clave y sesion."""
+    identidad = app.state.identidad
+    identidad.usuario_por_token[token] = PADRE_ID
+    identidad.con_clave.add(PADRE_ID)
+    creado = (
+        await cliente.post(
+            "/v1/trabajos", json=_peticion(contacto=None), headers={"Authorization": f"Bearer {token}"}
+        )
+    ).json()
+    trabajo_id = uuid.UUID(creado["trabajo_id"])
+    await trabajos.procesar(motor, trabajo_id, catalogo=_catalogo())
+    return trabajo_id
 
 
 class TestCrearDevuelve202:
@@ -260,11 +290,11 @@ class TestConsultar:
         assert respuesta.json()["error"] == "trabajo_no_existe"
 
     async def test_mientras_no_este_publicado_kits_va_vacio(self, cliente, motor):
-        creado = (await cliente.post("/v1/trabajos", json=_peticion())).json()
-        trabajo_id = uuid.UUID(creado["trabajo_id"])
-        await trabajos.procesar(motor, trabajo_id, catalogo=_catalogo())
+        trabajo_id = await _crear_del_acudiente(cliente, motor)
 
-        vista = (await cliente.get(f"/v1/trabajos/{trabajo_id}")).json()
+        vista = (
+            await cliente.get(f"/v1/trabajos/{trabajo_id}", headers={"Authorization": "Bearer tok-acud"})
+        ).json()
         assert vista["estado"] == "espera_revision"
         assert vista["kits"] == []
 
@@ -279,25 +309,152 @@ class TestConsultar:
         La asimetria es a proposito: `contacto_id` nunca viaja en la vista
         del acudiente, porque reintroduciria a mano la referencia que la
         notificacion resuelve al vuelo (frontera de `identidad`)."""
-        creado = (await cliente.post("/v1/trabajos", json=_peticion())).json()
-        trabajo_id = uuid.UUID(creado["trabajo_id"])
-        await trabajos.procesar(motor, trabajo_id, catalogo=_catalogo())
+        trabajo_id = await _crear_del_acudiente(cliente, motor)
 
         admin = (await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")).json()
         assert isinstance(admin["lineas_pendientes"], list)
         assert admin["recibido_en"]
         assert "contacto_id" in admin
 
-        acudiente = (await cliente.get(f"/v1/trabajos/{trabajo_id}")).json()
+        acudiente = (
+            await cliente.get(f"/v1/trabajos/{trabajo_id}", headers={"Authorization": "Bearer tok-acud"})
+        ).json()
         assert "contacto_id" not in acudiente
         assert "lineas_pendientes" not in acudiente
 
 
-class TestLaColaYLaPublicacion:
-    async def test_aprobar_publica_y_los_kits_aparecen(self, cliente, motor):
+class TestQuienLeeUnTrabajo:
+    """H4 del control de calidad: el id del trabajo viaja en enlaces, asi que no
+    basta para leer el kit de una cuenta con clave. Un contacto sin clave (ruta
+    rapida) no puede iniciar sesion y entra por el enlace del correo."""
+
+    OTRO_ID = "33333333-3333-5333-8333-333333333333"
+    STAFF_ID = "55555555-5555-5555-8555-555555555555"
+
+    async def _publicar(self, cliente, trabajo_id):
+        await cliente.post(f"/v1/admin/trabajos/{trabajo_id}/revision", json={"decision": "aprobar"})
+
+    async def _primer_renglon(self, cliente, trabajo_id, token="tok-acud"):
+        vista = (
+            await cliente.get(f"/v1/trabajos/{trabajo_id}", headers={"Authorization": f"Bearer {token}"})
+        ).json()
+        kit = vista["kits"][0]
+        return kit["perfil"], kit["lineas"][0]["item_id"]
+
+    async def test_el_dueno_con_clave_lee_su_kit(self, cliente, motor):
+        trabajo_id = await _crear_del_acudiente(cliente, motor)
+        respuesta = await cliente.get(
+            f"/v1/trabajos/{trabajo_id}", headers={"Authorization": "Bearer tok-acud"}
+        )
+        assert respuesta.status_code == 200
+
+    async def test_otra_cuenta_recibe_404_y_no_403(self, cliente, motor):
+        trabajo_id = await _crear_del_acudiente(cliente, motor)
+        app.state.identidad.usuario_por_token["tok-ajeno"] = self.OTRO_ID
+
+        respuesta = await cliente.get(
+            f"/v1/trabajos/{trabajo_id}", headers={"Authorization": "Bearer tok-ajeno"}
+        )
+        assert respuesta.status_code == 404
+        assert respuesta.json()["error"] == "trabajo_no_existe"
+        assert "kits" not in respuesta.json()
+
+    async def test_sin_sesion_es_401(self, cliente, motor):
+        trabajo_id = await _crear_del_acudiente(cliente, motor)
+        respuesta = await cliente.get(f"/v1/trabajos/{trabajo_id}")
+        assert respuesta.status_code == 401
+        assert respuesta.json()["error"] == "sesion_requerida"
+
+    async def test_token_invalido_de_un_dueno_con_clave_es_401(self, cliente, motor):
+        trabajo_id = await _crear_del_acudiente(cliente, motor)
+        respuesta = await cliente.get(
+            f"/v1/trabajos/{trabajo_id}", headers={"Authorization": "Bearer revocado"}
+        )
+        assert respuesta.status_code == 401
+
+    async def test_dueno_contacto_sin_clave_lee_por_id(self, cliente, motor):
+        """Crear con correo registra un contacto sin credencial: es el padre de la
+        ruta rapida que abre el kit desde el enlace del correo."""
+        creado = (await cliente.post("/v1/trabajos", json=_peticion())).json()
+        trabajo_id = uuid.UUID(creado["trabajo_id"])
+        assert app.state.identidad.contactos == ["papa@ejemplo.com"]
+        await trabajos.procesar(motor, trabajo_id, catalogo=_catalogo())
+
+        assert (await cliente.get(f"/v1/trabajos/{trabajo_id}")).status_code == 200
+
+    async def test_anonimo_sin_dueno_lee_por_id(self, cliente, motor):
+        creado = (await cliente.post("/v1/trabajos", json=_peticion(contacto=None))).json()
+        trabajo_id = uuid.UUID(creado["trabajo_id"])
+        await trabajos.procesar(motor, trabajo_id, catalogo=_catalogo())
+
+        assert (await cliente.get(f"/v1/trabajos/{trabajo_id}")).status_code == 200
+
+    async def test_el_staff_lee_el_kit_de_cualquiera(self, cliente, motor):
+        trabajo_id = await _crear_del_acudiente(cliente, motor)
+
+        async def sesion_staff(token):
+            if token == "tok-staff":
+                return {"usuario_id": self.STAFF_ID, "roles": [{"rol": "operador"}]}
+            return await IdentidadDoble.sesion(app.state.identidad, token)
+
+        app.state.identidad.sesion = sesion_staff
+        respuesta = await cliente.get(
+            f"/v1/trabajos/{trabajo_id}", headers={"Authorization": "Bearer tok-staff"}
+        )
+        assert respuesta.status_code == 200
+
+    async def test_identidad_caida_con_dueno_con_clave_falla_cerrada(self, cliente, motor):
+        trabajo_id = await _crear_del_acudiente(cliente, motor)
+
+        async def caida(*_a, **_k):
+            raise RemotoCaido("identidad", "simulado")
+
+        app.state.identidad.sesion = caida
+        app.state.identidad.tiene_credencial = caida
+        respuesta = await cliente.get(
+            f"/v1/trabajos/{trabajo_id}", headers={"Authorization": "Bearer tok-acud"}
+        )
+        assert respuesta.status_code == 503
+
+    async def test_identidad_caida_no_afecta_al_trabajo_sin_dueno(self, cliente, motor):
+        creado = (await cliente.post("/v1/trabajos", json=_peticion(contacto=None))).json()
+        trabajo_id = uuid.UUID(creado["trabajo_id"])
+
+        async def caida(*_a, **_k):
+            raise RemotoCaido("identidad", "simulado")
+
+        app.state.identidad.sesion = caida
+        app.state.identidad.tiene_credencial = caida
+        assert (await cliente.get(f"/v1/trabajos/{trabajo_id}")).status_code == 200
+
+    async def test_opciones_dueno_200_ajeno_404_sin_sesion_401(self, cliente, motor):
+        trabajo_id = await _crear_del_acudiente(cliente, motor)
+        await self._publicar(cliente, trabajo_id)
+        perfil, item = await self._primer_renglon(cliente, trabajo_id)
+        ruta = f"/v1/trabajos/{trabajo_id}/kits/{perfil}/lineas/{item}/opciones"
+        app.state.identidad.usuario_por_token["tok-ajeno"] = self.OTRO_ID
+
+        assert (await cliente.get(ruta, headers={"Authorization": "Bearer tok-acud"})).status_code == 200
+        assert (await cliente.get(ruta, headers={"Authorization": "Bearer tok-ajeno"})).status_code == 404
+        assert (await cliente.get(ruta)).status_code == 401
+
+    async def test_opciones_de_un_contacto_se_leen_por_id(self, cliente, motor):
         creado = (await cliente.post("/v1/trabajos", json=_peticion())).json()
         trabajo_id = uuid.UUID(creado["trabajo_id"])
         await trabajos.procesar(motor, trabajo_id, catalogo=_catalogo())
+        await self._publicar(cliente, trabajo_id)
+        vista = (await cliente.get(f"/v1/trabajos/{trabajo_id}")).json()
+        kit = vista["kits"][0]
+
+        respuesta = await cliente.get(
+            f"/v1/trabajos/{trabajo_id}/kits/{kit['perfil']}/lineas/{kit['lineas'][0]['item_id']}/opciones"
+        )
+        assert respuesta.status_code == 200
+
+
+class TestLaColaYLaPublicacion:
+    async def test_aprobar_publica_y_los_kits_aparecen(self, cliente, motor):
+        trabajo_id = await _crear_del_acudiente(cliente, motor)
 
         assert (await cliente.get("/v1/admin/cola")).json()["total"] == 1
 
@@ -306,7 +463,9 @@ class TestLaColaYLaPublicacion:
         )
         assert aprobado.status_code == 200
 
-        vista = (await cliente.get(f"/v1/trabajos/{trabajo_id}")).json()
+        vista = (
+            await cliente.get(f"/v1/trabajos/{trabajo_id}", headers={"Authorization": "Bearer tok-acud"})
+        ).json()
         assert vista["estado"] == "publicado"
         assert len(vista["kits"]) == 2
         assert vista["recomendado"]["perfil"] == "Ahorrador"

@@ -50,8 +50,11 @@ from .optimizador import (
     CONCEPTOS_ANCLA,
     ORDEN_NIVEL,
     Candidato,
+    FiltrosDuros,
     Renglon,
     armar_los_tres,
+    candidato_permitido,
+    filtros_de,
     unidades_a_comprar,
 )
 from .parseo import BUSCA_EN_CATALOGO, Demanda, mensaje_para_papa
@@ -1131,6 +1134,21 @@ def _linea_publica(fila: Any) -> dict[str, Any]:
         }
     cuerpo["alternativas"] = list(fila.alternativas or ())
     return cuerpo
+
+
+async def dueno(motor: Any, trabajo_id: uuid.UUID) -> uuid.UUID | None:
+    """El `usuario_id` del trabajo, o `None` si no tiene dueno.
+
+    Lo usan las lecturas del acudiente para comprobar quien pide el kit: el id
+    del trabajo viaja en enlaces y no es un secreto.
+    """
+    async with motor.engine.connect() as conexion:
+        fila = (
+            await conexion.execute(select(TRABAJO.c.usuario_id).where(TRABAJO.c.id == trabajo_id))
+        ).one_or_none()
+    if fila is None:
+        raise TrabajoNoExiste(str(trabajo_id))
+    return fila.usuario_id
 
 
 async def ver(
@@ -2839,6 +2857,35 @@ async def _guardar_cambios(motor: Any, trabajo_id: uuid.UUID, cambios: dict[str,
         )
 
 
+async def _filtros_del_trabajo(motor: Any, trabajo_id: uuid.UUID) -> FiltrosDuros:
+    """Los filtros duros que el acudiente puso al pedir este kit (vacios si no puso).
+
+    El armado ya los aplico; el carrusel y el cambio de producto los vuelven a
+    leer porque ofrecen productos que NO pasaron por el armado, y la marca que
+    el acudiente excluyo no debe volver por esa puerta."""
+    async with motor.engine.connect() as conexion:
+        cifradas = (
+            await conexion.execute(
+                select(TRABAJO.c.preferencias_cifradas).where(TRABAJO.c.id == trabajo_id)
+            )
+        ).scalar_one_or_none()
+    return filtros_de(cifrador_desde_entorno().descifrar_json(cifradas) if cifradas else None)
+
+
+def _producto_permitido(producto: dict[str, Any], texto_renglon: str, filtros: FiltrosDuros) -> bool:
+    """Si un producto del catalogo pasa los filtros duros en ese renglon."""
+    if not filtros.activos:
+        return True
+    candidato = Candidato(
+        sku=str(producto.get("sku")),
+        nombre=str(producto.get("nombre") or ""),
+        nivel=str(producto.get("nivel") or ""),
+        precio_cop=producto.get("precio_desde", producto.get("precio")),
+        marca=producto.get("marca"),
+    )
+    return candidato_permitido(candidato, texto_renglon, filtros)
+
+
 async def cambiar_producto_del_acudiente(
     motor: Any,
     trabajo_id: uuid.UUID,
@@ -2870,6 +2917,13 @@ async def cambiar_producto_del_acudiente(
         if producto is None:
             raise CambioNoPermitido(
                 "producto_no_permitido", "Ese producto no es una opción para este renglón.", 422
+            )
+        filtros = await _filtros_del_trabajo(motor, trabajo_id)
+        if not _producto_permitido(producto, linea.get("descripcion") or "", filtros):
+            raise CambioNoPermitido(
+                "producto_excluido",
+                "Ese producto va contra los filtros de tu kit (marca excluida o solo disponibles).",
+                422,
             )
     respuesta = {"trabajo_id": str(trabajo_id), "perfil": perfil, "item_id": str(item_id), "sku": sku}
     if sku == actual.get("sku"):
@@ -2951,8 +3005,10 @@ async def opciones_de_la_linea(
     sugerido = linea.get("sku_sugerido") or actual.get("sku")
     pedida = int(linea.get("cantidad_pedida") or 0)
 
+    filtros = await _filtros_del_trabajo(motor, trabajo_id)
+    texto_renglon = linea.get("descripcion") or ""
     productos = await catalogo.productos_del_concepto(str(concepto))
-    por_sku = {p["sku"]: p for p in productos}
+    por_sku = {p["sku"]: p for p in productos if _producto_permitido(p, texto_renglon, filtros)}
     # El elegido y las alternativas revisadas siempre estan, aunque el catalogo
     # ya no los devuelva en la pagina.
     for conocido in [actual, *(linea.get("alternativas") or [])]:
