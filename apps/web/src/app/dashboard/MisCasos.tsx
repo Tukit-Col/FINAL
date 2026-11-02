@@ -123,9 +123,10 @@ export default function MisCasos({ iniciales }: { iniciales: MiCaso[] }) {
                     </p>
                   )}
                   {abierto.comentarios.length > 0 && (
-                    <ul className={styles.mensajes} aria-label="Tus mensajes">
+                    <ul className={styles.mensajes} aria-label="Conversación del caso">
                       {abierto.comentarios.map((c, i) => (
                         <li key={i}>
+                          <strong>{c.autor === "equipo" ? "Equipo Tukit" : "Tú"}</strong>
                           <span>{c.texto}</span>
                           <time dateTime={c.creado_en}>{fechaYHora(c.creado_en)}</time>
                         </li>

@@ -5,95 +5,51 @@ dentro de los cinco (5) dias habiles siguientes a la entrega del bien. Aqui vive
 solo la regla (plazo, quien puede pedirlo y cuando); el router lee la base y
 persiste. Todo recibe y devuelve datos planos.
 
-Los dias habiles son de lunes a viernes sin los festivos de Colombia (Ley 51 de
-1983, "ley Emiliani"): sin ellos el plazo se calcularia corto o largo segun la
-semana, y el papa vería una fecha limite equivocada.
+Los dias habiles (lunes a viernes sin los festivos de Colombia, Ley 51 de 1983)
+y la hora de Bogota los calcula `dominio.ley1480`, el mismo calendario que ve el
+back-office: el acudiente y el staff nunca ven dos fechas limite distintas.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 from ..modelos import EstadoPedido
+from .ley1480 import (
+    BOGOTA,
+    DIAS_HABILES_RETRACTO,
+    es_dia_habil,
+    festivos_colombia,
+    plazo_retracto,
+    sumar_dias_habiles,
+)
 
-DIAS_HABILES_RETRACTO = 5
+__all__ = [
+    "DIAS_HABILES_RETRACTO",
+    "EstadoRetracto",
+    "es_dia_habil",
+    "evaluar_retracto",
+    "festivos",
+    "linea_de_tiempo",
+    "pasos_del_pedido",
+    "sumar_dias_habiles",
+    "vence_retracto",
+]
 
-# Colombia no tiene horario de verano: UTC-5 todo el ano. La fecha de entrega y
-# el cierre del plazo se miden en hora local, no en UTC.
-_BOGOTA = timedelta(hours=-5)
-
-
-def _pascua(anio: int) -> date:
-    """Domingo de Pascua (algoritmo gregoriano anonimo)."""
-    a = anio % 19
-    b, c = divmod(anio, 100)
-    d, e = divmod(b, 4)
-    f = (b + 8) // 25
-    g = (b - f + 1) // 3
-    h = (19 * a + b - d - g + 15) % 30
-    i, k = divmod(c, 4)
-    ele = (32 + 2 * e + 2 * i - h - k) % 7
-    m = (a + 11 * h + 22 * ele) // 451
-    mes, dia = divmod(h + ele - 7 * m + 114, 31)
-    return date(anio, mes, dia + 1)
-
-
-def _al_lunes(fecha: date) -> date:
-    """Traslada al lunes siguiente (o se queda si ya es lunes), como la ley Emiliani."""
-    return fecha + timedelta(days=(7 - fecha.weekday()) % 7)
-
-
-def festivos(anio: int) -> frozenset[date]:
-    """Los festivos nacionales de Colombia de un ano."""
-    pascua = _pascua(anio)
-    fijos = [date(anio, 1, 1), date(anio, 5, 1), date(anio, 7, 20), date(anio, 8, 7), date(anio, 12, 8), date(anio, 12, 25)]
-    trasladables = [
-        date(anio, 1, 6),
-        date(anio, 3, 19),
-        date(anio, 6, 29),
-        date(anio, 8, 15),
-        date(anio, 10, 12),
-        date(anio, 11, 1),
-        date(anio, 11, 11),
-    ]
-    moviles = [
-        pascua - timedelta(days=3),  # jueves santo
-        pascua - timedelta(days=2),  # viernes santo
-        pascua + timedelta(days=43),  # ascension (lunes)
-        pascua + timedelta(days=64),  # corpus christi (lunes)
-        pascua + timedelta(days=71),  # sagrado corazon (lunes)
-    ]
-    return frozenset(fijos + [_al_lunes(f) for f in trasladables] + moviles)
-
-
-def es_dia_habil(dia: date) -> bool:
-    return dia.weekday() < 5 and dia not in festivos(dia.year)
-
-
-def sumar_dias_habiles(desde: date, dias: int) -> date:
-    """El dia habil numero `dias` despues de `desde` (que no se cuenta)."""
-    actual = desde
-    restantes = dias
-    while restantes > 0:
-        actual += timedelta(days=1)
-        if es_dia_habil(actual):
-            restantes -= 1
-    return actual
-
-
-def _local(instante: datetime) -> datetime:
-    if instante.tzinfo is None:
-        instante = instante.replace(tzinfo=UTC)
-    return instante.astimezone(UTC) + _BOGOTA
+# El calendario (festivos de Colombia, dias habiles, hora de Bogota y el plazo
+# de 5 dias habiles) vive en UN solo lugar: `dominio.ley1480`, que tambien
+# usa el back-office. Aqui solo se decide que puede hacer el acudiente.
+festivos = festivos_colombia
 
 
 def vence_retracto(entregado_en: datetime) -> datetime:
-    """El instante en que se cierra el plazo: fin del 5.o dia habil tras la entrega."""
-    ultimo = sumar_dias_habiles(_local(entregado_en).date(), DIAS_HABILES_RETRACTO)
-    # Fin del dia local (23:59:59 en Bogota), expresado en UTC.
-    return datetime(ultimo.year, ultimo.month, ultimo.day, 23, 59, 59, tzinfo=UTC) - _BOGOTA
+    """El instante en que se cierra el plazo: fin del 5.o dia habil tras la entrega
+    (23:59:59 en Bogota), expresado en UTC."""
+    ultimo = plazo_retracto(entregado_en)
+    assert ultimo is not None
+    return datetime(ultimo.year, ultimo.month, ultimo.day, 23, 59, 59, tzinfo=BOGOTA).astimezone(UTC)
 
 
 # Estados en los que el pedido ya se pago y aun puede deshacerse antes de llegar.

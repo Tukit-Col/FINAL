@@ -93,7 +93,10 @@ class IdentidadConSesiones(IdentidadFalsa):
     def __init__(self, caida: bool = False) -> None:
         super().__init__()
         self.caida = caida
+        # Conserva las sesiones de staff de `IdentidadFalsa`: los casos del
+        # portador y la bandeja del back-office conviven en la misma app.
         self.sesiones = {
+            **self.sesiones,
             TOKEN_ACUDIENTE: {"usuario_id": ACUDIENTE, "correo": "a@x.com", "roles": []},
             TOKEN_OTRO: {"usuario_id": OTRO_ACUDIENTE, "correo": "b@x.com", "roles": []},
         }

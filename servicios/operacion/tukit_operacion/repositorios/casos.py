@@ -42,6 +42,8 @@ def serializar_detalle_caso(fila: Any) -> dict[str, Any]:
 # Los eventos de un caso son mas que mensajes (asignaciones, notas internas);
 # los del acudiente llevan este tipo y son los unicos que vuelven a su pantalla.
 TIPO_COMENTARIO_ACUDIENTE = "comentario_acudiente"
+# La respuesta del equipo (back-office, `responder_caso`): el acudiente la lee aqui.
+TIPO_RESPUESTA_EQUIPO = "respuesta"
 
 
 def serializar_caso(fila: Any) -> dict[str, Any]:
@@ -256,16 +258,24 @@ class RepoCasos:
         )
 
     async def comentarios_de(self, caso_id: uuid.UUID) -> list[dict[str, Any]]:
-        """Los mensajes del acudiente en un caso, en el orden en que los escribio.
+        """La conversacion que el acudiente ve de su caso, en orden cronologico:
+        sus mensajes y las respuestas del equipo (`autor` = "acudiente" | "equipo").
 
-        Solo se leen los del acudiente: los eventos internos (asignacion, nota del
-        equipo) son del back-office y no salen por esta puerta."""
+        Los demas eventos (cambio de estado, vinculo con un pedido) son del
+        back-office y no salen por esta puerta; tampoco el `actor_id` del staff."""
         filas = await self.conexion.execute(
             select(EVENTO)
-            .where(EVENTO.c.caso_id == caso_id, EVENTO.c.tipo == TIPO_COMENTARIO_ACUDIENTE)
-            .order_by(EVENTO.c.creado_en)
+            .where(EVENTO.c.caso_id == caso_id, EVENTO.c.tipo.in_([TIPO_COMENTARIO_ACUDIENTE, TIPO_RESPUESTA_EQUIPO]))
+            .order_by(EVENTO.c.creado_en, EVENTO.c.id)
         )
-        return [{"texto": f.datos.get("texto", ""), "creado_en": _iso(f.creado_en)} for f in filas]
+        return [
+            {
+                "texto": (f.datos or {}).get("texto", ""),
+                "creado_en": _iso(f.creado_en),
+                "autor": "acudiente" if f.tipo == TIPO_COMENTARIO_ACUDIENTE else "equipo",
+            }
+            for f in filas
+        ]
 
     async def agregar_comentario(self, caso_id: uuid.UUID, usuario_id: uuid.UUID, texto: str) -> None:
         await self.conexion.execute(

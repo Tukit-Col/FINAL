@@ -183,6 +183,8 @@ export interface MiCaso {
 export interface ComentarioDeCaso {
   texto: string;
   creado_en: string;
+  // Quien lo escribio: el propio acudiente o el equipo (respuesta del ticket).
+  autor: "acudiente" | "equipo";
 }
 
 export interface MiCasoDetalle extends MiCaso {

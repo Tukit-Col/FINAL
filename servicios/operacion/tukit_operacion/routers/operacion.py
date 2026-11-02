@@ -45,7 +45,7 @@ from ..dominio.casos import (
 from ..modelos import EstadoCaso
 from ..remoto import IdentidadCaida
 from ..repositorios import RepoCasos
-from ..repositorios.casos import serializar_caso, serializar_detalle_caso
+from ..repositorios.casos import TIPO_RESPUESTA_EQUIPO, serializar_caso, serializar_detalle_caso
 
 router = APIRouter(tags=["operacion"])
 
@@ -193,7 +193,7 @@ async def responder_caso(
         if rechazo is not None or texto is None:
             raise _rechazar(rechazo)
         await repo.registrar_evento(
-            caso_id=caso_id, tipo="respuesta", datos={"texto": texto}, actor_id=actor, ahora=ahora
+            caso_id=caso_id, tipo=TIPO_RESPUESTA_EQUIPO, datos={"texto": texto}, actor_id=actor, ahora=ahora
         )
         nuevo = estado_tras_respuesta(fila.estado)
         if nuevo != fila.estado:

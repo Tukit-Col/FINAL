@@ -250,3 +250,18 @@ async def test_mis_pedidos_trae_linea_de_tiempo_sin_datos_internos(cliente):
     assert "retracto" in pedido
     assert "repartidor_celular" not in (pedido["envio"] or {})
     assert "historial" not in pedido
+
+
+def test_acudiente_y_back_office_ven_el_mismo_plazo():
+    """Un solo calendario (`dominio.ley1480`): el cierre que ve el acudiente cae
+    el mismo dia de Bogota que el `plazo_retracto` del detalle staff."""
+    from tukit_comercio.dominio.ley1480 import BOGOTA, evaluar_devolucion
+
+    for entregado in (
+        datetime(2026, 3, 5, 1, 0, tzinfo=UTC),  # miercoles 20:00 en Bogota
+        datetime(2026, 10, 30, 15, 0, tzinfo=UTC),  # viernes antes del festivo del 2-nov
+        datetime(2026, 4, 1, 12, 0, tzinfo=UTC),  # semana santa
+    ):
+        vence = vence_retracto(entregado)
+        staff = evaluar_devolucion(entregado, entregado)
+        assert vence.astimezone(BOGOTA).date().isoformat() == staff["plazo_retracto"]
