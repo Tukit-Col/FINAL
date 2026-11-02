@@ -57,6 +57,7 @@ if __name__ == "__main__":
     sys.modules.setdefault("tukit_inteligencia.api", sys.modules[__name__])
 
 from .routers import router  # noqa: E402
+from .routers.nl2c import router as router_nl2c  # noqa: E402
 
 PUERTO_POR_OMISION = 8013
 
@@ -155,6 +156,7 @@ app = crear_app(
     al_apagar=_apagar,
 )
 app.include_router(router)
+app.include_router(router_nl2c)
 
 
 def main(argv: list[str] | None = None) -> int:

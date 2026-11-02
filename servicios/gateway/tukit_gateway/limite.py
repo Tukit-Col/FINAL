@@ -65,6 +65,9 @@ RUTAS_ESTRICTAS: tuple[tuple[str, re.Pattern[str]], ...] = (
     # La sugerencia del acudiente sube un archivo sin sesion: misma cuenta que
     # una lista subida, no la general de lectura.
     ("sugerencias", re.compile(r"/v1/admin/sugerencias")),
+    # Cada llamada del asistente cuesta una llamada a un modelo de pago (OWASP LLM10).
+    ("nl2c", re.compile(r"/v1/nl2c/(?:interpretar|decision)")),
+    ("nl2c-kit", re.compile(r"/v1/kits/[^/]+/asistente/proponer")),
 )
 
 Red = ipaddress.IPv4Network | ipaddress.IPv6Network

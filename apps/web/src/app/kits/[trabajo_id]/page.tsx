@@ -64,7 +64,7 @@ async function kits(trabajo_id: string, searchParams: Promise<{ pagar?: string }
 
   return (
     <>
-      <AsistenteKitSlot />
+      <AsistenteKitSlot trabajoId={trabajo.trabajo_id} />
       <VistaKits
         trabajo={trabajo}
         correo={sesion?.correo ?? ""}
