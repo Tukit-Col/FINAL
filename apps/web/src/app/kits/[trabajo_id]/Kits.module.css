@@ -988,17 +988,63 @@
   cursor: progress;
 }
 
+/* Cadena de padres del carrusel. Un hijo de grid o flex tiene `min-width:auto`
+ * (el ancho de su contenido), así que una pista con muchas tarjetas le exige al
+ * renglón (y a la tarjeta del kit) ser tan ancho como TODAS las opciones juntas:
+ * la página se ensanchaba en vez de que la pista hiciera scroll. Con `min-width:0`
+ * en cada eslabón (y columna `minmax(0,1fr)` en el grid) el ancho lo manda la
+ * tarjeta y el exceso se queda dentro de la pista. */
+.lineas {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.linea,
+.alternativas,
+.panelCambio {
+  min-width: 0;
+}
+
 .carruselMarco {
   position: relative;
   margin-top: var(--espacio-2);
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Difuminado en los bordes con más contenido: dice "hay más" sin ocupar sitio
+ * y funciona también en el celular, donde no hay flechas. Es una máscara sobre
+ * la propia pista (no un degradado de color) para no depender del fondo de la
+ * tarjeta, que es un degradado. */
+.hayIzq .carrusel {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px);
+  mask-image: linear-gradient(to right, transparent 0, #000 28px);
+}
+
+.hayDer .carrusel {
+  -webkit-mask-image: linear-gradient(to left, transparent 0, #000 28px);
+  mask-image: linear-gradient(to left, transparent 0, #000 28px);
+}
+
+.hayIzq.hayDer .carrusel {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
 }
 
 .carrusel {
   list-style: none;
   display: flex;
   gap: var(--espacio-3);
+  /* La pista nunca es más ancha que su marco: el resto se desplaza. */
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
   scroll-snap-type: x mandatory;
+  /* El relleno lateral se descuenta del snap para que la primera y la última
+   * tarjeta queden alineadas con el borde y no pegadas a él. */
+  scroll-padding-inline: 2px;
   padding: var(--espacio-2) 2px var(--espacio-3);
   scrollbar-width: thin;
 }
@@ -1010,7 +1056,9 @@
 }
 
 .tarjetaOpcion {
+  /* Nunca más ancha que la pista (en 320 px, 72 % ya cabe), con tope de 220. */
   flex: 0 0 min(220px, 72%);
+  min-width: 0;
   scroll-snap-align: start;
   display: grid;
   gap: 6px;
@@ -1020,6 +1068,13 @@
   border-radius: var(--radius-lg);
   padding: var(--espacio-3);
   box-shadow: var(--clay-shadow-sm);
+}
+
+/* Los textos largos (nombres de producto, marcas) se parten dentro de la
+ * tarjeta en vez de empujar su ancho. */
+.tarjetaOpcion > span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .fotoOpcion {
@@ -1047,34 +1102,44 @@
   color: var(--color-text-muted);
 }
 
+/* Flechas: solo aparecen del lado donde hay más (las pinta el componente).
+ * 44 px de toque. Van dentro del marco, no fuera, para no salirse de la tarjeta. */
 .flechaCarrusel {
   display: none;
   position: absolute;
-  top: 40%;
-  width: 34px;
-  height: 34px;
+  top: calc(50% - 22px);
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-full);
   background: var(--color-white);
   box-shadow: var(--clay-shadow);
-  font-size: 22px;
+  font-size: 26px;
   line-height: 1;
   color: var(--color-primary);
-  z-index: 1;
+  z-index: 2;
 }
 
 .flechaIzq {
-  left: -10px;
+  left: 4px;
 }
 
 .flechaDer {
-  right: -10px;
+  right: 4px;
 }
 
+/* En pantallas con puntero fino hay flechas; en tactiles se desliza con el dedo
+ * y el difuminado avisa que hay mas. */
 @media (min-width: 720px) {
   .flechaCarrusel {
     display: grid;
     place-items: center;
   }
+}
+
+.pistaCarrusel {
+  margin-top: var(--espacio-1);
+  font-size: 12px;
+  color: var(--color-text-muted);
 }
 
 /* ------------------------------------------------------- Franja del personaje */
@@ -1305,5 +1370,31 @@
   .enlaceFuera {
     margin-left: 52px;
     min-height: 32px;
+  }
+}
+
+/* ------------------------------------------ Blancos táctiles y franja en móvil */
+
+/* Los botones de la tarjeta (selector de kit, "Cambiar por otra opción",
+ * "Quitar", "Elegir") medían 28-32 px de alto: en el celular se fallaba el
+ * toque. WCAG 2.5.5 / guía de Apple y Google piden 44 px. Solo en pantallas
+ * táctiles anchas de hasta 720 px para no engordar la versión de escritorio. */
+@media (max-width: 720px) {
+  .opcionKit,
+  .botonCambiar,
+  .botonQuitar,
+  .botonElegir {
+    min-height: 44px;
+  }
+
+  .botonElegir {
+    padding-inline: var(--espacio-5);
+  }
+
+  /* El total no puede empujar el botón "Ir a pagar" fuera de la franja si el
+   * texto es largo ("Sin productos con precio"): se recorta con puntos. */
+  .totalPie {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }

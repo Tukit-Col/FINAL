@@ -99,3 +99,16 @@
   box-shadow: var(--clay-shadow-primary);
   transform: none;
 }
+
+/* Celular: la consola se usa sobre todo sentada, pero un operador puede abrirla
+ * en el teléfono. Las pestañas pasan a blancos de 44 px y el padding lateral
+ * baja para que la barra (que ya envuelve) no gaste media pantalla. */
+@media (max-width: 720px) {
+  .cabecera {
+    padding: var(--espacio-2) var(--espacio-3);
+  }
+
+  .item {
+    min-height: 44px;
+  }
+}

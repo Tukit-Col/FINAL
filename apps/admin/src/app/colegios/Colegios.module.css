@@ -458,6 +458,19 @@
   color: var(--color-primary);
 }
 
+.tablaMarco {
+  /* Si la tabla no cabe (celular), se desplaza dentro de la tarjeta en vez de
+   * ensanchar la página. */
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.tabla th.celdaDato,
+.tabla td {
+  /* Correos e identificadores largos se parten en vez de forzar el ancho. */
+  overflow-wrap: anywhere;
+}
+
 .tabla {
   width: 100%;
   border-collapse: collapse;

@@ -185,6 +185,7 @@
 
 .selector {
   flex: 0 1 auto;
+  min-width: 0;
   max-width: 200px;
   padding: 9px 12px;
   font-size: 13px;
@@ -792,6 +793,15 @@
      * encogerse hasta no poder leer el nombre de la categoria. */
     flex: 1 1 140px;
     max-width: none;
+    /* Un <select> mide por su opción más larga (nombres de categoría o tienda):
+     * sin `min-width: 0` esa medida manda sobre la fila flex y el select se sale
+     * de la pantalla (a 360 px llegaba a 416 px y la página se desplazaba). */
+    min-width: 0;
+    min-height: 44px;
+  }
+
+  .busqueda {
+    min-height: 44px;
   }
 
   .pastillas,
