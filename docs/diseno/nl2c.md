@@ -36,16 +36,30 @@ Tres rutas, cada una con un plan fijo (`nl2c_flujo.py`):
 
 1. **Texto del modelo anclado al texto del padre.** Una marca a excluir solo pasa si aparece en lo que el padre escribió (`texto_base` en `proyectar_R`). Sin eso, un modelo manipulado podía hacer que la pantalla mostrara una cadena del atacante dentro del resumen.
 2. **Pesos con piso y tope.** Cada peso queda entre 0.05 y 0.60 y suman 1.00. Una versión anterior dejaba la suma fuera de 1 cuando el modelo pedía ceros; la pegó un caso adversarial con un modelo obediente.
-3. **Bandera doble.** `TUKIT_ASISTENTE=1` en el backend y `NEXT_PUBLIC_TUKIT_ASISTENTE=1` en la web. Apagadas, las rutas devuelven 404 y los paneles no se montan. Si el modelo falla, la web vuelve al formulario clásico.
+3. **Bandera doble.** `TUKIT_ASISTENTE=1` en el backend y `NEXT_PUBLIC_TUKIT_ASISTENTE=1` en la web. Apagadas, las rutas devuelven 404 y los paneles no se montan. El panel de `/empezar` tiene además su propia bandera, `NEXT_PUBLIC_TUKIT_ASISTENTE_EMPEZAR=1`, apagada por omisión: desde el 2 de noviembre de 2026 el inicio usa el formulario guiado y el asistente solo aparece en la página del kit. Si el modelo falla, la web vuelve al formulario clásico.
 4. **Sin escritura propia.** Ni el backend ni el panel guardan preferencias; el formulario recibe los valores por un evento del navegador y el padre confirma.
 
 ## 5. Lo que el diseño no cubre
 
 - **Propuesta válida que el padre no pidió.** Un renglón con una orden inyectada puede lograr que el modelo proponga un cambio real (dentro del kit, con precios del servidor). El servidor no puede conocer la intención del padre; lo frena la confirmación explícita.
-- **Sin consumidor de `marcas_excluidas` ni `solo_disponibles`.** Se muestran al padre pero el optimizador no los usa todavía.
 - **Descartar un renglón** solo se propone; no existe un endpoint de descarte.
 - **Un solo proveedor.** El texto saneado sale hacia Gemini; no hay modelo local.
 - **Bitácora en memoria.** `BITACORA` y la tabla de propuestas emitidas viven en el proceso; no se persisten.
+
+## 5b. Los filtros duros llegan al optimizador
+
+`marcas_excluidas` y `solo_disponibles` ya no son decorativos. El recorrido es: `a_preferencias(R)` los incluye (solo si el padre los pidió) → el asistente los muestra en el resumen y los guarda con las demás restricciones → el formulario de `/empezar` los manda dentro de `preferencias` (se ven y se pueden quitar antes de enviar) → `Preferencias` del trabajo (cifradas en `preferencias_cifradas`) → `armar_los_tres` → `aplicar_filtros_duros`.
+
+- **Por construcción, antes del frente.** Se quitan candidatos de cada renglón antes de calcular el frente de Pareto. No son un peso: un peso podría dejar pasar la marca que el padre pidió no ver. (El presupuesto sí se aplica después del frente; ver el docstring de `optimizador.py`.)
+- **Comparación de marcas.** Sin mayúsculas, tildes ni signos (`Faber-Castell` = `FABER CASTELL`), por palabras completas (`Norma` no excluye `Normalizado`). Si el catálogo no trae marca, se mira el nombre del producto.
+- **Marca exigida por el colegio.** Catálogo no guarda la marca exigida como dato aparte; la señal es que el texto del renglón nombre la marca. En ese renglón no se quita y la línea lo explica ("El colegio pide X en esta línea y no la quitamos"). `solo_disponibles` sí aplica también ahí.
+- **`solo_disponibles`.** Disponible = candidato con precio vigente en una oferta activa, que es lo único que llega a Inteligencia y lo que ya mide el objetivo `disponibilidad`.
+- **Línea sin candidatos.** No se rellena con lo prohibido: queda como `HUECO_CATALOGO`, sin precio y fuera del total, con un `mensaje` que dice qué se quitó y por qué.
+- **Kit Fan.** El producto de personaje entra por una vía aparte (`inyectar_personaje_fan`); allí se aplica el mismo filtro.
+- **Ruta rápida (`aplicar-canonico`): se rechaza, no se filtra.** Esa ruta reutiliza el kit canónico sin re-optimizar y sin las alternativas por marca, así que no puede honrar los filtros. Si llegan, responde 422 `filtros_requieren_recalculo`, y el formulario no toma esa ruta cuando hay filtros: crea un trabajo normal, que sí re-optimiza.
+- **Límites en el borde.** Hasta 10 marcas de 1 a 40 caracteres, igual que `FiltrosDuros`; las preferencias de una subida de PDF viajan como JSON sin esquema, así que el optimizador también las lee con tipos y topes defensivos.
+
+Pruebas: `servicios/inteligencia/tests/test_filtros_duros.py` (exclusión, excepción de marca exigida, línea sin candidatos, `solo_disponibles`, Fan, guardado y pipeline completo, 422 de la ruta rápida), `test_nl2c.py::test_a_preferencias_pasa_marcas_excluidas_y_solo_disponibles_al_optimizador` y `apps/web/test/restricciones-asistente.test.ts`.
 
 ## 6. Referencias
 
