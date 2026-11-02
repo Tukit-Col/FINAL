@@ -95,25 +95,29 @@ MOTIVO_NO_CONSOLIDABLE = "Dos ediciones del mismo titulo no son sustituibles."
 CONCEPTOS_ANCLA = ("C001", "C009", "C011", "C086")
 
 # Por encima de este tamano del espacio de busqueda (producto de candidatos por
-# linea) se corre NSGA-II; por debajo se enumera el frente exacto. La
-# enumeracion da el frente OPTIMO y es instantanea para kits chicos —que es lo
-# que se prueba—, y el NSGA-II gana justo cuando el espacio explota, que es el
-# corpus real de listas con decenas de renglones y varios candidatos cada uno.
+# linea) se corre NSGA-II; por debajo se enumera el frente exacto. 4096 = 2^12
+# queda entre el cruce medido de la enumeracion con el NSGA-II calibrado en la
+# mediana (S ~ 4932) y en el percentil 95 del ajuste (S ~ 2380). Fuente:
+# docs/informes/calibracion/umbral.json y umbral_elegida.json, seccion
+# "Complejidad" de docs/informes/calibracion/optimizacion.tex.
 LIMITE_ENUMERACION = 4096
 
-# Presupuesto de busqueda del NSGA-II. Se escala con el tamano del problema —el
-# numero de lineas decidibles `n` y el espacio de busqueda `espacio`— en vez de
-# ser fijo, para que el frente no se quede corto en una lista de decenas de
-# renglones y no gaste generaciones de mas en una de tres. Los topes evitan que
-# una lista enorme dispare el tiempo del pipeline. La terminacion sigue siendo
-# por numero fijo de generaciones (no por convergencia): el frente de una
-# semilla dada tiene que reproducirse byte a byte, y un criterio de convergencia
-# como `DefaultMultiObjectiveTermination` haria depender el corte del azar de la
-# corrida. Reproducibilidad es requisito de la tesis, asi que se rechaza.
-_POBLACION_MIN = 40
-_POBLACION_MAX = 200
-_GENERACIONES_MIN = 30
-_GENERACIONES_MAX = 120
+# Presupuesto de busqueda del NSGA-II, escalado con el numero de lineas
+# decidibles `n` y con el espacio de busqueda `espacio`, con topes para que una
+# lista enorme no dispare el tiempo del pipeline. Los valores son la mitad de
+# las formulas de partida (factores a = b = 0,5), elegidos por validacion
+# cruzada agrupada por colegio: la configuracion mas barata cuyo hipervolumen
+# medio queda a menos de 0,1 % del mejor de la rejilla. Fuente:
+# docs/informes/calibracion/calibracion_nsga.json, seccion "Calibracion y
+# amenazas a la validez" de docs/informes/calibracion/optimizacion.tex.
+# La terminacion es por numero fijo de generaciones y no por convergencia,
+# porque el frente de una semilla dada tiene que reproducirse byte a byte.
+_POBLACION_POR_LINEA = 6
+_POBLACION_MIN = 20
+_POBLACION_MAX = 100
+_GENERACIONES_POR_DECADA = 10
+_GENERACIONES_MIN = 15
+_GENERACIONES_MAX = 60
 
 
 def _poblacion(n: int) -> int:
@@ -122,7 +126,7 @@ def _poblacion(n: int) -> int:
     Par porque el emparejamiento de padres de NSGA-II trabaja de a dos y una
     poblacion impar desperdicia un individuo por generacion.
     """
-    cruda = min(_POBLACION_MAX, max(_POBLACION_MIN, 12 * n))
+    cruda = min(_POBLACION_MAX, max(_POBLACION_MIN, _POBLACION_POR_LINEA * n))
     return cruda + (cruda & 1)
 
 
@@ -130,10 +134,10 @@ def _generaciones(espacio: int) -> int:
     """Generaciones escaladas al log10 del espacio de busqueda.
 
     El espacio crece multiplicativamente (producto de candidatos por linea), asi
-    que el esfuerzo util crece con su logaritmo, no linealmente. `max(10, ...)`
-    evita `log10(0)`/valores negativos en el piso.
+    que el esfuerzo util crece con su logaritmo. `max(10, ...)` evita
+    `log10(0)` y valores negativos en el piso.
     """
-    crudas = 20 * math.log10(max(10, espacio))
+    crudas = _GENERACIONES_POR_DECADA * math.log10(max(10, espacio))
     return int(min(_GENERACIONES_MAX, max(_GENERACIONES_MIN, crudas)))
 
 
