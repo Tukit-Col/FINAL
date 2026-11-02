@@ -164,6 +164,11 @@ class TestLasRutasInternasNoSeExponen:
         [
             ("/v1/comercio/mis-pedidos/abc/retracto", "comercio"),
             ("/v1/operacion/mis-casos", "operacion"),
+            # El panel de privacidad del titular (Ley 1581) vive en Identidad.
+            ("/v1/cuenta/mis-datos", "identidad"),
+            ("/v1/cuenta/mis-datos/exportar", "identidad"),
+            ("/v1/cuenta/supresion", "identidad"),
+            ("/v1/cuenta/consentimientos/revocar", "identidad"),
             ("/v1/operacion/mis-casos/abc/comentarios", "operacion"),
             ("/v1/trabajos/abc/kits/Fan/lineas/xyz/descarte", "inteligencia"),
             ("/v1/trabajos/abc/kits/Fan/lineas/xyz/opciones", "inteligencia"),

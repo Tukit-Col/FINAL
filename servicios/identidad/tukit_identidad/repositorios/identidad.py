@@ -978,6 +978,10 @@ class RepoIdentidad:
 
         if existente is None:
             usuario_id = derivar("usuario", correo)
+            # Si ese id ya es de una cuenta suprimida (su correo ahora es
+            # `suprimido-...`), la cuenta nueva no hereda la fila anonimizada.
+            if await self.conexion.scalar(select(USUARIO.c.id).where(USUARIO.c.id == usuario_id)):
+                usuario_id = uuid.uuid4()
             await self.conexion.execute(
                 insert(USUARIO).values(
                     id=usuario_id,
@@ -996,3 +1000,141 @@ class RepoIdentidad:
 
         await self.materializar_hijos(usuario_id, hijos, anio_lectivo, cifrador)
         return usuario_id, True
+
+    # ------------------------------------------------------------ privacidad
+
+    async def consentimientos_de(self, usuario_id: uuid.UUID) -> list[dict[str, Any]]:
+        filas = await self.conexion.execute(
+            select(CONSENTIMIENTO)
+            .where(CONSENTIMIENTO.c.usuario_id == usuario_id)
+            .order_by(CONSENTIMIENTO.c.aceptado_en)
+        )
+        return [
+            {
+                "regimen": f.regimen,
+                "version": f.version,
+                "matricula_id": str(f.matricula_id) if f.matricula_id is not None else None,
+                "aceptado_en": iso(f.aceptado_en),
+                "revocado_en": iso(f.revocado_en) if f.revocado_en is not None else None,
+            }
+            for f in filas
+        ]
+
+    async def revocar_consentimientos(self, usuario_id: uuid.UUID, ahora: datetime) -> int:
+        """Marca `revocado_en` en los consentimientos vigentes del titular. No
+        borra la fila: la prueba de que hubo autorizacion y de cuando se retiro
+        es lo que el responsable debe poder mostrar (Decreto 1377, art. 8)."""
+        r = await self.conexion.execute(
+            update(CONSENTIMIENTO)
+            .where(CONSENTIMIENTO.c.usuario_id == usuario_id, CONSENTIMIENTO.c.revocado_en.is_(None))
+            .values(revocado_en=ahora)
+        )
+        return int(r.rowcount or 0)
+
+    async def suprimir_titular(self, usuario_id: uuid.UUID, *, correo_nuevo: str) -> uuid.UUID:
+        """Anonimiza al titular en una sola transaccion y deja el evento en la bandeja.
+
+        Borra: nombre, celular, clave, direcciones, perfil socioeconomico y los
+        apodos de sus hijos (en el vinculo y en el estudiante, si nadie mas lo
+        acompana). Cierra vinculos y retira las matriculas que queden sin
+        acudiente. Revoca consentimientos y sesiones. El correo se reemplaza por
+        uno `.invalid` que no identifica a nadie.
+
+        No borra la fila `usuario`: su id es la clave seudonima con la que
+        Comercio guarda los pedidos que la ley obliga a conservar, y que ya no
+        resuelve a ninguna persona. Devuelve el id de la solicitud.
+        """
+        from ..dominio.sesiones import hashear_clave
+
+        ahora = datetime.now(UTC)
+        tablas = Base.metadata.tables
+        cifrador = cifrador_desde_entorno()
+
+        # Hijos: el apodo se borra del vinculo y, si el estudiante queda sin
+        # ningun otro acudiente vigente, tambien del estudiante.
+        vinculos = list(
+            await self.conexion.execute(
+                select(
+                    ACUDIENTE_MATRICULA.c.matricula_id,
+                    ACUDIENTE_MATRICULA.c.vigente_hasta,
+                    MATRICULA.c.estudiante_id,
+                )
+                .select_from(
+                    ACUDIENTE_MATRICULA.join(MATRICULA, MATRICULA.c.id == ACUDIENTE_MATRICULA.c.matricula_id)
+                )
+                .where(ACUDIENTE_MATRICULA.c.usuario_id == usuario_id)
+            )
+        )
+        await self.conexion.execute(
+            update(ACUDIENTE_MATRICULA)
+            .where(ACUDIENTE_MATRICULA.c.usuario_id == usuario_id)
+            .values(apodo_cifrado=None)
+        )
+        for v in vinculos:
+            if v.vigente_hasta is None:
+                await self.retirar_matricula(usuario_id, v.matricula_id)
+        for estudiante_id in {v.estudiante_id for v in vinculos}:
+            acompanado = await self.conexion.scalar(
+                select(func.count())
+                .select_from(
+                    ACUDIENTE_MATRICULA.join(MATRICULA, MATRICULA.c.id == ACUDIENTE_MATRICULA.c.matricula_id)
+                )
+                .where(
+                    MATRICULA.c.estudiante_id == estudiante_id,
+                    ACUDIENTE_MATRICULA.c.vigente_hasta.is_(None),
+                )
+            )
+            if not acompanado:
+                await self.conexion.execute(
+                    update(ESTUDIANTE)
+                    .where(ESTUDIANTE.c.id == estudiante_id)
+                    .values(nombre_cifrado=cifrador.cifrar(b""), documento_hash=None, fecha_nacimiento=None)
+                )
+
+        await self.conexion.execute(DIRECCION.delete().where(DIRECCION.c.usuario_id == usuario_id))
+        await self.conexion.execute(
+            tablas["perfil_socioeconomico"]
+            .delete()
+            .where(tablas["perfil_socioeconomico"].c.usuario_id == usuario_id)
+        )
+        await self.revocar_consentimientos(usuario_id, ahora)
+        await self.conexion.execute(
+            update(USUARIO)
+            .where(USUARIO.c.id == usuario_id)
+            .values(
+                correo=correo_nuevo,
+                # Una clave aleatoria que nadie conoce: no queda credencial.
+                clave_hash=hashear_clave(uuid.uuid4().hex + uuid.uuid4().hex),
+                nombre_cifrado=None,
+                celular=None,
+                activo=False,
+                anonimizado_en=ahora,
+                version_permisos=USUARIO.c.version_permisos + 1,
+            )
+        )
+
+        solicitud_id = uuid.uuid4()
+        await self.conexion.execute(
+            insert(tablas["solicitud_supresion"]).values(
+                id=solicitud_id,
+                usuario_id=usuario_id,
+                estado="propagando",
+                suscriptores_confirmados=[],
+                creado_en=ahora,
+            )
+        )
+        # Evento auditable y de propagacion, en la misma transaccion (outbox).
+        # Sin datos personales: solo identificadores seudonimos y la hora.
+        await self.conexion.execute(
+            insert(tablas["bandeja_salida"]).values(
+                tipo_evento="titular_suprimido",
+                clave_agregado=str(usuario_id),
+                carga={
+                    "usuario_id": str(usuario_id),
+                    "solicitud_id": str(solicitud_id),
+                    "suprimido_en": iso(ahora),
+                },
+                creado_en=ahora,
+            )
+        )
+        return solicitud_id

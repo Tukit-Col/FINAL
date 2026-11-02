@@ -725,6 +725,14 @@ class TestLaSuperficieDeMenoresNoEstaAbierta:
             # portador (404 si no es suya) y no devuelve dato de menor. Quitar no
             # borra: cierra el vinculo y retira la matricula (ADR 0031).
             "/v1/cuenta/matriculas/{matricula_id}",
+            # El panel de privacidad (Ley 1581): consulta, copia, revocacion y
+            # supresion del PROPIO portador. Exigen token y no tienen id en la
+            # ruta, asi que no alcanzan datos de otro titular. Los apodos que
+            # devuelven son los mismos de `/v1/cuenta/matriculas`.
+            "/v1/cuenta/mis-datos",
+            "/v1/cuenta/mis-datos/exportar",
+            "/v1/cuenta/consentimientos/revocar",
+            "/v1/cuenta/supresion",
             # El registro de verdad. Solo ESCRIBE (credencial + matriculas) y
             # nunca devuelve datos de menor: su respuesta es {usuario_id, creado}.
             "/v1/registro",

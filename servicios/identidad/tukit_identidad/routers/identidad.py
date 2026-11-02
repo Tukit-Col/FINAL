@@ -867,3 +867,189 @@ async def archivar_direccion(
         if await repo.archivar_direccion(direccion_id, fila.id) == 0:
             raise ErrorDominio("direccion_no_existe", "No hay ninguna direccion tuya con ese id.", estado=404)
     return None
+
+
+# --------------------------------------------------------------- privacidad
+# Los derechos del titular (Ley 1581 de 2012, art. 8; Decreto 1377 de 2013):
+# conocer (inventario), obtener copia (exportacion), suprimir y revocar. Todo
+# sale del portador del token: no hay ruta con el id de otro titular, asi que
+# no hay forma de pedir los datos de nadie mas.
+
+
+class PeticionSupresion(BaseModel):
+    confirmacion: str = Field(default="", max_length=64)
+
+
+def _inventario_remoto(peticion: Request) -> Any:
+    from ..remoto import InventarioRemoto
+
+    inventario = getattr(peticion.app.state, "inventario", None)
+    if inventario is None:
+        inventario = InventarioRemoto()
+        peticion.app.state.inventario = inventario
+    return inventario
+
+
+def _iso_o_none(valor: datetime | None) -> str | None:
+    return valor.isoformat() if valor is not None else None
+
+
+async def _mis_datos(peticion: Request, authorization: str | None, *, completo: bool) -> dict[str, Any]:
+    """El inventario del titular. `completo` es la copia exportable: el contacto
+    y las direcciones van enteros. Sin `completo`, enmascarados."""
+    from ..dominio.privacidad import (
+        CONSERVADO,
+        FRASE_CONFIRMACION,
+        SUPRIMIDO,
+        enmascarar_correo,
+        enmascarar_telefono,
+    )
+
+    cifrador = cifrador_desde_entorno()
+    async with peticion.app.state.motor.sesion() as db:
+        repo = RepoIdentidad(await db.connection())
+        fila = await _usuario_del_token(authorization, repo)
+        nombre = None
+        if fila.nombre_cifrado is not None:
+            nombre = cifrador.descifrar(fila.nombre_cifrado).decode("utf-8", errors="replace")
+        direcciones = [_direccion_publica(d) for d in await repo.direcciones_de(fila.id)]
+        matriculas = await repo.matriculas_del_titular(fila.id)
+        consentimientos = await repo.consentimientos_de(fila.id)
+
+    if not completo:
+        direcciones = [
+            {
+                "direccion_id": d["direccion_id"],
+                "etiqueta": d["etiqueta"],
+                "ciudad": d["ciudad"],
+                "localidad": d["localidad"],
+                "tiene_contacto": d["contacto"] is not None,
+            }
+            for d in direcciones
+        ]
+    remotos = await _inventario_remoto(peticion).resumen(_token_del_encabezado(authorization) or "")
+    return {
+        "cuenta": {
+            "usuario_id": str(fila.id),
+            "nombre": nombre,
+            "correo": fila.correo if completo else enmascarar_correo(fila.correo),
+            "celular": fila.celular if completo else enmascarar_telefono(fila.celular),
+            "creado_en": _iso_o_none(fila.creado_en),
+        },
+        "hijos": [
+            {"matricula_id": m["matricula_id"], "apodo": m["apodo"], "grado": m["grado"]} for m in matriculas
+        ],
+        "matriculas": matriculas,
+        "direcciones": direcciones,
+        "consentimientos": consentimientos,
+        "pedidos": remotos.get("pedidos", {"disponible": False}),
+        "casos": remotos.get("casos", {"disponible": False}),
+        "trabajos_kit": remotos.get("trabajos_kit", {"disponible": False}),
+        "supresion": {
+            "frase_confirmacion": FRASE_CONFIRMACION,
+            "suprimido": list(SUPRIMIDO),
+            "conservado": list(CONSERVADO),
+        },
+    }
+
+
+@router.get(
+    "/v1/cuenta/mis-datos",
+    tags=["privacidad"],
+    summary="Que datos mios tiene Tukit: cuenta, hijos, consentimientos y punteros a pedidos y casos.",
+)
+async def mis_datos(
+    peticion: Request, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    return await _mis_datos(peticion, authorization, completo=False)
+
+
+@router.get(
+    "/v1/cuenta/mis-datos/exportar",
+    tags=["privacidad"],
+    summary="Mi copia completa en JSON, como archivo descargable.",
+)
+async def exportar_mis_datos(
+    peticion: Request, authorization: Annotated[str | None, Header()] = None
+) -> Response:
+    import json
+
+    datos = await _mis_datos(peticion, authorization, completo=True)
+    ahora = datetime.now(UTC)
+    datos["exportado_en"] = ahora.isoformat()
+    return Response(
+        content=json.dumps(datos, ensure_ascii=False, indent=2),
+        media_type="application/json; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="tukit-mis-datos-{ahora:%Y-%m-%d}.json"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@router.post(
+    "/v1/cuenta/consentimientos/revocar",
+    tags=["privacidad"],
+    summary="Revoca mis autorizaciones de tratamiento sin borrar la cuenta.",
+)
+async def revocar_mis_consentimientos(
+    peticion: Request, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    async with peticion.app.state.motor.sesion() as db:
+        repo = RepoIdentidad(await db.connection())
+        fila = await _usuario_del_token(authorization, repo)
+        revocados = await repo.revocar_consentimientos(fila.id, datetime.now(UTC))
+    return {"revocados": revocados}
+
+
+@router.post(
+    "/v1/cuenta/supresion",
+    tags=["privacidad"],
+    summary="Suprime mis datos personales y cierra la cuenta. Lo que la ley obliga a guardar se desvincula.",
+)
+async def suprimir_mis_datos(
+    peticion: Request,
+    cuerpo: PeticionSupresion,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    """Supresion (Ley 1581, art. 8 lit. e y art. 15). Pide la frase escrita.
+
+    Antes de borrar se cuenta cuantos pedidos quedan conservados, para
+    decirselo al titular. Ese conteo es la unica llamada afuera y es de solo
+    lectura; si falla, la supresion sigue y el conteo sale `None`.
+    """
+    import logging
+
+    from ..dominio.privacidad import CONSERVADO, SUPRIMIDO, confirmacion_valida, correo_suprimido
+
+    async with peticion.app.state.motor.sesion() as db:
+        await _usuario_del_token(authorization, RepoIdentidad(await db.connection()))
+    if not confirmacion_valida(cuerpo.confirmacion):
+        raise ErrorDominio(
+            "confirmacion_requerida",
+            "Para borrar tus datos escribe la frase de confirmacion tal como aparece.",
+            estado=422,
+            campo="confirmacion",
+        )
+    remotos = await _inventario_remoto(peticion).resumen(_token_del_encabezado(authorization) or "")
+    pedidos = remotos.get("pedidos", {})
+    conservados = pedidos.get("total") if pedidos.get("disponible") else None
+
+    async with peticion.app.state.motor.sesion() as db:
+        repo = RepoIdentidad(await db.connection())
+        # Se vuelve a verificar dentro de la transaccion que escribe.
+        fila = await _usuario_del_token(authorization, repo)
+        solicitud_id = await repo.suprimir_titular(fila.id, correo_nuevo=correo_suprimido(str(fila.id)))
+    # Bitacora sin datos personales: id seudonimo y solicitud, nada mas.
+    logging.getLogger(__name__).info("supresion titular=%s solicitud=%s", fila.id, solicitud_id)
+    return {
+        "solicitud_id": str(solicitud_id),
+        "estado": "propagando",
+        "suprimido": list(SUPRIMIDO),
+        "conservado": list(CONSERVADO),
+        "pedidos_conservados": conservados,
+        "mensaje": (
+            "Borramos tus datos personales y cerramos tu cuenta. Lo que la ley nos "
+            "obliga a guardar quedo desvinculado de tu nombre y tu correo."
+        ),
+    }
