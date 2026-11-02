@@ -110,9 +110,16 @@ export function razonDeNoCobrar(linea: LineaKit): string | null {
     case "diferido":
       return "El colegio lo va a pedir durante el año. Te avisamos cuando se pueda comprar.";
     case "fuera_de_alcance":
-      return "Los uniformes todavía no los surtimos. Te lo dejamos visible para que no se te pase.";
+      return (
+        linea.instruccion_colegio ??
+        "Los uniformes todavía no los surtimos. Te lo dejamos visible para que no se te pase."
+      );
     case "por_su_cuenta":
-      return linea.mensaje ?? "Tukit no lo vende: consíguelo por tu cuenta. Te lo dejamos visible para que no se te pase.";
+      return (
+        linea.instruccion_colegio ??
+        linea.mensaje ??
+        "Tukit no lo vende: consíguelo por tu cuenta. Te lo dejamos visible para que no se te pase."
+      );
     case "informativa":
       return (
         linea.instruccion_colegio ??
@@ -154,9 +161,43 @@ export const ORDEN_SECCIONES: readonly ClaseLinea[] = [
 // dice un empaque, que productos hacen "Fan" a un kit y las reglas de la
 // contrasena. Viven aqui, junto a `clasificar`, para probarlas sin pintar nada.
 
+// El concepto del plan lector y los textos con titulo. Una linea suya sin
+// edicion verificada llega como `otro` con "Se compra en librería", pero sigue
+// siendo un libro y va en la seccion de libros. Como esa linea no se busca en
+// el catalogo no trae `concepto` (no tiene resolucion): la instruccion basta.
+const CONCEPTO_LIBRO_CON_TITULO = "C134";
+const SE_COMPRA_EN_LIBRERIA = /^\s*se compra en (?:una )?librer[ií]a/i;
+
 /** Un libro de texto o de lectura: se compra donde la editorial o la libreria. */
 export function esLibro(linea: LineaKit): boolean {
-  return linea.tipo === "texto" || linea.tipo === "libro_libre";
+  if (linea.tipo === "texto" || linea.tipo === "libro_libre") return true;
+  if (linea.tipo !== "otro") return false;
+  return (
+    linea.concepto === CONCEPTO_LIBRO_CON_TITULO ||
+    SE_COMPRA_EN_LIBRERIA.test(linea.instruccion_colegio ?? "")
+  );
+}
+
+/**
+ * La instruccion del colegio en una frase corta, para ponerla donde iria el
+ * precio: "Se compra en librería", "Pregunta en el colegio (601 427 2365)".
+ * La curaduria la escribe como frase y luego la fuente y la fecha; aqui se
+ * toma solo la frase. `null` si no hay instruccion o es demasiado larga para
+ * un titulo (en ese caso se lee completa como razon de no cobrar).
+ */
+export function instruccionCorta(linea: LineaKit): string | null {
+  const texto = linea.instruccion_colegio?.trim();
+  if (!texto) return null;
+  const pregunta = texto.match(/Pregunta en el colegio(?: \([^)]*\))?/i);
+  if (pregunta) return pregunta[0];
+  const compra = texto.match(/^Se (?:compra|adquiere|consigue) (?:en|con) [^:.;]+/i);
+  if (compra) return compra[0].trim();
+  const frase = texto.split(/[:.;]/, 1)[0].trim();
+  return frase && frase.length <= 60 ? frase : null;
+}
+
+function conMinuscula(frase: string): string {
+  return frase.charAt(0).toLowerCase() + frase.slice(1);
 }
 
 export function esUniforme(linea: LineaKit): boolean {
@@ -206,6 +247,17 @@ export function estadoDePrecio(linea: LineaKit): EstadoPrecio {
   const clase = clasificar(linea);
   const donde = dondeComprar(linea);
   const libro = esLibro(linea);
+  // Lo que no se cobra y el colegio dice como conseguir: esa frase va en lugar
+  // del precio, salvo que el catalogo ya nombre la tienda (`se_compra_en`).
+  const instruccion = instruccionCorta(linea);
+  if (
+    instruccion &&
+    !linea.se_compra_en?.trim() &&
+    (clase === "por_su_cuenta" || clase === "fuera_de_alcance" || clase === "informativa")
+  ) {
+    const prefijo = libro ? "Libro: " : clase === "fuera_de_alcance" ? "Uniforme: " : "";
+    return { tipo: "sin_cobro", titulo: prefijo ? prefijo + conMinuscula(instruccion) : instruccion };
+  }
   switch (clase) {
     case "comprable":
       if (typeof linea.subtotal_linea === "number" && linea.subtotal_linea > 0) {
