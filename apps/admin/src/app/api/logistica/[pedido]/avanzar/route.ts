@@ -7,7 +7,7 @@
 // con ella.
 
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
-import type { SolicitudAvancePedido } from "@tukit/contrato";
+import type { SolicitudAvanceAdmin } from "@tukit/contrato";
 import { cuerpoJson, respuestaDeError } from "@/lib/respuesta";
 import { tokenDeSesion } from "@/lib/sesion";
 
@@ -26,9 +26,9 @@ export async function POST(
     );
   }
 
-  let cuerpo: SolicitudAvancePedido | null;
+  let cuerpo: SolicitudAvanceAdmin | null;
   try {
-    cuerpo = await cuerpoJson<SolicitudAvancePedido>(peticion);
+    cuerpo = await cuerpoJson<SolicitudAvanceAdmin>(peticion);
   } catch {
     return respuestaDeError(
       new ErrorTukit(400, "peticion_invalida", "No pudimos leer el avance del pedido."),
@@ -41,7 +41,7 @@ export async function POST(
   }
 
   try {
-    return Response.json(await origenDeDatos().avanzarPedido(token, pedido, cuerpo));
+    return Response.json(await origenDeDatos().avanzarPedidoAdmin(token, pedido, cuerpo));
   } catch (causa) {
     // 409/422 suben tal cual, con su `campo`: el formulario marca la entrada.
     return respuestaDeError(causa);

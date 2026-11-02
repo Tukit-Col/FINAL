@@ -9,6 +9,7 @@ export * from "./contrato";
 export * from "./catalogo";
 export * from "./comercio";
 export * from "./operacion";
+export * from "./admin";
 export * from "./metricas";
 export * from "./dinero";
 export * from "./linea";

@@ -159,3 +159,37 @@ def test_preparar_otro_destino_descarta_repartidor_y_tipo():
 def test_preparar_incidencia_guarda_tipo_y_nota():
     avance = preparar_avance("incidencia", tipo_incidencia="rechazado", nota="No lo quiso")
     assert (avance.tipo_incidencia, avance.nota, avance.aviso) == ("rechazado", "No lo quiso", "incidencia")
+
+
+# --- despacho por transportadora (alternativa al reparto propio) ---
+
+
+def test_despacho_con_transportadora_exige_guia():
+    rechazo = validar_avance("en_preparacion", "despachado", transportadora="Servientrega")
+    assert rechazo is not None
+    assert (rechazo.razon, rechazo.estado, rechazo.campo) == ("despacho_sin_guia", 422, "guia")
+
+
+def test_despacho_con_transportadora_y_guia_no_pide_repartidor():
+    assert validar_avance("en_preparacion", "despachado", transportadora="Servientrega", guia="123") is None
+
+
+def test_despacho_sin_transportadora_sigue_pidiendo_repartidor():
+    rechazo = validar_avance("en_preparacion", "despachado", guia="123")
+    assert rechazo is not None
+    assert rechazo.razon == "despacho_incompleto"
+
+
+def test_preparar_despacho_por_transportadora_no_guarda_repartidor():
+    avance = preparar_avance(
+        "despachado", transportadora=" Servientrega ", guia="G1", repartidor_nombre="Luis", repartidor_celular="3"
+    )
+    assert (avance.transportadora, avance.guia) == ("Servientrega", "G1")
+    assert avance.repartidor_nombre is None
+    assert avance.repartidor_celular is None
+
+
+def test_transportadora_se_ignora_fuera_del_despacho():
+    avance = preparar_avance("en_reparto", transportadora="X", guia="Y")
+    assert avance.transportadora is None
+    assert avance.guia is None

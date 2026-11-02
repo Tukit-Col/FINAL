@@ -23,6 +23,7 @@ from sqlalchemy import func, insert, select, update
 from tukit_comun.bandeja import con_correlacion
 from tukit_comun.http import iso as _iso
 
+from ..dominio.ley1480 import evaluar_devolucion
 from ..dominio.linea_de_tiempo import AvanceVisto, EnvioVisto, PagoVisto
 from ..dominio.pagos import CAMPOS_FIRMA_ENTREGA, ESTADOS_PAGO_FINALES, pedido_tras_pago
 from ..modelos import Base, EstadoPago, EstadoPedido, transicion_valida
@@ -269,6 +270,41 @@ class RepoPedidos:
             "entregas_pendientes": entregas_pendientes,
         }
 
+    async def devoluciones_de(self, pedido_id: uuid.UUID, entregado_en: datetime | None) -> list[dict[str, Any]]:
+        """Los retractos del pedido, mas recientes primero, con su plazo de la Ley 1480.
+
+        Solo staff: trae el motivo en texto libre. El plazo se calcula desde la
+        entrega del pedido (`entregado_en`), no desde la compra."""
+        filas = await self.conexion.execute(
+            select(DEVOLUCION).where(DEVOLUCION.c.pedido_id == pedido_id).order_by(DEVOLUCION.c.creado_en.desc())
+        )
+        return [
+            {
+                "devolucion_id": str(f.id),
+                "motivo": f.motivo,
+                "monto": int(f.monto),
+                "creado_en": _iso(f.creado_en),
+                **evaluar_devolucion(f.creado_en, entregado_en),
+            }
+            for f in filas
+        ]
+
+    async def datos_de_pago_staff(self, pedido_id: uuid.UUID) -> dict[str, Any]:
+        """Lo que solo el staff ve del ultimo intento de pago: el id de transaccion
+        de Wompi (`None` mientras siga `iniciado`) y cuando cambio de estado por
+        ultima vez, que para un pago aprobado es el momento de la confirmacion."""
+        fila = (
+            await self.conexion.execute(
+                select(PAGO.c.transaccion_wompi, PAGO.c.actualizado_en)
+                .where(PAGO.c.pedido_id == pedido_id)
+                .order_by(PAGO.c.creado_en.desc())
+                .limit(1)
+            )
+        ).one_or_none()
+        if fila is None:
+            return {"transaccion_wompi": None, "actualizado_en": None}
+        return {"transaccion_wompi": fila.transaccion_wompi, "actualizado_en": _iso(fila.actualizado_en)}
+
     async def listar_todos(self) -> list[Any]:
         return list(await self.conexion.execute(select(PEDIDO).order_by(PEDIDO.c.creado_en.desc())))
 
@@ -455,6 +491,8 @@ class RepoPedidos:
         repartidor_nombre: str | None,
         repartidor_celular: str | None,
         entrega_estimada: datetime | None,
+        transportadora: str | None = None,
+        guia: str | None = None,
     ) -> bool:
         """Avanza el estado del pedido y, en el mismo paso, sella el envio.
 
@@ -481,6 +519,10 @@ class RepoPedidos:
             cambios["repartidor_celular"] = repartidor_celular
         if entrega_estimada is not None:
             cambios["entrega_estimada"] = entrega_estimada
+        if transportadora is not None:
+            cambios["transportadora"] = transportadora
+        if guia is not None:
+            cambios["guia"] = guia
         if destino == EstadoPedido.ENTREGADO.value:
             cambios["entregado_en"] = datetime.now(UTC)
         if cambios:

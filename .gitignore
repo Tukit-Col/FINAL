@@ -44,3 +44,6 @@ next-env.d.ts
 
 # Resultados locales de Firecrawl (busquedas y paginas raspadas)
 .firecrawl/
+
+# Cache de geocodificacion (Nominatim) del admin.
+apps/admin/.cache/

@@ -10,10 +10,11 @@ import type {
   DecisionRevision,
   ErrorApi,
   MarcarNoDisponible,
-  PedidoConHistorial,
+  CasoDetalleAdmin,
+  PedidoAdmin,
   ProductoDadoDeAlta,
   SinCoincidencia,
-  SolicitudAvancePedido,
+  SolicitudAvanceAdmin,
   ValidarLinea,
 } from "@tukit/contrato";
 import { conEspera } from "@tukit/contrato";
@@ -132,7 +133,22 @@ export function eliminarTrabajo(trabajoId: string): Promise<void> {
  *  cookie; un 409/422 llega como `FalloApi` con el `campo` en `detalle`. */
 export function avanzarPedido(
   pedidoId: string,
-  cuerpo: SolicitudAvancePedido,
-): Promise<PedidoConHistorial> {
+  cuerpo: SolicitudAvanceAdmin,
+): Promise<PedidoAdmin> {
   return enviar(`/api/logistica/${id(pedidoId)}/avanzar`, cuerpo);
+}
+
+/** Tickets: responde al acudiente (queda en la historia y le llega un aviso). */
+export function responderTicket(casoId: string, texto: string): Promise<CasoDetalleAdmin> {
+  return enviar(`/api/tickets/${id(casoId)}/responder`, { texto });
+}
+
+/** Tickets: mueve el ticket de estado; 409 si la transicion no procede. */
+export function cambiarEstadoTicket(casoId: string, destino: string): Promise<CasoDetalleAdmin> {
+  return enviar(`/api/tickets/${id(casoId)}/estado`, { destino });
+}
+
+/** Tickets: vincula el ticket a un pedido. */
+export function vincularPedidoTicket(casoId: string, pedidoId: string): Promise<CasoDetalleAdmin> {
+  return enviar(`/api/tickets/${id(casoId)}/pedido`, { pedido_id: pedidoId });
 }

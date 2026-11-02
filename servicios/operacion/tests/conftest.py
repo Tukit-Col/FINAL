@@ -37,12 +37,44 @@ async def db() -> AsyncIterator[AsyncSession]:
     await motor.dispose()
 
 
-class IdentidadFalsa:
-    """Devuelve siempre el mismo id sin salir a la red. Registra que le pidieron."""
+OPERADOR = "44444444-4444-5444-8444-444444444444"
+ADMIN = "55555555-5555-5555-8555-555555555555"
+ACUDIENTE = "22222222-2222-5222-8222-222222222222"
+TOKEN_OPERADOR = "token-operador"
+TOKEN_ADMIN = "token-admin"
+TOKEN_ACUDIENTE = "token-acudiente"
 
-    def __init__(self, usuario_id: str | None = None) -> None:
+
+def bearer(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _sesion(usuario: str, rol: str) -> dict:
+    return {"usuario_id": usuario, "correo": f"{rol}@tukit.test", "roles": [{"rol": rol, "ambito": None}]}
+
+
+class IdentidadFalsa:
+    """Devuelve siempre el mismo id sin salir a la red. Registra que le pidieron.
+
+    Tambien valida sesiones (token -> sesion) para la puerta de staff; `caida=True`
+    imita a Identidad sin responder."""
+
+    def __init__(self, usuario_id: str | None = None, *, caida: bool = False) -> None:
         self.usuario_id = usuario_id or str(uuid.uuid4())
         self.llamadas: list[tuple[str, str | None]] = []
+        self.caida = caida
+        self.sesiones = {
+            TOKEN_OPERADOR: _sesion(OPERADOR, "operador"),
+            TOKEN_ADMIN: _sesion(ADMIN, "admin"),
+            TOKEN_ACUDIENTE: _sesion(ACUDIENTE, "acudiente"),
+        }
+
+    async def sesion(self, token: str):
+        if self.caida:
+            from tukit_operacion.remoto import IdentidadCaida
+
+            raise IdentidadCaida("identidad no responde")
+        return self.sesiones.get(token)
 
     async def resolver_contacto(self, correo: str, celular: str | None = None) -> str | None:
         self.llamadas.append((correo, celular))

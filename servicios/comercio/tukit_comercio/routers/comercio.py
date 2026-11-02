@@ -197,7 +197,19 @@ async def ver_pedido(
 
 async def _detalle_staff(repo: RepoPedidos, fila: Any) -> dict[str, Any]:
     pedido = await repo.pedido_completo(fila, con_celular=True)
-    return {**pedido, "historial": await repo.historial_de(fila.id)}
+    if pedido["pago"] is not None:
+        # El id de transaccion de Wompi solo lo necesita el staff para conciliar.
+        pedido["pago"] |= await repo.datos_de_pago_staff(fila.id)
+    entregado_en = _a_datetime(pedido["envio"]["entregado_en"]) if pedido["envio"] else None
+    return {
+        **pedido,
+        "historial": await repo.historial_de(fila.id),
+        "devoluciones": await repo.devoluciones_de(fila.id, entregado_en),
+    }
+
+
+def _a_datetime(iso: str | None) -> datetime | None:
+    return datetime.fromisoformat(iso) if iso else None
 
 
 # ---------------------------------------------------------------------------
@@ -289,6 +301,9 @@ class SolicitudAvance(BaseModel):
     tipo_incidencia: str | None = Field(default=None, max_length=32)
     nota: str | None = Field(default=None, max_length=512)
     entrega_estimada: AwareDatetime | None = None
+    # Despacho por transportadora (alternativa al reparto propio): con ella, la guia es obligatoria.
+    transportadora: str | None = Field(default=None, max_length=128)
+    guia: str | None = Field(default=None, max_length=128)
 
 
 def _uuid_o_422(valor: str, campo: str) -> uuid.UUID:
@@ -818,7 +833,8 @@ async def retractar_orden(
 _MENSAJE_AVANCE = {
     "destino_invalido": "El estado destino no es uno de los del pedido.",
     "transicion_invalida": "No se puede pasar el pedido a ese estado desde el actual.",
-    "despacho_incompleto": "Para despachar hacen falta el nombre y el celular del repartidor.",
+    "despacho_incompleto": "Para despachar hacen falta el nombre y el celular del repartidor, o una transportadora con su guia.",
+    "despacho_sin_guia": "Con transportadora, el numero de guia es obligatorio.",
     "incidencia_sin_tipo": "Una incidencia necesita su tipo.",
     "tipo_incidencia_invalido": "Ese tipo de incidencia no existe.",
     "incidencia_sin_nota": "Si la incidencia es 'otro', describe lo ocurrido en la nota.",
@@ -852,6 +868,8 @@ async def avanzar_pedido(
             "repartidor_celular": solicitud.repartidor_celular,
             "tipo_incidencia": solicitud.tipo_incidencia,
             "nota": solicitud.nota,
+            "transportadora": solicitud.transportadora,
+            "guia": solicitud.guia,
         }
         rechazo = validar_avance(pedido.estado, solicitud.destino, **entradas)
         if rechazo is not None:
@@ -870,6 +888,8 @@ async def avanzar_pedido(
             repartidor_nombre=avance.repartidor_nombre,
             repartidor_celular=avance.repartidor_celular,
             entrega_estimada=solicitud.entrega_estimada,
+            transportadora=avance.transportadora,
+            guia=avance.guia,
         )
         if not movido:
             # Otro avance gano la carrera entre la lectura y el UPDATE. Lanzar
@@ -889,7 +909,9 @@ async def avanzar_pedido(
             tipo_incidencia=avance.tipo_incidencia,
         )
         if avance.aviso is not None:
-            await repo.encolar_aviso_pedido(pedido, avance.aviso, repartidor=avance.repartidor_nombre)
+            await repo.encolar_aviso_pedido(
+                pedido, avance.aviso, repartidor=avance.repartidor_nombre or avance.transportadora
+            )
         if solicitud.destino == EstadoPedido.CANCELADO.value:
             # Como el retracto: el pedido cancelado deja su pago aprobado marcado
             # para reembolso, en la misma transaccion.

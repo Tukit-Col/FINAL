@@ -17,7 +17,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 import pytest_asyncio
-from conftest import IdentidadFalsa
+from conftest import TOKEN_OPERADOR, IdentidadFalsa, bearer
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from tukit_comun.bd import MotorServicio
 from tukit_operacion.api import app
@@ -35,6 +35,9 @@ async def cliente() -> AsyncIterator[httpx.AsyncClient]:
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
         yield http
     await engine.dispose()
+
+
+STAFF = bearer(TOKEN_OPERADOR)
 
 
 def _solicitud(**kw):
@@ -84,7 +87,7 @@ async def test_sugerencia_puede_no_vencer_nunca_pero_peticion_si(cliente):
 
 async def test_bandeja_devuelve_resumen_y_casos(cliente):
     await cliente.post("/v1/operacion/casos", json=_solicitud(categoria="pago"))
-    respuesta = await cliente.get("/v1/operacion/casos")
+    respuesta = await cliente.get("/v1/operacion/casos", headers=STAFF)
     assert respuesta.status_code == 200
     cuerpo = respuesta.json()
     assert set(cuerpo) == {"resumen", "casos"}
@@ -104,7 +107,8 @@ async def test_contacto_no_queda_guardado_en_el_caso(cliente):
         )
     ).json()
     # El caso se pudo abrir y quedo con el usuario_id resuelto por el doble.
-    detalle = (await cliente.get(f"/v1/operacion/casos/{creado['caso_id']}")).json()
+    detalle = (await cliente.get(f"/v1/operacion/casos/{creado['caso_id']}", headers=STAFF)).json()
+    assert detalle["caso_id"] == creado["caso_id"]
     texto = str(detalle)
     assert correo not in texto
     assert celular not in texto
@@ -115,6 +119,6 @@ async def test_contacto_no_queda_guardado_en_el_caso(cliente):
 async def test_caso_inexistente_es_404(cliente):
     import uuid
 
-    respuesta = await cliente.get(f"/v1/operacion/casos/{uuid.uuid4()}")
+    respuesta = await cliente.get(f"/v1/operacion/casos/{uuid.uuid4()}", headers=STAFF)
     assert respuesta.status_code == 404
     assert respuesta.json()["error"] == "caso_no_existe"
