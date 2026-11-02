@@ -44,39 +44,30 @@ la percepción. Su costo es que no conserva el historial de intentos de cada eta
 \label{sec:lenguajes-dev}
 
 La solución llegó a su forma actual por iteraciones sucesivas, cada una en su propio proyecto de
-código. La prueba de concepto, del 29 de junio al 6 de septiembre de 2026, reunió por primera vez
-el pipeline completo: lectura con Tesseract y PyMuPDF, raspado de tiendas, búsqueda en un índice
-FAISS y un optimizador NSGA-II de tres objetivos. El 30 de julio la búsqueda pasó a PostgreSQL, con
-pgvector y trigramas fusionados por rangos. Entre el 31 de julio y el 6 de agosto, un banco de
-alternativas comparó almacenes vectoriales y la recuperación con y sin un modelo de lenguaje, y dejó
-planteada la tarea como una correspondencia con el catálogo, sin generación de texto.
+código. La prueba de concepto (29 de junio al 6 de septiembre de 2026) reunió por primera vez el
+pipeline completo, con Tesseract, un índice FAISS y un NSGA-II de tres objetivos; el 30 de julio la
+búsqueda pasó a PostgreSQL con pgvector. Un banco de alternativas (31 de julio al 6 de agosto)
+comparó almacenes vectoriales y dejó planteada la tarea como una correspondencia con el catálogo,
+sin generación de texto. Del 29 de agosto al 21 de septiembre, los prototipos de tesis sometieron
+cada etapa a experimentos con muestra y métrica: percepción, acuerdo de anotación, embeddings,
+bases de datos y calibración del umbral. En paralelo, el producto se organizó como una flota de
+microservicios con librerías comunes.
 
-Del 29 de agosto al 21 de septiembre, los prototipos de tesis sometieron cada etapa a experimentos
-con muestra y métrica: percepción, acuerdo de anotación, embeddings, bases de datos y calibración
-del umbral. El 14 de septiembre, un prototipo de calibración reunió esos resultados. En paralelo, del 2 al
-18 de septiembre, el producto se organizó como una flota de microservicios con librerías comunes. El
-servicio de búsqueda, del 7 al 17 de septiembre, llevó la recuperación a un servicio propio, y los
-frontales, del 6 al 19 de septiembre, añadieron la revisión de renglones y los perfiles de kit.
-
-El sistema construido, desde el 22 de septiembre y hasta el 24 de octubre,
-reunió ese trabajo en un monorrepositorio con
-despliegue independiente por servicio (ADR 0013). Tiene seis desplegables con código, cinco
-servicios de dominio y la puerta de enlace, sobre cinco bases de datos; el séptimo previsto, la
-ingesta, se reemplazó por el catálogo curado desde la demanda de las listas
+El sistema construido, desde el 22 de septiembre y hasta el 24 de octubre, reunió ese trabajo en un
+monorrepositorio con despliegue independiente por servicio (ADR 0013): seis desplegables con
+código, cinco servicios de dominio y la puerta de enlace, sobre cinco bases de datos. El séptimo
+previsto, la ingesta, se reemplazó por el catálogo curado desde la demanda de las listas
 (Sección~\ref{sec:consolidacion}). Las cuatro etapas se implementaron en Python, incluida la
 optimización con pymoo \citep{blank_pymoo_2020}, porque el cálculo de Amdahl
-\citep{amdahl_validity_1967} del capítulo de diseño acotó en un 21,7\,\% como máximo la reducción
-de latencia de reescribirlas en un lenguaje compilado (Sección~\ref{sec:lenguajes}). La migración
-empezó por identidad, que concentraba la frontera de cumplimiento más urgente, y por catálogo, que
-tenía el defecto de doble maestro (Sección~\ref{sec:monorepo}). Durante ella, las funciones de
-aptitud detectaban si el código portado reintroducía una referencia directa a otro dominio
-\citep{ford_building_2017}. La medición del umbral de resolución del 4 de octubre pertenece a una
-línea de desarrollo que no está integrada en el sistema construido, y sus cifras se citan como
-reportadas. El afinamiento de los kits, del 11 al 15 de octubre, se integró el 22 de octubre.
-Entre el 19 y el 23 de octubre se añadieron la recuperación ante las caídas del catálogo y de
-los procesos de fondo, las sugerencias de dirección, el alta de colegios no aliados y las colas
-por RabbitMQ (ADR 0031 a 0037). El 24 de octubre se sumaron la caché y el límite de tasa con
-Redis (ADR 0038).
+\citep{amdahl_validity_1967} acotó en un 21,7\,\% como máximo la reducción de latencia de
+reescribirlas en un lenguaje compilado (Sección~\ref{sec:lenguajes}). La migración empezó por
+identidad, que concentraba la frontera de cumplimiento más urgente, y por catálogo, que tenía el
+defecto de doble maestro (Sección~\ref{sec:monorepo}). La medición del umbral de resolución del 4
+de octubre pertenece a una línea de desarrollo no integrada en el sistema construido, y sus cifras
+se citan como reportadas. El afinamiento de los kits (11 al 15 de octubre) se integró el 22 de
+octubre, y entre el 19 y el 24 de octubre se añadieron la recuperación ante caídas, las
+sugerencias de dirección, el alta de colegios no aliados, las colas por RabbitMQ y la caché con
+Redis (ADR 0031 a 0038).
 
 La Tabla~\ref{tab:rag-fases} resume, por fase de CRISP-DM, el resultado de esas iteraciones para
 las 84 estrategias de recuperación: las implementadas en el sistema construido, las que quedaron en
@@ -88,7 +79,6 @@ construido. Y la última etapa no genera texto libre: el kit es una selección d
 catálogo validada por esquema, aunque la base no impone esa pertenencia con una clave foránea,
 porque la línea del kit y el catálogo están en bases distintas.
 
-\input{sections/tabla_rag_fases.tex}
 
 % =====================================================================
 \subsection{Percepción documental}

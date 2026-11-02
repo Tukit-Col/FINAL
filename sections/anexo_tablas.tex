@@ -1,0 +1,179 @@
+\subsection{Tablas de apoyo de los capítulos}
+\label{anx:tablas}
+
+En este anexo se reúnen las tablas extensas a las que remiten los capítulos III, V y VII. Cada capítulo explica en su texto la conclusión que la tabla respalda.
+
+\begin{table}[htbp]
+\centering
+\caption{Reparto de tablas por contexto delimitado}
+\label{tab:reparto}
+\small
+\begin{tabular}{@{}lrp{8.4cm}@{}}
+\toprule
+\textbf{Servicio} & \textbf{Tablas} & \textbf{Responsabilidad} \\
+\midrule
+Identidad     & 16 & Personas, tenencia, autorización y consentimiento. Frontera de cumplimiento \\
+Catálogo      & 19 & Qué productos existen y a qué precio público. Reconstruible desde sus archivos de datos (CF-02a) \\
+Inteligencia  & 12 & Percepción, normalización, resolución y optimización \\
+Comercio      & 18 & Pedidos, inventario, pagos y entrega. Irremplazable \\
+Operación     & 9  & Casos, notificaciones, auditoría y telemetría. Solo anexar \\
+\midrule
+\textbf{Total} & \textbf{74} & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Políticas inejecutables y su corrección en el esquema}
+\label{tab:politicas}
+\small
+\begin{tabular}{@{}p{4.3cm}p{5.0cm}p{4.4cm}@{}}
+\toprule
+\textbf{Política enunciada} & \textbf{Por qué era inejecutable} & \textbf{Corrección} \\
+\midrule
+Revocar el consentimiento del tratamiento de un menor &
+La tabla registraba que el acudiente autorizó el tratamiento de un hijo, pero ninguna
+columna indicaba de cuál. Con dos hijos, una fila los cubría de forma indistinguible &
+Referencia a la matrícula, con restricción de coherencia contra el régimen \\
+\addlinespace
+Destruir la llave de la matrícula 12 meses después del cierre &
+No existía columna que registrara el cierre &
+Fecha de cierre de la matrícula \\
+\addlinespace
+Informar al titular que su dato fue suprimido &
+El proceso marcaba la solicitud como completada tras anonimizar la fila local, sin esperar
+confirmación de ningún otro servicio &
+Estado de propagación y registro de los servicios que confirmaron \\
+\addlinespace
+Conservar evidencia de lo revocado &
+Una actualización sobrescribía la fila, eliminando la constancia de qué se autorizó y
+cuándo &
+Columnas de vigencia con índice único parcial sobre la fila vigente \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Desglose de latencia por etapa (lista de 20 ítems, mediana)}
+\label{tab:latencia}
+\small
+\begin{tabular}{@{}p{6.2cm}rrp{3.2cm}@{}}
+\toprule
+\textbf{Etapa} & \textbf{p50 (ms)} & \textbf{\% total} & \textbf{Naturaleza} \\
+\midrule
+Expansión por grafo de sustituibilidad & 33.470,0 & 95,28 & CPU en Python \\
+Embedding de la consulta & 832,0 & 2,37 & CPU nativo (torch) \\
+Optimización NSGA-II & 362,2 & 1,03 & CPU en Python \\
+Percepción por reconocimiento óptico & 183,2 & 0,52 & CPU nativo \\
+Consultas a la base de datos & 274,3 & 0,78 & Espera de E/S \\
+Resto & 5,5 & 0,02 & \\
+\midrule
+\textbf{Total} & \textbf{35.127,2} & \textbf{100,00} & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Registros de decisión arquitectónica estructurales}
+\label{tab:adr}
+\small
+\begin{tabular}{@{}cp{5.0cm}p{7.6cm}@{}}
+\toprule
+\textbf{ADR} & \textbf{Decisión} & \textbf{Fundamento} \\
+\midrule
+0011 & Separar el catálogo del comercio & Elimina el doble maestro del catálogo. Los precios
+no se unifican: el costo contractual y el precio público observado son hechos distintos en
+lados opuestos de la asimetría de recuperación \\
+\addlinespace
+0012 & Matrícula como ancla de tenencia y roles con ámbito & Un acudiente puede tener hijos
+en colegios distintos: la tenencia no reside en la persona \\
+\addlinespace
+0013 & Monorrepositorio con despliegue independiente & Separación entre vista de
+desarrollo y vista física; fronteras instrumentadas con funciones de aptitud \\
+\addlinespace
+0014 & Dirección de entrega: libreta y copia congelada & Un hecho histórico y un dato
+editable son entidades distintas aunque se escriban igual \\
+\addlinespace
+0015 & Dónde se evalúa el ámbito cuando el ancla vive en otra base & Una política de fila
+no puede unirse contra otra base: se copia la clave de ámbito, no la lista de matrículas, y
+se deniega por omisión. Sigue siendo diseño (Sección~\ref{sec:defectos}) \\
+\addlinespace
+0037 & Eventos y trabajos por RabbitMQ, con la base de datos como respaldo & Una cola por
+consumidor, con reintentos y descartados; sin RabbitMQ, el sistema sigue por sondeo de las
+bandejas de salida \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering\footnotesize
+\setlength{\tabcolsep}{2pt}
+\renewcommand{\arraystretch}{1.35}
+\newcommand{\enc}[2]{{\scriptsize\begin{tabular}[b]{@{}c@{}}#1\\#2\end{tabular}}}
+\caption{Comparación de Tukit con las soluciones existentes.}
+\label{tab:comparacion-soluciones}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{3.4cm}
+  >{\centering\arraybackslash}p{1.25cm}
+  >{\centering\arraybackslash}p{1.55cm}
+  *{5}{>{\centering\arraybackslash}p{1.25cm}}
+  >{\columncolor{gray!15}\centering\arraybackslash}p{1.25cm}@{}}
+\toprule
+\enc{}{\textbf{Capacidad}} &
+\enc{Teacher-}{Lists} &
+\enc{Amazon}{School Lists} &
+\enc{1st Day}{Supplies} &
+\enc{Pana-}{mericana} &
+\enc{Grupo}{Éxito} &
+\enc{Papelería}{Primavera} &
+\enc{Mercado}{Libre} &
+\enc{\textbf{Tukit}}{} \\
+\midrule
+Parte de la lista oficial del colegio
+  & \cumple & \cumple & \cumple & \nocumple & \nocumple & \nocumple & \nocumple & \cumple \\
+Lee listas en foto, PDF o texto
+  & \nocumple & \nocumple & \nocumple & \nocumple & \nocumple & \nocumple & \nocumple & \cumple \\
+Reconoce el vocabulario escolar local
+  & \nocumple & \nocumple & \nocumple & \nocumple & \nocumple & \nocumple & \nocumple & \cumple \\
+Arma el kit completo
+  & \parcial & \parcial & \cumple & \nocumple & \parcial & \parcial & \parcial & \cumple \\
+Ofrece un catálogo general, más allá de la lista escolar
+  & \parcial & \cumple & \nocumple & \cumple & \cumple & \cumple & \cumple & \nocumple \\
+Considera productos de varias tiendas
+  & \parcial & \nocumple & \nocumple & \nocumple & \nocumple & \nocumple & \parcial & \cumple \\
+Controla directamente su inventario y disponibilidad
+  & \nocumple & \cumple & \cumple & \cumple & \cumple & \cumple & \parcial & \nocumple \\
+Ofrece varias alternativas según presupuesto y preferencias
+  & \nocumple & \nocumple & \nocumple & \nocumple & \parcial & \nocumple & \parcial & \cumple \\
+Disponible en Colombia
+  & \nocumple & \nocumple & \nocumple & \cumple & \cumple & \cumple & \cumple & \cumple \\
+\bottomrule
+\end{tabular}
+
+\vspace{2pt}
+{\footnotesize \cumple\ Cumple \quad \parcial\ Cumple parcialmente \quad \nocumple\ No cumple}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption[Auditorías de los kits del Colegio Agustiniano Ciudad Salitre]{Auditorías de los kits del Colegio Agustiniano Ciudad Salitre, 11 y 12 de octubre de
+2026; las dos últimas, posteriores a la versión evaluada (cifras reportadas; costo de los trece kits de cada perfil)}
+\label{tab:kits}
+\small
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+\textbf{Auditoría} & \textbf{Comprables} & \textbf{Huecos} & \textbf{Cobros} &
+\multicolumn{2}{c}{\textbf{Costo (millones de pesos)}} \\
+\cmidrule(l){5-6}
+ & \textbf{que cumplen} & \textbf{declarados} & \textbf{sin cumplir} & \textbf{Ahorrador} &
+\textbf{Premium} \\
+\midrule
+1 (11 oct.) & 263 de 888 (29,6\,\%) & 240 & 589 & 13,9 & 32,0 \\
+2 (11 oct.) & 465 de 888 (52,4\,\%) & 385 & 242 & 9,9 & 17,6 \\
+3 (11 oct.) & 617 de 886 (69,6\,\%) & 220 & 49 & 9,0 & 14,2 \\
+4 (12 oct.) & 758 de 885 (85,6\,\%) & 69 & 58 & 8,1 & 17,3 \\
+\bottomrule
+\end{tabular}
+\end{table}

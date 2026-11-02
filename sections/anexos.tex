@@ -64,7 +64,7 @@ La Tabla~\ref{tab:constantes} reúne cada constante numérica del sistema con su
 {\footnotesize
 \setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.1}
-\begin{longtable}{@{}p{3.1cm}p{2.3cm}p{2.5cm}p{4.7cm}p{1.6cm}@{}}
+\begin{longtable}{@{}p{2.6cm}p{4.3cm}p{1.9cm}p{3.7cm}p{1.5cm}@{}}
 \caption{Constantes numéricas del sistema, con su origen y su estado.}\label{tab:constantes}\\
 \toprule
 Constante & Valor & Módulo & Origen & Estado \\
@@ -96,7 +96,7 @@ Rango de precio en tiendas & \$1.000 a \$400.000 & catálogo & Descarta accesori
 \multicolumn{5}{@{}l}{\emph{Optimización}}\\
 Límite de enumeración & 4.096 ($2^{12}$) & inteligencia & Por debajo de ese tamaño del espacio el frente exacto se calcula en milisegundos; por encima se usa NSGA-II & Vigente \\
 Población & $\min(200,\max(40,12n))$, par & inteligencia & Escala con las $n$ líneas decidibles; el par evita desperdiciar un individuo & Vigente \\
-Generaciones & $\min(120,\max(30,20\log_{10}|\mathcal{E}|))$ & inteligencia & Escala con el logaritmo del espacio $|\mathcal{E}|$ de búsqueda & Vigente \\
+Generaciones &\raggedright $\min(120,\max(30,\,20\log_{10}|\mathcal{E}|))$ & inteligencia & Escala con el logaritmo del espacio $|\mathcal{E}|$ de búsqueda & Vigente \\
 Cruce SBX & $p_c=0{,}9$, $\eta_c=15$ & inteligencia & Valores estándar de \citet{deb_simulated_1995} & Vigente \\
 Mutación polinomial & $p=1$, $\eta_m=20$ & inteligencia & Valores estándar de \citet{deb_combined_1996} & Vigente \\
 Semilla & 0 & inteligencia & Reproducibilidad del frente entre ejecuciones & Vigente \\
@@ -133,3 +133,6 @@ Caché de vectores & 24 h & catálogo & Evita recalcular el vector de un rengló
 \item[ADR] Registro de decisión de arquitectura.
 \item[Concepto canónico] Clase de productos equivalentes del catálogo a la que se asigna un renglón de la lista.
 \end{description}
+\input{sections/anexo_tablas}
+\input{sections/anexo_figuras}
+\input{sections/anexo_ampliaciones}

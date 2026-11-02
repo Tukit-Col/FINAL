@@ -38,7 +38,7 @@ OCR con reglas heurísticas & 0,298 & 0,419 \\
 
 Los valores se recalcularon desde la salida conservada de la comparación, con su regla de
 emparejamiento (similitud mínima de 0,75), sin volver a ejecutar los motores. El acta del OE3 consigna 0,925, un valor que no proviene de
-esa salida y que por eso no se usa en este capítulo. La Figura~\ref{fig:bench-F3-2} añade la latencia por documento que registra la misma
+esa salida y que por eso no se usa en este capítulo. La Figura~\ref{fig:bench-F3-2} (Anexo~\ref{anx:figuras}) añade la latencia por documento que registra la misma
 salida; puede incluir esperas por el límite de tasa, de modo que no sirve para verificar DP-04 del
 SRS. La latencia de la percepción en el sistema construido se mide con el modelo real en el segundo
 nivel de las pruebas (ESC-D1 del ATAM), porque la verificación del primer nivel usó una percepción
@@ -52,7 +52,7 @@ documentos y una sola corrida por motor. La tercera es que el sistema construido
 Gemini, con temperatura 0 y sin semilla. La ventaja del modelo multimodal frente a las reglas es
 amplia, pero su magnitud está sesgada a favor del motor elegido.
 
-\input{\graficasdir/F3-2.tex}
+
 
 % =====================================================================
 \subsection{Recuperación y normalización}
@@ -65,15 +65,15 @@ descrita en la Sección~\ref{sec:normalizacion}.
 
 \subsubsection{Latencia}
 
-La léxica pura tuvo un p50 de 6,66\,ms y una media de 40,60\,ms; la léxica expandida, de 6,59 y
-52,76\,ms; la vectorial densa, de 46,51 y 106,61\,ms, y la híbrida con RRF, de 53,17 y 155,51\,ms.
-La medición registra el tiempo y el número de resultados, no la relevancia, y no documenta un
-calentamiento; la media está entre dos y ocho veces el p50 por las colas largas. En la misma fecha, con 50 consultas
-en CPU, pgvector con índice HNSW tuvo una media de 5,06\,ms (p95 de 6,22\,ms); la búsqueda exacta en
-pgvector, 363,68\,ms, y el índice HNSW de FAISS, 0,098\,ms. El QA acepta los 5,06\,ms de pgvector
-por sus garantías transaccionales. La latencia de la recuperación del sistema construido se
-mide aparte, porque la prueba de carga de la verificación midió la consulta del catálogo y no la
-recuperación de candidatos (Sección~\ref{sec:calidad})\pendienteEvidencia{latencia de la recuperacion de candidatos en el sistema construido}.
+La léxica pura tuvo un p50 de 6,66\,ms; la léxica expandida, de 6,59\,ms; la vectorial densa, de
+46,51\,ms, y la híbrida con RRF, de 53,17\,ms (medias de 40,60, 52,76, 106,61 y 155,51\,ms). La
+medición registra el tiempo y el número de resultados, no la relevancia, y no documenta un
+calentamiento. En la misma fecha, con 50 consultas en CPU, pgvector con índice HNSW tuvo una media
+de 5,06\,ms (p95 de 6,22\,ms), la búsqueda exacta 363,68\,ms y el HNSW de FAISS 0,098\,ms. El QA
+acepta los 5,06\,ms por las garantías transaccionales de pgvector. La latencia de la recuperación
+del sistema construido se mide aparte, porque la prueba de carga de la verificación midió la consulta
+del catálogo y no la recuperación de candidatos
+(Sección~\ref{sec:calidad})\pendienteEvidencia{latencia de la recuperacion de candidatos en el sistema construido}.
 
 \subsubsection{Calidad de la recuperación}
 
@@ -92,7 +92,7 @@ HNSW frente a la búsqueda exacta, y el programa que la produjo no se conserva. 
 alternativas, la búsqueda exacta sobre 10.000 vectores sintéticos mantuvo un Recall@10 de 1,0. Este
 capítulo no afirma un valor de Recall@10 para los índices aproximados.
 
-\input{\graficasdir/F5-2.tex}
+
 
 \subsubsection{Acuerdo en la clasificación del corpus}
 
@@ -114,7 +114,7 @@ son intercambiables. El de 0,630 se calibró con 542 ítems y un AUC de 0,880, p
 etiquetas (34,3\,\%) se propagaron a descripciones idénticas. La muestra efectiva es de 356
 descripciones, así que los intervalos que tratan los 542 ítems como independientes son más estrechos
 de lo justificado, y el mismo conjunto sirvió para elegir el umbral y para medirlo. La
-Figura~\ref{fig:bench-F5-2} muestra cómo cambian la cobertura y la precisión del primer candidato
+Figura~\ref{fig:bench-F5-2} (Anexo~\ref{anx:figuras}) muestra cómo cambian la cobertura y la precisión del primer candidato
 al desplazarlo; en 0,630 se resuelven 354 de los 542 ítems (65,3\,\%), y 307 de ellos (86,7\,\%)
 correctamente.
 
@@ -157,27 +157,8 @@ los que Tukit no vende, como los uniformes o los textos con título. Entre una a
 siguiente se ajustaron la comparación de atributos y la curaduría de las listas y del catálogo, y
 antes de la cuarta el catálogo pasó de 679 a 1.030 productos con precio (Tabla~\ref{tab:kits}).
 
-\begin{table}[htbp]
-\centering
-\caption[Auditorías de los kits del Colegio Agustiniano Ciudad Salitre]{Auditorías de los kits del Colegio Agustiniano Ciudad Salitre, 11 y 12 de octubre de
-2026; las dos últimas, posteriores a la versión evaluada (cifras reportadas; costo de los trece kits de cada perfil)}
-\label{tab:kits}
-\small
-\begin{tabular}{@{}lrrrrr@{}}
-\toprule
-\textbf{Auditoría} & \textbf{Comprables} & \textbf{Huecos} & \textbf{Cobros} &
-\multicolumn{2}{c}{\textbf{Costo (millones de pesos)}} \\
-\cmidrule(l){5-6}
- & \textbf{que cumplen} & \textbf{declarados} & \textbf{sin cumplir} & \textbf{Ahorrador} &
-\textbf{Premium} \\
-\midrule
-1 (11 oct.) & 263 de 888 (29,6\,\%) & 240 & 589 & 13,9 & 32,0 \\
-2 (11 oct.) & 465 de 888 (52,4\,\%) & 385 & 242 & 9,9 & 17,6 \\
-3 (11 oct.) & 617 de 886 (69,6\,\%) & 220 & 49 & 9,0 & 14,2 \\
-4 (12 oct.) & 758 de 885 (85,6\,\%) & 69 & 58 & 8,1 & 17,3 \\
-\bottomrule
-\end{tabular}
-\end{table}
+% Tabla tab:kits movida al Anexo A.3 (tablas del cuerpo)
+
 
 El cumplimiento subió en cada auditoría. Los cobros de un producto que no corresponde a lo pedido
 bajaron de 589 a 49 en las tres primeras y subieron a 58 en la cuarta, sobre todo por 23 renglones
@@ -223,11 +204,8 @@ octubre. El tiempo en el peor caso se mide en la corrida completa sobre el siste
 \subsection{Verificación de la versión evaluada}
 \label{sec:calidad}
 
-Los porcentajes de cobertura que citan algunos documentos sobre los microservicios anteriores no
-son mediciones. Son los umbrales mínimos que su integración continua exigía para aprobar: 90\,\% en
-cuentas y en comercio, 84\,\% en instituciones y 80\,\% en búsqueda. Esas ejecuciones terminaron con
-éxito el 18 de septiembre de 2026, de modo que la cobertura alcanzó al menos el umbral, pero no se
-conserva el valor medido.
+Los porcentajes de cobertura que citan algunos documentos sobre los microservicios anteriores son
+los umbrales mínimos que su integración continua exigía (80\,\% a 90\,\%), no mediciones.
 
 La versión evaluada se verificó con un plan de diez fases, distintas de las cinco del proyecto:
 la línea base (0), la matriz de requisitos no funcionales (1), las pruebas unitarias, de
@@ -254,32 +232,7 @@ de un hallazgo ya anticipado, 8 requieren componentes que el sistema construido 
 1 es el protocolo con usuarios (Sección~\ref{sec:oe5}).
 Quedan 78 hallazgos abiertos: 14 de severidad alta, 56 de severidad media y 8 de severidad baja.
 
-El primer nivel de las fases 7 a 9 dejó 18 ensayos, de los que 14 cumplen y 4 no. En la carga, una
-rampa hasta 100 usuarios generó 27.894 peticiones sin errores, y el percentil 95 de la consulta del
-catálogo fue de 22~ms con un usuario y de 160~ms con cien, por debajo de los 300~ms de la meta. No
-hubo ningún rechazo por límite de tasa porque la versión evaluada no tenía limitador, de modo que en
-ella esa meta no se cumple; el sistema construido añade uno con Redis, cuya medición se incluye en la corrida completa
-\pendienteEvidencia{prueba de limite de tasa con Redis}. En la degradación, siete de diez caídas de un componente cumplieron: los demás servicios
-siguieron respondiendo sin errores y se recuperaron en 2,5~s o menos. Con el catálogo colgado, el
-disyuntor abrió a los 26,3~s, dentro de los 30~s del escenario ESC-R2, porque cada intento falló
-en unos 5~s. Si cada intento agotara su espera, el modelo da 300,8~s desde inteligencia y 150,8~s
-desde comercio. El peor caso se acotó con ese modelo y no se midió; se corrige en el endurecimiento productivo
-(Sección~\ref{sec:trabajo-futuro}). Pasados los
-30~s, con diez llamadas simultáneas, el disyuntor deja pasar las diez en lugar de una sola de
-prueba.
-
-Las tres caídas que no cumplieron dejaron ver tres limitaciones de la versión evaluada. Con el
-catálogo detenido, subir una lista respondía con un error 500 y la lista no se guardaba. Después de
-caer la base de datos o el intermediario de mensajes, los procesos de fondo morían y no se
-reiniciaban. Y un mismo pago producía dos avisos al acudiente, sin cobro doble. El sistema
-construido corrige las tres. Con el catálogo caído, la subida responde 202, guarda lo percibido y
-la lista se importa cuando el catálogo vuelve (ADR 0031). Los procesos de fondo sobreviven a las
-caídas pasajeras de la base o del intermediario, aunque un error de programación todavía los
-detiene (ADR 0032), y un evento produce un solo aviso (ADR 0033). La corrección se verificó el 20
-de octubre de 2026 en una versión de trabajo, antes de integrarla: la subida responde 202 en
-33~ms y se recupera en 2,7~s, los procesos de fondo se recuperan en 7,1~s y 6,9~s, y el pago
-produce un solo aviso. Esa verificación no volvió a correr los demás ensayos, que se repiten en la corrida completa
-sobre el sistema construido\pendienteEvidencia{corrida completa de la verificacion sobre el sistema construido}.
+El primer nivel de las fases 7 a 9 dejó 18 ensayos, de los que 14 cumplen y 4 no. En la carga, 100 usuarios generaron 27.894 peticiones sin errores y el percentil 95 de la consulta del catálogo fue de 160~ms, por debajo de los 300~ms de la meta; la versión evaluada no tenía limitador de tasa, por lo que esa meta no se cumple en ella (el sistema construido añade uno con Redis\pendienteEvidencia{prueba de limite de tasa con Redis}). En la degradación, siete de diez caídas cumplieron. Las tres que no revelaron limitaciones de la versión evaluada (subida con error 500, procesos de fondo que no se reiniciaban y aviso de pago duplicado), que el sistema construido corrige (ADR 0031, 0032 y 0033); la verificación de esa corrección no repitió los demás ensayos, que se repiten en la corrida completa\pendienteEvidencia{corrida completa de la verificacion sobre el sistema construido}. El detalle de la carga, el disyuntor y las tres caídas está en el Anexo~\ref{anx:ampliaciones}.
 
 La corrida completa sobre el sistema construido incluye lo que se añadió después de la versión
 evaluada: las colas por RabbitMQ, la caché y el límite de tasa con Redis, las sugerencias de
@@ -300,70 +253,7 @@ dos revisaron el código de los microservicios anteriores. La de autorización r
 entrada y encontró 22 sin una comparación completa de ámbito: 8 sin ninguna y 14 con una parcial.
 El Anexo~M registra catorce defectos, dos críticos y cinco de severidad alta.
 
-\subsubsection{Defectos de los microservicios anteriores}
-
-El de mayor alcance estaba en las políticas de seguridad a nivel de fila de las tablas con datos de
-estudiantes. La condición base concedía visibilidad de la tabla completa cuando el contexto de
-usuario no estaba establecido, de modo que el error más probable en un sistema distribuido, que un
-servicio olvide fijar ese contexto, otorgaba acceso irrestricto. Una segunda cláusula daba acceso
-completo al rol de administrador comparando solo el identificador del usuario, sin ancla de ámbito,
-y ese defecto motivó el modelo de autorización con ámbito del capítulo de diseño. El ADR 0015 lo
-registra en 16 tablas de cinco servicios y advierte que corregirlo va antes que su propia decisión;
-las migraciones posteriores conservaban la apertura, sin pruebas de regresión. Entre los demás, el
-manejador genérico de errores de validación devolvía al cliente el valor rechazado, contraseña
-incluida, y la supresión de datos se marcaba como completada sin confirmación de los servicios.
-
-\subsubsection{Estado en el sistema construido}
-
-El sistema construido no tiene políticas de seguridad a nivel de fila. El ámbito se controla en la
-aplicación, con la cadena de contención de identidad, que falla cerrada
-(Sección~\ref{sec:autorizacion}); las cifras de 152 y 22 son las de la auditoría, no una medición
-propia. De los catorce defectos del Anexo~M, dos están corregidos: el valor rechazado ya no vuelve
-al cliente, y el correo del acudiente ya no queda en un registro que la supresión no alcanza. El
-texto de la lista sin depurar se corrigió para la lista oficial, pero sigue en el documento que
-carga el acudiente; la depuración del nombre se sustituyó por la minimización
-(Sección~\ref{sec:percepcion-dev}), salvo en ese mismo documento. Los tres defectos de la supresión
-cambiaron de forma, pero la supresión sigue sin mecanismo: el estado de propagación existe en el
-modelo, sin publicador ni consumidor del evento.
-
-Cuatro siguen vigentes: la gestión de cuentas no deja registro de auditoría, el consentimiento por
-finalidad no se escribe ni se consulta, la respuesta de la importación de listas guarda el extracto
-completo del documento y ninguna tabla de auditoría tiene una política de purga. Otro no tiene
-efecto mientras no se escriba el registro de auditoría. Uno es parcial: las preferencias y los pesos
-del acudiente están cifrados, pero la razón de la recomendación queda en claro y no se borra. El de
-la anonimización no es evaluable, porque no hay ese proceso.
-
-Un defecto de comercio quedó corregido en la versión evaluada. La consulta de los pedidos del
-acudiente toma el usuario de la sesión, validada con identidad, e ignora el que llegue en la
-consulta; el detalle, el pago y la cancelación de un pedido propio también exigen sesión, y un
-pedido ajeno responde 404. La puerta de enlace sigue sin exigir sesión.
-
-En el sistema construido siguen abiertos otros defectos. La consulta de contactos del servicio de identidad devuelve el correo de
-cualquier usuario activo sin autenticación, y las rutas de los paneles de catálogo, inteligencia y
-operación no exigen sesión ni rol. Cuatro caminos crean matrículas, y solo uno, el registro de un
-hijo desde la cuenta del acudiente, escribe el consentimiento del menor. El celular del acudiente se
-guarda sin cifrar en la base de identidad.
-
-Las pruebas propias del sistema no detectaron ninguno de estos defectos. Medir cuánto código
-ejecutan no dice si buscan las condiciones adversas correctas, y varias comprueban garantías leyendo
-el código fuente en lugar de ejecutar el comportamiento. La verificación de la versión evaluada
-(Sección~\ref{sec:calidad}) los confirmó y encontró otros. Un kit se puede comprar sin sesión, aun
-mientras espera revisión, y varias rutas internas aceptan llamadas sin verificar quién llama. Las
-cinco bases de datos comparten un mismo rol de acceso, de modo que las credenciales de cualquier
-servicio leen los usuarios de identidad. La página del documento cargado sale sin depurar hacia el
-proveedor del modelo (\mbox{PE-06}), y el nombre ficticio de las pruebas quedó guardado. El retracto existe
-en comercio, pero ninguna aplicación lo ofrece y la puerta de enlace no lo expone; además, se acepta
-pasado el plazo legal y no libera la reserva. Un pedido de 100.000 unidades fue aceptado para pago.
-La respuesta de la puerta de enlace expone direcciones internas, el mensaje de un trabajo fallido
-contiene la consulta SQL con sus parámetros y, sin la llave de cifrado, el cifrador guarda en claro
-sin avisar.
-
-La exposición de estos defectos tiene una consecuencia de alcance. Las pruebas con usuarios usaron
-estudiantes ficticios y una pasarela de pruebas, de modo que ningún dato real de menores ni ningún
-cobro real quedó expuesto. Cerrar los defectos que siguen abiertos antes de recibir familias reales
-forma parte del endurecimiento productivo que se delimita en la
-Sección~\ref{sec:trabajo-futuro}. El retracto, que la Ley 1480 de 2011 reconoce al comprador, se
-completó en la aplicación del acudiente y en la puerta de enlace\pendienteEvidencia{retracto ejercible desde la aplicacion, con liberacion de la reserva y plazo legal}.
+La auditoría encontró defectos de gravedad desigual. El de mayor alcance estaba en las políticas de seguridad a nivel de fila, que concedían la tabla completa cuando el contexto de usuario no estaba fijado (ADR 0015, 16 tablas de cinco servicios); el sistema construido no las tiene y controla el ámbito en la aplicación, con una cadena de contención de identidad que falla cerrada (Sección~\ref{sec:autorizacion}). De los catorce defectos del Anexo~M, dos están corregidos, uno es parcial, cuatro siguen vigentes y uno no es evaluable. Las pruebas propias no detectaron ninguno; la verificación de la versión evaluada (Sección~\ref{sec:calidad}) los confirmó. El detalle está en el Anexo~\ref{anx:ampliaciones}.
 
 % =====================================================================
 \subsection{Resultados del control de calidad}

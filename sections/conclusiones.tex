@@ -8,34 +8,9 @@ En esta sección se analiza el impacto del trabajo en dos planos. Primero se des
 
 \subsubsection{Impacto en la ingeniería de sistemas}
 
-Además del sistema construido, el trabajo deja tres prácticas de ingeniería que se pueden
-trasladar a otros proyectos, y cada una tiene un límite. Primero, la arquitectura se eligió
-comparando alternativas con el método ATAM \citep{bass_software_2021}: un monolito modular,
-microservicios de grano fino y la variante de grano grueso adoptada. La matriz ponderada del
-documento ATAM da 3,91 sobre 5 a la variante elegida, frente a 3,44 y 2,82; el acta del
-segundo objetivo había registrado 4,27 en una evaluación anterior, con otro conjunto de
-alternativas. La decisión se apoyó en impulsores comprobables (recuperabilidad asimétrica,
-frontera de cumplimiento y perfil de recurso heterogéneo) y no en la escalabilidad invocada
-al principio, que el cálculo de carga descartó por órdenes de magnitud.
+Además del sistema construido, el trabajo deja tres prácticas de ingeniería trasladables a otros proyectos, cada una con su límite. Primero, la arquitectura se eligió comparando alternativas con el método ATAM \citep{bass_software_2021}: un monolito modular, microservicios de grano fino y la variante de grano grueso adoptada, que obtuvo 3,91 sobre 5 en la matriz ponderada frente a 3,44 y 2,82 (el acta del segundo objetivo registraba 4,27 con otro conjunto de alternativas). La decisión se apoyó en impulsores comprobables (recuperabilidad asimétrica, frontera de cumplimiento y perfil de recurso heterogéneo) y no en la escalabilidad invocada al principio, que el cálculo de carga descartó por órdenes de magnitud.
 
-Segundo, el sistema se auditó más allá de sus requisitos funcionales. Las dos auditorías del
-segundo objetivo revisaron el código de los servicios anteriores. La de autorización encontró
-22 de 152 puntos de entrada sin una comparación completa de ámbito, y la de datos personales,
-catorce hallazgos, entre ellos políticas de seguridad a nivel de fila que fallaban abiertas
-cuando faltaba el contexto de usuario. El sistema construido corrigió una parte: ya no devuelve
-los valores rechazados en los errores, no copia el correo del acudiente en los avisos y no
-guarda el texto de la lista oficial. El ADR 0015 había decidido copiar las claves de ámbito
-en cada tabla protegida y escribir contra ellas las políticas de fila; el sistema construido no
-tiene esas políticas y controla el ámbito en la aplicación. Los
-anexos de auditoría de autorización y de datos personales registran la situación de cada
-hallazgo, y la Sección~\ref{sec:defectos} reúne los defectos que siguen abiertos. Tercero, las
-fronteras entre servicios pasaron de convención documental a funciones de aptitud ejecutables
-\citep{ford_building_2017}: doce pruebas contrastan el código con el manifiesto y otras
-veintiocho comprueban que esas pruebas detectan infracciones plantadas. La integración continua
-las ejecuta, aunque 11 de sus 12 ejecuciones registradas hasta el final de septiembre
-terminaron en fallo y su estado en la versión evaluada no se comprobó. Las tres prácticas sirven a un proyecto que deba sostener ante terceros que su
-diseño hace lo que declara, siempre que el seguimiento de los hallazgos forme parte del
-método.
+Segundo, el sistema se auditó más allá de sus requisitos funcionales. La auditoría de autorización encontró 22 de 152 puntos de entrada sin una comparación completa de ámbito, y la de datos personales, catorce hallazgos. El sistema construido corrigió una parte y reemplazó las políticas de fila del ADR 0015 por un control de ámbito en la aplicación; los anexos registran la situación de cada hallazgo y la Sección~\ref{sec:defectos} reúne los que siguen abiertos. Tercero, las fronteras entre servicios pasaron de convención documental a funciones de aptitud ejecutables \citep{ford_building_2017}: doce pruebas contrastan el código con el manifiesto y otras veintiocho comprueban que detectan infracciones plantadas. La integración continua las ejecuta, aunque 11 de sus 12 ejecuciones registradas hasta fines de septiembre fallaron y su estado en la versión evaluada no se comprobó. Las tres prácticas sirven a un proyecto que deba sostener ante terceros que su diseño hace lo que declara, siempre que el seguimiento de los hallazgos forme parte del método.
 
 \subsubsection{Impacto en contextos globales, económicos, ambientales y sociales}
 
@@ -79,8 +54,8 @@ OE & Evidencia & Sección & Estado \\
 OE1 & Corpus de 17 colegios, 3.608 renglones, 1.451 formas de nombrar y 99 conceptos canónicos; encuesta (n=60) & Cap.~III y IV & Cumplido \\
 OE2 & Comparación ATAM de tres alternativas, árbol de utilidad de 17 escenarios, vistas 4+1 y 38 ADR & Cap.~V & Cumplido \\
 OE3 & F1 micro de 0,948 en lectura (CGS-10); resolución con $\tau$ calibrado; NL2C & Sec.~\ref{sec:percepcion}, \ref{sec:optimizacion-cal} y~\ref{sec:nl2c} & Cumplido, con las amenazas de la Sec.~\ref{sec:amenazas} \\
-OE4 & Optimizador de cuatro objetivos, igualdad con el óptimo exacto en 174 listas, MAUT, hipervolumen y aplicación web con pago de pruebas & Sec.~\ref{sec:optimizacion} y~\ref{sec:optimizacion-cal} & Cumplido\pendienteEvidencia{estado final de OE4 tras MAUT, hipervolumen y NL2C} \\
-OE5 & Pruebas de unidad, integración, sistema y aceptación con usuarios (SUS, NPS, RTLX) & Sec.~\ref{sec:control-calidad} y~\ref{sec:oe5} & Cumplido\pendienteEvidencia{estado final de OE5 segun C1, C2 y C3 del plan de analisis} \\
+OE4 & Optimizador de cuatro objetivos, igualdad con el óptimo exacto en 174 listas, MAUT, hipervolumen y aplicación web con pago de pruebas & Sec.~\ref{sec:optimizacion} y~\ref{sec:optimizacion-cal} & Ver Sec.~\ref{sec:optimizacion}\pendienteEvidencia{estado OE4} \\
+OE5 & Pruebas de unidad, integración, sistema y aceptación con usuarios (SUS, NPS, RTLX) & Sec.~\ref{sec:control-calidad} y~\ref{sec:oe5} & Ver Sec.~\ref{sec:oe5}\pendienteEvidencia{estado OE5} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -97,13 +72,13 @@ percepción, el modelo multimodal superó al reconocimiento con reglas (F1 micro
 0,298), con la salvedad de que el oro se construyó desde su salida. En resolución, el sistema
 construido sustituyó la fusión recíproca de rangos y el reordenador por una sola fase que suma el
 parecido léxico y el coseno, y compensa con la revisión de cada lista nueva antes de publicarla. El
-OE4 se cumplió porque el optimizador enumera el frente exacto hasta 4.096 combinaciones y recurre a
+OE4 se abordó con un optimizador que enumera el frente exacto hasta 4.096 combinaciones y recurre a
 NSGA-II \citep{deb_fast_2002,blank_pymoo_2020} por encima, con cuatro objetivos (costo, fidelidad
 de marca, disponibilidad y personaje), y presenta los kits Ahorrador y Premium siempre, Fan si el
 acudiente pidió un personaje y A tu Medida si eligió el punto medio de gasto o un tope. El personaje
 es un hallazgo del desarrollo: la encuesta midió esa preferencia y los tres criterios de la VFP no la
 recogían. El OE5 se evaluó con el método de la VFP y el plan de análisis fijado antes de la primera
-sesión, y su estado depende de los criterios C1, C2 y C3 de ese plan.
+sesión, y su estado se juzga con los criterios C1, C2 y C3 de ese plan (Sección~\ref{sec:oe5}).
 
 \subsubsection{Trabajo futuro}
 \label{sec:trabajo-futuro}

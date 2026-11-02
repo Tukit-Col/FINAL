@@ -145,7 +145,7 @@ cumplimiento y la recuperabilidad lo exigen, y mantiene junta la transaccionalid
 debe permanecer junta. La matriz ponderada del ATAM le da 3,91 sobre 5,00, frente a 3,44 de
 la granularidad fina y 2,82 del monolito modular.
 
-La Figura~\ref{fig:c4-contexto} sitúa el sistema frente a sus actores y sistemas externos, y
+La Figura~\ref{fig:c4-contexto} (Anexo~\ref{anx:figuras}) sitúa el sistema frente a sus actores y sistemas externos, y
 la Figura~\ref{fig:c4-contenedores} materializa la alternativa elegida: cinco servicios de
 dominio y la puerta de enlace sobre cinco bases de datos, con una bandeja de salida en cada
 base para entregar los eventos. Las dos salen del código fuente: la primera es una vista UML
@@ -159,14 +159,7 @@ RabbitMQ, cada consumidor lee la bandeja en la base del productor, sin tope de i
 de descartados. El manifiesto declara esas lecturas como respaldo, y una función de aptitud
 impide que el camino con RabbitMQ lea bases ajenas.
 
-\begin{figure}[!htb]
-\centering
-\includegraphics[width=\textwidth]{img/modelo/contexto.jpg}
-\caption[Vista de contexto: Tukit frente a sus actores y sistemas externos.]{Vista de contexto,
-en notación UML: Tukit frente a sus actores (el padre es el acudiente) y a los sistemas externos,
-agrupados por función. Cada flecha lleva la información que pasa entre las partes.}
-\label{fig:c4-contexto}
-\end{figure}
+
 
 \begin{figure}[htbp]
 \centering
@@ -195,25 +188,8 @@ servicio (Tabla~\ref{tab:reparto}); la bandeja de salida de eventos se repite en
 de modo que hay 70 nombres distintos. El recuento cambió durante la implementación, entre
 67 y 74 tablas según la versión.
 
-\begin{table}[htbp]
-\centering
-\caption{Reparto de tablas por contexto delimitado}
-\label{tab:reparto}
-\small
-\begin{tabular}{@{}lrp{8.4cm}@{}}
-\toprule
-\textbf{Servicio} & \textbf{Tablas} & \textbf{Responsabilidad} \\
-\midrule
-Identidad     & 16 & Personas, tenencia, autorización y consentimiento. Frontera de cumplimiento \\
-Catálogo      & 19 & Qué productos existen y a qué precio público. Reconstruible desde sus archivos de datos (CF-02a) \\
-Inteligencia  & 12 & Percepción, normalización, resolución y optimización \\
-Comercio      & 18 & Pedidos, inventario, pagos y entrega. Irremplazable \\
-Operación     & 9  & Casos, notificaciones, auditoría y telemetría. Solo anexar \\
-\midrule
-\textbf{Total} & \textbf{74} & \\
-\bottomrule
-\end{tabular}
-\end{table}
+% Tabla tab:reparto movida al Anexo A.3 (tablas del cuerpo)
+
 
 \subsubsection{La matrícula como ancla de tenencia}
 
@@ -331,36 +307,8 @@ El ejercicio reveló un patrón recurrente: políticas correctamente enunciadas 
 documentación que el esquema hacía inejecutables. La Tabla~\ref{tab:politicas} recoge los
 casos y su corrección.
 
-\begin{table}[htbp]
-\centering
-\caption{Políticas inejecutables y su corrección en el esquema}
-\label{tab:politicas}
-\small
-\begin{tabular}{@{}p{4.3cm}p{5.0cm}p{4.4cm}@{}}
-\toprule
-\textbf{Política enunciada} & \textbf{Por qué era inejecutable} & \textbf{Corrección} \\
-\midrule
-Revocar el consentimiento del tratamiento de un menor &
-La tabla registraba que el acudiente autorizó el tratamiento de un hijo, pero ninguna
-columna indicaba de cuál. Con dos hijos, una fila los cubría de forma indistinguible &
-Referencia a la matrícula, con restricción de coherencia contra el régimen \\
-\addlinespace
-Destruir la llave de la matrícula 12 meses después del cierre &
-No existía columna que registrara el cierre &
-Fecha de cierre de la matrícula \\
-\addlinespace
-Informar al titular que su dato fue suprimido &
-El proceso marcaba la solicitud como completada tras anonimizar la fila local, sin esperar
-confirmación de ningún otro servicio &
-Estado de propagación y registro de los servicios que confirmaron \\
-\addlinespace
-Conservar evidencia de lo revocado &
-Una actualización sobrescribía la fila, eliminando la constancia de qué se autorizó y
-cuándo &
-Columnas de vigencia con índice único parcial sobre la fila vigente \\
-\bottomrule
-\end{tabular}
-\end{table}
+% Tabla tab:politicas movida al Anexo A.3 (tablas del cuerpo)
+
 
 El patrón tiene valor metodológico más allá de este proyecto: una política de tratamiento
 de datos es verificable solo si el modelo lógico expone las columnas que la hacen
@@ -422,25 +370,15 @@ servicio pudiera instalarla. En el monorrepositorio es un único cambio.
 La objeción legítima al repositorio único es que facilita la erosión de las fronteras. La
 respuesta de este diseño es instrumentarlas mediante funciones de aptitud
 \citep{ford_building_2017}: pruebas automáticas y continuas sobre una característica
-arquitectónica. Un manifiesto declara, para cada servicio, su lenguaje, su base de datos,
-las tablas de las que es dueño y las referencias que cruzan hacia otros dominios, y doce
-pruebas lo verifican en cada cambio. Cinco revisan el código: que ningún servicio importe
-código de otro, declare una tabla de un dominio ajeno ni mencione la base de datos de otro;
-que toda referencia a otro dominio esté declarada, y que el lenguaje coincida con el
-declarado. Las otras cuatro revisan el propio manifiesto: que cuadre con el esquema
-objetivo, que sus referencias cruzadas sean coherentes, que ninguna tabla tenga dos dueños y
-que el grafo de dependencias entre servicios sea acíclico. Dos más, añadidas con las
-colas, comprueban que toda lectura de la base de otro servicio esté declarada, exista y sirva
-solo de respaldo sin RabbitMQ, y la última, añadida con Redis, que solo la biblioteca común de
-los servicios hable con Redis. Los registros de esas
-ejecuciones no forman parte de la entrega, así que aquí se describe lo que las pruebas
-comprueban y no su historial de resultados.
-
-La justificación de este mecanismo proviene del propio proyecto. El defecto más grave que
-encontró el rediseño fue que la tabla de productos del catálogo estaba declarada como
-maestra en dos servicios a la vez. No se produjo por falta de criterio, sino porque nada
-verificaba el criterio de forma continua, y esa falla de la disciplina humana sobre este
-mismo código basta para no depender solo de ella.
+arquitectónica. Un manifiesto declara, para cada servicio, su lenguaje, su base de datos, las tablas de las que es
+dueño y las referencias que cruzan hacia otros dominios, y doce pruebas lo verifican en cada
+cambio: que ningún servicio importe código de otro ni declare una tabla ajena, que toda referencia
+cruzada esté declarada, que ninguna tabla tenga dos dueños y que el grafo de dependencias sea
+acíclico. Dos pruebas más, añadidas con las colas, y una con Redis, extienden la verificación a
+esos canales. La lista completa de las doce pruebas está en el Anexo~\ref{anx:ampliaciones}.
+El motivo de instrumentarlas es que el defecto que encontró el rediseño, la tabla de productos
+declarada como maestra en dos servicios a la vez, no se produjo por falta de criterio sino porque
+nada lo verificaba de forma continua.
 
 Una función de aptitud que nunca ha fallado no está demostrada, pues podría no estar
 midiendo nada. Por ello el conjunto incluye un segundo nivel, con veintiocho pruebas, que
@@ -454,64 +392,18 @@ sugerida.
 \subsection{Asignación de lenguajes: una decisión medida}
 \label{sec:lenguajes}
 
-La hipótesis de partida sostenía que los componentes intensivos en cómputo debían
-reescribirse en un lenguaje compilado. Antes de comprometer esfuerzo se perfiló una lista
-escolar de veinte ítems, la mediana del corpus real, contra un catálogo de 3.187 productos.
-Las cifras de esta sección son reportadas: las registra la documentación del código fuente,
-que remite a un informe de perfilado que no forma parte de la entrega, y el código del grafo
-perfilado ya no existe en el sistema construido. Sus salidas originales no se examinaron,
-aunque la aritmética entre las cifras es coherente.
-
-El resultado refutó la hipótesis por una vía inesperada. El 96,3\% de la latencia
-corresponde, en efecto, a cómputo en el intérprete de Python, pero el 95,3\% del total lo
-produce una sola línea, que reconstruye un grafo de sustituibilidad completo en cada ítem
-procesado. Construir el grafo cuesta 1.673~ms y consultarlo, 0,137~ms: cuatro órdenes de
-magnitud de diferencia. La Tabla~\ref{tab:latencia} presenta el desglose.
-
-\begin{table}[htbp]
-\centering
-\caption{Desglose de latencia por etapa (lista de 20 ítems, mediana)}
-\label{tab:latencia}
-\small
-\begin{tabular}{@{}p{6.2cm}rrp{3.2cm}@{}}
-\toprule
-\textbf{Etapa} & \textbf{p50 (ms)} & \textbf{\% total} & \textbf{Naturaleza} \\
-\midrule
-Expansión por grafo de sustituibilidad & 33.470,0 & 95,28 & CPU en Python \\
-Embedding de la consulta & 832,0 & 2,37 & CPU nativo (torch) \\
-Optimización NSGA-II & 362,2 & 1,03 & CPU en Python \\
-Percepción por reconocimiento óptico & 183,2 & 0,52 & CPU nativo \\
-Consultas a la base de datos & 274,3 & 0,78 & Espera de E/S \\
-Resto & 5,5 & 0,02 & \\
-\midrule
-\textbf{Total} & \textbf{35.127,2} & \textbf{100,00} & \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Según la ley de Amdahl \citep{amdahl_validity_1967}, sobre el código tal como estaba y con
-una fracción paralelizable $P = 0{,}9633$, una aceleración de $50\times$ produciría una
-reducción del 94,4\%, cifra que en apariencia justificaría la reescritura. No la justifica,
-porque el mismo efecto se obtiene almacenando el grafo en caché. Corregido ese defecto, la
-latencia total desciende a 1.657~ms y la fracción de cómputo en Python cae a
-$P = 0{,}2219$, con lo que la reducción alcanzable por cambio de lenguaje queda entre el
-20,0\% y el 21,7\%. Las fuentes no declaran las aceleraciones supuestas; esos dos valores
-corresponden a $10\times$ y $50\times$ en $P\,(1 - 1/s)$. La cota se refiere al pipeline de
-resolución, no al servicio de comercio, cuyo desempeño no tiene medición (ADR 0003).
-
-Esa cota superior es además generosa. El 98,5\% de la fracción residual corresponde al
-optimizador NSGA-II \citep{deb_fast_2002} implementado sobre pymoo \citep{blank_pymoo_2020},
-biblioteca de la que no se documentó un equivalente maduro en Go. Migrar exigiría
-reimplementar el algoritmo, el operador de selección por pseudopesos y el cálculo de
-hipervolumen \citep{zitzler_multiobjective_1999}, es decir, reconstruir una biblioteca de
-investigación validada para recuperar 362~ms, el 1,03\% del total.
-
-Los seis desplegables del sistema construido están, por tanto, en Python. El único
-componente con un argumento técnico para un lenguaje compilado era la ingesta, por su perfil
-de concurrencia de red, y el catálogo curado la reemplazó (Sección~\ref{sec:consolidacion}).
-La estructura sigue siendo políglota: el manifiesto declara el lenguaje de cada servicio y
-una prueba lo verifica, de modo que incorporar un componente en otro lenguaje es una adición
-y no una reestructuración.
+La hipótesis de partida sostenía que los componentes intensivos en cómputo debían reescribirse en
+un lenguaje compilado. Para contrastarla se perfiló una lista escolar de veinte ítems, la mediana
+del corpus real, contra un catálogo de 3.187 productos. Las cifras son reportadas por la
+documentación del código, no recalculadas. El 95,3\,\% de la latencia lo producía una sola línea,
+que reconstruía un grafo de sustituibilidad en cada ítem; construirlo cuesta 1.673~ms y consultarlo,
+0,137~ms. Corregido ese defecto, la reducción que aporta cambiar de lenguaje queda, según la ley de
+Amdahl \citep{amdahl_validity_1967}, entre el 20,0\,\% y el 21,7\,\%, y el 98,5\,\% de lo que
+resta corresponde al optimizador NSGA-II sobre pymoo \citep{blank_pymoo_2020}, sin equivalente
+maduro en un lenguaje compilado. Por eso los seis desplegables están en Python, y el manifiesto
+declara el lenguaje de cada servicio para que incorporar otro sea una adición. El cálculo
+completo y el desglose de latencia (Tabla~\ref{tab:latencia}) están en el
+Anexo~\ref{anx:ampliaciones}.
 
 % =====================================================================
 \subsection{Decisiones registradas}
@@ -524,47 +416,14 @@ treinta y ocho registros, numerados de 0001 a 0038, en el registro de decisiones
 arquitectura (Tabla~\ref{tab:anexos}); la Tabla~\ref{tab:adr} destaca los que estructuran el
 diseño de este capítulo.
 
-El ADR 0015 ilustra una propiedad del método. Más que de una necesidad nueva, nació de una
-contradicción entre decisiones previas que solo se hizo visible al intentar implementarlas.
-Al redactar el criterio de aceptación de un requisito hubo que decir dónde se evaluaba una
-política de seguridad, y resultó que no podía evaluarse en ninguno de los tres servicios
-donde hacía falta, porque la matrícula vive en la base de identidad. Un registro de
-decisión, además de documentar lo decidido, hace detectables las contradicciones entre
-decisiones, porque obliga a escribir el fundamento en un lugar donde puede contrastarse con
-otro.
+El ADR 0015 ilustra una propiedad del método. Nació de una contradicción entre decisiones previas
+que solo se hizo visible al redactar el criterio de aceptación de un requisito: la política de
+seguridad no podía evaluarse en ninguno de los tres servicios donde hacía falta, porque la
+matrícula vive en la base de identidad. Un registro obliga a escribir el fundamento donde puede
+contrastarse con otro.
 
-\begin{table}[H]
-\centering
-\caption{Registros de decisión arquitectónica estructurales}
-\label{tab:adr}
-\small
-\begin{tabular}{@{}cp{5.0cm}p{7.6cm}@{}}
-\toprule
-\textbf{ADR} & \textbf{Decisión} & \textbf{Fundamento} \\
-\midrule
-0011 & Separar el catálogo del comercio & Elimina el doble maestro del catálogo. Los precios
-no se unifican: el costo contractual y el precio público observado son hechos distintos en
-lados opuestos de la asimetría de recuperación \\
-\addlinespace
-0012 & Matrícula como ancla de tenencia y roles con ámbito & Un acudiente puede tener hijos
-en colegios distintos: la tenencia no reside en la persona \\
-\addlinespace
-0013 & Monorrepositorio con despliegue independiente & Separación entre vista de
-desarrollo y vista física; fronteras instrumentadas con funciones de aptitud \\
-\addlinespace
-0014 & Dirección de entrega: libreta y copia congelada & Un hecho histórico y un dato
-editable son entidades distintas aunque se escriban igual \\
-\addlinespace
-0015 & Dónde se evalúa el ámbito cuando el ancla vive en otra base & Una política de fila
-no puede unirse contra otra base: se copia la clave de ámbito, no la lista de matrículas, y
-se deniega por omisión. Sigue siendo diseño (Sección~\ref{sec:defectos}) \\
-\addlinespace
-0037 & Eventos y trabajos por RabbitMQ, con la base de datos como respaldo & Una cola por
-consumidor, con reintentos y descartados; sin RabbitMQ, el sistema sigue por sondeo de las
-bandejas de salida \\
-\bottomrule
-\end{tabular}
-\end{table}
+% Tabla tab:adr movida al Anexo A.3 (tablas del cuerpo)
+
 
 % =====================================================================
 \subsection{Síntesis}
