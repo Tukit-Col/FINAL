@@ -68,10 +68,20 @@ class PeticionInterpretar(BaseModel):
     texto: str = Field(min_length=1, max_length=4000)
 
 
+class PedidoAnterior(BaseModel):
+    """El ultimo pedido por categoria, para "y en colores tambien". Solo dos palabras acotadas:
+    ni el texto del padre ni nada del hogar viaja de un turno al siguiente."""
+
+    model_config = ConfigDict(extra="forbid")
+    accion: Literal["mas_barato", "mejor_calidad", "variar"]
+    categoria: str = Field(min_length=3, max_length=24, pattern="^[a-zñáéíóúü]+$")
+
+
 class PeticionProponer(BaseModel):
     model_config = ConfigDict(extra="forbid")
     texto: str = Field(min_length=1, max_length=4000)
     perfil: Literal["Ahorrador", "Fan", "A tu Medida", "Premium"]
+    anterior: PedidoAnterior | None = None
 
 
 class PeticionDecision(BaseModel):
@@ -124,8 +134,24 @@ async def proponer(
     kit = next((k for k in vista["kits"] if k["perfil"] == cuerpo.perfil), None)
     if kit is None:
         raise ErrorDominio("kit_no_encontrado", "No encontramos ese kit en tu cuenta.", estado=404)
+
+    async def opciones_de(linea: dict[str, Any]) -> list[dict[str, Any]]:
+        # Las mismas opciones que el carrusel de LineaDeKit (`GET .../opciones`), de un trabajo
+        # que ya verificamos que es del portador; los filtros del trabajo se aplican ahi.
+        cuerpo_opc = await trabajos.opciones_de_una_linea(
+            api.app.state.motor, trabajo_id, linea, catalogo=api._catalogo()
+        )
+        return list(cuerpo_opc.get("opciones") or [])
+
     try:
-        respuesta, _ = await nl2c_flujo.proponer_en_kit(cuerpo.texto, kit, usuario, str(trabajo_id))
+        respuesta, _ = await nl2c_flujo.proponer_en_kit(
+            cuerpo.texto,
+            kit,
+            usuario,
+            str(trabajo_id),
+            anterior=cuerpo.anterior.model_dump() if cuerpo.anterior else None,
+            opciones_de=opciones_de,
+        )
     except nl2c_flujo.TextoVacio:
         raise ErrorDominio("texto_vacio", "Cuentanos que quieres cambiar de tu kit.", estado=422) from None
     except nl2c.AsistenteNoDisponible as error:

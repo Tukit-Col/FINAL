@@ -3,7 +3,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { aplicacionDePropuesta, type PropuestaAplicable } from "../src/components/asistente/aplicar.ts";
+import { aplicacionDePropuesta, pendientesDelTurno, type PropuestaAplicable } from "../src/components/asistente/aplicar.ts";
 
 const tarjeta = (sku: string) => ({ sku, nombre: sku, marca: null, nivel: "economico", precio_cop: 1000, imagen_url: null });
 const base = { trabajo_id: "t-1", perfil: "A tu Medida", item_id: "i/2", descripcion: "Colores", aplicable: true };
@@ -38,4 +38,15 @@ test("lo que el servidor marco no aplicable no se aplica", () => {
     props: { ...base, aplicable: false, motivo_texto: "x", producto: tarjeta("CO-1"), ahorro_cop: 0 },
   } as unknown as PropuestaAplicable;
   assert.equal(aplicacionDePropuesta(c), null);
+});
+
+test("Aceptar todos solo toma las propuestas aplicables que siguen pendientes", () => {
+  const cambio = (aplicable: boolean) =>
+    ({
+      tipo: "PropuestaCambio",
+      props: { ...base, antes: tarjeta("A"), despues: tarjeta("B"), unidades: 1, delta_cop: -1000, aplicable },
+    }) as unknown as PropuestaAplicable;
+  const comps = [{ tipo: "ResumenLote" }, cambio(true), cambio(true), cambio(false), cambio(true)] as never;
+  const pend = pendientesDelTurno(comps, 2, { "2-2": "aplicada" });
+  assert.deepEqual(pend.map((p) => p.clave), ["2-1", "2-4"]);
 });
