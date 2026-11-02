@@ -1,26 +1,31 @@
 """Experimento B: poblacion y generaciones del NSGA-II, con particion por colegio.
 
 Las listas con espacio mayor que LIMITE_ENUMERACION (las que corren NSGA-II en
-produccion) se reparten por COLEGIO en entrenamiento (~60 % de las listas),
-validacion (~20 %) y prueba (~20 %): todas las listas de un colegio caen del mismo
-lado, porque dos grados del mismo colegio comparten productos y marcas.
+produccion) se separan por COLEGIO: todas las listas de un colegio caen del
+mismo lado, porque dos grados del mismo colegio comparten productos y marcas.
+
+1. PRUEBA: ~20 % de las listas (colegios enteros) se apartan antes de mirar nada
+   y se usan una sola vez, al final.
+2. VALIDACION CRUZADA AGRUPADA: el resto de colegios se reparte en K pliegues
+   balanceados por numero de listas. La rejilla corre una vez sobre todas esas
+   listas (3 semillas por lista). En cada pliegue se aplica la regla de
+   seleccion sobre los otros K-1 pliegues y se mide la configuracion elegida en
+   el pliegue apartado. La configuracion final es la regla aplicada sobre todos
+   los pliegues juntos; los K pliegues muestran si la eleccion es estable.
+3. PRUEBA: configuracion actual contra la elegida, tiempos en serie.
 
 La rejilla multiplica las formulas actuales por factores:
     poblacion = clamp(a * 12n, a * 40, a * 200)   (par)
     generaciones = clamp(b * 20 log10 S, b * 30, b * 120)
-con a, b en {0,25; 0,5; 1; 2}. El par (1, 1) es la configuracion actual.
+con a, b en {0,25; 0,5; 1; 2}. El par (1, 1) es la configuracion de partida.
 
-1. ENTRENAMIENTO: se corre toda la rejilla (3 semillas por lista).
-2. VALIDACION: se corre toda la rejilla (5 semillas por lista). De aqui se elige
-   la configuracion MAS BARATA (evaluaciones = poblacion x generaciones) cuyo
-   hipervolumen medio no baja mas de 0,1 % del mejor de la rejilla.
-3. PRUEBA: una sola vez, configuracion actual contra la elegida, 30 semillas por
-   lista, tiempos en serie.
-
-El hipervolumen se mide contra el frente exacto (poda por linea), en el espacio
-normalizado de `nucleo.hipervolumen`.
+Regla de seleccion: la configuracion MAS BARATA (evaluaciones = poblacion x
+generaciones) cuyo hipervolumen medio no baja mas de 0,1 % del mejor de la
+rejilla. El hipervolumen se mide contra el frente exacto (poda por linea), en
+el espacio normalizado de `nucleo.hipervolumen`.
 
 Uso: uv run python ensayos/calibracion/calibrar_nsga.py [--rapido]
+     [--procesos 8] [--pliegues 5] [--semillas-cv 3] [--semillas-prueba 10]
 Salida: docs/informes/calibracion/calibracion_nsga.json
 """
 
@@ -40,9 +45,6 @@ from tukit_inteligencia import optimizador as opt
 
 FACTORES = (0.25, 0.5, 1.0, 2.0)
 UMBRAL_HV = 0.001
-SEMILLAS_ENTRENAMIENTO = (0, 1, 2)
-SEMILLAS_VALIDACION = (0, 1, 2, 3, 4)
-SEMILLAS_PRUEBA = tuple(range(30))
 
 
 def poblacion_con(a: float):
@@ -61,26 +63,41 @@ def generaciones_con(b: float):
     return f
 
 
-def particion(insts: list[dict]) -> dict[str, list[str]]:
-    """Reparte los colegios (no las listas) 60/20/20 con semilla fija."""
+def _colegios(insts: list[dict]) -> dict[str, list[str]]:
     por_colegio: dict[str, list[str]] = {}
     for i in insts:
         por_colegio.setdefault(i["colegio"], []).append(i["id"])
+    return por_colegio
+
+
+def particion(insts: list[dict], pliegues: int) -> dict:
+    """Aparta ~20 % de las listas como prueba y reparte el resto en pliegues.
+
+    Las unidades son colegios. El orden sale de una semilla fija; la prueba toma
+    colegios hasta pasar el 20 % de las listas y los pliegues se llenan siempre
+    por el que tiene menos listas.
+    """
+    por_colegio = _colegios(insts)
     colegios = sorted(por_colegio)
     random.Random(n.SEMILLA_BASE).shuffle(colegios)
     total = sum(len(v) for v in por_colegio.values())
-    lados: dict[str, list[str]] = {"entrenamiento": [], "validacion": [], "prueba": []}
-    colegios_de: dict[str, list[str]] = {k: [] for k in lados}
+    prueba: list[str] = []
+    resto: list[str] = []
     for c in colegios:
-        if len(lados["entrenamiento"]) < 0.6 * total:
-            lado = "entrenamiento"
-        elif len(lados["validacion"]) < 0.2 * total:
-            lado = "validacion"
+        if sum(len(por_colegio[x]) for x in prueba) < 0.2 * total:
+            prueba.append(c)
         else:
-            lado = "prueba"
-        lados[lado].extend(por_colegio[c])
-        colegios_de[lado].append(c)
-    return {**lados, "colegios": colegios_de}  # type: ignore[dict-item]
+            resto.append(c)
+    grupos: list[list[str]] = [[] for _ in range(pliegues)]
+    for c in sorted(resto, key=lambda c: -len(por_colegio[c])):
+        k = min(range(pliegues), key=lambda j: (sum(len(por_colegio[x]) for x in grupos[j]), j))
+        grupos[k].append(c)
+    return {
+        "prueba": [i for c in prueba for i in por_colegio[c]],
+        "colegios_prueba": prueba,
+        "pliegues": [[i for c in g for i in por_colegio[c]] for g in grupos],
+        "colegios_pliegues": grupos,
+    }
 
 
 def cargar(id_lista: str):
@@ -146,10 +163,23 @@ def ic_bootstrap(x: np.ndarray, rng: np.random.Generator, k: int = 10_000) -> li
     return [float(v) for v in np.percentile(medias, [2.5, 97.5])]
 
 
+def _resumen_prueba(hv: np.ndarray, t: np.ndarray, filas: list[dict]) -> dict:
+    return {
+        "hv_medio": float(hv.mean()),
+        "hv_min": float(hv.min()),
+        "t_medio_s": float(t.mean()),
+        "t_max_s": float(t.max()),
+        "evals_medios": float(np.mean([f["evals"] for f in filas])),
+    }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--rapido", action="store_true")
     ap.add_argument("--procesos", type=int, default=8)
+    ap.add_argument("--pliegues", type=int, default=5)
+    ap.add_argument("--semillas-cv", type=int, default=3)
+    ap.add_argument("--semillas-prueba", type=int, default=10)
     args = ap.parse_args()
 
     grandes = []
@@ -157,36 +187,67 @@ def main() -> int:
         dec = n.decidibles(n.renglones_de(i))
         if dec and n.espacio_de(n.opciones_de(dec)) > opt.LIMITE_ENUMERACION:
             grandes.append(i)
-    lados = particion(grandes)
+    lados = particion(grandes, args.pliegues)
     if args.rapido:
-        for k in ("entrenamiento", "validacion", "prueba"):
-            lados[k] = lados[k][:3]
-    sem_ent = SEMILLAS_ENTRENAMIENTO[:1] if args.rapido else SEMILLAS_ENTRENAMIENTO
-    sem_val = SEMILLAS_VALIDACION[:2] if args.rapido else SEMILLAS_VALIDACION
-    sem_pru = SEMILLAS_PRUEBA[:3] if args.rapido else SEMILLAS_PRUEBA
+        lados["prueba"] = lados["prueba"][:3]
+        lados["pliegues"] = [p[:2] for p in lados["pliegues"]]
+    sem_cv = (0,) if args.rapido else tuple(range(args.semillas_cv))
+    sem_pru = tuple(range(3 if args.rapido else args.semillas_prueba))
 
     salida: dict = {
         "hardware": n.hardware(),
         "listas_grandes": len(grandes),
-        "particion": {k: len(lados[k]) for k in ("entrenamiento", "validacion", "prueba")},
-        "colegios": lados["colegios"],
+        "limite_enumeracion_usado": opt.LIMITE_ENUMERACION,
+        "particion": {
+            "prueba": len(lados["prueba"]),
+            "pliegues": [len(p) for p in lados["pliegues"]],
+            "colegios_prueba": lados["colegios_prueba"],
+            "colegios_pliegues": lados["colegios_pliegues"],
+        },
         "factores": list(FACTORES),
         "umbral_hv": UMBRAL_HV,
         "referencia_hv": n.REFERENCIA,
+        "semillas_validacion": len(sem_cv),
+        "semillas_prueba": len(sem_pru),
     }
 
-    ent = correr_rejilla(lados["entrenamiento"], sem_ent, args.procesos)
-    val = correr_rejilla(lados["validacion"], sem_val, args.procesos)
-    salida["entrenamiento"] = resumen_por_config(ent)
-    salida["validacion"] = resumen_por_config(val)
-    elegida = elegir(salida["validacion"])
+    t0 = time.perf_counter()
+    todas = [i for p in lados["pliegues"] for i in p]
+    filas = correr_rejilla(todas, sem_cv, args.procesos)
+    salida["t_rejilla_s"] = time.perf_counter() - t0
+    salida["rejilla"] = resumen_por_config(filas)
+    elegida = elegir(salida["rejilla"])
     salida["elegida"] = {"a": elegida["a"], "b": elegida["b"]}
     print("elegida", salida["elegida"], flush=True)
 
+    por_pliegue = []
+    for k, ids in enumerate(lados["pliegues"]):
+        dentro = set(ids)
+        ajuste = resumen_por_config([f for f in filas if f["lista"] not in dentro])
+        apartado = resumen_por_config([f for f in filas if f["lista"] in dentro])
+        e = elegir(ajuste)
+        en_apartado = next(r for r in apartado if (r["a"], r["b"]) == (e["a"], e["b"]))
+        mejor_apartado = max(r["hv_medio"] for r in apartado)
+        por_pliegue.append(
+            {
+                "pliegue": k,
+                "listas_apartadas": len(ids),
+                "elegida": {"a": e["a"], "b": e["b"]},
+                "hv_medio_apartado": en_apartado["hv_medio"],
+                "hv_min_lista_apartado": en_apartado["hv_min_lista"],
+                "mejor_hv_apartado": mejor_apartado,
+                "dentro_del_umbral_en_apartado": en_apartado["hv_medio"] >= mejor_apartado - UMBRAL_HV,
+            }
+        )
+    salida["validacion_cruzada"] = por_pliegue
+    print("pliegues", [p["elegida"] for p in por_pliegue], flush=True)
+
     # Prueba: una sola vez, en serie para medir tiempo con la maquina libre.
+    t0 = time.perf_counter()
     por_config: dict[str, list[dict]] = {}
     for nombre, (a, b) in (("actual", (1.0, 1.0)), ("elegida", (elegida["a"], elegida["b"]))):
         por_config[nombre] = [_trabajo((i, a, b, sem_pru)) for i in lados["prueba"]]
+    salida["t_prueba_s"] = time.perf_counter() - t0
     hv_a = np.array([np.mean(f["razon"]) for f in por_config["actual"]])
     hv_e = np.array([np.mean(f["razon"]) for f in por_config["elegida"]])
     t_a = np.array([np.mean(f["t"]) for f in por_config["actual"]])
@@ -197,16 +258,27 @@ def main() -> int:
         p_hv = float(stats.wilcoxon(hv_e, hv_a).pvalue) if np.any(dif != 0) else 1.0
     except ValueError:
         p_hv = 1.0
-    p_t = float(stats.wilcoxon(t_e, t_a).pvalue)
+    p_t = float(stats.wilcoxon(t_e, t_a).pvalue) if np.any(t_e != t_a) else 1.0
+    razones_e = np.array([r for f in por_config["elegida"] for r in f["razon"]])
     salida["prueba"] = {
         "listas": len(lados["prueba"]),
         "semillas": len(sem_pru),
-        "actual": {"hv_medio": float(hv_a.mean()), "hv_min": float(hv_a.min()), "t_medio_s": float(t_a.mean()), "t_max_s": float(t_a.max())},
-        "elegida": {"hv_medio": float(hv_e.mean()), "hv_min": float(hv_e.min()), "t_medio_s": float(t_e.mean()), "t_max_s": float(t_e.max())},
-        "dif_hv_elegida_menos_actual": {"media": float(dif.mean()), "ic95": ic_bootstrap(dif, rng), "wilcoxon_p": p_hv},
-        "dif_t_s_elegida_menos_actual": {"media": float((t_e - t_a).mean()), "ic95": ic_bootstrap(t_e - t_a, rng), "wilcoxon_p": p_t},
+        "actual": _resumen_prueba(hv_a, t_a, por_config["actual"]),
+        "elegida": _resumen_prueba(hv_e, t_e, por_config["elegida"]),
+        "dif_hv_elegida_menos_actual": {
+            "media": float(dif.mean()),
+            "ic95": ic_bootstrap(dif, rng),
+            "wilcoxon_p": p_hv,
+        },
+        "dif_t_s_elegida_menos_actual": {
+            "media": float((t_e - t_a).mean()),
+            "ic95": ic_bootstrap(t_e - t_a, rng),
+            "wilcoxon_p": p_t,
+        },
+        "fraccion_corridas_elegida_hv_ge_0999": float(np.mean(razones_e >= 0.999)),
+        "razon_min_corrida_elegida": float(razones_e.min()),
         "razon_por_semilla_actual": [r for f in por_config["actual"] for r in f["razon"]],
-        "razon_por_semilla_elegida": [r for f in por_config["elegida"] for r in f["razon"]],
+        "razon_por_semilla_elegida": razones_e.tolist(),
     }
     n.guardar("calibracion_nsga.json" if not args.rapido else "calibracion_nsga_rapido.json", salida)
     return 0
