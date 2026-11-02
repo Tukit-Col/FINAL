@@ -89,6 +89,9 @@ class AvancePreparado:
     tipo_incidencia: str | None
     nota: str | None
     aviso: str | None
+    # Despacho por transportadora: el nombre y la guia solo se guardan al despachar.
+    transportadora: str | None = None
+    guia: str | None = None
 
 
 def _limpio(valor: str | None) -> str | None:
@@ -123,12 +126,15 @@ def validar_avance(
     repartidor_celular: str | None = None,
     tipo_incidencia: str | None = None,
     nota: str | None = None,
+    transportadora: str | None = None,
+    guia: str | None = None,
 ) -> AvanceRechazado | None:
     """Valida mover un pedido de `actual` a `destino`. `None` = adelante.
 
     Rechaza, en orden: un `destino` que no es un estado conocido (`422`); una
     transicion que la tabla no permite o que no le toca al back-office (`409`);
-    un despacho sin nombre o sin celular del repartidor (`422`); y una
+    un despacho sin transportadora+guia ni nombre+celular del repartidor (`422`:
+    con transportadora la guia es obligatoria; sin ella, rige el reparto propio); y una
     incidencia sin tipo, con un tipo que no existe, o de tipo `otro` sin nota
     (`422`). Cualquier otro avance pasa.
     """
@@ -142,10 +148,15 @@ def validar_avance(
         return AvanceRechazado("transicion_invalida", 409)
 
     if destino_estado is EstadoPedido.DESPACHADO:
-        if _limpio(repartidor_nombre) is None:
-            return AvanceRechazado("despacho_incompleto", 422, "repartidor_nombre")
-        if _limpio(repartidor_celular) is None:
-            return AvanceRechazado("despacho_incompleto", 422, "repartidor_celular")
+        if _limpio(transportadora) is not None:
+            # Una transportadora sin guia no se puede rastrear.
+            if _limpio(guia) is None:
+                return AvanceRechazado("despacho_sin_guia", 422, "guia")
+        else:
+            if _limpio(repartidor_nombre) is None:
+                return AvanceRechazado("despacho_incompleto", 422, "repartidor_nombre")
+            if _limpio(repartidor_celular) is None:
+                return AvanceRechazado("despacho_incompleto", 422, "repartidor_celular")
 
     if destino_estado is EstadoPedido.INCIDENCIA:
         tipo = _limpio(tipo_incidencia)
@@ -173,15 +184,21 @@ def preparar_avance(
     repartidor_celular: str | None = None,
     tipo_incidencia: str | None = None,
     nota: str | None = None,
+    transportadora: str | None = None,
+    guia: str | None = None,
 ) -> AvancePreparado:
     """Las entradas de un avance YA VALIDADO, limpias y recortadas a su destino."""
     estado = _estado(destino)
     despacho = estado is EstadoPedido.DESPACHADO
     incidencia = estado is EstadoPedido.INCIDENCIA
+    por_transportadora = despacho and _limpio(transportadora) is not None
     return AvancePreparado(
-        repartidor_nombre=_limpio(repartidor_nombre) if despacho else None,
-        repartidor_celular=_limpio(repartidor_celular) if despacho else None,
+        # Por transportadora no hay repartidor propio: no se mezclan los dos modos.
+        repartidor_nombre=_limpio(repartidor_nombre) if despacho and not por_transportadora else None,
+        repartidor_celular=_limpio(repartidor_celular) if despacho and not por_transportadora else None,
         tipo_incidencia=_limpio(tipo_incidencia) if incidencia else None,
         nota=_limpio(nota),
         aviso=tipo_aviso(destino),
+        transportadora=_limpio(transportadora) if por_transportadora else None,
+        guia=_limpio(guia) if por_transportadora else None,
     )

@@ -15,13 +15,28 @@ import uuid
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, insert, select
+from sqlalchemy import func, insert, select, update
+from tukit_comun.bandeja import con_correlacion
 from tukit_comun.http import iso as _iso
 
 from ..modelos import Base, EstadoCaso, OrigenCaso, Prioridad
 
 CASO = Base.metadata.tables["caso"]
 METRICA = Base.metadata.tables["metrica_diaria"]
+EVENTO = Base.metadata.tables["evento_caso"]
+BANDEJA = Base.metadata.tables["bandeja_salida"]
+AUDITORIA = Base.metadata.tables["registro_auditoria"]
+
+
+def serializar_detalle_caso(fila: Any) -> dict[str, Any]:
+    """El caso para el back-office: lo de `serializar_caso` mas el cuerpo de la
+    PQRS y el `usuario_id` del titular (con el que el admin resuelve su correo
+    contra Identidad; el contacto nunca se guardo aqui)."""
+    return serializar_caso(fila) | {
+        "descripcion": fila.descripcion,
+        "usuario_id": str(fila.usuario_id) if fila.usuario_id is not None else None,
+        "resuelto_en": _iso(fila.resuelto_en),
+    }
 
 
 def serializar_caso(fila: Any) -> dict[str, Any]:
@@ -148,5 +163,77 @@ class RepoCasos:
                 trabajo_id=trabajo_id,
                 abierto_en=abierto_en,
                 vence_en=vence_en,
+            )
+        )
+
+    # -- back-office: conversacion, estado y respuesta ----------------------
+
+    async def eventos_de(self, caso_id: uuid.UUID) -> list[dict[str, Any]]:
+        """La historia del caso (respuestas y cambios de estado) en orden cronologico."""
+        filas = await self.conexion.execute(
+            select(EVENTO).where(EVENTO.c.caso_id == caso_id).order_by(EVENTO.c.creado_en.asc(), EVENTO.c.id.asc())
+        )
+        return [
+            {
+                "tipo": f.tipo,
+                "datos": dict(f.datos or {}),
+                "actor_id": str(f.actor_id) if f.actor_id is not None else None,
+                "creado_en": _iso(f.creado_en),
+            }
+            for f in filas
+        ]
+
+    async def registrar_evento(
+        self, *, caso_id: uuid.UUID, tipo: str, datos: dict[str, Any], actor_id: uuid.UUID, ahora: datetime
+    ) -> None:
+        await self.conexion.execute(
+            insert(EVENTO).values(
+                id=uuid.uuid4(), caso_id=caso_id, tipo=tipo, datos=datos, actor_id=actor_id, creado_en=ahora
+            )
+        )
+
+    async def cambiar_estado(
+        self, *, caso_id: uuid.UUID, desde: str, hacia: str, resuelto_en: datetime | None
+    ) -> bool:
+        """Mueve el caso solo si SIGUE en `desde`: si otro operador lo movio entre
+        la lectura y la escritura, devuelve `False` y no pisa su cambio."""
+        resultado = await self.conexion.execute(
+            update(CASO)
+            .where(CASO.c.id == caso_id, CASO.c.estado == desde)
+            .values(estado=hacia, resuelto_en=resuelto_en)
+        )
+        return bool(resultado.rowcount == 1)
+
+    async def vincular_pedido(self, *, caso_id: uuid.UUID, pedido_id: uuid.UUID) -> None:
+        await self.conexion.execute(update(CASO).where(CASO.c.id == caso_id).values(pedido_id=pedido_id))
+
+    async def encolar_respuesta(self, *, caso_id: uuid.UUID, usuario_id: uuid.UUID) -> None:
+        """Outbox: el aviso al acudiente de que su caso tiene respuesta, en la
+        MISMA transaccion que la respuesta. El texto NO viaja en la carga: el
+        repartidor entrega un aviso por plantilla y el acudiente lee la respuesta
+        dentro de Tukit."""
+        await self.conexion.execute(
+            insert(BANDEJA).values(
+                tipo="caso_respuesta",
+                agregado_tipo="caso",
+                agregado_id=caso_id,
+                carga=con_correlacion({"caso_id": str(caso_id), "usuario_id": str(usuario_id)}),
+            )
+        )
+
+    async def auditar(
+        self, *, actor_id: uuid.UUID, accion: str, caso_id: uuid.UUID, datos: dict[str, Any], ahora: datetime
+    ) -> None:
+        """Una fila en `registro_auditoria`: quien hizo que sobre el caso. Sin el
+        texto de la respuesta, que ya vive en la historia del caso."""
+        await self.conexion.execute(
+            insert(AUDITORIA).values(
+                id=uuid.uuid4(),
+                actor_id=actor_id,
+                accion=accion,
+                agregado_tipo="caso",
+                agregado_id=str(caso_id),
+                datos=datos,
+                creado_en=ahora,
             )
         )

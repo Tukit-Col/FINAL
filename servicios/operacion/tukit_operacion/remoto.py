@@ -38,6 +38,10 @@ def url_inteligencia() -> str:
     return os.environ.get("TUKIT_INTELIGENCIA_URL", URL_INTELIGENCIA_POR_OMISION).rstrip("/")
 
 
+class IdentidadCaida(Exception):
+    """Identidad no respondio. Sin poder validar la sesion, no se abre el acceso."""
+
+
 @dataclass
 class ClienteIdentidad:
     base: str = ""
@@ -45,6 +49,23 @@ class ClienteIdentidad:
 
     def _base(self) -> str:
         return self.base or url_identidad()
+
+    async def sesion(self, token: str) -> dict[str, Any] | None:
+        """La sesion del portador (`usuario_id`, `correo`, `roles`), o `None` si el
+        token no vale (401). FALLA CERRADA: una caida de Identidad es
+        `IdentidadCaida`, nunca `None`, para no abrir el acceso por no poder preguntar."""
+        try:
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.get(
+                    f"{self._base()}/v1/sesiones/actual",
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+                if respuesta.status_code == 401:
+                    return None
+                respuesta.raise_for_status()
+                return dict(respuesta.json())
+        except httpx.HTTPError as error:
+            raise IdentidadCaida(str(error)) from error
 
     async def resolver_contacto(self, correo: str, celular: str | None = None) -> str | None:
         """Devuelve el `usuario_id` del contacto, o `None` si Identidad no esta.
@@ -136,6 +157,7 @@ class ClienteMetricas:
 
 __all__ = [
     "ClienteIdentidad",
+    "IdentidadCaida",
     "ClienteMetricas",
     "url_identidad",
     "url_catalogo",

@@ -20,6 +20,7 @@ from ..modelos import (
     PRIORIDAD_POR_CATEGORIA,
     SLA_HORAS,
     CategoriaCaso,
+    EstadoCaso,
     Prioridad,
 )
 
@@ -82,3 +83,66 @@ def clave_orden(prioridad: str, vence: datetime | None) -> tuple[int, float]:
         rango = _RANGO_DESCONOCIDO
     momento = vence.timestamp() if vence is not None else float("inf")
     return (rango, momento)
+
+
+_C = EstadoCaso
+
+# Lo que el operador puede mover en un ticket. `resuelto` se puede reabrir (el
+# acudiente responde o la solucion no sirvio); `cerrado` es terminal.
+TRANSICIONES_CASO: dict[EstadoCaso, frozenset[EstadoCaso]] = {
+    _C.ABIERTO: frozenset({_C.EN_GESTION, _C.ESPERANDO_TERCERO, _C.RESUELTO}),
+    _C.EN_GESTION: frozenset({_C.ESPERANDO_TERCERO, _C.RESUELTO}),
+    _C.ESPERANDO_TERCERO: frozenset({_C.EN_GESTION, _C.RESUELTO}),
+    _C.RESUELTO: frozenset({_C.EN_GESTION, _C.CERRADO}),
+    _C.CERRADO: frozenset(),
+}
+
+LONGITUD_MAXIMA_RESPUESTA = 2000
+
+
+@dataclass(frozen=True)
+class CambioRechazado:
+    """Por que un cambio de estado o una respuesta no procede, con su HTTP.
+
+    `razon` es estable (no un mensaje); `estado` es `422` si el destino ni es un
+    estado, y `409` si el estado actual no admite el cambio."""
+
+    razon: str
+    estado: int
+    campo: str = "estado"
+
+
+def validar_cambio_estado(actual: str, destino: str) -> CambioRechazado | None:
+    """`None` si el ticket puede pasar de `actual` a `destino`."""
+    try:
+        hacia = EstadoCaso(destino)
+    except ValueError:
+        return CambioRechazado("estado_invalido", 422)
+    try:
+        desde = EstadoCaso(actual)
+    except ValueError:
+        return CambioRechazado("transicion_invalida", 409)
+    if hacia not in TRANSICIONES_CASO[desde]:
+        return CambioRechazado("transicion_invalida", 409)
+    return None
+
+
+def validar_respuesta(estado: str, texto: str) -> tuple[str | None, CambioRechazado | None]:
+    """El texto limpio de una respuesta al acudiente, o el rechazo.
+
+    No se responde a un ticket cerrado (`409`), ni con un texto vacio o mas largo
+    que el tope (`422`)."""
+    if estado == EstadoCaso.CERRADO.value:
+        return None, CambioRechazado("caso_cerrado", 409, "texto")
+    limpio = texto.strip()
+    if not limpio:
+        return None, CambioRechazado("respuesta_vacia", 422, "texto")
+    if len(limpio) > LONGITUD_MAXIMA_RESPUESTA:
+        return None, CambioRechazado("respuesta_larga", 422, "texto")
+    return limpio, None
+
+
+def estado_tras_respuesta(actual: str) -> str:
+    """Responder un ticket recien abierto lo pasa a gestion; cualquier otro queda igual
+    (uno resuelto se reabre aparte, con intencion)."""
+    return EstadoCaso.EN_GESTION.value if actual == EstadoCaso.ABIERTO.value else actual
