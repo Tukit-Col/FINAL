@@ -144,3 +144,12 @@ test("enlace a Maps: con place_id fija el lugar, sin el busca por texto", () => 
     "https://www.google.com/maps/search/?api=1&query=Cra%207%20%23%2045-10",
   );
 });
+
+test("con el pin confirmado en OpenStreetMap el enlace abre ese punto exacto", () => {
+  assert.equal(
+    enlaceGoogleMaps({ direccion: "Calle 72 #10-34", ciudad: "Bogotá", latitud: 4.6518, longitud: -74.051 }),
+    "https://www.google.com/maps/search/?api=1&query=4.6518,-74.051",
+  );
+  // Una sola coordenada no sirve: cae a la búsqueda por texto.
+  assert.match(enlaceGoogleMaps({ direccion: "Calle 72 #10-34", latitud: 4.65 }), /query=Calle%2072/);
+});

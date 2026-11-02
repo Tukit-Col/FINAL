@@ -191,6 +191,37 @@ async def test_crear_orden_congela_la_localidad_y_el_lugar_de_google(cliente):
     assert leido["envio"]["google_place_id"] == "ChIJx9Lr6tqZP44RQ1rNpuKDdeA"
 
 
+async def test_crear_orden_congela_el_pin_confirmado_en_openstreetmap(cliente):
+    # Sin Google, el acudiente confirma su direccion en un mapa de OSM y el
+    # punto queda en la copia del envio (ADR 0049).
+    orden = _orden()
+    orden["entrega"].update({"latitud": 4.651818, "longitud": -74.051003})
+    cuerpo = (await cliente.post("/v1/ordenes", json=orden)).json()
+    assert (cuerpo["envio"]["latitud"], cuerpo["envio"]["longitud"]) == (4.651818, -74.051003)
+    leido = (await cliente.get(f"/v1/comercio/pedidos/{cuerpo['pedido_id']}", headers=OPERADOR_HDR)).json()
+    assert (leido["envio"]["latitud"], leido["envio"]["longitud"]) == (4.651818, -74.051003)
+
+
+async def test_sin_pin_el_envio_trae_coordenadas_nulas(cliente):
+    envio = (await cliente.post("/v1/ordenes", json=_orden())).json()["envio"]
+    assert (envio["latitud"], envio["longitud"]) == (None, None)
+
+
+@pytest.mark.parametrize(
+    "coordenadas",
+    [
+        {"latitud": 4.65},  # una sola no sirve
+        {"longitud": -74.05},
+        {"latitud": 40.4, "longitud": -3.7},  # Madrid: homonimo de otro pais
+        {"latitud": 4.65, "longitud": -140.0},
+    ],
+)
+async def test_coordenadas_incompletas_o_fuera_de_colombia_se_rechazan(cliente, coordenadas):
+    orden = _orden()
+    orden["entrega"].update(coordenadas)
+    assert (await cliente.post("/v1/ordenes", json=orden)).status_code == 400
+
+
 @pytest.mark.parametrize(("campo", "largo"), [("localidad", 65), ("google_place_id", 513)])
 async def test_una_localidad_o_un_place_id_demasiado_largos_se_rechazan(cliente, campo, largo):
     # Como todo cuerpo que no cumple el esquema en Comercio: 400.
@@ -970,3 +1001,12 @@ async def test_un_pedido_ajeno_es_404_y_sin_sesion_es_401(cliente):
             select(Pedido.__table__.c.estado).where(Pedido.__table__.c.id == uuid.UUID(pedido_id))
         )
     assert estado == EstadoPedido.PENDIENTE_PAGO.value
+
+
+async def test_mover_el_pin_no_reutiliza_el_pendiente(cliente):
+    # Mismo texto, otro punto: el repartidor iria al sitio viejo si se reutilizara.
+    a = (await cliente.post("/v1/ordenes", json=_con_entrega(latitud=4.65, longitud=-74.05))).json()
+    b = (await cliente.post("/v1/ordenes", json=_con_entrega(latitud=4.70, longitud=-74.07))).json()
+    c = (await cliente.post("/v1/ordenes", json=_con_entrega(latitud=4.70, longitud=-74.07))).json()
+    assert a["pedido_id"] != b["pedido_id"]
+    assert b["pedido_id"] == c["pedido_id"]

@@ -136,6 +136,8 @@ test("el reintento recupera la entrega del pedido pendiente mas reciente del kit
     localidad: "Suba",
     departamento: "",
     google_place_id: "",
+    latitud: null,
+    longitud: null,
   });
 });
 
