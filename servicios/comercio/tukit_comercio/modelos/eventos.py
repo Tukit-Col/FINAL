@@ -7,7 +7,7 @@ ser una escritura a dos sistemas sin garantia, que es el problema que el patron
 resuelve.
 
 La convencion de columnas es la de Inteligencia (`tipo, agregado_tipo,
-agregado_id, carga, ...`) y NO la de Identidad (`tipo_evento, clave_agregado`),
+agregado_id, carga, ...`), la misma que Identidad adopto en el ADR 0048,
 a proposito: el repartidor de Operacion lee las bandejas de Inteligencia y de
 Comercio con un solo parser. Dos formas obligarian a dos.
 

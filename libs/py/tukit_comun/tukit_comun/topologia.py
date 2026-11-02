@@ -96,6 +96,14 @@ AVISOS = Cola(
 COLEGIOS = Cola("identidad.colegios", ("colegio_verificado",))
 LISTAS = Cola("inteligencia.listas", ("lista_verificada", "lista_aprobada"))
 TRABAJOS = Cola("inteligencia.trabajos", ("trabajo_encolado",))
+# La supresion del titular (Ley 1581, ADR 0048): Identidad publica
+# `titular_suprimido` y cada servicio con datos del titular tiene su cola, asi
+# que el mismo evento llega a los tres. Cada uno confirma con
+# `supresion_confirmada`, que Identidad recoge en la suya.
+SUPRESION_COMERCIO = Cola("comercio.supresion", ("titular_suprimido",))
+SUPRESION_OPERACION = Cola("operacion.supresion", ("titular_suprimido",))
+SUPRESION_INTELIGENCIA = Cola("inteligencia.supresion", ("titular_suprimido",))
+SUPRESION_CONFIRMADA = Cola("identidad.supresion", ("supresion_confirmada",))
 
 
 @dataclass(frozen=True)
@@ -103,7 +111,18 @@ class Topologia:
     """El exchange y las colas que se declaran juntos."""
 
     exchange: str = EXCHANGE
-    colas: tuple[Cola, ...] = field(default=(AVISOS, COLEGIOS, LISTAS, TRABAJOS))
+    colas: tuple[Cola, ...] = field(
+        default=(
+            AVISOS,
+            COLEGIOS,
+            LISTAS,
+            TRABAJOS,
+            SUPRESION_COMERCIO,
+            SUPRESION_OPERACION,
+            SUPRESION_INTELIGENCIA,
+            SUPRESION_CONFIRMADA,
+        )
+    )
 
     def cola(self, nombre: str) -> Cola:
         """La cola llamada `nombre` (sin prefijo), o `KeyError`."""
@@ -157,6 +176,10 @@ __all__ = [
     "COLEGIOS",
     "ESPERA_REINTENTO_MS",
     "LISTAS",
+    "SUPRESION_COMERCIO",
+    "SUPRESION_CONFIRMADA",
+    "SUPRESION_INTELIGENCIA",
+    "SUPRESION_OPERACION",
     "TOPOLOGIA",
     "TRABAJOS",
     "Cola",

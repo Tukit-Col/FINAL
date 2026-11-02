@@ -239,7 +239,7 @@ async def test_suprimir_borra_lo_personal_conserva_pedidos_y_cierra_la_cuenta(en
         solicitud = (await c.execute(select(t["solicitud_supresion"]))).one()
         assert solicitud.estado == "propagando"
         evento = (await c.execute(select(t["bandeja_salida"]))).one()
-        assert evento.tipo_evento == "titular_suprimido"
+        assert evento.tipo == "titular_suprimido"
         # El evento auditable no lleva datos personales.
         assert "ana@" not in json.dumps(evento.carga) and "Ana" not in json.dumps(evento.carga)
         assert evento.carga["usuario_id"] == uid
