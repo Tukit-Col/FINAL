@@ -68,6 +68,8 @@ async def _pedido(motor: MotorServicio, usuario_id: uuid.UUID) -> uuid.UUID:
                 indicaciones="Porteria, preguntar por Ana",
                 localidad="Chapinero",
                 google_place_id="ChIJ-ana",
+                latitud=4.6518,
+                longitud=-74.051,
             )
         )
         db.add(Devolucion(pedido_id=pid, usuario_id=usuario_id, motivo="Mi hija Sofia no lo uso", monto=1))
@@ -98,6 +100,7 @@ async def test_enmascara_el_envio_y_conserva_lo_que_la_ley_obliga(motor):
         assert envio.documento_destinatario is None
         assert envio.indicaciones is None
         assert envio.google_place_id is None
+        assert (envio.latitud, envio.longitud) == (None, None)
         # La ciudad y la localidad no identifican a nadie y sostienen la logistica.
         assert (envio.ciudad, envio.localidad) == ("Bogota", "Chapinero")
         devolucion = (await db.execute(select(Devolucion))).scalar_one()

@@ -43,6 +43,7 @@ etiqueta; el título es la decisión.
 | [0046](0046-las-colas-viajan-por-rabbitmq.md) | Los eventos y los trabajos viajan por RabbitMQ, y la base queda como respaldo: cada productor publica su bandeja y ningún consumidor lee la base de otro | aceptada | `feature/colas-rabbitmq` |
 | [0047](0047-redis-guarda-lo-que-se-recalcula-y-cuenta-el-limite.md) | Redis guarda lo que se puede recalcular (la lectura aceptada de una lista y el vector de cada renglón) y cuenta el límite de tasa del gateway, y sin él todo sigue como antes salvo el límite, que cuenta en memoria | aceptada | `feature/cache-redis` |
 | [0048](0048-la-supresion-del-titular-viaja-por-evento.md) | El inventario del titular se lee por HTTP con su propio token y la supresión viaja por `titular_suprimido`; cada servicio confirma y la solicitud solo se cierra cuando confirman los tres | aceptada | `oe5-privacidad` |
+| [0049](0049-direccion-con-openstreetmap-sin-llave-de-google.md) | Sin llave de Google, la dirección se busca en OpenStreetMap (Nominatim detrás de un proxy, sin autocompletar por tecla) y se confirma en un mapa; las coordenadas sí se guardan | aceptada | `fix/direccion-osm` |
 
 ## Para incorporarlos
 

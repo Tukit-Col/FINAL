@@ -59,8 +59,27 @@ async def test_localidad_indicaciones_y_place_id_llegan_a_comercio(cliente_y_ent
     assert entregas == [completa]
 
 
+async def test_el_pin_de_openstreetmap_llega_a_comercio(cliente_y_entregas):
+    cliente, entregas = cliente_y_entregas
+    con_pin = {**LEGADA, "latitud": 4.651818, "longitud": -74.051003}
+    respuesta = await cliente.post(f"/v1/trabajos/{TRABAJO}/ordenar", json=_cuerpo(con_pin))
+    assert respuesta.status_code == 201
+    assert entregas == [con_pin]
+
+
+@pytest.mark.parametrize(
+    "coordenadas",
+    [{"latitud": 4.65}, {"latitud": 40.4, "longitud": -3.7}],
+)
+async def test_un_pin_incompleto_o_fuera_de_colombia_no_llega_a_comercio(cliente_y_entregas, coordenadas):
+    cliente, entregas = cliente_y_entregas
+    respuesta = await cliente.post(f"/v1/trabajos/{TRABAJO}/ordenar", json=_cuerpo({**LEGADA, **coordenadas}))
+    assert respuesta.status_code in (400, 422)
+    assert entregas == []
+
+
 async def test_un_campo_desconocido_no_cruza(cliente_y_entregas):
-    # Coordenadas: ni se guardan ni se reenvian (ADR 0044).
+    # Solo cruzan `latitud`/`longitud` (ADR 0049); un `lat`/`lng` inventado no.
     cliente, entregas = cliente_y_entregas
     respuesta = await cliente.post(
         f"/v1/trabajos/{TRABAJO}/ordenar", json=_cuerpo({**LEGADA, "lat": 4.65, "lng": -74.05})

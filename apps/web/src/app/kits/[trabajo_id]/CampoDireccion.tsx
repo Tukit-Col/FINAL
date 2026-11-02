@@ -28,6 +28,10 @@ const SESGO_BOGOTA = { center: { lat: 4.6533, lng: -74.0836 }, radius: 30_000 };
 export interface LugarElegido extends DireccionDerivada {
   direccion: string;
   google_place_id: string | null;
+  // Solo si la dirección salió de OpenStreetMap (`CampoDireccionOsm`, ADR 0049);
+  // de Google nunca se guardan coordenadas (ADR 0044).
+  latitud?: number;
+  longitud?: number;
 }
 
 interface Sugerencia {

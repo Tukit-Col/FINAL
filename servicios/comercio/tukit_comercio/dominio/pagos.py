@@ -49,6 +49,10 @@ CAMPOS_FIRMA_ENTREGA = (
     "indicaciones",
     "telefono",
     "documento_destinatario",
+    # El pin de OSM si cuenta: mover el pin sin tocar el texto cambia a donde
+    # llega el repartidor, y reutilizar el pendiente lo despacharia al punto viejo.
+    "latitud",
+    "longitud",
 )
 
 
