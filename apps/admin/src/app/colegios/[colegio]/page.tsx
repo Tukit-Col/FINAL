@@ -333,6 +333,7 @@ export default async function PaginaColegio({ params }: Props) {
                     muestran los identificadores.
                   </p>
                 ) : null}
+                <div className={styles.tablaMarco}>
                 <table className={styles.tabla}>
                   <thead>
                     <tr>
@@ -351,6 +352,7 @@ export default async function PaginaColegio({ params }: Props) {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </>
             )}
 

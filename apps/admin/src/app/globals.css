@@ -38,3 +38,11 @@ samp {
   font-family: var(--font-cifras);
   font-size: 0.92em;
 }
+
+/* Celular: el relleno lateral de 24 px por lado deja ~312 px de contenido a
+ * 360 px; se baja a 12 px para que las tablas y tarjetas tengan más sitio. */
+@media (max-width: 480px) {
+  main {
+    padding-inline: var(--espacio-3);
+  }
+}

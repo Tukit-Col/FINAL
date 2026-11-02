@@ -160,10 +160,21 @@
     display: none;
   }
 
+  /* Blanco táctil mínimo de 44 px (antes 34 px): con solo el ícono visible, el
+   * área se garantiza con tamaño fijo y el ícono centrado. */
   .enlace,
   .ingresar,
   .cuenta {
-    padding: 9px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .logo {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
   }
 
   .acciones {
@@ -172,7 +183,8 @@
 
   .accion {
     gap: 6px;
-    padding: 10px 14px;
+    min-height: 44px;
+    padding: 0 14px;
     font-size: 13.5px;
   }
 
@@ -187,5 +199,11 @@
 @media (max-width: 360px) {
   .nombre {
     display: none;
+  }
+
+  /* Con los blancos táctiles de 44 px, a 360 px sobran solo ~6 px: se recorta
+   * el margen lateral para que el CTA no se corte. */
+  .interior {
+    padding-inline: var(--espacio-2);
   }
 }
