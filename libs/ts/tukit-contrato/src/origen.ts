@@ -64,6 +64,7 @@ import type {
   ListaOficial,
   PaginaProductos,
   Personaje,
+  ProductoCatalogo,
   ProductoCatalogoDetalle,
   ProductoEditable,
   PropuestaCola,
@@ -82,6 +83,7 @@ import type {
 } from "./comercio";
 import type { MetricasColegio, ResumenPedidosColegio, SerieMetricas } from "./metricas";
 import type { BandejaOperacion, Caso, CasoCreado, SolicitudCaso } from "./operacion";
+import type { CasoDetalleAdmin, PedidoAdmin, SolicitudAvanceAdmin } from "./admin";
 
 /** Los roles del sistema (filas de `rol` en identidad, ADR 0013). No es un
  *  enum del dominio: el codigo pregunta `puede(...)`, nunca `if rol in (...)`.
@@ -552,8 +554,22 @@ export interface OrigenDatos {
 
   // ASUMIDO — superficie de lectura de `operacion` (tickets del back-office).
   // Ver `operacion.ts`.
-  casos(): Promise<BandejaOperacion>;
-  caso(casoId: string): Promise<Caso>;
+  // Solo staff: operacion valida el Bearer contra identidad (401/403/503). El
+  // token es opcional en el tipo para no romper a quien aun no lo manda, pero
+  // sin el la bandeja responde 401.
+  casos(token?: string): Promise<BandejaOperacion>;
+  caso(casoId: string, token?: string): Promise<Caso>;
+
+  // Back-office de pedidos y tickets (ver `admin.ts`). Todos exigen Bearer de
+  // operador/admin y responden 401/403/503 igual que el resto de la consola.
+  pedidoAdmin(token: string, pedidoId: string): Promise<PedidoAdmin>;
+  avanzarPedidoAdmin(token: string, pedidoId: string, cuerpo: SolicitudAvanceAdmin): Promise<PedidoAdmin>;
+  casoAdmin(token: string, casoId: string): Promise<CasoDetalleAdmin>;
+  responderCaso(token: string, casoId: string, texto: string): Promise<CasoDetalleAdmin>;
+  cambiarEstadoCaso(token: string, casoId: string, destino: string): Promise<CasoDetalleAdmin>;
+  vincularPedidoCaso(token: string, casoId: string, pedidoId: string): Promise<CasoDetalleAdmin>;
+  // Un producto del catalogo publico por sku (imagen y ofertas), o `null` si no existe.
+  productoPublico(sku: string): Promise<ProductoCatalogo | null>;
 
   // ASUMIDO — superficie de ESCRITURA de `operacion`: abrir un caso/PQRS desde
   // el centro de ayuda del acudiente (ADR 0004). El backend lo sirve en

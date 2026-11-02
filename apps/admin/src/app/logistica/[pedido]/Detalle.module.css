@@ -192,3 +192,137 @@
   color: var(--color-text-secondary);
   white-space: pre-wrap;
 }
+
+/* ------------------------------------------------------- linea de tiempo */
+
+.tiempo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--espacio-3);
+  list-style: none;
+  padding: 0;
+}
+
+.tiempo li {
+  display: grid;
+  gap: 2px;
+  padding-top: var(--espacio-2);
+  border-top: 3px solid var(--color-border);
+  font-size: 12px;
+}
+
+.tiempoEtiqueta {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.tiempoCuando {
+  color: var(--color-text-secondary);
+}
+
+.tiempoQuien {
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.paso_hecho {
+  border-top-color: var(--color-success) !important;
+}
+
+.paso_actual {
+  border-top-color: var(--color-primary) !important;
+}
+
+.paso_actual .tiempoEtiqueta {
+  color: var(--color-primary);
+}
+
+.paso_pendiente .tiempoEtiqueta {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------- lineas */
+
+.tablaMarco {
+  overflow-x: auto;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tabla th,
+.tabla td {
+  padding: 6px var(--espacio-2);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.tabla thead th {
+  color: var(--color-text-muted);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.tabla tfoot th,
+.tabla tfoot td {
+  font-weight: 800;
+  border-bottom: 0;
+}
+
+.tabla tfoot th {
+  text-align: right;
+}
+
+.num {
+  text-align: right !important;
+}
+
+.producto {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.miniatura,
+.miniaturaVacia {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  object-fit: cover;
+}
+
+.hijos {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+/* ------------------------------------------------------------- retracto */
+
+.alertaRetracto {
+  padding: 1px 9px;
+  border-radius: var(--radius-full);
+  background: var(--color-aviso-bg);
+  box-shadow: inset 0 0 0 1px var(--color-aviso-border);
+  color: var(--color-aviso);
+  font-weight: 600;
+}
+
+.bloqueRetracto {
+  box-shadow: var(--clay-shadow-sm), inset 0 0 0 2px var(--color-aviso-border);
+}
+
+.devoluciones {
+  display: grid;
+  gap: var(--espacio-3);
+  list-style: none;
+  padding: 0;
+  font-size: 13px;
+}

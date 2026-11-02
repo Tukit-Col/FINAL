@@ -65,6 +65,7 @@ _PLANTILLAS = {
     "pedido_despachado": "Tu pedido {pedido} salió y va con {repartidor}.",
     "pedido_en_reparto": "Tu pedido {pedido} llega hoy.",
     "pedido_entregado": "Tu pedido {pedido} fue entregado. ¡Gracias por confiar en Tukit!",
+    "caso_respuesta": "Respondimos tu caso {caso}. Entra a Tukit para leer la respuesta.",
 }
 
 

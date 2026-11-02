@@ -1,0 +1,113 @@
+.acciones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-4);
+  padding: var(--espacio-4) var(--espacio-5);
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.acciones h2 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  max-width: 70ch;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.campo label,
+.etiqueta {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.campo textarea,
+.fila input {
+  padding: 6px var(--espacio-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.campo textarea[aria-invalid="true"],
+.fila input[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+.fila {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--espacio-3);
+}
+
+.fila input {
+  min-width: 22ch;
+  flex: 1 1 22ch;
+  max-width: 44ch;
+}
+
+.botonera {
+  display: flex;
+  gap: var(--espacio-2);
+  flex-wrap: wrap;
+}
+
+.principal,
+.secundario {
+  padding: 7px var(--espacio-4);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.principal {
+  border: 0;
+  background: var(--color-primary);
+  color: var(--color-white);
+}
+
+.secundario {
+  border: 1px solid var(--color-border);
+  background: var(--color-white);
+  color: var(--color-text-primary);
+}
+
+.principal:disabled,
+.secundario:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ayuda {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.exito {
+  color: var(--color-success);
+  font-size: 13px;
+  font-weight: 600;
+}
