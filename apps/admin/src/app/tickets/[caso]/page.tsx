@@ -148,6 +148,15 @@ export default async function DetalleTicket({ params }: Props) {
             <p>{caso.descripcion || "Sin descripción."}</p>
           </li>
           {caso.eventos.map((e, i) => {
+            // Lo que el acudiente agrego desde su panel (/dashboard, mis casos).
+            if (e.tipo === "comentario_acudiente") {
+              return (
+                <li key={i} className={styles.mensajeAcudiente}>
+                  <div className={styles.quien}>Acudiente · {formatearFecha(e.creado_en)}</div>
+                  <p>{String(e.datos["texto"] ?? "")}</p>
+                </li>
+              );
+            }
             if (e.tipo === "respuesta") {
               return (
                 <li key={i} className={styles.mensajeEquipo}>

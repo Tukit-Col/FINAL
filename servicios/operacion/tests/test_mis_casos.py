@@ -12,7 +12,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 import pytest_asyncio
-from conftest import TOKEN_ACUDIENTE, TOKEN_OTRO, IdentidadConSesiones
+from conftest import TOKEN_ACUDIENTE, TOKEN_OPERADOR, TOKEN_OTRO, IdentidadConSesiones
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from tukit_comun.bd import MotorServicio
 from tukit_operacion.api import app
@@ -117,3 +117,30 @@ async def test_un_caso_puede_apuntar_a_un_pedido(cliente):
     assert detalle["pedido_id"] == pedido
     malo = await cliente.post("/v1/operacion/mis-casos", json=_caso(pedido_id="no-es-uuid"), headers=_h(TOKEN_ACUDIENTE))
     assert malo.status_code == 422
+
+
+async def test_el_dueno_y_el_staff_comparten_la_conversacion_por_puertas_distintas(cliente):
+    """S3 (portador) y S5 (staff) sobre el mismo caso: el acudiente no entra a la
+    bandeja, el staff ve su mensaje y el acudiente ve la respuesta del equipo,
+    sin el actor ni los cambios de estado."""
+    caso_id = await _abrir(cliente)
+    assert (await cliente.get("/v1/operacion/casos", headers=_h(TOKEN_ACUDIENTE))).status_code == 403
+    assert (await cliente.get(f"/v1/operacion/casos/{caso_id}", headers=_h(TOKEN_ACUDIENTE))).status_code == 403
+
+    r = await cliente.post(
+        f"/v1/operacion/mis-casos/{caso_id}/comentarios", json={"texto": "Hola?"}, headers=_h(TOKEN_ACUDIENTE)
+    )
+    assert r.status_code == 201
+    staff = (await cliente.get(f"/v1/operacion/casos/{caso_id}", headers=_h(TOKEN_OPERADOR))).json()
+    assert [e["tipo"] for e in staff["eventos"]] == ["comentario_acudiente"]
+
+    r = await cliente.post(
+        f"/v1/operacion/casos/{caso_id}/responder", json={"texto": "Ya lo revisamos."}, headers=_h(TOKEN_OPERADOR)
+    )
+    assert r.status_code in (200, 201)
+    mio = (await cliente.get(f"/v1/operacion/mis-casos/{caso_id}", headers=_h(TOKEN_ACUDIENTE))).json()
+    assert [(c["autor"], c["texto"]) for c in mio["comentarios"]] == [
+        ("acudiente", "Hola?"),
+        ("equipo", "Ya lo revisamos."),
+    ]
+    assert all("actor_id" not in c for c in mio["comentarios"])
