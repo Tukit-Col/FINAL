@@ -85,6 +85,15 @@ una latencia p50 de 1.000~ms y p95 de 1.177~ms, con 616 tokens de entrada y 39 d
 El formulario no llama al modelo, pero su tiempo no se midió con acudientes, de modo que no se afirma
 que NL2C sea más rápido para ellos.
 
+\paragraph{Dónde quedó en la aplicación.} El componente se construyó para los dos puntos de
+entrada, el inicio del pedido y la página del kit, pero en la versión que usaron los acudientes de
+la ronda 2 de OE5 solo se monta en la página del kit, como el asistente que recibe pedidos de cambio
+del tipo «más barato en cuadernos». En el inicio el equipo dejó el formulario guiado, porque el
+acudiente todavía no ha visto ningún kit y el formulario le muestra de una vez qué puede elegir. El
+servicio de interpretación es el mismo en los dos casos, de modo que la evaluación de esta sección
+vale para el asistente del kit; el panel del inicio sigue en el código detrás de una bandera
+apagada.
+
 \paragraph{Evaluación.} El asistente se midió con 35 frases en español, 22 de la encuesta y 13
 construidas, cuya etiqueta de oro se escribió antes de correr el modelo, y con 27 ataques de
 inyección al estilo de AgentDojo \citep{debenedetti2024agentdojo}. El modelo fue
