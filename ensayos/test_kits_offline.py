@@ -32,7 +32,11 @@ class TestLoQueNoSeVendeLlegaComoLinea:
         assert linea.informativa
 
     def test_un_texto_con_titulo_es_por_su_cuenta(self, renglon):
-        assert renglon("T#1").estado == "SIN_MATCH"
+        # Desde el plan lector de S1 (C134 = libro_libre), el texto sin edicion
+        # verificada va como `otro` con "Se compra en libreria": linea sin precio.
+        linea = renglon("T#1")
+        assert linea.tipo == "otro" and linea.informativa
+        assert linea.ahorrador is None and linea.premium is None
 
     @pytest.mark.parametrize("clave", ["4#65", "6#27", "1#3", "8#10", "J#25", "J#87"])
     def test_lo_que_el_colegio_no_pide_comprar_no_se_cobra(self, renglon, clave):
