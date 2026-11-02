@@ -721,6 +721,63 @@ class TestElFrenteDePareto:
         assert all(k.lineas[0].elegido.sku == "SOLO" for k in kits)
 
 
+class TestElFanNoRepiteElMismoProducto:
+    """Regresion: el Fan ponia el mismo cuaderno de personaje en cada renglon."""
+
+    SPIDEY = _candidato("SPIDEY", "confiable", 36900, personaje="spiderman")
+    OTRO_DISENO = _candidato("SPIDEY-2", "confiable", 12000, personaje="spiderman")
+    NEUTRO = _candidato("NEUTRO", "economico", 7990)
+
+    def _renglones(self, textos, candidatos):
+        return [_renglon(i + 1, t, candidatos) for i, t in enumerate(textos)]
+
+    def test_el_mismo_producto_de_personaje_sale_una_vez(self):
+        renglones = self._renglones(
+            ["cuaderno cuadriculado 100 hojas", "cuaderno cosido 100 hojas", "cuaderno grande"],
+            (self.SPIDEY, self.NEUTRO),
+        )
+        fan = next(
+            k
+            for k in armar_los_tres(renglones, {"personaje_por_hijo": {"hijo-1": ["spiderman"]}})
+            if k.perfil == "Fan"
+        )
+        skus = [li.elegido.sku for li in fan.lineas]
+        assert skus.count("SPIDEY") == 1
+        assert skus.count("NEUTRO") == 2
+
+    def test_otro_diseno_del_personaje_es_preferido_al_neutro(self):
+        renglones = self._renglones(
+            ["cuaderno a", "cuaderno b"], (self.SPIDEY, self.OTRO_DISENO, self.NEUTRO)
+        )
+        fan = next(
+            k
+            for k in armar_los_tres(renglones, {"personaje_por_hijo": {"hijo-1": ["spiderman"]}})
+            if k.perfil == "Fan"
+        )
+        # Los dos renglones llevan personaje, pero no el mismo producto.
+        assert {li.elegido.sku for li in fan.lineas} == {"SPIDEY-2", "SPIDEY"}
+
+    def test_el_renglon_surtido_puede_repetir(self):
+        renglones = self._renglones(
+            ["cuaderno cuadriculado", "cuadernos surtidos"], (self.SPIDEY, self.NEUTRO)
+        )
+        fan = next(
+            k
+            for k in armar_los_tres(renglones, {"personaje_por_hijo": {"hijo-1": ["spiderman"]}})
+            if k.perfil == "Fan"
+        )
+        assert [li.elegido.sku for li in fan.lineas] == ["SPIDEY", "SPIDEY"]
+
+    def test_ahorrador_y_premium_no_cambian(self):
+        renglones = self._renglones(["cuaderno a", "cuaderno b"], (self.SPIDEY, self.NEUTRO))
+        sin = armar_los_tres(renglones, {})
+        con = armar_los_tres(renglones, {"personaje_por_hijo": {"hijo-1": ["spiderman"]}})
+        for perfil in ("Ahorrador", "Premium"):
+            a = next(k for k in sin if k.perfil == perfil)
+            b = next(k for k in con if k.perfil == perfil)
+            assert [li.elegido.sku for li in a.lineas] == [li.elegido.sku for li in b.lineas]
+
+
 class TestElFrenteNSGAEnEspacioGrande:
     """El camino que SOLO corre NSGA-II: espacio de busqueda > LIMITE_ENUMERACION.
 

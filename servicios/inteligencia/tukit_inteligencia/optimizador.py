@@ -188,6 +188,10 @@ class Renglon:
     # El concepto dura todo el ano y sirve para todas las materias (tijeras,
     # regla, colores). Lo dice el catalogo; ver `juntar_herramientas`.
     uno_por_estudiante: bool = False
+    # Lo que el renglon EXIGE (`encuadernacion=cosido`, `rayado=cuadriculado`).
+    # El kit Fan lo necesita para no poner un producto de personaje que el
+    # colegio no acepta en ese renglon (un argollado donde pidio cosido).
+    atributos_impuestos: dict[str, Any] = field(default_factory=dict)
 
     @property
     def informativa(self) -> bool:
@@ -234,6 +238,9 @@ class LineaKit:
     uno_por_estudiante: bool = False
     # El orden de la linea en la que ya va este producto, si se junto.
     junto_a: int | None = None
+    # Lo que el renglon exigia; viaja a la linea para decidir donde cabe el
+    # producto de personaje del Fan (ver `lineas_con_personaje`).
+    atributos_impuestos: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -1110,6 +1117,7 @@ def _linea_desde(renglon: Renglon, elegido: Candidato | None) -> LineaKit:
         motivo_no_consolidable=MOTIVO_NO_CONSOLIDABLE if renglon.no_consolidable else None,
         concepto_codigo=renglon.concepto_codigo,
         uno_por_estudiante=renglon.uno_por_estudiante,
+        atributos_impuestos=dict(renglon.atributos_impuestos),
     )
 
 
@@ -1282,6 +1290,143 @@ def _objetivos(lineas: tuple[LineaKit, ...], total: int) -> dict[str, float | in
     }
 
 
+def _pide_surtido(texto: str, impuestos: dict[str, Any]) -> bool:
+    """El renglon pide EXPLICITAMENTE un surtido (`colores surtidos`, `color=surtido`).
+
+    Es la unica excepcion a la regla de variedad del Fan: si el colegio pide un
+    surtido, repetir el mismo producto de personaje no contradice nada. Se mira
+    tanto el atributo ya extraido por el catalogo como el texto crudo, porque el
+    catalogo solo extrae `surtido` para los conceptos que lo declaran.
+    """
+    return "surtid" in texto.lower() or any(str(v).lower() == "surtido" for v in impuestos.values())
+
+
+def puntaje_de_encaje(impuestos: dict[str, Any], atributos: dict[str, Any]) -> int | None:
+    """Cuanto encaja un producto en lo que un renglon exige. `None` si lo contradice.
+
+    Entrada: lo que el renglon exige (`encuadernacion=cosido`) y lo que el
+    producto declara. Salida: `None` si algun atributo declarado por el producto
+    difiere del exigido (un argollado en un renglon que pide cosido), o el
+    numero de atributos exigidos que el producto declara y cumple.
+
+    Un atributo que el producto NO declara no contradice: los productos de
+    personaje traen pocos atributos (el cuaderno de Spiderman declara
+    encuadernacion, rayado y materias, pero no las hojas), y exigirles todo
+    dejaria al Fan sin personaje en renglones donde si cabe. El empate entre
+    renglones lo rompe el numero de aciertos (mas aciertos = mejor encaje).
+    """
+    declarados = {k: str(v).lower() for k, v in (atributos or {}).items()}
+    aciertos = 0
+    for clave, exigido in (impuestos or {}).items():
+        if clave not in declarados:
+            continue
+        if declarados[clave] != str(exigido).lower():
+            return None
+        aciertos += 1
+    return aciertos
+
+
+def renglones_con_personaje(
+    renglones: list[tuple[Any, str, dict[str, Any], str]], atributos: dict[str, Any]
+) -> set[Any]:
+    """Las claves de renglon que SI llevan un mismo producto de personaje.
+
+    Algoritmo.
+    Entrada: los renglones de UN concepto (cuaderno, cartuchera...) como tuplas
+    `(clave, hijo, atributos_impuestos, texto)` en el orden del kit, y los
+    atributos del producto de personaje.
+    Salida: el conjunto de claves que reciben el producto.
+    Estrategia: el kit Fan pone el personaje, pero un mismo producto no se
+    repite en todos los renglones del concepto (la lista pide cuadriculado de
+    100 hojas, cosido, grande, argollado... y cuatro cuadernos de Spiderman
+    iguales no son variedad). Por cada hijo se descartan los renglones que el
+    producto contradice (`puntaje_de_encaje` None) y de los restantes se elige
+    UNO: el de mayor encaje, el primero en caso de empate. Los renglones que
+    piden `surtido` explicitamente tambien lo llevan, porque ahi repetir es lo
+    pedido. Si todos los renglones de un hijo contradicen al producto, ese hijo
+    queda sin el (mejor un cuaderno neutro que el que el colegio no acepto).
+    El resto de renglones conserva su producto, que el optimizador ya habia
+    elegido como el neutro compatible.
+    Complejidad: O(n * a), con n renglones del concepto y a atributos exigidos
+    por renglon; una sola pasada, sin ordenar.
+    """
+    mejor: dict[str, tuple[int, Any]] = {}
+    llevan: set[Any] = set()
+    for clave, hijo, impuestos, texto in renglones:
+        puntaje = puntaje_de_encaje(impuestos, atributos)
+        if puntaje is None:
+            continue
+        if _pide_surtido(texto, impuestos):
+            llevan.add(clave)
+        # `>` estricto: el primero que alcanza el maximo se queda con el empate.
+        if hijo not in mejor or puntaje > mejor[hijo][0]:
+            mejor[hijo] = (puntaje, clave)
+    llevan.update(clave for _, clave in mejor.values())
+    return llevan
+
+
+def variar_personaje(
+    renglones: list[Renglon],
+    elegidos: dict[tuple[str, int], Candidato | None],
+    preferencias: dict[str, Any],
+) -> dict[tuple[str, int], Candidato | None]:
+    """Que el kit Fan no repita el MISMO producto de personaje entre renglones.
+
+    Algoritmo.
+    Entrada: los renglones del kit, la eleccion ya hecha por (hijo, orden) y las
+    preferencias (personajes pedidos por hijo).
+    Salida: la misma eleccion, donde cada producto de personaje aparece una sola
+    vez por hijo (salvo en renglones que piden surtido).
+    Estrategia: recorrido en el orden del kit con un conjunto de
+    (hijo, sku) ya usados. La primera vez que un producto de personaje aparece
+    se conserva, asi el personaje queda al menos una vez. Si reaparece, el
+    renglon cambia a (1) otro producto del personaje pedido que aun no se uso y
+    cumpla lo que el renglon exige, el mas barato; o (2) el candidato sin
+    personaje mas barato, que es el estilo normal que el Ahorrador elegiria.
+    Si el renglon no tiene alternativa (todos sus candidatos son ese producto)
+    se deja como esta: un renglon repetido es mejor que uno vacio.
+    No toca Ahorrador, Premium ni A tu Medida: solo se invoca para el Fan, y
+    cambiar un candidato por otro del MISMO renglon no altera la aritmetica de
+    unidades (cada linea recalcula su empaque).
+    Complejidad: O(n * c), con n renglones y c candidatos por renglon.
+    """
+    usados: set[tuple[str, str]] = set()
+    resultado = dict(elegidos)
+    for renglon in renglones:
+        clave = (renglon.hijo, renglon.orden)
+        elegido = resultado.get(clave)
+        if renglon.informativa or elegido is None or not elegido.personaje:
+            continue
+        if (
+            _pide_surtido(renglon.texto, renglon.atributos_impuestos)
+            or (renglon.hijo, elegido.sku) not in usados
+        ):
+            usados.add((renglon.hijo, elegido.sku))
+            continue
+
+        admisibles = _admisibles(renglon)
+        pedidos = {p.lower() for p in _personajes_de(preferencias, renglon.hijo)}
+
+        def orden(c: Candidato, cantidad: int = renglon.cantidad) -> tuple[tuple[int, int, int], str]:
+            return (_costo_para_ordenar(c, cantidad), c.sku)
+
+        otros_disenos = [
+            c
+            for c in admisibles
+            if c.personaje
+            and (not pedidos or c.personaje.lower() in pedidos)
+            and (renglon.hijo, c.sku) not in usados
+        ]
+        normales = [c for c in admisibles if not c.personaje]
+        cambio = min(otros_disenos or normales, key=orden, default=None)
+        if cambio is None:
+            continue
+        resultado[clave] = cambio
+        if cambio.personaje:
+            usados.add((renglon.hijo, cambio.sku))
+    return resultado
+
+
 def armar_kit(
     renglones: list[Renglon],
     perfil: str,
@@ -1296,21 +1441,28 @@ def armar_kit(
     La diferencia es solo la SELECCION del candidato: unidades, consolidacion,
     total honesto y objetivos son identicos en las dos rutas.
     """
-    lineas_lista: list[LineaKit] = []
+    elegidos: dict[tuple[str, int], Candidato | None] = {}
     for renglon in renglones:
         if renglon.informativa:
-            lineas_lista.append(_linea_desde(renglon, None))
             continue
         if elecciones is not None:
-            elegido = elecciones.get((renglon.hijo, renglon.orden))
+            elegidos[(renglon.hijo, renglon.orden)] = elecciones.get((renglon.hijo, renglon.orden))
         else:
-            elegido = elegir_por_perfil(
+            elegidos[(renglon.hijo, renglon.orden)] = elegir_por_perfil(
                 renglon.candidatos,
                 perfil,
                 personajes=_personajes_de(preferencias, renglon.hijo),
                 cantidad=renglon.cantidad,
             )
-        lineas_lista.append(_linea_desde(renglon, elegido))
+    if perfil == PerfilKit.FAN.value:
+        elegidos = variar_personaje(renglones, elegidos, preferencias)
+
+    lineas_lista: list[LineaKit] = []
+    for renglon in renglones:
+        if renglon.informativa:
+            lineas_lista.append(_linea_desde(renglon, None))
+        else:
+            lineas_lista.append(_linea_desde(renglon, elegidos[(renglon.hijo, renglon.orden)]))
 
     lineas, consolidaciones = consolidar(juntar_herramientas(tuple(lineas_lista)))
     # El total suma SOLO lo no informativo. Es la promesa de la seccion 5.1.1
