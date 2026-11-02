@@ -159,57 +159,62 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
       {/* Rótulo explícito y no envolvente: la lista de resultados no puede
           formar parte del nombre accesible del campo. */}
       <label htmlFor={`${idBase}-campo`}>Dirección</label>
-      <div className={styles.filaBuscarDireccion}>
-        <input
-          id={`${idBase}-campo`}
-          value={valor}
-          required
-          autoComplete="off"
-          enterKeyHint="search"
-          placeholder="Ej.: Calle 72 # 10-34, Bogotá"
-          role="combobox"
-          aria-autocomplete="list"
-          aria-expanded={visible}
-          aria-controls={idLista}
-          aria-describedby={idEstado}
-          aria-activedescendant={visible ? `${idLista}-${indiceActivo}` : undefined}
-          onBlur={() => setAbierta(false)}
-          onChange={(e) => escribir(e.target.value)}
-          onKeyDown={teclear}
-        />
-        <button
-          type="button"
-          className={styles.botonBuscarDireccion}
-          disabled={!puedeBuscar}
-          onClick={() => void buscar()}
-        >
-          <Search size={18} aria-hidden="true" />
-          Buscar
-        </button>
-      </div>
-      <div className={styles.sugerenciasDireccion} hidden={!visible}>
-        <ul id={idLista} role="listbox" aria-label="Direcciones encontradas">
-          {candidatos.map((c, i) => (
-            <li
-              key={c.id}
-              id={`${idLista}-${i}`}
-              role="option"
-              aria-selected={i === indiceActivo}
-              className={`${styles.sugerenciaDireccion} ${i === indiceActivo ? styles.sugerenciaActiva : ""}`}
-              // `mousedown` y no `click`: el `blur` del campo cerraría la lista
-              // antes de que el clic llegue a la opción.
-              onMouseDown={(e) => {
-                e.preventDefault();
-                elegir(c);
-              }}
-              onMouseEnter={() => setActiva(i)}
-            >
-              <span className={styles.sugerenciaPrincipal}>{c.principal}</span>
-              {c.secundario && <span className={styles.sugerenciaSecundaria}>{c.secundario}</span>}
-            </li>
-          ))}
-        </ul>
-        <p className={styles.atribucionOsm}>© OpenStreetMap</p>
+      {/* La lista cuelga de ESTE ancla (campo + botón) y no de todo el bloque: el
+          bloque también lleva el aviso y el mapa, y con el pin ya puesto la lista
+          caería debajo del mapa, lejos del campo. */}
+      <div className={styles.anclaListaDireccion}>
+        <div className={styles.filaBuscarDireccion}>
+          <input
+            id={`${idBase}-campo`}
+            value={valor}
+            required
+            autoComplete="off"
+            enterKeyHint="search"
+            placeholder="Ej.: Calle 72 # 10-34, Bogotá"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={visible}
+            aria-controls={idLista}
+            aria-describedby={idEstado}
+            aria-activedescendant={visible ? `${idLista}-${indiceActivo}` : undefined}
+            onBlur={() => setAbierta(false)}
+            onChange={(e) => escribir(e.target.value)}
+            onKeyDown={teclear}
+          />
+          <button
+            type="button"
+            className={styles.botonBuscarDireccion}
+            disabled={!puedeBuscar}
+            onClick={() => void buscar()}
+          >
+            <Search size={18} aria-hidden="true" />
+            Buscar
+          </button>
+        </div>
+        <div className={styles.sugerenciasDireccion} hidden={!visible}>
+          <ul id={idLista} role="listbox" aria-label="Direcciones encontradas">
+            {candidatos.map((c, i) => (
+              <li
+                key={c.id}
+                id={`${idLista}-${i}`}
+                role="option"
+                aria-selected={i === indiceActivo}
+                className={`${styles.sugerenciaDireccion} ${i === indiceActivo ? styles.sugerenciaActiva : ""}`}
+                // `mousedown` y no `click`: el `blur` del campo cerraría la lista
+                // antes de que el clic llegue a la opción.
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  elegir(c);
+                }}
+                onMouseEnter={() => setActiva(i)}
+              >
+                <span className={styles.sugerenciaPrincipal}>{c.principal}</span>
+                {c.secundario && <span className={styles.sugerenciaSecundaria}>{c.secundario}</span>}
+              </li>
+            ))}
+          </ul>
+          <p className={styles.atribucionOsm}>© OpenStreetMap</p>
+        </div>
       </div>
       <p id={idEstado} role="status" aria-live="polite" className={styles.estadoDireccion}>
         {mensaje}
