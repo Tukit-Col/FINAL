@@ -286,15 +286,21 @@ class RepoPedidos:
             for f in filas
         ]
 
-    async def transaccion_de_pago(self, pedido_id: uuid.UUID) -> str | None:
-        """El id de transaccion de Wompi del ultimo intento de pago, o `None` si
-        aun no hay (el pago sigue `iniciado`). Es lo unico de la pasarela que se guarda."""
-        return await self.conexion.scalar(
-            select(PAGO.c.transaccion_wompi)
-            .where(PAGO.c.pedido_id == pedido_id)
-            .order_by(PAGO.c.creado_en.desc())
-            .limit(1)
-        )
+    async def datos_de_pago_staff(self, pedido_id: uuid.UUID) -> dict[str, Any]:
+        """Lo que solo el staff ve del ultimo intento de pago: el id de transaccion
+        de Wompi (`None` mientras siga `iniciado`) y cuando cambio de estado por
+        ultima vez, que para un pago aprobado es el momento de la confirmacion."""
+        fila = (
+            await self.conexion.execute(
+                select(PAGO.c.transaccion_wompi, PAGO.c.actualizado_en)
+                .where(PAGO.c.pedido_id == pedido_id)
+                .order_by(PAGO.c.creado_en.desc())
+                .limit(1)
+            )
+        ).one_or_none()
+        if fila is None:
+            return {"transaccion_wompi": None, "actualizado_en": None}
+        return {"transaccion_wompi": fila.transaccion_wompi, "actualizado_en": _iso(fila.actualizado_en)}
 
     async def listar_todos(self) -> list[Any]:
         return list(await self.conexion.execute(select(PEDIDO).order_by(PEDIDO.c.creado_en.desc())))
