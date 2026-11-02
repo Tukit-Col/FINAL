@@ -8,6 +8,8 @@ el que sean puras es justo lo que ADR 0019 pide para que vivan en `dominio/`.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from tukit_inteligencia.dominio.pipeline import (
     _anclar_kits,
     _personaje_pedido,
@@ -184,3 +186,87 @@ class TestInyectarPersonajeFan:
     def test_sin_swaps_devuelve_los_kits_intactos(self):
         kits = [_kit(PerfilKit.FAN.value)]
         assert inyectar_personaje_fan(kits, {}, PREFS_FAN) is kits
+
+
+# --------------------------------------------------------------------------
+# Variedad del Fan: el mismo producto de personaje no se repite entre renglones
+# --------------------------------------------------------------------------
+
+
+def _linea_cuaderno(orden: int, texto: str, impuestos: dict, *, hijo: str = "hijo-1") -> LineaKit:
+    base = _linea("C001", 8000, hijo=hijo, orden=orden)
+    return replace(base, descripcion=texto, atributos_impuestos=impuestos)
+
+
+SPIDEY_CUADERNO = {
+    "sku": "TK-C001-CON-SPIDERMAN",
+    "nombre": "Cuaderno Argollado Multimaterias Spiderman",
+    "personaje": "spiderman",
+    "precio_desde": 36900,
+    "atributos": {"encuadernacion": "argollado", "materias": "multiple", "rayado": "cuadriculado"},
+}
+
+
+class TestElFanNoRepiteElMismoPersonaje:
+    def _fan_con_cuadernos(self, renglones):
+        lineas = tuple(_linea_cuaderno(i + 1, t, imp) for i, (t, imp) in enumerate(renglones))
+        kit = KitArmado(perfil=PerfilKit.FAN.value, total_cop=0, objetivos={}, lineas=lineas)
+        r = inyectar_personaje_fan([kit], {"C001": SPIDEY_CUADERNO}, PREFS_FAN)
+        return next(k for k in r if k.perfil == PerfilKit.FAN.value)
+
+    def test_el_mismo_producto_va_en_un_solo_renglon_de_cuaderno(self):
+        # Cuatro cuadernos: antes los cuatro salian con el mismo Spiderman de
+        # $36.900. Ahora el personaje aparece UNA vez y el resto conserva el
+        # cuaderno neutro del optimizador.
+        fan = self._fan_con_cuadernos(
+            [
+                ("cuaderno cuadriculado 100 hojas", {"rayado": "cuadriculado"}),
+                ("cuaderno cuadriculado grande", {"rayado": "cuadriculado"}),
+                ("cuaderno argollado grande", {"encuadernacion": "argollado"}),
+                ("cuaderno cuadriculado 50 hojas", {"rayado": "cuadriculado"}),
+            ]
+        )
+        con_personaje = [li for li in fan.lineas if li.elegido.sku == SPIDEY_CUADERNO["sku"]]
+        assert len(con_personaje) == 1
+        # El renglon que mejor encaja es el que mas atributos del producto cumple.
+        assert sum(1 for li in fan.lineas if li.elegido.sku == "NEUTRAL-C001") == 3
+
+    def test_un_argollado_no_se_pone_donde_el_colegio_pidio_cosido(self):
+        fan = self._fan_con_cuadernos(
+            [
+                ("cuaderno cosido 100 hojas", {"encuadernacion": "cosido"}),
+                ("cuaderno argollado 100 hojas", {"encuadernacion": "argollado"}),
+            ]
+        )
+        por_texto = {li.descripcion: li.elegido.sku for li in fan.lineas}
+        assert por_texto["cuaderno cosido 100 hojas"] == "NEUTRAL-C001"
+        assert por_texto["cuaderno argollado 100 hojas"] == SPIDEY_CUADERNO["sku"]
+
+    def test_si_todos_piden_cosido_el_fan_no_mete_el_argollado(self):
+        fan = self._fan_con_cuadernos(
+            [
+                ("cuaderno cosido 100 hojas", {"encuadernacion": "cosido"}),
+                ("cuaderno cosido grande", {"encuadernacion": "cosido"}),
+            ]
+        )
+        assert all(li.elegido.sku == "NEUTRAL-C001" for li in fan.lineas)
+
+    def test_un_renglon_que_pide_surtido_puede_repetir(self):
+        fan = self._fan_con_cuadernos(
+            [
+                ("cuaderno cuadriculado", {"rayado": "cuadriculado"}),
+                ("cuadernos surtidos", {}),
+            ]
+        )
+        assert all(li.elegido.sku == SPIDEY_CUADERNO["sku"] for li in fan.lineas)
+
+    def test_cada_hermano_conserva_su_propio_personaje(self):
+        lineas = (
+            _linea_cuaderno(1, "cuaderno", {}, hijo="ana"),
+            _linea_cuaderno(2, "cuaderno 2", {}, hijo="ana"),
+            _linea_cuaderno(1, "cuaderno", {}, hijo="leo"),
+        )
+        kit = KitArmado(perfil=PerfilKit.FAN.value, total_cop=0, objetivos={}, lineas=lineas)
+        fan = inyectar_personaje_fan([kit], {"C001": SPIDEY_CUADERNO}, PREFS_FAN)[0]
+        con = [(li.hijo, li.orden) for li in fan.lineas if li.elegido.sku == SPIDEY_CUADERNO["sku"]]
+        assert sorted(con) == [("ana", 1), ("leo", 1)]

@@ -50,6 +50,7 @@ from .optimizador import (
     Candidato,
     Renglon,
     armar_los_tres,
+    renglones_con_personaje,
     unidades_a_comprar,
 )
 from .parseo import BUSCA_EN_CATALOGO, Demanda, mensaje_para_papa
@@ -643,6 +644,7 @@ async def _procesar_verificado(
                         url_externa=item.get("url_externa"),
                         nota=None,
                         uno_por_estudiante=bool(item.get("uno_por_estudiante")),
+                        atributos_impuestos=dict(item.get("atributos_impuestos") or {}),
                     )
                 )
 
@@ -948,6 +950,7 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
                     instruccion_colegio=renglon.get("instruccion_colegio"),
                     url_externa=renglon.get("url_externa"),
                     nota=renglon.get("nota"),
+                    atributos_impuestos=dict((respuesta or {}).get("atributos_impuestos") or {}),
                 )
             )
 
@@ -2755,7 +2758,7 @@ async def _lineas_aplicadas(
     lineas: list[dict[str, Any]] = []
     total = 0
     filas = await conexion.execute(
-        select(LINEA, RESOLUCION.c.concepto_codigo)
+        select(LINEA, RESOLUCION.c.concepto_codigo, RESOLUCION.c.atributos_impuestos)
         .select_from(
             LINEA.join(
                 RESOLUCION,
@@ -2766,11 +2769,28 @@ async def _lineas_aplicadas(
         .where(LINEA.c.kit_id == kit.id)
         .order_by(LINEA.c.hijo_referencia, LINEA.c.orden)
     )
-    for fila in filas:
+    filas = list(filas)
+
+    # El producto de personaje no va en cada renglon del concepto: se reparte con
+    # la misma regla del armado (una vez por hijo, solo donde el renglon lo
+    # acepta; ver `renglones_con_personaje`). Sin esto, el kit Fan de la ruta
+    # rapida repetia el mismo cuaderno de personaje en todos los cuadernos.
+    grupos: dict[str, list[tuple[int, str, dict[str, Any], str]]] = {}
+    for indice, fila in enumerate(filas):
+        concepto = getattr(fila, "concepto_codigo", None)
+        if concepto in swaps and not fila.informativa:
+            grupos.setdefault(concepto, []).append(
+                (indice, fila.hijo_referencia, dict(fila.atributos_impuestos or {}), fila.descripcion)
+            )
+    llevan: set[int] = set()
+    for concepto, renglones_del_concepto in grupos.items():
+        llevan |= renglones_con_personaje(renglones_del_concepto, swaps[concepto].get("atributos") or {})
+
+    for indice, fila in enumerate(filas):
         linea = _linea_publica(fila)
         concepto = getattr(fila, "concepto_codigo", None)
         swap = swaps.get(concepto) if concepto else None
-        if swap and not fila.informativa:
+        if swap and not fila.informativa and indice in llevan:
             empaque = int(swap.get("unidades_por_empaque") or 1)
             precio = swap.get("precio_desde")
             unidades = unidades_a_comprar(int(fila.cantidad_pedida or 0), empaque)
