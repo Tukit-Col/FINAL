@@ -1,0 +1,970 @@
+{
+  "recuperador": "lexico",
+  "resumen": {
+    "casos": 30,
+    "actual": {
+      "f1_prom": 0.9159,
+      "precision_prom": 0.8861,
+      "recall_prom": 0.9556,
+      "cantidades_ok_prom": 0.8389,
+      "latencia_prom_s": null,
+      "costo_total_usd": 0.0,
+      "llamadas_tool_prom": null,
+      "tokens_prom": null,
+      "restricciones_acc": {
+        "precio_max": 1.0,
+        "exclusion_marcas": 0.5,
+        "categoria": 0.6667
+      }
+    },
+    "por_formato": {
+      "prosa": {
+        "actual": {
+          "f1_prom": 0.8905,
+          "n": 20
+        }
+      },
+      "lista": {
+        "actual": {
+          "f1_prom": 0.9667,
+          "n": 10
+        }
+      }
+    }
+  },
+  "filas": [
+    {
+      "n": 1,
+      "tipo": "prosa",
+      "texto": "Por favor incluye dos plumones x10, dos atlas de geografia escolar y tres sacapuntas metalico en la compra. con un presupuesto máximo de $250000",
+      "actual": {
+        "precision": 0.75,
+        "recall": 1.0,
+        "f1": 0.8571,
+        "cantidades_ok": 0.6667,
+        "restricciones": {
+          "precio_max": 250000.0
+        },
+        "items_pred": [
+          {
+            "id": "12bd4ace-faec-bd38-9be4-bcfc49b64a08",
+            "cantidad": 1
+          },
+          {
+            "id": "b4d66a3a-4746-9a4d-8cdb-305fdd2e1609",
+            "cantidad": 2
+          },
+          {
+            "id": "d17f9aca-e01f-5057-ca02-135e92b1d3f2",
+            "cantidad": 3
+          },
+          {
+            "id": "7f1b103c-df15-82b0-eab4-77d26415479c",
+            "cantidad": 1
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 2,
+      "tipo": "prosa",
+      "texto": "Por favor incluye un cuaderno universitario cuadriculado, un plumones x10 y tres corrector liquido en la compra.",
+      "actual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "cantidades_ok": 1.0,
+        "restricciones": {},
+        "items_pred": [
+          {
+            "id": "0f21ddb6-6cad-4a26-8d11-6ece1738f7d9",
+            "cantidad": 1
+          },
+          {
+            "id": "12bd4ace-faec-bd38-9be4-bcfc49b64a08",
+            "cantidad": 1
+          },
+          {
+            "id": "1012f037-b64c-e422-8c38-fb2918f135d2",
+            "cantidad": 3
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 3,
+      "tipo": "prosa",
+      "texto": "Necesito tres plumones x10, tres barra de pegamento y un maleta para colegio mediana para el colegio de mi hija. sin marca bic",
+      "actual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "cantidades_ok": 0.6667,
+        "restricciones": {
+          "exclusion_marcas": [
+            "bic"
+          ]
+        },
+        "items_pred": [
+          {
+            "id": "12bd4ace-faec-bd38-9be4-bcfc49b64a08",
+            "cantidad": 1
+          },
+          {
+            "id": "0f88080b-10a3-d6b2-aa05-e11ab2715945",
+            "cantidad": 3
+          },
+          {
+            "id": "7e62aa0a-1df9-fd78-9c65-39382b0537e6",
+            "cantidad": 1
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 4,
+      "tipo": "prosa",
+      "texto": "La lista de útiles de segundo grado incluye dos tijeras punta roma, dos cuaderno cuadriculado 100 hojas y dos lonchera termica escolar. con un presupuesto máximo de $200000",
+      "actual": {
+        "precision": 0.75,
+        "recall": 1.0,
+        "f1": 0.8571,
+        "cantidades_ok": 0.6667,
+        "restricciones": {
+          "precio_max": 200000.0
+        },
+        "items_pred": [
+          {
+            "id": "f1d69ed6-17f5-e837-d708-20fe119a72d1",
+            "cantidad": 1
+          },
+          {
+            "id": "128b2f33-0c5c-7fd0-a6a3-a4506513270e",
+            "cantidad": 2
+          },
+          {
+            "id": "bd0561e6-211c-70cf-4995-2399c4aaeac1",
+            "cantidad": 2
+          },
+          {
+            "id": "7f1b103c-df15-82b0-eab4-77d26415479c",
+            "cantidad": 1
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 5,
+      "tipo": "prosa",
+      "texto": "Para este año escolar necesito tres compas para geometria; también dos cuaderno de dibujo a4 y dos plumones x10. y nada de la marca bic",
+      "actual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "cantidades_ok": 0.6667,
+        "restricciones": {},
+        "items_pred": [
+          {
+            "id": "72158370-d269-a9a5-ae65-8f33fe3b890b",
+            "cantidad": 1
+          },
+          {
+            "id": "6b0d549b-6f03-675a-1600-a35a099950d8",
+            "cantidad": 2
+          },
+          {
+            "id": "12bd4ace-faec-bd38-9be4-bcfc49b64a08",
+            "cantidad": 2
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 6,
+      "tipo": "prosa",
+      "texto": "Necesito un cuaderno cuadriculado de 100 hojas, dos cuaderno de dibujo tamano carta y un regla 30 cm para el colegio de mi hija. de preferencia en cuadernos",
+      "actual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "cantidades_ok": 0.6667,
+        "restricciones": {
+          "categoria": "Cuadernos"
+        },
+        "items_pred": [
+          {
+            "id": "128b2f33-0c5c-7fd0-a6a3-a4506513270e",
+            "cantidad": 2
+          },
+          {
+            "id": "6b0d549b-6f03-675a-1600-a35a099950d8",
+            "cantidad": 2
+          },
+          {
+            "id": "7f26144b-9828-9fcd-59a5-4a7bb1fee08f",
+            "cantidad": 1
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 7,
+      "tipo": "prosa",
+      "texto": "Para el regreso a clases necesito dos esfero azul, tres cuaderno de rayas 100 hojas y dos estuche escolar sencillo. y nada de la marca papermate",
+      "actual": {
+        "precision": 0.75,
+        "recall": 1.0,
+        "f1": 0.8571,
+        "cantidades_ok": 0.6667,
+        "restricciones": {},
+        "items_pred": [
+          {
+            "id": "4a23d596-2217-bead-dbc4-96cb8e81973e",
+            "cantidad": 1
+          },
+          {
+            "id": "e8e25d94-0ed9-0475-9531-985d5d9dc9f8",
+            "cantidad": 3
+          },
+          {
+            "id": "5790f82e-c1d3-fcff-2a3a-f4d46b0a18e8",
+            "cantidad": 2
+          },
+          {
+            "id": "2e05319a-cb5c-7427-3f98-e2774cbd87ad",
+            "cantidad": 1
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 8,
+      "tipo": "prosa",
+      "texto": "Para el regreso a clases necesito dos caja de colores de 12 unidades, un cuaderno de dibujo a4 y dos corrector liquido. y nada de la marca norma",
+      "actual": {
+        "precision": 0.75,
+        "recall": 1.0,
+        "f1": 0.8571,
+        "cantidades_ok": 0.6667,
+        "restricciones": {
+          "categoria": "Colores"
+        },
+        "items_pred": [
+          {
+            "id": "ae2eb154-7f15-0524-34b9-b5df9e7769b1",
+            "cantidad": 1
+          },
+          {
+            "id": "6b0d549b-6f03-675a-1600-a35a099950d8",
+            "cantidad": 1
+          },
+          {
+            "id": "1012f037-b64c-e422-8c38-fb2918f135d2",
+            "cantidad": 2
+          },
+          {
+            "id": "bd0561e6-211c-70cf-4995-2399c4aaeac1",
+            "cantidad": 1
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 9,
+      "tipo": "prosa",
+      "texto": "Para el regreso a clases necesito tres cartuchera rodante, tres estuche escolar sencillo y un lapices de escribir grafito. preferiblemente en la categoría de maletería",
+      "actual": {
+        "precision": 0.6667,
+        "recall": 0.6667,
+        "f1": 0.6667,
+        "cantidades_ok": 0.5,
+        "restricciones": {
+          "categoria": "Cartuchera y útiles"
+        },
+        "items_pred": [
+          {
+            "id": "5790f82e-c1d3-fcff-2a3a-f4d46b0a18e8",
+            "cantidad": 4
+          },
+          {
+            "id": "0cb1e29c-658c-da14-95e6-0af593bd04cf",
+            "cantidad": 1
+          },
+          {
+            "id": "7e62aa0a-1df9-fd78-9c65-39382b0537e6",
+            "cantidad": 1
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 10,
+      "tipo": "prosa",
+      "texto": "Para este año escolar necesito dos barra de pegamento; también dos temperas escolares 6 colores y un cuaderno universitario cuadriculado.",
+      "actual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "cantidades_ok": 0.6667,
+        "restricciones": {
+          "categoria": "Colores"
+        },
+        "items_pred": [
+          {
+            "id": "0f88080b-10a3-d6b2-aa05-e11ab2715945",
+            "cantidad": 1
+          },
+          {
+            "id": "2e05319a-cb5c-7427-3f98-e2774cbd87ad",
+            "cantidad": 2
+          },
+          {
+            "id": "0f21ddb6-6cad-4a26-8d11-6ece1738f7d9",
+            "cantidad": 1
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 11,
+      "tipo": "prosa",
+      "texto": "La lista de útiles de segundo grado incluye dos cuadernos cuadriculados para matematicas, tres boligrafo azul para escribir y tres lapices de escribir grafito. sin marca faber-castell",
+      "actual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "cantidades_ok": 0.6667,
+        "restricciones": {
+          "exclusion_marcas": [
+            "faber-castell",
+            "faber"
+          ],
+          "categoria": "Cuadernos"
+        },
+        "items_pred": [
+          {
+            "id": "128b2f33-0c5c-7fd0-a6a3-a4506513270e",
+            "cantidad": 1
+          },
+          {
+            "id": "4a23d596-2217-bead-dbc4-96cb8e81973e",
+            "cantidad": 3
+          },
+          {
+            "id": "0cb1e29c-658c-da14-95e6-0af593bd04cf",
+            "cantidad": 3
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 12,
+      "tipo": "prosa",
+      "texto": "Por favor incluye dos lonchera para refrigerio, dos tijeras escolares sin punta y un caja de colores de 12 unidades en la compra. no más de $150000",
+      "actual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "cantidades_ok": 0.6667,
+        "restricciones": {
+          "precio_max": 150000.0,
+          "categoria": "Colores"
+        },
+        "items_pred": [
+          {
+            "id": "bd0561e6-211c-70cf-4995-2399c4aaeac1",
+            "cantidad": 1
+          },
+          {
+            "id": "f1d69ed6-17f5-e837-d708-20fe119a72d1",
+            "cantidad": 2
+          },
+          {
+            "id": "ae2eb154-7f15-0524-34b9-b5df9e7769b1",
+            "cantidad": 1
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 13,
+      "tipo": "prosa",
+      "texto": "La lista de útiles de segundo grado incluye un colores x24, tres tijeras escolares sin punta y dos plumones para dibujo 10. con un presupuesto máximo de $200000",
+      "actual": {
+        "precision": 0.75,
+        "recall": 1.0,
+        "f1": 0.8571,
+        "cantidades_ok": 1.0,
+        "restricciones": {
+          "precio_max": 200000.0,
+          "categoria": "Colores"
+        },
+        "items_pred": [
+          {
+            "id": "95e761d1-7731-af10-506b-f2efc6f87718",
+            "cantidad": 1
+          },
+          {
+            "id": "f1d69ed6-17f5-e837-d708-20fe119a72d1",
+            "cantidad": 3
+          },
+          {
+            "id": "12bd4ace-faec-bd38-9be4-bcfc49b64a08",
+            "cantidad": 2
+          },
+          {
+            "id": "7f1b103c-df15-82b0-eab4-77d26415479c",
+            "cantidad": 1
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 14,
+      "tipo": "prosa",
+      "texto": "La lista de útiles de segundo grado incluye tres diccionario escolar basico, un tijeras punta roma y un lapicero negro. no más de $200000",
+      "actual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "cantidades_ok": 0.6667,
+        "restricciones": {
+          "precio_max": 200000.0
+        },
+        "items_pred": [
+          {
+            "id": "4720771f-8ca8-1811-66d2-287672fdf202",
+            "cantidad": 1
+          },
+          {
+            "id": "f1d69ed6-17f5-e837-d708-20fe119a72d1",
+            "cantidad": 1
+          },
+          {
+            "id": "4ef8aa38-9227-6658-1e27-a1c08a6a63ec",
+            "cantidad": 1
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 15,
+      "tipo": "prosa",
+      "texto": "La lista de útiles de segundo grado incluye un tijeras escolares sin punta, un cuaderno para artistica y un pintura acrilica set 12. preferiblemente en la categoría de cartuchera y útiles",
+      "actual": {
+        "precision": 0.5,
+        "recall": 0.6667,
+        "f1": 0.5714,
+        "cantidades_ok": 1.0,
+        "restricciones": {
+          "categoria": "Cartuchera y útiles"
+        },
+        "items_pred": [
+          {
+            "id": "f1d69ed6-17f5-e837-d708-20fe119a72d1",
+            "cantidad": 1
+          },
+          {
+            "id": "128b2f33-0c5c-7fd0-a6a3-a4506513270e",
+            "cantidad": 1
+          },
+          {
+            "id": "7ebff206-8673-4721-4cdd-2055930d6eaf",
+            "cantidad": 1
+          },
+          {
+            "id": "5790f82e-c1d3-fcff-2a3a-f4d46b0a18e8",
+            "cantidad": 1
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 16,
+      "tipo": "prosa",
+      "texto": "Necesito tres resaltador para subrayar, dos acrilicos para cartulina y dos diccionario escolar basico para el colegio de mi hija. sin marca maped",
+      "actual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "cantidades_ok": 0.6667,
+        "restricciones": {
+          "exclusion_marcas": [
+            "maped"
+          ]
+        },
+        "items_pred": [
+          {
+            "id": "a38fd547-923a-7369-94e3-bf911a61dbe2",
+            "cantidad": 1
+          },
+          {
+            "id": "7ebff206-8673-4721-4cdd-2055930d6eaf",
+            "cantidad": 2
+          },
+          {
+            "id": "4720771f-8ca8-1811-66d2-287672fdf202",
+            "cantidad": 2
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 17,
+      "tipo": "prosa",
+      "texto": "Necesito un resaltador amarillo, un esfero azul y dos bolso escolar con ruedas para el colegio de mi hija. y nada de la marca faber-castell",
+      "actual": {
+        "precision": 0.5,
+        "recall": 0.6667,
+        "f1": 0.5714,
+        "cantidades_ok": 1.0,
+        "restricciones": {},
+        "items_pred": [
+          {
+            "id": "a38fd547-923a-7369-94e3-bf911a61dbe2",
+            "cantidad": 1
+          },
+          {
+            "id": "4a23d596-2217-bead-dbc4-96cb8e81973e",
+            "cantidad": 1
+          },
+          {
+            "id": "7f1b103c-df15-82b0-eab4-77d26415479c",
+            "cantidad": 2
+          },
+          {
+            "id": "ab1031d0-f646-e1f4-0a09-7c976bf46c69",
+            "cantidad": 1
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 18,
+      "tipo": "prosa",
+      "texto": "Para el regreso a clases necesito un borrador de nata, dos regla de 30 centimetros y un cuaderno de 50 hojas cosido. con un presupuesto máximo de $250000",
+      "actual": {
+        "precision": 0.75,
+        "recall": 1.0,
+        "f1": 0.8571,
+        "cantidades_ok": 1.0,
+        "restricciones": {
+          "precio_max": 250000.0
+        },
+        "items_pred": [
+          {
+            "id": "ab1031d0-f646-e1f4-0a09-7c976bf46c69",
+            "cantidad": 1
+          },
+          {
+            "id": "7f26144b-9828-9fcd-59a5-4a7bb1fee08f",
+            "cantidad": 2
+          },
+          {
+            "id": "a09f76b5-a170-b338-3926-3059f28c105d",
+            "cantidad": 1
+          },
+          {
+            "id": "7f1b103c-df15-82b0-eab4-77d26415479c",
+            "cantidad": 1
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 19,
+      "tipo": "prosa",
+      "texto": "Por favor incluye dos regla de 30 centimetros, dos cuaderno de rayas 100 hojas y tres cuaderno cuadriculado 100 hojas en la compra. con un presupuesto máximo de $200000",
+      "actual": {
+        "precision": 0.75,
+        "recall": 1.0,
+        "f1": 0.8571,
+        "cantidades_ok": 0.6667,
+        "restricciones": {
+          "precio_max": 200000.0
+        },
+        "items_pred": [
+          {
+            "id": "7f26144b-9828-9fcd-59a5-4a7bb1fee08f",
+            "cantidad": 1
+          },
+          {
+            "id": "e8e25d94-0ed9-0475-9531-985d5d9dc9f8",
+            "cantidad": 2
+          },
+          {
+            "id": "128b2f33-0c5c-7fd0-a6a3-a4506513270e",
+            "cantidad": 3
+          },
+          {
+            "id": "7f1b103c-df15-82b0-eab4-77d26415479c",
+            "cantidad": 1
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 20,
+      "tipo": "prosa",
+      "texto": "Para el regreso a clases necesito un maleta escolar mediana, un liquido corrector blanco y un colores para pintar 12 piezas. sin marca pelikan",
+      "actual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "cantidades_ok": 1.0,
+        "restricciones": {
+          "exclusion_marcas": [
+            "pelikan"
+          ],
+          "categoria": "Colores"
+        },
+        "items_pred": [
+          {
+            "id": "7e62aa0a-1df9-fd78-9c65-39382b0537e6",
+            "cantidad": 1
+          },
+          {
+            "id": "1012f037-b64c-e422-8c38-fb2918f135d2",
+            "cantidad": 1
+          },
+          {
+            "id": "ae2eb154-7f15-0524-34b9-b5df9e7769b1",
+            "cantidad": 1
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 21,
+      "tipo": "lista",
+      "texto": "Grado 3 — útiles escolares\n1 cartuchera con ruedas\n3 colores para pintar 12 piezas\n2 caja de colores 24",
+      "actual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "cantidades_ok": 1.0,
+        "restricciones": {
+          "categoria": "Colores"
+        },
+        "items_pred": [
+          {
+            "id": "7f1b103c-df15-82b0-eab4-77d26415479c",
+            "cantidad": 1
+          },
+          {
+            "id": "ae2eb154-7f15-0524-34b9-b5df9e7769b1",
+            "cantidad": 3
+          },
+          {
+            "id": "95e761d1-7731-af10-506b-f2efc6f87718",
+            "cantidad": 2
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 22,
+      "tipo": "lista",
+      "texto": "Lista de útiles:\n3 regla escolar plastica\n2 cuaderno cuadriculado 100 hojas\n2 tijeras punta roma",
+      "actual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "cantidades_ok": 1.0,
+        "restricciones": {},
+        "items_pred": [
+          {
+            "id": "7f26144b-9828-9fcd-59a5-4a7bb1fee08f",
+            "cantidad": 3
+          },
+          {
+            "id": "128b2f33-0c5c-7fd0-a6a3-a4506513270e",
+            "cantidad": 2
+          },
+          {
+            "id": "f1d69ed6-17f5-e837-d708-20fe119a72d1",
+            "cantidad": 2
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 23,
+      "tipo": "lista",
+      "texto": "Grado 3 — útiles escolares\n2 cuaderno de dibujo tamano carta\n2 pegamento en barra\n3 cuaderno universitario cuadriculado",
+      "actual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "cantidades_ok": 1.0,
+        "restricciones": {},
+        "items_pred": [
+          {
+            "id": "6b0d549b-6f03-675a-1600-a35a099950d8",
+            "cantidad": 2
+          },
+          {
+            "id": "0f88080b-10a3-d6b2-aa05-e11ab2715945",
+            "cantidad": 2
+          },
+          {
+            "id": "0f21ddb6-6cad-4a26-8d11-6ece1738f7d9",
+            "cantidad": 3
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 24,
+      "tipo": "lista",
+      "texto": "Lista de útiles:\n1 marcadores delgados 10 colores\n3 diccionario escolar\n3 tajalapiz metalico",
+      "actual": {
+        "precision": 0.6667,
+        "recall": 0.6667,
+        "f1": 0.6667,
+        "cantidades_ok": 1.0,
+        "restricciones": {
+          "categoria": "Colores"
+        },
+        "items_pred": [
+          {
+            "id": "ae2eb154-7f15-0524-34b9-b5df9e7769b1",
+            "cantidad": 1
+          },
+          {
+            "id": "4720771f-8ca8-1811-66d2-287672fdf202",
+            "cantidad": 3
+          },
+          {
+            "id": "d17f9aca-e01f-5057-ca02-135e92b1d3f2",
+            "cantidad": 3
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 25,
+      "tipo": "lista",
+      "texto": "Grado 3 — útiles escolares\n3 estuche escolar sencillo\n1 cuadernos cuadriculados para matematicas\n2 esfero negro",
+      "actual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "cantidades_ok": 1.0,
+        "restricciones": {
+          "categoria": "Cuadernos"
+        },
+        "items_pred": [
+          {
+            "id": "5790f82e-c1d3-fcff-2a3a-f4d46b0a18e8",
+            "cantidad": 3
+          },
+          {
+            "id": "128b2f33-0c5c-7fd0-a6a3-a4506513270e",
+            "cantidad": 1
+          },
+          {
+            "id": "4ef8aa38-9227-6658-1e27-a1c08a6a63ec",
+            "cantidad": 2
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 26,
+      "tipo": "lista",
+      "texto": "Lista de útiles:\n2 texto de lenguaje grado 3\n1 cuaderno cuadriculado 100 hojas\n3 colores x24",
+      "actual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "cantidades_ok": 1.0,
+        "restricciones": {
+          "categoria": "Colores"
+        },
+        "items_pred": [
+          {
+            "id": "f52ddf5d-6164-99c9-e25a-7605aec6f024",
+            "cantidad": 2
+          },
+          {
+            "id": "128b2f33-0c5c-7fd0-a6a3-a4506513270e",
+            "cantidad": 1
+          },
+          {
+            "id": "95e761d1-7731-af10-506b-f2efc6f87718",
+            "cantidad": 3
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 27,
+      "tipo": "lista",
+      "texto": "Grado 3 — útiles escolares\n3 lonchera para refrigerio\n2 libro de lectura grado 3\n2 colores para pintar 12 piezas",
+      "actual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "cantidades_ok": 1.0,
+        "restricciones": {
+          "categoria": "Colores"
+        },
+        "items_pred": [
+          {
+            "id": "bd0561e6-211c-70cf-4995-2399c4aaeac1",
+            "cantidad": 3
+          },
+          {
+            "id": "f52ddf5d-6164-99c9-e25a-7605aec6f024",
+            "cantidad": 2
+          },
+          {
+            "id": "ae2eb154-7f15-0524-34b9-b5df9e7769b1",
+            "cantidad": 2
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 28,
+      "tipo": "lista",
+      "texto": "Lista de útiles:\n1 boligrafo azul para escribir\n1 pegante en barra 21 gramos\n2 pintura acrilica set 12",
+      "actual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "cantidades_ok": 1.0,
+        "restricciones": {},
+        "items_pred": [
+          {
+            "id": "4a23d596-2217-bead-dbc4-96cb8e81973e",
+            "cantidad": 1
+          },
+          {
+            "id": "0f88080b-10a3-d6b2-aa05-e11ab2715945",
+            "cantidad": 1
+          },
+          {
+            "id": "7ebff206-8673-4721-4cdd-2055930d6eaf",
+            "cantidad": 2
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 29,
+      "tipo": "lista",
+      "texto": "Grado 3 — útiles escolares\n1 cuaderno cosido sencillo\n3 cartuchera escolar\n1 caja de colores 24",
+      "actual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "cantidades_ok": 1.0,
+        "restricciones": {
+          "categoria": "Colores"
+        },
+        "items_pred": [
+          {
+            "id": "a09f76b5-a170-b338-3926-3059f28c105d",
+            "cantidad": 1
+          },
+          {
+            "id": "5790f82e-c1d3-fcff-2a3a-f4d46b0a18e8",
+            "cantidad": 3
+          },
+          {
+            "id": "95e761d1-7731-af10-506b-f2efc6f87718",
+            "cantidad": 1
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    },
+    {
+      "n": 30,
+      "tipo": "lista",
+      "texto": "Grado 3 — útiles escolares\n2 estuche escolar sencillo\n2 resaltador amarillo\n3 lapicero azul",
+      "actual": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "cantidades_ok": 1.0,
+        "restricciones": {},
+        "items_pred": [
+          {
+            "id": "5790f82e-c1d3-fcff-2a3a-f4d46b0a18e8",
+            "cantidad": 2
+          },
+          {
+            "id": "a38fd547-923a-7369-94e3-bf911a61dbe2",
+            "cantidad": 2
+          },
+          {
+            "id": "4a23d596-2217-bead-dbc4-96cb8e81973e",
+            "cantidad": 3
+          }
+        ],
+        "latencia_s": null,
+        "costo_usd": 0.0
+      }
+    }
+  ]
+}

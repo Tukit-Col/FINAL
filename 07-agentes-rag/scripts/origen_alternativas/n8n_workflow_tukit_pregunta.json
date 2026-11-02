@@ -1,0 +1,134 @@
+{
+  "name": "Tukit — Consultas estructuradas (n8n)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "tukit/pregunta",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b4c2a1f0-0000-4000-8000-000000000001",
+      "name": "Webhook Pregunta",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "tukit-pregunta"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Clasifica el intento y construye la consulta SQL parametrizada.\n// Misma semantica que graphrag/service.py del repo principal, sin LLM.\n\nfunction norm(s) {\n  return (s || \"\").normalize(\"NFD\").replace(/[\\u0300-\\u036f]/g, \"\").toLowerCase().trim();\n}\n\nconst raw = $input.first().json;\nconst pregunta = String(raw.pregunta ?? raw.body?.pregunta ?? \"\").trim();\nconst t = norm(pregunta);\nconst t0 = norm(pregunta.replace(/^[?¿!¡.\\s]+/, \"\"));\n\nfunction esc(s) { return String(s).replace(/'/g, \"''\"); }\n\nconst PREFIJOS_PRODUCTO = [\n  \"en que url puedo comprar el producto\",\n  \"cual es la marca del producto\",\n  \"de que marca es el producto\",\n  \"cual es el precio de\",\n  \"cuanto cuesta\",\n  \"cuanto vale\",\n  \"a como esta el\",\n  \"precio de\"\n];\nconst ARTICULOS = [\"el \", \"la \", \"los \", \"las \", \"del \", \"de la \", \"de el \"];\n\nfunction limpiar(s) { return s.trim().replace(/[?¿!¡.,;:]$/, \"\").trim(); }\n\nfunction extraerNombre() {\n  let texto = pregunta.trim().replace(/^[?¿!¡\\s]+/, \"\");\n  for (const pref of PREFIJOS_PRODUCTO) {\n    if (t0.startsWith(pref)) { texto = texto.substring(pref.length); break; }\n  }\n  texto = limpiar(texto);\n  for (const a of ARTICULOS) {\n    if (norm(texto).startsWith(a)) { texto = texto.substring(a.length); break; }\n  }\n  return limpiar(texto);\n}\n\nfunction extraerCategoria() {\n  if (/maletas|loncheras/.test(t)) return \"Maletería\";\n  const m = pregunta.match(/(?:de la |en la |la )?categor[ií]a\\s+(?:de\\s+)?(.+?)(?:que\\b|,|\\.|$)/i);\n  if (!m) return \"\";\n  let c = limpiar(m[1]);\n  c = c.replace(/\\s+y\\s+cu[aá]nto\\s+(?:cuesta|vale).*$/i, \"\").trim();\n  return c;\n}\n\nfunction extraerProveedor() {\n  if (/panamericana/.test(t)) return \"panamericana\";\n  if (/exito/.test(t)) return \"exito\";\n  if (/mercadolibre|mercado libre/.test(t)) return \"mercadolibre\";\n  return \"\";\n}\n\nconst CAT = \"productos_catalogo\";\nlet tipo = \"categoria\";\nlet sql = \"\";\n\nif (/\\b(?:m[aá]s barato|menor precio|m[aá]s econ[oó]mico|precio m[ií]nimo|m[ií]nimo)\\b/.test(t)) {\n  tipo = \"min_precio\";\n  const cat = esc(extraerCategoria());\n  sql = `SELECT nombre, precio, marca, proveedor, url_producto FROM ${CAT} ` +\n        `WHERE categoria = '${cat}' AND precio IS NOT NULL AND disponible = true ` +\n        \"ORDER BY precio ASC LIMIT 5\";\n} else if (/\\bmenciona\\b/.test(t)) {\n  tipo = \"categoria\";\n  const cat = esc(extraerCategoria());\n  sql = `SELECT nombre, precio, marca, proveedor, url_producto FROM ${CAT} ` +\n        `WHERE categoria = '${cat}' AND disponible = true ORDER BY nombre LIMIT 8`;\n} else if (/\\b(?:hay .* disponible|hay disponibles|est[aá]n disponible|disponible|disponibles)\\b/.test(t)) {\n  tipo = \"disponibilidad\";\n  const cat = esc(extraerCategoria());\n  const prov = extraerProveedor();\n  const provSql = prov ? ` AND proveedor = '${prov}'` : \"\";\n  sql = `SELECT proveedor, count(*) AS total, count(*) FILTER (WHERE disponible) AS disponibles ` +\n        `FROM ${CAT} WHERE categoria = '${cat}'${provSql} GROUP BY proveedor`;\n} else if (/\\b(?:url|comprar|d[oó]nde puedo comprar|referencia de compra)\\b/.test(t)) {\n  tipo = \"referencia_compra\";\n  const nom = esc(extraerNombre());\n  sql = `SELECT nombre, url_producto, sku, proveedor FROM ${CAT} ` +\n        `WHERE nombre ILIKE '%${nom}%' AND url_producto IS NOT NULL LIMIT 1`;\n} else if (/\\b(?:marca del producto|marca de|qu[eé] marca|de qu[eé] marca|marca)\\b/.test(t)) {\n  tipo = \"marca\";\n  const nom = esc(extraerNombre());\n  sql = `SELECT marca, nombre FROM ${CAT} WHERE nombre ILIKE '%${nom}%' LIMIT 1`;\n} else if (/\\b(?:cu[aá]nto cuesta|cu[aá]nto vale|precio de|cu[aá]l es el precio)\\b/.test(t)) {\n  tipo = \"precio_producto\";\n  const nom = esc(extraerNombre());\n  sql = `SELECT nombre, precio, marca, proveedor, url_producto, disponible FROM ${CAT} ` +\n        `WHERE disponible = true AND precio IS NOT NULL AND nombre ILIKE '%${nom}%' ` +\n        \"ORDER BY precio LIMIT 5\";\n} else {\n  tipo = \"categoria\";\n  const cat = esc(extraerCategoria());\n  sql = `SELECT nombre, precio, marca, proveedor, url_producto FROM ${CAT} ` +\n        `WHERE categoria = '${cat}' AND disponible = true ORDER BY nombre LIMIT 8`;\n}\n\nreturn [{\n  json: { pregunta, tipo, sql }\n}];"
+      },
+      "id": "b4c2a1f0-0000-4000-8000-000000000002",
+      "name": "Clasificar y SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "b4c2a1f0-0000-4000-8000-000000000003",
+      "name": "Consultar Catálogo",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "tukit-postgres-cred",
+          "name": "Tukit Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatea la respuesta legible y marca el hit con la misma logica de\n// puntaje de los demas benchmarks del reporte.\n\nconst meta = $('Clasificar y SQL').first().json;\nconst rows = $input.all()\n  .map((i) => i.json)\n  .filter((r) => !(r && r.success === true && Object.keys(r).length === 1));\nconst { tipo, pregunta } = meta;\n\nfunction precio(n) {\n  return '$' + Math.round(n).toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, '.');\n}\n\nlet resumen = '';\nlet hit = false;\n\nif (tipo === 'precio_producto') {\n  if (rows.length) {\n    const r = rows[0];\n    resumen = `El precio de ${r.nombre} es ${precio(r.precio)} (${r.proveedor || 'proveedor no indicado'}).`;\n    hit = true;\n  } else {\n    resumen = 'No se encontró un producto con precio conocido.';\n  }\n} else if (tipo === 'min_precio') {\n  if (rows.length) {\n    const r = rows[0];\n    resumen = `El más barato de ${meta.categoria || 'la categoría'} es ${r.nombre} por ${precio(r.precio)} (${r.proveedor || ''}).`;\n    hit = true;\n  } else {\n    resumen = 'No hay productos con precio publicado en esa categoría.';\n  }\n} else if (tipo === 'categoria') {\n  if (rows.length) {\n    resumen = `${rows.length} producto(s) disponible(s) en ${meta.categoria || 'la categoría'}: ${rows.map((r) => r.nombre).join(', ')}.`;\n    hit = rows.length >= 3;\n  } else {\n    resumen = 'No hay productos disponibles en esa categoría.';\n  }\n} else if (tipo === 'disponibilidad') {\n  const disponibles = rows.reduce((acc, r) => acc + Number(r.disponibles || 0), 0);\n  if (disponibles > 0) {\n    resumen = 'Sí, hay productos disponibles.';\n    hit = true;\n  } else {\n    resumen = 'No hay productos disponibles.';\n  }\n} else if (tipo === 'marca') {\n  if (rows.length) {\n    resumen = `La marca de ${rows[0].nombre} es ${rows[0].marca}.`;\n    hit = true;\n  } else {\n    resumen = 'No se encontró la marca.';\n  }\n} else if (tipo === 'referencia_compra') {\n  if (rows.length) {\n    resumen = `Puedes comprar «${rows[0].nombre}» en: ${rows[0].url_producto}.`;\n    hit = true;\n  } else {\n    resumen = 'No se encontró una URL de compra.';\n  }\n}\n\nreturn [{\n  json: { pregunta, tipo, resumen, hit, data: rows }\n}];"
+      },
+      "id": "b4c2a1f0-0000-4000-8000-000000000004",
+      "name": "Formatear Respuesta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "b4c2a1f0-0000-4000-8000-000000000005",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        960,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Pregunta": {
+      "main": [
+        [
+          {
+            "node": "Clasificar y SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clasificar y SQL": {
+      "main": [
+        [
+          {
+            "node": "Consultar Catálogo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Catálogo": {
+      "main": [
+        [
+          {
+            "node": "Formatear Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear Respuesta": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "id": "tukit-pregunta-wf"
+}

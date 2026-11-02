@@ -1,0 +1,304 @@
+{
+ "pipeline": "rag_sin_llm",
+ "llm_local": false,
+ "chunks": 413,
+ "topk": 5,
+ "precision_recuperacion": 0.9375,
+ "tiempo_recuperacion_total_s": 0.98,
+ "tiempo_recuperacion_promedio_s": 0.061,
+ "tiempo_vectorizado_chunks_s": 45.3,
+ "precision_respuesta": null,
+ "tiempo_llm_total_s": null,
+ "tiempo_llm_promedio_s": null,
+ "tokens_totales": null,
+ "detalles": [
+  {
+   "tipo": "precio_producto",
+   "pregunta": "¿Cuánto cuesta Cuaderno cosido cuadriculado 100 hojas Pokémon (surtido)?",
+   "gold": "$22.500",
+   "hit_recuperacion": true,
+   "topk": 5,
+   "tiempo_recuperacion_s": 0.095,
+   "contexto": [
+    "producto: cuaderno cosido cuadriculado 100 hojas pokemon (surtido). marca: norma. categoria: cuadernos. precio: 22500 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/cuaderno-cosido-cuadriculado-100-hojas-pokemon-718004/p.",
+    "producto: cuaderno cosido cuadriculado de 100 hojas kiut (surtido). marca: kiut. categoria: cuadernos. precio: 17500 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/cuaderno-cuadriculado-100-hojas-kiut-407026/p.",
+    "producto: cuaderno cosido cuadriculado de 100 hojas cats (surtido). marca: norma. categoria: cuadernos. precio: 20900 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/cuaderno-cosido-cuadriculado-de-100-hojas-cats-718008/p.",
+    "producto: cuaderno cosido cuadriculado de 100 hojas memes (surtido). marca: norma. categoria: cuadernos. precio: 20900 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/cuaderno-cosido-cuadriculado-de-100-hojas-memes-718007/p.",
+    "producto: cuaderno cosido cuadriculado de 100 hojas dragon ball (surtido). marca: norma. categoria: cuadernos. precio: 22500 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/cuaderno-cosido-cuadriculado-de-100-hojas-dragon-ball-718005/p."
+   ],
+   "respuesta_llm": null,
+   "hit_llm": null,
+   "tiempo_llm_s": null
+  },
+  {
+   "tipo": "precio_producto",
+   "pregunta": "¿Cuánto cuesta Candado Clave 4 Dígitos Seguridad Para Maletas Casillero?",
+   "gold": "$0",
+   "hit_recuperacion": true,
+   "topk": 5,
+   "tiempo_recuperacion_s": 0.067,
+   "contexto": [
+    "producto: candado clave 4 digitos seguridad para maletas casillero. marca: stock dual. categoria: maleteria. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/candado-clave-4-digitos-seguridad-para-maletas-casillero-104038194-mp/p.",
+    "producto: accesorio loncheras consignacion cars lonchera 14 cars 3614. marca: cars. categoria: maleteria. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/accesorio-loncheras-consignacion--cars-lonchera-14--cars-3614-124167733/p.",
+    "producto: maleta terciada antirrobo bolso canguro usb negro. marca: generico. categoria: maleteria. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/maleta-terciada-antirrobo-bolso-canguro-usb-negro-103143625-mp/p.",
+    "producto: maletin organizador infantil - cerdito x 2 piezas. marca: importado. categoria: maleteria. precio: 19900 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/set-organizador-multiusos-x2-piezas-cerditos-627735/p.",
+    "producto: accesorio loncheras consignacion paw patrol lonchera 14 paw patrol 3614. marca: paw patrol. categoria: maleteria. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/accesorio-loncheras-consignacion--paw-patrol-lonchera-14--paw-patrol-3614-124167732/p."
+   ],
+   "respuesta_llm": null,
+   "hit_llm": null,
+   "tiempo_llm_s": null
+  },
+  {
+   "tipo": "precio_producto",
+   "pregunta": "¿Cuánto cuesta Accesorio Cartucheras en consignacion cars Cartuchera cars d2?",
+   "gold": "$0",
+   "hit_recuperacion": true,
+   "topk": 5,
+   "tiempo_recuperacion_s": 0.076,
+   "contexto": [
+    "producto: accesorio cartucheras en consignacion cars cartuchera cars d2. marca: cars. categoria: cartuchera y utiles. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/accesorio-cartucheras-en-consignacion--cars-cartuchera-cars-d2-124179540/p.",
+    "producto: accesorio cartucheras en consignacion cars cartuchera 14 cars 3618. marca: cars. categoria: cartuchera y utiles. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/accesorio-cartucheras-en-consignacion--cars-cartuchera-14--cars-3618-124189027/p.",
+    "producto: accesorio loncheras consignacion cars lonchera 14 cars 3614. marca: cars. categoria: maleteria. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/accesorio-loncheras-consignacion--cars-lonchera-14--cars-3614-124167733/p.",
+    "producto: accesorio cartucheras en consignacion sonic cartuchera 14 sonic 3618. marca: sonic. categoria: cartuchera y utiles. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/accesorio-cartucheras-en-consignacion--sonic-cartuchera-14--sonic-3618-124189026/p.",
+    "producto: accesorio cartucheras en consignacion princesas cartuchera princesas rosa. marca: princesas. categoria: cartuchera y utiles. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/accesorio-cartucheras-en-consignacion--princesas-cartuchera-princesas-rosa-124179537/p."
+   ],
+   "respuesta_llm": null,
+   "hit_llm": null,
+   "tiempo_llm_s": null
+  },
+  {
+   "tipo": "precio_producto",
+   "pregunta": "¿Cuánto cuesta Morral ardilla, café y rosado?",
+   "gold": "$24.900",
+   "hit_recuperacion": true,
+   "topk": 5,
+   "tiempo_recuperacion_s": 0.08,
+   "contexto": [
+    "producto: morral ardilla, cafe y rosado. marca: importado. categoria: maleteria. precio: 24900 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/morral-normal-diseno-ardilla-cafe-rosado-642101/p.",
+    "producto: morral leopardo, anaranjado y amarillo. marca: importado. categoria: maleteria. precio: 24900 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/morral-normal-diseno-leopardo-anaranjado-amarillo-642084/p.",
+    "producto: morral conejo, rosado y blanco. marca: importado. categoria: maleteria. precio: 24900 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/morral-normal-diseno-conejo-rosado-blanco-642099/p.",
+    "producto: morral gato, morado y rosado. marca: importado. categoria: maleteria. precio: 25900 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/morral-normal-diseno-gato-morado-rosado-642088/p.",
+    "producto: morral alpaca, anaranjado y lila. marca: importado. categoria: maleteria. precio: 24900 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/morral-normal-diseno-alpaca-color-lila-anaranjada-642095/p."
+   ],
+   "respuesta_llm": null,
+   "hit_llm": null,
+   "tiempo_llm_s": null
+  },
+  {
+   "tipo": "precio_producto",
+   "pregunta": "¿Cuánto cuesta Cuaderno Snoopy S Dream Journal Sueños Que Se Escriben Incluye Crema Hidratante?",
+   "gold": "$0",
+   "hit_recuperacion": true,
+   "topk": 5,
+   "tiempo_recuperacion_s": 0.083,
+   "contexto": [
+    "producto: cuaderno snoopy s dream journal suenos que se escriben incluye crema hidratante. marca: snoopy. categoria: cuadernos. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/cuaderno-snoopy-s-dream-journal-suenos-que-se-escriben-incluye-crema-hidratante-105128212-mp/p.",
+    "producto: set snoopy kawaii 2 mini libretas con crema y mascarilla facial. marca: snoopy. categoria: cuadernos. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/set-snoopy-kawaii-2-mini-libretas-con-crema-y-mascarilla-facial-105030829-mp/p.",
+    "producto: set de productos snoopy azul libretas, mascarilla y crema. marca: snoopy. categoria: cuadernos. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/set-de-productos-snoopy-azul-libretas-mascarilla-y-crema-105030831-mp/p.",
+    "producto: set snoopy super corte rojo 2 mini libretas con mascarilla y crema. marca: snoopy. categoria: cuadernos. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/set-snoopy-super-corte-rojo-2-mini-libretas-con-mascarilla-y-crema-105033895-mp/p.",
+    "producto: set mini snoopy cute rosa 2 mini libretas 1mascarilla 1crema. marca: snoopy. categoria: cuadernos. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/set-mini-snoopy-cute-rosa-2-mini-libretas-1mascarilla-1crema-105030835-mp/p."
+   ],
+   "respuesta_llm": null,
+   "hit_llm": null,
+   "tiempo_llm_s": null
+  },
+  {
+   "tipo": "precio_producto",
+   "pregunta": "¿Cuánto cuesta Compás + 8 Piezas Caja Matemática Pelikan (1 Unidad)?",
+   "gold": "$0",
+   "hit_recuperacion": true,
+   "topk": 5,
+   "tiempo_recuperacion_s": 0.056,
+   "contexto": [
+    "producto: compas + 8 piezas caja matematica pelikan (1 unidad). marca: pelikan. categoria: cartuchera y utiles. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/compas-8-piezas-caja-matematica-pelikan-1-unidad-104927708-mp/p.",
+    "producto: plumones para caligrafia pelikan markana x 12 unidades. marca: pelikan. categoria: colores. precio: 27000 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/plumon-pelikan-markana-x-12und-609839/p.",
+    "producto: resaltadores pelikan colores pastel x 6 unidades. marca: pelikan. categoria: escritura. precio: 18700 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/resaltadores-pelikan-colores-pastel-x-6-unidades-576166/p.",
+    "producto: marcador permanente pelikan 418 punta gruesa caja x 10 unidades. marca: pelikan. categoria: escritura. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/marcador-permanente-pelikan-418-punta-gruesa-caja-x-10-unidades-105123571-mp/p.",
+    "producto: borrador de nata pelikan x 15 unidades, colores pastel. marca: pelikan. categoria: colores. precio: 20300 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/borrador-en-nata-pelikan-x-15-unidades-colores-pastel-609838/p."
+   ],
+   "respuesta_llm": null,
+   "hit_llm": null,
+   "tiempo_llm_s": null
+  },
+  {
+   "tipo": "precio_producto",
+   "pregunta": "¿Cuánto cuesta Cinta Correctora Faber Castell De 4 Mm X 10 Metros Por 3 Und?",
+   "gold": "$0",
+   "hit_recuperacion": true,
+   "topk": 5,
+   "tiempo_recuperacion_s": 0.057,
+   "contexto": [
+    "producto: cinta correctora faber castell de 4 mm x 10 m. marca: faber castell. categoria: escritura. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/cinta-correctora-faber-castell-de-4-mm-x-10-m-104887723-mp/p.",
+    "producto: cinta correctora faber castell de 4 mm x 10 metros por 3 und. marca: faber castell. categoria: escritura. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/cinta-correctora-faber-castell-de-4-mm-x-10-metros-por-3-und-104889272-mp/p.",
+    "producto: lapiz corrector faber castell 7 ml x 6 unidades corrector liquido de precision. marca: faber castell. categoria: escritura. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/lapiz-corrector-faber-castell-7-ml-x-6-unidades-corrector-liquido-de-precision-105112034-mp/p.",
+    "producto: lapiz corrector faber castell 7 ml x 2 unidades corrector liquido de precision. marca: faber castell. categoria: escritura. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/lapiz-corrector-faber-castell-7-ml-x-2-unidades-corrector-liquido-de-precision-105112022-mp/p.",
+    "producto: colores faber-castell triangular x 28 unidades. marca: faber castell. categoria: colores. precio: 38200 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/colores-triangular-x24-4-pastel-689410/p."
+   ],
+   "respuesta_llm": null,
+   "hit_llm": null,
+   "tiempo_llm_s": null
+  },
+  {
+   "tipo": "precio_producto",
+   "pregunta": "¿Cuánto cuesta Cartuchera Escolar Grande para Niño 2 Cuerpos Grand Prix Gris?",
+   "gold": "$0",
+   "hit_recuperacion": true,
+   "topk": 5,
+   "tiempo_recuperacion_s": 0.049,
+   "contexto": [
+    "producto: cartuchera escolar grande para nino 2 cuerpos grand prix gris. marca: totto. categoria: cartuchera y utiles. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/cartuchera-escolar-grande-para-nino-2-cuerpos-grand-prix-gris-124188301/p.",
+    "producto: cartuchera escolar grande para nino 2 cuerpos champion gris. marca: totto. categoria: cartuchera y utiles. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/cartuchera-escolar-grande-para-nino-2-cuerpos-champion-gris-124175161/p.",
+    "producto: cartuchera escolar grande para nina 2 cuerpos tex blanca. marca: totto. categoria: cartuchera y utiles. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/cartuchera-escolar-grande-para-nina-2-cuerpos-tex-blanca-124175203/p.",
+    "producto: cartuchera escolar grande para nino 2 cuerpos digisaurio azul. marca: totto. categoria: cartuchera y utiles. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/cartuchera-escolar-grande-para-nino-2-cuerpos-digisaurio-azul-124173678/p.",
+    "producto: cartuchera escolar grande para nina 2 cuerpos bloum azul. marca: totto. categoria: cartuchera y utiles. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/cartuchera-escolar-grande-para-nina-2-cuerpos-bloum-azul-124173732/p."
+   ],
+   "respuesta_llm": null,
+   "hit_llm": null,
+   "tiempo_llm_s": null
+  },
+  {
+   "tipo": "categoria",
+   "pregunta": "Menciona al menos 3 productos de la categoría Textos que estén disponibles.",
+   "gold": "Diccionario básico de la lengua española con contenido digital; Diccionario básico escolar; Diccionario básico escolar Larousse con contenido digital; Diccionario escolar: de la lengua española",
+   "hit_recuperacion": true,
+   "topk": 5,
+   "tiempo_recuperacion_s": 0.052,
+   "contexto": [
+    "producto: diccionario basico escolar. marca: norma. categoria: textos. precio: 34200 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/diccionario-basico-escolar/p.",
+    "producto: resaltador grueso kiut color pastel x 8 unidades. marca: kiut. categoria: escritura. precio: 23500 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/resaltador-grueso-kiut-x8-pastel-631023/p.",
+    "producto: mi primer libro de colores. marca: panamericana editorial. categoria: colores. precio: 32000 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/mi-primer-libro-de-colores-605971/p.",
+    "producto: colores scribe unipunta 13 undades. marca: scribe. categoria: colores. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/colores-scribe-unipunta-13-undades-104905507-mp/p.",
+    "producto: cartuchera escolar mediana para nino textu azul. marca: totto. categoria: cartuchera y utiles. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/cartuchera-escolar-mediana-para-nino-textu-azul-124166124/p."
+   ],
+   "respuesta_llm": null,
+   "hit_llm": null,
+   "tiempo_llm_s": null
+  },
+  {
+   "tipo": "categoria",
+   "pregunta": "Menciona al menos 3 productos de la categoría Cartuchera y útiles que estén disponibles.",
+   "gold": "Accesorio marca Bluey / Acc.cartuchera bluey rosa; Accesorio Cartucheras en consignacion Bluey Cartuchera 14 bluey 3617; Accesorio Cartucheras en consignacion Cars Cartuchera 14 cars 3618; Accesorio Cartucheras en consignacion Dragon ball Cartuchera 14 dragon ball 3618; Accesorio Cartucheras en consignacion Sonic Cartuchera 14 sonic 3618",
+   "hit_recuperacion": true,
+   "topk": 5,
+   "tiempo_recuperacion_s": 0.058,
+   "contexto": [
+    "producto: cartuchera lugano. marca: lugano. categoria: cartuchera y utiles. precio: 17940 cop. disponible: si. proveedor: exito. url: https://www.exito.com/cartuchera-lugano-3236725/p.",
+    "producto: cartuchera multiuso trik mediana azul. marca: totto. categoria: cartuchera y utiles. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/cartuchera-multiuso-trik-mediana-azul-124173823/p.",
+    "producto: accesorio cartucheras en consignacion cars cartuchera cars d2. marca: cars. categoria: cartuchera y utiles. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/accesorio-cartucheras-en-consignacion--cars-cartuchera-cars-d2-124179540/p.",
+    "producto: cartuchera multiuso trik mediana morada. marca: totto. categoria: cartuchera y utiles. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/cartuchera-multiuso-trik-mediana-morada-124173809/p.",
+    "producto: cartuchera multiuso sheyma print grande azul. marca: totto. categoria: cartuchera y utiles. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/cartuchera-multiuso-sheyma-print-grande-azul-124178343/p."
+   ],
+   "respuesta_llm": null,
+   "hit_llm": null,
+   "tiempo_llm_s": null
+  },
+  {
+   "tipo": "categoria",
+   "pregunta": "Menciona al menos 3 productos de la categoría Maletería que estén disponibles.",
+   "gold": "Accesorio Loncheras consignacion Mickey 23a1 lonchera 1 disney mickey; Accesorio Loncheras consignacion Mickey 23a1 lonchera 2 disney mickey; Accesorio Loncheras consignacion Mickey 23a1 lonchera 5 disney mickey; Accesorio Loncheras consignacion Spiderman Lonchera premium spidey d2; Accesorio Loncheras consignacion barbie Lonchera 16 barbie 3733",
+   "hit_recuperacion": true,
+   "topk": 5,
+   "tiempo_recuperacion_s": 0.052,
+   "contexto": [
+    "producto: lonchera portacomida x3. marca: generico. categoria: maleteria. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/lonchera-portacomida-x3-105119603-mp/p.",
+    "producto: lonchera portacomida x3. marca: generico. categoria: maleteria. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/lonchera-portacomida-x3-105119605-mp/p.",
+    "producto: maletin organizador multiusos - panda x 2 piezas. marca: importado. categoria: maleteria. precio: 19900 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/set-organizador-multiusos-x2-piezas-panda-627739/p.",
+    "producto: bolso morral maletin escolar monedero nino nina. marca: briitochet. categoria: maleteria. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/bolso-morral-maletin-escolar-monedero-nino-nina-105111903-mp/p.",
+    "producto: bolso morral maletin escolar monedero nino nina. marca: briitochet. categoria: maleteria. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/bolso-morral-maletin-escolar-monedero-nino-nina-105111879-mp/p."
+   ],
+   "respuesta_llm": null,
+   "hit_llm": null,
+   "tiempo_llm_s": null
+  },
+  {
+   "tipo": "disponibilidad",
+   "pregunta": "¿Hay maletas o loncheras disponibles en Panamericana? Responde sí o no.",
+   "gold": "sí",
+   "hit_recuperacion": true,
+   "topk": 5,
+   "tiempo_recuperacion_s": 0.05,
+   "contexto": [
+    "producto: lonchera portacomida x3. marca: generico. categoria: maleteria. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/lonchera-portacomida-x3-105119603-mp/p.",
+    "producto: lonchera portacomida x3. marca: generico. categoria: maleteria. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/lonchera-portacomida-x3-105119605-mp/p.",
+    "producto: lonchera alpaca, morada y naranja. marca: importado. categoria: maleteria. precio: 19900 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/lonchera-diseno-alpaca-morado-anaranjado-642096/p.",
+    "producto: lonchera puercoespin oops. marca: oops. categoria: maleteria. precio: 59900 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/lonchera-diseno-puercoespin-oops-635772/p.",
+    "producto: lonchera leopardo, naranja y amarillo. marca: importado. categoria: maleteria. precio: 19900 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/lonchera-diseno-leopardo-anaranjado-amarillo-642085/p."
+   ],
+   "respuesta_llm": null,
+   "hit_llm": null,
+   "tiempo_llm_s": null
+  },
+  {
+   "tipo": "disponibilidad",
+   "pregunta": "¿Hay maletas o loncheras disponibles en Exito? Responde sí o no.",
+   "gold": "sí",
+   "hit_recuperacion": true,
+   "topk": 5,
+   "tiempo_recuperacion_s": 0.049,
+   "contexto": [
+    "producto: lonchera portacomida x3. marca: generico. categoria: maleteria. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/lonchera-portacomida-x3-105119603-mp/p.",
+    "producto: lonchera portacomida x3. marca: generico. categoria: maleteria. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/lonchera-portacomida-x3-105119605-mp/p.",
+    "producto: accesorio loncheras consignacion princesas lonchera 16 princesas 3733. marca: princesas. categoria: maleteria. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/accesorio-loncheras-consignacion--princesas-lonchera-16--princesas-3733-124167738/p.",
+    "producto: lonchera electrica porta comidas color rojo. marca: generico. categoria: maleteria. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/lonchera-electrica-porta-comidas-color-rojo-103361662-mp/p.",
+    "producto: maleta lonchera rh2511 negra. marca: generico. categoria: maleteria. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/maleta-lonchera-rh2511-negra-105108363-mp/p."
+   ],
+   "respuesta_llm": null,
+   "hit_llm": null,
+   "tiempo_llm_s": null
+  },
+  {
+   "tipo": "min_precio",
+   "pregunta": "¿Cuál es el producto más barato de la categoría Textos y cuánto cuesta?",
+   "gold": "Diccionario escolar: de la lengua española $26.900",
+   "hit_recuperacion": false,
+   "topk": 5,
+   "tiempo_recuperacion_s": 0.052,
+   "contexto": [
+    "producto: diccionario basico escolar. marca: norma. categoria: textos. precio: 34200 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/diccionario-basico-escolar/p.",
+    "producto: diccionario basico de la lengua espanola con contenido digital. marca: larousse. categoria: textos. precio: 42000 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/diccionario-basico-de-la-lengua-espanola-con-qr-653412/p.",
+    "producto: mi primer libro de colores. marca: panamericana editorial. categoria: colores. precio: 32000 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/mi-primer-libro-de-colores-605971/p.",
+    "producto: resaltador grueso kiut color pastel x 8 unidades. marca: kiut. categoria: escritura. precio: 23500 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/resaltador-grueso-kiut-x8-pastel-631023/p.",
+    "producto: diccionario basico escolar larousse con contenido digital. marca: larousse. categoria: textos. precio: 28000 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/diccionario-basico-escolar-larousse-con-qr-653411/p."
+   ],
+   "respuesta_llm": null,
+   "hit_llm": null,
+   "tiempo_llm_s": null
+  },
+  {
+   "tipo": "referencia_compra",
+   "pregunta": "¿En qué URL puedo comprar el producto Candado Clave 4 Dígitos Seguridad Para Maletas Casillero?",
+   "gold": "https://www.exito.com/candado-clave-4-digitos-seguridad-para-maletas-casillero-104038194-mp/p",
+   "hit_recuperacion": true,
+   "topk": 5,
+   "tiempo_recuperacion_s": 0.05,
+   "contexto": [
+    "producto: candado clave 4 digitos seguridad para maletas casillero. marca: stock dual. categoria: maleteria. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/candado-clave-4-digitos-seguridad-para-maletas-casillero-104038194-mp/p.",
+    "producto: maleta terciada antirrobo bolso canguro usb negro. marca: generico. categoria: maleteria. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/maleta-terciada-antirrobo-bolso-canguro-usb-negro-103143625-mp/p.",
+    "producto: accesorio loncheras consignacion cars lonchera 14 cars 3614. marca: cars. categoria: maleteria. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/accesorio-loncheras-consignacion--cars-lonchera-14--cars-3614-124167733/p.",
+    "producto: accesorio cartucheras en consignacion cars cartuchera cars d2. marca: cars. categoria: cartuchera y utiles. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/accesorio-cartucheras-en-consignacion--cars-cartuchera-cars-d2-124179540/p.",
+    "producto: accesorio cartucheras en consignacion cars cartuchera 14 cars 3618. marca: cars. categoria: cartuchera y utiles. precio: 0 cop. disponible: si. proveedor: exito. url: https://www.exito.com/accesorio-cartucheras-en-consignacion--cars-cartuchera-14--cars-3618-124189027/p."
+   ],
+   "respuesta_llm": null,
+   "hit_llm": null,
+   "tiempo_llm_s": null
+  },
+  {
+   "tipo": "marca",
+   "pregunta": "¿Cuál es la marca del producto Chocolates M&M colores con maní (49.3 gr)?",
+   "gold": "M&M",
+   "hit_recuperacion": true,
+   "topk": 5,
+   "tiempo_recuperacion_s": 0.055,
+   "contexto": [
+    "producto: chocolates m&m colores con mani (49.3 gr). marca: m&m. categoria: colores. precio: 5990 cop. disponible: si. proveedor: exito. url: https://www.exito.com/chocolate-peanut-paq-x-49-gr-101051/p.",
+    "producto: chocolates m&m de colores con mani (1 und). marca: m&m. categoria: colores. precio: 14950 cop. disponible: si. proveedor: exito. url: https://www.exito.com/dulces-mm-leche-mani-caramelo-1-und-3219565/p.",
+    "producto: los colores de la granja. marca: school fun. categoria: colores. precio: 16900 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/los-colores-de-la-granja-680471/p.",
+    "producto: pimenton colores. marca: sm. categoria: colores. precio: 7968 cop. disponible: si. proveedor: exito. url: https://www.exito.com/pimenton-colores-a-granel-x-500-gr-305206/p.",
+    "producto: mi primer libro de colores. marca: panamericana editorial. categoria: colores. precio: 32000 cop. disponible: si. proveedor: panamericana. url: https://www.panamericana.com.co/mi-primer-libro-de-colores-605971/p."
+   ],
+   "respuesta_llm": null,
+   "hit_llm": null,
+   "tiempo_llm_s": null
+  }
+ ]
+}

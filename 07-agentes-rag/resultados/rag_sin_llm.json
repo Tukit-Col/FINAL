@@ -1,0 +1,107 @@
+{
+ "preguntas": 16,
+ "hits_original": 15,
+ "hits_estricto": 15,
+ "preguntas_con_oro_cero": 6,
+ "hits_original_en_oro_cero": 6,
+ "hits_estricto_en_oro_cero": 6,
+ "tiempo_recuperacion_promedio_s": 0.061,
+ "detalle": [
+  {
+   "tipo": "precio_producto",
+   "gold": "$22.500",
+   "hit_original": true,
+   "hit_estricto": true
+  },
+  {
+   "tipo": "precio_producto",
+   "gold": "$0",
+   "hit_original": true,
+   "hit_estricto": true
+  },
+  {
+   "tipo": "precio_producto",
+   "gold": "$0",
+   "hit_original": true,
+   "hit_estricto": true
+  },
+  {
+   "tipo": "precio_producto",
+   "gold": "$24.900",
+   "hit_original": true,
+   "hit_estricto": true
+  },
+  {
+   "tipo": "precio_producto",
+   "gold": "$0",
+   "hit_original": true,
+   "hit_estricto": true
+  },
+  {
+   "tipo": "precio_producto",
+   "gold": "$0",
+   "hit_original": true,
+   "hit_estricto": true
+  },
+  {
+   "tipo": "precio_producto",
+   "gold": "$0",
+   "hit_original": true,
+   "hit_estricto": true
+  },
+  {
+   "tipo": "precio_producto",
+   "gold": "$0",
+   "hit_original": true,
+   "hit_estricto": true
+  },
+  {
+   "tipo": "categoria",
+   "gold": "Diccionario básico de la lengua española con contenido digital; Diccionario básico escolar; Diccionario básico escolar Larousse con contenido digital; Diccionario escolar: de la lengua española",
+   "hit_original": true,
+   "hit_estricto": true
+  },
+  {
+   "tipo": "categoria",
+   "gold": "Accesorio marca Bluey / Acc.cartuchera bluey rosa; Accesorio Cartucheras en consignacion Bluey Cartuchera 14 bluey 3617; Accesorio Cartucheras en consignacion Cars Cartuchera 14 cars 3618; Accesorio Cartucheras en consignacion Dragon ball Cartuchera 14 dragon ball 3618; Accesorio Cartucheras en consignacion Sonic Cartuchera 14 sonic 3618",
+   "hit_original": true,
+   "hit_estricto": true
+  },
+  {
+   "tipo": "categoria",
+   "gold": "Accesorio Loncheras consignacion Mickey 23a1 lonchera 1 disney mickey; Accesorio Loncheras consignacion Mickey 23a1 lonchera 2 disney mickey; Accesorio Loncheras consignacion Mickey 23a1 lonchera 5 disney mickey; Accesorio Loncheras consignacion Spiderman Lonchera premium spidey d2; Accesorio Loncheras consignacion barbie Lonchera 16 barbie 3733",
+   "hit_original": true,
+   "hit_estricto": true
+  },
+  {
+   "tipo": "disponibilidad",
+   "gold": "sí",
+   "hit_original": true,
+   "hit_estricto": true
+  },
+  {
+   "tipo": "disponibilidad",
+   "gold": "sí",
+   "hit_original": true,
+   "hit_estricto": true
+  },
+  {
+   "tipo": "min_precio",
+   "gold": "Diccionario escolar: de la lengua española $26.900",
+   "hit_original": false,
+   "hit_estricto": false
+  },
+  {
+   "tipo": "referencia_compra",
+   "gold": "https://www.exito.com/candado-clave-4-digitos-seguridad-para-maletas-casillero-104038194-mp/p",
+   "hit_original": true,
+   "hit_estricto": true
+  },
+  {
+   "tipo": "marca",
+   "gold": "M&M",
+   "hit_original": true,
+   "hit_estricto": true
+  }
+ ]
+}
