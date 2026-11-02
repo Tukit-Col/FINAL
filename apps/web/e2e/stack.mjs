@@ -12,18 +12,37 @@ export const CORRELACION = process.env.QA_CORRELACION_ID ?? randomUUID().replace
 export const ANIO_LECTIVO = 2026;
 export const GRADO = "Tercero";
 export const ADMIN_DEMO = { correo: "admin@tukit.co", clave: "demo1234" };
+
+// La puerta cuenta por token y por IP (ADR 0047) y le cree a `X-Forwarded-For` cuando llega desde
+// 127.0.0.1. Cada familia simulada llega con su propia IP de 198.18.0.0/15 (RFC 2544, la red de
+// pruebas de rendimiento), al azar para que dos corridas seguidas no compartan cupo, como
+// `ip_de_familia` en `ensayos/integracion/stack_vivo.py` (decision N-120). El navegador la manda con
+// `extraHTTPHeaders` y el servidor de Next la reenvia tal cual (`cabecerasReenviadas`).
+export const CABECERA_IP = "x-forwarded-for";
+
+export function ipDeFamilia() {
+  const n = 1 + Math.floor(Math.random() * (2 ** 17 - 2));
+  return `198.${18 + (n >> 16)}.${(n >> 8) & 255}.${n & 255}`;
+}
+
+// La del administrador y la de las lecturas sueltas (el estado del stack, los conceptos).
+export const IP_DEL_EQUIPO = ipDeFamilia();
+
 export const ENTREGA_FICTICIA = {
   destinatario: "Acudiente Ficticio QA",
   direccion: "Calle Ficticia 1 # 2-3",
   ciudad: "Bogota",
+  // En Bogota la localidad es obligatoria (ADR 0044): sin ella el formulario no se envia.
+  localidad: "Chapinero",
 };
 
 /** Una peticion al gateway. Devuelve el codigo y el cuerpo, sin lanzar por un 4xx o un 5xx. */
-export async function api(metodo, ruta, { token, cuerpo } = {}) {
+export async function api(metodo, ruta, { token, cuerpo, ip = IP_DEL_EQUIPO } = {}) {
   const respuesta = await fetch(`${GATEWAY}${ruta}`, {
     method: metodo,
     headers: {
       "x-correlation-id": CORRELACION,
+      [CABECERA_IP]: ip,
       ...(token ? { authorization: `Bearer ${token}` } : {}),
       ...(cuerpo === undefined ? {} : { "content-type": "application/json" }),
     },
@@ -127,13 +146,18 @@ export async function listaAprobadaDelAcudiente(tokenAdmin, usuarioId, cuantos =
   return { colegioId, versionId, renglones };
 }
 
-/** Registra un acudiente ficticio con un hijo en un colegio del directorio (el registro lo pide). */
+/**
+ * Registra un acudiente ficticio con un hijo en un colegio del directorio (el registro lo pide). Lo
+ * devuelve con su token y con su IP, que llevan todas sus llamadas.
+ */
 export async function registrarAcudiente() {
   const directorio = await exigir(200, "GET", "/v1/colegios");
   if (!directorio.colegios.length) throw new Error("el directorio de colegios esta vacio: falta sembrarlo");
   const sufijo = randomUUID().replaceAll("-", "").slice(0, 10);
   const acudiente = { correo: `qa-ui-${sufijo}@example.test`, clave: "clave-ficticia-qa" };
+  const ip = ipDeFamilia();
   await exigir(201, "POST", "/v1/registro", {
+    ip,
     cuerpo: {
       ...acudiente,
       hijos: [
@@ -141,18 +165,18 @@ export async function registrarAcudiente() {
       ],
     },
   });
-  const sesion = await exigir(200, "POST", "/v1/sesiones", { cuerpo: acudiente });
-  return { ...acudiente, token: sesion.token, usuarioId: sesion.sesion.usuario_id };
+  const sesion = await exigir(200, "POST", "/v1/sesiones", { ip, cuerpo: acudiente });
+  return { ...acudiente, ip, token: sesion.token, usuarioId: sesion.sesion.usuario_id };
 }
 
 /** Espera a que el poller arme el trabajo de esa version para el acudiente y lo deje terminado. */
-export async function trabajoDelAcudiente(token, versionId, plazoMs = 120_000) {
+export async function trabajoDelAcudiente({ token, ip }, versionId, plazoMs = 120_000) {
   const limite = Date.now() + plazoMs;
   while (Date.now() < limite) {
-    const mios = await exigir(200, "GET", "/v1/trabajos", { token });
+    const mios = await exigir(200, "GET", "/v1/trabajos", { token, ip });
     const suyo = mios.trabajos.find((t) => t.hijos.some((h) => h.version_id === versionId));
     if (suyo && ["publicado", "espera_revision", "fallido"].includes(suyo.estado)) {
-      return exigir(200, "GET", `/v1/trabajos/${suyo.trabajo_id}`, { token });
+      return exigir(200, "GET", `/v1/trabajos/${suyo.trabajo_id}`, { token, ip });
     }
     await new Promise((listo) => setTimeout(listo, 500));
   }
@@ -166,17 +190,20 @@ export function pesos(texto) {
 
 /**
  * El navegador no sale de la maquina (decision N-46). Toda peticion fuera de localhost se aborta y se
- * cuenta: las de Gemini por separado (NFR-COS-01, tienen que ser cero) y el resto, que son las
- * imagenes de las tiendas, solo se anotan. El backend no tiene clave (GEMINI_API_KEY vacia), asi que
- * tampoco sale nada desde ahi.
+ * cuenta: las de Gemini y las de Google Places por separado (NFR-COS-01, tienen que ser cero) y el
+ * resto, que son las imagenes de las tiendas, solo se anotan. El backend no tiene clave
+ * (GEMINI_API_KEY vacia), asi que tampoco sale nada desde ahi. La web arranca con GOOGLE_MAPS_API_KEY
+ * vacia (ADR 0044, decision N-129): sin llave no carga Places, y si la cargara, se aborta aqui.
  */
 export async function guardiaDeRed(contexto) {
-  const intentos = { gemini: [], externas: [] };
+  const intentos = { gemini: [], places: [], externas: [] };
   await contexto.route(
     (url) => !["localhost", "127.0.0.1"].includes(url.hostname),
     (ruta) => {
       const url = ruta.request().url();
-      (/generativelanguage\.googleapis\.com/.test(url) ? intentos.gemini : intentos.externas).push(url);
+      if (/generativelanguage\.googleapis\.com/.test(url)) intentos.gemini.push(url);
+      else if (/(maps|places)\.googleapis\.com/.test(url)) intentos.places.push(url);
+      else intentos.externas.push(url);
       return ruta.abort();
     },
   );

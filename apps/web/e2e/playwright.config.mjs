@@ -4,7 +4,10 @@
 //   npm ci && npm run build:web                    # en la raiz del monorepo
 //   cd apps/web/e2e && npm ci && npx playwright install chromium && npx playwright test
 //
-// Si la web no esta arriba en :3000, `webServer` la levanta con `next start` (hace falta el build).
+// Si la web no esta arriba en :3000, `webServer` la levanta con `next start` (hace falta el build),
+// sin llave de Maps: `GOOGLE_MAPS_API_KEY` vacia gana sobre la de `apps/web/.env.local`, asi que el
+// checkout no carga Google Places (ADR 0044, decision N-129). Si la web ya esta arriba, la levanto
+// el lanzador de QA, que tambien la deja vacia.
 // `QA_JUNIT` elige donde queda el JUnit, con `ensayo_id` y `correlacion_id` como propiedades de cada
 // caso (acuerdos.md §2.4). `QA_RUNXFAIL=1` corre los `test.fail` como pruebas normales, igual que
 // `pytest --runxfail`, para confirmar que fallan en su asercion.
@@ -38,6 +41,7 @@ export default defineConfig({
     env: {
       TUKIT_API_URL: process.env.TUKIT_API_URL ?? "http://127.0.0.1:8010",
       NEXT_TELEMETRY_DISABLED: "1",
+      GOOGLE_MAPS_API_KEY: "",
     },
   },
 });

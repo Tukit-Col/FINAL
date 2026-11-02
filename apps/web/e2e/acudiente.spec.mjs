@@ -14,6 +14,11 @@
 //
 // El pago va entero por el navegador: con WOMPI_MODO=falso, comercio manda al acudiente a
 // `/pago/simulado` y de ahi a `/pago/resultado`, que sincroniza el pago con la pasarela falsa.
+//
+// Cada contexto del navegador llega a la puerta con la IP de su familia (`extraHTTPHeaders`; el
+// servidor de Next la reenvia), porque el limite de tasa cuenta por IP (ADR 0047, decision N-120). La
+// direccion va sin Google Places: la web arranca sin llave de Maps y la guardia cuenta y aborta
+// cualquier intento (ADR 0044, decision N-129).
 
 import { expect, test } from "@playwright/test";
 
@@ -27,6 +32,9 @@ let intentos;
 let acudiente;
 let vista;
 let pedido;
+
+// La primera prueba usa el `page` de Playwright: su contexto tambien llega como una familia.
+test.use({ extraHTTPHeaders: { [stack.CABECERA_IP]: stack.ipDeFamilia() } });
 
 function anotar(propiedades = {}) {
   const { annotations } = test.info();
@@ -62,12 +70,12 @@ test.describe("flujo del acudiente", () => {
     const tokenAdmin = await stack.abrirSesion(stack.ADMIN_DEMO);
     acudiente = await stack.registrarAcudiente();
     const lista = await stack.listaAprobadaDelAcudiente(tokenAdmin, acudiente.usuarioId);
-    vista = await stack.trabajoDelAcudiente(acudiente.token, lista.versionId);
+    vista = await stack.trabajoDelAcudiente(acudiente, lista.versionId);
     if (vista.estado !== "publicado") {
       throw new Error(`el trabajo ${vista.trabajo_id} quedo en ${vista.estado}`);
     }
 
-    contexto = await browser.newContext();
+    contexto = await browser.newContext({ extraHTTPHeaders: { [stack.CABECERA_IP]: acudiente.ip } });
     intentos = await stack.guardiaDeRed(contexto);
     pagina = await contexto.newPage();
   });
@@ -138,8 +146,15 @@ test.describe("flujo del acudiente", () => {
       .click();
     await pagina.getByRole("button", { name: "Ir a pagar" }).click();
     await pagina.getByLabel("Nombre de quien recibe").fill(stack.ENTREGA_FICTICIA.destinatario);
-    await pagina.getByLabel("Dirección").fill(stack.ENTREGA_FICTICIA.direccion);
+    const direccion = pagina.getByLabel("Dirección");
+    await direccion.fill(stack.ENTREGA_FICTICIA.direccion);
+    // Sin llave de Maps el campo es texto libre: sin combobox ni lista de sugerencias (ADR 0044).
+    await expect(direccion).toHaveAttribute("autocomplete", "street-address");
+    await expect(direccion).not.toHaveAttribute("role", "combobox");
+    await expect(pagina.getByRole("listbox", { name: "Direcciones sugeridas" })).toHaveCount(0);
     await pagina.getByLabel("Ciudad").fill(stack.ENTREGA_FICTICIA.ciudad);
+    // Con la ciudad en Bogota se enciende la localidad, que es obligatoria.
+    await pagina.getByLabel("Localidad").selectOption(stack.ENTREGA_FICTICIA.localidad);
     // Con sesion no se vuelve a pedir el correo: el comprobante va al de la cuenta.
     await expect(pagina.getByLabel("Correo para el comprobante")).toHaveCount(0);
     await expect(pagina.getByText(`El comprobante va a ${acudiente.correo}`)).toBeVisible();
@@ -186,8 +201,27 @@ test.describe("flujo del acudiente", () => {
     // El pedido se lee con la sesion del acudiente: `/v1/ordenes/{id}` ya no se sirve por la puerta (173ee80).
     const pagada = await stack.exigir(200, "GET", `/v1/comercio/mis-pedidos/${pedido.pedido_id}`, {
       token: acudiente.token,
+      ip: acudiente.ip,
     });
     expect([pagada.estado, pagada.trabajo_id, pagada.total]).toEqual(["pagado", vista.trabajo_id, kit.total]);
+  });
+
+  // ADR 0044: sin llave de Maps la direccion es la que se escribio y el pago no la espera. El pedido
+  // guarda lo escrito, la localidad elegida de la lista y ningun lugar de Google.
+  test("direccion: sin sugerencias, el pedido guarda la direccion escrita y la localidad elegida", async () => {
+    anotar({ nfr: "NFR-DIS-05" });
+    const leido = await stack.exigir(200, "GET", `/v1/comercio/mis-pedidos/${pedido.pedido_id}`, {
+      token: acudiente.token,
+      ip: acudiente.ip,
+    });
+    const envio = leido.envio ?? {};
+    anotar({ localidad: envio.localidad, google_place_id: envio.google_place_id });
+    expect([envio.direccion, envio.ciudad, envio.localidad, envio.google_place_id]).toEqual([
+      stack.ENTREGA_FICTICIA.direccion,
+      stack.ENTREGA_FICTICIA.ciudad,
+      stack.ENTREGA_FICTICIA.localidad,
+      null,
+    ]);
   });
 
   test("tablero: el pedido pagado aparece en Mis pedidos con su total", async () => {
@@ -207,5 +241,10 @@ test.describe("flujo del acudiente", () => {
       peticiones_externas_abortadas: intentos.externas.length,
     });
     expect(intentos.gemini).toEqual([]);
+  });
+
+  test("costo: el navegador no hizo ninguna peticion a Google Places", async () => {
+    anotar({ nfr: "NFR-COS-01", intentos_places: intentos.places.length });
+    expect(intentos.places).toEqual([]);
   });
 });
