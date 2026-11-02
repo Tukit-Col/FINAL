@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from tukit_comun.http import ErrorDominio
 
-from .. import api, nl2c, nl2c_kit, trabajos
+from .. import api, nl2c, nl2c_flujo, nl2c_kit, trabajos
 from ..modelos import EstadoTrabajo
 from ..remoto import RemotoCaido
 from .inteligencia import _token_bearer, _usuario_de_sesion
@@ -87,88 +87,16 @@ async def interpretar(
 ) -> dict[str, Any]:
     _exigir_activo()
     usuario = await _usuario_de_sesion(authorization) if _token_bearer(authorization) else None
-    limpio = nl2c.sanitizar(cuerpo.texto)
-    if not limpio.texto:
-        raise ErrorDominio("texto_vacio", "Cuentanos que necesitas para el kit.", estado=422)
     try:
         personajes = await _personajes_surtidos()
     except RemotoCaido:
         personajes = []
     try:
-        respuesta, ms = await nl2c.consultar_modelo(
-            nl2c.SISTEMA_INTERPRETAR,
-            nl2c.armar_usuario(limpio, contexto="Personajes disponibles: " + ", ".join(personajes)),
-            [nl2c.DECLARACION_FIJAR, nl2c.DECLARACION_SIN_ACCION],
-            nl2c.HERRAMIENTAS_INTERPRETAR,
-        )
+        return await nl2c_flujo.interpretar_texto(cuerpo.texto, personajes, usuario)
+    except nl2c_flujo.TextoVacio:
+        raise ErrorDominio("texto_vacio", "Cuentanos que necesitas para el kit.", estado=422) from None
     except nl2c.AsistenteNoDisponible as error:
-        nl2c.auditar("interpretar_sin_servicio", usuario=nl2c.huella_usuario(usuario), motivo=str(error))
         raise _sin_servicio(error) from error
-
-    base = {
-        "latencia_ms": ms,
-        "tokens": {"entrada": respuesta.tokens_entrada, "salida": respuesta.tokens_salida},
-    }
-    fijar = next((c for c in respuesta.llamadas if c["name"] == "fijar_restricciones"), None)
-    if fijar is None:
-        razon = next(
-            (
-                c["args"].get("motivo")
-                for c in respuesta.llamadas
-                if c["name"] == "sin_accion" and isinstance(c["args"], dict)
-            ),
-            "ambiguo",
-        )
-        nl2c.auditar(
-            "interpretar_sin_accion",
-            usuario=nl2c.huella_usuario(usuario),
-            huella=limpio.huella,
-            motivo=razon,
-            **base,
-        )
-        return {
-            "estado": "sin_accion",
-            "mensaje": "No pudimos convertir eso en preferencias del kit. "
-            "Puedes llenar el formulario o contarnos de otra forma.",
-            **base,
-        }
-    try:
-        r, ajustes = nl2c.proyectar_R(fijar["args"], personajes)
-    except nl2c.ArgumentosInvalidos as error:
-        nl2c.auditar(
-            "interpretar_argumentos_invalidos",
-            usuario=nl2c.huella_usuario(usuario),
-            huella=limpio.huella,
-            motivo=str(error),
-            **base,
-        )
-        return {
-            "estado": "invalido",
-            "mensaje": "No logramos entender bien tu pedido. Puedes llenar el formulario como siempre.",
-            **base,
-        }
-    dijo_presupuesto = bool((fijar["args"].get("filtros_duros") or {}).get("presupuesto_max_cop"))
-    propuesta_id = nl2c_kit.registrar_emision(usuario)
-    nl2c.auditar(
-        "interpretar_propuesta",
-        propuesta_id=propuesta_id,
-        usuario=nl2c.huella_usuario(usuario),
-        huella=limpio.huella,
-        redacciones=limpio.redacciones,
-        r=r.model_dump(),
-        ajustes=len(ajustes),
-        **base,
-    )
-    return {
-        "estado": "propuesta",
-        "propuesta_id": propuesta_id,
-        "r": r.model_dump(),
-        "preferencias": nl2c.a_preferencias(r),
-        "resumen": nl2c_kit.texto_resumen_R(r),
-        "ajustes": ajustes,
-        "ui": nl2c.construir_ui_empezar(r, dijo_presupuesto=dijo_presupuesto),
-        **base,
-    }
 
 
 @router.post("/v1/kits/{trabajo_id}/asistente/proponer", summary="Pedido sobre un kit a propuestas de cambio")
@@ -196,58 +124,13 @@ async def proponer(
     kit = next((k for k in vista["kits"] if k["perfil"] == cuerpo.perfil), None)
     if kit is None:
         raise ErrorDominio("kit_no_encontrado", "No encontramos ese kit en tu cuenta.", estado=404)
-    ctx = nl2c_kit.contexto_del_kit(kit)
-    limpio = nl2c.sanitizar(cuerpo.texto)
-    if not limpio.texto or not ctx.lineas:
-        raise ErrorDominio("texto_vacio", "Cuentanos que quieres cambiar de tu kit.", estado=422)
     try:
-        respuesta, ms = await nl2c.consultar_modelo(
-            nl2c.SISTEMA_KIT,
-            nl2c.armar_usuario(limpio, contexto=ctx.texto),
-            nl2c.DECLARACIONES_KIT,
-            nl2c.HERRAMIENTAS_KIT,
-        )
+        respuesta, _ = await nl2c_flujo.proponer_en_kit(cuerpo.texto, kit, usuario, str(trabajo_id))
+    except nl2c_flujo.TextoVacio:
+        raise ErrorDominio("texto_vacio", "Cuentanos que quieres cambiar de tu kit.", estado=422) from None
     except nl2c.AsistenteNoDisponible as error:
-        nl2c.auditar(
-            "proponer_sin_servicio",
-            usuario=nl2c.huella_usuario(usuario),
-            trabajo=str(trabajo_id),
-            motivo=str(error),
-        )
         raise _sin_servicio(error) from error
-
-    res = nl2c_kit.validar_llamadas_kit(respuesta.llamadas, ctx, kit, str(trabajo_id))
-    propuesta_id = nl2c_kit.registrar_emision(usuario, str(trabajo_id))
-    base = {
-        "latencia_ms": ms,
-        "tokens": {"entrada": respuesta.tokens_entrada, "salida": respuesta.tokens_salida},
-    }
-    nl2c.auditar(
-        "proponer_propuesta",
-        propuesta_id=propuesta_id,
-        usuario=nl2c.huella_usuario(usuario),
-        trabajo=str(trabajo_id),
-        huella=limpio.huella,
-        redacciones=limpio.redacciones,
-        propuestas=[(p["tipo"], p["props"]["item_id"]) for p in res.propuestas],
-        rechazadas=res.rechazadas,
-        sin_accion=res.sin_accion,
-        **base,
-    )
-    componentes = list(res.propuestas) + ([res.explicacion] if res.explicacion else [])
-    if not componentes:
-        return {
-            "estado": "sin_accion",
-            "mensaje": "No encontramos un cambio que hacer con eso. "
-            "Prueba, por ejemplo: «mas barato en cuadernos».",
-            **base,
-        }
-    return {
-        "estado": "propuesta",
-        "propuesta_id": propuesta_id,
-        "ui": {"version": 1, "componentes": componentes},
-        **base,
-    }
+    return respuesta
 
 
 @router.post("/v1/nl2c/decision", summary="El padre acepto o rechazo una propuesta", status_code=202)
