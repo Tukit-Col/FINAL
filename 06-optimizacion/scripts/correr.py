@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import gc
 import math
+import os
 import platform
 import sys
 import time
@@ -44,8 +45,10 @@ def _entorno() -> dict:
 
     from tukit_final import FINAL
 
+    # Una copia exportada con `git archive` no tiene `.git`: el commit se pasa en TUKIT_FINAL_COMMIT.
+    commit = os.environ.get("TUKIT_FINAL_COMMIT", "")
     try:
-        commit = subprocess.run(
+        commit = commit or subprocess.run(
             ["git", "-C", str(FINAL), "rev-parse", "HEAD"], capture_output=True, text=True, check=True
         ).stdout.strip()
     except Exception:  # noqa: BLE001

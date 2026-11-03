@@ -33,6 +33,7 @@ secundaria o la lectura de un resultado; **B**, es de redacción o de consistenc
 | 19 | Agentes y RAG | B | Preguntas con oro «$0» en el texto de n8n | 8 | 6 (8 son de precio, 2 con precio real) |
 | 20 | Agentes y RAG | B | Única falla de RAG sin LLM | «producto ausente del catálogo» | Es la pregunta de agregación «el más barato de la categoría Textos» |
 | 21 | Agentes y RAG | B | Recomendación contradictoria en NL2C | §5.5 «LLM local primario» frente a §13 «reglas + léxico (mantener)» | Se señala; las cifras favorecen las reglas en línea |
+| 22 | Optimización | M | Cifras del NSGA-II con el optimizador calibrado (N y G a la mitad) | 996 ms y 1,79 MiB en mediana; HV/HV* 0,9998; frente exacto 89,7 %; presupuesto 100 %; 5 semillas 92,2 %; hogar de 313 líneas 9,03 s y 16,6 MiB; memoria n^0,65 | 243 ms y 0,82 MiB; 0,9981; 81,6 %; 98,9 %; 77,5 %; 1,46 s y 12,6 MiB; n^0,83 |
 
 ---
 
@@ -147,8 +148,9 @@ configuraciones (21,0/69,3, 71,2/83,2, 65,3/86,7 y 30,8/91,6), la descomposició
 
 ## 06 Optimización
 
-Fuente: `Isis2610-G19-Tukit-Alternativas@2e03e38` (`REPORTE.md` §2) y `FINAL@30cf1b5`
-(`ensayos/bench_laya/`, `docs/informes/benchmark-laya/` y `docs/algoritmos/secciones/07-optimizacion.tex`).
+Fuente: `Isis2610-G19-Tukit-Alternativas@2e03e38` (`REPORTE.md` §2), `FINAL@30cf1b5`
+(`ensayos/bench_laya/`, `docs/informes/benchmark-laya/` y `docs/algoritmos/secciones/07-optimizacion.tex`)
+y `FINAL@a8f09c7` (optimizador calibrado de la rama `validacion/oe5`).
 
 Se reproducen exactamente: los 36 *gaps* de Alternativas §2 (re-ejecución) y todas las métricas
 agregadas del benchmark Laya contra NSGA-II (`resumen.json`, recalculado desde las 6.285 filas de
@@ -165,6 +167,19 @@ NSGA-II y enumeración.
     la programación dinámica [...] unos 10⁴ estados»: O(n⁴k) es el **tiempo**; los estados son
     O(n³), como máximo 11.340 para n = 17. En las listas reales se alcanzan **menos de 260 ternas por
     etapa**, porque todas las líneas tienen precio y pocas tienen personaje.
+22. **NSGA-II calibrado.** La rama `validacion/oe5` de FINAL (`a8f09c7`) calibró la población y las
+    generaciones: N = min(100, max(20, 6n)) par y G = min(60, max(15, 10·log₁₀|E|)), contra
+    N = min(200, max(40, 12n)) y G = min(120, max(30, 20·log₁₀|E|)) de `30cf1b5`. Se re-ejecutaron solo
+    las dos variantes del NSGA-II (`scripts/actualizar_nsga.py` y `correr.py semillas`); la
+    enumeración, la DP y el voraz se conservan porque, con los dos commits, el frente exacto, n y |E|
+    coinciden en las 332 filas. Valor viejo → nuevo, en las 174 listas reales: tiempo mediano 996 ms →
+    243 ms; máximo 3,76 s → 782 ms; memoria pico mediana 1,79 → 0,82 MiB; HV/HV* medio 0,9998 → 0,9981
+    (mínimo 0,9936 → 0,9511); frente exacto 89,7 % → 81,6 %; presupuesto 100 % → 98,9 %; razón con la
+    DP 1.404× → 311×. Con 5 semillas, el frente exacto pasa de 92,2 % a 77,5 % de las corridas. En el
+    hogar de 8 hijos y 313 líneas: 9,03 s y 16,6 MiB → 1,46 s y 12,6 MiB, ahora más rápido que la DP
+    (2,56 s). Exponentes: tiempo n^0,50 → n^0,49; memoria n^0,65 → n^0,83. Sin siembra: 1,02 s → 236 ms,
+    HV/HV* 0,9015 → 0,8673, frente exacto 7,5 % → 6,3 %, Premium 7,5 % → 6,3 % y presupuesto 29,3 % →
+    18,4 %. La conclusión se mantiene: la calidad del NSGA-II la explica la siembra.
 
 ## 07 Agentes y RAG
 

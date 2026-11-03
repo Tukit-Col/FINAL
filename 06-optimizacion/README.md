@@ -12,7 +12,7 @@ Esta carpeta reúne tres comparaciones:
 |---|---|---|---|
 | A | NSGA-II, voraz por perfil, exhaustivo y aleatorio (Alternativas §2) | 9 instancias sintéticas (de 4 a 8 ítems, 2 o 3 candidatos) | re-ejecutada; idéntica |
 | B | NSGA-II de producción (v3), Laya (421 M, 4 modalidades), reglas, azar y óptimo exacto (benchmark Laya, FINAL) | 175 listas reales, 4 escenarios | agregados recalculados desde los crudos; idénticos |
-| C | **Enumeración exacta, programación dinámica, NSGA-II (v7) con y sin siembra, y voraz** (propia) | 175 listas reales y 24 hogares sintéticos | nueva → [RESULTADOS.md](RESULTADOS.md) |
+| C | **Enumeración exacta, programación dinámica, NSGA-II calibrado con y sin siembra, y voraz** (propia) | 175 listas reales y 24 hogares sintéticos | nueva → [RESULTADOS.md](RESULTADOS.md); NSGA-II re-ejecutado con N y G calibrados (2 de noviembre de 2026) |
 
 ## A. Alternativas §2 (instancias sintéticas)
 
@@ -64,8 +64,8 @@ Detalle completo, tablas, complejidades y la respuesta a «¿por qué NSGA-II y 
 |---|---:|---:|---:|---:|---|
 | Enumeración exacta (\|E\| ≤ 60.000) | 47,7 ms | 1,54 MiB | 1 | 100 % | — |
 | **Programación dinámica** | **0,64 ms** | **0,12 MiB** | **1** | **100 %** | 100 / 100 / 100 / 100 % |
-| NSGA-II (producción) | 996 ms | 1,79 MiB | 0,9998 | 89,7 % | 100 / 100 / 100 / 100 % |
-| NSGA-II sin siembra | 1,02 s | 1,79 MiB | 0,9015 | 7,5 % | 98,9 / 7,5 / 100 / 29,3 % |
+| NSGA-II (producción, calibrado) | 243 ms | 0,82 MiB | 0,9981 | 81,6 % | 100 / 100 / 100 / 98,9 % |
+| NSGA-II sin siembra | 236 ms | 0,81 MiB | 0,8673 | 6,3 % | 94,3 / 6,3 / 100 / 18,4 % |
 | Voraz | 0,57 ms | 0,04 MiB | 0,4299 | 1,1 % | 100 / 100 / 100 / 86,8 % |
 
 ![Tiempo frente a tamaño](figuras/fig_opt_tiempo.png)
@@ -75,16 +75,19 @@ Detalle completo, tablas, complejidades y la respuesta a «¿por qué NSGA-II y 
 ## Conclusión
 
 Con la formulación vigente, que es separable por línea, **la programación dinámica es exacta, unas
-1.400 veces más rápida que NSGA-II y más liviana en las listas reales**. La calidad del NSGA-II de
-producción (frente exacto en el 89,7 % y todos los kits óptimos) se debe a la siembra voraz. La
-ventaja medible del NSGA-II es su costo acotado (n^0,5 contra n^2,6 de la DP) y su extensibilidad a
-términos no separables (consolidación entre hermanos dentro del costo, costo por tienda, coherencia de
-personaje), que hoy no están en el objetivo.
+310 veces más rápida que NSGA-II en mediana y más liviana en 32 de las 35 listas reales en que se
+midió la memoria**. La calidad del NSGA-II de producción (frente exacto en el 81,6 %, HV/HV* de
+0,9981 y los kits Ahorrador, Premium y Fan óptimos en todas las listas) se debe a la siembra voraz. La
+ventaja medible del NSGA-II es su costo acotado (n^0,5 contra n^2,6 de la DP; en el hogar de 8 hijos y
+313 líneas tarda 1,46 s contra 2,56 s de la DP) y su extensibilidad a términos no separables
+(consolidación entre hermanos dentro del costo, costo por tienda, coherencia de personaje), que hoy no
+están en el objetivo.
 
 ## Reproducir
 
 ```bash
-export TUKIT_FINAL=/ruta/a/FINAL            # clon de Tukit-Col/FINAL (solo lectura)
+export TUKIT_FINAL=/ruta/a/FINAL            # clon de Tukit-Col/FINAL (solo lectura) o copia con git archive
+export TUKIT_FINAL_COMMIT=<commit>           # solo si la copia no tiene .git
 export PYTHONDONTWRITEBYTECODE=1 OMP_NUM_THREADS=1
 cd scripts
 python test_dp.py                           # DP y MCKP frente a la fuerza bruta (1.000 + 500 instancias)
@@ -96,13 +99,31 @@ python correr.py semillas --procesos 4      # unos 24 min
 python analizar.py && python graficas.py
 ```
 
+Para volver a medir solo el NSGA-II (con y sin siembra) sobre los resultados ya guardados, sin
+repetir la enumeración, la DP ni el voraz, se usa `actualizar_nsga.py`. Comprueba que n y |E| de cada
+instancia sean idénticos a los guardados y aborta si no lo son:
+
+```bash
+python actualizar_nsga.py tiempo            # unos 3 min con N y G calibrados
+python actualizar_nsga.py hogares           # menos de 1 min
+python actualizar_nsga.py memoria           # unos 1,5 min
+python actualizar_nsga.py hogares_memoria   # unos 1,5 min
+python correr.py semillas --procesos 4      # unos 2 min
+python analizar.py && python graficas.py
+```
+
 Dependencias: Python 3.12, numpy 2.5.3, pymoo 0.6.2, matplotlib, sqlalchemy y pydantic. Estas dos
 últimas las pide el paquete `tukit_inteligencia` al importarse.
 
 ## Procedencia
 
-- `Tukit-Col/FINAL@30cf1b5` (main): `servicios/inteligencia/tukit_inteligencia/optimizador.py` (importado, no
-  copiado), `ensayos/bench_laya/` (copiados en `scripts/origen_bench_laya/`; `instancias.json.gz` y
+- `Tukit-Col/FINAL@a8f09c7` (`validacion/oe5`): `servicios/inteligencia/tukit_inteligencia/optimizador.py`
+  con N = min(100, max(20, 6n)) par y G = min(60, max(15, 10·log₁₀|E|)), importado sin copiarlo, para
+  las dos variantes del NSGA-II. La enumeración, la DP y el voraz se conservan de la corrida con
+  `FINAL@30cf1b5`: en las 332 filas el frente exacto, n y |E| son idénticos con los dos commits, porque
+  la rama no cambia los objetivos ni los candidatos admisibles (agrega filtros duros, MAUT en la
+  recomendación y la variación de personaje del Fan, que actúan después del frente o solo con filtros).
+- `Tukit-Col/FINAL@30cf1b5` (main): `ensayos/bench_laya/` (copiados en `scripts/origen_bench_laya/`; `instancias.json.gz` y
   `escenarios.json` en `datos/`), `docs/informes/benchmark-laya/` (en `resultados/origen_bench_laya/`),
   `docs/informes/reporte-benchmark-laya-nsga.md` y `docs/algoritmos/secciones/07-optimizacion.tex` y `08-evaluacion.tex`.
 - `Tukit-Col/Isis2610-G19-Tukit-Alternativas@2e03e38` (main): `benchmarks/optimizer.py`, `scripts/run_optimizer.py` y
