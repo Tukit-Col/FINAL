@@ -44,8 +44,30 @@ def _utc(dia: int, hora: int = 0, minuto: int = 0, segundo: int = 0, mes: int = 
     return datetime(2026, mes, dia, hora, minuto, segundo, tzinfo=UTC)
 
 
+TOKEN_OPERADOR = "token-ficticio-del-operador"
+# Desde oe5 (cef2c25) la bandeja y el detalle de un caso son solo del equipo (`_exigir_staff`): las
+# lecturas de estas pruebas llegan con la sesion de un operador (decision N-149).
+OPERADOR = {"authorization": f"Bearer {TOKEN_OPERADOR}"}
+_SESIONES = {
+    TOKEN_OPERADOR: {
+        "usuario_id": "66666666-6666-5666-8666-666666666666",
+        "correo": "operador@example.test",
+        "roles": [{"rol": "operador", "ambito": None}],
+    },
+    # La de `CREDENCIALES`: una sesion valida, pero de un acudiente.
+    "sesion-ficticia-de-un-acudiente": {
+        "usuario_id": USUARIO,
+        "correo": CORREO,
+        "roles": [{"rol": "acudiente", "ambito": None}],
+    },
+}
+
+
 class IdentidadDoble:
-    """Identidad de mentira: devuelve un titular fijo, o `None` si se la marca caida."""
+    """Identidad de mentira: devuelve un titular fijo, o `None` si se la marca caida.
+
+    Valida dos tokens, el del operador y el de un acudiente; cualquier otro es una sesion que no
+    existe."""
 
     def __init__(self) -> None:
         self.caida = False
@@ -54,6 +76,9 @@ class IdentidadDoble:
     async def resolver_contacto(self, correo: str, celular: str | None = None) -> str | None:
         self.llamadas.append((correo, celular))
         return None if self.caida else USUARIO
+
+    async def sesion(self, token: str) -> dict[str, Any] | None:
+        return _SESIONES.get(token)
 
 
 @dataclass
@@ -345,7 +370,7 @@ class TestLaBandeja:
         urgente_proximo = await _sembrar_caso(motor, prioridad="urgente", vence_en=_utc(28, 12))
         alta = await _sembrar_caso(motor, prioridad="alta", vence_en=_utc(30))
 
-        respuesta = await entorno.http.get("/v1/operacion/casos")
+        respuesta = await entorno.http.get("/v1/operacion/casos", headers=OPERADOR)
 
         assert respuesta.status_code == 200
         assert [c["caso_id"] for c in respuesta.json()["casos"]] == [
@@ -353,7 +378,7 @@ class TestLaBandeja:
         ]
 
     async def test_sin_casos_devuelve_resumen_en_ceros_y_lista_vacia(self, entorno):
-        respuesta = await entorno.http.get("/v1/operacion/casos")
+        respuesta = await entorno.http.get("/v1/operacion/casos", headers=OPERADOR)
 
         assert respuesta.status_code == 200
         assert respuesta.json() == {
@@ -366,7 +391,7 @@ class TestLaBandeja:
         await _sembrar_caso(entorno.motor, estado="abierto", prioridad="urgente")
         await _sembrar_caso(entorno.motor, estado="resuelto", prioridad="urgente", resuelto_en=_utc(1))
 
-        cuerpo = (await entorno.http.get("/v1/operacion/casos")).json()
+        cuerpo = (await entorno.http.get("/v1/operacion/casos", headers=OPERADOR)).json()
 
         assert len(cuerpo["casos"]) == 2
         assert (cuerpo["resumen"]["abiertos"], cuerpo["resumen"]["urgentes"]) == (1, 1)
@@ -377,10 +402,12 @@ class TestElDetalleDeUnCaso:
         pedido = uuid.uuid4()
         caso_id = await _sembrar_caso(entorno.motor, categoria="entrega", prioridad="alta", pedido_id=pedido)
 
-        respuesta = await entorno.http.get(f"/v1/operacion/casos/{caso_id}")
+        respuesta = await entorno.http.get(f"/v1/operacion/casos/{caso_id}", headers=OPERADOR)
 
         assert respuesta.status_code == 200
         cuerpo = respuesta.json()
+        # Desde oe5 (cef2c25) el detalle del back-office es el de `serializar_detalle_caso` mas la
+        # historia del ticket: suma el cuerpo de la PQRS, el titular, la resolucion y los eventos.
         assert set(cuerpo) == {
             "caso_id",
             "origen",
@@ -393,7 +420,12 @@ class TestElDetalleDeUnCaso:
             "trabajo_id",
             "pedido_id",
             "asignado_a",
+            "descripcion",
+            "usuario_id",
+            "resuelto_en",
+            "eventos",
         }
+        assert cuerpo["eventos"] == []
         assert (cuerpo["caso_id"], cuerpo["categoria"], cuerpo["pedido_id"]) == (
             str(caso_id),
             "entrega",
@@ -401,7 +433,7 @@ class TestElDetalleDeUnCaso:
         )
 
     async def test_un_identificador_que_no_es_uuid_es_una_entrada_invalida_y_no_un_404(self, entorno):
-        respuesta = await entorno.http.get("/v1/operacion/casos/no-es-un-uuid")
+        respuesta = await entorno.http.get("/v1/operacion/casos/no-es-un-uuid", headers=OPERADOR)
 
         assert respuesta.status_code == 400
         assert respuesta.json() == {
@@ -411,7 +443,7 @@ class TestElDetalleDeUnCaso:
         }
 
     async def test_el_404_trae_el_sobre_de_error_del_dominio(self, entorno):
-        respuesta = await entorno.http.get(f"/v1/operacion/casos/{uuid.uuid4()}")
+        respuesta = await entorno.http.get(f"/v1/operacion/casos/{uuid.uuid4()}", headers=OPERADOR)
 
         assert respuesta.status_code == 404
         assert respuesta.json()["error"] == "caso_no_existe"
@@ -551,7 +583,8 @@ class TestAbrirUnCaso:
     ):
         recibo = (await entorno.http.post("/v1/operacion/casos", json=_solicitud(categoria=categoria))).json()
 
-        detalle = (await entorno.http.get(f"/v1/operacion/casos/{recibo['caso_id']}")).json()
+        leido = await entorno.http.get(f"/v1/operacion/casos/{recibo['caso_id']}", headers=OPERADOR)
+        detalle = leido.json()
         plazo = datetime.fromisoformat(recibo["vence_en"]) - datetime.fromisoformat(recibo["recibido_en"])
         assert detalle["prioridad"] == prioridad
         assert plazo == timedelta(hours=horas)

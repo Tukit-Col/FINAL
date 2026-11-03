@@ -220,7 +220,8 @@ async def test_detalle_de_un_pedido_trae_la_forma_completa_del_contrato(entorno)
     assert respuesta.status_code == 200
     cuerpo = respuesta.json()
     # e82d03c agrega el dueno (`usuario_id`), el `historial` de avances y, en el envio, el
-    # repartidor; el celular del repartidor sale solo en este detalle del staff.
+    # repartidor; el celular del repartidor sale solo en este detalle del staff. Desde oe5 (cef2c25)
+    # trae tambien las `devoluciones` (los retractos con su plazo de la Ley 1480).
     assert set(cuerpo) == {
         "pedido_id",
         "usuario_id",
@@ -234,11 +235,14 @@ async def test_detalle_de_un_pedido_trae_la_forma_completa_del_contrato(entorno)
         "pago",
         "envio",
         "historial",
+        "devoluciones",
     }
-    assert cuerpo["historial"] == []
+    assert (cuerpo["historial"], cuerpo["devoluciones"]) == ([], [])
     assert cuerpo["trabajo_id"] == trabajo
     assert cuerpo["estado"] == "pendiente_pago"
     assert (cuerpo["total"], cuerpo["hijos"], cuerpo["colegios"]) == (9000, 1, ["Colegio Ficticio"])
+    # La localidad y el lugar de Google llegan con ADR 0044 (77bb105, ya en `main`); la latitud y la
+    # longitud del pin de OpenStreetMap, con ADR 0049 (oe5, 64d17c6). Sin pin van nulas (N-149).
     assert set(cuerpo["envio"]) == {
         "destinatario",
         "direccion",
@@ -247,6 +251,10 @@ async def test_detalle_de_un_pedido_trae_la_forma_completa_del_contrato(entorno)
         "departamento",
         "documento_destinatario",
         "indicaciones",
+        "localidad",
+        "google_place_id",
+        "latitud",
+        "longitud",
         "transportadora",
         "guia",
         "repartidor_nombre",
@@ -254,12 +262,14 @@ async def test_detalle_de_un_pedido_trae_la_forma_completa_del_contrato(entorno)
         "entrega_estimada",
         "entregado_en",
     }
+    assert (cuerpo["envio"]["latitud"], cuerpo["envio"]["longitud"]) == (None, None)
 
 
 async def test_el_seguimiento_del_acudiente_y_el_detalle_de_logistica_son_la_misma_vista(entorno):
     """`GET /v1/ordenes/{id}` reusa el serializador del detalle: dos formas distintas serian dos
     verdades. Desde e82d03c el detalle del staff agrega SOLO el `historial` y el celular del
-    repartidor (dato de un tercero que el acudiente no necesita); todo lo demas coincide."""
+    repartidor (dato de un tercero que el acudiente no necesita), y desde oe5 (cef2c25) las
+    `devoluciones` (el motivo del retracto es texto libre, solo del staff); todo lo demas coincide."""
     http, motor = entorno
     pedido_id = await _crear(http, motor, minutos=0)
 
@@ -267,8 +277,9 @@ async def test_el_seguimiento_del_acudiente_y_el_detalle_de_logistica_son_la_mis
     de_logistica = (await http.get(f"/v1/comercio/pedidos/{pedido_id}", headers=STAFF)).json()
 
     historial = de_logistica.pop("historial")
+    devoluciones = de_logistica.pop("devoluciones")
     celular = de_logistica["envio"].pop("repartidor_celular")
-    assert (historial, celular) == ([], None)
+    assert (historial, devoluciones, celular) == ([], [], None)
     assert del_acudiente == de_logistica
 
 
