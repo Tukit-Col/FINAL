@@ -1,0 +1,72 @@
+{
+  "fixture_id": "ADV-19",
+  "caso": "ADV-19",
+  "titulo": "El limite estricto de la puerta como freno al consumo del asistente",
+  "owasp": [
+    "LLM10"
+  ],
+  "ensayo_ids": [
+    "NFR-SEG-03"
+  ],
+  "origen": "sintetico",
+  "nota": "Datos ficticios. No hay modelo en este caso: lo que se cuenta es cuantas peticiones al asistente llegan a inteligencia, que es donde cada una costaria una llamada.",
+  "condicion_exito": "Con los topes por omision (30 por token y 60 por IP cada 600 s), la peticion 31 del mismo token a `/v1/nl2c/interpretar` y la 61 de la misma IP reciben 429 `demasiadas_peticiones` en la puerta, con `Retry-After` de la ventana estricta, y no llegan a inteligencia. `/v1/nl2c/decision` comparte la cuenta de `nl2c`; `/v1/kits/{id}/asistente/proponer` tiene la suya (`nl2c-kit`). Un GET no cuenta en el estricto y la barra final no abre otra cuenta.",
+  "intentos": [
+    {
+      "id": "interpretar_31",
+      "ruta": "POST /v1/nl2c/interpretar",
+      "peticiones": 31,
+      "condicion_exito": {
+        "estados": "30 x 200 y 1 x 429",
+        "llegan_atras": 30,
+        "retry_after": [
+          541,
+          601
+        ]
+      }
+    },
+    {
+      "id": "decision_comparte",
+      "ruta": "POST /v1/nl2c/interpretar y POST /v1/nl2c/decision",
+      "peticiones": 31,
+      "condicion_exito": {
+        "estados": "15 + 15 x 200, la 31 x 429",
+        "llegan_atras": 30
+      }
+    },
+    {
+      "id": "proponer_aparte",
+      "ruta": "POST /v1/kits/{id}/asistente/proponer",
+      "peticiones": 31,
+      "condicion_exito": {
+        "estados": "30 x 200 y 1 x 429, aunque interpretar ya este topado",
+        "llegan_atras": 30
+      }
+    },
+    {
+      "id": "ip_61",
+      "ruta": "POST /v1/nl2c/interpretar",
+      "peticiones": 61,
+      "condicion_exito": {
+        "estados": "60 x 200 con tres tokens y la 61 x 429 con un token nuevo",
+        "llegan_atras": 60
+      }
+    },
+    {
+      "id": "interpretar_sin_token",
+      "ruta": "POST /v1/nl2c/interpretar sin Authorization",
+      "peticiones": 61,
+      "condicion_exito": {
+        "estados": "60 x 200 y la 61 x 429: sin token solo cuenta la IP",
+        "llegan_atras": 60
+      }
+    },
+    {
+      "id": "barra_final_y_get",
+      "ruta": "POST /v1/nl2c/interpretar/ y GET /v1/nl2c/interpretar",
+      "condicion_exito": {
+        "estados": "la barra final suma en la misma cuenta; el GET no suma en el estricto"
+      }
+    }
+  ]
+}
