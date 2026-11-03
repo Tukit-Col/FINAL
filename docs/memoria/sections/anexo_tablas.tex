@@ -84,24 +84,24 @@ Resto & 5,5 & 0,02 & \\
 \toprule
 \textbf{ADR} & \textbf{Decisión} & \textbf{Fundamento} \\
 \midrule
-0011 & Separar el catálogo del comercio & Elimina el doble maestro del catálogo. Los precios
+0012 & Separar el catálogo del comercio & Elimina el doble maestro del catálogo. Los precios
 no se unifican: el costo contractual y el precio público observado son hechos distintos en
 lados opuestos de la asimetría de recuperación \\
 \addlinespace
-0012 & Matrícula como ancla de tenencia y roles con ámbito & Un acudiente puede tener hijos
+0013 & Matrícula como ancla de tenencia y roles con ámbito & Un acudiente puede tener hijos
 en colegios distintos: la tenencia no reside en la persona \\
 \addlinespace
-0013 & Monorrepositorio con despliegue independiente & Separación entre vista de
+0014 & Monorrepositorio con despliegue independiente & Separación entre vista de
 desarrollo y vista física; fronteras instrumentadas con funciones de aptitud \\
 \addlinespace
-0014 & Dirección de entrega: libreta y copia congelada & Un hecho histórico y un dato
+0015 & Dirección de entrega: libreta y copia congelada & Un hecho histórico y un dato
 editable son entidades distintas aunque se escriban igual \\
 \addlinespace
-0015 & Dónde se evalúa el ámbito cuando el ancla vive en otra base & Una política de fila
+0016 & Dónde se evalúa el ámbito cuando el ancla vive en otra base & Una política de fila
 no puede unirse contra otra base: se copia la clave de ámbito, no la lista de matrículas, y
 se deniega por omisión. Sigue siendo diseño (Sección~\ref{sec:defectos}) \\
 \addlinespace
-0037 & Eventos y trabajos por RabbitMQ, con la base de datos como respaldo & Una cola por
+0046 & Eventos y trabajos por RabbitMQ, con la base de datos como respaldo & Una cola por
 consumidor, con reintentos y descartados; sin RabbitMQ, el sistema sigue por sondeo de las
 bandejas de salida \\
 \bottomrule
