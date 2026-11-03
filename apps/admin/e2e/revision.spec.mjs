@@ -355,3 +355,8 @@ test("costo: el navegador no hizo ninguna peticion a Google Places", async () =>
   anotar({ nfr: "NFR-COS-01", intentos_places: intentos.places.length });
   expect(intentos.places).toEqual([]);
 });
+
+test("costo: el navegador no hizo ninguna peticion a OpenStreetMap", async () => {
+  anotar({ nfr: "NFR-COS-01", intentos_osm: intentos.osm.length });
+  expect(intentos.osm).toEqual([]);
+});

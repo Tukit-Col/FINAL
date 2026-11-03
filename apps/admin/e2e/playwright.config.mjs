@@ -21,6 +21,9 @@ const ENTORNO = {
   NEXT_TELEMETRY_DISABLED: "1",
   // La web que se levanta aqui tampoco carga Google Places (ADR 0044, decision N-129).
   GOOGLE_MAPS_API_KEY: "",
+  // Ni la web ni la consola consultan OpenStreetMap: sin contacto no hay busqueda ni mapa de entregas
+  // (ADR 0049, decision N-147).
+  TUKIT_NOMINATIM_CONTACTO: "",
 };
 
 export default defineConfig({

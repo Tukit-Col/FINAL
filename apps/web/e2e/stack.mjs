@@ -191,19 +191,25 @@ export function pesos(texto) {
 
 /**
  * El navegador no sale de la maquina (decision N-46). Toda peticion fuera de localhost se aborta y se
- * cuenta: las de Gemini y las de Google Places por separado (NFR-COS-01, tienen que ser cero) y el
- * resto, que son las imagenes de las tiendas, solo se anotan. El backend no tiene clave
- * (GEMINI_API_KEY vacia), asi que tampoco sale nada desde ahi. La web arranca con GOOGLE_MAPS_API_KEY
- * vacia (ADR 0044, decision N-129): sin llave no carga Places, y si la cargara, se aborta aqui.
+ * cuenta: las de Gemini, las de Google Places y las de OpenStreetMap por separado (NFR-COS-01, tienen
+ * que ser cero) y el resto, que son las imagenes de las tiendas, solo se anotan. El backend no tiene
+ * clave (GEMINI_API_KEY vacia), asi que tampoco sale nada desde ahi. La web arranca con
+ * GOOGLE_MAPS_API_KEY vacia (ADR 0044, decision N-129): sin llave no carga Places, y si la cargara, se
+ * aborta aqui. Desde oe5, sin llave el checkout busca en OpenStreetMap (ADR 0049): Nominatim lo
+ * consulta el servidor de Next, que arranca sin `TUKIT_NOMINATIM_CONTACTO` y responde 503, y los
+ * mosaicos del mapa los pide el navegador (`tile.openstreetmap.org` o un subdominio), que se abortan
+ * aqui (decision N-147).
  */
 export async function guardiaDeRed(contexto) {
-  const intentos = { gemini: [], places: [], externas: [] };
+  const intentos = { gemini: [], places: [], osm: [], externas: [] };
   await contexto.route(
     (url) => !["localhost", "127.0.0.1"].includes(url.hostname),
     (ruta) => {
       const url = ruta.request().url();
+      const { hostname } = new URL(url);
       if (/generativelanguage\.googleapis\.com/.test(url)) intentos.gemini.push(url);
       else if (/(maps|places)\.googleapis\.com/.test(url)) intentos.places.push(url);
+      else if (/^(nominatim|(.+\.)?tile)\.openstreetmap\.org$/.test(hostname)) intentos.osm.push(url);
       else intentos.externas.push(url);
       return ruta.abort();
     },

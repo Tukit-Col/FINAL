@@ -13,12 +13,15 @@
 //     la cierra; el poller arma el trabajo por la ruta rapida (decision N-45).
 //
 // El pago va entero por el navegador: con WOMPI_MODO=falso, comercio manda al acudiente a
-// `/pago/simulado` y de ahi a `/pago/resultado`, que sincroniza el pago con la pasarela falsa.
+// `/pago/simulado`, que desde oe5 aprueba solo y pasa a `/pago/resultado`, que sincroniza el pago con
+// la pasarela falsa.
 //
 // Cada contexto del navegador llega a la puerta con la IP de su familia (`extraHTTPHeaders`; el
 // servidor de Next la reenvia), porque el limite de tasa cuenta por IP (ADR 0047, decision N-120). La
 // direccion va sin Google Places: la web arranca sin llave de Maps y la guardia cuenta y aborta
-// cualquier intento (ADR 0044, decision N-129).
+// cualquier intento (ADR 0044, decision N-129). Sin llave, desde oe5 el campo es el de OpenStreetMap
+// (ADR 0049); la web arranca sin `TUKIT_NOMINATIM_CONTACTO`, asi que no se busca, y la guardia cuenta
+// y aborta Nominatim y los mosaicos del mapa (decision N-147).
 
 import { expect, test } from "@playwright/test";
 
@@ -148,10 +151,12 @@ test.describe("flujo del acudiente", () => {
     await pagina.getByLabel("Nombre de quien recibe").fill(stack.ENTREGA_FICTICIA.destinatario);
     const direccion = pagina.getByLabel("Dirección");
     await direccion.fill(stack.ENTREGA_FICTICIA.direccion);
-    // Sin llave de Maps el campo es texto libre: sin combobox ni lista de sugerencias (ADR 0044).
-    await expect(direccion).toHaveAttribute("autocomplete", "street-address");
-    await expect(direccion).not.toHaveAttribute("role", "combobox");
+    // Sin llave de Maps no hay sugerencias de Google (ADR 0044). Desde oe5 el campo es el de
+    // OpenStreetMap (ADR 0049): la busqueda es explicita (boton Buscar) y aqui no se pulsa, asi que la
+    // direccion queda como texto libre, sin lista de resultados ni pin (decision N-147).
     await expect(pagina.getByRole("listbox", { name: "Direcciones sugeridas" })).toHaveCount(0);
+    await expect(pagina.getByRole("listbox", { name: "Direcciones encontradas" })).toBeHidden();
+    await expect(pagina.getByText("Ubicación confirmada en el mapa.")).toHaveCount(0);
     await pagina.getByLabel("Ciudad").fill(stack.ENTREGA_FICTICIA.ciudad);
     // Con la ciudad en Bogota se enciende la localidad, que es obligatoria.
     await pagina.getByLabel("Localidad").selectOption(stack.ENTREGA_FICTICIA.localidad);
@@ -176,15 +181,13 @@ test.describe("flujo del acudiente", () => {
     expect([pedido.estado, pedido.total, pedido.widget]).toEqual(["iniciado", kit.total, null]);
 
     // WOMPI_MODO=falso: la pasarela falsa manda a `/pago/simulado?ref=<referencia>` (pasarela.py,
-    // `PasarelaFalsa.crear_transaccion`) y "Aprobar pago" vuelve a `/pago/resultado`, que sincroniza.
+    // `PasarelaFalsa.crear_transaccion`). Desde oe5 (c54075c) esa pagina es neutra y no tiene boton:
+    // aprueba sola y pasa a `/pago/resultado`, que sincroniza (decision N-147).
     const simulado = `${WEB}/pago/simulado?ref=${encodeURIComponent(pedido.referencia_wompi)}`;
     expect(pedido.url_redireccion).toBe(simulado);
-    await pagina.waitForURL(simulado);
-    await expect(pagina.getByRole("heading", { name: "Pasarela simulada (modo de pruebas sin Wompi)" })).toBeVisible();
     const sincronizada = pagina.waitForResponse(
       (r) => /\/api\/pagos\/[^/]+\/sincronizar$/.test(r.url()) && r.request().method() === "POST",
     );
-    await pagina.getByRole("link", { name: "Aprobar pago" }).click();
     await pagina.waitForURL(
       `${WEB}/pago/resultado?id=${encodeURIComponent(`falsa-APPROVED-${pedido.referencia_wompi}`)}`,
     );
@@ -246,5 +249,10 @@ test.describe("flujo del acudiente", () => {
   test("costo: el navegador no hizo ninguna peticion a Google Places", async () => {
     anotar({ nfr: "NFR-COS-01", intentos_places: intentos.places.length });
     expect(intentos.places).toEqual([]);
+  });
+
+  test("costo: el navegador no hizo ninguna peticion a OpenStreetMap", async () => {
+    anotar({ nfr: "NFR-COS-01", intentos_osm: intentos.osm.length });
+    expect(intentos.osm).toEqual([]);
   });
 });
