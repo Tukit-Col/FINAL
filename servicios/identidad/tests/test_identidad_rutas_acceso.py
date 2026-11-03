@@ -787,6 +787,7 @@ class TestAltaPublica:
             json={
                 "correo": " Nueva@Example.Test ",
                 "clave": "clave-ficticia-9",
+                "acepta_terminos": True,
                 "celular": "3000000000",
                 "hijos": [
                     {
@@ -819,6 +820,7 @@ class TestAltaPublica:
         cuerpo = {
             "correo": "nueva@example.test",
             "clave": "clave-ficticia-9",
+            "acepta_terminos": True,
             "hijos": [{"colegio_id": str(mundo.colegio_a), "grado": "Quinto"}],
         }
         await mundo.http.post("/v1/registro", json=cuerpo)
@@ -844,6 +846,7 @@ class TestAltaPublica:
             json={
                 "correo": "mama@example.test",
                 "clave": "clave-del-intruso-1",
+                "acepta_terminos": True,
                 "hijos": [
                     {"colegio_id": str(mundo.colegio_b), "grado": "Once", "apodo": "Hijo Impostor Ficticio"}
                 ],
@@ -864,6 +867,7 @@ class TestAltaPublica:
             json={
                 "correo": "nueva@example.test",
                 "clave": "clave-ficticia-9",
+                "acepta_terminos": True,
                 "hijos": [
                     {"colegio_id": str(mundo.colegio_a), "grado": "Quinto"},
                     {"colegio_id": str(uuid.uuid4()), "grado": "Quinto"},
@@ -883,19 +887,33 @@ class TestAltaPublica:
     @pytest.mark.parametrize(
         ("cuerpo", "estado", "codigo"),
         [
-            ({"correo": "no-es-un-correo", "clave": "clave-ficticia-9"}, 422, "correo_invalido"),
+            (
+                {"correo": "no-es-un-correo", "clave": "clave-ficticia-9", "acepta_terminos": True},
+                422,
+                "correo_invalido",
+            ),
             (
                 {
                     "correo": "nueva@example.test",
                     "clave": "clave-ficticia-9",
+                    "acepta_terminos": True,
                     "hijos": [{"colegio_id": str(uuid.uuid4()), "grado": "Doceavo"}],
                 },
                 422,
                 "grado_invalido",
             ),
-            ({"correo": "nueva@example.test", "clave": "corta"}, 400, "entrada_invalida"),
             (
-                {"correo": "nueva@example.test", "clave": "clave-ficticia-9", "hijos": [{"grado": "Quinto"}]},
+                {"correo": "nueva@example.test", "clave": "corta", "acepta_terminos": True},
+                400,
+                "entrada_invalida",
+            ),
+            (
+                {
+                    "correo": "nueva@example.test",
+                    "clave": "clave-ficticia-9",
+                    "acepta_terminos": True,
+                    "hijos": [{"grado": "Quinto"}],
+                },
                 400,
                 "entrada_invalida",
             ),
@@ -914,7 +932,8 @@ class TestAltaPublica:
         contacto = (await mundo.http.post("/v1/contactos", json={"correo": "Pendiente@Example.Test "})).json()
 
         registro = await mundo.http.post(
-            "/v1/registro", json={"correo": "pendiente@example.test", "clave": "clave-ficticia-9"}
+            "/v1/registro",
+            json={"correo": "pendiente@example.test", "clave": "clave-ficticia-9", "acepta_terminos": True},
         )
 
         assert contacto["creado"] is True
@@ -926,6 +945,7 @@ class TestAltaPublica:
             json={
                 "correo": " Nueva@Example.Test",
                 "clave": "clave-ficticia-9",
+                "acepta_terminos": True,
                 "nombre": "Acudiente Ficticio Tres",
             },
         )
@@ -946,6 +966,7 @@ class TestAltaPublica:
             json={
                 "correo": "pendiente@example.test",
                 "clave": "clave-ficticia-9",
+                "acepta_terminos": True,
                 "nombre": "Acudiente Ficticio Tres",
             },
         )
@@ -954,6 +975,7 @@ class TestAltaPublica:
             json={
                 "correo": "pendiente@example.test",
                 "clave": "otra-clave-ficticia",
+                "acepta_terminos": True,
                 "nombre": "Intruso Ficticio",
             },
         )
@@ -975,12 +997,22 @@ class TestAltaPublica:
         ("cuerpo", "codigo", "campo"),
         [
             (
-                {"correo": "nueva@example.test", "clave": "corta", "nombre": "Acudiente Ficticio"},
+                {
+                    "correo": "nueva@example.test",
+                    "clave": "corta",
+                    "nombre": "Acudiente Ficticio",
+                    "acepta_terminos": True,
+                },
                 "clave_debil",
                 "clave",
             ),
             (
-                {"correo": "sin-arroba", "clave": "clave-ficticia-9", "nombre": "Acudiente Ficticio"},
+                {
+                    "correo": "sin-arroba",
+                    "clave": "clave-ficticia-9",
+                    "nombre": "Acudiente Ficticio",
+                    "acepta_terminos": True,
+                },
                 "correo_invalido",
                 "correo",
             ),
@@ -1035,6 +1067,7 @@ class TestHijosDeLaCuenta:
             json={
                 "correo": "nueva@example.test",
                 "clave": "clave-ficticia-9",
+                "acepta_terminos": True,
                 "nombre": "Acudiente Ficticio Tres",
             },
         )
@@ -1059,7 +1092,8 @@ class TestHijosDeLaCuenta:
 
         assert respuesta.status_code == 201
         matricula_id = uuid.UUID(respuesta.json()["matricula_id"])
-        [consentimiento] = await mundo.filas("consentimiento")
+        # La cuenta nueva ya trae el del titular (`registro_titular`, oe5); el del hijo es aparte.
+        [consentimiento] = [f for f in await mundo.filas("consentimiento") if f.regimen == "registro_menor"]
         assert consentimiento.matricula_id == matricula_id  # no hay hijo sin consentimiento propio
         assert (consentimiento.regimen, consentimiento.version) == ("registro_menor", "2026-09")
         hijos = (await mundo.http.get("/v1/cuenta/hijos", headers=token)).json()
@@ -1473,14 +1507,20 @@ class TestManejadoresSinHttp:
             rutas.crear_cuenta(
                 _peticion(),
                 rutas.NuevaCuenta(
-                    correo="mama@example.test", clave="clave-ficticia-9", nombre="Intruso Ficticio"
+                    correo="mama@example.test",
+                    clave="clave-ficticia-9",
+                    nombre="Intruso Ficticio",
+                    acepta_terminos=True,
                 ),
             )
         )
         nueva = await rutas.crear_cuenta(
             _peticion(),
             rutas.NuevaCuenta(
-                correo="nueva@example.test", clave="clave-ficticia-9", nombre="Acudiente Ficticio Tres"
+                correo="nueva@example.test",
+                clave="clave-ficticia-9",
+                nombre="Acudiente Ficticio Tres",
+                acepta_terminos=True,
             ),
         )
 
@@ -1531,7 +1571,10 @@ class TestManejadoresSinHttp:
         nueva = await rutas.crear_cuenta(
             _peticion(),
             rutas.NuevaCuenta(
-                correo="nueva@example.test", clave="clave-ficticia-9", nombre="Acudiente Ficticio Tres"
+                correo="nueva@example.test",
+                clave="clave-ficticia-9",
+                nombre="Acudiente Ficticio Tres",
+                acepta_terminos=True,
             ),
         )
         autorizacion = f"Bearer {nueva['token']}"

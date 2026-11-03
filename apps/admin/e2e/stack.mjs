@@ -129,6 +129,7 @@ export async function registrarAcudiente() {
     ip,
     cuerpo: {
       ...acudiente,
+      acepta_terminos: true,
       hijos: [
         { colegio_id: directorio.colegios[0].colegio_id, grado: GRADO, apodo: `QA-${sufijo.slice(0, 6)}` },
       ],

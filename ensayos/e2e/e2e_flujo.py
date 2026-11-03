@@ -59,6 +59,7 @@ def registrar_acudiente(http: httpx.Client, colegio_id: str, grado: str = "Terce
         json={
             "correo": correo,
             "clave": clave,
+            "acepta_terminos": True,
             "hijos": [{"colegio_id": colegio_id, "grado": grado, "apodo": f"QA-{uuid.uuid4().hex[:6]}"}],
         },
     )

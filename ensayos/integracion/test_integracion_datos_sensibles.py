@@ -219,6 +219,7 @@ def registro_con_apodo(cliente: httpx.Client, colegio_aliado: str) -> str:
         json={
             "correo": f"qa-{uuid.uuid4().hex[:10]}@example.test",
             "clave": "clave-ficticia-qa",
+            "acepta_terminos": True,
             "hijos": [{"colegio_id": colegio_aliado, "grado": "Primero", "apodo": apodo}],
         },
     )
