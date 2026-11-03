@@ -523,9 +523,11 @@ class TestCheckout:
         identidad = IdentidadFalsa(str(uuid.uuid4()))
         comercio = ComercioFalso()
 
+        # Un trabajo con dueno solo lo paga su dueno (oe5): el portador es el mismo usuario.
         await trabajos.ordenar(
             motor,
             trabajo_id,
+            portador=usuario,
             perfil="Ahorrador",
             entrega=ENTREGA,
             correo=CORREO,
