@@ -45,8 +45,7 @@ vez ese grafo por una tabla curada y dirigida de sustituciones en el servicio de
 que tiene modelo, migración y pruebas. Ningún servicio la consulta en la versión evaluada, de modo que la sustitución se delimitó como línea de la evolución del catálogo (Sección~\ref{sec:trabajo-futuro}).
 
 El ADR 0001 aplicó los tres criterios de la Tabla~\ref{tab:impulsores} y redujo los catorce
-servicios a seis más la puerta de enlace. Los microservicios anteriores, desarrollados entre
-el 2 y el 18 de septiembre de 2026, hicieron esa fusión el 10 de septiembre. Identidad y
+servicios a seis más la puerta de enlace. La fusión se hizo el 10 de septiembre, sobre los microservicios desarrollados entre el 2 y el 18 de septiembre de 2026. Identidad y
 privacidad quedaron en un servicio de cuentas; catálogo, pedidos y última milla, en uno de
 comercio, y PQRS, analítica y notificaciones, en uno de plataforma. Aparte quedaron
 instituciones, una fachada para el panel de administración y el servicio de búsqueda.
@@ -54,7 +53,7 @@ instituciones, una fachada para el panel de administración y el servicio de bú
 Esa reagrupación
 dejaba un servicio de respaldo para el panel de administración y un servicio de
 instituciones separado de las cuentas. Con la razón de cambio como criterio, los colegios
-pasaron a identidad, el catálogo se separó de comercio (ADR 0011), el panel consume la misma
+pasaron a identidad, el catálogo se separó de comercio (ADR 0012), el panel consume la misma
 API que la aplicación del acudiente y la auditoría pasó a ser una biblioteca compartida
 (ADR 0002). El servicio de búsqueda anterior se dividió entre catálogo e inteligencia,
 porque sus objetivos de recuperación no permiten compartir almacén. El resultado es mejor
@@ -72,7 +71,7 @@ piden, reduce los candidatos de cada concepto de miles a decenas y evita publica
 producto parecido pero equivocado. En el sistema construido reúne 1.050 productos (1.040
 activos), 1.057 ofertas de ocho tiendas y 149 conceptos en archivos de datos versionados, y las herramientas que
 consultan las tiendas solo completan o enriquecen productos. Lo que el equipo cura en el
-panel queda en la base del catálogo hasta que se exporta a esos archivos (ADR 0028).
+panel queda en la base del catálogo hasta que se exporta a esos archivos (ADR 0037).
 
 % =====================================================================
 \subsection{Alternativas evaluadas}
@@ -103,7 +102,7 @@ los pasos de tres flujos: la subida de la lista y los kits, el pago y los avisos
 
 Con RabbitMQ, un publicador por servicio productor lleva los eventos de su bandeja a una cola
 por consumidor, con una cola de reintentos y otra de descartados, y la entrega es al menos una
-vez, con consumidores idempotentes (ADR 0037). La bandeja sigue siendo la fuente de verdad. Sin
+vez, con consumidores idempotentes (ADR 0046). La bandeja sigue siendo la fuente de verdad. Sin
 RabbitMQ, cada consumidor lee la bandeja en la base del productor, sin tope de intentos ni cola
 de descartados. El manifiesto declara esas lecturas como respaldo, y una función de aptitud
 impide que el camino con RabbitMQ lea bases ajenas.
@@ -119,7 +118,7 @@ y los avisos (C).}
 \label{fig:c4-contenedores}
 \end{figure}
 
-Redis es opcional y solo guarda lo que se puede recalcular o perder (ADR 0038): el vector de cada
+Redis es opcional y solo guarda lo que se puede recalcular o perder (ADR 0047): el vector de cada
 renglón durante 24 horas, la lectura aceptada de cada lista durante 30 días y los contadores del
 límite de tasa de la puerta de enlace. Si no responde en 250~ms, cada servicio calcula sin caché
 y la puerta de enlace cuenta el límite en su memoria.
@@ -152,7 +151,7 @@ La solución aparentemente obvia, un identificador de colegio en el usuario, es 
 porque un acudiente puede tener hijos en colegios distintos (CO-04). La tenencia reside, en
 cambio, en la relación $\langle$estudiante, sede, grado, año lectivo$\rangle$, que se modela
 como la entidad matrícula, con una relación de muchos a muchos con los acudientes
-(ADR 0012). Su identificador viaja a los otros cuatro servicios como referencia lógica y es
+(ADR 0013). Su identificador viaja a los otros cuatro servicios como referencia lógica y es
 el eje de las políticas de visibilidad. Se ubica en la \emph{línea} del pedido y no en su
 cabecera, porque en la cabecera dos hermanos obligarían a dos pedidos y a dos pagos, lo que
 contradice la propuesta de valor del producto. La comprobación de que cada línea apunta a
@@ -216,11 +215,11 @@ fallo más probable, omitir el contexto, era precisamente el que concedía acces
 función aquí especificada no tiene ninguna rama que conceda por ausencia de información.
 
 En el sistema construido, identidad guarda las asignaciones de rol con su vigencia y los
-pares de rol y permiso, y evalúa los permisos con ámbito (ADR 0012); las rutas protegidas
+pares de rol y permiso, y evalúa los permisos con ámbito (ADR 0013); las rutas protegidas
 de inteligencia fallan cerradas (SG-06). La aplicación uniforme (AD-03 y SG-02) se delimitó como
 endurecimiento productivo (Sección~\ref{sec:trabajo-futuro}): solo una ruta de producción consulta la función de permiso, y varias rutas que
 devuelven datos personales no exigen sesión ni rol. Tampoco hay políticas de seguridad a
-nivel de fila, de modo que la evaluación local del ADR 0015 sigue siendo diseño
+nivel de fila, de modo que la evaluación local del ADR 0016 sigue siendo diseño
 (Sección~\ref{sec:defectos}).
 
 \subsubsection{Dos ejes independientes, no uno}
@@ -277,7 +276,7 @@ omisión sobrevive más que uno por comisión, porque nada lo señala.
 
 El dato es sensible de forma poco habitual: más que información de contacto, es la
 ubicación física del hogar de una familia con menores, cruzada con el colegio al que
-asisten. El ADR 0014 distingue dos cosas que se parecen sin ser la misma: la libreta de
+asisten. El ADR 0015 distingue dos cosas que se parecen sin ser la misma: la libreta de
 direcciones reutilizables del acudiente, en identidad, editable y sujeta a supresión, y la
 copia congelada en el envío, en comercio, inmutable una vez confirmado el pedido. El
 razonamiento es análogo al de congelar el precio en la línea del pedido: un hecho histórico
@@ -305,7 +304,7 @@ congelado.
 \subsubsection{Un repositorio no es un desplegable}
 
 La implementación se organiza en un monorrepositorio con seis desplegables independientes
-con código (ADR 0013); el séptimo previsto, la ingesta, se reemplazó por el catálogo curado. La decisión exige justificación porque contradice la asociación habitual entre
+con código (ADR 0014); el séptimo previsto, la ingesta, se reemplazó por el catálogo curado. La decisión exige justificación porque contradice la asociación habitual entre
 microservicio y repositorio, asociación que carece de fundamento normativo. La norma
 ISO/IEC/IEEE 42010 \citep{iso_42010_2022} compone una descripción arquitectónica de vistas
 que responden a preocupaciones distintas, y el modelo 4+1 \citep{kruchten_41_1995} separa
@@ -370,7 +369,7 @@ cuarenta y nueve registros, numerados de 0001 a 0049, en el registro de decision
 arquitectura (Tabla~\ref{tab:anexos}); la Tabla~\ref{tab:adr} destaca los que estructuran el
 diseño de este capítulo.
 
-El ADR 0015 ilustra una propiedad del método. Nació de una contradicción entre decisiones previas
+El ADR 0016 ilustra una propiedad del método. Nació de una contradicción entre decisiones previas
 que solo se hizo visible al redactar el criterio de aceptación de un requisito: la política de
 seguridad no podía evaluarse en ninguno de los tres servicios donde hacía falta, porque la
 matrícula vive en la base de identidad. Un registro obliga a escribir el fundamento donde puede

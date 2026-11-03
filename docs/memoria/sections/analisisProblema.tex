@@ -42,7 +42,7 @@ aunque no usa el sistema. & Poder bajo, interés alto \\
 \subsubsection{Proceso de levantamiento}
 
 Los requerimientos se obtuvieron principalmente a partir de una encuesta a acudientes del
-Colegio Agustiniano Ciudad Salitre, aplicada de forma presencial en el Dia de la Familia en el
+Colegio Agustiniano Ciudad Salitre, aplicada de forma presencial en el Día de la Familia en el
 colegio con autorización del rector. Esta modalidad permitió reunir en pocas horas a familias de todos los niveles,
 desde preescolar hasta la educación media, y conversar en paralelo con docentes y directivos
 sobre la forma en que la institución elabora sus listas.\par
@@ -128,8 +128,8 @@ calidad mínima de la lectura de listas o el comportamiento ante casos de baja c
 
 Cada requerimiento se priorizó con el método MoSCoW, que lo clasifica como indispensable
 (\emph{Must}), importante pero no crítico (\emph{Should}), deseable (\emph{Could}) o fuera
-del alcance de esta versión (\emph{Won't}). La especificación reúne 98 requerimientos, de los
-cuales 43 son funcionales, 39 no funcionales y 16 propios del aprendizaje automático. La
+del alcance de esta versión (\emph{Won't}). La especificación reúne 132 requerimientos, de los
+cuales 67 son funcionales, 49 no funcionales y 16 propios del aprendizaje automático. La
 Tabla~\ref{tab:moscow} (Anexo~\ref{anx:tablas}) muestra su distribución por componente.\par
 
 % [movida al Anexo: tab:moscow]
@@ -319,7 +319,7 @@ La segunda restricción proviene del dominio de pagos. El sistema no almacena ni
 medio de pago del acudiente: ni número de tarjeta, ni fecha de expiración, ni código de
 seguridad. Solo guarda el identificador de la transacción y su estado, porque la captura del
 medio de pago ocurre en el dominio de Wompi, que el sistema usa en su entorno de pruebas
-detrás de un puerto de pasarela con un adaptador simulado (ADR 0010). Esta restricción
+detrás de un puerto de pasarela con un adaptador simulado (ADR 0033). Esta restricción
 mantiene a Tukit fuera del alcance de cumplimiento de los datos de tarjeta. La confirmación
 no depende de la respuesta sincrónica de la pasarela: llega por el aviso firmado de Wompi y
 por la consulta de la transacción cuando el acudiente regresa, y ambos caminos pasan por un
@@ -333,7 +333,7 @@ el entorno de evaluación sea el mismo que el de desarrollo. Hoy se levantan con
 Compose sobre un único PostgreSQL 16, con una base lógica por servicio, RabbitMQ y Redis; la
 orquestación productiva se decidirá con el despliegue de finales de noviembre de 2026. Cada
 evento se escribe en una bandeja de salida en la misma transacción que el cambio de estado, y
-RabbitMQ lo lleva a la cola de cada consumidor (ADR 0037). Sin RabbitMQ, los consumidores leen
+RabbitMQ lo lleva a la cola de cada consumidor (ADR 0046). Sin RabbitMQ, los consumidores leen
 las bandejas, y el sistema funciona completo con una sola base de datos, a costa de concentrar
 en ella la coordinación.
 

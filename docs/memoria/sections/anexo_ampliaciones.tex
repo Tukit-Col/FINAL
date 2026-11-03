@@ -76,7 +76,7 @@ estudiantes. La condición base concedía visibilidad de la tabla completa cuand
 usuario no estaba establecido, de modo que el error más probable en un sistema distribuido, que un
 servicio olvide fijar ese contexto, otorgaba acceso irrestricto. Una segunda cláusula daba acceso
 completo al rol de administrador comparando solo el identificador del usuario, sin ancla de ámbito,
-y ese defecto motivó el modelo de autorización con ámbito del capítulo de diseño. El ADR 0015 lo
+y ese defecto motivó el modelo de autorización con ámbito del capítulo de diseño. El ADR 0016 lo
 registra en 16 tablas de cinco servicios y advierte que corregirlo va antes que su propia decisión;
 las migraciones posteriores conservaban la apertura, sin pruebas de regresión. Entre los demás, el
 manejador genérico de errores de validación devolvía al cliente el valor rechazado, contraseña
@@ -119,9 +119,9 @@ el código fuente en lugar de ejecutar el comportamiento. La verificación de la
 mientras espera revisión, y varias rutas internas aceptan llamadas sin verificar quién llama. Las
 cinco bases de datos comparten un mismo rol de acceso, de modo que las credenciales de cualquier
 servicio leen los usuarios de identidad. La página del documento cargado sale sin depurar hacia el
-proveedor del modelo (\mbox{PE-06}), y el nombre ficticio de las pruebas quedó guardado. El retracto existe
-en comercio, pero ninguna aplicación lo ofrece y la puerta de enlace no lo expone; además, se acepta
-pasado el plazo legal y no libera la reserva. Un pedido de 100.000 unidades fue aceptado para pago.
+proveedor del modelo (\mbox{PE-06}), y el nombre ficticio de las pruebas quedó guardado. El retracto existía
+en comercio, pero en esa versión ninguna aplicación lo ofrecía y la puerta de enlace no lo exponía; además, se aceptaba
+pasado el plazo legal y no liberaba la reserva. Un pedido de 100.000 unidades fue aceptado para pago.
 La respuesta de la puerta de enlace expone direcciones internas, el mensaje de un trabajo fallido
 contiene la consulta SQL con sus parámetros y, sin la llave de cifrado, el cifrador guarda en claro
 sin avisar.
@@ -174,7 +174,7 @@ prueba.
 Las tres caídas que no cumplieron revelaron tres limitaciones de la versión evaluada: con el
 catálogo detenido, subir una lista respondía con un error 500 y no se guardaba; tras caer la base o
 el intermediario, los procesos de fondo morían sin reiniciarse; y un mismo pago producía dos avisos.
-El sistema construido corrige las tres (ADR 0031, 0032 y 0033). La corrección se verificó el 20 de
+El sistema construido corrige las tres (ADR 0040, 0041 y 0042). La corrección se verificó el 20 de
 octubre de 2026 en una versión de trabajo: la subida responde 202 en 33~ms y se recupera en 2,7~s,
 los procesos de fondo se recuperan en 7,1~s y 6,9~s, y el pago produce un solo aviso. Esa
 verificación no volvió a correr los demás ensayos, que se repiten en la corrida completa sobre el
@@ -184,7 +184,7 @@ sistema construido\pendienteEvidencia{corrida completa de la verificacion sobre 
 La auditoría de los microservicios anteriores encontró defectos de gravedad desigual. El de mayor
 alcance estaba en las políticas de seguridad a nivel de fila: la condición base concedía la tabla
 completa cuando el contexto de usuario no estaba fijado, de modo que el error más probable en un
-sistema distribuido, olvidar fijarlo, otorgaba acceso irrestricto (ADR 0015, 16 tablas de cinco
+sistema distribuido, olvidar fijarlo, otorgaba acceso irrestricto (ADR 0016, 16 tablas de cinco
 servicios). El sistema construido no tiene políticas de fila: controla el ámbito en la aplicación,
 con la cadena de contención de identidad, que falla cerrada (Sección~\ref{sec:autorizacion}).
 De los catorce defectos del Anexo~M, dos están corregidos (el valor rechazado ya no vuelve al
@@ -196,5 +196,5 @@ bases) y de privacidad (el nombre del menor dentro del documento cargado y la su
 sin mecanismo). Las pruebas propias del sistema no detectaron ninguno, porque medir cuánto código
 ejecutan no dice si buscan las condiciones adversas correctas; la verificación de la versión
 evaluada (Sección~\ref{sec:calidad}) los confirmó. El detalle de cada defecto está en el
-Anexo~\ref{anx:ampliaciones}.
+apartado anterior de este anexo.
 

@@ -32,7 +32,7 @@ las necesidades o pocas semanas o días antes del inicio de clases
 el 91\,\% de los padres percibe un alza, y el precio continúa siendo el principal criterio
 de elección (33\,\%), seguido de la calidad (23\,\%) y, de forma creciente, del gusto de los niños (22\,\%) \citep{noauthor_resultados_2025}.\par
 
-La dificultad implica tiempo, dinero, y un esfuerzo
+La dificultad implica tiempo, dinero y un esfuerzo
 mental considerable. La teoría de la carga cognitiva establece que, cuando la complejidad de
 una tarea supera la capacidad de la memoria de trabajo, la calidad de las decisiones
 disminuye \citep{sweller_cognitive_2011}. Esta situación se presenta en la compra escolar,
@@ -167,7 +167,7 @@ cuentan con respaldo empírico. Los modelos multimodales alcanzan en la lectura 
 un desempeño comparable al de los métodos tradicionales \citep{shen_ocr_2026}, el algoritmo
 NSGA-II constituye una referencia para equilibrar varios objetivos en conflicto
 \citep{deb_fast_2002}, y las mediciones realizadas sobre las listas reales del corpus
-confirman que el sistema responde en tiempos adecuados para su uso, como se detalla en el
+muestran un tiempo medio de 0,47~s por lista con el optimizador calibrado, aunque el percentil 95 queda por medir, como se detalla en el
 Capítulo~\ref{cap:desarrolloSolucion}. La arquitectura de microservicios permite, además,
 que cada componente crezca según su propia demanda \citep{newman_building_2021}, y la
 incorporación de un nuevo colegio solo requiere cargar y revisar su lista oficial, lo que
@@ -260,7 +260,7 @@ El trabajo se dividió en cinco fases, una por cada objetivo específico, de mod
 resultado de cada fase sirviera como evidencia del cumplimiento de su objetivo. La
 Tabla~\ref{tab:fases} resume cada fase con su objetivo, la etapa de CRISP-DM que le
 corresponde, los métodos que se usaron y lo que produjo. La comprensión del negocio, que
-es la primera etapa de CRISP-DM, se desarrolla en el Capítulo~III, donde se presentan las
+es la primera etapa de CRISP-DM, se desarrolla en los Capítulos~III y~IV, donde se presentan las
 entrevistas, la encuesta a los acudientes, la propuesta de valor y el modelo de negocio.
 
 \begin{table}[H]
@@ -285,7 +285,7 @@ Arquitectura y documento de diseño \\
 Percepción y normalización & OE3 & Datos, preparación, modelado y evaluación &
 Corpus de oro anotado por una persona; kappa de Cohen \citep{cohen_coefficient_1960} entre
 las reglas y un modelo de lenguaje; comparación de motores de lectura y de estrategias de
-búsqueda; calibración del umbral con revisión humana &
+búsqueda; análisis del umbral con revisión humana &
 Módulos de percepción y normalización \\
 Optimización e integración & OE4 & Modelado, evaluación y despliegue &
 Formulación multiobjetivo, NSGA-II \citep{deb_fast_2002}, búsqueda exacta, utilidad
@@ -334,7 +334,7 @@ Sec.~\ref{sec:normalizacion} \\
 OE3 & Modelado & Cinco enfoques de lectura; cuatro estrategias de recuperación; resolución
 léxica con aporte del coseno & Bancos de los prototipos &
 Sec.~\ref{sec:percepcion-dev} y \ref{sec:normalizacion} \\
-OE3 & Evaluación & F1 de la lectura; AUC y precisión del umbral $\tau$ con 542 ítems; revisión
+OE3 & Evaluación & F1 de la lectura; análisis del umbral $\tau$, declarado sin calibrar; revisión
 humana de los renglones dudosos & Tablas de resultados &
 Sec.~\ref{sec:percepcion} y \ref{sec:recuperacion} \\
 OE3 & Despliegue & Servicios de inteligencia y de catálogo; cola de revisión del administrador &
@@ -375,7 +375,7 @@ describe cada ciclo junto a su componente. La última etapa, el despliegue, corr
 integración en el sistema construido, y su operación con colegios y familias se presenta como
 trabajo futuro en el Capítulo~VIII.
 
-Los entregables del proyecto, el objetivo especifico (OE), los estándares que guiaron su elaboración y la razón de cada
+Los entregables del proyecto, el objetivo específico (OE), los estándares que guiaron su elaboración y la razón de cada
 uno se resumen en la Tabla~\ref{tab:entregables} (Anexo~\ref{anx:tablas}).
 
 % [movida al Anexo: tab:entregables]
