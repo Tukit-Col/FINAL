@@ -13,6 +13,7 @@ va lo que solo se ve con los procesos de verdad:
 - CH-35 simplificado: con los consumidores detenidos la solicitud queda en
   `propagando`, visible, y al volver se completa una sola vez;
 - el barrido retoma una solicitud atascada;
+- el consentimiento que deja el registro, del titular y de cada hijo, con su version;
 - la revocacion del consentimiento.
 
 La supresion solo viaja con broker (los consumidores son de RabbitMQ y el propio
@@ -313,6 +314,57 @@ async def test_nadie_suprime_ni_revoca_los_datos_de_otro_acudiente(
     assert datos_del_otro.status_code == 200, datos_del_otro.text
     assert datos_del_otro.json()["cuenta"]["correo"] == otro_titular["correo"]
     assert otro_titular["apodo"] in {h["apodo"] for h in datos_del_otro.json()["hijos"]}
+
+
+# --------------------------------------------------------------- el consentimiento guardado (D3b)
+
+# Las versiones de los textos que se aceptan (`routers/identidad.py:401-404`): la politica de
+# datos y los terminos del titular, y la autorizacion del dato del menor.
+VERSION_TITULAR = "2026-11"
+VERSION_MENOR = "2026-09"
+
+
+@pytest.mark.nfr("NFR-SEG-10")
+def test_el_registro_deja_el_consentimiento_del_titular_con_su_version(
+    cliente: httpx.Client, titular: dict, record_property
+):
+    """El rechazo sin `acepta_terminos` ya lo prueban `test_api_identidad.py` y
+    `test_cuenta_acudiente.py` de oe5. Aqui: por la puerta, el alta deja una sola
+    autorizacion `registro_titular`, vigente, sin matricula y con la version del texto, y el
+    titular la ve en su consulta (N-162)."""
+    datos = cliente.get("/v1/cuenta/mis-datos", headers=titular["cabecera"])
+    assert datos.status_code == 200, datos.text
+    consentimientos = datos.json()["consentimientos"]
+    record_property("consentimientos", json.dumps(consentimientos))
+
+    titulares = [c for c in consentimientos if c["regimen"] == "registro_titular"]
+    assert [(c["version"], c["matricula_id"], c["revocado_en"]) for c in titulares] == [
+        (VERSION_TITULAR, None, None)
+    ]
+
+
+@pytest.mark.nfr("NFR-SEG-10")
+def test_cada_hijo_del_registro_lleva_su_consentimiento_de_menor_con_su_version(
+    cliente: httpx.Client, titular: dict, record_property
+):
+    """Cada matricula que nace en `POST /v1/registro` lleva su `registro_menor`, con la version
+    de la autorizacion del menor (spec de identidad y cuenta §4.1: no hay matricula sin
+    consentimiento propio). `POST /v1/cuenta/hijos` ya lo prueba
+    `test_identidad_rutas_acceso.py`; el alta con hijos no lo prueba nadie.
+
+    Se espera roja, sin xfail: `materializar_hijos` no escribe consentimiento (N-162,
+    «candidatos a hallazgo»)."""
+    datos = cliente.get("/v1/cuenta/mis-datos", headers=titular["cabecera"])
+    assert datos.status_code == 200, datos.text
+    cuerpo = datos.json()
+    matriculas = sorted(m["matricula_id"] for m in cuerpo["matriculas"])
+    menores = [c for c in cuerpo["consentimientos"] if c["regimen"] == "registro_menor"]
+    record_property("matriculas", len(matriculas))
+    record_property("consentimientos_menor", json.dumps(menores))
+
+    assert matriculas, "el titular de la prueba se registra con un hijo"
+    assert sorted(c["matricula_id"] for c in menores) == matriculas
+    assert {c["version"] for c in menores} == {VERSION_MENOR}
 
 
 # --------------------------------------------------------------- la revocacion del consentimiento
