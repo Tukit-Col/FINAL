@@ -84,7 +84,7 @@ Cada fila: término o cifra, valor canónico y fuente. Estado: V = verificado en
 | Encuesta no es la muestra de usabilidad | confirmado | ENMIENDA_SRS_v7 R2 | V |
 | P15 | personaje es el primer criterio para 11,7 % (7 de 60) | dossier | V |
 | Sobreprecio | 70 % (42 de 60) pagaría hasta 5 % más | dossier | V |
-| OE5 | Una sola ronda, 2 y 3-nov-2026, versión `b6b6fe7`, 6 acudientes (5 remotas, 1 presencial; ACU-04 grabada parcial, solo T1). Sin ronda 1. Sesión de 15 min con entrevista oral: SUS, NPS, SEQ y RTLX no aplicados (C1 y C2 sin evaluar). Éxito sin ayuda: T1 4/6, T2 3/5, T3 4/5, T4 1/5, T5 3/5, T6 4/5, T7 2/2; T8 nadie la intentó. C3 solo en T6. 5 de 6 la llamaron fácil o rápida | `datos_ronda2.csv`, `analisis_oe5.py`, `plan_analisis_oe5.md` | V |
+| OE5 | Una sola ronda, 2 y 3-nov-2026, versión `b6b6fe7`, 6 acudientes (5 remotas, 1 presencial; ACU-04 grabada parcial, solo T1). Sin ronda 1. Sesión de 15 min con entrevista oral: SUS, NPS, SEQ y RTLX no aplicados (C1 y C2 sin evaluar). Éxito sin ayuda: T1 4/6, T2 3/5, T3 4/5, T4 1/5, T5 3/5, T6 4/5, T7 2/2; T8 nadie la intentó. C3 alcanzado en T6 (no en T1 ni T4). 4 de 6 la llamaron fácil, intuitiva o rápida. Tiempo activo de las sesiones completas 2,4 a 10,3 min. OE5: Cumplido (las cuatro clases de prueba hechas; C3 formativo) | `datos_ronda2.csv`, `analisis_oe5.py`, `plan_analisis_oe5.md` | V |
 | Muestra | mínimo n ≥ 5 por ronda (Nielsen 1994), ideal n ≥ 20; n < 20 exploratorio | VFP v4 | V |
 | Carga cognitiva | medida principal: conteo de interacciones discretas; complementaria: RTLX (Hart 2006) | VFP v4, ENMIENDA_SRS_v7 R1 | V |
 | Instrumentos | SUS (umbral 68), NPS, pensamiento en voz alta | SPMP, WBS | V |

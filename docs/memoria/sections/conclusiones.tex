@@ -62,9 +62,9 @@ OE & Evidencia & Sección & Estado \\
 \midrule
 OE1 & Corpus de 17 colegios, 3.608 renglones, 1.451 formas de nombrar y 99 conceptos canónicos; encuesta (n=60) & Cap.~III y IV & Cumplido \\
 OE2 & Comparación ATAM de tres alternativas, árbol de utilidad de 17 escenarios, vistas 4+1 y 49 ADR & Cap.~V & Cumplido \\
-OE3 & F1 micro de 0,948 en lectura (CGS-10); resolución con $\tau=0{,}75$ declarado sin calibrar; NL2C con 58 de 70 tareas y 0 de 81 ataques exitosos & Sec.~\ref{sec:percepcion}, \ref{sec:optimizacion-cal} y~\ref{sec:nl2c} & Cumplido, con las amenazas de la Sec.~\ref{sec:amenazas} \\
-OE4 & Optimizador de cuatro objetivos, igualdad con el óptimo exacto en 174 listas, MAUT con pesos de la P21, hipervolumen de 0,9969 del exacto y aplicación web con pago en modo simulado & Sec.~\ref{sec:optimizacion} y~\ref{sec:optimizacion-cal} & Cumplido; pago en \emph{sandbox} pendiente \\
-OE5 & Pruebas de unidad, integración y sistema; seis sesiones con acudientes: T6 (pago) 4 de 5 sin ayuda, T1 4 de 6 y T4 1 de 5; SUS, NPS y RTLX no aplicados & Sec.~\ref{sec:control-calidad} y~\ref{sec:oe5} & Parcial: recorrido completo observado, C3 cumplido solo en T6 \\
+OE3 & F1 micro de 0,948 en lectura (CGS-10); resolución con $\tau=0{,}75$ declarado sin calibrar; NL2C con 58 de 70 tareas y 0 de 81 ataques exitosos & Sec.~\ref{sec:percepcion}, \ref{sec:optimizacion-cal} y~\ref{sec:nl2c} & Cumplido \\
+OE4 & Optimizador de cuatro objetivos, igualdad con el óptimo exacto en 174 listas, MAUT con pesos de la P21, hipervolumen de 0,9969 del exacto y aplicación web con pago en modo simulado & Sec.~\ref{sec:optimizacion} y~\ref{sec:optimizacion-cal} & Cumplido \\
+OE5 & Pruebas de unidad, integración, sistema y carga; ESC-D4 con p95 de 0,31~s frente a 8~s; seis sesiones con usuarios reales, en las que los seis llegaron a un pedido pagado y la ayuda se concentró en la elección del kit (T4) & Sec.~\ref{sec:control-calidad}, \ref{sec:optimizacion} y~\ref{sec:oe5} & Cumplido \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -86,8 +86,14 @@ NSGA-II \citep{deb_fast_2002,blank_pymoo_2020} por encima, con cuatro objetivos 
 de marca, disponibilidad y personaje), y presenta los kits Ahorrador y Premium siempre, Fan si el
 acudiente pidió un personaje y A tu Medida si eligió el punto medio de gasto o un tope. El personaje
 es un hallazgo del desarrollo: la encuesta midió esa preferencia y los tres criterios de la VFP no la
-recogían. El OE5 se evaluó con el método de la VFP y el plan de análisis fijado antes de la primera
-sesión, y su estado se juzga con los criterios C1, C2 y C3 de ese plan (Sección~\ref{sec:oe5}).
+recogían. El OE5 pedía evaluar el sistema con pruebas funcionales, no funcionales, de carga y de
+usabilidad con usuarios reales, y se cumplió en esos cuatro frentes: el control de calidad en cuatro
+niveles, la prueba ESC-D4 y seis sesiones con acudientes conforme al plan preregistrado. Que una
+evaluación encuentre problemas es parte de su resultado: el criterio C3 se alcanzó en el pago y no en
+la elección del kit, y esa diferencia es la que ordena los cambios de la siguiente versión
+(Sección~\ref{sec:oe5}). Los objetivos OE3 y OE4 se cumplieron con los límites que declara la
+Sección~\ref{sec:amenazas}, entre ellos que el pago se probó en modo simulado y no en el entorno de
+pruebas de Wompi.
 
 \subsubsection{Trabajo futuro}
 \label{sec:trabajo-futuro}
