@@ -15,3 +15,27 @@ agrupados por función. Cada flecha lleva la información que pasa entre las par
 \input{\graficasdir/F3-2.tex}
 
 \input{\graficasdir/F5-2.tex}
+
+\begin{figure}[!htb]
+\centering
+\resizebox{\textwidth}{!}{\input{img/arquitectura/despliegue.tex}}
+\caption[Vista de despliegue: cómo corre Tukit en el equipo.]{Vista de despliegue. Todo el
+sistema corre en un portátil: dos aplicaciones web, la puerta de enlace, cinco servicios,
+sus procesos en segundo plano y la infraestructura (PostgreSQL, RabbitMQ, y Redis y Jaeger
+opcionales). En las sesiones con acudientes se abre un túnel de Cloudflare hacia la aplicación
+web, y Wompi funciona en modo simulado. Misma paleta que la Figura~\ref{fig:c4-contenedores}.}
+\label{fig:despliegue}
+\end{figure}
+
+\begin{figure}[!htb]
+\centering
+\begin{tabular}{cc}
+\includegraphics[width=0.47\textwidth]{img/producto/cuenta.jpg} &
+\includegraphics[width=0.47\textwidth]{img/producto/revision.jpg} \\
+\footnotesize (a) La cuenta del acudiente & \footnotesize (b) Revisión del kit en el panel del equipo \\
+\end{tabular}
+\caption[Cuenta del acudiente y revisión del equipo.]{La cuenta del acudiente, con sus hijos,
+solicitudes, pedidos y casos (a), y la revisión de un kit en el panel de administración antes de
+publicarlo al acudiente (b). Capturas de la versión usada en el OE5.}
+\label{fig:producto-equipo}
+\end{figure}

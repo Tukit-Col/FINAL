@@ -28,7 +28,7 @@ from dataclasses import dataclass
 import numpy as np
 from scipy import stats
 
-TAREAS = [f"t{i}" for i in range(1, 8)]
+TAREAS = [f"t{i}" for i in range(1, 9)]  # T8: chat del kit, exploratoria
 CRITICAS = ("t1", "t4", "t6")
 UMBRAL_SUS = 68.0
 UMBRAL_EXITO = 0.80
@@ -124,26 +124,35 @@ def leer(ruta: str) -> list[dict[str, str]]:
 
 
 def analizar(filas: list[dict[str, str]]) -> str:
-    sus = [puntaje_sus([int(f[f"sus{i}"]) for i in range(1, 11)]) for f in filas]
-    nps_v = [int(f["nps"]) for f in filas]
+    # La ronda 2 cerro con una entrevista oral y no aplico el SUS ni el NPS numericos:
+    # C1 y S1 se calculan solo con las filas que los traen completos.
+    con_sus = [f for f in filas if all(f[f"sus{i}"] for i in range(1, 11))]
+    sus = [puntaje_sus([int(f[f"sus{i}"]) for i in range(1, 11)]) for f in con_sus]
+    nps_v = [int(f["nps"]) for f in filas if f["nps"]]
     con_tlx = [f for f in filas if all(f[f"tlx_{m}_{i}"] for m in ("trad", "tukit") for i in range(1, 7))]
     tlx_trad = [np.mean([float(f[f"tlx_trad_{i}"]) for i in range(1, 7)]) for f in con_tlx]
     tlx_tukit = [np.mean([float(f[f"tlx_tukit_{i}"]) for i in range(1, 7)]) for f in con_tlx]
     salida = [f"n = {len(filas)} participantes"]
 
-    c1 = contra_umbral(sus)
-    cumple_c1 = c1.efecto >= UMBRAL_SUS and c1.ic[0] > UMBRAL_SUS
-    salida.append(
-        f"{c1.nombre}: media {c1.efecto:.1f}, IC95 [{c1.ic[0]:.1f}, {c1.ic[1]:.1f}], "
-        f"{c1.prueba} p = {c1.p:.4f} -> {'cumple' if cumple_c1 else 'NO cumple'} (regla estricta)"
-    )
+    if len(sus) < 2:
+        salida.append("C1 SUS: no aplicado en esta version de la sesion")
+    else:
+        c1 = contra_umbral(sus)
+        cumple_c1 = c1.efecto >= UMBRAL_SUS and c1.ic[0] > UMBRAL_SUS
+        salida.append(
+            f"{c1.nombre}: media {c1.efecto:.1f}, IC95 [{c1.ic[0]:.1f}, {c1.ic[1]:.1f}], "
+            f"{c1.prueba} p = {c1.p:.4f} -> {'cumple' if cumple_c1 else 'NO cumple'} (regla estricta)"
+        )
     if len(con_tlx) < 2:
         salida.append("C2 RTLX: no medido en esta version de la sesion")
     else:
         salida.append(_c2(tlx_trad, tlx_tukit))
     salida.extend(_tareas(filas))
-    bajo, alto = ic_bootstrap_nps(nps_v)
-    salida.append(f"S1 NPS = {nps(nps_v):.0f}, IC95 bootstrap [{bajo:.0f}, {alto:.0f}]")
+    if nps_v:
+        bajo, alto = ic_bootstrap_nps(nps_v)
+        salida.append(f"S1 NPS = {nps(nps_v):.0f}, IC95 bootstrap [{bajo:.0f}, {alto:.0f}]")
+    else:
+        salida.append("S1 NPS: no aplicado en esta version de la sesion")
     return "\n".join(salida)
 
 

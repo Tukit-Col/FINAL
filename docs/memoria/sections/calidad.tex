@@ -37,10 +37,39 @@ abierto, un token que quedó en el historial del repositorio.
 El recorrido de extremo a extremo con pago simulado tuvo un resultado distinto en dos corridas. El 1
 de noviembre el pedido llegó a «pagado» y la solicitud de retracto se aceptó. En la corrida del 2 de
 noviembre el pedido quedó en «pendiente de pago», porque la consulta del estado de la transacción
-respondió que no existía y el retracto respondió con un conflicto (409). Por eso no se afirma que el
-recorrido completo pase de forma estable \pendienteEvidencia{repetir e2e con pago simulado}. No se
+respondió que no existía y el retracto respondió con un conflicto (409). Las sesiones con acudientes
+del 2 y el 3 de noviembre, sobre la versión \texttt{b6b6fe7}, dieron más evidencia: los seis
+acudientes terminaron con un pedido pagado, y en los cinco en que se observó el pago la pasarela lo
+mostró aprobado (Sección~\ref{sec:oe5}). Por eso el recorrido con pago simulado se da por funcional,
+y la corrida del 2 de noviembre queda como un fallo de la consulta de estado que no se volvió a
+presentar y cuya causa no se identificó. No se
 ejecutó el pago con las llaves de sandbox de Wompi, ni pruebas en dispositivos, ni una auditoría de
 dependencias de Python.
+
+\paragraph{Trazabilidad con la ISO/IEC 25010.} La Tabla~\ref{tab:iso25010} ordena la evidencia de
+los cuatro niveles por característica de calidad del modelo de producto \citep{iso_25010_2011}, para
+que se vea qué característica quedó probada, cuál solo parcialmente y cuál no.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Evidencia de calidad por característica de la ISO/IEC 25010.}
+\label{tab:iso25010}
+\begin{tabularx}{\textwidth}{@{}lXl@{}}
+\toprule
+Característica & Evidencia & Estado \\
+\midrule
+Adecuación funcional & 2.542 pruebas Python y las de las dos aplicaciones web; recorrido de la cuenta al pago con acudientes; personaje del segundo hijo sin reflejar en el kit Fan & Parcial \\
+Eficiencia de desempeño & Carga de lectura con p95 de 9,6 a 48,7~ms; ESC-D4 del optimizador con p95 de 0,31~s frente a 8~s en 10.500 ejecuciones; DP-02 con 50 acudientes concurrentes sin medir & Parcial \\
+Compatibilidad & Pruebas de fronteras entre servicios (75) y del contrato entre la web y la API (67) & Probada \\
+Usabilidad & Seis sesiones con acudientes: T6 4 de 5 y T4 1 de 5 sin ayuda; SUS no aplicado & Parcial \\
+Fiabilidad & Ensayos de degradación del nivel 1 sobre la versión del 8 de octubre (14 de 18 cumplidos); niveles 2 y 3 sin ejecutar & Parcial \\
+Seguridad & Lectura de kits ajenos cerrada (401/404), 0 vulnerabilidades web, 0 de 81 ataques al asistente; un token en el historial & Parcial \\
+Mantenibilidad & Cobertura de 54 a 98\,\% por servicio, sin umbral en la integración continua; funciones de aptitud de arquitectura & Parcial \\
+Portabilidad & Servicios en contenedores levantados con Docker Compose; sin pruebas en dispositivos & Parcial \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \paragraph{Aceptación.} El cuarto nivel es la evaluación con acudientes del OE5, que se presenta a
 continuación.
