@@ -6,6 +6,11 @@ diseño detallado. Su
 argumento central es que las fronteras entre servicios se justifican por las propiedades que
 los datos no pueden compartir, no por la carga que el sistema va a soportar.
 
+Venimos del análisis, que fijó los requisitos y los escenarios de calidad que se evaluaron con ATAM. Ahí
+descubrimos que el diseño inicial, de catorce servicios, era demasiado: la carga prevista no lo justificaba y su
+costo de operación superaba los recursos del equipo. Por eso este capítulo parte de esa corrección y
+presenta la alternativa B$'$, que agrupa lo que debe cambiar junto y separa solo lo que los datos no pueden compartir.
+
 La exposición sigue la norma ISO/IEC/IEEE 42010 \citep{iso_42010_2022} en la separación
 entre preocupaciones de los interesados, puntos de vista y vistas, y el modelo 4+1 de
 Kruchten \citep{kruchten_41_1995} para distinguir la vista de desarrollo de la vista
@@ -93,12 +98,22 @@ cumplimiento y la recuperabilidad lo exigen, y mantiene junta la transaccionalid
 debe permanecer junta. La matriz ponderada del ATAM le da 3,91 sobre 5,00, frente a 3,44 de
 la granularidad fina y 2,82 del monolito modular.
 
-La Figura~\ref{fig:c4-contexto} (Anexo~\ref{anx:figuras}) sitúa el sistema frente a sus actores y sistemas externos, y
-la Figura~\ref{fig:c4-contenedores} materializa la alternativa elegida: cinco servicios de
-dominio y la puerta de enlace sobre cinco bases de datos, con una bandeja de salida en cada
-base para entregar los eventos. Las dos salen del código fuente: la primera es una vista UML
-del modelo de arquitectura, y la segunda sigue el modelo C4. La vista de contenedores añade los procesos en segundo plano de cada servicio y numera
-los pasos de tres flujos: la subida de la lista y los kits, el pago y los avisos.
+La Figura~\ref{fig:c4-contexto} (Anexo~\ref{anx:figuras}) sitúa el sistema frente a sus actores y
+sistemas externos, y la Figura~\ref{fig:c4-contenedores} materializa la alternativa elegida. Las dos
+salen del código fuente: la primera es una vista UML del modelo de arquitectura y la segunda sigue el
+modelo C4. Cada color de la segunda tiene un significado fijo, que explica la leyenda al pie.
+
+La figura se lee de arriba hacia abajo. En la parte superior están las dos personas: el acudiente, que
+usa la aplicación web progresiva (puerto 3000), y el equipo de Tukit, que usa el panel de administración
+(puerto 3001). Ambas aplicaciones, con Google Maps y Wompi a los lados, llaman a la puerta de enlace
+(puerto 8010), la franja ancha que reenvía cada petición al servicio que atiende el prefijo de su ruta. Debajo
+está la fila de los servicios que llaman a otros: operación, inteligencia y comercio. Cada uno está dentro de un
+recuadro gris con su base de datos y sus procesos en segundo plano, y sus llamadas pasan por un bus que
+alcanza a identidad y catálogo. En el centro está RabbitMQ, que lleva los eventos entre las dos filas.
+Abajo están los proveedores, identidad y catálogo, que no llaman a otros servicios, junto a los sistemas
+externos (Gemini, tiendas en línea, correo y WhatsApp) y la infraestructura compartida. Las etiquetas A1 a A4,
+B1 a B4 y C1 a C3 numeran los pasos de la subida de la lista y los kits, el pago y los avisos, que se
+describen bajo el dibujo.
 
 Con RabbitMQ, un publicador por servicio productor lleva los eventos de su bandeja a una cola
 por consumidor, con una cola de reintentos y otra de descartados, y la entrega es al menos una
@@ -111,7 +126,7 @@ impide que el camino con RabbitMQ lea bases ajenas.
 
 \begin{figure}[htbp]
 \centering
-\input{img/arquitectura/c4-contenedores.tex}
+\resizebox*{!}{0.80\textheight}{\input{img/arquitectura/c4-contenedores.tex}}
 \caption{Vista de contenedores (C4 nivel 2) del sistema construido, con los procesos en
 segundo plano de cada servicio y los pasos de la subida de la lista y los kits (A), el pago (B)
 y los avisos (C).}
@@ -122,6 +137,15 @@ Redis es opcional y solo guarda lo que se puede recalcular o perder (ADR 0047): 
 renglón durante 24 horas, la lectura aceptada de cada lista durante 30 días y los contadores del
 límite de tasa de la puerta de enlace. Si no responde en 250~ms, cada servicio calcula sin caché
 y la puerta de enlace cuenta el límite en su memoria.
+
+La vista física (Figura~\ref{fig:despliegue}, Anexo~\ref{anx:figuras}) muestra dónde corre cada pieza.
+\begin{itemize}
+  \item \emph{Portátil del equipo}: aloja las dos aplicaciones web (puertos 3000 y 3001), la puerta de enlace (8010) y los cinco servicios (8011 a 8015) con sus procesos en segundo plano; \texttt{make arriba} los levanta y \texttt{make reanudar} los retoma tras un apagado sin sembrar de nuevo.
+  \item \emph{PostgreSQL 16 con pgvector}: un servidor con las cinco bases, una por servicio.
+  \item \emph{RabbitMQ}: el intercambio de eventos; Redis y Jaeger son opcionales.
+  \item \emph{Túnel de Cloudflare}: expone la aplicación web con una URL temporal solo durante las sesiones con acudientes.
+  \item \emph{Wompi}: funciona en modo simulado, sin salir a la red.
+\end{itemize}
 
 % =====================================================================
 \subsection{Modelo de dominio y contextos delimitados}

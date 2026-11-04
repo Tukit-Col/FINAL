@@ -1,6 +1,12 @@
 \subsection{Optimización y calibración}
 \label{sec:optimizacion-cal}
 
+Hasta aquí, la normalización y la resolución contra el catálogo (Sección~\ref{sec:algoritmo-resolucion})
+dejaron cada renglón comprable de la lista con uno o más productos candidatos. Eso no basta para
+entregar un kit: falta escoger un producto por renglón cuando hay varios, y esa elección es un
+compromiso entre costo, marca, disponibilidad y personaje. Este problema corresponde a la fase de
+modelado (\emph{Modeling}) de CRISP-DM, y aquí se formaliza, se resuelve y se calibra.
+
 En esta sección se presenta el algoritmo que arma los kits a partir de una lista ya resuelta contra
 el catálogo, con la misma estructura del algoritmo de resolución
 (Sección~\ref{sec:algoritmo-resolucion}). Para ello, primero se analiza el problema y se fijan sus
@@ -27,6 +33,47 @@ superan el umbral de enumeración, \calListasExacto{} quedan por debajo, una no 
 decisión que tomar, y el espacio más grande es del orden de $10^{\calEspacioMaxLog}$. Además, el
 acudiente necesita un kit y no un frente, así que sobre $\mathcal{P}$ hay que escoger un punto con
 sus preferencias.
+
+\paragraph{Modelo formal.} Para fijar el problema se usan variables de decisión binarias. Sea
+$x_{i,p}\in\{0,1\}$ igual a 1 si se elige el producto $p$ para la línea decidible $i$, con
+$\sum_{p\in C_i}x_{i,p}=1$ para cada $i$, de modo que cada línea recibe exactamente un producto. El
+código no usa esta forma binaria: la variable de la línea $i$ es el índice entero del candidato,
+en $\{0,\dots,|C_i|-1\}$, que es equivalente y es la que recibe NSGA-II. Las restricciones duras son
+tres y actúan en momentos distintos.
+\begin{enumerate}[label=\textbf{R\arabic*.},leftmargin=*,itemsep=1pt,topsep=2pt]
+\item \emph{Filtros del acudiente, antes del frente} (\texttt{aplicar\_filtros\_duros}). Si el
+acudiente excluye una marca, se retira de $C_i$ todo candidato de esa marca, salvo que el texto del
+renglón la nombre porque el colegio la exige. Si pide solo productos disponibles, se retiran los
+candidatos sin oferta vigente. Si $C_i$ queda vacío, la línea pasa a ser un hueco del catálogo con un
+mensaje, y no se rellena con el producto excluido. Se hace antes porque una restricción dura no debe
+competir como un peso más: si fuera un objetivo, el frente podría incluir la marca que el acudiente
+pidió no ver.
+\item \emph{Admisibilidad} (\texttt{\_admisibles}). Una línea es decidible si no es informativa y
+tiene candidatos. Entre ellos se prefieren los que cumplen el atributo exigido por el colegio; si
+ninguno lo cumple, entran todos, para no dejar la línea vacía.
+\item \emph{Tope de gasto y sobreprecio, después del frente} (\texttt{\_tope},
+\texttt{elegir\_recomendado\_maut}). El tope $B$ es el presupuesto declarado, sin estirarlo con el
+sobreprecio, y se exige $f_1(\mathbf{x})\leq B$ y $f_1(\mathbf{x})\leq(1+\sigma)\,c_{\min}$. Se aplican
+sobre el frente completo y no sobre el espacio de búsqueda, porque un frente recortado por el tope
+escondería opciones que el acudiente aún puede querer ver.
+\end{enumerate}
+La cantidad por empaque entra en el costo. Si la línea pide $q_i$ unidades y el producto $p$ trae $e_p$
+unidades por empaque, se compran $u_{i,p}=\lceil q_i/e_p\rceil$ empaques (\texttt{unidades\_a\_comprar}),
+que es cero si $q_i\leq 0$. Con $\pi_p$ el precio del empaque, $\rho_p\in\{0,1,2\}$ el nivel de marca
+(económico, confiable, premium), $\kappa_p=1$ si el producto trae el personaje buscado y $d_p=1$ si
+tiene precio, los cuatro objetivos de $\mathbf{x}$ son
+\begin{align}
+f_1(\mathbf{x})&=\sum_{i}\sum_{p\in C_i:\,d_p=1}x_{i,p}\,\pi_p\,u_{i,p}, &
+f_2(\mathbf{x})&=\frac{1}{2n}\sum_{i}\sum_{p}x_{i,p}\,\rho_p,\label{eq:f1f2}\\
+f_3(\mathbf{x})&=\frac{1}{n}\sum_{i}\sum_{p}x_{i,p}\,d_p, &
+f_4(\mathbf{x})&=\frac{1}{n}\sum_{i}\sum_{p}x_{i,p}\,\kappa_p.\label{eq:f3f4}
+\end{align}
+El costo $f_1$ está en pesos y no se normaliza: suma solo los productos con precio, de modo que la
+falta de precio no abarata el kit sino que baja $f_3$. Los otros tres son promedios por línea y
+quedan en $[0,1]$: $f_2$ divide el nivel de marca entre su máximo, 2; $f_3$ es la fracción de líneas
+surtibles hoy; y $f_4$ es la fracción de líneas con el personaje pedido para ese hijo, o con cualquier
+personaje si no se pidió ninguno. El problema es entonces minimizar
+$(f_1,-f_2,-f_3,-f_4)$ sobre las asignaciones que cumplen R1 y R2; R3 se aplica al escoger el punto.
 
 \paragraph{Diseño: entradas y salidas.} La Tabla~\ref{tab:es-optimizador} define los tipos.
 

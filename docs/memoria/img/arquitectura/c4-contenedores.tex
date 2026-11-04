@@ -1,18 +1,25 @@
 % Vista de contenedores (C4 nivel 2) del código fuente del sistema en su versión del 24 de octubre de 2026,
 % con los flujos de la subida y los kits (A), el pago (B) y los avisos (C). Estilos locales: no depende del
 % preámbulo; solo usa las bibliotecas arrows.meta y shapes.geometric.
+\definecolor{tkPerF}{HTML}{FFF0B8}\definecolor{tkPerB}{HTML}{9A7B00}
+\definecolor{tkAppF}{HTML}{CFE2F7}\definecolor{tkAppB}{HTML}{1F4E86}
+\definecolor{tkProcF}{HTML}{D3EDD0}\definecolor{tkProcB}{HTML}{2E6B2B}
+\definecolor{tkExtF}{HTML}{FAD7B5}\definecolor{tkExtB}{HTML}{A8500F}
+\definecolor{tkInfF}{HTML}{DEDEDE}\definecolor{tkInfB}{HTML}{4D4D4D}
+\definecolor{tkBdF}{HTML}{CDEBEB}\definecolor{tkBdB}{HTML}{1C6E6E}
+\definecolor{tkMqF}{HTML}{E2D6F4}\definecolor{tkMqB}{HTML}{5B2E99}
 \begin{tikzpicture}[x=1cm, y=1cm, font=\scriptsize,
-  per/.style={draw, rounded corners=7pt, align=center, fill=yellow!10, inner sep=3pt, minimum height=7mm},
-  cont/.style={draw, rounded corners=2pt, align=center, fill=blue!8, inner sep=2pt, minimum height=8mm},
-  proc/.style={draw, rounded corners=2pt, align=center, fill=green!10, inner sep=2pt, minimum height=7mm},
-  ext/.style={draw, rounded corners=2pt, align=center, fill=orange!14, inner sep=2pt, minimum height=7mm},
-  infra/.style={draw, rounded corners=2pt, align=center, fill=gray!12, inner sep=2pt, minimum height=7mm},
-  bd/.style={draw, cylinder, shape border rotate=90, aspect=0.22, align=center, fill=white,
-    minimum width=1.25cm, minimum height=8mm, inner sep=1pt},
-  grupo/.style={draw=gray!70, rounded corners=3pt, fill=gray!3},
+  per/.style={draw, thick, rounded corners=7pt, align=center, draw=tkPerB, fill=tkPerF, inner sep=3pt, minimum height=7mm},
+  cont/.style={draw, rounded corners=2pt, align=center, draw=tkAppB, fill=tkAppF, inner sep=2pt, minimum height=8mm},
+  proc/.style={draw, rounded corners=2pt, align=center, draw=tkProcB, fill=tkProcF, inner sep=2pt, minimum height=7mm},
+  ext/.style={draw, rounded corners=2pt, align=center, draw=tkExtB, fill=tkExtF, inner sep=2pt, minimum height=7mm},
+  infra/.style={draw, rounded corners=2pt, align=center, draw=tkInfB, fill=tkInfF, inner sep=2pt, minimum height=7mm},
+  bd/.style={draw, cylinder, shape border rotate=90, aspect=0.22, align=center, fill=tkBdF,
+    minimum width=1.25cm, draw=tkBdB, minimum height=8mm, inner sep=1pt},
+  grupo/.style={draw=black!55, rounded corners=3pt, fill=black!4},
   http/.style={-{Stealth[length=1.6mm]}, semithick},
   evt/.style={-{Stealth[length=1.6mm]}, densely dashed, semithick},
-  cola/.style={-{Stealth[length=1.6mm]}, semithick, draw=violet!75!black},
+  cola/.style={-{Stealth[length=1.6mm]}, semithick, draw=tkMqB},
   hueco/.style={draw=white, line width=2.8pt},
   paso/.style={circle, draw, fill=white, inner sep=0.5pt, font=\tiny\bfseries, minimum size=3.6mm},
   rot/.style={font=\tiny, fill=white, inner sep=1pt},
@@ -49,7 +56,7 @@
 \draw[semithick] (10.3,-3.25) -- (10.3,-6.7);
 \node[rot, align=center] at (11.42,-6.7) {llamadas HTTP a\\identidad y catálogo};
 % RabbitMQ: intercambio de eventos entre las dos filas de servicios
-\node[draw=violet!75!black, fill=violet!10, rounded corners=2pt, minimum width=10.35cm, minimum height=6.5mm,
+\node[draw=tkMqB, fill=tkMqF, rounded corners=2pt, minimum width=10.35cm, minimum height=6.5mm,
   inner sep=0pt] (rabbitmq) at (9.125,-7.25) {};
 \node[align=center, inner sep=0pt, font=\scriptsize] at (5.95,-7.25) {\textbf{RabbitMQ}\\[-1.5pt]intercambio tukit.eventos};
 % Servicios proveedores
@@ -60,7 +67,7 @@
 \draw[grupo] (9.05,-7.8) rectangle (13.1,-10.3);
 \node[cont, text width=2.0cm] (catalogo) at (10.2,-8.45) {\textbf{Catálogo}\\puerto 8012};
 \node[bd] (base_catalogo) at (12.3,-8.45) {base de\\catálogo};
-\node[proc, text width=2.0cm, fill=green!4, densely dashed] (herramientas) at (10.2,-9.65) {herramientas de\\curaduría (a mano)};
+\node[proc, text width=2.0cm, fill=tkProcF!45, densely dashed] (herramientas) at (10.2,-9.65) {herramientas de\\curaduría (a mano)};
 \node[proc, text width=1.3cm] (publicador_catalogo) at (12.15,-9.65) {publicador\\de eventos};
 % Sistemas externos
 \node[ext, text width=1.9cm] (gemini) at (7.85,-8.45) {\textbf{Gemini}\\lectura y vectores};
@@ -146,4 +153,23 @@
   consumidor (avisos, colegios, listas y trabajos), con reintentos y descartados; sin RabbitMQ, los publicadores no
   arrancan y cada consumidor lee la bandeja del productor. Línea punteada: componente opcional. Línea sin punta: enlace que el sistema
   arma y no envía. Recuadro gris: el servicio con sus procesos y su base.};
+% Leyenda
+\def\tkley#1#2#3#4{\node[#1, minimum width=7mm, minimum height=4.2mm, inner sep=0pt, text width=7mm] (l#2) at #3 {};
+  \node[anchor=west, font=\scriptsize, inner sep=1pt] at ([xshift=1mm]l#2.east) {#4};}
+\node[draw=black!40, rounded corners=2pt, anchor=north west, minimum width=15.05cm, minimum height=2.3cm,
+  inner sep=0pt] (cajaley) at ([yshift=-1mm]colA.south west |- current bounding box.south) {};
+\node[anchor=north west, font=\scriptsize\bfseries] at ([shift={(2mm,-1mm)}]cajaley.north west) {Leyenda};
+\begin{scope}[shift={(cajaley.north west)}]
+\tkley{per}{a}{(1.2,-0.75)}{Persona}
+\tkley{cont}{b}{(3.9,-0.75)}{Aplicación o servicio}
+\tkley{proc}{c}{(7.8,-0.75)}{Proceso en segundo plano}
+\tkley{ext}{d}{(12.3,-0.75)}{Sistema externo}
+\tkley{bd}{e}{(1.2,-1.35)}{Base de datos}
+\tkley{infra}{f}{(3.9,-1.35)}{Infraestructura}
+\node[draw=tkMqB, fill=tkMqF, rounded corners=2pt, minimum width=7mm, minimum height=4.2mm, inner sep=0pt] (lg) at (7.8,-1.35) {};
+\node[anchor=west, font=\scriptsize, inner sep=1pt] at ([xshift=1mm]lg.east) {RabbitMQ};
+\draw[http] (0.8,-1.95) -- +(0.9,0); \node[anchor=west, font=\scriptsize, inner sep=1pt] at (1.8,-1.95) {HTTP};
+\draw[evt] (3.9,-1.95) -- +(0.9,0); \node[anchor=west, font=\scriptsize, inner sep=1pt] at (4.9,-1.95) {Evento de la bandeja};
+\draw[cola] (8.4,-1.95) -- +(0.9,0); \node[anchor=west, font=\scriptsize, inner sep=1pt] at (9.4,-1.95) {Cola de RabbitMQ};
+\end{scope}
 \end{tikzpicture}

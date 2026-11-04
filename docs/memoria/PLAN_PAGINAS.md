@@ -28,3 +28,13 @@ Cuerpo I a VIII: paginas 1 a 56 (tope 60). Referencias desde la 57, anexos desde
 VI pasa de 9 a 15 paginas con VI.8 Optimizacion y calibracion y VI.9 NL2C; VII empieza en la 47 y VIII en la 54.
 Movido a anexos: `anx:calibracion` (umbral por nivel, rejilla, tau, sensibilidad, hipervolumen por perfil, con sus figuras)
 y `anx:nl2c` (rondas 2 y 3, campos, ASR, condiciones, costo, utilidad bajo ataque).
+
+## Ronda 4 (4-nov): cierre de OE5, hilo, rigor formal, datos y producto
+
+Cuerpo I a VIII: paginas 1 a 69 (conclusiones desde la 66). Pasa el tope de 60 en 9 paginas.
+Lo que crecio: OE5 con resultados (tabla de tareas, hallazgos, cambios), "Datos del sistema" (tab:datos-sistema),
+modelo formal del optimizador (variables, R1-R3, f1-f4), tab:metricas, figura del recorrido con 6 capturas y
+tab:requisito-pantalla, tabla ISO 25010 en calidad, parrafos puente por capitulo. Al anexo: vista de despliegue
+(fig:despliegue) y cuenta + revision del equipo (fig:producto-equipo).
+Si hay que volver a 60: mover tab:metricas, tab:datos-sistema y tab:iso25010 a anx:tablas (unas 3 paginas) y la
+figura del recorrido a anx:figuras dejando una frase en VI.

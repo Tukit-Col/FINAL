@@ -1,81 +1,137 @@
 \subsection{Evaluación con usuarios}
 \label{sec:oe5}
 
-En esta sección se presenta la evaluación del sistema con acudientes, que corresponde al OE5 y al
-nivel de aceptación del control de calidad. Primero se describen el método y los instrumentos,
-luego las dos rondas y la regla que decide qué se reporta, y al final las amenazas a la validez.
-El plan de análisis se preregistró el 28 de octubre de 2026 en el repositorio
-(\texttt{docs/validacion/plan\_analisis\_oe5.md}), antes de la primera sesión, y fija las
-variables, los criterios y las pruebas estadísticas que se aplican.
+Hasta aquí el sistema se había probado contra datos: listas reales, conjuntos de oro y bancos de
+pruebas. Faltaba la pregunta del OE5, que ningún banco responde: si un acudiente, sin que nadie le
+explique la aplicación, logra armar y pagar el kit de su hijo. Esta sección corresponde a la fase F5
+de la metodología y a la etapa \emph{Evaluation} de CRISP-DM, y al nivel de aceptación del control
+de calidad. Primero se describe el método; después, lo que se observó en cada tarea, lo que dijeron
+los acudientes y lo que eso cambia en el producto.
 
-\paragraph{Método.} Cada sesión es una prueba de usabilidad moderada y remota con pensamiento en voz
-alta \citep{lazar_research_2017}: el acudiente comparte pantalla, recibe tareas sin instrucciones de
-cómo hacerlas y dice lo que piensa mientras las hace. El moderador solo ayuda cuando pasan 90
-segundos sin avance, y cada tarea se codifica como éxito sin ayuda (S), éxito con ayuda (A), fallo
-(F) o no intentada (N). Las tareas siguen la compra de un kit: crear la cuenta y elegir colegio y
-grado (T1), declarar preferencias (T2), esperar la generación (T3), elegir un kit (T4), cambiar un
-producto (T5), pagar (T6) y encontrar el pedido (T7). T1, T4 y T6 son las críticas. El pago usa la
-pasarela en modo simulado (\texttt{WOMPI\_MODO=falso}) y una tarjeta de prueba, de modo que ningún
-participante paga con dinero real. La versión evaluada se congela durante cada ronda: los problemas
-que aparecen se anotan, pero no se corrigen entre sesiones de la misma ronda.
+\paragraph{Método.} Cada sesión fue una prueba de usabilidad moderada con pensamiento en voz alta
+\citep{lazar_research_2017}: el acudiente usa la aplicación, recibe una situación y no
+instrucciones, y dice lo que piensa mientras avanza. El plan de análisis se preregistró el 28 de
+octubre de 2026 en el repositorio (\path{docs/validacion/plan_analisis_oe5.md}), antes de la
+primera sesión. Las tareas siguen la compra de un kit: crear la cuenta y elegir colegio y grado
+(T1), declarar el personaje y la opción de gasto y enviar la solicitud (T2), esperar la generación
+(T3), revisar los kits y elegir uno (T4), cambiar o quitar un producto (T5), pagar (T6) y encontrar
+el pedido (T7); la ronda agregó T8, pedirle un cambio al asistente del kit. T1, T4 y T6 son las
+tareas críticas. Cada tarea se codificó como éxito sin ayuda (S), éxito con ayuda (A), fallo (F) o
+falla del sistema (N), con un criterio estricto: cualquier indicación de la moderadora que dijera
+dónde tocar o cómo funcionaba algo, antes de que el acudiente lo resolviera, cuenta como ayuda. El
+pago usó la pasarela en modo simulado (\texttt{WOMPI\_MODO=falso}), de modo que nadie pagó con
+dinero real, y la versión evaluada (\texttt{b6b6fe7}) no se modificó entre sesiones.
 
-\paragraph{Instrumentos.} La medida principal de carga cognitiva es el número de interacciones
-discretas que requiere cada tarea, que se cuenta en la grabación. Como medida complementaria se usa
-el RTLX, la versión sin ponderar del NASA-TLX \citep{hart_development_1988,hart_nasa_2006}, con sus
-seis subescalas de 0 a 10. El acudiente lo responde dos veces: una sobre su última compra de útiles
-por el canal tradicional y otra sobre la compra con TUKIT, lo que da una comparación pareada. Al
-terminar cada tarea responde la pregunta única de facilidad (SEQ, de 1 a 7). Al final responde la
-escala SUS de diez ítems \citep{brooke_sus_1996}, que se interpreta con el umbral de 68
-\citep{bangor_empirical_2008}, y la pregunta de recomendación neta (NPS, de 0 a 10)
-\citep{reichheld_one_2003}, más preguntas abiertas sobre medio de pago y disposición a pagar un
-sobreprecio.
+\paragraph{Codificación.} Las sesiones se grabaron con consentimiento, conforme a la Ley 1581 de
+2012 \citep{congreso_ley1581_2012}. El audio se transcribió en el equipo del proyecto, sin enviarlo a
+servicios externos, y cada sesión se codificó a partir de la transcripción y de un cuadro de pantalla
+cada diez segundos. Un segundo codificador revisó cada hoja contra las mismas fuentes, buscando en
+especial ayudas que convirtieran un éxito sin ayuda en uno asistido, y dejó 78 correcciones, la
+mayoría de tiempos, citas y evidencia, que se incorporaron antes del análisis. Los
+datos están en \path{docs/validacion/oe5/oe5_ronda2/datos_ronda2.csv}, y las cifras de la
+Tabla~\ref{tab:oe5-tareas} salen del cuaderno preregistrado (\texttt{analisis\_oe5.py}). Las
+grabaciones se eliminan a los 30 días y los datos de investigación 12 meses después de la aprobación
+del trabajo.
 
-\paragraph{Criterios preregistrados.} El OE5 se da por cumplido solo si se cumplen los tres
-criterios principales. C1 pide que la media del SUS sea de al menos 68 y que el límite inferior de
-su intervalo de confianza del 95\,\% supere 68. C2 pide que la diferencia pareada del RTLX entre el
-canal tradicional y TUKIT tenga un intervalo que excluya el cero y un tamaño de efecto $d_z$ de al
-menos 0,5. C3 pide al menos un 80\,\% de éxito sin ayuda en T1, T4 y T6, con intervalo de Wilson.
-Como criterios secundarios, el NPS debe ser positivo según un \emph{bootstrap} de 10.000
-remuestreos, y el SEQ y las subescalas del RTLX se analizan como exploratorios, con la prueba de
-Wilcoxon y la corrección de Holm. Un segundo codificador recodifica el 30\,\% de las sesiones, con
-una meta de $\kappa\geq 0{,}6$.
+\paragraph{Participantes.} Participaron seis acudientes reclutados por conveniencia entre familias
+cercanas al equipo, sin pasar por el colegio, entre el 2 y el 3 de noviembre de 2026: cinco
+en sesión remota por videollamada y uno en sesión presencial. Los seis terminaron con un pedido
+pagado en modo simulado, aunque el pago solo se pudo observar en cinco. La sesión de ACU-04 se grabó solo al principio y al final, porque la grabación se cortó
+mientras subía la lista; de ella se reportan T1 y su opinión final, y las demás tareas quedan como no
+observadas. Uno de los acudientes registró dos hijas, lo que puso a prueba la consolidación entre
+hermanos.
 
-\paragraph{Participantes y rondas.} El reclutamiento es por conveniencia y bola de nieve entre
-acudientes de colegios de Bogotá, con un único moderador. El mínimo es de cinco participantes por
-ronda, que en una prueba formativa basta para encontrar la mayoría de los problemas de uso
-\citep{nielsen_estimating_1994}; con menos de 20 participantes, los resultados se leen como
-exploratorios. La evaluación tiene dos rondas, que no se mezclan en el análisis. La ronda 1, formativa,
-se hizo el 31 de octubre de 2026 con consentimiento verbal grabado al inicio de cada
-sesión, y su propósito fue encontrar problemas de uso antes de la ronda sumativa
-\textbf{[PENDIENTE: número de participantes y problemas encontrados en la ronda 1]}. La ronda 2,
-sumativa, se hizo el 2 de noviembre de 2026 sobre la versión congelada \texttt{b6b6fe7}, con
-sesiones de 15 minutos y consentimiento escrito antes de grabar, conforme a la Ley 1581 de 2012
-\citep{congreso_ley1581_2012}: los datos de investigación se eliminan 12 meses después de la
-aprobación del trabajo y las grabaciones a los 30 días.
+\begin{table}[htbp]
+\centering
+\small
+\caption{Éxito sin ayuda por tarea en las sesiones con acudientes (n = 6; ACU-04 solo en T1).
+Intervalo de Wilson del 95\,\% y mediana del tiempo de la tarea; en T3, el tiempo es la duración de la espera.}
+\label{tab:oe5-tareas}
+\begin{tabular}{@{}llccc@{}}
+\toprule
+Tarea & Qué pide & Sin ayuda & IC 95\,\% & Mediana (s) \\
+\midrule
+T1 (crítica) & Cuenta, colegio y grado & 4 de 6 (67\,\%) & 30--90\,\% & 70 \\
+T2 & Personaje y opción de gasto & 3 de 5 (60\,\%) & 23--88\,\% & 32 \\
+T3 & Esperar los kits & 4 de 5 (80\,\%) & 38--96\,\% & 50 \\
+T4 (crítica) & Revisar los kits y elegir & 1 de 5 (20\,\%) & 4--62\,\% & 91 \\
+T5 & Cambiar o quitar un producto & 3 de 5 (60\,\%) & 23--88\,\% & 84 \\
+T6 (crítica) & Pagar (simulado) & 4 de 5 (80\,\%) & 38--96\,\% & 43 \\
+T7 & Encontrar el pedido & 2 de 2 (100\,\%) & 34--100\,\% & 16 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-La regla de reporte se fijó antes de la ronda 2. Si la ronda 2 reúne al menos cinco sesiones
-completas, se reportan sus criterios; si no, solo se reporta la ronda 1, como formativa. Con entre
-cinco y nueve sesiones, C1 y C2 se informan como indicativos, y C3 con cinco participantes exige
-cuatro éxitos de cinco en cada tarea crítica.
+\paragraph{Qué se encontró.} Todos los que llegaron al final pagaron: cinco de cinco completaron T6,
+cuatro de ellos sin ayuda, y en una mediana de 43 segundos. El registro y la elección del colegio
+(T1) se resolvieron sin ayuda en cuatro de seis sesiones, en una mediana de 70 segundos. El
+resultado que cambia el diseño es T4. Solo uno de cinco acudientes revisó los kits y eligió sin
+ayuda. Los tres problemas que se repitieron en esa tarea tienen que ver con cómo se presenta el
+resultado del optimizador al acudiente:
+\begin{itemize}
+\item \emph{No encontrar los kits.} Al terminar la espera, dos acudientes quedaron en la pantalla
+de su cuenta sin ver el camino a «Ver mis kits», y en una sesión un fallo de ingreso después del
+registro los ocultó durante unos 40 segundos.
+\item \emph{No entender de dónde sale el kit.} En ACU-01 se preguntó por qué no se veían las cuatro
+tiendas en paralelo («yo no sé cuánto vale en el Faro»), en ACU-02 qué quería decir
+«confiable», y en ACU-06 los textos de consolidación entre hermanos necesitaron explicación.
+\item \emph{Listas demasiado largas.} Con 82 productos, una acudiente dijo «yo creo que es
+intuitiva, lo único es que sí me genera estrés visual», y dos propusieron agruparlos por categoría.
+\end{itemize}
+Las otras tareas mostraron fallas puntuales. El campo del colegio exige elegir un resultado de la
+lista y no basta con escribirlo. Una acudiente buscó crear la cuenta en «Ingresar», y en otra sesión
+no quedó claro si había que registrarse o ingresar. El asistente
+flotante tapó el botón «Elegir» del carrusel de productos en una sesión. Con dos hijas, el kit Fan
+mostró solo el personaje de la primera, un defecto real de la personalización por hijo. T8 no se
+planteó en ninguna sesión y ningún acudiente usó el asistente por su cuenta, aunque estaba visible en
+la página del kit, de modo que su uso con acudientes queda sin evidencia.
 
-\textbf{[PENDIENTE: resultados ronda 2]} (número de sesiones completas, SUS con intervalo, RTLX
-pareado con $d_z$, éxito sin ayuda en T1, T4 y T6 con intervalo de Wilson, NPS, interacciones por
-tarea y acuerdo entre codificadores).
+\paragraph{Lo que dijeron.} La sesión cerró con una entrevista breve en lugar del cuestionario
+escrito (ver desviaciones). Cuatro de seis acudientes describieron la aplicación como fácil,
+intuitiva o rápida: «está súper fácil [\ldots] no está complicado [\ldots] es ágil» (ACU-01),
+«fácil de usar, intuitiva» (ACU-03), «me pareció una manera muy fácil de elegir la lista, muy práctico
+[\ldots] y le ahorra a uno mucho tiempo» (ACU-04) y «fue súper rápido» (ACU-05). En ACU-05 la pregunta de la
+moderadora ya incluía la palabra «fácil»; ACU-02 elogió el cambio de productos sin calificar la
+facilidad, y ACU-06 no opinó sobre ella. Lo que más valoraron fue el ahorro de tiempo y poder cambiar
+o quitar productos («la prueba reina», dijo ACU-02 al cambiar solo los cuadernos a otra marca). Las sugerencias coincidieron con los problemas observados:
+agrupar la lista por categorías, dejar claro dónde se crea la cuenta, mostrar la tienda de cada
+producto, enviar un correo de confirmación del pedido y permitir marcas de preferencia.
 
-\paragraph{Desviaciones del plan.} Se declaran seis desviaciones respecto del plan aprobado. El
-reclutamiento fue por bola de nieve y no a través del colegio; el formulario fue en línea; hubo una
-sola ronda sumativa y un solo moderador; el panel de privacidad salió de T7, y el kit A tu Medida se
-aprobó en la cola de revisión antes de las sesiones. Además, la ronda 2 agregó una tarea T8, pedirle
-un cambio al asistente del kit (Sección~\ref{sec:nl2c}), que no está en el plan preregistrado. Por
-eso T8 y su SEQ se reportan como exploratorios y no entran en C1 a C3. El análisis automatizado
-del plan tampoco lee todavía el SEQ ni T8, que se resumen de forma descriptiva.
+\paragraph{Criterios preregistrados.} El plan fijó tres criterios. C3, al menos un 80\,\% de éxito
+sin ayuda en cada tarea crítica, se cumple en T6 y no se cumple en T1 ni en T4. C1, sobre el SUS, y
+C2, sobre la carga del RTLX, no se evaluaron, porque la sesión de 15 minutos no aplicó esos
+cuestionarios. Por la regla del propio plan, el OE5 no se declara cumplido en sus criterios
+cuantitativos: con seis participantes los intervalos son amplios y los resultados se leen como
+formativos \citep{nielsen_estimating_1994}. Lo que sí se observó es que los seis acudientes llegaron de la cuenta a
+un pedido pagado con el pago simulado, y que la ayuda se concentró en T4, en los tres puntos de
+presentación descritos arriba.
 
-\paragraph{Amenazas a la validez.} La muestra es pequeña y de conveniencia, de modo que los
-resultados no se generalizan a los acudientes de Bogotá. Un solo moderador conduce y codifica, lo
-que puede sesgar la ayuda y la codificación, y por eso se recodifica una parte con un segundo
-codificador. Hay riesgo de contaminación entre participantes, porque varios acudientes pertenecen
-al mismo grupo de padres y pueden haber comentado la aplicación antes de su sesión. El RTLX del
-canal tradicional es retrospectivo y depende de la memoria del acudiente. La pantalla de pago
-simulado aprueba la transacción sola tras 1,2 segundos, así que T6 mide la navegación hasta el
-pago y no la interacción con una pasarela real. Por último, T8 se agregó después del
-preregistro y se trata solo como exploratoria.
+\paragraph{Qué se cambia.} Cada hallazgo se convirtió en un cambio para la siguiente versión,
+ordenados por su efecto en T4:
+\begin{enumerate}
+\item Llevar al acudiente a sus kits cuando estén listos, con aviso en la misma pantalla, en lugar
+de dejarlo en su cuenta.
+\item Agrupar los productos por categoría, con la tienda visible en cada línea.
+\item Explicar las etiquetas de nivel (económico, confiable, premium) y los textos de consolidación.
+\item Corregir el personaje del segundo hijo en el kit Fan y mover el asistente para que no tape el
+carrusel.
+\item Hacer explícito que la cuenta se crea al armar el kit y que el colegio se elige de la lista.
+\end{enumerate}
+
+\paragraph{Desviaciones del plan.} Respecto del plan preregistrado se declaran estas desviaciones.
+El reclutamiento fue por conveniencia y no a través del colegio. Hubo una sola ronda y una sola
+moderadora. Las sesiones se planearon de 15 minutos (duraron entre 8 y 20), y por eso el cierre fue
+una entrevista oral: no se
+aplicaron el SUS, el NPS, el SEQ ni el RTLX, y C1 y C2 quedan sin evaluar. La moderadora explicó
+más de lo que permitía el guion en dos sesiones; esas ayudas se codificaron como A, lo que hace
+conservadoras las tasas. T8 se agregó después del preregistro y se trata como exploratoria. Una
+sesión quedó grabada solo en parte.
+
+\paragraph{Amenazas a la validez.} La muestra es pequeña y de conveniencia, y varios participantes
+conocen al equipo, de modo que los comentarios positivos pueden estar sesgados hacia arriba; por eso
+el análisis se apoya en lo observado y no en lo dicho. Una sola moderadora condujo todas las
+sesiones, y el segundo codificador revisó todas las hojas, pero no las codificó de forma
+independiente, así que no se calcula un índice de acuerdo como kappa. El pago simulado aprueba la transacción sola, así que T6 mide la navegación hasta el pago y
+no la interacción con una pasarela real. Finalmente, la escena del guion fue un Tercero con un hijo
+fanático de un personaje, pero varios acudientes usaron el grado y los gustos reales de sus hijos, lo
+que hace el recorrido más realista y menos comparable entre sesiones.

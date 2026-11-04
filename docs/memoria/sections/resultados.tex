@@ -8,6 +8,41 @@ evaluación de CRISP-DM, y los del código, el plan del informe de pruebas
 salida conservada, respaldada por una salida existente o solo reportada. Cuando dos fuentes
 discrepan o falta el programa que produjo una cifra, el texto lo dice en lugar de dar un valor.
 
+El capítulo anterior describió cómo se construyó cada etapa y qué se descartó en el camino. Este
+capítulo responde si lo construido funciona: sigue las etapas en el mismo orden (percepción,
+recuperación y normalización, optimización), después verifica la versión completa y, al final, dice
+qué límites tiene la evidencia. Es la fase de evaluación de CRISP-DM.
+
+La Tabla~\ref{tab:metricas} reúne las métricas que se usan en el capítulo, con su definición, la
+sección donde se aplican y el resultado que allí se reporta. Cada una responde a una pregunta
+distinta. El F1 mide si la lectura recupera los renglones correctos sin inventar otros, y el
+promedio macro evita que un documento largo tape a uno corto. El MRR@10 mide qué tan arriba queda el
+primer resultado correcto, que es lo que importa cuando el sistema solo muestra unos pocos
+candidatos. El kappa de Cohen descuenta el acuerdo que se daría por azar. La razón de hipervolumen
+mide cuánto del frente de kits óptimo conserva el optimizador, sin necesitar un solo kit de
+referencia. La tasa de éxito de ataques (ASR) cuenta cuántos intentos de manipular al asistente logran
+su objetivo, y el p95 de tiempo indica la demora que sufre el 5\,\% de usuarios más lento, algo que el
+promedio esconde.
+
+\begin{table}[htbp]
+\centering
+\caption{Métricas de evaluación del capítulo}
+\label{tab:metricas}
+\footnotesize
+\begin{tabularx}{\linewidth}{@{}p{2.2cm}p{4.6cm}p{2.4cm}X@{}}
+\toprule
+\textbf{Métrica} & \textbf{Definición formal} & \textbf{Dónde se usa} & \textbf{Resultado} \\
+\midrule
+F1 micro y macro & $F_1=\frac{2PR}{P+R}$; micro suma aciertos de todos los renglones, macro promedia el $F_1$ por documento & Percepción (Sec.~\ref{sec:percepcion}) & 0,948 y 0,944 (Gemini, CGS-10) \\
+MRR@10 & $\frac{1}{|Q|}\sum_{q}\frac{1}{r_q}$, con $r_q$ el rango del primer acierto entre 10 & Recuperación (Sec.~\ref{sec:recuperacion}) & 0,6163 (multilingual-e5-large, prototipos) \\
+Kappa de Cohen & $\kappa=\frac{p_o-p_e}{1-p_e}$, acuerdo observado menos el esperado por azar & Clasificación del corpus (Sec.~\ref{sec:recuperacion}) & 0,7331, IC 95\,\% [0,670; 0,794] \\
+Razón de hipervolumen & $HV(\text{frente})/HV(\text{exacto})$ con punto de referencia común & Optimización (Sec.~\ref{sec:optimizacion}) & 0,9969 en 40 listas de prueba \\
+ASR del NL2C & ataques exitosos entre ataques probados & Asistente NL2C (Sec.~\ref{sec:nl2c}) & 0 de 81 \\
+p95 de tiempo & percentil 95 de la latencia & Optimización, ESC-D4 (Sec.~\ref{sec:optimizacion}) & 0,31~s (límite 8~s) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
 % =====================================================================
 \subsection{Percepción documental}
 \label{sec:percepcion}
@@ -203,12 +238,20 @@ máximo para producir todos los kits de una lista, pero midió el optimizador an
 correcciones del 4 y el 7 de octubre y no es la prueba del escenario ESC-D4 del ATAM, que pide al
 menos 30 ejecuciones y el percentil 95. Con el optimizador calibrado, el tiempo medio por lista del
 conjunto de prueba fue de 0,47~s (Sección~\ref{sec:optimizacion-cal}), que tampoco es esa prueba.
-El percentil 95 del tiempo de generación por lista contra los 8~s de DP-03 queda por medir
-\textbf{[PENDIENTE: ESC-D4, 30 ejecuciones y percentil 95]}.
+Por eso se corrió la prueba del escenario (\texttt{ensayos/calibracion/esc\_d4.py}): las 175
+instancias del banco, 30 ejecuciones por lista con semillas distintas y dos perfiles de acudiente,
+uno sin preferencias y otro con personaje y punto medio, que agrega los kits Fan y A~tu~Medida; en
+total, 10.500 ejecuciones de la etapa completa de armado de kits en un Apple M4. El percentil 95 fue
+de 0,29~s sin preferencias y de 0,31~s con personaje, el máximo de 0,45~s y la peor lista tuvo un
+percentil 95 de 0,42~s; ninguna ejecución se acercó a los 8~s de DP-03, así que ESC-D4 se cumple
+con un margen de más de 25 veces. La medición cubre la optimización y no la lectura ni la
+recuperación de candidatos, que el banco ya trae resueltas.
 
 % =====================================================================
 \subsection{Verificación de la versión evaluada}
 \label{sec:calidad}
+
+Las secciones anteriores evalúan cada etapa por separado. Esta evalúa el sistema ya integrado.
 
 La versión evaluada del 8 de octubre se verificó con un plan de diez fases: la línea base, la
 matriz de requisitos no funcionales, las pruebas unitarias, de integración, funcionales,
@@ -231,6 +274,9 @@ verificación está en el Anexo~\ref{anx:ampliaciones}.
 \subsection{Auditoría de seguridad y privacidad}
 \label{sec:defectos}
 
+Además de que el sistema acierte, debe proteger a quien lo usa, porque recibe fotos de listas y datos
+personales.
+
 Dentro del OE2 se hicieron dos auditorías, listadas en la Tabla~\ref{tab:anexos}: la de
 autorización y la de tratamiento de datos personales (Anexo~M), esta conforme a la Ley 1581 de 2012
 \citep{congreso_ley1581_2012} y al Decreto 1377 de 2013 \citep{presidencia_decreto1377_2013}. Las
@@ -243,6 +289,8 @@ La auditoría encontró defectos de gravedad desigual. El de mayor alcance estab
 % =====================================================================
 \subsection{Resultados del control de calidad}
 \label{sec:control-calidad}
+
+La verificación y las auditorías se resumen aquí por niveles de control.
 
 El control de calidad se organizó en cuatro niveles. Las pruebas de unidad y de integración
 verifican cada servicio y sus fronteras, y se presentan en la Sección~\ref{sec:calidad}. Las
