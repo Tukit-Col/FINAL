@@ -453,7 +453,9 @@ class TestLaCompra:
         padre, vista = corregido["padre"], corregido["vista"]
         perfil = vista["recomendado"]["perfil"]
         kit = next(k for k in vista["kits"] if k["perfil"] == perfil)
-        # Lo mismo que `trabajos.ordenar` deja fuera: lo informativo y lo que no tiene producto o precio.
+        # Lo mismo que `trabajos.ordenar` deja fuera: lo informativo, lo descartado, lo que no tiene
+        # producto o precio y, desde f1e1a26, lo que quedo en cero. El diccionario de ingles «disponible
+        # en casa» ya trae producto en C034 con cantidad 0 (N-170), y no se cobra (N-176).
         comprables = [
             {
                 "sku": elegido["sku"],
@@ -462,7 +464,11 @@ class TestLaCompra:
                 "precio_unitario": elegido["precio"],
             }
             for linea in kit["lineas"]
-            if not linea["informativa"] and (elegido := linea.get("producto_elegido")) and elegido["precio"]
+            if not linea["informativa"]
+            and not linea.get("descartado")
+            and (elegido := linea.get("producto_elegido"))
+            and elegido["precio"]
+            and int(linea["unidades_a_comprar"]) > 0
         ]
 
         orden = http_flujo.post(

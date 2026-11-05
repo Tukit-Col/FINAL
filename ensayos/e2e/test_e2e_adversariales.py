@@ -282,11 +282,8 @@ class TestNadaSeFiltra:
         colegios = {s["colegio"] for s in subidas["por_fixture"].values()}
         assert [s for s in de_el if s["colegio_nombre"] in colegios] == []
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="H-C-06 (punto 4): el router /v1/admin de catalogo no lee Authorization; otro acudiente lee "
-        "la revision de la lista ajena, con el nombre del menor que el modelo transcribio",
-    )
+    # Salio de H-C-06 (punto 4) en `b6b6fe7`: 46a0c4a pide en la puerta la sesion del equipo para todo
+    # `/v1/admin`, y otro acudiente recibe 403 (N-176).
     def test_otro_acudiente_no_lee_la_revision_de_la_lista_ajena(
         self, http_flujo, papa, subidas, record_property
     ):
