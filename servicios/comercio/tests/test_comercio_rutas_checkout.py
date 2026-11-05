@@ -780,7 +780,11 @@ async def test_despachar_exige_nombre_y_celular_del_repartidor_y_no_cambia_el_es
     assert respuesta.status_code == 422
     assert respuesta.json() == {
         "error": "despacho_incompleto",
-        "mensaje": "Para despachar hacen falta el nombre y el celular del repartidor.",
+        # cef2c25: el despacho tambien puede ir por transportadora con su guia.
+        "mensaje": (
+            "Para despachar hacen falta el nombre y el celular del repartidor, "
+            "o una transportadora con su guia."
+        ),
         "campo": campo,
     }
     pedido = (await http.get(f"/v1/ordenes/{pedido_id}")).json()

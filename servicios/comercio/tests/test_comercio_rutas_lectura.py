@@ -204,7 +204,9 @@ async def test_tablero_muestra_el_ultimo_intento_de_pago_de_cada_pedido(entorno)
 
     esperado = {"referencia_wompi": "ref-nueva", "metodo": "pse", "estado": "iniciado", "monto": 9000}
     assert en_tablero == esperado
-    assert en_detalle == esperado
+    # 669e914: el detalle agrega lo que solo ve el staff del ultimo intento (`datos_de_pago_staff`).
+    assert {k: en_detalle[k] for k in esperado} == esperado
+    assert en_detalle["transaccion_wompi"] is None  # sigue `iniciado`
 
 
 # --- detalle de un pedido -----------------------------------------------------------------------
