@@ -1,0 +1,69 @@
+\subsection{Datos del sistema}
+\label{anx:datos-sistema}
+
+En CRISP-DM, esta subsección corresponde a la comprensión y la preparación de los datos. Antes de
+construir las etapas del pipeline fue necesario saber con qué se alimentan y con qué se miden. Los
+datos son de dos clases: el catálogo, que el sistema consulta para armar los kits, y los conjuntos de
+evaluación, que sirven para medir cada etapa. Se describen por separado porque cumplen funciones
+distintas y tienen sesgos distintos.
+
+\paragraph{Catálogo.} Al descartar la extracción masiva de las tiendas (Sección~\ref{sec:consolidacion}),
+el catálogo se construyó desde la demanda: un producto entra cuando una lista lo pide y el equipo
+confirma la correspondencia. Cada producto pertenece a un concepto, la categoría de útil que una lista
+nombra (por ejemplo, cuaderno o lápiz), y se clasifica en un nivel de precio y marca: económico,
+confiable o premium. La curaduría distingue los empaques de las unidades. Un paquete de varias unidades
+se registra con su número de unidades por empaque para que el precio se compare por unidad, y las
+variantes de un mismo producto (color o tamaño) se agrupan en un grupo de variantes. Dentro de cada
+grupo, un producto se marca como representante canónico (\texttt{es\_representante\_canonico}); solo
+los representantes participan en la búsqueda y en la optimización, de modo que una variante no
+desplaza a su grupo ni duplica un candidato. El modo \texttt{--surtir} del programa de curaduría
+amplía el catálogo, y la cobertura por nivel de cada concepto
+se verifica en celdas de concepto y nivel, porque un kit necesita al menos un candidato en cada una.
+Los embeddings, vectores que representan el texto de cada producto, se calculan con
+gemini-embedding-001 (1.024 dimensiones) y se indexan con HNSW en pgvector.
+
+\begin{table}[htbp]
+\centering
+\caption{Catálogo y conjuntos de evaluación del sistema}
+\label{tab:datos-sistema}
+\small
+\begin{tabularx}{\linewidth}{@{}p{3.6cm}p{4.4cm}X@{}}
+\toprule
+\textbf{Atributo} & \textbf{Valor} & \textbf{Fuente} \\
+\midrule
+Productos del catálogo & 1.054 (1.044 activos) & \texttt{datos/catalogo/productos\_canonicos.csv} \\
+Representantes canónicos & 417 de 1.054 & mismo archivo, columna \texttt{es\_representante\_canonico} \\
+Conceptos & 149 definidos; 133 con producto & \texttt{conceptos.csv}; \texttt{concepto\_id} del archivo de productos \\
+Niveles & confiable 572, económico 268, premium 214 & columna \texttt{nivel} \\
+Tiendas de procedencia & 8 & \texttt{ofertas\_tienda.csv} (columna \texttt{tienda\_id}) \\
+Embeddings & gemini-embedding-001, 1.024 dimensiones, HNSW & código y SDD \\
+CGS-10 (percepción) & 10 documentos, 1.293 ítems & Sección~\ref{sec:percepcion} \\
+Oro de recuperación & 2.588 renglones de 4.719 ítems y 98 conceptos & Sección~\ref{sec:recuperacion} \\
+Banco de listas reales & 175 instancias de 174 listas de 17 colegios & \texttt{ensayos/bench\_laya/instancias.json.gz} \\
+Partición por colegio & 3 colegios de prueba (32 listas) y 14 en cinco pliegues & \texttt{calibracion\_nsga.json}, campo \texttt{particion} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Las cifras de la Tabla~\ref{tab:datos-sistema} corresponden al archivo versionado el 4 de noviembre de
+2026. Difieren ligeramente de las de la Sección~\ref{sec:consolidacion}, que describen el estado al
+cierre de la construcción: el catálogo sigue creciendo con la curaduría, y la tabla toma el archivo
+versionado, no el conteo de aquella sección.
+
+\paragraph{Conjuntos de evaluación.} Hay cuatro. El primero es CGS-10, el conjunto de oro de
+percepción: diez documentos con 1.293 ítems anotados, sobre el que se compararon los cinco motores de
+lectura. El segundo es el conjunto de oro de recuperación, de 2.588 renglones tomados de los 4.719
+ítems de las listas, con 98 conceptos, que midió la regla de resolución de una versión anterior. El
+tercero es el banco de listas reales, de 175 instancias derivadas de 174 listas de 17 colegios, que
+alimenta la calibración y la evaluación del optimizador. El cuarto no es un conjunto sino una
+partición de ese banco: los colegios se dividen en un grupo de prueba de tres, con 32 listas, y 14 de calibración repartidos en cinco pliegues. Se divide por
+colegio y no por lista porque las listas de un mismo colegio se parecen entre sí, y una partición por
+lista dejaría ver a la calibración listas casi idénticas a las de prueba.
+
+\paragraph{Sesgos conocidos.} Cada conjunto tiene una limitación que condiciona su lectura.
+CGS-10 se armó corrigiendo la salida de uno de los motores evaluados, por lo que el F1 de ese motor no
+es independiente del oro. El oro de recuperación solo ejercitó el canal léxico, porque los 609
+productos de entonces tenían el embedding vacío. El banco de listas es pequeño y agrupado: 17 colegios,
+con listas de un mismo colegio correlacionadas. Y la partición por colegio deja solo tres colegios de
+prueba, así que sus intervalos son anchos. Las secciones de resultados repiten cada sesgo junto a la
+cifra que afecta.
