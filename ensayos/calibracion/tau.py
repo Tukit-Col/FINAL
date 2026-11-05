@@ -120,6 +120,43 @@ def metricas(parecido: np.ndarray, y: np.ndarray, tau: float) -> dict:
     }
 
 
+def matriz_confusion(parecido: np.ndarray, y: np.ndarray, tau: float) -> dict:
+    """Aceptar sin revision (parecido >= tau) frente a acierto del resolver segun el revisor."""
+    acepta = parecido >= tau
+    tp, fp = int((acepta & y).sum()), int((acepta & ~y).sum())
+    fn, tn = int((~acepta & y).sum()), int((~acepta & ~y).sum())
+    p = tp / (tp + fp) if tp + fp else None
+    r = tp / (tp + fn) if tp + fn else None
+    f1 = 2 * p * r / (p + r) if p and r else None
+    return {"tau": tau, "tp": tp, "fp": fp, "fn": fn, "tn": tn, "precision": p, "recall": r, "f1": f1}
+
+
+def curva_roc(parecido: np.ndarray, y: np.ndarray) -> list[dict]:
+    """Un punto por cada valor distinto de parecido (umbral), de mayor a menor, mas los extremos."""
+    pos, neg = int(y.sum()), int((~y).sum())
+    puntos = [{"umbral": None, "fpr": 0.0, "tpr": 0.0}]
+    for t in sorted(np.unique(parecido), reverse=True):
+        acepta = parecido >= t
+        puntos.append({"umbral": float(t), "fpr": float((acepta & ~y).sum() / neg), "tpr": float((acepta & y).sum() / pos)})
+    return puntos
+
+
+def ic_bootstrap(parecido: np.ndarray, y: np.ndarray, tau: float, repeticiones: int = 2000) -> dict:
+    """IC 95 % por percentiles, remuestreando renglones; el AUC con el mismo remuestreo."""
+    rng = np.random.default_rng(n.SEMILLA_BASE)
+    acum: dict[str, list[float]] = {"precision": [], "recall": [], "f1": [], "auc": []}
+    for _ in range(repeticiones):
+        i = rng.integers(0, len(y), len(y))
+        m = matriz_confusion(parecido[i], y[i], tau)
+        for k in ("precision", "recall", "f1"):
+            if m[k] is not None:
+                acum[k].append(m[k])
+        a = auc(parecido[i], y[i])
+        if a is not None:
+            acum["auc"].append(a)
+    return {k: [float(np.percentile(v, 2.5)), float(np.percentile(v, 97.5))] for k, v in acum.items()}
+
+
 def elegir_tau(parecido: np.ndarray, y: np.ndarray) -> float:
     for tau in np.unique(parecido):
         m = metricas(parecido, y, float(tau))
@@ -143,6 +180,9 @@ def main() -> int:
         "parecido_min_mediana_max": [float(parecido.min()), float(np.median(parecido)), float(parecido.max())],
         "auc_parecido": auc(parecido, y),
         "en_tau_actual": metricas(parecido, y, TAU_ACTUAL),
+        "matriz_tau_actual": matriz_confusion(parecido, y, TAU_ACTUAL),
+        "ic95_bootstrap_tau_actual": ic_bootstrap(parecido, y, TAU_ACTUAL),
+        "roc": curva_roc(parecido, y),
         "curva": [metricas(parecido, y, t) for t in (0.0, 0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0)],
     }
     rng = np.random.default_rng(n.SEMILLA_BASE)

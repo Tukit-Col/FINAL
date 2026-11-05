@@ -9,7 +9,7 @@ Cada fila: término o cifra, valor canónico y fuente. Estado: V = verificado en
 | Cliente | PWA instalable (no app nativa) | rama `validacion/oe5`, `apps/web` | V |
 | Capacitor / apps nativas | No existe. Solo trabajo futuro, nunca como hecho | coordinación | V |
 | Despliegue | Minikube local; sin autoescalado ni clúster gestionado | SPMP S3, SAD | V |
-| Desplegables | 7: identidad, catálogo, inteligencia, comercio, operación, puerta de enlace, ingesta | SAD (ADR 0012, 0014), `servicios/` | V |
+| Desplegables | 6 con código: identidad, catálogo, inteligencia, comercio, operación y puerta de enlace. La ingesta del diseño (ADR 0012, 0014) se reemplazó por el catálogo curado y no tiene servicio (decisión del autor, 5-nov-2026) | `servicios/` (6 carpetas) | V |
 | Servicios de dominio con base propia | 5 (el mapa de 6 era el ADR 0001, superado) | SAD líneas 315 a 323 | V |
 | Bases de datos | 5 | SAD | V |
 | Tablas | 74 (manifiesto: identidad 16, catálogo 19, inteligencia 12, comercio 18, operación 9; igual que los modelos del código). LEEME (70) y README (69) están desactualizados | `arquitectura/manifiesto.toml`, `servicios/*/modelos` | V |
@@ -45,7 +45,7 @@ Cada fila: término o cifra, valor canónico y fuente. Estado: V = verificado en
 | 0,85 / 0,50 del SDD (8.3) | Clasificación del puntaje multiatributo del mejor candidato; es otro parámetro que τ y se nombra así | SDD 8.3 | V |
 | Brecha δ = 0,05 del SDD | No aparece en `estado_desde_emparejamiento`; retirar o marcar no implementada | `dominio/pipeline.py` | V |
 | Calibración (precisión, cobertura, AUC) | No se citan: no hay una calibración válida | coordinación | V |
-| Listas de útiles | 17 colegios con lista, 4.719 ítems (el 18 y el 20 se retiran) | `datos/listas/colegios.csv`, `items_lista.csv` | V |
+| Listas de útiles | 17 colegios con lista, 4.719 ítems en el corpus vigente (`items_lista.csv`, con libros, licencias y uniformes). El OE1 (acta del 21-sep) contó 3.608 ítems y 1.451 formas de nombrar sobre el corpus de entonces (`Arquitectura/Corpus_ItemLista.csv`, verificado: 3.610 filas, 1.451 textos distintos); son el mismo corpus de 17 colegios más 1.109 ítems agregados después (verificado: los 3.610 del OE1 están todos en el corpus vigente) | `datos/listas/colegios.csv`, `items_lista.csv` | V |
 
 ## NL2C
 
@@ -125,3 +125,6 @@ Cada fila: término o cifra, valor canónico y fuente. Estado: V = verificado en
 | Carga L-02 (RNF05, DP-02) | 5-nov-2026, versión `dc8e2e7` (b6b6fe7 + override del modelo simulado), rampa de 5 a 100 usuarios en 15 min con el arnés de Tukit-QA. Windows 11 / WSL2 con 4 CPU: saturación desde 30 usuarios (H-B-08). Apple M4 nativo: 25.706 peticiones, 0 errores, sin saturación hasta 100; p95 del catálogo por ventana de 180 a 420 ms hasta 50 usuarios y 2,5 s con 100; catálogo al 100 % de un núcleo en el pico | `docs/informes/calidad/carga_mac_2026-11-05/`, Tukit-QA `resultados/informe-fases-7-9.md` | V |
 | Hallazgos de QA | 85 vigentes (17 H-C, 57 H-A, 11 H-B; 16 alta, 58 media, 11 baja) y 10 cerrados, al 5-nov-2026 | Tukit-QA `trazabilidad/hallazgos.md`, `docs/informes/calidad/hallazgos_qa_oficial.csv` | V |
 | Benchmark PD vs NSGA-II | FINAL@a8f09c7 (optimizador igual a b6b6fe7): PD = enumeración en 65/65 listas; medianas PD 0,64 ms / 0,12 MiB vs NSGA-II 243 ms / 0,82 MiB; hogar de 8 hijos y 313 líneas PD 2,56 s / 297 MiB vs 1,46 s / 12,6 MiB; una semilla | Tukit-Benchmarks `06-optimizacion` (8d917ae) | V |
+
+| ADR | 49 decisiones: 0001-0026 en `Arquitectura/adr/` (fuera del repo del código, entregadas en el paquete de anexos) y 0027-0049 en `docs/arquitectura/adr/` | ambas carpetas | V |
+| Calibración de τ (re-corrida 5-nov sobre b6b6fe7) | 405 pares, 351 aciertos, AUC 0,921; en τ = 0,75: TP 329, FP 11, FN 22, TN 43, precisión 0,968, recall 0,937, F1 0,952 | `docs/informes/calibracion/tau.json` | V |
