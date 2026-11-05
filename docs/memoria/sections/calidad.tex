@@ -46,6 +46,24 @@ presentar y cuya causa no se identificó. No se
 ejecutó el pago con las llaves de sandbox de Wompi, ni pruebas en dispositivos, ni una auditoría de
 dependencias de Python.
 
+\paragraph{Pruebas que fijan los defectos encontrados.} Después de esa corrida, el control de
+calidad se amplió el 4 de noviembre con pruebas de integración, de extremo a extremo y adversariales
+escritas para buscar fallas y no para confirmar lo que ya funcionaba (rama \texttt{a/fases-2-6-oe5}).
+Cada defecto que encontraron quedó fijado como una prueba que se marca como fallo esperado
+(\texttt{xfail} estricto): la suite sigue en verde mientras el defecto exista y se pone en rojo el día
+en que alguien lo arregla sin quitar la marca, de modo que ningún hallazgo se pierde ni se cierra en
+silencio. Quedaron 59 hallazgos abiertos, cubiertos por 108 de esas pruebas. Por característica de
+calidad: 14 de seguridad (rutas de administración que responden sin sesión, administrador sin
+segundo factor, el nombre del menor que llega sin depurar al proveedor del modelo), 5 de privacidad
+(el retracto deja activa la reserva y no mira la fecha de entrega, la supresión confirmada no se
+publica), 12 de fiabilidad (sin idempotencia al crear la orden, el disyuntor tarda hasta 300~s en
+abrir, el sistema arranca con la pasarela falsa sin avisarlo), 24 de adecuación funcional (cantidades
+que se leen como 1, huecos del catálogo sin sustitutos) y 4 de mantenibilidad (el contrato
+documenta rutas que no existen). La lista completa está en la Tabla~\ref{tab:hallazgos-abiertos} del
+anexo y en \path{docs/informes/calidad/hallazgos_qa.csv}. Ninguno impide el recorrido que se evaluó
+con los acudientes, pero los de seguridad y privacidad son condición para operar con datos y pagos
+reales, y por eso encabezan el trabajo futuro.
+
 \paragraph{Trazabilidad con la ISO/IEC 25010.} La Tabla~\ref{tab:iso25010} ordena la evidencia de
 los cuatro niveles por característica de calidad del modelo de producto \citep{iso_25010_2011}, para
 que se vea qué característica quedó probada, cuál solo parcialmente y cuál no.
@@ -63,8 +81,8 @@ Adecuación funcional & 2.542 pruebas Python y las de las dos aplicaciones web; 
 Eficiencia de desempeño & Carga de lectura con p95 de 9,6 a 48,7~ms; ESC-D4 del optimizador con p95 de 0,31~s frente a 8~s en 10.500 ejecuciones; DP-02 con 50 acudientes concurrentes sin medir & Parcial \\
 Compatibilidad & Pruebas de fronteras entre servicios (75) y del contrato entre la web y la API (67) & Probada \\
 Usabilidad & Seis sesiones con acudientes: T6 4 de 5 y T4 1 de 5 sin ayuda; SUS medio de 90 [82--98] por formulario de cierre & Cumplido \\
-Fiabilidad & Ensayos de degradación del nivel 1 sobre la versión del 8 de octubre (14 de 18 cumplidos); niveles 2 y 3 sin ejecutar & Parcial \\
-Seguridad & Lectura de kits ajenos cerrada (401/404), 0 vulnerabilidades web, 0 de 81 ataques al asistente; un token en el historial & Parcial \\
+Fiabilidad & Ensayos de degradación del nivel 1 sobre la versión del 8 de octubre (14 de 18 cumplidos); niveles 2 y 3 sin ejecutar; 12 hallazgos abiertos & Parcial \\
+Seguridad & Lectura de kits ajenos cerrada (401/404), 0 vulnerabilidades web, 0 de 81 ataques al asistente; un token en el historial; 14 hallazgos abiertos & Parcial \\
 Mantenibilidad & Cobertura de 54 a 98\,\% por servicio, sin umbral en la integración continua; funciones de aptitud de arquitectura & Parcial \\
 Portabilidad & Servicios en contenedores levantados con Docker Compose; sin pruebas en dispositivos & Parcial \\
 \bottomrule
