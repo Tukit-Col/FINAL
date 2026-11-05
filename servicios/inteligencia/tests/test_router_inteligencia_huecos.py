@@ -38,7 +38,7 @@ import httpx
 import pytest
 from conftest import CatalogoFalso, opcion, reconocido, renglon
 from sqlalchemy import select
-from test_trabajos import _catalogo, _crear_y_procesar
+from test_trabajos import _canonico, _catalogo, _crear_y_procesar
 from tukit_comun.http import ErrorDominio
 from tukit_inteligencia import api, trabajos
 from tukit_inteligencia.api import app
@@ -74,6 +74,11 @@ class IdentidadSesiones:
     )
     contactos: list[str] = field(default_factory=list)
     directorio: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+    async def colegios_conocidos(self) -> list[dict[str, Any]]:
+        # `GET /v1/colegios`: subir listas lo consulta para reusar un colegio ya conocido.
+        # La lista vacia es tambien lo que devuelve con Identidad caida.
+        return []
 
     async def sesion(self, token: str) -> dict[str, Any] | None:
         if token not in self.sesiones:
@@ -210,9 +215,9 @@ async def _item_de(motor: Any, trabajo_id: uuid.UUID, orden: int) -> uuid.UUID:
 
 
 async def _publicado(entorno: Entorno) -> uuid.UUID:
-    trabajo_id, _ = await _crear_y_procesar(entorno.motor, entorno.catalogo)
-    await trabajos.revisar(entorno.motor, trabajo_id, decision="aprobar")
-    return trabajo_id
+    """El kit canonico publicado del grado. Desde d37c235 nace de la lista (`canonico_lista`) y no
+    de aprobar el trabajo de un papa: el selector y aplicar-canonico solo miran ese origen."""
+    return await _canonico(entorno.motor, entorno.catalogo)
 
 
 def _multipart(partes: list[tuple[str, str | None, bytes]]) -> tuple[bytes, str]:
@@ -664,7 +669,7 @@ class TestOnboardingMalFormado:
         return [(nombre, ("lista.pdf", b"%PDF-ficticio", "application/pdf"))]
 
     async def test_sin_multipart_es_422(self, entorno):
-        respuesta = await entorno.http.post("/v1/admin/onboarding", json=self._campos())
+        respuesta = await entorno.http.post("/v1/admin/onboarding", headers=OPERADOR, json=self._campos())
 
         assert respuesta.status_code == 422
         assert respuesta.json() == {
@@ -672,20 +677,32 @@ class TestOnboardingMalFormado:
             "mensaje": "Sube la lista como multipart/form-data.",
         }
 
-    @pytest.mark.parametrize("falta", ["colegio_id", "grado", "anio_lectivo"])
-    async def test_cada_campo_obligatorio_se_exige_y_se_nombra(self, entorno, falta):
+    # El colegio se designa de una de tres formas (id, DANE o nombre, `ColegioElegido`): sin
+    # ninguna es `colegio_requerido` sobre `colegio`, antes de percibir.
+    @pytest.mark.parametrize(
+        ("falta", "error", "campo"),
+        [
+            ("colegio_id", "colegio_requerido", "colegio"),
+            ("grado", "campo_faltante", "grado"),
+            ("anio_lectivo", "campo_faltante", "anio_lectivo"),
+        ],
+    )
+    async def test_cada_campo_obligatorio_se_exige_y_se_nombra(self, entorno, falta, error, campo):
         respuesta = await entorno.http.post(
-            "/v1/admin/onboarding", data=self._campos(**{falta: True}), files=self._archivo()
+            "/v1/admin/onboarding",
+            headers=OPERADOR,
+            data=self._campos(**{falta: True}),
+            files=self._archivo(),
         )
 
         assert respuesta.status_code == 422
-        assert respuesta.json()["error"] == "campo_faltante"
-        assert respuesta.json()["campo"] == falta
+        assert respuesta.json()["error"] == error
+        assert respuesta.json()["campo"] == campo
         assert entorno.catalogo.importadas == []
 
     async def test_sin_el_campo_archivo_es_422_archivo_faltante(self, entorno):
         respuesta = await entorno.http.post(
-            "/v1/admin/onboarding", data=self._campos(), files=self._archivo("otro")
+            "/v1/admin/onboarding", headers=OPERADOR, data=self._campos(), files=self._archivo("otro")
         )
 
         assert respuesta.status_code == 422
@@ -696,7 +713,9 @@ class TestOnboardingMalFormado:
     async def test_un_anio_que_no_es_numero_es_422_antes_de_percibir(self, entorno):
         campos = {**self._campos(), "anio_lectivo": "dos mil veintiseis"}
 
-        respuesta = await entorno.http.post("/v1/admin/onboarding", data=campos, files=self._archivo())
+        respuesta = await entorno.http.post(
+            "/v1/admin/onboarding", headers=OPERADOR, data=campos, files=self._archivo()
+        )
 
         assert respuesta.status_code == 422
         assert respuesta.json()["error"] == "anio_invalido"
@@ -1060,28 +1079,48 @@ class TestSelectorYMetricas:
 # Cada ruta del equipo interno, con lo minimo para que la peticion sea valida: si la puerta
 # existiera responderia 401/403 ANTES de mirar el cuerpo o buscar el trabajo.
 _PREVIEW = {"colegio_id": COLEGIO, "grado": "Cuarto", "anio_lectivo": 2026}
+# El onboarding ya pasa por `_exigir_staff` (46a0c4a): sale del xfail; las demas siguen abiertas.
+_SIN_PUERTA = pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "H-C-06: las rutas /v1/admin/* no llaman a _exigir_staff (routers/inteligencia.py:858-1098, "
+        "50-71; solo lo usa :1152): sin token o con rol de acudiente responden como si fueran staff"
+    ),
+)
 RUTAS_ADMIN = [
-    pytest.param("GET", "/v1/admin/cola", {}, id="cola"),
-    pytest.param("GET", f"/v1/admin/colegios/{COLEGIO}/acudientes", {}, id="acudientes_de_colegio"),
-    pytest.param("GET", f"/v1/admin/trabajos/{INEXISTENTE}", {}, id="ver_trabajo"),
-    pytest.param("DELETE", f"/v1/admin/trabajos/{INEXISTENTE}", {}, id="eliminar_trabajo"),
+    pytest.param("GET", "/v1/admin/cola", {}, id="cola", marks=_SIN_PUERTA),
     pytest.param(
-        "POST", f"/v1/admin/trabajos/{INEXISTENTE}/lineas/{INEXISTENTE}/validar", {"json": {}}, id="validar"
+        "GET", f"/v1/admin/colegios/{COLEGIO}/acudientes", {}, id="acudientes_de_colegio", marks=_SIN_PUERTA
+    ),
+    pytest.param("GET", f"/v1/admin/trabajos/{INEXISTENTE}", {}, id="ver_trabajo", marks=_SIN_PUERTA),
+    pytest.param("DELETE", f"/v1/admin/trabajos/{INEXISTENTE}", {}, id="eliminar_trabajo", marks=_SIN_PUERTA),
+    pytest.param(
+        "POST",
+        f"/v1/admin/trabajos/{INEXISTENTE}/lineas/{INEXISTENTE}/validar",
+        {"json": {}},
+        id="validar",
+        marks=_SIN_PUERTA,
     ),
     pytest.param(
         "PUT",
         f"/v1/admin/trabajos/{INEXISTENTE}/kits/Ahorrador/lineas/{INEXISTENTE}/producto",
         {"json": {"sku": "TK-C001-ECO"}},
         id="fijar_producto",
+        marks=_SIN_PUERTA,
     ),
     pytest.param(
         "POST",
         f"/v1/admin/trabajos/{INEXISTENTE}/lineas/{INEXISTENTE}/sin-coincidencia",
         {"json": {}},
         id="sin_coincidencia",
+        marks=_SIN_PUERTA,
     ),
     pytest.param(
-        "POST", f"/v1/admin/trabajos/{INEXISTENTE}/revision", {"json": {"decision": "aprobar"}}, id="revision"
+        "POST",
+        f"/v1/admin/trabajos/{INEXISTENTE}/revision",
+        {"json": {"decision": "aprobar"}},
+        id="revision",
+        marks=_SIN_PUERTA,
     ),
     pytest.param(
         "POST",
@@ -1092,18 +1131,17 @@ RUTAS_ADMIN = [
         },
         id="onboarding",
     ),
-    pytest.param("POST", f"/v1/admin/onboarding/{INEXISTENTE}/preview", {"json": _PREVIEW}, id="preview"),
+    pytest.param(
+        "POST",
+        f"/v1/admin/onboarding/{INEXISTENTE}/preview",
+        {"json": _PREVIEW},
+        id="preview",
+        marks=_SIN_PUERTA,
+    ),
 ]
 
 
 class TestControlDeAcceso:
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-C-06: las rutas /v1/admin/* no llaman a _exigir_staff (routers/inteligencia.py:858-1098, "
-            "50-71; solo lo usa :1152): sin token o con rol de acudiente responden como si fueran staff"
-        ),
-    )
     @pytest.mark.parametrize(("metodo", "ruta", "argumentos"), RUTAS_ADMIN)
     async def test_una_ruta_admin_pide_sesion_y_rol_de_staff(self, entorno, metodo, ruta, argumentos):
         """Sin token debe ser 401 y con la sesion de un acudiente 403, como `/v1/metricas/.../pedidos`."""

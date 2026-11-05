@@ -295,8 +295,11 @@ class TestPuntoDeEntrada:
 
 
 class TestPuertosDePercepcion:
-    def test_el_envoltorio_usa_los_puertos_del_modulo_y_se_pueden_sustituir(self, monkeypatch):
-        """`_RENDERIZAR` y `_LEER` se leen en cada llamada: es el punto de inyeccion del onboarding."""
+    async def test_el_envoltorio_usa_los_puertos_del_modulo_y_se_pueden_sustituir(self, monkeypatch):
+        """`_RENDERIZAR` y `_LEER` se leen en cada llamada: es el punto de inyeccion del onboarding.
+
+        Desde 32d7bc5 el envoltorio es asincrono: antes de leer mira la lectura guardada en Redis
+        (`cache_lecturas`); aqui no hay Redis (`_sin_redis` del conftest) y lee con los puertos."""
         from tukit_inteligencia.percepcion import ItemExtraido, PaginaLeida
 
         leidas: list[tuple[bytes, int]] = []
@@ -308,7 +311,7 @@ class TestPuertosDePercepcion:
         monkeypatch.setattr(api, "_RENDERIZAR", lambda contenido: [contenido, contenido])
         monkeypatch.setattr(api, "_LEER", _leer)
 
-        percepcion = api._percibir_onboarding(b"imagen-ficticia")
+        percepcion = await api._percibir_onboarding(b"imagen-ficticia")
 
         assert percepcion.aceptada is True
         assert percepcion.paginas == 2

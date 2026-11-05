@@ -31,7 +31,7 @@ from typing import Any
 import pytest
 from conftest import CatalogoFalso, opcion, reconocido, renglon
 from sqlalchemy import select
-from test_trabajos import COLEGIO, _catalogo, _crear_y_procesar
+from test_trabajos import COLEGIO, _canonico, _catalogo, _crear_y_procesar
 from tukit_inteligencia import trabajos
 from tukit_inteligencia.modelos import EstadoResolucion, EstadoTrabajo
 from tukit_inteligencia.remoto import RemotoCaido
@@ -648,9 +648,11 @@ class TestCheckout:
 
 
 class TestCanonicoYSelector:
+    """El canonico nace de la LISTA aprobada (`origen=ORIGEN_CANONICO`), no de aprobar el trabajo
+    de un papa: aprobar ese ya no deja `kit_canonico`. Se usa `_canonico` de `test_trabajos`."""
+
     async def test_aplicar_un_perfil_que_el_canonico_no_tiene_es_trabajo_no_existe(self, motor):
-        canonico, _ = await _crear_y_procesar(motor)
-        await trabajos.revisar(motor, canonico, decision="aprobar")
+        await _canonico(motor)
 
         with pytest.raises(trabajos.TrabajoNoExiste, match="Inexistente"):
             await trabajos.aplicar_canonico(
@@ -663,8 +665,7 @@ class TestCanonicoYSelector:
             )
 
     async def test_el_selector_lista_los_grados_con_cache_y_filtra_por_colegio(self, motor):
-        canonico, _ = await _crear_y_procesar(motor)
-        await trabajos.revisar(motor, canonico, decision="aprobar")
+        canonico = await _canonico(motor)
 
         todos = await trabajos.grados_canonicos(motor)
         del_colegio = await trabajos.grados_canonicos(motor, colegio_id=COLEGIO)
