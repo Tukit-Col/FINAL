@@ -651,8 +651,8 @@ class TestADV09ConsumoSinTope:
 
     @pytest.mark.xfail(
         strict=True,
-        reason="H-C-07: no hay cuota por sesion ni por origen; cien subidas seguidas del mismo hogar "
-        "llegan todas al modelo y ninguna recibe 429",
+        reason="H-C-07: inteligencia no tiene cuota propia (desde 45dc0b7 el limite esta solo en la "
+        "puerta); cien subidas seguidas que le llegan directo van todas al modelo, ninguna recibe 429",
     )
     async def test_cien_subidas_seguidas_reciben_un_429(self, cliente, proveedor, record_property):
         estados = []

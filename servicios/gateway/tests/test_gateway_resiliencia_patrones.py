@@ -8,9 +8,9 @@ deberia aplicar, por ser el unico punto por el que pasa todo el trafico:
 - **Tope del cuerpo (413).** SDD:1467-1475 pone 10 MB en el borde; hoy solo
   existe en el frontend (H-C-07). Un cuerpo de 11 MiB, por encima de 10 MB en
   cualquiera de sus dos lecturas, deberia cortarse sin tocar el destino.
-- **Limite de tasa (429).** La matriz pide «429 tras N peticiones por origen» y
-  ni ATAM v2.0 ni el SDD fijan N: aqui N = 100 seguidas desde la misma IP, sin
-  respaldo en v2.0 (decision N-71). Hoy pasan todas (H-C-07).
+- **Limite de tasa (429).** La matriz pide «429 tras N peticiones por origen».
+  Desde 45dc0b7 N es el tope general de la puerta por IP (ADR 0047); antes se
+  probaba con N = 100 sin respaldo en v2.0 (decision N-71, H-C-07).
 - **Bulkhead.** Un destino colgado no frena a otro, porque no comparten nada.
   Lo que se anota es que tampoco hay tope: cada peticion abre su conexion.
 - **Disyuntor.** Tras cinco fallos seguidos la puerta sigue tocando el destino
@@ -27,6 +27,7 @@ import hashlib
 import httpx
 import pytest
 from test_gateway_proxy import SERVICIOS, _poner
+from tukit_gateway import limite
 from tukit_gateway.api import app
 
 ORIGEN = ("203.0.113.7", 50000)  # TEST-NET-3 (RFC 5737): una IP de documentacion
@@ -94,23 +95,26 @@ class TestElTopeDelCuerpo:
 
 @pytest.mark.nfr("NFR-SEG-03")
 class TestElLimiteDeTasa:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="H-C-07: la puerta no limita la tasa; cien peticiones seguidas desde la misma IP "
-        "pasan todas al servicio de atras, ninguna recibe 429",
-    )
-    async def test_cien_peticiones_seguidas_desde_un_origen_reciben_algun_429(
-        self, monkeypatch, record_property
-    ):
+    # Salio de H-C-07 en `b6b6fe7` (corrida oe5 C3, clase a, N-185): 45dc0b7 pone el limite de
+    # tasa en la puerta (ADR 0047, `limite.py`) con un tope general de 1.200 por IP cada 60 s.
+    # Las 100 de N-71 no llegan a ese tope y seguian en 200 por eso, no por falta de limite: la
+    # rafaga es ahora el tope por omision mas una, desde la misma IP.
+    async def test_una_rafaga_desde_un_origen_que_pasa_el_tope_recibe_429(self, monkeypatch, record_property):
         atras = _poner(monkeypatch, _ok)
+        general, _ = limite.niveles()
 
         async with _puerta() as puerta:
-            estados = [(await puerta.get("/v1/catalogo/conceptos")).status_code for _ in range(100)]
+            estados = [
+                (await puerta.get("/v1/catalogo/conceptos")).status_code for _ in range(general.por_ip + 1)
+            ]
 
+        record_property("tope_por_ip", general.por_ip)
         record_property("peticiones", len(estados))
         record_property("respuestas_429", estados.count(429))
         record_property("llegaron_al_destino", len(atras.peticiones))
-        assert 429 in estados, f"{estados.count(200)} de 100 respondieron 200; ninguna 429"
+        assert estados[:-1] == [200] * general.por_ip
+        assert estados[-1] == 429, f"{estados.count(200)} de {len(estados)} respondieron 200; ninguna 429"
+        assert len(atras.peticiones) == general.por_ip
 
 
 @pytest.mark.nfr("NFR-DIS-05")
