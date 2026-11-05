@@ -225,6 +225,9 @@ class TestSerializacionAlCsv:
             personaje=None,
             imagen_url=None,
             atributos={"hojas": 100},
+            # El empaque se vuelca desde 67ee3f2 (volcar.py:247-248): el CSV manda en el.
+            unidad_base="unidad",
+            unidades_por_empaque=12,
             ruta_categoria=None,
             es_propio=False,
             grupo_variante_id=None,
@@ -245,6 +248,7 @@ class TestSerializacionAlCsv:
         assert fila["es_propio"] == "false"
         assert fila["es_representante_canonico"] == ""
         assert fila["atributos"] == '{"hojas": 100}'
+        assert (fila["unidad_base"], fila["unidades_por_empaque"]) == ("unidad", "12")
         assert fila["curado_por"] == str(CURADOR)
 
     def test_la_procedencia_sale_de_la_oferta_representante(self):

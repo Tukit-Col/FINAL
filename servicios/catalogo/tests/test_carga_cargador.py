@@ -714,25 +714,30 @@ class TestArmadoDeLibros:
         libro = next(p for p in self.armado["producto_canonico"] if p["sku_interno"] == f"TK-LIB-{ISBN_B}")
         assert libro["concepto_id"] == U_DICCIONARIO
 
-    def test_un_concepto_de_libro_nuevo_nace_libro_libre_con_la_demanda_de_la_semilla(self, datos):
+    def test_una_fila_vieja_de_dic_ingles_se_cuelga_del_diccionario_c034(self, datos):
+        """`dic-ingles` ya no nace: se lee como C034 (`CONCEPTOS_LIBRO_FUSIONADOS`, cargador.py:350).
+
+        Antes era un concepto nuevo `libro_libre` con la demanda de la semilla. oe5 lo fundio en
+        C034, que filtra por `idioma`: partido, el mismo diccionario salia curado en un grado y
+        como hueco en otro.
+        """
         self._con_libros(
             datos,
             [_libro(), _libro(isbn13=ISBN_B, titulo="Otro Diccionario Ficticio", tienda_slug="exito")],
         )
-        nuevo = _conceptos_por_codigo(self.armado)["dic-ingles"]
-        assert nuevo["id"] == _uuid_estable("concepto", "dic-ingles")
-        assert nuevo["tipo_item"] == "libro_libre"  # sin esto el pipeline le buscaria papeleria
-        # 8c6e273: la semilla usa la categoria del corpus (el filtro del catalogo
-        # publico), no "libro" (cargador.py:613).
-        assert nuevo["categoria"] == "Diccionario / Biblia / Libros / Constitución"
-        assert nuevo["frecuencia_demanda"] == 2
-        assert nuevo["admite_personaje"] is False
-        assert "diccionario de ingles" in nuevo["sinonimos"]
+        conceptos = _conceptos_por_codigo(self.armado)
+        assert "dic-ingles" not in conceptos
+        assert conceptos["C034"]["id"] == U_DICCIONARIO
+        assert conceptos["C034"]["tipo_item"] == "libro_libre"  # sin esto el pipeline le buscaria papeleria
+        libros = [p for p in self.armado["producto_canonico"] if p["sku_interno"].startswith("TK-LIB-")]
+        assert {p["sku_interno"] for p in libros} == {f"TK-LIB-{ISBN_A}", f"TK-LIB-{ISBN_B}"}
+        assert {p["concepto_id"] for p in libros} == {U_DICCIONARIO}
 
     def test_los_conceptos_de_libro_que_nadie_pidio_no_se_crean(self, datos):
         self._con_libros(datos, [_libro()])
         codigos = set(_conceptos_por_codigo(self.armado))
-        assert "dic-ingles" in codigos
+        assert "dic-ingles" not in codigos  # se lee como C034 (cargador.py:350)
+        assert "C034" in codigos
         assert "C048" in codigos  # la biblia nace aunque la semilla actual no traiga una
         assert "C042" in codigos
 
@@ -847,8 +852,13 @@ def _activar_fusion_jsonb(conexion, _registro):  # noqa: ANN001
     conexion.create_function("fusion_jsonb", 2, _fusion_jsonb)
 
 
+# Desde 02d8f24 el upsert ya no fusiona: `coalesce(nullif(excluded.atributos, '{}'::jsonb), ...)`
+# (cargador.py:895). El cast es de Postgres; en SQLite el JSON es texto y `'{}'` es el vacio.
+_VACIO_JSONB = "'{}'::jsonb"
+
+
 def _traducir_fusion(_conexion, _cursor, sql, parametros, _contexto, _varios):  # noqa: ANN001
-    return _FUSION_ATRIBUTOS.sub(_FUSION_EN_SQLITE, sql), parametros
+    return _FUSION_ATRIBUTOS.sub(_FUSION_EN_SQLITE, sql).replace(_VACIO_JSONB, "'{}'"), parametros
 
 
 @pytest.fixture()
@@ -957,9 +967,10 @@ class TestEscrituraIdempotente:
     async def test_la_segunda_carga_no_deshace_el_enriquecimiento(self, datos, bd):
         """El cargador informaba 330 productos escritos y a la vez borraba las portadas.
 
-        Imagen, atributos, empaque, unidad y personaje los averigua `enriquecer`;
-        el CSV no los sabe, asi que volver a cargar no puede devolverlos al valor
-        sembrado.
+        Desde 02d8f24 (`volcar` exporta lo que la base sabe) el CSV trae el producto
+        completo y manda donde trae dato (cargador.py:886-915): la portada si viene, el
+        personaje siempre (vacio es una decision) y el empaque si el CSV tiene la columna.
+        Lo que el CSV deja vacio no pisa: una portada sin URL y los atributos `{}`.
         """
         c = Cargador(datos)
         await c.escribir(c.armar())
@@ -983,11 +994,29 @@ class TestEscrituraIdempotente:
         bd.rollback()
         producto = bd.get(ProductoCanonico, P_CUADERNO)
         bd.refresh(producto)
-        assert producto.imagen_url == "https://img.example.test/enriquecida.jpg"
-        assert producto.unidades_por_empaque == 6
-        assert producto.unidad_base == "hoja"
-        assert producto.personaje == "Personaje Ficticio"
-        assert producto.atributos == {"hojas": 100}
+        assert producto.imagen_url == "https://img.example.test/c.jpg"  # el CSV la trae: manda
+        assert producto.unidades_por_empaque == 1  # el CSV tiene la columna: manda
+        assert producto.unidad_base == "unidad"
+        assert producto.personaje is None  # vacio en el CSV es una decision
+        assert producto.atributos == {"hojas": 100}  # `{}` en el CSV no dice nada
+
+        bd.execute(
+            update(ProductoCanonico)
+            .where(ProductoCanonico.id == P_CUADERNO)
+            .values(imagen_url="https://img.example.test/enriquecida.jpg")
+        )
+        bd.commit()
+        filas = leer_csv(datos / "productos_canonicos.csv")
+        for f in filas:
+            f["imagen_url"] = ""
+        _csv(datos, "productos_canonicos", COLUMNAS_PRODUCTO, filas)
+        c3 = Cargador(datos)
+        await c3.escribir(c3.armar())
+
+        bd.rollback()
+        producto = bd.get(ProductoCanonico, P_CUADERNO)
+        bd.refresh(producto)
+        assert producto.imagen_url == "https://img.example.test/enriquecida.jpg"  # sin URL no pisa
 
     async def test_admite_personaje_se_deduce_y_el_csv_no_lo_pisa(self, datos, bd):
         """El CSV decia que 7 conceptos admitian personaje; el catalogo ya tenia mas."""

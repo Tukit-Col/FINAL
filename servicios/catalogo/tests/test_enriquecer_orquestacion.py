@@ -668,8 +668,19 @@ class TestAtributosBordes:
     def test_la_longitud_se_normaliza_a_mm_cm_o_m(self, nombre, esperado):
         assert extraer_atributos(nombre, ("longitud",)) == {"longitud": esperado}
 
-    def test_el_calibre_se_lee_como_una_medida(self):
-        assert extraer_atributos("Alambre Ficticio 2.5 milimetros", ("calibre",)) == {"calibre": "2.5 mm"}
+    @pytest.mark.parametrize(
+        ("nombre", "esperado"),
+        [
+            ("Cable Ficticio calibre 22", {"calibre": "22 awg"}),
+            ("Cable Ficticio 18 AWG", {"calibre": "18 awg"}),
+        ],
+    )
+    def test_el_calibre_se_lee_como_su_numero_awg(self, nombre, esperado):
+        """Desde cbb258e el calibre es el numero AWG del cable (enriquecer.py:1139-1144), no una medida."""
+        assert extraer_atributos(nombre, ("calibre",)) == esperado
+
+    def test_un_calibre_en_milimetros_ya_no_se_afirma(self):
+        assert extraer_atributos("Alambre Ficticio 2.5 milimetros", ("calibre",)) == {}
 
     def test_si_el_nombre_no_trae_la_medida_la_clave_no_aparece(self):
         """Nunca `desconocido`: un atributo inventado es peor que uno ausente."""

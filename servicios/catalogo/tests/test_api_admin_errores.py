@@ -205,6 +205,17 @@ async def _item(cliente, item_id: uuid.UUID) -> ItemListaOficial:
         return await sesion.get(ItemListaOficial, item_id)
 
 
+async def _cuaderno_filtra_por(cliente, discriminantes: list[str]) -> None:
+    """Desde `b12973e` lo curado en `atributos` tiene que ser discriminante del concepto
+    (`_exigir_atributos_curables`, 422 `atributo_no_exigible`): C001 filtra por estos."""
+    tabla = Base.metadata.tables["concepto"]
+    async with cliente.fabrica() as sesion:
+        await sesion.execute(
+            tabla.update().where(tabla.c.codigo == "C001").values(atributos_discriminantes=discriminantes)
+        )
+        await sesion.commit()
+
+
 # ---------------------------------------------------------------------------
 # El tipo de contenido del documento de evidencia
 # ---------------------------------------------------------------------------
@@ -432,6 +443,7 @@ async def test_editar_con_un_valor_fuera_del_vocabulario_es_422_con_su_campo(cli
 async def test_editar_persiste_cada_campo_permitido(cliente):
     """Unidad, tipo, modo, instruccion, url y atributos se guardan tal cual; lo demas no se toca."""
     ids = cliente.ids
+    await _cuaderno_filtra_por(cliente, ["rayado"])
     respuesta = await cliente.patch(
         f"/v1/admin/listas/{ids['abierta']}/items/{ids['resuelto']}",
         json={
@@ -460,6 +472,7 @@ async def test_editar_persiste_cada_campo_permitido(cliente):
 async def test_editar_atributos_nulos_los_deja_vacios(cliente):
     """`atributos: null` es "sin atributos" ({}), no un error ni un NULL que rompa la lectura."""
     ids = cliente.ids
+    await _cuaderno_filtra_por(cliente, ["rayado"])
     ruta = f"/v1/admin/listas/{ids['abierta']}/items/{ids['resuelto']}"
     assert (await cliente.patch(ruta, json={"atributos": {"rayado": "liso"}})).status_code == 200
     assert (await cliente.patch(ruta, json={"atributos": None})).status_code == 200
@@ -524,15 +537,9 @@ async def test_editar_una_cantidad_cero_es_cantidad_invalida(cliente):
             ),
             id="unidad-no-hashable",
         ),
-        pytest.param(
-            {"atributos": [1, 2]},
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason="H-A-07: dict(cuerpo['atributos']) sin proteger "
-                "(routers/admin.py:742): atributos que no es objeto es 500 en vez de 422",
-            ),
-            id="atributos-no-objeto",
-        ),
+        # H-A-07 en `atributos` quedo corregido en `b12973e` (routers/admin.py:1152-1160,
+        # 422 si no es un mapa de valores simples): salia XPASS(strict) en la corrida oe5.
+        pytest.param({"atributos": [1, 2]}, id="atributos-no-objeto"),
     ],
 )
 async def test_editar_con_tipos_equivocados_es_422_y_no_500(cliente, cuerpo):
@@ -565,6 +572,7 @@ async def test_agregar_un_renglon_sin_texto_es_texto_requerido(cliente):
 
 async def test_agregar_un_renglon_no_surtible_exige_instruccion(cliente):
     """Lo que Tukit no surte (venta directa del colegio) tiene que decir como conseguirlo."""
+    await _cuaderno_filtra_por(cliente, ["formato"])
     ruta = f"/v1/admin/listas/{cliente.ids['abierta']}/items"
     sin = await cliente.post(
         ruta, json={"texto_original": "agenda", "concepto_codigo": "C001", "modo_adquisicion": "plataforma"}
