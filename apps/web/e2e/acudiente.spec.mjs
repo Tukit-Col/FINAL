@@ -157,7 +157,9 @@ test.describe("flujo del acudiente", () => {
     await expect(pagina.getByRole("listbox", { name: "Direcciones sugeridas" })).toHaveCount(0);
     await expect(pagina.getByRole("listbox", { name: "Direcciones encontradas" })).toBeHidden();
     await expect(pagina.getByText("Ubicación confirmada en el mapa.")).toHaveCount(0);
-    await pagina.getByLabel("Ciudad").fill(stack.ENTREGA_FICTICIA.ciudad);
+    // Exacto: la etiqueta del select de localidad incluye sus opciones, y una es «Ciudad Bolívar»
+    // (`tukit-contrato/src/localidades.ts`), asi que «Ciudad» por subcadena encuentra los dos (N-178).
+    await pagina.getByLabel("Ciudad", { exact: true }).fill(stack.ENTREGA_FICTICIA.ciudad);
     // Con la ciudad en Bogota se enciende la localidad, que es obligatoria.
     await pagina.getByLabel("Localidad").selectOption(stack.ENTREGA_FICTICIA.localidad);
     // Con sesion no se vuelve a pedir el correo: el comprobante va al de la cuenta.
