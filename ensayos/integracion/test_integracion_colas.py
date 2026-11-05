@@ -4,7 +4,7 @@
 el repartidor avisa una vez. Aqui va lo que ninguna prueba del stack mira:
 
 - la entrega de punta a punta va por el modo que declara el lanzador (`QA_MODO`, PEN-92, ADR 0046):
-  con broker estan los tres publicadores; sin el, nadie publica y los consumidores sondean (N-142);
+  con broker estan los cuatro publicadores; sin el, nadie publica y los consumidores sondean (N-142);
 - un evento que se vuelve a entregar no da un segundo aviso (ADR 0042). La reentrega se provoca
   dejando sin publicar el evento del pedido de la propia prueba (N-144);
 - aprobar la lista de un colegio escrito a mano lo da de alta con el id que derivo la subida
@@ -49,7 +49,13 @@ pytestmark = pytest.mark.integracion
 _TOPE_SEGUNDOS = 45.0
 # Con broker, el repartidor toma de la cola lo que el publicador ya marco como publicado.
 _ESPERA_DEL_CONSUMIDOR = 10.0
-_PUBLICADORES = {"publicador-catalogo", "publicador-comercio", "publicador-inteligencia"}
+# oe5 suma el de identidad (`titular_suprimido`, f19dd02).
+_PUBLICADORES = {
+    "publicador-catalogo",
+    "publicador-comercio",
+    "publicador-identidad",
+    "publicador-inteligencia",
+}
 
 _EVENTO_DEL_PEDIDO = "select id from bandeja_salida where tipo = 'pedido_pagado' and agregado_id::text = :p"
 _IMPORTACION_DE_LA_PAGINA = (

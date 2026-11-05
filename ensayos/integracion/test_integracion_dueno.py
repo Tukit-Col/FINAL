@@ -182,7 +182,10 @@ def test_solo_el_dueno_paga_su_kit(
     assert (ajena.status_code, _codigo(ajena)) == (403, "solicitud_ajena")
     assert (sin_sesion.status_code, _codigo(sin_sesion)) == (403, "solicitud_ajena")
     assert propia.status_code == 201, propia.text
-    assert propia.json().get("url_redireccion")
+    # El pago arranco. Sin `url_redireccion` en el cuerpo, la pasarela falsa no redirige y devuelve
+    # `None` (`tukit_comercio/pasarela.py:385`), como fija `test_integracion_resiliencia.py` (N-176).
+    pago = propia.json()
+    assert pago["pago_id"] and pago["referencia_wompi"], pago
 
 
 def test_el_enlace_de_la_ruta_rapida_sigue_sirviendo(

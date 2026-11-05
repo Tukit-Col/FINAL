@@ -30,8 +30,16 @@ from tukit_comun.config import url_desde_entorno
 
 pytestmark = pytest.mark.integracion
 
-# Los dos procesos de `make arriba` que pertenecen a identidad.
-_DUENOS_DE_IDENTIDAD = {"identidad", "poller-identidad"}
+# Los procesos de `make arriba` que pertenecen a identidad (modulos `tukit_identidad`). oe5 suma el
+# publicador de su bandeja y el consumidor de la supresion (f19dd02), y el barrido de supresiones
+# atascadas (c147a6b), que lanza el lanzador porque `make arriba` no lo conoce.
+_DUENOS_DE_IDENTIDAD = {
+    "identidad",
+    "poller-identidad",
+    "publicador-identidad",
+    "supresion-identidad",
+    "barrido-supresion",
+}
 _MUESTRAS = 12
 
 

@@ -303,7 +303,9 @@ async def test_nadie_suprime_ni_revoca_los_datos_de_otro_acudiente(
         headers=otro_titular["ip"],
         json={"correo": otro_titular["correo"], "clave": otro_titular["clave"]},
     )
-    datos_del_otro = cliente.get("/v1/cuenta/mis-datos", headers=otro_titular["cabecera"])
+    # La copia exportable: `/v1/cuenta/mis-datos` enmascara el correo (`enmascarar_correo`, 9d4c8e9),
+    # y la exportacion lo trae entero (N-176).
+    datos_del_otro = cliente.get("/v1/cuenta/mis-datos/exportar", headers=otro_titular["cabecera"])
 
     record_property("sin_sesion", ",".join(map(str, sin_sesion)))
     assert sin_sesion == [401, 401]
