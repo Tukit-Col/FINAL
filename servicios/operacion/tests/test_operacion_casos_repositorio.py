@@ -703,13 +703,7 @@ class TestControlDeAccesoDelBackOffice:
     credencial de staff responden 401/403 y no filtran asuntos) para que, al cerrarlo, estas pruebas
     dejen de ser xfail y protejan la regresion."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-C-06: la bandeja del back-office no exige staff y entrega los casos de todos a cualquiera: "
-            "routers/operacion.py:63-72 (sin dependencia de autenticacion)"
-        ),
-    )
+    # La bandeja y el caso ya pasan por `_exigir_staff` (46a0c4a): salieron del xfail de H-C-06.
     @CREDENCIALES
     async def test_la_bandeja_exige_staff_y_no_filtra_los_casos(self, entorno, cabeceras):
         await _sembrar_caso(entorno.motor, asunto="Asunto Ficticio Confidencial")
@@ -719,13 +713,6 @@ class TestControlDeAccesoDelBackOffice:
         assert respuesta.status_code in (401, 403)
         assert "Asunto Ficticio Confidencial" not in respuesta.text
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-C-06: el detalle de un caso no exige staff ni que el caso sea del solicitante: "
-            "routers/operacion.py:75-81 (sin dependencia de autenticacion)"
-        ),
-    )
     @CREDENCIALES
     async def test_el_detalle_de_un_caso_exige_staff_y_no_lo_entrega_a_cualquiera(self, entorno, cabeceras):
         caso_id = await _sembrar_caso(entorno.motor, asunto="Asunto Ficticio Confidencial")
