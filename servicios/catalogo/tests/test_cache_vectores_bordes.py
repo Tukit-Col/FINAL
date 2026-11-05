@@ -58,7 +58,6 @@ def redis() -> RedisEnMemoria:
 @pytest.fixture()
 async def redis_colgado() -> AsyncIterator[ClienteRedis]:
     """El cliente de verdad contra un puerto de 127.0.0.1 que acepta y nunca escribe."""
-    pytest.importorskip("redis")
     soltar = asyncio.Event()
 
     async def atender(_lector: asyncio.StreamReader, escritor: asyncio.StreamWriter) -> None:

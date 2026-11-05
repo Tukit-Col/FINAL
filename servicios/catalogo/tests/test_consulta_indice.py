@@ -421,13 +421,13 @@ def test_un_producto_de_nivel_desconocido_no_se_ofrece():
 # --- calcular_vectores y el entorno -------------------------------------------
 
 
-def test_sin_embeder_o_sin_renglones_no_hay_vectores():
+async def test_sin_embeder_o_sin_renglones_no_hay_vectores():
     """Sin canal semantico cada renglon queda con `None`; una lista vacia da una lista vacia."""
-    assert calcular_vectores(["a", "b"], None) == [None, None]
-    assert calcular_vectores([], embeder_falso) == []
+    assert await calcular_vectores(["a", "b"], None) == [None, None]
+    assert await calcular_vectores([], embeder_falso) == []
 
 
-def test_los_vectores_se_piden_en_un_solo_lote():
+async def test_los_vectores_se_piden_en_un_solo_lote():
     """Una peticion por lista, no una por renglon: es lo que mantiene la consulta barata."""
     pedidos: list[list[str]] = []
 
@@ -435,21 +435,21 @@ def test_los_vectores_se_piden_en_un_solo_lote():
         pedidos.append(list(textos))
         return embeder_falso(textos)
 
-    vectores = calcular_vectores(["block", "colores", "tijeras"], espia)
+    vectores = await calcular_vectores(["block", "colores", "tijeras"], espia)
 
     assert pedidos == [["block", "colores", "tijeras"]]
     assert len(vectores) == 3
     assert vectores[0] == embeder_falso(["block"])[0]
 
 
-def test_si_el_embeder_falla_el_canal_degrada_a_lexico_y_deja_rastro(caplog):
+async def test_si_el_embeder_falla_el_canal_degrada_a_lexico_y_deja_rastro(caplog):
     """Un proveedor caido no tumba la consulta: cada renglon queda en `None` y el fallo queda en el log."""
 
     def roto(textos):
         raise RuntimeError("proveedor ficticio caido")
 
     with caplog.at_level(logging.WARNING, logger="tukit_catalogo.consulta"):
-        vectores = calcular_vectores(["block", "colores"], roto)
+        vectores = await calcular_vectores(["block", "colores"], roto)
 
     assert vectores == [None, None]
     assert "canal semantico degradado a lexico" in caplog.text
