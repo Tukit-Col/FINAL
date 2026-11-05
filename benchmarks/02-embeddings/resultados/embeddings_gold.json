@@ -1,0 +1,122 @@
+{
+ "datos": {
+  "pares": 2710,
+  "renglones": 542,
+  "textos_consulta": 381,
+  "productos": 902
+ },
+ "ngram-3-5 (lexico, aprox. pg_trgm)": {
+  "items": 392,
+  "p_at_1": 0.8648,
+  "mrr": 0.9244,
+  "roc_auc_pares": 0.8351,
+  "sintetico": {
+   "mrr_sin_truncar": 0.9943,
+   "mrr_at_10": 0.9943,
+   "recall_at_5": 1.0,
+   "recall_at_10": 1.0
+  }
+ },
+ "senal guardada: vec_score": {
+  "items": 392,
+  "p_at_1": 0.8291,
+  "mrr": 0.9058,
+  "roc_auc_pares": 0.8047
+ },
+ "senal guardada: lex_score": {
+  "items": 392,
+  "p_at_1": 0.8342,
+  "mrr": 0.9054,
+  "roc_auc_pares": 0.7277
+ },
+ "senal guardada: rerank_score": {
+  "items": 392,
+  "p_at_1": 0.9031,
+  "mrr": 0.9458,
+  "roc_auc_pares": 0.8798
+ },
+ "multilingual-e5-large": {
+  "items": 392,
+  "p_at_1": 0.7908,
+  "mrr": 0.8852,
+  "roc_auc_pares": 0.7737,
+  "dim": 1024,
+  "ms_por_texto": 84.02,
+  "sintetico": {
+   "mrr_sin_truncar": 0.9943,
+   "mrr_at_10": 0.9943,
+   "recall_at_5": 1.0,
+   "recall_at_10": 1.0
+  }
+ },
+ "multilingual-e5-large (prefijos query/passage)": {
+  "items": 392,
+  "p_at_1": 0.7781,
+  "mrr": 0.875,
+  "roc_auc_pares": 0.71,
+  "dim": 1024,
+  "ms_por_texto": 94.2,
+  "sintetico": {
+   "mrr_sin_truncar": 0.9885,
+   "mrr_at_10": 0.9885,
+   "recall_at_5": 1.0,
+   "recall_at_10": 1.0
+  }
+ },
+ "jina-embeddings-v2-base-es": {
+  "items": 392,
+  "p_at_1": 0.8367,
+  "mrr": 0.9065,
+  "roc_auc_pares": 0.8129,
+  "dim": 768,
+  "ms_por_texto": 34.8,
+  "sintetico": {
+   "mrr_sin_truncar": 0.9722,
+   "mrr_at_10": 0.9713,
+   "recall_at_5": 0.9885,
+   "recall_at_10": 0.9885
+  }
+ },
+ "paraphrase-multilingual-mpnet-base-v2": {
+  "items": 392,
+  "p_at_1": 0.7474,
+  "mrr": 0.8497,
+  "roc_auc_pares": 0.6737,
+  "dim": 768,
+  "ms_por_texto": 23.15,
+  "sintetico": {
+   "mrr_sin_truncar": 0.8508,
+   "mrr_at_10": 0.8477,
+   "recall_at_5": 0.9195,
+   "recall_at_10": 0.954
+  }
+ },
+ "paraphrase-multilingual-MiniLM-L12-v2": {
+  "items": 392,
+  "p_at_1": 0.7117,
+  "mrr": 0.8235,
+  "roc_auc_pares": 0.6346,
+  "dim": 384,
+  "ms_por_texto": 13.64,
+  "sintetico": {
+   "mrr_sin_truncar": 0.8627,
+   "mrr_at_10": 0.8621,
+   "recall_at_5": 0.9655,
+   "recall_at_10": 0.9885
+  }
+ },
+ "all-MiniLM-L6-v2": {
+  "items": 392,
+  "p_at_1": 0.8112,
+  "mrr": 0.8853,
+  "roc_auc_pares": 0.8014,
+  "dim": 384,
+  "ms_por_texto": 3.35,
+  "sintetico": {
+   "mrr_sin_truncar": 0.9573,
+   "mrr_at_10": 0.9573,
+   "recall_at_5": 1.0,
+   "recall_at_10": 1.0
+  }
+ }
+}

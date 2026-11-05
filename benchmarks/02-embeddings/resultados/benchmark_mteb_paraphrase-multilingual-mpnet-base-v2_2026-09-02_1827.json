@@ -1,0 +1,19 @@
+{
+    "model": "paraphrase-multilingual-mpnet-base-v2",
+    "device": "cuda",
+    "timestamp": "2026-09-02T18:28:25.119647",
+    "latency_total_s": 73.97992467880249,
+    "latency_per_query_ms": 69.88224287947529,
+    "total_queries_approx": 1058.6369531154633,
+    "metrics": {
+        "STS22": {
+            "spearman": 0.599112
+        },
+        "SpanishPassageRetrievalS2P": {
+            "ndcg_at_10": 0.29549,
+            "recall_at_5": 0.23298,
+            "recall_at_10": 0.31684,
+            "mrr_at_10": 0.473455
+        }
+    }
+}

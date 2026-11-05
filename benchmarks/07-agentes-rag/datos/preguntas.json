@@ -1,0 +1,134 @@
+{
+ "generado": "2026-08-05",
+ "total": 16,
+ "preguntas": [
+  {
+   "tipo": "precio_producto",
+   "pregunta": "¿Cuánto cuesta Cuaderno cosido cuadriculado 100 hojas Pokémon (surtido)?",
+   "gold": "$22.500",
+   "gold_norm": "22500",
+   "producto": "Cuaderno cosido cuadriculado 100 hojas Pokémon (surtido)",
+   "url": "https://www.panamericana.com.co/cuaderno-cosido-cuadriculado-100-hojas-pokemon-718004/p"
+  },
+  {
+   "tipo": "precio_producto",
+   "pregunta": "¿Cuánto cuesta Candado Clave 4 Dígitos Seguridad Para Maletas Casillero?",
+   "gold": "$0",
+   "gold_norm": "0",
+   "producto": "Candado Clave 4 Dígitos Seguridad Para Maletas Casillero",
+   "url": "https://www.exito.com/candado-clave-4-digitos-seguridad-para-maletas-casillero-104038194-mp/p"
+  },
+  {
+   "tipo": "precio_producto",
+   "pregunta": "¿Cuánto cuesta Accesorio Cartucheras en consignacion cars Cartuchera cars d2?",
+   "gold": "$0",
+   "gold_norm": "0",
+   "producto": "Accesorio Cartucheras en consignacion cars Cartuchera cars d2",
+   "url": "https://www.exito.com/accesorio-cartucheras-en-consignacion--cars-cartuchera-cars-d2-124179540/p"
+  },
+  {
+   "tipo": "precio_producto",
+   "pregunta": "¿Cuánto cuesta Morral ardilla, café y rosado?",
+   "gold": "$24.900",
+   "gold_norm": "24900",
+   "producto": "Morral ardilla, café y rosado",
+   "url": "https://www.panamericana.com.co/morral-normal-diseno-ardilla-cafe-rosado-642101/p"
+  },
+  {
+   "tipo": "precio_producto",
+   "pregunta": "¿Cuánto cuesta Cuaderno Snoopy S Dream Journal Sueños Que Se Escriben Incluye Crema Hidratante?",
+   "gold": "$0",
+   "gold_norm": "0",
+   "producto": "Cuaderno Snoopy S Dream Journal Sueños Que Se Escriben Incluye Crema Hidratante",
+   "url": "https://www.exito.com/cuaderno-snoopy-s-dream-journal-suenos-que-se-escriben-incluye-crema-hidratante-105128212-mp/p"
+  },
+  {
+   "tipo": "precio_producto",
+   "pregunta": "¿Cuánto cuesta Compás + 8 Piezas Caja Matemática Pelikan (1 Unidad)?",
+   "gold": "$0",
+   "gold_norm": "0",
+   "producto": "Compás + 8 Piezas Caja Matemática Pelikan (1 Unidad)",
+   "url": "https://www.exito.com/compas-8-piezas-caja-matematica-pelikan-1-unidad-104927708-mp/p"
+  },
+  {
+   "tipo": "precio_producto",
+   "pregunta": "¿Cuánto cuesta Cinta Correctora Faber Castell De 4 Mm X 10 Metros Por 3 Und?",
+   "gold": "$0",
+   "gold_norm": "0",
+   "producto": "Cinta Correctora Faber Castell De 4 Mm X 10 Metros Por 3 Und",
+   "url": "https://www.exito.com/cinta-correctora-faber-castell-de-4-mm-x-10-metros-por-3-und-104889272-mp/p"
+  },
+  {
+   "tipo": "precio_producto",
+   "pregunta": "¿Cuánto cuesta Cartuchera Escolar Grande para Niño 2 Cuerpos Grand Prix Gris?",
+   "gold": "$0",
+   "gold_norm": "0",
+   "producto": "Cartuchera Escolar Grande para Niño 2 Cuerpos Grand Prix Gris",
+   "url": "https://www.exito.com/cartuchera-escolar-grande-para-niño-2-cuerpos-grand-prix-gris-124188301/p"
+  },
+  {
+   "tipo": "categoria",
+   "pregunta": "Menciona al menos 3 productos de la categoría Textos que estén disponibles.",
+   "gold": "Diccionario básico de la lengua española con contenido digital; Diccionario básico escolar; Diccionario básico escolar Larousse con contenido digital; Diccionario escolar: de la lengua española",
+   "gold_norm": "diccionario básico de la lengua española con contenido digital diccionario básico escolar diccionario básico escolar larousse con contenido digital diccionario escolar: de la lengua española",
+   "producto": null,
+   "url": null
+  },
+  {
+   "tipo": "categoria",
+   "pregunta": "Menciona al menos 3 productos de la categoría Cartuchera y útiles que estén disponibles.",
+   "gold": "Accesorio marca Bluey / Acc.cartuchera bluey rosa; Accesorio Cartucheras en consignacion Bluey Cartuchera 14 bluey 3617; Accesorio Cartucheras en consignacion Cars Cartuchera 14 cars 3618; Accesorio Cartucheras en consignacion Dragon ball Cartuchera 14 dragon ball 3618; Accesorio Cartucheras en consignacion Sonic Cartuchera 14 sonic 3618",
+   "gold_norm": "accesorio marca bluey / acc.cartuchera bluey rosa accesorio cartucheras en consignacion bluey cartuchera 14 bluey 3617 accesorio cartucheras en consignacion cars cartuchera 14 cars 3618 accesorio cartucheras en consignacion dragon ball cartuchera 14 dragon ball 3618 accesorio cartucheras en consignacion sonic cartuchera 14 sonic 3618",
+   "producto": null,
+   "url": null
+  },
+  {
+   "tipo": "categoria",
+   "pregunta": "Menciona al menos 3 productos de la categoría Maletería que estén disponibles.",
+   "gold": "Accesorio Loncheras consignacion Mickey 23a1 lonchera 1 disney mickey; Accesorio Loncheras consignacion Mickey 23a1 lonchera 2 disney mickey; Accesorio Loncheras consignacion Mickey 23a1 lonchera 5 disney mickey; Accesorio Loncheras consignacion Spiderman Lonchera premium spidey d2; Accesorio Loncheras consignacion barbie Lonchera 16 barbie 3733",
+   "gold_norm": "accesorio loncheras consignacion mickey 23a1 lonchera 1 disney mickey accesorio loncheras consignacion mickey 23a1 lonchera 2 disney mickey accesorio loncheras consignacion mickey 23a1 lonchera 5 disney mickey accesorio loncheras consignacion spiderman lonchera premium spidey d2 accesorio loncheras consignacion barbie lonchera 16 barbie 3733",
+   "producto": null,
+   "url": null
+  },
+  {
+   "tipo": "disponibilidad",
+   "pregunta": "¿Hay maletas o loncheras disponibles en Panamericana? Responde sí o no.",
+   "gold": "sí",
+   "gold_norm": "sí",
+   "producto": null,
+   "url": null
+  },
+  {
+   "tipo": "disponibilidad",
+   "pregunta": "¿Hay maletas o loncheras disponibles en Exito? Responde sí o no.",
+   "gold": "sí",
+   "gold_norm": "sí",
+   "producto": null,
+   "url": null
+  },
+  {
+   "tipo": "min_precio",
+   "pregunta": "¿Cuál es el producto más barato de la categoría Textos y cuánto cuesta?",
+   "gold": "Diccionario escolar: de la lengua española $26.900",
+   "gold_norm": "diccionario escolar: de la lengua española 26900",
+   "producto": "Diccionario escolar: de la lengua española",
+   "url": "https://www.panamericana.com.co/diccionario-escolar-de-la-lengua-espanola-719862/p"
+  },
+  {
+   "tipo": "referencia_compra",
+   "pregunta": "¿En qué URL puedo comprar el producto Candado Clave 4 Dígitos Seguridad Para Maletas Casillero?",
+   "gold": "https://www.exito.com/candado-clave-4-digitos-seguridad-para-maletas-casillero-104038194-mp/p",
+   "gold_norm": "https://www.exito.com/candado-clave-4-digitos-seguridad-para-maletas-casillero-104038194-mp/p",
+   "producto": "Candado Clave 4 Dígitos Seguridad Para Maletas Casillero",
+   "url": "https://www.exito.com/candado-clave-4-digitos-seguridad-para-maletas-casillero-104038194-mp/p"
+  },
+  {
+   "tipo": "marca",
+   "pregunta": "¿Cuál es la marca del producto Chocolates M&M colores con maní (49.3 gr)?",
+   "gold": "M&M",
+   "gold_norm": "m&m",
+   "producto": "Chocolates M&M colores con maní (49.3 gr)",
+   "url": "https://www.exito.com/chocolate-peanut-paq-x-49-gr-101051/p"
+  }
+ ]
+}

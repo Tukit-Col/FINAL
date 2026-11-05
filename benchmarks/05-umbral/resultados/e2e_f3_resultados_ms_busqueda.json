@@ -1,0 +1,293 @@
+{
+  "orquestador": "app.services.e2e.core.correr_pipeline_e2e",
+  "fecha": "2026-09-06T21:03:48",
+  "tau": 0.85,
+  "delta": 0.05,
+  "pesos_maut": {
+    "similitud": 0.6,
+    "precio": 0.3,
+    "calidad": 0.1
+  },
+  "corpus": {
+    "n_sublistas": 60,
+    "n_sublistas_procesadas": 60,
+    "n_items_plan": 2176,
+    "n_items_procesados": 2176,
+    "ktop_retrieval": 50,
+    "rrf_k": 60
+  },
+  "catalogo_espejo": {
+    "n_productos": 838,
+    "proveedores": [
+      "exito",
+      "panamericana"
+    ],
+    "categorias": 18
+  },
+  "metricas": {
+    "n_items_procesados": 2176,
+    "n_resuelto_auto": 769,
+    "n_ambiguo": 795,
+    "n_sin_match": 612,
+    "pct_resuelto_auto": 35.34,
+    "pct_ambiguo": 36.53,
+    "pct_sin_match": 28.12,
+    "cobertura_con_candidatos": 83.04,
+    "confianza_nl2c_mean": 0.991,
+    "confianza_nl2c_p50": 1.0,
+    "latencia_ms_p50_total": 3.261,
+    "latencia_ms_p95_total": 4.699,
+    "latencia_ms_p50_por_etapa": {
+      "nl2c": 0.065,
+      "retrieval": 1.357,
+      "grafo": 0.306,
+      "maut": 0.095,
+      "motor": 1.706
+    },
+    "n_inyecciones_nl2c": 0,
+    "n_fallos_muestreados": 40
+  },
+  "fallos": [
+    {
+      "sublista": "SUB-000",
+      "descripcion": "caja de plastilina grande",
+      "motivo": "sin_match",
+      "top1_maut": 0.8137404613630383
+    },
+    {
+      "sublista": "SUB-000",
+      "descripcion": "pliegos Papel crepe",
+      "motivo": "sin_match",
+      "top1_maut": 0.811400172860847
+    },
+    {
+      "sublista": "SUB-000",
+      "descripcion": "paquete de papel silueta",
+      "motivo": "sin_match",
+      "top1_maut": 0.8496629213483146
+    },
+    {
+      "sublista": "SUB-000",
+      "descripcion": "block iris tamaño carta de colores",
+      "motivo": "sin_match",
+      "top1_maut": 0.8338284839203676
+    },
+    {
+      "sublista": "SUB-000",
+      "descripcion": "Colbón",
+      "motivo": "sin_match",
+      "top1_maut": 0.7828089887640449
+    },
+    {
+      "sublista": "SUB-000",
+      "descripcion": "Tabla de picado",
+      "motivo": "sin_match",
+      "top1_maut": null
+    },
+    {
+      "sublista": "SUB-000",
+      "descripcion": "punzón",
+      "motivo": "sin_match",
+      "top1_maut": null
+    },
+    {
+      "sublista": "SUB-000",
+      "descripcion": "paquete de cartón paja por octavos.",
+      "motivo": "sin_match",
+      "top1_maut": 0.78
+    },
+    {
+      "sublista": "SUB-000",
+      "descripcion": "NOTA: Traer los útiles debidamente marcados",
+      "motivo": "sin_match",
+      "top1_maut": null
+    },
+    {
+      "sublista": "SUB-001",
+      "descripcion": "caja de plastilina grande",
+      "motivo": "sin_match",
+      "top1_maut": 0.8137404613630383
+    },
+    {
+      "sublista": "SUB-001",
+      "descripcion": "pliegos Papel crepe,",
+      "motivo": "sin_match",
+      "top1_maut": 0.811400172860847
+    },
+    {
+      "sublista": "SUB-001",
+      "descripcion": "paquete de papel silueta",
+      "motivo": "sin_match",
+      "top1_maut": 0.8496629213483146
+    },
+    {
+      "sublista": "SUB-001",
+      "descripcion": "block iris tamaño carta de colores",
+      "motivo": "sin_match",
+      "top1_maut": 0.8338284839203676
+    },
+    {
+      "sublista": "SUB-001",
+      "descripcion": "Colbón y 1 Pegastic.",
+      "motivo": "sin_match",
+      "top1_maut": 0.7970947030497593
+    },
+    {
+      "sublista": "SUB-001",
+      "descripcion": "paquete de cartón paja por octavos.",
+      "motivo": "sin_match",
+      "top1_maut": 0.78
+    },
+    {
+      "sublista": "SUB-001",
+      "descripcion": "block de hojas blancas (Tamaño carta).",
+      "motivo": "sin_match",
+      "top1_maut": 0.8079132603574892
+    },
+    {
+      "sublista": "SUB-002",
+      "descripcion": "ROBÓTICA:",
+      "motivo": "sin_match",
+      "top1_maut": null
+    },
+    {
+      "sublista": "SUB-002",
+      "descripcion": "Robotic 0 Intermedio",
+      "motivo": "sin_match",
+      "top1_maut": null
+    },
+    {
+      "sublista": "SUB-002",
+      "descripcion": "Estadística-geometría y Urbanidad)",
+      "motivo": "sin_match",
+      "top1_maut": null
+    },
+    {
+      "sublista": "SUB-002",
+      "descripcion": "diccionario de inglés",
+      "motivo": "sin_match",
+      "top1_maut": 0.8290049751243781
+    },
+    {
+      "sublista": "SUB-002",
+      "descripcion": "vinilo grande de cualquier color",
+      "motivo": "sin_match",
+      "top1_maut": 0.7402812803103782
+    },
+    {
+      "sublista": "SUB-003",
+      "descripcion": "ROBÓTICA",
+      "motivo": "sin_match",
+      "top1_maut": null
+    },
+    {
+      "sublista": "SUB-003",
+      "descripcion": "Estadística-geometría y Urbanidad)",
+      "motivo": "sin_match",
+      "top1_maut": null
+    },
+    {
+      "sublista": "SUB-003",
+      "descripcion": "diccionario de inglés",
+      "motivo": "sin_match",
+      "top1_maut": 0.8290049751243781
+    },
+    {
+      "sublista": "SUB-004",
+      "descripcion": "ROBÓTICA:",
+      "motivo": "sin_match",
+      "top1_maut": null
+    },
+    {
+      "sublista": "SUB-004",
+      "descripcion": "Robotic 1 Intermedio",
+      "motivo": "sin_match",
+      "top1_maut": null
+    },
+    {
+      "sublista": "SUB-004",
+      "descripcion": "geometría, Democracia y Urbanidad)",
+      "motivo": "sin_match",
+      "top1_maut": null
+    },
+    {
+      "sublista": "SUB-004",
+      "descripcion": "diccionario de inglés",
+      "motivo": "sin_match",
+      "top1_maut": 0.8290049751243781
+    },
+    {
+      "sublista": "SUB-005",
+      "descripcion": "ROBÓTICA:",
+      "motivo": "sin_match",
+      "top1_maut": null
+    },
+    {
+      "sublista": "SUB-005",
+      "descripcion": "Robotic 1 Avanzado",
+      "motivo": "sin_match",
+      "top1_maut": null
+    },
+    {
+      "sublista": "SUB-005",
+      "descripcion": "Estadística-geometría, Democracia y Urbanidad)",
+      "motivo": "sin_match",
+      "top1_maut": null
+    },
+    {
+      "sublista": "SUB-005",
+      "descripcion": "diccionario de inglés y francés",
+      "motivo": "sin_match",
+      "top1_maut": 0.8290049751243781
+    },
+    {
+      "sublista": "SUB-006",
+      "descripcion": "ROBÓTICA:",
+      "motivo": "sin_match",
+      "top1_maut": null
+    },
+    {
+      "sublista": "SUB-006",
+      "descripcion": "Estadística-geometría, Democracia y Urbanidad)",
+      "motivo": "sin_match",
+      "top1_maut": null
+    },
+    {
+      "sublista": "SUB-006",
+      "descripcion": "diccionario de inglés y francés",
+      "motivo": "sin_match",
+      "top1_maut": 0.8290049751243781
+    },
+    {
+      "sublista": "SUB-007",
+      "descripcion": "ROBÓTICA:",
+      "motivo": "sin_match",
+      "top1_maut": null
+    },
+    {
+      "sublista": "SUB-007",
+      "descripcion": "Estadística-geometría, Democracia y Urbanidad)",
+      "motivo": "sin_match",
+      "top1_maut": null
+    },
+    {
+      "sublista": "SUB-007",
+      "descripcion": "diccionario de inglés y francés",
+      "motivo": "sin_match",
+      "top1_maut": 0.8290049751243781
+    },
+    {
+      "sublista": "SUB-007",
+      "descripcion": "tabla periódica",
+      "motivo": "sin_match",
+      "top1_maut": null
+    },
+    {
+      "sublista": "SUB-008",
+      "descripcion": "ROBÓTICA:",
+      "motivo": "sin_match",
+      "top1_maut": null
+    }
+  ],
+  "tiempo_total_seg": 6.86
+}

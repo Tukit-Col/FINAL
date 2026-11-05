@@ -1,0 +1,23 @@
+{
+  "n": 10000,
+  "d": 1024,
+  "n_queries": 100,
+  "k": 10,
+  "numpy": {
+    "index_s": 0.0,
+    "query_ms": 0.501,
+    "recall@10": 1.0
+  },
+  "faiss_flat": {
+    "index_s": 0.003,
+    "query_ms": 0.944,
+    "recall@10": 1.0
+  },
+  "faiss_ivf": {
+    "index_s": 0.044,
+    "query_ms": 0.089,
+    "recall@10": 0.211,
+    "nlist": 64,
+    "nprobe": 8
+  }
+}

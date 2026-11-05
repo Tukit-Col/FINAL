@@ -1,0 +1,355 @@
+item_id,descripcion,letra_elegida,sku_elegido,es_correcto_elegido,hay_correcto_en_pool,sin_match,raw_error,segundos_lote,lote_idx
+001c6e90-08d1-4720-a090-d190f3e435f9,barras de silicona delgada,A,panamericana-silicona-escarchada-barra-delgada-por-10-unidade-827bf87b8b04,True,True,False,,6.9,1
+00e9c317-c85e-41bf-94e0-21a744a216d4,pegastic,A,panamericana-pegante-en-barra-de-40-g-pegastic--2-unidades-77e5d2b3d867,True,True,False,,6.9,1
+01ec4b6c-bcda-4359-9b17-a83203efd221,PLUMONES X 12,C,panamericana-plumones-ocean-x-12-maped-350c0e6d97e4,True,True,False,,6.9,1
+0243e32f-42a4-4cd6-b5e4-a4d25ff6fdf5,Colbón,A,panamericana-pegante-universal-colbón-de-225-g-19c604b5d807,True,True,False,,6.9,1
+027cdf94-ab12-4c94-875e-4548446a27b4,BLOCK DE HOJAS IRIS TAMAÑO CARTA,A,panamericana-block-de-papel-iris-carta-de-colores-x-35-hojas-df3310fab8af,True,True,False,,6.9,1
+02c30c67-a8e0-4d1b-be90-2cb146138bc6,lápices rojos,E,exito-lapiz-rojo-eco-chequeo-x3-unds-faber-castell-db96271b9c38,True,True,False,,6.9,1
+05d290d9-0d4f-4346-83e2-0a5c228327b2,marcador grueso color negro,A,panamericana-marcador-posterman-grueso--color-negro--para-car-cb63cafa7ef3,True,True,False,,6.9,1
+06076f3f-4b10-4324-93f7-203d836fbee3,caja de plastilina grande,A,exito-plastilina-larga-caja-x12-colores-pelikan-f78647adae9c,True,True,False,,6.9,1
+06f1465d-8b7b-40c2-9fd0-820d4ab98804,pincel grueso,C,panamericana-set-de-6-pinceles-redondos-gioto-kang-rui-b927d128cf6b,True,True,False,,6.9,1
+085eb1d8-4091-465a-a2e7-367bebaf0be2,pegastic,A,panamericana-pegante-en-barra-de-40-g-pegastic--2-unidades-77e5d2b3d867,True,True,False,,6.9,1
+0a6a9bd6-6059-4ac2-8efb-77f523264171,DELANTAL PLÁSTICO MANGA LARGA,A,exito-delantal-escolar-infantil-impermeable-manga-larg-c4954549cd54,True,True,False,,6.4,2
+0b7c3456-c594-4334-badf-249c5f1667ec,diccionario de inglés,A,panamericana-diccionario-básico-de-español---inglés-e-inglés--6718c803c103,True,True,False,,6.4,2
+0bbc4c12-e721-43ce-bd8e-21b6904c270e,cuadernos grandes cuadriculados cosidos de 50 hojas,A,exito-cuaderno-masculino-grande-cuadriculado-50-hojas--3685783d1328,True,True,False,,6.4,2
+0cf55d36-f44e-482c-b40c-7d6e529088b4,cintas gruesas,A,exito-cinta-adhesiva-gruesa-transparente-para-embalaje-153a65310998,True,True,False,,6.4,2
+0defc8ed-b0a2-4863-b221-0fec7341803e,Tajalápiz con depósito para punta delgada y gruesa,D,panamericana-tajalápiz-plástico-doble-con-depósito--surtido---2a9e74f049fd,True,True,False,,6.4,2
+0e09fc40-4721-48b6-842e-3e3fb5628f8d,caja de plastilina grande,A,exito-plastilina-larga-caja-x12-colores-pelikan-f78647adae9c,True,True,False,,6.4,2
+0efd4c58-16d3-47b8-ba44-b6fca405837f,cuaderno ferrocarril de 50 hojas grande (cosido) - Ciencias naturales,B,exito-cuaderno-grande-doble-linea---ferrocarril-50-hoj-f995274c9942,True,True,False,,6.4,2
+0f07dec6-9b00-40ce-833a-d51d44f1a48c,vinilo de color neón,ninguno,,,False,True,,6.4,2
+0f1961fd-e08c-46b6-b2d0-bd853ebe8b06,cuaderno cuadriculado de 50 hojas (FÍSICA),A,exito-cuaderno-cuadriculado-50-hojas-cosido-finlandek-b780bc1433c7,True,True,False,,6.4,2
+105334ae-d890-4c63-817b-7eb6e409928a,CUADERNO COSIDO FERROCARRIL DE 100 HOJAS,A,exito-cuaderno--stitch-doble-linea---ferrocarril-100-h-b7f7a7981142,True,True,False,,6.4,2
+10aa8947-665b-4816-aa06-07c56f624c56,cinta de enmascarar,A,panamericana-cinta-de-enmascarar-de-36-mm-x-40-m--scotch-94d3a5555417,True,True,False,,120.4,3
+10b18d5a-e3ff-425d-bb07-23d469de50f2,block de papel iris,B,panamericana-block-de-papel-iris-carta-de-colores-x-35-hojas-df3310fab8af,True,True,False,,120.4,3
+116ffdc4-0f25-42c7-93f6-6d51df358313,caja de colores grande triangular de 12 unidades,D,exito-colores-jumbo-triangular-x-12-uds-faber-castell-22b5bd12a388,True,True,False,,120.4,3
+11c440da-791e-4f4e-a3c3-6832ddba85a3,cuadernos grandes cuadriculados cosidos de 100 hojas,C,exito-cuaderno-grande-cuadriculado-100-hojas-cosido-sc-66b47f759c8f,True,True,False,,120.4,3
+14061909-a336-4fd3-b6aa-b7a4013e28b1,lápices Mirado N° 2 NEGRO,A,exito-lápiz-mirado--2-negro-hb-caja-x-12-unidades-pape-24a11ba68e5f,True,True,False,,120.4,3
+142b1c04-aa04-4b88-a78e-395773d7665d,cuaderno ferrocarril de 50 hojas grande (cosido) - Ciencias sociales,A,exito-cuaderno-grande-doble-linea---ferrocarril-50-hoj-f995274c9942,True,True,False,,120.4,3
+1452246f-e3eb-4e17-8c20-ad74447154d4,diccionario en español,A,panamericana-diccionario-español-ilustrado-b779225e9d7a,True,True,False,,120.4,3
+14e53786-03c5-4e46-9fed-908454558639,kit de geometría,C,panamericana-juego-geométrico-x-5-piezas-aba52bcf613a,True,True,False,,120.4,3
+153fae91-71a6-4e9a-a7a3-05031123c001,borrador de nata,A,exito-borrador-nata-x-10-unidades-3792261b3047,True,True,False,,120.4,3
+15dea017-c1f0-49b4-ac44-6ac846b7ebce,cuaderno cuadriculado de 50 hojas (BIOLOGÍA),E,exito-cuaderno-cuadriculado-50-hojas-cosido-scribe-5a1ff9c1e10c,True,True,False,,120.4,3
+1614916c-15d2-4f51-9549-d6250a3b0520,Cuaderno de 100 hojas rayado,A,exito-cuaderno-rayado-100-hojas-cosido-tapa-dura-kiut-cafd01ceb519,True,True,False,,15.4,4
+165c8c6e-8396-4113-b0ab-f874bd9d0ec6,cuaderno cuadriculado de 100 hojas (Geografía),A,exito-cuaderno-cuadriculado-100-hojas-cosido-finlandek-475e9852eb15,True,True,False,,15.4,4
+18411cdf-1ac6-41f8-9c18-b1779fc7fc82,CINTA TRANSPARENTE,B,exito-cinta-transparente-12-x-20-colbon-x-12-und-trans-94620a8e3b95,True,True,False,,15.4,4
+186fedf3-2593-4c53-b4d6-436a77666159,cuaderno cuadriculado de 100 hojas grande (cosido) - Matemáticas,A,exito-cuaderno-mandalorian-grande-cuadriculado-100-hoj-e8dc09cc7f47,True,True,False,,15.4,4
+18aebbb1-62b6-41ea-bf91-824e71a5e05c,pincel No. 10,ERROR,,,False,True,,15.4,4
+191326b8-b113-4f1f-9393-301305028493,Block Iris tamaño carta,A,panamericana-block-de-papel-iris-carta-de-colores-x-35-hojas-df3310fab8af,True,True,False,,15.4,4
+1998b8b9-0a2e-4e0f-a61a-0ba7ff938629,PINCEL DELGADO PLANO,B,exito-pincel-plano-eterna--1-fac33e215a3d,True,True,False,,15.4,4
+1a4d9d27-cbf8-4bc7-8722-4ff80110784f,pincel delgado,A,exito-set-de-pinceles-delgados-eterna-4d7d2c3799f1,True,True,False,,15.4,4
+1a6e7ceb-ddf6-4d55-9b50-d24b59b9273b,papel seda,B,exito-papel-seda-70-x-50-cm-x-6-pliegos-messenger-sep-b27b832a147e,True,True,False,,15.4,4
+1b762efd-40d3-4997-b64c-7fe8e37ea057,cuaderno cuadriculado de 100 hojas (Matemáticas),A,exito-cuaderno-cuadriculado-100-hojas-cosido-finlandek-475e9852eb15,True,True,False,,15.4,4
+1b8e4a9a-bb1d-4ecc-817a-8d2d271d5e63,block iris tamaño carta de colores,A,panamericana-block-de-papel-iris-carta-de-colores-x-35-hojas-df3310fab8af,True,True,False,,19.8,5
+1b9ade3e-08c4-4727-a117-cab892db17ca,cuaderno cuadriculado de 100 hojas (Biología),A,exito-cuaderno-cuadriculado-100-hojas-cosido-finlandek-475e9852eb15,True,True,False,,19.8,5
+1c609a91-1a10-4b86-a13e-c51c1fd2ffdd,cuaderno cuadriculado de 100 hojas (Geografía),A,exito-cuaderno-cuadriculado-100-hojas-cosido-finlandek-475e9852eb15,True,True,False,,19.8,5
+1d325063-4b15-43c6-a6d4-853510056d75,vinilo morado,A,exito-vinilo-escolar-color-morado-secundario-130-grs-c2557529a472,True,True,False,,19.8,5
+1ef9c1f3-a8c1-41a2-b0fc-239ee5e3a56e,PLIEGOS DE PAPEL CREPE,A,exito-papel-crepé-pliego-para-manualidades-paquete-x-1-1240d1886e35,True,True,False,,19.8,5
+1f985610-11a6-434d-b33e-0a372967c83c,marcadores gruesos,A,panamericana-marcadores-gruesos-lavables-x10-unidades-50da9e845674,True,True,False,,19.8,5
+1fae3f41-00e7-454c-b949-8d7971601ded,paquetes 1/8 cartulina x10 colores fuertes,C,exito-cartulina-plana-1-8x10-colores-surtidos-finlande-9c89e98df44e,True,True,False,,19.8,5
+2075e48e-c177-440d-9f2c-8112781424ec,TAJALÁPIZ CON DEPÓSITO,A,panamericana-tajalápiz-con-depósito-jumbo--pez--surtido-05322b28eb1c,True,True,False,,19.8,5
+22fbf11d-984f-49ae-9129-6d79c9d9d5e1,cintas de enmascarar gruesas,E,exito-cinta-adhesiva-gruesa-transparente-para-embalaje-153a65310998,False,True,False,,19.8,5
+237e7843-e54c-49dc-aa3f-f0a4cd95bc4c,MALETA TIPO MORRAL,A,exito-mochila-wayuu-tipo-maletin-con-tapa-diseño-geomé-025a8bf1ae66,False,True,False,,19.8,5
+24f4f292-ca41-405a-96b2-216d2af1e7b7,barras de silicona delgada,A,panamericana-silicona-escarchada-barra-delgada-por-10-unidade-827bf87b8b04,True,True,False,,10.7,6
+25b8242a-757d-4467-a93d-7d44d1555f30,cintas de enmascarar gruesas,B,exito-4-cinta-adhesiva-enmascarar-24mm-x-20mts-b24d294b461b,True,True,False,,10.7,6
+2767dff8-87e5-4cef-98be-9e1a6103567e,"Cartulina paquete arte, calipso, blanco y de colores",A,exito-cartulina-pliego-70x100-blanco-formas-y-colores-139785e22776,True,True,False,,10.7,6
+27ff308a-fe90-473f-86b4-581bff893a2e,diccionario en español,A,panamericana-diccionario-español-ilustrado-b779225e9d7a,True,True,False,,10.7,6
+2b139fb5-f3b5-4170-a24b-e9d656e88ddc,"cuaderno Ferrocarril grande, con renglones enumerados de 100 hojas",A,exito-cuaderno-peluches-fantasy-grande-doble-linea---f-ed04bdab103e,True,True,False,,10.7,6
+2bcad971-195d-40c3-9369-3f2c93efaee2,borrador de Nata,A,exito-borrador-nata-x-20-unidades-fd353722ecda,False,True,False,,10.7,6
+2ce9aa24-1013-40b3-9e9e-470e7599fda7,marcadores gruesos,A,panamericana-marcadores-gruesos-lavables-x10-unidades-50da9e845674,True,True,False,,10.7,6
+2df3117e-acea-441c-8a06-c4dcb9c34643,vinilos de diferentes colores,A,panamericana-vinilos-colores-básicos-x-6-unidades-88d40798e8b8,True,True,False,,10.7,6
+2e7a31a0-7cf2-4cdd-9f5a-36d441c5781f,tajalápiz con depósito,A,panamericana-tajalápiz-con-depósito-jumbo--pez--surtido-05322b28eb1c,True,True,False,,10.7,6
+2ebd58d0-00a8-4b9d-ae66-d514a9019019,block de papel iris,B,panamericana-block-de-papel-iris-carta-de-colores-x-35-hojas-df3310fab8af,True,True,False,,10.7,6
+302b1c1d-7aef-48ff-87b1-cf6ca5287c7c,caja de colores,B,exito-colores-scribe-unipunta-caja-x-24-unidades-b5c088212d21,True,True,False,,6.5,7
+33366db2-443e-413e-9d60-73861fa991ce,cuaderno cuadriculado de 100 hojas (Física),A,exito-cuaderno-cosido-cuadriculado-100-hojas-cosido-fi-f40a9331e3fc,True,True,False,,6.5,7
+3348a566-f6ac-49cf-b8ae-dec50de6ae15,vinilo de color amarillo,A,exito-vinilo-escolar-color-amarillo-pastel-130-grs-647fcecfb60d,True,True,False,,6.5,7
+3366ec23-1cd8-4aae-869c-fba07735df57,pliego de papel crepe,A,exito-papel-crepé-pliego-para-manualidades-paquete-x-1-1240d1886e35,True,True,False,,6.5,7
+33b6a135-6a9d-4dc9-8f54-404ecac58f46,PAQUETE DE ASERRÍN DE COLORES,A,exito-aserrin-escolar-de-colores-bolsa-x-12-unidades-a6b05400b9f4,True,True,False,,6.5,7
+340b452a-aecb-4bea-b7d3-a1cd8a86bb0e,barras de silicona gruesa,A,exito-aplicador-de-silicona-barra-gruesa-wolfox-2-barr-bf0c5f67dd0d,False,False,True,,6.5,7
+34dbc7b6-fffa-4185-ab8a-3737a5287c82,pincel grueso,E,panamericana-set-de-pinceles-por-4-unidades-bamboo-brushes-cb6f9ac22a6d,True,True,False,,6.5,7
+34e8b947-859a-4cd7-a607-06498260960e,punzón,ERROR,,,False,True,,6.5,7
+35243293-12aa-4249-bb12-33ae3bee1d72,TIJERAS PUNTA ROMA,A,exito-tijeras-punta-roma-eterna-5aa3b7c2ba91,True,True,False,,6.5,7
+35504622-9262-4747-9441-661172244906,paquetes 1/8 cartulina x10 colores fuertes,C,exito-cartulina-plana-1-8x10-colores-surtidos-finlande-9c89e98df44e,True,True,False,,6.5,7
+360504ad-c173-4502-a39d-1b051d78ccd0,cuaderno cuadriculado de 50 hojas (INGLÉS),A,exito-cuaderno-cuadriculado-mediano-cuadriculado-50-ho-6ea0d0633404,True,True,False,,3.9,8
+369550cc-7bba-4e93-8747-857358d7f19d,vinilo naranja,A,exito-vinilo-escolar-color-naranja-fluorescente-130-gr-e770803e70c6,True,True,False,,3.9,8
+36a56ee2-c1e4-4d4c-8178-fb8b4fcf9fe4,borrador de Nata grande,E,exito-bl-3-borrador-nata-pz-60-pelikan-a36379b511f4,True,True,False,,3.9,8
+36b2dfd6-51cf-4ae8-81b9-6a548dcf1e91,PAQUETE DE CARTULINA ARTE X 10,A,exito-cartulina-arte-octavos-paq-x-10-und-554e61e9f629,True,True,False,,3.9,8
+36e7c3ef-abab-4233-87dc-46b264bcb299,block de papel iris colores fuertes,A,panamericana-block-de-papel-iris-carta-de-colores-x-35-hojas-df3310fab8af,True,True,False,,3.9,8
+3729ab66-6024-42f3-912b-a0c69adb5c98,Octavos de fomy escarchado,A,exito-foami-octavo-escarchado-paquete-x-10-uds-87982b333efc,True,True,False,,3.9,8
+37bfbd23-47a8-4cad-b9d5-1197adc71fff,caja de plastilina grande,A,exito-plastilina-larga-caja-x12-colores-pelikan-f78647adae9c,True,True,False,,3.9,8
+37cbef14-b63c-42a6-a902-03b3e267049c,vinilos de diferentes colores,A,panamericana-vinilos-colores-básicos-x-6-unidades-88d40798e8b8,True,True,False,,3.9,8
+3834e26f-5433-473c-97ed-7523dd967e72,vinilos de diferentes colores,A,panamericana-vinilos-colores-básicos-x-6-unidades-88d40798e8b8,True,True,False,,3.9,8
+39229a61-8ae7-493b-a7d1-3d973d8d4fb9,carpeta tamaño oficio,D,exito-carpeta-de-seguridad-tamaño-oficio-eterna-b728f5af0cf3,True,True,False,,3.9,8
+392c9542-1e47-4542-b964-a1974ed16edd,Tajalápiz,A,panamericana-tajalápiz-con-depósito-x-2-unidades-5de7ab3a2367,True,True,False,,4.6,9
+3951761a-5b6f-4efe-82ae-19ffd3bc0dd7,caja de 12 Colores Jumbo Triangular,B,panamericana-colores-norma-jumbo-triangulares-x-12-unidades-43c871242b23,True,True,False,,4.6,9
+3a11539e-a609-4327-95eb-d4a3edf6a83f,lápices Mirado No. 2 Negro,A,exito-lápiz-mirado--2-negro-hb-caja-x-12-unidades-pape-24a11ba68e5f,True,True,False,,4.6,9
+3b3b1220-a4d5-4e11-818e-63d4aff5fc1d,sobres de manila blanco tamaño oficio,ninguno,,,True,False,,4.6,9
+3bbdcf71-813f-4adc-896e-a6a00aeb6f25,PAQUETE DE CARTULINA NEGRA X 10,A,exito-cartulina-negra-pliego-x-10-unidades-0768383c85a9,True,True,False,,4.6,9
+3c19291b-a6c5-432b-ba62-9a812988af10,tijera punta roma,D,panamericana-tijera-punta-roma-13-cm-surtida-9d029a1fddbb,True,True,False,,4.6,9
+3c944a53-0b8a-41b8-8860-6a0c37e3bb8d,vinilos de diferentes colores,A,panamericana-vinilos-colores-básicos-x-6-unidades-88d40798e8b8,True,True,False,,4.6,9
+3f51e928-4cb6-489f-a392-eed865c81c5d,paquetes 1/8 cartulina x10 colores fuertes,C,exito-cartulina-plana-1-8x10-colores-surtidos-finlande-9c89e98df44e,True,True,False,,4.6,9
+3f522d47-fe7b-4c36-98cc-c86e309f2c6d,cuaderno cuadriculado de 50 hojas (Estadística),A,exito-cuaderno-cosido-cuadriculado-50-hojas-cosido-fin-16773d8bc6ea,True,True,False,,4.6,9
+41d34646-b02d-4875-8d07-a5167615660a,pliego de cartulina negra,C,exito-cartulina-pliego-50x70-negra-formas-y-colores-65cc4928b20c,True,True,False,,4.6,9
+43d5363a-ae28-484f-b6c6-69b244bfc3c2,paquete de aserrín de cualquier color,A,exito-aserrin-escolar-de-colores-bolsa-x-12-unidades-a6b05400b9f4,True,True,False,,4.3,10
+4422b28d-152f-407e-b4da-1c46d781256c,cuaderno cuadriculado de 100 hojas (Química),A,exito-cuaderno-cuadriculado-100-hojas-cosido-kiut-37a4d84d7fd7,True,True,False,,4.3,10
+446b61d4-2f4e-437b-a5f1-1e2f6b20bedb,cintas gruesas,A,exito-cinta-adhesiva-gruesa-transparente-para-embalaje-153a65310998,True,True,False,,4.3,10
+447f675c-6a58-435a-9832-fa32799062ef,block cuadriculado tamaño oficio,A,panamericana-bloc-papel-bond-de-80-hojas--tamaño-oficio-881d190286e5,True,True,False,,4.3,10
+44954d3f-babd-4bc7-a13f-19d7ad1e1c05,Colbón Grande,A,exito-colbon-pegante-universal-225g-colbon-df50e88851ee,True,True,False,,4.3,10
+454ff6b0-6849-4e72-989f-9a482a0ac45e,tabla de picado,A,panamericana-tablero-acrílico---tabla-de-picado-810ee42a5f4c,True,True,False,,4.3,10
+456b1998-fb2f-4b0b-b0b5-c3789b263ec9,cuaderno cuadriculado de 50 hojas (ETICA Y VALORES),A,exito-cuaderno-cuadriculado-50-hojas-cosido-norma-2c99609cf73a,True,True,False,,4.3,10
+466796af-5455-4989-ab81-e5a1180d4275,rollo de cinta transparente ancha,A,exito-rollo-cinta-adhesiva-x-6-transparente-48mmx100mt-239419174690,True,True,False,,4.3,10
+46a14ad1-dce1-488a-9c24-f1be59f42acb,borrador de Nata,A,exito-borrador-nata-x-20-unidades-fd353722ecda,False,True,False,,4.3,10
+48fa4ff6-c155-4b4f-a03f-b4e258640c88,marcadores Permanentes colores vivos,A,exito-marcador-permanente-colores-vibrantes-f-bic-ec9a36a59fae,True,True,False,,4.3,10
+495c6bfc-fb33-4fdd-9b8a-fdd66e7add6a,cuadernos cuadriculados cosidos de 100 hojas Grandes,A,exito-cuaderno-masculino-grande-cuadriculado-100-hojas-a9a45c071b28,True,True,False,,14.6,11
+49998c1e-de0a-449f-808e-966bb19e6c89,cuaderno cuadriculado de 50 hojas (CIENCIAS POLÍTICAS),A,exito-cuaderno-cuadriculado-50-hojas-cosido-finlandek-b780bc1433c7,True,True,False,,14.6,11
+4a41cbc3-3d5b-4551-b27a-bdba4331f9b3,cuaderno ferrocarril grande de 100 hojas cosido (Castellano),B,exito-cuaderno-peluches-fantasy-grande-doble-linea---f-ed04bdab103e,True,True,False,,14.6,11
+4a680106-005c-4053-b790-d47f0d38ce6b,cuaderno cuadriculado de 100 hojas (Física),A,exito-cuaderno-cosido-cuadriculado-100-hojas-cosido-fi-f40a9331e3fc,True,True,False,,14.6,11
+4a6a6baf-db20-4a0d-a1bc-1da9c16c84b4,paquete de Fomi por octavos de colores,B,exito-foamy-1-8-paquete-x-10-unidades-colores--rojo--a-d8c3b79f1407,True,True,False,,14.6,11
+4ac5dce5-30a4-406f-9fe5-ca1b30f79f9c,cuaderno maxi cuadritos plus 100 hojas,C,exito-cuaderno-rainbow-master-mas-cuadriculado-100-hoj-60087dd7c5cd,True,True,False,,14.6,11
+4d3d66ac-5029-4e5f-a03b-9007845a3e42,rollo de cinta transparente Ancha,A,exito-rollo-cinta-adhesiva-x-6-transparente-48mmx100mt-239419174690,True,True,False,,14.6,11
+4e716e29-5c5a-4076-ae17-44788e33a4a9,LÁPICES ROJOS. TRIANGULARES,A,exito-lápiz-triangular-rojo-eterna-a5a9f6782b00,True,True,False,,14.6,11
+4e9f176b-1c13-4903-ab10-855a7472e3e0,barras de silicona gruesa,A,exito-aplicador-de-silicona-barra-gruesa-wolfox-2-barr-bf0c5f67dd0d,False,False,True,,14.6,11
+5184c301-4c64-470b-89f6-241d31ea2dd7,delantal para pintura manga larga (Resistente preferiblemente tela impermeable y marcado),A,exito-delantal-escolar-infantil-impermeable-manga-larg-c4954549cd54,True,True,False,,14.6,11
+51cbbca7-bd82-449d-b922-f49176c2c043,OCTAVOS DE CARTÓN PAJA,C,panamericana-cartón-paja-de-1-8-x-10-unidades--colores-surtid-1d2b8d2fe5c1,True,True,False,,4.2,12
+52009505-cf89-428e-857b-f430497061e2,pincel grueso,C,panamericana-set-de-6-pinceles-redondos-gioto-kang-rui-b927d128cf6b,True,True,False,,4.2,12
+525290ac-8617-4261-8924-0b1982a6ea03,"cuadernos cuadriculados grandes de 100 hojas cosidos (Matemáticas, Sociales, Naturales e Inglés)",A,exito-cuaderno-femenino-grande-cuadriculado-100-hojas--4f66695cbeda,True,True,False,,4.2,12
+5308f21c-4bb8-47df-a1ac-73313862bb9c,tubos de Escarcha de Colores Variados,A,exito-escarcha-brillantina-murano-en-tubo-x-6-unidades-8f47821e693c,True,True,False,,4.2,12
+5387db1a-32af-4f49-b753-2f4c81afaaf1,Vinilos Blancos,B,exito-vinilo-escolar-color-blanco-primario-130-grs-4bb1c221c4a9,True,True,False,,4.2,12
+538f1966-9049-4f7b-9fa3-f2bc1a3257d1,pegastic,B,panamericana-pegante-en-barra-de-40-g-pegastic-bbefd94d5907,True,True,False,,4.2,12
+57d07762-28be-446b-ab0a-5b5e18eb0d03,Vinilos Azules,A,exito-vinilo-escolar-color-azul-primario-130-grs-641955ea5659,True,True,False,,4.2,12
+58428359-5e0a-4ffe-b678-7533e4641d74,Vinilos Rojos,B,exito-vinilo-escolar-color-rojo-primario-130-grs-6aee0e3fec6b,True,True,False,,4.2,12
+58474082-663c-4b45-8751-e103950f308d,pliegos de papel crepé,A,exito-papel-crepé-pliego-para-manualidades-paquete-x-1-1240d1886e35,True,True,False,,4.2,12
+5906e290-375a-4cc1-9855-663c8b461204,cuaderno ferrocarril de 50 hojas grande (cosido) (Dimensión Comunicativa - Castellano),A,exito-cuaderno-grande-doble-linea---ferrocarril-50-hoj-f995274c9942,True,True,False,,4.2,12
+595bbcaa-5aa4-403d-b3af-6352e5db4055,lápiz delgado triangular,D,exito-lápiz-triangular-eterna-26d717fa277e,True,True,False,,8.1,13
+5bf47c1d-25e3-4288-ab49-e2b83f7450f9,cuaderno cuadriculado de 100 hojas (Lengua Castellana),A,exito-cuaderno-cuadriculado-100-hojas-cosido-kiut-37a4d84d7fd7,True,True,False,,8.1,13
+5d72d172-98f1-4fb5-b1c6-bf5336a3c3e5,paquetes de cartulina en octavos Bristol,A,exito-cartulina-bristol-octavos-paq-x-10-und-11e604c3dbac,True,True,False,,8.1,13
+5ef31d47-0a8c-4e0b-b80b-12402c47d917,pliegos de papel seda colores variados,A,exito-papel-seda-70-x-50-cm-x-6-pliegos-messenger-sep-b27b832a147e,True,True,False,,8.1,13
+5f8f21c4-0172-4d4f-8e37-c38ca8064fa0,"kit geométrico (regla de 30 cm, compás y transportador)",A,exito-kit-geométrico-compas-y-transportador-eterna-be3c18ff864a,True,True,False,,8.1,13
+5fc6ae23-609a-45e5-924c-0eb8c2105594,caja de colores,B,exito-colores-scribe-unipunta-caja-x-24-unidades-b5c088212d21,True,True,False,,8.1,13
+5fe55b03-3a29-4b1d-ad5b-4d6de746d3c0,barras de silicona gruesa,A,exito-aplicador-de-silicona-barra-gruesa-wolfox-2-barr-bf0c5f67dd0d,False,False,True,,8.1,13
+60e66d20-c00d-4a93-9e2c-76d0c9c9bc30,lápiz Negro grueso triangular,B,exito-lapiz-grafito-gigante-triangul-norma-2555f1ebced3,True,True,False,,8.1,13
+615f5c10-cbf5-4495-8f58-58a2c5bb9eb8,caja de Plastilina Grande,A,exito-plastilina-larga-caja-x12-colores-pelikan-f78647adae9c,True,True,False,,8.1,13
+61623ef7-55c9-43d8-8140-47cafb58471f,carpeta tamaño oficio,A,panamericana-carpeta-de-seguridad-tamaño-oficio--transparente-5d254e54ca6b,True,True,False,,8.1,13
+61781d6b-e81f-4455-b382-713a3445c56d,rollo de cinta transparente ancha,A,exito-rollo-cinta-adhesiva-x-6-transparente-48mmx100mt-239419174690,True,True,False,,5.1,14
+61a444b2-f195-4be0-b2de-b1cda6ef9573,Diccionario: de español e inglés actualizados,A,panamericana-diccionario-bilingüe-pocket--edición-actualizada-d2586c8f8618,True,True,False,,5.1,14
+639c6ebb-893d-4b00-821b-8755672b0f5f,block cuadriculado tamaño oficio,A,panamericana-bloc-papel-bond-de-80-hojas--tamaño-oficio-881d190286e5,True,True,False,,5.1,14
+645f974c-380b-4563-99a9-37f972d9f1da,paquete de papel silueta,A,exito-papel-silueta-octavos-paq-x-10-und-9ee9928a2ac6,True,True,False,,5.1,14
+64fa3fbb-fa85-4109-b371-5756ab036069,paquete de cartón paja por octavos,A,panamericana-cartón-paja-de-1-8-x-10-unidades--colores-surtid-1d2b8d2fe5c1,True,True,False,,5.1,14
+656f2338-8611-4ff5-b0cb-8938aef577d8,RESMA DE PAPEL,A,exito-resma-papel-carta-blanco-importado-blc--brillian-d1431edd0cab,True,True,False,,5.1,14
+65dccbb1-597f-45c7-bdf9-b058e32bc01f,OCTAVOS DE FOAMI COLORES SURTIDOS,A,exito-foamy-1-8-paquete-x-10-unidades-colores--rojo--a-d8c3b79f1407,True,True,False,,5.1,14
+66884a92-b071-4ad4-8361-1f99e9b3410c,MARCADORES DE TABLERO BORRABLE,C,exito-marcador-borrable-pelikan-424-grueso-para-tabler-6e5b528fc69f,True,True,False,,5.1,14
+66d77e23-984b-4d9e-9dce-ed2fae8f2f1b,borrador de nata,A,exito-borrador-nata-x-10-unidades-3792261b3047,True,True,False,,5.1,14
+674dc3a6-7d4a-41b8-abd4-0ac876fec1f6,pliegos Papel crepe,A,exito-papel-crepé-pliego-para-manualidades-paquete-x-1-1240d1886e35,True,True,False,,5.1,14
+68cd5e60-a928-4c1a-b29c-960758563c96,paquete cartulina blanca,A,panamericana-cartulina-opalina-blanca-tamaño-carta-x-25-unida-1631d0576b17,True,True,False,,22.1,15
+68e213d7-5252-4de6-a7ab-841fac743ea6,paquete de cartulina Bristol,A,exito-cartulina-bristol-octavos-paq-x-10-und-11e604c3dbac,True,True,False,,22.1,15
+68e94b09-68ea-4a1d-ad8d-3a0a8c6d1bbb,"cuadernos cuadriculados grandes cosidos de 50 hojas (Ética, Religión, Estadística- geometría, Democracia y Urbanidad)",A,exito-cuaderno-grande-cuadriculado-50-hojas-cosido-fin-bd0525d754af,True,True,False,,22.1,15
+6956e26d-ff3d-4bc3-a661-57a1d4507758,pegastic,B,panamericana-pegante-en-barra-de-40-g-pegastic-bbefd94d5907,True,True,False,,22.1,15
+6a71f4c5-3733-4803-bbf4-1b3d130537da,OCTAVOS DE FOAMI ESCARCHADO,A,exito-foami-octavo-escarchado-paquete-x-10-uds-87982b333efc,True,True,False,,22.1,15
+6c05ca36-c892-46f0-8c26-21c8a9a62496,diccionario de inglés,A,panamericana-diccionario-básico-de-español---inglés-e-inglés--6718c803c103,True,True,False,,22.1,15
+6c49a5e4-a72f-427b-bc7a-face6e6a4741,Borrador,C,exito-borrador-de-nata-x2-finlandek-206b7aa10969,True,True,False,,22.1,15
+6c4abfc5-f49a-43fc-8091-5fe32c2a1523,cintas de enmascarar gruesas,E,exito-cinta-adhesiva-gruesa-transparente-para-embalaje-153a65310998,False,True,False,,22.1,15
+6cce3d17-8459-4fba-8c9b-f93a0b0a602e,LÁPICES N. ° 2 TRIANGULARES,A,panamericana-lápiz-triangular-negro-n---2-mongol--pague-9-lle-e80edd77570b,True,True,False,,22.1,15
+6d909264-f894-4434-95a9-17d5f3e40b63,carpeta plástica ROJA con gancho legajador,B,exito-carpeta-plástica-con-legajador-y-caucho-eterna-7b427578357a,False,False,True,,22.1,15
+6dec8725-6520-452a-bf91-9bbc6264d12b,paquete de Cartulina Arte,ERROR,,,True,False,RetryError[<Future at 0x2ea691319d0 state=finished raised ServerError>],76.1,16
+6e17c3a4-1672-45f6-a5d9-f51ce90c7a68,caja de colores,ERROR,,,True,False,RetryError[<Future at 0x2ea691319d0 state=finished raised ServerError>],76.1,16
+705a028c-c226-4627-a037-c146b85cc6ae,Marcador de tablero,ERROR,,,True,False,RetryError[<Future at 0x2ea691319d0 state=finished raised ServerError>],76.1,16
+70b56e73-d9dd-4ed5-9748-303ba2da7bb5,vinilo blanco,ERROR,,,True,False,RetryError[<Future at 0x2ea691319d0 state=finished raised ServerError>],76.1,16
+70db04e6-3879-459b-ab85-95608f055af3,caja de colores,ERROR,,,True,False,RetryError[<Future at 0x2ea691319d0 state=finished raised ServerError>],76.1,16
+71abf833-f17b-4b4a-a9c4-273b17b7c890,cuaderno cuadriculado de 100 hojas grande (cosido) (Dimensión Comunicativa - Castellano),ERROR,,,True,False,RetryError[<Future at 0x2ea691319d0 state=finished raised ServerError>],76.1,16
+71e939db-f503-4bdd-ae15-0f647e6ed1ac,Par de tijeras punta roma,ERROR,,,True,False,RetryError[<Future at 0x2ea691319d0 state=finished raised ServerError>],76.1,16
+72abf530-a478-4b30-9e67-7ce0d5011889,cintas pegante gruesas,ERROR,,,True,False,RetryError[<Future at 0x2ea691319d0 state=finished raised ServerError>],76.1,16
+731b333e-1aba-4469-9b74-0507ac1691db,cuadernos cuadriculados grandes cosidos de 100 hojas,ERROR,,,True,False,RetryError[<Future at 0x2ea691319d0 state=finished raised ServerError>],76.1,16
+734c7b41-bee1-49d2-9544-36d22b74e351,cuaderno cuadriculado de 50 hojas (Estadística),ERROR,,,True,False,RetryError[<Future at 0x2ea691319d0 state=finished raised ServerError>],76.1,16
+73c61325-1cf3-443f-a970-3dfe8b27d3c1,carpeta Plástica tipo sobre tamaño oficio,A,exito-carpeta-plastica-tipo-sobre-tamaño-oficio-eterna-ccf5bcedd0f9,True,True,False,,5.1,17
+73ff0abb-2734-4736-9ea0-dcf3cebdf10e,Colbón,A,panamericana-pegante-universal-colbón-de-225-g-19c604b5d807,True,True,False,,5.1,17
+776b7764-e885-41a8-935a-dc657bba56aa,caja de colores,B,exito-colores-scribe-unipunta-caja-x-24-unidades-b5c088212d21,True,True,False,,5.1,17
+77f98c44-9d07-4b4f-916b-f2ac338649a5,"Cuadernos ""(mi primer cuaderno cuadritos B) de 100 hojas",A,panamericana-cuaderno-mediano-cosido-cuadriculado-de-100-hoja-5f61559998c5,True,True,False,,5.1,17
+78b6f5ca-a6b7-462e-977b-00e934a62b26,caja de colores,A,panamericana-caja-de-tiza-colores-metalizados-x-10-unidades-1e187172c012,True,True,False,,5.1,17
+78bbe78f-4c40-4d98-9f09-8185e44160be,carpeta tamaño oficio,A,panamericana-carpeta-de-seguridad-tamaño-oficio--transparente-5d254e54ca6b,True,True,False,,5.1,17
+7964dee5-e4b5-4172-bd79-90c99a913cbb,cinta transparente ancha,A,exito-cinta-adhesiva-transparente-48-x-300-metros-254357fa7930,True,True,False,,5.1,17
+79b48274-2e69-4a8e-b902-47aec297d0d2,pegastic grande,A,panamericana-pegante-en-barra-de-40-g-pegastic-bbefd94d5907,True,True,False,,5.1,17
+7a466659-6d4c-4dff-9f7b-6a6ca82a78da,lápices rojos,A,panamericana-lápiz-rojo-de-chequeo-x-12-unidades-c754f8f36c7c,True,True,False,,5.1,17
+7a5f72d7-1cfd-4f5e-b15b-1d0c82a9a552,regla de 30 cm,A,exito-est-1-regla-30-cm-pelikan-0b25970b3294,True,True,False,,5.1,17
+7c4ac74f-c5cc-457f-b617-73aa5d1ad5e6,paquetes de papel seda (colores fuertes),C,exito-papel-seda-70-x-50-cm-x-6-pliegos-messenger-sep-b27b832a147e,True,True,False,,37.5,18
+7cce7d89-ca0c-4f77-8b31-228dc5682cfd,barras de silicona delgada,A,panamericana-silicona-escarchada-barra-delgada-por-10-unidade-827bf87b8b04,True,True,False,,37.5,18
+7db8abcb-26f1-4981-84fc-f5ac3ba1beef,block de papel iris colores fuertes,A,panamericana-block-de-papel-iris-carta-de-colores-x-35-hojas-df3310fab8af,True,True,False,,37.5,18
+7db91527-6a10-420c-86bb-5f19405e1868,borrador de Nata,A,exito-borrador-nata-x-20-unidades-fd353722ecda,False,True,False,,37.5,18
+824d8b23-bdbc-4823-8b4c-a8aa28df9283,CUADERNO COSIDO CUADRICULADO DURALINK DE 50 HOJAS,A,exito-cuaderno-cuadriculado-50-hojas-cosido-scribe-5a1ff9c1e10c,True,True,False,,37.5,18
+8275640d-b32e-4206-9595-064f36001e6c,pliegos de papel de seda,A,exito-papel-seda-70-x-50-cm-x-6-pliegos-messenger-sep-b27b832a147e,True,True,False,,37.5,18
+8312387a-a832-4a89-81c7-1edeabdede5f,pegastic,A,panamericana-pegante-en-barra-de-40-g-pegastic--2-unidades-77e5d2b3d867,True,True,False,,37.5,18
+855a976c-0ae2-4145-94dd-39f1b0afb75f,ROLLO DE CINTA DE ENMASCARAR,A,panamericana-cinta-de-enmascarar-de-36-mm-x-40-m--scotch-94d3a5555417,True,True,False,,37.5,18
+86f3afba-5e9f-499a-b52f-70b4d54bd6b1,tijera Punta-Roma,A,panamericana-tijera-punta-roma-de-13-5-cm-diseño-caballo-con--016cbc9027d1,True,True,False,,37.5,18
+87661067-0cc6-4b1f-9e6c-d3d98883ad12,paquete de papel silueta,A,exito-papel-silueta-octavos-paq-x-10-und-9ee9928a2ac6,True,True,False,,37.5,18
+8a392476-0d69-4449-8619-f00a3978e27b,pincel,C,panamericana-set-de-pinceles-x-5-piezas-824117037c3b,True,True,False,,5.0,19
+8d258668-b5d5-4add-881d-746fed4f973a,cintas pegante gruesas,A,exito-cinta-adhesiva-gruesa-transparente-para-embalaje-153a65310998,True,True,False,,5.0,19
+8d28cc1b-5ded-438c-ad63-df7bd8c3cf52,vinilo negro,A,panamericana-vinilo-acrílico-negro-de-700-g-40b986416f4a,True,True,False,,5.0,19
+8d466022-35a3-4463-af53-a5f230fbe0fa,caja de marcadores delgados,A,panamericana-marcador-delgado-neón-x12-unidades-82cb583e0cff,True,True,False,,5.0,19
+8e655a66-97e7-4c88-911b-afa66f9bafd8,cuadernos cuadriculados de 100 hojas únicamente (Tamaño Grande),A,exito-cuaderno-cuadriculado-grande-cuadriculado-100-ho-1f53ec6e0a10,True,True,False,,5.0,19
+8f25fc88-9ed6-41bd-9843-2757868e9213,block de hojas blancas (Tamaño carta),A,panamericana-bloc-acuarela-tamaño-carta-x-50-hojas-3d5fc8d4227e,False,False,True,,5.0,19
+8f8cea80-3f76-4a91-ac13-1411bcdc9e65,cuaderno cuadriculado de 50 hojas (QUÍMICA),A,exito-cuaderno-cosido-cuadriculado-50-hojas-cosido-fin-16773d8bc6ea,True,True,False,,5.0,19
+9001b8d7-46d1-45a6-80e7-3cf46333e080,pincel delgado,A,exito-set-de-pinceles-delgados-eterna-4d7d2c3799f1,True,True,False,,5.0,19
+917f9c38-52c6-465f-b50a-60c43fd9a1bd,tijeras Punta Roma,A,exito-tijera-punta-roma-5-5-eterna-ee29c50161d3,True,True,False,,5.0,19
+91fdd98c-9d25-443f-b15a-a56329f316aa,colbón grande,A,exito-colbon-pegante-universal-225g-colbon-df50e88851ee,True,True,False,,5.0,19
+929111f0-717f-462c-b7d7-42282e0f38a8,cuaderno ferrocarril de 100 hojas grandes (cosido) - Inglés,A,exito-cuaderno--stitch-doble-linea---ferrocarril-100-h-b7f7a7981142,True,True,False,,6.2,20
+93867c5e-bb6f-442c-8c0c-861c9c4ee1e5,BLOCK DE HOJAS IRIS PARA PLEGADO 20X20,ninguno,,,True,False,,6.2,20
+93b4dcd8-f157-4dae-b047-7d33936d4a5e,cuaderno cuadriculado de 100 hojas (Biología),A,exito-cuaderno-cuadriculado-100-hojas-cosido-finlandek-475e9852eb15,True,True,False,,6.2,20
+946760e1-ceff-4e99-95b6-a2524b6ba203,tijera punta Roma,E,panamericana-tijera-punta-roma-13-cm-surtida-9d029a1fddbb,True,True,False,,6.2,20
+94707044-a4e5-41c4-a451-daf2f5c17e25,cuaderno cuadriculado de 50 hojas (Inglés),A,exito-cuaderno-cosido-cuadriculado-50-hojas-cosido-fin-16773d8bc6ea,True,True,False,,6.2,20
+95b0852e-77be-47b0-8c16-6007448d3ee4,Cuadernos de 50 hojas cuadriculados,A,exito-cuaderno-cosido-cuadriculado-50-hojas-cosido-fin-16773d8bc6ea,True,True,False,,6.2,20
+970c715c-b52d-4fe0-a4c4-64c2f6e1b1ab,"pliegos Papel seda, de colores",A,exito-papel-seda-70-x-50-cm-x-6-pliegos-messenger-sep-b27b832a147e,True,True,False,,6.2,20
+9858426c-321e-4708-88e2-5ec0d0a0fb01,"Cuadernos ""(mi primer cuaderno cuadritos B) de 100 hojas",A,panamericana-cuaderno-mediano-cosido-cuadriculado-de-100-hoja-5f61559998c5,True,True,False,,6.2,20
+9866e880-1f0a-4e67-b9f3-ecab9081c013,cuaderno cuadriculado de 50 hojas (ESTADÍSTICA),A,exito-cuaderno-cosido-cuadriculado-50-hojas-cosido-fin-16773d8bc6ea,True,True,False,,6.2,20
+9867b196-9f03-436e-a87b-da4aafd3d9d0,cuaderno cuadriculado de 50 hojas grande (cosido) (Dimensión Afectiva - ERE),A,exito-cuaderno-grande-cuadriculado-50-hojas-cosido-scr-69955a704fe9,True,True,False,,6.2,20
+98c9b94f-3c02-44b0-a4de-45775c278759,barras de silicona gruesa,A,exito-aplicador-de-silicona-barra-gruesa-wolfox-2-barr-bf0c5f67dd0d,False,False,True,,4.9,21
+98fbcee7-6bfe-47f1-9996-7e372583df4f,cuaderno cuadriculado de 50 hojas (Historia),A,exito-cuaderno-cosido-cuadriculado-50-hojas-cosido-fin-16773d8bc6ea,True,True,False,,4.9,21
+99272567-f67e-4be1-84b9-d06704ed1e41,pliegos Papel crepe,A,exito-papel-crepé-pliego-para-manualidades-paquete-x-1-1240d1886e35,True,True,False,,4.9,21
+9935ca5f-b1c6-4978-bf75-ea97c5840f7b,cuaderno cuadriculado de 100 hojas (Historia),A,exito-cuaderno-cuadriculado-100-hojas-cosido-finlandek-475e9852eb15,True,True,False,,4.9,21
+9950a2ca-0543-4ffe-8097-1b352ca3b890,colbón grande,A,exito-colbon-pegante-universal-225g-colbon-df50e88851ee,True,True,False,,4.9,21
+99d8f73a-cf9b-47ad-8e85-6f1aa125bfe2,pincel delgado,A,exito-set-de-pinceles-delgados-eterna-4d7d2c3799f1,True,True,False,,4.9,21
+9bbaec46-87fb-4c76-8d1f-a6a5bf7a3ef5,TUBOS DE ESCARCHA,A,exito-escarcha-brillantina-en-tubo-x-12-unidades-para--a950268eb140,True,True,False,,4.9,21
+9bc64972-a550-47d5-8610-5f9c4b285607,pliegos de Foamy escarchado,A,exito-foamy-escarchado-pliego-x10-unidades-2c7c15e97bd6,True,True,False,,4.9,21
+9bdfe009-c421-4e8c-ae8a-6ba134d2f0f6,"cuadernos cuadriculados grandes de 100 hojas cosidos: (Inglés, Matemáticas, Naturales, Castellano y Sociales)",A,exito-cuaderno-cuadriculado-100-hojas-cosido-norma-f937030329d0,True,True,False,,4.9,21
+9be4eef0-c254-4fa5-9fcf-8d6a4f04bbde,cuaderno grande ferrocarril cosido de 100 hojas,D,exito-cuaderno-grande-doble-linea---ferrocarril-100-ho-2f7d0a5fa319,True,True,False,,4.9,21
+9cd88714-9464-4379-86a9-fbfb5de27486,Vinilos Amarillos,A,exito-vinilo-escolar-color-amarillo-pastel-130-grs-647fcecfb60d,True,True,False,,5.7,22
+9d6f5f57-5e08-42a5-87d4-b3fd04fc1294,sharpie punta fina,E,exito-marcadores-sharpie-punta-fina-x3-unidades-ea00c23df7d8,True,True,False,,5.7,22
+9e102673-f765-4da6-a209-3bea00cd6457,barras de silicona gruesa,A,exito-aplicador-de-silicona-barra-gruesa-wolfox-2-barr-bf0c5f67dd0d,False,False,True,,5.7,22
+9e20f353-7ca9-4c0e-930d-005bb0e6ca7c,barras de silicona gruesa,A,exito-aplicador-de-silicona-barra-gruesa-wolfox-2-barr-bf0c5f67dd0d,False,False,True,,5.7,22
+9e650e93-ce05-4006-a262-c7cf94ca191d,cuaderno cuadriculado de 50 hojas (Inglés),A,exito-cuaderno-cosido-cuadriculado-50-hojas-cosido-fin-16773d8bc6ea,True,True,False,,5.7,22
+9ecfd4ed-049d-4c85-a66d-6f79dcd71c03,paquetes en 8vo de cartulina,A,exito-cartulina-octavos-paquete-x-10-unidades-surtidas-19e702439b9c,True,True,False,,5.7,22
+9ff11390-71aa-4e07-8d54-b53996705134,lápices negros,B,exito-lápiz-negro-hb-eterna-121a15b37b94,True,True,False,,5.7,22
+a08c5bf6-5741-4aae-bbb0-f8dd5fe9993f,resaltador cualquier color,A,exito-resaltador-flower-power-color-pastel-x-6-af2e2029f188,True,True,False,,5.7,22
+a3260c04-dc3c-460d-b1f4-781281f0c9e5,cuaderno cuadriculado de 50 hojas (FILOSOFÍA),A,exito-cuaderno-cosido-cuadriculado-50-hojas-cosido-fin-16773d8bc6ea,True,True,False,,5.7,22
+a3709668-60a8-468e-af6d-1fbf2993af63,caja de marcadores delgados,A,panamericana-marcador-delgado-neón-x12-unidades-82cb583e0cff,True,True,False,,5.7,22
+a37c69d3-36c7-4d96-9249-881467fce517,cuaderno ferrocarril de 100 hojas grande (cosido) - Castellano,A,exito-cuaderno--stitch-doble-linea---ferrocarril-100-h-b7f7a7981142,True,True,False,,9.0,23
+a3ca2dae-35ad-43d0-8549-3fbae21ab74e,cuaderno cuadriculado de 100 hojas (Química),A,exito-cuaderno-cuadriculado-100-hojas-cosido-kiut-37a4d84d7fd7,True,True,False,,9.0,23
+a3e8d1a8-f8ff-4b48-abb8-1ebb2a3d3782,marcador permanente negro,C,exito-marcador-permanente-negro-faber-castell-d7225ff27f07,True,True,False,,9.0,23
+a5617b8f-1908-4537-86de-bcfa7c9f2ca8,CAJAS DE COLORES X 12 UNIDADES. TRIANGULARES,A,panamericana-colores-triangular-x-12-unidades-27eb7677361f,True,True,False,,9.0,23
+a8644835-3dee-4e78-8278-b63d1a8602df,caja de plastilina grande,A,exito-plastilina-larga-caja-x12-colores-pelikan-f78647adae9c,True,True,False,,9.0,23
+a8a05acf-b193-43c9-9520-caf585f57fb8,Pincel Delgado,B,exito-pincel-delineador-f2a4ae1ad47d,False,True,False,,9.0,23
+a9117c5f-3328-48e5-bdfa-ae0459da7adb,Colbón grande,A,exito-colbon-pegante-universal-225g-colbon-df50e88851ee,True,True,False,,9.0,23
+a9c59891-bd98-4413-b9e3-8b1e11853eb0,"pliegos Papel seda, de colores",A,exito-papel-seda-70-x-50-cm-x-6-pliegos-messenger-sep-b27b832a147e,True,True,False,,9.0,23
+aa586d30-c0fd-47aa-b5ca-ebfea61e4235,cintas de enmascarar gruesas,E,exito-cinta-adhesiva-gruesa-transparente-para-embalaje-153a65310998,False,True,False,,9.0,23
+aaf769bc-30cf-49ee-8df3-60046b82436a,cuaderno cuadriculado de 50 hojas grande (cosido) (Dimensión Cognitiva - Ciencias naturales),A,exito-cuaderno-grande-cuadriculado-50-hojas-cosido-fin-bd0525d754af,True,True,False,,9.0,23
+ab79f8c7-fb6a-4423-8335-3f7e92e8341a,pincel No. 6,ninguno,,,False,True,,64.9,24
+acb8eec9-4d35-4a11-b3cf-a7bea962bbdb,diccionario de inglés,A,panamericana-diccionario-básico-de-español---inglés-e-inglés--6718c803c103,True,True,False,,64.9,24
+ae141b62-096d-4583-a89d-e6a3770ca93c,pliegos de papel crepé,A,exito-papel-crepé-pliego-para-manualidades-paquete-x-1-1240d1886e35,True,True,False,,64.9,24
+ae34d664-83cc-410d-97a0-f2eed0045a00,FRASCO DE COLBÓN 245 GR,A,panamericana-pegante-de-papel-de-245-g--colbón-con-aplicador-8618312dff6e,True,True,False,,64.9,24
+ae8d7e8f-c2d4-4602-b4a6-2a6b4ad63954,vinilos de diferentes colores,A,panamericana-vinilos-colores-básicos-x-6-unidades-88d40798e8b8,True,True,False,,64.9,24
+ae9e9683-ebec-42f2-918f-716f207a5251,borrador de nata,A,exito-borrador-nata-x-10-unidades-3792261b3047,True,True,False,,64.9,24
+aec206be-5f31-49b7-bd18-003a92591fa3,PLIEGOS DE PAPEL SEDA,A,exito-papel-seda-70-x-50-cm-x-6-pliegos-messenger-sep-b27b832a147e,True,True,False,,64.9,24
+af51bb7f-b8c4-46cb-9212-b6238d58bed7,"cuadernos cuadriculados grandes cosidos de 50 hojas (Ética, Religión, Estadística-geometría y Urbanidad)",A,exito-cuaderno-grande-cuadriculado-50-hojas-cosido-fin-bd0525d754af,True,True,False,,64.9,24
+b046d8f7-77f3-4f59-bf8f-c57c1210b94d,cuaderno cuadriculado de 100 hojas (CALCULO),A,exito-cuaderno-cuadriculado-100-hojas-cosido-kiut-37a4d84d7fd7,True,True,False,,64.9,24
+b0f4c7b8-ded4-4469-b97a-f979649c3985,PAQUETE DE CARTULINA BLANCA X 10,A,panamericana-cartulina-opalina-blanca-de-1-8-x-10-hojas-de-18-7dc99d81a9a9,True,True,False,,64.9,24
+b1d5cd16-862f-4c28-b530-c34941b77a9b,paquete cartulina iris,A,exito-cartulina-iris-en-1-8-paquete-x-20-unidades-3bf7c7194a6b,True,True,False,,43.0,25
+b44d8b9e-716a-45bb-9a81-b39b0135f649,papel seda,B,exito-papel-seda-70-x-50-cm-x-6-pliegos-messenger-sep-b27b832a147e,True,True,False,,43.0,25
+b54e1a87-ac06-43a7-837d-156e0aefbbdf,paquete de Octavos de Cartulina de Colores Fuertes,A,exito-cartulina-octavos-paquete-x-10-unidades-surtidas-19e702439b9c,True,True,False,,43.0,25
+b57bf146-4151-4cc8-b9fd-78f8ef8bea6e,cuadernos grandes cuadriculados cosidos de 50 hojas,A,exito-cuaderno-masculino-grande-cuadriculado-50-hojas--3685783d1328,True,True,False,,43.0,25
+b5b042ac-5aa1-47d8-9d4c-b31e94c730e2,resaltador,A,exito-resaltador-verde-textliner-super-gel-faber-caste-2ee972af14db,True,True,False,,43.0,25
+b6c699cf-2cac-4dc9-999c-8c0c965f3697,diccionario en español,A,panamericana-diccionario-español-ilustrado-b779225e9d7a,True,True,False,,43.0,25
+b6cf2e86-c283-4ed7-ad76-61d60cdf2a39,caja de colores grande,E,exito-crayones-lavables-grandes-8-colores-463f411af89b,False,False,True,,43.0,25
+b7264cf1-74ea-42db-845a-31e73fb15f6a,cuaderno ferrocarril cosido 100 hojas,A,exito-cuaderno--stitch-doble-linea---ferrocarril-100-h-b7f7a7981142,True,True,False,,43.0,25
+b7a6fd29-f811-43f5-af43-61fd6b067822,carpeta tamaño oficio,A,panamericana-carpeta-de-seguridad-tamaño-oficio--transparente-5d254e54ca6b,True,True,False,,43.0,25
+b7b5f58d-6316-48a1-a489-088a7d49d1e5,cuaderno cuadriculado de 100 hojas (Lengua Castellana),A,exito-cuaderno-cuadriculado-100-hojas-cosido-kiut-37a4d84d7fd7,True,True,False,,43.0,25
+b8332796-7407-4dd4-b656-55e4316fea26,barras de silicona delgada,A,panamericana-silicona-escarchada-barra-delgada-por-10-unidade-827bf87b8b04,True,True,False,,5.2,26
+b857faff-33bf-4c6d-b2f1-7790c7689237,block iris tamaño carta de colores,A,panamericana-block-de-papel-iris-carta-de-colores-x-35-hojas-df3310fab8af,True,True,False,,5.2,26
+b90ca811-77d5-48b3-a647-4a59c0d1de75,tijera punta roma,A,panamericana-tijera-punta-roma-de-13-5-cm-diseño-caballo-con--016cbc9027d1,True,True,False,,5.2,26
+b95344c4-9360-4db0-b772-df8199b1f867,barras de silicona delgada,A,panamericana-silicona-escarchada-barra-delgada-por-10-unidade-827bf87b8b04,True,True,False,,5.2,26
+b9e01d58-b223-4b78-92e5-093749b228c0,MARCADOR SHARPIE,A,exito-marcador-sharpie-negro-fino-permanente-x4-unds-s-bcaa162d6efa,True,True,False,,5.2,26
+bbfbe69c-e163-47ce-b35b-459ed02e8e8e,Vinilo Negro,A,panamericana-vinilo-acrílico-negro-de-700-g-40b986416f4a,True,True,False,,5.2,26
+bcf5fbf8-b223-4e35-929f-32bea00a8446,cuadernos de cuadricula grande de 100 Hojas (cocidos),A,exito-cuaderno-masculino-grande-cuadriculado-100-hojas-a9a45c071b28,True,True,False,,5.2,26
+bd0d5d85-a3bd-422f-89cd-79bd6426d90e,paquete de cartulina Arte en octavos,A,exito-cartulina-arte-octavos-paq-x-10-und-554e61e9f629,True,True,False,,5.2,26
+bd166bfb-c3d1-41ed-94f9-cbf5ae2b1606,"Cartulina paquete arte, calipso, blanco y de colores",ninguno,,,True,False,,5.2,26
+be497f30-89e5-47c5-b965-05a2a3e26b46,vinilo neón,ninguno,,,False,True,,5.2,26
+be93345a-d874-45f8-81be-fdb8ac5756e6,paquete de cartulina arte en octavos,A,exito-cartulina-arte-octavos-paq-x-10-und-554e61e9f629,True,True,False,,5.1,27
+bf74d2c0-0ae3-48e3-9fec-55e16c30d8b4,tajalápiz con depósito,A,panamericana-tajalápiz-con-depósito-jumbo--pez--surtido-05322b28eb1c,True,True,False,,5.1,27
+c041b616-304c-497c-afb4-ef4e9c161bd3,Tabla de picado,A,panamericana-tablero-acrílico---tabla-de-picado-810ee42a5f4c,True,True,False,,5.1,27
+c24d1703-562d-4f5f-b9e2-25167bdf978b,block papel iris tamaño carta,A,panamericana-block-de-papel-iris-carta-de-colores-x-35-hojas-df3310fab8af,True,True,False,,5.1,27
+c32c4ead-6b07-47f9-9a81-d2a4cc2dca35,cuaderno cuadriculado de 100 hojas grande (cosido) (Dimensión Cognitiva - Matemáticas),A,exito-cuaderno-grande-cosido-cuadriculado-100-hjs-mari-7a1a1b3408af,True,True,False,,5.1,27
+c37ae0a4-4f80-404f-bc67-76b81a98c68d,BARRAS DE SILICONA DELGADA,A,panamericana-silicona-escarchada-barra-delgada-por-10-unidade-827bf87b8b04,True,True,False,,5.1,27
+c3db3127-b25b-41f8-83c9-d9adc90e8580,vinilo de color rojo,A,exito-vinilo-escolar-color-rojo-primario-130-grs-6aee0e3fec6b,True,True,False,,5.1,27
+c45c01a3-316b-4256-93a8-10117747b408,vinilos de colores fluorescentes,A,exito-vinilo-escolar-color-verde-fluorescente-130-grs-fd82cf22895e,True,True,False,,5.1,27
+c48da097-e546-4010-90be-ca05f4dd2d9d,block Tamaño Oficio de Papellris,ninguno,,,False,True,,5.1,27
+c48fbcc2-b5fd-42f1-ac70-563bf9cf288c,cuaderno Ferrocarril de 100 hojas únicamente (Tamaño Grande),C,exito-cuaderno-grande-doble-linea---ferrocarril-100-ho-2f7d0a5fa319,True,True,False,,5.1,27
+c4b11fb4-0bdd-4e18-8e54-5bd152f57edb,Tabla de picado,A,panamericana-tablero-acrílico---tabla-de-picado-810ee42a5f4c,True,True,False,,6.3,28
+c4d5dcba-987e-4db6-a415-5b9185bf8630,tajalápiz con depósito,A,panamericana-tajalápiz-con-depósito-jumbo--pez--surtido-05322b28eb1c,True,True,False,,6.3,28
+c52d027c-6604-4e3d-92a9-638f39612fbf,tajalápiz con depósito,A,panamericana-tajalápiz-con-depósito-jumbo--pez--surtido-05322b28eb1c,True,True,False,,6.3,28
+c5a47921-5828-4a6b-936d-33b2b82d4793,pliegos de papel crepé,A,exito-papel-crepé-pliego-para-manualidades-paquete-x-1-1240d1886e35,True,True,False,,6.3,28
+c5fad4e0-c2b7-4e02-9f73-412617dd2897,MARCADOR PERMANENTE GRUESO,A,exito-marcador-permanente-pelikan-420-grueso---tinta-p-5e73b5905124,True,True,False,,6.3,28
+c696a5ab-03fd-4ba5-849d-ed9be688e7b2,tijera punta roma,D,panamericana-tijera-punta-roma-13-cm-surtida-9d029a1fddbb,True,True,False,,6.3,28
+c75c5b65-6a84-447c-8f6b-597cb87552eb,CUADERNOS COSIDOS CUADRICULADOS DURALINK DE 100 HOJAS,C,exito-cuaderno-cuadriculado-100-hojas-cosido-norma-f937030329d0,True,True,False,,6.3,28
+c882c658-c626-485d-a4fd-b8c0a0415711,pliego de cartulina blanca,A,exito-cartulina-pliego-70x100-blanco-formas-y-colores-139785e22776,True,True,False,,6.3,28
+c8ce50e8-c34a-4ff2-b464-f153e5299ce6,cuaderno cuadriculado de 100 hojas (LENGUA CASTELLANA),A,exito-cuaderno-cuadriculado-100-hojas-cosido-norma-f937030329d0,True,True,False,,6.3,28
+c9ead27b-eff8-4765-94f0-a5d4a71a2ff4,cuaderno cuadriculado de 100 hojas grandes (cosido) (Dimensión Comunicativa - inglés),A,exito-cuaderno-grande-cuadriculado-100-hojas-cosido-sc-66b47f759c8f,True,True,False,,6.3,28
+cab429db-57e7-4c57-a668-6a319b279f97,cintas pegante gruesas,A,exito-cinta-adhesiva-gruesa-transparente-para-embalaje-153a65310998,True,True,False,,5.6,29
+cb3b05ce-8696-4761-844a-16a45935b9e8,cuadernos cuadriculados grandes cosidos de 100 hojas,A,exito-cuaderno-masculino-grande-cuadriculado-100-hojas-a9a45c071b28,True,True,False,,5.6,29
+cb566845-ef6d-42d2-a6ab-a4af3b3de7d4,caja de colores,B,exito-colores-scribe-unipunta-caja-x-24-unidades-b5c088212d21,True,True,False,,5.6,29
+cc3f70b3-0d97-43f4-8cf0-04bfadceb218,cajas de plastilina,A,exito-plastilina-larga-caja-x12-colores-pelikan-f78647adae9c,True,True,False,,5.6,29
+ccd1ff73-bf73-4475-a002-181f22a8cb91,marcadores gruesos,A,panamericana-marcadores-gruesos-lavables-x10-unidades-50da9e845674,True,True,False,,5.6,29
+cd8f6380-668d-4c81-b525-eab24f4043a5,caja de plastilina,A,exito-plastilina-larga-caja-x12-colores-pelikan-f78647adae9c,True,True,False,,5.6,29
+ce84d154-c5fc-4957-a35b-337df9cf5167,cuaderno grande Ferrocarril cosido de 100 hojas,A,exito-cuaderno-peluches-fantasy-grande-doble-linea---f-ed04bdab103e,True,True,False,,5.6,29
+cefa6779-4ebe-4d1c-af49-19b6819ef8a4,cuaderno ferrocarril grande de 100 hojas cosidos (Castellano),A,exito-cuaderno--stitch-doble-linea---ferrocarril-100-h-b7f7a7981142,False,True,False,,5.6,29
+cf751755-3e66-4537-8eea-deed40e8e9cb,pliegos de Foamy escarchado,A,exito-foamy-escarchado-pliego-x10-unidades-2c7c15e97bd6,True,True,False,,5.6,29
+d0186c99-358d-435b-8b98-c05c8f50bca3,cuaderno doble línea plus 100 hojas,A,panamericana-cuaderno-cosido-doble-línea-de-100-hojas--surtid-3885ac15c865,True,True,False,,5.6,29
+d09f500f-f69a-4c90-8685-524da4e7ad60,pincel grueso,C,panamericana-set-de-6-pinceles-redondos-gioto-kang-rui-b927d128cf6b,True,True,False,,18.2,30
+d1010971-c63c-44ca-8249-963d0001fe45,pliego de cartulina blanca,A,exito-cartulina-pliego-70x100-blanco-formas-y-colores-139785e22776,True,True,False,,18.2,30
+d23918d1-d0b4-4ef3-b0c1-8799514c665a,CAJA DE PLASTILINA LARGA POR 12,A,exito-plastilina-larga-caja-x12-colores-pelikan-f78647adae9c,True,True,False,,18.2,30
+d2f4fc94-7dfa-4edf-b1c5-5d82fbd90cc6,caja de colores gigantes triangulares (únicamente gruesos X 12 doble punta),ERROR,,,True,False,,18.2,30
+d38ead9b-f82c-4c04-bff2-89ad40b3b74c,PAQUETE DE CARTULINA BRISTOL SURTIDO X 10,A,exito-cartulina-bristol-octavos-paq-x-10-und-11e604c3dbac,True,True,False,,18.2,30
+d43d3964-25b0-4e0e-965b-e77dc50c9aff,paquetes de Foamy de colores,A,exito-foamy-colores-tamaño-carta-x10-unidades-para-man-6a3df016130b,True,True,False,,18.2,30
+d4e32f92-3e9e-4c57-adaf-3517e9b419ce,cuaderno cuadriculado de 50 hojas grande (cosido) (Dimensión Cognitiva - Ciencias sociales),A,exito-cuaderno-grande-cuadriculado-50-hojas-cosido-fin-bd0525d754af,True,True,False,,18.2,30
+d570560d-3bd2-45af-bae8-d98714200259,paquete de papel silueta,A,exito-papel-silueta-octavos-paq-x-10-und-9ee9928a2ac6,True,True,False,,18.2,30
+d618ab8e-5d93-4b76-8bf2-eff67a40fd3d,block papel origami,A,panamericana-bloc-de-papel-iris-para-origami-x-50-hojas-e78a9f69742c,True,True,False,,18.2,30
+d6511873-8eaa-49e9-8813-c0aa6f8005ac,cuaderno Ferrocarril de 100 Hojas (cocido),E,panamericana-cuaderno-cosido-ferrocarril-de-100-hojas-renglon-363cd8ed5d66,True,True,False,,18.2,30
+d69d6864-92b1-453b-9446-ea803970d395,Delantal Plástico,A,panamericana-delantal-sin-mangas-escolar-en-pvc-talla-8--surt-4c95fd00964a,True,True,False,,4.1,31
+d77e77c7-e98b-48cc-8973-9dcf997f2f14,Cartuchera,A,exito-cartuchera-premium-barbie-girl-4b30d35f8cc6,True,True,False,,4.1,31
+d9236b0f-0b46-4d63-88f8-49100a30b55a,"carpeta tamaño oficio plastificada, con gancho legajador (NO estilo sobre)",C,panamericana-carpeta-de-seguridad-plástica-tamaño-oficio--neg-35a18fb1a116,True,True,False,,4.1,31
+db48f149-c398-48cf-bba5-513d03876e8a,paquetes de aserrín pequeño de colores,A,exito-aserrin-escolar-de-colores-bolsa-x-12-unidades-a6b05400b9f4,True,True,False,,4.1,31
+dcb5ba61-f944-4853-bd25-1f9f624a76d6,delantal para pintura manga larga resistente,A,exito-delantal-escolar-infantil-impermeable-manga-larg-c4954549cd54,True,True,False,,4.1,31
+dd8f70a5-6d93-43b4-a4f9-661c0543cbda,cuadernos de 50 hojas,A,exito-cuaderno-rayado-50-hojas-cosido-finlandek-e721bc5fec2f,True,True,False,,4.1,31
+df791148-46a1-408f-8c64-04265437a69d,cuaderno ferrocarril de 50 hojas grande (cosido) - Ética-Religión,A,exito-cuaderno-grande-doble-linea---ferrocarril-50-hoj-f995274c9942,True,True,False,,4.1,31
+dfe5a9e7-da03-4c55-bd1f-b94f4979c7a3,pliegos de Papel Crepe colores vivos,B,exito-papel-crepé-pliego-para-manualidades-paquete-x-1-1240d1886e35,True,True,False,,4.1,31
+e0c45cf5-4fe7-4271-9a1d-4c930cd8a6f3,cuaderno cuadriculado de 100 hojas (Matemáticas),A,exito-cuaderno-cuadriculado-100-hojas-cosido-finlandek-475e9852eb15,True,True,False,,4.1,31
+e1143f07-7174-4a4d-9dcb-8336586f26a8,block cuadriculado tamaño oficio,A,panamericana-bloc-papel-bond-de-80-hojas--tamaño-oficio-881d190286e5,True,True,False,,4.1,31
+e218b34b-961a-416f-b265-d75944c3ef89,marcadores gruesos,A,panamericana-marcadores-gruesos-lavables-x10-unidades-50da9e845674,True,True,False,,4.9,32
+e22aeb1e-d252-4189-9335-796ecd09f586,pegastic,A,panamericana-pegante-en-barra-de-40-g-pegastic--2-unidades-77e5d2b3d867,True,True,False,,4.9,32
+e294d212-8f8d-4041-ab53-224528ab2a73,tijeras Punta Roma,A,exito-tijera-punta-roma-5-5-eterna-ee29c50161d3,True,True,False,,4.9,32
+e2963861-7d65-44b4-9e42-9ca84b029d6e,pincel grueso,C,panamericana-set-de-6-pinceles-redondos-gioto-kang-rui-b927d128cf6b,True,True,False,,4.9,32
+e36280df-7895-4701-a2f2-ae5ae3e9e733,Pegastic grande,A,panamericana-pegante-en-barra-de-40-g-pegastic-bbefd94d5907,True,True,False,,4.9,32
+e56276db-cac1-44f4-aa14-0b67e951d9c9,cintas de enmascarar gruesas,B,exito-4-cinta-adhesiva-enmascarar-24mm-x-20mts-b24d294b461b,True,True,False,,4.9,32
+e628f184-e5c3-4107-a23e-9279e92eee54,barra silicona gruesa,A,exito-aplicador-de-silicona-barra-gruesa-wolfox-2-barr-bf0c5f67dd0d,False,False,True,,4.9,32
+e79308e4-88a5-4864-930f-57fd9d7c2a5d,paquete de cartón paja por octavos,A,panamericana-cartón-paja-de-1-8-x-10-unidades--colores-surtid-1d2b8d2fe5c1,True,True,False,,4.9,32
+e7c3dd22-5ed8-46f3-95e4-cc828c9a38c1,Pegastic,A,panamericana-pegante-en-barra-de-40-g-pegastic--2-unidades-77e5d2b3d867,True,True,False,,4.9,32
+e82485d9-8354-47d9-98e2-17986107ae9c,barras de silicona gruesa,A,exito-aplicador-de-silicona-barra-gruesa-wolfox-2-barr-bf0c5f67dd0d,False,False,True,,4.9,32
+e89062ad-a555-46c0-ac36-033a0ea16a88,marcadores gruesos,A,panamericana-marcadores-gruesos-lavables-x10-unidades-50da9e845674,True,True,False,,18.8,33
+e8d7804a-c24d-40a2-8ee7-4b66ebc790a1,pegante en Barra,A,exito-pegante-barra-40grs-premium-43ebdce3a8e8,True,True,False,,18.8,33
+e8fb97ce-f9f9-4db4-b0bd-92c7e32f6d7a,cinta de enmascarar ancha,C,panamericana-cinta-de-enmascarar-de-48-mm-x-40-m-scotch-b8705bd37184,True,True,False,,18.8,33
+ea5db4fe-6123-44aa-bb81-591d5ff835ba,"cuadernos cuadriculados grandes de 100 hojas cosidos (Matemáticas, Sociales, Naturales e Inglés)",A,exito-cuaderno-femenino-grande-cuadriculado-100-hojas--4f66695cbeda,True,True,False,,18.8,33
+ea904d6b-c61c-418f-8032-8b61089e9a5e,Cuaderno de 100 hojas cuadriculado,A,exito-cuaderno-cuadriculado-100-hojas-cosido-finlandek-475e9852eb15,True,True,False,,18.8,33
+ec4ef53b-a586-44ca-bc8a-954a89eb2933,"cuadernos cuadriculados grandes cosidos de 50 hojas (Ética, Religión, Estadística-geometría y Urbanidad)",A,exito-cuaderno-grande-cuadriculado-50-hojas-cosido-fin-bd0525d754af,True,True,False,,18.8,33
+ecaf602d-ed43-4581-8ea2-2f7aeddcea40,lápices negros,E,exito-lapiz-negro-de-grafito-hexa-norma-b3c2618d18a3,True,True,False,,18.8,33
+ed560275-fd27-44ac-9ee1-b0fa4e7e483b,tajalápiz con depósito,D,panamericana-tajalápiz-con-depósito-faber-castell--surtido-8941de84e8fa,True,True,False,,18.8,33
+edfb1399-3083-4b53-8b03-614d496e66c6,block de papel iris colores fuertes,A,panamericana-block-de-papel-iris-carta-de-colores-x-35-hojas-df3310fab8af,True,True,False,,18.8,33
+ee900c4a-1422-4510-86e9-55220a265e4a,PINCEL GRUESO,ERROR,,,False,False,,18.8,33
+ef1f6302-5cfd-4389-b8c8-b4cc0193766b,pliegos de papel crepé,A,exito-papel-crepé-pliego-para-manualidades-paquete-x-1-1240d1886e35,True,True,False,,5.4,34
+ef58656a-22fa-4c69-89da-4cd691c09fce,tajalápiz con depósito,A,panamericana-tajalápiz-con-depósito-jumbo--pez--surtido-05322b28eb1c,True,True,False,,5.4,34
+f0c7fc9d-989d-46d0-a6bb-9dd000222560,COJIN,A,exito-cojín-en-poliester-con-relleno-45-x-45-cm-color--c61aa370b08c,True,True,False,,5.4,34
+f0ee74e6-9d56-479b-a9eb-43d26dbe4cfa,pliegos de cartulina blanca,A,exito-cartulina-pliego-70x100-blanco-formas-y-colores-139785e22776,True,True,False,,5.4,34
+f0f4c796-f275-45e0-b79b-99c4eb5ea47f,PAQUETE DE CARTULINA IRIS X 10,ninguno,,,True,False,,5.4,34
+f1dac8c5-97a7-4786-9dc4-3a4c07c6f102,Punzón de punta fina metálica,ninguno,,,False,True,,5.4,34
+f38ea4c7-0c2f-4c14-a860-6f0385c25dfb,regla de 30 cm NO flexible,ninguno,,,False,True,,5.4,34
+f4b891f8-0dee-4f50-b228-b0e5941948d4,pincel delgado,A,exito-set-de-pinceles-delgados-eterna-4d7d2c3799f1,True,True,False,,5.4,34
+f4e21ce5-a7ca-414c-8c64-d8d5627536dc,paquetes de Fomi en Octavos,A,exito-foami-octavo-escarchado-paquete-x-10-uds-87982b333efc,True,True,False,,5.4,34
+f56f5bb9-768d-4042-9dc7-4c6103bdcffa,barras de silicona delgada,A,panamericana-silicona-escarchada-barra-delgada-por-10-unidade-827bf87b8b04,True,True,False,,5.4,34
+f6806191-e37a-48bc-aaae-4f340a64fa23,paquetes de cartulina Bristol,A,exito-cartulina-bristol-octavos-paq-x-10-und-11e604c3dbac,True,True,False,,5.1,35
+f7232e2a-d352-46b2-85e5-5cc7e424c42f,caja de crayones escolares por 12,A,exito-12-crayones-estándar-x12-crayola-14b79a82d5d8,True,True,False,,5.1,35
+f72623d8-c13f-43ff-acdf-36bf0cc8b6b0,Plumones x 12 punta delgada,A,exito-marcadores-plumones-scribe-punta-delgada-lavable-4fd7a7c72238,True,True,False,,5.1,35
+f78e05e9-77a2-4571-ab1e-c01cbe3898f5,vinilo verde,A,panamericana-vinilo-acrílico-verde-navidad-de-700-g-e4828545e1f1,True,True,False,,5.1,35
+f7e1eec2-ea55-4eaa-b8df-ccd768a56d44,vinilo de color azul,A,exito-vinilo-escolar-color-azul-primario-130-grs-641955ea5659,True,True,False,,5.1,35
+fae2359e-12ba-458f-a679-727adba3e735,paquetes en 8vo de cartulina,A,exito-cartulina-octavos-paquete-x-10-unidades-surtidas-19e702439b9c,True,True,False,,5.1,35
+fb7a61e2-f28c-4fde-817f-0080e6359a04,paquete de fomi en octavos de colores,A,exito-foamy-1-8-paquete-x-10-unidades-colores--rojo--a-d8c3b79f1407,True,True,False,,5.1,35
+fdaed446-e3bd-4a18-8228-56d3e9e048d6,pincel delgado,A,exito-set-de-pinceles-delgados-eterna-4d7d2c3799f1,True,True,False,,5.1,35
+fdb4f7d7-0ac2-4592-ae75-6239b7c96364,lápices Negros Mirado,A,exito-lápiz-mirado--2-negro-hb-caja-x-12-unidades-pape-24a11ba68e5f,True,True,False,,5.1,35
+fdbc1677-1de5-4934-ae3a-cf8dd001067a,BORRADORES MIGA DE PAN GRANDE,A,exito-borrador-miga-de-pan-negro-x-30-unidades-dd9f7e7291d1,True,True,False,,5.1,35
+ffb7d6f0-bd08-4c42-97d7-579f4214708e,papel seda,B,exito-papel-seda-70-x-50-cm-x-6-pliegos-messenger-sep-b27b832a147e,True,True,False,,4.5,36
+ffc70ab3-1cd2-4beb-b758-7e7fe4d727da,"Tablero pequeño borrable doble A4, con marcadores borrables",B,exito-cuaderno-pizarra-tablero-portátil-acrílico-borra-93a61454fa55,True,True,False,,4.5,36
+ffe35295-7ec8-4281-9439-4077af7b5027,carpeta tamaño oficio,A,panamericana-carpeta-de-seguridad-tamaño-oficio--transparente-5d254e54ca6b,True,True,False,,4.5,36
+fff01809-cdf0-46ed-a00a-011f13df440a,barra silicona gruesa,A,exito-aplicador-de-silicona-barra-gruesa-wolfox-2-barr-bf0c5f67dd0d,False,False,True,,4.5,36

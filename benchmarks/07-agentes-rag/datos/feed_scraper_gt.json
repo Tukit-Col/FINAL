@@ -1,0 +1,3725 @@
+{
+ "generado": "2026-08-05",
+ "total": 413,
+ "escolares": 413,
+ "descartados": 90,
+ "productos": [
+  {
+   "proveedor": "exito",
+   "nombre": "2 Cuadernos Grandes Cosidos Rayados 100 Hjs Mariana Paj¢N",
+   "marca": "GENERICO",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/2-cuadernos-grandes-cosidos-rayados-100-hjs-mariana-pajn-105082182-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "2 Cuadernos Grapados Cuadriculados 100 Hjs Mariana Paj¢N",
+   "marca": "GENERICO",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/2-cuadernos-grapados-cuadriculados-100-hjs-mariana-pajn-105082174-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "2 Cuadernos Grapados Rayados 100 Hjs Mariana Paj¢N",
+   "marca": "GENERICO",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/2-cuadernos-grapados-rayados-100-hjs-mariana-pajn-105082172-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "3 Cuadernos Grandes Cosidos Cuadriculados 100 Hjs Mariana Paj¢N",
+   "marca": "GENERICO",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/3-cuadernos-grandes-cosidos-cuadriculados-100-hjs-mariana-pajn-105082189-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "3 Cuadernos Grandes Cosidos Rayados 100 Hjs Mariana Paj¢N",
+   "marca": "GENERICO",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/3-cuadernos-grandes-cosidos-rayados-100-hjs-mariana-pajn-105082190-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "3 Cuadernos Grapados Cuadriculados 100 Hjs Mariana Paj¢N",
+   "marca": "GENERICO",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/3-cuadernos-grapados-cuadriculados-100-hjs-mariana-pajn-105082187-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "3 Cuadernos Grapados Rayados 100 Hjs Mariana Paj¢N",
+   "marca": "GENERICO",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/3-cuadernos-grapados-rayados-100-hjs-mariana-pajn-105082175-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio marca Bluey / Acc.cartuchera bluey rosa",
+   "marca": "BLUEY",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio--marca-bluey---acc-cartuchera-bluey-rosa-124179541/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio Cartucheras en consignacion Bluey Cartuchera 14 bluey 3617",
+   "marca": "BLUEY",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio-cartucheras-en-consignacion--bluey-cartuchera-14--bluey-3617-124189029/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio Cartucheras en consignacion Cars Cartuchera 14 cars 3618",
+   "marca": "CARS",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio-cartucheras-en-consignacion--cars-cartuchera-14--cars-3618-124189027/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio Cartucheras en consignacion Dragon ball Cartuchera 14 dragon ball 3618",
+   "marca": "DRAGON BALL",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio-cartucheras-en-consignacion--dragon-ball-cartuchera-14--dragon-ball-3618-124189028/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio Cartucheras en consignacion Sonic Cartuchera 14 sonic 3618",
+   "marca": "SONIC",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio-cartucheras-en-consignacion--sonic-cartuchera-14--sonic-3618-124189026/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio Cartucheras en consignacion cars Cartuchera cars d2",
+   "marca": "CARS",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio-cartucheras-en-consignacion--cars-cartuchera-cars-d2-124179540/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio Cartucheras en consignacion paw patrol Cartuchera paw patrol azul",
+   "marca": "PAW PATROL",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio-cartucheras-en-consignacion--paw-patrol-cartuchera-paw-patrol-azul-124179539/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio Cartucheras en consignacion princesas Cartuchera princesas rosa",
+   "marca": "PRINCESAS",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio-cartucheras-en-consignacion--princesas-cartuchera-princesas-rosa-124179537/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio Loncheras consignacion Mickey 23a1 lonchera 1 disney mickey",
+   "marca": "MICKEY",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio-loncheras-consignacion--mickey-23a1-lonchera-1-disney-mickey-124188230/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio Loncheras consignacion Mickey 23a1 lonchera 2 disney mickey",
+   "marca": "MICKEY",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio-loncheras-consignacion--mickey-23a1-lonchera-2-disney-mickey-124188229/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio Loncheras consignacion Mickey 23a1 lonchera 5 disney mickey",
+   "marca": "MICKEY",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio-loncheras-consignacion--mickey-23a1-lonchera-5-disney-mickey-124188231/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio Loncheras consignacion Spiderman Lonchera premium spidey d2",
+   "marca": "SPIDERMAN",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio-loncheras-consignacion--spiderman-lonchera-premium-spidey-d2-124199130/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio Loncheras consignacion barbie Lonchera 16 barbie 3733",
+   "marca": "BARBIE",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio-loncheras-consignacion--barbie-lonchera-16--barbie-3733-124167734/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio Loncheras consignacion cars Lonchera 14 cars 3614",
+   "marca": "CARS",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio-loncheras-consignacion--cars-lonchera-14--cars-3614-124167733/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio Loncheras consignacion dragon ball Lonchera 14 dragon ball 3614",
+   "marca": "DRAGON BALL",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio-loncheras-consignacion--dragon-ball-lonchera-14--dragon-ball-3614-124167731/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio Loncheras consignacion frozen Lonchera 14 frozen 3613",
+   "marca": "FROZEN",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio-loncheras-consignacion--frozen-lonchera-14--frozen-3613-124167737/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio Loncheras consignacion minnie Lonchera 16 minnie 3733",
+   "marca": "MINNIE",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio-loncheras-consignacion--minnie-lonchera-16--minnie-3733-124167735/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio Loncheras consignacion paw patrol Lonchera 14 paw patrol 3614",
+   "marca": "PAW PATROL",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio-loncheras-consignacion--paw-patrol-lonchera-14--paw-patrol-3614-124167732/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio Loncheras consignacion princesas Lonchera 16 princesas 3733",
+   "marca": "PRINCESAS",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio-loncheras-consignacion--princesas-lonchera-16--princesas-3733-124167738/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Accesorio Loncheras consignacion sonic Lonchera 16 sonic 3735",
+   "marca": "SONIC",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/accesorio-loncheras-consignacion--sonic-lonchera-16--sonic-3735-124167727/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Aspirador Nasal Eléctrico Bebés Y Niños Limpiador Automático Niño Colores Surtidos",
+   "marca": "IMPORTADO",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/aspirador-nasal-electrico-bebes-y-ninos-limpiador-automatico-nino-colores-surtidos-102015877-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Banco Step Aeróbico Graduable 2 Niveles Ajustable Colores",
+   "marca": "CENTURFIT",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/step-banco-aerobics-ejercicio-fitness-crossfit-ajustable-gris-103506671-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Boligrafo Retractil Oveja Minas 10 Colores Escolar Oficina",
+   "marca": "GENERICO",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/boligrafo-retractil-oveja-minas-10-colores-escolar-oficina-105075877-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolsa hermética BOLROL zipper de colores 21x15 cm",
+   "marca": "BOLROL",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolsa-slider-mediana-congelar-759726/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Escolar Infantil Diseño Animado Niños Niñas",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-escolar-infantil-diseno-animado-ninos-ninas-105120120-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Escolar Infantil Diseño Animado Niños Niñas",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-escolar-infantil-diseno-animado-ninos-ninas-105120113-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Escolar Infantil Diseño Animado Niños Niñas",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-escolar-infantil-diseno-animado-ninos-ninas-105120109-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Escolar Infantil Diseño Animado Niños Niñas",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-escolar-infantil-diseno-animado-ninos-ninas-105120106-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Mochila Infantil Escolar Comoda Y Espaciosa Niño Niña",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-mochila-infantil-escolar-comoda-y-espaciosa-nino-nina-105114997-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Mochila Infantil Escolar Comoda Y Espaciosa Niño Niña",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-mochila-infantil-escolar-comoda-y-espaciosa-nino-nina-105111907-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Mochila Infantil Escolar Comoda Y Espaciosa Niño Niña",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-mochila-infantil-escolar-comoda-y-espaciosa-nino-nina-105111900-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Mochila Infantil Escolar Comoda Y Espaciosa Niño Niña",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-mochila-infantil-escolar-comoda-y-espaciosa-nino-nina-105111886-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Morral Maletin Escolar Con Monedero Niño Niña",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-morral-maletin-escolar-con-monedero-nino-nina-105120127-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Morral Maletin Escolar Con Monedero Niño Niña",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-morral-maletin-escolar-con-monedero-nino-nina-105120124-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Morral Maletin Escolar Con Monedero Niño Niña",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-morral-maletin-escolar-con-monedero-nino-nina-105120121-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Morral Maletin Escolar Con Monedero Niño Niña",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-morral-maletin-escolar-con-monedero-nino-nina-105120119-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Morral Maletin Escolar Con Monedero Niño Niña",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-morral-maletin-escolar-con-monedero-nino-nina-105120118-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Morral Maletin Escolar Con Monedero Niño Niña",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-morral-maletin-escolar-con-monedero-nino-nina-105120117-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Morral Maletin Escolar Con Monedero Niño Niña",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-morral-maletin-escolar-con-monedero-nino-nina-105120116-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Morral Maletin Escolar Con Monedero Niño Niña",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-morral-maletin-escolar-con-monedero-nino-nina-105120115-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Morral Maletin Escolar Con Monedero Niño Niña",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-morral-maletin-escolar-con-monedero-nino-nina-105120114-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Morral Maletin Escolar Monedero Niño Niña",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-morral-maletin-escolar-monedero-nino-nina-105111908-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Morral Maletin Escolar Monedero Niño Niña",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-morral-maletin-escolar-monedero-nino-nina-105111903-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Morral Maletin Escolar Monedero Niño Niña",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-morral-maletin-escolar-monedero-nino-nina-105111879-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Morral Maletin Escolar Monedero Niño Niña",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-morral-maletin-escolar-monedero-nino-nina-105111873-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Morral Maletin Escolar Monedero Niño Niña",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-morral-maletin-escolar-monedero-nino-nina-105111871-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Pañalera Mochila Moderno Multifuncional Monedero",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-panalera-mochila-moderno-multifuncional-monedero-105120123-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Pañalera Mochila Moderno Multifuncional Monedero",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-panalera-mochila-moderno-multifuncional-monedero-105120111-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Pañalera Mochila Moderno Multifuncional Monedero",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-panalera-mochila-moderno-multifuncional-monedero-105120108-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Bolso Pañalera Mochila Moderno Multifuncional Monedero",
+   "marca": "BRIITOCHET",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/bolso-panalera-mochila-moderno-multifuncional-monedero-105120105-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Candado Clave 4 Dígitos Seguridad Para Maletas Casillero",
+   "marca": "STOCK DUAL",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/candado-clave-4-digitos-seguridad-para-maletas-casillero-104038194-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Flower Power Bloom Black Bird White",
+   "marca": "PRIMAVERA",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera--flower-power-bloom-black-bird-white-124201988/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera LUGANO",
+   "marca": "LUGANO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 17940.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-lugano-3236725/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Toy Story Personajes",
+   "marca": "PRIMAVERA",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera--toy-story-personajes-124188372/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Grande para Niña 2 Cuerpos Bloum Azul",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-grande-para-niña-2-cuerpos-bloum-azul-124173732/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Grande para Niña 2 Cuerpos Girl Rosada",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-grande-para-niña-2-cuerpos-girl-rosada-124175159/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Grande para Niña 2 Cuerpos Lotso Gummy Rosada",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-grande-para-niña-2-cuerpos-lotso-gummy-rosada-124197759/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Grande para Niña 2 Cuerpos Rainbow Star Rosada",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-grande-para-niña-2-cuerpos-rainbow-star-rosada-124178403/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Grande para Niña 2 Cuerpos Tex Blanca",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-grande-para-niña-2-cuerpos-tex-blanca-124175203/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Grande para Niña 2 Cuerpos Tie Blanca/Rosada",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-grande-para-niña-2-cuerpos-tie-blanca-rosada-124175162/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Grande para Niña 2 Cuerpos Unicorn Kisses Amarilla",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-grande-para-niña-2-cuerpos-unicorn-kisses-amarilla-124178308/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Grande para Niño 2 Cuerpos Banana Minions Azul",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-grande-para-niño-2-cuerpos-banana-minions-azul-124202166/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Grande para Niño 2 Cuerpos Champion Gris",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-grande-para-niño-2-cuerpos-champion-gris-124175161/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Grande para Niño 2 Cuerpos Digisaurio Azul",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-grande-para-niño-2-cuerpos-digisaurio-azul-124173678/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Grande para Niño 2 Cuerpos Grand Prix Gris",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-grande-para-niño-2-cuerpos-grand-prix-gris-124188301/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Mediana para Hombre Cinta Pro Negra",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-mediana-para-hombre-cinta-pro-negra-124173734/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Mediana para Niña Black Hearts Negra",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-mediana-para-niña-black-hearts-negra-124166122/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Mediana para Niña Green Verde",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-mediana-para-niña-green-verde-124166119/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Mediana para Niña Magic Sky Azul",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-mediana-para-niña-magic-sky-azul-124170053/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Mediana para Niña Magic Sky Blanca",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-mediana-para-niña-magic-sky-blanca-124170054/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Mediana para Niño Cinta Pro Gris",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-mediana-para-niño-cinta-pro-gris-124180994/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Mediana para Niño Mesh Black Negra",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-mediana-para-niño-mesh-black-negra-124166133/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Mediana para Niño Textu Azul",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-mediana-para-niño-textu-azul-124166124/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar Pequeña para Hombre Sobre Negro",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-pequeña-para-hombre-sobre-negro-124173704/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar en Peluche para Niña Fluffy Rosada",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-en-peluche-para-niña-fluffy-rosada-124166126/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar para Niña Unicorn Kisses Amarilla",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-para-niña-unicorn-kisses-amarilla-124178310/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Escolar para Niño Toy Story Buzz Azul",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-escolar-para-niño-toy-story-buzz-azul-124181067/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Agapec Glitter Grande Azul Mujer",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-agapec-glitter-grande-azul-mujer-124178387/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Agapec Grande Gris Hombre",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-agapec-grande-gris-hombre-124166131/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Agapec Grande Gris Niño",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-agapec-grande-gris-niño-124197723/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Agapec Grande Negra Mujer",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-agapec-grande-negra-mujer-124197715/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Bluey Grande Azul Unisex",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-bluey-grande-azul-unisex-124202146/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Leyenda Real Madrid Grande Negra Hombre",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-leyenda-real-madrid-grande-negra-hombre-124202185/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Moxi Grande Morada",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-moxi-grande-morada-124173791/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Moxi Grande Verde",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-moxi-grande-verde-124173749/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Sheyma Print Grande Azul",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-sheyma-print-grande-azul-124178359/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Sheyma Print Grande Azul",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-sheyma-print-grande-azul-124178343/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Sheyma Print Grande Gris",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-sheyma-print-grande-gris-124178355/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Sheyma Print Grande Gris",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-sheyma-print-grande-gris-124183196/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Sheyma Print Grande Verde",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-sheyma-print-grande-verde-124178356/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Tablero Pequeña Negra Hombre",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-tablero-pequeña-negra-hombre-124178388/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Trik 2 Pequeña Rosada",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-trik-2-pequeña-rosada-124173843/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Trik Mediana Azul",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-trik-mediana-azul-124173823/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Trik Mediana Morada",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-trik-mediana-morada-124173809/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Trik Mediana Negra",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-trik-mediana-negra-124188270/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Yatta Grande Azul",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-yatta-grande-azul-124173769/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Multiuso Yatta Grande Rosada",
+   "marca": "TOTTO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-multiuso-yatta-grande-rosada-124175167/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Premium Avengers Black Panther, Capitán América y Hulk",
+   "marca": "PRIMAVERA",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-premium--avengers-black-panther-capitan-america-y-hulk-124201991/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Premium Barbie Girl",
+   "marca": "PRIMAVERA",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-premium--barbie-girl-124188367/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Premium Bluey Do you Wanna to Play",
+   "marca": "PRIMAVERA",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-premium--bluey-do-you-wanna-to-play-124188365/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Premium Dragon Ball Super Son Goku",
+   "marca": "PRIMAVERA",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-premium--dragon-ball-super-son-goku-124188362/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Premium La Casa de Muñecas de Gabby Helados",
+   "marca": "PRIMAVERA",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-premium--la-casa-de-muñecas-de-gabby-helados-124202009/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera Premium Sonic Prime Gris",
+   "marca": "PRIMAVERA",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-premium--sonic-prime-gris-124201993/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cartuchera fucsia caña flecha",
+   "marca": "MARIO HERNANDEZ",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cartuchera-fucsia-caña-flecha-124197438/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Chocolates M&M colores con maní (49.3 gr)",
+   "marca": "M&M",
+   "categoria": "Colores",
+   "precio": 5990.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/chocolate-peanut-paq-x-49-gr-101051/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Chocolates M&M de colores con maní (1 und)",
+   "marca": "M&M",
+   "categoria": "Colores",
+   "precio": 14950.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/dulces-mm-leche-mani-caramelo-1-und-3219565/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cinta Correctora Faber Castell De 4 Mm X 10 M",
+   "marca": "FABER CASTELL",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cinta-correctora-faber-castell-de-4-mm-x-10-m-104887723-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cinta Correctora Faber Castell De 4 Mm X 10 Metros Por 3 Und",
+   "marca": "FABER CASTELL",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cinta-correctora-faber-castell-de-4-mm-x-10-metros-por-3-und-104889272-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Colores Norma Premium Ultra Suaves X50 Unds NORMA",
+   "marca": "NORMA",
+   "categoria": "Colores",
+   "precio": 84900.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/colores-arte-norma-558860-3052469/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Colores Prismacolor Junior Caja Con 48 Colores Originales",
+   "marca": "PRISMACOLOR",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/colores-prismacolor-junior-caja-con-48-colores-originales-104912157-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Colores Prismacolor Junior X 36",
+   "marca": "PRISMACOLOR",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/colores-prismacolor-junior-x-36-104912169-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Colores Scribe Doble Punta 13 Und",
+   "marca": "SCRIBE",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/colores-scribe-doble-punta-13-und-104905523-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Colores Scribe Jumbo X 12 Und",
+   "marca": "SCRIBE",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/colores-scribe-jumbo-x-12-und-104912170-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Colores Scribe Unipunta 13 Undades",
+   "marca": "SCRIBE",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/colores-scribe-unipunta-13-undades-104905507-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Colores Scribe Unipunta Caja X 24 Unidades",
+   "marca": "SCRIBE",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/colores-scribe-unipunta-caja-x-24-unidades-104911005-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Colores X 24 Kores Triangular",
+   "marca": "KORES",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/colores-x-24-kores-triangular-104927711-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Colores norma 13+2 (2 Metalizados 1 Bla/Neg) NORMA",
+   "marca": "NORMA",
+   "categoria": "Colores",
+   "precio": 17900.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/colores-norma-14ue-24-esp-715809/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Colores unipunta X12 Toy Story FINLANDEK",
+   "marca": "FINLANDEK",
+   "categoria": "Colores",
+   "precio": 6990.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/caja-x-12-colores-lapiz-toy-story-finlandek-3715-3148390/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Compás + 8 Piezas Caja Matemática Pelikan (1 Unidad)",
+   "marca": "PELIKAN",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/compas-8-piezas-caja-matematica-pelikan-1-unidad-104927708-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Control Ps4 Dualshock Usb Compatible Pc 6 Colores",
+   "marca": "LIGHTBEK",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/control-ps4-dualshock-usb-compatible-pc-6-colores-100870551-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno 180º Cierre Magnético 96 Grs A4 X 80 Hojas",
+   "marca": "CANSON",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuaderno-180-cierre-magnetico-96-grs-a4-x-80-hojas-105043476-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno Academico Grande Cuadriculado 80 hojas Argollado CUADERNOS NORMA",
+   "marca": "CUADERNOS NORMA",
+   "categoria": "Cuadernos",
+   "precio": 25990.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/doacademico-105-2-cuadernos-norma-do-105-2-440271/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno Argollado Ologrameado Kpop Demon Hunters 120 Hojas",
+   "marca": "GENERICO",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuaderno-argollado-ologrameado-kpop-demon-hunters-120-hojas-104998161-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno Espiral Five Star 3 Temas 8 pulgadas × 10.5 pulgadas Rayas Anchas",
+   "marca": "FIVE STAR",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuaderno-espiral-five-star-3-temas-8-pulgadas-105-pulgadas-rayas-anchas-104886392-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno Espiral Five Star 3 Temas 8 pulgadas × 10.5 pulgadas Rayas Anchas",
+   "marca": "FIVE STAR",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuaderno-espiral-five-star-3-temas-8-pulgadas-105-pulgadas-rayas-anchas-104886390-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno Five Star 1 Subject College Ruled 100 Hojas 8.5 pulgadas X 11 pulgadas",
+   "marca": "FIVE STAR",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuaderno-five-star-1-subject-college-ruled-100-hojas-85-pulgadas-x-11-pulgadas-104887101-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno Five Star 1 Subject College Ruled 100 Hojas 8.5 pulgadas X 11 pulgadas",
+   "marca": "FIVE STAR",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuaderno-five-star-1-subject-college-ruled-100-hojas-85-pulgadas-x-11-pulgadas-104886398-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno Inspiration Cosido Azul 96 Grs Tamaño A4 36 Hojas 2 Unidades",
+   "marca": "CANSON",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuaderno-inspiration-cosido-azul-96-grs-tamano-a4-36-hojas-2-unidades-105041054-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno Inspiration Cosido Marrón 96 Grs Tamaño A4 36 Hojas 2 Unidades",
+   "marca": "CANSON",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuaderno-inspiration-cosido-marron-96-grs-tamano-a4-36-hojas-2-unidades-105041036-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno Mafalda Rojo De 100 Hojas",
+   "marca": "MAFALDA",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuaderno-mafalda-rojo-de-100-hojas-105129370-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno Mafalda Rojo De 100 Hojas",
+   "marca": "MAFALDA",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuaderno-mafalda-rojo-de-100-hojas-104903409-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno Notas Polipropileno 120 Grs A6 X 50 Hj",
+   "marca": "CANSON",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuaderno-notas-polipropileno-120-grs-a6-x-50-hj-105045150-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno Peluches Fantasy Grande Doble Linea / Ferrocarril 100 hojas Cosido CUADERNOS NORMA",
+   "marca": "CUADERNOS NORMA",
+   "categoria": "Cuadernos",
+   "precio": 17200.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuaderno-registro-cuadernos-norma-558982-3052125/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno Snoopy S Dream Journal Sueños Que Se Escriben Incluye Crema Hidratante",
+   "marca": "SNOOPY",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuaderno-snoopy-s-dream-journal-suenos-que-se-escriben-incluye-crema-hidratante-105128212-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno Snoopy Viajero Argollado",
+   "marca": "SNOOPY",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuaderno-snoopy-viajero-argollado-105029474-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno Stitch Mediano Cuadriculado 100 hojas Cosido CUADERNOS NORMA",
+   "marca": "CUADERNOS NORMA",
+   "categoria": "Cuadernos",
+   "precio": 15900.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuaderno-registro-cuadernos-norma-559009-3052047/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno Tapa Dura Academico Masculino Cuadriculado 80 hojas Argollado CUADERNOS NORMA",
+   "marca": "CUADERNOS NORMA",
+   "categoria": "Cuadernos",
+   "precio": 25990.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuaderno-registro-cuadernos-norma-558946-3052486/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno Universal Cierre Elástico 96 Grs 21.6 X 27 Cm 112 Hojas",
+   "marca": "CANSON",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuaderno-universal-cierre-elastico-96-grs-216-x-27-cm-112-hojas-105041047-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno Universal Cierre Elástico 96 Grs 27.9 X 35.6 Cm 112 Hojas",
+   "marca": "CANSON",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuaderno-universal-cierre-elastico-96-grs-279-x-356-cm-112-hojas-105041037-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuaderno. SIMPSONS Cuadriculado 160 hojas Argollado tapa dura CUADERNOS NORMA",
+   "marca": "CUADERNOS NORMA",
+   "categoria": "Cuadernos",
+   "precio": 36600.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuadernos-registro-cuadernos-norma-557394-3006747/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Cuadernos Mágicos Reutilizables Aprender Escribir Caligrafía",
+   "marca": "GENERICO",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/cuadernos-magicos-reutilizables-aprender-escribir-caligrafia-103455537-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Detergente líquido LAVOMATIC colores vivos y brillantes (1300 ml)",
+   "marca": "LAVOMATIC",
+   "categoria": "Colores",
+   "precio": 27450.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/detergente-liquido-lavomatic-68508612-3015829/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "El Lápiz De Maquillaje 4 En 1 Beauty Glow",
+   "marca": "GENERICO",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/el-lapiz-de-maquillaje-4-en-1-beauty-glow-105025636-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Esponja BRIO colores surtidos (2 und)",
+   "marca": "BRIO",
+   "categoria": "Colores",
+   "precio": 5090.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/esponja-p2ll3-multiusos-c-brio-sin-refer-494055/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Esponja ETERNA kit colores surtidos (3 und)",
+   "marca": "ETERNA",
+   "categoria": "Colores",
+   "precio": 8780.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/kit-esponja-68174/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Esponja FREGONA multiesponja colores aseo general (2 und)",
+   "marca": "FREGONA",
+   "categoria": "Colores",
+   "precio": 4530.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/multiesponja-406138/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Fineliners Colores Lindosx12 KIUT",
+   "marca": "KIUT",
+   "categoria": "Colores",
+   "precio": 25900.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/fineliners-colores-lindosx12-kiut-568393-3146757/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Forro Transparente Para Cuaderno Cosido Pequeño X 10 Und",
+   "marca": "GENERICO",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/forro-transparente-para-cuaderno-cosido-pequeno-x-10-und-105028097-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Gel De Cejas Glam Brow Purpure Abm1004",
+   "marca": "PURPURE BY ANGIE BEDOYA",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/gel-de-cejas-glam-brow-purpure-abm1004-105093744-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Gel Fijador De Cejas Atenea",
+   "marca": "ATENEA",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/gel-fijador-de-cejas-atenea-105121399-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Gel Fijador De Cejas Purpure 4 Ml",
+   "marca": "PURPURE BY ANGIE BEDOYA",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/gel-fijador-de-cejas-purpure-4-ml-104975530-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Gel Fijador De Cejas Trendy By Camila Orrego 14 Ml",
+   "marca": "TRENDY BY CAMILA ORREGO",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": false,
+   "url_producto": "https://www.exito.com/gel-fijador-de-cejas-trendy-by-camila-orrego-14-ml-104975539-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Gel Frio Refrigerante Bolsa Pila 300 Gr X 4 Unidades",
+   "marca": "MIFANQI",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/gel-frio-refrigerante-bolsa-pila-300-gr-x-4-unidades-102758797-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Hojas De Repuesto Para Libreta De Discos Referencia A44",
+   "marca": "LEE UNA SONRISA",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/hojas-de-repuesto-para-libreta-de-discos-referencia-a44-105028786-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Impresora Canon G610 Multifuncional Fotográfica 6 Colores",
+   "marca": "CANON",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/impresora-canon-g610-multifuncional-fotografica-6-colores-102083974-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Impresora Ecotank Epson L8050 Wifi 6 Colores",
+   "marca": "EPSON",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/impresora-ecotank-epson-l8050-wifi-6-colores-102503683-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Kit De Colores 208 Piezas Juego Arte Y Dibujo Creativo Azul",
+   "marca": "GENERAL",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/kit-de-colores-208-piezas-juego-arte-y-dibujo-creativo-azul-102781786-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Kit de cepillos interdentales AMPM PLUS colores surtidos (1 und)",
+   "marca": "AMPM PLUS",
+   "categoria": "Colores",
+   "precio": 11450.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/kit-interdental-181182/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Kit/Set De Arte Dibujo Maletin Metalico 145 Piezas Niños",
+   "marca": "GENERICO",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/kitset-de-arte-dibujo-maletin-metalico-145-piezas-ninos-104768121-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lapicero Kilometrico 100 Con Tapa Negro X 12 Unidades Escritura Suave",
+   "marca": "PAPER MATE",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapicero-kilometrico-100-con-tapa-negro-x-12-unidades-escritura-suave-105109097-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lapicero Kilométrico 100 Con Tapa Azul X 12 Unidades Escritura Suave Y Precisa",
+   "marca": "PAPER MATE",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapicero-kilometrico-100-con-tapa-azul-x-12-unidades-escritura-suave-y-precisa-105109093-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lapicero Kilométrico 100 Con Tapa Rojo X 12 Unidades Escritura Suave Y Precisa",
+   "marca": "PAPER MATE",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapicero-kilometrico-100-con-tapa-rojo-x-12-unidades-escritura-suave-y-precisa-105109092-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lapicero Kilométrico Retráctil Negro X 12 Unidades | Bolígrafos De Escritura Suave",
+   "marca": "PAPER MATE",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapicero-kilometrico-retractil-negro-x-12-unidades-boligrafos-de-escritura-suave-105109091-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lapiz Pluma 3D Pen Dibujo Con 3 Filamento Pla Abs Boligrafo",
+   "marca": "GENERICO",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapiz-pluma-3d-pen-dibujo-con-3-filamento-pla-abs-boligrafo-102541576-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Libreta 100 Citas Con Mi Hijo pulgadas 💙📒",
+   "marca": "ZAIPATYY",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/libreta-100-citas-con-mi-hijo-pulgadas--104976727-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Libreta 100 Citas De Pareja pulgadas 💖📒",
+   "marca": "ZAIPATYY",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/libreta-100-citas-de-pareja-pulgadas--104976721-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Libreta De Snoopy De Discos",
+   "marca": "ZAIPATYY",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/libreta-de-snoopy-de-discos-105024131-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Libreta Del Anime Death Note",
+   "marca": "GENERICO",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/libreta-del-anime-death-note-104886742-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Libreta Portátil 80 Hojas Con Esfero Retráctil Y Pasta Dura",
+   "marca": "GENERICO",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/libreta-portatil-80-hojas-con-esfero-retractil-y-pasta-dura-105022952-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Libreta Portátil 80 Hojas Con Esfero Retráctil Y Pasta Dura",
+   "marca": "GENERICO",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/libreta-portatil-80-hojas-con-esfero-retractil-y-pasta-dura-105022948-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Libreta Snoopy Con Sistema De Discos",
+   "marca": "SNOOPY",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/libreta-snoopy-con-sistema-de-discos-104903408-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Libreta Snoopy Pastel",
+   "marca": "SNOOPY",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/libreta-snoopy-pastel-105030826-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Libreta Turca Grande Diseño 2",
+   "marca": "GENERICO",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/libreta-turca-grande-diseno-2-104885497-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Libreta Turca Grande Diseño 3",
+   "marca": "GENERICO",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/libreta-turca-grande-diseno-3-104885514-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Libreta Turca Grande Diseño 4",
+   "marca": "GENERICO",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/libreta-turca-grande-diseno-4-104885504-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Libreta Turca Grande Diseño 6",
+   "marca": "GENERICO",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/libreta-turca-grande-diseno-6-104885488-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Libreta Turca Grande Diseño 7",
+   "marca": "GENERICO",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/libreta-turca-grande-diseno-7-104885541-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lonchera Eléctrica Porta Comidas Color Rojo",
+   "marca": "GENERICO",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lonchera-electrica-porta-comidas-color-rojo-103361662-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lonchera Eléctrica, Calentador Comida, Porta Comida Portátil Rosado",
+   "marca": "CHEF MASTER",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lonchera-electrica-calentador-comida-porta-comida-portatil-rosado-104061922-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lonchera Infantil Compartimentos Organizador Hermético",
+   "marca": "NOBELSOUND",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lonchera-infantil-compartimentos-organizador-hermetico-105103651-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lonchera Portacomida X3",
+   "marca": "GENERICO",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lonchera-portacomida-x3-105119605-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lonchera Portacomida X3",
+   "marca": "GENERICO",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lonchera-portacomida-x3-105119603-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lápices De Color Pastel Pelikan X 12 Colores Tonos Suaves Para Dibujo Y Manualidades",
+   "marca": "PELIKAN",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapices-de-color-pastel-pelikan-x-12-colores-tonos-suaves-para-dibujo-y-manualidades-105109102-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lápices De Colores Pastel Eterna X 6 Unidades",
+   "marca": "ETERNA",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapices-de-colores-pastel-eterna-124157112/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lápices Marcadores De Grasa Colores Surtidos 9 Unidades",
+   "marca": "DWUWW",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapices-marcadores-de-grasa-colores-surtidos-9-unidades-104880870-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lápices Marcadores De Grasa Cutex Supplies Blancos 12",
+   "marca": "CUTEX",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapices-marcadores-de-grasa-cutex-supplies-blancos-12-104880883-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lápices Marcadores De Grasa Galepromot Colores Surtidos 6 Unidades Para Metal Vidrio Tela Y",
+   "marca": "GALEPROMOT",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapices-marcadores-de-grasa-galepromot-colores-surtidos-6-unidades-para-metal-vidrio-tela-y-104880880-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lápices Marcadores De Grasa Multicolores 6 Unidades",
+   "marca": "WSJIABOFUX",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapices-marcadores-de-grasa-multicolores-6-unidades-104880904-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lápices Marcadores De Grasa Multisuperficie 6 Unidades",
+   "marca": "ZENARAO",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapices-marcadores-de-grasa-multisuperficie-6-unidades-104880888-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lápices Neón Kores X 12 Unidades Colores Fluorescentes Para Dibujar Y Colorear",
+   "marca": "KORES",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapices-neon-kores-x-12-unidades-colores-fluorescentes-para-dibujar-y-colorear-105112023-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lápiz Corrector Faber Castell 7 Ml X 2 Unidades Corrector Líquido De Precisión",
+   "marca": "FABER CASTELL",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapiz-corrector-faber-castell-7-ml-x-2-unidades-corrector-liquido-de-precision-105112022-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lápiz Corrector Faber Castell 7 Ml X 6 Unidades Corrector Líquido De Precisión",
+   "marca": "FABER CASTELL",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapiz-corrector-faber-castell-7-ml-x-6-unidades-corrector-liquido-de-precision-105112034-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lápiz Corrector Punta Fina Paper Mate X 3 Unidades Corrector Líquido De Precisión",
+   "marca": "PAPER MATE",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapiz-corrector-punta-fina-paper-mate-x-3-unidades-corrector-liquido-de-precision-105112035-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lápiz Eco Negro X 5 Paquetes De 12 Unidades Hb Para Escritura Y Dibujo",
+   "marca": "PENMAX",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapiz-eco-negro-x-5-paquetes-de-12-unidades-hb-para-escritura-y-dibujo-105112038-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lápiz Infinito Eterno De Escritura Hb X 12 Unidades Reutilizable Sin Sacapuntas",
+   "marca": "GENERICO",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapiz-infinito-eterno-de-escritura-hb-x-12-unidades-reutilizable-sin-sacapuntas-105112029-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lápiz Kores Bicolor Twin Negro Rojo Caja X 12 Unidades Doble Punta Hb",
+   "marca": "KORES",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapiz-kores-bicolor-twin-negro-rojo-caja-x-12-unidades-doble-punta-hb-105112036-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lápiz Kores Hb Negro X 12 Unidades",
+   "marca": "KORES",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapiz-kores-hb-negro-x-12-unidades-105113480-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lápiz Kores Rojo Chequeo Hb Caja X 12 Unidades Con Borrador Escolar Oficina",
+   "marca": "KORES",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapiz-kores-rojo-chequeo-hb-caja-x-12-unidades-con-borrador-escolar-oficina-105113477-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Lápiz Mirado #2 Negro Hb Caja X 12 Unidades Paper Mate Escolar Oficina",
+   "marca": "PAPER MATE",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/lapiz-mirado-2-negro-hb-caja-x-12-unidades-paper-mate-escolar-oficina-105113482-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Maleta Lonchera Rh2511 Negra",
+   "marca": "GENERICO",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/maleta-lonchera-rh2511-negra-105108363-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Maleta Lonchera Rh2511 Palo E Rosa",
+   "marca": "GENERICO",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/maleta-lonchera-rh2511-palo-e-rosa-105108365-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Maleta Lonchera Rh2511 Verde Mente",
+   "marca": "GENERICO",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/maleta-lonchera-rh2511-verde-mente-105108369-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Maleta Terciada Antirrobo Bolso Canguro Usb Negro",
+   "marca": "GENERICO",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/maleta-terciada-antirrobo-bolso-canguro-usb-negro-103143625-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Marcador De Grasa Ultima China Marker Azul Para Superficies No Porosas Y",
+   "marca": "ULTIMA",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/marcador-de-grasa-ultima-china-marker-azul-para-superficies-no-porosas-y-104880690-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Marcador Lettering Pelikan Markana Punta Pincel X 12 Unidades Colores Surtidos",
+   "marca": "PELIKAN",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/marcador-lettering-pelikan-markana-punta-pincel-colores-pastel-x-12-unidades-105120357-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Marcador Metálico Pelikan 752 Colores Surtidos Caja X 10 Unidades",
+   "marca": "PELIKAN",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/marcador-metalico-pelikan-752-colores-surtidos-caja-x-10-unidades-105120351-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Marcador Permanente Pelikan 418 Punta Gruesa Caja X 10 Unidades",
+   "marca": "PELIKAN",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/marcador-permanente-pelikan-418-punta-gruesa-caja-x-10-unidades-105123571-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Marcador Permanente Pelikan 420 Negro Punta Gruesa Caja X 10 Unidades",
+   "marca": "PELIKAN",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/marcador-permanente-pelikan-420-negro-punta-gruesa-caja-x-10-unidades-105123584-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Marcadores De Tiza Líquida Multicolores Vaci 8 Unidades Con Pizarra Magnética Plantillas Y",
+   "marca": "VACI",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/marcadores-de-tiza-liquida-multicolores-vaci-8-unidades-con-pizarra-magnetica-plantillas-y-104880894-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Marcadores Doble Punta Set 80 Unidades Estuche",
+   "marca": "GENERAL",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/marcadores-doble-punta-set-80-unidades-estuche-102854023/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Marcadores Dobles Set De 80 Colores A Base De Alcohol",
+   "marca": "GENERICO",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/marcadores-dobles-set-de-80-colores-a-base-de-alcohol-103415664-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Marcadores Dobles Set De 80 Colores Base De Alcohol",
+   "marca": "GENERICO",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/marcadores-dobles-set-de-80-colores-base-de-alcohol-102439682-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Marcadores Original Sky 168 Colores Doble Punta Dibujos Base De Alcohol",
+   "marca": "SKY",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/marcadores-original-sky-168-colores-doble-punta-dibujos-base-de-alcohol-104150088-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Marcadores doble punta A Base De Alcohol 80 Colores",
+   "marca": "GENERICO",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/marcadores-doble-punta-a-base-de-alcohol-80-colores-102860661/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Morral Escolar Niños Dino Jardín",
+   "marca": "IMPORTADO",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/morral-escolar-ninos-dino-jardin-104152398-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Morral Escolar con ruedas Unisex Bluey Mediano Azul",
+   "marca": "TOTTO",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/morral-escolar-con-ruedas-unisex-bluey-mediano-azul-124202145/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Morral Escolar con ruedas para Niña Lotso Gummy Mediano Rosado",
+   "marca": "TOTTO",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/morral-escolar-con-ruedas-para-niña-lotso-gummy-mediano-rosado-124197757/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Morral Escolar con ruedas para Niña Renglón Grande Negro",
+   "marca": "TOTTO",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/morral-escolar-con-ruedas-para-niña-renglon-grande-negro-124197716/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Morral Escolar con ruedas para Niño Renglón con Dinosaurios",
+   "marca": "TOTTO",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/morral-escolar-con-ruedas-para-niño-renglon-con-dinosaurios-124181051/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Morral Impermeable Industry Bag Maleta Laptop De 21L Negro",
+   "marca": "INDUSTRY BAG",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/morral-impermeable-industry-bag-maleta-laptop-de-21l-negro-103268488-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Morral Infantil Niños Leojardin",
+   "marca": "IMPORTADO",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/morral-infantil-ninos-leojardin-104152390-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Morral Para Niños Economy Dino",
+   "marca": "IMPORTADO",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/morral-para-ninos-economy-dino-104152395-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Morral Wilson Girl Skate Escolar",
+   "marca": "WILSON",
+   "categoria": "Maletería",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/morral-wilson-girl-skate-escolar-105126494-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Muñeca Sirenas Cabello de Colores BARBIE",
+   "marca": "BARBIE",
+   "categoria": "Colores",
+   "precio": 84900.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/muneca-sirenas-cabello-de-colores-barbie-3156857/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Organizador De Ropa Sucia Cesta Clasificadora Por Colores",
+   "marca": "GENERICO",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/organizador-de-ropa-sucia-cesta-clasificadora-por-colores-103170199-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Paños T/L/D TODOS LOS DIAS limpión, colores reutilizable (3 und)",
+   "marca": "T/L/D TODOS LOS DIAS",
+   "categoria": "Colores",
+   "precio": 3690.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/pano-hogareno-x-3-und-253620/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Peluca + Nariz De Payaso Colores Halloween Disfraz Fiestas Niño Adulto",
+   "marca": "DRAGONTEK",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/peluca-nariz-de-payaso-colores-halloween-disfraz-fiestas-nino-adulto-103634383-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Pimenton Colores",
+   "marca": "SM",
+   "categoria": "Colores",
+   "precio": 7968.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/pimenton-colores-a-granel-x-500-gr-305206/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Quitamanchas CLOROX colores vivos (2730 ml)",
+   "marca": "CLOROX",
+   "categoria": "Colores",
+   "precio": 18720.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/desmanchador-ropa-color-clorox-sin-ref-900887/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Quitamanchas DR. BECKMANN colores intensos (80 gr)",
+   "marca": "DR. BECKMANN",
+   "categoria": "Colores",
+   "precio": 8490.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/quitamanchas-colores-intensos-dr-beckmann-80-gr-3135471/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Set De 14 Lápices De Colores Prismacolor Premier Soft Core Tonos Surtidos Edición",
+   "marca": "PRISMACOLOR",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/set-de-14-lapices-de-colores-prismacolor-premier-soft-core-tonos-surtidos-edicion-104884680-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Set De 2 Paquetes De 72 Unidades C/U Lápices De Colores",
+   "marca": "KINGART",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/set-de-2-paquetes-de-72-unidades-cu-lapices-de-colores-104886426-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Set De 3 Paquetes Bolígrafos Bic Round Stic Xtra Life 1.0 Mm Tinta",
+   "marca": "BIC",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/set-de-3-paquetes-boligrafos-bic-round-stic-xtra-life-10-mm-tinta-104886400-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Set De 3 Paquetes Bolígrafos Bic Round Stic Xtra Life 1.0 Mm Tinta",
+   "marca": "BIC",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/set-de-3-paquetes-boligrafos-bic-round-stic-xtra-life-10-mm-tinta-104886389-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Set De 6 Bolígrafos Pentel Rsvp 0.7 Mm Punta Fina Tinta",
+   "marca": "PENTEL",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/set-de-6-boligrafos-pentel-rsvp-07-mm-punta-fina-tinta-104886394-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Set De 60 Bolígrafos Bic Round Stic Xtra Life 1.0 Mm Tinta",
+   "marca": "BIC",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/set-de-60-boligrafos-bic-round-stic-xtra-life-10-mm-tinta-104886397-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Set De Arte Para Niños Kit De Pintura De 208 Piezas Rosa",
+   "marca": "GENERICO",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/set-de-arte-para-ninos-kit-de-pintura-de-208-piezas-rosa-103295545-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Set De Bolígrafos Anatómicos Gmd",
+   "marca": "GMD",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/set-de-boligrafos-anatomicos-gmd-105103980-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Set De Lápices Marcadores Listo Blancos 12 Unidades",
+   "marca": "LISTO",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/set-de-lapices-marcadores-listo-blancos-12-unidades-104880684-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Set De Productos Snoopy Azul Libretas, Mascarilla Y Crema",
+   "marca": "SNOOPY",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/set-de-productos-snoopy-azul-libretas-mascarilla-y-crema-105030831-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Set Kit De Arte Dibujo Colores Para Niños Maleta X208 Piezas Color Rosado",
+   "marca": "ENFANTASY",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/set-kit-de-arte-dibujo-colores-para-ninos-maleta-x208-piezas-color-rosado-104075930-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Set Lápices Fluorescentes x 3 + Borrador y Sacapuntas Eterna",
+   "marca": "ETERNA",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/set-lapices-fluorescentes-x-3---borrador-y--sacapuntas-eterna-124157063/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Set Lápices Mandala x 3 + borrador y sacapuntas Arcoíris",
+   "marca": "ETERNA",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/set-lapices-mandala-x-3---borrador-y-sacapuntas-arcoiris-124156867/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Set Mini Snoopy Cute Rosa 2 Mini Libretas 1Mascarilla 1Crema",
+   "marca": "SNOOPY",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/set-mini-snoopy-cute-rosa-2-mini-libretas-1mascarilla-1crema-105030835-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Set Perfecto Para Los Amantes De Snoopy Ver 2 Mini Libretasde",
+   "marca": "SNOOPY",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/set-perfecto-para-los-amantes-de-snoopy-ver-2-mini-libretasde-105030834-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Set Profesional De Marcadores Plumones Doble Punta 168 Pcs",
+   "marca": "GENERICO",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/set-profesional-de-marcadores-plumones-doble-punta-168-pcs-103253697-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Set Snoopy Kawaii 2 Mini Libretas Con Crema Y Mascarilla Facial",
+   "marca": "SNOOPY",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/set-snoopy-kawaii-2-mini-libretas-con-crema-y-mascarilla-facial-105030829-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Set Snoopy Súper Corte Rojo 2 Mini Libretas Con Mascarilla Y Crema",
+   "marca": "SNOOPY",
+   "categoria": "Cuadernos",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/set-snoopy-super-corte-rojo-2-mini-libretas-con-mascarilla-y-crema-105033895-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Tijeras De Seguridad Retráctiles Para Niños Y Estudiantes",
+   "marca": "WEIBO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/tijeras-de-seguridad-retractiles-para-ninos-y-estudiantes-105065409-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Tijeras Escolares Para Niños",
+   "marca": "WEIBO",
+   "categoria": "Cartuchera y útiles",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/tijeras-escolares-para-ninos-105065402-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Tinta Gel De Labios Serum Lippie Cheeks Montoc Tono Mare",
+   "marca": "MONTOC",
+   "categoria": "Escritura",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/tinta-gel-de-labios-serum-lippie-cheeks-montoc-tono-mare-105083055-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Toalla De Microfibra Turbante Para El Cabello Varios Colores",
+   "marca": "GENERICO",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/toalla-de-microfibra-turbante-para-el-cabello-varios-colores-102391509-mp/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Vela BELLA LUZ colores surtidos",
+   "marca": "BELLA LUZ",
+   "categoria": "Colores",
+   "precio": 10850.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/vela-pebetero-bella-luz-r010-485112/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Velón T/L/D TODOS LOS DIAS paquete colores surtidos",
+   "marca": "T/L/D TODOS LOS DIAS",
+   "categoria": "Colores",
+   "precio": 8990.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/velon-x-3-unidades-tld-todos-los-dias-sin-ref-3212474/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Vinilo Escolar Color Amarillo Fluorescente 130 Grs.",
+   "marca": "PRIMAVERA",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/vinilo-escolar--color-amarillo-fluorescente-130-grs--124198380/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Vinilo Escolar Color Amarillo Pastel 130 Grs.",
+   "marca": "PRIMAVERA",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/vinilo-escolar--color-amarillo-pastel-130-grs--124198388/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Vinilo Escolar Color Azul Pastel 130 Grs.",
+   "marca": "PRIMAVERA",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/vinilo-escolar--color-azul-pastel-130-grs--124198392/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Vinilo Escolar Color Café Secundario 130 Grs.",
+   "marca": "PRIMAVERA",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/vinilo-escolar--color-cafe-secundario-130-grs--124198390/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Vinilo Escolar Color Fucsia Fluorescente 130 Grs.",
+   "marca": "PRIMAVERA",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/vinilo-escolar--color-fucsia-fluorescente-130-grs--124198382/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Vinilo Escolar Color Lila Pastel 130 Grs.",
+   "marca": "PRIMAVERA",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/vinilo-escolar--color-lila-pastel-130-grs--124198396/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Vinilo Escolar Color Morado Secundario 130 Grs.",
+   "marca": "PRIMAVERA",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/vinilo-escolar--color-morado-secundario-130-grs--124198395/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Vinilo Escolar Color Naranja Fluorescente 130 Grs.",
+   "marca": "PRIMAVERA",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/vinilo-escolar--color-naranja-fluorescente-130-grs--124198384/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Vinilo Escolar Color Naranja Secundario 130 Grs.",
+   "marca": "PRIMAVERA",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/vinilo-escolar--color-naranja-secundario-130-grs--124198398/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Vinilo Escolar Color Rosado Pastel 130 Grs.",
+   "marca": "PRIMAVERA",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/vinilo-escolar--color-rosado-pastel-130-grs--124198394/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Vinilo Escolar Color Verde Fluorescente 130 Grs.",
+   "marca": "PRIMAVERA",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/vinilo-escolar--color-verde-fluorescente-130-grs--124198383/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Vinilo Escolar Color Verde Pastel 130 Grs.",
+   "marca": "PRIMAVERA",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/vinilo-escolar--color-verde-pastel-130-grs--124198393/p"
+  },
+  {
+   "proveedor": "exito",
+   "nombre": "Vinilo Escolar Colores Primarios 130 Grs. X 6",
+   "marca": "PRIMAVERA",
+   "categoria": "Colores",
+   "precio": 0.0,
+   "disponible": true,
+   "url_producto": "https://www.exito.com/vinilo-escolar--colores-primarios-130-grs--x-6-124198352/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "10 resaltadores Pelikan Flash colores pastel",
+   "marca": "Pelikan",
+   "categoria": "Escritura",
+   "precio": 27600.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/resaltadores-pelikan-pastel-por-10-uni-591758/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Acrílico de 22 ml x 8 unidades, colores neón",
+   "marca": "Art rangers",
+   "categoria": "Colores",
+   "precio": 34900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/acrilico-22-ml-x12-unidades-colores-neon-627505/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Acuarela de colores de 12 ml x 24 unidades",
+   "marca": "Art rangers",
+   "categoria": "Colores",
+   "precio": 54900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/acuarela-12-mil-colores-x24-unidades-627496/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Banderitas Post-it x 6 colores",
+   "marca": "Post-it",
+   "categoria": "Colores",
+   "precio": 15700.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/banderitas-post-it-x-6-colores-554907/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Banderitas rectangulares Stick'n x 125 hojas, colores neón",
+   "marca": "Stick'n",
+   "categoria": "Colores",
+   "precio": 7900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/banderitas-stick-n-45-x-12-mm-con-25-x-5-hojas-rectangular-colores-neon-112624/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Bloc de dibujo de 15 x 22.8 cm con colores pastel",
+   "marca": "Jt Art Materials",
+   "categoria": "Colores",
+   "precio": 39900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/block-para-dibujo-con-colores-pasteles-712489/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Bloc de papel iris tamaño carta x 40 hojas, 8 colores",
+   "marca": "Guarro",
+   "categoria": "Colores",
+   "precio": 10100.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/block-de-papel-iris-carta-x-40-hojas-8-colores/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Bloc para dibujo con colores fluorescentes",
+   "marca": "Jt Art Materials",
+   "categoria": "Colores",
+   "precio": 39900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/block-para-dibujo-con-colores-fluorescentes-712488/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Bloc para dibujo de 9 piezas con colores",
+   "marca": "Jt Art Materials",
+   "categoria": "Colores",
+   "precio": 39900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/block-para-dibujo-con-colores-9-piezas-712490/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Bolígrafo Bic cristal fashion x 4 unidades",
+   "marca": "Bic",
+   "categoria": "Escritura",
+   "precio": 6100.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/boligrafo-bic-cristal-fashion-x4-unidades-659556/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Bolígrafo Faber Castell Trilux x 6 unidades",
+   "marca": "Faber Castell",
+   "categoria": "Escritura",
+   "precio": 10300.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/boligrafo-faber-castell-trilux-6-colores-553994/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Bolígrafo Pilot Pop'lol x 2 unidades, tintas negra y vinotinto",
+   "marca": "Pilot",
+   "categoria": "Escritura",
+   "precio": 13200.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/boligrafo-pilot-pop-lol-2-unidades-negro-y-vinitinto-644860/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Bolígrafos de colores Kiut x 8 unidades",
+   "marca": "Kiut",
+   "categoria": "Escritura",
+   "precio": 20500.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/boligrafo-punta-delgada-0-7-mm-x-8-unidades-kiut-651628/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Borrador de nata Pelikan x 15 unidades, colores pastel",
+   "marca": "Pelikan",
+   "categoria": "Colores",
+   "precio": 20300.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/borrador-en-nata-pelikan-x-15-unidades-colores-pastel-609838/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cartulina escolar de 160 g x 100 hojas, colores surtidos",
+   "marca": "Importado",
+   "categoria": "Colores",
+   "precio": 39900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cartulina-escolar-x-100-hojas-160g-30-x-30-cm-10-colores-628654/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Colores Faber-Castell SuperSoft x 12 unidades",
+   "marca": "Faber Castell",
+   "categoria": "Colores",
+   "precio": 21600.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/colores-faber-castell-x12-unidades-supersoft-717773/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Colores Faber-Castell SuperSoft x 24 unidades",
+   "marca": "Faber Castell",
+   "categoria": "Colores",
+   "precio": 40200.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/colores-faber-castell-x24-unidades-supersoft-717770/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Colores Faber-Castell triangular x 28 unidades",
+   "marca": "Faber Castell",
+   "categoria": "Colores",
+   "precio": 38200.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/colores-triangular-x24-4-pastel-689410/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Colores Flower Power x 12 unidades + tajalápiz",
+   "marca": "Primavera",
+   "categoria": "Colores",
+   "precio": 11100.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/colores-flower-power-x-12-unidades-tajalapiz-642115/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Colores Kores Style x 15 unidades",
+   "marca": "Kores",
+   "categoria": "Colores",
+   "precio": 14100.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/colores-kores-x-15-unidades-style-611248/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Colores Norma Premium x 14 piezas",
+   "marca": "Norma",
+   "categoria": "Colores",
+   "precio": 23500.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/colores-norma-x15-premium-631018/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Colores Norma Premium x 24 unidades",
+   "marca": "Norma",
+   "categoria": "Colores",
+   "precio": 50300.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/colores-norma-x24-premium-631019/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Colores Norma x 13 unidades + 1 color doble punta",
+   "marca": "Norma",
+   "categoria": "Colores",
+   "precio": 19900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/colores-norma-x-13-1-color-doble-punta/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Colores Prismacolor Junior x 15 unidades",
+   "marca": "Prismacolor",
+   "categoria": "Colores",
+   "precio": 20700.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/colores-prismacolor-x-18-unidades-630337/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Colores Prismacolor gruesos x 12 unidades",
+   "marca": "Paper Mate",
+   "categoria": "Colores",
+   "precio": 20400.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/colores-prismacolor-x-12-unidades-grueso-643330/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Colores Prismacolor® colores pastel x 12 unidades",
+   "marca": "Prismacolor",
+   "categoria": "Colores",
+   "precio": 16500.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/colores-prismacolor-x-12-unidades-colores-pastel-630339/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Colores Prismacolor® doble punta x 24 unidades",
+   "marca": "Prismacolor",
+   "categoria": "Colores",
+   "precio": 46200.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/colores-prismacolor-x-24-undiades-doblepunta-630329/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Colores Tuffy x 12 unidades, cilíndricos",
+   "marca": "Tuffy",
+   "categoria": "Colores",
+   "precio": 14900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/colores-tuffy-unicolor-x-12-cilindricos-528331/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Colores Tuffy x 24 unidades, unipunta, pastel",
+   "marca": "Tuffy",
+   "categoria": "Colores",
+   "precio": 31900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/colores-unicolor-x-24-unidades-pastel-tuffy-630352/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Compás de precisión con mina de repuesto",
+   "marca": "Importado",
+   "categoria": "Cartuchera y útiles",
+   "precio": 19900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/compas-de-precision-con-mina-metalica-surtido-478834/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Corrector bolígrafo Liquid Paper de 7 ml",
+   "marca": "Paper Mate",
+   "categoria": "Escritura",
+   "precio": 7300.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/corrector-boligrafo-liquid-paper-de-7ml-538552/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 105 argollado cuadriculado 5 materias de 160 hojas sarcasmo Tuffy (surtido)",
+   "marca": "Tuffy",
+   "categoria": "Cuadernos",
+   "precio": 29900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-cuadriculado-5-materias-de-16-hojas-tuffy-648753/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 105 argollado cuadriculado 7 materias de 175 hojas (surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 44700.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-105-argollado-cuadriculado-7-materias-de-175-hojas-surtido-718044/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 105 argollado cuadriculado 7 materias de 175 hojas (surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 44700.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-105-argollado-cuadriculado-7-materias-de-175-hojas-surtido-718043/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 105 argollado cuadriculado 7 materias de 175 hojas Académico (surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 63900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-105-cuadriculado-7-materias-de-175-hojas-academico-surtido-630919/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 105 argollado cuadriculado de 80 hojas (surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 33900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-105-cuadriculado-de-80-hojas-argollado-academico-surtido-630898/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 105 argollado cuadriculado de 80 hojas (surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 20900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-105-argollado-cuadriculado-de-80-hojas-718035/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 105 argollado cuadriculado de 80 hojas Scribe (Surtido)",
+   "marca": "Scribe",
+   "categoria": "Cuadernos",
+   "precio": 31700.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-cuadriculado-80-hojas-argollado-scribe-surtido-581124/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 105 argollado cuadriculado de 80 hojas Scribe (Surtido)",
+   "marca": "Scribe",
+   "categoria": "Cuadernos",
+   "precio": 31700.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-cuadriculado-80-hojas-argollado-scribe-surtido-581123/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 105 argollado mixto 7 materias de 175 hojas (surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 44700.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-105-argollado-mixto-7-materias-de-175-hojas-surtido-718052/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 105 argollado mixto 7 materias tipo cuero (Surtido)",
+   "marca": "Scribe",
+   "categoria": "Cuadernos",
+   "precio": 64600.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-cuadriculado-7-materias-mixto-argollado-tipo-cuero-surtido-592500/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 105 argollado rayado de 80 hojas (surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 20900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-105-argollado-rayado-de-80-hojas-surtido-718040/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 105 argollado rayado de 80 hojas (surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 20900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-105-argollado-rayado-de-80-hojas-718039/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 105 argollado rayado de 80 hojas Jean Book (surtido)",
+   "marca": "Jean Book",
+   "categoria": "Cuadernos",
+   "precio": 38900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-rayado-105-80-hojas-argollado-jean-book-455918/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 105 argollado rayado de 80 hojas Scribe (Surtido)",
+   "marca": "Scribe",
+   "categoria": "Cuadernos",
+   "precio": 31700.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-rayado-80-hojas-argollado-scribe-surtido-581135/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 105 argollado rayado de 80 hojas argollado Académico (surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 33900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-105-rayado-de-80-hojas-argollado-academico-surtido-630908/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 105 argollado rayado de 80 hojas tipo cuero (Surtido)",
+   "marca": "Scribe",
+   "categoria": "Cuadernos",
+   "precio": 35800.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-rayado-80-hojas-argollado-tipo-cuero-surtido-592450/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 105 cuadriculado de 80 hojas Scribe Sport (Surtido)",
+   "marca": "Scribe",
+   "categoria": "Cuadernos",
+   "precio": 24600.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-cuadriculado-80-hojas-scribe-sport-581122/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 85 cuadriculado 8 materias de 200 hojas Senfort Campus (surtido)",
+   "marca": "Senfort",
+   "categoria": "Cuadernos",
+   "precio": 36900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-85-cuadriculado-8-materias-200-hojas-tartan-surtido-344530/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 95 argollado cuadriculado 7 materias de 175 hojas (surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 33200.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-95-argollado-cuadriculado-7-materias-de-175-hojas-surtido-718046/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 95 argollado cuadriculado 7 materias de 175 hojas (surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 33200.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-95-argollado-cuadriculado-7-materias-de-175-hojas-surtido-718045/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno 95 argollado mixto 7 materias de 175 hojas (surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 33200.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-95-argollado-mixto-7-materias-de-175-hojas-surtido-718048/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno argollado Sketch de 40 hojas",
+   "marca": "Jt Art Materials",
+   "categoria": "Cuadernos",
+   "precio": 26900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-sketch-argollado-de-40-hojas-150g-712485/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno cosido cuadriculado 100 hojas Pokémon (surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 22500.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-cosido-cuadriculado-100-hojas-pokemon-718004/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno cosido cuadriculado de 100 hojas Cats (Surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 20900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-cosido-cuadriculado-de-100-hojas-cats-718008/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno cosido cuadriculado de 100 hojas Dragón Ball (Surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 22500.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-cosido-cuadriculado-de-100-hojas-dragon-ball-718005/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno cosido cuadriculado de 100 hojas Kiut (Surtido)",
+   "marca": "Kiut",
+   "categoria": "Cuadernos",
+   "precio": 17500.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-cuadriculado-100-hojas-kiut-407026/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno cosido cuadriculado de 100 hojas Scribe In Black (surtido)",
+   "marca": "Scribe",
+   "categoria": "Cuadernos",
+   "precio": 16100.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-cosido-100-hojas-a-cuadros-in-black-592392/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno cosido cuadriculado de 100 hojas memes (Surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 20900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-cosido-cuadriculado-de-100-hojas-memes-718007/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno cosido cuadriculado de 50 hojas Guerreras K-pop (Surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 11200.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-cosido-cuadriculado-de-50-hojas-guerreras-kpop-717994/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno cosido cuadriculado de 50 hojas molang (surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 10700.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-cosido-cuadriculado-de-50-hojas-molang-surtido-717999/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno cosido de 100 hojas cuadriculado Cars (surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 16200.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-cosido-de-100-hojas-cuadriculado-surtido-630890/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno cosido ferrocarril de 100 hojas mi primer cuaderno Norma (Surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 17500.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-ferrocarril-100-hojas-norma-145586/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno cosido rayado de 100 hojas (Surtido)",
+   "marca": "Scribe",
+   "categoria": "Cuadernos",
+   "precio": 16100.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-cosido-in-black-592392/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno cosido rayas grandes de 100 hojas Dragón Ball (Surtido)",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 22500.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-cosido-rayas-grandes-de-100-hojas-dragon-ball-717921/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno cosido rayas grandes de 100 hojas memes",
+   "marca": "Norma",
+   "categoria": "Cuadernos",
+   "precio": 20900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-cosido-rayas-grandes-de-100-hojas-memes-717923/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno cuadriculado de 80 hojas Tuffy (Surtido)",
+   "marca": "Tuffy",
+   "categoria": "Cuadernos",
+   "precio": 15900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-de-80-hojas-cuadriculado-tuffy-648744/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno de dibujo A5 de 110 g",
+   "marca": "Victoria's Journals",
+   "categoria": "Cuadernos",
+   "precio": 19900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-de-dibujo-a5-con-manchas-azul-y-amarillo-110g-637288/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno empastado cuadriculado 7 materias de 224 hojas Scribe (surtido)",
+   "marca": "Scribe",
+   "categoria": "Cuadernos",
+   "precio": 47600.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-empastado-95-7-materias-a-cuadros-cuero-592506/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuaderno mediano empastado cuadriculado 7 materias de 224 hojas(surtido)",
+   "marca": "Scribe",
+   "categoria": "Cuadernos",
+   "precio": 47600.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuaderno-empastado-95-7-materias-a-cuadros-cuero-femenino-592505/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuadernos cuadriculado de 105 hojas toy story primavera (surtido)",
+   "marca": "Papeles primavera",
+   "categoria": "Cuadernos",
+   "precio": 20300.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuadernos-cuadriculado-de-105-hojas-toy-story-primavera-surtido-728415/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuadernos cuadriculado de 95 hojas toy story, primavera (surtido)",
+   "marca": "Papeles primavera",
+   "categoria": "Cuadernos",
+   "precio": 14200.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuadernos-cuadriculado-de-95-hojas-toy-story-primavera-surtido-728405/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuadernos cuadriculado kraft de 105 hojas toy story primavera (surtido)",
+   "marca": "Papeles primavera",
+   "categoria": "Cuadernos",
+   "precio": 20300.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuadernos-cuadriculado-kraft-de-105-hojas-toy-story-primavera-surtido-728412/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuadernos rayado de 105 hojas toy story primavera (surtido)",
+   "marca": "Papeles primavera",
+   "categoria": "Cuadernos",
+   "precio": 20300.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuadernos-rayado-de-105-hojas-toy-story-primavera-surtido-728416/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuadernos rayado de 95 hojas toy story, primavera (surtido)",
+   "marca": "Papeles primavera",
+   "categoria": "Cuadernos",
+   "precio": 14200.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuadernos-rayado-de-95-hojas-toy-story-primavera-surtido-728406/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Cuadernos rayado kraft de 105 hojas toy story primavera (surtido)",
+   "marca": "Papeles primavera",
+   "categoria": "Cuadernos",
+   "precio": 20300.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/cuadernos-rayado-kraft-de-105-hojas-toy-story-primavera-surtido-728413/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Diccionario básico de la lengua española con contenido digital",
+   "marca": "Larousse",
+   "categoria": "Textos",
+   "precio": 42000.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/diccionario-basico-de-la-lengua-espanola-con-qr-653412/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Diccionario básico escolar",
+   "marca": "Norma",
+   "categoria": "Textos",
+   "precio": 34200.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/diccionario-basico-escolar/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Diccionario básico escolar Larousse con contenido digital",
+   "marca": "Larousse",
+   "categoria": "Textos",
+   "precio": 28000.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/diccionario-basico-escolar-larousse-con-qr-653411/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Diccionario escolar: de la lengua española",
+   "marca": "Guadal",
+   "categoria": "Textos",
+   "precio": 26900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/diccionario-escolar-de-la-lengua-espanola-719862/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Estuche organizador para cables, azul con gris",
+   "marca": "Sense",
+   "categoria": "Cartuchera y útiles",
+   "precio": 50100.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/estuche-organizador-para-cables-azul-648839/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Estuche para consola Nintendo Switch - Pikachu 025",
+   "marca": "Powera",
+   "categoria": "Cartuchera y útiles",
+   "precio": 149000.0,
+   "disponible": false,
+   "url_producto": "https://www.panamericana.com.co/estuche-para-consola-nintendo-switch-pikachu-025-623302/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Guía plástica 105 separadora x 5 unidades, colores surtidos",
+   "marca": "Ampaca",
+   "categoria": "Colores",
+   "precio": 6900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/guia-separadora-plastica-colores-surtidos-105-x-5-150758/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Guías separadoras tamaño carta, colores surtidos",
+   "marca": "Senfort",
+   "categoria": "Colores",
+   "precio": 19900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/guias-separadoras-colores-surtidos-tamano-carta/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Juego dominó doble 6 de colores x 28 fichas",
+   "marca": "Juegos para todos",
+   "categoria": "Colores",
+   "precio": 19900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/juego-domino-en-lata-doble-6-de-colores-631650/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Lonchera alpaca, morada y naranja",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 19900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/lonchera-diseno-alpaca-morado-anaranjado-642096/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Lonchera jungla y leopardo verde",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 39900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/lonchera-verde-diseno-jungla-leopardo-650493/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Lonchera leopardo, naranja y amarillo",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 19900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/lonchera-diseno-leopardo-anaranjado-amarillo-642085/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Lonchera oso perezoso, azul y rojo",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 19900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/lonchera-diseno-perezoso-azul-rojo-642098/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Lonchera puercoespín Oops",
+   "marca": "Oops",
+   "categoria": "Maletería",
+   "precio": 59900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/lonchera-diseno-puercoespin-oops-635772/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Lonchera térmica líneas rojas con blanco",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 59900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/lonchera-termica-con-diseno-de-lineas-rojo-con-blanco-660378/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Lonchera térmica líneas rosas con blanco",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 39900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/lonchera-termica-con-diseno-lineas-rosa-con-blanco-660373/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Lonchera térmica líneas verdes con blanco",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 59900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/lonchera-termica-con-diseno-de-lineas-verde-con-blanco-660377/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Lonchera térmica líneas verdes con blanco",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 39900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/lonchera-termica-diseno-lineas-verde-con-blanco-660372/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Los colores de la granja",
+   "marca": "School fun",
+   "categoria": "Colores",
+   "precio": 16900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/los-colores-de-la-granja-680471/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Maletín organizador infantil - búho café x 2 piezas",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 19900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/set-organizador-multiusos-x2-piezas-buho-cafe-627734/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Maletín organizador infantil - búho multicolor x 2 piezas",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 19900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/set-organizador-multiusos-x2-piezas-buhos-multicolor-627736/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Maletín organizador infantil - cachorro x 2 piezas",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 19900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/set-organizador-multiusos-x2-piezas-perro-627738/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Maletín organizador infantil - cerdito x 2 piezas",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 19900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/set-organizador-multiusos-x2-piezas-cerditos-627735/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Maletín organizador infantil - elefante azul x 2 piezas",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 19900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/set-organizador-multiusos-x2-piezas-elefante-azul-627737/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Maletín organizador multiusos - panda x 2 piezas",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 19900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/set-organizador-multiusos-x2-piezas-panda-627739/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Marcador seco Expo colores básicos x4 unidades",
+   "marca": "Paper Mate",
+   "categoria": "Escritura",
+   "precio": 17000.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/marcador-seco-expo-x4-colores-basicos-711353/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Marcadores acrílicos x 12 unidades colores metalizados",
+   "marca": "Importado",
+   "categoria": "Escritura",
+   "precio": 20900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/marcadores-acrilicos-x-12-unidades-colores-metalizados-672333/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Mi primer libro de colores",
+   "marca": "Panamericana Editorial",
+   "categoria": "Colores",
+   "precio": 32000.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/mi-primer-libro-de-colores-605971/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Morral alpaca, anaranjado y lila",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 24900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/morral-normal-diseno-alpaca-color-lila-anaranjada-642095/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Morral ardilla, café y rosado",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 24900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/morral-normal-diseno-ardilla-cafe-rosado-642101/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Morral conejo, rosado y blanco",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 24900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/morral-normal-diseno-conejo-rosado-blanco-642099/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Morral gato, morado y rosado",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 25900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/morral-normal-diseno-gato-morado-rosado-642088/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Morral gato, negro, rosado y fucsia",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 24900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/morral-normal-diseno-gato-negro-rosado-fucsia-642105/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Morral leopardo, anaranjado y amarillo",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 24900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/morral-normal-diseno-leopardo-anaranjado-amarillo-642084/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Morral mapache azul y blanco",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 24900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/morral-normal-diseno-mapache-azul-blanco-642086/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Morral monstruo, verde y amarillo",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 25900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/morral-normal-diseno-monstruo-verde-amarillo-642078/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Morral oso perezoso, azul y rojo",
+   "marca": "Importado",
+   "categoria": "Maletería",
+   "precio": 24900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/morral-normal-diseno-oso-perezoso-azul-rojo-642097/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Notas adhesivas Stick'n x 150 hojas, colores neón",
+   "marca": "Marden",
+   "categoria": "Colores",
+   "precio": 9900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/nothas-adhesivas-stickn-neon-x-3-112621/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Pintura acrílica de 75 ml, color siena tostado",
+   "marca": "Mont marte",
+   "categoria": "Colores",
+   "precio": 11900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/pintura-acrilica-75-ml-siena-tostado-635552/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Pintura acrílica de 75 ml, verde monastral",
+   "marca": "Mont marte",
+   "categoria": "Colores",
+   "precio": 11900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/pintura-acrilica-75-ml-verde-monastral-635557/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Plumones Faber-Castell fiesta x 12 colores",
+   "marca": "Faber Castell",
+   "categoria": "Colores",
+   "precio": 16700.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/plumones-faber-castell-x-12-fiesta-632443/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Plumones SuperTips x 12 unidades",
+   "marca": "Crayola",
+   "categoria": "Colores",
+   "precio": 23850.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/plumones-supertips-x12-unidades-667409/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Plumones lavables SuperTips x 20 colores",
+   "marca": "Crayola",
+   "categoria": "Colores",
+   "precio": 33600.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/plumones-supertips-x20-unidades-667413/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Plumones para caligrafía Pelikan Markana x 12 unidades",
+   "marca": "Pelikan",
+   "categoria": "Colores",
+   "precio": 27000.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/plumon-pelikan-markana-x-12und-609839/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Plumígrafos de colores permanentes Enlegend x 4 unidades",
+   "marca": "Importado",
+   "categoria": "Colores",
+   "precio": 9900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/plumigrafo-permanente-x-4-unidades-enlegend-637872/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Plumón PaperMate unipunta x 12 unidades",
+   "marca": "Paper Mate",
+   "categoria": "Colores",
+   "precio": 15900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/plumon-papermate-mediano-x12-unidades-630320/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Portalápiz de cremallera doble oso y conejo (surtido)",
+   "marca": "Importado",
+   "categoria": "Cartuchera y útiles",
+   "precio": 17900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/portalapiz-doble-diseno-oso-conejo-surtido-664034/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Portalápiz doble Love&Bear (surtido)",
+   "marca": "Importado",
+   "categoria": "Cartuchera y útiles",
+   "precio": 23900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/portalapiz-doble-love-y-bear-surtido-681580/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Portalápiz doble Street Racer Nitro Rush",
+   "marca": "Norma",
+   "categoria": "Cartuchera y útiles",
+   "precio": 44100.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/portalapiz-doble-street-racer-nitro-rush-717906/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Portalápiz doble animales (surtido)",
+   "marca": "Importado",
+   "categoria": "Cartuchera y útiles",
+   "precio": 26900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/portalapiz-doble-diseno-animales-surtido-681573/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Portalápiz doble colores pastel (surtido)",
+   "marca": "Importado",
+   "categoria": "Colores",
+   "precio": 26900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/portalapiz-doble-colores-pastel-surtido-681572/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Portalápiz doble conejo (surtido)",
+   "marca": "Importado",
+   "categoria": "Cartuchera y útiles",
+   "precio": 23900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/portalapiz-doble-diseno-conejo-surtido-681582/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Portalápiz doble frutas (surtido)",
+   "marca": "Importado",
+   "categoria": "Cartuchera y útiles",
+   "precio": 20900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/portalapiz-doble-diseno-frutas-surtido-681567/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Portalápiz sencillo Kiut azul",
+   "marca": "Kiut",
+   "categoria": "Cartuchera y útiles",
+   "precio": 32900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/portalapiz-sencillo-azul-kiut-717886/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Portalápiz sencillo Norma Gradient",
+   "marca": "Norma",
+   "categoria": "Cartuchera y útiles",
+   "precio": 32900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/portalapiz-sencillo-norma-gradient-717899/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Portalápiz sencillo Summer corazón",
+   "marca": "Importado",
+   "categoria": "Cartuchera y útiles",
+   "precio": 23900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/portalapiz-sencillo-diseno-corazon-684015/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Portaminas Pilot The Shaker de 0.7 mm + minas",
+   "marca": "Pilot",
+   "categoria": "Escritura",
+   "precio": 46400.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/portaminas-pilot-the-shaker-de-0-7-mm-minas-554413/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Resaltador grueso Kiut color pastel x 8 unidades",
+   "marca": "Kiut",
+   "categoria": "Escritura",
+   "precio": 23500.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/resaltador-grueso-kiut-x8-pastel-631023/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Resaltadores Pelikan colores pastel x 6 unidades",
+   "marca": "Pelikan",
+   "categoria": "Escritura",
+   "precio": 18700.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/resaltadores-pelikan-colores-pastel-x-6-unidades-576166/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Set de bloques infantil x 96 piezas colores pastel con estuche",
+   "marca": "Importado",
+   "categoria": "Colores",
+   "precio": 39900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/set-de-bloques-infantil-x96-piezas-colores-pasteles-con-estuche-695153/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Tijera de punta roma (surtida)",
+   "marca": "Faber Castell",
+   "categoria": "Cartuchera y útiles",
+   "precio": 11600.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/tijera-de-punta-roma-6/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Tri-dominó colores",
+   "marca": "Importado",
+   "categoria": "Colores",
+   "precio": 69900.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/tri-domino-colores-560220/p"
+  },
+  {
+   "proveedor": "panamericana",
+   "nombre": "Témpera dactilar Little Creatives Faber-Castell de 30 g x 6 unidades",
+   "marca": "Faber Castell",
+   "categoria": "Colores",
+   "precio": 13800.0,
+   "disponible": true,
+   "url_producto": "https://www.panamericana.com.co/tempera-dactilar-little-creatives-30gr-x-6-unidades-faber-castell-644873/p"
+  }
+ ]
+}
