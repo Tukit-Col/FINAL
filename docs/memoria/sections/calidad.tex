@@ -24,9 +24,19 @@ con 68 de 68 y la web con 107 de 107.
 
 \paragraph{Sistema.} La prueba de humo, que levanta todos los servicios y recorre el flujo
 principal, pasó sus 20 comprobaciones. La carga de lectura sobre el catálogo, con 1 a 20 usuarios
-concurrentes, no tuvo errores, con un percentil 95 entre 9,6 y 48,7~ms y un máximo de 962
-peticiones por segundo. Esa prueba no cubre la meta DP-02, que pide 50 acudientes concurrentes
-generando kits y pagando. A través de la puerta de enlace, con cinco usuarios, 1.200 peticiones
+concurrentes, no tuvo errores, con un percentil 95 entre 9,6 y 48,7~ms. La meta de capacidad (RNF05,
+DP-02: 50 usuarios con error menor al 5\,\%) se midió el 5 de noviembre con la rampa L-02 de
+calidad, con catálogo, sesión, subida, consulta y pago simulado, de 5 a 100 usuarios en 15 minutos
+y el modelo simulado. En un equipo con Windows y una máquina virtual de 4 núcleos, el catálogo se saturó
+desde 30 usuarios. Repetida sin cambios en un Apple M4 con los servicios nativos, la rampa completó
+25.706 peticiones sin un solo error ni saturación hasta 100 usuarios; hasta 50 usuarios el percentil 95
+del catálogo osciló entre 180 y 420~ms por ventana, y con 100 llegó a 2,5~s. Así, el error de RNF05
+se cumple con el doble de usuarios, pero el umbral de 300~ms que el equipo de calidad fijó para el
+catálogo se supera en varias ventanas desde 25 usuarios y la latencia crece con claridad desde unos
+55. El catálogo corre en un solo proceso y llegó al
+100\,\% de un núcleo en el pico, así que levantarlo con varios procesos es la primera mejora
+(Sección~\ref{sec:trabajo-futuro}). Los datos están en
+\path{docs/informes/calidad/carga_mac_2026-11-05/}. A través de la puerta de enlace, con cinco usuarios, 1.200 peticiones
 recibieron una respuesta exitosa y 30.257 recibieron el código 429, es decir, el limitador de tasa actuó como
 se diseñó. En seguridad, la auditoría de dependencias de las dos aplicaciones web quedó en cero
 vulnerabilidades y la lectura de un kit ajeno, que antes era posible por identificador, ahora
@@ -39,8 +49,8 @@ de noviembre el pedido llegó a «pagado» y la solicitud de retracto se aceptó
 noviembre el pedido quedó en «pendiente de pago», porque la consulta del estado de la transacción
 respondió que no existía y el retracto respondió con un conflicto (409). Las sesiones con acudientes
 del 2 y el 3 de noviembre, sobre la versión \texttt{b6b6fe7}, dieron más evidencia: los seis
-acudientes terminaron con un pedido pagado, y en los cinco en que se observó el pago la pasarela lo
-mostró aprobado (Sección~\ref{sec:oe5}). Por eso el recorrido con pago simulado se da por funcional,
+acudientes terminaron con un pedido pagado, y en los seis la pasarela mostró el pago
+aprobado (Sección~\ref{sec:oe5}). Por eso el recorrido con pago simulado se da por funcional,
 y la corrida del 2 de noviembre queda como un fallo de la consulta de estado que no se volvió a
 presentar y cuya causa no se identificó. No se
 ejecutó el pago con las llaves de sandbox de Wompi, ni pruebas en dispositivos, ni una auditoría de
@@ -52,15 +62,13 @@ escritas para buscar fallas y no para confirmar lo que ya funcionaba (rama \text
 Cada defecto que encontraron quedó fijado como una prueba que se marca como fallo esperado
 (\texttt{xfail} estricto): la suite sigue en verde mientras el defecto exista y se pone en rojo el día
 en que alguien lo arregla sin quitar la marca, de modo que ningún hallazgo se pierde ni se cierra en
-silencio. Quedaron 59 hallazgos abiertos, cubiertos por 108 de esas pruebas. Por característica de
-calidad: 14 de seguridad (rutas de administración que responden sin sesión, administrador sin
-segundo factor, el nombre del menor que llega sin depurar al proveedor del modelo), 5 de privacidad
-(el retracto deja activa la reserva y no mira la fecha de entrega, la supresión confirmada no se
-publica), 12 de fiabilidad (sin idempotencia al crear la orden, el disyuntor tarda hasta 300~s en
-abrir, el sistema arranca con la pasarela falsa sin avisarlo), 24 de adecuación funcional (cantidades
-que se leen como 1, huecos del catálogo sin sustitutos) y 4 de mantenibilidad (el contrato
-documenta rutas que no existen). La lista completa está en la Tabla~\ref{tab:hallazgos-abiertos} del
-anexo y en \path{docs/informes/calidad/hallazgos_qa.csv}. Ninguno impide el recorrido que se evaluó
+silencio. El registro oficial del control de calidad
+cuenta 85 hallazgos vigentes al 5 de noviembre (16 de severidad alta, 58 media y 11 baja) y 10 ya
+cerrados. Los de severidad alta incluyen rutas de administración que responden sin sesión, el
+administrador sin segundo factor, el nombre del menor que llega sin depurar al proveedor del modelo y
+la integración continua en rojo; los de fiabilidad, la orden sin idempotencia y el aviso de pago que
+se pierde si el intermediario de mensajes se reinicia. La lista completa está en la Tabla~\ref{tab:hallazgos-abiertos} del
+anexo, generada desde \path{docs/informes/calidad/hallazgos_qa_oficial.csv}. Ninguno impide el recorrido que se evaluó
 con los acudientes, pero los de seguridad y privacidad son condición para operar con datos y pagos
 reales, y por eso encabezan el trabajo futuro.
 
@@ -78,13 +86,13 @@ que se vea qué característica quedó probada, cuál solo parcialmente y cuál 
 Característica & Evidencia & Estado \\
 \midrule
 Adecuación funcional & 2.542 pruebas Python y las de las dos aplicaciones web; recorrido de la cuenta al pago con acudientes; personaje del segundo hijo sin reflejar en el kit Fan & Parcial \\
-Eficiencia de desempeño & Carga de lectura con p95 de 9,6 a 48,7~ms; ESC-D4 del optimizador con p95 de 0,31~s frente a 8~s en 10.500 ejecuciones; DP-02 con 50 acudientes concurrentes sin medir & Parcial \\
+Eficiencia de desempeño & Lectura con p95 de 9,6 a 48,7~ms; ESC-D4 con p95 de 0,31~s frente a 8~s; L-02 hasta 100 usuarios sin errores en el M4, con p95 del catálogo de 350~ms a 50 usuarios, y saturación desde 30 en la máquina virtual & Parcial \\
 Compatibilidad & Pruebas de fronteras entre servicios (75) y del contrato entre la web y la API (67) & Probada \\
-Usabilidad & Seis sesiones con acudientes: T6 4 de 5 y T4 1 de 5 sin ayuda; SUS medio de 90 [82--98] por formulario de cierre & Cumplido \\
-Fiabilidad & Ensayos de degradación del nivel 1 sobre la versión del 8 de octubre (14 de 18 cumplidos); niveles 2 y 3 sin ejecutar; 12 hallazgos abiertos & Parcial \\
-Seguridad & Lectura de kits ajenos cerrada (401/404), 0 vulnerabilidades web, 0 de 81 ataques al asistente; un token en el historial; 14 hallazgos abiertos & Parcial \\
+Usabilidad & Seis sesiones con acudientes: T6 4 de 5 y T4 1 de 5 sin ayuda; SUS medio de 90 [82--98] por formulario de cierre; C3 solo en T6 & Parcial \\
+Fiabilidad & Ensayos de degradación del nivel 1 sobre la versión del 8 de octubre (14 de 18 cumplidos); niveles 2 y 3 sin ejecutar; hallazgos abiertos de idempotencia y avisos & Parcial \\
+Seguridad & Lectura de kits ajenos cerrada (401/404), 0 vulnerabilidades web, 0 de 81 ataques al asistente; un token en el historial; hallazgos de severidad alta abiertos & Parcial \\
 Mantenibilidad & Cobertura de 54 a 98\,\% por servicio, sin umbral en la integración continua; funciones de aptitud de arquitectura & Parcial \\
-Portabilidad & Servicios en contenedores levantados con Docker Compose; sin pruebas en dispositivos & Parcial \\
+Portabilidad & Servicios en contenedores levantados en local con Minikube; sin pruebas en dispositivos & Parcial \\
 \bottomrule
 \end{tabularx}
 \end{table}

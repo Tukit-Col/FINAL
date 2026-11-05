@@ -4,17 +4,13 @@
 
 \subsection{Análisis de Impacto del Proyecto}
 
-En esta sección se analiza el impacto del trabajo en dos planos. Primero se describe lo que aporta a la ingeniería de sistemas y luego su efecto en los contextos global, económico, ambiental y social.
-
 \subsubsection{Impacto en la ingeniería de sistemas}
 
 Además del sistema construido, el trabajo deja tres prácticas de ingeniería trasladables a otros proyectos, cada una con su límite. Primero, la arquitectura se eligió comparando alternativas con el método ATAM \citep{bass_software_2021}: un monolito modular, microservicios de grano fino y la variante de grano grueso adoptada, que obtuvo 3,91 sobre 5 en la matriz ponderada frente a 3,44 y 2,82 (el acta del segundo objetivo registraba 4,27 con otro conjunto de alternativas). La decisión se apoyó en impulsores comprobables (recuperabilidad asimétrica, frontera de cumplimiento y perfil de recurso heterogéneo) y no en la escalabilidad invocada al principio, que el cálculo de carga descartó por órdenes de magnitud.
 
-Segundo, el sistema se auditó más allá de sus requisitos funcionales. La auditoría de autorización encontró 22 de 152 puntos de entrada sin una comparación completa de ámbito, y la de datos personales, catorce hallazgos. El sistema construido corrigió una parte y reemplazó las políticas de fila del ADR 0015 por un control de ámbito en la aplicación; los anexos registran la situación de cada hallazgo y la Sección~\ref{sec:defectos} reúne los que siguen abiertos.
+Segundo, el sistema se auditó más allá de sus requisitos funcionales. La auditoría de autorización encontró 22 de 152 puntos de entrada sin una comparación completa de ámbito, y la de datos personales, catorce hallazgos. El sistema construido corrigió una parte y reemplazó las políticas de fila del ADR 0016 por un control de ámbito en la aplicación; los anexos registran la situación de cada hallazgo y la Sección~\ref{sec:defectos} reúne los que siguen abiertos.
 
 Tercero, las fronteras entre servicios pasaron de convención documental a funciones de aptitud ejecutables \citep{ford_building_2017}: doce pruebas contrastan el código con el manifiesto y otras veintiocho comprueban que detectan infracciones plantadas. La integración continua las ejecuta, aunque 11 de sus 12 ejecuciones registradas hasta fines de septiembre fallaron y su estado en la versión evaluada no se comprobó.
-
-Las tres prácticas sirven a un proyecto que deba sostener ante terceros que su diseño hace lo que declara, siempre que el seguimiento de los hallazgos forme parte del método.
 
 \subsubsection{Impacto en contextos globales, económicos, ambientales y sociales}
 
@@ -26,19 +22,17 @@ los mismos artículos sobre 3.608 renglones reunidos de 17 colegios), y cada hog
 interpreta por su cuenta. Si el sistema reduce ese esfuerzo, el efecto sería económico, al
 facilitar la comparación de precios y sustitutos que el proceso manual no ofrece, y de tiempo
 para las familias en las semanas de mayor presión del calendario escolar. Ese efecto es lo que
-empezó a medir el OE5 (Sección~\ref{sec:oe5}). En seis sesiones con acudientes, todos los que
-llegaron al final pagaron su kit, cuatro de seis describieron la aplicación como fácil, intuitiva o
+empezó a medir el OE5 (Sección~\ref{sec:oe5}). En seis sesiones con acudientes, los seis
+pagaron su kit, cuatro de seis describieron la aplicación como fácil, intuitiva o
 rápida, y lo que más valoraron fue el ahorro de tiempo y poder cambiar productos. A la vez, solo uno
 de cinco revisó y eligió su kit sin ayuda, de modo que ese valor depende de cómo se presenta el kit. La carga
-percibida frente a la compra tradicional se midió con el RTLX: bajó de 63 con la compra habitual a 9 con TUKIT, y el SUS medio fue de 90. El modelo de negocio adoptado
+percibida frente a la compra tradicional se midió con el RTLX: bajó de 63 con la compra habitual a 9 con Tukit (n = 6), y el SUS medio fue de 90 [82--98]. El modelo de negocio adoptado
 \citep{osterwalder_business_2010}, B2B2C, distribuye ese valor sin imponer un costo al colegio:
 la institución no paga por participar, y el ingreso proviene de la compra del acudiente. En el
 contexto colombiano, donde la capacidad de pago de las instituciones y de sus hogares es
 heterogénea, una solución que dependiera del presupuesto del colegio limitaría su adopción a
-las instituciones con mayor capacidad financiera. En el plano ambiental, el trabajo no midió un efecto directo. La disponibilidad que optimiza el
-cuarto objetivo es la fracción de líneas del kit que Tukit puede surtir, un criterio comercial. Que
-reduzca compras redundantes es una hipótesis cuya medición exige operar con familias, y la economía
-circular de libros y útiles se plantea como trabajo futuro (Sección~\ref{sec:trabajo-futuro}). El alcance social del hallazgo tiene un límite: la encuesta se
+las instituciones con mayor capacidad financiera. En el plano global, el resultado se acota a Colombia: el calendario escolar y la normativa de listas son locales y el trabajo no probó otro país. En el plano ambiental no se midió un efecto directo: que el kit reduzca compras redundantes es una
+hipótesis que exige operar con familias. El alcance social del hallazgo tiene un límite: la encuesta se
 concentró en un solo colegio del sector Salitre, con sobrerrepresentación del estrato 4
 (68,3\,\%) y ausencia de los estratos 1 y 6. Por eso, generalizar la insatisfacción declarada a
 la población escolar colombiana excede lo que esta muestra permite afirmar.
@@ -59,16 +53,16 @@ estado.
 \toprule
 OE & Evidencia & Sección & Estado \\
 \midrule
-OE1 & Corpus de 17 colegios, 3.608 renglones, 1.451 formas de nombrar y 99 conceptos canónicos; encuesta (n=60) & Cap.~III y IV & Cumplido \\
+OE1 & Corpus de 17 colegios, 3.608 renglones, 1.451 formas de nombrar y 99 conceptos canónicos del corpus (el catálogo actual tiene 149); encuesta (n=60) & Cap.~III y IV & Cumplido \\
 OE2 & Comparación ATAM de tres alternativas, árbol de utilidad de 17 escenarios, vistas 4+1 y 49 ADR & Cap.~V & Cumplido \\
 OE3 & F1 micro de 0,948 en lectura (CGS-10); resolución con $\tau=0{,}75$ declarado sin calibrar; NL2C con 58 de 70 tareas y 0 de 81 ataques exitosos & Sec.~\ref{sec:percepcion}, \ref{sec:optimizacion-cal} y~\ref{sec:nl2c} & Cumplido \\
-OE4 & Optimizador de cuatro objetivos, igualdad con el óptimo exacto en 174 listas, MAUT con pesos de la P21, hipervolumen de 0,9969 del exacto y aplicación web con pago en modo simulado & Sec.~\ref{sec:optimizacion} y~\ref{sec:optimizacion-cal} & Cumplido \\
+OE4 & Optimizador de cuatro objetivos, MAUT con pesos de la P21, hipervolumen de 0,9969 del exacto en 32 listas de prueba, igualdad con el óptimo exacto en 174 listas (una semilla, sin reproducir) y aplicación web con pago en modo simulado & Sec.~\ref{sec:optimizacion} y~\ref{sec:optimizacion-cal} & Cumplido \\
 OE5 & Pruebas de unidad, integración, sistema y carga; ESC-D4 con p95 de 0,31~s frente a 8~s; seis sesiones con usuarios reales, en las que los seis llegaron a un pedido pagado y la ayuda se concentró en la elección del kit (T4) & Sec.~\ref{sec:control-calidad}, \ref{sec:optimizacion} y~\ref{sec:oe5} & Cumplido \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-El OE1 se cumplió porque el corpus permitió definir 99 conceptos canónicos, de los cuales 25
+El OE1 se cumplió porque el corpus permitió definir 99 conceptos canónicos (el catálogo actual tiene 149), de los cuales 25
 cubren cerca del 80\,\% de los renglones observados: el dominio es heterogéneo en la superficie,
 pero tiene una estructura tratable. El OE2 se cumplió porque las decisiones de arquitectura se
 justificaron con ATAM \citep{bass_software_2021}, vistas 4+1 \citep{kruchten_41_1995} y la norma
@@ -91,8 +85,8 @@ niveles, la prueba ESC-D4 y seis sesiones con acudientes conforme al plan prereg
 evaluación encuentre problemas es parte de su resultado: el criterio C3 se alcanzó en el pago y no en
 la elección del kit, y esa diferencia es la que ordena los cambios de la siguiente versión
 (Sección~\ref{sec:oe5}). Los objetivos OE3 y OE4 se cumplieron con los límites que declara la
-Sección~\ref{sec:amenazas}, entre ellos que el pago se probó en modo simulado y no en el entorno de
-pruebas de Wompi.
+Sección~\ref{sec:amenazas}: en el OE3, que ninguna medición de resolución describe el sistema construido; en el OE4, que el pago se probó en modo simulado y no en el entorno de
+pruebas de Wompi. El objetivo general, diseñar el sistema de recomendación multiobjetivo y medir su efecto con padres del sector Salitre, se da por cumplido como suma de los cinco objetivos específicos, con esos límites.
 
 \subsubsection{Trabajo futuro}
 \label{sec:trabajo-futuro}
@@ -107,17 +101,12 @@ porque este trabajo se centró en un solo negocio, el de útiles y papelería. H
 en las listas revisadas, solo 18 traen ISBN y tienen su edición en el catálogo, 57 son títulos sin
 edición identificada que el sistema indica comprar en librería y 3 no se compran. Es un límite de
 cobertura del catálogo de libros y no del emparejamiento.
-\item \textbf{Aplicaciones nativas y modo sin conexión.} El acudiente usa una aplicación web
-progresiva; las aplicaciones nativas y el modo sin conexión amplían su alcance, pero no cambian el
-algoritmo que se evaluó.
-\item \textbf{Endurecimiento productivo.} Autorización uniforme en las rutas, rol de acceso por base
+\item \textbf{Endurecimiento productivo.} Los 85 hallazgos vigentes del control de calidad, 16 de severidad alta (Sección~\ref{sec:calidad-resumen}), el catálogo con varios procesos para la latencia bajo carga, los cambios de T4 del OE5, el panel de colegio (CO-01 y CO-02) y el ajuste de presupuesto en vivo, que quedaron fuera del alcance. Autorización uniforme en las rutas, rol de acceso por base
 de datos, depuración del nombre del menor en el documento cargado, supresión de datos, medición de
-la cobertura en la integración continua y cobro real con la pasarela. Es la condición para operar
-con familias reales y se plantea antes del despliegue.
-\item \textbf{Optimización de rutas.} Agrupar la entrega entre tiendas, que no afecta la
-construcción del kit.
-\item \textbf{Economía circular de libros.} Reventa e intercambio de textos entre hogares, que
-requiere una base de usuarios activa.
+la cobertura en la integración continua y cobro real con la pasarela. Es la condición para operar con
+familias reales.
+\item \textbf{Alcance del producto.} Aplicaciones nativas con modo sin conexión, rutas de entrega
+agrupadas entre tiendas y reventa de textos entre hogares; ninguna cambia el algoritmo evaluado.
 \item \textbf{Calibración con más anotadores y más colegios.} Repetir la calibración del umbral y
 de los pesos con un conjunto anotado por dos personas y con listas de más colegios, y comparar
 NSGA-II con otros optimizadores de referencia sobre el mismo banco.

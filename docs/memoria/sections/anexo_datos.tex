@@ -40,7 +40,7 @@ Embeddings & gemini-embedding-001, 1.024 dimensiones, HNSW & código y SDD \\
 CGS-10 (percepción) & 10 documentos, 1.293 ítems & Sección~\ref{sec:percepcion} \\
 Oro de recuperación & 2.588 renglones de 4.719 ítems y 98 conceptos & Sección~\ref{sec:recuperacion} \\
 Banco de listas reales & 175 instancias de 174 listas de 17 colegios & \texttt{ensayos/bench\_laya/instancias.json.gz} \\
-Partición por colegio & 3 colegios de prueba (32 listas) y 14 en cinco pliegues & \texttt{calibracion\_nsga.json}, campo \texttt{particion} \\
+Partición por colegio & 3 colegios de prueba (40 listas, 32 con NSGA-II) y 14 en cinco pliegues & \texttt{calibracion\_nsga.json}, campo \texttt{particion} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -53,10 +53,10 @@ versionado, no el conteo de aquella sección.
 \paragraph{Conjuntos de evaluación.} Hay cuatro. El primero es CGS-10, el conjunto de oro de
 percepción: diez documentos con 1.293 ítems anotados, sobre el que se compararon los cinco motores de
 lectura. El segundo es el conjunto de oro de recuperación, de 2.588 renglones tomados de los 4.719
-ítems de las listas, con 98 conceptos, que midió la regla de resolución de una versión anterior. El
+ítems de las listas, con 98 conceptos (el catálogo actual tiene 149), que midió la regla de resolución de una versión anterior. El
 tercero es el banco de listas reales, de 175 instancias derivadas de 174 listas de 17 colegios, que
 alimenta la calibración y la evaluación del optimizador. El cuarto no es un conjunto sino una
-partición de ese banco: los colegios se dividen en un grupo de prueba de tres, con 32 listas, y 14 de calibración repartidos en cinco pliegues. Se divide por
+partición de ese banco: los colegios se dividen en un grupo de prueba de tres, con 40 listas (32 por encima del umbral de enumeración, el resto exactas), y 14 de calibración repartidos en cinco pliegues. Se divide por
 colegio y no por lista porque las listas de un mismo colegio se parecen entre sí, y una partición por
 lista dejaría ver a la calibración listas casi idénticas a las de prueba.
 

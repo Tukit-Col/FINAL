@@ -2,33 +2,23 @@
 \section{CONTEXTO DEL PROYECTO}
 
 Los capítulos anteriores plantearon el problema y fijaron los cinco objetivos específicos y la
-metodología híbrida. Antes de recoger requerimientos hacía falta conocer el terreno: qué es una lista
-escolar, qué técnicas existen para leerla, relacionarla con un catálogo y optimizar un kit, y qué
-ofrece hoy el mercado. Este capítulo hace ese trabajo y se apoya en la etapa de comprensión del negocio de CRISP-DM
-\citep{chapman_crisp-dm_2000}, junto con el análisis del entorno propio de Design Thinking
-\citep{brown_design_2008}. Lo que se descubre aquí, el vacío entre las soluciones actuales y una
-recomendación completa a partir de la lista del colegio, es el punto de partida del
-Capítulo~IV.
-
-La compra de útiles escolares parece, a primera vista, una tarea sencilla de comercio. Sin
-embargo, automatizarla exige resolver problemas que pertenecen a campos distintos, como la
-lectura de documentos sin un formato común, la interpretación de un vocabulario que cada
-colegio escribe a su manera, la elección entre una gran cantidad de combinaciones de
-productos y la presentación de esas opciones de forma que no abrumen a quien decide. Este
-capítulo reúne el contexto necesario para comprender cómo Tukit aborda cada uno de esos
-retos. En primer lugar, se presentan los antecedentes conceptuales, que parten del proceso
-general del sistema y describen las técnicas en que se apoya cada una de sus etapas, junto
-con la arquitectura y las tecnologías que lo sostienen. Posteriormente, se analiza el
-entorno en el que surge el proyecto, a partir de la caracterización del dominio escolar y
-de la comparación con las soluciones que existen hoy en el mercado, con el fin de evidenciar
-el vacío que la propuesta busca cubrir.\par
+metodología híbrida. Antes de recoger requerimientos hacía falta conocer el terreno. La compra de
+útiles escolares parece una tarea sencilla de comercio, pero automatizarla exige resolver problemas
+de campos distintos: la lectura de documentos sin formato común, la interpretación de un vocabulario
+que cada colegio escribe a su manera, la elección entre muchas combinaciones de productos y la
+presentación de las opciones sin abrumar a quien decide. Este capítulo se apoya en la etapa de
+comprensión del negocio de CRISP-DM \citep{chapman_crisp-dm_2000} y en el análisis del entorno de
+Design Thinking \citep{brown_design_2008}. Primero presenta los retos de la lista escolar y las
+técnicas que atiende cada uno (Tabla~\ref{tab:antecedentes}); luego revisa las soluciones existentes
+y las alternativas consideradas, y las compara con la propuesta. El vacío que resulta, entre las
+soluciones actuales y una recomendación completa a partir de la lista del colegio, es el punto de
+partida del Capítulo~IV.\par
 
 \subsection{Antecedentes}
 
 En esta sección se presentan los conceptos necesarios para comprender el funcionamiento de
-Tukit. Se parte del dominio, es decir, de la lista escolar y de los retos que plantea
-convertirla en una compra, y a partir de ellos se introducen el tipo de sistema que se
-construyó y las técnicas que resuelven cada uno de esos retos.\par
+Tukit. Se parte de la lista escolar y de los retos que plantea convertirla en una compra, y se
+asocia a cada reto la técnica que lo resuelve.\par
 
 \subsubsection{La lista escolar y los retos de convertirla en una compra}
 
@@ -50,11 +40,11 @@ que corresponde, sin ofrecer uno parecido pero equivocado, ya que la familia sol
 ese error cuando ya ha comprado. El cuarto es elegir, entre todas las combinaciones de
 productos posibles, aquellas que mejor equilibran el costo, la calidad y las preferencias de
 la familia. Finalmente, el quinto es presentar esas alternativas de manera que faciliten la
-decisión en lugar de dificultarla. Los conceptos que se exponen a continuación responden a
-estos retos.\par
+decisión en lugar de dificultarla.\par
 
 Cada reto se apoya en un cuerpo de conocimiento. La Tabla~\ref{tab:antecedentes} los resume con
-la idea que Tukit toma de cada uno, y el Anexo~\ref{anx:antecedentes} los desarrolla.
+la idea que Tukit toma de cada uno, y el Anexo~\ref{anx:antecedentes} los desarrolla. La apuesta
+del proyecto es combinarlos en una cadena de lectura, normalización, optimización y revisión humana.
 
 \begin{table}[htbp]
 \centering
@@ -130,9 +120,9 @@ cumplirse completo.\par
 
 \subsubsection{Alternativas de solución consideradas}
 
-Ante este panorama, se analizaron distintas formas de resolver el problema, considerando su
-viabilidad técnica y su efecto sobre la experiencia de las familias y la operación del
-servicio. A continuación, se describen estas alternativas.\par
+Ante este panorama, se analizaron seis formas de resolver el problema, según su viabilidad técnica
+y su efecto sobre las familias y la operación. Las tres primeras abordan el problema completo; las
+tres últimas resuelven solo la lectura de la lista.\par
 
 \begin{enumerate}
   \item \textbf{Listas digitalizadas manualmente.} Siguiendo el modelo de TeacherLists, el
@@ -184,8 +174,8 @@ servicio. A continuación, se describen estas alternativas.\par
               documentos PDF con una estructura definida, es de código abierto y puede
               ejecutarse en la infraestructura propia.
         \item \textit{Debilidad:} su desempeño disminuye con las fotografías tomadas con
-              el celular, que son frecuentes entre las listas que comparten las familias,
-              y no interpreta el contenido. Por ejemplo, no reconoce que ``Cartuchera con
+              el celular, que son frecuentes entre las listas que comparten las familias
+              (Sección~\ref{sec:percepcion} compara los motores de lectura), y no interpreta el contenido. Por ejemplo, no reconoce que ``Cartuchera con
               esferos y borrador'' describe tres artículos que se compran por separado, de
               modo que la separación de renglones y su normalización quedarían por
               resolver.
@@ -207,8 +197,8 @@ servicio. A continuación, se describen estas alternativas.\par
 
 
 
-Frente a estas alternativas, la solución presentada en la Propuesta de Solución combina
-lo mejor de cada una. Conserva la lista oficial del colegio como punto de partida, igual que
+Frente a estas alternativas, la solución del Capítulo~II toma de cada una lo que resuelve una
+parte del problema. Conserva la lista oficial del colegio como punto de partida, igual que
 las listas digitalizadas, pero la lee de forma automática en cualquier formato mediante un
 modelo multimodal \citep{shen_ocr_2026}. Aprovecha la flexibilidad de los modelos de
 lenguaje, pero solo para leer la lista, mientras que la asociación con el catálogo se
@@ -219,7 +209,13 @@ mantiene la revisión humana en los casos dudosos, lo que permite auditar cada r
 
 \subsubsection{Comparación con la solución propuesta}
 
-La Tabla~\ref{tab:comparacion-soluciones} resume cómo se comparan las soluciones existentes
-con Tukit en los aspectos que más pesan para las familias colombianas.\par
+La Tabla~\ref{tab:comparacion-soluciones} (Anexo~\ref{anx:tablas}) contrasta, en nueve capacidades,
+a TeacherLists, 1st Day Supplies, Panamericana, Grupo Éxito, Papelería Primavera y MercadoLibre con
+Tukit. Hasta donde se revisó, ninguna de las seis lee listas en foto, PDF o texto ni reconoce el
+vocabulario escolar local, y solo Tukit parte de la lista oficial del colegio, combina productos de
+varias tiendas y ofrece alternativas según presupuesto y preferencias. Las soluciones comerciales
+superan a Tukit en catálogo general y control del inventario, porque Tukit no vende ni almacena. La
+brecha que Tukit busca cubrir es, entonces, convertir cualquier lista escolar en kits completos
+y auditables, que es lo que ninguna de las soluciones revisadas hace.\par
 
-% Tabla tab:comparacion-soluciones movida al Anexo A.3 (tablas del cuerpo)
+% Tabla tab:comparacion-soluciones en el Anexo A.3 (tablas del cuerpo)

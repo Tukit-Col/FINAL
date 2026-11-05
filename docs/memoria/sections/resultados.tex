@@ -36,7 +36,7 @@ promedio esconde.
 F1 micro y macro & $F_1=\frac{2PR}{P+R}$; micro suma aciertos de todos los renglones, macro promedia el $F_1$ por documento & Percepción (Sec.~\ref{sec:percepcion}) & 0,948 y 0,944 (Gemini, CGS-10) \\
 MRR@10 & $\frac{1}{|Q|}\sum_{q}\frac{1}{r_q}$, con $r_q$ el rango del primer acierto entre 10 & Recuperación (Sec.~\ref{sec:recuperacion}) & 0,6163 (multilingual-e5-large, prototipos) \\
 Kappa de Cohen & $\kappa=\frac{p_o-p_e}{1-p_e}$, acuerdo observado menos el esperado por azar & Clasificación del corpus (Sec.~\ref{sec:recuperacion}) & 0,7331, IC 95\,\% [0,670; 0,794] \\
-Razón de hipervolumen & $HV(\text{frente})/HV(\text{exacto})$ con punto de referencia común & Optimización (Sec.~\ref{sec:optimizacion}) & 0,9969 en 40 listas de prueba \\
+Razón de hipervolumen & $HV(\text{frente})/HV(\text{exacto})$ con punto de referencia común & Optimización (Sec.~\ref{sec:optimizacion}) & 0,9969 en 32 listas con NSGA-II (de 40) \\
 ASR del NL2C & ataques exitosos entre ataques probados & Asistente NL2C (Sec.~\ref{sec:nl2c}) & 0 de 81 \\
 p95 de tiempo & percentil 95 de la latencia & Optimización, ESC-D4 (Sec.~\ref{sec:optimizacion}) & 0,31~s (límite 8~s) \\
 \bottomrule
@@ -148,13 +148,12 @@ registra como amenaza a la validez de constructo (Sección~\ref{sec:amenazas}).
 \subsubsection{Umbral de resolución automática}
 
 Los tres valores del umbral (Sección~\ref{sec:normalizacion}) operan sobre escalas distintas y no
-son intercambiables. El de 0,630 se calibró con 542 ítems y un AUC de 0,880, pero 186 de sus
+son intercambiables. Un valor anterior, de otra escala, se calibró con 542 ítems y un AUC de 0,880, pero 186 de sus
 etiquetas (34,3\,\%) se propagaron a descripciones idénticas. La muestra efectiva es de 356
-descripciones, así que los intervalos que tratan los 542 ítems como independientes son más estrechos
-de lo justificado, y el mismo conjunto sirvió para elegir el umbral y para medirlo. La
+descripciones, y el mismo conjunto sirvió para elegir el umbral y para medirlo, así que los
+intervalos son más estrechos de lo justificado. La
 Figura~\ref{fig:bench-F5-2} (Anexo~\ref{anx:figuras}) muestra cómo cambian la cobertura y la precisión del primer candidato
-al desplazarlo; en 0,630 se resuelven 354 de los 542 ítems (65,3\,\%), y 307 de ellos (86,7\,\%)
-correctamente.
+al desplazar ese umbral; se conserva como antecedente y no como valor del sistema construido.
 
 La única medición del umbral de 0,75 pertenece a una línea de desarrollo del 4 de octubre, anterior
 a la versión evaluada y no integrada en el sistema construido. Un conjunto de oro de 2.588
@@ -230,7 +229,7 @@ por programación dinámica sobre 174 listas del corpus. En el Ahorrador lo igua
 las listas. Con presupuesto, el kit recomendado daba el 40\,\% de la calidad posible; después del
 ADR 0029 cabe siempre en el tope e iguala el óptimo. Son cifras reportadas con una sola semilla y no
 reproducidas, y la resolución usó solo el canal léxico y una foto fija del catálogo. Sobre listas reales, en cambio, el frente de producción
-alcanzó en promedio 0,9969 del hipervolumen exacto en 40 listas de prueba, con un punto de referencia
+alcanzó en promedio 0,9969 del hipervolumen exacto en las 32 listas de prueba resueltas con NSGA-II (las otras 8 de las 40 se resolvieron de forma exacta), con un punto de referencia
 de 1,1 en cada eje normalizado (Sección~\ref{sec:optimizacion-cal}).
 
 En cuanto al tiempo, una medición anterior sobre 29 listas reales dio 5,3~s de media y 9,0~s de
@@ -306,9 +305,8 @@ la aceptación.
 \subsection{Amenazas a la validez}
 \label{sec:amenazas}
 
-En esta sección se analizan las amenazas a la validez de los resultados con la clasificación de
-Wohlin et al. \citep{wohlin_experimentation_2012}, que distingue cuatro tipos. Primero se describe cada tipo y
-luego se indica, para cada amenaza, la medida que se tomó o el límite que se declara.
+Las amenazas se ordenan con los cuatro tipos de Wohlin et al. \citep{wohlin_experimentation_2012},
+cada una con la medida tomada o el límite que se declara.
 
 \paragraph{Validez de constructo.} Es la medida en que una cifra mide lo que se le atribuye. El
 83\,\% del extremo a extremo mide la fracción de ítems con algún candidato y no la resolución. Los
@@ -323,8 +321,8 @@ es exploratoria.
 otro factor. El conjunto de oro de percepción se construyó corrigiendo la salida de uno de los
 motores evaluados, sin segundo anotador, de modo que favorece a ese motor. De los 542 ítems de
 calibración, 186 son etiquetas propagadas a descripciones idénticas, lo que estrecha los intervalos
-más de lo justificado. El umbral de 0,630 se eligió sobre el mismo conjunto en que se midieron el
-65,3\,\% y el 86,7\,\%, que por eso son optimistas. Como medida, la calibración del optimizador apartó un conjunto de prueba por colegio antes de
+más de lo justificado. El umbral anterior se eligió sobre el mismo conjunto en que se midió su
+cobertura y su precisión, que por eso son optimistas. Como medida, la calibración del optimizador apartó un conjunto de prueba por colegio antes de
 mirar los resultados y lo usó una sola vez (Sección~\ref{sec:optimizacion-cal}).
 
 \paragraph{Validez externa.} Es la medida en que los resultados se generalizan. Casi todos los
@@ -335,13 +333,12 @@ construido rechaza, y la encuesta cubrió un solo colegio del sector Salitre, co
 sobrerrepresentación del estrato 4 (68,3\,\%). La evaluación con usuarios usó muestreo por
 conveniencia, así que no se generaliza a la población escolar colombiana; además, varios
 participantes son del mismo grupo de padres, con riesgo de contaminación entre sesiones
-(Sección~\ref{sec:oe5}). La búsqueda de direcciones con OpenStreetMap ubica a menudo la calle y
-no el portón, así que la entrega depende de que el acudiente confirme el punto en el mapa.
+(Sección~\ref{sec:oe5}). 
 
 \paragraph{Validez de conclusión.} Es la medida en que las inferencias estadísticas son confiables.
 La percepción se midió con diez documentos y una corrida por motor, sin versión fijada del modelo
-remoto. Las pruebas de carga y de degradación del primer nivel son de una sola corrida, en una
-máquina y con la percepción simulada. Con menos de diez participantes, los resultados de usabilidad
+remoto. La carga y la degradación son de una corrida por equipo, con la
+percepción simulada. Con menos de diez participantes, los resultados de usabilidad
 se reportan como indicativos y no concluyentes, porque la potencia no alcanza para detectar un
 efecto de tamaño medio. El historial de cambios de los proyectos anteriores no siempre describe lo
 que se modificó, y los motivos de algunas decisiones se infieren.

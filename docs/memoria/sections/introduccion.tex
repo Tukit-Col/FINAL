@@ -11,7 +11,7 @@ peor \citep{sweller_cognitive_2011}. Cuando la compra se retrasa o queda incompl
 lo paga es el estudiante, que empieza el año sin los materiales que el colegio pidió para
 sus clases.\par
 
-En Bogotá hay más de 1,17 millones de estudiantes matriculados
+En Bogotá hay 1,17 millones de estudiantes matriculados
 \citep{noauthor_estadisticas_nodate}, y este proyecto estudió el problema de cerca en el
 Colegio Agustiniano Ciudad Salitre. Una encuesta a sus acudientes, con 65 respuestas
 recibidas y 60 analizables, mostró que el 65\,\% dedica cuatro horas o más a la compra, que el 68,3\,\% compra
@@ -24,16 +24,17 @@ publican catálogos por categoría \citep{panamericana_cotizador_2025,exito_list
 Primavera permite armar un carrito a mano sobre su propio catálogo
 \citep{primavera_armatulista_2026} y MercadoLibre vende kits fijos que arma cada vendedor
 \citep{mercadolibre_kits_2025}. En todos los casos es el acudiente quien debe traducir la
-lista del colegio en productos. Plataformas como TeacherLists, en Estados Unidos, convierten la lista del salón en un carrito de compra, pero ninguna
-lee listas en papel o en foto ni está disponible en Colombia.
+lista del colegio en productos. Plataformas como TeacherLists, en Estados Unidos, convierten la lista del salón en un carrito de compra
+\citep{teacherlists_retail_2026}, pero, hasta donde se revisó (Capítulo~III), ninguna lee listas en papel o
+en foto ni está disponible en Colombia.
 
-Frente a este panorama, el presente proyecto describe a Tukit como una plataforma que le permite al acudiente conseguir la lista de útiles completa.
-Funciona como un sistema de recomendación multiobjetivo con un modelo B2B2C, en el que el
+Frente a este panorama, este proyecto construyó Tukit, una plataforma que le permite al acudiente conseguir la lista de útiles completa.
+Es un sistema de recomendación multiobjetivo con un modelo B2B2C, en el que el
 colegio aporta la lista oficial y la familia hace la compra. El acudiente elige el colegio y
 el grado de cada hijo, o sube su propia lista en imagen, PDF o texto libre, e indica su
 presupuesto y sus preferencias. A cambio recibe hasta cuatro kits completos (Ahorrador,
 Premium, Fan y A tu Medida) y puede cambiar
-cualquier producto antes de pagar en línea. Para llegar a esos kits, el sistema recorre tres etapas.\par
+cualquier producto antes de pagar (el pago es simulado en esta versión). Para llegar a esos kits, el sistema recorre tres etapas.\par
 
 \begin{itemize}
   \item \textbf{Percepción.} Un modelo multimodal de inteligencia artificial lee la lista y
@@ -52,11 +53,11 @@ cualquier producto antes de pagar en línea. Para llegar a esos kits, el sistema
         cada perfil.
 \end{itemize}
 
-Esta estrategia toma de un esquema RAG la indexación del catálogo y la recuperación de los
+Esta estrategia toma de la generación aumentada por recuperación (RAG) \citep{lewis_retrieval-augmented_2020} la indexación del catálogo y la recuperación de los
 productos, pero en lugar de que un modelo de lenguaje redacte la respuesta, los kits los
 construye el optimizador y el equipo de Tukit los revisa antes de publicarlos
 (\emph{human-in-the-loop}). Todo corre sobre cinco servicios de dominio con base propia y una
-puerta de enlace, es decir, seis desplegables con código. El diseño previó un séptimo, la ingesta,
+puerta de enlace, es decir, seis unidades desplegables con código. El diseño previó un séptimo, la ingesta,
 que el sistema construido reemplazó por un catálogo curado. La arquitectura se eligió entre tres
 alternativas con el método ATAM \citep{bass_software_2021}.\par
 
@@ -81,5 +82,4 @@ El Capítulo~V corresponde a la Fase~2 (OE2): con ATAM se elige la arquitectura 
 El Capítulo~VI recoge las Fases~3 y~4 (OE3 y OE4), donde se construyen la percepción, la normalización
 y la optimización, y recorre las etapas de CRISP-DM desde la comprensión de los datos hasta el
 despliegue. El Capítulo~VII corresponde a la Fase~5 (OE5, evaluación): presenta las pruebas del sistema
-y la validación con usuarios. El Capítulo~VIII cierra con las conclusiones y el trabajo futuro. Cada
-capítulo comienza con un párrafo que recuerda qué se hizo antes, qué se encontró y qué se hará en él.\par
+y la validación con usuarios. El Capítulo~VIII cierra con las conclusiones y el trabajo futuro. Los anexos reúnen las tablas, los datos y las constantes que el cuerpo cita.\par

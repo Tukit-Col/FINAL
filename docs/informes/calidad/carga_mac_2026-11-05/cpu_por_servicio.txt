@@ -1,0 +1,7 @@
+postgres (suma por muestra): mediana 0 %, máx 10 % (1924 muestras)
+identidad: mediana 15 %, máx 68 % (60 muestras)
+catalogo: mediana 59 %, máx 100 % (60 muestras)
+inteligencia: mediana 3 %, máx 15 % (60 muestras)
+comercio: mediana 0 %, máx 10 % (60 muestras)
+operacion: mediana 0 %, máx 0 % (60 muestras)
+gateway: mediana 8 %, máx 26 % (60 muestras)
