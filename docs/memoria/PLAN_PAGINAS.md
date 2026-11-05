@@ -38,3 +38,9 @@ tab:requisito-pantalla, tabla ISO 25010 en calidad, parrafos puente por capitulo
 (fig:despliegue) y cuenta + revision del equipo (fig:producto-equipo).
 Si hay que volver a 60: mover tab:metricas, tab:datos-sistema y tab:iso25010 a anx:tablas (unas 3 paginas) y la
 figura del recorrido a anx:figuras dejando una frase en VI.
+
+## Ronda 5 (5-nov-2026): cuerpo en 60 páginas
+Regla confirmada: 60 páginas de cuerpo sin referencias ni anexos. Cuerpo = Introducción a Conclusiones, p. 1 a 60; Referencias desde la p. 61.
+Movido al anexo, con resumen en el cuerpo: NL2C completo, datos del sistema (tabla y sesgos), constantes, requerimientos detallados (tabla resumen `tab:req-resumen`), autorización y protección de datos (`anx:autorizacion-datos`), antecedentes (tabla `tab:antecedentes`).
+Se mantiene completo en el cuerpo: optimización y calibración (núcleo de la tesis).
+Nuevo en el anexo: pantallas por rol (`anx:pantallas`), algoritmos del pipeline (`sec:anexo-algoritmos`), hallazgos de QA (`tab:hallazgos-abiertos`).

@@ -150,157 +150,43 @@ podría cobrar dos veces o dejar un pedido a medias, lo que resulta inaceptable 
 plataforma que trata datos de menores y recibe dinero de las familias.\par
 
 \subsubsection{Requerimientos más importantes}
+\label{sec:req-importantes}
 
-A continuación se presentan los requerimientos más relevantes del sistema, organizados en no
-funcionales y funcionales. Cada requerimiento se identifica con un código propio de esta
-sección, seguido de su nombre y, en el caso de los no funcionales, de la característica de
-calidad de la norma ISO/IEC 25010 a la que pertenece \citep{iso_25010_2011}.\par
+La Tabla~\ref{tab:req-resumen} reúne los trece requerimientos que guían el diseño, ocho no
+funcionales, con la característica de la norma ISO/IEC 25010 a la que pertenecen
+\citep{iso_25010_2011}, y cinco funcionales, ordenados según el recorrido de una lista, desde su carga
+hasta la compra. Los no funcionales que más pesan son los de protección de los datos de las familias
+y de los menores, seguridad de los pagos y tiempo de respuesta, porque de ellos depende la confianza
+del acudiente. La descripción y la justificación de cada uno están en el
+Anexo~\ref{anx:requerimientos}, y el conjunto completo, en el SRS.
 
-\paragraph{Requerimientos no funcionales.} Estos requerimientos definen cómo debe comportarse
-el sistema. Los más importantes se relacionan con la protección de los datos de las familias
-y de los menores, con la seguridad de los pagos y con el tiempo de respuesta, ya que de ellos
-depende la confianza del acudiente en la plataforma.\par
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Requerimientos más importantes del sistema.}
+\label{tab:req-resumen}
+\begin{tabularx}{\textwidth}{@{}llX@{}}
+\toprule
+ID & Característica & Qué exige \\
+\midrule
+RNF01 & Seguridad & No guardar datos de tarjeta ni bancarios; el pago se captura en la pasarela \\
+RNF02 & Seguridad & Guardar solo lo indispensable del menor, cifrado, y quitar su nombre antes del modelo externo (Ley 1581) \\
+RNF03 & Eficiencia de desempeño & Kits en 20~s o menos en el 95\,\% de los casos tras normalizar; proceso completo en 5~min o menos \\
+RNF04 & Usabilidad & Aplicación web progresiva desde el celular, sin instalación \\
+RNF05 & Eficiencia de desempeño & 50 usuarios simultáneos y unos 1.000 pedidos en el día pico, con error menor al 5\,\% \\
+RNF06 & Escalabilidad & Crecer a 1.000 usuarios simultáneos replicando servicios, sin rediseño \\
+RNF07 & Fiabilidad & 90\,\% de disponibilidad de 12:00 a 14:00 y de 18:00 a 22:00 \\
+RNF08 & Fiabilidad & La falla de un servicio no tumba a los demás; sin lectura, se ofrece la carga manual \\
+\midrule
+RF01 & Funcional & Elegir la lista oficial o cargarla en foto, PDF o texto, y leerla en renglones con cantidad \\
+RF02 & Funcional & Asociar cada renglón con su concepto pese a sinónimos y errores, y enviar a revisión lo incierto \\
+RF03 & Funcional & Hasta cuatro kits (Ahorrador, Premium, Fan y A tu Medida), con máximo tres opciones por renglón \\
+RF04 & Funcional & Cambiar productos, elegir el kit, pagar en línea y pedir el retracto (Ley 1480) \\
+RF05 & Funcional & El colegio publica la lista oficial y el equipo la revisa antes de llegar a las familias \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
-\begin{itemize}
-  \item \textbf{\textit{RNF01 -- No almacenar datos de pago (Seguridad)}}
-    \begin{itemize}
-      \item \textit{Descripción:} el sistema no debe guardar números de tarjeta ni datos
-            bancarios. La captura del medio de pago debe ocurrir por completo en la pasarela
-            de pagos.
-      \item \textit{Justificación:} protege la información financiera de las familias y
-            reduce el riesgo de que una falla de seguridad en Tukit exponga datos de pago.
-    \end{itemize}
-
-  \item \textbf{\textit{RNF02 -- Protección de los datos de los menores (Seguridad)}}
-    \begin{itemize}
-      \item \textit{Descripción:} el sistema debe guardar solo los datos indispensables del
-            estudiante, cifrarlos y eliminar su nombre de la lista antes de enviarla al
-            modelo de lectura, que es un servicio externo.
-      \item \textit{Justificación:} la Ley 1581 de 2012 y el Decreto 1377 de 2013 dan un
-            tratamiento especial a los datos de niños y adolescentes
-            \citep{congreso_ley1581_2012,presidencia_decreto1377_2013}.
-    \end{itemize}
-
-  \item \textbf{\textit{RNF03 -- Tiempo de generación de los kits (Eficiencia de
-        desempeño)}}
-    \begin{itemize}
-      \item \textit{Descripción:} una vez normalizada la lista, el sistema debe generar los
-            kits en 20 segundos o menos en el 95\,\% de los casos, y el proceso completo,
-            desde la carga de la lista hasta la creación de los kits, no debe superar los
-            cinco minutos.
-      \item \textit{Justificación:} el acudiente espera este resultado frente a la pantalla,
-            y una espera excesiva lleva a abandonar el proceso.
-    \end{itemize}
-
-  \item \textbf{\textit{RNF04 -- Acceso desde el celular sin instalación (Usabilidad)}}
-    \begin{itemize}
-      \item \textit{Descripción:} la aplicación del acudiente debe funcionar desde el
-            navegador del celular como una aplicación web progresiva, sin necesidad de
-            instalarla.
-      \item \textit{Justificación:} la mayoría de los acudientes compra desde el celular, y
-            evitar la instalación elimina una barrera para el primer uso.
-    \end{itemize}
-
-
-
-\item \textbf{\textit{RNF05 -- Capacidad en temporada escolar (Eficiencia de
-      desempeño)}}
-  \begin{itemize}
-    \item \textit{Descripción:} el sistema debe atender a 50 usuarios simultáneos y del
-          orden de 1.000 pedidos en el día de mayor demanda, sin que los tiempos de
-          respuesta se deterioren de forma significativa y con una tasa de error inferior
-          al 5\,\%.
-    \item \textit{Justificación:} la demanda se concentra en pocas semanas del año. La
-          meta equivale a diez veces los cerca de 95 pedidos diarios que se proyectan para
-          la temporada del primer año, lo que deja un margen amplio frente a la demanda
-          esperada.
-  \end{itemize}
-
-\item \textbf{\textit{RNF06 -- Crecimiento sin rediseño (Escalabilidad)}}
-  \begin{itemize}
-    \item \textit{Descripción:} la arquitectura debe permitir crecer hasta 1.000 usuarios
-          simultáneos aumentando el número de copias de cada servicio, sin cambiar su
-          diseño ni su modelo de datos.
-    \item \textit{Justificación:} el sistema debe poder incorporar nuevos colegios y
-          ciudades después del piloto sin reconstruir la plataforma.
-  \end{itemize}
-
-\item \textbf{\textit{RNF07 -- Disponibilidad en las horas de mayor uso (Fiabilidad)}}
-  \begin{itemize}
-    \item \textit{Descripción:} el sistema debe estar disponible al menos el 90\,\% del
-          tiempo durante las franjas de mayor demanda, de 12:00 a 14:00 y de 18:00 a 22:00.
-          El mantenimiento programado se realiza entre las 02:00 y las 03:00.
-    \item \textit{Justificación:} en esas franjas se concentra la actividad de las familias,
-          y una interrupción en temporada escolar puede llevar al acudiente a comprar por
-          otro medio.
-  \end{itemize}
-
-\item \textbf{\textit{RNF08 -- Tolerancia a fallas (Fiabilidad)}}
-  \begin{itemize}
-    \item \textit{Descripción:} la falla de un servicio no debe afectar a los demás. Si el
-          servicio externo de lectura deja de responder, el sistema debe seguir mostrando
-          el catálogo y los kits ya generados, y ofrecer al acudiente la opción de ingresar
-          su lista manualmente.
-    \item \textit{Justificación:} la lectura depende de un proveedor externo que puede
-          fallar, y esa falla no debe impedir que las familias consulten o compren lo que
-          ya está listo.
-  \end{itemize}
-\end{itemize}
-
-\paragraph{Requerimientos funcionales.} Estos requerimientos describen lo que el sistema
-debe hacer, y se agrupan según el recorrido de una lista, desde su carga hasta la compra.
-Se enfocan en los tres actores que usan la plataforma: el acudiente, el colegio y el equipo
-de Tukit.\par
-
-\begin{itemize}
-  \item \textbf{\textit{RF01 -- Cargar y leer la lista}}
-    \begin{itemize}
-      \item \textit{Descripción:} el acudiente debe poder seleccionar la lista oficial de su
-            colegio y grado, o cargar la suya como fotografía, PDF o texto, y el sistema
-            debe convertirla en renglones con su texto y su cantidad.
-      \item \textit{Justificación:} cada colegio publica su lista en un formato distinto, y
-            sin esta capacidad el acudiente tendría que transcribirla a mano.
-    \end{itemize}
-
-  \item \textbf{\textit{RF02 -- Reconocer las distintas formas de nombrar un artículo}}
-    \begin{itemize}
-      \item \textit{Descripción:} el sistema debe asociar cada renglón con su concepto del
-            catálogo, aunque esté escrito con sinónimos o errores de ortografía, y enviar a
-            revisión los renglones que no logre resolver con certeza suficiente.
-      \item \textit{Justificación:} las listas de diecisiete colegios nombran los útiles de
-            1.451 formas que corresponden a 99 conceptos, y sin este mecanismo la mayoría de
-            los renglones quedaría sin producto.
-    \end{itemize}
-
-  \item \textbf{\textit{RF03 -- Generar los kits}}
-    \begin{itemize}
-      \item \textit{Descripción:} el sistema debe generar hasta cuatro kits completos
-            (Ahorrador, Premium, Fan y A tu Medida), con un máximo de tres opciones de
-            producto por renglón.
-      \item \textit{Justificación:} ofrecer pocas alternativas bien diferenciadas facilita la
-            decisión del acudiente \citep{iyengar_when_2000}.
-    \end{itemize}
-
-  \item \textbf{\textit{RF04 -- Personalizar y pagar el kit}}
-    \begin{itemize}
-      \item \textit{Descripción:} el acudiente debe poder cambiar cualquier producto, elegir
-            el kit que prefiera, pagarlo en línea y solicitar el retracto dentro del plazo
-            legal.
-      \item \textit{Justificación:} la recomendación orienta la decisión sin imponerla, y la
-            Ley 1480 de 2011 obliga a garantizar el retracto en las compras a distancia
-            \citep{congreso_ley1480_2011}.
-    \end{itemize}
-
-  \item \textbf{\textit{RF05 -- Publicar y revisar las listas oficiales}}
-    \begin{itemize}
-      \item \textit{Descripción:} el colegio debe poder publicar la lista oficial de cada
-            grado, y el equipo de Tukit debe revisarla y validar sus renglones antes de que
-            llegue a las familias.
-      \item \textit{Justificación:} garantiza que las familias compren sobre la versión
-            oficial de la lista y no sobre copias desactualizadas.
-    \end{itemize}
-\end{itemize}
-% =====================================================================
 \subsection{Restricciones}
 \label{sec:restricciones}
 

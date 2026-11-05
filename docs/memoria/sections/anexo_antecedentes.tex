@@ -1,0 +1,119 @@
+\subsection{Antecedentes: conceptos de base}
+\label{anx:antecedentes}
+
+Esta sección desarrolla los conceptos de la Tabla~\ref{tab:antecedentes}.
+
+\subsubsection{Sistemas de recomendación}
+
+Un sistema de recomendación es un software que sugiere a una persona los elementos que con
+mayor probabilidad le resultan útiles, a partir de información sobre sus necesidades, sus
+preferencias o el comportamiento de otros usuarios \citep{adomavicius_toward_2005}. La
+literatura distingue varios enfoques. Los sistemas basados en contenido recomiendan
+elementos parecidos a los que la persona ya eligió, los de filtrado colaborativo recomiendan
+lo que eligieron usuarios con gustos similares, y los basados en conocimiento razonan sobre
+las necesidades explícitas del usuario y sobre las características de cada producto
+\citep{burke_hybrid_2002}. Los sistemas híbridos combinan varios de estos enfoques para
+aprovechar sus fortalezas.\par
+
+En la compra escolar, el filtrado colaborativo resulta poco útil, porque una familia compra
+útiles una vez al año y su lista depende del colegio y del grado, no de lo que compraron
+otras familias. Por esta razón, Tukit se apoya en el enfoque basado en conocimiento, ya que
+recomienda a partir de los requerimientos de la lista oficial y de las preferencias que
+declara el acudiente. A diferencia de la mayoría de los sistemas, que recomiendan productos
+individuales, Tukit recomienda conjuntos completos, un problema conocido como recomendación
+de paquetes, en el que importa la coherencia entre los elementos que se ofrecen juntos
+\citep{avny_brosh_bruce_2022}. Como cada paquete debe equilibrar varios criterios al mismo
+tiempo, el sistema se clasifica como un sistema de recomendación multiobjetivo.\par
+
+\subsubsection{Comprensión de documentos y modelos multimodales}
+
+El primer reto, leer la lista, pertenece al campo de la comprensión de documentos, que
+estudia cómo convertir una imagen o un archivo en información estructurada. El enfoque
+tradicional es el reconocimiento óptico de caracteres (OCR), que identifica en la imagen las
+zonas con texto y reconoce cada carácter \citep{smith_overview_2007}. Este enfoque funciona
+bien con documentos impresos y nítidos, pero lee línea por línea sin comprender la
+estructura de la página, de modo que no distingue si dos líneas pertenecen a la misma fila
+de una tabla o si una viñeta continúa el renglón anterior.\par
+
+Los modelos multimodales de lenguaje superan esa limitación, porque reciben al mismo tiempo
+una imagen y una instrucción escrita y razonan sobre la disposición y el contenido de la
+página en conjunto. Evaluaciones recientes muestran que, a partir de la imagen únicamente,
+estos modelos alcanzan un desempeño comparable al de los flujos que combinan OCR y modelos
+de lenguaje \citep{shen_ocr_2026}, aunque su precisión disminuye con el texto manuscrito
+\citep{liu_ocrbench_2024}. Para reducir el riesgo de que el modelo produzca información que
+no está en el documento, se le exige responder con un formato fijo que se verifica antes de
+aceptarse. Este es el enfoque que utiliza Tukit para leer listas en fotografía, PDF o
+texto.\par
+
+\subsubsection{Representación vectorial y búsqueda híbrida}
+
+El segundo y el tercer reto, entender cada renglón y encontrar su producto, corresponden a un
+problema de búsqueda. La búsqueda léxica compara las palabras de dos textos y tolera
+errores de ortografía mediante la distancia de edición, que cuenta cuántas letras deben
+cambiarse para pasar de una palabra a otra. Su limitación es que no reconoce sinónimos, de
+modo que ``estuche'' y ``cartuchera'' le resultan completamente distintos.\par
+
+La búsqueda semántica resuelve ese problema mediante la representación vectorial del texto.
+Un modelo de lenguaje convierte cada frase en un vector, conocido como \emph{embedding}, que
+funciona como un conjunto de coordenadas en un espacio donde las frases con significado
+parecido quedan cerca \citep{reimers_sentence-bert_2019}. La cercanía entre dos vectores se
+mide con la similitud coseno, y a este tipo de búsqueda se le denomina recuperación densa
+\citep{karpukhin_dense_2020}. Sin embargo, la búsqueda semántica presenta el riesgo
+contrario al de la léxica, ya que puede considerar parecidos dos textos que tratan del mismo
+tema sin pedir lo mismo.\par
+
+Estas técnicas suelen integrarse en la generación aumentada por recuperación (RAG), en la
+que un modelo de lenguaje redacta una respuesta a partir de los documentos recuperados
+\citep{lewis_retrieval-augmented_2020}. En Tukit no es necesario redactar ninguna respuesta,
+porque el resultado de la búsqueda es el concepto del catálogo y sus productos. Por ello, el
+sistema toma de este esquema la indexación y la recuperación, y combina ambas búsquedas de
+forma que la léxica determina qué conceptos son admisibles y la semántica desempata entre
+ellos o reconoce sinónimos que no están registrados en el catálogo.\par
+
+\subsubsection{Optimización multiobjetivo y algoritmo NSGA-II}
+
+El cuarto reto consiste en elegir un producto para cada renglón de la lista. Si cada renglón
+tiene tres productos posibles, una lista de \(n\) renglones admite \(3^{n}\) combinaciones,
+una cantidad que crece tan rápido que una lista de cuarenta renglones supera los
+\(10^{19}\) kits. Además, no existe un único kit que sea el mejor, porque el más barato no
+es el de mejores marcas, y el que incluye los personajes que pidió el niño no es el más
+económico. Los problemas en los que varios criterios compiten entre sí se estudian en la
+optimización multiobjetivo \citep{ehrgott_multiobjective_2002}.\par
+
+En este tipo de problemas se dice que una solución domina a otra cuando no es peor en ningún
+criterio y es mejor en al menos uno. Las soluciones que ninguna otra domina forman el frente
+de Pareto, es decir, el conjunto de alternativas en las que solo es posible mejorar un
+criterio cediendo en otro. Cuando las combinaciones son pocas, el frente se puede obtener
+revisándolas todas; cuando son muchas, se recurre a algoritmos que lo aproximan en un tiempo
+razonable. El más utilizado para problemas con pocos objetivos es NSGA-II
+\citep{deb_fast_2002}, un algoritmo genético que mantiene una población de soluciones, las
+combina y las modifica en cada generación, y conserva las que pertenecen a los mejores
+frentes y las que mantienen mayor variedad entre sí. La calidad del frente obtenido puede
+medirse con el hipervolumen, que calcula el espacio de criterios que el frente domina
+\citep{zitzler_multiobjective_1999}. Tukit utiliza este enfoque para construir sus kits y
+toma del frente la alternativa que mejor responde a cada perfil.\par
+
+\subsubsection{Revisión humana en sistemas de inteligencia artificial}
+
+Ninguna de las técnicas anteriores es infalible, y en la compra escolar un error tiene un
+costo directo para la familia. Por esta razón, los sistemas de inteligencia artificial que
+toman decisiones con consecuencias para las personas suelen incorporar la revisión humana
+en los casos de menor certeza, un esquema conocido como \emph{human-in-the-loop}. Las pautas
+de interacción entre personas e inteligencia artificial recomiendan que el sistema indique
+con claridad lo que no sabe y que facilite la corrección de sus errores
+\citep{amershi_guidelines_2019}. En Tukit, los renglones que el sistema no resuelve con
+certeza suficiente pasan a una cola de revisión del equipo antes de que la lista llegue a
+las familias.\par
+
+\subsubsection{Carga cognitiva y arquitectura de la decisión}
+
+El último reto se relaciona con la forma en que las personas toman decisiones. La teoría de
+la carga cognitiva establece que la memoria de trabajo tiene una capacidad limitada, y que
+cuando una tarea exige procesar demasiada información a la vez, la calidad de las decisiones
+disminuye \citep{sweller_cognitive_2011}. En la misma línea, se ha demostrado que un número
+excesivo de opciones puede desalentar la elección en lugar de facilitarla
+\citep{iyengar_when_2000}. La arquitectura de la decisión propone que la forma de presentar
+las alternativas, es decir, cuántas son, en qué orden aparecen y cuál se sugiere, influye en
+la elección sin limitar la libertad de la persona \citep{thaler_nudge_2008}. A partir de
+estos principios, Tukit presenta pocos kits bien diferenciados, cada uno con una razón clara
+para elegirlo, y permite que el acudiente modifique cualquier producto antes de pagar.\par
