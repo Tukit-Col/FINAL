@@ -192,134 +192,34 @@ modificarse. La simetría ingenua produciría, en ese escenario, una fuga de inf
 sistema inutilizable.
 
 % =====================================================================
-\subsection{Autorización con ámbito y seguridad a nivel de campo}
+\subsection{Autorización y protección de datos desde el diseño}
 \label{sec:autorizacion}
-
-El modelo de autorización de los microservicios anteriores representaba el rol como una
-cadena de texto en la tabla de usuarios, y el control de acceso se reducía a verificar que
-esa cadena perteneciera a un conjunto permitido. Dos usuarios con el mismo rol sobre
-colegios distintos superaban, así, exactamente el mismo control. La única defensa consistía
-en que cada punto de entrada recordara comparar el colegio del token con el del recurso
-solicitado, y la auditoría de los 152 puntos de entrada de esos servicios encontró 22 en los
-que esa comparación faltaba o era parcial (Sección~\ref{sec:defectos}).
-
-El diagnóstico requiere precisión. Uno de esos servicios, el de instituciones, ya definía
-una relación de pertenencia con la tripla \emph{(usuario, institución, rol)}, introducida
-para corregir una referencia directa insegura real. Expresar autoridad con ámbito no era,
-por tanto, imposible: el defecto era de alcance y de completitud. El mecanismo cubría un
-servicio de siete; admitía un único nivel de ámbito, la institución, cuando el recurso
-protegido pertenece a una sede y un grado; permitía un solo rol por institución, y carecía
-de vigencia temporal. Esta última carencia producía una contradicción ilustrativa: la
-documentación del modelo justificaba conservar el vínculo para auditar quién tuvo acceso y
-cuándo, pero la única forma de revocarlo era eliminarlo. El diseño generaliza esa solución,
-ya validada contra un ataque real, con la jerarquía de ámbitos, la vigencia temporal y la
-aplicación uniforme a todos los servicios.
-
-Con el control de acceso basado en roles con ámbito, la pregunta que el sistema responde
-deja de ser \emph{qué es este usuario} y pasa a ser \emph{qué puede hacer este usuario sobre
-este recurso concreto}:
-
-\begin{equation}
-\mathrm{puede}(u, p, a) \iff \exists\, r \in \mathcal{R}_{\text{vig}}(u, a) : (r, p) \in \mathcal{P}
-\end{equation}
-
-\noindent donde $\mathcal{P}$ es el conjunto de pares de rol y permiso, y
-$\mathcal{R}_{\text{vig}}(u, a)$ el de roles vigentes del usuario $u$ sobre el ámbito $a$ o
-sobre cualquier ámbito que lo contenga, según la jerarquía
-$\text{global} \succ \text{colegio} \succ \text{sede} \succ \text{matrícula}$. La contención
-opera en un solo sentido: un rol otorgado sobre un colegio alcanza sus sedes, pero ser
-acudiente de una matrícula no confiere autoridad sobre la sede.
-
-\subsubsection{La función falla cerrada}
-
-Las políticas de seguridad a nivel de fila de los microservicios anteriores iniciaban su
-condición base verificando si el contexto de usuario era nulo, de modo que toda conexión sin
-contexto establecido veía la tabla completa. El control fallaba \emph{abierto}, y su modo de
-fallo más probable, omitir el contexto, era precisamente el que concedía acceso total. La
-función aquí especificada no tiene ninguna rama que conceda por ausencia de información.
-
-En el sistema construido, identidad guarda las asignaciones de rol con su vigencia y los
-pares de rol y permiso, y evalúa los permisos con ámbito (ADR 0013); las rutas protegidas
-de inteligencia fallan cerradas (SG-06). La aplicación uniforme (AD-03 y SG-02) se delimitó como
-endurecimiento productivo (Sección~\ref{sec:trabajo-futuro}): solo una ruta de producción consulta la función de permiso, y varias rutas que
-devuelven datos personales no exigen sesión ni rol. Tampoco hay políticas de seguridad a
-nivel de fila, de modo que la evaluación local del ADR 0016 sigue siendo diseño
-(Sección~\ref{sec:defectos}).
-
-\subsubsection{Dos ejes independientes, no uno}
-
-La seguridad a nivel de campo usa el mismo mecanismo, con un componente de campo en el
-permiso: leer un estudiante y leer su nombre son permisos distintos. El rediseño inicial
-afirmó que esos permisos se derivaban \emph{automáticamente} del metadato de clasificación de
-datos, y el análisis del registro de tratamiento mostró que no es así. La clasificación mide
-sensibilidad y el permiso expresa quién puede ver qué: son dos ejes independientes. De la
-clasificación solo se deriva el valor por omisión, de modo que todo campo clasificado como
-dato de menor o como personal sensible nace denegado y todo campo público nace permitido.
-Colapsar ambos ejes conduce a implementar la mitad del mecanismo creyendo que está completo.
-
-% =====================================================================
-\subsection{Protección de datos personales desde el diseño}
 \label{sec:datos}
 
-El sistema trata datos de menores de edad, datos personales de los acudientes, como el
-contacto y la dirección de entrega, y datos de las instituciones educativas. La Ley 1581 de
-2012 \citep{congreso_ley1581_2012} rige los dos primeros, y los terceros cuando identifican
-a personas naturales: exige autorización previa y una finalidad legítima informada al
-titular, y reconoce el derecho de supresión.
+Los microservicios anteriores guardaban el rol como un texto en la tabla de usuarios, de modo que
+dos usuarios con el mismo rol sobre colegios distintos pasaban el mismo control, y la auditoría de
+sus 152 puntos de entrada encontró 22 en los que faltaba comparar el colegio del token con el del
+recurso (Sección~\ref{sec:defectos}). El diseño pasa a un control de acceso basado en roles con
+ámbito: un usuario puede ejecutar el permiso $p$ sobre el ámbito $a$ si tiene un rol vigente sobre
+$a$, o sobre un ámbito que lo contenga en la jerarquía
+$\text{global} \succ \text{colegio} \succ \text{sede} \succ \text{matrícula}$, al que corresponde ese
+permiso. La función falla cerrada, sin ninguna rama que conceda por falta de información, y la
+seguridad a nivel de campo usa el mismo mecanismo: leer un estudiante y leer su nombre son permisos
+distintos. En el sistema construido, identidad evalúa esos permisos (ADR 0013), pero la aplicación
+uniforme a todas las rutas quedó como endurecimiento productivo; varias rutas que devuelven datos
+personales todavía no exigen sesión, como muestran los hallazgos de la Sección~\ref{sec:calidad-resumen}.
 
-Se adoptó un esquema de cinco niveles de clasificación (público, interno, personal,
-personal sensible y dato de menor), aplicado campo por campo en el registro de tratamiento
-(Anexo~M), que cubre las cinco bases del sistema construido. Su primera versión, sobre los
-microservicios anteriores, revisó 398 columnas de 50 tablas y encontró 126 campos con datos
-personales, 20 de ellos clasificados como dato de menor.
-
-\subsubsection{Políticas que el esquema anterior no podía sostener}
-
-El ejercicio reveló un patrón recurrente: políticas correctamente enunciadas en la
-documentación que el esquema hacía inejecutables. La Tabla~\ref{tab:politicas} recoge los
-casos y su corrección.
-
-% Tabla tab:politicas movida al Anexo A.3 (tablas del cuerpo)
-
-
-El patrón tiene valor metodológico más allá de este proyecto: una política de tratamiento
-de datos es verificable solo si el modelo lógico expone las columnas que la hacen
-computable. Documentar la política sin instrumentar el esquema produce cumplimiento
-aparente. El riesgo inverso también existe: el sistema construido tiene esas columnas, pero
-la supresión propagada existe en el modelo y no como flujo de extremo a extremo
-(Sección~\ref{sec:defectos}). El SRS v6.1 deja la supresión propagada, el panel de privacidad
-y la retención automática fuera del alcance de este trabajo, y atiende los derechos del
-titular mediante un caso de soporte.
-
-\subsubsection{Minimización por columna: la dirección de entrega}
-
-Los microservicios anteriores no tenían ninguna dirección de entrega, en un negocio cuya
-propuesta de valor consiste en entregar el kit en el domicilio. Tampoco figuraba en el
-esquema objetivo, de modo que la omisión se arrastraba del código al diseño: un defecto por
-omisión sobrevive más que uno por comisión, porque nada lo señala.
-
-El dato es sensible de forma poco habitual: más que información de contacto, es la
-ubicación física del hogar de una familia con menores, cruzada con el colegio al que
-asisten. El ADR 0015 distingue dos cosas que se parecen sin ser la misma: la libreta de
-direcciones reutilizables del acudiente, en identidad, editable y sujeta a supresión, y la
-copia congelada en el envío, en comercio, inmutable una vez confirmado el pedido. El
-razonamiento es análogo al de congelar el precio en la línea del pedido: un hecho histórico
-y un dato editable son entidades distintas aunque se escriban igual. Si el envío
-referenciara la libreta, corregir un número de apartamento reescribiría el destino de una
-entrega pasada.
-
-La partición de columnas responde al principio de minimización. La ciudad y la localidad
-quedan en claro porque de ellas depende la asignación de la zona de reparto, mientras que
-la calle, el número y el teléfono se cifran en la aplicación: planificar una ruta requiere
-conocer la zona, no el apartamento. En el sistema construido esa partición rige para la
-libreta, que guarda cifrados la dirección y el contacto. La copia del envío conserva el
-destinatario y la dirección en claro, como prueba ante un reclamo de la Ley 1480 de 2011. Desde el
-ADR 0049 guarda además la latitud y la longitud del punto confirmado en el mapa, ambas nulables:
-los pedidos anteriores y los que usan Google quedan sin coordenadas. El ADR 0044 había descartado
-guardarlas por los términos de Google, mientras que la licencia ODbL de OpenStreetMap sí lo
-permite. La supresión del titular borra las dos columnas y la firma del pedido las incluye, para
-que un cambio posterior se note. Aun así, la minimización por columna no cubre todavía el dato
-congelado.
+Los datos se clasifican campo por campo en cinco niveles (público, interno, personal, personal
+sensible y dato de menor), conforme a la Ley 1581 de 2012 \citep{congreso_ley1581_2012}. La primera
+revisión, sobre 398 columnas de 50 tablas, encontró 126 campos con datos personales, 20 de ellos de
+menores. Dos lecciones guiaron el diseño. La primera es que una política de tratamiento solo se
+puede verificar si el esquema expone las columnas que la hacen computable. La segunda, que la
+dirección de entrega, ausente en el sistema anterior, se guarda en dos formas distintas (ADR 0015):
+la libreta del acudiente, editable, cifrada y sujeta a supresión, y la copia congelada del envío, que
+no cambia después de confirmar el pedido. Solo la ciudad y la localidad quedan en claro, porque de
+ellas depende la zona de reparto. El razonamiento completo, con la función de permiso, las
+políticas que el esquema anterior no podía sostener y la minimización por columna, está en el
+Anexo~\ref{anx:autorizacion-datos}.
 
 % =====================================================================
 \subsection{Organización del código y funciones de aptitud}
