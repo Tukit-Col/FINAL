@@ -65,7 +65,7 @@ Se transcriben y despersonalizan los fragmentos de pensamiento en voz alta y se 
 | Planeado | Lo que se hizo | Por qué | Efecto en el análisis |
 |---|---|---|---|
 | Ronda 1 formativa y ronda 2 sumativa | Una sola ronda (2 y 3-nov), seis sesiones, versión `b6b6fe7` | Calendario; la ronda 1 no se completó | Se reporta una sola ronda, sin mezclar |
-| Sesión de 30/40 min con SUS, NPS, SEQ y RTLX por formulario | Sesión de 15 min con entrevista oral breve al final; SUS, RTLX (habitual y Tukit) y NPS por formulario en línea en los días siguientes (`oe5/oe5_cierre/`) | El formulario largo no cabía en la sesión | C1, C2 y S1 se evalúan con el formulario, con el sesgo de recuerdo declarado; SEQ no aplicado (S3 de SEQ sin datos) |
+| Sesión de 30/40 min con SUS, NPS, SEQ y RTLX por formulario | Sesión de 15 min con entrevista oral breve al final; SUS, RTLX (habitual y Tukit) y NPS por formulario en línea el 5 de noviembre, 6 de 6 respuestas (`oe5/oe5_cierre/`) | El formulario largo no cabía en la sesión | C1, C2 y S1 se evalúan con el formulario, con el sesgo de recuerdo declarado; SEQ no aplicado (S3 de SEQ sin datos) |
 | T1-T7 | T1-T8 (T8 chat del kit, exploratoria) | El asistente se integró después del preregistro | T8 fuera de C3; ningún acudiente la intentó |
 | Solo ayuda mínima tras 90 s | En dos sesiones la moderadora explicó funciones antes de que el acudiente las resolviera | Desviación de la moderación | Esas tareas se codificaron A (criterio estricto), así que las tasas son conservadoras |
 | Sesiones completas grabadas | ACU-04 grabada solo al inicio y al final | Corte de la grabación | ACU-04 aporta T1 y su opinión; el resto queda "no observado" |

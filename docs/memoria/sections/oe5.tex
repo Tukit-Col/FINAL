@@ -114,9 +114,40 @@ Los criterios del plan se leen en ese marco. C3, al menos un 80\,\% de éxito si
 crítica, se alcanzó en el pago (T6) y no en el registro (T1) ni en la elección del kit (T4). Con seis
 participantes los intervalos son amplios y los resultados son formativos
 \citep{nielsen_estimating_1994}: su valor está en señalar dónde se concentra la ayuda, y esa es la
-lista de cambios que sigue. C1 (SUS) y C2 (RTLX) se evaluaron con el formulario de cierre, que cada acudiente respondió
-después de su sesión\pendienteEvidencia{SUS medio con IC95, RTLX habitual vs Tukit con dz, NPS con IC bootstrap: correr analisis_oe5.py con oe5_cierre/respuestas.csv}; con
-n < 10 ambos se leen como indicativos, como fija el plan.
+lista de cambios que sigue. C1 (SUS) y C2 (RTLX) se evaluaron con el formulario de cierre, que los seis acudientes
+respondieron el 5 de noviembre (Tabla~\ref{tab:oe5-cuestionario}), y los dos se cumplen. El SUS
+medio fue de 90, con un intervalo del 95\,\% de 82 a 98: su límite inferior supera el umbral de 68
+(t de una muestra, $p = 0{,}0004$), y en la escala de \citet{bangor_determining_2009} el valor cae en
+«excelente». La carga percibida con TUKIT (RTLX de 9 sobre 100) fue mucho menor que la de la última
+compra habitual (63): la diferencia media, 54 puntos, tiene un intervalo de 23 a 85 que excluye el
+cero, y el tamaño del efecto ($d_z = 1{,}83$) supera con holgura el 0,5 del plan (t pareada,
+$p = 0{,}003$). Ahí queda medido el ahorro que la comparación de tiempos solo sugería. Con
+$n < 10$, ambos resultados se leen como indicativos, como fija el plan. Un acudiente marcó
+«nada fácil» y «muy incómodo» en dos ítems mientras escribía «es muy práctico», lo que sugiere que
+invirtió esas dos escalas; su puntaje (77,5) se reporta tal cual.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Cuestionario de cierre (n = 6). SUS y RTLX en escala de 0 a 100; intervalos del 95\,\%
+($t$ para SUS y la diferencia de RTLX, \emph{bootstrap} con 10.000 remuestreos para el NPS).}
+\label{tab:oe5-cuestionario}
+\begin{tabular}{@{}llcc@{}}
+\toprule
+Medida & Resultado & IC 95\,\% & Criterio \\
+\midrule
+SUS (C1) & 90 (de 77,5 a 100) & 82--98 & $> 68$: cumple \\
+RTLX, compra habitual & 63 & & \\
+RTLX, con TUKIT & 9 & & \\
+Diferencia RTLX (C2) & 54, $d_z = 1{,}83$ & 23--85 & excluye 0 y $d_z \ge 0{,}5$: cumple \\
+NPS (S1) & $+83$ (5 promotores, 1 pasivo) & 50--100 & se reporta \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+En los comentarios del formulario se repitieron la rapidez y la practicidad («muy rápida la
+experiencia», «bastante práctico y necesario»), y aparecieron dos pedidos nuevos: cambiar todos los
+cuadernos de una vez y no uno a uno, e incluir uniformes y libros en el mismo kit.
 
 \paragraph{Qué se cambia.} Cada hallazgo se convirtió en un cambio para la siguiente versión,
 ordenados por su efecto en T4:
@@ -143,8 +174,10 @@ sesión quedó grabada solo en parte.
 conocen al equipo, de modo que los comentarios positivos pueden estar sesgados hacia arriba; por eso
 el análisis se apoya en lo observado y no en lo dicho. Una sola moderadora condujo todas las
 sesiones, y el segundo codificador revisó todas las hojas, pero no las codificó de forma
-independiente, así que no se calcula un índice de acuerdo como kappa. El formulario se respondió unos días después de la sesión, así que el SUS y el RTLX dependen
-del recuerdo de la prueba. El pago simulado aprueba la transacción sola, así que T6 mide la navegación hasta el pago y
+independiente, así que no se calcula un índice de acuerdo como kappa. El formulario se respondió dos o tres días después de la sesión, por un enlace que envió el
+equipo, así que el SUS y el RTLX dependen del recuerdo de la prueba y pueden inflarse por cortesía
+hacia quien lo pidió; el RTLX de la compra habitual depende, además, del recuerdo de una compra de
+meses atrás. El pago simulado aprueba la transacción sola, así que T6 mide la navegación hasta el pago y
 no la interacción con una pasarela real. Finalmente, la escena del guion fue un Tercero con un hijo
 fanático de un personaje, pero varios acudientes usaron el grado y los gustos reales de sus hijos, lo
 que hace el recorrido más realista y menos comparable entre sesiones.
