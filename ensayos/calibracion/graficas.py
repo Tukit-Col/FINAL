@@ -159,6 +159,48 @@ def fig_tau():
     fig.savefig(SAL / "tau.png", dpi=150)
 
 
+def fig_tau_clasificacion():
+    """Matriz de confusion en tau = 0,75, precision frente a cobertura y ROC del parecido."""
+    d = leer("tau.json")
+    m = d["matriz_tau_actual"]
+    fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=(10, 3.2))
+    mat = np.array([[m["tp"], m["fn"]], [m["fp"], m["tn"]]])
+    a1.imshow(mat, cmap="Blues")
+    for (i, j), v in np.ndenumerate(mat):
+        a1.text(j, i, str(v), ha="center", va="center", color="white" if v > 150 else "black", fontsize=12)
+    a1.set_xticks([0, 1], ["acepta", "revisión"])
+    a1.set_yticks([0, 1], ["correcto", "incorrecto"])
+    a1.set_xlabel("decisión con τ = 0,75")
+    a1.set_ylabel("según el revisor")
+    a1.set_title("(a) Matriz de confusión", fontsize=9)
+    pares = len(d["roc"]) and d["pares"]
+    pos = d["aciertos"]
+    cob, pre = [], []
+    for pt in d["roc"][1:]:
+        acept_pos = pt["tpr"] * pos
+        acept_neg = pt["fpr"] * (pares - pos)
+        cob.append((acept_pos + acept_neg) / pares)
+        pre.append(acept_pos / (acept_pos + acept_neg))
+    a2.plot(cob, pre, "o-", color=AZUL, ms=3, lw=1)
+    a2.plot([d["en_tau_actual"]["fraccion_aceptada"]], [d["en_tau_actual"]["precision"]], "o", color=NARANJA, ms=7)
+    a2.axhline(pos / pares, color=GRIS, ls=":")
+    a2.set_xlabel("fracción aceptada sin revisión")
+    a2.set_ylabel("precisión de lo aceptado")
+    a2.set_title("(b) Precisión frente a cobertura", fontsize=9)
+    fpr = [x["fpr"] for x in d["roc"]]
+    tpr = [x["tpr"] for x in d["roc"]]
+    a3.plot(fpr, tpr, "o-", color=AZUL, ms=3, lw=1)  # empates: segmento recto entre puntos de operación
+    i = next(k for k, x in enumerate(d["roc"]) if x["umbral"] is not None and x["umbral"] < 0.75) - 1
+    a3.plot([fpr[i]], [tpr[i]], "o", color=NARANJA, ms=7)
+    a3.plot([0, 1], [0, 1], color=GRIS, ls=":")
+    a3.set_xlabel("tasa de falsos positivos")
+    a3.set_ylabel("tasa de verdaderos positivos")
+    a3.set_title(f"(c) ROC, AUC = {d['auc_parecido']:.3f}".replace(".", ","), fontsize=9)
+    fig.tight_layout()
+    fig.savefig(SAL / "tau_clasificacion.pdf")
+    fig.savefig(SAL / "tau_clasificacion.png", dpi=150)
+
+
 def fig_hipervolumen():
     d = leer("hipervolumen_prueba.json")
     perfiles = d["hv_relativo_por_perfil"]
@@ -179,7 +221,7 @@ def fig_hipervolumen():
 
 
 if __name__ == "__main__":
-    for f in (fig_umbral, fig_rejilla, fig_pesos, fig_sensibilidad, fig_tau, fig_hipervolumen):
+    for f in (fig_umbral, fig_rejilla, fig_pesos, fig_sensibilidad, fig_tau, fig_tau_clasificacion, fig_hipervolumen):
         try:
             f()
             print("ok", f.__name__)

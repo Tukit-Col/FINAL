@@ -159,6 +159,14 @@ def main() -> int:
     macros["calTauValores"] = str(tau["parecido_valores_distintos"])
     macros["calTauPrecision"] = pct(tau["en_tau_actual"]["precision"])
     macros["calTauAceptada"] = pct(tau["en_tau_actual"]["fraccion_aceptada"])
+    mc, ic = tau["matriz_tau_actual"], tau["ic95_bootstrap_tau_actual"]
+    for k in ("tp", "fp", "fn", "tn"):
+        macros[f"calTau{k.upper()}"] = str(mc[k])
+    for k, nombre in (("precision", "P"), ("recall", "R"), ("f1", "F"), ("auc", "AUC")):
+        if k != "auc":
+            macros[f"calTau{nombre}"] = num(mc[k], 3)
+        macros[f"calTau{nombre}Bajo"] = num(ic[k][0], 3)
+        macros[f"calTau{nombre}Alto"] = num(ic[k][1], 3)
     taus = [p["tau"] for p in tau["validacion_cruzada_agrupada"]]
     macros["calTauCVMin"] = num(min(taus), 2)
     macros["calTauCVMax"] = num(max(taus), 2)
