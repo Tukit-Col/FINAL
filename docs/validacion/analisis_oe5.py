@@ -90,7 +90,7 @@ def contra_umbral(sus: list[float]) -> Prueba:
     """C1: SUS > 68. t de una muestra si Shapiro-Wilk no rechaza; si no, Wilcoxon."""
     datos = np.asarray(sus)
     media = float(datos.mean())
-    ic = stats.t.interval(0.95, len(datos) - 1, loc=media, scale=stats.sem(datos))
+    ic = (media, media) if datos.std() == 0 else stats.t.interval(0.95, len(datos) - 1, loc=media, scale=stats.sem(datos))
     if len(datos) >= 3 and stats.shapiro(datos).pvalue > 0.05:
         r = stats.ttest_1samp(datos, UMBRAL_SUS, alternative="greater")
         return Prueba("C1 SUS > 68", "t de una muestra", float(r.statistic), float(r.pvalue), media, ic)
@@ -102,7 +102,7 @@ def pareada(tradicional: list[float], tukit: list[float]) -> Prueba:
     """C2: carga con Tukit < tradicional. Diferencia = tradicional - Tukit (> 0 es mejora)."""
     dif = np.asarray(tradicional) - np.asarray(tukit)
     media = float(dif.mean())
-    ic = stats.t.interval(0.95, len(dif) - 1, loc=media, scale=stats.sem(dif))
+    ic = (media, media) if dif.std() == 0 else stats.t.interval(0.95, len(dif) - 1, loc=media, scale=stats.sem(dif))
     dz = media / float(dif.std(ddof=1)) if dif.std(ddof=1) > 0 else math.nan
     if len(dif) >= 3 and stats.shapiro(dif).pvalue > 0.05:
         r = stats.ttest_1samp(dif, 0.0, alternative="greater")
