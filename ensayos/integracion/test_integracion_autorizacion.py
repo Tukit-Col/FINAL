@@ -93,41 +93,44 @@ def test_un_token_alterado_se_rechaza(cliente: httpx.Client, sesiones: dict):
 
 # --------------------------------------------------------------- H-C-06: rutas sin autenticar
 
-_ABIERTAS_SIN_TOKEN = [
+# Salieron de H-C-06 en `b6b6fe7` (XPASS en la corrida C2, N-176): la puerta pide la sesion del
+# equipo en todo `/v1/admin` (46a0c4a, `_exigir_equipo`) y Operacion en su bandeja (cef2c25).
+_CERRADAS_SIN_TOKEN = [
     "/v1/admin/listas",
     "/v1/admin/sugerencias",
     "/v1/admin/cola",
     f"/v1/admin/colegios/{_COLEGIO_DEMO}/acudientes",
-    f"/v1/metricas/colegios/{_COLEGIO_DEMO}",
     "/v1/admin/catalogo/propuestas",
     "/v1/operacion/casos",
-    "/v1/operacion/metricas",
+]
+_SIGUEN_ABIERTAS = pytest.mark.xfail(
+    strict=True,
+    reason="H-C-06: la ruta de staff atiende sin token (el gateway no valida y el servicio tampoco)",
+)
+_ABIERTAS_SIN_TOKEN = [
+    pytest.param(f"/v1/metricas/colegios/{_COLEGIO_DEMO}", marks=_SIGUEN_ABIERTAS),
+    pytest.param("/v1/operacion/metricas", marks=_SIGUEN_ABIERTAS),
 ]
 
 
 @pytest.mark.nfr("NFR-SEG-04")
-@pytest.mark.xfail(
-    strict=True,
-    reason="H-C-06: la ruta de staff atiende sin token (el gateway no valida y el servicio tampoco)",
-)
-@pytest.mark.parametrize("ruta", _ABIERTAS_SIN_TOKEN)
+@pytest.mark.parametrize("ruta", _CERRADAS_SIN_TOKEN + _ABIERTAS_SIN_TOKEN)
 def test_sin_token_la_ruta_de_staff_responde_401(cliente: httpx.Client, ruta: str):
     respuesta = cliente.get(ruta)
 
     assert respuesta.status_code == 401, f"{ruta}: {respuesta.status_code}"
 
 
+# Salio de H-C-06 en `b6b6fe7` (46a0c4a y cef2c25): un acudiente recibe 403 (N-176).
 @pytest.mark.nfr("NFR-SEG-04")
-@pytest.mark.xfail(strict=True, reason="H-C-06: la ruta de staff atiende a un acudiente")
 @pytest.mark.parametrize("ruta", ["/v1/admin/cola", "/v1/admin/listas", "/v1/operacion/casos"])
 def test_un_acudiente_no_entra_a_la_ruta_de_staff(cliente: httpx.Client, sesiones: dict, ruta: str):
     assert cliente.get(ruta, headers=portador(sesiones, "acudiente")).status_code == 403
 
 
+# Salio de H-C-06 en `b6b6fe7`: c2bab07 cierra en la puerta las escrituras de la consola fuera de
+# `/v1/admin` (`_CONSOLA_FUERA_DE_ADMIN`), antes de que el catalogo busque el producto (N-176).
 @pytest.mark.nfr("NFR-SEG-04")
-@pytest.mark.xfail(
-    strict=True, reason="H-C-06: el catalogo busca el producto antes de pedir sesion (404 en vez de 401)"
-)
 @pytest.mark.parametrize("metodo", ["PATCH", "DELETE"])
 def test_sin_token_no_se_edita_el_catalogo(cliente: httpx.Client, metodo: str):
     respuesta = cliente.request(metodo, "/v1/catalogo/productos/QA-NO-EXISTE", json={"nombre": "x"})
@@ -135,14 +138,16 @@ def test_sin_token_no_se_edita_el_catalogo(cliente: httpx.Client, metodo: str):
     assert respuesta.status_code == 401, respuesta.text
 
 
+# Salio de H-C-06 en `b6b6fe7`: c2bab07 deja de exponer `GET /v1/contactos/{usuario_id}` en la
+# puerta, y el contrato dice que responde 404 como cualquier ruta interna (`bloqueada`), no 401
+# (clase a y b, N-176). Lo que se exige es que el correo no salga.
 @pytest.mark.nfr("NFR-SEG-04")
-@pytest.mark.xfail(
-    strict=True, reason="H-C-06: /v1/contactos/{usuario_id} entrega el correo del acudiente sin token"
-)
 def test_sin_token_no_se_lee_el_contacto_de_un_acudiente(cliente: httpx.Client, sesiones: dict):
     respuesta = cliente.get(f"/v1/contactos/{sesiones['acudiente']['usuario_id']}")
 
-    assert respuesta.status_code == 401, respuesta.text[:200]
+    assert respuesta.status_code == 404, respuesta.text[:200]
+    assert respuesta.json()["error"] == "ruta_desconocida"
+    assert USUARIOS_DEMO["acudiente"] not in respuesta.text
 
 
 # --------------------------------------------------------------- H-C-06: objetos ajenos (IDOR)
@@ -218,10 +223,8 @@ def test_otro_acudiente_no_avanza_un_pedido_ajeno(cliente: httpx.Client, sesione
 # --------------------------------------------------------------- sesiones
 
 
+# Salio de H-A-32 en `b6b6fe7` (fd01e78, el cierre revoca el token; N-172 y N-176).
 @pytest.mark.nfr("NFR-SEG-04")
-@pytest.mark.xfail(
-    strict=True, reason="H-A-32: cerrar la sesion no revoca el token; sigue abriendo /v1/cuenta"
-)
 def test_tras_cerrar_la_sesion_el_token_ya_no_sirve(cliente: httpx.Client):
     token = _entrar(cliente, "acudiente")["token"]
     cabeceras = {"authorization": f"Bearer {token}"}

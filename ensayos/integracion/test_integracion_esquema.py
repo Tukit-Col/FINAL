@@ -69,21 +69,10 @@ def test_el_verificador_de_deriva_llega_a_las_cinco_bases(deriva: subprocess.Com
         assert re.search(rf"(ok|DERIVA) +{servicio}:", deriva.stdout), deriva.stdout
 
 
-_DERIVA_CATALOGO = pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "H-A-60: concepto.uno_por_estudiante (642a53d) e item_lista_oficial."
-        "avisos_descartados (9414819) tienen server_default en la migracion y no en el modelo; "
-        "el verificador sale con 1"
-    ),
-)
-
-
+# El catalogo salio de H-A-60 en `b6b6fe7`: dfc4fd3 declara en el modelo el `server_default` de
+# `concepto.uno_por_estudiante` y de `item_lista_oficial.avisos_descartados` (N-176).
 @pytest.mark.nfr("NFR-MAN-03")
-@pytest.mark.parametrize(
-    "servicio",
-    [pytest.param(s, marks=_DERIVA_CATALOGO) if s == "catalogo" else s for s in SERVICIOS_CON_BASE],
-)
+@pytest.mark.parametrize("servicio", SERVICIOS_CON_BASE)
 def test_el_esquema_migrado_coincide_con_los_modelos(
     deriva: subprocess.CompletedProcess[str], servicio: str, record_property
 ):
