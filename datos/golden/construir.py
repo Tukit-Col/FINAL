@@ -185,6 +185,11 @@ RECALIBRADO_CATALOGO = {
     # 44309fa: C131 "Uniforme", tipo uniforme, con el sinonimo "uniforme de
     # educacion fisica". Se reconoce y no tiene producto.
     "Uniforme de educación física": {"estado": "hueco_catalogo", "concepto": "C131"},
+    # oe5 (dd7c9a3, e3c7ad1; C034 en b6b6fe7): C034 "Diccionario" lleva ahora los
+    # sinonimos de diccionario de ingles. El catalogo lo reconoce y trae productos;
+    # sigue sin comprarse porque el parseo lo deja en no_comprar con cantidad 0 y
+    # el optimizador no compra ese tipo (TIPOS_NO_COMPRABLES).
+    "Diccionario de inglés: el disponible en casa": {"estado": "reconocido", "concepto": "C034"},
 }
 
 VARIANTES = {

@@ -223,7 +223,7 @@
     },
     {
       "texto": "Diccionario de inglés: el disponible en casa",
-      "estado": "abstencion",
+      "estado": "reconocido",
       "concepto": "C034",
       "nivel": "informativo",
       "fuentes": [
@@ -542,7 +542,7 @@
     },
     {
       "texto": "DICCIONARIO DE INGLÉS: EL DISPONIBLE EN CASA",
-      "estado": "abstencion",
+      "estado": "reconocido",
       "concepto": "C034",
       "nivel": "informativo",
       "fuentes": [

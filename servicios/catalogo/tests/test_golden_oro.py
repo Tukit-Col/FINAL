@@ -130,7 +130,11 @@ class TestTop1:
 
         record_property("estado", resultado.estado)
         assert resultado.estado == par["estado"]
-        assert resultado.opciones == ()
+        # Desde oe5 el diccionario de ingles «disponible en casa» se reconoce en C034, que trae
+        # productos (oracle recalibrado en `construir.RECALIBRADO_CATALOGO`): no se compra porque
+        # el parseo lo deja en `no_comprar` con cantidad 0. Sin producto solo se exige al hueco.
+        if par["estado"] in HUECOS:
+            assert resultado.opciones == ()
 
 
 @pytest.mark.nfr("NFR-PRE-04")
