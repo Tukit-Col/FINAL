@@ -1,0 +1,71 @@
+% Generado por docs/informes/calidad/hallazgos_a_tex.py; no editar a mano.
+\begin{longtable}{@{}p{1.3cm}p{13.2cm}@{}}
+\caption{Hallazgos abiertos de la corrida de QA del 4 de noviembre de 2026 (59 hallazgos, cada uno fijado por una prueba que falla mientras el defecto exista).}\label{tab:hallazgos-abiertos}\\
+\toprule ID & Qué falla \\ \midrule \endfirsthead
+\toprule ID & Qué falla \\ \midrule \endhead
+\multicolumn{2}{@{}l}{\textbf{Seguridad} (14)} \\
+H-A-03 & sin TUKIT\_LLAVE\_CIFRADO el apodo del hijo queda en claro en identidad.estudiante \\
+H-A-04 & ConfigBD.url() no escapa las credenciales: una clave con @ o / produce una URL que apunta a otro host \\
+H-A-17 & un token con caracteres no ASCII hace responder 500 \\
+H-A-34 & las cinco bases comparten el rol tukit; con la URL de cualquier otro servicio se leen los usuarios de identidad \\
+H-A-37 & ordenar no mira el estado del trabajo: un kit que espera revision se puede comprar (y sin sesion, H-C-06) \\
+H-A-43 & el mensaje del trabajo fallido trae la sentencia SQL y sus parametros y sale por GET /v1/trabajos/\{id\}, que no pide sesion \\
+H-A-49 & el mensaje del 422 copia el error de pydantic, con el input\_value que devolvio el modelo (aqui, un trozo del prompt) y la URL de errors.pydantic.dev \\
+H-A-51 & un byte no ASCII en una cabecera reenviada (aqui x-correlation-id) tumba la peticion en la puerta con un 500 \\
+H-A-65 & interpretar copia a la bitacora el motivo de sin\_accion tal como lo escribe el modelo, sin lista ni tope \\
+H-C-06 & la ruta de staff atiende sin token (el gateway no valida y el servicio tampoco) \\
+H-C-07 & la puerta lee el cuerpo entero (await peticion.body()) y lo reenvia sin tope; un cuerpo por encima de 10 MB no recibe 413 \\
+H-C-08 & sin segundo factor, la clave sola da una sesion de administrador completa \\
+H-C-09 & la cabecera x-correlation-id entrante se acepta sin sanear (longitud ni caracteres) \\
+H-C-15 & el nombre del menor que el modelo transcribe entra al catalogo tal cual, en el renglon y en la percepcion cruda, sin depurar \\
+\multicolumn{2}{@{}l}{\textbf{Privacidad (adecuación legal)} (5)} \\
+H-A-14 & el retracto no mira la fecha de entrega; a los 30 dias se acepta \\
+H-A-15 & cancelar por retracto deja la reserva de inventario activa \\
+H-A-16 & la devolucion registra el total del pedido aunque nunca se pago, contra su propio docstring ('el monto del reembolso es el total pagado'):\ldots \\
+H-A-66 & Operacion escribe su supresion\_confirmada y no la publica (no tiene publicador de su bandeja); la solicitud se queda en propagando \\
+H-A-67 & las matriculas que nacen en POST /v1/registro no llevan su consentimiento registro\_menor (materializar\_hijos no lo escribe) \\
+\multicolumn{2}{@{}l}{\textbf{Fiabilidad} (12)} \\
+H-A-02 & reintentar\_get reintenta ValueError (3 intentos) aunque su contrato dice que no reintenta errores de argumento \\
+H-A-24 & el disyuntor del catalogo cuenta un 4xx (respuesta de un destino sano) como fallo; remoto.py:98-104 deja raise\_for\_status dentro del async with\ldots \\
+H-A-26 & ClienteIdentidad no usa disyuntor; REVISION\_ARQUITECTURA.md:388-391 lo exige por destino ('catalogo','identidad','comercio') \\
+H-A-29 & re-correr el dia con todo caido borra el snapshot ya congelado \\
+H-A-33 & la puerta no tiene disyuntor; cada peticion a un destino que corta la conexion vuelve a tocarlo \\
+H-A-41 & el trabajo fallido deja en pendiente la etapa en la que fallo (optimizacion): ninguna dice que fallo \\
+H-A-48 & una respuesta de forma no prevista escapa del adaptador (TypeError o UnicodeDecodeError) y la subida da 500 en vez de 422 percepcion\_fallida \\
+H-A-54 & el medio abierto no bloquea a los demas llamadores; pasado el TTL, diez llamadas simultaneas tocan el destino diez veces, no una \\
+H-A-55 & con Catalogo colgado, el disyuntor de resolver tarda 150,8 s en abrir (timeout de 30 s por tres intentos), frente a los 30 s de ESC-R2 \\
+H-A-56 & POST /v1/ordenes no tiene idempotencia de aplicacion; el reenvio con la misma Idempotency-Key crea un segundo pedido \\
+H-A-57 & el candado del webhook es solo el evento\_id; tras reiniciar Comercio la pasarela falsa repite falsa-1 y el pago del pedido nuevo se responde\ldots \\
+H-A-58 & el stack arranca sin broker, sin trazas y con la pasarela falsa, y ninguno de sus registros lo dice \\
+\multicolumn{2}{@{}l}{\textbf{Adecuación funcional} (24)} \\
+H-A-07 & importar hace int(cantidad) sin proteger: una cantidad no numerica es 500 en vez de 422 \\
+H-A-08 & corregir el precio reescribe TODOS los tramos de precio\_oferta, historia incluida, contra 'un tramo de precio con vigencia, no una columna que se\ldots \\
+H-A-09 & el mismo ISBN repetido para la misma tienda arma dos ofertas con el mismo id en un solo INSERT ... ON CONFLICT DO UPDATE (Postgres lo rechaza) sin\ldots \\
+H-A-10 & volver a sembrar reabre (revisada\_en=NULL) una version que el administrador ya cerro, contra la regla 'una vez revisada no se vuelve a abrir' \\
+H-A-13 & extraer\_empaque devuelve unidades=0 con 'caja de 0' o '0 unidades', que viola producto\_empaque\_positivo \\
+H-A-18 & parsear\_directorio cierra el bloque ante cualquier linea sin ':' aunque su docstring (:168-170) dice que las lineas sin etiqueta conocida se\ldots \\
+H-A-20 & el segundo hijo del mismo colegio revienta con 500 (IntegrityError sobre uq\_asignacion\_rol\_vigente): routers/identidad.py:523 vuelve a otorgar el\ldots \\
+H-A-21 & un colegio\_id que no es UUID revienta con 500 (ValueError) en vez de 400/422: NuevoHijo lo tipa como str y el handler hace uuid.UUID(...) sin\ldots \\
+H-A-22 & POST /v1/cuenta/hijos acepta cualquier texto como grado y guarda la matricula; POST /v1/registro y POST /v1/cuenta/matriculas rechazan con 422\ldots \\
+H-A-23 & el DANE se valida con str.isdigit(), que acepta digitos Unicode no ASCII (fullwidth, superindices); se guarda una llave que nunca casara con el\ldots \\
+H-A-25 & registrar\_contacto devuelve la cadena 'None' (str(None)) si la respuesta 2xx no trae usuario\_id; trabajos.py:157-158 y 1100 la pasan a uuid.UUID y\ldots \\
+H-A-27 & el parser de multipart recorta los CR/LF finales del ARCHIVO): el PDF que llega al catalogo no es byte a byte el que subio el acudiente \\
+H-A-35 & comercio no mira existencias al cerrar la orden; con el inventario vacio acepta 100000 unidades \\
+H-A-38 & sin columna de cantidad, \_items\_desde\_percepcion guarda 1 en vez de leer el numero que trae el texto («4 Cuaderno…») \\
+H-A-39 & sustitutos nunca se escribe: un hueco del catalogo no ofrece ninguna alternativa \\
+H-A-40 & requiere\_revision solo depende de que haya concepto; la confianza de la percepcion se guarda pero no manda ningun renglon a revision \\
+H-A-42 & la ruta rapida no corre el parseo: la licencia, el uniforme y el diccionario «disponible en casa» salen como utiles comprables \\
+H-A-45 & GET /v1/listas/\{id\} le pone al renglon el tipo\_item de su concepto (libro\_libre) y el parseo ya no lo detecta: «el disponible en casa» sale\ldots \\
+H-A-50 & la fusion hunde el match lexico; con el texto cargado de sinonimos de otra categoria, el canal vectorial cambia un ganador que el lexico solo acertaba \\
+H-A-52 & POST /v1/admin/listas/importar le quita la vigencia a la version revisada antes de crear la nueva; la subida sin revisar de cualquier acudiente\ldots \\
+H-A-59 & el ancla de cabeza de clasificar da el piso 0.6 por compartir solo la primera palabra: 'Gafas de proteccion para quimica' se reconoce como C136\ldots \\
+H-A-62 & el revisor puede guardar una cantidad de un millon y el total del kit desborda kit.total\_cop (integer): el trabajo del acudiente queda fallido\ldots \\
+H-A-63 & el Fan de la ruta rapida le pone el producto del personaje a un renglon ancla que el canonico dejo sin producto (HUECO\_CATALOGO) y lo cobra \\
+H-A-64 & \_AL\_MENOS compara gramaje y capacidad solo en la misma unidad: 1 kg no cumple 500 g y 1 l no cumple 500 ml \\
+\multicolumn{2}{@{}l}{\textbf{Mantenibilidad} (4)} \\
+H-A-05 & indices\_de\_infraestructura no reconoce CREATE UNIQUE INDEX, aunque el repo los admite en infra/postgres/indices \\
+H-A-31 & una ruta desconocida bajo /v1/comercio la contesta comercio con  \\
+H-A-36 & sin el extra pdf de inteligencia (pypdfium2) el PDF de 41 paginas da pdf\_ilegible y el tope de 40 paginas no llega a evaluarse \\
+H-C-13 & el contrato documenta rutas que ningun servicio sirve \\
+\bottomrule
+\end{longtable}
