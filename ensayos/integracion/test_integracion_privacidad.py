@@ -23,9 +23,12 @@ lanzador y fallan en el otro: no se saltan (H-C-03).
 `POST /v1/cuenta/supresion` tiene su propio nivel en la puerta, 5 por token y 10 por
 IP cada hora: cada prueba registra su titular, que llega con su propia IP (N-120).
 
-Las que esperan la supresion `completada` van a dar rojo mientras Operacion no
-tenga publicador de su bandeja: su `supresion_confirmada` se queda ahi y nunca
-llega a Identidad. Van con la expectativa del ADR 0048 y sin xfail (decision N-160).
+Las que esperan la supresion `completada` dan rojo mientras Operacion no tenga
+publicador de su bandeja: su `supresion_confirmada` se queda ahi y nunca llega a
+Identidad. Iban sin xfail hasta la corrida (decision N-160); la corrida oe5 abrio
+H-A-66, y la del consentimiento del menor en el alta, H-A-67 (N-162). Su xfail lleva
+`raises=AssertionError`: en el modo degradado, `_modo_completo` las tumba con
+`pytest.fail`, que sigue siendo una falla y no el xfail.
 """
 
 from __future__ import annotations
@@ -346,6 +349,14 @@ def test_el_registro_deja_el_consentimiento_del_titular_con_su_version(
 
 
 @pytest.mark.nfr("NFR-SEG-10")
+@pytest.mark.xfail(
+    strict=True,
+    raises=AssertionError,
+    reason=(
+        "H-A-67: las matriculas que nacen en POST /v1/registro no llevan su consentimiento "
+        "registro_menor (materializar_hijos no lo escribe)"
+    ),
+)
 def test_cada_hijo_del_registro_lleva_su_consentimiento_de_menor_con_su_version(
     cliente: httpx.Client, titular: dict, record_property
 ):
@@ -354,8 +365,7 @@ def test_cada_hijo_del_registro_lleva_su_consentimiento_de_menor_con_su_version(
     consentimiento propio). `POST /v1/cuenta/hijos` ya lo prueba
     `test_identidad_rutas_acceso.py`; el alta con hijos no lo prueba nadie.
 
-    Se espera roja, sin xfail: `materializar_hijos` no escribe consentimiento (N-162,
-    «candidatos a hallazgo»)."""
+    `materializar_hijos` no escribe consentimiento: H-A-67 (N-162)."""
     datos = cliente.get("/v1/cuenta/mis-datos", headers=titular["cabecera"])
     assert datos.status_code == 200, datos.text
     cuerpo = datos.json()
@@ -449,13 +459,21 @@ async def _esperar_publicado(solicitud_id: str, espera: float = ESPERA_PROPAGACI
 
 
 @pytest.mark.nfr("NFR-SEG-10")
+@pytest.mark.xfail(
+    strict=True,
+    raises=AssertionError,
+    reason=(
+        "H-A-66: Operacion escribe su supresion_confirmada y no la publica (no tiene publicador "
+        "de su bandeja); la solicitud se queda en propagando"
+    ),
+)
 async def test_con_broker_la_supresion_llega_a_los_tres_servicios_y_queda_completada(
     cliente: httpx.Client, titular: dict, producto: dict, record_property
 ):
     """ADR 0048: Comercio, Operacion e Inteligencia confirman y la solicitud pasa a `completada`.
 
-    Candidato a hallazgo: Operacion no tiene publicador de su bandeja, asi que su confirmacion
-    se queda escrita y sin publicar, y la solicitud no sale de `propagando`. Sin xfail (N-160)."""
+    Operacion no tiene publicador de su bandeja, asi que su confirmacion se queda escrita y
+    sin publicar, y la solicitud no sale de `propagando`: H-A-66 (N-160)."""
     _modo_completo()
     _sembrar_datos(cliente, titular, producto)
     respuesta = _suprimir(cliente, titular)
@@ -550,13 +568,21 @@ async def _esperar_confirmaciones(solicitud_id: str, espera: float = ESPERA_PROP
 
 
 @pytest.mark.nfr("NFR-SEG-10")
+@pytest.mark.xfail(
+    strict=True,
+    raises=AssertionError,
+    reason=(
+        "H-A-66: al volver los consumidores, la confirmacion de Operacion no se publica y la "
+        "solicitud sigue en propagando"
+    ),
+)
 async def test_ch35_con_los_consumidores_detenidos_queda_pendiente_y_al_volver_se_completa_una_vez(
     cliente: httpx.Client, titular: dict, record_property
 ):
     """CH-35 simplificado: los tres consumidores de la supresion se detienen (SIGSTOP), no se
     matan. La solicitud queda en `propagando`, sin confirmaciones y con su evento publicado
     esperando en las colas; al reanudarlos, cada servicio confirma una sola vez y la solicitud
-    se cierra. El cierre va a dar rojo mientras Operacion no publique su bandeja (N-160)."""
+    se cierra. El cierre da rojo mientras Operacion no publique su bandeja: H-A-66 (N-160)."""
     _modo_completo()
     with _detenidos(CONSUMIDORES) as pids:
         solicitud_id = _suprimir(cliente, titular)["solicitud_id"]
