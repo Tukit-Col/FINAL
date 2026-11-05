@@ -34,7 +34,8 @@ SERVICIOS = ("catalogo", "identidad", "inteligencia", "comercio", "operacion")
 
 
 class Atras:
-    """Los servicios de atras de mentira: anota cada peticion que les llega."""
+    """Los servicios de atras de mentira: anota cada peticion que les llega y
+    cuanto espera la puerta su respuesta (la espera de lectura de esa peticion)."""
 
     def __init__(self, responder: Callable[[httpx.Request], httpx.Response]) -> None:
         self.responder = responder
@@ -43,6 +44,7 @@ class Atras:
 
     def __call__(self, peticion: httpx.Request) -> httpx.Response:
         self.peticiones.append(peticion)
+        self.esperas.append(peticion.extensions.get("timeout", {}).get("read"))
         return self.responder(peticion)
 
 
@@ -54,19 +56,23 @@ def _destinos_ficticios(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _poner(monkeypatch: pytest.MonkeyPatch, responder: Callable[[httpx.Request], httpx.Response]) -> Atras:
-    """Hace que la puerta hable con `responder` en vez de con la red."""
+    """Hace que la puerta hable con `responder` en vez de con la red.
+
+    La puerta reenvia con UN cliente compartido que arma `crear_pool` en el
+    primer uso (`api._cliente`, `60560b9`). Se cambia el `AsyncClient` que ese
+    pool construye por uno con el transporte de mentira y las mismas opciones
+    (espera, limites, el hook de la correlacion); un cliente que ya trae su
+    transporte, como el de `_pedir`, no cambia. El `conftest` cierra y retira
+    el pool al terminar cada prueba."""
     atras = Atras(responder)
     transporte = httpx.MockTransport(atras)
 
-    class HttpxDeMentira:
-        HTTPError = httpx.HTTPError
+    class ClienteDeMentira(httpx.AsyncClient):
+        def __init__(self, **opciones: Any) -> None:
+            opciones.setdefault("transport", transporte)
+            super().__init__(**opciones)
 
-        @staticmethod
-        def AsyncClient(**opciones: Any) -> httpx.AsyncClient:
-            atras.esperas.append(opciones.get("timeout"))
-            return httpx.AsyncClient(transport=transporte, **opciones)
-
-    monkeypatch.setattr(api, "httpx", HttpxDeMentira)
+    monkeypatch.setattr(httpx, "AsyncClient", ClienteDeMentira)
     return atras
 
 
@@ -370,7 +376,9 @@ class TestLoQueVuelveAlCliente:
             ),
         )
 
-        respuesta = await _pedir("PATCH", "/v1/admin/onboarding")
+        # Una ruta publica: las de `/v1/admin` piden sesion del equipo (46a0c4a) y
+        # aqui se mide el reenvio, no la puerta de la consola (test_admin_sesion.py).
+        respuesta = await _pedir("PATCH", "/v1/listas/abc")
 
         assert respuesta.status_code == 409
         assert respuesta.content == b'{"error": "estado_incompatible"}'
@@ -384,7 +392,7 @@ class TestLoQueVuelveAlCliente:
             lambda p: httpx.Response(200, content=pdf, headers={"content-type": "application/pdf"}),
         )
 
-        respuesta = await _pedir("GET", "/v1/admin/listas/abc/documento")
+        respuesta = await _pedir("GET", "/v1/listas/abc/documento")
 
         assert respuesta.content == pdf
         assert respuesta.headers["content-type"] == "application/pdf"
@@ -457,7 +465,8 @@ class TestLaSondaDeServicios:
         assert sorted(str(p.url) for p in atras.peticiones) == sorted(
             f"http://{nombre}.example.test/health/ready" for nombre in SERVICIOS
         )
-        assert atras.esperas == [5.0]
+        # Cada sonda espera 5 s, no los 300 del pool.
+        assert atras.esperas == [5.0] * len(SERVICIOS)
 
     async def test_un_servicio_caido_no_oculta_a_los_demas_y_dice_por_que(self, monkeypatch):
         def responder(peticion: httpx.Request) -> httpx.Response:
@@ -547,7 +556,17 @@ class TestElPuntoDeEntrada:
 
         assert api.main([]) == 0
 
-        assert llamadas == [(app, {"host": "127.0.0.1", "port": PUERTO_POR_OMISION, "log_level": "info"})]
+        assert llamadas == [
+            (
+                app,
+                {
+                    "host": "127.0.0.1",
+                    "port": PUERTO_POR_OMISION,
+                    "log_level": "info",
+                    "proxy_headers": False,
+                },
+            )
+        ]
         assert PUERTO_POR_OMISION == 8010
 
     def test_main_respeta_host_y_puerto_pedidos(self, monkeypatch):
@@ -560,7 +579,12 @@ class TestElPuntoDeEntrada:
 
         assert api.main(["--puerto", "9100", "--host", "0.0.0.0"]) == 0
 
-        assert llamadas[0][1] == {"host": "0.0.0.0", "port": 9100, "log_level": "info"}
+        assert llamadas[0][1] == {
+            "host": "0.0.0.0",
+            "port": 9100,
+            "log_level": "info",
+            "proxy_headers": False,
+        }
 
     def test_un_puerto_que_no_es_numero_se_rechaza_antes_de_levantar_nada(self, monkeypatch):
         llamadas: list[Any] = []
@@ -584,4 +608,4 @@ class TestElPuntoDeEntrada:
             runpy.run_module("tukit_gateway.api", run_name="__main__")
 
         assert salida.value.code == 0
-        assert llamadas == [{"host": "127.0.0.1", "port": 9200, "log_level": "info"}]
+        assert llamadas == [{"host": "127.0.0.1", "port": 9200, "log_level": "info", "proxy_headers": False}]
