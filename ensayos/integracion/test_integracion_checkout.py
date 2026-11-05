@@ -236,14 +236,10 @@ async def test_nadie_mas_retracta_el_pedido_de_un_acudiente(
     assert (await _fila(consultar, "select estado from pedido where id = :p", p=pedido)) == ("pagado",)
 
 
+# Salio de H-A-61 en `b6b6fe7` (XPASS en la corrida C3, N-181): el titular retracta por
+# `/v1/comercio/mis-pedidos/{id}/retracto` (201, d92142a y 99436ef); `/v1/ordenes/{id}/retracto`
+# sigue en 404 por la puerta.
 @pytest.mark.nfr("NFR-SEG-09")
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "H-A-61: el titular no tiene por donde retractar; la puerta responde 404 "
-        "a /v1/ordenes/{id}/retracto y /v1/comercio/mis-pedidos/{id} no tiene retracto"
-    ),
-)
 def test_el_titular_retracta_su_pedido_por_la_puerta(
     cliente: httpx.Client, sesiones: dict, producto: dict, record_property
 ):

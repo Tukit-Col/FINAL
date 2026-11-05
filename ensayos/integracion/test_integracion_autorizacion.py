@@ -10,9 +10,11 @@ lo que alcanza un cliente cualquiera.
 
 from __future__ import annotations
 
+import uuid
+
 import httpx
 import pytest
-from stack_vivo import CLAVE_DEMO, GATEWAY, USUARIOS_DEMO, orden_pagada, portador
+from stack_vivo import CLAVE_DEMO, GATEWAY, USUARIOS_DEMO, cabecera_de_familia, orden_pagada, portador
 
 pytestmark = pytest.mark.integracion
 
@@ -224,10 +226,22 @@ def test_otro_acudiente_no_avanza_un_pedido_ajeno(cliente: httpx.Client, sesione
 
 
 # Salio de H-A-32 en `b6b6fe7` (fd01e78, el cierre revoca el token; N-172 y N-176).
+# El cierre revoca TODAS las sesiones del usuario (`revocar_sesiones` sube `version_permisos`):
+# con mama, el token de `sesiones` dejaba de valer para las pruebas que siguen (N-181).
+# Por eso cierra la sesion de un titular ficticio propio.
 @pytest.mark.nfr("NFR-SEG-04")
 def test_tras_cerrar_la_sesion_el_token_ya_no_sirve(cliente: httpx.Client):
-    token = _entrar(cliente, "acudiente")["token"]
-    cabeceras = {"authorization": f"Bearer {token}"}
+    correo = f"qa-cierre-{uuid.uuid4().hex[:10]}@example.test"
+    ip = cabecera_de_familia()
+    registro = cliente.post(
+        "/v1/registro",
+        headers=ip,
+        json={"correo": correo, "clave": CLAVE_DEMO, "acepta_terminos": True, "hijos": []},
+    )
+    assert registro.status_code == 201, registro.text
+    sesion = cliente.post("/v1/sesiones", headers=ip, json={"correo": correo, "clave": CLAVE_DEMO})
+    assert sesion.status_code == 200, sesion.text
+    cabeceras = {"authorization": f"Bearer {sesion.json()['token']}", **ip}
     cierre = cliente.post("/v1/sesiones/cierre", headers=cabeceras)
 
     assert cierre.status_code in (200, 204)
