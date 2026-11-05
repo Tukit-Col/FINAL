@@ -1,0 +1,333 @@
+% Seudocodigo completo de las etapas del pipeline, portado de algpseudocode a algorithm2e.
+\subsection{Algoritmos del pipeline}
+\label{sec:anexo-algoritmos}
+
+Esta sección reúne los procedimientos completos de las etapas del pipeline que se describen en el
+capítulo de Desarrollo: la percepción del archivo, la memoización de su lectura, la normalización de
+cada renglón, su resolución contra el catálogo, la construcción del frente de Pareto, NSGA-II, la
+selección de los kits y el frente exacto por programación dinámica.
+
+% ---------------------------------------------------------------------
+\paragraph{Percepción del archivo.}
+El procedimiento recibe el archivo de una lista, lo rasteriza a 150 puntos por pulgada y lee cada
+página con el modelo multimodal, validando la respuesta contra el esquema. El archivo se acepta solo
+si todas sus páginas se leyeron completas y si corresponde a un único grado, contado después de
+canonizar cada nombre; el tope de 40 páginas se revisa antes de gastar una llamada. Con $P$ páginas
+el algoritmo hace $\Theta(P)$ llamadas, como máximo $2P$, de modo que dominan las inferencias.
+
+\begin{algorithm}[H]
+\caption{Percibir el archivo de una lista, con todas sus páginas o ninguna.}
+\label{alg:anexo-percibir}
+\small
+\KwEntrada{$A$, archivo PDF o imagen; $\textsc{Leer}(I,j)$, lectura multimodal de la página $j$
+validada contra el esquema.}
+\KwSalida{$\langle ok, G, X, e\rangle$, con $ok$ verdadero solo si todas las páginas se leyeron
+completas y $\lvert G\rvert \le 1$.}
+\Proc{\textup{\textsc{Percibir}}$(A)$}{
+  \If{$\lvert A\rvert = 0$}{
+    \Return{$\langle \text{falso}, \emptyset, \langle\rangle, \textup{\textsc{ArchivoVacío}}\rangle$}\;
+  }
+  $\langle I_1,\dots,I_P\rangle \gets \textsc{Rasterizar}(A, 150)$\tcp*{una imagen suelta ya es una página}
+  \If{$P > 40$}{
+    \Return{$\langle \text{falso}, \emptyset, \langle\rangle, \textup{\textsc{DemasiadoLargo}}\rangle$}\tcp*{antes de gastar una llamada}
+  }
+  sean $X$ y $\Gamma$ secuencias vacías; $inc \gets \emptyset$\;
+  \For{$j \gets 1$ \KwTo $P$}{
+    $\langle G_j, \kappa_j, X_j\rangle \gets \textsc{Leer}(I_j, j)$\tcp*{un fallo termina con \textup{\textsc{PercepciónFallida}}}
+    \If{$\kappa_j = \text{falso}$}{
+      $inc \gets inc \cup \{j\}$\;
+    }
+    $\Gamma \gets \Gamma \cdot G_j$;\quad $X \gets X \cdot X_j$\;
+  }
+  $G \gets \textsc{GradosDistintos}(\Gamma)$\tcp*{con cada nombre canonizado}
+  \If{$\lvert G\rvert > 1$}{
+    \Return{$\langle \text{falso}, G, X, \textup{\textsc{VariosGrados}}\rangle$}\;
+  }
+  \If{$inc \ne \emptyset$}{
+    \Return{$\langle \text{falso}, G, X, \textup{\textsc{PáginaIncompleta}}\rangle$}\;
+  }
+  \Return{$\langle \text{verdadero}, G, X, \emptyset\rangle$}\;
+}
+\end{algorithm}
+
+% ---------------------------------------------------------------------
+\paragraph{Memoización de la lectura.}
+Como las familias de un colegio suben el mismo archivo, la lectura aceptada se guarda en Redis
+durante 30 días, con una clave que combina la huella SHA-256 del archivo y una versión del código de
+lectura y del modelo. Los rechazos no se guardan, y si el almacén no responde la lectura se hace de
+nuevo. Una lectura memorizada cuesta solo la huella, $\Theta(\lvert A\rvert)$.
+
+\begin{algorithm}[H]
+\caption{Memoización de la lectura de un archivo.}
+\label{alg:anexo-memo}
+\small
+\KwEntrada{$A$, archivo; $R$, almacén clave-valor con vencimiento, posiblemente no disponible; $v$,
+huella del código de lectura y del modelo.}
+\Proc{\textup{\textsc{PercibirMemo}}$(A)$}{
+  $k \gets v \cdot \textsc{Sha256}(A)$\;
+  \If{$R$ responde \textbf{y} $R[k] \ne \bot$}{
+    \Return{$R[k]$}\;
+  }
+  $L \gets \textsc{Percibir}(A)$\;
+  \If{$L.ok$}{
+    $R[k] \gets L$ con vencimiento de 30 días\tcp*{los rechazos no se guardan}
+  }
+  \Return{$L$}\;
+}
+\end{algorithm}
+
+% ---------------------------------------------------------------------
+\paragraph{Normalización de un renglón.}
+La normalización recibe el texto del renglón, la cantidad de la columna si existía y el tipo y el
+modo curados de la lista oficial, y devuelve una demanda con el tipo, el modo, la cantidad pedida y
+el empaque que declara el texto. El tipo y el modo salen de una lista de decisión de once filas en la
+que gana la primera que se cumple, y lo curado prevalece sobre lo inferido. Con $\ell$ la longitud
+del renglón y un número constante de frases clave, normalizar un renglón es $\Theta(\ell)$ y una
+lista, lineal en su longitud total.
+
+\begin{algorithm}[H]
+\caption{Normalizar un renglón en una demanda.}
+\label{alg:anexo-normalizar}
+\small
+\KwEntrada{$x$, texto; $q^{\circ}$, cantidad de la columna o $\bot$; $t^{\ast}, m^{\ast}$, tipo y
+modo curados o $\bot$; $D = \langle (C_r, t_r, m_r) ; 1 \le r \le 11\rangle$, lista de decisión con
+$C_{11}$ siempre verdadera.}
+\KwSalida{$\langle t, m, q, \upsilon\rangle$}
+\Proc{\textup{\textsc{Normalizar}}$(x, q^{\circ}, t^{\ast}, m^{\ast})$}{
+  $\bar x \gets \textsc{Plano}(x)$\tcp*{minúsculas, sin tildes y ``x12'' como ``x 12''}
+  $r \gets \min\{\, r : \bar x \text{ contiene una frase de } C_r \,\}$\;
+  $t \gets t^{\ast}$ si $t^{\ast} \ne \bot$, si no $t_r$;\quad
+  $m \gets m^{\ast}$ si $m^{\ast} \ne \bot$, si no $m_r$\;
+  \uIf{$t = \text{no\_comprar}$}{
+    $q \gets 0$\;
+  }
+  \uElseIf{$q^{\circ} \ne \bot$}{
+    $q \gets q^{\circ}$\tcp*{no se suma al número del texto}
+  }
+  \uElseIf{$\bar x$ empieza por un número $n$}{
+    $q \gets n$\;
+  }
+  \Else{
+    $q \gets 1$\;
+  }
+  $\upsilon \gets$ mayor $N$ de ``x $N$'', ``por $N$'' o ``caja de $N$'' sin unidad de medida
+  detrás, o $\bot$\;
+  \Return{$\langle t, m, q, \upsilon\rangle$}\;
+}
+\end{algorithm}
+
+% ---------------------------------------------------------------------
+\paragraph{Puntaje híbrido léxico-semántico.}
+El procedimiento recibe el renglón ya corregido, los conceptos del catálogo con su nombre, sus
+sinónimos y su centroide, y el vector del renglón si existe, y devuelve el concepto de mayor puntaje.
+Si la frase del concepto empieza por la cabeza del renglón, el puntaje parte de 0,6; si la nombra en
+otra posición, vale el Jaccard más el aporte del coseno, y si no la nombra solo un coseno de 0,86 o más
+la rescata. El coseno se recorta en cero y solo suma, de modo que el puntaje híbrido nunca queda por
+debajo del léxico. Clasificar un renglón es lineal en el catálogo, porque el coseno se calcula una vez
+por concepto.
+
+\begin{algorithm}[H]
+\caption{Puntaje híbrido léxico-semántico de un renglón frente a los conceptos del catálogo.}
+\label{alg:anexo-clasificar}
+\small
+\KwEntrada{$\tilde x$, renglón corregido; $\mathcal{C}$, conceptos con nombre, sinónimos $S(c)$ y
+centroide $\bar{\mathbf{e}}(c)$; $\mathbf{e}(x)$, vector del renglón o $\bot$.}
+\KwSalida{$\langle \hat c, \hat s\rangle$, concepto de mayor puntaje y su puntaje.}
+\Proc{\textup{\textsc{Clasificar}}$(\tilde x, \mathcal{C}, \mathbf{e}(x))$}{
+  reescribir en $\tilde x$ las series de durezas y los pares de escuadras\;
+  $h \gets \textsc{Cabeza}(\tilde x)$;\quad $\langle \hat c, \hat s\rangle \gets \langle \bot, 0\rangle$\;
+  \ForEach{$c \in \mathcal{C}$}{
+    $\kappa \gets \max\bigl(0, \cos(\mathbf{e}(x), \bar{\mathbf{e}}(c))\bigr)$, o $0$ si falta un vector\;
+    \ForEach{$y \in \{\mathrm{nom}(c)\} \cup S(c)$}{
+      \uIf(\tcp*[h]{ancla, la frase empieza por lo pedido}){$h \approx y^{(1)}$}{
+        $\psi \gets \min\bigl(1,\ 0{,}6 + 0{,}4\,J(\tilde x, y) + 0{,}15\,\kappa\bigr)$\;
+      }
+      \uElseIf{$h \approx y^{(i)}$ para algún $i$}{
+        $\psi \gets \min\bigl(1,\ J(\tilde x, y) + 0{,}15\,\kappa\bigr)$\;
+      }
+      \uElseIf(\tcp*[h]{rescate semántico}){$\kappa \ge 0{,}86$}{
+        $\psi \gets 0{,}55 + 0{,}4\,(\kappa - 0{,}86)/0{,}14$\;
+      }
+      \Else{
+        $\psi \gets 0$\;
+      }
+      \If{$\psi > \hat s$}{
+        $\langle \hat c, \hat s\rangle \gets \langle c, \psi\rangle$\tcp*{en empate gana el primero}
+      }
+    }
+  }
+  \Return{$\langle \hat c, \hat s\rangle$}\;
+}
+\end{algorithm}
+
+% ---------------------------------------------------------------------
+\paragraph{Resolución de un renglón.}
+Reconocido el concepto, el procedimiento lee solo los atributos que ese concepto declara como
+discriminantes y filtra sus productos. Si ninguno cumple, se abstiene en lugar de ofrecer otro, y
+entre los que cumplen ofrece uno por nivel de marca, con máximo tres opciones. El estado depende de
+dos umbrales: por debajo de 0,5 el renglón queda sin correspondencia, entre 0,5 y $\tau$ pasa a
+revisión humana y desde $\tau$ se resuelve de forma automática. Un concepto asignado por una persona
+se usa con puntaje~1, y resolver una lista es lineal en sus renglones.
+
+\begin{algorithm}[H]
+\caption{Resolver un renglón contra el catálogo y asignarle su estado.}
+\label{alg:anexo-resolver}
+\small
+\KwEntrada{$x$, renglón; catálogo $(\mathcal{C}, \mathcal{P})$; $c^{\ast}$, concepto asignado por una
+persona o $\bot$; umbral $\tau$.}
+\KwSalida{$\langle e, \hat c, O\rangle$, con $e \in \{\textsc{ResueltoAuto}, \textsc{Ambiguo},
+\textsc{HuecoCatálogo}, \textsc{SinMatch}\}$ y $\lvert O\rvert \le 3$.}
+\Proc{\textup{\textsc{Resolver}}$(x, c^{\ast}, \tau)$}{
+  $\tilde x \gets \textsc{Corregir}(x)$\tcp*{una única palabra del léxico a distancia 1}
+  \uIf{$c^{\ast} \ne \bot$}{
+    $\langle \hat c, \hat s\rangle \gets \langle c^{\ast}, 1\rangle$\tcp*{lo curado prevalece}
+  }
+  \Else{
+    $\langle \hat c, \hat s\rangle \gets \textsc{Clasificar}(\tilde x, \mathcal{C}, \mathbf{e}(x))$\;
+  }
+  \If{$\hat c = \bot$ \textbf{o} $\hat s < 0{,}5$}{
+    \Return{$\langle \textup{\textsc{SinMatch}}, \bot, \emptyset\rangle$}\;
+  }
+  $Imp \gets \textsc{Atributos}(\tilde x, D(\hat c))$\tcp*{solo los discriminantes del concepto}
+  $K \gets \{\, p \in \mathcal{P}(\hat c) : \textsc{Cumple}(p, Imp) \,\}$\;
+  \If{$K = \emptyset$}{
+    \Return{$\langle \textup{\textsc{HuecoCatálogo}}, \hat c, \emptyset\rangle$}\tcp*{no se ofrece otro producto}
+  }
+  $O \gets$ un producto por nivel de $K$, sin personaje primero y con desempate por SKU\;
+  \If{$\hat s \ge \tau$}{
+    \Return{$\langle \textup{\textsc{ResueltoAuto}}, \hat c, O\rangle$}\;
+  }
+  \Return{$\langle \textup{\textsc{Ambiguo}}, \hat c, O\rangle$}\tcp*{pasa a revisión humana}
+}
+\end{algorithm}
+
+% ---------------------------------------------------------------------
+\paragraph{Frente de Pareto de un hogar.}
+El procedimiento recibe los candidatos admisibles de las líneas decidibles y los cuatro objetivos de
+las Ecuaciones~\eqref{eq:f1f2} y~\eqref{eq:f3f4}, y construye el frente según el tamaño del espacio $\Omega$. Con
+$\lvert\Omega\rvert \le 1$ no hay compromiso y decide la heurística por perfil; con
+$\lvert\Omega\rvert \le 4.096$ enumera todas las asignaciones y obtiene el frente exacto, y por encima
+de ese límite lo aproxima con NSGA-II sembrado. La enumeración cuesta $O(\lvert\Omega\rvert\,n)$ más
+el filtro por pares, $O(\lvert U\rvert^2 M)$ con $M = 4$.
+
+\begin{algorithm}[H]
+\caption{Construir el frente de Pareto de un hogar.}
+\label{alg:anexo-frente}
+\small
+\KwEntrada{$A_1, \dots, A_n$, candidatos admisibles de las líneas decidibles; $\mathbf{F} = (f_1, f_2,
+f_3, f_4)$; semilla $\varsigma$.}
+\KwSalida{Frente $\mathcal{F}$, con una asignación por vector objetivo.}
+\Proc{\textup{\textsc{Frente}}$(A_1, \dots, A_n)$}{
+  $\lvert\Omega\rvert \gets \prod_{i=1}^{n} \lvert A_i\rvert$\;
+  \If{$n = 0$ \textbf{o} $\lvert\Omega\rvert \le 1$}{
+    \Return{$\emptyset$}\tcp*{sin compromiso, decide la heurística por perfil}
+  }
+  \uIf{$\lvert\Omega\rvert \le 4096$}{
+    $S \gets \{\, \langle \mathbf{F}(\mathbf{x}), \mathbf{x}\rangle : \mathbf{x} \in A_1 \times \cdots \times A_n \,\}$\tcp*{enumeración exacta}
+  }
+  \Else{
+    $E \gets \textsc{Heurística}(A) \cup \textsc{Escalera}(A)$\tcp*{semillas}
+    $S \gets \textsc{NSGA-II}\bigl(N(n), G(\lvert\Omega\rvert), E, \varsigma\bigr) \cup E$\;
+  }
+  $U \gets$ un representante de $S$ por cada vector objetivo distinto\;
+  \Return{$\{\, \mathbf{x} \in U : \neg\exists\, \mathbf{y} \in U,\ \mathbf{y} \prec \mathbf{x} \,\}$
+  ordenado por $(f_1, -f_2, -f_3, -f_4)$}\;
+}
+\end{algorithm}
+
+% ---------------------------------------------------------------------
+\paragraph{NSGA-II sembrado.}
+NSGA-II mantiene $N$ soluciones, produce $N$ descendientes por selección, cruce binario simulado y
+mutación polinomial, y elige la generación siguiente por rango de no dominancia y distancia de
+aglomeración. La variable de cada línea es el índice entero del candidato, y la población inicial se
+siembra con la heurística por perfil y con la escalera de costo marginal, de modo que el frente nunca
+queda por debajo de las semillas. Su costo es $O\bigl(G(MN^2 + Nn)\bigr)$, por el ordenamiento no
+dominado y la evaluación.
+
+\begin{algorithm}[H]
+\caption{NSGA-II sembrado sobre la codificación entera de índices.}
+\label{alg:anexo-nsga}
+\small
+\KwEntrada{$N$, tamaño de la población; $G$, generaciones; $E$, semillas; $\varsigma$, semilla;
+cotas $0 \le x_i \le \lvert A_i\rvert - 1$.}
+\KwSalida{Aproximación del frente de Pareto.}
+\Proc{\textup{\textsc{NSGA-II}}$(N, G, E, \varsigma)$}{
+  $P_0 \gets E$ completada con individuos al azar generados con $\varsigma$\tcp*{si $\lvert E\rvert > N$, $N$ semillas equiespaciadas}
+  evaluar $\mathbf{F}$ en $P_0$\;
+  \For{$t \gets 0$ \KwTo $G-1$}{
+    $Q_t \gets N$ hijos por torneo binario, cruce ($p_c = 0{,}9$, $\eta_c = 15$) y mutación
+    ($\eta_m = 20$), redondeados y sin duplicados\;
+    evaluar $\mathbf{F}$ en $Q_t$;\quad $R_t \gets P_t \cup Q_t$\;
+    $\langle \mathcal{F}_1, \mathcal{F}_2, \dots\rangle \gets$ ordenamiento no dominado de $R_t$\tcp*{$O(M(2N)^2)$}
+    $P_{t+1} \gets$ frentes completos en orden de rango hasta $N$, con el último recortado
+    por distancia de aglomeración\;
+  }
+  \Return{los no dominados de $P_G$}\;
+}
+\end{algorithm}
+
+% ---------------------------------------------------------------------
+\paragraph{Selección de los kits.}
+Del frente salen los kits por selección lexicográfica sobre los puntos de máxima disponibilidad. El
+Ahorrador minimiza el costo, el Premium maximiza la fidelidad, el Fan maximiza el personaje, y A tu
+Medida es el de mayor fidelidad cuyo costo cabe en el tope, que es el presupuesto declarado o la
+mitad del camino entre el Ahorrador y el Premium. Si ningún punto trae el personaje, el Fan repite el
+Ahorrador en lugar de inventarlo.
+
+\begin{algorithm}[H]
+\caption{Selección lexicográfica de los kits sobre el frente.}
+\label{alg:anexo-proyectar}
+\small
+\KwEntrada{$\mathcal{F} \ne \emptyset$; $B$, tope declarado o $\bot$.}
+\KwSalida{Asignaciones de los kits Ahorrador, Premium, Fan y A tu Medida.}
+\Proc{\textup{\textsc{Proyectar}}$(\mathcal{F}, B)$}{
+  $\mathcal{F}_s \gets \{\, \mathbf{x} \in \mathcal{F} : f_3(\mathbf{x}) = \max_{\mathbf{y} \in \mathcal{F}} f_3(\mathbf{y}) \,\}$\tcp*{puntos surtibles}
+  $\mathbf{x}_{Ah} \gets \operatorname{lex\,min}_{\mathcal{F}_s}\,(f_1, -f_3, -f_2)$\;
+  $\mathbf{x}_{Pr} \gets \operatorname{lex\,max}_{\mathcal{F}_s}\,(f_2, -f_1, f_3)$\;
+  $\mathbf{x}_{Fan} \gets \operatorname{lex\,max}_{\mathcal{F}_s}\,(f_4, -f_1, f_2)$\;
+  \If{$f_4(\mathbf{x}_{Fan}) = 0$}{
+    $\mathbf{x}_{Fan} \gets \mathbf{x}_{Ah}$\tcp*{no se inventa un personaje}
+  }
+  $T \gets B$ si $B \ne \bot$, si no $\bigl\lfloor (\mathrm{total}(\mathbf{x}_{Ah}) + \mathrm{total}(\mathbf{x}_{Pr}))/2 \bigr\rfloor$\;
+  $\mathbf{x}_{AM} \gets \operatorname{lex\,max}_{\{\mathbf{x} \in \mathcal{F}_s\, :\, f_1(\mathbf{x}) \le T\}}\,(f_2, -f_1, f_3)$\;
+  \If{$\mathbf{x}_{AM}$ no existe \textbf{o} su total consolidado supera $T$ \textbf{o} repite
+  $\mathbf{x}_{Ah}$ o $\mathbf{x}_{Pr}$}{
+    $\mathbf{x}_{AM} \gets \bot$\;
+  }
+  \Return{$\langle \mathbf{x}_{Ah}, \mathbf{x}_{Pr}, \mathbf{x}_{Fan}, \mathbf{x}_{AM}\rangle$}\;
+}
+\end{algorithm}
+
+% ---------------------------------------------------------------------
+\paragraph{Frente exacto por programación dinámica.}
+Como cada objetivo es una suma de términos de una sola línea y tres de ellos son contadores enteros
+pequeños, el menor costo de cada terna $(a, b, p)$ de nivel de marca acumulado, líneas con precio y
+líneas con personaje sale de una recurrencia línea por línea, y el frente es el conjunto de ternas no
+dominadas con su costo mínimo. Tras $i$ líneas hay a lo sumo $(2i+1)(i+1)^2$ estados con $k$
+transiciones cada uno, de modo que el tiempo es $O(n^4k)$ y la memoria, con el retroceso de todas las
+etapas, $O(n^4)$.
+
+\begin{algorithm}[H]
+\caption{Frente exacto por programación dinámica sobre contadores enteros.}
+\label{alg:anexo-pd}
+\small
+\KwEntrada{$A_1, \dots, A_n$; para cada candidato $c$, su nivel $\nu(c) \in \{0,1,2\}$, $\beta(c) = 1$
+si tiene precio y $0$ si no, $\varphi_i(c) \in \{0,1\}$ y su costo de línea $g_i(c)$.}
+\KwSalida{$C^{\ast}(a,b,p)$, menor costo de cada terna alcanzable, y el frente.}
+\Proc{\textup{\textsc{FrentePD}}$(A_1, \dots, A_n)$}{
+  sea $M[0..2n][0..n][0..n]$ una tabla de costos; $M \gets \langle +\infty\rangle$;\quad $M[0][0][0] \gets 0$\;
+  \For{$i \gets 1$ \KwTo $n$}{
+    sea $M'$ una tabla como $M$; $M' \gets \langle +\infty\rangle$\;
+    \ForEach{$\langle a, b, p\rangle$ con $M[a][b][p] < +\infty$}{
+      \ForEach{$c \in A_i$}{
+        $\langle a', b', p'\rangle \gets \langle a + \nu(c),\ b + \beta(c),\ p + \varphi_i(c)\rangle$\;
+        \If{$M[a][b][p] + g_i(c) < M'[a'][b'][p']$}{
+          $M'[a'][b'][p'] \gets M[a][b][p] + g_i(c)$\tcp*{se guarda $c$ para el retroceso}
+        }
+      }
+    }
+    $M \gets M'$\;
+  }
+  \Return{los no dominados de $\bigl\{\, \langle M[a][b][p], \tfrac{a}{2n}, \tfrac{b}{n}, \tfrac{p}{n}\rangle : M[a][b][p] < +\infty \,\bigr\}$}\;
+}
+\end{algorithm}
