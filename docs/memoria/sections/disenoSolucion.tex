@@ -2,20 +2,21 @@
 \section{DISEÑO DE LA SOLUCIÓN}
 
 Este capítulo presenta el resultado de la Fase~2: la arquitectura de Tukit y las decisiones del
-diseño detallado. Su
-argumento central es que las fronteras entre servicios se justifican por las propiedades que
-los datos no pueden compartir, no por la carga que el sistema va a soportar.
+diseño detallado. Su argumento central es que las fronteras entre servicios se justifican por las
+propiedades que los datos no pueden compartir y no por la carga que el sistema va a soportar. El
+detalle completo está en el Documento de Diseño de Software (SDD), en el documento de arquitectura
+(SAD) y en el informe de evaluación ATAM.
 
-Venimos del análisis, que fijó los requisitos y los escenarios de calidad que se evaluaron con ATAM. Ahí
-descubrimos que el diseño inicial, de catorce servicios, era demasiado: la carga prevista no lo justificaba y su
-costo de operación superaba los recursos del equipo. Por eso este capítulo parte de esa corrección y
-presenta la alternativa B$'$, que agrupa lo que debe cambiar junto y separa solo lo que los datos no pueden compartir.
+El análisis fijó los requerimientos de la Tabla~\ref{tab:req-resumen}. La evaluación con ATAM mostró
+que el diseño inicial, de catorce servicios, era excesivo: la carga prevista no lo justificaba y su
+costo de operación superaba los recursos del equipo. El capítulo parte de esa corrección y presenta la
+alternativa B$'$, que agrupa lo que debe cambiar junto y separa solo lo que los datos no pueden
+compartir. Cada decisión atiende un requerimiento: la bandeja de salida y RabbitMQ, RNF08; Redis, RNF03; la
+aplicación web progresiva, RNF04, y el despliegue independiente de cada servicio, RNF06.
 
-La exposición sigue la norma ISO/IEC/IEEE 42010 \citep{iso_42010_2022} en la separación
-entre preocupaciones de los interesados, puntos de vista y vistas, y el modelo 4+1 de
-Kruchten \citep{kruchten_41_1995} para distinguir la vista de desarrollo de la vista
-física, distinción que resulta central en la Sección~\ref{sec:monorepo}. Las alternativas se
-evaluaron con ATAM y las decisiones quedaron en registros de decisión de arquitectura.
+La exposición sigue la norma ISO/IEC/IEEE 42010 \citep{iso_42010_2022} y el modelo 4+1 de
+Kruchten \citep{kruchten_41_1995}, que distingue la vista de desarrollo de la física
+(Sección~\ref{sec:monorepo}). Las decisiones quedaron en registros de decisión de arquitectura.
 
 % =====================================================================
 \subsection{Impulsores arquitectónicos}
@@ -26,12 +27,13 @@ El diseño inicial justificaba la descomposición en microservicios por
 colegios en el corpus y una demanda concentrada en las semanas previas al inicio del año
 lectivo) mostró que la infraestructura mínima excede la demanda proyectada en unos tres
 órdenes de magnitud. Esa justificación no se sostenía. El rediseño condujo a tres criterios,
-ninguno de rendimiento, que resume la Tabla~\ref{tab:impulsores} (Anexo~\ref{anx:tablas}).
+ninguno de rendimiento: la recuperabilidad asimétrica de los datos, la frontera de cumplimiento y el
+perfil de recurso de cada componente (Tabla~\ref{tab:impulsores}, Anexo~\ref{anx:tablas}).
 
 % [movida al Anexo: tab:impulsores]
 
-Con estos criterios, el número de servicios que ya corría en los prototipos resultó
-aproximadamente adecuado; lo que estaba mal era la ubicación de algunas fronteras.
+Con estos criterios, el número de servicios bajó de catorce a seis y se trazaron de nuevo algunas
+fronteras que los prototipos habían ubicado mal.
 
 % =====================================================================
 \subsection{De catorce servicios documentados a seis desplegables}
@@ -41,39 +43,36 @@ La arquitectura de los documentos académicos iniciales proponía trece microser
 dominio y una puerta de enlace, para separar al máximo las responsabilidades. Dos hechos la
 cuestionaron. El primero fue de costo y operabilidad: catorce desplegables implican catorce
 canales de integración y despliegue, catorce bases candidatas y una malla de red que un
-equipo de cuatro personas no puede operar, frente a una demanda proyectada de unos treinta y
-seis pedidos diarios en temporada. El segundo fue empírico: la base de grafos Neo4j,
+equipo de cuatro personas no puede operar, frente a una demanda proyectada de decenas de pedidos
+diarios en temporada (el pico de diseño de RNF05 es de unos 1.000). El segundo fue empírico: la base de grafos Neo4j,
 prevista para la sustituibilidad, estaba apagada por configuración y el grafo de conceptos
 cabía en memoria, por lo que el ADR 0006 la retiró y resolvió el grafo en proceso; su
-evaluación como GraphRAG consta en el anexo CRISP-DM. El sistema construido sustituyó a su
-vez ese grafo por una tabla curada y dirigida de sustituciones en el servicio de catálogo,
-que tiene modelo, migración y pruebas. Ningún servicio la consulta en la versión evaluada, de modo que la sustitución se delimitó como línea de la evolución del catálogo (Sección~\ref{sec:trabajo-futuro}).
+evaluación como GraphRAG consta en el anexo CRISP-DM. El sistema construido lo sustituyó por una tabla curada de sustituciones en el catálogo, que
+ningún servicio consulta en la versión evaluada; la sustitución quedó como línea de evolución
+(Sección~\ref{sec:trabajo-futuro}).
 
 El ADR 0001 aplicó los tres criterios de la Tabla~\ref{tab:impulsores} y redujo los catorce
-servicios a seis más la puerta de enlace. La fusión se hizo el 10 de septiembre, sobre los microservicios desarrollados entre el 2 y el 18 de septiembre de 2026. Identidad y
+servicios a seis de dominio y la puerta de enlace. La fusión se hizo el 10 de septiembre, sobre los microservicios desarrollados entre el 2 y el 18 de septiembre de 2026. Identidad y
 privacidad quedaron en un servicio de cuentas; catálogo, pedidos y última milla, en uno de
 comercio, y PQRS, analítica y notificaciones, en uno de plataforma. Aparte quedaron
 instituciones, una fachada para el panel de administración y el servicio de búsqueda.
 
 Esa reagrupación
-dejaba un servicio de respaldo para el panel de administración y un servicio de
-instituciones separado de las cuentas. Con la razón de cambio como criterio, los colegios
+dejaba un servicio de respaldo del panel y otro de instituciones. Con la razón de cambio como criterio, los colegios
 pasaron a identidad, el catálogo se separó de comercio (ADR 0012), el panel consume la misma
 API que la aplicación del acudiente y la auditoría pasó a ser una biblioteca compartida
 (ADR 0002). El servicio de búsqueda anterior se dividió entre catálogo e inteligencia,
 porque sus objetivos de recuperación no permiten compartir almacén. El resultado es mejor
-para un equipo de cuatro personas: hay menos procesos que operar, cada servicio tiene un
-solo motivo para cambiar y ningún contrato se duplica. El sistema construido tiene seis
-desplegables con código, cinco servicios de dominio (identidad, catálogo, inteligencia,
-comercio y operación) y la puerta de enlace, sobre cinco bases.
+para un equipo de cuatro personas: menos procesos que operar y un solo motivo de cambio por servicio. El sistema construido tiene seis
+desplegables con código (siete en el manifiesto, que cuenta la ingesta), cinco servicios de dominio
+(identidad, catálogo, inteligencia, comercio y operación) y la puerta de enlace, sobre cinco bases.
 
 El diseño de la
 Fase 2 preveía un séptimo desplegable, ingesta, que extraía de forma masiva los productos y
 precios de las tiendas. El sistema construido lo reemplazó por un catálogo curado que crece
 con la demanda: un producto entra cuando una lista lo pide y el equipo confirma la
 correspondencia. Es mejor porque concentra el esfuerzo en los productos que las listas
-piden, reduce los candidatos de cada concepto de miles a decenas y evita publicar un
-producto parecido pero equivocado. En el sistema construido reúne 1.050 productos (1.040
+piden y evita publicar un producto parecido pero equivocado. En el sistema construido reúne 1.050 productos (1.040
 activos), 1.057 ofertas de ocho tiendas y 149 conceptos en archivos de datos versionados, y las herramientas que
 consultan las tiendas solo completan o enriquecen productos. Lo que el equipo cura en el
 panel queda en la base del catálogo hasta que se exporta a esos archivos (ADR 0037).
@@ -82,8 +81,9 @@ panel queda en la base del catálogo hasta que se exporta a esos archivos (ADR 0
 \subsection{Alternativas evaluadas}
 \label{sec:alternativas}
 
-Se compararon tres alternativas mediante el método ATAM \citep{bass_software_2021}, cuyos
-resultados completos se consignan en el documento de evaluación ATAM. La
+Se compararon tres alternativas mediante el método ATAM \citep{bass_software_2021}: A, un monolito
+modular con almacén único; B, microservicios de granularidad fina, y B$'$, servicios agrupados por
+razón de cambio. Los resultados completos están en el documento de evaluación ATAM. La
 Tabla~\ref{tab:alternativas} (Anexo~\ref{anx:tablas}) sintetiza el contraste.
 
 % [movida al Anexo: tab:alternativas]
@@ -103,17 +103,13 @@ sistemas externos, y la Figura~\ref{fig:c4-contenedores} materializa la alternat
 salen del código fuente: la primera es una vista UML del modelo de arquitectura y la segunda sigue el
 modelo C4. Cada color de la segunda tiene un significado fijo, que explica la leyenda al pie.
 
-La figura se lee de arriba hacia abajo. En la parte superior están las dos personas: el acudiente, que
-usa la aplicación web progresiva (puerto 3000), y el equipo de Tukit, que usa el panel de administración
-(puerto 3001). Ambas aplicaciones, con Google Maps y Wompi a los lados, llaman a la puerta de enlace
-(puerto 8010), la franja ancha que reenvía cada petición al servicio que atiende el prefijo de su ruta. Debajo
-está la fila de los servicios que llaman a otros: operación, inteligencia y comercio. Cada uno está dentro de un
-recuadro gris con su base de datos y sus procesos en segundo plano, y sus llamadas pasan por un bus que
-alcanza a identidad y catálogo. En el centro está RabbitMQ, que lleva los eventos entre las dos filas.
-Abajo están los proveedores, identidad y catálogo, que no llaman a otros servicios, junto a los sistemas
-externos (Gemini, tiendas en línea, correo y WhatsApp) y la infraestructura compartida. Las etiquetas A1 a A4,
-B1 a B4 y C1 a C3 numeran los pasos de la subida de la lista y los kits, el pago y los avisos, que se
-describen bajo el dibujo.
+La figura se lee de arriba hacia abajo. Arriba están el acudiente, con la aplicación web progresiva
+(puerto 3000), y el equipo de Tukit, con el panel de administración (puerto 3001); ambas llaman a la puerta
+de enlace (puerto 8010), que reenvía cada petición al servicio que atiende su ruta. Debajo están los
+servicios que llaman a otros (operación, inteligencia y comercio), cada uno con su base y sus procesos en
+segundo plano, y en el centro RabbitMQ, que lleva los eventos. Abajo están identidad y catálogo, que no
+llaman a otros servicios, junto a los sistemas externos y la infraestructura compartida. Las etiquetas A1 a
+A4, B1 a B4 y C1 a C3 numeran los pasos de la subida de la lista y los kits, el pago y los avisos.
 
 Con RabbitMQ, un publicador por servicio productor lleva los eventos de su bandeja a una cola
 por consumidor, con una cola de reintentos y otra de descartados, y la entrega es al menos una
@@ -140,12 +136,21 @@ y la puerta de enlace cuenta el límite en su memoria.
 
 La vista física (Figura~\ref{fig:despliegue}, Anexo~\ref{anx:figuras}) muestra dónde corre cada pieza.
 \begin{itemize}
-  \item \emph{Portátil del equipo}: aloja las dos aplicaciones web (puertos 3000 y 3001), la puerta de enlace (8010) y los cinco servicios (8011 a 8015) con sus procesos en segundo plano; \texttt{make arriba} los levanta y \texttt{make reanudar} los retoma tras un apagado sin sembrar de nuevo.
+  \item \emph{Portátil del equipo} (Minikube local, sin autoescalado ni clúster gestionado, de modo que
+  la disponibilidad depende de ese equipo): aloja las dos aplicaciones web (puertos 3000 y 3001), la puerta de enlace (8010) y los cinco servicios (8011 a 8015) con sus procesos en segundo plano; \texttt{make arriba} los levanta y \texttt{make reanudar} los retoma tras un apagado sin sembrar de nuevo.
   \item \emph{PostgreSQL 16 con pgvector}: un servidor con las cinco bases, una por servicio.
   \item \emph{RabbitMQ}: el intercambio de eventos; Redis y Jaeger son opcionales.
   \item \emph{Túnel de Cloudflare}: expone la aplicación web con una URL temporal solo durante las sesiones con acudientes.
   \item \emph{Wompi}: funciona en modo simulado, sin salir a la red.
 \end{itemize}
+
+Las herramientas se eligieron por criterio. PostgreSQL con pgvector reúne datos y vectores en un
+servidor que el equipo puede operar. RabbitMQ da entrega al menos una vez con
+reintentos, y la bandeja de salida lo respalda si cae (ADR 0046). Redis guarda lo que se recalcula y cuenta
+el límite de tasa (ADR 0047). Wompi, con su widget de pago, mantiene los datos de tarjeta fuera del sistema
+(ADR 0033), a diferencia de las opciones descartadas (ADR 0011). Gemini lee las páginas de las listas y
+calcula los embeddings, y pymoo aporta un NSGA-II maduro, sin equivalente en lenguajes compilados
+(Sección~\ref{sec:lenguajes}).
 
 % =====================================================================
 \subsection{Modelo de dominio y contextos delimitados}
@@ -157,8 +162,7 @@ traducciones entre contextos ocurren explícitamente en los adaptadores.
 
 Las migraciones del sistema construido crean 74 tablas en cinco bases de datos, una por
 servicio (Tabla~\ref{tab:reparto}); la bandeja de salida de eventos se repite en las cinco,
-de modo que hay 70 nombres distintos. El recuento cambió durante la implementación, entre
-67 y 74 tablas según la versión.
+de modo que hay 70 nombres distintos.
 
 % Tabla tab:reparto movida al Anexo A.3 (tablas del cuerpo)
 
@@ -172,7 +176,7 @@ la petición sin validación alguna, lo cual es peor que su ausencia porque apar
 control que no existe.
 
 La solución aparentemente obvia, un identificador de colegio en el usuario, es incorrecta,
-porque un acudiente puede tener hijos en colegios distintos (CO-04). La tenencia reside, en
+porque un acudiente puede tener hijos en colegios distintos (requisito CO-04 del SRS). La tenencia reside, en
 cambio, en la relación $\langle$estudiante, sede, grado, año lectivo$\rangle$, que se modela
 como la entidad matrícula, con una relación de muchos a muchos con los acudientes
 (ADR 0013). Su identificador viaja a los otros cuatro servicios como referencia lógica y es
@@ -228,7 +232,7 @@ Anexo~\ref{anx:autorizacion-datos}.
 \subsubsection{Un repositorio no es un desplegable}
 
 La implementación se organiza en un monorrepositorio con seis desplegables independientes
-con código (ADR 0014); el séptimo previsto, la ingesta, se reemplazó por el catálogo curado. La decisión exige justificación porque contradice la asociación habitual entre
+con código (ADR 0014), pues la ingesta prevista se reemplazó por el catálogo curado. La decisión exige justificación porque contradice la asociación habitual entre
 microservicio y repositorio, asociación que carece de fundamento normativo. La norma
 ISO/IEC/IEEE 42010 \citep{iso_42010_2022} compone una descripción arquitectónica de vistas
 que responden a preocupaciones distintas, y el modelo 4+1 \citep{kruchten_41_1995} separa
@@ -237,10 +241,9 @@ física}, que asigna el software a nodos de ejecución. Dónde vive el código y
 despliega son decisiones de vistas diferentes; en la terminología del modelo C4, un
 contenedor no equivale a un repositorio.
 
-La motivación concreta es medible. En los microservicios anteriores, trasladar una función
-de redacción de datos a la biblioteca compartida exigió modificar siete archivos de
-configuración de dependencias y publicar una etiqueta de versión antes de que cualquier
-servicio pudiera instalarla. En el monorrepositorio es un único cambio.
+La motivación es medible: en los microservicios anteriores, trasladar una función de redacción de
+datos a la biblioteca compartida exigió modificar siete archivos de dependencias y publicar una versión;
+en el monorrepositorio es un único cambio.
 
 \subsubsection{Fronteras verificadas, no declaradas}
 
@@ -249,19 +252,16 @@ respuesta de este diseño es instrumentarlas mediante funciones de aptitud
 \citep{ford_building_2017}: pruebas automáticas y continuas sobre una característica
 arquitectónica. Un manifiesto declara, para cada servicio, su lenguaje, su base de datos, las tablas de las que es
 dueño y las referencias que cruzan hacia otros dominios, y doce pruebas lo verifican en cada
-cambio: que ningún servicio importe código de otro ni declare una tabla ajena, que toda referencia
+cambio. Nueve revisan el código y el propio manifiesto: que ningún servicio importe código de otro ni declare una tabla ajena, que toda referencia
 cruzada esté declarada, que ninguna tabla tenga dos dueños y que el grafo de dependencias sea
-acíclico. Dos pruebas más, añadidas con las colas, y una con Redis, extienden la verificación a
-esos canales. La lista completa de las doce pruebas está en el Anexo~\ref{anx:ampliaciones}.
+acíclico. Las otras tres, dos añadidas con las colas y una con Redis, extienden la verificación a
+esos canales. La lista completa está en el Anexo~\ref{anx:ampliaciones}.
 El motivo de instrumentarlas es que el defecto que encontró el rediseño, la tabla de productos
 declarada como maestra en dos servicios a la vez, no se produjo por falta de criterio sino porque
 nada lo verificaba de forma continua.
 
-Una función de aptitud que nunca ha fallado no está demostrada, pues podría no estar
-midiendo nada. Por ello el conjunto incluye un segundo nivel, con veintiocho pruebas, que
-suministra a los detectores infracciones plantadas y verifica que las detecten, además de
-casos que no deben marcarse. Entre esas infracciones están una tabla ajena declarada como
-el doble maestro y el ciclo de dependencias que existió. Ante una infracción plantada, la
+Una función de aptitud que nunca ha fallado no está demostrada. Por ello un segundo nivel, con
+veintiocho pruebas, suministra a los detectores infracciones plantadas y casos que no deben marcarse. Ante una infracción plantada, la
 integración falla e indica el archivo, la línea, el dominio invadido y la remediación
 sugerida.
 
@@ -269,9 +269,9 @@ sugerida.
 \subsection{Asignación de lenguajes: una decisión medida}
 \label{sec:lenguajes}
 
-La hipótesis de partida sostenía que los componentes intensivos en cómputo debían reescribirse en
+La hipótesis de partida era que los componentes intensivos en cómputo debían reescribirse en
 un lenguaje compilado. Para contrastarla se perfiló una lista escolar de veinte ítems, la mediana
-del corpus real, contra un catálogo de 3.187 productos. Las cifras son reportadas por la
+del corpus real, contra un catálogo de 3.187 productos, el de la ingesta masiva anterior y no el actual de 1.050. Las cifras son reportadas por la
 documentación del código, no recalculadas. El 95,3\,\% de la latencia lo producía una sola línea,
 que reconstruía un grafo de sustituibilidad en cada ítem; construirlo cuesta 1.673~ms y consultarlo,
 0,137~ms. Corregido ese defecto, la reducción que aporta cambiar de lenguaje queda, según la ley de
@@ -293,11 +293,9 @@ cuarenta y nueve registros, numerados de 0001 a 0049, en el registro de decision
 arquitectura (Tabla~\ref{tab:anexos}); la Tabla~\ref{tab:adr} destaca los que estructuran el
 diseño de este capítulo.
 
-El ADR 0016 ilustra una propiedad del método. Nació de una contradicción entre decisiones previas
-que solo se hizo visible al redactar el criterio de aceptación de un requisito: la política de
-seguridad no podía evaluarse en ninguno de los tres servicios donde hacía falta, porque la
-matrícula vive en la base de identidad. Un registro obliga a escribir el fundamento donde puede
-contrastarse con otro.
+El ADR 0016 ilustra el método: una contradicción entre decisiones previas, visible solo al redactar
+un criterio de aceptación, mostró que la política de seguridad no podía evaluarse donde hacía falta,
+porque la matrícula vive en la base de identidad.
 
 % Tabla tab:adr movida al Anexo A.3 (tablas del cuerpo)
 

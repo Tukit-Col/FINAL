@@ -14,8 +14,9 @@ El hilo es el siguiente. En el análisis del problema se vio que una lista escol
 marcas y cantidades ambiguas, y que no existía un catálogo estructurado contra el cual compararla. Por
 eso el capítulo empieza por el pipeline y por los datos con que se alimenta y se mide (Data
 Preparation), y luego sigue las etapas en su orden: percepción, normalización y resolución, y
-optimización (Modeling). Al final se registran las constantes que quedaron fijas y la aplicación que
-expone el resultado al acudiente. Las cifras que miden cada etapa se presentan en el capítulo de
+optimización (Modeling). Después se presentan la aplicación que expone el resultado al acudiente, la
+calibración del optimizador y el asistente en lenguaje natural; las constantes fijas están en el
+Anexo~\ref{anx:constantes}. Las cifras que miden cada etapa se presentan en el capítulo de
 resultados (Evaluation).
 
 % =====================================================================
@@ -102,7 +103,7 @@ confiable o premium) y solo el representante canónico de cada grupo de variante
 búsqueda y en la optimización. Al 4 de noviembre de 2026 tenía 1.054 productos, 417 representantes
 canónicos y 8 tiendas de procedencia. Los conjuntos de evaluación son CGS-10 para la percepción (10
 documentos, 1.293 ítems), el oro de recuperación (2.588 renglones), el banco de 175 instancias de 174
-listas reales de 17 colegios y su partición por colegio: 3 colegios de prueba, con 32 listas, y 14 de
+listas reales de 17 colegios y su partición por colegio: 3 colegios de prueba, con 40 listas (32 por encima del umbral de enumeración), y 14 de
 calibración en cinco pliegues. Se parte por colegio porque las listas de un mismo colegio se parecen
 entre sí. La Tabla~\ref{tab:datos-sistema} y los sesgos de cada conjunto están en el
 Anexo~\ref{anx:datos-sistema}; cada sección de resultados repite el sesgo junto a la cifra que afecta.
@@ -142,7 +143,8 @@ detecte. Queda un caso: si el nombre figura en el documento cargado, viaja con l
 proveedor, y si el modelo lo lee como renglón, queda 30 días en la lectura que guarda Redis. Su
 depuración, que pide PE-06, se delimitó como parte del endurecimiento productivo previo al
 despliegue con familias (Secciones~\ref{sec:defectos} y~\ref{sec:trabajo-futuro}), porque la
-evaluación del trabajo usó listas con estudiantes ficticios.
+evaluación con el prototipo usó listas con estudiantes ficticios, aunque en el OE5 varios acudientes subieron listas
+de sus hijos y esa depuración sigue pendiente.
 
 % =====================================================================
 \subsection{Normalización y resolución}
@@ -197,7 +199,7 @@ renglones con concepto. Los atributos y los niveles distinguen
 las variantes, y el sistema se abstiene cuando el producto contradice un atributo impuesto. Cada
 atributo se compara a su manera (exacto, como mínimo, con tolerancia o por equivalencias), y el
 que el producto no declara no cumple (ADR 0043). Un grafo
-de sustitución entre productos se evaluó y se descartó: subía la cobertura del 41,3\,\% al
+de sustitución entre productos se evaluó en un prototipo y se descartó (cifras de prototipo, sin fuente canónica): subía la cobertura del 41,3\,\% al
 65,3\,\%, pero bajaba la precisión del 86,7\,\% al 83,5\,\%. La tabla de sustitución dirigida entre
 conceptos curados no tiene datos y no se consulta (Sección~\ref{sec:consolidacion}).
 
@@ -255,8 +257,8 @@ el núcleo del sintagma va primero. Si el núcleo está en la cabeza del nombre 
 concepto, el puntaje es $0{,}6+0{,}4\,J+\gamma\cos$, donde $J$ es el parecido de Jaccard entre las
 palabras significativas y $\cos$ es el coseno entre $v_r$ y $v_c$, recortado en 0. Si el núcleo
 aparece en otra posición, el puntaje es $J+\gamma\cos$. Si no aparece y el coseno alcanza $\theta$, el
-rescate asigna $\phi+0{,}4(\cos-\theta)/(1-\theta)$, que parte del piso $\phi$, apenas sobre el corte de revisión de
-0,5. En cualquier otro caso el puntaje es 0. Como $\gamma\cos\ge 0$, el puntaje híbrido nunca es
+rescate asigna $\phi+0{,}4(\cos-\theta)/(1-\theta)$, que parte del piso $\phi$, apenas sobre el piso de 0,5 por debajo del cual el renglón queda sin correspondencia (el corte de revisión,
+distinto de $\tau$). En cualquier otro caso el puntaje es 0. Como $\gamma\cos\ge 0$, el puntaje híbrido nunca es
 menor que el léxico, que es la garantía que la tesis afirma, y el umbral alto de rescate impide que
 un parecido de tema, como el de «chaquiras» con «colores», se cuele.
 
@@ -309,7 +311,7 @@ utilidad única \citep{zitzler_multiobjective_1999}.
 La prueba de concepto usaba NSGA-II
 \citep{deb_fast_2002} con una población de 60, 100 generaciones, un tope de 50 ítems y 30 segundos,
 y fundía la calidad con el personaje. En el banco de alternativas, sobre nueve instancias
-sintéticas, quedó a un 0,07\,\% del óptimo, frente al 11,92\,\% de un algoritmo voraz. El sistema
+sintéticas (cifra de prototipo, no reproducida), quedó a un 0,07\,\% del óptimo, frente al 11,92\,\% de un algoritmo voraz. El sistema
 construido conserva el algoritmo, con pymoo \citep{blank_pymoo_2020}, y cambia tres cosas. Calcula
 el frente exacto cuando hay 4.096 combinaciones o menos; separa el personaje como objetivo propio; y
 hace crecer la población y las generaciones con la lista, con una semilla fija. El servicio no
@@ -325,7 +327,7 @@ cuando hay personaje y «A tu Medida» cuando se armó; si no, el Premium cuando
 un sobreprecio de al menos el 10\,\% y la utilidad multiatributo lo prefiere al Ahorrador
 (Sección~\ref{sec:optimizacion-cal}), y en los demás casos el Ahorrador. La regla sale
 de la encuesta del Dossier OE1, en la que el 70\,\% de los acudientes no pagaría más de un 5\,\% de
-sobreprecio. El tope es el presupuesto por hijo, sin ampliarlo por el sobreprecio aceptado. Si el
+sobreprecio; el corte del 10\,\% es una constante de la regla en el código, no un valor medido. El tope es el presupuesto por hijo, sin ampliarlo por el sobreprecio aceptado. Si el
 kit marcado no cabe, se marca el de mejor marca que sí cabe y, solo si ninguno cabe, el más barato,
 con la razón y su costo (ADR 0029). El presupuesto acota la recomendación, no el frente: los demás
 kits siguen a la vista.
@@ -430,7 +432,7 @@ Pantalla & Qué atiende & Cómo se verificó \\
 \midrule
 (b) De quién es la lista & Elegir colegio, grado y gustos por hijo; un pedido por hogar & Pruebas de identidad y T1 y T2 del OE5 \\
 (c) Opción de gasto & Prioridad y tope como restricción dura (ADR 0029, 0030) & Pruebas del optimizador y T2 \\
-(d) Los kits & De dos a cuatro kits del mismo frente (ADR 0030), con uno recomendado (MAUT) & Igualdad con el óptimo exacto y T4 \\
+(d) Los kits & De dos a cuatro kits del mismo frente (ADR 0030), con uno recomendado (MAUT) & HV de prueba y T4 (T4 mostró problemas) \\
 (e) Cambiar o quitar & Descarte y cambio por opciones del mismo concepto (ADR 0028) & Pruebas de comercio y T5 \\
 (f) Pago aprobado & Pago en el widget, confirmación idempotente (ADR 0025, 0033) & Recorrido con pago simulado y T6 y T7 \\
 Revisión del equipo & Cada lista nueva se revisa antes de publicarla (PE-04) & Pruebas de la cola y T3 \\
@@ -480,8 +482,8 @@ La propuesta prometió que el acudiente pudiera pedir cambios en español, por e
 mi hija, máximo 500 mil». El asistente del kit traduce esa frase en filtros, pesos y preferencias
 que consume el optimizador, y nada se aplica sin la confirmación del acudiente. Como el texto lo
 puede escribir un atacante, las acciones permitidas las fija el servidor y no el modelo. Con 35
-frases y 27 ataques de inyección, la tarea completa se cumplió en 58 de 70 intentos (82,9\,\%) y
+frases (dos repeticiones cada una) y 27 ataques de inyección (tres cada uno), la tarea completa se cumplió en 58 de 70 intentos (82,9\,\%) y
 ningún ataque tuvo éxito en 81 intentos, lo que con ese tamaño acota la tasa de éxito por debajo de
 cerca de 3,7\,\%. En las sesiones del OE5 el asistente estuvo visible, pero ningún acudiente lo usó,
-así que su utilidad con usuarios queda como trabajo futuro. El análisis, el diseño, el seudocódigo y
+así que solo su seguridad está validada y su utilidad con usuarios queda como trabajo futuro. El análisis, el diseño, el seudocódigo y
 la evaluación completos están en la Sección~\ref{sec:nl2c} del anexo.
