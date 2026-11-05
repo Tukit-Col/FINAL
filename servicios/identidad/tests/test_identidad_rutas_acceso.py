@@ -765,16 +765,19 @@ class TestSesiones:
             "campo": "correo",
         }
 
-    async def test_el_cierre_de_sesion_es_204_sin_estado_en_el_servidor(self, mundo: Mundo):
-        """El token es autocontenido: cerrar no lo invalida (para eso esta la
-        version de permisos). Caracteriza que el cierre no toca la base."""
+    async def test_el_cierre_de_sesion_es_204_y_revoca_el_token(self, mundo: Mundo):
+        """Desde fd01e78 cerrar sube la `version_permisos` del portador (routers/identidad.py:782-797):
+        el mismo token ya no abre `/v1/cuenta`. Antes lo caracterizaba abierto (H-A-32). Cerrar
+        no crea filas, y cerrar otra vez con el token revocado responde igual."""
         antes = {tabla: await mundo.contar(tabla) for tabla in _TABLAS_DE_ESCRITURA}
 
         cierre = await mundo.http.post("/v1/sesiones/cierre", headers=mundo.con("mama"))
         despues = await mundo.http.get("/v1/cuenta", headers=mundo.con("mama"))
+        otra_vez = await mundo.http.post("/v1/sesiones/cierre", headers=mundo.con("mama"))
 
         assert (cierre.status_code, cierre.content) == (204, b"")
-        assert despues.status_code == 200
+        assert despues.status_code == 401
+        assert (otra_vez.status_code, otra_vez.content) == (204, b"")
         assert {tabla: await mundo.contar(tabla) for tabla in _TABLAS_DE_ESCRITURA} == antes
 
 

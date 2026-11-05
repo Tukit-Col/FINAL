@@ -130,9 +130,20 @@ class TestParserConVolcadosRaros:
     def test_generar_json_busqueda_ordena_por_nombre_y_solo_trae_lo_del_buscador(self):
         registros = generar_json_busqueda(_VOLCADO_FICTICIO)
 
+        # 77bb105: cada registro lleva tambien `imageURL`, el logo curado a mano (None sin curar).
         assert registros == [
-            {"dane": "900000000001", "nombre": "COLEGIO FICTICIO ALFA", "localidad": "LOCALIDAD FICTICIA"},
-            {"dane": "900000000002", "nombre": "COLEGIO FICTICIO ZETA", "localidad": "LOCALIDAD FICTICIA"},
+            {
+                "dane": "900000000001",
+                "nombre": "COLEGIO FICTICIO ALFA",
+                "localidad": "LOCALIDAD FICTICIA",
+                "imageURL": None,
+            },
+            {
+                "dane": "900000000002",
+                "nombre": "COLEGIO FICTICIO ZETA",
+                "localidad": "LOCALIDAD FICTICIA",
+                "imageURL": None,
+            },
         ]
 
     @pytest.mark.xfail(
@@ -292,6 +303,7 @@ class TestHerramientaDeDatos:
             "dane": "900000000009",
             "nombre": "COLEGIO FICTICIO CAÑADA",
             "localidad": None,
+            "imageURL": None,
         }
         # `ensure_ascii=False`: el archivo guarda la letra, no un escape \u00d1.
         assert "CAÑADA" in destino.read_text(encoding="utf-8")
@@ -330,14 +342,8 @@ class TestHerramientaDeDatos:
         assert salida.value.code == 2
         assert "Uso:" in capsys.readouterr().out
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-A-19: el mensaje de uso de _main manda a "
-            "`python -m tukit_identidad.directorio_bogota`, un modulo que no existe (directorio.py:249); "
-            "el modulo real es tukit_identidad.dominio.directorio"
-        ),
-    )
+    # H-A-19, corregido en 77bb105 (el uso nombra `tukit_identidad.dominio.directorio`): salia
+    # XPASS(strict) en la corrida oe5 y se quito el xfail.
     def test_el_modulo_que_anuncia_el_mensaje_de_uso_existe(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ):
