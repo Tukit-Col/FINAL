@@ -21,7 +21,8 @@ Aqui se suma lo que no cubren:
   componentes, textos de 1 a 160 caracteres.
 - **Ni la tarjeta ni lo ajeno salen.** Ni al modelo, ni a la respuesta, ni a la bitacora.
 
-Lo que se espera rojo va sin `xfail`: es candidato a hallazgo hasta la corrida.
+Lo que se espera rojo va sin `xfail`: es candidato a hallazgo hasta la corrida. La corrida
+oe5 abrio H-A-65 (ADV-15, el motivo de `sin_accion` crudo en la bitacora).
 """
 
 from __future__ import annotations
@@ -459,6 +460,11 @@ class TestADV15HerramientasFueraDeLista:
         assert await _filas(motor) == antes
         assert lecturas == [str(tid)]
 
+    @pytest.mark.xfail(
+        strict=True,
+        reason="H-A-65: interpretar copia a la bitacora el `motivo` de `sin_accion` tal como lo "
+        "escribe el modelo, sin lista ni tope (nl2c_flujo.py:52-65)",
+    )
     async def test_al_empezar_el_motivo_de_sin_accion_llega_a_la_bitacora_como_un_codigo(
         self,
         cliente,  # noqa: F811
