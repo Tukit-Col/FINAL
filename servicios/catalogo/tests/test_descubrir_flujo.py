@@ -809,21 +809,15 @@ class TestResolverAprobar:
         bd.rollback()
         assert bd.scalar(select(OfertaTienda.metodo_vinculacion)) == "manual"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-A-12: aprobar una oferta cuyo EAN ya esta en el catalogo (otra tienda) revienta con "
-            "FK en oferta_tienda: el INSERT del producto (descubrir.py:781-804) se descarta por "
-            "ean UNIQUE y la oferta apunta al id que no se creo"
-        ),
-    )
+    # H-A-12, corregido en 048e13f (la oferta se cuelga del producto que ya tiene el EAN): salia
+    # XPASS(strict) en la corrida oe5 y se quito el xfail.
     async def test_aprobar_un_ean_que_ya_esta_en_el_catalogo_cuelga_la_oferta_del_producto_existente(
         self, bd
     ):
         """Un producto, varias tiendas: el mismo EAN en dos tiendas es UN producto con DOS ofertas.
 
-        Es el caso normal de un catalogo comparador. Hoy la segunda aprobacion no encuentra el
-        producto que el EAN ya tiene y deja la oferta huerfana (la transaccion se deshace).
+        Es el caso normal de un catalogo comparador. Antes de 048e13f la segunda aprobacion no
+        encontraba el producto que el EAN ya tenia y dejaba la oferta huerfana (H-A-12).
         """
         mundo = _sembrar(bd)
         en_exito = _propuesta(bd, mundo, referencia_externa="E-1", ean="7700000000035")
