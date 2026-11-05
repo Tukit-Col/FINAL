@@ -4,7 +4,8 @@
 decisiones que quedaban: que hace con un evento que no maneja, con un destinatario
 que no puede resolver o con un contacto que Identidad no entrega; que el sink del
 broker solo ve lo ENTREGADO; que la pasada respeta el limite y el orden; y como
-`correr_una_vez` recorre las dos bandejas de origen, comparte notificador e
+`correr_una_vez` recorre las tres bandejas de origen (la de Operacion lleva las
+respuestas a tickets del back-office desde cef2c25), comparte notificador e
 identidad, y CIERRA motores y sink aunque una pasada reviente. Despues, el bucle
 (`--seguir`) y la entrada de linea de comandos, con el reloj y la red sustituidos.
 
@@ -141,7 +142,11 @@ async def origen() -> AsyncIterator[Origen]:
 
 @pytest_asyncio.fixture
 async def origenes() -> AsyncIterator[dict[str, Origen]]:
-    por_servicio = {"inteligencia": await _crear_origen(), "comercio": await _crear_origen()}
+    por_servicio = {
+        "inteligencia": await _crear_origen(),
+        "comercio": await _crear_origen(),
+        "operacion": await _crear_origen(),
+    }
     yield por_servicio
     for uno in por_servicio.values():
         await uno.engine.dispose()
@@ -446,24 +451,24 @@ class TestCorrerUnaVez:
 
         resultado = await correr_una_vez()
 
-        assert resultado == {"inteligencia": 1, "comercio": 2}
-        assert entorno.pedidos_de_lectura == ["inteligencia", "comercio"]
+        assert resultado == {"inteligencia": 1, "comercio": 2, "operacion": 0}
+        assert entorno.pedidos_de_lectura == ["inteligencia", "comercio", "operacion"]
         assert [e["plantilla"] for e in entorno.notificador.enviados] == [
             "kits_publicados",
             "pedido_pagado",
             "pedido_pagado",
-        ]  # un solo notificador, compartido por las dos pasadas
+        ]  # un solo notificador, compartido por las tres pasadas
         assert entorno.identidad.consultados == [str(USUARIO)] * 3
         assert len(await _notificaciones(operacion)) == 3
-        assert [await uno.pendientes() for uno in origenes.values()] == [[], []]
+        assert [await uno.pendientes() for uno in origenes.values()] == [[], [], []]
 
     async def test_sin_nada_pendiente_reporta_ceros(self, entorno):
-        assert await correr_una_vez() == {"inteligencia": 0, "comercio": 0}
+        assert await correr_una_vez() == {"inteligencia": 0, "comercio": 0, "operacion": 0}
 
     async def test_cierra_los_motores_de_origen_y_el_de_operacion(self, entorno, origenes):
         await correr_una_vez()
 
-        assert [uno.dispuesto for uno in origenes.values()] == [True, True]
+        assert [uno.dispuesto for uno in origenes.values()] == [True, True, True]
         assert entorno.eventos == ["cerrar_operacion"]
 
     async def test_con_broker_publica_cada_entrega_y_lo_cierra_al_final(self, entorno, origenes, monkeypatch):

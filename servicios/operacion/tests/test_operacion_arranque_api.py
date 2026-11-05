@@ -25,6 +25,7 @@ import httpx
 import pytest
 import pytest_asyncio
 import uvicorn
+from conftest import TOKEN_OPERADOR, IdentidadFalsa, bearer
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from tukit_comun import esquema
@@ -145,10 +146,13 @@ class TestElCicloDeVida:
             pool = api.app.state.pool_identidad
             assert api.app.state.motor is motor_sqlite
             assert pool.is_closed is False
+            # La bandeja es solo de staff (cef2c25): la sesion la valida una Identidad en memoria,
+            # sin red; el motor y el pool siguen siendo los que cuelga el arranque.
+            api.app.state.identidad = IdentidadFalsa()
             async with httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=api.app), base_url="http://prueba"
             ) as http:
-                bandeja = await http.get("/v1/operacion/casos")
+                bandeja = await http.get("/v1/operacion/casos", headers=bearer(TOKEN_OPERADOR))
 
         assert bandeja.status_code == 200
         assert bandeja.json()["casos"] == []
