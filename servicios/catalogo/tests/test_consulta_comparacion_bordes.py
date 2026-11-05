@@ -118,7 +118,13 @@ class TestAlMenosSinTope:
 
 
 class TestLaUnidadDeLoQueSeMide:
-    # Candidato a hallazgo si falla: el ADR dice «al menos lo pedido» y `longitud` si convierte.
+    # El ADR dice «al menos lo pedido» y `longitud` si convierte (`_A_CM`); `gramaje` y `capacidad`
+    # no: `_valor_cumple` exige la misma unidad escrita (consulta.py:195).
+    @pytest.mark.xfail(
+        strict=True,
+        reason="H-A-64: `_AL_MENOS` compara gramaje y capacidad solo en la misma unidad "
+        "(consulta.py:195): 1 kg no cumple 500 g y 1 l no cumple 500 ml",
+    )
     @pytest.mark.parametrize(
         ("atributo", "declarado", "pedido"),
         [("gramaje", "1 kg", "500 g"), ("capacidad", "1 l", "500 ml")],
