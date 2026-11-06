@@ -15,7 +15,7 @@ en tres o más lugares y que la queja más frecuente es no encontrar el producto
 agotado (43,3\,\%). Las entrevistas con directivos, docentes y acudientes confirmaron esa
 fricción.
 
-Las alternativas actuales no resuelven ese recorrido completo: en las tiendas colombianas es el
+Las alternativas actuales no resuelven ese recorrido completo. En las tiendas colombianas es el
 acudiente quien debe traducir la lista del colegio en productos, y plataformas como TeacherLists, en Estados
 Unidos, convierten la lista del salón en un carrito \citep{teacherlists_retail_2026}, pero, hasta donde se revisó (Capítulo~III), ninguna lee listas en papel o
 en foto ni está disponible en Colombia.\par
@@ -24,7 +24,7 @@ Frente a este panorama, el proyecto construyó Tukit, un sistema de recomendaci�
 modelo B2B2C, en el que el colegio aporta la lista oficial y la familia hace la compra. El acudiente
 elige el colegio y el grado de cada hijo, o sube su propia lista en imagen, PDF o texto libre, e indica
 su presupuesto y sus preferencias. A cambio recibe hasta cuatro kits completos (Ahorrador, Premium, Fan y
-A tu Medida) y puede cambiar cualquier producto antes de pagar (el pago es simulado en esta versión). Para
+A tu Medida), puede cambiar cualquier producto o pedirle cambios al asistente del kit antes de pagar (el pago es simulado en esta versión), y después sigue su pedido y gestiona sus datos personales desde la misma aplicación. Para
 llegar a esos kits, el sistema recorre tres etapas.\par
 
 \begin{itemize}
@@ -43,8 +43,8 @@ llegar a esos kits, el sistema recorre tres etapas.\par
 A esas etapas se suma un asistente que traduce una frase del acudiente, por ejemplo «Minnie para mi hija, máximo 500 mil», en filtros para el optimizador (NL2C, de \emph{natural language to constraints}); el Capítulo~VI lo describe.\par
 
 Para llegar a los kits, la estrategia toma de la generación aumentada por recuperación (RAG) \citep{lewis_retrieval-augmented_2020}
-la indexación y la recuperación de productos. Los kits los construye el optimizador, no un modelo de
-lenguaje, y el equipo de Tukit los revisa antes de publicarlos (\emph{human-in-the-loop}, es decir, con una persona en el circuito).\par
+la indexación y la recuperación de productos. En lugar de que un modelo de
+lenguaje redacte la respuesta, los kits los construye el optimizador, y el equipo de Tukit los revisa antes de publicarlos (\emph{human-in-the-loop}, es decir, con una persona en el circuito).\par
 
 Todo corre sobre cinco servicios de dominio con base propia y una puerta de enlace, es decir, seis unidades desplegables.\par
 
@@ -53,7 +53,7 @@ El piloto se hizo en un solo colegio de Bogotá. Se eligió porque, con la autor
 El trabajo siguió una metodología híbrida de cinco fases, una por cada objetivo específico, que el Capítulo~II detalla. SCRUM \citep{schwaber_scrum_2020}, un marco que trabaja en ciclos cortos, organizó la construcción en ciclos de dos semanas. Por objetivo, el OE1 usó Design Thinking \citep{brown_design_2008} e IEEE~830 \citep{ieee_830_1998}; el OE2, RUP \citep{kruchten_rup_2003}, ATAM \citep{bass_software_2021} (un método para evaluar una arquitectura frente a sus atributos de calidad) e IEEE~1016 \citep{ieee_1016_2009}; el OE3 y el OE4, SCRUM y CRISP-DM \citep{chapman_crisp-dm_2000} (un proceso estándar de seis etapas para proyectos que dependen de datos); y el OE5, ISO/IEC~25010 con un protocolo de validación registrado de antemano. Las normas IEEE~830, 1016 y 1058 \citep{ieee_1058_1998} dieron forma a tres documentos: la especificación de requerimientos de software (SRS), el documento de diseño de software (SDD) y el plan del proyecto.\par
 
 El documento sigue ese mismo orden, de entender el problema a construir la solución y luego a comprobarla.
-El Capítulo~II presenta los objetivos y asigna cada fase (F1 a F5) a un objetivo (OE1 a OE5) y a su metodología; el III reúne los conceptos y las soluciones existentes. El IV es la Fase~1 (OE1): de las entrevistas y la encuesta salen los requerimientos.
+El Capítulo~II presenta los objetivos y asigna cada fase (F1 a F5) a un objetivo (OE1 a OE5) y a su metodología; el III reúne los conceptos y las soluciones existentes. El IV es la Fase~1 (OE1), que deriva los requerimientos de las entrevistas y la encuesta.
 El V es la Fase~2 (OE2) y elige y documenta la arquitectura. El VI recoge las Fases~3
-y~4 (OE3 y OE4): la percepción, la normalización y la optimización. El VII reúne la evaluación: mide las etapas de datos y después el sistema integrado y el uso por acudientes (OE5). El VIII cierra con las conclusiones y el trabajo
+y~4 (OE3 y OE4): la percepción, la normalización y la optimización. El VII reúne la evaluación, que mide las etapas de datos y después el sistema integrado y el uso por acudientes (OE5). El VIII cierra con las conclusiones y el trabajo
 futuro. Los anexos guardan el material de reproducción y auditoría.\par

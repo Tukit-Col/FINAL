@@ -6,7 +6,7 @@
 
 \subsubsection{Impacto en la ingeniería de sistemas}
 
-Este capítulo explica qué dejó el trabajo a la ingeniería de sistemas y a su contexto, comprueba el cumplimiento de cada objetivo específico y propone el trabajo futuro. Los métodos fueron Design Thinking con la norma IEEE 830 en el OE1; RUP con la norma IEEE 1016 y ATAM en el OE2; SCRUM con CRISP-DM en los OE3 y OE4; y la norma ISO/IEC 25010 con un protocolo preregistrado en el OE5. SCRUM organizó además la construcción de todo el sistema. De ese trabajo quedan tres prácticas trasladables a otros proyectos.
+Este capítulo explica qué dejó el trabajo a la ingeniería de sistemas y a su contexto, comprueba el cumplimiento de cada objetivo específico y propone el trabajo futuro. Los métodos fueron Design Thinking con la norma IEEE 830 en el OE1; RUP con la norma IEEE 1016 y ATAM en el OE2; SCRUM con CRISP-DM en los OE3 y OE4; y la norma ISO/IEC 25010 con un protocolo preregistrado en el OE5. SCRUM organizó además la construcción de todo el sistema. Además del sistema construido, el trabajo deja tres prácticas que se pueden trasladar a otros proyectos.
 
 Primero, la arquitectura se eligió comparando alternativas con el método ATAM \citep{bass_software_2021}: la variante de grano grueso adoptada obtuvo 3,91 sobre 5 en la matriz ponderada, frente a 3,44 y 2,82 de las otras dos. La decisión se apoyó en impulsores comprobables: recuperabilidad asimétrica, frontera de cumplimiento y perfil de recurso heterogéneo.
 
@@ -72,11 +72,12 @@ El cuarto es estadístico: con menos de diez participantes la potencia no alcanz
 \subsubsection{Trabajo futuro}
 \label{sec:trabajo-futuro}
 
-El trabajo futuro sigue las cinco líneas de la propuesta de grado (VFP~v4) y parte de los límites ya señalados.
+El trabajo futuro sigue las cinco líneas de la propuesta de grado (VFP~v4), más el lanzamiento comercial, y parte de los límites ya señalados.
 \begin{enumerate}
 \item \textbf{Preparar el sistema para producción.} Es la condición para operar con familias reales e incluye ejecutar el servicio del catálogo con varios procesos, lo que reduce la latencia bajo carga, y cerrar los 85 hallazgos vigentes del control de calidad, 16 de severidad alta (Sección~\ref{sec:calidad-resumen}): autorización uniforme en las rutas, rol de acceso por base de datos, depuración del nombre del menor en el documento cargado, supresión de datos, medición de la cobertura en la integración continua y cobro real con la pasarela.
 \item \textbf{Cambios de la prueba con usuarios.} Son los ajustes a la tarea de elección del kit (T4 de las sesiones del OE5), el panel de colegio (requerimientos CO-01 y CO-02) y el ajuste de presupuesto en vivo.
 \item \textbf{Alianza con tiendas de uniformes e integración de libros.} Consiste en acordar con las tres tiendas de uniformes y conectar Buscalibre y las editoriales. El plan lector (los libros que pide el colegio) está poco cubierto: de 78 líneas de libros en las listas revisadas, solo 18 tienen su edición en el catálogo.
 \item \textbf{Calibración con más anotadores y más colegios.} Repetir la calibración del umbral y de los pesos con dos anotadores y más colegios, y comparar NSGA-II con otros optimizadores.
+\item \textbf{Lanzamiento comercial.} Con el sistema en producción, el paso siguiente es el lanzamiento en el colegio piloto, con la institución como canal de entrada a sus familias. La promoción se concentra en la temporada de diciembre a enero, cuando las familias preparan la compra, y se apoya en referidos entre padres del mismo colegio y en recordatorios por WhatsApp para que carguen su lista antes del inicio de clases. El lanzamiento se sigue con cuatro indicadores (conversión de lista cargada a kit comprado, costo de adquisición por cliente, activación de los colegios y recompra en la temporada siguiente), que reemplazan los supuestos del modelo financiero por mediciones reales.
 \item \textbf{Alcance del producto.} Aplicaciones nativas con modo sin conexión, rutas de entrega agrupadas entre tiendas y reventa de textos entre hogares.
 \end{enumerate}

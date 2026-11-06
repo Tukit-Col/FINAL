@@ -1,7 +1,29 @@
 \setcounter{subsection}{0}
 \section{DISEÑO DE LA SOLUCIÓN}
 
-Los capítulos anteriores fijaron el problema y los requerimientos de la Tabla~\ref{tab:req-resumen}. A partir de ellos, este capítulo desarrolla la Fase~2, que cubre el objetivo específico OE2. Para ello sigue las disciplinas de diseño del Proceso Unificado de Rational (RUP) y usa la norma IEEE~1016 como estructura del Documento de Diseño de Software (SDD). Primero se presentan los interesados, los impulsores del diseño (Sección~\ref{sec:impulsores}) y la descomposición en seis desplegables, es decir, seis piezas que se arrancan y se actualizan por separado (Sección~\ref{sec:consolidacion}). Después se evalúa la arquitectura con ATAM \citep{bass_software_2021}, un método que contrasta alternativas con escenarios de calidad (Sección~\ref{sec:alternativas}), y se describen las vistas con el modelo 4+1 \citep{kruchten_41_1995}, la notación C4 \citep{brown_c4_2018} y la norma ISO/IEC/IEEE 42010 \citep{iso_42010_2022}. Cierran el modelo de dominio, la autorización y las decisiones registradas.
+Los capítulos anteriores fijaron el problema y los requerimientos de la Tabla~\ref{tab:req-resumen}. A partir de ellos, este capítulo desarrolla la Fase~2, que cubre el objetivo específico OE2. Para ello sigue las disciplinas de diseño del Proceso Unificado de Rational (RUP) y usa la norma IEEE~1016 como estructura del Documento de Diseño de Software (SDD). Primero se presentan el modelo de negocio (Sección~\ref{sec:modelo-negocio}), los interesados, los impulsores del diseño (Sección~\ref{sec:impulsores}) y la descomposición en seis desplegables, es decir, seis piezas que se arrancan y se actualizan por separado (Sección~\ref{sec:consolidacion}). Después se evalúa la arquitectura con ATAM \citep{bass_software_2021}, un método que contrasta alternativas con escenarios de calidad (Sección~\ref{sec:alternativas}), y se describen las vistas con el modelo 4+1 \citep{kruchten_41_1995}, la notación C4 \citep{brown_c4_2018} y la norma ISO/IEC/IEEE 42010 \citep{iso_42010_2022}. El capítulo cierra con el modelo de dominio, la autorización y las decisiones registradas.
+
+% =====================================================================
+\subsection{Modelo de negocio}
+\label{sec:modelo-negocio}
+
+El diseño parte del modelo de negocio de Tukit, que la Figura~\ref{fig:canvas} resume en los
+nueve bloques del lienzo de Osterwalder y Pigneur \citep{osterwalder_business_2010}.\par
+
+\begin{figure}[!tb]
+\centering
+\includegraphics[width=0.56\textwidth]{negocio/canvas-modelo-negocio}
+\caption{Lienzo del modelo de negocio de Tukit. Adaptado de Osterwalder y Pigneur
+\citep{osterwalder_business_2010}.}
+\label{fig:canvas}
+\end{figure}
+
+Varios bloques del lienzo se vuelven decisiones de arquitectura. Los canales dan las dos
+aplicaciones, la web del acudiente y el panel del equipo; las actividades de percepción,
+normalización y optimización son las etapas del \emph{pipeline}, y el catálogo, los pagos y las
+entregas dan origen a los servicios de catálogo, comercio y operación. La revisión humana exige
+una cola en el panel, y la dependencia de pasarelas y modelos externos explica los adaptadores
+intercambiables. Los costos e ingresos se estiman en la Sección~\ref{sec:viabilidad}.\par
 
 % =====================================================================
 \subsection{Marco de la descripción y fuerzas del diseño}
@@ -233,4 +255,4 @@ Por último, el pago se hace con el widget de Wompi, un formulario que ofrece la
 
 \subsection{Síntesis}
 
-El diseño descansa en tres decisiones. La descomposición se funda en la recuperabilidad asimétrica, la frontera de cumplimiento y el perfil de recurso, y no en la escalabilidad, que el cálculo de carga descarta; de ahí los seis desplegables. La matrícula permite saber a qué colegio pertenece cada dato y dar a cada rol un alcance limitado. Y las fronteras entre servicios se comprueban con doce pruebas automáticas (funciones de aptitud) en cada cambio, de modo que no dependen de que el equipo las recuerde. La autorización uniforme y la depuración del nombre del menor en el documento cargado quedan como endurecimiento productivo (Sección~\ref{sec:trabajo-futuro}). El siguiente capítulo describe cómo se construyó esta arquitectura en la Fase~3.
+El diseño descansa en tres decisiones: los seis desplegables, que salen de los impulsores y no de la escalabilidad; la matrícula, que dice a qué colegio pertenece cada dato y limita el alcance de cada rol; y las doce funciones de aptitud, que comprueban las fronteras entre servicios en cada cambio. El siguiente capítulo describe cómo se construyó esta arquitectura en las Fases~3 y~4.

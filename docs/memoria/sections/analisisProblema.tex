@@ -8,19 +8,18 @@ que fija el problema que se va a resolver, y con la comprensión del negocio de 
 docentes y directivos y se analizaron las listas de diecisiete colegios, y con esa información se
 escribieron los requerimientos con la forma de especificación de IEEE 830 \citep{ieee_830_1998}. El
 capítulo presenta primero los requerimientos, luego las restricciones legales, de pagos y técnicas, y
-por último la especificación funcional. Encontramos que lo que más pesa en la compra es el esfuerzo de
+por último la especificación funcional. Se encontró que lo que más pesa en la compra es el esfuerzo de
 buscar y reunir los productos, y que decidir a qué producto corresponde cada renglón de la lista (lo
-que llamamos resolución) es una etapa necesaria del flujo. Los guiones de entrevista y los mapas de
-empatía están en los anexos (Tabla~\ref{tab:anexos}).\par
+que aquí se llama resolución) es una etapa necesaria del flujo. Los guiones de entrevista están en los
+anexos (Tabla~\ref{tab:anexos}).\par
 
 % =====================================================================
 \subsection{Requerimientos}
 
 \subsubsection{Actores del sistema}
 
-Esta sección identifica quiénes intervienen en el sistema, explica cómo se levantaron los
-requerimientos con la encuesta, las conversaciones y las listas de los colegios, describe cómo se
-organizaron y priorizaron, y presenta los trece que más condicionan el diseño. La caracterización del dominio identificó cuatro actores con intereses distintos frente al
+Esta sección identifica los actores, explica cómo se levantaron y priorizaron los requerimientos y
+presenta los trece que más condicionan el diseño. La caracterización del dominio identificó cuatro actores con intereses distintos frente al
 sistema. La Tabla~\ref{tab:actores} los presenta junto con su relación con Tukit y su nivel
 de poder e interés, es decir, qué tanto pueden influir en el éxito del sistema y qué tanto
 les afecta su resultado. El colegio ocupa una posición central, porque controla el
@@ -50,7 +49,7 @@ aunque no usa el sistema. & Poder bajo, interés alto \\
 
 \subsubsection{Proceso de levantamiento}
 
-El método de levantamiento fue el de Design Thinking: empatía con los usuarios mediante una encuesta y entrevistas, y definición del problema a partir de ellas. Los requerimientos se obtuvieron principalmente de una encuesta a acudientes del
+El método de levantamiento fue el de Design Thinking, con la empatía con los usuarios mediante una encuesta y entrevistas, y definición del problema a partir de ellas. Los requerimientos se obtuvieron principalmente de una encuesta a acudientes del
 Colegio Agustiniano Ciudad Salitre, aplicada de forma presencial en el Día de la Familia en el
 colegio con autorización del rector. Esta modalidad reunió en pocas horas a familias de todos los niveles, de preescolar a media, y
 permitió conversar con docentes y directivos sobre cómo la institución elabora sus listas.\par
@@ -87,7 +86,7 @@ El 65\,\% dedica cuatro horas o más a la compra de los útiles de un hijo, y el
 compra en tres o más lugares. &
 Entregar la lista completa resuelta en un solo lugar, en lugar de producto por producto. \\
 El 76,7\,\% recibe la lista con más de un mes de anticipación. &
-Reducir el esfuerzo de comprar, porque la mayoría de las familias recibe la lista con más de un mes de anticipación y aun así el 65\,\% dedica cuatro horas o más. \\
+Reducir el esfuerzo de buscar y reunir los productos, que no depende de cuándo llega la lista. \\
 La dificultad más mencionada (43,3\,\%) es no encontrar el producto o encontrarlo agotado, y
 el 23,3\,\% menciona los libros y textos escolares. &
 Considerar la disponibilidad al armar los kits e informar con claridad los renglones que no
@@ -121,16 +120,37 @@ Además, se analizaron las listas reales de diecisiete colegios del sector para 
 requerimientos de lectura y normalización. Con toda esta información se elaboró la
 Especificación de Requerimientos de Software (SRS), siguiendo el estándar IEEE 830 y su sucesor, ISO/IEC/IEEE
 29148 \citep{ieee_830_1998,iso_29148_2018}.\par
+
+\subsubsection{Mapa de empatía}
+\label{sec:mapa-empatia}
+
+Del levantamiento surgieron tres arquetipos de comprador que dieron origen a los kits. El
+Ahorrador prioriza el precio total y el cumplimiento de la lista, el Fan busca que los útiles
+motiven al hijo sin un sobrecosto desproporcionado y el Premium antepone la calidad y la marca
+a cambio de no tener que buscar. Para comprender al acudiente, quien arma y paga el kit, los
+hallazgos se organizaron en el mapa de empatía de la Figura~\ref{fig:mapa-empatia}, basado en
+el modelo de Gray \citep{gray_empathy_2017}, que reúne lo que piensa, oye, ve, dice y hace,
+sus esfuerzos y los resultados que espera.\par
+
+\begin{figure}[!tb]
+\centering
+\includegraphics[width=0.6\textwidth]{negocio/mapa-empatia}
+\caption{Mapa de empatía del acudiente, elaborado a partir de la encuesta a 60 acudientes del
+Colegio Agustiniano Ciudad Salitre y de entrevistas con padres de familia. Adaptado del modelo
+de Gray \citep{gray_empathy_2017}.}
+\label{fig:mapa-empatia}
+\end{figure}
+
+El mapa confirma que el mayor obstáculo es la disponibilidad (43,3\,\%) y no el precio, que solo
+menciona el 16,7\,\% como dificultad, y que el esfuerzo está en recorrer varios lugares y traducir
+cada renglón a un producto. Muestra también que la confianza crece con el respaldo de la institución y con un medio de
+pago conocido, y que el gusto del hijo ocupa el último lugar entre los criterios, aunque uno de
+cada cinco niños quedó insatisfecho con sus útiles el primer día de clases. Por eso Tukit parte
+de la lista oficial revisada y reúne la compra en un solo pedido con entrega a domicilio.\par
+
 \subsubsection{Organización y priorización}
 
-Los requerimientos se agrupan en tres categorías. Los requerimientos funcionales describen lo
-que el sistema debe hacer, como leer una lista o generar los kits, y se organizan según el
-componente del sistema que los atiende. Los requerimientos no funcionales describen cómo
-debe comportarse el sistema, por ejemplo en tiempo de respuesta, seguridad o facilidad de
-uso, y se organizan según los atributos de calidad de la norma ISO/IEC 25010
-\citep{iso_25010_2011}. Por último, los requerimientos propios del aprendizaje automático
-describen las condiciones que deben cumplir los modelos de inteligencia artificial, como la
-calidad mínima de la lectura de listas o el comportamiento ante casos de baja certeza.\par
+Los requerimientos se agrupan en tres categorías: los funcionales, que dicen qué hace el sistema y se organizan por componente; los no funcionales, que dicen cómo debe comportarse y siguen los atributos de calidad de la norma ISO/IEC 25010 \citep{iso_25010_2011}; y los propios del aprendizaje automático, que fijan las condiciones de los modelos, como la calidad mínima de la lectura o qué hacer ante baja certeza.\par
 
 Cada requerimiento se priorizó con el método MoSCoW \citep{clegg_case_1994}, que lo clasifica como indispensable
 (\emph{Must}), importante pero no crítico (\emph{Should}), deseable (\emph{Could}) o fuera
@@ -143,8 +163,7 @@ componente.\par
 Los requerimientos indispensables son 81 de los 98 priorizados (82,7\,\%), y la proporción responde a la naturaleza del
 sistema. Una obligación legal no puede clasificarse como opcional, y tampoco pueden serlo los
 requerimientos que definen qué ocurre cuando algo sale mal, por ejemplo cuando un pago falla
-o cuando la pasarela de pagos envía dos veces la misma confirmación. Sin ellos, el sistema
-podría cobrar dos veces o dejar un pedido a medias.\par
+o cuando la pasarela envía dos veces la misma confirmación, porque sin ellos el sistema podría cobrar dos veces o dejar un pedido a medias.\par
 
 \subsubsection{Requerimientos más importantes}
 \label{sec:req-importantes}
@@ -154,7 +173,7 @@ funcionales, con la característica de la norma ISO/IEC 25010 a la que pertenece
 \citep{iso_25010_2011}, y cinco funcionales, ordenados según el recorrido de una lista, desde su carga
 hasta la compra. Pesan más los de protección de datos, seguridad de los pagos y tiempo de respuesta. El conjunto completo, con su justificación, está en el SRS.
 
-En el SRS cada requerimiento lleva además un código por módulo, y la tabla cita algunos. CO corresponde al panel del colegio, PE a la percepción (lectura de la lista), PV a la privacidad y los derechos del titular de los datos, ML a los requisitos propios del aprendizaje automático y DP a los de desempeño. La Especificación Funcional usa también PS (perfil del acudiente), AD (administración), NR (normalización) y UM (última milla), mientras que las tablas del cuerpo usan RF y RNF.
+En el SRS cada requerimiento lleva además un código por módulo: CO (panel del colegio), PE (percepción), PV (privacidad), ML (aprendizaje automático), DP (desempeño), PS (perfil del acudiente), AD (administración), NR (normalización) y UM (última milla); las tablas del cuerpo usan RF y RNF.
 
 \begin{table}[htbp]
 \centering
@@ -172,7 +191,7 @@ RNF04 & Usabilidad & Aplicación web progresiva desde el celular, sin instalaci�
 RNF05 & Eficiencia de desempeño & 50 usuarios simultáneos y unos 1.000 pedidos en el día pico de diseño, con error menor al 5\,\% \\
 RNF06 & Eficiencia de desempeño & Crecer a 1.000 usuarios simultáneos replicando servicios, sin rediseño \\
 RNF07 & Fiabilidad & 90\,\% de disponibilidad de 12:00 a 14:00 y de 18:00 a 22:00 \\
-RNF08 & Fiabilidad & La falla de un servicio no tumba a los demás; sin lectura, se ofrece la carga manual \\
+RNF08 & Fiabilidad & La falla de un servicio no afecta a los demás; sin lectura, se conserva la solicitud para reintentarla \\
 \midrule
 RF01 & Funcional & Elegir la lista oficial o cargarla en foto, PDF o texto, y leerla en renglones con cantidad \\
 RF02 & Funcional & Asociar cada renglón con su concepto pese a sinónimos y errores, y enviar a revisión lo incierto \\
@@ -186,7 +205,7 @@ RF05 & Funcional & El equipo de Tukit revisa y publica la lista oficial antes de
 \subsection{Restricciones}
 \label{sec:restricciones}
 
-Tres restricciones condicionan el diseño: la protección de datos personales, el manejo de los pagos y la arquitectura técnica. La primera es la de mayor peso. La Ley 1581 de 2012
+Tres restricciones condicionan el diseño, que son la protección de datos personales, el manejo de los pagos y la arquitectura técnica. La primera es la de mayor peso. La Ley 1581 de 2012
 \citep{congreso_ley1581_2012} establece el régimen general de protección de datos
 personales en Colombia, y el Decreto 1377 de 2013 \citep{presidencia_decreto1377_2013} lo
 desarrolla con un régimen especial para los datos de niños, niñas y adolescentes. Una lista
@@ -194,37 +213,35 @@ escolar es siempre la de un menor, de modo que la restricción alcanza todo el f
 servicio, y atiende los derechos de consulta y de reclamo del titular (artículos 14 y 15 de la ley) mediante un caso de
 soporte dentro de los plazos legales.
 
-El sistema protege el nombre del menor por minimización: no lo recoge. No pide el
+El sistema protege el nombre del menor por minimización, es decir, no lo recoge. No pide el
 nombre legal; el apodo con que el acudiente identifica a cada hijo es opcional y se cifra en
 reposo, y la percepción extrae solo los ítems y el grado (PV-03). Con esta decisión, un dato
 que no se recoge no puede llegar a los registros, a los conjuntos de evaluación ni al modelo.
-Queda un caso: el nombre que figure en el documento cargado viaja con la página hacia la API
+Queda un caso abierto. El nombre que figure en el documento cargado viaja con la página hacia la API
 externa, y su depuración (PE-06) está pendiente.
 
 La segunda restricción proviene del dominio de pagos. El sistema no almacena ningún dato del
 medio de pago del acudiente: ni número de tarjeta, ni fecha de expiración, ni código de
 seguridad. Solo guarda el identificador de la transacción y su estado, porque la captura del
 medio de pago ocurre en el dominio de Wompi, una pasarela de pagos colombiana. En la evaluación se usó una versión simulada de la pasarela, conectada mediante una capa intermedia que permite cambiar a su entorno de pruebas o a otra pasarela (ADR 0033, un registro de decisión de arquitectura). Con ese diseño, Tukit quedaría fuera del alcance de cumplimiento de los datos de tarjeta una vez probada la pasarela real. La confirmación
-del pago no depende de la respuesta inmediata de la pasarela: llega por un aviso firmado de Wompi y
+del pago no depende de la respuesta inmediata de la pasarela, porque llega por un aviso firmado de Wompi y
 por la consulta de la transacción cuando el acudiente regresa. Ambos caminos pasan por un
 mismo procedimiento que se puede repetir sin duplicar el efecto (idempotente), porque el aviso puede llegar duplicado o fuera de orden, o
 perderse.
 
 Las restricciones técnicas se derivan del ADR 0014, que decidió guardar todo el código en un solo repositorio (monorrepositorio) y desplegar cada servicio por separado. El sistema tiene seis componentes que se despliegan: cinco servicios de dominio y una puerta de enlace, que recibe las peticiones y las reparte.
 
-En la evaluación corrieron en una sola máquina: Docker Compose (que levanta contenedores) arranca la infraestructura y el comando \texttt{make arriba} arranca los procesos, sin autoescalado ni clúster gestionado. Usan un PostgreSQL 16 con una base lógica por servicio, RabbitMQ (cola de mensajes entre servicios) y Redis (almacenamiento en memoria). El despliegue productivo queda como trabajo futuro (Sección~\ref{sec:trabajo-futuro}). Cada evento se escribe en una bandeja de salida en la misma transacción que el cambio de estado, y RabbitMQ lo lleva a la cola de cada consumidor (ADR 0046). Sin RabbitMQ, los consumidores leen las bandejas, y el sistema funciona completo con una sola base de datos, a costa de concentrar en ella la coordinación.
-
-Con estas restricciones claras, la siguiente sección describe qué hace el sistema y cómo fluye una lista desde que se carga hasta que se paga.
+En la evaluación corrieron en una sola máquina: Docker Compose (que levanta contenedores) arranca la infraestructura y el comando \texttt{make arriba} arranca los procesos, sin autoescalado ni clúster gestionado. Usan un PostgreSQL 16 con una base lógica por servicio, RabbitMQ (cola de mensajes entre servicios) y Redis (almacenamiento en memoria). El despliegue productivo queda como trabajo futuro (Sección~\ref{sec:trabajo-futuro}). Los eventos entre servicios pasan por una bandeja de salida y RabbitMQ (ADR 0046, Sección~\ref{sec:consolidacion}).
 
 % =====================================================================
 \subsection{Especificación Funcional}
 \label{sec:especificacion-funcional}
 
-Sobre esas restricciones, esta sección describe qué hace el sistema. Presenta primero quiénes lo usan, después las cuatro etapas por las que pasa una lista (percepción, normalización, resolución y optimización), con la revisión humana de la resolución, y termina con los datos de los colegios que muestran por qué esa resolución es necesaria.
+Sobre esas restricciones, esta sección describe quiénes usan el sistema, las cuatro etapas por las que pasa una lista y los datos que muestran por qué la resolución es necesaria.
 
-El SRS define cuatro roles de uso, distintos de los interesados de la Tabla~\ref{tab:actores}. El acudiente (padre, madre o tutor) es el comprador final:
-carga la lista, declara sus preferencias, elige un kit y paga, y solo ve sus propias
-solicitudes, pedidos y casos. El operador de Tukit revisa las listas y los kits: atiende la
+El SRS define cuatro roles de uso, distintos de los interesados de la Tabla~\ref{tab:actores}. El acudiente (padre, madre o tutor) es el comprador final.
+Carga la lista, declara sus preferencias, elige un kit y paga, y solo ve sus propias
+solicitudes, pedidos y casos. El operador de Tukit revisa las listas y los kits, atiende la
 cola de revisión y valida las líneas, pero no publica listas oficiales; también opera la
 logística de los pedidos. El administrador de
 Tukit tiene los permisos del operador y, además, publica las listas oficiales (CO-01), consulta
@@ -234,7 +251,7 @@ sobre todo en el kit Fan, y sus datos están protegidos por la ley. La entrega f
 tampoco tiene un actor propio: la hacen repartidores propios, y el despacho exige el nombre y
 el celular de quien entrega (UM-03).
 
-El flujo funcional encadena cuatro etapas. Primero, la \emph{percepción}: la lista escolar, fotografiada o entregada como
+El flujo funcional encadena cuatro etapas. Primero, en la \emph{percepción}, la lista escolar, fotografiada o entregada como
 documento, se convierte en texto estructurado con un modelo multimodal, es decir, un modelo de inteligencia artificial que lee imágenes y texto. Luego, la \emph{normalización} asigna cada renglón de
 texto libre a un concepto del catálogo (por ejemplo, ``cartulina'') mediante recuperación híbrida, una búsqueda que combina coincidencia de palabras y de significado. Los renglones que la
 normalización no cierra con certeza suficiente pasan a la \emph{resolución}. La
@@ -245,6 +262,6 @@ acudiente declara por cada hijo: cuánto quiere gastar y, si quiere, el personaj
 el Ahorrador y el Premium siempre, el Fan si indicó un personaje y «A tu Medida» si eligió el
 punto medio de gasto o declaró un tope.
 
-La resolución es la etapa en la que se decide a qué concepto corresponden los renglones que la normalización no pudo asignar con certeza. Una asignación cuya confianza cae por debajo del umbral de PE-04 (el valor mínimo para aceptarla sin ayuda humana) se marca como ambigua. A partir de ahí, el equipo revisa una vez cada lista nueva completa antes de publicarla, con el documento original y la lectura del sistema lado a lado, en un plazo de 4 h entre la carga y la aprobación (PE-04), y cada corrección queda registrada con su autor y su marca de tiempo (AD-02). Esto detecta también los errores leídos con confianza alta, que un filtro por ítem deja pasar, y como la lista revisada sirve después a todos los acudientes del mismo colegio y grado (NR-07), la revisión se paga una sola vez. El OE5 evaluó con seis acudientes el recorrido completo, que incluye este flujo (Sección~\ref{sec:oe5}).
+La resolución es la etapa en la que se decide a qué concepto corresponden los renglones que la normalización no pudo asignar con certeza. Una asignación cuya confianza cae por debajo del umbral de PE-04 (el valor mínimo para aceptarla sin ayuda humana) se marca como ambigua. A partir de ahí, el equipo revisa una vez cada lista nueva completa antes de publicarla, con el documento original y la lectura del sistema lado a lado, en un plazo de 4 h entre la carga y la aprobación (PE-04), y cada corrección queda registrada con su autor y su marca de tiempo (AD-02). Esto detecta también los errores leídos con confianza alta, que un filtro por ítem deja pasar, y como la lista revisada sirve después a todos los acudientes del mismo colegio y grado (NR-07), la revisión se paga una sola vez.
 
-Los datos de los colegios muestran la magnitud del problema. El corpus del OE1 reúne 3.610 renglones de listas de diecisiete colegios, 3.608 analizables, en los que se encontraron 1.451 formas distintas de nombrar los artículos; sumados a 1.109 libros, licencias y uniformes, el levantamiento llega a 4.719 ítems. Pocos conceptos concentran casi todo el volumen: según las métricas del catálogo, que registran 3.610 renglones, 3.600 de ellos con concepto asignado, 25 conceptos cubren el 80,97\,\% de estos y 38 cubren el 90\,\%. El resto es una cola larga de variaciones superficiales de los mismos conceptos. Por eso ninguna coincidencia exacta de cadenas resuelve el problema y cada lista necesita la resolución. Con estos requerimientos y restricciones, el Capítulo~V elige y diseña la arquitectura que los sostiene mediante ATAM, un método para evaluar una arquitectura frente a sus atributos de calidad.
+Los datos de los colegios muestran la magnitud del problema. El corpus del OE1 reúne 3.610 renglones de listas de diecisiete colegios, 3.608 analizables, en los que se encontraron 1.451 formas distintas de nombrar los artículos; sumados a 1.109 libros, licencias y uniformes, el levantamiento llega a 4.719 ítems. Pocos conceptos concentran casi todo el volumen: de los 3.600 renglones con concepto asignado, 25 conceptos cubren el 80,97\,\% y 38 cubren el 90\,\%. El resto es una cola larga de variaciones superficiales de los mismos conceptos. Por eso ninguna coincidencia exacta de cadenas resuelve el problema y cada lista necesita la resolución. Con estos requerimientos y restricciones, el Capítulo~V elige y diseña la arquitectura que los sostiene mediante el método ATAM.
