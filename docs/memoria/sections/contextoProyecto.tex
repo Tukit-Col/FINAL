@@ -9,7 +9,7 @@ falta conocer el terreno. Comprar los útiles de una lista escolar exige leer do
 interpretar un vocabulario que cada colegio escribe a su manera, elegir entre muchas combinaciones de
 productos y presentar las opciones sin abrumar a quien decide. Por eso el capítulo describe primero la
 lista escolar y los conocimientos que atienden cada reto, después revisa las soluciones existentes en el
-mundo, en Colombia y en la academia, y termina comparándolas con Tukit. Encontramos que ninguna solución
+mundo, en Colombia y en la academia, y termina comparándolas con Tukit. Se encontró que ninguna solución
 revisada resuelve esa cadena completa a partir de la lista oficial del colegio.\par
 
 \subsection{Antecedentes}
@@ -132,6 +132,32 @@ leer, y asocia cada renglón con el catálogo mediante una búsqueda híbrida, l
 \citep{karpukhin_dense_2020}, que no inventa productos. En lugar de un kit fijo, construye varias alternativas con optimización multiobjetivo \citep{deb_fast_2002} y mantiene la
 revisión humana en los casos dudosos.\par
 
+\subsubsection{Análisis competitivo}
+\label{sec:porter}
+
+La competencia en Colombia se analizó con las cinco fuerzas de Porter \citep{porter_five_2008}:
+rivalidad, nuevos competidores, sustitutos y poder de proveedores y de clientes. La
+Figura~\ref{fig:porter} resume los factores de cada fuerza y su intensidad.\par
+
+\begin{figure}[!tb]
+\centering
+\includegraphics[width=0.6\textwidth]{negocio/porter-cinco-fuerzas}
+\caption{Cinco fuerzas de Porter aplicadas a Tukit, con la intensidad de cada fuerza. Las
+cifras sobre los acudientes provienen de la encuesta del levantamiento de requerimientos.
+Adaptado de Porter \citep{porter_five_2008}.}
+\label{fig:porter}
+\end{figure}
+
+Las fuerzas de mayor intensidad son el poder de negociación de los clientes y la amenaza de
+sustitutos, porque los acudientes tienen muchas alternativas de compra y un bajo costo de cambio.
+Por ello Tukit se diferencia de las cadenas que compiten por precio. Su ventaja se apoya en dos activos difíciles de
+replicar en el corto plazo: las listas oficiales normalizadas por colegio y grado, y el canal de
+confianza que construye con cada institución, respaldado por el 90\,\% de los acudientes que
+confiaría más en la plataforma si el colegio la recomienda. La dependencia de los proveedores
+se mitiga con un catálogo que reúne ofertas de varias tiendas y con un modelo multimodal aislado
+detrás de un adaptador, que conserva las solicitudes para reintentarlas si el servicio
+falla.\par
+
 \subsubsection{Comparación con la solución propuesta}
 
 La Tabla~\ref{tab:comparacion-soluciones} contrasta a las seis plataformas con Tukit en trece criterios,
@@ -206,7 +232,7 @@ se anota n/c y no se supone.}
 \end{minipage}
 \end{table}
 
-Tukit gana en los criterios de entrada y de armado: es la única de las siete que lee la lista en foto, PDF o
+Tukit supera a las demás en los criterios de entrada y de armado, ya que es la única de las siete que lee la lista en foto, PDF o
 texto, la asocia con el catálogo, combina tiendas y ofrece varias alternativas por presupuesto. En cambio, las
 plataformas comerciales lo superan en catálogo, inventario, entrega, pago real y base de usuarios, porque venden
 y despachan, mientras que Tukit no almacena ni entrega, y su pago es simulado. Las soluciones con operación madura no

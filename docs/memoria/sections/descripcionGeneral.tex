@@ -3,28 +3,28 @@
 
 La introducción mostró que las familias pierden tiempo y dinero al traducir la lista del colegio en
 productos y que ninguna herramienta lo resolvía de punta a punta. Este capítulo convierte ese hallazgo en
-una pregunta de investigación, presenta la solución (Tukit) y sus objetivos, y explica la metodología:
-una híbrida en la que cada fase respondió a un objetivo.\par
+una pregunta de investigación, presenta la solución (Tukit) y sus objetivos, y explica la metodología
+híbrida, en la que cada fase respondió a un objetivo.\par
 
 \subsection{Oportunidad, Problema}
 
 \subsubsection{Contexto del Problema}
 
-El comercio electrónico en Colombia creció de forma sostenida: en 2025 las ventas en línea alcanzaron
+El comercio electrónico en Colombia creció de forma sostenida. En 2025, las ventas en línea alcanzaron
 COP 105,7 billones en valores reales, un 5,9\,\% más que en 2024 \citep{noauthor_informe_nodate-1}. Esa cifra
 es de todo el comercio y no dice cómo compran las familias los útiles, una tarea anual que, solo en Bogotá,
 involucra a 1.171.390 estudiantes \citep{noauthor_estadisticas_nodate}. Además del gasto y de la falta de
 planeación, las familias enfrentan un problema de decisión. La carga cognitiva, el esfuerzo mental que exige
 una tarea, no debe superar la memoria de trabajo (lo que se retiene y combina a la vez); si lo hace, la
-calidad de las decisiones disminuye \citep{sweller_cognitive_2011}. Además, Iyengar y Lepper encontraron que,
+calidad de las decisiones disminuye \citep{sweller_cognitive_2011}. Iyengar y Lepper demostraron que,
 al pasar de 6 a 24 alternativas, la tasa de compra bajó del 30\,\% al 3\,\% \citep{iyengar_when_2000}. Ese
-experimento usó otro producto, pero el mecanismo es el mismo: para cada renglón de la lista el acudiente
+experimento usó otro producto, pero el mecanismo es el mismo, porque para cada renglón de la lista el acudiente
 debe escoger entre muchas opciones de marca, tamaño y precio.\par
 
 Según el Capítulo~III, los comercios de útiles en Colombia trasladaron al canal digital el modelo de la
-tienda física: publican un catálogo y delegan en el cliente la búsqueda y la comparación. Plataformas como
+tienda física, de modo que publican un catálogo y delegan en el cliente la búsqueda y la comparación. Plataformas como
 TeacherLists convierten la lista del salón en un carrito, pero, hasta donde se revisó, no leen listas
-fotografiadas, no reconocen el vocabulario local ni operan en Colombia. Falta entonces un actor que arme el
+fotografiadas, no reconocen el vocabulario local ni operan en Colombia. A ello se suma que la Ley 1269 de 2008 obliga a los colegios a entregar en la matrícula la lista completa de útiles y les prohíbe exigir que los padres entreguen esos materiales al colegio \citep{congreso_ley1269_2008}, de modo que la compra queda en manos de cada familia. Falta entonces un actor que arme el
 pedido y deje a la familia solo el ajuste, y esa brecha fue la oportunidad del proyecto.\par
 
 \subsubsection{Formulación del Problema}
@@ -61,20 +61,21 @@ del proceso de compra?
 
 Tukit es un sistema de recomendación de ingeniería de software, con componentes de inteligencia artificial y
 de optimización multiobjetivo. Su modelo de negocio es B2B2C
-(\emph{business-to-business-to-consumer}): el equipo de Tukit carga y publica la lista oficial de cada
+(\emph{business-to-business-to-consumer}), en el que el equipo de Tukit carga y publica la lista oficial de cada
 colegio, y el acudiente elige el kit y hace el pedido. El sistema recibe la lista en imagen, PDF o texto libre y la convierte en kits mediante las tres etapas
 descritas, con revisión humana de los renglones dudosos. El perfil socioeconómico de la pregunta se tradujo en dos datos que declara cada acudiente: su
 presupuesto y su tope de gasto.\par
 
-De los actores del sistema (Capítulo~IV), dos tuvieron un canal propio. El equipo de Tukit operó una
-aplicación de administración, en la que revisó las listas y atendió la cola de renglones dudosos. El acudiente
-accedió por una aplicación web progresiva, una página web que se instala y funciona como aplicación,
-seleccionó el colegio y el grado de cada hijo, o cargó su lista, e indicó presupuesto y
-preferencias. Recibió hasta cuatro kits: el Ahorrador (menor costo) y el Premium (mejores marcas) salieron
-siempre; el Fan, con los personajes pedidos, salió solo si el acudiente pidió uno; y A tu Medida, la mejor
-marca posible dentro del monto, salió cuando fijó un tope. Después pudo reemplazar productos, elegir el kit y pagar, en modo simulado.\par
+De los actores del sistema (Capítulo~IV), dos tienen un canal propio. El equipo de Tukit opera una
+aplicación de administración, en la que revisa las listas y atiende la cola de renglones dudosos. El acudiente
+accede por una aplicación web progresiva, una página web que se instala y funciona como aplicación,
+selecciona el colegio y el grado de cada hijo, o carga su lista, e indica su presupuesto y sus
+preferencias. Recibe hasta cuatro kits. El Ahorrador (menor costo) y el Premium (mejores marcas) salen
+siempre. Cuando pide un personaje recibe además el Fan, que lo incluye, y cuando elige el punto medio de gasto o fija un tope, A tu Medida, la mejor
+marca posible dentro de ese monto. Después puede reemplazar productos, descartar los que ya tiene, elegir el kit y pagar, en modo simulado.\par
 
 \subsubsection{Justificación de la Solución}
+\label{sec:viabilidad}
 
 La solución es pertinente porque simplifica un proceso que recaía sobre las familias; la medición con
 usuarios está en el Capítulo~VII. Presentar pocas alternativas ya armadas facilita la decisión, porque el
@@ -152,7 +153,7 @@ Cada objetivo corresponde a una fase del proyecto.
 \end{itemize}
 
 Los objetivos se transcriben como los aprobó la propuesta. El compromiso de alcance es
-construir un prototipo funcional con interfaz web y evaluarlo con usuarios reales: un recorrido completo, de
+construir un prototipo funcional con interfaz web y evaluarlo con usuarios reales, es decir, un recorrido completo, de
 la lista al pedido pagado en modo simulado, que se puede probar de punta a punta. Quedaron fuera de ese
 prototipo tres funciones: el panel del colegio, el ajuste de presupuesto en vivo y el cobro con dinero real.
 Se declaran en el alcance y en el trabajo futuro (Sección~\ref{sec:trabajo-futuro}). En el OE3, la
@@ -320,5 +321,5 @@ administrador en la cola de renglones dudosos, o el equipo al auditar los kits);
 produjo correcciones; y cuarto, el equipo ajustó los datos, las reglas o las constantes y repitió la
 evaluación con la misma métrica. El sistema cambia solo cuando el equipo ajusta esos elementos, y cada cambio queda registrado con su evidencia en la Tabla~\ref{tab:constantes} (Anexo~\ref{anx:constantes}).
 El
-Capítulo~VI describe cada ciclo junto a su componente. El Capítulo~III presenta a continuación los
+Capítulo~\ref{cap:desarrolloSolucion} describe cada ciclo junto a su componente. El Capítulo~III presenta a continuación los
 conceptos y las soluciones existentes sobre los que se apoyan estas fases.\par
