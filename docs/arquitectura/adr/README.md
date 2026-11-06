@@ -1,5 +1,11 @@
 # ADR registrados desde el submódulo
 
+> **Actualización 5-nov-2026:** los ADR 0001-0026 ya están copiados en esta misma carpeta
+> (índice en [`INDICE_0001-0026.md`](INDICE_0001-0026.md)), así que los 49 registros viven
+> aquí. La carpeta `Arquitectura/` del repositorio de documentos quedó archivada en
+> `_archivo/2026-11-05/borradores_arquitectura/`. Lo que sigue es la historia de por qué la
+> serie estuvo partida en dos.
+
 Los registros de decisión de arquitectura viven en `Arquitectura/adr/`, fuera de este
 repositorio, y su índice es la tabla del §4 de `Arquitectura/ARQUITECTURA.md`. El código los
 cita por número (`ADR 0012`, `ADR 0017`…) y los planes de `docs/diseno/planes/` los crean allá.
