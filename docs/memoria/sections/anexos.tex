@@ -15,7 +15,7 @@ Este anexo reúne lo que se necesita para auditar o reproducir el trabajo. La Ta
 \multicolumn{2}{@{}l}{\emph{En este documento}}\\
 Constantes, glosario & Tabla de constantes numéricas y glosario (a continuación) \\
 Calibración y NL2C & Detalle de la calibración del optimizador y resumen de resultados del asistente NL2C \\
-Datos, algoritmos, pantallas & Datos del sistema, tres algoritmos del pipeline y cuatro pantallas \\
+Datos, algoritmos, pantallas, ética & Datos del sistema, tres algoritmos del pipeline, cuatro pantallas y el protocolo ético con el texto de consentimiento del OE5 \\
 \midrule
 \multicolumn{2}{@{}l}{\emph{Documentos de la ingeniería (IEEE 830, 1016 y 1058, ATAM)}}\\
 SRS, SDD, SPMP, ATAM & Especificación de requisitos, diseño, plan del proyecto e informe ATAM, en \path{docs/} \\
@@ -121,6 +121,35 @@ Caché de vectores & 24 h & catálogo & Evita recalcular el vector de un rengló
 % Fuera del PDF (contenido en el repositorio, ver tab:anexos): anexo_figuras (copias en el cuerpo), anexo_antecedentes,
 % anexo_requerimientos, anexo_autorizacion, anexo_hallazgos_tabla (docs/informes/calidad/hallazgos_qa_oficial.csv),
 % anexo_ampliaciones (docs/informes/).
+\subsection{Protocolo ético y consentimiento informado (OE5)}
+\label{anx:etica}
+Las sesiones del OE5 (Sección~\ref{sec:oe5}) se hicieron con madres, padres y acudientes mayores de 18 años del Colegio Agustiniano Ciudad Salitre. No participaron menores, y no se recogió ningún dato del hijo salvo el nivel y el grado. Por eso no se requirió asentimiento del menor; el artículo 7 de la Ley 1581 de 2012 se atiende evitando recoger datos de menores. Se excluyó a familiares del equipo y a quien tuviera relación laboral con el colegio o con el equipo. La participación fue voluntaria y sin pago, y el colegio solo transmitió la invitación sin recibir lista de participantes ni resultados individuales. El marco normativo es la Ley 1581 de 2012 (artículos 9 y 12) y el Decreto 1377 de 2013; el tratamiento de datos se detalla en el Anexo M (Tabla~\ref{tab:anexos}). El protocolo completo está en \path{docs/validacion/oe5/anexos_OE5/protocolo_etico.md}.
+
+\paragraph{Datos y retención.} Las respuestas se guardan con un código de participante y no con el nombre; el nombre y el consentimiento se archivan aparte. No se grabó video ni se tomaron fotografías, y la pantalla y el audio solo se grabaron con autorización separada. La sesión corrió con una cuenta de prueba y pago simulado, sin tarjeta real. Las respuestas se conservan hasta la aprobación del trabajo de grado y 12 meses más, y luego se borran. Las grabaciones se borran al verificar el análisis y, a más tardar, a los 30 días. Los resultados se publican en conjunto y sin nombres. Si ocurre una filtración, el equipo informa a los afectados y a la dirección en un máximo de 72 horas.
+
+\paragraph{Texto de consentimiento entregado al acudiente (versión 2, 2 de noviembre de 2026).}
+Se envió por mensaje antes de la llamada, y el acudiente respondió con una plantilla que marca cada parte por separado, o lo firmó. A continuación se reproduce de forma condensada.
+
+\begin{quote}\small
+\textbf{TUKIT: prueba con acudientes.} Somos estudiantes de Ingeniería de Sistemas de la Pontificia Universidad Javeriana y hacemos nuestro trabajo de grado sobre TUKIT, una aplicación que arma la lista de útiles escolares y la convierte en un kit listo para comprar. Le pedimos unos 15 minutos para probarla con nosotros por videollamada.
+
+\emph{Qué haría usted.} Desde su celular entra a la aplicación con una cuenta de prueba, hace tareas cortas (elegir colegio y grado, contar qué le gusta a su hijo, elegir un kit, cambiar un producto, pagar y ver el pedido) y dice en voz alta lo que piensa. Al final llena un formulario de unos 5 minutos. Se evalúa la aplicación, no a usted: no hay respuestas buenas ni malas.
+
+\emph{Qué no pasa.} No se piden datos de su hijo o hija y él o ella no participa. El pago es simulado: no use su tarjeta real y no se le cobra nada. No se graba su cara ni su cámara.
+
+\emph{Riesgos y beneficios.} El riesgo es mínimo: el tiempo de la llamada y alguna pregunta incómoda, que puede no responder. No hay pago. Su opinión ayuda a mejorar la aplicación para otros acudientes.
+
+\emph{Voluntariedad.} Puede decir que no, saltarse una pregunta o parar en cualquier momento, sin explicaciones y sin consecuencia alguna.
+
+\emph{Sus datos.} Se usan solo para el trabajo de grado y para mejorar el prototipo, y no se comparten con el colegio, con tiendas ni con terceros. Se guardan con un código de participante, y los resultados se publican en conjunto. Usted puede conocer, actualizar y corregir sus datos, pedir que se borren y retirar la autorización cuando quiera, escribiendo a \texttt{tukit.ayuda@gmail.com}.
+
+\emph{Responsables.} El equipo de estudiantes de Ingeniería de Sistemas de la Pontificia Universidad Javeriana (Bogotá), bajo la dirección del director del trabajo de grado. Proyecto ISIS2610-G19.
+
+\emph{Autorizaciones.} \textbf{Parte A (obligatoria para participar):} leí este texto, pude hacer preguntas, soy mayor de 18 años y autorizo de manera libre, previa e informada el uso de mis respuestas con los fines descritos. \textbf{Parte B (opcional):} autorizo grabar la pantalla del celular durante las tareas, solo para contar pasos y tiempos. \textbf{Parte C (opcional):} autorizo grabar el audio de mi voz, solo para transcribir lo que diga durante las tareas. Si responde que no a B o a C, igual puede participar y solo se toman notas.
+\end{quote}
+
+El formulario de cierre repite la Parte A al final como segundo registro, que no reemplaza al anterior a la llamada. La hoja de firma tiene una casilla de sí y no por cada parte, el nombre y la firma del acudiente, el código de participante y la firma de quien recibe el consentimiento.
+
 \input{sections/anexo_pantallas}
 \input{sections/anexo_datos}
 \input{sections/nl2c}

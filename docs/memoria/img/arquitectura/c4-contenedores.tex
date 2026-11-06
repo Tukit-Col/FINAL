@@ -21,8 +21,8 @@
   evt/.style={-{Stealth[length=1.6mm]}, densely dashed, semithick},
   cola/.style={-{Stealth[length=1.6mm]}, semithick, draw=tkMqB},
   hueco/.style={draw=white, line width=2.8pt},
-  paso/.style={circle, draw, fill=white, inner sep=0.5pt, font=\tiny\bfseries, minimum size=3.6mm},
-  rot/.style={font=\tiny, fill=white, inner sep=1pt},
+  paso/.style={circle, draw, fill=white, inner sep=0.5pt, font=\scriptsize\bfseries, minimum size=4.4mm},
+  rot/.style={font=\scriptsize, fill=white, inner sep=1pt},
   col/.style={anchor=north west, text width=4.9cm, align=left, inner sep=0pt, font=\scriptsize}]
 % Personas y aplicaciones
 \node[per, text width=2.6cm] (acudiente) at (2.45,0) {\textbf{Acudiente}};
@@ -121,7 +121,8 @@
 \draw[semithick] (2.75,0 |- repartidor.south) |- (whatsapp.east);
 % Pasos de los flujos
 \node[paso] at (2.15,-2.15) {A1};
-\node[paso] at (7.85,-7.73) {A2};
+\node[paso] at (7.85,-7.73) {A1};
+\node[paso] at (10.3,-6.45) {A2};
 \node[paso] at (8.3,-2.15) {A3};
 \node[paso] at (5.75,-6.45) {A4};
 \node[paso] at (2.75,-2.15) {B1};
@@ -133,8 +134,8 @@
 \node[paso] at (2.75,-9) {C3};
 % Pasos de los flujos y notación, debajo de la figura
 \node[col] (colA) at (0.2,-12.1) {\textbf{A. Subida de la lista y kits}\\[1pt]
-  \textbf{A1} El acudiente sube la lista; inteligencia guarda el trabajo y lo anuncia en su bandeja de salida.\\[1pt]
-  \textbf{A2} El trabajador toma el trabajo de RabbitMQ o de su tabla, lee las páginas con Gemini, pide candidatos al catálogo y deja los kits por revisar.\\[1pt]
+  \textbf{A1} El acudiente sube la lista; inteligencia la lee con Gemini, guarda el trabajo y lo anuncia en su bandeja de salida.\\[1pt]
+  \textbf{A2} Con la subida aceptada (202), el trabajador toma el trabajo de RabbitMQ o de su tabla, pide candidatos al catálogo y deja los kits por revisar.\\[1pt]
   \textbf{A3} El equipo revisa los kits en el panel y los publica; inteligencia deja el evento de kits publicados en su bandeja de salida.\\[1pt]
   \textbf{A4} Si la lista no estaba verificada, el sondeador de listas arma el kit al recibir el evento de lista verificada.};
 \node[col] (colB) at (5.35,-12.1) {\textbf{B. Pago}\\[1pt]

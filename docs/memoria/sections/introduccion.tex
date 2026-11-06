@@ -2,28 +2,22 @@
 \section{INTRODUCCIÓN}\label{cap:introduccion}
 
 Al comienzo de cada año escolar, las familias colombianas reciben del colegio una lista de
-útiles que deben conseguir completa y en pocos días. El gasto es alto, porque el 35\,\% de
-las familias destina entre \$300.000 y \$500.000 por niño \citep{noauthor_resultados_2025},
-y la presión de tiempo también, porque el 70\,\% no planea la compra con anticipación
-\citep{noauthor_resultados_2024}. A eso se suma el esfuerzo de interpretar cada renglón,
-buscarlo en varias tiendas y comparar precios y marcas, una carga mental que lleva a decidir
-peor \citep{sweller_cognitive_2011}. Cuando la compra se retrasa o queda incompleta, quien
+útiles que deben conseguir completa y en pocos días. El gasto es alto y la presión de tiempo también: el 35\,\% de las familias destina entre \$300.000 y
+\$500.000 por niño \citep{noauthor_resultados_2025} y el 70\,\% no planea la compra con anticipación
+\citep{noauthor_resultados_2024}. Cuando la compra se retrasa o queda incompleta, quien
 lo paga es el estudiante, que empieza el año sin los materiales que el colegio pidió para
 sus clases.\par
 
-En Bogotá hay 1,17 millones de estudiantes matriculados
-\citep{noauthor_estadisticas_nodate}, y este proyecto estudió el problema de cerca en el
+Este proyecto estudió el problema de cerca en el
 Colegio Agustiniano Ciudad Salitre. Una encuesta a sus acudientes, con 65 respuestas
 recibidas y 60 analizables, mostró que el 65\,\% dedica cuatro horas o más a la compra, que el 68,3\,\% compra
 en tres o más lugares y que la queja más frecuente es no encontrar el producto o que esté
 agotado (43,3\,\%). Las entrevistas con directivos, docentes y acudientes confirmaron esa
 fricción.
 
-Las alternativas que existen hoy no resuelven ese recorrido completo. Panamericana, Éxito, Primavera y
-MercadoLibre publican catálogos o kits fijos, y en todos los casos es el acudiente quien debe traducir la
-lista del colegio en productos \citep{panamericana_cotizador_2025,exito_listas_2025,primavera_armatulista_2026,mercadolibre_kits_2025}.
-Plataformas como TeacherLists, en Estados Unidos, convierten la lista del salón en un carrito
-\citep{teacherlists_retail_2026}, pero, hasta donde se revisó (Capítulo~III), ninguna lee listas en papel o
+Las alternativas que existen hoy no resuelven ese recorrido completo: en las tiendas colombianas es el
+acudiente quien debe traducir la lista del colegio en productos, y plataformas como TeacherLists, en Estados
+Unidos, convierten la lista del salón en un carrito \citep{teacherlists_retail_2026}, pero, hasta donde se revisó (Capítulo~III), ninguna lee listas en papel o
 en foto ni está disponible en Colombia.\par
 
 Frente a este panorama, el proyecto construyó Tukit, un sistema de recomendación multiobjetivo con un
@@ -51,8 +45,10 @@ la indexación y la recuperación de productos, pero los kits los construye el o
 lenguaje, y el equipo de Tukit los revisa antes de publicarlos (\emph{human-in-the-loop}). Todo corre sobre
 cinco servicios de dominio con base propia y una puerta de enlace, es decir, seis unidades desplegables. El
 diseño previó un séptimo servicio, la ingesta, que el sistema construido reemplazó por un catálogo curado.
-Aunque el piloto se hizo en un colegio de Bogotá, sumar otro colegio consiste en cargar y revisar su lista,
-sin cambiar el sistema.\par
+El piloto se hizo en un solo colegio de Bogotá, y la encuesta describe a esa población sin generalizarse a
+otros colegios; se eligió uno porque permitió llegar a familias de todos los niveles con la autorización del
+rector y validar el flujo completo. Sumar otro colegio consiste en cargar y revisar su lista, sin cambiar el
+sistema, pero la preferencia de sus familias habría que medirla de nuevo.\par
 
 El trabajo siguió una metodología híbrida organizada en cinco fases, una por cada objetivo específico.
 SCRUM \citep{schwaber_scrum_2020} organizó la construcción en ciclos de dos semanas; Design Thinking
@@ -60,7 +56,7 @@ SCRUM \citep{schwaber_scrum_2020} organizó la construcción en ciclos de dos se
 riesgos y la trazabilidad; ATAM \citep{bass_software_2021} sirvió para elegir la arquitectura entre tres
 alternativas; CRISP-DM \citep{chapman_crisp-dm_2000} fue el marco de los componentes que dependen de datos;
 y los estándares IEEE 830 \citep{ieee_830_1998}, 1016 \citep{ieee_1016_2009} y 1058 \citep{ieee_1058_1998}
-definieron la forma de los requerimientos, el diseño y el plan del proyecto.\par
+definieron la forma de los requerimientos (SRS), del diseño (SDD) y del plan del proyecto.\par
 
 El documento sigue ese mismo orden, de entender el problema a construir la solución y luego a comprobarla.
 El Capítulo~II presenta los objetivos y asigna cada fase (F1 a F5) a un objetivo (OE1 a OE5) y a una etapa

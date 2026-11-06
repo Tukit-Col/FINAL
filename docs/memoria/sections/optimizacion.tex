@@ -209,11 +209,13 @@ peor lista la elegida llegó a \calPruebaElegidaHVMin{} contra \calPruebaActualH
 pérdida es pequeña pero real, y a cambio el tiempo medio por lista bajó de \calPruebaActualT~s a
 \calPruebaElegidaT~s.
 
-El umbral de similitud $\tau=0{,}75$ de la resolución no se pudo calibrar. La tabla de transiciones
-registra \calTauTransiciones{} resoluciones, todas automáticas y todas con parecido 1, y la única
-fuente humana es la curaduría de un solo revisor, que se une con \calTauPares{} renglones de
-\calTauColegios{} colegios, \calTauColegioMayor{} de ellos de uno solo. Por eso $\tau$ se mantiene en
-su valor por omisión y se declara sin calibrar. En cuanto a la sensibilidad, cuando los pesos se
+El umbral de similitud $\tau=0{,}75$ de la resolución se evaluó, pero no se recalibró. La tabla de
+transiciones registra \calTauTransiciones{} resoluciones, todas automáticas y todas con parecido 1, y la
+única fuente humana es la curaduría de un solo revisor, que se une con \calTauPares{} renglones de
+\calTauColegios{} colegios, \calTauColegioMayor{} de ellos de uno solo. Sobre esos pares la
+Sección~\ref{sec:recuperacion} mide la precisión, la sensibilidad y un AUC de \calTauAUC{}, y la
+validación cruzada agrupada sugiere un $\tau$ entre \calTauCVMin{} y \calTauCVMax{}, pero la muestra es
+demasiado concentrada para moverlo. Por eso $\tau$ se mantiene en su valor por omisión. En cuanto a la sensibilidad, cuando los pesos se
 sortean dentro de sus intervalos de la P21, el kit recomendado se mantiene en el 96,5\,\%, el
 98,6\,\% y el 94,6\,\% de los sorteos con sobreprecios de 5, 10 y 20\,\%, aunque en la peor lista,
 con sobreprecio de 20\,\%, baja al 54\,\%.
@@ -232,8 +234,9 @@ declaran para que se lean con su alcance.
 no de lo que compran, y la muestra es sobre todo de estrato 4.
 \item \emph{Corpus pequeño y agrupado.} Son 174 listas de \calColegios{} colegios; por eso la
 validación cruzada se agrupó por colegio, y la prueba tiene solo \calColegiosPrueba{} colegios.
-\item \emph{$\tau$ sin calibrar.} No hay decisiones humanas registradas, y la única anotación es la
-de un revisor concentrada en un colegio.
+\item \emph{$\tau$ evaluado con un solo revisor.} Los \calTauPares{} pares los marcó una persona y
+\calTauColegioMayor{} son de un colegio; no hay decisiones humanas del uso real del sistema, así que
+$\tau$ no se recalibró.
 \item \emph{Sin kit óptimo de referencia.} El hipervolumen mide qué tan bien se resuelve la
 optimización y no si el kit satisface al acudiente; esa validez externa la evalúa el OE5
 (Sección~\ref{sec:oe5}).

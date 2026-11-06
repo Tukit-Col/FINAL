@@ -35,7 +35,7 @@ Evaluador y equipo de desarrollo & Fronteras verificables y cambios sin romper o
 \toprule
 \textbf{Impulsor} & \textbf{Qué separa} \\
 \midrule
-Recuperabilidad asimétrica & El catálogo se reconstruye desde sus archivos de datos y admite perder un día de cambios (CF-02a); un pedido no puede perder un solo byte. Compartir almacén obliga a dimensionar el respaldo por el más exigente \\
+Recuperabilidad asimétrica & El catálogo se reconstruye desde sus archivos de datos y admite perder un día de cambios (requisito CF-02a, asimetría de recuperación); un pedido no puede perder un solo byte. Compartir almacén obliga a dimensionar el respaldo por el más exigente \\
 \addlinespace
 Frontera de cumplimiento & La Ley 1581 \citep{congreso_ley1581_2012} y el Decreto 1377 de 2013 \citep{presidencia_decreto1377_2013} piden aislar los datos de menores, con base y llaves propias, para reducir lo que debe auditarse \\
 \addlinespace
@@ -102,13 +102,13 @@ La Tabla~\ref{tab:escenarios} contrasta cada decisión con el escenario que la m
 \toprule
 \textbf{Escenario} & \textbf{Decisión} & \textbf{Riesgo o compromiso} & \textbf{Función de aptitud o prueba} & \textbf{Resultado medido} \\
 \midrule
-Optimizar un kit en menos de 8 s (ESC-D4) & NSGA-II en el servicio de inteligencia, sin salto de red & Un solo proceso computa; el lenguaje queda fijo en Python & Prueba de latencia del escenario & p95 de 0,31 s frente a 8 s \\
+Optimizar un kit en menos de 8 s (escenario ESC-D4 del ATAM, rendimiento) & NSGA-II en el servicio de inteligencia, sin salto de red & Un solo proceso computa; el lenguaje queda fijo en Python & Prueba de latencia del escenario & p95 de 0,31 s frente a 8 s \\
 \addlinespace
-Carga hasta 100 usuarios (L-02, RNF05) & Servicios independientes sobre cinco bases & El catálogo corre en un proceso y llega al 100\,\% de un núcleo & Rampa de carga en un Apple M4 & 0 errores hasta 100 usuarios; p95 del catálogo de 2,5 s con 100 \\
+Carga hasta 100 usuarios (prueba de carga L-02, requisito RNF05) & Servicios independientes sobre cinco bases & El catálogo corre en un proceso y llega al 100\,\% de un núcleo & Rampa de carga en un Apple M4 & 0 errores hasta 100 usuarios; p95 del catálogo de 2,5 s con 100 \\
 \addlinespace
 Ráfaga de peticiones abusivas & Límite de tasa en la puerta de enlace (Redis opcional) & Si Redis cae, el conteo pasa a la memoria de la puerta & Prueba con 5 usuarios a través de la puerta & 30.257 de 31.457 peticiones respondidas con 429 \\
 \addlinespace
-Caída del catálogo (ESC-R2) & Disyuntor con respaldo & El peor caso, si cada intento agota su espera, se acotó con un modelo (300,8 s) y no se midió & Ensayo de degradación & El disyuntor abrió a los 26,3 s, dentro de los 30 s \\
+Caída del catálogo (escenario ESC-R2, resiliencia) & Disyuntor con respaldo & El peor caso, si cada intento agota su espera, se acotó con un modelo (300,8 s) y no se midió & Ensayo de degradación & El disyuntor abrió a los 26,3 s, dentro de los 30 s \\
 \addlinespace
 Erosión de fronteras & Manifiesto con doce funciones de aptitud & Mantener el manifiesto al día & Doce pruebas en cada cambio y veintiocho de segundo nivel & Ningún servicio importa código ajeno ni declara tablas ajenas \\
 \bottomrule
@@ -123,7 +123,7 @@ La vista de contexto (Figura~\ref{fig:c4-contexto}) sitúa a Tukit entre sus act
 
 \begin{figure}[!htb]
 \centering
-\includegraphics[width=0.62\textwidth]{img/modelo/contexto.jpg}
+\includegraphics[width=\textwidth]{img/modelo/contexto.jpg}
 \caption[Vista de contexto: Tukit frente a sus actores y sistemas externos.]{Vista de contexto,
 en notación UML: Tukit frente a sus actores (el padre es el acudiente) y a los sistemas externos,
 agrupados por función. Cada flecha lleva la información que pasa entre las partes.}
@@ -132,18 +132,18 @@ agrupados por función. Cada flecha lleva la información que pasa entre las par
 
 La vista de contenedores (Figura~\ref{fig:c4-contenedores}, C4 nivel 2) abre el sistema y se lee de arriba hacia abajo. Arriba están la aplicación web del acudiente (puerto 3000) y el panel del equipo (3001), que llaman a la puerta de enlace (8010); esta reenvía cada petición al servicio de su ruta. En el centro, RabbitMQ lleva los eventos entre operación, inteligencia y comercio, cada uno con su base y sus procesos en segundo plano. Abajo están identidad y catálogo, que no llaman a otros servicios, junto a los sistemas externos. Las etiquetas A1 a A4, B1 a B4 y C1 a C3 numeran la subida de la lista y los kits, el pago y los avisos.
 
-\begin{figure}[!htb]
+\begin{figure}[p]
 \centering
-\resizebox*{!}{0.5\textheight}{\input{img/arquitectura/c4-contenedores.tex}}
+\resizebox{0.9\textwidth}{!}{\input{img/arquitectura/c4-contenedores.tex}}
 \caption{Vista de contenedores (C4 nivel 2) del sistema construido, con los procesos en
 segundo plano de cada servicio y los pasos de la subida de la lista y los kits (A), el pago (B)
-y los avisos (C).}
+y los avisos (C). Ocupa una página para que las etiquetas sean legibles.}
 \label{fig:c4-contenedores}
 \end{figure}
 
 Con RabbitMQ, cada productor publica los eventos de su bandeja de salida en una cola por consumidor, con una cola de reintentos y otra de descartados; la entrega es al menos una vez, con consumidores idempotentes (ADR 0046). Redis es opcional y guarda solo lo recalculable (ADR 0047): el vector de cada renglón por 24 horas, la lectura aceptada de cada lista por 30 días y los contadores del límite de tasa; si no responde en 250~ms, cada servicio calcula sin caché.
 
-La vista física (Figura~\ref{fig:despliegue}) muestra dónde corre cada pieza: todo en un portátil del equipo con Minikube local, sin autoescalado, de modo que la disponibilidad depende de ese equipo. \texttt{make arriba} levanta las dos aplicaciones, la puerta de enlace y los cinco servicios; \texttt{make reanudar} los retoma sin sembrar de nuevo. PostgreSQL 16 con pgvector aloja las cinco bases; RabbitMQ lleva los eventos; un túnel de Cloudflare expone la web con una URL temporal solo durante las sesiones con acudientes, y Wompi funciona en modo simulado.
+La vista física (Figura~\ref{fig:despliegue}) muestra dónde corre cada pieza: todo en un portátil del equipo, sin Kubernetes ni autoescalado, de modo que la disponibilidad depende de ese equipo. Docker Compose (\texttt{infra/docker-compose.yml}) levanta PostgreSQL, RabbitMQ, Redis y Jaeger, y \texttt{make arriba} arranca como procesos locales las dos aplicaciones, la puerta de enlace y los cinco servicios; \texttt{make reanudar} los retoma sin sembrar de nuevo. PostgreSQL 16 con pgvector aloja las cinco bases; RabbitMQ lleva los eventos y Redis es opcional; un túnel de Cloudflare expone la web con una URL temporal solo durante las sesiones con acudientes, y Wompi funciona en modo simulado.
 
 \begin{figure}[!htb]
 \centering
@@ -160,21 +160,21 @@ web, y Wompi funciona en modo simulado. Misma paleta que la Figura~\ref{fig:c4-c
 \subsection{Vista de proceso}
 \label{sec:proceso}
 
-Las dos secuencias siguientes recorren los flujos A y B de la Figura~\ref{fig:c4-contenedores}. La Figura~\ref{fig:sec-pipeline} sigue una lista desde que el acudiente la sube hasta que existen los kits: la puerta de enlace aplica el límite de tasa y reenvía a inteligencia, que lee la lista con Gemini y normaliza cada renglón; el catálogo devuelve candidatos y parecido, e inteligencia clasifica con $\tau = 0{,}75$ (resuelto automático si el parecido lo alcanza; si no, ambiguo, hueco o sin match). El optimizador arma los kits con NSGA-II sobre todos los renglones y los no automáticos quedan en revisión humana.
+Las dos secuencias siguientes recorren los flujos A y B de la Figura~\ref{fig:c4-contenedores}. La Figura~\ref{fig:sec-pipeline} sigue una lista desde que el acudiente la sube hasta que existen los kits. La puerta de enlace aplica el límite de tasa y reenvía a inteligencia, que lee las páginas con Gemini en el momento de la subida, guarda el trabajo, lo encola y responde 202 sin esperar el resultado. Después el trabajador durable toma el trabajo de RabbitMQ o, si el broker no está, de la tabla, y pide candidatos al catálogo. La clasificación de cada renglón depende de ellos: sin candidatos queda como hueco del catálogo, y con candidatos el umbral $\tau = 0{,}75$ solo separa el resuelto automático (parecido igual o mayor) del ambiguo. El optimizador es un módulo de inteligencia: arma los kits con NSGA-II sobre los renglones con candidatos, y los ambiguos entran con una elección provisional que la revisión humana confirma.
 
 \begin{figure}[!htb]
 \centering
 \resizebox{0.92\textwidth}{!}{\input{img/arquitectura/secuencia-pipeline.tex}}
-\caption{Secuencia de la lectura de una lista, la resolución de cada renglón con el umbral $\tau$ y la construcción de los kits; los renglones no automáticos quedan en revisión humana.}
+\caption{Secuencia de la subida de una lista (lectura con Gemini y respuesta 202), el trabajo asíncrono por cola, la clasificación de cada renglón y la construcción de los kits; los renglones no automáticos quedan en revisión humana.}
 \label{fig:sec-pipeline}
 \end{figure}
 
-La Figura~\ref{fig:sec-pago} muestra que el pago no depende del regreso del acudiente. Comercio crea la orden de forma idempotente y rechaza la compra si un precio cambió. Cuando Wompi avisa por el webhook, comercio verifica la firma, aplica el pago una sola vez y escribe el evento en su bandeja de salida; de ahí pasa a RabbitMQ y operación avisa al acudiente.
+La Figura~\ref{fig:sec-pago} muestra que el pago no depende del regreso del acudiente. El navegador no habla con comercio: la puerta de enlace reenvía la compra a inteligencia, que resuelve el kit y llama a comercio para crear la orden y para iniciar el pago. Comercio crea la orden de forma idempotente y rechaza la compra si un precio cambió. Cuando Wompi avisa por el webhook, comercio verifica la firma, aplica el pago una sola vez y escribe el evento en su bandeja de salida; de ahí pasa a RabbitMQ y operación avisa al acudiente.
 
 \begin{figure}[!htb]
 \centering
 \resizebox{0.92\textwidth}{!}{\input{img/arquitectura/secuencia-pago.tex}}
-\caption{Secuencia del pago: orden idempotente, aviso de Wompi a comercio y evento por la bandeja de salida y RabbitMQ hasta el aviso de operación.}
+\caption{Secuencia del pago: inteligencia crea la orden en comercio, orden idempotente, aviso de Wompi a comercio y evento por la bandeja de salida y RabbitMQ hasta el aviso de operación.}
 \label{fig:sec-pago}
 \end{figure}
 
@@ -184,7 +184,7 @@ La Figura~\ref{fig:sec-pago} muestra que el pago no depende del regreso del acud
 \label{sec:autorizacion}
 \label{sec:datos}
 
-La descomposición sigue el diseño guiado por el dominio \citep{evans_domain-driven_2004}: cada servicio es un contexto delimitado con lenguaje propio, y las traducciones ocurren en adaptadores. Las migraciones crean 74 tablas en cinco bases, una por servicio, con la bandeja de salida repetida en las cinco (70 nombres distintos; Tabla~\ref{tab:reparto}, Anexo~\ref{anx:tablas}). El modelo anterior no sabía a qué colegio pertenecían pedidos y usuarios, y donde lo sabía lo enviaba el cliente sin validación. Un identificador de colegio en el usuario no sirve, porque un acudiente puede tener hijos en colegios distintos (CO-04 del SRS); la tenencia reside en la relación $\langle$estudiante, sede, grado, año lectivo$\rangle$, la \emph{matrícula} (ADR 0013), que viaja a los demás servicios como referencia lógica y se ubica en la línea del pedido, no en la cabecera, para que dos hermanos no obliguen a dos pagos. Las políticas son asimétricas: para leer un recurso basta una matrícula visible; para escribirlo se exigen todas las que referencia.
+La descomposición sigue el diseño guiado por el dominio \citep{evans_domain-driven_2004}: cada servicio es un contexto delimitado con lenguaje propio, y las traducciones ocurren en adaptadores. Las migraciones crean 74 tablas en cinco bases, una por servicio, con la bandeja de salida repetida en las cinco (70 nombres distintos; Tabla~\ref{tab:reparto}, Anexo~\ref{anx:tablas}). El modelo anterior no sabía a qué colegio pertenecían pedidos y usuarios, y donde lo sabía lo enviaba el cliente sin validación. Un identificador de colegio en el usuario no sirve, porque un acudiente puede tener hijos en colegios distintos (requisito CO-04 del SRS, matrícula como ancla); la tenencia reside en la relación $\langle$estudiante, sede, grado, año lectivo$\rangle$, la \emph{matrícula} (ADR 0013), que viaja a los demás servicios como referencia lógica y se ubica en la línea del pedido, no en la cabecera, para que dos hermanos no obliguen a dos pagos. Las políticas son asimétricas: para leer un recurso basta una matrícula visible; para escribirlo se exigen todas las que referencia.
 
 La autorización usa control de acceso basado en roles con ámbito \citep{sandhu_role-based_1996}. El modelo anterior guardaba el rol como texto, y la auditoría de sus 152 puntos de entrada halló 22 sin comparar el colegio del token con el del recurso (Sección~\ref{sec:defectos}). Ahora un usuario ejecuta el permiso $p$ sobre el ámbito $a$ si tiene un rol vigente sobre $a$ o sobre un ámbito que lo contenga ($\text{global} \succ \text{colegio} \succ \text{sede} \succ \text{matrícula}$); la función falla cerrada. Identidad evalúa esos permisos, pero su aplicación uniforme a todas las rutas quedó como endurecimiento productivo (Sección~\ref{sec:calidad-resumen}).
 

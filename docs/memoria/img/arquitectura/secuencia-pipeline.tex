@@ -1,39 +1,44 @@
-% Secuencia del pipeline: lectura de la lista, resolución y optimización. Misma paleta que c4-contenedores.tex.
+% Secuencia del pipeline: lectura en la subida, trabajo asíncrono por cola, resolución y optimización. Misma paleta que c4-contenedores.tex.
 \definecolor{tkPerF}{HTML}{FFF0B8}\definecolor{tkPerB}{HTML}{9A7B00}
 \definecolor{tkAppF}{HTML}{CFE2F7}\definecolor{tkAppB}{HTML}{1F4E86}
 \definecolor{tkProcF}{HTML}{D3EDD0}\definecolor{tkProcB}{HTML}{2E6B2B}
+\definecolor{tkExtF}{HTML}{FAD7B5}\definecolor{tkExtB}{HTML}{A8500F}
 \definecolor{tkInfF}{HTML}{DEDEDE}\definecolor{tkInfB}{HTML}{4D4D4D}
 \definecolor{tkBdF}{HTML}{CDEBEB}\definecolor{tkBdB}{HTML}{1C6E6E}
-\begin{tikzpicture}[x=1cm, y=1cm, font=\scriptsize,
-  pa/.style={draw=tkAppB, fill=tkAppF, rounded corners=2pt, align=center, minimum width=2.2cm, minimum height=8mm},
-  pg/.style={draw=tkInfB, fill=tkInfF, rounded corners=2pt, align=center, minimum width=2.2cm, minimum height=8mm},
-  pp/.style={draw=tkProcB, fill=tkProcF, rounded corners=2pt, align=center, minimum width=2.2cm, minimum height=8mm},
-  pc/.style={draw=tkBdB, fill=tkBdF, rounded corners=2pt, align=center, minimum width=2.2cm, minimum height=8mm},
-  pr/.style={draw=tkPerB, fill=tkPerF, rounded corners=2pt, align=center, minimum width=2.2cm, minimum height=8mm},
+\definecolor{tkMqF}{HTML}{E2D6F4}\definecolor{tkMqB}{HTML}{5B2E99}
+\begin{tikzpicture}[x=1cm, y=1cm, font=\small,
+  pa/.style={draw=tkAppB, fill=tkAppF, rounded corners=2pt, align=center, minimum width=1.95cm, minimum height=9mm},
+  pg/.style={draw=tkInfB, fill=tkInfF, rounded corners=2pt, align=center, minimum width=1.95cm, minimum height=9mm},
+  pp/.style={draw=tkProcB, fill=tkProcF, rounded corners=2pt, align=center, minimum width=1.95cm, minimum height=9mm},
+  pc/.style={draw=tkBdB, fill=tkBdF, rounded corners=2pt, align=center, minimum width=1.95cm, minimum height=9mm},
+  pr/.style={draw=tkPerB, fill=tkPerF, rounded corners=2pt, align=center, minimum width=1.95cm, minimum height=9mm},
+  pe/.style={draw=tkExtB, fill=tkExtF, rounded corners=2pt, align=center, minimum width=1.95cm, minimum height=9mm},
+  pm/.style={draw=tkMqB, fill=tkMqF, rounded corners=2pt, align=center, minimum width=1.95cm, minimum height=9mm},
   life/.style={dashed, draw=tkInfB!70},
-  msg/.style={-{Stealth[length=1.6mm]}, thick, draw=tkAppB},
-  ret/.style={-{Stealth[length=1.6mm]}, thick, dashed, draw=tkInfB},
+  msg/.style={-{Stealth[length=1.8mm]}, thick, draw=tkAppB},
+  ret/.style={-{Stealth[length=1.8mm]}, thick, dashed, draw=tkInfB},
   lab/.style={fill=white, inner sep=1pt, align=center}]
-\usetikzlibrary{arrows.meta}
 \node[pa] (w) at (0,0) {Acudiente\\(web)};
-\node[pg] (g) at (2.6,0) {Puerta de\\enlace};
-\node[pp] (i) at (5.2,0) {Inteligencia};
-\node[pc] (c) at (7.8,0) {Catálogo};
-\node[pp] (o) at (10.4,0) {Optimizador\\(NSGA-II)};
-\node[pr] (r) at (13.0,0) {Revisión\\humana};
-\foreach \n in {w,g,i,c,o,r} \draw[life] (\n.south) -- ++(0,-8.6);
-\def\m#1#2#3#4{\draw[msg] (#1 |- 0,#3) -- (#2 |- 0,#3) node[midway, lab, above=-1pt] {#4};}
-\draw[msg] (0,-1.0) -- (2.6,-1.0) node[midway, above=1.5pt, fill=white, inner sep=1pt] {1 sube la lista};
-\draw[msg] (2.6,-1.7) -- (5.2,-1.7) node[midway, above=1.5pt, fill=white, inner sep=1pt] {2 reenvía (límite 429)};
-\draw[msg] (5.2,-2.4) -- ++(0.9,0) -- ++(0,-0.5) -- ++(-0.9,0);
-\node[anchor=west, fill=white, inner sep=1pt, align=left] at (6.2,-2.65) {3 lectura con Gemini};
-\draw[msg] (5.2,-3.3) -- ++(0.9,0) -- ++(0,-0.5) -- ++(-0.9,0);
-\node[anchor=west, fill=white, inner sep=1pt, align=left] at (6.2,-3.55) {4 normaliza cada renglón};
-\draw[msg] (5.2,-4.3) -- (7.8,-4.3) node[midway, above=1.5pt, fill=white, inner sep=1pt] {5 pide emparejar};
-\draw[ret] (7.8,-4.9) -- (5.2,-4.9) node[midway, above=1.5pt, fill=white, inner sep=1pt] {6 candidatos y parecido};
-\draw[msg] (5.2,-5.5) -- ++(0.9,0) -- ++(0,-0.5) -- ++(-0.9,0);
-\node[anchor=west, fill=white, inner sep=1pt, align=left] at (6.2,-5.75) {7 clasifica con $\tau = 0{,}75$: resuelto si parecido $\geq \tau$;\\si no, ambiguo, hueco o sin match};
-\draw[msg] (5.2,-6.7) -- (10.4,-6.7) node[midway, above=1.5pt, fill=white, inner sep=1pt] {8 optimiza todos los renglones};
-\draw[ret] (10.4,-7.3) -- (0,-7.3) node[pos=0.55, above=1.5pt, fill=white, inner sep=1pt] {kits en espera de revisión (por la puerta de enlace)};
-\draw[msg] (5.2,-8.1) -- (13.0,-8.1) node[midway, above=1.5pt, fill=white, inner sep=1pt] {9 los no automáticos quedan para revisión humana};
+\node[pg] (g) at (2.2,0) {Puerta de\\enlace};
+\node[pp] (i) at (4.4,0) {Inteli-\\gencia};
+\node[pe] (m) at (6.6,0) {Gemini};
+\node[pm] (q) at (8.8,0) {Cola y\\trabajador};
+\node[pc] (c) at (11.0,0) {Catálogo};
+\node[pr] (r) at (13.2,0) {Revisión\\humana};
+\foreach \n in {w,g,i,m,q,c,r} \draw[life] (\n.south) -- ++(0,-10.4);
+\draw[msg] (0,-1.1) -- (2.2,-1.1) node[midway, above=1pt, lab] {1 sube};
+\draw[msg] (2.2,-1.8) -- (4.4,-1.8) node[midway, above=1pt, lab] {2 límite 429};
+\draw[msg] (4.4,-2.5) -- (6.6,-2.5) node[midway, above=1pt, lab] {3 lee páginas};
+\draw[ret] (6.6,-3.1) -- (4.4,-3.1) node[midway, above=1pt, lab] {4 renglones};
+\draw[msg] (4.4,-3.8) -- (8.8,-3.8) node[midway, above=1pt, lab] {5 guarda el trabajo y lo encola};
+\draw[ret] (4.4,-4.5) -- (0,-4.5) node[pos=0.5, above=1pt, lab] {6 responde 202: trabajo aceptado};
+\draw[msg] (8.8,-5.3) -- ++(0.8,0) -- ++(0,-0.55) -- ++(-0.8,0);
+\node[anchor=west, lab, align=left] at (9.7,-5.55) {7 toma el trabajo\\(RabbitMQ o tabla)};
+\draw[msg] (8.8,-6.5) -- (11.0,-6.5) node[midway, above=1pt, lab] {8 pide candidatos};
+\draw[ret] (11.0,-7.1) -- (8.8,-7.1) node[midway, above=1pt, lab] {9 candidatos};
+\draw[msg] (8.8,-7.8) -- ++(0.8,0) -- ++(0,-1.0) -- ++(-0.8,0);
+\node[anchor=west, lab, align=left] at (9.7,-8.3) {10 clasifica: sin candidatos, hueco;\\parecido $\geq \tau = 0{,}75$, resuelto;\\si no, ambiguo};
+\draw[msg] (8.8,-9.4) -- ++(0.8,0) -- ++(0,-0.55) -- ++(-0.8,0);
+\node[anchor=west, lab, align=left] at (9.7,-9.65) {11 NSGA-II sobre los renglones\\con candidatos};
+\draw[msg] (8.8,-10.4) -- (13.2,-10.4) node[midway, above=1pt, lab] {12 kits por revisar};
 \end{tikzpicture}

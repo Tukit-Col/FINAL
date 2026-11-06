@@ -14,21 +14,19 @@ función propia.\par
 El comercio electrónico en Colombia creció de forma sostenida: en 2025 las ventas en línea alcanzaron
 COP 105 billones, un 5,9\,\% más que el año anterior \citep{noauthor_informe_nodate-1}. Ese crecimiento no
 cambió la manera de adquirir los útiles escolares, una tarea anual que, solo en Bogotá, involucra a
-1.171.390 estudiantes \citep{noauthor_estadisticas_nodate}. Según FENALCO, el 35\,\% de las familias
-destina entre \$300.000 y \$500.000 por niño \citep{noauthor_resultados_2025}, y el 70\,\% no planea la
-compra con anticipación \citep{noauthor_resultados_2024}. A esa presión se suma el esfuerzo mental de
-buscar cada artículo por separado y compararlo a mano. La teoría de la carga cognitiva establece que, cuando
-la complejidad de una tarea supera la memoria de trabajo, la calidad de las decisiones disminuye
-\citep{sweller_cognitive_2011}, y Iyengar y Lepper encontraron que, al pasar de 6 a 24 alternativas, la tasa
-de compra bajó del 30\,\% al 3\,\% \citep{iyengar_when_2000}.\par
+1.171.390 estudiantes \citep{noauthor_estadisticas_nodate}. La introducción mostró el gasto y la falta de
+planeación de las familias; aquí interesa el mecanismo que los agrava. La teoría de la carga cognitiva
+establece que, cuando la complejidad de una tarea supera la memoria de trabajo, la calidad de las decisiones
+disminuye \citep{sweller_cognitive_2011}, y Iyengar y Lepper encontraron que, al pasar de 6 a 24
+alternativas, la tasa de compra bajó del 30\,\% al 3\,\% \citep{iyengar_when_2000}. Buscar cada artículo por
+separado y compararlo a mano pone al acudiente en esa situación.\par
 
 Los actores que lideran este segmento en Colombia trasladaron su modelo físico al canal digital sin
-modificarlo: publican un catálogo y delegan en el cliente la búsqueda, la comparación y la validación
-\citep{panamericana_cotizador_2025,primavera_armatulista_2026,mercadolibre_kits_2025,exito_listas_2025}.
-TeacherLists, en el ámbito internacional, convierte las listas de los salones en carritos prellenados
-\citep{teacherlists_retail_2026}, pero no interpreta listas impresas o fotografiadas ni reconoce el
-vocabulario local. Se identificó así la ausencia de un actor que convierta el modelo reactivo de compra en
-uno proactivo y asistido, y esa brecha constituyó la oportunidad del proyecto.\par
+modificarlo: publican un catálogo y delegan en el cliente la búsqueda, la comparación y la validación. Las
+plataformas internacionales, como TeacherLists, no interpretan listas impresas o fotografiadas ni reconocen
+el vocabulario local (el Capítulo~III las compara una por una). Se identificó así la ausencia de un actor que
+convierta el modelo reactivo de compra en uno proactivo y asistido, y esa brecha constituyó la oportunidad
+del proyecto.\par
 
 \subsubsection{Formulación del Problema}
 
@@ -61,40 +59,40 @@ del proceso de compra?
 \subsubsection{Propuesta de Solución}
 
 La propuesta pertenece a la ingeniería de software, con componentes de inteligencia artificial y de
-optimización multiobjetivo. Tukit es un sistema de recomendación con un modelo B2B2C
+optimización multiobjetivo. Tukit fue concebido como un sistema de recomendación con un modelo B2B2C
 (\emph{business-to-business-to-consumer}): el equipo de Tukit carga y publica la lista oficial de cada
-colegio, y el acudiente elige el kit y hace el pedido. El sistema recibe la lista en imagen, PDF o texto
-libre y la convierte en kits completos mediante las tres etapas ya descritas, con revisión humana de los
+colegio, y el acudiente elige el kit y hace el pedido. El sistema recibía la lista en imagen, PDF o texto
+libre y la convertía en kits completos mediante las tres etapas ya descritas, con revisión humana de los
 renglones sin certeza suficiente. El perfil socioeconómico de la pregunta se operacionalizó como el
 presupuesto y el tope de gasto que declara cada acudiente.\par
 
-Intervienen dos actores con un canal propio. El equipo de Tukit opera una aplicación de administración, en
-la que revisa las listas y atiende la cola de renglones dudosos. El acudiente accede por una aplicación web
-progresiva, selecciona el colegio y el grado de cada hijo, o carga su lista, e indica presupuesto y
-preferencias. Recibe hasta cuatro kits: el Ahorrador (menor costo) y el Premium (mejores marcas) salen
-siempre; el Fan, con los personajes pedidos, sale solo si el acudiente pidió uno; y A tu Medida, la mejor
-marca posible dentro del monto, sale cuando fija un tope. Después puede reemplazar productos, elegir el kit
+Intervinieron dos actores con un canal propio. El equipo de Tukit operó una aplicación de administración, en
+la que revisó las listas y atendió la cola de renglones dudosos. El acudiente accedió por una aplicación web
+progresiva, seleccionó el colegio y el grado de cada hijo, o cargó su lista, e indicó presupuesto y
+preferencias. Recibió hasta cuatro kits: el Ahorrador (menor costo) y el Premium (mejores marcas) salieron
+siempre; el Fan, con los personajes pedidos, salió solo si el acudiente pidió uno; y A tu Medida, la mejor
+marca posible dentro del monto, salió cuando fijó un tope. Después pudo reemplazar productos, elegir el kit
 y pagar, en modo simulado en esta versión. Un canal para que el colegio publique sus propias listas quedó
 como trabajo futuro.\par
 
 \subsubsection{Justificación de la Solución}
 
-El sistema es pertinente porque simplifica un proceso que hoy recae por completo sobre las familias.
-Presentar pocas alternativas ya armadas facilita la decisión, porque el exceso de opciones dificulta la
-elección \citep{iyengar_when_2000}, y a la vez beneficia a cada actor: el acudiente evita recorrer varios
-establecimientos y puede ajustar el kit; el colegio logra que las familias compren a partir de su lista
-oficial; y el equipo de Tukit concentra su revisión en los renglones inciertos, de acuerdo con las pautas que
+El sistema resultó pertinente porque simplificó un proceso que hasta entonces recaía por completo sobre las
+familias. Presentar pocas alternativas ya armadas facilita la decisión, porque el exceso de opciones dificulta
+la elección \citep{iyengar_when_2000}. La propuesta beneficiaba además a cada actor. El acudiente evita recorrer
+varios establecimientos y puede ajustar el kit. El colegio logra que las familias compren a partir de su lista
+oficial. El equipo de Tukit concentra su revisión en los renglones inciertos, de acuerdo con las pautas que
 recomiendan indicar lo que el sistema desconoce y facilitar la corrección \citep{amershi_guidelines_2019}.\par
 
-Técnicamente es viable porque las técnicas tienen respaldo empírico: los modelos multimodales leen documentos
+Técnicamente fue viable porque las técnicas tenían respaldo empírico: los modelos multimodales leen documentos
 con un desempeño comparable al de los métodos tradicionales \citep{shen_ocr_2026} y NSGA-II es una referencia
 para objetivos en conflicto \citep{deb_fast_2002}. En la prueba ESC-D4, el armado de kits tuvo un percentil 95
-de 0,31~s frente al límite de 8~s (Sección~\ref{sec:optimizacion}), medición que cubre la optimización y no la
-lectura de la lista. La arquitectura de microservicios permitiría que cada componente crezca según su demanda
+de 0,31~s frente al límite de 8~s (Sección~\ref{sec:optimizacion}), medición que cubrió la optimización y no la
+lectura de la lista; ESC-D4 es el escenario de calidad de rendimiento del diseño (Capítulo~V). La arquitectura de microservicios permitiría que cada componente crezca según su demanda
 \citep{newman_building_2021}, aunque el despliegue fue local y no se ejercitó el escalado independiente.
-El sistema usa herramientas de código abierto, como PostgreSQL, RabbitMQ, Redis y pymoo
-\citep{blank_pymoo_2020}, y paga los modelos de inteligencia artificial por uso; como cada lista oficial se
-procesa una vez y sirve a todas las familias del grado, el costo se reparte entre muchos usuarios.\par
+El sistema usó herramientas de código abierto, como PostgreSQL, RabbitMQ, Redis y pymoo
+\citep{blank_pymoo_2020}, y pagó los modelos de inteligencia artificial por uso; como cada lista oficial se
+procesa una vez y sirve a todas las familias del grado, el costo se repartía entre muchos usuarios.\par
 
 Para estimar la viabilidad económica se midió el valor de los kits canónicos que el sistema publicó para los
 trece grados del Colegio Agustiniano Ciudad Salitre, y el kit Ahorrador costó en promedio \$609.343 en útiles
@@ -171,8 +169,8 @@ modelo de negocio. RUP \citep{kruchten_rup_2003} aportó la gestión de riesgos 
 requerimiento hasta su componente y su prueba. ATAM \citep{bass_software_2021} permitió elegir la
 arquitectura del OE2 entre tres alternativas. CRISP-DM \citep{chapman_crisp-dm_2000,wirth_crisp-dm_2000}
 fue el proceso de los componentes que dependen de datos (OE3 y OE4), y para el OE5 se usó ISO/IEC~25010
-\citep{iso_25010_2011} con un protocolo de validación registrado de antemano. Las normas IEEE 830, 1016 y 1058
-definieron la estructura de los documentos de ingeniería: requerimientos, diseño y plan del proyecto.\par
+\citep{iso_25010_2011} con un protocolo de validación registrado de antemano. Las normas IEEE 830 \citep{ieee_830_1998}, 1016 \citep{ieee_1016_2009} y 1058 \citep{ieee_1058_1998}
+definieron la estructura de los documentos de ingeniería: la IEEE 830 produjo la especificación de requerimientos (SRS), la 1016 el documento de diseño (SDD) y la 1058 el plan del proyecto.\par
 
 La Tabla~\ref{tab:entregables} une cada entregable con el objetivo que respalda, el estándar que siguió y la razón de incluirlo, como pide la plantilla del programa.
 
@@ -280,7 +278,7 @@ evaluación y despliegue. En la Fase~1 se aplicó solo la primera. Desde la Fase
 componentes cuyo comportamiento depende de datos: la percepción y la normalización del OE3, y la
 optimización, la utilidad multiatributo (MAUT) y la traducción de preferencias a restricciones (NL2C) del
 OE4. La Tabla~\ref{tab:crispdm-oe} indica, por objetivo, qué se hizo en cada etapa, qué evidencia produjo y
-en qué sección de esta memoria se presenta.\par
+en qué sección de esta memoria se presenta. La tabla cubre solo el OE3 y el OE4 porque CRISP-DM aplica únicamente a los componentes que dependen de datos; el OE2 se condujo con ATAM y el OE5 con ISO/IEC~25010 y el protocolo registrado de antemano.\par
 
 \begin{table}[H]
 \centering\footnotesize
@@ -305,13 +303,13 @@ Sec.~\ref{sec:normalizacion} \\
 OE3 & Modelado & Cinco enfoques de lectura; cuatro estrategias de recuperación; resolución
 léxica con aporte del coseno & Bancos de los prototipos &
 Sec.~\ref{sec:percepcion-dev} y \ref{sec:normalizacion} \\
-OE3 & Evaluación & F1 de la lectura; análisis del umbral de certeza $\tau$, declarado sin calibrar; revisión
+OE3 & Evaluación & F1 de la lectura; análisis del umbral de certeza $\tau$ (0,75, conservador) con precisión-cobertura; revisión
 humana de los renglones dudosos & Tablas de resultados &
 Sec.~\ref{sec:percepcion} y \ref{sec:recuperacion} \\
 OE3 & Despliegue & Servicios de inteligencia y de catálogo; cola de revisión del administrador &
 Sistema construido & Sec.~\ref{sec:pipeline} \\
 \midrule
-OE4 & Comprensión de los datos & Encuesta de preferencias (pregunta P21, 60 respuestas) y 174
+OE4 & Comprensión de los datos & Encuesta de preferencias (columna P21 de la exportación, 60 respuestas) y 174
 listas del corpus & Dossier de negocio y banco de listas & Sec.~\ref{sec:optimizacion-dev} \\
 OE4 & Preparación & Líneas comprables, candidatos por renglón y curaduría del catálogo &
 Auditorías de los kits & Sec.~\ref{sec:optimizacion-dev} \\
