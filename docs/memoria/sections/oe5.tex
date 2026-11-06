@@ -1,39 +1,46 @@
 \subsection{Evaluación con usuarios}
 \label{sec:oe5}
 
-\textbf{Pregunta.} Ningún banco de pruebas responde si un acudiente, sin que nadie le explique la
-aplicación, logra armar y pagar el kit de su hijo. \textbf{Método.} Es la fase F5, con un protocolo
-preregistrado el 28 de octubre de 2026 (\path{docs/validacion/plan_analisis_oe5.md}), antes de la primera
-sesión, y corresponde al nivel de aceptación del control de calidad. Cada sesión fue una prueba de
-usabilidad moderada con pensamiento en voz alta \citep{lazar_research_2017}, sin instrucciones. Las tareas
-siguen la compra: crear la cuenta y elegir colegio y grado (T1), declarar personaje y gasto (T2), esperar la
-generación (T3), revisar y elegir un kit (T4), cambiar o quitar un producto (T5), pagar (T6) y encontrar
-el pedido (T7); T8, pedir un cambio al asistente, se agregó después y es exploratoria. T1, T4 y T6 son
-críticas. \textbf{Métrica.} Cada tarea se codificó como éxito sin ayuda, con ayuda, fallo o falla del
-sistema, con criterio estricto: cualquier indicación de la moderadora cuenta como ayuda. Además se
-aplicaron el SUS (C1, umbral 68), la carga percibida RTLX (C2) y el NPS, y C3 exige al menos 80\,\% de
-éxito sin ayuda en cada tarea crítica.
+\textbf{Pregunta.} Las pruebas automáticas de la sección anterior verifican el código, pero no muestran si
+un acudiente, sin que nadie le explique la aplicación, logra armar y pagar el kit de su hijo. Esta
+evaluación con usuarios responde eso. \textbf{Método.} Es la fase F5 del OE5, con un protocolo
+preregistrado: el plan de análisis, con tareas, métricas y criterios de éxito, se fechó el 28 de octubre de
+2026 (\path{docs/validacion/plan_analisis_oe5.md}), antes de la primera sesión, para no ajustar los criterios
+a los resultados. Corresponde al nivel de aceptación del control de calidad, el que verifica el sistema con
+usuarios reales. Cada sesión fue una prueba de usabilidad moderada con pensamiento en voz alta
+\citep{lazar_research_2017}, sin instrucciones. Las tareas siguen la compra: crear la cuenta y elegir colegio
+y grado (T1), declarar personaje y gasto (T2), esperar la generación (T3), revisar y elegir un kit (T4),
+cambiar o quitar un producto (T5), pagar (T6) y encontrar el pedido (T7); T8, pedir un cambio al asistente,
+es exploratoria y no se planteó a los participantes. T1, T4 y T6 son críticas.
+
+\textbf{Métrica.} Cada tarea se codificó como éxito sin ayuda, con ayuda, fallo o falla del sistema, con
+criterio estricto: cualquier indicación de la moderadora cuenta como ayuda. Además se definieron tres
+criterios. C1: el SUS (System Usability Scale, cuestionario de diez preguntas con puntaje de 0 a 100) debe
+superar 68, el valor medio de referencia. C2: la carga percibida, medida con el RTLX (Raw Task Load Index, de
+0 a 100, donde más es más carga), debe ser menor con Tukit que en la última compra habitual, con un intervalo
+que excluya el cero y un tamaño del efecto $d_z \ge 0{,}5$. C3: cada tarea crítica debe lograrse sin ayuda en
+al menos 80\,\% de las sesiones. También se aplicó el NPS (Net Promoter Score, cuánto recomendarían la
+aplicación), que se reporta sin criterio.
 
 \textbf{Datos.} Participaron seis acudientes del Colegio Agustiniano Ciudad Salitre, el colegio piloto,
-reclutados por conveniencia entre el 2 y el 3 de noviembre (cinco por videollamada, uno presencial), sobre
-la versión \texttt{b6b6fe7}, que no se modificó. El pago usó la pasarela en modo simulado. La primera
-sesión de ACU-04 se cortó al subir la lista, de modo que solo se codifica T1, y los seis pagos se
-observaron porque su segunda grabación muestra el pago aprobado. Las sesiones se grabaron con
-consentimiento, se transcribieron en el equipo del proyecto y un segundo codificador revisó cada hoja
-contra las mismas fuentes y dejó 78 correcciones que se incorporaron antes del análisis. Las cifras
-salen del cuaderno preregistrado (\texttt{analisis\_oe5.py}) sobre
-\path{docs/validacion/oe5/oe5_ronda2/datos_ronda2.csv}.
+reclutados por conveniencia entre el 2 y el 3 de noviembre (cinco por videollamada, uno presencial). El pago
+usó la pasarela en modo simulado. La primera sesión de ACU-04 se cortó al subir la lista, así que de ella
+solo se codifica T1; su segunda grabación muestra el pago aprobado, y por eso se cuentan los seis pagos,
+aunque T6 se codifica sobre cinco sesiones. Las sesiones se grabaron con consentimiento, se transcribieron
+en el equipo del proyecto y un segundo codificador revisó cada hoja contra las mismas fuentes y dejó 78
+correcciones que se incorporaron antes del análisis. Las cifras salen del programa de análisis preregistrado
+(\texttt{analisis\_oe5.py}) sobre \path{docs/validacion/oe5/oe5_ronda2/datos_ronda2.csv}.
 
 \textbf{Resultado.} La Tabla~\ref{tab:oe5-tareas} da el éxito sin ayuda por tarea con su intervalo de
-Wilson. Los seis acudientes completaron el recorrido de la cuenta a un pedido pagado; el pago (T6) se
-resolvió sin ayuda en cuatro de cinco sesiones, en una mediana de 43 segundos, y el registro (T1) en
-cuatro de seis. El resultado que cambia el diseño es T4: solo uno de cinco revisó los kits y eligió sin
-ayuda. Tres problemas se repitieron: dos acudientes no encontraron el camino a «Ver mis kits» al terminar
-la espera, no entendieron de dónde sale el kit («yo no sé cuánto vale en el Faro», qué significa
-«confiable») y las listas de 82 productos generaron «estrés visual». Hubo fallas puntuales, como el
-asistente flotante que tapó el botón «Elegir» en una sesión y el kit Fan que mostró solo el personaje de
-la primera de dos hijas, un defecto real. T8 no se planteó y ningún acudiente usó el asistente por su
-cuenta.
+Wilson; como cada tarea tiene su propio n, la tabla lo indica. Los seis acudientes completaron el recorrido
+de la cuenta a un pedido pagado; el pago (T6) se resolvió sin ayuda en cuatro de cinco sesiones, en una
+mediana de 43 segundos, y el registro (T1) en cuatro de seis. El resultado que cambia el diseño es T4: solo
+uno de cinco revisó los kits y eligió sin ayuda. Se repitieron tres problemas. Primero, dos acudientes no
+encontraron el camino a «Ver mis kits» al terminar la espera. Segundo, no entendieron de dónde sale el kit
+(«yo no sé cuánto vale en el Faro») ni qué significa «confiable». Tercero, las listas de 82 productos les
+generaron «estrés visual». Hubo además fallas puntuales: el asistente flotante tapó el botón «Elegir» en una
+sesión, y el kit Fan mostró solo el personaje de la primera de dos hijas, un defecto real. Ningún acudiente
+usó el asistente por su cuenta.
 
 \begin{table}[htbp]
 \centering
@@ -57,15 +64,17 @@ T7 & Encontrar el pedido & 2 de 2 (100\,\%) & 34--100\,\% & 16 \\
 \end{table}
 
 Los cuestionarios, que los seis respondieron el 5 de noviembre, resumen la valoración
-(Tabla~\ref{tab:oe5-cuestionario}). El SUS medio fue de 90, con un intervalo del 95\,\% de 82 a 98: su
-límite inferior supera el umbral de 68 (t de una muestra, $p = 0{,}0004$) y en la escala de Bangor et
-al.~\citep{bangor_determining_2009} cae en «excelente». La carga percibida con Tukit (RTLX de 9 sobre 100)
-fue mucho menor que la de la última compra habitual (63): la diferencia, 54 puntos, tiene un intervalo de
-23 a 85 que excluye el cero y un tamaño del efecto $d_z = 1{,}83$ (t pareada, $p = 0{,}003$). Cuatro de
-seis describieron la aplicación como fácil, intuitiva o rápida («fue súper rápido», ACU-05), y valoraron el
-ahorro de tiempo y poder cambiar productos. El tiempo activo de las sesiones completas fue de 2,4 a 10,3
-minutos, frente a cuatro horas o más que reporta el 65\,\% de los acudientes en la encuesta del OE1; es un
-orden de magnitud y no una medición, pues compara una tarea guiada con una compra real.
+(Tabla~\ref{tab:oe5-cuestionario}). El SUS medio fue de 90, con un intervalo del 95\,\% de 82 a 98. Su
+límite inferior supera el umbral de 68 (prueba t de una muestra, $p = 0{,}0004$) y en la escala de Bangor et
+al.~\citep{bangor_determining_2009} corresponde a «excelente». Con seis participantes, ese valor orienta y
+no alcanza para estimar la población. La carga percibida con Tukit (RTLX de 9 sobre 100) fue mucho menor que
+la de la última compra habitual (63): la diferencia, 54 puntos, tiene un intervalo de 23 a 85 que excluye el
+cero y un tamaño del efecto $d_z = 1{,}83$ (prueba t pareada, $p = 0{,}003$; $d_z$ es la diferencia media
+dividida por la desviación estándar de las diferencias). Cuatro de seis describieron la aplicación como
+fácil, intuitiva o rápida («fue súper rápido», ACU-05), y valoraron el ahorro de tiempo y poder cambiar
+productos. El tiempo activo de las sesiones completas fue de 2,4 a 10,3 minutos, frente a cuatro horas o más
+que reporta el 65\,\% de los acudientes en la encuesta del OE1. Es solo un orden de magnitud, porque compara
+una tarea guiada con una compra real.
 
 \begin{table}[htbp]
 \centering
@@ -86,23 +95,25 @@ NPS (S1) & $+83$ (5 promotores, 1 pasivo) & 50--100 & se reporta \\
 \end{tabular}
 \end{table}
 
-\textbf{Lectura.} El OE5 pedía pruebas funcionales, no funcionales, de carga y de usabilidad con usuarios
-reales, y las cuatro se hicieron. C1 y C2 se cumplen y C3 se alcanzó en el pago (T6) pero no en el
-registro (T1) ni en la elección del kit (T4). Con seis participantes los resultados son formativos
-\citep{nielsen_estimating_1994}: su valor está en señalar dónde se concentra la ayuda, y de ahí salen los
-cambios para la siguiente versión, ordenados por su efecto en T4: llevar al acudiente a sus kits cuando
-estén listos, agrupar los productos por categoría con la tienda visible, explicar las etiquetas de nivel
-y los textos de consolidación, corregir el personaje del segundo hijo y reubicar el asistente, y aclarar
-que la cuenta se crea al armar el kit. El estado «Cumplido» se apoya en las cuatro clases de prueba, en el
-pago de los seis y en C1 y C2.
+\textbf{Lectura.} El OE5 pide pruebas funcionales, no funcionales, de carga y de usabilidad con usuarios
+reales. Las cuatro clases se ejecutaron, aunque las de carga y degradación quedaron en una corrida por equipo
+y con niveles pendientes (Sección~\ref{sec:calidad}). C1 y C2 se cumplen y C3 se alcanzó en el pago (T6),
+pero no en el registro (T1) ni en la elección del kit (T4). Con seis participantes los resultados son
+formativos \citep{nielsen_estimating_1994}, es decir, sirven para ver dónde se concentra la ayuda y orientar
+la siguiente versión. Por eso el estado «Cumplido» se apoya en las cuatro clases de prueba, en el pago de los
+seis y en C1 y C2, y los resultados de T1 y T4 se leen como hallazgos de diseño. Los primeros cambios apuntan
+a T4: llevar al acudiente a sus kits cuando estén listos, agrupar los productos por categoría con la tienda
+visible, explicar las etiquetas de nivel y los textos de consolidación, corregir el personaje del segundo
+hijo, reubicar el asistente y aclarar que la cuenta se crea al armar el kit.
 
-\textbf{Límite.} El plan se desvió en varios puntos. El reclutamiento fue por conveniencia, con una sola
-ronda y una sola moderadora, y varios participantes conocen al equipo, así que los comentarios positivos
-pueden estar sesgados; por eso el análisis se apoya en lo observado. Las sesiones se planearon de 15
-minutos, el cierre fue una entrevista oral y el SUS, el RTLX y el NPS se respondieron por formulario dos o
-tres días después, de modo que dependen del recuerdo y de la cortesía, y el SEQ por tarea no se aplicó. La
-moderadora explicó más de lo que permitía el guion en dos sesiones; esas ayudas se codificaron como
-ayuda, lo que hace conservadoras las tasas. No se midió el conteo de interacciones (lo sustituyó el RTLX)
-ni se hizo la recodificación ciega del 30\,\% con kappa. Un acudiente pareció invertir dos escalas del
-SUS; su puntaje (77,5) se reporta tal cual. El pago simulado aprueba solo, así que T6 mide la navegación
-hasta el pago y no una pasarela real.
+\textbf{Límite.} El plan se desvió en varios puntos. En la muestra, el reclutamiento fue por conveniencia, con
+una sola ronda y una sola moderadora, y varios participantes conocen al equipo, así que los comentarios
+positivos pueden estar sesgados; por eso el análisis se apoya en lo observado. En el procedimiento, las
+sesiones se planearon de 15 minutos, el cierre fue una entrevista oral y el SUS, el RTLX y el NPS se
+respondieron por formulario dos o tres días después, de modo que dependen del recuerdo y de la cortesía; el
+SEQ (una pregunta de dificultad después de cada tarea) no se aplicó. En la codificación, la moderadora
+explicó más de lo que permitía el guion en dos sesiones; esas ayudas se codificaron como ayuda, lo que hace
+conservadoras las tasas. No se midió el conteo de interacciones (lo sustituyó el RTLX) ni se hizo la
+recodificación ciega del 30\,\% con kappa. Un acudiente pareció invertir dos escalas del SUS; su puntaje
+(77,5) se reporta tal cual. El pago simulado aprueba solo, así que T6 mide la navegación hasta el pago y no
+una pasarela real.

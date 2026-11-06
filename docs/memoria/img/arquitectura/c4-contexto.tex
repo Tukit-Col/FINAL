@@ -1,0 +1,86 @@
+% Vista de contexto (C4 nivel 1): Tukit como un solo sistema frente a sus personas y a los sistemas externos,
+% agrupados por función. Estilos locales y misma paleta que c4-contenedores.tex; solo usa arrows.meta y shapes.geometric.
+
+\definecolor{tkPerF}{HTML}{FFF0B8}\definecolor{tkPerB}{HTML}{9A7B00}
+\definecolor{tkAppF}{HTML}{CFE2F7}\definecolor{tkAppB}{HTML}{1F4E86}
+\definecolor{tkProcF}{HTML}{D3EDD0}\definecolor{tkProcB}{HTML}{2E6B2B}
+\definecolor{tkExtF}{HTML}{FAD7B5}\definecolor{tkExtB}{HTML}{A8500F}
+\definecolor{tkInfF}{HTML}{DEDEDE}\definecolor{tkInfB}{HTML}{4D4D4D}
+\definecolor{tkBdF}{HTML}{CDEBEB}\definecolor{tkBdB}{HTML}{1C6E6E}
+\definecolor{tkMqF}{HTML}{E2D6F4}\definecolor{tkMqB}{HTML}{5B2E99}
+\begin{tikzpicture}[x=1cm, y=1cm, font=\scriptsize,
+  per/.style={draw, thick, rounded corners=7pt, align=center, draw=tkPerB, fill=tkPerF, inner sep=3pt, minimum height=7mm},
+  cont/.style={draw, rounded corners=2pt, align=center, draw=tkAppB, fill=tkAppF, inner sep=2pt, minimum height=8mm},
+  proc/.style={draw, rounded corners=2pt, align=center, draw=tkProcB, fill=tkProcF, inner sep=2pt, minimum height=7mm},
+  ext/.style={draw, rounded corners=2pt, align=center, draw=tkExtB, fill=tkExtF, inner sep=2pt, minimum height=7mm},
+  infra/.style={draw, rounded corners=2pt, align=center, draw=tkInfB, fill=tkInfF, inner sep=2pt, minimum height=7mm},
+  bd/.style={draw, cylinder, shape border rotate=90, aspect=0.22, align=center, fill=tkBdF,
+    minimum width=1.25cm, draw=tkBdB, minimum height=8mm, inner sep=1pt},
+  grupo/.style={draw=black!55, rounded corners=3pt, fill=black!4},
+  http/.style={-{Stealth[length=1.6mm]}, semithick},
+  evt/.style={-{Stealth[length=1.6mm]}, densely dashed, semithick},
+  cola/.style={-{Stealth[length=1.6mm]}, semithick, draw=tkMqB},
+  hueco/.style={draw=white, line width=2.8pt},
+  paso/.style={circle, draw, fill=white, inner sep=0.5pt, font=\scriptsize\bfseries, minimum size=4.4mm},
+  rot/.style={font=\scriptsize, fill=white, inner sep=1pt},
+  sin/.style={semithick},
+  sis/.style={draw, thick, rounded corners=3pt, align=center, draw=tkAppB, fill=tkAppF, inner sep=4pt},
+  et/.style={font=\scriptsize, fill=white, inner sep=1pt, align=center, text width=3.4cm, anchor=south}]
+
+% Flechas: etiqueta sobre la flecha, con la información que pasa
+\def\fl#1#2#3#4{\draw[http] (#1,#3) -- (#2,#3) node[et, pos=0.5, yshift=-0.5pt] {#4};}
+\def\fn#1#2#3#4{\draw[sin] (#1,#3) -- (#2,#3) node[et, pos=0.5, yshift=-0.5pt] {#4};}
+% Sistema: un solo recuadro, como en el nivel 1 de C4
+\node[sis, minimum width=3.4cm, minimum height=12.4cm, anchor=north] (tukit) at (0,1.1) {};
+\node[align=center, text width=3.0cm, font=\small] at (0,-2.2) {\textbf{Tukit}\\[2pt]\scriptsize sistema de software que lee listas de útiles escolares y arma kits optimizados};
+\node[align=center, text width=2.9cm, font=\scriptsize] at (0,-7.4) {aplicación web, panel de administración, puerta de enlace y cinco servicios, que se abren en la vista de contenedores};
+% Personas
+\node[per, text width=3.0cm] (acudiente) at (-9.6,-1.9) {\textbf{Acudiente}\\padre o madre del estudiante};
+\node[per, text width=3.0cm] (equipo) at (-9.6,-6.9) {\textbf{Equipo de Tukit}\\administrador y operador de última milla};
+% Sistemas externos, agrupados por función
+\def\gr#1#2#3{\draw[grupo] (7.4,#1) rectangle (11.4,#2); \node[font=\scriptsize\bfseries, anchor=north] at (9.4,#1) {\vphantom{Ag}#3};}
+\gr{1.1}{-1.9}{Papelerías y proveedores}
+\node[ext, text width=3.4cm] at (9.4,-0.5) {\textbf{Tiendas en línea}\\Éxito, Panamericana, Librería Nacional};
+\gr{-2.5}{-4.5}{Pasarela de pago}
+\node[ext, text width=3.4cm] at (9.4,-3.6) {\textbf{Wompi}\\transacción y confirmación};
+\gr{-5.1}{-7.1}{Lectura de listas}
+\node[ext, text width=3.4cm] at (9.4,-6.2) {\textbf{Gemini}\\lectura de listas y vectores};
+\gr{-7.7}{-10.5}{Canales de aviso}
+\node[ext, text width=3.4cm] at (9.4,-8.9) {\textbf{Correo saliente}\\SMTP};
+\node[ext, text width=3.4cm] at (9.4,-9.75) {\textbf{WhatsApp}\\enlace wa.me};
+\gr{-11.1}{-13.1}{Mapas y direcciones}
+\node[ext, text width=3.4cm] at (9.4,-12.2) {\textbf{Google Maps}\\sugerencias de dirección};
+% Acudiente
+\fl{-8.1}{-1.7}{-1.1}{lista, hijos, preferencias, presupuesto, pago}
+\draw[http] (-1.7,-2.5) -- (-8.1,-2.5) node[et, pos=0.5, yshift=-0.5pt] {tres kits, precios, estado del pedido};
+% Equipo
+\fl{-8.1}{-1.7}{-5.3}{validación de listas y mapeos, catálogo, colegios}
+\draw[http] (-1.7,-6.2) -- (-8.1,-6.2) node[et, pos=0.5, yshift=-0.5pt] {cola de revisión, métricas, casos};
+\fl{-8.1}{-1.7}{-7.1}{estado de la entrega, incidencias}
+\draw[http] (-1.7,-8.0) -- (-8.1,-8.0) node[et, pos=0.5, yshift=-0.5pt] {pedidos por entregar, dirección, kit};
+% Externos
+\fl{1.7}{7.4}{-0.0}{búsqueda de productos}
+\draw[http] (7.4,-0.9) -- (1.7,-0.9) node[et, pos=0.5, yshift=-0.5pt] {productos y precios};
+\fl{1.7}{7.4}{-3.0}{transacción, monto, referencia}
+\draw[http] (7.4,-3.9) -- (1.7,-3.9) node[et, pos=0.5, yshift=-0.5pt] {confirmación de pago};
+\fl{1.7}{7.4}{-5.6}{páginas de la lista, renglones}
+\draw[http] (7.4,-6.5) -- (1.7,-6.5) node[et, pos=0.5, yshift=-0.5pt] {renglones leídos, vectores};
+\fl{1.7}{7.4}{-8.9}{aviso por correo}
+\fn{1.7}{7.4}{-9.75}{aviso como enlace wa.me}
+\fl{1.7}{7.4}{-11.6}{texto de la dirección}
+\draw[http] (7.4,-12.5) -- (1.7,-12.5) node[et, pos=0.5, yshift=-0.5pt] {direcciones sugeridas};
+% Leyenda
+\def\tkley#1#2#3#4{\node[#1, minimum width=7mm, minimum height=4.2mm, inner sep=0pt, text width=7mm] (l#2) at #3 {};
+  \node[anchor=west, font=\scriptsize, inner sep=1pt] at ([xshift=1mm]l#2.east) {#4};}
+\node[draw=black!40, rounded corners=2pt, anchor=north west, minimum width=22.9cm, minimum height=1.3cm,
+  inner sep=0pt] (cajaley) at (-11.4,-13.8) {};
+\node[anchor=north west, font=\scriptsize\bfseries] at ([shift={(2mm,-1mm)}]cajaley.north west) {Leyenda};
+\begin{scope}[shift={(cajaley.north west)}]
+\tkley{per}{a}{(2.2,-0.8)}{Persona}
+\tkley{sis}{b}{(4.9,-0.8)}{Sistema construido}
+\tkley{ext}{d}{(8.7,-0.8)}{Sistema externo}
+\draw[grupo] (11.6,-0.6) rectangle +(0.7,-0.4); \node[anchor=west, font=\scriptsize, inner sep=1pt] at (12.4,-0.8) {Agrupación por función};
+\draw[http] (15.6,-0.8) -- +(0.9,0); \node[anchor=west, font=\scriptsize, inner sep=1pt] at (16.6,-0.8) {Petición, con lo que pasa};
+\draw[sin] (20.0,-0.8) -- +(0.6,0); \node[anchor=west, font=\scriptsize, inner sep=1pt] at (20.7,-0.8) {Enlace};
+\end{scope}
+\end{tikzpicture}

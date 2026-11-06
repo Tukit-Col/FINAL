@@ -4,7 +4,7 @@
 
 \vspace{0.25cm}
 
-Colombian households often receive extensive and ambiguous school supply lists, forcing them to visit multiple stores to fulfill them, frequently without finding a single, comprehensive kit that meets their specific needs. Tukit processes these lists, whether provided as images, PDFs, or free text, by comparing each item against a canonical catalog, utilizing both lexical and semantic similarity. It then assembles optimized kits using a multi-objective approach based on the NSGA-II algorithm, balancing factors such as cost, brand fidelity, product availability, and thematic preferences. The project characterized the domain through interviews and a survey, chose the architecture among three alternatives with ATAM, and followed a hybrid, encompassing methodology that integrates SCRUM, Design Thinking, RUP, and CRISP-DM, in alignment with IEEE standards 830, 1016, and 1058. List reading reached a micro F1 of 0.948, the approximate Pareto front covered 0.9969 of the exact hypervolume on 40 test lists (32 solved with NSGA-II), and the natural-language assistant had no successful prompt injection in 81 attempts. In sessions with six parents from the pilot school, all six completed the journey from account to a paid order (simulated payment), with a mean SUS of 90 and perceived workload dropping from 63 to 9 out of 100 against their usual purchase; only one of five chose a kit unaided, so that step sets the changes for the next version.
+Colombian households receive long, ambiguous school supply lists and must visit several stores to complete them, often without finding one kit that fits their needs. Tukit reads a list given as an image, a PDF, or free text and compares each item with a canonical catalog (a single list of products with normalized names), combining word similarity (lexical) with similarity of meaning (semantic). With those matches, it assembles kits through a multi-objective optimization based on NSGA-II that balances cost, brand fidelity, availability, and thematic preferences. The project described the domain through interviews and a survey and followed a hybrid methodology: Design Thinking with IEEE 830 for the requirements, RUP with IEEE 1016 and ATAM for the design, SCRUM with CRISP-DM for reading, matching, and optimization, and a preregistered protocol based on ISO/IEC 25010 for the evaluation. List reading reached a micro F1 of 0.948. The approximate Pareto front (the kits that cannot improve one objective without worsening another) covered 0.9969 of the exact hypervolume on 40 test lists (32 solved with NSGA-II), and the natural-language assistant resisted all 81 prompt injection attempts (instructions hidden in the input to make it misbehave). In sessions with six parents from the pilot school, all six went from account creation to a paid order (simulated payment), the mean SUS usability score was 90 out of 100, and perceived workload dropped from 63 to 9 out of 100 against their usual purchase. Only one of five chose a kit unaided, so kit selection is the first thing to improve in the next version. The five specific objectives were met within these limits: one school, six participants, and simulated payment.
 
 \vspace{0.2cm}
 \noindent\textbf{Keywords:} school supply lists, multi-objective optimization, NSGA-II, semantic matching, human-in-the-loop, usability.
@@ -17,17 +17,16 @@ Colombian households often receive extensive and ambiguous school supply lists, 
 
 Los hogares colombianos reciben listas escolares extensas y ambiguas, y deben recorrer
 varios comercios para completarlas sin encontrar un kit que se ajuste a sus necesidades.
-Tukit lee la lista en imagen, PDF o texto libre, compara cada renglón con un catálogo
-canónico combinando el parecido léxico y el semántico. Posteriormente, arma kits con una optimización
+Tukit lee la lista en imagen, PDF o texto libre y compara cada renglón con un catálogo
+canónico (una lista única de productos con nombre normalizado), combinando el parecido de las palabras (léxico)
+con el de su significado (semántico). Con esas coincidencias, arma kits con una optimización
 multiobjetivo basada en NSGA-II que equilibra costo, fidelidad de marca, disponibilidad y
-preferencias temáticas. El trabajo caracterizó el dominio con entrevistas y una encuesta, eligió la arquitectura entre tres alternativas con ATAM y siguió una metodología híbrida contenedora que combina
-SCRUM, Design Thinking, RUP y CRISP-DM con los estándares IEEE 830, 1016 y 1058. La
-lectura de listas alcanzó un F1 micro de 0,948, el frente de Pareto aproximado cubrió 0,9969
-del hipervolumen exacto en 40 listas de prueba (32 resueltas con NSGA-II) y el asistente en lenguaje natural no sufrió
-ninguna inyección exitosa en 81 intentos. En sesiones con seis acudientes del colegio piloto, los seis completaron
-el recorrido de la cuenta a un pedido pagado (pago simulado), el SUS medio fue de 90 y la carga
-percibida bajó de 63 a 9 sobre 100 frente a la compra habitual; solo uno de cinco eligió el kit sin
-ayuda, por lo que ese paso ordena los cambios de la siguiente versión.
+preferencias temáticas. El trabajo caracterizó el dominio con entrevistas y una encuesta y siguió una metodología híbrida: Design Thinking con IEEE 830 para los requerimientos, RUP con IEEE 1016 y ATAM para el diseño, SCRUM con CRISP-DM para la lectura, el emparejamiento y la optimización, y un protocolo preregistrado con ISO/IEC 25010 para la evaluación. La
+lectura de listas alcanzó un F1 micro de 0,948. El frente de Pareto aproximado (los kits que no pueden mejorar un objetivo sin empeorar otro) cubrió 0,9969
+del hipervolumen exacto en 40 listas de prueba (32 resueltas con NSGA-II). Además, el asistente en lenguaje natural resistió los 81 intentos de inyección de instrucciones (texto oculto en la entrada para que actúe mal). En sesiones con seis acudientes del colegio piloto, los seis completaron
+el recorrido de la cuenta a un pedido pagado (pago simulado), el puntaje medio de usabilidad SUS fue de 90 sobre 100 y la carga
+percibida bajó de 63 a 9 sobre 100 frente a la compra habitual. Solo uno de cinco eligió el kit sin
+ayuda, por eso la elección del kit es lo primero que se debe mejorar en la siguiente versión. Los cinco objetivos específicos se cumplieron dentro de estos límites: un colegio, seis participantes y pago simulado.
 
 \vspace{0.2cm}
 \noindent\textbf{Palabras clave:} listas de útiles escolares, optimización multiobjetivo,

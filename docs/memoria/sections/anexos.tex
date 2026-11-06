@@ -15,7 +15,7 @@ Este anexo reúne lo que se necesita para auditar o reproducir el trabajo. La Ta
 \multicolumn{2}{@{}l}{\emph{En este documento}}\\
 Constantes, glosario & Tabla de constantes numéricas y glosario (a continuación) \\
 Calibración y NL2C & Detalle de la calibración del optimizador y resumen de resultados del asistente NL2C \\
-Datos, algoritmos, pantallas, ética & Datos del sistema, tres algoritmos del pipeline, cuatro pantallas y el protocolo ético con el texto de consentimiento del OE5 \\
+Datos, algoritmos, ética & Datos del sistema, tres algoritmos del pipeline y el protocolo ético con el texto de consentimiento del OE5 \\
 \midrule
 \multicolumn{2}{@{}l}{\emph{Documentos de la ingeniería (IEEE 830, 1016 y 1058, ATAM)}}\\
 SRS, SDD, SPMP, ATAM & Especificación de requisitos, diseño, plan del proyecto e informe ATAM, en \path{docs/} \\
@@ -25,7 +25,7 @@ Datos personales (Anexo M) & \path{docs/arquitectura/ANEXO_M_DATOS_PERSONALES.md
 Antecedentes, requerimientos y MoSCoW & Conceptos de base, requerimientos con su justificación y priorización de los 98 requisitos, en \path{docs/requisitos/} y \path{docs/analisis/} \\
 Autorización con ámbito & Auditoría de autorización y protección de datos, en \path{docs/arquitectura/} \\
 Algoritmos restantes & Seis procedimientos del pipeline (percepción, normalización, puntaje, resolución, frente, selección), en \path{docs/algoritmos/} \\
-Galería de pantallas & Las 29 capturas de la versión integrada, en \path{docs/entrega/} \\
+Galería de pantallas & Galería completa de capturas de pantalla, en \path{docs/entrega/} \\
 Ampliaciones técnicas & Ampliaciones de los capítulos V y VII, en \path{docs/informes/} \\
 \midrule
 \multicolumn{2}{@{}l}{\emph{Evidencia}}\\
@@ -107,7 +107,6 @@ Caché de vectores & 24 h & catálogo & Evita recalcular el vector de un rengló
 \item[Hipervolumen] Volumen del espacio de objetivos que un frente domina respecto de un punto de referencia; mide la calidad de un conjunto de soluciones \citep{zitzler_multiobjective_1999}.
 \item[NL2C] Traducción de una preferencia en lenguaje natural a restricciones estructuradas que el optimizador entiende.
 \item[$\tau$] Umbral de autoaceptación: puntaje por encima del cual un renglón se da por resuelto sin revisión individual.
-\item[$\delta$] Margen mínimo entre el mejor y el segundo candidato que usó una versión anterior del umbral.
 \item[$\kappa$] Coeficiente kappa de Cohen: acuerdo entre dos clasificadores corregido por el azar \citep{cohen_coefficient_1960}.
 \item[SUS] Escala de usabilidad del sistema, de 0 a 100 \citep{brooke_sus_1996}.
 \item[NPS] Índice de recomendación neta, de $-100$ a $100$ \citep{reichheld_one_2003}.
@@ -127,7 +126,7 @@ Las sesiones del OE5 (Sección~\ref{sec:oe5}) se hicieron con madres, padres y a
 
 \paragraph{Datos y retención.} Las respuestas se guardan con un código de participante y no con el nombre; el nombre y el consentimiento se archivan aparte. No se grabó video ni se tomaron fotografías, y la pantalla y el audio solo se grabaron con autorización separada. La sesión corrió con una cuenta de prueba y pago simulado, sin tarjeta real. Las respuestas se conservan hasta la aprobación del trabajo de grado y 12 meses más, y luego se borran. Las grabaciones se borran al verificar el análisis y, a más tardar, a los 30 días. Los resultados se publican en conjunto y sin nombres. Si ocurre una filtración, el equipo informa a los afectados y a la dirección en un máximo de 72 horas.
 
-\paragraph{Texto de consentimiento entregado al acudiente (versión 2, 2 de noviembre de 2026).}
+\paragraph{Texto de consentimiento entregado al acudiente.}
 Se envió por mensaje antes de la llamada, y el acudiente respondió con una plantilla que marca cada parte por separado, o lo firmó. A continuación se reproduce de forma condensada.
 
 \begin{quote}\small
@@ -150,13 +149,12 @@ Se envió por mensaje antes de la llamada, y el acudiente respondió con una pla
 
 El formulario de cierre repite la Parte A al final como segundo registro, que no reemplaza al anterior a la llamada. La hoja de firma tiene una casilla de sí y no por cada parte, el nombre y la firma del acudiente, el código de participante y la firma de quien recibe el consentimiento.
 
-\input{sections/anexo_pantallas}
 \input{sections/anexo_datos}
 \input{sections/nl2c}
 
 \subsection{Hallazgos del control de calidad}
 \label{sec:anexo-hallazgos}
-Al 5 de noviembre de 2026 hay 85 hallazgos vigentes: 16 de severidad alta, 58 media y 11 baja, además de 10 cerrados. El detalle está en \path{docs/informes/calidad/hallazgos_qa_oficial.csv}.
+El registro tiene 85 hallazgos vigentes: 16 de severidad alta, 58 media y 11 baja, además de 10 cerrados. El detalle está en \path{docs/informes/calidad/hallazgos_qa_oficial.csv}.
 
 \input{sections/anexo_calibracion}
 \input{sections/anexo_algoritmos}

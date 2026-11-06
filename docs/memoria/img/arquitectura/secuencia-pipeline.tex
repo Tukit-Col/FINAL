@@ -25,7 +25,7 @@
 \node[pm] (q) at (8.8,0) {Cola y\\trabajador};
 \node[pc] (c) at (11.0,0) {Catálogo};
 \node[pr] (r) at (13.2,0) {Revisión\\humana};
-\foreach \n in {w,g,i,m,q,c,r} \draw[life] (\n.south) -- ++(0,-10.4);
+\foreach \n in {w,g,i,m,q,c,r} \draw[life] (\n.south) -- ++(0,-10.7);
 \draw[msg] (0,-1.1) -- (2.2,-1.1) node[midway, above=1pt, lab] {1 sube};
 \draw[msg] (2.2,-1.8) -- (4.4,-1.8) node[midway, above=1pt, lab] {2 límite 429};
 \draw[msg] (4.4,-2.5) -- (6.6,-2.5) node[midway, above=1pt, lab] {3 lee páginas};
@@ -40,5 +40,5 @@
 \node[anchor=west, lab, align=left] at (9.7,-8.3) {10 clasifica: sin candidatos, hueco;\\parecido $\geq \tau = 0{,}75$, resuelto;\\si no, ambiguo};
 \draw[msg] (8.8,-9.4) -- ++(0.8,0) -- ++(0,-0.55) -- ++(-0.8,0);
 \node[anchor=west, lab, align=left] at (9.7,-9.65) {11 NSGA-II sobre los renglones\\con candidatos};
-\draw[msg] (8.8,-10.4) -- (13.2,-10.4) node[midway, above=1pt, lab] {12 kits por revisar};
+\draw[msg] (8.8,-10.6) -- (13.2,-10.6) node[midway, above=1pt, lab] {12 kits por revisar};
 \end{tikzpicture}
