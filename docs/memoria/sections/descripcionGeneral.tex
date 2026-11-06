@@ -136,14 +136,18 @@ su cumplimiento.
     fases de implementación posteriores.
     \item \textbf{OE3.} Desarrollar los módulos de percepción y normalización semántica
     del sistema, modelando la extracción de información desde fuentes heterogéneas (PDF,
-    imágenes y texto libre) e implementando una búsqueda híbrida, léxica y semántica, para
-    la correspondencia entre ítems de la lista institucional y el catálogo de productos.
-    \item \textbf{OE4.} Implementar la generación de recomendaciones personalizadas
-    mediante un enfoque multiobjetivo que logre un equilibrio técnico entre el costo, la
-    fidelidad de marca y la disponibilidad, permitiendo la construcción de configuraciones
-    diferenciadas que satisfagan las diversas restricciones de los perfiles de usuario
-    identificados y traduciendo las preferencias en lenguaje natural a restricciones
-    estructuradas (NL2C), integradas en el sistema con una interfaz web progresiva.
+    imágenes y texto libre) e implementando el mecanismo de búsqueda vectorial densa para la
+    correspondencia entre ítems de la lista institucional y el catálogo de productos,
+    incluyendo la traducción de preferencias en lenguaje natural a restricciones estructuradas
+    (NL2C) mediante invocación de funciones de un modelo de lenguaje, con interfaz generativa,
+    confirmación humana y barreras contra la inyección de instrucciones.
+    \item \textbf{OE4.} Implementar la generación de recomendaciones personalizadas mediante un
+    enfoque multiobjetivo que logre un equilibrio técnico entre el costo, la fidelidad de marca,
+    la disponibilidad y la afinidad de personaje, permitiendo la construcción de configuraciones
+    diferenciadas (Ahorrador, Fan, Premium y A tu Medida) que satisfagan las diversas
+    restricciones de los perfiles de usuario identificados, integradas en el sistema mediante una
+    interfaz web progresiva e integradas con la pasarela de pagos para el cierre transaccional de
+    la compra.
     \item \textbf{OE5.} Evaluar el sistema mediante pruebas funcionales, no funcionales,
     de carga y de usabilidad con usuarios reales, verificando el correcto funcionamiento
     de cada componente del sistema y midiendo la experiencia del usuario en términos de
@@ -151,6 +155,11 @@ su cumplimiento.
     \citep{sweller_cognitive_2011} frente al proceso tradicional
     de compra.
 \end{itemize}
+
+Los objetivos se transcriben como los aprobó la versión 4 de la propuesta. En el OE3, la búsqueda
+vectorial densa se implementó combinada con una búsqueda léxica, porque la densa sola confundía
+productos parecidos que no se sustituyen (Sección~\ref{sec:normalizacion}); la decisión amplía el
+mecanismo aprobado y no lo reemplaza.
 
 \subsection{Marco metodológico, entregables, estándares y justificación}
 
@@ -164,6 +173,64 @@ arquitectura del OE2 entre tres alternativas. CRISP-DM \citep{chapman_crisp-dm_2
 fue el proceso de los componentes que dependen de datos (OE3 y OE4), y para el OE5 se usó ISO/IEC~25010
 \citep{iso_25010_2011} con un protocolo de validación registrado de antemano. Las normas IEEE 830, 1016 y 1058
 definieron la estructura de los documentos de ingeniería: requerimientos, diseño y plan del proyecto.\par
+
+La Tabla~\ref{tab:entregables} une cada entregable con el objetivo que respalda, el estándar que siguió y la razón de incluirlo, como pide la plantilla del programa.
+
+\begin{table}[htbp]
+\centering\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.1}
+\caption{Entregables, objetivos, estándares asociados y justificación.}
+\label{tab:entregables}
+\begin{tabularx}{\textwidth}{@{}p{3cm}p{1.4cm}p{3.2cm}X@{}}
+\toprule
+Entregable & Objetivo & Estándares asociados & Justificación \\
+\midrule
+Memoria de trabajo de grado &  &
+Formato de trabajo de grado del programa de Ingeniería de Sistemas &
+Reúne en un solo documento el problema, la solución, su desarrollo y los resultados de los
+cinco objetivos específicos. \\
+Dossier de negocio & OE1 &
+Design Thinking \citep{brown_design_2008}, lienzo del modelo de negocio
+\citep{osterwalder_business_2010} &
+Documenta el entendimiento de las familias y de los colegios, con las entrevistas, los mapas
+de empatía, la propuesta de valor, el modelo de negocio y el análisis FODA. \\
+Especificación de requerimientos (SRS) & OE1 &
+IEEE 830 \citep{ieee_830_1998}, ISO/IEC/IEEE 29148 \citep{iso_29148_2018} &
+Define qué debe hacer el sistema, con requerimientos funcionales y no funcionales
+priorizados con el método MoSCoW y relacionados con las restricciones legales y de
+negocio. \\
+Documento de Diseño Maestro (ATAM, SDD, SAD) & OE2 &
+Richards y Ford \citep{richards_fundamentals_2025}, ISO/IEC 25010 \citep{iso_25010_2011},
+ATAM \citep{bass_software_2021}, IEEE 1016 \citep{ieee_1016_2009}, ISO/IEC/IEEE 42010
+\citep{iso_42010_2022}, vistas 4+1 \citep{kruchten_41_1995} &
+Documenta la arquitectura por vistas, los atributos de calidad que guiaron su diseño y la
+comparación entre las tres alternativas evaluadas, de modo que cada decisión tenga su
+razón explícita. \\
+Anexo de experimentación & OE3, OE4 y OE5 &
+CRISP-DM \citep{chapman_crisp-dm_2000} &
+Registra, etapa por etapa, los experimentos de los componentes que dependen de datos, con
+los datos usados, las métricas, los resultados y las decisiones que se tomaron a partir de
+ellos. \\
+Sistema Tukit & &
+ISO/IEC 25010 \citep{iso_25010_2011} &
+Implementa la solución en cinco servicios de dominio y una puerta de enlace, con bases de datos propias, una aplicación
+web para el acudiente y una aplicación de administración para el equipo de Tukit. \\
+Documento de pruebas & OE5 &
+ISO/IEC 25010 \citep{iso_25010_2011} &
+Registra las pruebas que verifican cada componente y su integración en cada cambio del
+código, de modo que un error se detecte antes de llegar a la versión entregada. \\
+Informe de evaluación con usuarios y consentimiento informado & OE5 &
+Lazar et al. \citep{lazar_research_2017}, SUS \citep{brooke_sus_1996}, NPS
+\citep{reichheld_one_2003}, Ley 1581 de 2012 \citep{congreso_ley1581_2012}, Decreto 1377
+de 2013 \citep{presidencia_decreto1377_2013} &
+Documenta la evaluación de la usabilidad y de la carga cognitiva con acudientes, y el
+consentimiento que exige la ley colombiana para tratar datos personales, incluidos los de
+menores de edad. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
 
 El trabajo se dividió en cinco fases, una por objetivo específico. La Tabla~\ref{tab:fases} muestra, para
 cada fase, el objetivo, la etapa de CRISP-DM que le corresponde, los métodos y lo que produjo; conviene

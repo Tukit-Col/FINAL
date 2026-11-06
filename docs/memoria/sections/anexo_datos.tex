@@ -22,28 +22,8 @@ se verifica en celdas de concepto y nivel, porque un kit necesita al menos un ca
 Los embeddings, vectores que representan el texto de cada producto, se calculan con
 gemini-embedding-001 (1.024 dimensiones) y se indexan con HNSW en pgvector.
 
-\begin{table}[htbp]
-\centering
-\caption{Catálogo y conjuntos de evaluación del sistema}
-\label{tab:datos-sistema}
-\small
-\begin{tabularx}{\linewidth}{@{}p{3.6cm}p{4.4cm}X@{}}
-\toprule
-\textbf{Atributo} & \textbf{Valor} & \textbf{Fuente} \\
-\midrule
-Productos del catálogo & 1.054 (1.044 activos) & \texttt{datos/catalogo/productos\_canonicos.csv} \\
-Representantes canónicos & 417 de 1.054 & mismo archivo, columna \texttt{es\_representante\_canonico} \\
-Conceptos & 149 definidos; 133 con producto & \texttt{conceptos.csv}; \texttt{concepto\_id} del archivo de productos \\
-Niveles & confiable 572, económico 268, premium 214 & columna \texttt{nivel} \\
-Tiendas de procedencia & 8 & \texttt{ofertas\_tienda.csv} (columna \texttt{tienda\_id}) \\
-Embeddings & gemini-embedding-001, 1.024 dimensiones, HNSW & código y SDD \\
-CGS-10 (percepción) & 10 documentos, 1.293 ítems & Sección~\ref{sec:percepcion} \\
-Oro de recuperación & 2.588 renglones de 4.719 ítems y 98 conceptos & Sección~\ref{sec:recuperacion} \\
-Banco de listas reales & 175 instancias de 174 listas de 17 colegios & \texttt{ensayos/bench\_laya/instancias.json.gz} \\
-Partición por colegio & 3 colegios de prueba (40 listas, 32 con NSGA-II) y 14 en cinco pliegues & \texttt{calibracion\_nsga.json}, campo \texttt{particion} \\
-\bottomrule
-\end{tabularx}
-\end{table}
+% La Tabla tab:datos-sistema está en el cuerpo (desarrolloSolucion.tex).
+
 
 Las cifras de la Tabla~\ref{tab:datos-sistema} corresponden al archivo versionado el 4 de noviembre de
 2026. Difieren ligeramente de las de la Sección~\ref{sec:consolidacion}, que describen el estado al
