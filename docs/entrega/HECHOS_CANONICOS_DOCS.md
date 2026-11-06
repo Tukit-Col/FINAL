@@ -45,7 +45,7 @@ Cada fila: término o cifra, valor canónico y fuente. Estado: V = verificado en
 | 0,85 / 0,50 del SDD (8.3) | Clasificación del puntaje multiatributo del mejor candidato; es otro parámetro que τ y se nombra así | SDD 8.3 | V |
 | Brecha δ = 0,05 del SDD | No aparece en `estado_desde_emparejamiento`; retirar o marcar no implementada | `dominio/pipeline.py` | V |
 | Calibración (precisión, cobertura, AUC) | No se citan: no hay una calibración válida | coordinación | V |
-| Listas de útiles | 17 colegios con lista, 4.719 ítems en el corpus vigente (`items_lista.csv`, con libros, licencias y uniformes). El OE1 (acta del 21-sep) contó 3.608 ítems y 1.451 formas de nombrar sobre el corpus de entonces (`Arquitectura/Corpus_ItemLista.csv`, verificado: 3.610 filas, 1.451 textos distintos); son el mismo corpus de 17 colegios más 1.109 ítems agregados después (verificado: los 3.610 del OE1 están todos en el corpus vigente) | `datos/listas/colegios.csv`, `items_lista.csv` | V |
+| Listas de útiles | 17 colegios con lista, 4.719 ítems en el corpus vigente (`items_lista.csv`, con libros, licencias y uniformes). El OE1 (acta del 21-sep) contó 3.608 ítems y 1.451 formas de nombrar sobre el corpus de entonces (`datos/listas/oe1/Corpus_ItemLista.csv`, copia de `Arquitectura/Corpus_ItemLista.csv`; verificado: 3.610 filas, 1.451 textos distintos); son el mismo corpus de 17 colegios más 1.109 ítems agregados después (verificado: los 3.610 del OE1 están todos en el corpus vigente) | `datos/listas/colegios.csv`, `items_lista.csv` | V |
 
 ## NL2C
 
@@ -126,5 +126,5 @@ Cada fila: término o cifra, valor canónico y fuente. Estado: V = verificado en
 | Hallazgos de QA | 85 vigentes (17 H-C, 57 H-A, 11 H-B; 16 alta, 58 media, 11 baja) y 10 cerrados, al 5-nov-2026 | Tukit-QA `trazabilidad/hallazgos.md`, `docs/informes/calidad/hallazgos_qa_oficial.csv` | V |
 | Benchmark PD vs NSGA-II | FINAL@a8f09c7 (optimizador igual a b6b6fe7): PD = enumeración en 65/65 listas; medianas PD 0,64 ms / 0,12 MiB vs NSGA-II 243 ms / 0,82 MiB; hogar de 8 hijos y 313 líneas PD 2,56 s / 297 MiB vs 1,46 s / 12,6 MiB; una semilla | Tukit-Benchmarks `06-optimizacion` (8d917ae) | V |
 
-| ADR | 49 decisiones: 0001-0026 en `Arquitectura/adr/` (fuera del repo del código, entregadas en el paquete de anexos) y 0027-0049 en `docs/arquitectura/adr/` | ambas carpetas | V |
+| ADR | 49 decisiones: 0001-0049 en `docs/arquitectura/adr/` (los 0001-0026 se copiaron allí el 5-nov desde la carpeta `Arquitectura/adr/`, hoy archivada; su índice es `INDICE_0001-0026.md`) | `docs/arquitectura/adr/` | V |
 | Calibración de τ (re-corrida 5-nov sobre b6b6fe7) | 405 pares, 351 aciertos, AUC 0,921; en τ = 0,75: TP 329, FP 11, FN 22, TN 43, precisión 0,968, recall 0,937, F1 0,952 | `docs/informes/calibracion/tau.json` | V |
