@@ -1,62 +1,44 @@
 \section{ANEXOS}
 
-Los anexos acompañan a esta memoria en la carpeta Anexos de la entrega, cada uno con su fuente
-editable y su PDF. La Tabla~\ref{tab:anexos} los lista con su contenido y su estado. Los
-documentos técnicos de soporte (VFP, SRS, SPMP, WBS, SAD, SDD, documento maestro de diseño,
-informes ATAM y QA, informe de pruebas, que está en la carpeta QA, Dossier de OE1 y diagramas
-de OE2) están en sus carpetas de la entrega y se citan en el texto cuando se usan.
+Este anexo reúne lo que se necesita para auditar o reproducir el trabajo. La Tabla~\ref{tab:anexos} indica qué va en el documento y qué queda en el repositorio, con su ruta.
 
 \begin{table}[htbp]
 \centering
-\caption{Índice de anexos de la entrega}
+\caption{Índice de anexos y de los entregables que quedan en el repositorio}
 \label{tab:anexos}
 \small
 \renewcommand{\arraystretch}{1.2}
-\begin{tabular}{@{}p{4.2cm}p{7.4cm}p{2.4cm}@{}}
+\begin{tabular}{@{}p{4.0cm}p{9.0cm}@{}}
 \toprule
-\textbf{Anexo} & \textbf{Contenido} & \textbf{Estado} \\
+\textbf{Material} & \textbf{Contenido y ruta en el repositorio} \\
 \midrule
-Registros de decisión (ADR) & Cuarenta y nueve registros de decisión de arquitectura (0001 a 0049),
-  en formato Nygard, reunidos en un solo documento & Entregado \\
-\addlinespace
-Actas de aprobación & Actas de los hitos OE1 y OE2 & Entregadas; sin firmas \\
-\addlinespace
-Auditoría de autorización & Autorización de los servicios anteriores y del sistema construido,
-  con la situación de cada hallazgo & Entregado \\
-\addlinespace
-Anexo M, datos personales & Registro de tratamiento de datos personales del sistema
-  construido, con la clasificación de los datos de menores y su base legal (Ley 1581 de 2012) &
-  Entregado \\
-\addlinespace
-Diccionario de datos & Diccionario de datos y esquema objetivo & Entregado \\
-\addlinespace
-Empatía y entrevistas & Guiones de entrevista y mapas de empatía por actor & Entregado \\
-\addlinespace
-Matriz de evidencia & Matriz de objetivos específicos y evidencia & Entregado \\
-\addlinespace
-Priorización MoSCoW & Priorización de los requisitos del SRS v6.1, con su estado en el sistema
-  construido & Entregado \\
-\addlinespace
-CRISP-DM de recuperación & Recuperación ordenada por las seis fases de CRISP-DM, con la
-  evolución desde los prototipos y el estado, las pruebas y la justificación de cada
-  estrategia & Entregado \\
-\addlinespace
-Diagramas de clases & Clases de los servicios y de la biblioteca común & Entregado \\
+\multicolumn{2}{@{}l}{\emph{En este documento}}\\
+Constantes, glosario & Tabla de constantes numéricas y glosario (a continuación) \\
+Calibración y NL2C & Detalle de la calibración del optimizador y resumen de resultados del asistente NL2C \\
+Datos, algoritmos, pantallas & Datos del sistema, tres algoritmos del pipeline y cuatro pantallas \\
 \midrule
-Protocolo ético, consentimientos e instrumentos del OE5 & Protocolo ético, consentimiento informado e instrumentos de las sesiones, consentimiento y formulario de cierre
-  (\path{docs/validacion/oe5/anexos_OE5/}, \path{oe5_ronda2/CONSENTIMIENTO_RONDA2.md} y
-  \path{oe5_cierre/formulario_cierre.md}) & Entregado en el repositorio \\
-\addlinespace
-Previstos en la WBS & Demostración del incremento con su retrospectiva. La cobertura se reporta en el informe de pruebas & Se incorporan con la entrega final \\
+\multicolumn{2}{@{}l}{\emph{Documentos de la ingeniería (IEEE 830, 1016 y 1058, ATAM)}}\\
+SRS, SDD, SPMP, ATAM & Especificación de requisitos, diseño, plan del proyecto e informe ATAM, en \path{docs/} \\
+ADR & 49 registros de decisión: 0001 a 0026 en \path{Arquitectura/adr/} y 0027 a 0049 en \path{docs/arquitectura/adr/} \\
+Actas OE1 y OE2 & \path{docs/arquitectura/ACTA_APROBACION_OE1.md} y \path{ACTA_APROBACION_OE2.md}; sin firmas \\
+Datos personales (Anexo M) & \path{docs/arquitectura/ANEXO_M_DATOS_PERSONALES.md}: tratamiento y base legal (Ley 1581 de 2012) \\
+Antecedentes, requerimientos y MoSCoW & Conceptos de base, requerimientos con su justificación y priorización de los 98 requisitos, en \path{docs/requisitos/} y \path{docs/analisis/} \\
+Autorización con ámbito & Auditoría de autorización y protección de datos, en \path{docs/arquitectura/} \\
+Algoritmos restantes & Seis procedimientos del pipeline (percepción, normalización, puntaje, resolución, frente, selección), en \path{docs/algoritmos/} \\
+Galería de pantallas & Las 29 capturas de la versión integrada, en \path{docs/entrega/} \\
+Ampliaciones técnicas & Ampliaciones de los capítulos V y VII, en \path{docs/informes/} \\
+\midrule
+\multicolumn{2}{@{}l}{\emph{Evidencia}}\\
+Hallazgos de calidad & 85 hallazgos vigentes (16 de severidad alta, 58 media y 11 baja, según el registro), en \path{docs/informes/calidad/hallazgos_qa_oficial.csv} \\
+Instrumentos del OE5 & \path{docs/validacion/oe5/anexos_OE5/} y \path{docs/validacion/oe5/oe5_cierre/formulario_cierre.md} \\
+Modelo de negocio & \path{docs/negocio/punto_equilibrio.py} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-El protocolo ético, los consentimientos y los instrumentos de validación corresponden al OE5
-(Sección~\ref{sec:oe5}). Los diagramas de contexto y de contenedores
-de la alternativa elegida son las Figuras~\ref{fig:c4-contexto} y~\ref{fig:c4-contenedores};
-los de las tres alternativas evaluadas están en el informe ATAM y en los diagramas de OE2, y
-los de componentes y de despliegue, en el SAD.
+Los diagramas de contexto y de contenedores de la alternativa elegida son las
+Figuras~\ref{fig:c4-contexto} y~\ref{fig:c4-contenedores}, y el protocolo ético y los
+instrumentos corresponden al OE5 (Sección~\ref{sec:oe5}).
 
 \subsection{Tabla de constantes numéricas}
 \label{anx:constantes}
@@ -136,19 +118,16 @@ Caché de vectores & 24 h & catálogo & Evita recalcular el vector de un rengló
 \item[Concepto canónico] Clase de productos equivalentes del catálogo a la que se asigna un renglón de la lista.
 \end{description}
 \input{sections/anexo_tablas}
-\input{sections/anexo_figuras}
-\input{sections/anexo_antecedentes}
-\input{sections/anexo_requerimientos}
-\input{sections/anexo_autorizacion}
+% Fuera del PDF (contenido en el repositorio, ver tab:anexos): anexo_figuras (copias en el cuerpo), anexo_antecedentes,
+% anexo_requerimientos, anexo_autorizacion, anexo_hallazgos_tabla (docs/informes/calidad/hallazgos_qa_oficial.csv),
+% anexo_ampliaciones (docs/informes/).
 \input{sections/anexo_pantallas}
 \input{sections/anexo_datos}
 \input{sections/nl2c}
 
-\subsection{Hallazgos abiertos del control de calidad}
+\subsection{Hallazgos del control de calidad}
 \label{sec:anexo-hallazgos}
-\footnotesize
-\input{sections/anexo_hallazgos_tabla}
-\normalsize
-\input{sections/anexo_ampliaciones}
+Al 5 de noviembre de 2026 hay 85 hallazgos vigentes: 16 de severidad alta, 58 media y 11 baja, además de 10 cerrados. El detalle está en \path{docs/informes/calidad/hallazgos_qa_oficial.csv}.
+
 \input{sections/anexo_calibracion}
 \input{sections/anexo_algoritmos}

@@ -1,86 +1,55 @@
 \setcounter{subsection}{0}
 \section{DESCRIPCIÓN GENERAL}
 
-Este capítulo sigue al planteamiento del problema de la introducción: las familias pierden tiempo y
-dinero al traducir la lista del colegio en productos, y ninguna herramienta disponible lo resolvía de
-punta a punta. Presenta la oportunidad, la pregunta de investigación, la solución propuesta (Tukit),
-su justificación, los objetivos y el marco metodológico híbrido que guió cada fase.\par
+La introducción mostró que las familias pierden tiempo y dinero al traducir la lista del colegio en
+productos y que ninguna herramienta disponible lo resolvía de punta a punta. Este capítulo convierte ese
+hallazgo en una pregunta de investigación, presenta la solución (Tukit) y sus objetivos, y explica con qué
+metodología se trabajó: una híbrida en la que cada fase respondió a un objetivo y cada método tuvo una
+función propia.\par
 
 \subsection{Oportunidad, Problema}
 
 \subsubsection{Contexto del Problema}
 
-El comercio electrónico en Colombia mantuvo un crecimiento sostenido. En 2025, las ventas en línea
-alcanzaron COP 105 billones, un 5,9\,\% más que el año anterior, y la categoría de libros y papelería
-representó el 0,81\,\% de las transacciones \citep{noauthor_informe_nodate-1}. Ese crecimiento no cambió
-la manera de adquirir los útiles escolares, una tarea anual que, solo en Bogotá, involucra a 1.171.390
-estudiantes matriculados \citep{noauthor_estadisticas_nodate}. Según las encuestas de temporada escolar
-de FENALCO, el 35\,\% de las familias destina entre \$300.000 y \$500.000 por niño
-\citep{noauthor_resultados_2025}, y el 70\,\% no planea la compra con anticipación; apenas el 6\,\% la hace
-con meses de margen \citep{noauthor_resultados_2024}. A esa presión de tiempo se suma la de los precios:
-el 91\,\% de los padres percibe un alza, y el precio sigue siendo el principal criterio de elección
-(33\,\%), seguido de la calidad (23\,\%) y del gusto de los niños (22\,\%) \citep{noauthor_resultados_2025}.\par
-
-La dificultad implica además un esfuerzo mental considerable. La teoría de la carga cognitiva
-establece que, cuando la complejidad de una tarea supera la capacidad de la memoria de trabajo, la
-calidad de las decisiones disminuye \citep{sweller_cognitive_2011}. Eso ocurre en la compra escolar,
-en la que el acudiente busca cada artículo por separado en plataformas genéricas, compara a mano
-precio, disponibilidad y especificación, y arma un carrito que rara vez cubre la lista completa. Iyengar
-y Lepper encontraron que, al pasar de 6 a 24 alternativas, la tasa de compra bajó del 30\,\% al 3\,\%,
-aunque la exhibición amplia atrajo a más personas (60\,\% frente a 40\,\%) \citep{iyengar_when_2000}, y en
-una lista escolar esa situación se repite con cada renglón. En el comercio electrónico en general,
-cerca del 70\,\% de los carritos se abandona antes del pago \citep{noauthor_50_nodate}.\par
+El comercio electrónico en Colombia creció de forma sostenida: en 2025 las ventas en línea alcanzaron
+COP 105 billones, un 5,9\,\% más que el año anterior \citep{noauthor_informe_nodate-1}. Ese crecimiento no
+cambió la manera de adquirir los útiles escolares, una tarea anual que, solo en Bogotá, involucra a
+1.171.390 estudiantes \citep{noauthor_estadisticas_nodate}. Según FENALCO, el 35\,\% de las familias
+destina entre \$300.000 y \$500.000 por niño \citep{noauthor_resultados_2025}, y el 70\,\% no planea la
+compra con anticipación \citep{noauthor_resultados_2024}. A esa presión se suma el esfuerzo mental de
+buscar cada artículo por separado y compararlo a mano. La teoría de la carga cognitiva establece que, cuando
+la complejidad de una tarea supera la memoria de trabajo, la calidad de las decisiones disminuye
+\citep{sweller_cognitive_2011}, y Iyengar y Lepper encontraron que, al pasar de 6 a 24 alternativas, la tasa
+de compra bajó del 30\,\% al 3\,\% \citep{iyengar_when_2000}.\par
 
 Los actores que lideran este segmento en Colombia trasladaron su modelo físico al canal digital sin
-modificarlo: publican un catálogo y delegan en el cliente la búsqueda, la comparación y la validación.
-Panamericana ofrece cotizaciones por categorías genéricas, sin relación con la lista de cada colegio
-\citep{panamericana_cotizador_2025}; Primavera permite armar a mano un carrito sobre su catálogo
-\citep{primavera_armatulista_2026}; MercadoLibre comercializa kits preconfigurados por terceros
-\citep{mercadolibre_kits_2025}, y Éxito ofrece kits por nivel escolar sin distinguir entre colegios
-\citep{exito_listas_2025}. En el ámbito internacional, TeacherLists convierte las listas de los salones
-en carritos prellenados \citep{teacherlists_retail_2026}, pero no interpreta listas impresas o
-fotografiadas, no reconoce el vocabulario local (esferos o lapiceros) ni distingue entre presupuestos
-familiares. Se identificó así la ausencia de un actor que convierta el modelo reactivo de compra en uno
-proactivo y asistido, y esa brecha constituyó la oportunidad del proyecto.\par
+modificarlo: publican un catálogo y delegan en el cliente la búsqueda, la comparación y la validación
+\citep{panamericana_cotizador_2025,primavera_armatulista_2026,mercadolibre_kits_2025,exito_listas_2025}.
+TeacherLists, en el ámbito internacional, convierte las listas de los salones en carritos prellenados
+\citep{teacherlists_retail_2026}, pero no interpreta listas impresas o fotografiadas ni reconoce el
+vocabulario local. Se identificó así la ausencia de un actor que convierta el modelo reactivo de compra en
+uno proactivo y asistido, y esa brecha constituyó la oportunidad del proyecto.\par
 
 \subsubsection{Formulación del Problema}
 
+Los canales de venta de útiles son abundantes, pero ninguno traduce de manera automática el texto libre y
+heterogéneo de una lista escolar en un pedido correcto y entregable. Esa traducción exige determinar qué
+significa cada renglón dentro de un vocabulario que nunca ha sido estandarizado, y establecer qué
+combinación de productos equilibra el costo, la marca preferida y la disponibilidad. Por eso el problema se
+descompone en tres dimensiones que se resuelven en orden. La percepción convierte una lista recibida en PDF,
+fotografía o texto libre en una representación estructurada. La normalización asocia cada renglón, con
+frecuencia vago o mal escrito, con el producto del catálogo que le corresponde. La optimización construye
+kits que consideran a la vez el costo, las preferencias de la familia y la calidad, y presenta pocas
+alternativas diferenciadas.\par
 
-Los canales de venta de útiles escolares son abundantes e incluyen papelerías físicas,
-grandes superficies y mercados electrónicos generales. Sin embargo, no existe un mecanismo
-que traduzca de manera automática el texto libre y heterogéneo de una lista escolar en un
-pedido correcto y entregable. Dicha traducción exige determinar qué significa cada renglón
-de la lista dentro de un vocabulario que nunca ha sido estandarizado, y establecer qué
-combinación de productos equilibra el costo, la marca que prefiere el acudiente y la
-disponibilidad real.\par
-
-En consecuencia, el problema se descompone en tres dimensiones que deben resolverse en orden
-y de forma integrada. La primera es la percepción, que consiste en convertir una lista
-recibida en PDF, en fotografía o como texto libre en una representación estructurada que
-pueda ser procesada por un programa. La segunda es la normalización, que asocia cada
-renglón, con frecuencia vago, incompleto o mal escrito, con el producto real del catálogo
-que le corresponde, resolviendo las ambigüedades y las distintas formas de nombrar un mismo
-artículo. La tercera es la optimización, que construye kits considerando simultáneamente el
-costo, las preferencias de la familia y la calidad, y presenta un número reducido de
-alternativas claramente diferenciadas que facilitan la decisión.\par
-
-La fricción de este proceso, definida como el esfuerzo innecesario en la compra de útiles, se analiza desde el enfoque de completación de tareas de
-Sismeiro y Bucklin \citep{sismeiro_modeling_2004}, que describe la compra en línea como una
-secuencia de tareas que el usuario debe completar de forma sucesiva para que la venta se
-concrete. Bajo esta perspectiva, cada renglón que el acudiente debe buscar, comparar y
-validar por su cuenta constituye una tarea adicional y, por lo tanto, un punto en el que
-puede abandonar la compra.\par
-
-Si bien el problema admite aproximaciones desde el mercadeo, la
-logística o la educación, una solución tecnológica resulta especialmente pertinente. Los
-agentes de recomendación reducen el esfuerzo de búsqueda y mejoran la calidad de la
-decisión del consumidor \citep{haubl_consumer_2000}, y el precedente de TeacherLists
-muestra que el paso automático de la lista al carrito es viable
-\citep{teacherlists_retail_2026}. Adicionalmente, la madurez reciente de los modelos
-multimodales \citep{shen_ocr_2026}, la búsqueda vectorial \citep{karpukhin_dense_2020} y la
-optimización multiobjetivo \citep{deb_fast_2002} permite abordar las tres dimensiones dentro
-de un mismo sistema. A partir de lo anterior, el problema de investigación se formula de la
-siguiente manera.\par
+La fricción, entendida como el esfuerzo innecesario en la compra, se analiza con el enfoque de completación
+de tareas de Sismeiro y Bucklin \citep{sismeiro_modeling_2004}: cada renglón que el acudiente debe buscar,
+comparar y validar por su cuenta es una tarea adicional y un punto donde puede abandonar la compra. Una
+solución tecnológica es pertinente porque los agentes de recomendación reducen el esfuerzo de búsqueda y
+mejoran la decisión \citep{haubl_consumer_2000}, y porque la madurez reciente de los modelos multimodales
+\citep{shen_ocr_2026}, la búsqueda vectorial \citep{karpukhin_dense_2020} y la optimización multiobjetivo
+\citep{deb_fast_2002} permite abordar las tres dimensiones en un mismo sistema. De ahí surge la pregunta de
+investigación.\par
 
 \begin{quote}
 \itshape ¿Cómo construir kits de útiles escolares personalizados y alineados con los
@@ -91,76 +60,53 @@ del proceso de compra?
 
 \subsubsection{Propuesta de Solución}
 
-La propuesta pertenece al área de la ingeniería de software, con componentes de inteligencia artificial
-y de optimización multiobjetivo. Tukit se construyó como un sistema de recomendación multiobjetivo con
-un modelo B2B2C (\emph{business-to-business-to-consumer}), es decir, que llega a las familias a través
-de los colegios. La lista oficial de cada colegio la carga y publica el equipo de Tukit, y el acudiente
-elige el kit y hace el pedido. El sistema recibe la lista en imagen, PDF o texto libre y la convierte en
-kits completos, cada uno resultado del equilibrio entre objetivos que compiten, como el costo, la marca
-y las preferencias de la familia. Esa conversión se hizo con un \emph{pipeline} de tres etapas: la
-percepción de la lista; la normalización de cada renglón contra un catálogo de conceptos canónicos, en la
-que los casos sin certeza suficiente pasan a revisión humana; y la optimización multiobjetivo del
-conjunto de compra. El perfil socioeconómico de la pregunta de investigación se operacionalizó como el
+La propuesta pertenece a la ingeniería de software, con componentes de inteligencia artificial y de
+optimización multiobjetivo. Tukit es un sistema de recomendación con un modelo B2B2C
+(\emph{business-to-business-to-consumer}): el equipo de Tukit carga y publica la lista oficial de cada
+colegio, y el acudiente elige el kit y hace el pedido. El sistema recibe la lista en imagen, PDF o texto
+libre y la convierte en kits completos mediante las tres etapas ya descritas, con revisión humana de los
+renglones sin certeza suficiente. El perfil socioeconómico de la pregunta se operacionalizó como el
 presupuesto y el tope de gasto que declara cada acudiente.\par
 
-Intervienen dos actores con un canal propio. El equipo de Tukit opera una aplicación de
-administración, en la que revisa las listas antes de que lleguen a las familias, atiende la cola de
-renglones que el sistema no resolvió con certeza y valida o corrige cada uno. El acudiente accede por una
-aplicación web progresiva, en la que selecciona el colegio y el grado de cada hijo, o carga su propia
-lista, e indica su presupuesto y sus preferencias. Un canal para que el administrador del colegio
-publique sus propias listas quedó como trabajo futuro.\par
-
-El acudiente recibe hasta cuatro propuestas de kit para la lista completa. El Ahorrador y el Premium
-salen siempre: el primero es la opción de menor costo y el segundo, la de mejores marcas. El Fan, que
-incluye los personajes solicitados para cada hijo, sale solo si el acudiente pidió un personaje. El kit
-A tu Medida, que ofrece la mejor marca posible dentro del monto, sale cuando el acudiente elige el punto
-medio de gasto o fija un tope. Cada propuesta presenta los productos, las cantidades según el empaque y
-el valor total. Después, el acudiente puede reemplazar productos de manera individual, elegir el kit y
-pagar; en esta versión el pago funciona en modo simulado.\par
+Intervienen dos actores con un canal propio. El equipo de Tukit opera una aplicación de administración, en
+la que revisa las listas y atiende la cola de renglones dudosos. El acudiente accede por una aplicación web
+progresiva, selecciona el colegio y el grado de cada hijo, o carga su lista, e indica presupuesto y
+preferencias. Recibe hasta cuatro kits: el Ahorrador (menor costo) y el Premium (mejores marcas) salen
+siempre; el Fan, con los personajes pedidos, sale solo si el acudiente pidió uno; y A tu Medida, la mejor
+marca posible dentro del monto, sale cuando fija un tope. Después puede reemplazar productos, elegir el kit
+y pagar, en modo simulado en esta versión. Un canal para que el colegio publique sus propias listas quedó
+como trabajo futuro.\par
 
 \subsubsection{Justificación de la Solución}
 
-El desarrollo de un sistema de recomendación multiobjetivo que construya kits escolares a partir de la
-lista oficial de cada colegio resultó pertinente y viable, porque simplifica un proceso de compra que
-hoy recae por completo sobre las familias. Adquirir útiles exige interpretar cada renglón, buscarlo en
-distintas tiendas y comparar precios, marcas y disponibilidad, como se describió en las secciones
-anteriores. Un sistema que asume esa tarea y entrega la compra organizada reduce el tiempo y el esfuerzo
-del proceso, y ayuda a que el estudiante cuente con los materiales que su colegio solicitó.\par
-
+El sistema es pertinente porque simplifica un proceso que hoy recae por completo sobre las familias.
 Presentar pocas alternativas ya armadas facilita la decisión, porque el exceso de opciones dificulta la
-elección y tiende a postergar la compra \citep{iyengar_when_2000}, mientras que una selección reducida
-disminuye el esfuerzo y mejora la calidad de la decisión \citep{haubl_consumer_2000}. Por eso Tukit se
-concibió como un asistente que entrega kits completos entre los cuales el acudiente solo elige. Esa forma
-de operar beneficia a cada actor. El acudiente evita recorrer varios establecimientos y puede ajustar el
-kit antes de pagar; el colegio logra que las familias compren a partir de la versión oficial de su lista,
-sin exigir marcas ni proveedores; y el equipo de Tukit concentra su revisión en los renglones sin
-certeza, de modo que la calidad de los kits no depende solo de la automatización. Esto sigue las pautas
-que recomiendan indicar con claridad lo que el sistema desconoce y facilitar la corrección de sus
-errores \citep{amershi_guidelines_2019}.\par
+elección \citep{iyengar_when_2000}, y a la vez beneficia a cada actor: el acudiente evita recorrer varios
+establecimientos y puede ajustar el kit; el colegio logra que las familias compren a partir de su lista
+oficial; y el equipo de Tukit concentra su revisión en los renglones inciertos, de acuerdo con las pautas que
+recomiendan indicar lo que el sistema desconoce y facilitar la corrección \citep{amershi_guidelines_2019}.\par
 
-Desde el punto de vista técnico, la solución resultó viable porque las técnicas en que se apoya tienen
-respaldo empírico. Los modelos multimodales alcanzan en la lectura de documentos un desempeño comparable
-al de los métodos tradicionales \citep{shen_ocr_2026}, y NSGA-II es una referencia para equilibrar
-objetivos en conflicto \citep{deb_fast_2002}. En la prueba del escenario ESC-D4, el armado de kits tuvo
-un percentil 95 de 0,31~s frente al límite de 8~s (Sección~\ref{sec:optimizacion}); esa medición cubre la
-optimización y no la lectura de la lista. La arquitectura de microservicios permitiría que cada
-componente crezca según su propia demanda \citep{newman_building_2021}, aunque el despliegue fue local y
-no se ejercitó el escalado independiente. Sumar un colegio solo requiere cargar y revisar su lista
-oficial, lo que hace replicable la solución en otras instituciones y ciudades. Además, el sistema se
-construyó sobre herramientas de código abierto, como PostgreSQL, RabbitMQ, Redis y pymoo
-\citep{blank_pymoo_2020}, y consume los modelos de inteligencia artificial por pago por uso, de modo que
-el gasto crece con el número de listas procesadas. Como cada lista oficial se procesa una vez y sirve a
-todas las familias del mismo grado, el costo se reparte entre muchos usuarios.\par
+Técnicamente es viable porque las técnicas tienen respaldo empírico: los modelos multimodales leen documentos
+con un desempeño comparable al de los métodos tradicionales \citep{shen_ocr_2026} y NSGA-II es una referencia
+para objetivos en conflicto \citep{deb_fast_2002}. En la prueba ESC-D4, el armado de kits tuvo un percentil 95
+de 0,31~s frente al límite de 8~s (Sección~\ref{sec:optimizacion}), medición que cubre la optimización y no la
+lectura de la lista. La arquitectura de microservicios permitiría que cada componente crezca según su demanda
+\citep{newman_building_2021}, aunque el despliegue fue local y no se ejercitó el escalado independiente.
+El sistema usa herramientas de código abierto, como PostgreSQL, RabbitMQ, Redis y pymoo
+\citep{blank_pymoo_2020}, y paga los modelos de inteligencia artificial por uso; como cada lista oficial se
+procesa una vez y sirve a todas las familias del grado, el costo se reparte entre muchos usuarios.\par
 
-En lo económico, el modelo de negocio genera un margen positivo desde la primera venta. Tukit cobra una
-comisión del 15\,\% sobre un valor promedio de \$180.000 por kit, es decir, \$27.000 por venta; descontados
-los costos variables (pasarela de pagos y servicios de inteligencia artificial, cerca de \$7.500 por
-kit), quedan \$19.500 de contribución. Con costos fijos del primer año de unos \$15.000.000, el punto de
-equilibrio se alcanza con cerca de 770 kits, frente a los 1.500 proyectados para ese año. Con una
-inversión inicial de unos \$70.000.000 y 8.000 y 25.000 kits para el segundo y el tercer año, el valor
-presente neto a tres años, descontado al 20\,\% anual, es de cerca de \$235 millones. Estas cifras son una
-proyección construida sobre supuestos del equipo, que dependen sobre todo de la velocidad con que se
-incorporen colegios.\par
+Para estimar la viabilidad económica se midió el valor de los kits canónicos que el sistema publicó para los
+trece grados del Colegio Agustiniano Ciudad Salitre, y el kit Ahorrador costó en promedio \$609.343 en útiles
+escolares, sin contar los libros del plan lector. Sobre ese valor se supuso una comisión del 15\,\%,
+equivalente a \$91.401 por kit; al descontar la pasarela de pagos Wompi con IVA (\$20.049, según su tarifa
+publicada), la inteligencia artificial (\$1.000), la entrega a domicilio en Bogotá (\$33.000) y la adquisición
+de clientes (\$8.000), cada kit dejó una contribución de \$29.353. Con la infraestructura del piloto, de
+\$1.200.000 al año, el punto de equilibrio fue de 41 kits, cerca del 3\,\% de las 1.340 familias estimadas del
+colegio, y con la infraestructura escalable, de \$15.000.000 al año, fue de 512 kits (cálculo reproducible con
+el script \texttt{docs/negocio/punto\_equilibrio.py}). La comisión, la logística, la adquisición y la conversión
+de las familias fueron supuestos del equipo que la operación real debía confirmar, y con una comisión del
+10\,\% la contribución por kit resultó negativa.\par
 
 \subsection{Descripción del Proyecto}
 
@@ -171,9 +117,11 @@ construcción de kits escolares, midiendo su efecto sobre la carga cognitiva per
 usabilidad del sistema y la satisfacción del usuario con padres del sector Salitre de
 Bogotá durante 2026.
 
-
 \subsubsection{Objetivos Específicos}
 \label{sec:objetivos}
+
+Cada objetivo corresponde a una fase del proyecto, de modo que el resultado de la fase sirva de evidencia de
+su cumplimiento.
 
 \begin{itemize}
     \item \textbf{OE1.} Caracterizar el dominio escolar a través del análisis del negocio
@@ -206,25 +154,20 @@ Bogotá durante 2026.
 
 \subsection{Marco metodológico, entregables, estándares y justificación}
 
-El proyecto siguió una metodología híbrida contenedora, llamada así porque reúne varios
-marcos de trabajo y le asigna a cada uno una función distinta. SCRUM \citep{schwaber_scrum_2020} organizó la
-construcción en ciclos cortos de dos semanas, en los que el equipo planeaba, construía y
-revisaba un avance funcional del sistema, y un tablero Kanban registró el estado de cada
-tarea. Design Thinking \citep{brown_design_2008} guió el entendimiento de las familias y de los colegios, y con
-él la propuesta de valor y el modelo de negocio. RUP \citep{kruchten_rup_2003} aportó la gestión de riesgos y la
-trazabilidad, es decir, la posibilidad de seguir cada requerimiento hasta el componente de
-la arquitectura que lo atiende y la prueba que lo verifica. CRISP-DM \citep{chapman_crisp-dm_2000,wirth_crisp-dm_2000} fue el proceso de
-referencia para todos los componentes que dependen de datos: la lectura de las listas, su
-correspondencia con el catálogo, la traducción de preferencias en lenguaje natural y el armado de
-los kits. Para ello se extendió más allá de su primera etapa, la comprensión del negocio, como
-se detalla en la Tabla~\ref{tab:crispdm-oe}. Por último, las normas IEEE (830, 1016 y 1058) definieron la estructura de los documentos de ingeniería.
+El proyecto siguió una metodología híbrida contenedora, llamada así porque reúne varios marcos y le asigna a
+cada uno una función distinta. SCRUM \citep{schwaber_scrum_2020} organizó la construcción en ciclos de dos
+semanas, con un tablero Kanban para el estado de cada tarea. Design Thinking \citep{brown_design_2008} guió
+la empatía y la definición del OE1, es decir, las entrevistas, la encuesta, la propuesta de valor y el
+modelo de negocio. RUP \citep{kruchten_rup_2003} aportó la gestión de riesgos y la trazabilidad de cada
+requerimiento hasta su componente y su prueba. ATAM \citep{bass_software_2021} permitió elegir la
+arquitectura del OE2 entre tres alternativas. CRISP-DM \citep{chapman_crisp-dm_2000,wirth_crisp-dm_2000}
+fue el proceso de los componentes que dependen de datos (OE3 y OE4), y para el OE5 se usó ISO/IEC~25010
+\citep{iso_25010_2011} con un protocolo de validación registrado de antemano. Las normas IEEE 830, 1016 y 1058
+definieron la estructura de los documentos de ingeniería: requerimientos, diseño y plan del proyecto.\par
 
-El trabajo se dividió en cinco fases, una por cada objetivo específico, de modo que el
-resultado de cada fase sirviera como evidencia del cumplimiento de su objetivo. La
-Tabla~\ref{tab:fases} resume cada fase con su objetivo, la etapa de CRISP-DM que le
-corresponde, los métodos que se usaron y lo que produjo. La comprensión del negocio, que
-es la primera etapa de CRISP-DM, se desarrolla en los Capítulos~III y~IV, donde se presentan las
-entrevistas, la encuesta a los acudientes, la propuesta de valor y el modelo de negocio.
+El trabajo se dividió en cinco fases, una por objetivo específico. La Tabla~\ref{tab:fases} muestra, para
+cada fase, el objetivo, la etapa de CRISP-DM que le corresponde, los métodos y lo que produjo; conviene
+leerla de arriba abajo, porque sigue el orden en que se trabajó y el de los capítulos siguientes.\par
 
 \begin{table}[H]
 \centering\footnotesize
@@ -265,14 +208,12 @@ Informe de pruebas y evaluación con usuarios \\
 \subsubsection{Extensión de CRISP-DM a los componentes que dependen de datos}
 \label{sec:crispdm-extension}
 
-CRISP-DM \citep{chapman_crisp-dm_2000,wirth_crisp-dm_2000} define seis etapas: comprensión del
-negocio, comprensión de los datos, preparación de los datos, modelado, evaluación y despliegue.
-La metodología se aplicó en la Fase~1 solo a su primera etapa. A partir de la Fase~3 se extendió a
-todos los componentes cuyo comportamiento depende de datos, es decir, la percepción y la
-normalización del OE3 y la optimización, la utilidad multiatributo (MAUT) y la traducción de
-preferencias en lenguaje natural a restricciones (NL2C) del OE4. Para cada uno se recorrieron las
-seis etapas, y la Tabla~\ref{tab:crispdm-oe} resume, por objetivo, la actividad de cada etapa, la
-evidencia que produjo y la sección de esta memoria donde se presenta.
+CRISP-DM define seis etapas: comprensión del negocio, comprensión de los datos, preparación, modelado,
+evaluación y despliegue. En la Fase~1 se aplicó solo la primera. Desde la Fase~3 se extendió a todos los
+componentes cuyo comportamiento depende de datos: la percepción y la normalización del OE3, y la
+optimización, la utilidad multiatributo (MAUT) y la traducción de preferencias a restricciones (NL2C) del
+OE4. La Tabla~\ref{tab:crispdm-oe} indica, por objetivo, qué se hizo en cada etapa, qué evidencia produjo y
+en qué sección de esta memoria se presenta.\par
 
 \begin{table}[H]
 \centering\footnotesize
@@ -320,24 +261,13 @@ construido & Sec.~\ref{sec:web} \\
 \subsubsection{Ciclos de calibración con revisión humana}
 \label{sec:ciclos-calibracion}
 
-Las etapas de CRISP-DM se recorrieron en varios ciclos, y en los componentes de percepción,
-normalización y optimización cada ciclo incluyó una revisión humana. Un ciclo tuvo cuatro pasos.
-Primero, se ejecutó el componente sobre una muestra. Segundo, una persona revisó los resultados:
-el administrador de Tukit en la cola de renglones dudosos, o el equipo, al auditar los kits renglón
-por renglón. Tercero, esa revisión produjo etiquetas o correcciones, es decir, qué producto era el
-correcto y qué regla había fallado. Cuarto, el equipo ajustó los datos, las reglas o las constantes
-del componente y repitió la evaluación con la misma métrica. Las cuatro auditorías de los kits (Tabla~\ref{tab:kits}, Anexo~\ref{anx:tablas}) son un ejemplo: en cada una, una persona clasificó cada renglón y, a partir de
-esa clasificación, se ajustaron la comparación de atributos y la curaduría. Estos ciclos no son
-aprendizaje por refuerzo, porque no hay una señal de recompensa ni una política que se actualice
-sola. Los parámetros los cambia el equipo después de leer los resultados, y cada cambio queda
-registrado con su evidencia en la Tabla~\ref{tab:constantes} (Anexo~\ref{anx:constantes}). El diseño sigue las pautas de
-interacción humano-IA de Amershi et al. \citep{amershi_guidelines_2019}, entre ellas mostrar
-la incertidumbre del sistema y permitir la corrección por parte de la persona. El Capítulo~VI
-describe cada ciclo junto a su componente. La última etapa, el despliegue, corresponde a la
-integración en el sistema construido, y su operación con colegios y familias se presenta como
-trabajo futuro en el Capítulo~VIII.
-
-Los entregables del proyecto, el objetivo específico (OE), los estándares que guiaron su elaboración y la razón de cada
-uno se resumen en la Tabla~\ref{tab:entregables} (Anexo~\ref{anx:tablas}).
-
-% [movida al Anexo: tab:entregables]
+Las etapas de CRISP-DM se recorrieron en varios ciclos, y en percepción, normalización y optimización cada
+ciclo incluyó una revisión humana. Primero se ejecutó el componente sobre una muestra; segundo, una persona
+revisó los resultados (el administrador en la cola de renglones dudosos, o el equipo al auditar los kits
+renglón por renglón); tercero, esa revisión produjo etiquetas o correcciones; y cuarto, el equipo ajustó
+los datos, las reglas o las constantes y repitió la evaluación con la misma métrica. Estos ciclos no son
+aprendizaje por refuerzo, porque no hay señal de recompensa ni una política que se actualice sola: cada
+cambio queda registrado con su evidencia en la Tabla~\ref{tab:constantes} (Anexo~\ref{anx:constantes}).
+El diseño sigue las pautas de interacción humano-IA de Amershi et al. \citep{amershi_guidelines_2019}. El
+Capítulo~VI describe cada ciclo junto a su componente, y el despliegue con colegios y familias se presenta
+como trabajo futuro en el Capítulo~VIII. El Capítulo~III abre el contexto que sustenta estas fases.\par

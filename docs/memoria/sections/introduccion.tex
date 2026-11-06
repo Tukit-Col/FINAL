@@ -19,67 +19,55 @@ en tres o más lugares y que la queja más frecuente es no encontrar el producto
 agotado (43,3\,\%). Las entrevistas con directivos, docentes y acudientes confirmaron esa
 fricción.
 
-Las alternativas que existen hoy no resuelven ese recorrido completo. Panamericana y Éxito
-publican catálogos por categoría \citep{panamericana_cotizador_2025,exito_listas_2025},
-Primavera permite armar un carrito a mano sobre su propio catálogo
-\citep{primavera_armatulista_2026} y MercadoLibre vende kits fijos que arma cada vendedor
-\citep{mercadolibre_kits_2025}. En todos los casos es el acudiente quien debe traducir la
-lista del colegio en productos. Plataformas como TeacherLists, en Estados Unidos, convierten la lista del salón en un carrito de compra
+Las alternativas que existen hoy no resuelven ese recorrido completo. Panamericana, Éxito, Primavera y
+MercadoLibre publican catálogos o kits fijos, y en todos los casos es el acudiente quien debe traducir la
+lista del colegio en productos \citep{panamericana_cotizador_2025,exito_listas_2025,primavera_armatulista_2026,mercadolibre_kits_2025}.
+Plataformas como TeacherLists, en Estados Unidos, convierten la lista del salón en un carrito
 \citep{teacherlists_retail_2026}, pero, hasta donde se revisó (Capítulo~III), ninguna lee listas en papel o
-en foto ni está disponible en Colombia.
+en foto ni está disponible en Colombia.\par
 
-Frente a este panorama, este proyecto construyó Tukit, una plataforma que le permite al acudiente conseguir la lista de útiles completa.
-Es un sistema de recomendación multiobjetivo con un modelo B2B2C, en el que el
-colegio aporta la lista oficial y la familia hace la compra. El acudiente elige el colegio y
-el grado de cada hijo, o sube su propia lista en imagen, PDF o texto libre, e indica su
-presupuesto y sus preferencias. A cambio recibe hasta cuatro kits completos (Ahorrador,
-Premium, Fan y A tu Medida) y puede cambiar
-cualquier producto antes de pagar (el pago es simulado en esta versión). Para llegar a esos kits, el sistema recorre tres etapas.\par
+Frente a este panorama, el proyecto construyó Tukit, un sistema de recomendación multiobjetivo con un
+modelo B2B2C, en el que el colegio aporta la lista oficial y la familia hace la compra. El acudiente
+elige el colegio y el grado de cada hijo, o sube su propia lista en imagen, PDF o texto libre, e indica
+su presupuesto y sus preferencias. A cambio recibe hasta cuatro kits completos (Ahorrador, Premium, Fan y
+A tu Medida) y puede cambiar cualquier producto antes de pagar (el pago es simulado en esta versión). Para
+llegar a esos kits, el sistema recorre tres etapas.\par
 
 \begin{itemize}
-  \item \textbf{Percepción.} Un modelo multimodal de inteligencia artificial lee la lista y
-        la convierte en renglones.
-  \item \textbf{Normalización.} Cada renglón se identifica como un útil, un texto escolar,
-        una licencia digital u otro tipo, y se separa la cantidad que pide el colegio del
-        empaque en que se vende el producto. Luego, cada útil se busca en un catálogo de
-        conceptos canónicos con una búsqueda híbrida. Un canal léxico corrige la ortografía
-        y exige que lo pedido esté nombrado, y un canal semántico compara significados para
-        reconocer sinónimos. Si el sistema no tiene certeza suficiente, el renglón pasa a
-        revisión humana.
-  \item \textbf{Optimización.} Un algoritmo calcula el frente de Pareto de los kits
-        posibles, es decir, aquellos en los que no se puede bajar el costo sin ceder en la
-        marca o en las preferencias. Si las combinaciones son pocas (hasta 4.096), las revisa
-        todas; si son más, usa NSGA-II \citep{deb_fast_2002}. De ese frente sale el kit de
-        cada perfil.
+  \item \textbf{Percepción.} Un modelo multimodal de inteligencia artificial lee la lista y la convierte
+        en renglones.
+  \item \textbf{Normalización.} Cada renglón se clasifica (útil, texto escolar, licencia digital u otro),
+        se separa la cantidad pedida del empaque en que se vende, y cada útil se busca en un catálogo de
+        conceptos canónicos con una búsqueda híbrida: un canal léxico corrige la ortografía y exige que lo
+        pedido esté nombrado, y un canal semántico reconoce sinónimos. Si el sistema no tiene certeza
+        suficiente, el renglón pasa a revisión humana.
+  \item \textbf{Optimización.} Un algoritmo calcula el frente de Pareto de los kits posibles, es decir,
+        aquellos en los que no se puede bajar el costo sin ceder en la marca o en las preferencias. Con
+        hasta 4.096 combinaciones las revisa todas; con más, usa NSGA-II \citep{deb_fast_2002}.
 \end{itemize}
 
-Esta estrategia toma de la generación aumentada por recuperación (RAG) \citep{lewis_retrieval-augmented_2020} la indexación del catálogo y la recuperación de los
-productos, pero en lugar de que un modelo de lenguaje redacte la respuesta, los kits los
-construye el optimizador y el equipo de Tukit los revisa antes de publicarlos
-(\emph{human-in-the-loop}). Todo corre sobre cinco servicios de dominio con base propia y una
-puerta de enlace, es decir, seis unidades desplegables con código. El diseño previó un séptimo, la ingesta,
-que el sistema construido reemplazó por un catálogo curado. La arquitectura se eligió entre tres
-alternativas con el método ATAM \citep{bass_software_2021}.\par
+Esta estrategia toma de la generación aumentada por recuperación (RAG) \citep{lewis_retrieval-augmented_2020}
+la indexación y la recuperación de productos, pero los kits los construye el optimizador, no un modelo de
+lenguaje, y el equipo de Tukit los revisa antes de publicarlos (\emph{human-in-the-loop}). Todo corre sobre
+cinco servicios de dominio con base propia y una puerta de enlace, es decir, seis unidades desplegables. El
+diseño previó un séptimo servicio, la ingesta, que el sistema construido reemplazó por un catálogo curado.
+Aunque el piloto se hizo en un colegio de Bogotá, sumar otro colegio consiste en cargar y revisar su lista,
+sin cambiar el sistema.\par
 
-El trabajo siguió una metodología híbrida contenedora organizada en cinco fases, una por cada
-objetivo específico. SCRUM \citep{schwaber_scrum_2020} organizó la construcción en ciclos de
-dos semanas, Design Thinking \citep{brown_design_2008} guió la propuesta de valor y el modelo
-de negocio, RUP \citep{kruchten_rup_2003} aportó la gestión de riesgos y la trazabilidad, y
-CRISP-DM \citep{chapman_crisp-dm_2000} fue el marco de los componentes que dependen de datos.
-Los estándares IEEE 830 \citep{ieee_830_1998}, 1016 \citep{ieee_1016_2009} y 1058
-\citep{ieee_1058_1998} definieron la forma de los requerimientos, el diseño y el plan del
-proyecto. Aunque el piloto se hizo en un colegio de Bogotá, el modelo puede llevarse a otros
-colegios y ciudades, porque sumar un colegio consiste en cargar y revisar su lista, sin
-cambiar el sistema.\par
+El trabajo siguió una metodología híbrida organizada en cinco fases, una por cada objetivo específico.
+SCRUM \citep{schwaber_scrum_2020} organizó la construcción en ciclos de dos semanas; Design Thinking
+\citep{brown_design_2008} guió la propuesta de valor; RUP \citep{kruchten_rup_2003} aportó la gestión de
+riesgos y la trazabilidad; ATAM \citep{bass_software_2021} sirvió para elegir la arquitectura entre tres
+alternativas; CRISP-DM \citep{chapman_crisp-dm_2000} fue el marco de los componentes que dependen de datos;
+y los estándares IEEE 830 \citep{ieee_830_1998}, 1016 \citep{ieee_1016_2009} y 1058 \citep{ieee_1058_1998}
+definieron la forma de los requerimientos, el diseño y el plan del proyecto.\par
 
-Para leer este documento conviene seguir el hilo del trabajo, que avanza de entender el problema a
-construir la solución y luego a comprobarla. El Capítulo~II presenta la oportunidad, los objetivos
-y la metodología, y explica cómo cada fase (F1 a F5) corresponde a un objetivo específico (OE1 a OE5)
-y a una etapa de CRISP-DM. El Capítulo~III reúne los conceptos y las soluciones existentes, y con ellos
-muestra el vacío que Tukit busca cubrir. El Capítulo~IV corresponde a la Fase~1 (OE1, comprensión del
-negocio): a partir de las entrevistas y la encuesta se obtienen los requerimientos y las restricciones.
-El Capítulo~V corresponde a la Fase~2 (OE2): con ATAM se elige la arquitectura entre tres alternativas.
-El Capítulo~VI recoge las Fases~3 y~4 (OE3 y OE4), donde se construyen la percepción, la normalización
-y la optimización, y recorre las etapas de CRISP-DM desde la comprensión de los datos hasta el
-despliegue. El Capítulo~VII corresponde a la Fase~5 (OE5, evaluación): presenta las pruebas del sistema
-y la validación con usuarios. El Capítulo~VIII cierra con las conclusiones y el trabajo futuro. Los anexos reúnen las tablas, los datos y las constantes que el cuerpo cita.\par
+El documento sigue ese mismo orden, de entender el problema a construir la solución y luego a comprobarla.
+El Capítulo~II presenta los objetivos y asigna cada fase (F1 a F5) a un objetivo (OE1 a OE5) y a una etapa
+de CRISP-DM; el III reúne los conceptos y las soluciones existentes. El IV es la Fase~1 (OE1), con Design
+Thinking y la comprensión del negocio: de las entrevistas y la encuesta salen los requerimientos según IEEE~830.
+El V es la Fase~2 (OE2), donde ATAM elige la arquitectura y IEEE~1016 la documenta. El VI recoge las Fases~3
+y~4 (OE3 y OE4) y recorre CRISP-DM, de la comprensión de los datos al despliegue, para la percepción, la
+normalización y la optimización. El VII es la Fase~5 (OE5), con ISO/IEC~25010 y un protocolo registrado de
+antemano para las pruebas y la validación con usuarios, y el VIII cierra con las conclusiones y el trabajo
+futuro. Los anexos solo guardan material de reproducción y auditoría.\par
