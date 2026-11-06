@@ -1,28 +1,9 @@
 \subsection{Tablas de apoyo de los capítulos}
 \label{anx:tablas}
 
-En este anexo se reúnen las tablas extensas a las que remiten los capítulos III, V y VII. Cada capítulo explica en su texto la conclusión que la tabla respalda.
+Este anexo conserva las tres tablas de apoyo que los capítulos III y V citan; las demás pasaron al cuerpo o al repositorio.
 
-\begin{table}[htbp]
-\centering
-\caption{Reparto de tablas por contexto delimitado}
-\label{tab:reparto}
-\small
-\begin{tabular}{@{}lrp{8.4cm}@{}}
-\toprule
-\textbf{Servicio} & \textbf{Tablas} & \textbf{Responsabilidad} \\
-\midrule
-Identidad     & 16 & Personas, tenencia, autorización y consentimiento. Frontera de cumplimiento \\
-Catálogo      & 19 & Qué productos existen y a qué precio público. Reconstruible desde sus archivos de datos (CF-02a) \\
-Inteligencia  & 12 & Percepción, normalización, resolución y optimización \\
-Comercio      & 18 & Pedidos, inventario, pagos y entrega. Irremplazable \\
-Operación     & 9  & Casos, notificaciones, auditoría y telemetría. Solo anexar \\
-\midrule
-\textbf{Total} & \textbf{74} & \\
-\bottomrule
-\end{tabular}
-\end{table}
-
+\iffalse % politicas, adr, comparacion, kits, impulsores, alternativas y entregables: ahora en el cuerpo (V, III, VII) o en el repositorio
 \begin{table}[htbp]
 \centering
 \caption{Políticas inejecutables y su corrección en el esquema}
@@ -53,28 +34,6 @@ Columnas de vigencia con índice único parcial sobre la fila vigente \\
 \bottomrule
 \end{tabular}
 \end{table}
-
-\begin{table}[htbp]
-\centering
-\caption{Desglose de latencia por etapa (lista de 20 ítems, mediana)}
-\label{tab:latencia}
-\small
-\begin{tabular}{@{}p{6.2cm}rrp{3.2cm}@{}}
-\toprule
-\textbf{Etapa} & \textbf{p50 (ms)} & \textbf{\% total} & \textbf{Naturaleza} \\
-\midrule
-Expansión por grafo de sustituibilidad & 33.470,0 & 95,28 & CPU en Python \\
-Embedding de la consulta & 832,0 & 2,37 & CPU nativo (torch) \\
-Optimización NSGA-II & 362,2 & 1,03 & CPU en Python \\
-Percepción por reconocimiento óptico & 183,2 & 0,52 & CPU nativo \\
-Consultas a la base de datos & 274,3 & 0,78 & Espera de E/S \\
-Resto & 5,5 & 0,02 & \\
-\midrule
-\textbf{Total} & \textbf{35.127,2} & \textbf{100,00} & \\
-\bottomrule
-\end{tabular}
-\end{table}
-
 \begin{table}[htbp]
 \centering
 \caption{Registros de decisión arquitectónica estructurales}
@@ -286,6 +245,48 @@ menores de edad. \\
 \end{tabularx}
 \end{table}
 
+\fi
+\begin{table}[htbp]
+\centering
+\caption{Reparto de tablas por contexto delimitado}
+\label{tab:reparto}
+\small
+\begin{tabular}{@{}lrp{8.4cm}@{}}
+\toprule
+\textbf{Servicio} & \textbf{Tablas} & \textbf{Responsabilidad} \\
+\midrule
+Identidad     & 16 & Personas, tenencia, autorización y consentimiento. Frontera de cumplimiento \\
+Catálogo      & 19 & Qué productos existen y a qué precio público. Reconstruible desde sus archivos de datos (CF-02a) \\
+Inteligencia  & 12 & Percepción, normalización, resolución y optimización \\
+Comercio      & 18 & Pedidos, inventario, pagos y entrega. Irremplazable \\
+Operación     & 9  & Casos, notificaciones, auditoría y telemetría. Solo anexar \\
+\midrule
+\textbf{Total} & \textbf{74} & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Desglose de latencia por etapa (lista de 20 ítems, mediana)}
+\label{tab:latencia}
+\small
+\begin{tabular}{@{}p{6.2cm}rrp{3.2cm}@{}}
+\toprule
+\textbf{Etapa} & \textbf{p50 (ms)} & \textbf{\% total} & \textbf{Naturaleza} \\
+\midrule
+Expansión por grafo de sustituibilidad & 33.470,0 & 95,28 & CPU en Python \\
+Embedding de la consulta & 832,0 & 2,37 & CPU nativo (torch) \\
+Optimización NSGA-II & 362,2 & 1,03 & CPU en Python \\
+Percepción por reconocimiento óptico & 183,2 & 0,52 & CPU nativo \\
+Consultas a la base de datos & 274,3 & 0,78 & Espera de E/S \\
+Resto & 5,5 & 0,02 & \\
+\midrule
+\textbf{Total} & \textbf{35.127,2} & \textbf{100,00} & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \begin{table}[H]
 \centering\footnotesize
 \setlength{\tabcolsep}{4pt}
@@ -308,4 +309,3 @@ Listas y matrículas & 2 & 0 & 0 & \textbf{Total (98)} & \textbf{81} & \textbf{1
 \bottomrule
 \end{tabular}
 \end{table}
-

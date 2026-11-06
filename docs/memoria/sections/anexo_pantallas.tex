@@ -1,8 +1,7 @@
 \subsection{Pantallas del sistema construido}
 \label{anx:pantallas}
 
-Las pantallas se agrupan por quien las usa, en el orden del recorrido: primero el acudiente, de la
-cuenta al pedido y sus datos, y después el equipo de Tukit, de la cola de revisión a las métricas.
+Se muestran cuatro pantallas de las dos vistas: la espera y el pago del acudiente, y el seguimiento y la revisión de una lista.
 Las capturas son de la versión integrada del 3 de noviembre de 2026, con datos de demostración; las
 direcciones se reemplazaron por una genérica y el mapa de la entrega se pixeló.
 
@@ -14,7 +13,21 @@ direcciones se reemplazaron por una genérica y el mapa de la entrega se pixeló
 \begin{minipage}[t]{0.49\textwidth}\centering\includegraphics[width=\linewidth,height=0.36\textheight,keepaspectratio]{desarrollo/#3}\\\footnotesize (b) #4\end{minipage}
 \caption{#5}\end{figure}}
 
-\subsubsection{Acudiente}
+\pantallados{04-avance-procesamiento-etapas}{Etapas del procesamiento}{04b-espera-revision-humana}{La
+lista espera a una persona}{Pantallas de espera de una solicitud: lectura, normalización y búsqueda
+terminadas con el armado por comenzar (a), y el aviso «Lo está revisando una persona» cuando la lista
+pasa por la cola (b).}
+\pantallados{07c-pasarela-de-pago}{Pasarela}{07d-pago-confirmado}{Pago confirmado}{Pantallas del pago en
+modo simulado: la apertura de la pasarela (a) y el pedido pagado con su resumen (b).}
+\pantallados{08-seguimiento-pedido}{Seguimiento}{08b-derecho-retracto}{Plazo de retracto}{Pantallas del
+pedido: el seguimiento hasta la entrega, con la hora de cada paso (a), y el plazo del derecho de
+retracto en el detalle del pedido (b).}
+\pantallados{11a-revision-pdf-y-lectura}{PDF y lectura del modelo}{11b-renglones-con-concepto}{Renglones
+con su concepto}{Pantallas de la revisión de una lista de Cuarto: el PDF original junto a lo que leyó
+el modelo (a) y los renglones con su concepto y los atributos que exigen, entre ellos «un compás»
+enviado a revisión (b).}
+
+\iffalse % Galería completa (29 capturas): docs/entrega/ y carpeta figuras/desarrollo/
 
 \pantalla{width=0.72\textwidth}{01-registro-acudiente}{Pantalla de registro en el modo «Soy nuevo
 usuario», con los datos del acudiente y la casilla de la política de datos y los términos, que
@@ -69,3 +82,5 @@ confirmados y el mapa de entregas por colegio (a), y un pedido cerrado como entr
 colegio}{Pantallas de la bandeja de casos del equipo (a) y de las métricas de un colegio piloto (b).}
 \pantalla{width=0.72\textwidth,trim=0 1790 0 0,clip}{14-metricas-panel}{Pantalla del panel de la
 operación, con la cola de revisión, el estado de los trabajos y el resumen del catálogo.}
+
+\fi

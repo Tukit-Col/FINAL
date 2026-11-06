@@ -1,316 +1,236 @@
 \setcounter{subsection}{0}
 \section{DISEÑO DE LA SOLUCIÓN}
 
-Este capítulo presenta el resultado de la Fase~2: la arquitectura de Tukit y las decisiones del
-diseño detallado. Su argumento central es que las fronteras entre servicios se justifican por las
-propiedades que los datos no pueden compartir y no por la carga que el sistema va a soportar. El
-detalle completo está en el Documento de Diseño de Software (SDD), en el documento de arquitectura
-(SAD) y en el informe de evaluación ATAM.
-
-El análisis fijó los requerimientos de la Tabla~\ref{tab:req-resumen}. La evaluación con ATAM mostró
-que el diseño inicial, de catorce servicios, era excesivo: la carga prevista no lo justificaba y su
-costo de operación superaba los recursos del equipo. El capítulo parte de esa corrección y presenta la
-alternativa B$'$, que agrupa lo que debe cambiar junto y separa solo lo que los datos no pueden
-compartir. Cada decisión atiende un requerimiento: la bandeja de salida y RabbitMQ, RNF08; Redis, RNF03; la
-aplicación web progresiva, RNF04, y el despliegue independiente de cada servicio, RNF06.
-
-La exposición sigue la norma ISO/IEC/IEEE 42010 \citep{iso_42010_2022} y el modelo 4+1 de
-Kruchten \citep{kruchten_41_1995}, que distingue la vista de desarrollo de la física
-(Sección~\ref{sec:monorepo}). Las decisiones quedaron en registros de decisión de arquitectura.
+Los capítulos anteriores fijaron el problema y los requerimientos de la Tabla~\ref{tab:req-resumen}. Este capítulo corresponde a la Fase~2 (F2), que cubre el objetivo específico OE2, y sigue la ruta de diseño de las disciplinas de RUP con la norma IEEE~1016 como estructura del Documento de Diseño de Software (SDD). La arquitectura se eligió con ATAM \citep{bass_software_2021}, un método que compara alternativas contra escenarios de calidad, y se describe con las vistas del modelo 4+1 \citep{kruchten_41_1995}, la notación C4 \citep{brown_c4_2018} y la norma ISO/IEC/IEEE 42010 \citep{iso_42010_2022}. El resultado central es que las fronteras entre servicios se justifican por las propiedades que los datos no pueden compartir y no por la carga prevista: el diseño inicial de catorce servicios se redujo a seis desplegables. El capítulo cierra con el modelo de dominio, la autorización y las decisiones registradas, que alimentan el desarrollo de la Fase~3.
 
 % =====================================================================
-\subsection{Impulsores arquitectónicos}
+\subsection{Marco de la descripción y fuerzas del diseño}
 \label{sec:impulsores}
 
-El diseño inicial justificaba la descomposición en microservicios por
-\emph{escalabilidad}. Un cálculo de carga con las cifras del mercado objetivo (diecisiete
-colegios en el corpus y una demanda concentrada en las semanas previas al inicio del año
-lectivo) mostró que la infraestructura mínima excede la demanda proyectada en unos tres
-órdenes de magnitud. Esa justificación no se sostenía. El rediseño condujo a tres criterios,
-ninguno de rendimiento: la recuperabilidad asimétrica de los datos, la frontera de cumplimiento y el
-perfil de recurso de cada componente (Tabla~\ref{tab:impulsores}, Anexo~\ref{anx:tablas}).
+Conforme a la norma 42010, una descripción arquitectónica nombra a sus interesados, sus preocupaciones y la vista que atiende cada una. La Tabla~\ref{tab:interesados} lo hace para Tukit y la Tabla~\ref{tab:impulsores} resume los tres impulsores que decidieron la descomposición. Estos tres criterios no son de rendimiento: el diseño inicial justificaba los microservicios por escalabilidad, pero un cálculo de carga con las cifras del mercado objetivo (diecisiete colegios y una demanda concentrada en las semanas previas al año lectivo) mostró que la infraestructura mínima supera la demanda proyectada en unos tres órdenes de magnitud.
 
-% [movida al Anexo: tab:impulsores]
+\begin{table}[!htb]
+\centering
+\caption{Interesados, preocupaciones y vista que las atiende}
+\label{tab:interesados}
+\small
+\begin{tabular}{@{}p{3.0cm}p{6.6cm}p{4.2cm}@{}}
+\toprule
+\textbf{Interesado} & \textbf{Preocupación} & \textbf{Vista} \\
+\midrule
+Acudiente & Obtener kits completos y pagar sin exponer datos de tarjeta (RNF03, RNF04) & Contexto, proceso \\
+Colegio y equipo de Tukit & Revisar listas y kits; operar el sistema con cuatro personas (RNF06) & Contenedores, despliegue \\
+Responsable de datos & Cumplir la Ley 1581 de 2012 con los datos de menores & Dominio, autorización \\
+Evaluador y equipo de desarrollo & Fronteras verificables y cambios sin romper otros servicios (RNF08) & Desarrollo, decisiones \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-Con estos criterios, el número de servicios bajó de catorce a seis y se trazaron de nuevo algunas
-fronteras que los prototipos habían ubicado mal.
+\begin{table}[!htb]
+\centering
+\caption{Impulsores arquitectónicos de la descomposición en servicios}
+\label{tab:impulsores}
+\small
+\begin{tabular}{@{}p{3.0cm}p{10.8cm}@{}}
+\toprule
+\textbf{Impulsor} & \textbf{Qué separa} \\
+\midrule
+Recuperabilidad asimétrica & El catálogo se reconstruye desde sus archivos de datos y admite perder un día de cambios (CF-02a); un pedido no puede perder un solo byte. Compartir almacén obliga a dimensionar el respaldo por el más exigente \\
+\addlinespace
+Frontera de cumplimiento & La Ley 1581 \citep{congreso_ley1581_2012} y el Decreto 1377 de 2013 \citep{presidencia_decreto1377_2013} piden aislar los datos de menores, con base y llaves propias, para reducir lo que debe auditarse \\
+\addlinespace
+Perfil de recurso & La inferencia y la optimización multiobjetivo consumen CPU y memoria; la gestión transaccional exige disponibilidad y consistencia. Juntas, todo se dimensiona por la más exigente \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 % =====================================================================
 \subsection{De catorce servicios documentados a seis desplegables}
 \label{sec:consolidacion}
 
-La arquitectura de los documentos académicos iniciales proponía trece microservicios de
-dominio y una puerta de enlace, para separar al máximo las responsabilidades. Dos hechos la
-cuestionaron. El primero fue de costo y operabilidad: catorce desplegables implican catorce
-canales de integración y despliegue, catorce bases candidatas y una malla de red que un
-equipo de cuatro personas no puede operar, frente a una demanda proyectada de decenas de pedidos
-diarios en temporada (el pico de diseño de RNF05 es de unos 1.000). El segundo fue empírico: la base de grafos Neo4j,
-prevista para la sustituibilidad, estaba apagada por configuración y el grafo de conceptos
-cabía en memoria, por lo que el ADR 0006 la retiró y resolvió el grafo en proceso; su
-evaluación como GraphRAG consta en el anexo CRISP-DM. El sistema construido lo sustituyó por una tabla curada de sustituciones en el catálogo, que
-ningún servicio consulta en la versión evaluada; la sustitución quedó como línea de evolución
-(Sección~\ref{sec:trabajo-futuro}).
+Los documentos académicos iniciales proponían trece microservicios de dominio y una puerta de enlace. Dos hechos los cuestionaron. Primero, catorce desplegables implican catorce canales de integración y una malla de red que un equipo de cuatro personas no puede operar, frente a decenas de pedidos diarios en temporada (el pico de diseño de RNF05 es de unos 1.000). Segundo, la base de grafos Neo4j, prevista para la sustituibilidad, estaba apagada por configuración y el grafo cabía en memoria, por lo que el ADR 0006 la retiró; la sustitución quedó como línea de evolución (Sección~\ref{sec:trabajo-futuro}).
 
-El ADR 0001 aplicó los tres criterios de la Tabla~\ref{tab:impulsores} y redujo los catorce
-servicios a seis de dominio y la puerta de enlace. La fusión se hizo el 10 de septiembre, sobre los microservicios desarrollados entre el 2 y el 18 de septiembre de 2026. Identidad y
-privacidad quedaron en un servicio de cuentas; catálogo, pedidos y última milla, en uno de
-comercio, y PQRS, analítica y notificaciones, en uno de plataforma. Aparte quedaron
-instituciones, una fachada para el panel de administración y el servicio de búsqueda.
+El ADR 0001 aplicó los tres impulsores y fusionó los servicios el 10 de septiembre, sobre lo desarrollado en los sprints SCRUM del 2 al 18 de septiembre de 2026. Después los colegios pasaron a identidad, el catálogo se separó de comercio (ADR 0012) y el servicio de búsqueda se dividió entre catálogo e inteligencia, porque sus objetivos de recuperación no permiten compartir almacén. El sistema construido tiene seis desplegables (siete en el manifiesto, que cuenta la ingesta): cinco servicios de dominio (identidad, catálogo, inteligencia, comercio y operación) y la puerta de enlace, sobre cinco bases.
 
-Esa reagrupación
-dejaba un servicio de respaldo del panel y otro de instituciones. Con la razón de cambio como criterio, los colegios
-pasaron a identidad, el catálogo se separó de comercio (ADR 0012), el panel consume la misma
-API que la aplicación del acudiente y la auditoría pasó a ser una biblioteca compartida
-(ADR 0002). El servicio de búsqueda anterior se dividió entre catálogo e inteligencia,
-porque sus objetivos de recuperación no permiten compartir almacén. El resultado es mejor
-para un equipo de cuatro personas: menos procesos que operar y un solo motivo de cambio por servicio. El sistema construido tiene seis
-desplegables con código (siete en el manifiesto, que cuenta la ingesta), cinco servicios de dominio
-(identidad, catálogo, inteligencia, comercio y operación) y la puerta de enlace, sobre cinco bases.
+La ingesta masiva prevista se reemplazó por un catálogo curado que crece con la demanda: un producto entra cuando una lista lo pide y el equipo confirma la correspondencia, lo que evita publicar un producto parecido pero equivocado. Hoy reúne 1.050 productos (1.040 activos), 1.057 ofertas de ocho tiendas y 149 conceptos en archivos versionados.
 
-El diseño de la
-Fase 2 preveía un séptimo desplegable, ingesta, que extraía de forma masiva los productos y
-precios de las tiendas. El sistema construido lo reemplazó por un catálogo curado que crece
-con la demanda: un producto entra cuando una lista lo pide y el equipo confirma la
-correspondencia. Es mejor porque concentra el esfuerzo en los productos que las listas
-piden y evita publicar un producto parecido pero equivocado. En el sistema construido reúne 1.050 productos (1.040
-activos), 1.057 ofertas de ocho tiendas y 149 conceptos en archivos de datos versionados, y las herramientas que
-consultan las tiendas solo completan o enriquecen productos. Lo que el equipo cura en el
-panel queda en la base del catálogo hasta que se exporta a esos archivos (ADR 0037).
+\textbf{Respuesta a la objeción del monolito primero.} Fowler \citep{fowler_monolithfirst_2015} recomienda empezar por un monolito. Aquí no se eligió porque un almacén único impone un mismo objetivo de recuperación a pedidos y catálogo (primer impulsor) y mezcla los datos de menores con el resto; tampoco se eligieron catorce servicios porque el equipo no puede operarlos. Seis servicios gruesos conservan solo las fronteras que los datos exigen.
 
 % =====================================================================
-\subsection{Alternativas evaluadas}
+\subsection{Evaluación de la arquitectura con ATAM}
 \label{sec:alternativas}
 
-Se compararon tres alternativas mediante el método ATAM \citep{bass_software_2021}: A, un monolito
-modular con almacén único; B, microservicios de granularidad fina, y B$'$, servicios agrupados por
-razón de cambio. Los resultados completos están en el documento de evaluación ATAM. La
-Tabla~\ref{tab:alternativas} (Anexo~\ref{anx:tablas}) sintetiza el contraste.
+Esta evaluación es el método de la Fase~2: se comparó la arquitectura contra escenarios de calidad y se registraron riesgos y compromisos (sensibilidad y \emph{trade-offs}), con una matriz ponderada de diez criterios. Se evaluaron tres alternativas: A, un monolito modular con almacén único; B, microservicios de grano fino, y B$'$, servicios agrupados por razón de cambio. La Tabla~\ref{tab:alternativas} sintetiza el contraste y el puntaje de cada una.
 
-% [movida al Anexo: tab:alternativas]
-
-La alternativa~A se descarta por el primer criterio de la Tabla~\ref{tab:impulsores}: un
-almacén único impone un mismo objetivo de recuperación a datos cuyo valor difiere en
-órdenes de magnitud. La alternativa~B se descarta por complejidad operativa: fragmentar la
-gestión de pedidos, inventario y pago en servicios separados convierte cada compra en una
-transacción distribuida, y el equipo no dispone de los recursos de operación que eso exige
-\citep{newman_building_2021}. La alternativa~B$'$ conserva el aislamiento donde el
-cumplimiento y la recuperabilidad lo exigen, y mantiene junta la transaccionalidad que
-debe permanecer junta. La matriz ponderada del ATAM le da 3,91 sobre 5,00, frente a 3,44 de
-la granularidad fina y 2,82 del monolito modular.
-
-La Figura~\ref{fig:c4-contexto} (Anexo~\ref{anx:figuras}) sitúa el sistema frente a sus actores y
-sistemas externos, y la Figura~\ref{fig:c4-contenedores} materializa la alternativa elegida. Las dos
-salen del código fuente: la primera es una vista UML del modelo de arquitectura y la segunda sigue el
-modelo C4. Cada color de la segunda tiene un significado fijo, que explica la leyenda al pie.
-
-La figura se lee de arriba hacia abajo. Arriba están el acudiente, con la aplicación web progresiva
-(puerto 3000), y el equipo de Tukit, con el panel de administración (puerto 3001); ambas llaman a la puerta
-de enlace (puerto 8010), que reenvía cada petición al servicio que atiende su ruta. Debajo están los
-servicios que llaman a otros (operación, inteligencia y comercio), cada uno con su base y sus procesos en
-segundo plano, y en el centro RabbitMQ, que lleva los eventos. Abajo están identidad y catálogo, que no
-llaman a otros servicios, junto a los sistemas externos y la infraestructura compartida. Las etiquetas A1 a
-A4, B1 a B4 y C1 a C3 numeran los pasos de la subida de la lista y los kits, el pago y los avisos.
-
-Con RabbitMQ, un publicador por servicio productor lleva los eventos de su bandeja a una cola
-por consumidor, con una cola de reintentos y otra de descartados, y la entrega es al menos una
-vez, con consumidores idempotentes (ADR 0046). La bandeja sigue siendo la fuente de verdad. Sin
-RabbitMQ, cada consumidor lee la bandeja en la base del productor, sin tope de intentos ni cola
-de descartados. El manifiesto declara esas lecturas como respaldo, y una función de aptitud
-impide que el camino con RabbitMQ lea bases ajenas.
-
-
-
-\begin{figure}[htbp]
+\begin{table}[!htb]
 \centering
-\resizebox*{!}{0.80\textheight}{\input{img/arquitectura/c4-contenedores.tex}}
+\caption{Alternativas arquitectónicas evaluadas}
+\label{tab:alternativas}
+\small
+\begin{tabular}{@{}p{2.6cm}p{3.5cm}p{3.5cm}p{4.1cm}@{}}
+\toprule
+& \textbf{A. Monolito modular} & \textbf{B. Microservicios de grano fino} & \textbf{B$'$. Grano grueso (elegida)} \\
+\midrule
+Componentes & 1 desplegable, módulos internos & 13 servicios y puerta de enlace & 5 servicios de dominio y puerta de enlace, 5 bases \\
+\addlinespace
+Aislamiento de datos de menores & Por convención de código & Por servicio & Por servicio, base y llaves \\
+\addlinespace
+Punto de recuperación & Único para todo & Por servicio & Diferenciado por criticidad \\
+\addlinespace
+Complejidad operativa & Baja & Alta: coordinación distribuida en cada transacción & Media \\
+\addlinespace
+Costo de infraestructura & Mínimo & Alto & Moderado \\
+\addlinespace
+Puntaje ponderado (sobre 5,00) & 2,82 & 3,44 & 3,91 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La alternativa~A se descarta por el primer impulsor. La alternativa~B se descarta por complejidad operativa: separar pedidos, inventario y pago convierte cada compra en una transacción distribuida \citep{newman_building_2021}. La alternativa~B$'$ conserva el aislamiento donde el cumplimiento y la recuperabilidad lo exigen y mantiene junta la transaccionalidad.
+
+\textbf{Sensibilidad a los pesos.} Para comprobar que el resultado no depende de una ponderación particular, se perturbó cada uno de los diez pesos en $\pm 20$\,\%, uno a la vez, se renormalizó a 100\,\% y se recalculó el puntaje con las calificaciones de la matriz. En las veinte combinaciones gana B$'$: su puntaje queda entre 3,88 y 3,94, el de B entre 3,38 y 3,50 y el de A entre 2,77 y 2,88. La menor ventaja de B$'$ sobre B es de 0,40 puntos, al subir 20\,\% el peso de la recuperabilidad asimétrica (3,88 frente a 3,49).
+
+La Tabla~\ref{tab:escenarios} contrasta cada decisión con el escenario que la motivó, el riesgo o compromiso que acepta y la prueba que la vigila, con el resultado medido en la versión evaluada.
+
+\begin{table}[!htb]
+\centering
+\caption{Escenarios de calidad, decisión, compromiso, prueba y resultado medido}
+\label{tab:escenarios}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{2.4cm}p{2.7cm}p{3.0cm}p{2.9cm}p{2.9cm}@{}}
+\toprule
+\textbf{Escenario} & \textbf{Decisión} & \textbf{Riesgo o compromiso} & \textbf{Función de aptitud o prueba} & \textbf{Resultado medido} \\
+\midrule
+Optimizar un kit en menos de 8 s (ESC-D4) & NSGA-II en el servicio de inteligencia, sin salto de red & Un solo proceso computa; el lenguaje queda fijo en Python & Prueba de latencia del escenario & p95 de 0,31 s frente a 8 s \\
+\addlinespace
+Carga hasta 100 usuarios (L-02, RNF05) & Servicios independientes sobre cinco bases & El catálogo corre en un proceso y llega al 100\,\% de un núcleo & Rampa de carga en un Apple M4 & 0 errores hasta 100 usuarios; p95 del catálogo de 2,5 s con 100 \\
+\addlinespace
+Ráfaga de peticiones abusivas & Límite de tasa en la puerta de enlace (Redis opcional) & Si Redis cae, el conteo pasa a la memoria de la puerta & Prueba con 5 usuarios a través de la puerta & 30.257 de 31.457 peticiones respondidas con 429 \\
+\addlinespace
+Caída del catálogo (ESC-R2) & Disyuntor con respaldo & El peor caso, si cada intento agota su espera, se acotó con un modelo (300,8 s) y no se midió & Ensayo de degradación & El disyuntor abrió a los 26,3 s, dentro de los 30 s \\
+\addlinespace
+Erosión de fronteras & Manifiesto con doce funciones de aptitud & Mantener el manifiesto al día & Doce pruebas en cada cambio y veintiocho de segundo nivel & Ningún servicio importa código ajeno ni declara tablas ajenas \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =====================================================================
+\subsection{Vistas de contexto, contenedores y despliegue}
+\label{sec:vistas}
+
+La vista de contexto (Figura~\ref{fig:c4-contexto}) sitúa a Tukit entre sus actores y los sistemas externos. Se lee de izquierda a derecha: el acudiente y el equipo de Tukit interactúan con el sistema, y este, a su derecha, depende de Gemini (lectura de listas y vectores), Wompi (pagos), los canales de aviso y las tiendas cuyos precios alimentan el catálogo.
+
+\begin{figure}[!htb]
+\centering
+\includegraphics[width=0.62\textwidth]{img/modelo/contexto.jpg}
+\caption[Vista de contexto: Tukit frente a sus actores y sistemas externos.]{Vista de contexto,
+en notación UML: Tukit frente a sus actores (el padre es el acudiente) y a los sistemas externos,
+agrupados por función. Cada flecha lleva la información que pasa entre las partes.}
+\label{fig:c4-contexto}
+\end{figure}
+
+La vista de contenedores (Figura~\ref{fig:c4-contenedores}, C4 nivel 2) abre el sistema y se lee de arriba hacia abajo. Arriba están la aplicación web del acudiente (puerto 3000) y el panel del equipo (3001), que llaman a la puerta de enlace (8010); esta reenvía cada petición al servicio de su ruta. En el centro, RabbitMQ lleva los eventos entre operación, inteligencia y comercio, cada uno con su base y sus procesos en segundo plano. Abajo están identidad y catálogo, que no llaman a otros servicios, junto a los sistemas externos. Las etiquetas A1 a A4, B1 a B4 y C1 a C3 numeran la subida de la lista y los kits, el pago y los avisos.
+
+\begin{figure}[!htb]
+\centering
+\resizebox*{!}{0.5\textheight}{\input{img/arquitectura/c4-contenedores.tex}}
 \caption{Vista de contenedores (C4 nivel 2) del sistema construido, con los procesos en
 segundo plano de cada servicio y los pasos de la subida de la lista y los kits (A), el pago (B)
 y los avisos (C).}
 \label{fig:c4-contenedores}
 \end{figure}
 
-Redis es opcional y solo guarda lo que se puede recalcular o perder (ADR 0047): el vector de cada
-renglón durante 24 horas, la lectura aceptada de cada lista durante 30 días y los contadores del
-límite de tasa de la puerta de enlace. Si no responde en 250~ms, cada servicio calcula sin caché
-y la puerta de enlace cuenta el límite en su memoria.
+Con RabbitMQ, cada productor publica los eventos de su bandeja de salida en una cola por consumidor, con una cola de reintentos y otra de descartados; la entrega es al menos una vez, con consumidores idempotentes (ADR 0046). Redis es opcional y guarda solo lo recalculable (ADR 0047): el vector de cada renglón por 24 horas, la lectura aceptada de cada lista por 30 días y los contadores del límite de tasa; si no responde en 250~ms, cada servicio calcula sin caché.
 
-La vista física (Figura~\ref{fig:despliegue}, Anexo~\ref{anx:figuras}) muestra dónde corre cada pieza.
-\begin{itemize}
-  \item \emph{Portátil del equipo} (Minikube local, sin autoescalado ni clúster gestionado, de modo que
-  la disponibilidad depende de ese equipo): aloja las dos aplicaciones web (puertos 3000 y 3001), la puerta de enlace (8010) y los cinco servicios (8011 a 8015) con sus procesos en segundo plano; \texttt{make arriba} los levanta y \texttt{make reanudar} los retoma tras un apagado sin sembrar de nuevo.
-  \item \emph{PostgreSQL 16 con pgvector}: un servidor con las cinco bases, una por servicio.
-  \item \emph{RabbitMQ}: el intercambio de eventos; Redis y Jaeger son opcionales.
-  \item \emph{Túnel de Cloudflare}: expone la aplicación web con una URL temporal solo durante las sesiones con acudientes.
-  \item \emph{Wompi}: funciona en modo simulado, sin salir a la red.
-\end{itemize}
+La vista física (Figura~\ref{fig:despliegue}) muestra dónde corre cada pieza: todo en un portátil del equipo con Minikube local, sin autoescalado, de modo que la disponibilidad depende de ese equipo. \texttt{make arriba} levanta las dos aplicaciones, la puerta de enlace y los cinco servicios; \texttt{make reanudar} los retoma sin sembrar de nuevo. PostgreSQL 16 con pgvector aloja las cinco bases; RabbitMQ lleva los eventos; un túnel de Cloudflare expone la web con una URL temporal solo durante las sesiones con acudientes, y Wompi funciona en modo simulado.
 
-Las herramientas se eligieron por criterio. PostgreSQL con pgvector reúne datos y vectores en un
-servidor que el equipo puede operar. RabbitMQ da entrega al menos una vez con
-reintentos, y la bandeja de salida lo respalda si cae (ADR 0046). Redis guarda lo que se recalcula y cuenta
-el límite de tasa (ADR 0047). Wompi, con su widget de pago, mantiene los datos de tarjeta fuera del sistema
-(ADR 0033), a diferencia de las opciones descartadas (ADR 0011). Gemini lee las páginas de las listas y
-calcula los embeddings, y pymoo aporta un NSGA-II maduro, sin equivalente en lenguajes compilados
-(Sección~\ref{sec:lenguajes}).
+\begin{figure}[!htb]
+\centering
+\resizebox{0.75\textwidth}{!}{\input{img/arquitectura/despliegue.tex}}
+\caption[Vista de despliegue: cómo corre Tukit en el equipo.]{Vista de despliegue. Todo el
+sistema corre en un portátil: dos aplicaciones web, la puerta de enlace, cinco servicios,
+sus procesos en segundo plano y la infraestructura (PostgreSQL, RabbitMQ, y Redis y Jaeger
+opcionales). En las sesiones con acudientes se abre un túnel de Cloudflare hacia la aplicación
+web, y Wompi funciona en modo simulado. Misma paleta que la Figura~\ref{fig:c4-contenedores}.}
+\label{fig:despliegue}
+\end{figure}
 
 % =====================================================================
-\subsection{Modelo de dominio y contextos delimitados}
+\subsection{Vista de proceso}
+\label{sec:proceso}
+
+Las dos secuencias siguientes recorren los flujos A y B de la Figura~\ref{fig:c4-contenedores}. La Figura~\ref{fig:sec-pipeline} sigue una lista desde que el acudiente la sube hasta que existen los kits: la puerta de enlace aplica el límite de tasa y reenvía a inteligencia, que lee la lista con Gemini y normaliza cada renglón; el catálogo devuelve candidatos y parecido, e inteligencia clasifica con $\tau = 0{,}75$ (resuelto automático si el parecido lo alcanza; si no, ambiguo, hueco o sin match). El optimizador arma los kits con NSGA-II sobre todos los renglones y los no automáticos quedan en revisión humana.
+
+\begin{figure}[!htb]
+\centering
+\resizebox{0.92\textwidth}{!}{\input{img/arquitectura/secuencia-pipeline.tex}}
+\caption{Secuencia de la lectura de una lista, la resolución de cada renglón con el umbral $\tau$ y la construcción de los kits; los renglones no automáticos quedan en revisión humana.}
+\label{fig:sec-pipeline}
+\end{figure}
+
+La Figura~\ref{fig:sec-pago} muestra que el pago no depende del regreso del acudiente. Comercio crea la orden de forma idempotente y rechaza la compra si un precio cambió. Cuando Wompi avisa por el webhook, comercio verifica la firma, aplica el pago una sola vez y escribe el evento en su bandeja de salida; de ahí pasa a RabbitMQ y operación avisa al acudiente.
+
+\begin{figure}[!htb]
+\centering
+\resizebox{0.92\textwidth}{!}{\input{img/arquitectura/secuencia-pago.tex}}
+\caption{Secuencia del pago: orden idempotente, aviso de Wompi a comercio y evento por la bandeja de salida y RabbitMQ hasta el aviso de operación.}
+\label{fig:sec-pago}
+\end{figure}
+
+% =====================================================================
+\subsection{Modelo de dominio y autorización}
 \label{sec:dominio}
-
-La descomposición sigue el enfoque de diseño guiado por el dominio \citep{evans_domain-driven_2004}.
-Cada servicio corresponde a un contexto delimitado con un lenguaje ubicuo propio, y las
-traducciones entre contextos ocurren explícitamente en los adaptadores.
-
-Las migraciones del sistema construido crean 74 tablas en cinco bases de datos, una por
-servicio (Tabla~\ref{tab:reparto}); la bandeja de salida de eventos se repite en las cinco,
-de modo que hay 70 nombres distintos.
-
-% Tabla tab:reparto movida al Anexo A.3 (tablas del cuerpo)
-
-
-\subsubsection{La matrícula como ancla de tenencia}
-
-El modelo de datos de los microservicios anteriores no sabía a qué colegio pertenecían los
-pedidos ni los usuarios: el identificador de institución aparecía cero veces en los
-servicios de comercio y de cuentas. Donde sí existía, lo enviaba el cliente en el cuerpo de
-la petición sin validación alguna, lo cual es peor que su ausencia porque aparenta un
-control que no existe.
-
-La solución aparentemente obvia, un identificador de colegio en el usuario, es incorrecta,
-porque un acudiente puede tener hijos en colegios distintos (requisito CO-04 del SRS). La tenencia reside, en
-cambio, en la relación $\langle$estudiante, sede, grado, año lectivo$\rangle$, que se modela
-como la entidad matrícula, con una relación de muchos a muchos con los acudientes
-(ADR 0013). Su identificador viaja a los otros cuatro servicios como referencia lógica y es
-el eje de las políticas de visibilidad. Se ubica en la \emph{línea} del pedido y no en su
-cabecera, porque en la cabecera dos hermanos obligarían a dos pedidos y a dos pagos, lo que
-contradice la propuesta de valor del producto. La comprobación de que cada línea apunta a
-una matrícula visible para el acudiente se delimitó como parte del endurecimiento productivo
-(Sección~\ref{sec:trabajo-futuro}).
-
-\subsubsection{Asimetría entre lectura y escritura}
-
-Las políticas de visibilidad son deliberadamente asimétricas. Para \emph{leer} un recurso
-basta que toque alguna matrícula visible para el solicitante; para \emph{escribirlo} se
-exige que \emph{todas} las matrículas que el recurso referencia estén contenidas en su
-ámbito. Un pedido con dos hermanos, uno visible y otro no, puede consultarse pero no
-modificarse. La simetría ingenua produciría, en ese escenario, una fuga de información o un
-sistema inutilizable.
-
-% =====================================================================
-\subsection{Autorización y protección de datos desde el diseño}
 \label{sec:autorizacion}
 \label{sec:datos}
 
-Los microservicios anteriores guardaban el rol como un texto en la tabla de usuarios, de modo que
-dos usuarios con el mismo rol sobre colegios distintos pasaban el mismo control, y la auditoría de
-sus 152 puntos de entrada encontró 22 en los que faltaba comparar el colegio del token con el del
-recurso (Sección~\ref{sec:defectos}). El diseño pasa a un control de acceso basado en roles con
-ámbito: un usuario puede ejecutar el permiso $p$ sobre el ámbito $a$ si tiene un rol vigente sobre
-$a$, o sobre un ámbito que lo contenga en la jerarquía
-$\text{global} \succ \text{colegio} \succ \text{sede} \succ \text{matrícula}$, al que corresponde ese
-permiso. La función falla cerrada, sin ninguna rama que conceda por falta de información, y la
-seguridad a nivel de campo usa el mismo mecanismo: leer un estudiante y leer su nombre son permisos
-distintos. En el sistema construido, identidad evalúa esos permisos (ADR 0013), pero la aplicación
-uniforme a todas las rutas quedó como endurecimiento productivo; varias rutas que devuelven datos
-personales todavía no exigen sesión, como muestran los hallazgos de la Sección~\ref{sec:calidad-resumen}.
+La descomposición sigue el diseño guiado por el dominio \citep{evans_domain-driven_2004}: cada servicio es un contexto delimitado con lenguaje propio, y las traducciones ocurren en adaptadores. Las migraciones crean 74 tablas en cinco bases, una por servicio, con la bandeja de salida repetida en las cinco (70 nombres distintos; Tabla~\ref{tab:reparto}, Anexo~\ref{anx:tablas}). El modelo anterior no sabía a qué colegio pertenecían pedidos y usuarios, y donde lo sabía lo enviaba el cliente sin validación. Un identificador de colegio en el usuario no sirve, porque un acudiente puede tener hijos en colegios distintos (CO-04 del SRS); la tenencia reside en la relación $\langle$estudiante, sede, grado, año lectivo$\rangle$, la \emph{matrícula} (ADR 0013), que viaja a los demás servicios como referencia lógica y se ubica en la línea del pedido, no en la cabecera, para que dos hermanos no obliguen a dos pagos. Las políticas son asimétricas: para leer un recurso basta una matrícula visible; para escribirlo se exigen todas las que referencia.
 
-Los datos se clasifican campo por campo en cinco niveles (público, interno, personal, personal
-sensible y dato de menor), conforme a la Ley 1581 de 2012 \citep{congreso_ley1581_2012}. La primera
-revisión, sobre 398 columnas de 50 tablas, encontró 126 campos con datos personales, 20 de ellos de
-menores. Dos lecciones guiaron el diseño. La primera es que una política de tratamiento solo se
-puede verificar si el esquema expone las columnas que la hacen computable. La segunda, que la
-dirección de entrega, ausente en el sistema anterior, se guarda en dos formas distintas (ADR 0015):
-la libreta del acudiente, editable, cifrada y sujeta a supresión, y la copia congelada del envío, que
-no cambia después de confirmar el pedido. Solo la ciudad y la localidad quedan en claro, porque de
-ellas depende la zona de reparto. El razonamiento completo, con la función de permiso, las
-políticas que el esquema anterior no podía sostener y la minimización por columna, está en el
-Anexo~\ref{anx:autorizacion-datos}.
+La autorización usa control de acceso basado en roles con ámbito \citep{sandhu_role-based_1996}. El modelo anterior guardaba el rol como texto, y la auditoría de sus 152 puntos de entrada halló 22 sin comparar el colegio del token con el del recurso (Sección~\ref{sec:defectos}). Ahora un usuario ejecuta el permiso $p$ sobre el ámbito $a$ si tiene un rol vigente sobre $a$ o sobre un ámbito que lo contenga ($\text{global} \succ \text{colegio} \succ \text{sede} \succ \text{matrícula}$); la función falla cerrada. Identidad evalúa esos permisos, pero su aplicación uniforme a todas las rutas quedó como endurecimiento productivo (Sección~\ref{sec:calidad-resumen}).
 
-% =====================================================================
-\subsection{Organización del código y funciones de aptitud}
+Los datos se clasifican por campo en cinco niveles, conforme a la Ley 1581 de 2012 \citep{congreso_ley1581_2012}. La revisión de 398 columnas de 50 tablas encontró 126 campos con datos personales, 20 de ellos de menores. La dirección de entrega se guarda en dos formas (ADR 0015): la libreta del acudiente, editable, cifrada y sujeta a supresión, y la copia congelada del envío. El SDD detalla las políticas y la minimización por columna.
+
+\subsubsection{Organización del código y funciones de aptitud}
 \label{sec:monorepo}
 
-\subsubsection{Un repositorio no es un desplegable}
+La implementación es un monorrepositorio con seis desplegables independientes (ADR 0014). Un repositorio no es un desplegable: la norma 42010 y el modelo 4+1 separan la vista de desarrollo, que organiza módulos, de la física, que asigna software a nodos.
 
-La implementación se organiza en un monorrepositorio con seis desplegables independientes
-con código (ADR 0014), pues la ingesta prevista se reemplazó por el catálogo curado. La decisión exige justificación porque contradice la asociación habitual entre
-microservicio y repositorio, asociación que carece de fundamento normativo. La norma
-ISO/IEC/IEEE 42010 \citep{iso_42010_2022} compone una descripción arquitectónica de vistas
-que responden a preocupaciones distintas, y el modelo 4+1 \citep{kruchten_41_1995} separa
-la \emph{vista de desarrollo}, que organiza módulos y bibliotecas, de la \emph{vista
-física}, que asigna el software a nodos de ejecución. Dónde vive el código y cómo se
-despliega son decisiones de vistas diferentes; en la terminología del modelo C4, un
-contenedor no equivale a un repositorio.
+La objeción legítima es que el repositorio único facilita la erosión de fronteras. Se responde con funciones de aptitud \citep{ford_building_2017}: un manifiesto declara el lenguaje, la base y las tablas de cada servicio, y doce pruebas lo verifican en cada cambio (nueve sobre código y manifiesto, tres sobre las colas y Redis). Como una función que nunca ha fallado no está demostrada, un segundo nivel de veintiocho pruebas planta infracciones y casos que no deben marcarse.
 
-La motivación es medible: en los microservicios anteriores, trasladar una función de redacción de
-datos a la biblioteca compartida exigió modificar siete archivos de dependencias y publicar una versión;
-en el monorrepositorio es un único cambio.
-
-\subsubsection{Fronteras verificadas, no declaradas}
-
-La objeción legítima al repositorio único es que facilita la erosión de las fronteras. La
-respuesta de este diseño es instrumentarlas mediante funciones de aptitud
-\citep{ford_building_2017}: pruebas automáticas y continuas sobre una característica
-arquitectónica. Un manifiesto declara, para cada servicio, su lenguaje, su base de datos, las tablas de las que es
-dueño y las referencias que cruzan hacia otros dominios, y doce pruebas lo verifican en cada
-cambio. Nueve revisan el código y el propio manifiesto: que ningún servicio importe código de otro ni declare una tabla ajena, que toda referencia
-cruzada esté declarada, que ninguna tabla tenga dos dueños y que el grafo de dependencias sea
-acíclico. Las otras tres, dos añadidas con las colas y una con Redis, extienden la verificación a
-esos canales. La lista completa está en el Anexo~\ref{anx:ampliaciones}.
-El motivo de instrumentarlas es que el defecto que encontró el rediseño, la tabla de productos
-declarada como maestra en dos servicios a la vez, no se produjo por falta de criterio sino porque
-nada lo verificaba de forma continua.
-
-Una función de aptitud que nunca ha fallado no está demostrada. Por ello un segundo nivel, con
-veintiocho pruebas, suministra a los detectores infracciones plantadas y casos que no deben marcarse. Ante una infracción plantada, la
-integración falla e indica el archivo, la línea, el dominio invadido y la remediación
-sugerida.
-
-% =====================================================================
-\subsection{Asignación de lenguajes: una decisión medida}
+\subsubsection{Asignación de lenguajes: una decisión medida}
 \label{sec:lenguajes}
 
-La hipótesis de partida era que los componentes intensivos en cómputo debían reescribirse en
-un lenguaje compilado. Para contrastarla se perfiló una lista escolar de veinte ítems, la mediana
-del corpus real, contra un catálogo de 3.187 productos, el de la ingesta masiva anterior y no el actual de 1.050. Las cifras son reportadas por la
-documentación del código, no recalculadas. El 95,3\,\% de la latencia lo producía una sola línea,
-que reconstruía un grafo de sustituibilidad en cada ítem; construirlo cuesta 1.673~ms y consultarlo,
-0,137~ms. Corregido ese defecto, la reducción que aporta cambiar de lenguaje queda, según la ley de
-Amdahl \citep{amdahl_validity_1967}, entre el 20,0\,\% y el 21,7\,\%, y el 98,5\,\% de lo que
-resta corresponde al optimizador NSGA-II sobre pymoo \citep{blank_pymoo_2020}, sin equivalente
-maduro en un lenguaje compilado. Por eso los seis desplegables están en Python, y el manifiesto
-declara el lenguaje de cada servicio para que incorporar otro sea una adición. El cálculo
-completo y el desglose de latencia (Tabla~\ref{tab:latencia}) están en el
-Anexo~\ref{anx:ampliaciones}.
+La hipótesis era que los componentes de cómputo intensivo debían reescribirse en un lenguaje compilado. Una lista de veinte ítems, la mediana del corpus, mostró que el 95,3\,\% de la latencia lo producía una línea que reconstruía un grafo de sustituibilidad en cada ítem. Corregido ese defecto, la ley de Amdahl \citep{amdahl_validity_1967} acota la ganancia de cambiar de lenguaje entre 20,0\,\% y 21,7\,\%, y el 98,5\,\% de lo restante es el NSGA-II sobre pymoo \citep{blank_pymoo_2020}, sin equivalente maduro compilado. Por eso los seis desplegables están en Python (desglose en la Tabla~\ref{tab:latencia}).
 
 % =====================================================================
 \subsection{Decisiones registradas}
 \label{sec:adr}
 
-Las decisiones arquitectónicas se documentan como registros en el formato propuesto por
-Nygard \citep{nygard_documenting_2011} (título, contexto, decisión, estado y consecuencias),
-al que el proyecto añade un apartado de alternativas consideradas. La entrega reúne
-cuarenta y nueve registros, numerados de 0001 a 0049, en el registro de decisiones de
-arquitectura (Tabla~\ref{tab:anexos}); la Tabla~\ref{tab:adr} destaca los que estructuran el
-diseño de este capítulo.
+Las decisiones se documentan en el formato de Nygard \citep{nygard_documenting_2011} (título, contexto, decisión, estado y consecuencias) con un apartado de alternativas; la entrega reúne cuarenta y nueve registros, 0001 a 0049 (Tabla~\ref{tab:anexos}). La Tabla~\ref{tab:adr} muestra los ocho que estructuran este capítulo. El ADR 0016 ilustra el método: una contradicción entre decisiones previas, visible solo al redactar un criterio de aceptación, mostró que la política de seguridad no podía evaluarse donde hacía falta, porque la matrícula vive en la base de identidad.
 
-El ADR 0016 ilustra el método: una contradicción entre decisiones previas, visible solo al redactar
-un criterio de aceptación, mostró que la política de seguridad no podía evaluarse donde hacía falta,
-porque la matrícula vive en la base de identidad.
+\begin{table}[!htb]
+\centering
+\caption{Registros de decisión arquitectónica estructurales}
+\label{tab:adr}
+\small
+\begin{tabular}{@{}cp{4.6cm}p{8.2cm}@{}}
+\toprule
+\textbf{ADR} & \textbf{Decisión} & \textbf{Fundamento} \\
+\midrule
+0001 & De catorce servicios a seis & Los tres impulsores, no la escalabilidad \\
+0006 & Retirar Neo4j & Estaba apagado y el grafo cabía en memoria \\
+0012 & Separar el catálogo del comercio & Elimina el doble maestro; el costo contractual y el precio público son hechos distintos \\
+0013 & Matrícula como ancla de tenencia y roles con ámbito & Un acudiente puede tener hijos en colegios distintos \\
+0014 & Monorrepositorio con despliegue independiente & Vista de desarrollo distinta de la física; fronteras con funciones de aptitud \\
+0015 & Dirección: libreta y copia congelada & Un hecho histórico y un dato editable son entidades distintas \\
+0016 & Dónde se evalúa el ámbito si el ancla vive en otra base & Se copia la clave de ámbito y se deniega por omisión; sigue siendo diseño (Sección~\ref{sec:defectos}) \\
+0046 & Eventos por RabbitMQ con la base como respaldo & Una cola por consumidor con reintentos y descartados; sin RabbitMQ se sondean las bandejas \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-% Tabla tab:adr movida al Anexo A.3 (tablas del cuerpo)
+Wompi, con su widget, deja los datos de tarjeta fuera del sistema (ADR 0033).
 
-
-% =====================================================================
 \subsection{Síntesis}
 
-El diseño presentado se distingue del original en tres aspectos, que constituyen el aporte
-de ingeniería de este objetivo específico. El primero es la justificación de la
-descomposición, que pasó de la escalabilidad, refutada por el cálculo de carga, a la
-recuperabilidad asimétrica, la frontera de cumplimiento y el perfil de recurso. Con ella,
-los catorce servicios documentados se redujeron a seis desplegables con código, cuyas
-fronteras se trazaron de nuevo. El segundo es la matrícula, una entidad que el modelo
-anterior no tenía y que permite expresar tenencia, autoridad con ámbito y revocación
-parcial del consentimiento. El tercero es que las fronteras entre servicios dejaron de ser
-afirmaciones y pasaron a ser aserciones verificables de forma continua. La autorización
-uniforme y la depuración del nombre del menor en el documento cargado se delimitaron como
-endurecimiento productivo (Sección~\ref{sec:trabajo-futuro}).
+El diseño aporta tres cambios respecto del original. La descomposición pasó de la escalabilidad, refutada por el cálculo de carga, a la recuperabilidad asimétrica, la frontera de cumplimiento y el perfil de recurso, y los catorce servicios se redujeron a seis. La matrícula permite expresar tenencia, autoridad con ámbito y revocación parcial del consentimiento. Y las fronteras dejaron de ser afirmaciones para ser aserciones verificadas de forma continua. La autorización uniforme y la depuración del nombre del menor en el documento cargado quedaron como endurecimiento productivo (Sección~\ref{sec:trabajo-futuro}). Con esta arquitectura fijada, el siguiente capítulo describe cómo se construyó en la Fase~3.

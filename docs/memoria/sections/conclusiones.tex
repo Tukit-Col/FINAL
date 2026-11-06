@@ -6,7 +6,7 @@
 
 \subsubsection{Impacto en la ingeniería de sistemas}
 
-Además del sistema construido, el trabajo deja tres prácticas de ingeniería trasladables a otros proyectos, cada una con su límite. Primero, la arquitectura se eligió comparando alternativas con el método ATAM \citep{bass_software_2021}: un monolito modular, microservicios de grano fino y la variante de grano grueso adoptada, que obtuvo 3,91 sobre 5 en la matriz ponderada frente a 3,44 y 2,82 (el acta del segundo objetivo registraba 4,27 con otro conjunto de alternativas). La decisión se apoyó en impulsores comprobables (recuperabilidad asimétrica, frontera de cumplimiento y perfil de recurso heterogéneo) y no en la escalabilidad invocada al principio, que el cálculo de carga descartó por órdenes de magnitud.
+Este capítulo cierra la metodología híbrida del trabajo. Se aplicó SCRUM en la construcción, Design Thinking en el OE1, las normas IEEE 830, 1016 y 1058, ATAM en el OE2, CRISP-DM en los OE3 y OE4 y un protocolo preregistrado con ISO/IEC 25010 en el OE5. Este capítulo mide lo que cada método produjo y qué quedó pendiente. Además del sistema construido, el trabajo deja tres prácticas de ingeniería trasladables a otros proyectos, cada una con su límite. Primero, la arquitectura se eligió comparando alternativas con el método ATAM \citep{bass_software_2021}: un monolito modular, microservicios de grano fino y la variante de grano grueso adoptada, que obtuvo 3,91 sobre 5 en la matriz ponderada frente a 3,44 y 2,82 (el acta del segundo objetivo registraba 4,27 con otro conjunto de alternativas). La decisión se apoyó en impulsores comprobables (recuperabilidad asimétrica, frontera de cumplimiento y perfil de recurso heterogéneo) y no en la escalabilidad invocada al principio, que el cálculo de carga descartó por órdenes de magnitud.
 
 Segundo, el sistema se auditó más allá de sus requisitos funcionales. La auditoría de autorización encontró 22 de 152 puntos de entrada sin una comparación completa de ámbito, y la de datos personales, catorce hallazgos. El sistema construido corrigió una parte y reemplazó las políticas de fila del ADR 0016 por un control de ámbito en la aplicación; los anexos registran la situación de cada hallazgo y la Sección~\ref{sec:defectos} reúne los que siguen abiertos.
 
@@ -27,11 +27,7 @@ pagaron su kit, cuatro de seis describieron la aplicación como fácil, intuitiv
 rápida, y lo que más valoraron fue el ahorro de tiempo y poder cambiar productos. A la vez, solo uno
 de cinco revisó y eligió su kit sin ayuda, de modo que ese valor depende de cómo se presenta el kit. La carga
 percibida frente a la compra tradicional se midió con el RTLX: bajó de 63 con la compra habitual a 9 con Tukit (n = 6), y el SUS medio fue de 90 [82--98]. El modelo de negocio adoptado
-\citep{osterwalder_business_2010}, B2B2C, distribuye ese valor sin imponer un costo al colegio:
-la institución no paga por participar, y el ingreso proviene de la compra del acudiente. En el
-contexto colombiano, donde la capacidad de pago de las instituciones y de sus hogares es
-heterogénea, una solución que dependiera del presupuesto del colegio limitaría su adopción a
-las instituciones con mayor capacidad financiera. En el plano global, el resultado se acota a Colombia: el calendario escolar y la normativa de listas son locales y el trabajo no probó otro país. En el plano ambiental no se midió un efecto directo: que el kit reduzca compras redundantes es una
+\citep{osterwalder_business_2010}, B2B2C, no impone un costo al colegio: el ingreso proviene de la compra del acudiente, con una comisión supuesta del 15\,\% sobre un kit Ahorrador de \$609.343 en útiles. Descontados la pasarela, la inteligencia artificial, la entrega a domicilio y la adquisición de clientes, cada kit deja una contribución de \$29.353. Con la infraestructura del piloto (\$1.200.000 al año) el punto de equilibrio fue de 41 kits, cerca del 3\,\% de las 1.340 familias estimadas del colegio, y con la infraestructura escalable (\$15.000.000 al año), de 512 kits. La comisión, la logística y la conversión son supuestos del equipo que la operación real debe confirmar, y con una comisión del 10\,\% la contribución por kit sería negativa; por eso no se calculó un valor presente neto. Esta opción se adapta a un contexto colombiano donde la capacidad de pago de colegios y hogares es heterogénea. En el plano global, el resultado se acota a Colombia: el calendario escolar y la normativa de listas son locales y el trabajo no probó otro país. En el plano ambiental no se midió un efecto directo: que el kit reduzca compras redundantes es una
 hipótesis que exige operar con familias. El alcance social del hallazgo tiene un límite: la encuesta se
 concentró en un solo colegio del sector Salitre, con sobrerrepresentación del estrato 4
 (68,3\,\%) y ausencia de los estratos 1 y 6. Por eso, generalizar la insatisfacción declarada a
@@ -39,10 +35,7 @@ la población escolar colombiana excede lo que esta muestra permite afirmar.
 
 \subsection{Conclusiones y Trabajo Futuro}
 
-En esta sección se evalúa el cumplimiento de cada objetivo específico y su razón, y luego se
-presenta el trabajo futuro. La Tabla~\ref{tab:cumplimiento} resume, por objetivo, la evidencia, la
-sección donde se presenta y el estado, y los párrafos siguientes explican por qué se asignó ese
-estado.
+Los cinco objetivos específicos se cumplieron, cada uno con el método de su fase y con un límite declarado. La Tabla~\ref{tab:cumplimiento} resume, por objetivo, la evidencia, la sección donde se presenta y el estado, y los párrafos siguientes dan la razón de cada uno.
 
 \begin{table}[H]
 \centering\footnotesize
@@ -62,52 +55,26 @@ OE5 & Pruebas de unidad, integración, sistema y carga; ESC-D4 con p95 de 0,31~s
 \end{tabularx}
 \end{table}
 
-El OE1 se cumplió porque el corpus permitió definir 99 conceptos canónicos (el catálogo actual tiene 149), de los cuales 25
-cubren cerca del 80\,\% de los renglones observados: el dominio es heterogéneo en la superficie,
-pero tiene una estructura tratable. El OE2 se cumplió porque las decisiones de arquitectura se
-justificaron con ATAM \citep{bass_software_2021}, vistas 4+1 \citep{kruchten_41_1995} y la norma
-ISO/IEC/IEEE 42010 \citep{iso_42010_2022}; el diseño previó siete desplegables y el sistema
-construido tiene seis con código, agrupados por razón de cambio sobre cinco bases de datos (ADR 0013); la ingesta se reemplazó por el catálogo curado.
+El OE1 (fase F1, Design Thinking en sus etapas de empatizar y definir, con la norma IEEE 830 para el SRS) se cumplió porque la encuesta (n=60), las entrevistas y la caracterización del corpus (3.608 ítems y 1.451 formas de nombrar, de 17 colegios) permitieron definir 99 conceptos canónicos (el catálogo actual tiene 149), de los cuales 25 cubren cerca del 80\,\% de los renglones: el dominio es heterogéneo en la superficie, pero tiene una estructura tratable. El corpus final tiene 4.719 ítems, que son esos 3.608 más 1.109 libros, licencias y uniformes.
 
-El OE3 se cumplió con un cambio de diseño entre los prototipos y el sistema construido. En
-percepción, el modelo multimodal superó al reconocimiento con reglas (F1 micro de 0,948 frente a
-0,298), con la salvedad de que el oro se construyó desde su salida. En resolución, el sistema
-construido sustituyó la fusión recíproca de rangos y el reordenador por una sola fase que suma el
-parecido léxico y el coseno, y compensa con la revisión de cada lista nueva antes de publicarla. El
-OE4 se abordó con un optimizador que enumera el frente exacto hasta 4.096 combinaciones y recurre a
-NSGA-II \citep{deb_fast_2002,blank_pymoo_2020} por encima, con cuatro objetivos (costo, fidelidad
-de marca, disponibilidad y personaje), y presenta los kits Ahorrador y Premium siempre, Fan si el
-acudiente pidió un personaje y A tu Medida si eligió el punto medio de gasto o un tope. El personaje
-es un hallazgo del desarrollo: la encuesta midió esa preferencia y los tres criterios de la VFP no la
-recogían. El OE5 pedía evaluar el sistema con pruebas funcionales, no funcionales, de carga y de
-usabilidad con usuarios reales, y se cumplió en esos cuatro frentes: el control de calidad en cuatro
-niveles, la prueba ESC-D4 y seis sesiones con acudientes conforme al plan preregistrado. Que una
-evaluación encuentre problemas es parte de su resultado: el criterio C3 se alcanzó en el pago y no en
-la elección del kit, y esa diferencia es la que ordena los cambios de la siguiente versión
-(Sección~\ref{sec:oe5}). Los objetivos OE3 y OE4 se cumplieron con los límites que declara la
-Sección~\ref{sec:amenazas}: en el OE3, que ninguna medición de resolución describe el sistema construido; en el OE4, que el pago se probó en modo simulado y no en el entorno de
-pruebas de Wompi. El objetivo general, diseñar el sistema de recomendación multiobjetivo y medir su efecto con padres del sector Salitre, se da por cumplido como suma de los cinco objetivos específicos, con esos límites.
+El OE2 (fase F2, ATAM con la norma IEEE 1016 para el SDD) se cumplió porque las decisiones se justificaron con ATAM \citep{bass_software_2021}, vistas 4+1 \citep{kruchten_41_1995} y la norma ISO/IEC/IEEE 42010 \citep{iso_42010_2022}; el diseño previó siete desplegables y el sistema construido tiene seis con código, agrupados por razón de cambio sobre cinco bases de datos (ADR 0013).
+
+El OE3 (CRISP-DM: comprensión, preparación, modelado y evaluación de la percepción y la resolución) se cumplió con un cambio de diseño entre los prototipos y el sistema construido. En percepción, el modelo multimodal superó al reconocimiento con reglas (F1 micro de 0,948 frente a 0,298), con la salvedad de que el oro se construyó desde su salida. En resolución, el sistema construido sustituyó la fusión recíproca de rangos y el reordenador por una sola fase que suma el parecido léxico y el coseno con $\tau=0{,}75$, y compensa con la revisión de cada lista nueva antes de publicarla.
+
+El OE4 (CRISP-DM aplicado a la optimización) se cumplió con un optimizador que enumera el frente exacto hasta 4.096 combinaciones y recurre a NSGA-II \citep{deb_fast_2002,blank_pymoo_2020} por encima, con cuatro objetivos (costo, fidelidad de marca, disponibilidad y personaje). Su hipervolumen fue de 0,9969 del exacto en 32 listas de prueba. Presenta los kits Ahorrador y Premium siempre, Fan si el acudiente pidió un personaje y A tu Medida si eligió el punto medio de gasto o un tope. El personaje es un hallazgo del desarrollo: la encuesta midió esa preferencia y los tres criterios de la VFP no la recogían.
+
+El OE5 (fase F5, con un protocolo preregistrado con ISO/IEC 25010) pedía evaluar el sistema con pruebas funcionales, no funcionales, de carga y de usabilidad con usuarios reales, y se cumplió en esos cuatro frentes: el control de calidad en cuatro niveles, la prueba de carga L-02 sin errores hasta 100 usuarios, la prueba ESC-D4 y seis sesiones con acudientes del Colegio Agustiniano Ciudad Salitre, en las que los seis pagaron y el SUS fue de 90 [82--98]. Que una evaluación encuentre problemas es parte de su resultado: el criterio C3 se alcanzó en el pago y no en la elección del kit, y esa diferencia ordena los cambios de la siguiente versión (Sección~\ref{sec:oe5}). Los objetivos OE3 y OE4 se cumplieron con los límites que declara la Sección~\ref{sec:amenazas}: en el OE3, que ninguna medición de resolución describe el sistema construido; en el OE4, que el pago se probó en modo simulado y no en el entorno de pruebas de Wompi.
+
+El objetivo general, diseñar el sistema de recomendación multiobjetivo y medir su efecto con padres del sector Salitre, se da por cumplido como suma de los cinco objetivos específicos, con esos límites. Lo que sigue es lo que habría que hacer para pasar de un piloto evaluado a una operación con familias.
 
 \subsubsection{Trabajo futuro}
 \label{sec:trabajo-futuro}
 
-El trabajo futuro se organiza en seis líneas, alineadas con la sección de trabajo futuro de la
-propuesta (VFP v4). Cada una quedó fuera de este trabajo por una razón explícita, que se indica a
-continuación.
+El trabajo futuro se organiza en cinco líneas, alineadas con la propuesta (VFP v4). Cada una quedó fuera de este trabajo por una razón explícita.
 \begin{enumerate}
-\item \textbf{Alianza con tiendas de uniformes e integración de libros.} Alianza con las tres
-tiendas de uniformes y flujo con Buscalibre y las editoriales de textos escolares. Quedó fuera
-porque este trabajo se centró en un solo negocio, el de útiles y papelería. Hoy el plan lector cubre poco: de las 78 líneas del concepto de libros (C134)
-en las listas revisadas, solo 18 traen ISBN y tienen su edición en el catálogo, 57 son títulos sin
-edición identificada que el sistema indica comprar en librería y 3 no se compran. Es un límite de
-cobertura del catálogo de libros y no del emparejamiento.
-\item \textbf{Endurecimiento productivo.} Los 85 hallazgos vigentes del control de calidad, 16 de severidad alta (Sección~\ref{sec:calidad-resumen}), el catálogo con varios procesos para la latencia bajo carga, los cambios de T4 del OE5, el panel de colegio (CO-01 y CO-02) y el ajuste de presupuesto en vivo, que quedaron fuera del alcance. Autorización uniforme en las rutas, rol de acceso por base
-de datos, depuración del nombre del menor en el documento cargado, supresión de datos, medición de
-la cobertura en la integración continua y cobro real con la pasarela. Es la condición para operar con
-familias reales.
-\item \textbf{Alcance del producto.} Aplicaciones nativas con modo sin conexión, rutas de entrega
-agrupadas entre tiendas y reventa de textos entre hogares; ninguna cambia el algoritmo evaluado.
-\item \textbf{Calibración con más anotadores y más colegios.} Repetir la calibración del umbral y
-de los pesos con un conjunto anotado por dos personas y con listas de más colegios, y comparar
-NSGA-II con otros optimizadores de referencia sobre el mismo banco.
+\item \textbf{Endurecimiento productivo.} Es la primera línea porque es la condición para operar con familias reales. Incluye el catálogo con varios procesos, que corrige la latencia bajo carga, y los 85 hallazgos vigentes del control de calidad, 16 de severidad alta (Sección~\ref{sec:calidad-resumen}): autorización uniforme en las rutas, rol de acceso por base de datos, depuración del nombre del menor en el documento cargado, supresión de datos, medición de la cobertura en la integración continua y cobro real con la pasarela. Quedó fuera porque el alcance fue construir y evaluar un piloto.
+\item \textbf{Cambios de la prueba con usuarios.} Los ajustes de T4 del OE5 para la elección del kit, el panel de colegio (CO-01 y CO-02) y el ajuste de presupuesto en vivo, que la evaluación ordenó pero no se implementaron.
+\item \textbf{Alianza con tiendas de uniformes e integración de libros.} Alianza con las tres tiendas de uniformes y flujo con Buscalibre y las editoriales. Quedó fuera porque este trabajo se centró en útiles y papelería. Hoy el plan lector cubre poco: de las 78 líneas del concepto de libros (C134) en las listas revisadas, solo 18 traen ISBN y tienen su edición en el catálogo, 57 son títulos sin edición identificada que el sistema indica comprar en librería y 3 no se compran. Es un límite de cobertura del catálogo y no del emparejamiento.
+\item \textbf{Calibración con más anotadores y más colegios.} Repetir la calibración del umbral y de los pesos con un conjunto anotado por dos personas y con listas de más colegios, y comparar NSGA-II con otros optimizadores sobre el mismo banco.
+\item \textbf{Alcance del producto.} Aplicaciones nativas con modo sin conexión, rutas de entrega agrupadas entre tiendas y reventa de textos entre hogares; ninguna cambia el algoritmo evaluado.
 \end{enumerate}

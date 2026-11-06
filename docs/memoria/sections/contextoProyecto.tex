@@ -1,24 +1,15 @@
 \setcounter{subsection}{0}
 \section{CONTEXTO DEL PROYECTO}
 
-Los capítulos anteriores plantearon el problema y fijaron los cinco objetivos específicos y la
-metodología híbrida. Antes de recoger requerimientos hacía falta conocer el terreno. La compra de
-útiles escolares parece una tarea sencilla de comercio, pero automatizarla exige resolver problemas
-de campos distintos: la lectura de documentos sin formato común, la interpretación de un vocabulario
-que cada colegio escribe a su manera, la elección entre muchas combinaciones de productos y la
-presentación de las opciones sin abrumar a quien decide. Este capítulo se apoya en la etapa de
-comprensión del negocio de CRISP-DM \citep{chapman_crisp-dm_2000} y en el análisis del entorno de
-Design Thinking \citep{brown_design_2008}. Primero presenta los retos de la lista escolar y las
-técnicas que atiende cada uno (Tabla~\ref{tab:antecedentes}); luego revisa las soluciones existentes
-y las alternativas consideradas, y las compara con la propuesta. El vacío que resulta, entre las
-soluciones actuales y una recomendación completa a partir de la lista del colegio, es el punto de
-partida del Capítulo~IV.\par
+El capítulo anterior fijó los cinco objetivos específicos y la metodología híbrida. Este capítulo abre
+la Fase~1 (OE1) con la comprensión del negocio de CRISP-DM \citep{chapman_crisp-dm_2000} y la etapa
+de empatía de Design Thinking \citep{brown_design_2008}: antes de pedir requerimientos hacía falta
+conocer el terreno. Comprar los útiles de una lista escolar exige leer documentos sin formato común,
+interpretar un vocabulario que cada colegio escribe a su manera, elegir entre muchas combinaciones de
+productos y presentar las opciones sin abrumar a quien decide. Encontramos que ninguna solución
+revisada resuelve esa cadena completa a partir de la lista oficial del colegio.\par
 
 \subsection{Antecedentes}
-
-En esta sección se presentan los conceptos necesarios para comprender el funcionamiento de
-Tukit. Se parte de la lista escolar y de los retos que plantea convertirla en una compra, y se
-asocia a cada reto la técnica que lo resuelve.\par
 
 \subsubsection{La lista escolar y los retos de convertirla en una compra}
 
@@ -43,7 +34,7 @@ la familia. Finalmente, el quinto es presentar esas alternativas de manera que f
 decisión en lugar de dificultarla.\par
 
 Cada reto se apoya en un cuerpo de conocimiento. La Tabla~\ref{tab:antecedentes} los resume con
-la idea que Tukit toma de cada uno, y el Anexo~\ref{anx:antecedentes} los desarrolla. La apuesta
+la idea que Tukit toma de cada uno. La apuesta
 del proyecto es combinarlos en una cadena de lectura, normalización, optimización y revisión humana.
 
 \begin{table}[htbp]
@@ -80,7 +71,7 @@ cambiar antes de pagar \\
 \subsection{Análisis del Contexto}
 \label{sec:analisis-contexto}
 
-\subsubsection{Soluciones existentes}
+\subsubsection{Plataformas internacionales}
 
 A nivel internacional, varias plataformas han buscado simplificar la compra de útiles
 escolares a partir de la lista que publica cada institución. En Estados Unidos, TeacherLists
@@ -117,104 +108,102 @@ historial de interacciones o una consulta escrita por el usuario, y no abordan e
 el que el punto de partida es un documento institucional sin formato fijo que debe
 cumplirse completo.\par
 
+\subsubsection{Soluciones en Colombia}
+
+A nivel internacional, TeacherLists reúne las listas de cerca de dos millones de salones de
+Estados Unidos y permite a las cadenas minoristas convertir cada una en un carrito prellenado
+\citep{teacherlists_retail_2026}, y 1st Day School Supplies vende kits fijos a las familias de los
+colegios aliados, con fechas límite de pedido \citep{firstday_faqs_2026}. Confirman que pasar de la
+lista al carrito es viable, pero exigen que la lista se registre a mano en un formato estructurado,
+ofrecen una sola forma de completarla y no operan en Colombia. En el país, Panamericana y Éxito
+organizan su oferta por categorías o por nivel \citep{panamericana_cotizador_2025,exito_listas_2025},
+Primavera deja que el acudiente arme su lista sobre el catálogo propio
+\citep{primavera_armatulista_2026} y MercadoLibre vende kits fijos que arma cada vendedor
+\citep{mercadolibre_kits_2025}. En todos, la familia traduce cada renglón en un producto y verifica
+que la compra quede completa, lo que mantiene la carga cognitiva del proceso tradicional
+\citep{sweller_cognitive_2011}.\par
+
+En el ámbito académico, la recomendación de paquetes sugiere conjuntos coherentes de productos con
+representaciones vectoriales \citep{avny_brosh_bruce_2022,du_enhancing_2025} o con modelos de lenguaje
+\citep{liu_llmcbr_2025,bayrak_evaluating_2024}, y la generación aumentada por recuperación se aplica
+a preguntas sobre productos \citep{xu_itemrag_2026}. Estos trabajos suponen un historial de
+interacciones o una consulta escrita, y no abordan el caso en que el punto de partida es un
+documento institucional sin formato fijo que debe cumplirse completo.\par
+
 \subsubsection{Alternativas de solución consideradas}
 
-Ante este panorama, se analizaron seis formas de resolver el problema, según su viabilidad técnica
-y su efecto sobre las familias y la operación. Las tres primeras abordan el problema completo; las
-tres últimas resuelven solo la lectura de la lista.\par
+Se compararon seis formas de resolver el problema por su viabilidad técnica y su efecto en las
+familias y la operación. Tres abordan el problema completo. Las listas digitalizadas a mano, como
+las de TeacherLists, dan una correspondencia exacta entre renglón y producto, pero exigen
+transcribir cada lista y cada cambio, no dejan que el acudiente cargue la suya y no escalan a
+cientos de colegios. Los kits fijos por colegio y grado, como los de 1st Day, resuelven la compra
+en un paso, pero ofrecen una sola alternativa sin considerar presupuesto ni preferencias. La
+generación directa con un modelo de lenguaje, bajo el esquema de generación aumentada por
+recuperación \citep{lewis_retrieval-augmented_2020}, se adapta a listas muy distintas, pero puede
+proponer productos, cantidades o precios ausentes del catálogo y sus resultados son difíciles de
+auditar. Las otras tres resuelven solo la lectura. El OCR tradicional con búsqueda exacta
+\citep{smith_overview_2007} es económico y explicable, pero falla con fotografías inclinadas, tablas
+de varias columnas y sinónimos. Docling \citep{auer_docling_2024} recupera bien tablas y columnas de
+PDF con estructura y puede ejecutarse en infraestructura propia, pero su desempeño baja con fotos
+del celular (Sección~\ref{sec:percepcion}) y no separa, por ejemplo, ``Cartuchera con esferos y
+borrador'' en tres artículos. Amazon Textract \citep{aws_textract_2026} e IBM Watson Discovery
+\citep{ibm_discovery_2026} extraen con alta precisión, pero cobran por página, procesan los
+documentos en infraestructura de terceros y tampoco asocian cada renglón con el catálogo.\par
 
-\begin{enumerate}
-  \item \textbf{Listas digitalizadas manualmente.} Siguiendo el modelo de TeacherLists, el
-        colegio o el equipo de Tukit transcribe cada lista en un formulario estructurado, y
-        cada renglón se asocia de antemano con un producto.
-        \begin{itemize}
-          \item \textit{Fortaleza:} la correspondencia entre renglón y producto es exacta,
-                porque la define una persona.
-          \item \textit{Debilidad:} exige transcribir cada lista y cada cambio de lista, no
-                permite que el acudiente cargue la suya y no escala a cientos de colegios.
-        \end{itemize}
-
-  \item \textbf{Kits preconfigurados por colegio y grado.} Siguiendo el modelo de 1st Day
-        School Supplies, se arma un único kit fijo para cada lista.
-        \begin{itemize}
-          \item \textit{Fortaleza:} la compra se resuelve en un solo paso y la operación es
-                sencilla.
-          \item \textit{Debilidad:} ofrece una sola alternativa, sin considerar el
-                presupuesto ni las preferencias de cada familia, y requiere armar y
-                actualizar manualmente cada kit.
-        \end{itemize}
-
-  \item \textbf{Generación directa con un modelo de lenguaje.} Un modelo de lenguaje recibe
-        la lista y redacta el kit completo, siguiendo el esquema de generación aumentada
-        por recuperación \citep{lewis_retrieval-augmented_2020}.
-        \begin{itemize}
-          \item \textit{Fortaleza:} se adapta con facilidad a listas redactadas de formas
-                muy distintas.
-          \item \textit{Debilidad:} puede proponer productos, cantidades o precios que no
-                están en el catálogo, sus resultados son difíciles de auditar y no garantiza
-                el mejor equilibrio entre costo, calidad y preferencias.
-        \end{itemize}
-
-  \item \textbf{Reconocimiento óptico de caracteres con reglas y búsqueda exacta.} La lista
-        se lee con OCR tradicional \citep{smith_overview_2007} y cada renglón se busca en el
-        catálogo por coincidencia exacta de palabras.
-        \begin{itemize}
-          \item \textit{Fortaleza:} es económica y sus resultados son fáciles de explicar.
-          \item \textit{Debilidad:} falla con fotografías inclinadas, con tablas de varias
-                columnas y con las múltiples formas de nombrar un mismo artículo.
-        \end{itemize}
-
-\item \textbf{Análisis de maquetación con Docling.} Docling, desarrollado por IBM,
-      combina el reconocimiento de caracteres con modelos que identifican la estructura
-      del documento, como títulos, párrafos, tablas y columnas, y la convierte en un
-      formato organizado \citep{auer_docling_2024}.
-      \begin{itemize}
-        \item \textit{Fortaleza:} recupera con fidelidad las tablas y las columnas de los
-              documentos PDF con una estructura definida, es de código abierto y puede
-              ejecutarse en la infraestructura propia.
-        \item \textit{Debilidad:} su desempeño disminuye con las fotografías tomadas con
-              el celular, que son frecuentes entre las listas que comparten las familias
-              (Sección~\ref{sec:percepcion} compara los motores de lectura), y no interpreta el contenido. Por ejemplo, no reconoce que ``Cartuchera con
-              esferos y borrador'' describe tres artículos que se compran por separado, de
-              modo que la separación de renglones y su normalización quedarían por
-              resolver.
-      \end{itemize}
-        \item \textbf{Plataformas comerciales de análisis documental.} Servicios como Amazon
-      Textract \citep{aws_textract_2026} e IBM Watson Discovery \citep{ibm_discovery_2026}
-      extraen el texto, las tablas y los campos de un documento en la nube, y permiten
-      buscar información dentro de grandes colecciones de archivos.
-      \begin{itemize}
-        \item \textit{Fortaleza:} ofrecen alta precisión en la extracción de texto y
-              tablas, y no requieren desarrollar ni mantener un modelo propio.
-        \item \textit{Debilidad:} su costo crece con cada página procesada y los documentos
-              se tratan en la infraestructura de un tercero. Además, solo resuelven la
-              lectura, ya que no interpretan el vocabulario escolar ni asocian cada
-              renglón con un producto del catálogo, de modo que la normalización y la
-              construcción de los kits quedarían por resolver.
-      \end{itemize}
-\end{enumerate}
-
-
-
-Frente a estas alternativas, la solución del Capítulo~II toma de cada una lo que resuelve una
-parte del problema. Conserva la lista oficial del colegio como punto de partida, igual que
-las listas digitalizadas, pero la lee de forma automática en cualquier formato mediante un
-modelo multimodal \citep{shen_ocr_2026}. Aprovecha la flexibilidad de los modelos de
-lenguaje, pero solo para leer la lista, mientras que la asociación con el catálogo se
-resuelve con una búsqueda híbrida que no inventa productos \citep{karpukhin_dense_2020}. En
-lugar de un único kit fijo, construye varias alternativas que equilibran el costo, la
-calidad y las preferencias mediante optimización multiobjetivo \citep{deb_fast_2002}, y
-mantiene la revisión humana en los casos dudosos, lo que permite auditar cada resultado.\par
+La solución del Capítulo~II toma de cada una lo que resuelve una parte. Parte de la lista oficial,
+como las listas digitalizadas, pero la lee en cualquier formato con un modelo multimodal
+\citep{shen_ocr_2026}. Usa el modelo de lenguaje solo para leer, y asocia con el catálogo mediante una
+búsqueda híbrida que no inventa productos \citep{karpukhin_dense_2020}. En lugar de un kit fijo,
+construye varias alternativas con optimización multiobjetivo \citep{deb_fast_2002} y mantiene la
+revisión humana en los casos dudosos.\par
 
 \subsubsection{Comparación con la solución propuesta}
 
-La Tabla~\ref{tab:comparacion-soluciones} (Anexo~\ref{anx:tablas}) contrasta, en nueve capacidades,
-a TeacherLists, 1st Day Supplies, Panamericana, Grupo Éxito, Papelería Primavera y MercadoLibre con
-Tukit. Hasta donde se revisó, ninguna de las seis lee listas en foto, PDF o texto ni reconoce el
-vocabulario escolar local, y solo Tukit parte de la lista oficial del colegio, combina productos de
-varias tiendas y ofrece alternativas según presupuesto y preferencias. Las soluciones comerciales
-superan a Tukit en catálogo general y control del inventario, porque Tukit no vende ni almacena. La
-brecha que Tukit busca cubrir es, entonces, convertir cualquier lista escolar en kits completos
-y auditables, que es lo que ninguna de las soluciones revisadas hace.\par
+La Tabla~\ref{tab:comparacion-soluciones} contrasta a las seis plataformas con Tukit en seis
+capacidades; conviene mirar las dos primeras filas y la última, donde se concentra la diferencia.
 
-% Tabla tab:comparacion-soluciones en el Anexo A.3 (tablas del cuerpo)
+\begin{table}[htbp]
+\centering\footnotesize
+\setlength{\tabcolsep}{2pt}
+\renewcommand{\arraystretch}{1.35}
+\newcommand{\enc}[2]{{\scriptsize\begin{tabular}[b]{@{}c@{}}#1\\#2\end{tabular}}}
+\caption{Comparación de Tukit con las soluciones existentes.}
+\label{tab:comparacion-soluciones}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{3.8cm}
+  >{\centering\arraybackslash}p{1.25cm}
+  *{5}{>{\centering\arraybackslash}p{1.25cm}}
+  >{\columncolor{gray!15}\centering\arraybackslash}p{1.25cm}@{}}
+\toprule
+\enc{}{\textbf{Capacidad}} &
+\enc{Teacher-}{Lists} &
+\enc{1st Day}{Supplies} &
+\enc{Pana-}{mericana} &
+\enc{Grupo}{Éxito} &
+\enc{Papelería}{Primavera} &
+\enc{Mercado}{Libre} &
+\enc{\textbf{Tukit}}{} \\
+\midrule
+Parte de la lista oficial del colegio
+  & \cumple & \cumple & \nocumple & \nocumple & \nocumple & \nocumple & \cumple \\
+Lee listas en foto, PDF o texto
+  & \nocumple & \nocumple & \nocumple & \nocumple & \nocumple & \nocumple & \cumple \\
+Arma el kit completo
+  & \parcial & \cumple & \nocumple & \parcial & \parcial & \parcial & \cumple \\
+Considera productos de varias tiendas
+  & \parcial & \nocumple & \nocumple & \nocumple & \nocumple & \parcial & \cumple \\
+Controla su inventario o ofrece catálogo general
+  & \parcial & \cumple & \cumple & \cumple & \cumple & \cumple & \nocumple \\
+Ofrece varias alternativas según presupuesto y preferencias
+  & \nocumple & \nocumple & \nocumple & \parcial & \nocumple & \parcial & \cumple \\
+\bottomrule
+\end{tabular}
+
+\vspace{2pt}
+{\footnotesize \cumple\ Cumple \quad \parcial\ Cumple parcialmente \quad \nocumple\ No cumple}
+\end{table}
+
+Hasta donde se revisó, ninguna lee listas en foto, PDF o texto, y solo Tukit parte de la lista
+oficial, combina tiendas y ofrece alternativas según presupuesto. Las soluciones comerciales superan
+a Tukit en catálogo e inventario porque Tukit no vende ni almacena. La brecha que Tukit cubre es
+convertir cualquier lista escolar en kits completos y auditables. De ella parte el levantamiento de
+requerimientos del Capítulo~IV.\par

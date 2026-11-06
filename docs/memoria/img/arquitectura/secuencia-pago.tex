@@ -1,0 +1,39 @@
+% Secuencia del pago: orden idempotente, aviso de Wompi y evento por la bandeja de salida. Misma paleta que c4-contenedores.tex.
+\definecolor{tkAppF}{HTML}{CFE2F7}\definecolor{tkAppB}{HTML}{1F4E86}
+\definecolor{tkProcF}{HTML}{D3EDD0}\definecolor{tkProcB}{HTML}{2E6B2B}
+\definecolor{tkExtF}{HTML}{FAD7B5}\definecolor{tkExtB}{HTML}{A8500F}
+\definecolor{tkInfF}{HTML}{DEDEDE}\definecolor{tkInfB}{HTML}{4D4D4D}
+\definecolor{tkMqF}{HTML}{E2D6F4}\definecolor{tkMqB}{HTML}{5B2E99}
+\begin{tikzpicture}[x=1cm, y=1cm, font=\scriptsize,
+  pa/.style={draw=tkAppB, fill=tkAppF, rounded corners=2pt, align=center, minimum width=2.2cm, minimum height=8mm},
+  pg/.style={draw=tkInfB, fill=tkInfF, rounded corners=2pt, align=center, minimum width=2.2cm, minimum height=8mm},
+  pp/.style={draw=tkProcB, fill=tkProcF, rounded corners=2pt, align=center, minimum width=2.2cm, minimum height=8mm},
+  pe/.style={draw=tkExtB, fill=tkExtF, rounded corners=2pt, align=center, minimum width=2.2cm, minimum height=8mm},
+  pm/.style={draw=tkMqB, fill=tkMqF, rounded corners=2pt, align=center, minimum width=2.2cm, minimum height=8mm},
+  life/.style={dashed, draw=tkInfB!70},
+  msg/.style={-{Stealth[length=1.6mm]}, thick, draw=tkAppB},
+  ret/.style={-{Stealth[length=1.6mm]}, thick, dashed, draw=tkInfB},
+  lab/.style={fill=white, inner sep=1pt, align=center}]
+\usetikzlibrary{arrows.meta}
+\node[pa] (w) at (0,0) {Acudiente\\(web)};
+\node[pg] (g) at (2.6,0) {Puerta de\\enlace};
+\node[pp] (c) at (5.2,0) {Comercio};
+\node[pe] (p) at (7.8,0) {Wompi};
+\node[pm] (q) at (10.4,0) {RabbitMQ};
+\node[pp] (o) at (13.0,0) {Operación};
+\foreach \n in {w,g,c,p,q,o} \draw[life] (\n.south) -- ++(0,-7.4);
+\draw[msg] (0,-1.0) -- (2.6,-1.0) node[midway, above=1.5pt, fill=white, inner sep=1pt] {1 confirma el kit};
+\draw[msg] (2.6,-1.7) -- (5.2,-1.7) node[midway, above=1.5pt, fill=white, inner sep=1pt] {2 crea la orden (relee el precio en catálogo)};
+\draw[msg] (5.2,-2.4) -- ++(0.9,0) -- ++(0,-0.5) -- ++(-0.9,0);
+\node[anchor=west, fill=white, inner sep=1pt, align=left] at (6.2,-2.65) {3 orden idempotente (rechaza si un precio cambió)};
+\draw[ret] (5.2,-3.5) -- (0,-3.5) node[pos=0.5, above=1.5pt, fill=white, inner sep=1pt] {4 referencia del pago};
+\draw[msg] (0,-4.2) -- (7.8,-4.2) node[midway, above=1.5pt, fill=white, inner sep=1pt] {5 abre el widget y paga};
+\draw[tkInfB, thick] (2.0,-4.7) rectangle (14.4,-6.0);
+\node[anchor=west, font=\scriptsize\itshape] at (2.05,-4.9) {webhook};
+\draw[msg] (7.8,-5.2) -- (2.6,-5.2) node[pos=0.3, above=1.5pt, fill=white, inner sep=1pt] {6 firma y aviso};
+\draw[msg] (2.6,-5.5) -- (5.2,-5.5) node[midway, below=1pt, fill=white, inner sep=1pt, font=\tiny] {reenvío sin límite de tasa};
+\draw[msg] (5.2,-6.0) -- ++(0.9,0) -- ++(0,-0.5) -- ++(-0.9,0);
+\node[anchor=west, fill=white, inner sep=1pt, align=left] at (6.2,-6.25) {7 aplica el pago una vez; escribe en la bandeja};
+\draw[msg] (5.2,-6.9) -- (10.4,-6.9) node[midway, above=1.5pt, fill=white, inner sep=1pt] {8 publica pedido\_pagado};
+\draw[msg] (10.4,-7.4) -- (13.0,-7.4) node[midway, above=1.5pt, fill=white, inner sep=1pt] {9 aviso al acudiente};
+\end{tikzpicture}
