@@ -6,10 +6,9 @@
 \label{sec:defectos}
 
 \textbf{Pregunta.} Con cada etapa evaluada por separado, ¿el sistema ya integrado funciona, resiste
-carga y protege los datos de quien lo usa? \textbf{Método.} Es la parte de pruebas del OE5 (fase F5), un
-plan de diez fases que cubre pruebas unitarias, de integración, de sistema, adversariales, de
+carga y protege los datos de quien lo usa? \textbf{Método.} Es la parte de pruebas del OE5 (fase F5), el protocolo de pruebas, un plan de diez fases que cubre pruebas unitarias, de integración, de sistema, adversariales, de
 degradación y de carga, ordenado por las características del modelo de calidad ISO/IEC 25010
-\citep{iso_25010_2011} y repetido sobre la rama \texttt{validacion/oe5} el 2 de noviembre de 2026. Las
+\citep{iso_25010_2011} y con cinco familias de escenarios (unitarios por servicio; de integración entre servicios y de contrato con la web; de sistema, con el recorrido de la cuenta al pago; adversariales, sobre autorización y asistente; y de degradación y carga), repetido sobre la rama \texttt{validacion/oe5} el 2 de noviembre de 2026. Las
 cifras del 8 de octubre y de la primera corrida (\texttt{a664810}) son antecedentes: cuando difieren, vale
 la última, que corresponde al código entregado. \textbf{Métrica.} Pruebas aprobadas, cobertura de
 sentencias, errores y percentil 95 de latencia bajo carga, y hallazgos de calidad por severidad.
@@ -19,8 +18,8 @@ personales conforme a la Ley 1581 de 2012 \citep{congreso_ley1581_2012}.
 
 \textbf{Resultado.} Pasaron 2.542 pruebas Python, ninguna falló y una quedó saltada (la prueba en vivo
 del asistente, que necesita la llave del modelo), además de las pruebas de la web (86) y del contrato (67). La cobertura fue de 54\,\% en catálogo a 98\,\% en la puerta de enlace, sin umbral que
-haga fallar la integración, así que describe el estado y no una meta. La prueba de humo pasó. La meta de capacidad (RNF05, DP-02: 50 usuarios con error menor al 5\,\%) se midió el 5
-de noviembre con la rampa L-02, de 5 a 100 usuarios en 15 minutos y con el modelo simulado. En un equipo
+haga fallar la integración, así que describe el estado y no una meta. La prueba de humo pasó. La meta de capacidad (requisito no funcional RNF05, decisión de diseño DP-02: 50 usuarios con error menor al 5\,\%) se midió el 5
+de noviembre con la rampa de carga L-02, de 5 a 100 usuarios en 15 minutos y con el modelo simulado. En un equipo
 con Windows y una máquina virtual de 4 núcleos, el catálogo se saturó desde 30 usuarios. En un Apple M4
 con los servicios nativos, la rampa completó 25.706 peticiones sin un error hasta 100 usuarios; el
 percentil 95 del catálogo fue de 49 a 420~ms hasta 50 usuarios y de 2,5~s con 100. Así, RNF05 se cumple
@@ -33,8 +32,10 @@ halló 22 de 152 puntos de entrada sin comparación completa de ámbito, y el de
 políticas a nivel de fila que concedían la tabla completa (ADR 0016), no existe en el sistema construido,
 que controla el ámbito en la aplicación (Sección~\ref{sec:autorizacion}). El registro oficial del control
 de calidad cuenta 85 hallazgos vigentes al 5 de noviembre (16 de severidad alta, 58 media y 11 baja) y 10
-cerrados. Cada defecto se fijó como una prueba con fallo esperado (\texttt{xfail} estricto), de modo que
-ninguno se cierra en silencio. Entre los de severidad alta están rutas de administración sin sesión, el
+cerrados; de los 85, 3 están corregidos y verificados en una rama que aún no se fusiona. El registro es
+una lista que incluye hallazgos de proceso y de documentación; las pruebas con fallo esperado
+(\texttt{xfail} estricto) fijan solo el subconjunto de defectos de código, de modo que esos no se cierran
+en silencio. Entre los de severidad alta están rutas de administración sin sesión, el
 administrador sin segundo factor y el nombre del menor que llega sin depurar al proveedor del modelo.
 
 El recorrido con pago simulado dio resultados distintos en dos corridas: el 1 de noviembre el pedido llegó
@@ -61,7 +62,7 @@ Usabilidad & Seis sesiones con acudientes: T6 4 de 5 y T4 1 de 5 sin ayuda; SUS 
 Fiabilidad & Degradación del nivel 1 sobre la versión del 8 de octubre (14 de 18 cumplidos); niveles 2 y 3 sin ejecutar; hallazgos de idempotencia y avisos abiertos & Parcial \\
 Seguridad & Lectura de kits ajenos cerrada, 0 vulnerabilidades web, 0 de 81 ataques al asistente; un token en el historial; hallazgos de severidad alta abiertos & Parcial \\
 Mantenibilidad & Cobertura de 54 a 98\,\% por servicio, sin umbral en la integración continua & Parcial \\
-Portabilidad & Servicios en contenedores levantados en local con Minikube; sin pruebas en dispositivos & Parcial \\
+Portabilidad & Infraestructura con Docker Compose y servicios con \texttt{make arriba} en local; sin pruebas en dispositivos & Parcial \\
 \bottomrule
 \end{tabularx}
 \end{table}

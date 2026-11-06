@@ -50,7 +50,7 @@ Colegio Agustiniano Ciudad Salitre, aplicada de forma presencial en el Día de l
 colegio con autorización del rector. Esta modalidad reunió en pocas horas a familias de todos los niveles, de preescolar a media, y
 permitió conversar con docentes y directivos sobre cómo la institución elabora sus listas.\par
 
-El cuestionario constaba de dieciocho preguntas, diecisiete cerradas y una abierta, y su
+El cuestionario constaba de dieciocho preguntas, diecisiete cerradas y una abierta (en el resto del documento, ``P21'' designa la columna 21 de la exportación de la encuesta, la del ordenamiento de criterios, y no la pregunta número 21; la exportación incluye columnas que no son preguntas), y su
 tiempo de respuesta tuvo una mediana de 4,6 minutos. Su diseño siguió el enfoque de trabajos por hacer (\emph{Jobs-to-be-Done}), que indaga qué intenta
 lograr la persona cuando compra, más allá del producto en sí, e incluyó preguntas sobre el tiempo, los desplazamientos y las
 dificultades que le exige la compra. Las
@@ -211,9 +211,9 @@ perderse.
 
 Las restricciones técnicas se derivan del ADR 0014, un monorrepositorio con despliegue
 independiente por servicio. El sistema construido tiene seis desplegables con código, cinco
-servicios de dominio y una puerta de enlace, empaquetados en contenedores estándar para que
-el entorno de evaluación sea el mismo que el de desarrollo. Se despliegan en local con
-Minikube, sin autoescalado ni clúster gestionado, sobre un único PostgreSQL 16 con una base lógica por
+servicios de dominio y una puerta de enlace. En la evaluación corrieron en local: Docker Compose
+levanta la infraestructura y \texttt{make arriba} los procesos, sin autoescalado ni clúster
+gestionado, sobre un único PostgreSQL 16 con una base lógica por
 servicio, RabbitMQ y Redis; el despliegue productivo queda como trabajo futuro
 (Sección~\ref{sec:trabajo-futuro}). Cada
 evento se escribe en una bandeja de salida en la misma transacción que el cambio de estado, y

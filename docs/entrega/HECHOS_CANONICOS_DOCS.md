@@ -8,7 +8,7 @@ Cada fila: término o cifra, valor canónico y fuente. Estado: V = verificado en
 |---|---|---|---|
 | Cliente | PWA instalable (no app nativa) | rama `validacion/oe5`, `apps/web` | V |
 | Capacitor / apps nativas | No existe. Solo trabajo futuro, nunca como hecho | coordinación | V |
-| Despliegue | Minikube local; sin autoescalado ni clúster gestionado | SPMP S3, SAD | V |
+| Despliegue | Local: Docker Compose (`infra/docker-compose.yml`) para PostgreSQL, RabbitMQ, Redis y Jaeger, y `make arriba` para las apps y los servicios; sin Kubernetes, autoescalado ni clúster gestionado | `Makefile`, `infra/` | V |
 | Desplegables | 6 con código: identidad, catálogo, inteligencia, comercio, operación y puerta de enlace. La ingesta del diseño (ADR 0012, 0014) se reemplazó por el catálogo curado y no tiene servicio (decisión del autor, 5-nov-2026) | `servicios/` (6 carpetas) | V |
 | Servicios de dominio con base propia | 5 (el mapa de 6 era el ADR 0001, superado) | SAD líneas 315 a 323 | V |
 | Bases de datos | 5 | SAD | V |
