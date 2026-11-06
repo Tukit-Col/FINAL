@@ -204,7 +204,7 @@ externa, y su depuración (PE-06) está pendiente.
 La segunda restricción proviene del dominio de pagos. El sistema no almacena ningún dato del
 medio de pago del acudiente: ni número de tarjeta, ni fecha de expiración, ni código de
 seguridad. Solo guarda el identificador de la transacción y su estado, porque la captura del
-medio de pago ocurre en el dominio de Wompi, una pasarela de pagos colombiana. En la evaluación se usó una versión simulada de la pasarela, conectada mediante una capa intermedia que permite cambiar a su entorno de pruebas o a otra pasarela (ADR 0033, un registro de decisión de arquitectura). Así Tukit queda fuera del alcance de cumplimiento de los datos de tarjeta. La confirmación
+medio de pago ocurre en el dominio de Wompi, una pasarela de pagos colombiana. En la evaluación se usó una versión simulada de la pasarela, conectada mediante una capa intermedia que permite cambiar a su entorno de pruebas o a otra pasarela (ADR 0033, un registro de decisión de arquitectura). Con ese diseño, Tukit quedaría fuera del alcance de cumplimiento de los datos de tarjeta una vez probada la pasarela real. La confirmación
 del pago no depende de la respuesta inmediata de la pasarela: llega por un aviso firmado de Wompi y
 por la consulta de la transacción cuando el acudiente regresa. Ambos caminos pasan por un
 mismo procedimiento que se puede repetir sin duplicar el efecto (idempotente), porque el aviso puede llegar duplicado o fuera de orden, o
