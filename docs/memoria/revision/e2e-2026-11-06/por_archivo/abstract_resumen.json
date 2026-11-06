@@ -1,0 +1,56 @@
+[
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/covers/abstract_resumen.tex",
+  "linea": 7,
+  "tipo": "ia",
+  "severidad": "media",
+  "cita_textual": "and followed a hybrid, encompassing methodology that integrates SCRUM, Design Thinking, RUP, and CRISP-DM, in alignment with IEEE standards 830, 1016, and 1058.",
+  "problema": "Relleno («encompassing», «in alignment with») y los métodos no se asignan a su OE; falta el protocolo ISO/IEC 25010.",
+  "propuesta_reescritura": "and followed a hybrid methodology: Design Thinking with IEEE 830 for the requirements, RUP with IEEE 1016 and ATAM for the design, SCRUM with CRISP-DM for reading, matching and optimization, and a preregistered protocol based on ISO/IEC 25010 for the evaluation (IEEE 1058 guided the project plan)."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/covers/abstract_resumen.tex",
+  "linea": 7,
+  "tipo": "jerga",
+  "severidad": "baja",
+  "cita_textual": "the approximate Pareto front covered 0.9969 of the exact hypervolume on 40 test lists (32 solved with NSGA-II), and the natural-language assistant had no successful prompt injection in 81 attempts.",
+  "problema": "Pareto front y prompt injection sin glosa breve.",
+  "propuesta_reescritura": "the approximate Pareto front (the set of kits that cannot improve one objective without worsening another) covered 0.9969 of the exact hypervolume on 40 test lists (32 solved with NSGA-II), and the natural-language assistant resisted all 81 prompt injection attempts (instructions hidden in the input to make it misbehave). Do not gloss micro F1 as an average hit rate."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/covers/abstract_resumen.tex",
+  "linea": 23,
+  "tipo": "ia",
+  "severidad": "media",
+  "cita_textual": "siguió una metodología híbrida contenedora que combina\nSCRUM, Design Thinking, RUP y CRISP-DM con los estándares IEEE 830, 1016 y 1058.",
+  "problema": "«híbrida contenedora» es rebuscado; los métodos no se asignan a cada fase y falta el protocolo con ISO/IEC 25010.",
+  "propuesta_reescritura": "siguió una metodología híbrida: Design Thinking con IEEE 830 para los requerimientos, RUP con IEEE 1016 y ATAM para el diseño, SCRUM con CRISP-DM para la lectura, el emparejamiento y la optimización, y un protocolo preregistrado con ISO/IEC 25010 para la evaluación (IEEE 1058 guió el plan del proyecto)."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/covers/abstract_resumen.tex",
+  "linea": 20,
+  "tipo": "conector",
+  "severidad": "baja",
+  "cita_textual": "Tukit lee la lista en imagen, PDF o texto libre, compara cada renglón con un catálogo\ncanónico combinando el parecido léxico y el semántico. Posteriormente, arma kits",
+  "problema": "Dos verbos unidos por coma sin conector; «Posteriormente» sin referente; catálogo canónico sin glosa.",
+  "propuesta_reescritura": "Tukit lee la lista en imagen, PDF o texto libre y compara cada renglón con un catálogo canónico (una lista única de productos con nombre normalizado), combinando el parecido de las palabras (léxico) con el de su significado (semántico). Con esas coincidencias, arma kits con una optimización multiobjetivo basada en NSGA-II que equilibra costo, fidelidad de marca, disponibilidad y preferencias temáticas."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/covers/abstract_resumen.tex",
+  "linea": 25,
+  "tipo": "jerga",
+  "severidad": "baja",
+  "cita_textual": "el asistente en lenguaje natural no sufrió\nninguna inyección exitosa en 81 intentos.",
+  "problema": "Frente de Pareto, hipervolumen e inyección sin glosa; frase larga con tres resultados encadenados; «no sufrió ninguna» es calco de la negación.",
+  "propuesta_reescritura": "La lectura de listas alcanzó un F1 micro de 0,948. El frente de Pareto aproximado (el conjunto de kits que no pueden mejorar en un objetivo sin empeorar otro) cubrió 0,9969 del hipervolumen exacto en 40 listas de prueba (32 resueltas con NSGA-II). Además, el asistente en lenguaje natural resistió los 81 intentos de inyección de instrucciones (texto que busca que el asistente actúe mal)."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/covers/abstract_resumen.tex",
+  "linea": 28,
+  "tipo": "jerga",
+  "severidad": "baja",
+  "cita_textual": "solo uno de cinco eligió el kit sin\nayuda, por lo que ese paso ordena los cambios de la siguiente versión.",
+  "problema": "SUS sin glosa, «sobre 100» ambiguo sobre el instrumento y «ordena los cambios» poco claro.",
+  "propuesta_reescritura": "el puntaje medio en la escala de usabilidad SUS fue de 90 sobre 100 y la carga percibida (cuestionario RTLX) bajó de 63 a 9 sobre 100 frente a la compra habitual; solo uno de cinco eligió el kit sin ayuda, por eso la elección del kit es lo primero que se debe mejorar en la siguiente versión."
+ }
+]

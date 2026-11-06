@@ -54,7 +54,7 @@
 \draw[semithick] (2.95,-6.7) -- (12.55,-6.7);
 \foreach \x in {2.95,8.55,12.55}{\draw[semithick] (\x,-6.25) -- (\x,-6.7);}
 \draw[semithick] (10.3,-3.25) -- (10.3,-6.7);
-\node[rot, align=center] at (11.42,-6.7) {llamadas HTTP a\\identidad y catálogo};
+\node[rot, font=\tiny, align=left, anchor=south west, inner sep=0.5pt] at (10.6,-6.68) {llamadas HTTP a\\identidad y catálogo};
 % RabbitMQ: intercambio de eventos entre las dos filas de servicios
 \node[draw=tkMqB, fill=tkMqF, rounded corners=2pt, minimum width=10.35cm, minimum height=6.5mm,
   inner sep=0pt] (rabbitmq) at (9.125,-7.25) {};
@@ -122,7 +122,7 @@
 % Pasos de los flujos
 \node[paso] at (2.15,-2.15) {A1};
 \node[paso] at (7.85,-7.73) {A1};
-\node[paso] at (10.3,-6.45) {A2};
+\node[paso] at (10.3,-6.05) {A2};
 \node[paso] at (8.3,-2.15) {A3};
 \node[paso] at (5.75,-6.45) {A4};
 \node[paso] at (2.75,-2.15) {B1};

@@ -1,4 +1,4 @@
-"""Figuras (PNG) de la calibracion, a partir de los JSON de docs/informes/calibracion/.
+"""Figuras (PNG y PDF vectorial) de la calibracion, a partir de los JSON de docs/informes/calibracion/.
 
 Uso: uv run python ensayos/calibracion/graficas.py
 """
@@ -11,11 +11,54 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib import font_manager as _fm
+
+for _f in ("lmroman10-regular.otf", "lmroman10-bold.otf"):
+    _r = __import__("subprocess").run(["kpsewhich", _f], capture_output=True, text=True).stdout.strip()
+    if _r:
+        _fm.fontManager.addfont(_r)
 import nucleo as n
 import numpy as np
 
 SAL = n.SALIDA
-AZUL, NARANJA, GRIS = "#1f4e79", "#c55a11", "#7f7f7f"
+# Paleta de la vista de contenedores (C4) de la memoria.
+AZUL, NARANJA, VERDE, VIOLETA, GRIS = "#1F4E86", "#A8500F", "#2E6B2B", "#5B2E99", "#4D4D4D"
+ANCHO = 6.3  # pulgadas: \\linewidth de una pagina A4 de la memoria
+
+plt.rcParams.update(
+    {
+        "font.family": "serif",
+        "font.serif": ["Latin Modern Roman", "CMU Serif", "Computer Modern Roman", "DejaVu Serif"],
+        "mathtext.fontset": "cm",
+        "axes.unicode_minus": False,
+        "font.size": 9,
+        "axes.titlesize": 9.5,
+        "axes.labelsize": 9,
+        "legend.fontsize": 7.5,
+        "legend.frameon": True,
+        "legend.edgecolor": "#BBBBBB",
+        "axes.edgecolor": GRIS,
+        "axes.labelcolor": "black",
+        "axes.grid": True,
+        "grid.color": "#E3E3E3",
+        "grid.linewidth": 0.6,
+        "axes.axisbelow": True,
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+        "pdf.fonttype": 42,
+        "axes.formatter.use_locale": False,
+    }
+)
+from matplotlib.ticker import FuncFormatter  # noqa: E402
+
+COMA = FuncFormatter(lambda v, _: f"{v:g}".replace(".", ","))
+
+
+def guardar(fig, nombre: str) -> None:
+    """Guarda PNG (150 ppp) y PDF vectorial con el mismo nombre."""
+    fig.savefig(SAL / f"{nombre}.png", dpi=200)
+    fig.savefig(SAL / f"{nombre}.pdf")
+    plt.close(fig)
 
 
 def leer(nombre: str):
@@ -36,7 +79,7 @@ def fig_umbral():
     d = leer("umbral.json")
     filas = d["filas"]
     k, c, sd = ajuste_exacto(filas)
-    fig, ax = plt.subplots(1, 2, figsize=(11, 4))
+    fig, ax = plt.subplots(1, 2, figsize=(ANCHO, 2.9))
     S = np.array([x["S"] for x in filas if x["exacto"]])
     t = np.array([x["exacto"]["t_total"] for x in filas if x["exacto"]])
     ax[0].loglog(S, t, "o", color=AZUL, label="enumeración exacta (medido)")
@@ -53,8 +96,8 @@ def fig_umbral():
     ax[0].text(S.min(), 4.4, "mitad de DP-03 (4 s)", fontsize=8)
     ax[0].set_xlabel("tamaño del espacio S")
     ax[0].set_ylabel("tiempo de pared (s)")
-    ax[0].legend(fontsize=7, loc="upper left")
-    ax[0].set_title("Tiempo según el tamaño del espacio")
+    ax[0].legend(fontsize=6.5, loc="lower right")
+    ax[0].set_title("Tiempo según el tamaño S")
 
     bits = sorted({x["bits"] for x in filas})
     med = [np.median([r for x in filas if x["bits"] == b for r in x["razon_hv"]]) for b in bits]
@@ -62,17 +105,17 @@ def fig_umbral():
     ax[1].plot(bits, med, "o-", color=AZUL, label="mediana")
     ax[1].plot(bits, mn, "s--", color=NARANJA, label="mínimo")
     ax[1].set_ylim(0.99, 1.002)
-    ax[1].set_xlabel("log₂ S")
-    ax[1].set_ylabel("hipervolumen NSGA-II / frente exacto")
+    ax[1].set_xlabel("log$_2$ S")
+    ax[1].set_ylabel("HV NSGA-II / frente exacto")
     ax[1].legend(fontsize=8)
-    ax[1].set_title("Calidad del frente NSGA-II (30 semillas)")
+    ax[1].set_title("Calidad del frente NSGA-II")
     fig.tight_layout()
-    fig.savefig(SAL / "umbral.png", dpi=150)
+    guardar(fig, "umbral")
 
 
 def fig_rejilla():
     d = leer("calibracion_nsga.json")
-    fig, ax = plt.subplots(figsize=(6, 4))
+    fig, ax = plt.subplots(figsize=(ANCHO * 0.7, 3.0))
     r = d["rejilla"]
     ax.plot([x["evals_medios"] for x in r], [x["hv_medio"] for x in r], "s", color=AZUL, label="rejilla")
     e = d["elegida"]
@@ -86,13 +129,13 @@ def fig_rejilla():
     ax.set_ylabel("hipervolumen / frente exacto")
     ax.legend(fontsize=8)
     fig.tight_layout()
-    fig.savefig(SAL / "rejilla.png", dpi=150)
+    guardar(fig, "rejilla")
 
 
 def fig_pesos():
     d = leer("pesos_p21.json")
     cs = list(d["pesos"])
-    fig, ax = plt.subplots(figsize=(6, 3.5))
+    fig, ax = plt.subplots(figsize=(ANCHO * 0.7, 2.8))
     x = np.arange(len(cs))
     w = [d["pesos"][c] for c in cs]
     err = [[d["pesos"][c] - d["ic95"][c][0] for c in cs], [d["ic95"][c][1] - d["pesos"][c] for c in cs]]
@@ -108,14 +151,14 @@ def fig_pesos():
     ax.set_ylabel("peso")
     ax.legend(fontsize=8)
     fig.tight_layout()
-    fig.savefig(SAL / "pesos_p21.png", dpi=150)
+    guardar(fig, "pesos_p21")
 
 
 def fig_sensibilidad():
     d = leer("sensibilidad.json")
-    fig, ax = plt.subplots(figsize=(6, 4))
+    fig, ax = plt.subplots(figsize=(ANCHO * 0.7, 3.0))
     for s, color in zip(
-        sorted({c["sobreprecio"] for c in d["celdas"]}), (GRIS, AZUL, NARANJA, "#548235"), strict=False
+        sorted({c["sobreprecio"] for c in d["celdas"]}), (GRIS, AZUL, NARANJA, VERDE), strict=False
     ):
         cs = [c for c in d["celdas"] if c["sobreprecio"] == s]
         ax.errorbar(
@@ -135,12 +178,12 @@ def fig_sensibilidad():
     ax.set_ylim(0, 1.02)
     ax.legend(fontsize=8)
     fig.tight_layout()
-    fig.savefig(SAL / "sensibilidad.png", dpi=150)
+    guardar(fig, "sensibilidad")
 
 
 def fig_tau():
     d = leer("tau.json")
-    fig, ax = plt.subplots(figsize=(6, 3.5))
+    fig, ax = plt.subplots(figsize=(ANCHO * 0.7, 2.8))
     c = d["curva"]
     ax.plot(
         [x["tau"] for x in c], [x["precision"] for x in c], "o-", color=AZUL, label="precisión de lo aceptado"
@@ -153,24 +196,24 @@ def fig_tau():
         label="fracción aceptada",
     )
     ax.axvline(0.75, color=GRIS, ls=":")
-    ax.set_xlabel("τ")
+    ax.set_xlabel(r"$\tau$")
     ax.legend(fontsize=8)
     fig.tight_layout()
-    fig.savefig(SAL / "tau.png", dpi=150)
+    guardar(fig, "tau")
 
 
 def fig_tau_clasificacion():
     """Matriz de confusion en tau = 0,75, precision frente a cobertura y ROC del parecido."""
     d = leer("tau.json")
     m = d["matriz_tau_actual"]
-    fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=(10, 3.2))
+    fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=(ANCHO, 2.4))
     mat = np.array([[m["tp"], m["fn"]], [m["fp"], m["tn"]]])
     a1.imshow(mat, cmap="Blues")
     for (i, j), v in np.ndenumerate(mat):
         a1.text(j, i, str(v), ha="center", va="center", color="white" if v > 150 else "black", fontsize=12)
     a1.set_xticks([0, 1], ["acepta", "revisión"])
     a1.set_yticks([0, 1], ["correcto", "incorrecto"])
-    a1.set_xlabel("decisión con τ = 0,75")
+    a1.set_xlabel(r"decisión con $\tau$ = 0,75")
     a1.set_ylabel("según el revisor")
     a1.set_title("(a) Matriz de confusión", fontsize=9)
     pares = len(d["roc"]) and d["pares"]
@@ -198,14 +241,14 @@ def fig_tau_clasificacion():
     a3.set_title(f"(c) ROC, AUC = {d['auc_parecido']:.3f}".replace(".", ","), fontsize=9)
     fig.tight_layout()
     fig.savefig(SAL / "tau_clasificacion.pdf")
-    fig.savefig(SAL / "tau_clasificacion.png", dpi=150)
+    guardar(fig, "tau_clasificacion")
 
 
 def fig_hipervolumen():
     d = leer("hipervolumen_prueba.json")
     perfiles = d["hv_relativo_por_perfil"]
     nombres = list(perfiles)
-    fig, ax = plt.subplots(figsize=(6, 3.5))
+    fig, ax = plt.subplots(figsize=(ANCHO * 0.7, 2.8))
     x = np.arange(len(nombres) + 1)
     medias = [d["razon_hv_frente_media"]] + [perfiles[p]["media"] for p in nombres]
     ics = [d["razon_hv_frente_ic95"]] + [perfiles[p]["ic95"] for p in nombres]
@@ -217,11 +260,80 @@ def fig_hipervolumen():
     ax.set_xticks(x, ["frente"] + nombres)
     ax.set_ylabel("hipervolumen / frente exacto")
     fig.tight_layout()
-    fig.savefig(SAL / "hipervolumen_prueba.png", dpi=150)
+    guardar(fig, "hipervolumen_prueba")
+
+
+# F1 de la percepcion en CGS-10 (diez documentos, 1.293 items). Fuente: Tabla tab:percepcion de la
+# memoria, medida en los prototipos de tesis; no hay JSON de esa corrida en el repo.
+PERCEPCION = [
+    ("OCR con reglas", 0.298, 0.419),
+    ("Docling", 0.364, 0.424),
+    ("GOT-OCR2.0", 0.597, 0.569),
+    ("Google Vision", 0.673, 0.672),
+    ("Gemini (multimodal)", 0.948, 0.944),
+]
+
+
+def fig_percepcion():
+    fig, ax = plt.subplots(figsize=(ANCHO * 0.78, 2.3))
+    y = np.arange(len(PERCEPCION))
+    mic = [m for _, m, _ in PERCEPCION]
+    mac = [m for _, _, m in PERCEPCION]
+    ax.barh(y + 0.19, mic, 0.36, color=AZUL, label="F1 micro")
+    ax.barh(y - 0.19, mac, 0.36, color=NARANJA, label="F1 macro")
+    for yi, v in zip(y, mic):
+        ax.text(v + 0.012, yi + 0.19, f"{v:.3f}".replace(".", ","), va="center", fontsize=7)
+    ax.set_yticks(y, [n for n, _, _ in PERCEPCION])
+    ax.set_xlim(0, 1.08)
+    ax.set_xlabel("F1 sobre CGS-10")
+    ax.xaxis.set_major_formatter(COMA)
+    ax.grid(axis="y", visible=False)
+    ax.legend(loc="lower right")
+    fig.tight_layout()
+    guardar(fig, "percepcion_f1")
+
+
+def fig_optimizador():
+    """(a) Listas en que cada metodo iguala el optimo exacto; (b) latencia de ESC-D4 frente a DP-03."""
+    raiz = SAL.parent / "benchmark-laya"
+    r = json.loads((raiz / "resumen.json").read_text(encoding="utf-8"))
+    e = leer("esc_d4.json")
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(ANCHO, 2.6), gridspec_kw={"width_ratios": [1.25, 1]})
+    perfiles = [("ahorrador", "Ahorrador"), ("premium", "Premium"), ("fan", "Fan")]
+    metodos = [("nsga2", "NSGA-II", AZUL), ("heuristica", "regla simple", VERDE), ("azar", "al azar", GRIS)]
+    x = np.arange(len(perfiles))
+    for k, (m, nom, col) in enumerate(metodos):
+        vals = [r[f"{p}/{m}"]["optimo_pct"] for p, _ in perfiles]
+        a1.bar(x + (k - 1) * 0.26, vals, 0.24, color=col, label=nom)
+        for xi, v in zip(x + (k - 1) * 0.26, vals):
+            a1.text(xi, v + 2, f"{v:.0f}", ha="center", fontsize=6.5)
+    a1.set_xticks(x, [n for _, n in perfiles])
+    a1.set_ylim(0, 115)
+    a1.set_ylabel("% de listas con el kit exacto")
+    a1.set_title(f"(a) Frente a la programación dinámica (n = {r['ahorrador/nsga2']['n']})", fontsize=9)
+    a1.legend(loc="upper center", ncol=3, bbox_to_anchor=(0.5, -0.13), fontsize=7)
+    a1.grid(axis="x", visible=False)
+    cuant = [("mediana_s", "p50"), ("p95_s", "p95"), ("p99_s", "p99"), ("max_s", "máx.")]
+    xx = np.arange(len(cuant))
+    for k, (clave, nom, col) in enumerate([("sin_preferencias", "sin preferencias", AZUL), ("personaje_y_punto_medio", "con personaje", NARANJA)]):
+        vals = [e[clave][c] for c, _ in cuant]
+        a2.bar(xx + (k - 0.5) * 0.36, vals, 0.34, color=col, label=nom)
+    a2.axhline(e["limite_s"], color=VIOLETA, ls="--", lw=1)
+    a2.text(len(cuant) - 0.5, e["limite_s"] * 0.8, f"DP-03: {e['limite_s']:g} s", ha="right", va="top", fontsize=7, color=VIOLETA)
+    a2.set_yscale("log")
+    a2.set_ylim(0.05, 15)
+    a2.set_xticks(xx, [n for _, n in cuant])
+    a2.set_ylabel("segundos (escala log)")
+    a2.set_title(f"(b) ESC-D4, {e['sin_preferencias']['ejecuciones'] * 2:,} ejecuciones".replace(",", "."), fontsize=9)
+    a2.yaxis.set_major_formatter(COMA)
+    a2.legend(loc="center left", fontsize=7)
+    a2.grid(axis="x", visible=False)
+    fig.tight_layout()
+    guardar(fig, "optimizador_benchmarks")
 
 
 if __name__ == "__main__":
-    for f in (fig_umbral, fig_rejilla, fig_pesos, fig_sensibilidad, fig_tau, fig_tau_clasificacion, fig_hipervolumen):
+    for f in (fig_umbral, fig_rejilla, fig_pesos, fig_sensibilidad, fig_tau, fig_tau_clasificacion, fig_hipervolumen, fig_percepcion, fig_optimizador):
         try:
             f()
             print("ok", f.__name__)

@@ -2,39 +2,39 @@
 \section{DESCRIPCIÓN GENERAL}
 
 La introducción mostró que las familias pierden tiempo y dinero al traducir la lista del colegio en
-productos y que ninguna herramienta disponible lo resolvía de punta a punta. Este capítulo convierte ese
-hallazgo en una pregunta de investigación, presenta la solución (Tukit) y sus objetivos, y explica con qué
-metodología se trabajó: una híbrida en la que cada fase respondió a un objetivo y cada método tuvo una
-función propia.\par
+productos y que ninguna herramienta lo resolvía de punta a punta. Este capítulo convierte ese hallazgo en
+una pregunta de investigación, presenta la solución (Tukit) y sus objetivos, y explica la metodología:
+una híbrida en la que cada fase respondió a un objetivo.\par
 
 \subsection{Oportunidad, Problema}
 
 \subsubsection{Contexto del Problema}
 
 El comercio electrónico en Colombia creció de forma sostenida: en 2025 las ventas en línea alcanzaron
-COP 105 billones, un 5,9\,\% más que el año anterior \citep{noauthor_informe_nodate-1}. Ese crecimiento no
-cambió la manera de adquirir los útiles escolares, una tarea anual que, solo en Bogotá, involucra a
-1.171.390 estudiantes \citep{noauthor_estadisticas_nodate}. La introducción mostró el gasto y la falta de
-planeación de las familias; aquí interesa el mecanismo que los agrava. La teoría de la carga cognitiva
-establece que, cuando la complejidad de una tarea supera la memoria de trabajo, la calidad de las decisiones
-disminuye \citep{sweller_cognitive_2011}, y Iyengar y Lepper encontraron que, al pasar de 6 a 24
-alternativas, la tasa de compra bajó del 30\,\% al 3\,\% \citep{iyengar_when_2000}. Buscar cada artículo por
-separado y compararlo a mano pone al acudiente en esa situación.\par
+COP 105,7 billones en valores reales, un 5,9\,\% más que en 2024 \citep{noauthor_informe_nodate-1}. Esa cifra
+es de todo el comercio y no dice cómo compran las familias los útiles, una tarea anual que, solo en Bogotá,
+involucra a 1.171.390 estudiantes \citep{noauthor_estadisticas_nodate}. Además del gasto y de la falta de
+planeación, las familias enfrentan un problema de decisión. La carga cognitiva, el esfuerzo mental que exige
+una tarea, no debe superar la memoria de trabajo (lo que se retiene y combina a la vez); si lo hace, la
+calidad de las decisiones disminuye \citep{sweller_cognitive_2011}. Además, Iyengar y Lepper encontraron que,
+al pasar de 6 a 24 alternativas, la tasa de compra bajó del 30\,\% al 3\,\% \citep{iyengar_when_2000}. Ese
+experimento usó otro producto, pero el mecanismo es el mismo: para cada renglón de la lista el acudiente
+debe escoger entre muchas opciones de marca, tamaño y precio.\par
 
-Los actores que lideran este segmento en Colombia trasladaron su modelo físico al canal digital sin
-modificarlo: publican un catálogo y delegan en el cliente la búsqueda, la comparación y la validación. Las
-plataformas internacionales, como TeacherLists, no interpretan listas impresas o fotografiadas ni reconocen
-el vocabulario local (el Capítulo~III las compara una por una). Se identificó así la ausencia de un actor que
-convierta el modelo reactivo de compra en uno proactivo y asistido, y esa brecha constituyó la oportunidad
-del proyecto.\par
+Según el Capítulo~III, los comercios de útiles en Colombia trasladaron al canal digital el modelo de la
+tienda física: publican un catálogo y delegan en el cliente la búsqueda y la comparación. Plataformas como
+TeacherLists convierten la lista del salón en un carrito, pero, hasta donde se revisó, no leen listas
+fotografiadas, no reconocen el vocabulario local ni operan en Colombia. Falta entonces un actor que arme el
+pedido y deje a la familia solo el ajuste, y esa brecha fue la oportunidad del proyecto.\par
 
 \subsubsection{Formulación del Problema}
 
-Los canales de venta de útiles son abundantes, pero ninguno traduce de manera automática el texto libre y
-heterogéneo de una lista escolar en un pedido correcto y entregable. Esa traducción exige determinar qué
-significa cada renglón dentro de un vocabulario que nunca ha sido estandarizado, y establecer qué
+Los canales de venta de útiles son muchos, pero, hasta donde se revisó (Capítulo~III), ninguno traduce de
+manera automática el texto libre y heterogéneo de una lista escolar en un pedido correcto y entregable. Esa
+traducción exige determinar qué significa cada renglón (cada línea de la lista) en un vocabulario que cada
+colegio escribe a su manera, y establecer qué
 combinación de productos equilibra el costo, la marca preferida y la disponibilidad. Por eso el problema se
-descompone en tres dimensiones que se resuelven en orden. La percepción convierte una lista recibida en PDF,
+descompone en tres etapas que se resuelven en orden. La percepción convierte una lista recibida en PDF,
 fotografía o texto libre en una representación estructurada. La normalización asocia cada renglón, con
 frecuencia vago o mal escrito, con el producto del catálogo que le corresponde. La optimización construye
 kits que consideran a la vez el costo, las preferencias de la familia y la calidad, y presenta pocas
@@ -44,9 +44,10 @@ La fricción, entendida como el esfuerzo innecesario en la compra, se analiza co
 de tareas de Sismeiro y Bucklin \citep{sismeiro_modeling_2004}: cada renglón que el acudiente debe buscar,
 comparar y validar por su cuenta es una tarea adicional y un punto donde puede abandonar la compra. Una
 solución tecnológica es pertinente porque los agentes de recomendación reducen el esfuerzo de búsqueda y
-mejoran la decisión \citep{haubl_consumer_2000}, y porque la madurez reciente de los modelos multimodales
-\citep{shen_ocr_2026}, la búsqueda vectorial \citep{karpukhin_dense_2020} y la optimización multiobjetivo
-\citep{deb_fast_2002} permite abordar las tres dimensiones en un mismo sistema. De ahí surge la pregunta de
+mejoran la decisión \citep{haubl_consumer_2000}. También lo es porque hoy los modelos multimodales leen
+documentos \citep{shen_ocr_2026}, la búsqueda vectorial compara significados \citep{karpukhin_dense_2020} y la
+optimización multiobjetivo ordena opciones en conflicto \citep{deb_fast_2002}, de modo que las tres etapas
+caben en un mismo sistema. De ahí surge la pregunta de
 investigación.\par
 
 \begin{quote}
@@ -58,51 +59,48 @@ del proceso de compra?
 
 \subsubsection{Propuesta de Solución}
 
-La propuesta pertenece a la ingeniería de software, con componentes de inteligencia artificial y de
-optimización multiobjetivo. Tukit fue concebido como un sistema de recomendación con un modelo B2B2C
+Tukit es un sistema de recomendación de ingeniería de software, con componentes de inteligencia artificial y
+de optimización multiobjetivo. Su modelo de negocio es B2B2C
 (\emph{business-to-business-to-consumer}): el equipo de Tukit carga y publica la lista oficial de cada
-colegio, y el acudiente elige el kit y hace el pedido. El sistema recibía la lista en imagen, PDF o texto
-libre y la convertía en kits completos mediante las tres etapas ya descritas, con revisión humana de los
-renglones sin certeza suficiente. El perfil socioeconómico de la pregunta se operacionalizó como el
-presupuesto y el tope de gasto que declara cada acudiente.\par
+colegio, y el acudiente elige el kit y hace el pedido. El sistema recibe la lista en imagen, PDF o texto libre y la convierte en kits mediante las tres etapas
+descritas, con revisión humana de los renglones dudosos. El perfil socioeconómico de la pregunta se tradujo en dos datos que declara cada acudiente: su
+presupuesto y su tope de gasto.\par
 
-Intervinieron dos actores con un canal propio. El equipo de Tukit operó una aplicación de administración, en
-la que revisó las listas y atendió la cola de renglones dudosos. El acudiente accedió por una aplicación web
-progresiva, seleccionó el colegio y el grado de cada hijo, o cargó su lista, e indicó presupuesto y
+De los actores del sistema (Capítulo~IV), dos tuvieron un canal propio. El equipo de Tukit operó una
+aplicación de administración, en la que revisó las listas y atendió la cola de renglones dudosos. El acudiente
+accedió por una aplicación web progresiva, una página web que se instala y funciona como aplicación,
+seleccionó el colegio y el grado de cada hijo, o cargó su lista, e indicó presupuesto y
 preferencias. Recibió hasta cuatro kits: el Ahorrador (menor costo) y el Premium (mejores marcas) salieron
 siempre; el Fan, con los personajes pedidos, salió solo si el acudiente pidió uno; y A tu Medida, la mejor
-marca posible dentro del monto, salió cuando fijó un tope. Después pudo reemplazar productos, elegir el kit
-y pagar, en modo simulado en esta versión. Un canal para que el colegio publique sus propias listas quedó
-como trabajo futuro.\par
+marca posible dentro del monto, salió cuando fijó un tope. Después pudo reemplazar productos, elegir el kit y pagar, en modo simulado.\par
 
 \subsubsection{Justificación de la Solución}
 
-El sistema resultó pertinente porque simplificó un proceso que hasta entonces recaía por completo sobre las
-familias. Presentar pocas alternativas ya armadas facilita la decisión, porque el exceso de opciones dificulta
-la elección \citep{iyengar_when_2000}. La propuesta beneficiaba además a cada actor. El acudiente evita recorrer
-varios establecimientos y puede ajustar el kit. El colegio logra que las familias compren a partir de su lista
-oficial. El equipo de Tukit concentra su revisión en los renglones inciertos, de acuerdo con las pautas que
-recomiendan indicar lo que el sistema desconoce y facilitar la corrección \citep{amershi_guidelines_2019}.\par
+La solución es pertinente porque simplifica un proceso que recaía sobre las familias; la medición con
+usuarios está en el Capítulo~VII. Presentar pocas alternativas ya armadas facilita la decisión, porque el
+exceso de opciones dificulta la elección \citep{iyengar_when_2000}. Además, beneficia a cada actor. El
+acudiente evita recorrer varios establecimientos y puede ajustar el kit. El colegio consigue que las familias
+compren a partir de su lista oficial. El equipo de Tukit concentra su revisión en los renglones inciertos, como recomiendan las pautas de
+interacción humano-IA \citep{amershi_guidelines_2019}.\par
 
-Técnicamente fue viable porque las técnicas tenían respaldo empírico: los modelos multimodales leen documentos
-con un desempeño comparable al de los métodos tradicionales \citep{shen_ocr_2026} y NSGA-II es una referencia
-para objetivos en conflicto \citep{deb_fast_2002}. En la prueba ESC-D4, el armado de kits tuvo un percentil 95
-de 0,31~s frente al límite de 8~s (Sección~\ref{sec:optimizacion}), medición que cubrió la optimización y no la
-lectura de la lista; ESC-D4 es el escenario de calidad de rendimiento del diseño (Capítulo~V). La arquitectura de microservicios permitiría que cada componente crezca según su demanda
-\citep{newman_building_2021}, aunque el despliegue fue local y no se ejercitó el escalado independiente.
-El sistema usó herramientas de código abierto, como PostgreSQL, RabbitMQ, Redis y pymoo
-\citep{blank_pymoo_2020}, y pagó los modelos de inteligencia artificial por uso; como cada lista oficial se
+Técnicamente fue viable porque los modelos multimodales leen documentos con un desempeño comparable al de
+los métodos tradicionales \citep{shen_ocr_2026} y NSGA-II es una referencia para objetivos en conflicto
+\citep{deb_fast_2002}. En ESC-D4, el escenario de rendimiento del diseño (Capítulo~V), el armado de kits tuvo un percentil 95 de
+0,31~s frente al límite de 8~s (Sección~\ref{sec:optimizacion}); la medición cubrió la optimización y no la lectura de la lista. La
+arquitectura de microservicios permitiría que cada componente crezca según su demanda
+\citep{newman_building_2021}, aunque el despliegue fue local y no se ejercitó el escalado independiente. El sistema usó herramientas de código abierto, como PostgreSQL, RabbitMQ, Redis y
+pymoo \citep{blank_pymoo_2020}, y pagó los modelos de inteligencia artificial por uso; como cada lista oficial se
 procesa una vez y sirve a todas las familias del grado, el costo se repartía entre muchos usuarios.\par
 
-Para estimar la viabilidad económica se midió el valor de los kits canónicos que el sistema publicó para los
-trece grados del Colegio Agustiniano Ciudad Salitre, y el kit Ahorrador costó en promedio \$609.343 en útiles
-escolares, sin contar los libros del plan lector. Sobre ese valor se supuso una comisión del 15\,\%,
+Además de la viabilidad técnica se estimó la económica. Para ello se midió el valor de los kits canónicos (el
+kit estándar publicado para cada colegio y grado) de los trece grados del Colegio Agustiniano Ciudad Salitre,
+y el kit Ahorrador costó en promedio \$609.343 en útiles escolares, sin contar los libros del plan lector. Sobre ese valor se supuso una comisión del 15\,\%,
 equivalente a \$91.401 por kit; al descontar la pasarela de pagos Wompi con IVA (\$20.049, según su tarifa
 publicada), la inteligencia artificial (\$1.000), la entrega a domicilio en Bogotá (\$33.000) y la adquisición
-de clientes (\$8.000), cada kit dejó una contribución de \$29.353. Con la infraestructura del piloto, de
-\$1.200.000 al año, el punto de equilibrio fue de 41 kits, cerca del 3\,\% de las 1.340 familias estimadas del
-colegio, y con la infraestructura escalable, de \$15.000.000 al año, fue de 512 kits (cálculo reproducible con
-el script \texttt{docs/negocio/punto\_equilibrio.py}). La comisión, la logística, la adquisición y la conversión
+de clientes (\$8.000), cada kit dejó una contribución de \$29.353, es decir, lo que queda de cada kit tras los costos variables.
+Con la infraestructura del piloto, de \$1.200.000 al año, el punto de equilibrio, que es el número de kits al
+año que cubre los costos fijos, fue de 41 kits, cerca del 3\,\% de las 1.340 familias estimadas del colegio,
+y con la infraestructura escalable, de \$15.000.000 al año, fue de 512 kits (script \texttt{docs/negocio/punto\_equilibrio.py}). La comisión, la logística, la adquisición y la conversión
 de las familias fueron supuestos del equipo que la operación real debía confirmar, y con una comisión del
 10\,\% la contribución por kit resultó negativa.\par
 
@@ -118,8 +116,7 @@ Bogotá durante 2026.
 \subsubsection{Objetivos Específicos}
 \label{sec:objetivos}
 
-Cada objetivo corresponde a una fase del proyecto, de modo que el resultado de la fase sirva de evidencia de
-su cumplimiento.
+Cada objetivo corresponde a una fase del proyecto.
 
 \begin{itemize}
     \item \textbf{OE1.} Caracterizar el dominio escolar a través del análisis del negocio
@@ -154,31 +151,31 @@ su cumplimiento.
     de compra.
 \end{itemize}
 
-Los objetivos se transcriben como los aprobó la versión 4 de la propuesta. El compromiso de alcance
-venía de la propuesta original: construir un prototipo funcional con interfaz web y evaluarlo con
-usuarios reales. Las versiones 3 y 4 cambiaron \emph{prototipo} por \emph{sistema} para nombrar lo que se
-entregaría, pero la medida del trabajo sigue siendo la de un prototipo funcional: un recorrido completo,
-de la lista al pedido pagado en modo simulado, que se puede probar de punta a punta. Lo que quedó fuera
-de ese prototipo, el panel del colegio, el ajuste de presupuesto en vivo y el cobro con dinero real, se
-declara en el alcance y en el trabajo futuro (Sección~\ref{sec:trabajo-futuro}). En el OE3, la búsqueda
-vectorial densa se implementó combinada con una búsqueda léxica, porque la densa sola confundía
-productos parecidos que no se sustituyen (Sección~\ref{sec:normalizacion}); la decisión amplía el
-mecanismo aprobado y no lo reemplaza.
+Los objetivos se transcriben como los aprobó la propuesta. El compromiso de alcance es
+construir un prototipo funcional con interfaz web y evaluarlo con usuarios reales: un recorrido completo, de
+la lista al pedido pagado en modo simulado, que se puede probar de punta a punta. Quedaron fuera de ese
+prototipo tres funciones: el panel del colegio, el ajuste de presupuesto en vivo y el cobro con dinero real.
+Se declaran en el alcance y en el trabajo futuro (Sección~\ref{sec:trabajo-futuro}). En el OE3, la
+búsqueda vectorial densa se implementó combinada con una búsqueda léxica, porque la densa sola confundía
+productos parecidos que no se sustituyen (Sección~\ref{sec:normalizacion}); la combinación amplía el
+mecanismo aprobado.
 
 \subsection{Marco metodológico, entregables, estándares y justificación}
 
-El proyecto siguió una metodología híbrida contenedora, llamada así porque reúne varios marcos y le asigna a
-cada uno una función distinta. SCRUM \citep{schwaber_scrum_2020} organizó la construcción en ciclos de dos
-semanas, con un tablero Kanban para el estado de cada tarea. Design Thinking \citep{brown_design_2008} guió
-la empatía y la definición del OE1, es decir, las entrevistas, la encuesta, la propuesta de valor y el
-modelo de negocio. RUP \citep{kruchten_rup_2003} aportó la gestión de riesgos y la trazabilidad de cada
-requerimiento hasta su componente y su prueba. ATAM \citep{bass_software_2021} permitió elegir la
-arquitectura del OE2 entre tres alternativas. CRISP-DM \citep{chapman_crisp-dm_2000,wirth_crisp-dm_2000}
-fue el proceso de los componentes que dependen de datos (OE3 y OE4), y para el OE5 se usó ISO/IEC~25010
-\citep{iso_25010_2011} con un protocolo de validación registrado de antemano. Las normas IEEE 830 \citep{ieee_830_1998}, 1016 \citep{ieee_1016_2009} y 1058 \citep{ieee_1058_1998}
-definieron la estructura de los documentos de ingeniería: la IEEE 830 produjo la especificación de requerimientos (SRS), la 1016 el documento de diseño (SDD) y la 1058 el plan del proyecto.\par
+El proyecto siguió una metodología híbrida, es decir, una que reúne varios marcos y le asigna a cada uno una
+función distinta. SCRUM \citep{schwaber_scrum_2020}, un marco que trabaja en ciclos cortos, organizó la
+construcción en ciclos de dos semanas, con un tablero Kanban en el que cada tarea muestra su estado. El OE1 usó Design Thinking \citep{brown_design_2008}, que guió la empatía y la
+definición, e IEEE 830 \citep{ieee_830_1998},
+que dio forma a la especificación de requerimientos (SRS). El OE2 usó RUP \citep{kruchten_rup_2003}, un proceso
+iterativo que aportó la gestión de riesgos y la trazabilidad de cada requerimiento; ATAM
+\citep{bass_software_2021}, un método para evaluar una arquitectura frente a sus atributos de calidad, que
+permitió elegir entre tres alternativas; e IEEE 1016 \citep{ieee_1016_2009}, que dio forma al
+documento de diseño (SDD). El OE3 y el OE4 combinaron SCRUM con CRISP-DM
+\citep{chapman_crisp-dm_2000,wirth_crisp-dm_2000}, un proceso de seis etapas para los componentes que dependen
+de datos. El OE5 usó ISO/IEC~25010 \citep{iso_25010_2011} con un protocolo de validación registrado de
+antemano. Por último, la norma IEEE 1058 \citep{ieee_1058_1998} dio forma al plan del proyecto.\par
 
-La Tabla~\ref{tab:entregables} une cada entregable con el objetivo que respalda, el estándar que siguió y la razón de incluirlo, como pide la plantilla del programa.
+La Tabla~\ref{tab:entregables} une cada entregable con su objetivo, su estándar y su justificación.
 
 \begin{table}[htbp]
 \centering\footnotesize
@@ -190,55 +187,45 @@ La Tabla~\ref{tab:entregables} une cada entregable con el objetivo que respalda,
 \toprule
 Entregable & Objetivo & Estándares asociados & Justificación \\
 \midrule
-Memoria de trabajo de grado &  &
+Memoria de trabajo de grado & OE1 a OE5 &
 Formato de trabajo de grado del programa de Ingeniería de Sistemas &
-Reúne en un solo documento el problema, la solución, su desarrollo y los resultados de los
-cinco objetivos específicos. \\
+Reúne el problema, la solución y los resultados. \\
 Dossier de negocio & OE1 &
 Design Thinking \citep{brown_design_2008}, lienzo del modelo de negocio
 \citep{osterwalder_business_2010} &
-Documenta el entendimiento de las familias y de los colegios, con las entrevistas, los mapas
-de empatía, la propuesta de valor, el modelo de negocio y el análisis FODA. \\
+Documenta el entendimiento de las familias y los colegios y el modelo de negocio. \\
 Especificación de requerimientos (SRS) & OE1 &
 IEEE 830 \citep{ieee_830_1998}, ISO/IEC/IEEE 29148 \citep{iso_29148_2018} &
-Define qué debe hacer el sistema, con requerimientos funcionales y no funcionales
-priorizados con el método MoSCoW y relacionados con las restricciones legales y de
-negocio. \\
-Documento de Diseño Maestro (ATAM, SDD, SAD) & OE2 &
+Define qué debe hacer el sistema, con requerimientos priorizados con el método MoSCoW (debe, debería,
+podría, no tendrá en esta versión). \\
+Documento de Diseño Maestro (ATAM, SDD y SAD, el documento de arquitectura) & OE2 &
 Richards y Ford \citep{richards_fundamentals_2025}, ISO/IEC 25010 \citep{iso_25010_2011},
 ATAM \citep{bass_software_2021}, IEEE 1016 \citep{ieee_1016_2009}, ISO/IEC/IEEE 42010
-\citep{iso_42010_2022}, vistas 4+1 \citep{kruchten_41_1995} &
-Documenta la arquitectura por vistas, los atributos de calidad que guiaron su diseño y la
-comparación entre las tres alternativas evaluadas, de modo que cada decisión tenga su
-razón explícita. \\
+\citep{iso_42010_2022}, vistas 4+1 (cinco vistas complementarias) \citep{kruchten_41_1995} &
+Documenta la arquitectura, sus atributos de calidad y la comparación de las tres alternativas. \\
 Anexo de experimentación & OE3, OE4 y OE5 &
 CRISP-DM \citep{chapman_crisp-dm_2000} &
-Registra, etapa por etapa, los experimentos de los componentes que dependen de datos, con
-los datos usados, las métricas, los resultados y las decisiones que se tomaron a partir de
-ellos. \\
-Sistema Tukit & &
+Registra los experimentos de los componentes que dependen de datos. \\
+Sistema Tukit & OE3 y OE4 &
 ISO/IEC 25010 \citep{iso_25010_2011} &
-Implementa la solución en cinco servicios de dominio y una puerta de enlace, con bases de datos propias, una aplicación
-web para el acudiente y una aplicación de administración para el equipo de Tukit. \\
+Implementa la solución: cinco servicios de dominio, una puerta de enlace y las dos aplicaciones. \\
 Documento de pruebas & OE5 &
 ISO/IEC 25010 \citep{iso_25010_2011} &
-Registra las pruebas que verifican cada componente y su integración en cada cambio del
-código, de modo que un error se detecte antes de llegar a la versión entregada. \\
+Registra las pruebas de cada componente y de su integración. \\
 Informe de evaluación con usuarios y consentimiento informado & OE5 &
-Lazar et al. \citep{lazar_research_2017}, SUS \citep{brooke_sus_1996}, NPS
-\citep{reichheld_one_2003}, Ley 1581 de 2012 \citep{congreso_ley1581_2012}, Decreto 1377
+Lazar et al. \citep{lazar_research_2017}, protocolo de validación registrado de antemano, SUS
+\citep{brooke_sus_1996} (\emph{System Usability Scale}, diez preguntas sobre usabilidad), NPS
+\citep{reichheld_one_2003} (\emph{Net Promoter Score}, una pregunta sobre cuánto recomendaría el sistema), Ley 1581 de 2012 \citep{congreso_ley1581_2012}, Decreto 1377
 de 2013 \citep{presidencia_decreto1377_2013} &
-Documenta la evaluación de la usabilidad y de la carga cognitiva con acudientes, y el
-consentimiento que exige la ley colombiana para tratar datos personales, incluidos los de
-menores de edad. \\
+Documenta la evaluación con acudientes y el consentimiento para tratar datos personales. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 
 El trabajo se dividió en cinco fases, una por objetivo específico. La Tabla~\ref{tab:fases} muestra, para
-cada fase, el objetivo, la etapa de CRISP-DM que le corresponde, los métodos y lo que produjo; conviene
-leerla de arriba abajo, porque sigue el orden en que se trabajó y el de los capítulos siguientes.\par
+cada fase, el objetivo, la etapa de CRISP-DM que le corresponde cuando aplica, los métodos y el resultado, en
+el orden de los capítulos siguientes.\par
 
 \begin{table}[H]
 \centering\footnotesize
@@ -251,26 +238,27 @@ leerla de arriba abajo, porque sigue el orden en que se trabajó y el de los cap
 Fase & Obj. & Etapa de CRISP-DM & Métodos y técnicas & Resultado \\
 \midrule
 Caracterización del problema & OE1 & Comprensión del negocio &
-Entrevistas, mapas de empatía, encuesta a acudientes, lienzo del modelo de negocio
+Entrevistas, encuesta a acudientes, lienzo del modelo de negocio
 \citep{osterwalder_business_2010}, FODA y recolección de listas &
-Requerimientos, modelo de negocio y catálogo de conceptos \\
+Requerimientos y modelo de negocio \\
 Diseño de la arquitectura & OE2 & No aplica (ingeniería de software) &
-Atributos de calidad \citep{richards_fundamentals_2025,iso_25010_2011}, árbol de
-utilidad, ATAM sobre tres alternativas \citep{bass_software_2021} y vistas 4+1
+Atributos de calidad \citep{richards_fundamentals_2025,iso_25010_2011}, ATAM sobre tres alternativas \citep{bass_software_2021} y vistas 4+1
 \citep{kruchten_41_1995} &
 Arquitectura y documento de diseño \\
 Percepción y normalización & OE3 & Datos, preparación, modelado y evaluación &
-Corpus de oro anotado por una persona; kappa de Cohen \citep{cohen_coefficient_1960} entre
-las reglas y un modelo de lenguaje; comparación de motores de lectura y de estrategias de
-búsqueda; análisis del umbral con revisión humana &
+Corpus de oro (listas etiquetadas a mano como referencia) anotado por una persona; kappa de Cohen
+\citep{cohen_coefficient_1960} (acuerdo entre dos anotadores más allá del azar) entre las reglas y un modelo
+de lenguaje; comparación de motores de lectura y de búsqueda; análisis del umbral; traducción de preferencias
+a restricciones (NL2C) &
 Módulos de percepción y normalización \\
 Optimización e integración & OE4 & Modelado, evaluación y despliegue &
 Formulación multiobjetivo, NSGA-II \citep{deb_fast_2002}, búsqueda exacta, utilidad
-multiatributo (MAUT), traducción de preferencias (NL2C) e integración en sprints &
+multiatributo (MAUT) e integración en sprints &
 Optimizador, aplicación web y aplicación de administración \\
-Validación & OE5 & Evaluación &
+Validación & OE5 & No aplica (ISO/IEC~25010 y protocolo registrado de antemano) &
 Pruebas funcionales, no funcionales y de carga; SUS \citep{brooke_sus_1996}, NPS
-\citep{reichheld_one_2003} y verbalización concurrente \citep{lazar_research_2017} &
+\citep{reichheld_one_2003} y verbalización concurrente (decir en voz alta lo que se piensa)
+\citep{lazar_research_2017} &
 Informe de pruebas y evaluación con usuarios \\
 \bottomrule
 \end{tabularx}
@@ -280,11 +268,10 @@ Informe de pruebas y evaluación con usuarios \\
 \label{sec:crispdm-extension}
 
 CRISP-DM define seis etapas: comprensión del negocio, comprensión de los datos, preparación, modelado,
-evaluación y despliegue. En la Fase~1 se aplicó solo la primera. Desde la Fase~3 se extendió a todos los
-componentes cuyo comportamiento depende de datos: la percepción y la normalización del OE3, y la
-optimización, la utilidad multiatributo (MAUT) y la traducción de preferencias a restricciones (NL2C) del
-OE4. La Tabla~\ref{tab:crispdm-oe} indica, por objetivo, qué se hizo en cada etapa, qué evidencia produjo y
-en qué sección de esta memoria se presenta. La tabla cubre solo el OE3 y el OE4 porque CRISP-DM aplica únicamente a los componentes que dependen de datos; el OE2 se condujo con ATAM y el OE5 con ISO/IEC~25010 y el protocolo registrado de antemano.\par
+evaluación y despliegue. En la Fase~1 se aplicó solo la primera. Desde la Fase~3 se extendió a los componentes cuyo
+comportamiento depende de datos: la percepción, la normalización y la traducción de preferencias a
+restricciones (NL2C) del OE3, y la optimización y la utilidad multiatributo (MAUT) del OE4, que resume varios
+criterios en un solo puntaje con pesos. La Tabla~\ref{tab:crispdm-oe} indica, por objetivo, qué se hizo en cada etapa, su evidencia y su sección. La tabla cubre el OE1 (solo la comprensión del negocio), el OE3 y el OE4, porque CRISP-DM aplica a los componentes que dependen de datos; el OE2 se condujo con ATAM y el OE5 con ISO/IEC~25010 y el protocolo registrado de antemano.\par
 
 \begin{table}[H]
 \centering\footnotesize
@@ -296,32 +283,27 @@ en qué sección de esta memoria se presenta. La tabla cubre solo el OE3 y el OE
 \toprule
 OE & Etapa & Actividad & Evidencia & Sección \\
 \midrule
-OE1 & Comprensión del negocio & Entrevistas, encuesta a acudientes (N=65 recibidas, n=60
-analizables) y levantamiento de listas de 17 colegios & Dossier de negocio y SRS &
+OE1 & Comprensión del negocio & Entrevistas, encuesta a acudientes (n=60 analizables) y listas de 17 colegios & Dossier de negocio y SRS &
 Cap.~III y IV \\
 \midrule
-OE3 & Comprensión de los datos & Caracterización del corpus de listas (4.719 ítems) y
-armado del conjunto de oro CGS-10 (diez documentos, 1.293 ítems) & Corpus y conjunto de oro &
+OE3 & Comprensión de los datos & Caracterización del corpus de listas y armado del conjunto de oro CGS-10 (referencia etiquetada a mano: diez documentos, 1.293 ítems) & Corpus y conjunto de oro &
 Sec.~\ref{sec:percepcion} \\
-OE3 & Preparación & Limpieza del texto, corrección ortográfica con el léxico del catálogo, núcleo
-en singular y separación de atributos & Código de normalización &
+OE3 & Preparación & Limpieza del texto, corrección ortográfica y separación de atributos & Código de normalización &
 Sec.~\ref{sec:normalizacion} \\
-OE3 & Modelado & Cinco enfoques de lectura; cuatro estrategias de recuperación; resolución
-léxica con aporte del coseno & Bancos de los prototipos &
-Sec.~\ref{sec:percepcion-dev} y \ref{sec:normalizacion} \\
-OE3 & Evaluación & F1 de la lectura; análisis del umbral de certeza $\tau$ (0,75, conservador) con precisión-cobertura; revisión
-humana de los renglones dudosos & Tablas de resultados &
+OE3 & Modelado & Cinco enfoques de lectura; cuatro estrategias de recuperación; resolución léxica; NL2C & Bancos de los prototipos &
+Sec.~\ref{sec:percepcion-dev}, \ref{sec:normalizacion} y \ref{sec:nl2c} \\
+OE3 & Evaluación & F1 de la lectura (combina precisión y cobertura); análisis del umbral de certeza $\tau$, por debajo del cual
+el renglón pasa a revisión humana, fijado en 0,75 por prudencia; revisión humana & Tablas de resultados &
 Sec.~\ref{sec:percepcion} y \ref{sec:recuperacion} \\
-OE3 & Despliegue & Servicios de inteligencia y de catálogo; cola de revisión del administrador &
+OE3 & Despliegue & Servicios de inteligencia y de catálogo; cola de revisión &
 Sistema construido & Sec.~\ref{sec:pipeline} \\
 \midrule
-OE4 & Comprensión de los datos & Encuesta de preferencias (columna P21 de la exportación, 60 respuestas) y 174
-listas del corpus & Dossier de negocio y banco de listas & Sec.~\ref{sec:optimizacion-dev} \\
+OE4 & Comprensión de los datos & Encuesta de preferencias (ordenamiento de criterios, Capítulo~IV; 60 respuestas) y 174 listas del corpus & Dossier de negocio y banco de listas & Sec.~\ref{sec:optimizacion-dev} \\
 OE4 & Preparación & Líneas comprables, candidatos por renglón y curaduría del catálogo &
 Auditorías de los kits & Sec.~\ref{sec:optimizacion-dev} \\
-OE4 & Modelado & NSGA-II con cuatro objetivos, frente exacto, MAUT y NL2C &
-Código y banco de calibración & Sec.~\ref{sec:optimizacion-cal} y \ref{sec:nl2c} \\
-OE4 & Evaluación & Comparación con el óptimo exacto, hipervolumen y cuatro auditorías de kits &
+OE4 & Modelado & NSGA-II con cuatro objetivos, frente exacto y MAUT &
+Código y banco de calibración & Sec.~\ref{sec:optimizacion-cal} \\
+OE4 & Evaluación & Comparación con el óptimo exacto (revisa todas las combinaciones), hipervolumen (espacio que cubre el frente de Pareto; a mayor valor, mejores kits) y cuatro auditorías de kits &
 Tablas de resultados & Sec.~\ref{sec:optimizacion} \\
 OE4 & Despliegue & Aplicación web, aplicación de administración y pago & Sistema
 construido & Sec.~\ref{sec:web} \\
@@ -333,12 +315,10 @@ construido & Sec.~\ref{sec:web} \\
 \label{sec:ciclos-calibracion}
 
 Las etapas de CRISP-DM se recorrieron en varios ciclos, y en percepción, normalización y optimización cada
-ciclo incluyó una revisión humana. Primero se ejecutó el componente sobre una muestra; segundo, una persona
-revisó los resultados (el administrador en la cola de renglones dudosos, o el equipo al auditar los kits
-renglón por renglón); tercero, esa revisión produjo etiquetas o correcciones; y cuarto, el equipo ajustó
-los datos, las reglas o las constantes y repitió la evaluación con la misma métrica. Estos ciclos no son
-aprendizaje por refuerzo, porque no hay señal de recompensa ni una política que se actualice sola: cada
-cambio queda registrado con su evidencia en la Tabla~\ref{tab:constantes} (Anexo~\ref{anx:constantes}).
-El diseño sigue las pautas de interacción humano-IA de Amershi et al. \citep{amershi_guidelines_2019}. El
-Capítulo~VI describe cada ciclo junto a su componente, y el despliegue con colegios y familias se presenta
-como trabajo futuro en el Capítulo~VIII. El Capítulo~III abre el contexto que sustenta estas fases.\par
+ciclo incluyó una revisión humana. Primero se ejecutó el componente sobre una muestra; segundo, una persona revisó los resultados (el
+administrador en la cola de renglones dudosos, o el equipo al auditar los kits); tercero, esa revisión
+produjo correcciones; y cuarto, el equipo ajustó los datos, las reglas o las constantes y repitió la
+evaluación con la misma métrica. El sistema cambia solo cuando el equipo ajusta esos elementos, y cada cambio queda registrado con su evidencia en la Tabla~\ref{tab:constantes} (Anexo~\ref{anx:constantes}).
+El
+Capítulo~VI describe cada ciclo junto a su componente. El Capítulo~III presenta a continuación los
+conceptos y las soluciones existentes sobre los que se apoyan estas fases.\par

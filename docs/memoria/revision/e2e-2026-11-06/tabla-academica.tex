@@ -1,0 +1,30 @@
+% Requiere booktabs y tabularx (ya cargados en main.tex). Claves en bib_nuevas.bib y tukit.bib.
+Cinco trabajos académicos recientes cubren por separado partes de lo que Tukit une en una cadena.
+Para elegir listas de recomendación con dos objetivos en conflicto, \citet{lotfian_himars_2026} usan
+algoritmos evolutivos y miden la calidad del frente de Pareto con indicadores de espaciamiento y de
+distancia al punto ideal. Para decidir si dos ofertas son el mismo producto, \citet{almagro_blocking_2022}
+entrenan con los candidatos del bloqueo como negativos difíciles. Para leer documentos de negocio,
+\citet{shen_ocr_2026} comparan modelos multimodales con y sin OCR y clasifican los errores, mientras que
+\citet{cesista_retrieval_2024} proponen una métrica de renglones que no depende del orden de las
+columnas. Para evaluar un sistema completo, \citet{kian_dart_2026} reportan el SUS con intervalo de
+confianza y declaran la falta de grupo de control. Tukit toma de cada uno la forma de medir y aporta la
+cadena completa sobre listas reales de colegios colombianos, con el frente de Pareto contrastado con la
+enumeración exacta.
+
+\begin{table}[htbp]
+\centering
+\footnotesize
+\caption{Trabajos académicos comparables, su limitación frente al problema de Tukit y lo que Tukit toma de cada uno.}
+\label{tab:trabajo-academico}
+\begin{tabularx}{\textwidth}{@{}p{2.3cm}p{2.2cm}XXX@{}}
+\toprule
+Trabajo & Problema & Método y evaluación & Limitación frente a Tukit & Qué toma Tukit \\
+\midrule
+\citet{lotfian_himars_2026} & Recomendar listas con exactitud y diversidad & Variantes híbridas de NSGA-II, AMOSA y NNIA; MovieLens y ModCloth, 10 usuarios cada uno, 20 corridas; espaciamiento, distancia al punto ideal y TOPSIS & Objetivos de similitud entre ítems, sin precio ni restricciones de cobertura; sin hipervolumen ni frente exacto & Indicadores de forma del frente y elegir el punto más cercano al ideal \\
+\citet{almagro_blocking_2022} & Decidir si dos ofertas son el mismo producto & Aprendizaje contrastivo con negativos del bloqueo; seis conjuntos públicos, F1, promedio de 3 semillas en la ablación & Usa solo títulos cortos como entrada; sin catálogo escolar ni umbral de decisión explícito & Ablación sobre cuántos negativos usar y reporte de la desviación entre semillas \\
+\citet{shen_ocr_2026} & Extraer campos y renglones de documentos de negocio & 11 modelos multimodales con imagen, OCR o ambos; F1 en dos conjuntos privados y análisis de errores con un LLM & Documentos de proveedores, no listas escolares; datos no públicos y sin intervalos & Clasificar los errores por categoría con las salidas ya guardadas \\
+\citet{cesista_retrieval_2024} & Extraer renglones de facturas & LLM con recuperación, ajuste y generación estructurada; DocILE, métrica GLIRM & Facturas (DocILE), no listas escolares; sin intervalos de confianza & Métrica por renglón que penaliza renglones inventados y faltantes \\
+\citet{kian_dart_2026} & Evaluar la usabilidad de un sistema web con nube y robot & 103 participantes en laboratorio, 4 en casa; SUS con IC 95\,\%, ANOVA y $t$ pareadas con Holm & Otro dominio; sin línea base ni grupo de control, como lo declaran sus autores & Reportar SUS con IC y declarar el diseño sin control \\
+\bottomrule
+\end{tabularx}
+\end{table}

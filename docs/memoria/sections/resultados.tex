@@ -1,18 +1,23 @@
 \setcounter{subsection}{0}
 \section{RESULTADOS}
 
-El capítulo anterior describió cómo se construyó cada etapa y qué se descartó en el camino. Este
-capítulo responde si lo construido funciona, objetivo por objetivo, y encontró que la lectura de las listas, la decisión de
-aceptar un renglón sin revisión y el armado de kits cumplen con medidas propias, y que los acudientes
-completaron la compra. Es la etapa de evaluación de CRISP-DM para los componentes que dependen de datos
-(OE3 y OE4, fases F3 y F4 de la Tabla~\ref{tab:fases}), complementada con el control de calidad por
-características de la ISO/IEC 25010 y con la evaluación con usuarios, que siguió un protocolo
-preregistrado (OE5, fase F5). Cada objetivo se presenta con el mismo esquema: la pregunta, el método y la
-etapa en que se ubica, la métrica, los datos, el resultado con su incertidumbre y su punto de
-comparación, la lectura y el límite. Cada cifra va con su muestra y su condición, y cuando dos fuentes
-discrepan o falta el programa que produjo un valor, el texto lo dice en lugar de darlo.
+El capítulo anterior describió cómo se construyó cada etapa. Este capítulo comprueba si lo construido
+funciona, objetivo por objetivo. Se encontró que la lectura de las listas, la decisión de aceptar un
+renglón sin revisión y el armado de kits cumplen con medidas propias, y que los seis acudientes llegaron
+a un pedido pagado, aunque no siempre sin ayuda. El orden es el siguiente: primero la lectura de las
+listas y la decisión de aceptar o revisar un renglón (OE3, fase F3); luego la optimización de los kits
+(OE4, fase F4), las dos con la etapa de evaluación de CRISP-DM de la Tabla~\ref{tab:fases}; después el
+asistente en lenguaje natural, la verificación del sistema integrado según las características de la
+ISO/IEC 25010 y la evaluación con usuarios, que siguió un protocolo preregistrado (OE5, fase F5); y al
+los límites de esta evidencia se reúnen en la Sección~\ref{sec:amenazas}. Cada objetivo se presenta
+con la pregunta, el método, la métrica, los datos, el resultado con su incertidumbre y su punto de
+comparación, y la lectura. Cada cifra va con su muestra y su condición.
 
-La Tabla~\ref{tab:metricas} resume el capítulo antes de entrar al detalle.
+La Tabla~\ref{tab:metricas} resume el capítulo. En ella, $\tau$ es el umbral de similitud desde el cual
+el sistema acepta un renglón sin revisión; el $F_1$ combina la precisión y la sensibilidad de la
+lectura; la razón de hipervolumen mide qué fracción del frente óptimo conserva el optimizador; el p95 es
+la demora que no supera el 95\,\% de las ejecuciones; y el SUS es la escala de usabilidad del sistema,
+un cuestionario de diez preguntas con puntaje de 0 a 100. Cada una se define de nuevo en su sección.
 
 \begin{table}[htbp]
 \centering
@@ -31,52 +36,45 @@ OE5 & ¿Funciona el sistema integrado y lo usa un acudiente sin ayuda? & Pruebas
 \end{tabularx}
 \end{table}
 
+El OE1 y el OE2 no figuran en la tabla porque se evaluaron en su propio capítulo: el OE1 con el SRS y su
+trazabilidad (Capítulo~IV) y el OE2 con la comparación ATAM (Sección~\ref{sec:alternativas}); del OE2
+solo se mide aquí el escenario de tiempo ESC-D4.
+
 % =====================================================================
 \subsection{Percepción documental}
 \label{sec:percepcion}
 
-\textbf{Pregunta.} El primer criterio del árbol de utilidad exige extraer de una lista escolar,
-entregada como imagen o PDF sin estructura, los renglones con su cantidad y su descripción.
-\textbf{Método.} Es la etapa de evaluación de CRISP-DM aplicada a la comparación de cinco motores que
-hicieron los prototipos de tesis el 1 de septiembre de 2026. \textbf{Métrica.} El $F_1 = 2PR/(P+R)$ mide si
-la lectura recupera los renglones correctos sin inventar otros; el micro suma los aciertos de todos los
+\textbf{Pregunta.} El primer criterio del árbol de utilidad (la lista de escenarios de calidad que se
+priorizaron con ATAM en el OE2) exige extraer de una lista escolar, entregada como imagen o PDF sin
+estructura, los renglones con su cantidad y su descripción. \textbf{Método.} Es la etapa de evaluación
+de CRISP-DM del OE3, aplicada a la comparación de cinco motores de lectura, es decir, cinco programas
+que convierten la imagen o el PDF en renglones de texto, corrida en los prototipos de tesis.
+\textbf{Métrica.} El $F_1 = 2PR/(P+R)$ combina la precisión $P$ (de los renglones que el motor devolvió,
+cuántos son correctos) y la sensibilidad $R$ (de los renglones reales, cuántos recuperó). Mide si la
+lectura recupera los renglones correctos sin inventar otros; el micro suma los aciertos de todos los
 renglones y el macro promedia el $F_1$ por documento, de modo que un documento largo no tape a uno
-corto. Un renglón acierta si su similitud con el del oro es de al menos 0,75. \textbf{Datos.} CGS-10, un
-conjunto de oro de diez documentos y 1.293 ítems, armado corrigiendo la extracción de uno de los
-motores, sin un segundo anotador.
+corto. Un renglón acierta si su similitud con el renglón de referencia (el «oro», la lista correcta)
+es de al menos 0,75. \textbf{Datos.} CGS-10 es el conjunto de referencia de la percepción: diez
+documentos con 1.293 ítems.
 
-\textbf{Resultado.} La Tabla~\ref{tab:percepcion} ordena los motores por $F_1$; los valores se
-recalcularon desde la salida conservada, sin volver a ejecutarlos. El modelo multimodal de Gemini
+\textbf{Resultado.} La Figura~\ref{fig:percepcion} ordena los motores por $F_1$. El modelo multimodal de Gemini
 llegó a 0,948 y 0,944, frente a 0,673 de Google Vision y 0,298 de las reglas heurísticas, que es el
-punto de comparación más simple. El acta del OE3 consigna 0,925, un valor que no proviene de esa
-salida y que por eso no se usa.
+punto de comparación más simple.
 
-\begin{table}[htbp]
+\begin{figure}[htbp]
 \centering
-\caption{Percepción documental en los prototipos de tesis (CGS-10, diez documentos)}
-\label{tab:percepcion}
-\small
-\begin{tabular}{@{}lrr@{}}
-\toprule
-\textbf{Enfoque} & \textbf{F1 micro} & \textbf{F1 macro} \\
-\midrule
-Gemini (multimodal) & 0,948 & 0,944 \\
-Google Vision & 0,673 & 0,672 \\
-GOT-OCR2.0 & 0,597 & 0,569 \\
-Docling & 0,364 & 0,424 \\
-OCR con reglas heurísticas & 0,298 & 0,419 \\
-\bottomrule
-\end{tabular}
-\end{table}
+\includegraphics[width=0.8\linewidth]{img/calibracion/percepcion_f1.pdf}
+\caption{Percepción documental en los prototipos de tesis: $F_1$ micro y macro de los cinco enfoques sobre CGS-10 (diez documentos, 1.293 ítems).}
+\label{fig:percepcion}
+\end{figure}
 
-\textbf{Lectura.} La ventaja del modelo multimodal sobre las reglas es amplia y justifica haberlo
-elegido. \textbf{Límite.} El oro coincide con la salida de Gemini en el 86,7\,\% de los ítems literales y
-en el 93,1\,\% sin tildes ni puntuación, así que el 0,948 no es independiente de ese motor y su
-magnitud está sesgada a su favor. Además, son diez documentos con una sola corrida por motor, y el
-sistema construido usa otro modelo de Gemini, con temperatura 0 y sin semilla. La latencia de la
-percepción con el modelo real se mide en el segundo nivel de las pruebas (ESC-D1 del ATAM), porque la
-verificación del primer nivel usó una percepción
-simulada\pendienteEvidencia{latencia de la percepcion con el modelo real, DP-04}.
+\textbf{Lectura.} Gemini quedó muy por encima de las reglas heurísticas (0,948 frente a 0,298), y eso
+justifica haberlo elegido frente a ellas. La distancia con Google Vision (0,673) es menos segura de
+leer, porque el oro favorece a Gemini (Sección~\ref{sec:amenazas}). La demora de la percepción con el
+modelo real se mide en el segundo nivel de las pruebas (escenario ESC-D1 del ATAM), porque en el primer
+nivel la percepción fue simulada\pendienteEvidencia{latencia de la percepcion con el modelo real, DP-04}.
+Con las líneas ya leídas, la pregunta siguiente es si el sistema encuentra el producto que corresponde
+a cada una.
 
 % =====================================================================
 \subsection{Recuperación y decisión de resolución}
@@ -86,35 +84,41 @@ simulada\pendienteEvidencia{latencia de la percepcion con el modelo real, DP-04}
 bien cuándo aceptarlo sin revisión? \textbf{Método.} También es la etapa de evaluación de CRISP-DM
 del OE3, con cuatro mediciones: la recuperación de candidatos, el acuerdo en la clasificación del
 corpus, la decisión con el umbral $\tau$ y el recorrido de extremo a extremo.
-\textbf{Métrica.} MRR@10, $\frac{1}{|Q|}\sum_q 1/r_q$, con $r_q$ el rango del primer acierto entre 10,
-que importa porque el sistema muestra pocos candidatos; kappa de Cohen, $\kappa=(p_o-p_e)/(1-p_e)$, que
-descuenta el acuerdo por azar; y, para la decisión, la precisión (de lo aceptado, cuánto era correcto),
-la cobertura (qué fracción se acepta sin revisión) y el AUC de la curva ROC.
+\textbf{Métrica.} El MRR@10 (rango recíproco medio), $\frac{1}{|Q|}\sum_q 1/r_q$, promedia sobre las
+consultas $Q$ el inverso de $r_q$, la posición del primer resultado correcto entre los 10 primeros; vale
+1 si siempre está primero. Importa porque el sistema muestra pocos candidatos. El kappa de Cohen,
+$\kappa=(p_o-p_e)/(1-p_e)$, descuenta el acuerdo por azar. Para la decisión se usan la precisión (de lo
+aceptado, cuánto era correcto), la cobertura (qué fracción de todos los pares se acepta sin revisión) y
+el AUC de la curva ROC.
 
-\textbf{Datos.} Los prototipos compararon cuatro estrategias sobre PostgreSQL con pgvector (léxica
-pura, léxica expandida, vectorial densa e híbrida con fusión recíproca de rangos), y el sistema
-construido adoptó la fusión aditiva de una sola fase (Sección~\ref{sec:normalizacion}). El kappa
-usa 200 pares de 12 documentos. La decisión con $\tau$ usa \calTauPares{} pares renglón-concepto de
-\calTauListas{} listas de \calTauColegios{} colegios, que un revisor marcó como correctos o incorrectos;
-la corrida se hizo el 5 de noviembre sobre la versión evaluada \texttt{b6b6fe7}.
+\textbf{Datos.} Los prototipos compararon cuatro estrategias de búsqueda de candidatos sobre PostgreSQL
+con pgvector (una extensión para buscar por vectores): la léxica, que compara palabras (pura o
+expandida); la vectorial densa, que compara el significado mediante vectores; y la híbrida, que combina
+ambas ordenando por la posición que cada una da a un candidato (fusión recíproca de rangos). En cambio,
+el sistema construido adoptó la fusión aditiva de una sola fase, que suma los puntajes de las dos
+búsquedas (Sección~\ref{sec:normalizacion}). El kappa usa 200 pares de 12 documentos. La decisión con
+$\tau$ usa \calTauPares{} pares renglón-concepto de \calTauListas{} listas de \calTauColegios{} colegios,
+que un revisor marcó como correctos o incorrectos.
 
-\textbf{Resultado: recuperación.} La léxica pura tuvo un p50 de 6,66\,ms; la vectorial densa, de
-46,51\,ms, y la híbrida, de 53,17\,ms; la medición registra tiempo y no relevancia. En la tarea
-SpanishPassageRetrievalS2P de MTEB \citep{muennighoff_mteb_2023}, de pasajes de salud y no escolares,
-multilingual-e5-large obtuvo un MRR@10 de 0,6163 frente a 0,4735 de paraphrase-multilingual-mpnet-base-v2.
-El sistema construido calcula hoy los embeddings con gemini-embedding-001, así que esta cifra solo
-respalda la elección del modelo de los prototipos. Sobre Recall@10 hay una discrepancia sin resolver:
-un informe reporta 1,0000 y la única salida conservada da 0,10 para los índices aproximados, sin el
-programa que la produjo, por lo que no se afirma ningún valor. La latencia de la recuperación del
-sistema construido tampoco se midió
+\textbf{Resultado: recuperación.} La mediana de la demora (p50) fue de 6,66\,ms en la léxica pura,
+46,51\,ms en la vectorial densa y 53,17\,ms en la híbrida. Estos valores miden solo tiempo. Para comparar
+la relevancia de los modelos de embeddings se usó la biblioteca MTEB, un banco público de evaluación
+\citep{muennighoff_mteb_2023}. En su tarea SpanishPassageRetrievalS2P, de pasajes de
+salud y no escolares, multilingual-e5-large obtuvo un MRR@10 de 0,6163 frente a 0,4735 de
+paraphrase-multilingual-mpnet-base-v2. El sistema construido calcula los embeddings con
+gemini-embedding-001, así que esta cifra solo respalda la elección del modelo de los prototipos. Para
+Recall@10 (la fracción de los resultados correctos que aparece entre los 10 primeros) hay dos valores que
+no concuerdan: un informe reporta 1,0000 y la única salida conservada da 0,10 para los índices
+aproximados. Como no se conserva el programa que la produjo, no se afirma ninguno de los dos. La latencia
+de la recuperación del sistema construido tampoco se midió
 \pendienteEvidencia{latencia de la recuperacion de candidatos en el sistema construido}.
 
 \textbf{Resultado: acuerdo en el corpus.} El kappa fue de 0,7331, con intervalo del 95\,\% por
-remuestreo de [0,670; 0,794], y se reprodujo desde las entradas conservadas. Compara la categoría que
+remuestreo de [0,670; 0,794]. Compara la categoría que
 asigna una heurística con la de un modelo de lenguaje en 45 de las 48 categorías, de modo que describe la
-concordancia entre dos métodos automáticos y no entre dos personas. La meta del SPMP (IEEE 1058) exige
-$\kappa \ge 0{,}7$ con un segundo anotador humano sobre al menos 30 documentos; esa medición está en
-organización\pendienteEvidencia{kappa entre dos anotadores humanos ciegos, n>=30 documentos}.
+concordancia entre dos métodos automáticos. El plan de gestión del proyecto (SPMP, IEEE 1058) exige
+$\kappa \ge 0{,}7$ con un segundo anotador humano sobre al menos 30 documentos; esa medición queda
+pendiente\pendienteEvidencia{kappa entre dos anotadores humanos ciegos, n>=30 documentos}.
 
 \textbf{Resultado: decisión con $\tau$.} El sistema acepta un renglón sin revisión cuando su puntaje
 de similitud llega a $\tau = 0{,}75$ y lo envía a revisión en otro caso. La
@@ -134,30 +138,31 @@ aceptar todo.}
 En $\tau = 0{,}75$ se aceptaron \calTauTP{} pares correctos y \calTauFP{} incorrectos, y se enviaron a
 revisión \calTauFN{} correctos y \calTauTN{} incorrectos. La precisión fue de \calTauP{} (IC 95\,\% por
 \emph{bootstrap} de \calTauPBajo{} a \calTauPAlto{}), la sensibilidad de \calTauR{}
-(\calTauRBajo{}--\calTauRAlto{}), el $F_1$ de \calTauF{} (\calTauFBajo{}--\calTauFAlto{}) y la cobertura
-de \calTauAceptada{}. En palabras llanas: de cada 100 renglones aceptados sin revisión, 97 eran
-correctos, y el sistema se ahorró la revisión de cuatro de cada cinco. Aceptar todo daría una
-precisión de 0,867, el punto de comparación (\calTauAciertos{} aciertos de 405). El AUC fue de
-\calTauAUC{} (\calTauAUCBajo{}--\calTauAUCAlto{}). Se destaca la precisión frente a la cobertura y no la
-ROC porque las clases están desbalanceadas, 351 correctos contra 54 incorrectos, y en ese caso la
-ROC se ve mejor de lo que es \citep{saito_precision-recall_2015}. Una validación cruzada agrupada
-indica que un $\tau$ entre \calTauCVMin{} y \calTauCVMax{} ya daba cerca de 95\,\% de precisión en los pliegues retenidos, con \calTauColegioMayor{} de los \calTauPares{} pares de un mismo colegio;
-por eso 0,75 es más conservador de lo necesario y manda a revisión más renglones de los que haría
-falta. El AUC de 0,961 de una corrida anterior bajó a \calTauAUC{} porque los datos se volvieron a
-correr sobre la versión evaluada \texttt{b6b6fe7} después de la curaduría de noviembre.
+(la fracción de los pares correctos que el sistema aceptó; \calTauRBajo{}--\calTauRAlto{}), el $F_1$ de
+\calTauF{} (\calTauFBajo{}--\calTauFAlto{}) y la cobertura de \calTauAceptada{}. En palabras llanas: de cada 100 renglones aceptados sin revisión, 97 eran
+correctos. Esa cobertura se mide entre pares que ya tenían candidato; en el recorrido completo de las listas el 35,3\,\% de los renglones se resolvió solo (Sección~\ref{sec:recuperacion}), y $\tau$ sirve para ordenar la revisión, que se hace de todas formas antes de publicar. Aceptar todo daría una
+precisión de 0,867, el punto de comparación (\calTauAciertos{} aciertos de 405). El AUC fue de \calTauAUC{} (\calTauAUCBajo{}--\calTauAUCAlto{}). Se prefiere la curva de precisión
+frente a cobertura a la ROC porque las clases están desbalanceadas, con 351 pares correctos y 54
+incorrectos, y en ese caso la ROC se ve mejor de lo que es \citep{saito_precision-recall_2015}.
 
-\textbf{Resultado: extremo a extremo.} El 83\,\% de una corrida anterior (60 sublistas, 2.176 ítems)
-mide la fracción de ítems con algún candidato (83,04\,\%), no la resolución: 35,3\,\% se resolvió de
-forma automática, 36,5\,\% pasó a revisión y 28,1\,\% quedó sin correspondencia. Un ensayo de huecos
-del 21 al 23 de septiembre aplicó las primeras versiones del sistema a 14 PDF (4.414 renglones): se
-reconocieron 2.202, 926 terminaron en abstención (20,98\,\%) y quedaron 1.397 faltantes únicos para la
-curaduría del catálogo.
+Además se hizo una validación cruzada agrupada, que reparte los pares por colegio y evalúa cada vez
+sobre colegios que no se usaron para elegir $\tau$ (los pliegues retenidos). Con ella, un $\tau$ entre
+\calTauCVMin{} y \calTauCVMax{} ya daba cerca de 95\,\% de precisión. Esta prueba es débil, porque
+\calTauColegioMayor{} de los \calTauPares{} pares son de un mismo colegio. Aun así indica que 0,75 es más
+estricto de lo necesario y manda a revisión más renglones de los que haría falta; por eso, y porque la
+anotación es de un solo revisor, estas cifras no se usan como calibración y $\tau$ queda en su valor por
+omisión (Anexo~\ref{anx:calibracion}).
 
-\textbf{Lectura.} La regla de decisión es confiable en lo que acepta y prudente en lo que deja pasar a
-revisión, que es el error más barato. \textbf{Límite.} Un solo revisor etiquetó los pares y no hay
-acuerdo entre personas. El puntaje toma solo \calTauValores{} valores distintos, de modo que $\tau$ no
-se puede afinar y las curvas avanzan a saltos. Son tres colegios, y las latencias y el extremo a
-extremo vienen de prototipos y de un espejo de 838 productos que el sistema construido ya no usa.
+\textbf{Resultado: extremo a extremo.} En un recorrido sobre 60 sublistas (partes de una lista; 2.176
+ítems), 35,3\,\% se resolvió de forma automática, 36,5\,\% pasó a revisión y 28,1\,\% quedó sin
+correspondencia. Un ensayo de huecos aplicó el sistema a 14 PDF (4.414 renglones): se reconocieron
+2.202, en 926 el sistema se abstuvo de decidir (20,98\,\%) y quedaron 1.397 productos faltantes, sin
+repetir, para la curaduría del catálogo (la revisión manual de productos).
+
+\textbf{Lectura.} De cada 100 renglones que la regla acepta, 97 son correctos, frente a 87 si se
+aceptara todo. Los \calTauFN{} pares correctos enviados a revisión cuestan una revisión de más; los
+\calTauFP{} pares incorrectos aceptados son el error más caro. Con los renglones ya resueltos, el paso
+siguiente es armar el kit, que es el objetivo del OE4.
 
 % =====================================================================
 \subsection{Optimización}
@@ -165,41 +170,54 @@ extremo vienen de prototipos y de un espejo de 838 productos que el sistema cons
 
 \textbf{Pregunta.} ¿Los kits que arma el optimizador quedan cerca del frente óptimo y a tiempo?
 \textbf{Método.} Es la etapa de evaluación de CRISP-DM del OE4, con el escenario ESC-D4 del ATAM
-(OE2) como prueba de tiempo. \textbf{Métrica.} La razón de hipervolumen
-\citep{zitzler_multiobjective_1999}, $HV(\text{frente})/HV(\text{exacto})$ con punto de referencia común
-de 1,1 por eje normalizado, mide cuánto del frente óptimo conserva NSGA-II sin necesitar un kit de
-referencia único; el p95 de tiempo, la demora del 5\,\% más lento, que el promedio esconde.
-\textbf{Datos.} Las 175 instancias del banco, de 174 listas de 17 colegios, de las cuales 40 forman el
+(OE2) como prueba de tiempo. \textbf{Métrica.} Cada kit se puntúa con cuatro objetivos a la vez (costo,
+fidelidad de marca, disponibilidad y personaje), y ninguno es mejor en todos. El frente óptimo es el
+conjunto de kits que ningún otro supera en todos los objetivos. El hipervolumen es el volumen que ese
+frente cubre respecto de un punto de referencia, que aquí es común: 1,1 por eje normalizado. La razón de
+hipervolumen \citep{zitzler_multiobjective_1999}, $HV(\text{frente})/HV(\text{exacto})$, mide cuánto del
+frente exacto conserva NSGA-II y no exige escoger un único kit de comparación. Para el tiempo se usa el
+p95, la demora del 5\,\% más lento, que el promedio esconde. \textbf{Datos.} Las 175 instancias del banco, de 174 listas de 17 colegios, de las cuales 40 forman el
 conjunto de prueba que se apartó por colegio y se usó una vez (Sección~\ref{sec:optimizacion-cal}).
 
 \textbf{Resultado.} En las 40 listas de prueba, el frente alcanzó en promedio 0,9969 del hipervolumen
 exacto (8 se resolvieron de forma exacta; en las 32 que pasaron por NSGA-II la media fue de
-\calPruebaElegidaHV). Contra un óptimo por
-programación dinámica en 174 listas, NSGA-II lo iguala en el 100\,\% de las listas del Ahorrador; con
-presupuesto, el kit recomendado daba el 40\,\% de la calidad posible y, después del ADR 0029, cabe
-siempre en el tope e iguala el óptimo (una semilla, cifra reportada). El banco de alternativas del 31
-de julio, de nueve instancias sintéticas con tres objetivos, dio una referencia: NSGA-II halló el
-óptimo en ocho y quedó a 0,07\,\% de él, frente a 11,92\,\% del voraz y 159,34\,\% del aleatorio. Para
+\calPruebaElegidaHV). Se comparó también con un óptimo exacto calculado por programación
+dinámica en 174 listas. En el perfil Ahorrador, NSGA-II alcanza el costo de la programación dinámica en las 174 listas, igual que la regla simple (una semilla); lo que lo distingue es el frente de alternativas y no ese kit.
+Cuando el acudiente fija un presupuesto, el kit recomendado cabe siempre en el tope
+(una semilla, cifra reportada). El banco de alternativas, de nueve instancias sintéticas con tres
+objetivos, sirvió de comparación con dos métodos simples: el voraz, que elige en cada paso la mejor
+opción inmediata, y el aleatorio. NSGA-II halló el óptimo en ocho y quedó a 0,07\,\% de él, frente a
+11,92\,\% del voraz y 159,34\,\% del aleatorio. Para
 el tiempo se corrió ESC-D4 con las 175 instancias, 30 ejecuciones por lista con semillas distintas y dos
 perfiles de acudiente, 10.500 ejecuciones en un Apple M4: el p95 fue de 0,29~s sin preferencias y de
-0,31~s con personaje, el máximo de 0,45~s, frente a los 8~s de DP-03, un margen de más de 25 veces. En
-el banco de Tukit-Benchmarks, que midió el mismo optimizador, la programación dinámica equivalió a la
-enumeración en 65 de 65 listas y fue más rápida en las listas reales (mediana de 0,64~ms frente a
-243~ms), pero con un hogar de ocho hijos y 313 líneas tardó 2,56~s y 297~MiB, contra 1,46~s y 12,6~MiB
-de NSGA-II.
+0,31~s con personaje, el máximo de 0,45~s, frente a los 8~s de DP-03, un margen de más de 25 veces. Un
+banco aparte, Tukit-Benchmarks, midió el mismo optimizador. Allí la programación dinámica dio el mismo
+resultado que la enumeración en 65 de 65 listas y fue más rápida en las listas reales (mediana de
+0,64~ms frente a 243~ms). En cambio, con un hogar extremo de ocho hijos y 313 líneas de lista tardó
+2,56~s y usó 297~MiB, contra 1,46~s y 12,6~MiB de NSGA-II. La Figura~\ref{fig:optimizador-bench} resume las dos comparaciones: en cuántas listas cada método alcanza el kit exacto de cada perfil y cuánto tarda el optimizador frente al límite de DP-03.
 
-Más allá del optimizador, se auditaron cuatro veces, renglón por renglón, los kits Ahorrador y Premium de
-las trece listas de 2026 del Colegio Agustiniano Ciudad Salitre, el 11 y el 12 de octubre. Un renglón cumple
-si los dos perfiles cobran lo que pide la lista. La Tabla~\ref{tab:kits} muestra que el cumplimiento
-subió en cada auditoría, de 29,6\,\% a 85,6\,\%, mientras se ajustaban la comparación de atributos y la
-curaduría y el catálogo pasaba de 679 a 1.030 productos con precio. Los cobros de un producto que no
-corresponde bajaron de 589 a 49 y subieron a 58 en la cuarta, por 23 cuadernos que no dicen ser grandes. De
-los 69 huecos finales, 45 son de electrónica, que las tiendas registradas no ofrecen.
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{img/calibracion/optimizador_benchmarks.pdf}
+\caption{Optimizador frente a referencias. (a) Porcentaje de las 174 listas en que NSGA-II, la regla simple (subir de marca donde cuesta menos) y una elección al azar alcanzan el kit exacto de la programación dinámica; en Fan, $n=157$. (b) Latencia de ESC-D4 por cuantil en las 175 instancias, en escala logarítmica, con el límite de 8~s de DP-03.}
+\label{fig:optimizador-bench}
+\end{figure}
+
+
+Las pruebas anteriores miden el optimizador solo; falta comprobar que los kits que arma se puedan
+comprar. Para ello se auditaron cuatro veces, renglón por renglón, los kits Ahorrador y Premium de las
+trece listas de 2026 del Colegio Agustiniano Ciudad Salitre. Un renglón cumple si los dos perfiles
+incluyen y cobran un producto que corresponde a lo que pide la lista. Un hueco es un renglón para el que
+el catálogo no tiene producto con precio. La Tabla~\ref{tab:kits} muestra que el cumplimiento subió en
+cada auditoría, de 29,6\,\% a 85,6\,\%, mientras se ajustaban la comparación de atributos y la curaduría
+y el catálogo pasaba de 679 a 1.030 productos con precio. Los cobros de un producto que no corresponde
+bajaron de 589 a 49 y subieron a 58 en la cuarta, por 23 cuadernos que no dicen ser grandes. De los 69
+huecos finales, 45 son de electrónica, que las tiendas registradas no ofrecen.
 
 \begin{table}[htbp]
 \centering
-\caption[Auditorías de los kits del Colegio Agustiniano Ciudad Salitre]{Auditorías de los kits del Colegio Agustiniano Ciudad Salitre, 11 y 12 de octubre de
-2026; las dos últimas, posteriores a la versión evaluada (cifras reportadas; costo de los trece kits de cada perfil)}
+\caption[Auditorías de los kits del Colegio Agustiniano Ciudad Salitre]{Auditorías de los kits del Colegio Agustiniano Ciudad Salitre (cifras reportadas; costo de los
+trece kits de cada perfil)}
 \label{tab:kits}
 \small
 \begin{tabular}{@{}lrrrrr@{}}
@@ -210,71 +228,40 @@ los 69 huecos finales, 45 son de electrónica, que las tiendas registradas no of
  & \textbf{que cumplen} & \textbf{declarados} & \textbf{sin cumplir} & \textbf{Ahorrador} &
 \textbf{Premium} \\
 \midrule
-1 (11 oct.) & 263 de 888 (29,6\,\%) & 240 & 589 & 13,9 & 32,0 \\
-2 (11 oct.) & 465 de 888 (52,4\,\%) & 385 & 242 & 9,9 & 17,6 \\
-3 (11 oct.) & 617 de 886 (69,6\,\%) & 220 & 49 & 9,0 & 14,2 \\
-4 (12 oct.) & 758 de 885 (85,6\,\%) & 69 & 58 & 8,1 & 17,3 \\
+1 & 263 de 888 (29,6\,\%) & 240 & 589 & 13,9 & 32,0 \\
+2 & 465 de 888 (52,4\,\%) & 385 & 242 & 9,9 & 17,6 \\
+3 & 617 de 886 (69,6\,\%) & 220 & 49 & 9,0 & 14,2 \\
+4 & 758 de 885 (85,6\,\%) & 69 & 58 & 8,1 & 17,3 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{Lectura.} El frente de producción conserva casi todo el hipervolumen exacto con una fracción
-del tiempo permitido, y el cumplimiento de los kits mejora con cada ajuste del catálogo y de las
-reglas. \textbf{Límite.} Las cifras del banco de julio y de la programación dinámica son
-reportadas, con una sola semilla, y la resolución de las listas usó solo el canal léxico y una foto
-fija del catálogo. La medición de tiempo cubre la optimización, no la lectura ni la recuperación. Las
-auditorías cubren un colegio, dependen de una clasificación humana y midieron versiones intermedias,
-no el sistema construido.
+\textbf{Lectura.} Los kits que arma el optimizador conservan casi todo el hipervolumen exacto (0,9969)
+con una fracción del tiempo permitido. El cumplimiento de la lista subió en cada auditoría, aunque los
+cobros de productos que no corresponden pasaron de 49 a 58 en la última. Falta ver si el acudiente puede
+pedir esos kits con sus propias palabras, que es lo que evalúa el asistente.
 
 \subsection{Asistente en lenguaje natural}
 \label{sec:resultados-nl2c}
 
-\textbf{Pregunta.} ¿El asistente traduce una frase libre en filtros y preferencias correctos y resiste el
-texto malicioso? \textbf{Método.} Evaluación del componente NL2C (lenguaje natural a criterios) en tres
-rondas, con las acciones permitidas fijadas por el servidor (Sección~\ref{sec:nl2c}). \textbf{Métrica.} Tarea
-completa y tasa de éxito de los ataques. \textbf{Datos.} 35 frases con dos repeticiones (70 intentos) y 27
-ataques de inyección con tres repeticiones (81 intentos). \textbf{Resultado.} La tarea se completó en 58 de
-70 intentos (82,9\,\%) y ningún ataque tuvo éxito en 81, con una cota superior del 95\,\% de cerca de
-3,7\,\% (regla de tres). \textbf{Lectura.} Con esta evidencia solo se puede afirmar que no se encontró un
-ataque exitoso. \textbf{Límite.} Ningún acudiente lo usó en el OE5, así que su utilidad para familias no
-está medida, y el criterio de descarte de la última ronda se cambió sin haberse preregistrado.
+\textbf{Pregunta.} El asistente convierte una frase libre del acudiente en filtros y preferencias para
+el optimizador, y por eso se evalúa aquí (OE3). ¿Los traduce bien y resiste el texto malicioso?
+\textbf{Método.} Se evaluó el componente NL2C (lenguaje natural a criterios) en tres rondas, con las
+acciones permitidas fijadas por el servidor, de modo que el modelo solo elige entre ellas
+(Sección~\ref{sec:nl2c}). \textbf{Métrica.} Tarea completa (la frase produce los criterios correctos) y
+tasa de éxito de los ataques de inyección (textos que intentan que el asistente haga lo que no debe).
+\textbf{Datos.} 35 frases con dos repeticiones (70 intentos) y 27 ataques con tres repeticiones (81
+intentos).
+
+\textbf{Resultado.} La tarea se completó en 58 de 70 intentos (82,9\,\%) y ningún ataque tuvo éxito en 81.
+Con la regla de tres (cota superior aproximada cuando no hay éxitos), la tasa real de éxito de un ataque
+está por debajo de cerca de 3,7\,\% con 95\,\% de confianza. \textbf{Lectura.} Solo se puede afirmar que
+no se encontró un ataque exitoso.
+
+Hasta aquí se midió cada componente por separado; las dos subsecciones siguientes miden el sistema ya
+integrado (OE5), primero con pruebas y después con usuarios.
 
 \input{sections/calidad}
 \input{sections/oe5}
 
-% =====================================================================
-\subsection{Amenazas a la validez}
-\label{sec:amenazas}
-
-Las amenazas se ordenan con los cuatro tipos de Wohlin et al. \citep{wohlin_experimentation_2012}.
-
-\paragraph{Validez de constructo.} Es la medida en que una cifra mide lo que se le atribuye. El
-83\,\% del extremo a extremo mide la fracción de ítems con algún candidato y no la resolución. Los
-kappa de Cohen \citep{cohen_coefficient_1960} miden el acuerdo entre una heurística y un modelo de
-lenguaje, y no entre dos anotadores humanos, porque solo una persona anotó el corpus. Las latencias del
-banco MTEB resultan de dividir el tiempo total entre un número aproximado de consultas. En el OE5, la
-tarea T8 se agregó después del preregistro y es exploratoria.
-
-\paragraph{Validez interna.} Es la medida en que los resultados se deben a la intervención y no a
-otro factor. El oro de percepción se construyó corrigiendo la salida de uno de los motores evaluados, y
-favorece a ese motor. Un solo revisor etiquetó los pares de $\tau$. La calibración del optimizador
-apartó un conjunto de prueba por colegio antes de mirar los resultados y lo usó una sola vez.
-
-\paragraph{Validez externa.} Es la medida en que los resultados se generalizan. Casi toda la evidencia
-de percepción y de recuperación viene de los prototipos, con modelos y catálogos distintos de los del
-sistema construido. La encuesta cubrió un solo colegio del sector Salitre, con sobrerrepresentación del
-estrato 4 (68,3\,\%), y la evaluación con usuarios usó muestreo por conveniencia en ese mismo colegio,
-con riesgo de contaminación entre sesiones, así que no se generaliza a la población escolar colombiana.
-Tampoco se generaliza a otros colegios: 391 de los 405 pares de $\tau$ y las auditorías de resolución
-vienen de un solo colegio, y las listas, los textos y los estratos de otros colegios del sector o de otras
-ciudades pueden cambiar la cobertura del catálogo y el comportamiento del umbral. Ampliar a más colegios
-es la línea de calibración del trabajo futuro (Sección~\ref{sec:trabajo-futuro}).
-
-\paragraph{Validez de conclusión.} Es la medida en que las inferencias estadísticas son confiables.
-La percepción se midió con diez documentos y una corrida por motor, sin versión fijada del modelo
-remoto. La carga es de una corrida por equipo, con la percepción simulada. Con menos de diez
-participantes, la usabilidad se reporta como indicativa y no concluyente, porque la potencia no alcanza
-para detectar un efecto de tamaño medio.
-
-Con esto el sistema queda evaluado por etapa y en conjunto, y el capítulo siguiente recoge lo que esa
-evidencia permite concluir y lo que queda por hacer.
+Con el sistema medido por componentes y ya integrado, el capítulo siguiente expone qué conclusiones permite esa evidencia, con sus límites, y qué queda abierto.

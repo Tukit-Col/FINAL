@@ -1,0 +1,1746 @@
+[
+  {
+    "id": "A1",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "271",
+    "tipo": "coherencia",
+    "severidad": "alta",
+    "resumen": "Tabla fases: OE5 sin etapa CRISP-DM (usa ISO 25010 + protocolo); introduccion L62 \"cuando corresponde\""
+  },
+  {
+    "id": "A2",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "287",
+    "tipo": "coherencia",
+    "severidad": "media",
+    "resumen": "La tabla CRISP-DM cubre OE1 (solo comprension), OE3, OE4; OE2 con ATAM, OE5 con ISO 25010"
+  },
+  {
+    "id": "A3",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "193,219",
+    "tipo": "coherencia",
+    "severidad": "baja",
+    "resumen": "Celdas de objetivo vacias: \"OE1 a OE5\" y \"OE3 y OE4\""
+  },
+  {
+    "id": "A4",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "170",
+    "tipo": "rigor",
+    "severidad": "alta",
+    "resumen": "Quitar \"contenedora\"; definir SCRUM/Kanban/RUP/ATAM/CRISP-DM y asignar metodo por OE (texto completo en tarea)"
+  },
+  {
+    "id": "A5",
+    "archivo": "introduccion.tex",
+    "linea": "53",
+    "tipo": "repeticion",
+    "severidad": "alta",
+    "resumen": "Parrafo metodologia corto con metodo por OE, remite al Cap. II; define SRS, SDD, plan"
+  },
+  {
+    "id": "A6",
+    "archivo": "introduccion.tex",
+    "linea": "31",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir multimodal y renglon (una linea por util pedido)"
+  },
+  {
+    "id": "A7",
+    "archivo": "introduccion.tex",
+    "linea": "40",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir NSGA-II (algoritmo genetico que mejora un grupo de kits)"
+  },
+  {
+    "id": "A8",
+    "archivo": "introduccion.tex",
+    "linea": "46",
+    "tipo": "hilo",
+    "severidad": "media",
+    "resumen": "Partir parrafo L43-51: RAG, servicios (cinco + gateway = seis; septimo ingesta), piloto en un colegio"
+  },
+  {
+    "id": "A9",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "16",
+    "tipo": "rigor",
+    "severidad": "media",
+    "resumen": "Comercio electronico: cifra COP 105 billones es de todo el comercio, no de utiles"
+  },
+  {
+    "id": "A10",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "17",
+    "tipo": "hilo",
+    "severidad": "baja",
+    "resumen": "Quitar frase que habla del documento; puente a decision/psicologia"
+  },
+  {
+    "id": "A11",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "19",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir carga cognitiva y memoria de trabajo"
+  },
+  {
+    "id": "A12",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "22",
+    "tipo": "rigor",
+    "severidad": "media",
+    "resumen": "Puente Iyengar-Lepper a lista escolar"
+  },
+  {
+    "id": "A13",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "24",
+    "tipo": "rigor",
+    "severidad": "media",
+    "resumen": "\"Los actores\" -> comercios que venden utiles, remite al Cap. III"
+  },
+  {
+    "id": "A14",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "26",
+    "tipo": "coherencia",
+    "severidad": "media",
+    "resumen": "TeacherLists: \"hasta donde se reviso\""
+  },
+  {
+    "id": "A15",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "28",
+    "tipo": "jerga",
+    "severidad": "baja",
+    "resumen": "Reactivo/proactivo y \"constituyo\" -> lenguaje llano"
+  },
+  {
+    "id": "A16",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "33",
+    "tipo": "rigor",
+    "severidad": "media",
+    "resumen": "\"Ninguno\" -> \"hasta donde se reviso (Cap. III)\"; definir renglon"
+  },
+  {
+    "id": "A17",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "37",
+    "tipo": "repeticion",
+    "severidad": "media",
+    "resumen": "\"dimensiones\" -> \"etapas\""
+  },
+  {
+    "id": "A18",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "47",
+    "tipo": "ia",
+    "severidad": "baja",
+    "resumen": "\"madurez reciente\" -> citas concretas"
+  },
+  {
+    "id": "A19",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "66",
+    "tipo": "jerga",
+    "severidad": "baja",
+    "resumen": "\"operacionalizo\" -> \"se tradujo en dos datos\""
+  },
+  {
+    "id": "A20",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "69",
+    "tipo": "coherencia",
+    "severidad": "media",
+    "resumen": "\"dos actores\" -> de los cuatro del Cap. IV; definir PWA"
+  },
+  {
+    "id": "A21",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "80",
+    "tipo": "rigor",
+    "severidad": "media",
+    "resumen": "\"simplifico... por completo\" -> \"busca simplificar\", remite a Cap. VII"
+  },
+  {
+    "id": "A22",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "89",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir ESC-D4 y percentil 95 antes de la cifra"
+  },
+  {
+    "id": "A23",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "92",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir microservicios y PostgreSQL/RabbitMQ/Redis/pymoo"
+  },
+  {
+    "id": "A24",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "97",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir kit canonico, contribucion, punto de equilibrio"
+  },
+  {
+    "id": "A25",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "102",
+    "tipo": "coherencia",
+    "severidad": "baja",
+    "resumen": "29.353 vs resta 29.352: aclarar decimales (no cambiar cifra)"
+  },
+  {
+    "id": "A26",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "103",
+    "tipo": "rigor",
+    "severidad": "media",
+    "resumen": "1.340 familias: indicar metodo (matricula e hijos por familia)"
+  },
+  {
+    "id": "A27",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "165",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir busqueda densa/lexica y NL2C; quitar contraste con negacion"
+  },
+  {
+    "id": "A28",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "162",
+    "tipo": "conector",
+    "severidad": "baja",
+    "resumen": "Aposicion -> \"quedaron fuera tres funciones: ...\""
+  },
+  {
+    "id": "A29",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "205",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir MoSCoW, FODA, SAD, 4+1"
+  },
+  {
+    "id": "A30",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "228",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir SUS y NPS; anadir protocolo registrado de antemano (aplicados, n=6)"
+  },
+  {
+    "id": "A31",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "263",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir corpus de oro y kappa de Cohen"
+  },
+  {
+    "id": "A32",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "285",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir MAUT y NL2C"
+  },
+  {
+    "id": "A33",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "304",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir conjunto de oro CGS-10"
+  },
+  {
+    "id": "A34",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "312",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir F1, tau, precision-cobertura"
+  },
+  {
+    "id": "A35",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "318",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir P21 (columna de ordenamiento de criterios)"
+  },
+  {
+    "id": "A36",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "324",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir optimo exacto, hipervolumen, auditorias de kits"
+  },
+  {
+    "id": "A37",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "340",
+    "tipo": "ia",
+    "severidad": "media",
+    "resumen": "Quitar contraste \"aprendizaje por refuerzo\"; el sistema cambia solo cuando el equipo ajusta"
+  },
+  {
+    "id": "A38",
+    "archivo": "descripcionGeneral.tex",
+    "linea": "343",
+    "tipo": "hilo",
+    "severidad": "media",
+    "resumen": "Cierre: despliegue = trabajo futuro; puente al Cap. III"
+  },
+  {
+    "id": "B1",
+    "archivo": "contextoProyecto.tex",
+    "linea": "90",
+    "tipo": "repeticion",
+    "severidad": "alta",
+    "resumen": "Borrar parrafo duplicado L90-98; conservar el de Soluciones en Colombia con apertura \"ninguna parte de la lista oficial\""
+  },
+  {
+    "id": "B2",
+    "archivo": "contextoProyecto.tex",
+    "linea": "100",
+    "tipo": "hilo",
+    "severidad": "media",
+    "resumen": "Mover parrafo academico a subsubseccion Trabajo academico; quitar relleno \"tecnicas valiosas\""
+  },
+  {
+    "id": "B3",
+    "archivo": "contextoProyecto.tex",
+    "linea": "193",
+    "tipo": "coherencia",
+    "severidad": "alta",
+    "resumen": "\"solo Tukit parte de la lista\" contradice tabla (TeacherLists, 1st Day cumplen); reescribir cierre"
+  },
+  {
+    "id": "B4",
+    "archivo": "contextoProyecto.tex",
+    "linea": "84",
+    "tipo": "coherencia",
+    "severidad": "media",
+    "resumen": "\"todas\" -> \"ambas\""
+  },
+  {
+    "id": "B5",
+    "archivo": "contextoProyecto.tex",
+    "linea": "4",
+    "tipo": "hilo",
+    "severidad": "media",
+    "resumen": "Intro anuncia orden; define CRISP-DM y Design Thinking"
+  },
+  {
+    "id": "B6",
+    "archivo": "contextoProyecto.tex",
+    "linea": "36",
+    "tipo": "coherencia",
+    "severidad": "media",
+    "resumen": "Cinco retos vs seis filas; quitar \"cuerpo de conocimiento\" y \"apuesta\""
+  },
+  {
+    "id": "B7",
+    "archivo": "contextoProyecto.tex",
+    "linea": "52",
+    "tipo": "jerga",
+    "severidad": "alta",
+    "resumen": "Definir multimodal, RAG, NSGA-II, Pareto, hipervolumen, 3^n"
+  },
+  {
+    "id": "B8",
+    "archivo": "contextoProyecto.tex",
+    "linea": "132",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir OCR y Docling"
+  },
+  {
+    "id": "B9",
+    "archivo": "contextoProyecto.tex",
+    "linea": "123",
+    "tipo": "coherencia",
+    "severidad": "baja",
+    "resumen": "\"seis formas\": Textract y Watson cuentan como una"
+  },
+  {
+    "id": "B10",
+    "archivo": "contextoProyecto.tex",
+    "linea": "141",
+    "tipo": "conector",
+    "severidad": "media",
+    "resumen": "Conector causal \"Como ninguna alternativa...\""
+  },
+  {
+    "id": "B11",
+    "archivo": "contextoProyecto.tex",
+    "linea": "150",
+    "tipo": "ia",
+    "severidad": "baja",
+    "resumen": "Quitar \"conviene mirar\"; Tukit cumple cinco, no controla inventario"
+  },
+  {
+    "id": "B12",
+    "archivo": "contextoProyecto.tex",
+    "linea": "71",
+    "tipo": "hilo",
+    "severidad": "media",
+    "resumen": "Apertura de Analisis del Contexto"
+  },
+  {
+    "id": "B13",
+    "archivo": "contextoProyecto.tex",
+    "linea": "49",
+    "tipo": "ia",
+    "severidad": "baja",
+    "resumen": "Contraste con negacion filtrado colaborativo"
+  },
+  {
+    "id": "C1",
+    "archivo": "analisisProblema.tex",
+    "linea": "4",
+    "tipo": "hilo",
+    "severidad": "alta",
+    "resumen": "Apertura con orden, quitar \"estructural\", definir resolucion"
+  },
+  {
+    "id": "C2",
+    "archivo": "analisisProblema.tex",
+    "linea": "14",
+    "tipo": "hilo",
+    "severidad": "media",
+    "resumen": "Apertura de Requerimientos"
+  },
+  {
+    "id": "C3",
+    "archivo": "analisisProblema.tex",
+    "linea": "21",
+    "tipo": "rigor",
+    "severidad": "media",
+    "resumen": "\"posicion mas estrategica\" -> \"central\""
+  },
+  {
+    "id": "C4",
+    "archivo": "analisisProblema.tex",
+    "linea": "53",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Parentesis P21 -> frase propia"
+  },
+  {
+    "id": "C5",
+    "archivo": "analisisProblema.tex",
+    "linea": "54",
+    "tipo": "repeticion",
+    "severidad": "baja",
+    "resumen": "Quitar clausula repetida de preguntas"
+  },
+  {
+    "id": "C6",
+    "archivo": "analisisProblema.tex",
+    "linea": "64",
+    "tipo": "jerga",
+    "severidad": "baja",
+    "resumen": "Definir estrato 4"
+  },
+  {
+    "id": "C7",
+    "archivo": "analisisProblema.tex",
+    "linea": "86",
+    "tipo": "coherencia",
+    "severidad": "alta",
+    "resumen": "Celda de requerimiento contiene conclusion; reemplazar por \"Reducir el esfuerzo de comprar...\""
+  },
+  {
+    "id": "C8",
+    "archivo": "analisisProblema.tex",
+    "linea": "117",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Expandir SRS"
+  },
+  {
+    "id": "C9",
+    "archivo": "analisisProblema.tex",
+    "linea": "165",
+    "tipo": "jerga",
+    "severidad": "alta",
+    "resumen": "Explicar codigos PE/PV/CO antes de la tabla; aclarar RNF02 parcial"
+  },
+  {
+    "id": "C10",
+    "archivo": "analisisProblema.tex",
+    "linea": "182",
+    "tipo": "hilo",
+    "severidad": "media",
+    "resumen": "Abrir restricciones anunciando las tres; puente al final"
+  },
+  {
+    "id": "C11",
+    "archivo": "analisisProblema.tex",
+    "linea": "190",
+    "tipo": "rigor",
+    "severidad": "baja",
+    "resumen": "Nombrar derechos (consulta y reclamo)"
+  },
+  {
+    "id": "C12",
+    "archivo": "analisisProblema.tex",
+    "linea": "193,263",
+    "tipo": "ia",
+    "severidad": "baja",
+    "resumen": "\"Es mejor porque\" -> reformular (dos sitios)"
+  },
+  {
+    "id": "C13",
+    "archivo": "analisisProblema.tex",
+    "linea": "206",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir Wompi, ADR, idempotente, aviso firmado"
+  },
+  {
+    "id": "C14",
+    "archivo": "analisisProblema.tex",
+    "linea": "212",
+    "tipo": "jerga",
+    "severidad": "alta",
+    "resumen": "Partir parrafo de restricciones tecnicas y definir terminos"
+  },
+  {
+    "id": "C15",
+    "archivo": "analisisProblema.tex",
+    "linea": "225",
+    "tipo": "hilo",
+    "severidad": "alta",
+    "resumen": "Apertura de Especificacion Funcional"
+  },
+  {
+    "id": "C16",
+    "archivo": "analisisProblema.tex",
+    "linea": "242",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir multimodal, recuperacion hibrida; conectores entre etapas"
+  },
+  {
+    "id": "C17",
+    "archivo": "analisisProblema.tex",
+    "linea": "254",
+    "tipo": "coherencia",
+    "severidad": "alta",
+    "resumen": "Diseno preveia umbral; sistema construido revisa lista completa"
+  },
+  {
+    "id": "C18",
+    "archivo": "analisisProblema.tex",
+    "linea": "268",
+    "tipo": "coherencia",
+    "severidad": "alta",
+    "resumen": "Conciliar 4.719/3.608/3.610. OJO: la propuesta suma 3.608+1.109 = 4.717 (ver conflicto)"
+  },
+  {
+    "id": "C19",
+    "archivo": "analisisProblema.tex",
+    "linea": "238",
+    "tipo": "ia",
+    "severidad": "baja",
+    "resumen": "Contraste con negacion nino/nina"
+  },
+  {
+    "id": "D1",
+    "archivo": "disenoSolucion.tex",
+    "linea": "4",
+    "tipo": "hilo",
+    "severidad": "alta",
+    "resumen": "Apertura: expandir RUP, ATAM, SDD, anunciar orden de secciones"
+  },
+  {
+    "id": "D2",
+    "archivo": "disenoSolucion.tex",
+    "linea": "4",
+    "tipo": "ia",
+    "severidad": "media",
+    "resumen": "\"Resultado central\" -> \"Como resultado\"; definir desplegables"
+  },
+  {
+    "id": "D3",
+    "archivo": "disenoSolucion.tex",
+    "linea": "10",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir impulsor"
+  },
+  {
+    "id": "D4",
+    "archivo": "disenoSolucion.tex",
+    "linea": "10",
+    "tipo": "ia",
+    "severidad": "media",
+    "resumen": "Contraste con negacion -> \"Ninguno depende de la carga\""
+  },
+  {
+    "id": "D5",
+    "archivo": "disenoSolucion.tex",
+    "linea": "38",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Quitar \"un solo byte\"; explicar asimetria de recuperacion"
+  },
+  {
+    "id": "D6",
+    "archivo": "disenoSolucion.tex",
+    "linea": "51",
+    "tipo": "hilo",
+    "severidad": "media",
+    "resumen": "Apertura de la seccion y definir puerta de enlace"
+  },
+  {
+    "id": "D7",
+    "archivo": "disenoSolucion.tex",
+    "linea": "51",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Sustituibilidad y ADR antes de definirse"
+  },
+  {
+    "id": "D8",
+    "archivo": "disenoSolucion.tex",
+    "linea": "55",
+    "tipo": "conector",
+    "severidad": "media",
+    "resumen": "Puente \"El catalogo tambien cambio\""
+  },
+  {
+    "id": "D9",
+    "archivo": "disenoSolucion.tex",
+    "linea": "57",
+    "tipo": "ia",
+    "severidad": "media",
+    "resumen": "Quitar etiqueta en negrita y doble negacion; definir monolito"
+  },
+  {
+    "id": "D10",
+    "archivo": "disenoSolucion.tex",
+    "linea": "63",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir escenario de calidad, sensibilidad, trade-offs"
+  },
+  {
+    "id": "D11",
+    "archivo": "disenoSolucion.tex",
+    "linea": "105",
+    "tipo": "jerga",
+    "severidad": "alta",
+    "resumen": "Definir ESC-D4, p95, 429, disyuntor, funcion de aptitud antes de la tabla"
+  },
+  {
+    "id": "D12",
+    "archivo": "disenoSolucion.tex",
+    "linea": "109",
+    "tipo": "rigor",
+    "severidad": "baja",
+    "resumen": "Indicar que 429 es lo esperado"
+  },
+  {
+    "id": "D13",
+    "archivo": "disenoSolucion.tex",
+    "linea": "122",
+    "tipo": "coherencia",
+    "severidad": "media",
+    "resumen": "Anunciar tres vistas; pie de figura UML -> C4"
+  },
+  {
+    "id": "D14",
+    "archivo": "disenoSolucion.tex",
+    "linea": "133",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir RabbitMQ, evento, procesos en segundo plano"
+  },
+  {
+    "id": "D15",
+    "archivo": "disenoSolucion.tex",
+    "linea": "144",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir bandeja de salida, entrega al menos una vez, idempotente"
+  },
+  {
+    "id": "D16",
+    "archivo": "disenoSolucion.tex",
+    "linea": "146",
+    "tipo": "jerga",
+    "severidad": "baja",
+    "resumen": "Definir Docker Compose, Redis, Jaeger, pgvector"
+  },
+  {
+    "id": "D17",
+    "archivo": "disenoSolucion.tex",
+    "linea": "163",
+    "tipo": "hilo",
+    "severidad": "baja",
+    "resumen": "Definir vista de proceso"
+  },
+  {
+    "id": "D18",
+    "archivo": "disenoSolucion.tex",
+    "linea": "172",
+    "tipo": "ia",
+    "severidad": "baja",
+    "resumen": "Reescribir descripcion del pago, definir webhook"
+  },
+  {
+    "id": "D19",
+    "archivo": "disenoSolucion.tex",
+    "linea": "187",
+    "tipo": "hilo",
+    "severidad": "alta",
+    "resumen": "Apertura de la seccion de datos; definir contexto delimitado, adaptadores"
+  },
+  {
+    "id": "D20",
+    "archivo": "disenoSolucion.tex",
+    "linea": "187",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir tenencia, referencia logica, cabecera"
+  },
+  {
+    "id": "D21",
+    "archivo": "disenoSolucion.tex",
+    "linea": "189",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir ambito, falla cerrada; quitar \"endurecimiento productivo\""
+  },
+  {
+    "id": "D22",
+    "archivo": "disenoSolucion.tex",
+    "linea": "196",
+    "tipo": "ia",
+    "severidad": "media",
+    "resumen": "Contraste \"Un repositorio no es un desplegable\""
+  },
+  {
+    "id": "D23",
+    "archivo": "disenoSolucion.tex",
+    "linea": "209",
+    "tipo": "hilo",
+    "severidad": "media",
+    "resumen": "Definir ADR aqui y remitir desde L51"
+  },
+  {
+    "id": "D24",
+    "archivo": "disenoSolucion.tex",
+    "linea": "220",
+    "tipo": "repeticion",
+    "severidad": "baja",
+    "resumen": "Fila ADR 0001: nombrar los tres impulsores sin negacion"
+  },
+  {
+    "id": "D25",
+    "archivo": "disenoSolucion.tex",
+    "linea": "232",
+    "tipo": "conector",
+    "severidad": "media",
+    "resumen": "Conector y definir widget"
+  },
+  {
+    "id": "D26",
+    "archivo": "disenoSolucion.tex",
+    "linea": "236",
+    "tipo": "ia",
+    "severidad": "media",
+    "resumen": "\"Dejaron de ser afirmaciones...\" -> doce pruebas automaticas"
+  },
+  {
+    "id": "D27",
+    "archivo": "disenoSolucion.tex",
+    "linea": "236",
+    "tipo": "coherencia",
+    "severidad": "media",
+    "resumen": "Revocacion parcial del consentimiento no se desarrolla; reescribir (confirmar con autora)"
+  },
+  {
+    "id": "E1",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "12",
+    "tipo": "coherencia",
+    "severidad": "alta",
+    "resumen": "Referencia a secciones incorrecta (sec:optimizacion-cal)"
+  },
+  {
+    "id": "E2",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "27",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir pymoo, Amdahl, latencia"
+  },
+  {
+    "id": "E3",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "31",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir ADR, orquestacion, Temporal/Airflow, LangGraph"
+  },
+  {
+    "id": "E4",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "49",
+    "tipo": "repeticion",
+    "severidad": "baja",
+    "resumen": "Reescribir frase de tabla rag-fases"
+  },
+  {
+    "id": "E5",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "50",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "\"linea no integrada\" -> prototipo no integrado"
+  },
+  {
+    "id": "E6",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "66",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir tau y abstencion en tabla"
+  },
+  {
+    "id": "E7",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "86",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir CGS-10 y oro"
+  },
+  {
+    "id": "E8",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "90",
+    "tipo": "ia",
+    "severidad": "baja",
+    "resumen": "Quitar \"mirense\"; nombrar el sesgo"
+  },
+  {
+    "id": "E9",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "123",
+    "tipo": "jerga",
+    "severidad": "baja",
+    "resumen": "Definir F1, oro propio, OCR"
+  },
+  {
+    "id": "E10",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "141",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "\"endurecimiento\" y depuracion; definir Redis"
+  },
+  {
+    "id": "E11",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "159",
+    "tipo": "jerga",
+    "severidad": "baja",
+    "resumen": "Definir HNSW y trigramas"
+  },
+  {
+    "id": "E12",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "161",
+    "tipo": "ia",
+    "severidad": "media",
+    "resumen": "Contraste con negacion embeddings; definir MTEB"
+  },
+  {
+    "id": "E13",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "166",
+    "tipo": "jerga",
+    "severidad": "alta",
+    "resumen": "Definir RRF, codificador cruzado, AUC"
+  },
+  {
+    "id": "E14",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "168",
+    "tipo": "coherencia",
+    "severidad": "alta",
+    "resumen": "Rescate por coseno no coincide con el algoritmo (nucleo ausente, cos>=0,86, parte de 0,55)"
+  },
+  {
+    "id": "E15",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "171",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Explicar PE-04 y ML-09 del SRS"
+  },
+  {
+    "id": "E16",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "187",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir tau"
+  },
+  {
+    "id": "E17",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "191",
+    "tipo": "ia",
+    "severidad": "media",
+    "resumen": "Contraste con negacion tau"
+  },
+  {
+    "id": "E18",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "193",
+    "tipo": "repeticion",
+    "severidad": "media",
+    "resumen": "Remitir a Sec. optimizacion-cal en vez de repetir"
+  },
+  {
+    "id": "E19",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "236",
+    "tipo": "jerga",
+    "severidad": "baja",
+    "resumen": "\"sintagma\" -> sustantivo principal"
+  },
+  {
+    "id": "E20",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "240",
+    "tipo": "hilo",
+    "severidad": "media",
+    "resumen": "Dos pisos (0,55 y 0,5) aclarados"
+  },
+  {
+    "id": "E21",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "241",
+    "tipo": "ia",
+    "severidad": "baja",
+    "resumen": "\"garantia que la tesis afirma\", \"se cuele\""
+  },
+  {
+    "id": "E22",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "284",
+    "tipo": "hilo",
+    "severidad": "media",
+    "resumen": "Apertura de subseccion optimizacion; definir frente de Pareto"
+  },
+  {
+    "id": "E23",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "297",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir Ahorrador/Premium/Fan/A tu Medida"
+  },
+  {
+    "id": "E24",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "302",
+    "tipo": "rigor",
+    "severidad": "media",
+    "resumen": "\"Dossier OE1\" no es fuente; quitar contraste"
+  },
+  {
+    "id": "E25",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "311",
+    "tipo": "repeticion",
+    "severidad": "media",
+    "resumen": "Pesos: derivacion solo en optimizacion; definir P21"
+  },
+  {
+    "id": "E26",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "322",
+    "tipo": "ia",
+    "severidad": "media",
+    "resumen": "Apertura de la web simplificada"
+  },
+  {
+    "id": "E27",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "354",
+    "tipo": "jerga",
+    "severidad": "baja",
+    "resumen": "Hash -> commit del repositorio"
+  },
+  {
+    "id": "E28",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "358",
+    "tipo": "ia",
+    "severidad": "media",
+    "resumen": "Quitar \"merecen una linea\"; definir widget, idempotente, Nominatim"
+  },
+  {
+    "id": "E29",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "370",
+    "tipo": "rigor",
+    "severidad": "alta",
+    "resumen": "Tabla OE5: T1 n=6, T7 n=2, resto n=5; nombrar ISO 25010 y protocolo"
+  },
+  {
+    "id": "E30",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "384",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir MAUT e hipervolumen en tabla"
+  },
+  {
+    "id": "E31",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "393",
+    "tipo": "conector",
+    "severidad": "baja",
+    "resumen": "Completar frase truncada PE-04"
+  },
+  {
+    "id": "E32",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "418",
+    "tipo": "hilo",
+    "severidad": "alta",
+    "resumen": "Puente antes de \\input optimizacion (ver conflicto con hilo.md: mover el input)"
+  },
+  {
+    "id": "E33",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "423",
+    "tipo": "hilo",
+    "severidad": "media",
+    "resumen": "Asistente: por que existe"
+  },
+  {
+    "id": "E34",
+    "archivo": "desarrolloSolucion.tex",
+    "linea": "426",
+    "tipo": "rigor",
+    "severidad": "media",
+    "resumen": "Nombrar regla de los tres (3/81)"
+  },
+  {
+    "id": "F1",
+    "archivo": "optimizacion.tex",
+    "linea": "4",
+    "tipo": "coherencia",
+    "severidad": "media",
+    "resumen": "Resolucion asigna concepto, no producto"
+  },
+  {
+    "id": "F2",
+    "archivo": "optimizacion.tex",
+    "linea": "14",
+    "tipo": "repeticion",
+    "severidad": "baja",
+    "resumen": "Quitar repeticion de apertura"
+  },
+  {
+    "id": "F3",
+    "archivo": "optimizacion.tex",
+    "linea": "28",
+    "tipo": "ia",
+    "severidad": "media",
+    "resumen": "Contraste con negacion; cifras del corpus aparte"
+  },
+  {
+    "id": "F4",
+    "archivo": "optimizacion.tex",
+    "linea": "51",
+    "tipo": "jerga",
+    "severidad": "baja",
+    "resumen": "\"surtible\" -> disponible"
+  },
+  {
+    "id": "F5",
+    "archivo": "optimizacion.tex",
+    "linea": "102",
+    "tipo": "jerga",
+    "severidad": "baja",
+    "resumen": "Definir heuristica por perfil y distancia de apinamiento"
+  },
+  {
+    "id": "F6",
+    "archivo": "optimizacion.tex",
+    "linea": "120",
+    "tipo": "conector",
+    "severidad": "media",
+    "resumen": "Conector para el Fan"
+  },
+  {
+    "id": "F7",
+    "archivo": "optimizacion.tex",
+    "linea": "148",
+    "tipo": "conector",
+    "severidad": "media",
+    "resumen": "Partir parrafo de costos"
+  },
+  {
+    "id": "F8",
+    "archivo": "optimizacion.tex",
+    "linea": "171",
+    "tipo": "hilo",
+    "severidad": "media",
+    "resumen": "Definir a y b antes de usarlos"
+  },
+  {
+    "id": "F9",
+    "archivo": "optimizacion.tex",
+    "linea": "186",
+    "tipo": "jerga",
+    "severidad": "baja",
+    "resumen": "Definir bootstrap"
+  },
+  {
+    "id": "F10",
+    "archivo": "optimizacion.tex",
+    "linea": "198",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir pliegues e hipervolumen relativo"
+  },
+  {
+    "id": "F11",
+    "archivo": "optimizacion.tex",
+    "linea": "212",
+    "tipo": "hilo",
+    "severidad": "media",
+    "resumen": "Sensibilidad de pesos con frase propia"
+  },
+  {
+    "id": "F12",
+    "archivo": "optimizacion.tex",
+    "linea": "225",
+    "tipo": "hilo",
+    "severidad": "baja",
+    "resumen": "\"fraccion menor\" -> menor que el hipervolumen exacto"
+  },
+  {
+    "id": "F13",
+    "archivo": "optimizacion.tex",
+    "linea": "230",
+    "tipo": "ia",
+    "severidad": "baja",
+    "resumen": "Quitar frase que habla del documento"
+  },
+  {
+    "id": "G1",
+    "archivo": "resultados.tex",
+    "linea": "4",
+    "tipo": "hilo",
+    "severidad": "alta",
+    "resumen": "Apertura con orden de subsecciones; quitar \"el capitulo encontro\""
+  },
+  {
+    "id": "G2",
+    "archivo": "resultados.tex",
+    "linea": "26",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir tau, F1, razon de hipervolumen, p95 antes de la tabla"
+  },
+  {
+    "id": "G3",
+    "archivo": "resultados.tex",
+    "linea": "40",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir motor de lectura"
+  },
+  {
+    "id": "G4",
+    "archivo": "resultados.tex",
+    "linea": "38",
+    "tipo": "jerga",
+    "severidad": "baja",
+    "resumen": "Definir arbol de utilidad"
+  },
+  {
+    "id": "G5",
+    "archivo": "resultados.tex",
+    "linea": "41",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir P y R de F1"
+  },
+  {
+    "id": "G6",
+    "archivo": "resultados.tex",
+    "linea": "44",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir oro y CGS-10, sesgo visible"
+  },
+  {
+    "id": "G7",
+    "archivo": "resultados.tex",
+    "linea": "72",
+    "tipo": "rigor",
+    "severidad": "media",
+    "resumen": "Lectura separa ventaja sobre reglas (clara) y sobre Google Vision (menos segura)"
+  },
+  {
+    "id": "G8",
+    "archivo": "resultados.tex",
+    "linea": "76",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir temperatura 0, semilla, ESC-D1"
+  },
+  {
+    "id": "G9",
+    "archivo": "resultados.tex",
+    "linea": "89",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir MRR@10 en palabras"
+  },
+  {
+    "id": "G10",
+    "archivo": "resultados.tex",
+    "linea": "94",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir pgvector, lexica, densa, RRF; conector con sistema construido"
+  },
+  {
+    "id": "G11",
+    "archivo": "resultados.tex",
+    "linea": "101",
+    "tipo": "conector",
+    "severidad": "media",
+    "resumen": "Definir p50 y MTEB; quitar contraste"
+  },
+  {
+    "id": "G12",
+    "archivo": "resultados.tex",
+    "linea": "106",
+    "tipo": "rigor",
+    "severidad": "media",
+    "resumen": "Definir Recall@10; por que no se usa ningun valor"
+  },
+  {
+    "id": "G13",
+    "archivo": "resultados.tex",
+    "linea": "112",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir SPMP; quitar contraste"
+  },
+  {
+    "id": "G14",
+    "archivo": "resultados.tex",
+    "linea": "137",
+    "tipo": "jerga",
+    "severidad": "baja",
+    "resumen": "Definir sensibilidad vs cobertura"
+  },
+  {
+    "id": "G15",
+    "archivo": "resultados.tex",
+    "linea": "141",
+    "tipo": "ia",
+    "severidad": "baja",
+    "resumen": "\"Se destaca\" -> \"Se prefiere\""
+  },
+  {
+    "id": "G16",
+    "archivo": "resultados.tex",
+    "linea": "143",
+    "tipo": "coherencia",
+    "severidad": "alta",
+    "resumen": "Definir pliegues retenidos; debilidad de la validacion; 0,75 se mantiene"
+  },
+  {
+    "id": "G17",
+    "archivo": "resultados.tex",
+    "linea": "149",
+    "tipo": "hilo",
+    "severidad": "media",
+    "resumen": "Presentar el 83 %; definir sublistas y curaduria"
+  },
+  {
+    "id": "G18",
+    "archivo": "resultados.tex",
+    "linea": "156",
+    "tipo": "ia",
+    "severidad": "media",
+    "resumen": "Lectura concreta (97 de 100 vs 87)"
+  },
+  {
+    "id": "G19",
+    "archivo": "resultados.tex",
+    "linea": "157",
+    "tipo": "jerga",
+    "severidad": "baja",
+    "resumen": "\"no hay acuerdo\" -> no se midio; espejo de 838 productos"
+  },
+  {
+    "id": "G20",
+    "archivo": "resultados.tex",
+    "linea": "168",
+    "tipo": "jerga",
+    "severidad": "alta",
+    "resumen": "Definir frente optimo, hipervolumen, punto de referencia, p95"
+  },
+  {
+    "id": "G21",
+    "archivo": "resultados.tex",
+    "linea": "177",
+    "tipo": "jerga",
+    "severidad": "alta",
+    "resumen": "Definir Ahorrador, ADR 0029, presupuesto"
+  },
+  {
+    "id": "G22",
+    "archivo": "resultados.tex",
+    "linea": "181",
+    "tipo": "jerga",
+    "severidad": "baja",
+    "resumen": "Definir voraz y aleatorio"
+  },
+  {
+    "id": "G23",
+    "archivo": "resultados.tex",
+    "linea": "186",
+    "tipo": "hilo",
+    "severidad": "media",
+    "resumen": "Conector \"En cambio\" para hogar extremo"
+  },
+  {
+    "id": "G24",
+    "archivo": "resultados.tex",
+    "linea": "191",
+    "tipo": "conector",
+    "severidad": "alta",
+    "resumen": "Puente a auditoria; definir cumple y hueco"
+  },
+  {
+    "id": "G25",
+    "archivo": "resultados.tex",
+    "linea": "221",
+    "tipo": "hilo",
+    "severidad": "media",
+    "resumen": "Lectura: cobros 49 a 58; puente al asistente"
+  },
+  {
+    "id": "G26",
+    "archivo": "resultados.tex",
+    "linea": "232",
+    "tipo": "hilo",
+    "severidad": "alta",
+    "resumen": "Asistente: reordenar Pregunta/Metodo/Metrica/Datos; definir inyeccion y regla de tres"
+  },
+  {
+    "id": "G27",
+    "archivo": "resultados.tex",
+    "linea": "273",
+    "tipo": "coherencia",
+    "severidad": "alta",
+    "resumen": "Conciliar \"indicativa y no concluyente\" con C1 y C2 cumplidos: resultados formativos"
+  },
+  {
+    "id": "G28",
+    "archivo": "resultados.tex",
+    "linea": "279",
+    "tipo": "ia",
+    "severidad": "baja",
+    "resumen": "Cierre sobreafirma (\"queda evaluado\")"
+  },
+  {
+    "id": "H1",
+    "archivo": "calidad.tex",
+    "linea": "8",
+    "tipo": "hilo",
+    "severidad": "alta",
+    "resumen": "Partir el Metodo en cinco familias de escenarios"
+  },
+  {
+    "id": "H2",
+    "archivo": "calidad.tex",
+    "linea": "19",
+    "tipo": "hilo",
+    "severidad": "alta",
+    "resumen": "Separar Resultado en pruebas, carga, seguridad, hallazgos"
+  },
+  {
+    "id": "H3",
+    "archivo": "calidad.tex",
+    "linea": "21",
+    "tipo": "jerga",
+    "severidad": "alta",
+    "resumen": "Carga: definir L-02, p95; separar equipos"
+  },
+  {
+    "id": "H4",
+    "archivo": "calidad.tex",
+    "linea": "28",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Explicar 401/404 y politicas por fila"
+  },
+  {
+    "id": "H5",
+    "archivo": "calidad.tex",
+    "linea": "33",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Explicar xfail estricto y registro"
+  },
+  {
+    "id": "H6",
+    "archivo": "calidad.tex",
+    "linea": "41",
+    "tipo": "rigor",
+    "severidad": "alta",
+    "resumen": "Recorrido funcional solo hasta el pago simulado"
+  },
+  {
+    "id": "H7",
+    "archivo": "calidad.tex",
+    "linea": "46",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir Probada/Parcial; T4, T6, C3 se definen en Sec. oe5"
+  },
+  {
+    "id": "H8",
+    "archivo": "calidad.tex",
+    "linea": "70",
+    "tipo": "hilo",
+    "severidad": "media",
+    "resumen": "Lectura: solo una de ocho caracteristicas probada por completo"
+  },
+  {
+    "id": "H9",
+    "archivo": "oe5.tex",
+    "linea": "4",
+    "tipo": "ia",
+    "severidad": "media",
+    "resumen": "Pregunta sin contraste negado; puente"
+  },
+  {
+    "id": "H10",
+    "archivo": "oe5.tex",
+    "linea": "5",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir preregistrado y nivel de aceptacion"
+  },
+  {
+    "id": "H11",
+    "archivo": "oe5.tex",
+    "linea": "12",
+    "tipo": "jerga",
+    "severidad": "alta",
+    "resumen": "Definir SUS, RTLX, NPS, C1-C3"
+  },
+  {
+    "id": "H12",
+    "archivo": "oe5.tex",
+    "linea": "19",
+    "tipo": "coherencia",
+    "severidad": "media",
+    "resumen": "Seis pagos vs T6 con cinco sesiones"
+  },
+  {
+    "id": "H13",
+    "archivo": "oe5.tex",
+    "linea": "30",
+    "tipo": "coherencia",
+    "severidad": "media",
+    "resumen": "Enumeracion paralela de tres problemas; T8"
+  },
+  {
+    "id": "H14",
+    "archivo": "oe5.tex",
+    "linea": "60",
+    "tipo": "rigor",
+    "severidad": "alta",
+    "resumen": "SUS n=6 con p=0,0004: salvaguarda y definir d_z"
+  },
+  {
+    "id": "H15",
+    "archivo": "oe5.tex",
+    "linea": "89",
+    "tipo": "coherencia",
+    "severidad": "alta",
+    "resumen": "\"Las cuatro se hicieron\": precisar alcance; C3 solo en T6"
+  },
+  {
+    "id": "H16",
+    "archivo": "oe5.tex",
+    "linea": "99",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir SEQ; agrupar desviaciones"
+  },
+  {
+    "id": "I1",
+    "archivo": "conclusiones.tex",
+    "linea": "58",
+    "tipo": "coherencia",
+    "severidad": "alta",
+    "resumen": "3.608+1.109=4.717 no 4.719: verificar fuente (no cambiar cifra)"
+  },
+  {
+    "id": "I2",
+    "archivo": "conclusiones.tex",
+    "linea": "9",
+    "tipo": "hilo",
+    "severidad": "alta",
+    "resumen": "Apertura con orden y metodo por OE (RUP, SCRUM)"
+  },
+  {
+    "id": "I3",
+    "archivo": "conclusiones.tex",
+    "linea": "11",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir puntos de entrada, politicas por fila"
+  },
+  {
+    "id": "I4",
+    "archivo": "conclusiones.tex",
+    "linea": "13",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir funciones de aptitud y manifiesto"
+  },
+  {
+    "id": "I5",
+    "archivo": "conclusiones.tex",
+    "linea": "17",
+    "tipo": "ia",
+    "severidad": "media",
+    "resumen": "Apertura sin eslogan; orden del impacto"
+  },
+  {
+    "id": "I6",
+    "archivo": "conclusiones.tex",
+    "linea": "27",
+    "tipo": "coherencia",
+    "severidad": "media",
+    "resumen": "De seis a cinco: ACU-04 solo registro"
+  },
+  {
+    "id": "I7",
+    "archivo": "conclusiones.tex",
+    "linea": "29",
+    "tipo": "jerga",
+    "severidad": "alta",
+    "resumen": "Definir RTLX y SUS"
+  },
+  {
+    "id": "I8",
+    "archivo": "conclusiones.tex",
+    "linea": "30",
+    "tipo": "hilo",
+    "severidad": "alta",
+    "resumen": "Puente a modelo de negocio; B2B2C; partir parrafo"
+  },
+  {
+    "id": "I9",
+    "archivo": "conclusiones.tex",
+    "linea": "30",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Definir contribucion y punto de equilibrio"
+  },
+  {
+    "id": "I10",
+    "archivo": "conclusiones.tex",
+    "linea": "30",
+    "tipo": "rigor",
+    "severidad": "media",
+    "resumen": "\"capacidad de pago heterogenea\" sin fuente: citar o quitar"
+  },
+  {
+    "id": "I11",
+    "archivo": "conclusiones.tex",
+    "linea": "30",
+    "tipo": "ia",
+    "severidad": "baja",
+    "resumen": "\"se acota\" -> \"solo valen para Colombia\""
+  },
+  {
+    "id": "I12",
+    "archivo": "conclusiones.tex",
+    "linea": "31",
+    "tipo": "ia",
+    "severidad": "baja",
+    "resumen": "Limite social de la muestra"
+  },
+  {
+    "id": "I13",
+    "archivo": "conclusiones.tex",
+    "linea": "58",
+    "tipo": "ia",
+    "severidad": "baja",
+    "resumen": "Cierre literario -> explicacion llana"
+  },
+  {
+    "id": "I14",
+    "archivo": "conclusiones.tex",
+    "linea": "60",
+    "tipo": "rigor",
+    "severidad": "alta",
+    "resumen": "OE2: anadir RUP; definir SDD, 4+1, 42010, ADR"
+  },
+  {
+    "id": "I15",
+    "archivo": "conclusiones.tex",
+    "linea": "62",
+    "tipo": "rigor",
+    "severidad": "media",
+    "resumen": "OE3: anadir SCRUM; definir percepcion, resolucion, oro, coseno"
+  },
+  {
+    "id": "I16",
+    "archivo": "conclusiones.tex",
+    "linea": "64",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "OE4: anadir SCRUM; definir frente exacto, hipervolumen, NSGA-II"
+  },
+  {
+    "id": "I17",
+    "archivo": "conclusiones.tex",
+    "linea": "66",
+    "tipo": "hilo",
+    "severidad": "alta",
+    "resumen": "Mover limites de OE3 y OE4 a sus parrafos"
+  },
+  {
+    "id": "I18",
+    "archivo": "conclusiones.tex",
+    "linea": "66",
+    "tipo": "rigor",
+    "severidad": "alta",
+    "resumen": "C3 y por que OE5 Cumplido. OJO: propuesta dice C3 alcanzado en T1; oe5.tex dice que no (ver conflicto)"
+  },
+  {
+    "id": "I19",
+    "archivo": "conclusiones.tex",
+    "linea": "68",
+    "tipo": "hilo",
+    "severidad": "media",
+    "resumen": "Reescribir cierre \"como suma de\""
+  },
+  {
+    "id": "I20",
+    "archivo": "conclusiones.tex",
+    "linea": "73",
+    "tipo": "coherencia",
+    "severidad": "media",
+    "resumen": "Definir VFP v4; razon por linea 2, 4 y 5"
+  },
+  {
+    "id": "I21",
+    "archivo": "conclusiones.tex",
+    "linea": "75",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Quitar \"endurecimiento productivo\"; aclarar 85 incluye 3"
+  },
+  {
+    "id": "I22",
+    "archivo": "conclusiones.tex",
+    "linea": "76",
+    "tipo": "jerga",
+    "severidad": "media",
+    "resumen": "Frase sin verbo; definir T4, CO-01, CO-02"
+  },
+  {
+    "id": "I23",
+    "archivo": "conclusiones.tex",
+    "linea": "77",
+    "tipo": "ia",
+    "severidad": "baja",
+    "resumen": "Contraste \"limite de cobertura\"; definir plan lector"
+  },
+  {
+    "id": "I24",
+    "archivo": "conclusiones.tex",
+    "linea": "78",
+    "tipo": "hilo",
+    "severidad": "baja",
+    "resumen": "Razon de la linea de calibracion"
+  },
+  {
+    "id": "J1",
+    "archivo": "abstract_resumen.tex",
+    "linea": "7",
+    "tipo": "ia",
+    "severidad": "media",
+    "resumen": "Ingles: \"encompassing\" -> metodo por OE con ISO 25010"
+  },
+  {
+    "id": "J2",
+    "archivo": "abstract_resumen.tex",
+    "linea": "7",
+    "tipo": "jerga",
+    "severidad": "baja",
+    "resumen": "Glosar Pareto front y prompt injection"
+  },
+  {
+    "id": "J3",
+    "archivo": "abstract_resumen.tex",
+    "linea": "23",
+    "tipo": "ia",
+    "severidad": "media",
+    "resumen": "\"hibrida contenedora\" -> metodo por OE"
+  },
+  {
+    "id": "J4",
+    "archivo": "abstract_resumen.tex",
+    "linea": "20",
+    "tipo": "conector",
+    "severidad": "baja",
+    "resumen": "Conector y glosa catalogo canonico"
+  },
+  {
+    "id": "J5",
+    "archivo": "abstract_resumen.tex",
+    "linea": "25",
+    "tipo": "jerga",
+    "severidad": "baja",
+    "resumen": "Glosar Pareto, hipervolumen, inyeccion"
+  },
+  {
+    "id": "J6",
+    "archivo": "abstract_resumen.tex",
+    "linea": "28",
+    "tipo": "jerga",
+    "severidad": "baja",
+    "resumen": "Glosar SUS y RTLX"
+  }
+]

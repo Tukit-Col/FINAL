@@ -6,45 +6,61 @@
 \label{sec:defectos}
 
 \textbf{Pregunta.} Con cada etapa evaluada por separado, ¿el sistema ya integrado funciona, resiste
-carga y protege los datos de quien lo usa? \textbf{Método.} Es la parte de pruebas del OE5 (fase F5), el protocolo de pruebas, un plan de diez fases que cubre pruebas unitarias, de integración, de sistema, adversariales, de
-degradación y de carga, ordenado por las características del modelo de calidad ISO/IEC 25010
-\citep{iso_25010_2011} y con cinco familias de escenarios (unitarios por servicio; de integración entre servicios y de contrato con la web; de sistema, con el recorrido de la cuenta al pago; adversariales, sobre autorización y asistente; y de degradación y carga), repetido sobre la rama \texttt{validacion/oe5} el 2 de noviembre de 2026. Las
-cifras del 8 de octubre y de la primera corrida (\texttt{a664810}) son antecedentes: cuando difieren, vale
-la última, que corresponde al código entregado. \textbf{Métrica.} Pruebas aprobadas, cobertura de
-sentencias, errores y percentil 95 de latencia bajo carga, y hallazgos de calidad por severidad.
-\textbf{Datos.} Los de cada nivel: suites de los seis servicios y de las dos aplicaciones web, la
-rampa de carga L-02 y dos auditorías de código, la de autorización (152 puntos de entrada) y la de datos
-personales conforme a la Ley 1581 de 2012 \citep{congreso_ley1581_2012}.
+carga y protege los datos de quien lo usa?
 
-\textbf{Resultado.} Pasaron 2.542 pruebas Python, ninguna falló y una quedó saltada (la prueba en vivo
-del asistente, que necesita la llave del modelo), además de las pruebas de la web (86) y del contrato (67). La cobertura fue de 54\,\% en catálogo a 98\,\% en la puerta de enlace, sin umbral que
-haga fallar la integración, así que describe el estado y no una meta. La prueba de humo pasó. La meta de capacidad (requisito no funcional RNF05, decisión de diseño DP-02: 50 usuarios con error menor al 5\,\%) se midió el 5
-de noviembre con la rampa de carga L-02, de 5 a 100 usuarios en 15 minutos y con el modelo simulado. En un equipo
-con Windows y una máquina virtual de 4 núcleos, el catálogo se saturó desde 30 usuarios. En un Apple M4
-con los servicios nativos, la rampa completó 25.706 peticiones sin un error hasta 100 usuarios; el
-percentil 95 del catálogo fue de 49 a 420~ms hasta 50 usuarios y de 2,5~s con 100. Así, RNF05 se cumple
-con el doble de usuarios, pero el umbral de 300~ms del equipo de calidad se supera desde 25 usuarios,
-porque el catálogo corre en un solo proceso y llegó al 100\,\% de un núcleo
-(Sección~\ref{sec:trabajo-futuro}). En seguridad, la auditoría de dependencias web quedó en cero
-vulnerabilidades y la lectura de un kit ajeno responde 401 sin sesión y 404 con otra cuenta; de seis
-hallazgos de esa revisión se cerraron cuatro. La auditoría de autorización de los servicios anteriores
-halló 22 de 152 puntos de entrada sin comparación completa de ámbito, y el defecto de mayor alcance, las
-políticas a nivel de fila que concedían la tabla completa (ADR 0016), no existe en el sistema construido,
-que controla el ámbito en la aplicación (Sección~\ref{sec:autorizacion}). El registro oficial del control
-de calidad cuenta 85 hallazgos vigentes al 5 de noviembre (16 de severidad alta, 58 media y 11 baja) y 10
-cerrados; de los 85, 3 están corregidos y verificados en una rama que aún no se fusiona. El registro es
-una lista que incluye hallazgos de proceso y de documentación; las pruebas con fallo esperado
-(\texttt{xfail} estricto) fijan solo el subconjunto de defectos de código, de modo que esos no se cierran
-en silencio. Entre los de severidad alta están rutas de administración sin sesión, el
-administrador sin segundo factor y el nombre del menor que llega sin depurar al proveedor del modelo.
+\textbf{Método.} Es la parte de pruebas del OE5 (fase F5): un plan de diez fases, ordenado por las
+características del modelo de calidad ISO/IEC 25010 \citep{iso_25010_2011}, que se ejecutó el 2 de noviembre de 2026. Cubre pruebas unitarias, de integración, de sistema,
+adversariales, de degradación y de carga, agrupadas en cinco familias de escenarios: unitarios por
+servicio; de integración entre servicios y de contrato con la web; de sistema, con el recorrido de la
+cuenta al pago; adversariales, sobre autorización y asistente; y de degradación y carga.
+\textbf{Métrica.} Pruebas aprobadas, cobertura de sentencias, errores y percentil 95 de latencia bajo
+carga, y hallazgos de calidad por severidad. \textbf{Datos.} Los de cada nivel: suites de los seis
+servicios y de las dos aplicaciones web, la rampa de carga L-02 y dos auditorías de código, la de
+autorización (152 puntos de entrada) y la de datos personales conforme a la Ley 1581 de 2012
+\citep{congreso_ley1581_2012}.
 
-El recorrido con pago simulado dio resultados distintos en dos corridas: el 1 de noviembre el pedido llegó
-a «pagado» y el 2 quedó «pendiente de pago» por un fallo de la consulta de estado que no se repitió ni se
-explicó. Las seis sesiones con acudientes sobre la versión \texttt{b6b6fe7} terminaron con el pedido
-pagado, por lo que el recorrido se da por funcional.
+\textbf{Resultado: pruebas automáticas.} Pasaron 2.542 pruebas Python, ninguna falló y una quedó saltada
+(la prueba en vivo del asistente, que necesita la llave del modelo), además de las pruebas de la web (86)
+y del contrato entre la web y la API (67). La cobertura de sentencias, el porcentaje de líneas que
+ejecutan las pruebas, fue de 54\,\% en el catálogo y de 98\,\% en la puerta de enlace. La integración
+continua no exige un mínimo, así que la cobertura describe el estado y no una meta. La prueba de humo, que
+verifica que los servicios arranquen y respondan, pasó.
 
-La Tabla~\ref{tab:iso25010} ordena la evidencia por característica de la ISO/IEC 25010 para ver cuál
-quedó probada y cuál solo en parte.
+\textbf{Resultado: carga.} A partir de las pruebas anteriores se midió la capacidad. El requisito RNF05
+(decisión de diseño DP-02) pide 50 usuarios con menos de 5\,\% de error. Se midió el 5 de noviembre con la
+rampa de carga L-02, que sube de 5 a 100 usuarios en 15 minutos con el modelo simulado. En un equipo con
+Windows y una máquina virtual de 4 núcleos, el catálogo se saturó desde 30 usuarios. En un Apple M4 con los
+servicios nativos, la rampa completó 25.706 peticiones sin un error hasta 100 usuarios, y el percentil 95
+del catálogo (la demora que no supera el 95\,\% de las peticiones) fue de 49 a 420~ms hasta 50 usuarios y
+de 2,5~s con 100. Por eso RNF05 se cumple en el M4, con el doble de usuarios pedido. En cambio, el equipo
+de calidad fijó además un umbral de 300~ms para el percentil 95, que se supera desde 25 usuarios porque el
+catálogo corre en un solo proceso y llegó al 100\,\% de un núcleo (Sección~\ref{sec:trabajo-futuro}).
+
+\textbf{Resultado: seguridad.} La auditoría de dependencias de la web quedó en cero vulnerabilidades. Si
+alguien pide el kit de otra persona, el sistema responde con error 401 (no autenticado) cuando no hay
+sesión y con error 404 (no existe) cuando la sesión es de otra cuenta. La auditoría de autorización halló
+22 de 152 puntos de entrada que no comparaban por completo a qué cuenta pertenece cada dato, y de seis
+hallazgos de esa revisión se cerraron cuatro. El defecto de mayor alcance, las políticas de acceso a nivel
+de fila de la base de datos que concedían la tabla completa (ADR 0016), se evita porque el sistema
+controla ese acceso en la aplicación (Sección~\ref{sec:autorizacion}).
+
+\textbf{Resultado: hallazgos de calidad.} El registro del control de calidad cuenta 85 hallazgos vigentes
+al 5 de noviembre (16 de severidad alta, 58 media y 11 baja) y 10 cerrados. El registro incluye hallazgos
+de código, de proceso y de documentación. Los defectos de código tienen además una prueba que se espera
+que falle (\texttt{xfail} estricto): si el defecto se corrige y la prueba pasa, la prueba falla y obliga
+a cerrar el hallazgo. Entre los de severidad alta están las rutas de administración sin sesión, el
+administrador sin segundo factor de autenticación y el nombre del menor, que llega sin depurar al
+proveedor del modelo.
+
+Con el sistema ya revisado en sus partes, falta el recorrido completo. Con pago simulado, dos corridas
+automáticas dieron resultados distintos: el pedido llegó a «pagado» el 1 de noviembre y quedó «pendiente
+de pago» el 2, por un fallo de la consulta de estado que no se repitió. En cambio, en las seis sesiones
+con acudientes el pedido terminó pagado. Con eso se da por funcional el recorrido hasta el pago simulado;
+el pago con la pasarela real no se probó.
+
+La Tabla~\ref{tab:iso25010} ordena la evidencia por característica de la ISO/IEC 25010. «Probada» significa
+que la evidencia cubre lo que la característica pide en este trabajo; «Parcial», que falta alguna prueba o
+hay hallazgos abiertos. Las tareas T4 y T6 y el criterio C3 se definen en la Sección~\ref{sec:oe5}.
 
 \begin{table}[htbp]
 \centering
@@ -59,7 +75,7 @@ Adecuación funcional & 2.542 pruebas Python y las de las dos aplicaciones web; 
 Eficiencia de desempeño & ESC-D4 con p95 de 0,31~s frente a 8~s; L-02 hasta 100 usuarios sin errores en el M4, con p95 del catálogo de 49 a 420~ms hasta 50 usuarios, y saturación desde 30 en la máquina virtual & Parcial \\
 Compatibilidad & Pruebas de fronteras entre servicios (75) y del contrato entre la web y la API (67) & Probada \\
 Usabilidad & Seis sesiones con acudientes: T6 4 de 5 y T4 1 de 5 sin ayuda; SUS medio de 90 [82--98]; C3 solo en T6 & Parcial \\
-Fiabilidad & Degradación del nivel 1 sobre la versión del 8 de octubre (14 de 18 cumplidos); niveles 2 y 3 sin ejecutar; hallazgos de idempotencia y avisos abiertos & Parcial \\
+Fiabilidad & Degradación del nivel 1 (14 de 18 cumplidos); niveles 2 y 3 sin ejecutar; hallazgos de idempotencia y avisos abiertos & Parcial \\
 Seguridad & Lectura de kits ajenos cerrada, 0 vulnerabilidades web, 0 de 81 ataques al asistente; un token en el historial; hallazgos de severidad alta abiertos & Parcial \\
 Mantenibilidad & Cobertura de 54 a 98\,\% por servicio, sin umbral en la integración continua & Parcial \\
 Portabilidad & Infraestructura con Docker Compose y servicios con \texttt{make arriba} en local; sin pruebas en dispositivos & Parcial \\
@@ -67,9 +83,11 @@ Portabilidad & Infraestructura con Docker Compose y servicios con \texttt{make a
 \end{tabularx}
 \end{table}
 
-\textbf{Lectura.} El sistema integrado cumple la capacidad pedida y el recorrido funciona, pero los
-hallazgos de seguridad y privacidad son condición para operar con datos y pagos reales, y por eso
-encabezan el trabajo futuro. \textbf{Límite.} La carga y la degradación son de una corrida por equipo con
-percepción simulada; los niveles 2 y 3 de degradación, carga y telemetría quedan
+\textbf{Lectura.} El sistema integrado cumple la capacidad pedida y el recorrido hasta el pago simulado
+funciona; sin embargo, solo una de las ocho características de la ISO/IEC 25010 quedó probada por
+completo. Los hallazgos de seguridad y privacidad deben cerrarse antes de operar con datos y pagos
+reales, y por eso encabezan el trabajo futuro. \textbf{Límite.} La carga y la degradación son de una
+corrida por equipo con percepción simulada; los niveles 2 y 3 de degradación, carga y telemetría quedan
 pendientes\pendienteEvidencia{niveles 2 y 3 de degradacion, carga y telemetria}. No se ejecutó el pago con
 las llaves de sandbox de Wompi, ni pruebas en dispositivos, ni una auditoría de dependencias de Python.
+Falta ver si un acudiente logra usar el sistema sin ayuda, que es lo que se evalúa a continuación.

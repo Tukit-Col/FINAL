@@ -1,0 +1,254 @@
+[
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 4,
+  "tipo": "hilo",
+  "severidad": "alta",
+  "cita_textual": "Este\ncapítulo responde si lo construido funciona, objetivo por objetivo, y encontró que la lectura de las listas, la decisión de",
+  "problema": "La apertura no dice en qué orden van las subsecciones. «El capítulo encontró» es un sujeto poco natural y la última frase habla del documento («el texto lo dice en lugar de darlo»).",
+  "propuesta_reescritura": "Este capítulo comprueba si lo construido funciona, objetivo por objetivo. Se encontró que la lectura de las listas, la decisión de aceptar un renglón sin revisión y el armado de kits cumplen con medidas propias, y que los seis acudientes llegaron a un pedido pagado, aunque no siempre sin ayuda. El orden es el siguiente: primero la lectura de las listas y la decisión de aceptar o revisar un renglón (OE3, fase F3); luego la optimización de los kits (OE4, fase F4), las dos con la etapa de evaluación de CRISP-DM de la Tabla~\\ref{tab:fases}; después el asistente en lenguaje natural, la verificación del sistema integrado según las características de la ISO/IEC 25010 y la evaluación con usuarios, que siguió un protocolo preregistrado (OE5, fase F5); y al final las amenazas a la validez. Cada objetivo se presenta con la pregunta, el método, la métrica, los datos, el resultado con su incertidumbre y su punto de comparación, la lectura y el límite. Cada cifra va con su muestra y su condición. Cuando dos fuentes discrepan, o falta el programa que produjo un valor, se indica y ese valor no se usa."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 26,
+  "tipo": "jerga",
+  "severidad": "media",
+  "cita_textual": "OE3, decisión & ¿Lo que se acepta sin revisión es correcto? & Precisión y cobertura en $\\tau = 0{,}75$ &",
+  "problema": "La tabla resumen usa $\\tau$, F1, razón de hipervolumen y p95 antes de que el lector los haya visto definidos.",
+  "propuesta_reescritura": "Antes de la tabla: «En la tabla, $\\tau$ es el umbral de similitud desde el cual el sistema acepta un renglón sin revisión; el $F_1$ combina la precisión y la sensibilidad de la lectura; la razón de hipervolumen mide qué fracción del frente óptimo conserva el optimizador, y el p95 es la demora que no supera el 95\\,\\% de las ejecuciones. Cada una se define de nuevo en su sección.»"
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 40,
+  "tipo": "jerga",
+  "severidad": "media",
+  "cita_textual": "\\textbf{Método.} Es la etapa de evaluación de CRISP-DM aplicada a la comparación de cinco motores que\nhicieron los prototipos de tesis el 1 de septiembre de 2026.",
+  "problema": "«Motores que hicieron los prototipos» es ambiguo y «motor» no está definido. Se debe conservar la mención a CRISP-DM en el método de la subsección.",
+  "propuesta_reescritura": "\\textbf{Método.} Es la etapa de evaluación de CRISP-DM del OE3, aplicada a la comparación de cinco motores de lectura, es decir, cinco programas que convierten la imagen o el PDF en renglones de texto. La comparación se corrió en los prototipos de tesis el 1 de septiembre de 2026."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 38,
+  "tipo": "jerga",
+  "severidad": "baja",
+  "cita_textual": "El primer criterio del árbol de utilidad exige extraer de una lista escolar,",
+  "problema": "«Árbol de utilidad» (artefacto del ATAM del OE2) aparece sin definición en este capítulo.",
+  "propuesta_reescritura": "\\textbf{Pregunta.} El primer criterio del árbol de utilidad (la lista de escenarios de calidad que se priorizaron con ATAM en el OE2) exige extraer de una lista escolar,"
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 41,
+  "tipo": "jerga",
+  "severidad": "media",
+  "cita_textual": "hicieron los prototipos de tesis el 1 de septiembre de 2026. \\textbf{Métrica.} El $F_1 = 2PR/(P+R)$ mide si",
+  "problema": "P y R no se definen; en la subsección de decisión se usan «precisión», «sensibilidad» y «cobertura» con sentidos distintos.",
+  "propuesta_reescritura": "\\textbf{Métrica.} El $F_1 = 2PR/(P+R)$ combina la precisión $P$ (de los renglones que el motor devolvió, cuántos son correctos) y la sensibilidad $R$ (de los renglones reales, cuántos recuperó). Mide si"
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 44,
+  "tipo": "jerga",
+  "severidad": "media",
+  "cita_textual": "corto. Un renglón acierta si su similitud con el del oro es de al menos 0,75. \\textbf{Datos.} CGS-10, un",
+  "problema": "«Oro» y CGS-10 se usan sin explicar, y el dato de sesgo (oro armado desde la salida de un motor) queda escondido al final de la frase.",
+  "propuesta_reescritura": "corto. Un renglón acierta si su similitud con el renglón de referencia (el «oro», la lista correcta) es de al menos 0,75. \\textbf{Datos.} CGS-10 es el conjunto de referencia de la percepción: diez documentos con 1.293 ítems. Se armó corrigiendo la extracción de uno de los motores, sin un segundo anotador."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 72,
+  "tipo": "rigor",
+  "severidad": "media",
+  "cita_textual": "\\textbf{Lectura.} La ventaja del modelo multimodal sobre las reglas es amplia y justifica haberlo\nelegido.",
+  "problema": "La Lectura dice que la cifra justifica la elección, pero el Límite siguiente reconoce que el oro favorece a Gemini. No distingue entre la ventaja sobre las reglas y la ventaja sobre Google Vision.",
+  "propuesta_reescritura": "\\textbf{Lectura.} Gemini quedó muy por encima de las reglas heurísticas (0,948 frente a 0,298), y eso justifica haberlo elegido frente a ellas. La distancia con Google Vision (0,673) es menos segura de leer, porque el oro favorece a Gemini."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 76,
+  "tipo": "jerga",
+  "severidad": "media",
+  "cita_textual": "sistema construido usa otro modelo de Gemini, con temperatura 0 y sin semilla. La latencia de la\npercepción con el modelo real se mide en el segundo nivel de las pruebas (ESC-D1 del ATAM), porque la",
+  "problema": "«Temperatura 0», «sin semilla», «segundo nivel de las pruebas» y ESC-D1 aparecen sin explicación.",
+  "propuesta_reescritura": "sistema construido usa otro modelo de Gemini, con temperatura 0 (la configuración menos aleatoria) pero sin semilla fija, de modo que dos corridas pueden diferir. La demora de la percepción con el modelo real se mide en el segundo nivel de las pruebas (escenario ESC-D1 del ATAM), porque en el primer nivel la percepción fue simulada\\pendienteEvidencia{latencia de la percepcion con el modelo real, DP-04}."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 89,
+  "tipo": "jerga",
+  "severidad": "media",
+  "cita_textual": "\\textbf{Métrica.} MRR@10, $\\frac{1}{|Q|}\\sum_q 1/r_q$, con $r_q$ el rango del primer acierto entre 10,\nque importa porque el sistema muestra pocos candidatos;",
+  "problema": "La sigla MRR@10 solo se da en fórmula, sin decir qué mide en palabras.",
+  "propuesta_reescritura": "\\textbf{Métrica.} El MRR@10 (rango recíproco medio), $\\frac{1}{|Q|}\\sum_q 1/r_q$, promedia sobre las consultas $Q$ el inverso de $r_q$, la posición del primer resultado correcto entre los 10 primeros; vale 1 si siempre está primero. Importa porque el sistema muestra pocos candidatos;"
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 94,
+  "tipo": "jerga",
+  "severidad": "media",
+  "cita_textual": "\\textbf{Datos.} Los prototipos compararon cuatro estrategias sobre PostgreSQL con pgvector (léxica\npura, léxica expandida, vectorial densa e híbrida con fusión recíproca de rangos), y el sistema",
+  "problema": "pgvector, «léxica», «vectorial densa» y «fusión recíproca de rangos» se usan sin definir, y no hay conector entre prototipos y sistema construido.",
+  "propuesta_reescritura": "\\textbf{Datos.} Los prototipos compararon cuatro estrategias de búsqueda de candidatos sobre PostgreSQL con pgvector (una extensión para buscar por vectores): la léxica, que compara palabras (pura o expandida); la vectorial densa, que compara el significado mediante vectores; y la híbrida, que combina ambas ordenando por la posición que cada una da a un candidato (fusión recíproca de rangos). En cambio, el sistema construido adoptó la fusión aditiva de una sola fase, que suma los puntajes de las dos búsquedas (Sección~\\ref{sec:normalizacion})."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 101,
+  "tipo": "conector",
+  "severidad": "media",
+  "cita_textual": "\\textbf{Resultado: recuperación.} La léxica pura tuvo un p50 de 6,66\\,ms; la vectorial densa, de\n46,51\\,ms, y la híbrida, de 53,17\\,ms; la medición registra tiempo y no relevancia. En la tarea",
+  "problema": "Salta de latencia a relevancia sin conector, p50 y MTEB no están definidos y hay un contraste con negación que nadie afirmó.",
+  "propuesta_reescritura": "\\textbf{Resultado: recuperación.} La mediana de la demora (p50) fue de 6,66\\,ms en la léxica pura, 46,51\\,ms en la vectorial densa y 53,17\\,ms en la híbrida. Estos valores miden solo tiempo. Para comparar la relevancia de los modelos de embeddings se usó MTEB, un banco público de evaluación \\citep{muennighoff_mteb_2023}. En su tarea SpanishPassageRetrievalS2P, de pasajes de salud y no escolares,"
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 106,
+  "tipo": "rigor",
+  "severidad": "media",
+  "cita_textual": "respalda la elección del modelo de los prototipos. Sobre Recall@10 hay una discrepancia sin resolver:\nun informe reporta 1,0000 y la única salida conservada da 0,10 para los índices aproximados,",
+  "problema": "Recall@10 no se define y la discrepancia se presenta sin explicar por qué no se usa ningún valor.",
+  "propuesta_reescritura": "respalda la elección del modelo de los prototipos. Para Recall@10 (la fracción de los resultados correctos que aparece entre los 10 primeros) hay dos valores que no concuerdan: un informe reporta 1,0000 y la única salida conservada da 0,10 para los índices aproximados. Como no se conserva el programa que la produjo, no se afirma ninguno de los dos."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 112,
+  "tipo": "jerga",
+  "severidad": "media",
+  "cita_textual": "concordancia entre dos métodos automáticos y no entre dos personas. La meta del SPMP (IEEE 1058) exige",
+  "problema": "SPMP no se define, «esa medición está en organización» es jerga interna y hay un contraste con negación.",
+  "propuesta_reescritura": "concordancia entre dos métodos automáticos. El plan de gestión del proyecto (SPMP, IEEE 1058) exige $\\kappa \\ge 0{,}7$ con un segundo anotador humano sobre al menos 30 documentos; esa medición queda pendiente\\pendienteEvidencia{kappa entre dos anotadores humanos ciegos, n>=30 documentos}."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 137,
+  "tipo": "jerga",
+  "severidad": "baja",
+  "cita_textual": "(\\calTauRBajo{}--\\calTauRAlto{}), el $F_1$ de \\calTauF{} (\\calTauFBajo{}--\\calTauFAlto{}) y la cobertura",
+  "problema": "«Sensibilidad» no se define y «cobertura» ya significa la fracción aceptada sin revisión; el lector puede confundirlas.",
+  "propuesta_reescritura": "la sensibilidad de \\calTauR{} (la fracción de los pares correctos que el sistema aceptó; \\calTauRBajo{}--\\calTauRAlto{}), el $F_1$ de \\calTauF{} (\\calTauFBajo{}--\\calTauFAlto{}) y la cobertura de \\calTauAceptada{} (la fracción de todos los pares que se acepta sin revisión)."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 141,
+  "tipo": "ia",
+  "severidad": "baja",
+  "cita_textual": "\\calTauAUCBajo{}--\\calTauAUCAlto{}). Se destaca la precisión frente a la cobertura y no la\nROC porque las clases están desbalanceadas, 351 correctos contra 54 incorrectos, y en ese caso la",
+  "problema": "«Se destaca» es palabra inflada y el contraste «y no la ROC» es innecesario; el párrafo largo mezcla varias ideas.",
+  "propuesta_reescritura": "El AUC fue de \\calTauAUC{} (\\calTauAUCBajo{}--\\calTauAUCAlto{}). Se prefiere la curva de precisión frente a cobertura a la ROC porque las clases están desbalanceadas, con 351 pares correctos y 54 incorrectos, y en ese caso la ROC se ve mejor de lo que es \\citep{saito_precision-recall_2015}."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 143,
+  "tipo": "coherencia",
+  "severidad": "alta",
+  "cita_textual": "indica que un $\\tau$ entre \\calTauCVMin{} y \\calTauCVMax{} ya daba cerca de 95\\,\\% de precisión en los pliegues retenidos, con \\calTauColegioMayor{} de los \\calTauPares{} pares de un mismo colegio;",
+  "problema": "«Pliegues retenidos» no se define, la debilidad de la validación (casi todos los pares son de un colegio) aparece como cola de la frase y no se dice que 0,75 se conserva como valor por omisión.",
+  "propuesta_reescritura": "Además se hizo una validación cruzada agrupada, que reparte los pares por colegio y evalúa cada vez sobre colegios que no se usaron para elegir $\\tau$ (los pliegues retenidos). Con ella, un $\\tau$ entre \\calTauCVMin{} y \\calTauCVMax{} ya daba cerca de 95\\,\\% de precisión. Esta prueba es débil, porque \\calTauColegioMayor{} de los \\calTauPares{} pares son de un mismo colegio. Aun así indica que 0,75 es más estricto de lo necesario y manda a revisión más renglones de los que haría falta; por eso, y porque la anotación es de un solo revisor, estas cifras no se usan como calibración y $\\tau$ queda en su valor por omisión (Anexo~\\ref{anx:calibracion}). El AUC de 0,961 de una corrida anterior bajó a \\calTauAUC{} porque los datos se volvieron a correr sobre la versión evaluada \\texttt{b6b6fe7}, después de la curaduría de noviembre."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 149,
+  "tipo": "hilo",
+  "severidad": "media",
+  "cita_textual": "\\textbf{Resultado: extremo a extremo.} El 83\\,\\% de una corrida anterior (60 sublistas, 2.176 ítems)\nmide la fracción de ítems con algún candidato (83,04\\,\\%), no la resolución:",
+  "problema": "El 83 % aparece sin presentar quién lo reportó; «sublistas», «abstención» y «curaduría» no se definen.",
+  "propuesta_reescritura": "\\textbf{Resultado: extremo a extremo.} Una corrida anterior reportó 83\\,\\% sobre 60 sublistas (partes de una lista; 2.176 ítems). Esa cifra cuenta los ítems que tienen algún candidato (83,04\\,\\%). La resolución fue otra: 35,3\\,\\% se resolvió de forma automática, 36,5\\,\\% pasó a revisión y 28,1\\,\\% quedó sin correspondencia. Del 21 al 23 de septiembre, un ensayo aplicó las primeras versiones del sistema a 14 PDF (4.414 renglones): se reconocieron 2.202, en 926 el sistema se abstuvo de decidir (20,98\\,\\%) y quedaron 1.397 productos faltantes, sin repetir, para la curaduría del catálogo (la revisión manual de productos)."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 156,
+  "tipo": "ia",
+  "severidad": "media",
+  "cita_textual": "\\textbf{Lectura.} La regla de decisión es confiable en lo que acepta y prudente en lo que deja pasar a\nrevisión, que es el error más barato.",
+  "problema": "Cierre abstracto que repite lo ya dicho, con «confiable» y «prudente» sin criterio, y sin enlace con la subsección siguiente.",
+  "propuesta_reescritura": "\\textbf{Lectura.} De cada 100 renglones que la regla acepta, 97 son correctos, frente a 87 si se aceptara todo. Los \\calTauFN{} pares correctos enviados a revisión cuestan una revisión de más; los \\calTauFP{} pares incorrectos aceptados son el error más caro. Con los renglones ya resueltos, el paso siguiente es armar el kit, que es el objetivo del OE4."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 157,
+  "tipo": "jerga",
+  "severidad": "baja",
+  "cita_textual": "revisión, que es el error más barato. \\textbf{Límite.} Un solo revisor etiquetó los pares y no hay\nacuerdo entre personas. El puntaje toma solo \\calTauValores{} valores distintos, de modo que $\\tau$ no",
+  "problema": "«No hay acuerdo entre personas» se lee como desacuerdo, y «espejo de 838 productos» es jerga interna.",
+  "propuesta_reescritura": "\\textbf{Límite.} Un solo revisor etiquetó los pares, así que no se pudo medir el acuerdo entre personas. El puntaje toma solo \\calTauValores{} valores distintos, de modo que $\\tau$ no se puede afinar y las curvas avanzan a saltos. Los pares vienen de tres colegios. Las demoras y el extremo a extremo vienen de los prototipos y de una copia local de 838 productos que el sistema construido ya no usa."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 168,
+  "tipo": "jerga",
+  "severidad": "alta",
+  "cita_textual": "\\textbf{Métrica.} La razón de hipervolumen\n\\citep{zitzler_multiobjective_1999}, $HV(\\text{frente})/HV(\\text{exacto})$ con punto de referencia común",
+  "problema": "Hipervolumen, frente óptimo y punto de referencia no se definen aquí, y «sin necesitar un kit de referencia único» es críptico.",
+  "propuesta_reescritura": "\\textbf{Métrica.} Cada kit se puntúa con cuatro objetivos a la vez (costo, fidelidad de marca, disponibilidad y personaje), y ninguno es mejor en todos. El frente óptimo es el conjunto de kits que ningún otro supera en todos los objetivos. El hipervolumen es el volumen que ese frente cubre respecto de un punto de referencia, que aquí es común: 1,1 por eje normalizado. La razón de hipervolumen \\citep{zitzler_multiobjective_1999}, $HV(\\text{frente})/HV(\\text{exacto})$, mide cuánto del frente exacto conserva NSGA-II, y no exige escoger un único kit de comparación. Para el tiempo se usa el p95, la demora del 5\\,\\% más lento, que el promedio esconde."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 177,
+  "tipo": "jerga",
+  "severidad": "alta",
+  "cita_textual": "programación dinámica en 174 listas, NSGA-II lo iguala en el 100\\,\\% de las listas del Ahorrador; con\npresupuesto, el kit recomendado daba el 40\\,\\% de la calidad posible y, después del ADR 0029, cabe",
+  "problema": "Ahorrador, ADR 0029 y «con presupuesto» no se explican, y el párrafo acumula comparaciones de bancos distintos sin conectores.",
+  "propuesta_reescritura": "Se comparó también con un óptimo exacto calculado por programación dinámica en 174 listas. En el perfil Ahorrador, NSGA-II iguala ese óptimo en el 100\\,\\% de las listas. Cuando el acudiente fija un presupuesto, el kit recomendado daba solo el 40\\,\\% de la calidad posible; después de la decisión de arquitectura ADR 0029, el kit cabe siempre en el tope e iguala el óptimo (con una semilla, cifra reportada)."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 181,
+  "tipo": "jerga",
+  "severidad": "baja",
+  "cita_textual": "de julio, de nueve instancias sintéticas con tres objetivos, dio una referencia: NSGA-II halló el\nóptimo en ocho y quedó a 0,07\\,\\% de él, frente a 11,92\\,\\% del voraz y 159,34\\,\\% del aleatorio.",
+  "problema": "«Voraz» y «aleatorio» no se definen y «dio una referencia» es vago. Se corrige sin reinterpretar las cifras.",
+  "propuesta_reescritura": "de julio, de nueve instancias sintéticas con tres objetivos, sirvió de comparación con dos métodos simples: el voraz, que elige en cada paso la mejor opción inmediata, y el aleatorio. NSGA-II halló el óptimo en ocho y quedó a 0,07\\,\\% de él, frente a 11,92\\,\\% del voraz y 159,34\\,\\% del aleatorio."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 186,
+  "tipo": "hilo",
+  "severidad": "media",
+  "cita_textual": "el banco de Tukit-Benchmarks, que midió el mismo optimizador, la programación dinámica equivalió a la\nenumeración en 65 de 65 listas y fue más rápida en las listas reales (mediana de 0,64~ms frente a",
+  "problema": "Falta el conector que oponga la ventaja de la programación dinámica en listas reales con su costo en el hogar extremo, y «hogar de ocho hijos y 313 líneas» llega sin contexto.",
+  "propuesta_reescritura": "Un banco aparte, Tukit-Benchmarks, midió el mismo optimizador. Allí la programación dinámica dio el mismo resultado que la enumeración en 65 de 65 listas y fue más rápida en las listas reales (mediana de 0,64~ms frente a 243~ms). En cambio, con un hogar extremo de ocho hijos y 313 líneas de lista tardó 2,56~s y usó 297~MiB, contra 1,46~s y 12,6~MiB de NSGA-II."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 191,
+  "tipo": "conector",
+  "severidad": "alta",
+  "cita_textual": "Más allá del optimizador, se auditaron cuatro veces, renglón por renglón, los kits Ahorrador y Premium de\nlas trece listas de 2026 del Colegio Agustiniano Ciudad Salitre, el 11 y el 12 de octubre.",
+  "problema": "Salta de la medición del optimizador a una auditoría de catálogo sin decir qué pregunta responde; «cumple», «cobran», «huecos» no se definen.",
+  "propuesta_reescritura": "Las pruebas anteriores miden el optimizador solo; falta comprobar que los kits que arma se puedan comprar. Para ello, el 11 y el 12 de octubre se auditaron cuatro veces, renglón por renglón, los kits Ahorrador y Premium de las trece listas de 2026 del Colegio Agustiniano Ciudad Salitre. Un renglón cumple si los dos perfiles incluyen y cobran un producto que corresponde a lo que pide la lista. Un hueco es un renglón para el que el catálogo no tiene producto con precio."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 221,
+  "tipo": "hilo",
+  "severidad": "media",
+  "cita_textual": "\\textbf{Lectura.} El frente de producción conserva casi todo el hipervolumen exacto con una fracción\ndel tiempo permitido, y el cumplimiento de los kits mejora con cada ajuste del catálogo y de las\nreglas.",
+  "problema": "«Frente de producción» es jerga, la frase no menciona que los cobros sin cumplir subieron de 49 a 58 en la última auditoría, y la subsección no lleva a la siguiente.",
+  "propuesta_reescritura": "\\textbf{Lectura.} Los kits que arma el optimizador conservan casi todo el hipervolumen exacto (0,9969) con una fracción del tiempo permitido. El cumplimiento de la lista subió en cada auditoría, aunque los cobros de productos que no corresponden pasaron de 49 a 58 en la última. Falta ver si el acudiente puede pedir esos kits con sus propias palabras, que es lo que evalúa el asistente."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 232,
+  "tipo": "hilo",
+  "severidad": "alta",
+  "cita_textual": "\\textbf{Pregunta.} ¿El asistente traduce una frase libre en filtros y preferencias correctos y resiste el\ntexto malicioso? \\textbf{Método.} Evaluación del componente NL2C (lenguaje natural a criterios) en tres",
+  "problema": "La subsección comprime todo el esquema en un párrafo telegráfico, y «inyección» y «regla de tres» no se definen.",
+  "propuesta_reescritura": "\\textbf{Pregunta.} El asistente convierte una frase libre del acudiente en filtros y preferencias para el optimizador. ¿Los traduce bien y resiste el texto malicioso? \\textbf{Método.} Se evaluó el componente NL2C (lenguaje natural a criterios) en tres rondas, con las acciones permitidas fijadas por el servidor, de modo que el modelo solo elige entre ellas (Sección~\\ref{sec:nl2c}). \\textbf{Métrica.} Tarea completa (la frase produce los criterios correctos) y tasa de éxito de los ataques de inyección (textos que intentan que el asistente haga lo que no debe). \\textbf{Datos.} 35 frases con dos repeticiones (70 intentos) y 27 ataques con tres repeticiones (81 intentos).\n\n\\textbf{Resultado.} La tarea se completó en 58 de 70 intentos (82,9\\,\\%) y ningún ataque tuvo éxito en 81. Con la regla de tres (cota superior aproximada cuando no hay éxitos), la tasa real de éxito de un ataque está por debajo de cerca de 3,7\\,\\% con 95\\,\\% de confianza. \\textbf{Lectura.} Solo se puede afirmar que no se encontró un ataque exitoso. \\textbf{Límite.} Ningún acudiente usó el asistente en el OE5, así que no se midió su utilidad para las familias. Además, el criterio para descartar casos en la última ronda se cambió sin haberse preregistrado."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 273,
+  "tipo": "coherencia",
+  "severidad": "alta",
+  "cita_textual": "participantes, la usabilidad se reporta como indicativa y no concluyente, porque la potencia no alcanza\npara detectar un efecto de tamaño medio.",
+  "problema": "Aquí la usabilidad es «indicativa y no concluyente», mientras que en la evaluación con usuarios C1 y C2 «se cumplen» y el estado es «Cumplido». Falta conciliar las dos lecturas. «La carga» es ambiguo.",
+  "propuesta_reescritura": "La prueba de carga se corrió una vez por equipo, con la percepción simulada. Con menos de diez participantes, la potencia no alcanza para detectar un efecto de tamaño medio; por eso los resultados de usabilidad (SUS, RTLX, éxito por tarea) se leen como formativos: indican dónde está el problema, y C1 y C2 se cumplen en esta muestra, pero no se extienden a la población de acudientes."
+ },
+ {
+  "archivo": "/Users/mariapaula.rodriguez/Documents/university/TUKIT/tukit/docs/memoria/sections/resultados.tex",
+  "linea": 279,
+  "tipo": "ia",
+  "severidad": "baja",
+  "cita_textual": "Con esto el sistema queda evaluado por etapa y en conjunto, y el capítulo siguiente recoge lo que esa\nevidencia permite concluir y lo que queda por hacer.",
+  "problema": "Cierre que resume y sobreafirma («queda evaluado») cuando siete de las ocho características ISO están en «Parcial» y hay niveles de prueba pendientes.",
+  "propuesta_reescritura": "Con estas amenazas presentes, el capítulo siguiente expone qué conclusiones permite la evidencia y qué queda abierto, entre otros los niveles 2 y 3 de las pruebas y la medición con más colegios."
+ }
+]
