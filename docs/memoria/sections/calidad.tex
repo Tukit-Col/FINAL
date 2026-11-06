@@ -30,7 +30,7 @@ porque el catálogo corre en un solo proceso y llegó al 100\,\% de un núcleo
 vulnerabilidades y la lectura de un kit ajeno responde 401 sin sesión y 404 con otra cuenta; de seis
 hallazgos de esa revisión se cerraron cuatro. La auditoría de autorización de los servicios anteriores
 halló 22 de 152 puntos de entrada sin comparación completa de ámbito, y el defecto de mayor alcance, las
-políticas a nivel de fila que concedían la tabla completa (ADR 0015), no existe en el sistema construido,
+políticas a nivel de fila que concedían la tabla completa (ADR 0016), no existe en el sistema construido,
 que controla el ámbito en la aplicación (Sección~\ref{sec:autorizacion}). El registro oficial del control
 de calidad cuenta 85 hallazgos vigentes al 5 de noviembre (16 de severidad alta, 58 media y 11 baja) y 10
 cerrados. Cada defecto se fijó como una prueba con fallo esperado (\texttt{xfail} estricto), de modo que
@@ -55,7 +55,7 @@ quedó probada y cuál solo en parte.
 Característica & Evidencia & Estado \\
 \midrule
 Adecuación funcional & 2.542 pruebas Python y las de las dos aplicaciones web; recorrido de la cuenta al pago con acudientes; personaje del segundo hijo sin reflejar en el kit Fan & Parcial \\
-Eficiencia de desempeño & ESC-D4 con p95 de 0,31~s frente a 8~s; L-02 hasta 100 usuarios sin errores en el M4, con p95 del catálogo de 350~ms a 50 usuarios, y saturación desde 30 en la máquina virtual & Parcial \\
+Eficiencia de desempeño & ESC-D4 con p95 de 0,31~s frente a 8~s; L-02 hasta 100 usuarios sin errores en el M4, con p95 del catálogo de 49 a 420~ms hasta 50 usuarios, y saturación desde 30 en la máquina virtual & Parcial \\
 Compatibilidad & Pruebas de fronteras entre servicios (75) y del contrato entre la web y la API (67) & Probada \\
 Usabilidad & Seis sesiones con acudientes: T6 4 de 5 y T4 1 de 5 sin ayuda; SUS medio de 90 [82--98]; C3 solo en T6 & Parcial \\
 Fiabilidad & Degradación del nivel 1 sobre la versión del 8 de octubre (14 de 18 cumplidos); niveles 2 y 3 sin ejecutar; hallazgos de idempotencia y avisos abiertos & Parcial \\
