@@ -18,10 +18,10 @@ Conforme a la norma 42010, una descripción arquitectónica nombra a sus interes
 \toprule
 \textbf{Interesado} & \textbf{Preocupación} & \textbf{Vista} \\
 \midrule
-Acudiente & Obtener kits completos y pagar sin exponer datos de tarjeta (RNF03, RNF04) & Contexto, proceso \\
-Colegio y equipo de Tukit & Revisar listas y kits; operar el sistema con cuatro personas (RNF06) & Contenedores, despliegue \\
+Acudiente & Obtener kits completos y pagar sin exponer datos de tarjeta (RNF01, RNF03) & Contexto, proceso \\
+Colegio y equipo de Tukit & Revisar listas y kits; operar el sistema con cuatro personas & Contenedores, despliegue \\
 Responsable de datos & Cumplir la Ley 1581 de 2012 con los datos de menores & Dominio, autorización \\
-Evaluador y equipo de desarrollo & Fronteras verificables y cambios sin romper otros servicios (RNF08) & Desarrollo, decisiones \\
+Evaluador y equipo de desarrollo & Fronteras verificables y fallas aisladas entre servicios (RNF08) & Desarrollo, decisiones \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -37,7 +37,7 @@ Evaluador y equipo de desarrollo & Fronteras verificables y cambios sin romper o
 \midrule
 Recuperabilidad asimétrica & El catálogo se reconstruye desde sus archivos de datos y admite perder hasta un día de cambios (requisito CF-02a), mientras que un pedido no admite ninguna pérdida. Esa diferencia es la asimetría de recuperación. Compartir almacén obliga a dimensionar el respaldo por el más exigente \\
 \addlinespace
-Frontera de cumplimiento & La Ley 1581 \citep{congreso_ley1581_2012} y el Decreto 1377 de 2013 \citep{presidencia_decreto1377_2013} piden aislar los datos de menores, con base y llaves propias, para reducir lo que debe auditarse \\
+Frontera de cumplimiento & La Ley 1581 \citep{congreso_ley1581_2012} y el Decreto 1377 de 2013 \citep{presidencia_decreto1377_2013} exigen consentimiento y protección reforzada de los datos de menores; aislarlos con base y llaves propias es una decisión de diseño que reduce lo que debe auditarse \\
 \addlinespace
 Perfil de recurso & La inferencia y la optimización multiobjetivo consumen CPU y memoria; la gestión transaccional exige disponibilidad y consistencia. Juntas, todo se dimensiona por la más exigente \\
 \bottomrule

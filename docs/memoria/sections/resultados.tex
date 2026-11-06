@@ -190,7 +190,7 @@ opción inmediata, y el aleatorio. NSGA-II halló el óptimo en ocho y quedó a 
 11,92\,\% del voraz y 159,34\,\% del aleatorio. Para
 el tiempo se corrió ESC-D4 con las 175 instancias, 30 ejecuciones por lista con semillas distintas y dos
 perfiles de acudiente, 10.500 ejecuciones en un Apple M4: el p95 fue de 0,29~s sin preferencias y de
-0,31~s con personaje, el máximo de 0,45~s, frente a los 8~s de DP-03, un margen de más de 25 veces. Un
+0,31~s con personaje, el máximo de 0,45~s, frente a los 8~s que fija el requisito de desempeño DP-03, un margen de más de 25 veces. Un
 banco aparte, Tukit-Benchmarks, midió el mismo optimizador. Allí la programación dinámica dio el mismo
 resultado que la enumeración en 65 de 65 listas y fue más rápida en las listas reales (mediana de
 0,64~ms frente a 243~ms). En cambio, con un hogar extremo de ocho hijos y 313 líneas de lista tardó
@@ -254,8 +254,8 @@ tasa de éxito de los ataques de inyección (textos que intentan que el asistent
 intentos).
 
 \textbf{Resultado.} La tarea se completó en 58 de 70 intentos (82,9\,\%) y ningún ataque tuvo éxito en 81.
-Con la regla de tres (cota superior aproximada cuando no hay éxitos), la tasa real de éxito de un ataque
-está por debajo de cerca de 3,7\,\% con 95\,\% de confianza. \textbf{Lectura.} Solo se puede afirmar que
+Con la regla de tres (cota de $3/n$ al 95\,\% cuando no hay éxitos) y contando solo los 27 ataques
+distintos, porque las repeticiones no son independientes, la tasa real queda por debajo de cerca de 11\,\%. \textbf{Lectura.} Solo se puede afirmar que
 no se encontró un ataque exitoso.
 
 Hasta aquí se midió cada componente por separado; las dos subsecciones siguientes miden el sistema ya

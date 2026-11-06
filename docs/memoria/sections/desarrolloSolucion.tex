@@ -40,7 +40,7 @@ agentes de lenguaje. El sistema usa una tabla de transiciones propia, con seis e
 (el sexto, cancelado, es terminal). Un reintento vuelve a encolar
 el trabajo sin que el acudiente suba otra vez el documento.
 
-El sistema se organiza en un monorrepositorio con despliegue independiente por servicio (ADR 0013):
+El sistema se organiza en un monorrepositorio con despliegue independiente por servicio (ADR 0014):
 seis desplegables, cinco servicios de dominio y la puerta de enlace, sobre cinco bases de datos. Antes
 de él, una prueba de concepto y varios prototipos de tesis sometieron cada etapa a experimentos con
 muestra y métrica. La Tabla~\ref{tab:rag-fases} cuenta, por fase de CRISP-DM, las estrategias de
@@ -177,7 +177,7 @@ hacía tomar «chaquiras» por otro producto, y en la corrida del servicio anter
 y se reutiliza (NR-07). Las constantes de la fusión proceden de ajustes sobre casos de error concretos
 y no de un barrido; su origen y estado están en el Anexo~\ref{anx:constantes}.
 
-El catálogo tiene 149 conceptos, 145 activos, que agrupan los productos equivalentes; 25 conceptos
+El OE1 definió 99 conceptos; el catálogo los amplió a 149, 145 activos (el oro de recuperación cubre 98), que agrupan los productos equivalentes; 25 conceptos
 cubren el 80,97\,\% de los renglones con concepto. Los atributos y los niveles distinguen las
 variantes, y el sistema se abstiene cuando el producto contradice un atributo impuesto o no lo declara
 (ADR 0043).
@@ -319,7 +319,7 @@ texto lo puede escribir un atacante, las acciones permitidas las fija el servido
 frases (dos repeticiones cada una) y 27 ataques de inyección (tres cada uno), la tarea completa se
 cumplió en 58 de 70 intentos (82,9\,\%) y ningún ataque de inyección (texto malicioso que intenta cambiar las instrucciones del modelo) tuvo
 éxito en 81 intentos. Por la regla de los tres (con cero éxitos en $n$ intentos, la cota superior del
-95\,\% es cerca de $3/n$), la tasa de éxito de un ataque está por debajo de cerca de 3,7\,\%. En el OE5 ningún acudiente lo usó, así que solo su seguridad
+95\,\% es cerca de $3/n$), la tasa está por debajo de cerca de 11\,\% si se cuentan los 27 ataques distintos, porque las repeticiones no son independientes. En el OE5 ningún acudiente lo usó, así que solo su seguridad
 está validada y su utilidad queda como trabajo futuro. El detalle está en la
 Sección~\ref{sec:nl2c} del anexo. Con el asistente, el mecanismo queda completo; falta la pieza que el
 acudiente ve.
