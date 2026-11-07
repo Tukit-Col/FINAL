@@ -91,16 +91,16 @@ Tabla~\ref{tab:datos-sistema} reúne las cifras. Como las listas de un mismo col
 \toprule
 \textbf{Atributo} & \textbf{Valor} & \textbf{Fuente} \\
 \midrule
-Productos del catálogo & 1.054 (1.044 activos) & \texttt{datos/catalogo/productos\_canonicos.csv} \\
-Representantes canónicos & 417 de 1.054 & mismo archivo, columna \texttt{es\_representante\_canonico} \\
-Conceptos & 149 definidos; 133 con producto & \texttt{conceptos.csv}; \texttt{concepto\_id} del archivo de productos \\
-Niveles & confiable 572, económico 268, premium 214 & columna \texttt{nivel} \\
-Tiendas de procedencia & 8 & \texttt{ofertas\_tienda.csv} (columna \texttt{tienda\_id}) \\
-Embeddings & gemini-embedding-001, 1.024 dimensiones, HNSW & código y SDD \\
+Productos del catálogo & 1.054 (1.044 activos) & Catálogo curado \\
+Representantes canónicos & 417 de 1.054 & Catálogo curado \\
+Conceptos & 149 definidos; 133 con producto & Taxonomía de conceptos \\
+Niveles & confiable 572, económico 268, premium 214 & Catálogo curado \\
+Tiendas de procedencia & 8 & Ofertas por tienda \\
+Vectores de significado (\emph{embeddings}) & gemini-embedding-001, 1.024 dimensiones, índice HNSW & Servicio de catálogo \\
 CGS-10 (percepción) & 10 documentos, 1.293 ítems & Sección~\ref{sec:percepcion} \\
 Oro de recuperación & 2.588 renglones de 4.719 ítems y 98 conceptos & Sección~\ref{sec:recuperacion} \\
-Banco de listas reales & 175 instancias de 174 listas de 17 colegios & \texttt{ensayos/bench\_laya/instancias.json.gz} \\
-Partición por colegio & 3 colegios de prueba (40 listas, 32 con NSGA-II) y 14 en cinco pliegues & \texttt{calibracion\_nsga.json}, campo \texttt{particion} \\
+Banco de listas reales & 175 instancias de 174 listas de 17 colegios & Sección~\ref{sec:optimizacion-cal} \\
+Partición por colegio & 3 colegios de prueba (40 listas, 32 con NSGA-II) y 14 en cinco pliegues & Sección~\ref{sec:optimizacion-cal} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -296,7 +296,7 @@ que el acudiente ordena cuatro criterios. Su derivación sigue en la Sección~\r
 
 Además de las opciones cerradas, el sistema ofrece un asistente que traduce una frase como «Minnie para
 mi hija, máximo 500 mil» en los filtros, pesos y preferencias que consume el optimizador; nada se
-aplica sin la confirmación del acudiente. El análisis completo está en el anexo. Como el
+aplica sin la confirmación del acudiente. Como el
 texto lo puede escribir un atacante, las acciones permitidas las fija el servidor y no el modelo. Con 35
 frases (dos repeticiones cada una) y 27 ataques de inyección (tres cada uno), la tarea completa se
 cumplió en 58 de 70 intentos (82,9\,\%) y ningún ataque de inyección (texto malicioso que intenta cambiar las instrucciones del modelo) tuvo
@@ -394,5 +394,7 @@ La página Privacidad y mis datos muestra al acudiente lo que Tukit guarda de é
 El catálogo es propio y curado: el equipo edita los productos y reclasifica conceptos desde la consola, y el precio que se muestra es el menor vigente entre las tiendas consultadas. Para un renglón que el catálogo no tiene, el sistema propone productos de esas tiendas y una persona los aprueba antes de que entren.
 
 La consola reúne la cola de revisión, los trabajos, los pedidos y los casos, y cada servicio emite métricas y trazas con OpenTelemetry para medir los requisitos de rendimiento.
+
+Con las etapas construidas y sus constantes calibradas, el Capítulo~VII mide cada una por separado y después el sistema integrado con pruebas y con acudientes.
 
 

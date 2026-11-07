@@ -155,10 +155,9 @@ Los requerimientos se agrupan en tres categorías: los funcionales, que dicen qu
 Cada requerimiento se priorizó con el método MoSCoW \citep{clegg_case_1994}, que lo clasifica como indispensable
 (\emph{Must}), importante pero no crítico (\emph{Should}), deseable (\emph{Could}) o fuera
 del alcance de esta versión (\emph{Won't}). La especificación reúne 132 requerimientos, de los
-cuales 67 son funcionales, 49 no funcionales y 16 propios del aprendizaje automático. De ellos, 98 llevan prioridad MoSCoW; la Tabla~\ref{tab:moscow} (Anexo~\ref{anx:tablas}) muestra su distribución por
+cuales 67 son funcionales, 49 no funcionales y 16 propios del aprendizaje automático. De ellos, 98 llevan prioridad MoSCoW; la Tabla~\ref{tab:moscow} muestra su distribución por
 componente.\par
 
-% [movida al Anexo: tab:moscow]
 
 Los requerimientos indispensables son 81 de los 98 priorizados (82,7\,\%), y la proporción responde a la naturaleza del
 sistema. Una obligación legal no puede clasificarse como opcional, y tampoco pueden serlo los
@@ -223,15 +222,15 @@ externa, y su depuración (PE-06) está pendiente.
 La segunda restricción proviene del dominio de pagos. El sistema no almacena ningún dato del
 medio de pago del acudiente: ni número de tarjeta, ni fecha de expiración, ni código de
 seguridad. Solo guarda el identificador de la transacción y su estado, porque la captura del
-medio de pago ocurre en el dominio de Wompi, una pasarela de pagos colombiana. En la evaluación se usó una versión simulada de la pasarela, conectada mediante una capa intermedia que permite cambiar a su entorno de pruebas o a otra pasarela (ADR 0033, un registro de decisión de arquitectura). Con ese diseño, Tukit quedaría fuera del alcance de cumplimiento de los datos de tarjeta una vez probada la pasarela real. La confirmación
+medio de pago ocurre en el dominio de Wompi, una pasarela de pagos colombiana. En la evaluación se usó una versión simulada de la pasarela, conectada mediante una capa intermedia que permite cambiar a su entorno de pruebas o a otra pasarela. Con ese diseño, Tukit quedaría fuera del alcance de cumplimiento de los datos de tarjeta una vez probada la pasarela real. La confirmación
 del pago no depende de la respuesta inmediata de la pasarela, porque llega por un aviso firmado de Wompi y
 por la consulta de la transacción cuando el acudiente regresa. Ambos caminos pasan por un
 mismo procedimiento que se puede repetir sin duplicar el efecto (idempotente), porque el aviso puede llegar duplicado o fuera de orden, o
 perderse.
 
-Las restricciones técnicas se derivan del ADR 0014, que decidió guardar todo el código en un solo repositorio (monorrepositorio) y desplegar cada servicio por separado. El sistema tiene seis componentes que se despliegan: cinco servicios de dominio y una puerta de enlace, que recibe las peticiones y las reparte.
+Las restricciones técnicas parten de una decisión: todo el código se guarda junto y cada servicio se despliega por separado, para que una revisión automática pueda comprobar en cada cambio que ningún servicio use los datos de otro. El sistema tiene seis componentes que se despliegan: cinco servicios de dominio y una puerta de enlace, que recibe las peticiones y las reparte.
 
-En la evaluación corrieron en una sola máquina: Docker Compose (que levanta contenedores) arranca la infraestructura y el comando \texttt{make arriba} arranca los procesos, sin autoescalado ni clúster gestionado. Usan un PostgreSQL 16 con una base lógica por servicio, RabbitMQ (cola de mensajes entre servicios) y Redis (almacenamiento en memoria). El despliegue productivo queda como trabajo futuro (Sección~\ref{sec:trabajo-futuro}). Los eventos entre servicios pasan por una bandeja de salida y RabbitMQ (ADR 0046, Sección~\ref{sec:consolidacion}).
+En la evaluación corrieron en una sola máquina: Docker Compose (que levanta contenedores) arranca la infraestructura y un solo comando arranca los procesos, sin autoescalado ni clúster gestionado. Usan un PostgreSQL 16 con una base lógica por servicio, RabbitMQ (cola de mensajes entre servicios) y Redis (almacenamiento en memoria). El despliegue productivo queda como trabajo futuro (Sección~\ref{sec:trabajo-futuro}). Los eventos entre servicios pasan por una bandeja de salida y RabbitMQ, para que ninguno se pierda si un servicio cae (Sección~\ref{sec:consolidacion}).
 
 % =====================================================================
 \subsection{Especificación Funcional}
