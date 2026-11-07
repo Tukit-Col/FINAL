@@ -12,7 +12,7 @@ nueve bloques del lienzo de Osterwalder y Pigneur \citep{osterwalder_business_20
 
 \begin{figure}[!tb]
 \centering
-\includegraphics[width=0.5\textwidth]{negocio/canvas-modelo-negocio}
+\includegraphics[width=0.42\textwidth]{negocio/canvas-modelo-negocio}
 \caption{Lienzo del modelo de negocio de Tukit. Adaptado de Osterwalder y Pigneur
 \citep{osterwalder_business_2010}.}
 \label{fig:canvas}
@@ -66,9 +66,9 @@ Perfil de recurso & La inferencia y la optimización multiobjetivo consumen CPU 
 \subsection{Descomposición en seis desplegables}
 \label{sec:consolidacion}
 
-Las primeras versiones de la arquitectura tuvieron catorce servicios y se consolidaron en los seis desplegables actuales, porque catorce canales de integración son más de lo que un equipo de cuatro personas puede operar frente a decenas de pedidos diarios en temporada (el pico de diseño de RNF05 es de unos 1.000). Los tres impulsores fijaron las fronteras: los colegios pertenecen a identidad, el catálogo se separa de comercio y la búsqueda se reparte entre catálogo e inteligencia, porque sus objetivos de recuperación no permiten compartir almacén. El resultado son cinco servicios de dominio (identidad, catálogo, inteligencia, comercio y operación) y la puerta de enlace, el punto único de entrada que reenvía cada petición al servicio de su ruta, sobre cinco bases. El grafo de sustituibilidad cabe en memoria y no justifica una base de grafos aparte.
+La arquitectura pasó de catorce servicios a seis desplegables, porque catorce canales de integración son más de lo que un equipo de cuatro personas puede operar frente a decenas de pedidos diarios en temporada (el pico de diseño de RNF05 es de unos 1.000). Los tres impulsores fijaron las fronteras: los colegios pertenecen a identidad y el catálogo se separa de comercio porque sus objetivos de recuperación no permiten compartir almacén. El resultado son cinco servicios de dominio (Tabla~\ref{tab:servicios}) y la puerta de enlace, el punto único de entrada, sobre cinco bases.
 
-El catálogo es curado y crece con la demanda: un producto entra cuando una lista lo pide y el equipo confirma la correspondencia. Fowler \citep{fowler_monolithfirst_2015} recomienda empezar por un monolito, pero un almacén único impone el mismo objetivo de recuperación a pedidos y catálogo; por eso quedaron seis servicios gruesos, con fronteras solo donde los datos lo exigen.
+Fowler \citep{fowler_monolithfirst_2015} recomienda empezar por un monolito, pero un almacén único impone el mismo objetivo de recuperación a pedidos y catálogo; por eso son seis servicios gruesos, con fronteras solo donde los datos lo exigen.
 
 
 % =====================================================================
@@ -132,7 +132,7 @@ Caída del catálogo (escenario ESC-R2, resiliencia) & Disyuntor con respaldo & 
 \subsection{Vistas de contexto, contenedores y despliegue}
 \label{sec:vistas}
 
-La vista de contexto (Figura~\ref{fig:c4-contexto}) es el nivel 1 de C4 y muestra a Tukit como un solo sistema: el acudiente y el equipo interactúan con él, y este depende de Gemini (lectura de listas y vectores), Wompi (pagos), los canales de aviso, Google Maps y las tiendas cuyos precios alimentan el catálogo.
+La vista de contexto (Figura~\ref{fig:c4-contexto}) es el nivel 1 de C4 y muestra a Tukit como un solo sistema: el acudiente y el equipo interactúan con él, y este depende de Gemini (lectura de listas y vectores), Wompi (pagos), los canales de aviso, Google Maps y las tiendas.
 
 \begin{figure}[!htb]
 \centering
@@ -143,11 +143,11 @@ sistemas externos, agrupados por función. Cada flecha lleva la información que
 \label{fig:c4-contexto}
 \end{figure}
 
-La vista de contenedores (Figura~\ref{fig:c4-contenedores}, C4 nivel 2) abre el sistema. Las dos aplicaciones llaman a la puerta de enlace; RabbitMQ lleva los eventos entre operación, inteligencia y comercio, e identidad y catálogo no llaman a otros servicios. Las etiquetas A, B y C numeran la subida de la lista, el pago y los avisos.
+La vista de contenedores (Figura~\ref{fig:c4-contenedores}, C4 nivel 2) abre el sistema. Las dos aplicaciones llaman a la puerta de enlace y RabbitMQ lleva los eventos entre servicios. Las etiquetas A, B y C numeran la subida de la lista, el pago y los avisos. La de componentes (Sección~\ref{sec:vista-logica}) abre un solo servicio y la de despliegue (Sección~\ref{sec:vista-fisica}) ubica los procesos en la infraestructura.
 
 \begin{figure}[p]
 \centering
-\resizebox{0.9\textwidth}{!}{\input{img/arquitectura/c4-contenedores.tex}}
+\resizebox{0.84\textwidth}{!}{\input{img/arquitectura/c4-contenedores.tex}}
 \caption{Vista de contenedores (C4 nivel 2) del sistema construido, con los procesos en
 segundo plano de cada servicio y los pasos de la subida de la lista y los kits (A), el pago (B)
 y los avisos (C).}
@@ -160,7 +160,7 @@ Cada servicio registra el evento en su bandeja de salida, en la misma operación
 \subsection{Vista lógica}
 \label{sec:vista-logica}
 
-La vista lógica describe los componentes del sistema y la responsabilidad de cada uno. La división sigue el diseño guiado por el dominio \citep{evans_domain-driven_2004}: cada servicio es una parte del negocio con su vocabulario y sus datos. La Tabla~\ref{tab:servicios} resume cada componente; sus conexiones están en la Figura~\ref{fig:c4-contenedores}.
+La división en componentes sigue el diseño guiado por el dominio \citep{evans_domain-driven_2004}: cada servicio es una parte del negocio con su vocabulario y sus datos. La Tabla~\ref{tab:servicios} resume cada componente, y la Figura~\ref{fig:c4-componentes} abre el servicio de inteligencia, el que concentra la lógica de lectura y optimización.
 
 \begin{table}[!htb]
 \centering\footnotesize
@@ -184,19 +184,27 @@ Operación & Casos de soporte, notificaciones y registro de auditoría. \\
 \end{tabularx}
 \end{table}
 
+\begin{figure}[!htb]
+\centering
+\resizebox{0.9\textwidth}{!}{\input{img/arquitectura/c4-componentes.tex}}
+\caption{Vista de componentes (C4 nivel 3) del servicio de inteligencia: las etapas de percepción,
+normalización, resolución y optimización, el asistente NL2C y los trabajos con su cola de revisión,
+con sus dependencias externas. Línea punteada: dependencia opcional. Misma paleta que la
+Figura~\ref{fig:c4-contenedores}.}
+\label{fig:c4-componentes}
+\end{figure}
+
 Los datos de menores se concentran en identidad, y crear el pedido, reservar el inventario y registrar el pago ocurren en comercio, en una sola transacción. Los servicios se hablan de forma directa cuando necesitan respuesta inmediata y por eventos cuando informan un hecho, como un pago confirmado. Nunca se almacenan datos de tarjeta.
 
 % =====================================================================
 \subsection{Vista física}
 \label{sec:vista-fisica}
 
-La vista física (Figura~\ref{fig:despliegue}) muestra cómo se distribuyen los elementos de Tukit sobre la infraestructura que los ejecuta: todo corre en un portátil del equipo, sin Kubernetes ni autoescalado. Docker Compose levanta PostgreSQL 16 con pgvector (las cinco bases), RabbitMQ, Redis y Jaeger, y el resto corre como procesos locales. Un túnel de Cloudflare expone la web solo durante las sesiones con acudientes, y Wompi funciona en modo simulado.
-
-Las direcciones de las dependencias llegan por variables de entorno, así que los nodos pueden separarse sin cambiar el código.
+En la vista física (Figura~\ref{fig:despliegue}) todo corre en un portátil del equipo, sin Kubernetes ni autoescalado. Docker Compose levanta PostgreSQL 16 con pgvector (las cinco bases), RabbitMQ, Redis y Jaeger, y el resto corre como procesos locales. Un túnel de Cloudflare expone la web solo durante las sesiones con acudientes, y Wompi funciona en modo simulado.
 
 \begin{figure}[!htb]
 \centering
-\resizebox{0.7\textwidth}{!}{\input{img/arquitectura/despliegue.tex}}
+\resizebox{0.6\textwidth}{!}{\input{img/arquitectura/despliegue.tex}}
 \caption[Vista de despliegue: cómo corre Tukit en el equipo.]{Vista de despliegue. Todo el
 sistema corre en un portátil, con un túnel de Cloudflare hacia la web en las sesiones con acudientes.
 Misma paleta que la Figura~\ref{fig:c4-contenedores}.}
@@ -210,23 +218,23 @@ Misma paleta que la Figura~\ref{fig:c4-contenedores}.}
 
 La vista de tiempo de ejecución describe cómo colaboran los componentes en las tres interacciones centrales: cargar la lista, revisarla y pagar el kit.
 
-\paragraph{Proceso 1: cargar la lista y generar los kits.} El acudiente elige la lista oficial de su colegio y grado, o carga la suya, e indica sus preferencias. La puerta de enlace aplica el límite de tasa y reenvía a inteligencia, que registra un trabajo y responde 202 sin esperar el resultado. El trabajador durable lo toma de RabbitMQ o, si el broker no está, de la tabla; lee la lista con Gemini, normaliza cada renglón y pide candidatos al catálogo. Sin candidatos, el renglón queda como hueco; con ellos, el umbral $\tau = 0{,}75$ separa el resuelto automático del ambiguo. El optimizador arma los kits con NSGA-II (Figura~\ref{fig:sec-pipeline}).
+\paragraph{Proceso 1: cargar la lista y generar los kits.} El acudiente elige la lista oficial de su colegio y grado, o carga la suya, e indica sus preferencias. La puerta de enlace aplica el límite de tasa y reenvía a inteligencia, que registra un trabajo y responde 202 sin esperar el resultado. El trabajador durable lo toma de RabbitMQ o, si el broker no está, de la tabla; lee la lista con Gemini, normaliza cada renglón y pide candidatos al catálogo. Sin candidatos, el renglón queda como hueco; con ellos, el umbral $\tau = 0{,}75$ separa el resuelto del ambiguo. El optimizador arma los kits con NSGA-II (Figura~\ref{fig:sec-pipeline}).
 
 \begin{figure}[!htb]
 \centering
-\resizebox{0.85\textwidth}{!}{\input{img/arquitectura/secuencia-pipeline.tex}}
+\resizebox{0.78\textwidth}{!}{\input{img/arquitectura/secuencia-pipeline.tex}}
 \caption{Secuencia de la subida de una lista, el trabajo asíncrono por cola, la clasificación de cada renglón y la construcción de los kits.}
 \label{fig:sec-pipeline}
 \end{figure}
 
-\paragraph{Proceso 2: revisar la lista.} Cuando una lista nueva termina de procesarse, queda en la cola de revisión del administrador de Tukit. Este compara la lectura del sistema con el documento original, valida o corrige los renglones dudosos y marca los productos no disponibles. Solo después de esta revisión los kits se publican para el acudiente, y la lista revisada queda disponible para las demás familias del mismo colegio y grado.
+\paragraph{Proceso 2: revisar la lista.} Cuando una lista nueva termina de procesarse, queda en la cola de revisión del administrador de Tukit. Este compara la lectura con el documento original, corrige los renglones dudosos y marca los productos no disponibles. Solo entonces los kits se publican, y la lista revisada queda disponible para las demás familias del mismo colegio y grado.
 
 
 \paragraph{Proceso 3: confirmar y pagar el kit.} Al confirmar, inteligencia llama a comercio, que crea la orden de forma idempotente, verifica el precio con el catálogo y reserva el inventario. El pago no depende del regreso del acudiente: Wompi avisa por webhook (una llamada a comercio al terminar el pago), comercio verifica la firma, aplica el pago una sola vez y escribe el evento en su bandeja de salida; de ahí pasa a RabbitMQ y operación avisa al acudiente (Figura~\ref{fig:sec-pago}).
 
 \begin{figure}[!htb]
 \centering
-\resizebox{0.85\textwidth}{!}{\input{img/arquitectura/secuencia-pago.tex}}
+\resizebox{0.78\textwidth}{!}{\input{img/arquitectura/secuencia-pago.tex}}
 \caption{Secuencia del proceso de confirmación y pago del kit.}
 \label{fig:sec-pago}
 \end{figure}
@@ -238,7 +246,7 @@ La vista de tiempo de ejecución describe cómo colaboran los componentes en las
 \label{sec:datos}
 \label{sec:modelo-datos}
 
-El modelo de datos sigue la cadena del negocio: el acudiente registra a sus hijos, cada hijo se asocia con un colegio y un grado mediante su matrícula, la matrícula determina la lista oficial, cada renglón se asocia con un concepto del catálogo, y el kit elegido se convierte en pedido con pago y entrega. Cada servicio guarda sus datos en su propia base y conoce los de los demás solo por sus interfaces o eventos; por eso una entidad que se refiere a otro servicio, como el kit a la matrícula, guarda solo su identificador, sin clave foránea entre bases. Las migraciones crean 74 tablas en cinco bases (Tabla~\ref{tab:reparto}, Anexo~\ref{anx:tablas}), todas con bandeja de salida para los eventos.
+El modelo de datos sigue la cadena del negocio: el acudiente registra a sus hijos, cada hijo se asocia con un colegio y un grado mediante su matrícula, la matrícula determina la lista oficial, cada renglón se asocia con un concepto del catálogo, y el kit elegido se convierte en pedido con pago y entrega. Cada servicio guarda sus datos en su propia base y conoce los de los demás solo por sus interfaces o eventos; por eso una entidad que se refiere a otro servicio guarda solo su identificador, sin clave foránea entre bases. Las migraciones crean 74 tablas en cinco bases (Tabla~\ref{tab:reparto}, Anexo~\ref{anx:tablas}), todas con bandeja de salida para los eventos.
 
 La pertenencia de un dato a un colegio (la tenencia) se define por la \emph{matrícula}, la relación formada por estudiante, sede, grado y año lectivo, porque un identificador de colegio en el usuario no sirve cuando un acudiente tiene hijos en colegios distintos (requisito CO-04 del SRS). La matrícula viaja a los demás servicios como referencia lógica y se ubica en la línea del pedido, no en la cabecera. Para leer un recurso basta una matrícula visible; para escribirlo se exigen todas las que referencia.
 
@@ -254,13 +262,13 @@ El código de todos los servicios vive en un mismo proyecto, con despliegue inde
 \subsubsection{Asignación de lenguajes: una decisión medida}
 \label{sec:lenguajes}
 
-La hipótesis era que los componentes de cómputo intensivo debían reescribirse en un lenguaje compilado. Una medición con una lista de veinte ítems, la mediana del corpus, mostró que el 95,3\,\% de la latencia lo producía una línea que reconstruía el grafo de sustituibilidad en cada ítem. Corregida esa línea, la ley de Amdahl \citep{amdahl_validity_1967} acota la ganancia de cambiar de lenguaje entre 20,0\,\% y 21,7\,\%, y el 98,5\,\% de lo restante es el NSGA-II sobre pymoo \citep{blank_pymoo_2020}, sin equivalente maduro compilado. Por eso los seis desplegables están en Python (Tabla~\ref{tab:latencia}).
+La hipótesis era reescribir en un lenguaje compilado los componentes de cómputo intensivo. Una medición con una lista de veinte ítems, la mediana del corpus, mostró que el 95,3\,\% de la latencia lo producía una línea que reconstruía el grafo de sustituibilidad en cada ítem. Corregida esa línea, la ley de Amdahl \citep{amdahl_validity_1967} acota la ganancia de cambiar de lenguaje entre 20,0\,\% y 21,7\,\%, y el 98,5\,\% de lo restante es el NSGA-II sobre pymoo \citep{blank_pymoo_2020}, sin equivalente maduro compilado. Por eso los seis desplegables están en Python (Tabla~\ref{tab:latencia}).
 
 % =====================================================================
 \subsection{Decisiones de diseño}
 \label{sec:adr}
 
-Cada decisión estructural se documentó con su contexto, la alternativa descartada y sus consecuencias \citep{nygard_documenting_2011}. La Tabla~\ref{tab:decisiones-diseno} presenta las que estructuran este capítulo.
+Cada decisión estructural se documentó con su contexto, la alternativa descartada y sus consecuencias \citep{nygard_documenting_2011} (Tabla~\ref{tab:decisiones-diseno}).
 
 \begin{table}[!htb]
 \centering
@@ -282,4 +290,4 @@ Eventos por RabbitMQ con la base como respaldo & Llamadas directas entre servici
 
 \subsection{Síntesis}
 
-El diseño descansa en tres decisiones: los seis desplegables, que salen de los impulsores; la matrícula, que fija a qué colegio pertenece cada dato; y las doce funciones de aptitud, que comprueban las fronteras en cada cambio. El siguiente capítulo describe cómo se construyó esta arquitectura en las Fases~3 y~4.
+El diseño descansa en los seis desplegables, la matrícula como ancla de tenencia y las doce funciones de aptitud. El siguiente capítulo describe cómo se construyó esta arquitectura en las Fases~3 y~4.

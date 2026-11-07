@@ -1,9 +1,8 @@
 \subsection{Evaluación con usuarios}
 \label{sec:oe5}
 
-\textbf{Pregunta.} Las pruebas automáticas de la sección anterior verifican el código, pero no muestran si
-un acudiente, sin que nadie le explique la aplicación, logra armar y pagar el kit de su hijo. Esta
-evaluación lo responde. \textbf{Método.} Es la fase F5 del OE5, con un protocolo
+\textbf{Pregunta.} Las pruebas automáticas verifican el código, pero no muestran si un acudiente, sin que
+nadie le explique la aplicación, logra armar y pagar el kit de su hijo. \textbf{Método.} Es la fase F5 del OE5, con un protocolo
 preregistrado: el plan de análisis, con tareas, métricas y criterios de éxito, se fechó el 28 de octubre de
 2026, antes de la primera sesión, para no ajustar los criterios
 a los resultados. Cada sesión fue una prueba de usabilidad moderada con pensamiento en voz alta
@@ -31,8 +30,7 @@ correcciones que se incorporaron antes del análisis.
 
 \textbf{Resultado.} La Tabla~\ref{tab:oe5-tareas} da el éxito sin ayuda por tarea con su intervalo de
 Wilson. Los seis acudientes completaron el recorrido
-de la cuenta a un pedido pagado; el pago (T6) se resolvió sin ayuda en cuatro de cinco sesiones, en una
-mediana de 43 segundos, y el registro (T1) en cuatro de seis. El resultado que cambia el diseño es T4: solo
+de la cuenta a un pedido pagado. El resultado que cambia el diseño es T4: solo
 uno de cinco revisó los kits y eligió sin ayuda. Se repitieron tres problemas. Primero, dos acudientes no
 encontraron el camino a «Ver mis kits» al terminar la espera. Segundo, no entendieron de dónde sale el kit
 («yo no sé cuánto vale en el Faro», el comercio con el que esa acudiente compara precios) ni qué significa «confiable». Tercero, las listas de 82 productos les
@@ -96,8 +94,18 @@ y sin repetir todos los niveles (Sección~\ref{sec:calidad}). C1 y C2 se cumplen
 pero no en el registro (T1) ni en la elección del kit (T4). Con seis participantes los resultados son
 formativos \citep{nielsen_estimating_1994}, es decir, sirven para ver dónde se concentra la ayuda y orientar
 la siguiente versión. Los primeros cambios apuntan a T4: llevar al acudiente a sus kits cuando estén listos, agrupar los productos por categoría con la tienda
-visible, explicar las etiquetas de nivel y los textos de consolidación, corregir el personaje del segundo
-hijo, reubicar el asistente y aclarar que la cuenta se crea al armar el kit.
+visible, explicar las etiquetas de nivel, corregir el personaje del segundo hijo, reubicar el asistente y
+aclarar que la cuenta se crea al armar el kit.
+
+\textbf{Objetivo general.} El objetivo pide diseñar un sistema de recomendación multiobjetivo que asista la
+construcción de kits escolares y medir su efecto sobre la carga cognitiva percibida, la usabilidad y la
+satisfacción de padres del sector Salitre. La parte de diseño la cubren los OE1 a OE4: el
+sistema calcula el frente de kits sobre cuatro objetivos (Sección~\ref{sec:optimizacion-cal}). La parte de
+medición la cubre esta evaluación: los seis acudientes llegaron de la cuenta a un pedido pagado (simulado), la
+carga percibida bajó de 63 a 9 (C2) y la usabilidad fue de 90 en el SUS (C1); la satisfacción solo se
+describe con el NPS de $+83$. Por eso el objetivo general se cumple en lo que pide, diseñar y medir, con
+efectos formativos por el tamaño de la muestra y con la ayuda en T1 y T4 como el punto que la siguiente
+versión debe bajar.
 
 \textbf{Límite.} El plan se desvió en varios puntos. El reclutamiento fue por conveniencia, con una sola ronda y una sola moderadora, y varios participantes conocen al equipo, así que el análisis se apoya en lo observado y no en los comentarios positivos. En el procedimiento, las
 sesiones se planearon de 15 minutos, el cierre fue una entrevista oral y el SUS, el RTLX y el NPS se

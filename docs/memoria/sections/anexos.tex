@@ -73,7 +73,7 @@ Umbral de reconocimiento & 0,5 & catálogo & Corte por debajo del cual el rengl�
 Aporte del coseno $\gamma$ & 0,15 & catálogo & Ajuste sobre casos de error; pequeño para que el coseno desempate y no decida & En ciclo de calibración \\
 Umbral de rescate $\theta$ & 0,86 & catálogo & Ajuste sobre casos de error; separa un sinónimo de un parecido de tema & En ciclo de calibración \\
 Piso del rescate $\phi$ & 0,55 & catálogo & Apenas sobre el corte de 0,5, para que un rescate entre a revisión & En ciclo de calibración \\
-Umbral de autoaceptación $\tau$ & 0,75 & inteligencia & Valor por omisión (\texttt{TUKIT\_TAU}); sin decisiones humanas para calibrarlo, ver Sección~\ref{sec:optimizacion-cal} & Sin calibrar, declarado \\
+Umbral de autoaceptación $\tau$ & 0,75 & inteligencia & Calibrado con \calTauPares{} pares anotados (precisión \calTauP{}), ver Sección~\ref{sec:optimizacion-cal} & Calibrado, un anotador \\
 Tolerancia de medidas & 0,25 y rango 0,85 a 1,35 & catálogo & Ajuste con las auditorías de los kits (Tabla~\ref{tab:kits}) & Vigente \\
 Rango de precio en tiendas & \$1.000 a \$400.000 & catálogo & Descarta accesorios sueltos y lotes institucionales & Vigente \\
 \midrule
