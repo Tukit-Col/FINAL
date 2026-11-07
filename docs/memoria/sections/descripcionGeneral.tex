@@ -75,7 +75,6 @@ siempre. Cuando pide un personaje recibe además el Fan, que lo incluye, y cuand
 marca posible dentro de ese monto. Después puede reemplazar productos, descartar los que ya tiene, elegir el kit y pagar, en modo simulado.\par
 
 \subsubsection{Justificación de la Solución}
-\label{sec:viabilidad}
 
 La solución es pertinente porque simplifica un proceso que recaía sobre las familias; la medición con
 usuarios está en el Capítulo~VII. Presentar pocas alternativas ya armadas facilita la decisión, porque el
@@ -93,17 +92,7 @@ arquitectura de microservicios permitiría que cada componente crezca según su 
 pymoo \citep{blank_pymoo_2020}, y pagó los modelos de inteligencia artificial por uso; como cada lista oficial se
 procesa una vez y sirve a todas las familias del grado, el costo se repartía entre muchos usuarios.\par
 
-Además de la viabilidad técnica se estimó la económica. Para ello se midió el valor de los kits canónicos (el
-kit estándar publicado para cada colegio y grado) de los trece grados del Colegio Agustiniano Ciudad Salitre,
-y el kit Ahorrador costó en promedio \$609.343 en útiles escolares, sin contar los libros del plan lector. Sobre ese valor se supuso una comisión del 15\,\%,
-equivalente a \$91.401 por kit; al descontar la pasarela de pagos Wompi con IVA (\$20.049, según su tarifa
-publicada), la inteligencia artificial (\$1.000), la entrega a domicilio en Bogotá (\$33.000) y la adquisición
-de clientes (\$8.000), cada kit dejó una contribución de \$29.353, es decir, lo que queda de cada kit tras los costos variables.
-Con la infraestructura del piloto, de \$1.200.000 al año, el punto de equilibrio, que es el número de kits al
-año que cubre los costos fijos, fue de 41 kits, cerca del 3\,\% de las 1.340 familias estimadas del colegio,
-y con la infraestructura escalable, de \$15.000.000 al año, fue de 512 kits (script \texttt{docs/negocio/punto\_equilibrio.py}). La comisión, la logística, la adquisición y la conversión
-de las familias fueron supuestos del equipo que la operación real debía confirmar, y con una comisión del
-10\,\% la contribución por kit resultó negativa.\par
+Además de la viabilidad técnica se estimó la económica. Con una comisión del 15\,\% sobre el kit Ahorrador de los trece grados del Colegio Agustiniano Ciudad Salitre, cada kit dejó una contribución de \$29.353, es decir, lo que queda tras los costos variables. Con la infraestructura del piloto el punto de equilibrio, el número de kits al año que cubre los costos fijos, fue de 41 kits (Sección~\ref{sec:viabilidad}).\par
 
 \subsection{Descripción del Proyecto}
 
@@ -294,7 +283,7 @@ Sec.~\ref{sec:normalizacion} \\
 OE3 & Modelado & Cinco enfoques de lectura; cuatro estrategias de recuperación; resolución léxica; NL2C & Bancos de los prototipos &
 Sec.~\ref{sec:percepcion-dev}, \ref{sec:normalizacion} y \ref{sec:nl2c} \\
 OE3 & Evaluación & F1 de la lectura (combina precisión y cobertura); análisis del umbral de certeza $\tau$, por debajo del cual
-el renglón pasa a revisión humana, fijado en 0,75 por prudencia; revisión humana & Tablas de resultados &
+el renglón pasa a revisión humana, calibrado con \calTauPares{} pares (precisión \calTauP{}); revisión humana & Tablas de resultados &
 Sec.~\ref{sec:percepcion} y \ref{sec:recuperacion} \\
 OE3 & Despliegue & Servicios de inteligencia y de catálogo; cola de revisión &
 Sistema construido & Sec.~\ref{sec:pipeline} \\

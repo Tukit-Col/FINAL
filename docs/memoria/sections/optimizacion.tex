@@ -4,10 +4,8 @@
 La resolución asignó cada renglón a un concepto (Sección~\ref{sec:algoritmo-resolucion}), y cada concepto
 reúne uno o más productos candidatos. Eso no basta para entregar un kit: falta escoger un producto por
 renglón, y esa elección es un compromiso entre costo, marca, disponibilidad y personaje. Este problema es
-la fase de modelado (\emph{Modeling}) de CRISP-DM en la Fase~4 (OE4).  La sección lo formaliza, lo
-resuelve y lo calibra; sus límites se reúnen en la Sección~\ref{sec:amenazas}. La
-Figura~\ref{fig:calibracion-flujo} resume el proceso de calibración, y cada caja remite a la gráfica o a la
-tabla del Anexo~\ref{anx:calibracion}, que queda como consulta.
+la fase de modelado (\emph{Modeling}) de CRISP-DM en la Fase~4 (OE4).  La
+Figura~\ref{fig:calibracion-flujo} resume el proceso de calibración, y cada caja remite al Anexo~\ref{anx:calibracion}.
 
 \begin{figure}[!htb]
 \centering
@@ -19,7 +17,7 @@ donde se ve.}
 \end{figure}
 
 \paragraph{Análisis del problema.} Cada producto que satisface un renglón comprable se llama \emph{candidato}. Sea $n$ el número de
-\emph{líneas decidibles}, es decir, los renglones con al menos un candidato admisible, y sea $C_i$
+\emph{líneas decidibles} (renglones con al menos un candidato admisible) y $C_i$
 el conjunto de candidatos de la línea $i$. Un kit es una asignación
 $\mathbf{x}=(x_1,\dots,x_n)$ con $x_i\in C_i$, y el espacio de búsqueda tiene
 $S=\prod_{i=1}^{n}|C_i|$ asignaciones, de modo que crece de forma exponencial con las líneas:
@@ -53,7 +51,7 @@ ninguno lo cumple, entran todos.
 sobreprecio, y se exige $f_1(\mathbf{x})\leq B$ y $f_1(\mathbf{x})\leq(1+\sigma)\,c_{\min}$, con $\sigma$ el
 sobreprecio aceptado y $c_{\min}$ el menor costo entre los kits del frente con la máxima disponibilidad $f_3$,
 filtro que se aplica antes para recomendar solo lo que está disponible hoy. Se aplican
-sobre el frente completo, porque recortarlo antes escondería opciones que el acudiente aún puede querer ver.
+sobre el frente completo, para no esconder opciones que el acudiente aún puede querer ver.
 \end{enumerate}
 La cantidad por empaque entra en el costo. Si la línea pide $q_i$ unidades y el producto $p$ trae $e_p$
 unidades por empaque, se compran $u_{i,p}=\lceil q_i/e_p\rceil$ empaques (\texttt{unidades\_a\_comprar}),
@@ -68,14 +66,14 @@ f_4(\mathbf{x})&=\frac{1}{n}\sum_{i}\sum_{p}x_{i,p}\,\kappa_p.\label{eq:f3f4}
 \end{align}
 El costo $f_1$ está en pesos y suma solo los productos con precio, de modo que la
 falta de precio baja $f_3$ y no abarata el kit. Los otros tres son promedios por línea en $[0,1]$:
-$f_2$ divide el nivel de marca entre su máximo, 2; $f_3$ es la fracción de líneas
-disponibles hoy; y $f_4$ es la fracción de líneas con el personaje pedido, o con cualquiera
-si no se pidió ninguno. El problema es entonces minimizar
+$f_2$ divide el nivel de marca entre 2; $f_3$ es la fracción de líneas
+disponibles hoy; y $f_4$, la de líneas con el personaje pedido (o con cualquiera
+si no se pidió). El problema es entonces minimizar
 $(f_1,-f_2,-f_3,-f_4)$ sobre las asignaciones que cumplen R1 y R2; R3 se aplica al escoger el punto.
 
 \paragraph{Diseño: entradas y salidas.} La Tabla~\ref{tab:es-optimizador} define los tipos.
 
-\begin{table}[H]
+\begin{table}[!htb]
 \centering\footnotesize
 \caption{Entradas y salidas del optimizador del kit.}
 \label{tab:es-optimizador}
@@ -99,11 +97,11 @@ Si $S\leq\Lambda$, se enumeran las $S$ asignaciones y se conservan las no domina
 frente exacto sin depender de ninguna semilla. Si $S>\Lambda$, se corre NSGA-II
 \citep{deb_fast_2002} sobre pymoo \citep{blank_pymoo_2020}, un algoritmo evolutivo que mantiene una
 \emph{población} de $N$ kits y, en cada una de las $G$ \emph{generaciones}, produce descendientes
-por cruce y mutación y conserva los mejores. La población inicial se siembra con los kits que arma una regla sencilla para cada perfil, de modo que
+por cruce y mutación y conserva los mejores. La población inicial se siembra con los kits de una regla sencilla por perfil, así que
 el frente aproximado nunca queda por debajo de ellos. El algoritmo conserva los mejores kits según su
-rango de dominancia y, entre los de igual rango, los más alejados de sus vecinos (la distancia de
-apiñamiento), para que el frente no se concentre en una sola zona. La corrida termina tras un número
-fijo de generaciones para que la misma semilla reproduzca el mismo frente.
+rango de dominancia y, entre los de igual rango, los más alejados de sus vecinos (distancia de
+apiñamiento), para que el frente no se concentre. La corrida termina tras un número
+fijo de generaciones, así que la misma semilla reproduce el frente.
 
 La segunda fase usa la teoría de la utilidad multiatributo (MAUT) \citep{keeney_decisions_1976}
 \emph{a posteriori}, es decir, primero se calcula el frente y después las preferencias escogen sobre
@@ -124,7 +122,7 @@ calcularlo. Para cada hijo y concepto, el producto de personaje va una vez en la
 encaja sin contradecir sus atributos exigidos, y solo se repite donde la línea pide surtido. Su costo
 es $O(n\cdot a)$, con $a$ el número de atributos exigidos por línea.
 
-\begin{algorithm}[H]
+\begin{algorithm}[!htb]
 \caption{Construcción del frente y selección del kit recomendado}
 \label{alg:frente-maut}
 \KwEntrada{candidatos $C_1,\dots,C_n$; pesos $\mathbf{w}$; tope $B$; sobreprecio $\sigma$; umbral $\Lambda$; semilla $s$}
@@ -157,13 +155,11 @@ total es $O(G\cdot M\cdot N^2)$, que no crece con $S$ más que por $G$; a cambio
 aproximación. MAUT recorre el frente un número constante de veces, con un costo de
 $O(|\mathcal{P}|\,M)$, despreciable frente a la construcción del frente.
 
-En esta comparación se omite el factor $n$ de
-evaluar un kit, común a los dos métodos, y $G$ y $N$ crecen con $\log S$ y $n$. Para saber desde qué tamaño conviene NSGA-II se igualan los dos costos, con la población y las
-generaciones típicas cerca del umbral ($n=\calNTipico$, $N=\calPobTipica$ y $G=\calGenTipica$). Si
+Para saber desde qué tamaño conviene NSGA-II se igualan los dos costos (sin el factor $n$ de
+evaluar un kit, común a ambos), con la población y las generaciones típicas cerca del umbral ($n=\calNTipico$, $N=\calPobTipica$ y $G=\calGenTipica$). Si
 domina el filtro en su peor caso, con $V=S$, la igualdad $S^2M=GMN^2$ da $S=N\sqrt{G}=252\approx
 2^{\calSTeoricoLog}$. Si domina la evaluación, $SM=GMN^2$ da $S=GN^2=63.504\approx 2^{\calSCuadradoLog}$.
-El cruce queda entre esos dos valores, y como las constantes de cada operación difieren, el umbral
-se fijó con la medición.
+El cruce queda entre ambos y el umbral se fijó con la medición.
 
 Para medirlo se armaron \calSubproblemas{} subproblemas con líneas reales y espacios entre $2^{\calNivelMin}$
 y $2^{\calNivelMax}$, y en cada uno se midió el tiempo de pared de los dos métodos. Un
@@ -182,11 +178,10 @@ referencia \citep{zitzler_multiobjective_1999}, entre el frente de NSGA-II y el 
 referencia en 1,1.  El exhaustivo pasa de dos minutos cerca de $2^{\calNivelMaxExacto}$.
 
 \paragraph{Calibración de las constantes.} Los experimentos corrieron con semillas fijas en un \calCPU{} de
-\calNucleos{} núcleos con \calRAM~GiB de memoria, Python \calPython{} y pymoo \calPymoo. Los pesos por omisión salen de la pregunta P21 de la encuesta, que pide ordenar los cuatro
+\calNucleos{} núcleos (\calRAM~GiB, Python \calPython{}, pymoo \calPymoo). Los pesos por omisión salen de la pregunta P21 de la encuesta, que pide ordenar los cuatro
 criterios: el primero recibe 4 puntos y el último 1, y el peso es el puntaje medio dividido entre 10.
 Con \calEncuestados{} respuestas, y con intervalos del 95\,\% por \emph{bootstrap}
-\citep{efron_bootstrap_1979} (un remuestreo de las mismas respuestas que mide cuánto cambiaría el peso
-con otra muestra), los pesos son precio \calWPrecio{} [\calWPrecioBajo; \calWPrecioAlto],
+\citep{efron_bootstrap_1979} (remuestreo de las respuestas), los pesos son precio \calWPrecio{} [\calWPrecioBajo; \calWPrecioAlto],
 marca exigida \calWMarca{} [\calWMarcaBajo; \calWMarcaAlto], calidad \calWCalidad{}
 [\calWCalidadBajo; \calWCalidadAlto] y personaje \calWPersonaje{} [\calWPersonajeBajo;
 \calWPersonajeAlto]. Como los tres primeros intervalos se solapan, la encuesta no permite ordenar precio, marca y
@@ -196,19 +191,16 @@ Las fórmulas de partida de la población y de las generaciones eran
 \[N=\min(200,\max(40,12n)),\qquad G=\min(120,\max(30,20\log_{10}S)).\] La calibración multiplicó la primera por $a$ y la segunda por
 $b$, con $a,b\in\{\calFactores\}$, y escogió la configuración más barata cuyo hipervolumen medio no
 bajara más de \calUmbralHV{} del mejor de la rejilla. Los datos se partieron por colegio, porque dos grados
-de un mismo colegio comparten productos y marcas, y mezclarlos entre ajuste y prueba inflaría el
-resultado. Antes de mirar ningún resultado se apartaron \calColegiosPrueba{} colegios como prueba, con
+de un mismo colegio comparten productos y marcas. Antes de mirar ningún resultado se apartaron \calColegiosPrueba{} colegios como prueba, con
 \calHVListas{} listas, \calPrueba{} de ellas por encima del umbral de enumeración, que son las únicas que
 miden a NSGA-II. Con el resto se hizo validación cruzada en \calPliegues{} pliegues, es decir,
-\calPliegues{} grupos de colegios que se dejan fuera por turnos. El hipervolumen relativo es el del
-frente de cada configuración dividido entre el del mejor frente de la rejilla de $(a,b)$. La regla eligió $a=b=\calA$,
+\calPliegues{} grupos de colegios que se dejan fuera por turnos. El hipervolumen relativo divide el de cada configuración entre el del mejor frente de la rejilla. La regla eligió $a=b=\calA$,
 que da en producción las fórmulas del Algoritmo~\ref{alg:frente-maut}, y al dejar fuera cada pliegue
 eligió lo mismo en \calPlieguesIguales. En el conjunto de prueba, usado una sola vez, la elegida
 obtuvo un hipervolumen relativo medio de \calPruebaElegidaHV{} contra \calPruebaActualHV{} de la de
 partida, una diferencia de \calDifHV{} con intervalo [\calDifHVBajo; \calDifHVAlto]
 y $p<0{,}001$ en la prueba de rangos con signo de Wilcoxon \citep{wilcoxon_individual_1945}. En la
-peor lista la elegida llegó a \calPruebaElegidaHVMin{} contra \calPruebaActualHVMin{}. La
-pérdida es pequeña, y el tiempo medio por lista bajó de \calPruebaActualT~s a \calPruebaElegidaT~s.
+peor lista llegó a \calPruebaElegidaHVMin{} contra \calPruebaActualHVMin{}, y el tiempo medio por lista bajó de \calPruebaActualT~s a \calPruebaElegidaT~s.
 
 El umbral de similitud $\tau=0{,}75$ de la resolución se evaluó y se mantuvo en su valor por omisión,
 porque la única fuente humana es un solo revisor y la validación cruzada agrupada, que sugiere un
@@ -219,18 +211,13 @@ sobreprecios de 5, 10 y 20\,\%, y en la peor lista, con 20\,\%, bajó al 54\,\%.
 
 Por último, en las \calHVListas{} listas de los colegios de prueba el frente de producción alcanzó
 \calHVFrente{} del hipervolumen exacto, y \calPruebaElegidaHV{} en las \calHVListasNsga{} con NSGA-II
-(en las otras ocho el frente es exacto). La Figura~\ref{fig:calibracion-graficas} muestra qué se vio y qué se
-decidió. En (a) el tiempo de la enumeración exacta sube en línea recta en escala logarítmica y el de
-NSGA-II se mantiene cerca de un segundo; las curvas se cruzan cerca de la línea punteada, y de ahí
-salió $\Lambda$, mientras la razón de hipervolumen queda en 1 casi siempre. En (b), la estrella cumple
-el piso de \calUmbralHV{} con la cuarta parte de las evaluaciones del rombo de partida, y por eso se
-eligió. En (c), el personaje queda aparte y los otros tres pesos se solapan. En (d), la fracción de
-sorteos con el mismo kit cae con la perturbación y con el sobreprecio, pero se mantiene sobre 0,7, así
-que la recomendación es estable. En (e), un solo kit cubre una fracción menor del hipervolumen exacto
-(\calHVMAUTPesos{} el elegido por MAUT, \calHVAhorrador{} el Ahorrador y \calHVPremium{} el Premium),
-y por eso se entrega el frente completo.
+(en las otras ocho el frente es exacto). La Figura~\ref{fig:calibracion-graficas} reúne lo anterior: las
+curvas de tiempo se cruzan cerca de $\Lambda$ (a), la configuración elegida cumple el piso con la cuarta parte de
+las evaluaciones de la de partida (b), y la recomendación se mantiene estable bajo la perturbación de los pesos (d). Un solo kit cubre una
+fracción menor del hipervolumen exacto (\calHVMAUTPesos{} el elegido por MAUT, \calHVAhorrador{} el Ahorrador y
+\calHVPremium{} el Premium), y por eso se entrega el frente completo (e).
 
-\begin{figure}[p]
+\begin{figure}[!t]
 \centering
 {\footnotesize\textbf{(a)}}\\\includegraphics[width=0.82\linewidth]{img/calibracion/umbral.pdf}\\[1mm]
 \begin{minipage}[t]{0.44\linewidth}\centering
@@ -249,4 +236,4 @@ listas de prueba.}
 \label{fig:calibracion-graficas}
 \end{figure}
 
-Estos resultados tienen límites: los pesos salen de preferencias declaradas, la prueba tiene solo \calColegiosPrueba{} colegios, la calibración es retrospectiva y los tiempos son de una sola máquina; la Sección~\ref{sec:amenazas} los reúne con los del resto de la evidencia.
+Los límites de estos resultados (preferencias declaradas, solo \calColegiosPrueba{} colegios de prueba, calibración retrospectiva, una sola máquina) se reúnen en la Sección~\ref{sec:amenazas}.

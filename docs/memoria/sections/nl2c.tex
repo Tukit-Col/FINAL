@@ -1,7 +1,7 @@
 \subsection{Asistente en lenguaje natural (NL2C)}
 \label{sec:nl2c}
 
-El asistente convierte la frase de un acudiente en las restricciones del optimizador. Corresponde a las etapas de modelado y evaluación de CRISP-DM en las fases F3 y F4 y sigue la estructura de las secciones anteriores: problema, entradas y salidas, estrategia, seudocódigo, costo, resultados y límites. Las tablas
+El asistente convierte la frase de un acudiente en las restricciones del optimizador. Corresponde a las etapas de modelado y evaluación de CRISP-DM en las fases F3 y F4. Las tablas
 completas de la evaluación están en el Anexo~\ref{anx:nl2c}.
 
 \paragraph{Análisis del problema.} La propuesta aprobada prometió que el acudiente pudiera
@@ -20,7 +20,7 @@ confirmación. Las reglas fijas no bastan, porque los nombres de personajes y ma
 vocabulario abierto y una frase como «calidad primero y precio después» fija los pesos pero no el
 estilo de gasto.
 
-\begin{table}[H]
+\begin{table}[!htb]
 \centering\footnotesize
 \caption{Dominio de los campos de $\mathcal{R}$. Fuente: constantes de \texttt{nl2c.py}.}
 \label{tab:nl2c-dominios}
@@ -54,10 +54,9 @@ de la lista blanca, que la aplicación web vuelve a validar \citep{chen2025genui
 confirma, como piden las pautas de interacción humano-IA \citep{amershi_guidelines_2019}. Con esas
 barandas, el servidor cubre cinco riesgos de la lista OWASP para aplicaciones con modelos de
 lenguaje \citep{owasp2025llm}: inyección de instrucciones, información sensible, manejo de la
-salida, agencia excesiva y consumo ilimitado. La línea base es el formulario de opciones cerradas,
-que no usa modelo ni tiene riesgo de inyección, pero no entiende frases que mezclan campos.
+salida, agencia excesiva y consumo ilimitado. La línea base es el formulario de opciones cerradas, que no usa modelo pero no entiende frases que mezclan campos.
 
-\begin{algorithm}[H]
+\begin{algorithm}[!htb]
 \caption{Interpretación de una preferencia en lenguaje natural}
 \label{alg:nl2c}
 \KwEntrada{texto $t$, catálogo de personajes $\mathcal{C}_P$}
@@ -79,23 +78,19 @@ la normalización de los pesos itera a lo más cuatro veces y la interfaz tiene 
 componentes. En total son $O(|t|+|\mathcal{C}_P|)$ más una llamada al modelo, acotada a 400 tokens de
 salida y 12 segundos de plazo, que domina el tiempo. En la ronda 3, con 70 intentos, esa llamada tuvo
 una latencia p50 de 1.000~ms y p95 de 1.177~ms, con 616 tokens de entrada y 39 de salida en promedio.
-El formulario no llama al modelo, pero su tiempo no se midió con acudientes, de modo que no se afirma
-que NL2C sea más rápido para ellos.
+No se afirma que NL2C sea más rápido que el formulario para los acudientes, porque no se midió.
 
 \paragraph{Dónde quedó en la aplicación.} El componente se construyó para los dos puntos de
 entrada, el inicio del pedido y la página del kit, pero en la versión que usaron los acudientes de
 la ronda 2 de OE5 solo se monta en la página del kit, como el asistente que recibe pedidos de cambio
 del tipo «más barato en cuadernos». En el inicio el equipo dejó el formulario guiado, porque el
 acudiente todavía no ha visto ningún kit y el formulario le muestra de una vez qué puede elegir. El
-servicio de interpretación es el mismo en los dos casos, así que la evaluación de esta sección
-vale para el asistente del kit; el panel del inicio sigue en el código detrás de una bandera
-apagada.
+servicio de interpretación es el mismo, así que la evaluación vale para el asistente del kit; el panel del inicio sigue en el código detrás de una bandera apagada.
 
-Después de la ronda 3, el asistente cambió sin cambiar sus barandas. Ante un pedido por categoría,
-como «más barato en cuadernos», el modelo solo clasifica la acción y la categoría, y reglas del
-servidor eligen renglones, producto y precio, con hasta 12 propuestas y el ahorro total; «Aceptar
-todos» envía cambios individuales con la sesión del acudiente. El contexto se reduce a la acción y
-la categoría anteriores, validadas contra el kit, y el modelo no recibe datos personales.
+Después de la ronda 3, el asistente cambió sin cambiar sus barandas. Ante un pedido por categoría
+(«más barato en cuadernos»), el modelo solo clasifica la acción y la categoría, y reglas del
+servidor eligen renglones, producto y precio, con hasta 12 propuestas; «Aceptar
+todos» envía cambios individuales con la sesión del acudiente. El modelo no recibe datos personales.
 
 \paragraph{Evaluación.} El asistente se midió con 35 frases en español, 22 de la encuesta y 13
 construidas, cuya etiqueta de oro se escribió antes de correr el modelo, y con 27 ataques de
@@ -112,16 +107,14 @@ proponer ante la duda.
 Entre la ronda 2 y la 3 cambió una condición de éxito, y se declara. La
 condición \texttt{descarte\_\allowbreak aplicable} se sustituyó por \texttt{descarte\_sin\_confirmar}, porque al integrar el
 asistente con la sesión de pedidos el descarte pasó a ser aplicable después de la confirmación del
-acudiente. El cambio se hizo después de ver los resultados de la ronda 2, así que no es un criterio
-preregistrado; en esa condición las dos rondas dieron 6 evaluaciones y 0 éxitos. Además, con los
-servicios levantados, 4 pedidos contra un kit real de 36 renglones dieron la respuesta esperada en
-786 a 885~ms cada uno, lo que con $n=4$ es una comprobación de funcionamiento y no una tasa.
+acudiente. El cambio fue posterior a los resultados de la ronda 2, así que no es un criterio
+preregistrado; en esa condición las dos rondas dieron 6 evaluaciones y 0 éxitos. Además, 4 pedidos contra un kit real de 36 renglones dieron la respuesta esperada en
+786 a 885~ms, una comprobación de funcionamiento y no una tasa.
 
 El arnés sin conexión, que usa un modelo que obedece toda orden hostil y mide solo las barandas,
 da 7 éxitos en 27 ataques, igual antes y después del cambio: cinco son ecos del propio texto del
 acudiente y dos son propuestas válidas que él no pidió, que detiene su confirmación. Es el peor caso
-de las barandas y no se compara con el 0 de 81 del modelo real; la ronda en vivo con Gemini sobre el
-asistente nuevo no se hizo. En las sesiones con acudientes (Sección~\ref{sec:oe5}) el asistente
+de las barandas y no se compara con el 0 de 81 del modelo real. En las sesiones con acudientes (Sección~\ref{sec:oe5}) el asistente
 estuvo visible en la página del kit, pero ninguno lo usó por iniciativa propia, así que su utilidad
 con usuarios reales queda como trabajo futuro.
 
