@@ -41,9 +41,8 @@ Seguridad & Pago sin datos de tarjeta; autorización & Barrido de 248 columnas &
 \end{table}
 
 \textbf{Resultado: pruebas automáticas.} De las 2.542 pruebas Python ninguna falló y una quedó saltada
-(la prueba en vivo del asistente, que necesita la llave del modelo). La cobertura de sentencias fue de
-54\,\% en el catálogo y de 98\,\% en la puerta de enlace; la integración continua no exige un mínimo,
-así que describe el estado y no una meta.
+(la prueba en vivo del asistente, que necesita la llave del modelo). La integración continua no exige un
+mínimo de cobertura, así que esta describe el estado y no una meta.
 
 \textbf{Resultado: adversariales de IA.} De 143 pruebas, 23 documentan un defecto. Dejaron hallazgos el
 esquema roto (cuatro formas devolvían error 500 en lugar de 422), la fuga del prompt, los datos personales, la
@@ -55,7 +54,7 @@ agencia excesiva, los embeddings, el consumo sin tope y los identificadores de c
 \textbf{Resultado: degradación.} Con el catálogo colgado, el disyuntor abre a los 26,3~s, dentro de los 30~s
 de ESC-R2. La campaña del 5 de noviembre dio 26,4 y 26,3~s.
 
-\textbf{Resultado: caídas.} En la campaña de octubre fallaron tres escenarios. En CH-04, con el catálogo caído,
+\textbf{Resultado: caídas.} En la campaña de octubre fallaron tres escenarios; su corrección se verificó en una rama aparte, que la versión evaluada no integra. En CH-04, con el catálogo caído,
 la subida de la lista devolvía error 500 y no se guardaba. En CH-12 y CH-15, con PostgreSQL o RabbitMQ caídos,
 los procesos de fondo no volvían, y un pago avisaba dos veces. Tras la corrección (verificación del 20 de
 octubre), la subida responde 202 en 33~ms y se recupera en 2,7~s, CH-12 en 7,1~s, CH-15 en 6,9~s, y el pago manda un solo aviso.
@@ -76,14 +75,14 @@ hallazgos de esa revisión se cerraron cuatro. El defecto de mayor alcance, las 
 de fila de la base de datos que concedían la tabla completa, se evita porque el sistema controla ese acceso
 en la aplicación (Sección~\ref{sec:autorizacion}).
 
-\textbf{Resultado: hallazgos de calidad.} El registro del control de calidad cuenta 85 hallazgos vigentes
+\textbf{Resultado: hallazgos de calidad.} El registro del control de calidad cuenta 85 hallazgos vigentes del sistema evaluado
 al 5 de noviembre (16 de severidad alta, 58 media y 11 baja) y 10 cerrados. Los defectos de código tienen además una prueba que se espera
 que falle (\texttt{xfail} estricto): si el defecto se corrige y la prueba pasa, la prueba falla y obliga
 a cerrar el hallazgo. Entre los de severidad alta están las rutas de administración sin sesión, el
 administrador sin segundo factor de autenticación y el nombre del menor, que llega sin depurar al
 proveedor del modelo.
 
-Queda el recorrido completo. Con pago simulado, dos corridas
+El recorrido completo se evalúa así. Con pago simulado, dos corridas
 automáticas dieron resultados distintos: el pedido llegó a «pagado» el 1 de noviembre y quedó «pendiente
 de pago» el 2, por un fallo de la consulta de estado que no se repitió. En cambio, en las seis sesiones
 con acudientes el pedido terminó pagado. Con eso se da por funcional el recorrido hasta el pago simulado.
@@ -115,5 +114,4 @@ Portabilidad & Infraestructura con Docker Compose y servicios locales con el sis
 \textbf{Lectura.} El sistema integrado cumple la capacidad pedida y el recorrido hasta el pago simulado
 funciona; sin embargo, solo una de las ocho características de la ISO/IEC 25010 quedó probada por
 completo. Los hallazgos de seguridad y privacidad deben cerrarse antes de operar con datos y pagos
-reales, y por eso encabezan el trabajo futuro. Si un acudiente logra usar el sistema sin ayuda es lo que se
-evalúa a continuación.
+reales, y por eso encabezan el trabajo futuro.

@@ -40,7 +40,7 @@ Cada fila: término o cifra, valor canónico y fuente. Estado: V = verificado en
 | Estados | RESUELTO_AUTO, AMBIGUO, SIN_MATCH, HUECO_CATALOGO (v3: COINCIDENCIA, COINCIDENCIA_PARCIAL, SIN_COINCIDENCIA) | `trabajos.py` | V |
 | Método | híbrido léxico más coseno | código | V |
 | Embeddings | `gemini-embedding-001`, 1.024 dimensiones, HNSW en pgvector | código, SDD | V |
-| τ | 0,75 por omisión (`TAU_POR_OMISION`, variable TUKIT_TAU), sin calibrar; limitación declarada: 1.265 resoluciones automáticas con similitud 1,0 y ninguna revisada por una persona | `trabajos.py` línea 77, hallazgo de S2 | V |
+| τ | 0,75 (`TAU_POR_OMISION`, variable TUKIT_TAU), calibrado sobre 405 pares anotados (18 listas, 3 colegios): precisión 0,968 (IC 0,948–0,986), exhaustividad 0,937, AUC 0,921; límite declarado una vez en VIII: un solo anotador y un colegio con 391 de los 405 pares | `trabajos.py` línea 77; `cifras_calibracion.tex` (\calTau*) | V |
 | 0,630 (ADR 0010) y 0,85 como τ | Retirados de todos los documentos | coordinación | V |
 | 0,85 / 0,50 del SDD (8.3) | Clasificación del puntaje multiatributo del mejor candidato; es otro parámetro que τ y se nombra así | SDD 8.3 | V |
 | Brecha δ = 0,05 del SDD | No aparece en `estado_desde_emparejamiento`; retirar o marcar no implementada | `dominio/pipeline.py` | V |

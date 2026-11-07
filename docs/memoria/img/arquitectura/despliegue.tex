@@ -38,9 +38,9 @@
 \node[infra, text width=2.3cm, densely dotted] (redis) at (12.1,-7.0) {\textbf{Redis}\\opcional};
 \node[infra, text width=1.9cm, densely dotted] (jaeger) at (14.1,-7.0) {\textbf{Jaeger}\\opcional};
 \node[anchor=north west, text width=10.9cm, align=left, font=\scriptsize, inner sep=0pt] at (4.2,-7.9)
-  {\texttt{make arriba} levanta los procesos; \texttt{make reanudar} los vuelve a levantar tras un apagado sin sembrar; \texttt{make backend} migra, siembra y levanta de cero.};
+  {Un comando levanta los procesos, otro los vuelve a levantar tras un apagado y un tercero migra, siembra y levanta de cero.};
 % Servicios externos
-\node[ext, text width=3.2cm] (wompi) at (1.8,-4.4) {\textbf{Wompi}\\modo simulado (\texttt{WOMPI\_MODO=falso}); no sale a la red};
+\node[ext, text width=3.2cm] (wompi) at (1.8,-4.4) {\textbf{Wompi}\\modo simulado; no sale a la red};
 \node[ext, text width=3.2cm] (gemini) at (1.8,-6.5) {\textbf{Gemini}\\lectura de listas y vectores};
 \node[ext, text width=3.2cm] (otros) at (1.8,-8.3) {\textbf{Google Maps, correo y tiendas}\\llamadas salientes};
 % Flechas

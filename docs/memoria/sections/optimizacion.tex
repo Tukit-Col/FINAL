@@ -1,9 +1,8 @@
 \subsection{Optimización y calibración}
 \label{sec:optimizacion-cal}
 
-La resolución asignó cada renglón a un concepto (Sección~\ref{sec:algoritmo-resolucion}), y cada concepto
-reúne uno o más productos candidatos. Eso no basta para entregar un kit: falta escoger un producto por
-renglón, y esa elección es un compromiso entre costo, marca, disponibilidad y personaje. Este problema es
+La resolución asignó cada renglón a un concepto (Sección~\ref{sec:algoritmo-resolucion}); falta escoger un producto por
+renglón, un compromiso entre costo, marca, disponibilidad y personaje. Este problema es
 la fase de modelado (\emph{Modeling}) de CRISP-DM en la Fase~4 (OE4).  La
 Figura~\ref{fig:calibracion-flujo} resume el proceso de calibración, y cada caja remite al Anexo~\ref{anx:calibracion}.
 
@@ -33,8 +32,7 @@ por debajo, y el espacio más grande es del orden de $10^{\calEspacioMaxLog}$.
 
 \paragraph{Modelo formal.} Para fijar el problema se usan variables de decisión binarias. Sea
 $x_{i,p}\in\{0,1\}$ igual a 1 si se elige el producto $p$ para la línea decidible $i$, con
-$\sum_{p\in C_i}x_{i,p}=1$ para cada $i$, de modo que cada línea recibe exactamente un producto. El código usa una forma equivalente: la variable de la línea $i$ es el índice entero del candidato,
-en $\{0,\dots,|C_i|-1\}$, que es la que recibe NSGA-II. Las restricciones duras son
+$\sum_{p\in C_i}x_{i,p}=1$ para cada $i$, de modo que cada línea recibe exactamente un producto. NSGA-II recibe una forma equivalente: el índice entero del candidato de cada línea. Las restricciones duras son
 tres y actúan en momentos distintos.
 \begin{enumerate}[label=\textbf{R\arabic*.},leftmargin=*,itemsep=1pt,topsep=2pt]
 \item \emph{Filtros del acudiente, antes del frente} (\texttt{aplicar\_filtros\_duros}). Si
@@ -50,8 +48,8 @@ ninguno lo cumple, entran todos.
 \texttt{elegir\_recomendado\_maut}). El tope $B$ es el presupuesto declarado, sin estirarlo con el
 sobreprecio, y se exige $f_1(\mathbf{x})\leq B$ y $f_1(\mathbf{x})\leq(1+\sigma)\,c_{\min}$, con $\sigma$ el
 sobreprecio aceptado y $c_{\min}$ el menor costo entre los kits del frente con la máxima disponibilidad $f_3$,
-filtro que se aplica antes para recomendar solo lo que está disponible hoy. Se aplican
-sobre el frente completo, para no esconder opciones que el acudiente aún puede querer ver.
+filtro que se aplica antes para recomendar solo lo que está disponible al calcular el kit. Se aplican
+sobre el frente completo, para no esconder opciones que el acudiente puede querer ver.
 \end{enumerate}
 La cantidad por empaque entra en el costo. Si la línea pide $q_i$ unidades y el producto $p$ trae $e_p$
 unidades por empaque, se compran $u_{i,p}=\lceil q_i/e_p\rceil$ empaques (\texttt{unidades\_a\_comprar}),
@@ -67,7 +65,7 @@ f_4(\mathbf{x})&=\frac{1}{n}\sum_{i}\sum_{p}x_{i,p}\,\kappa_p.\label{eq:f3f4}
 El costo $f_1$ está en pesos y suma solo los productos con precio, de modo que la
 falta de precio baja $f_3$ y no abarata el kit. Los otros tres son promedios por línea en $[0,1]$:
 $f_2$ divide el nivel de marca entre 2; $f_3$ es la fracción de líneas
-disponibles hoy; y $f_4$, la de líneas con el personaje pedido (o con cualquiera
+disponibles al calcular el kit; y $f_4$, la de líneas con el personaje pedido (o con cualquiera
 si no se pidió). El problema es entonces minimizar
 $(f_1,-f_2,-f_3,-f_4)$ sobre las asignaciones que cumplen R1 y R2; R3 se aplica al escoger el punto.
 
@@ -96,28 +94,46 @@ después se escoge un punto sobre él. Para la primera fase, el tamaño del espa
 Si $S\leq\Lambda$, se enumeran las $S$ asignaciones y se conservan las no dominadas, lo que da el
 frente exacto sin depender de ninguna semilla. Si $S>\Lambda$, se corre NSGA-II
 \citep{deb_fast_2002} sobre pymoo \citep{blank_pymoo_2020}, un algoritmo evolutivo que mantiene una
-\emph{población} de $N$ kits y, en cada una de las $G$ \emph{generaciones}, produce descendientes
-por cruce y mutación y conserva los mejores. La población inicial se siembra con los kits de una regla sencilla por perfil, así que
-el frente aproximado nunca queda por debajo de ellos. El algoritmo conserva los mejores kits según su
-rango de dominancia y, entre los de igual rango, los más alejados de sus vecinos (distancia de
-apiñamiento), para que el frente no se concentre. La corrida termina tras un número
-fijo de generaciones, así que la misma semilla reproduce el frente.
+\emph{población} de $N$ kits y, en cada una de las $G$ \emph{generaciones}, produce descendientes y conserva
+los mejores por rango de dominancia y, entre iguales, los más alejados de sus vecinos (distancia de
+apiñamiento). Su diseño se resume en la Tabla~\ref{tab:nsga-diseno}.
+
+\begin{table}[!htb]
+\centering\footnotesize
+\caption{Diseño de NSGA-II en el optimizador del kit. $n$ es el número de líneas decidibles y $S$ el tamaño del espacio.}
+\label{tab:nsga-diseno}
+\begin{tabularx}{\textwidth}{@{}p{3.6cm}X@{}}
+\toprule
+Elemento & Valor \\
+\midrule
+Individuo & Vector entero de $n$ posiciones; la posición $i$ es el índice del candidato elegido en la línea $i$, en $\{0,\dots,|C_i|-1\}$ \\
+Cruce & SBX (\emph{simulated binary crossover}), probabilidad 0,9 y $\eta=15$ \\
+Mutación & Polinomial (PM), probabilidad 1,0 y $\eta=20$ \\
+Reparación y duplicados & Los hijos se redondean al entero más cercano y se eliminan los individuos repetidos \\
+Población & $N=6n$ acotada a $[20,100]$ y llevada al par siguiente \\
+Generaciones & $G=10\log_{10}S$ acotadas a $[15,60]$; parada por número fijo, con semilla fija, así que la misma semilla reproduce el frente \\
+Población inicial & Los kits de la regla sencilla de cada perfil y una escalera de costo marginal, completados al azar hasta $N$, así que el frente aproximado nunca queda por debajo de ellos \\
+Del frente al acudiente & De los puntos de máxima disponibilidad se proyectan los kits de los perfiles (Ahorrador, Fan, Premium y, si hay tope o equilibrio, A tu Medida), y MAUT escoge cuál se recomienda \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 La segunda fase usa la teoría de la utilidad multiatributo (MAUT) \citep{keeney_decisions_1976}
 \emph{a posteriori}, es decir, primero se calcula el frente y después las preferencias escogen sobre
-él \citep{miettinen_nonlinear_1999}. Para cada objetivo se define una utilidad $u_j$, lineal entre
-el peor y el mejor valor que alcanza el frente, y la utilidad del kit es
+él \citep{miettinen_nonlinear_1999}. Para cada objetivo $j$ se define una utilidad
+$u_j=(f_j-f_j^{\min})/(f_j^{\max}-f_j^{\min})$ (invertida para el costo), lineal entre el peor y el
+mejor valor que alcanza el frente, y la utilidad del kit es
 $U=\hat w_{\mathrm{precio}}\,u_1+(\hat w_{\mathrm{marca}}+\hat w_{\mathrm{calidad}})\,u_2+\hat w_{\mathrm{personaje}}\,u_4$,
-donde $\hat{\mathbf{w}}$ son los pesos renormalizados para que sumen 1. No entra $u_3$, porque la
-disponibilidad ya se fijó en su máximo. La marca exigida y la
+donde $u_1$, $u_2$ y $u_4$ son las utilidades del costo, la fidelidad de marca y el personaje, y $\hat{\mathbf{w}}$ son los pesos renormalizados para que sumen 1. No entra $u_3$, porque la
+disponibilidad se fija antes en su máximo. La marca exigida y la
 calidad pesan sobre la misma utilidad porque el frente mide ambas con el nivel de marca. La forma
 aditiva supone \emph{independencia preferencial}, es decir, que la preferencia entre dos valores de
-un criterio no depende de los valores de los demás, y ese supuesto se declara. En el código, esta
-fase es la función \texttt{elegir\_recomendado\_maut}, y la regla de recomendación la usa para
-decidir el Premium: lo marca cuando el acudiente acepta al menos un 10\,\% de sobreprecio y MAUT lo
-prefiere al Ahorrador. El Algoritmo~\ref{alg:frente-maut} reúne las dos fases.
+un criterio no depende de los valores de los demás. Los empates se resuelven por menor costo, mayor fidelidad y mayor personaje.
+El Algoritmo~\ref{alg:frente-maut} reúne las dos fases.
 
-Fuera del frente, el kit Fan se arma con una regla de presentación que se aplica después de
+Cada perfil proyecta el frente sobre un eje distinto. El Ahorrador toma el menor costo; el Premium, el máximo de
+(fidelidad, $-$costo, disponibilidad); el Fan, el máximo de (personaje $f_4$, $-$costo, fidelidad), y si el frente no ofrece personaje se comporta como Ahorrador;
+A tu Medida, el de mayor fidelidad cuyo costo cabe en el tope. Además, el kit Fan se arma con una regla de presentación que se aplica después de
 calcularlo. Para cada hijo y concepto, el producto de personaje va una vez en la línea donde mejor
 encaja sin contradecir sus atributos exigidos, y solo se repite donde la línea pide surtido. Su costo
 es $O(n\cdot a)$, con $a$ el número de atributos exigidos por línea.
@@ -167,7 +183,7 @@ ajuste por mínimos cuadrados en escala logarítmica sobre los \calSubproblemasE
 mayor que 1 porque el filtro de no dominados crece más rápido que la evaluación. NSGA-II, con la
 configuración elegida, tardó una mediana de \calTNsgaElegidaMediana~s, y el ajuste la alcanza en
 $S\approx\calCruceElegida$, o en $S\approx\calCruceElegidaP$ si se toma el percentil 95 del ajuste.
-Por eso se fijó $\Lambda=\calLimite=2^{\calLimiteLog}$, con los factores $a$ y $b$ de población y generaciones ya elegidos sobre las mismas
+Por eso se fijó $\Lambda=\calLimite=2^{\calLimiteLog}$, con los factores $a$ y $b$ de población y generaciones elegidos sobre las mismas
 instancias (párrafo \emph{Calibración de las constantes}), entre los dos cruces y dentro del rango que
 predice la teoría. Por debajo del umbral, la enumeración fue más rápida en
 \calExactoGanaBajoElegida{} subproblemas y, por encima, solo en \calExactoGanaSobreElegida. La
@@ -194,7 +210,9 @@ bajara más de \calUmbralHV{} del mejor de la rejilla. Los datos se partieron po
 de un mismo colegio comparten productos y marcas. Antes de mirar ningún resultado se apartaron \calColegiosPrueba{} colegios como prueba, con
 \calHVListas{} listas, \calPrueba{} de ellas por encima del umbral de enumeración, que son las únicas que
 miden a NSGA-II. Con el resto se hizo validación cruzada en \calPliegues{} pliegues, es decir,
-\calPliegues{} grupos de colegios que se dejan fuera por turnos. El hipervolumen relativo divide el de cada configuración entre el del mejor frente de la rejilla. La regla eligió $a=b=\calA$,
+\calPliegues{} grupos de colegios que se dejan fuera por turnos.
+
+El hipervolumen relativo divide el de cada configuración entre el del mejor frente de la rejilla. La regla eligió $a=b=\calA$,
 que da en producción las fórmulas del Algoritmo~\ref{alg:frente-maut}, y al dejar fuera cada pliegue
 eligió lo mismo en \calPlieguesIguales. En el conjunto de prueba, usado una sola vez, la elegida
 obtuvo un hipervolumen relativo medio de \calPruebaElegidaHV{} contra \calPruebaActualHV{} de la de
@@ -202,31 +220,27 @@ partida, una diferencia de \calDifHV{} con intervalo [\calDifHVBajo; \calDifHVAl
 y $p<0{,}001$ en la prueba de rangos con signo de Wilcoxon \citep{wilcoxon_individual_1945}. En la
 peor lista llegó a \calPruebaElegidaHVMin{} contra \calPruebaActualHVMin{}, y el tiempo medio por lista bajó de \calPruebaActualT~s a \calPruebaElegidaT~s.
 
-El umbral de similitud $\tau=0{,}75$ de la resolución se evaluó y se mantuvo en su valor por omisión,
-porque la única fuente humana es un solo revisor y la validación cruzada agrupada, que sugiere un
-$\tau$ entre \calTauCVMin{} y \calTauCVMax{}, tiene una muestra demasiado concentrada para moverlo
-(Sección~\ref{sec:recuperacion}). Para ver cuánto depende la recomendación de los pesos, se sortearon dentro de sus intervalos de la
+El umbral de similitud $\tau=0{,}75$ de la resolución se calibró con \calTauPares{} pares anotados, con una
+precisión de \calTauP{} (Sección~\ref{sec:recuperacion}). Para ver cuánto depende la recomendación de los pesos, se sortearon dentro de sus intervalos de la
 P21. El kit recomendado se mantuvo en el 96,5\,\%, el 98,6\,\% y el 94,6\,\% de los sorteos con
 sobreprecios de 5, 10 y 20\,\%, y en la peor lista, con 20\,\%, bajó al 54\,\%.
 
 Por último, en las \calHVListas{} listas de los colegios de prueba el frente de producción alcanzó
 \calHVFrente{} del hipervolumen exacto, y \calPruebaElegidaHV{} en las \calHVListasNsga{} con NSGA-II
-(en las otras ocho el frente es exacto). La Figura~\ref{fig:calibracion-graficas} reúne lo anterior: las
-curvas de tiempo se cruzan cerca de $\Lambda$ (a), la configuración elegida cumple el piso con la cuarta parte de
-las evaluaciones de la de partida (b), y la recomendación se mantiene estable bajo la perturbación de los pesos (d). Un solo kit cubre una
+(en las otras ocho el frente es exacto). La Figura~\ref{fig:calibracion-graficas} reúne lo anterior. Un solo kit cubre una
 fracción menor del hipervolumen exacto (\calHVMAUTPesos{} el elegido por MAUT, \calHVAhorrador{} el Ahorrador y
 \calHVPremium{} el Premium), y por eso se entrega el frente completo (e).
 
 \begin{figure}[!t]
 \centering
-{\footnotesize\textbf{(a)}}\\\includegraphics[width=0.82\linewidth]{img/calibracion/umbral.pdf}\\[1mm]
-\begin{minipage}[t]{0.44\linewidth}\centering
+{\footnotesize\textbf{(a)}}\\\includegraphics[width=0.7\linewidth]{img/calibracion/umbral.pdf}\\[1mm]
+\begin{minipage}[t]{0.4\linewidth}\centering
 {\footnotesize\textbf{(b)}}\\\includegraphics[width=\linewidth]{img/calibracion/rejilla.pdf}\end{minipage}\hfill
-\begin{minipage}[t]{0.44\linewidth}\centering
+\begin{minipage}[t]{0.4\linewidth}\centering
 {\footnotesize\textbf{(c)}}\\\includegraphics[width=\linewidth]{img/calibracion/pesos_p21.pdf}\end{minipage}\\[1mm]
-\begin{minipage}[t]{0.44\linewidth}\centering
+\begin{minipage}[t]{0.4\linewidth}\centering
 {\footnotesize\textbf{(d)}}\\\includegraphics[width=\linewidth]{img/calibracion/sensibilidad.pdf}\end{minipage}\hfill
-\begin{minipage}[t]{0.44\linewidth}\centering
+\begin{minipage}[t]{0.4\linewidth}\centering
 {\footnotesize\textbf{(e)}}\\\includegraphics[width=\linewidth]{img/calibracion/hipervolumen_prueba.pdf}\end{minipage}
 \caption[Gráficas de la calibración del optimizador.]{Calibración del optimizador. (a) Tiempo de la
 enumeración exacta y de NSGA-II según el tamaño del espacio, y calidad del frente. (b) Rejilla de

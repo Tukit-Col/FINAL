@@ -2,9 +2,7 @@
 \section{RESULTADOS}
 
 El capítulo anterior describió cómo se construyó cada etapa. Este capítulo comprueba si lo construido
-funciona, objetivo por objetivo. Se encontró que la lectura de las listas, la decisión de aceptar un
-renglón sin revisión y el armado de kits cumplen con medidas propias, y que los seis acudientes llegaron
-a un pedido pagado, aunque no siempre sin ayuda. En primer lugar se presentan la lectura de las
+funciona, objetivo por objetivo. En primer lugar se presentan la lectura de las
 listas y la decisión de aceptar o revisar un renglón (OE3, fase F3); luego la optimización de los kits
 (OE4, fase F4), las dos con la etapa de evaluación de CRISP-DM de la Tabla~\ref{tab:fases}; después el
 asistente en lenguaje natural, la verificación del sistema integrado según las características de la
@@ -61,7 +59,7 @@ punto de comparación más simple.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.8\linewidth]{img/calibracion/percepcion_f1.pdf}
+\includegraphics[width=0.7\linewidth]{img/calibracion/percepcion_f1.pdf}
 \caption{Percepción documental en los prototipos de tesis: $F_1$ micro y macro de los cinco enfoques sobre CGS-10 (diez documentos, 1.293 ítems).}
 \label{fig:percepcion}
 \end{figure}
@@ -70,8 +68,6 @@ punto de comparación más simple.
 justifica haberlo elegido frente a ellas. La distancia con Google Vision (0,673) es menos segura de
 leer, porque el oro favorece a Gemini (Sección~\ref{sec:amenazas}). En el primer nivel de las pruebas la
 percepción fue simulada, así que lo que se midió allí es el recorrido posterior a la lectura.
-Con las líneas ya leídas, la pregunta siguiente es si el sistema encuentra el producto que corresponde
-a cada una.
 
 % =====================================================================
 \subsection{Recuperación y decisión de resolución}
@@ -98,7 +94,7 @@ $\tau$ usa \calTauPares{} pares renglón-concepto de \calTauListas{} listas de \
 que un revisor marcó como correctos o incorrectos.
 
 \textbf{Resultado: recuperación.} La mediana de la demora (p50) fue de 6,66\,ms en la léxica pura,
-46,51\,ms en la vectorial densa y 53,17\,ms en la híbrida. Estos valores miden solo tiempo. Para comparar
+46,51\,ms en la vectorial densa y 53,17\,ms en la híbrida. Para comparar
 la relevancia de los modelos de embeddings se usó la biblioteca MTEB, un banco público de evaluación
 \citep{muennighoff_mteb_2023}. En su tarea SpanishPassageRetrievalS2P, de pasajes de
 salud y no escolares, multilingual-e5-large obtuvo un MRR@10 de 0,6163 frente a 0,4735 de
@@ -106,16 +102,14 @@ paraphrase-multilingual-mpnet-base-v2. El sistema construido calcula los embeddi
 gemini-embedding-001, así que esta cifra solo respalda la elección del modelo de los prototipos. Para
 Recall@10 (la fracción de los resultados correctos que aparece entre los 10 primeros) hay dos valores que
 no concuerdan: un informe reporta 1,0000 y la única salida conservada da 0,10 para los índices
-aproximados. Como no se conserva el programa que la produjo, no se afirma ninguno de los dos. Del sistema construido
-se midió la calidad de la recuperación, mediante la decisión con $\tau$ y el recorrido de extremo a
-extremo que siguen.
+aproximados. Como no se conserva el programa que la produjo, no se afirma ninguno de los dos.
 
 \textbf{Resultado: acuerdo en el corpus.} El kappa fue de 0,7331, con intervalo del 95\,\% por
-remuestreo de [0,670; 0,794]. Compara la categoría que
-asigna una heurística con la de un modelo de lenguaje en 45 de las 48 categorías, de modo que describe la
-concordancia entre dos métodos automáticos. El plan de gestión del proyecto (SPMP, IEEE 1058) exige
-$\kappa \ge 0{,}7$ con un segundo anotador humano sobre al menos 30 documentos; el valor medido
-corresponde a la concordancia entre los dos métodos automáticos.
+remuestreo de [0,670; 0,794]. Este índice mide cuánto coinciden dos clasificadores una vez descontado el
+acuerdo que ocurriría por azar. Aquí se compara la categoría que asigna una heurística con la de un modelo
+de lenguaje en 45 de las 48 categorías, de modo que describe la concordancia entre dos métodos
+automáticos. El plan de gestión del proyecto (SPMP, IEEE 1058) exige $\kappa \geq 0{,}7$ con un segundo
+anotador humano sobre al menos 30 documentos; este valor no mide ese criterio, sino el acuerdo entre los dos métodos.
 
 \textbf{Resultado: decisión con $\tau$.} El umbral $\tau = 0{,}75$ se calibró con \calTauPares{} pares
 anotados (\calTauListas{} listas de \calTauColegios{} colegios). El renglón cuyo puntaje de similitud
@@ -137,15 +131,14 @@ En $\tau = 0{,}75$ se aceptaron \calTauTP{} pares correctos y \calTauFP{} incorr
 revisión \calTauFN{} correctos y \calTauTN{} incorrectos. La precisión fue de \calTauP{} (IC 95\,\% por
 \emph{bootstrap} de \calTauPBajo{} a \calTauPAlto{}), la sensibilidad de \calTauR{}
 (la fracción de los pares correctos que el sistema aceptó; \calTauRBajo{}--\calTauRAlto{}), el $F_1$ de
-\calTauF{} (\calTauFBajo{}--\calTauFAlto{}) y la cobertura de \calTauAceptada{}. En palabras llanas: de cada 100 renglones aceptados sin revisión, 97 eran
-correctos. Esa cobertura se mide entre pares que ya tenían candidato; en el recorrido completo de las listas el 35,3\,\% de los renglones se resolvió solo (Sección~\ref{sec:recuperacion}), y $\tau$ sirve para ordenar la revisión, que se hace de todas formas antes de publicar. Aceptar todo daría una
+\calTauF{} (\calTauFBajo{}--\calTauFAlto{}) y la cobertura de \calTauAceptada{}. Esa cobertura se mide entre pares que ya tenían candidato; en el recorrido completo de las listas el 35,3\,\% de los renglones se resolvió solo (Sección~\ref{sec:recuperacion}), y $\tau$ sirve para ordenar la revisión, que se hace de todas formas antes de publicar. Aceptar todo daría una
 precisión de 0,867, el punto de comparación (\calTauAciertos{} aciertos de 405). El AUC fue de \calTauAUC{} (\calTauAUCBajo{}--\calTauAUCAlto{}). Se prefiere la curva de precisión
 frente a cobertura a la ROC porque las clases están desbalanceadas, con 351 pares correctos y 54
 incorrectos, y en ese caso la ROC se ve mejor de lo que es \citep{saito_precision-recall_2015}.
 
 Además se hizo una validación cruzada agrupada, que reparte los pares por colegio y evalúa cada vez
 sobre colegios que no se usaron para elegir $\tau$ (los pliegues retenidos). Con ella, un $\tau$ entre
-\calTauCVMin{} y \calTauCVMax{} ya daba cerca de 95\,\% de precisión. Eso indica que 0,75 es un valor
+\calTauCVMin{} y \calTauCVMax{} daba cerca de 95\,\% de precisión. Eso indica que 0,75 es un valor
 conservador: privilegia la precisión y manda a revisión más renglones de los estrictamente necesarios.
 
 \textbf{Resultado: extremo a extremo.} En un recorrido sobre 60 sublistas (partes de una lista; 2.176
@@ -156,8 +149,7 @@ repetir, para la curaduría del catálogo (la revisión manual de productos).
 
 \textbf{Lectura.} De cada 100 renglones que la regla acepta, 97 son correctos, frente a 87 si se
 aceptara todo. Los \calTauFN{} pares correctos enviados a revisión cuestan una revisión de más; los
-\calTauFP{} pares incorrectos aceptados son el error más caro. Con los renglones ya resueltos, el paso
-siguiente es armar el kit, que es el objetivo del OE4.
+\calTauFP{} pares incorrectos aceptados son el error más caro.
 
 % =====================================================================
 \subsection{Optimización}
@@ -210,7 +202,7 @@ bajaron de 589 a 49 y subieron a 58 en la cuarta, por 23 cuadernos que no dicen 
 huecos finales, 45 son de electrónica, que las tiendas registradas no ofrecen.
 
 \textbf{Lectura.} Los kits que arma el optimizador conservan casi todo el hipervolumen exacto (0,9969)
-con una fracción del tiempo permitido. Falta ver si el acudiente puede pedirlos con sus propias palabras.
+con una fracción del tiempo permitido.
 
 \subsection{Asistente en lenguaje natural}
 \label{sec:resultados-nl2c}
@@ -229,8 +221,7 @@ Con la regla de tres (cota de $3/n$ al 95\,\% cuando no hay éxitos) y contando 
 distintos, porque las repeticiones no son independientes, la tasa real queda por debajo de cerca de 11\,\%. \textbf{Lectura.} Solo se puede afirmar que
 no se encontró un ataque exitoso.
 
-Hasta aquí se midió cada componente por separado; las dos subsecciones siguientes miden el sistema ya
-integrado (OE5), primero con pruebas y después con usuarios.
+Las dos subsecciones siguientes miden el sistema integrado (OE5), con pruebas y con usuarios.
 
 \input{sections/calidad}
 \input{sections/oe5}
@@ -251,7 +242,7 @@ alcanza con 41 kits al año con la infraestructura del piloto (\$1.200.000 al a�
 Para la proyección el equipo supuso 1.500, 8.000 y 25.000 kits vendidos, con costos fijos de 15, 40 y 120
 millones de pesos (Tabla~\ref{tab:proyeccion}).
 
-\begin{table}[H]
+\begin{table}[!htb]
 \centering\small
 \caption{Proyección a tres años, en millones de pesos (salvo los kits).}
 \label{tab:proyeccion}

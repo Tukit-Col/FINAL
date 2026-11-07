@@ -1,0 +1,48 @@
+% Vista de componentes (C4 nivel 3) del servicio de inteligencia. Estilos locales con nombres propios;
+% usa las bibliotecas arrows.meta y shapes.geometric. Misma paleta que la vista de contenedores.
+\definecolor{tcCompF}{HTML}{CFE2F7}\definecolor{tcCompB}{HTML}{1F4E86}
+\definecolor{tcProcF}{HTML}{D3EDD0}\definecolor{tcProcB}{HTML}{2E6B2B}
+\definecolor{tcExtF}{HTML}{FAD7B5}\definecolor{tcExtB}{HTML}{A8500F}
+\definecolor{tcInfF}{HTML}{DEDEDE}\definecolor{tcInfB}{HTML}{4D4D4D}
+\definecolor{tcBdF}{HTML}{CDEBEB}\definecolor{tcBdB}{HTML}{1C6E6E}
+\definecolor{tcMqF}{HTML}{E2D6F4}\definecolor{tcMqB}{HTML}{5B2E99}
+\begin{tikzpicture}[x=1cm, y=1cm, font=\scriptsize,
+  tcc/.style={draw=tcCompB, fill=tcCompF, rounded corners=2pt, align=center, inner sep=2pt, minimum height=11mm, text width=2.4cm},
+  tcp/.style={draw=tcProcB, fill=tcProcF, rounded corners=2pt, align=center, inner sep=2pt, minimum height=11mm},
+  tce/.style={draw=tcExtB, fill=tcExtF, rounded corners=2pt, align=center, inner sep=2pt, minimum height=9mm},
+  tci/.style={draw=tcInfB, fill=tcInfF, rounded corners=2pt, align=center, inner sep=2pt, minimum height=9mm},
+  tcb/.style={draw=tcBdB, fill=tcBdF, rounded corners=2pt, align=center, inner sep=2pt, minimum height=9mm},
+  tcm/.style={draw=tcMqB, fill=tcMqF, rounded corners=2pt, align=center, inner sep=2pt, minimum height=9mm},
+  tcf/.style={-{Stealth[length=1.6mm]}, semithick},
+  tcg/.style={-{Stealth[length=1.6mm]}, semithick, densely dotted},
+  tcr/.style={font=\tiny, fill=white, inner sep=1pt}]
+\draw[draw=black!55, rounded corners=3pt, fill=black!4] (-0.1,0.5) rectangle (14.2,-5.7);
+\node[anchor=north west, font=\scriptsize\bfseries] at (0.05,0.45) {Servicio de inteligencia (puerto 8013)};
+\node[tcc, minimum width=13.2cm, text width=12.8cm] (api) at (7.05,-0.75) {\textbf{Rutas HTTP}: listas, trabajos, revisión, asistente y métricas};
+\node[tcc] (per) at (1.6,-2.85) {\textbf{Percepción}\\lee cada página del PDF y decide si es la lista de un grado};
+\node[tcc] (nor) at (5.0,-2.85) {\textbf{Normalización}\\separa cantidad, empaque y renglones que no se compran};
+\node[tcc] (res) at (8.4,-2.85) {\textbf{Resolución}\\candidatos del catálogo y estado de cada renglón};
+\node[tcc] (opt) at (11.9,-2.85) {\textbf{Optimizador}\\NSGA-II sobre los candidatos y los pesos del hogar};
+\node[tcc, text width=3.4cm] (nl) at (4.6,-4.65) {\textbf{Asistente NL2C}\\convierte lo que escribe el acudiente en cambios al kit};
+\node[tcc, text width=3.4cm] (trab) at (11.0,-4.65) {\textbf{Trabajos y cola de revisión}\\estado durable, trabajador, sondeador y publicador};
+\node[tci, minimum width=1.3cm, densely dotted] (red) at (0.7,-7.3) {\textbf{Redis}\\caché};
+\node[tce, minimum width=2.0cm] (gem) at (2.9,-7.3) {\textbf{Gemini}\\lectura};
+\node[tce, minimum width=2.0cm] (cat) at (8.4,-7.3) {\textbf{Catálogo}\\emparejamiento};
+\node[tcm, minimum width=1.7cm] (mq) at (10.4,-7.3) {\textbf{RabbitMQ}\\eventos};
+\node[tcb, minimum width=1.7cm] (pg) at (12.6,-7.3) {\textbf{PostgreSQL}\\base propia};
+% Dentro del servicio
+\draw[tcf] (per) -- (nor);
+\draw[tcf] (nor) -- (res);
+\draw[tcf] (res) -- (opt);
+\draw[tcf] (3.3,-1.3) -- (nl.north -| 3.3,0);
+\draw[tcf] (13.65,-1.3) |- (trab.east -| 12.7,0);
+\draw[tcf] (9.4,0 |- trab.north) -- (9.4,0 |- res.south);
+\draw[tcf] (11.9,0 |- trab.north) -- node[tcr, right] {orquesta} (opt.south);
+% Hacia afuera
+\draw[tcg] (0.7,0 |- per.south) -- (red.north);
+\draw[tcf] (2.3,0 |- per.south) -- (2.3,0 |- gem.north);
+\draw[tcf] (3.9,0 |- nl.south) -- (3.9,-6.3) -- (3.5,-6.3) -- (3.5,0 |- gem.north);
+\draw[tcf] (res.south) -- node[tcr, right] {HTTP} (cat.north);
+\draw[tcf] (10.4,0 |- trab.south) -- (mq.north);
+\draw[tcf] (12.6,0 |- trab.south) -- (pg.north);
+\end{tikzpicture}

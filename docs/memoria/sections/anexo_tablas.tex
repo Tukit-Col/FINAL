@@ -1,6 +1,25 @@
 \subsection{Tablas de apoyo de los capítulos}
 \label{anx:tablas}
 
+\begin{table}[!htb]
+\centering
+\footnotesize
+\caption{Recorrido, pantalla, requisito, prueba y resultado.}
+\label{tab:requisito-pantalla}
+\begin{tabularx}{\textwidth}{@{}p{2.1cm}p{1.3cm}Xp{2.6cm}p{2.0cm}@{}}
+\toprule
+Recorrido & Pantalla & Requisito & Prueba & Resultado \\
+\midrule
+Solicitud & (b), (c) & Colegio, grado y gustos por hijo; un pedido por hogar; tope como restricción dura & Pruebas de identidad y del optimizador; T1, T2 & T1 4/6; T2 3/5 \\
+Elección del kit & (d) & Dos a cuatro kits del frente con uno recomendado según la utilidad multiatributo (MAUT) & Calidad del frente por hipervolumen (Sección~\ref{sec:optimizacion-cal}); T4 & T4 1/5 \\
+Cambio de producto & (e) & Descarte y cambio dentro del concepto & Pruebas de comercio; T5 & T5 3/5 \\
+Pago & (f) & Widget y confirmación idempotente & Pago simulado; T6, T7 & T6 4/5; T7 2/2 \\
+Revisión del equipo & Fig.~\ref{fig:equipo} & Cada lista nueva se revisa antes de publicarla (PE-04) & Pruebas de la cola; T3 & T3 4/5 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+
 Este anexo conserva las tres tablas de apoyo que los capítulos III y V citan; las demás pasaron al cuerpo o al repositorio.
 
 \iffalse % politicas, adr, comparacion, kits, impulsores, alternativas y entregables: ahora en el cuerpo (V, III, VII) o en el repositorio
