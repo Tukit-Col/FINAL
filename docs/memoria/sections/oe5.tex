@@ -3,11 +3,10 @@
 
 \textbf{Pregunta.} Las pruebas automáticas de la sección anterior verifican el código, pero no muestran si
 un acudiente, sin que nadie le explique la aplicación, logra armar y pagar el kit de su hijo. Esta
-evaluación con usuarios responde eso. \textbf{Método.} Es la fase F5 del OE5, con un protocolo
+evaluación lo responde. \textbf{Método.} Es la fase F5 del OE5, con un protocolo
 preregistrado: el plan de análisis, con tareas, métricas y criterios de éxito, se fechó el 28 de octubre de
 2026 (\path{docs/validacion/plan_analisis_oe5.md}), antes de la primera sesión, para no ajustar los criterios
-a los resultados. Corresponde al nivel de aceptación del control de calidad, el que verifica el sistema con
-usuarios reales. Cada sesión fue una prueba de usabilidad moderada con pensamiento en voz alta
+a los resultados. Cada sesión fue una prueba de usabilidad moderada con pensamiento en voz alta
 \citep{lazar_research_2017}, sin instrucciones. Las tareas siguen la compra: crear la cuenta y elegir colegio
 y grado (T1), declarar personaje y gasto (T2), esperar la generación (T3), revisar y elegir un kit (T4),
 cambiar o quitar un producto (T5), pagar (T6) y encontrar el pedido (T7); T8, pedir un cambio al asistente,
@@ -28,18 +27,16 @@ usó la pasarela en modo simulado. La primera sesión de ACU-04 se cortó al sub
 solo se codifica T1; su segunda grabación muestra el pago aprobado, y por eso se cuentan los seis pagos,
 aunque T6 se codifica sobre cinco sesiones. Las sesiones se grabaron con consentimiento, se transcribieron
 en el equipo del proyecto y un segundo codificador revisó cada hoja contra las mismas fuentes y dejó 78
-correcciones que se incorporaron antes del análisis. Las cifras salen del programa de análisis preregistrado
-(\texttt{analisis\_oe5.py}) sobre \path{docs/validacion/oe5/oe5_ronda2/datos_ronda2.csv}.
+correcciones que se incorporaron antes del análisis.
 
 \textbf{Resultado.} La Tabla~\ref{tab:oe5-tareas} da el éxito sin ayuda por tarea con su intervalo de
-Wilson; como cada tarea tiene su propio n, la tabla lo indica. Los seis acudientes completaron el recorrido
+Wilson. Los seis acudientes completaron el recorrido
 de la cuenta a un pedido pagado; el pago (T6) se resolvió sin ayuda en cuatro de cinco sesiones, en una
 mediana de 43 segundos, y el registro (T1) en cuatro de seis. El resultado que cambia el diseño es T4: solo
 uno de cinco revisó los kits y eligió sin ayuda. Se repitieron tres problemas. Primero, dos acudientes no
 encontraron el camino a «Ver mis kits» al terminar la espera. Segundo, no entendieron de dónde sale el kit
 («yo no sé cuánto vale en el Faro», el comercio con el que esa acudiente compara precios) ni qué significa «confiable». Tercero, las listas de 82 productos les
-generaron «estrés visual». Hubo además fallas puntuales: el asistente flotante tapó el botón «Elegir» en una
-sesión, y el kit Fan mostró solo el personaje de la primera de dos hijas, un defecto real. Ningún acudiente
+generaron «estrés visual». Hubo además dos fallas puntuales: el asistente flotante tapó el botón «Elegir» y el kit Fan mostró solo el personaje de la primera de dos hijas. Ningún acudiente
 usó el asistente por su cuenta.
 
 \begin{table}[htbp]
@@ -95,7 +92,7 @@ NPS (S1) & $+83$ (5 promotores, 1 pasivo) & 50--100 & se reporta \\
 
 \textbf{Lectura.} El OE5 pide pruebas funcionales, no funcionales, de carga y de usabilidad con usuarios
 reales. Las cuatro clases se ejecutaron, aunque las de carga y degradación quedaron en una corrida por equipo
-y con niveles pendientes (Sección~\ref{sec:calidad}). C1 y C2 se cumplen y C3 se alcanzó en el pago (T6),
+y sin repetir todos los niveles (Sección~\ref{sec:calidad}). C1 y C2 se cumplen y C3 se alcanzó en el pago (T6),
 pero no en el registro (T1) ni en la elección del kit (T4). Con seis participantes los resultados son
 formativos \citep{nielsen_estimating_1994}, es decir, sirven para ver dónde se concentra la ayuda y orientar
 la siguiente versión. Los primeros cambios apuntan a T4: llevar al acudiente a sus kits cuando estén listos, agrupar los productos por categoría con la tienda

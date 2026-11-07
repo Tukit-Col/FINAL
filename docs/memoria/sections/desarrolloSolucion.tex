@@ -3,17 +3,14 @@
 \label{cap:desarrolloSolucion}
 
 El Capítulo~V fijó dónde viven los componentes y por qué las fronteras entre servicios se
-trazan así. Este capítulo explica cómo se construyó lo que hay dentro de esas fronteras: el
-mecanismo que convierte una lista escolar fotografiada en un kit de útiles, y la aplicación que lo
-entrega. La construcción siguió SCRUM, con sprints que cerraban un avance funcional y un tablero
+trazan así. Este capítulo explica cómo se construyó lo que hay dentro: el
+mecanismo que convierte una lista fotografiada en un kit, y la aplicación que lo entrega. La construcción siguió SCRUM, con sprints que cerraban un avance funcional y un tablero
 Kanban que mostraba el estado de cada tarea, y CRISP-DM \citep{chapman_crisp-dm_2000} para los
 componentes que dependen de datos. Dentro de ese esquema, las Secciones~\ref{sec:datos-sistema} a
 \ref{sec:normalizacion} corresponden a la preparación de los datos y al modelado de la percepción y
 la resolución (Fase~3, OE3); las Secciones~\ref{sec:optimizacion-dev} y~\ref{sec:optimizacion-cal}, al modelado de la
-optimización (Fase~4, OE4). Después se resume el asistente en lenguaje natural
-(Sección~\ref{sec:nl2c-resumen}) y se cierra con la aplicación web (Sección~\ref{sec:web}), producto
-de los sprints finales de SCRUM, porque el kit se arma antes de pagarse. Las cifras de evaluación se
-presentan en el capítulo de resultados.
+optimización (Fase~4, OE4). Siguen el asistente en lenguaje natural
+(Sección~\ref{sec:nl2c-resumen}) y la aplicación web (Sección~\ref{sec:web}).
 
 % =====================================================================
 \subsection{El pipeline de resolución}
@@ -26,27 +23,24 @@ renglón como ambiguo; y la optimización arma los kits que pide el acudiente, q
 fidelidad de marca, disponibilidad y personaje. Las tres primeras etapas de cálculo se alojan en el
 servicio de inteligencia, cuya carga intensiva en CPU y memoria motivó su separación, y el catálogo
 ejecuta la recuperación sobre su propia base. Las cuatro etapas se implementaron en Python, con
-pymoo \citep{blank_pymoo_2020}, una biblioteca de optimización multiobjetivo, para la última. La ley de
-Amdahl \citep{amdahl_validity_1967}, que calcula cuánto puede acelerarse un programa al mejorar solo
-una de sus partes, acotó en un 21,7\,\% la reducción máxima de latencia (el tiempo de respuesta) de
+pymoo \citep{blank_pymoo_2020} para la última. La ley de
+Amdahl \citep{amdahl_validity_1967} acotó en un 21,7\,\% la reducción máxima de latencia de
 reescribir las etapas en un lenguaje compilado (Sección~\ref{sec:lenguajes}).
 
-Para encadenar las etapas hacía falta decidir quién las coordina (la orquestación). El registro de
-decisión de arquitectura (ADR) 0018 la resolvió con trabajos durables: cada trabajo conserva su
+Para encadenar las etapas hacía falta decidir quién las coordina (la orquestación). La resolvió
+un esquema de trabajos durables: cada trabajo conserva su
 estado, puede reanudarse desde la etapa en que quedó y tiene una espera explícita para la revisión
 humana. Se descartó un motor externo de flujos de trabajo como Temporal o Airflow, desproporcionado
 para un pipeline que cabe en dos tablas, y se difirió LangGraph, una biblioteca para orquestar
 agentes de lenguaje. El sistema usa una tabla de transiciones propia, con seis estados del trabajo
-(el sexto, cancelado, es terminal). Un reintento vuelve a encolar
-el trabajo sin que el acudiente suba otra vez el documento.
+(el sexto, cancelado, es terminal); un reintento vuelve a encolar el trabajo.
 
-El sistema se organiza en un monorrepositorio con despliegue independiente por servicio (ADR 0014):
+El sistema se organiza en un solo código fuente con despliegue independiente por servicio, para que cada etapa pueda cambiar sin tocar las demás:
 seis desplegables, cinco servicios de dominio y la puerta de enlace, sobre cinco bases de datos. Antes
-de él, una prueba de concepto y varios prototipos de tesis sometieron cada etapa a experimentos con
-muestra y métrica. La Tabla~\ref{tab:rag-fases} cuenta, por fase de CRISP-DM, las estrategias de
+de él, una prueba de concepto y varios prototipos sometieron cada etapa a experimentos. La Tabla~\ref{tab:rag-fases} cuenta, por fase de CRISP-DM, las estrategias de
 recuperación (técnicas para encontrar el producto que corresponde a un renglón) implementadas en el
 sistema, las que solo existen en prototipos, las descartadas y otras. Veinte existen solo en
-prototipos, de modo que sus cifras no describen el sistema construido. La medición del umbral $\tau$, en cambio, se repitió sobre el sistema construido (versión \texttt{b6b6fe7}).
+prototipos, de modo que sus cifras no describen el sistema construido. La medición del umbral $\tau$, en cambio, se repitió sobre el sistema construido (la versión evaluada).
 
 \begin{table}[htbp]
 \centering
@@ -75,7 +69,7 @@ Total & 34 & 20 & 8 & 22 & \\
 \subsection{Datos del sistema}
 \label{sec:datos-sistema}
 
-Esta subsección corresponde a la comprensión y la preparación de los datos de CRISP-DM. El sistema
+El sistema
 usa dos clases: el catálogo, que consulta para armar los kits, y los conjuntos de evaluación, con los
 que se mide cada etapa. El catálogo se construyó desde la demanda: un producto entra cuando una lista
 lo pide, pertenece a un concepto, se clasifica en un nivel (económico, confiable o premium), y solo
@@ -86,7 +80,7 @@ conjunto de referencia de recuperación (el «oro», es decir, las respuestas co
 compara) tiene 2.588 renglones. El tercero es el banco de 175 instancias de 174 listas reales de 17
 colegios, que se parte por colegio, porque las listas de un mismo colegio se parecen entre sí: 3 colegios de prueba,
 con 40 listas (32 por encima del umbral de enumeración), y 14 de calibración en cinco pliegues. La
-Tabla~\ref{tab:datos-sistema} reúne las cifras. Como las listas de un mismo colegio se parecen, los resultados pueden salir más favorables de lo real; por eso cada sección de resultados repite esta limitación junto a la cifra que afecta.
+Tabla~\ref{tab:datos-sistema} reúne las cifras. Como las listas de un mismo colegio se parecen, los resultados pueden salir más favorables de lo real.
 
 \begin{table}[htbp]
 \centering
@@ -115,7 +109,7 @@ Partición por colegio & 3 colegios de prueba (40 listas, 32 con NSGA-II) y 14 e
 \subsection{Percepción documental}
 \label{sec:percepcion-dev}
 
-Si los renglones se leen mal, nada de lo que sigue funciona. La primera etapa recibe una fotografía o
+La primera etapa recibe una fotografía o
 un PDF sin estructura garantizada y produce los renglones con su cantidad y su descripción. Los prototipos compararon cinco enfoques: un flujo clásico de reconocimiento
 óptico (PyMuPDF, Tesseract y expresiones regulares), Google Vision, GOT-OCR2.0, Docling y el modelo
 multimodal Gemini, con la métrica F1 (que combina qué tan completo y qué tan correcto es lo extraído)
@@ -134,11 +128,11 @@ El nombre del menor es un dato protegido por la Ley 1581 de 2012 \citep{congreso
 sistema lo protege por minimización, según PV-03 del SRS: no pide el nombre legal, el apodo es opcional y se cifra en reposo,
 y la percepción extrae solo los ítems y el grado. Un dato que no se recoge no llega a los registros,
 a los conjuntos de evaluación ni al modelo. Queda un caso: si el nombre figura en el documento
-cargado, viaja con la página hacia el proveedor y, si el modelo lo lee como renglón, queda 30 días en
-la lectura que guarda Redis. Borrar ese nombre de la lectura guardada en Redis (una base de datos en memoria) está pendiente
-(requisito PE-06 del SRS) y se delimitó como tarea de seguridad previa al despliegue con familias
+cargado, viaja con la página hacia el proveedor y, si el modelo lo lee como renglón, se conserva 30 días en
+la lectura que guarda Redis (una base de datos en memoria). Su borrado de esa lectura corresponde al requisito PE-06 del SRS
+y se programó como tarea de seguridad previa al despliegue con familias
 (Secciones~\ref{sec:defectos} y~\ref{sec:trabajo-futuro}); en el OE5 varios acudientes subieron
-listas de sus hijos, y ese riesgo sigue sin cerrar.
+listas de sus hijos.
 
 % =====================================================================
 \subsection{Normalización y resolución}
@@ -154,8 +148,8 @@ en singular y se separan los atributos que impone la lista (color, tamaño, marc
 El sistema guarda el vector de 1.024 dimensiones de cada producto en el PostgreSQL del catálogo, con
 pgvector (Sección~\ref{sec:dominio}), junto con el modelo y el texto de origen; así el vector se
 respalda con el producto, sin un segundo almacén que sincronizar \citep{kleppmann_designing_2017}.
-La búsqueda se hace en memoria; los índices que aceleran la búsqueda (HNSW para vectores y de trigramas para texto) existen, pero
-harán falta antes de llegar a los 50.000 productos del escenario de crecimiento ESC-E4. De la comparación con MTEB \citep{muennighoff_mteb_2023}, un banco público de modelos de embeddings,
+La búsqueda se hace en memoria; los índices que aceleran la búsqueda (HNSW para vectores y de trigramas para texto) existen y se
+activarán al acercarse a los 50.000 productos del escenario de crecimiento ESC-E4. De la comparación con MTEB \citep{muennighoff_mteb_2023}, un banco público de modelos de embeddings,
 salió e5-large, pero el sistema usa gemini-embedding-001, del mismo proveedor que la percepción,
 porque así no hay modelo ni GPU que alojar. Los dos modelos no se compararon sobre el corpus, así que
 la ventaja es solo operativa. Si el servicio de embeddings falla, la búsqueda sigue solo con la señal
@@ -179,19 +173,12 @@ y no de un barrido; su origen y estado están en el Anexo~\ref{anx:constantes}.
 
 El OE1 definió 99 conceptos; el catálogo los amplió a 149, 145 activos (el oro de recuperación cubre 98), que agrupan los productos equivalentes; 25 conceptos
 cubren el 80,97\,\% de los renglones con concepto. Los atributos y los niveles distinguen las
-variantes, y el sistema se abstiene cuando el producto contradice un atributo impuesto o no lo declara
-(ADR 0043).
+variantes, y el sistema se abstiene cuando el producto contradice un atributo impuesto o no lo declara,
+para no sustituir un producto por otro de atributos distintos.
 
 \subsubsection{Umbral de resolución}
 
-El umbral de resolución $\tau$ es el puntaje por debajo del cual se señala un renglón; vale $\tau=0{,}75$ sobre el puntaje propio de la resolución, como valor
-inicial de un ciclo de calibración con revisión humana (Sección~\ref{sec:ciclos-calibracion}). Su
-efecto está contenido, porque el umbral solo señala renglones dentro de una lista que de todos modos se
-revisa completa: un $\tau$ mal ajustado solo aumenta el tiempo de revisión, porque el administrador revisa toda la lista
-antes de que llegue al acudiente. El valor no se recalibró porque la única referencia humana es la
-curaduría de un solo revisor; el detalle de esa muestra y sus límites está en la
-Sección~\ref{sec:optimizacion-cal}, y la precisión, el intervalo y el AUC de \calTauAUC{} en la
-Sección~\ref{sec:recuperacion}.
+El umbral de resolución $\tau$ es el puntaje por debajo del cual se señala un renglón. Vale $\tau=0{,}75$ sobre el puntaje propio de la resolución y se calibró con \calTauPares{} pares renglón-producto anotados; con ese valor, la precisión de lo que el sistema resuelve solo es \calTauP{}. Decide así: si el puntaje queda por debajo de $\tau$, el renglón pasa a la cola de revisión humana; si queda por encima, se resuelve sin intervención. Su efecto está contenido, porque la lista se revisa completa de todos modos antes de llegar al acudiente: un $\tau$ mal ajustado solo cuesta tiempo de revisión. La referencia humana es la curaduría de un solo revisor; el detalle de la muestra y sus límites está en la Sección~\ref{sec:optimizacion-cal}, y la precisión, el intervalo y el AUC de \calTauAUC{} en la Sección~\ref{sec:recuperacion}.
 
 \subsubsection{Algoritmo de resolución de un renglón}
 \label{sec:algoritmo-resolucion}
@@ -209,7 +196,7 @@ semántica pudiera empeorar un acierto léxico.
 
 \paragraph{Diseño: entradas y salidas.} La Tabla~\ref{tab:es-resolucion} define los tipos.
 
-\begin{table}[H]
+\begin{table}[!htb]
 \centering\footnotesize
 \caption{Entradas y salidas del algoritmo de resolución de un renglón.}
 \label{tab:es-resolucion}
@@ -240,7 +227,7 @@ menor que el léxico, de modo que la señal semántica no puede empeorar un acie
 umbral alto de rescate evita que un parecido de tema, como el de «chaquiras» con «colores», haga que
 el renglón se asigne al concepto equivocado.
 
-\begin{algorithm}[H]
+\begin{algorithm}[!htb]
 \caption{Resolución de un renglón contra el catálogo de conceptos}
 \label{alg:resolucion}
 \KwEntrada{renglón $r$, vector $v_r$ (opcional), conceptos $\mathcal{C}$, parámetros $\gamma,\theta,\phi$}
@@ -276,9 +263,7 @@ ausente y un concepto que el catálogo no cubre.
 \label{sec:optimizacion-dev}
 
 La resolución deja para cada renglón un producto o un conjunto corto de candidatos, y falta escoger
-cuál comprar de cada uno. Esta subsección explica cómo se arma el kit con cuatro objetivos (costo,
-fidelidad de marca, disponibilidad y personaje), qué opciones se le muestran al acudiente, cómo se
-marca la recomendada y de dónde salen las preferencias por omisión; el problema formal y su
+cuál comprar de cada uno. El problema formal y su
 calibración están en la Sección~\ref{sec:optimizacion-cal}. Como ninguna ponderación fija representa a
 todos los acudientes, el sistema calcula el frente de Pareto en vez de optimizar una utilidad única \citep{zitzler_multiobjective_1999}.
 
@@ -288,22 +273,20 @@ generaciones con la lista, con semilla fija. El servicio no arranca sin pymoo.
 
 Del frente salen siempre el Ahorrador (el kit más barato) y el Premium (el de mejor marca). El Fan
 (el que prioriza el personaje pedido) sale solo si el acudiente pidió un personaje, y «A tu Medida» (el de mejor marca que cabe en el tope o, sin tope, a mitad de camino entre
-los otros dos) solo si eligió el punto medio de gasto o declaró un tope (ADR 0030). Pocas opciones bien
+los otros dos) solo si eligió el punto medio de gasto o declaró un tope (NR-02). Pocas opciones bien
 diferenciadas facilitan decidir \citep{thaler_nudge_2008,iyengar_when_2000,schwartz_paradox_2003}
-(NR-02). La recomendación marca el Fan cuando hay personaje y «A tu Medida» cuando se armó; si no, el
+La recomendación marca el Fan cuando hay personaje y «A tu Medida» cuando se armó; si no, el
 Premium cuando el acudiente acepta un sobreprecio de al menos el 10\,\% y la utilidad multiatributo lo
 prefiere al Ahorrador, y en los demás casos el Ahorrador. La regla sale de la encuesta a acudientes del OE1,
 en la que el 70\,\% no pagaría más de un 5\,\% de sobreprecio. El corte del 10\,\% es una constante que
 se fijó en el código sin medirla. El tope es el presupuesto por hijo; si el kit marcado no cabe, se marca el
-de mejor marca que sí cabe y, solo si ninguno cabe, el más barato, con la razón y su costo (ADR 0029).
+de mejor marca que sí cabe y, solo si ninguno cabe, el más barato, con la razón y su costo.
 
 El sistema pide las preferencias como opciones cerradas por hijo (cuánto gastar, presupuesto,
 sobreprecio y personaje; PS-01, PS-02 y PS-04), de modo que quedan explícitas y el acudiente puede cambiarlas.
 Los pesos por omisión de precio, marca exigida, calidad y personaje son 0,285, 0,273, 0,255 y 0,187
 (requisito OP-04 del SRS v6.1) y salen de los puntajes medios de la pregunta P21 de la encuesta, en la
-que el acudiente ordena cuatro criterios. Su derivación, los parámetros de NSGA-II y el hipervolumen
-del frente siguen en la Sección~\ref{sec:optimizacion-cal}; cada constante, con su origen y su estado,
-queda en el Anexo~\ref{anx:constantes}.\label{sec:constantes}
+que el acudiente ordena cuatro criterios. Su derivación sigue en la Sección~\ref{sec:optimizacion-cal}; cada constante queda en el Anexo~\ref{anx:constantes}.\label{sec:constantes}
 
 \input{sections/optimizacion}
 
@@ -313,37 +296,33 @@ queda en el Anexo~\ref{anx:constantes}.\label{sec:constantes}
 
 Además de las opciones cerradas, el sistema ofrece un asistente que traduce una frase como «Minnie para
 mi hija, máximo 500 mil» en los filtros, pesos y preferencias que consume el optimizador; nada se
-aplica sin la confirmación del acudiente. Esta subsección resume su seguridad y su uso, y el análisis
-completo está en el anexo. Como el
+aplica sin la confirmación del acudiente. El análisis completo está en el anexo. Como el
 texto lo puede escribir un atacante, las acciones permitidas las fija el servidor y no el modelo. Con 35
 frases (dos repeticiones cada una) y 27 ataques de inyección (tres cada uno), la tarea completa se
 cumplió en 58 de 70 intentos (82,9\,\%) y ningún ataque de inyección (texto malicioso que intenta cambiar las instrucciones del modelo) tuvo
 éxito en 81 intentos. Por la regla de los tres (con cero éxitos en $n$ intentos, la cota superior del
-95\,\% es cerca de $3/n$), la tasa está por debajo de cerca de 11\,\% si se cuentan los 27 ataques distintos, porque las repeticiones no son independientes. En el OE5 ningún acudiente lo usó, así que solo su seguridad
-está validada y su utilidad queda como trabajo futuro. El detalle está en la
-Sección~\ref{sec:nl2c} del anexo. Con el asistente, el mecanismo queda completo; falta la pieza que el
-acudiente ve.
+95\,\% es cerca de $3/n$), la tasa está por debajo de cerca de 11\,\% si se cuentan los 27 ataques distintos, porque las repeticiones no son independientes. En el OE5 ningún acudiente lo usó, así que lo validado es su seguridad; su utilidad para el acudiente se evaluará con uso real. El detalle está en la
+Sección~\ref{sec:nl2c} del anexo.
 
 % =====================================================================
 \subsection{Prototipo funcional: aplicación web y pago}
 \label{sec:web}
 
-Con el kit ya calculado, falta la parte que el acudiente ve: la interfaz que lleva de la lista al kit y
-al pago, y que completa el prototipo funcional comprometido en la propuesta. Se construyó en los
+La interfaz que lleva de la lista al kit y
+al pago completa el prototipo funcional comprometido en la propuesta. Se construyó en los
 sprints finales de SCRUM, y cada pantalla se cerró contra un requisito del SRS y una prueba. Hay dos roles. El acudiente usa una
 aplicación web progresiva con la secuencia matrícula, solicitud, kits, cambio de productos y pago, que
 la Figura~\ref{fig:recorrido} muestra. El equipo de Tukit usa un panel de administración con la cola
 de verificación, la revisión de cada lista y la logística de entregas, que muestra la
-Figura~\ref{fig:equipo}. La galería completa de capturas está en el repositorio, en \path{docs/memoria/img/desarrollo/}.
+Figura~\ref{fig:equipo}.
 
 La Figura~\ref{fig:recorrido} reproduce el recorrido en la versión que usaron los seis acudientes del
 OE5. La portada (a) explica qué hace Tukit; (b) pide de quién es la lista, el colegio piloto, el grado
-y el personaje; (c) recoge la opción de gasto y el tope como restricción dura (ADR 0029 y 0030); (d)
-compara de dos a cuatro kits del mismo frente, con el recomendado marcado (ADR 0030); (e) permite
-descartar o cambiar productos dentro del mismo concepto (ADR 0028); y (f) confirma el pago (ADR 0025
-y 0033).
+y el personaje; (c) recoge la opción de gasto y el tope como restricción dura; (d)
+compara de dos a cuatro kits del mismo frente, con el recomendado marcado; (e) permite
+descartar o cambiar productos dentro del mismo concepto; y (f) confirma el pago.
 
-\begin{figure}[H]
+\begin{figure}[!htb]
 \centering
 \setlength{\tabcolsep}{2pt}
 \begin{tabular}{ccc}
@@ -362,19 +341,16 @@ web, capturado en la versión usada en el OE5, con pago simulado.}
 \end{figure}
 
 El descarte y el cambio de producto se guardan
-en la solicitud (ADR 0028). Un módulo de dominio calcula el derecho de retracto del artículo 47 de
+en la solicitud. Un módulo de dominio calcula el derecho de retracto del artículo 47 de
 la Ley 1480 de 2011 \citep{congreso_ley1480_2011} (cinco días hábiles desde la entrega, reembolso en
 máximo treinta días). El pago se abre en el widget de Wompi y su confirmación llega por el aviso de la
-pasarela y por la consulta al regresar, con el mismo procedimiento idempotente (ADR 0025 y 0033). Y la
-dirección se sugiere con Google o con Nominatim, con confirmación del punto en un mapa (ADR 0044 y 0049).
+pasarela y por la consulta al regresar, con el mismo procedimiento idempotente. Y la
+dirección se sugiere con Google o con Nominatim, con confirmación del punto en un mapa.
 
 La Tabla~\ref{tab:requisito-pantalla} resume, por recorrido, la pantalla, el requisito que atiende, la
-prueba que lo verifica y el resultado. Las tareas T1 a T7 son las de la evaluación de usabilidad del OE5, hecha según ISO/IEC 25010 con un
-protocolo preregistrado, con seis acudientes del Colegio Agustiniano Ciudad Salitre. El resultado es
-el éxito sin ayuda (T1 con n = 6, T7 con n = 2 y las demás con n = 5). En T4, la elección del kit, solo
-1 de 5 acudientes tuvo éxito (Sección~\ref{sec:oe5}).
+prueba que lo verifica y el resultado. Las tareas T1 a T7 y su éxito sin ayuda son los de la evaluación con usuarios del OE5 (Sección~\ref{sec:oe5}).
 
-\begin{table}[H]
+\begin{table}[!htb]
 \centering
 \footnotesize
 \caption{Recorrido, pantalla, requisito, prueba y resultado.}
@@ -383,10 +359,10 @@ el éxito sin ayuda (T1 con n = 6, T7 con n = 2 y las demás con n = 5). En T4, 
 \toprule
 Recorrido & Pantalla & Requisito & Prueba & Resultado \\
 \midrule
-Solicitud & (b), (c) & Colegio, grado y gustos por hijo; un pedido por hogar; tope como restricción dura (ADR 0029, 0030) & Pruebas de identidad y del optimizador; T1, T2 & T1 4/6; T2 3/5 \\
-Elección del kit & (d) & Dos a cuatro kits del frente con uno recomendado según la utilidad multiatributo (MAUT, ADR 0030) & Calidad del frente por hipervolumen (Sección~\ref{sec:optimizacion-cal}); T4 & T4 1/5 \\
-Cambio de producto & (e) & Descarte y cambio dentro del concepto (ADR 0028) & Pruebas de comercio; T5 & T5 3/5 \\
-Pago & (f) & Widget y confirmación idempotente (ADR 0025, 0033) & Pago simulado; T6, T7 & T6 4/5; T7 2/2 \\
+Solicitud & (b), (c) & Colegio, grado y gustos por hijo; un pedido por hogar; tope como restricción dura & Pruebas de identidad y del optimizador; T1, T2 & T1 4/6; T2 3/5 \\
+Elección del kit & (d) & Dos a cuatro kits del frente con uno recomendado según la utilidad multiatributo (MAUT) & Calidad del frente por hipervolumen (Sección~\ref{sec:optimizacion-cal}); T4 & T4 1/5 \\
+Cambio de producto & (e) & Descarte y cambio dentro del concepto & Pruebas de comercio; T5 & T5 3/5 \\
+Pago & (f) & Widget y confirmación idempotente & Pago simulado; T6, T7 & T6 4/5; T7 2/2 \\
 Revisión del equipo & Fig.~\ref{fig:equipo} & Cada lista nueva se revisa antes de publicarla (PE-04) & Pruebas de la cola; T3 & T3 4/5 \\
 \bottomrule
 \end{tabularx}
@@ -395,16 +371,17 @@ Revisión del equipo & Fig.~\ref{fig:equipo} & Cada lista nueva se revisa antes 
 La Figura~\ref{fig:equipo} muestra las tres pantallas principales del
 equipo. En la cola de verificación (a) ninguna lista llega al acudiente sin que antes la revise una persona del equipo (requisito PE-04); en la
 revisión de una lista (b) el PDF original queda junto a lo que leyó el modelo, para corregir un
-renglón sin salir de la pantalla; y el tablero de logística (c) muestra el mapa de entregas pendientes
+renglón sin salir de la pantalla; y el tablero de logística (c) muestra el mapa de entregas por despachar
 y el consolidado por colegio, con direcciones geocodificadas una sola vez en el servidor.
 
-\begin{figure}[H]
+
+\begin{figure}[!htb]
 \centering
 \setlength{\tabcolsep}{3pt}
 \begin{tabular}{ccc}
-\includegraphics[width=0.32\textwidth,height=0.13\textheight,keepaspectratio]{desarrollo/10-cola-revision-listas} &
-\includegraphics[width=0.32\textwidth,height=0.13\textheight,keepaspectratio]{desarrollo/11a-revision-pdf-y-lectura} &
-\includegraphics[width=0.32\textwidth,height=0.13\textheight,keepaspectratio]{desarrollo/13a-logistica-pedidos} \\
+\includegraphics[width=0.32\textwidth,height=0.11\textheight,keepaspectratio]{desarrollo/10-cola-revision-listas} &
+\includegraphics[width=0.32\textwidth,height=0.11\textheight,keepaspectratio]{desarrollo/11a-revision-pdf-y-lectura} &
+\includegraphics[width=0.32\textwidth,height=0.11\textheight,keepaspectratio]{desarrollo/13a-logistica-pedidos} \\
 \footnotesize (a) Cola de verificación & \footnotesize (b) Revisión de una lista & \footnotesize (c) Logística \\
 \end{tabular}
 \caption[Pantallas del equipo de Tukit.]{Pantallas del equipo de Tukit en el panel de
@@ -412,6 +389,10 @@ administración, con datos de demostración.}
 \label{fig:equipo}
 \end{figure}
 
-El pago se probó con la pasarela en modo simulado (\texttt{WOMPI\_MODO=falso}); la prueba en el \emph{sandbox} de Wompi
-queda pendiente\pendienteEvidencia{pago de extremo a extremo en el sandbox de Wompi} y el cobro real depende del
-despliegue productivo (Sección~\ref{sec:trabajo-futuro}).
+La página Privacidad y mis datos muestra al acudiente lo que Tukit guarda de él, le permite descargar una copia, retirar su autorización o pedir la supresión de su cuenta, conforme a la Ley 1581 de 2012 \citep{congreso_ley1581_2012}. Al suprimir, cada servicio borra o anonimiza su parte y confirma, de modo que repetir la orden no cambia nada.
+
+El catálogo es propio y curado: el equipo edita los productos y reclasifica conceptos desde la consola, y el precio que se muestra es el menor vigente entre las tiendas consultadas. Para un renglón que el catálogo no tiene, el sistema propone productos de esas tiendas y una persona los aprueba antes de que entren.
+
+La consola reúne la cola de revisión, los trabajos, los pedidos y los casos, y cada servicio emite métricas y trazas con OpenTelemetry para medir los requisitos de rendimiento.
+
+

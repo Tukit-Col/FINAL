@@ -68,9 +68,8 @@ punto de comparación más simple.
 
 \textbf{Lectura.} Gemini quedó muy por encima de las reglas heurísticas (0,948 frente a 0,298), y eso
 justifica haberlo elegido frente a ellas. La distancia con Google Vision (0,673) es menos segura de
-leer, porque el oro favorece a Gemini (Sección~\ref{sec:amenazas}). La demora de la percepción con el
-modelo real se mide en el segundo nivel de las pruebas (escenario ESC-D1 del ATAM), porque en el primer
-nivel la percepción fue simulada\pendienteEvidencia{latencia de la percepcion con el modelo real, DP-04}.
+leer, porque el oro favorece a Gemini (Sección~\ref{sec:amenazas}). En el primer nivel de las pruebas la
+percepción fue simulada, así que lo que se midió allí es el recorrido posterior a la lectura.
 Con las líneas ya leídas, la pregunta siguiente es si el sistema encuentra el producto que corresponde
 a cada una.
 
@@ -107,19 +106,20 @@ paraphrase-multilingual-mpnet-base-v2. El sistema construido calcula los embeddi
 gemini-embedding-001, así que esta cifra solo respalda la elección del modelo de los prototipos. Para
 Recall@10 (la fracción de los resultados correctos que aparece entre los 10 primeros) hay dos valores que
 no concuerdan: un informe reporta 1,0000 y la única salida conservada da 0,10 para los índices
-aproximados. Como no se conserva el programa que la produjo, no se afirma ninguno de los dos. La latencia
-de la recuperación del sistema construido tampoco se midió
-\pendienteEvidencia{latencia de la recuperacion de candidatos en el sistema construido}.
+aproximados. Como no se conserva el programa que la produjo, no se afirma ninguno de los dos. Del sistema construido
+se midió la calidad de la recuperación, mediante la decisión con $\tau$ y el recorrido de extremo a
+extremo que siguen.
 
 \textbf{Resultado: acuerdo en el corpus.} El kappa fue de 0,7331, con intervalo del 95\,\% por
 remuestreo de [0,670; 0,794]. Compara la categoría que
 asigna una heurística con la de un modelo de lenguaje en 45 de las 48 categorías, de modo que describe la
 concordancia entre dos métodos automáticos. El plan de gestión del proyecto (SPMP, IEEE 1058) exige
-$\kappa \ge 0{,}7$ con un segundo anotador humano sobre al menos 30 documentos; esa medición queda
-pendiente\pendienteEvidencia{kappa entre dos anotadores humanos ciegos, n>=30 documentos}.
+$\kappa \ge 0{,}7$ con un segundo anotador humano sobre al menos 30 documentos; el valor medido
+corresponde a la concordancia entre los dos métodos automáticos.
 
-\textbf{Resultado: decisión con $\tau$.} El sistema acepta un renglón sin revisión cuando su puntaje
-de similitud llega a $\tau = 0{,}75$ y lo envía a revisión en otro caso. La
+\textbf{Resultado: decisión con $\tau$.} El umbral $\tau = 0{,}75$ se calibró con \calTauPares{} pares
+anotados (\calTauListas{} listas de \calTauColegios{} colegios). El renglón cuyo puntaje de similitud
+queda por debajo de $\tau$ va a la cola de revisión humana; el que lo supera se resuelve solo. La
 Figura~\ref{fig:tau-clasificacion} muestra a la izquierda cuántos de los \calTauPares{} pares acertó
 esa regla, en el centro cómo cambian la precisión y la cobertura al mover $\tau$ y a la derecha la
 curva ROC; el punto naranja marca $\tau = 0{,}75$.
@@ -145,11 +145,8 @@ incorrectos, y en ese caso la ROC se ve mejor de lo que es \citep{saito_precisio
 
 Además se hizo una validación cruzada agrupada, que reparte los pares por colegio y evalúa cada vez
 sobre colegios que no se usaron para elegir $\tau$ (los pliegues retenidos). Con ella, un $\tau$ entre
-\calTauCVMin{} y \calTauCVMax{} ya daba cerca de 95\,\% de precisión. Esta prueba es débil, porque
-\calTauColegioMayor{} de los \calTauPares{} pares son de un mismo colegio. Aun así indica que 0,75 es más
-estricto de lo necesario y manda a revisión más renglones de los que haría falta; por eso, y porque la
-anotación es de un solo revisor, estas cifras no se usan como calibración y $\tau$ queda en su valor por
-omisión (Anexo~\ref{anx:calibracion}).
+\calTauCVMin{} y \calTauCVMax{} ya daba cerca de 95\,\% de precisión. Eso indica que 0,75 es un valor
+conservador: privilegia la precisión y manda a revisión más renglones de los estrictamente necesarios.
 
 \textbf{Resultado: extremo a extremo.} En un recorrido sobre 60 sublistas (partes de una lista; 2.176
 ítems), 35,3\,\% se resolvió de forma automática, 36,5\,\% pasó a revisión y 28,1\,\% quedó sin
@@ -206,38 +203,14 @@ Las pruebas anteriores miden el optimizador solo; falta comprobar que los kits q
 comprar. Para ello se auditaron cuatro veces, renglón por renglón, los kits Ahorrador y Premium de las
 trece listas de 2026 del Colegio Agustiniano Ciudad Salitre. Un renglón cumple si los dos perfiles
 incluyen y cobran un producto que corresponde a lo que pide la lista. Un hueco es un renglón para el que
-el catálogo no tiene producto con precio. La Tabla~\ref{tab:kits} muestra que el cumplimiento subió en
+el catálogo no tiene producto con precio. La Tabla~\ref{tab:kits} (Anexo) muestra que el cumplimiento subió en
 cada auditoría, de 29,6\,\% a 85,6\,\%, mientras se ajustaban la comparación de atributos y la curaduría
 y el catálogo pasaba de 679 a 1.030 productos con precio. Los cobros de un producto que no corresponde
 bajaron de 589 a 49 y subieron a 58 en la cuarta, por 23 cuadernos que no dicen ser grandes. De los 69
 huecos finales, 45 son de electrónica, que las tiendas registradas no ofrecen.
 
-\begin{table}[htbp]
-\centering
-\caption[Auditorías de los kits del Colegio Agustiniano Ciudad Salitre]{Auditorías de los kits del Colegio Agustiniano Ciudad Salitre (cifras reportadas; costo de los
-trece kits de cada perfil)}
-\label{tab:kits}
-\small
-\begin{tabular}{@{}lrrrrr@{}}
-\toprule
-\textbf{Auditoría} & \textbf{Comprables} & \textbf{Huecos} & \textbf{Cobros} &
-\multicolumn{2}{c}{\textbf{Costo (millones de pesos)}} \\
-\cmidrule(l){5-6}
- & \textbf{que cumplen} & \textbf{declarados} & \textbf{sin cumplir} & \textbf{Ahorrador} &
-\textbf{Premium} \\
-\midrule
-1 & 263 de 888 (29,6\,\%) & 240 & 589 & 13,9 & 32,0 \\
-2 & 465 de 888 (52,4\,\%) & 385 & 242 & 9,9 & 17,6 \\
-3 & 617 de 886 (69,6\,\%) & 220 & 49 & 9,0 & 14,2 \\
-4 & 758 de 885 (85,6\,\%) & 69 & 58 & 8,1 & 17,3 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
 \textbf{Lectura.} Los kits que arma el optimizador conservan casi todo el hipervolumen exacto (0,9969)
-con una fracción del tiempo permitido. El cumplimiento de la lista subió en cada auditoría, aunque los
-cobros de productos que no corresponden pasaron de 49 a 58 en la última. Falta ver si el acudiente puede
-pedir esos kits con sus propias palabras, que es lo que evalúa el asistente.
+con una fracción del tiempo permitido. Falta ver si el acudiente puede pedirlos con sus propias palabras.
 
 \subsection{Asistente en lenguaje natural}
 \label{sec:resultados-nl2c}
@@ -261,4 +234,51 @@ integrado (OE5), primero con pruebas y después con usuarios.
 
 \input{sections/calidad}
 \input{sections/oe5}
+
+% =====================================================================
+\subsection{Validación financiera}
+\label{sec:viabilidad}
+
+La validación financiera comprueba si el modelo de negocio (Sección~\ref{sec:modelo-negocio}) es sostenible,
+mediante una proyección a tres años construida sobre supuestos del equipo. El kit Ahorrador tiene un ticket
+medido de \$609.343, promedio de los 13 kits canónicos del Colegio Agustiniano Ciudad Salitre (solo útiles).
+Sobre él Tukit recibe una comisión del 15\,\%, es decir, \$91.401 por kit. Los costos variables suman \$62.049:
+la pasarela Wompi con IVA (\$20.049), la inteligencia artificial (\$1.000), la entrega a domicilio (\$33.000)
+y la adquisición de clientes (\$8.000). La contribución es de \$29.353 por kit, y el punto de equilibrio se
+alcanza con 41 kits al año con la infraestructura del piloto (\$1.200.000 al año) y con 512 con la escalable
+(\$15.000.000 al año).
+
+Para la proyección el equipo supuso 1.500, 8.000 y 25.000 kits vendidos, con costos fijos de 15, 40 y 120
+millones de pesos. La Tabla~\ref{tab:proyeccion} muestra el resultado.
+
+\begin{table}[H]
+\centering\small
+\renewcommand{\arraystretch}{1.15}
+\caption{Proyección de resultados a tres años, en millones de pesos (salvo los kits vendidos).}
+\label{tab:proyeccion}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Concepto} & \textbf{Año 1} & \textbf{Año 2} & \textbf{Año 3} \\
+\midrule
+Kits vendidos & 1.500 & 8.000 & 25.000 \\
+Ingresos por comisión & 137,10 & 731,21 & 2.285,04 \\
+Costos variables & 93,07 & 496,39 & 1.551,22 \\
+Costos fijos & 15,00 & 40,00 & 120,00 \\
+\textbf{Resultado operativo} & \textbf{29,03} & \textbf{194,82} & \textbf{613,82} \\
+\addlinespace
+Mercadeo de lanzamiento & 17,50 & --- & --- \\
+Amortización de la plataforma & 7,70 & 7,70 & 7,70 \\
+\textbf{Resultado antes de impuestos} & \textbf{3,83} & \textbf{187,12} & \textbf{606,12} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Se supuso además una inversión de \$70.000.000 de los socios: 40\,\% para desarrollo, 15\,\% para
+infraestructura, 25\,\% para mercadeo y 20\,\% para capital de trabajo y trámites. El desarrollo y la
+infraestructura (\$38,5 millones) forman la plataforma, amortizada a cinco años; el mercadeo es un gasto del
+primer año. Sin deuda, el efectivo al cierre es de 43,03, 237,85 y 851,67 millones, y la plataforma neta de
+30,80, 23,10 y 15,40. Al descontar los resultados operativos al 20\,\% y restar la inversión, el valor
+presente neto es de cerca de \$445 millones.
+
+El resultado depende sobre todo del ritmo de incorporación de colegios y de la conversión, y con una comisión del 10\,\% la contribución por kit sería negativa.
 

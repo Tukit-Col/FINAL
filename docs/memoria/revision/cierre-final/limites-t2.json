@@ -1,0 +1,90 @@
+[
+ [
+  "calidad.tex",
+  "Los niveles 2 y 3 de caos no se repitieron completos: la campaña del 5-nov ejecutó 25 ensayos (14 cumplen, 10 no, 1 no concluyente) y omitió 14 por decisión del equipo."
+ ],
+ [
+  "calidad.tex",
+  "Fallas nuevas de la campaña del 5-nov sin arreglo: CH-09 (reserva vencida no se libera), CH-24 (supresión queda en propagando) y CH-30 (un aviso de pago se pierde al reiniciar RabbitMQ)."
+ ],
+ [
+  "calidad.tex",
+  "Las correcciones de octubre (CH-04, CH-12, CH-15) están en una rama aparte, no integradas a main; no se sabe si la versión de noviembre las contiene; la verificación no repitió los otros siete escenarios de caos."
+ ],
+ [
+  "calidad.tex",
+  "Telemetría no cumple: 0 trazas por correlación en el ejemplo; p50 de recuperación 1060,8 ms frente a umbral de 100 ms (unidad por definir)."
+ ],
+ [
+  "calidad.tex",
+  "Carga en WSL2: L-03, L-05 y L-06 no cumplen; las cargas de Windows y Mac no son comparables; logs del gateway de L-03 y L-06 no conservados."
+ ],
+ [
+  "calidad.tex",
+  "Tabla de niveles de usabilidad, pago con llaves sandbox de Wompi, pruebas en dispositivos y auditoría de dependencias de Python no se ejecutaron (el Límite original de la subsección ya no los menciona; deben ir a Limitaciones VIII)."
+ ],
+ [
+  "calidad.tex",
+  "Una corrida por equipo con percepción simulada (modelo simulado)."
+ ],
+ [
+  "resultados.tex",
+  "La latencia de la percepción con el modelo real (ESC-D1, DP-04) no se midió: en el primer nivel de pruebas la percepción fue simulada."
+ ],
+ [
+  "resultados.tex",
+  "La latencia de la recuperación de candidatos en el sistema construido no se midió."
+ ],
+ [
+  "resultados.tex",
+  "No hay kappa entre dos anotadores humanos ciegos (el plan SPMP exige κ ≥ 0,7 con n ≥ 30 documentos); el 0,7331 es entre dos métodos automáticos."
+ ],
+ [
+  "resultados.tex",
+  "La calibración de τ se hizo con un solo anotador, y \\calTauColegioMayor{} de los \\calTauPares{} pares son de un mismo colegio."
+ ],
+ [
+  "resultados.tex",
+  "La proyección financiera descansa en supuestos del equipo (volúmenes, costos fijos, inversión). El ticket sale de un solo colegio (13 kits canónicos), y con comisión del 10 % la contribución por kit es negativa."
+ ],
+ [
+  "descripcionGeneral.tex",
+  "Quitado del cuerpo: los supuestos de comisión, logística, adquisición y conversión eran del equipo y la operación real debía confirmarlos; con comisión del 10% la contribución por kit es negativa. Va a Limitaciones, junto a la sección VII de viabilidad."
+ ],
+ [
+  "descripcionGeneral.tex",
+  "Quitado del párrafo: el desglose de costos variables (Wompi $20.049, IA $1.000, entrega $33.000, adquisición $8.000), el costo medio del kit Ahorrador ($609.343), la infraestructura escalable ($15.000.000, 512 kits) y las 1.340 familias; el desglose debe estar en VII."
+ ],
+ [
+  "desarrolloSolucion.tex",
+  "El borrado del nombre del menor en la lectura guardada en Redis (PE-06) sigue sin implementarse; es tarea de seguridad previa al despliegue con familias."
+ ],
+ [
+  "desarrolloSolucion.tex",
+  "Los índices HNSW y de trigramas existen pero no se activan hasta acercarse a 50.000 productos (ESC-E4); la búsqueda actual es en memoria."
+ ],
+ [
+  "desarrolloSolucion.tex",
+  "El asistente en lenguaje natural solo tiene validada su seguridad; ningún acudiente lo usó en el OE5, así que su utilidad no está medida."
+ ],
+ [
+  "desarrolloSolucion.tex",
+  "El pago no se probó de extremo a extremo en el sandbox de Wompi; solo con la pasarela simulada, y el cobro real depende del despliegue productivo."
+ ],
+ [
+  "desarrolloSolucion.tex",
+  "La sustitución del umbral y la constante del 10 % de sobreprecio no se midió: se fijó en el código sin medirla (ya estaba en el texto)."
+ ],
+ [
+  "disenoSolucion.tex",
+  "El peor caso de la caída del catálogo (cada intento agotando su espera) se acotó con un modelo (300,8 s) y no se midió; solo se midió que el disyuntor abre a los 26,3 s."
+ ],
+ [
+  "disenoSolucion.tex",
+  "La aplicación uniforme de los permisos de identidad en todas las rutas queda como endurecimiento productivo (frase conservada en la sección de autorización)."
+ ],
+ [
+  "disenoSolucion.tex",
+  "La segunda capa de 28 pruebas que verifican las funciones de aptitud ya no se menciona en el cuerpo de disenoSolucion.tex; sigue vigente si otro capítulo la cita."
+ ]
+]
