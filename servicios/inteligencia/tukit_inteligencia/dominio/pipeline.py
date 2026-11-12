@@ -12,6 +12,7 @@ SQLAlchemy/FastAPI/httpx a nivel de modulo—, asi que `dominio/` queda puro.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import replace
 from typing import Any
 
@@ -29,6 +30,11 @@ from ..optimizador import (
     unidades_a_comprar,
 )
 from ..parseo import mensaje_para_papa, parsear_renglon
+
+logger = logging.getLogger(__name__)
+
+# Prefijo de la nota que `consolidar` le pone a la linea que se compra junto con otra.
+NOTA_CONSOLIDADA = "Se compra junto con "
 
 
 def _normalizar(renglones: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -114,33 +120,49 @@ def personajes_por_hijo(preferencias: dict[str, Any]) -> dict[str, str]:
       ruta principal las claves casan EXACTAS.
     - `nl2c.a_preferencias` escribe `{"hijo-1": [...]}` (el primer hijo del
       formulario), asi que tambien casa.
+    - El formulario OMITE a los hijos sin personaje: las preferencias pueden
+      ser dispersas (`{"hijo-2": [...]}` sin `hijo-1`).
     - Los trabajos que no salen del formulario usan otra referencia: el poller
-      arma el kit de una lista subida con `"hijo-1"` fijo (una lista por
-      trabajo) y el canonico usa `"canonico"` (sin preferencias); los tests
-      historicos usan `"hijo-0"`, `"ana"`, `"leo"`. Ahi las claves pueden no
-      casar: `clave_de_hijo` las une por orden SOLO cuando ninguna clave de
-      las preferencias casa con un hijo del kit (asi un hijo con una referencia
-      ajena sigue recibiendo el personaje que antes le daba `_personaje_pedido`).
+      arma el kit de una lista subida con `"hijo-1"` fijo (`poller.py:146`, una
+      lista por trabajo) aunque en el formulario fuera otro hijo; el canonico
+      usa `"canonico"` (sin preferencias); los tests usan `"hijo-0"`, `"ana"`.
+      Limitacion conocida, fuera de alcance: en el poller la clave exacta
+      `"hijo-1"` puede ser la de un hermano. `clave_de_hijo` solo une por orden
+      cuando no hay ambiguedad (ver ahi); si la hay, el hijo queda neutral.
     """
     por_hijo = preferencias.get("personaje_por_hijo") or {}
     return {str(hijo): str(valores[0]) for hijo, valores in por_hijo.items() if valores}
 
 
 def clave_de_hijo(preferencias: dict[str, Any], linea_hijo: str, hijos_del_kit: list[str]) -> str | None:
-    """La clave de `personaje_por_hijo` que corresponde a `linea_hijo`, o None.
+    """La clave de `personaje_por_hijo` que corresponde a `linea_hijo`, o None (neutral).
 
-    Exacta si existe. Si NINGUNA clave de las preferencias casa con algun hijo
-    del kit (`hijos_del_kit`, en orden de aparicion), se unen por posicion: el
-    i-esimo hijo del kit toma la i-esima clave declarada. Si alguna casa
-    exacta, las demas no se adivinan (un hijo sin clave queda neutral).
+    1. Exacta si existe (el caso del formulario y de nl2c).
+    2. Si ninguna clave casa con ningun hijo del kit, se unen por posicion SOLO
+       cuando hay tantas claves como hijos distintos en el kit y son dos o mas:
+       entonces cada hijo declaro su personaje y el orden es lo unico que los
+       distingue. Con un solo hijo y una sola clave ajena (el poller, que
+       renombra a `"hijo-1"` una lista que en el formulario era otro hijo) no
+       hay forma de saber si esa clave es de este hijo o de un hermano omitido
+       por no tener personaje (el formulario omite a esos), asi que queda
+       neutral: es peor ponerle a un hijo el personaje de su hermano que no
+       ponerle ninguno.
+    3. En cualquier otro caso, None.
     """
     claves = [str(k) for k in (preferencias.get("personaje_por_hijo") or {})]
     if linea_hijo in claves:
         return linea_hijo
     if any(h in claves for h in hijos_del_kit) or linea_hijo not in hijos_del_kit:
         return None
-    posicion = hijos_del_kit.index(linea_hijo)
-    return claves[posicion] if posicion < len(claves) else None
+    if len(claves) != len(hijos_del_kit) or len(hijos_del_kit) < 2:
+        logger.debug(
+            "hijo %s sin clave de personaje (claves=%s, hijos=%s): queda neutral",
+            linea_hijo,
+            claves,
+            hijos_del_kit,
+        )
+        return None
+    return claves[hijos_del_kit.index(linea_hijo)]
 
 
 def personajes_de_los_hijos(preferencias: dict[str, Any], hijos_del_kit: list[str]) -> dict[str, str]:
@@ -320,6 +342,12 @@ def _linea_con_producto(linea: Any, elegido: Any) -> Any:
     """
     if linea.informativa or elegido is None:
         return linea
+    # La nota "Se compra junto con..." la escribio `consolidar` sobre el armado
+    # anterior; si el hermano cambio de producto ya no es cierta. `consolidar`
+    # la vuelve a escribir si el grupo se rehace.
+    mensaje = linea.mensaje
+    if mensaje and mensaje.startswith(NOTA_CONSOLIDADA):
+        mensaje = None
     unidades = unidades_a_comprar(linea.cantidad_pedida, elegido.unidades_por_empaque)
     subtotal = None if elegido.precio_cop is None else elegido.precio_cop * unidades
     return replace(
@@ -330,4 +358,5 @@ def _linea_con_producto(linea: Any, elegido: Any) -> Any:
         unidades_a_comprar=unidades,
         precio_unitario_cop=elegido.precio_cop,
         subtotal_cop=subtotal,
+        mensaje=mensaje,
     )
