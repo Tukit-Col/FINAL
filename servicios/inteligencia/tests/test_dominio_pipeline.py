@@ -20,7 +20,7 @@ from tukit_inteligencia.dominio.pipeline import (
     personajes_por_hijo,
 )
 from tukit_inteligencia.modelos import EstadoResolucion
-from tukit_inteligencia.optimizador import Candidato, KitArmado, LineaKit, PerfilKit
+from tukit_inteligencia.optimizador import Candidato, KitArmado, LineaKit, PerfilKit, consolidar
 
 
 class TestEstadoDesdeEmparejamiento:
@@ -351,13 +351,44 @@ class TestPersonajesPorHijo:
             "hijo-2": "frozen",
         }
 
-    def test_sin_clave_que_case_se_une_por_orden(self):
-        # Un trabajo cuyos renglones dicen "hijo-0" (u otra referencia interna)
-        # con preferencias escritas para "hijo-1": se unen por posicion.
-        prefs = {"personaje_por_hijo": {"hijo-1": ["spiderman"]}}
-        assert personajes_de_los_hijos(prefs, ["hijo-0"]) == {"hijo-0": "spiderman"}
-        assert clave_de_hijo(prefs, "hijo-0", ["hijo-0"]) == "hijo-1"
+    def test_sin_clave_que_case_se_une_por_orden_si_cuadra(self):
+        # Tantas claves como hijos (dos o mas): el orden es lo unico que los une.
         assert personajes_de_los_hijos(PREFS_DOS, ["a", "b"]) == {"a": "spiderman", "b": "frozen"}
+
+    def test_preferencias_dispersas_dejan_neutral(self):
+        # El formulario omite al hijo sin personaje; el poller renombra su
+        # lista a "hijo-1". `{"hijo-2": frozen}` puede ser del hermano: neutral.
+        prefs = {"personaje_por_hijo": {"hijo-2": ["frozen"]}}
+        assert clave_de_hijo(prefs, "hijo-1", ["hijo-1"]) is None
+        assert personajes_de_los_hijos(prefs, ["hijo-1"]) == {}
+        # Una clave ajena para un hijo de referencia interna tampoco se adivina.
+        assert personajes_de_los_hijos({"personaje_por_hijo": {"hijo-1": ["x"]}}, ["hijo-0"]) == {}
+        # Menos claves que hijos: no se adivina por orden.
+        assert personajes_de_los_hijos(prefs, ["a", "b"]) == {}
 
     def test_con_alguna_clave_exacta_no_se_adivina_por_orden(self):
         assert clave_de_hijo(PREFS_DOS, "otro", ["hijo-1", "otro"]) is None
+
+
+class TestHermanoNeutralConEmpaque:
+    def test_el_neutral_conserva_su_sku_y_la_compra_se_rehace(self):
+        # Empaque 2: el armado juntaba a los dos en un empaque neutral. Al darle
+        # spiderman solo a hijo-1, hijo-2 conserva su sku neutral y vuelve a
+        # comprar su propio empaque (ya no hay con quien compartirlo), sin la
+        # nota vieja de "se compra junto con".
+        armado = _fan_dos_hijos(empaque=2)
+        lineas, consolidaciones = consolidar(armado.lineas)
+        assert [li.unidades_a_comprar for li in lineas] == [1, 0]
+        fan = replace(armado, lineas=lineas, consolidaciones=consolidaciones)
+
+        swaps = {"hijo-1": {"C001": _producto("spiderman", empaque=2)}}
+        prefs = {"personaje_por_hijo": {"hijo-1": ["spiderman"]}}
+        r = inyectar_personaje_fan([fan], swaps, prefs)[0]
+
+        por_hijo = {li.hijo: li for li in r.lineas}
+        assert por_hijo["hijo-1"].elegido.sku == "TK-C001-SPIDERMAN"
+        assert por_hijo["hijo-2"].elegido.sku == "NEUTRAL-C001"
+        assert [li.unidades_a_comprar for li in r.lineas] == [1, 1]
+        assert r.consolidaciones == ()
+        assert por_hijo["hijo-2"].mensaje is None
+        assert r.total_cop == 9000 + 4000

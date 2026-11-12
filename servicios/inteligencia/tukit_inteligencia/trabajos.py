@@ -65,6 +65,9 @@ from .repositorios.trabajos import RepoTrabajos, TrabajoNoExiste, TransicionIleg
 
 logger = logging.getLogger(__name__)
 
+# (personaje, concepto) ya avisados como ancla sin producto (ver `anclas_por_hijo`).
+_ANCLAS_AVISADAS: set[tuple[str, str]] = set()
+
 TRABAJO = Base.metadata.tables["trabajo_pipeline"]
 ETAPA = Base.metadata.tables["etapa_trabajo"]
 ITEM = Base.metadata.tables["item_crudo"]
@@ -2703,8 +2706,8 @@ async def anclas_por_hijo(
     producto, que es lo que deja a `consolidar` juntarlos en una compra). Es I/O
     de red: se resuelve FUERA de cualquier transaccion abierta. Un ancla que el
     catalogo no surte no entra (ese concepto queda con su producto neutral) y se
-    registra con `logger.warning`: un Fan sin cuaderno de personaje no debe
-    pasar callado.
+    registra con `logger.warning` (una vez por personaje y concepto por proceso):
+    un Fan sin cuaderno de personaje no debe pasar callado.
     """
     por_personaje: dict[str, dict[str, dict[str, Any]]] = {}
     salida: dict[str, dict[str, dict[str, Any]]] = {}
@@ -2718,7 +2721,10 @@ async def anclas_por_hijo(
                 producto = await catalogo.producto_de_personaje(concepto, personaje)
                 if producto:
                     swaps[concepto] = producto
-                else:
+                elif (clave, concepto) not in _ANCLAS_AVISADAS:
+                    # Una vez por (personaje, concepto) por proceso: la vista
+                    # `parent_apply` pasa por aqui en cada lectura.
+                    _ANCLAS_AVISADAS.add((clave, concepto))
                     logger.warning(
                         "ancla sin producto de personaje: personaje=%s concepto=%s", personaje, concepto
                     )
