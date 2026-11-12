@@ -26,10 +26,10 @@ CAMPOS_OBLIGATORIOS: tuple[str, ...] = (
     "unidad_base",
     "unidades_por_empaque",
     "concepto_id",
-    "descripcion",
-    "texto_embedding",
-    "embedding_model",
 )
+# Los consume la ficha o la busqueda semantica, no el `Candidato` del NSGA:
+# un hueco aqui es una advertencia, no un fallo de --estricto.
+CAMPOS_RECOMENDADOS: tuple[str, ...] = ("descripcion", "texto_embedding", "embedding_model")
 
 
 @dataclass(frozen=True)
@@ -58,7 +58,7 @@ def auditar(
         if activos_solo and not _activo(p):
             continue
         pid = p.get("id", "")
-        for campo in CAMPOS_OBLIGATORIOS:
+        for campo in (*CAMPOS_OBLIGATORIOS, *CAMPOS_RECOMENDADOS):
             if _vacio(p.get(campo)):
                 salida.append(Hallazgo(pid, campo, "vacio"))
         if pid not in precios_por_producto:
@@ -99,7 +99,7 @@ def _informe(resumen: dict[str, int], hallazgos: list[Hallazgo], total: int) -> 
         "| Campo | Productos con hueco |",
         "|---|---|",
     ]
-    for campo in (*CAMPOS_OBLIGATORIOS, "precio"):
+    for campo in (*CAMPOS_OBLIGATORIOS, "precio", *CAMPOS_RECOMENDADOS):
         lineas.append(f"| {campo} | {resumen.get(campo, 0)} |")
     return "\n".join(lineas) + "\n"
 
@@ -108,7 +108,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--datos", type=Path, default=DATOS, help="directorio con los CSV")
     ap.add_argument("--informe", type=Path, default=INFORME)
-    ap.add_argument("--estricto", action="store_true", help="devuelve 1 si hay hallazgos")
+    ap.add_argument("--estricto", action="store_true", help="devuelve 1 si falta un campo obligatorio o el precio")
     args = ap.parse_args(argv)
 
     productos = _leer(args.datos, "productos_canonicos")
@@ -122,7 +122,11 @@ def main(argv: list[str] | None = None) -> int:
         print("Sin hallazgos.")
     args.informe.parent.mkdir(parents=True, exist_ok=True)
     args.informe.write_text(_informe(resumen, hallazgos, total), encoding="utf-8")
-    return 1 if (args.estricto and hallazgos) else 0
+    recomendados = set(CAMPOS_RECOMENDADOS)
+    graves = [h for h in hallazgos if h.campo not in recomendados]
+    for campo in sorted(set(resumen) & recomendados):
+        print(f"ADVERTENCIA: {resumen[campo]} productos sin {campo} (recomendado)")
+    return 1 if (args.estricto and graves) else 0
 
 
 if __name__ == "__main__":
