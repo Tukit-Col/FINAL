@@ -13,8 +13,11 @@ from dataclasses import replace
 from tukit_inteligencia.dominio.pipeline import (
     _anclar_kits,
     _personaje_pedido,
+    clave_de_hijo,
     estado_desde_emparejamiento,
     inyectar_personaje_fan,
+    personajes_de_los_hijos,
+    personajes_por_hijo,
 )
 from tukit_inteligencia.modelos import EstadoResolucion
 from tukit_inteligencia.optimizador import Candidato, KitArmado, LineaKit, PerfilKit
@@ -119,7 +122,7 @@ class TestInyectarPersonajeFan:
         # el cuaderno spiderman no lo surte, asi que su ancla queda neutral.
         swaps = {"C086": {"sku": "SPIDEY-MALETA", "personaje": "spiderman", "precio_desde": 5000}}
         kits = [_kit(PerfilKit.AHORRADOR.value), _kit(PerfilKit.FAN.value)]
-        r = inyectar_personaje_fan(kits, swaps, PREFS_FAN)
+        r = inyectar_personaje_fan(kits, {"hijo-1": swaps}, PREFS_FAN)
 
         ahorrador = next(k for k in r if k.perfil == PerfilKit.AHORRADOR.value)
         fan = next(k for k in r if k.perfil == PerfilKit.FAN.value)
@@ -141,7 +144,7 @@ class TestInyectarPersonajeFan:
         # se tiene que recomputar o mentiria diciendo que cabe.
         swaps = {"C086": {"sku": "SPIDEY-MALETA", "personaje": "spiderman", "precio_desde": 5000}}
         prefs = {**PREFS_FAN, "presupuesto_por_hijo": 3000}
-        r = inyectar_personaje_fan([_kit(PerfilKit.FAN.value)], swaps, prefs)
+        r = inyectar_personaje_fan([_kit(PerfilKit.FAN.value)], {"hijo-1": swaps}, prefs)
         fan = next(k for k in r if k.perfil == PerfilKit.FAN.value)
         assert fan.total_cop == 6000
         # El unico kit no cabe: recomendar lo marca fuera de presupuesto.
@@ -173,7 +176,7 @@ class TestInyectarPersonajeFan:
                 "unidades_por_empaque": 2,
             }
         }
-        r = inyectar_personaje_fan([fan], swaps, PREFS_FAN)
+        r = inyectar_personaje_fan([fan], {"ana": swaps, "leo": swaps}, PREFS_FAN)
         fan2 = next(k for k in r if k.perfil == PerfilKit.FAN.value)
 
         # Un solo empaque de spiderman cubre a los dos: total = 5000, no 10000.
@@ -211,7 +214,7 @@ class TestElFanNoRepiteElMismoPersonaje:
     def _fan_con_cuadernos(self, renglones):
         lineas = tuple(_linea_cuaderno(i + 1, t, imp) for i, (t, imp) in enumerate(renglones))
         kit = KitArmado(perfil=PerfilKit.FAN.value, total_cop=0, objetivos={}, lineas=lineas)
-        r = inyectar_personaje_fan([kit], {"C001": SPIDEY_CUADERNO}, PREFS_FAN)
+        r = inyectar_personaje_fan([kit], {"hijo-1": {"C001": SPIDEY_CUADERNO}}, PREFS_FAN)
         return next(k for k in r if k.perfil == PerfilKit.FAN.value)
 
     def test_el_mismo_producto_va_en_un_solo_renglon_de_cuaderno(self):
@@ -267,6 +270,94 @@ class TestElFanNoRepiteElMismoPersonaje:
             _linea_cuaderno(1, "cuaderno", {}, hijo="leo"),
         )
         kit = KitArmado(perfil=PerfilKit.FAN.value, total_cop=0, objetivos={}, lineas=lineas)
-        fan = inyectar_personaje_fan([kit], {"C001": SPIDEY_CUADERNO}, PREFS_FAN)[0]
+        swaps = {"C001": SPIDEY_CUADERNO}
+        fan = inyectar_personaje_fan([kit], {"ana": swaps, "leo": swaps}, PREFS_FAN)[0]
         con = [(li.hijo, li.orden) for li in fan.lineas if li.elegido.sku == SPIDEY_CUADERNO["sku"]]
         assert sorted(con) == [("ana", 1), ("leo", 1)]
+
+
+# --------------------------------------------------------------------------
+# Swaps de personaje por hijo: cada hermano recibe el suyo
+# --------------------------------------------------------------------------
+
+
+def _producto(personaje: str, *, empaque: int = 1) -> dict:
+    return {
+        "sku": f"TK-C001-{personaje.upper()}",
+        "nombre": f"Cuaderno {personaje}",
+        "personaje": personaje,
+        "precio_desde": 9000,
+        "unidades_por_empaque": empaque,
+    }
+
+
+def _fan_dos_hijos(*, empaque: int = 1) -> KitArmado:
+    lineas = (
+        replace(_linea("C001", 4000, hijo="hijo-1", orden=1, empaque=empaque), cantidad_pedida=1),
+        replace(_linea("C001", 4000, hijo="hijo-2", orden=1, empaque=empaque), cantidad_pedida=1),
+    )
+    return KitArmado(perfil=PerfilKit.FAN.value, total_cop=8000, objetivos={}, lineas=lineas)
+
+
+PREFS_DOS = {"personaje_por_hijo": {"hijo-1": ["spiderman"], "hijo-2": ["frozen"]}}
+
+
+class TestSwapsPorHijo:
+    def test_dos_hijos_cada_uno_recibe_su_personaje(self):
+        swaps = {"hijo-1": {"C001": _producto("spiderman")}, "hijo-2": {"C001": _producto("frozen")}}
+        fan = inyectar_personaje_fan([_fan_dos_hijos()], swaps, PREFS_DOS)[0]
+        por_hijo = {li.hijo: li.elegido.sku for li in fan.lineas}
+        assert por_hijo == {"hijo-1": "TK-C001-SPIDERMAN", "hijo-2": "TK-C001-FROZEN"}
+
+    def test_mismo_personaje_consolida_una_compra(self):
+        # Empaque de 2 y un cuaderno por hijo: el mismo producto de personaje
+        # se compra UNA vez para los dos.
+        producto = _producto("spiderman", empaque=2)
+        swaps = {"hijo-1": {"C001": producto}, "hijo-2": {"C001": producto}}
+        prefs = {"personaje_por_hijo": {"hijo-1": ["spiderman"], "hijo-2": ["spiderman"]}}
+        fan = inyectar_personaje_fan([_fan_dos_hijos(empaque=2)], swaps, prefs)[0]
+        assert [li.unidades_a_comprar for li in fan.lineas] == [1, 0]
+        assert fan.total_cop == 9000
+        assert len(fan.consolidaciones) == 1
+        assert fan.consolidaciones[0]["sku"] == "TK-C001-SPIDERMAN"
+
+    def test_personajes_distintos_no_se_consolidan(self):
+        swaps = {
+            "hijo-1": {"C001": _producto("spiderman", empaque=2)},
+            "hijo-2": {"C001": _producto("frozen", empaque=2)},
+        }
+        fan = inyectar_personaje_fan([_fan_dos_hijos(empaque=2)], swaps, PREFS_DOS)[0]
+        assert fan.consolidaciones == ()
+        assert [li.unidades_a_comprar for li in fan.lineas] == [1, 1]
+        assert fan.total_cop == 18000
+
+    def test_hijo_sin_personaje_queda_neutro(self):
+        swaps = {"hijo-1": {"C001": _producto("spiderman")}}
+        prefs = {"personaje_por_hijo": {"hijo-1": ["spiderman"]}}
+        fan = inyectar_personaje_fan([_fan_dos_hijos()], swaps, prefs)[0]
+        por_hijo = {li.hijo: li.elegido.sku for li in fan.lineas}
+        assert por_hijo == {"hijo-1": "TK-C001-SPIDERMAN", "hijo-2": "NEUTRAL-C001"}
+
+
+class TestPersonajesPorHijo:
+    def test_primer_personaje_de_cada_hijo_y_omite_vacios(self):
+        prefs = {"personaje_por_hijo": {"hijo-1": ["Spiderman", "cars"], "hijo-2": [], "hijo-3": ["frozen"]}}
+        assert personajes_por_hijo(prefs) == {"hijo-1": "Spiderman", "hijo-3": "frozen"}
+        assert personajes_por_hijo({}) == {}
+
+    def test_clave_exacta_gana(self):
+        assert personajes_de_los_hijos(PREFS_DOS, ["hijo-1", "hijo-2"]) == {
+            "hijo-1": "spiderman",
+            "hijo-2": "frozen",
+        }
+
+    def test_sin_clave_que_case_se_une_por_orden(self):
+        # Un trabajo cuyos renglones dicen "hijo-0" (u otra referencia interna)
+        # con preferencias escritas para "hijo-1": se unen por posicion.
+        prefs = {"personaje_por_hijo": {"hijo-1": ["spiderman"]}}
+        assert personajes_de_los_hijos(prefs, ["hijo-0"]) == {"hijo-0": "spiderman"}
+        assert clave_de_hijo(prefs, "hijo-0", ["hijo-0"]) == "hijo-1"
+        assert personajes_de_los_hijos(PREFS_DOS, ["a", "b"]) == {"a": "spiderman", "b": "frozen"}
+
+    def test_con_alguna_clave_exacta_no_se_adivina_por_orden(self):
+        assert clave_de_hijo(PREFS_DOS, "otro", ["hijo-1", "otro"]) is None

@@ -100,20 +100,71 @@ def _candidato(opcion: dict[str, Any]) -> Candidato:
     )
 
 
-def _personaje_pedido(preferencias: dict[str, Any]) -> str | None:
-    """El personaje que el acudiente pidio, para anclar sus 4 items al tope.
+def personajes_por_hijo(preferencias: dict[str, Any]) -> dict[str, str]:
+    """Cada hijo con su primer personaje pedido; los hijos sin personaje se omiten.
 
-    El anclaje reordena el kit completo, asi que se toma el primer personaje
-    declarado en `personaje_por_hijo`. En el caso comun (un hijo con un
-    personaje) es exactamente el suyo; con varios hijos se ancla el primero,
-    que es suficiente para el gesto de "poner arriba lo del personaje" sin
-    reordenar de forma ambigua entre hermanos.
+    Correspondencia de claves (verificada en el flujo completo, 12-nov):
+
+    - `personaje_por_hijo` viene del paso 3 de /empezar (`FormularioEmpezar.tsx`),
+      indexado por la `referencia` de cada hijo del formulario (`hijo-1`,
+      `hijo-2`...; `hijoVacio(i)` numera desde 1). Esa MISMA referencia viaja en
+      `hijos[].referencia` de `POST /v1/trabajos`, `_listas_de` la copia a la
+      entrada (`"hijo": referencia`) y las dos rutas la ponen tal cual en
+      `Renglon.hijo` -> `LineaKit.hijo` -> `linea_kit.hijo_referencia`. En la
+      ruta principal las claves casan EXACTAS.
+    - `nl2c.a_preferencias` escribe `{"hijo-1": [...]}` (el primer hijo del
+      formulario), asi que tambien casa.
+    - Los trabajos que no salen del formulario usan otra referencia: el poller
+      arma el kit de una lista subida con `"hijo-1"` fijo (una lista por
+      trabajo) y el canonico usa `"canonico"` (sin preferencias); los tests
+      historicos usan `"hijo-0"`, `"ana"`, `"leo"`. Ahi las claves pueden no
+      casar: `clave_de_hijo` las une por orden SOLO cuando ninguna clave de
+      las preferencias casa con un hijo del kit (asi un hijo con una referencia
+      ajena sigue recibiendo el personaje que antes le daba `_personaje_pedido`).
     """
     por_hijo = preferencias.get("personaje_por_hijo") or {}
-    for valores in por_hijo.values():
-        if valores:
-            return str(valores[0])
-    return None
+    return {str(hijo): str(valores[0]) for hijo, valores in por_hijo.items() if valores}
+
+
+def clave_de_hijo(preferencias: dict[str, Any], linea_hijo: str, hijos_del_kit: list[str]) -> str | None:
+    """La clave de `personaje_por_hijo` que corresponde a `linea_hijo`, o None.
+
+    Exacta si existe. Si NINGUNA clave de las preferencias casa con algun hijo
+    del kit (`hijos_del_kit`, en orden de aparicion), se unen por posicion: el
+    i-esimo hijo del kit toma la i-esima clave declarada. Si alguna casa
+    exacta, las demas no se adivinan (un hijo sin clave queda neutral).
+    """
+    claves = [str(k) for k in (preferencias.get("personaje_por_hijo") or {})]
+    if linea_hijo in claves:
+        return linea_hijo
+    if any(h in claves for h in hijos_del_kit) or linea_hijo not in hijos_del_kit:
+        return None
+    posicion = hijos_del_kit.index(linea_hijo)
+    return claves[posicion] if posicion < len(claves) else None
+
+
+def personajes_de_los_hijos(preferencias: dict[str, Any], hijos_del_kit: list[str]) -> dict[str, str]:
+    """`{hijo del kit: personaje}` ya resuelto con `clave_de_hijo` (omite neutrales)."""
+    pedidos = personajes_por_hijo(preferencias)
+    distintos = list(dict.fromkeys(hijos_del_kit))
+    salida: dict[str, str] = {}
+    for hijo in distintos:
+        clave = clave_de_hijo(preferencias, hijo, distintos)
+        if clave is not None and clave in pedidos:
+            salida[hijo] = pedidos[clave]
+    return salida
+
+
+def _personaje_pedido(preferencias: dict[str, Any]) -> str | None:
+    """El primer personaje declarado; solo para el reordenamiento de `_anclar_kits`.
+
+    El anclaje reordena el kit completo y `anclar_personaje` recibe un solo
+    personaje, asi que se toma el primero. Es una decision documentada: el
+    reordenamiento es visual y no cambia que producto se eligio (eso ya lo
+    hizo `inyectar_personaje_fan` hijo por hijo). Con dos hermanos de
+    personajes distintos, solo las anclas del primero suben al tope.
+    """
+    return next(iter(personajes_por_hijo(preferencias).values()), None)
 
 
 def _anclar_kits(kits: list[Any], preferencias: dict[str, Any]) -> list[Any]:
@@ -150,7 +201,7 @@ def _candidato_de_swap(swap: dict[str, Any]) -> Candidato:
 
 
 def inyectar_personaje_fan(
-    kits: list[Any], swaps: dict[str, dict[str, Any]], preferencias: dict[str, Any]
+    kits: list[Any], swaps_por_hijo: dict[str, dict[str, dict[str, Any]]], preferencias: dict[str, Any]
 ) -> list[Any]:
     """Mete el producto de personaje en las anclas del kit Fan y rehace sus numeros.
 
@@ -158,9 +209,11 @@ def inyectar_personaje_fan(
     opcion por nivel y SIN la variante de personaje (es una via aparte, curada);
     por eso el optimizador nunca ve un candidato de personaje que elegir y
     `anclar_personaje` no encuentra nada que subir. Aca se cierra ese hueco: para
-    cada concepto ancla que el catalogo si surte con el personaje (`swaps`), se
-    reemplaza el `elegido` de la linea del kit Fan por ese producto, con la misma
-    aritmetica del armado (techo(pedida/empaque)).
+    cada hijo y cada concepto ancla que el catalogo si surte con el personaje
+    de ESE hijo (`swaps_por_hijo[hijo][concepto]`), se reemplaza el `elegido`
+    de sus lineas del kit Fan por ese producto, con la misma aritmetica del
+    armado (techo(pedida/empaque)). Un hijo sin entrada queda neutral; el caso
+    de un solo hijo es `{hijo: swaps}`.
 
     Como el swap cambia el precio del Fan DESPUES de que `armar_los_tres` calculo
     su `total_cop`, sus `objetivos` (incluido `costo`) y el veredicto de
@@ -171,7 +224,7 @@ def inyectar_personaje_fan(
     presupuesto reflejen los precios verdaderos. Solo toca el Fan; sin swaps
     devuelve los kits intactos (la ruta sin personaje queda byte a byte igual).
     """
-    if not swaps:
+    if not any(swaps_por_hijo.values()):
         return kits
 
     # El producto de personaje viene del catalogo por una via aparte y no pasa por
@@ -191,9 +244,10 @@ def inyectar_personaje_fan(
         # producto despues sin re-consolidar cobraria dos veces un ancla que dos
         # hermanos comparten (el empaque conjunto se pierde). Re-armar sobre el
         # mismo `consolidar` reproduce lo que el optimizador habria hecho si el
-        # producto de personaje hubiera sido candidato. Ambos hermanos reciben el
-        # MISMO producto por concepto (los swaps se indexan por concepto), asi que
-        # el grupo vuelve a unirse y las notas se regeneran con el sku correcto.
+        # producto de personaje hubiera sido candidato. Cada hermano recibe el
+        # producto de SU personaje: si comparten personaje el sku coincide y el
+        # grupo vuelve a unirse (una sola compra); si no, son skus distintos y
+        # `consolidar` nunca los junta.
         #
         # El producto de personaje NO va en todos los renglones del concepto: el
         # catalogo entrega uno solo por concepto y personaje, y ponerlo en cada
@@ -201,7 +255,7 @@ def inyectar_personaje_fan(
         # repetia el mismo Spiderman de $36.900 cinco veces. `llevan` elige en
         # cuales cabe, una vez por hijo (ver `renglones_con_personaje`); el resto
         # conserva el producto neutral que el optimizador ya habia elegido.
-        llevan = _lineas_con_swap(kit.lineas, swaps)
+        llevan = _lineas_con_swap(kit.lineas, swaps_por_hijo)
 
         def producto_de(indice: int, linea: Any, llevan: set[int] = llevan) -> Any:
             if indice not in llevan:
@@ -210,7 +264,7 @@ def inyectar_personaje_fan(
             # el swap no la puede resucitar con otro que el acudiente no vio.
             if filtros.activos and linea.elegido is None:
                 return linea.elegido
-            candidato = _candidato_de_swap(swaps[linea.concepto_codigo])
+            candidato = _candidato_de_swap(swaps_por_hijo[linea.hijo][linea.concepto_codigo])
             if not candidato_permitido(candidato, linea.descripcion, filtros):
                 return linea.elegido
             return candidato
@@ -235,22 +289,24 @@ def inyectar_personaje_fan(
     return recomendar(recomputados, preferencias)
 
 
-def _lineas_con_swap(lineas: Any, swaps: dict[str, dict[str, Any]]) -> set[int]:
+def _lineas_con_swap(lineas: Any, swaps_por_hijo: dict[str, dict[str, dict[str, Any]]]) -> set[int]:
     """Los indices de las lineas del kit que reciben el producto de personaje.
 
-    Agrupa las lineas comprables por concepto (solo los que tienen swap) y deja
-    que `renglones_con_personaje` decida, concepto por concepto, en cuales cabe.
+    Agrupa las lineas comprables por `(concepto, hijo)` (solo las que tienen
+    swap para ese hijo) y deja que `renglones_con_personaje` decida, con los
+    atributos del producto de ESE hijo, en cuales cabe.
     """
-    grupos: dict[str, list[tuple[int, str, dict[str, Any], str]]] = {}
+    grupos: dict[tuple[str, str], list[tuple[int, str, dict[str, Any], str]]] = {}
     for indice, linea in enumerate(lineas):
-        if linea.informativa or linea.concepto_codigo not in swaps:
+        if linea.informativa or linea.concepto_codigo not in swaps_por_hijo.get(linea.hijo, {}):
             continue
-        grupos.setdefault(linea.concepto_codigo, []).append(
+        grupos.setdefault((linea.concepto_codigo, linea.hijo), []).append(
             (indice, linea.hijo, linea.atributos_impuestos, linea.descripcion)
         )
     llevan: set[int] = set()
-    for concepto, renglones in grupos.items():
-        llevan |= renglones_con_personaje(renglones, swaps[concepto].get("atributos") or {})
+    for (concepto, hijo), renglones in grupos.items():
+        atributos = swaps_por_hijo[hijo][concepto].get("atributos") or {}
+        llevan |= renglones_con_personaje(renglones, atributos)
     return llevan
 
 

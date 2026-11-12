@@ -18,6 +18,7 @@ claim (borra ITEM/KIT y reejecuta), asi que retomar no duplica.
 
 from __future__ import annotations
 
+import logging
 import os
 import time
 import uuid
@@ -33,9 +34,9 @@ from .dominio.pipeline import (
     _anclar_kits,
     _candidato,
     _normalizar,
-    _personaje_pedido,
     estado_desde_emparejamiento,
     inyectar_personaje_fan,
+    personajes_de_los_hijos,
 )
 from .modelos import (
     Base,
@@ -61,6 +62,8 @@ from .optimizador import (
 from .parseo import BUSCA_EN_CATALOGO, Demanda, mensaje_para_papa
 from .remoto import ClienteCatalogo, ClienteComercio, ClienteIdentidad, RemotoCaido
 from .repositorios.trabajos import RepoTrabajos, TrabajoNoExiste, TransicionIlegal
+
+logger = logging.getLogger(__name__)
 
 TRABAJO = Base.metadata.tables["trabajo_pipeline"]
 ETAPA = Base.metadata.tables["etapa_trabajo"]
@@ -726,7 +729,9 @@ async def _procesar_verificado(
 
     # El producto de personaje de las anclas es I/O de red: se resuelve FUERA
     # de la transaccion de escritura (misma consulta que el interruptor del Fan).
-    swaps = await _anclas_de_personaje(catalogo, _personaje_pedido(preferencias))
+    swaps = await anclas_por_hijo(
+        catalogo, personajes_de_los_hijos(preferencias, [r.hijo for r in renglones])
+    )
 
     reloj = time.monotonic()
     kits = armar_los_tres(renglones, preferencias)
@@ -1003,7 +1008,9 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
                 )
             )
 
-        swaps = await _anclas_de_personaje(catalogo, _personaje_pedido(preferencias))
+        swaps = await anclas_por_hijo(
+            catalogo, personajes_de_los_hijos(preferencias, [r.hijo for r in renglones])
+        )
         kits = armar_los_tres(renglones, preferencias)
         kits = inyectar_personaje_fan(kits, swaps, preferencias)
         kits = _anclar_kits(kits, preferencias)
@@ -2685,20 +2692,52 @@ async def mis_trabajos(motor: Any, *, usuario_id: uuid.UUID) -> list[dict[str, A
     ]
 
 
-async def _anclas_de_personaje(catalogo: ClienteCatalogo, personaje: str | None) -> dict[str, dict[str, Any]]:
-    """Los productos de las cuatro anclas para un personaje, indexados por concepto.
+async def anclas_por_hijo(
+    catalogo: ClienteCatalogo, personajes: dict[str, str]
+) -> dict[str, dict[str, dict[str, Any]]]:
+    """Los productos de las cuatro anclas de cada hijo: `{hijo: {concepto: producto}}`.
 
-    Vacio si no hay personaje. Es I/O de red: se resuelve FUERA de cualquier
-    transaccion abierta. Un ancla que el catalogo no surte simplemente no entra
-    (el kit queda con su producto neutral en ese concepto).
+    `personajes` es `{hijo: personaje}` (ver `personajes_de_los_hijos`); un hijo
+    sin personaje no aparece y su kit queda neutral. Se consulta el catalogo una
+    sola vez por personaje distinto (dos hermanos con el mismo comparten el MISMO
+    producto, que es lo que deja a `consolidar` juntarlos en una compra). Es I/O
+    de red: se resuelve FUERA de cualquier transaccion abierta. Un ancla que el
+    catalogo no surte no entra (ese concepto queda con su producto neutral) y se
+    registra con `logger.warning`: un Fan sin cuaderno de personaje no debe
+    pasar callado.
     """
-    swaps: dict[str, dict[str, Any]] = {}
-    if personaje:
-        for concepto in CONCEPTOS_ANCLA:
-            producto = await catalogo.producto_de_personaje(concepto, personaje)
-            if producto:
-                swaps[concepto] = producto
-    return swaps
+    por_personaje: dict[str, dict[str, dict[str, Any]]] = {}
+    salida: dict[str, dict[str, dict[str, Any]]] = {}
+    for hijo, personaje in personajes.items():
+        if not personaje:
+            continue
+        clave = personaje.strip().lower()
+        if clave not in por_personaje:
+            swaps: dict[str, dict[str, Any]] = {}
+            for concepto in CONCEPTOS_ANCLA:
+                producto = await catalogo.producto_de_personaje(concepto, personaje)
+                if producto:
+                    swaps[concepto] = producto
+                else:
+                    logger.warning(
+                        "ancla sin producto de personaje: personaje=%s concepto=%s", personaje, concepto
+                    )
+            por_personaje[clave] = swaps
+        if por_personaje[clave]:
+            salida[hijo] = por_personaje[clave]
+    return salida
+
+
+async def _anclas_de_personaje(catalogo: ClienteCatalogo, personaje: str | None) -> dict[str, dict[str, Any]]:
+    """Las anclas de UN personaje, indexadas por concepto (ruta del kit aplicado).
+
+    `aplicar_canonico` y la vista `parent_apply` son de un solo hijo y pintan
+    las lineas del canonico (`hijo_referencia = "canonico"`), asi que usan la
+    forma plana; pasa por `anclas_por_hijo` para compartir cache y avisos.
+    """
+    if not personaje:
+        return {}
+    return (await anclas_por_hijo(catalogo, {"_": personaje})).get("_", {})
 
 
 def _objetivos_de_lineas(lineas: list[dict[str, Any]], total: int) -> dict[str, float | int]:
