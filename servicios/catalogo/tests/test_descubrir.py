@@ -23,7 +23,10 @@ from tukit_catalogo.descubrir import (
     consulta_desde_renglon,
     crear_libro,
     crear_util,
+    TIENDAS_LIBROS,
+    consulta_libro,
     exigir_sin_revisar,
+    fila_libro,
     probar,
     proponer,
     resolver,
@@ -310,3 +313,20 @@ class TestDescartarPuedeCerrarElConcepto:
 
     def test_no_surtir_es_opcional_para_no_romper_el_rechazo_corriente(self):
         assert inspect.signature(resolver).parameters["no_surtir"].default is False
+
+
+class TestLibrosEnBuscalibreYLibreriaNacional:
+    def test_fila_libro_normaliza_precio_colombiano(self):
+        fila = fila_libro("buscalibre", {"titulo": "Nacho", "isbn13": "9789580714729", "precio": "$ 54.900"})
+        assert fila["precio"] == "54900"
+
+    def test_fila_libro_sin_imagen_se_marca(self):
+        fila = fila_libro("libreria_nacional", {"titulo": "Nacho", "imagen_url": None})
+        assert fila["imagen_url"] == ""
+        assert set(fila) == {"titulo", "isbn13", "editorial", "precio", "imagen_url", "url_origen"}
+
+    def test_consulta_libro_codifica_tildes_y_espacios(self):
+        url = consulta_libro("Álgebra de Baldor", None)
+        assert " " not in url and "Á" not in url
+        assert url.startswith(TIENDAS_LIBROS["buscalibre"])
+        assert "9789580714729" in consulta_libro("x", "9789580714729")

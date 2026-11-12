@@ -1433,3 +1433,67 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# --- Libros: buscalibre y Libreria Nacional --------------------------------
+# Ninguna de las dos expone una API de busqueda estable, asi que se consultan
+# con Firecrawl (ver `firecrawl-search`). Estas funciones solo arman la URL y
+# normalizan lo que vuelve, sin salir a la red.
+TIENDAS_LIBROS: dict[str, str] = {
+    "buscalibre": "https://www.buscalibre.com.co",
+    "libreria_nacional": "https://www.librerianacional.com",
+}
+
+# Slug en tiendas.csv de cada clave.
+SLUG_TIENDA_LIBRO = {"buscalibre": "buscalibre", "libreria_nacional": "librerianacional"}
+
+_RUTA_BUSQUEDA = {"buscalibre": "/libros/search?q=", "libreria_nacional": "/catalogsearch/result/?q="}
+
+
+def consulta_libro(titulo: str, isbn13: str | None) -> str:
+    """URL de busqueda en la primera tienda de libros. Con ISBN, busca por el
+    (identifica la edicion); sin el, por titulo. Tildes y espacios van
+    codificados."""
+    import urllib.parse
+
+    termino = normalizar_isbn(isbn13) if isbn13 else None
+    termino = termino or titulo.strip()
+    return TIENDAS_LIBROS["buscalibre"] + _RUTA_BUSQUEDA["buscalibre"] + urllib.parse.quote(termino)
+
+
+def consulta_libro_en(tienda: str, titulo: str, isbn13: str | None) -> str:
+    """Igual que `consulta_libro`, para la tienda indicada."""
+    import urllib.parse
+
+    termino = (normalizar_isbn(isbn13) if isbn13 else None) or titulo.strip()
+    return TIENDAS_LIBROS[tienda] + _RUTA_BUSQUEDA[tienda] + urllib.parse.quote(termino)
+
+
+def _precio_cop(valor: Any) -> str:
+    """`"$ 54.900"` -> `"54900"`. En Colombia el punto separa miles; si hay
+    coma decimal (`54.900,00`) se descarta la parte decimal."""
+    if valor is None:
+        return ""
+    texto = str(valor).split(",")[0]
+    return re.sub(r"\D", "", texto)
+
+
+def fila_libro(tienda: str, bruto: dict) -> dict[str, str]:
+    """Una fila con las columnas de `libros_firecrawl.csv` que trae el
+    raspado. Lo ausente queda "" (nunca None): la carga lo trata como vacio."""
+    if tienda not in TIENDAS_LIBROS:
+        raise ValueError(f"tienda de libros desconocida: {tienda!r}")
+
+    def texto(clave: str) -> str:
+        v = bruto.get(clave)
+        return "" if v is None else str(v).strip()
+
+    isbn = normalizar_isbn(texto("isbn13")) if texto("isbn13") else None
+    return {
+        "titulo": texto("titulo"),
+        "isbn13": isbn or "",
+        "editorial": texto("editorial"),
+        "precio": _precio_cop(bruto.get("precio")),
+        "imagen_url": texto("imagen_url"),
+        "url_origen": texto("url_origen"),
+    }
