@@ -438,7 +438,7 @@
 
 .razonNoCobro {
   margin-top: var(--espacio-2);
-  font-size: 13.5px;
+  font-size: 0.9em;
   color: var(--color-text-secondary);
   max-width: 76ch;
 }
@@ -454,7 +454,7 @@
 .enlacePago {
   display: inline-block;
   margin-top: var(--espacio-2);
-  font-size: 13.5px;
+  font-size: 0.9em;
   font-weight: 700;
   color: var(--color-primary);
   text-decoration: underline;
@@ -1350,7 +1350,7 @@
 
 .comoComprar {
   margin-top: var(--espacio-2);
-  font-size: 13.5px;
+  font-size: 0.9em;
   color: var(--color-text-secondary);
 }
 
@@ -1518,7 +1518,7 @@
 
 .explicaJunto {
   margin-top: var(--espacio-2);
-  font-size: 13.5px;
+  font-size: 0.9em;
   color: var(--color-text-secondary);
 }
 

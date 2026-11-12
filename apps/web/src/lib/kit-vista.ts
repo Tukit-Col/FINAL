@@ -65,30 +65,56 @@ export function pistaDeTienda(ofertas: readonly { tienda: string }[]): string | 
   return tiendas.length > 1 ? `en ${tiendas[0]} · ${tiendas.length} tiendas` : `en ${tiendas[0]}`;
 }
 
-// "Ana", "Ana y Luis", "Ana, Luis y Sofi". Un hijo sin nombre conocido se
-// llama "Hijo N" por su lugar en el grupo.
+// "Ana", "Ana y Luis", "Ana, Luis y Sofi". Los nombres salen del mismo mapa
+// que las pastillas de los renglones (`etiquetasDeHijos`), así que coinciden.
+// Un hijo que el mapa no conoce se llama "Hijo N" por su lugar en el grupo; un
+// hijo repetido se nombra una sola vez.
 export function nombresEnLista(
   hijos: readonly string[],
   nombres: ReadonlyMap<string, string>,
 ): string {
-  const lista = hijos.map((h, i) => nombres.get(h)?.trim() || `Hijo ${i + 1}`);
+  const vistos = new Set<string>();
+  const lista: string[] = [];
+  hijos.forEach((h, i) => {
+    const nombre = nombres.get(h)?.trim() || `Hijo ${i + 1}`;
+    if (!vistos.has(nombre)) {
+      vistos.add(nombre);
+      lista.push(nombre);
+    }
+  });
   if (lista.length <= 1) return lista[0] ?? "";
   return `${lista.slice(0, -1).join(", ")} y ${lista[lista.length - 1]}`;
 }
 
 // Lo que el acudiente lee de un grupo que se junta entre hermanos: para quién
-// es, cuánto se compra en total y, solo si el contrato lo trae, cuánto se
-// ahorra frente a comprar por separado (el ahorro viene exacto del backend:
-// precio × empaques de menos; no se recalcula aquí).
+// es, cuánto se necesita y se compra en total y, solo si el contrato lo trae,
+// cuánto se ahorra frente a comprar por separado (el ahorro viene exacto del
+// backend: precio × paquetes de menos; no se recalcula aquí). La consolidación
+// no trae la unidad ni el tamaño del paquete: el nombre del producto, que casi
+// siempre lo lleva ("x12 Und"), se muestra aparte y la frase no lo repite.
 export function textoDeConsolidacion(
-  c: { hijos: readonly string[]; demanda_base: number; unidades_a_comprar: number },
+  c: {
+    hijos: readonly string[];
+    demanda_base?: number | null;
+    unidades_a_comprar?: number | null;
+  },
   nombres: ReadonlyMap<string, string>,
   ahorroEnPesos: string | null,
-): { paraQuienes: string; cantidad: string; ahorro: string | null } {
-  const paquetes = c.unidades_a_comprar === 1 ? "1 paquete" : `${c.unidades_a_comprar} paquetes`;
+): { paraQuienes: string | null; cantidad: string | null; ahorro: string | null } {
+  const quienes = nombresEnLista(c.hijos, nombres);
+  const paquetes = c.unidades_a_comprar ?? 0;
+  const necesitan = c.demanda_base ?? 0;
+  const compras =
+    paquetes > 0 ? `compras ${paquetes === 1 ? "1 paquete" : `${paquetes} paquetes`}` : null;
+  let cantidad: string | null = null;
+  if (necesitan > 0) {
+    cantidad = `Necesitan ${necesitan} ${necesitan === 1 ? "unidad" : "unidades"} en total` + (compras ? ` y ${compras}` : "");
+  } else if (compras) {
+    cantidad = `En total ${compras}`;
+  }
   return {
-    paraQuienes: `Para ${nombresEnLista(c.hijos, nombres)}`,
-    cantidad: `${c.demanda_base} en total, compras ${paquetes}`,
+    paraQuienes: quienes ? `Para ${quienes}` : null,
+    cantidad,
     ahorro: ahorroEnPesos ? `Ahorras ${ahorroEnPesos} frente a comprarlos por separado` : null,
   };
 }
