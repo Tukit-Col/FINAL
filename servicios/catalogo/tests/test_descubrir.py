@@ -11,9 +11,12 @@ from __future__ import annotations
 import inspect
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
+from tukit_catalogo.cargador import atributos_de_csv, isbn13_valido, leer_csv, normalizar_isbn, pesos_a_centavos
 from tukit_catalogo.descubrir import (
+    TIENDAS_LIBROS,
     PuertaCerrada,
     Revision,
     _ean_valido,
@@ -21,10 +24,10 @@ from tukit_catalogo.descubrir import (
     cabeza,
     clasificar,
     consulta_desde_renglon,
+    consulta_libro,
+    consulta_libro_en,
     crear_libro,
     crear_util,
-    TIENDAS_LIBROS,
-    consulta_libro,
     exigir_sin_revisar,
     fila_libro,
     probar,
@@ -318,15 +321,44 @@ class TestDescartarPuedeCerrarElConcepto:
 class TestLibrosEnBuscalibreYLibreriaNacional:
     def test_fila_libro_normaliza_precio_colombiano(self):
         fila = fila_libro("buscalibre", {"titulo": "Nacho", "isbn13": "9789580714729", "precio": "$ 54.900"})
-        assert fila["precio"] == "54900"
+        assert fila["precio_cop"] == "54900"
+
+    def test_precio_con_coma_decimal(self):
+        fila = fila_libro("buscalibre", {"titulo": "x", "precio": "54.900,00"})
+        assert fila["precio_cop"] == "54900"
 
     def test_fila_libro_sin_imagen_se_marca(self):
         fila = fila_libro("libreria_nacional", {"titulo": "Nacho", "imagen_url": None})
         assert fila["imagen_url"] == ""
-        assert set(fila) == {"titulo", "isbn13", "editorial", "precio", "imagen_url", "url_origen"}
+
+    def test_fila_libro_tiene_las_columnas_del_csv_real(self):
+        ruta = Path(__file__).resolve().parents[3] / "datos" / "catalogo" / "libros_firecrawl.csv"
+        cabecera = ruta.read_text(encoding="utf-8").splitlines()[0].split(",")
+        assert set(fila_libro("buscalibre", {})) == set(cabecera)
+
+    def test_fila_libro_usa_el_slug_de_tiendas_csv(self):
+        slugs = {t["slug"] for t in leer_csv(Path(__file__).resolve().parents[3] / "datos" / "catalogo" / "tiendas.csv")}
+        for clave in TIENDAS_LIBROS:
+            assert fila_libro(clave, {})["tienda_slug"] in slugs
+        assert fila_libro("libreria_nacional", {})["tienda_slug"] == "librerianacional"
+
+    def test_fila_libro_la_acepta_el_cargador(self):
+        fila = fila_libro(
+            "buscalibre",
+            {"titulo": "Nacho", "isbn13": "978-958-07-1472-9", "precio": "$ 54.900", "atributos": {"edicion": "x"}},
+            concepto_codigo="C034",
+        )
+        assert isbn13_valido(normalizar_isbn(fila["isbn13"]))
+        assert pesos_a_centavos(fila["precio_cop"]) == 5_490_000
+        assert atributos_de_csv(fila["atributos"]) == {"edicion": "x"}
+        assert fila["concepto_codigo"] == "C034" and fila["disponible"] == "true"
 
     def test_consulta_libro_codifica_tildes_y_espacios(self):
         url = consulta_libro("Álgebra de Baldor", None)
         assert " " not in url and "Á" not in url
         assert url.startswith(TIENDAS_LIBROS["buscalibre"])
         assert "9789580714729" in consulta_libro("x", "9789580714729")
+
+    def test_consulta_libro_en_libreria_nacional(self):
+        url = consulta_libro_en("libreria_nacional", "Álgebra de Baldor", None)
+        assert url == TIENDAS_LIBROS["libreria_nacional"] + "/catalogsearch/result/?q=%C3%81lgebra%20de%20Baldor"
