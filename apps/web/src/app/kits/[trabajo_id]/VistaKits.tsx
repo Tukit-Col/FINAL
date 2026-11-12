@@ -42,7 +42,7 @@ import {
 import { FalloApi, iniciarCheckout } from "@/lib/api-navegador";
 import { escribirDireccionAMano } from "@/lib/direccion-checkout";
 import type { EntregaPrevia } from "@/lib/pagar-pedido";
-import { etiquetasDeHijos, type ApodoMatricula } from "@/lib/kit-vista";
+import { etiquetasDeHijos, textoDeConsolidacion, type ApodoMatricula } from "@/lib/kit-vista";
 import { abrirWidgetWompi } from "@/lib/wompi";
 import CampoDireccion, { type LugarElegido } from "./CampoDireccion";
 import CampoDireccionOsm from "./CampoDireccionOsm";
@@ -235,16 +235,23 @@ export default function VistaKits({
       {kit.consolidaciones.length > 0 && (
         <section className={styles.consolidaciones}>
           <h2>Lo que juntamos entre tus hijos</h2>
+          <p className={styles.explicaJunto}>
+            Estos productos son iguales para varios de tus hijos, así que los compramos juntos y sobra menos.
+          </p>
           <ul>
-            {kit.consolidaciones.map((c) => {
-              const quienes = c.hijos.flatMap((h) => nombresHijos.get(h) ?? []);
+            {kit.consolidaciones.map((c, i) => {
+              const t = textoDeConsolidacion(
+                c,
+                nombresHijos,
+                c.ahorro > 0 ? formatearPesos(c.ahorro) : null,
+              );
               return (
-                <li key={c.concepto}>
-                  <strong>{c.explicacion}</strong>
+                <li key={`${c.producto}-${i}`}>
+                  <strong>{c.producto}</strong>
                   <span>
-                    {c.concepto} · {quienes.length > 0 && `${quienes.join(" y ")} · `}ahorras{" "}
-                    <span className="cifra">{formatearPesos(c.ahorro)}</span>
+                    {t.paraQuienes} · {t.cantidad}
                   </span>
+                  {t.ahorro && <span className={styles.ahorroJunto}>{t.ahorro}</span>}
                 </li>
               );
             })}
