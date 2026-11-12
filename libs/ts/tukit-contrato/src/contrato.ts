@@ -117,6 +117,8 @@ export interface HijoSolicitud {
   // de lista de la que salió, para enlazar de vuelta a su revisor. En una
   // solicitud real de acudiente no aplica.
   version_id?: string;
+  // Apodo opcional del hijo (máx. 40): rotula su parte del kit.
+  apodo?: string;
 }
 
 // ----------------------------------------------------------- §3 Preferencias
@@ -699,6 +701,7 @@ export interface HijoDeTrabajo {
   version_id?: string;
   /** Un borrador de edicion de kits: el canonico que reemplazara al publicarse. */
   basado_en?: string;
+  apodo?: string;
 }
 
 // AD-02: validar es fijar el producto de la linea. Sin `sku` se lee

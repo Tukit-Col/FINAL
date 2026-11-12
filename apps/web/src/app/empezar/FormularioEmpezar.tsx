@@ -792,6 +792,7 @@ export default function FormularioEmpezar({
             referencia: hijo.referencia,
             colegio_id: hijo.colegioId,
             grado: hijo.grado,
+            ...(hijo.apodo.trim() ? { apodo: hijo.apodo.trim().slice(0, 40) } : {}),
           })),
           // Lo que el recomendador de verdad lee: pesos + disposición a pagar
           // de más. El encuadre del paso 3 es "hasta dónde estirar el bolsillo".

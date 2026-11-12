@@ -112,6 +112,30 @@ class TestCrearDevuelve202:
         assert cuerpo["consultar_en"] == f"/v1/trabajos/{cuerpo['trabajo_id']}"
         assert cliente.lanzados == [uuid.UUID(cuerpo["trabajo_id"])]
 
+    async def test_el_apodo_de_cada_hijo_se_guarda_y_el_get_lo_devuelve(self, cliente):
+        """El kit nombra a cada hermano con su apodo; los espacios se recortan."""
+        creado = await cliente.post(
+            "/v1/trabajos",
+            json=_peticion(
+                hijos=[
+                    {"referencia": "hijo-0", "colegio_id": COLEGIO, "grado": "Cuarto", "apodo": "  Sofía "},
+                    {"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto", "apodo": "Lucía"},
+                ]
+            ),
+        )
+        assert creado.status_code == 202
+        vista = (await cliente.get(creado.json()["consultar_en"])).json()
+        assert [h.get("apodo") for h in vista["hijos"]] == ["Sofía", "Lucía"]
+
+    async def test_un_apodo_de_mas_de_40_caracteres_se_rechaza(self, cliente):
+        respuesta = await cliente.post(
+            "/v1/trabajos",
+            json=_peticion(
+                hijos=[{"referencia": "hijo-0", "colegio_id": COLEGIO, "grado": "Cuarto", "apodo": "x" * 41}]
+            ),
+        )
+        assert respuesta.status_code in (400, 422)
+
     async def test_dos_hijos_con_la_misma_referencia_se_rechazan(self, cliente):
         """Es con la referencia con la que se agrupan las lineas: repetida,
         los dos hermanos se mezclarian en la misma columna del kit."""

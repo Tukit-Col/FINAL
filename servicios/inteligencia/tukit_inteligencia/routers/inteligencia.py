@@ -20,7 +20,7 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, Query, Request
-from pydantic import AliasChoices, BaseModel, Field, ValidationError, model_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator, ValidationError, model_validator
 from tukit_comun import derivar
 from tukit_comun.http import ErrorDominio
 
@@ -173,6 +173,17 @@ class Hijo(BaseModel):
     colegio_id: str = Field(min_length=1, max_length=64)
     grado: str = Field(min_length=1, max_length=32)
     anio_lectivo: int | None = Field(default=None, ge=2020, le=2100)
+    # Como llama el acudiente a este hijo (nunca el nombre legal del menor). Solo
+    # sirve para rotular el kit. Se recorta y pasa de 40 caracteres se RECHAZA
+    # (no se trunca en silencio); vacio es None.
+    apodo: str | None = Field(default=None, max_length=40)
+
+    @field_validator("apodo", mode="before")
+    @classmethod
+    def _recortar_apodo(cls, v):
+        if isinstance(v, str):
+            return v.strip() or None
+        return v
 
 
 class Contacto(BaseModel):
