@@ -25,6 +25,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
+import pytest
 from conftest import CatalogoFalso, opcion, reconocido, renglon
 from tukit_inteligencia import trabajos
 from tukit_inteligencia.modelos import EstadoResolucion, EstadoTrabajo
@@ -638,6 +639,14 @@ class CatalogoDosPersonajes(CatalogoRealista):
             "precio_desde": 20000,
             "unidades_por_empaque": 1,
         }
+
+
+@pytest.fixture(autouse=True)
+def _avisos_de_ancla_limpios():
+    """El aviso de ancla no surtida sale una vez por proceso: cada test arranca en limpio."""
+    trabajos._ANCLAS_AVISADAS.clear()
+    yield
+    trabajos._ANCLAS_AVISADAS.clear()
 
 
 class TestAnclasPorHijo:

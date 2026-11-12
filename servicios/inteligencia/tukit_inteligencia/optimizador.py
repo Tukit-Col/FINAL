@@ -96,6 +96,10 @@ MOTIVO_NO_CONSOLIDABLE = "Dos ediciones del mismo titulo no son sustituibles."
 # de presentacion, no cambia que producto se eligio ni cuanto cuesta el kit.
 CONCEPTOS_ANCLA = ("C001", "C009", "C011", "C086")
 
+# Prefijo de la nota que `consolidar` le pone a la linea que se compra junto con
+# otra; `dominio.pipeline` la reconoce para borrarla cuando el grupo se deshace.
+NOTA_CONSOLIDADA = "Se compra junto con "
+
 # Por encima de este tamano del espacio de busqueda (producto de candidatos por
 # linea) se corre NSGA-II; por debajo se enumera el frente exacto. 4096 = 2^12
 # queda entre el cruce medido de la enumeracion con el NSGA-II calibrado en la
@@ -1236,7 +1240,7 @@ def consolidar(lineas: tuple[LineaKit, ...]) -> tuple[tuple[LineaKit, ...], tupl
                 otra,
                 unidades_a_comprar=0,
                 subtotal_cop=0 if otra.precio_unitario_cop is not None else None,
-                mensaje=f"Se compra junto con {donde}: un empaque de {empaque} alcanza para {para_quienes}.",
+                mensaje=f"{NOTA_CONSOLIDADA}{donde}: un empaque de {empaque} alcanza para {para_quienes}.",
             )
 
         notas.append(

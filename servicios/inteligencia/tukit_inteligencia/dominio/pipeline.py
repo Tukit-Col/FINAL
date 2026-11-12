@@ -18,6 +18,7 @@ from typing import Any
 
 from ..modelos import EstadoResolucion
 from ..optimizador import (
+    NOTA_CONSOLIDADA,
     Candidato,
     PerfilKit,
     _objetivos,
@@ -32,9 +33,6 @@ from ..optimizador import (
 from ..parseo import mensaje_para_papa, parsear_renglon
 
 logger = logging.getLogger(__name__)
-
-# Prefijo de la nota que `consolidar` le pone a la linea que se compra junto con otra.
-NOTA_CONSOLIDADA = "Se compra junto con "
 
 
 def _normalizar(renglones: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -148,6 +146,15 @@ def clave_de_hijo(preferencias: dict[str, Any], linea_hijo: str, hijos_del_kit: 
        neutral: es peor ponerle a un hijo el personaje de su hermano que no
        ponerle ninguno.
     3. En cualquier otro caso, None.
+
+    Riesgo aceptado del paso 2: con dos o mas hijos y ninguna clave exacta, el
+    orden de las claves (orden de `personaje_por_hijo`) se asume igual al de
+    aparicion de los hijos en el kit; si no lo es, un hermano puede recibir el
+    personaje del otro. Hoy eso solo puede ocurrir en un trabajo armado fuera
+    del formulario con varios hijos de referencias propias (el poller y el
+    canonico arman un solo hijo, `"hijo-1"`/`"canonico"`, y el canonico no trae
+    preferencias), asi que el caso no se da en produccion; se acepta antes que
+    dejar neutral a hermanos que si declararon su personaje.
     """
     claves = [str(k) for k in (preferencias.get("personaje_por_hijo") or {})]
     if linea_hijo in claves:
