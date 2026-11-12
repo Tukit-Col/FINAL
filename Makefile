@@ -7,7 +7,7 @@
 .DEFAULT_GOAL := ayuda
 .PHONY: ayuda preparar fronteras prueba prueba-colas prueba-redis lint formato tipos verificar limpiar \
         bd-arriba bd-abajo bd-crear bd-limpiar bd-reiniciar-datos bd-esquema bd-indices bd-verificar \
-        bd-migrar bd-revision bd-deriva bd-cargar bd-datos bd-enriquecer bd-completar \
+        bd-migrar bd-revision bd-deriva bd-cargar bd-datos bd-auditar bd-enriquecer bd-completar \
         bd-demanda bd-revisar bd-vista bd-admin bd-nivelar bd-volcar bd-limpiar-candidatos fase1 \
         bd-sembrar bd-colegios bd-listas backend arriba reanudar abajo estado humo \
         curaduria-exportar curaduria-importar \
@@ -268,6 +268,10 @@ bd-cargar:  ## Carga los datos curados del catalogo y reporta que les falta
 bd-datos:  ## Revisa los datos curados sin escribir nada
 	@cd servicios/catalogo && PYTHONPATH=".:../../libs/py/tukit_comun" \
 		../../$(PY) -m tukit_catalogo.cargador --datos ../../datos/catalogo --solo-validar
+
+bd-auditar:  ## Cuenta los campos vacios del catalogo (ARGS=--estricto falla si hay)
+	@cd servicios/catalogo && PYTHONPATH=".:../../libs/py/tukit_comun" \
+		../../$(PY) -m tukit_catalogo.auditar_campos --datos ../../datos/catalogo --informe ../../docs/informes/auditoria-campos-catalogo.md $(ARGS)
 
 bd-enriquecer:  ## Saca empaque, atributos y personaje del nombre; --imagenes va a la red
 	@cd servicios/catalogo && PYTHONPATH=".:../../libs/py/tukit_comun" \
