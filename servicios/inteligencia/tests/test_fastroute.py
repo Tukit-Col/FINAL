@@ -622,6 +622,82 @@ class TestPersonajeLlegaAlFan:
         assert all(k["perfil"] != "Fan" for k in vista["kits"])
 
 
+@dataclass
+class CatalogoDosPersonajes(CatalogoRealista):
+    """Surte spiderman y frozen en las cuatro anclas; el resto no lo surte."""
+
+    async def producto_de_personaje(self, concepto: str, personaje: str) -> dict[str, Any] | None:
+        self.llamadas.append("producto_de_personaje")
+        if personaje.lower() not in {"spiderman", "frozen"}:
+            return None
+        return {
+            "sku": f"{personaje.upper()}-{concepto}",
+            "nombre": f"{concepto} {personaje}",
+            "nivel": "confiable",
+            "personaje": personaje.lower(),
+            "precio_desde": 20000,
+            "unidades_por_empaque": 1,
+        }
+
+
+class TestAnclasPorHijo:
+    async def test_un_hijo_cuatro_anclas_estables(self):
+        from tukit_inteligencia.optimizador import CONCEPTOS_ANCLA
+
+        primera = await trabajos.anclas_por_hijo(_catalogo_realista(), {"hijo-1": "spiderman"})
+        segunda = await trabajos.anclas_por_hijo(_catalogo_realista(), {"hijo-1": "spiderman"})
+        skus = {c: p["sku"] for c, p in primera["hijo-1"].items()}
+        assert set(skus) == set(CONCEPTOS_ANCLA)
+        assert skus == {c: p["sku"] for c, p in segunda["hijo-1"].items()}
+
+    async def test_ancla_no_surtida_se_registra(self, caplog):
+        import logging
+
+        with caplog.at_level(logging.WARNING, logger="tukit_inteligencia.trabajos"):
+            r = await trabajos.anclas_por_hijo(_catalogo_realista(), {"hijo-1": "batman"})
+        assert r == {}
+        assert "batman" in caplog.text
+        assert "C001" in caplog.text
+
+    async def test_mismo_personaje_se_consulta_una_vez(self):
+        catalogo = _catalogo_realista()
+        r = await trabajos.anclas_por_hijo(catalogo, {"hijo-1": "spiderman", "hijo-2": "Spiderman"})
+        assert catalogo.llamadas.count("producto_de_personaje") == 4
+        assert r["hijo-1"] is r["hijo-2"]
+
+
+class TestDosHijosEndToEnd:
+    async def test_cada_hijo_recibe_su_personaje_en_el_fan(self, motor):
+        base = _catalogo_verificado(personaje=None)
+        catalogo = CatalogoDosPersonajes(revisada=True, items_resueltos=base.items_resueltos)
+        prefs = {
+            "personaje_por_hijo": {"hijo-1": ["spiderman"], "hijo-2": ["frozen"]},
+            "pesos": {"personaje": 1},
+        }
+        respuesta = await trabajos.crear(
+            motor,
+            hijos=[
+                {"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"},
+                {"referencia": "hijo-2", "colegio_id": COLEGIO, "grado": "Cuarto"},
+            ],
+            preferencias=prefs,
+        )
+        trabajo_id = uuid.UUID(respuesta["trabajo_id"])
+        await trabajos.procesar(motor, trabajo_id, catalogo=catalogo)
+        vista = await trabajos.ver(motor, trabajo_id, incluir_kits=True)
+        fan = next(k for k in vista["kits"] if k["perfil"] == "Fan")
+
+        personajes = {
+            (li["hijo"], (li.get("producto_elegido") or {}).get("personaje"))
+            for li in fan["lineas"]
+            if li.get("concepto") in {"C001", "C009"}
+        }
+        assert ("hijo-1", "spiderman") in personajes
+        assert ("hijo-2", "frozen") in personajes
+        assert ("hijo-1", "frozen") not in personajes
+        assert ("hijo-2", "spiderman") not in personajes
+
+
 class TestElegirProductoDePersonaje:
     """La eleccion no depende del orden en que el catalogo entregue los candidatos."""
 

@@ -128,7 +128,7 @@ class TestMarcasExcluidas:
                 "personaje": "spiderman",
             }
         }
-        kits = inyectar_personaje_fan(kits, swaps, prefs)
+        kits = inyectar_personaje_fan(kits, {"hijo-1": swaps}, prefs)
         fan = next(k for k in kits if k.perfil == PerfilKit.FAN.value)
         assert all(li.elegido is None or li.elegido.sku != "SP" for li in fan.lineas)
 
