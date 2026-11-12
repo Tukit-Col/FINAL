@@ -5,6 +5,8 @@ Identidad publica `titular_suprimido`; este proceso lo consume de
 
 - `trabajo_pipeline.preferencias_cifradas`: los pesos y el presupuesto del
   hogar, derivados de su encuesta socioeconomica. **Se borra.**
+- `trabajo_pipeline.hijos[].apodo`: como el acudiente llama a cada hijo (dato de
+  un menor). **Se quita** de cada hijo; el resto del hijo se queda.
 - `kit.pesos_usados_cifrados`: los mismos pesos, congelados en cada kit de sus
   trabajos. **Se borra.**
 - `importacion_lista.documento` (el PDF o la foto que subio) y `carga` (lo
@@ -14,8 +16,8 @@ Identidad publica `titular_suprimido`; este proceso lo consume de
 
 Lo que se queda: los kits, sus lineas, su total y el texto de los renglones
 (`item_crudo.texto`), que es la lista del colegio y no un dato del titular.
-`hijos` solo lleva referencia, colegio y grado (el esquema no admite el nombre
-de un menor). `usuario_id` se queda como referencia seudonima.
+`hijos` queda solo con referencia, colegio y grado (el esquema no admite el
+nombre de un menor y el apodo se quita). `usuario_id` se queda como referencia seudonima.
 
 Confirma con `supresion_confirmada` en su bandeja, en la misma transaccion, y
 es idempotente.
@@ -69,6 +71,18 @@ class Supresor:
             await conexion.execute(
                 update(_TRABAJO).where(_TRABAJO.c.usuario_id == uid).values(preferencias_cifradas=None)
             )
+            filas = await conexion.execute(
+                select(_TRABAJO.c.id, _TRABAJO.c.hijos).where(_TRABAJO.c.usuario_id == uid)
+            )
+            for trabajo_id, hijos in filas.all():
+                if any(isinstance(h, dict) and "apodo" in h for h in hijos or ()):
+                    limpios = [
+                        {k: v for k, v in h.items() if k != "apodo"} if isinstance(h, dict) else h
+                        for h in hijos
+                    ]
+                    await conexion.execute(
+                        update(_TRABAJO).where(_TRABAJO.c.id == trabajo_id).values(hijos=limpios)
+                    )
             await conexion.execute(
                 update(_KIT).where(_KIT.c.trabajo_id.in_(trabajos)).values(pesos_usados_cifrados=None)
             )

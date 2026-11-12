@@ -98,6 +98,25 @@ async def test_borra_preferencias_y_archivo_subido_y_conserva_el_kit(motor):
         assert importacion.error == "titular_suprimido"
 
 
+async def test_quita_el_apodo_de_los_hijos_y_conserva_el_resto(motor):
+    tid = await _sembrar(motor, TITULAR)
+    async with motor.sesion() as db:
+        trabajo = await db.get(TrabajoPipeline, tid)
+        trabajo.hijos = [
+            {"referencia": "hijo-0", "colegio_id": "C", "grado": "3", "apodo": "Sofia"},
+            {"referencia": "hijo-1", "colegio_id": "C", "grado": "3", "apodo": "Lucia"},
+        ]
+
+    assert await Supresor(motor).manejar(_evento()) is Resultado.HECHO
+
+    async with motor.sesion() as db:
+        trabajo = await db.get(TrabajoPipeline, tid)
+        assert trabajo.hijos == [
+            {"referencia": "hijo-0", "colegio_id": "C", "grado": "3"},
+            {"referencia": "hijo-1", "colegio_id": "C", "grado": "3"},
+        ]
+
+
 async def test_una_importacion_ya_importada_conserva_su_estado(motor):
     await _sembrar(motor, TITULAR, estado_importacion="importada")
 

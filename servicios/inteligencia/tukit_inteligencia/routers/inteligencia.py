@@ -20,7 +20,7 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, Query, Request
-from pydantic import AliasChoices, BaseModel, Field, field_validator, ValidationError, model_validator
+from pydantic import AliasChoices, BaseModel, Field, ValidationError, field_validator, model_validator
 from tukit_comun import derivar
 from tukit_comun.http import ErrorDominio
 
@@ -338,7 +338,7 @@ async def crear_trabajo(peticion: PeticionTrabajo, solicitud: Request) -> dict[s
             campo="preferencias.pesos",
         )
 
-    hijos = [hijo.model_dump() for hijo in peticion.hijos]
+    hijos = [hijo.model_dump(exclude={"apodo"} if hijo.apodo is None else None) for hijo in peticion.hijos]
     # Sin lista para ningun hijo, el trabajo fallaria al procesarse con este
     # mismo motivo: se dice ahora y no se encola (H-C-03). Un hogar con algun
     # hijo sin lista sigue igual: ese hijo sale anotado en el kit.
