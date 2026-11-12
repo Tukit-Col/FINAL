@@ -55,6 +55,7 @@ import json
 import re
 import sys
 import unicodedata
+import urllib.parse
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -1431,10 +1432,6 @@ def main() -> int:
     return 2
 
 
-if __name__ == "__main__":
-    sys.exit(main())
-
-
 # --- Libros: buscalibre y Libreria Nacional --------------------------------
 # Ninguna de las dos expone una API de busqueda estable, asi que se consultan
 # con Firecrawl (ver `firecrawl-search`). Estas funciones solo arman la URL y
@@ -1450,23 +1447,17 @@ SLUG_TIENDA_LIBRO = {"buscalibre": "buscalibre", "libreria_nacional": "librerian
 _RUTA_BUSQUEDA = {"buscalibre": "/libros/search?q=", "libreria_nacional": "/catalogsearch/result/?q="}
 
 
-def consulta_libro(titulo: str, isbn13: str | None) -> str:
-    """URL de busqueda en la primera tienda de libros. Con ISBN, busca por el
+def consulta_libro_en(tienda: str, titulo: str, isbn13: str | None) -> str:
+    """URL de busqueda en la tienda indicada. Con ISBN, busca por el
     (identifica la edicion); sin el, por titulo. Tildes y espacios van
     codificados."""
-    import urllib.parse
-
-    termino = normalizar_isbn(isbn13) if isbn13 else None
-    termino = termino or titulo.strip()
-    return TIENDAS_LIBROS["buscalibre"] + _RUTA_BUSQUEDA["buscalibre"] + urllib.parse.quote(termino)
-
-
-def consulta_libro_en(tienda: str, titulo: str, isbn13: str | None) -> str:
-    """Igual que `consulta_libro`, para la tienda indicada."""
-    import urllib.parse
-
     termino = (normalizar_isbn(isbn13) if isbn13 else None) or titulo.strip()
     return TIENDAS_LIBROS[tienda] + _RUTA_BUSQUEDA[tienda] + urllib.parse.quote(termino)
+
+
+def consulta_libro(titulo: str, isbn13: str | None) -> str:
+    """URL de busqueda en la primera tienda de libros (buscalibre)."""
+    return consulta_libro_en("buscalibre", titulo, isbn13)
 
 
 def _precio_cop(valor: Any) -> str:
@@ -1478,9 +1469,21 @@ def _precio_cop(valor: Any) -> str:
     return re.sub(r"\D", "", texto)
 
 
-def fila_libro(tienda: str, bruto: dict) -> dict[str, str]:
-    """Una fila con las columnas de `libros_firecrawl.csv` que trae el
-    raspado. Lo ausente queda "" (nunca None): la carga lo trata como vacio."""
+def fila_libro(
+    tienda: str,
+    bruto: dict,
+    *,
+    concepto_codigo: str = "",
+    nivel: str = "confiable",
+    observado_en: str | None = None,
+) -> dict[str, str]:
+    """Una fila con EXACTAMENTE las columnas de `libros_firecrawl.csv`.
+
+    Lo ausente queda "" (nunca None): la carga lo trata como vacio. El
+    `concepto_codigo` lo lee la carga sin mirar si existe, asi que siempre va
+    la columna; si queda vacio la carga lo reporta como concepto desconocido
+    en vez de cargar el libro mal clasificado.
+    """
     if tienda not in TIENDAS_LIBROS:
         raise ValueError(f"tienda de libros desconocida: {tienda!r}")
 
@@ -1489,11 +1492,24 @@ def fila_libro(tienda: str, bruto: dict) -> dict[str, str]:
         return "" if v is None else str(v).strip()
 
     isbn = normalizar_isbn(texto("isbn13")) if texto("isbn13") else None
+    atributos = bruto.get("atributos")
     return {
+        "concepto_codigo": texto("concepto_codigo") or concepto_codigo,
         "titulo": texto("titulo"),
         "isbn13": isbn or "",
         "editorial": texto("editorial"),
-        "precio": _precio_cop(bruto.get("precio")),
+        "nivel": texto("nivel") or nivel,
+        "tienda_slug": SLUG_TIENDA_LIBRO[tienda],
+        "precio_cop": _precio_cop(bruto.get("precio")),
         "imagen_url": texto("imagen_url"),
         "url_origen": texto("url_origen"),
+        "disponible": texto("disponible") or "true",
+        "sku_tienda": texto("sku_tienda"),
+        "observado_en": observado_en or datetime.now(UTC).date().isoformat(),
+        "atributos": json.dumps(atributos, ensure_ascii=False) if isinstance(atributos, dict) and atributos else "",
     }
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
