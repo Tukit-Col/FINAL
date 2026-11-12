@@ -7,6 +7,8 @@ export interface HijoDelTrabajo {
   referencia?: string;
   colegio_id?: string;
   grado?: string;
+  // Lo que el acudiente escribió para este hijo en /empezar.
+  apodo?: string;
 }
 
 // Lo justo de una matrícula del portador para ponerle nombre a su hijo.
@@ -33,13 +35,22 @@ export function etiquetasDeHijos(
     const hijo =
       hijosDelTrabajo.find((h) => h.referencia === referencia) ??
       (hijosDelTrabajo.length === 1 ? hijosDelTrabajo[0] : undefined);
+    const propio = hijo?.apodo?.trim();
+    // Las matrículas solo identifican al hijo si ningún hermano comparte su
+    // colegio y grado; si no, el mismo apodo caería en los dos.
+    const hermanos = hijo
+      ? hijosDelTrabajo.filter((h) => h.colegio_id === hijo.colegio_id && h.grado === hijo.grado).length
+      : 0;
     const apodos = new Set(
       matriculas
-        .filter((m) => hijo && m.colegio_id === hijo.colegio_id && m.grado === hijo.grado)
+        .filter(
+          (m) => hijo && hermanos <= 1 && m.colegio_id === hijo.colegio_id && m.grado === hijo.grado,
+        )
         .map((m) => m.apodo?.trim() ?? "")
         .filter(Boolean),
     );
-    if (apodos.size === 1) etiquetas.set(referencia, [...apodos][0]!);
+    if (propio) etiquetas.set(referencia, propio);
+    else if (apodos.size === 1) etiquetas.set(referencia, [...apodos][0]!);
     else if (distintas.length > 1) etiquetas.set(referencia, `Hijo ${indice + 1}`);
   });
   return etiquetas;

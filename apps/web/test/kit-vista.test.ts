@@ -62,6 +62,49 @@ test("dos matrículas del mismo colegio y grado con apodos distintos no adivinan
   assert.equal(etiquetas.get("hijo-0"), undefined);
 });
 
+test("dos hijos mismo colegio y grado con apodos distintos", () => {
+  const etiquetas = etiquetasDeHijos(
+    ["hijo-0", "hijo-1"],
+    [
+      { referencia: "hijo-0", colegio_id: COLEGIO, grado: "Tercero", apodo: "Sofía" },
+      { referencia: "hijo-1", colegio_id: COLEGIO, grado: "Tercero", apodo: "Lucía" },
+    ],
+  );
+  assert.deepEqual([...etiquetas], [
+    ["hijo-0", "Sofía"],
+    ["hijo-1", "Lucía"],
+  ]);
+});
+
+test("un solo apodo en matrículas ya no se aplica a ambos hermanos", () => {
+  const etiquetas = etiquetasDeHijos(
+    ["hijo-0", "hijo-1"],
+    [
+      { referencia: "hijo-0", colegio_id: COLEGIO, grado: "Tercero" },
+      { referencia: "hijo-1", colegio_id: COLEGIO, grado: "Tercero" },
+    ],
+    [{ colegio_id: COLEGIO, grado: "Tercero", apodo: "Sofía" }],
+  );
+  assert.equal(etiquetas.get("hijo-0"), "Hijo 1");
+  assert.equal(etiquetas.get("hijo-1"), "Hijo 2");
+});
+
+test("el apodo del hijo gana a las matrículas; sin él se cae a ellas", () => {
+  const matriculas = [{ colegio_id: COLEGIO, grado: "Tercero", apodo: "Pipe" }];
+  const gana = etiquetasDeHijos(
+    ["hijo-0"],
+    [{ referencia: "hijo-0", colegio_id: COLEGIO, grado: "Tercero", apodo: " Tomás " }],
+    matriculas,
+  );
+  assert.equal(gana.get("hijo-0"), "Tomás");
+  const cae = etiquetasDeHijos(
+    ["hijo-0"],
+    [{ referencia: "hijo-0", colegio_id: COLEGIO, grado: "Tercero", apodo: "  " }],
+    matriculas,
+  );
+  assert.equal(cae.get("hijo-0"), "Pipe");
+});
+
 test("ninguna etiqueta es una referencia interna", () => {
   const referencias = ["canonico", "hijo-0", "hijo-1"];
   const etiquetas = etiquetasDeHijos(referencias, [], []);
