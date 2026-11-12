@@ -158,6 +158,13 @@ class TestListarPersonajes:
         nombres = [p["nombre"] for p in cuerpo["personajes"]]
         assert nombres == sorted(nombres)
 
+    async def test_filtro_personaje_ignora_tildes_y_guiones(self, cliente):
+        for consulta in ("Spider-Man", "SPIDER MAN", "spíderman"):
+            cuerpo = (
+                await cliente.get("/v1/catalogo/productos", params={"concepto": "C001", "personaje": consulta})
+            ).json()
+            assert [p["sku"] for p in cuerpo["productos"]] == ["TK-C001-SPIDER"], consulta
+
     async def test_trae_los_conceptos_de_cada_personaje(self, cliente):
         # El SPA necesita los codigos de concepto por personaje para su gate de
         # los cuatro anclas (C001/C009/C011/C086) sin una segunda llamada.

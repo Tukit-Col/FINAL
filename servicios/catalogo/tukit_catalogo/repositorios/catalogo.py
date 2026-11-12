@@ -14,6 +14,7 @@ excepcion es `resumen`, que es puro conteo agregado sin forma que shapear.
 from __future__ import annotations
 
 import re
+import unicodedata
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -131,6 +132,26 @@ def _consulta_ofertas(producto_ids: list[Any]) -> Select:
         )
         .where(OFERTA.c.producto_canonico_id.in_(producto_ids), OFERTA.c.activo.is_(True))
     )
+
+
+_ACENTOS = {"á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u", "ü": "u", "ñ": "n"}
+
+
+def _normalizar_personaje(texto: str) -> str:
+    """Sin tildes, mayusculas, guiones ni espacios: "Spider-Man" == "spiderman"."""
+    base = unicodedata.normalize("NFD", texto)
+    base = "".join(c for c in base if not unicodedata.combining(c))
+    return re.sub(r"[\s\-_]+", "", base.lower())
+
+
+def _normalizado_sql(columna: Any) -> Any:
+    """La misma normalizacion en SQL, con replace anidado (vale en Postgres y SQLite)."""
+    expr = func.lower(columna)
+    for con, sin in {**_ACENTOS, **{k.upper(): v for k, v in _ACENTOS.items()}}.items():
+        expr = func.replace(expr, con, sin)
+    for ruido in ("-", " ", "_"):
+        expr = func.replace(expr, ruido, "")
+    return expr
 
 
 class RepoCatalogo:
@@ -310,7 +331,8 @@ class RepoCatalogo:
         if nivel:
             consulta = consulta.where(PRODUCTO.c.nivel == nivel)
         if personaje:
-            consulta = consulta.where(func.lower(PRODUCTO.c.personaje) == personaje.lower())
+            clave = _normalizar_personaje(personaje)
+            consulta = consulta.where(_normalizado_sql(PRODUCTO.c.personaje) == clave)
         if con_personaje is True:
             consulta = consulta.where(PRODUCTO.c.personaje.is_not(None))
         elif con_personaje is False:
