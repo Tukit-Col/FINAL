@@ -148,7 +148,7 @@ test("textoDeConsolidacion nombra a los hijos con sus apodos, sin palabras inter
     "$ 5.000",
   );
   assert.equal(dos.paraQuienes, "Para Ana y Luis");
-  assert.equal(dos.cantidad, "4 en total, compras 1 paquete");
+  assert.equal(dos.cantidad, "Necesitan 4 unidades en total y compras 1 paquete");
   assert.equal(dos.ahorro, "Ahorras $ 5.000 frente a comprarlos por separado");
   // Tres hijos y uno sin apodo: "Hijo N" por su lugar; sin ahorro no se inventa.
   const tres = textoDeConsolidacion(
@@ -157,6 +157,33 @@ test("textoDeConsolidacion nombra a los hijos con sus apodos, sin palabras inter
     null,
   );
   assert.equal(tres.paraQuienes, "Para Ana, Luis y Hijo 3");
-  assert.equal(tres.cantidad, "6 en total, compras 2 paquetes");
+  assert.equal(tres.cantidad, "Necesitan 6 unidades en total y compras 2 paquetes");
   assert.equal(tres.ahorro, null);
+});
+
+test("textoDeConsolidacion aguanta datos incompletos sin frases colgadas", () => {
+  const nombres = new Map([["hijo-0", "Ana"]]);
+  const base = { demanda_base: 2, unidades_a_comprar: 1 };
+  // Sin hijos: no queda un "Para " suelto.
+  assert.equal(textoDeConsolidacion({ ...base, hijos: [] }, nombres, null).paraQuienes, null);
+  // Hijo repetido: se nombra una vez.
+  assert.equal(
+    textoDeConsolidacion({ ...base, hijos: ["hijo-0", "hijo-0"] }, nombres, null).paraQuienes,
+    "Para Ana",
+  );
+  // Un solo hijo.
+  assert.equal(textoDeConsolidacion({ ...base, hijos: ["hijo-0"] }, nombres, null).paraQuienes, "Para Ana");
+  // Demanda 0 o nula: se omite la frase de cantidad que no existe.
+  assert.equal(
+    textoDeConsolidacion({ hijos: ["hijo-0"], demanda_base: 0, unidades_a_comprar: 2 }, nombres, null).cantidad,
+    "En total compras 2 paquetes",
+  );
+  assert.equal(
+    textoDeConsolidacion({ hijos: ["hijo-0"], demanda_base: null, unidades_a_comprar: 0 }, nombres, null).cantidad,
+    null,
+  );
+  assert.equal(
+    textoDeConsolidacion({ hijos: ["hijo-0"], demanda_base: 1, unidades_a_comprar: 1 }, nombres, null).cantidad,
+    "Necesitan 1 unidad en total y compras 1 paquete",
+  );
 });

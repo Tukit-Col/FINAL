@@ -249,7 +249,7 @@ export default function VistaKits({
                 <li key={`${c.producto}-${i}`}>
                   <strong>{c.producto}</strong>
                   <span>
-                    {t.paraQuienes} · {t.cantidad}
+                    {[t.paraQuienes, t.cantidad].filter(Boolean).join(" · ")}
                   </span>
                   {t.ahorro && <span className={styles.ahorroJunto}>{t.ahorro}</span>}
                 </li>
