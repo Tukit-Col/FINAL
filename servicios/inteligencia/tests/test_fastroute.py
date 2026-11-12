@@ -620,3 +620,29 @@ class TestPersonajeLlegaAlFan:
 
         assert "producto_de_personaje" not in catalogo.llamadas
         assert all(k["perfil"] != "Fan" for k in vista["kits"])
+
+
+class TestElegirProductoDePersonaje:
+    """La eleccion no depende del orden en que el catalogo entregue los candidatos."""
+
+    def test_elegir_producto_de_personaje_es_determinista(self):
+        from tukit_inteligencia.remoto import elegir_producto_de_personaje
+
+        a = {"sku": "B", "nivel": "confiable", "precio_desde": 100}
+        b = {"sku": "A", "nivel": "confiable", "precio_desde": 100}
+        assert elegir_producto_de_personaje([a, b])["sku"] == "A"
+        assert elegir_producto_de_personaje([b, a])["sku"] == "A"
+        assert elegir_producto_de_personaje([]) is None
+
+    def test_prefiere_con_precio_y_confiable(self):
+        from tukit_inteligencia.remoto import elegir_producto_de_personaje
+
+        sin_precio = {"sku": "A", "nivel": "confiable", "precio_desde": None}
+        premium = {"sku": "B", "nivel": "premium", "precio_desde": 10}
+        economico = {"sku": "C", "nivel": "economico", "precio_desde": 5}
+        confiable_caro = {"sku": "D", "nivel": "confiable", "precio_desde": 900}
+        confiable_barato = {"sku": "E", "nivel": "confiable", "precio_desde": 800}
+        assert elegir_producto_de_personaje([sin_precio, premium])["sku"] == "B"
+        assert elegir_producto_de_personaje([premium, economico])["sku"] == "C"
+        assert elegir_producto_de_personaje([economico, confiable_caro])["sku"] == "D"
+        assert elegir_producto_de_personaje([confiable_caro, confiable_barato])["sku"] == "E"

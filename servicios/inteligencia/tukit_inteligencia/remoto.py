@@ -79,6 +79,23 @@ def url_comercio() -> str:
     return os.environ.get("TUKIT_COMERCIO_URL", URL_COMERCIO_POR_OMISION).rstrip("/")
 
 
+_ORDEN_NIVEL = {"confiable": 0, "economico": 1, "premium": 2}
+
+
+def elegir_producto_de_personaje(productos: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """El candidato de personaje, sin depender del orden de la respuesta.
+
+    Con precio primero; luego nivel confiable < economico < premium; luego el
+    menor `precio_desde`; el sku ascendente desempata.
+    """
+
+    def clave(p: dict[str, Any]) -> tuple[Any, ...]:
+        precio = p.get("precio_desde")
+        return (precio is None, _ORDEN_NIVEL.get(p.get("nivel"), 9), precio or 0, str(p.get("sku") or ""))
+
+    return min(productos, key=clave) if productos else None
+
+
 @dataclass
 class ClienteCatalogo:
     """Lo que el pipeline le pide al catalogo, y nada mas.
@@ -183,17 +200,18 @@ class ClienteCatalogo:
         """El producto de un concepto ancla para un personaje, o None si no hay.
 
         Es la misma consulta que el interruptor de personaje del Fan hace en la
-        consola (concepto + personaje, primera pagina), pero del lado del
+        consola (concepto + personaje, hasta 20 candidatos y uno elegido de forma
+        determinista), pero del lado del
         servidor: la ruta de aplicacion del acudiente congela las anclas del kit
         canonico al personaje elegido sin depender del navegador.
         """
         cuerpo = await self._pedir(
             "GET",
             "/v1/catalogo/productos",
-            params={"concepto": concepto, "personaje": personaje, "por_pagina": 1},
+            params={"concepto": concepto, "personaje": personaje, "por_pagina": 20},
         )
         productos = list(cuerpo.get("productos") or ())
-        return productos[0] if productos else None
+        return elegir_producto_de_personaje(productos)
 
     async def listas_por_contacto(self, contacto_referencia: str) -> list[dict[str, Any]]:
         """Las listas que subio un acudiente, para su panel "Mis solicitudes".
