@@ -6,7 +6,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { etiquetasDeHijos, pistaDeTienda } from "../src/lib/kit-vista.ts";
+import { etiquetasDeHijos, pistaDeTienda, textoDeConsolidacion } from "../src/lib/kit-vista.ts";
 
 const COLEGIO = "4c06f0e5-cb44-5865-93e5-ea7b2f115d49";
 const OTRO = "2030c794-3ff4-5b1a-a2ec-5c5d383de3f1";
@@ -105,6 +105,18 @@ test("el apodo del hijo gana a las matrículas; sin él se cae a ellas", () => {
   assert.equal(cae.get("hijo-0"), "Pipe");
 });
 
+test("un hermano con apodo junto a otro sin apodo: «Sofía» y «Hijo 2»", () => {
+  const etiquetas = etiquetasDeHijos(
+    ["hijo-0", "hijo-1"],
+    [
+      { referencia: "hijo-0", colegio_id: COLEGIO, grado: "Tercero", apodo: "Sofía" },
+      { referencia: "hijo-1", colegio_id: COLEGIO, grado: "Tercero" },
+    ],
+  );
+  assert.equal(etiquetas.get("hijo-0"), "Sofía");
+  assert.equal(etiquetas.get("hijo-1"), "Hijo 2");
+});
+
 test("ninguna etiqueta es una referencia interna", () => {
   const referencias = ["canonico", "hijo-0", "hijo-1"];
   const etiquetas = etiquetasDeHijos(referencias, [], []);
@@ -126,4 +138,25 @@ test("con tienda dice dónde, y cuántas si hay varias", () => {
     pistaDeTienda([{ tienda: "Éxito" }, { tienda: "Panamericana" }, { tienda: "" }]),
     "en Éxito · 2 tiendas",
   );
+});
+
+test("textoDeConsolidacion nombra a los hijos con sus apodos, sin palabras internas", () => {
+  const nombres = new Map([["hijo-0", "Ana"], ["hijo-1", "Luis"]]);
+  const dos = textoDeConsolidacion(
+    { hijos: ["hijo-0", "hijo-1"], demanda_base: 4, unidades_a_comprar: 1 },
+    nombres,
+    "$ 5.000",
+  );
+  assert.equal(dos.paraQuienes, "Para Ana y Luis");
+  assert.equal(dos.cantidad, "4 en total, compras 1 paquete");
+  assert.equal(dos.ahorro, "Ahorras $ 5.000 frente a comprarlos por separado");
+  // Tres hijos y uno sin apodo: "Hijo N" por su lugar; sin ahorro no se inventa.
+  const tres = textoDeConsolidacion(
+    { hijos: ["hijo-0", "hijo-1", "hijo-2"], demanda_base: 6, unidades_a_comprar: 2 },
+    nombres,
+    null,
+  );
+  assert.equal(tres.paraQuienes, "Para Ana, Luis y Hijo 3");
+  assert.equal(tres.cantidad, "6 en total, compras 2 paquetes");
+  assert.equal(tres.ahorro, null);
 });

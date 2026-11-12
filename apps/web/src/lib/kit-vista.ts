@@ -64,3 +64,31 @@ export function pistaDeTienda(ofertas: readonly { tienda: string }[]): string | 
   if (tiendas.length === 0) return null;
   return tiendas.length > 1 ? `en ${tiendas[0]} · ${tiendas.length} tiendas` : `en ${tiendas[0]}`;
 }
+
+// "Ana", "Ana y Luis", "Ana, Luis y Sofi". Un hijo sin nombre conocido se
+// llama "Hijo N" por su lugar en el grupo.
+export function nombresEnLista(
+  hijos: readonly string[],
+  nombres: ReadonlyMap<string, string>,
+): string {
+  const lista = hijos.map((h, i) => nombres.get(h)?.trim() || `Hijo ${i + 1}`);
+  if (lista.length <= 1) return lista[0] ?? "";
+  return `${lista.slice(0, -1).join(", ")} y ${lista[lista.length - 1]}`;
+}
+
+// Lo que el acudiente lee de un grupo que se junta entre hermanos: para quién
+// es, cuánto se compra en total y, solo si el contrato lo trae, cuánto se
+// ahorra frente a comprar por separado (el ahorro viene exacto del backend:
+// precio × empaques de menos; no se recalcula aquí).
+export function textoDeConsolidacion(
+  c: { hijos: readonly string[]; demanda_base: number; unidades_a_comprar: number },
+  nombres: ReadonlyMap<string, string>,
+  ahorroEnPesos: string | null,
+): { paraQuienes: string; cantidad: string; ahorro: string | null } {
+  const paquetes = c.unidades_a_comprar === 1 ? "1 paquete" : `${c.unidades_a_comprar} paquetes`;
+  return {
+    paraQuienes: `Para ${nombresEnLista(c.hijos, nombres)}`,
+    cantidad: `${c.demanda_base} en total, compras ${paquetes}`,
+    ahorro: ahorroEnPesos ? `Ahorras ${ahorroEnPesos} frente a comprarlos por separado` : null,
+  };
+}

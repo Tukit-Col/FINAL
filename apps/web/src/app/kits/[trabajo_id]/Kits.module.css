@@ -1515,3 +1515,14 @@
     text-overflow: ellipsis;
   }
 }
+
+.explicaJunto {
+  margin-top: var(--espacio-2);
+  font-size: 13.5px;
+  color: var(--color-text-secondary);
+}
+
+.consolidaciones .ahorroJunto {
+  color: var(--color-success);
+  font-weight: 700;
+}
