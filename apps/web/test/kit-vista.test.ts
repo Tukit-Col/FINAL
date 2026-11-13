@@ -6,7 +6,13 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { etiquetasDeHijos, pistaDeTienda, textoDeConsolidacion } from "../src/lib/kit-vista.ts";
+import {
+  etiquetasDeHijos,
+  gradosDeHijos,
+  notaSinEncaje,
+  pistaDeTienda,
+  textoDeConsolidacion,
+} from "../src/lib/kit-vista.ts";
 
 const COLEGIO = "4c06f0e5-cb44-5865-93e5-ea7b2f115d49";
 const OTRO = "2030c794-3ff4-5b1a-a2ec-5c5d383de3f1";
@@ -186,4 +192,56 @@ test("textoDeConsolidacion aguanta datos incompletos sin frases colgadas", () =>
     textoDeConsolidacion({ hijos: ["hijo-0"], demanda_base: 1, unidades_a_comprar: 1 }, nombres, null).cantidad,
     "Necesitan 1 unidad en total y compras 1 paquete",
   );
+});
+
+test("consolidacion explica el porque", () => {
+  const t = textoDeConsolidacion(
+    {
+      hijos: ["hijo-1", "hijo-2"],
+      demanda_base: 2,
+      unidades_a_comprar: 1,
+      explicacion: "Un empaque de 50 sale mas barato que 2 por separado.",
+    },
+    new Map([
+      ["hijo-1", "Hijo 1"],
+      ["hijo-2", "Hijo 2"],
+    ]),
+    null,
+    new Map([
+      ["hijo-1", "Séptimo"],
+      ["hijo-2", "Jardín"],
+    ]),
+  );
+  assert.equal(t.porque, "Un empaque de 50 sale mas barato que 2 por separado.");
+  assert.equal(t.paraQuienes, "Para Hijo 1 (Séptimo) y Hijo 2 (Jardín)");
+});
+
+test("consolidacion sin explicacion ni grados queda como antes", () => {
+  const t = textoDeConsolidacion({ hijos: ["a", "b"] }, new Map([["a", "Ana"], ["b", "Luis"]]), null);
+  assert.equal(t.porque, null);
+  assert.equal(t.paraQuienes, "Para Ana y Luis");
+});
+
+test("la nota de un ancla sin encaje dice que util y que personaje", () => {
+  assert.equal(
+    notaSinEncaje({ concepto: "C001", personaje: "spiderman" }),
+    "No encontramos cuaderno de Spiderman que cumpla lo que pide la lista; dejamos uno sin personaje.",
+  );
+  assert.equal(
+    notaSinEncaje({ concepto: "C999", personaje: "minnie" }),
+    "No encontramos producto de Minnie que cumpla lo que pide la lista; dejamos uno sin personaje.",
+  );
+});
+
+test("el grado de cada hijo sale de su referencia; la ruta rapida usa el unico hijo", () => {
+  const dos = gradosDeHijos(
+    ["hijo-1", "hijo-2"],
+    [
+      { referencia: "hijo-1", colegio_id: COLEGIO, grado: "Séptimo" },
+      { referencia: "hijo-2", colegio_id: COLEGIO, grado: "Jardín" },
+    ],
+  );
+  assert.deepEqual([...dos], [["hijo-1", "Séptimo"], ["hijo-2", "Jardín"]]);
+  const rapida = gradosDeHijos(["canonico"], [{ colegio_id: COLEGIO, grado: "Primero" }]);
+  assert.equal(rapida.get("canonico"), "Primero");
 });

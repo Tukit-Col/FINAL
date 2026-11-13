@@ -1318,6 +1318,31 @@
   color: var(--color-text-muted);
 }
 
+.filaFan {
+  display: grid;
+  gap: var(--espacio-2);
+  margin-top: var(--espacio-3);
+}
+
+.filaFanTitulo {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.notasSinEncaje {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.porqueJunto {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
 /* ------------------------------------------------------- Libros y uniformes */
 
 .seccion_libros .cabeceraSeccion h2,

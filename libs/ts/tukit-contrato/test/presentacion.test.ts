@@ -14,6 +14,7 @@ import {
   etiquetaEmpaque,
   lineasQueSuman,
   personajesDelKit,
+  personajesPorHijo,
   productosDelPersonaje,
   reglasDeClave,
   hayQueCobrar,
@@ -139,6 +140,32 @@ test("la franja Fan junta los productos del personaje, sin repetir ni incluir de
     ["A", "B"],
   );
   assert.deepEqual(personajesDelKit(lineas), ["Spiderman"]);
+});
+
+test("productosDelPersonaje ignora personajes no pedidos", () => {
+  const de = (sku: string, hijo: string, personaje: string) =>
+    linea({ item_id: sku, hijo, producto_elegido: producto({ sku, personaje }) });
+  const lineas = [
+    de("S", "hijo-1", "Spider-Man"),
+    de("M", "hijo-2", "Minnie"),
+    de("B", "hijo-1", "Bluey"),
+    // Minnie es de hijo-2: en una linea de hijo-1 no la pidio nadie.
+    de("M2", "hijo-1", "Minnie"),
+  ];
+  const pedidos = { "hijo-1": ["spiderman"], "hijo-2": ["minnie"] };
+  assert.deepEqual(
+    productosDelPersonaje(lineas, pedidos).map((l) => l.producto_elegido?.sku),
+    ["S", "M"],
+  );
+  // Sin `pedidos` sigue como antes: cuenta cualquier personaje.
+  assert.equal(productosDelPersonaje(lineas).length, 4);
+  assert.deepEqual(
+    personajesPorHijo(lineas, pedidos).map((g) => [g.hijo, g.personaje, g.lineas.length]),
+    [
+      ["hijo-1", "Spider-Man", 1],
+      ["hijo-2", "Minnie", 1],
+    ],
+  );
 });
 
 test("las reglas de la contrasena se conocen antes de escribir y se marcan al cumplirse", () => {
