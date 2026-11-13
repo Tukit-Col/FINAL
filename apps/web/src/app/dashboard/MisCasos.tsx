@@ -5,9 +5,8 @@
 // se manda ningún correo. Seguir un caso es leer su estado y plazo y agregarle
 // mensajes mientras siga abierto.
 
-import Image from "next/image";
 import { useId, useState } from "react";
-import { CheckCircle2, MessageSquarePlus, Send } from "lucide-react";
+import { CheckCircle2, LifeBuoy, MessageSquarePlus, Send } from "lucide-react";
 import {
   CATEGORIAS_CASO_ACUDIENTE,
   ETIQUETA_CATEGORIA_CASO,
@@ -102,13 +101,9 @@ export default function MisCasos({
     <div className={styles.casos}>
       {casos.length === 0 && !formulario && (
         <div className={styles.casosVacio}>
-          <Image
-            src="/marca/caja-abierta.webp"
-            alt=""
-            width={112}
-            height={99}
-            className={styles.casosVacioImagen}
-          />
+          <span className={styles.casosVacioIcono} aria-hidden="true">
+            <LifeBuoy size={36} strokeWidth={1.5} />
+          </span>
           <div className={styles.casosVacioTexto}>
             <p className={styles.vacioTitulo}>Sin casos abiertos</p>
             <p>
