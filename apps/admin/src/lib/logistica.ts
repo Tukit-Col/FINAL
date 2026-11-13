@@ -256,7 +256,7 @@ const DESTINO_DE_LOTE: Partial<Record<EstadoPedido, "en_preparacion" | "en_repar
 
 /** El único destino simple que comparten todos los pedidos, o `null` si hay
  *  mezcla, no hay pedidos o el paso pide datos (despachar, incidencia, cancelar). */
-export function destinoComunDeLote(pedidos: readonly Pedido[]): EstadoPedido | null {
+export function destinoComunDeLote(pedidos: readonly Pick<Pedido, "estado">[]): EstadoPedido | null {
   if (pedidos.length === 0) return null;
   const destinos = new Set(pedidos.map((p) => DESTINO_DE_LOTE[p.estado] ?? null));
   if (destinos.size !== 1) return null;
@@ -296,4 +296,19 @@ export function textoAviso(aviso: string | null): string {
     default:
       return "No se le envía aviso: el contacto lo haces tú.";
   }
+}
+
+/** El enlace de un chip de alerta: conserva los demás filtros y cambia solo `alerta`. */
+export function hrefConAlerta(filtros: FiltrosLogistica, alerta: AlertaPedido | ""): string {
+  const parametros = new URLSearchParams();
+  for (const [clave, valor] of Object.entries({ ...filtros, alerta })) {
+    if (valor) parametros.set(clave, valor);
+  }
+  const cola = parametros.toString();
+  return cola ? `/logistica?${cola}` : "/logistica";
+}
+
+/** Los primeros 8 caracteres del id: el código corto que ve el acudiente. */
+export function codigoCorto(pedidoId: string): string {
+  return pedidoId.slice(0, 8);
 }
