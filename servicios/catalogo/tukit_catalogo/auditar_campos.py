@@ -1,4 +1,4 @@
-"""Audita los campos del catalogo que el NSGA y la ficha necesitan completos.
+"""Audita los campos del catalogo que el kit y la ficha necesitan completos.
 
 Un producto con campo vacio no falla en ningun lado: el optimizador lo trata
 como un dato mas y la ficha muestra un hueco. Este auditor lo vuelve visible.
@@ -18,18 +18,30 @@ from pathlib import Path
 DATOS = Path(__file__).resolve().parents[3] / "datos" / "catalogo"
 INFORME = Path(__file__).resolve().parents[3] / "docs" / "informes" / "auditoria-campos-catalogo.md"
 
+# Un hueco en cualquiera de estos cambia el kit, no solo como se ve; por eso
+# fallan --estricto. Por que cada uno:
 CAMPOS_OBLIGATORIOS: tuple[str, ...] = (
+    # La llave del producto en el kit (`Candidato.sku`): `consolidar` junta las
+    # compras de dos hermanos por sku, y cambiar o fijar una linea lo busca por el.
+    "sku_interno",
+    # Lo que lee el acudiente en la linea (`Candidato.nombre`).
     "nombre",
+    # `Candidato.marca`: la marca que pide la lista se cumple o no con esto.
     "marca",
+    # `Candidato.nivel`: decide en que perfil cae (Ahorrador, Premium...) y la fidelidad.
     "nivel",
-    "imagen_url",
+    # `Candidato.unidad_base` y `unidades_por_empaque`: cuantos empaques se
+    # compran para la cantidad pedida, y con eso el costo.
     "unidad_base",
     "unidades_por_empaque",
+    # No es campo de `Candidato`, pero sin el el producto no se ofrece: el
+    # catalogo entrega candidatos a un renglon por su concepto (`/resueltos`).
     "concepto_id",
 )
 # Los consume la ficha o la busqueda semantica, no el `Candidato` del NSGA:
-# un hueco aqui es una advertencia, no un fallo de --estricto.
-CAMPOS_RECOMENDADOS: tuple[str, ...] = ("descripcion", "texto_embedding", "embedding_model")
+# un hueco aqui es una advertencia, no un fallo de --estricto. La imagen solo
+# la pinta la ficha.
+CAMPOS_RECOMENDADOS: tuple[str, ...] = ("imagen_url", "descripcion", "texto_embedding", "embedding_model")
 
 
 @dataclass(frozen=True)
@@ -108,7 +120,9 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--datos", type=Path, default=DATOS, help="directorio con los CSV")
     ap.add_argument("--informe", type=Path, default=INFORME)
-    ap.add_argument("--estricto", action="store_true", help="devuelve 1 si falta un campo obligatorio o el precio")
+    ap.add_argument(
+        "--estricto", action="store_true", help="devuelve 1 si falta un campo obligatorio o el precio"
+    )
     args = ap.parse_args(argv)
 
     productos = _leer(args.datos, "productos_canonicos")

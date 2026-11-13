@@ -24,7 +24,25 @@ def test_producto_completo_sin_hallazgos() -> None:
 
 
 def test_campo_vacio_se_reporta() -> None:
-    assert auditar([_producto(imagen_url="")], {"p1"}) == [Hallazgo("p1", "imagen_url", "vacio")]
+    assert auditar([_producto(marca="")], {"p1"}) == [Hallazgo("p1", "marca", "vacio")]
+
+
+def test_el_contrato_de_campos() -> None:
+    # `sku_interno` es la llave con que `consolidar` agrupa entre hermanos;
+    # `concepto_id` es lo que hace que el producto se ofrezca para un renglon.
+    assert "sku_interno" in CAMPOS_OBLIGATORIOS
+    assert "concepto_id" in CAMPOS_OBLIGATORIOS
+    # La imagen solo la pinta la ficha: no decide nada del NSGA.
+    assert "imagen_url" not in CAMPOS_OBLIGATORIOS
+    assert "imagen_url" in CAMPOS_RECOMENDADOS
+
+
+def test_estricto_tolera_un_producto_sin_imagen(tmp_path) -> None:
+    assert main(_datos(tmp_path, imagen_url="")) == 0
+
+
+def test_estricto_falla_sin_sku(tmp_path) -> None:
+    assert main(_datos(tmp_path, sku_interno="")) == 1
 
 
 def test_nan_y_espacios_cuentan_como_vacio() -> None:
@@ -44,7 +62,11 @@ def test_inactivos_se_ignoran() -> None:
 
 
 def test_resumir_cuenta_por_campo() -> None:
-    hs = [Hallazgo("a", "marca", "vacio"), Hallazgo("b", "marca", "vacio"), Hallazgo("a", "precio", "sin_oferta")]
+    hs = [
+        Hallazgo("a", "marca", "vacio"),
+        Hallazgo("b", "marca", "vacio"),
+        Hallazgo("a", "precio", "sin_oferta"),
+    ]
     assert resumir(hs) == {"marca": 2, "precio": 1}
 
 
