@@ -1068,24 +1068,12 @@ _MENSAJE_AVANCE = {
 }
 
 
-@router.post("/v1/ordenes/{pedido_id}/avanzar", summary="Avanza un pedido por la cadena de entrega")
-async def avanzar_pedido(
-    request: Request,
-    pedido_id: uuid.UUID,
-    solicitud: SolicitudAvance,
-    authorization: Annotated[str | None, Header()] = None,
+async def _avanzar_uno(
+    request: Request, actor: Actor, pedido_id: uuid.UUID, solicitud: SolicitudAvance
 ) -> dict[str, Any]:
-    """Empuja el pedido al siguiente estado de entrega: solo staff.
+    """El avance de UN pedido en su propia unidad de trabajo (todo o nada por pedido).
 
-    Que la transicion sea legal y le toque al back-office, y que vengan los
-    datos que el destino exige, lo decide `validar_avance`; un rechazo se
-    traduce a su sobre con el codigo y el campo que trae. Si acepta, en UNA
-    unidad de trabajo (todo o nada): el cambio de estado guardado contra
-    carreras, el sello del envio, la fila de historial con el actor, el aviso
-    al acudiente en la bandeja y, al cancelar, el pago marcado para reembolso
-    (como el retracto).
-    """
-    actor = await _exigir_staff(request, authorization)
+    Lo comparten `/v1/ordenes/{id}/avanzar` y el avance en lote."""
     async with request.app.state.motor.sesion() as db:
         repo = _repo(await db.connection())
         pedido = await _pedido_o_404(repo, pedido_id)
@@ -1145,3 +1133,70 @@ async def avanzar_pedido(
             await repo.marcar_pago_reembolsado(pedido_id)
 
         return await _detalle_staff(repo, await repo.obtener(pedido_id))
+
+
+@router.post("/v1/ordenes/{pedido_id}/avanzar", summary="Avanza un pedido por la cadena de entrega")
+async def avanzar_pedido(
+    request: Request,
+    pedido_id: uuid.UUID,
+    solicitud: SolicitudAvance,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    """Empuja el pedido al siguiente estado de entrega: solo staff.
+
+    Que la transicion sea legal y le toque al back-office, y que vengan los
+    datos que el destino exige, lo decide `validar_avance`; un rechazo se
+    traduce a su sobre con el codigo y el campo que trae. Si acepta, en UNA
+    unidad de trabajo (todo o nada): el cambio de estado guardado contra
+    carreras, el sello del envio, la fila de historial con el actor, el aviso
+    al acudiente en la bandeja y, al cancelar, el pago marcado para reembolso
+    (como el retracto).
+    """
+    actor = await _exigir_staff(request, authorization)
+    return await _avanzar_uno(request, actor, pedido_id, solicitud)
+
+
+# Avance en lote: solo destinos que no piden datos (despachar pide repartidor o guia;
+# incidencia y cancelar piden tipo/nota y confirmacion), y un tope por llamada.
+MAX_LOTE = 50
+DESTINOS_DE_LOTE = frozenset(
+    {EstadoPedido.EN_PREPARACION.value, EstadoPedido.EN_REPARTO.value, EstadoPedido.ENTREGADO.value}
+)
+
+
+class SolicitudLote(BaseModel):
+    pedido_ids: list[uuid.UUID]
+    destino: str = Field(min_length=1, max_length=24)
+
+
+@router.post("/v1/comercio/pedidos/avanzar-lote", summary="Avanza varios pedidos al mismo destino simple")
+async def avanzar_en_lote(
+    request: Request, solicitud: SolicitudLote, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    """Solo staff. Cada pedido en su propia unidad de trabajo: uno que otro
+    operador ya movio, o que no esta en el estado de origen, falla con su motivo y
+    los demas avanzan (nunca todo-o-nada en silencio)."""
+    actor = await _exigir_staff(request, authorization)
+    if solicitud.destino not in DESTINOS_DE_LOTE:
+        raise ErrorDominio(
+            "destino_no_apto_para_lote",
+            "Ese destino pide datos o confirmacion; muevelo pedido por pedido.",
+            estado=422,
+            campo="destino",
+        )
+    if not solicitud.pedido_ids or len(solicitud.pedido_ids) > MAX_LOTE:
+        raise ErrorDominio(
+            "lote_invalido", f"El lote lleva de 1 a {MAX_LOTE} pedidos.", estado=422, campo="pedido_ids"
+        )
+    if len(set(solicitud.pedido_ids)) != len(solicitud.pedido_ids):
+        raise ErrorDominio("ids_repetidos", "Hay pedidos repetidos en el lote.", estado=422, campo="pedido_ids")
+
+    avanzados: list[str] = []
+    fallidos: list[dict[str, str]] = []
+    for pedido_id in solicitud.pedido_ids:
+        try:
+            await _avanzar_uno(request, actor, pedido_id, SolicitudAvance(destino=solicitud.destino))
+            avanzados.append(str(pedido_id))
+        except ErrorDominio as error:
+            fallidos.append({"pedido_id": str(pedido_id), "codigo": error.error, "mensaje": error.mensaje})
+    return {"avanzados": avanzados, "fallidos": fallidos}
