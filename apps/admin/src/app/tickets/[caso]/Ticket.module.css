@@ -95,7 +95,8 @@
 }
 
 .mensajeAcudiente,
-.mensajeEquipo {
+.mensajeEquipo,
+.mensajeNota {
   max-width: 70ch;
   padding: var(--espacio-3) var(--espacio-4);
   border-radius: var(--radius-md);
@@ -113,8 +114,17 @@
   box-shadow: inset 0 0 0 1px var(--color-info-border);
 }
 
+/* La nota interna: ámbar y con rótulo; nunca se confunde con lo que lee el acudiente. */
+.mensajeNota {
+  align-self: flex-end;
+  background: var(--color-aviso-bg);
+  box-shadow: inset 0 0 0 1px var(--color-aviso-border);
+  border-left: 4px solid var(--color-aviso);
+}
+
 .mensajeAcudiente p,
-.mensajeEquipo p {
+.mensajeEquipo p,
+.mensajeNota p {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
