@@ -27,8 +27,15 @@ export interface Candidato {
   principal: string;
   /** Segunda línea: barrio, localidad y ciudad, para distinguir homónimas. */
   secundario: string;
-  /** La dirección normalizada que queda en el campo. */
+  /** La dirección normalizada que queda en el campo ("Carrera 91 #19A-29"). */
   direccion: string;
+  /** La dirección completa en una línea, estilo colombiano:
+   *  "Carrera 91 #19A-29, Barrio, Localidad, Bogotá". */
+  completa: string;
+  /** OSM solo resolvió la calle: el número no es de OSM y hay que confirmarlo. */
+  confirmarNumero: boolean;
+  /** El número que muestra es el que escribió el padre (OSM no lo traía). */
+  numeroDelPadre: boolean;
   latitud: number;
   longitud: number;
   /** El subconjunto del `address` de OSM del que se derivan ciudad y localidad. */
@@ -53,6 +60,8 @@ export function dentroDeBogota(latitud: number, longitud: number): boolean {
 }
 
 export interface OpcionesConsulta {
+  /** Lo que escribió el padre: de ahí se conserva el número si OSM no lo trae. */
+  consulta?: string;
   /** La ciudad del formulario está bloqueada a Bogotá: no se ofrece nada fuera. */
   soloBogota?: boolean;
 }
@@ -128,6 +137,112 @@ function texto(valor: unknown): string {
   return typeof valor === "string" ? valor.trim() : "";
 }
 
+// ---- Nomenclatura colombiana -------------------------------------------------
+
+export interface Nomenclatura {
+  /** "Carrera", "Calle", "Avenida Carrera", "Diagonal", "Transversal"... */
+  via: string;
+  /** Número de la vía con su letra: "91", "72A". */
+  numeroVia: string;
+  /** Número del cruce con su letra ("19A"), "" si solo escribió la vía. */
+  cruce: string;
+  /** Placa: "29", "" si solo escribió la vía. */
+  placa: string;
+}
+
+const TIPOS_VIA: Record<string, string> = {
+  cra: "Carrera", crr: "Carrera", kra: "Carrera", kr: "Carrera", cr: "Carrera", carr: "Carrera", carrera: "Carrera",
+  cl: "Calle", cll: "Calle", calle: "Calle",
+  av: "Avenida", avda: "Avenida", avenida: "Avenida",
+  ak: "Avenida Carrera", ac: "Avenida Calle",
+  dg: "Diagonal", diag: "Diagonal", diagonal: "Diagonal",
+  tv: "Transversal", trv: "Transversal", transv: "Transversal", transversal: "Transversal",
+};
+const ALTERNATIVA_TIPOS = Object.keys(TIPOS_VIA).sort((a, b) => b.length - a.length).join("|");
+// tipo [carrera|calle si es avenida] número[letra] [bis] [sur|norte|este|oeste] [cruce[letra] [-] placa]
+const PATRON_NOMENCLATURA = new RegExp(
+  `^(${ALTERNATIVA_TIPOS})(?:\\s+(carrera|calle|cra|cl))?\\s*(\\d+)(?:\\s*([a-z])(?![a-z]))?(?:\\s+bis)?(?:\\s+(?:sur|norte|este|oeste))?` +
+    `(?:\\s+(\\d+)(?:\\s*([a-z])(?![a-z]))?\\s*-?\\s*(\\d+))?\\s*$`,
+);
+
+/** Entiende "carrera 91 #19 A 29", "cra 91 19a-29", "kr 91 19-29", "cl 72 10 34",
+ *  "dg", "tv", "av"... Devuelve null si no es nomenclatura reconocible. */
+export function parsearNomenclatura(texto: string): Nomenclatura | null {
+  const t = sinTildes(texto)
+    .replace(/[#°º.,]/g, " ")
+    .replace(/\b(?:no|nro|num|n)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const m = PATRON_NOMENCLATURA.exec(t);
+  if (!m) return null;
+  const base = TIPOS_VIA[m[1]!]!;
+  const segunda = m[2] ? TIPOS_VIA[m[2]] : "";
+  const via = segunda && base === "Avenida" ? `${base} ${segunda}` : base;
+  return {
+    via,
+    numeroVia: `${m[3]}${(m[4] ?? "").toUpperCase()}`,
+    cruce: m[5] ? `${m[5]}${(m[6] ?? "").toUpperCase()}` : "",
+    placa: m[7] ?? "",
+  };
+}
+
+/** "#19A-29" a partir de lo que OSM llame número de casa ("19A-29", "19 A 29", "29"). */
+export function formatearPlaca(crudo: string): string {
+  const t = sinTildes(crudo).replace(/[#.]/g, " ").replace(/\s+/g, " ").trim().toUpperCase();
+  const m = /^(\d+)\s*([A-Z])?\s*[-\s]\s*(\d+)$/.exec(t);
+  if (m) return `#${m[1]}${m[2] ?? ""}-${m[3]}`;
+  return t ? `#${t}` : "";
+}
+
+/** ¿La calle de OSM ("Carrera 91") es la misma vía que escribió el padre? */
+function mismaVia(calleOsm: string, n: Nomenclatura): boolean {
+  const osm = sinTildes(calleOsm).replace(/\s+/g, "");
+  const propia = sinTildes(`${n.via}${n.numeroVia}`).replace(/\s+/g, "");
+  return osm.startsWith(propia) && !/\d/.test(osm.charAt(propia.length));
+}
+
+export interface PartesDireccion {
+  calle: string;
+  /** house_number de OSM, si lo trae. */
+  numeroOsm?: string;
+  /** Lo que escribió el padre, para conservar su número. */
+  consulta?: string;
+  /** Lugares de menor a mayor: barrio, localidad, ciudad, código postal. */
+  zona?: readonly string[];
+}
+
+export interface DireccionFormateada {
+  /** "Carrera 91 #19A-29" */
+  direccion: string;
+  /** "Carrera 91 #19A-29, Barrio, Localidad, Bogotá" */
+  completa: string;
+  confirmarNumero: boolean;
+  numeroDelPadre: boolean;
+}
+
+/** Arma la dirección legible. El número de OSM manda; si OSM solo resolvió la
+ *  calle y el padre escribió número para ESA misma vía, se conserva el suyo y se
+ *  marca para confirmar. Sin número de ninguno, también hay que confirmarlo. */
+export function formatearDireccion(partes: PartesDireccion): DireccionFormateada {
+  const zona = (partes.zona ?? []).filter(Boolean).filter((p, i, todas) => todas.findIndex((q) => sinTildes(q) === sinTildes(p)) === i);
+  let direccion = partes.calle;
+  let confirmarNumero = false;
+  let numeroDelPadre = false;
+  if (partes.calle) {
+    if (partes.numeroOsm) {
+      direccion = `${partes.calle} ${formatearPlaca(partes.numeroOsm)}`;
+    } else {
+      confirmarNumero = true;
+      const propia = partes.consulta ? parsearNomenclatura(partes.consulta) : null;
+      if (propia && propia.cruce && propia.placa && mismaVia(partes.calle, propia)) {
+        direccion = `${partes.calle} #${propia.cruce}-${propia.placa}`;
+        numeroDelPadre = true;
+      }
+    }
+  }
+  return { direccion, completa: [direccion, ...zona].filter(Boolean).join(", "), confirmarNumero, numeroDelPadre };
+}
+
 /** Lee la respuesta JSON de Nominatim: descarta lo malformado y lo que cae fuera
  *  de Colombia, y repite ninguna dirección. */
 export function leerCandidatos(cuerpo: unknown, opciones: OpcionesConsulta = {}): Candidato[] {
@@ -148,25 +263,29 @@ export function leerCandidatos(cuerpo: unknown, opciones: OpcionesConsulta = {})
       unknown
     >;
     const calle = texto(a["road"]) || texto(a["pedestrian"]);
-    const numero = texto(a["house_number"]);
+    const numeroOsm = texto(a["house_number"]);
+    const numero = numeroOsm;
     const nombre = texto(item["name"]);
-    const base = calle ? (numero ? `${calle} # ${numero}` : calle) : nombre;
+    const barrio = texto(a["neighbourhood"]);
+    const ciudad = /^bogot[aá]/i.test(texto(a["city"])) ? "Bogotá" : texto(a["city"]) || texto(a["town"]) || texto(a["village"]);
+    const zona = [
+      /^upzs?\b/i.test(barrio) ? "" : barrio,
+      texto(a["quarter"]),
+      texto(a["suburb"]),
+      texto(a["city_district"]),
+      ciudad,
+      texto(a["postcode"]),
+    ].filter(Boolean);
+    const f = calle
+      ? formatearDireccion({ calle, numeroOsm, consulta: opciones.consulta, zona })
+      : { direccion: "", completa: "", confirmarNumero: false, numeroDelPadre: false };
     // Un sitio (colegio, centro comercial) se muestra por su nombre, pero lo que
     // se guarda es su dirección: el repartidor busca una calle, no un letrero.
     const esSitio = !!nombre && nombre !== calle && item["category"] !== "highway";
-    const direccion = base || texto(item["display_name"]).split(",")[0]?.trim() || "";
+    const direccion = f.direccion || nombre || texto(item["display_name"]).split(",")[0]?.trim() || "";
     if (!direccion) continue;
-
-    const barrio = texto(a["neighbourhood"]);
-    const secundario = [
-      esSitio && calle ? direccion : "",
-      /^upzs?\b/i.test(barrio) ? "" : barrio,
-      texto(a["suburb"]),
-      /^bogot[aá]/i.test(texto(a["city"])) ? "Bogotá" : texto(a["city"]) || texto(a["town"]) || texto(a["village"]),
-    ]
-      .filter(Boolean)
-      .filter((parte, i, todas) => todas.indexOf(parte) === i)
-      .join(", ");
+    const secundario = zona.filter((parte, i, todas) => todas.indexOf(parte) === i).filter((p) => p !== texto(a["postcode"])).join(", ");
+    const completa = f.completa || [direccion, ...zona].join(", ");
 
     // `osm_id` llega como número: `texto` solo acepta cadenas.
     const id = `${texto(item["osm_type"])}${String(item["osm_id"] ?? "")}`;
@@ -174,7 +293,7 @@ export function leerCandidatos(cuerpo: unknown, opciones: OpcionesConsulta = {})
     // La misma calle del mismo barrio es UNA opción aunque OSM la parta en
     // tramos con coordenadas distintas ("Carrera 91" cinco veces). Con número
     // de casa la dirección ya es distinta y se conserva.
-    const clave = `${sinTildes(direccion)}|${sinTildes(secundario)}`;
+    const clave = sinTildes(completa);
     if (vistos.has(clave)) continue;
     vistos.add(clave);
 
@@ -186,9 +305,12 @@ export function leerCandidatos(cuerpo: unknown, opciones: OpcionesConsulta = {})
     salida.push({
       candidato: {
         id: id || clave,
-        principal: esSitio ? nombre : direccion,
+        principal: esSitio ? nombre : completa,
         secundario,
         direccion,
+        completa: esSitio ? `${nombre}, ${completa}` : completa,
+        confirmarNumero: f.confirmarNumero,
+        numeroDelPadre: f.numeroDelPadre,
         latitud,
         longitud,
         componentes,
@@ -254,6 +376,7 @@ export class BuscadorOsm {
   }
 
   async buscar(consulta: string, opciones: OpcionesConsulta = {}): Promise<Candidato[]> {
+    const original = consulta;
     const q = normalizarConsulta(consulta);
     if (q.length < MINIMO_CARACTERES) {
       throw new ErrorBusqueda(400, "consulta_corta", `Escribe al menos ${MINIMO_CARACTERES} letras de la dirección.`);
@@ -271,7 +394,7 @@ export class BuscadorOsm {
       throw new ErrorBusqueda(429, "buscador_ocupado", "El buscador está ocupado. Intenta de nuevo en unos segundos.");
     }
     this.esperando += 1;
-    const turno = this.cola.then(() => this.consultar(q, clave, opciones)).finally(() => {
+    const turno = this.cola.then(() => this.consultar(q, clave, { ...opciones, consulta: original })).finally(() => {
       this.esperando -= 1;
       this.enVuelo.delete(clave);
     });

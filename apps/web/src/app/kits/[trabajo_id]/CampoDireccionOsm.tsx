@@ -16,7 +16,7 @@
 // (`aria-activedescendant`), Enter elige y Escape cierra la lista.
 
 import { useEffect, useId, useRef, useState } from "react";
-import { Search } from "lucide-react";
+import { MapPin, Pencil, Search } from "lucide-react";
 import { direccionDesdeNominatim } from "@tukit/contrato";
 import { MINIMO_CARACTERES, type Candidato } from "@/lib/direccion-osm";
 import type { LugarElegido } from "./CampoDireccion";
@@ -57,7 +57,10 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
   const [abierta, setAbierta] = useState(false);
   const [activa, setActiva] = useState(0);
   const [estado, setEstado] = useState<Estado>({ tipo: "reposo" });
+  // El resultado elegido: se muestra como tarjeta de confirmación hasta "Editar".
+  const [elegido, setElegido] = useState<Candidato | null>(null);
   const control = useRef<AbortController | null>(null);
+  const campo = useRef<HTMLInputElement>(null);
 
   useEffect(() => () => control.current?.abort(), []);
 
@@ -109,6 +112,7 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
     setAbierta(false);
     setCandidatos([]);
     setEstado({ tipo: "reposo" });
+    setElegido(candidato);
     onElegir({
       direccion: candidato.direccion,
       google_place_id: null,
@@ -122,6 +126,7 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
     // Editar descarta la búsqueda en curso y la lista: ya no corresponden.
     control.current?.abort();
     if (pausa.current) clearTimeout(pausa.current);
+    setElegido(null);
     onEscribir(texto);
     setCandidatos([]);
     setAbierta(false);
@@ -133,7 +138,16 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
     }
   }
 
-  const visible = abierta && candidatos.length > 0;
+  // "Editar": vuelve al campo con el texto actual para corregirlo (descarta el pin
+  // igual que escribir a mano) y deja el foco listo.
+  function editar() {
+    setElegido(null);
+    onEscribir(valor);
+    requestAnimationFrame(() => campo.current?.focus());
+  }
+
+  const tarjeta = elegido !== null && confirmada;
+  const visible = !tarjeta && abierta && candidatos.length > 0;
   const indiceActivo = Math.min(activa, Math.max(candidatos.length - 1, 0));
 
   function teclear(evento: React.KeyboardEvent<HTMLInputElement>) {
@@ -178,13 +192,34 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
       {/* Rótulo explícito y no envolvente: la lista de resultados no puede
           formar parte del nombre accesible del campo. */}
       <label htmlFor={`${idBase}-campo`}>Dirección</label>
+      {tarjeta && elegido && (
+        <div className={styles.tarjetaDireccion}>
+          <MapPin size={20} aria-hidden="true" className={styles.tarjetaDireccionIcono} />
+          <div className={styles.tarjetaDireccionTexto}>
+            <p className={styles.tarjetaDireccionLinea}>{valor}</p>
+            {elegido.secundario && <p className={styles.tarjetaDireccionZona}>{elegido.secundario}</p>}
+            {elegido.confirmarNumero && (
+              <p className={styles.tarjetaDireccionAviso}>
+                {elegido.numeroDelPadre
+                  ? "Confirma el número: el mapa solo encontró la calle, el número es el que escribiste."
+                  : "Confirma el número: el mapa solo encontró la calle. Toca Editar para añadirlo."}
+              </p>
+            )}
+          </div>
+          <button type="button" className={styles.botonEditarDireccion} onClick={editar}>
+            <Pencil size={16} aria-hidden="true" />
+            Editar
+          </button>
+        </div>
+      )}
       {/* La lista cuelga de ESTE ancla (campo + botón) y no de todo el bloque: el
           bloque también lleva el aviso y el mapa, y con el pin ya puesto la lista
           caería debajo del mapa, lejos del campo. */}
-      <div className={styles.anclaListaDireccion}>
+      <div className={styles.anclaListaDireccion} hidden={tarjeta}>
         <div className={styles.filaBuscarDireccion}>
           <input
             id={`${idBase}-campo`}
+            ref={campo}
             value={valor}
             required
             autoComplete="off"
@@ -227,8 +262,12 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
                 }}
                 onMouseEnter={() => setActiva(i)}
               >
-                <span className={styles.sugerenciaPrincipal}>{c.principal}</span>
-                {c.secundario && <span className={styles.sugerenciaSecundaria}>{c.secundario}</span>}
+                <span className={styles.sugerenciaPrincipal}>{c.completa}</span>
+                {c.confirmarNumero && (
+                  <span className={styles.sugerenciaSecundaria}>
+                    {c.numeroDelPadre ? "Número escrito por ti. Confirma el número." : "Confirma el número."}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
