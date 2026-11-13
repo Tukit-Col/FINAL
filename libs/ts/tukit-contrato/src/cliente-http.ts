@@ -345,7 +345,15 @@ export class ClienteApi implements OrigenDatos {
       `/v1/admin/acudientes${cadena ? `?${cadena}` : ""}`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
-    return cuerpo.acudientes;
+    // Ley 1581: el apodo de un menor no llega a las vistas admin aunque el
+    // servicio todavia lo envie; se descarta aqui, en el borde del contrato.
+    return cuerpo.acudientes.map((a) => ({
+      ...a,
+      hijos: (a.hijos ?? []).map((h) => {
+        const { apodo: _apodo, ...sinApodo } = h as typeof h & { apodo?: unknown };
+        return sinApodo;
+      }),
+    }));
   }
 
   // ------------------------------------------------------------------ §2, §4

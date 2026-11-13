@@ -186,7 +186,6 @@ export interface RegistroAcudiente {
  *  identidad, o `null` si no tiene) y el ambito de la matricula: nunca nombre
  *  legal, documento ni `estudiante_id`. */
 export interface HijoAcudiente {
-  apodo: string | null;
   colegio_id: string;
   colegio_nombre: string;
   grado: string;

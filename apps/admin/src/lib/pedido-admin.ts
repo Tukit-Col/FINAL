@@ -23,6 +23,12 @@ export function enmascararTelefono(telefono: string | null | undefined): string 
   return `••• ••• ${digitos.slice(-4)}`;
 }
 
+/** El rotulo de un hijo en las vistas admin: posicion estable y grado, nunca el
+ *  apodo ni el nombre del menor (Ley 1581). `indice` parte en 0. */
+export function rotuloDeHijo(h: { grado: string }, indice = 0): string {
+  return `Hijo ${indice + 1} · grado ${h.grado}`;
+}
+
 /** Los pasos de la cadena de entrega, en orden, para la linea de tiempo. */
 export const PASOS_CADENA = [
   "pendiente_pago",
