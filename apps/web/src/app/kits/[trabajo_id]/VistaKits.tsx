@@ -42,11 +42,18 @@ import {
 import { FalloApi, iniciarCheckout } from "@/lib/api-navegador";
 import { escribirDireccionAMano } from "@/lib/direccion-checkout";
 import type { EntregaPrevia } from "@/lib/pagar-pedido";
-import { etiquetasDeHijos, textoDeConsolidacion, type ApodoMatricula } from "@/lib/kit-vista";
+import {
+  agruparPorCategoria,
+  etiquetasDeHijos,
+  idAnclaCategoria,
+  textoDeConsolidacion,
+  type ApodoMatricula,
+} from "@/lib/kit-vista";
 import { abrirWidgetWompi } from "@/lib/wompi";
 import CampoDireccion, { type LugarElegido } from "./CampoDireccion";
 import CampoDireccionOsm from "./CampoDireccionOsm";
 import LineaDeKit from "./LineaDeKit";
+import CabeceraCategoria from "./CabeceraCategoria";
 import AsistenteKitSlot from "./AsistenteKitSlot";
 import styles from "./Kits.module.css";
 
@@ -728,7 +735,23 @@ function SeccionesDeLineas({
             </h2>
             <p>Puedes cambiar cualquier producto por otra opción o quitar lo que ya tienes.</p>
           </header>
-          <ul className={styles.lineas}>{carrito.map(renglon)}</ul>
+          {agruparPorCategoria(carrito).map((grupo) => (
+            <section
+              key={grupo.categoria}
+              id={idAnclaCategoria(grupo.categoria)}
+              className={styles.grupoCategoria}
+              aria-labelledby={`${idAnclaCategoria(grupo.categoria)}-titulo`}
+            >
+              <CabeceraCategoria
+                titulo={grupo.titulo}
+                categoria={grupo.categoria}
+                lineas={grupo.lineas}
+                trabajoId={trabajoId}
+                perfil={kit.perfil}
+              />
+              <ul className={styles.lineas}>{grupo.lineas.map(renglon)}</ul>
+            </section>
+          ))}
         </section>
       )}
 
