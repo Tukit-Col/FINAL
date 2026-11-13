@@ -138,7 +138,7 @@ async def tablero(request: Request, authorization: Annotated[str | None, Header(
     async with request.app.state.motor.sesion() as db:
         repo = _repo(await db.connection())
         resumen = await repo.resumen()
-        pedidos = await repo.pedidos_completos(await repo.listar_todos())
+        pedidos = await repo.pedidos_completos(await repo.listar_todos(), con_alertas=True)
     return {"resumen": resumen, "pedidos": pedidos}
 
 
