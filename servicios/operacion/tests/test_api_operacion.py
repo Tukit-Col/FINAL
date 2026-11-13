@@ -91,7 +91,14 @@ async def test_bandeja_devuelve_resumen_y_casos(cliente):
     assert respuesta.status_code == 200
     cuerpo = respuesta.json()
     assert set(cuerpo) == {"resumen", "casos"}
-    assert set(cuerpo["resumen"]) == {"abiertos", "urgentes", "vencen_hoy", "resueltos_semana"}
+    assert set(cuerpo["resumen"]) == {
+        "abiertos",
+        "urgentes",
+        "vencen_hoy",
+        "resueltos_semana",
+        "sin_asignar",
+        "vencidos",
+    }
     assert cuerpo["resumen"]["abiertos"] == 1
     # Un caso de pago nace urgente.
     assert cuerpo["resumen"]["urgentes"] == 1
