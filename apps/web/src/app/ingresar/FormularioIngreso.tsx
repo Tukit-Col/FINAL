@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogIn } from "lucide-react";
 import styles from "./Ingresar.module.css";
@@ -63,7 +64,7 @@ export default function FormularioIngreso({
         <h1 id="titulo-ingreso" className={styles.titulo}>
           Ingresa a Tukit
         </h1>
-        <p className={styles.subtitulo}>Entra para ver tus kits, tus pedidos y a tus hijos.</p>
+        <p className={styles.subtitulo}>Para quien ya se registró: entra para ver tus kits, tus pedidos y a tus hijos.</p>
 
         <form className={styles.forma} onSubmit={enviar}>
           <label className={styles.campo} htmlFor={idCorreo}>
@@ -102,6 +103,10 @@ export default function FormularioIngreso({
             {enviando ? "Entrando…" : "Entrar"}
           </button>
         </form>
+
+        <p className={styles.alterno}>
+          ¿No tienes cuenta? <Link href="/empezar">Créala al armar tu kit</Link>
+        </p>
       </section>
     </div>
   );

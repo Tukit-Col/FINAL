@@ -923,21 +923,28 @@ export default function FormularioEmpezar({
         <div className={styles.dosColumnas} role="group" aria-label="¿Ya tienes cuenta?">
           <button
             type="button"
+            aria-pressed={modo === "existente"}
             className={`${styles.opcionEntrada} ${modo === "existente" ? styles.opcionActiva : ""}`}
             onClick={() => setModo("existente")}
           >
             <LogIn size={16} strokeWidth={2.4} aria-hidden="true" />
-            Ya tengo cuenta
+            <span className={styles.opcionTexto}>
+              <strong>Ya tengo cuenta, ingresar</strong>
+              <span>Te precargamos a tus hijos: no vuelves a escribir su colegio ni su grado.</span>
+            </span>
           </button>
           <button
             type="button"
+            aria-pressed={modo === "nuevo"}
             className={`${styles.opcionEntrada} ${modo === "nuevo" ? styles.opcionActiva : ""}`}
             onClick={() => setModo("nuevo")}
           >
             <UserPlus size={16} strokeWidth={2.4} aria-hidden="true" />
-            Soy nuevo usuario
+            <span className={styles.opcionTexto}>
+              <strong>Crear cuenta nueva</strong>
+              <span>Guardamos tus pedidos y a tus hijos para la próxima vez.</span>
+            </span>
           </button>
-        </div>
       )}
 
       {/* Camino "ya tengo cuenta": entrar y volver aqui con los hijos cargados.
