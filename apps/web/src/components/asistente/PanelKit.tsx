@@ -9,7 +9,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Minus, MessageCircle, RotateCcw, Send, X } from "lucide-react";
 import { ejemplosSeguros, pedidoAnteriorSeguro, validarEspec, type Componente, type PedidoAnterior } from "./espec";
-import { aplicacionDePropuesta, pendientesDelTurno, type PropuestaAplicable } from "./aplicar";
+import { aplicacionDePropuesta, pendientesDelTurno, renglonesPorDecidir, type PropuestaAplicable } from "./aplicar";
+import { iluminarRenglones, irARenglon } from "./resaltar";
 import { ExplicacionKit, PropuestaCambio, PropuestaDescarte, ResumenLote } from "./Componentes";
 import { sugerenciasDe, type UltimaRespuesta } from "./sugerencias";
 import estilos from "./Asistente.module.css";
@@ -60,7 +61,8 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
   // siguiente. Son dos palabras que devolvio el servidor, no lo que escribio el padre.
   const [anterior, setAnterior] = useState<PedidoAnterior | null>(null);
   const entrada = useRef<HTMLTextAreaElement>(null);
-  const fondo = useRef<HTMLDivElement>(null);
+  const caja = useRef<HTMLDivElement>(null);
+  const ultimoTurno = useRef<HTMLDivElement>(null);
 
   const cargando = turnos.at(-1)?.respuesta.tipo === "pensando";
   const ultimaTipo = turnos.at(-1)?.respuesta.tipo;
@@ -95,9 +97,41 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
     };
   }, [abierto, servicio]);
 
+  // Mientras piensa, al fondo. Cuando llega una propuesta, el chat se queda en su comienzo
+  // (el resumen y la primera tarjeta): con 4 cuadernos de una, el padre ve el lote entero
+  // y su "Aceptar todos" en vez de aterrizar en la ultima tarjeta como si fueran sueltas.
+  const respuestaFinal = turnos.at(-1)?.respuesta.tipo;
   useEffect(() => {
-    fondo.current?.scrollIntoView({ block: "end" });
-  }, [turnos]);
+    // Solo se mueve la caja del chat: un scrollIntoView aqui cortaria el desplazamiento
+    // de la pagina hacia el renglon.
+    const c = caja.current;
+    if (!c) return;
+    const turno = ultimoTurno.current;
+    c.scrollTop =
+      respuestaFinal === "propuesta" && turno ? turno.offsetTop - 8 : c.scrollHeight;
+  }, [turnos.length, respuestaFinal]);
+
+  // Los renglones del kit que alguna propuesta abierta quiere tocar quedan iluminados en la
+  // pagina, y al llegar una propuesta nueva la pagina va al primero de ellos.
+  const porDecidir = renglonesPorDecidir(
+    turnos.map((t) => (t.respuesta.tipo === "propuesta" ? t.respuesta.componentes : null)),
+    estados,
+  );
+  const clavePorDecidir = porDecidir.join("|");
+  useEffect(() => {
+    if (!abierto) return;
+    return iluminarRenglones(clavePorDecidir ? clavePorDecidir.split("|") : []);
+  }, [abierto, clavePorDecidir]);
+
+  const primeroDelUltimo = (() => {
+    const ultima = turnos.at(-1)?.respuesta;
+    if (ultima?.tipo !== "propuesta") return null;
+    const c = ultima.componentes.find((x) => x.tipo === "PropuestaCambio" || x.tipo === "PropuestaDescarte");
+    return c && "item_id" in c.props ? String(c.props.item_id) : null;
+  })();
+  useEffect(() => {
+    if (primeroDelUltimo) irARenglon(primeroDelUltimo);
+  }, [primeroDelUltimo, turnos.length]);
 
   useEffect(() => {
     if (!abierto) return;
@@ -298,7 +332,7 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
         Hablamos del kit <strong>{perfil}</strong>. Te propongo y tú decides.
       </p>
 
-      <div className={estilos.mensajes} role="log" aria-live="polite" aria-label="Conversación con Tukit" tabIndex={0}>
+      <div ref={caja} className={estilos.mensajes} role="log" aria-live="polite" aria-label="Conversación con Tukit" tabIndex={0}>
         <p className={estilos.msgTukit}>
           Hola, soy Tukit. Dime qué quieres cambiar del kit y te muestro la propuesta. No toco nada sin tu sí.
         </p>
@@ -308,7 +342,7 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
           </p>
         )}
         {turnos.map((turno, t) => (
-          <div key={t} className={estilos.turno}>
+          <div key={t} className={estilos.turno} ref={t === turnos.length - 1 ? ultimoTurno : undefined}>
             {turno.pregunta && <p className={estilos.msgPadre}>{turno.pregunta}</p>}
             {turno.respuesta.tipo === "pensando" && <p className={`${estilos.msgTukit} ${estilos.pensando}`} aria-label="Tukit está escribiendo"><span className={estilos.punto3} /><span className={estilos.punto3} /><span className={estilos.punto3} /></p>}
             {turno.respuesta.tipo === "texto" && <p className={estilos.msgTukit}>{turno.respuesta.texto}</p>}
@@ -341,6 +375,7 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
                         ocupado={ocupado || !c.props.aplicable}
                         onAceptar={() => void aceptar(clave, propuestaId, c)}
                         onRechazar={() => rechazar(clave, propuestaId, "cambio")}
+                        onVer={() => irARenglon(c.props.item_id)}
                       />
                     );
                   }
@@ -353,6 +388,7 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
                         ocupado={ocupado || !c.props.aplicable}
                         onAceptar={() => void aceptar(clave, propuestaId, c)}
                         onRechazar={() => rechazar(clave, propuestaId, "descarte")}
+                        onVer={() => irARenglon(c.props.item_id)}
                       />
                     );
                   }
@@ -363,7 +399,6 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
             )}
           </div>
         ))}
-        <div ref={fondo} />
       </div>
 
       <div className={estilos.sugerencias} role="group" aria-label="Sugerencias">
