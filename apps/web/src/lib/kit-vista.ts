@@ -118,3 +118,86 @@ export function textoDeConsolidacion(
     ahorro: ahorroEnPesos ? `Ahorras ${ahorroEnPesos} frente a comprarlos por separado` : null,
   };
 }
+
+// ---- Categoría de una línea (Fase 3) ---------------------------------------
+// `LineaKit` no trae categoría: se deriva en el cliente del texto del renglón.
+// `concepto` suele ser un código del catálogo ("C001"), así que el nombre del
+// útil sale de `descripcion`; si `concepto` trae un nombre se mira primero.
+
+export type CategoriaKit = "cuadernos" | "escritura" | "arte" | "papeleria" | "geometria" | "otros";
+
+export const TITULO_CATEGORIA: Record<CategoriaKit, string> = {
+  cuadernos: "Cuadernos y libretas",
+  escritura: "Lápices y escritura",
+  arte: "Arte y colores",
+  papeleria: "Papelería y pegantes",
+  geometria: "Geometría",
+  otros: "Otros",
+};
+
+const ORDEN_CATEGORIAS: CategoriaKit[] = ["cuadernos", "escritura", "arte", "papeleria", "geometria", "otros"];
+
+/** Minúsculas y sin tildes: la comparación de textos y marcas del cliente. */
+export function normalizarTexto(t: string): string {
+  return t
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+// Geometría va antes que escritura/papelería ("regla", "compas" no chocan, pero
+// "estuche de geometria" sí con "estuche"). Cada regex se contrastó con los
+// nombres canónicos de datos/catalogo/conceptos.csv.
+const REGLAS: [CategoriaKit, RegExp][] = [
+  // Aseo: "papel higiénico" no es papelería.
+  ["otros", /\b(higienico|jabon|antibacterial|toallas|bolsa de basura|esponja)/],
+  ["geometria", /\b(regla|escuadra|transportador|compas|geometri|curvigrafo|cinta metrica|calculadora)/],
+  ["cuadernos", /\b(cuaderno|libreta|bitacora|agenda|planeador|block de notas)/],
+  [
+    "escritura",
+    /\b(lapiz|lapices|lapicero|portaminas|esfero|boligrafo|pluma|marcador|plumon|resaltador|borrador|tajalapiz|sacapuntas|corrector|limpiatipos|tiza)/,
+  ],
+  [
+    "arte",
+    /\b(color|colores|crayola|crayon|crayones|tempera|vinilo|pintura|acuarela|pincel|lienzo|plastilina|foamy|carboncillo|escarcha|lentejuela|lana|pompon|limpiapipas|ojos moviles|masa para moldear|kit de artes|tinta china|algodon|aserrin|arena decorativa|tablero de dibujo|espatula)/,
+  ],
+  [
+    "papeleria",
+    /\b(papel|cartulina|carton|block|resma|hojas|carpeta|folder|legajador|sobre|separador|cinta|pegante|colbon|pegastic|silicona|tijera|clip|gancho|grapa|chincheta|notas adhesivas|post-it|acetato|funda|fichas|cartuchera)/,
+  ],
+];
+
+export function categoriaDeLinea(l: { concepto?: string | null; descripcion: string }): CategoriaKit {
+  const nombre = l.concepto && !/^[A-Z]\d{2,}$/.test(l.concepto.trim()) ? `${l.concepto} ` : "";
+  const texto = normalizarTexto(`${nombre}${l.descripcion}`);
+  for (const [categoria, regla] of REGLAS) if (regla.test(texto)) return categoria;
+  return "otros";
+}
+
+export function agruparPorCategoria<T extends { concepto?: string | null; descripcion: string }>(
+  lineas: readonly T[],
+): { categoria: CategoriaKit; titulo: string; lineas: T[] }[] {
+  const grupos = new Map<CategoriaKit, T[]>();
+  for (const l of lineas) {
+    const c = categoriaDeLinea(l);
+    grupos.set(c, [...(grupos.get(c) ?? []), l]);
+  }
+  return ORDEN_CATEGORIAS.filter((c) => grupos.has(c)).map((c) => ({
+    categoria: c,
+    titulo: TITULO_CATEGORIA[c],
+    lineas: grupos.get(c)!,
+  }));
+}
+
+// ---- Anclas estables (contrato con el asistente de la Fase 5) --------------
+
+export function idAnclaCategoria(c: CategoriaKit): string {
+  return `cat-${c}`;
+}
+
+/** Id HTML válido y sin colisiones: todo carácter raro se codifica en hex. */
+export function idAnclaLinea(itemId: string): string {
+  const seguro = itemId.replace(/[^A-Za-z0-9_-]/g, (ch) => `.${ch.codePointAt(0)!.toString(16)}.`);
+  return `linea-${seguro}`;
+}
