@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { origenDeDatos, ErrorTukit, type AcudienteAdmin } from "@tukit/contrato/servidor";
 import { COOKIE_SESION } from "@/lib/sesion";
 import { formatearFecha } from "@/lib/formato";
+import { rotuloDeHijo } from "@/lib/pedido-admin";
 import styles from "./Clientes.module.css";
 
 export const dynamic = "force-dynamic";
@@ -10,8 +11,7 @@ export const dynamic = "force-dynamic";
 // endpoint (401 sin token, 403 sin rol admin/operador), así que esta página lee
 // la cookie de sesión —la misma que puso la web al entrar— y la pasa como
 // Bearer. Sin sesión o sin permiso NO se muestra un error crudo, sino un aviso
-// claro. Es la única vista del admin que enseña un dato de menor (el apodo),
-// por eso no se cachea y no expone más de lo que el backend ya poda.
+// claro. No muestra ningún dato que identifique a un menor (ni apodo): Ley 1581.
 
 /** El aviso de guardia: nunca un stack trace, siempre una frase que dice qué
  *  hacer. Cubre "no hay sesión", "la sesión expiró" y "no tienes el rol". */
@@ -26,11 +26,10 @@ function Aviso({ titulo, cuerpo }: { titulo: string; cuerpo: string }) {
   );
 }
 
-/** El texto de un hijo: su apodo si lo tiene; si no, un rótulo estable con su
- *  posición, colegio y grado —nunca inventamos un nombre de menor—. */
+/** El texto de un hijo: un rótulo estable con su posición, grado y colegio. Ni
+ *  apodo ni nombre de menor llegan a esta vista (Ley 1581). */
 function textoHijo(hijo: AcudienteAdmin["hijos"][number], indice: number): string {
-  if (hijo.apodo) return hijo.apodo;
-  return `Hijo ${indice + 1} — ${hijo.colegio_nombre}, ${hijo.grado}`;
+  return `${rotuloDeHijo(hijo, indice)} · ${hijo.colegio_nombre}`;
 }
 
 export default async function PaginaClientes() {
@@ -84,7 +83,7 @@ export default async function PaginaClientes() {
           <h1>Clientes</h1>
           <p className={styles.bajada}>
             Las familias registradas en Tukit y los hijos que tienen matriculados. Del menor solo se
-            muestra su apodo si lo pusieron; jamás el nombre legal.
+            muestra su posición, grado y colegio; ni apodo ni nombre legal.
           </p>
         </div>
         <dl className={styles.resumen}>

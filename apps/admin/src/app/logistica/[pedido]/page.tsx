@@ -27,6 +27,7 @@ import {
   enmascararCorreo,
   formatearDiaIso,
   lineasConSubtotal,
+  rotuloDeHijo,
   totalDescuadrado,
 } from "@/lib/pedido-admin";
 import { tokenDeSesion } from "@/lib/sesion";
@@ -101,7 +102,7 @@ async function productosDeLineas(skus: string[]): Promise<Map<string, ExtraLinea
 }
 
 /** Los hijos del acudiente en los colegios del pedido, con su grado. Del menor
- *  solo viaja el apodo. */
+ *  no viaja nada que lo identifique (Ley 1581). */
 async function hijosDelPedido(
   token: string,
   usuarioId: string,
@@ -285,7 +286,7 @@ export default async function DetallePedido({ params }: Props) {
                 <ul className={styles.hijos}>
                   {hijos.map((h, i) => (
                     <li key={`${h.colegio_id}-${h.grado}-${i}`}>
-                      {h.apodo ?? "Sin apodo"} · {h.colegio_nombre} · grado {h.grado}
+                      {rotuloDeHijo(h, i)} · {h.colegio_nombre}
                     </li>
                   ))}
                 </ul>
