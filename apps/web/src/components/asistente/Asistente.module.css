@@ -435,8 +435,7 @@
 
 .cabeceraChat {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
   gap: var(--espacio-3);
   padding: var(--espacio-4);
   background: var(--clay-cielo-bg);
@@ -445,8 +444,8 @@
 .cerrar {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   flex: none;
   border: none;
   border-radius: 999px;
@@ -461,6 +460,7 @@
 
 .mensajes {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   display: grid;
   align-content: start;
@@ -548,6 +548,95 @@
   cursor: default;
 }
 
+.avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--color-white);
+  object-fit: cover;
+}
+
+.cabeceraTexto {
+  flex: 1;
+  min-width: 0;
+}
+
+.cabeceraChat .acciones {
+  display: flex;
+  flex: none;
+}
+
+.estadoLinea {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}
+
+.punto {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-text-muted);
+}
+
+.puntoActivo {
+  background: #1f9d55;
+}
+
+.alcance {
+  padding: var(--espacio-2) var(--espacio-4);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  background: var(--color-white);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.mensajes:focus-visible {
+  outline: 3px solid var(--color-primary-light);
+  outline-offset: -3px;
+}
+
+/* Siempre visible, fija sobre el campo de texto; en movil se desplaza de lado. */
+.sugerencias {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--espacio-2);
+  padding: var(--espacio-2) var(--espacio-3) 0;
+  overflow-x: auto;
+  background: var(--color-white);
+  scrollbar-width: thin;
+}
+
+.sugerencias .ejemplo {
+  flex: none;
+  white-space: nowrap;
+}
+
+.punto3 {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin: 0 2px;
+  border-radius: 999px;
+  background: var(--color-text-muted);
+  animation: escribiendo 1s infinite ease-in-out;
+}
+
+.punto3:nth-child(2) { animation-delay: 0.15s; }
+.punto3:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes escribiendo {
+  0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .punto3 { animation: none; }
+}
+
 @media (max-width: 640px) {
   .burbuja {
     right: 16px;
@@ -570,7 +659,7 @@
     bottom: 0;
     width: 100%;
     /* dvh: en el celular 85vh incluye la barra del navegador y la ventana se salía. */
-    height: 85dvh;
-    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    height: 100dvh;
+    border-radius: 0;
   }
 }

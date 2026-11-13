@@ -7,10 +7,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MessageCircle, Send, X } from "lucide-react";
+import { Minus, MessageCircle, RotateCcw, Send, X } from "lucide-react";
 import { ejemplosSeguros, pedidoAnteriorSeguro, validarEspec, type Componente, type PedidoAnterior } from "./espec";
 import { aplicacionDePropuesta, pendientesDelTurno, type PropuestaAplicable } from "./aplicar";
 import { ExplicacionKit, PropuestaCambio, PropuestaDescarte, ResumenLote } from "./Componentes";
+import { sugerenciasDe, type UltimaRespuesta } from "./sugerencias";
 import estilos from "./Asistente.module.css";
 
 type Estado = "pendiente" | "aplicada" | "rechazada";
@@ -34,7 +35,6 @@ const AVISO_SERVICIO: Record<Exclude<Servicio, "revisando" | "activo">, string> 
   caido: "No logro conectar con el asistente ahora. Puedes ajustar el kit a mano o volver a intentarlo en un momento.",
 };
 
-const EJEMPLOS = ["¿Qué puedes hacer?", "Más barato en cuadernos", "Más variedad en mi kit", "¿Por qué este kit cuesta eso?"];
 
 async function avisarDecision(propuesta_id: string, decision: "aceptada" | "rechazada", tipo: "cambio" | "descarte") {
   try {
@@ -63,6 +63,15 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
   const fondo = useRef<HTMLDivElement>(null);
 
   const cargando = turnos.at(-1)?.respuesta.tipo === "pensando";
+  const ultimaTipo = turnos.at(-1)?.respuesta.tipo;
+  const ultima: UltimaRespuesta =
+    ultimaTipo === "propuesta" || ultimaTipo === "ayuda" || ultimaTipo === "texto" ? ultimaTipo : "ninguna";
+  // Siempre hay sugerencias: se recalculan despues de cada respuesta, sin repetir las ya tocadas.
+  const sugerencias = sugerenciasDe(
+    ultima,
+    anterior,
+    turnos.slice(-2).map((t) => t.pregunta),
+  );
   const sinServicio = servicio === "apagado" || servicio === "sin_modelo" || servicio === "caido";
 
   useEffect(() => {
@@ -98,7 +107,22 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
   }, [abierto]);
 
   // Al cerrar, un "no conecta" se vuelve a revisar la proxima vez que se abra.
-  function cerrar() {
+  function reiniciar() {
+    setTurnos([]);
+    setEstados({});
+    setAnterior(null);
+    setTexto("");
+    entrada.current?.focus();
+  }
+
+  // Minimizar conserva la conversacion; cerrar la empieza de cero la proxima vez.
+  function cerrar(reinicia = false) {
+    if (reinicia) {
+      setTurnos([]);
+      setEstados({});
+      setAnterior(null);
+      setTexto("");
+    }
     setAbierto(false);
     setServicio((v) => (v === "caido" ? "revisando" : v));
   }
@@ -241,60 +265,55 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
     );
   }
 
+  const activo = servicio === "activo";
+  const estadoTexto = servicio === "revisando" ? "Conectando…" : activo ? "Activo" : "Inactivo";
+
   return (
-    <section className={estilos.ventana} role="dialog" aria-labelledby="asistente-kit-titulo">
+    <section className={estilos.ventana} role="dialog" aria-modal="false" aria-labelledby="asistente-kit-titulo">
       <header className={estilos.cabeceraChat}>
-        <div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className={estilos.avatar} src="/marca/icon-192.png" alt="" width={40} height={40} />
+        <div className={estilos.cabeceraTexto}>
           <h2 id="asistente-kit-titulo" className={estilos.titulo}>
             Asistente de tu kit
           </h2>
-          <p className={estilos.ayuda}>Hablamos del kit {perfil}. Te propongo y tú decides.</p>
+          <p className={estilos.estadoLinea}>
+            <span className={`${estilos.punto} ${activo ? estilos.puntoActivo : ""}`} aria-hidden="true" />
+            {estadoTexto}
+          </p>
         </div>
-        <button type="button" className={estilos.cerrar} onClick={cerrar} aria-label="Cerrar el asistente">
-          <X size={20} aria-hidden="true" />
-        </button>
+        <div className={estilos.acciones}>
+          <button type="button" className={estilos.cerrar} onClick={reiniciar} aria-label="Reiniciar la conversación" title="Reiniciar">
+            <RotateCcw size={18} aria-hidden="true" />
+          </button>
+          <button type="button" className={estilos.cerrar} onClick={() => cerrar()} aria-label="Minimizar el asistente" title="Minimizar">
+            <Minus size={18} aria-hidden="true" />
+          </button>
+          <button type="button" className={estilos.cerrar} onClick={() => cerrar(true)} aria-label="Cerrar el asistente" title="Cerrar">
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
       </header>
+      <p className={estilos.alcance}>
+        Hablamos del kit <strong>{perfil}</strong>. Te propongo y tú decides.
+      </p>
 
-      <div className={estilos.mensajes} aria-live="polite">
+      <div className={estilos.mensajes} role="log" aria-live="polite" aria-label="Conversación con Tukit" tabIndex={0}>
         <p className={estilos.msgTukit}>
-          Hola. Dime qué quieres cambiar del kit y te muestro la propuesta. No toco nada sin tu sí. Si no sabes por dónde empezar, toca «¿Qué puedes hacer?».
+          Hola, soy Tukit. Dime qué quieres cambiar del kit y te muestro la propuesta. No toco nada sin tu sí.
         </p>
         {servicio !== "revisando" && servicio !== "activo" && (
           <p className={estilos.msgTukit} role="status">
             {AVISO_SERVICIO[servicio]}
           </p>
         )}
-        {turnos.length === 0 && (
-          <div className={estilos.ejemplos}>
-            {EJEMPLOS.map((e) => (
-              <button
-                key={e}
-                type="button"
-                className={estilos.ejemplo}
-                disabled={sinServicio}
-                onClick={() => void proponer(e)}
-              >
-                {e}
-              </button>
-            ))}
-          </div>
-        )}
         {turnos.map((turno, t) => (
           <div key={t} className={estilos.turno}>
             {turno.pregunta && <p className={estilos.msgPadre}>{turno.pregunta}</p>}
-            {turno.respuesta.tipo === "pensando" && <p className={`${estilos.msgTukit} ${estilos.pensando}`}>Pensando…</p>}
+            {turno.respuesta.tipo === "pensando" && <p className={`${estilos.msgTukit} ${estilos.pensando}`} aria-label="Tukit está escribiendo"><span className={estilos.punto3} /><span className={estilos.punto3} /><span className={estilos.punto3} /></p>}
             {turno.respuesta.tipo === "texto" && <p className={estilos.msgTukit}>{turno.respuesta.texto}</p>}
             {turno.respuesta.tipo === "ayuda" && (
-              <>
-                <p className={estilos.msgTukit}>{turno.respuesta.texto}</p>
-                <div className={estilos.ejemplos}>
-                  {turno.respuesta.ejemplos.map((e) => (
-                    <button key={e} type="button" className={estilos.ejemplo} disabled={cargando || sinServicio} onClick={() => void proponer(e)}>
-                      {e}
-                    </button>
-                  ))}
-                </div>
-              </>
+              <p className={estilos.msgTukit}>{turno.respuesta.texto}</p>
             )}
             {turno.respuesta.tipo === "propuesta" && (
               <ul className={estilos.lista}>
@@ -347,6 +366,14 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
         <div ref={fondo} />
       </div>
 
+      <div className={estilos.sugerencias} role="group" aria-label="Sugerencias">
+        {sugerencias.map((e) => (
+          <button key={e} type="button" className={estilos.ejemplo} disabled={cargando || sinServicio} onClick={() => void proponer(e)}>
+            {e}
+          </button>
+        ))}
+      </div>
+
       <form
         className={estilos.redactar}
         onSubmit={(e) => {
@@ -370,9 +397,9 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
               void proponer(texto);
             }
           }}
-          placeholder="Ej.: más barato en todos los cuadernos"
+          placeholder="Ej.: más barato en los cuadernos"
         />
-        <button type="submit" className={estilos.enviar} disabled={cargando || sinServicio || !texto.trim()} aria-label="Enviar">
+        <button type="submit" className={estilos.enviar} disabled={cargando || sinServicio || !texto.trim()} aria-label={cargando ? "Esperando respuesta" : "Enviar"} aria-busy={cargando}>
           <Send size={18} aria-hidden="true" />
         </button>
       </form>
