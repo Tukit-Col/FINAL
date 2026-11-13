@@ -27,6 +27,7 @@ from typing import Any
 
 import pytest
 from conftest import CatalogoFalso, opcion, reconocido, renglon
+from tukit_comun.texto import normalizar_personaje
 from tukit_inteligencia import trabajos
 from tukit_inteligencia.modelos import EstadoResolucion, EstadoTrabajo
 from tukit_inteligencia.optimizador import (
@@ -534,6 +535,11 @@ class TestAnclarPersonaje:
         assert len(anclado.lineas) == len(kit.lineas)
         assert {linea.orden for linea in anclado.lineas} == {linea.orden for linea in kit.lineas}
 
+    def test_el_personaje_se_compara_normalizado(self):
+        # El formulario puede escribir "Pi-ka chu" y el catalogo "pikachu".
+        anclado = anclar_personaje(_kit_con_conceptos(), "Pi-ka chu")
+        assert [linea.orden for linea in anclado.lineas[:4]] == [4, 6, 5, 2]
+
     def test_personaje_none_no_toca_el_kit(self):
         kit = _kit_con_conceptos()
         anclado = anclar_personaje(kit, None)
@@ -564,7 +570,8 @@ class CatalogoRealista(CatalogoVerificado):
 
     async def producto_de_personaje(self, concepto: str, personaje: str) -> dict[str, Any] | None:
         self.llamadas.append("producto_de_personaje")
-        if personaje.lower() != "spiderman":
+        # El catalogo real compara normalizado ("Spider-Man" == "spiderman").
+        if normalizar_personaje(personaje) != "spiderman":
             return None
         # El catalogo surte las cuatro anclas con spiderman (precio_desde, como
         # el endpoint publico de productos). La maleta (C086) no esta en la lista
@@ -671,6 +678,12 @@ class TestAnclasPorHijo:
     async def test_mismo_personaje_se_consulta_una_vez(self):
         catalogo = _catalogo_realista()
         r = await trabajos.anclas_por_hijo(catalogo, {"hijo-1": "spiderman", "hijo-2": "Spiderman"})
+        assert catalogo.llamadas.count("producto_de_personaje") == 4
+        assert r["hijo-1"] is r["hijo-2"]
+
+    async def test_spider_man_y_spiderman_comparten_la_consulta(self):
+        catalogo = _catalogo_realista()
+        r = await trabajos.anclas_por_hijo(catalogo, {"hijo-1": "Spider-Man", "hijo-2": "spiderman"})
         assert catalogo.llamadas.count("producto_de_personaje") == 4
         assert r["hijo-1"] is r["hijo-2"]
 

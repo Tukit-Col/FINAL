@@ -14,12 +14,12 @@ excepcion es `resumen`, que es puro conteo agregado sin forma que shapear.
 from __future__ import annotations
 
 import re
-import unicodedata
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import Select, and_, func, or_, select, update
+from tukit_comun.texto import normalizar_personaje
 
 from ..modelos import Base
 from ..modelos.base import CALIDAD_POR_NIVEL
@@ -138,10 +138,11 @@ _ACENTOS = {"á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u", "ü": "u", "�
 
 
 def _normalizar_personaje(texto: str) -> str:
-    """Sin tildes, mayusculas, guiones ni espacios: "Spider-Man" == "spiderman"."""
-    base = unicodedata.normalize("NFD", texto)
-    base = "".join(c for c in base if not unicodedata.combining(c))
-    return re.sub(r"[\s\-_]+", "", base.lower())
+    """Sin tildes, mayusculas, guiones ni espacios: "Spider-Man" == "spiderman".
+
+    Es la de `tukit_comun.texto`, la misma que usa Inteligencia en el Fan.
+    """
+    return normalizar_personaje(texto)
 
 
 def _normalizado_sql(columna: Any) -> Any:
