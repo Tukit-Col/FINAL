@@ -34,7 +34,7 @@
 }
 
 .bloqueInactivo {
-  opacity: 0.72;
+  opacity: 0.85; /* texto secundario sobre fondo claro: 4.6:1 (AA); 0.72 daba 3.4:1 */
 }
 
 .bloqueInactivo:hover,
