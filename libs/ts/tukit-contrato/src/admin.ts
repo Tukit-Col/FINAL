@@ -7,8 +7,9 @@
 // operacion lo gatean por rol y responden 401/403/503 como el resto.
 
 import type { Dinero } from "./contrato";
-import type { Caso, EstadoCaso } from "./operacion";
+import type { Caso, EstadoCaso, Prioridad } from "./operacion";
 import type {
+  EstadoPedido,
   Pago,
   PedidoConHistorial,
   SolicitudAvancePedido,
@@ -55,7 +56,7 @@ export interface SolicitudAvanceAdmin extends SolicitudAvancePedido {
 /** Una entrada de la historia de un ticket. `respuesta` lleva el texto que se le
  *  mando al acudiente; `estado` el cambio (`desde`/`hacia`); `pedido` el vinculo. */
 export interface EventoCasoAdmin {
-  tipo: "respuesta" | "estado" | "pedido" | string;
+  tipo: "respuesta" | "estado" | "pedido" | "asignacion" | "prioridad" | "nota_interna" | string;
   datos: Record<string, unknown>;
   actor_id: string | null;
   creado_en: string;
@@ -84,3 +85,58 @@ export const TRANSICIONES_CASO: Record<EstadoCaso, readonly EstadoCaso[]> = {
 
 /** El tope de una respuesta, igual que `LONGITUD_MAXIMA_RESPUESTA` del backend. */
 export const LONGITUD_MAXIMA_RESPUESTA = 2000;
+
+// ----------------------------------------- Fase 4: reconciliar, previa y lote
+
+/** Resultado de preguntarle a Wompi por el pago de un pedido atascado. */
+export type ResultadoReconciliacion = "pagado" | "en_curso" | "libre";
+
+export interface RespuestaReconciliacion {
+  pedido_id: string;
+  resultado: ResultadoReconciliacion;
+  estado_pedido: EstadoPedido;
+}
+
+/** Un paso de la linea de tiempo que ve el acudiente (`LineaDeTiempoPedido`). */
+export interface PasoVistaPrevia {
+  paso: string;
+  estado: "hecho" | "actual" | "futuro";
+  fecha: string | null;
+  repartidor_nombre?: string | null;
+}
+
+export interface LineaVistaPrevia {
+  pasos: PasoVistaPrevia[];
+  especial: { tipo: "incidencia" | "cancelado"; fecha: string | null; tipo_incidencia?: string | null } | null;
+  entrega_estimada: string | null;
+  pago_pendiente: { vence_en: string; vencido: boolean } | null;
+}
+
+/** Lo que el acudiente veria hoy y despues de mover el pedido a `destino`. */
+export interface VistaPreviaPedido {
+  ahora: LineaVistaPrevia;
+  despues: LineaVistaPrevia | null;
+  /** Tipo del aviso que recibiria (`pedido_despachado`...), o `null`. */
+  aviso: string | null;
+  /** Si la matriz permite ese avance desde el estado actual. */
+  legal: boolean;
+}
+
+/** Los destinos que admite el avance en lote (los que no piden datos). */
+export type DestinoDeLote = "en_preparacion" | "en_reparto" | "entregado";
+export const DESTINOS_DE_LOTE: readonly DestinoDeLote[] = ["en_preparacion", "en_reparto", "entregado"];
+export const MAX_PEDIDOS_POR_LOTE = 50;
+
+export interface SolicitudLote {
+  pedido_ids: string[];
+  destino: DestinoDeLote;
+}
+
+export interface RespuestaLote {
+  avanzados: string[];
+  fallidos: { pedido_id: string; codigo: string; mensaje: string }[];
+}
+
+/** Quien llama se asigna el ticket ("yo") o lo suelta ("nadie"). */
+export type AsignacionCaso = "yo" | "nadie";
+export type PrioridadCaso = Prioridad;

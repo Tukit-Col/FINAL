@@ -101,7 +101,17 @@ import type {
   SolicitudCaso,
   SolicitudMiCaso,
 } from "./operacion";
-import type { CasoDetalleAdmin, PedidoAdmin, SolicitudAvanceAdmin } from "./admin";
+import type {
+  AsignacionCaso,
+  CasoDetalleAdmin,
+  DestinoDeLote,
+  PedidoAdmin,
+  PrioridadCaso,
+  RespuestaLote,
+  RespuestaReconciliacion,
+  SolicitudAvanceAdmin,
+  VistaPreviaPedido,
+} from "./admin";
 import { nombreArchivoMisDatos, type MisDatos, type ResultadoSupresion } from "./privacidad";
 import {
   ErrorTukit,
@@ -1631,6 +1641,43 @@ export class ClienteApi implements OrigenDatos {
 
   vincularPedidoCaso(token: string, casoId: string, pedidoId: string): Promise<CasoDetalleAdmin> {
     return this.postCaso(token, casoId, "pedido", { pedido_id: pedidoId });
+  }
+
+  reconciliarPagoPedido(token: string, pedidoId: string): Promise<RespuestaReconciliacion> {
+    return this.pedir<RespuestaReconciliacion>(
+      `/v1/comercio/pedidos/${encodeURIComponent(pedidoId)}/reconciliar-pago`,
+      { method: "POST", headers: this.autoriza(token) },
+    );
+  }
+
+  vistaPreviaPedido(token: string, pedidoId: string, destino: string): Promise<VistaPreviaPedido> {
+    return this.pedir<VistaPreviaPedido>(
+      `/v1/comercio/pedidos/${encodeURIComponent(pedidoId)}/vista-previa?destino=${encodeURIComponent(destino)}`,
+      { headers: this.autoriza(token) },
+    );
+  }
+
+  avanzarLote(
+    token: string,
+    cuerpo: { pedido_ids: string[]; destino: DestinoDeLote },
+  ): Promise<RespuestaLote> {
+    return this.pedir<RespuestaLote>("/v1/comercio/pedidos/avanzar-lote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...this.autoriza(token) },
+      body: JSON.stringify(cuerpo),
+    });
+  }
+
+  asignarCaso(token: string, casoId: string, asignar: AsignacionCaso): Promise<CasoDetalleAdmin> {
+    return this.postCaso(token, casoId, "asignar", { asignar });
+  }
+
+  cambiarPrioridadCaso(token: string, casoId: string, prioridad: PrioridadCaso): Promise<CasoDetalleAdmin> {
+    return this.postCaso(token, casoId, "prioridad", { prioridad });
+  }
+
+  notaInternaCaso(token: string, casoId: string, texto: string): Promise<CasoDetalleAdmin> {
+    return this.postCaso(token, casoId, "nota", { texto });
   }
 
   async productoPublico(sku: string): Promise<ProductoCatalogo | null> {

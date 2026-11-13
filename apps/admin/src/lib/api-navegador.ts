@@ -10,8 +10,14 @@ import type {
   DecisionRevision,
   ErrorApi,
   MarcarNoDisponible,
+  AsignacionCaso,
   CasoDetalleAdmin,
+  DestinoDeLote,
   PedidoAdmin,
+  PrioridadCaso,
+  RespuestaLote,
+  RespuestaReconciliacion,
+  VistaPreviaPedido,
   ProductoDadoDeAlta,
   SinCoincidencia,
   SolicitudAvanceAdmin,
@@ -151,4 +157,46 @@ export function cambiarEstadoTicket(casoId: string, destino: string): Promise<Ca
 /** Tickets: vincula el ticket a un pedido. */
 export function vincularPedidoTicket(casoId: string, pedidoId: string): Promise<CasoDetalleAdmin> {
   return enviar(`/api/tickets/${id(casoId)}/pedido`, { pedido_id: pedidoId });
+}
+
+/** Logistica: pregunta a Wompi por el pago de un pedido atascado (aplica el resultado). */
+export function reconciliarPago(pedidoId: string): Promise<RespuestaReconciliacion> {
+  return enviar(`/api/logistica/${id(pedidoId)}/reconciliar`, {});
+}
+
+/** Logistica: lo que verá el acudiente si el pedido pasa a `destino` (no escribe nada). */
+export async function vistaPrevia(pedidoId: string, destino: string): Promise<VistaPreviaPedido> {
+  const respuesta = await fetch(`/api/logistica/${id(pedidoId)}/vista-previa?destino=${encodeURIComponent(destino)}`);
+  const texto = await respuesta.text();
+  const leido: unknown = texto ? JSON.parse(texto) : null;
+  if (!respuesta.ok) {
+    const error = (leido ?? {}) as ErrorApi;
+    throw new FalloApi(
+      respuesta.status,
+      error.error ?? "error_desconocido",
+      error.mensaje ?? "No pudimos cargar la vista previa.",
+      error as unknown as Record<string, unknown>,
+    );
+  }
+  return leido as VistaPreviaPedido;
+}
+
+/** Logistica: mueve varios pedidos al mismo destino simple; el resultado es por pedido. */
+export function avanzarEnLote(cuerpo: { pedido_ids: string[]; destino: DestinoDeLote }): Promise<RespuestaLote> {
+  return enviar("/api/logistica/lote", cuerpo);
+}
+
+/** Tickets: asignarme o soltar. */
+export function asignarTicket(casoId: string, asignar: AsignacionCaso): Promise<CasoDetalleAdmin> {
+  return enviar(`/api/tickets/${id(casoId)}/asignar`, { asignar });
+}
+
+/** Tickets: cambia la prioridad. */
+export function priorizarTicket(casoId: string, prioridad: PrioridadCaso): Promise<CasoDetalleAdmin> {
+  return enviar(`/api/tickets/${id(casoId)}/prioridad`, { prioridad });
+}
+
+/** Tickets: nota interna (solo el equipo la ve). */
+export function agregarNota(casoId: string, texto: string): Promise<CasoDetalleAdmin> {
+  return enviar(`/api/tickets/${id(casoId)}/nota`, { texto });
 }
