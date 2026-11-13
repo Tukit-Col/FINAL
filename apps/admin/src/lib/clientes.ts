@@ -138,3 +138,53 @@ export function hrefClientes(f: FiltrosClientes, cambios: Partial<FiltrosCliente
   const cola = p.toString();
   return cola ? `/clientes?${cola}` : "/clientes";
 }
+
+/** Un colegio del padron con cuantos acudientes e hijos tiene, en total y por grado. */
+export interface ClientesDeColegio {
+  colegio_id: string;
+  colegio_nombre: string;
+  acudientes: number;
+  hijos: number;
+  grados: { grado: string; acudientes: number; hijos: number }[];
+}
+
+/**
+ * Cuantos clientes hay por colegio y por grado. Un acudiente cuenta UNA vez en
+ * cada colegio (y en cada grado) donde tiene al menos un hijo, aunque tenga dos
+ * hijos ahi; los hijos se cuentan todos. Solo colegio, grado y cantidades: ningun
+ * dato del menor (Ley 1581). Colegios de mas a menos acudientes; grados por
+ * cantidad de hijos y luego por nombre.
+ */
+export function clientesPorColegio(acudientes: readonly AcudienteAdmin[]): ClientesDeColegio[] {
+  type Acum = { nombre: string; padres: Set<string>; hijos: number; grados: Map<string, { padres: Set<string>; hijos: number }> };
+  const colegios = new Map<string, Acum>();
+  for (const a of acudientes) {
+    for (const h of a.hijos) {
+      let c = colegios.get(h.colegio_id);
+      if (!c) {
+        c = { nombre: h.colegio_nombre, padres: new Set(), hijos: 0, grados: new Map() };
+        colegios.set(h.colegio_id, c);
+      }
+      c.padres.add(a.usuario_id);
+      c.hijos += 1;
+      let g = c.grados.get(h.grado);
+      if (!g) {
+        g = { padres: new Set(), hijos: 0 };
+        c.grados.set(h.grado, g);
+      }
+      g.padres.add(a.usuario_id);
+      g.hijos += 1;
+    }
+  }
+  return [...colegios.entries()]
+    .map(([colegio_id, c]) => ({
+      colegio_id,
+      colegio_nombre: c.nombre,
+      acudientes: c.padres.size,
+      hijos: c.hijos,
+      grados: [...c.grados.entries()]
+        .map(([grado, g]) => ({ grado, acudientes: g.padres.size, hijos: g.hijos }))
+        .sort((x, y) => y.hijos - x.hijos || x.grado.localeCompare(y.grado, "es")),
+    }))
+    .sort((x, y) => y.acudientes - x.acudientes || x.colegio_nombre.localeCompare(y.colegio_nombre, "es"));
+}
