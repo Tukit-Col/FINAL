@@ -945,6 +945,7 @@ export default function FormularioEmpezar({
               <span>Guardamos tus pedidos y a tus hijos para la próxima vez.</span>
             </span>
           </button>
+        </div>
       )}
 
       {/* Camino "ya tengo cuenta": entrar y volver aqui con los hijos cargados.
