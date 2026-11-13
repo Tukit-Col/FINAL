@@ -42,6 +42,14 @@ def _sin_broker(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
+def _limitador_limpio() -> None:
+    """El cupo del asistente vive en memoria del proceso: cada prueba parte de cero."""
+    from tukit_inteligencia import nl2c
+
+    nl2c.LIMITADOR.reiniciar()
+
+
+@pytest.fixture(autouse=True)
 def _sin_redis(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """Las pruebas corren sin Redis aunque quien las lance tenga `REDIS_URL`.
 

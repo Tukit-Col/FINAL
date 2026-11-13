@@ -74,6 +74,64 @@ def activo() -> bool:
     return os.environ.get("TUKIT_ASISTENTE", "").strip() == "1"
 
 
+# --- Limite de tasa y de gasto por sesion (LLM10) -----------------------------
+MAX_LLAMADAS_POR_MINUTO = 20
+MAX_TOKENS_POR_HORA = 60_000
+_VENTANA_TASA = 60.0
+_VENTANA_GASTO = 3600.0
+
+
+class LimiteExcedido(Exception):
+    """El portador paso su cupo de llamadas o de tokens; el cliente cae al formulario clasico."""
+
+    def __init__(self, motivo: Literal["tasa", "tokens"], espera: int) -> None:
+        super().__init__(motivo)
+        self.motivo = motivo
+        self.espera = espera  # segundos hasta que vuelva a haber cupo
+
+
+class LimitadorSesion:
+    """Ventana deslizante por portador, en memoria de este proceso.
+
+    Cuenta llamadas por minuto y tokens por hora (los que reporta el modelo). Es una baranda
+    de costo, no de seguridad: con varios procesos el tope real es N veces mayor (ver el informe).
+    """
+
+    def __init__(self) -> None:
+        self._llamadas: dict[str, deque[float]] = {}
+        self._tokens: dict[str, deque[tuple[float, int]]] = {}
+
+    def reiniciar(self) -> None:
+        self._llamadas.clear()
+        self._tokens.clear()
+
+    def admitir(self, clave: str, ahora: float | None = None) -> None:
+        ahora = time.monotonic() if ahora is None else ahora
+        gasto = self._tokens.setdefault(clave, deque())
+        while gasto and ahora - gasto[0][0] >= _VENTANA_GASTO:
+            gasto.popleft()
+        if sum(n for _, n in gasto) >= MAX_TOKENS_POR_HORA:
+            raise LimiteExcedido("tokens", int(_VENTANA_GASTO - (ahora - gasto[0][0])) + 1)
+        cola = self._llamadas.setdefault(clave, deque())
+        while cola and ahora - cola[0] >= _VENTANA_TASA:
+            cola.popleft()
+        if len(cola) >= MAX_LLAMADAS_POR_MINUTO:
+            raise LimiteExcedido("tasa", int(_VENTANA_TASA - (ahora - cola[0])) + 1)
+        cola.append(ahora)
+        if len(self._llamadas) > 5000:  # no crecer sin fin con portadores anonimos
+            for k in [k for k, v in self._llamadas.items() if not v or ahora - v[-1] >= _VENTANA_TASA][:1000]:
+                self._llamadas.pop(k, None)
+                self._tokens.pop(k, None)
+
+    def registrar_tokens(self, clave: str, tokens: int, ahora: float | None = None) -> None:
+        ahora = time.monotonic() if ahora is None else ahora
+        if tokens > 0:
+            self._tokens.setdefault(clave, deque()).append((ahora, tokens))
+
+
+LIMITADOR = LimitadorSesion()
+
+
 # --- Errores ----------------------------------------------------------------
 class AsistenteNoDisponible(Exception):
     """El modelo no respondio a tiempo o fallo; el cliente cae al formulario clasico."""
@@ -115,7 +173,15 @@ def sanitizar(texto: str, *, limite: int = MAX_CARACTERES_TEXTO) -> TextoLimpio:
     "mi hijo ama Spiderman". Devuelve cuantas redacciones hizo, no el contenido.
     """
     original = unicodedata.normalize("NFKC", texto or "")
-    limpio = _CONTROL.sub(" ", original)
+    # Cf (ancho cero, bidi, caracteres "tag" U+E0000 que viajan invisibles) y selectores de
+    # variacion: no los ve el padre pero el modelo si, asi que son un canal para esconder ordenes.
+    limpio = "".join(
+        " "
+        if unicodedata.category(c) == "Cf" or "\ufe00" <= c <= "\ufe0f" or "\U000e0100" <= c <= "\U000e01ef"
+        else c
+        for c in original
+    )
+    limpio = _CONTROL.sub(" ", limpio)
     limpio = _ETIQUETAS.sub(" ", limpio)
     cuenta = 0
     for patron, reemplazo in (
