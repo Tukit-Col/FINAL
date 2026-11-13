@@ -65,6 +65,7 @@ from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
 from pymoo.operators.repair.rounding import RoundingRepair
 from pymoo.optimize import minimize as _minimizar
+from tukit_comun.texto import normalizar_personaje
 
 from .modelos import PESOS_POR_OMISION, EstadoResolucion, PerfilKit
 
@@ -556,9 +557,11 @@ def elegir_por_perfil(
         return min(del_nivel, key=orden)
 
     if perfil == PerfilKit.FAN.value:
-        pedidos = {p.lower() for p in personajes}
+        pedidos = {normalizar_personaje(p) for p in personajes}
         con_personaje = [
-            c for c in admisibles if c.personaje and (not pedidos or c.personaje.lower() in pedidos)
+            c
+            for c in admisibles
+            if c.personaje and (not pedidos or normalizar_personaje(c.personaje) in pedidos)
         ]
         if con_personaje:
             return min(con_personaje, key=orden)
@@ -610,8 +613,8 @@ def _objetivos_de_asignacion(
             costo += elegido.precio_cop * unidades
             con_precio += 1
         suma_fidelidad += elegido.rango_nivel / tope_nivel
-        pedidos = {p.lower() for p in _personajes_de(preferencias, renglon.hijo)}
-        if elegido.personaje and (not pedidos or elegido.personaje.lower() in pedidos):
+        pedidos = {normalizar_personaje(p) for p in _personajes_de(preferencias, renglon.hijo)}
+        if elegido.personaje and (not pedidos or normalizar_personaje(elegido.personaje) in pedidos):
             con_personaje += 1
 
     n = len(decidibles)
@@ -1409,7 +1412,7 @@ def variar_personaje(
             continue
 
         admisibles = _admisibles(renglon)
-        pedidos = {p.lower() for p in _personajes_de(preferencias, renglon.hijo)}
+        pedidos = {normalizar_personaje(p) for p in _personajes_de(preferencias, renglon.hijo)}
 
         def orden(c: Candidato, cantidad: int = renglon.cantidad) -> tuple[tuple[int, int, int], str]:
             return (_costo_para_ordenar(c, cantidad), c.sku)
@@ -1418,7 +1421,7 @@ def variar_personaje(
             c
             for c in admisibles
             if c.personaje
-            and (not pedidos or c.personaje.lower() in pedidos)
+            and (not pedidos or normalizar_personaje(c.personaje) in pedidos)
             and (renglon.hijo, c.sku) not in usados
         ]
         normales = [c for c in admisibles if not c.personaje]
@@ -1747,14 +1750,14 @@ def anclar_personaje(kit: KitArmado, personaje: str | None) -> KitArmado:
     if personaje is None:
         return kit
 
-    pedido = personaje.lower()
+    pedido = normalizar_personaje(personaje)
 
     def es_ancla(linea: LineaKit, codigo: str) -> bool:
         return (
             not linea.informativa
             and linea.concepto_codigo == codigo
             and linea.elegido is not None
-            and (linea.elegido.personaje or "").lower() == pedido
+            and normalizar_personaje(linea.elegido.personaje or "") == pedido
         )
 
     anclas: list[LineaKit] = []

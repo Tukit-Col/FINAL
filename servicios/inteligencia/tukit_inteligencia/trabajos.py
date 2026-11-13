@@ -29,6 +29,7 @@ from sqlalchemy import and_, delete, func, insert, select, update
 from tukit_comun.broker import url_broker
 from tukit_comun.cifrado import cifrador_desde_entorno
 from tukit_comun.consumidor import marcar_procesado
+from tukit_comun.texto import normalizar_personaje
 
 from .dominio.pipeline import (
     _anclar_kits,
@@ -2718,7 +2719,7 @@ async def anclas_por_hijo(
     for hijo, personaje in personajes.items():
         if not personaje:
             continue
-        clave = personaje.strip().lower()
+        clave = normalizar_personaje(personaje)
         if clave not in por_personaje:
             swaps: dict[str, dict[str, Any]] = {}
             for concepto in CONCEPTOS_ANCLA:
