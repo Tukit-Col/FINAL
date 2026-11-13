@@ -32,9 +32,10 @@ function useAlEntrar<T extends HTMLElement>(umbral = 0.35) {
   useEffect(() => {
     const nodo = ref.current;
     if (!nodo || sinMovimiento() || typeof IntersectionObserver === "undefined") return;
-    const arriba = nodo.getBoundingClientRect().top;
+    const caja = nodo.getBoundingClientRect();
     // Ya esta a la vista al montar: entra de una vez en lugar de parpadear.
-    setFase(arriba < window.innerHeight * 0.85 ? "dentro" : "pendiente");
+    const visible = caja.top < window.innerHeight * 0.9 && caja.bottom > 0;
+    setFase(visible ? "dentro" : "pendiente");
     const obs = new IntersectionObserver(
       ([e]) => {
         if (e.isIntersecting) {
@@ -42,7 +43,7 @@ function useAlEntrar<T extends HTMLElement>(umbral = 0.35) {
           obs.disconnect();
         }
       },
-      { threshold: umbral },
+      { threshold: umbral, rootMargin: "0px 0px -6% 0px" },
     );
     obs.observe(nodo);
     return () => obs.disconnect();
@@ -79,15 +80,14 @@ export function Foco({
 
 /* --------------------------------------------------------------- Marcador */
 
-/** Trazo de marcador que se dibuja bajo una frase (marker-title). */
+/** Marcador que se dibuja bajo una frase (marker-title). Es un fondo CSS con
+ *  `box-decoration-break: clone`: continuo de extremo a extremo y, si la frase
+ *  se parte en dos lineas, cada linea lleva su propio trazo completo. */
 export function Marcador({ children }: { children: ReactNode }) {
-  const [ref, fase] = useAlEntrar<HTMLSpanElement>(0.9);
+  const [ref, fase] = useAlEntrar<HTMLSpanElement>(0.4);
   return (
     <span ref={ref} className={styles.marcador} data-fase={fase}>
       {children}
-      <svg className={styles.trazo} viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M1 5.5 C 18 1.5, 34 7, 52 3.5 S 86 2, 99 5" pathLength={1} />
-      </svg>
     </span>
   );
 }
@@ -149,45 +149,5 @@ export function Contador({
       {n}
       {sufijo}
     </span>
-  );
-}
-
-/* --------------------------------------------------------------- Paralaje */
-
-/** Marco con la foto del heroe: entra con un destape suave y la imagen interior
- *  se desplaza un poco mas lento que la pagina (paralaje de pocos pixeles). */
-export function Paralaje({ children, className = "" }: { children: ReactNode; className?: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const nodo = ref.current;
-    if (!nodo || sinMovimiento()) return;
-    let raf = 0;
-    const calcular = () => {
-      raf = 0;
-      const caja = nodo.getBoundingClientRect();
-      const alto = window.innerHeight;
-      if (caja.bottom < 0 || caja.top > alto) return;
-      // -1 (marco arriba del viewport) .. 1 (abajo); 0 centrado.
-      const t = (caja.top + caja.height / 2 - alto / 2) / (alto / 2 + caja.height / 2);
-      nodo.style.setProperty("--py", `${(-t * 18).toFixed(1)}px`);
-    };
-    const alMover = () => {
-      if (!raf) raf = requestAnimationFrame(calcular);
-    };
-    calcular();
-    window.addEventListener("scroll", alMover, { passive: true });
-    window.addEventListener("resize", alMover);
-    return () => {
-      window.removeEventListener("scroll", alMover);
-      window.removeEventListener("resize", alMover);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
-
-  return (
-    <div ref={ref} className={`${styles.paralaje} ${className}`}>
-      {children}
-    </div>
   );
 }

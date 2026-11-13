@@ -10,12 +10,11 @@ import {
   ShieldCheck,
   Eye,
   ArrowRight,
-  PackageCheck,
 } from "lucide-react";
 import Revelar from "@/components/Revelar";
 import UtilesFlotantes from "./UtilesFlotantes";
 import LineaDelTiempo from "./LineaDelTiempo";
-import { Foco, Marcador, Palabras, Contador, Paralaje } from "./MovimientoInicio";
+import { Foco, Marcador, Palabras, Contador } from "./MovimientoInicio";
 import styles from "./Inicio.module.css";
 
 export const dynamic = "force-dynamic";
@@ -111,8 +110,8 @@ const ETAPAS_FOTO = [
 // Cifras que sí son nuestras y verificables: la encuesta y el diseño del servicio.
 const CIFRAS = [
   { valor: 60, sufijo: "", texto: "acudientes nos contaron su tarde de papelería" },
-  { valor: 3, sufijo: "", texto: "kits por lista, para que decidas tú" },
-  { valor: 1, sufijo: "", texto: "solo pedido por hogar, con todos tus hijos" },
+  { valor: 3, sufijo: "", texto: "kits por lista, tú decides" },
+  { valor: 1, sufijo: "", texto: "pedido por hogar, con todos tus hijos" },
 ];
 
 export default async function Inicio() {
@@ -161,23 +160,6 @@ export default async function Inicio() {
             Armar el kit no cuesta nada · Tú eliges entre tres · Sin crear cuenta para empezar
           </p>
         </Revelar>
-
-        {/* Foto del heroe: la caja abierta, lo que de verdad llega. Es la
-            unica imagen con `priority` (esta sobre el pliegue en escritorio). */}
-        <Paralaje className={styles.heroeFoto}>
-          <Image
-            src="/marca/caja-abierta-hero.webp"
-            alt="Caja Tukit abierta sobre una mesa, con cuadernos, lápices de colores, tijeras y colbón ordenados por compartimentos, y una caja Premium al lado"
-            fill
-            priority
-            sizes="(max-width: 1120px) 100vw, 1000px"
-            className={styles.heroeImagen}
-          />
-        </Paralaje>
-        <p className={styles.sello}>
-          <PackageCheck size={16} aria-hidden="true" strokeWidth={2.4} />
-          Revisado por una persona antes de salir
-        </p>
       </section>
 
       <section className={styles.cifras} aria-label="Tukit en cifras">

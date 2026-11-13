@@ -38,7 +38,7 @@
   position: relative;
   /* El texto pasa POR ENCIMA de los útiles flotantes, como en la referencia. */
   z-index: 3;
-  max-width: 800px;
+  max-width: 960px;
   margin: 0 auto;
   text-align: center;
 }
@@ -60,7 +60,7 @@
 }
 
 .titular {
-  font-size: clamp(38px, 7vw, 76px);
+  font-size: clamp(31px, 6.4vw, 68px);
   font-weight: 800;
   line-height: 1.02;
   letter-spacing: -0.02em;
@@ -364,46 +364,6 @@
   max-width: 46ch;
 }
 
-/* ------------------------------------------------------- Foto del heroe */
-
-.heroeFoto {
-  position: relative;
-  z-index: 3;
-  max-width: 960px;
-  aspect-ratio: 16 / 9;
-  margin: clamp(var(--espacio-6), 5vw, 56px) auto 0;
-  background: var(--color-surface-2);
-}
-
-.heroeImagen {
-  object-fit: cover;
-  object-position: 50% 62%;
-}
-
-.sello {
-  position: relative;
-  z-index: 4;
-  display: flex;
-  width: fit-content;
-  align-items: center;
-  gap: 8px;
-  margin: calc(-1 * var(--espacio-5)) auto 0;
-  padding: 10px 18px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-primary-dark);
-  background: var(--color-white);
-  border-radius: var(--radius-full);
-  box-shadow: var(--clay-shadow);
-  animation: flota 4.5s ease-in-out infinite;
-}
-
-@keyframes flota {
-  50% {
-    transform: translateY(-5px);
-  }
-}
-
 /* --------------------------------------------------------------- Cifras */
 
 .cifras {
@@ -419,6 +379,7 @@
 
 .cifra {
   display: grid;
+  align-content: start;
   gap: 4px;
   text-align: center;
   padding: var(--espacio-4);
@@ -436,8 +397,9 @@
   font-size: 14px;
   line-height: 1.45;
   color: var(--color-text-secondary);
-  max-width: 24ch;
+  max-width: 26ch;
   margin: 0 auto;
+  text-wrap: balance;
 }
 
 /* --------------------------------------------------- Tres pasos con foto */
@@ -552,28 +514,33 @@
     rotate: 90deg;
   }
 
+  /* Movil: una cifra por fila (numero a la izquierda, texto a la derecha),
+   * en lugar de tres columnas de 100 px donde el texto se partia mal. */
   .rejillaCifras {
+    grid-template-columns: 1fr;
     gap: var(--espacio-2);
   }
 
   .cifra {
-    padding: var(--espacio-2);
+    grid-template-columns: 84px 1fr;
+    align-items: center;
+    column-gap: var(--espacio-3);
+    text-align: left;
+    padding: var(--espacio-2) var(--espacio-3);
+  }
+
+  .cifra strong {
+    text-align: center;
   }
 
   .cifra > span {
-    font-size: 12px;
-  }
-
-  .heroeFoto {
-    aspect-ratio: 4 / 3;
+    font-size: 14px;
+    max-width: none;
+    margin: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sello {
-    animation: none;
-  }
-
   .pasoImagen img,
   .pasoFoto:hover .pasoImagen img,
   .pasoFoto:hover .pasoImagen img.pasoZoom {
