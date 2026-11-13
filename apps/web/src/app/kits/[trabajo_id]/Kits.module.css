@@ -1595,3 +1595,156 @@
   font-weight: 700;
   color: var(--color-text-secondary);
 }
+
+/* ============================================================ Diseño en acción */
+
+/* ---- Acento por categoría (orientación) ------------------------------------
+ * Cada grupo del carrito lleva su propio color en una barra lateral y en el
+ * punto del título. Es decoración: el nombre del grupo y su conteo siguen
+ * siendo texto (AA); el color nunca es el único portador de significado. */
+.grupoCategoria {
+  --acento: var(--color-primary);
+  --acento-bg: var(--color-info-bg);
+  position: relative;
+  padding-left: var(--espacio-4);
+  border-left: 4px solid var(--acento);
+  border-radius: 4px;
+}
+
+.grupoCategoria[data-categoria="cuadernos"] {
+  --acento: #2563eb;
+  --acento-bg: #eff6ff;
+}
+.grupoCategoria[data-categoria="escritura"] {
+  --acento: #7c3aed;
+  --acento-bg: #f5f3ff;
+}
+.grupoCategoria[data-categoria="arte"] {
+  --acento: #db2777;
+  --acento-bg: #fdf2f8;
+}
+.grupoCategoria[data-categoria="papeleria"] {
+  --acento: #d97706;
+  --acento-bg: #fffbeb;
+}
+.grupoCategoria[data-categoria="geometria"] {
+  --acento: #0d9488;
+  --acento-bg: #f0fdfa;
+}
+.grupoCategoria[data-categoria="otros"] {
+  --acento: #64748b;
+  --acento-bg: #f1f5f9;
+}
+
+.grupoCategoria .cabeceraCategoria h3 {
+  width: fit-content;
+  padding: 4px 12px 4px 10px;
+  border-radius: var(--radius-full);
+  background: var(--acento-bg);
+}
+
+.grupoCategoria .cabeceraCategoria h3::before {
+  content: "";
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--acento);
+}
+
+.grupoCategoria .cabeceraCategoria {
+  margin-bottom: var(--espacio-3);
+}
+
+/* Cambiar todos: objetivo táctil de 44 px */
+.botonCambiar,
+.botonLoteSecundario {
+  min-height: 44px;
+}
+
+/* ---- Transición al cambiar de producto ------------------------------------ */
+.productoNuevo {
+  animation: productoNuevo var(--dur-lento) var(--ease-suave) both;
+}
+
+@keyframes productoNuevo {
+  0% {
+    opacity: 0.2;
+    transform: translateX(-8px);
+    background: var(--clay-estrella-bg);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    background: transparent;
+  }
+}
+
+/* ---- Estados de carga: esqueleto con destello suave ------------------------ */
+.esqueletoOpciones {
+  display: flex;
+  gap: var(--espacio-3);
+  margin-top: var(--espacio-2);
+}
+
+.esqueletoTarjeta,
+.esqueletoLinea {
+  display: block;
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    100deg,
+    var(--color-border-light) 30%,
+    var(--color-white) 50%,
+    var(--color-border-light) 70%
+  );
+  background-size: 220% 100%;
+  animation: destello 1.4s linear infinite;
+}
+
+.esqueletoTarjeta {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 200px;
+  height: 116px;
+}
+
+.esqueletoLinea {
+  flex: 1 1 0;
+  height: 18px;
+}
+
+@keyframes destello {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -120% 0;
+  }
+}
+
+.visualmenteOculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .productoNuevo {
+    animation: none;
+  }
+
+  .esqueletoTarjeta,
+  .esqueletoLinea {
+    animation: none;
+    background: var(--color-border-light);
+  }
+}
+
+@media (max-width: 520px) {
+  .grupoCategoria {
+    padding-left: var(--espacio-3);
+  }
+}

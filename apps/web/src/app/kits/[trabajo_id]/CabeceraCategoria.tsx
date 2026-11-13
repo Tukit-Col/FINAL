@@ -108,9 +108,11 @@ export default function CabeceraCategoria({
       {abierto && (
         <div className={styles.panelLote}>
           {cargando ? (
-            <p className={styles.notaCambio} role="status">
-              Buscando marcas…
-            </p>
+            <div className={styles.esqueletoOpciones} role="status">
+              <span className={styles.visualmenteOculto}>Buscando marcas…</span>
+              <span className={styles.esqueletoLinea} aria-hidden="true" />
+              <span className={styles.esqueletoLinea} aria-hidden="true" />
+            </div>
           ) : marcas.length === 0 ? (
             <p className={styles.notaCambio}>No hay otras marcas para cambiar en este grupo.</p>
           ) : (
