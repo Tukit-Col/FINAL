@@ -594,6 +594,27 @@ export default function FormularioEmpezar({
   const pasoContacto = 2;
   const pasoPrioridad = 3;
 
+  // El paso que toca ahora: el primer bloque con obligatorios sin completar.
+  // Solo hay una pista visual (los pasos que aún no tocan se atenúan); nada se
+  // desactiva ni se saca del orden de tabulación. Sin formulario a la vista
+  // ("elegir" / "existente") no hay paso actual y nada se atenúa.
+  type PasoEmpezar = "registro" | "hijos" | "contacto" | "preferencias";
+  const ORDEN_PASOS: PasoEmpezar[] = ["registro", "hijos", "contacto", "preferencias"];
+  function pasoActual(): PasoEmpezar | null {
+    if (!mostrarFormulario) return null;
+    if (modo === "nuevo" && faltantesContacto.length > 0) return "registro";
+    if (faltantesHijos.length > 0) return "hijos";
+    return "preferencias";
+  }
+  const actual = pasoActual();
+  function propsDePaso(paso: PasoEmpezar): { className: string; "aria-current"?: "step" } {
+    const futuro = actual !== null && ORDEN_PASOS.indexOf(paso) > ORDEN_PASOS.indexOf(actual);
+    return {
+      className: futuro ? `${styles.bloque} ${styles.bloqueInactivo}` : styles.bloque,
+      ...(paso === actual ? { "aria-current": "step" as const } : {}),
+    };
+  }
+
   async function enviar(evento: React.FormEvent) {
     evento.preventDefault();
     if (!listo || enviando) return;
@@ -926,7 +947,7 @@ export default function FormularioEmpezar({
           correo, clave y celular, por eso en este camino se quita "a dónde te
           avisamos". Reutiliza los estilos de esa sección, sin CSS nuevo. */}
       {modo === "nuevo" && (
-        <section className={styles.bloque} aria-labelledby={`${idBase}-registro`}>
+        <section {...propsDePaso("registro")} aria-labelledby={`${idBase}-registro`}>
           <h2 id={`${idBase}-registro`} className={styles.tituloBloque}>
             <span className={styles.paso}>1</span> Regístrate
           </h2>
@@ -1008,7 +1029,7 @@ export default function FormularioEmpezar({
       {mostrarFormulario && (
         <>
       {/* ------------------------------------------------------------ Hijos */}
-      <section className={styles.bloque} aria-labelledby={`${idBase}-hijos`}>
+      <section {...propsDePaso("hijos")} aria-labelledby={`${idBase}-hijos`}>
         <h2 id={`${idBase}-hijos`} className={styles.tituloBloque}>
           <span className={styles.paso}>{pasoHijos}</span> De quién es la lista
         </h2>
@@ -1270,7 +1291,7 @@ export default function FormularioEmpezar({
           piden en Regístrate. Con sesión solo se informa: el aviso va a los
           datos de la cuenta y no hay nada que volver a escribir. */}
       {modo !== "nuevo" && (
-      <section className={styles.bloque} aria-labelledby={`${idBase}-contacto`}>
+      <section {...propsDePaso("contacto")} aria-labelledby={`${idBase}-contacto`}>
         <h2 id={`${idBase}-contacto`} className={styles.tituloBloque}>
           <span className={styles.paso}>{pasoContacto}</span> A dónde te avisamos
         </h2>
@@ -1292,7 +1313,7 @@ export default function FormularioEmpezar({
       )}
 
       {/* ----------------------------------------------------- Preferencias */}
-      <section className={styles.bloque} aria-labelledby={`${idBase}-preferencias`}>
+      <section {...propsDePaso("preferencias")} aria-labelledby={`${idBase}-preferencias`}>
         <h2 id={`${idBase}-preferencias`} className={styles.tituloBloque}>
           <span className={styles.paso}>{pasoPrioridad}</span> Cuál kit te marcamos
         </h2>

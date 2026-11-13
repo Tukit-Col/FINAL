@@ -26,6 +26,33 @@
   box-shadow: var(--clay-shadow);
 }
 
+/* Pasos que aún no tocan: se atenúan pero siguen legibles, enfocables y
+ * anunciables (nada de pointer-events:none ni disabled). Al entrar con el
+ * teclado o el puntero vuelven a opacidad plena. */
+.bloque {
+  transition: opacity var(--dur-medio, 200ms) var(--ease-suave, ease);
+}
+
+.bloqueInactivo {
+  opacity: 0.72;
+}
+
+.bloqueInactivo:hover,
+.bloqueInactivo:focus-within {
+  opacity: 1;
+}
+
+.bloque[aria-current="step"] .paso {
+  outline: 3px solid var(--clay-cielo-bg, var(--color-primary));
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bloque {
+    transition: none;
+  }
+}
+
 .tituloBloque {
   display: flex;
   align-items: center;
