@@ -1,6 +1,9 @@
 // Las reglas puras de lo que el renglón del kit le muestra al acudiente,
 // separadas del componente para probarlas sin navegador.
 
+import { entraAlTotal, esAbstencion } from "@tukit/contrato/linea";
+import type { Consolidacion, LineaKit } from "@tukit/contrato";
+
 // Un hijo del trabajo tal como lo devuelve `GET /v1/trabajos/{id}`. La ruta
 // rápida no trae `referencia` (sus renglones dicen "canonico").
 export interface HijoDelTrabajo {
@@ -172,6 +175,81 @@ function personajeLegible(personaje: string): string {
 export function notaSinEncaje(f: { concepto: string; personaje: string }): string {
   const util = CONCEPTO_LEGIBLE[f.concepto] ?? "producto";
   return `No encontramos ${util} de ${personajeLegible(f.personaje)} que cumpla lo que pide la lista; dejamos uno sin personaje.`;
+}
+
+// ---- Panel por hijo (hogar con 2+ hijos) -----------------------------------
+// Un resumen por hijo para separar de un vistazo cada kit, lo que comparten y
+// lo que falta. Lógica pura; el componente `ResumenPorHijo` solo la pinta.
+
+export interface ResumenHijo {
+  hijo: string; // referencia interna (clave de agrupación), NUNCA se pinta
+  nombre: string; // de `nombres`; "Hijo N" si no hay
+  grado: string | null;
+  personaje: string | null; // primer personaje pedido por ese hijo, o null
+  total: number; // suma de subtotal_linea de sus comprables
+  productos: LineaKit[]; // comprables NO consolidadas-en-cero (no duplica lo compartido)
+  comparten: number; // nº de consolidaciones en que participa
+  falta: string[]; // avisos: personaje_sin_encaje + abstenciones
+}
+
+export function resumenPorHijo(
+  kit: {
+    lineas: readonly LineaKit[];
+    consolidaciones: readonly Consolidacion[];
+    personaje_sin_encaje?: readonly { hijo: string; concepto: string; personaje: string }[];
+  },
+  nombres: ReadonlyMap<string, string>,
+  grados: ReadonlyMap<string, string>,
+  personajesPorHijo?: Record<string, string[]>,
+): ResumenHijo[] {
+  const orden: string[] = [];
+  const porHijo = new Map<string, ResumenHijo>();
+  const indice = (hijo: string): ResumenHijo => {
+    let r = porHijo.get(hijo);
+    if (!r) {
+      r = {
+        hijo,
+        nombre: nombres.get(hijo)?.trim() || `Hijo ${orden.length + 1}`,
+        grado: grados.get(hijo)?.trim() || null,
+        personaje: (personajesPorHijo?.[hijo] ?? []).find((p) => p.trim()) ?? null,
+        total: 0,
+        productos: [],
+        comparten: 0,
+        falta: [],
+      };
+      porHijo.set(hijo, r);
+      orden.push(hijo);
+    }
+    return r;
+  };
+
+  for (const linea of kit.lineas) {
+    const hijo = linea.hijo ?? "";
+    const r = indice(hijo);
+    if (entraAlTotal(linea)) {
+      r.total += linea.subtotal_linea ?? 0;
+      // La línea del hermano consolidado va en 0 unidades: suma 0 al total (que
+      // así cuadra con el del kit) pero NO se repite como producto propio; lo
+      // compartido vive en la banda, no dentro de las dos tarjetas.
+      if ((linea.unidades_a_comprar ?? 0) > 0) r.productos.push(linea);
+    } else if (esAbstencion(linea)) {
+      r.falta.push(linea.descripcion);
+    }
+  }
+
+  for (const c of kit.consolidaciones) {
+    for (const hijo of c.hijos) {
+      const r = porHijo.get(hijo);
+      if (r) r.comparten += 1;
+    }
+  }
+
+  for (const f of kit.personaje_sin_encaje ?? []) {
+    const r = porHijo.get(f.hijo);
+    if (r) r.falta.unshift(notaSinEncaje(f));
+  }
+
+  return orden.map((h) => porHijo.get(h)!);
 }
 
 // ---- Categoría de una línea (Fase 3) ---------------------------------------
