@@ -10,7 +10,7 @@
 // el boton lleva al formulario del detalle. Si comercio responde 409 (otro
 // operador lo movio), se refresca el tablero y el pedido aparece donde esta.
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { EstadoPedido } from "@tukit/contrato";
@@ -30,6 +30,7 @@ interface Props {
 export default function AvanzarTarjeta({ pedidoId, estado, codigo, urlIngresar }: Props) {
   const router = useRouter();
   const [enviando, setEnviando] = useState(false);
+  const boton = useRef<HTMLButtonElement>(null);
   const [fallo, setFallo] = useState<FalloVisible | null>(null);
   const paso = accionDeTarjeta(estado);
   if (!paso) return null;
@@ -52,6 +53,8 @@ export default function AvanzarTarjeta({ pedidoId, estado, codigo, urlIngresar }
     setEnviando(true);
     try {
       await avanzarPedido(pedidoId, { destino: accion.destino });
+      // La tarjeta sale animada (CSS) y luego el refresco la lleva a su columna.
+      boton.current?.closest("article")?.setAttribute("data-sale", "");
       router.refresh();
     } catch (causa) {
       if (causa instanceof FalloApi) {
@@ -68,6 +71,7 @@ export default function AvanzarTarjeta({ pedidoId, estado, codigo, urlIngresar }
   return (
     <>
       <button
+        ref={boton}
         type="button"
         className={styles.avanzar}
         disabled={enviando}

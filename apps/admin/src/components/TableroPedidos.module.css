@@ -85,9 +85,62 @@
 }
 
 .cabeza h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-display);
   font-size: 14px;
   font-weight: 800;
+}
+
+/* Numero de la etapa: ordena el recorrido de izquierda a derecha. */
+.paso {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-light);
+  font-family: var(--font-cifras);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-primary-dark);
+}
+
+.columna_pendiente_pago .paso {
+  background: var(--color-aviso-bg);
+  color: var(--color-aviso);
+}
+
+.columna_entregado .paso {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+/* Recorrido de la tarjeta */
+.recorrido {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 3px;
+}
+
+.tramo,
+.tramoHecho {
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+}
+
+.tramoHecho {
+  background: var(--clay-cielo);
+}
+
+.columna_entregado .tramoHecho {
+  background: var(--color-success);
+}
+
+.columna_pendiente_pago .tramoHecho {
+  background: var(--clay-estrella-oscuro);
 }
 
 .cuenta {
@@ -133,11 +186,27 @@
 .tarjeta {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   padding: var(--espacio-3);
   background: var(--color-surface);
   border-radius: var(--radius-md);
   box-shadow: var(--clay-shadow-sm);
+  transition:
+    transform var(--dur-medio) var(--ease-suave),
+    opacity var(--dur-medio) var(--ease-suave),
+    box-shadow var(--dur-rapido) var(--ease-suave);
+}
+
+.tarjeta:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* Al avanzar: la tarjeta sale hacia la etapa siguiente (derecha) antes de que
+ * el refresco la ponga en su columna nueva. Feedback de que el paso se hizo. */
+.tarjeta[data-sale] {
+  opacity: 0;
+  transform: translateX(14px) scale(0.98);
+  pointer-events: none;
 }
 
 /* Con alerta: el filete rojo a la izquierda, como la fila de la tabla. */
@@ -179,8 +248,9 @@
 }
 
 .total {
-  font-size: 13px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
   white-space: nowrap;
 }
 
@@ -254,6 +324,14 @@
   font-weight: 600;
   color: var(--color-primary);
   text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tarjeta,
+  .tarjeta[data-sale] {
+    transition: none;
+    transform: none;
+  }
 }
 
 .oculto {

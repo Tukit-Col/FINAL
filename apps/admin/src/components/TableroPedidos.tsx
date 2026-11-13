@@ -48,8 +48,8 @@ export default function TableroPedidos({ pedidos, filtros, nombresColegio, urlIn
         </h2>
         {/* Region con foco: en movil se desplaza con el teclado (flechas). */}
         <div className={styles.columnas} role="region" aria-label="Etapas del pedido" tabIndex={0}>
-          {flujo.map((columna) => (
-            <Columna key={columna.estado} columna={columna} {...comun} />
+          {flujo.map((columna, i) => (
+            <Columna key={columna.estado} columna={columna} paso={i + 1} {...comun} />
           ))}
         </div>
       </section>
@@ -70,19 +70,28 @@ export default function TableroPedidos({ pedidos, filtros, nombresColegio, urlIn
 
 interface PropsColumna {
   columna: ColumnaTablero;
+  /** Posicion en el flujo (1..6); el carril aparte no la lleva. */
+  paso?: number;
   filtros: FiltrosLogistica;
   nombresColegio: ReadonlyMap<string, string>;
   urlIngresar: string;
   ahora: number;
 }
 
-function Columna({ columna, filtros, nombresColegio, urlIngresar, ahora }: PropsColumna) {
+function Columna({ columna, paso, filtros, nombresColegio, urlIngresar, ahora }: PropsColumna) {
   const { estado, total, pedidos, ocultos } = columna;
   const idTitulo = `columna-${estado}`;
   return (
     <section className={`${styles.columna} ${styles[`columna_${estado}`] ?? ""}`} aria-labelledby={idTitulo}>
       <header className={styles.cabeza}>
-        <h3 id={idTitulo}>{ETIQUETA_ESTADO_PEDIDO[estado]}</h3>
+        <h3 id={idTitulo}>
+          {paso ? (
+            <span className={styles.paso} aria-hidden="true">
+              {paso}
+            </span>
+          ) : null}
+          {ETIQUETA_ESTADO_PEDIDO[estado]}
+        </h3>
         <span className={`${styles.cuenta} cifra`} aria-label={`${total} ${total === 1 ? "pedido" : "pedidos"}`}>
           {total}
         </span>
@@ -132,6 +141,7 @@ function Tarjeta({ pedido, nombresColegio, urlIngresar, ahora }: PropsTarjeta) {
         <span className={`${styles.total} cifra`}>{formatearPesos(pedido.total)}</span>
       </div>
       <p className={styles.colegio}>{colegios}</p>
+      <Recorrido estado={pedido.estado} />
       <p className={styles.meta}>
         <span className="cifra">
           {articulos} {articulos === 1 ? "artículo" : "artículos"}
@@ -155,5 +165,20 @@ function Tarjeta({ pedido, nombresColegio, urlIngresar, ahora }: PropsTarjeta) {
       ) : null}
       <AvanzarTarjeta pedidoId={pedido.pedido_id} estado={pedido.estado} codigo={codigo} urlIngresar={urlIngresar} />
     </article>
+  );
+}
+
+/** Mini recorrido de la tarjeta: seis tramos, llenos hasta la etapa actual.
+ *  Orienta (donde va este pedido) sin leer la columna; es decorativo porque la
+ *  columna ya nombra la etapa. Incidencia y cancelado no estan en el flujo. */
+function Recorrido({ estado }: { estado: Pedido["estado"] }) {
+  const pos = COLUMNAS_FLUJO.indexOf(estado);
+  if (pos < 0) return null;
+  return (
+    <span className={styles.recorrido} aria-hidden="true">
+      {COLUMNAS_FLUJO.map((e, i) => (
+        <span key={e} className={i <= pos ? styles.tramoHecho : styles.tramo} />
+      ))}
+    </span>
   );
 }
