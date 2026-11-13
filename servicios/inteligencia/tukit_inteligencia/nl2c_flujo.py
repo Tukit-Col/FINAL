@@ -57,6 +57,8 @@ async def interpretar_texto(texto: str, personajes: list[str], usuario: Any = No
             ),
             "ambiguo",
         )
+        # El motivo lo escribe el modelo: a la bitacora solo entra si es de la lista.
+        razon = razon if razon in nl2c.MOTIVOS_SIN_ACCION else "ambiguo"
         nl2c.auditar(
             "interpretar_sin_accion",
             usuario=nl2c.huella_usuario(usuario),

@@ -16,7 +16,7 @@ import time
 import uuid
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from tukit_comun.http import ErrorDominio
@@ -63,6 +63,28 @@ def _sin_servicio(error: Exception) -> ErrorDominio:
     )
 
 
+def _admitir(clave: str) -> None:
+    """Cupo por portador antes de gastar una llamada al modelo (429)."""
+    try:
+        nl2c.LIMITADOR.admitir(clave)
+    except nl2c.LimiteExcedido as error:
+        nl2c.auditar("limite_excedido", clave=clave[:12], motivo=error.motivo)
+        raise ErrorDominio(
+            "asistente_limite",
+            "Has usado el asistente muchas veces seguidas. Espera un momento o usa el formulario.",
+            estado=429,
+        ) from error
+
+
+def _clave_de(usuario: uuid.UUID | None, peticion: Request) -> str:
+    return nl2c.huella_usuario(usuario) or "anon:" + (peticion.client.host if peticion.client else "?")
+
+
+def _contar_tokens(clave: str, respuesta: dict[str, Any]) -> None:
+    uso = respuesta.get("tokens") or {}
+    nl2c.LIMITADOR.registrar_tokens(clave, int(uso.get("entrada") or 0) + int(uso.get("salida") or 0))
+
+
 class PeticionInterpretar(BaseModel):
     model_config = ConfigDict(extra="forbid")
     texto: str = Field(min_length=1, max_length=4000)
@@ -102,16 +124,20 @@ async def estado() -> dict[str, Any]:
 
 @router.post("/v1/nl2c/interpretar", summary="Lenguaje libre a restricciones (propuesta)")
 async def interpretar(
-    cuerpo: PeticionInterpretar, authorization: Annotated[str | None, Header()] = None
+    cuerpo: PeticionInterpretar, peticion: Request, authorization: Annotated[str | None, Header()] = None
 ) -> dict[str, Any]:
     _exigir_activo()
     usuario = await _usuario_de_sesion(authorization) if _token_bearer(authorization) else None
+    clave = _clave_de(usuario, peticion)
+    _admitir(clave)
     try:
         personajes = await _personajes_surtidos()
     except RemotoCaido:
         personajes = []
     try:
-        return await nl2c_flujo.interpretar_texto(cuerpo.texto, personajes, usuario)
+        respuesta = await nl2c_flujo.interpretar_texto(cuerpo.texto, personajes, usuario)
+        _contar_tokens(clave, respuesta)
+        return respuesta
     except nl2c_flujo.TextoVacio:
         raise ErrorDominio("texto_vacio", "Cuentanos que necesitas para el kit.", estado=422) from None
     except nl2c.AsistenteNoDisponible as error:
@@ -120,10 +146,14 @@ async def interpretar(
 
 @router.post("/v1/kits/{trabajo_id}/asistente/proponer", summary="Pedido sobre un kit a propuestas de cambio")
 async def proponer(
-    trabajo_id: uuid.UUID, cuerpo: PeticionProponer, authorization: Annotated[str | None, Header()] = None
+    trabajo_id: uuid.UUID,
+    cuerpo: PeticionProponer,
+    peticion: Request,
+    authorization: Annotated[str | None, Header()] = None,
 ) -> dict[str, Any]:
     _exigir_activo()
     usuario = await _usuario_de_sesion(authorization)
+    clave = _clave_de(usuario, peticion)
     async with api.app.state.motor.engine.begin() as conexion:
         fila = (
             await conexion.execute(
@@ -152,6 +182,7 @@ async def proponer(
         )
         return list(cuerpo_opc.get("opciones") or [])
 
+    _admitir(clave)
     try:
         respuesta, _ = await nl2c_flujo.proponer_en_kit(
             cuerpo.texto,
@@ -165,6 +196,7 @@ async def proponer(
         raise ErrorDominio("texto_vacio", "Cuentanos que quieres cambiar de tu kit.", estado=422) from None
     except nl2c.AsistenteNoDisponible as error:
         raise _sin_servicio(error) from error
+    _contar_tokens(clave, respuesta)
     return respuesta
 
 
