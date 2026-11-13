@@ -97,6 +97,14 @@ class RepoCasos:
                 CASO.c.vence_en <= fin_dia,
             )
         )
+        sin_asignar = await self.conexion.scalar(
+            select(func.count()).where(CASO.c.estado.notin_(inactivos), CASO.c.asignado_a_id.is_(None))
+        )
+        vencidos = await self.conexion.scalar(
+            select(func.count()).where(
+                CASO.c.estado.notin_(inactivos), CASO.c.vence_en.is_not(None), CASO.c.vence_en < ahora
+            )
+        )
         resueltos_semana = await self.conexion.scalar(
             select(func.count()).where(CASO.c.resuelto_en.is_not(None), CASO.c.resuelto_en >= hace_una_semana)
         )
@@ -105,6 +113,8 @@ class RepoCasos:
             "urgentes": int(urgentes or 0),
             "vencen_hoy": int(vencen_hoy or 0),
             "resueltos_semana": int(resueltos_semana or 0),
+            "sin_asignar": int(sin_asignar or 0),
+            "vencidos": int(vencidos or 0),
         }
 
     async def listar_casos(self) -> list[Any]:
@@ -210,6 +220,21 @@ class RepoCasos:
             update(CASO)
             .where(CASO.c.id == caso_id, CASO.c.estado == desde)
             .values(estado=hacia, resuelto_en=resuelto_en)
+        )
+        return bool(resultado.rowcount == 1)
+
+    async def asignar(self, *, caso_id: uuid.UUID, desde: uuid.UUID | None, hacia: uuid.UUID | None) -> bool:
+        """Cambia el dueno solo si SIGUE siendo `desde` (patron de `cambiar_estado`)."""
+        actual = CASO.c.asignado_a_id.is_(None) if desde is None else CASO.c.asignado_a_id == desde
+        resultado = await self.conexion.execute(
+            update(CASO).where(CASO.c.id == caso_id, actual).values(asignado_a_id=hacia)
+        )
+        return bool(resultado.rowcount == 1)
+
+    async def cambiar_prioridad(self, *, caso_id: uuid.UUID, desde: str, hacia: str) -> bool:
+        """Cambia la prioridad solo si SIGUE siendo `desde`."""
+        resultado = await self.conexion.execute(
+            update(CASO).where(CASO.c.id == caso_id, CASO.c.prioridad == desde).values(prioridad=hacia)
         )
         return bool(resultado.rowcount == 1)
 
