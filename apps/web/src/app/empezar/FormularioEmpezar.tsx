@@ -216,6 +216,7 @@ function BuscadorColegio({
 }) {
   const [directorio, setDirectorio] = useState<EntradaDirectorio[]>([]);
   const [busqueda, setBusqueda] = useState("");
+  const idBuscador = useId();
   // Cargar el directorio al primer foco/tecleo, no al montar: pesa ~300 KB y no
   // hace falta hasta que el padre empieza a escribir.
   const asegurarCargado = useCallback(() => {
@@ -284,10 +285,14 @@ function BuscadorColegio({
 
   return (
     <div className={styles.colegioBloque}>
-      <span className={styles.campoRotulo}>Busca el colegio de tu hijo</span>
-      <div className={styles.buscador}>
-        <Search size={16} strokeWidth={2.4} aria-hidden="true" />
+      <label htmlFor={idBuscador} className={`${styles.campoRotulo} ${styles.rotuloColegio}`}>
+        Busca el colegio de tu hijo
+      </label>
+      <div className={`${styles.buscador} ${styles.buscadorPrincipal}`}>
+        <Search size={20} strokeWidth={2.4} aria-hidden="true" />
         <input
+          id={idBuscador}
+          aria-describedby={`${idBuscador}-ayuda`}
           type="text"
           value={busqueda}
           onFocus={asegurarCargado}
@@ -295,10 +300,13 @@ function BuscadorColegio({
             asegurarCargado();
             setBusqueda(e.target.value);
           }}
-          placeholder="Escribe el nombre de tu colegio…"
-          aria-label="Buscar el colegio de tu hijo"
+          placeholder="Ej. Gimnasio Los Cerros o Chía"
+          autoComplete="off"
         />
       </div>
+      <p id={`${idBuscador}-ayuda`} className={styles.ayudaColegio}>
+        Escribe el nombre o el municipio.
+      </p>
       {qn.length >= 3 && (
         <div className={styles.listaColegios} role="listbox" aria-label="Colegios">
           {resultados.aliados.map(({ colegio, etiqueta }) => (
@@ -345,6 +353,12 @@ function BuscadorColegio({
               </span>
             </button>
           ))}
+          {resultados.aliados.length === 0 && resultados.directorio.length === 0 && (
+            <p className={styles.sinColegios} role="status">
+              <School size={18} strokeWidth={2} aria-hidden="true" />
+              No encontramos “{busqueda.trim()}”. Revisa la ortografía o úsalo tal cual.
+            </p>
+          )}
           {/* No está en ninguna fuente: se escribe a mano. El backend deriva el id
               del nombre normalizado, así que dos acudientes que escriban el mismo
               colegio convergen a la misma versión. */}
