@@ -19,6 +19,8 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Any
 
+from tukit_comun.texto import normalizar_personaje
+
 # Orden de calidad de marca. Se repite aqui (igual que en optimizador.py) porque este modulo
 # no debe importar el optimizador, que arrastra pymoo: el vocabulario es el mismo.
 ORDEN_NIVEL = ("economico", "confiable", "premium")
@@ -283,18 +285,24 @@ def elegir_variante(
     opciones: list[dict[str, Any]],
     usados_skus: set[str],
     usados_personajes: set[str],
+    *,
+    personajes_del_hijo: frozenset[str] = frozenset(),
 ) -> dict[str, Any] | None:
-    """Una opcion distinta de lo que ya hay en la categoria, la mas parecida en precio.
+    """Una opcion distinta de lo que ya hay en la categoria, sin personajes que nadie pidio.
 
-    Descarta lo que ya esta en el kit, lo que repite un sku de la categoria y, si el grupo
-    es de un personaje, cualquier otra opcion de ese mismo personaje. Prefiere un personaje
-    que todavia no se use (mas variedad) y, a igualdad, el menor cambio de precio.
+    Descarta lo que ya esta en el kit, lo que repite un sku de la categoria, si el grupo
+    es de un personaje cualquier otra opcion de ese mismo personaje, y TODA opcion con un
+    personaje que el hijo de esta linea no pidio (`personajes_del_hijo`, normalizados con
+    `normalizar_personaje`): "mas variedad" en un kit Fan de Spiderman no trae Bluey ni
+    Stitch, y en un Ahorrador sin personaje solo entran opciones neutras. Entre las que
+    quedan ordena por: (1) sin repetir sku; (2) con foto; (3) neutra o del personaje del
+    hijo todavia no usada; (4) menor cambio de precio; (5) sku.
     """
     hoy = _entero(linea, "subtotal_linea") or 0
     candidatas = []
     for o in opciones:
         sku, subtotal = str(o.get("sku") or ""), _entero(o, "subtotal")
-        personaje = str(o.get("personaje") or "").strip().lower()
+        personaje = normalizar_personaje(str(o.get("personaje") or ""))
         if (
             not sku
             or subtotal is None
@@ -303,9 +311,20 @@ def elegir_variante(
             or sku in usados_skus
         ):
             continue
-        if clave[0] == "p" and personaje == clave[1]:
+        if clave[0] == "p" and personaje == normalizar_personaje(clave[1]):
             continue
-        candidatas.append((personaje in usados_personajes, abs(subtotal - hoy), subtotal, sku, o))
+        if personaje and personaje not in personajes_del_hijo:
+            continue
+        candidatas.append(
+            (
+                sku in usados_skus,
+                not o.get("imagen_url"),
+                bool(personaje) and personaje in usados_personajes,
+                abs(subtotal - hoy),
+                sku,
+                o,
+            )
+        )
     if not candidatas:
         return None
-    return min(candidatas, key=lambda c: c[:4])[4]
+    return min(candidatas, key=lambda c: c[:5])[5]
