@@ -35,35 +35,22 @@
 }
 
 /* ---- Marcador ---- */
+/* Trazo continuo de marcador bajo la frase. Fondo (no SVG) para que siga la
+ * caja de cada linea: si la frase se parte, cada linea lleva su trazo entero. */
 .marcador {
-  position: relative;
-  display: inline-block;
-  white-space: nowrap;
+  --trazo: var(--clay-estrella-oscuro);
+  padding-bottom: 0.06em;
+  background-image: linear-gradient(var(--trazo), var(--trazo));
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 100% 0.16em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: background-size 800ms var(--ease-suave) 200ms;
 }
 
-.trazo {
-  position: absolute;
-  left: -2%;
-  bottom: -0.22em;
-  width: 104%;
-  height: 0.3em;
-  overflow: visible;
-  pointer-events: none;
-}
-
-.trazo path {
-  fill: none;
-  stroke: var(--clay-estrella-oscuro);
-  stroke-width: 3.2;
-  stroke-linecap: round;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 0;
-  vector-effect: non-scaling-stroke;
-  transition: stroke-dashoffset 800ms var(--ease-suave) 200ms;
-}
-
-.marcador[data-fase="pendiente"] .trazo path {
-  stroke-dashoffset: 1;
+.marcador[data-fase="pendiente"] {
+  background-size: 0% 0.16em;
 }
 
 /* ---- Palabras ---- */
@@ -89,49 +76,13 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ---- Paralaje / foto del heroe ---- */
-.paralaje {
-  --py: 0px;
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--radius-clay);
-  box-shadow: var(--clay-shadow-lg);
-  /* Destape de entrada: la foto se abre de abajo hacia arriba. */
-  animation: destape 1100ms var(--ease-suave) 450ms both;
-}
-
-.paralaje > :first-child {
-  transform: translate3d(0, var(--py), 0) scale(1.08);
-  will-change: transform;
-}
-
-@keyframes destape {
-  from {
-    clip-path: inset(18% 8% 0 8% round var(--radius-clay));
-    opacity: 0;
-    transform: translateY(28px) scale(0.96);
-  }
-  to {
-    clip-path: inset(0 0 0 0 round var(--radius-clay));
-    opacity: 1;
-    transform: none;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .paralaje {
-    animation: none;
-  }
-  .paralaje > :first-child {
-    transform: none;
-    will-change: auto;
-  }
   .foco,
   .foco:hover {
     translate: none;
   }
   .palabra,
-  .trazo path {
+  .marcador {
     transition: none;
   }
 }

@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import {
   LifeBuoy,
@@ -29,46 +28,38 @@ const PREGUNTAS = [
     Icono: ListChecks,
     pregunta: "¿Cómo armo mi kit?",
     respuesta:
-      "Eliges tu colegio y grado, o subes el archivo de la lista. Con eso armamos un solo pedido con lo de todos tus hijos y te lo mostramos como tres kits para que elijas. Es un pedido por hogar, no por hijo: así juntamos lo que se repite entre hermanos.",
+      "Eliges colegio y grado, o subes la lista. Armamos un solo pedido con lo de todos tus hijos y te lo mostramos en tres kits.",
   },
   {
     Icono: PackageSearch,
     pregunta: '¿Por qué a veces dicen "no lo tenemos"?',
     respuesta:
-      "Porque preferimos decírtelo a cambiártelo por otra cosa. Si un útil está agotado o no lo conseguimos, aparece marcado con esas palabras. Nunca te ofrecemos algo parecido haciéndolo pasar por lo que pediste; esa es justo la vuelta a la papelería que queremos ahorrarte.",
+      "Porque preferimos decírtelo a cambiarlo por otra cosa. Nunca te damos algo parecido haciéndolo pasar por lo que pediste.",
   },
   {
     Icono: UserCheck,
     pregunta: "¿Qué es la revisión humana?",
     respuesta:
-      "Antes de que veas tu kit, una persona de Tukit lo mira. Lo que quedó dudoso (una edición de libro, un útil ambiguo en la lista) lo resuelve alguien de carne y hueso, y solo entonces te llega. Nadie te manda un kit sin revisarlo primero.",
+      "Antes de que veas tu kit, una persona de Tukit resuelve lo dudoso, como una edición de libro o un útil ambiguo.",
   },
   {
     Icono: LayoutGrid,
     pregunta: "¿Por qué tres kits?",
     respuesta:
-      "Ahorrador, Fan y Premium tienen el mismo alcance: cubren la misma lista. Cambian las marcas y el precio. Te marcamos uno y te explicamos por qué lo sugerimos, pero los otros dos quedan a la vista para que decidas tú.",
+      "Ahorrador, Fan y Premium cubren la misma lista; cambian las marcas y el precio. Te sugerimos uno, pero decides tú.",
   },
   {
     Icono: Users,
     pregunta: "¿Cómo funcionan los personajes por hijo?",
     respuesta:
-      "Cada hijo tiene su personaje para que distingas de un vistazo qué es de quién dentro del mismo pedido. Sirve para separar lo de cada uno sin tener que hacer un pedido aparte por hijo.",
+      "Cada hijo tiene su personaje para distinguir de un vistazo qué es de quién, sin pedidos aparte.",
   },
   {
     Icono: Lock,
     pregunta: "¿Ya puedo pagar?",
     respuesta:
-      "Sí. Eliges el kit, pones la dirección de entrega y pagas en la pasarela. En esta versión de prueba el pago es simulado y no se cobra nada. Al confirmar, el precio queda congelado.",
+      "Sí. Eliges el kit, pones la dirección y pagas. En esta versión de prueba el pago es simulado y no se cobra nada.",
   },
-];
-
-// Foto de cada respuesta (columna derecha en escritorio). Se reparten en ciclo
-// entre las tres fotos de la marca; la imagen es de apoyo, el texto manda.
-const FOTOS = [
-  { src: "/marca/caja-abierta-hero.webp", alt: "Caja Tukit abierta con cuadernos, lápices y colbón ordenados" },
-  { src: "/marca/preparando-la-caja.webp", alt: "Una persona acomodando útiles dentro de la caja" },
-  { src: "/marca/llega-a-tu-puerta.webp", alt: "Caja Tukit Premium entregada frente a una puerta" },
 ];
 
 export const dynamic = "force-dynamic";
@@ -94,7 +85,7 @@ export default async function AyudaPage() {
           Preguntas frecuentes
         </h2>
         <Revelar as="div" className={styles.lista} modo="scroll" cadaUno={0.06}>
-          {PREGUNTAS.map(({ Icono, pregunta, respuesta }, i) => (
+          {PREGUNTAS.map(({ Icono, pregunta, respuesta }) => (
             <details key={pregunta} className={styles.tarjeta}>
               <summary className={styles.resumen}>
                 <span className={styles.resumenIcono} aria-hidden="true">
@@ -110,14 +101,6 @@ export default async function AyudaPage() {
               </summary>
               <div className={styles.cuerpo}>
                 <p className={styles.respuesta}>{respuesta}</p>
-                <div className={styles.foto}>
-                  <Image
-                    src={FOTOS[i % FOTOS.length].src}
-                    alt={FOTOS[i % FOTOS.length].alt}
-                    fill
-                    sizes="(max-width: 860px) 0px, 280px"
-                  />
-                </div>
               </div>
             </details>
           ))}

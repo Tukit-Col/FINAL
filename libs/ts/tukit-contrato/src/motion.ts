@@ -78,29 +78,100 @@ export function entrada(
 }
 
 /**
- * Revelado por scroll: el elemento aparece cuando entra en pantalla. Para
- * secciones largas (portada, catálogo). Devuelve el ScrollTrigger para poder
- * limpiarlo. Con movimiento reducido deja todo visible y no crea trigger.
+ * Revelado al entrar en pantalla, a prueba de primer cargue.
+ *
+ * Antes cada elemento tenia su propio ScrollTrigger sobre un `gsap.from`: las
+ * posiciones se calculaban antes de que cargaran fuentes e imagenes, asi que
+ * los de arriba quedaban mal medidos y solo disparaban los ultimos. Ahora un
+ * unico IntersectionObserver (que mide en vivo, sin posiciones cacheadas):
+ *  - lo que ya esta en pantalla al montar anima de inmediato, en cascada;
+ *  - lo demas anima al entrar, en tandas escalonadas;
+ *  - un seguro revela todo si el observador nunca dispara, para que nada
+ *    quede invisible.
+ * Con movimiento reducido (o sin IntersectionObserver) todo queda visible.
+ * Devuelve la funcion de limpieza (la que useGSAP llama al desmontar).
  */
+export function revelarAlEntrar(
+  objetivos: gsap.TweenTarget,
+  opciones: { cadaUno?: number; retraso?: number; y?: number } = {},
+): () => void {
+  const elementos = gsap.utils.toArray<HTMLElement>(objetivos);
+  if (
+    prefiereMenosMovimiento() ||
+    typeof IntersectionObserver === "undefined" ||
+    elementos.length === 0
+  ) {
+    gsap.set(elementos, { opacity: 1, y: 0, scale: 1 });
+    return () => {};
+  }
+  const cadaUno = opciones.cadaUno ?? 0.08;
+  const y = opciones.y ?? 24;
+  const pendientes = new Set(elementos);
+  const timers: number[] = [];
+  gsap.set(elementos, { opacity: 0, y, scale: 0.96 });
+
+  const mostrar = (lote: HTMLElement[], retraso = 0) => {
+    lote.forEach((el) => pendientes.delete(el));
+    gsap.to(lote, {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      duration: 0.55,
+      delay: retraso,
+      ease: EASE_CLAY,
+      stagger: cadaUno,
+      overwrite: "auto",
+      // Suelta los estilos en linea: el hover/translate de CSS vuelve a mandar.
+      onComplete: () => {
+        gsap.set(lote, { clearProps: "opacity,transform" });
+      },
+    });
+  };
+
+  const alto = window.innerHeight;
+  const visibles = elementos.filter((el) => {
+    const r = el.getBoundingClientRect();
+    return r.top < alto * 0.92 && r.bottom > 0;
+  });
+  if (visibles.length) mostrar(visibles, opciones.retraso ?? 0);
+
+  const resto = elementos.filter((el) => pendientes.has(el));
+  const obs = new IntersectionObserver(
+    (entradas) => {
+      const lote = entradas
+        .filter((e) => e.isIntersecting && pendientes.has(e.target as HTMLElement))
+        .map((e) => e.target as HTMLElement);
+      lote.forEach((el) => obs.unobserve(el));
+      if (lote.length) mostrar(lote);
+    },
+    { threshold: 0.08, rootMargin: "0px 0px -8% 0px" },
+  );
+  resto.forEach((el) => obs.observe(el));
+
+  // Seguro: si pasados 8 s algo sigue oculto estando en pantalla, se revela.
+  timers.push(
+    window.setTimeout(() => {
+      const atascados = Array.from(pendientes).filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.top < window.innerHeight && r.bottom > 0;
+      });
+      if (atascados.length) mostrar(atascados);
+    }, 8000),
+  );
+
+  return () => {
+    obs.disconnect();
+    timers.forEach((t) => window.clearTimeout(t));
+    gsap.set(elementos, { clearProps: "opacity,transform" });
+  };
+}
+
+/** Compatibilidad: mismo nombre de antes, ahora con el observador robusto. */
 export function revelarEnScroll(
   objetivos: gsap.TweenTarget,
   opciones: { cadaUno?: number } = {},
-): void {
-  if (prefiereMenosMovimiento()) {
-    gsap.set(objetivos, { opacity: 1, y: 0, scale: 1 });
-    return;
-  }
-  const elementos = gsap.utils.toArray<HTMLElement>(objetivos);
-  elementos.forEach((el) => {
-    gsap.from(el, {
-      opacity: 0,
-      y: 28,
-      scale: 0.95,
-      duration: 0.5,
-      ease: EASE_CLAY,
-      scrollTrigger: { trigger: el, start: "top 88%", once: true },
-    });
-  });
+): () => void {
+  return revelarAlEntrar(objetivos, opciones);
 }
 
 /**

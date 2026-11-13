@@ -6,7 +6,7 @@
 // motion del contrato, que ya respeta `prefers-reduced-motion`.
 
 import { useRef, type ElementType, type ReactNode } from "react";
-import { useGSAP, entrada, entradaEnCascada, revelarEnScroll } from "@tukit/contrato/motion";
+import { useGSAP, entradaEnCascada, revelarAlEntrar } from "@tukit/contrato/motion";
 
 interface Props {
   children: ReactNode;
@@ -36,11 +36,13 @@ export default function Revelar({
       const nodo = ref.current;
       if (!nodo) return;
       if (modo === "una") {
-        entrada(nodo, { retraso });
+        // Bloques de seccion: animan al entrar en vista, no al montar (si no,
+        // los de abajo gastaban la animacion fuera de pantalla).
+        return revelarAlEntrar(nodo, { retraso, y: 22 });
       } else if (modo === "cascada") {
         entradaEnCascada(Array.from(nodo.children), { retraso, cadaUno });
       } else {
-        revelarEnScroll(Array.from(nodo.children), { cadaUno });
+        return revelarAlEntrar(Array.from(nodo.children), { cadaUno });
       }
     },
     { scope: ref },

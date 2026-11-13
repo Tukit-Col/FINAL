@@ -91,6 +91,8 @@
 
 .lista {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: var(--espacio-3);
 }
 
@@ -156,39 +158,17 @@
   transform: rotate(180deg);
 }
 
-.tarjeta[open] /* Respuesta: texto con ancho de lectura comodo (alineado con el titulo, no con
- * el icono) y, en escritorio, una foto a la derecha para que la tarjeta no
- * quede con un hueco enorme. En movil, una sola columna y sin foto. */
+/* Respuesta corta, alineada con el titulo (no con el icono). */
 .cuerpo {
-  display: grid;
-  grid-template-columns: minmax(0, 64ch) minmax(0, 1fr);
-  align-items: start;
-  gap: var(--espacio-5);
   padding: 0 var(--espacio-5) var(--espacio-5)
     calc(var(--espacio-5) + 42px + var(--espacio-3));
 }
 
 .respuesta {
-  font-size: 16px;
-  line-height: 1.65;
+  font-size: 15px;
+  line-height: 1.6;
   color: var(--color-text-secondary);
   text-wrap: pretty;
-}
-
-.foto {
-  position: relative;
-  justify-self: end;
-  width: 100%;
-  max-width: 240px;
-  aspect-ratio: 3 / 2;
-  overflow: hidden;
-  border-radius: var(--radius-lg, 20px);
-  box-shadow: var(--clay-shadow);
-  background: var(--color-surface-2);
-}
-
-.foto img {
-  object-fit: cover;
 }
 
 /* ---- Tarjeta "Ingresa para abrir una solicitud" ---- */
@@ -582,12 +562,8 @@
 }
 
 @media (max-width: 860px) {
-  .cuerpo {
+  .lista {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .foto {
-    display: none;
   }
 
   .acceso {
