@@ -215,10 +215,23 @@ class RepoTrabajos:
         que el paso a PUBLICADO, de modo que un rollback a mitad se lleva el evento
         con el cambio de estado (no dual-write).
         """
-        usuario_id = await self.c.scalar(select(TRABAJO.c.usuario_id).where(TRABAJO.c.id == trabajo_id))
+        fila = (
+            await self.c.execute(
+                select(TRABAJO.c.usuario_id, TRABAJO.c.hijos).where(TRABAJO.c.id == trabajo_id)
+            )
+        ).one_or_none()
+        usuario_id = fila.usuario_id if fila is not None else None
         carga: dict[str, Any] = {"trabajo_id": str(trabajo_id), "publicado_en": _ahora().isoformat()}
         if usuario_id is not None:
             carga["usuario_id"] = str(usuario_id)
+        # Para el correo "Tu kit esta listo": solo colegio y grado del primer hijo,
+        # que identifican la lista y no a un menor. NUNCA la referencia ni el apodo.
+        hijos = list(fila.hijos or ()) if fila is not None else []
+        if hijos:
+            if hijos[0].get("colegio_id"):
+                carga["colegio_id"] = str(hijos[0]["colegio_id"])
+            if hijos[0].get("grado"):
+                carga["grado"] = str(hijos[0]["grado"])
         await self.c.execute(
             insert(BANDEJA).values(
                 tipo="kits_publicados",

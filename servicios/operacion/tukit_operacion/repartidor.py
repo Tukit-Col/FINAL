@@ -155,7 +155,12 @@ class Repartidor:
         if usuario_id is None:
             return Resultado.REINTENTAR
 
-        datos = datos_plantilla(fila.tipo, fila.agregado_id, fila.carga, base_web=_url_web())
+        colegio_nombre = None
+        if fila.tipo == "kits_publicados" and (fila.carga or {}).get("colegio_id"):
+            colegio_nombre = await self.identidad.nombre_colegio(str(fila.carga["colegio_id"]))
+        datos = datos_plantilla(
+            fila.tipo, fila.agregado_id, fila.carga, base_web=_url_web(), colegio_nombre=colegio_nombre
+        )
         # Se crea la notificacion POR ID, sin contacto, y se envia resolviendo
         # el contacto al vuelo. Si el envio falla, REINTENTAR sube intentos y se
         # reintenta en la proxima pasada; la notificacion queda como fallida.

@@ -80,8 +80,24 @@ def destinatario_de_la_cola(tipo: str, carga: dict[str, Any] | None) -> str | No
     return str(usuario) if usuario else None
 
 
+def lugar_de(colegio_nombre: str | None, grado: str | None) -> str:
+    """ "Colegio X, grado 3": lo unico de la lista que viaja en el aviso. Sin
+    apodo ni nombre de menor (Ley 1581); si falta algo, lo que haya."""
+    partes = []
+    if colegio_nombre and colegio_nombre.strip():
+        partes.append(colegio_nombre.strip())
+    if grado and str(grado).strip():
+        partes.append(f"grado {str(grado).strip()}")
+    return ", ".join(partes) or "tu lista escolar"
+
+
 def datos_plantilla(
-    tipo: str, agregado_id: uuid.UUID, carga: dict[str, Any] | None, *, base_web: str
+    tipo: str,
+    agregado_id: uuid.UUID,
+    carga: dict[str, Any] | None,
+    *,
+    base_web: str,
+    colegio_nombre: str | None = None,
 ) -> dict[str, object]:
     """Las variables de negocio del aviso: turno, pedido, enlace, repartidor. Nunca contacto.
 
@@ -99,6 +115,7 @@ def datos_plantilla(
         datos["caso"] = str(agregado_id)[:8].upper()
     if tipo == "kits_publicados":
         datos["enlace"] = f"{base_web}/kits/{agregado_id}"
+        datos["lugar"] = lugar_de(colegio_nombre, carga.get("grado"))
     if tipo == "pedido_despachado":
         # Solo el nombre: Comercio nunca pone el celular del repartidor en la carga.
         datos["repartidor"] = str(carga.get("repartidor") or "").strip() or _REPARTIDOR_POR_OMISION
