@@ -9,6 +9,7 @@ identificador que despues nadie puede responder.
 from __future__ import annotations
 
 import uuid
+from types import SimpleNamespace
 
 import pytest
 from conftest import CatalogoFalso, opcion, reconocido, renglon
@@ -1121,3 +1122,89 @@ class TestElAcudienteCambiaSuKit:
         )
         skus = {linea["sku"] for linea in comercio.orden["lineas"]}
         assert "TK-C001-ECO" in skus and "TK-C001-PRE" not in skus
+
+
+class TestArreglosRevisionHermanos:
+    async def test_parent_apply_nombra_al_hijo_de_las_lineas_no_canonico_fijo(self, motor):
+        # Un canonico nacido de un preview: sus lineas dicen hijo "preview", no
+        # "canonico". `personajes_por_hijo` debe usar la clave REAL de las lineas,
+        # o la franja Fan de la web no casa y se queda vacia.
+        catalogo = _catalogo()
+        catalogo.respuestas["2 cuadernos cuadriculados"]["opciones"].append(
+            opcion("TK-C001-FAN", "confiable", 9000, personaje="cars")
+        )
+        creado = await trabajos.crear(
+            motor,
+            hijos=[{"referencia": "preview", "colegio_id": COLEGIO, "grado": "Cuarto"}],
+            preferencias={},
+            origen=trabajos.ORIGEN_CANONICO,
+        )
+        estado = await trabajos.procesar(motor, uuid.UUID(creado["trabajo_id"]), catalogo=catalogo)
+        assert estado == EstadoTrabajo.PUBLICADO.value
+        aplicado = await trabajos.aplicar_canonico(
+            motor,
+            colegio_id=COLEGIO,
+            grado="Cuarto",
+            anio_lectivo=2026,
+            perfil="Fan",
+            personaje="cars",
+            catalogo=catalogo,
+        )
+        vista = await trabajos.ver(motor, uuid.UUID(aplicado["trabajo_id"]), catalogo=catalogo)
+        fan = next(k for k in vista["kits"] if k["perfil"] == "Fan")
+        hijos_de_lineas = {linea["hijo"] for linea in fan["lineas"]}
+        assert vista["personajes_por_hijo"] == {h: ["cars"] for h in hijos_de_lineas}
+
+    def test_personajes_por_hijo_publico_no_revienta_con_cifrado_invalido(self):
+        # Una rotacion de llave o un VARIABLE_LLAVE mal puesto no debe tumbar ver()
+        # (y con el, checkout, opciones y el chat): devuelve {} y sigue.
+        cabeza = SimpleNamespace(
+            hijos=[{"referencia": "hijo-1", "colegio_id": "c1", "grado": "3"}],
+            origen="onboarding",
+            preferencias_cifradas=b"\x00\x01 esto no es un token valido",
+        )
+        assert trabajos._personajes_por_hijo_publico(cabeza) == {}
+
+    async def test_evento_kits_publicados_omite_al_hijo_sin_lista(self, motor):
+        from sqlalchemy import insert, select
+        from tukit_inteligencia.modelos import Base
+        from tukit_inteligencia.repositorios.trabajos import RepoTrabajos
+
+        ITEM = Base.metadata.tables["item_crudo"]
+        trabajo_id = uuid.uuid4()
+        hijos = [
+            {"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Septimo"},
+            # hijo-2 quedo en sin_lista: no tiene lineas, no debe ir al correo.
+            {"referencia": "hijo-2", "colegio_id": COLEGIO, "grado": "Jardin"},
+        ]
+        kit_id, item_id = uuid.uuid4(), uuid.uuid4()
+        async with motor.engine.begin() as conexion:
+            await conexion.execute(
+                insert(trabajos.TRABAJO).values(
+                    id=trabajo_id, estado="publicado", hijos=hijos, usuario_id=uuid.uuid4()
+                )
+            )
+            await conexion.execute(
+                insert(ITEM).values(
+                    id=item_id, trabajo_id=trabajo_id, hijo_referencia="hijo-1", orden=1, texto="cuaderno"
+                )
+            )
+            await conexion.execute(
+                insert(trabajos.KIT).values(id=kit_id, trabajo_id=trabajo_id, perfil="Ahorrador")
+            )
+            await conexion.execute(
+                insert(trabajos.LINEA).values(
+                    id=uuid.uuid4(),
+                    kit_id=kit_id,
+                    item_crudo_id=item_id,
+                    hijo_referencia="hijo-1",
+                    orden=1,
+                    descripcion="cuaderno",
+                    estado_resolucion=EstadoResolucion.RESUELTO_AUTO.value,
+                )
+            )
+            await RepoTrabajos(conexion).emitir_evento(trabajo_id)
+        async with motor.engine.begin() as conexion:
+            carga = (await conexion.execute(select(trabajos.BANDEJA.c.carga))).scalar_one()
+        assert carga["listas"] == [{"colegio_id": COLEGIO, "grado": "Septimo"}]
+        assert carga["grado"] == "Septimo"

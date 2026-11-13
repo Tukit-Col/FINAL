@@ -366,8 +366,12 @@ export function productosDelPersonaje(
     const producto = linea.producto_elegido;
     if (!producto?.personaje || linea.descartado || linea.informativa) continue;
     if (pedidos && !pedidoPorSuHijo(linea, pedidos)) continue;
-    if (vistos.has(producto.sku)) continue;
-    vistos.add(producto.sku);
+    // Se deduplica por (hijo, sku), no por sku a secas: dos hermanos pueden
+    // compartir el MISMO producto de personaje (uno consolidado sobre el otro) y
+    // ambos deben verlo en SU franja. Deduplicar global borraba al segundo hijo.
+    const clave = `${linea.hijo ?? ""}\u0000${producto.sku}`;
+    if (vistos.has(clave)) continue;
+    vistos.add(clave);
     salida.push(linea);
   }
   return salida;
