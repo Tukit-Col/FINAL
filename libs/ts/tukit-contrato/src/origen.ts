@@ -619,7 +619,8 @@ export interface OrigenDatos {
   // Solo staff: operacion valida el Bearer contra identidad (401/403/503). El
   // token es opcional en el tipo para no romper a quien aun no lo manda, pero
   // sin el la bandeja responde 401.
-  casos(token?: string): Promise<BandejaOperacion>;
+  /** Con `usuarioId`, solo los casos de ese titular (ficha del cliente). */
+  casos(token?: string, usuarioId?: string): Promise<BandejaOperacion>;
   caso(casoId: string, token?: string): Promise<Caso>;
 
   // Back-office de pedidos y tickets (ver `admin.ts`). Todos exigen Bearer de

@@ -230,3 +230,14 @@ async def test_vincular_pedido(cliente):
     assert respuesta.json()["pedido_id"] == pedido
     malo = await cliente.post(f"/v1/operacion/casos/{caso}/pedido", headers=STAFF, json={"pedido_id": "no-es-uuid"})
     assert malo.status_code == 422
+
+
+async def test_bandeja_filtra_por_titular(cliente):
+    mio = await _abrir(cliente, asunto="Del titular")
+    r = await cliente.get(f"/v1/operacion/casos?usuario_id={USUARIO}", headers=STAFF)
+    assert r.status_code == 200
+    assert mio in [c["caso_id"] for c in r.json()["casos"]]
+    r = await cliente.get(f"/v1/operacion/casos?usuario_id={uuid.uuid4()}", headers=STAFF)
+    assert r.json()["casos"] == []
+    assert (await cliente.get("/v1/operacion/casos?usuario_id=no-es-uuid", headers=STAFF)).status_code == 422
+    assert (await cliente.get(f"/v1/operacion/casos?usuario_id={USUARIO}")).status_code == 401
