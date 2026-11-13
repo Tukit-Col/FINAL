@@ -71,6 +71,18 @@
   margin-bottom: var(--espacio-5);
 }
 
+/* Jerarquia: una barrita de acento bajo cada titulo de seccion ordena la
+ * lectura (titulo, barra, contenido) sin sumar peso al texto. */
+.tituloSeccion::after {
+  content: "";
+  display: block;
+  width: 44px;
+  height: 4px;
+  margin-top: var(--espacio-2);
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, var(--clay-cielo) 0%, var(--color-primary) 100%);
+}
+
 /* ----------------------------------------------------------------- FAQ */
 
 .faq {
@@ -142,6 +154,27 @@
 
 .tarjeta[open] .flecha {
   transform: rotate(180deg);
+}
+
+.tarjeta[open] .respuesta {
+  animation: respuestaEntra var(--dur-medio) var(--ease-suave) both;
+}
+
+@keyframes respuestaEntra {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tarjeta[open] .respuesta {
+    animation: none;
+  }
 }
 
 .respuesta {
@@ -395,7 +428,9 @@
 }
 
 .otroBoton {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   margin-top: var(--espacio-4);
   padding: 11px var(--espacio-5);
   border-radius: var(--radius-full);
