@@ -224,14 +224,24 @@ class RepoTrabajos:
         carga: dict[str, Any] = {"trabajo_id": str(trabajo_id), "publicado_en": _ahora().isoformat()}
         if usuario_id is not None:
             carga["usuario_id"] = str(usuario_id)
-        # Para el correo "Tu kit esta listo": solo colegio y grado del primer hijo,
-        # que identifican la lista y no a un menor. NUNCA la referencia ni el apodo.
-        hijos = list(fila.hijos or ()) if fila is not None else []
+        # Para el correo "Tu kit esta listo": colegio y grado de cada lista del
+        # hogar, que identifican la lista y no a un menor. NUNCA la referencia ni
+        # el apodo. `listas` va deduplicada por (colegio, grado) en el orden de los
+        # hijos; `colegio_id`/`grado` sueltos (del primer hijo) se conservan para
+        # un repartidor de antes que aun no lea `listas`.
+        hijos = [h for h in (fila.hijos or ()) if isinstance(h, dict)] if fila is not None else []
         if hijos:
             if hijos[0].get("colegio_id"):
                 carga["colegio_id"] = str(hijos[0]["colegio_id"])
             if hijos[0].get("grado"):
                 carga["grado"] = str(hijos[0]["grado"])
+        listas: list[dict[str, str]] = []
+        for hijo in hijos:
+            lista = {"colegio_id": str(hijo.get("colegio_id") or ""), "grado": str(hijo.get("grado") or "")}
+            if (lista["colegio_id"] or lista["grado"]) and lista not in listas:
+                listas.append(lista)
+        if listas:
+            carga["listas"] = listas
         await self.c.execute(
             insert(BANDEJA).values(
                 tipo="kits_publicados",

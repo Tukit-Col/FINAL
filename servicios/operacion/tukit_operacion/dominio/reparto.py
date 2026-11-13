@@ -96,6 +96,59 @@ def lugar_de(colegio_nombre: str | None, grado: str | None) -> str:
     return ", ".join(partes) or "tu lista escolar"
 
 
+def _y(partes: list[str]) -> str:
+    """ "A", "A y B", "A, B y C"."""
+    if len(partes) <= 1:
+        return partes[0] if partes else ""
+    return f"{', '.join(partes[:-1])} y {partes[-1]}"
+
+
+def _listas_de(carga: dict[str, Any]) -> list[dict[str, str]]:
+    """Las listas del aviso: `listas` si viene; si no (evento viejo), la del primer hijo."""
+    crudas = carga.get("listas")
+    if isinstance(crudas, list) and crudas:
+        salida = []
+        for lista in crudas:
+            if isinstance(lista, dict):
+                par = {
+                    "colegio_id": str(lista.get("colegio_id") or ""),
+                    "grado": str(lista.get("grado") or ""),
+                }
+                if par not in salida:
+                    salida.append(par)
+        if salida:
+            return salida
+    return [{"colegio_id": str(carga.get("colegio_id") or ""), "grado": str(carga.get("grado") or "")}]
+
+
+def lugares_de(listas: list[dict[str, Any]], nombres: dict[str, str | None]) -> str:
+    """ "Colegio X, grados Septimo y Jardin" o "Colegio A, grado 3 y Colegio B, grado 5".
+
+    Agrupa por colegio en el orden de las listas; cada colegio con sus grados sin
+    repetir. Sin apodo ni nombre de menor (Ley 1581). Sin listas, lo de `lugar_de`.
+    """
+    if not listas:
+        return lugar_de(None, None)
+    grupos: dict[str, list[str]] = {}
+    for lista in listas:
+        colegio = str(lista.get("colegio_id") or "")
+        grado = str(lista.get("grado") or "").strip()
+        grados = grupos.setdefault(colegio, [])
+        if grado and grado not in grados:
+            grados.append(grado)
+    partes = []
+    for colegio, grados in grupos.items():
+        nombre = (nombres.get(colegio) or "").strip()
+        trozo = []
+        if nombre:
+            trozo.append(nombre)
+        if grados:
+            trozo.append(f"{'grados' if len(grados) > 1 else 'grado'} {_y(grados)}")
+        if trozo:
+            partes.append(", ".join(trozo))
+    return _y(partes) or lugar_de(None, None)
+
+
 def _uuid_o_none(valor: object) -> uuid.UUID | None:
     """El id si es un UUID valido; si no, None (nunca se arma un enlace con basura)."""
     try:
@@ -111,6 +164,7 @@ def datos_plantilla(
     *,
     base_web: str,
     colegio_nombre: str | None = None,
+    colegios: dict[str, str | None] | None = None,
 ) -> dict[str, object]:
     """Las variables de negocio del aviso: pedido, enlace, repartidor... Nunca contacto.
 
@@ -121,6 +175,10 @@ def datos_plantilla(
     de pedido, a su linea de tiempo; ambos llevan SOLO el id opaco (nunca correo ni
     celular). `base_web` es la base de la app del acudiente, que el worker saca del
     entorno.
+
+    Para `kits_publicados`, `colegios` es `{colegio_id: nombre}` de cada colegio
+    distinto de `listas` y arma "Colegio X, grados Septimo y Jardin"; `colegio_nombre`
+    (el nombre del colegio del primer hijo) sigue valiendo para la ruta vieja.
     """
     carga = carga or {}
     datos: dict[str, object] = {}
@@ -141,7 +199,13 @@ def datos_plantilla(
         datos["caso"] = str(agregado_id)[:8].upper()
     if tipo == "kits_publicados":
         datos["enlace"] = f"{base_web}/kits/{agregado_id}"
-        datos["lugar"] = lugar_de(colegio_nombre, carga.get("grado"))
+        listas = _listas_de(carga)
+        nombres = dict(colegios or {})
+        if colegio_nombre and carga.get("colegio_id"):
+            nombres.setdefault(str(carga["colegio_id"]), colegio_nombre)
+        datos["lugar"] = lugares_de(listas, nombres)
+        # Una linea por lista para la fila "Listas" del correo.
+        datos["listas"] = [lugar_de(nombres.get(li["colegio_id"]), li["grado"]) for li in listas]
     if tipo == "pedido_despachado":
         # Solo el nombre: Comercio nunca pone el celular del repartidor en la carga.
         datos["repartidor"] = str(carga.get("repartidor") or "").strip() or _REPARTIDOR_POR_OMISION

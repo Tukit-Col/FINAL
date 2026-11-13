@@ -130,3 +130,55 @@ def test_textos_de_los_avisos_de_logistica():
         texto_de("pedido_entregado", {"pedido": "ABCD1234"})
         == "Tu pedido ABCD1234 fue entregado. ¡Gracias por confiar en Tukit!"
     )
+
+
+# --- kits_publicados con varias listas del hogar (hermanos, 13-nov) -----------
+
+
+def test_lugares_de_mismo_colegio_dos_grados():
+    from tukit_operacion.dominio.reparto import lugares_de
+
+    listas = [{"colegio_id": "c1", "grado": "Septimo"}, {"colegio_id": "c1", "grado": "Jardin"}]
+    assert lugares_de(listas, {"c1": "Colegio X"}) == "Colegio X, grados Septimo y Jardin"
+
+
+def test_lugares_de_dos_colegios():
+    from tukit_operacion.dominio.reparto import lugares_de
+
+    listas = [{"colegio_id": "a", "grado": "3"}, {"colegio_id": "b", "grado": "5"}]
+    nombres = {"a": "Colegio A", "b": "Colegio B"}
+    assert lugares_de(listas, nombres) == "Colegio A, grado 3 y Colegio B, grado 5"
+    # Tres colegios: comas y una "y" al final, sin truncar.
+    tres = [*listas, {"colegio_id": "c", "grado": "1"}]
+    assert (
+        lugares_de(tres, {"a": "Colegio A", "b": "Colegio B", "c": "Colegio C"})
+        == "Colegio A, grado 3, Colegio B, grado 5 y Colegio C, grado 1"
+    )
+    # Un colegio sin nombre resuelto conserva su grado.
+    assert lugares_de(listas, {"a": "Colegio A"}) == "Colegio A, grado 3 y grado 5"
+
+
+def test_evento_viejo_sin_listas_sigue_igual():
+    agregado = uuid.uuid4()
+    carga = {"colegio_id": "c1", "grado": "3"}
+    viejo = datos_plantilla(
+        "kits_publicados", agregado, carga, base_web="https://tukit.co", colegio_nombre="Colegio X"
+    )
+    assert viejo["lugar"] == "Colegio X, grado 3"
+    con_mapa = datos_plantilla(
+        "kits_publicados", agregado, carga, base_web="https://tukit.co", colegios={"c1": "Colegio X"}
+    )
+    assert con_mapa["lugar"] == "Colegio X, grado 3"
+
+
+def test_kits_publicados_con_listas_nombra_todas():
+    carga = {
+        "colegio_id": "c1",
+        "grado": "Septimo",
+        "listas": [{"colegio_id": "c1", "grado": "Septimo"}, {"colegio_id": "c1", "grado": "Jardin"}],
+    }
+    datos = datos_plantilla(
+        "kits_publicados", uuid.uuid4(), carga, base_web="https://tukit.co", colegios={"c1": "Colegio X"}
+    )
+    assert datos["lugar"] == "Colegio X, grados Septimo y Jardin"
+    assert datos["listas"] == ["Colegio X, grado Septimo", "Colegio X, grado Jardin"]
