@@ -714,3 +714,22 @@
   color: var(--color-primary);
   text-decoration: underline;
 }
+
+/* Buscador de colegio: lo primero y más grande del bloque de cada hijo. */
+.rotuloColegio {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.buscadorPrincipal {
+  min-height: 56px;
+}
+
+.buscadorPrincipal input {
+  font-size: 16px;
+}
+
+.ayudaColegio {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
