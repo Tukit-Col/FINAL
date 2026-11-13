@@ -34,6 +34,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from . import gemini
+from .nombres_comunes import NOMBRES_COMUNES
 
 log = logging.getLogger("tukit.nl2c.auditoria")
 
@@ -154,6 +155,21 @@ _NOMBRE = re.compile(
     r"\b(?i:(?:mi|mis|el|la)\s+(?:hij[oa]s?|ni[ñn][oa]s?|chic[oa]|peque[ñn][oa])|se\s+llama|llamad[oa]|me\s+llamo|soy)"
     r"\s*:?\s+(?!(?i:que|el|la|un|una)\b)[A-ZÁÉÍÓÚÑ][\wáéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][\wáéíóúñ]+){0,2}"
 )
+# "Conjunto Los Pinos torre 3 apto 402", "edificio Altamira", "urbanizacion El Bosque": la
+# via con numero ya la cubre `_DIRECCION`; esto cubre el nombre del conjunto y la torre/apto.
+_CONJUNTO = re.compile(
+    r"\b(?:conjunto(?:\s+residencial)?|conj\.?|edificio|edf\.?|urbanizaci[oó]n|urb\.?|barrio|unidad\s+residencial)"
+    r"(?:\s+(?:de|del|la|las|el|los|san|santa|[A-ZÁÉÍÓÚÑ0-9][\wáéíóúñ]*)){1,4}",
+    re.I,
+)
+_TORRE_APTO = re.compile(
+    r"\b(?:torre|tr|bloque|interior|int|casa|apartamento|apto|apt|ap)\.?\s*#?\s*\d+[a-z]?\b",
+    re.I,
+)
+_ANTES_DE_NOMBRE_DE_COLEGIO = frozenset(
+    {"san", "santa", "santo", "colegio", "gimnasio", "liceo", "instituto", "jardin", "escuela", "sor", "fray"}
+)
+_PALABRA = re.compile(r"[A-Za-zÁÉÍÓÚÑáéíóúñÜü]+")
 _ETIQUETAS = re.compile(r"</?\s*(?:texto_del_padre|renglones_del_kit|system|instrucciones)[^>]*>", re.I)
 _CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f​-‏‪-‮⁠﻿]")
 
@@ -166,7 +182,63 @@ class TextoLimpio:
     largo_original: int
 
 
-def sanitizar(texto: str, *, limite: int = MAX_CARACTERES_TEXTO) -> TextoLimpio:
+def _sin_tildes(palabra: str) -> str:
+    base = unicodedata.normalize("NFD", palabra.lower())
+    return "".join(c for c in base if not unicodedata.combining(c))
+
+
+def _redactar_nombres_comunes(texto: str, conservar: frozenset[str]) -> tuple[str, int]:
+    """Cambia por "hijo" cada corrida de nombres de pila frecuentes ("Sofia Valentina",
+    "juan esteban"), con o sin mayuscula y sin frase gatillo. `conservar` son palabras que
+    el modelo si necesita (los personajes del catalogo)."""
+    cuenta = 0
+
+    def es_nombre(palabra: str) -> bool:
+        clave = _sin_tildes(palabra)
+        return clave in NOMBRES_COMUNES and clave not in conservar
+
+    partes: list[str] = []
+    pos = 0
+    dentro = False
+    en_colegio = False
+    for m in _PALABRA.finditer(texto):
+        palabra = m.group(0)
+        # "San Jose Maria", "Gimnasio Santa Maria", "Liceo Juan Ramon": nombre de colegio, no
+        # del menor. Desde la palabra que lo abre, lo que sigue con mayuscula es del colegio.
+        if _sin_tildes(palabra) in _ANTES_DE_NOMBRE_DE_COLEGIO:
+            en_colegio, dentro = True, False
+            continue
+        if en_colegio and (palabra[0].isupper() or _sin_tildes(palabra) in NOMBRES_COMUNES):
+            continue
+        en_colegio = False
+        if es_nombre(palabra):
+            if not dentro:
+                partes.append(texto[pos : m.start()] + "hijo")
+                cuenta += 1
+                dentro = True
+            elif texto[pos : m.start()].strip():
+                partes.append(texto[pos : m.start()] + "hijo")
+                cuenta += 1
+            pos = m.end()
+        else:
+            dentro = False
+    partes.append(texto[pos:])
+    return "".join(partes), cuenta
+
+
+def _apellidos_tras_hijo(texto: str) -> str:
+    # "hijo Gomez Perez": lo que va con mayuscula justo despues del nombre redactado es apellido.
+    texto = re.sub(r"\bhijo(?:\s+[A-ZÁÉÍÓÚÑ][\wáéíóúñ]+){1,3}\b", "hijo", texto)
+    return re.sub(r"\b(hij[oa]s?)\s+hijo\b", r"\1", texto, flags=re.I)
+
+
+def sanitizar(
+    texto: str,
+    *,
+    limite: int = MAX_CARACTERES_TEXTO,
+    del_padre: bool = True,
+    conservar: frozenset[str] | None = None,
+) -> TextoLimpio:
     """Quita PII y caracteres que sirven para escapar del bloque de datos.
 
     Los hijos quedan como "hijo": el modelo no necesita un nombre para entender
@@ -194,6 +266,17 @@ def sanitizar(texto: str, *, limite: int = MAX_CARACTERES_TEXTO) -> TextoLimpio:
         cuenta += n
     limpio, n = _NOMBRE.subn(lambda m: re.split(r"[\s:]", m.group(0).strip())[0] + " hijo", limpio)
     cuenta += n
+    if del_padre:
+        # Solo el texto del padre: una descripcion de la lista trae "Juan Salvador Gaviota"
+        # o "bloque 5 materias", y redactarlos le quitaria al modelo el renglon.
+        for patron in (_CONJUNTO, _TORRE_APTO):
+            limpio, n = patron.subn("[direccion]", limpio)
+            cuenta += n
+        conservados = frozenset(_sin_tildes(p) for p in (conservar or frozenset()))
+        limpio, n = _redactar_nombres_comunes(limpio, conservados)
+        cuenta += n
+        if n:
+            limpio = _apellidos_tras_hijo(limpio)
     limpio = limpio.replace("<", " ").replace(">", " ")
     limpio = re.sub(r"\s+", " ", limpio).strip()[:limite]
     huella = hashlib.sha256(limpio.encode()).hexdigest()[:12]

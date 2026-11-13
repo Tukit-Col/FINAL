@@ -26,13 +26,19 @@ def _medidas(respuesta: nl2c.RespuestaModelo, ms: int) -> dict[str, Any]:
     }
 
 
+def _palabras_de(personajes: list[str] | set[str] | frozenset[str]) -> frozenset[str]:
+    """Las palabras de los personajes ("Minnie Mouse" -> minnie, mouse): no se redactan como
+    nombre del menor aunque coincidan con un nombre de pila."""
+    return frozenset(w for p in personajes for w in str(p).replace("-", " ").lower().split())
+
+
 async def interpretar_texto(texto: str, personajes: list[str], usuario: Any = None) -> dict[str, Any]:
     """Texto libre -> `{estado: propuesta|sin_accion|invalido, ...}`.
 
     Lanza `TextoVacio` si el saneado lo deja vacio y `nl2c.AsistenteNoDisponible`
     si el modelo no responde; la ruta traduce ambos a su codigo HTTP.
     """
-    limpio = nl2c.sanitizar(texto)
+    limpio = nl2c.sanitizar(texto, conservar=_palabras_de(personajes))
     if not limpio.texto:
         raise TextoVacio
     try:
@@ -137,7 +143,14 @@ async def proponer_en_kit(
     deja fuera de la variedad los personajes que ningun hijo pidio.
     """
     ctx = nl2c_kit.contexto_del_kit(kit, anterior)
-    limpio = nl2c.sanitizar(texto)
+    del_kit = {
+        str(prod.get("personaje"))
+        for linea in kit.get("lineas") or []
+        for prod in [linea.get("producto_elegido") or {}, *(linea.get("alternativas") or [])]
+        if isinstance(prod, dict) and prod.get("personaje")
+    }
+    pedidos = {p for lista in (personajes_por_hijo or {}).values() for p in lista}
+    limpio = nl2c.sanitizar(texto, conservar=_palabras_de(del_kit | pedidos))
     if not limpio.texto or not ctx.lineas:
         raise TextoVacio
     # "Que puedes hacer" no necesita al modelo: antes se lo llevaba a "explicar el kit".
@@ -169,7 +182,12 @@ async def proponer_en_kit(
 
     res = nl2c_kit.validar_llamadas_kit(respuesta.llamadas, ctx, kit, trabajo_id)
     await nl2c_kit.completar_variar(res, ctx, trabajo_id, opciones_de, personajes_por_hijo)
-    propuesta_id = nl2c_kit.registrar_emision(usuario, trabajo_id)
+    tipos = {
+        nl2c_kit.TIPO_DE_COMPONENTE[p["tipo"]]
+        for p in res.propuestas
+        if p["tipo"] in nl2c_kit.TIPO_DE_COMPONENTE
+    }
+    propuesta_id = nl2c_kit.registrar_emision(usuario, trabajo_id, tipos)
     base = _medidas(respuesta, ms)
     nl2c.auditar(
         "proponer_propuesta",

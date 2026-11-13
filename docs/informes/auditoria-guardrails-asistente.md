@@ -45,7 +45,7 @@ Severidad = riesgo real hoy con el asistente propositivo (no aplica nada solo). 
 | Manejo inseguro de salida (LLM05) | Cubierto | Baja | Plantillas y lista blanca de componentes; el navegador revalida la spec |
 | Acciones excesivas (LLM06) | Cubierto hoy / Parcial en Fase 5 | Baja (Alta) | Hoy no escribe. En lote hace falta confirmacion unica con tope y firma (seccion 4) |
 | IDOR / kit de otro hijo o usuario | Cubierto | Baja | 404 uniforme; refs resueltas dentro del kit del portador. Hijo: hoy el trabajo es del acudiente, el kit por `perfil`; no hay seleccion de hijo en el endpoint |
-| PII / datos de menores | **Parcial** | **Media** | Redaccion por regex con frase gatillo y mayuscula. Hueco: "Sofia quiere Bluey", "mi hijo juan", conjuntos residenciales (xfail) |
+| PII / datos de menores | Cubierto | Baja | Frase gatillo + lista de nombres de pila frecuentes (con o sin mayuscula, sin frase gatillo; respeta personajes del catalogo y nombres de colegio) + conjunto/edificio/torre/apto. Solo al texto del padre, no a las descripciones de la lista. Un nombre poco comun sin frase gatillo aun puede pasar |
 | Precio/descuento manipulado | Cubierto | Baja | El precio sale del kit; claves extra se ignoran o invalidan |
 | Compra/pago | Cubierto | Baja | No existe la herramienta; tarjeta/cedula se redactan antes del modelo |
 | Limite de longitud | Cubierto | Baja | 4000 en la puerta, 1000 al modelo, 80 renglones |
@@ -61,17 +61,11 @@ Severidad = riesgo real hoy con el asistente propositivo (no aplica nada solo). 
 | Router de modelos | Falta | Baja | Un solo modelo. La regla `pide_ayuda` hace el papel de router barato; ampliar a frases frecuentes ("mas barato en X") ahorra costo |
 | Escalada a humano | Falta | Baja | Cae al formulario clasico (503); no hay "hablar con una persona" |
 | Citar fuentes | No aplica | n/a | No responde con conocimiento; las cifras salen del kit |
-| Integridad de la decision | **Parcial** | Media (Alta) | `/decision` no liga la propuesta con su contenido ni con el trabajo; `_EMITIDAS` global de 5000 se puede inundar (xfail) |
+| Integridad de la decision | Parcial | Baja (Alta) | Emisiones por portador (200 c/u, 30 min); inundar como anonimo no expulsa las de un padre con sesion. `/decision` exige un `tipo` que la propuesta traia (422 si no). Falta ligar el contenido (precio/sku) antes de la Fase 5 |
 
 ## 3. Pruebas nuevas
 
-`servicios/inteligencia/tests/test_nl2c_adversarial.py`: 86 casos parametrizados, modelo siempre simulado (el doble OBEDECE al atacante). Cubre inyeccion directa e indirecta, prompt y roleplay, precio/descuento, IDOR (kit, perfil, decision), compra/pago, menores, fuera de tema, mensajes enormes, unicode, lote de 100 y limites. Resultado: 79 pasan, 7 `xfail(strict)` que documentan huecos reales:
-
-1. Nombre del menor sin frase gatillo o en minuscula llega a Gemini (3 casos).
-2. Direccion de conjunto residencial (torre/apto) no se redacta.
-3. `_EMITIDAS` se puede inundar y expulsa propuestas ajenas.
-4. `/decision` no valida el `tipo` contra lo emitido.
-5. Cupo anonimo por IP: tras un proxy sin `X-Forwarded-For` confiable es un solo bucket (o ninguno).
+`servicios/inteligencia/tests/test_nl2c_adversarial.py`: 86 casos parametrizados, modelo siempre simulado (el doble OBEDECE al atacante). Cubre inyeccion directa e indirecta, prompt y roleplay, precio/descuento, IDOR (kit, perfil, decision), compra/pago, menores, fuera de tema, mensajes enormes, unicode, lote de 100 y limites. Resultado inicial: 79 pasan y 7 `xfail(strict)` que documentaban huecos reales. Los 7 se cerraron el 2026-11-13 (seccion 4b) y sus pruebas pasan sin marca.
 
 ## 4. Arreglado en esta auditoria
 
@@ -79,6 +73,14 @@ Severidad = riesgo real hoy con el asistente propositivo (no aplica nada solo). 
 - `sanitizar` quita categoria Cf (ancho cero, bidi, soft hyphen), tags `U+E0000-E007F` y selectores de variacion: antes se podian esconder ordenes invisibles para el padre.
 - `motivo` de `sin_accion` forzado a la lista antes de la bitacora.
 - `conftest.py`: reinicia el limitador por prueba.
+
+## 4b. Cerrado el 2026-11-13 (los 7 xfail)
+
+1. **Nombre del menor sin frase gatillo o en minuscula** (3 casos): `nombres_comunes.py` con nombres de pila frecuentes. Se conservan los personajes del catalogo y del kit, y lo que sigue a "colegio/San/Gimnasio..." (nombre de colegio). Los apellidos con mayuscula que siguen al nombre redactado tambien se van.
+2. **Conjunto residencial**: `conjunto/edificio/urbanizacion/barrio + nombre` y `torre/apto/bloque/interior/casa + numero` quedan como `[direccion]`, solo en el texto del padre ("bloque 5 materias" de una lista no se toca).
+3. **Inundar `_EMITIDAS`**: un cupo por portador (200) con vencimiento de 30 min; los anonimos comparten el suyo.
+4. **`tipo` de la decision**: la emision guarda los tipos que traia (`restricciones`, `cambio`, `descarte`) y `/decision` responde 422 si no coincide.
+5. **Cupo anonimo por IP**: la regla de `X-Forwarded-For` con proxies de confianza pasa del gateway a `tukit_comun.red` y la usa tambien Inteligencia. La web reenvia la cabecera del padre (`cabecerasReenviadas`) y el compose confia en la red de Docker para Inteligencia.
 
 ## 5. Recomendaciones antes de habilitar acciones en lote (Fase 5)
 

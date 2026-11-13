@@ -20,6 +20,7 @@ from fastapi import APIRouter, Header, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from tukit_comun.http import ErrorDominio
+from tukit_comun.red import ip_de_peticion
 
 from .. import api, nl2c, nl2c_flujo, nl2c_kit, trabajos
 from ..modelos import EstadoTrabajo
@@ -77,7 +78,13 @@ def _admitir(clave: str) -> None:
 
 
 def _clave_de(usuario: uuid.UUID | None, peticion: Request) -> str:
-    return nl2c.huella_usuario(usuario) or "anon:" + (peticion.client.host if peticion.client else "?")
+    # Detras del gateway y de la web la conexion es de ellos: la IP del padre viene en
+    # `X-Forwarded-For`, y solo se cree si la conexion es de un proxy de confianza
+    # (`TUKIT_PROXIES_CONFIANZA`, la misma regla que el limite de la puerta).
+    conexion = peticion.client.host if peticion.client else None
+    return nl2c.huella_usuario(usuario) or "anon:" + ip_de_peticion(
+        conexion, peticion.headers.getlist("x-forwarded-for")
+    )
 
 
 def _contar_tokens(clave: str, respuesta: dict[str, Any]) -> None:
@@ -207,10 +214,13 @@ async def decision(
 ) -> dict[str, str]:
     _exigir_activo()
     usuario = await _usuario_de_sesion(authorization) if _token_bearer(authorization) else None
-    emision = nl2c_kit.emision_de(cuerpo.propuesta_id)
-    # Una decision solo puede citar una propuesta que este servidor emitio, al mismo portador.
-    if emision is None or emision[0] != nl2c.huella_usuario(usuario):
+    emision = nl2c_kit.emision_de(cuerpo.propuesta_id, usuario)
+    # Una decision solo puede citar una propuesta que este servidor emitio, al mismo portador,
+    # y con un tipo que esa propuesta traia: la bitacora no puede decir "descarte" de un cambio.
+    if emision is None:
         raise ErrorDominio("propuesta_desconocida", "Esa propuesta no existe.", estado=404)
+    if cuerpo.tipo not in emision.tipos:
+        raise ErrorDominio("decision_no_coincide", "Esa decision no corresponde a la propuesta.", estado=422)
     nl2c.auditar(
         "decision",
         propuesta_id=cuerpo.propuesta_id,

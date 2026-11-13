@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import time
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -45,7 +46,7 @@ TEXTO_MOTIVO = {
 
 def _texto_renglon(descripcion: str) -> str:
     """La descripcion viene de la lista del colegio: dato no confiable, acotado."""
-    return sanitizar(descripcion, limite=MAX_CARACTERES_DESCRIPCION).texto
+    return sanitizar(descripcion, limite=MAX_CARACTERES_DESCRIPCION, del_padre=False).texto
 
 
 def pesos_fmt(valor: int | None) -> str:
@@ -535,18 +536,53 @@ def texto_resumen_R(r: RestriccionesR) -> str:
     return "Entendimos: " + "; ".join(partes) + "."
 
 
-# Propuestas emitidas: una aceptacion solo puede citar una que el servidor emitio,
-# a nombre del mismo portador.
-_EMITIDAS: dict[str, tuple[str | None, str | None]] = {}
+# Propuestas emitidas: una decision solo puede citar una que el servidor emitio, a nombre
+# del mismo portador y del mismo tipo. Cada portador tiene su propio cupo (anonimos juntos
+# en uno): quien inunda `/interpretar` sin sesion solo expulsa propuestas anonimas, nunca
+# las de un padre con sesion. Vencen a los 30 min (el padre decide en la misma visita).
+VIGENCIA_EMISION_S = 30 * 60
+MAX_EMISIONES_POR_PORTADOR = 200
+MAX_PORTADORES = 5000
+TIPO_DE_COMPONENTE = {"PropuestaCambio": "cambio", "PropuestaDescarte": "descarte"}
 
 
-def registrar_emision(usuario_id: str | uuid.UUID | None, trabajo_id: str | None = None) -> str:
-    if len(_EMITIDAS) >= 5000:
+@dataclass(frozen=True)
+class Emision:
+    portador: str | None
+    trabajo_id: str | None
+    tipos: frozenset[str]
+    vence: float
+
+
+_EMITIDAS: dict[str | None, dict[str, Emision]] = {}
+
+
+def registrar_emision(
+    usuario_id: str | uuid.UUID | None,
+    trabajo_id: str | None = None,
+    tipos: frozenset[str] | set[str] = frozenset({"restricciones"}),
+    *,
+    ahora: float | None = None,
+) -> str:
+    ahora = time.monotonic() if ahora is None else ahora
+    portador = huella_usuario(usuario_id)
+    propias = _EMITIDAS.pop(portador, None) or {}
+    _EMITIDAS[portador] = propias  # al final: el portador mas reciente
+    for vieja in [k for k, e in propias.items() if e.vence <= ahora]:
+        del propias[vieja]
+    while len(propias) >= MAX_EMISIONES_POR_PORTADOR:
+        propias.pop(next(iter(propias)))
+    while len(_EMITIDAS) > MAX_PORTADORES:
         _EMITIDAS.pop(next(iter(_EMITIDAS)))
     propuesta_id = uuid.uuid4().hex
-    _EMITIDAS[propuesta_id] = (huella_usuario(usuario_id), trabajo_id)
+    propias[propuesta_id] = Emision(portador, trabajo_id, frozenset(tipos), ahora + VIGENCIA_EMISION_S)
     return propuesta_id
 
 
-def emision_de(propuesta_id: str) -> tuple[str | None, str | None] | None:
-    return _EMITIDAS.get(propuesta_id)
+def emision_de(
+    propuesta_id: str, usuario_id: str | uuid.UUID | None = None, *, ahora: float | None = None
+) -> Emision | None:
+    """La emision de `propuesta_id` si es de `usuario_id` y no vencio."""
+    ahora = time.monotonic() if ahora is None else ahora
+    emision = (_EMITIDAS.get(huella_usuario(usuario_id)) or {}).get(propuesta_id)
+    return emision if emision is not None and emision.vence > ahora else None
