@@ -192,3 +192,64 @@ def test_variantes_de_cancelacion_incidencia_y_retoma():
     cobro = html_de("incidencia", {"pedido": "AB", "motivo": "pago_tras_cancelacion"})
     assert "ya estaba cancelado" in cobro and "Devolvemos un pago" in cobro
     assert "Retomamos tu pedido" in html_de("pedido_en_preparacion", {"pedido": "AB", "retoma": True})
+
+
+class _IdentidadDosColegios(IdentidadContacto):
+    def __init__(self) -> None:
+        super().__init__()
+        self.colegios: list[str] = []
+
+    async def nombre_colegio(self, colegio_id: str) -> str | None:
+        self.colegios.append(colegio_id)
+        return {"c1": "Colegio A", "c2": "Colegio B"}.get(colegio_id)
+
+
+async def test_repartidor_nombra_todas_las_listas_del_hogar(
+    motor_operacion,  # noqa: F811
+    motor_origen,  # noqa: F811
+    monkeypatch,
+):
+    monkeypatch.setenv("TUKIT_WEB_URL", "https://tukit.co")
+    engine, bandeja, trabajo = motor_origen
+    async with engine.begin() as conexion:
+        await conexion.execute(insert(trabajo).values(id=TRABAJO, usuario_id=uuid.uuid4()))
+        await conexion.execute(
+            insert(bandeja).values(
+                tipo="kits_publicados",
+                agregado_tipo="trabajo_pipeline",
+                agregado_id=TRABAJO,
+                carga={
+                    "colegio_id": "c1",
+                    "grado": "Septimo",
+                    "listas": [
+                        {"colegio_id": "c1", "grado": "Septimo"},
+                        {"colegio_id": "c1", "grado": "Jardin"},
+                        {"colegio_id": "c2", "grado": "5"},
+                    ],
+                },
+                intentos=0,
+            )
+        )
+    notificador = NotificadorFalso()
+    identidad = _IdentidadDosColegios()
+    reparto = _repartidor(motor_operacion, engine, notificador, identidad)
+    await reparto.pasada()
+    texto = notificador.enviados[0]["texto"]
+    assert "Colegio A, grados Septimo y Jardin y Colegio B, grado 5" in texto
+    # Un nombre por colegio distinto, no por lista.
+    assert sorted(identidad.colegios) == ["c1", "c2"]
+
+
+def test_html_kit_listo_lista_cada_lista_y_dice_los_kits():
+    datos = {
+        "lugar": "Colegio X, grados Septimo y Jardin",
+        "listas": ["Colegio X, grado Septimo", "Colegio X, grado Jardin"],
+        "enlace": "https://tukit.co/kits/x",
+    }
+    cuerpo = html_de("kits_publicados", datos)
+    assert "Armamos los kits de Colegio X, grados Septimo y Jardin" in cuerpo
+    assert ">Listas<" in cuerpo
+    assert "Colegio X, grado Septimo<br>Colegio X, grado Jardin" in cuerpo
+    # Una sola lista: la fila sigue llamandose "Lista" y el texto en singular.
+    uno = html_de("kits_publicados", {"lugar": "Colegio X, grado 3", "listas": ["Colegio X, grado 3"]})
+    assert ">Lista<" in uno and "Armamos la lista de Colegio X, grado 3" in uno

@@ -350,6 +350,38 @@ class TestPublicarDirectoDesdeListaVerificada:
         assert eventos[0].agregado_id == trabajo_id
 
 
+class TestElEventoLlevaTodasLasListas:
+    async def test_evento_kits_publicados_lleva_todas_las_listas(self, motor):
+        from sqlalchemy import insert, select
+        from tukit_inteligencia.repositorios.trabajos import RepoTrabajos
+
+        trabajo_id = uuid.uuid4()
+        hijos = [
+            {"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Septimo", "apodo": "Sofi"},
+            {"referencia": "hijo-2", "colegio_id": COLEGIO, "grado": "Jardin", "apodo": "Tomas"},
+            # Un hermano en la misma lista no la repite.
+            {"referencia": "hijo-3", "colegio_id": COLEGIO, "grado": "Jardin"},
+        ]
+        async with motor.engine.begin() as conexion:
+            await conexion.execute(
+                insert(trabajos.TRABAJO).values(
+                    id=trabajo_id, estado="publicado", hijos=hijos, usuario_id=uuid.uuid4()
+                )
+            )
+            await RepoTrabajos(conexion).emitir_evento(trabajo_id)
+        async with motor.engine.begin() as conexion:
+            carga = (await conexion.execute(select(trabajos.BANDEJA.c.carga))).scalar_one()
+        assert carga["listas"] == [
+            {"colegio_id": COLEGIO, "grado": "Septimo"},
+            {"colegio_id": COLEGIO, "grado": "Jardin"},
+        ]
+        # Compatibilidad con el repartidor de antes: el primer hijo sigue suelto.
+        assert carga["colegio_id"] == COLEGIO and carga["grado"] == "Septimo"
+        texto = str(carga)
+        assert "referencia" not in texto and "apodo" not in texto
+        assert "Sofi" not in texto and "hijo-1" not in texto
+
+
 class TestElEventoDeOutboxNoEsDualWrite:
     """I3.d: `emitir_evento` no abre transaccion propia. Si el orquestador hace
     rollback despues de emitirlo, la fila de la bandeja NO debe sobrevivir: eso

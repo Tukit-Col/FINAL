@@ -92,6 +92,10 @@ _TEXTOS_VARIANTE = {
     ),
     "pedido_cancelado:reembolso": "Cancelamos tu pedido {pedido} y te devolvemos el pago a tu medio de pago.",
     "pedido_cancelado:sin_cobro": "Cancelamos tu pedido {pedido}. No se hizo ningún cobro.",
+    "kits_publicados:varias_listas": (
+        "Tus kits estan listos. Armamos los kits de {lugar}. "
+        "Revisa los productos y elige cuando comprar: {enlace}"
+    ),
 }
 
 
@@ -103,6 +107,9 @@ def _variante(plantilla: str, datos: dict[str, object]) -> str | None:
         return "retoma"
     if plantilla == "pedido_cancelado":
         return "reembolso" if datos.get("reembolso") else "sin_cobro"
+    listas = datos.get("listas")
+    if plantilla == "kits_publicados" and isinstance(listas, list) and len(listas) > 1:
+        return "varias_listas"
     return None
 
 
@@ -340,6 +347,12 @@ _VISTAS: dict[str, dict[str, object]] = {
         "parrafo": "Armamos la lista de {lugar}. Revisa los productos y elige cu&aacute;ndo comprar.",
         "boton": "Ver mi kit", "ruta": "/dashboard", "usa_enlace": True,
         "previa": "Revisa tu kit y elige cuándo comprar.",
+        "variantes": {
+            "varias_listas": {
+                "titulo": "Tus kits est&aacute;n listos",
+                "parrafo": "Armamos los kits de {lugar}. Revisa los productos y elige cu&aacute;ndo comprar.",
+            },
+        },
     },
     "pedido_pagado": {
         "icono": "&#9989;", "titulo": "Recibimos tu pago", "fase": 0,
@@ -453,7 +466,11 @@ def html_de(plantilla: str, datos: dict[str, object]) -> str | None:
     )
     filas: list[tuple[str, str]] = []
     if plantilla == "kits_publicados":
-        filas.append(("Lista", v("lugar", "tu lista escolar")))
+        listas = [html.escape(str(li)) for li in (datos.get("listas") or ()) if str(li).strip()]  # type: ignore[union-attr]
+        if len(listas) > 1:
+            filas.append(("Listas", "<br>".join(listas)))
+        else:
+            filas.append(("Lista", v("lugar", "tu lista escolar")))
     elif plantilla == "caso_respuesta":
         if datos.get("caso"):
             filas.append(("Caso", v("caso")))

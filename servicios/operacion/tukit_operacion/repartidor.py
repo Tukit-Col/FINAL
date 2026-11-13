@@ -155,11 +155,19 @@ class Repartidor:
         if usuario_id is None:
             return Resultado.REINTENTAR
 
-        colegio_nombre = None
-        if fila.tipo == "kits_publicados" and (fila.carga or {}).get("colegio_id"):
-            colegio_nombre = await self.identidad.nombre_colegio(str(fila.carga["colegio_id"]))
+        # "Tu kit esta listo" nombra cada lista del hogar: un nombre de colegio por
+        # cada `colegio_id` distinto (de `listas`, o el suelto de un evento viejo).
+        colegios: dict[str, str | None] = {}
+        if fila.tipo == "kits_publicados":
+            carga = fila.carga or {}
+            ids = [
+                str(li.get("colegio_id") or "") for li in carga.get("listas") or () if isinstance(li, dict)
+            ]
+            ids.append(str(carga.get("colegio_id") or ""))
+            for colegio_id in dict.fromkeys(i for i in ids if i):
+                colegios[colegio_id] = await self.identidad.nombre_colegio(colegio_id)
         datos = datos_plantilla(
-            fila.tipo, fila.agregado_id, fila.carga, base_web=_url_web(), colegio_nombre=colegio_nombre
+            fila.tipo, fila.agregado_id, fila.carga, base_web=_url_web(), colegios=colegios
         )
         # Se crea la notificacion POR ID, sin contacto, y se envia resolviendo
         # el contacto al vuelo. Si el envio falla, REINTENTAR sube intentos y se
