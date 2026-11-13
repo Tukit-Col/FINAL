@@ -6,8 +6,8 @@
 // mensajes mientras siga abierto.
 
 import Image from "next/image";
-import { useState } from "react";
-import { MessageSquarePlus, Send } from "lucide-react";
+import { useId, useState } from "react";
+import { CheckCircle2, MessageSquarePlus, Send } from "lucide-react";
 import {
   CATEGORIAS_CASO_ACUDIENTE,
   ETIQUETA_CATEGORIA_CASO,
@@ -21,10 +21,21 @@ import { fechaYHora } from "@/lib/retracto";
 import styles from "./Dashboard.module.css";
 
 const CERRADOS = new Set(["resuelto", "cerrado"]);
+const MAX_ASUNTO = 120;
+const MAX_DESCRIPCION = 2000;
 
-export default function MisCasos({ iniciales }: { iniciales: MiCaso[] }) {
+export default function MisCasos({
+  iniciales,
+  formularioInicial = false,
+}: {
+  iniciales: MiCaso[];
+  /** Solo para pruebas visuales: arranca con el formulario abierto. */
+  formularioInicial?: boolean;
+}) {
+  const idForm = useId();
   const [casos, setCasos] = useState<MiCaso[]>(iniciales);
-  const [formulario, setFormulario] = useState(false);
+  const [formulario, setFormulario] = useState(formularioInicial);
+  const [creado, setCreado] = useState(false);
   const [abierto, setAbierto] = useState<MiCasoDetalle | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -33,6 +44,8 @@ export default function MisCasos({ iniciales }: { iniciales: MiCaso[] }) {
   const [asunto, setAsunto] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [mensaje, setMensaje] = useState("");
+
+  const valido = asunto.trim().length >= 3 && descripcion.trim().length >= 10;
 
   async function recargar() {
     setCasos(await verMisCasos());
@@ -43,10 +56,11 @@ export default function MisCasos({ iniciales }: { iniciales: MiCaso[] }) {
     setOcupado(true);
     setError(null);
     try {
-      await crearCaso({ categoria, asunto, descripcion });
+      await crearCaso({ categoria, asunto: asunto.trim(), descripcion: descripcion.trim() });
       setAsunto("");
       setDescripcion("");
       setFormulario(false);
+      setCreado(true);
       await recargar();
     } catch (causa) {
       setError(causa instanceof FalloApi ? causa.message : "No pudimos crear tu caso. Intenta de nuevo.");
@@ -87,15 +101,15 @@ export default function MisCasos({ iniciales }: { iniciales: MiCaso[] }) {
   return (
     <div className={styles.casos}>
       {casos.length === 0 && !formulario && (
-        <div className={`${styles.vacio} ${styles.vacioCompacto}`}>
+        <div className={styles.casosVacio}>
           <Image
             src="/marca/caja-abierta.webp"
             alt=""
             width={112}
             height={99}
-            className={styles.vacioImagen}
+            className={styles.casosVacioImagen}
           />
-          <div className={styles.vacioTexto}>
+          <div className={styles.casosVacioTexto}>
             <p className={styles.vacioTitulo}>Sin casos abiertos</p>
             <p>
               Si tienes un problema con un pedido, una duda o una idea, ábrelo aquí y te
@@ -174,48 +188,93 @@ export default function MisCasos({ iniciales }: { iniciales: MiCaso[] }) {
         </ul>
       )}
 
-      {error && (
+      {error && !formulario && (
         <p className={styles.errorPedido} role="alert">
           {error}
         </p>
       )}
 
+      {creado && !formulario && (
+        <p className={styles.exitoCaso} role="status">
+          <CheckCircle2 size={16} aria-hidden="true" /> Recibimos tu caso. Te respondemos por aquí.
+        </p>
+      )}
+
       {formulario ? (
-        <form className={styles.formCaso} onSubmit={crear}>
-          <label>
-            Tipo de solicitud
-            <select value={categoria} onChange={(e) => setCategoria(e.target.value as CategoriaCaso)}>
+        <form className={styles.formCaso} onSubmit={crear} aria-busy={ocupado}>
+          <div className={styles.campo}>
+            <label htmlFor={`${idForm}-tipo`}>Tipo de solicitud</label>
+            <select
+              id={`${idForm}-tipo`}
+              value={categoria}
+              onChange={(e) => setCategoria(e.target.value as CategoriaCaso)}
+            >
               {CATEGORIAS_CASO_ACUDIENTE.map((c) => (
                 <option key={c} value={c}>
                   {ETIQUETA_CATEGORIA_CASO[c]}
                 </option>
               ))}
             </select>
-          </label>
-          <label>
-            Asunto
-            <input value={asunto} onChange={(e) => setAsunto(e.target.value)} maxLength={120} required />
-          </label>
-          <label>
-            Cuéntanos qué pasó
+          </div>
+          <div className={styles.campo}>
+            <label htmlFor={`${idForm}-asunto`}>Asunto</label>
+            <input
+              id={`${idForm}-asunto`}
+              value={asunto}
+              onChange={(e) => setAsunto(e.target.value)}
+              maxLength={MAX_ASUNTO}
+              placeholder="Ej. Mi pedido llegó incompleto"
+              autoComplete="off"
+              required
+            />
+          </div>
+          <div className={styles.campo}>
+            <label htmlFor={`${idForm}-desc`}>Cuéntanos qué pasó</label>
             <textarea
+              id={`${idForm}-desc`}
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
               rows={4}
+              maxLength={MAX_DESCRIPCION}
+              placeholder="Con los detalles que tengas (número de pedido, producto, fecha) respondemos más rápido."
+              aria-describedby={`${idForm}-cuenta`}
               required
             />
-          </label>
+            <span id={`${idForm}-cuenta`} className={styles.contador}>
+              {descripcion.length} / {MAX_DESCRIPCION}
+            </span>
+          </div>
+          {error && (
+            <p className={styles.errorPedido} role="alert">
+              {error}
+            </p>
+          )}
           <div className={styles.accionesFila}>
-            <button type="submit" className={styles.btnPagar} disabled={ocupado}>
-              {ocupado ? "Enviando…" : "Abrir caso"}
+            <button type="submit" className={styles.btnPagar} disabled={ocupado || !valido}>
+              <Send size={14} aria-hidden="true" /> {ocupado ? "Enviando…" : "Abrir caso"}
             </button>
-            <button type="button" className={styles.btnCancelar} onClick={() => setFormulario(false)}>
+            <button
+              type="button"
+              className={styles.btnCancelar}
+              disabled={ocupado}
+              onClick={() => {
+                setFormulario(false);
+                setError(null);
+              }}
+            >
               Cancelar
             </button>
           </div>
         </form>
       ) : (
-        <button type="button" className={styles.btnNuevoCaso} onClick={() => setFormulario(true)}>
+        <button
+          type="button"
+          className={styles.btnNuevoCaso}
+          onClick={() => {
+            setCreado(false);
+            setFormulario(true);
+          }}
+        >
           <MessageSquarePlus size={15} aria-hidden="true" /> Abrir un caso nuevo
         </button>
       )}
