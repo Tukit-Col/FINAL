@@ -1,0 +1,67 @@
+.banda {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-3);
+  flex-wrap: wrap;
+  padding: var(--espacio-3) var(--espacio-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 220px;
+}
+
+.texto strong {
+  font-weight: 800;
+}
+
+.acciones {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.error {
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+  color: var(--color-danger);
+}
+
+.ok {
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+  color: var(--color-success);
+}
+
+.aviso {
+  background: var(--clay-estrella-bg);
+  border-color: var(--clay-estrella);
+  color: var(--color-text-primary);
+}
+
+.enlace,
+.cerrar {
+  padding: 5px var(--espacio-3);
+  border-radius: var(--radius-full);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: inherit;
+  background: var(--color-white);
+  border: 1px solid currentColor;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.enlace:focus-visible,
+.cerrar:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}

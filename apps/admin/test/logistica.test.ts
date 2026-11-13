@@ -51,7 +51,7 @@ const SIN_FILTROS = leerFiltros({});
 
 test("leerFiltros ignora un estado o una fecha invalidos", () => {
   const f = leerFiltros({ estado: "volando", desde: "ayer", hasta: "2026-10-03", q: ["  ABCD ", "x"] });
-  assert.deepEqual(f, { q: "ABCD", estado: "", colegio: "", desde: "", hasta: "2026-10-03" });
+  assert.deepEqual(f, { q: "ABCD", estado: "", colegio: "", desde: "", hasta: "2026-10-03", alerta: "" });
   assert.equal(hayFiltros(SIN_FILTROS), false);
   assert.equal(hayFiltros(f), true);
 });
@@ -125,4 +125,64 @@ test("motivoDeAcceso: un error de sesion, rol o limite se pinta como aviso, lo d
   assert.equal(motivoDeAcceso({ estado: 503 }), null);
   assert.equal(motivoDeAcceso(new Error("red")), null);
   assert.equal(motivoDeAcceso(undefined), null);
+});
+
+// ---------------------------------------------------------- Fase 4
+import {
+  claseDeFallo,
+  destinoComunDeLote,
+  destinosParaSelector,
+  etiquetaResultadoReconciliacion,
+  motivoSinAcciones,
+  resumenDeLote,
+} from "../src/lib/logistica.ts";
+
+test("motivoSinAcciones: pendiente_pago ofrece reconciliar y menciona las 24 h", () => {
+  const m = motivoSinAcciones("pendiente_pago");
+  assert.equal(m?.accion, "reconciliar");
+  assert.match(m?.detalle ?? "", /24 h/);
+  assert.equal(motivoSinAcciones("entregado")?.accion, undefined);
+  assert.equal(motivoSinAcciones("cancelado")?.accion, undefined);
+  assert.equal(motivoSinAcciones("pagado"), null);
+});
+
+test("claseDeFallo", () => {
+  assert.equal(claseDeFallo(401), "sesion");
+  assert.equal(claseDeFallo(403), "rol");
+  assert.equal(claseDeFallo(409), "conflicto");
+  assert.equal(claseDeFallo(502), "pasarela");
+  assert.equal(claseDeFallo(500), "otro");
+});
+
+test("etiquetaResultadoReconciliacion y orden del selector", () => {
+  assert.equal(etiquetaResultadoReconciliacion("pagado"), "El pago estaba aprobado: el pedido pasó a Pagado");
+  assert.equal(etiquetaResultadoReconciliacion("en_curso"), "El pago sigue en curso en Wompi");
+  assert.equal(
+    etiquetaResultadoReconciliacion("libre"),
+    "No hay un pago aprobado: el pedido sigue sin pagar",
+  );
+  assert.deepEqual(destinosParaSelector("pagado").map((a) => a.destino), ["en_preparacion", "incidencia"]);
+  assert.deepEqual(destinosParaSelector("incidencia").map((a) => a.destino), ["en_preparacion", "cancelado"]);
+});
+
+test("filtro por alerta se conserva, se sanea y filtra", () => {
+  assert.equal(leerFiltros({ alerta: "pago_atascado" }).alerta, "pago_atascado");
+  assert.equal(leerFiltros({ alerta: "x" }).alerta, "");
+  const a = pedido({ pedido_id: "a1", alertas: ["pago_atascado"] });
+  const b = pedido({ pedido_id: "b1" });
+  const f = leerFiltros({ alerta: "pago_atascado" });
+  assert.deepEqual(filtrarPedidos([a, b], f).map((p) => p.pedido_id), ["a1"]);
+  assert.equal(hayFiltros(f), true);
+});
+
+test("destinoComunDeLote y resumenDeLote", () => {
+  const p = (estado: Pedido["estado"]) => pedido({ estado });
+  assert.equal(destinoComunDeLote([p("pagado"), p("pagado"), p("pagado")]), "en_preparacion");
+  assert.equal(destinoComunDeLote([p("despachado")]), "en_reparto");
+  assert.equal(destinoComunDeLote([p("en_reparto")]), "entregado");
+  assert.equal(destinoComunDeLote([p("pagado"), p("despachado")]), null);
+  assert.equal(destinoComunDeLote([p("en_preparacion")]), null);
+  assert.equal(destinoComunDeLote([]), null);
+  assert.equal(resumenDeLote({ avanzados: [1], fallidos: [] }), "1 avanzado, 0 con problema");
+  assert.equal(resumenDeLote({ avanzados: Array(18), fallidos: [1, 2] }), "18 avanzados, 2 con problema");
 });
