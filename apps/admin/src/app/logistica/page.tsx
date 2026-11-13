@@ -47,6 +47,7 @@ import {
 import { tokenDeSesion } from "@/lib/sesion";
 import Chip, { Chips } from "@/components/ui/Chip";
 import EstadoVacio from "@/components/ui/EstadoVacio";
+import ui from "@/components/ui/ui.module.css";
 import styles from "./Logistica.module.css";
 
 export const dynamic = "force-dynamic";
@@ -227,7 +228,7 @@ export default async function PaginaLogistica({ searchParams }: Props) {
         />
       ) : (
         <ProveedorLote visibles={ordenados.map((p) => ({ pedido_id: p.pedido_id, estado: p.estado }))}>
-        <div className={styles.marco}>
+        <div className={ui.marcoTabla}>
           <table className={styles.tabla}>
             <thead>
               <tr>

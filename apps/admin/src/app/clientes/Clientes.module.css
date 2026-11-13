@@ -56,10 +56,6 @@
 
 /* ------------------------------------------------------------------ tabla */
 
-.marco {
-  composes: marcoTabla from "../../components/ui/ui.module.css";
-}
-
 .tabla {
   width: 100%;
   border-collapse: collapse;

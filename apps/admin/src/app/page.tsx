@@ -18,6 +18,10 @@ import {
 } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import Revelar from "@/components/Revelar";
+import Barras from "@/components/ui/Barras";
+import BotonMagnetico from "@/components/ui/BotonMagnetico";
+import Destacada from "@/components/ui/Destacada";
+import Dona, { type SegmentoDona } from "@/components/ui/Dona";
 import { haceCuanto } from "@/lib/formato";
 import { construirPanel, type FuentePanel } from "@/lib/panel-accionable";
 import {
@@ -35,6 +39,18 @@ const NOMBRE_FUENTE: Record<FuentePanel, string> = {
   pedidos: "los pedidos (comercio)",
   casos: "los tickets (operación)",
   cola: "la cola de revisión",
+};
+
+// Color por etapa: del cielo claro al azul de marca a medida que el pedido
+// avanza; ambar lo que espera el pago, verde lo entregado (mismo criterio
+// semantico que las columnas del tablero de logistica).
+const COLOR_ETAPA: Record<string, string> = {
+  pendiente_pago: "var(--clay-estrella-oscuro)",
+  pagado: "var(--clay-cielo-claro)",
+  en_preparacion: "var(--clay-cielo)",
+  despachado: "#2b6cc4",
+  en_reparto: "var(--color-primary)",
+  entregado: "var(--color-success)",
 };
 
 const ETIQUETA_SLA: Record<string, string> = {
@@ -105,6 +121,11 @@ export default async function PaginaPanel() {
   });
 
   const hayPendientes = widgets.length > 0;
+  // La tarjeta con mas urgencia (alta primero, luego la de mas casos) es la
+  // unica que lleva haz de luz y ocupa el tile grande.
+  const urgente = [...widgets].sort(
+    (x, y) => Number(y.urgencia === "alta") - Number(x.urgencia === "alta") || y.cantidad - x.cantidad,
+  )[0];
 
   return (
     <div className={styles.pagina}>
@@ -125,20 +146,39 @@ export default async function PaginaPanel() {
       {hayPendientes ? (
         <Revelar>
           <ul className={styles.rejilla} aria-label="Pendientes">
-            {widgets.map((w) => (
-              <li
-                key={w.id}
-                className={`${styles.widget} ${w.urgencia === "alta" ? styles.alta : styles.media}`}
-              >
-                <span className={`${styles.cantidad} cifra`}>{w.cantidad}</span>
-                <h2>{w.titulo}</h2>
-                <p>{w.ayuda}</p>
-                <Link href={w.enlace} className={styles.accion}>
-                  {w.textoEnlace}
-                  <ArrowRight size={15} strokeWidth={2.4} aria-hidden="true" />
-                </Link>
-              </li>
-            ))}
+            {widgets.map((w) => {
+              const esUrgente = w.id === urgente?.id;
+              const cuerpo = (
+                <>
+                  <span className={`${styles.cantidad} cifra`}>{w.cantidad}</span>
+                  <h2>{w.titulo}</h2>
+                  <p>{w.ayuda}</p>
+                  {esUrgente ? (
+                    <BotonMagnetico href={w.enlace}>
+                      {w.textoEnlace}
+                      <ArrowRight size={15} strokeWidth={2.4} aria-hidden="true" />
+                    </BotonMagnetico>
+                  ) : (
+                    <Link href={w.enlace} className={styles.accion}>
+                      {w.textoEnlace}
+                      <ArrowRight size={15} strokeWidth={2.4} aria-hidden="true" />
+                    </Link>
+                  )}
+                </>
+              );
+              return esUrgente ? (
+                <li key={w.id} className={`${styles.grande} ${widgets.length === 1 ? styles.sola : ""}`}>
+                  <Destacada className={`${styles.widget} ${styles.alta} ${styles.urgente}`}>{cuerpo}</Destacada>
+                </li>
+              ) : (
+                <li
+                  key={w.id}
+                  className={`${styles.widget} ${w.urgencia === "alta" ? styles.alta : styles.media}`}
+                >
+                  {cuerpo}
+                </li>
+              );
+            })}
           </ul>
         </Revelar>
       ) : caidos.length < 3 ? (
@@ -160,71 +200,63 @@ export default async function PaginaPanel() {
         </ul>
       ) : null}
 
-      {flujo ? (
-        <section className={styles.bloque} aria-labelledby="t-flujo">
-          <h2 id="t-flujo">Flujo de pedidos</h2>
-          <ol className={styles.flujo}>
-            {flujo.etapas.map((e) => (
-              <li key={e.estado}>
-                <Link
-                  href={e.enlace}
-                  className={`${styles.etapa} ${e.cantidad === 0 ? styles.vacia : ""}`}
-                >
-                  <span className={`${styles.etapaNum} cifra`}>{e.cantidad}</span>
-                  <span className={styles.etapaNombre}>{ETIQUETA_ESTADO_PEDIDO[e.estado]}</span>
-                </Link>
-              </li>
-            ))}
-          </ol>
-          <p className={styles.lateral}>
-            <Link
-              href={flujo.incidencia.enlace}
-              className={flujo.incidencia.cantidad > 0 ? styles.rojo : undefined}
-            >
-              <span className="cifra">{flujo.incidencia.cantidad}</span>{" "}
-              {ETIQUETA_ESTADO_PEDIDO.incidencia.toLowerCase()}
-            </Link>
-            <Link href={flujo.cancelado.enlace}>
-              <span className="cifra">{flujo.cancelado.cantidad}</span>{" "}
-              {ETIQUETA_ESTADO_PEDIDO.cancelado.toLowerCase()}
-            </Link>
-          </p>
-        </section>
-      ) : null}
-
       <div className={styles.paneles}>
-        {tk ? (
-          <section className={styles.bloque} aria-labelledby="t-tickets">
-            <h2 id="t-tickets">Tickets</h2>
-            <ul className={styles.filas}>
-              {tk.sla.map((f) => (
-                <li key={f.clave}>
-                  <Link href={f.enlace} className={styles.fila}>
-                    <span>{ETIQUETA_SLA[f.clave]}</span>
-                    <span
-                      className={`cifra ${f.critico && f.cantidad > 0 ? styles.rojo : ""}`}
-                    >
-                      {f.cantidad}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            <h3>Activos por estado</h3>
-            <ul className={styles.filas}>
-              {tk.estados.map((f) => (
-                <li key={f.clave}>
-                  <Link href={f.enlace} className={styles.fila}>
-                    <span>{ETIQUETA_ESTADO_CASO[f.clave as keyof typeof ETIQUETA_ESTADO_CASO]}</span>
-                    <span className="cifra">{f.cantidad}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+        {flujo ? (
+          <section className={`${styles.bloque} ${styles.ancho}`} aria-labelledby="t-flujo">
+            <h2 id="t-flujo">Flujo de pedidos</h2>
+            <Dona
+              centro="en el flujo"
+              segmentos={flujo.etapas.map(
+                (e): SegmentoDona => ({
+                  clave: e.estado,
+                  etiqueta: ETIQUETA_ESTADO_PEDIDO[e.estado],
+                  valor: e.cantidad,
+                  href: e.enlace,
+                  color: COLOR_ETAPA[e.estado] ?? "var(--clay-cielo)",
+                }),
+              )}
+            />
+            <p className={styles.lateral}>
+              <Link
+                href={flujo.incidencia.enlace}
+                className={flujo.incidencia.cantidad > 0 ? styles.rojo : undefined}
+              >
+                <span className="cifra">{flujo.incidencia.cantidad}</span>{" "}
+                {ETIQUETA_ESTADO_PEDIDO.incidencia.toLowerCase()}
+              </Link>
+              <Link href={flujo.cancelado.enlace}>
+                <span className="cifra">{flujo.cancelado.cantidad}</span>{" "}
+                {ETIQUETA_ESTADO_PEDIDO.cancelado.toLowerCase()}
+              </Link>
+            </p>
           </section>
         ) : null}
 
-        <section className={styles.bloque} aria-labelledby="t-listas">
+        {tk ? (
+          <section className={`${styles.bloque} ${styles.ancho}`} aria-labelledby="t-tickets">
+            <h2 id="t-tickets">Tickets</h2>
+            <Barras
+              filas={tk.sla.map((f) => ({
+                clave: f.clave,
+                etiqueta: ETIQUETA_SLA[f.clave],
+                valor: f.cantidad,
+                href: f.enlace,
+                tono: f.critico ? "critico" : "aviso",
+              }))}
+            />
+            <h3>Activos por estado</h3>
+            <Barras
+              filas={tk.estados.map((f) => ({
+                clave: f.clave,
+                etiqueta: ETIQUETA_ESTADO_CASO[f.clave as keyof typeof ETIQUETA_ESTADO_CASO],
+                valor: f.cantidad,
+                href: f.enlace,
+              }))}
+            />
+          </section>
+        ) : null}
+
+        <section className={`${styles.bloque} ${styles.ancho}`} aria-labelledby="t-listas">
           <h2 id="t-listas">Listas por verificar</h2>
           {listas === null ? (
             <p className={styles.vacio}>No pudimos leer las listas pendientes.</p>
@@ -253,7 +285,7 @@ export default async function PaginaPanel() {
           )}
         </section>
 
-        <section className={styles.bloque} aria-labelledby="t-act">
+        <section className={`${styles.bloque} ${styles.ancho}`} aria-labelledby="t-act">
           <h2 id="t-act">Actividad reciente</h2>
           {actividad.length === 0 ? (
             <p className={styles.vacio}>Todavía no hay movimiento.</p>
