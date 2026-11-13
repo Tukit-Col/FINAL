@@ -33,18 +33,53 @@
   transition: opacity var(--dur-medio, 200ms) var(--ease-suave, ease);
 }
 
-.bloqueInactivo {
-  opacity: 0.85; /* texto secundario sobre fondo claro: 4.6:1 (AA); 0.72 daba 3.4:1 */
+/* Paso futuro: fondo gris y contenido a ~0.55, pero el título queda a plena
+ * opacidad (AA) y nada se bloquea. Al entrar con teclado o puntero se aviva. */
+.bloque {
+  position: relative;
+  border: 2px solid transparent;
 }
 
-.bloqueInactivo:hover,
-.bloqueInactivo:focus-within {
+.bloqueInactivo {
+  background: var(--color-surface-muted, #e9ebef);
+  box-shadow: var(--clay-shadow-inset);
+}
+
+.bloqueInactivo > :not(.tituloBloque) {
+  opacity: 0.55;
+  transition: opacity var(--dur-medio, 200ms) var(--ease-suave, ease);
+}
+
+.bloqueInactivo .tituloBloque {
+  color: var(--color-text-primary);
+}
+
+.bloqueInactivo .paso {
+  background: var(--color-text-secondary);
+  box-shadow: none;
+}
+
+.bloqueInactivo::after {
+  content: "Completa el paso anterior";
+  position: absolute;
+  top: var(--espacio-4);
+  right: var(--espacio-4);
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-white);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.bloqueInactivo:hover > :not(.tituloBloque),
+.bloqueInactivo:focus-within > :not(.tituloBloque) {
   opacity: 1;
 }
 
-.bloque[aria-current="step"] .paso {
-  outline: 3px solid var(--clay-cielo-bg, var(--color-primary));
-  outline-offset: 2px;
+.bloque[aria-current="step"] {
+  border-color: var(--color-primary);
+  box-shadow: var(--clay-shadow), 0 0 0 4px var(--clay-cielo-claro);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -129,12 +164,14 @@
 }
 
 .dosColumnas {
+  align-items: start;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: var(--espacio-4);
 }
 
 .campo {
+  align-content: start;
   display: grid;
   gap: 6px;
   font-size: 14px;
