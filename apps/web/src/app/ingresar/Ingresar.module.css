@@ -70,13 +70,21 @@
     box-shadow var(--dur-rapido) var(--ease-suave);
 }
 
+/* Foco visible AA: borde azul de marca (contraste >= 3:1 sobre blanco) mas un
+ * anillo exterior; antes solo habia un halo casi blanco. */
+.campo input:focus-visible,
 .campo input:focus {
   outline: none;
-  border-color: var(--clay-cielo);
-  box-shadow: 0 0 0 3px var(--clay-cielo-bg);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(30, 64, 175, 0.18);
+}
+
+.campo input:focus-visible {
+  outline: 2px solid transparent; /* alto contraste de Windows */
 }
 
 .error {
+  animation: errorEntra var(--dur-medio) var(--ease-suave) both;
   font-size: 14px;
   font-weight: 600;
   color: var(--color-error, #c02626);
@@ -180,4 +188,31 @@
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+/* El error entra con un deslizamiento corto: avisa que algo cambio sin gritar. */
+@keyframes errorEntra {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.alterno a {
+  display: inline-block;
+  padding: 10px 2px;
+}
+
+.demoCorreo {
+  min-height: 44px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .error {
+    animation: none;
+  }
 }
