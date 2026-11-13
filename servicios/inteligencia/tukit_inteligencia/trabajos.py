@@ -67,6 +67,10 @@ from .repositorios.trabajos import RepoTrabajos, TrabajoNoExiste, TransicionIleg
 logger = logging.getLogger(__name__)
 
 # (personaje, concepto) ya avisados como ancla sin producto (ver `anclas_por_hijo`).
+# Con tope: el personaje lo escribe el acudiente, y sin limite cada nombre
+# inventado dejaria cuatro entradas vivas por el resto del proceso. Pasado el
+# tope se deja de anotar (el aviso puede repetirse; la memoria no crece).
+_TOPE_ANCLAS_AVISADAS = 256
 _ANCLAS_AVISADAS: set[tuple[str, str]] = set()
 
 TRABAJO = Base.metadata.tables["trabajo_pipeline"]
@@ -2729,7 +2733,8 @@ async def anclas_por_hijo(
                 elif (clave, concepto) not in _ANCLAS_AVISADAS:
                     # Una vez por (personaje, concepto) por proceso: la vista
                     # `parent_apply` pasa por aqui en cada lectura.
-                    _ANCLAS_AVISADAS.add((clave, concepto))
+                    if len(_ANCLAS_AVISADAS) < _TOPE_ANCLAS_AVISADAS:
+                        _ANCLAS_AVISADAS.add((clave, concepto))
                     logger.warning(
                         "ancla sin producto de personaje: personaje=%s concepto=%s", personaje, concepto
                     )

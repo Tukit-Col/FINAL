@@ -278,6 +278,15 @@ class TestSubirFeliz:
         assert len(catalogo.llamadas) == 2
         assert all(ll["preferencias"] == preferencias for ll in catalogo.llamadas)
 
+    async def test_un_personaje_demasiado_largo_se_rechaza(self, cliente, catalogo):
+        cuerpo = _subida(
+            [{"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"}],
+            contacto={"correo": "mama@ejemplo.com"},
+            preferencias={"personaje_por_hijo": {"hijo-1": ["x" * 61]}},
+        )
+        assert (await cliente.post("/v1/listas/subir", **cuerpo)).status_code == 422
+        assert catalogo.llamadas == []
+
     async def test_sin_preferencias_no_se_manda_nada(self, cliente, catalogo):
         cuerpo = _subida([{"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"}])
         respuesta = await cliente.post("/v1/listas/subir", **cuerpo)

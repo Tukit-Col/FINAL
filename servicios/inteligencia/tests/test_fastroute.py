@@ -744,3 +744,12 @@ class TestElegirProductoDePersonaje:
         assert elegir_producto_de_personaje([premium, economico])["sku"] == "C"
         assert elegir_producto_de_personaje([economico, confiable_caro])["sku"] == "D"
         assert elegir_producto_de_personaje([confiable_caro, confiable_barato])["sku"] == "E"
+
+
+async def test_los_avisos_de_ancla_tienen_tope():
+    # Cada personaje distinto que el catalogo no surte deja cuatro avisos; sin
+    # tope, personajes inventados harian crecer el conjunto sin limite.
+    catalogo = _catalogo_realista()
+    for i in range(trabajos._TOPE_ANCLAS_AVISADAS):
+        await trabajos.anclas_por_hijo(catalogo, {"hijo-1": f"inventado{i}"})
+    assert len(trabajos._ANCLAS_AVISADAS) == trabajos._TOPE_ANCLAS_AVISADAS

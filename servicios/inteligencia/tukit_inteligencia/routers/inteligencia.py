@@ -20,7 +20,15 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, Query, Request
-from pydantic import AliasChoices, BaseModel, Field, ValidationError, field_validator, model_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    Field,
+    TypeAdapter,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 from tukit_comun import derivar
 from tukit_comun.http import ErrorDominio
 
@@ -191,6 +199,19 @@ class Contacto(BaseModel):
     celular: str | None = Field(default=None, max_length=32)
 
 
+# `{referencia del hijo: [personajes]}`: hasta 10 hijos, 5 personajes por hijo
+# y 60 caracteres por personaje. Lo valida `Preferencias` y tambien la subida
+# de listas, que recibe las preferencias como JSON crudo.
+PersonajePorHijo = Annotated[
+    dict[
+        Annotated[str, Field(min_length=1, max_length=64)],
+        Annotated[list[Annotated[str, Field(min_length=1, max_length=60)]], Field(max_length=5)],
+    ],
+    Field(max_length=10),
+]
+_VALIDAR_PERSONAJE_POR_HIJO = TypeAdapter(PersonajePorHijo)
+
+
 class Preferencias(BaseModel):
     """Lo que el acudiente declara. NO se pide el estrato.
 
@@ -205,7 +226,10 @@ class Preferencias(BaseModel):
     # una opinion en una restriccion que el optimizador puede imponer.
     presupuesto_por_hijo: int | None = Field(default=None, gt=0)
     disposicion_sobreprecio: float | None = Field(default=None, ge=0, le=1)
-    personaje_por_hijo: dict[str, list[str]] | None = None
+    # Con tope por la misma razon que `marcas_excluidas`: lo escribe el
+    # navegador, se guarda cifrado en el trabajo y cada nombre distinto es una
+    # consulta al catalogo por ancla.
+    personaje_por_hijo: PersonajePorHijo | None = None
     # Filtros duros del asistente NL2C: el optimizador los aplica a los
     # candidatos antes de armar el frente. Los mismos limites que `FiltrosDuros`
     # de nl2c, porque este es el borde por el que entra todo lo que viene del
@@ -963,6 +987,16 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
                 estado=422,
                 campo="preferencias",
             )
+        if crudo.get("personaje_por_hijo") is not None:
+            try:
+                _VALIDAR_PERSONAJE_POR_HIJO.validate_python(crudo["personaje_por_hijo"])
+            except ValidationError as error:
+                raise ErrorDominio(
+                    "preferencias_invalidas",
+                    "Los personajes por hijo no son validos.",
+                    estado=422,
+                    campo="preferencias.personaje_por_hijo",
+                ) from error
         preferencias = crudo or None
 
     # Cada hijo tiene que traer su archivo, por referencia o por orden. Se exige
