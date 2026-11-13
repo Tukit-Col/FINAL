@@ -107,10 +107,14 @@ export default function SelectorPersonaje({ valor, onChange, etiquetaHijo, surti
           <Sparkles size={16} strokeWidth={2.4} />
         </span>
         <div>
-          <p className={estilos.titulo}>¿Qué le encanta a {etiquetaHijo}?</p>
+          <p className={estilos.titulo}>
+            ¿Qué le encanta a {etiquetaHijo}?
+            <span className={estilos.opcional}>Opcional</span>
+          </p>
           <p className={estilos.subtitulo}>
-            Toca los que le gusten. Estos los tenemos surtidos completos, así que
-            los buscamos con esos personajes sin falta.
+            Sin personaje también está bien: tu kit sale igual. Si quieres, toca los
+            que le gusten; estos los tenemos surtidos completos, así que los buscamos
+            con esos personajes sin falta.
           </p>
         </div>
       </div>
@@ -145,6 +149,16 @@ export default function SelectorPersonaje({ valor, onChange, etiquetaHijo, surti
           })}
         </div>
       )}
+
+      <button
+        type="button"
+        aria-pressed={elegidos.length === 0}
+        className={`${estilos.sinPersonaje} ${elegidos.length === 0 ? estilos.sinPersonajeActivo : ""}`}
+        onClick={() => onChange("")}
+      >
+        {elegidos.length === 0 && <Check size={13} strokeWidth={3.2} aria-hidden="true" />}
+        Sin personaje
+      </button>
 
       {/* Campo libre: es un PEDIDO, no una promesa de stock. Se ve distinto y el
           rótulo lo dice claro. Se guarda en el mismo string. */}
