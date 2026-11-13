@@ -4,6 +4,7 @@
 
 import { urlWeb } from "@tukit/contrato/servidor";
 import type { MotivoAcceso } from "@/lib/logistica";
+import MarcaTukit from "./MarcaTukit";
 import styles from "./AvisoAcceso.module.css";
 
 const TEXTOS: Record<MotivoAcceso, { titulo: string; texto: string; ingresar: boolean }> = {
@@ -40,6 +41,9 @@ export default function AvisoAcceso({ motivo, mensaje }: { motivo: MotivoAcceso;
   // Con el limite de tasa manda el mensaje del gateway: dice cuanto esperar.
   const texto = motivo === "limite" && mensaje ? mensaje : TEXTOS[motivo].texto;
   return (
+    <>
+    {/* Sin sesion no hay cabecera: la marca va aqui. Con sesion ya esta arriba. */}
+    {motivo === "sin_sesion" || motivo === "sesion_expirada" ? <MarcaTukit /> : null}
     <section className={styles.aviso} role={motivo === "servicio_caido" ? "alert" : "status"}>
       <h2 className={styles.titulo}>{titulo}</h2>
       <p className={styles.texto}>{texto}</p>
@@ -49,5 +53,6 @@ export default function AvisoAcceso({ motivo, mensaje }: { motivo: MotivoAcceso;
         </a>
       ) : null}
     </section>
+    </>
   );
 }

@@ -106,31 +106,68 @@ def asunto_de(plantilla: str) -> str:
     return _ASUNTOS.get(plantilla, "Novedad en Tukit")
 
 
-def html_de(plantilla: str, datos: dict[str, object]) -> str | None:
-    """El cuerpo HTML sobrio de las plantillas que lo tienen; `None` si solo texto.
+def _url_logo() -> str | None:
+    """URL absoluta del logo para el correo, o `None` si no hay URL publica.
 
-    Estilos en linea y sin imagenes remotas: los clientes de correo no cargan CSS
-    externo y un pixel de seguimiento no nos corresponde. Todo valor se escapa."""
-    if plantilla != "kits_publicados":
+    Sale de `TUKIT_PUBLIC_URL` (la base publica del sitio; se lee del entorno y
+    no se imprime). Un correo no puede usar rutas relativas ni archivos locales:
+    sin URL, el encabezado cae al texto TUKIT. PNG y no webp: Outlook y varios
+    clientes no muestran webp."""
+    base = (os.environ.get("TUKIT_PUBLIC_URL") or "").strip().rstrip("/")
+    if not base.lower().startswith(("http://", "https://")):
         return None
-    lugar = html.escape(str(datos.get("lugar", "tu lista escolar")))
-    enlace = html.escape(str(datos.get("enlace", "")), quote=True)
+    return f"{base}/marca/icon-192.png"
+
+
+def _encabezado_html() -> str:
+    """Encabezado de marca: logo con alt TUKIT y tamaño fijo, o texto TUKIT."""
+    logo = _url_logo()
+    if logo is None:
+        return '<p style="margin:0 0 16px;font-size:14px;color:#4a5a85;font-weight:bold">TUKIT</p>'
+    return (
+        f'<p style="margin:0 0 16px"><img src="{html.escape(logo, quote=True)}" alt="TUKIT" '
+        'width="48" height="48" style="display:block;border:0;width:48px;height:48px"></p>'
+    )
+
+
+def _envolver_html(titulo: str, cuerpo: str) -> str:
+    """Marco comun de los correos HTML: tablas y estilos en linea, sin CSS externo."""
     return (
         '<!doctype html><html lang="es"><body style="margin:0;background:#f4f6fb;'
         'font-family:Arial,Helvetica,sans-serif;color:#1b2540">'
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" '
         'style="padding:32px 16px"><table role="presentation" width="560" cellpadding="0" cellspacing="0" '
         'style="max-width:560px;background:#ffffff;border-radius:12px;padding:32px">'
-        '<tr><td><p style="margin:0 0 8px;font-size:14px;color:#4a5a85;font-weight:bold">TUKIT</p>'
-        '<h1 style="margin:0 0 16px;font-size:24px;line-height:1.25">Tu kit esta listo</h1>'
-        f'<p style="margin:0 0 24px;font-size:16px;line-height:1.5">Armamos la lista de {lugar}. '
-        "Revisa los productos y elige cuando comprar.</p>"
-        f'<p style="margin:0 0 24px"><a href="{enlace}" style="display:inline-block;background:#1f4fd8;'
-        "color:#ffffff;text-decoration:none;padding:14px 24px;border-radius:8px;font-size:16px;"
-        'font-weight:bold">Ver mi kit</a></p>'
-        f'<p style="margin:0;font-size:13px;color:#4a5a85;line-height:1.5">Si el boton no abre, copia este '
-        f"enlace en tu navegador: {enlace}</p></td></tr></table></td></tr></table></body></html>"
+        f"<tr><td>{_encabezado_html()}"
+        f'<h1 style="margin:0 0 16px;font-size:24px;line-height:1.25">{html.escape(titulo)}</h1>'
+        f"{cuerpo}</td></tr></table></td></tr></table></body></html>"
     )
+
+
+def html_de(plantilla: str, datos: dict[str, object]) -> str | None:
+    """El cuerpo HTML sobrio de cada correo; `None` solo si la plantilla no existe.
+
+    Estilos en linea; la unica imagen es el logo por URL absoluta (ver
+    `_url_logo`), sin pixel de seguimiento. Todo valor se escapa."""
+    if plantilla == "kits_publicados":
+        lugar = html.escape(str(datos.get("lugar", "tu lista escolar")))
+        enlace = html.escape(str(datos.get("enlace", "")), quote=True)
+        return _envolver_html(
+            "Tu kit esta listo",
+            f'<p style="margin:0 0 24px;font-size:16px;line-height:1.5">Armamos la lista de {lugar}. '
+            "Revisa los productos y elige cuando comprar.</p>"
+            f'<p style="margin:0 0 24px"><a href="{enlace}" style="display:inline-block;background:#1f4fd8;'
+            "color:#ffffff;text-decoration:none;padding:14px 24px;border-radius:8px;font-size:16px;"
+            'font-weight:bold">Ver mi kit</a></p>'
+            f'<p style="margin:0;font-size:13px;color:#4a5a85;line-height:1.5">Si el boton no abre, copia este '
+            f"enlace en tu navegador: {enlace}</p>",
+        )
+    if plantilla in _PLANTILLAS:
+        return _envolver_html(
+            asunto_de(plantilla),
+            f'<p style="margin:0;font-size:16px;line-height:1.5">{html.escape(texto_de(plantilla, datos))}</p>',
+        )
+    return None
 
 
 def _buzon() -> Path | None:
