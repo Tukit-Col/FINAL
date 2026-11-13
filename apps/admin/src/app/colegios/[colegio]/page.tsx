@@ -31,6 +31,9 @@ import { imagenesDelDirectorio } from "@/lib/directorio";
 import { COOKIE_SESION } from "@/lib/sesion";
 import { demandaPorGrado } from "@/lib/metricas-colegio";
 import { clientesPorColegio } from "@/lib/clientes";
+import { claveDireccion } from "@/lib/geocodificador";
+import { geocodificadorDelServidor } from "@/lib/geocodificador-servidor";
+import MapaColegioCarga from "@/components/MapaColegioCarga";
 import styles from "../Colegios.module.css";
 
 export const dynamic = "force-dynamic";
@@ -126,6 +129,23 @@ export default async function PaginaColegio({ params }: Props) {
       }
     }
   }
+
+  // El punto del colegio para el mapita: su direccion del directorio, geocodificada
+  // en el servidor con la misma cache que logistica (Nominatim, nunca desde el
+  // navegador). Fail-soft: sin contacto configurado, sin direccion o sin
+  // resultado, la ficha muestra solo la direccion en texto.
+  const direccionColegio = directorio?.direccion
+    ? { direccion: directorio.direccion, ciudad: "Bogotá", departamento: "Bogotá D.C." }
+    : null;
+  const geo = direccionColegio ? geocodificadorDelServidor() : null;
+  const resultadoGeo =
+    direccionColegio && geo
+      ? await geo
+          .resolver([direccionColegio])
+          .then((r) => r.get(claveDireccion(direccionColegio)) ?? null)
+          .catch(() => null)
+      : null;
+  const puntoColegio = resultadoGeo && resultadoGeo !== "pendiente" ? resultadoGeo : null;
 
   // Cuantas familias e hijos hay en cada grado de ESTE colegio, del mismo padron
   // de identidad que usa Clientes (asi los numeros coinciden entre vistas).
@@ -225,7 +245,14 @@ export default async function PaginaColegio({ params }: Props) {
             {directorio.direccion ? (
               <div>
                 <dt>Dirección</dt>
-                <dd>{directorio.direccion}</dd>
+                <dd>
+                  {directorio.direccion}
+                  {puntoColegio && (
+                    <div className={styles.mapaColegio}>
+                      <MapaColegioCarga punto={puntoColegio} nombre={titulo} />
+                    </div>
+                  )}
+                </dd>
               </div>
             ) : null}
             {directorio.telefonos && directorio.telefonos.length > 0 ? (
