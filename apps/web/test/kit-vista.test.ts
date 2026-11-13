@@ -28,6 +28,33 @@ test("la ruta rápida («canonico») muestra el apodo del hijo de la cuenta", ()
   assert.equal(etiquetas.get("canonico"), "Tomasito");
 });
 
+test("el apodo guardado en el trabajo sale aunque las matriculas no carguen (identidad caida)", () => {
+  // Ruta rapida: las lineas dicen "canonico" y el trabajo trae un solo hijo con su
+  // apodo. Sin matriculas (fallo o 429 -> []), el kit igual lo nombra.
+  const etiquetas = etiquetasDeHijos(
+    ["canonico", "canonico"],
+    [{ colegio_id: COLEGIO, grado: "Primero", apodo: "Tomi" }],
+    [],
+  );
+  assert.equal(etiquetas.get("canonico"), "Tomi");
+});
+
+test("dos hermanos en el mismo grado se nombran por su apodo del trabajo, no por matriculas", () => {
+  const etiquetas = etiquetasDeHijos(
+    ["hijo-1", "hijo-2"],
+    [
+      { referencia: "hijo-1", colegio_id: COLEGIO, grado: "Jardin", apodo: "Sofi" },
+      { referencia: "hijo-2", colegio_id: COLEGIO, grado: "Jardin", apodo: "Luca" },
+    ],
+    [
+      { colegio_id: COLEGIO, grado: "Jardin", apodo: "Sofi" },
+      { colegio_id: COLEGIO, grado: "Jardin", apodo: "Luca" },
+    ],
+  );
+  assert.equal(etiquetas.get("hijo-1"), "Sofi");
+  assert.equal(etiquetas.get("hijo-2"), "Luca");
+});
+
 test("un hijo sin apodo, solo en el kit, no lleva pastilla", () => {
   const etiquetas = etiquetasDeHijos(
     ["hijo-0"],
