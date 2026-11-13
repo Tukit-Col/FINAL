@@ -700,6 +700,51 @@ async def _revisar_pagos_en_wompi(request: Request, pedido_id: uuid.UUID) -> str
     return "en_curso" if en_curso else "libre"
 
 
+@router.post(
+    "/v1/comercio/pedidos/{pedido_id}/reconciliar-pago",
+    summary="Pregunta a Wompi por el pago de un pedido atascado y aplica el resultado",
+)
+async def reconciliar_pago(
+    request: Request, pedido_id: uuid.UUID, authorization: Annotated[str | None, Header()] = None
+) -> dict[str, Any]:
+    """Solo staff. Un pago aprobado en Wompi cuyo webhook no llego deja el pedido
+    en `pendiente_pago`. Esto consulta a Wompi y aplica el resultado con el mismo
+    aplicador idempotente del webhook (`_revisar_pagos_en_wompi`): no hay forma de
+    marcar pagado a mano. Si el pedido pasa a `pagado` queda una fila de historial
+    con el actor."""
+    actor = await _exigir_staff(request, authorization)
+    async with request.app.state.motor.sesion() as db:
+        pedido = await _pedido_o_404(_repo(await db.connection()), pedido_id)
+    if pedido.estado != EstadoPedido.PENDIENTE_PAGO.value:
+        raise ErrorDominio(
+            "pedido_no_reconciliable",
+            "Solo se reconcilia un pedido que sigue pendiente de pago.",
+            estado=409,
+        )
+    try:
+        resultado = await _revisar_pagos_en_wompi(request, pedido_id)
+    except PasarelaCaida as error:
+        raise ErrorDominio(
+            "pasarela_no_disponible",
+            "No pudimos consultar a Wompi. Intenta en unos minutos; el pedido no cambio.",
+            estado=502,
+        ) from error
+    async with request.app.state.motor.sesion() as db:
+        repo = _repo(await db.connection())
+        if resultado == "pagado":
+            await repo.registrar_historial(
+                pedido_id=pedido_id,
+                estado_desde=EstadoPedido.PENDIENTE_PAGO.value,
+                estado_hacia=EstadoPedido.PAGADO.value,
+                actor_id=actor.usuario_id,
+                actor_correo=actor.correo,
+                nota="Pago reconciliado con Wompi",
+                tipo_incidencia=None,
+            )
+        actual = await repo.obtener(pedido_id)
+    return {"pedido_id": str(pedido_id), "resultado": resultado, "estado_pedido": actual.estado}
+
+
 async def _cancelar_si_se_puede(request: Request, pedido_id: uuid.UUID) -> str:
     """Cancela un pedido pendiente y libera su reserva, si Wompi lo permite.
 
