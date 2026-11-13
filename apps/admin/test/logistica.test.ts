@@ -186,3 +186,10 @@ test("destinoComunDeLote y resumenDeLote", () => {
   assert.equal(resumenDeLote({ avanzados: [1], fallidos: [] }), "1 avanzado, 0 con problema");
   assert.equal(resumenDeLote({ avanzados: Array(18), fallidos: [1, 2] }), "18 avanzados, 2 con problema");
 });
+
+test("hrefConAlerta conserva los otros filtros", async () => {
+  const { hrefConAlerta } = await import("../src/lib/logistica.ts");
+  const f = leerFiltros({ estado: "pagado", alerta: "pago_atascado" });
+  assert.equal(hrefConAlerta(f, "pagado_sin_avanzar"), "/logistica?estado=pagado&alerta=pagado_sin_avanzar");
+  assert.equal(hrefConAlerta(leerFiltros({}), ""), "/logistica");
+});

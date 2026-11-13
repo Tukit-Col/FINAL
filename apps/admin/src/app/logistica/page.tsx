@@ -11,9 +11,16 @@
 
 import Link from "next/link";
 import { Truck, PackageCheck, CircleDollarSign, TriangleAlert } from "lucide-react";
-import type { Pedido, TableroComercio } from "@tukit/contrato";
-import { ETIQUETA_ESTADO_PEDIDO, formatearPesos, pedidoEnCurso } from "@tukit/contrato";
-import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
+import type { AlertaPedido, Pedido, TableroComercio } from "@tukit/contrato";
+import {
+  ALERTAS_PEDIDO,
+  ETIQUETA_ALERTA_PEDIDO,
+  ETIQUETA_ESTADO_PEDIDO,
+  formatearPesos,
+  pedidoEnCurso,
+} from "@tukit/contrato";
+import { ErrorTukit, origenDeDatos, urlWeb } from "@tukit/contrato/servidor";
+import { BarraLote, CasillaPedido, CasillaTodos, ProveedorLote } from "@/components/AvanceEnLote";
 import AvisoAcceso from "@/components/AvisoAcceso";
 import FiltrosLogistica from "@/components/FiltrosLogistica";
 import Revelar from "@/components/Revelar";
@@ -23,6 +30,7 @@ import {
   claveFiltros,
   filtrarPedidos,
   hayFiltros,
+  hrefConAlerta,
   leerFiltros,
   motivoDeFallo,
   ordenarPorPrioridad,
@@ -149,6 +157,31 @@ export default async function PaginaLogistica({ searchParams }: Props) {
         </div>
       ) : null}
 
+      {pedidos.length > 0 ? (
+        <nav className={styles.chips} aria-label="Pedidos que piden una acción">
+          <Link
+            href={hrefConAlerta(filtros, "")}
+            className={`${styles.chip} ${filtros.alerta === "" ? styles.chipActivo : ""}`}
+            aria-current={filtros.alerta === "" ? "true" : undefined}
+          >
+            Todos
+          </Link>
+          {ALERTAS_PEDIDO.map((alerta: AlertaPedido) => {
+            const cantidad = resumen.alertas?.[alerta] ?? pedidos.filter((p) => p.alertas?.includes(alerta)).length;
+            return (
+              <Link
+                key={alerta}
+                href={hrefConAlerta(filtros, alerta)}
+                className={`${styles.chip} ${filtros.alerta === alerta ? styles.chipActivo : ""} ${cantidad > 0 ? styles.chipHay : ""}`}
+                aria-current={filtros.alerta === alerta ? "true" : undefined}
+              >
+                {ETIQUETA_ALERTA_PEDIDO[alerta]} <span className="cifra">{cantidad}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      ) : null}
+
       {pedidos.length > 0 && hayFiltros(filtros) ? (
         <p className={styles.conteo} aria-live="polite">
           Mostrando {ordenados.length} de {pedidos.length} pedidos.
@@ -169,10 +202,14 @@ export default async function PaginaLogistica({ searchParams }: Props) {
           </p>
         </div>
       ) : (
+        <ProveedorLote visibles={ordenados.map((p) => ({ pedido_id: p.pedido_id, estado: p.estado }))}>
         <div className={styles.marco}>
           <table className={styles.tabla}>
             <thead>
               <tr>
+                <th scope="col" className={styles.colCasilla}>
+                  <CasillaTodos />
+                </th>
                 <th scope="col">Pedido</th>
                 <th scope="col">Estado</th>
                 <th scope="col">Acudiente</th>
@@ -194,6 +231,8 @@ export default async function PaginaLogistica({ searchParams }: Props) {
             </tbody>
           </table>
         </div>
+        <BarraLote urlIngresar={`${urlWeb()}/ingresar`} />
+        </ProveedorLote>
       )}
     </div>
   );
@@ -204,6 +243,9 @@ function FilaPedido({ pedido, etiquetas }: { pedido: Pedido; etiquetas: Etiqueta
   const correo = etiquetas.correos.get(pedido.usuario_id);
   return (
     <tr className={enCurso ? styles.filaCurso : pedido.estado === "incidencia" ? styles.filaIncidencia : ""}>
+      <td className={styles.colCasilla}>
+        <CasillaPedido pedidoId={pedido.pedido_id} />
+      </td>
       <th scope="row" className={styles.identificador}>
         <Link href={`/logistica/${pedido.pedido_id}`} className={styles.enlacePedido}>
           <code>{pedido.pedido_id}</code>
@@ -218,6 +260,11 @@ function FilaPedido({ pedido, etiquetas }: { pedido: Pedido; etiquetas: Etiqueta
         <span className={`${styles.estado} ${styles[`estado_${pedido.estado}`]}`}>
           {ETIQUETA_ESTADO_PEDIDO[pedido.estado]}
         </span>
+        {(pedido.alertas ?? []).map((alerta) => (
+          <span key={alerta} className={styles.marcaAlerta}>
+            {ETIQUETA_ALERTA_PEDIDO[alerta]}
+          </span>
+        ))}
       </td>
       <td className={styles.correo}>{correo ?? <span className={styles.tenue}>—</span>}</td>
       <td className={styles.fechaExacta}>{formatearFecha(pedido.creado_en)}</td>
