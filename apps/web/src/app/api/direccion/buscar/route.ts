@@ -5,7 +5,8 @@
 // un User-Agent con contacto, una petición por segundo en total y caché, y eso
 // solo se cumple de forma global desde el servidor. El contacto sale de
 // `TUKIT_NOMINATIM_CONTACTO`; sin él no se consulta (503) y el checkout sigue con
-// texto libre. La búsqueda es explícita (botón o Enter), nunca por tecla.
+// texto libre. La búsqueda sale con el botón, con Enter o tras una pausa larga al
+// escribir; el límite de 1 req/s y la caché valen igual para todas.
 
 import { BuscadorOsm, ErrorBusqueda } from "@/lib/direccion-osm";
 
@@ -26,13 +27,17 @@ function error(estado: number, codigo: string, mensaje: string): Response {
 }
 
 export async function GET(peticion: Request): Promise<Response> {
-  const consulta = new URL(peticion.url).searchParams.get("q") ?? "";
+  const parametros = new URL(peticion.url).searchParams;
+  const consulta = parametros.get("q") ?? "";
+  // `bogota=1`: la ciudad del checkout está bloqueada a Bogotá y la búsqueda
+  // no debe ofrecer nada fuera de ella.
+  const soloBogota = parametros.get("bogota") === "1";
   const osm = buscadorDelServidor();
   if (!osm) {
     return error(503, "buscador_no_configurado", "La búsqueda de direcciones no está disponible.");
   }
   try {
-    const candidatos = await osm.buscar(consulta);
+    const candidatos = await osm.buscar(consulta, { soloBogota });
     return Response.json({ candidatos }, { headers: { "Cache-Control": "private, max-age=300" } });
   } catch (causa) {
     if (causa instanceof ErrorBusqueda) return error(causa.estado, causa.codigo, causa.message);

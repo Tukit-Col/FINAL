@@ -87,3 +87,33 @@ export function escribirDireccionAMano<
   // Solo se tocan las coordenadas si el formulario las lleva (el de Google no).
   return "latitud" in datos ? { ...suelto, latitud: null, longitud: null } : suelto;
 }
+
+// La ciudad bloqueada a Bogotá. Al elegir una dirección que OSM/Google ubican en
+// Bogotá, la ciudad queda fija: la búsqueda solo ofrece Bogotá y reescribir el
+// campo de ciudad NO la suelta (era lo que reactivaba la lista de localidades y
+// la búsqueda abierta). Salir de Bogotá es una decisión explícita
+// (`desbloquearCiudad`), no un efecto de teclear.
+export interface DatosConCiudad {
+  ciudad: string;
+  ciudadBloqueada?: boolean;
+}
+
+/** Escribir en el campo de ciudad: con la ciudad bloqueada se ignora. */
+export function escribirCiudad<D extends DatosConCiudad>(datos: D, ciudad: string): D {
+  return datos.ciudadBloqueada ? datos : { ...datos, ciudad };
+}
+
+/** La ciudad que deja una dirección elegida y si queda bloqueada. */
+export function ciudadTrasElegir<D extends DatosConCiudad>(
+  datos: D,
+  ciudadDelLugar: string,
+  esBogota: (ciudad: string) => boolean,
+): D {
+  const ciudad = ciudadDelLugar || datos.ciudad;
+  return { ...datos, ciudad, ciudadBloqueada: esBogota(ciudad) };
+}
+
+/** El acudiente dice "no es en Bogotá": la ciudad vuelve a ser editable. */
+export function desbloquearCiudad<D extends DatosConCiudad>(datos: D): D {
+  return { ...datos, ciudadBloqueada: false };
+}

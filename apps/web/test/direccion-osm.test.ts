@@ -181,3 +181,41 @@ test("con la cola llena responde 429 en vez de acumular esperas", async () => {
   assert.equal(rechazadas.length, 1);
   assert.equal(((rechazadas[0] as PromiseRejectedResult).reason as ErrorBusqueda).estado, 429);
 });
+
+// ---- Dedupe, orden y restricción a Bogotá ----
+
+function via(id: number, lat: string, lon: string, extra: Record<string, string> = {}) {
+  return {
+    osm_type: "way",
+    osm_id: id,
+    lat,
+    lon,
+    category: "highway",
+    name: "Carrera 91",
+    address: { road: "Carrera 91", suburb: "Localidad Fontibón", city: "Bogotá", ...extra },
+  };
+}
+
+test("la misma calle del mismo barrio sale una sola vez aunque OSM la parta en tramos", async () => {
+  const { leerCandidatos } = await import("../src/lib/direccion-osm.ts");
+  const crudos = [1, 2, 3, 4, 5].map((i) => via(i, `4.67${i}`, `-74.12${i}`));
+  const salida = leerCandidatos(crudos);
+  assert.equal(salida.length, 1);
+  assert.match(salida[0]!.secundario, /Fontibón/);
+});
+
+test("con número de casa la dirección es distinta y va primero", async () => {
+  const { leerCandidatos } = await import("../src/lib/direccion-osm.ts");
+  const salida = leerCandidatos([via(1, "4.671", "-74.121"), via(2, "4.672", "-74.122", { house_number: "19A-29" })]);
+  assert.equal(salida.length, 2);
+  assert.equal(salida[0]!.direccion, "Carrera 91 # 19A-29");
+});
+
+test("con soloBogota se piden límites duros y se descarta lo de fuera de la caja", async () => {
+  const { leerCandidatos, parametrosDeBusqueda } = await import("../src/lib/direccion-osm.ts");
+  assert.equal(parametrosDeBusqueda("calle 72").get("bounded"), null);
+  assert.equal(parametrosDeBusqueda("calle 72", { soloBogota: true }).get("bounded"), "1");
+  const medellin = { ...via(9, "6.2442", "-75.5812"), address: { road: "Carrera 91", city: "Medellín" } };
+  assert.equal(leerCandidatos([medellin], { soloBogota: true }).length, 0);
+  assert.equal(leerCandidatos([medellin]).length, 1);
+});

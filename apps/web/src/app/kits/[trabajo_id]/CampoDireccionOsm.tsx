@@ -5,10 +5,11 @@
 // el punto en un mapa moviendo el pin. Sin resultados, o si el servicio falla,
 // el campo sigue siendo texto libre: el mapa jamás bloquea el pago.
 //
-// La búsqueda es EXPLÍCITA (botón Buscar o Enter), nunca por tecla: la política
-// del Nominatim público prohíbe el autocompletado (ver `lib/direccion-osm.ts`).
-// Por eso tampoco hay espera entre teclas ni turnos; solo se cancela la búsqueda
-// anterior si el acudiente lanza otra o edita el texto.
+// La búsqueda sale con el botón Buscar, con Enter o tras una pausa larga al
+// escribir (nunca por tecla: la política del Nominatim público no admite el
+// autocompletado, ver `lib/direccion-osm.ts`). Se cancela la anterior si el
+// acudiente lanza otra o edita el texto. Con la ciudad bloqueada a Bogotá, la
+// consulta lleva `bogota=1` y el servidor la limita a Bogotá.
 //
 // Combobox ARIA como el de Google y el buscador de colegio de `/empezar`: el foco
 // se queda en el campo, las flechas mueven la opción activa
@@ -39,9 +40,16 @@ interface Props {
   onElegir: (lugar: LugarElegido) => void;
   // El acudiente movió el pin; el texto de la dirección no cambia.
   onMoverPin: (latitud: number, longitud: number) => void;
+  // La ciudad está bloqueada a Bogotá: la búsqueda no ofrece nada fuera de ella.
+  soloBogota?: boolean;
 }
 
-export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir, onElegir, onMoverPin }: Props) {
+// Pausa al escribir antes de buscar sola. Larga a propósito: Nominatim no admite
+// autocompletado por tecla, y el servidor ya limita a 1 petición por segundo.
+const PAUSA_BUSQUEDA_MS = 1200;
+const MINIMO_AUTOMATICA = 8;
+
+export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir, onElegir, onMoverPin, soloBogota = false }: Props) {
   const idBase = useId();
   const idLista = `${idBase}-lista`;
   const idEstado = `${idBase}-estado`;
@@ -56,15 +64,20 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
   const confirmada = latitud !== null && longitud !== null;
   const puedeBuscar = valor.trim().length >= MINIMO_CARACTERES && estado.tipo !== "buscando";
 
-  async function buscar() {
-    if (!puedeBuscar) return;
+  const pausa = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (pausa.current) clearTimeout(pausa.current);
+  }, []);
+
+  async function buscar(texto: string = valor) {
+    if (texto.trim().length < MINIMO_CARACTERES) return;
     control.current?.abort();
     const actual = new AbortController();
     control.current = actual;
     setEstado({ tipo: "buscando" });
     setCandidatos([]);
     try {
-      const respuesta = await fetch(`/api/direccion/buscar?q=${encodeURIComponent(valor.trim())}`, {
+      const respuesta = await fetch(`/api/direccion/buscar?q=${encodeURIComponent(texto.trim())}${soloBogota ? "&bogota=1" : ""}`, {
         signal: actual.signal,
       });
       const cuerpo = (await respuesta.json().catch(() => null)) as {
@@ -108,10 +121,16 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
   function escribir(texto: string) {
     // Editar descarta la búsqueda en curso y la lista: ya no corresponden.
     control.current?.abort();
+    if (pausa.current) clearTimeout(pausa.current);
     onEscribir(texto);
     setCandidatos([]);
     setAbierta(false);
     setEstado({ tipo: "reposo" });
+    // Búsqueda por pausa: solo si hay una dirección con cuerpo y todavía no se
+    // confirmó un punto. Las teclas intermedias no consultan nada.
+    if (texto.trim().length >= MINIMO_AUTOMATICA && !confirmada) {
+      pausa.current = setTimeout(() => void buscar(texto), PAUSA_BUSQUEDA_MS);
+    }
   }
 
   const visible = abierta && candidatos.length > 0;
@@ -147,7 +166,7 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
       : estado.tipo === "resultados"
         ? `${estado.cantidad} ${estado.cantidad === 1 ? "resultado" : "resultados"}. Elige el tuyo con las flechas o toca uno.`
         : estado.tipo === "vacio"
-          ? "No encontramos esa dirección. Revisa el texto o déjala escrita como está y sigue."
+          ? `No encontramos esa dirección${soloBogota ? " en Bogotá" : ""}. Revisa el texto o déjala escrita como está y sigue.`
           : estado.tipo === "fallo"
             ? `${estado.mensaje} Puedes dejar la dirección escrita y seguir con el pago.`
             : confirmada

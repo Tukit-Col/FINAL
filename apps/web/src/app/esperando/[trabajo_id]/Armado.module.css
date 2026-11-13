@@ -1,0 +1,292 @@
+/* Pantalla de progreso y de correo al armar el kit. Tokens de TUKIT. */
+
+.escena,
+.confirmacion {
+  display: grid;
+  gap: var(--espacio-5);
+  align-items: center;
+  margin-top: var(--espacio-4);
+}
+
+@media (min-width: 700px) {
+  .escena,
+  .confirmacion {
+    grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+    gap: var(--espacio-6);
+  }
+}
+
+.imagen,
+.imagenCorreo {
+  justify-self: center;
+  width: min(70%, 260px);
+}
+
+.imagenCorreo {
+  width: min(80%, 300px);
+}
+
+.foto {
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--clay-shadow);
+}
+
+.imagen .foto {
+  animation: flota 3.2s var(--ease-suave) infinite;
+}
+
+@keyframes flota {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(1deg);
+  }
+}
+
+.estado {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 var(--espacio-3);
+}
+
+.estado strong {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 4vw, 28px);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.numero {
+  font-family: var(--font-cifras);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.pasos {
+  list-style: none;
+  display: grid;
+  gap: var(--espacio-2);
+  margin: 0;
+  padding: 0;
+}
+
+.paso {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espacio-3);
+  min-height: 44px;
+  padding: var(--espacio-2) var(--espacio-3);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-secondary);
+  transition: background var(--dur-medio) var(--ease-suave), transform var(--dur-medio) var(--ease-suave);
+}
+
+.texto {
+  display: grid;
+  gap: 2px;
+  padding-top: 4px;
+}
+
+.texto strong {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.texto span {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.punto {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--color-white);
+  color: var(--color-text-secondary);
+  font-family: var(--font-cifras);
+  font-weight: 700;
+  font-size: 14px;
+  box-shadow: var(--clay-shadow-inset);
+}
+
+.actual {
+  background: var(--clay-cielo-bg);
+  color: var(--color-text-primary);
+  box-shadow: var(--clay-shadow-sm);
+  transform: scale(1.015);
+}
+
+.actual .punto {
+  background: var(--color-primary);
+  color: var(--color-white);
+  animation: pulso 1.5s var(--ease-suave) infinite;
+}
+
+.actual .texto strong {
+  font-size: 17px;
+}
+
+.hecho {
+  color: var(--color-text-primary);
+}
+
+.hecho .punto {
+  background: var(--color-success);
+  color: var(--color-white);
+}
+
+.futuro {
+  opacity: 0.8;
+}
+
+@keyframes pulso {
+  0% {
+    box-shadow: 0 0 0 0 rgba(30, 64, 175, 0.35);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(30, 64, 175, 0);
+  }
+}
+
+.barra {
+  height: 8px;
+  margin-top: var(--espacio-4);
+  border-radius: var(--radius-full);
+  background: var(--clay-cielo-claro);
+  overflow: hidden;
+}
+
+.relleno {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+  transition: width var(--dur-lento, 600ms) var(--ease-suave);
+}
+
+.saltar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  min-height: 44px;
+  margin-top: var(--espacio-3);
+  padding: 0 var(--espacio-4);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-white);
+  color: var(--color-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.saltar:focus-visible,
+.boton:focus-visible {
+  outline: 3px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+.oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ Correo */
+
+.cuerpoCorreo {
+  display: grid;
+  gap: var(--espacio-3);
+  justify-items: start;
+}
+
+.cuerpoCorreo h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(26px, 4.5vw, 34px);
+  font-weight: 800;
+}
+
+.sello {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: var(--color-success);
+  color: var(--color-white);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.correoLinea {
+  margin: 0;
+  font-size: 17px;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.siguientes {
+  list-style: none;
+  display: grid;
+  gap: var(--espacio-2);
+  margin: 0;
+  padding: 0;
+}
+
+.siguientes li {
+  display: flex;
+  gap: var(--espacio-3);
+  align-items: flex-start;
+  font-size: 15px;
+  color: var(--color-text-secondary);
+}
+
+.siguientes svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--color-primary);
+}
+
+.boton {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--espacio-5);
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-white);
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: var(--clay-shadow);
+}
+
+.boton:hover {
+  background: var(--color-primary-dark);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .imagen .foto,
+  .actual .punto {
+    animation: none;
+  }
+  .paso,
+  .relleno {
+    transition: none;
+  }
+  .actual {
+    transform: none;
+  }
+}

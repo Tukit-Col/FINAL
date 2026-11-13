@@ -1,34 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { ETAPAS, type Etapa, type NombreEtapa, type Trabajo } from "@tukit/contrato";
+import { type Trabajo } from "@tukit/contrato";
 import { FalloApi, sondear } from "@/lib/api-navegador";
+import ConfirmacionCorreo from "./ConfirmacionCorreo";
+import ProgresoArmado from "./ProgresoArmado";
 import styles from "./Espera.module.css";
-
-// Que hace cada etapa, dicho como se lo diria una persona a otra. Los nombres
-// tecnicos del contrato no le dicen nada a un papa, pero el ORDEN si le dice
-// algo: sirve para saber cuanto falta.
-const EXPLICACION: Record<NombreEtapa, { titulo: string; detalle: string }> = {
-  percepcion: {
-    titulo: "Leyendo la lista",
-    detalle: "Sacando renglón por renglón lo que pide el colegio.",
-  },
-  normalizacion: {
-    titulo: "Entendiendo qué es cada cosa",
-    detalle: "Un esfero y un bolígrafo son lo mismo; un cuaderno de 100 hojas no es cualquiera.",
-  },
-  resolucion: {
-    titulo: "Buscando cada producto",
-    detalle: "Es la parte lenta, y es a propósito: preferimos acertar a ir rápido.",
-  },
-  optimizacion: {
-    titulo: "Armando los tres kits",
-    detalle: "Juntando lo repetido entre hermanos y comparando precio entre tiendas.",
-  },
-};
 
 const ESTADO_TITULO: Record<Trabajo["estado"], string> = {
   encolado: "Tu solicitud está en la fila",
@@ -42,9 +22,11 @@ const ESTADO_TITULO: Record<Trabajo["estado"], string> = {
 export default function PantallaEspera({
   trabajoId,
   conSesion,
+  correo,
 }: {
   trabajoId: string;
   conSesion: boolean;
+  correo: string | null;
 }) {
   const router = useRouter();
   const [trabajo, setTrabajo] = useState<Trabajo | null>(null);
@@ -64,14 +46,33 @@ export default function PantallaEspera({
     return () => clearInterval(reloj);
   }, []);
 
-  useEffect(() => {
-    // Publicado se sale de esta pantalla solo. Se espera un momento para que
-    // la ultima etapa alcance a verse marcada: pasar de golpe deja la
-    // sensacion de que algo se salto.
-    if (trabajo?.estado !== "publicado") return;
-    const salto = setTimeout(() => router.replace(`/kits/${trabajoId}`), 900);
-    return () => clearTimeout(salto);
-  }, [trabajo?.estado, router, trabajoId]);
+  // El recorrido de pasos se muestra una vez por solicitud: quien vuelve a esta
+  // pagina no repite la cortesia. `null` = todavia no se leyo (evita un parpadeo
+  // distinto entre servidor y navegador).
+  const llaveVisto = `tukit-espera-vista-${trabajoId}`;
+  const yaVisto = useSyncExternalStore(
+    () => () => undefined,
+    () => {
+      try {
+        return sessionStorage.getItem(llaveVisto) === "1";
+      } catch {
+        return false;
+      }
+    },
+    () => null,
+  );
+  const [recorrido, setRecorrido] = useState(false);
+  const estadoActual = trabajo?.estado;
+  const alCompletar = useCallback(() => {
+    try {
+      sessionStorage.setItem(llaveVisto, "1");
+    } catch {
+      /* sin almacenamiento, el recorrido se repite y ya */
+    }
+    // Publicado se sale de esta pantalla solo, con todos los pasos ya vistos.
+    if (estadoActual === "publicado") router.replace(`/kits/${trabajoId}`);
+    else setRecorrido(true);
+  }, [estadoActual, llaveVisto, router, trabajoId]);
 
   // 401: el kit es de una cuenta con clave y no hay sesion (o caduco). El sondeo
   // ya paro; se manda a ingresar con /kits como destino de regreso, el mismo que
@@ -126,35 +127,16 @@ export default function PantallaEspera({
     </>
   );
 
-  if (enRevision) {
+  if (enRevision && recorrido) {
     // La revision humana puede tardar horas: no tiene sentido tener al
-    // acudiente mirando una ruedita y un reloj. Se le confirma que la
-    // solicitud llego y que le escribimos al terminar (el repartidor de
-    // Operacion manda el correo al publicarse el kit).
+    // acudiente mirando una ruedita y un reloj. Se le dice a que correo
+    // escribimos (el repartidor de Operacion manda el correo al publicarse el
+    // kit) y que no tiene que quedarse aqui.
     return (
       <div className={styles.pagina}>
         <div className={styles.tarjeta}>
           {chapa}
-          <span className={`${styles.marca} ${styles.marcaGrande}`} aria-hidden="true">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.4">
-              <path d="M3.5 8.5l3 3 6-7" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
-          <h1>Recibimos tu solicitud</h1>
-          <p className={styles.honestidad}>
-            Ya armamos tus kits y les estamos dando una última revisión para que
-            todo salga bien. Te escribimos al correo apenas estén listos; no
-            tienes que quedarte en esta página.
-          </p>
-          {conSesion ? (
-            <p className={styles.honestidad}>
-              Mientras tanto, la encuentras en <strong>Mis solicitudes</strong>.
-            </p>
-          ) : null}
-          {avisoLimite}
-          <Link href={conSesion ? "/dashboard#solicitudes" : "/"} className={styles.boton}>
-            {conSesion ? "Ir a Mis solicitudes" : "Volver al inicio"}
-          </Link>
+          <ConfirmacionCorreo correo={correo} conSesion={conSesion} extra={avisoLimite} />
         </div>
       </div>
     );
@@ -167,23 +149,17 @@ export default function PantallaEspera({
         <h1>{ESTADO_TITULO[estado]}</h1>
 
         <p className={styles.honestidad}>
-          Recibimos tu solicitud. Puedes cerrar esta pestaña: te escribimos al
-          correo cuando tus kits estén listos.
+          Puedes cerrar esta pestaña: te escribimos al correo cuando tus kits estén listos.
         </p>
 
-        <ol className={styles.etapas}>
-          {ETAPAS.map((nombre) => {
-            const etapa = etapas.find((e) => e.nombre === nombre);
-            return <FilaEtapa key={nombre} nombre={nombre} etapa={etapa} />;
-          })}
-          <li className={`${styles.etapa} ${estado === "publicado" ? styles.ok : ""}`}>
-            <Marca estado={estado === "publicado" ? "ok" : "pendiente"} />
-            <div>
-              <strong>Última revisión</strong>
-              <span>Le damos una mirada final antes de mostrártelo.</span>
-            </div>
-          </li>
-        </ol>
+        {yaVisto !== null && (
+          <ProgresoArmado
+            etapas={etapas}
+            terminado={estado === "publicado" || enRevision}
+            yaVisto={yaVisto}
+            onCompleto={alCompletar}
+          />
+        )}
 
         {trabajo?.degradaciones && trabajo.degradaciones.length > 0 && (
           <div className={styles.degradaciones}>
@@ -218,48 +194,6 @@ export default function PantallaEspera({
       </div>
     </div>
   );
-}
-
-function FilaEtapa({ nombre, etapa }: { nombre: NombreEtapa; etapa: Etapa | undefined }) {
-  const estado = etapa?.estado ?? "pendiente";
-  const texto = EXPLICACION[nombre];
-  return (
-    <li
-      className={`${styles.etapa} ${
-        estado === "ok" ? styles.ok : estado === "en_curso" ? styles.enCurso : ""
-      } ${estado === "fallida" ? styles.fallida : ""}`}
-    >
-      <Marca estado={estado} />
-      <div>
-        <strong>{texto.titulo}</strong>
-        <span>{texto.detalle}</span>
-        {estado === "incompleta" && (
-          <em className={styles.incompleta}>
-            Quedó a medias y va a revisión. No recortamos nada en silencio.
-          </em>
-        )}
-      </div>
-      {etapa && estado === "ok" && (
-        <span className={`${styles.ms} cifra`}>{(etapa.ms / 1000).toFixed(1)} s</span>
-      )}
-    </li>
-  );
-}
-
-function Marca({ estado }: { estado: Etapa["estado"] }) {
-  if (estado === "ok") {
-    return (
-      <span className={styles.marca} aria-hidden="true">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.4">
-          <path d="M3.5 8.5l3 3 6-7" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </span>
-    );
-  }
-  if (estado === "en_curso") {
-    return <span className={`${styles.marca} ${styles.girando}`} aria-hidden="true" />;
-  }
-  return <span className={styles.marca} aria-hidden="true" />;
 }
 
 function formatearReloj(segundos: number): string {

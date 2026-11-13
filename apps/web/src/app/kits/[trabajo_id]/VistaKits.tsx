@@ -40,7 +40,12 @@ import {
   type Trabajo,
 } from "@tukit/contrato";
 import { FalloApi, iniciarCheckout } from "@/lib/api-navegador";
-import { escribirDireccionAMano } from "@/lib/direccion-checkout";
+import {
+  ciudadTrasElegir,
+  desbloquearCiudad,
+  escribirCiudad,
+  escribirDireccionAMano,
+} from "@/lib/direccion-checkout";
 import type { EntregaPrevia } from "@/lib/pagar-pedido";
 import {
   agruparPorCategoria,
@@ -329,6 +334,8 @@ function Checkout({
     departamento: "",
     // Solo si la direccion salio de una sugerencia de Google y no se edito.
     google_place_id: "",
+    // La ciudad quedo fija en Bogota al elegir una direccion de alla.
+    ciudadBloqueada: false,
     // El pin confirmado en el mapa de OpenStreetMap (sin llave de Google).
     latitud: null as number | null,
     longitud: null as number | null,
@@ -353,7 +360,7 @@ function Checkout({
   }, [abierto]);
 
   const cambiar =
-    (campo: keyof typeof datos) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    (campo: Exclude<keyof typeof datos, "ciudadBloqueada" | "latitud" | "longitud">) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setDatos((d) => ({ ...d, [campo]: e.target.value }));
 
   // La localidad solo aplica en Bogota: fuera de ella el campo se apaga y no
@@ -370,16 +377,21 @@ function Checkout({
   // escrito; la localidad siempre se reemplaza (la anterior era de otra
   // direccion) y, si no se pudo derivar, queda vacia para elegirla.
   const elegirLugar = (lugar: LugarElegido) =>
-    setDatos((d) => ({
-      ...d,
-      direccion: lugar.direccion,
-      google_place_id: lugar.google_place_id ?? "",
-      latitud: lugar.latitud ?? null,
-      longitud: lugar.longitud ?? null,
-      ciudad: lugar.ciudad || d.ciudad,
-      localidad: lugar.localidad,
-      departamento: lugar.departamento || d.departamento,
-    }));
+    setDatos((d) =>
+      ciudadTrasElegir(
+        {
+          ...d,
+          direccion: lugar.direccion,
+          google_place_id: lugar.google_place_id ?? "",
+          latitud: lugar.latitud ?? null,
+          longitud: lugar.longitud ?? null,
+          localidad: lugar.localidad,
+          departamento: lugar.departamento || d.departamento,
+        },
+        lugar.ciudad,
+        esBogota,
+      ),
+    );
 
   // Mover el pin confirma otro punto sin tocar el texto ni la localidad.
   const moverPin = (latitud: number, longitud: number) =>
@@ -501,6 +513,7 @@ function Checkout({
               onEscribir={escribirDireccion}
               onElegir={elegirLugar}
               onMoverPin={moverPin}
+              soloBogota={datos.ciudadBloqueada}
             />
           )}
           <label>
@@ -517,8 +530,10 @@ function Checkout({
               Ciudad
               <input
                 value={datos.ciudad}
-                onChange={cambiar("ciudad")}
+                onChange={(e) => setDatos((d) => escribirCiudad(d, e.target.value))}
                 required
+                readOnly={datos.ciudadBloqueada}
+                aria-describedby={datos.ciudadBloqueada ? "ciudad-fija" : undefined}
                 autoComplete="address-level2"
               />
             </label>
@@ -539,6 +554,18 @@ function Checkout({
               </select>
             </label>
           </div>
+          {datos.ciudadBloqueada && (
+            <p id="ciudad-fija" className={styles.ciudadFija}>
+              La ciudad quedó fijada por tu dirección y la búsqueda se limita a Bogotá.{" "}
+              <button
+                type="button"
+                className={styles.enlaceSimple}
+                onClick={() => setDatos((d) => desbloquearCiudad(d))}
+              >
+                No es en Bogotá
+              </button>
+            </p>
+          )}
           <label>
             Departamento (opcional)
             <input
