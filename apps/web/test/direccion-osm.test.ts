@@ -119,17 +119,18 @@ test("la consulta sesga a Bogotá, pide Colombia y manda el contacto", async () 
   const { buscador, llamadas } = armar(() => [CHAPINERO]);
   const r = await buscador.buscar("Cra 7 # 72-41");
   assert.equal(r.length, 1);
-  const { url, ua } = llamadas[0]!;
+  // Primero intenta el cruce (sin trazados no lo hay); la libre es la última.
+  const { url, ua } = llamadas[llamadas.length - 1]!;
   assert.equal(url.searchParams.get("countrycodes"), "co");
   assert.equal(url.searchParams.get("viewbox"), "-74.35,4.95,-73.90,4.40");
-  assert.equal(url.searchParams.get("bounded"), null);
+  assert.equal(url.searchParams.get("bounded"), "1");
   assert.equal(url.searchParams.get("q"), "Carrera 7 72-41");
   assert.match(ua ?? "", /ops@tukit\.co/);
 });
 
 test("nunca más de una petición por segundo, aunque lleguen juntas", async () => {
   const { buscador, llamadas } = armar(() => []);
-  await Promise.all([buscador.buscar("Calle 1 2-3"), buscador.buscar("Calle 4 5-6"), buscador.buscar("Calle 7 8-9")]);
+  await Promise.all([buscador.buscar("Colegio Uno"), buscador.buscar("Colegio Cuatro"), buscador.buscar("Colegio Siete")]);
   assert.equal(llamadas.length, 3);
   for (let i = 1; i < llamadas.length; i++) {
     assert.ok(llamadas[i]!.t - llamadas[i - 1]!.t >= 1000, "intervalo menor a 1 s");
@@ -138,35 +139,35 @@ test("nunca más de una petición por segundo, aunque lleguen juntas", async () 
 
 test("la misma búsqueda sale una sola vez a la red, también la vacía", async () => {
   const { buscador, llamadas } = armar(() => []);
-  await buscador.buscar("Calle 1 2-3");
-  await buscador.buscar("  calle 1  2-3 ");
+  await buscador.buscar("Colegio Uno");
+  await buscador.buscar("  colegio  uno ");
   assert.equal(llamadas.length, 1);
 });
 
 test("dos visitantes con la misma búsqueda a la vez comparten una petición", async () => {
   const { buscador, llamadas } = armar(() => [CHAPINERO]);
-  await Promise.all([buscador.buscar("Calle 72 10-34"), buscador.buscar("Calle 72 10-34")]);
+  await Promise.all([buscador.buscar("Colegio Setenta"), buscador.buscar("Colegio Setenta")]);
   assert.equal(llamadas.length, 1);
 });
 
 test("la caché vence y la búsqueda vuelve a salir", async () => {
   const { buscador, llamadas, avanzar } = armar(() => [CHAPINERO]);
-  await buscador.buscar("Calle 72 10-34");
+  await buscador.buscar("Colegio Setenta");
   avanzar(11 * 60_000);
-  await buscador.buscar("Calle 72 10-34");
+  await buscador.buscar("Colegio Setenta");
   assert.equal(llamadas.length, 2);
 });
 
 test("un fallo de OSM es un error controlado y no se cachea", async () => {
   let falla = true;
   const { buscador, llamadas } = armar(() => (falla ? new Error("sin red") : [CHAPINERO]));
-  await assert.rejects(buscador.buscar("Calle 72 10-34"), (e: unknown) => {
+  await assert.rejects(buscador.buscar("Colegio Setenta"), (e: unknown) => {
     assert.ok(e instanceof ErrorBusqueda);
     assert.equal(e.estado, 502);
     return true;
   });
   falla = false;
-  assert.equal((await buscador.buscar("Calle 72 10-34")).length, 1);
+  assert.equal((await buscador.buscar("Colegio Setenta")).length, 1);
   assert.equal(llamadas.length, 2);
 });
 
@@ -178,7 +179,7 @@ test("una consulta muy corta no llega a OSM", async () => {
 
 test("con la cola llena responde 429 en vez de acumular esperas", async () => {
   const { buscador } = armar(() => []);
-  const busquedas = ["Calle 1 2-3", "Calle 4 5-6", "Calle 7 8-9", "Calle 9 9-9"].map((q) => buscador.buscar(q));
+  const busquedas = ["Colegio Uno", "Colegio Cuatro", "Colegio Siete", "Colegio Nueve"].map((q) => buscador.buscar(q));
   const resultados = await Promise.allSettled(busquedas);
   const rechazadas = resultados.filter((r) => r.status === "rejected");
   assert.equal(rechazadas.length, 1);
@@ -214,13 +215,72 @@ test("con número de casa la dirección es distinta y va primero", async () => {
   assert.equal(salida[0]!.direccion, "Carrera 91 #19A-29");
 });
 
-test("con soloBogota se piden límites duros y se descarta lo de fuera de la caja", async () => {
+test("la entrega es solo en Bogotá: límites duros y se descarta lo de fuera", async () => {
   const { leerCandidatos, parametrosDeBusqueda } = await import("../src/lib/direccion-osm.ts");
-  assert.equal(parametrosDeBusqueda("calle 72").get("bounded"), null);
-  assert.equal(parametrosDeBusqueda("calle 72", { soloBogota: true }).get("bounded"), "1");
+  assert.equal(parametrosDeBusqueda("calle 72").get("bounded"), "1");
   const medellin = { ...via(9, "6.2442", "-75.5812"), address: { road: "Carrera 91", city: "Medellín" } };
-  assert.equal(leerCandidatos([medellin], { soloBogota: true }).length, 0);
-  assert.equal(leerCandidatos([medellin]).length, 1);
+  assert.equal(leerCandidatos([medellin]).length, 0);
+  // Soacha cae dentro de la caja pero no es Bogotá.
+  const soacha = { ...via(8, "4.58", "-74.21"), address: { road: "Carrera 91", city: "Soacha" } };
+  assert.equal(leerCandidatos([soacha]).length, 0);
+});
+
+// ---- Cruce de dos vías ----
+
+const linea = (...p: [number, number][]) => ({ type: "LineString", coordinates: p });
+const tramo = (id: number, road: string, geojson: unknown, extra: Record<string, string> = {}) => ({
+  osm_type: "way", osm_id: id, lat: "4.667", lon: "-74.135", category: "highway", name: road, geojson,
+  address: { road, suburb: "Localidad Fontibón", city: "Bogotá", ...extra },
+});
+// Carrera 91 va de sur a norte; la Calle 19A la corta cerca de (-74.135, 4.667).
+const CRA91_BOSA = tramo(1, "Carrera 91", linea([-74.198, 4.62], [-74.198, 4.63]), { suburb: "Localidad Bosa" });
+const CRA91_FONTIBON = tramo(2, "Carrera 91", linea([-74.135, 4.66], [-74.135, 4.67], [-74.135, 4.68]));
+const CALLE19A = tramo(3, "Calle 19A", linea([-74.14, 4.667], [-74.13, 4.667]));
+
+test("Carrera 91 #19A-29 se resuelve en el cruce con la Calle 19A, no en Bosa", async () => {
+  const { candidatoDeCruce, parsearNomenclatura } = await import("../src/lib/direccion-osm.ts");
+  const n = parsearNomenclatura("carrera 91 #19 A 29")!;
+  const c = candidatoDeCruce([CRA91_BOSA, CRA91_FONTIBON], [CALLE19A], n, "carrera 91 #19 A 29")!;
+  assert.equal(c.direccion, "Carrera 91 #19A-29");
+  assert.match(c.completa, /Fontibón/);
+  assert.equal(c.cruceCon, "Calle 19A");
+  assert.equal(c.confirmarNumero, true);
+  assert.ok(Math.abs(c.latitud - 4.667) < 0.001 && Math.abs(c.longitud + 74.135) < 0.001);
+});
+
+test("sin cruce cercano no hay candidato de cruce", async () => {
+  const { candidatoDeCruce, parsearNomenclatura } = await import("../src/lib/direccion-osm.ts");
+  const n = parsearNomenclatura("carrera 91 #19 A 29")!;
+  assert.equal(candidatoDeCruce([CRA91_BOSA], [CALLE19A], n, "x"), null);
+});
+
+test("la vía de OSM como 'Avenida Calle 72' cuenta como Calle 72 y conserva la placa", async () => {
+  const { candidatoDeCruce, parsearNomenclatura } = await import("../src/lib/direccion-osm.ts");
+  const n = parsearNomenclatura("calle 72 # 10-34")!;
+  const c72 = tramo(4, "Avenida Calle 72", linea([-74.06, 4.657], [-74.05, 4.657]), { suburb: "Localidad Chapinero" });
+  const k10 = tramo(5, "Carrera 10", linea([-74.055, 4.65], [-74.055, 4.66]));
+  const c = candidatoDeCruce([c72], [k10], n, "calle 72 # 10-34")!;
+  assert.equal(c.direccion, "Calle 72 #10-34");
+  assert.equal(c.cruceCon, "Carrera 10");
+});
+
+test("el buscador intenta el cruce primero y devuelve solo esa opción", async () => {
+  const { buscador, llamadas } = armar((url) => (url.searchParams.get("street") === "Calle 19A" ? [CALLE19A] : [CRA91_BOSA, CRA91_FONTIBON]));
+  const r = await buscador.buscar("carrera 91 #19 A 29");
+  assert.equal(llamadas.length, 2);
+  assert.equal(llamadas[0]!.url.searchParams.get("street"), "Carrera 91");
+  assert.equal(llamadas[0]!.url.searchParams.get("bounded"), "1");
+  assert.equal(r.length, 1);
+  assert.equal(r[0]!.cruceCon, "Calle 19A");
+});
+
+test("si las vías no se tocan, cae a la búsqueda libre", async () => {
+  const { buscador, llamadas } = armar((url) => (url.searchParams.has("street") ? [] : [CRA91_BOSA]));
+  const r = await buscador.buscar("carrera 91 #19 A 29");
+  // cruce (2) + ronda "Avenida" (2) + libre (1)
+  assert.equal(llamadas.length, 5);
+  assert.equal(llamadas[4]!.url.searchParams.get("q"), "carrera 91 19 A 29");
+  assert.equal(r[0]!.cruceCon, undefined);
 });
 
 test("parsearNomenclatura entiende las formas en que se escribe una dirección", () => {

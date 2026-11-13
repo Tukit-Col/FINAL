@@ -8,8 +8,8 @@
 // La búsqueda sale con el botón Buscar, con Enter o tras una pausa larga al
 // escribir (nunca por tecla: la política del Nominatim público no admite el
 // autocompletado, ver `lib/direccion-osm.ts`). Se cancela la anterior si el
-// acudiente lanza otra o edita el texto. Con la ciudad bloqueada a Bogotá, la
-// consulta lleva `bogota=1` y el servidor la limita a Bogotá.
+// acudiente lanza otra o edita el texto.
+// La entrega es solo en Bogotá: el servidor limita siempre la búsqueda a Bogotá.
 //
 // Combobox ARIA como el de Google y el buscador de colegio de `/empezar`: el foco
 // se queda en el campo, las flechas mueven la opción activa
@@ -40,8 +40,6 @@ interface Props {
   onElegir: (lugar: LugarElegido) => void;
   // El acudiente movió el pin; el texto de la dirección no cambia.
   onMoverPin: (latitud: number, longitud: number) => void;
-  // La ciudad está bloqueada a Bogotá: la búsqueda no ofrece nada fuera de ella.
-  soloBogota?: boolean;
 }
 
 // Pausa al escribir antes de buscar sola. Larga a propósito: Nominatim no admite
@@ -49,7 +47,7 @@ interface Props {
 const PAUSA_BUSQUEDA_MS = 1200;
 const MINIMO_AUTOMATICA = 8;
 
-export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir, onElegir, onMoverPin, soloBogota = false }: Props) {
+export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir, onElegir, onMoverPin }: Props) {
   const idBase = useId();
   const idLista = `${idBase}-lista`;
   const idEstado = `${idBase}-estado`;
@@ -80,7 +78,7 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
     setEstado({ tipo: "buscando" });
     setCandidatos([]);
     try {
-      const respuesta = await fetch(`/api/direccion/buscar?q=${encodeURIComponent(texto.trim())}${soloBogota ? "&bogota=1" : ""}`, {
+      const respuesta = await fetch(`/api/direccion/buscar?q=${encodeURIComponent(texto.trim())}`, {
         signal: actual.signal,
       });
       const cuerpo = (await respuesta.json().catch(() => null)) as {
@@ -180,7 +178,7 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
       : estado.tipo === "resultados"
         ? `${estado.cantidad} ${estado.cantidad === 1 ? "resultado" : "resultados"}. Elige el tuyo con las flechas o toca uno.`
         : estado.tipo === "vacio"
-          ? `No encontramos esa dirección${soloBogota ? " en Bogotá" : ""}. Revisa el texto o déjala escrita como está y sigue.`
+          ? `No encontramos esa dirección en Bogotá. Revisa el texto o déjala escrita como está y sigue.`
           : estado.tipo === "fallo"
             ? `${estado.mensaje} Puedes dejar la dirección escrita y seguir con el pago.`
             : confirmada
@@ -200,7 +198,9 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
             {elegido.secundario && <p className={styles.tarjetaDireccionZona}>{elegido.secundario}</p>}
             {elegido.confirmarNumero && (
               <p className={styles.tarjetaDireccionAviso}>
-                {elegido.numeroDelPadre
+                {elegido.cruceCon
+                  ? `El pin quedó en el cruce con la ${elegido.cruceCon}. Muévelo hasta tu puerta.`
+                  : elegido.numeroDelPadre
                   ? "Confirma el número: el mapa solo encontró la calle, el número es el que escribiste."
                   : "Confirma el número: el mapa solo encontró la calle. Toca Editar para añadirlo."}
               </p>
@@ -265,7 +265,11 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
                 <span className={styles.sugerenciaPrincipal}>{c.completa}</span>
                 {c.confirmarNumero && (
                   <span className={styles.sugerenciaSecundaria}>
-                    {c.numeroDelPadre ? "Número escrito por ti. Confirma el número." : "Confirma el número."}
+                    {c.cruceCon
+                      ? `Ubicada en el cruce con la ${c.cruceCon}. Ajusta el pin.`
+                      : c.numeroDelPadre
+                        ? "Número escrito por ti. Confirma el número."
+                        : "Confirma el número."}
                   </span>
                 )}
               </li>

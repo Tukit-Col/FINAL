@@ -29,15 +29,12 @@ function error(estado: number, codigo: string, mensaje: string): Response {
 export async function GET(peticion: Request): Promise<Response> {
   const parametros = new URL(peticion.url).searchParams;
   const consulta = parametros.get("q") ?? "";
-  // `bogota=1`: la ciudad del checkout está bloqueada a Bogotá y la búsqueda
-  // no debe ofrecer nada fuera de ella.
-  const soloBogota = parametros.get("bogota") === "1";
   const osm = buscadorDelServidor();
   if (!osm) {
     return error(503, "buscador_no_configurado", "La búsqueda de direcciones no está disponible.");
   }
   try {
-    const candidatos = await osm.buscar(consulta, { soloBogota });
+    const candidatos = await osm.buscar(consulta);
     return Response.json({ candidatos }, { headers: { "Cache-Control": "private, max-age=300" } });
   } catch (causa) {
     if (causa instanceof ErrorBusqueda) return error(causa.estado, causa.codigo, causa.message);
