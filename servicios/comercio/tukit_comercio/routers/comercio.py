@@ -37,8 +37,8 @@ from sqlalchemy.exc import IntegrityError
 from tukit_comun.http import ErrorDominio
 from tukit_comun.metricas import contar_orden_creada, contar_pago_aprobado
 
-from ..dominio.despacho import preparar_avance, validar_avance
-from ..dominio.linea_de_tiempo import linea_de_tiempo
+from ..dominio.despacho import es_avance_de_logistica, preparar_avance, tipo_aviso, validar_avance
+from ..dominio.linea_de_tiempo import AvanceVisto, linea_de_tiempo
 from ..dominio.ordenes import LineaResuelta, reverificar_precios, total_orden
 from ..dominio.pagos import CAMPOS_FIRMA_ENTREGA, firma_orden, vencido
 from ..dominio.retracto import evaluar_retracto, pasos_del_pedido
@@ -861,6 +861,43 @@ async def _pedido_del_portador(request: Request, pedido_id: uuid.UUID, authoriza
         pedido = await _repo(await db.connection()).obtener(pedido_id)
     if pedido is None or pedido.usuario_id != usuario_id:
         raise ErrorDominio("pedido_no_existe", "No hay ningun pedido con ese identificador.", estado=404)
+
+
+@router.get(
+    "/v1/comercio/pedidos/{pedido_id}/vista-previa",
+    summary="Lo que vera el acudiente si el pedido pasa a `destino` (no escribe nada)",
+)
+async def vista_previa_del_acudiente(
+    request: Request,
+    pedido_id: uuid.UUID,
+    destino: str,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    """Solo staff. La linea de tiempo de HOY y la de DESPUES de un avance
+    hipotetico, armadas con `dominio.linea_de_tiempo` (una sola fuente de lo que ve
+    el padre) y con las vistas recortadas: sin actor, nota ni celular del
+    repartidor. Un destino que la matriz no permite no es un 4xx: `legal: false` y
+    `despues: null`, para que el admin atenue la opcion."""
+    await _exigir_staff(request, authorization)
+    async with request.app.state.motor.sesion() as db:
+        repo = _repo(await db.connection())
+        fila = await _pedido_o_404(repo, pedido_id)
+        pagos, historial, envio = await repo.vistas_para_linea_de_tiempo(fila.id)
+    ahora = _ahora()
+    actual = linea_de_tiempo(
+        estado=fila.estado, creado_en=fila.creado_en, pagos=pagos, historial=historial, envio=envio, ahora=ahora
+    )
+    legal = es_avance_de_logistica(fila.estado, destino)
+    despues = None
+    if legal:
+        hipotetico = [
+            *historial,
+            AvanceVisto(estado_desde=fila.estado, estado_hacia=destino, tipo_incidencia=None, creado_en=ahora),
+        ]
+        despues = linea_de_tiempo(
+            estado=destino, creado_en=fila.creado_en, pagos=pagos, historial=hipotetico, envio=envio, ahora=ahora
+        )
+    return {"ahora": actual, "despues": despues, "aviso": tipo_aviso(destino) if legal else None, "legal": legal}
 
 
 @router.get("/v1/comercio/mis-pedidos/{pedido_id}", summary="Uno de MIS pedidos, sin datos del reparto")
