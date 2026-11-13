@@ -15,14 +15,15 @@ import {
   ETIQUETA_ESTADO_PEDIDO,
   ETIQUETA_PRIORIDAD,
   formatearPesos,
+  GRADOS_CANONICOS,
 } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
+import { PulsoActividad, PulsoListas } from "@/components/PanelPulso";
 import Revelar from "@/components/Revelar";
 import Barras from "@/components/ui/Barras";
 import BotonMagnetico from "@/components/ui/BotonMagnetico";
 import Destacada from "@/components/ui/Destacada";
 import Dona, { type SegmentoDona } from "@/components/ui/Dona";
-import { haceCuanto } from "@/lib/formato";
 import { construirPanel, type FuentePanel } from "@/lib/panel-accionable";
 import {
   actividadReciente,
@@ -108,7 +109,9 @@ export default async function PaginaPanel() {
   const flujo = pedidos ? flujoDePedidos(pedidos.resumen) : null;
   const tk = casos ? ticketsPorEstado(casos.casos, casos.resumen) : null;
   const listas =
-    listasR.status === "fulfilled" ? listasPorColegio(listasR.value, nombres) : null;
+    listasR.status === "fulfilled"
+      ? listasPorColegio(listasR.value, nombres, 5, GRADOS_CANONICOS)
+      : null;
   const actividad = actividadReciente({
     pedidos: pedidos?.pedidos ?? [],
     casos: casos?.casos ?? [],
@@ -258,51 +261,12 @@ export default async function PaginaPanel() {
 
         <section className={`${styles.bloque} ${styles.ancho}`} aria-labelledby="t-listas">
           <h2 id="t-listas">Listas por verificar</h2>
-          {listas === null ? (
-            <p className={styles.vacio}>No pudimos leer las listas pendientes.</p>
-          ) : listas.total === 0 ? (
-            <p className={styles.vacio}>No hay listas esperando verificación.</p>
-          ) : (
-            <>
-              <ul className={styles.filas}>
-                {listas.grupos.map((g) => (
-                  <li key={g.clave}>
-                    <Link href="/cola" className={styles.fila}>
-                      <span className={styles.truncado}>{g.nombre}</span>
-                      <span className="cifra">
-                        {g.listas} {g.listas === 1 ? "lista" : "listas"}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-              <Link href="/cola" className={styles.verTodo}>
-                {listas.total} en {listas.colegios}{" "}
-                {listas.colegios === 1 ? "colegio" : "colegios"}: abrir la cola
-                <ArrowRight size={14} strokeWidth={2.4} aria-hidden="true" />
-              </Link>
-            </>
-          )}
+          <PulsoListas listas={listas} />
         </section>
 
         <section className={`${styles.bloque} ${styles.ancho}`} aria-labelledby="t-act">
           <h2 id="t-act">Actividad reciente</h2>
-          {actividad.length === 0 ? (
-            <p className={styles.vacio}>Todavía no hay movimiento.</p>
-          ) : (
-            <ul className={styles.filas}>
-              {actividad.map((a) => (
-                <li key={a.clave}>
-                  <Link href={a.enlace} className={styles.fila}>
-                    <span className={styles.truncado}>
-                      <strong>{a.titulo}</strong> · {a.detalle}
-                    </span>
-                    <span className={styles.hace}>{haceCuanto(a.instante, ahora)}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
+          <PulsoActividad actividad={actividad} pedidos={pedidos?.pedidos ?? null} ahora={ahora} />
         </section>
       </div>
 

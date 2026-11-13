@@ -33,6 +33,21 @@
 
 .etiqueta {
   grid-area: etiqueta;
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  min-width: 0;
+}
+
+.texto {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nota {
+  flex: none;
 }
 
 .valor {
@@ -69,9 +84,32 @@
   background: var(--clay-estrella-oscuro);
 }
 
+.suave {
+  background: var(--color-text-muted);
+  opacity: 0.45;
+}
+
+/* Barras parejas: pista mas fina para que no parezca un ranking. */
+.fina .pista {
+  height: 3px;
+}
+
 .critico.relleno,
 .relleno.critico {
   background: var(--color-danger);
+}
+
+/* Contenedor angosto: la nota baja bajo el nombre para que este no se corte
+ * a tres letras. */
+@container (max-width: 440px) {
+  .etiqueta {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
+  .texto {
+    flex-basis: 100%;
+  }
 }
 
 @keyframes crecer {
