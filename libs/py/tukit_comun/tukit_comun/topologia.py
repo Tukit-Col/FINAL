@@ -86,9 +86,11 @@ AVISOS = Cola(
         "kits_publicados",
         "pedido_pagado",
         "incidencia",
+        "pedido_en_preparacion",
         "pedido_despachado",
         "pedido_en_reparto",
         "pedido_entregado",
+        "pedido_cancelado",
         # Respuesta del back-office a un caso (S5): aviso por plantilla, sin el texto.
         "caso_respuesta",
     ),

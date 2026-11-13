@@ -686,7 +686,15 @@ class RepoPedidos:
         )
         return pagos, historial, visto
 
-    async def encolar_aviso_pedido(self, pedido: Any, tipo: str, *, repartidor: str | None = None) -> None:
+    async def encolar_aviso_pedido(
+        self,
+        pedido: Any,
+        tipo: str,
+        *,
+        repartidor: str | None = None,
+        reembolso: bool | None = None,
+        retoma: bool = False,
+    ) -> None:
         """Outbox: el aviso al acudiente de un avance, en la MISMA transaccion.
 
         La carga lleva lo minimo para avisar: a quien (`usuario_id`) y de que
@@ -697,6 +705,10 @@ class RepoPedidos:
         carga: dict[str, Any] = {"pedido_id": str(pedido.id), "usuario_id": str(pedido.usuario_id)}
         if repartidor:
             carga["repartidor"] = repartidor
+        if reembolso is not None:
+            carga["reembolso"] = reembolso  # solo si hubo un pago aprobado que devolver
+        if retoma:
+            carga["retoma"] = True  # vuelve a preparacion tras una incidencia
         await self.conexion.execute(
             insert(BANDEJA).values(
                 tipo=tipo,
@@ -931,10 +943,12 @@ class RepoPedidos:
             update(PEDIDO).where(PEDIDO.c.id == pedido_id).values(estado=EstadoPedido.CANCELADO.value)
         )
 
-    async def marcar_pago_reembolsado(self, pedido_id: uuid.UUID) -> None:
-        """El reembolso lo lleva el pago aprobado del pedido, no la devolución."""
-        await self.conexion.execute(
+    async def marcar_pago_reembolsado(self, pedido_id: uuid.UUID) -> bool:
+        """El reembolso lo lleva el pago aprobado del pedido, no la devolución.
+        Devuelve si había un pago aprobado que reembolsar (el aviso lo dice)."""
+        resultado = await self.conexion.execute(
             update(PAGO)
             .where(PAGO.c.pedido_id == pedido_id, PAGO.c.estado == EstadoPago.APROBADO.value)
             .values(estado=EstadoPago.REEMBOLSADO.value)
         )
+        return bool(resultado.rowcount)

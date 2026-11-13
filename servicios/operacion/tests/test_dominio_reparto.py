@@ -2,7 +2,7 @@
 
 Son el nucleo del repartidor sin base ni red: que plantilla le toca a cada tipo
 de evento, de donde sale el destinatario cuando la carga ya lo trae, y como se
-arma el cuerpo del aviso (turno, enlace de pre-compra) sin filtrar contacto. El
+arma el cuerpo del aviso (codigo del pedido, enlace) sin filtrar contacto. El
 worker (`repartidor.py`) las orquesta; aqui se prueban solas (ADR 0019).
 """
 
@@ -44,10 +44,11 @@ def test_kits_publicados_no_saca_destinatario_de_la_carga():
     assert destinatario_en_carga("kits_publicados", {"usuario_id": "u-1"}) is None
 
 
-def test_datos_llevan_turno_corto_del_agregado():
+def test_los_datos_no_llevan_turno():
+    # "Turno" era el id del agregado: en un evento de pedido, el mismo codigo repetido.
     agregado = uuid.UUID("abcdef12-0000-4000-8000-000000000000")
-    datos = datos_plantilla("pedido_pagado", agregado, {}, base_web="https://tukit.co")
-    assert datos["turno"] == "ABCDEF12"
+    datos = datos_plantilla("pedido_pagado", agregado, {"pedido_id": str(agregado)}, base_web="https://tukit.co")
+    assert "turno" not in datos and datos["pedido"] == "ABCDEF12"
 
 
 def test_kits_publicados_arma_enlace_de_precompra_con_el_agregado():
@@ -56,14 +57,34 @@ def test_kits_publicados_arma_enlace_de_precompra_con_el_agregado():
     assert datos["enlace"] == f"https://tukit.co/kits/{agregado}"
 
 
-def test_pedido_pagado_no_lleva_enlace_pero_si_pedido_corto():
+def test_aviso_de_pedido_lleva_codigo_y_enlace_a_su_linea_de_tiempo():
     agregado = uuid.uuid4()
     pedido = uuid.UUID("11112222-0000-4000-8000-000000000000")
     datos = datos_plantilla(
-        "pedido_pagado", agregado, {"pedido_id": str(pedido)}, base_web="https://tukit.co"
+        "pedido_pagado", agregado, {"pedido_id": str(pedido), "total": 609343}, base_web="https://tukit.co"
     )
-    assert "enlace" not in datos
     assert datos["pedido"] == "11112222"
+    assert datos["enlace"] == f"https://tukit.co/pedidos/{pedido}"
+    assert datos["total"] == 609343
+
+
+def test_pedido_id_invalido_no_arma_enlace():
+    datos = datos_plantilla("pedido_pagado", uuid.uuid4(), {"pedido_id": "../x"}, base_web="https://tukit.co")
+    assert "enlace" not in datos and "pedido" not in datos
+
+
+def test_nuevos_avisos_tienen_plantilla_y_usuario_en_carga():
+    for tipo in ("pedido_en_preparacion", "pedido_cancelado"):
+        assert plantilla_para(tipo) == tipo
+        assert destinatario_en_carga(tipo, {"usuario_id": "u-4"}) == "u-4"
+
+
+def test_cancelado_lleva_si_hay_reembolso_y_preparacion_si_retoma():
+    cancelado = datos_plantilla("pedido_cancelado", uuid.uuid4(), {"reembolso": True}, base_web="https://tukit.co")
+    assert cancelado["reembolso"] is True
+    assert datos_plantilla("pedido_cancelado", uuid.uuid4(), {}, base_web="https://tukit.co")["reembolso"] is False
+    retoma = datos_plantilla("pedido_en_preparacion", uuid.uuid4(), {"retoma": True}, base_web="https://tukit.co")
+    assert retoma["retoma"] is True
 
 
 # Los avisos de logistica: el back-office mueve el pedido y Comercio escribe el

@@ -127,8 +127,8 @@ def test_incidencia_con_tipo_conocido_no_exige_nota(tipo):
         ("en_reparto", "pedido_en_reparto"),
         ("entregado", "pedido_entregado"),
         ("incidencia", "incidencia"),
-        ("en_preparacion", None),
-        ("cancelado", None),
+        ("en_preparacion", "pedido_en_preparacion"),
+        ("cancelado", "pedido_cancelado"),
         ("teletransportado", None),
     ],
 )

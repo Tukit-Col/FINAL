@@ -1012,7 +1012,8 @@ async def retractar_mi_pedido(
         cancelado = estado.antes_de_entrega and transicion_valida(pedido.estado, EstadoPedido.CANCELADO.value)
         if cancelado:
             await repo.cancelar_pedido(pedido_id)
-            await repo.marcar_pago_reembolsado(pedido_id)
+            reembolso = await repo.marcar_pago_reembolsado(pedido_id)
+            await repo.encolar_aviso_pedido(pedido, "pedido_cancelado", reembolso=reembolso)
 
     return {
         "devolucion_id": str(devolucion_id),
@@ -1056,7 +1057,8 @@ async def retractar_orden(
         )
         if cancelable:
             await repo.cancelar_pedido(pedido_id)
-            await repo.marcar_pago_reembolsado(pedido_id)
+            reembolso = await repo.marcar_pago_reembolsado(pedido_id)
+            await repo.encolar_aviso_pedido(pedido, "pedido_cancelado", reembolso=reembolso)
 
     return {
         "devolucion_id": str(devolucion_id),
@@ -1132,14 +1134,20 @@ async def _avanzar_uno(
             nota=avance.nota,
             tipo_incidencia=avance.tipo_incidencia,
         )
-        if avance.aviso is not None:
-            await repo.encolar_aviso_pedido(
-                pedido, avance.aviso, repartidor=avance.repartidor_nombre or avance.transportadora
-            )
+        reembolso: bool | None = None
         if solicitud.destino == EstadoPedido.CANCELADO.value:
             # Como el retracto: el pedido cancelado deja su pago aprobado marcado
-            # para reembolso, en la misma transaccion.
-            await repo.marcar_pago_reembolsado(pedido_id)
+            # para reembolso, en la misma transaccion. El aviso dice si hay algo que devolver.
+            reembolso = await repo.marcar_pago_reembolsado(pedido_id)
+        if avance.aviso is not None:
+            await repo.encolar_aviso_pedido(
+                pedido,
+                avance.aviso,
+                repartidor=avance.repartidor_nombre or avance.transportadora,
+                reembolso=reembolso,
+                retoma=pedido.estado == EstadoPedido.INCIDENCIA.value
+                and solicitud.destino == EstadoPedido.EN_PREPARACION.value,
+            )
 
         return await _detalle_staff(repo, await repo.obtener(pedido_id))
 
