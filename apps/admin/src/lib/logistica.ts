@@ -105,12 +105,17 @@ export function diaBogota(iso: string): string {
   return Number.isNaN(fecha.getTime()) ? "" : DIA_BOGOTA.format(fecha);
 }
 
+/** Valor de `?colegio=` para los pedidos que no traen colegio. */
+export const COLEGIO_NINGUNO = "sin-colegio";
+
 export function filtrarPedidos(pedidos: readonly Pedido[], filtros: FiltrosLogistica): Pedido[] {
   const q = filtros.q.toLowerCase();
   return pedidos.filter((pedido) => {
     if (q && !pedido.pedido_id.toLowerCase().startsWith(q)) return false;
     if (filtros.estado && pedido.estado !== filtros.estado) return false;
-    if (filtros.colegio && !pedido.colegios.includes(filtros.colegio)) return false;
+    if (filtros.colegio === COLEGIO_NINGUNO) {
+      if (pedido.colegios.length > 0) return false;
+    } else if (filtros.colegio && !pedido.colegios.includes(filtros.colegio)) return false;
     if (filtros.alerta && !(pedido.alertas ?? []).includes(filtros.alerta)) return false;
     if (filtros.desde || filtros.hasta) {
       const dia = diaBogota(pedido.creado_en);
@@ -355,6 +360,9 @@ export const CARRIL_APARTE: readonly EstadoPedido[] = ["incidencia", "cancelado"
  *  resto se ve en la tabla con su filtro. */
 export const ESTADOS_LIMITADOS: readonly EstadoPedido[] = ["entregado", "cancelado"];
 export const LIMITE_CERRADOS = 5;
+/** Las etapas abiertas tambien se recortan: con miles de pedidos una columna de
+ *  1000 tarjetas no se lee. Las alertas van primero, asi que no se esconden. */
+export const LIMITE_ABIERTAS = 8;
 
 export interface ColumnaTablero {
   estado: EstadoPedido;
@@ -385,6 +393,7 @@ export function agruparPorEtapa(
   pedidos: readonly Pedido[],
   estados: readonly EstadoPedido[],
   limite: number = LIMITE_CERRADOS,
+  limiteAbiertas: number = LIMITE_ABIERTAS,
 ): ColumnaTablero[] {
   return estados.map((estado) => {
     const deLaEtapa = pedidos.filter((p) => p.estado === estado);
@@ -394,7 +403,7 @@ export function agruparPorEtapa(
       const alerta = Number((b.alertas ?? []).length > 0) - Number((a.alertas ?? []).length > 0);
       return alerta !== 0 ? alerta : instante(fechaDeEtapa(a)) - instante(fechaDeEtapa(b));
     });
-    const visibles = cerrada ? ordenados.slice(0, Math.max(0, limite)) : ordenados;
+    const visibles = ordenados.slice(0, Math.max(0, cerrada ? limite : limiteAbiertas));
     return { estado, total: deLaEtapa.length, pedidos: visibles, ocultos: deLaEtapa.length - visibles.length };
   });
 }
@@ -433,4 +442,10 @@ export function hrefConVista(filtros: FiltrosLogistica, vista: VistaLogistica): 
 /** El enlace "ver todos" de una columna recortada: la tabla filtrada por esa etapa. */
 export function hrefEtapaEnTabla(filtros: FiltrosLogistica, estado: EstadoPedido): string {
   return hrefConAlerta({ ...filtros, estado, vista: "tabla" }, filtros.alerta);
+}
+
+/** El enlace de un grupo del mapa a la tabla filtrada por su colegio (o por los
+ *  pedidos sin colegio si `colegioId` es `null`). */
+export function hrefColegioEnTabla(colegioId: string | null): string {
+  return `/logistica?${new URLSearchParams({ vista: "tabla", colegio: colegioId ?? COLEGIO_NINGUNO })}`;
 }

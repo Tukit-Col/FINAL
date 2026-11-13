@@ -91,7 +91,7 @@ function Columna({ columna, filtros, nombresColegio, urlIngresar, ahora }: Props
       {pedidos.length === 0 ? (
         <p className={styles.vacia}>Sin pedidos</p>
       ) : (
-        <ul className={styles.lista}>
+        <ul className={styles.lista} tabIndex={0} aria-label={`Pedidos en ${ETIQUETA_ESTADO_PEDIDO[estado]}`}>
           {pedidos.map((pedido) => (
             <li key={pedido.pedido_id}>
               <Tarjeta pedido={pedido} nombresColegio={nombresColegio} urlIngresar={urlIngresar} ahora={ahora} />
@@ -102,7 +102,7 @@ function Columna({ columna, filtros, nombresColegio, urlIngresar, ahora }: Props
 
       {ocultos > 0 ? (
         <Link href={hrefEtapaEnTabla(filtros, estado)} className={styles.verMas}>
-          Ver los {total} en la tabla
+          Ver los {ocultos} restantes en la tabla
         </Link>
       ) : null}
     </section>

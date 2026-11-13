@@ -11,13 +11,18 @@ import { ETIQUETA_ESTADO_PEDIDO } from "@tukit/contrato";
 import {
   agruparPorColegio,
   esEntregaPendiente,
+  SIN_COLEGIO,
   marcadoresDe,
   type EntregaPendiente,
 } from "@/lib/consolidado";
 import { ATRIBUCION, claveDireccion, type ResultadoGeo } from "@/lib/geocodificador";
 import { geocodificadorDelServidor } from "@/lib/geocodificador-servidor";
+import { hrefColegioEnTabla } from "@/lib/logistica";
 import MapaEntregasCarga from "./MapaEntregasCarga";
 import styles from "./SeccionMapa.module.css";
+
+/** Cuantos pedidos lista cada colegio antes de mandar a la tabla. */
+const VISIBLES_POR_GRUPO = 10;
 
 interface Props {
   pedidos: readonly Pedido[];
@@ -54,6 +59,8 @@ export default async function SeccionMapa({ pedidos, nombresColegio }: Props) {
     };
   });
 
+  const idDeColegio = new Map<string, string>();
+  for (const [id, nombre] of nombresColegio) if (!idDeColegio.has(nombre)) idDeColegio.set(nombre, id);
   const grupos = agruparPorColegio(entregas);
   const marcadores = marcadoresDe(grupos);
   const sinMarcador = entregas.filter((e) => typeof e.punto !== "object" || e.punto === null);
@@ -90,7 +97,7 @@ export default async function SeccionMapa({ pedidos, nombresColegio }: Props) {
 
       <div className={styles.grupos}>
         {grupos.map((g) => (
-          <details key={g.colegio} className={styles.grupo} open={grupos.length <= 3}>
+          <details key={g.colegio} className={styles.grupo} open={grupos.length <= 3 && g.entregas.length <= VISIBLES_POR_GRUPO}>
             <summary>
               <strong>{g.colegio}</strong>
               <span className={styles.conteo}>
@@ -100,7 +107,7 @@ export default async function SeccionMapa({ pedidos, nombresColegio }: Props) {
               </span>
             </summary>
             <ul>
-              {g.entregas.map((e) => (
+              {g.entregas.slice(0, VISIBLES_POR_GRUPO).map((e) => (
                 <li key={e.pedido_id}>
                   <Link href={`/logistica/${e.pedido_id}`}>
                     <code>{e.pedido_id}</code>
@@ -112,22 +119,24 @@ export default async function SeccionMapa({ pedidos, nombresColegio }: Props) {
                 </li>
               ))}
             </ul>
+            {g.entregas.length > VISIBLES_POR_GRUPO ? (
+              <p className={styles.verMas}>
+                Mostrando {VISIBLES_POR_GRUPO} de {g.entregas.length}.{" "}
+                <Link
+                  href={hrefColegioEnTabla(g.colegio === SIN_COLEGIO ? null : (idDeColegio.get(g.colegio) ?? null))}
+                >
+                  Ver los {g.entregas.length - VISIBLES_POR_GRUPO} restantes en la tabla
+                </Link>
+              </p>
+            ) : null}
           </details>
         ))}
       </div>
 
       {sinMarcador.length > 0 ? (
         <p className={styles.nota}>
-          Sin marcador en el mapa ({sinMarcador.length}):{" "}
-          {sinMarcador.map((e, i) => (
-            <span key={e.pedido_id}>
-              {i > 0 ? ", " : ""}
-              <Link href={`/logistica/${e.pedido_id}`}>
-                <code>{e.pedido_id}</code>
-              </Link>
-            </span>
-          ))}
-          .
+          {sinMarcador.length} {sinMarcador.length === 1 ? "pedido sin marcador" : "pedidos sin marcador"} en
+          el mapa. <Link href="/logistica?vista=tabla">Ver los pedidos en la tabla</Link>.
         </p>
       ) : null}
     </section>
