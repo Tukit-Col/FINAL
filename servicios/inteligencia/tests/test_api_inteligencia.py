@@ -143,6 +143,20 @@ class TestCrearDevuelve202:
         assert admin["hijos"][0]["referencia"] == "hijo-0"
         assert "Sofía" not in str(admin)
 
+    @pytest.mark.parametrize(
+        "personaje_por_hijo",
+        [
+            {"hijo-1": ["x" * 61]},
+            {"hijo-1": ["a", "b", "c", "d", "e", "f"]},
+            {f"hijo-{i}": ["spiderman"] for i in range(11)},
+        ],
+    )
+    async def test_personaje_por_hijo_tiene_tope(self, cliente, personaje_por_hijo):
+        respuesta = await cliente.post(
+            "/v1/trabajos", json=_peticion(preferencias={"personaje_por_hijo": personaje_por_hijo})
+        )
+        assert respuesta.status_code in (400, 422)
+
     async def test_un_apodo_de_mas_de_40_caracteres_se_rechaza(self, cliente):
         respuesta = await cliente.post(
             "/v1/trabajos",
