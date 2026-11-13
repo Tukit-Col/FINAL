@@ -23,6 +23,7 @@ from sqlalchemy import func, insert, select, update
 from tukit_comun.bandeja import con_correlacion
 from tukit_comun.http import iso as _iso
 
+from ..dominio.alertas import ALERTAS, alertas_de_pedido
 from ..dominio.ley1480 import evaluar_devolucion
 from ..dominio.linea_de_tiempo import AvanceVisto, EnvioVisto, PagoVisto
 from ..dominio.pagos import CAMPOS_FIRMA_ENTREGA, ESTADOS_PAGO_FINALES, pedido_tras_pago
@@ -195,7 +196,9 @@ class RepoPedidos:
             "envio": _serializar_envio(envio, con_celular=con_celular),
         }
 
-    async def pedidos_completos(self, filas: list[Any], *, con_celular: bool = False) -> list[dict[str, Any]]:
+    async def pedidos_completos(
+        self, filas: list[Any], *, con_celular: bool = False, con_alertas: bool = False
+    ) -> list[dict[str, Any]]:
         """Varios pedidos anidados en 3 consultas, no 3 por pedido.
 
         El listado hacia N+1: `pedido_completo` corre una consulta de lineas, una de
@@ -226,8 +229,11 @@ class RepoPedidos:
         for f in await self.conexion.execute(select(ENVIO).where(ENVIO.c.pedido_id.in_(ids))):
             envio_por_pedido[f.pedido_id] = f
 
-        return [
-            {
+        alertas = await self._alertas_de(filas, pago_por_pedido) if con_alertas else {}
+
+        completos = []
+        for f in filas:
+            pedido = {
                 "pedido_id": str(f.id),
                 "usuario_id": str(f.usuario_id),
                 "trabajo_id": str(f.trabajo_id) if f.trabajo_id is not None else None,
@@ -240,8 +246,59 @@ class RepoPedidos:
                 "pago": _serializar_pago(pago_por_pedido.get(f.id)),
                 "envio": _serializar_envio(envio_por_pedido.get(f.id), con_celular=con_celular),
             }
+            if con_alertas:
+                pedido["alertas"] = list(alertas.get(f.id, ()))
+            completos.append(pedido)
+        return completos
+
+    async def _alertas_de(
+        self, filas: list[Any], pago_por_pedido: dict[Any, Any] | None = None, *, ahora: datetime | None = None
+    ) -> dict[Any, tuple[str, ...]]:
+        """Las alertas de cada pedido (`dominio/alertas`), con las fechas leidas en lote.
+
+        Solo mira `pagado`, `pendiente_pago` e `incidencia`; el resto no puede
+        tener alerta. `estado_desde` es la ultima vez que el pedido LLEGO a su
+        estado actual (historial) o, para `pagado`, la confirmacion del pago
+        (el webhook no deja fila en el historial); si no hay dato, `creado_en`.
+        """
+        ahora = ahora or datetime.now(UTC)
+        candidatas = [
+            f
             for f in filas
+            if f.estado
+            in (EstadoPedido.PAGADO.value, EstadoPedido.PENDIENTE_PAGO.value, EstadoPedido.INCIDENCIA.value)
         ]
+        if not candidatas:
+            return {}
+        ids = [f.id for f in candidatas]
+        if pago_por_pedido is None:
+            pago_por_pedido = {}
+            for p in await self.conexion.execute(
+                select(PAGO).where(PAGO.c.pedido_id.in_(ids)).order_by(PAGO.c.creado_en.asc())
+            ):
+                pago_por_pedido[p.pedido_id] = p
+        llegada: dict[Any, tuple[str, datetime]] = {}
+        for h in await self.conexion.execute(
+            select(HISTORIAL.c.pedido_id, HISTORIAL.c.estado_hacia, HISTORIAL.c.creado_en)
+            .where(HISTORIAL.c.pedido_id.in_(ids))
+            .order_by(HISTORIAL.c.id.asc())
+        ):
+            llegada[(h.pedido_id, h.estado_hacia)] = h.creado_en  # type: ignore[index]
+        resultado: dict[Any, tuple[str, ...]] = {}
+        for f in candidatas:
+            pago = pago_por_pedido.get(f.id)
+            desde = llegada.get((f.id, f.estado))  # type: ignore[call-overload]
+            if desde is None:
+                desde = pago.actualizado_en if f.estado == EstadoPedido.PAGADO.value and pago else f.creado_en
+            resultado[f.id] = alertas_de_pedido(
+                estado=f.estado,
+                estado_desde=desde,
+                pago_estado=pago.estado if pago else None,
+                pago_iniciado_en=pago.creado_en if pago else None,
+                creado_en=f.creado_en,
+                ahora=ahora,
+            )
+        return resultado
 
     async def resumen(self) -> dict[str, Any]:
         """El consolidado que pinta las tarjetas de arriba sin recontar por pantalla."""
@@ -265,11 +322,27 @@ class RepoPedidos:
             if f.estado in _ESTADOS_ENTREGA_PENDIENTE:
                 entregas_pendientes += n
 
+        # Alertas: mismos umbrales de dominio que la marca por pedido, sin SQL aparte.
+        candidatas = list(
+            await self.conexion.execute(
+                select(PEDIDO).where(
+                    PEDIDO.c.estado.in_(
+                        [EstadoPedido.PAGADO.value, EstadoPedido.PENDIENTE_PAGO.value, EstadoPedido.INCIDENCIA.value]
+                    )
+                )
+            )
+        )
+        conteo_alertas = dict.fromkeys(ALERTAS, 0)
+        for marcas in (await self._alertas_de(candidatas)).values():
+            for marca in marcas:
+                conteo_alertas[marca] += 1
+
         return {
             "pedidos_totales": total_pedidos,
             "por_estado": por_estado,
             "ingresos_confirmados": ingresos,
             "entregas_pendientes": entregas_pendientes,
+            "alertas": conteo_alertas,
         }
 
     async def devoluciones_de(self, pedido_id: uuid.UUID, entregado_en: datetime | None) -> list[dict[str, Any]]:
