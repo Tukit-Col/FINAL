@@ -123,6 +123,7 @@ async def proponer_en_kit(
     *,
     anterior: Any = None,
     opciones_de: OpcionesDe | None = None,
+    personajes_por_hijo: dict[str, list[str]] | None = None,
 ) -> tuple[dict[str, Any], nl2c_kit.ResultadoPropuestas | None]:
     """Pedido sobre un kit -> (respuesta JSON, resultado de validacion).
 
@@ -132,7 +133,8 @@ async def proponer_en_kit(
     `anterior` es el pedido previo ({accion, categoria}) que el navegador recuerda para
     resolver "y en colores tambien"; se valida contra el kit antes de usarlo. `opciones_de`
     trae las opciones del carrusel de un renglon para el pedido de variedad; sin el, se
-    usan las alternativas guardadas en el kit.
+    usan las alternativas guardadas en el kit. `personajes_por_hijo` (de `trabajos.ver`)
+    deja fuera de la variedad los personajes que ningun hijo pidio.
     """
     ctx = nl2c_kit.contexto_del_kit(kit, anterior)
     limpio = nl2c.sanitizar(texto)
@@ -166,7 +168,7 @@ async def proponer_en_kit(
         raise
 
     res = nl2c_kit.validar_llamadas_kit(respuesta.llamadas, ctx, kit, trabajo_id)
-    await nl2c_kit.completar_variar(res, ctx, trabajo_id, opciones_de)
+    await nl2c_kit.completar_variar(res, ctx, trabajo_id, opciones_de, personajes_por_hijo)
     propuesta_id = nl2c_kit.registrar_emision(usuario, trabajo_id)
     base = _medidas(respuesta, ms)
     nl2c.auditar(

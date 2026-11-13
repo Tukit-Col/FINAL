@@ -651,6 +651,10 @@ class TestAplicarCanonico:
         assert elegido["total"] == resultado["total"]
         c001 = next(linea for linea in elegido["lineas"] if linea.get("concepto") == "C001")
         assert c001["producto_elegido"]["sku"] == "TK-C001-FAN"
+        # Las lineas del kit aplicado son del canonico: el personaje pedido se
+        # nombra con esa misma clave, para que la web y el asistente lo casen.
+        assert vista["personajes_por_hijo"] == {"canonico": ["cars"]}
+        assert elegido["personaje_sin_encaje"] == []
         # Los objetivos se calculan sobre las lineas aplicadas. Antes iban vacios
         # y la web pintaba "NaN% con precio confirmado".
         objetivos = elegido["objetivos"]

@@ -718,6 +718,11 @@ class TestDosHijosEndToEnd:
         assert ("hijo-2", "frozen") in personajes
         assert ("hijo-1", "frozen") not in personajes
         assert ("hijo-2", "spiderman") not in personajes
+        # La vista nombra los personajes pedidos por hijo (solo franquicias, sin apodo).
+        assert vista["personajes_por_hijo"] == {"hijo-1": ["spiderman"], "hijo-2": ["frozen"]}
+        # Lo que no cupo sale en su propio campo, nunca dentro de los objetivos.
+        assert isinstance(fan["personaje_sin_encaje"], list)
+        assert "personaje_sin_encaje" not in fan["objetivos"]
 
 
 class TestElegirProductoDePersonaje:

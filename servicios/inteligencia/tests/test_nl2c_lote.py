@@ -234,9 +234,11 @@ async def test_variar_cambia_los_repetidos_por_otro_del_carrusel_y_deja_uno_del_
     )
     assert resp["estado"] == "propuesta"
     props = cambios(resp)
-    # L1 queda con Spiderman (al menos uno); L2 y L3 cambian y no repiten sku ni personaje entre si.
-    assert [p["item_id"] for p in props] == [kit["lineas"][1]["item_id"], kit["lineas"][2]["item_id"]]
-    assert [p["despues"]["sku"] for p in props] == ["V-2", "V-3"]
+    # L1 queda con Spiderman (al menos uno). L2 solo tiene otro Spiderman (mismo grupo) o
+    # Bluey, que nadie pidio (13-nov: la variedad no mete personajes ajenos), asi que no
+    # cambia; L3 pasa a la neutra.
+    assert [p["item_id"] for p in props] == [kit["lineas"][2]["item_id"]]
+    assert [p["despues"]["sku"] for p in props] == ["V-3"]
     assert kit["lineas"][0]["item_id"] not in {p["item_id"] for p in props}
 
 
@@ -527,3 +529,67 @@ def test_los_ejemplos_de_la_ayuda_salen_de_las_palabras_del_kit():
     assert nl2c_lote.categorias_del_kit(
         {f"L{i}": ln for i, ln in enumerate(kit_grande()["lineas"], start=1)}
     )[:2] == ["cuadernos", "colores"]
+
+
+# --- Variedad sin personajes ajenos (hermanos, 13-nov) -------------------------------------
+
+
+def _opcion_foto(sku: str, personaje: str | None, precio: int = 9000, *, foto: bool = True) -> dict[str, Any]:
+    return {**opcion(sku, personaje, precio), "imagen_url": f"https://img/{sku}.png" if foto else None}
+
+
+def _linea_spidey() -> dict[str, Any]:
+    return {**_linea(2, "Cuaderno rayado 100h", "CU-3", 9000, [], personaje="spiderman"), "hijo": "hijo-1"}
+
+
+def test_variedad_fan_no_mete_otro_personaje():
+    opciones = [
+        _opcion_foto("BLUEY", "bluey", 9000),
+        _opcion_foto("STITCH", "stitch", 9000),
+        _opcion_foto("NEUTRA", None, 9500),
+    ]
+    elegida = nl2c_lote.elegir_variante(
+        _linea_spidey(),
+        ("p", "spiderman"),
+        opciones,
+        set(),
+        {"spiderman"},
+        personajes_del_hijo=frozenset({"spiderman"}),
+    )
+    assert elegida is not None and elegida["sku"] == "NEUTRA"
+
+
+def test_variedad_prefiere_con_foto():
+    opciones = [_opcion_foto("SIN-FOTO", None, 9000, foto=False), _opcion_foto("CON-FOTO", None, 9000)]
+    elegida = nl2c_lote.elegir_variante(
+        _linea_spidey(), ("s", "CU-3"), opciones, set(), set(), personajes_del_hijo=frozenset()
+    )
+    assert elegida is not None and elegida["sku"] == "CON-FOTO"
+
+
+def test_variedad_sin_personaje_pedido_sigue_eligiendo():
+    linea = {**_linea(7, "Tijeras punta roma", "TI-1", 6000, []), "hijo": "hijo-1"}
+    elegida = nl2c_lote.elegir_variante(
+        linea, ("s", "TI-1"), [_opcion_foto("TI-2", None, 4000, foto=False)], set(), {""}
+    )
+    assert elegida is not None and elegida["sku"] == "TI-2"
+
+
+async def test_variar_en_el_kit_respeta_los_personajes_de_cada_hijo(monkeypatch):
+    kit = kit_grande()
+    for ln in kit["lineas"]:
+        ln["hijo"] = "hijo-1"
+    carrusel = {
+        kit["lineas"][1]["item_id"]: [opcion("V-2", "bluey"), opcion("V-3", None, 8000)],
+        kit["lineas"][2]["item_id"]: [opcion("V-4", "toystory"), opcion("V-5", None, 8000)],
+    }
+    monkeypatch.setattr(nl2c, "_LLAMAR", modelo_que_devuelve(pedir("variar")))
+    resp, _ = await nl2c_flujo.proponer_en_kit(
+        "mas variedad",
+        kit,
+        "usuario",
+        TID,
+        opciones_de=opciones_del_carrusel(carrusel),
+        personajes_por_hijo={"hijo-1": ["Spider-Man"]},
+    )
+    assert [p["despues"]["sku"] for p in cambios(resp)] == ["V-3", "V-5"]

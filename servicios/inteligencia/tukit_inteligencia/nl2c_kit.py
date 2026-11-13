@@ -16,6 +16,8 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from tukit_comun.texto import normalizar_personaje
+
 from . import nl2c_lote
 from .nl2c import (
     ACCIONES_LOTE,
@@ -416,6 +418,7 @@ async def completar_variar(
     ctx: ContextoKit,
     trabajo_id: str,
     opciones_de: Callable[[dict[str, Any]], Awaitable[list[dict[str, Any]]]] | None,
+    personajes_por_hijo: dict[str, list[str]] | None = None,
 ) -> None:
     """Termina un pedido de variedad: elige, por renglon repetido, otra opcion del carrusel.
 
@@ -423,6 +426,10 @@ async def completar_variar(
     (`trabajos.opciones_de_una_linea`), filtros del trabajo incluidos; si no responde se
     usan las alternativas guardadas en el kit. La eleccion la hacen las reglas de
     `nl2c_lote.elegir_variante`, nunca el modelo.
+
+    `personajes_por_hijo` es `{hijo de la linea: [personajes pedidos]}` (lo que `ver`
+    expone): con el, la variedad no trae franquicias que ese hijo no pidio. Sin el, toda
+    opcion de personaje queda fuera y solo se proponen neutras.
     """
     if not res.pendientes_variar or res.lote is None:
         return
@@ -443,17 +450,28 @@ async def completar_variar(
     todas = await asyncio.gather(*(traer(ref) for ref, _ in res.pendientes_variar))
     usados_skus = {str(ln["producto_elegido"].get("sku")) for ln in ctx.lineas.values()}
     usados_pers = {
-        str(ln["producto_elegido"].get("personaje") or "").strip().lower() for ln in ctx.lineas.values()
+        normalizar_personaje(str(ln["producto_elegido"].get("personaje") or "")) for ln in ctx.lineas.values()
+    }
+    pedidos = {
+        str(hijo): frozenset(normalizar_personaje(str(p)) for p in valores if p)
+        for hijo, valores in (personajes_por_hijo or {}).items()
     }
     for (ref, clave), opciones in zip(res.pendientes_variar, todas, strict=True):
         linea = ctx.lineas[ref]
         if linea.get("subtotal_linea") is None or linea["producto_elegido"].get("precio") is None:
             continue
-        elegida = nl2c_lote.elegir_variante(linea, clave, opciones, usados_skus, usados_pers)
+        elegida = nl2c_lote.elegir_variante(
+            linea,
+            clave,
+            opciones,
+            usados_skus,
+            usados_pers,
+            personajes_del_hijo=pedidos.get(str(linea.get("hijo") or ""), frozenset()),
+        )
         if elegida is None:
             continue
         usados_skus.add(str(elegida["sku"]))
-        usados_pers.add(str(elegida.get("personaje") or "").strip().lower())
+        usados_pers.add(normalizar_personaje(str(elegida.get("personaje") or "")))
         propuesta = _propuesta_cambio(
             ctx,
             linea,

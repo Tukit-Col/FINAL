@@ -191,6 +191,7 @@ async def proponer(
             str(trabajo_id),
             anterior=cuerpo.anterior.model_dump() if cuerpo.anterior else None,
             opciones_de=opciones_de,
+            personajes_por_hijo=vista.get("personajes_por_hijo") or {},
         )
     except nl2c_flujo.TextoVacio:
         raise ErrorDominio("texto_vacio", "Cuentanos que quieres cambiar de tu kit.", estado=422) from None

@@ -1358,6 +1358,7 @@ async def ver(
         # de `TrabajoAdmin` en el contrato); la vista del acudiente si, porque
         # rotula su propio kit con el.
         "hijos": [_sin_apodo(h) for h in cabeza.hijos or ()] if incluir_admin else list(cabeza.hijos or ()),
+        "personajes_por_hijo": _personajes_por_hijo_publico(cabeza),
         "etapas": etapas,
         "kits": kits,
         "recomendado": recomendado,
@@ -1370,6 +1371,33 @@ async def ver(
         "nota_revision": cabeza.nota_revision,
         **campos_admin,
     }
+
+
+def _personajes_por_hijo_publico(cabeza: Any) -> dict[str, list[str]]:
+    """`{hijo de las lineas: [franquicias pedidas]}` para la vista y el asistente.
+
+    Solo nombres de franquicia (Spiderman, Minnie), nunca el apodo del menor. Las
+    claves son las de las lineas del kit: las del trabajo resueltas con
+    `personajes_de_los_hijos`; en un `parent_apply` la linea es del canonico
+    (`"canonico"`) y se le asigna el personaje que el acudiente eligio.
+    """
+    hijos = list(cabeza.hijos or ())
+    if cabeza.origen == "parent_apply":
+        personaje = (hijos[0] if hijos else {}).get("personaje")
+        return {"canonico": [str(personaje)]} if personaje else {}
+    if not cabeza.preferencias_cifradas:
+        return {}
+    preferencias = cifrador_desde_entorno().descifrar_json(cabeza.preferencias_cifradas) or {}
+    pedidos = {
+        str(hijo): [str(p) for p in valores if p]
+        for hijo, valores in (preferencias.get("personaje_por_hijo") or {}).items()
+        if valores
+    }
+    referencias = [str(h.get("referencia")) for h in hijos if isinstance(h, dict) and h.get("referencia")]
+    # Las mismas reglas del armado (exacta, o por orden sin ambiguedad), para que la
+    # vista nombre al hijo cuyas lineas recibieron el personaje.
+    unidos = personajes_de_los_hijos(preferencias, referencias)
+    return {hijo: pedidos.get(hijo) or [personaje] for hijo, personaje in unidos.items()}
 
 
 def _sin_apodo(hijo: Any) -> Any:
