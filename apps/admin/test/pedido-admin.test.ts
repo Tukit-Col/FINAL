@@ -186,7 +186,15 @@ function caso(extra: Partial<Caso>): Caso {
 
 test("los filtros de tickets ignoran valores desconocidos", () => {
   const f = leerFiltrosTickets({ estado: "volando", categoria: "pago", q: [" hola "] });
-  assert.deepEqual(f, { estado: "", categoria: "pago", q: "hola" });
+  assert.deepEqual(f, {
+    estado: "",
+    categoria: "pago",
+    q: "hola",
+    prioridad: "",
+    asignado: "",
+    vencidos: false,
+    pagina: 1,
+  });
   assert.equal(hayFiltrosTickets(f), true);
 });
 

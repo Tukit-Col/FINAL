@@ -16,214 +16,80 @@
   color: var(--color-text-secondary);
 }
 
-/* --------------------------------------------------------- tarjetas */
+/* --------------------------------------------------------- atajos y rejilla */
 
-.tarjetas {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--espacio-4);
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
 }
 
-.tarjeta {
-  display: grid;
-  gap: 4px;
-  padding: var(--espacio-4) var(--espacio-5);
-  background: var(--clay-surface-grad);
-  border-radius: var(--radius-lg);
+.chip {
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background: var(--color-white);
   box-shadow: var(--clay-shadow-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-decoration: none;
 }
 
-.tarjetaAviso {
-  box-shadow: var(--clay-shadow-sm), inset 0 0 0 2px var(--color-aviso-border);
-}
-
-.tarjetaIcono {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: var(--radius-md);
-  color: var(--color-primary);
-  background: var(--clay-cielo-bg);
-  box-shadow: var(--clay-shadow-sm);
-}
-
-.tarjetaAviso .tarjetaIcono {
-  color: var(--color-aviso);
+.chipHay {
+  color: var(--color-text-primary);
   background: var(--color-aviso-bg);
 }
 
-.tarjetaValor {
-  margin-top: var(--espacio-2);
-  font-family: var(--font-display);
-  font-size: 30px;
-  font-weight: 800;
-  line-height: 1.05;
+.chipActivo {
+  background: var(--color-primary);
+  color: var(--color-white);
 }
 
-.tarjetaEtiqueta {
-  font-weight: 700;
-  font-size: 14px;
+.chip:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
-.tarjetaPista {
-  font-size: 12px;
-  color: var(--color-text-muted);
+.rejilla {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--espacio-4);
+  margin: 0;
+  padding: 0;
 }
 
-/* ------------------------------------------------------------- tabla */
-
-.marco {
-  overflow-x: auto;
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--clay-shadow-sm);
+@media (min-width: 900px) {
+  .rejilla {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-.tabla {
-  width: 100%;
-  border-collapse: collapse;
+.paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-3);
+  flex-wrap: wrap;
   font-size: 13px;
-}
-
-.tabla th,
-.tabla td {
-  padding: var(--espacio-2) var(--espacio-3);
-  text-align: left;
-  vertical-align: middle;
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.tabla thead th {
-  position: sticky;
-  top: 0;
-  background: var(--color-surface-2);
-  font-size: 11.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-text-secondary);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.tabla tbody tr:last-child th,
-.tabla tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.tabla tbody tr:hover {
-  background: var(--color-surface-2);
-}
-
-.filaUrgente {
-  background: var(--color-danger-bg);
-  box-shadow: inset 3px 0 0 var(--color-danger);
-}
-
-.filaCerrada {
-  color: var(--color-text-muted);
-}
-
-.identificador code {
-  font-size: 12px;
-  color: var(--color-text-primary);
-}
-
-.asunto {
-  max-width: 34ch;
   color: var(--color-text-secondary);
 }
 
-.fechaExacta {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+.paginacion a {
+  color: var(--color-primary);
+  font-weight: 700;
 }
 
 .tenue {
   color: var(--color-text-muted);
 }
 
-.enlace code {
-  color: var(--color-primary);
-  text-decoration: underline;
-  font-size: 12px;
-}
-
-/* Prioridad: urgente en rojo, alta en ámbar, media/baja apagadas. Es el orden
- * de atención, no un estado del dominio, por eso no reusa los colores de estado. */
-.prioridad {
-  display: inline-block;
-  padding: 1px 9px;
-  border-radius: var(--radius-full);
-  font-size: 11.5px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.prioridad_urgente {
-  background: var(--color-danger-bg);
-  box-shadow: inset 0 0 0 1px var(--color-danger-border);
-  color: var(--color-danger);
-}
-
-.prioridad_alta {
-  background: var(--color-aviso-bg);
-  box-shadow: inset 0 0 0 1px var(--color-aviso-border);
-  color: var(--color-aviso);
-}
-
-.prioridad_media,
-.prioridad_baja {
-  background: var(--color-neutro-bg);
-  box-shadow: inset 0 0 0 1px var(--color-neutro-border);
+.casillaVencidos {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 7px;
+  font-size: 13px;
   color: var(--color-text-secondary);
-}
-
-.categoria {
-  padding: 1px 9px;
-  border-radius: var(--radius-full);
-  background: var(--clay-cielo-bg);
-  color: var(--color-primary);
-  font-size: 11.5px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-/* Estado del caso: mismo criterio semántico que el resto de la consola. */
-.estado {
-  display: inline-block;
-  padding: 1px 9px;
-  border-radius: var(--radius-full);
-  background: var(--color-neutro-bg);
-  box-shadow: inset 0 0 0 1px var(--color-neutro-border);
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.estado_abierto {
-  background: var(--color-aviso-bg);
-  box-shadow: inset 0 0 0 1px var(--color-aviso-border);
-  color: var(--color-aviso);
-}
-
-.estado_en_gestion,
-.estado_esperando_tercero {
-  background: var(--color-info-bg);
-  box-shadow: inset 0 0 0 1px var(--color-info-border);
-  color: var(--color-info);
-}
-
-.estado_resuelto {
-  background: var(--color-success-bg);
-  box-shadow: inset 0 0 0 1px var(--color-success-border);
-  color: var(--color-success);
-}
-
-.estado_cerrado {
-  color: var(--color-text-muted);
 }
 
 /* ------------------------------------------------------------- vacío */
@@ -284,8 +150,3 @@
   font-size: 13px;
 }
 
-.vencido {
-  color: var(--color-danger);
-  font-weight: 600;
-  font-size: 12px;
-}
