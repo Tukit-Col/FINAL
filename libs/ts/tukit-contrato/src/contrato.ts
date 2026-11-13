@@ -197,6 +197,8 @@ export interface AplicarCanonico {
   anio_lectivo: number;
   perfil: PerfilKit;
   personaje?: string;
+  // Como llama el acudiente a su hijo (max 40): rotula su kit. Nunca el nombre legal.
+  apodo?: string;
   usuario_id?: string;
 }
 

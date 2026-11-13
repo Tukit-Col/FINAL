@@ -3313,6 +3313,7 @@ async def aplicar_canonico(
     anio_lectivo: int,
     perfil: str,
     personaje: str | None = None,
+    apodo: str | None = None,
     usuario_id: uuid.UUID | None = None,
     catalogo: ClienteCatalogo,
 ) -> dict[str, Any]:
@@ -3376,6 +3377,10 @@ async def aplicar_canonico(
                         "canonico_trabajo_id": str(canonico.trabajo_id),
                         "perfil": perfil,
                         "personaje": personaje,
+                        # Como llama el acudiente a su hijo: es lo que rotula su kit.
+                        # Solo aqui (la vista del acudiente); `_sin_apodo` lo quita
+                        # para la consola y nunca viaja en el pedido congelado.
+                        **({"apodo": apodo.strip()} if apodo and apodo.strip() else {}),
                     }
                 ],
                 terminado_en=ahora(),

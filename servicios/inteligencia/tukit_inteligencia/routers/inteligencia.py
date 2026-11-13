@@ -285,6 +285,9 @@ class AplicarCanonico(BaseModel):
     anio_lectivo: int = Field(ge=2020, le=2100)
     perfil: str = Field(max_length=16)
     personaje: str | None = Field(default=None, max_length=64)
+    # Como llama el acudiente a su hijo (nunca el nombre legal): rotula el kit. Misma
+    # regla que en `/v1/trabajos`: se recorta, vacio es None y mas de 40 se rechaza.
+    apodo: str | None = Field(default=None, max_length=40)
     usuario_id: uuid.UUID | None = None
     # La cache bendita no guarda la marca de las alternativas ni se re-optimiza, asi
     # que NO puede honrar estos filtros. Se aceptan solo para rechazarlos con un
@@ -292,6 +295,13 @@ class AplicarCanonico(BaseModel):
     # trabajo normal, que si re-optimiza con los filtros.
     marcas_excluidas: list[str] | None = Field(default=None, max_length=10)
     solo_disponibles: bool | None = None
+
+    @field_validator("apodo", mode="before")
+    @classmethod
+    def _recortar_apodo(cls, v):
+        if isinstance(v, str):
+            return v.strip() or None
+        return v
 
 
 class EntregaCheckout(BaseModel):
@@ -1509,6 +1519,7 @@ async def aplicar_canonico(cuerpo: AplicarCanonico, solicitud: Request) -> dict[
             anio_lectivo=cuerpo.anio_lectivo,
             perfil=cuerpo.perfil,
             personaje=cuerpo.personaje,
+            apodo=cuerpo.apodo,
             usuario_id=usuario_id,
             catalogo=api._catalogo(),
         )
