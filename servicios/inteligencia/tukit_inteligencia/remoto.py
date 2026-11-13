@@ -89,11 +89,12 @@ def elegir_producto_de_personaje(productos: list[dict[str, Any]]) -> dict[str, A
     menor `precio_desde`; el sku ascendente desempata.
     """
 
-    def clave(p: dict[str, Any]) -> tuple[Any, ...]:
-        precio = p.get("precio_desde")
-        return (precio is None, _ORDEN_NIVEL.get(p.get("nivel"), 9), precio or 0, str(p.get("sku") or ""))
+    return min(productos, key=_clave_de_personaje) if productos else None
 
-    return min(productos, key=clave) if productos else None
+
+def _clave_de_personaje(p: dict[str, Any]) -> tuple[Any, ...]:
+    precio = p.get("precio_desde")
+    return (precio is None, _ORDEN_NIVEL.get(p.get("nivel"), 9), precio or 0, str(p.get("sku") or ""))
 
 
 @dataclass
@@ -196,22 +197,30 @@ class ClienteCatalogo:
         )
         return list(cuerpo.get("productos") or ())
 
-    async def producto_de_personaje(self, concepto: str, personaje: str) -> dict[str, Any] | None:
-        """El producto de un concepto ancla para un personaje, o None si no hay.
+    async def productos_de_personaje(
+        self, concepto: str, personaje: str, *, limite: int = 8
+    ) -> list[dict[str, Any]]:
+        """Las variantes activas de un concepto ancla para un personaje, en orden estable.
 
         Es la misma consulta que el interruptor de personaje del Fan hace en la
-        consola (concepto + personaje, hasta 20 candidatos y uno elegido de forma
-        determinista), pero del lado del
-        servidor: la ruta de aplicacion del acudiente congela las anclas del kit
-        canonico al personaje elegido sin depender del navegador.
+        consola (concepto + personaje), pero del lado del servidor y con TODAS
+        las variantes (hasta `limite`): el unico cuaderno Spiderman multimaterias
+        no tapa a uno cosido de una materia que si cabe en la lista. El orden es
+        el de `elegir_producto_de_personaje` (con precio, nivel, precio, sku),
+        asi la primera es la que la consulta de un solo producto devolvia.
         """
         cuerpo = await self._pedir(
             "GET",
             "/v1/catalogo/productos",
-            params={"concepto": concepto, "personaje": personaje, "por_pagina": 20},
+            params={"concepto": concepto, "personaje": personaje, "por_pagina": limite},
         )
         productos = list(cuerpo.get("productos") or ())
-        return elegir_producto_de_personaje(productos)
+        return sorted(productos, key=_clave_de_personaje)
+
+    async def producto_de_personaje(self, concepto: str, personaje: str) -> dict[str, Any] | None:
+        """El primer producto de `productos_de_personaje`, o None (para quien pide uno solo)."""
+        productos = await self.productos_de_personaje(concepto, personaje, limite=20)
+        return productos[0] if productos else None
 
     async def listas_por_contacto(self, contacto_referencia: str) -> list[dict[str, Any]]:
         """Las listas que subio un acudiente, para su panel "Mis solicitudes".

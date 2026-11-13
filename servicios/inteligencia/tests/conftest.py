@@ -175,6 +175,13 @@ class CatalogoFalso:
                 )
         return salida[:maximo]
 
+    async def productos_de_personaje(
+        self, concepto: str, personaje: str, *, limite: int = 8
+    ) -> list[dict[str, Any]]:
+        """Las variantes de personaje; los dobles que solo definen una la envuelven en lista."""
+        producto = await self.producto_de_personaje(concepto, personaje)
+        return [producto] if producto else []
+
     async def producto_de_personaje(self, concepto: str, personaje: str) -> dict[str, Any] | None:
         """Primera opcion de un concepto ancla cuyo personaje coincide, o None."""
         self.llamadas.append("producto_de_personaje")

@@ -1334,41 +1334,58 @@ def puntaje_de_encaje(impuestos: dict[str, Any], atributos: dict[str, Any]) -> i
 
 
 def renglones_con_personaje(
-    renglones: list[tuple[Any, str, dict[str, Any], str]], atributos: dict[str, Any]
-) -> set[Any]:
-    """Las claves de renglon que SI llevan un mismo producto de personaje.
+    renglones: list[tuple[Any, str, dict[str, Any], str]], variantes: list[dict[str, Any]]
+) -> dict[Any, int]:
+    """Que renglones llevan producto de personaje, y cual variante lleva cada uno.
 
     Algoritmo.
     Entrada: los renglones de UN concepto (cuaderno, cartuchera...) como tuplas
-    `(clave, hijo, atributos_impuestos, texto)` en el orden del kit, y los
-    atributos del producto de personaje.
-    Salida: el conjunto de claves que reciben el producto.
+    `(clave, hijo, atributos_impuestos, texto)` en el orden del kit, y las
+    variantes de personaje que el catalogo surte para ese concepto (cada una
+    con sus `atributos` y `precio_desde`).
+    Salida: `{clave_renglon: indice_de_variante}`.
     Estrategia: el kit Fan pone el personaje, pero un mismo producto no se
-    repite en todos los renglones del concepto (la lista pide cuadriculado de
-    100 hojas, cosido, grande, argollado... y cuatro cuadernos de Spiderman
-    iguales no son variedad). Por cada hijo se descartan los renglones que el
-    producto contradice (`puntaje_de_encaje` None) y de los restantes se elige
-    UNO: el de mayor encaje, el primero en caso de empate. Los renglones que
-    piden `surtido` explicitamente tambien lo llevan, porque ahi repetir es lo
-    pedido. Si todos los renglones de un hijo contradicen al producto, ese hijo
-    queda sin el (mejor un cuaderno neutro que el que el colegio no acepto).
-    El resto de renglones conserva su producto, que el optimizador ya habia
-    elegido como el neutro compatible.
-    Complejidad: O(n * a), con n renglones del concepto y a atributos exigidos
-    por renglon; una sola pasada, sin ordenar.
+    repite en todos los renglones del concepto (cuatro cuadernos de Spiderman
+    iguales no son variedad). Por cada hijo se evalua cada par (renglon,
+    variante) con `puntaje_de_encaje`; un par que el renglon contradice (None)
+    se descarta. De los restantes se elige UNO: el de mayor encaje; en empate,
+    el renglon que va primero en el kit y luego la variante mas barata (el sku
+    desempata). Con varias variantes, el cuaderno multimaterias no tapa al
+    cosido de una materia que si cabe. Los renglones que piden `surtido`
+    explicitamente tambien lo llevan (su mejor variante), porque ahi repetir es
+    lo pedido. Si ningun par encaja, ese hijo queda sin personaje en el
+    concepto (mejor un cuaderno neutro que el que el colegio no acepto) y el
+    llamador lo reporta como `personaje_sin_encaje`.
+    Complejidad: O(n * v * a), con n renglones, v variantes y a atributos
+    exigidos por renglon; una sola pasada.
     """
-    mejor: dict[str, tuple[int, Any]] = {}
-    llevan: set[Any] = set()
+    orden_variante = sorted(
+        range(len(variantes)),
+        key=lambda i: (
+            variantes[i].get("precio_desde") is None,
+            variantes[i].get("precio_desde") or 0,
+            str(variantes[i].get("sku") or ""),
+        ),
+    )
+    mejor: dict[str, tuple[int, Any, int]] = {}
+    llevan: dict[Any, int] = {}
     for clave, hijo, impuestos, texto in renglones:
-        puntaje = puntaje_de_encaje(impuestos, atributos)
-        if puntaje is None:
+        mejor_del_renglon: tuple[int, int] | None = None
+        for indice in orden_variante:
+            puntaje = puntaje_de_encaje(impuestos, variantes[indice].get("atributos") or {})
+            # `>` estricto: con igual encaje se queda la variante mas barata.
+            if puntaje is not None and (mejor_del_renglon is None or puntaje > mejor_del_renglon[0]):
+                mejor_del_renglon = (puntaje, indice)
+        if mejor_del_renglon is None:
             continue
+        puntaje, indice = mejor_del_renglon
         if _pide_surtido(texto, impuestos):
-            llevan.add(clave)
-        # `>` estricto: el primero que alcanza el maximo se queda con el empate.
+            llevan[clave] = indice
+        # `>` estricto: el primer renglon que alcanza el maximo se queda el empate.
         if hijo not in mejor or puntaje > mejor[hijo][0]:
-            mejor[hijo] = (puntaje, clave)
-    llevan.update(clave for _, clave in mejor.values())
+            mejor[hijo] = (puntaje, clave, indice)
+    for _, clave, indice in mejor.values():
+        llevan[clave] = indice
     return llevan
 
 

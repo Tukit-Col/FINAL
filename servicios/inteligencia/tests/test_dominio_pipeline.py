@@ -392,3 +392,99 @@ class TestHermanoNeutralConEmpaque:
         assert r.consolidaciones == ()
         assert por_hijo["hijo-2"].mensaje is None
         assert r.total_cop == 9000 + 4000
+
+
+# --------------------------------------------------------------------------
+# Hermanos: varias variantes de personaje por ancla y aviso de lo que no cupo
+# --------------------------------------------------------------------------
+
+SPIDEY_MULTI = {
+    "sku": "TK-C001-CON-SPIDERMAN",
+    "nombre": "Cuaderno Argollado Multimaterias Spiderman",
+    "personaje": "spiderman",
+    "precio_desde": 36900,
+    "atributos": {"materias": "multiple", "encuadernacion": "argollado"},
+}
+SPIDEY_COSIDO = {
+    "sku": "TK-C001-COS-SPIDERMAN",
+    "nombre": "Cuaderno Cosido 100 hojas Spiderman",
+    "personaje": "spiderman",
+    "precio_desde": 41000,
+    "atributos": {"materias": "1", "encuadernacion": "cosido", "hojas": "100"},
+}
+PIDE_COSIDO = {"materias": "1", "encuadernacion": "cosido", "hojas": "100"}
+
+
+def _cartuchera(personaje: str) -> dict:
+    return {
+        "sku": f"TK-C009-ECO-{personaje.upper()}",
+        "nombre": f"Cartuchera {personaje}",
+        "personaje": personaje,
+        "precio_desde": 15000,
+    }
+
+
+def _fan(lineas) -> KitArmado:
+    return KitArmado(perfil=PerfilKit.FAN.value, total_cop=0, objetivos={}, lineas=tuple(lineas))
+
+
+PREFS_HERMANOS = {"personaje_por_hijo": {"hijo-1": ["spiderman"], "hijo-2": ["minnie"]}}
+
+
+class TestHermanosConVariantes:
+    def test_hermanos_cada_uno_su_personaje_con_variantes(self):
+        lineas = [
+            _linea_cuaderno(1, "cuaderno cosido 100 hojas", PIDE_COSIDO, hijo="hijo-1"),
+            _linea_cuaderno(2, "cuaderno cosido 100 hojas", PIDE_COSIDO, hijo="hijo-1"),
+            _linea("C009", 9000, hijo="hijo-2", orden=1),
+        ]
+        swaps = {
+            "hijo-1": {"C001": [SPIDEY_MULTI, SPIDEY_COSIDO]},
+            "hijo-2": {"C009": [_cartuchera("minnie")]},
+        }
+        fan = inyectar_personaje_fan([_fan(lineas)], swaps, PREFS_HERMANOS)[0]
+        skus_h1 = [li.elegido.sku for li in fan.lineas if li.hijo == "hijo-1"]
+        assert SPIDEY_COSIDO["sku"] in skus_h1
+        assert SPIDEY_MULTI["sku"] not in skus_h1
+        h2 = [li for li in fan.lineas if li.hijo == "hijo-2"]
+        assert [li.elegido.sku for li in h2] == ["TK-C009-ECO-MINNIE"]
+        assert all(li.elegido.personaje != "spiderman" for li in h2)
+        assert "personaje_sin_encaje" not in fan.objetivos
+
+    def test_mismo_personaje_dos_hijos_sigue_consolidando(self):
+        cartuchera = {**_cartuchera("spiderman"), "unidades_por_empaque": 2}
+        lineas = [
+            _linea("C009", 9000, hijo="hijo-1", orden=1, empaque=2),
+            _linea("C009", 9000, hijo="hijo-2", orden=1, empaque=2),
+        ]
+        swaps = {"hijo-1": {"C009": [cartuchera]}, "hijo-2": {"C009": [cartuchera]}}
+        prefs = {"personaje_por_hijo": {"hijo-1": ["spiderman"], "hijo-2": ["spiderman"]}}
+        fan = inyectar_personaje_fan([_fan(lineas)], swaps, prefs)[0]
+        grupo = next(c for c in fan.consolidaciones if c["sku"] == cartuchera["sku"])
+        assert grupo["hijos"] == ["hijo-1", "hijo-2"]
+
+    def test_hijo_sin_personaje_queda_neutral(self):
+        lineas = [
+            _linea("C009", 9000, hijo="hijo-1", orden=1),
+            _linea("C009", 9000, hijo="hijo-2", orden=1),
+            _linea_cuaderno(2, "cuaderno", {}, hijo="hijo-2"),
+        ]
+        swaps = {"hijo-1": {"C009": [_cartuchera("spiderman")]}}
+        prefs = {"personaje_por_hijo": {"hijo-1": ["spiderman"]}}
+        fan = inyectar_personaje_fan([_fan(lineas)], swaps, prefs)[0]
+        assert all(
+            li.elegido is None or li.elegido.personaje is None for li in fan.lineas if li.hijo == "hijo-2"
+        )
+
+    def test_ancla_sin_encaje_queda_registrada(self):
+        lineas = [
+            _linea_cuaderno(1, "cuaderno cosido 100 hojas", PIDE_COSIDO, hijo="hijo-1"),
+            _linea_cuaderno(2, "cuaderno cosido 100 hojas", PIDE_COSIDO, hijo="hijo-1"),
+            _linea("C009", 9000, hijo="hijo-1", orden=3),
+        ]
+        swaps = {"hijo-1": {"C001": [SPIDEY_MULTI], "C009": [_cartuchera("spiderman")]}}
+        fan = inyectar_personaje_fan([_fan(lineas)], swaps, PREFS_FAN)[0]
+        assert fan.objetivos["personaje_sin_encaje"] == [
+            {"hijo": "hijo-1", "concepto": "C001", "personaje": "spiderman"}
+        ]
+        assert all(li.elegido.sku == "NEUTRAL-C001" for li in fan.lineas if li.concepto_codigo == "C001")
