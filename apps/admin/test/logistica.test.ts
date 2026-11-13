@@ -51,7 +51,7 @@ const SIN_FILTROS = leerFiltros({});
 
 test("leerFiltros ignora un estado o una fecha invalidos", () => {
   const f = leerFiltros({ estado: "volando", desde: "ayer", hasta: "2026-10-03", q: ["  ABCD ", "x"] });
-  assert.deepEqual(f, { q: "ABCD", estado: "", colegio: "", desde: "", hasta: "2026-10-03", alerta: "" });
+  assert.deepEqual(f, { q: "ABCD", estado: "", colegio: "", desde: "", hasta: "2026-10-03", alerta: "", vista: "tablero" });
   assert.equal(hayFiltros(SIN_FILTROS), false);
   assert.equal(hayFiltros(f), true);
 });
@@ -192,4 +192,88 @@ test("hrefConAlerta conserva los otros filtros", async () => {
   const f = leerFiltros({ estado: "pagado", alerta: "pago_atascado" });
   assert.equal(hrefConAlerta(f, "pagado_sin_avanzar"), "/logistica?estado=pagado&alerta=pagado_sin_avanzar");
   assert.equal(hrefConAlerta(leerFiltros({}), ""), "/logistica");
+});
+
+// ---------------------------------------------------------- Tablero kanban
+import {
+  accionDeTarjeta,
+  agruparPorEtapa,
+  articulosDePedido,
+  CARRIL_APARTE,
+  COLUMNAS_FLUJO,
+  hrefConVista,
+  hrefEtapaEnTabla,
+  hrefConAlerta,
+  PRIORIDAD_ESTADO,
+} from "../src/lib/logistica.ts";
+
+test("vista: tablero por defecto, se sanea y no cuenta como filtro", () => {
+  assert.equal(leerFiltros({}).vista, "tablero");
+  assert.equal(leerFiltros({ vista: "tabla" }).vista, "tabla");
+  assert.equal(leerFiltros({ vista: "<script>" }).vista, "tablero");
+  assert.equal(hayFiltros(leerFiltros({ vista: "tabla" })), false);
+});
+
+test("hrefConVista conserva los filtros y no escribe la vista por defecto", () => {
+  const f = leerFiltros({ alerta: "pago_atascado", vista: "tabla" });
+  assert.equal(hrefConVista(f, "tablero"), "/logistica?alerta=pago_atascado");
+  assert.equal(hrefConVista(leerFiltros({}), "tabla"), "/logistica?vista=tabla");
+  // Los chips de alerta, desde la tabla, siguen en la tabla.
+  assert.equal(hrefConAlerta(f, ""), "/logistica?vista=tabla");
+  assert.equal(hrefEtapaEnTabla(leerFiltros({}), "entregado"), "/logistica?estado=entregado&vista=tabla");
+});
+
+test("las columnas siguen el flujo y lo que sale de el va aparte", () => {
+  assert.deepEqual([...COLUMNAS_FLUJO, ...CARRIL_APARTE].sort(), Object.keys(PRIORIDAD_ESTADO).sort());
+  assert.deepEqual(CARRIL_APARTE, ["incidencia", "cancelado"]);
+});
+
+test("agruparPorEtapa: conteo real, alertas y lo mas viejo primero; cerrados recortados", () => {
+  const dia = (d: number) => `2026-10-${String(d).padStart(2, "0")}T15:00:00Z`;
+  const pedidos = [
+    pedido({ pedido_id: "p-viejo", creado_en: dia(1) }),
+    pedido({ pedido_id: "p-nuevo", creado_en: dia(5) }),
+    pedido({ pedido_id: "p-alerta", creado_en: dia(9), alertas: ["pagado_sin_avanzar"] }),
+    ...Array.from({ length: 7 }, (_, i) =>
+      pedido({ pedido_id: `e-${i}`, estado: "entregado", creado_en: dia(1), envio: { entregado_en: dia(10 + i) } as Pedido["envio"] }),
+    ),
+  ];
+  const [pagado, entregado] = agruparPorEtapa(pedidos, ["pagado", "entregado"], 5);
+  assert.deepEqual(pagado!.pedidos.map((p) => p.pedido_id), ["p-alerta", "p-viejo", "p-nuevo"]);
+  assert.equal(pagado!.ocultos, 0);
+  assert.equal(entregado!.total, 7);
+  assert.equal(entregado!.pedidos.length, 5);
+  assert.equal(entregado!.ocultos, 2);
+  // Lo entregado mas reciente primero (por `entregado_en`).
+  assert.equal(entregado!.pedidos[0]!.pedido_id, "e-6");
+  assert.deepEqual(agruparPorEtapa([], ["en_reparto"])[0], { estado: "en_reparto", total: 0, pedidos: [], ocultos: 0 });
+});
+
+test("accionDeTarjeta: solo el avance legal de la matriz, sin saltos", () => {
+  for (const estado of [...COLUMNAS_FLUJO, ...CARRIL_APARTE]) {
+    const a = accionDeTarjeta(estado);
+    if (!a) continue;
+    // Siempre una transicion que la matriz permite desde ese estado.
+    assert.ok(accionesDisponibles(estado).some((x) => x.destino === a.accion.destino));
+    assert.notEqual(a.accion.destino, "incidencia");
+    assert.notEqual(a.accion.destino, "cancelado");
+  }
+  assert.deepEqual(accionDeTarjeta("pagado"), {
+    accion: accionesDisponibles("pagado")[0],
+    directa: true,
+  });
+  // Despachar pide repartidor: va al detalle.
+  assert.equal(accionDeTarjeta("en_preparacion")!.directa, false);
+  assert.equal(accionDeTarjeta("en_reparto")!.accion.destino, "entregado");
+  for (const quieto of ["pendiente_pago", "entregado", "cancelado", "incidencia"] as const) {
+    assert.equal(accionDeTarjeta(quieto), null);
+  }
+});
+
+test("articulosDePedido suma cantidades", () => {
+  assert.equal(articulosDePedido({ lineas: [] }), 0);
+  assert.equal(
+    articulosDePedido({ lineas: [{ cantidad: 2 }, { cantidad: 3 }] as Pedido["lineas"] }),
+    5,
+  );
 });

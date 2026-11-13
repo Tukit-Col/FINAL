@@ -36,6 +36,8 @@ export interface FiltrosLogistica {
   hasta: string;
   // Alerta accionable de comercio (`?alerta=`): pagado sin avanzar, pago atascado, incidencia.
   alerta: AlertaPedido | "";
+  // Tablero kanban o tabla (`?vista=`). No filtra: solo cambia como se pinta.
+  vista: VistaLogistica;
 }
 
 type ParametrosBusqueda = Record<string, string | string[] | undefined>;
@@ -64,6 +66,7 @@ export function leerFiltros(parametros: ParametrosBusqueda): FiltrosLogistica {
   const desde = primero(parametros.desde);
   const hasta = primero(parametros.hasta);
   const alerta = primero(parametros.alerta);
+  const vista = primero(parametros.vista);
   return {
     q: primero(parametros.q),
     estado: esEstado(estado) ? estado : "",
@@ -71,11 +74,15 @@ export function leerFiltros(parametros: ParametrosBusqueda): FiltrosLogistica {
     desde: DIA.test(desde) ? desde : "",
     hasta: DIA.test(hasta) ? hasta : "",
     alerta: esAlerta(alerta) ? alerta : "",
+    vista: esVista(vista) ? vista : VISTA_POR_DEFECTO,
   };
 }
 
+/** Si hay algun filtro puesto. La vista no cuenta: no esconde pedidos. */
 export function hayFiltros(filtros: FiltrosLogistica): boolean {
-  return Object.values(filtros).some((v) => v !== "");
+  return [filtros.q, filtros.estado, filtros.colegio, filtros.desde, filtros.hasta, filtros.alerta].some(
+    (v) => v !== "",
+  );
 }
 
 /** Una clave estable de los filtros, para remontar el formulario al cambiarlos. */
@@ -302,6 +309,8 @@ export function textoAviso(aviso: string | null): string {
 export function hrefConAlerta(filtros: FiltrosLogistica, alerta: AlertaPedido | ""): string {
   const parametros = new URLSearchParams();
   for (const [clave, valor] of Object.entries({ ...filtros, alerta })) {
+    // La vista por defecto no se escribe: `/logistica` pelado sigue siendo el inicio.
+    if (clave === "vista" && valor === VISTA_POR_DEFECTO) continue;
     if (valor) parametros.set(clave, valor);
   }
   const cola = parametros.toString();
@@ -311,4 +320,117 @@ export function hrefConAlerta(filtros: FiltrosLogistica, alerta: AlertaPedido | 
 /** Los primeros 8 caracteres del id: el código corto que ve el acudiente. */
 export function codigoCorto(pedidoId: string): string {
   return pedidoId.slice(0, 8);
+}
+
+// ------------------------------------------------ Tablero kanban por etapa
+
+/** Las dos vistas de `/logistica`. El tablero es la de entrada: la pregunta
+ *  diaria del operador es "que hay en cada etapa y que se atasco", y eso se
+ *  lee de un vistazo en columnas. La tabla queda para buscar, comparar y el
+ *  avance en lote (`?vista=tabla`). */
+export type VistaLogistica = "tablero" | "tabla";
+
+export const VISTA_POR_DEFECTO: VistaLogistica = "tablero";
+
+function esVista(valor: string): valor is VistaLogistica {
+  return valor === "tablero" || valor === "tabla";
+}
+
+/** El flujo feliz, en el orden en que avanza un pedido (columnas de izquierda
+ *  a derecha). Es el mismo orden de la matriz `ACCIONES`. */
+export const COLUMNAS_FLUJO: readonly EstadoPedido[] = [
+  "pendiente_pago",
+  "pagado",
+  "en_preparacion",
+  "despachado",
+  "en_reparto",
+  "entregado",
+];
+
+/** Lo que sale del flujo: la incidencia (hay que atenderla) y lo cancelado.
+ *  Van en un carril aparte, visibles, no escondidos al final. */
+export const CARRIL_APARTE: readonly EstadoPedido[] = ["incidencia", "cancelado"];
+
+/** Las columnas cerradas muestran solo los ultimos N para no saturar; el
+ *  resto se ve en la tabla con su filtro. */
+export const ESTADOS_LIMITADOS: readonly EstadoPedido[] = ["entregado", "cancelado"];
+export const LIMITE_CERRADOS = 5;
+
+export interface ColumnaTablero {
+  estado: EstadoPedido;
+  /** Cuantos pedidos (ya filtrados) hay en la etapa, aunque no se muestren todos. */
+  total: number;
+  pedidos: Pedido[];
+  /** Los que no caben por el limite de las columnas cerradas. */
+  ocultos: number;
+}
+
+/** Desde cuando el pedido esta en su etapa, lo mejor que el tablero sabe: el
+ *  tablero de comercio no trae la fecha de llegada a cada estado, asi que la
+ *  entrega usa `entregado_en` y el resto la creacion del pedido. */
+export function fechaDeEtapa(pedido: Pedido): string {
+  if (pedido.estado === "entregado" && pedido.envio?.entregado_en) return pedido.envio.entregado_en;
+  return pedido.creado_en;
+}
+
+function instante(iso: string): number {
+  const t = new Date(iso).getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
+
+/** Los pedidos por etapa, en el orden de `estados`. En las etapas abiertas va
+ *  primero lo que tiene alerta y luego lo mas viejo (lo que lleva mas esperando);
+ *  en las cerradas lo mas reciente, recortado a `limite`. */
+export function agruparPorEtapa(
+  pedidos: readonly Pedido[],
+  estados: readonly EstadoPedido[],
+  limite: number = LIMITE_CERRADOS,
+): ColumnaTablero[] {
+  return estados.map((estado) => {
+    const deLaEtapa = pedidos.filter((p) => p.estado === estado);
+    const cerrada = ESTADOS_LIMITADOS.includes(estado);
+    const ordenados = [...deLaEtapa].sort((a, b) => {
+      if (cerrada) return instante(fechaDeEtapa(b)) - instante(fechaDeEtapa(a));
+      const alerta = Number((b.alertas ?? []).length > 0) - Number((a.alertas ?? []).length > 0);
+      return alerta !== 0 ? alerta : instante(fechaDeEtapa(a)) - instante(fechaDeEtapa(b));
+    });
+    const visibles = cerrada ? ordenados.slice(0, Math.max(0, limite)) : ordenados;
+    return { estado, total: deLaEtapa.length, pedidos: visibles, ocultos: deLaEtapa.length - visibles.length };
+  });
+}
+
+/** Unidades del pedido (suma de cantidades de sus lineas). */
+export function articulosDePedido(pedido: Pick<Pedido, "lineas">): number {
+  return pedido.lineas.reduce((suma, linea) => suma + linea.cantidad, 0);
+}
+
+export interface AccionDeTarjeta {
+  accion: AccionLogistica;
+  /** `true`: se envia desde la tarjeta. `false`: pide datos (repartidor) y
+   *  abre el detalle, donde vive su formulario. */
+  directa: boolean;
+}
+
+/** El paso siguiente que ofrece una tarjeta: SOLO el avance natural de la
+ *  matriz (su primera accion). Incidencia y cancelar quedan en el detalle,
+ *  donde piden tipo, nota o confirmacion. `null` si el estado no se mueve
+ *  desde logistica (pendiente de pago, entregado, cancelado). */
+export function accionDeTarjeta(estado: EstadoPedido): AccionDeTarjeta | null {
+  // Una incidencia se atiende leyendo su nota: reprogramar o cancelar desde la
+  // tarjeta seria decidir a ciegas. Va al detalle.
+  if (estado === "incidencia") return null;
+  const accion = accionesDisponibles(estado).find((a) => a.forma === "simple" || a.forma === "despachar");
+  if (!accion) return null;
+  return { accion, directa: accion.forma === "simple" };
+}
+
+/** El enlace del selector Tablero | Tabla: conserva los filtros y cambia la vista.
+ *  La vista por defecto no se escribe en la URL. */
+export function hrefConVista(filtros: FiltrosLogistica, vista: VistaLogistica): string {
+  return hrefConAlerta({ ...filtros, vista }, filtros.alerta);
+}
+
+/** El enlace "ver todos" de una columna recortada: la tabla filtrada por esa etapa. */
+export function hrefEtapaEnTabla(filtros: FiltrosLogistica, estado: EstadoPedido): string {
+  return hrefConAlerta({ ...filtros, estado, vista: "tabla" }, filtros.alerta);
 }
