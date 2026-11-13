@@ -1342,7 +1342,10 @@ async def ver(
         "trabajo_id": str(cabeza.id),
         "estado": cabeza.estado,
         "origen": cabeza.origen,
-        "hijos": list(cabeza.hijos or ()),
+        # La consola interna nunca recibe el apodo de un menor (Ley 1581, nota
+        # de `TrabajoAdmin` en el contrato); la vista del acudiente si, porque
+        # rotula su propio kit con el.
+        "hijos": [_sin_apodo(h) for h in cabeza.hijos or ()] if incluir_admin else list(cabeza.hijos or ()),
         "etapas": etapas,
         "kits": kits,
         "recomendado": recomendado,
@@ -1355,6 +1358,11 @@ async def ver(
         "nota_revision": cabeza.nota_revision,
         **campos_admin,
     }
+
+
+def _sin_apodo(hijo: Any) -> Any:
+    """El hijo sin su `apodo`: lo que ve quien no es el acudiente."""
+    return {k: v for k, v in hijo.items() if k != "apodo"} if isinstance(hijo, dict) else hijo
 
 
 async def ordenar(
@@ -1417,12 +1425,7 @@ async def ordenar(
         # ir junto a otra ("Ya va en la linea N", o la de un hermano): Comercio
         # exige cantidad > 0 y una sola en cero tumbaba el checkout entero.
         # Lo que el acudiente descarto ("ya lo tengo") tampoco se cobra.
-        if (
-            linea["informativa"]
-            or linea.get("descartado")
-            or not elegido
-            or elegido.get("precio") is None
-        ):
+        if linea["informativa"] or linea.get("descartado") or not elegido or elegido.get("precio") is None:
             continue
         if int(linea["unidades_a_comprar"]) <= 0:
             continue
@@ -2500,7 +2503,8 @@ async def abrir_borrador(motor: Any, canonico_id: uuid.UUID) -> dict[str, Any]:
             return {"trabajo_id": str(abierto), "basado_en": str(canonico_id), "nuevo": False}
 
         borrador_id = uuid.uuid4()
-        hijos = [dict(h) for h in fila.hijos or ()]
+        # Sin apodo: el borrador es de la consola, no de un acudiente.
+        hijos = [_sin_apodo(dict(h)) for h in fila.hijos or ()]
         hijos[0]["basado_en"] = str(canonico_id)
         await conexion.execute(
             insert(TRABAJO).values(
@@ -2913,9 +2917,7 @@ async def _filtros_del_trabajo(motor: Any, trabajo_id: uuid.UUID) -> FiltrosDuro
     el acudiente excluyo no debe volver por esa puerta."""
     async with motor.engine.connect() as conexion:
         cifradas = (
-            await conexion.execute(
-                select(TRABAJO.c.preferencias_cifradas).where(TRABAJO.c.id == trabajo_id)
-            )
+            await conexion.execute(select(TRABAJO.c.preferencias_cifradas).where(TRABAJO.c.id == trabajo_id))
         ).scalar_one_or_none()
     return filtros_de(cifrador_desde_entorno().descifrar_json(cifradas) if cifradas else None)
 

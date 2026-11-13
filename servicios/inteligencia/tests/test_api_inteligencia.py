@@ -127,6 +127,22 @@ class TestCrearDevuelve202:
         vista = (await cliente.get(creado.json()["consultar_en"])).json()
         assert [h.get("apodo") for h in vista["hijos"]] == ["Sofía", "Lucía"]
 
+    async def test_la_vista_admin_no_trae_el_apodo_y_la_del_dueno_si(self, cliente):
+        """Ley 1581: la consola interna nunca recibe el apodo de un menor."""
+        creado = await cliente.post(
+            "/v1/trabajos",
+            json=_peticion(
+                hijos=[{"referencia": "hijo-0", "colegio_id": COLEGIO, "grado": "Cuarto", "apodo": "Sofía"}]
+            ),
+        )
+        trabajo_id = creado.json()["trabajo_id"]
+        dueno = (await cliente.get(creado.json()["consultar_en"])).json()
+        admin = (await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")).json()
+        assert dueno["hijos"][0]["apodo"] == "Sofía"
+        assert all("apodo" not in h for h in admin["hijos"])
+        assert admin["hijos"][0]["referencia"] == "hijo-0"
+        assert "Sofía" not in str(admin)
+
     async def test_un_apodo_de_mas_de_40_caracteres_se_rechaza(self, cliente):
         respuesta = await cliente.post(
             "/v1/trabajos",

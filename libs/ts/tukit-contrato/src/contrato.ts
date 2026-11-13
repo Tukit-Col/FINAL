@@ -689,8 +689,10 @@ export interface TrabajoAdmin extends Trabajo {
   nota_revision?: string | null;
   /** `preview_onboarding`/`canonico_lista` no tienen acudiente a quien avisar. */
   origen?: string;
-  /** Los hijos tal como se pidieron; un preview trae su `version_id`. */
-  hijos?: HijoDeTrabajo[];
+  /** Los hijos tal como se pidieron; un preview trae su `version_id`. Sin
+   *  `apodo`: la consola nunca recibe el de un menor (Ley 1581); solo la
+   *  vista del acudiente lo trae. */
+  hijos?: Omit<HijoDeTrabajo, "apodo">[];
 }
 
 export interface HijoDeTrabajo {
