@@ -10,348 +10,119 @@
   font-weight: 800;
 }
 
-.bajada {
-  max-width: 62ch;
-  margin-top: var(--espacio-1);
-  color: var(--color-text-secondary);
-}
-
-/* --------------------------------------------------------- tarjetas */
-
-.tarjetas {
+/* Una tarjeta por pendiente: el número manda, el enlace es la acción. */
+.rejilla {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: var(--espacio-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.tarjeta {
-  display: grid;
-  gap: 4px;
+.widget {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
   padding: var(--espacio-4) var(--espacio-5);
   background: var(--clay-surface-grad);
   border-radius: var(--radius-lg);
   box-shadow: var(--clay-shadow-sm);
-  transition: transform var(--dur-rapido) var(--ease-suave),
-    box-shadow var(--dur-rapido) var(--ease-suave);
-}
-
-.tarjeta:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--clay-shadow);
-}
-
-/* El aviso no cambia el número, cambia el marco: un anillo ámbar dice "aquí
- * hay trabajo" sin tocar el significado de los colores de estado. */
-.tarjetaAviso {
-  box-shadow: var(--clay-shadow-sm), inset 0 0 0 2px var(--color-aviso-border);
-}
-
-.tarjetaIcono {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: var(--radius-md);
-  color: var(--color-primary);
-  background: var(--clay-cielo-bg);
-  box-shadow: var(--clay-shadow-sm);
-}
-
-.tarjetaAviso .tarjetaIcono {
-  color: var(--color-aviso);
-  background: var(--color-aviso-bg);
-}
-
-.tarjetaValor {
-  margin-top: var(--espacio-2);
-  font-family: var(--font-display);
-  font-size: 34px;
-  font-weight: 800;
-  line-height: 1.05;
-  color: var(--color-text-primary);
-}
-
-.tarjetaEtiqueta {
-  font-weight: 700;
-  font-size: 14px;
-}
-
-.tarjetaPista {
-  font-size: 12px;
-  color: var(--color-text-muted);
-}
-
-/* ----------------------------------------------------------- bloque */
-
-.bloque {
-  padding: var(--espacio-5);
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--clay-shadow-sm);
-}
-
-.bloqueTitulo {
-  font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 700;
-  margin-bottom: var(--espacio-4);
-}
-
-.barras {
-  display: flex;
-  flex-direction: column;
-  gap: var(--espacio-3);
-  list-style: none;
-}
-
-.barraFila {
-  display: grid;
-  grid-template-columns: 130px 1fr 40px;
-  align-items: center;
-  gap: var(--espacio-3);
-  font-size: 13px;
-}
-
-.barraEtiqueta {
-  color: var(--color-text-secondary);
-  font-weight: 600;
-}
-
-.barraCarril {
-  height: 14px;
-  border-radius: var(--radius-full);
-  background: var(--color-surface-2);
-  box-shadow: var(--clay-shadow-inset);
   overflow: hidden;
 }
 
-.barraRelleno {
-  display: block;
-  height: 100%;
-  min-width: 3px;
-  border-radius: var(--radius-full);
-  transition: width var(--dur-lento) var(--ease-suave);
+.widget::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6px;
+  background: var(--clay-cielo);
 }
 
-/* Cada estado con su color semántico, el mismo que la Cola y el Detalle usan
- * para el mismo estado. No se inventa una paleta nueva para el panel. */
-.relleno_espera_revision {
-  background: var(--color-aviso);
-}
-
-.relleno_procesando,
-.relleno_encolado {
-  background: var(--color-info);
-}
-
-.relleno_publicado {
-  background: var(--color-success);
-}
-
-.relleno_fallido {
+.alta::before {
   background: var(--color-danger);
 }
 
-.barraValor {
-  text-align: right;
-  font-weight: 700;
-}
-
-.notaCatalogo {
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  line-height: 1.6;
-}
-
-/* --------------------------------------------------- grupos del panel */
-
-/* El título que abre cada grupo (Cola, Catálogo, Pedidos, Casos, Colegios,
- * Traza). Da jerarquía por encima de las tarjetas sin meter otra caja. */
-.grupoTitulo {
+.cantidad {
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: 44px;
   font-weight: 800;
-  margin-top: var(--espacio-3);
-  color: var(--color-text-primary);
+  line-height: 1;
 }
 
-/* Aviso honesto de sección caída: mismo lenguaje que el resto de la degradación
- * del sistema. No tumba el panel, solo dice qué servicio no respondió. */
-.caida {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: var(--espacio-3) var(--espacio-4);
-  font-size: 13px;
-  color: var(--color-aviso);
-  background: var(--color-aviso-bg);
-  border-radius: var(--radius-md);
+.alta .cantidad {
+  color: var(--color-danger);
 }
 
-.vacio {
-  padding: var(--espacio-3) 0;
-  font-size: 13.5px;
-  color: var(--color-text-secondary);
-  line-height: 1.55;
+.widget h2 {
+  font-size: 15px;
+  font-weight: 800;
 }
 
-.vacio a {
-  color: var(--color-primary);
-  font-weight: 700;
-}
-
-.codigo {
-  padding: 1px 6px;
-  font-family: var(--font-mono, monospace);
-  font-size: 12px;
-  background: var(--color-surface-2);
-  border-radius: var(--radius-sm);
-}
-
-/* ------------------------------------------------- colegios + cobertura */
-
-.colegios {
-  display: flex;
-  flex-direction: column;
-  list-style: none;
-}
-
-.colegioFila {
-  display: flex;
-  align-items: center;
-  gap: var(--espacio-3);
-  padding: 12px 0;
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.colegioFila:last-child {
-  border-bottom: none;
-}
-
-.colegioIcono {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-md);
-  color: var(--color-primary);
-  background: var(--clay-cielo-bg);
-  box-shadow: var(--clay-shadow-sm);
-  flex-shrink: 0;
-}
-
-.colegioNombre {
+.widget p {
   flex: 1;
-  min-width: 0;
-  font-size: 14px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.accion {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 15px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(145deg, var(--clay-cielo) 0%, var(--color-primary) 100%);
+  color: var(--color-white);
+  box-shadow: var(--clay-shadow-primary);
+  font-size: 13px;
   font-weight: 700;
-  color: var(--color-text-primary);
   text-decoration: none;
 }
 
-.colegioNombre:hover {
-  color: var(--color-primary);
+.accion:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
 }
 
-.colegioKits {
-  font-size: 12.5px;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-}
-
-.colegioAhorro {
-  font-size: 12.5px;
-  color: var(--color-success);
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-/* La cobertura como pastilla con color semántico: verde casi-resuelto, ámbar a
- * medias, rojo con mucho hueco. El mismo umbral que la Cola usa para "curar". */
-.cobertura {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 10px;
-  border-radius: var(--radius-full);
-  font-size: 12.5px;
-  font-weight: 800;
-  box-shadow: var(--clay-shadow-sm);
-  white-space: nowrap;
-}
-
-.cobertura_ok {
-  color: var(--color-success);
-  background: var(--color-success-bg);
-}
-
-.cobertura_medio {
-  color: var(--color-aviso);
-  background: var(--color-aviso-bg);
-}
-
-.cobertura_bajo {
-  color: var(--color-danger);
-  background: var(--color-danger-bg);
-}
-
-/* ------------------------------------------- traza de calidad por día */
-
-/* Un mini-gráfico de barras verticales, una por día, con CSS puro (sin librería
- * de charts): la altura es la cobertura de esa jornada. Se lee la tendencia de
- * un vistazo. Scroll horizontal si hay muchas sesiones. */
-.traza {
+.alDia {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: var(--espacio-3);
-  min-height: 160px;
-  overflow-x: auto;
-  padding-bottom: var(--espacio-2);
-}
-
-.trazaColumna {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  flex: 1 0 44px;
-  min-width: 44px;
-}
-
-.trazaValor {
-  font-size: 11px;
+  max-width: 62ch;
+  padding: var(--espacio-5);
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-success);
   font-weight: 700;
+}
+
+.caida {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  padding: var(--espacio-3) var(--espacio-4);
+  background: var(--color-aviso-bg);
+  border: 1px solid var(--color-aviso-border);
+  border-radius: var(--radius-md);
+  color: var(--color-aviso);
+  font-size: 13px;
+}
+
+.nota {
+  max-width: 70ch;
+  font-size: 12.5px;
   color: var(--color-text-secondary);
 }
 
-.trazaCarril {
-  display: flex;
-  align-items: flex-end;
-  width: 100%;
-  height: 110px;
-}
+@media (max-width: 480px) {
+  .rejilla {
+    grid-template-columns: 1fr;
+  }
 
-.trazaBarra {
-  display: block;
-  width: 100%;
-  border-radius: var(--radius-sm);
-  transition: height var(--dur-lento) var(--ease-suave);
-}
-
-.trazaBarra_ok {
-  background: var(--color-success);
-}
-
-.trazaBarra_medio {
-  background: var(--color-aviso);
-}
-
-.trazaBarra_bajo {
-  background: var(--color-danger);
-}
-
-.trazaFecha {
-  font-size: 11px;
-  color: var(--color-text-muted);
-  white-space: nowrap;
+  .cantidad {
+    font-size: 38px;
+  }
 }
