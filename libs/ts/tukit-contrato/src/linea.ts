@@ -330,16 +330,42 @@ export function lineasQueSuman(lineas: readonly LineaKit[]): LineaKit[] {
   return lineas.filter((l) => !l.descartado && entraAlTotal(l));
 }
 
+/** "Spider-Man" == "spiderman": sin tildes, mayusculas, guiones ni espacios (igual que el backend). */
+export function normalizarPersonaje(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[\s_\-]+/g, "");
+}
+
+/** Los personajes que pidio cada hijo, por la `hijo` de sus lineas (solo franquicias). */
+export type PersonajesPedidos = Readonly<Record<string, readonly string[]>>;
+
+function pedidoPorSuHijo(linea: LineaKit, pedidos: PersonajesPedidos): boolean {
+  const personaje = linea.producto_elegido?.personaje;
+  if (!personaje) return false;
+  const delHijo = pedidos[linea.hijo ?? ""] ?? [];
+  const clave = normalizarPersonaje(personaje);
+  return delHijo.some((p) => normalizarPersonaje(p) === clave);
+}
+
 /**
  * Los productos con personaje de un kit, sin repetir y sin los descartados: lo
  * que hace "Fan" a un kit Fan. Se muestra primero, antes de la lista completa.
+ * Con `pedidos` solo cuenta las lineas cuyo personaje pidio SU hijo: un Bluey
+ * que llego por "mas variedad" o la Minnie del hermano no hacen Fan a nadie.
  */
-export function productosDelPersonaje(lineas: readonly LineaKit[]): LineaKit[] {
+export function productosDelPersonaje(
+  lineas: readonly LineaKit[],
+  pedidos?: PersonajesPedidos,
+): LineaKit[] {
   const vistos = new Set<string>();
   const salida: LineaKit[] = [];
   for (const linea of lineas) {
     const producto = linea.producto_elegido;
     if (!producto?.personaje || linea.descartado || linea.informativa) continue;
+    if (pedidos && !pedidoPorSuHijo(linea, pedidos)) continue;
     if (vistos.has(producto.sku)) continue;
     vistos.add(producto.sku);
     salida.push(linea);
@@ -348,8 +374,28 @@ export function productosDelPersonaje(lineas: readonly LineaKit[]): LineaKit[] {
 }
 
 /** Los personajes distintos de un kit, para el titular de la franja Fan. */
-export function personajesDelKit(lineas: readonly LineaKit[]): string[] {
-  return [...new Set(productosDelPersonaje(lineas).map((l) => l.producto_elegido!.personaje!))];
+export function personajesDelKit(lineas: readonly LineaKit[], pedidos?: PersonajesPedidos): string[] {
+  return [...new Set(productosDelPersonaje(lineas, pedidos).map((l) => l.producto_elegido!.personaje!))];
+}
+
+/**
+ * La franja Fan por hijo: un grupo por (hijo, personaje) en el orden del kit,
+ * con sus productos. Un hijo neutral (sin personaje pedido) no aparece.
+ */
+export function personajesPorHijo(
+  lineas: readonly LineaKit[],
+  pedidos?: PersonajesPedidos,
+): { hijo: string; personaje: string; lineas: LineaKit[] }[] {
+  const grupos: { hijo: string; personaje: string; lineas: LineaKit[] }[] = [];
+  for (const linea of productosDelPersonaje(lineas, pedidos)) {
+    const hijo = linea.hijo ?? "";
+    const personaje = linea.producto_elegido!.personaje!;
+    const clave = normalizarPersonaje(personaje);
+    const grupo = grupos.find((g) => g.hijo === hijo && normalizarPersonaje(g.personaje) === clave);
+    if (grupo) grupo.lineas.push(linea);
+    else grupos.push({ hijo, personaje, lineas: [linea] });
+  }
+  return grupos;
 }
 
 // ------------------------------------------------- Contrasena y consentimiento

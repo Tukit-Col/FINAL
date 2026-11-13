@@ -56,6 +56,24 @@ export function etiquetasDeHijos(
   return etiquetas;
 }
 
+// El grado de cada hijo del kit, por la `hijo` de sus renglones: lo que se pone
+// al lado de su nombre en "Lo que juntamos". La ruta rápida («canonico») no
+// trae referencia: con un solo hijo en el trabajo, es ese.
+export function gradosDeHijos(
+  referencias: readonly (string | null | undefined)[],
+  hijosDelTrabajo: readonly HijoDelTrabajo[] = [],
+): Map<string, string> {
+  const grados = new Map<string, string>();
+  for (const referencia of new Set(referencias.filter((r): r is string => Boolean(r)))) {
+    const hijo =
+      hijosDelTrabajo.find((h) => h.referencia === referencia) ??
+      (hijosDelTrabajo.length === 1 ? hijosDelTrabajo[0] : undefined);
+    const grado = hijo?.grado?.trim();
+    if (grado) grados.set(referencia, grado);
+  }
+  return grados;
+}
+
 // La pista de tienda bajo el precio. La normalización del contrato sintetiza
 // una oferta con la tienda vacía cuando el backend solo manda el precio: sin
 // un nombre de verdad no hay pista, en vez de un "en" que no dice dónde.
@@ -92,16 +110,28 @@ export function nombresEnLista(
 // backend: precio × paquetes de menos; no se recalcula aquí). La consolidación
 // no trae la unidad ni el tamaño del paquete: el nombre del producto, que casi
 // siempre lo lleva ("x12 Und"), se muestra aparte y la frase no lo repite.
+//
+// `porque` es la `explicacion` del backend tal cual ("Un empaque de 50 sale más
+// barato que 2 por separado"). Con `grados`, cada hijo lleva el suyo al lado:
+// "Hijo 1 (Séptimo) y Hijo 2 (Jardín)".
 export function textoDeConsolidacion(
   c: {
     hijos: readonly string[];
     demanda_base?: number | null;
     unidades_a_comprar?: number | null;
+    explicacion?: string | null;
   },
   nombres: ReadonlyMap<string, string>,
   ahorroEnPesos: string | null,
-): { paraQuienes: string | null; cantidad: string | null; ahorro: string | null } {
-  const quienes = nombresEnLista(c.hijos, nombres);
+  grados?: ReadonlyMap<string, string>,
+): { paraQuienes: string | null; cantidad: string | null; ahorro: string | null; porque: string | null } {
+  const conGrado = new Map<string, string>();
+  c.hijos.forEach((h, i) => {
+    const nombre = nombres.get(h)?.trim() || `Hijo ${i + 1}`;
+    const grado = grados?.get(h)?.trim();
+    conGrado.set(h, grado ? `${nombre} (${grado})` : nombre);
+  });
+  const quienes = nombresEnLista(c.hijos, conGrado);
   const paquetes = c.unidades_a_comprar ?? 0;
   const necesitan = c.demanda_base ?? 0;
   const compras =
@@ -116,7 +146,32 @@ export function textoDeConsolidacion(
     paraQuienes: quienes ? `Para ${quienes}` : null,
     cantidad,
     ahorro: ahorroEnPesos ? `Ahorras ${ahorroEnPesos} frente a comprarlos por separado` : null,
+    porque: c.explicacion?.trim() || null,
   };
+}
+
+// El útil de cada concepto ancla del Fan, como lo dice el acudiente.
+const CONCEPTO_LEGIBLE: Record<string, string> = {
+  C001: "cuaderno",
+  C009: "cartuchera",
+  C011: "carpeta",
+  C086: "maleta",
+};
+
+/** "Spiderman", "Toy Story": el personaje con mayúscula inicial en cada palabra. */
+function personajeLegible(personaje: string): string {
+  return personaje
+    .split(/[\s_]+/)
+    .filter(Boolean)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" ");
+}
+
+// La nota bajo la fila de un hijo cuando un ancla de su personaje no cupo en
+// ningún renglón de su lista (`kit.personaje_sin_encaje`).
+export function notaSinEncaje(f: { concepto: string; personaje: string }): string {
+  const util = CONCEPTO_LEGIBLE[f.concepto] ?? "producto";
+  return `No encontramos ${util} de ${personajeLegible(f.personaje)} que cumpla lo que pide la lista; dejamos uno sin personaje.`;
 }
 
 // ---- Categoría de una línea (Fase 3) ---------------------------------------

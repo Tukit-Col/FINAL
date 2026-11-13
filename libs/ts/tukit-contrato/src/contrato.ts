@@ -496,6 +496,10 @@ export interface Kit {
   objetivos: Objetivos;
   lineas: LineaKit[];
   consolidaciones: Consolidacion[];
+  // Kit Fan: cada (hijo, concepto ancla) con variantes del personaje en el
+  // catalogo pero sin ninguna que cumpla lo que pide la lista. La web lo avisa
+  // en vez de callar. `hijo` es la misma referencia que traen sus lineas.
+  personaje_sin_encaje?: { hijo: string; concepto: string; personaje: string }[];
 }
 
 // ---------------------------------------------------------- §6 Recomendacion
@@ -531,6 +535,9 @@ export interface Trabajo {
   // Los hijos del trabajo por referencia, colegio y grado (nunca un nombre):
   // con ellos la web le pone el apodo de la cuenta a cada renglón.
   hijos?: HijoDeTrabajo[];
+  // Los personajes que pidio cada hijo, por la `hijo` de sus lineas (solo
+  // nombres de franquicia, nunca el apodo): la franja Fan cuenta solo esos.
+  personajes_por_hijo?: Record<string, string[]>;
 }
 
 // El panel del acudiente: una de SUS solicitudes de kit (un trabajo del
