@@ -56,6 +56,19 @@ export async function POST(peticion: Request): Promise<Response> {
       // Salvo un 429 (entrar comparte el cupo estricto de la IP, ADR 0047): ese
       // sale como 429 con su espera y `cuenta_creada`, para que /empezar se lo
       // diga y vuelva a entrar al reintentar en vez de seguir sin sesion.
+      // El correo ya tenia cuenta con OTRA clave: identidad no escribio nada
+      // (`creado=false`) y el login dio 401. Seguir sin sesion dejaria un kit
+      // huerfano, sin dueno al que avisar por correo: se le dice que entre.
+      if (!resultado.creado && causa instanceof ErrorTukit && causa.estado === 401) {
+        return NextResponse.json(
+          {
+            error: "correo_ya_registrado",
+            mensaje:
+              "Ese correo ya tiene una cuenta en TUKIT. Entra con tu clave (o recupérala) y seguimos con lo que llenaste.",
+          },
+          { status: 409 },
+        );
+      }
       if (causa instanceof ErrorTukit && causa.estado === 429) {
         return respuestaDeError(
           new ErrorTukit(429, causa.codigo, causa.message, {

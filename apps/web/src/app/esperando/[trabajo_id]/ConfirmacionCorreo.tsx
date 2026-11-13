@@ -56,8 +56,11 @@ export default function ConfirmacionCorreo({
           </li>
         </ol>
         {extra}
-        <Link href={conSesion ? "/dashboard#solicitudes" : "/"} className={styles.boton}>
-          {conSesion ? "Ir a Mis solicitudes" : "Volver al inicio"}
+        <Link
+          href={conSesion ? "/dashboard#solicitudes" : `/ingresar?destino=${encodeURIComponent("/dashboard")}`}
+          className={styles.boton}
+        >
+          {conSesion ? "Ir a mi panel" : "Entrar a mi panel"}
         </Link>
       </div>
     </div>
