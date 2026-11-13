@@ -230,6 +230,23 @@ class RepoTrabajos:
         # hijos; `colegio_id`/`grado` sueltos (del primer hijo) se conservan para
         # un repartidor de antes que aun no lea `listas`.
         hijos = [h for h in (fila.hijos or ()) if isinstance(h, dict)] if fila is not None else []
+        # Solo los hijos cuyo kit se armo de verdad: un hermano que quedo en
+        # `sin_lista` (sin lista escolar) no tiene lineas y NO debe nombrarse en el
+        # correo "Tu kit esta listo". Si no hay lineas (p. ej. un trabajo sin kits),
+        # no se filtra, para no quedar sin destinatario.
+        con_lineas = {
+            ref
+            for ref in (
+                await self.c.execute(
+                    select(LINEA.c.hijo_referencia)
+                    .select_from(LINEA.join(KIT, KIT.c.id == LINEA.c.kit_id))
+                    .where(KIT.c.trabajo_id == trabajo_id)
+                    .distinct()
+                )
+            ).scalars()
+        }
+        if con_lineas:
+            hijos = [h for h in hijos if str(h.get("referencia")) in con_lineas] or hijos
         if hijos:
             if hijos[0].get("colegio_id"):
                 carga["colegio_id"] = str(hijos[0]["colegio_id"])

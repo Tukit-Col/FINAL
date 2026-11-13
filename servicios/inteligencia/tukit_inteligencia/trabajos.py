@@ -1213,6 +1213,9 @@ async def ver(
 
         mostrar = incluir_kits if incluir_kits is not None else cabeza.estado == EstadoTrabajo.PUBLICADO.value
         kits: list[dict[str, Any]] = []
+        # Override de personajes_por_hijo para la ruta parent_apply (sus claves son
+        # las de las lineas del canonico, no las del trabajo); None = usar el camino normal.
+        personajes_por_hijo_pa: dict[str, list[str]] | None = None
         recomendado: dict[str, Any] | None = None
         # Lo que el acudiente cambio en sus kits: se aplica al leer, nunca se
         # escribe en `linea_kit` (ver `TrabajoPipeline.cambios`).
@@ -1275,6 +1278,14 @@ async def ver(
                             "informativas": sum(1 for linea in lineas if linea["informativa"]),
                         }
                     )
+                # `personajes_por_hijo` usa la clave REAL de las lineas (un canonico
+                # nacido de un preview dice "preview", no "canonico"); si no, la franja
+                # Fan de la web no casa y se queda vacia.
+                if personaje:
+                    hijos_de_lineas = {
+                        linea["hijo"] for kit in kits for linea in kit["lineas"] if linea.get("hijo")
+                    }
+                    personajes_por_hijo_pa = {h: [str(personaje)] for h in hijos_de_lineas}
                 recomendado = {
                     "perfil": perfil,
                     "razon": (
@@ -1358,7 +1369,11 @@ async def ver(
         # de `TrabajoAdmin` en el contrato); la vista del acudiente si, porque
         # rotula su propio kit con el.
         "hijos": [_sin_apodo(h) for h in cabeza.hijos or ()] if incluir_admin else list(cabeza.hijos or ()),
-        "personajes_por_hijo": _personajes_por_hijo_publico(cabeza),
+        "personajes_por_hijo": (
+            personajes_por_hijo_pa
+            if personajes_por_hijo_pa is not None
+            else _personajes_por_hijo_publico(cabeza)
+        ),
         "etapas": etapas,
         "kits": kits,
         "recomendado": recomendado,
@@ -1387,7 +1402,13 @@ def _personajes_por_hijo_publico(cabeza: Any) -> dict[str, list[str]]:
         return {"canonico": [str(personaje)]} if personaje else {}
     if not cabeza.preferencias_cifradas:
         return {}
-    preferencias = cifrador_desde_entorno().descifrar_json(cabeza.preferencias_cifradas) or {}
+    try:
+        preferencias = cifrador_desde_entorno().descifrar_json(cabeza.preferencias_cifradas) or {}
+    except Exception:
+        # Una rotacion de llave o un VARIABLE_LLAVE mal puesto no debe tumbar ver()
+        # (y con el checkout, opciones y el chat): sin preferencias, sin personajes.
+        logger.warning("preferencias ilegibles al exponer personajes_por_hijo", exc_info=True)
+        return {}
     pedidos = {
         str(hijo): [str(p) for p in valores if p]
         for hijo, valores in (preferencias.get("personaje_por_hijo") or {}).items()

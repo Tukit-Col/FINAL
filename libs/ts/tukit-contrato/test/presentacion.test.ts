@@ -168,6 +168,22 @@ test("productosDelPersonaje ignora personajes no pedidos", () => {
   );
 });
 
+test("dos hermanos con el MISMO sku de personaje aparecen los dos (no se deduplica entre hijos)", () => {
+  const de = (sku, hijo, personaje) =>
+    linea({ item_id: `${hijo}-${sku}`, hijo, producto_elegido: producto({ sku, personaje }) });
+  const lineas = [
+    de("CART", "hijo-1", "Spiderman"), // cartuchera compartida (mismo sku)
+    de("CUAD", "hijo-1", "Spiderman"),
+    de("CART", "hijo-2", "Spiderman"), // el hermano consolidado: mismo sku
+  ];
+  const pedidos = { "hijo-1": ["spiderman"], "hijo-2": ["spiderman"] };
+  const grupos = personajesPorHijo(lineas, pedidos);
+  assert.deepEqual(
+    grupos.map((g) => [g.hijo, g.lineas.length]),
+    [["hijo-1", 2], ["hijo-2", 1]],
+  );
+});
+
 test("las reglas de la contrasena se conocen antes de escribir y se marcan al cumplirse", () => {
   const vacia = reglasDeClave("");
   assert.equal(vacia.length >= 1, true);
