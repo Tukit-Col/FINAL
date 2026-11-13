@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogIn } from "lucide-react";
@@ -58,9 +59,14 @@ export default function FormularioIngreso({
   return (
     <div className={styles.pagina}>
       <section className={styles.tarjeta} aria-labelledby="titulo-ingreso">
-        <span className={styles.marca} aria-hidden="true">
-          <LogIn size={22} strokeWidth={2.4} />
-        </span>
+        <Image
+          src="/marca/tukit-logo.webp"
+          alt="Tukit"
+          width={200}
+          height={290}
+          priority
+          className={styles.logo}
+        />
         <h1 id="titulo-ingreso" className={styles.titulo}>
           Ingresa a Tukit
         </h1>

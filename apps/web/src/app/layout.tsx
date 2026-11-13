@@ -9,6 +9,18 @@ export const metadata: Metadata = {
     "Sube la lista de utiles de tu colegio y te armamos tres kits, con los libros y lo que de verdad hay disponible.",
   applicationName: "Tukit",
   manifest: "/manifest.webmanifest",
+  // Los iconos (icon.png, apple-icon.png, favicon.ico) y la imagen para
+  // compartir (opengraph-image.tsx) los toma Next de los archivos de esta
+  // carpeta; aqui solo va el texto de la tarjeta al compartir el enlace.
+  openGraph: {
+    title: "Tukit — la lista del colegio, resuelta",
+    description:
+      "Sube la lista de utiles de tu colegio y te armamos tres kits, en un solo pedido.",
+    siteName: "Tukit",
+    locale: "es_CO",
+    type: "website",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export const viewport: Viewport = {

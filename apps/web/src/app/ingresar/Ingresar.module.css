@@ -28,6 +28,12 @@
   margin-bottom: var(--espacio-4);
 }
 
+.logo {
+  width: auto;
+  height: 108px;
+  margin: 0 auto var(--espacio-3);
+}
+
 .titulo {
   font-size: clamp(24px, 4vw, 30px);
   font-weight: 800;

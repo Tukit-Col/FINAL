@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   Sparkles,
@@ -8,10 +9,13 @@ import {
   Cpu,
   ShieldCheck,
   Eye,
+  ArrowRight,
+  PackageCheck,
 } from "lucide-react";
 import Revelar from "@/components/Revelar";
 import UtilesFlotantes from "./UtilesFlotantes";
 import LineaDelTiempo from "./LineaDelTiempo";
+import { Foco, Marcador, Palabras, Contador, Paralaje } from "./MovimientoInicio";
 import styles from "./Inicio.module.css";
 
 export const dynamic = "force-dynamic";
@@ -75,6 +79,42 @@ const RAZONES = [
   },
 ];
 
+// Las tres etapas visibles del servicio, cada una con su foto. El detalle de
+// siete pasos (quién hace qué) queda debajo, en la línea del tiempo.
+const ETAPAS_FOTO = [
+  {
+    n: "1",
+    titulo: "Armas",
+    texto: "Eliges colegio y grado, o subes la lista. Una IA la lee y te arma tres kits.",
+    src: "/marca/caja-abierta-hero.webp",
+    alt: "Caja Tukit abierta sobre una mesa con cuadernos, lápices de colores, tijeras y colbón ordenados por compartimentos",
+    zoom: true,
+  },
+  {
+    n: "2",
+    titulo: "Preparamos",
+    texto: "Una persona del equipo revisa lo dudoso y alista la caja con cada útil en su lugar.",
+    src: "/marca/preparando-la-caja.webp",
+    alt: "Una persona acomoda cuadernos, marcadores y lápices dentro de una caja blanca sobre una mesa de madera",
+    zoom: false,
+  },
+  {
+    n: "3",
+    titulo: "Llega a tu puerta",
+    texto: "Un solo pedido para todos tus hijos, en una caja Tukit frente a tu casa.",
+    src: "/marca/llega-a-tu-puerta.webp",
+    alt: "Caja Tukit Premium cerrada, entregada frente a la puerta de una casa",
+    zoom: false,
+  },
+];
+
+// Cifras que sí son nuestras y verificables: la encuesta y el diseño del servicio.
+const CIFRAS = [
+  { valor: 60, sufijo: "", texto: "acudientes nos contaron su tarde de papelería" },
+  { valor: 3, sufijo: "", texto: "kits por lista, para que decidas tú" },
+  { valor: 1, sufijo: "", texto: "solo pedido por hogar, con todos tus hijos" },
+];
+
 export default async function Inicio() {
   return (
     <div className={styles.pagina}>
@@ -86,7 +126,7 @@ export default async function Inicio() {
         {/* Útiles en clay flotando alrededor del titular. Decorativos. */}
         <UtilesFlotantes />
 
-        <Revelar className={styles.heroeTexto} modo="una">
+        <Revelar className={styles.heroeTexto} modo="cascada" cadaUno={0.1}>
           <p className={styles.antetitulo}>
             <Sparkles size={14} aria-hidden="true" strokeWidth={2.6} />
             Listas escolares, resueltas
@@ -96,7 +136,7 @@ export default async function Inicio() {
           <h1 className={styles.titular}>
             Menos filas,
             <br />
-            más <em>tiempo en familia</em>.
+            más <em>tiempo en familia.</em>
           </h1>
           {/* Subheader: qué es + por qué es posible (la IA), en dos frases. */}
           <p className={styles.bajada}>
@@ -121,13 +161,43 @@ export default async function Inicio() {
             Armar el kit no cuesta nada · Tú eliges entre tres · Sin crear cuenta para empezar
           </p>
         </Revelar>
+
+        {/* Foto del heroe: la caja abierta, lo que de verdad llega. Es la
+            unica imagen con `priority` (esta sobre el pliegue en escritorio). */}
+        <Paralaje className={styles.heroeFoto}>
+          <Image
+            src="/marca/caja-abierta-hero.webp"
+            alt="Caja Tukit abierta sobre una mesa, con cuadernos, lápices de colores, tijeras y colbón ordenados por compartimentos, y una caja Premium al lado"
+            fill
+            priority
+            sizes="(max-width: 1120px) 100vw, 1000px"
+            className={styles.heroeImagen}
+          />
+        </Paralaje>
+        <p className={styles.sello}>
+          <PackageCheck size={16} aria-hidden="true" strokeWidth={2.4} />
+          Revisado por una persona antes de salir
+        </p>
+      </section>
+
+      <section className={styles.cifras} aria-label="Tukit en cifras">
+        <Revelar as="ul" className={styles.rejillaCifras} modo="scroll" cadaUno={0.1}>
+          {CIFRAS.map(({ valor, sufijo, texto }) => (
+            <li key={texto} className={styles.cifra}>
+              <strong>
+                <Contador valor={valor} sufijo={sufijo} />
+              </strong>
+              <span>{texto}</span>
+            </li>
+          ))}
+        </Revelar>
       </section>
 
       <section className={styles.dolores} aria-labelledby="titulo-dolores">
         <Revelar className={styles.encabezadoSeccion} modo="una">
           <p className={styles.kicker}>Lo que nos dijeron 60 acudientes</p>
           <h2 id="titulo-dolores" className={styles.tituloSeccion}>
-            Sabemos por qué la lista del colegio se vuelve una tarde perdida
+            Sabemos por qué la lista del colegio se vuelve una <Marcador>tarde perdida</Marcador>
           </h2>
           <p className={styles.subtituloSeccion}>
             Preguntamos qué era lo que más pesaba. No inventamos el problema: lo oímos, y
@@ -136,13 +206,13 @@ export default async function Inicio() {
         </Revelar>
         <Revelar as="ul" className={styles.rejillaDolores} modo="scroll" cadaUno={0.08}>
           {DOLORES.map(({ Icono, titulo, respuesta }) => (
-            <li key={titulo} className={styles.dolor}>
+            <Foco as="li" key={titulo} className={styles.dolor}>
               <span className={styles.dolorIcono} aria-hidden="true">
                 <Icono size={22} strokeWidth={2.2} />
               </span>
               <h3>{titulo}</h3>
               <p>{respuesta}</p>
-            </li>
+            </Foco>
           ))}
         </Revelar>
       </section>
@@ -156,13 +226,13 @@ export default async function Inicio() {
         </Revelar>
         <Revelar as="ul" className={styles.rejillaRazones} modo="scroll" cadaUno={0.08}>
           {RAZONES.map(({ Icono, titulo, texto }) => (
-            <li key={titulo} className={styles.razon}>
+            <Foco as="li" key={titulo} className={styles.razon}>
               <span className={styles.razonIcono} aria-hidden="true">
                 <Icono size={22} strokeWidth={2.2} />
               </span>
               <h3>{titulo}</h3>
               <p>{texto}</p>
-            </li>
+            </Foco>
           ))}
         </Revelar>
       </section>
@@ -171,8 +241,37 @@ export default async function Inicio() {
         <Revelar className={styles.encabezadoSeccion} modo="una">
           <p className={styles.kicker}>De la lista a tu casa</p>
           <h2 id="titulo-como" className={styles.tituloSeccion}>
-            Cómo funciona, paso a paso
+            Así de simple: armas, preparamos, llega
           </h2>
+        </Revelar>
+        <Revelar as="ol" className={styles.pasosFoto} modo="scroll" cadaUno={0.14}>
+          {ETAPAS_FOTO.map(({ n, titulo, texto, src, alt, zoom }, i) => (
+            <Foco as="li" key={n} className={styles.pasoFoto}>
+              <div className={styles.pasoImagen}>
+                <Image
+                  src={src}
+                  alt={alt}
+                  fill
+                  sizes="(max-width: 760px) 92vw, 360px"
+                  className={zoom ? styles.pasoZoom : undefined}
+                />
+                <span className={styles.pasoNumero} aria-hidden="true">
+                  {n}
+                </span>
+              </div>
+              <div className={styles.pasoCuerpo}>
+                <h3>{titulo}</h3>
+                <p>{texto}</p>
+              </div>
+              {i < ETAPAS_FOTO.length - 1 && (
+                <ArrowRight className={styles.pasoFlecha} size={22} aria-hidden="true" strokeWidth={2.6} />
+              )}
+            </Foco>
+          ))}
+        </Revelar>
+
+        <Revelar className={styles.detalle} modo="una">
+          <h3 className={styles.detalleTitulo}>Y el detalle, paso a paso</h3>
           <p className={styles.subtituloSeccion}>
             Siete pasos, y en cada uno decimos quién lo hace: tú, la IA, o una persona del
             equipo que revisa. El último todavía lo estamos construyendo, y lo decimos aquí
@@ -189,7 +288,7 @@ export default async function Inicio() {
           <UtilesFlotantes variante="cierre" />
           <Revelar className={styles.cierreTexto} modo="una">
             <h2 id="titulo-cierre" className={styles.tituloCierre}>
-              Esa tarde de papelería, esta vez pásala en casa.
+              <Palabras texto="Esa tarde de papelería, esta vez pásala en casa." />
             </h2>
             <p className={styles.bajadaCierre}>
               Toma un minuto. Armas el kit, ves los tres precios y decides sin compromiso.

@@ -12,7 +12,7 @@
 
 import Link from "next/link";
 import { useId, useState } from "react";
-import { CheckCircle2, Send, Ticket } from "lucide-react";
+import { CheckCircle2, KeyRound, Send, Ticket } from "lucide-react";
 import {
   CATEGORIAS_CASO_ACUDIENTE,
   ETIQUETA_CATEGORIA_CASO,
@@ -82,13 +82,18 @@ export default function FormularioCaso({ conSesion }: { conSesion: boolean }) {
 
   if (!conSesion) {
     return (
-      <div className={styles.exito} role="status">
-        <h3>Ingresa para abrir una solicitud</h3>
-        <p>
-          Así el caso queda en tu cuenta y puedes seguirlo desde “Mis casos”, sin tener que
-          guardar un número.
-        </p>
-        <Link href="/ingresar" className={styles.otroBoton}>
+      <div className={styles.acceso} role="status">
+        <span className={styles.accesoIcono} aria-hidden="true">
+          <KeyRound size={26} strokeWidth={2.2} />
+        </span>
+        <div className={styles.accesoTexto}>
+          <h3>Ingresa para abrir una solicitud</h3>
+          <p>
+            Así el caso queda en tu cuenta y puedes seguirlo desde “Mis casos”, sin tener que
+            guardar un número.
+          </p>
+        </div>
+        <Link href="/ingresar" className={styles.accesoBoton}>
           Ingresar a mi cuenta
         </Link>
       </div>
