@@ -1027,6 +1027,7 @@
     padding: 0 var(--espacio-4) 14px;
     border-bottom: none;
   }
+}
 
 
 /* ============================================================
@@ -1180,7 +1181,6 @@
 }
 
 .confirmaRetracto label,
-.formCaso label,
 .formMensaje label {
   display: grid;
   gap: 4px;
@@ -1190,9 +1190,6 @@
 }
 
 .confirmaRetracto textarea,
-.formCaso textarea,
-.formCaso input,
-.formCaso select,
 .formMensaje textarea {
   width: 100%;
   padding: 10px 12px;
@@ -1279,25 +1276,153 @@
   color: var(--color-text-muted);
 }
 
-.formCaso,
 .formMensaje {
   display: grid;
   gap: var(--espacio-3);
 }
 
+
+/* ---- Cambiar colegio en la tarjeta: el mismo buscador que /empezar ---- */
+.hijoBuscador {
+  min-width: 0;
+}
+
+/* ---- Mis casos: estado vacio, formulario y boton ---- */
+.casosVacio {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--espacio-4);
+  padding: var(--espacio-4);
+  background: var(--clay-cielo-bg);
+  border-radius: var(--radius-lg);
+}
+
+.casosVacioImagen {
+  width: 96px;
+  height: auto;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+}
+
+.casosVacioTexto {
+  display: grid;
+  gap: 4px;
+  font-size: 13.5px;
+  color: var(--color-text-secondary);
+}
+
+.casosVacioTexto p {
+  margin: 0;
+}
+
+/* Boton secundario con icono: siempre dentro de la tarjeta, nunca desborda. */
 .btnNuevoCaso {
   justify-self: start;
-  max-width: 100%;
-  min-height: 44px;
-  box-sizing: border-box;
-  flex-wrap: wrap;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 44px;
   padding: 0 var(--espacio-4);
+  border: 1.5px solid var(--color-info-border);
   border-radius: var(--radius-full);
-  background: var(--clay-cielo-bg);
+  background: var(--color-white);
   color: var(--color-primary);
+  font: inherit;
   font-weight: 800;
   font-size: 13.5px;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease;
+}
+
+.btnNuevoCaso:hover {
+  background: var(--clay-cielo-bg);
+  border-color: var(--color-primary);
+}
+
+.formCaso {
+  display: grid;
+  gap: var(--espacio-4);
+  padding: var(--espacio-4);
+  background: var(--color-white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+/* Etiqueta arriba, campo debajo, ancho completo. */
+.campo {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.campo label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.campo input,
+.campo select,
+.campo textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.campo select {
+  padding-right: 8px;
+}
+
+.campo textarea {
+  resize: vertical;
+  min-height: 108px;
+  line-height: 1.45;
+}
+
+.campo input::placeholder,
+.campo textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+.campo input:focus-visible,
+.campo select:focus-visible,
+.campo textarea:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+  border-color: var(--color-primary);
+}
+
+.contador {
+  justify-self: end;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.exitoCaso {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: var(--espacio-3) var(--espacio-4);
+  border-radius: var(--radius-md);
+  background: var(--color-success-bg, #e8f6ee);
+  color: var(--color-success);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+/* Editando: la tarjeta ocupa la fila para que el buscador respire. */
+.hijoCardAncha {
+  grid-column: 1 / -1;
 }

@@ -8,10 +8,12 @@
 //   vínculo con la cuenta y retira la matrícula (ADR 0031). Las solicitudes y
 //   pedidos que ya existen siguen ahí.
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Trash2 } from "lucide-react";
+import type { Colegio } from "@tukit/contrato";
 import { FalloApi, cambiarHijo, quitarHijo } from "@/lib/api-navegador";
+import BuscadorColegio from "@/components/BuscadorColegio";
 import styles from "./Dashboard.module.css";
 
 interface Props {
@@ -20,11 +22,13 @@ interface Props {
   colegioId: string;
   colegioNombre: string;
   grado: string;
-  colegios: { colegio_id: string; nombre: string }[];
+  colegios: Colegio[];
   grados: readonly string[];
   /** Estado de la solicitud mas avanzada de este colegio y grado, si hay. */
   estado?: { texto: string } | null;
   claseEstado?: string;
+  /** Solo para pruebas visuales: arranca en este modo. */
+  modoInicial?: "ver" | "editar" | "quitar";
 }
 
 export default function TarjetaHijo({
@@ -37,9 +41,10 @@ export default function TarjetaHijo({
   grados,
   estado = null,
   claseEstado = "",
+  modoInicial = "ver",
 }: Props) {
   const router = useRouter();
-  const [modo, setModo] = useState<"ver" | "editar" | "quitar">("ver");
+  const [modo, setModo] = useState<"ver" | "editar" | "quitar">(modoInicial);
   const [colegioNuevo, setColegioNuevo] = useState(colegioId);
   const [gradoNuevo, setGradoNuevo] = useState(grado);
   const [ocupado, setOcupado] = useState(false);
@@ -59,10 +64,45 @@ export default function TarjetaHijo({
     }
   }
 
+  const panelRef = useRef<HTMLDivElement>(null);
+  const botonEditarRef = useRef<HTMLButtonElement>(null);
+  const botonQuitarRef = useRef<HTMLButtonElement>(null);
+  const primerRender = useRef(true);
+  // Mismos aliados que ofrece /empezar: la matricula se guarda por colegio_id.
+  const aliados = useMemo(
+    () => colegios.filter((c) => c.es_partner ?? c.grados.length > 0),
+    [colegios],
+  );
+
+  // El foco acompana al panel: entra al abrirlo y vuelve al boton al cerrarlo.
+  useEffect(() => {
+    if (primerRender.current) {
+      primerRender.current = false;
+      return;
+    }
+    if (modo === "ver") return;
+    const raiz = panelRef.current;
+    // En "quitar" el foco cae en "No": lo destructivo no queda a un Enter.
+    (modo === "quitar"
+      ? raiz?.querySelector<HTMLElement>("button:last-of-type")
+      : raiz?.querySelector<HTMLElement>("input, button")
+    )?.focus();
+  }, [modo]);
+
+  function cerrar(devolverA: "editar" | "quitar") {
+    setModo("ver");
+    setColegioNuevo(colegioId);
+    setGradoNuevo(grado);
+    setError(null);
+    requestAnimationFrame(() =>
+      (devolverA === "editar" ? botonEditarRef : botonQuitarRef).current?.focus(),
+    );
+  }
+
   const sinCambios = colegioNuevo === colegioId && gradoNuevo === grado;
 
   return (
-    <li className={styles.hijoCard}>
+    <li className={`${styles.hijoCard} ${modo === "editar" ? styles.hijoCardAncha : ""}`}>
       <div className={styles.hijoCabecera}>
         <span className={styles.hijoAvatar} aria-hidden="true">
           {titulo.trim().charAt(0).toUpperCase()}
@@ -79,24 +119,33 @@ export default function TarjetaHijo({
       {modo === "editar" ? (
         <form
           className={styles.hijoForm}
+          aria-label={`Cambiar el colegio de ${titulo}`}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && !ocupado) cerrar("editar");
+          }}
           onSubmit={(e) => {
             e.preventDefault();
+            if (sinCambios || !colegioNuevo) return;
             void ejecutar(
               () => cambiarHijo(matriculaId, { colegio_id: colegioNuevo, grado: gradoNuevo }),
               "No pudimos cambiar el colegio.",
             );
           }}
         >
-          <label className={styles.hijoCampo}>
-            Colegio
-            <select value={colegioNuevo} onChange={(e) => setColegioNuevo(e.target.value)}>
-              {colegios.map((c) => (
-                <option key={c.colegio_id} value={c.colegio_id}>
-                  {c.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div ref={panelRef} className={styles.hijoBuscador}>
+            <BuscadorColegio
+              soloAliados
+              autoFocus={colegioNuevo === ""}
+              colegiosAliados={aliados}
+              colegioId={colegioNuevo}
+              colegioDane=""
+              colegioNombre={colegioNuevo === colegioId ? colegioNombre : ""}
+              onElegirAliado={(id) => setColegioNuevo(id)}
+              onElegirDirectorio={() => {}}
+              onEscribir={() => {}}
+              onCambiar={() => setColegioNuevo("")}
+            />
+          </div>
           <label className={styles.hijoCampo}>
             Grado
             <select value={gradoNuevo} onChange={(e) => setGradoNuevo(e.target.value)}>
@@ -108,19 +157,18 @@ export default function TarjetaHijo({
             </select>
           </label>
           <div className={styles.hijoAcciones}>
-            <button type="submit" className={styles.btnPagar} disabled={ocupado || sinCambios}>
+            <button
+              type="submit"
+              className={styles.btnPagar}
+              disabled={ocupado || sinCambios || !colegioNuevo}
+            >
               {ocupado ? "Guardando…" : "Guardar"}
             </button>
             <button
               type="button"
               className={styles.btnCancelar}
               disabled={ocupado}
-              onClick={() => {
-                setModo("ver");
-                setColegioNuevo(colegioId);
-                setGradoNuevo(grado);
-                setError(null);
-              }}
+              onClick={() => cerrar("editar")}
             >
               Cancelar
             </button>
@@ -134,7 +182,15 @@ export default function TarjetaHijo({
       )}
 
       {modo === "quitar" && (
-        <div className={styles.confirmacion} role="alertdialog" aria-label={`Quitar a ${titulo}`}>
+        <div
+          ref={panelRef}
+          className={styles.confirmacion}
+          role="alertdialog"
+          aria-label={`Quitar a ${titulo}`}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && !ocupado) cerrar("quitar");
+          }}
+        >
           <p>
             ¿Quitar a <strong>{titulo}</strong> de tu cuenta? Sus solicitudes y pedidos no se
             borran.
@@ -152,7 +208,7 @@ export default function TarjetaHijo({
               type="button"
               className={styles.btnCancelar}
               disabled={ocupado}
-              onClick={() => setModo("ver")}
+              onClick={() => cerrar("quitar")}
             >
               No
             </button>
@@ -162,10 +218,16 @@ export default function TarjetaHijo({
 
       {modo === "ver" && (
         <div className={styles.accionesDiscretas}>
-          <button type="button" className={styles.accionDiscreta} onClick={() => setModo("editar")}>
+          <button
+            ref={botonEditarRef}
+            type="button"
+            className={styles.accionDiscreta}
+            onClick={() => setModo("editar")}
+          >
             <Pencil size={13} aria-hidden /> Cambiar colegio
           </button>
           <button
+            ref={botonQuitarRef}
             type="button"
             className={`${styles.accionDiscreta} ${styles.accionDiscretaPeligro}`}
             onClick={() => setModo("quitar")}
