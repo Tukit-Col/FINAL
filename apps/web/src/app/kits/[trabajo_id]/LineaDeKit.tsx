@@ -9,7 +9,7 @@ import {
   FalloApi,
   opcionesDeLinea,
 } from "@/lib/api-navegador";
-import { pistaDeTienda } from "@/lib/kit-vista";
+import { idAnclaLinea, pistaDeTienda } from "@/lib/kit-vista";
 import {
   ETIQUETA_NIVEL,
   estadoDePrecio,
@@ -76,7 +76,11 @@ export default function LineaDeKit({
   }
 
   return (
-    <li className={`${styles.linea} ${descartado ? styles.lineaDescartada : ""}`}>
+    <li
+      id={idAnclaLinea(linea.item_id)}
+      data-linea={linea.item_id}
+      className={`${styles.linea} ${descartado ? styles.lineaDescartada : ""}`}
+    >
       <div className={styles.lineaPrincipal}>
         {producto ? (
           <Foto producto={producto} />
