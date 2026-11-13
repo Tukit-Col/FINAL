@@ -255,7 +255,7 @@
 "dane": "311001105081",
 "nombre": "CENTRO DE ESTIMULACION TEMPRANA DESPERTAR",
 "localidad": "FONTIBON",
-"imageURL": "https://www.cendespertar.edu.co/wp-content/uploads/2022/01/LOGO-DESPERTAR-V2-03-1024x407.png"
+"imageURL": null
 },
 {
 "dane": "311001108561",
@@ -711,7 +711,7 @@
 "dane": "311001106649",
 "nombre": "CENTRO PANAMERICANO DE CAPACITACION",
 "localidad": "ENGATIVA",
-"imageURL": "https://bidadari22-assets-apk.b-cdn.net/ASSET-LANDING-PAGE/2026-08-21/bidadari22/colegiocentropanamericano.org/logo-bidadari22-20260821-151326-44a66968.png"
+"imageURL": null
 },
 {
 "dane": "311001047812",
@@ -1209,7 +1209,7 @@
 "dane": "111001047571",
 "nombre": "COLEGIO ARBORIZADORA ALTA (IED)",
 "localidad": "CIUDAD BOLIVAR",
-"imageURL": "https://mkt-bitly-media.qrcg.net/wp-content/uploads/2026/08/16230847/curology-1.png"
+"imageURL": null
 },
 {
 "dane": "111001030848",
@@ -1419,7 +1419,7 @@
 "dane": "311001033676",
 "nombre": "COLEGIO BILINGÜE LA ENSEÑANZA",
 "localidad": "SUBA",
-"imageURL": "https://colegiodelaensenanza.edu.co/wp-content/uploads/2026/10/Logos-pagina-web.png"
+"imageURL": null
 },
 {
 "dane": "311001001383",
@@ -1617,7 +1617,7 @@
 "dane": "311001104786",
 "nombre": "COLEGIO BRITANICO",
 "localidad": "TUNJUELITO",
-"imageURL": "https://institutobritanico.edu.co/wp-content/uploads/2023/06/Logo-colegio-pagina-principal-1024x198.png"
+"imageURL": null
 },
 {
 "dane": "111001100013",
@@ -1743,13 +1743,13 @@
 "dane": "311001104620",
 "nombre": "COLEGIO CAPACITACION 2000",
 "localidad": "SANTAFE",
-"imageURL": "https://www.capacitacion2000.edu.co/img/logowasap.png"
+"imageURL": null
 },
 {
 "dane": "311001110301",
 "nombre": "COLEGIO CAPACITACION 2000",
 "localidad": "TEUSAQUILLO",
-"imageURL": "https://www.capacitacion2000.edu.co/img/logowasap.png"
+"imageURL": null
 },
 {
 "dane": "311001093962",
@@ -2031,7 +2031,7 @@
 "dane": "111001104353",
 "nombre": "COLEGIO CIUDAD DE VILLAVICENCIO (IED)",
 "localidad": "USME",
-"imageURL": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjohz8YMyWQSWo0iX8fof954lG3zsjzFTzV4ZgXrKOUlLZFAPF7Q84rBgWU6mZsbVQLrlsTD8xXTaOzuNPVOGhjG63wQjqUTZjdjMx9SDDjP2U7gBTJsXEM5rqra4OUG6cNTz96ig140_M/s1600/LOGO+SED.png"
+"imageURL": null
 },
 {
 "dane": "311001094594",
@@ -2529,13 +2529,13 @@
 "dane": "311001090912",
 "nombre": "COLEGIO CRISTIANO SEMILLA DE VIDA",
 "localidad": "PUENTE ARANDA",
-"imageURL": "https://www.semilladevida.edu.co/wp-content/uploads/2025/08/LOGO_ORUef_1024-300x300.png"
+"imageURL": null
 },
 {
 "dane": "311001106002",
 "nombre": "COLEGIO CRISTIANO SEMILLA DE VIDA CENTRO DE EDUCACION DE ADULTOS",
 "localidad": "PUENTE ARANDA",
-"imageURL": "https://www.semilladevida.edu.co/wp-content/uploads/2025/08/LOGO_ORUef_1024-300x300.png"
+"imageURL": null
 },
 {
 "dane": "311001092664",
@@ -2613,7 +2613,7 @@
 "dane": "111848000911",
 "nombre": "COLEGIO DE BACHILLERATO PATRIA",
 "localidad": "USAQUEN",
-"imageURL": "https://www.liceosejercito.edu.co/liceos_logo.png"
+"imageURL": null
 },
 {
 "dane": "311001036331",
@@ -2937,7 +2937,7 @@
 "dane": "311001001022",
 "nombre": "COLEGIO DEL ROSARIO DE SANTO DOMINGO",
 "localidad": "CHAPINERO",
-"imageURL": "https://www.rosariosantodomingo.edu.co/wp-content/uploads/2023/08/logo-RSD.png"
+"imageURL": null
 },
 {
 "dane": "311001004706",
@@ -3117,7 +3117,7 @@
 "dane": "311001001871",
 "nombre": "COLEGIO EL CARMELO",
 "localidad": "TEUSAQUILLO",
-"imageURL": "https://colegioelcarmelo.edu.co/wp-content/uploads/2025/11/LOGO-COLEGIO-EL-CARMELO-BOGOTA-VECTOR--140x103.png"
+"imageURL": null
 },
 {
 "dane": "311001001049",
@@ -3309,7 +3309,7 @@
 "dane": "311001018499",
 "nombre": "COLEGIO ELISA BORRERO DE PASTRANA",
 "localidad": "ENGATIVA",
-"imageURL": "https://www.policia.gov.co/sites/default/files/2023-12/escudo-policia%201.png?fid=400471"
+"imageURL": null
 },
 {
 "dane": "111001801349",
@@ -3981,7 +3981,7 @@
 "dane": "311769000921",
 "nombre": "COLEGIO HELVETIA",
 "localidad": "SUBA",
-"imageURL": "https://helvetia.edu.co/wp-content/uploads/2025/01/phidias-logo.png"
+"imageURL": null
 },
 {
 "dane": "311001039399",
@@ -4713,7 +4713,7 @@
 "dane": "111001102008",
 "nombre": "COLEGIO JUAN LUIS LONDOÑO (IED)",
 "localidad": "USME",
-"imageURL": null
+"imageURL": "https://www.lasallejuanlulo.edu.co/img/juan luis londoño.png"
 },
 {
 "dane": "111001034011",
@@ -4785,7 +4785,7 @@
 "dane": "311001109842",
 "nombre": "COLEGIO KNIGHTSBRIDGE SCHOOLS INTERNATIONAL",
 "localidad": "SUBA",
-"imageURL": "https://ksi-bogota.com/wp-content/uploads/2022/08/ksi-logo@2x.png"
+"imageURL": null
 },
 {
 "dane": "311001109885",
@@ -5289,7 +5289,7 @@
 "dane": "411769000089",
 "nombre": "COLEGIO MADRE PILAR IZQUIERDO",
 "localidad": "SUBA",
-"imageURL": "https://www.colegiomadrepilar.edu.co/images/logopsenuevo.png"
+"imageURL": null
 },
 {
 "dane": "111001017795",
@@ -5721,7 +5721,7 @@
 "dane": "311001027056",
 "nombre": "COLEGIO MILITAR SIMON BOLIVAR",
 "localidad": "ENGATIVA",
-"imageURL": "https://irp.cdn-website.com/40c5be1c/dms3rep/multi/logo-pa-b.svg"
+"imageURL": null
 },
 {
 "dane": "111001100081",
@@ -5877,7 +5877,7 @@
 "dane": "311001105375",
 "nombre": "COLEGIO MONTESSORI (MONTESSORI BRITISH SCHOOL) - BILINGÜE INTERNACIONAL",
 "localidad": "SUBA",
-"imageURL": "https://mbs.edu.co/wp-content/uploads/2022/06/logo-pse-1-e1644687648391-150x150.webp"
+"imageURL": null
 },
 {
 "dane": "311001024359",
@@ -6183,7 +6183,7 @@
 "dane": "311001031088",
 "nombre": "COLEGIO NUEVA INGLATERRA BILINGÜE INTERNACIONAL",
 "localidad": "SUBA",
-"imageURL": null
+"imageURL": "https://colegionuevainglaterra.edu.co/wp-content/uploads/2018/06/NES.png"
 },
 {
 "dane": "311001019070",
@@ -6213,7 +6213,7 @@
 "dane": "311769000769",
 "nombre": "COLEGIO NUEVA YORK",
 "localidad": "SUBA",
-"imageURL": "https://colegionuevayork.edu.co/wp-content/uploads/2016/06/logo-ib.png"
+"imageURL": null
 },
 {
 "dane": "111769001871",
@@ -6801,7 +6801,7 @@
 "dane": "311001035717",
 "nombre": "COLEGIO PRINCIPADO DE MONACO",
 "localidad": "TEUSAQUILLO",
-"imageURL": "https://colegioprincipado.edu.co/wp-content/uploads/2023/03/logo-principado-de-monaco-versiones-editable-curvas-web-2.png"
+"imageURL": null
 },
 {
 "dane": "311001106134",
@@ -7263,7 +7263,7 @@
 "dane": "111001014346",
 "nombre": "COLEGIO RODRIGO ARENAS BETANCOURT (IED)",
 "localidad": "FONTIBON",
-"imageURL": "https://mkt-bitly-media.qrcg.net/wp-content/uploads/2026/08/16230847/curology-1.png"
+"imageURL": null
 },
 {
 "dane": "111001036781",
@@ -7551,7 +7551,7 @@
 "dane": "311001098450",
 "nombre": "COLEGIO SAN GABRIEL",
 "localidad": "FONTIBON",
-"imageURL": "https://static.wixstatic.com/media/585689_221793a08ca44c34aa473813a41ed121%7Emv2.webp/v1/fill/w_180%2Ch_180%2Clg_1%2Cusm_0.66_1.00_0.01/585689_221793a08ca44c34aa473813a41ed121%7Emv2.webp"
+"imageURL": null
 },
 {
 "dane": "311001090840",
@@ -7713,7 +7713,7 @@
 "dane": "311769001552",
 "nombre": "COLEGIO SAN LUIS",
 "localidad": "SUBA",
-"imageURL": "https://www.policia.gov.co/sites/default/files/2023-12/escudo-policia%201.png?fid=400471"
+"imageURL": null
 },
 {
 "dane": "311001078203",
@@ -7761,7 +7761,7 @@
 "dane": "311001003823",
 "nombre": "COLEGIO SAN PIO X",
 "localidad": "BARRIOS UNIDOS",
-"imageURL": "https://www.colegiopiox.edu.co/images/stories/aliados/logo_solution_expert.jpg"
+"imageURL": null
 },
 {
 "dane": "311001024391",
@@ -7947,7 +7947,7 @@
 "dane": "311001006423",
 "nombre": "COLEGIO SANTA LUISA",
 "localidad": "KENNEDY",
-"imageURL": null
+"imageURL": "https://colegiosantaluisa.edu.co/wp-content/uploads/2024/11/ESCUDO-CSL-1-2048x2048.png"
 },
 {
 "dane": "311001091285",
@@ -8067,7 +8067,7 @@
 "dane": "311848000618",
 "nombre": "COLEGIO SANTO TOMAS DE AQUINO",
 "localidad": "USAQUEN",
-"imageURL": "https://santotomas.edu.co/wp-content/uploads/2026/08/logowebsantoto1-scaled.webp"
+"imageURL": null
 },
 {
 "dane": "311001090297",
@@ -8187,7 +8187,7 @@
 "dane": "311001008990",
 "nombre": "COLEGIO SUPERIOR AMERICANO",
 "localidad": "KENNEDY",
-"imageURL": null
+"imageURL": "https://superioramericano.edu.co/wp-content/uploads/2026/08/Escudo-CSA-scaled.png"
 },
 {
 "dane": "311001079030",
@@ -8265,7 +8265,7 @@
 "dane": "311001109753",
 "nombre": "COLEGIO TALENTOS",
 "localidad": "KENNEDY",
-"imageURL": "https://static.wixstatic.com/media/f0ea70_8ac0066a608f4ecb8cf1452a893c7ffe~mv2.png/v1/fill/w_88,h_82,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logopsenuevo_edited_edited.png"
+"imageURL": null
 },
 {
 "dane": "311001044236",
@@ -8703,7 +8703,7 @@
 "dane": "311001076031",
 "nombre": "COLEGIO WESLEYANO DEL NORTE",
 "localidad": "USAQUEN",
-"imageURL": "https://cwn.edu.co/wp-content/uploads/2024/08/cwn_logo_2024_v3-150x78.png"
+"imageURL": null
 },
 {
 "dane": "311001004196",
@@ -8781,7 +8781,7 @@
 "dane": "311001108854",
 "nombre": "EL FARO PREESCOLAR",
 "localidad": "USAQUEN",
-"imageURL": null
+"imageURL": "https://www.lighthousekinder.com/upl/2019/01/LOGO-LIGHTHOUSE-CON-FARO-MR.png"
 },
 {
 "dane": "111001026301",
@@ -8793,7 +8793,7 @@
 "dane": "311001040559",
 "nombre": "ESCUELA ATAVANZA",
 "localidad": "USAQUEN",
-"imageURL": "https://aspaen.edu.co/atavanza/wp-content/uploads/sites/38/2020/06/logo-atavanza-x90.png"
+"imageURL": null
 },
 {
 "dane": "311001105111",
@@ -9261,7 +9261,7 @@
 "dane": "311001086320",
 "nombre": "GIMNASIO COLOMBO BRITANICO - BILINGÜE INTERNACIONAL",
 "localidad": "SUBA",
-"imageURL": "https://gcb.edu.co/wp-content/uploads/2026/07/Logo-GCB-1.webp"
+"imageURL": null
 },
 {
 "dane": "311001107343",
@@ -9555,7 +9555,7 @@
 "dane": "311001027722",
 "nombre": "GIMNASIO FIDEL CANO",
 "localidad": "FONTIBON",
-"imageURL": "https://static.wixstatic.com/media/585689_221793a08ca44c34aa473813a41ed121%7Emv2.webp/v1/fill/w_192%2Ch_192%2Clg_1%2Cusm_0.66_1.00_0.01/585689_221793a08ca44c34aa473813a41ed121%7Emv2.webp"
+"imageURL": null
 },
 {
 "dane": "311001088306",
@@ -10065,7 +10065,7 @@
 "dane": "311848001118",
 "nombre": "GIMNASIO LOS ANDES",
 "localidad": "SUBA",
-"imageURL": "https://gimandes.edu.co/wp-content/uploads/2021/10/NavLogo.png"
+"imageURL": null
 },
 {
 "dane": "311279000451",
@@ -10077,7 +10077,7 @@
 "dane": "311001001626",
 "nombre": "GIMNASIO LOS ARRAYANES BILINGÜE",
 "localidad": "SUBA",
-"imageURL": "https://gla.edu.co/wp-content/uploads/2022/08/logos-arrayanes-escritorio.png"
+"imageURL": null
 },
 {
 "dane": "311001006784",
@@ -10119,7 +10119,7 @@
 "dane": "311769001897",
 "nombre": "GIMNASIO LOS ROBLES",
 "localidad": "SUBA",
-"imageURL": "https://www.gimnasiolosrobles.edu.co/wp-content/uploads/2019/11/logo_robles.png"
+"imageURL": null
 },
 {
 "dane": "311102001287",
@@ -10365,7 +10365,7 @@
 "dane": "311001109257",
 "nombre": "GIMNASIO MONTREAL",
 "localidad": "SUBA",
-"imageURL": null
+"imageURL": "https://gimnasiomontreal.edu.co/wp-content/uploads/2018/02/logo5.png"
 },
 {
 "dane": "311001051526",
@@ -10647,7 +10647,7 @@
 "dane": "311001098603",
 "nombre": "GIMNASIO PSICOPEDAGOGICO MARIA ISABEL",
 "localidad": "KENNEDY",
-"imageURL": "https://mariaisabel.edu.co/wp-content/themes/verita/assets/img/logo-light.png"
+"imageURL": null
 },
 {
 "dane": "311001105634",
@@ -10881,7 +10881,7 @@
 "dane": "311001094357",
 "nombre": "GIMNASIO SANTANA DEL NORTE",
 "localidad": "SUBA",
-"imageURL": "https://gimnasiosantanadelnorte.edu.co/wp-content/uploads/logo-footer.png"
+"imageURL": null
 },
 {
 "dane": "311769004063",
@@ -11283,7 +11283,7 @@
 "dane": "311001105839",
 "nombre": "INSTITUTO ANDINO DE BACHILLERATO Y CAPACITACION",
 "localidad": "TEUSAQUILLO",
-"imageURL": "https://www.institutoandino.edu.co/img/WhatsApp_Logo.png"
+"imageURL": null
 },
 {
 "dane": "311001106177",
@@ -13965,7 +13965,7 @@
 "dane": "311001101515",
 "nombre": "JARDIN INFANTIL MANECITAS ROSADITAS",
 "localidad": "SUBA",
-"imageURL": null
+"imageURL": "https://www.manecitasrosaditas.com/Imagenes/lg_v2.png"
 },
 {
 "dane": "311001042217",
@@ -14043,7 +14043,7 @@
 "dane": "311001019134",
 "nombre": "JARDIN INFANTIL MERCEDITAS",
 "localidad": "TEUSAQUILLO",
-"imageURL": "https://colegiochampagnat.edu.co/wp-content/uploads/2025/06/Horizontal_Azul-bilingue-01.png"
+"imageURL": null
 },
 {
 "dane": "311001075107",
@@ -15351,7 +15351,7 @@
 "dane": "311001105685",
 "nombre": "LATINOAMERICANA DE SISTEMAS Y EDUCACION LASIT",
 "localidad": "SUBA",
-"imageURL": null
+"imageURL": "https://colegiolasit.com.co/logos/colegio.png"
 },
 {
 "dane": "311001088543",
@@ -15927,13 +15927,13 @@
 "dane": "311001101663",
 "nombre": "LICEO DE CIENCIA Y CULTURA HARVARD",
 "localidad": "SUBA",
-"imageURL": null
+"imageURL": "https://www.liceoharvard.com/img/logo29.png"
 },
 {
 "dane": "311848000367",
 "nombre": "LICEO DE COLOMBIA BILINGÜE",
 "localidad": "SUBA",
-"imageURL": null
+"imageURL": "https://sp-ao.shortpixel.ai/client/to_auto,q_glossy,ret_img,w_4500,h_2367/https://liceodecolombia.edu.co/wp-content/uploads/2023/05/LOGO-LCB.webp"
 },
 {
 "dane": "311001088535",
@@ -16005,13 +16005,13 @@
 "dane": "111848002107",
 "nombre": "LICEO DEL EJERCITO PATRIA SECTOR NORTE B LICEO COLOMBIA",
 "localidad": "SUBA",
-"imageURL": "https://www.liceosejercito.edu.co/liceos_logo.png"
+"imageURL": null
 },
 {
 "dane": "111850001037",
 "nombre": "LICEO DEL EJERCITO PATRIA SECTOR SUR C (SANTA BARBARA)",
 "localidad": "TUNJUELITO",
-"imageURL": "https://www.liceosejercito.edu.co/liceos_logo.png"
+"imageURL": null
 },
 {
 "dane": "311001079765",
@@ -16947,7 +16947,7 @@
 "dane": "311001093121",
 "nombre": "LICEO LA NUEVA ESTANCIA DE SUBA LTDA",
 "localidad": "SUBA",
-"imageURL": null
+"imageURL": "https://ss-cnt-001c.esmsv.com/r/content/host2/8ce9561cfcf2ccf2bd36ab20f9f01389/img/logo.png"
 },
 {
 "dane": "311001000336",
@@ -17331,7 +17331,7 @@
 "dane": "311001046409",
 "nombre": "LICEO MODERNO LEON BAEZ",
 "localidad": "KENNEDY",
-"imageURL": null
+"imageURL": "https://liceomodernoleonbaez.edu.co/wp-content/uploads/2023/01/Escudo-LMLB-1.png"
 },
 {
 "dane": "311001093440",
@@ -18153,7 +18153,7 @@
 "dane": "311001024472",
 "nombre": "LICEO SAN BERNARDO",
 "localidad": "PUENTE ARANDA",
-"imageURL": null
+"imageURL": "https://www.liceosanbernardo.edu.co/images/logo-liceo-san-bernardo.png"
 },
 {
 "dane": "311001051259",
