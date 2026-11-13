@@ -282,3 +282,33 @@ class TestPollerUsaLaReferenciaRealDelHijo:
         async with motor.engine.begin() as conexion:
             hijos = (await conexion.execute(select(trabajos.TRABAJO.c.hijos))).scalar_one()
         assert hijos[0]["referencia"] == "hijo-1"
+
+
+class TestPollerLlevaElApodo:
+    async def test_el_trabajo_de_la_lista_aprobada_lleva_el_apodo_del_hijo(self, motor):
+        from tukit_inteligencia import apodos_subida
+
+        version_id = uuid.uuid4()
+        contacto = str(uuid.uuid4())
+        await apodos_subida.guardar(motor, str(version_id), contacto, {"hijo-2": "Luca"})
+        await _sembrar_bandeja(motor, agregado_id=version_id, **_carga(contacto, referencias=["hijo-2"]))
+        poller = Poller(
+            motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=_catalogo_verificado()
+        )
+        assert await poller.pasada() == 1
+        async with motor.engine.begin() as conexion:
+            hijos = (await conexion.execute(select(trabajos.TRABAJO.c.hijos))).scalar_one()
+        assert hijos[0]["referencia"] == "hijo-2"
+        assert hijos[0]["apodo"] == "Luca"
+        # Ya copiado al trabajo, no se guarda dos veces.
+        assert await apodos_subida.apodos_de(motor, str(version_id)) == {}
+
+    async def test_sin_apodo_guardado_el_trabajo_no_lleva_la_clave(self, motor):
+        await _sembrar_bandeja(motor, **_carga(str(uuid.uuid4()), referencias=["hijo-1"]))
+        poller = Poller(
+            motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=_catalogo_verificado()
+        )
+        assert await poller.pasada() == 1
+        async with motor.engine.begin() as conexion:
+            hijos = (await conexion.execute(select(trabajos.TRABAJO.c.hijos))).scalar_one()
+        assert "apodo" not in hijos[0]

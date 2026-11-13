@@ -51,7 +51,7 @@ from tukit_comun.registro import configurar_registro
 from tukit_comun.resiliencia import bucle_resiliente
 from tukit_comun.topologia import LISTAS
 
-from . import trabajos
+from . import apodos_subida, trabajos
 from .remoto import ClienteCatalogo
 
 # El unico tipo de evento que este poller atiende. La bandeja del Catalogo
@@ -158,6 +158,14 @@ class Poller:
         # "Mis solicitudes" unir la lista aprobada con su trabajo en una sola
         # fila, en vez de mostrar dos. La carga no lo trae; el agregado si.
         hijo["version_id"] = str(fila.agregado_id)
+        # El apodo que el acudiente dio al subir la lista (guardado aqui, no en el
+        # Catalogo): rotula el kit sin tener que adivinarlo por colegio y grado.
+        # Se lee y se borra; si el armado falla, se reintenta con el evento y el
+        # kit sale sin apodo antes que perderse el kit.
+        async with self.motor_inteligencia.engine.begin() as conexion:
+            apodos = await apodos_subida.tomar(conexion, str(fila.agregado_id))
+        if apodos.get(referencia):
+            hijo["apodo"] = apodos[referencia]
 
         # Las preferencias son las del paso 3 que el Catalogo guardo y reenvio en
         # la carga; {} para el kit del colegio (se arma con las preferencias base).

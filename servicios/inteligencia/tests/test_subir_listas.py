@@ -327,6 +327,32 @@ class TestSubirFeliz:
         assert {ll["grado"] for ll in catalogo.llamadas} == {"Cuarto", "Quinto"}
 
 
+class TestElApodoDeLaSubida:
+    """El apodo del hijo que sube su lista rotula su kit, pero NO viaja por el
+    Catalogo (Ley 1581): se queda cifrado en Inteligencia hasta que el poller
+    arma el kit."""
+
+    async def test_el_apodo_no_viaja_al_catalogo_y_queda_guardado_aqui(self, cliente, catalogo, motor):
+        from tukit_inteligencia import apodos_subida
+
+        cuerpo = _subida(
+            [{"referencia": "hijo-2", "colegio_id": COLEGIO, "grado": "Cuarto", "apodo": "  Luca "}],
+            contacto={"correo": "mama@ejemplo.com"},
+        )
+        respuesta = await cliente.post("/v1/listas/subir", **cuerpo)
+        assert respuesta.status_code == 202
+        version_id = respuesta.json()["subidas"][0]["version_id"]
+        assert "Luca" not in str(catalogo.llamadas)
+        assert await apodos_subida.apodos_de(motor, version_id) == {"hijo-2": "Luca"}
+
+    async def test_un_apodo_de_mas_de_40_se_rechaza(self, cliente):
+        cuerpo = _subida(
+            [{"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto", "apodo": "x" * 41}],
+            contacto={"correo": "mama@ejemplo.com"},
+        )
+        assert (await cliente.post("/v1/listas/subir", **cuerpo)).status_code in (400, 422)
+
+
 class TestColegioPorDirectorioOEscrito:
     """El acudiente que sube su archivo designa el colegio de dos formas nuevas:
     del directorio de Bogota (trae DANE) o escrito a mano (solo nombre). En los

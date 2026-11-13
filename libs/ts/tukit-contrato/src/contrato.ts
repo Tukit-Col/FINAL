@@ -359,6 +359,9 @@ export interface HijoSubida {
   colegio_nombre?: string;
   grado: string;
   anio_lectivo?: number;
+  // Como llama el acudiente a este hijo (max 40, nunca el nombre legal): rotula su
+  // kit. Inteligencia lo guarda cifrado y NO lo manda al Catalogo (Ley 1581).
+  apodo?: string;
 }
 
 // El resultado por hijo: a que version pendiente quedo ligado y con que grado

@@ -85,6 +85,10 @@ class Destino:
     percepcion_cruda: list[dict[str, Any]]
     documento: bytes
     colegio_datos: dict[str, Any] | None = None
+    # `{referencia: apodo}` de los hijos de este destino. Viaja cifrado en la
+    # `carga` de la fila pendiente (que la supresion borra) y, al importarse, pasa
+    # a `apodo_subida`. Nunca va al Catalogo.
+    apodos: dict[str, str] | None = None
 
 
 @dataclass(frozen=True)
@@ -135,6 +139,7 @@ async def guardar(
                 "preferencias": preferencias,
                 "colegio_datos": d.colegio_datos,
                 "origen": origen,
+                **({"apodos_cifrados": _cifrar_apodos(d.apodos)} if d.apodos else {}),
             },
             "documento": d.documento,
             "estado": PENDIENTE,
@@ -240,6 +245,13 @@ async def _intentar(motor: Any, fila: Any, *, catalogo: Any, ahora: datetime | N
         return Intento(PENDIENTE, error=error)
 
     version_id = str(respuesta["version_id"])
+    # El apodo no fue al Catalogo: pasa de la fila a `apodo_subida`, ligado a la
+    # version recien creada, para que el poller lo ponga en el kit.
+    apodos = _descifrar_apodos(carga.get("apodos_cifrados"))
+    if apodos:
+        from . import apodos_subida
+
+        await apodos_subida.guardar(motor, version_id, fila.contacto_referencia, apodos)
     # Ya esta en el catalogo: desde aqui la copia buena del PDF y de lo
     # percibido es la suya, y esta se vacia.
     await _actualizar(
@@ -253,6 +265,30 @@ async def _intentar(motor: Any, fila: Any, *, catalogo: Any, ahora: datetime | N
         documento=None,
     )
     return Intento(IMPORTADA, version_id=version_id)
+
+
+def _cifrar_apodos(apodos: dict[str, str]) -> str:
+    import json
+
+    from tukit_comun.cifrado import cifrador_desde_entorno
+
+    return base64.b64encode(cifrador_desde_entorno().cifrar(json.dumps(apodos).encode("utf-8"))).decode()
+
+
+def _descifrar_apodos(texto: Any) -> dict[str, str]:
+    if not texto:
+        return {}
+    import json
+
+    from tukit_comun.cifrado import cifrador_desde_entorno
+
+    try:
+        crudo = cifrador_desde_entorno().descifrar(base64.b64decode(str(texto)))
+        datos = json.loads(crudo.decode("utf-8"))
+    except Exception:  # una llave rotada no detiene la importacion: sale sin apodo
+        log.warning("apodos ilegibles en una importacion pendiente; se importa sin ellos")
+        return {}
+    return {str(k): str(v) for k, v in datos.items() if v} if isinstance(datos, dict) else {}
 
 
 async def _actualizar(motor: Any, ids: Sequence[uuid.UUID], **valores: Any) -> None:

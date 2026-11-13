@@ -271,6 +271,21 @@ class TestCuandoElCatalogoVuelve:
         assert fila.documento is None
         assert fila.carga is None
 
+    async def test_el_apodo_espera_cifrado_y_llega_al_importar(self, cliente, catalogo, motor):
+        from tukit_inteligencia import apodos_subida
+
+        catalogo.caido = True
+        hijo = {**_un_hijo(), "apodo": "Luca"}
+        await cliente.post("/v1/listas/subir", **_subida([hijo], contacto={"correo": "mama@ejemplo.com"}))
+        [pendiente] = await _filas(motor)
+        # Mientras espera, el apodo no queda en claro en la fila.
+        assert "Luca" not in str(pendiente.carga)
+
+        catalogo.caido = False
+        assert await importaciones.reintentar_pendientes(motor, catalogo=catalogo, ahora=_despues()) == 1
+        assert "Luca" not in str(catalogo.llamadas)
+        assert await apodos_subida.apodos_de(motor, "ver-1") == {"hijo-1": "Luca"}
+
     async def test_dos_reintentos_dan_una_sola_version(self, cliente, catalogo, motor):
         catalogo.caido = True
         await cliente.post("/v1/listas/subir", **_subida([_un_hijo()]))
