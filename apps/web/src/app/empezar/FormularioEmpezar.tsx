@@ -609,6 +609,9 @@ export default function FormularioEmpezar({
           anio_lectivo: canonicoDelHijo.anio_lectivo,
           perfil: perfilDeSeleccion(prioridad, Boolean(personaje)),
           ...(personaje ? { personaje } : {}),
+          // El apodo rotula el kit; sin el, la pagina tenia que adivinarlo por
+          // colegio y grado, y con hermanos en el mismo grado no podia.
+          ...(soloHijo.apodo.trim() ? { apodo: soloHijo.apodo.trim().slice(0, 40) } : {}),
         });
         router.push(`/kits/${aplicado.trabajo_id}`);
         // Si hubo alta ("soy nuevo usuario"), la cookie de sesión ya está puesta:

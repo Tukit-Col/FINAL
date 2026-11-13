@@ -1208,3 +1208,51 @@ class TestArreglosRevisionHermanos:
             carga = (await conexion.execute(select(trabajos.BANDEJA.c.carga))).scalar_one()
         assert carga["listas"] == [{"colegio_id": COLEGIO, "grado": "Septimo"}]
         assert carga["grado"] == "Septimo"
+
+
+class TestElApodoEnLaRutaRapida:
+    """El apodo es justo el dato que se guarda para nombrar al hijo en su kit. La
+    ruta rapida (kit canonico) lo dejaba fuera del trabajo y el kit tenia que
+    adivinarlo cruzando colegio y grado con las matriculas."""
+
+    async def test_la_ruta_rapida_guarda_el_apodo_y_el_kit_lo_muestra(self, motor):
+        from sqlalchemy import select
+
+        await _canonico(motor)
+        aplicado = await trabajos.aplicar_canonico(
+            motor,
+            colegio_id=COLEGIO,
+            grado="Cuarto",
+            anio_lectivo=2026,
+            perfil="Ahorrador",
+            apodo="Tomi",
+            usuario_id=uuid.uuid4(),
+            catalogo=_catalogo(),
+        )
+        trabajo_id = uuid.UUID(aplicado["trabajo_id"])
+        vista = await trabajos.ver(motor, trabajo_id, catalogo=_catalogo())
+        assert vista["hijos"][0]["apodo"] == "Tomi"
+        # La consola interna nunca recibe el apodo de un menor.
+        admin = await trabajos.ver(motor, trabajo_id, catalogo=_catalogo(), incluir_admin=True)
+        assert "apodo" not in admin["hijos"][0]
+        # El pedido congelado (evento hacia Comercio) tampoco lo lleva.
+        async with motor.engine.begin() as conexion:
+            cargas = [
+                e.carga
+                for e in await conexion.execute(select(trabajos.BANDEJA))
+                if e.tipo == "pedido_solicitado"
+            ]
+        assert cargas and "Tomi" not in str(cargas)
+
+    async def test_sin_apodo_no_se_guarda_la_clave(self, motor):
+        await _canonico(motor)
+        aplicado = await trabajos.aplicar_canonico(
+            motor,
+            colegio_id=COLEGIO,
+            grado="Cuarto",
+            anio_lectivo=2026,
+            perfil="Ahorrador",
+            catalogo=_catalogo(),
+        )
+        vista = await trabajos.ver(motor, uuid.UUID(aplicado["trabajo_id"]), catalogo=_catalogo())
+        assert "apodo" not in vista["hijos"][0]

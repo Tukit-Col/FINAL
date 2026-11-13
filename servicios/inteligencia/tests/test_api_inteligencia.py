@@ -282,6 +282,19 @@ class TestLaSesionEsLaProdiedad:
         )
         assert respuesta.status_code == 404
 
+    async def test_aplicar_canonico_rechaza_un_apodo_de_mas_de_40(self, cliente):
+        respuesta = await cliente.post(
+            "/v1/trabajos/aplicar-canonico",
+            json={
+                "colegio_id": COLEGIO,
+                "grado": "Cuarto",
+                "anio_lectivo": 2026,
+                "perfil": "Ahorrador",
+                "apodo": "x" * 41,
+            },
+        )
+        assert respuesta.status_code in (400, 422)
+
 
 class TestMisTrabajos:
     """El panel del acudiente: `GET /v1/trabajos` con Bearer devuelve SUS
