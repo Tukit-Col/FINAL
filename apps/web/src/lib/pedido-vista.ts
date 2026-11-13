@@ -60,3 +60,14 @@ export function diaBogota(iso: string): string {
     timeZone: ZONA,
   });
 }
+
+// Dia, mes y hora sin el ano, para los renglones angostos de las fases.
+export function fechaCortaBogota(iso: string): string {
+  return new Date(iso).toLocaleString("es-CO", {
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: ZONA,
+  });
+}

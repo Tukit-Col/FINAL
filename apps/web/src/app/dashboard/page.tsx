@@ -13,7 +13,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Fragment } from "react";
-import { Clock, LifeBuoy, ArrowRight, Users, ClipboardList, Package, type LucideIcon } from "lucide-react";
+import {
+  Clock,
+  LifeBuoy,
+  ArrowRight,
+  Users,
+  ClipboardList,
+  Package,
+  type LucideIcon,
+} from "lucide-react";
 import {
   ETIQUETA_ESTADO_PEDIDO,
   GRADOS_CANONICOS,
@@ -45,7 +53,9 @@ import {
 } from "@/lib/pagar-pedido";
 import { saludoDeCuenta } from "@/lib/cuenta";
 import AccionesPedido from "./AccionesPedido";
+import ActualizarSolo from "./ActualizarSolo";
 import DetallePedido from "./DetallePedido";
+import SeguimientoPedido from "./SeguimientoPedido";
 import MisCasos from "./MisCasos";
 import CancelarSolicitud from "./CancelarSolicitud";
 import TarjetaHijo from "./TarjetaHijo";
@@ -104,7 +114,8 @@ function chipDeSolicitud(
       ? { texto: "Comprado", tono: "exito" }
       : { texto: "Pago pendiente", tono: "aviso" };
   }
-  if (solicitud.tipo === "recibida") return { texto: "En revisión", tono: "aviso" };
+  if (solicitud.tipo === "recibida")
+    return { texto: "En revisión", tono: "aviso" };
   if (solicitud.tipo === "aprobada") return { texto: "Listo", tono: "exito" };
   switch (solicitud.estado) {
     case "publicado":
@@ -121,7 +132,13 @@ function chipDeSolicitud(
 
 // De varias solicitudes del mismo colegio y grado, la del hijo muestra la mas
 // avanzada: un kit listo gana a uno que se esta armando, y este a uno en revision.
-const RANGO_CHIP: Record<string, number> = { Listo: 4, Comprado: 4, Armando: 3, "Pago pendiente": 2, "En revisión": 1 };
+const RANGO_CHIP: Record<string, number> = {
+  Listo: 4,
+  Comprado: 4,
+  Armando: 3,
+  "Pago pendiente": 2,
+  "En revisión": 1,
+};
 
 // Una imagen de la marca con un titulo, un texto y un CTA: el estado vacio de
 // una seccion. La imagen es decorativa (el titulo ya dice de que trata).
@@ -175,7 +192,10 @@ async function pedidosConVigencia(): Promise<{
     return { filas: [], ahora };
   }
   return {
-    filas: pedidos.map((pedido) => ({ pedido, vencido: pedidoVencido(pedido.creado_en, ahora) })),
+    filas: pedidos.map((pedido) => ({
+      pedido,
+      vencido: pedidoVencido(pedido.creado_en, ahora),
+    })),
     ahora,
   };
 }
@@ -247,7 +267,9 @@ async function panel() {
   }
 
   // colegio_id -> nombre para resolver el colegio de cada hijo sin O(n^2).
-  const nombrePorColegio = new Map(colegios.map((c) => [c.colegio_id, c.nombre]));
+  const nombrePorColegio = new Map(
+    colegios.map((c) => [c.colegio_id, c.nombre]),
+  );
 
   // sesion.nombre puede venir vacio; caemos al correo para no mostrar un hueco.
   const nombreCuenta = sesion.nombre.trim() || sesion.correo;
@@ -256,18 +278,27 @@ async function panel() {
   const chipsDeSolicitudes = solicitudes.map((s) => {
     const trabajoId = s.tipo === "recibida" ? null : s.trabajo_id;
     const compra = trabajoId
-      ? compraDeSolicitud(trabajoId, pedidos.map((f) => f.pedido), ahora)
+      ? compraDeSolicitud(
+          trabajoId,
+          pedidos.map((f) => f.pedido),
+          ahora,
+        )
       : null;
     return chipDeSolicitud(s, compra);
   });
-  const kitsListos = chipsDeSolicitudes.filter((c) => c.tono === "exito").length;
+  const kitsListos = chipsDeSolicitudes.filter(
+    (c) => c.tono === "exito",
+  ).length;
   // Estado por hijo: la solicitud mas avanzada del mismo colegio y grado.
   const estadoPorHijo = new Map<string, ChipEstado>();
   solicitudes.forEach((s, i) => {
     const chip = chipsDeSolicitudes[i];
     const clave = `${s.colegio_id}|${s.grado}`;
     const previo = estadoPorHijo.get(clave);
-    if ((RANGO_CHIP[chip.texto] ?? 0) > (previo ? (RANGO_CHIP[previo.texto] ?? 0) : 0)) {
+    if (
+      (RANGO_CHIP[chip.texto] ?? 0) >
+      (previo ? (RANGO_CHIP[previo.texto] ?? 0) : 0)
+    ) {
       estadoPorHijo.set(clave, chip);
     }
   });
@@ -325,7 +356,8 @@ async function panel() {
                     // apodo null, vacio o solo espacios -> "Hijo N" en base 1.
                     const titulo = hijo.apodo?.trim() || `Hijo ${i + 1}`;
                     // Nombre del colegio; el id crudo solo si no se encuentra.
-                    const colegio = nombrePorColegio.get(hijo.colegio_id) ?? hijo.colegio_id;
+                    const colegio =
+                      nombrePorColegio.get(hijo.colegio_id) ?? hijo.colegio_id;
                     return (
                       <TarjetaHijo
                         key={hijo.matricula_id}
@@ -336,10 +368,16 @@ async function panel() {
                         grado={hijo.grado}
                         colegios={colegios}
                         grados={GRADOS_CANONICOS}
-                        estado={estadoPorHijo.get(`${hijo.colegio_id}|${hijo.grado}`) ?? null}
+                        estado={
+                          estadoPorHijo.get(
+                            `${hijo.colegio_id}|${hijo.grado}`,
+                          ) ?? null
+                        }
                         claseEstado={
                           CLASE_CHIP[
-                            estadoPorHijo.get(`${hijo.colegio_id}|${hijo.grado}`)?.tono ?? "neutro"
+                            estadoPorHijo.get(
+                              `${hijo.colegio_id}|${hijo.grado}`,
+                            )?.tono ?? "neutro"
                           ]
                         }
                       />
@@ -392,7 +430,9 @@ async function panel() {
                       // calcula, asi que un pedido cancelado devuelve la
                       // solicitud a "Listo" sin escribir nada.
                       const trabajoId =
-                        solicitud.tipo === "recibida" ? null : solicitud.trabajo_id;
+                        solicitud.tipo === "recibida"
+                          ? null
+                          : solicitud.trabajo_id;
                       const compra = trabajoId
                         ? compraDeSolicitud(
                             trabajoId,
@@ -405,10 +445,16 @@ async function panel() {
                         <li key={clave} className={styles.solicitudCard}>
                           <div className={styles.solicitudMeta}>
                             <div className={styles.solicitudTitulos}>
-                              <span className={styles.solicitudColegio}>{colegio}</span>
-                              <span className={styles.solicitudGrado}>Kit de {solicitud.grado}</span>
+                              <span className={styles.solicitudColegio}>
+                                {colegio}
+                              </span>
+                              <span className={styles.solicitudGrado}>
+                                Kit de {solicitud.grado}
+                              </span>
                             </div>
-                            <span className={`${styles.badge} ${CLASE_CHIP[chip.tono]}`}>
+                            <span
+                              className={`${styles.badge} ${CLASE_CHIP[chip.tono]}`}
+                            >
                               <span className={styles.badgeDot} />
                               {chip.texto}
                             </span>
@@ -425,7 +471,9 @@ async function panel() {
                                   href={`/pedidos/${compra.pedidoId}`}
                                   className={styles.solicitudEnlace}
                                 >
-                                  {compra.estado === "comprado" ? "Ver mi pedido" : "Ir a pagar"}
+                                  {compra.estado === "comprado"
+                                    ? "Ver mi pedido"
+                                    : "Ir a pagar"}
                                 </Link>
                                 <Link
                                   href={`/kits/${trabajoId}`}
@@ -441,14 +489,16 @@ async function panel() {
                                 Recibida: una persona está revisando tu lista.
                               </p>
                               {solicitud.tarea_id && (
-                                <CancelarSolicitud tareaId={solicitud.tarea_id} />
+                                <CancelarSolicitud
+                                  tareaId={solicitud.tarea_id}
+                                />
                               )}
                             </>
                           ) : solicitud.tipo === "aprobada" ? (
                             <>
                               <p className={styles.solicitudEstado}>
-                                Aprobada: tu kit está listo. Te enviamos el enlace
-                                a tu correo.
+                                Aprobada: tu kit está listo. Te enviamos el
+                                enlace a tu correo.
                               </p>
                               <div className={styles.solicitudEnlaces}>
                                 <Link
@@ -457,7 +507,9 @@ async function panel() {
                                 >
                                   Ver mis kits
                                 </Link>
-                                <CancelarSolicitud trabajoId={solicitud.trabajo_id} />
+                                <CancelarSolicitud
+                                  trabajoId={solicitud.trabajo_id}
+                                />
                               </div>
                             </>
                           ) : (
@@ -481,7 +533,9 @@ async function panel() {
                                 {/* Mientras el pipeline lo arma no se cancela: se
                                     escribiría a medias. */}
                                 {solicitud.estado !== "procesando" && (
-                                  <CancelarSolicitud trabajoId={solicitud.trabajo_id} />
+                                  <CancelarSolicitud
+                                    trabajoId={solicitud.trabajo_id}
+                                  />
                                 )}
                               </div>
                             </>
@@ -508,39 +562,36 @@ async function panel() {
                   cta={{ href: "/empezar", texto: "Armar mi primer kit" }}
                 />
               ) : (
-                <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      <th>Pedido</th>
-                      <th>Fecha</th>
-                      <th>Estado</th>
-                      <th>Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <>
+                  <ul className={styles.pedidos}>
                     {pedidos.map(({ pedido, vencido }) => {
                       const pendiente = pedido.estado === "pendiente_pago";
                       return (
-                        <Fragment key={pedido.pedido_id}>
-                          {/* Toda la fila abre el pedido: el enlace del codigo se
-                              estira sobre ella. Las acciones van en su propia
-                              fila, fuera del enlace. */}
-                          <tr
-                            id={`pedido-${pedido.pedido_id}`}
-                            className={`${styles.filaPedido} ${pendiente ? styles.filaConAcciones : ""}`}
-                          >
-                            <td className={styles.pedidoId}>
-                              <Link href={`/pedidos/${pedido.pedido_id}`} className={styles.enlacePedido}>
-                                <span className={styles.paraLectores}>Ver el pedido </span>
+                        <li
+                          key={pedido.pedido_id}
+                          id={`pedido-${pedido.pedido_id}`}
+                          className={styles.pedidoCard}
+                        >
+                          <div className={styles.pedidoCabecera}>
+                            <div className={styles.pedidoTitulo}>
+                              <Link
+                                href={`/pedidos/${pedido.pedido_id}`}
+                                className={styles.pedidoCodigo}
+                              >
+                                <span className={styles.paraLectores}>
+                                  Ver el pedido{" "}
+                                </span>
                                 {pedido.pedido_id.slice(0, 8).toUpperCase()}
                               </Link>
-                            </td>
-                            <td className={styles.pedidoFecha}>
-                              {fechaLegible(pedido.creado_en)}
-                            </td>
-                            <td className={styles.pedidoEstado}>
+                              <span className={styles.pedidoFecha}>
+                                {fechaLegible(pedido.creado_en)}
+                              </span>
+                            </div>
+                            <div className={styles.pedidoLado}>
                               {pendiente && vencido ? (
-                                <span className={`${styles.badge} ${styles.badgeAviso}`}>
+                                <span
+                                  className={`${styles.badge} ${styles.badgeAviso}`}
+                                >
                                   <Clock size={12} aria-hidden />
                                   Vencido
                                 </span>
@@ -552,33 +603,51 @@ async function panel() {
                                   {ETIQUETA_ESTADO_PEDIDO[pedido.estado]}
                                 </span>
                               )}
-                            </td>
-                            <td className={`${styles.pedidoTotal} cifra`}>
-                              {formatearPesos(pedido.total)}
-                            </td>
-                          </tr>
-                          {pendiente ? (
-                            <tr className={styles.filaAcciones}>
-                              <td colSpan={4}>
-                                <AccionesPedido
-                                  pedidoId={pedido.pedido_id}
-                                  trabajoId={pedido.trabajo_id}
-                                  vencido={vencido}
-                                />
-                              </td>
-                            </tr>
-                          ) : (
-                            <tr className={styles.filaAcciones}>
-                              <td colSpan={4}>
-                                <DetallePedido pedido={pedido} />
-                              </td>
-                            </tr>
+                              <span className={`${styles.pedidoTotal} cifra`}>
+                                {formatearPesos(pedido.total)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Las fases llegan de Comercio (la misma linea de tiempo
+                            de /pedidos/[id]). Sin ella (comercio sin reiniciar) la
+                            tarjeta queda con su estado, sin inventar fases. Un
+                            pedido por pagar no tiene fases que mostrar aun. */}
+                          {pedido.linea_de_tiempo && !pendiente && (
+                            <SeguimientoPedido linea={pedido.linea_de_tiempo} />
                           )}
-                        </Fragment>
+
+                          {pendiente ? (
+                            <AccionesPedido
+                              pedidoId={pedido.pedido_id}
+                              trabajoId={pedido.trabajo_id}
+                              vencido={vencido}
+                            />
+                          ) : (
+                            <DetallePedido pedido={pedido} />
+                          )}
+
+                          <div className={styles.pedidoPie}>
+                            <Link href={`/pedidos/${pedido.pedido_id}`}>
+                              Ver el pedido completo
+                            </Link>
+                            <a href="#casos">
+                              <LifeBuoy size={14} aria-hidden /> ¿Algo no va
+                              bien? Abre un caso
+                            </a>
+                          </div>
+                        </li>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </ul>
+                  <ActualizarSolo
+                    activo={pedidos.some(
+                      ({ pedido }) =>
+                        pedido.estado !== "entregado" &&
+                        pedido.estado !== "cancelado",
+                    )}
+                  />
+                </>
               )}
             </section>
 
@@ -589,7 +658,8 @@ async function panel() {
               </div>
               {casos === null ? (
                 <p className={styles.hijosError}>
-                  No pudimos cargar tus casos en este momento. Vuelve a intentarlo en unos minutos.
+                  No pudimos cargar tus casos en este momento. Vuelve a
+                  intentarlo en unos minutos.
                 </p>
               ) : (
                 <MisCasos iniciales={casos} />
@@ -600,11 +670,21 @@ async function panel() {
             <section className={styles.ayudaCard}>
               <div className={styles.ayudaCard__header}>
                 <div className={styles.ayudaCard__icon}>
-                  <LifeBuoy size={16} strokeWidth={2} aria-hidden="true" color="white" />
+                  <LifeBuoy
+                    size={16}
+                    strokeWidth={2}
+                    aria-hidden="true"
+                    color="white"
+                  />
                 </div>
-                <span className={styles.ayudaCard__title}>¿Necesitas ayuda?</span>
+                <span className={styles.ayudaCard__title}>
+                  ¿Necesitas ayuda?
+                </span>
               </div>
-              <p>Resolvemos las dudas más comunes sobre cómo armar y recibir tu kit.</p>
+              <p>
+                Resolvemos las dudas más comunes sobre cómo armar y recibir tu
+                kit.
+              </p>
               <Link href="/ayuda" className={styles.btnContactar}>
                 Ir al centro de ayuda
               </Link>
@@ -616,7 +696,8 @@ async function panel() {
                 <h2>Privacidad y mis datos</h2>
               </div>
               <p className={styles.sinHijos}>
-                Mira qué datos tuyos guardamos, descarga una copia o pide que los borremos.{" "}
+                Mira qué datos tuyos guardamos, descarga una copia o pide que
+                los borremos.{" "}
                 <Link href="/privacidad">Ir a privacidad y mis datos</Link>
               </p>
             </section>

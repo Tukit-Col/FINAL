@@ -166,6 +166,10 @@ export interface Pedido {
   // de `/pedidos/[id]`, en `PedidoDelAcudiente`.)
   seguimiento?: PasoDePedido[];
   retracto?: EstadoRetracto;
+  // Tambien solo en las lecturas del acudiente: la misma linea de tiempo que
+  // `/pedidos/[id]`, para pintar las fases en "Mis pedidos". Opcional: un
+  // comercio sin reiniciar aun no la manda.
+  linea_de_tiempo?: LineaDeTiempoPedido;
   // Solo en el tablero del back-office: lo que pide una accion de este pedido.
   // Opcional porque un comercio sin reiniciar aun no lo manda.
   alertas?: AlertaPedido[];
@@ -248,6 +252,26 @@ export const ETIQUETA_PASO_PEDIDO: Record<PasoPedido, string> = {
   despachado: "Despachado",
   en_reparto: "En reparto",
   entregado: "Entregado",
+};
+
+// Los pasos en el orden de Comercio: la UNICA lista de fases, la usan la web del
+// padre y el selector del admin.
+export const PASOS_PEDIDO: readonly PasoPedido[] = [
+  "creado",
+  "pagado",
+  "en_preparacion",
+  "despachado",
+  "en_reparto",
+  "entregado",
+];
+
+// Lo que el padre ve en "Mis pedidos": `creado` no es una fase (es el pedido
+// esperando pago) y se nombra en primera persona del servicio.
+export const FASES_SEGUIMIENTO: readonly PasoPedido[] = PASOS_PEDIDO.filter((p) => p !== "creado");
+
+export const ETIQUETA_FASE_SEGUIMIENTO: Record<PasoPedido, string> = {
+  ...ETIQUETA_PASO_PEDIDO,
+  en_preparacion: "Preparando tu kit",
 };
 
 // `actual` es la posicion del pedido; en un cancelado no hay paso actual.
