@@ -145,6 +145,10 @@ export interface ResumenOperacion {
   urgentes: number;
   vencen_hoy: number;
   resueltos_semana: number;
+  // Activos sin dueno y activos con el SLA vencido. Opcionales: una operacion
+  // sin reiniciar no los trae.
+  sin_asignar?: number;
+  vencidos?: number;
 }
 
 export interface BandejaOperacion {

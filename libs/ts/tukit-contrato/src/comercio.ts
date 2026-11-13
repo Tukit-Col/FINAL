@@ -166,7 +166,27 @@ export interface Pedido {
   // de `/pedidos/[id]`, en `PedidoDelAcudiente`.)
   seguimiento?: PasoDePedido[];
   retracto?: EstadoRetracto;
+  // Solo en el tablero del back-office: lo que pide una accion de este pedido.
+  // Opcional porque un comercio sin reiniciar aun no lo manda.
+  alertas?: AlertaPedido[];
 }
+
+// Alertas accionables de un pedido (`comercio/dominio/alertas.py`): pagado mas de
+// 24 h sin avanzar, pago `iniciado` hace mas de 30 min con el pedido vigente, e
+// incidencia abierta.
+export type AlertaPedido = "pagado_sin_avanzar" | "pago_atascado" | "incidencia_abierta";
+
+export const ALERTAS_PEDIDO: readonly AlertaPedido[] = [
+  "pagado_sin_avanzar",
+  "pago_atascado",
+  "incidencia_abierta",
+];
+
+export const ETIQUETA_ALERTA_PEDIDO: Record<AlertaPedido, string> = {
+  pagado_sin_avanzar: "Pagado sin avanzar",
+  pago_atascado: "Pago atascado",
+  incidencia_abierta: "Incidencia abierta",
+};
 
 // Los tipos de incidencia viven en el codigo de comercio (sin CHECK en la base,
 // `dominio/despacho.py`); esta lista los repite para el formulario del admin.
@@ -281,6 +301,8 @@ export interface ResumenComercio {
   por_estado: Record<EstadoPedido, number>;
   ingresos_confirmados: Dinero;
   entregas_pendientes: number;
+  // Conteo por alerta. Opcional: un comercio sin reiniciar no lo trae.
+  alertas?: Record<AlertaPedido, number>;
 }
 
 export interface TableroComercio {

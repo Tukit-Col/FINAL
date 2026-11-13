@@ -94,7 +94,17 @@ import type {
   SolicitudCaso,
   SolicitudMiCaso,
 } from "./operacion";
-import type { CasoDetalleAdmin, PedidoAdmin, SolicitudAvanceAdmin } from "./admin";
+import type {
+  AsignacionCaso,
+  CasoDetalleAdmin,
+  DestinoDeLote,
+  PedidoAdmin,
+  PrioridadCaso,
+  RespuestaLote,
+  RespuestaReconciliacion,
+  SolicitudAvanceAdmin,
+  VistaPreviaPedido,
+} from "./admin";
 import type { MisDatos, ResultadoSupresion } from "./privacidad";
 
 /** Los roles del sistema (filas de `rol` en identidad, ADR 0013). No es un
@@ -620,6 +630,19 @@ export interface OrigenDatos {
   responderCaso(token: string, casoId: string, texto: string): Promise<CasoDetalleAdmin>;
   cambiarEstadoCaso(token: string, casoId: string, destino: string): Promise<CasoDetalleAdmin>;
   vincularPedidoCaso(token: string, casoId: string, pedidoId: string): Promise<CasoDetalleAdmin>;
+  // Fase 4. Si el servicio aun no se reinicio con estas rutas, responden 404/405.
+  /** Pregunta a Wompi por el pago de un pedido atascado y aplica el resultado. */
+  reconciliarPagoPedido(token: string, pedidoId: string): Promise<RespuestaReconciliacion>;
+  /** Lo que vera el acudiente hoy y despues de mover el pedido a `destino`. */
+  vistaPreviaPedido(token: string, pedidoId: string, destino: string): Promise<VistaPreviaPedido>;
+  /** Avanza varios pedidos a un destino simple; el resultado es por pedido. */
+  avanzarLote(
+    token: string,
+    cuerpo: { pedido_ids: string[]; destino: DestinoDeLote },
+  ): Promise<RespuestaLote>;
+  asignarCaso(token: string, casoId: string, asignar: AsignacionCaso): Promise<CasoDetalleAdmin>;
+  cambiarPrioridadCaso(token: string, casoId: string, prioridad: PrioridadCaso): Promise<CasoDetalleAdmin>;
+  notaInternaCaso(token: string, casoId: string, texto: string): Promise<CasoDetalleAdmin>;
   // Un producto del catalogo publico por sku (imagen y ofertas), o `null` si no existe.
   productoPublico(sku: string): Promise<ProductoCatalogo | null>;
 
