@@ -45,6 +45,8 @@ import {
   type EtiquetasLogistica,
 } from "@/lib/logistica-servidor";
 import { tokenDeSesion } from "@/lib/sesion";
+import Chip, { Chips } from "@/components/ui/Chip";
+import EstadoVacio from "@/components/ui/EstadoVacio";
 import styles from "./Logistica.module.css";
 
 export const dynamic = "force-dynamic";
@@ -186,28 +188,19 @@ export default async function PaginaLogistica({ searchParams }: Props) {
       ) : null}
 
       {pedidos.length > 0 ? (
-        <nav className={styles.chips} aria-label="Pedidos que piden una acción">
-          <Link
-            href={hrefConAlerta(filtros, "")}
-            className={`${styles.chip} ${filtros.alerta === "" ? styles.chipActivo : ""}`}
-            aria-current={filtros.alerta === "" ? "true" : undefined}
-          >
+        <Chips etiqueta="Pedidos que piden una acción">
+          <Chip href={hrefConAlerta(filtros, "")} activo={filtros.alerta === ""}>
             Todos
-          </Link>
+          </Chip>
           {ALERTAS_PEDIDO.map((alerta: AlertaPedido) => {
             const cantidad = resumen.alertas?.[alerta] ?? pedidos.filter((p) => p.alertas?.includes(alerta)).length;
             return (
-              <Link
-                key={alerta}
-                href={hrefConAlerta(filtros, alerta)}
-                className={`${styles.chip} ${filtros.alerta === alerta ? styles.chipActivo : ""} ${cantidad > 0 ? styles.chipHay : ""}`}
-                aria-current={filtros.alerta === alerta ? "true" : undefined}
-              >
+              <Chip key={alerta} href={hrefConAlerta(filtros, alerta)} activo={filtros.alerta === alerta} hay={cantidad > 0}>
                 {ETIQUETA_ALERTA_PEDIDO[alerta]} <span className="cifra">{cantidad}</span>
-              </Link>
+              </Chip>
             );
           })}
-        </nav>
+        </Chips>
       ) : null}
 
       {pedidos.length > 0 && hayFiltros(filtros) ? (
@@ -217,19 +210,13 @@ export default async function PaginaLogistica({ searchParams }: Props) {
       ) : null}
 
       {pedidos.length === 0 ? (
-        <div className={styles.vacio}>
-          <p>
-            No hay pedidos todavía. Un pedido aparece cuando un trabajo se aprueba en la cola de
-            revisión y arranca la saga de pago.
-          </p>
-        </div>
+        <EstadoVacio titulo="No hay pedidos todavía">
+          Un pedido aparece cuando un trabajo se aprueba en la cola de revisión y arranca la saga de pago.
+        </EstadoVacio>
       ) : ordenados.length === 0 ? (
-        <div className={styles.vacio}>
-          <p>
-            Ningún pedido cumple esos filtros.{" "}
-            <Link href={hrefConVista(leerFiltros({}), filtros.vista)}>Ver todos</Link>.
-          </p>
-        </div>
+        <EstadoVacio titulo="Ningún pedido cumple esos filtros">
+          <Link href={hrefConVista(leerFiltros({}), filtros.vista)}>Ver todos</Link>
+        </EstadoVacio>
       ) : filtros.vista === "tablero" ? (
         <TableroPedidos
           pedidos={ordenados}

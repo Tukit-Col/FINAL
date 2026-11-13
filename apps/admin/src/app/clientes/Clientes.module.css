@@ -57,10 +57,7 @@
 /* ------------------------------------------------------------------ tabla */
 
 .marco {
-  overflow-x: auto;
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--clay-shadow-sm);
+  composes: marcoTabla from "../../components/ui/ui.module.css";
 }
 
 .tabla {
