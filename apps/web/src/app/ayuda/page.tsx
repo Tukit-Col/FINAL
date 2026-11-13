@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   LifeBuoy,
@@ -62,6 +63,14 @@ const PREGUNTAS = [
   },
 ];
 
+// Foto de cada respuesta (columna derecha en escritorio). Se reparten en ciclo
+// entre las tres fotos de la marca; la imagen es de apoyo, el texto manda.
+const FOTOS = [
+  { src: "/marca/caja-abierta-hero.webp", alt: "Caja Tukit abierta con cuadernos, lápices y colbón ordenados" },
+  { src: "/marca/preparando-la-caja.webp", alt: "Una persona acomodando útiles dentro de la caja" },
+  { src: "/marca/llega-a-tu-puerta.webp", alt: "Caja Tukit Premium entregada frente a una puerta" },
+];
+
 export const dynamic = "force-dynamic";
 
 export default async function AyudaPage() {
@@ -85,7 +94,7 @@ export default async function AyudaPage() {
           Preguntas frecuentes
         </h2>
         <Revelar as="div" className={styles.lista} modo="scroll" cadaUno={0.06}>
-          {PREGUNTAS.map(({ Icono, pregunta, respuesta }) => (
+          {PREGUNTAS.map(({ Icono, pregunta, respuesta }, i) => (
             <details key={pregunta} className={styles.tarjeta}>
               <summary className={styles.resumen}>
                 <span className={styles.resumenIcono} aria-hidden="true">
@@ -99,7 +108,17 @@ export default async function AyudaPage() {
                   aria-hidden="true"
                 />
               </summary>
-              <p className={styles.respuesta}>{respuesta}</p>
+              <div className={styles.cuerpo}>
+                <p className={styles.respuesta}>{respuesta}</p>
+                <div className={styles.foto}>
+                  <Image
+                    src={FOTOS[i % FOTOS.length].src}
+                    alt={FOTOS[i % FOTOS.length].alt}
+                    fill
+                    sizes="(max-width: 860px) 0px, 280px"
+                  />
+                </div>
+              </div>
             </details>
           ))}
         </Revelar>
