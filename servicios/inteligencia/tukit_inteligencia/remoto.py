@@ -265,6 +265,7 @@ class ClienteCatalogo:
         colegio_datos: dict[str, Any] | None = None,
         origen: str = "onboarding",
         clave_idempotencia: str | None = None,
+        referencias: list[str] | None = None,
     ) -> dict[str, Any]:
         """Escribe una lista percibida en el catalogo, con su evidencia.
 
@@ -282,6 +283,10 @@ class ClienteCatalogo:
         del directorio de Bogota o lo escribio a mano): trae su nombre y DANE
         para que la cola lo muestre y la aprobacion cree su identidad. Un colegio
         aliado ya conocido no lo trae.
+
+        `referencias` son las de los hijos del formulario que apuntan a esta
+        lista (`["hijo-2"]`): el catalogo las reenvia en `lista_verificada` y
+        el kit del padre las usa como clave de `personaje_por_hijo`.
 
         `clave_idempotencia` hace seguro el reintento de este POST (ADR 0040):
         con una clave que ya entro, el catalogo devuelve la version que creo en
@@ -305,6 +310,8 @@ class ClienteCatalogo:
             cuerpo["preferencias"] = preferencias
         if colegio_datos:
             cuerpo["colegio_datos"] = colegio_datos
+        if referencias:
+            cuerpo["referencias"] = list(referencias)
         if clave_idempotencia is not None:
             cuerpo["clave_idempotencia"] = clave_idempotencia
         return await self._pedir("POST", "/v1/admin/listas/importar", json=cuerpo)

@@ -143,7 +143,14 @@ class Poller:
                 origen = "colegio_grado"
 
         anio = carga.get("anio_lectivo")
-        hijo: dict[str, Any] = {"referencia": "hijo-1", "colegio_id": str(colegio_id), "grado": grado}
+        # La referencia REAL del hijo que subio la lista (`hijo-2`...): es la
+        # clave con la que el formulario guardo su personaje en
+        # `personaje_por_hijo`, asi que el Fan casa por clave exacta. Los
+        # eventos que ya estaban en la cola antes de que el Catalogo la
+        # reenviara no la traen: esos caen en `hijo-1`, como siempre.
+        referencias = [str(r) for r in carga.get("referencias") or () if r]
+        referencia = referencias[0] if referencias else "hijo-1"
+        hijo: dict[str, Any] = {"referencia": referencia, "colegio_id": str(colegio_id), "grado": grado}
         if anio is not None:
             hijo["anio_lectivo"] = anio
         # El `version_id` (el agregado del evento) queda en el trabajo para poder

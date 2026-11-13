@@ -638,6 +638,26 @@ class TestCerrarLaRevision:
         assert evento.carga["anio_lectivo"] == 2026
         assert evento.carga["preferencias"] == preferencias
 
+    async def test_lista_verificada_lleva_las_referencias_de_los_hijos(self, cliente):
+        # El poller arma el kit con la referencia REAL del hijo que subio la
+        # lista (`hijo-2`), no con un `hijo-1` fijo: es la clave con la que el
+        # formulario guardo su personaje en `personaje_por_hijo`.
+        vid = (
+            await cliente.post(
+                "/v1/admin/listas/importar",
+                json=_cuerpo_importar(contacto_referencia=str(uuid.uuid4()), referencias=["hijo-2"]),
+            )
+        ).json()["version_id"]
+        assert (await cliente.post(f"/v1/admin/listas/{vid}/cerrar")).status_code == 200
+        [evento] = await self._bandeja("lista_verificada")
+        assert evento.carga["referencias"] == ["hijo-2"]
+
+    async def test_referencias_que_no_son_lista_de_texto_se_rechazan(self, cliente):
+        respuesta = await cliente.post(
+            "/v1/admin/listas/importar", json=_cuerpo_importar(referencias="hijo-2")
+        )
+        assert respuesta.status_code == 422
+
     async def test_cerrar_un_onboarding_sin_padre_no_arma_kit_de_padre(self, cliente):
         # El onboarding del colegio no deja padre esperando: aprobarlo no dispara
         # el kit de ningun acudiente (`lista_verificada`).

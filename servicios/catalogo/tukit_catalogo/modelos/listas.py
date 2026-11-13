@@ -297,6 +297,14 @@ class TareaImportacion(Base):
     # conocido (o el onboarding de administrador) no trae datos que crear.
     colegio_datos: Mapped[Any | None] = mapped_column(JSON, nullable=True)
 
+    # Las referencias de los hijos del hogar que apuntan a esta lista
+    # (`["hijo-2"]`), tal como las puso el formulario. Se reenvian en
+    # `lista_verificada` para que el kit del padre lleve la clave con la que
+    # guardo el personaje de cada hijo (`personaje_por_hijo`). No es PII: es un
+    # rotulo del formulario, nunca el nombre del menor. Nullable: el onboarding
+    # y las tareas de antes no la traen.
+    referencias: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+
     # La clave con que inteligencia reintenta una importacion (ADR 0040): una
     # subida que encontro el catalogo caido se importa despues, y si un intento
     # entro pero su respuesta se perdio, el siguiente trae la misma clave y

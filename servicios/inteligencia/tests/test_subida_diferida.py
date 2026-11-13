@@ -262,6 +262,7 @@ class TestCuandoElCatalogoVuelve:
         assert llamada["contacto_referencia"] == str(PADRE)
         assert llamada["origen"] == "sugerencia_padre"
         assert llamada["clave_idempotencia"] == str(pendiente.clave_idempotencia)
+        assert llamada["referencias"] == ["hijo-1"]
 
         [fila] = await _filas(motor)
         assert fila.estado == "importada"

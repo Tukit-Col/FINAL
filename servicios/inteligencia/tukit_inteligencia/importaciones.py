@@ -216,6 +216,7 @@ async def _intentar(motor: Any, fila: Any, *, catalogo: Any, ahora: datetime | N
             colegio_datos=carga.get("colegio_datos"),
             origen=carga.get("origen", "sugerencia_padre"),
             clave_idempotencia=str(fila.clave_idempotencia),
+            referencias=list(fila.referencias or ()),
         )
     except RemotoCaido as error:
         if not error.transitorio:

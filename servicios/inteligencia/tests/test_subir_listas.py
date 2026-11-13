@@ -50,6 +50,7 @@ class CatalogoImportador:
         colegio_datos: dict | None = None,
         origen: str = "onboarding",
         clave_idempotencia: str | None = None,
+        referencias: list[str] | None = None,
     ) -> dict:
         self._proximo += 1
         version_id = f"ver-{self._proximo}"
@@ -66,6 +67,7 @@ class CatalogoImportador:
                 "colegio_datos": colegio_datos,
                 "origen": origen,
                 "clave_idempotencia": clave_idempotencia,
+                "referencias": referencias,
             }
         )
         return {"version_id": version_id, "tarea_id": f"tar-{self._proximo}", "items": len(items)}
@@ -181,6 +183,20 @@ class TestSubirFeliz:
         # de eso depende que la cola diga "Un acudiente la subió" y no "El colegio
         # la envió". Regresion de un bug donde `importar_lista` fijaba onboarding.
         assert llamada["origen"] == "sugerencia_padre"
+
+    async def test_cada_lista_viaja_con_la_referencia_de_su_hijo(self, cliente, catalogo):
+        # El catalogo la reenvia en `lista_verificada`: el kit del padre la usa
+        # como clave de `personaje_por_hijo` en vez de un `hijo-1` fijo.
+        cuerpo = _subida(
+            [
+                {"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"},
+                {"referencia": "hijo-2", "colegio_id": OTRO_COLEGIO, "grado": "Cuarto"},
+            ],
+            contacto={"correo": "mama@ejemplo.com"},
+        )
+        assert (await cliente.post("/v1/listas/subir", **cuerpo)).status_code == 202
+        por_colegio = {ll["colegio_id"]: ll["referencias"] for ll in catalogo.llamadas}
+        assert por_colegio == {COLEGIO: ["hijo-1"], OTRO_COLEGIO: ["hijo-2"]}
 
     async def test_el_contacto_se_registra_una_vez_y_solo_viaja_su_id(self, cliente, catalogo, identidad):
         cuerpo = _subida(
