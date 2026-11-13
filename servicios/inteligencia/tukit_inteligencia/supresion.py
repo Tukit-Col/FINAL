@@ -9,6 +9,8 @@ Identidad publica `titular_suprimido`; este proceso lo consume de
   un menor). **Se quita** de cada hijo; el resto del hijo se queda.
 - `kit.pesos_usados_cifrados`: los mismos pesos, congelados en cada kit de sus
   trabajos. **Se borra.**
+- `apodo_subida`: el apodo de un hijo cuya lista subida espera aprobacion (dato
+  de un menor). **Se borra.**
 - `importacion_lista.documento` (el PDF o la foto que subio) y `carga` (lo
   percibido de el, con sus preferencias). **Se borran**, y se suelta
   `contacto_referencia`. Una importacion aun pendiente ya no tiene que mandar:
@@ -32,7 +34,7 @@ import argparse
 import asyncio
 from dataclasses import dataclass
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from tukit_comun.bandeja import Resultado
 from tukit_comun.bd import MotorServicio, crear_motor
 from tukit_comun.broker import url_broker
@@ -47,6 +49,7 @@ from .modelos import Base
 _TRABAJO = Base.metadata.tables["trabajo_pipeline"]
 _KIT = Base.metadata.tables["kit"]
 _IMPORTACION = Base.metadata.tables["importacion_lista"]
+_APODO_SUBIDA = Base.metadata.tables["apodo_subida"]
 _BANDEJA = Base.metadata.tables["bandeja_salida"]
 
 SERVICIO = "inteligencia"
@@ -94,6 +97,10 @@ class Supresor:
             )
             await conexion.execute(
                 update(_IMPORTACION).where(suyas).values(documento=None, carga=None, contacto_referencia=None)
+            )
+            # El apodo de un hijo cuya lista subida aun no se aprueba (dato de un menor).
+            await conexion.execute(
+                delete(_APODO_SUBIDA).where(_APODO_SUBIDA.c.contacto_referencia == str(uid))
             )
             await anotar_confirmacion(conexion, _BANDEJA, supresion, SERVICIO)
         return Resultado.HECHO

@@ -32,7 +32,7 @@ from pydantic import (
 from tukit_comun import derivar
 from tukit_comun.http import ErrorDominio
 
-from .. import api, importaciones, metricas, trabajos
+from .. import api, apodos_subida, importaciones, metricas, trabajos
 from ..modelos import EstadoResolucion, EstadoTrabajo
 from ..percepcion import Percepcion
 from ..remoto import RemotoCaido
@@ -831,6 +831,17 @@ class HijoSubida(ColegioElegido):
     referencia: str = Field(min_length=1, max_length=64)
     grado: str = Field(min_length=1, max_length=32)
     anio_lectivo: int | None = Field(default=None, ge=2020, le=2100)
+    # Como llama el acudiente a este hijo: rotula su kit. NO viaja al Catalogo
+    # (no guarda datos de menores): se queda cifrado en Inteligencia hasta que
+    # el poller arma el kit (`apodos_subida`). Mismas reglas que en `/v1/trabajos`.
+    apodo: str | None = Field(default=None, max_length=40)
+
+    @field_validator("apodo", mode="before")
+    @classmethod
+    def _recortar_apodo(cls, v):
+        if isinstance(v, str):
+            return v.strip() or None
+        return v
 
 
 def _nombre_comparable(nombre: str | None) -> str:
@@ -1107,9 +1118,21 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
             caida = error
             break
         versiones[clave] = str(respuesta["version_id"])
+        await apodos_subida.guardar(
+            api.app.state.motor,
+            versiones[clave],
+            contacto_referencia,
+            {h.referencia: h.apodo for h, _, c in destino_de_hijo if c == clave and h.apodo},
+        )
 
     if caida is not None:
         pendientes = [destino for clave, destino in por_destino.items() if clave not in versiones]
+        for destino in pendientes:
+            destino.apodos = {
+                h.referencia: h.apodo
+                for h, _, c in destino_de_hijo
+                if h.apodo and por_destino.get(c) is destino
+            }
         await importaciones.guardar(
             api.app.state.motor,
             subida_id,

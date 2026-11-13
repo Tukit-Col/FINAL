@@ -677,6 +677,9 @@ export default function FormularioEmpezar({
                 ? { colegio_dane: hijo.colegioDane, colegio_nombre: hijo.colegioNombre }
                 : { colegio_nombre: hijo.colegioNombre }),
             grado: hijo.grado,
+            // El apodo rotula el kit cuando se apruebe la lista; Inteligencia lo
+            // guarda cifrado y no lo pasa al Catalogo.
+            ...(hijo.apodo.trim() ? { apodo: hijo.apodo.trim().slice(0, 40) } : {}),
           })),
           hijosSubida.map((hijo) => ({
             referencia: hijo.referencia,
@@ -907,14 +910,14 @@ export default function FormularioEmpezar({
                 }
               />
 
-              {/* Apodo OPCIONAL del menor, SOLO cuando el hijo quedó en un aliado
-                  (`colegioId`): un hijo de colegio no aliado se matricula recién al
-                  aprobarse su lista, así que aquí el apodo no se guardaría. Nunca el
+              {/* Apodo OPCIONAL del menor, en cuanto hay colegio (aliado o no). En
+                  un aliado se guarda en la matrícula; en uno no aliado viaja con la
+                  subida y Inteligencia lo guarda cifrado hasta armar su kit. Nunca el
                   nombre legal: para el kit basta colegio+grado, y minimizamos el
                   dato del menor (Ley 1581 de 2012, Art. 4). Editable para un hijo
                   NUEVO; para uno YA precargado se muestra en solo-lectura —no
                   re-escribimos el dato del menor, solo lo recordamos—. */}
-              {hijo.colegioId &&
+              {(hijo.colegioId || hijo.colegioNombre) &&
                 (modo === "nuevo" || (modo === "autenticado" && !hijo.precargado)) && (
                   <label className={styles.campo}>
                     <span>Apodo de tu hijo (opcional)</span>

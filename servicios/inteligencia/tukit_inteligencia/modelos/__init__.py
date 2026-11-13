@@ -1,5 +1,6 @@
 """Las 12 tablas del servicio de Inteligencia, tal como las declara el manifiesto."""
 
+from .apodo_subida import ApodoSubida
 from .base import (
     PESOS_POR_OMISION,
     TRANSICIONES,
@@ -24,6 +25,7 @@ from .trabajo import (
 )
 
 __all__ = [
+    "ApodoSubida",
     "ETAPAS",
     "PESOS_POR_OMISION",
     "TRANSICIONES",

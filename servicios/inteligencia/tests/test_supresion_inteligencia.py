@@ -158,3 +158,17 @@ async def test_confirma_una_sola_vez_aunque_el_evento_se_repita(motor):
 async def test_omite_lo_roto(motor):
     roto = Evento(id=2, origen="identidad", tipo="titular_suprimido", carga={"usuario_id": str(TITULAR)})
     assert await Supresor(motor).manejar(roto) is Resultado.OMITIR
+
+
+async def test_borra_los_apodos_de_subidas_pendientes(motor):
+    from tukit_inteligencia import apodos_subida
+
+    await _sembrar(motor, TITULAR)
+    await apodos_subida.guardar(motor, str(uuid.uuid4()), str(TITULAR), {"hijo-1": "Sofi"})
+    version_otro = str(uuid.uuid4())
+    await apodos_subida.guardar(motor, version_otro, str(OTRO), {"hijo-1": "Ana"})
+
+    assert await Supresor(motor).manejar(_evento()) is Resultado.HECHO
+    assert await apodos_subida.cuantos_de(motor, str(TITULAR)) == 0
+    # Los de otro titular no se tocan.
+    assert await apodos_subida.apodos_de(motor, version_otro) == {"hijo-1": "Ana"}
