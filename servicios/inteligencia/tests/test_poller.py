@@ -68,14 +68,19 @@ async def _sembrar_bandeja(motor, *, agregado_id: uuid.UUID | None = None, **car
     return agregado_id
 
 
-def _carga(contacto: str, preferencias: dict | None = None) -> dict[str, Any]:
-    return {
+def _carga(
+    contacto: str, preferencias: dict | None = None, referencias: list[str] | None = None
+) -> dict[str, Any]:
+    carga: dict[str, Any] = {
         "contacto_referencia": contacto,
         "colegio_id": COLEGIO,
         "grado": "Cuarto",
         "anio_lectivo": 2026,
         "preferencias": preferencias,
     }
+    if referencias is not None:
+        carga["referencias"] = referencias
+    return carga
 
 
 class TestPollerArmaElKitDelPadre:
@@ -225,3 +230,55 @@ class TestPollerConColegioSinPadre:
             ).one()
         assert fila.usuario_id is None
         assert fila.origen == "colegio_grado"
+
+
+class TestPollerUsaLaReferenciaRealDelHijo:
+    """El kit lleva la referencia del hijo que subio la lista, no un `hijo-1` fijo.
+
+    `personaje_por_hijo` esta indexado por esa referencia; con la fija, el hijo
+    2 que sube su lista salia neutral (su clave no casaba) o, con dos hermanos
+    con personaje, recibia el del hijo 1.
+    """
+
+    async def _fan(self, motor, catalogo, carga) -> set[tuple[str, str | None]]:
+        await _sembrar_bandeja(motor, **carga)
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
+        assert await poller.pasada() == 1
+        async with motor.engine.begin() as conexion:
+            tid = (await conexion.execute(select(trabajos.TRABAJO.c.id))).scalar_one()
+        vista = await trabajos.ver(motor, tid, incluir_kits=True)
+        fan = next(k for k in vista["kits"] if k["perfil"] == "Fan")
+        return {
+            (li["hijo"], (li.get("producto_elegido") or {}).get("personaje"))
+            for li in fan["lineas"]
+            if li.get("concepto") in {"C001", "C009"}
+        }
+
+    async def test_el_hijo_2_que_sube_su_lista_recibe_su_personaje(self, motor):
+        from test_fastroute import _catalogo_realista
+
+        prefs = {"personaje_por_hijo": {"hijo-2": ["spiderman"]}, "pesos": {"personaje": 1}}
+        carga = _carga(str(uuid.uuid4()), prefs, referencias=["hijo-2"])
+        assert await self._fan(motor, _catalogo_realista(), carga) == {("hijo-2", "spiderman")}
+
+    async def test_con_dos_hermanos_cada_lista_lleva_solo_su_personaje(self, motor):
+        from test_fastroute import CatalogoDosPersonajes, _catalogo_verificado
+
+        base = _catalogo_verificado(personaje=None)
+        catalogo = CatalogoDosPersonajes(revisada=True, items_resueltos=base.items_resueltos)
+        prefs = {
+            "personaje_por_hijo": {"hijo-1": ["spiderman"], "hijo-2": ["frozen"]},
+            "pesos": {"personaje": 1},
+        }
+        carga = _carga(str(uuid.uuid4()), prefs, referencias=["hijo-2"])
+        assert await self._fan(motor, catalogo, carga) == {("hijo-2", "frozen")}
+
+    async def test_un_evento_viejo_sin_referencias_cae_en_hijo_1(self, motor):
+        await _sembrar_bandeja(motor, **_carga(str(uuid.uuid4())))
+        poller = Poller(
+            motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=_catalogo_verificado()
+        )
+        assert await poller.pasada() == 1
+        async with motor.engine.begin() as conexion:
+            hijos = (await conexion.execute(select(trabajos.TRABAJO.c.hijos))).scalar_one()
+        assert hijos[0]["referencia"] == "hijo-1"

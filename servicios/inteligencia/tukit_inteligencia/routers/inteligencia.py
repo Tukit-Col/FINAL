@@ -1055,6 +1055,7 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
                 colegio_datos=destino.colegio_datos,
                 origen="sugerencia_padre",
                 clave_idempotencia=str(importaciones.clave_de(subida_id, destino)),
+                referencias=destino.referencias,
             )
         except RemotoCaido as error:
             if not error.transitorio:

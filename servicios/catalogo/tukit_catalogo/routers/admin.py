@@ -787,6 +787,23 @@ async def importar_lista(cuerpo: dict[str, Any]) -> dict[str, Any]:
         )
     preferencias = preferencias_crudas or None
 
+    # Las referencias de los hijos que apuntan a esta lista (`["hijo-2"]`): el
+    # kit que se arme al aprobarla las usa como `hijos[].referencia`, que es la
+    # clave de `personaje_por_hijo`. Lista de textos cortos o nada.
+    referencias_crudas = cuerpo.get("referencias")
+    if referencias_crudas is not None and not (
+        isinstance(referencias_crudas, list)
+        and all(isinstance(r, str) and 0 < len(r) <= 64 for r in referencias_crudas)
+        and len(referencias_crudas) <= 10
+    ):
+        raise ErrorDominio(
+            "referencias_invalidas",
+            "Las referencias de los hijos tienen que ser una lista de textos.",
+            estado=422,
+            campo="referencias",
+        )
+    referencias = list(referencias_crudas) if referencias_crudas else None
+
     # Los datos del colegio cuando la lista viene por un colegio que aun no
     # existe en Tukit: el acudiente lo eligio del directorio de Bogota (trae
     # DANE) o lo escribio a mano (solo nombre). Es un objeto JSON (nombre, dane,
@@ -854,6 +871,7 @@ async def importar_lista(cuerpo: dict[str, Any]) -> dict[str, Any]:
             origen=origen,
             contacto_referencia=contacto_referencia,
             preferencias=preferencias,
+            referencias=referencias,
             colegio_datos=colegio_datos,
             documento=documento,
             percepcion_cruda=percepcion_cruda,
@@ -886,6 +904,7 @@ async def _escribir_importacion(
     documento: bytes,
     percepcion_cruda: list[Any],
     clave_idempotencia: uuid.UUID | None,
+    referencias: list[str] | None = None,
 ) -> dict[str, Any]:
     """La escritura de `importar_lista`, en una sola transaccion."""
     async with _motor().sesion() as db:
@@ -935,6 +954,7 @@ async def _escribir_importacion(
             anio_lectivo=anio_lectivo,
             contacto_referencia=contacto_referencia,
             preferencias=preferencias,
+            referencias=referencias,
             colegio_datos=colegio_datos,
             documento=documento,
             percepcion_cruda=percepcion_cruda,
@@ -1441,6 +1461,9 @@ async def _aprobar(repo: RepoAdmin, version_id: uuid.UUID, cabeza: Any) -> None:
                 "anio_lectivo": cabeza.anio_lectivo,
                 # Lo que el padre pidio en el paso 3, para optimizar su kit.
                 "preferencias": tarea.preferencias or {},
+                # Las referencias de los hijos que subieron esta lista: el kit
+                # las usa como `hijos[].referencia` (clave de su personaje).
+                "referencias": list(tarea.referencias or ()),
             },
         )
 

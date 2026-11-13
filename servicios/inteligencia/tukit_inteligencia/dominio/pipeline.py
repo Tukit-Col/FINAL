@@ -120,13 +120,13 @@ def personajes_por_hijo(preferencias: dict[str, Any]) -> dict[str, str]:
       formulario), asi que tambien casa.
     - El formulario OMITE a los hijos sin personaje: las preferencias pueden
       ser dispersas (`{"hijo-2": [...]}` sin `hijo-1`).
-    - Los trabajos que no salen del formulario usan otra referencia: el poller
-      arma el kit de una lista subida con `"hijo-1"` fijo (`poller.py:146`, una
-      lista por trabajo) aunque en el formulario fuera otro hijo; el canonico
-      usa `"canonico"` (sin preferencias); los tests usan `"hijo-0"`, `"ana"`.
-      Limitacion conocida, fuera de alcance: en el poller la clave exacta
-      `"hijo-1"` puede ser la de un hermano. `clave_de_hijo` solo une por orden
-      cuando no hay ambiguedad (ver ahi); si la hay, el hijo queda neutral.
+    - El poller arma el kit de una lista subida con la referencia REAL del hijo
+      que la subio: viaja en la importacion (`referencias`), el Catalogo la
+      guarda y la reenvia en `lista_verificada`, asi que tambien casa exacta.
+      Solo un evento viejo, encolado antes de ese cambio, cae en `"hijo-1"`.
+      El canonico usa `"canonico"` (sin preferencias); los tests usan
+      `"hijo-0"`, `"ana"`. `clave_de_hijo` solo une por orden cuando no hay
+      ambiguedad (ver ahi); si la hay, el hijo queda neutral.
     """
     por_hijo = preferencias.get("personaje_por_hijo") or {}
     return {str(hijo): str(valores[0]) for hijo, valores in por_hijo.items() if valores}
@@ -139,8 +139,8 @@ def clave_de_hijo(preferencias: dict[str, Any], linea_hijo: str, hijos_del_kit: 
     2. Si ninguna clave casa con ningun hijo del kit, se unen por posicion SOLO
        cuando hay tantas claves como hijos distintos en el kit y son dos o mas:
        entonces cada hijo declaro su personaje y el orden es lo unico que los
-       distingue. Con un solo hijo y una sola clave ajena (el poller, que
-       renombra a `"hijo-1"` una lista que en el formulario era otro hijo) no
+       distingue. Con un solo hijo y una sola clave ajena (un evento viejo del
+       poller, que caia en `"hijo-1"` aunque fuera otro hijo) no
        hay forma de saber si esa clave es de este hijo o de un hermano omitido
        por no tener personaje (el formulario omite a esos), asi que queda
        neutral: es peor ponerle a un hijo el personaje de su hermano que no
@@ -152,7 +152,7 @@ def clave_de_hijo(preferencias: dict[str, Any], linea_hijo: str, hijos_del_kit: 
     aparicion de los hijos en el kit; si no lo es, un hermano puede recibir el
     personaje del otro. Hoy eso solo puede ocurrir en un trabajo armado fuera
     del formulario con varios hijos de referencias propias (el poller y el
-    canonico arman un solo hijo, `"hijo-1"`/`"canonico"`, y el canonico no trae
+    canonico arman un solo hijo, el de la lista/`"canonico"`, y el canonico no trae
     preferencias), asi que el caso no se da en produccion; se acepta antes que
     dejar neutral a hermanos que si declararon su personaje.
     """

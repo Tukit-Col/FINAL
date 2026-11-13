@@ -509,6 +509,7 @@ class RepoAdmin:
                     TAREA.c.contacto_referencia,
                     TAREA.c.preferencias,
                     TAREA.c.colegio_datos,
+                    TAREA.c.referencias,
                 )
                 .where(TAREA.c.version_id == version_id)
                 .order_by(TAREA.c.creada_en.desc())
