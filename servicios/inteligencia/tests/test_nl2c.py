@@ -300,6 +300,16 @@ async def test_con_la_bandera_apagada_las_rutas_no_existen(cliente, monkeypatch)
     assert r.status_code == 404 and r.json()["error"] == "asistente_desactivado"
 
 
+async def test_estado_distingue_apagado_de_encendido(cliente, monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "x")
+    r = await cliente.get("/v1/nl2c/estado")
+    assert r.json() == {"activo": True, "modelo_configurado": True}
+    monkeypatch.delenv("TUKIT_ASISTENTE")
+    monkeypatch.delenv("GEMINI_API_KEY")
+    r = await cliente.get("/v1/nl2c/estado")
+    assert r.status_code == 200 and r.json() == {"activo": False, "modelo_configurado": False}
+
+
 async def test_interpretar_devuelve_propuesta_con_r_preferencias_y_ui(cliente, monkeypatch):
     llamada = {
         "name": "fijar_restricciones",

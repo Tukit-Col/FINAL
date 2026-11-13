@@ -74,6 +74,17 @@
   transform: translateY(-1px);
 }
 
+.ejemplo:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.entradaChat:disabled {
+  background: var(--color-surface-2);
+  cursor: not-allowed;
+}
+
 .ejemplo:focus-visible {
   outline: 3px solid var(--color-primary);
   outline-offset: 2px;

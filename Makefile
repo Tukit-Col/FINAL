@@ -411,6 +411,12 @@ export TUKIT_INTELIGENCIA_URL ?= http://127.0.0.1:$(PUERTO_INTELIGENCIA)
 export TUKIT_COMERCIO_URL ?= http://127.0.0.1:$(PUERTO_COMERCIO)
 export TUKIT_OPERACION_URL ?= http://127.0.0.1:$(PUERTO_OPERACION)
 
+# El asistente "Asistente de tu kit" (NL2C) arranca ENCENDIDO en desarrollo: sin esta
+# bandera en 1 la ruta devuelve 404 y el chat solo puede decir que esta apagado. Aun
+# encendido necesita GEMINI_API_KEY en el entorno; sin ella responde 503 y la web lo dice.
+# Para apagarlo: `make reanudar TUKIT_ASISTENTE=0`. En produccion se decide en el despliegue.
+export TUKIT_ASISTENTE ?= 1
+
 api-identidad:  ## Levanta SOLO identidad, en primer plano
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_identidad.api --puerto $(PUERTO_IDENTIDAD)
 

@@ -26,6 +26,14 @@ interface Turno {
   respuesta: Respuesta;
 }
 
+type Servicio = "revisando" | "activo" | "apagado" | "sin_modelo" | "caido";
+
+const AVISO_SERVICIO: Record<Exclude<Servicio, "revisando" | "activo">, string> = {
+  apagado: "El asistente no está activo en este entorno. Puedes ajustar cada renglón del kit a mano.",
+  sin_modelo: "El asistente está encendido pero no tiene configurado el modelo en este entorno. Puedes ajustar el kit a mano.",
+  caido: "No logro conectar con el asistente ahora. Puedes ajustar el kit a mano o volver a intentarlo en un momento.",
+};
+
 const EJEMPLOS = ["¿Qué puedes hacer?", "Más barato en cuadernos", "Más variedad en mi kit", "¿Por qué este kit cuesta eso?"];
 
 async function avisarDecision(propuesta_id: string, decision: "aceptada" | "rechazada", tipo: "cambio" | "descarte") {
@@ -47,6 +55,7 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
   const [turnos, setTurnos] = useState<Turno[]>([]);
   const [estados, setEstados] = useState<Record<string, Estado>>({});
   const [ocupado, setOcupado] = useState(false);
+  const [servicio, setServicio] = useState<Servicio>("revisando");
   // El ultimo pedido por categoria, para que "y en colores tambien" se entienda en el turno
   // siguiente. Son dos palabras que devolvio el servidor, no lo que escribio el padre.
   const [anterior, setAnterior] = useState<PedidoAnterior | null>(null);
@@ -54,10 +63,28 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
   const fondo = useRef<HTMLDivElement>(null);
 
   const cargando = turnos.at(-1)?.respuesta.tipo === "pensando";
+  const sinServicio = servicio === "apagado" || servicio === "sin_modelo" || servicio === "caido";
 
   useEffect(() => {
     if (abierto) entrada.current?.focus();
   }, [abierto]);
+
+  // Una sola consulta barata (sin modelo) al abrir: si el asistente no esta activo no se
+  // ofrecen sugerencias que no van a funcionar.
+  useEffect(() => {
+    if (!abierto || servicio !== "revisando") return;
+    let vigente = true;
+    fetch("/api/asistente/estado", { cache: "no-store" })
+      .then((r) => r.json() as Promise<{ estado?: unknown }>)
+      .then((j) => {
+        const e = j.estado;
+        if (vigente) setServicio(e === "activo" || e === "apagado" || e === "sin_modelo" ? e : "caido");
+      })
+      .catch(() => vigente && setServicio("caido"));
+    return () => {
+      vigente = false;
+    };
+  }, [abierto, servicio]);
 
   useEffect(() => {
     fondo.current?.scrollIntoView({ block: "end" });
@@ -65,18 +92,29 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
 
   useEffect(() => {
     if (!abierto) return;
-    const alEscape = (e: KeyboardEvent) => e.key === "Escape" && setAbierto(false);
+    const alEscape = (e: KeyboardEvent) => e.key === "Escape" && cerrar();
     window.addEventListener("keydown", alEscape);
     return () => window.removeEventListener("keydown", alEscape);
   }, [abierto]);
 
-  // El asistente apagado en el servidor (sin TUKIT_ASISTENTE) o caido ya no hace
-  // desaparecer el boton: se le dice al acudiente, y el kit sigue a mano.
+  // Al cerrar, un "no conecta" se vuelve a revisar la proxima vez que se abra.
+  function cerrar() {
+    setAbierto(false);
+    setServicio((v) => (v === "caido" ? "revisando" : v));
+  }
+
+  // Un fallo puntual (el modelo tardo o respondio algo ilegible): se puede reintentar.
   function noDisponible() {
     responder({
       tipo: "texto",
-      texto: "Ahora mismo no puedo hacer cambios por aquí. Puedes ajustar cada renglón del kit a mano; si ves el botón de cambiar producto, úsalo.",
+      texto: "No pude responder esta vez. Inténtalo de nuevo en un momento o ajusta el renglón del kit a mano.",
     });
+  }
+
+  // Apagado en el servidor (sin TUKIT_ASISTENTE): se dice tal cual, sin sugerir que "no puede".
+  function apagado() {
+    setServicio("apagado");
+    responder({ tipo: "texto", texto: AVISO_SERVICIO.apagado });
   }
 
   function responder(respuesta: Respuesta) {
@@ -95,7 +133,8 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
       });
       const cuerpo = (await respuesta.json().catch(() => null)) as Record<string, unknown> | null;
       if (respuesta.status === 503) {
-        noDisponible();
+        if (cuerpo?.["error"] === "asistente_desactivado") apagado();
+        else noDisponible();
         return;
       }
       if (!respuesta.ok || !cuerpo) {
@@ -211,7 +250,7 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
           </h2>
           <p className={estilos.ayuda}>Hablamos del kit {perfil}. Te propongo y tú decides.</p>
         </div>
-        <button type="button" className={estilos.cerrar} onClick={() => setAbierto(false)} aria-label="Cerrar el asistente">
+        <button type="button" className={estilos.cerrar} onClick={cerrar} aria-label="Cerrar el asistente">
           <X size={20} aria-hidden="true" />
         </button>
       </header>
@@ -220,10 +259,21 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
         <p className={estilos.msgTukit}>
           Hola. Dime qué quieres cambiar del kit y te muestro la propuesta. No toco nada sin tu sí. Si no sabes por dónde empezar, toca «¿Qué puedes hacer?».
         </p>
+        {servicio !== "revisando" && servicio !== "activo" && (
+          <p className={estilos.msgTukit} role="status">
+            {AVISO_SERVICIO[servicio]}
+          </p>
+        )}
         {turnos.length === 0 && (
           <div className={estilos.ejemplos}>
             {EJEMPLOS.map((e) => (
-              <button key={e} type="button" className={estilos.ejemplo} onClick={() => void proponer(e)}>
+              <button
+                key={e}
+                type="button"
+                className={estilos.ejemplo}
+                disabled={sinServicio}
+                onClick={() => void proponer(e)}
+              >
                 {e}
               </button>
             ))}
@@ -239,7 +289,7 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
                 <p className={estilos.msgTukit}>{turno.respuesta.texto}</p>
                 <div className={estilos.ejemplos}>
                   {turno.respuesta.ejemplos.map((e) => (
-                    <button key={e} type="button" className={estilos.ejemplo} disabled={cargando} onClick={() => void proponer(e)}>
+                    <button key={e} type="button" className={estilos.ejemplo} disabled={cargando || sinServicio} onClick={() => void proponer(e)}>
                       {e}
                     </button>
                   ))}
@@ -312,6 +362,7 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
           value={texto}
           rows={1}
           maxLength={1000}
+          disabled={sinServicio}
           onChange={(e) => setTexto(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -321,7 +372,7 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
           }}
           placeholder="Ej.: más barato en todos los cuadernos"
         />
-        <button type="submit" className={estilos.enviar} disabled={cargando || !texto.trim()} aria-label="Enviar">
+        <button type="submit" className={estilos.enviar} disabled={cargando || sinServicio || !texto.trim()} aria-label="Enviar">
           <Send size={18} aria-hidden="true" />
         </button>
       </form>

@@ -24,6 +24,15 @@ export const NO_DISPONIBLE: Resultado = {
   },
 };
 
+/** Apagado en este entorno (bandera del servidor): distinto de "fallo", la web lo dice con otras palabras. */
+export const DESACTIVADO: Resultado = {
+  estado: 503,
+  cuerpo: {
+    error: "asistente_desactivado",
+    mensaje: "El asistente no está activo en este entorno.",
+  },
+};
+
 export async function reenviar(ruta: string, cuerpo: unknown): Promise<Resultado> {
   const token = await tokenDeSesion();
   let respuesta: Response;
@@ -51,10 +60,10 @@ export async function reenviar(ruta: string, cuerpo: unknown): Promise<Resultado
     return respuesta.ok ? NO_DISPONIBLE : { estado: respuesta.status, cuerpo: { error: "error_desconocido" } };
   }
   const objeto = json as Record<string, unknown>;
-  // Un fallo del modelo o un 404 de bandera apagada se leen igual en la web: sin asistente.
-  if (respuesta.status === 503 || (respuesta.status === 404 && objeto["error"] === "asistente_desactivado")) {
-    return NO_DISPONIBLE;
-  }
+  // Bandera apagada (404 del backend) y fallo del modelo (503) se distinguen: una es "no esta
+  // activo aqui", la otra "ahora fallo, intenta de nuevo".
+  if (respuesta.status === 404 && objeto["error"] === "asistente_desactivado") return DESACTIVADO;
+  if (respuesta.status === 503) return NO_DISPONIBLE;
   return { estado: respuesta.status, cuerpo: objeto };
 }
 
@@ -84,4 +93,20 @@ export async function imagenDePersonaje(nombre: string): Promise<string | null> 
     /* sin foto, se pinta el icono */
   }
   return null;
+}
+
+/** Estado del asistente para el panel: sin llamar al modelo. `caido` si el backend no contesta. */
+export async function estadoDelAsistente(): Promise<"activo" | "apagado" | "sin_modelo" | "caido"> {
+  try {
+    const r = await fetch(`${urlApi()}/v1/nl2c/estado`, {
+      signal: AbortSignal.timeout(4_000),
+      cache: "no-store",
+    });
+    if (!r.ok) return r.status === 404 ? "apagado" : "caido";
+    const j = (await r.json()) as { activo?: unknown; modelo_configurado?: unknown };
+    if (j.activo !== true) return "apagado";
+    return j.modelo_configurado === false ? "sin_modelo" : "activo";
+  } catch {
+    return "caido";
+  }
 }
