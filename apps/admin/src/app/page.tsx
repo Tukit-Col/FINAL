@@ -1,17 +1,31 @@
-// `/` — lo que hay que atender hoy. Es la casa del operador: solo muestra lo que
-// pide una acción, cada widget con el enlace directo a esa acción. Los totales y
-// las tendencias viven en sus pantallas (`/logistica`, `/tickets`, `/cola`,
-// `/catalogo`, `/colegios`).
+// `/` — el panel del operador. Arriba lo que pide acción (tarjetas > 0; los en
+// cero, compactos); abajo el pulso: flujo de pedidos, tickets, listas por
+// verificar por colegio y actividad reciente. Todo sale de lo que ya devuelven
+// pedidos(), casos(), cola(), listasAdmin() y colegios(); cada número enlaza a
+// su vista filtrada.
 //
-// Tres lecturas independientes (pedidos, casos, cola) con `allSettled`: si un
-// servicio cae, se avisa de ESE y los demás widgets se pintan. Con todo en cero
-// se dice una sola vez "Todo al día".
+// Lecturas independientes con `allSettled`: si un servicio cae, se avisa de ESE
+// y el resto se pinta. "Todo al día" solo si todo lo accionable es cero.
 
 import Link from "next/link";
 import { ArrowRight, CircleCheck, TriangleAlert } from "lucide-react";
+import {
+  ETIQUETA_CATEGORIA_CASO,
+  ETIQUETA_ESTADO_CASO,
+  ETIQUETA_ESTADO_PEDIDO,
+  ETIQUETA_PRIORIDAD,
+  formatearPesos,
+} from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import Revelar from "@/components/Revelar";
-import { construirWidgets, type FuentePanel } from "@/lib/panel-accionable";
+import { haceCuanto } from "@/lib/formato";
+import { construirPanel, type FuentePanel } from "@/lib/panel-accionable";
+import {
+  actividadReciente,
+  flujoDePedidos,
+  listasPorColegio,
+  ticketsPorEstado,
+} from "@/lib/panel-vivo";
 import { tokenDeSesion } from "@/lib/sesion";
 import styles from "./Panel.module.css";
 
@@ -21,6 +35,12 @@ const NOMBRE_FUENTE: Record<FuentePanel, string> = {
   pedidos: "los pedidos (comercio)",
   casos: "los tickets (operación)",
   cola: "la cola de revisión",
+};
+
+const ETIQUETA_SLA: Record<string, string> = {
+  vencidos: "Plazo vencido",
+  vencen_hoy: "Vencen hoy",
+  urgentes: "Urgentes",
 };
 
 function sinPermiso(r: PromiseSettledResult<unknown>): boolean {
@@ -38,16 +58,22 @@ export default async function PaginaPanel() {
   const sinSesion = () =>
     Promise.reject(new ErrorTukit(401, "sesion_invalida", "Sin sesion."));
 
-  const [pedidosR, casosR, colaR] = await Promise.allSettled([
+  const [pedidosR, casosR, colaR, listasR, colegiosR] = await Promise.allSettled([
     token ? api.pedidos(token) : sinSesion(),
     token ? api.casos(token) : sinSesion(),
     api.cola(),
+    api.listasAdmin({ revisada: false }),
+    api.colegios(),
   ]);
 
-  const { widgets, caidos, sinActivar } = construirWidgets({
-    pedidos: pedidosR.status === "fulfilled" ? pedidosR.value.resumen : null,
-    casos: casosR.status === "fulfilled" ? casosR.value.resumen : null,
-    cola: colaR.status === "fulfilled" ? colaR.value : null,
+  const pedidos = pedidosR.status === "fulfilled" ? pedidosR.value : null;
+  const casos = casosR.status === "fulfilled" ? casosR.value : null;
+  const cola = colaR.status === "fulfilled" ? colaR.value : null;
+
+  const { widgets, enCero, caidos, sinActivar } = construirPanel({
+    pedidos: pedidos?.resumen ?? null,
+    casos: casos?.resumen ?? null,
+    cola,
   });
   const sinPermisoDe: Record<FuentePanel, boolean> = {
     pedidos: sinPermiso(pedidosR),
@@ -55,10 +81,36 @@ export default async function PaginaPanel() {
     cola: sinPermiso(colaR),
   };
 
+  // Un solo reloj para toda la página.
+  // eslint-disable-next-line react-hooks/purity
+  const ahora = Date.now();
+  const nombres = new Map(
+    colegiosR.status === "fulfilled"
+      ? colegiosR.value.map((c) => [c.colegio_id, c.nombre] as const)
+      : [],
+  );
+  const flujo = pedidos ? flujoDePedidos(pedidos.resumen) : null;
+  const tk = casos ? ticketsPorEstado(casos.casos, casos.resumen) : null;
+  const listas =
+    listasR.status === "fulfilled" ? listasPorColegio(listasR.value, nombres) : null;
+  const actividad = actividadReciente({
+    pedidos: pedidos?.pedidos ?? [],
+    casos: casos?.casos ?? [],
+    cola,
+    etiquetaPedido: (e) => ETIQUETA_ESTADO_PEDIDO[e],
+    etiquetaCategoria: (c) => ETIQUETA_CATEGORIA_CASO[c],
+    etiquetaPrioridad: (p) => ETIQUETA_PRIORIDAD[p],
+    dinero: formatearPesos,
+    nombreColegio: (ids) => ids.map((id) => nombres.get(id) ?? id).join(", "),
+  });
+
+  const hayPendientes = widgets.length > 0;
+
   return (
     <div className={styles.pagina}>
       <header className={styles.encabezado}>
-        <h1>Hoy hay que atender</h1>
+        <h1>Panel</h1>
+        <p>Lo que pide acción y cómo va la operación.</p>
       </header>
 
       {caidos.map((fuente) => (
@@ -70,7 +122,7 @@ export default async function PaginaPanel() {
         </p>
       ))}
 
-      {widgets.length > 0 ? (
+      {hayPendientes ? (
         <Revelar>
           <ul className={styles.rejilla} aria-label="Pendientes">
             {widgets.map((w) => (
@@ -95,6 +147,132 @@ export default async function PaginaPanel() {
           Todo al día. No hay nada que requiera una acción ahora.
         </p>
       ) : null}
+
+      {enCero.length > 0 ? (
+        <ul className={styles.ceros} aria-label="Pendientes en cero">
+          {enCero.map((w) => (
+            <li key={w.id}>
+              <Link href={w.enlace} className={styles.cero}>
+                <span className="cifra">0</span> {w.titulo}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {flujo ? (
+        <section className={styles.bloque} aria-labelledby="t-flujo">
+          <h2 id="t-flujo">Flujo de pedidos</h2>
+          <ol className={styles.flujo}>
+            {flujo.etapas.map((e) => (
+              <li key={e.estado}>
+                <Link
+                  href={e.enlace}
+                  className={`${styles.etapa} ${e.cantidad === 0 ? styles.vacia : ""}`}
+                >
+                  <span className={`${styles.etapaNum} cifra`}>{e.cantidad}</span>
+                  <span className={styles.etapaNombre}>{ETIQUETA_ESTADO_PEDIDO[e.estado]}</span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+          <p className={styles.lateral}>
+            <Link
+              href={flujo.incidencia.enlace}
+              className={flujo.incidencia.cantidad > 0 ? styles.rojo : undefined}
+            >
+              <span className="cifra">{flujo.incidencia.cantidad}</span>{" "}
+              {ETIQUETA_ESTADO_PEDIDO.incidencia.toLowerCase()}
+            </Link>
+            <Link href={flujo.cancelado.enlace}>
+              <span className="cifra">{flujo.cancelado.cantidad}</span>{" "}
+              {ETIQUETA_ESTADO_PEDIDO.cancelado.toLowerCase()}
+            </Link>
+          </p>
+        </section>
+      ) : null}
+
+      <div className={styles.paneles}>
+        {tk ? (
+          <section className={styles.bloque} aria-labelledby="t-tickets">
+            <h2 id="t-tickets">Tickets</h2>
+            <ul className={styles.filas}>
+              {tk.sla.map((f) => (
+                <li key={f.clave}>
+                  <Link href={f.enlace} className={styles.fila}>
+                    <span>{ETIQUETA_SLA[f.clave]}</span>
+                    <span
+                      className={`cifra ${f.critico && f.cantidad > 0 ? styles.rojo : ""}`}
+                    >
+                      {f.cantidad}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <h3>Activos por estado</h3>
+            <ul className={styles.filas}>
+              {tk.estados.map((f) => (
+                <li key={f.clave}>
+                  <Link href={f.enlace} className={styles.fila}>
+                    <span>{ETIQUETA_ESTADO_CASO[f.clave as keyof typeof ETIQUETA_ESTADO_CASO]}</span>
+                    <span className="cifra">{f.cantidad}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        <section className={styles.bloque} aria-labelledby="t-listas">
+          <h2 id="t-listas">Listas por verificar</h2>
+          {listas === null ? (
+            <p className={styles.vacio}>No pudimos leer las listas pendientes.</p>
+          ) : listas.total === 0 ? (
+            <p className={styles.vacio}>No hay listas esperando verificación.</p>
+          ) : (
+            <>
+              <ul className={styles.filas}>
+                {listas.grupos.map((g) => (
+                  <li key={g.clave}>
+                    <Link href="/cola" className={styles.fila}>
+                      <span className={styles.truncado}>{g.nombre}</span>
+                      <span className="cifra">
+                        {g.listas} {g.listas === 1 ? "lista" : "listas"}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <Link href="/cola" className={styles.verTodo}>
+                {listas.total} en {listas.colegios}{" "}
+                {listas.colegios === 1 ? "colegio" : "colegios"}: abrir la cola
+                <ArrowRight size={14} strokeWidth={2.4} aria-hidden="true" />
+              </Link>
+            </>
+          )}
+        </section>
+
+        <section className={styles.bloque} aria-labelledby="t-act">
+          <h2 id="t-act">Actividad reciente</h2>
+          {actividad.length === 0 ? (
+            <p className={styles.vacio}>Todavía no hay movimiento.</p>
+          ) : (
+            <ul className={styles.filas}>
+              {actividad.map((a) => (
+                <li key={a.clave}>
+                  <Link href={a.enlace} className={styles.fila}>
+                    <span className={styles.truncado}>
+                      <strong>{a.titulo}</strong> · {a.detalle}
+                    </span>
+                    <span className={styles.hace}>{haceCuanto(a.instante, ahora)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
 
       {sinActivar.length > 0 ? (
         <p className={styles.nota}>

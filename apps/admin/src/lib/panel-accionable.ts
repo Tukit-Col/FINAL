@@ -38,13 +38,25 @@ export interface SalidaPanel {
   sinActivar: FuentePanel[];
 }
 
+export interface SalidaPanelConCeros extends SalidaPanel {
+  /** Pendientes de fuentes sanas que hoy están en cero (se pintan compactos). */
+  enCero: WidgetPanel[];
+}
+
 export function construirWidgets(entrada: EntradaPanel): SalidaPanel {
+  const { widgets, caidos, sinActivar } = construirPanel(entrada);
+  return { widgets, caidos, sinActivar };
+}
+
+export function construirPanel(entrada: EntradaPanel): SalidaPanelConCeros {
   const caidos: FuentePanel[] = [];
   const sinActivar: FuentePanel[] = [];
   const todos: WidgetPanel[] = [];
+  const enCero: WidgetPanel[] = [];
 
   const agregar = (w: WidgetPanel) => {
     if (w.cantidad > 0) todos.push(w);
+    else enCero.push(w);
   };
 
   if (!entrada.pedidos) {
@@ -150,5 +162,5 @@ export function construirWidgets(entrada: EntradaPanel): SalidaPanel {
         a.i - b.i,
     )
     .map(({ w }) => w);
-  return { widgets, caidos, sinActivar };
+  return { widgets, caidos, sinActivar, enCero };
 }
