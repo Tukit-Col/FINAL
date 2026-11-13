@@ -6,6 +6,7 @@ import { COOKIE_SESION } from "@/lib/sesion";
 import { formatearFecha } from "@/lib/formato";
 import { rotuloDeHijo } from "@/lib/pedido-admin";
 import {
+  clientesPorColegio,
   esCuentaDePrueba,
   filtrarClientes,
   hayFiltrosClientes,
@@ -99,6 +100,9 @@ export default async function PaginaClientes({ searchParams }: Props) {
   const pagina = paginar(filtrados, filtros.pagina);
   const opciones = opcionesClientes(acudientes);
   const pruebas = acudientes.filter(esCuentaDePrueba).length;
+  // Cuantas familias e hijos hay en cada colegio y grado, sobre el padron entero
+  // (no sobre la pagina filtrada): es el mapa de donde estan los clientes.
+  const porColegio = clientesPorColegio(acudientes);
 
   return (
     <div className={styles.pagina}>
@@ -117,6 +121,43 @@ export default async function PaginaClientes({ searchParams }: Props) {
           </div>
         </dl>
       </header>
+
+      {porColegio.length > 0 && (
+        <section className={styles.porColegio} aria-labelledby="titulo-por-colegio">
+          <h2 id="titulo-por-colegio">Por colegio y grado</h2>
+          <p className={styles.bajada}>
+            Familias e hijos en cada colegio. Toca un colegio o un grado para filtrar la tabla.
+          </p>
+          <ul className={styles.listaColegios}>
+            {porColegio.map((c) => (
+              <li key={c.colegio_id} className={styles.filaColegio}>
+                <Link
+                  href={hrefClientes({ ...filtros, colegio: c.colegio_id, grado: "", pagina: 1 })}
+                  className={styles.nombreColegio}
+                >
+                  {c.colegio_nombre}
+                </Link>
+                <span className={`${styles.conteo} cifra`}>
+                  {c.acudientes} {c.acudientes === 1 ? "familia" : "familias"} · {c.hijos}{" "}
+                  {c.hijos === 1 ? "hijo" : "hijos"}
+                </span>
+                <ul className={styles.gradosColegio} aria-label={`Grados en ${c.colegio_nombre}`}>
+                  {c.grados.map((g) => (
+                    <li key={g.grado}>
+                      <Link
+                        href={hrefClientes({ ...filtros, colegio: c.colegio_id, grado: g.grado, pagina: 1 })}
+                        className={styles.chipGrado}
+                      >
+                        {g.grado} <span className="cifra">{g.hijos}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {acudientes.length > 0 ? (
         // El `key` remonta el formulario cuando cambia la URL (Limpiar, atras).

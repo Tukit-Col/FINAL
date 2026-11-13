@@ -30,6 +30,7 @@ import PerfilColegio from "@/components/PerfilColegio";
 import { imagenesDelDirectorio } from "@/lib/directorio";
 import { COOKIE_SESION } from "@/lib/sesion";
 import { demandaPorGrado } from "@/lib/metricas-colegio";
+import { clientesPorColegio } from "@/lib/clientes";
 import styles from "../Colegios.module.css";
 
 export const dynamic = "force-dynamic";
@@ -125,6 +126,17 @@ export default async function PaginaColegio({ params }: Props) {
       }
     }
   }
+
+  // Cuantas familias e hijos hay en cada grado de ESTE colegio, del mismo padron
+  // de identidad que usa Clientes (asi los numeros coinciden entre vistas).
+  // Fail-soft: sin sesion, sin rol o con identidad caida, no se pintan conteos.
+  const clientesDelColegio = token
+    ? await origenDeDatos()
+        .acudientesAdmin(token)
+        .then((padron) => clientesPorColegio(padron).find((c) => c.colegio_id === colegioId) ?? null)
+        .catch(() => null)
+    : null;
+  const conteoPorGrado = new Map((clientesDelColegio?.grados ?? []).map((g) => [g.grado, g]));
 
   // Los acudientes del colegio con el estado de su trabajo. Fail-soft: si el
   // backend no responde, el panel queda vacío en vez de tumbar toda la ficha.
@@ -281,6 +293,12 @@ export default async function PaginaColegio({ params }: Props) {
                     className={styles.gradoVerificado}
                   >
                     {grado}
+                    {conteoPorGrado.get(grado) && (
+                      <span className={styles.conteoGrado}>
+                        {" "}· {conteoPorGrado.get(grado)!.hijos}{" "}
+                        {conteoPorGrado.get(grado)!.hijos === 1 ? "hijo" : "hijos"}
+                      </span>
+                    )}
                   </Link>
                 ) : (
                   <span
@@ -289,6 +307,12 @@ export default async function PaginaColegio({ params }: Props) {
                     aria-label={`${grado}: sin lista verificada`}
                   >
                     {grado}
+                    {conteoPorGrado.get(grado) && (
+                      <span className={styles.conteoGrado}>
+                        {" "}· {conteoPorGrado.get(grado)!.hijos}{" "}
+                        {conteoPorGrado.get(grado)!.hijos === 1 ? "hijo" : "hijos"}
+                      </span>
+                    )}
                   </span>
                 )}
               </li>
