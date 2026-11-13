@@ -1,0 +1,87 @@
+@property --giro {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.destacada {
+  --luz-x: 85%;
+  --luz-y: 15%;
+  position: relative;
+  isolation: isolate;
+  border-radius: var(--radius-lg);
+  background: var(--color-white);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+/* Haz: solo la banda del borde se pinta (mascara de contenido vs. borde). */
+.haz {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 2px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--giro),
+    transparent 0 72%,
+    var(--clay-cielo-claro) 84%,
+    var(--color-danger) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  pointer-events: none;
+  animation: girar 6s linear infinite;
+}
+
+@keyframes girar {
+  to {
+    --giro: 360deg;
+  }
+}
+
+/* Luz: un halo suave que sigue al puntero; fuera, vuelve a su rincon. */
+.luz {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    260px circle at var(--luz-x) var(--luz-y),
+    rgb(74 163 224 / 0.16),
+    transparent 70%
+  );
+  opacity: 0.7;
+  transition: opacity var(--dur-medio) var(--ease-suave);
+  pointer-events: none;
+}
+
+.destacada:hover .luz {
+  opacity: 1;
+}
+
+.contenido {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  height: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .haz {
+    animation: none;
+    --giro: 250deg;
+  }
+}
+
+@media (hover: none) {
+  .luz {
+    display: none;
+  }
+}

@@ -15,6 +15,7 @@ import {
   paginar,
 } from "@/lib/clientes";
 import EstadoVacio from "@/components/ui/EstadoVacio";
+import ui from "@/components/ui/ui.module.css";
 import styles from "./Clientes.module.css";
 
 export const dynamic = "force-dynamic";
@@ -195,7 +196,7 @@ export default async function PaginaClientes({ searchParams }: Props) {
           Aparecen aquí cuando un acudiente crea su cuenta en la app.
         </EstadoVacio>
       ) : pagina.total === 0 ? null : (
-        <div className={styles.marco}>
+        <div className={ui.marcoTabla}>
           <table className={styles.tabla}>
             <caption className={styles.oculto}>Padrón de familias registradas y sus hijos.</caption>
             <thead>

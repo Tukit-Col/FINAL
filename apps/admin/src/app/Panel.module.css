@@ -11,13 +11,27 @@
 }
 
 /* Una tarjeta por pendiente: el número manda, el enlace es la acción. */
+/* Bento: el pendiente mas urgente ocupa el tile grande (2x2); los demas, uno
+ * cada uno. `dense` rellena los huecos sin reordenar el DOM. */
 .rejilla {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-flow: dense;
   gap: var(--espacio-4);
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.grande {
+  grid-column: span 2;
+  grid-row: span 2;
+  min-width: 0;
+}
+
+.sola {
+  grid-column: 1 / -1;
+  grid-row: auto;
 }
 
 .widget {
@@ -42,6 +56,33 @@
 
 .alta::before {
   background: var(--color-danger);
+}
+
+/* El tile urgente lleva su propio haz de borde: sin filete lateral, y la
+ * cifra y el titulo escalan para que la jerarquia se lea de un vistazo. */
+.urgente {
+  height: 100%;
+  padding: var(--espacio-5) var(--espacio-6);
+  background: var(--color-white);
+  justify-content: center;
+}
+
+.urgente::before {
+  display: none;
+}
+
+.urgente .cantidad {
+  font-size: 76px;
+}
+
+.urgente h2 {
+  font-size: 20px;
+}
+
+.urgente p {
+  flex: 0;
+  max-width: 44ch;
+  font-size: 14px;
 }
 
 .cantidad {
@@ -71,7 +112,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 15px;
+  min-height: 44px;
+  padding: 0 18px;
   border-radius: var(--radius-full);
   background: linear-gradient(145deg, var(--clay-cielo) 0%, var(--color-primary) 100%);
   color: var(--color-white);
@@ -117,10 +159,28 @@
   color: var(--color-text-secondary);
 }
 
-@media (max-width: 480px) {
+@media (max-width: 1000px) {
+  .rejilla {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
   .rejilla {
     grid-template-columns: 1fr;
   }
+
+  .grande {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .urgente .cantidad {
+    font-size: 56px;
+  }
+}
+
+@media (max-width: 480px) {
 
   .cantidad {
     font-size: 38px;
@@ -145,8 +205,10 @@
 
 .cero {
   display: inline-flex;
+  align-items: center;
   gap: 6px;
-  padding: 5px 12px;
+  min-height: 44px;
+  padding: 0 14px;
   border-radius: var(--radius-full);
   background: var(--color-surface-2);
   color: var(--color-text-secondary);
@@ -179,55 +241,17 @@
   color: var(--color-text-muted);
 }
 
-.flujo {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: var(--espacio-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.etapa {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  height: 100%;
-  padding: var(--espacio-3);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-2);
-  color: inherit;
-  text-decoration: none;
-}
-
-.etapa:hover,
-.fila:hover {
-  background: var(--color-primary-light);
-}
-
-.etapaNum {
-  font-family: var(--font-display);
-  font-size: 28px;
-  font-weight: 800;
-  line-height: 1.1;
-}
-
-.etapaNombre {
-  font-size: 12.5px;
-  color: var(--color-text-secondary);
-}
-
-.vacia .etapaNum {
-  color: var(--color-text-muted);
-}
-
 .lateral {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--espacio-4);
   font-size: 13px;
 }
 
 .lateral a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   color: var(--color-text-secondary);
   text-decoration: none;
 }
@@ -239,9 +263,27 @@
 
 .paneles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--espacio-4);
-  align-items: start;
+  align-items: stretch;
+}
+
+.ancho {
+  grid-column: span 2;
+}
+
+@media (max-width: 1000px) {
+  .paneles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ancho {
+    grid-column: auto;
+  }
+}
+
+.fila:hover {
+  background: var(--color-primary-light);
 }
 
 .filas {
@@ -258,6 +300,7 @@
   justify-content: space-between;
   align-items: baseline;
   gap: var(--espacio-3);
+  min-height: 36px;
   padding: 7px 10px;
   border-radius: var(--radius-sm);
   color: inherit;
@@ -295,7 +338,6 @@
 }
 
 .fila:focus-visible,
-.etapa:focus-visible,
 .cero:focus-visible,
 .verTodo:focus-visible,
 .lateral a:focus-visible {
@@ -303,14 +345,9 @@
   outline-offset: 2px;
 }
 
-@media (max-width: 900px) {
-  .flujo {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
 
-@media (max-width: 480px) {
-  .flujo {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (pointer: coarse) {
+  .fila {
+    min-height: 44px;
   }
 }

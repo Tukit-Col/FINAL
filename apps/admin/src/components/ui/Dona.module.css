@@ -1,0 +1,147 @@
+.dona {
+  display: grid;
+  grid-template-columns: minmax(150px, 190px) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--espacio-5);
+}
+
+.anillo {
+  position: relative;
+  aspect-ratio: 1;
+  width: 100%;
+}
+
+.anillo svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.pista {
+  fill: none;
+  stroke: var(--color-surface-2);
+  stroke-width: 13;
+}
+
+.arco {
+  fill: none;
+  stroke-width: 13;
+  stroke-linecap: butt;
+  animation: barrer 700ms var(--ease-suave) both;
+}
+
+/* El arco crece desde su inicio: dasharray de 0 a su largo. */
+@keyframes barrer {
+  from {
+    opacity: 0;
+    stroke-dasharray: 0.01 400;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.centro {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.cifra {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.centroTexto {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--color-text-secondary);
+}
+
+.leyenda {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto 3.2em;
+  align-items: center;
+  gap: var(--espacio-2);
+  min-height: 44px;
+  padding: 0 var(--espacio-2);
+  border-radius: var(--radius-sm);
+  color: inherit;
+  font-size: 13.5px;
+  text-decoration: none;
+  transition: background var(--dur-rapido) var(--ease-suave);
+}
+
+.item:hover {
+  background: var(--color-primary-light);
+}
+
+.item:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.punto {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+}
+
+.nombre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.valor {
+  font-weight: 800;
+}
+
+.pct {
+  font-size: 12px;
+  text-align: right;
+  color: var(--color-text-muted);
+}
+
+.cero .valor,
+.cero .nombre {
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+@media (max-width: 560px) {
+  .dona {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .anillo {
+    max-width: 180px;
+  }
+
+  .leyenda {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arco {
+    animation: none;
+  }
+}

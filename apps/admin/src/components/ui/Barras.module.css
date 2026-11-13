@@ -1,0 +1,87 @@
+.barras {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "etiqueta valor" "pista pista";
+  gap: 4px var(--espacio-3);
+  align-content: center;
+  min-height: 44px;
+  padding: 6px var(--espacio-2);
+  border-radius: var(--radius-sm);
+  color: inherit;
+  font-size: 13.5px;
+  text-decoration: none;
+  transition: background var(--dur-rapido) var(--ease-suave);
+}
+
+.fila:hover {
+  background: var(--color-primary-light);
+}
+
+.fila:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.etiqueta {
+  grid-area: etiqueta;
+}
+
+.valor {
+  grid-area: valor;
+  font-weight: 800;
+}
+
+.critico {
+  color: var(--color-danger);
+}
+
+.pista {
+  grid-area: pista;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-2);
+  overflow: hidden;
+}
+
+.relleno {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border-radius: var(--radius-full);
+  transform-origin: left;
+  animation: crecer 600ms var(--ease-suave) both;
+}
+
+.normal {
+  background: var(--clay-cielo);
+}
+
+.aviso {
+  background: var(--clay-estrella-oscuro);
+}
+
+.critico.relleno,
+.relleno.critico {
+  background: var(--color-danger);
+}
+
+@keyframes crecer {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .relleno {
+    animation: none;
+  }
+}
