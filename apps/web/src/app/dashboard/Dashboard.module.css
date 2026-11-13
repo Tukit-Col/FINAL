@@ -1439,3 +1439,69 @@
 }
 .vacioIcono { width: 96px; height: 96px; }
 .casosVacioIcono { width: 72px; height: 72px; border-radius: var(--radius-md); }
+
+/* ============================================================
+   Mis pedidos como tarjetas con sus fases
+   ============================================================ */
+.pedidos {
+  list-style: none;
+  margin: 0;
+  padding: var(--espacio-4) var(--espacio-5);
+  display: grid;
+  gap: var(--espacio-4);
+}
+
+.pedidoCard {
+  display: grid;
+  gap: var(--espacio-4);
+  padding: var(--espacio-4);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  background: var(--color-white);
+  scroll-margin-top: var(--espacio-6);
+}
+
+.pedidoCabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-2) var(--espacio-4);
+}
+
+.pedidoTitulo,
+.pedidoLado {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--espacio-3);
+}
+
+.pedidoCodigo {
+  font-family: var(--font-cifras);
+  font-weight: 800;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.pedidoCodigo:hover {
+  text-decoration: underline;
+}
+
+.pedidoPie {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2) var(--espacio-4);
+  padding-top: var(--espacio-3);
+  border-top: 1px solid var(--color-border-light);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pedidoPie a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-1);
+  min-height: 24px;
+  color: var(--color-primary);
+}

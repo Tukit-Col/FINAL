@@ -554,6 +554,10 @@ async def test_mis_pedidos_solo_devuelve_los_del_acudiente(cliente):
     mios = (await cliente.get("/v1/comercio/mis-pedidos", headers=bearer(TOKEN_ACUDIENTE))).json()
     assert mios["total"] == 2
     assert all(p["total"] == 9000 for p in mios["pedidos"])
+    # Cada pedido trae su linea de tiempo, sin actor ni notas del staff.
+    for p in mios["pedidos"]:
+        assert [x["paso"] for x in p["linea_de_tiempo"]["pasos"]][0] == "creado"
+        assert "historial" not in p["linea_de_tiempo"]
 
     ajenos = (await cliente.get("/v1/comercio/mis-pedidos", headers=bearer(TOKEN_OTRO))).json()
     assert ajenos["total"] == 1

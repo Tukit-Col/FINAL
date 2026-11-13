@@ -156,8 +156,17 @@ async def mis_pedidos(
     usuario_id = await _usuario_de_sesion(request, authorization)
     async with request.app.state.motor.sesion() as db:
         repo = _repo(await db.connection())
-        pedidos = await repo.pedidos_completos(await repo.listar_de_usuario(usuario_id))
+        filas = await repo.listar_de_usuario(usuario_id)
+        pedidos = await repo.pedidos_completos(filas)
         pedidos = [await _con_seguimiento(repo, p) for p in pedidos]
+        # La misma `linea_de_tiempo` que `/mis-pedidos/{id}` (vistas sin actor,
+        # nota ni celular): asi "Mis pedidos" pinta las fases sin pedir cada
+        # pedido por separado.
+        for fila, pedido in zip(filas, pedidos, strict=True):
+            pagos, historial, envio = await repo.vistas_para_linea_de_tiempo(fila.id)
+            pedido["linea_de_tiempo"] = linea_de_tiempo(
+                estado=fila.estado, creado_en=fila.creado_en, pagos=pagos, historial=historial, envio=envio
+            )
     return {"total": len(pedidos), "pedidos": pedidos}
 
 
