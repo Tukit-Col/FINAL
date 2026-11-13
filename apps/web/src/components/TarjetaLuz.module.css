@@ -1,0 +1,68 @@
+.tarjeta {
+  --luz-x: 92%;
+  --luz-y: 8%;
+  --luz-radio: 240px;
+  position: relative;
+  isolation: isolate;
+}
+
+/* Capa de la luz: rejilla fina + borde, visibles solo bajo un disco suave. No
+ * pinta resplandor propio y no recibe clics. */
+.luz {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background-image:
+    linear-gradient(to right, rgba(30, 64, 175, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(30, 64, 175, 0.1) 1px, transparent 1px);
+  background-size: 18px 18px;
+  box-shadow: inset 0 0 0 1.5px rgba(74, 163, 224, 0.55);
+  opacity: 0.5;
+  -webkit-mask-image: radial-gradient(
+    circle var(--luz-radio) at var(--luz-x) var(--luz-y),
+    #000 0%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(circle var(--luz-radio) at var(--luz-x) var(--luz-y), #000 0%, transparent 100%);
+  animation: pasada 2.2s var(--ease-suave) 0.15s both;
+}
+
+.tarjeta[data-siguiendo] .luz {
+  opacity: 0.9;
+  animation: none;
+  transition: opacity var(--dur-rapido) var(--ease-suave);
+}
+
+@property --luz-y {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 8%;
+}
+
+@property --luz-x {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 92%;
+}
+
+/* Entra por abajo a la izquierda, cruza y descansa arriba a la derecha. */
+@keyframes pasada {
+  0% {
+    --luz-x: 0%;
+    --luz-y: 100%;
+    opacity: 0.9;
+  }
+  100% {
+    --luz-x: 92%;
+    --luz-y: 8%;
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .luz {
+    animation: none;
+  }
+}

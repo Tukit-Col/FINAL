@@ -55,6 +55,8 @@ import CampoDireccionOsm from "./CampoDireccionOsm";
 import LineaDeKit from "./LineaDeKit";
 import CabeceraCategoria from "./CabeceraCategoria";
 import AsistenteKitSlot from "./AsistenteKitSlot";
+import TarjetaLuz from "@/components/TarjetaLuz";
+import ResumenRecibo from "./ResumenRecibo";
 import styles from "./Kits.module.css";
 
 // Un icono por perfil, para que los kits se distingan de un vistazo.
@@ -183,7 +185,7 @@ export default function VistaKits({
       )}
 
       {/* ------------------------------------------------ El kit que se mira */}
-      <section className={`${styles.tarjetaKit} ${styles.kitActivo}`} aria-live="polite">
+      <TarjetaLuz key={kit.perfil} className={`${styles.tarjetaKit} ${styles.kitActivo}`} aria-live="polite">
         {kit.perfil === recomendado?.perfil && (
           <span className={styles.chapaRecomendado}>
             <Star size={12} aria-hidden="true" fill="currentColor" strokeWidth={0} />
@@ -207,7 +209,7 @@ export default function VistaKits({
             {Math.round(kit.objetivos.disponibilidad * 100)}% con precio confirmado
           </span>
         )}
-      </section>
+      </TarjetaLuz>
 
       {viendoOtro ? (
         <p className={styles.razon}>
@@ -269,6 +271,14 @@ export default function VistaKits({
       <SeccionesDeLineas kit={kit} trabajoId={trabajo.trabajo_id} nombresHijos={nombresHijos} />
 
       <AsistenteKitSlot trabajoId={trabajo.trabajo_id} perfil={kit.perfil} />
+
+      <ResumenRecibo
+        perfil={kit.perfil}
+        renglones={agruparPorCategoria(
+          kit.lineas.filter((l) => clasificar(l) === "comprable" && !l.descartado),
+        ).map((g) => ({ clave: g.categoria, titulo: g.titulo, cantidad: g.lineas.length }))}
+        total={hayQueCobrar(kit.total) ? formatearPesos(kit.total) : "Sin productos con precio"}
+      />
 
       <Checkout
         trabajoId={trabajo.trabajo_id}
@@ -740,6 +750,7 @@ function SeccionesDeLineas({
               key={grupo.categoria}
               id={idAnclaCategoria(grupo.categoria)}
               className={styles.grupoCategoria}
+              data-categoria={grupo.categoria}
               aria-labelledby={`${idAnclaCategoria(grupo.categoria)}-titulo`}
             >
               <CabeceraCategoria

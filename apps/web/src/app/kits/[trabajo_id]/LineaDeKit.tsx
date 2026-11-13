@@ -52,6 +52,16 @@ export default function LineaDeKit({
   const [quitando, setQuitando] = useState(false);
   const [errorDescarte, setErrorDescarte] = useState<string | null>(null);
   const producto = linea.producto_elegido;
+  // Transicion al cambiar de producto (feedback): el bloque principal se vuelve
+  // a montar con otra `key` y entra con un fundido corto. Solo desde el segundo
+  // producto: en la primera carga no se anima nada. Se ajusta durante el render
+  // (patron de React), sin efecto ni ref.
+  const [skuVisto, setSkuVisto] = useState(producto?.sku);
+  const [huboCambio, setHuboCambio] = useState(false);
+  if (producto?.sku !== skuVisto) {
+    setSkuVisto(producto?.sku);
+    setHuboCambio(true);
+  }
   const razon = razonDeNoCobrar(linea);
   const pista = producto ? pistaDeTienda(producto.ofertas ?? []) : null;
   const precio = estadoDePrecio(linea);
@@ -81,7 +91,10 @@ export default function LineaDeKit({
       data-linea={linea.item_id}
       className={`${styles.linea} ${descartado ? styles.lineaDescartada : ""}`}
     >
-      <div className={styles.lineaPrincipal}>
+      <div
+        key={producto?.sku ?? "sin-producto"}
+        className={`${styles.lineaPrincipal} ${huboCambio ? styles.productoNuevo : ""}`}
+      >
         {producto ? (
           <Foto producto={producto} />
         ) : (
@@ -352,9 +365,12 @@ function CarruselDeOpciones({
         Otras opciones para «{linea.descripcion}». El precio es lo que costaría este renglón.
       </p>
       {opciones === null ? (
-        <p className={styles.notaCambio} role="status">
-          Buscando opciones…
-        </p>
+        <div className={styles.esqueletoOpciones} role="status">
+          <span className={styles.visualmenteOculto}>Buscando opciones…</span>
+          <span className={styles.esqueletoTarjeta} aria-hidden="true" />
+          <span className={styles.esqueletoTarjeta} aria-hidden="true" />
+          <span className={styles.esqueletoTarjeta} aria-hidden="true" />
+        </div>
       ) : opciones.length <= 1 ? (
         <p className={styles.notaCambio}>Por ahora no tenemos otra opción para este renglón.</p>
       ) : (
