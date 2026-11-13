@@ -498,7 +498,12 @@ export default function FormularioEmpezar({
           await registrarAcudiente(registro);
           setProgreso((p) => ({ ...p, registroFirma: firmaRegistro, sinSesion: false }));
         } catch (causa) {
-          if (causa instanceof FalloApi && cuentaCreadaSinSesion(causa)) {
+          if (causa instanceof FalloApi && causa.codigo === "correo_ya_registrado") {
+            // Cuenta previa con otra clave: pasamos a "ya tengo cuenta" para que entre
+            // y vuelva aqui; lo llenado se conserva en el formulario.
+            setError(causa.message);
+            setModo("existente");
+          } else if (causa instanceof FalloApi && cuentaCreadaSinSesion(causa)) {
             setProgreso((p) => ({ ...p, registroFirma: firmaRegistro, sinSesion: true }));
             setError(avisoCuentaCreada(causa));
           } else if (causa instanceof FalloApi) setError(causa.message);
