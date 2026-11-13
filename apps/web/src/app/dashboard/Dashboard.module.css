@@ -1426,3 +1426,17 @@
 .hijoCardAncha {
   grid-column: 1 / -1;
 }
+
+/* Iconos de estado vacío: sustituyen las fotos de marca, que se repetían. */
+.vacioIcono,
+.casosVacioIcono {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: var(--primary, #1f4fd8);
+  background: color-mix(in srgb, currentColor 9%, transparent);
+  border-radius: var(--radius-lg);
+}
+.vacioIcono { width: 96px; height: 96px; }
+.casosVacioIcono { width: 72px; height: 72px; border-radius: var(--radius-md); }
+/* r */

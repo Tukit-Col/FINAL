@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { Pencil, Trash2 } from "lucide-react";
 import type { Colegio } from "@tukit/contrato";
 import { FalloApi, cambiarHijo, quitarHijo } from "@/lib/api-navegador";
+import { gradosParaCambio } from "@/lib/grados-cambio-colegio";
 import BuscadorColegio from "@/components/BuscadorColegio";
 import styles from "./Dashboard.module.css";
 
@@ -100,6 +101,10 @@ export default function TarjetaHijo({
   }
 
   const sinCambios = colegioNuevo === colegioId && gradoNuevo === grado;
+  // Solo los grados con lista verificada del colegio elegido (igual que /empezar).
+  const colegioElegido = aliados.find((c) => c.colegio_id === colegioNuevo);
+  const ofertaGrados = gradosParaCambio(colegioElegido?.grados ?? [], grados, grado);
+  const cambioDeColegio = colegioNuevo !== "" && colegioNuevo !== colegioId;
 
   return (
     <li className={`${styles.hijoCard} ${modo === "editar" ? styles.hijoCardAncha : ""}`}>
@@ -125,7 +130,7 @@ export default function TarjetaHijo({
           }}
           onSubmit={(e) => {
             e.preventDefault();
-            if (sinCambios || !colegioNuevo) return;
+            if (sinCambios || !colegioNuevo || !gradoNuevo) return;
             void ejecutar(
               () => cambiarHijo(matriculaId, { colegio_id: colegioNuevo, grado: gradoNuevo }),
               "No pudimos cambiar el colegio.",
@@ -140,27 +145,58 @@ export default function TarjetaHijo({
               colegioId={colegioNuevo}
               colegioDane=""
               colegioNombre={colegioNuevo === colegioId ? colegioNombre : ""}
-              onElegirAliado={(id) => setColegioNuevo(id)}
+              onElegirAliado={(id) => {
+                setColegioNuevo(id);
+                // Nunca se conserva en silencio un grado que el colegio no verificó.
+                const c = aliados.find((x) => x.colegio_id === id);
+                setGradoNuevo(gradosParaCambio(c?.grados ?? [], grados, grado).seleccionado);
+              }}
               onElegirDirectorio={() => {}}
               onEscribir={() => {}}
-              onCambiar={() => setColegioNuevo("")}
+              onCambiar={() => {
+                setColegioNuevo("");
+                setGradoNuevo(grado);
+              }}
             />
           </div>
-          <label className={styles.hijoCampo}>
-            Grado
-            <select value={gradoNuevo} onChange={(e) => setGradoNuevo(e.target.value)}>
-              {grados.map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
-              ))}
-            </select>
-          </label>
+          {colegioNuevo !== "" && ofertaGrados.sinVerificados && cambioDeColegio ? (
+            <p className={styles.hijosError} role="status">
+              Este colegio aún no tiene grados con lista verificada.{" "}
+              <a href="/empezar">Sube la lista del colegio</a> y la revisamos.
+            </p>
+          ) : (
+            <>
+              {cambioDeColegio && ofertaGrados.gradoPerdido && (
+                <p className={styles.hijosError} role="status">
+                  Este colegio no tiene verificado {grado}. Elige uno de los grados verificados.
+                </p>
+              )}
+              <label className={styles.hijoCampo}>
+                Grado
+                <select
+                  value={gradoNuevo}
+                  onChange={(e) => setGradoNuevo(e.target.value)}
+                  required
+                >
+                  {gradoNuevo === "" && (
+                    <option value="" disabled>
+                      Elige un grado verificado
+                    </option>
+                  )}
+                  {(cambioDeColegio ? ofertaGrados.opciones : grados).map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
           <div className={styles.hijoAcciones}>
             <button
               type="submit"
               className={styles.btnPagar}
-              disabled={ocupado || sinCambios || !colegioNuevo}
+              disabled={ocupado || sinCambios || !colegioNuevo || !gradoNuevo}
             >
               {ocupado ? "Guardando…" : "Guardar"}
             </button>

@@ -13,8 +13,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Fragment } from "react";
-import Image from "next/image";
-import { Clock, LifeBuoy, ArrowRight } from "lucide-react";
+import { Clock, LifeBuoy, ArrowRight, Users, ClipboardList, Package, type LucideIcon } from "lucide-react";
 import {
   ETIQUETA_ESTADO_PEDIDO,
   GRADOS_CANONICOS,
@@ -127,20 +126,16 @@ const RANGO_CHIP: Record<string, number> = { Listo: 4, Comprado: 4, Armando: 3, 
 // Una imagen de la marca con un titulo, un texto y un CTA: el estado vacio de
 // una seccion. La imagen es decorativa (el titulo ya dice de que trata).
 function EstadoVacio(props: {
-  imagen: string;
+  Icono: LucideIcon;
   titulo: string;
   texto: string;
   cta?: { href: string; texto: string };
 }) {
   return (
     <div className={styles.vacio}>
-      <Image
-        src={props.imagen}
-        alt=""
-        width={160}
-        height={141}
-        className={styles.vacioImagen}
-      />
+      <span className={styles.vacioIcono} aria-hidden="true">
+        <props.Icono size={44} strokeWidth={1.5} />
+      </span>
       <div className={styles.vacioTexto}>
         <p className={styles.vacioTitulo}>{props.titulo}</p>
         <p>{props.texto}</p>
@@ -319,7 +314,7 @@ async function panel() {
                 </p>
               ) : hijos.length === 0 ? (
                 <EstadoVacio
-                  imagen="/marca/caja-abierta.webp"
+                  Icono={Users}
                   titulo="Aún no hay hijos en tu cuenta"
                   texto="Cuando armes tu primer kit, su colegio y su grado quedan guardados aquí."
                   cta={{ href: "/empezar", texto: "Armar mi primer kit" }}
@@ -367,7 +362,7 @@ async function panel() {
                 </p>
               ) : solicitudes.length === 0 && listasDisponibles ? (
                 <EstadoVacio
-                  imagen="/marca/caja-llegada.webp"
+                  Icono={ClipboardList}
                   titulo="Todavía no has enviado ninguna lista"
                   texto="Cuando subas una, aparecerá aquí mientras la revisamos y armamos tu kit."
                   cta={{ href: "/empezar", texto: "Armar mi primer kit" }}
@@ -507,7 +502,7 @@ async function panel() {
 
               {pedidos.length === 0 ? (
                 <EstadoVacio
-                  imagen="/marca/caja-llegada.webp"
+                  Icono={Package}
                   titulo="Aún no tienes pedidos"
                   texto="Cuando compres un kit, aquí sigues cada paso hasta la puerta de tu casa."
                   cta={{ href: "/empezar", texto: "Armar mi primer kit" }}
