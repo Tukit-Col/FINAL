@@ -49,9 +49,13 @@ AVANCES_DE_LOGISTICA: dict[EstadoPedido, frozenset[EstadoPedido]] = {
     _E.INCIDENCIA: frozenset({_E.EN_PREPARACION, _E.CANCELADO}),
 }
 
-# Que aviso al acudiente sale de cada destino. Cancelar y reprogramar no avisan
-# en esta fase: el contacto lo hace el operador, que ya sabe que paso.
+# Que aviso al acudiente sale de cada destino: uno por fase que el padre ve en su
+# dashboard (preparacion, despacho, reparto, entrega) mas la incidencia y la
+# cancelacion (que lleva si hay reembolso). Reprogramar no avisa: el contacto lo
+# hace el operador, que ya sabe que paso.
 _AVISOS = {
+    _E.EN_PREPARACION: "pedido_en_preparacion",
+    _E.CANCELADO: "pedido_cancelado",
     _E.DESPACHADO: "pedido_despachado",
     _E.EN_REPARTO: "pedido_en_reparto",
     _E.ENTREGADO: "pedido_entregado",

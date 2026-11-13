@@ -297,6 +297,10 @@ export const ETIQUETA_PASO_ACUDIENTE: Record<string, string> = {
 /** El aviso que recibirá el acudiente, en una frase. `null` = no se le avisa. */
 export function textoAviso(aviso: string | null): string {
   switch (aviso) {
+    case "pedido_en_preparacion":
+      return "Le avisamos que estamos preparando su kit.";
+    case "pedido_cancelado":
+      return "Le avisamos que se canceló el pedido y si hay reembolso.";
     case "pedido_despachado":
       return "Le avisamos que su pedido salió despachado.";
     case "pedido_en_reparto":

@@ -417,6 +417,14 @@ export TUKIT_OPERACION_URL ?= http://127.0.0.1:$(PUERTO_OPERACION)
 # Para apagarlo: `make reanudar TUKIT_ASISTENTE=0`. En produccion se decide en el despliegue.
 export TUKIT_ASISTENTE ?= 1
 
+# Correo (SMTP) y pagos (Wompi): los servicios no leen `.env` en Python, asi que make lo
+# incluye y exporta solo estas variables. Sin `.env` (o sin ellas) todo sigue igual:
+# el correo se imprime en consola y los pagos usan el adaptador falso.
+-include .env
+# Solo se exportan las que `.env` define: una variable vacia llegaria como '' y rompe
+# (p. ej. WOMPI_MODO='' no es valido; sin ella la pasarela usa el adaptador falso).
+$(foreach v,TUKIT_SMTP_HOST TUKIT_SMTP_PORT TUKIT_SMTP_USER TUKIT_SMTP_PASSWORD TUKIT_SMTP_DESDE TUKIT_PUBLIC_URL WOMPI_MODO WOMPI_LLAVE_PUBLICA WOMPI_LLAVE_PRIVADA WOMPI_SECRETO_EVENTOS WOMPI_SECRETO_INTEGRIDAD,$(if $(value $(v)),$(eval export $(v))))
+
 api-identidad:  ## Levanta SOLO identidad, en primer plano
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_identidad.api --puerto $(PUERTO_IDENTIDAD)
 

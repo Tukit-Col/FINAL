@@ -225,6 +225,7 @@ DATOS_POR_DESTINO = {
     "incidencia": {"tipo_incidencia": "no_habia_nadie"},
 }
 AVISO_POR_DESTINO = {
+    "en_preparacion": "pedido_en_preparacion",
     "despachado": "pedido_despachado",
     "en_reparto": "pedido_en_reparto",
     "entregado": "pedido_entregado",
@@ -354,7 +355,7 @@ async def test_reprogramar_y_cancelar_tras_incidencia(cliente):
     pedido_id = await _pedido_pagado(cliente)
     incidencia = {"destino": "incidencia", "tipo_incidencia": "direccion_errada"}
     assert (await _avanzar(cliente, pedido_id, incidencia)).status_code == 200
-    # Reprogramar: vuelve a preparacion, sin aviso.
+    # Reprogramar: vuelve a preparacion y el aviso dice que se retoma.
     assert (await _avanzar(cliente, pedido_id, {"destino": "en_preparacion"})).status_code == 200
     assert (await _avanzar(cliente, pedido_id, incidencia)).status_code == 200
 
@@ -370,8 +371,11 @@ async def test_reprogramar_y_cancelar_tras_incidencia(cliente):
         "incidencia",
         "cancelado",
     ]
-    # Solo las dos incidencias avisaron; reprogramar y cancelar no.
-    assert [a.tipo for a in await _avisos(pedido_id)] == ["incidencia", "incidencia"]
+    # Cada paso avisa: incidencia, retoma, incidencia y la cancelacion con su reembolso.
+    avisos = await _avisos(pedido_id)
+    assert [a.tipo for a in avisos] == ["incidencia", "pedido_en_preparacion", "incidencia", "pedido_cancelado"]
+    assert avisos[1].carga["retoma"] is True and "retoma" not in avisos[0].carga
+    assert avisos[3].carga["reembolso"] is True
 
 
 @pytest.mark.parametrize(

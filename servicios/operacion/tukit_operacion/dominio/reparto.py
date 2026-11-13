@@ -24,7 +24,10 @@ _PLANTILLAS = {
     "kits_publicados": "kits_publicados",
     "pedido_pagado": "pedido_pagado",
     "incidencia": "incidencia",
-    # Los avances del back-office de logistica (reparto propio).
+    # Los avances del back-office de logistica (reparto propio): una plantilla por fase
+    # del dashboard del acudiente, mas la cancelacion con su reembolso.
+    "pedido_en_preparacion": "pedido_en_preparacion",
+    "pedido_cancelado": "pedido_cancelado",
     "pedido_despachado": "pedido_despachado",
     "pedido_en_reparto": "pedido_en_reparto",
     "pedido_entregado": "pedido_entregado",
@@ -38,6 +41,8 @@ _USUARIO_EN_CARGA = frozenset(
     {
         "pedido_pagado",
         "incidencia",
+        "pedido_en_preparacion",
+        "pedido_cancelado",
         "pedido_despachado",
         "pedido_en_reparto",
         "pedido_entregado",
@@ -91,6 +96,14 @@ def lugar_de(colegio_nombre: str | None, grado: str | None) -> str:
     return ", ".join(partes) or "tu lista escolar"
 
 
+def _uuid_o_none(valor: object) -> uuid.UUID | None:
+    """El id si es un UUID valido; si no, None (nunca se arma un enlace con basura)."""
+    try:
+        return uuid.UUID(str(valor)) if valor else None
+    except ValueError:
+        return None
+
+
 def datos_plantilla(
     tipo: str,
     agregado_id: uuid.UUID,
@@ -99,17 +112,30 @@ def datos_plantilla(
     base_web: str,
     colegio_nombre: str | None = None,
 ) -> dict[str, object]:
-    """Las variables de negocio del aviso: turno, pedido, enlace, repartidor. Nunca contacto.
+    """Las variables de negocio del aviso: pedido, enlace, repartidor... Nunca contacto.
 
-    El turno es un identificador corto y estable del evento (los 8 primeros del
-    id del agregado). Para `kits_publicados` se agrega el enlace de pre-compra,
-    que lleva SOLO el `agregado_id` opaco (nunca correo ni celular); `base_web`
-    es la base de la app del acudiente, que el worker saca del entorno.
+    El unico identificador que ve el acudiente es el codigo del pedido (los 8
+    primeros de su id, en mayusculas), el mismo de "Mis pedidos" y de
+    `/pedidos/<id>`. No hay "turno": en un evento de pedido seria ese mismo codigo
+    repetido. Para `kits_publicados` el enlace lleva a la pre-compra y, en un aviso
+    de pedido, a su linea de tiempo; ambos llevan SOLO el id opaco (nunca correo ni
+    celular). `base_web` es la base de la app del acudiente, que el worker saca del
+    entorno.
     """
     carga = carga or {}
-    datos: dict[str, object] = {"turno": str(agregado_id)[:8].upper()}
-    if carga.get("pedido_id"):
-        datos["pedido"] = str(carga["pedido_id"])[:8].upper()
+    datos: dict[str, object] = {}
+    pedido_id = _uuid_o_none(carga.get("pedido_id"))
+    if pedido_id is not None:
+        datos["pedido"] = str(pedido_id)[:8].upper()
+        datos["enlace"] = f"{base_web}/pedidos/{pedido_id}"
+    if tipo == "pedido_pagado" and carga.get("total") is not None:
+        datos["total"] = carga["total"]
+    if tipo == "incidencia" and carga.get("motivo"):
+        datos["motivo"] = str(carga["motivo"])
+    if tipo == "pedido_en_preparacion":
+        datos["retoma"] = bool(carga.get("retoma"))
+    if tipo == "pedido_cancelado":
+        datos["reembolso"] = bool(carga.get("reembolso"))
     if tipo == "caso_respuesta":
         # El texto de la respuesta NO viaja: el aviso solo invita a leerla en Tukit.
         datos["caso"] = str(agregado_id)[:8].upper()
