@@ -998,3 +998,16 @@
   font-weight: 400;
   opacity: 0.75;
 }
+
+.mapaColegio {
+  margin-top: 8px;
+  max-width: 420px;
+  height: 220px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* El contenedor de Leaflet trae su propia altura (.mapa, 460px en logistica). */
+.mapaColegio :global(.leaflet-container) {
+  height: 100%;
+}
