@@ -149,14 +149,19 @@ async def _detalle_staff(repo: RepoCasos, fila: Any) -> dict[str, Any]:
 
 @router.get("/v1/operacion/casos", summary="Bandeja: resumen + casos ordenados. Solo staff.")
 async def bandeja(
-    request: Request, authorization: Annotated[str | None, Header()] = None
+    request: Request,
+    authorization: Annotated[str | None, Header()] = None,
+    usuario_id: str | None = None,
 ) -> dict[str, Any]:
+    """Con `?usuario_id=` solo los casos de ese titular (ficha del cliente en el
+    back-office); el `resumen` sigue siendo el global de la bandeja."""
     await _exigir_staff(request, authorization)
+    titular = _uuid_opcional(usuario_id, "usuario_id")
     ahora = datetime.now(UTC)
     async with request.app.state.motor.sesion() as db:
         repo = RepoCasos(await db.connection())
         resumen = await repo.resumen(ahora)
-        filas = await repo.listar_casos()
+        filas = await repo.listar_casos() if titular is None else await repo.listar_de_usuario(titular)
     ordenadas = sorted(filas, key=lambda f: clave_orden(f.prioridad, f.vence_en))
     casos = [serializar_caso(f) for f in ordenadas]
     return {"resumen": resumen, "casos": casos}

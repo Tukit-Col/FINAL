@@ -1588,8 +1588,9 @@ export class ClienteApi implements OrigenDatos {
   }
 
   // ------------------------------------------------ ASUMIDO (operacion 1.x)
-  casos(token?: string): Promise<BandejaOperacion> {
-    return this.pedir<BandejaOperacion>("/v1/operacion/casos", { headers: this.autoriza(token) });
+  casos(token?: string, usuarioId?: string): Promise<BandejaOperacion> {
+    const qs = usuarioId ? `?usuario_id=${encodeURIComponent(usuarioId)}` : "";
+    return this.pedir<BandejaOperacion>(`/v1/operacion/casos${qs}`, { headers: this.autoriza(token) });
   }
 
   caso(casoId: string, token?: string): Promise<Caso> {

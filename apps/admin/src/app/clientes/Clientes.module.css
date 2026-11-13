@@ -88,8 +88,40 @@
   border-bottom: none;
 }
 
-.tabla tbody tr:hover {
+.tabla tbody tr {
+  position: relative;
+}
+
+.tabla tbody tr:hover,
+.tabla tbody tr:focus-within {
   background: var(--color-surface-2);
+}
+
+/* El enlace real vive en la celda del correo; su ::after cubre toda la fila,
+ * así el área completa abre la ficha sin anidar enlaces en una fila. */
+.enlaceFila {
+  color: inherit;
+  text-decoration: none;
+}
+
+.enlaceFila::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.enlaceFila:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.enlaceFila:focus-visible {
+  outline: none;
+}
+
+.tabla tbody tr:has(.enlaceFila:focus-visible) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 .correo {

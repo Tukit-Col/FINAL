@@ -14,6 +14,7 @@ import {
   opcionesClientes,
   paginar,
 } from "@/lib/clientes";
+import { hrefCliente } from "@/lib/cliente-detalle";
 import EstadoVacio from "@/components/ui/EstadoVacio";
 import ui from "@/components/ui/ui.module.css";
 import styles from "./Clientes.module.css";
@@ -214,7 +215,9 @@ export default async function PaginaClientes({ searchParams }: Props) {
               {pagina.items.map((acudiente) => (
                 <tr key={acudiente.usuario_id}>
                   <th scope="row" className={styles.correo}>
-                    {acudiente.correo}
+                    <Link href={hrefCliente(acudiente.usuario_id)} className={styles.enlaceFila}>
+                      {acudiente.correo}
+                    </Link>
                   </th>
                   <td className={acudiente.celular ? undefined : styles.tenue}>
                     {acudiente.celular ?? "—"}
