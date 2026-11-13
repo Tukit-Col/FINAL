@@ -229,8 +229,15 @@ def _candidato_de_swap(swap: dict[str, Any]) -> Candidato:
     )
 
 
+def _variantes(swap: Any) -> list[dict[str, Any]]:
+    """Las variantes de un ancla: lista (forma actual) o un solo producto (forma vieja)."""
+    if not swap:
+        return []
+    return list(swap) if isinstance(swap, (list, tuple)) else [swap]
+
+
 def inyectar_personaje_fan(
-    kits: list[Any], swaps_por_hijo: dict[str, dict[str, dict[str, Any]]], preferencias: dict[str, Any]
+    kits: list[Any], swaps_por_hijo: dict[str, dict[str, Any]], preferencias: dict[str, Any]
 ) -> list[Any]:
     """Mete el producto de personaje en las anclas del kit Fan y rehace sus numeros.
 
@@ -239,7 +246,8 @@ def inyectar_personaje_fan(
     por eso el optimizador nunca ve un candidato de personaje que elegir y
     `anclar_personaje` no encuentra nada que subir. Aca se cierra ese hueco: para
     cada hijo y cada concepto ancla que el catalogo si surte con el personaje
-    de ESE hijo (`swaps_por_hijo[hijo][concepto]`), se reemplaza el `elegido`
+    de ESE hijo (`swaps_por_hijo[hijo][concepto]`, una lista de variantes), se
+    reemplaza el `elegido`
     de sus lineas del kit Fan por ese producto, con la misma aritmetica del
     armado (techo(pedida/empaque)). Un hijo sin entrada queda neutral; el caso
     de un solo hijo es `{hijo: swaps}`.
@@ -284,16 +292,16 @@ def inyectar_personaje_fan(
         # repetia el mismo Spiderman de $36.900 cinco veces. `llevan` elige en
         # cuales cabe, una vez por hijo (ver `renglones_con_personaje`); el resto
         # conserva el producto neutral que el optimizador ya habia elegido.
-        llevan = _lineas_con_swap(kit.lineas, swaps_por_hijo)
+        llevan, sin_encaje = _lineas_con_swap(kit.lineas, swaps_por_hijo)
 
-        def producto_de(indice: int, linea: Any, llevan: set[int] = llevan) -> Any:
+        def producto_de(indice: int, linea: Any, llevan: dict[int, dict[str, Any]] = llevan) -> Any:
             if indice not in llevan:
                 return linea.elegido
             # Una linea que los filtros dejaron sin producto sigue sin producto:
             # el swap no la puede resucitar con otro que el acudiente no vio.
             if filtros.activos and linea.elegido is None:
                 return linea.elegido
-            candidato = _candidato_de_swap(swaps_por_hijo[linea.hijo][linea.concepto_codigo])
+            candidato = _candidato_de_swap(llevan[indice])
             if not candidato_permitido(candidato, linea.descripcion, filtros):
                 return linea.elegido
             return candidato
@@ -309,7 +317,12 @@ def inyectar_personaje_fan(
                 lineas=lineas,
                 consolidaciones=consolidaciones,
                 total_cop=total,
-                objetivos=_objetivos(lineas, total),
+                # `personaje_sin_encaje` viaja en el JSON de objetivos (sin
+                # migracion); la lectura publica lo saca a `kit.personaje_sin_encaje`.
+                objetivos={
+                    **_objetivos(lineas, total),
+                    **({"personaje_sin_encaje": sin_encaje} if sin_encaje else {}),
+                },
             )
         )
 
@@ -318,25 +331,35 @@ def inyectar_personaje_fan(
     return recomendar(recomputados, preferencias)
 
 
-def _lineas_con_swap(lineas: Any, swaps_por_hijo: dict[str, dict[str, dict[str, Any]]]) -> set[int]:
-    """Los indices de las lineas del kit que reciben el producto de personaje.
+def _lineas_con_swap(
+    lineas: Any, swaps_por_hijo: dict[str, dict[str, Any]]
+) -> tuple[dict[int, dict[str, Any]], list[dict[str, str]]]:
+    """Que lineas del kit reciben producto de personaje, con cual variante, y que no cupo.
 
     Agrupa las lineas comprables por `(concepto, hijo)` (solo las que tienen
-    swap para ese hijo) y deja que `renglones_con_personaje` decida, con los
-    atributos del producto de ESE hijo, en cuales cabe.
+    variantes para ese hijo) y deja que `renglones_con_personaje` elija, entre
+    las variantes de ESE hijo, el par (renglon, variante) que mejor encaja.
+    Devuelve `{indice_de_linea: variante}` y la lista `personaje_sin_encaje`:
+    cada (hijo, concepto) con renglones en la lista y variantes en el catalogo
+    pero sin ningun par que encaje, para avisarle al acudiente en vez de callar.
     """
     grupos: dict[tuple[str, str], list[tuple[int, str, dict[str, Any], str]]] = {}
     for indice, linea in enumerate(lineas):
-        if linea.informativa or linea.concepto_codigo not in swaps_por_hijo.get(linea.hijo, {}):
+        if linea.informativa or not _variantes(swaps_por_hijo.get(linea.hijo, {}).get(linea.concepto_codigo)):
             continue
         grupos.setdefault((linea.concepto_codigo, linea.hijo), []).append(
             (indice, linea.hijo, linea.atributos_impuestos, linea.descripcion)
         )
-    llevan: set[int] = set()
+    llevan: dict[int, dict[str, Any]] = {}
+    sin_encaje: list[dict[str, str]] = []
     for (concepto, hijo), renglones in grupos.items():
-        atributos = swaps_por_hijo[hijo][concepto].get("atributos") or {}
-        llevan |= renglones_con_personaje(renglones, atributos)
-    return llevan
+        variantes = _variantes(swaps_por_hijo[hijo][concepto])
+        elegidos = renglones_con_personaje(renglones, variantes)
+        if not elegidos:
+            personaje = next((v.get("personaje") for v in variantes if v.get("personaje")), "")
+            sin_encaje.append({"hijo": hijo, "concepto": concepto, "personaje": str(personaje)})
+        llevan.update({indice: variantes[i] for indice, i in elegidos.items()})
+    return llevan, sin_encaje
 
 
 def _linea_con_producto(linea: Any, elegido: Any) -> Any:

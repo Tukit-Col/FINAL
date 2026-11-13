@@ -1257,7 +1257,7 @@ async def ver(
                         if perfil_kit == PerfilKit.FAN.value
                         else (perfil_kit, {})
                     )
-                    lineas, total = await _lineas_aplicadas(
+                    lineas, total, sin_encaje = await _lineas_aplicadas(
                         conexion, uuid.UUID(str(canonico_id)), base, swaps_kit
                     )
                     if cambios.get(perfil_kit):
@@ -1267,6 +1267,9 @@ async def ver(
                             "perfil": perfil_kit,
                             "total": total,
                             "objetivos": _objetivos_de_lineas(lineas, total),
+                            # Mismo `hijo` que sus lineas (el del canonico), para
+                            # que la web los junte sin adivinar.
+                            "personaje_sin_encaje": sin_encaje,
                             "lineas": lineas,
                             "consolidaciones": [],
                             "informativas": sum(1 for linea in lineas if linea["informativa"]),
@@ -1300,6 +1303,9 @@ async def ver(
                 ]
                 total = int(kit.total_cop)
                 objetivos = dict(kit.objetivos or {})
+                # Lo que no cupo viaja dentro del JSON de objetivos (sin
+                # migracion), pero no es un objetivo: se saca a su propio campo.
+                sin_encaje = list(objetivos.pop("personaje_sin_encaje", None) or ())
                 if cambios.get(kit.perfil):
                     lineas, total = _aplicar_cambios(lineas, cambios[kit.perfil])
                     objetivos = _objetivos_de_lineas(lineas, total)
@@ -1307,6 +1313,7 @@ async def ver(
                     "perfil": kit.perfil,
                     "total": total,
                     "objetivos": objetivos,
+                    "personaje_sin_encaje": sin_encaje,
                     "lineas": lineas,
                     "consolidaciones": list(kit.consolidaciones or ()),
                     "informativas": sum(1 for linea in lineas if linea["informativa"]),
@@ -2706,8 +2713,13 @@ async def mis_trabajos(motor: Any, *, usuario_id: uuid.UUID) -> list[dict[str, A
 
 async def anclas_por_hijo(
     catalogo: ClienteCatalogo, personajes: dict[str, str]
-) -> dict[str, dict[str, dict[str, Any]]]:
-    """Los productos de las cuatro anclas de cada hijo: `{hijo: {concepto: producto}}`.
+) -> dict[str, dict[str, list[dict[str, Any]]]]:
+    """Las variantes de las cuatro anclas de cada hijo: `{hijo: {concepto: [producto, ...]}}`.
+
+    Cada concepto trae TODAS las variantes que el catalogo surte (hasta 8, en
+    orden estable): el armado elige la que encaja con cada renglon
+    (`renglones_con_personaje`), y un unico cuaderno multimaterias ya no deja
+    al hijo sin personaje si hay otro de una materia.
 
     `personajes` es `{hijo: personaje}` (ver `personajes_de_los_hijos`); un hijo
     sin personaje no aparece y su kit queda neutral. Se consulta el catalogo una
@@ -2718,18 +2730,18 @@ async def anclas_por_hijo(
     registra con `logger.warning` (una vez por personaje y concepto por proceso):
     un Fan sin cuaderno de personaje no debe pasar callado.
     """
-    por_personaje: dict[str, dict[str, dict[str, Any]]] = {}
-    salida: dict[str, dict[str, dict[str, Any]]] = {}
+    por_personaje: dict[str, dict[str, list[dict[str, Any]]]] = {}
+    salida: dict[str, dict[str, list[dict[str, Any]]]] = {}
     for hijo, personaje in personajes.items():
         if not personaje:
             continue
         clave = normalizar_personaje(personaje)
         if clave not in por_personaje:
-            swaps: dict[str, dict[str, Any]] = {}
+            swaps: dict[str, list[dict[str, Any]]] = {}
             for concepto in CONCEPTOS_ANCLA:
-                producto = await catalogo.producto_de_personaje(concepto, personaje)
-                if producto:
-                    swaps[concepto] = producto
+                productos = await catalogo.productos_de_personaje(concepto, personaje)
+                if productos:
+                    swaps[concepto] = productos
                 elif (clave, concepto) not in _ANCLAS_AVISADAS:
                     # Una vez por (personaje, concepto) por proceso: la vista
                     # `parent_apply` pasa por aqui en cada lectura.
@@ -2744,7 +2756,9 @@ async def anclas_por_hijo(
     return salida
 
 
-async def _anclas_de_personaje(catalogo: ClienteCatalogo, personaje: str | None) -> dict[str, dict[str, Any]]:
+async def _anclas_de_personaje(
+    catalogo: ClienteCatalogo, personaje: str | None
+) -> dict[str, list[dict[str, Any]]]:
     """Las anclas de UN personaje, indexadas por concepto (ruta del kit aplicado).
 
     `aplicar_canonico` y la vista `parent_apply` son de un solo hijo y pintan
@@ -3154,9 +3168,12 @@ async def descartar_linea_del_acudiente(
 
 
 async def _lineas_aplicadas(
-    conexion: Any, canonico_trabajo_id: uuid.UUID, perfil: str, swaps: dict[str, dict[str, Any]]
-) -> tuple[list[dict[str, Any]], int]:
-    """Las lineas del kit canonico de un perfil, con el personaje aplicado y el total.
+    conexion: Any, canonico_trabajo_id: uuid.UUID, perfil: str, swaps: dict[str, list[dict[str, Any]]]
+) -> tuple[list[dict[str, Any]], int, list[dict[str, str]]]:
+    """Las lineas del kit canonico de un perfil, con el personaje aplicado, el total y lo que no cupo.
+
+    El tercer valor es `personaje_sin_encaje` (misma forma que en el armado):
+    cada concepto ancla con variantes de personaje pero sin renglon que las acepte.
 
     Es la fuente unica del kit aplicado: la usan tanto `aplicar_canonico` (para
     congelar el pedido) como `ver` (para pintarle al acudiente su kit sin copiar
@@ -3201,15 +3218,23 @@ async def _lineas_aplicadas(
             grupos.setdefault(concepto, []).append(
                 (indice, fila.hijo_referencia, dict(fila.atributos_impuestos or {}), fila.descripcion)
             )
-    llevan: set[int] = set()
+    # Cada renglon que lleva personaje recibe la variante que mejor le encaja
+    # (misma regla que `inyectar_personaje_fan`), no siempre la primera.
+    llevan: dict[int, dict[str, Any]] = {}
+    sin_encaje: list[dict[str, str]] = []
     for concepto, renglones_del_concepto in grupos.items():
-        llevan |= renglones_con_personaje(renglones_del_concepto, swaps[concepto].get("atributos") or {})
+        variantes = list(swaps[concepto])
+        elegidos = renglones_con_personaje(renglones_del_concepto, variantes)
+        if not elegidos:
+            personaje = next((v.get("personaje") for v in variantes if v.get("personaje")), "")
+            hijo_ref = renglones_del_concepto[0][1]
+            sin_encaje.append({"hijo": str(hijo_ref), "concepto": concepto, "personaje": str(personaje)})
+        llevan.update({indice: variantes[i] for indice, i in elegidos.items()})
 
     for indice, fila in enumerate(filas):
         linea = _linea_publica(fila)
-        concepto = getattr(fila, "concepto_codigo", None)
-        swap = swaps.get(concepto) if concepto else None
-        if swap and not fila.informativa and indice in llevan:
+        swap = llevan.get(indice)
+        if swap and not fila.informativa:
             empaque = int(swap.get("unidades_por_empaque") or 1)
             precio = swap.get("precio_desde")
             unidades = unidades_a_comprar(int(fila.cantidad_pedida or 0), empaque)
@@ -3228,7 +3253,7 @@ async def _lineas_aplicadas(
         if not linea["informativa"] and linea.get("subtotal_linea"):
             total += int(linea["subtotal_linea"])
         lineas.append(linea)
-    return lineas, total
+    return lineas, total, sin_encaje
 
 
 async def aplicar_canonico(
@@ -3283,7 +3308,7 @@ async def aplicar_canonico(
             base, swaps_kit = perfil, {}
         else:
             raise TrabajoNoExiste(f"cache {colegio_id}/{grado}/{anio_lectivo}/{perfil}")
-        lineas_frias, total = await _lineas_aplicadas(conexion, canonico.trabajo_id, base, swaps_kit)
+        lineas_frias, total, _ = await _lineas_aplicadas(conexion, canonico.trabajo_id, base, swaps_kit)
 
         # El trabajo del acudiente: un registro durable, sin etapas de pipeline.
         # `hijos` lleva la seleccion entera porque es la ENTRADA de este trabajo

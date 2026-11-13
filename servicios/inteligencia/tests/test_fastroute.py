@@ -662,9 +662,9 @@ class TestAnclasPorHijo:
 
         primera = await trabajos.anclas_por_hijo(_catalogo_realista(), {"hijo-1": "spiderman"})
         segunda = await trabajos.anclas_por_hijo(_catalogo_realista(), {"hijo-1": "spiderman"})
-        skus = {c: p["sku"] for c, p in primera["hijo-1"].items()}
+        skus = {c: [p["sku"] for p in ps] for c, ps in primera["hijo-1"].items()}
         assert set(skus) == set(CONCEPTOS_ANCLA)
-        assert skus == {c: p["sku"] for c, p in segunda["hijo-1"].items()}
+        assert skus == {c: [p["sku"] for p in ps] for c, ps in segunda["hijo-1"].items()}
 
     async def test_ancla_no_surtida_se_registra(self, caplog):
         import logging
