@@ -5,7 +5,7 @@
 // componentes) y por eso SOLO importa tipos del contrato: el runtime de Node no
 // resuelve los imports sin extension de `@tukit/contrato`.
 
-import type { EstadoPedido, Pedido } from "@tukit/contrato";
+import type { AlertaPedido, EstadoPedido, Pedido } from "@tukit/contrato";
 
 // Orden operativo: primero lo que hay que atender (incidencias), luego lo que
 // hay que mover (en curso) y al final lo cerrado. Es un `Record` exhaustivo: un
@@ -34,6 +34,8 @@ export interface FiltrosLogistica {
   // Dias de Bogota, `YYYY-MM-DD`, sobre `creado_en`. Vacio = sin limite.
   desde: string;
   hasta: string;
+  // Alerta accionable de comercio (`?alerta=`): pagado sin avanzar, pago atascado, incidencia.
+  alerta: AlertaPedido | "";
 }
 
 type ParametrosBusqueda = Record<string, string | string[] | undefined>;
@@ -42,6 +44,13 @@ const DIA = /^\d{4}-\d{2}-\d{2}$/;
 
 function primero(valor: string | string[] | undefined): string {
   return (Array.isArray(valor) ? valor[0] : valor)?.trim() ?? "";
+}
+
+// Espejo de `AlertaPedido` (el runtime del contrato no se importa aqui).
+const ALERTAS: readonly AlertaPedido[] = ["pagado_sin_avanzar", "pago_atascado", "incidencia_abierta"];
+
+function esAlerta(valor: string): valor is AlertaPedido {
+  return (ALERTAS as readonly string[]).includes(valor);
 }
 
 function esEstado(valor: string): valor is EstadoPedido {
@@ -54,12 +63,14 @@ export function leerFiltros(parametros: ParametrosBusqueda): FiltrosLogistica {
   const estado = primero(parametros.estado);
   const desde = primero(parametros.desde);
   const hasta = primero(parametros.hasta);
+  const alerta = primero(parametros.alerta);
   return {
     q: primero(parametros.q),
     estado: esEstado(estado) ? estado : "",
     colegio: primero(parametros.colegio),
     desde: DIA.test(desde) ? desde : "",
     hasta: DIA.test(hasta) ? hasta : "",
+    alerta: esAlerta(alerta) ? alerta : "",
   };
 }
 
@@ -69,7 +80,7 @@ export function hayFiltros(filtros: FiltrosLogistica): boolean {
 
 /** Una clave estable de los filtros, para remontar el formulario al cambiarlos. */
 export function claveFiltros(filtros: FiltrosLogistica): string {
-  return [filtros.q, filtros.estado, filtros.colegio, filtros.desde, filtros.hasta].join("|");
+  return [filtros.q, filtros.estado, filtros.colegio, filtros.desde, filtros.hasta, filtros.alerta].join("|");
 }
 
 // `en-CA` formatea como `YYYY-MM-DD`, que se compara como texto. Zona fija y no
@@ -93,6 +104,7 @@ export function filtrarPedidos(pedidos: readonly Pedido[], filtros: FiltrosLogis
     if (q && !pedido.pedido_id.toLowerCase().startsWith(q)) return false;
     if (filtros.estado && pedido.estado !== filtros.estado) return false;
     if (filtros.colegio && !pedido.colegios.includes(filtros.colegio)) return false;
+    if (filtros.alerta && !(pedido.alertas ?? []).includes(filtros.alerta)) return false;
     if (filtros.desde || filtros.hasta) {
       const dia = diaBogota(pedido.creado_en);
       if (filtros.desde && dia < filtros.desde) return false;
@@ -166,4 +178,122 @@ export function motivoDeAcceso(causa: unknown): MotivoAcceso | null {
   const estado = (causa as { estado?: unknown } | null | undefined)?.estado;
   if (estado === 401 || estado === 403 || estado === 429) return motivoDeFallo(estado);
   return null;
+}
+
+// ------------------------------------------------ Fase 4: motivo, fallos, previa, lote
+
+export interface MotivoSinAcciones {
+  titulo: string;
+  detalle: string;
+  /** La unica salida que el admin tiene para este estado. */
+  accion?: "reconciliar";
+}
+
+/** Por que un pedido no muestra botones de logistica, o `null` si los tiene.
+ *  `pendiente_pago` solo lo mueve el pago: la salida legitima es preguntarle a
+ *  Wompi (no hay "marcar pagado a mano"). */
+export function motivoSinAcciones(estado: EstadoPedido): MotivoSinAcciones | null {
+  if (accionesDisponibles(estado).length > 0) return null;
+  if (estado === "pendiente_pago") {
+    return {
+      titulo: "Esperando el pago",
+      detalle:
+        "El pedido se mueve cuando Wompi confirma el pago. Si el acudiente ya pagó y no avanza, pregúntale a Wompi: " +
+        "si aprobó, el pedido pasa a Pagado. Si nadie paga en 24 h, el pedido vence solo.",
+      accion: "reconciliar",
+    };
+  }
+  if (estado === "entregado") {
+    return { titulo: "Entregado: sin pasos pendientes", detalle: "El pedido llegó a su destino y ya no se mueve." };
+  }
+  return {
+    titulo: "Cancelado",
+    detalle: "El pedido está cancelado y su pago quedó marcado para reembolso si estaba aprobado.",
+  };
+}
+
+export type ClaseDeFallo = "sesion" | "rol" | "conflicto" | "pasarela" | "otro";
+
+/** La clase de un fallo de la API según su HTTP: decide el estilo y la salida del banner. */
+export function claseDeFallo(estado: number): ClaseDeFallo {
+  if (estado === 401) return "sesion";
+  if (estado === 403) return "rol";
+  if (estado === 409) return "conflicto";
+  if (estado === 502) return "pasarela";
+  return "otro";
+}
+
+/** Un 404/405 de una ruta nueva: el servicio todavía no se reinició con ella. */
+export function rutaSinActivar(estado: number): boolean {
+  return estado === 404 || estado === 405;
+}
+
+export type ResultadoReconciliacion = "pagado" | "en_curso" | "libre";
+
+export function etiquetaResultadoReconciliacion(r: ResultadoReconciliacion): string {
+  switch (r) {
+    case "pagado":
+      return "El pago estaba aprobado: el pedido pasó a Pagado";
+    case "en_curso":
+      return "El pago sigue en curso en Wompi";
+    case "libre":
+      return "No hay un pago aprobado: el pedido sigue sin pagar";
+  }
+}
+
+const RANGO_FORMA: Record<FormaAccion, number> = { simple: 0, despachar: 0, incidencia: 1, cancelar: 2 };
+
+/** Los destinos del selector: primero el avance natural, la incidencia después y cancelar al final. */
+export function destinosParaSelector(estado: EstadoPedido): AccionLogistica[] {
+  return [...accionesDisponibles(estado)].sort((a, b) => RANGO_FORMA[a.forma] - RANGO_FORMA[b.forma]);
+}
+
+const DESTINO_DE_LOTE: Partial<Record<EstadoPedido, "en_preparacion" | "en_reparto" | "entregado">> = {
+  pagado: "en_preparacion",
+  despachado: "en_reparto",
+  en_reparto: "entregado",
+};
+
+/** El único destino simple que comparten todos los pedidos, o `null` si hay
+ *  mezcla, no hay pedidos o el paso pide datos (despachar, incidencia, cancelar). */
+export function destinoComunDeLote(pedidos: readonly Pedido[]): EstadoPedido | null {
+  if (pedidos.length === 0) return null;
+  const destinos = new Set(pedidos.map((p) => DESTINO_DE_LOTE[p.estado] ?? null));
+  if (destinos.size !== 1) return null;
+  return [...destinos][0] ?? null;
+}
+
+/** "18 avanzados, 2 con problema" (pluraliza el primer término). */
+export function resumenDeLote(r: {
+  avanzados: readonly unknown[];
+  fallidos: readonly unknown[];
+}): string {
+  const n = r.avanzados.length;
+  return `${n} ${n === 1 ? "avanzado" : "avanzados"}, ${r.fallidos.length} con problema`;
+}
+
+/** Los pasos que ve el acudiente (`LineaDeTiempoPedido.pasos[].paso`), en su idioma. */
+export const ETIQUETA_PASO_ACUDIENTE: Record<string, string> = {
+  creado: "Pedido creado",
+  pagado: "Pago confirmado",
+  en_preparacion: "En preparación",
+  despachado: "Despachado",
+  en_reparto: "En reparto",
+  entregado: "Entregado",
+};
+
+/** El aviso que recibirá el acudiente, en una frase. `null` = no se le avisa. */
+export function textoAviso(aviso: string | null): string {
+  switch (aviso) {
+    case "pedido_despachado":
+      return "Le avisamos que su pedido salió despachado.";
+    case "pedido_en_reparto":
+      return "Le avisamos que su pedido va en reparto.";
+    case "pedido_entregado":
+      return "Le avisamos que su pedido fue entregado.";
+    case "incidencia":
+      return "Le avisamos que hubo un inconveniente con la entrega.";
+    default:
+      return "No se le envía aviso: el contacto lo haces tú.";
+  }
 }

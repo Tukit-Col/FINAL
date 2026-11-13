@@ -16,7 +16,7 @@ import {
   enlaceGoogleMaps,
   formatearPesos,
 } from "@tukit/contrato";
-import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
+import { ErrorTukit, origenDeDatos, urlWeb } from "@tukit/contrato/servidor";
 import AccionesPedido from "@/components/AccionesPedido";
 import AvisoAcceso from "@/components/AvisoAcceso";
 import { formatearDia, formatearFecha } from "@/lib/formato";
@@ -204,7 +204,7 @@ export default async function DetallePedido({ params }: Props) {
         ) : null}
       </section>
 
-      <AccionesPedido pedidoId={pedido.pedido_id} estado={pedido.estado} />
+      <AccionesPedido pedidoId={pedido.pedido_id} estado={pedido.estado} urlIngresar={`${urlWeb()}/ingresar`} />
 
       <div className={styles.columnas}>
         <section className={styles.bloque} aria-labelledby="entrega-titulo">

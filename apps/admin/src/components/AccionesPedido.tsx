@@ -14,27 +14,47 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import type { EstadoPedido, SolicitudAvanceAdmin, TipoIncidencia } from "@tukit/contrato";
+import type {
+  EstadoPedido,
+  SolicitudAvanceAdmin,
+  TipoIncidencia,
+} from "@tukit/contrato";
 import { ETIQUETA_TIPO_INCIDENCIA, TIPOS_INCIDENCIA } from "@tukit/contrato";
-import { avanzarPedido, FalloApi } from "@/lib/api-navegador";
-import { accionesDisponibles, fechaEstimadaIso, type AccionLogistica } from "@/lib/logistica";
+import { avanzarPedido, FalloApi, reconciliarPago } from "@/lib/api-navegador";
+import {
+  accionesDisponibles,
+  etiquetaResultadoReconciliacion,
+  fechaEstimadaIso,
+  motivoSinAcciones,
+  type AccionLogistica,
+} from "@/lib/logistica";
+import BannerAcceso, { type NotaVisible } from "./BannerAcceso";
+import SelectorFase from "./SelectorFase";
 import styles from "./AccionesPedido.module.css";
 
 interface Props {
   pedidoId: string;
   estado: EstadoPedido;
+  /** Enlace de ingreso de la web, para el banner de sesión vencida. */
+  urlIngresar?: string;
 }
 
 interface Fallo {
   mensaje: string;
   campo: string | null;
+  estado: number;
 }
 
-export default function AccionesPedido({ pedidoId, estado }: Props) {
+export default function AccionesPedido({
+  pedidoId,
+  estado,
+  urlIngresar,
+}: Props) {
   const router = useRouter();
   const [abierta, setAbierta] = useState<AccionLogistica | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [fallo, setFallo] = useState<Fallo | null>(null);
+  const [nota, setNota] = useState<NotaVisible | null>(null);
 
   const acciones = accionesDisponibles(estado);
 
@@ -47,21 +67,61 @@ export default function AccionesPedido({ pedidoId, estado }: Props) {
       router.refresh();
     } catch (causa) {
       if (causa instanceof FalloApi) {
-        const campo = typeof causa.detalle.campo === "string" ? causa.detalle.campo : null;
-        setFallo({ mensaje: causa.message, campo });
+        const campo =
+          typeof causa.detalle.campo === "string" ? causa.detalle.campo : null;
+        setFallo({ mensaje: causa.message, campo, estado: causa.estado });
         // 409: otro operador lo movio (o la matriz cambio). El refresco trae
         // el estado real y con el los botones que si aplican.
         if (causa.estado === 409) router.refresh();
       } else {
-        setFallo({ mensaje: "No pudimos mover el pedido. Intenta de nuevo.", campo: null });
+        setFallo({
+          mensaje: "No pudimos mover el pedido. Intenta de nuevo.",
+          campo: null,
+          estado: 0,
+        });
       }
     } finally {
       setEnviando(false);
     }
   }
 
+  async function reconciliar(): Promise<void> {
+    setFallo(null);
+    setNota(null);
+    setEnviando(true);
+    try {
+      const r = await reconciliarPago(pedidoId);
+      setNota({
+        tono: r.resultado === "pagado" ? "ok" : "aviso",
+        mensaje: etiquetaResultadoReconciliacion(r.resultado),
+      });
+      if (r.resultado === "pagado") router.refresh();
+    } catch (causa) {
+      if (causa instanceof FalloApi) {
+        const sinActivar = causa.estado === 404 || causa.estado === 405;
+        setFallo({
+          mensaje: sinActivar
+            ? "Esta acción se activa al reiniciar el servicio de comercio."
+            : causa.message,
+          campo: null,
+          estado: sinActivar ? 0 : causa.estado,
+        });
+      } else {
+        setFallo({
+          mensaje: "No pudimos consultar el pago. Intenta de nuevo.",
+          campo: null,
+          estado: 0,
+        });
+      }
+    } finally {
+      // El botón nunca queda en "cargando" para siempre, pase lo que pase.
+      setEnviando(false);
+    }
+  }
+
   function abrir(accion: AccionLogistica): void {
     setFallo(null);
+    setNota(null);
     if (accion.forma === "simple") {
       void avanzar({ destino: accion.destino });
     } else {
@@ -69,36 +129,78 @@ export default function AccionesPedido({ pedidoId, estado }: Props) {
     }
   }
 
-  if (acciones.length === 0) {
+  const motivo = motivoSinAcciones(estado);
+  const banner = (
+    <BannerAcceso
+      fallo={fallo}
+      nota={nota}
+      urlIngresar={urlIngresar}
+      onCerrar={() => {
+        setFallo(null);
+        setNota(null);
+      }}
+    />
+  );
+
+  if (motivo) {
     return (
-      <p className={styles.cerrado}>
-        Este pedido ya no tiene pasos de logística ({estado === "pendiente_pago" ? "espera el pago" : "está cerrado"}).
-      </p>
+      <section className={styles.acciones} aria-labelledby="acciones-titulo">
+        {banner}
+        <h2 id="acciones-titulo">{motivo.titulo}</h2>
+        <p className={styles.motivo}>{motivo.detalle}</p>
+        {motivo.accion === "reconciliar" ? (
+          <div className={styles.botonera}>
+            <button
+              type="button"
+              className={styles.principal}
+              disabled={enviando}
+              onClick={() => void reconciliar()}
+            >
+              {enviando ? "Consultando a Wompi…" : "Reconciliar con Wompi"}
+            </button>
+          </div>
+        ) : null}
+      </section>
     );
   }
 
-  const invalido = (campo: string) => (fallo?.campo === campo ? true : undefined);
+  const invalido = (campo: string) =>
+    fallo?.campo === campo ? true : undefined;
 
   return (
     <section className={styles.acciones} aria-labelledby="acciones-titulo">
+      {banner}
       <h2 id="acciones-titulo">Siguiente paso</h2>
 
       {abierta === null ? (
-        <div className={styles.botonera}>
-          {acciones.map((accion, i) => (
-            <button
-              key={accion.destino}
-              type="button"
-              className={
-                accion.forma === "cancelar" ? styles.peligro : i === 0 ? styles.principal : styles.secundario
-              }
-              disabled={enviando}
-              onClick={() => abrir(accion)}
-            >
-              {accion.etiqueta}
-            </button>
-          ))}
-        </div>
+        <>
+          <div className={styles.botonera}>
+            {acciones.map((accion, i) => (
+              <button
+                key={accion.destino}
+                type="button"
+                className={
+                  accion.forma === "cancelar"
+                    ? styles.peligro
+                    : i === 0
+                      ? styles.principal
+                      : styles.secundario
+                }
+                disabled={enviando}
+                onClick={() => abrir(accion)}
+              >
+                {accion.etiqueta}
+              </button>
+            ))}
+          </div>
+          <SelectorFase
+            key={estado}
+            pedidoId={pedidoId}
+            estado={estado}
+            deshabilitado={enviando}
+            onAvanzar={abrir}
+          />
+        </>
       ) : abierta.forma === "despachar" ? (
         <FormDespacho
           enviando={enviando}
@@ -120,12 +222,6 @@ export default function AccionesPedido({ pedidoId, estado }: Props) {
           onEnviar={avanzar}
         />
       )}
-
-      {fallo ? (
-        <p className={styles.error} role="alert">
-          {fallo.mensaje}
-        </p>
-      ) : null}
     </section>
   );
 }
@@ -140,7 +236,12 @@ interface PropsConCampos extends PropsFormulario {
   invalido: (campo: string) => true | undefined;
 }
 
-function FormDespacho({ enviando, invalido, onCancelar, onEnviar }: PropsConCampos) {
+function FormDespacho({
+  enviando,
+  invalido,
+  onCancelar,
+  onEnviar,
+}: PropsConCampos) {
   const [modo, setModo] = useState<"propio" | "transportadora">("propio");
   const [nombre, setNombre] = useState("");
   const [celular, setCelular] = useState("");
@@ -166,7 +267,12 @@ function FormDespacho({ enviando, invalido, onCancelar, onEnviar }: PropsConCamp
       <fieldset className={styles.modos}>
         <legend>Cómo sale</legend>
         <label>
-          <input type="radio" name="modo-despacho" checked={modo === "propio"} onChange={() => setModo("propio")} />
+          <input
+            type="radio"
+            name="modo-despacho"
+            checked={modo === "propio"}
+            onChange={() => setModo("propio")}
+          />
           Reparto propio
         </label>
         <label>
@@ -256,7 +362,12 @@ function FormDespacho({ enviando, invalido, onCancelar, onEnviar }: PropsConCamp
         <button type="submit" className={styles.principal} disabled={enviando}>
           Despachar y avisar
         </button>
-        <button type="button" className={styles.plano} disabled={enviando} onClick={onCancelar}>
+        <button
+          type="button"
+          className={styles.plano}
+          disabled={enviando}
+          onClick={onCancelar}
+        >
           Volver
         </button>
       </div>
@@ -264,7 +375,12 @@ function FormDespacho({ enviando, invalido, onCancelar, onEnviar }: PropsConCamp
   );
 }
 
-function FormIncidencia({ enviando, invalido, onCancelar, onEnviar }: PropsConCampos) {
+function FormIncidencia({
+  enviando,
+  invalido,
+  onCancelar,
+  onEnviar,
+}: PropsConCampos) {
   const [tipo, setTipo] = useState<TipoIncidencia | "">("");
   const [nota, setNota] = useState("");
 
@@ -313,12 +429,20 @@ function FormIncidencia({ enviando, invalido, onCancelar, onEnviar }: PropsConCa
           aria-invalid={invalido("nota")}
         />
       </div>
-      <p className={styles.ayuda}>Al acudiente le llega un aviso genérico; el tipo y la nota no salen de aquí.</p>
+      <p className={styles.ayuda}>
+        Al acudiente le llega un aviso genérico; el tipo y la nota no salen de
+        aquí.
+      </p>
       <div className={styles.botonera}>
         <button type="submit" className={styles.principal} disabled={enviando}>
           Reportar
         </button>
-        <button type="button" className={styles.plano} disabled={enviando} onClick={onCancelar}>
+        <button
+          type="button"
+          className={styles.plano}
+          disabled={enviando}
+          onClick={onCancelar}
+        >
           Volver
         </button>
       </div>
@@ -326,18 +450,25 @@ function FormIncidencia({ enviando, invalido, onCancelar, onEnviar }: PropsConCa
   );
 }
 
-function ConfirmarCancelacion({ enviando, onCancelar, onEnviar }: PropsFormulario) {
+function ConfirmarCancelacion({
+  enviando,
+  onCancelar,
+  onEnviar,
+}: PropsFormulario) {
   const [nota, setNota] = useState("");
 
   return (
     <div className={styles.formulario}>
       <h3>¿Cancelar el pedido?</h3>
       <p>
-        Es definitivo: el pedido queda cancelado y su pago marcado para reembolso (el reembolso en
-        Wompi se hace aparte). Al acudiente no le llega aviso; contáctalo tú.
+        Es definitivo: el pedido queda cancelado y su pago marcado para
+        reembolso (el reembolso en Wompi se hace aparte). Al acudiente no le
+        llega aviso; contáctalo tú.
       </p>
       <div className={styles.campo}>
-        <label htmlFor="cancelar-nota">Motivo (opcional, queda en el historial)</label>
+        <label htmlFor="cancelar-nota">
+          Motivo (opcional, queda en el historial)
+        </label>
         <textarea
           id="cancelar-nota"
           rows={2}
@@ -352,12 +483,20 @@ function ConfirmarCancelacion({ enviando, onCancelar, onEnviar }: PropsFormulari
           className={styles.peligro}
           disabled={enviando}
           onClick={() =>
-            void onEnviar({ destino: "cancelado", ...(nota.trim() ? { nota: nota.trim() } : {}) })
+            void onEnviar({
+              destino: "cancelado",
+              ...(nota.trim() ? { nota: nota.trim() } : {}),
+            })
           }
         >
           Sí, cancelar
         </button>
-        <button type="button" className={styles.plano} disabled={enviando} onClick={onCancelar}>
+        <button
+          type="button"
+          className={styles.plano}
+          disabled={enviando}
+          onClick={onCancelar}
+        >
           No, volver
         </button>
       </div>
