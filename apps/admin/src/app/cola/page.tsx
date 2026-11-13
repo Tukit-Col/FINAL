@@ -27,6 +27,17 @@ import AvisoAcceso from "@/components/AvisoAcceso";
 import BorrarVersionLista from "@/components/BorrarVersionLista";
 import { formatearFecha, haceCuanto } from "@/lib/formato";
 import { motivoDeAcceso } from "@/lib/logistica";
+import {
+  agruparPorColegio,
+  filtrarVersiones,
+  hayFiltros,
+  hrefCola,
+  leerFiltrosCola,
+  normalizar,
+  paginar,
+  type FiltrosCola,
+  type GrupoColegio,
+} from "@/lib/cola";
 import SubirLista from "./SubirLista";
 import styles from "./Cola.module.css";
 
@@ -176,30 +187,40 @@ function TarjetaTrabajoUrgente({
 // ------------------------------------------------ 2. versiones por colegio
 
 function BloqueColegio({
-  nombre,
-  versiones,
+  grupo,
+  abierto,
 }: {
-  nombre: string;
-  versiones: VersionListaAdmin[];
+  grupo: GrupoColegio<VersionListaAdmin>;
+  abierto: boolean;
 }) {
-  const ordenadas = [...versiones].sort((a, b) => ordenGrado(a.grado, b.grado));
-  const renglones = versiones.reduce((suma, v) => suma + v.items, 0);
+  const { versiones, nombre, esperando, renglones } = grupo;
   const ingreso = comun(versiones, etiquetaIngreso);
   const anio = comun(versiones, (v) => String(v.anio_lectivo));
+  const siguiente = versiones[0]!;
+  const hrefSiguiente = `/onboarding/${encodeURIComponent(siguiente.version_id)}`;
   return (
-    <section className={styles.colegio}>
-      <header className={styles.colegioCabecera}>
-        <h3 className={styles.colegioNombre}>{nombre}</h3>
+    <details className={styles.colegio} open={abierto}>
+      <summary className={styles.colegioCabecera}>
+        <span className={styles.colegioNombre}>{nombre}</span>
         <span className={styles.colegioMeta}>
           <span className="cifra">{versiones.length}</span>{" "}
           {versiones.length === 1 ? "lista" : "listas"} ·{" "}
           <span className="cifra">{cifra(renglones)}</span> renglones
           {anio ? ` · ${anio}` : null}
         </span>
-        {ingreso ? <span className={styles.estado}>{ingreso}</span> : null}
-      </header>
+        {esperando > 0 ? (
+          <span className={`${styles.conteo} ${styles.conteoAviso}`}>
+            {esperando} {esperando === 1 ? "acudiente espera" : "acudientes esperan"}
+          </span>
+        ) : ingreso ? (
+          <span className={styles.estado}>{ingreso}</span>
+        ) : null}
+        <Link href={hrefSiguiente} className={styles.accionChica} title={`${siguiente.grado}`}>
+          Revisar siguiente
+        </Link>
+      </summary>
       <ul className={styles.grados}>
-        {ordenadas.map((v) => {
+        {versiones.map((v) => {
           const href = `/onboarding/${encodeURIComponent(v.version_id)}`;
           return (
             <li key={v.version_id} className={styles.grado}>
@@ -209,7 +230,11 @@ function BloqueColegio({
                   <span className="cifra">{v.items}</span> renglones
                   {anio ? null : ` · ${v.anio_lectivo}`}
                 </span>
-                {ingreso ? null : <span className={styles.gradoMeta}>{etiquetaIngreso(v)}</span>}
+                {v.tiene_contacto ? (
+                  <span className={styles.gradoMeta}>Acudiente esperando</span>
+                ) : ingreso ? null : (
+                  <span className={styles.gradoMeta}>{etiquetaIngreso(v)}</span>
+                )}
               </Link>
               <div className={styles.gradoAcciones}>
                 <Link href={href} className={styles.accionChica}>
@@ -218,14 +243,92 @@ function BloqueColegio({
                 <BorrarVersionLista
                   versionId={v.version_id}
                   grado={v.grado}
-                  acudienteEsperando={false}
+                  acudienteEsperando={v.tiene_contacto}
                 />
               </div>
             </li>
           );
         })}
       </ul>
-    </section>
+    </details>
+  );
+}
+
+function BarraFiltros({
+  f,
+  grados,
+  anios,
+}: {
+  f: FiltrosCola;
+  grados: string[];
+  anios: number[];
+}) {
+  return (
+    <form method="get" action="/cola" className={styles.filtros} role="search">
+      <label className={styles.campoFiltro}>
+        <span>Buscar colegio</span>
+        <input type="search" name="q" defaultValue={f.q} placeholder="Nombre del colegio" />
+      </label>
+      <label className={styles.campoFiltro}>
+        <span>Grado</span>
+        <select name="grado" defaultValue={f.grado}>
+          <option value="">Todos</option>
+          {grados.map((g) => (
+            <option key={g} value={g}>
+              {g}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className={styles.campoFiltro}>
+        <span>Año</span>
+        <select name="anio" defaultValue={f.anio ?? ""}>
+          <option value="">Todos</option>
+          {anios.map((a) => (
+            <option key={a} value={a}>
+              {a}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className={styles.campoFiltro}>
+        <span>Origen</span>
+        <select name="origen" defaultValue={f.origen}>
+          <option value="todos">Todos</option>
+          <option value="acudiente">Acudiente esperando</option>
+          <option value="colegio">Colegio / sin acudiente</option>
+        </select>
+      </label>
+      <button type="submit" className={styles.filtrar}>
+        Filtrar
+      </button>
+      {hayFiltros(f) ? (
+        <Link href="/cola" className={styles.limpiar}>
+          Limpiar
+        </Link>
+      ) : null}
+    </form>
+  );
+}
+
+function Paginacion({ f, pagina, paginas }: { f: FiltrosCola; pagina: number; paginas: number }) {
+  if (paginas <= 1) return null;
+  return (
+    <nav className={styles.paginacion} aria-label="Paginación de colegios">
+      {pagina > 1 ? (
+        <Link href={hrefCola(f, pagina - 1)} className={styles.accionChica}>
+          Anterior
+        </Link>
+      ) : null}
+      <span className={styles.paginaActual}>
+        Página <span className="cifra">{pagina}</span> de <span className="cifra">{paginas}</span>
+      </span>
+      {pagina < paginas ? (
+        <Link href={hrefCola(f, pagina + 1)} className={styles.accionChica}>
+          Siguiente
+        </Link>
+      ) : null}
+    </nav>
   );
 }
 
@@ -309,7 +412,14 @@ function Previsualizaciones({
   );
 }
 
-export default async function PaginaCola() {
+const MAX_URGENTES = 12;
+
+export default async function PaginaCola({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const filtros = leerFiltrosCola(await searchParams);
   // Dos lecturas del mismo origen: las versiones PENDIENTES (el item real de la
   // cola) y los trabajos en vuelo (el ingreso de acudiente que aún no se ha
   // migrado a versión). Los colegios dan el nombre legible de cada `colegio_id`.
@@ -336,16 +446,16 @@ export default async function PaginaCola() {
   // eslint-disable-next-line react-hooks/purity
   const ahora = Date.now();
 
-  // Lo que un acudiente espera va aparte y primero (aprobar dispara su kit);
-  // el resto se agrupa por colegio, con el colegio de más renglones arriba.
-  const conAcudiente = pendientes
+  // Filtros y paginación en el servidor de Next sobre la respuesta (el endpoint
+  // solo filtra por grado y año). Los contadores de la cabecera usan TODO.
+  const filtradas = filtrarVersiones(pendientes, filtros, nombreDe);
+  const conAcudiente = filtradas
     .filter((v) => v.tiene_contacto)
     .sort((a, b) => b.items - a.items);
-  const sinAcudiente = pendientes.filter((v) => !v.tiene_contacto);
-  const porColegio = [...agrupar(sinAcudiente, (v) => v.colegio_id).values()].sort(
-    (a, b) =>
-      b.reduce((s, v) => s + v.items, 0) - a.reduce((s, v) => s + v.items, 0),
-  );
+  const grupos = agruparPorColegio(filtradas, nombreDe, ordenGrado);
+  const pag = paginar(grupos, filtros.pagina);
+  const grados = [...new Set(pendientes.map((v) => v.grado))].sort(ordenGrado);
+  const anios = [...new Set(pendientes.map((v) => v.anio_lectivo))].sort((a, b) => b - a);
 
   // Solo los trabajos que esperan una persona: lo publicado es historial y lo
   // que aún procesa no necesita acción. Un trabajo es el ingreso de acudiente
@@ -357,11 +467,22 @@ export default async function PaginaCola() {
   // Igual con la edición de kits ya publicados: es trabajo del admin, no de
   // un acudiente que espera.
   const ediciones = trabajosEnEspera.filter((e) => e.edicion_de);
+  const qNorm = normalizar(filtros.q);
   const trabajosAcudiente = trabajosEnEspera.filter(
-    (e) => e.origen !== "preview_onboarding" && !e.edicion_de,
+    (e) =>
+      e.origen !== "preview_onboarding" &&
+      !e.edicion_de &&
+      filtros.origen !== "colegio" &&
+      (!filtros.grado || e.grados.includes(filtros.grado)) &&
+      (!qNorm ||
+        normalizar(e.colegios.map((id) => nombreColegio.get(id) ?? id).join(" ")).includes(qNorm)),
   );
 
-  const esperando = conAcudiente.length + trabajosAcudiente.length;
+  // Contador de la cabecera: sin filtros, igual que antes.
+  const esperando =
+    pendientes.filter((v) => v.tiene_contacto).length +
+    trabajosEnEspera.filter((e) => e.origen !== "preview_onboarding" && !e.edicion_de).length;
+  const urgentesVisibles = conAcudiente.length + trabajosAcudiente.length;
 
   return (
     <div className={styles.pagina}>
@@ -399,20 +520,22 @@ export default async function PaginaCola() {
         <ColaVacia />
       ) : (
         <>
-          {esperando > 0 ? (
+          <BarraFiltros f={filtros} grados={grados} anios={anios} />
+
+          {urgentesVisibles > 0 && pag.pagina === 1 ? (
             <section className={styles.bloque}>
               <h2 className={styles.subtitulo}>
                 Un acudiente está esperando
-                <span className={`${styles.conteo} ${styles.conteoAviso}`}>{esperando}</span>
+                <span className={`${styles.conteo} ${styles.conteoAviso}`}>{urgentesVisibles}</span>
               </h2>
               <p className={styles.bajada}>
                 Aprobar estas listas arma el kit que el acudiente está esperando. Van primero.
               </p>
               <div className={styles.urgentes}>
-                {conAcudiente.map((v) => (
+                {conAcudiente.slice(0, MAX_URGENTES).map((v) => (
                   <TarjetaVersionUrgente key={v.version_id} v={v} nombre={nombreDe(v)} />
                 ))}
-                {trabajosAcudiente.map((e) => (
+                {trabajosAcudiente.slice(0, Math.max(0, MAX_URGENTES - conAcudiente.length)).map((e) => (
                   <TarjetaTrabajoUrgente
                     key={e.trabajo_id}
                     entrada={e}
@@ -421,28 +544,39 @@ export default async function PaginaCola() {
                   />
                 ))}
               </div>
+              {urgentesVisibles > MAX_URGENTES ? (
+                <p className={styles.bajada}>
+                  Se muestran {MAX_URGENTES} de {urgentesVisibles}. Los demás están dentro de su
+                  colegio, abajo, o filtra por «Acudiente esperando».
+                </p>
+              ) : null}
             </section>
           ) : null}
 
-          {porColegio.length > 0 ? (
-            <section className={styles.bloque}>
-              <h2 className={styles.subtitulo}>
-                Listas por verificar
-                <span className={styles.conteo}>{sinAcudiente.length}</span>
-              </h2>
-              <p className={styles.bajada}>
-                Agrupadas por colegio y en orden de grado. Nadie las espera todavía, pero
-                aprobarlas deja la lista lista para el próximo acudiente.
+          <section className={styles.bloque}>
+            <h2 className={styles.subtitulo}>
+              Listas por verificar, por colegio
+              <span className={styles.conteo}>{filtradas.length}</span>
+            </h2>
+            <p className={styles.bajada}>
+              {hayFiltros(filtros)
+                ? `${cifra(grupos.length)} colegios con resultados.`
+                : "Con acudiente esperando primero, luego por nombre."}{" "}
+              Abre un colegio para ver sus grados, o usa «Revisar siguiente».
+            </p>
+            {grupos.length === 0 ? (
+              <p className={styles.sinResultados}>
+                Ninguna lista coincide con estos filtros.{" "}
+                <Link href="/cola" className={styles.enlaceExterno}>
+                  Limpiar filtros
+                </Link>
               </p>
-              {porColegio.map((grupo) => (
-                <BloqueColegio
-                  key={grupo[0]!.colegio_id}
-                  nombre={nombreDe(grupo[0]!)}
-                  versiones={grupo}
-                />
-              ))}
-            </section>
-          ) : null}
+            ) : null}
+            {pag.items.map((g) => (
+              <BloqueColegio key={g.colegio_id} grupo={g} abierto={pag.total <= 3} />
+            ))}
+            <Paginacion f={filtros} pagina={pag.pagina} paginas={pag.paginas} />
+          </section>
 
           {ediciones.length > 0 ? (
             <Previsualizaciones
