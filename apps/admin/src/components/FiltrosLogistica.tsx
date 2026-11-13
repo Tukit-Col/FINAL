@@ -9,7 +9,7 @@ import Form from "next/form";
 import Link from "next/link";
 import type { EstadoPedido } from "@tukit/contrato";
 import { ESTADOS_PEDIDO, ETIQUETA_ESTADO_PEDIDO } from "@tukit/contrato";
-import type { FiltrosLogistica as Filtros } from "@/lib/logistica";
+import { hrefConVista, leerFiltros, VISTA_POR_DEFECTO, type FiltrosLogistica as Filtros } from "@/lib/logistica";
 import styles from "./FiltrosLogistica.module.css";
 
 interface Props {
@@ -21,6 +21,8 @@ interface Props {
 export default function FiltrosLogistica({ filtros, colegios }: Props) {
   return (
     <Form action="/logistica" className={styles.filtros} aria-label="Filtrar pedidos">
+      {/* Filtrar no cambia de vista: la tabla sigue en tabla. */}
+      {filtros.vista !== VISTA_POR_DEFECTO ? <input type="hidden" name="vista" value={filtros.vista} /> : null}
       <div className={`${styles.campo} ${styles.busqueda}`}>
         <label htmlFor="filtro-q">Código del pedido</label>
         <input
@@ -66,7 +68,7 @@ export default function FiltrosLogistica({ filtros, colegios }: Props) {
         <button type="submit" className={styles.filtrar}>
           Filtrar
         </button>
-        <Link href="/logistica" className={styles.limpiar}>
+        <Link href={hrefConVista(leerFiltros({}), filtros.vista)} className={styles.limpiar}>
           Limpiar
         </Link>
       </div>
