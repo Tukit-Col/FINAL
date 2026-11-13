@@ -1,0 +1,291 @@
+/* Tablero kanban de logistica. Columnas de ancho fijo con scroll horizontal
+ * (en movil se desliza; en escritorio caben seis en una pantalla ancha). La
+ * columna se distingue por un filete de color arriba, el mismo semantico de
+ * los chips de estado de la tabla: azul lo que avanza, ambar lo que espera el
+ * pago, verde lo entregado, rojo la incidencia, gris lo cancelado. */
+
+.tablero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-5);
+}
+
+.carril {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+}
+
+.tituloCarril {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.columnas {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(232px, 1fr);
+  gap: var(--espacio-3);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  padding: 4px 4px var(--espacio-3);
+}
+
+.columnas:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-lg);
+}
+
+/* El carril aparte tiene dos columnas: no se estiran a todo el ancho. */
+.columnasAparte {
+  grid-auto-columns: minmax(232px, 320px);
+  justify-content: start;
+}
+
+.columna {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  min-width: 0;
+  padding: var(--espacio-3);
+  background: var(--color-surface-2);
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 3px 0 var(--color-info-border);
+  scroll-snap-align: start;
+}
+
+.columna_pendiente_pago {
+  box-shadow: inset 0 3px 0 var(--color-aviso-border);
+}
+
+.columna_entregado {
+  box-shadow: inset 0 3px 0 var(--color-success-border);
+}
+
+.columna_incidencia {
+  background: var(--color-danger-bg);
+  box-shadow: inset 0 3px 0 var(--color-danger);
+}
+
+.columna_cancelado {
+  box-shadow: inset 0 3px 0 var(--color-neutro-border);
+}
+
+.cabeza {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espacio-2);
+  padding: 2px 2px 0;
+}
+
+.cabeza h3 {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.cuenta {
+  min-width: 26px;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-white);
+  box-shadow: var(--clay-shadow-sm);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.vacia {
+  padding: var(--espacio-3) 2px;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* ----------------------------------------------------------- tarjeta */
+
+.tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--espacio-3);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+/* Con alerta: el filete rojo a la izquierda, como la fila de la tabla. */
+.tarjetaAlerta {
+  box-shadow: var(--clay-shadow-sm), inset 3px 0 0 var(--color-danger);
+}
+
+.fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-2);
+}
+
+/* El codigo es el enlace al detalle: area de toque de 44px aunque el texto sea chico. */
+.codigo {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: -10px 0 -10px -4px;
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+}
+
+.codigo code {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.codigo:hover code {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.codigo:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.total {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.colegio {
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.alertas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.alerta {
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-danger-bg);
+  box-shadow: inset 0 0 0 1px var(--color-danger-border);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-danger);
+}
+
+.avanzar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-top: 2px;
+  padding: 0 var(--espacio-3);
+  border-radius: var(--radius-full);
+  background: var(--color-white);
+  box-shadow: var(--clay-shadow-sm), inset 0 0 0 1px var(--color-info-border);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-primary);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.avanzar:hover {
+  background: var(--color-info-bg);
+}
+
+.avanzar:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.avanzar:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.verMas {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------- selector de vista */
+
+.vistas {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-2);
+  box-shadow: var(--clay-shadow-inset);
+  align-self: flex-start;
+}
+
+.vista {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 var(--espacio-4);
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.vista:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.vistaActiva {
+  background: var(--color-white);
+  box-shadow: var(--clay-shadow-sm);
+  color: var(--color-text-primary);
+}

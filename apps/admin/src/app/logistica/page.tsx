@@ -10,7 +10,7 @@
 // Server Component, mismo patron que la Cola.
 
 import Link from "next/link";
-import { Truck, PackageCheck, CircleDollarSign, TriangleAlert } from "lucide-react";
+import { Truck, PackageCheck, CircleDollarSign, TriangleAlert, Columns3, Rows3 } from "lucide-react";
 import type { AlertaPedido, Pedido, TableroComercio } from "@tukit/contrato";
 import {
   ALERTAS_PEDIDO,
@@ -25,12 +25,15 @@ import AvisoAcceso from "@/components/AvisoAcceso";
 import FiltrosLogistica from "@/components/FiltrosLogistica";
 import Revelar from "@/components/Revelar";
 import SeccionMapa from "@/components/SeccionMapa";
+import TableroPedidos from "@/components/TableroPedidos";
+import estilosTablero from "@/components/TableroPedidos.module.css";
 import { formatearFecha } from "@/lib/formato";
 import {
   claveFiltros,
   filtrarPedidos,
   hayFiltros,
   hrefConAlerta,
+  hrefConVista,
   leerFiltros,
   motivoDeFallo,
   ordenarPorPrioridad,
@@ -57,7 +60,8 @@ function Encabezado() {
         <h1>Logística</h1>
         <p className={styles.bajada}>
           Pedidos, pagos y entregas con reparto propio. Abre un pedido para moverlo de estado:
-          cada paso queda en su historial y le avisa al acudiente.
+          cada paso queda en su historial y le avisa al acudiente. El tablero los agrupa por etapa;
+          la tabla sirve para buscar y avanzar en lote.
         </p>
       </div>
     </header>
@@ -92,6 +96,9 @@ export default async function PaginaLogistica({ searchParams }: Props) {
   const filtros = leerFiltros(await searchParams);
   const ordenados = ordenarPorPrioridad(filtrarPedidos(pedidos, filtros));
   const etiquetas = await etiquetasDePedidos(token, pedidos);
+  // Un solo reloj para la antiguedad de todas las tarjetas.
+  // eslint-disable-next-line react-hooks/purity
+  const ahora = Date.now();
 
   const tarjetas = [
     {
@@ -149,6 +156,27 @@ export default async function PaginaLogistica({ searchParams }: Props) {
       <SeccionMapa pedidos={pedidos} nombresColegio={etiquetas.colegios} />
 
       {pedidos.length > 0 ? (
+        <nav className={estilosTablero.vistas} aria-label="Vista de pedidos">
+          {(
+            [
+              { vista: "tablero", etiqueta: "Tablero", Icono: Columns3 },
+              { vista: "tabla", etiqueta: "Tabla", Icono: Rows3 },
+            ] as const
+          ).map(({ vista, etiqueta, Icono }) => (
+            <Link
+              key={vista}
+              href={hrefConVista(filtros, vista)}
+              className={`${estilosTablero.vista} ${filtros.vista === vista ? estilosTablero.vistaActiva : ""}`}
+              aria-current={filtros.vista === vista ? "page" : undefined}
+            >
+              <Icono size={16} strokeWidth={2.2} aria-hidden="true" />
+              {etiqueta}
+            </Link>
+          ))}
+        </nav>
+      ) : null}
+
+      {pedidos.length > 0 ? (
         // `next/form` con action de texto no acepta `key`: el envoltorio
         // remonta el formulario cuando cambian los filtros (atras/adelante, o
         // "Limpiar"), para que sus `defaultValue` no queden viejos.
@@ -198,9 +226,18 @@ export default async function PaginaLogistica({ searchParams }: Props) {
       ) : ordenados.length === 0 ? (
         <div className={styles.vacio}>
           <p>
-            Ningún pedido cumple esos filtros. <Link href="/logistica">Ver todos</Link>.
+            Ningún pedido cumple esos filtros.{" "}
+            <Link href={hrefConVista(leerFiltros({}), filtros.vista)}>Ver todos</Link>.
           </p>
         </div>
+      ) : filtros.vista === "tablero" ? (
+        <TableroPedidos
+          pedidos={ordenados}
+          filtros={filtros}
+          nombresColegio={etiquetas.colegios}
+          urlIngresar={`${urlWeb()}/ingresar`}
+          ahora={ahora}
+        />
       ) : (
         <ProveedorLote visibles={ordenados.map((p) => ({ pedido_id: p.pedido_id, estado: p.estado }))}>
         <div className={styles.marco}>
