@@ -18,12 +18,18 @@ pruebas y el desarrollo sin SMTP.
 from __future__ import annotations
 
 import asyncio
+import html
+import logging
 import os
 import smtplib
 import urllib.parse
+import uuid
 from dataclasses import dataclass, field
 from email.message import EmailMessage
+from pathlib import Path
 from typing import Protocol
+
+_log = logging.getLogger("tukit.correo")
 
 
 @dataclass(frozen=True)
@@ -59,7 +65,12 @@ class Notificador(Protocol):
 # ---------------------------------------------------------------------------
 
 _PLANTILLAS = {
-    "kits_publicados": "Tu cotizacion de kits esta lista. Turno {turno}. Revisala antes de comprar: {enlace}",
+    # Sin nombre ni apodo de menores (Ley 1581): solo colegio y grado, que salen
+    # de la lista oficial y no identifican a nadie.
+    "kits_publicados": (
+        "Tu kit esta listo. Armamos la lista de {lugar}. "
+        "Revisa los productos y elige cuando comprar: {enlace}"
+    ),
     "pedido_pagado": "Recibimos tu pago del pedido {pedido}. Turno {turno}. Te avisamos cuando salga.",
     "incidencia": "Hubo una novedad con tu pedido {pedido}. Turno {turno}. Te contactaremos.",
     "pedido_despachado": "Tu pedido {pedido} salió y va con {repartidor}.",
@@ -77,6 +88,56 @@ def texto_de(plantilla: str, datos: dict[str, object]) -> str:
         return base.format(**datos)
     except (KeyError, IndexError):
         return base
+
+
+_ASUNTOS = {
+    "kits_publicados": "Tu kit esta listo",
+    "pedido_pagado": "Recibimos tu pago",
+    "incidencia": "Novedad con tu pedido",
+    "pedido_despachado": "Tu pedido salio",
+    "pedido_en_reparto": "Tu pedido llega hoy",
+    "pedido_entregado": "Tu pedido fue entregado",
+    "caso_respuesta": "Respondimos tu caso",
+}
+
+
+def asunto_de(plantilla: str) -> str:
+    """El asunto del correo. Fijo por plantilla: nunca lleva datos del menor."""
+    return _ASUNTOS.get(plantilla, "Novedad en Tukit")
+
+
+def html_de(plantilla: str, datos: dict[str, object]) -> str | None:
+    """El cuerpo HTML sobrio de las plantillas que lo tienen; `None` si solo texto.
+
+    Estilos en linea y sin imagenes remotas: los clientes de correo no cargan CSS
+    externo y un pixel de seguimiento no nos corresponde. Todo valor se escapa."""
+    if plantilla != "kits_publicados":
+        return None
+    lugar = html.escape(str(datos.get("lugar", "tu lista escolar")))
+    enlace = html.escape(str(datos.get("enlace", "")), quote=True)
+    return (
+        '<!doctype html><html lang="es"><body style="margin:0;background:#f4f6fb;'
+        'font-family:Arial,Helvetica,sans-serif;color:#1b2540">'
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" '
+        'style="padding:32px 16px"><table role="presentation" width="560" cellpadding="0" cellspacing="0" '
+        'style="max-width:560px;background:#ffffff;border-radius:12px;padding:32px">'
+        '<tr><td><p style="margin:0 0 8px;font-size:14px;color:#4a5a85;font-weight:bold">TUKIT</p>'
+        '<h1 style="margin:0 0 16px;font-size:24px;line-height:1.25">Tu kit esta listo</h1>'
+        f'<p style="margin:0 0 24px;font-size:16px;line-height:1.5">Armamos la lista de {lugar}. '
+        "Revisa los productos y elige cuando comprar.</p>"
+        f'<p style="margin:0 0 24px"><a href="{enlace}" style="display:inline-block;background:#1f4fd8;'
+        "color:#ffffff;text-decoration:none;padding:14px 24px;border-radius:8px;font-size:16px;"
+        'font-weight:bold">Ver mi kit</a></p>'
+        f'<p style="margin:0;font-size:13px;color:#4a5a85;line-height:1.5">Si el boton no abre, copia este '
+        f"enlace en tu navegador: {enlace}</p></td></tr></table></td></tr></table></body></html>"
+    )
+
+
+def _buzon() -> Path | None:
+    """La carpeta donde el modo consola deja el .eml. `TUKIT_BUZON_DIR` la cambia;
+    vacia la apaga. Por omision `.ejecucion/buzon` (ignorada por git)."""
+    valor = os.environ.get("TUKIT_BUZON_DIR", ".ejecucion/buzon")
+    return Path(valor) if valor else None
 
 
 @dataclass
@@ -113,32 +174,50 @@ class Correo:
     def _smtp_host(self) -> str | None:
         return os.environ.get("TUKIT_SMTP_HOST") or None
 
-    async def enviar(self, contacto: Contacto, plantilla: str, datos: dict[str, object]) -> Envio:
-        if not contacto.correo:
-            return Envio(canal="correo", exito=False, detalle="sin_correo")
-        cuerpo = texto_de(plantilla, datos)
-        host = self._smtp_host()
-        if host is None:
-            # Modo consola: se registra que se habria enviado, sin servidor.
-            print(f"[correo:consola] -> usuario {contacto.usuario_id}: {cuerpo}")
-            return Envio(canal="correo", exito=True, detalle="consola")
-        # `smtplib.SMTP` es bloqueante (socket + starttls + login); correrlo tal
-        # cual dentro de este `async` congelaria el event loop —y con el la cola
-        # del repartidor— mientras un servidor de correo lento responde. Se corre
-        # en un hilo para que solo espere quien envia, no todo el servicio.
-        return await asyncio.to_thread(self._enviar_smtp, host, contacto.correo, cuerpo)
-
-    def _enviar_smtp(self, host: str, destino: str, cuerpo: str) -> Envio:
-        puerto = int(os.environ.get("TUKIT_SMTP_PORT", "587"))
-        usuario = os.environ.get("TUKIT_SMTP_USER")
-        clave = os.environ.get("TUKIT_SMTP_PASSWORD")
+    def _armar(self, destino: str, plantilla: str, datos: dict[str, object]) -> EmailMessage:
         desde = self.remitente or os.environ.get("TUKIT_SMTP_DESDE", "no-responder@tukit.co")
-
         mensaje = EmailMessage()
         mensaje["From"] = desde
         mensaje["To"] = destino
-        mensaje["Subject"] = "Novedad en Tukit"
-        mensaje.set_content(cuerpo)
+        mensaje["Subject"] = asunto_de(plantilla)
+        mensaje.set_content(texto_de(plantilla, datos))
+        cuerpo_html = html_de(plantilla, datos)
+        if cuerpo_html:
+            mensaje.add_alternative(cuerpo_html, subtype="html")
+        return mensaje
+
+    async def enviar(self, contacto: Contacto, plantilla: str, datos: dict[str, object]) -> Envio:
+        if not contacto.correo:
+            return Envio(canal="correo", exito=False, detalle="sin_correo")
+        try:
+            mensaje = self._armar(contacto.correo, plantilla, datos)
+            host = self._smtp_host()
+            if host is None:
+                return self._enviar_consola(contacto.usuario_id, mensaje)
+            # `smtplib.SMTP` es bloqueante (socket + starttls + login); correrlo tal
+            # cual dentro de este `async` congelaria el event loop —y con el la cola
+            # del repartidor— mientras un servidor de correo lento responde. Se corre
+            # en un hilo para que solo espere quien envia, no todo el servicio.
+            return await asyncio.to_thread(self._enviar_smtp, host, mensaje)
+        except Exception as error:  # noqa: BLE001 - un correo nunca tumba al repartidor
+            _log.warning("correo no enviado (%s): %s", plantilla, type(error).__name__)
+            return Envio(canal="correo", exito=False, detalle=f"error: {type(error).__name__}")
+
+    def _enviar_consola(self, usuario_id: str, mensaje: EmailMessage) -> Envio:
+        """Sin servidor: deja el aviso en el log y, si hay buzon, el .eml completo.
+        No finge que salio: el detalle dice `consola`. El destinatario NO se imprime."""
+        _log.info("[correo:consola] -> usuario %s: %s", usuario_id, mensaje["Subject"])
+        print(f"[correo:consola] -> usuario {usuario_id}: {mensaje['Subject']}")
+        carpeta = _buzon()
+        if carpeta is not None:
+            carpeta.mkdir(parents=True, exist_ok=True)
+            (carpeta / f"{uuid.uuid4().hex}.eml").write_bytes(bytes(mensaje))
+        return Envio(canal="correo", exito=True, detalle="consola")
+
+    def _enviar_smtp(self, host: str, mensaje: EmailMessage) -> Envio:
+        puerto = int(os.environ.get("TUKIT_SMTP_PORT", "587"))
+        usuario = os.environ.get("TUKIT_SMTP_USER")
+        clave = os.environ.get("TUKIT_SMTP_PASSWORD")
         try:
             with smtplib.SMTP(host, puerto, timeout=30) as servidor:
                 servidor.starttls()
@@ -147,7 +226,7 @@ class Correo:
                 servidor.send_message(mensaje)
             return Envio(canal="correo", exito=True, detalle="smtp")
         except OSError as error:
-            return Envio(canal="correo", exito=False, detalle=f"smtp_error: {error}")
+            return Envio(canal="correo", exito=False, detalle=f"smtp_error: {type(error).__name__}")
 
 
 @dataclass
@@ -210,5 +289,7 @@ __all__ = [
     "Contacto",
     "Envio",
     "texto_de",
+    "asunto_de",
+    "html_de",
     "notificador_desde_entorno",
 ]

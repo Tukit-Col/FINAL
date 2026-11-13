@@ -104,6 +104,18 @@ class ClienteIdentidad:
         except httpx.HTTPError:
             return None
 
+    async def nombre_colegio(self, colegio_id: str) -> str | None:
+        """El nombre de un colegio, o `None` si Identidad no responde o no lo
+        conoce: el aviso sale igual, sin el nombre."""
+        try:
+            async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
+                respuesta = await cliente.get(f"{self._base()}/v1/colegios/{colegio_id}")
+                respuesta.raise_for_status()
+                nombre = respuesta.json().get("nombre")
+                return str(nombre) if nombre else None
+        except (httpx.HTTPError, ValueError):
+            return None
+
 
 @dataclass
 class ClienteMetricas:
