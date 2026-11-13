@@ -1,0 +1,148 @@
+.panel {
+  padding: var(--espacio-4) var(--espacio-5) var(--espacio-4);
+}
+
+.fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--espacio-3);
+  /* El mordisco de la forma ocupa la esquina superior derecha. */
+  padding-right: 14%;
+}
+
+.resumen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px var(--espacio-3);
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.resumen strong {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.resumen span {
+  color: var(--color-text-secondary);
+  font-weight: 700;
+}
+
+.lista {
+  list-style: none;
+  margin: var(--espacio-3) 0 var(--espacio-3);
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2) var(--espacio-4);
+}
+
+.paso {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.punto {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 800;
+  background: var(--color-white);
+  color: var(--color-text-secondary);
+  box-shadow: inset 0 0 0 2px var(--color-border);
+  transition: background var(--dur-medio) var(--ease-suave),
+    color var(--dur-medio) var(--ease-suave), box-shadow var(--dur-medio) var(--ease-suave);
+}
+
+.actual {
+  color: var(--color-text-primary);
+}
+
+.actual .punto {
+  background: var(--color-primary);
+  color: var(--color-white);
+  box-shadow: 0 0 0 4px rgba(30, 64, 175, 0.18);
+}
+
+.completo .punto {
+  background: var(--color-success);
+  color: var(--color-white);
+  box-shadow: none;
+  animation: llegada var(--dur-lento) var(--ease-clay) both;
+}
+
+.completo {
+  color: var(--color-text-primary);
+}
+
+@keyframes llegada {
+  from {
+    transform: scale(0.6);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.barra {
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+}
+
+.relleno {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+  transition: width var(--dur-lento) var(--ease-suave);
+}
+
+.oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .titulo {
+    /* En celular los puntos bastan; el titulo del paso actual ya va arriba. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .lista {
+    gap: var(--espacio-3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .completo .punto {
+    animation: none;
+  }
+
+  .punto,
+  .relleno {
+    transition: none;
+  }
+}
