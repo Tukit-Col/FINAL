@@ -5,7 +5,7 @@
 // por cualquier causa se responde 503 `asistente_no_disponible`, que es la senal
 // para caer al formulario de siempre.
 
-import { origenDeDatos, urlApi } from "@tukit/contrato/servidor";
+import { cabecerasReenviadas, origenDeDatos, urlApi } from "@tukit/contrato/servidor";
 import { tokenDeSesion } from "@/lib/sesion";
 import { validarEspec, type EspecUi } from "./espec";
 
@@ -35,12 +35,16 @@ export const DESACTIVADO: Resultado = {
 
 export async function reenviar(ruta: string, cuerpo: unknown): Promise<Resultado> {
   const token = await tokenDeSesion();
+  // La IP del padre, para que el cupo anonimo del asistente sea por familia y no uno
+  // solo para todo este servidor (el backend solo la cree si viene de un proxy de confianza).
+  const reenviadas = await cabecerasReenviadas(ruta);
   let respuesta: Response;
   try {
     respuesta = await fetch(`${urlApi()}${ruta}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...reenviadas,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify(cuerpo),

@@ -339,11 +339,6 @@ async def test_nombre_y_documento_del_menor_se_redactan_antes_del_modelo(cliente
     assert nombre not in doble.visto["usuario"]
 
 
-@pytest.mark.xfail(
-    reason="HUECO: el nombre del menor solo se redacta con una frase gatillo ('mi hijo X') y con "
-    "mayuscula inicial; 'Sofia quiere Bluey' o 'mi hijo juan' llegan intactos a Gemini",
-    strict=True,
-)
 @pytest.mark.parametrize(
     ("texto", "nombre"),
     [
@@ -359,11 +354,6 @@ async def test_nombre_del_menor_sin_frase_gatillo_se_redacta(cliente, monkeypatc
     assert nombre not in doble.visto["usuario"]
 
 
-@pytest.mark.xfail(
-    reason="HUECO: la direccion se redacta solo con prefijo de via (calle/carrera...); "
-    "'Conjunto Los Pinos torre 3 apto 402' y el nombre del colegio con grado pasan",
-    strict=True,
-)
 async def test_direccion_de_conjunto_residencial_se_redacta(cliente, monkeypatch):
     doble = modelo([SIN_ACCION])
     monkeypatch.setattr(nl2c, "_LLAMAR", doble)
@@ -371,6 +361,27 @@ async def test_direccion_de_conjunto_residencial_se_redacta(cliente, monkeypatch
         "/v1/nl2c/interpretar", json={"texto": "vivimos en Conjunto Los Pinos torre 3 apto 402"}, headers=H
     )
     assert "Los Pinos" not in doble.visto["usuario"]
+
+
+def test_la_redaccion_de_nombres_no_borra_personajes_ni_colegios():
+    # Lo que el modelo si necesita: el personaje, el color y el nombre del colegio.
+    t = nl2c.sanitizar(
+        "Paula quiere el cuaderno rosa de Elsa; estudia en el colegio San Jose Maria",
+        conservar=frozenset({"elsa"}),
+    )
+    assert "Paula" not in t.texto
+    for queda in ("rosa", "Elsa", "San Jose Maria"):
+        assert queda in t.texto
+
+
+def test_un_nombre_de_pila_que_es_personaje_del_catalogo_no_se_redacta():
+    t = nl2c.sanitizar("quiere de Sofia la princesa", conservar=frozenset({"sofia"}))
+    assert "Sofia" in t.texto
+
+
+def test_la_descripcion_de_la_lista_no_pasa_por_la_redaccion_del_padre():
+    assert "Juan Salvador" in nl2c_kit._texto_renglon("Libro Juan Salvador Gaviota")
+    assert "bloque 5" in nl2c_kit._texto_renglon("Cuaderno bloque 5 materias")
 
 
 # --- 8. Fuera de tema -----------------------------------------------------------------
@@ -601,35 +612,28 @@ async def test_los_tokens_de_cada_respuesta_se_descuentan_del_cupo(cliente, monk
 
 
 # --- 14. Huecos conocidos (informe) -------------------------------------------------------------
-@pytest.mark.xfail(
-    reason="HUECO: _EMITIDAS es un dict global de 5000 entradas; quien inunda /interpretar (sin "
-    "sesion) expulsa las propuestas legitimas y su 'decision' da 404. Pasar a Redis/BD con TTL",
-    strict=True,
-)
 def test_inundar_propuestas_no_expulsa_las_de_otro():
     propia = nl2c_kit.registrar_emision(PADRE)
     for _ in range(5001):
         nl2c_kit.registrar_emision(None)
-    assert nl2c_kit.emision_de(propia) is not None
+    assert nl2c_kit.emision_de(propia, PADRE) is not None
 
 
-@pytest.mark.xfail(
-    reason="HUECO: la decision no compara su 'tipo' con el de la propuesta emitida ni con el trabajo; "
-    "la bitacora puede decir 'aceptada/descarte' de una propuesta que fue un cambio",
-    strict=True,
-)
 async def test_la_decision_debe_coincidir_con_el_tipo_emitido(cliente, motor, monkeypatch):
     r, _ = await _proponer(cliente, motor, monkeypatch, [CAMBIO])
     pid = r.json()["propuesta_id"]
     falsa = {"propuesta_id": pid, "decision": "aceptada", "tipo": "descarte"}
-    assert (await cliente.post("/v1/nl2c/decision", json=falsa, headers=H)).status_code != 202
+    assert (await cliente.post("/v1/nl2c/decision", json=falsa, headers=H)).status_code == 422
+    buena = {**falsa, "tipo": "cambio"}
+    assert (await cliente.post("/v1/nl2c/decision", json=buena, headers=H)).status_code == 202
 
 
-@pytest.mark.xfail(
-    reason="HUECO: la ruta de interpretar es anonima por diseno (/empezar antes del registro) y el "
-    "cupo anonimo es por IP; detras de un proxy sin X-Forwarded-For todos comparten bucket (o ninguno)",
-    strict=True,
-)
+def test_una_propuesta_vencida_ya_no_se_puede_decidir():
+    pid = nl2c_kit.registrar_emision(PADRE, ahora=0.0)
+    assert nl2c_kit.emision_de(pid, PADRE, ahora=nl2c_kit.VIGENCIA_EMISION_S - 1) is not None
+    assert nl2c_kit.emision_de(pid, PADRE, ahora=nl2c_kit.VIGENCIA_EMISION_S + 1) is None
+
+
 async def test_anonimos_de_ips_distintas_no_comparten_cupo(cliente, monkeypatch):
     monkeypatch.setattr(nl2c, "_LLAMAR", modelo([SIN_ACCION]))
     for _ in range(nl2c.MAX_LLAMADAS_POR_MINUTO):
@@ -640,6 +644,15 @@ async def test_anonimos_de_ips_distintas_no_comparten_cupo(cliente, monkeypatch)
         "/v1/nl2c/interpretar", json={"texto": "hola"}, headers={"X-Forwarded-For": "10.0.0.2"}
     )
     assert r.status_code == 200
+
+
+def test_la_ip_reenviada_solo_se_cree_desde_un_proxy_de_confianza():
+    from tukit_comun.red import ip_de_peticion
+
+    # La web y el gateway corren en 127.0.0.1: su X-Forwarded-For separa a los padres.
+    assert ip_de_peticion("127.0.0.1", ["10.0.0.1"]) != ip_de_peticion("127.0.0.1", ["10.0.0.2"])
+    # Desde fuera, la cabecera la escribio el cliente: inventarla no da cupo nuevo.
+    assert ip_de_peticion("203.0.113.9", ["10.0.0.1"]) == ip_de_peticion("203.0.113.9", ["10.0.0.2"])
 
 
 async def test_el_flujo_directo_tambien_audita_sin_texto(motor, monkeypatch):

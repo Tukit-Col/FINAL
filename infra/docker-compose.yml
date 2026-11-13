@@ -118,7 +118,11 @@ services:
 
   inteligencia:
     <<: *servicio
-    environment: *entorno_redis
+    environment:
+      <<: *entorno_redis
+      # El cupo anonimo del asistente cuenta por la IP que reenvia el gateway, que
+      # le llega desde la red de Docker (misma regla que el limite de la puerta).
+      TUKIT_PROXIES_CONFIANZA: "127.0.0.1,::1,172.16.0.0/12"
     depends_on:
       postgres:
         condition: service_healthy
