@@ -35,6 +35,7 @@ import {
   iniciarSesion,
   FalloApi,
 } from "@/lib/api-navegador";
+import ProgresoPasos, { type PasoProgreso } from "./ProgresoPasos";
 import { avisoCuentaCreada, cuentaCreadaSinSesion } from "@/lib/limite";
 import { MAX_HIJOS, avisosDePrecarga, precargarHijos } from "@/lib/precarga-hijos";
 import { rutaRecibimos } from "@/lib/recibimos";
@@ -621,10 +622,38 @@ export default function FormularioEmpezar({
     return "preferencias";
   }
   const actual = pasoActual();
+  // Estado de cada paso para el progreso y el micro-feedback: solo presentacion,
+  // se deriva de `actual` y de los faltantes que ya se calculan arriba.
+  function estadoDePaso(paso: PasoEmpezar): PasoProgreso["estado"] {
+    if (actual === null) return "futuro";
+    if (paso === actual) return "actual";
+    if (ORDEN_PASOS.indexOf(paso) > ORDEN_PASOS.indexOf(actual)) return "futuro";
+    const faltantes = paso === "hijos" ? faltantesHijos : paso === "contacto" ? faltantesContacto : [];
+    return faltantes.length === 0 ? "completo" : "futuro";
+  }
+  const pasosProgreso: PasoProgreso[] = (
+    modo === "nuevo"
+      ? ([
+          ["registro", "Regístrate"],
+          ["hijos", "De quién es la lista"],
+          ["preferencias", "Cuál kit te marcamos"],
+        ] as const)
+      : ([
+          ["hijos", "De quién es la lista"],
+          ["contacto", "A dónde te avisamos"],
+          ["preferencias", "Cuál kit te marcamos"],
+        ] as const)
+  ).map(([clave, titulo]) => ({ clave, titulo, estado: estadoDePaso(clave) }));
+
   function propsDePaso(paso: PasoEmpezar): { className: string; "aria-current"?: "step" } {
     const futuro = actual !== null && ORDEN_PASOS.indexOf(paso) > ORDEN_PASOS.indexOf(actual);
+    const completo = estadoDePaso(paso) === "completo";
     return {
-      className: futuro ? `${styles.bloque} ${styles.bloqueInactivo}` : styles.bloque,
+      className: futuro
+        ? `${styles.bloque} ${styles.bloqueInactivo}`
+        : completo
+          ? `${styles.bloque} ${styles.bloqueCompleto}`
+          : styles.bloque,
       ...(paso === actual ? { "aria-current": "step" as const } : {}),
     };
   }
@@ -947,6 +976,8 @@ export default function FormularioEmpezar({
           </button>
         </div>
       )}
+
+      {mostrarFormulario && <ProgresoPasos pasos={pasosProgreso} />}
 
       {/* Camino "ya tengo cuenta": entrar y volver aqui con los hijos cargados.
           El `destino=/empezar` hace que el login regrese a esta pantalla (no al

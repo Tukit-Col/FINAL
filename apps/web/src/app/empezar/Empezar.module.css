@@ -3,6 +3,9 @@
   margin: 0 auto;
   padding: var(--espacio-6) var(--espacio-4) var(--espacio-7);
   display: grid;
+  /* minmax(0,1fr): sin esto la columna implicita crece al contenido mas ancho
+   * y en 375 px la pagina se desborda por la derecha. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--espacio-5);
 }
 
@@ -790,4 +793,55 @@
 .opcionTexto span {
   font-size: 12.5px;
   color: var(--color-text-secondary);
+}
+
+/* ---------------------------------------------------- Paso completado */
+
+/* Micro-feedback: al completar un paso su numero cambia a una marca verde que
+ * entra con un rebote corto. Una sola vez (el cambio de clase), sin loops. */
+.bloqueCompleto .paso {
+  position: relative;
+  color: transparent;
+  background: var(--color-success);
+  box-shadow: none;
+  animation: pasoCompleto var(--dur-lento) var(--ease-clay) both;
+}
+
+.bloqueCompleto .paso::after {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 6px;
+  width: 8px;
+  height: 14px;
+  border: solid var(--color-white);
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
+}
+
+@keyframes pasoCompleto {
+  from {
+    transform: scale(0.7);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bloqueCompleto .paso {
+    animation: none;
+  }
+}
+
+/* En celular el rotulo largo pisaba el titulo del paso: se acorta y el titulo
+ * puede envolver a su lado. */
+@media (max-width: 520px) {
+  .bloqueInactivo::after {
+    content: "Pendiente";
+  }
+
+  .bloqueInactivo .tituloBloque {
+    padding-right: 96px;
+  }
 }

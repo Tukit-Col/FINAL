@@ -84,6 +84,55 @@
 .fichaActiva {
   background: var(--color-personaje-bg);
   box-shadow: var(--clay-shadow-sm), inset 0 0 0 2.5px var(--color-personaje);
+  animation: fichaElegida var(--dur-lento) var(--ease-clay);
+}
+
+/* Feedback de seleccion: la ficha "se hunde" y rebota, el icono da un saltito
+ * y la marca entra con escala. Corre una vez al elegir; al quitar no hay nada. */
+.fichaActiva .icono {
+  animation: iconoElegido var(--dur-lento) var(--ease-clay);
+}
+
+.marca {
+  animation: marcaEntra var(--dur-medio) var(--ease-clay) both;
+}
+
+@keyframes fichaElegida {
+  0% {
+    transform: scale(0.94);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes iconoElegido {
+  0% {
+    transform: translateY(0) rotate(0);
+  }
+  40% {
+    transform: translateY(-6px) rotate(-6deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+}
+
+@keyframes marcaEntra {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fichaActiva,
+  .fichaActiva .icono,
+  .marca {
+    animation: none;
+  }
 }
 
 .icono {
@@ -178,7 +227,8 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 12px;
+  min-height: 44px;
+  padding: 5px 14px;
   font-size: 12.5px;
   font-weight: 700;
   text-transform: capitalize;
@@ -212,8 +262,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 36px;
-  padding: 6px 14px;
+  min-height: 44px;
+  padding: 6px 16px;
   border-radius: var(--radius-full);
   font-size: 13px;
   font-weight: 700;
