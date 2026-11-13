@@ -12,6 +12,8 @@ import {
   BookOpen,
   Shirt,
   CircleAlert,
+  ChevronDown,
+  ChevronUp,
   ExternalLink,
   House,
   School,
@@ -53,9 +55,11 @@ import {
   gradosDeHijos,
   idAnclaCategoria,
   notaSinEncaje,
+  resumenPorHijo,
   textoDeConsolidacion,
   type ApodoMatricula,
   type CategoriaKit,
+  type ResumenHijo,
 } from "@/lib/kit-vista";
 import { abrirWidgetWompi } from "@/lib/wompi";
 import CampoDireccion, { type LugarElegido } from "./CampoDireccion";
@@ -290,6 +294,15 @@ export default function VistaKits({
             })}
           </ul>
         </section>
+      )}
+
+      {resumenPorHijo(kit, nombresHijos, gradosHijos, trabajo.personajes_por_hijo).length > 1 && (
+        <ResumenPorHijo
+          kit={kit}
+          nombresHijos={nombresHijos}
+          gradosHijos={gradosHijos}
+          pedidos={trabajo.personajes_por_hijo}
+        />
       )}
 
       <SeccionesDeLineas kit={kit} trabajoId={trabajo.trabajo_id} nombresHijos={nombresHijos} />
@@ -715,6 +728,108 @@ function NotasSinEncaje({ filas }: { filas: FilaSinEncaje[] }) {
         <li key={`${f.hijo}-${f.concepto}`}>{notaSinEncaje(f)}</li>
       ))}
     </ul>
+  );
+}
+
+// El resumen por hijo (hogar con 2+ hijos): una banda con lo que comparten y una
+// tarjeta plegable por hijo con sus productos, su total y lo que le falta. Es una
+// vista de lectura; los cambios siguen viviendo en la lista por categoría de abajo.
+function ResumenPorHijo({
+  kit,
+  nombresHijos,
+  gradosHijos,
+  pedidos,
+}: {
+  kit: Kit;
+  nombresHijos: Map<string, string>;
+  gradosHijos: Map<string, string>;
+  pedidos?: Record<string, string[]>;
+}) {
+  const resumen: ResumenHijo[] = resumenPorHijo(kit, nombresHijos, gradosHijos, pedidos);
+  const [colapsados, setColapsados] = useState<Set<string>>(new Set());
+  const alternar = (hijo: string) =>
+    setColapsados((prev) => {
+      const siguiente = new Set(prev);
+      if (siguiente.has(hijo)) siguiente.delete(hijo);
+      else siguiente.add(hijo);
+      return siguiente;
+    });
+
+  return (
+    <section className={styles.resumenHijos} aria-label="Cada kit por hijo">
+      <h2>Cada kit por hijo</h2>
+      {kit.consolidaciones.length > 0 && (
+        <div className={styles.bandaCompartido}>
+          <h3>Comparten</h3>
+          <ul>
+            {kit.consolidaciones.map((c, i) => {
+              const t = textoDeConsolidacion(
+                c,
+                nombresHijos,
+                c.ahorro > 0 ? formatearPesos(c.ahorro) : null,
+                gradosHijos,
+              );
+              return (
+                <li key={`${c.producto}-${i}`}>
+                  <strong>{c.producto}</strong>
+                  {[t.paraQuienes, t.ahorro].filter(Boolean).map((parte, j) => (
+                    <span key={j}> · {parte}</span>
+                  ))}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+      {resumen.map((r) => {
+        const abierto = !colapsados.has(r.hijo);
+        const titulo = [
+          r.nombre,
+          r.grado,
+          r.personaje ? r.personaje.charAt(0).toUpperCase() + r.personaje.slice(1) : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        return (
+          <article key={r.hijo} className={styles.tarjetaHijo}>
+            <button
+              type="button"
+              className={styles.cabezaHijo}
+              aria-expanded={abierto}
+              onClick={() => alternar(r.hijo)}
+            >
+              <span className={styles.cabezaHijoTitulo}>{titulo}</span>
+              <span className={`${styles.cabezaHijoTotal} cifra`}>
+                {hayQueCobrar(r.total) ? formatearPesos(r.total) : "—"}
+              </span>
+              {abierto ? (
+                <ChevronUp size={18} aria-hidden="true" />
+              ) : (
+                <ChevronDown size={18} aria-hidden="true" />
+              )}
+            </button>
+            <p className={styles.cabezaHijoMeta}>
+              {r.comparten} {r.comparten === 1 ? "comparte" : "comparten"} ·{" "}
+              {r.falta.length} {r.falta.length === 1 ? "falta" : "faltan"}
+            </p>
+            {abierto && (
+              <>
+                <TarjetasFan lineas={r.productos} />
+                {r.falta.length > 0 && (
+                  <ul className={styles.notasSinEncaje}>
+                    {r.falta.map((aviso, i) => (
+                      <li key={i}>
+                        <CircleAlert size={14} aria-hidden="true" /> {aviso}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+          </article>
+        );
+      })}
+    </section>
   );
 }
 
