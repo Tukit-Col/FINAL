@@ -146,3 +146,47 @@ def estado_tras_respuesta(actual: str) -> str:
     """Responder un ticket recien abierto lo pasa a gestion; cualquier otro queda igual
     (uno resuelto se reabre aparte, con intencion)."""
     return EstadoCaso.EN_GESTION.value if actual == EstadoCaso.ABIERTO.value else actual
+
+
+# --- gestion del back-office: prioridad, asignacion y nota interna ------------
+
+LONGITUD_MAXIMA_NOTA = 2000
+
+
+def validar_prioridad(estado: str, destino: str) -> CambioRechazado | None:
+    """`None` si el ticket admite pasar a la prioridad `destino`.
+
+    Un valor desconocido es `422`; un ticket cerrado ya no se repriorizan (`422`)."""
+    try:
+        Prioridad(destino)
+    except ValueError:
+        return CambioRechazado("prioridad_invalida", 422, "prioridad")
+    if estado == EstadoCaso.CERRADO.value:
+        return CambioRechazado("caso_cerrado", 422, "prioridad")
+    return None
+
+
+def validar_asignacion(
+    asignar: str, asignado_actual: str | None, actor: str, *, es_admin: bool
+) -> CambioRechazado | None:
+    """`None` si la asignacion procede.
+
+    `yo` toma el ticket (tambien relevando a otro: la UI pide confirmarlo).
+    `nadie` lo suelta, y solo lo hace su dueno o un admin (`403`)."""
+    if asignar == "yo":
+        return None
+    if asignar == "nadie":
+        if asignado_actual is not None and asignado_actual != actor and not es_admin:
+            return CambioRechazado("sin_permiso", 403, "asignar")
+        return None
+    return CambioRechazado("asignacion_invalida", 422, "asignar")
+
+
+def validar_nota(texto: str) -> tuple[str | None, CambioRechazado | None]:
+    """El texto limpio de una nota interna (1 a 2000 caracteres), o el rechazo."""
+    limpio = texto.strip()
+    if not limpio:
+        return None, CambioRechazado("nota_vacia", 422, "texto")
+    if len(limpio) > LONGITUD_MAXIMA_NOTA:
+        return None, CambioRechazado("nota_larga", 422, "texto")
+    return limpio, None

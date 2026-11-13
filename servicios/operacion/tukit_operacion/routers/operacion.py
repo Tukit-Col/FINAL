@@ -38,7 +38,10 @@ from ..dominio.casos import (
     clave_orden,
     estado_tras_respuesta,
     prioridad_inicial,
+    validar_asignacion,
     validar_cambio_estado,
+    validar_nota,
+    validar_prioridad,
     validar_respuesta,
     vence_en,
 )
@@ -80,6 +83,11 @@ def _token_bearer(authorization: str | None) -> str | None:
 
 
 async def _exigir_staff(request: Request, authorization: str | None) -> uuid.UUID:
+    """Puerta operador/admin (ver `_exigir_staff_con_rol`); devuelve el `usuario_id`."""
+    return (await _exigir_staff_con_rol(request, authorization))[0]
+
+
+async def _exigir_staff_con_rol(request: Request, authorization: str | None) -> tuple[uuid.UUID, bool]:
     """Puerta operador/admin: 401 sin token o con uno invalido, 503 si Identidad
     no responde (FALLA CERRADA: no se autoriza por no poder preguntar), 403 si el
     rol no es staff. Devuelve el `usuario_id` de la sesion, que queda como actor."""
@@ -97,7 +105,7 @@ async def _exigir_staff(request: Request, authorization: str | None) -> uuid.UUI
         raise ErrorDominio(
             "acceso_denegado", "Esta vista es solo para el equipo interno de Tukit.", estado=403
         )
-    return uuid.UUID(str(sesion["usuario_id"]))
+    return uuid.UUID(str(sesion["usuario_id"])), "admin" in roles
 
 
 _MENSAJE_CAMBIO = {
@@ -106,6 +114,11 @@ _MENSAJE_CAMBIO = {
     "caso_cerrado": "El ticket esta cerrado: no admite respuestas.",
     "respuesta_vacia": "Escribe la respuesta.",
     "respuesta_larga": "La respuesta es demasiado larga.",
+    "prioridad_invalida": "Esa prioridad no existe.",
+    "asignacion_invalida": "La asignacion debe ser 'yo' o 'nadie'.",
+    "sin_permiso": "Solo quien tiene el ticket, o un admin, puede soltarlo.",
+    "nota_vacia": "Escribe la nota.",
+    "nota_larga": "La nota es demasiado larga.",
 }
 
 
@@ -245,6 +258,104 @@ async def cambiar_estado_caso(
         datos = {"desde": fila.estado, "hacia": solicitud.destino}
         await repo.registrar_evento(caso_id=caso_id, tipo="estado", datos=datos, actor_id=actor, ahora=ahora)
         await repo.auditar(actor_id=actor, accion="caso_estado", caso_id=caso_id, datos=datos, ahora=ahora)
+        return await _detalle_staff(repo, await _caso_o_404(repo, caso_id))
+
+
+class SolicitudAsignacion(BaseModel):
+    asignar: str = Field(min_length=1, max_length=8)
+
+
+class SolicitudPrioridad(BaseModel):
+    prioridad: str = Field(min_length=1, max_length=16)
+
+
+class SolicitudNota(BaseModel):
+    texto: str = Field(max_length=4096)
+
+
+@router.post("/v1/operacion/casos/{caso_id}/asignar", summary="Asigna el ticket a quien llama, o lo suelta. Solo staff.")
+async def asignar_caso(
+    request: Request,
+    caso_id: uuid.UUID,
+    solicitud: SolicitudAsignacion,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    """`yo` = el `usuario_id` de la sesion (no hay listado de staff en identidad);
+    `nadie` lo suelta, y solo lo hace su dueno o un admin."""
+    actor, es_admin = await _exigir_staff_con_rol(request, authorization)
+    ahora = datetime.now(UTC)
+    async with request.app.state.motor.sesion() as db:
+        repo = RepoCasos(await db.connection())
+        fila = await _caso_o_404(repo, caso_id)
+        actual = fila.asignado_a_id
+        rechazo = validar_asignacion(
+            solicitud.asignar, str(actual) if actual is not None else None, str(actor), es_admin=es_admin
+        )
+        if rechazo is not None:
+            raise _rechazar(rechazo)
+        hacia = actor if solicitud.asignar == "yo" else None
+        if actual != hacia:
+            if not await repo.asignar(caso_id=caso_id, desde=actual, hacia=hacia):
+                raise ErrorDominio(
+                    "cambio_concurrente",
+                    "Alguien mas movio este ticket mientras tanto; recarga y vuelve a intentar.",
+                    estado=409,
+                )
+            datos = {"desde": str(actual) if actual else None, "hacia": str(hacia) if hacia else None}
+            await repo.registrar_evento(caso_id=caso_id, tipo="asignacion", datos=datos, actor_id=actor, ahora=ahora)
+            await repo.auditar(actor_id=actor, accion="caso_asignado", caso_id=caso_id, datos=datos, ahora=ahora)
+        return await _detalle_staff(repo, await _caso_o_404(repo, caso_id))
+
+
+@router.post("/v1/operacion/casos/{caso_id}/prioridad", summary="Cambia la prioridad del ticket. Solo staff.")
+async def cambiar_prioridad_caso(
+    request: Request,
+    caso_id: uuid.UUID,
+    solicitud: SolicitudPrioridad,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    actor = await _exigir_staff(request, authorization)
+    ahora = datetime.now(UTC)
+    async with request.app.state.motor.sesion() as db:
+        repo = RepoCasos(await db.connection())
+        fila = await _caso_o_404(repo, caso_id)
+        rechazo = validar_prioridad(fila.estado, solicitud.prioridad)
+        if rechazo is not None:
+            raise _rechazar(rechazo)
+        if fila.prioridad != solicitud.prioridad:
+            if not await repo.cambiar_prioridad(caso_id=caso_id, desde=fila.prioridad, hacia=solicitud.prioridad):
+                raise ErrorDominio(
+                    "cambio_concurrente",
+                    "Alguien mas movio este ticket mientras tanto; recarga y vuelve a intentar.",
+                    estado=409,
+                )
+            datos = {"desde": fila.prioridad, "hacia": solicitud.prioridad}
+            await repo.registrar_evento(caso_id=caso_id, tipo="prioridad", datos=datos, actor_id=actor, ahora=ahora)
+            await repo.auditar(actor_id=actor, accion="caso_prioridad", caso_id=caso_id, datos=datos, ahora=ahora)
+        return await _detalle_staff(repo, await _caso_o_404(repo, caso_id))
+
+
+@router.post("/v1/operacion/casos/{caso_id}/nota", summary="Deja una nota interna en el ticket. Solo staff.")
+async def nota_interna_caso(
+    request: Request,
+    caso_id: uuid.UUID,
+    solicitud: SolicitudNota,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    """La nota es un evento `nota_interna`: el acudiente solo lee los tipos de
+    `comentarios_de`, asi que nunca le llega. La auditoria no guarda el texto."""
+    actor = await _exigir_staff(request, authorization)
+    ahora = datetime.now(UTC)
+    async with request.app.state.motor.sesion() as db:
+        repo = RepoCasos(await db.connection())
+        await _caso_o_404(repo, caso_id)
+        texto, rechazo = validar_nota(solicitud.texto)
+        if rechazo is not None or texto is None:
+            raise _rechazar(rechazo)
+        await repo.registrar_evento(
+            caso_id=caso_id, tipo="nota_interna", datos={"texto": texto}, actor_id=actor, ahora=ahora
+        )
+        await repo.auditar(actor_id=actor, accion="caso_nota", caso_id=caso_id, datos={}, ahora=ahora)
         return await _detalle_staff(repo, await _caso_o_404(repo, caso_id))
 
 
