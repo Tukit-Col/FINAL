@@ -175,6 +175,34 @@
   margin: 0;
 }
 
+.rotuloFila {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espacio-2);
+}
+
+.verEnKit {
+  flex: none;
+  min-height: 32px;
+  padding: 0 var(--espacio-2);
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.verEnKit:focus-visible {
+  outline: 3px solid var(--color-primary-light);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
 .tarjeta {
   display: grid;
   gap: var(--espacio-3);
@@ -459,6 +487,7 @@
 }
 
 .mensajes {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow-y: auto;

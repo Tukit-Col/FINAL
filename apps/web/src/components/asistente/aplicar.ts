@@ -46,3 +46,19 @@ export function pendientesDelTurno(
   });
   return salida;
 }
+
+/**
+ * Los renglones del kit que alguna propuesta sin decidir quiere tocar, en el orden en que
+ * aparecen en la conversacion y sin repetir. Es lo que se ilumina en la pagina del kit.
+ */
+export function renglonesPorDecidir(
+  turnos: readonly (readonly Componente[] | null)[],
+  estados: Readonly<Record<string, "pendiente" | "aplicada" | "rechazada">>,
+): string[] {
+  const vistos = new Set<string>();
+  turnos.forEach((componentes, t) => {
+    if (!componentes) return;
+    for (const { componente } of pendientesDelTurno(componentes, t, estados)) vistos.add(componente.props.item_id);
+  });
+  return [...vistos];
+}

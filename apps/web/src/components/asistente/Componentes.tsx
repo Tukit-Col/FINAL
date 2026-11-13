@@ -178,6 +178,20 @@ function Producto({ etiqueta, p }: { etiqueta: string; p: TarjetaProducto }) {
   );
 }
 
+// El nombre del renglon y "Ver en el kit": lleva la pagina a ese renglon (iluminado).
+function RotuloRenglon({ descripcion, onVer }: { descripcion: string; onVer?: (() => void) | undefined }) {
+  return (
+    <div className={estilos.rotuloFila}>
+      <p className={estilos.rotulo}>{descripcion}</p>
+      {onVer && (
+        <button type="button" className={estilos.verEnKit} onClick={onVer}>
+          Ver en el kit
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function PropuestaCambio({
   descripcion,
   antes,
@@ -188,6 +202,7 @@ export function PropuestaCambio({
   ocupado,
   onAceptar,
   onRechazar,
+  onVer,
 }: {
   descripcion: string;
   antes: TarjetaProducto;
@@ -198,10 +213,11 @@ export function PropuestaCambio({
   ocupado: boolean;
   onAceptar: () => void;
   onRechazar: () => void;
+  onVer?: () => void;
 }) {
   return (
     <li className={estilos.tarjeta}>
-      <p className={estilos.rotulo}>{descripcion}</p>
+      <RotuloRenglon descripcion={descripcion} onVer={onVer} />
       <div className={estilos.antesDespues}>
         <Producto etiqueta="Ahora" p={antes} />
         <Producto etiqueta="Propuesta" p={despues} />
@@ -236,6 +252,7 @@ export function PropuestaDescarte({
   ocupado,
   onAceptar,
   onRechazar,
+  onVer,
 }: {
   descripcion: string;
   motivo_texto: string;
@@ -246,10 +263,11 @@ export function PropuestaDescarte({
   ocupado: boolean;
   onAceptar: () => void;
   onRechazar: () => void;
+  onVer?: () => void;
 }) {
   return (
     <li className={estilos.tarjeta}>
-      <p className={estilos.rotulo}>{descripcion}</p>
+      <RotuloRenglon descripcion={descripcion} onVer={onVer} />
       <Producto etiqueta="Podrías quitar" p={producto} />
       <p className={estilos.ayuda}>{motivo_texto}</p>
       <p className={estilos.ahorro}>Ahorrarías {formatearCop(ahorro_cop)}</p>

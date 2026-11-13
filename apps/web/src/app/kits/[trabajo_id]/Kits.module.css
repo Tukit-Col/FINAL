@@ -1687,6 +1687,35 @@
   min-height: 44px;
 }
 
+/* ---- Lo que el asistente esta proponiendo cambiar --------------------------- */
+.linea[data-asistente] {
+  box-shadow:
+    0 0 0 2px var(--color-primary),
+    0 0 0 6px var(--color-primary-light),
+    var(--clay-shadow);
+  transition: box-shadow var(--dur-medio) var(--ease-suave);
+}
+
+.linea[data-asistente-foco] {
+  animation: focoAsistente 1.4s var(--ease-suave) both;
+}
+
+@keyframes focoAsistente {
+  0%,
+  60% {
+    box-shadow:
+      0 0 0 3px var(--color-primary),
+      0 0 0 12px var(--color-primary-light),
+      var(--clay-shadow);
+  }
+  100% {
+    box-shadow:
+      0 0 0 2px var(--color-primary),
+      0 0 0 6px var(--color-primary-light),
+      var(--clay-shadow);
+  }
+}
+
 /* ---- Transición al cambiar de producto ------------------------------------ */
 .productoNuevo {
   animation: productoNuevo var(--dur-lento) var(--ease-suave) both;
@@ -1757,7 +1786,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .productoNuevo {
+  .productoNuevo,
+  .linea[data-asistente-foco] {
     animation: none;
   }
 

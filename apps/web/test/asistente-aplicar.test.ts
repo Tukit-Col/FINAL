@@ -3,7 +3,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { aplicacionDePropuesta, pendientesDelTurno, type PropuestaAplicable } from "../src/components/asistente/aplicar.ts";
+import { aplicacionDePropuesta, pendientesDelTurno, renglonesPorDecidir, type PropuestaAplicable } from "../src/components/asistente/aplicar.ts";
 
 const tarjeta = (sku: string) => ({ sku, nombre: sku, marca: null, nivel: "economico", precio_cop: 1000, imagen_url: null });
 const base = { trabajo_id: "t-1", perfil: "A tu Medida", item_id: "i/2", descripcion: "Colores", aplicable: true };
@@ -49,4 +49,17 @@ test("Aceptar todos solo toma las propuestas aplicables que siguen pendientes", 
   const comps = [{ tipo: "ResumenLote" }, cambio(true), cambio(true), cambio(false), cambio(true)] as never;
   const pend = pendientesDelTurno(comps, 2, { "2-2": "aplicada" });
   assert.deepEqual(pend.map((p) => p.clave), ["2-1", "2-4"]);
+});
+
+test("se iluminan los renglones de las propuestas sin decidir, en orden y sin repetir", () => {
+  const cambio = (item: string) =>
+    ({
+      tipo: "PropuestaCambio",
+      props: { ...base, item_id: item, antes: tarjeta("A"), despues: tarjeta("B"), unidades: 1, delta_cop: -100 },
+    }) as unknown as PropuestaAplicable;
+  const resumen = { tipo: "ResumenLote", props: {} } as never;
+  const turnos = [[resumen, cambio("c1"), cambio("c2")], null, [cambio("c2"), cambio("c3")]];
+  assert.deepEqual(renglonesPorDecidir(turnos, {}), ["c1", "c2", "c3"]);
+  // Ya decididos (aplicada o rechazada) dejan de iluminarse.
+  assert.deepEqual(renglonesPorDecidir(turnos, { "0-1": "aplicada", "2-1": "rechazada" }), ["c2"]);
 });
