@@ -33,6 +33,8 @@ import {
   leerFiltrosTickets,
   paginar,
 } from "@/lib/tickets";
+import Chip, { Chips } from "@/components/ui/Chip";
+import EstadoVacio from "@/components/ui/EstadoVacio";
 import styles from "./Tickets.module.css";
 
 export const dynamic = "force-dynamic";
@@ -170,18 +172,13 @@ export default async function PaginaTickets({ searchParams }: Props) {
     <div className={styles.pagina}>
       <Encabezado />
 
-      <nav className={styles.chips} aria-label="Atajos de la bandeja">
+      <Chips etiqueta="Atajos de la bandeja">
         {chips.map((c) => (
-          <Link
-            key={c.clave}
-            href={c.href}
-            className={`${styles.chip} ${c.activo ? styles.chipActivo : ""} ${c.valor > 0 && c.clave !== "abiertos" ? styles.chipHay : ""}`}
-            aria-current={c.activo ? "true" : undefined}
-          >
+          <Chip key={c.clave} href={c.href} activo={c.activo} hay={c.valor > 0 && c.clave !== "abiertos"}>
             {c.etiqueta} <span className="cifra">{c.valor}</span>
-          </Link>
+          </Chip>
         ))}
-      </nav>
+      </Chips>
 
       {bandeja.casos.length > 0 ? (
         // El `key` remonta el formulario al cambiar los filtros (atras/adelante,
@@ -280,16 +277,13 @@ export default async function PaginaTickets({ searchParams }: Props) {
       ) : null}
 
       {ordenados.length === 0 ? (
-        <div className={styles.vacio}>
-          <p>
-            {bandeja.casos.length === 0
-              ? "No hay casos abiertos. Un caso aparece cuando el flujo falla (pago, stock, lectura de lista) o cuando un acudiente abre una PQRS."
-              : "Ningún ticket cumple esos filtros."}{" "}
-            {bandeja.casos.length > 0 ? (
-              <Link href="/tickets">Ver todos</Link>
-            ) : null}
-          </p>
-        </div>
+        <EstadoVacio titulo={bandeja.casos.length === 0 ? "No hay casos abiertos" : "Ningún ticket cumple esos filtros"}>
+          {bandeja.casos.length === 0 ? (
+            "Un caso aparece cuando el flujo falla (pago, stock, lectura de lista) o cuando un acudiente abre una PQRS."
+          ) : (
+            <Link href="/tickets">Ver todos</Link>
+          )}
+        </EstadoVacio>
       ) : (
         <>
           <ul className={styles.rejilla}>

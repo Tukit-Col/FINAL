@@ -14,6 +14,7 @@ import {
   opcionesClientes,
   paginar,
 } from "@/lib/clientes";
+import EstadoVacio from "@/components/ui/EstadoVacio";
 import styles from "./Clientes.module.css";
 
 export const dynamic = "force-dynamic";
@@ -190,7 +191,9 @@ export default async function PaginaClientes({ searchParams }: Props) {
       ) : null}
 
       {acudientes.length === 0 ? (
-        <p className={styles.vacio}>Todavía no hay familias registradas.</p>
+        <EstadoVacio titulo="Todavía no hay familias registradas">
+          Aparecen aquí cuando un acudiente crea su cuenta en la app.
+        </EstadoVacio>
       ) : pagina.total === 0 ? null : (
         <div className={styles.marco}>
           <table className={styles.tabla}>

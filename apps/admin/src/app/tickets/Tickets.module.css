@@ -18,37 +18,10 @@
 
 /* --------------------------------------------------------- atajos y rejilla */
 
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--espacio-2);
-}
 
-.chip {
-  padding: 6px 14px;
-  border-radius: var(--radius-full);
-  background: var(--color-white);
-  box-shadow: var(--clay-shadow-sm);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  text-decoration: none;
-}
 
-.chipHay {
-  color: var(--color-text-primary);
-  background: var(--color-aviso-bg);
-}
 
-.chipActivo {
-  background: var(--color-primary);
-  color: var(--color-white);
-}
 
-.chip:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
 
 .rejilla {
   display: grid;
