@@ -193,3 +193,37 @@
 .chipPropio:hover {
   transform: translateY(-1px);
 }
+
+/* Marca de "no obligatorio": neutra, sin asterisco ni énfasis de campo requerido. */
+.opcional {
+  margin-left: var(--espacio-2);
+  padding: 2px 9px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-body, inherit);
+  font-size: 11.5px;
+  font-weight: 700;
+  vertical-align: middle;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-2);
+}
+
+.sinPersonaje {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-2);
+  box-shadow: var(--clay-shadow-sm);
+  cursor: pointer;
+}
+
+.sinPersonajeActivo {
+  color: var(--color-primary-dark);
+  background: var(--clay-cielo-bg);
+}
