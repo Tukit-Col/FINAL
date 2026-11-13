@@ -55,6 +55,7 @@ import {
   gradosDeHijos,
   idAnclaCategoria,
   notaSinEncaje,
+  personajeLegible,
   resumenPorHijo,
   textoDeConsolidacion,
   type ApodoMatricula,
@@ -137,6 +138,12 @@ export default function VistaKits({
   const gradosHijos = useMemo(
     () => gradosDeHijos(trabajo.kits.flatMap((k) => k.lineas.map((l) => l.hijo)), trabajo.hijos),
     [trabajo.kits, trabajo.hijos],
+  );
+  // El resumen por hijo del kit que se mira (solo se pinta con 2+ hijos).
+  const resumen = useMemo(
+    () =>
+      kit ? resumenPorHijo(kit, nombresHijos, gradosHijos, trabajo.personajes_por_hijo) : [],
+    [kit, nombresHijos, gradosHijos, trabajo.personajes_por_hijo],
   );
 
   if (!kit) {
@@ -296,12 +303,13 @@ export default function VistaKits({
         </section>
       )}
 
-      {resumenPorHijo(kit, nombresHijos, gradosHijos, trabajo.personajes_por_hijo).length > 1 && (
+      {resumen.length > 1 && (
         <ResumenPorHijo
+          key={kit.perfil}
           kit={kit}
+          resumen={resumen}
           nombresHijos={nombresHijos}
           gradosHijos={gradosHijos}
-          pedidos={trabajo.personajes_por_hijo}
         />
       )}
 
@@ -679,7 +687,7 @@ function FranjaFan({
             <h3 className={styles.filaFanTitulo}>
               {[
                 nombre,
-                personaje && personaje.charAt(0).toUpperCase() + personaje.slice(1),
+                personaje && personajeLegible(personaje),
                 `${productos.length} ${productos.length === 1 ? "producto" : "productos"}`,
               ]
                 .filter(Boolean)
@@ -694,7 +702,7 @@ function FranjaFan({
   );
 }
 
-function TarjetasFan({ lineas }: { lineas: LineaKit[] }) {
+function TarjetasFan({ lineas, veces }: { lineas: LineaKit[]; veces?: Record<string, number> }) {
   if (lineas.length === 0) return null;
   return (
     <ul className={styles.tarjetasFan}>
@@ -702,7 +710,7 @@ function TarjetasFan({ lineas }: { lineas: LineaKit[] }) {
         const producto = linea.producto_elegido!;
         const Icono = ICONO_CATEGORIA[categoriaDeLinea(linea)];
         return (
-          <li key={producto.sku} className={styles.tarjetaFan}>
+          <li key={linea.item_id} className={styles.tarjetaFan}>
             {producto.imagen_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img className={styles.fotoOpcion} src={producto.imagen_url} alt="" loading="lazy" />
@@ -711,7 +719,10 @@ function TarjetasFan({ lineas }: { lineas: LineaKit[] }) {
                 <Icono size={32} strokeWidth={1.8} />
               </span>
             )}
-            <span className={styles.tarjetaFanNombre}>{producto.nombre}</span>
+            <span className={styles.tarjetaFanNombre}>
+              {producto.nombre}
+              {(veces?.[producto.sku] ?? 1) > 1 && ` ×${veces![producto.sku]}`}
+            </span>
             <span className={styles.tarjetaFanConcepto}>{linea.descripcion}</span>
           </li>
         );
@@ -736,16 +747,15 @@ function NotasSinEncaje({ filas }: { filas: FilaSinEncaje[] }) {
 // vista de lectura; los cambios siguen viviendo en la lista por categoría de abajo.
 function ResumenPorHijo({
   kit,
+  resumen,
   nombresHijos,
   gradosHijos,
-  pedidos,
 }: {
   kit: Kit;
+  resumen: ResumenHijo[];
   nombresHijos: Map<string, string>;
   gradosHijos: Map<string, string>;
-  pedidos?: Record<string, string[]>;
 }) {
-  const resumen: ResumenHijo[] = resumenPorHijo(kit, nombresHijos, gradosHijos, pedidos);
   const [colapsados, setColapsados] = useState<Set<string>>(new Set());
   const alternar = (hijo: string) =>
     setColapsados((prev) => {
@@ -783,13 +793,14 @@ function ResumenPorHijo({
       )}
       {resumen.map((r) => {
         const abierto = !colapsados.has(r.hijo);
-        const titulo = [
-          r.nombre,
-          r.grado,
-          r.personaje ? r.personaje.charAt(0).toUpperCase() + r.personaje.slice(1) : null,
-        ]
+        const titulo = [r.nombre, r.grado, r.personaje ? personajeLegible(r.personaje) : null]
           .filter(Boolean)
           .join(" · ");
+        const meta = [
+          r.comparten > 0 ? `${r.comparten} ${r.comparten === 1 ? "compartido" : "compartidos"}` : null,
+          r.falta.length > 0 ? `${r.falta.length} por resolver` : null,
+          r.aparte > 0 ? `${r.aparte} ${r.aparte === 1 ? "se consigue" : "se consiguen"} por fuera` : null,
+        ].filter(Boolean);
         return (
           <article key={r.hijo} className={styles.tarjetaHijo}>
             <button
@@ -808,13 +819,15 @@ function ResumenPorHijo({
                 <ChevronDown size={18} aria-hidden="true" />
               )}
             </button>
-            <p className={styles.cabezaHijoMeta}>
-              {r.comparten} {r.comparten === 1 ? "comparte" : "comparten"} ·{" "}
-              {r.falta.length} {r.falta.length === 1 ? "falta" : "faltan"}
-            </p>
+            {meta.length > 0 && <p className={styles.cabezaHijoMeta}>{meta.join(" · ")}</p>}
             {abierto && (
               <>
-                <TarjetasFan lineas={r.productos} />
+                <TarjetasFan lineas={r.productos} veces={r.veces} />
+                {r.productos.length === 0 && r.falta.length === 0 && (
+                  <p className={styles.cabezaHijoMeta}>
+                    Nada de su lista se compra en Tukit: abajo está qué conseguir y dónde.
+                  </p>
+                )}
                 {r.falta.length > 0 && (
                   <ul className={styles.notasSinEncaje}>
                     {r.falta.map((aviso, i) => (

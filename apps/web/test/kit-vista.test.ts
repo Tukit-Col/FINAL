@@ -357,3 +357,62 @@ test("con un solo hijo devuelve un solo resumen", () => {
   const kit = { lineas: [ln("a"), ln("a", { descripcion: "y" })], consolidaciones: [] };
   assert.equal(resumenPorHijo(kit, MAPA([["a", "Ana"]]), MAPA([]), undefined).length, 1);
 });
+
+
+// --- Arreglos de la revision del panel por hijo ---------------------------------
+
+test("los totales por hijo suman el total del kit, incluso con renglones en revision", () => {
+  const kit = {
+    lineas: [
+      ln("a", { descripcion: "cuaderno", subtotal_linea: 5000 }),
+      // Ambiguo con precio: el backend lo suma al total del kit.
+      ln("a", { descripcion: "regla", estado_resolucion: "AMBIGUO", subtotal_linea: 3000 }),
+      ln("b", { descripcion: "lapiz", subtotal_linea: 2000 }),
+      ln("b", { descripcion: "libro", informativa: true, subtotal_linea: null, producto_elegido: null }),
+      ln("a", { descripcion: "ya lo tengo", descartado: true, subtotal_linea: null }),
+    ],
+    consolidaciones: [],
+  };
+  const r = resumenPorHijo(kit, MAPA([["a", "Ana"], ["b", "Luis"]]), MAPA([]), undefined);
+  assert.equal(r.reduce((n, x) => n + x.total, 0), 10000);
+  assert.ok(r.find((x) => x.hijo === "a")!.falta.some((f) => f.includes("regla")));
+});
+
+test("un mismo producto en varios renglones de un hijo sale una vez con su cantidad", () => {
+  const kit = {
+    lineas: [ln("a", { descripcion: "c1" }), ln("a", { descripcion: "c2" }), ln("a", { descripcion: "c3" }), ln("b")],
+    consolidaciones: [],
+  };
+  const a = resumenPorHijo(kit, MAPA([["a", "Ana"], ["b", "Luis"]]), MAPA([]), undefined)[0];
+  assert.equal(a.productos.length, 1);
+  assert.equal(a.veces["N"], 3);
+});
+
+test("un hijo con solo renglones que van por fuera cuenta cuantos son", () => {
+  const kit = {
+    lineas: [
+      ln("a"),
+      ln("b", { descripcion: "texto", informativa: true, subtotal_linea: null, producto_elegido: null }),
+      ln("b", { descripcion: "uniforme", tipo: "uniforme", subtotal_linea: null, producto_elegido: null }),
+    ],
+    consolidaciones: [],
+  };
+  const b = resumenPorHijo(kit, MAPA([["a", "Ana"], ["b", "Luis"]]), MAPA([]), undefined)[1];
+  assert.equal(b.productos.length, 0);
+  assert.equal(b.aparte, 2);
+});
+
+test("las lineas sin hijo no crean un hijo fantasma", () => {
+  const sinHijo = ln("x", { descripcion: "suelta" });
+  delete (sinHijo as { hijo?: string }).hijo;
+  const dos = resumenPorHijo(
+    { lineas: [sinHijo, ln("a"), ln("b")], consolidaciones: [] },
+    MAPA([["a", "Ana"], ["b", "Luis"]]),
+    MAPA([]),
+    undefined,
+  );
+  assert.deepEqual(dos.map((x) => x.hijo), ["a", "b"]);
+  // Con un solo hijo real, la linea suelta es de el.
+  const uno = resumenPorHijo({ lineas: [sinHijo, ln("a")], consolidaciones: [] }, MAPA([]), MAPA([]), undefined);
+  assert.deepEqual(uno.map((x) => [x.hijo, x.total]), [["a", 2000]]);
+});

@@ -1,7 +1,7 @@
 // Las reglas puras de lo que el renglón del kit le muestra al acudiente,
 // separadas del componente para probarlas sin navegador.
 
-import { entraAlTotal, esAbstencion } from "@tukit/contrato/linea";
+import { clasificar, esInformativaOExterna } from "@tukit/contrato/linea";
 import type { Consolidacion, LineaKit } from "@tukit/contrato";
 
 // Un hijo del trabajo tal como lo devuelve `GET /v1/trabajos/{id}`. La ruta
@@ -162,7 +162,7 @@ const CONCEPTO_LEGIBLE: Record<string, string> = {
 };
 
 /** "Spiderman", "Toy Story": el personaje con mayúscula inicial en cada palabra. */
-function personajeLegible(personaje: string): string {
+export function personajeLegible(personaje: string): string {
   return personaje
     .split(/[\s_]+/)
     .filter(Boolean)
@@ -187,10 +187,15 @@ export interface ResumenHijo {
   grado: string | null;
   personaje: string | null; // primer personaje pedido por ese hijo, o null
   total: number; // suma de subtotal_linea de sus comprables
-  productos: LineaKit[]; // comprables NO consolidadas-en-cero (no duplica lo compartido)
+  productos: LineaKit[]; // comprables NO consolidadas-en-cero, una por sku
+  veces: Record<string, number>; // sku -> en cuantos renglones de este hijo va
   comparten: number; // nº de consolidaciones en que participa
-  falta: string[]; // avisos: personaje_sin_encaje + abstenciones
+  falta: string[]; // avisos: personaje_sin_encaje + huecos, sin leer y en revision
+  aparte: number; // renglones que se consiguen por fuera (libros, uniformes, licencias...)
 }
+
+// Lo que Tukit no pudo resolver: lo mismo que la vista pinta arriba con color de aviso.
+const POR_RESOLVER = new Set(["hueco", "sin_match", "pendiente_revision"]);
 
 export function resumenPorHijo(
   kit: {
@@ -214,8 +219,10 @@ export function resumenPorHijo(
         personaje: (personajesPorHijo?.[hijo] ?? []).find((p) => p.trim()) ?? null,
         total: 0,
         productos: [],
+        veces: {},
         comparten: 0,
         falta: [],
+        aparte: 0,
       };
       porHijo.set(hijo, r);
       orden.push(hijo);
@@ -223,17 +230,32 @@ export function resumenPorHijo(
     return r;
   };
 
+  // Una linea sin `hijo` (trabajos viejos) no es un hijo mas: si el kit tiene un
+  // solo hijo real es suya; con varios no se adivina de quien es y se omite.
+  const reales = [...new Set(kit.lineas.map((l) => l.hijo).filter((h): h is string => Boolean(h)))];
   for (const linea of kit.lineas) {
-    const hijo = linea.hijo ?? "";
+    const hijo = linea.hijo || (reales.length === 1 ? reales[0] : null);
+    if (!hijo) continue;
     const r = indice(hijo);
-    if (entraAlTotal(linea)) {
-      r.total += linea.subtotal_linea ?? 0;
-      // La línea del hermano consolidado va en 0 unidades: suma 0 al total (que
-      // así cuadra con el del kit) pero NO se repite como producto propio; lo
-      // compartido vive en la banda, no dentro de las dos tarjetas.
-      if ((linea.unidades_a_comprar ?? 0) > 0) r.productos.push(linea);
-    } else if (esAbstencion(linea)) {
+    // El total sigue la regla del backend: todo lo no informativo con precio,
+    // asi los totales de los hijos suman exacto el del kit (un renglon en
+    // revision con precio tambien cuenta). Lo descartado ya llega sin subtotal.
+    if (!linea.informativa && !linea.descartado && typeof linea.subtotal_linea === "number") {
+      r.total += linea.subtotal_linea;
+    }
+    const clase = clasificar(linea);
+    if (POR_RESOLVER.has(clase)) {
       r.falta.push(linea.descripcion);
+    } else if (esInformativaOExterna(linea)) {
+      r.aparte += 1;
+    } else if (clase === "comprable" && !linea.descartado && linea.producto_elegido) {
+      // La linea del hermano consolidado va en 0 unidades: su compra vive en la
+      // banda de compartido, no se repite en su tarjeta. Un mismo producto en
+      // varios renglones (un cuaderno por materia) sale una vez con su cantidad.
+      if ((linea.unidades_a_comprar ?? 0) <= 0) continue;
+      const sku = linea.producto_elegido.sku;
+      if (!(sku in r.veces)) r.productos.push(linea);
+      r.veces[sku] = (r.veces[sku] ?? 0) + 1;
     }
   }
 
