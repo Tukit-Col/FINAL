@@ -24,11 +24,14 @@ export default function Dona({
   segmentos,
   centro,
   pie,
+  compacta = false,
 }: {
   segmentos: readonly SegmentoDona[];
   /** Texto bajo la cifra central. */
   centro: string;
   pie?: ReactNode;
+  /** Anillo chico (resumen dentro de una tarjeta, no el grafico principal). */
+  compacta?: boolean;
 }) {
   const total = segmentos.reduce((t, s) => t + Math.max(0, s.valor), 0);
   const visibles = segmentos.filter((s) => s.valor > 0);
@@ -40,7 +43,7 @@ export default function Dona({
   }));
 
   return (
-    <div className={styles.dona}>
+    <div className={`${styles.dona} ${compacta ? styles.compacta : ""}`}>
       <div className={styles.anillo}>
         <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
           <circle cx="60" cy="60" r={R} className={styles.pista} />
