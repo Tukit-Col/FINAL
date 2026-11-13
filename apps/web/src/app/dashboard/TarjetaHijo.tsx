@@ -22,6 +22,9 @@ interface Props {
   grado: string;
   colegios: { colegio_id: string; nombre: string }[];
   grados: readonly string[];
+  /** Estado de la solicitud mas avanzada de este colegio y grado, si hay. */
+  estado?: { texto: string } | null;
+  claseEstado?: string;
 }
 
 export default function TarjetaHijo({
@@ -32,6 +35,8 @@ export default function TarjetaHijo({
   grado,
   colegios,
   grados,
+  estado = null,
+  claseEstado = "",
 }: Props) {
   const router = useRouter();
   const [modo, setModo] = useState<"ver" | "editar" | "quitar">("ver");
@@ -58,7 +63,18 @@ export default function TarjetaHijo({
 
   return (
     <li className={styles.hijoCard}>
-      <span className={styles.hijoApodo}>{titulo}</span>
+      <div className={styles.hijoCabecera}>
+        <span className={styles.hijoAvatar} aria-hidden="true">
+          {titulo.trim().charAt(0).toUpperCase()}
+        </span>
+        <span className={styles.hijoApodo}>{titulo}</span>
+        {estado && modo === "ver" && (
+          <span className={`${styles.badge} ${claseEstado} ${styles.hijoChip}`}>
+            <span className={styles.badgeDot} />
+            {estado.texto}
+          </span>
+        )}
+      </div>
 
       {modo === "editar" ? (
         <form
@@ -112,8 +128,8 @@ export default function TarjetaHijo({
         </form>
       ) : (
         <>
-          <span className={styles.hijoMeta}>{colegioNombre}</span>
-          <span className={styles.hijoMeta}>{grado}</span>
+          <span className={styles.hijoColegio}>{colegioNombre}</span>
+          <span className={styles.hijoGrado}>{grado}</span>
         </>
       )}
 

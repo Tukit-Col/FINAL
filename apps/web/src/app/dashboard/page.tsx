@@ -13,7 +13,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Fragment } from "react";
-import { Clock, LifeBuoy } from "lucide-react";
+import Image from "next/image";
+import { Clock, LifeBuoy, ArrowRight } from "lucide-react";
 import {
   ETIQUETA_ESTADO_PEDIDO,
   GRADOS_CANONICOS,
@@ -27,6 +28,7 @@ import {
 } from "@tukit/contrato";
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import Sidebar from "@/components/Sidebar";
+import Revelar from "@/components/Revelar";
 import { conAvisoDeLimite } from "@/components/ConAvisoDeLimite";
 import { esLimiteDeTasa } from "@/lib/limite";
 import {
@@ -76,6 +78,81 @@ const PALABRAS_ESTADO: Record<EstadoTrabajo, string> = {
   fallido: "Hubo un problema, lo estamos revisando",
   cancelado: "Cancelaste esta solicitud",
 };
+
+// El estado de una solicitud como chip de color, en palabras del acudiente:
+// "Listo", "En revisión", "Armando". Un pedido ya armado con ese kit manda
+// sobre el estado del trabajo ("Comprado" / "Pago pendiente").
+type TonoChip = TonoEstado | "info" | "neutro";
+interface ChipEstado {
+  texto: string;
+  tono: TonoChip;
+}
+
+const CLASE_CHIP: Record<TonoChip, string> = {
+  exito: styles.badgeExito,
+  aviso: styles.badgeAviso,
+  peligro: styles.badgePeligro,
+  info: styles.badgeInfo,
+  neutro: styles.badgeNeutro,
+};
+
+function chipDeSolicitud(
+  solicitud: Solicitud,
+  compra: { estado: "comprado" | "pendiente_pago" | string } | null,
+): ChipEstado {
+  if (compra) {
+    return compra.estado === "comprado"
+      ? { texto: "Comprado", tono: "exito" }
+      : { texto: "Pago pendiente", tono: "aviso" };
+  }
+  if (solicitud.tipo === "recibida") return { texto: "En revisión", tono: "aviso" };
+  if (solicitud.tipo === "aprobada") return { texto: "Listo", tono: "exito" };
+  switch (solicitud.estado) {
+    case "publicado":
+      return { texto: "Listo", tono: "exito" };
+    case "encolado":
+    case "procesando":
+      return { texto: "Armando", tono: "info" };
+    case "cancelado":
+      return { texto: "Cancelada", tono: "neutro" };
+    default:
+      return { texto: "En revisión", tono: "aviso" };
+  }
+}
+
+// De varias solicitudes del mismo colegio y grado, la del hijo muestra la mas
+// avanzada: un kit listo gana a uno que se esta armando, y este a uno en revision.
+const RANGO_CHIP: Record<string, number> = { Listo: 4, Comprado: 4, Armando: 3, "Pago pendiente": 2, "En revisión": 1 };
+
+// Una imagen de la marca con un titulo, un texto y un CTA: el estado vacio de
+// una seccion. La imagen es decorativa (el titulo ya dice de que trata).
+function EstadoVacio(props: {
+  imagen: string;
+  titulo: string;
+  texto: string;
+  cta?: { href: string; texto: string };
+}) {
+  return (
+    <div className={styles.vacio}>
+      <Image
+        src={props.imagen}
+        alt=""
+        width={160}
+        height={141}
+        className={styles.vacioImagen}
+      />
+      <div className={styles.vacioTexto}>
+        <p className={styles.vacioTitulo}>{props.titulo}</p>
+        <p>{props.texto}</p>
+        {props.cta && (
+          <Link href={props.cta.href} className={styles.btnPrimario}>
+            {props.cta.texto} <ArrowRight size={15} aria-hidden="true" />
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // La clase de la etiqueta de estado segun su tono (verde, amarillo, rojo).
 const CLASE_TONO: Record<TonoEstado, string> = {
@@ -180,6 +257,26 @@ async function panel() {
   // sesion.nombre puede venir vacio; caemos al correo para no mostrar un hueco.
   const nombreCuenta = sesion.nombre.trim() || sesion.correo;
 
+  // Resumen del encabezado, todo calculado de lo ya leido (nada se inventa).
+  const chipsDeSolicitudes = solicitudes.map((s) => {
+    const trabajoId = s.tipo === "recibida" ? null : s.trabajo_id;
+    const compra = trabajoId
+      ? compraDeSolicitud(trabajoId, pedidos.map((f) => f.pedido), ahora)
+      : null;
+    return chipDeSolicitud(s, compra);
+  });
+  const kitsListos = chipsDeSolicitudes.filter((c) => c.tono === "exito").length;
+  // Estado por hijo: la solicitud mas avanzada del mismo colegio y grado.
+  const estadoPorHijo = new Map<string, ChipEstado>();
+  solicitudes.forEach((s, i) => {
+    const chip = chipsDeSolicitudes[i];
+    const clave = `${s.colegio_id}|${s.grado}`;
+    const previo = estadoPorHijo.get(clave);
+    if ((RANGO_CHIP[chip.texto] ?? 0) > (previo ? (RANGO_CHIP[previo.texto] ?? 0) : 0)) {
+      estadoPorHijo.set(clave, chip);
+    }
+  });
+
   return (
     <div className={styles.shell}>
       <div className={styles.body}>
@@ -187,14 +284,28 @@ async function panel() {
           <Sidebar nombreCuenta={nombreCuenta} />
 
           {/* ======== Columna de contenido ======== */}
-          <div className={styles.content}>
-            {/* Encabezado */}
-            <div className={styles.pageHeader}>
+          <Revelar modo="cascada" cadaUno={0.06} className={styles.content}>
+            {/* Encabezado: saludo + resumen */}
+            <header className={styles.pageHeader}>
               <div className={styles.pageHeader__titles}>
                 <h1>{saludoDeCuenta(sesion.nombre)}</h1>
                 <p>Tus hijos y tus kits, en un solo lugar.</p>
               </div>
-            </div>
+              <dl className={styles.resumen} aria-label="Resumen de tu cuenta">
+                <a href="#hijos" className={styles.resumenItem}>
+                  <dd>{errorHijos ? "–" : hijos.length}</dd>
+                  <dt>{hijos.length === 1 ? "hijo" : "hijos"}</dt>
+                </a>
+                <a href="#solicitudes" className={styles.resumenItem}>
+                  <dd>{errorSolicitudes ? "–" : kitsListos}</dd>
+                  <dt>{kitsListos === 1 ? "kit listo" : "kits listos"}</dt>
+                </a>
+                <a href="#pedidos" className={styles.resumenItem}>
+                  <dd>{pedidos.length}</dd>
+                  <dt>{pedidos.length === 1 ? "pedido" : "pedidos"}</dt>
+                </a>
+              </dl>
+            </header>
 
             {/* ---- Perfiles de hijos ---- */}
             <section id="hijos" className={styles.card}>
@@ -207,10 +318,12 @@ async function panel() {
                   Vuelve a intentarlo en unos minutos.
                 </p>
               ) : hijos.length === 0 ? (
-                <p className={styles.sinHijos}>
-                  Todavía no has registrado a tus hijos.{" "}
-                  <Link href="/empezar">Arma tu primer kit</Link> para agregarlos.
-                </p>
+                <EstadoVacio
+                  imagen="/marca/caja-abierta.webp"
+                  titulo="Aún no hay hijos en tu cuenta"
+                  texto="Cuando armes tu primer kit, su colegio y su grado quedan guardados aquí."
+                  cta={{ href: "/empezar", texto: "Armar mi primer kit" }}
+                />
               ) : (
                 <ul className={styles.hijos}>
                   {hijos.map((hijo, i) => {
@@ -228,6 +341,12 @@ async function panel() {
                         grado={hijo.grado}
                         colegios={colegios}
                         grados={GRADOS_CANONICOS}
+                        estado={estadoPorHijo.get(`${hijo.colegio_id}|${hijo.grado}`) ?? null}
+                        claseEstado={
+                          CLASE_CHIP[
+                            estadoPorHijo.get(`${hijo.colegio_id}|${hijo.grado}`)?.tono ?? "neutro"
+                          ]
+                        }
                       />
                     );
                   })}
@@ -247,10 +366,12 @@ async function panel() {
                   intentarlo en unos minutos.
                 </p>
               ) : solicitudes.length === 0 && listasDisponibles ? (
-                <p className={styles.sinPedidos}>
-                  Todavía no has enviado ninguna lista. Cuando subas una,
-                  aparecerá aquí mientras la revisamos.
-                </p>
+                <EstadoVacio
+                  imagen="/marca/caja-llegada.webp"
+                  titulo="Todavía no has enviado ninguna lista"
+                  texto="Cuando subas una, aparecerá aquí mientras la revisamos y armamos tu kit."
+                  cta={{ href: "/empezar", texto: "Armar mi primer kit" }}
+                />
               ) : (
                 <>
                   {/* Catalogo caido: mostramos los trabajos que inteligencia SI
@@ -284,21 +405,18 @@ async function panel() {
                             ahora,
                           )
                         : null;
+                      const chip = chipsDeSolicitudes[i];
                       return (
                         <li key={clave} className={styles.solicitudCard}>
                           <div className={styles.solicitudMeta}>
-                            <span className={styles.solicitudColegio}>{colegio}</span>
-                            <span className={styles.solicitudGrado}>{solicitud.grado}</span>
-                            {compra && (
-                              <span
-                                className={`${styles.badge} ${
-                                  compra.estado === "comprado" ? styles.badgeExito : styles.badgeAviso
-                                } ${styles.solicitudChip}`}
-                              >
-                                <span className={styles.badgeDot} />
-                                {compra.estado === "comprado" ? "Comprado" : "Pago pendiente"}
-                              </span>
-                            )}
+                            <div className={styles.solicitudTitulos}>
+                              <span className={styles.solicitudColegio}>{colegio}</span>
+                              <span className={styles.solicitudGrado}>Kit de {solicitud.grado}</span>
+                            </div>
+                            <span className={`${styles.badge} ${CLASE_CHIP[chip.tono]}`}>
+                              <span className={styles.badgeDot} />
+                              {chip.texto}
+                            </span>
                           </div>
                           {compra ? (
                             <>
@@ -388,9 +506,12 @@ async function panel() {
               </div>
 
               {pedidos.length === 0 ? (
-                <p className={styles.sinPedidos}>
-                  Todavía no tienes pedidos. Cuando armes tu primer kit, aparecerá aquí.
-                </p>
+                <EstadoVacio
+                  imagen="/marca/caja-llegada.webp"
+                  titulo="Aún no tienes pedidos"
+                  texto="Cuando compres un kit, aquí sigues cada paso hasta la puerta de tu casa."
+                  cta={{ href: "/empezar", texto: "Armar mi primer kit" }}
+                />
               ) : (
                 <table className={styles.table}>
                   <thead>
@@ -504,7 +625,7 @@ async function panel() {
                 <Link href="/privacidad">Ir a privacidad y mis datos</Link>
               </p>
             </section>
-          </div>
+          </Revelar>
         </div>
       </div>
     </div>

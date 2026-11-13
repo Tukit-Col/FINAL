@@ -13,7 +13,8 @@
   padding: var(--espacio-4) 0;
   align-self: flex-start;
   position: sticky;
-  top: var(--espacio-4);
+  /* Debajo de la cabecera fija del sitio (≈64 px), con aire. */
+  top: 88px;
 }
 
 /* ---- Account info ---- */
@@ -51,6 +52,7 @@
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
+  min-height: 44px;
   border-radius: var(--radius-md);
   font-size: 13.5px;
   font-weight: 600;
@@ -75,8 +77,15 @@
 /* La seccion del panel que esta a la vista. */
 .sidebar__item--activo {
   background: var(--clay-cielo-bg);
-  color: var(--color-text-primary);
+  color: var(--color-primary);
   font-weight: 800;
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+.sidebar__item:focus-visible,
+.sidebar__cta:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 /* CTA a ruta real (/empezar) — boton clay inflado dentro del nav. */
@@ -85,6 +94,7 @@
   align-items: center;
   gap: 10px;
   padding: 11px 12px;
+  min-height: 44px;
   border-radius: var(--radius-md);
   font-size: 13.5px;
   font-weight: 800;
@@ -124,10 +134,51 @@
   display: none;
 }
 
+/* En pantallas angostas la navegacion pasa a pestañas horizontales que se
+   quedan pegadas bajo la cabecera y se desplazan de lado si no caben. */
 @media (max-width: 780px) {
   .sidebar {
     width: 100%;
-    position: static;
+    top: 60px;
+    z-index: 10;
+    padding: var(--espacio-2) 0;
+    border-radius: var(--radius-lg);
+  }
+
+  .sidebar__account {
+    display: none;
+  }
+
+  .sidebar__nav {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--espacio-1);
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 0 var(--espacio-2);
+  }
+
+  .sidebar__nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sidebar__item,
+  .sidebar__cta {
+    width: auto;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .sidebar__item:hover {
+    transform: none;
+  }
+
+  .sidebar__item--activo {
+    box-shadow: inset 0 -3px 0 var(--color-primary);
+  }
+
+  .sidebar__separator {
+    display: none;
   }
 }
 
