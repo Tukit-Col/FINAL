@@ -6,7 +6,7 @@ Productos auditados (activos): 1044. Con algun hallazgo: 1044.
 |---|---|
 | sku_interno | 0 |
 | nombre | 0 |
-| marca | 5 |
+| marca | 0 |
 | nivel | 0 |
 | unidad_base | 0 |
 | unidades_por_empaque | 0 |
