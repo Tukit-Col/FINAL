@@ -345,10 +345,10 @@ export default async function DetallePedido({ params }: Props) {
               </tr>
             </thead>
             <tbody>
-              {lineas.map((l) => {
+              {lineas.map((l, i) => {
                 const extra = productos.get(l.sku);
                 return (
-                  <tr key={l.sku}>
+                  <tr key={`${i}-${l.sku}`}>
                     <td>
                       <div className={styles.producto}>
                         {extra?.imagen ? (
