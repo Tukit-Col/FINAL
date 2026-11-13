@@ -1777,3 +1777,63 @@
   background: var(--clay-crema-suave);
   color: var(--color-text-secondary);
 }
+
+/* Tarjeta de confirmación de la dirección elegida (OpenStreetMap). */
+.anclaListaDireccion[hidden] {
+  display: none;
+}
+
+.tarjetaDireccion {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--espacio-3);
+  align-items: start;
+  padding: var(--espacio-3) var(--espacio-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-info-bg);
+}
+
+.tarjetaDireccionIcono {
+  margin-top: 2px;
+  color: var(--color-primary);
+}
+
+.tarjetaDireccionTexto {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tarjetaDireccionLinea {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.tarjetaDireccionZona {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.tarjetaDireccionAviso {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.botonEditarDireccion {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-1);
+  min-height: 44px;
+  padding: 0 var(--espacio-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-white);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}

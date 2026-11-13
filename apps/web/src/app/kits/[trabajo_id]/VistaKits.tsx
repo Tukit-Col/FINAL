@@ -517,11 +517,11 @@ function Checkout({
             />
           )}
           <label>
-            Apartamento, torre, interior o indicaciones (opcional)
+            Apto, torre, conjunto, referencias (opcional)
             <input
               value={datos.indicaciones}
               onChange={cambiar("indicaciones")}
-              maxLength={512}
+              maxLength={120}
               autoComplete="address-line2"
             />
           </label>

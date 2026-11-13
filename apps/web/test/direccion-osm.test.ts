@@ -12,7 +12,10 @@ import {
   agenteUsuario,
   BuscadorOsm,
   ErrorBusqueda,
+  formatearDireccion,
+  formatearPlaca,
   leerCandidatos,
+  parsearNomenclatura,
   normalizarConsulta,
 } from "../src/lib/direccion-osm.ts";
 
@@ -68,7 +71,7 @@ test("el User-Agent identifica la app y trae el contacto", () => {
 test("lee la dirección, el punto y la localidad, y descarta lo de fuera de Colombia", () => {
   const [unico, ...resto] = leerCandidatos([CHAPINERO, MADRID, "basura", null, { lat: "x", lon: "y" }]);
   assert.equal(resto.length, 0);
-  assert.equal(unico?.direccion, "Calle 72 # 10-34");
+  assert.equal(unico?.direccion, "Calle 72 #10-34");
   assert.equal(unico?.latitud, 4.6518184);
   assert.equal(unico?.longitud, -74.0510026);
   // El barrio "UPZs de Bogotá" es ruido de OSM: no se muestra.
@@ -208,7 +211,7 @@ test("con número de casa la dirección es distinta y va primero", async () => {
   const { leerCandidatos } = await import("../src/lib/direccion-osm.ts");
   const salida = leerCandidatos([via(1, "4.671", "-74.121"), via(2, "4.672", "-74.122", { house_number: "19A-29" })]);
   assert.equal(salida.length, 2);
-  assert.equal(salida[0]!.direccion, "Carrera 91 # 19A-29");
+  assert.equal(salida[0]!.direccion, "Carrera 91 #19A-29");
 });
 
 test("con soloBogota se piden límites duros y se descarta lo de fuera de la caja", async () => {
@@ -218,4 +221,56 @@ test("con soloBogota se piden límites duros y se descarta lo de fuera de la caj
   const medellin = { ...via(9, "6.2442", "-75.5812"), address: { road: "Carrera 91", city: "Medellín" } };
   assert.equal(leerCandidatos([medellin], { soloBogota: true }).length, 0);
   assert.equal(leerCandidatos([medellin]).length, 1);
+});
+
+test("parsearNomenclatura entiende las formas en que se escribe una dirección", () => {
+  const esperado = { via: "Carrera", numeroVia: "91", cruce: "19A", placa: "29" };
+  for (const t of ["carrera 91 #19 A 29", "cra 91 19a-29", "Kr 91 # 19A - 29", "KR. 91 No. 19 a 29", "carrera 91 19A29x"]) {
+    if (t.endsWith("x")) assert.equal(parsearNomenclatura(t), null);
+    else assert.deepEqual(parsearNomenclatura(t), esperado, t);
+  }
+  assert.deepEqual(parsearNomenclatura("cl 72 10-34"), { via: "Calle", numeroVia: "72", cruce: "10", placa: "34" });
+  assert.equal(parsearNomenclatura("dg 15 sur 3 40")?.via, "Diagonal");
+  assert.equal(parsearNomenclatura("tv 60 112-10")?.via, "Transversal");
+  assert.equal(parsearNomenclatura("av carrera 68 80-12")?.via, "Avenida Carrera");
+  assert.equal(parsearNomenclatura("av 68 80-12")?.via, "Avenida");
+  assert.deepEqual(parsearNomenclatura("carrera 91"), { via: "Carrera", numeroVia: "91", cruce: "", placa: "" });
+  assert.equal(parsearNomenclatura("colegio san jose"), null);
+});
+
+test("formatearPlaca y formatearDireccion arman la línea colombiana", () => {
+  assert.equal(formatearPlaca("19 A 29"), "#19A-29");
+  assert.equal(formatearPlaca("29"), "#29");
+  const zona = ["Villa Luz", "Localidad Engativá", "Bogotá"];
+  // OSM trae el número: manda el de OSM.
+  const osm = formatearDireccion({ calle: "Carrera 91", numeroOsm: "19A-29", consulta: "cra 91 20-30", zona });
+  assert.equal(osm.completa, "Carrera 91 #19A-29, Villa Luz, Localidad Engativá, Bogotá");
+  assert.equal(osm.confirmarNumero, false);
+  // OSM solo resolvió la calle: se conserva el número del padre y se marca.
+  const padre = formatearDireccion({ calle: "Carrera 91", consulta: "cra 91 19a-29", zona });
+  assert.equal(padre.direccion, "Carrera 91 #19A-29");
+  assert.deepEqual([padre.confirmarNumero, padre.numeroDelPadre], [true, true]);
+  // Otra vía: el número del padre no se pega a una calle distinta.
+  const otra = formatearDireccion({ calle: "Carrera 910", consulta: "cra 91 19a-29", zona });
+  assert.equal(otra.direccion, "Carrera 910");
+  assert.deepEqual([otra.confirmarNumero, otra.numeroDelPadre], [true, false]);
+});
+
+test("leerCandidatos conserva el número del padre, muestra la línea completa y deduplica", () => {
+  const calle = {
+    osm_type: "way",
+    lat: "4.70",
+    lon: "-74.10",
+    category: "highway",
+    name: "Carrera 91",
+    address: { road: "Carrera 91", neighbourhood: "Villa Luz", city_district: "Localidad Engativá", city: "Bogotá", postcode: "111041" },
+  };
+  const tramos = [{ ...calle, osm_id: 1 }, { ...calle, osm_id: 2, lat: "4.71" }];
+  const salida = leerCandidatos(tramos, { consulta: "carrera 91 #19 A 29" });
+  assert.equal(salida.length, 1);
+  assert.equal(salida[0]!.completa, "Carrera 91 #19A-29, Villa Luz, Localidad Engativá, Bogotá, 111041");
+  assert.equal(salida[0]!.principal, salida[0]!.completa);
+  assert.equal(salida[0]!.confirmarNumero, true);
+  assert.equal(salida[0]!.numeroDelPadre, true);
+  assert.equal(leerCandidatos(tramos)[0]!.completa.startsWith("Carrera 91, Villa Luz"), true);
 });
