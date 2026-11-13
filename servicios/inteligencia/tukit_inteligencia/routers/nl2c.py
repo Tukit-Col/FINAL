@@ -91,6 +91,15 @@ class PeticionDecision(BaseModel):
     tipo: Literal["restricciones", "cambio", "descarte"]
 
 
+@router.get("/v1/nl2c/estado", summary="Si el asistente esta encendido en este entorno")
+async def estado() -> dict[str, Any]:
+    """Para que la web distinga "apagado" de "caido" sin gastar una llamada al modelo.
+    No revela claves: solo si la bandera esta en 1 y si hay clave del modelo (si/no)."""
+    import os
+
+    return {"activo": nl2c.activo(), "modelo_configurado": bool(os.environ.get("GEMINI_API_KEY", "").strip())}
+
+
 @router.post("/v1/nl2c/interpretar", summary="Lenguaje libre a restricciones (propuesta)")
 async def interpretar(
     cuerpo: PeticionInterpretar, authorization: Annotated[str | None, Header()] = None
