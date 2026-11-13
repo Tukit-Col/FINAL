@@ -198,6 +198,8 @@ test("hrefConAlerta conserva los otros filtros", async () => {
 import {
   accionDeTarjeta,
   agruparPorEtapa,
+  COLEGIO_NINGUNO,
+  hrefColegioEnTabla,
   articulosDePedido,
   CARRIL_APARTE,
   COLUMNAS_FLUJO,
@@ -276,4 +278,27 @@ test("articulosDePedido suma cantidades", () => {
     articulosDePedido({ lineas: [{ cantidad: 2 }, { cantidad: 3 }] as Pedido["lineas"] }),
     5,
   );
+});
+
+test("agruparPorEtapa: las etapas abiertas tambien se recortan, con alertas primero", () => {
+  const pedidos = Array.from({ length: 30 }, (_, i) =>
+    pedido({
+      pedido_id: `p-${i}`,
+      creado_en: `2026-10-${String(1 + (i % 28)).padStart(2, "0")}T15:00:00Z`,
+      alertas: i === 29 ? ["pagado_sin_avanzar"] : undefined,
+    }),
+  );
+  const [pagado] = agruparPorEtapa(pedidos, ["pagado"]);
+  assert.equal(pagado!.total, 30);
+  assert.equal(pagado!.pedidos.length, 8);
+  assert.equal(pagado!.ocultos, 22);
+  assert.equal(pagado!.pedidos[0]!.pedido_id, "p-29");
+});
+
+test("colegio 'sin-colegio' filtra pedidos sin colegio y hrefColegioEnTabla lleva a la tabla", () => {
+  const f = leerFiltros({ colegio: COLEGIO_NINGUNO });
+  const r = filtrarPedidos([pedido({ pedido_id: "a", colegios: [] }), pedido({ pedido_id: "b", colegios: ["c1"] })], f);
+  assert.deepEqual(r.map((p) => p.pedido_id), ["a"]);
+  assert.equal(hrefColegioEnTabla(null), "/logistica?vista=tabla&colegio=sin-colegio");
+  assert.equal(hrefColegioEnTabla("c1"), "/logistica?vista=tabla&colegio=c1");
 });

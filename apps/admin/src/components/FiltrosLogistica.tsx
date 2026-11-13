@@ -9,7 +9,7 @@ import Form from "next/form";
 import Link from "next/link";
 import type { EstadoPedido } from "@tukit/contrato";
 import { ESTADOS_PEDIDO, ETIQUETA_ESTADO_PEDIDO } from "@tukit/contrato";
-import { hrefConVista, leerFiltros, VISTA_POR_DEFECTO, type FiltrosLogistica as Filtros } from "@/lib/logistica";
+import { COLEGIO_NINGUNO, hrefConVista, leerFiltros, VISTA_POR_DEFECTO, type FiltrosLogistica as Filtros } from "@/lib/logistica";
 import styles from "./FiltrosLogistica.module.css";
 
 interface Props {
@@ -49,6 +49,7 @@ export default function FiltrosLogistica({ filtros, colegios }: Props) {
         <label htmlFor="filtro-colegio">Colegio</label>
         <select id="filtro-colegio" name="colegio" defaultValue={filtros.colegio}>
           <option value="">Todos</option>
+          <option value={COLEGIO_NINGUNO}>Sin colegio</option>
           {colegios.map((colegio) => (
             <option key={colegio.id} value={colegio.id}>
               {colegio.nombre}

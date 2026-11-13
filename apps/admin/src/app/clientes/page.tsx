@@ -1,8 +1,19 @@
 import { cookies } from "next/headers";
+import Form from "next/form";
+import Link from "next/link";
 import { origenDeDatos, ErrorTukit, type AcudienteAdmin } from "@tukit/contrato/servidor";
 import { COOKIE_SESION } from "@/lib/sesion";
 import { formatearFecha } from "@/lib/formato";
 import { rotuloDeHijo } from "@/lib/pedido-admin";
+import {
+  esCuentaDePrueba,
+  filtrarClientes,
+  hayFiltrosClientes,
+  hrefClientes,
+  leerFiltrosClientes,
+  opcionesClientes,
+  paginar,
+} from "@/lib/clientes";
 import styles from "./Clientes.module.css";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +43,11 @@ function textoHijo(hijo: AcudienteAdmin["hijos"][number], indice: number): strin
   return `${rotuloDeHijo(hijo, indice)} · ${hijo.colegio_nombre}`;
 }
 
-export default async function PaginaClientes() {
+interface Props {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export default async function PaginaClientes({ searchParams }: Props) {
   const token = (await cookies()).get(COOKIE_SESION)?.value;
   if (!token) {
     return (
@@ -76,6 +91,12 @@ export default async function PaginaClientes() {
     );
   }
 
+  const filtros = leerFiltrosClientes(await searchParams);
+  const filtrados = filtrarClientes(acudientes, filtros);
+  const pagina = paginar(filtrados, filtros.pagina);
+  const opciones = opcionesClientes(acudientes);
+  const pruebas = acudientes.filter(esCuentaDePrueba).length;
+
   return (
     <div className={styles.pagina}>
       <header className={styles.encabezado}>
@@ -94,9 +115,83 @@ export default async function PaginaClientes() {
         </dl>
       </header>
 
+      {acudientes.length > 0 ? (
+        // El `key` remonta el formulario cuando cambia la URL (Limpiar, atras).
+        <Form
+          key={hrefClientes({ ...filtros, pagina: 1 })}
+          action="/clientes"
+          className={styles.filtros}
+          aria-label="Filtrar familias"
+        >
+          <div className={`${styles.campo} ${styles.busqueda}`}>
+            <label htmlFor="cli-q">Correo</label>
+            <input id="cli-q" name="q" type="search" defaultValue={filtros.q} placeholder="nombre@correo.com" autoComplete="off" />
+          </div>
+          <div className={styles.campo}>
+            <label htmlFor="cli-colegio">Colegio</label>
+            <select id="cli-colegio" name="colegio" defaultValue={filtros.colegio}>
+              <option value="">Todos</option>
+              {opciones.colegios.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.campo}>
+            <label htmlFor="cli-grado">Grado</label>
+            <select id="cli-grado" name="grado" defaultValue={filtros.grado}>
+              <option value="">Todos</option>
+              {opciones.grados.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.campo}>
+            <label htmlFor="cli-hijos">Hijos</label>
+            <select id="cli-hijos" name="hijos" defaultValue={filtros.hijos}>
+              <option value="">Cualquiera</option>
+              <option value="0">Sin hijos</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3+">3 o más</option>
+            </select>
+          </div>
+          <div className={styles.campo}>
+            <label htmlFor="cli-orden">Registro</label>
+            <select id="cli-orden" name="orden" defaultValue={filtros.orden}>
+              <option value="nuevo">Más recientes primero</option>
+              <option value="antiguo">Más antiguos primero</option>
+            </select>
+          </div>
+          <label className={styles.casilla}>
+            <input type="checkbox" name="sinprueba" value="1" defaultChecked={filtros.sinPrueba} />
+            Ocultar cuentas de prueba{pruebas > 0 ? ` (${pruebas})` : ""}
+          </label>
+          <div className={styles.botonera}>
+            <button type="submit" className={styles.filtrar}>
+              Filtrar
+            </button>
+            <Link href="/clientes" className={styles.limpiar}>
+              Limpiar
+            </Link>
+          </div>
+        </Form>
+      ) : null}
+
+      {acudientes.length > 0 ? (
+        <p className={styles.conteo} aria-live="polite">
+          {pagina.total === 0
+            ? "Ninguna familia cumple esos filtros."
+            : `Mostrando ${pagina.desde}–${pagina.hasta} de ${pagina.total} ${pagina.total === 1 ? "familia" : "familias"}${hayFiltrosClientes(filtros) ? ` (de ${acudientes.length})` : ""}.`}
+        </p>
+      ) : null}
+
       {acudientes.length === 0 ? (
         <p className={styles.vacio}>Todavía no hay familias registradas.</p>
-      ) : (
+      ) : pagina.total === 0 ? null : (
         <div className={styles.marco}>
           <table className={styles.tabla}>
             <caption className={styles.oculto}>Padrón de familias registradas y sus hijos.</caption>
@@ -112,7 +207,7 @@ export default async function PaginaClientes() {
               </tr>
             </thead>
             <tbody>
-              {acudientes.map((acudiente) => (
+              {pagina.items.map((acudiente) => (
                 <tr key={acudiente.usuario_id}>
                   <th scope="row" className={styles.correo}>
                     {acudiente.correo}
@@ -139,6 +234,28 @@ export default async function PaginaClientes() {
           </table>
         </div>
       )}
+
+      {pagina.paginas > 1 ? (
+        <nav className={styles.paginacion} aria-label="Páginas del padrón">
+          {pagina.pagina > 1 ? (
+            <Link href={hrefClientes(filtros, { pagina: pagina.pagina - 1 })} rel="prev">
+              ← Anterior
+            </Link>
+          ) : (
+            <span className={styles.tenue}>← Anterior</span>
+          )}
+          <span className="cifra">
+            Página {pagina.pagina} de {pagina.paginas}
+          </span>
+          {pagina.pagina < pagina.paginas ? (
+            <Link href={hrefClientes(filtros, { pagina: pagina.pagina + 1 })} rel="next">
+              Siguiente →
+            </Link>
+          ) : (
+            <span className={styles.tenue}>Siguiente →</span>
+          )}
+        </nav>
+      ) : null}
     </div>
   );
 }

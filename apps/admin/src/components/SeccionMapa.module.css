@@ -70,3 +70,9 @@
 .direccion {
   color: var(--color-text-secondary);
 }
+
+.verMas {
+  margin-top: var(--espacio-3);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
