@@ -11,8 +11,10 @@ import {
   gradosDeHijos,
   notaSinEncaje,
   pistaDeTienda,
+  resumenPorHijo,
   textoDeConsolidacion,
 } from "../src/lib/kit-vista.ts";
+import type { LineaKit } from "@tukit/contrato";
 
 const COLEGIO = "4c06f0e5-cb44-5865-93e5-ea7b2f115d49";
 const OTRO = "2030c794-3ff4-5b1a-a2ec-5c5d383de3f1";
@@ -244,4 +246,87 @@ test("el grado de cada hijo sale de su referencia; la ruta rapida usa el unico h
   assert.deepEqual([...dos], [["hijo-1", "Séptimo"], ["hijo-2", "Jardín"]]);
   const rapida = gradosDeHijos(["canonico"], [{ colegio_id: COLEGIO, grado: "Primero" }]);
   assert.equal(rapida.get("canonico"), "Primero");
+});
+
+
+// --- resumenPorHijo (panel por hijo) ------------------------------------------
+
+function ln(hijo: string, extra: Partial<LineaKit> = {}): LineaKit {
+  return {
+    item_id: `${hijo}-${extra.descripcion ?? "x"}`,
+    hijo,
+    descripcion: "Cuaderno",
+    tipo: "util",
+    estado_resolucion: "RESUELTO_AUTO",
+    informativa: false,
+    unidades_a_comprar: 1,
+    subtotal_linea: 1000,
+    producto_elegido: { sku: "N", nombre: "neutro", marca: null, nivel: "confiable", personaje: null, imagen_url: null },
+    ...extra,
+  } as LineaKit;
+}
+
+const MAPA = (pares: [string, string][]) => new Map(pares);
+
+test("resumen agrupa por hijo en orden de aparicion con nombre, grado y personaje", () => {
+  const kit = {
+    lineas: [ln("b", { descripcion: "p" }), ln("a", { descripcion: "q" }), ln("a", { descripcion: "r" })],
+    consolidaciones: [],
+  };
+  const r = resumenPorHijo(
+    kit,
+    MAPA([["a", "Ana"], ["b", "Luis"]]),
+    MAPA([["a", "Séptimo"], ["b", "Jardín"]]),
+    { a: ["Spider-Man"], b: ["Minnie"] },
+  );
+  assert.deepEqual(r.map((x) => x.hijo), ["b", "a"]);
+  const a = r.find((x) => x.hijo === "a")!;
+  assert.deepEqual([a.nombre, a.grado, a.personaje], ["Ana", "Séptimo", "Spider-Man"]);
+});
+
+test("el total suma subtotales y el consolidado-en-cero no se duplica como producto", () => {
+  const compartido = { sku: "CART", nombre: "Cartuchera", marca: null, nivel: "confiable", personaje: null, imagen_url: null };
+  const kit = {
+    lineas: [
+      ln("a", { descripcion: "cart", producto_elegido: compartido, unidades_a_comprar: 1, subtotal_linea: 9000 }),
+      ln("a", { descripcion: "otro", subtotal_linea: 2000 }),
+      ln("b", { descripcion: "cart", producto_elegido: compartido, unidades_a_comprar: 0, subtotal_linea: 0 }),
+    ],
+    consolidaciones: [{ concepto: "C009", hijos: ["a", "b"], demanda_base: 2, producto: "Cartuchera", unidades_a_comprar: 1, ahorro: { monto: 0 } as never, explicacion: "" }],
+  };
+  const r = resumenPorHijo(kit as never, MAPA([["a", "Ana"], ["b", "Luis"]]), MAPA([]), undefined);
+  const b = r.find((x) => x.hijo === "b")!;
+  assert.equal(b.productos.length, 0); // su cartuchera consolidada-en-cero no se repite
+  assert.equal(b.total, 0);
+  assert.equal(r.find((x) => x.hijo === "a")!.comparten, 1);
+  assert.equal(b.comparten, 1);
+});
+
+test("hijo sin personaje no trae personaje ni nota de falta", () => {
+  const kit = { lineas: [ln("a"), ln("b")], consolidaciones: [] };
+  const r = resumenPorHijo(kit, MAPA([["a", "Ana"], ["b", "Luis"]]), MAPA([]), { a: ["spiderman"] });
+  const b = r.find((x) => x.hijo === "b")!;
+  assert.equal(b.personaje, null);
+  assert.deepEqual(b.falta, []);
+});
+
+test("falta lista personaje_sin_encaje y las abstenciones", () => {
+  const kit = {
+    lineas: [
+      ln("a", { descripcion: "cuaderno" }),
+      ln("a", { descripcion: "regla que no existe", estado_resolucion: "HUECO_CATALOGO", producto_elegido: null, subtotal_linea: null }),
+    ],
+    consolidaciones: [],
+    personaje_sin_encaje: [{ hijo: "a", concepto: "C001", personaje: "spiderman" }],
+  };
+  const r = resumenPorHijo(kit, MAPA([["a", "Ana"]]), MAPA([]), { a: ["spiderman"] });
+  const a = r[0];
+  assert.equal(a.falta.length, 2);
+  assert.ok(a.falta.some((f) => f.includes("Spiderman")));
+  assert.ok(a.falta.some((f) => f.includes("regla que no existe")));
+});
+
+test("con un solo hijo devuelve un solo resumen", () => {
+  const kit = { lineas: [ln("a"), ln("a", { descripcion: "y" })], consolidaciones: [] };
+  assert.equal(resumenPorHijo(kit, MAPA([["a", "Ana"]]), MAPA([]), undefined).length, 1);
 });

@@ -10,7 +10,8 @@
     "./comercio": "./src/comercio.ts",
     "./motion": "./src/motion.ts",
     "./tokens.css": "./src/tokens.css",
-    "./directorio-colegios.json": "./datos/directorio-colegios.json"
+    "./directorio-colegios.json": "./datos/directorio-colegios.json",
+    "./linea": "./src/linea.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
