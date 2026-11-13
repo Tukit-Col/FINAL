@@ -395,6 +395,7 @@
 }
 
 .otroBoton {
+  display: inline-block;
   margin-top: var(--espacio-4);
   padding: 11px var(--espacio-5);
   border-radius: var(--radius-full);
