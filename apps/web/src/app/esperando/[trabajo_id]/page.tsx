@@ -19,11 +19,14 @@ export default async function Esperando({
   // Con el cupo agotado (429) la cookie sigue viva: cuenta como con sesion, y
   // el aviso de la espera lo pinta el sondeo de la pantalla.
   let conSesion: boolean;
+  let correo: string | null = null;
   try {
-    conSesion = (await sesionActual()) !== null;
+    const sesion = await sesionActual();
+    conSesion = sesion !== null;
+    correo = sesion?.correo || null;
   } catch (causa) {
     if (!esLimiteDeTasa(causa)) throw causa;
     conSesion = Boolean(await tokenDeSesion());
   }
-  return <PantallaEspera trabajoId={trabajo_id} conSesion={conSesion} />;
+  return <PantallaEspera trabajoId={trabajo_id} conSesion={conSesion} correo={correo} />;
 }

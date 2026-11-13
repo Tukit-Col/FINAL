@@ -47,7 +47,6 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
   const [turnos, setTurnos] = useState<Turno[]>([]);
   const [estados, setEstados] = useState<Record<string, Estado>>({});
   const [ocupado, setOcupado] = useState(false);
-  const [retirado, setRetirado] = useState(false);
   // El ultimo pedido por categoria, para que "y en colores tambien" se entienda en el turno
   // siguiente. Son dos palabras que devolvio el servidor, no lo que escribio el padre.
   const [anterior, setAnterior] = useState<PedidoAnterior | null>(null);
@@ -71,7 +70,14 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
     return () => window.removeEventListener("keydown", alEscape);
   }, [abierto]);
 
-  if (retirado) return null;
+  // El asistente apagado en el servidor (sin TUKIT_ASISTENTE) o caido ya no hace
+  // desaparecer el boton: se le dice al acudiente, y el kit sigue a mano.
+  function noDisponible() {
+    responder({
+      tipo: "texto",
+      texto: "Ahora mismo no puedo hacer cambios por aquí. Puedes ajustar cada renglón del kit a mano; si ves el botón de cambiar producto, úsalo.",
+    });
+  }
 
   function responder(respuesta: Respuesta) {
     setTurnos((t) => [...t.slice(0, -1), { pregunta: t.at(-1)?.pregunta ?? "", respuesta }]);
@@ -89,7 +95,7 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
       });
       const cuerpo = (await respuesta.json().catch(() => null)) as Record<string, unknown> | null;
       if (respuesta.status === 503) {
-        setRetirado(true);
+        noDisponible();
         return;
       }
       if (!respuesta.ok || !cuerpo) {
@@ -119,14 +125,14 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
       }
       const ui = validarEspec(cuerpo["ui"]);
       if (!ui) {
-        setRetirado(true);
+        noDisponible();
         return;
       }
       const contexto = pedidoAnteriorSeguro(cuerpo["contexto"]);
       if (contexto) setAnterior(contexto);
       responder({ tipo: "propuesta", propuestaId: String(cuerpo["propuesta_id"]), componentes: ui.componentes });
     } catch {
-      setRetirado(true);
+      noDisponible();
     }
   }
 
@@ -191,7 +197,7 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
     return (
       <button type="button" className={estilos.burbuja} onClick={() => setAbierto(true)}>
         <MessageCircle size={22} aria-hidden="true" />
-        <span>¿Cambiamos algo?</span>
+        <span>Pregúntale a Tukit</span>
       </button>
     );
   }

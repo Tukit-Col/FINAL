@@ -43,8 +43,38 @@ export const MAXIMO_RESULTADOS = 5;
 export const ATRIBUCION_OSM = "© OpenStreetMap";
 
 // Bogotá y sus alrededores: izquierda, arriba, derecha, abajo (lon, lat, lon, lat).
-// Es un SESGO (`bounded=0`), no una restricción.
+// Por omisión es un SESGO (`bounded=0`); con la ciudad bloqueada a Bogotá es una
+// RESTRICCIÓN (`bounded=1`): ver `parametrosDeBusqueda`.
 const VIEWBOX_BOGOTA = "-74.35,4.95,-73.90,4.40";
+
+/** Si el punto cae dentro de la caja de Bogotá y sus alrededores. */
+export function dentroDeBogota(latitud: number, longitud: number): boolean {
+  return latitud >= 4.4 && latitud <= 4.95 && longitud >= -74.35 && longitud <= -73.9;
+}
+
+export interface OpcionesConsulta {
+  /** La ciudad del formulario está bloqueada a Bogotá: no se ofrece nada fuera. */
+  soloBogota?: boolean;
+}
+
+/** Los parámetros de Nominatim para una consulta ya normalizada. Pura: la usa el
+ *  buscador y la prueba de la restricción. */
+export function parametrosDeBusqueda(q: string, opciones: OpcionesConsulta = {}): URLSearchParams {
+  const p = new URLSearchParams();
+  p.set("format", "jsonv2");
+  p.set("addressdetails", "1");
+  p.set("limit", String(MAXIMO_RESULTADOS + 3));
+  p.set("countrycodes", "co");
+  p.set("accept-language", "es");
+  p.set("viewbox", VIEWBOX_BOGOTA);
+  if (opciones.soloBogota) p.set("bounded", "1");
+  p.set("q", q);
+  return p;
+}
+
+function sinTildes(t: string): string {
+  return t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
 
 // Colombia continental e insular. Es la misma caja que valida Comercio: un punto
 // fuera de aquí es un homónimo de otro país y no se ofrece ni se acepta.
@@ -100,10 +130,12 @@ function texto(valor: unknown): string {
 
 /** Lee la respuesta JSON de Nominatim: descarta lo malformado y lo que cae fuera
  *  de Colombia, y repite ninguna dirección. */
-export function leerCandidatos(cuerpo: unknown): Candidato[] {
+export function leerCandidatos(cuerpo: unknown, opciones: OpcionesConsulta = {}): Candidato[] {
   if (!Array.isArray(cuerpo)) return [];
   const vistos = new Set<string>();
-  const salida: Candidato[] = [];
+  // Con su puntaje: en Bogotá primero, y con número de casa antes que la calle
+  // a secas. A igual puntaje manda el orden de relevancia que trae Nominatim.
+  const salida: { candidato: Candidato; puntaje: number }[] = [];
   for (const crudo of cuerpo) {
     if (typeof crudo !== "object" || crudo === null) continue;
     const item = crudo as Record<string, unknown>;
@@ -138,7 +170,11 @@ export function leerCandidatos(cuerpo: unknown): Candidato[] {
 
     // `osm_id` llega como número: `texto` solo acepta cadenas.
     const id = `${texto(item["osm_type"])}${String(item["osm_id"] ?? "")}`;
-    const clave = `${direccion}|${latitud.toFixed(4)}|${longitud.toFixed(4)}`;
+    if (opciones.soloBogota && !dentroDeBogota(latitud, longitud)) continue;
+    // La misma calle del mismo barrio es UNA opción aunque OSM la parta en
+    // tramos con coordenadas distintas ("Carrera 91" cinco veces). Con número
+    // de casa la dirección ya es distinta y se conserva.
+    const clave = `${sinTildes(direccion)}|${sinTildes(secundario)}`;
     if (vistos.has(clave)) continue;
     vistos.add(clave);
 
@@ -148,17 +184,23 @@ export function leerCandidatos(cuerpo: unknown): Candidato[] {
       if (valor) componentes[campo] = valor;
     }
     salida.push({
-      id: id || clave,
-      principal: esSitio ? nombre : direccion,
-      secundario,
-      direccion,
-      latitud,
-      longitud,
-      componentes,
+      candidato: {
+        id: id || clave,
+        principal: esSitio ? nombre : direccion,
+        secundario,
+        direccion,
+        latitud,
+        longitud,
+        componentes,
+      },
+      puntaje: (dentroDeBogota(latitud, longitud) ? 2 : 0) + (numero ? 1 : 0),
     });
-    if (salida.length >= MAXIMO_RESULTADOS) break;
   }
-  return salida;
+  // `sort` es estable: el empate conserva el orden de relevancia de OSM.
+  return salida
+    .sort((a, b) => b.puntaje - a.puntaje)
+    .slice(0, MAXIMO_RESULTADOS)
+    .map((x) => x.candidato);
 }
 
 /** El User-Agent que exige la política: nombre de la app y cómo contactarnos. */
@@ -211,12 +253,13 @@ export class BuscadorOsm {
     return (this.op.ahora ?? Date.now)();
   }
 
-  async buscar(consulta: string): Promise<Candidato[]> {
+  async buscar(consulta: string, opciones: OpcionesConsulta = {}): Promise<Candidato[]> {
     const q = normalizarConsulta(consulta);
     if (q.length < MINIMO_CARACTERES) {
       throw new ErrorBusqueda(400, "consulta_corta", `Escribe al menos ${MINIMO_CARACTERES} letras de la dirección.`);
     }
-    const clave = q.toLowerCase();
+    // La restricción cambia la respuesta: no comparte caché con la búsqueda libre.
+    const clave = `${opciones.soloBogota ? "bogota|" : ""}${q.toLowerCase()}`;
 
     const guardado = this.cache.get(clave);
     if (guardado && guardado.vence > this.ahora()) return guardado.candidatos;
@@ -228,7 +271,7 @@ export class BuscadorOsm {
       throw new ErrorBusqueda(429, "buscador_ocupado", "El buscador está ocupado. Intenta de nuevo en unos segundos.");
     }
     this.esperando += 1;
-    const turno = this.cola.then(() => this.consultar(q, clave)).finally(() => {
+    const turno = this.cola.then(() => this.consultar(q, clave, opciones)).finally(() => {
       this.esperando -= 1;
       this.enVuelo.delete(clave);
     });
@@ -237,20 +280,14 @@ export class BuscadorOsm {
     return turno;
   }
 
-  private async consultar(q: string, clave: string): Promise<Candidato[]> {
+  private async consultar(q: string, clave: string, opciones: OpcionesConsulta): Promise<Candidato[]> {
     const intervalo = this.op.intervaloMs ?? INTERVALO_MS;
     const espera = this.ultimaPeticion + intervalo - this.ahora();
     if (espera > 0) await (this.op.esperar ?? ((ms) => new Promise<void>((r) => setTimeout(r, ms))))(espera);
     this.ultimaPeticion = this.ahora();
 
     const url = new URL(this.op.url ?? "https://nominatim.openstreetmap.org/search");
-    url.searchParams.set("format", "jsonv2");
-    url.searchParams.set("addressdetails", "1");
-    url.searchParams.set("limit", String(MAXIMO_RESULTADOS + 3));
-    url.searchParams.set("countrycodes", "co");
-    url.searchParams.set("accept-language", "es");
-    url.searchParams.set("viewbox", VIEWBOX_BOGOTA);
-    url.searchParams.set("q", q);
+    url.search = parametrosDeBusqueda(q, opciones).toString();
 
     let cuerpo: unknown;
     try {
@@ -266,7 +303,7 @@ export class BuscadorOsm {
       throw new ErrorBusqueda(502, "buscador_no_disponible", "No pudimos consultar el mapa ahora.");
     }
 
-    const candidatos = leerCandidatos(cuerpo);
+    const candidatos = leerCandidatos(cuerpo, opciones);
     // También se guarda "sin resultados": repetir la misma búsqueda vacía no
     // debe volver a pegarle a OSM.
     this.cache.set(clave, { vence: this.ahora() + (this.op.ttlMs ?? TTL_CACHE_MS), candidatos });

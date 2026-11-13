@@ -165,3 +165,27 @@ test("sin pin ni lugar elegido, escribir solo cambia el texto", () => {
   const manual = { direccion: "Cl", google_place_id: "", localidad: "Suba", latitud: null, longitud: null };
   assert.deepEqual(escribirDireccionAMano(manual, "Cll 1"), { ...manual, direccion: "Cll 1" });
 });
+
+// ---- Ciudad bloqueada a Bogotá ----
+
+import { ciudadTrasElegir, desbloquearCiudad, escribirCiudad } from "../src/lib/direccion-checkout.ts";
+
+const esBogotaPrueba = (c: string) => /^bogot[aá]/i.test(c);
+
+test("al elegir una dirección de Bogotá la ciudad queda fija y reescribirla no la suelta", () => {
+  const base = { ciudad: "", ciudadBloqueada: false };
+  const elegido = ciudadTrasElegir(base, "Bogotá", esBogotaPrueba);
+  assert.deepEqual(elegido, { ciudad: "Bogotá", ciudadBloqueada: true });
+  assert.equal(escribirCiudad(elegido, "Soacha"), elegido);
+});
+
+test("una dirección de otra ciudad deja la ciudad editable", () => {
+  const elegido = ciudadTrasElegir({ ciudad: "", ciudadBloqueada: true }, "Chía", esBogotaPrueba);
+  assert.equal(elegido.ciudadBloqueada, false);
+  assert.equal(escribirCiudad(elegido, "Cajicá").ciudad, "Cajicá");
+});
+
+test("salir de Bogotá es una acción explícita", () => {
+  const libre = desbloquearCiudad({ ciudad: "Bogotá", ciudadBloqueada: true });
+  assert.equal(escribirCiudad(libre, "Soacha").ciudad, "Soacha");
+});
