@@ -23,7 +23,6 @@ import {
   agruparPorClase,
   clasificar,
   dondeComprar,
-  esBogota,
   esLibro,
   esUniforme,
   estadoDePrecio,
@@ -40,12 +39,7 @@ import {
   type Trabajo,
 } from "@tukit/contrato";
 import { FalloApi, iniciarCheckout } from "@/lib/api-navegador";
-import {
-  ciudadTrasElegir,
-  desbloquearCiudad,
-  escribirCiudad,
-  escribirDireccionAMano,
-} from "@/lib/direccion-checkout";
+import { escribirDireccionAMano } from "@/lib/direccion-checkout";
 import type { EntregaPrevia } from "@/lib/pagar-pedido";
 import {
   agruparPorCategoria,
@@ -84,6 +78,9 @@ const PROMESA: Record<PerfilKit, string> = {
 // Del más barato al de mejor marca: Ahorrador y Premium en las puntas y, entre
 // ellos, los que el acudiente pidió (Fan, A tu Medida).
 const ORDEN_PERFIL: PerfilKit[] = ["Ahorrador", "Fan", "A tu Medida", "Premium"];
+
+// La ciudad de entrega: fija, sin forma de cambiarla.
+const CIUDAD_ENTREGA = "Bogotá";
 
 export default function VistaKits({
   trabajo,
@@ -329,18 +326,17 @@ function Checkout({
     destinatario: "",
     direccion: "",
     indicaciones: "",
-    ciudad: "",
     localidad: "",
     departamento: "",
     // Solo si la direccion salio de una sugerencia de Google y no se edito.
     google_place_id: "",
-    // La ciudad quedo fija en Bogota al elegir una direccion de alla.
-    ciudadBloqueada: false,
     // El pin confirmado en el mapa de OpenStreetMap (sin llave de Google).
     latitud: null as number | null,
     longitud: null as number | null,
     // Tras un pago rechazado, la entrega que ya se habia escrito.
     ...entregaPrevia,
+    // La entrega es solo en Bogota: una entrega previa de otra ciudad no la cambia.
+    ciudad: CIUDAD_ENTREGA,
     // Prellenado con el correo de la sesion: al acudiente ya identificado no se
     // le vuelve a pedir. Editable por si el comprobante va a otro correo.
     correo,
@@ -360,12 +356,8 @@ function Checkout({
   }, [abierto]);
 
   const cambiar =
-    (campo: Exclude<keyof typeof datos, "ciudadBloqueada" | "latitud" | "longitud">) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    (campo: Exclude<keyof typeof datos, "ciudad" | "latitud" | "longitud">) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setDatos((d) => ({ ...d, [campo]: e.target.value }));
-
-  // La localidad solo aplica en Bogota: fuera de ella el campo se apaga y no
-  // viaja, aunque el acudiente la hubiera elegido antes de cambiar la ciudad.
-  const enBogota = esBogota(datos.ciudad);
 
   // Editar la direccion a mano la desliga del lugar de Google que se eligio, y
   // suelta la localidad que Google derivo de el (`direccion-checkout.ts`).
@@ -373,24 +365,19 @@ function Checkout({
     setDatos((d) => escribirDireccionAMano(d, direccion));
 
   // Elegir una sugerencia fija la direccion de Google y pre-llena lo que se
-  // pudo derivar. Ciudad y departamento que Google no trajo conservan lo
-  // escrito; la localidad siempre se reemplaza (la anterior era de otra
+  // pudo derivar. El departamento que Google no trajo conserva lo escrito; la localidad siempre se reemplaza (la anterior era de otra
   // direccion) y, si no se pudo derivar, queda vacia para elegirla.
   const elegirLugar = (lugar: LugarElegido) =>
     setDatos((d) =>
-      ciudadTrasElegir(
-        {
-          ...d,
-          direccion: lugar.direccion,
-          google_place_id: lugar.google_place_id ?? "",
-          latitud: lugar.latitud ?? null,
-          longitud: lugar.longitud ?? null,
-          localidad: lugar.localidad,
-          departamento: lugar.departamento || d.departamento,
-        },
-        lugar.ciudad,
-        esBogota,
-      ),
+      ({
+        ...d,
+        direccion: lugar.direccion,
+        google_place_id: lugar.google_place_id ?? "",
+        latitud: lugar.latitud ?? null,
+        longitud: lugar.longitud ?? null,
+        localidad: lugar.localidad,
+        departamento: lugar.departamento || d.departamento,
+      }),
     );
 
   // Mover el pin confirma otro punto sin tocar el texto ni la localidad.
@@ -407,7 +394,7 @@ function Checkout({
       // mismo de siempre.
       const opcionales = {
         indicaciones: datos.indicaciones.trim(),
-        localidad: enBogota ? datos.localidad : "",
+        localidad: datos.localidad,
         departamento: datos.departamento.trim(),
         google_place_id: datos.google_place_id,
         // Juntas o ninguna: Comercio rechaza una sola.
@@ -513,7 +500,6 @@ function Checkout({
               onEscribir={escribirDireccion}
               onElegir={elegirLugar}
               onMoverPin={moverPin}
-              soloBogota={datos.ciudadBloqueada}
             />
           )}
           <label>
@@ -528,24 +514,12 @@ function Checkout({
           <div className={styles.filaPago}>
             <label>
               Ciudad
-              <input
-                value={datos.ciudad}
-                onChange={(e) => setDatos((d) => escribirCiudad(d, e.target.value))}
-                required
-                readOnly={datos.ciudadBloqueada}
-                aria-describedby={datos.ciudadBloqueada ? "ciudad-fija" : undefined}
-                autoComplete="address-level2"
-              />
+              <input value={datos.ciudad} readOnly aria-describedby="ciudad-fija" autoComplete="address-level2" />
             </label>
             <label>
               Localidad
-              <select
-                value={enBogota ? datos.localidad : ""}
-                onChange={cambiar("localidad")}
-                required={enBogota}
-                disabled={!enBogota}
-              >
-                <option value="">{enBogota ? "Elige la localidad" : "Solo en Bogotá"}</option>
+              <select value={datos.localidad} onChange={cambiar("localidad")} required>
+                <option value="">Elige la localidad</option>
                 {LOCALIDADES_BOGOTA.map((localidad) => (
                   <option key={localidad} value={localidad}>
                     {localidad}
@@ -554,18 +528,9 @@ function Checkout({
               </select>
             </label>
           </div>
-          {datos.ciudadBloqueada && (
-            <p id="ciudad-fija" className={styles.ciudadFija}>
-              La ciudad quedó fijada por tu dirección y la búsqueda se limita a Bogotá.{" "}
-              <button
-                type="button"
-                className={styles.enlaceSimple}
-                onClick={() => setDatos((d) => desbloquearCiudad(d))}
-              >
-                No es en Bogotá
-              </button>
-            </p>
-          )}
+          <p id="ciudad-fija" className={styles.ciudadFija}>
+            Por ahora entregamos solo en Bogotá.
+          </p>
           <label>
             Departamento (opcional)
             <input

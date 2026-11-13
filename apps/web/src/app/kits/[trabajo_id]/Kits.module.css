@@ -1756,23 +1756,6 @@
   color: var(--color-text-secondary);
 }
 
-.enlaceSimple {
-  min-height: 44px;
-  padding: 0 var(--espacio-2);
-  border: none;
-  background: none;
-  color: var(--color-primary);
-  font: inherit;
-  font-weight: 700;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.enlaceSimple:focus-visible {
-  outline: 3px solid var(--color-primary-light);
-  outline-offset: 2px;
-}
-
 .formPago input[readonly] {
   background: var(--clay-crema-suave);
   color: var(--color-text-secondary);
