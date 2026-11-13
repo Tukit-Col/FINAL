@@ -8,15 +8,15 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { CasoDetalleAdmin, EstadoCaso } from "@tukit/contrato";
+import type { CasoDetalleAdmin, EstadoCaso, Prioridad } from "@tukit/contrato";
 import { ETIQUETA_CATEGORIA_CASO, ETIQUETA_PRIORIDAD } from "@tukit/contrato";
-import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
+import { ErrorTukit, origenDeDatos, urlWeb } from "@tukit/contrato/servidor";
 import AccionesTicket from "@/components/AccionesTicket";
 import AvisoAcceso from "@/components/AvisoAcceso";
 import { formatearFecha } from "@/lib/formato";
 import { motivoDeFallo } from "@/lib/logistica";
 import { enmascararCorreo } from "@/lib/pedido-admin";
-import { tokenDeSesion } from "@/lib/sesion";
+import { quienSoy, tokenDeSesion } from "@/lib/sesion";
 import { ETIQUETA_ESTADO_TICKET } from "@/lib/tickets";
 import styles from "./Ticket.module.css";
 
@@ -47,13 +47,27 @@ async function correoDelTitular(token: string, usuarioId: string | null): Promis
 }
 
 async function nombresDeActores(caso: CasoDetalleAdmin, token: string): Promise<Record<string, string>> {
-  const ids = [...new Set(caso.eventos.map((e) => e.actor_id).filter((x): x is string => !!x))];
+  // Los actores y los dueños de las asignaciones (`datos.desde/hacia` son ids de usuario).
+  const referidos = caso.eventos.flatMap((e) =>
+    e.tipo === "asignacion" ? [e.datos["desde"], e.datos["hacia"]] : [],
+  );
+  const ids = [
+    ...new Set(
+      [...caso.eventos.map((e) => e.actor_id), caso.asignado_a, ...referidos].filter(
+        (x): x is string => typeof x === "string" && x !== "",
+      ),
+    ),
+  ];
   if (ids.length === 0) return {};
   try {
     return await origenDeDatos().nombresDeUsuarios(ids, token);
   } catch {
     return {};
   }
+}
+
+function etiquetaPrioridad(valor: unknown): string {
+  return ETIQUETA_PRIORIDAD[valor as Prioridad] ?? String(valor);
 }
 
 function etiquetaEstado(valor: unknown): string {
@@ -86,9 +100,10 @@ export default async function DetalleTicket({ params }: Props) {
     );
   }
 
-  const [correo, nombres] = await Promise.all([
+  const [correo, nombres, sesion] = await Promise.all([
     correoDelTitular(token, caso.usuario_id),
     nombresDeActores(caso, token),
+    quienSoy(),
   ]);
   const quien = (id: string | null) => (id ? (nombres[id] ?? id.slice(0, 8)) : "Sistema");
 
@@ -104,6 +119,13 @@ export default async function DetalleTicket({ params }: Props) {
           </span>
           <span>{ETIQUETA_CATEGORIA_CASO[caso.categoria]}</span>
           <span>Prioridad {ETIQUETA_PRIORIDAD[caso.prioridad].toLowerCase()}</span>
+          <span>
+            {caso.asignado_a === null
+              ? "Sin asignar"
+              : caso.asignado_a === sesion?.usuarioId
+                ? "Asignado a ti"
+                : `Asignado a ${quien(caso.asignado_a)}`}
+          </span>
           <span>Abierto {formatearFecha(caso.abierto_en)}</span>
           {caso.vence_en ? <span>Vence {formatearFecha(caso.vence_en)}</span> : null}
           {caso.resuelto_en ? <span>Resuelto {formatearFecha(caso.resuelto_en)}</span> : null}
@@ -167,8 +189,24 @@ export default async function DetalleTicket({ params }: Props) {
                 </li>
               );
             }
+            if (e.tipo === "nota_interna") {
+              return (
+                <li key={i} className={styles.mensajeNota}>
+                  <div className={styles.quien}>
+                    Nota interna · solo el equipo · {quien(e.actor_id)} · {formatearFecha(e.creado_en)}
+                  </div>
+                  <p>{String(e.datos["texto"] ?? "")}</p>
+                </li>
+              );
+            }
             const texto =
-              e.tipo === "estado"
+              e.tipo === "asignacion"
+                ? e.datos["hacia"]
+                  ? `Asignado a ${quien(String(e.datos["hacia"]))}`
+                  : "Ticket liberado (sin asignar)"
+                : e.tipo === "prioridad"
+                  ? `Prioridad: ${etiquetaPrioridad(e.datos["desde"])} → ${etiquetaPrioridad(e.datos["hacia"])}`
+                  : e.tipo === "estado"
                 ? `Estado: ${etiquetaEstado(e.datos["desde"])} → ${etiquetaEstado(e.datos["hacia"])}`
                 : e.tipo === "pedido"
                   ? `Vinculado al pedido ${String(e.datos["pedido_id"] ?? "").slice(0, 8).toUpperCase()}`
@@ -187,6 +225,11 @@ export default async function DetalleTicket({ params }: Props) {
         estado={caso.estado}
         pedidoId={caso.pedido_id}
         puedeAvisar={caso.usuario_id !== null}
+        prioridad={caso.prioridad}
+        asignadoA={caso.asignado_a}
+        yo={sesion?.usuarioId ?? null}
+        esAdmin={sesion?.esAdmin ?? false}
+        urlIngresar={`${urlWeb()}/ingresar`}
       />
     </div>
   );
