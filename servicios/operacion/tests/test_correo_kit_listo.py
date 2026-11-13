@@ -50,7 +50,27 @@ def test_html_escapa_y_no_trae_apodo():
     datos = {"lugar": "<b>Colegio</b>, grado 3", "enlace": "https://tukit.co/kits/x"}
     cuerpo = html_de("kits_publicados", datos)
     assert "&lt;b&gt;" in cuerpo and "<b>Colegio" not in cuerpo
-    assert html_de("pedido_pagado", {}) is None
+    assert html_de("plantilla_inexistente", {}) is None
+
+
+def test_encabezado_logo_con_url_absoluta(monkeypatch):
+    monkeypatch.setenv("TUKIT_PUBLIC_URL", "https://tukit.example/")
+    cuerpo = html_de("kits_publicados", {"lugar": "x", "enlace": "https://tukit.example/kits/x"})
+    assert 'src="https://tukit.example/marca/icon-192.png"' in cuerpo
+    assert 'alt="TUKIT"' in cuerpo and 'width="48"' in cuerpo
+
+
+def test_encabezado_cae_a_texto_sin_url_publica(monkeypatch):
+    monkeypatch.delenv("TUKIT_PUBLIC_URL", raising=False)
+    cuerpo = html_de("kits_publicados", {"lugar": "x", "enlace": "https://tukit.co/kits/x"})
+    assert "<img" not in cuerpo and ">TUKIT</p>" in cuerpo
+    monkeypatch.setenv("TUKIT_PUBLIC_URL", "/marca")  # relativa: no vale en un correo
+    assert "<img" not in html_de("kits_publicados", {})
+
+
+def test_demas_correos_llevan_html_con_marco_y_escapan():
+    cuerpo = html_de("pedido_pagado", {"pedido": "<i>1</i>", "turno": "7"})
+    assert cuerpo and "Recibimos tu pago" in cuerpo and "&lt;i&gt;" in cuerpo
 
 
 async def test_modo_consola_escribe_eml_sin_apodo(tmp_path, monkeypatch):

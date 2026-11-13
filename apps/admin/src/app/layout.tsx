@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   title: "Tukit · Consola de revisión",
   description: "Revisión humana de los kits antes de publicarlos al acudiente (AD-01 a AD-07).",
   applicationName: "Tukit Admin",
+  manifest: "/manifest.webmanifest",
   // Una consola interna no se indexa: no tiene nada que hacer en un buscador.
   robots: { index: false, follow: false },
 };
