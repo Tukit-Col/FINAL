@@ -361,4 +361,4 @@ class TestLibrosEnBuscalibreYLibreriaNacional:
 
     def test_consulta_libro_en_libreria_nacional(self):
         url = consulta_libro_en("libreria_nacional", "Álgebra de Baldor", None)
-        assert url == TIENDAS_LIBROS["libreria_nacional"] + "/catalogsearch/result/?q=%C3%81lgebra%20de%20Baldor"
+        assert url == TIENDAS_LIBROS["libreria_nacional"] + "/api/catalog_system/pub/products/search?ft=%C3%81lgebra%20de%20Baldor"

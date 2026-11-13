@@ -1433,8 +1433,9 @@ def main() -> int:
 
 
 # --- Libros: buscalibre y Libreria Nacional --------------------------------
-# Ninguna de las dos expone una API de busqueda estable, asi que se consultan
-# con Firecrawl (ver `firecrawl-search`). Estas funciones solo arman la URL y
+# Verificado 2026-11-12 sin gastar Firecrawl: buscalibre responde 200 a un GET
+# simple (HTML) y Libreria Nacional es VTEX: su /catalogsearch/result da 404 y la
+# busqueda real es la API JSON de VTEX (como en tiendas.py). Estas funciones solo arman la URL y
 # normalizan lo que vuelve, sin salir a la red.
 TIENDAS_LIBROS: dict[str, str] = {
     "buscalibre": "https://www.buscalibre.com.co",
@@ -1444,7 +1445,7 @@ TIENDAS_LIBROS: dict[str, str] = {
 # Slug en tiendas.csv de cada clave.
 SLUG_TIENDA_LIBRO = {"buscalibre": "buscalibre", "libreria_nacional": "librerianacional"}
 
-_RUTA_BUSQUEDA = {"buscalibre": "/libros/search?q=", "libreria_nacional": "/catalogsearch/result/?q="}
+_RUTA_BUSQUEDA = {"buscalibre": "/libros/search?q=", "libreria_nacional": "/api/catalog_system/pub/products/search?ft="}
 
 
 def consulta_libro_en(tienda: str, titulo: str, isbn13: str | None) -> str:
