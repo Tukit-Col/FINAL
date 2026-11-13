@@ -42,9 +42,9 @@
 }
 
 .aviso {
-  background: var(--clay-estrella-bg);
-  border-color: var(--clay-estrella);
-  color: var(--color-text-primary);
+  background: var(--color-aviso-bg);
+  border-color: var(--color-aviso-border);
+  color: var(--color-aviso);
 }
 
 .enlace,

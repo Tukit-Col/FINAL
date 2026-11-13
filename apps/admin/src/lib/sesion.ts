@@ -5,6 +5,7 @@
 // lado no encontraria la cookie que puso el otro.
 import "server-only";
 import { cookies } from "next/headers";
+import { origenDeDatos } from "@tukit/contrato/servidor";
 
 export const COOKIE_SESION = "tukit_sesion";
 
@@ -14,4 +15,19 @@ export const COOKIE_SESION = "tukit_sesion";
  *  se valida aquí: el gateway lo hace al recibirlo. */
 export async function tokenDeSesion(): Promise<string | undefined> {
   return (await cookies()).get(COOKIE_SESION)?.value;
+}
+
+/** Quién mira: el `usuario_id` de la sesión y si es admin. Sirve para "Asignarme"
+ *  y "Soltar" en tickets; es un adorno de la pantalla (el servicio decide el
+ *  permiso), así que si identidad no responde devuelve `null`. */
+export async function quienSoy(): Promise<{ usuarioId: string; esAdmin: boolean } | null> {
+  const token = await tokenDeSesion();
+  if (!token) return null;
+  try {
+    const sesion = await origenDeDatos().sesionActual(token);
+    if (!sesion) return null;
+    return { usuarioId: sesion.usuario_id, esAdmin: sesion.roles.some((r) => r.rol === "admin") };
+  } catch {
+    return null;
+  }
 }
