@@ -107,8 +107,14 @@ async def test_la_orden_no_cobra_lo_descartado_y_suma_lo_demas(motor):
 
     comercio = ComercioFalso()
     resultado = await trabajos.ordenar(
-        motor, parent_id, portador=dueno, perfil="Ahorrador", entrega=ENTREGA, correo="ana@example.com",
-        comercio=comercio, catalogo=catalogo,
+        motor,
+        parent_id,
+        portador=dueno,
+        perfil="Ahorrador",
+        entrega=ENTREGA,
+        correo="ana@example.com",
+        comercio=comercio,
+        catalogo=catalogo,
     )
     skus = {ln["sku"] for ln in comercio.orden["lineas"]}
     assert "TK-C001-ECO" not in skus
@@ -132,8 +138,14 @@ async def test_descartar_y_cambiar_en_la_misma_linea_no_cobra_la_linea(motor):
     )
     comercio = ComercioFalso()
     await trabajos.ordenar(
-        motor, parent_id, portador=dueno, perfil="Ahorrador", entrega=ENTREGA, correo="ana@example.com",
-        comercio=comercio, catalogo=catalogo,
+        motor,
+        parent_id,
+        portador=dueno,
+        perfil="Ahorrador",
+        entrega=ENTREGA,
+        correo="ana@example.com",
+        comercio=comercio,
+        catalogo=catalogo,
     )
     assert all(not ln["sku"].startswith("TK-C001") for ln in comercio.orden["lineas"])
 
@@ -154,15 +166,26 @@ async def test_si_se_descartan_todas_las_lineas_no_hay_orden(motor):
     for linea in kit["lineas"]:
         if linea.get("producto_elegido") and not linea["informativa"]:
             await trabajos.descartar_linea_del_acudiente(
-                motor, parent_id, "Ahorrador", uuid.UUID(linea["item_id"]),
-                descartar=True, usuario_id=dueno, catalogo=catalogo,
+                motor,
+                parent_id,
+                "Ahorrador",
+                uuid.UUID(linea["item_id"]),
+                descartar=True,
+                usuario_id=dueno,
+                catalogo=catalogo,
             )
     assert _total(await trabajos.ver(motor, parent_id, catalogo=catalogo), "Ahorrador") == 0
 
     with pytest.raises(trabajos.CheckoutRechazado) as exc:
         await trabajos.ordenar(
-            motor, parent_id, portador=dueno, perfil="Ahorrador", entrega=ENTREGA, correo="ana@example.com",
-            comercio=ComercioFalso(), catalogo=catalogo,
+            motor,
+            parent_id,
+            portador=dueno,
+            perfil="Ahorrador",
+            entrega=ENTREGA,
+            correo="ana@example.com",
+            comercio=ComercioFalso(),
+            catalogo=catalogo,
         )
     assert exc.value.estado == 409
 
@@ -194,8 +217,13 @@ async def test_descartar_no_toca_el_canonico_de_los_demas(motor):
     otro = uuid.UUID(
         (
             await trabajos.aplicar_canonico(
-                motor, colegio_id=COLEGIO, grado="Cuarto", anio_lectivo=2026,
-                perfil="Ahorrador", usuario_id=None, catalogo=catalogo,
+                motor,
+                colegio_id=COLEGIO,
+                grado="Cuarto",
+                anio_lectivo=2026,
+                perfil="Ahorrador",
+                usuario_id=None,
+                catalogo=catalogo,
             )
         )["trabajo_id"]
     )
@@ -246,6 +274,7 @@ async def _con_filtros(motor, trabajo_id, preferencias) -> None:
     """Deja las preferencias del trabajo como las dejaria el asistente al pedirlo."""
     from sqlalchemy import update
     from tukit_comun.cifrado import cifrador_desde_entorno
+
     TRABAJO = trabajos.TRABAJO
 
     async with motor.engine.begin() as conexion:
