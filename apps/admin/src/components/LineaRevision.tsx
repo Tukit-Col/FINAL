@@ -20,6 +20,7 @@ import {
 } from "@/lib/api-navegador";
 import { esPendiente, porcentaje, TITULO_MODO, TITULO_TIPO } from "@/lib/formato";
 import AltaProducto from "./AltaProducto";
+import BuscarEnCatalogo from "./BuscarEnCatalogo";
 import styles from "./Revision.module.css";
 
 interface Props {
@@ -420,10 +421,25 @@ export default function LineaRevision({
               {alternativas.map((alternativa) => tarjetaProducto(alternativa, "alternativa"))}
             </ul>
           ) : (
-            <p className={styles.detalle}>
-              No hay producto que confirmar. Lo que resuelve esta línea es dar de alta uno a
-              mano (AD-07) o dejarla marcada sin coincidencia con el motivo.
-            </p>
+            <>
+              <p className={styles.detalle}>
+                No hay producto que confirmar. Búscalo en el catálogo; si no está, dalo de alta a
+                mano (AD-07) o déjala sin coincidencia con el motivo.
+              </p>
+              {perfil ? (
+                <BuscarEnCatalogo
+                  concepto={linea.concepto ?? null}
+                  textoInicial={linea.descripcion}
+                  enviando={enviando}
+                  onElegir={(sku) =>
+                    void ejecutar(
+                      () => fijarProductoLinea(trabajoId, perfil, linea.item_id, sku),
+                      `Producto ${sku} puesto en este kit.`,
+                    )
+                  }
+                />
+              ) : null}
+            </>
           )}
 
           {/* ------------------------------------------------ acciones AD-02 */}
