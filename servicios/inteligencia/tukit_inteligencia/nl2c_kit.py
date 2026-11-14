@@ -133,6 +133,8 @@ class ResultadoPropuestas:
     lote_props: list[dict[str, Any]] = field(default_factory=list)
     resumen: dict[str, Any] | None = None
     pendientes_variar: list[tuple[str, tuple[str, str]]] = field(default_factory=list)
+    # Mas barato / mejor calidad: se resuelven con las opciones del carrusel (`completar_lote`).
+    pendientes_lote: list[str] = field(default_factory=list)
     sueltas: int = 0  # propuestas que vienen de llamadas por renglon (tope MAX_PROPUESTAS)
 
 
@@ -348,27 +350,17 @@ def _resolver_lote(args: dict[str, Any], ctx: ContextoKit, res: ResultadoPropues
         if not candidatos:
             res.mensaje = f"En {donde} no veo productos repetidos. Ya está variado."
         return
-    regla = (
-        nl2c_lote.alternativa_mas_barata if accion == "mas_barato" else nl2c_lote.alternativa_de_mejor_calidad
-    )
-    for ref in cat.refs:
-        linea = ctx.lineas[ref]
-        actual = linea["producto_elegido"]
-        if linea["item_id"] in ya or str(actual.get("sku")) in ctx.consolidados:
-            continue
-        alts = [
-            a for a in linea.get("alternativas") or [] if a.get("sku") and a.get("sku") != actual.get("sku")
-        ]
-        alt = regla(actual, alts)
-        if alt is None:
-            continue
-        if len(res.propuestas) >= MAX_PROPUESTAS_LOTE:
-            res.lote["fuera_por_tope"] = res.lote.get("fuera_por_tope", 0) + 1
-            continue
-        propuesta = _propuesta_cambio(ctx, linea, alt, int(alt["precio_cop"]), trabajo_id)
-        res.propuestas.append(propuesta)
-        res.lote_props.append(propuesta)
-    _cerrar_lote(res, donde)
+    # Mas barato y mejor calidad miran las MISMAS opciones que el carrusel del renglon (lo
+    # termina `completar_lote`): las alternativas guardadas son 0 a 2 por renglon y dejaban
+    # fuera la mitad de "mejor calidad en todos los cuadernos".
+    res.pendientes_lote = [
+        ref
+        for ref in cat.refs
+        if ctx.lineas[ref]["item_id"] not in ya
+        and str(ctx.lineas[ref]["producto_elegido"].get("sku")) not in ctx.consolidados
+    ]
+    if not res.pendientes_lote:
+        _cerrar_lote(res, donde)
 
 
 def _cerrar_lote(res: ResultadoPropuestas, donde: str) -> None:
@@ -400,6 +392,10 @@ def _cerrar_lote(res: ResultadoPropuestas, donde: str) -> None:
             texto += f" Quedaron {restantes} sin cambio."
         if delta:
             texto += f" Diferencia total: {'+' if delta > 0 else '-'}{pesos_fmt(abs(delta))}."
+    listos = res.lote.get("ya_en_lo_mejor", 0)
+    if listos and accion in ("mas_barato", "mejor_calidad"):
+        lo = "lo más barato" if accion == "mas_barato" else "lo mejor"
+        texto += f" {listos} ya están en {lo} que hay."
     if res.lote.get("fuera_por_tope"):
         texto += f" Te muestro {n}; pídeme el resto después."
     res.resumen = {
@@ -412,6 +408,82 @@ def _cerrar_lote(res: ResultadoPropuestas, donde: str) -> None:
             "texto": texto,
         },
     }
+
+
+def _traedor_de_opciones(
+    ctx: ContextoKit, opciones_de: Callable[[dict[str, Any]], Awaitable[list[dict[str, Any]]]] | None
+) -> Callable[[str], Awaitable[list[dict[str, Any]]]]:
+    """Las opciones de un renglon: las del carrusel (4 a la vez) o, si no responde, las
+    alternativas guardadas en el kit."""
+    semaforo = asyncio.Semaphore(4)
+
+    async def traer(ref: str) -> list[dict[str, Any]]:
+        linea = ctx.lineas[ref]
+        propias = [a for a in linea.get("alternativas") or [] if a.get("sku")]
+        if opciones_de is None:
+            return nl2c_lote.opciones_desde_alternativas(linea, propias)
+        async with semaforo:
+            try:
+                encontradas = await opciones_de(linea)
+            except Exception:  # catalogo caido o linea sin concepto: se sigue con lo del kit
+                encontradas = []
+        return encontradas or nl2c_lote.opciones_desde_alternativas(linea, propias)
+
+    return traer
+
+
+async def completar_lote(
+    res: ResultadoPropuestas,
+    ctx: ContextoKit,
+    trabajo_id: str,
+    opciones_de: Callable[[dict[str, Any]], Awaitable[list[dict[str, Any]]]] | None,
+) -> None:
+    """Termina "mas barato" o "mejor calidad" en una categoria con las opciones del carrusel.
+
+    La regla es la de siempre (`alternativa_mas_barata` / `alternativa_de_mejor_calidad`,
+    nunca el modelo); lo nuevo es sobre que opciones corre. Cuenta los renglones que ya
+    estan en lo mejor disponible para decirselo al padre.
+    """
+    if not res.pendientes_lote or res.lote is None:
+        return
+    accion = res.lote["accion"]
+    regla = (
+        nl2c_lote.alternativa_mas_barata if accion == "mas_barato" else nl2c_lote.alternativa_de_mejor_calidad
+    )
+    traer = _traedor_de_opciones(ctx, opciones_de)
+    todas = await asyncio.gather(*(traer(ref) for ref in res.pendientes_lote))
+    ya_en_lo_mejor = 0
+    for ref, opciones in zip(res.pendientes_lote, todas, strict=True):
+        linea = ctx.lineas[ref]
+        actual = linea["producto_elegido"]
+        alts = [
+            {**o, "precio_cop": o.get("precio")}
+            for o in opciones
+            if o.get("sku") and o.get("sku") != actual.get("sku") and o.get("precio") is not None
+        ]
+        alt = regla(actual, alts)
+        if alt is None:
+            ya_en_lo_mejor += 1
+            continue
+        if len(res.propuestas) >= MAX_PROPUESTAS_LOTE:
+            res.lote["fuera_por_tope"] = res.lote.get("fuera_por_tope", 0) + 1
+            continue
+        unidades = alt.get("unidades_a_comprar")
+        subtotal = alt.get("subtotal")
+        propuesta = _propuesta_cambio(
+            ctx,
+            linea,
+            alt,
+            int(alt["precio"]),
+            trabajo_id,
+            unidades=int(unidades) if unidades else None,
+            subtotal_despues=int(subtotal) if subtotal is not None else None,
+        )
+        res.propuestas.append(propuesta)
+        res.lote_props.append(propuesta)
+    res.lote["ya_en_lo_mejor"] = ya_en_lo_mejor
+    res.pendientes_lote = []
+    _cerrar_lote(res, _donde(res.lote["categoria"]))
 
 
 async def completar_variar(
@@ -434,19 +506,7 @@ async def completar_variar(
     """
     if not res.pendientes_variar or res.lote is None:
         return
-    semaforo = asyncio.Semaphore(4)
-
-    async def traer(ref: str) -> list[dict[str, Any]]:
-        linea = ctx.lineas[ref]
-        propias = [a for a in linea.get("alternativas") or [] if a.get("sku")]
-        if opciones_de is None:
-            return nl2c_lote.opciones_desde_alternativas(linea, propias)
-        async with semaforo:
-            try:
-                encontradas = await opciones_de(linea)
-            except Exception:  # catalogo caido o linea sin concepto: se sigue con lo del kit
-                encontradas = []
-        return encontradas or nl2c_lote.opciones_desde_alternativas(linea, propias)
+    traer = _traedor_de_opciones(ctx, opciones_de)
 
     todas = await asyncio.gather(*(traer(ref) for ref, _ in res.pendientes_variar))
     usados_skus = {str(ln["producto_elegido"].get("sku")) for ln in ctx.lineas.values()}
