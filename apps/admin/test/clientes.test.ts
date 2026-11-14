@@ -11,6 +11,7 @@ import {
   leerFiltrosClientes,
   opcionesClientes,
   paginar,
+  pedidosPorFamilia,
 } from "../src/lib/clientes.ts";
 
 const hijo = (colegio_id: string, grado = "3") => ({ colegio_id, colegio_nombre: `Col ${colegio_id}`, grado });
@@ -92,4 +93,18 @@ test("clientesPorColegio cuenta acudientes e hijos por colegio y por grado", () 
 
 test("clientesPorColegio sin padron devuelve vacio", () => {
   assert.deepEqual(clientesPorColegio([]), []);
+});
+
+test("por familia se muestra el pedido mas reciente que no esta cancelado, con su tono", () => {
+  const m = pedidosPorFamilia([
+    { usuario_id: "a", estado: "entregado", creado_en: "2026-11-01T10:00:00Z" },
+    { usuario_id: "a", estado: "cancelado", creado_en: "2026-11-05T10:00:00Z" },
+    { usuario_id: "b", estado: "pendiente_pago", creado_en: "2026-11-02T10:00:00Z" },
+    { usuario_id: "b", estado: "en_reparto", creado_en: "2026-11-03T10:00:00Z" },
+    { usuario_id: "c", estado: "cancelado", creado_en: "2026-11-03T10:00:00Z" },
+  ]);
+  assert.deepEqual(m.get("a"), { estado: "entregado", tono: "exito", pedidos: 2 });
+  assert.deepEqual(m.get("b"), { estado: "en_reparto", tono: "curso", pedidos: 2 });
+  assert.deepEqual(m.get("c"), { estado: "cancelado", tono: "neutro", pedidos: 1 });
+  assert.equal(m.get("sin-pedido"), undefined);
 });

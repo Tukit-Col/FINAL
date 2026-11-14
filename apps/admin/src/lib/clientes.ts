@@ -188,3 +188,42 @@ export function clientesPorColegio(acudientes: readonly AcudienteAdmin[]): Clien
     }))
     .sort((x, y) => y.acudientes - x.acudientes || x.colegio_nombre.localeCompare(y.colegio_nombre, "es"));
 }
+
+/** El pedido que se muestra por familia: el mas reciente que no este cancelado
+ *  (o el cancelado si es lo unico que tiene). El tono pinta la pastilla. */
+export type TonoPedido = "exito" | "curso" | "aviso" | "neutro";
+
+export interface PedidoDeFamilia {
+  estado: string;
+  tono: TonoPedido;
+  pedidos: number;
+}
+
+const TONO: Record<string, TonoPedido> = {
+  entregado: "exito",
+  pagado: "curso",
+  en_preparacion: "curso",
+  despachado: "curso",
+  en_reparto: "curso",
+  pendiente_pago: "aviso",
+  incidencia: "aviso",
+  cancelado: "neutro",
+};
+
+export function pedidosPorFamilia(
+  pedidos: readonly { usuario_id: string; estado: string; creado_en: string }[],
+): Map<string, PedidoDeFamilia> {
+  const porUsuario = new Map<string, { estado: string; creado_en: string }[]>();
+  for (const p of pedidos) {
+    const lista = porUsuario.get(p.usuario_id) ?? [];
+    lista.push(p);
+    porUsuario.set(p.usuario_id, lista);
+  }
+  const salida = new Map<string, PedidoDeFamilia>();
+  for (const [usuario, lista] of porUsuario) {
+    const ordenados = [...lista].sort((a, b) => b.creado_en.localeCompare(a.creado_en));
+    const vivo = ordenados.find((p) => p.estado !== "cancelado") ?? ordenados[0]!;
+    salida.set(usuario, { estado: vivo.estado, tono: TONO[vivo.estado] ?? "neutro", pedidos: lista.length });
+  }
+  return salida;
+}

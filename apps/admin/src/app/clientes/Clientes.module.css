@@ -338,3 +338,40 @@
   background: var(--color-surface, #f3f5fb);
   text-decoration: none;
 }
+
+/* ---- Estado del pedido de la familia ---------------------------------------- */
+.pastillaPedido {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pedido_exito {
+  color: var(--color-success);
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+}
+
+.pedido_curso {
+  color: var(--color-info);
+  background: var(--color-info-bg);
+  border-color: var(--color-info-border);
+}
+
+.pedido_aviso {
+  color: var(--color-aviso);
+  background: var(--color-aviso-bg);
+  border-color: var(--color-aviso-border);
+}
+
+.pedido_neutro {
+  color: var(--color-text-muted, #64748b);
+  background: var(--color-surface, #f8fafc);
+  border-color: var(--color-border-light, #e2e8f0);
+}
