@@ -106,6 +106,8 @@ RUTAS: dict[str, str] = {
     # tarea_importacion). Sin este prefijo mas largo caeria en `/v1/admin` e
     # iria a inteligencia, que no la sirve.
     "/v1/admin/sugerencias": "catalogo",
+    # Lo que el equipo corrigio en la cola y lo que el catalogo aprendio con eso.
+    "/v1/admin/correcciones": "catalogo",
     "/v1/admin/acudientes": "identidad",
     "/v1/colegios": "identidad",
     # Bloque DUEB de un colegio del directorio, para pre-llenar el perfil del
