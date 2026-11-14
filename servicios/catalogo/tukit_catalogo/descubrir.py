@@ -122,6 +122,12 @@ PAR_DE_ESCUADRAS = re.compile(
 )
 
 
+# Palabras con que un colegio abre un grupo antes de los dos puntos: "Kit escolar:",
+# "Materiales para generar textura como:", "Para las ninas:". Lista corta a
+# proposito: cualquier otro prefijo se trata como la cosa pedida.
+_PREFIJO_DE_GRUPO = re.compile(r"^(kit|materiales?|para)\b")
+
+
 def consulta_desde_renglon(renglon: str) -> str:
     """Convierte el renglon del colegio en algo que una tienda entienda.
 
@@ -132,12 +138,13 @@ def consulta_desde_renglon(renglon: str) -> str:
     carpinteria.
     """
     texto = _plano(renglon)
-    # "Kit de aseo personal: 1 caja de panuelos" pide los panuelos: lo de antes de
-    # los dos puntos nombra el grupo, no la cosa (13-nov). Solo si despues queda algo
-    # que pedir; "Cartuchera con: colores" sigue pidiendo la cartuchera.
+    # "Kit de aseo personal: 1 caja de panuelos" pide los panuelos: ahi lo de antes
+    # de los dos puntos nombra un GRUPO, no la cosa (13-nov). Solo se salta cuando
+    # el prefijo empieza por una palabra de grupo; en "Cuaderno: grande empastado",
+    # "Carpeta ... con gancho: Ingles" o "... legajador. Color: Azul" lo pedido esta
+    # ANTES de los dos puntos y lo de despues es un detalle (tamano, materia, color).
     grupo, dos_puntos, resto = texto.partition(":")
-    abre_contenido = re.search(r"\b(con|incluye|contiene|que contenga)\s*$", grupo.strip())
-    if dos_puntos and resto.strip() and not abre_contenido:
+    if dos_puntos and resto.strip() and _PREFIJO_DE_GRUPO.match(grupo.strip()):
         texto = resto
     texto = re.sub(r"[(),;:.]", " ", texto)
     texto = FRACCION.sub(" ", texto)
@@ -145,7 +152,9 @@ def consulta_desde_renglon(renglon: str) -> str:
     texto = re.sub(r"\b\d+\s*(gr?|grs|gramos?|ml|cc|cm|mm|mts?|metros?)\b", " ", texto)
     texto = re.sub(r"^\s*\d+\s+", "", texto)
     # La cantidad tambien se escribe en palabras ("Una caja de", "dos paquetes de").
-    texto = re.sub(r"^\s*(un|una|unos|unas|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|doce)\s+", "", texto)
+    texto = re.sub(
+        r"^\s*(un|una|unos|unas|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|doce)\s+", "", texto
+    )
     palabras = [
         p for p in texto.split() if len(p) > 1 and p not in ("de", "del", "la", "el", "y", "o", "para", "con")
     ]
@@ -205,7 +214,9 @@ def cabeza(renglon: str) -> str:
     pedido son pompones y `de colores` solo los describe. Basta con tomar la
     primera palabra util, despues de quitar cantidades y empaques.
     """
-    palabras = consulta_desde_renglon(renglon).split()
+    # Un numero cuenta, no nombra: en "paquete de 20 resistencias" el empaque se
+    # cae y el 20 quedaba de cabeza (13-nov).
+    palabras = [p for p in consulta_desde_renglon(renglon).split() if not p.isdigit()]
     return palabras[0] if palabras else ""
 
 
