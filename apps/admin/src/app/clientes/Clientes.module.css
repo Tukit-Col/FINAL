@@ -284,59 +284,217 @@
 /* ------------------------------------------------ Por colegio y grado */
 .porColegio {
   display: grid;
-  gap: var(--espacio-2, 8px);
-  margin: var(--espacio-4, 16px) 0;
+  gap: var(--espacio-3);
 }
 
 .porColegio h2 {
-  font-size: 16px;
-  margin: 0;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 800;
 }
 
-.listaColegios {
+.tarjetasColegio {
   list-style: none;
-  margin: 0;
-  padding: 0;
   display: grid;
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--espacio-3);
 }
 
-.filaColegio {
+.tarjetaColegio {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) auto;
-  gap: 4px 12px;
-  align-items: baseline;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--color-border, #e3e7f0);
+  gap: var(--espacio-3);
+  padding: var(--espacio-4);
+  border-radius: var(--radius-lg);
+  background: var(--clay-surface-grad);
+  box-shadow: var(--clay-shadow-sm);
+  transition: box-shadow var(--dur-medio) var(--ease-suave);
+}
+
+.tarjetaColegio:hover {
+  box-shadow: var(--clay-shadow);
+}
+
+.cabezaColegio {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: var(--espacio-3);
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+}
+
+.cabezaColegio:focus-visible {
+  outline: 3px solid var(--color-primary-light);
+  outline-offset: 4px;
+  border-radius: var(--radius-md);
+}
+
+.logoColegio {
+  grid-row: span 2;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  object-fit: contain;
+  background: var(--color-white);
+  box-shadow: var(--clay-shadow-sm);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-primary);
 }
 
 .nombreColegio {
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 14.5px;
+  line-height: 1.25;
+  color: var(--color-text-primary);
 }
 
-.conteo {
+.cabezaColegio:hover .nombreColegio {
+  color: var(--color-primary);
+}
+
+.cifrasColegio {
   font-size: 13px;
-  color: var(--color-text-muted, #4a5a85);
+  color: var(--color-text-secondary);
+}
+
+.cifrasColegio strong {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.barraColegio {
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-border-light);
+  overflow: hidden;
+}
+
+.barraColegio span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
 }
 
 .gradosColegio {
-  grid-column: 1 / -1;
   list-style: none;
-  margin: 0;
-  padding: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
+/* El tono de cada grado sube con cuantos hijos tiene: se ve donde estan. */
 .chipGrado {
+  --peso: 0;
   display: inline-flex;
   gap: 6px;
-  padding: 2px 10px;
-  border-radius: 999px;
+  align-items: baseline;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
   font-size: 12.5px;
-  background: var(--color-surface, #f3f5fb);
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-primary-light) calc(30% + var(--peso) * 70%), var(--color-white));
   text-decoration: none;
+}
+
+.chipGrado .cifra {
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.chipGrado:hover {
+  background: var(--color-primary);
+  color: var(--color-white);
+}
+
+.chipGrado:hover .cifra {
+  color: var(--color-white);
+}
+
+/* ---- Cifras de arriba ---------------------------------------------------- */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(110px, 1fr));
+  gap: var(--espacio-2);
+}
+
+.kpis > div {
+  padding: var(--espacio-3) var(--espacio-4);
+  background: var(--clay-surface-grad);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-sm);
+}
+
+.kpis dt {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.kpis dd {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--color-text-primary);
+}
+
+.kpiExito dd {
+  color: var(--color-success);
+}
+
+/* ---- Fila de la tabla ---------------------------------------------------- */
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-right: var(--espacio-2);
+  border-radius: var(--radius-full);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-weight: 800;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.hijos li {
+  display: flex;
+  gap: var(--espacio-2);
+  align-items: baseline;
+}
+
+.gradoHijo {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.colegioHijo {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 34ch;
+}
+
+@media (max-width: 720px) {
+  .kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .tarjetasColegio {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ---- Estado del pedido de la familia ---------------------------------------- */

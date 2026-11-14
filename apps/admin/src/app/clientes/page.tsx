@@ -2,7 +2,8 @@ import { cookies } from "next/headers";
 import Form from "next/form";
 import Link from "next/link";
 import { origenDeDatos, ErrorTukit, type AcudienteAdmin } from "@tukit/contrato/servidor";
-import { ETIQUETA_ESTADO_PEDIDO, type EstadoPedido } from "@tukit/contrato";
+import { ETIQUETA_ESTADO_PEDIDO, logoDeColegio, type EstadoPedido } from "@tukit/contrato";
+import { imagenesDelDirectorio } from "@/lib/directorio";
 import { COOKIE_SESION } from "@/lib/sesion";
 import { formatearFecha } from "@/lib/formato";
 import { rotuloDeHijo } from "@/lib/pedido-admin";
@@ -108,9 +109,15 @@ export default async function PaginaClientes({ searchParams }: Props) {
   const porColegio = clientesPorColegio(acudientes);
   // El estado del pedido de cada familia (el tablero de comercio, solo staff). Si
   // comercio no responde, la columna sale vacia y el padron sigue.
-  const pedidos = pedidosPorFamilia(
-    (await origenDeDatos().pedidos(token).catch(() => null))?.pedidos ?? [],
-  );
+  const tablero = await origenDeDatos().pedidos(token).catch(() => null);
+  const pedidos = pedidosPorFamilia(tablero?.pedidos ?? []);
+  // El logo de cada colegio (Identidad o el directorio de Bogota) y las cifras de arriba.
+  const colegios = await origenDeDatos().colegios().catch(() => []);
+  const logos = new Map(colegios.map((c) => [c.colegio_id, logoDeColegio(c, imagenesDelDirectorio())] as const));
+  const hijosTotales = acudientes.reduce((n, a) => n + a.hijos.length, 0);
+  const conPedido = acudientes.filter((a) => pedidos.has(a.usuario_id)).length;
+  const entregados = acudientes.filter((a) => pedidos.get(a.usuario_id)?.estado === "entregado").length;
+  const maxHijosColegio = Math.max(1, ...porColegio.map((c) => c.hijos));
 
   return (
     <div className={styles.pagina}>
@@ -122,10 +129,22 @@ export default async function PaginaClientes({ searchParams }: Props) {
             muestra su posición, grado y colegio; ni apodo ni nombre legal.
           </p>
         </div>
-        <dl className={styles.resumen}>
+        <dl className={styles.kpis}>
           <div>
             <dt>Familias</dt>
             <dd className="cifra">{acudientes.length}</dd>
+          </div>
+          <div>
+            <dt>Hijos</dt>
+            <dd className="cifra">{hijosTotales}</dd>
+          </div>
+          <div>
+            <dt>Con pedido</dt>
+            <dd className="cifra">{conPedido}</dd>
+          </div>
+          <div className={styles.kpiExito}>
+            <dt>Entregados</dt>
+            <dd className="cifra">{entregados}</dd>
           </div>
         </dl>
       </header>
@@ -136,33 +155,50 @@ export default async function PaginaClientes({ searchParams }: Props) {
           <p className={styles.bajada}>
             Familias e hijos en cada colegio. Toca un colegio o un grado para filtrar la tabla.
           </p>
-          <ul className={styles.listaColegios}>
-            {porColegio.map((c) => (
-              <li key={c.colegio_id} className={styles.filaColegio}>
-                <Link
-                  href={hrefClientes({ ...filtros, colegio: c.colegio_id, grado: "", pagina: 1 })}
-                  className={styles.nombreColegio}
-                >
-                  {c.colegio_nombre}
-                </Link>
-                <span className={`${styles.conteo} cifra`}>
-                  {c.acudientes} {c.acudientes === 1 ? "familia" : "familias"} · {c.hijos}{" "}
-                  {c.hijos === 1 ? "hijo" : "hijos"}
-                </span>
-                <ul className={styles.gradosColegio} aria-label={`Grados en ${c.colegio_nombre}`}>
-                  {c.grados.map((g) => (
-                    <li key={g.grado}>
-                      <Link
-                        href={hrefClientes({ ...filtros, colegio: c.colegio_id, grado: g.grado, pagina: 1 })}
-                        className={styles.chipGrado}
-                      >
-                        {g.grado} <span className="cifra">{g.hijos}</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
+          <ul className={styles.tarjetasColegio}>
+            {porColegio.map((c) => {
+              const logo = logos.get(c.colegio_id) ?? null;
+              const maxGrado = Math.max(1, ...c.grados.map((g) => g.hijos));
+              return (
+                <li key={c.colegio_id} className={styles.tarjetaColegio}>
+                  <Link
+                    href={hrefClientes({ ...filtros, colegio: c.colegio_id, grado: "", pagina: 1 })}
+                    className={styles.cabezaColegio}
+                  >
+                    {logo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={logo} alt="" className={styles.logoColegio} loading="lazy" />
+                    ) : (
+                      <span className={styles.logoColegio} aria-hidden="true">
+                        {c.colegio_nombre.replace(/^(COLEGIO|GIMNASIO|UNIDAD EDUCATIVA|JARDIN INFANTIL)\s+/i, "").charAt(0)}
+                      </span>
+                    )}
+                    <span className={styles.nombreColegio}>{c.colegio_nombre}</span>
+                    <span className={styles.cifrasColegio}>
+                      <strong className="cifra">{c.acudientes}</strong> {c.acudientes === 1 ? "familia" : "familias"}
+                      <span aria-hidden="true"> · </span>
+                      <strong className="cifra">{c.hijos}</strong> {c.hijos === 1 ? "hijo" : "hijos"}
+                    </span>
+                  </Link>
+                  <span className={styles.barraColegio} aria-hidden="true">
+                    <span style={{ width: `${(c.hijos / maxHijosColegio) * 100}%` }} />
+                  </span>
+                  <ul className={styles.gradosColegio} aria-label={`Grados en ${c.colegio_nombre}`}>
+                    {c.grados.map((g) => (
+                      <li key={g.grado}>
+                        <Link
+                          href={hrefClientes({ ...filtros, colegio: c.colegio_id, grado: g.grado, pagina: 1 })}
+                          className={styles.chipGrado}
+                          style={{ ["--peso" as string]: String(g.hijos / maxGrado) }}
+                        >
+                          {g.grado} <span className="cifra">{g.hijos}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
@@ -266,6 +302,9 @@ export default async function PaginaClientes({ searchParams }: Props) {
                 <tr key={acudiente.usuario_id}>
                   <th scope="row" className={styles.correo}>
                     <Link href={hrefCliente(acudiente.usuario_id)} className={styles.enlaceFila}>
+                      <span className={styles.avatar} aria-hidden="true">
+                        {acudiente.correo.charAt(0).toUpperCase()}
+                      </span>
                       {acudiente.correo}
                     </Link>
                   </th>
@@ -280,7 +319,10 @@ export default async function PaginaClientes({ searchParams }: Props) {
                     ) : (
                       <ul className={styles.hijos}>
                         {acudiente.hijos.map((hijo, indice) => (
-                          <li key={`${acudiente.usuario_id}-${indice}`}>{textoHijo(hijo, indice)}</li>
+                          <li key={`${acudiente.usuario_id}-${indice}`}>
+                            <span className={styles.gradoHijo}>{hijo.grado}</span>
+                            <span className={styles.colegioHijo}>{textoHijo(hijo, indice).split(" · ").slice(-1)[0]}</span>
+                          </li>
                         ))}
                       </ul>
                     )}
