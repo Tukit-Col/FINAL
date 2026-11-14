@@ -864,8 +864,10 @@ function ResumenPorHijo({
                   {otros.length > 0 && (
                     <>
                       <h3 className={styles.subtituloHijo}>
-                        {fan.length > 0 ? "El resto de su lista" : "Su lista"}{" "}
-                        <span className={styles.metaHijo}>({otros.length})</span>
+                        {fan.length > 0 ? "El resto de su lista" : "Su lista"}
+                        {/* Fotos de los productos, no un conteo: dos renglones que se
+                            resuelven con el mismo producto salen una vez, y eso cambia
+                            entre kits aunque la lista sea la misma. */}
                       </h3>
                       <MiniaturasHijo lineas={otros} />
                     </>
