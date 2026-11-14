@@ -110,3 +110,21 @@ test("dos llamadas simultaneas se serializan y respetan el intervalo", async () 
   assert.equal(llamadas.length, 2);
   assert.ok(llamadas[1].t - llamadas[0].t >= 1000);
 });
+
+test("una direccion del DANE no cae en el centro de Bogota: se normaliza y, si no, se busca la via en su localidad", async () => {
+  const { geo, llamadas } = armar((url) => {
+    const q = url.searchParams.get("q") ?? "";
+    if (q.startsWith("Carrera 109, Fontibón")) return [{ lat: "4.6791", lon: "-74.1498", addresstype: "road" }];
+    // Lo que hoy pasa con "KR 109 # 23 D - 35": Nominatim devuelve la ciudad entera.
+    if (q.includes("KR 109")) return [{ lat: "4.6533", lon: "-74.0836", addresstype: "city" }];
+    return [];
+  });
+  const r = await geo.resolver([{ direccion: "KR 109 # 23 D - 35", ciudad: "Bogotá", departamento: "Bogotá D.C.", localidad: "Fontibón" }]);
+  const punto = [...r.values()][0];
+  assert.deepEqual(punto, { lat: 4.6791, lon: -74.1498 });
+  assert.ok(llamadas.every((l) => !(l.url.searchParams.get("q") ?? "").includes("KR 109")), "la abreviatura KR no debe llegar tal cual");
+});
+
+test("un resultado que es la ciudad entera no cuenta como la direccion", () => {
+  assert.equal(leerRespuestaNominatim([{ lat: "4.6533", lon: "-74.0836", addresstype: "city" }]), null);
+});
