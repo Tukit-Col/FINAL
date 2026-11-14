@@ -135,7 +135,12 @@ export default async function PaginaColegio({ params }: Props) {
   // navegador). Fail-soft: sin contacto configurado, sin direccion o sin
   // resultado, la ficha muestra solo la direccion en texto.
   const direccionColegio = directorio?.direccion
-    ? { direccion: directorio.direccion, ciudad: "Bogotá", departamento: "Bogotá D.C." }
+    ? {
+        direccion: directorio.direccion,
+        ciudad: "Bogotá",
+        departamento: "Bogotá D.C.",
+        localidad: directorio.localidad ?? null,
+      }
     : null;
   const geo = direccionColegio ? geocodificadorDelServidor() : null;
   const resultadoGeo =
