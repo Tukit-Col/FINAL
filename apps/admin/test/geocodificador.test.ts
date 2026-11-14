@@ -12,6 +12,7 @@ import {
   Geocodificador,
   leerRespuestaNominatim,
   type EntradaCache,
+  normalizarDireccion,
 } from "../src/lib/geocodificador.ts";
 
 const BOGOTA = [{ lat: "4.6097", lon: "-74.0817" }];
@@ -127,4 +128,9 @@ test("una direccion del DANE no cae en el centro de Bogota: se normaliza y, si n
 
 test("un resultado que es la ciudad entera no cuenta como la direccion", () => {
   assert.equal(leerRespuestaNominatim([{ lat: "4.6533", lon: "-74.0836", addresstype: "city" }]), null);
+});
+
+test("con varias sedes en la direccion del DANE se usa la primera", () => {
+  assert.equal(normalizarDireccion("KR 99 # 17 A - 62 -- 20 -- 80  --  KR 98 # 17 A - 19"), "Carrera 99 17A-62");
+  assert.equal(normalizarDireccion("KR 80 A BIS # 22 D - 44 -- 50"), "Carrera 80A Bis 22D-44");
 });

@@ -116,7 +116,9 @@ const VIAS: [RegExp, string][] = [
 
 /** "KR 109 # 23 D - 35" (formato del DANE) -> "Carrera 109 23D-35": como lo escribe OSM. */
 export function normalizarDireccion(direccion: string): string {
-  let t = direccion.trim().replace(/\s+/g, " ");
+  // El DANE junta varias sedes con "--" ("KR 99 # 17 A - 62 -- 20 -- 80 -- KR 98 ..."):
+  // el punto del colegio es la primera direccion.
+  let t = direccion.split(/\s+--\s+/)[0]!.trim().replace(/\s+/g, " ");
   for (const [re, nombre] of VIAS) {
     if (re.test(t)) {
       t = t.replace(re, nombre);
