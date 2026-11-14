@@ -80,6 +80,33 @@ def _motor() -> Any:
     return app.state.motor
 
 
+# Lo que se quita de un renglon antes de enseñarlo como sinonimo: el prefijo de
+# un grupo ("Kit de aseo personal: ..."), la cantidad y el articulo de inicio.
+# Lo que queda es la cosa pedida, que es lo que vuelve a aparecer en otra lista.
+_PREFIJO_GRUPO = re.compile(r"^[^:]{2,40}:\s*")
+_CANTIDAD_INICIAL = re.compile(r"^(?:\d+|un|una|unos|unas|dos|tres|cuatro|cinco|seis|diez|doce)\b\s*", re.I)
+_LARGO_SINONIMO = (4, 80)
+
+
+def sinonimo_de_renglon(texto: str) -> str | None:
+    """El texto de un renglon en la forma en que se aprende como sinonimo, o None."""
+    t = " ".join((texto or "").split())
+    t = _PREFIJO_GRUPO.sub("", t)
+    for _ in range(2):
+        t = _CANTIDAD_INICIAL.sub("", t).strip()
+    t = t.strip(" .,;:-").lower()
+    if not (_LARGO_SINONIMO[0] <= len(t) <= _LARGO_SINONIMO[1]):
+        return None
+    return t
+
+
+def _json(valor: Any) -> Any:
+    """Lo que se guarda en la correccion: valores simples tal cual, el resto como texto."""
+    if valor is None or isinstance(valor, (str, int, float, bool, list, dict)):
+        return valor
+    return str(valor)
+
+
 async def _concepto_id(repo: RepoAdmin, codigo: str) -> uuid.UUID:
     cid = await repo.concepto_id_por_codigo(codigo)
     if cid is None:
@@ -274,6 +301,17 @@ def _palabras(texto: str) -> set[str]:
     return set(re.findall(r"[a-z0-9]+", _normalizar(texto)))
 
 
+def _color_del_texto(texto: str) -> str | None:
+    """El color que nombra el renglon (el ultimo, que es el que lo distingue), o None."""
+    from ..enriquecer import COLORES
+
+    palabras = _palabras(texto)
+    hallados = [
+        canon for nombre, canon in COLORES if " " not in nombre and nombre in palabras and canon != "surtido"
+    ]
+    return hallados[-1] if hallados else None
+
+
 def _posibles_repetidos(
     filas: list[Any], reglas: dict[str, tuple[tuple[str, ...], bool, str]]
 ) -> dict[int, int]:
@@ -298,6 +336,13 @@ def _posibles_repetidos(
         if (f.tipo_item or "util") in ("no_comprar", "uniforme", "licencia_digital", "diferido", "otro"):
             continue
         exige = extraer_atributos(f.texto_original, reglas.get(codigo, _SIN_REGLAS)[0])
+        # El color siempre separa, aunque el concepto no lo declare discriminante:
+        # "carpetas ... Colores: Azul" y "... Rojo" son 4 carpetas pedidas por color,
+        # no una repetida (Agustiniano Jardin, 13-nov). Lo aprendido de los avisos
+        # que el equipo descartaba una y otra vez.
+        color = _color_del_texto(f.texto_original)
+        if color and "color" not in exige:
+            exige = {**exige, "color": color}
         clave = (codigo, tuple(sorted((k, str(v)) for k, v in exige.items())))
         palabras = _palabras(f.texto_original)
         for orden, otras in vistos.get(clave, []):
@@ -1244,7 +1289,53 @@ async def editar_item(version_id: uuid.UUID, item_id: uuid.UUID, cuerpo: dict[st
         await _exigir_atributos_curables(repo, valores, concepto_id, dict(actual.atributos or {}))
         if valores:
             await repo.actualizar_item(item_id, valores)
+            await _registrar_cambios(repo, version_id, actual, valores)
     return {"item_id": str(item_id), "actualizado": True}
+
+
+_CAMPO_DE_COLUMNA = {
+    "concepto_id": "concepto",
+    "cantidad": "cantidad",
+    "texto_original": "texto",
+    "modo_adquisicion": "modo",
+    "tipo_item": "tipo",
+    "atributos": "atributos",
+    "instruccion_colegio": "instruccion",
+    "requiere_revision": "revision",
+    "unidad": "unidad",
+    "url_externa": "url",
+}
+
+
+async def _registrar_cambios(
+    repo: RepoAdmin, version_id: uuid.UUID, actual: Any, valores: dict[str, Any]
+) -> None:
+    """Una fila de `correccion_lista` por campo que cambio; el concepto ademas enseña."""
+    for columna, despues in valores.items():
+        antes = getattr(actual, columna, None)
+        if antes == despues:
+            continue
+        aprendido = None
+        if columna == "concepto_id":
+            antes = await repo.codigo_de_concepto(actual.concepto_id)
+            codigo = await repo.codigo_de_concepto(despues)
+            sinonimo = sinonimo_de_renglon(actual.texto_original)
+            if (
+                despues is not None
+                and sinonimo
+                and await repo.aprender_sinonimo(sinonimo, despues, actual.concepto_id)
+            ):
+                aprendido = {"sinonimo": sinonimo, "concepto": codigo}
+            despues = codigo
+        await repo.registrar_correccion(
+            version_id=version_id,
+            item_id=actual.id,
+            campo=_CAMPO_DE_COLUMNA.get(columna, columna)[:24],
+            valor_antes=_json(antes),
+            valor_despues=_json(despues),
+            texto_original=actual.texto_original,
+            aprendido=aprendido,
+        )
 
 
 @router.post(
@@ -1275,6 +1366,14 @@ async def agregar_item(version_id: uuid.UUID, cuerpo: dict[str, Any]) -> dict[st
         orden = await repo.max_orden_item(version_id) + 1
         nuevo_id = uuid.uuid4()
         await repo.crear_item(id=nuevo_id, version_id=version_id, orden=orden, **valores)
+        await repo.registrar_correccion(
+            version_id=version_id,
+            item_id=nuevo_id,
+            campo="agregado",
+            valor_antes=None,
+            valor_despues={k: _json(v) for k, v in valores.items() if k != "concepto_id"},
+            texto_original=valores.get("texto_original"),
+        )
     return {"item_id": str(nuevo_id), "orden": orden}
 
 
@@ -1288,8 +1387,17 @@ async def quitar_item(version_id: uuid.UUID, item_id: uuid.UUID) -> None:
         repo = RepoAdmin(await db.connection())
         cabeza = await repo.version_y_lista(version_id)
         _exigir_sin_revisar(cabeza)
+        actual = await repo.item_por_id(item_id, version_id)
         if not await repo.borrar_item(item_id, version_id):
             raise ErrorDominio("item_no_existe", "Ese renglon no esta en esta version.", estado=404)
+        await repo.registrar_correccion(
+            version_id=version_id,
+            item_id=item_id,
+            campo="borrado",
+            valor_antes={"cantidad": actual.cantidad} if actual is not None else None,
+            valor_despues=None,
+            texto_original=actual.texto_original if actual is not None else None,
+        )
 
 
 @router.delete(
@@ -1504,6 +1612,34 @@ async def _aprobar(repo: RepoAdmin, version_id: uuid.UUID, cabeza: Any) -> None:
         )
 
 
+@router.get("/correcciones", summary="Lo que el equipo corrigio en la cola y lo que el sistema aprendio")
+async def listar_correcciones(
+    campo: Annotated[str | None, Query(max_length=24)] = None,
+    limite: Annotated[int, Query(ge=1, le=1000)] = 200,
+) -> dict[str, Any]:
+    async with _motor().sesion() as db:
+        repo = RepoAdmin(await db.connection())
+        filas = await repo.correcciones(campo=campo, limite=limite)
+        por_campo = await repo.correcciones_por_campo()
+    return {
+        "correcciones": [
+            {
+                "version_id": str(f.version_id),
+                "item_id": str(f.item_id) if f.item_id else None,
+                "campo": f.campo,
+                "valor_antes": f.valor_antes,
+                "valor_despues": f.valor_despues,
+                "texto_original": f.texto_original,
+                "aprendido": f.aprendido,
+                "creado_en": f.creado_en.isoformat() if f.creado_en else None,
+            }
+            for f in filas
+        ],
+        "por_campo": por_campo,
+        "sinonimos_aprendidos": sum(1 for f in filas if f.aprendido),
+    }
+
+
 @router.post(
     "/listas/{version_id}/cerrar",
     summary="Dar por revisada una version: la habilita para el acudiente",
@@ -1535,8 +1671,26 @@ async def cerrar_version(version_id: uuid.UUID) -> dict[str, Any]:
                 f"Quedan {pendientes} propuestas sin decidir. Resuelvelas antes de cerrar.",
                 estado=409,
             )
+        # Aprobar es decidir: lo que quedaba como aviso lo vio una persona y lo dejo
+        # asi. Sin esto, una lista ya revisada seguia mostrando "13 para revisar".
+        # `sin_producto` se cierra tambien en la lista, pero es trabajo del catalogo:
+        # queda en la correccion para que el equipo de catalogo lo vea.
+        abiertos = _avisos_de(await _renglones_resueltos(repo, version_id))
+        por_item: dict[uuid.UUID, list[str]] = {}
+        for aviso in abiertos:
+            por_item.setdefault(uuid.UUID(aviso["item_id"]), []).append(aviso["clave"])
+        cerrados = await repo.cerrar_avisos_de_version(version_id, por_item)
+        for aviso in abiertos:
+            await repo.registrar_correccion(
+                version_id=version_id,
+                item_id=uuid.UUID(aviso["item_id"]),
+                campo="aviso",
+                valor_antes=aviso["clave"],
+                valor_despues="cerrado_al_aprobar",
+                texto_original=aviso["texto"],
+            )
         await _aprobar(repo, version_id, cabeza)
-    return {"version_id": str(version_id), "revisada": True}
+    return {"version_id": str(version_id), "revisada": True, "avisos_cerrados": cerrados}
 
 
 async def _clonar_vigente(repo: RepoAdmin, lista: Any, vigente: Any) -> tuple[uuid.UUID, int]:
@@ -1738,6 +1892,13 @@ async def descartar_aviso(version_id: uuid.UUID, cuerpo: dict[str, Any]) -> dict
         await _version_revisada(repo, version_id)
         if not await repo.descartar_aviso(item_id, version_id, clave):
             raise ErrorDominio("item_no_existe", "Ese renglon no esta en esta version.", estado=404)
+        await repo.registrar_correccion(
+            version_id=version_id,
+            item_id=item_id,
+            campo="aviso",
+            valor_antes=clave,
+            valor_despues="descartado",
+        )
     return {"item_id": str(item_id), "descartado": clave}
 
 
