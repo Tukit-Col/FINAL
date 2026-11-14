@@ -388,7 +388,18 @@ def test_el_prefijo_de_grupo_no_es_la_cosa_pedida():
 
     con_grupo = cabeza("Kit de aseo personal: 1 caja de pañuelos faciales")
     assert con_grupo == cabeza("1 caja de pañuelos faciales")
-    assert cabeza("Cartuchera con: colores") != ""
+    assert cabeza("Cartuchera con: colores") == "cartuchera"
+    assert cabeza("Para las niñas: una falda rotonda") == "falda"
+
+
+def test_los_dos_puntos_tras_la_cosa_son_un_detalle():
+    # Lo de despues de los dos puntos es tamano, materia o color: no es la cabeza.
+    from tukit_catalogo.descubrir import cabeza
+
+    assert cabeza("Cuaderno: Pequeño de una línea. ROBÓTICA") == "cuaderno"
+    assert cabeza("Carpeta plástica oficio con gancho plástico: Inglés") == "carpeta"
+    assert cabeza("carpetas legajadoras con gancho legajador. Color: Azul") == "carpetas"
+    assert cabeza("Pinturas acrílicas tubo de 45 cc: negro") == "pinturas"
 
 
 def test_la_cantidad_en_palabras_no_es_la_cosa_pedida():
@@ -398,3 +409,4 @@ def test_la_cantidad_en_palabras_no_es_la_cosa_pedida():
     assert cabeza("Una caja de pasteles secos") == "pasteles"
     assert cabeza("dos paquetes de plastilina") == "plastilina"
     assert cabeza("Un cuaderno cosido") == "cuaderno"
+    assert cabeza("paquete de 20 resistencias surtidas a 1/4 W") == "resistencias"
