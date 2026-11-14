@@ -389,3 +389,12 @@ def test_el_prefijo_de_grupo_no_es_la_cosa_pedida():
     con_grupo = cabeza("Kit de aseo personal: 1 caja de pañuelos faciales")
     assert con_grupo == cabeza("1 caja de pañuelos faciales")
     assert cabeza("Cartuchera con: colores") != ""
+
+
+def test_la_cantidad_en_palabras_no_es_la_cosa_pedida():
+    # "Una caja de pasteles secos" pide pasteles; "una" no es la cabeza (13-nov).
+    from tukit_catalogo.descubrir import cabeza
+
+    assert cabeza("Una caja de pasteles secos") == "pasteles"
+    assert cabeza("dos paquetes de plastilina") == "plastilina"
+    assert cabeza("Un cuaderno cosido") == "cuaderno"
