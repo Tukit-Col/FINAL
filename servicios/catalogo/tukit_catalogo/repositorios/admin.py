@@ -28,6 +28,7 @@ PROPUESTA = Base.metadata.tables["propuesta_producto"]
 TAREA = Base.metadata.tables["tarea_importacion"]
 TIENDA = Base.metadata.tables["tienda"]
 BANDEJA = Base.metadata.tables["bandeja_salida"]
+CORRECCION = Base.metadata.tables["correccion_lista"]
 
 
 class RepoAdmin:
@@ -399,6 +400,80 @@ class RepoAdmin:
         )
 
     # -- Editar renglones -------------------------------------------------
+
+    # -- Correcciones: lo que el equipo cambia y lo que el sistema aprende ----
+
+    async def registrar_correccion(self, **valores: Any) -> None:
+        await self.c.execute(CORRECCION.insert().values(id=uuid.uuid4(), **valores))
+
+    async def correcciones(
+        self, *, desde: Any = None, campo: str | None = None, limite: int = 200
+    ) -> list[Any]:
+        q = select(CORRECCION).order_by(CORRECCION.c.creado_en.desc()).limit(limite)
+        if desde is not None:
+            q = q.where(CORRECCION.c.creado_en >= desde)
+        if campo:
+            q = q.where(CORRECCION.c.campo == campo)
+        return list(await self.c.execute(q))
+
+    async def correcciones_por_campo(self) -> dict[str, int]:
+        filas = await self.c.execute(select(CORRECCION.c.campo, func.count()).group_by(CORRECCION.c.campo))
+        return {str(c): int(n) for c, n in filas}
+
+    async def codigo_de_concepto(self, concepto_id: uuid.UUID | None) -> str | None:
+        if concepto_id is None:
+            return None
+        return await self.c.scalar(select(CONCEPTO.c.codigo).where(CONCEPTO.c.id == concepto_id))
+
+    async def aprender_sinonimo(
+        self, sinonimo: str, concepto_id: uuid.UUID, anterior_id: uuid.UUID | None
+    ) -> bool:
+        """Agrega `sinonimo` al concepto corregido y lo quita del que se equivoco.
+
+        Lo lee el clasificador en la importacion siguiente (no hay cache): el mismo
+        texto en otra lista ya cae en el concepto correcto. Devuelve si agrego algo.
+        """
+        actuales = list(
+            await self.c.scalar(select(CONCEPTO.c.sinonimos).where(CONCEPTO.c.id == concepto_id)) or []
+        )
+        agregado = sinonimo not in actuales
+        if agregado:
+            await self.c.execute(
+                update(CONCEPTO).where(CONCEPTO.c.id == concepto_id).values(sinonimos=[*actuales, sinonimo])
+            )
+        if anterior_id is not None and anterior_id != concepto_id:
+            viejos = list(
+                await self.c.scalar(select(CONCEPTO.c.sinonimos).where(CONCEPTO.c.id == anterior_id)) or []
+            )
+            if sinonimo in viejos:
+                await self.c.execute(
+                    update(CONCEPTO)
+                    .where(CONCEPTO.c.id == anterior_id)
+                    .values(sinonimos=[s for s in viejos if s != sinonimo])
+                )
+        return agregado
+
+    async def cerrar_avisos_de_version(
+        self, version_id: uuid.UUID, claves_por_item: dict[uuid.UUID, list[str]]
+    ) -> int:
+        """Marca como descartados los avisos que quedaban abiertos al aprobar."""
+        cerrados = 0
+        for item_id, claves in claves_por_item.items():
+            actual = list(
+                await self.c.scalar(
+                    select(ITEM.c.avisos_descartados).where(
+                        ITEM.c.id == item_id, ITEM.c.version_id == version_id
+                    )
+                )
+                or []
+            )
+            nuevos = [c for c in claves if c not in actual]
+            if nuevos:
+                await self.c.execute(
+                    update(ITEM).where(ITEM.c.id == item_id).values(avisos_descartados=[*actual, *nuevos])
+                )
+                cerrados += len(nuevos)
+        return cerrados
 
     async def item_por_id(self, item_id: uuid.UUID, version_id: uuid.UUID) -> Any:
         return (

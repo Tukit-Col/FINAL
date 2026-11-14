@@ -26,6 +26,7 @@ from .editorial import (
 )
 from .listas import (
     BandejaSalida,
+    CorreccionLista,
     ItemListaOficial,
     ListaOficial,
     TareaImportacion,
@@ -35,6 +36,7 @@ from .oferta import CorridaScraper, OfertaTienda, PrecioOferta, Tienda
 from .propuesta import PropuestaProducto
 
 __all__ = [
+    "CorreccionLista",
     "CALIDAD_POR_NIVEL",
     "DIMENSION_EMBEDDING",
     "UMBRAL_REVISION_MANUAL",

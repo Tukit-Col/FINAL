@@ -1934,3 +1934,108 @@ class TestCrearConcepto:
         assert (
             await cliente.post("/v1/admin/catalogo/conceptos", json={"nombre_canonico": "algo"})
         ).status_code == 422
+
+
+class TestLaCorreccionVuelveAlCatalogo:
+    """Lo que el equipo corrige en la cola no vuelve a fallar en la lista siguiente (13-nov)."""
+
+    async def test_corregir_el_concepto_lo_aprende_como_sinonimo(self, cliente):
+        from tukit_catalogo.descubrir import clasificar
+
+        vid = cliente.ids["abierta"]
+        revision = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()
+        chaquiras = next(i for i in revision["items"] if i["texto_original"] == "chaquiras de colores")
+        r = await cliente.patch(
+            f"/v1/admin/listas/{vid}/items/{chaquiras['item_id']}",
+            json={"concepto_codigo": "C002", "requiere_revision": False},
+        )
+        assert r.status_code == 200
+
+        async with app.state.motor.sesion() as db:
+            from sqlalchemy import select
+
+            filas = (
+                await db.execute(
+                    select(Concepto.id, Concepto.nombre_canonico, Concepto.sinonimos, Concepto.codigo)
+                )
+            ).all()
+        conceptos = [
+            {"id": f.id, "nombre": f.nombre_canonico, "sinonimos": list(f.sinonimos or ())} for f in filas
+        ]
+        colores = next(f for f in filas if f.codigo == "C002")
+        assert "chaquiras de colores" in (colores.sinonimos or [])
+        # Una lista NUEVA con el mismo texto ya cae en el concepto corregido.
+        concepto_id, _, puntaje = clasificar("2 chaquiras de colores", conceptos)
+        assert concepto_id == colores.id and puntaje >= 0.5
+
+    async def test_el_sinonimo_aprendido_quita_el_prefijo_de_kit(self, cliente):
+        from tukit_catalogo.routers.admin import sinonimo_de_renglon
+
+        assert (
+            sinonimo_de_renglon("Kit de aseo personal: 1 caja de pañuelos faciales")
+            == "caja de pañuelos faciales"
+        )
+        assert sinonimo_de_renglon("Una caja de pasteles secos") == "caja de pasteles secos"
+        assert sinonimo_de_renglon("2 cuadernos cuadriculados") == "cuadernos cuadriculados"
+        assert sinonimo_de_renglon("x") is None
+
+    async def test_cada_correccion_queda_registrada_con_antes_y_despues(self, cliente):
+        vid = cliente.ids["abierta"]
+        revision = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()
+        item = revision["items"][0]
+        await cliente.patch(f"/v1/admin/listas/{vid}/items/{item['item_id']}", json={"cantidad": 5})
+        r = await cliente.get("/v1/admin/correcciones")
+        assert r.status_code == 200
+        cuerpo = r.json()
+        fila = next(c for c in cuerpo["correcciones"] if c["item_id"] == item["item_id"])
+        assert fila["campo"] == "cantidad"
+        assert fila["valor_antes"] == 2 and fila["valor_despues"] == 5
+        assert fila["texto_original"] == "2 cuadernos cuadriculados"
+        assert cuerpo["por_campo"]["cantidad"] >= 1
+
+
+class TestAprobarCierraLosAvisos:
+    async def test_una_lista_revisada_no_muestra_avisos_abiertos(self, cliente):
+        vid = cliente.ids["cerrada"]
+        r = await cliente.get(f"/v1/admin/listas/{vid}/avisos")
+        assert r.status_code == 200
+        assert r.json()["avisos"] == []
+
+
+def test_renglones_que_solo_cambian_de_color_no_son_repetidos():
+    from types import SimpleNamespace
+
+    from tukit_catalogo.routers.admin import _posibles_repetidos
+
+    base = "carpetas legajadoras plásticas traslucidas tamaño oficio con gancho legajador. Colores: {}"
+    filas = [
+        SimpleNamespace(orden=i, concepto_codigo="C011", tipo_item="util", texto_original=base.format(c))
+        for i, c in enumerate(["Amarillo", "Azul", "Rojo", "Verde"], start=1)
+    ]
+    assert _posibles_repetidos(filas, {}) == {}
+    # Un repetido de verdad (mismo texto, mismo color) sigue avisandose.
+    filas.append(
+        SimpleNamespace(orden=9, concepto_codigo="C011", tipo_item="util", texto_original=base.format("Azul"))
+    )
+    assert _posibles_repetidos(filas, {}) == {9: 2}
+
+
+class TestAprobarCierraLosAvisosDeVerdad:
+    async def test_aprobar_cierra_los_avisos_que_habia_y_los_registra(self, cliente):
+        vid = cliente.ids["abierta"]
+        # Un repetido claro para que haya aviso antes de aprobar.
+        await cliente.post(
+            f"/v1/admin/listas/{vid}/items",
+            json={"texto_original": "2 cuadernos cuadriculados", "concepto_codigo": "C001"},
+        )
+        # La propuesta pendiente impide cerrar: se resuelve primero.
+        async with app.state.motor.sesion() as db:
+            from sqlalchemy import update
+
+            await db.execute(update(PropuestaProducto).values(estado="rechazada"))
+            await db.commit()
+        antes = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()
+        r = await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
+        assert r.status_code == 200, r.text
+        assert (await cliente.get(f"/v1/admin/listas/{vid}/avisos")).json()["avisos"] == []
+        assert antes["total_items"] >= 3

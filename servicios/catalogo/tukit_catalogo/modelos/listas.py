@@ -389,3 +389,36 @@ class BandejaSalida(Base):
             sqlite_where=text("publicado_en IS NULL"),
         ),
     )
+
+
+class CorreccionLista(Base):
+    """Lo que el equipo corrigio en un renglon de una lista, con el antes y el despues.
+
+    Es la memoria de la cola de revision (AD-02): sin esto, la correccion quedaba
+    solo en la fila y el sistema no tenia de donde aprender. Cambiar el concepto
+    de un renglon ademas lo enseña como sinonimo del concepto (`aprendido`), asi
+    el mismo texto en la lista de otro colegio ya no vuelve a fallar.
+
+    `item_id` no es FK: borrar un renglon tambien es una correccion y su registro
+    tiene que sobrevivirle.
+    """
+
+    __tablename__ = "correccion_lista"
+    __table_args__ = (
+        Index("ix_correccion_lista_version", "version_id"),
+        Index("ix_correccion_lista_creado", "creado_en"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    version_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    item_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    campo: Mapped[str] = mapped_column(String(24), nullable=False)
+    valor_antes: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+    valor_despues: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+    texto_original: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Lo que el sistema aprendio con esta correccion (p. ej. `{"sinonimo": ..., "concepto": "C094"}`).
+    aprendido: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+    actor: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    creado_en: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
