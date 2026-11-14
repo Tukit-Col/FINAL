@@ -144,6 +144,8 @@ def consulta_desde_renglon(renglon: str) -> str:
     texto = RUIDO.sub(" ", texto)
     texto = re.sub(r"\b\d+\s*(gr?|grs|gramos?|ml|cc|cm|mm|mts?|metros?)\b", " ", texto)
     texto = re.sub(r"^\s*\d+\s+", "", texto)
+    # La cantidad tambien se escribe en palabras ("Una caja de", "dos paquetes de").
+    texto = re.sub(r"^\s*(un|una|unos|unas|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|doce)\s+", "", texto)
     palabras = [
         p for p in texto.split() if len(p) > 1 and p not in ("de", "del", "la", "el", "y", "o", "para", "con")
     ]
