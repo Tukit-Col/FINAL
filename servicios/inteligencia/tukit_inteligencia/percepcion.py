@@ -132,7 +132,9 @@ def normalizar_grado(texto: str) -> str:
     plano = re.sub(r"\bgrado\b", "", plano).strip()
     # "1er Año" .. "5to Año": bachillerato en colegios con ese esquema (Madre Matilde).
     # Es otro conteo: "2do año" no es Segundo de primaria sino el segundo de bachillerato.
-    ano = re.fullmatch(r"([1-5]|primer|primero|segundo|tercer|tercero|cuarto|quinto)\s*(?:er|ro|do|to|o)?\s*ano", plano)
+    ano = re.fullmatch(
+        r"([1-5]|primer|primero|segundo|tercer|tercero|cuarto|quinto)\s*(?:er|ro|do|to|o)?\s*ano", plano
+    )
     if ano:
         return _BACHILLERATO_POR_ANO[_ORDINAL_ANO.get(ano.group(1)) or int(ano.group(1))]
     # "1er", "2do", "3ro", "4to": el ordinal abreviado es el numero.
