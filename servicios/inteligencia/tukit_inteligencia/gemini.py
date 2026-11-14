@@ -58,7 +58,9 @@ cada item lleva cantidad 1.
 No separes "tajalapiz o portaminas", un producto entero ("Kit de 12 pinceles (planos, redondos)")
 ni una serie de durezas: "Lapices HB, 2H, 2B, 6B" es un solo item.
 Cada uniforme es UN item con su nombre ("Uniforme de diario"), sin sus prendas.
-En `grados` lista cada grado o curso distinto que aparezca en la pagina, con su nombre (Cuarto, no 4°).
+En `grados` lista cada grado o curso cuya lista ES esta pagina (el titulo o encabezado: "GRADO DECIMO",
+"Lista de Cuarto"), con su nombre (Cuarto, no 4°). Un grado que solo se menciona de paso no cuenta:
+"estos libros se usan el ano siguiente en 11" o "paquete del grado sexto en la tienda" no son otra lista.
 Si la imagen esta recortada, borrosa o no alcanzas a leerla toda, pon `completa` en false.
 Un texto que sigue en la pagina siguiente no es una pagina cortada: lee lo que hay y deja `completa` en true.
 No agregues items que no esten escritos."""
