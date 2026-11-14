@@ -132,6 +132,13 @@ def consulta_desde_renglon(renglon: str) -> str:
     carpinteria.
     """
     texto = _plano(renglon)
+    # "Kit de aseo personal: 1 caja de panuelos" pide los panuelos: lo de antes de
+    # los dos puntos nombra el grupo, no la cosa (13-nov). Solo si despues queda algo
+    # que pedir; "Cartuchera con: colores" sigue pidiendo la cartuchera.
+    grupo, dos_puntos, resto = texto.partition(":")
+    abre_contenido = re.search(r"\b(con|incluye|contiene|que contenga)\s*$", grupo.strip())
+    if dos_puntos and resto.strip() and not abre_contenido:
+        texto = resto
     texto = re.sub(r"[(),;:.]", " ", texto)
     texto = FRACCION.sub(" ", texto)
     texto = RUIDO.sub(" ", texto)
@@ -1445,7 +1452,10 @@ TIENDAS_LIBROS: dict[str, str] = {
 # Slug en tiendas.csv de cada clave.
 SLUG_TIENDA_LIBRO = {"buscalibre": "buscalibre", "libreria_nacional": "librerianacional"}
 
-_RUTA_BUSQUEDA = {"buscalibre": "/libros/search?q=", "libreria_nacional": "/api/catalog_system/pub/products/search?ft="}
+_RUTA_BUSQUEDA = {
+    "buscalibre": "/libros/search?q=",
+    "libreria_nacional": "/api/catalog_system/pub/products/search?ft=",
+}
 
 
 def consulta_libro_en(tienda: str, titulo: str, isbn13: str | None) -> str:
@@ -1507,10 +1517,11 @@ def fila_libro(
         "disponible": texto("disponible") or "true",
         "sku_tienda": texto("sku_tienda"),
         "observado_en": observado_en or datetime.now(UTC).date().isoformat(),
-        "atributos": json.dumps(atributos, ensure_ascii=False) if isinstance(atributos, dict) and atributos else "",
+        "atributos": json.dumps(atributos, ensure_ascii=False)
+        if isinstance(atributos, dict) and atributos
+        else "",
     }
 
 
 if __name__ == "__main__":
     sys.exit(main())
-
