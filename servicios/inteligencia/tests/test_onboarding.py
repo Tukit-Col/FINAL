@@ -198,6 +198,31 @@ class TestOnboardingFeliz:
         assert "crudo" in cruda[0]
 
 
+class TestGradoConfirmadoPorElAdmin:
+    async def test_el_grado_confirmado_gana_sobre_lo_que_leyo_el_modelo(self, cliente, catalogo, monkeypatch):
+        # Madre Matilde "2do Año" es Octavo; el modelo a veces lee solo "Segundo".
+        def _leer(_png: bytes, _n: int) -> PaginaLeida:
+            return PaginaLeida(grados=["Segundo"], items=[ItemExtraido(descripcion="cuaderno")])
+
+        monkeypatch.setattr(api, "_RENDERIZAR", lambda _c: [b"p1"])
+        monkeypatch.setattr(api, "_LEER", _leer)
+        r = await cliente.post(
+            "/v1/admin/onboarding", **_multipart(b"%PDF-m", grado="Octavo", grado_confirmado="1")
+        )
+        assert r.status_code == 200
+        assert r.json()["grado"] == "Octavo"
+        assert catalogo.llamadas[0]["grado"] == "Octavo"
+
+    async def test_sin_confirmar_manda_lo_leido(self, cliente, catalogo, monkeypatch):
+        def _leer(_png: bytes, _n: int) -> PaginaLeida:
+            return PaginaLeida(grados=["Segundo"], items=[ItemExtraido(descripcion="cuaderno")])
+
+        monkeypatch.setattr(api, "_RENDERIZAR", lambda _c: [b"p1"])
+        monkeypatch.setattr(api, "_LEER", _leer)
+        r = await cliente.post("/v1/admin/onboarding", **_multipart(b"%PDF-n", grado="Octavo"))
+        assert r.json()["grado"] == "Segundo"
+
+
 class TestOnboardingRechazado:
     async def test_varios_grados_es_422_sin_devolver_el_archivo(self, cliente, catalogo, monkeypatch):
         def _leer_multi(_png: bytes, numero: int) -> PaginaLeida:

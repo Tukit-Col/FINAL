@@ -1231,13 +1231,18 @@ async def onboarding(
 
     colegio_id, colegio_datos = await _reusar_colegio_conocido(colegio_id, colegio_datos)
     colegio_datos = await _completar_con_directorio(colegio_datos)
+    # El grado lo pone la lectura, salvo que el admin lo confirme: el admin conoce el
+    # esquema del colegio ("2do Año" es Octavo en Madre Matilde) y el modelo a veces
+    # solo lee "Segundo". Lo leido queda en la evidencia por pagina para la revision.
+    leido = percepcion.grados[0] if percepcion.grados else campos["grado"]
+    grado = campos["grado"] if campos.get("grado_confirmado") == "1" else leido
     # A diferencia de la subida del acudiente, aqui no se difiere (ADR 0040):
     # el formulario del administrador necesita el `version_id` en el acto para
     # pasar a la curaduria, y el administrador puede volver a intentar.
     try:
         respuesta = await api._catalogo().importar_lista(
             colegio_id=colegio_id,
-            grado=percepcion.grados[0] if percepcion.grados else campos["grado"],
+            grado=grado,
             anio_lectivo=anio_lectivo,
             items=items,
             documento_base64=base64.b64encode(archivo).decode(),
@@ -1254,7 +1259,7 @@ async def onboarding(
         ) from error
     return {
         "version_id": respuesta["version_id"],
-        "grado": percepcion.grados[0] if percepcion.grados else campos["grado"],
+        "grado": grado,
         "items": len(items),
     }
 
