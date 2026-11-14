@@ -820,7 +820,7 @@ function ResumenPorHijo({
           const idsFan = new Set(fan.map((l) => l.item_id));
           const otros = r.productos.filter((l) => !idsFan.has(l.item_id));
           const meta = [
-            `${r.productos.length} ${r.productos.length === 1 ? "producto" : "productos"}`,
+            `${r.renglones} ${r.renglones === 1 ? "útil" : "útiles"} de su lista`,
             r.comparten > 0 ? `${r.comparten} ${r.comparten === 1 ? "compartido" : "compartidos"}` : null,
             r.aparte > 0 ? `${r.aparte} por fuera de Tukit` : null,
           ].filter(Boolean);

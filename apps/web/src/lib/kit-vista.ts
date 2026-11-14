@@ -192,6 +192,9 @@ export interface ResumenHijo {
   comparten: number; // nº de consolidaciones en que participa
   falta: string[]; // avisos: personaje_sin_encaje + huecos, sin leer y en revision
   aparte: number; // renglones que se consiguen por fuera (libros, uniformes, licencias...)
+  // Renglones de su lista que se compran en Tukit (incluye los que comparte). Es lo que el
+  // padre reconoce y no cambia entre kits; `productos` son distintos y si cambia.
+  renglones: number;
 }
 
 // Lo que Tukit no pudo resolver: lo mismo que la vista pinta arriba con color de aviso.
@@ -229,6 +232,7 @@ export function resumenPorHijo(
         comparten: 0,
         falta: [],
         aparte: 0,
+        renglones: 0,
       };
       porHijo.set(hijo, r);
       orden.push(hijo);
@@ -255,6 +259,7 @@ export function resumenPorHijo(
     } else if (esInformativaOExterna(linea)) {
       r.aparte += 1;
     } else if (clase === "comprable" && !linea.descartado && linea.producto_elegido) {
+      r.renglones += 1;
       // La linea del hermano consolidado va en 0 unidades: su compra vive en la
       // banda de compartido, no se repite en su tarjeta. Un mismo producto en
       // varios renglones (un cuaderno por materia) sale una vez con su cantidad.

@@ -431,3 +431,15 @@ test("la foto de un producto compartido sale de la linea que lo compra", () => {
   assert.equal(r.linea?.item_id, "a");
   assert.deepEqual(fotoDeConsolidacion(lineas, { producto: "Otro" }), { imagen_url: null, linea: null });
 });
+
+test("el numero por hijo cuenta renglones de su lista, igual en todos los kits", () => {
+  const l = (item: string, sku: string) =>
+    ({ item_id: item, hijo: "a", descripcion: "Cuaderno", estado: "RESUELTO_AUTO", informativa: false,
+       unidades_a_comprar: 1, subtotal_linea: 1000, producto_elegido: { sku, nombre: sku, precio: 1000 } }) as unknown as LineaKit;
+  const nombres = new Map([["a", "Ana"], ["b", "Luis"]]);
+  const ahorrador = resumenPorHijo({ lineas: [l("1", "X"), l("2", "X"), l("3", "Y")], consolidaciones: [] }, nombres, new Map());
+  const fan = resumenPorHijo({ lineas: [l("1", "X"), l("2", "SPIDER"), l("3", "Y")], consolidaciones: [] }, nombres, new Map());
+  assert.equal(ahorrador[0]!.renglones, 3);
+  assert.equal(fan[0]!.renglones, 3);
+  assert.notEqual(ahorrador[0]!.productos.length, fan[0]!.productos.length);
+});

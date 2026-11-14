@@ -3,6 +3,8 @@
 import { useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Layers } from "lucide-react";
+
+const MOSTRAR_CAMBIAR_TODOS = false;
 import type { LineaKit } from "@tukit/contrato";
 import { cambiarProductoDeKit, opcionesDeLinea } from "@/lib/api-navegador";
 import {
@@ -98,7 +100,9 @@ export default function CabeceraCategoria({
         <h3 id={`${idAnclaCategoria(categoria)}-titulo`}>
           {titulo} <span className={`${styles.conteo} cifra`}>{activas.length}</span>
         </h3>
-        {activas.length >= 2 && !abierto && (
+        {/* "Cambiar todos" se retiro de la vista del padre (13-nov): el asistente ya
+            propone cambios por categoria con su resumen y "Aceptar todos". */}
+        {MOSTRAR_CAMBIAR_TODOS && activas.length >= 2 && !abierto && (
           <button type="button" className={styles.botonCambiar} onClick={abrir}>
             <Layers size={14} aria-hidden="true" /> Cambiar todos
           </button>
