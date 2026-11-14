@@ -211,7 +211,7 @@ export default function VistaKits({
       )}
 
       {/* ------------------------------------------------ El kit que se mira */}
-      <TarjetaLuz key={kit.perfil} className={`${styles.tarjetaKit} ${styles.kitActivo}`} aria-live="polite">
+      <TarjetaLuz key={`luz-${kit.perfil}`} className={`${styles.tarjetaKit} ${styles.kitActivo}`} aria-live="polite">
         {kit.perfil === recomendado?.perfil && (
           <span className={styles.chapaRecomendado}>
             <Star size={12} aria-hidden="true" fill="currentColor" strokeWidth={0} />
@@ -305,7 +305,7 @@ export default function VistaKits({
 
       {resumen.length > 1 && (
         <ResumenPorHijo
-          key={kit.perfil}
+          key={`hijos-${kit.perfil}`}
           kit={kit}
           resumen={resumen}
           nombresHijos={nombresHijos}

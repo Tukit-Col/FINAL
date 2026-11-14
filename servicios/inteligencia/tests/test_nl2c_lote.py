@@ -272,6 +272,53 @@ async def test_mejor_marca_en_colores_sube_un_escalon_de_nivel(monkeypatch):
     assert "mejor calidad" in resp["ui"]["componentes"][0]["props"]["texto"]
 
 
+def opcion_nivel(sku: str, nivel: str, precio: int, *, en_kit: bool = False) -> dict[str, Any]:
+    return {**opcion(sku, None, precio, en_kit=en_kit), "nivel": nivel}
+
+
+async def test_mejor_calidad_usa_el_carrusel_aunque_el_renglon_no_guarde_alternativas(monkeypatch):
+    # 13-nov: "mejor calidad en todos los cuadernos" dejaba fuera los renglones sin
+    # alternativas guardadas (o con las dos del mismo nivel). El carrusel si tiene a donde subir.
+    kit = kit_grande()
+    l4 = kit["lineas"][3]  # cuaderno cosido, confiable, su unica alternativa es del mismo nivel
+    l4["alternativas"] = []
+    carrusel = {
+        l4["item_id"]: [
+            opcion_nivel("CU-7", "confiable", 4000, en_kit=True),
+            opcion_nivel("P-1", "premium", 7000),
+        ]
+    }
+    resp, _ = await correr(
+        monkeypatch, pedir("mejor_calidad", "cuadernos"), opciones_de=opciones_del_carrusel(carrusel), kit=kit
+    )
+    por_item = {p["item_id"]: p for p in cambios(resp)}
+    assert por_item[l4["item_id"]]["despues"]["sku"] == "P-1"
+    assert por_item[l4["item_id"]]["delta_cop"] == 6000
+
+
+async def test_mejor_calidad_dice_cuantos_ya_estan_en_lo_mejor(monkeypatch):
+    kit = kit_grande()
+    for ln in kit["lineas"][:4]:
+        ln["alternativas"] = []
+    tope = kit["lineas"][0]["item_id"]
+    carrusel = {tope: [opcion_nivel("P-9", "premium", 20000)]}
+    for ln in kit["lineas"][1:4]:
+        ln["producto_elegido"]["nivel"] = "premium"
+    resp, _ = await correr(
+        monkeypatch, pedir("mejor_calidad", "cuadernos"), opciones_de=opciones_del_carrusel(carrusel), kit=kit
+    )
+    assert [p["item_id"] for p in cambios(resp)] == [tope]
+    assert "3 ya están en lo mejor" in resp["ui"]["componentes"][0]["props"]["texto"]
+
+
+async def test_mas_barato_con_el_carrusel_caido_usa_las_alternativas(monkeypatch):
+    async def roto(_linea):
+        raise RuntimeError("catalogo caido")
+
+    resp, _ = await correr(monkeypatch, pedir("mas_barato", "cuadernos"), opciones_de=roto)
+    assert [p["despues"]["sku"] for p in cambios(resp)] == ["CU-2", "CU-4", "CU-6"]
+
+
 async def test_quitar_un_renglon_sigue_siendo_un_descarte_para_confirmar(monkeypatch):
     llamada = {"name": "proponer_descarte", "args": {"linea": "L7", "motivo": "ya_lo_tengo"}}
     resp, _ = await correr(monkeypatch, [llamada])

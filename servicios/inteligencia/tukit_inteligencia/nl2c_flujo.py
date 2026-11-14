@@ -182,6 +182,7 @@ async def proponer_en_kit(
 
     res = nl2c_kit.validar_llamadas_kit(respuesta.llamadas, ctx, kit, trabajo_id)
     await nl2c_kit.completar_variar(res, ctx, trabajo_id, opciones_de, personajes_por_hijo)
+    await nl2c_kit.completar_lote(res, ctx, trabajo_id, opciones_de)
     tipos = {
         nl2c_kit.TIPO_DE_COMPONENTE[p["tipo"]]
         for p in res.propuestas
