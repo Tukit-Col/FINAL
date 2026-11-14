@@ -68,6 +68,9 @@ _GRADO = {
 }
 
 
+_BACHILLERATO_POR_ANO = {1: "Septimo", 2: "Octavo", 3: "Noveno", 4: "Decimo", 5: "Once"}
+
+
 class ItemExtraido(BaseModel):
     """Un renglon tal como lo leyo el modelo, antes del parseo."""
 
@@ -126,6 +129,13 @@ def normalizar_grado(texto: str) -> str:
     plano = re.sub(r"[^a-z0-9 ]", " ", plano)
     plano = re.sub(r"\s+", " ", plano).strip()
     plano = re.sub(r"\bgrado\b", "", plano).strip()
+    # "1er Año" .. "5to Año": bachillerato en colegios con ese esquema (Madre Matilde).
+    # Es otro conteo: "2do año" no es Segundo de primaria sino el segundo de bachillerato.
+    ano = re.fullmatch(r"([1-5])\s*(?:er|ro|do|to|o)?\s*ano", plano)
+    if ano:
+        return _BACHILLERATO_POR_ANO[int(ano.group(1))]
+    # "1er", "2do", "3ro", "4to": el ordinal abreviado es el numero.
+    plano = re.sub(r"\b(\d{1,2})\s*(?:er|ro|do|to|vo|no|mo|o)\b", r"\1", plano)
     if plano in _GRADO:
         return _GRADO[plano]
     # "4 de primaria" y "cuarto de primaria" son el mismo curso.

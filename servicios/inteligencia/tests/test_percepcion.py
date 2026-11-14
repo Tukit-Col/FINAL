@@ -87,6 +87,16 @@ class TestUnArchivoEsUnGrado:
     def test_pre_jardin_es_un_solo_grado(self):
         assert normalizar_grado("PRE-JARDIN") == normalizar_grado("Prejardin") == "Prejardin"
 
+    def test_n_ano_es_bachillerato_y_no_primaria(self):
+        # Madre Matilde: "1er Año" a "5to Año" es bachillerato. Leerlo como Primero..Quinto
+        # tapaba las listas de primaria del mismo colegio (13-nov).
+        assert normalizar_grado("1er Año") == "Septimo"
+        assert normalizar_grado("2do año") == "Octavo"
+        assert normalizar_grado("3er Año") == "Noveno"
+        assert normalizar_grado("4to Año") == "Decimo"
+        assert normalizar_grado("5to Año") == "Once"
+        assert normalizar_grado("1er. Grado") == "Primero"
+
     @pytest.mark.parametrize(
         "nombres",
         [["Cuarto", "4°", "cuarto de primaria"], ["Jardin"], []],
