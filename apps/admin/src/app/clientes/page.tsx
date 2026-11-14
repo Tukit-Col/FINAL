@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import Form from "next/form";
 import Link from "next/link";
 import { origenDeDatos, ErrorTukit, type AcudienteAdmin } from "@tukit/contrato/servidor";
+import { ETIQUETA_ESTADO_PEDIDO, type EstadoPedido } from "@tukit/contrato";
 import { COOKIE_SESION } from "@/lib/sesion";
 import { formatearFecha } from "@/lib/formato";
 import { rotuloDeHijo } from "@/lib/pedido-admin";
@@ -14,6 +15,8 @@ import {
   leerFiltrosClientes,
   opcionesClientes,
   paginar,
+  pedidosPorFamilia,
+  type PedidoDeFamilia,
 } from "@/lib/clientes";
 import { hrefCliente } from "@/lib/cliente-detalle";
 import EstadoVacio from "@/components/ui/EstadoVacio";
@@ -103,6 +106,11 @@ export default async function PaginaClientes({ searchParams }: Props) {
   // Cuantas familias e hijos hay en cada colegio y grado, sobre el padron entero
   // (no sobre la pagina filtrada): es el mapa de donde estan los clientes.
   const porColegio = clientesPorColegio(acudientes);
+  // El estado del pedido de cada familia (el tablero de comercio, solo staff). Si
+  // comercio no responde, la columna sale vacia y el padron sigue.
+  const pedidos = pedidosPorFamilia(
+    (await origenDeDatos().pedidos(token).catch(() => null))?.pedidos ?? [],
+  );
 
   return (
     <div className={styles.pagina}>
@@ -250,6 +258,7 @@ export default async function PaginaClientes({ searchParams }: Props) {
                   Hijos
                 </th>
                 <th scope="col">Hijos matriculados</th>
+                <th scope="col">Pedido</th>
               </tr>
             </thead>
             <tbody>
@@ -275,6 +284,9 @@ export default async function PaginaClientes({ searchParams }: Props) {
                         ))}
                       </ul>
                     )}
+                  </td>
+                  <td>
+                    <PastillaPedido pedido={pedidos.get(acudiente.usuario_id)} />
                   </td>
                 </tr>
               ))}
@@ -305,5 +317,16 @@ export default async function PaginaClientes({ searchParams }: Props) {
         </nav>
       ) : null}
     </div>
+  );
+}
+
+function PastillaPedido({ pedido }: { pedido: PedidoDeFamilia | undefined }) {
+  if (!pedido) return <span className={styles.tenue}>Sin pedido</span>;
+  const etiqueta = ETIQUETA_ESTADO_PEDIDO[pedido.estado as EstadoPedido] ?? pedido.estado;
+  return (
+    <span className={`${styles.pastillaPedido} ${styles[`pedido_${pedido.tono}`]}`}>
+      {etiqueta}
+      {pedido.pedidos > 1 ? <span className={styles.tenue}> · {pedido.pedidos}</span> : null}
+    </span>
   );
 }
