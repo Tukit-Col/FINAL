@@ -196,6 +196,12 @@ export interface ResumenHijo {
 
 // Lo que Tukit no pudo resolver: lo mismo que la vista pinta arriba con color de aviso.
 const POR_RESOLVER = new Set(["hueco", "sin_match", "pendiente_revision"]);
+// Lo que le pasa a cada uno, dicho corto delante del renglon.
+const MOTIVO_FALTA: Record<string, string> = {
+  hueco: "Aún no lo tenemos",
+  sin_match: "No encontramos uno que cumpla",
+  pendiente_revision: "Lo estamos revisando",
+};
 
 export function resumenPorHijo(
   kit: {
@@ -245,7 +251,7 @@ export function resumenPorHijo(
     }
     const clase = clasificar(linea);
     if (POR_RESOLVER.has(clase)) {
-      r.falta.push(linea.descripcion);
+      r.falta.push(`${MOTIVO_FALTA[clase] ?? "Por resolver"}: ${linea.descripcion}`);
     } else if (esInformativaOExterna(linea)) {
       r.aparte += 1;
     } else if (clase === "comprable" && !linea.descartado && linea.producto_elegido) {
@@ -355,4 +361,18 @@ export function idAnclaCategoria(c: CategoriaKit): string {
 export function idAnclaLinea(itemId: string): string {
   const seguro = itemId.replace(/[^A-Za-z0-9_-]/g, (ch) => `.${ch.codePointAt(0)!.toString(16)}.`);
   return `linea-${seguro}`;
+}
+
+/** La foto y la categoria de un producto compartido: la de la linea del kit que lo
+ *  compra (el nombre de la consolidacion es el del producto elegido). Sin foto, la
+ *  categoria sirve para pintar su icono. */
+export function fotoDeConsolidacion(
+  lineas: readonly LineaKit[],
+  c: { producto: string },
+): { imagen_url: string | null; linea: LineaKit | null } {
+  const linea =
+    lineas.find((l) => l.producto_elegido?.nombre === c.producto && (l.unidades_a_comprar ?? 0) > 0) ??
+    lineas.find((l) => l.producto_elegido?.nombre === c.producto) ??
+    null;
+  return { imagen_url: linea?.producto_elegido?.imagen_url ?? null, linea };
 }

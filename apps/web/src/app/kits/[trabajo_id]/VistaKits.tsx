@@ -57,6 +57,7 @@ import {
   notaSinEncaje,
   personajeLegible,
   resumenPorHijo,
+  fotoDeConsolidacion,
   textoDeConsolidacion,
   type ApodoMatricula,
   type CategoriaKit,
@@ -265,7 +266,7 @@ export default function VistaKits({
         )
       )}
 
-      {kit.perfil === "Fan" && (
+      {kit.perfil === "Fan" && resumen.length <= 1 && (
         <FranjaFan
           lineas={kit.lineas}
           pedidos={trabajo.personajes_por_hijo}
@@ -274,7 +275,7 @@ export default function VistaKits({
         />
       )}
 
-      {kit.consolidaciones.length > 0 && (
+      {kit.consolidaciones.length > 0 && resumen.length <= 1 && (
         <section className={styles.consolidaciones}>
           <h2>Lo que juntamos entre tus hijos</h2>
           <p className={styles.explicaJunto}>
@@ -310,6 +311,7 @@ export default function VistaKits({
           resumen={resumen}
           nombresHijos={nombresHijos}
           gradosHijos={gradosHijos}
+          pedidos={trabajo.personajes_por_hijo}
         />
       )}
 
@@ -702,6 +704,39 @@ function FranjaFan({
   );
 }
 
+// El resto de lo que compra un hijo, en fotos chicas: es un vistazo, no la lista (esa
+// esta abajo, por categoria). Con muchas se muestran las primeras y "+N".
+const MAX_MINIATURAS = 10;
+function MiniaturasHijo({ lineas }: { lineas: LineaKit[] }) {
+  const vistas = lineas.slice(0, MAX_MINIATURAS);
+  const resto = lineas.length - vistas.length;
+  return (
+    <ul className={styles.miniaturas}>
+      {vistas.map((linea) => {
+        const producto = linea.producto_elegido!;
+        const Icono = ICONO_CATEGORIA[categoriaDeLinea(linea)];
+        return (
+          <li key={linea.item_id} className={styles.miniatura} title={producto.nombre}>
+            {producto.imagen_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={producto.imagen_url} alt={producto.nombre} loading="lazy" />
+            ) : (
+              <span aria-label={producto.nombre} role="img">
+                <Icono size={22} strokeWidth={1.8} aria-hidden="true" />
+              </span>
+            )}
+          </li>
+        );
+      })}
+      {resto > 0 && (
+        <li className={`${styles.miniatura} ${styles.miniaturaMas}`}>
+          <span className="cifra">+{resto}</span>
+        </li>
+      )}
+    </ul>
+  );
+}
+
 function TarjetasFan({ lineas, veces }: { lineas: LineaKit[]; veces?: Record<string, number> }) {
   if (lineas.length === 0) return null;
   return (
@@ -742,19 +777,21 @@ function NotasSinEncaje({ filas }: { filas: FilaSinEncaje[] }) {
   );
 }
 
-// El resumen por hijo (hogar con 2+ hijos): una banda con lo que comparten y una
-// tarjeta plegable por hijo con sus productos, su total y lo que le falta. Es una
-// vista de lectura; los cambios siguen viviendo en la lista por categoría de abajo.
+// El hogar con 2+ hijos: una tarjeta por hijo (quien es, su total, sus productos con
+// personaje y lo que le falta) y, debajo, una sola seccion de lo que comparten con la
+// foto de cada producto. Es de lectura: los cambios viven en la lista por categoria.
 function ResumenPorHijo({
   kit,
   resumen,
   nombresHijos,
   gradosHijos,
+  pedidos,
 }: {
   kit: Kit;
   resumen: ResumenHijo[];
   nombresHijos: Map<string, string>;
   gradosHijos: Map<string, string>;
+  pedidos?: Record<string, string[]>;
 }) {
   const [colapsados, setColapsados] = useState<Set<string>>(new Set());
   const alternar = (hijo: string) =>
@@ -764,84 +801,136 @@ function ResumenPorHijo({
       else siguiente.add(hijo);
       return siguiente;
     });
+  // Los productos con el personaje que pidio cada hijo (solo trae algo en Fan).
+  const conPersonaje = new Map<string, LineaKit[]>();
+  for (const g of personajesPorHijo(kit.lineas, pedidos)) {
+    conPersonaje.set(g.hijo, [...(conPersonaje.get(g.hijo) ?? []), ...g.lineas]);
+  }
+  const ahorroTotal = kit.consolidaciones.reduce((n, c) => n + (c.ahorro > 0 ? c.ahorro : 0), 0);
 
   return (
-    <section className={styles.resumenHijos} aria-label="Cada kit por hijo">
-      <h2>Cada kit por hijo</h2>
+    <section className={styles.familia} aria-labelledby="titulo-familia">
+      <h2 id="titulo-familia" className={styles.familiaTitulo}>
+        El kit de cada hijo
+      </h2>
+      <div className={styles.hijos}>
+        {resumen.map((r) => {
+          const abierto = !colapsados.has(r.hijo);
+          const fan = conPersonaje.get(r.hijo) ?? [];
+          const idsFan = new Set(fan.map((l) => l.item_id));
+          const otros = r.productos.filter((l) => !idsFan.has(l.item_id));
+          const meta = [
+            `${r.productos.length} ${r.productos.length === 1 ? "producto" : "productos"}`,
+            r.comparten > 0 ? `${r.comparten} ${r.comparten === 1 ? "compartido" : "compartidos"}` : null,
+            r.aparte > 0 ? `${r.aparte} por fuera de Tukit` : null,
+          ].filter(Boolean);
+          return (
+            <article key={r.hijo} className={styles.tarjetaHijo}>
+              <button
+                type="button"
+                className={styles.cabezaHijo}
+                aria-expanded={abierto}
+                onClick={() => alternar(r.hijo)}
+              >
+                <span className={styles.inicialHijo} aria-hidden="true">
+                  {r.nombre.trim().charAt(0).toUpperCase()}
+                </span>
+                <span className={styles.identidadHijo}>
+                  <span className={styles.nombreHijo}>{r.nombre}</span>
+                  <span className={styles.datosHijo}>
+                    {[r.grado, r.personaje ? personajeLegible(r.personaje) : null].filter(Boolean).join(" · ")}
+                  </span>
+                </span>
+                <span className={styles.totalHijo}>
+                  <span className="cifra">{hayQueCobrar(r.total) ? formatearPesos(r.total) : "—"}</span>
+                  <span className={styles.metaHijo}>{meta.join(" · ")}</span>
+                </span>
+                {abierto ? (
+                  <ChevronUp size={18} aria-hidden="true" className={styles.chevronHijo} />
+                ) : (
+                  <ChevronDown size={18} aria-hidden="true" className={styles.chevronHijo} />
+                )}
+              </button>
+              {abierto && (
+                <div className={styles.cuerpoHijo}>
+                  {fan.length > 0 && (
+                    <>
+                      <h3 className={styles.subtituloHijo}>
+                        Con {r.personaje ? personajeLegible(r.personaje) : "su personaje"}
+                      </h3>
+                      <TarjetasFan lineas={fan} veces={r.veces} />
+                    </>
+                  )}
+                  {otros.length > 0 && (
+                    <>
+                      <h3 className={styles.subtituloHijo}>
+                        {fan.length > 0 ? "El resto de su lista" : "Su lista"}{" "}
+                        <span className={styles.metaHijo}>({otros.length})</span>
+                      </h3>
+                      <MiniaturasHijo lineas={otros} />
+                    </>
+                  )}
+                  {r.productos.length === 0 && r.falta.length === 0 && (
+                    <p className={styles.metaHijo}>
+                      Nada de su lista se compra en Tukit: abajo está qué conseguir y dónde.
+                    </p>
+                  )}
+                  {r.falta.length > 0 && (
+                    <ul className={styles.faltaHijo} aria-label={`Lo que falta para ${r.nombre}`}>
+                      {r.falta.map((aviso, i) => (
+                        <li key={i}>
+                          <CircleAlert size={15} aria-hidden="true" /> {aviso}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+
       {kit.consolidaciones.length > 0 && (
-        <div className={styles.bandaCompartido}>
-          <h3>Comparten</h3>
-          <ul>
+        <div className={styles.compartido} aria-labelledby="titulo-compartido">
+          <div className={styles.compartidoCabeza}>
+            <h3 id="titulo-compartido">Lo que comparten</h3>
+            <p>
+              Son iguales para varios de tus hijos: los compramos juntos y sobra menos.
+              {ahorroTotal > 0 && (
+                <>
+                  {" "}
+                  <strong className={styles.ahorroJunto}>Ahorras {formatearPesos(ahorroTotal)}.</strong>
+                </>
+              )}
+            </p>
+          </div>
+          <ul className={styles.compartidoLista}>
             {kit.consolidaciones.map((c, i) => {
-              const t = textoDeConsolidacion(
-                c,
-                nombresHijos,
-                c.ahorro > 0 ? formatearPesos(c.ahorro) : null,
-                gradosHijos,
-              );
+              const t = textoDeConsolidacion(c, nombresHijos, c.ahorro > 0 ? formatearPesos(c.ahorro) : null, gradosHijos);
+              const { imagen_url, linea } = fotoDeConsolidacion(kit.lineas, c);
+              const Icono = linea ? ICONO_CATEGORIA[categoriaDeLinea(linea)] : CircleAlert;
               return (
-                <li key={`${c.producto}-${i}`}>
-                  <strong>{c.producto}</strong>
-                  {[t.paraQuienes, t.ahorro].filter(Boolean).map((parte, j) => (
-                    <span key={j}> · {parte}</span>
-                  ))}
+                <li key={`${c.producto}-${i}`} className={styles.compartidoItem}>
+                  {imagen_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img className={styles.compartidoFoto} src={imagen_url} alt="" loading="lazy" />
+                  ) : (
+                    <span className={styles.compartidoFoto} aria-hidden="true">
+                      <Icono size={26} strokeWidth={1.8} />
+                    </span>
+                  )}
+                  <span className={styles.compartidoTexto}>
+                    <strong>{c.producto}</strong>
+                    <span>{[t.paraQuienes, t.cantidad].filter(Boolean).join(" · ")}</span>
+                  </span>
+                  {t.ahorro && <span className={`${styles.compartidoAhorro} cifra`}>−{formatearPesos(c.ahorro)}</span>}
                 </li>
               );
             })}
           </ul>
         </div>
       )}
-      {resumen.map((r) => {
-        const abierto = !colapsados.has(r.hijo);
-        const titulo = [r.nombre, r.grado, r.personaje ? personajeLegible(r.personaje) : null]
-          .filter(Boolean)
-          .join(" · ");
-        const meta = [
-          r.comparten > 0 ? `${r.comparten} ${r.comparten === 1 ? "compartido" : "compartidos"}` : null,
-          r.falta.length > 0 ? `${r.falta.length} por resolver` : null,
-          r.aparte > 0 ? `${r.aparte} ${r.aparte === 1 ? "se consigue" : "se consiguen"} por fuera` : null,
-        ].filter(Boolean);
-        return (
-          <article key={r.hijo} className={styles.tarjetaHijo}>
-            <button
-              type="button"
-              className={styles.cabezaHijo}
-              aria-expanded={abierto}
-              onClick={() => alternar(r.hijo)}
-            >
-              <span className={styles.cabezaHijoTitulo}>{titulo}</span>
-              <span className={`${styles.cabezaHijoTotal} cifra`}>
-                {hayQueCobrar(r.total) ? formatearPesos(r.total) : "—"}
-              </span>
-              {abierto ? (
-                <ChevronUp size={18} aria-hidden="true" />
-              ) : (
-                <ChevronDown size={18} aria-hidden="true" />
-              )}
-            </button>
-            {meta.length > 0 && <p className={styles.cabezaHijoMeta}>{meta.join(" · ")}</p>}
-            {abierto && (
-              <>
-                <TarjetasFan lineas={r.productos} veces={r.veces} />
-                {r.productos.length === 0 && r.falta.length === 0 && (
-                  <p className={styles.cabezaHijoMeta}>
-                    Nada de su lista se compra en Tukit: abajo está qué conseguir y dónde.
-                  </p>
-                )}
-                {r.falta.length > 0 && (
-                  <ul className={styles.notasSinEncaje}>
-                    {r.falta.map((aviso, i) => (
-                      <li key={i}>
-                        <CircleAlert size={14} aria-hidden="true" /> {aviso}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </>
-            )}
-          </article>
-        );
-      })}
     </section>
   );
 }

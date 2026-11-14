@@ -13,6 +13,7 @@ import {
   pistaDeTienda,
   resumenPorHijo,
   textoDeConsolidacion,
+  fotoDeConsolidacion,
 } from "../src/lib/kit-vista.ts";
 import type { LineaKit } from "@tukit/contrato";
 
@@ -415,4 +416,18 @@ test("las lineas sin hijo no crean un hijo fantasma", () => {
   // Con un solo hijo real, la linea suelta es de el.
   const uno = resumenPorHijo({ lineas: [sinHijo, ln("a")], consolidaciones: [] }, MAPA([]), MAPA([]), undefined);
   assert.deepEqual(uno.map((x) => [x.hijo, x.total]), [["a", 2000]]);
+});
+
+test("la foto de un producto compartido sale de la linea que lo compra", () => {
+  const conFoto = (item: string, unidades: number, imagen: string | null) =>
+    ({
+      item_id: item,
+      unidades_a_comprar: unidades,
+      producto_elegido: { sku: "S", nombre: "Borrador de Nata", imagen_url: imagen },
+    }) as unknown as LineaKit;
+  const lineas = [conFoto("b", 0, null), conFoto("a", 1, "https://x/borrador.png")];
+  const r = fotoDeConsolidacion(lineas, { producto: "Borrador de Nata" });
+  assert.equal(r.imagen_url, "https://x/borrador.png");
+  assert.equal(r.linea?.item_id, "a");
+  assert.deepEqual(fotoDeConsolidacion(lineas, { producto: "Otro" }), { imagen_url: null, linea: null });
 });
