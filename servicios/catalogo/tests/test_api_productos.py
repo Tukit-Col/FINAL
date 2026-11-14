@@ -161,7 +161,9 @@ class TestListarPersonajes:
     async def test_filtro_personaje_ignora_tildes_y_guiones(self, cliente):
         for consulta in ("Spider-Man", "SPIDER MAN", "spíderman"):
             cuerpo = (
-                await cliente.get("/v1/catalogo/productos", params={"concepto": "C001", "personaje": consulta})
+                await cliente.get(
+                    "/v1/catalogo/productos", params={"concepto": "C001", "personaje": consulta}
+                )
             ).json()
             assert [p["sku"] for p in cuerpo["productos"]] == ["TK-C001-SPIDER"], consulta
 
