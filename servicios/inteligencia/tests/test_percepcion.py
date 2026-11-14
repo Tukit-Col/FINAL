@@ -96,6 +96,10 @@ class TestUnArchivoEsUnGrado:
         assert normalizar_grado("4to Año") == "Decimo"
         assert normalizar_grado("5to Año") == "Once"
         assert normalizar_grado("1er. Grado") == "Primero"
+        # Asi lo escribe el modelo: en palabras.
+        assert normalizar_grado("Segundo Año") == "Octavo"
+        assert normalizar_grado("Primer Año") == "Septimo"
+        assert normalizar_grado("Segundo") == "Segundo"
 
     @pytest.mark.parametrize(
         "nombres",
