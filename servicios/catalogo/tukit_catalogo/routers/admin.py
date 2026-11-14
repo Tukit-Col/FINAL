@@ -86,6 +86,11 @@ def _motor() -> Any:
 _PREFIJO_GRUPO = re.compile(r"^[^:]{2,40}:\s*")
 _CANTIDAD_INICIAL = re.compile(r"^(?:\d+|un|una|unos|unas|dos|tres|cuatro|cinco|seis|diez|doce)\b\s*", re.I)
 _LARGO_SINONIMO = (4, 80)
+_MAX_PALABRAS_SINONIMO = 6
+_MARCA_DE_TITULO = re.compile(
+    r"\beditorial\b|\bediciones\b|\bs\.a\.s\b|\bed\.|\bautor|\bedici[oó]n\b"
+    r"|\. [a-záéíóúñ]+ [a-záéíóúñ]+\."
+)
 
 
 def sinonimo_de_renglon(texto: str) -> str | None:
@@ -96,6 +101,11 @@ def sinonimo_de_renglon(texto: str) -> str | None:
         t = _CANTIDAD_INICIAL.sub("", t).strip()
     t = t.strip(" .,;:-").lower()
     if not (_LARGO_SINONIMO[0] <= len(t) <= _LARGO_SINONIMO[1]):
+        return None
+    # Solo lo que vuelve a aparecer igual en otra lista: el nombre de una cosa.
+    # Un titulo con autor o editorial, o una instruccion larga, es unico y no se
+    # aprende (si se aprendiera, "Te amo, peladita" pasaria a nombrar a "Libro").
+    if len(t.split()) > _MAX_PALABRAS_SINONIMO or _MARCA_DE_TITULO.search(t):
         return None
     return t
 

@@ -14,7 +14,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from tukit_catalogo.cargador import atributos_de_csv, isbn13_valido, leer_csv, normalizar_isbn, pesos_a_centavos
+from tukit_catalogo.cargador import (
+    atributos_de_csv,
+    isbn13_valido,
+    leer_csv,
+    normalizar_isbn,
+    pesos_a_centavos,
+)
 from tukit_catalogo.descubrir import (
     TIENDAS_LIBROS,
     PuertaCerrada,
@@ -337,7 +343,10 @@ class TestLibrosEnBuscalibreYLibreriaNacional:
         assert set(fila_libro("buscalibre", {})) == set(cabecera)
 
     def test_fila_libro_usa_el_slug_de_tiendas_csv(self):
-        slugs = {t["slug"] for t in leer_csv(Path(__file__).resolve().parents[3] / "datos" / "catalogo" / "tiendas.csv")}
+        slugs = {
+            t["slug"]
+            for t in leer_csv(Path(__file__).resolve().parents[3] / "datos" / "catalogo" / "tiendas.csv")
+        }
         for clave in TIENDAS_LIBROS:
             assert fila_libro(clave, {})["tienda_slug"] in slugs
         assert fila_libro("libreria_nacional", {})["tienda_slug"] == "librerianacional"
@@ -345,7 +354,12 @@ class TestLibrosEnBuscalibreYLibreriaNacional:
     def test_fila_libro_la_acepta_el_cargador(self):
         fila = fila_libro(
             "buscalibre",
-            {"titulo": "Nacho", "isbn13": "978-958-07-1472-9", "precio": "$ 54.900", "atributos": {"edicion": "x"}},
+            {
+                "titulo": "Nacho",
+                "isbn13": "978-958-07-1472-9",
+                "precio": "$ 54.900",
+                "atributos": {"edicion": "x"},
+            },
             concepto_codigo="C034",
         )
         assert isbn13_valido(normalizar_isbn(fila["isbn13"]))
@@ -361,4 +375,17 @@ class TestLibrosEnBuscalibreYLibreriaNacional:
 
     def test_consulta_libro_en_libreria_nacional(self):
         url = consulta_libro_en("libreria_nacional", "Álgebra de Baldor", None)
-        assert url == TIENDAS_LIBROS["libreria_nacional"] + "/api/catalog_system/pub/products/search?ft=%C3%81lgebra%20de%20Baldor"
+        assert (
+            url
+            == TIENDAS_LIBROS["libreria_nacional"]
+            + "/api/catalog_system/pub/products/search?ft=%C3%81lgebra%20de%20Baldor"
+        )
+
+
+def test_el_prefijo_de_grupo_no_es_la_cosa_pedida():
+    # "Kit de aseo personal: 1 caja de pañuelos" pide pañuelos, no un kit (13-nov).
+    from tukit_catalogo.descubrir import cabeza
+
+    con_grupo = cabeza("Kit de aseo personal: 1 caja de pañuelos faciales")
+    assert con_grupo == cabeza("1 caja de pañuelos faciales")
+    assert cabeza("Cartuchera con: colores") != ""

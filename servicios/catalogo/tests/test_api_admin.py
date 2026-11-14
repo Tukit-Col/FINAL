@@ -1978,6 +1978,15 @@ class TestLaCorreccionVuelveAlCatalogo:
         assert sinonimo_de_renglon("Una caja de pasteles secos") == "caja de pasteles secos"
         assert sinonimo_de_renglon("2 cuadernos cuadriculados") == "cuadernos cuadriculados"
         assert sinonimo_de_renglon("x") is None
+        # Un titulo de libro o una frase larga son unicos: no generalizan y ensuciarian el concepto.
+        assert sinonimo_de_renglon("Te amo, peladita. Albeiro Echavarría. Editorial Norma") is None
+        assert (
+            sinonimo_de_renglon(
+                "Kit básico de componentes electrónicos que se emplea a lo largo del bachillerato"
+            )
+            is None
+        )
+        assert sinonimo_de_renglon("Broche de batería de 9V") == "broche de batería de 9v"
 
     async def test_cada_correccion_queda_registrada_con_antes_y_despues(self, cliente):
         vid = cliente.ids["abierta"]
