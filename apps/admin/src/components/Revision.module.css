@@ -1455,3 +1455,104 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ---- Buscar en el catálogo (renglón sin producto) -------------------------- */
+.buscarCatalogo {
+  display: grid;
+  gap: var(--espacio-3);
+  margin-top: var(--espacio-2);
+}
+
+.buscarFila {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-3);
+  align-items: center;
+}
+
+.buscarCampo {
+  flex: 1 1 280px;
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  padding: 0 var(--espacio-3);
+  min-height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--color-white);
+  box-shadow: var(--clay-shadow-inset);
+  color: var(--color-text-muted);
+}
+
+.buscarCampo input {
+  flex: 1;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--color-text-primary);
+  outline: none;
+}
+
+.buscarFiltro {
+  display: inline-flex;
+  gap: var(--espacio-2);
+  align-items: center;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.buscarResultados {
+  list-style: none;
+  display: grid;
+  gap: var(--espacio-2);
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.buscarResultados li {
+  display: grid;
+  grid-template-columns: 44px 1fr auto auto;
+  align-items: center;
+  gap: var(--espacio-3);
+  padding: var(--espacio-2) var(--espacio-3);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+}
+
+.buscarResultados img,
+.buscarResultados li > span:first-child {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.buscarNombre {
+  display: grid;
+  gap: 2px;
+  font-size: 13.5px;
+  min-width: 0;
+}
+
+.buscarNombre small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.buscarResultados button {
+  min-height: 34px;
+  padding: 0 var(--espacio-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-primary);
+  background: var(--color-white);
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.buscarResultados button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
