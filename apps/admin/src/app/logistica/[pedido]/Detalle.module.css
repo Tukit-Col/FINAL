@@ -326,3 +326,52 @@
   padding: 0;
   font-size: 13px;
 }
+
+/* ------------------------------------------------------ correos del pedido */
+
+.correos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+  list-style: none;
+  padding: 0;
+}
+
+.correos li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px var(--espacio-3);
+  font-size: 14px;
+}
+
+.correos li .tenue {
+  grid-column: 1 / -1;
+}
+
+.correoAsunto {
+  font-weight: 700;
+}
+
+.correoEstado {
+  align-self: start;
+  padding: 2px var(--espacio-2);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.correo_enviada {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.correo_fallida {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.correo_omitida {
+  background: var(--color-aviso-bg);
+  color: var(--color-aviso);
+}

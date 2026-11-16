@@ -9,7 +9,7 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { AcudienteAdmin, EstadoPedido, PedidoAdmin, TipoIncidencia } from "@tukit/contrato";
+import type { AcudienteAdmin, CorreoEnviado, EstadoPedido, PedidoAdmin, TipoIncidencia } from "@tukit/contrato";
 import {
   ETIQUETA_ESTADO_PEDIDO,
   ETIQUETA_TIPO_INCIDENCIA,
@@ -19,6 +19,7 @@ import {
 import { ErrorTukit, origenDeDatos, urlWeb } from "@tukit/contrato/servidor";
 import AccionesPedido from "@/components/AccionesPedido";
 import AvisoAcceso from "@/components/AvisoAcceso";
+import { ETIQUETA_ESTADO_CORREO, explicarDetalle } from "@/lib/correos";
 import { formatearDia, formatearFecha } from "@/lib/formato";
 import { motivoDeFallo } from "@/lib/logistica";
 import { etiquetasDePedidos, nombresDeColegios } from "@/lib/logistica-servidor";
@@ -101,6 +102,18 @@ async function productosDeLineas(skus: string[]): Promise<Map<string, ExtraLinea
   return new Map(pares);
 }
 
+/** Los avisos que el sistema mandó por este pedido (el código corto del pedido
+ *  va en cada aviso). Es un adorno: si operacion no responde, el bloque dice que
+ *  no se pudo leer en vez de romper la página. */
+async function correosDelPedido(token: string, pedidoId: string): Promise<CorreoEnviado[] | null> {
+  try {
+    const { correos } = await origenDeDatos().correos(token, { pedido: pedidoId.slice(0, 8).toUpperCase() });
+    return correos;
+  } catch {
+    return null;
+  }
+}
+
 /** Los hijos del acudiente en los colegios del pedido, con su grado. Del menor
  *  no viaja nada que lo identifique (Ley 1581). */
 async function hijosDelPedido(
@@ -145,11 +158,12 @@ export default async function DetallePedido({ params }: Props) {
     );
   }
 
-  const [nombres, etiquetas, productos, hijos] = await Promise.all([
+  const [nombres, etiquetas, productos, hijos, correos] = await Promise.all([
     nombresDeActores(pedido, token),
     etiquetasDePedidos(token, [pedido]),
     productosDeLineas([...new Set(pedido.lineas.map((l) => l.sku))]),
     hijosDelPedido(token, pedido.usuario_id, pedido.colegios),
+    correosDelPedido(token, pedido.pedido_id),
   ]);
   const lineas = lineasConSubtotal(pedido);
   const pasos = construirLineaDeTiempo(pedido);
@@ -202,6 +216,33 @@ export default async function DetallePedido({ params }: Props) {
             El pedido está en «{ETIQUETA_ESTADO_PEDIDO[pedido.estado]}»; el detalle está en el historial de abajo.
           </p>
         ) : null}
+      </section>
+
+      <section className={styles.bloque} aria-labelledby="correos-titulo">
+        <h2 id="correos-titulo">Correos de este pedido</h2>
+        {correos === null ? (
+          <p className={styles.tenue}>No pudimos leer los avisos de este pedido. Intenta de nuevo en un momento.</p>
+        ) : correos.length === 0 ? (
+          <p className={styles.tenue}>Todavía no se ha enviado ningún aviso de este pedido.</p>
+        ) : (
+          <ul className={styles.correos}>
+            {correos.map((c) => (
+              <li key={c.id}>
+                <span className={styles.correoAsunto}>{c.asunto ?? c.plantilla}</span>
+                <span className={`${styles.correoEstado} ${styles[`correo_${c.estado}`]}`}>
+                  {ETIQUETA_ESTADO_CORREO[c.estado]}
+                </span>
+                <span className={styles.tenue}>
+                  {c.creado_en ? formatearFecha(c.creado_en) : "—"}
+                  {c.destino_dominio ? ` · @${c.destino_dominio}` : ""} · {explicarDetalle(c.detalle)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Link href={`/correos?pedido=${pedido.pedido_id.slice(0, 8).toUpperCase()}`} className={styles.tenue}>
+          Ver en Correos enviados
+        </Link>
       </section>
 
       <AccionesPedido pedidoId={pedido.pedido_id} estado={pedido.estado} urlIngresar={`${urlWeb()}/ingresar`} />
