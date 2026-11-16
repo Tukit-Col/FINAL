@@ -254,17 +254,6 @@ def _misma_cosa(a: str, b: str) -> bool:
     return sa[:5] == sb[:5] if min(len(sa), len(sb)) >= 5 else sa == sb
 
 
-# Cuanto tiene que valer el coseno para que el canal semantico RESCATE un
-# concepto cuya cabeza el lexico no reconocio. Es alto a proposito: el rescate
-# es para el sinonimo que no esta en la lista (`estuche` por `cartuchera`), no
-# para un parecido de tema. Bajarlo reabre el error que la cabeza anclada
-# cerro —`chaquiras de colores` tiene coseno mediano con `colores`—, asi que el
-# umbral es lo que separa "es la misma cosa dicha de otro modo" de "habla de
-# algo parecido". El piso del rescate (0.55) queda apenas sobre el corte de 0.5
-# de `emparejar`/`proponer`: un rescate entra a revision, no se da por seguro.
-_RESCATE_COSENO = 0.86
-_PISO_RESCATE = 0.55
-
 # Cuanto pesa el coseno cuando el lexico YA acerto la cabeza. Pequeno y solo
 # suma: la fusion nunca hunde un match lexico (hibrido >= lexico), solo desempata
 # entre los que aciertan la cabeza usando el significado del resto de la frase.
@@ -294,17 +283,11 @@ def clasificar(
 
     El canal semantico (OE3) entra por `embedding_renglon`: el vector del
     renglon entrante, que se compara contra `concepto["embedding"]` (el centro
-    de los productos del concepto, poblado por `enriquecer`). Hace dos cosas, y
-    ninguna deshace la cabeza anclada:
-
-    - Cuando el lexico ya acerto la cabeza, el coseno solo SUMA un aporte
-      pequeno para desempatar por significado. Nunca resta: el hibrido no puede
-      dar menos que el lexico solo, que es lo que la tesis afirma.
-    - Cuando el lexico no reconocio la cabeza en ninguna palabra del candidato
-      —un sinonimo que no esta en la lista— un coseno muy alto lo rescata a un
-      piso apenas sobre el corte de revision. Es el unico modo de que `estuche`
-      responda a `cartuchera` sin haberlo escrito antes; el umbral alto es lo
-      que impide que un parecido de tema (`chaquiras`/`colores`) se cuele.
+    de los productos del concepto, poblado por `enriquecer`). Solo cuenta cuando
+    el lexico ya acerto la cabeza: el coseno SUMA un aporte pequeno para
+    desempatar por significado y nunca resta, asi que el hibrido no puede dar
+    menos que el lexico solo, que es lo que la tesis afirma. Sin una cabeza
+    anclada por el lexico el puntaje es 0 y el renglon queda sin correspondencia.
 
     Sin `embedding_renglon` la funcion es identica al lexico de siempre, y por
     eso los callers que aun no calculan el vector siguen valiendo.
@@ -344,11 +327,6 @@ def clasificar(
                 puntaje = min(1.0, 0.6 + 0.4 * _parecido(renglon, candidato) + _APORTE_COSENO * cos)
             elif nombra_la_cabeza:
                 puntaje = min(1.0, _parecido(renglon, candidato) + _APORTE_COSENO * cos)
-            elif cos >= _RESCATE_COSENO:
-                # El lexico no reconocio la cosa pedida, pero el significado
-                # dice que es esta. Rescate a un piso de revision, graduado por
-                # cuanto pasa del umbral para no empatar todos los rescates.
-                puntaje = _PISO_RESCATE + (0.4 * (cos - _RESCATE_COSENO) / (1.0 - _RESCATE_COSENO))
             else:
                 puntaje = 0.0
             if puntaje > mejor:
