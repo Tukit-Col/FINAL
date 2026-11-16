@@ -228,7 +228,7 @@ class TestEjesOrtogonales:
         assert cuaderno.personaje == "spiderman"
         # Y conserva puntaje de calidad, que es justo lo que se perdia cuando
         # el personaje se comia el nivel.
-        assert CALIDAD_POR_NIVEL[Nivel(cuaderno.nivel)] == 0.95
+        assert CALIDAD_POR_NIVEL[Nivel(cuaderno.nivel)] == max(CALIDAD_POR_NIVEL.values())
 
     def test_licencia_no_es_un_nivel(self, sesion):
         """El valor exacto que traia el fichero de tiers. Si algun dia entra,

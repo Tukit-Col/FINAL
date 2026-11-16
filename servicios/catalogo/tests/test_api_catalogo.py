@@ -34,6 +34,7 @@ from tukit_catalogo.modelos import (
     Tienda,
     VersionListaOficial,
 )
+from tukit_catalogo.routers.catalogo import POR_PAGINA_MAXIMO
 from tukit_comun.bd import MotorServicio
 
 CURADOR = uuid.UUID("00000000-0000-0000-0000-0000000000c1")
@@ -237,7 +238,10 @@ class TestNavegarElCatalogo:
         }
 
     async def test_la_pagina_tiene_tope(self, cliente):
-        assert (await cliente.get("/v1/catalogo/productos?por_pagina=9999")).status_code == 400
+        de_mas = await cliente.get(f"/v1/catalogo/productos?por_pagina={POR_PAGINA_MAXIMO + 1}")
+        assert de_mas.status_code == 400
+        tope = await cliente.get(f"/v1/catalogo/productos?por_pagina={POR_PAGINA_MAXIMO}")
+        assert tope.status_code == 200 and tope.json()["por_pagina"] == POR_PAGINA_MAXIMO
 
 
 class TestLasListasOficiales:

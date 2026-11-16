@@ -104,14 +104,14 @@ CATALOGO = [COLORES, POMPONES, CUADERNO]
 
 
 class TestLaFusionNoRompeLaCabezaAnclada:
-    def test_sin_embedding_del_renglon_se_comporta_como_antes(self):
+    def test_sin_embedding_del_renglon_clasifica_solo_por_lexico(self):
         # La ruta de las pruebas existentes y de los callers viejos: sin vector
         # de consulta, `clasificar` es exactamente el lexico de siempre.
         _id, nombre, puntaje = clasificar("pompones de colores para manualidades", CATALOGO)
         assert nombre == "pompones"
         assert puntaje > 0.5
 
-    def test_chaquiras_de_colores_sigue_fuera_aunque_comparta_letras(self):
+    def test_chaquiras_de_colores_queda_fuera_aunque_comparta_letras(self):
         # El embeder falso es de trigramas, asi que `chaquiras de colores` tiene
         # coseno no-trivial con `colores`. Ese parecido de letras no reabre el
         # error que la cabeza anclada cerro: la cosa pedida no esta nombrada, y

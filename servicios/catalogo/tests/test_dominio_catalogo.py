@@ -129,8 +129,11 @@ def test_sobre_lleva_total_pagina_y_la_clave_pedida():
     }
 
 
-def test_validar_edicion_acepta_campos_editables():
-    _validar_edicion({"nombre": "x", "nivel": "premium", "atributos": {"color": "rojo"}})
+def test_validar_edicion_acepta_campos_editables_sin_tocarlos():
+    cambios = {"nombre": "x", "nivel": "premium", "atributos": {"color": "rojo"}}
+    assert _validar_edicion(cambios) is None
+    # Valida, no normaliza: la ruta guarda exactamente lo que llego.
+    assert cambios == {"nombre": "x", "nivel": "premium", "atributos": {"color": "rojo"}}
 
 
 def test_validar_edicion_rechaza_campo_no_editable():

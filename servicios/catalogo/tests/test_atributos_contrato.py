@@ -89,7 +89,7 @@ class TestQueLaBaseTambienLoImpone:
         assert oyentes[0]._should_execute is not None
 
 
-class TestQueElCampoViejoYaNoExiste:
+class TestUnSoloLugarParaLosAtributos:
     """El campo unico se renombro, no se dejo al lado.
 
     Dejar `atributos_requeridos` conviviendo con los dos nuevos garantiza que
@@ -97,5 +97,5 @@ class TestQueElCampoViejoYaNoExiste:
     que nada lo delate.
     """
 
-    def test_no_queda_rastro_del_campo_unico(self):
+    def test_el_concepto_no_tiene_atributos_requeridos(self):
         assert not hasattr(Concepto, "atributos_requeridos")
