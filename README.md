@@ -104,31 +104,10 @@ real a traves del gateway: solo hay que decirle donde esta. `TUKIT_API_URL` es o
 TUKIT_API_URL=http://127.0.0.1:8010
 ```
 
-### Google Maps en el checkout (opcional)
+### Dirección en el checkout
 
-`apps/web` puede sugerir la dirección de entrega con Google Places (ADR 0044). Sin llave, la
-dirección es un campo de texto libre y todo lo demás funciona igual. Desarrollo y CI no la
-necesitan.
-
-La llave es `GOOGLE_MAPS_API_KEY` en `apps/web/.env.local`, **sin** `NEXT_PUBLIC_`. La lee la
-página de servidor del kit y solo llega al navegador en el checkout. Como toda llave de Maps
-JavaScript, el navegador la ve, así que se restringe:
-
-1. En Google Cloud, un proyecto con facturación activa.
-2. Habilita **Maps JavaScript API** y **Places API (New)**.
-3. Crea una llave en *APIs y servicios → Credenciales*.
-4. Restríngela:
-   - por **sitios web (referrer)**: `http://localhost:3000/*`, `http://127.0.0.1:3000/*` y el
-     dominio de producción;
-   - por **API**: solo las dos de arriba.
-5. Baja las cuotas diarias de las dos APIs y pon una alerta de presupuesto. La alerta solo
-   avisa; la cuota es lo que corta el gasto.
-6. Pégala en `apps/web/.env.local` como `GOOGLE_MAPS_API_KEY=...` y reinicia `npm run dev:web`.
-7. Verifica: en el checkout, escribe tres letras de una dirección y deben salir sugerencias con
-   "Google Maps" al pie. Si la llave es rechazada, el campo vuelve a ser texto libre.
-
-El checkout solo pide campos Essentials (`formattedAddress`, `addressComponents`), usa un token
-de sesión por búsqueda y guarda el `place_id`, nunca coordenadas.
+La dirección de entrega se busca en OpenStreetMap y se confirma moviendo un pin en el mapa
+(ADR 0049). No necesita llave ni configuración.
 
 El `.env` del backend se copia de [`.env.ejemplo`](.env.ejemplo). Todo tiene defaults de
 desarrollo, así que puedes arrancar sin tocarlo. Dos variables son opcionales pero mejoran

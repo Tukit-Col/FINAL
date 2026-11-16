@@ -1,6 +1,6 @@
 # ADR 0044 — La dirección del checkout se autocompleta con Google Places (New), y sin Google sigue siendo un campo libre
 
-- **Estado:** aceptada
+- **Estado:** reemplazada por [0049](0049-direccion-con-openstreetmap-sin-llave-de-google.md); el código de Google Places se eliminó
 - **Fecha:** 2026-10-10
 - **Servicios tocados:** `apps/web` (checkout de `kits/[trabajo_id]`), `inteligencia` (`EntregaCheckout`), `comercio` (`envio`, firma de la orden), `apps/admin` (logística)
 

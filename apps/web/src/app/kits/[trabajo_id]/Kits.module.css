@@ -832,7 +832,7 @@
 }
 
 /* El campo de direccion lleva su rotulo aparte (no envolvente) y la lista de
-   sugerencias de Google colgando debajo. */
+   resultados colgando debajo. */
 .campoDireccion {
   position: relative;
   display: grid;
@@ -879,18 +879,7 @@
   color: var(--color-text-muted);
 }
 
-/* Atribucion de Google: sus normas piden el texto "Google Maps" en este gris
-   exacto sobre fondo claro, asi que aqui va el color literal y no un token. */
-.atribucionGoogle {
-  padding: var(--espacio-1) var(--espacio-4) var(--espacio-2);
-  border-top: 1px solid var(--color-border-light);
-  font-family: Roboto, Arial, sans-serif;
-  font-size: 12px;
-  color: #5e5e5e;
-  text-align: right;
-}
-
-/* Dirección con OpenStreetMap (sin llave de Google, ADR 0049): el campo y el
+/* Dirección con OpenStreetMap (ADR 0049): el campo y el
    botón Buscar van en fila; en pantallas angostas el botón baja debajo para que
    ninguno quede por debajo de 44 px de toque. */
 /* Ancla de la lista de resultados: ver `CampoDireccionOsm`. */

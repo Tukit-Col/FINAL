@@ -1,6 +1,6 @@
 "use client";
 
-// La dirección del checkout cuando NO hay llave de Google (ADR 0049): el
+// La dirección del checkout (ADR 0049): el
 // acudiente busca su dirección en OpenStreetMap, elige un resultado y confirma
 // el punto en un mapa moviendo el pin. Sin resultados, o si el servicio falla,
 // el campo sigue siendo texto libre: el mapa jamás bloquea el pago.
@@ -11,17 +11,23 @@
 // acudiente lanza otra o edita el texto.
 // La entrega es solo en Bogotá: el servidor limita siempre la búsqueda a Bogotá.
 //
-// Combobox ARIA como el de Google y el buscador de colegio de `/empezar`: el foco
+// Combobox ARIA como el buscador de colegio de `/empezar`: el foco
 // se queda en el campo, las flechas mueven la opción activa
 // (`aria-activedescendant`), Enter elige y Escape cierra la lista.
 
 import { useEffect, useId, useRef, useState } from "react";
 import { MapPin, Pencil, Search } from "lucide-react";
-import { direccionDesdeNominatim } from "@tukit/contrato";
+import { direccionDesdeNominatim, type DireccionDerivada } from "@tukit/contrato";
 import { MINIMO_CARACTERES, type Candidato } from "@/lib/direccion-osm";
-import type { LugarElegido } from "./CampoDireccion";
 import MapaConfirmacionCarga from "./MapaConfirmacionCarga";
 import styles from "./Kits.module.css";
+
+export interface LugarElegido extends DireccionDerivada {
+  direccion: string;
+  google_place_id: string | null;
+  latitud?: number;
+  longitud?: number;
+}
 
 type Estado =
   | { tipo: "reposo" }
