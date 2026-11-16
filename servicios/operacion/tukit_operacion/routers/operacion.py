@@ -47,8 +47,9 @@ from ..dominio.casos import (
 )
 from ..modelos import EstadoCaso
 from ..remoto import IdentidadCaida
-from ..repositorios import RepoCasos
+from ..repositorios import RepoCasos, RepoNotificaciones
 from ..repositorios.casos import TIPO_RESPUESTA_EQUIPO, serializar_caso, serializar_detalle_caso
+from ..repositorios.notificaciones import serializar_notificacion
 
 router = APIRouter(tags=["operacion"])
 
@@ -165,6 +166,32 @@ async def bandeja(
     ordenadas = sorted(filas, key=lambda f: clave_orden(f.prioridad, f.vence_en))
     casos = [serializar_caso(f) for f in ordenadas]
     return {"resumen": resumen, "casos": casos}
+
+
+@router.get("/v1/operacion/correos", summary="Avisos enviados: que salio y que paso. Solo staff.")
+async def correos_enviados(
+    request: Request,
+    authorization: Annotated[str | None, Header()] = None,
+    estado: str | None = None,
+    plantilla: str | None = None,
+    pedido: str | None = None,
+    caso: str | None = None,
+    limite: Annotated[int, Query(ge=1, le=500)] = 100,
+) -> dict[str, Any]:
+    """Los avisos mas recientes primero, con el `resumen` global por estado. Cada
+    uno trae el asunto, el detalle del envio y el dominio del destino, nunca la
+    direccion. `pedido` y `caso` filtran por el codigo corto que lleva el aviso."""
+    await _exigir_staff(request, authorization)
+    async with request.app.state.motor.sesion() as db:
+        repo = RepoNotificaciones(await db.connection())
+        filas = await repo.listar(estado=estado, plantilla=plantilla)
+        resumen = await repo.resumen_por_estado()
+    avisos = [serializar_notificacion(f) for f in filas]
+    if pedido:
+        avisos = [a for a in avisos if (a["pedido"] or "").upper() == pedido.strip().upper()]
+    if caso:
+        avisos = [a for a in avisos if (a["caso"] or "").upper() == caso.strip().upper()]
+    return {"resumen": resumen, "correos": avisos[:limite]}
 
 
 @router.get("/v1/operacion/casos/{caso_id}", summary="Un caso con su conversacion. Solo staff.")
