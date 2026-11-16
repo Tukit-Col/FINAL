@@ -9,13 +9,13 @@ Fuentes: `09_runbook_sesiones.md`, `11_protocolo_sesion_dos_dias.md`, `12_formul
 ## 1. Antes de cada llamada (5 min)
 
 Una sola vez, antes de la primera:
-- [ ] Hacer una compra completa tú misma con la tarjeta de prueba, por el túnel y desde el celular con datos móviles. Así compruebas de una vez: túnel, chat flotante en `/kits`, pago y pedido. El túnel se reinició el 2-nov (el anterior se cayó) y responde 200 en `https://awards-cigarettes-prevent-por.trycloudflare.com`.
+- [ ] Hacer una compra completa tú misma con la tarjeta de prueba, por el túnel y desde el celular con datos móviles. Así compruebas de una vez: túnel, chat flotante en `/kits`, pago y pedido. El túnel se reinició el 2-nov (el anterior se cayó) y responde 200 en `https://pleasant-drilling-alliance-cubic.trycloudflare.com`.
 - [ ] `make estado` dice `todos_arriba: true`. Admin (`localhost:3001/cola`) abierto en otra ventana, solo para ti, por si el kit cae en revisión.
 - [ ] No tocar servicios, no `make bd-reiniciar-datos`, no `TUKIT_AUTOPUBLICAR`.
 
 Por cada papá:
 - [ ] **Código de participante.** Uno libre que no se haya usado en las rondas del 29, 30 y 31-oct (por ejemplo `R2-01`, `R2-02`...). Se anota en la rúbrica, en el nombre de la grabación y en el formulario (pregunta 1).
-- [ ] **Enlace del túnel**: `https://awards-cigarettes-prevent-por.trycloudflare.com`. Se manda por privado justo antes, nunca al grupo. Si el túnel se reinició, la URL es otra.
+- [ ] **Enlace del túnel**: `https://pleasant-drilling-alliance-cubic.trycloudflare.com`. Se manda por privado justo antes, nunca al grupo. Si el túnel se reinició, la URL es otra.
 - [ ] **Cuenta**: tarjeta de prueba, no registro con datos propios. El consentimiento promete "cuenta y datos de prueba" y que no se recogen datos del hijo. Registro propio solo si el papá insiste, y en ese caso se anota en la rúbrica y se avisa que su correo queda en la base de prueba.
   - Correo `acu-XX@prueba.tukit.co` (XX = su número), clave `Prueba-2026`, celular `300 000 00XX`.
   - Colegio Agustiniano Ciudad Salitre, Tercero. Al hijo le gusta Spiderman.

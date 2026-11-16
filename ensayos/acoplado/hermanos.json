@@ -1,0 +1,3496 @@
+{
+ "config": {
+  "limite_pd_s": 20.0,
+  "tope_capa_estados": 2000000,
+  "semillas": [
+   0,
+   1,
+   2
+  ],
+  "hogares": 38,
+  "segundos_totales": 259.4679733749945,
+  "presupuesto": "(Ahorrador + Premium)/2 de la heuristica, ya consolidados"
+ },
+ "filas": [
+  {
+   "id": "sint-2-0",
+   "tipo": "sintetico",
+   "hijos": 2,
+   "indices": [
+    45,
+    4
+   ],
+   "lineas": 25,
+   "compartidos": 14,
+   "A0": 524455,
+   "P0": 841785,
+   "presupuesto": 683120,
+   "cota_inf": 452051,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "ok",
+    "s": 0.06125612498726696,
+    "estados": 6331,
+    "fid": null,
+    "costo": 488365
+   },
+   "pd_pres": {
+    "estado": "ok",
+    "s": 0.5609048750193324,
+    "estados": 68244,
+    "fid": 0.9,
+    "costo": 635595
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.712529208016349,
+     "evals": 6000,
+     "ah_costo": 489315,
+     "ah_fid": 0.48,
+     "pr_fid": 0.9,
+     "pr_costo": 635595
+    },
+    {
+     "semilla": 1,
+     "s": 0.7008552920015063,
+     "evals": 6000,
+     "ah_costo": 488365,
+     "ah_fid": 0.46,
+     "pr_fid": 0.9,
+     "pr_costo": 635595
+    },
+    {
+     "semilla": 2,
+     "s": 0.629945749999024,
+     "evals": 6000,
+     "ah_costo": 488365,
+     "ah_fid": 0.46,
+     "pr_fid": 0.9,
+     "pr_costo": 635595
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 0.7480171250062995,
+     "ah_costo": 524455,
+     "ah_fid": 0.32,
+     "pr_fid": 0.84,
+     "pr_costo": 568095,
+     "pr_sin_consolidar": 671300
+    },
+    {
+     "semilla": 1,
+     "s": 0.6808416660060175,
+     "ah_costo": 524455,
+     "ah_fid": 0.32,
+     "pr_fid": 0.84,
+     "pr_costo": 568095,
+     "pr_sin_consolidar": 671300
+    },
+    {
+     "semilla": 2,
+     "s": 0.7284559170075227,
+     "ah_costo": 524455,
+     "ah_fid": 0.32,
+     "pr_fid": 0.84,
+     "pr_costo": 568095,
+     "pr_sin_consolidar": 671300
+    }
+   ],
+   "mem_pd_pico_mib": 17.466773986816406,
+   "mem_ns_pico_mib": 0.7865095138549805
+  },
+  {
+   "id": "sint-2-1",
+   "tipo": "sintetico",
+   "hijos": 2,
+   "indices": [
+    33,
+    93
+   ],
+   "lineas": 42,
+   "compartidos": 7,
+   "A0": 632185,
+   "P0": 1091337,
+   "presupuesto": 861761,
+   "cota_inf": 494259,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "ok",
+    "s": 0.0005267089873086661,
+    "estados": 133,
+    "fid": null,
+    "costo": 632185
+   },
+   "pd_pres": {
+    "estado": "ok",
+    "s": 0.005784999986644834,
+    "estados": 2742,
+    "fid": 0.7738095238095238,
+    "costo": 849927
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.6818555830104742,
+     "evals": 6000,
+     "ah_costo": 632185,
+     "ah_fid": 0.2619047619047619,
+     "pr_fid": 0.7738095238095238,
+     "pr_costo": 849927
+    },
+    {
+     "semilla": 1,
+     "s": 0.6475685419864021,
+     "evals": 6000,
+     "ah_costo": 632185,
+     "ah_fid": 0.2619047619047619,
+     "pr_fid": 0.7738095238095238,
+     "pr_costo": 849927
+    },
+    {
+     "semilla": 2,
+     "s": 0.6431640830123797,
+     "evals": 6000,
+     "ah_costo": 632185,
+     "ah_fid": 0.2619047619047619,
+     "pr_fid": 0.7738095238095238,
+     "pr_costo": 849927
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 0.9248367079999298,
+     "ah_costo": 632185,
+     "ah_fid": 0.2619047619047619,
+     "pr_fid": 0.7619047619047619,
+     "pr_costo": 827017,
+     "pr_sin_consolidar": 859217
+    },
+    {
+     "semilla": 1,
+     "s": 0.8610338330036029,
+     "ah_costo": 632185,
+     "ah_fid": 0.2619047619047619,
+     "pr_fid": 0.7619047619047619,
+     "pr_costo": 827017,
+     "pr_sin_consolidar": 859217
+    },
+    {
+     "semilla": 2,
+     "s": 0.8856132500222884,
+     "ah_costo": 632185,
+     "ah_fid": 0.2619047619047619,
+     "pr_fid": 0.7619047619047619,
+     "pr_costo": 827017,
+     "pr_sin_consolidar": 859217
+    }
+   ]
+  },
+  {
+   "id": "sint-2-2",
+   "tipo": "sintetico",
+   "hijos": 2,
+   "indices": [
+    163,
+    2
+   ],
+   "lineas": 39,
+   "compartidos": 2,
+   "A0": 521770,
+   "P0": 686719,
+   "presupuesto": 604244,
+   "cota_inf": 232535,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "ok",
+    "s": 0.00021749999723397195,
+    "estados": 123,
+    "fid": null,
+    "costo": 501280
+   },
+   "pd_pres": {
+    "estado": "ok",
+    "s": 0.0018784170097205788,
+    "estados": 1738,
+    "fid": 0.5897435897435898,
+    "costo": 603019
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.8425343749986496,
+     "evals": 6000,
+     "ah_costo": 501280,
+     "ah_fid": 0.3717948717948718,
+     "pr_fid": 0.5897435897435898,
+     "pr_costo": 603019
+    },
+    {
+     "semilla": 1,
+     "s": 0.8683220829989295,
+     "evals": 6000,
+     "ah_costo": 501280,
+     "ah_fid": 0.3717948717948718,
+     "pr_fid": 0.5897435897435898,
+     "pr_costo": 603019
+    },
+    {
+     "semilla": 2,
+     "s": 0.8283441670064349,
+     "evals": 6000,
+     "ah_costo": 501280,
+     "ah_fid": 0.3717948717948718,
+     "pr_fid": 0.5897435897435898,
+     "pr_costo": 603019
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 0.9232459999911953,
+     "ah_costo": 521770,
+     "ah_fid": 0.3333333333333333,
+     "pr_fid": 0.5641025641025641,
+     "pr_costo": 585019,
+     "pr_sin_consolidar": 594424
+    },
+    {
+     "semilla": 1,
+     "s": 0.8701471659878734,
+     "ah_costo": 521770,
+     "ah_fid": 0.3333333333333333,
+     "pr_fid": 0.5641025641025641,
+     "pr_costo": 585019,
+     "pr_sin_consolidar": 594424
+    },
+    {
+     "semilla": 2,
+     "s": 0.9139291669998784,
+     "ah_costo": 521770,
+     "ah_fid": 0.3333333333333333,
+     "pr_fid": 0.5641025641025641,
+     "pr_costo": 585019,
+     "pr_sin_consolidar": 594424
+    }
+   ]
+  },
+  {
+   "id": "sint-2-3",
+   "tipo": "sintetico",
+   "hijos": 2,
+   "indices": [
+    117,
+    16
+   ],
+   "lineas": 14,
+   "compartidos": 5,
+   "A0": 345840,
+   "P0": 662120,
+   "presupuesto": 503980,
+   "cota_inf": 311573,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "ok",
+    "s": 0.00017091701738536358,
+    "estados": 45,
+    "fid": null,
+    "costo": 345840
+   },
+   "pd_pres": {
+    "estado": "ok",
+    "s": 0.0009623749938327819,
+    "estados": 325,
+    "fid": 0.7857142857142857,
+    "costo": 465210
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.5858177920163143,
+     "evals": 4284,
+     "ah_costo": 345840,
+     "ah_fid": 0.2857142857142857,
+     "pr_fid": 0.7857142857142857,
+     "pr_costo": 465210
+    },
+    {
+     "semilla": 1,
+     "s": 0.5659648750151973,
+     "evals": 4284,
+     "ah_costo": 345840,
+     "ah_fid": 0.2857142857142857,
+     "pr_fid": 0.7857142857142857,
+     "pr_costo": 465210
+    },
+    {
+     "semilla": 2,
+     "s": 0.545700290997047,
+     "evals": 4284,
+     "ah_costo": 345840,
+     "ah_fid": 0.2857142857142857,
+     "pr_fid": 0.7857142857142857,
+     "pr_costo": 465210
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 0.587759666988859,
+     "ah_costo": 345840,
+     "ah_fid": 0.2857142857142857,
+     "pr_fid": 0.7857142857142857,
+     "pr_costo": 465210,
+     "pr_sin_consolidar": 497410
+    },
+    {
+     "semilla": 1,
+     "s": 0.5437968329933938,
+     "ah_costo": 345840,
+     "ah_fid": 0.2857142857142857,
+     "pr_fid": 0.7857142857142857,
+     "pr_costo": 465210,
+     "pr_sin_consolidar": 497410
+    },
+    {
+     "semilla": 2,
+     "s": 0.5252265410090331,
+     "ah_costo": 345840,
+     "ah_fid": 0.2857142857142857,
+     "pr_fid": 0.7857142857142857,
+     "pr_costo": 465210,
+     "pr_sin_consolidar": 497410
+    }
+   ]
+  },
+  {
+   "id": "sint-3-0",
+   "tipo": "sintetico",
+   "hijos": 3,
+   "indices": [
+    131,
+    33,
+    24
+   ],
+   "lineas": 46,
+   "compartidos": 26,
+   "A0": 825875,
+   "P0": 1268444,
+   "presupuesto": 1047159,
+   "cota_inf": 705059,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "tiempo",
+    "s": 20.02136012498522,
+    "estados": 4276613,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "tiempo",
+    "s": 20.000572792021558,
+    "estados": 2458973,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.8159646250132937,
+     "evals": 6000,
+     "ah_costo": 796795,
+     "ah_fid": 0.45652173913043476,
+     "pr_fid": 0.8260869565217391,
+     "pr_costo": 1018074
+    },
+    {
+     "semilla": 1,
+     "s": 0.6742477919906378,
+     "evals": 6000,
+     "ah_costo": 795195,
+     "ah_fid": 0.45652173913043476,
+     "pr_fid": 0.8260869565217391,
+     "pr_costo": 1018074
+    },
+    {
+     "semilla": 2,
+     "s": 0.7708520840096753,
+     "evals": 6000,
+     "ah_costo": 810295,
+     "ah_fid": 0.391304347826087,
+     "pr_fid": 0.8260869565217391,
+     "pr_costo": 1018074
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.0446197090204805,
+     "ah_costo": 825875,
+     "ah_fid": 0.2826086956521739,
+     "pr_fid": 0.7282608695652174,
+     "pr_costo": 918904,
+     "pr_sin_consolidar": 1041604
+    },
+    {
+     "semilla": 1,
+     "s": 0.8966188749764115,
+     "ah_costo": 825875,
+     "ah_fid": 0.2826086956521739,
+     "pr_fid": 0.7282608695652174,
+     "pr_costo": 918904,
+     "pr_sin_consolidar": 1041604
+    },
+    {
+     "semilla": 2,
+     "s": 0.9490184580208734,
+     "ah_costo": 825875,
+     "ah_fid": 0.2826086956521739,
+     "pr_fid": 0.7282608695652174,
+     "pr_costo": 918904,
+     "pr_sin_consolidar": 1041604
+    }
+   ],
+   "mem_pd_pico_mib": 76.95220947265625,
+   "mem_ns_pico_mib": 0.9177684783935547
+  },
+  {
+   "id": "sint-3-1",
+   "tipo": "sintetico",
+   "hijos": 3,
+   "indices": [
+    12,
+    100,
+    13
+   ],
+   "lineas": 49,
+   "compartidos": 18,
+   "A0": 729684,
+   "P0": 1299304,
+   "presupuesto": 1014494,
+   "cota_inf": 522555,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "ok",
+    "s": 0.007346541009610519,
+    "estados": 1721,
+    "fid": null,
+    "costo": 706594
+   },
+   "pd_pres": {
+    "estado": "ok",
+    "s": 0.0367264999949839,
+    "estados": 9127,
+    "fid": 0.7857142857142857,
+    "costo": 983724
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.8707529170205817,
+     "evals": 6000,
+     "ah_costo": 714395,
+     "ah_fid": 0.4489795918367347,
+     "pr_fid": 0.7857142857142857,
+     "pr_costo": 983724
+    },
+    {
+     "semilla": 1,
+     "s": 0.7333142919815145,
+     "evals": 6000,
+     "ah_costo": 707684,
+     "ah_fid": 0.3877551020408163,
+     "pr_fid": 0.7857142857142857,
+     "pr_costo": 983724
+    },
+    {
+     "semilla": 2,
+     "s": 0.7686357499915175,
+     "evals": 6000,
+     "ah_costo": 714884,
+     "ah_fid": 0.40816326530612246,
+     "pr_fid": 0.7857142857142857,
+     "pr_costo": 983724
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 0.9427087089861743,
+     "ah_costo": 729684,
+     "ah_fid": 0.336734693877551,
+     "pr_fid": 0.7551020408163265,
+     "pr_costo": 891124,
+     "pr_sin_consolidar": 989528
+    },
+    {
+     "semilla": 1,
+     "s": 0.8587944169994444,
+     "ah_costo": 729684,
+     "ah_fid": 0.336734693877551,
+     "pr_fid": 0.7551020408163265,
+     "pr_costo": 891124,
+     "pr_sin_consolidar": 989528
+    },
+    {
+     "semilla": 2,
+     "s": 0.8915396250085905,
+     "ah_costo": 729684,
+     "ah_fid": 0.336734693877551,
+     "pr_fid": 0.7551020408163265,
+     "pr_costo": 891124,
+     "pr_sin_consolidar": 989528
+    }
+   ]
+  },
+  {
+   "id": "sint-3-2",
+   "tipo": "sintetico",
+   "hijos": 3,
+   "indices": [
+    141,
+    28,
+    153
+   ],
+   "lineas": 56,
+   "compartidos": 28,
+   "A0": 584990,
+   "P0": 1025629,
+   "presupuesto": 805309,
+   "cota_inf": 427222,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "tiempo",
+    "s": 20.009017584001413,
+    "estados": 5667136,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "tiempo",
+    "s": 20.00434824998956,
+    "estados": 2746050,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.8364583749789745,
+     "evals": 6000,
+     "ah_costo": 571610,
+     "ah_fid": 0.33035714285714285,
+     "pr_fid": 0.7767857142857143,
+     "pr_costo": 796029
+    },
+    {
+     "semilla": 1,
+     "s": 0.9196510000037961,
+     "evals": 6000,
+     "ah_costo": 574300,
+     "ah_fid": 0.2857142857142857,
+     "pr_fid": 0.7767857142857143,
+     "pr_costo": 796029
+    },
+    {
+     "semilla": 2,
+     "s": 0.7736607090046164,
+     "evals": 6000,
+     "ah_costo": 570060,
+     "ah_fid": 0.3392857142857143,
+     "pr_fid": 0.7767857142857143,
+     "pr_costo": 796029
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.074579125008313,
+     "ah_costo": 584990,
+     "ah_fid": 0.26785714285714285,
+     "pr_fid": 0.5446428571428571,
+     "pr_costo": 650199,
+     "pr_sin_consolidar": 802799
+    },
+    {
+     "semilla": 1,
+     "s": 0.9299675000074785,
+     "ah_costo": 584990,
+     "ah_fid": 0.26785714285714285,
+     "pr_fid": 0.5446428571428571,
+     "pr_costo": 650199,
+     "pr_sin_consolidar": 802799
+    },
+    {
+     "semilla": 2,
+     "s": 1.5804921660164837,
+     "ah_costo": 584990,
+     "ah_fid": 0.26785714285714285,
+     "pr_fid": 0.5446428571428571,
+     "pr_costo": 650199,
+     "pr_sin_consolidar": 802799
+    }
+   ]
+  },
+  {
+   "id": "sint-3-3",
+   "tipo": "sintetico",
+   "hijos": 3,
+   "indices": [
+    78,
+    7,
+    76
+   ],
+   "lineas": 35,
+   "compartidos": 20,
+   "A0": 563545,
+   "P0": 883257,
+   "presupuesto": 723401,
+   "cota_inf": 448983,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "ok",
+    "s": 0.12170058299670927,
+    "estados": 26104,
+    "fid": null,
+    "costo": 548990
+   },
+   "pd_pres": {
+    "estado": "ok",
+    "s": 1.3920518750092015,
+    "estados": 223783,
+    "fid": 0.8,
+    "costo": 722887
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.6739282910129987,
+     "evals": 6000,
+     "ah_costo": 548990,
+     "ah_fid": 0.4142857142857143,
+     "pr_fid": 0.8,
+     "pr_costo": 722887
+    },
+    {
+     "semilla": 1,
+     "s": 0.8750964589999057,
+     "evals": 6000,
+     "ah_costo": 548990,
+     "ah_fid": 0.4142857142857143,
+     "pr_fid": 0.8,
+     "pr_costo": 722887
+    },
+    {
+     "semilla": 2,
+     "s": 0.9200281249941327,
+     "evals": 6000,
+     "ah_costo": 548990,
+     "ah_fid": 0.4142857142857143,
+     "pr_fid": 0.8,
+     "pr_costo": 722887
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 0.9886614159913734,
+     "ah_costo": 563545,
+     "ah_fid": 0.3,
+     "pr_fid": 0.7714285714285715,
+     "pr_costo": 662887,
+     "pr_sin_consolidar": 717101
+    },
+    {
+     "semilla": 1,
+     "s": 1.0164705000061076,
+     "ah_costo": 563545,
+     "ah_fid": 0.3,
+     "pr_fid": 0.7714285714285715,
+     "pr_costo": 662887,
+     "pr_sin_consolidar": 717101
+    },
+    {
+     "semilla": 2,
+     "s": 1.0328903339977842,
+     "ah_costo": 563545,
+     "ah_fid": 0.3,
+     "pr_fid": 0.7714285714285715,
+     "pr_costo": 662887,
+     "pr_sin_consolidar": 717101
+    }
+   ]
+  },
+  {
+   "id": "sint-4-0",
+   "tipo": "sintetico",
+   "hijos": 4,
+   "indices": [
+    127,
+    3,
+    167,
+    173
+   ],
+   "lineas": 57,
+   "compartidos": 24,
+   "A0": 812335,
+   "P0": 998544,
+   "presupuesto": 905439,
+   "cota_inf": 467623,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "ok",
+    "s": 1.117230500007281,
+    "estados": 219810,
+    "fid": null,
+    "costo": 770355
+   },
+   "pd_pres": {
+    "estado": "tiempo",
+    "s": 20.006677958008368,
+    "estados": 2487431,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.8616685419983696,
+     "evals": 6000,
+     "ah_costo": 778945,
+     "ah_fid": 0.5087719298245614,
+     "pr_fid": 0.7456140350877193,
+     "pr_costo": 905134
+    },
+    {
+     "semilla": 1,
+     "s": 1.5200955829932354,
+     "evals": 6000,
+     "ah_costo": 774545,
+     "ah_fid": 0.4824561403508772,
+     "pr_fid": 0.7456140350877193,
+     "pr_costo": 905134
+    },
+    {
+     "semilla": 2,
+     "s": 0.7745647920237388,
+     "evals": 6000,
+     "ah_costo": 776945,
+     "ah_fid": 0.5,
+     "pr_fid": 0.7456140350877193,
+     "pr_costo": 905134
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.457535875000758,
+     "ah_costo": 812335,
+     "ah_fid": 0.3508771929824561,
+     "pr_fid": 0.4649122807017544,
+     "pr_costo": 829305,
+     "pr_sin_consolidar": 903845
+    },
+    {
+     "semilla": 1,
+     "s": 1.066340916993795,
+     "ah_costo": 812335,
+     "ah_fid": 0.3508771929824561,
+     "pr_fid": 0.4649122807017544,
+     "pr_costo": 829305,
+     "pr_sin_consolidar": 903845
+    },
+    {
+     "semilla": 2,
+     "s": 0.9913057909870986,
+     "ah_costo": 812335,
+     "ah_fid": 0.3508771929824561,
+     "pr_fid": 0.4649122807017544,
+     "pr_costo": 829305,
+     "pr_sin_consolidar": 903845
+    }
+   ],
+   "mem_pd_pico_mib": 85.7407341003418,
+   "mem_ns_pico_mib": 0.9853620529174805
+  },
+  {
+   "id": "sint-4-1",
+   "tipo": "sintetico",
+   "hijos": 4,
+   "indices": [
+    77,
+    129,
+    111,
+    66
+   ],
+   "lineas": 107,
+   "compartidos": 36,
+   "A0": 1137305,
+   "P0": 1706407,
+   "presupuesto": 1421856,
+   "cota_inf": 754454,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "memoria",
+    "s": 14.798472417023731,
+    "estados": 3990583,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "tiempo",
+    "s": 20.013524584006518,
+    "estados": 3727389,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 1.1444670839991886,
+     "evals": 6000,
+     "ah_costo": 1081735,
+     "ah_fid": 0.3411214953271028,
+     "pr_fid": 0.705607476635514,
+     "pr_costo": 1417997
+    },
+    {
+     "semilla": 1,
+     "s": 1.0304624580021482,
+     "evals": 6000,
+     "ah_costo": 1077225,
+     "ah_fid": 0.3598130841121495,
+     "pr_fid": 0.705607476635514,
+     "pr_costo": 1417997
+    },
+    {
+     "semilla": 2,
+     "s": 0.974344457994448,
+     "evals": 6000,
+     "ah_costo": 1085385,
+     "ah_fid": 0.37383177570093457,
+     "pr_fid": 0.705607476635514,
+     "pr_costo": 1417997
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.4286663749953732,
+     "ah_costo": 1137305,
+     "ah_fid": 0.29439252336448596,
+     "pr_fid": 0.48130841121495327,
+     "pr_costo": 1158038,
+     "pr_sin_consolidar": 1419188
+    },
+    {
+     "semilla": 1,
+     "s": 1.547557667014189,
+     "ah_costo": 1137305,
+     "ah_fid": 0.29439252336448596,
+     "pr_fid": 0.48130841121495327,
+     "pr_costo": 1158038,
+     "pr_sin_consolidar": 1419188
+    },
+    {
+     "semilla": 2,
+     "s": 1.8248438330192585,
+     "ah_costo": 1137305,
+     "ah_fid": 0.29439252336448596,
+     "pr_fid": 0.48130841121495327,
+     "pr_costo": 1158038,
+     "pr_sin_consolidar": 1419188
+    }
+   ]
+  },
+  {
+   "id": "sint-4-2",
+   "tipo": "sintetico",
+   "hijos": 4,
+   "indices": [
+    12,
+    124,
+    100,
+    85
+   ],
+   "lineas": 58,
+   "compartidos": 37,
+   "A0": 793645,
+   "P0": 1196936,
+   "presupuesto": 995290,
+   "cota_inf": 623445,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "memoria",
+    "s": 15.33405054200557,
+    "estados": 5215507,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "memoria",
+    "s": 14.237730624998221,
+    "estados": 4388659,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.8428124999918509,
+     "evals": 6000,
+     "ah_costo": 760645,
+     "ah_fid": 0.4482758620689655,
+     "pr_fid": 0.853448275862069,
+     "pr_costo": 983656
+    },
+    {
+     "semilla": 1,
+     "s": 0.841038499987917,
+     "evals": 6000,
+     "ah_costo": 754355,
+     "ah_fid": 0.43103448275862066,
+     "pr_fid": 0.853448275862069,
+     "pr_costo": 983656
+    },
+    {
+     "semilla": 2,
+     "s": 0.848080999974627,
+     "evals": 6000,
+     "ah_costo": 761255,
+     "ah_fid": 0.46551724137931033,
+     "pr_fid": 0.853448275862069,
+     "pr_costo": 983656
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 0.9946127499861177,
+     "ah_costo": 793645,
+     "ah_fid": 0.3448275862068966,
+     "pr_fid": 0.646551724137931,
+     "pr_costo": 847821,
+     "pr_sin_consolidar": 992721
+    },
+    {
+     "semilla": 1,
+     "s": 1.0441635839815717,
+     "ah_costo": 793645,
+     "ah_fid": 0.3448275862068966,
+     "pr_fid": 0.646551724137931,
+     "pr_costo": 847821,
+     "pr_sin_consolidar": 992721
+    },
+    {
+     "semilla": 2,
+     "s": 0.9535319170099683,
+     "ah_costo": 793645,
+     "ah_fid": 0.3448275862068966,
+     "pr_fid": 0.646551724137931,
+     "pr_costo": 847821,
+     "pr_sin_consolidar": 992721
+    }
+   ]
+  },
+  {
+   "id": "sint-4-3",
+   "tipo": "sintetico",
+   "hijos": 4,
+   "indices": [
+    72,
+    34,
+    42,
+    18
+   ],
+   "lineas": 53,
+   "compartidos": 31,
+   "A0": 851330,
+   "P0": 1346819,
+   "presupuesto": 1099074,
+   "cota_inf": 691688,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "memoria",
+    "s": 16.982182832987746,
+    "estados": 4856478,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "memoria",
+    "s": 16.880101584014483,
+    "estados": 5028846,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.8267362919868901,
+     "evals": 6000,
+     "ah_costo": 840545,
+     "ah_fid": 0.36792452830188677,
+     "pr_fid": 0.7641509433962265,
+     "pr_costo": 1089909
+    },
+    {
+     "semilla": 1,
+     "s": 0.7768021669762675,
+     "evals": 6000,
+     "ah_costo": 836685,
+     "ah_fid": 0.33962264150943394,
+     "pr_fid": 0.7641509433962265,
+     "pr_costo": 1089909
+    },
+    {
+     "semilla": 2,
+     "s": 0.8682751670130529,
+     "evals": 6000,
+     "ah_costo": 831000,
+     "ah_fid": 0.4528301886792453,
+     "pr_fid": 0.7641509433962265,
+     "pr_costo": 1089909
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.101763042010134,
+     "ah_costo": 851330,
+     "ah_fid": 0.20754716981132076,
+     "pr_fid": 0.660377358490566,
+     "pr_costo": 996069,
+     "pr_sin_consolidar": 1098969
+    },
+    {
+     "semilla": 1,
+     "s": 0.9583543750050012,
+     "ah_costo": 851330,
+     "ah_fid": 0.20754716981132076,
+     "pr_fid": 0.660377358490566,
+     "pr_costo": 996069,
+     "pr_sin_consolidar": 1098969
+    },
+    {
+     "semilla": 2,
+     "s": 1.0323267920175567,
+     "ah_costo": 851330,
+     "ah_fid": 0.20754716981132076,
+     "pr_fid": 0.660377358490566,
+     "pr_costo": 996069,
+     "pr_sin_consolidar": 1098969
+    }
+   ]
+  },
+  {
+   "id": "sint-5-0",
+   "tipo": "sintetico",
+   "hijos": 5,
+   "indices": [
+    91,
+    123,
+    100,
+    69,
+    101
+   ],
+   "lineas": 72,
+   "compartidos": 38,
+   "A0": 1014450,
+   "P0": 1565334,
+   "presupuesto": 1289892,
+   "cota_inf": 860830,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "tiempo",
+    "s": 20.003730790980626,
+    "estados": 4533655,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "memoria",
+    "s": 15.042239208007231,
+    "estados": 4263549,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.9168708340148441,
+     "evals": 6000,
+     "ah_costo": 994700,
+     "ah_fid": 0.3888888888888889,
+     "pr_fid": 0.7847222222222222,
+     "pr_costo": 1274034
+    },
+    {
+     "semilla": 1,
+     "s": 0.9220150840119459,
+     "evals": 6000,
+     "ah_costo": 1000700,
+     "ah_fid": 0.3958333333333333,
+     "pr_fid": 0.7847222222222222,
+     "pr_costo": 1274034
+    },
+    {
+     "semilla": 2,
+     "s": 0.7957677080121357,
+     "evals": 6000,
+     "ah_costo": 1003500,
+     "ah_fid": 0.4166666666666667,
+     "pr_fid": 0.7847222222222222,
+     "pr_costo": 1274034
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.191825499990955,
+     "ah_costo": 1014450,
+     "ah_fid": 0.3263888888888889,
+     "pr_fid": 0.6180555555555556,
+     "pr_costo": 1117984,
+     "pr_sin_consolidar": 1286082
+    },
+    {
+     "semilla": 1,
+     "s": 1.1122298749978654,
+     "ah_costo": 1014450,
+     "ah_fid": 0.3263888888888889,
+     "pr_fid": 0.6180555555555556,
+     "pr_costo": 1117984,
+     "pr_sin_consolidar": 1286082
+    },
+    {
+     "semilla": 2,
+     "s": 1.1261725420190487,
+     "ah_costo": 1014450,
+     "ah_fid": 0.3263888888888889,
+     "pr_fid": 0.6180555555555556,
+     "pr_costo": 1117984,
+     "pr_sin_consolidar": 1286082
+    }
+   ],
+   "mem_pd_pico_mib": 142.90895080566406,
+   "mem_ns_pico_mib": 1.1118459701538086
+  },
+  {
+   "id": "sint-5-1",
+   "tipo": "sintetico",
+   "hijos": 5,
+   "indices": [
+    80,
+    134,
+    12,
+    132,
+    112
+   ],
+   "lineas": 68,
+   "compartidos": 37,
+   "A0": 862280,
+   "P0": 1371645,
+   "presupuesto": 1116962,
+   "cota_inf": 651015,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "memoria",
+    "s": 18.596563374972902,
+    "estados": 5132612,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "memoria",
+    "s": 15.540960875019664,
+    "estados": 4408245,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.9273175410053227,
+     "evals": 6000,
+     "ah_costo": 805980,
+     "ah_fid": 0.5514705882352942,
+     "pr_fid": 0.8014705882352942,
+     "pr_costo": 1097765
+    },
+    {
+     "semilla": 1,
+     "s": 0.8640902500192169,
+     "evals": 6000,
+     "ah_costo": 799090,
+     "ah_fid": 0.5294117647058824,
+     "pr_fid": 0.8014705882352942,
+     "pr_costo": 1097765
+    },
+    {
+     "semilla": 2,
+     "s": 0.9002805829804856,
+     "evals": 6000,
+     "ah_costo": 794240,
+     "ah_fid": 0.5073529411764706,
+     "pr_fid": 0.8014705882352942,
+     "pr_costo": 1097765
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.0461059160006698,
+     "ah_costo": 862280,
+     "ah_fid": 0.34558823529411764,
+     "pr_fid": 0.6985294117647058,
+     "pr_costo": 940545,
+     "pr_sin_consolidar": 1112444
+    },
+    {
+     "semilla": 1,
+     "s": 0.983276457991451,
+     "ah_costo": 862280,
+     "ah_fid": 0.34558823529411764,
+     "pr_fid": 0.6985294117647058,
+     "pr_costo": 940545,
+     "pr_sin_consolidar": 1112444
+    },
+    {
+     "semilla": 2,
+     "s": 1.0112435840128455,
+     "ah_costo": 862280,
+     "ah_fid": 0.34558823529411764,
+     "pr_fid": 0.6985294117647058,
+     "pr_costo": 940545,
+     "pr_sin_consolidar": 1112444
+    }
+   ]
+  },
+  {
+   "id": "sint-5-2",
+   "tipo": "sintetico",
+   "hijos": 5,
+   "indices": [
+    169,
+    106,
+    90,
+    138,
+    119
+   ],
+   "lineas": 58,
+   "compartidos": 24,
+   "A0": 866389,
+   "P0": 1194007,
+   "presupuesto": 1030198,
+   "cota_inf": 707430,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "ok",
+    "s": 1.25754724998842,
+    "estados": 156793,
+    "fid": null,
+    "costo": 831799
+   },
+   "pd_pres": {
+    "estado": "tiempo",
+    "s": 20.004871458018897,
+    "estados": 3275001,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 1.2763219579937868,
+     "evals": 6000,
+     "ah_costo": 847250,
+     "ah_fid": 0.5086206896551724,
+     "pr_fid": 0.7844827586206896,
+     "pr_costo": 1024027
+    },
+    {
+     "semilla": 1,
+     "s": 0.8685918329865672,
+     "evals": 6000,
+     "ah_costo": 840550,
+     "ah_fid": 0.49137931034482757,
+     "pr_fid": 0.7844827586206896,
+     "pr_costo": 1024027
+    },
+    {
+     "semilla": 2,
+     "s": 0.7606357909971848,
+     "evals": 6000,
+     "ah_costo": 844749,
+     "ah_fid": 0.49137931034482757,
+     "pr_fid": 0.7844827586206896,
+     "pr_costo": 1024027
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.315176459000213,
+     "ah_costo": 866389,
+     "ah_fid": 0.35344827586206895,
+     "pr_fid": 0.6206896551724138,
+     "pr_costo": 943927,
+     "pr_sin_consolidar": 1030132
+    },
+    {
+     "semilla": 1,
+     "s": 1.004374416981591,
+     "ah_costo": 866389,
+     "ah_fid": 0.35344827586206895,
+     "pr_fid": 0.6206896551724138,
+     "pr_costo": 943927,
+     "pr_sin_consolidar": 1030132
+    },
+    {
+     "semilla": 2,
+     "s": 0.9229718749993481,
+     "ah_costo": 866389,
+     "ah_fid": 0.35344827586206895,
+     "pr_fid": 0.6206896551724138,
+     "pr_costo": 943927,
+     "pr_sin_consolidar": 1030132
+    }
+   ]
+  },
+  {
+   "id": "sint-6-0",
+   "tipo": "sintetico",
+   "hijos": 6,
+   "indices": [
+    25,
+    73,
+    70,
+    6,
+    0,
+    40
+   ],
+   "lineas": 98,
+   "compartidos": 43,
+   "A0": 1201070,
+   "P0": 1572514,
+   "presupuesto": 1386792,
+   "cota_inf": 903169,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "memoria",
+    "s": 17.883510999992723,
+    "estados": 4835566,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "memoria",
+    "s": 16.028245791996596,
+    "estados": 4835566,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.9980472919996828,
+     "evals": 6000,
+     "ah_costo": 1155165,
+     "ah_fid": 0.5204081632653061,
+     "pr_fid": 0.7448979591836735,
+     "pr_costo": 1386784
+    },
+    {
+     "semilla": 1,
+     "s": 1.269552209007088,
+     "evals": 6000,
+     "ah_costo": 1163994,
+     "ah_fid": 0.5714285714285714,
+     "pr_fid": 0.7448979591836735,
+     "pr_costo": 1386784
+    },
+    {
+     "semilla": 2,
+     "s": 1.0574125409766566,
+     "evals": 6000,
+     "ah_costo": 1171505,
+     "ah_fid": 0.4846938775510204,
+     "pr_fid": 0.7448979591836735,
+     "pr_costo": 1386784
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.5465235830051824,
+     "ah_costo": 1201070,
+     "ah_fid": 0.3010204081632653,
+     "pr_fid": 0.4744897959183674,
+     "pr_costo": 1218495,
+     "pr_sin_consolidar": 1385215
+    },
+    {
+     "semilla": 1,
+     "s": 1.3871822920045815,
+     "ah_costo": 1201070,
+     "ah_fid": 0.3010204081632653,
+     "pr_fid": 0.4744897959183674,
+     "pr_costo": 1218495,
+     "pr_sin_consolidar": 1385215
+    },
+    {
+     "semilla": 2,
+     "s": 1.3574211249942891,
+     "ah_costo": 1201070,
+     "ah_fid": 0.3010204081632653,
+     "pr_fid": 0.4744897959183674,
+     "pr_costo": 1218495,
+     "pr_sin_consolidar": 1385215
+    }
+   ],
+   "mem_pd_pico_mib": 108.99210357666016,
+   "mem_ns_pico_mib": 1.3424396514892578
+  },
+  {
+   "id": "sint-6-1",
+   "tipo": "sintetico",
+   "hijos": 6,
+   "indices": [
+    41,
+    172,
+    32,
+    19,
+    121,
+    95
+   ],
+   "lineas": 68,
+   "compartidos": 43,
+   "A0": 1172930,
+   "P0": 1782520,
+   "presupuesto": 1477725,
+   "cota_inf": 1055980,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "memoria",
+    "s": 11.31859241699567,
+    "estados": 3358253,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "memoria",
+    "s": 11.34882962499978,
+    "estados": 3358253,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 1.0041897079790942,
+     "evals": 6000,
+     "ah_costo": 1165315,
+     "ah_fid": 0.29411764705882354,
+     "pr_fid": 0.8235294117647058,
+     "pr_costo": 1456880
+    },
+    {
+     "semilla": 1,
+     "s": 0.8461940420093015,
+     "evals": 6000,
+     "ah_costo": 1168255,
+     "ah_fid": 0.35294117647058826,
+     "pr_fid": 0.8235294117647058,
+     "pr_costo": 1456880
+    },
+    {
+     "semilla": 2,
+     "s": 0.7830286670068745,
+     "evals": 6000,
+     "ah_costo": 1164225,
+     "ah_fid": 0.40441176470588236,
+     "pr_fid": 0.8235294117647058,
+     "pr_costo": 1456880
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.1817909580131527,
+     "ah_costo": 1172930,
+     "ah_fid": 0.25735294117647056,
+     "pr_fid": 0.6617647058823529,
+     "pr_costo": 1382180,
+     "pr_sin_consolidar": 1464180
+    },
+    {
+     "semilla": 1,
+     "s": 0.9994550420087762,
+     "ah_costo": 1172930,
+     "ah_fid": 0.25735294117647056,
+     "pr_fid": 0.6617647058823529,
+     "pr_costo": 1382180,
+     "pr_sin_consolidar": 1464180
+    },
+    {
+     "semilla": 2,
+     "s": 1.0947901659819763,
+     "ah_costo": 1172930,
+     "ah_fid": 0.25735294117647056,
+     "pr_fid": 0.6617647058823529,
+     "pr_costo": 1382180,
+     "pr_sin_consolidar": 1464180
+    }
+   ]
+  },
+  {
+   "id": "sint-6-2",
+   "tipo": "sintetico",
+   "hijos": 6,
+   "indices": [
+    36,
+    131,
+    55,
+    98,
+    81,
+    173
+   ],
+   "lineas": 103,
+   "compartidos": 43,
+   "A0": 1460295,
+   "P0": 2118137,
+   "presupuesto": 1789216,
+   "cota_inf": 1087450,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "memoria",
+    "s": 10.784870415984187,
+    "estados": 3161343,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "memoria",
+    "s": 9.733635249984218,
+    "estados": 3161343,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.9392213330138475,
+     "evals": 6000,
+     "ah_costo": 1438880,
+     "ah_fid": 0.4029126213592233,
+     "pr_fid": 0.7766990291262136,
+     "pr_costo": 1766627
+    },
+    {
+     "semilla": 1,
+     "s": 1.1139246249804273,
+     "evals": 6000,
+     "ah_costo": 1438380,
+     "ah_fid": 0.39805825242718446,
+     "pr_fid": 0.7766990291262136,
+     "pr_costo": 1766627
+    },
+    {
+     "semilla": 2,
+     "s": 1.1220594169863034,
+     "evals": 6000,
+     "ah_costo": 1436420,
+     "ah_fid": 0.3883495145631068,
+     "pr_fid": 0.7766990291262136,
+     "pr_costo": 1766627
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.3344229999929667,
+     "ah_costo": 1460295,
+     "ah_fid": 0.2621359223300971,
+     "pr_fid": 0.5533980582524272,
+     "pr_costo": 1542083,
+     "pr_sin_consolidar": 1779683
+    },
+    {
+     "semilla": 1,
+     "s": 1.7546541249903385,
+     "ah_costo": 1460295,
+     "ah_fid": 0.2621359223300971,
+     "pr_fid": 0.5533980582524272,
+     "pr_costo": 1542083,
+     "pr_sin_consolidar": 1779683
+    },
+    {
+     "semilla": 2,
+     "s": 1.3458263339998666,
+     "ah_costo": 1460295,
+     "ah_fid": 0.2621359223300971,
+     "pr_fid": 0.5533980582524272,
+     "pr_costo": 1542083,
+     "pr_sin_consolidar": 1779683
+    }
+   ]
+  },
+  {
+   "id": "sint-7-0",
+   "tipo": "sintetico",
+   "hijos": 7,
+   "indices": [
+    61,
+    53,
+    107,
+    83,
+    23,
+    148,
+    133
+   ],
+   "lineas": 114,
+   "compartidos": 46,
+   "A0": 1581264,
+   "P0": 2506368,
+   "presupuesto": 2043816,
+   "cota_inf": 1308066,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "tiempo",
+    "s": 20.006975042022532,
+    "estados": 8065875,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "tiempo",
+    "s": 20.008032957994146,
+    "estados": 5825499,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 1.198560541990446,
+     "evals": 6000,
+     "ah_costo": 1552327,
+     "ah_fid": 0.44298245614035087,
+     "pr_fid": 0.7807017543859649,
+     "pr_costo": 2042978
+    },
+    {
+     "semilla": 1,
+     "s": 1.0244634999835398,
+     "evals": 6000,
+     "ah_costo": 1566360,
+     "ah_fid": 0.38596491228070173,
+     "pr_fid": 0.7807017543859649,
+     "pr_costo": 2042978
+    },
+    {
+     "semilla": 2,
+     "s": 1.3710899160068948,
+     "evals": 6000,
+     "ah_costo": 1566214,
+     "ah_fid": 0.41228070175438597,
+     "pr_fid": 0.7807017543859649,
+     "pr_costo": 2042978
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.7046619160100818,
+     "ah_costo": 1581264,
+     "ah_fid": 0.2719298245614035,
+     "pr_fid": 0.6754385964912281,
+     "pr_costo": 1805608,
+     "pr_sin_consolidar": 2040103
+    },
+    {
+     "semilla": 1,
+     "s": 1.8422421670111362,
+     "ah_costo": 1581264,
+     "ah_fid": 0.2719298245614035,
+     "pr_fid": 0.6754385964912281,
+     "pr_costo": 1805608,
+     "pr_sin_consolidar": 2040103
+    },
+    {
+     "semilla": 2,
+     "s": 1.9943605830194429,
+     "ah_costo": 1581264,
+     "ah_fid": 0.2719298245614035,
+     "pr_fid": 0.6754385964912281,
+     "pr_costo": 1805608,
+     "pr_sin_consolidar": 2040103
+    }
+   ],
+   "mem_pd_pico_mib": 103.67261505126953,
+   "mem_ns_pico_mib": 1.4919004440307617
+  },
+  {
+   "id": "sint-7-1",
+   "tipo": "sintetico",
+   "hijos": 7,
+   "indices": [
+    40,
+    155,
+    63,
+    128,
+    111,
+    158,
+    16
+   ],
+   "lineas": 127,
+   "compartidos": 57,
+   "A0": 1648760,
+   "P0": 2761352,
+   "presupuesto": 2205056,
+   "cota_inf": 1297171,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "memoria",
+    "s": 18.06202662497526,
+    "estados": 4388263,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "tiempo",
+    "s": 20.006576666986803,
+    "estados": 4382806,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 1.389538540999638,
+     "evals": 6000,
+     "ah_costo": 1644485,
+     "ah_fid": 0.3937007874015748,
+     "pr_fid": 0.7992125984251969,
+     "pr_costo": 2188122
+    },
+    {
+     "semilla": 1,
+     "s": 1.0550670839729719,
+     "evals": 6000,
+     "ah_costo": 1631785,
+     "ah_fid": 0.41338582677165353,
+     "pr_fid": 0.7992125984251969,
+     "pr_costo": 2188122
+    },
+    {
+     "semilla": 2,
+     "s": 1.2783102499961387,
+     "evals": 6000,
+     "ah_costo": 1646865,
+     "ah_fid": 0.4448818897637795,
+     "pr_fid": 0.7992125984251969,
+     "pr_costo": 2188122
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.635186249972321,
+     "ah_costo": 1648760,
+     "ah_fid": 0.2795275590551181,
+     "pr_fid": 0.6653543307086615,
+     "pr_costo": 1878172,
+     "pr_sin_consolidar": 2203367
+    },
+    {
+     "semilla": 1,
+     "s": 1.6886137919791508,
+     "ah_costo": 1648760,
+     "ah_fid": 0.2795275590551181,
+     "pr_fid": 0.6653543307086615,
+     "pr_costo": 1878172,
+     "pr_sin_consolidar": 2203367
+    },
+    {
+     "semilla": 2,
+     "s": 2.633201749995351,
+     "ah_costo": 1648760,
+     "ah_fid": 0.2795275590551181,
+     "pr_fid": 0.6653543307086615,
+     "pr_costo": 1878172,
+     "pr_sin_consolidar": 2203367
+    }
+   ]
+  },
+  {
+   "id": "sint-7-2",
+   "tipo": "sintetico",
+   "hijos": 7,
+   "indices": [
+    35,
+    4,
+    156,
+    140,
+    165,
+    153,
+    1
+   ],
+   "lineas": 119,
+   "compartidos": 63,
+   "A0": 1379665,
+   "P0": 2626439,
+   "presupuesto": 2003052,
+   "cota_inf": 1131585,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "memoria",
+    "s": 13.533246708015213,
+    "estados": 4283504,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "memoria",
+    "s": 16.751561166980537,
+    "estados": 5070608,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 1.1263478330220096,
+     "evals": 6000,
+     "ah_costo": 1374560,
+     "ah_fid": 0.4579831932773109,
+     "pr_fid": 0.7941176470588235,
+     "pr_costo": 1976849
+    },
+    {
+     "semilla": 1,
+     "s": 1.5546664999856148,
+     "evals": 6000,
+     "ah_costo": 1376560,
+     "ah_fid": 0.46638655462184875,
+     "pr_fid": 0.7941176470588235,
+     "pr_costo": 1976849
+    },
+    {
+     "semilla": 2,
+     "s": 1.6082199579977896,
+     "evals": 6000,
+     "ah_costo": 1372710,
+     "ah_fid": 0.4579831932773109,
+     "pr_fid": 0.7941176470588235,
+     "pr_costo": 1976849
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.9113430000143126,
+     "ah_costo": 1379665,
+     "ah_fid": 0.2815126050420168,
+     "pr_fid": 0.6932773109243697,
+     "pr_costo": 1501879,
+     "pr_sin_consolidar": 1997026
+    },
+    {
+     "semilla": 1,
+     "s": 2.013410457991995,
+     "ah_costo": 1379665,
+     "ah_fid": 0.2815126050420168,
+     "pr_fid": 0.6932773109243697,
+     "pr_costo": 1501879,
+     "pr_sin_consolidar": 1997026
+    },
+    {
+     "semilla": 2,
+     "s": 1.6262667080154642,
+     "ah_costo": 1379665,
+     "ah_fid": 0.2815126050420168,
+     "pr_fid": 0.6932773109243697,
+     "pr_costo": 1501879,
+     "pr_sin_consolidar": 1997026
+    }
+   ]
+  },
+  {
+   "id": "sint-8-0",
+   "tipo": "sintetico",
+   "hijos": 8,
+   "indices": [
+    44,
+    104,
+    156,
+    170,
+    34,
+    135,
+    52,
+    124
+   ],
+   "lineas": 133,
+   "compartidos": 61,
+   "A0": 1804740,
+   "P0": 2650443,
+   "presupuesto": 2227591,
+   "cota_inf": 1411332,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "memoria",
+    "s": 14.063938666979084,
+    "estados": 3772478,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "memoria",
+    "s": 11.30170487498981,
+    "estados": 3774260,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 1.5692561250180006,
+     "evals": 6000,
+     "ah_costo": 1760755,
+     "ah_fid": 0.4398496240601504,
+     "pr_fid": 0.7969924812030075,
+     "pr_costo": 2224443
+    },
+    {
+     "semilla": 1,
+     "s": 1.3531612919759937,
+     "evals": 6000,
+     "ah_costo": 1762755,
+     "ah_fid": 0.44360902255639095,
+     "pr_fid": 0.7969924812030075,
+     "pr_costo": 2224443
+    },
+    {
+     "semilla": 2,
+     "s": 1.104298165999353,
+     "evals": 6000,
+     "ah_costo": 1760170,
+     "ah_fid": 0.4548872180451128,
+     "pr_fid": 0.7969924812030075,
+     "pr_costo": 2224443
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 2.5321987500065006,
+     "ah_costo": 1804740,
+     "ah_fid": 0.2556390977443609,
+     "pr_fid": 0.5827067669172933,
+     "pr_costo": 1916873,
+     "pr_sin_consolidar": 2227162
+    },
+    {
+     "semilla": 1,
+     "s": 1.6347447079897393,
+     "ah_costo": 1804740,
+     "ah_fid": 0.2556390977443609,
+     "pr_fid": 0.5827067669172933,
+     "pr_costo": 1916873,
+     "pr_sin_consolidar": 2227162
+    },
+    {
+     "semilla": 2,
+     "s": 1.772209250018932,
+     "ah_costo": 1804740,
+     "ah_fid": 0.2556390977443609,
+     "pr_fid": 0.5827067669172933,
+     "pr_costo": 1916873,
+     "pr_sin_consolidar": 2227162
+    }
+   ],
+   "mem_pd_pico_mib": 109.1046371459961,
+   "mem_ns_pico_mib": 1.7017011642456055
+  },
+  {
+   "id": "sint-8-1",
+   "tipo": "sintetico",
+   "hijos": 8,
+   "indices": [
+    79,
+    165,
+    13,
+    164,
+    139,
+    78,
+    0,
+    148
+   ],
+   "lineas": 138,
+   "compartidos": 64,
+   "A0": 1704539,
+   "P0": 2571348,
+   "presupuesto": 2137943,
+   "cota_inf": 1350336,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "tiempo",
+    "s": 20.0042602919857,
+    "estados": 3790235,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "memoria",
+    "s": 17.979765042022336,
+    "estados": 4926290,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 1.4129533749946859,
+     "evals": 6000,
+     "ah_costo": 1695074,
+     "ah_fid": 0.34782608695652173,
+     "pr_fid": 0.7753623188405797,
+     "pr_costo": 2132828
+    },
+    {
+     "semilla": 1,
+     "s": 1.219596459006425,
+     "evals": 6000,
+     "ah_costo": 1691559,
+     "ah_fid": 0.4420289855072464,
+     "pr_fid": 0.7753623188405797,
+     "pr_costo": 2132828
+    },
+    {
+     "semilla": 2,
+     "s": 1.9740904579812195,
+     "evals": 6000,
+     "ah_costo": 1693945,
+     "ah_fid": 0.391304347826087,
+     "pr_fid": 0.7753623188405797,
+     "pr_costo": 2132828
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 2.2188499170006253,
+     "ah_costo": 1704539,
+     "ah_fid": 0.3115942028985507,
+     "pr_fid": 0.5760869565217391,
+     "pr_costo": 1800040,
+     "pr_sin_consolidar": 2136795
+    },
+    {
+     "semilla": 1,
+     "s": 2.2930484999960754,
+     "ah_costo": 1704539,
+     "ah_fid": 0.3115942028985507,
+     "pr_fid": 0.5760869565217391,
+     "pr_costo": 1800040,
+     "pr_sin_consolidar": 2136795
+    },
+    {
+     "semilla": 2,
+     "s": 2.0071990419819485,
+     "ah_costo": 1704539,
+     "ah_fid": 0.3115942028985507,
+     "pr_fid": 0.5760869565217391,
+     "pr_costo": 1800040,
+     "pr_sin_consolidar": 2136795
+    }
+   ]
+  },
+  {
+   "id": "sint-8-2",
+   "tipo": "sintetico",
+   "hijos": 8,
+   "indices": [
+    54,
+    100,
+    91,
+    128,
+    95,
+    12,
+    159,
+    79
+   ],
+   "lineas": 135,
+   "compartidos": 63,
+   "A0": 1739680,
+   "P0": 2873438,
+   "presupuesto": 2306559,
+   "cota_inf": 1416264,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "memoria",
+    "s": 19.952466250018915,
+    "estados": 5149704,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "tiempo",
+    "s": 20.0046030410158,
+    "estados": 5250055,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 1.177857041999232,
+     "evals": 6000,
+     "ah_costo": 1703630,
+     "ah_fid": 0.4444444444444444,
+     "pr_fid": 0.8037037037037037,
+     "pr_costo": 2288688
+    },
+    {
+     "semilla": 1,
+     "s": 1.3386302920116577,
+     "evals": 6000,
+     "ah_costo": 1703880,
+     "ah_fid": 0.44074074074074077,
+     "pr_fid": 0.8037037037037037,
+     "pr_costo": 2288688
+    },
+    {
+     "semilla": 2,
+     "s": 1.2071682090172544,
+     "evals": 6000,
+     "ah_costo": 1688868,
+     "ah_fid": 0.4666666666666667,
+     "pr_fid": 0.8037037037037037,
+     "pr_costo": 2288688
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.751857541006757,
+     "ah_costo": 1739680,
+     "ah_fid": 0.2962962962962963,
+     "pr_fid": 0.6111111111111112,
+     "pr_costo": 1900342,
+     "pr_sin_consolidar": 2304530
+    },
+    {
+     "semilla": 1,
+     "s": 1.7797082500183024,
+     "ah_costo": 1739680,
+     "ah_fid": 0.2962962962962963,
+     "pr_fid": 0.6111111111111112,
+     "pr_costo": 1900342,
+     "pr_sin_consolidar": 2304530
+    },
+    {
+     "semilla": 2,
+     "s": 1.7087126669939607,
+     "ah_costo": 1739680,
+     "ah_fid": 0.2962962962962963,
+     "pr_fid": 0.6111111111111112,
+     "pr_costo": 1900342,
+     "pr_sin_consolidar": 2304530
+    }
+   ]
+  },
+  {
+   "id": "col-2-0",
+   "tipo": "mismo_colegio",
+   "colegio": "2.13",
+   "hijos": 2,
+   "indices": [
+    55,
+    60
+   ],
+   "lineas": 74,
+   "compartidos": 32,
+   "A0": 908160,
+   "P0": 1578039,
+   "presupuesto": 1243099,
+   "cota_inf": 628526,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "tiempo",
+    "s": 20.00502120901365,
+    "estados": 3440081,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "memoria",
+    "s": 19.832038459018804,
+    "estados": 6483544,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.8181665829906706,
+     "evals": 6000,
+     "ah_costo": 900635,
+     "ah_fid": 0.40540540540540543,
+     "pr_fid": 0.8243243243243243,
+     "pr_costo": 1237439
+    },
+    {
+     "semilla": 1,
+     "s": 0.8365644580044318,
+     "evals": 6000,
+     "ah_costo": 893125,
+     "ah_fid": 0.42567567567567566,
+     "pr_fid": 0.8243243243243243,
+     "pr_costo": 1237439
+    },
+    {
+     "semilla": 2,
+     "s": 0.8505998750042636,
+     "evals": 6000,
+     "ah_costo": 891485,
+     "ah_fid": 0.33783783783783783,
+     "pr_fid": 0.8243243243243243,
+     "pr_costo": 1237439
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.1553845420130529,
+     "ah_costo": 908160,
+     "ah_fid": 0.27702702702702703,
+     "pr_fid": 0.7094594594594594,
+     "pr_costo": 1118589,
+     "pr_sin_consolidar": 1232486
+    },
+    {
+     "semilla": 1,
+     "s": 1.1107593749766238,
+     "ah_costo": 908160,
+     "ah_fid": 0.27702702702702703,
+     "pr_fid": 0.7094594594594594,
+     "pr_costo": 1118589,
+     "pr_sin_consolidar": 1232486
+    },
+    {
+     "semilla": 2,
+     "s": 1.0549602499813773,
+     "ah_costo": 908160,
+     "ah_fid": 0.27702702702702703,
+     "pr_fid": 0.7094594594594594,
+     "pr_costo": 1118589,
+     "pr_sin_consolidar": 1232486
+    }
+   ]
+  },
+  {
+   "id": "col-2-1",
+   "tipo": "mismo_colegio",
+   "colegio": "2.14",
+   "hijos": 2,
+   "indices": [
+    70,
+    69
+   ],
+   "lineas": 33,
+   "compartidos": 12,
+   "A0": 453375,
+   "P0": 704004,
+   "presupuesto": 578689,
+   "cota_inf": 323158,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "ok",
+    "s": 0.006576708023203537,
+    "estados": 2272,
+    "fid": null,
+    "costo": 441395
+   },
+   "pd_pres": {
+    "estado": "ok",
+    "s": 0.08365804198547266,
+    "estados": 16599,
+    "fid": 0.6818181818181818,
+    "costo": 560994
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.8578162089979742,
+     "evals": 6000,
+     "ah_costo": 441395,
+     "ah_fid": 0.30303030303030304,
+     "pr_fid": 0.6818181818181818,
+     "pr_costo": 560994
+    },
+    {
+     "semilla": 1,
+     "s": 1.1849987090099603,
+     "evals": 6000,
+     "ah_costo": 442995,
+     "ah_fid": 0.3333333333333333,
+     "pr_fid": 0.6818181818181818,
+     "pr_costo": 560994
+    },
+    {
+     "semilla": 2,
+     "s": 0.8058260410034563,
+     "evals": 6000,
+     "ah_costo": 441395,
+     "ah_fid": 0.30303030303030304,
+     "pr_fid": 0.6818181818181818,
+     "pr_costo": 560994
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 2.5489802499942016,
+     "ah_costo": 453375,
+     "ah_fid": 0.24242424242424243,
+     "pr_fid": 0.6363636363636364,
+     "pr_costo": 531404,
+     "pr_sin_consolidar": 576213
+    },
+    {
+     "semilla": 1,
+     "s": 0.8615753329941072,
+     "ah_costo": 453375,
+     "ah_fid": 0.24242424242424243,
+     "pr_fid": 0.6363636363636364,
+     "pr_costo": 531404,
+     "pr_sin_consolidar": 576213
+    },
+    {
+     "semilla": 2,
+     "s": 1.0667778330098372,
+     "ah_costo": 453375,
+     "ah_fid": 0.24242424242424243,
+     "pr_fid": 0.6363636363636364,
+     "pr_costo": 531404,
+     "pr_sin_consolidar": 576213
+    }
+   ]
+  },
+  {
+   "id": "col-3-0",
+   "tipo": "mismo_colegio",
+   "colegio": "2.2",
+   "hijos": 3,
+   "indices": [
+    82,
+    88,
+    85
+   ],
+   "lineas": 38,
+   "compartidos": 14,
+   "A0": 594680,
+   "P0": 882733,
+   "presupuesto": 738706,
+   "cota_inf": 468920,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "ok",
+    "s": 0.0020421250083018094,
+    "estados": 379,
+    "fid": null,
+    "costo": 594680
+   },
+   "pd_pres": {
+    "estado": "ok",
+    "s": 0.007419999979902059,
+    "estados": 2130,
+    "fid": 0.6842105263157895,
+    "costo": 727653
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.7433097909961361,
+     "evals": 6000,
+     "ah_costo": 594680,
+     "ah_fid": 0.3684210526315789,
+     "pr_fid": 0.6842105263157895,
+     "pr_costo": 727653
+    },
+    {
+     "semilla": 1,
+     "s": 0.7026357080030721,
+     "evals": 6000,
+     "ah_costo": 594680,
+     "ah_fid": 0.3684210526315789,
+     "pr_fid": 0.6842105263157895,
+     "pr_costo": 727653
+    },
+    {
+     "semilla": 2,
+     "s": 1.3211532080022153,
+     "evals": 6000,
+     "ah_costo": 594680,
+     "ah_fid": 0.3684210526315789,
+     "pr_fid": 0.6842105263157895,
+     "pr_costo": 727653
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 0.8547401250107214,
+     "ah_costo": 594680,
+     "ah_fid": 0.3684210526315789,
+     "pr_fid": 0.6578947368421053,
+     "pr_costo": 706053,
+     "pr_sin_consolidar": 734303
+    },
+    {
+     "semilla": 1,
+     "s": 1.0824158749892376,
+     "ah_costo": 594680,
+     "ah_fid": 0.3684210526315789,
+     "pr_fid": 0.6578947368421053,
+     "pr_costo": 706053,
+     "pr_sin_consolidar": 734303
+    },
+    {
+     "semilla": 2,
+     "s": 0.8717319580027834,
+     "ah_costo": 594680,
+     "ah_fid": 0.3684210526315789,
+     "pr_fid": 0.6578947368421053,
+     "pr_costo": 706053,
+     "pr_sin_consolidar": 734303
+    }
+   ]
+  },
+  {
+   "id": "col-3-1",
+   "tipo": "mismo_colegio",
+   "colegio": "2.3",
+   "hijos": 3,
+   "indices": [
+    94,
+    103,
+    91
+   ],
+   "lineas": 38,
+   "compartidos": 34,
+   "A0": 682970,
+   "P0": 963324,
+   "presupuesto": 823147,
+   "cota_inf": 597446,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "memoria",
+    "s": 13.524883375008358,
+    "estados": 4064302,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "memoria",
+    "s": 10.511193625017768,
+    "estados": 3995514,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.6252252080012113,
+     "evals": 6000,
+     "ah_costo": 680405,
+     "ah_fid": 0.32894736842105265,
+     "pr_fid": 0.8026315789473685,
+     "pr_costo": 819694
+    },
+    {
+     "semilla": 1,
+     "s": 0.7342190000053961,
+     "evals": 6000,
+     "ah_costo": 682970,
+     "ah_fid": 0.2631578947368421,
+     "pr_fid": 0.8026315789473685,
+     "pr_costo": 819694
+    },
+    {
+     "semilla": 2,
+     "s": 0.7382621669967193,
+     "evals": 6000,
+     "ah_costo": 681355,
+     "ah_fid": 0.34210526315789475,
+     "pr_fid": 0.8026315789473685,
+     "pr_costo": 819694
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 0.7226150000060443,
+     "ah_costo": 682970,
+     "ah_fid": 0.2631578947368421,
+     "pr_fid": 0.631578947368421,
+     "pr_costo": 752444,
+     "pr_sin_consolidar": 819438
+    },
+    {
+     "semilla": 1,
+     "s": 0.8834837500180583,
+     "ah_costo": 682970,
+     "ah_fid": 0.2631578947368421,
+     "pr_fid": 0.631578947368421,
+     "pr_costo": 752444,
+     "pr_sin_consolidar": 819438
+    },
+    {
+     "semilla": 2,
+     "s": 0.7608847090159543,
+     "ah_costo": 682970,
+     "ah_fid": 0.2631578947368421,
+     "pr_fid": 0.631578947368421,
+     "pr_costo": 752444,
+     "pr_sin_consolidar": 819438
+    }
+   ]
+  },
+  {
+   "id": "col-4-0",
+   "tipo": "mismo_colegio",
+   "colegio": "2.4",
+   "hijos": 4,
+   "indices": [
+    114,
+    108,
+    106,
+    110
+   ],
+   "lineas": 62,
+   "compartidos": 42,
+   "A0": 1055384,
+   "P0": 1556691,
+   "presupuesto": 1306037,
+   "cota_inf": 972690,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "memoria",
+    "s": 17.514889957994455,
+    "estados": 4601383,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "memoria",
+    "s": 15.748285499983467,
+    "estados": 4601383,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.8926922919927165,
+     "evals": 6000,
+     "ah_costo": 1055384,
+     "ah_fid": 0.3709677419354839,
+     "pr_fid": 0.782258064516129,
+     "pr_costo": 1284031
+    },
+    {
+     "semilla": 1,
+     "s": 0.8846540000231471,
+     "evals": 6000,
+     "ah_costo": 1054024,
+     "ah_fid": 0.47580645161290325,
+     "pr_fid": 0.782258064516129,
+     "pr_costo": 1284031
+    },
+    {
+     "semilla": 2,
+     "s": 0.8019449159910437,
+     "evals": 6000,
+     "ah_costo": 1045972,
+     "ah_fid": 0.4596774193548387,
+     "pr_fid": 0.782258064516129,
+     "pr_costo": 1284031
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.088801167003112,
+     "ah_costo": 1055384,
+     "ah_fid": 0.3709677419354839,
+     "pr_fid": 0.6935483870967742,
+     "pr_costo": 1151511,
+     "pr_sin_consolidar": 1303211
+    },
+    {
+     "semilla": 1,
+     "s": 0.9368202920013573,
+     "ah_costo": 1055384,
+     "ah_fid": 0.3709677419354839,
+     "pr_fid": 0.6935483870967742,
+     "pr_costo": 1151511,
+     "pr_sin_consolidar": 1303211
+    },
+    {
+     "semilla": 2,
+     "s": 1.0489734589937143,
+     "ah_costo": 1055384,
+     "ah_fid": 0.3709677419354839,
+     "pr_fid": 0.6935483870967742,
+     "pr_costo": 1151511,
+     "pr_sin_consolidar": 1303211
+    }
+   ]
+  },
+  {
+   "id": "col-4-1",
+   "tipo": "mismo_colegio",
+   "colegio": "2.5",
+   "hijos": 4,
+   "indices": [
+    127,
+    119,
+    124,
+    118
+   ],
+   "lineas": 53,
+   "compartidos": 25,
+   "A0": 605265,
+   "P0": 1017530,
+   "presupuesto": 811397,
+   "cota_inf": 441442,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "ok",
+    "s": 0.4704994580242783,
+    "estados": 68556,
+    "fid": null,
+    "costo": 568665
+   },
+   "pd_pres": {
+    "estado": "ok",
+    "s": 7.119555000012042,
+    "estados": 1071129,
+    "fid": 0.7830188679245284,
+    "costo": 791910
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.714035667013377,
+     "evals": 6000,
+     "ah_costo": 579815,
+     "ah_fid": 0.36792452830188677,
+     "pr_fid": 0.7830188679245284,
+     "pr_costo": 791910
+    },
+    {
+     "semilla": 1,
+     "s": 0.8509743330068886,
+     "evals": 6000,
+     "ah_costo": 587255,
+     "ah_fid": 0.39622641509433965,
+     "pr_fid": 0.7830188679245284,
+     "pr_costo": 791910
+    },
+    {
+     "semilla": 2,
+     "s": 0.713271665998036,
+     "evals": 6000,
+     "ah_costo": 587915,
+     "ah_fid": 0.36792452830188677,
+     "pr_fid": 0.7830188679245284,
+     "pr_costo": 791910
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 0.9453690829977859,
+     "ah_costo": 605265,
+     "ah_fid": 0.3018867924528302,
+     "pr_fid": 0.6415094339622641,
+     "pr_costo": 713710,
+     "pr_sin_consolidar": 808914
+    },
+    {
+     "semilla": 1,
+     "s": 0.9475967089820188,
+     "ah_costo": 605265,
+     "ah_fid": 0.3018867924528302,
+     "pr_fid": 0.6415094339622641,
+     "pr_costo": 713710,
+     "pr_sin_consolidar": 808914
+    },
+    {
+     "semilla": 2,
+     "s": 0.9622004170087166,
+     "ah_costo": 605265,
+     "ah_fid": 0.3018867924528302,
+     "pr_fid": 0.6415094339622641,
+     "pr_costo": 713710,
+     "pr_sin_consolidar": 808914
+    }
+   ]
+  },
+  {
+   "id": "col-5-0",
+   "tipo": "mismo_colegio",
+   "colegio": "2.6",
+   "hijos": 5,
+   "indices": [
+    139,
+    136,
+    132,
+    138,
+    135
+   ],
+   "lineas": 78,
+   "compartidos": 34,
+   "A0": 947050,
+   "P0": 1299024,
+   "presupuesto": 1123037,
+   "cota_inf": 761685,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "tiempo",
+    "s": 20.008991457987577,
+    "estados": 3575801,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "tiempo",
+    "s": 20.051498832996003,
+    "estados": 3575801,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 1.073198375001084,
+     "evals": 6000,
+     "ah_costo": 928535,
+     "ah_fid": 0.6217948717948718,
+     "pr_fid": 0.7948717948717948,
+     "pr_costo": 1118624
+    },
+    {
+     "semilla": 1,
+     "s": 1.8380734999955166,
+     "evals": 6000,
+     "ah_costo": 930585,
+     "ah_fid": 0.4551282051282051,
+     "pr_fid": 0.7948717948717948,
+     "pr_costo": 1118624
+    },
+    {
+     "semilla": 2,
+     "s": 0.9662230829999316,
+     "evals": 6000,
+     "ah_costo": 933305,
+     "ah_fid": 0.4423076923076923,
+     "pr_fid": 0.7948717948717948,
+     "pr_costo": 1118624
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.8404736669908743,
+     "ah_costo": 947050,
+     "ah_fid": 0.30128205128205127,
+     "pr_fid": 0.5256410256410257,
+     "pr_costo": 958235,
+     "pr_sin_consolidar": 1121250
+    },
+    {
+     "semilla": 1,
+     "s": 1.4705477500101551,
+     "ah_costo": 947050,
+     "ah_fid": 0.30128205128205127,
+     "pr_fid": 0.5256410256410257,
+     "pr_costo": 958235,
+     "pr_sin_consolidar": 1121250
+    },
+    {
+     "semilla": 2,
+     "s": 1.2638157920155209,
+     "ah_costo": 947050,
+     "ah_fid": 0.30128205128205127,
+     "pr_fid": 0.5256410256410257,
+     "pr_costo": 958235,
+     "pr_sin_consolidar": 1121250
+    }
+   ]
+  },
+  {
+   "id": "col-5-1",
+   "tipo": "mismo_colegio",
+   "colegio": "2.8",
+   "hijos": 5,
+   "indices": [
+    148,
+    153,
+    150,
+    147,
+    151
+   ],
+   "lineas": 97,
+   "compartidos": 52,
+   "A0": 1132665,
+   "P0": 1953178,
+   "presupuesto": 1542921,
+   "cota_inf": 934235,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "memoria",
+    "s": 15.588001458003419,
+    "estados": 4407943,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "memoria",
+    "s": 15.81896812497871,
+    "estados": 4407943,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 1.6312355829868466,
+     "evals": 6000,
+     "ah_costo": 1093135,
+     "ah_fid": 0.422680412371134,
+     "pr_fid": 0.7989690721649485,
+     "pr_costo": 1540978
+    },
+    {
+     "semilla": 1,
+     "s": 1.3022169579926413,
+     "evals": 6000,
+     "ah_costo": 1097455,
+     "ah_fid": 0.39690721649484534,
+     "pr_fid": 0.7989690721649485,
+     "pr_costo": 1539678
+    },
+    {
+     "semilla": 2,
+     "s": 1.021999999997206,
+     "evals": 6000,
+     "ah_costo": 1106380,
+     "ah_fid": 0.29896907216494845,
+     "pr_fid": 0.7989690721649485,
+     "pr_costo": 1539678
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 2.4980896250053775,
+     "ah_costo": 1132665,
+     "ah_fid": 0.25257731958762886,
+     "pr_fid": 0.6701030927835051,
+     "pr_costo": 1308368,
+     "pr_sin_consolidar": 1542759
+    },
+    {
+     "semilla": 1,
+     "s": 1.4934537499793805,
+     "ah_costo": 1132665,
+     "ah_fid": 0.25257731958762886,
+     "pr_fid": 0.6701030927835051,
+     "pr_costo": 1308368,
+     "pr_sin_consolidar": 1542759
+    },
+    {
+     "semilla": 2,
+     "s": 1.5101297079818323,
+     "ah_costo": 1132665,
+     "ah_fid": 0.25257731958762886,
+     "pr_fid": 0.6701030927835051,
+     "pr_costo": 1308368,
+     "pr_sin_consolidar": 1542759
+    }
+   ]
+  },
+  {
+   "id": "col-6-0",
+   "tipo": "mismo_colegio",
+   "colegio": "2.9",
+   "hijos": 6,
+   "indices": [
+    174,
+    162,
+    170,
+    164,
+    165,
+    166
+   ],
+   "lineas": 99,
+   "compartidos": 49,
+   "A0": 1262155,
+   "P0": 2161519,
+   "presupuesto": 1711837,
+   "cota_inf": 1098238,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "memoria",
+    "s": 14.179889916005777,
+    "estados": 4275629,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "memoria",
+    "s": 12.988622042001225,
+    "estados": 3930281,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 1.0928830829798244,
+     "evals": 6000,
+     "ah_costo": 1235365,
+     "ah_fid": 0.398989898989899,
+     "pr_fid": 0.7676767676767676,
+     "pr_costo": 1685099
+    },
+    {
+     "semilla": 1,
+     "s": 1.5144936249998864,
+     "evals": 6000,
+     "ah_costo": 1248965,
+     "ah_fid": 0.40404040404040403,
+     "pr_fid": 0.7676767676767676,
+     "pr_costo": 1685099
+    },
+    {
+     "semilla": 2,
+     "s": 1.2262424580112565,
+     "evals": 6000,
+     "ah_costo": 1239465,
+     "ah_fid": 0.41919191919191917,
+     "pr_fid": 0.7676767676767676,
+     "pr_costo": 1685099
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.3344774580036756,
+     "ah_costo": 1262155,
+     "ah_fid": 0.2777777777777778,
+     "pr_fid": 0.42424242424242425,
+     "pr_costo": 1257480,
+     "pr_sin_consolidar": 1706940
+    },
+    {
+     "semilla": 1,
+     "s": 2.5828544580144808,
+     "ah_costo": 1262155,
+     "ah_fid": 0.2777777777777778,
+     "pr_fid": 0.42424242424242425,
+     "pr_costo": 1257480,
+     "pr_sin_consolidar": 1706940
+    },
+    {
+     "semilla": 2,
+     "s": 1.5094813750183675,
+     "ah_costo": 1262155,
+     "ah_fid": 0.2777777777777778,
+     "pr_fid": 0.42424242424242425,
+     "pr_costo": 1257480,
+     "pr_sin_consolidar": 1706940
+    }
+   ]
+  },
+  {
+   "id": "col-6-1",
+   "tipo": "mismo_colegio",
+   "colegio": "1.2",
+   "hijos": 6,
+   "indices": [
+    11,
+    8,
+    7,
+    12,
+    10,
+    5
+   ],
+   "lineas": 57,
+   "compartidos": 22,
+   "A0": 835330,
+   "P0": 1435150,
+   "presupuesto": 1135240,
+   "cota_inf": 676480,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "memoria",
+    "s": 12.416738166997675,
+    "estados": 4024744,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "memoria",
+    "s": 12.556418166001095,
+    "estados": 4024744,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.9010937080020085,
+     "evals": 6000,
+     "ah_costo": 700830,
+     "ah_fid": 0.6052631578947368,
+     "pr_fid": 0.9298245614035088,
+     "pr_costo": 1045680
+    },
+    {
+     "semilla": 1,
+     "s": 1.14598170897807,
+     "evals": 6000,
+     "ah_costo": 700830,
+     "ah_fid": 0.6052631578947368,
+     "pr_fid": 0.9298245614035088,
+     "pr_costo": 1045680
+    },
+    {
+     "semilla": 2,
+     "s": 1.3581905830069445,
+     "evals": 6000,
+     "ah_costo": 700830,
+     "ah_fid": 0.6052631578947368,
+     "pr_fid": 0.9298245614035088,
+     "pr_costo": 1045680
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.1796451669943053,
+     "ah_costo": 835330,
+     "ah_fid": 0.4473684210526316,
+     "pr_fid": 0.7894736842105263,
+     "pr_costo": 828370,
+     "pr_sin_consolidar": 1124790
+    },
+    {
+     "semilla": 1,
+     "s": 1.943867041991325,
+     "ah_costo": 835330,
+     "ah_fid": 0.4473684210526316,
+     "pr_fid": 0.7982456140350878,
+     "pr_costo": 819650,
+     "pr_sin_consolidar": 1133770
+    },
+    {
+     "semilla": 2,
+     "s": 1.1725302910199389,
+     "ah_costo": 835330,
+     "ah_fid": 0.4473684210526316,
+     "pr_fid": 0.7894736842105263,
+     "pr_costo": 828370,
+     "pr_sin_consolidar": 1124790
+    }
+   ]
+  },
+  {
+   "id": "col-7-0",
+   "tipo": "mismo_colegio",
+   "colegio": "2.1",
+   "hijos": 7,
+   "indices": [
+    24,
+    21,
+    15,
+    20,
+    18,
+    19,
+    22
+   ],
+   "lineas": 108,
+   "compartidos": 44,
+   "A0": 1793450,
+   "P0": 3624598,
+   "presupuesto": 2709024,
+   "cota_inf": 1668959,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "memoria",
+    "s": 13.013939124997705,
+    "estados": 4075411,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "memoria",
+    "s": 14.607169125025393,
+    "estados": 4075411,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 1.3945555409882218,
+     "evals": 6000,
+     "ah_costo": 1778300,
+     "ah_fid": 0.2824074074074074,
+     "pr_fid": 0.7916666666666666,
+     "pr_costo": 2680938
+    },
+    {
+     "semilla": 1,
+     "s": 1.0860975830000825,
+     "evals": 6000,
+     "ah_costo": 1778300,
+     "ah_fid": 0.2824074074074074,
+     "pr_fid": 0.7916666666666666,
+     "pr_costo": 2680938
+    },
+    {
+     "semilla": 2,
+     "s": 1.089289124996867,
+     "evals": 6000,
+     "ah_costo": 1778300,
+     "ah_fid": 0.2824074074074074,
+     "pr_fid": 0.7916666666666666,
+     "pr_costo": 2680938
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.594302916986635,
+     "ah_costo": 1793450,
+     "ah_fid": 0.2638888888888889,
+     "pr_fid": 0.6805555555555556,
+     "pr_costo": 2115188,
+     "pr_sin_consolidar": 2692180
+    },
+    {
+     "semilla": 1,
+     "s": 1.606568374991184,
+     "ah_costo": 1793450,
+     "ah_fid": 0.2638888888888889,
+     "pr_fid": 0.6805555555555556,
+     "pr_costo": 2115188,
+     "pr_sin_consolidar": 2692180
+    },
+    {
+     "semilla": 2,
+     "s": 1.4643351249978878,
+     "ah_costo": 1793450,
+     "ah_fid": 0.2638888888888889,
+     "pr_fid": 0.6805555555555556,
+     "pr_costo": 2115188,
+     "pr_sin_consolidar": 2692180
+    }
+   ]
+  },
+  {
+   "id": "col-7-1",
+   "tipo": "mismo_colegio",
+   "colegio": "2.11",
+   "hijos": 7,
+   "indices": [
+    31,
+    40,
+    37,
+    30,
+    38,
+    34,
+    39
+   ],
+   "lineas": 103,
+   "compartidos": 34,
+   "A0": 1516810,
+   "P0": 2031075,
+   "presupuesto": 1773942,
+   "cota_inf": 1369821,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "tiempo",
+    "s": 20.00222329099779,
+    "estados": 4134361,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "tiempo",
+    "s": 20.001645582990022,
+    "estados": 4134361,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.8904205420112703,
+     "evals": 6000,
+     "ah_costo": 1505035,
+     "ah_fid": 0.470873786407767,
+     "pr_fid": 0.8203883495145631,
+     "pr_costo": 1768985
+    },
+    {
+     "semilla": 1,
+     "s": 0.800716708006803,
+     "evals": 6000,
+     "ah_costo": 1505035,
+     "ah_fid": 0.470873786407767,
+     "pr_fid": 0.8203883495145631,
+     "pr_costo": 1768985
+    },
+    {
+     "semilla": 2,
+     "s": 0.9516783749859314,
+     "evals": 6000,
+     "ah_costo": 1499035,
+     "ah_fid": 0.4563106796116505,
+     "pr_fid": 0.8203883495145631,
+     "pr_costo": 1768985
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.1221308329841122,
+     "ah_costo": 1516810,
+     "ah_fid": 0.23786407766990292,
+     "pr_fid": 0.47572815533980584,
+     "pr_costo": 1515025,
+     "pr_sin_consolidar": 1771445
+    },
+    {
+     "semilla": 1,
+     "s": 1.1916977079818025,
+     "ah_costo": 1516810,
+     "ah_fid": 0.23786407766990292,
+     "pr_fid": 0.47572815533980584,
+     "pr_costo": 1515025,
+     "pr_sin_consolidar": 1771445
+    },
+    {
+     "semilla": 2,
+     "s": 1.2246946249797475,
+     "ah_costo": 1516810,
+     "ah_fid": 0.23786407766990292,
+     "pr_fid": 0.47572815533980584,
+     "pr_costo": 1515025,
+     "pr_sin_consolidar": 1771445
+    }
+   ]
+  },
+  {
+   "id": "col-8-0",
+   "tipo": "mismo_colegio",
+   "colegio": "2.12",
+   "hijos": 8,
+   "indices": [
+    47,
+    46,
+    42,
+    43,
+    41,
+    48,
+    52,
+    45
+   ],
+   "lineas": 114,
+   "compartidos": 37,
+   "A0": 1646240,
+   "P0": 2350475,
+   "presupuesto": 1998357,
+   "cota_inf": 1496400,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "memoria",
+    "s": 10.798212374997092,
+    "estados": 3397539,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "memoria",
+    "s": 9.70555779102142,
+    "estados": 3397539,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 0.9417627079819795,
+     "evals": 6000,
+     "ah_costo": 1638075,
+     "ah_fid": 0.45614035087719296,
+     "pr_fid": 0.8245614035087719,
+     "pr_costo": 1995925
+    },
+    {
+     "semilla": 1,
+     "s": 0.8645051250059623,
+     "evals": 6000,
+     "ah_costo": 1634075,
+     "ah_fid": 0.4342105263157895,
+     "pr_fid": 0.8245614035087719,
+     "pr_costo": 1995925
+    },
+    {
+     "semilla": 2,
+     "s": 0.9498568340204656,
+     "evals": 6000,
+     "ah_costo": 1629905,
+     "ah_fid": 0.6578947368421053,
+     "pr_fid": 0.8245614035087719,
+     "pr_costo": 1995925
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 1.3071122499823105,
+     "ah_costo": 1646240,
+     "ah_fid": 0.2149122807017544,
+     "pr_fid": 0.5175438596491229,
+     "pr_costo": 1702395,
+     "pr_sin_consolidar": 1993480
+    },
+    {
+     "semilla": 1,
+     "s": 1.1878722079854924,
+     "ah_costo": 1646240,
+     "ah_fid": 0.2149122807017544,
+     "pr_fid": 0.5175438596491229,
+     "pr_costo": 1702395,
+     "pr_sin_consolidar": 1993480
+    },
+    {
+     "semilla": 2,
+     "s": 1.4296022499911487,
+     "ah_costo": 1646240,
+     "ah_fid": 0.2149122807017544,
+     "pr_fid": 0.5175438596491229,
+     "pr_costo": 1702395,
+     "pr_sin_consolidar": 1993480
+    }
+   ]
+  },
+  {
+   "id": "col-8-1",
+   "tipo": "mismo_colegio",
+   "colegio": "2.13",
+   "hijos": 8,
+   "indices": [
+    65,
+    61,
+    54,
+    66,
+    56,
+    55,
+    60,
+    59
+   ],
+   "lineas": 336,
+   "compartidos": 142,
+   "A0": 2980420,
+   "P0": 5028365,
+   "presupuesto": 4004392,
+   "cota_inf": 2468292,
+   "valid_desajustes_de_5": 0,
+   "pd_costo": {
+    "estado": "memoria",
+    "s": 16.240136499982327,
+    "estados": 4581472,
+    "fid": null,
+    "costo": null
+   },
+   "pd_pres": {
+    "estado": "memoria",
+    "s": 10.05544495797949,
+    "estados": 3844984,
+    "fid": null,
+    "costo": null
+   },
+   "ns": [
+    {
+     "semilla": 0,
+     "s": 1.6645676660118625,
+     "evals": 6000,
+     "ah_costo": 2972030,
+     "ah_fid": 0.2708333333333333,
+     "pr_fid": 0.7693452380952381,
+     "pr_costo": 3984345
+    },
+    {
+     "semilla": 1,
+     "s": 1.6533282500167843,
+     "evals": 6000,
+     "ah_costo": 2972030,
+     "ah_fid": 0.2708333333333333,
+     "pr_fid": 0.7693452380952381,
+     "pr_costo": 3984345
+    },
+    {
+     "semilla": 2,
+     "s": 2.0619608339911792,
+     "evals": 6000,
+     "ah_costo": 2967520,
+     "ah_fid": 0.27976190476190477,
+     "pr_fid": 0.7693452380952381,
+     "pr_costo": 3984345
+    }
+   ],
+   "base": [
+    {
+     "semilla": 0,
+     "s": 3.0014110000047367,
+     "ah_costo": 2980420,
+     "ah_fid": 0.2693452380952381,
+     "pr_fid": null,
+     "pr_costo": null,
+     "pr_sin_consolidar": null
+    },
+    {
+     "semilla": 1,
+     "s": 3.5134865830186754,
+     "ah_costo": 2980420,
+     "ah_fid": 0.2693452380952381,
+     "pr_fid": null,
+     "pr_costo": null,
+     "pr_sin_consolidar": null
+    },
+    {
+     "semilla": 2,
+     "s": 3.4164864999765996,
+     "ah_costo": 2980420,
+     "ah_fid": 0.2693452380952381,
+     "pr_fid": null,
+     "pr_costo": null,
+     "pr_sin_consolidar": null
+    }
+   ]
+  }
+ ]
+}
