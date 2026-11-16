@@ -18,8 +18,9 @@ const base: EstadoRetracto = {
 test("entregado y dentro del plazo: dice hasta cuando y ofrece pedirlo", () => {
   const r = textoDeRetracto({ ...base, vence_en: "2026-03-12T04:59:59+00:00" });
   assert.equal(r.puedePedir, true);
-  // 04:59 UTC del 12 es el miercoles 11 en Colombia.
-  assert.match(r.frase, /miércoles, 11 de marzo de 2026/);
+  // 04:59 UTC del 12 es el 11 en Colombia: la fecha limite es la de Bogota.
+  assert.match(r.frase, /11 de marzo de 2026/);
+  assert.doesNotMatch(r.frase, /12 de marzo/);
   assert.match(r.frase, /5 días hábiles/);
 });
 

@@ -5,6 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Caso } from "@tukit/contrato";
 import {
+  estaVencido,
   etiquetaSla,
   filtrarCasos,
   hayFiltrosTickets,
@@ -13,6 +14,7 @@ import {
   paginar,
   puedeSoltar,
   textoAsignacion,
+  textoVencimiento,
 } from "../src/lib/tickets.ts";
 
 const AHORA = new Date("2026-11-12T12:00:00Z").getTime();
@@ -95,7 +97,7 @@ test("hrefTickets conserva los demás filtros", () => {
   assert.equal(hrefTickets(f, { pagina: 1, vencidos: false, q: "" }), "/tickets");
 });
 
-test("textoAsignacion y puedeSoltar", () => {
+test("la asignacion se dice desde quien mira, y solo el dueño o un supervisor la sueltan", () => {
   assert.equal(textoAsignacion(null, "u1"), "Sin asignar");
   assert.equal(textoAsignacion("u1", "u1"), "Asignado a ti");
   assert.equal(textoAsignacion("u2", "u1"), "Asignado a otra persona");
@@ -103,4 +105,34 @@ test("textoAsignacion y puedeSoltar", () => {
   assert.equal(puedeSoltar("u2", "u1", true), true);
   assert.equal(puedeSoltar("u1", "u1", false), true);
   assert.equal(puedeSoltar(null, "u1", true), false);
+});
+
+test("leerFiltrosTickets ignora un estado desconocido y limpia el texto", () => {
+  const f = leerFiltrosTickets({ estado: "volando", categoria: "pago", q: [" hola "] });
+  assert.deepEqual(f, {
+    estado: "",
+    categoria: "pago",
+    q: "hola",
+    prioridad: "",
+    asignado: "",
+    vencidos: false,
+    pagina: 1,
+  });
+  assert.equal(hayFiltrosTickets(f), true);
+});
+
+test("filtra por estado, categoria y texto (prefijo de id o asunto)", () => {
+  const casos = [caso({}), caso({ caso_id: "22222222-0", estado: "resuelto", categoria: "pago", asunto: "Cobro doble" })];
+  assert.equal(filtrarCasos(casos, { estado: "resuelto", categoria: "", q: "" }).length, 1);
+  assert.equal(filtrarCasos(casos, { estado: "", categoria: "", q: "2222" }).length, 1);
+  assert.equal(filtrarCasos(casos, { estado: "", categoria: "", q: "cobro" }).length, 1);
+});
+
+test("vencimiento: solo cuenta en tickets activos", () => {
+  const ahora = new Date("2026-11-20T00:00:00Z").getTime();
+  const vencidoEl14 = caso({ vence_en: "2026-11-14T00:00:00Z" });
+  assert.equal(estaVencido(vencidoEl14, ahora), true);
+  assert.equal(estaVencido(caso({ estado: "resuelto" }), ahora), false);
+  assert.match(textoVencimiento(vencidoEl14, ahora) ?? "", /vencido hace 6 d/);
+  assert.equal(textoVencimiento(caso({ estado: "cerrado" }), ahora), null);
 });

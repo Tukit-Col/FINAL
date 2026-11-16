@@ -1,5 +1,7 @@
-// Categoría derivada de cada línea, agrupación y anclas.
-// Correr: `node --test test/categorias-kit.test.ts`.
+// Lo que muestra un renglón del kit fuera del precio: su categoría, el orden de
+// las secciones, las anclas para enlazarlo, en qué tienda está y la nota cuando
+// no hubo producto del personaje.
+// Correr: `node --test test/kit-vista-renglon.test.ts`.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -8,6 +10,8 @@ import {
   categoriaDeLinea,
   idAnclaCategoria,
   idAnclaLinea,
+  notaSinEncaje,
+  pistaDeTienda,
 } from "../src/lib/kit-vista.ts";
 
 const l = (descripcion: string, concepto: string | null = null) => ({ descripcion, concepto });
@@ -37,4 +41,30 @@ test("anclas deterministas, válidas y sin colisión", () => {
   assert.match(a, /^[A-Za-z0-9_.-]+$/);
   assert.notEqual(idAnclaLinea("a b"), idAnclaLinea("a/b"));
   assert.notEqual(idAnclaLinea("a.20.b"), idAnclaLinea("a b"));
+});
+
+test("sin nombre de tienda no queda un «en» colgando", () => {
+  assert.equal(pistaDeTienda([]), null);
+  assert.equal(pistaDeTienda([{ tienda: "" }]), null);
+  assert.equal(pistaDeTienda([{ tienda: "   " }]), null);
+});
+
+test("con tienda dice dónde, y cuántas si hay varias", () => {
+  assert.equal(pistaDeTienda([{ tienda: "Éxito" }]), "en Éxito");
+  assert.equal(pistaDeTienda([{ tienda: "" }, { tienda: "Panamericana" }]), "en Panamericana");
+  assert.equal(
+    pistaDeTienda([{ tienda: "Éxito" }, { tienda: "Panamericana" }, { tienda: "" }]),
+    "en Éxito · 2 tiendas",
+  );
+});
+
+test("la nota de un ancla sin encaje dice que util y que personaje", () => {
+  assert.equal(
+    notaSinEncaje({ concepto: "C001", personaje: "spiderman" }),
+    "No encontramos cuaderno de Spiderman que cumpla lo que pide la lista; dejamos uno sin personaje.",
+  );
+  assert.equal(
+    notaSinEncaje({ concepto: "C999", personaje: "minnie" }),
+    "No encontramos producto de Minnie que cumpla lo que pide la lista; dejamos uno sin personaje.",
+  );
 });

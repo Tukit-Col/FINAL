@@ -68,7 +68,7 @@ test("orden: alta antes que media y, a igual urgencia, la mayor cantidad primero
   assert.ok(r.widgets.every((w) => w.cantidad > 0));
 });
 
-test("resúmenes viejos (servicio sin reiniciar) no lanzan: cuentan 0 y se anotan", () => {
+test("un resumen sin los campos que espera el panel no lanza: cuenta 0 y se anota como sin activar", () => {
   const viejoPedidos = { pedidos_totales: 0, por_estado: { incidencia: 2 } } as unknown as ResumenComercio;
   const viejoCasos = { abiertos: 4, urgentes: 0, vencen_hoy: 0, resueltos_semana: 0 } as ResumenOperacion;
   const r = construirWidgets({ pedidos: viejoPedidos, casos: viejoCasos, cola: cola() });

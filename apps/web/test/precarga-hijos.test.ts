@@ -77,7 +77,7 @@ test("el aviso explica en palabras de papá qué quedó fuera y qué hacer", () 
   assert.deepEqual(avisosDePrecarga([]), []);
 });
 
-test("con el formulario lleno no manda a «Agregar otro hijo», que ya no aparece", () => {
+test("con el formulario en el tope de hijos el aviso no manda a «Agregar otro hijo», que se oculta en el tope", () => {
   const avisos = avisosDePrecarga(
     [{ nombre: "Pipe", colegio: "Colegio CACS", grado: "Quinto", motivo: "sin_lista" }],
     MAX_HIJOS,

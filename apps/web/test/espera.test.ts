@@ -1,6 +1,6 @@
-// Reglas de la pantalla de progreso: qué paso ya hizo el backend y cuándo la
-// cortesía visual avanza el paso que se ve.
-// Correr: `node --test test/progreso-espera.test.ts`.
+// La pantalla de espera (`/esperando`): qué paso ya hizo el backend, cuándo la
+// cortesía visual avanza el paso que se ve, y con qué token se sondea el trabajo.
+// Correr: `node --test test/espera.test.ts`.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -10,6 +10,7 @@ import {
   pasosHechosPorBackend,
   siguienteMovimiento,
 } from "../src/lib/progreso-espera.ts";
+import { consultarTrabajoDelPortador } from "../src/lib/sondeo.ts";
 
 const ok = (nombre: string) => ({ nombre, estado: "ok" });
 
@@ -54,4 +55,30 @@ test("si el backend ya terminó, el recorrido entero cabe en ~6 s", () => {
   }
   assert.equal(visibles, PASOS.length);
   assert.ok(total <= 6000);
+});
+
+// --- sondeo: la consulta del trabajo lleva el token de la sesion (ADR 0047) ----
+
+function origenQueAnota() {
+  const llamadas: { trabajoId: string; token: string | undefined }[] = [];
+  return {
+    llamadas,
+    async consultarTrabajo(trabajoId: string, token?: string) {
+      llamadas.push({ trabajoId, token });
+      return { trabajo_id: trabajoId };
+    },
+  };
+}
+
+test("con sesion, la consulta viaja con el token", async () => {
+  const origen = origenQueAnota();
+  await consultarTrabajoDelPortador(origen, "t-1", "tok-mama");
+  assert.deepEqual(origen.llamadas, [{ trabajoId: "t-1", token: "tok-mama" }]);
+});
+
+test("sin sesion (ruta rapida anonima), la consulta sigue sin token", async () => {
+  const origen = origenQueAnota();
+  const trabajo = await consultarTrabajoDelPortador(origen, "t-2", undefined);
+  assert.deepEqual(origen.llamadas, [{ trabajoId: "t-2", token: undefined }]);
+  assert.deepEqual(trabajo, { trabajo_id: "t-2" });
 });
