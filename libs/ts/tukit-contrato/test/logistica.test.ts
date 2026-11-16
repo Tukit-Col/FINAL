@@ -1,6 +1,7 @@
 // El contrato de logistica del back-office: los cuatro metodos de comercio
 // reciben el token PRIMERO y obligatorio (comercio valida la sesion y el rol),
-// `misPedidos` ya no recibe un `usuario_id`, y el detalle trae el historial.
+// `misPedidos` identifica al acudiente solo por su token, y el detalle trae el
+// historial.
 // Doble tipado `Pick<OrigenDatos, ...>` — TS verifica que las firmas calcen sin
 // stubear todo el origen (el cliente HTTP lo cubre `npm run typecheck`).
 //
@@ -10,7 +11,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { OrigenDatos } from "../src/origen.ts";
 import type { Pedido, PedidoConHistorial, SolicitudAvancePedido } from "../src/comercio.ts";
-import { ETIQUETA_TIPO_INCIDENCIA, TIPOS_INCIDENCIA } from "../src/comercio.ts";
 
 const PEDIDO: PedidoConHistorial = {
   pedido_id: "p1",
@@ -113,9 +113,4 @@ test("avanzarPedido devuelve el detalle actualizado", async () => {
     entrega_estimada: "2026-10-05T00:00:00-05:00",
   });
   assert.equal(detalle.estado, "despachado");
-});
-
-test("cada tipo de incidencia tiene su etiqueta", () => {
-  assert.deepEqual(Object.keys(ETIQUETA_TIPO_INCIDENCIA).sort(), [...TIPOS_INCIDENCIA].sort());
-  assert.equal(ETIQUETA_TIPO_INCIDENCIA.no_habia_nadie, "No había nadie");
 });

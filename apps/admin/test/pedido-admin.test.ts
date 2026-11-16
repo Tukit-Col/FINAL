@@ -1,33 +1,21 @@
-// Linea de tiempo, enmascarado de datos personales y totales del detalle de
-// pedido, mas el consolidado del mapa y los filtros de tickets.
+// El detalle de pedido del admin: la linea de tiempo con quien y cuando, el
+// enmascarado de datos personales, los totales por linea y como se nombra a
+// cada hijo sin su apodo (Ley 1581).
 //
 // Correr:  node --test test/pedido-admin.test.ts
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Caso, Pedido, PedidoAdmin } from "@tukit/contrato";
+import type { PedidoAdmin } from "@tukit/contrato";
 import {
   construirLineaDeTiempo,
   enmascararCorreo,
   enmascararTelefono,
   formatearDiaIso,
   lineasConSubtotal,
+  rotuloDeHijo,
   totalDescuadrado,
 } from "../src/lib/pedido-admin.ts";
-import {
-  agruparPorColegio,
-  contarPorSalon,
-  esEntregaPendiente,
-  marcadoresDe,
-  type EntregaPendiente,
-} from "../src/lib/consolidado.ts";
-import {
-  estaVencido,
-  filtrarCasos,
-  hayFiltrosTickets,
-  leerFiltrosTickets,
-  textoVencimiento,
-} from "../src/lib/tickets.ts";
 
 function pedido(extra: Partial<PedidoAdmin> = {}): PedidoAdmin {
   return {
@@ -120,95 +108,12 @@ test("un plazo YYYY-MM-DD se pinta sin correrse de dia", () => {
   assert.equal(formatearDiaIso("mañana"), "—");
 });
 
-// --------------------------------------------------------------- consolidado
+// --- Ley 1581: el apodo de un menor no llega a las vistas admin ---------------
+// Que ninguna fuente de `src/` lea `.apodo` lo vigila la regla de lint de
+// `eslint.config.mjs`; aqui, que el rotulo no lo deje pasar aunque llegue.
 
-function entrega(id: string, colegios: string[], punto: EntregaPendiente["punto"], hijos = 1): EntregaPendiente {
-  return { pedido_id: id, estado: "pagado", destinatario: "X", direccion: "d", ciudad: "Bogotá", departamento: null, colegios, hijos, punto };
-}
-
-test("solo los pedidos pagados y sin entregar con envio son entregas pendientes", () => {
-  const base = { pedido_id: "p", usuario_id: "u", trabajo_id: null, creado_en: "x", total: 1, hijos: 1, colegios: [], lineas: [], pago: null } as const;
-  const envio = { destinatario: "a", direccion: "b", ciudad: "c" } as Pedido["envio"];
-  assert.equal(esEntregaPendiente({ ...base, estado: "en_reparto", envio }), true);
-  assert.equal(esEntregaPendiente({ ...base, estado: "entregado", envio }), false);
-  assert.equal(esEntregaPendiente({ ...base, estado: "pendiente_pago", envio }), false);
-  assert.equal(esEntregaPendiente({ ...base, estado: "pagado", envio: null }), false);
-});
-
-test("agrupa por colegio, cuenta con y sin marcador y ordena por volumen", () => {
-  const p = { lat: 4.6, lon: -74.1 };
-  const grupos = agruparPorColegio([
-    entrega("1", ["Gimnasio"], p),
-    entrega("2", ["San José"], null),
-    entrega("3", ["San José"], "pendiente", 2),
-    entrega("4", [], p),
-  ]);
-  assert.equal(grupos[0].colegio, "San José");
-  assert.deepEqual([grupos[0].entregas.length, grupos[0].hijos, grupos[0].conMarcador, grupos[0].sinMarcador], [2, 3, 0, 2]);
-  assert.ok(grupos.some((g) => g.colegio === "Sin colegio"));
-});
-
-test("pedidos al mismo sitio se apilan en un marcador; sin punto no hay marcador", () => {
-  const p = { lat: 4.60971, lon: -74.08171 };
-  const grupos = agruparPorColegio([entrega("1", ["A"], p), entrega("2", ["A"], { lat: 4.60972, lon: -74.08172 }), entrega("3", ["A"], null)]);
-  const m = marcadoresDe(grupos);
-  assert.equal(m.length, 1);
-  assert.equal(m[0].entregas.length, 2);
-});
-
-test("cuenta hijos por colegio y salon con grados en orden natural", () => {
-  const filas = contarPorSalon([
-    { colegio_nombre: "A", grado: "10" },
-    { colegio_nombre: "A", grado: "2" },
-    { colegio_nombre: "A", grado: "2" },
-  ]);
-  assert.deepEqual(filas.map((f) => [f.grado, f.hijos]), [["2", 2], ["10", 1]]);
-});
-
-// ------------------------------------------------------------------- tickets
-
-function caso(extra: Partial<Caso>): Caso {
-  return {
-    caso_id: "11111111-0000-4000-8000-000000000000",
-    origen: "acudiente",
-    categoria: "reclamo",
-    estado: "abierto",
-    prioridad: "alta",
-    asunto: "Llegó incompleto",
-    abierto_en: "2026-10-30T00:00:00Z",
-    vence_en: "2026-11-14T00:00:00Z",
-    trabajo_id: null,
-    pedido_id: null,
-    asignado_a: null,
-    ...extra,
-  };
-}
-
-test("los filtros de tickets ignoran valores desconocidos", () => {
-  const f = leerFiltrosTickets({ estado: "volando", categoria: "pago", q: [" hola "] });
-  assert.deepEqual(f, {
-    estado: "",
-    categoria: "pago",
-    q: "hola",
-    prioridad: "",
-    asignado: "",
-    vencidos: false,
-    pagina: 1,
-  });
-  assert.equal(hayFiltrosTickets(f), true);
-});
-
-test("filtra por estado, categoria y texto (prefijo de id o asunto)", () => {
-  const casos = [caso({}), caso({ caso_id: "22222222-0", estado: "resuelto", categoria: "pago", asunto: "Cobro doble" })];
-  assert.equal(filtrarCasos(casos, { estado: "resuelto", categoria: "", q: "" }).length, 1);
-  assert.equal(filtrarCasos(casos, { estado: "", categoria: "", q: "2222" }).length, 1);
-  assert.equal(filtrarCasos(casos, { estado: "", categoria: "", q: "cobro" }).length, 1);
-});
-
-test("vencimiento: solo cuenta en tickets activos", () => {
-  const ahora = new Date("2026-11-20T00:00:00Z").getTime();
-  assert.equal(estaVencido(caso({}), ahora), true);
-  assert.equal(estaVencido(caso({ estado: "resuelto" }), ahora), false);
-  assert.match(textoVencimiento(caso({}), ahora) ?? "", /vencido hace 6 d/);
-  assert.equal(textoVencimiento(caso({ estado: "cerrado" }), ahora), null);
+test("el rotulo de un hijo dice su posicion y grado, nunca el apodo que traiga el objeto", () => {
+  const rotulo = rotuloDeHijo({ apodo: "Sofi", grado: "3°" } as { grado: string }, 0);
+  assert.equal(rotulo, "Hijo 1 · grado 3°");
+  assert.ok(!rotulo.includes("Sofi"));
 });

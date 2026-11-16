@@ -4,6 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { LineaDeTiempoPedido, PasoLineaDeTiempo, PasoPedido, SituacionPaso } from "@tukit/contrato";
+import { ETIQUETA_FASE_SEGUIMIENTO, FASES_SEGUIMIENTO } from "@tukit/contrato/comercio";
 import { seguimientoDePedido } from "../src/lib/fases-pedido.ts";
 
 const ORDEN: PasoPedido[] = ["creado", "pagado", "en_preparacion", "despachado", "en_reparto", "entregado"];
@@ -17,10 +18,11 @@ function linea(actual: PasoPedido | null, extra: Partial<LineaDeTiempoPedido> = 
   return { pasos, especial: null, entrega_estimada: null, pago_pendiente: null, ...extra };
 }
 
-test("solo hay cinco fases: 'creado' no es una fase", () => {
+test("las fases son las de seguimiento del contrato, sin 'creado', con su nombre para el acudiente", () => {
   const v = seguimientoDePedido(linea("en_preparacion"));
-  assert.deepEqual(v.fases.map((f) => f.paso), ["pagado", "en_preparacion", "despachado", "en_reparto", "entregado"]);
-  assert.equal(v.fases[1]!.etiqueta, "Preparando tu kit");
+  assert.deepEqual(v.fases.map((f) => f.paso), [...FASES_SEGUIMIENTO]);
+  assert.ok(!v.fases.some((f) => f.paso === "creado"));
+  for (const f of v.fases) assert.equal(f.etiqueta, ETIQUETA_FASE_SEGUIMIENTO[f.paso]);
 });
 
 test("preparando: pagado hecho, preparando actual, el resto futuro", () => {

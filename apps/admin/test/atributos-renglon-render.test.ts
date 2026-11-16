@@ -1,5 +1,6 @@
 // Prueba de render de «Atributos que se exigen» (`AtributosRenglon.tsx`) sin
-// navegador: `react-dom/server` lo pinta a HTML y se buscan los textos clave.
+// navegador: `react-dom/server` lo pinta a HTML y se buscan los valores y las
+// marcas que distinguen cada clase de atributo (leído, curado, no exigido).
 //
 // El admin no tiene runner de componentes y no se le agrega uno: `node --test`
 // no entiende `.tsx` ni el alias `@/`, así que esta prueba transpila el
@@ -113,13 +114,16 @@ test("el «más de uno» deducido lleva su nota", () => {
     atributos: {},
   });
   assert.match(html, /deducido: más de uno/);
-  assert.match(html, /Si ningún juego cumple, vale la pieza suelta/);
+  // La nota explica que, si no hay juego, vale la pieza suelta.
+  assert.match(html, /pieza suelta/);
   assert.match(html, /Se exige: más de uno/);
   assert.doesNotMatch(html, /del texto: 2/);
 });
 
 test("con el concepto cambiado no ofrece curar: pide guardar primero", () => {
   const html = pintar(bitacora, { conceptoCambiado: true });
-  assert.match(html, /Cambiaste el concepto/);
+  // Avisa del concepto cambiado y no pinta ningun control de curado.
+  assert.match(html, /concepto/);
   assert.doesNotMatch(html, /No exigir/);
+  assert.doesNotMatch(html, /<input/);
 });

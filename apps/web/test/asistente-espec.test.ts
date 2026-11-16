@@ -104,9 +104,17 @@ test("la prioridad que entiende el formulario sale del primer puesto", () => {
 });
 
 test("el texto del delta distingue ahorro, igual y aumento", () => {
-  assert.match(textoDelta(-8000), /Ahorras/);
-  assert.equal(textoDelta(0), "Cuesta lo mismo");
-  assert.match(textoDelta(3000), /más/);
+  const ahorro = textoDelta(-8000);
+  const igual = textoDelta(0);
+  const aumento = textoDelta(3000);
+  assert.equal(new Set([ahorro, igual, aumento]).size, 3);
+  // El ahorro y el aumento dicen el monto, sin signo; lo igual no inventa uno.
+  assert.match(ahorro, /Ahorras/);
+  assert.match(ahorro, /8\.000/);
+  assert.match(aumento, /3\.000/);
+  assert.match(aumento, /más/);
+  assert.doesNotMatch(igual, /\d/);
+  assert.doesNotMatch(ahorro + aumento, /-/);
 });
 
 const resumen = {
