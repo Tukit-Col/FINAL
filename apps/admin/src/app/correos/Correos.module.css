@@ -1,0 +1,101 @@
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-5);
+}
+
+.encabezado h1 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.bajada {
+  max-width: 66ch;
+  margin-top: var(--espacio-1);
+  color: var(--color-text-secondary);
+}
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--espacio-3);
+}
+
+.campoFiltro {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.campoFiltro input {
+  min-height: 44px;
+  padding: 0 var(--espacio-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.envolturaTabla {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-white);
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.tabla th,
+.tabla td {
+  padding: var(--espacio-3) var(--espacio-4);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.tabla th {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.tabla tr:last-child td {
+  border-bottom: 0;
+}
+
+.asunto {
+  font-weight: 700;
+}
+
+.tenue {
+  color: var(--color-text-muted);
+}
+
+.estado {
+  display: inline-block;
+  padding: 2px var(--espacio-2);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.estadoEnviada {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.estadoFallida {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.estadoOmitida {
+  background: var(--color-aviso-bg);
+  color: var(--color-aviso);
+}

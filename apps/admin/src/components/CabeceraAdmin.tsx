@@ -12,6 +12,7 @@ import {
   ClipboardList,
   LayoutDashboard,
   LifeBuoy,
+  Mail,
   PackageSearch,
   School,
   Truck,
@@ -35,6 +36,7 @@ const SECCIONES = [
   { href: "/catalogo", etiqueta: "Catálogo", Icono: PackageSearch },
   { href: "/logistica", etiqueta: "Logística", Icono: Truck },
   { href: "/tickets", etiqueta: "Tickets", Icono: LifeBuoy },
+  { href: "/correos", etiqueta: "Correos", Icono: Mail },
 ] as const;
 
 // Un enlace está activo si la ruta actual empieza por su href. El Panel es la

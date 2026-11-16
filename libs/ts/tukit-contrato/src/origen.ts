@@ -86,7 +86,9 @@ import type {
 } from "./comercio";
 import type { MetricasColegio, ResumenPedidosColegio, SerieMetricas } from "./metricas";
 import type {
+  BandejaCorreos,
   BandejaOperacion,
+  FiltrosCorreos,
   Caso,
   CasoCreado,
   MiCaso,
@@ -622,6 +624,8 @@ export interface OrigenDatos {
   /** Con `usuarioId`, solo los casos de ese titular (ficha del cliente). */
   casos(token?: string, usuarioId?: string): Promise<BandejaOperacion>;
   caso(casoId: string, token?: string): Promise<Caso>;
+  /** Los avisos que mandó el sistema y qué pasó con cada uno. Solo staff. */
+  correos(token: string, filtros?: FiltrosCorreos): Promise<BandejaCorreos>;
 
   // Back-office de pedidos y tickets (ver `admin.ts`). Todos exigen Bearer de
   // operador/admin y responden 401/403/503 igual que el resto de la consola.
