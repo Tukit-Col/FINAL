@@ -27,6 +27,8 @@ from tukit_catalogo.descubrir import (
     Revision,
     _ean_valido,
     _misma_cosa,
+    _plano,
+    _sin_encabezado_de_grupo,
     cabeza,
     clasificar,
     consulta_desde_renglon,
@@ -410,3 +412,54 @@ def test_la_cantidad_en_palabras_no_es_la_cosa_pedida():
     assert cabeza("dos paquetes de plastilina") == "plastilina"
     assert cabeza("Un cuaderno cosido") == "cuaderno"
     assert cabeza("paquete de 20 resistencias surtidas a 1/4 W") == "resistencias"
+
+
+class TestElEncabezadoDeGrupoNoEsLaCosaPedida:
+    """«X: resto»: si X no nombra nada de nuestro catalogo es un encabezado y se
+    clasifica solo `resto`; si X es un concepto (o su sinonimo) es la cosa pedida."""
+
+    CONCEPTOS = [
+        _concepto("panuelos", "panuelos faciales"),
+        _concepto("pasteles secos"),
+        _concepto("lapiz", "lapiz negro"),
+        _concepto("pinceles"),
+        _concepto("cuaderno", "cuaderno cosido"),
+        _concepto("colores", "lapices de colores"),
+    ]
+
+    @pytest.mark.parametrize(
+        ("renglon", "esperado"),
+        [
+            ("Kit de aseo: caja de pañuelos faciales", "panuelos"),
+            ("Kit de aseo: caja de pasteles secos", "pasteles secos"),
+            ("Útiles: lápiz negro", "lapiz"),
+            ("Materiales de arte: pinceles", "pinceles"),
+            ("Papelería: lápiz negro", "lapiz"),
+            ("Insumos de arte: pinceles", "pinceles"),
+        ],
+    )
+    def test_un_encabezado_que_no_es_un_concepto_se_descarta(self, renglon, esperado):
+        _, nombre, puntaje = clasificar(renglon, self.CONCEPTOS)
+        assert nombre == esperado
+        assert puntaje >= 0.6
+
+    @pytest.mark.parametrize(
+        ("renglon", "esperado"),
+        [
+            ("Cuaderno: grande empastado", "cuaderno"),
+            ("Colores: caja x 12", "colores"),
+            ("Cuaderno cosido: 100 hojas", "cuaderno"),
+        ],
+    )
+    def test_si_el_prefijo_es_un_concepto_se_conserva(self, renglon, esperado):
+        _, nombre, _ = clasificar(renglon, self.CONCEPTOS)
+        assert nombre == esperado
+
+    def test_un_prefijo_largo_es_la_descripcion_y_no_un_encabezado(self):
+        renglon = "Pinceles de pelo suave para acuarela tamaño grande: lápiz negro"
+        _, nombre, _ = clasificar(renglon, self.CONCEPTOS)
+        assert nombre == "pinceles"
+
+    def test_un_titulo_con_su_autor_no_es_un_encabezado(self):
+        renglon = "La casa sonámbula. Autor: Arcamis Quintero. Ed Enlace."
+        assert _sin_encabezado_de_grupo(_plano(renglon), self.CONCEPTOS) == _plano(renglon)
