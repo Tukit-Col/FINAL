@@ -28,7 +28,7 @@
 \node[per, text width=2.6cm] (acudiente) at (2.45,0) {\textbf{Acudiente}};
 \node[per, text width=3.8cm] (equipo) at (8.6,0) {\textbf{Equipo de Tukit}\\operador y administrador};
 \node[cont, text width=3.4cm] (web) at (2.45,-1.45) {\textbf{Aplicación web progresiva}\\Next.js, puerto 3000};
-\node[ext, text width=1.85cm] (google_places) at (5.5,-1.45) {\textbf{Google Maps}\\sugerencias de dirección};
+\node[ext, text width=1.85cm] (google_places) at (5.5,-1.45) {\textbf{OpenStreetMap}\\sugerencias de dirección};
 \node[cont, text width=3.4cm] (admin) at (8.6,-1.45) {\textbf{Panel de administración}\\Next.js, puerto 3001};
 \node[ext, text width=2.5cm] (wompi) at (13.4,-1.45) {\textbf{Wompi}\\pasarela de pago};
 \node[cont, minimum width=14.3cm, text width=14cm] (gateway) at (7.35,-2.85) {\textbf{Puerta de enlace}
@@ -139,7 +139,7 @@
   \textbf{A3} El equipo revisa los kits en el panel y los publica; inteligencia deja el evento de kits publicados en su bandeja de salida.\\[1pt]
   \textbf{A4} Si la lista no estaba verificada, el sondeador de listas arma el kit al recibir el evento de lista verificada.};
 \node[col] (colB) at (5.35,-12.1) {\textbf{B. Pago}\\[1pt]
-  \textbf{B1} El acudiente elige un kit y escribe la dirección con sugerencias de Google Maps; inteligencia crea la orden en comercio, que reserva el inventario al precio vigente.\\[1pt]
+  \textbf{B1} El acudiente elige un kit y escribe la dirección con sugerencias de OpenStreetMap; inteligencia crea la orden en comercio, que reserva el inventario al precio vigente.\\[1pt]
   \textbf{B2} La aplicación web abre el widget de Wompi y el acudiente paga.\\[1pt]
   \textbf{B3} Wompi envía el aviso firmado o la página de resultado pide sincronizar el pago; comercio deja el evento de pedido pagado en su bandeja.\\[1pt]
   \textbf{B4} El barredor libera la reserva del pedido que no se paga en 24 horas y lo cancela.};
