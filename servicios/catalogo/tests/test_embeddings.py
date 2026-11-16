@@ -4,15 +4,8 @@ Dos cosas se fijan aqui. La primera es el puerto: el embeder falso no sale a la
 red, es determinista y da vectores unitarios, que es lo que el CI necesita para
 correr sin clave y sin que el resultado cambie entre corridas. La segunda es la
 FUSION en `clasificar`: que sumar el coseno nunca hunda un match que lo lexico
-ya acertaba (hibrido >= lexico), y que el rescate semantico este lo bastante
-alto como para no reabrir el error de `chaquiras de colores`, que la cabeza
-anclada cerro.
-
-El rescate de un sinonimo que el lexico no tiene se prueba con vectores puestos
-a mano, no con el embeder falso: el falso es de trigramas y dos sinonimos de
-verdad (`estuche`/`cartuchera`) no comparten letras, asi que no podria
-demostrar lo que un modelo real si hace. Fingir esa capacidad con el falso
-seria una prueba que miente. Se inyecta el vector y se prueba el MECANISMO.
+ya acertaba (hibrido >= lexico), y que sin cabeza anclada el coseno no baste
+para reabrir el error de `chaquiras de colores`, que la cabeza anclada cerro.
 """
 
 from __future__ import annotations
@@ -120,10 +113,9 @@ class TestLaFusionNoRompeLaCabezaAnclada:
 
     def test_chaquiras_de_colores_sigue_fuera_aunque_comparta_letras(self):
         # El embeder falso es de trigramas, asi que `chaquiras de colores` tiene
-        # coseno no-trivial con `colores`. El rescate semantico esta guardado
-        # justamente para que ese parecido de letras no reabra el error que la
-        # cabeza anclada cerro: la cosa pedida no esta nombrada, y un coseno
-        # mediano no basta para colarla.
+        # coseno no-trivial con `colores`. Ese parecido de letras no reabre el
+        # error que la cabeza anclada cerro: la cosa pedida no esta nombrada, y
+        # sin cabeza anclada el puntaje es 0.
         (consulta,) = embeder_falso(["chaquiras de colores"])
         _id, _nombre, puntaje = clasificar("chaquiras de colores", CATALOGO, embedding_renglon=consulta)
         assert puntaje < 0.5
@@ -165,33 +157,3 @@ class TestLaFusionNoRompeLaCabezaAnclada:
         _i, nombre, hibrido = clasificar(renglon, opuestos, embedding_renglon=consulta)
         assert nombre == nombre_lexico
         assert hibrido >= solo_lexico
-
-
-class TestElRescateSemanticoLevantaLoQueElLexicoNoVe:
-    """Un sinonimo que no esta en la lista de sinonimos. El lexico da 0 porque
-    la cabeza no aparece nombrada; el coseno alto lo rescata. Se prueba con un
-    vector puesto a mano porque el embeder de trigramas no modela sinonimos."""
-
-    def test_un_coseno_alto_rescata_un_head_que_el_lexico_no_nombra(self):
-        # Un concepto cuyo embedding es identico al del renglon (coseno 1.0)
-        # pero cuyo nombre/sinonimos NO contienen la cabeza del renglon.
-        (vector,) = embeder_falso(["cartuchera escolar"])
-        estuche = {
-            "id": "estuche",
-            "nombre": "estuche",
-            "sinonimos": ["cartuchera"],
-            "embedding": vector,
-        }
-        # Cabeza 'lonchera': no aparece en 'estuche'/'cartuchera' -> lexico 0.
-        _id, nombre, puntaje = clasificar("lonchera termica", [estuche], embedding_renglon=vector)
-        assert nombre == "estuche"
-        assert puntaje >= 0.5
-
-    def test_un_coseno_mediano_no_rescata(self):
-        # Vector ortogonal-ish: sin senal semantica fuerte, un head no nombrado
-        # sigue sin match, igual que en el lexico puro.
-        (vector,) = embeder_falso(["cartuchera escolar"])
-        (otro,) = embeder_falso(["balon de futbol de salon"])
-        estuche = {"id": "estuche", "nombre": "estuche", "sinonimos": [], "embedding": vector}
-        _id, _nombre, puntaje = clasificar("lonchera termica", [estuche], embedding_renglon=otro)
-        assert puntaje < 0.5

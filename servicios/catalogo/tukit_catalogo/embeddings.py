@@ -17,8 +17,8 @@ entra, una lista de vectores unitarios sale.
   cosas que el CI necesita. No es un vector al azar: se arma de los trigramas
   del texto, de modo que dos textos que comparten letras quedan cerca y dos que
   no, lejos. Es una semantica pobre pero suficiente y honesta para fijar que la
-  fusion hace lo que dice —rescatar un match que lo lexico erraba por una letra
-  o un sinonimo— sin fingir un modelo que la prueba no tiene.
+  fusion hace lo que dice —desempatar por significado un match que el lexico ya
+  acerto— sin fingir un modelo que la prueba no tiene.
 
 El vector siempre sale normalizado a norma 1. Con vectores unitarios el coseno
 es el producto punto, que es lo que el operador `<=>` de pgvector calcula y lo
@@ -174,8 +174,7 @@ def embeder_falso(textos: Sequence[str]) -> list[list[float]]:
     signo tambien derivado del hash para que las colisiones no se sumen siempre
     a favor. Dos textos que comparten trigramas —`bloc`/`block`, `lapiz`/
     `lapices`— acaban con vectores parecidos; dos que no, ortogonales. Es lo
-    justo para probar que la fusion rescata un match que lo lexico erraba por
-    una letra, sin fingir el modelo de produccion.
+    justo para probar la fusion sin fingir el modelo de produccion.
     """
     salida: list[list[float]] = []
     for texto in textos:

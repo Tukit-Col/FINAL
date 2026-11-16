@@ -95,14 +95,7 @@ quitan al personaje casi la mitad de su peso. Cambiarlos es una línea, pero pue
 recomienda (la condición «calidad primero» de `recomendar`), así que va con su prueba y con la
 decisión registrada.
 
-### 2.3 Un rescate semántico con coseno ≥ 0,93 se acepta sin revisión
-
-Abierto en el [ADR 0039](arquitectura/adr/0039-lo-que-no-tiene-precio-no-gana-por-barato.md). El
-arreglo correcto es que `/v1/catalogo/emparejar` diga que el concepto vino de un rescate y que
-`estado_desde_emparejamiento` lo mande siempre a revisión. Cambia el contrato de la API. Impacto
-medido bajo: ningún producto alcanzó 0,93 contra un concepto ajeno.
-
-### 2.4 Acoplamiento en el objetivo
+### 2.3 Acoplamiento en el objetivo
 
 Mientras la consolidación entre hermanos y la agrupación de herramientas se apliquen después de
 elegir, el optimizador resuelve un problema separable. Llevar la consolidación dentro del costo (y,
@@ -111,30 +104,30 @@ En ese caso: cambiar SBX y PM por operadores categóricos (cruce uniforme, mutac
 índice), medir con hipervolumen contra el frente exacto en instancias chicas, y correr la prueba de
 falsación que preveía el diseño (sin acoplamiento, heurística y NSGA-II deben empatar).
 
-### 2.5 Resolución: grafo de sustituibilidad y reordenador
+### 2.4 Resolución: grafo de sustituibilidad y reordenador
 
 La tabla `sustituibilidad_concepto` existe y está vacía; el reordenador no está implementado. La
 evaluación tiene que separar «no lo tenemos» de «no lo encontramos» y medir el *recall* antes que el
 ordenamiento.
 
-### 2.6 Calibrar τ
+### 2.5 Calibrar τ
 
 El umbral de autoaceptación (`TUKIT_TAU`, 0,75) se fijó a mano. Calibrarlo contra las correcciones
 que hacen los revisores en la cola.
 
-### 2.7 Percepción en paralelo
+### 2.6 Percepción en paralelo
 
 Las páginas se leen una tras otra; son independientes. Leerlas en paralelo, respetando la cuota del
 proveedor, baja la primera lectura de la suma de las páginas a la más lenta.
 
-### 2.8 Evaluar hogares de varios hijos
+### 2.7 Evaluar hogares de varios hijos
 
 El benchmark usa un hijo por lista, así que la consolidación entre hermanos nunca entra en juego.
 Armar hogares sintéticos de 2 a 4 hijos combinando listas de un mismo colegio.
 
 ---
 
-### 2.9 El personaje se escribe de dos formas
+### 2.8 El personaje se escribe de dos formas
 
 La tabla de personajes de `enriquecer.py` (`PERSONAJES`) produce el nombre con mayúsculas
 (`Frozen`, `Mickey Mouse`), y es la que usa la aprobación de la cola; las semillas del corpus están
