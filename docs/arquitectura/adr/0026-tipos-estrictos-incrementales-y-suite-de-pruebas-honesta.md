@@ -97,3 +97,14 @@ atrás. Un paquete refactorizado que no active `strict = true` es deuda visible 
 | **Poda masiva por patrón** (borrar todo lo que huela a smoke) | Borraría pruebas que sí atrapan invariantes. La poda justificada una-por-una es más lenta pero no tira la red buena. |
 | **Dejar los tests TS sin cablear** | Cobertura ficticia: pruebas que existen pero nunca corren mienten sobre el estado del frontend. |
 | **Borrar los chequeos de código fuente en vez de moverlos a lint** | El chequeo "no sale a la red" es útil como *lint* (barato, en cada commit); es solo su forma de *test* la que es frágil. Se mueve, no se pierde. |
+
+## Estado de la poda (noviembre de 2026)
+
+La suite creció a 183 archivos de prueba y 2.994 pruebas Python (más 345 de TypeScript, que ahora
+corren en CI con el job `web`). La limpieza de noviembre fue estructural, no una poda: no se
+borró ninguna prueba por valor, solo se fusionaron duplicados exactos (por ejemplo, nueve
+pruebas de "sin token es 401" quedaron como una parametrizada de 19 rutas × 3 credenciales). Las pruebas
+se ordenaron por módulo y comportamiento, las ayudas compartidas viven en `_ayudas_*.py` o en el
+`conftest.py` y ninguna prueba importa de otra. Los parches a internos privados se reemplazaron por costuras
+públicas (`nl2c.usar_llamador`, `app.state.reloj`, `correr_una_vez` con dependencias).
+Ver `ESTRATEGIA_DE_PRUEBAS.md`.
