@@ -131,6 +131,12 @@ _PREFIJO_DE_GRUPO = re.compile(r"^(kit|materiales?|para)\b")
 # Un encabezado de grupo es corto: con mas palabras es la descripcion de la cosa.
 _PALABRAS_MAXIMAS_DE_ENCABEZADO = 5
 
+# Lo que el colegio antepone a un libro para decir que clase de libro es: «Texto:
+# Cuaderno de actividades», «Novela: El gigante egoista», «Lecto Escritura:
+# Cuadernillo ALFA». No agrupa utiles, clasifica un libro; quitarlo deja un nombre
+# que se confunde con un util («cuaderno de actividades» -> cuaderno).
+_CLASES_DE_LIBRO = frozenset({"texto", "novela", "lecto", "lectoescritura"})
+
 
 def consulta_desde_renglon(renglon: str) -> str:
     """Convierte el renglon del colegio en algo que una tienda entienda.
@@ -273,7 +279,11 @@ def _sin_encabezado_de_grupo(renglon: str, conceptos: list[dict[str, Any]]) -> s
     if not grupo.split() or len(grupo.split()) > _PALABRAS_MAXIMAS_DE_ENCABEZADO or "." in grupo:
         return renglon
     nucleo = singular(cabeza(grupo))
-    if not nucleo:
+    if not nucleo or nucleo in _CLASES_DE_LIBRO:
+        return renglon
+    # «Editorial: Actualidad. Serie Eficaz.» nombra una coleccion de libros; la
+    # editorial suelta («Editorial: McGraw Hill») no pide nada.
+    if nucleo == "editorial" and "serie" in resto.split():
         return renglon
     for concepto in conceptos:
         for candidato in [concepto["nombre"], *(concepto["sinonimos"] or [])]:
