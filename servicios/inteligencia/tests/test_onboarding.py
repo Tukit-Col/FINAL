@@ -23,9 +23,8 @@ import httpx
 import pytest
 from tukit_comun import derivar
 from tukit_comun.http import ErrorDominio
-from tukit_inteligencia import api
 from tukit_inteligencia.api import app
-from tukit_inteligencia.percepcion import ItemExtraido, PaginaLeida, Percepcion
+from tukit_inteligencia.percepcion import ItemExtraido, PaginaLeida
 from tukit_inteligencia.remoto import RemotoCaido
 from tukit_inteligencia.routers.inteligencia import ColegioElegido
 
@@ -118,7 +117,7 @@ def lecturas():
 
 
 @pytest.fixture()
-async def cliente(motor, catalogo, identidad, lecturas, monkeypatch):
+async def cliente(motor, catalogo, identidad, lecturas):
     app.state.motor = motor
     app.state.catalogo = catalogo
     app.state.identidad = identidad
@@ -139,8 +138,8 @@ async def cliente(motor, catalogo, identidad, lecturas, monkeypatch):
             ],
         )
 
-    monkeypatch.setattr(api, "_RENDERIZAR", _renderizar)
-    monkeypatch.setattr(api, "_LEER", _leer)
+    app.state.renderizar = _renderizar
+    app.state.leer = _leer
 
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
@@ -199,13 +198,13 @@ class TestOnboardingFeliz:
 
 
 class TestGradoConfirmadoPorElAdmin:
-    async def test_el_grado_confirmado_gana_sobre_lo_que_leyo_el_modelo(self, cliente, catalogo, monkeypatch):
+    async def test_el_grado_confirmado_gana_sobre_lo_que_leyo_el_modelo(self, cliente, catalogo):
         # Madre Matilde "2do Año" es Octavo; el modelo a veces lee solo "Segundo".
         def _leer(_png: bytes, _n: int) -> PaginaLeida:
             return PaginaLeida(grados=["Segundo"], items=[ItemExtraido(descripcion="cuaderno")])
 
-        monkeypatch.setattr(api, "_RENDERIZAR", lambda _c: [b"p1"])
-        monkeypatch.setattr(api, "_LEER", _leer)
+        app.state.renderizar = lambda _c: [b"p1"]
+        app.state.leer = _leer
         r = await cliente.post(
             "/v1/admin/onboarding", **_multipart(b"%PDF-m", grado="Octavo", grado_confirmado="1")
         )
@@ -213,24 +212,24 @@ class TestGradoConfirmadoPorElAdmin:
         assert r.json()["grado"] == "Octavo"
         assert catalogo.llamadas[0]["grado"] == "Octavo"
 
-    async def test_sin_confirmar_manda_lo_leido(self, cliente, catalogo, monkeypatch):
+    async def test_sin_confirmar_manda_lo_leido(self, cliente, catalogo):
         def _leer(_png: bytes, _n: int) -> PaginaLeida:
             return PaginaLeida(grados=["Segundo"], items=[ItemExtraido(descripcion="cuaderno")])
 
-        monkeypatch.setattr(api, "_RENDERIZAR", lambda _c: [b"p1"])
-        monkeypatch.setattr(api, "_LEER", _leer)
+        app.state.renderizar = lambda _c: [b"p1"]
+        app.state.leer = _leer
         r = await cliente.post("/v1/admin/onboarding", **_multipart(b"%PDF-n", grado="Octavo"))
         assert r.json()["grado"] == "Segundo"
 
 
 class TestOnboardingRechazado:
-    async def test_varios_grados_es_422_sin_devolver_el_archivo(self, cliente, catalogo, monkeypatch):
+    async def test_varios_grados_es_422_sin_devolver_el_archivo(self, cliente, catalogo):
         def _leer_multi(_png: bytes, numero: int) -> PaginaLeida:
             grado = "Cuarto" if numero == 1 else "Quinto"
             return PaginaLeida(grados=[grado], items=[ItemExtraido(descripcion="lapiz")])
 
-        monkeypatch.setattr(api, "_RENDERIZAR", lambda _c: [b"p1", b"p2"])
-        monkeypatch.setattr(api, "_LEER", _leer_multi)
+        app.state.renderizar = lambda _c: [b"p1", b"p2"]
+        app.state.leer = _leer_multi
 
         marcador = b"%PDF-marcador-secreto-del-cliente"
         respuesta = await cliente.post("/v1/admin/onboarding", **_multipart(marcador))
@@ -244,19 +243,13 @@ class TestOnboardingRechazado:
         assert "marcador-secreto" not in respuesta.text
         assert catalogo.llamadas == []
 
-    async def test_una_percepcion_rechazada_no_toca_el_catalogo(self, cliente, catalogo, monkeypatch):
-        async def _percibir(_contenido, **_kw):
-            return Percepcion(
-                aceptada=False,
-                error="archivo_vacio",
-                mensaje="El archivo llego vacio.",
-            )
-
-        monkeypatch.setattr(api, "_percibir_onboarding", _percibir)
+    async def test_una_percepcion_rechazada_no_toca_el_catalogo(self, cliente, catalogo, lecturas):
+        # Un archivo vacio lo rechaza la percepcion misma, antes de leer pagina alguna.
         respuesta = await cliente.post("/v1/admin/onboarding", **_multipart(b""))
 
         assert respuesta.status_code == 422
         assert respuesta.json()["error"] == "archivo_vacio"
+        assert lecturas == []
         assert catalogo.llamadas == []
 
 

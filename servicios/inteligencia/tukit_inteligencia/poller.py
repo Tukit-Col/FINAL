@@ -42,7 +42,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from tukit_comun.bandeja import Resultado, drenar
-from tukit_comun.bd import crear_motor
+from tukit_comun.bd import MotorServicio, crear_motor
 from tukit_comun.broker import url_broker
 from tukit_comun.config import url_desde_entorno
 from tukit_comun.consumidor import Consumidor, RegistroEnTabla, consumir
@@ -346,21 +346,32 @@ def _motor_lectura(servicio: str) -> AsyncEngine:
     return create_async_engine(url_desde_entorno(servicio), pool_pre_ping=True)
 
 
-async def correr_una_vez() -> int:
-    """Una pasada sobre la bandeja del Catalogo. Para el cron o el arranque."""
-    motor_inteligencia = crear_motor("inteligencia")
-    motor_catalogo = _motor_lectura("catalogo")
-    catalogo = ClienteCatalogo()
+async def correr_una_vez(
+    *,
+    motor_inteligencia: MotorServicio | None = None,
+    motor_catalogo: AsyncEngine | None = None,
+    catalogo: Any = None,
+) -> int:
+    """Una pasada sobre la bandeja del Catalogo. Para el cron o el arranque.
+
+    Sin argumentos abre sus motores y su cliente, y los cierra al terminar. Los
+    que se le pasan (las pruebas) son de quien los paso: no los cierra."""
+    propio_inteligencia = motor_inteligencia is None
+    propio_catalogo = motor_catalogo is None
+    motor_inteligencia = motor_inteligencia or crear_motor("inteligencia")
+    motor_catalogo = motor_catalogo or _motor_lectura("catalogo")
     try:
         poller = Poller(
             motor_inteligencia=motor_inteligencia,
             motor_catalogo=motor_catalogo,
-            catalogo=catalogo,
+            catalogo=catalogo or ClienteCatalogo(),
         )
         return await poller.pasada()
     finally:
-        await motor_catalogo.dispose()
-        await motor_inteligencia.cerrar()
+        if propio_catalogo:
+            await motor_catalogo.dispose()
+        if propio_inteligencia:
+            await motor_inteligencia.cerrar()
 
 
 async def escuchar_cola(url: str, *, seguir: bool, intervalo: float = 5.0) -> int:
@@ -393,9 +404,13 @@ async def _regenerar() -> tuple[int, list[str]]:
         await motor_inteligencia.cerrar()
 
 
-async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]] | None = None) -> None:
+async def correr_en_bucle(
+    intervalo: float, *, dormir: Callable[[float], Awaitable[None]] | None = None, **dependencias: Any
+) -> None:
+    """`correr_una_vez` en bucle resiliente; `dependencias` llegan a cada pasada."""
+
     async def _vuelta() -> None:
-        arrancados = await correr_una_vez()
+        arrancados = await correr_una_vez(**dependencias)
         if arrancados:
             print(f"[poller] kits de ruta rapida arrancados: {arrancados}")
 
@@ -432,7 +447,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[poller] mensajes de {LISTAS.nombre}: {procesados}")
         return 0
     if argumentos.seguir:
-        asyncio.run(_bucle(argumentos.intervalo))
+        asyncio.run(correr_en_bucle(argumentos.intervalo))
     else:
         arrancados = asyncio.run(correr_una_vez())
         print(f"[poller] kits de ruta rapida arrancados: {arrancados}")

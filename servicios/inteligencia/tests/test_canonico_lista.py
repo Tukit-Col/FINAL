@@ -20,15 +20,14 @@ import uuid
 from typing import Any
 
 import pytest
+from _ayudas_inteligencia import COLEGIO, GRADO, catalogo_verificado, puntero_canonico, sembrar_preview
 from sqlalchemy import MetaData, insert, select
-from test_fastroute import COLEGIO, _catalogo_verificado
 from tukit_comun.bandeja import bandeja_reflejada
 from tukit_inteligencia import trabajos
 from tukit_inteligencia.modelos import EstadoTrabajo
-from tukit_inteligencia.poller import Poller
+from tukit_inteligencia.poller import Poller, armar_canonico, regenerar_canonicos
 
 BANDEJA_CATALOGO = bandeja_reflejada(MetaData())
-GRADO = "Cuarto"
 
 
 async def _evento_lista_aprobada(motor, version_id: uuid.UUID) -> None:
@@ -45,41 +44,6 @@ async def _evento_lista_aprobada(motor, version_id: uuid.UUID) -> None:
         )
 
 
-async def _preview(motor, version_id: uuid.UUID) -> uuid.UUID:
-    """Un preview de onboarding ya procesado, en `espera_revision`."""
-    creado = await trabajos.crear(
-        motor,
-        hijos=[
-            {
-                "referencia": "preview",
-                "colegio_id": COLEGIO,
-                "grado": GRADO,
-                "anio_lectivo": 2026,
-                "version_id": str(version_id),
-            }
-        ],
-        contacto=None,
-        preferencias={},
-        origen="preview_onboarding",
-    )
-    trabajo_id = uuid.UUID(creado["trabajo_id"])
-    estado = await trabajos.procesar(motor, trabajo_id, catalogo=_catalogo_verificado())
-    assert estado == EstadoTrabajo.ESPERA_REVISION.value
-    return trabajo_id
-
-
-async def _puntero(motor) -> Any:
-    async with motor.engine.begin() as conexion:
-        return (
-            await conexion.execute(
-                select(trabajos.KIT_CANONICO.c.trabajo_id).where(
-                    trabajos.KIT_CANONICO.c.colegio_id == COLEGIO,
-                    trabajos.KIT_CANONICO.c.grado == GRADO,
-                )
-            )
-        ).scalar_one_or_none()
-
-
 async def _avisos(motor) -> list[Any]:
     async with motor.engine.begin() as conexion:
         return list(
@@ -93,7 +57,7 @@ class TestListaAprobadaArmaLosCanonicos:
     async def test_el_poller_arma_publica_sin_avisar_y_fija_el_puntero(self, motor):
         await _evento_lista_aprobada(motor, uuid.uuid4())
         poller = Poller(
-            motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=_catalogo_verificado()
+            motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo_verificado()
         )
 
         assert await poller.pasada() == 1
@@ -112,29 +76,29 @@ class TestListaAprobadaArmaLosCanonicos:
         assert fila.origen == trabajos.ORIGEN_CANONICO
         assert fila.estado == EstadoTrabajo.PUBLICADO.value
         assert fila.usuario_id is None
-        assert await _puntero(motor) == fila.id
+        assert await puntero_canonico(motor) == fila.id
         # Nadie a quien avisar: el repartidor no debe recibir nada.
         assert await _avisos(motor) == []
 
     async def test_una_version_que_ya_tiene_canonico_no_se_vuelve_a_optimizar(self, motor):
         version = uuid.uuid4()
-        preview = await _preview(motor, version)
+        preview = await sembrar_preview(motor, version)
         await trabajos.fijar_como_canonico(motor, preview)
 
         await _evento_lista_aprobada(motor, version)
-        catalogo = _catalogo_verificado()
+        catalogo = catalogo_verificado()
         poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
 
         assert await poller.pasada() == 0
         assert "resueltos" not in catalogo.llamadas
-        assert await _puntero(motor) == preview
+        assert await puntero_canonico(motor) == preview
 
     async def test_si_el_preview_se_fija_mientras_optimiza_el_preview_gana(self, motor):
         # Carrera: el poller arranca antes de que el admin fije el preview. Al
         # cerrar, el canonico_lista ve que su version ya tiene canonico y se
         # retira en vez de pisar el puntero.
         version = uuid.uuid4()
-        preview = await _preview(motor, version)
+        preview = await sembrar_preview(motor, version)
         creado = await trabajos.crear(
             motor,
             hijos=[
@@ -152,21 +116,21 @@ class TestListaAprobadaArmaLosCanonicos:
         await trabajos.fijar_como_canonico(motor, preview)
 
         estado = await trabajos.procesar(
-            motor, uuid.UUID(creado["trabajo_id"]), catalogo=_catalogo_verificado()
+            motor, uuid.UUID(creado["trabajo_id"]), catalogo=catalogo_verificado()
         )
 
         assert estado == "descartado"
-        assert await _puntero(motor) == preview
+        assert await puntero_canonico(motor) == preview
 
 
 class TestFijarComoCanonico:
     async def test_un_preview_queda_publicado_y_canonico_sin_aviso(self, motor):
-        preview = await _preview(motor, uuid.uuid4())
+        preview = await sembrar_preview(motor, uuid.uuid4())
 
         resultado = await trabajos.fijar_como_canonico(motor, preview, nota="revisado")
 
         assert resultado["estado"] == EstadoTrabajo.PUBLICADO.value
-        assert await _puntero(motor) == preview
+        assert await puntero_canonico(motor) == preview
         assert await _avisos(motor) == []
         # Y como es publicado, re-previsualizar no lo borra.
         assert await trabajos.previews_de(motor, COLEGIO, GRADO, 2026) == []
@@ -179,8 +143,46 @@ class TestFijarComoCanonico:
             usuario_id=uuid.uuid4(),
         )
         trabajo_id = uuid.UUID(creado["trabajo_id"])
-        await trabajos.procesar(motor, trabajo_id, catalogo=_catalogo_verificado())
+        await trabajos.procesar(motor, trabajo_id, catalogo=catalogo_verificado())
 
         with pytest.raises(trabajos.NoCanonizable):
             await trabajos.fijar_como_canonico(motor, trabajo_id)
-        assert await _puntero(motor) is None
+        assert await puntero_canonico(motor) is None
+
+
+# --- Rearmar los canonicos cuando cambia como se arman --------------------------------------------
+
+
+# Rearmar los kits canonicos cuando cambia como se arman.
+#
+# El poller no rearma una version que ya tiene canonico (aprobar dos veces no
+# cuesta dos optimizaciones). Cuando cambia la logica (filtro por atributos,
+# juntar herramientas), `regenerar_canonicos` los rearma; pero salta los que un
+# admin aprobo desde la previsualizacion o corrigio a mano, porque rearmarlos
+# borraria lo que eligio.
+
+
+class TestRegenerarCanonicos:
+    async def test_rearma_el_canonico_automatico_en_otro_trabajo(self, motor):
+        catalogo = catalogo_verificado()
+        catalogo.grado = GRADO
+        version = str(uuid.uuid4())
+        primero = await armar_canonico(motor, catalogo, COLEGIO, GRADO, 2026, version)
+        assert await puntero_canonico(motor) == primero
+
+        rearmados, saltados = await regenerar_canonicos(motor, catalogo)
+
+        assert rearmados == 1
+        assert saltados == []
+        nuevo = await puntero_canonico(motor)
+        assert nuevo != primero
+
+    async def test_salta_el_que_un_admin_aprobo_desde_la_previsualizacion(self, motor):
+        preview = await sembrar_preview(motor, uuid.uuid4())
+        await trabajos.fijar_como_canonico(motor, preview)
+
+        rearmados, saltados = await regenerar_canonicos(motor, catalogo_verificado())
+
+        assert rearmados == 0
+        assert len(saltados) == 1
+        assert await puntero_canonico(motor) == preview

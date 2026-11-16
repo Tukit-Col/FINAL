@@ -6,8 +6,8 @@ el resultado o el error de dominio a su sobre HTTP. El wiring (motor, clientes
 remotos catalogo/identidad/comercio y los puertos de percepcion) vive en
 `api.py` y se alcanza por el modulo `api`: `app` es el mismo singleton, asi que
 `api._catalogo()` / `api.app.state.motor` leen lo que las pruebas inyectan por
-`app.state`, y `api._percibir_onboarding` / `api._RENDERIZAR` siguen siendo
-monkeypatcheables (ADR 0019).
+`app.state`, incluidos los puertos de percepcion (`app.state.renderizar` /
+`app.state.leer`) que usa `api._percibir_onboarding` (ADR 0019).
 """
 
 from __future__ import annotations

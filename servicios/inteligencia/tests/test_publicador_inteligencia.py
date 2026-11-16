@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import uuid
 
+import pytest
 from sqlalchemy import select
 from tukit_comun.publicador import vaciar
-from tukit_inteligencia import publicador, trabajos
+from tukit_inteligencia import publicador, supresion, trabajos
 from tukit_inteligencia.repositorios.trabajos import RepoTrabajos
 
 COLEGIO = "11111111-1111-1111-1111-111111111111"
@@ -62,8 +63,10 @@ async def test_un_trabajo_sin_acudiente_no_inventa_destinatario(motor):
     assert "usuario_id" not in carga
 
 
-def test_sin_rabbitmq_url_no_arranca(monkeypatch, capsys):
+@pytest.mark.parametrize("proceso", [publicador, supresion], ids=["publicador", "supresion"])
+def test_sin_rabbitmq_url_no_arranca(monkeypatch, capsys, proceso):
+    """Los dos procesos que solo existen sobre el broker se niegan a arrancar sin el."""
     monkeypatch.delenv("RABBITMQ_URL", raising=False)
 
-    assert publicador.main([]) == 2
+    assert proceso.main([]) == 2
     assert "falta RABBITMQ_URL" in capsys.readouterr().out

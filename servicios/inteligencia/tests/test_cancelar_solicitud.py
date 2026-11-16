@@ -15,7 +15,8 @@ from typing import Any
 
 import httpx
 import pytest
-from test_mis_solicitudes import COLEGIO, OTRO_PADRE, PADRE, IdentidadFalsa, _lista, _sembrar_trabajo
+from _ayudas_inteligencia import COLEGIO_SOLICITUDES as COLEGIO
+from _ayudas_inteligencia import OTRO_PADRE, PADRE, IdentidadFalsa, lista_del_catalogo, sembrar_trabajo
 from tukit_inteligencia import trabajos
 from tukit_inteligencia.api import app
 from tukit_inteligencia.modelos import EstadoTrabajo
@@ -61,7 +62,7 @@ async def _cancelar(motor, trabajo_id, *, comercio=None, catalogo=None, usuario_
 
 
 async def test_cancelar_deja_el_trabajo_cancelado_y_fuera_de_mis_solicitudes(motor):
-    trabajo_id = await _sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
+    trabajo_id = await sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
     await _cancelar(motor, trabajo_id)
 
     vista = await trabajos.ver(motor, trabajo_id, incluir_kits=True)
@@ -71,7 +72,7 @@ async def test_cancelar_deja_el_trabajo_cancelado_y_fuera_de_mis_solicitudes(mot
 
 
 async def test_un_kit_comprado_no_se_cancela(motor):
-    trabajo_id = await _sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
+    trabajo_id = await sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
     comercio = ComercioFalso(pedidos=[{"pedido_id": "p1", "trabajo_id": str(trabajo_id), "estado": "pagado"}])
     with pytest.raises(trabajos.SolicitudNoCancelable) as error:
         await _cancelar(motor, trabajo_id, comercio=comercio)
@@ -79,7 +80,7 @@ async def test_un_kit_comprado_no_se_cancela(motor):
 
 
 async def test_con_un_pago_pendiente_primero_se_cancela_el_pedido(motor):
-    trabajo_id = await _sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
+    trabajo_id = await sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
     comercio = ComercioFalso(
         pedidos=[{"pedido_id": "p1", "trabajo_id": str(trabajo_id), "estado": "pendiente_pago"}]
     )
@@ -89,7 +90,7 @@ async def test_con_un_pago_pendiente_primero_se_cancela_el_pedido(motor):
 
 
 async def test_un_pedido_cancelado_no_impide_cancelar(motor):
-    trabajo_id = await _sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
+    trabajo_id = await sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
     comercio = ComercioFalso(
         pedidos=[{"pedido_id": "p1", "trabajo_id": str(trabajo_id), "estado": "cancelado"}]
     )
@@ -98,7 +99,7 @@ async def test_un_pedido_cancelado_no_impide_cancelar(motor):
 
 
 async def test_la_solicitud_de_otro_no_se_cancela(motor):
-    trabajo_id = await _sembrar_trabajo(motor, usuario_id=OTRO_PADRE, hijos=HIJOS)
+    trabajo_id = await sembrar_trabajo(motor, usuario_id=OTRO_PADRE, hijos=HIJOS)
     with pytest.raises(trabajos.SolicitudNoCancelable) as error:
         await _cancelar(motor, trabajo_id)
     assert error.value.codigo == "solicitud_ajena"
@@ -106,7 +107,7 @@ async def test_la_solicitud_de_otro_no_se_cancela(motor):
 
 
 async def test_mientras_se_arma_no_se_cancela(motor):
-    trabajo_id = await _sembrar_trabajo(
+    trabajo_id = await sembrar_trabajo(
         motor, usuario_id=PADRE, hijos=HIJOS, estado=EstadoTrabajo.PROCESANDO.value
     )
     with pytest.raises(trabajos.SolicitudNoCancelable) as error:
@@ -114,16 +115,24 @@ async def test_mientras_se_arma_no_se_cancela(motor):
     assert error.value.codigo == "en_proceso"
 
 
-async def test_cancelar_dos_veces_no_falla(motor):
-    trabajo_id = await _sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
-    await _cancelar(motor, trabajo_id)
-    await _cancelar(motor, trabajo_id)
+async def test_cancelar_dos_veces_es_idempotente_y_desvincula_la_lista_una_vez(motor):
+    version_id = str(uuid.uuid4())
+    trabajo_id = await sembrar_trabajo(
+        motor, usuario_id=PADRE, origen="lista_verificada", hijos=[{**HIJOS[0], "version_id": version_id}]
+    )
+    catalogo = CatalogoFalso()
+
+    primera = await _cancelar(motor, trabajo_id, catalogo=catalogo)
+    segunda = await _cancelar(motor, trabajo_id, catalogo=catalogo)
+
+    assert primera == segunda == {"trabajo_id": str(trabajo_id), "estado": EstadoTrabajo.CANCELADO.value}
+    assert catalogo.retiros == [{"contacto": str(PADRE), "tarea_id": None, "version_id": version_id}]
 
 
 async def test_el_trabajo_de_una_lista_subida_tambien_la_desvincula(motor):
     """Si no, la lista volveria a salir en "Mis solicitudes" como recibida."""
     version_id = str(uuid.uuid4())
-    trabajo_id = await _sembrar_trabajo(
+    trabajo_id = await sembrar_trabajo(
         motor,
         usuario_id=PADRE,
         origen="lista_verificada",
@@ -143,7 +152,7 @@ async def test_cancelar_una_lista_recibida_la_desvincula_en_el_catalogo(motor):
 
 async def test_la_lista_recibida_trae_su_tarea_para_cancelarla(motor):
     lista = {
-        **_lista(version_id=None, revisada=False, creada_en="2026-01-01T10:00:00+00:00"),
+        **lista_del_catalogo(version_id=None, revisada=False, creada_en="2026-01-01T10:00:00+00:00"),
         "tarea_id": "t-1",
     }
     catalogo = CatalogoFalso(por_contacto={str(PADRE): [lista]})
@@ -170,13 +179,13 @@ async def cliente(motor):
 
 
 async def test_cancelar_exige_sesion(cliente, motor):
-    trabajo_id = await _sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
+    trabajo_id = await sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
     respuesta = await cliente.post(f"/v1/trabajos/{trabajo_id}/cancelar")
     assert respuesta.status_code == 401
 
 
 async def test_cancelar_con_sesion(cliente, motor):
-    trabajo_id = await _sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
+    trabajo_id = await sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
     respuesta = await cliente.post(
         f"/v1/trabajos/{trabajo_id}/cancelar", headers={"Authorization": "Bearer tok-padre"}
     )
@@ -206,7 +215,7 @@ async def test_el_trabajo_que_es_canonico_del_grado_no_se_cancela(motor):
     """Aprobar el trabajo de un acudiente lo fija como cache de su grado: la
     ruta rapida de los demas padres sale de ahi. Cancelarlo dejaria el puntero
     apuntando a un trabajo cancelado."""
-    trabajo_id = await _sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
+    trabajo_id = await sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
     await _fijar_canonico(motor, trabajo_id)
 
     with pytest.raises(trabajos.SolicitudNoCancelable) as error:
@@ -217,9 +226,9 @@ async def test_el_trabajo_que_es_canonico_del_grado_no_se_cancela(motor):
 
 
 async def test_cancelar_la_ruta_rapida_no_toca_el_canonico_al_que_apunta(motor):
-    canonico_id = await _sembrar_trabajo(motor, usuario_id=OTRO_PADRE, hijos=HIJOS)
+    canonico_id = await sembrar_trabajo(motor, usuario_id=OTRO_PADRE, hijos=HIJOS)
     await _fijar_canonico(motor, canonico_id)
-    propio = await _sembrar_trabajo(
+    propio = await sembrar_trabajo(
         motor,
         usuario_id=PADRE,
         origen="parent_apply",
@@ -233,7 +242,7 @@ async def test_cancelar_la_ruta_rapida_no_toca_el_canonico_al_que_apunta(motor):
 
 
 async def test_cancelar_el_canonico_por_http_responde_409(cliente, motor):
-    trabajo_id = await _sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
+    trabajo_id = await sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
     await _fijar_canonico(motor, trabajo_id)
     respuesta = await cliente.post(
         f"/v1/trabajos/{trabajo_id}/cancelar", headers={"Authorization": "Bearer tok-padre"}

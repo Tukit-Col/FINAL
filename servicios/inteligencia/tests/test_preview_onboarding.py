@@ -22,45 +22,13 @@ from __future__ import annotations
 
 import httpx
 import pytest
-from conftest import CatalogoFalso, opcion, reconocido, renglon
+from _ayudas_inteligencia import CatalogoPreview
+from conftest import opcion, reconocido, renglon
 from tukit_inteligencia.api import app
 from tukit_inteligencia.modelos import EstadoTrabajo
-from tukit_inteligencia.remoto import RemotoCaido
 
 COLEGIO = "11111111-1111-5111-8111-111111111111"
 VERSION_VIGENTE = "ver-vigente-1"
-
-
-class CatalogoPreview(CatalogoFalso):
-    """CatalogoFalso que resuelve versiones por id con `revision()`.
-
-    `self.versiones` es el conjunto de version_id que EXISTEN para
-    (COLEGIO, self.grado, 2026); `revision(vid)` devuelve la cabecera + items de
-    una de ellas, o levanta `RemotoCaido` (que el endpoint traduce a 404) si no
-    existe —igual que el catalogo real, que resuelve `/revision` por version_id
-    sin importar si es la vigente—. Registra las llamadas en `self.llamadas`.
-    """
-
-    def __init__(self, *, version_vigente: str | None = VERSION_VIGENTE, versiones=None, **kw):
-        super().__init__(**kw)
-        if versiones is None:
-            versiones = [] if version_vigente is None else [version_vigente]
-        self.versiones = list(versiones)
-
-    async def revision(self, version_id: str) -> dict:
-        self.llamadas.append("revision")
-        if version_id not in self.versiones:
-            raise RemotoCaido("catalogo", "/revision respondio 404")
-        return {
-            "version_id": version_id,
-            "lista_id": "lista-1",
-            "colegio_id": COLEGIO,
-            "grado": self.grado,
-            "anio_lectivo": 2026,
-            "revisada": False,
-            "total_items": len(self.renglones),
-            "items": self.renglones,
-        }
 
 
 def _catalogo_con_lista(version_vigente: str | None = VERSION_VIGENTE) -> CatalogoPreview:
