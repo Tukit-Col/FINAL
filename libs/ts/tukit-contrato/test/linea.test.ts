@@ -33,3 +33,20 @@ test("una linea que ya va en otra dice donde", () => {
 test("una linea que se compra no tiene razon de no cobrar", () => {
   assert.equal(razonDeNoCobrar(linea({ unidades_a_comprar: 1 })), null);
 });
+
+test("un libro con titulo que no vendemos se consigue por tu cuenta, no es un hueco", async () => {
+  const { clasificar } = await import("../src/linea.ts");
+  const libro = linea({
+    descripcion: "Los secretos de Hafiz Mustafá - Francisco Leal Quevedo. Editorial Norma.",
+    tipo: "libro_libre",
+    estado_resolucion: "HUECO_CATALOGO",
+  });
+  assert.equal(clasificar(libro), "por_su_cuenta");
+  // Lo que de verdad no se entendio sigue a revision.
+  assert.equal(clasificar({ ...libro, estado_resolucion: "SIN_MATCH" }), "sin_match");
+  // Con producto elegido es comprable.
+  assert.equal(
+    clasificar({ ...libro, estado_resolucion: "RESUELTO_AUTO", producto_elegido: { sku: "X" } } as LineaKit),
+    "comprable",
+  );
+});

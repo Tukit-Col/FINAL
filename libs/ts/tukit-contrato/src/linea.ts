@@ -39,6 +39,16 @@ export function clasificar(linea: LineaKit): ClaseLinea {
   // se busca en el catalogo y llega como SIN_MATCH, porque la edicion aun no se
   // resuelve. Mostrarlo como "No entendimos que pide" era falso: se entendio.
   if (linea.tipo === "texto" && !linea.producto_elegido) return "por_su_cuenta";
+  // Igual un libro con titulo que el catalogo no tiene («Los secretos de Hafiz
+  // Mustafa»): se entendio y se compra en libreria. Como hueco quedaba en «No lo
+  // tenemos» sin salida, y el acudiente lo veia como un error del kit.
+  if (
+    linea.tipo === "libro_libre" &&
+    !linea.producto_elegido &&
+    linea.estado_resolucion === "HUECO_CATALOGO"
+  ) {
+    return "por_su_cuenta";
+  }
   if (linea.estado_resolucion === "HUECO_CATALOGO") return "hueco";
   if (linea.estado_resolucion === "SIN_MATCH") return "sin_match";
   if (linea.estado_resolucion === "AMBIGUO") return "pendiente_revision";

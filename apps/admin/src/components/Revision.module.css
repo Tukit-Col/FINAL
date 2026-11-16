@@ -1556,3 +1556,19 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* Carrusel completo del concepto, plegado bajo las opciones guardadas. */
+.masOpciones {
+  margin-top: var(--espacio-3);
+}
+
+.masOpciones > summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.masOpciones[open] > summary {
+  margin-bottom: var(--espacio-3);
+}

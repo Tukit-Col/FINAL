@@ -232,7 +232,11 @@ export default function MatrizComparacion({
                       </span>
                     </span>
                     <span className={`${styles.celdaPrecio} cifra`}>
-                      {formatearPesos(linea?.subtotal_linea ?? null)}
+                      {/* La linea que otra ya cubre (tijeras en tres materias) va en
+                          cero: se compra una sola vez, arriba. */}
+                      {linea && linea.unidades_a_comprar === 0 && linea.subtotal_linea === 0
+                        ? "Ya va arriba"
+                        : formatearPesos(linea?.subtotal_linea ?? null)}
                     </span>
                   </>
                 ) : (

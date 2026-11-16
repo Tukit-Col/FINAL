@@ -2152,6 +2152,7 @@ async def fijar_producto_en_linea(
     sku: str,
     *,
     catalogo: ClienteCatalogo,
+    volver_comprable: bool = False,
 ) -> dict[str, Any]:
     """Fija un producto en UNA linea (un kit + un item) con su precio recalculado.
 
@@ -2181,6 +2182,8 @@ async def fijar_producto_en_linea(
                     LINEA.c.kit_id,
                     LINEA.c.cantidad_pedida,
                     LINEA.c.informativa,
+                    LINEA.c.estado_resolucion,
+                    LINEA.c.unidades_a_comprar,
                     LINEA.c.sku,
                     LINEA.c.nombre_producto,
                     LINEA.c.nivel,
@@ -2218,11 +2221,28 @@ async def fijar_producto_en_linea(
         # producto no puede introducir un subtotal por la puerta de atras.
         empaque = int(producto.get("unidades_por_empaque") or 1)
         unidades = unidades_a_comprar(int(fila.cantidad_pedida or 0), empaque)
-        subtotal = None if (fila.informativa or precio is None) else precio * unidades
+        # La linea que otra ya cubre (las tijeras pedidas en tres materias: «Ya va
+        # en la linea 58») tiene producto y cero unidades. Cambiarle el producto
+        # no la vuelve a cobrar: el Fan cobraba tres tijeras.
+        if fila.sku and fila.unidades_a_comprar == 0 and int(fila.cantidad_pedida or 0) > 0:
+            unidades = 0
+        # Salvo que el revisor la vuelva comprable a proposito: eligio un producto
+        # para un renglon que el armado dejo como «consiguelo por tu cuenta».
+        informativa = bool(fila.informativa) and not volver_comprable
+        subtotal = None if (informativa or precio is None) else precio * unidades
+        extra: dict[str, Any] = {}
+        if volver_comprable:
+            extra = {"informativa": False, "mensaje": None}
+            if fila.estado_resolucion in (
+                EstadoResolucion.HUECO_CATALOGO.value,
+                EstadoResolucion.SIN_MATCH.value,
+            ):
+                extra["estado_resolucion"] = EstadoResolucion.RESUELTO_AUTO.value
         await conexion.execute(
             update(LINEA)
             .where(LINEA.c.id == fila.id)
             .values(
+                **extra,
                 sku=sku,
                 nombre_producto=producto.get("nombre"),
                 marca=producto.get("marca"),
@@ -2232,13 +2252,48 @@ async def fijar_producto_en_linea(
                 unidad_base=producto.get("unidad_base"),
                 unidades_por_empaque=empaque,
                 unidades_a_comprar=unidades,
-                precio_unitario_cop=None if fila.informativa else precio,
+                precio_unitario_cop=None if informativa else precio,
                 subtotal_cop=subtotal,
                 alternativas=alternativas,
             )
         )
         await _recalcular_total_kit(conexion, fila.kit_id)
     return {"trabajo_id": str(trabajo_id), "perfil": perfil, "item_id": str(item_id), "sku": sku}
+
+
+async def fijar_producto_en_todos_los_kits(
+    motor: Any,
+    trabajo_id: uuid.UUID,
+    item_id: uuid.UUID,
+    sku: str,
+    *,
+    catalogo: ClienteCatalogo,
+) -> dict[str, Any]:
+    """El producto que el revisor eligio para un renglon, en TODOS los kits.
+
+    Resolver un hueco («No lo tenemos -> Resolver») es una decision sobre el
+    renglon, no sobre un nivel: la consola lo dice («lo que decidas aqui vale
+    para todos los kits») y antes solo cambiaba el kit abierto. Si el renglon
+    era informativo (lo dejo «consiguelo por tu cuenta»), elegir un producto lo
+    vuelve comprable: tiene precio y entra al total.
+    """
+    async with motor.engine.begin() as conexion:
+        perfiles = [
+            f.perfil
+            for f in await conexion.execute(
+                select(KIT.c.perfil)
+                .select_from(LINEA.join(KIT, KIT.c.id == LINEA.c.kit_id))
+                .where(KIT.c.trabajo_id == trabajo_id, LINEA.c.item_crudo_id == item_id)
+                .distinct()
+            )
+        ]
+    if not perfiles:
+        raise TrabajoNoExiste(f"{trabajo_id}/{item_id}")
+    for perfil in perfiles:
+        await fijar_producto_en_linea(
+            motor, trabajo_id, perfil, item_id, sku, catalogo=catalogo, volver_comprable=True
+        )
+    return {"trabajo_id": str(trabajo_id), "perfiles": perfiles, "item_id": str(item_id), "sku": sku}
 
 
 async def _proteger_kits_publicados(conexion: Any, trabajo_id: uuid.UUID) -> None:
@@ -2887,6 +2942,8 @@ def _aplicar_cambios(
                 empaque = int(cambio.get("unidades_por_empaque") or 1)
                 precio = cambio.get("precio")
                 unidades = unidades_a_comprar(int(linea.get("cantidad_pedida") or 0), empaque)
+                if linea.get("unidades_a_comprar") == 0:
+                    unidades = 0  # otra linea ya la cubre («Ya va en la linea 58»)
                 linea["producto_elegido"] = {
                     "sku": cambio.get("sku"),
                     "nombre": cambio.get("nombre"),
@@ -3287,6 +3344,8 @@ async def _lineas_aplicadas(
             empaque = int(swap.get("unidades_por_empaque") or 1)
             precio = swap.get("precio_desde")
             unidades = unidades_a_comprar(int(fila.cantidad_pedida or 0), empaque)
+            if fila.sku and fila.unidades_a_comprar == 0:
+                unidades = 0  # otra linea ya la cubre: no se cobra dos veces
             linea["producto_elegido"] = {
                 "sku": swap.get("sku"),
                 "nombre": swap.get("nombre"),

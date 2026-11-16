@@ -208,6 +208,62 @@ class TestFijarProductoPorNivel:
         assert cuaderno["subtotal_linea"] == 2 * 12000
         assert ahorrador["total"] == total_antes + 2 * (12000 - 4500)
 
+    async def test_fijar_en_todos_pone_el_producto_en_cada_kit_y_lo_vuelve_comprable(self, motor):
+        # El revisor resolvio un hueco («Diccionario Ingles – Ingles») y el
+        # producto solo quedaba en el kit abierto; el «Broche de 9V» que era
+        # informativo seguia diciendo «se compra por tu cuenta» con foto.
+        from sqlalchemy import update
+
+        catalogo = _catalogo()
+        trabajo_id, _ = await _crear_y_procesar(motor, catalogo)
+        kits = (await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"]
+        cuaderno = next(
+            linea for linea in kits[0]["lineas"] if linea["descripcion"].startswith("2 cuadernos")
+        )
+        item_id = uuid.UUID(cuaderno["item_id"])
+        async with motor.engine.begin() as conexion:
+            await conexion.execute(
+                update(trabajos.LINEA)
+                .where(trabajos.LINEA.c.item_crudo_id == item_id)
+                .values(informativa=True, sku=None, precio_unitario_cop=None, subtotal_cop=None)
+            )
+
+        respuesta = await trabajos.fijar_producto_en_todos_los_kits(
+            motor, trabajo_id, item_id, "TK-C001-PRE", catalogo=catalogo
+        )
+
+        assert len(respuesta["perfiles"]) == len(kits)
+        for kit in (await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"]:
+            linea = next(x for x in kit["lineas"] if x["item_id"] == str(item_id))
+            assert linea["producto_elegido"]["sku"] == "TK-C001-PRE", kit["perfil"]
+            assert linea["informativa"] is False
+            assert linea["subtotal_linea"] == 2 * 12000
+
+    async def test_cambiar_el_producto_de_una_linea_ya_cubierta_no_la_vuelve_a_cobrar(self, motor):
+        from sqlalchemy import update
+
+        catalogo = _catalogo()
+        trabajo_id, _ = await _crear_y_procesar(motor, catalogo)
+        kits = (await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"]
+        cuaderno = next(
+            linea for linea in kits[0]["lineas"] if linea["descripcion"].startswith("2 cuadernos")
+        )
+        item_id = uuid.UUID(cuaderno["item_id"])
+        async with motor.engine.begin() as conexion:
+            await conexion.execute(
+                update(trabajos.LINEA)
+                .where(trabajos.LINEA.c.item_crudo_id == item_id)
+                .values(unidades_a_comprar=0, subtotal_cop=0, mensaje="Ya va en la linea 1.")
+            )
+        await trabajos.fijar_producto_en_linea(
+            motor, trabajo_id, "Ahorrador", item_id, "TK-C001-PRE", catalogo=catalogo
+        )
+        kits = (await trabajos.ver(motor, trabajo_id, incluir_kits=True))["kits"]
+        ahorrador = next(k for k in kits if k["perfil"] == "Ahorrador")
+        linea = next(x for x in ahorrador["lineas"] if x["item_id"] == str(item_id))
+        assert linea["unidades_a_comprar"] == 0
+        assert linea["subtotal_linea"] == 0
+
     async def test_kit_o_item_inexistente_es_no_existe(self, motor):
         catalogo = _catalogo()
         trabajo_id, _ = await _crear_y_procesar(motor, catalogo)
