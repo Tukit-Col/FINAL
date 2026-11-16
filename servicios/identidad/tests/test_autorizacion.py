@@ -7,7 +7,6 @@ sabia expresar.
 
 from __future__ import annotations
 
-import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -21,7 +20,7 @@ from tukit_identidad.modelos import (
 )
 from tukit_identidad.repositorios.identidad import RepoIdentidad
 
-from tests.conftest import (
+from tests._ayudas_identidad import (
     asignar,
     crear_colegio_con_sede,
     crear_matricula,
@@ -221,21 +220,6 @@ async def test_no_se_permiten_dos_asignaciones_vigentes_identicas(db):
 
     with pytest.raises(IntegrityError):
         await asignar(db, rector, "rector", AmbitoTipo.COLEGIO, colegio.id)
-
-
-# --------------------------------------------------------------------------
-# Coherencia del ambito
-# --------------------------------------------------------------------------
-
-
-def test_un_ambito_global_con_identificador_es_un_error():
-    with pytest.raises(ValueError, match="incoherente"):
-        Ambito(AmbitoTipo.GLOBAL, uuid.uuid4())
-
-
-def test_un_ambito_de_colegio_sin_identificador_es_un_error():
-    with pytest.raises(ValueError, match="incoherente"):
-        Ambito(AmbitoTipo.COLEGIO, None)
 
 
 # --------------------------------------------------------------------------

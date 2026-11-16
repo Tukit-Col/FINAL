@@ -158,7 +158,7 @@ async def mis_pedidos(
         repo = _repo(await db.connection())
         filas = await repo.listar_de_usuario(usuario_id)
         pedidos = await repo.pedidos_completos(filas)
-        pedidos = [await _con_seguimiento(repo, p) for p in pedidos]
+        pedidos = [await _con_seguimiento(repo, p, _ahora(request)) for p in pedidos]
         # La misma `linea_de_tiempo` que `/mis-pedidos/{id}` (vistas sin actor,
         # nota ni celular): asi "Mis pedidos" pinta las fases sin pedir cada
         # pedido por separado.
@@ -170,9 +170,13 @@ async def mis_pedidos(
     return {"total": len(pedidos), "pedidos": pedidos}
 
 
-def _ahora() -> datetime:
-    """El reloj del retracto; las pruebas lo sustituyen."""
-    return datetime.now(UTC)
+def _ahora(request: Request) -> datetime:
+    """El reloj del retracto y de la linea de tiempo.
+
+    Sale de `app.state.reloj` si alguien lo colgo (las pruebas fijan ahi el
+    instante, como hacen con la pasarela o el catalogo); si no, el reloj real."""
+    reloj = getattr(request.app.state, "reloj", None)
+    return reloj() if reloj is not None else datetime.now(UTC)
 
 
 def _fecha(valor: Any) -> datetime | None:
@@ -182,7 +186,7 @@ def _fecha(valor: Any) -> datetime | None:
     return datetime.fromisoformat(str(valor))
 
 
-async def _con_seguimiento(repo: RepoPedidos, pedido: dict[str, Any]) -> dict[str, Any]:
+async def _con_seguimiento(repo: RepoPedidos, pedido: dict[str, Any], ahora: datetime) -> dict[str, Any]:
     """Un pedido del acudiente con su linea de tiempo y lo que puede hacer con el retracto.
 
     Del historial interno solo salen el estado y la hora (nunca el actor, la nota
@@ -202,7 +206,7 @@ async def _con_seguimiento(repo: RepoPedidos, pedido: dict[str, Any]) -> dict[st
         entregado_en=entregado_en,
     )
     estado = evaluar_retracto(
-        pedido["estado"], entregado_en, _ahora(), ya_solicitado=devolucion is not None
+        pedido["estado"], entregado_en, ahora, ya_solicitado=devolucion is not None
     )
     # El historial interno y el celular del repartidor no son del acudiente.
     envio_publico = {k: v for k, v in envio.items() if k != "repartidor_celular"} or None
@@ -892,7 +896,7 @@ async def vista_previa_del_acudiente(
         repo = _repo(await db.connection())
         fila = await _pedido_o_404(repo, pedido_id)
         pagos, historial, envio = await repo.vistas_para_linea_de_tiempo(fila.id)
-    ahora = _ahora()
+    ahora = _ahora(request)
     actual = linea_de_tiempo(
         estado=fila.estado, creado_en=fila.creado_en, pagos=pagos, historial=historial, envio=envio, ahora=ahora
     )
@@ -922,7 +926,7 @@ async def ver_mi_pedido(
     async with request.app.state.motor.sesion() as db:
         repo = _repo(await db.connection())
         fila = await _pedido_o_404(repo, pedido_id)
-        pedido = await _con_seguimiento(repo, await repo.pedido_completo(fila))
+        pedido = await _con_seguimiento(repo, await repo.pedido_completo(fila), _ahora(request))
         pagos, historial, envio = await repo.vistas_para_linea_de_tiempo(fila.id)
     # La linea de tiempo de `/pedidos/[id]` es la de `dominio.linea_de_tiempo`;
     # `seguimiento` y `retracto` (panel) viajan al lado.
@@ -990,7 +994,7 @@ async def retractar_mi_pedido(
         envio = (await repo.pedido_completo(pedido)).get("envio") or {}
         previa = await repo.devolucion_de(pedido_id)
         estado = evaluar_retracto(
-            pedido.estado, _fecha(envio.get("entregado_en")), _ahora(), ya_solicitado=previa is not None
+            pedido.estado, _fecha(envio.get("entregado_en")), _ahora(request), ya_solicitado=previa is not None
         )
         if not estado.puede:
             raise ErrorDominio(

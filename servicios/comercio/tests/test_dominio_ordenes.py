@@ -2,7 +2,7 @@
 
 Es la invariante más cara del §9 —no cobrar a un precio que cambió— y hasta
 ahora solo se podía probar levantando FastAPI + SQLite + un Catálogo falso
-(ver `test_checkout.py::test_reverificacion_*`). Extraída a `dominio/ordenes.py`
+(ver `test_checkout_orden.py::test_reverificacion_*`). Extraída a `dominio/ordenes.py`
 se prueba con una lista y nada más: sin red, sin base. Ese es el payoff de la
 ADR 0019.
 """

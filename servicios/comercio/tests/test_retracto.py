@@ -8,16 +8,11 @@ de los 5 dias habiles desde la entrega (409 vencido) y una sola vez.
 from __future__ import annotations
 
 import uuid
-from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime, timedelta
 
-import httpx
-import pytest
-import pytest_asyncio
-from conftest import TOKEN_ACUDIENTE, TOKEN_OTRO, IdentidadFalsa, bearer
+from _ayudas_comercio import ENVIO, PEDIDO, flujo_hasta_webhook, nueva_orden, pedido_pagado, total_de
+from conftest import TOKEN_ACUDIENTE, TOKEN_OTRO, bearer
 from sqlalchemy import update
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from test_checkout import CatalogoFalso, _orden
 from tukit_comercio.api import app
 from tukit_comercio.dominio.retracto import (
     evaluar_retracto,
@@ -26,13 +21,7 @@ from tukit_comercio.dominio.retracto import (
     sumar_dias_habiles,
     vence_retracto,
 )
-from tukit_comercio.modelos import Base, EstadoPago, EstadoPedido
-from tukit_comercio.pasarela import PasarelaFalsa
-from tukit_comercio.routers import comercio as router_comercio
-from tukit_comun.bd import MotorServicio
-
-PEDIDO = Base.metadata.tables["pedido"]
-ENVIO = Base.metadata.tables["envio"]
+from tukit_comercio.modelos import EstadoPago, EstadoPedido
 
 # ---------------------------------------------------------------- dominio
 
@@ -101,55 +90,12 @@ def test_la_linea_de_tiempo_no_filtra_al_equipo_interno():
 # ------------------------------------------------------------------- HTTP
 
 
-@pytest_asyncio.fixture
-async def cliente() -> AsyncIterator[httpx.AsyncClient]:
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-    async with engine.begin() as conexion:
-        await conexion.run_sync(Base.metadata.create_all)
-    fabrica = async_sessionmaker(engine, expire_on_commit=False)
-    app.state.motor = MotorServicio(servicio="prueba", engine=engine, _fabrica=fabrica)
-    app.state.pasarela = PasarelaFalsa()
-    app.state.catalogo = CatalogoFalso({"TK-C001-ECO": 4500})
-    app.state.identidad = IdentidadFalsa()
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
-        yield http
-    await engine.dispose()
-
-
-async def _pedido_pagado(cliente: httpx.AsyncClient) -> str:
-    orden = (await cliente.post("/v1/ordenes", json=_orden())).json()
-    pedido_id = orden["pedido_id"]
-    pago = (
-        await cliente.post(
-            f"/v1/ordenes/{pedido_id}/pago", json={"correo_cliente": "ana@ejemplo.com", "metodo": "pse"}
-        )
-    ).json()
-    evento = app.state.pasarela.emitir_evento(
-        referencia=pago["referencia_wompi"],
-        transaccion_id=pago["transaccion_wompi"],
-        estado_wompi="APPROVED",
-        monto_centavos=int(orden["total"]) * 100,
-    )
-    await cliente.post("/v1/webhooks/wompi", json=evento)
-    return pedido_id
-
-
 async def _entregar(pedido_id: str, entregado_en: datetime) -> None:
     async with app.state.motor.sesion() as db:
         conexion = await db.connection()
         pid = uuid.UUID(pedido_id)
         await conexion.execute(update(PEDIDO).where(PEDIDO.c.id == pid).values(estado="entregado"))
         await conexion.execute(update(ENVIO).where(ENVIO.c.pedido_id == pid).values(entregado_en=entregado_en))
-
-
-@pytest.fixture
-def reloj(monkeypatch):
-    """Fija el 'ahora' del retracto."""
-
-    def fijar(instante: datetime) -> None:
-        monkeypatch.setattr(router_comercio, "_ahora", lambda: instante)
-
-    return fijar
 
 
 def _retracto(cliente, pedido_id, token=TOKEN_ACUDIENTE, motivo="no lo necesito"):
@@ -159,7 +105,7 @@ def _retracto(cliente, pedido_id, token=TOKEN_ACUDIENTE, motivo="no lo necesito"
 
 
 async def test_retracto_dentro_del_plazo_registra_la_solicitud_y_se_puede_pedir_una_sola_vez(cliente, reloj):
-    pedido_id = await _pedido_pagado(cliente)
+    pedido_id = await pedido_pagado(cliente)
     entregado = datetime(2026, 3, 4, 15, 0, tzinfo=UTC)
     await _entregar(pedido_id, entregado)
     reloj(entregado + timedelta(days=3))
@@ -171,7 +117,7 @@ async def test_retracto_dentro_del_plazo_registra_la_solicitud_y_se_puede_pedir_
     respuesta = await _retracto(cliente, pedido_id)
     assert respuesta.status_code == 201
     cuerpo = respuesta.json()
-    assert cuerpo["devolucion_id"] and cuerpo["monto"] == 9000
+    assert cuerpo["devolucion_id"] and cuerpo["monto"] == total_de(nueva_orden())
     # Ya entregado: la maquina de estados no cancela; queda la solicitud para el equipo.
     assert cuerpo["cancelado"] is False
 
@@ -186,7 +132,7 @@ async def test_retracto_dentro_del_plazo_registra_la_solicitud_y_se_puede_pedir_
 
 
 async def test_retracto_con_el_plazo_vencido_es_409(cliente, reloj):
-    pedido_id = await _pedido_pagado(cliente)
+    pedido_id = await pedido_pagado(cliente)
     entregado = datetime(2026, 3, 4, 15, 0, tzinfo=UTC)
     await _entregar(pedido_id, entregado)
     reloj(entregado + timedelta(days=10))
@@ -199,7 +145,7 @@ async def test_retracto_con_el_plazo_vencido_es_409(cliente, reloj):
 
 
 async def test_retracto_de_un_pedido_ajeno_es_403_y_no_toca_nada(cliente, reloj):
-    pedido_id = await _pedido_pagado(cliente)
+    pedido_id = await pedido_pagado(cliente)
     reloj(datetime(2026, 3, 5, tzinfo=UTC))
 
     respuesta = await _retracto(cliente, pedido_id, token=TOKEN_OTRO)
@@ -212,7 +158,7 @@ async def test_retracto_de_un_pedido_ajeno_es_403_y_no_toca_nada(cliente, reloj)
 
 
 async def test_retracto_sin_sesion_es_401_y_de_un_pedido_inexistente_404(cliente):
-    pedido_id = await _pedido_pagado(cliente)
+    pedido_id = await pedido_pagado(cliente)
     sin = await cliente.post(f"/v1/comercio/mis-pedidos/{pedido_id}/retracto", json={})
     assert sin.status_code == 401
     inexistente = await _retracto(cliente, uuid.uuid4())
@@ -220,7 +166,7 @@ async def test_retracto_sin_sesion_es_401_y_de_un_pedido_inexistente_404(cliente
 
 
 async def test_retracto_antes_de_la_entrega_cancela_y_marca_el_reembolso(cliente, reloj):
-    pedido_id = await _pedido_pagado(cliente)
+    pedido_id = await pedido_pagado(cliente)
     reloj(datetime(2026, 3, 5, tzinfo=UTC))
 
     respuesta = await _retracto(cliente, pedido_id)
@@ -232,8 +178,25 @@ async def test_retracto_antes_de_la_entrega_cancela_y_marca_el_reembolso(cliente
     assert ficha["pago"]["estado"] == EstadoPago.REEMBOLSADO.value
 
 
+async def test_el_retracto_por_la_ruta_interna_cancela_y_marca_reembolso(cliente):
+    pedido_id, evento = await flujo_hasta_webhook(cliente, "APPROVED")
+    await cliente.post("/v1/webhooks/wompi", json=evento)
+    respuesta = await cliente.post(f"/v1/ordenes/{pedido_id}/retracto", json={"motivo": "no lo quiero"})
+    assert respuesta.status_code == 201
+    cuerpo = respuesta.json()
+    assert cuerpo["devolucion_id"]
+    # `pagado -> cancelado` es una transicion valida (ADR/tabla), asi que el
+    # retracto cancela el pedido y marca el pago para reembolso.
+    assert cuerpo["cancelado"] is True
+    assert cuerpo["estado"] == EstadoPedido.CANCELADO.value
+
+    pedido = (await cliente.get(f"/v1/ordenes/{pedido_id}")).json()
+    assert pedido["estado"] == EstadoPedido.CANCELADO.value
+    assert pedido["pago"]["estado"] == EstadoPago.REEMBOLSADO.value
+
+
 async def test_pedido_sin_pagar_no_admite_retracto(cliente, reloj):
-    orden = (await cliente.post("/v1/ordenes", json=_orden())).json()
+    orden = (await cliente.post("/v1/ordenes", json=nueva_orden())).json()
     reloj(datetime(2026, 3, 5, tzinfo=UTC))
     respuesta = await _retracto(cliente, orden["pedido_id"])
     assert respuesta.status_code == 409
@@ -241,7 +204,7 @@ async def test_pedido_sin_pagar_no_admite_retracto(cliente, reloj):
 
 
 async def test_mis_pedidos_trae_linea_de_tiempo_sin_datos_internos(cliente):
-    await _pedido_pagado(cliente)
+    await pedido_pagado(cliente)
     cuerpo = (await cliente.get("/v1/comercio/mis-pedidos", headers=bearer(TOKEN_ACUDIENTE))).json()
     pedido = cuerpo["pedidos"][0]
     # El panel lee `seguimiento`; `linea_de_tiempo` es la de /pedidos/[id] (oe5).

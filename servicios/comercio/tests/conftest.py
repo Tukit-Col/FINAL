@@ -8,16 +8,22 @@ vez), asi que el mismo esquema corre aqui y en Postgres.
 from __future__ import annotations
 
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
+from datetime import datetime
 from typing import Any
 
+import httpx
+import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from tukit_comercio.api import app
 from tukit_comercio.modelos import Base, LineaPedido, Pedido
+from tukit_comercio.pasarela import PasarelaFalsa
 from tukit_comercio.remoto import IdentidadCaida
+from tukit_comun.bd import MotorServicio
 
 # Usuarios y tokens fijos de las pruebas HTTP. El acudiente es el mismo
-# `USUARIO` de las ordenes de `test_checkout`, para que sus pedidos sean "suyos".
+# `USUARIO` de las ordenes de `_ayudas_comercio`, para que sus pedidos sean "suyos".
 ACUDIENTE = "22222222-2222-5222-8222-222222222222"
 OTRO_ACUDIENTE = "33333333-3333-5333-8333-333333333333"
 OPERADOR = "44444444-4444-5444-8444-444444444444"
@@ -99,3 +105,39 @@ async def agregar_linea(db: AsyncSession, pedido: Pedido, precio: int, cantidad:
     db.add(linea)
     await db.flush()
     return linea
+
+
+@pytest_asyncio.fixture
+async def cliente() -> AsyncIterator[httpx.AsyncClient]:
+    """La app de Comercio por `ASGITransport`, sin uvicorn ni red.
+
+    El motor (SQLite en memoria), la pasarela falsa, el Catalogo falso y el doble
+    de Identidad se cuelgan a mano de `app.state`; el reloj queda el real hasta
+    que una prueba lo fije con la fixture `reloj`.
+    """
+    from _ayudas_comercio import PRECIO, SKU, CatalogoFalso
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conexion:
+        await conexion.run_sync(Base.metadata.create_all)
+    fabrica = async_sessionmaker(engine, expire_on_commit=False)
+    app.state.motor = MotorServicio(servicio="prueba", engine=engine, _fabrica=fabrica)
+    app.state.pasarela = PasarelaFalsa()
+    app.state.catalogo = CatalogoFalso({SKU: PRECIO})
+    app.state.identidad = IdentidadFalsa()
+    app.state.reloj = None
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
+        yield http
+    app.state.reloj = None
+    await engine.dispose()
+
+
+@pytest.fixture
+def reloj() -> Callable[[datetime], None]:
+    """Fija el "ahora" de Comercio (retracto y linea de tiempo) por `app.state.reloj`."""
+
+    def fijar(instante: datetime) -> None:
+        app.state.reloj = lambda: instante
+
+    yield fijar
+    app.state.reloj = None

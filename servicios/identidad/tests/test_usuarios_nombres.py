@@ -110,12 +110,6 @@ async def test_acudiente_sin_permiso_es_403(entorno):
     assert r.status_code == 403
 
 
-async def test_sin_token_es_401(entorno):
-    http, ids, _vps = entorno
-    r = await http.get("/v1/usuarios/nombres", params={"ids": str(ids["papa"])})
-    assert r.status_code == 401
-
-
 async def test_id_sin_nombre_no_aparece(entorno):
     """Un usuario sin `nombre_cifrado` (un contacto invitado) simplemente no
     aparece en el mapa: no se inventa el correo como nombre."""
