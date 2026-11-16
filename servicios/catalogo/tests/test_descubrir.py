@@ -463,3 +463,22 @@ class TestElEncabezadoDeGrupoNoEsLaCosaPedida:
     def test_un_titulo_con_su_autor_no_es_un_encabezado(self):
         renglon = "La casa sonámbula. Autor: Arcamis Quintero. Ed Enlace."
         assert _sin_encabezado_de_grupo(_plano(renglon), self.CONCEPTOS) == _plano(renglon)
+
+    @pytest.mark.parametrize(
+        "renglon",
+        [
+            "Texto: Cuaderno de actividades Castellano 1.",
+            "Textos: Educación Artística.",
+            "Novela: El gigante egoísta. (Óscar Wilde)",
+            "Lecto Escritura: Cuadernillo ALFA Y BETA programa letras edición Golden.",
+            "Editorial: Actualidad. Serie Eficaz.",
+        ],
+    )
+    def test_la_clase_de_libro_antes_de_los_dos_puntos_se_conserva(self, renglon):
+        assert _sin_encabezado_de_grupo(_plano(renglon), self.CONCEPTOS) == _plano(renglon)
+
+    def test_una_editorial_suelta_si_es_un_encabezado(self):
+        assert (
+            _sin_encabezado_de_grupo(_plano("Editorial: McGraw Hill."), self.CONCEPTOS).strip()
+            == "mcgraw hill."
+        )
