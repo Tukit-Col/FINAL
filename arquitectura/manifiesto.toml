@@ -36,7 +36,9 @@ version = "3"
 # 74: `inteligencia.evento_procesado`, los eventos que el sondeador de listas ya
 # proceso, por origen e id. Con RabbitMQ la entrega es al menos una vez, y un
 # `lista_verificada` repetido armaba otro kit (ADR 0046).
-total_tablas_esperado = 74
+# 75-76: `catalogo.correccion_lista` (correcciones del revisor sobre una lista) e
+# `inteligencia.apodo_subida` (apodo de la subida diferida).
+total_tablas_esperado = 76
 
 # Tablas que existen a proposito en varias bases. Son la excepcion declarada,
 # no un descuido: cada servicio necesita su propia bandeja de salida local para
@@ -94,6 +96,7 @@ tablas = [
     "corrida_scraper",
     "lista_oficial",
     "version_lista_oficial",
+    "correccion_lista",
     "item_lista_oficial",
     "tarea_importacion",
     "edicion_libro",
@@ -140,6 +143,7 @@ tablas = [
     "kit_canonico",
     "importacion_lista",
     "evento_procesado",
+    "apodo_subida",
 ]
 
 [servicios.comercio]
