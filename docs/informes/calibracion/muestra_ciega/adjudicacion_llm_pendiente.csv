@@ -1,0 +1,12 @@
+id,texto_original,concepto_A,concepto_B,adjudicado
+M020,block papel iris.,C003,C113,
+M064,Shield de conexiones para esp32 de 30 pines,NINGUNO,C142,
+M110,creyones de madera (no de cera),C004,C053,
+M158,Sketch book tamaño carta,C112,C003,
+M171,Modulo microcontrolador ESP32 de 30 pines con conector usb tipo C,NINGUNO,C142,
+M181,Modulo buzzer pasivo,NINGUNO,C142,
+M186,Plataforma de Inglés-Editorial Houghton Mifflin Harcourt (HMH),C133,NINGUNO,
+M211,Pantalla OLED 128 x 64,NINGUNO,C142,
+M219,Guía de Matemática 6° Grado.,C134,C044,
+M229,Block cartulina iris tamaño carta,C003,C113,
+M239,Una almohada pequeña con su respectiva funda dentro de una bolsa plástica tipo ziploc,NINGUNO,C077,

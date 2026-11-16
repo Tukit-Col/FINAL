@@ -1,0 +1,7488 @@
+{
+ "descripcion": "Robustez del clasificador de produccion (consulta.emparejar) sobre renglones_etiquetados_v2.csv; 11 perturbaciones x leve/fuerte; 20 particiones por lista (solo prueba); sin calibrar nada.",
+ "tau": 0.75,
+ "tipos": [
+  "tipeo",
+  "tildes",
+  "mayusculas",
+  "plural",
+  "abreviaturas",
+  "orden",
+  "prefijo",
+  "sufijo",
+  "ocr",
+  "espacios",
+  "marca"
+ ],
+ "renglones": 3037,
+ "listas": 80,
+ "textos_unicos": 1542,
+ "definiciones": {
+  "aceptada": "estado RESUELTO_AUTO (concepto reconocido, con opciones en catalogo, parecido >= tau)",
+  "aceptada_por_puntaje": "concepto reconocido y parecido >= tau (sin exigir producto; comparable con robustez.json)",
+  "revision_humana": "1 - aceptada",
+  "errores_que_van_a_revision": "fraccion de los errores de concepto que NO se aceptan solos",
+  "destino_de_errores": "por estado final, fraccion de los errores"
+ },
+ "limpio": {
+  "hibrido|limpiador": {
+   "exactitud": {
+    "media": 0.9481751753818047,
+    "sd": 0.009773146495482126,
+    "n": 20
+   },
+   "aceptada": {
+    "media": 0.7507831607584567,
+    "sd": 0.02626098839546687,
+    "n": 20
+   },
+   "precision_aceptada": {
+    "media": 0.9810848391476161,
+    "sd": 0.007424080093855188,
+    "n": 20
+   },
+   "revision_humana": {
+    "media": 0.24921683924154317,
+    "sd": 0.02626098839546687,
+    "n": 20
+   },
+   "aceptada_mal": {
+    "media": 0.014261039361397757,
+    "sd": 0.005729673024803702,
+    "n": 20
+   },
+   "errores_que_van_a_revision": {
+    "media": 0.7160411282636315,
+    "sd": 0.12739674864031675,
+    "n": 20
+   },
+   "aceptada_por_puntaje": {
+    "media": 0.8630978697251364,
+    "sd": 0.02639913482580267,
+    "n": 20
+   },
+   "precision_por_puntaje": {
+    "media": 0.9763340988062179,
+    "sd": 0.007366972127777832,
+    "n": 20
+   },
+   "destino_de_errores": {
+    "sin_match": 0.0,
+    "HUECO_CATALOGO": 0.1565947236236016,
+    "AMBIGUO": 0.1137374766935015,
+    "ACEPTADO_MAL": 0.2839588717363684,
+    "RESUELTO_AUTO": 0.0
+   }
+  },
+  "lexico|limpiador": {
+   "exactitud": {
+    "media": 0.9471218455814577,
+    "sd": 0.00935849222995369,
+    "n": 20
+   },
+   "aceptada": {
+    "media": 0.6080181437484083,
+    "sd": 0.03698664652428988,
+    "n": 20
+   },
+   "precision_aceptada": {
+    "media": 0.9936770889297699,
+    "sd": 0.0071296548007589765,
+    "n": 20
+   },
+   "revision_humana": {
+    "media": 0.39198185625159165,
+    "sd": 0.03698664652428988,
+    "n": 20
+   },
+   "aceptada_mal": {
+    "media": 0.003842279657537224,
+    "sd": 0.004279163015281699,
+    "n": 20
+   },
+   "errores_que_van_a_revision": {
+    "media": 0.9236866676330076,
+    "sd": 0.0804878548353413,
+    "n": 20
+   },
+   "aceptada_por_puntaje": {
+    "media": 0.7218998495932326,
+    "sd": 0.0405791237595244,
+    "n": 20
+   },
+   "precision_por_puntaje": {
+    "media": 0.9781613752108853,
+    "sd": 0.008052278497066181,
+    "n": 20
+   },
+   "destino_de_errores": {
+    "sin_match": 0.0,
+    "HUECO_CATALOGO": 0.3880806791504622,
+    "AMBIGUO": 0.09737355095935016,
+    "ACEPTADO_MAL": 0.07631333236699248,
+    "RESUELTO_AUTO": 0.0
+   }
+  },
+  "hibrido|sin_limpiador": {
+   "exactitud": {
+    "media": 0.9481751753818047,
+    "sd": 0.009773146495482126,
+    "n": 20
+   },
+   "aceptada": {
+    "media": 0.7503937855851943,
+    "sd": 0.025814791296292283,
+    "n": 20
+   },
+   "precision_aceptada": {
+    "media": 0.9810720935880409,
+    "sd": 0.007436944723253137,
+    "n": 20
+   },
+   "revision_humana": {
+    "media": 0.24960621441480574,
+    "sd": 0.025814791296292283,
+    "n": 20
+   },
+   "aceptada_mal": {
+    "media": 0.014261039361397757,
+    "sd": 0.005729673024803702,
+    "n": 20
+   },
+   "errores_que_van_a_revision": {
+    "media": 0.7160411282636315,
+    "sd": 0.12739674864031675,
+    "n": 20
+   },
+   "aceptada_por_puntaje": {
+    "media": 0.8627084945518737,
+    "sd": 0.025949233752915826,
+    "n": 20
+   },
+   "precision_por_puntaje": {
+    "media": 0.9763223119872562,
+    "sd": 0.007373114914176093,
+    "n": 20
+   },
+   "destino_de_errores": {
+    "sin_match": 0.0,
+    "HUECO_CATALOGO": 0.1565947236236016,
+    "AMBIGUO": 0.1137374766935015,
+    "ACEPTADO_MAL": 0.2839588717363684,
+    "RESUELTO_AUTO": 0.0
+   }
+  },
+  "lexico|sin_limpiador": {
+   "exactitud": {
+    "media": 0.9471218455814577,
+    "sd": 0.00935849222995369,
+    "n": 20
+   },
+   "aceptada": {
+    "media": 0.6076287685751458,
+    "sd": 0.036739275157597825,
+    "n": 20
+   },
+   "precision_aceptada": {
+    "media": 0.9936715453018843,
+    "sd": 0.0071327536659043225,
+    "n": 20
+   },
+   "revision_humana": {
+    "media": 0.39237123142485425,
+    "sd": 0.03673927515759782,
+    "n": 20
+   },
+   "aceptada_mal": {
+    "media": 0.003842279657537224,
+    "sd": 0.004279163015281699,
+    "n": 20
+   },
+   "errores_que_van_a_revision": {
+    "media": 0.9236866676330076,
+    "sd": 0.0804878548353413,
+    "n": 20
+   },
+   "aceptada_por_puntaje": {
+    "media": 0.7211210992467076,
+    "sd": 0.04006714863986679,
+    "n": 20
+   },
+   "precision_por_puntaje": {
+    "media": 0.9786598264008065,
+    "sd": 0.007994487850264421,
+    "n": 20
+   },
+   "destino_de_errores": {
+    "sin_match": 0.0,
+    "HUECO_CATALOGO": 0.3880806791504622,
+    "AMBIGUO": 0.09737355095935016,
+    "ACEPTADO_MAL": 0.07631333236699248,
+    "RESUELTO_AUTO": 0.0
+   }
+  }
+ },
+ "estres": {
+  "tipeo|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.8035947705717831,
+     "sd": 0.020869478867570602,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.6096851220256427,
+     "sd": 0.03134891557589728,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9600178480135739,
+     "sd": 0.009287223083625841,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.3903148779743573,
+     "sd": 0.03134891557589728,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.024479602383756235,
+     "sd": 0.0062039328867661845,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.8739928228281361,
+     "sd": 0.035147157578748485,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.6951324709664639,
+     "sd": 0.02653924331384014,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9616875126131491,
+     "sd": 0.008206792536471212,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.023062420638557096,
+     "AMBIGUO": 0.04401858271115355,
+     "ACEPTADO_MAL": 0.126007177171864,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.7936946534194113,
+     "sd": 0.02380788731655569,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.4199338137193031,
+     "sd": 0.03319344042139014,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9754667817037914,
+     "sd": 0.006752904035537936,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.5800661862806968,
+     "sd": 0.03319344042139013,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.010303941686550048,
+     "sd": 0.002940140920129427,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9489345844384427,
+     "sd": 0.018946629329325695,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.5064742370876057,
+     "sd": 0.031774920642022884,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9622203089798473,
+     "sd": 0.00804418073216912,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.08764483700096674,
+     "AMBIGUO": 0.08992512930723898,
+     "ACEPTADO_MAL": 0.051065415561557234,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.8042933178490183,
+     "sd": 0.020679899248476512,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.6098946275845318,
+     "sd": 0.030577969161002805,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.961612289399764,
+     "sd": 0.009221095984595114,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.39010537241546833,
+     "sd": 0.030577969161002805,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.023526381049426226,
+     "sd": 0.006190554834980024,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.8783885449959625,
+     "sd": 0.035561509795286,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.6953419765253529,
+     "sd": 0.025601210913335646,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9630707637594498,
+     "sd": 0.007799505709053734,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.023193897835092105,
+     "AMBIGUO": 0.04307349469158174,
+     "ACEPTADO_MAL": 0.12161145500403758,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.7949920814287978,
+     "sd": 0.023466378446455972,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.4195444385460406,
+     "sd": 0.03292061421166646,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9754466936963165,
+     "sd": 0.006748585479365936,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.5804555614539595,
+     "sd": 0.03292061421166646,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.010303941686550048,
+     "sd": 0.002940140920129427,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9486553213945857,
+     "sd": 0.01889531569825809,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.5056954867410807,
+     "sd": 0.031053254305116285,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9628977735551633,
+     "sd": 0.008162623716592581,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.08826936151090652,
+     "AMBIGUO": 0.08478527128801158,
+     "ACEPTADO_MAL": 0.051344678605414085,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "tipeo|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.6826618220384848,
+     "sd": 0.02870825197058167,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.4824115566714062,
+     "sd": 0.024816881226321346,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9586241729546483,
+     "sd": 0.009581310981619013,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.5175884433285937,
+     "sd": 0.024816881226321346,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.020053452947219448,
+     "sd": 0.0050848519375985375,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.936546626216025,
+     "sd": 0.016616114605616943,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.5386638142997549,
+     "sd": 0.022952959737885446,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9571326232825264,
+     "sd": 0.009557691677301371,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.016220263552959694,
+     "AMBIGUO": 0.01697194289025484,
+     "ACEPTADO_MAL": 0.06345337378397507,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.6733508535561343,
+     "sd": 0.028456226572530927,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.2716068520549783,
+     "sd": 0.024266370951871206,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9760316176433518,
+     "sd": 0.01241830386541634,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.7283931479450216,
+     "sd": 0.024266370951871202,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.006606241019010281,
+     "sd": 0.0037462772401251772,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9794682252629154,
+     "sd": 0.012584691420078665,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.3236623884809876,
+     "sd": 0.025861068124921862,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9673203785230188,
+     "sd": 0.011962544640963508,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.047892409896995385,
+     "AMBIGUO": 0.05418174417567353,
+     "ACEPTADO_MAL": 0.02053177473708457,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.6845419982873044,
+     "sd": 0.029520161523858907,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.48191970380679316,
+     "sd": 0.024473108823049216,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9609704339578853,
+     "sd": 0.00987836434898186,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.5180802961932068,
+     "sd": 0.024473108823049212,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.01889758051771118,
+     "sd": 0.005194432911473312,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9398677049456093,
+     "sd": 0.017007076898187198,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.5381719614351418,
+     "sd": 0.022241289915639277,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9592082323052769,
+     "sd": 0.009557920301541753,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.016345025378891036,
+     "AMBIGUO": 0.014237142837526265,
+     "ACEPTADO_MAL": 0.06013229505439087,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.676148022656472,
+     "sd": 0.0289686560705014,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.2710148257865375,
+     "sd": 0.023933223592824134,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9766567730468205,
+     "sd": 0.012027683002576747,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.7289851742134624,
+     "sd": 0.023933223592824137,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.006403589923832022,
+     "sd": 0.0035942850392771783,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9798827560438033,
+     "sd": 0.012360422383413363,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.32307036221254676,
+     "sd": 0.02548785755375196,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9678472690622634,
+     "sd": 0.011843519453438815,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.04561066844535307,
+     "AMBIGUO": 0.048814650380757316,
+     "ACEPTADO_MAL": 0.0201172439561967,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "tildes|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.9481751753818047,
+     "sd": 0.009773146495482126,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7507831607584567,
+     "sd": 0.02626098839546687,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9810848391476161,
+     "sd": 0.007424080093855188,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.24921683924154317,
+     "sd": 0.02626098839546687,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.014261039361397757,
+     "sd": 0.005729673024803702,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.7160411282636315,
+     "sd": 0.12739674864031675,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8642537421546445,
+     "sd": 0.02656107467445095,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9763667764127018,
+     "sd": 0.007357921446199227,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.1565947236236016,
+     "AMBIGUO": 0.1137374766935015,
+     "ACEPTADO_MAL": 0.2839588717363684,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.9471218455814577,
+     "sd": 0.00935849222995369,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.6080181437484083,
+     "sd": 0.03698664652428988,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9936770889297699,
+     "sd": 0.0071296548007589765,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.39198185625159165,
+     "sd": 0.03698664652428988,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.003842279657537224,
+     "sd": 0.004279163015281699,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9236866676330076,
+     "sd": 0.0804878548353413,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.7218998495932326,
+     "sd": 0.0405791237595244,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9781613752108853,
+     "sd": 0.008052278497066181,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.3880806791504622,
+     "AMBIGUO": 0.09737355095935016,
+     "ACEPTADO_MAL": 0.07631333236699248,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9481751753818047,
+     "sd": 0.009773146495482126,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7503937855851943,
+     "sd": 0.025814791296292283,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9810720935880409,
+     "sd": 0.007436944723253137,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.24960621441480574,
+     "sd": 0.025814791296292283,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.014261039361397757,
+     "sd": 0.005729673024803702,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.7160411282636315,
+     "sd": 0.12739674864031675,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8638643669813819,
+     "sd": 0.026109538629072893,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9763550277111357,
+     "sd": 0.007364025777818757,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.1565947236236016,
+     "AMBIGUO": 0.1137374766935015,
+     "ACEPTADO_MAL": 0.2839588717363684,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9471218455814577,
+     "sd": 0.00935849222995369,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.6076287685751458,
+     "sd": 0.036739275157597825,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9936715453018843,
+     "sd": 0.0071327536659043225,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.39237123142485425,
+     "sd": 0.03673927515759782,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.003842279657537224,
+     "sd": 0.004279163015281699,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9236866676330076,
+     "sd": 0.0804878548353413,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.7211210992467076,
+     "sd": 0.04006714863986679,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9786598264008065,
+     "sd": 0.007994487850264421,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.3880806791504622,
+     "AMBIGUO": 0.09737355095935016,
+     "ACEPTADO_MAL": 0.07631333236699248,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "tildes|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.9481751753818047,
+     "sd": 0.009773146495482126,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7507831607584567,
+     "sd": 0.02626098839546687,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9810848391476161,
+     "sd": 0.007424080093855188,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.24921683924154317,
+     "sd": 0.02626098839546687,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.014261039361397757,
+     "sd": 0.005729673024803702,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.7160411282636315,
+     "sd": 0.12739674864031675,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8630978697251364,
+     "sd": 0.02639913482580267,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9763340988062179,
+     "sd": 0.007366972127777832,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.1565947236236016,
+     "AMBIGUO": 0.1137374766935015,
+     "ACEPTADO_MAL": 0.2839588717363684,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.9471218455814577,
+     "sd": 0.00935849222995369,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.6080181437484083,
+     "sd": 0.03698664652428988,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9936770889297699,
+     "sd": 0.0071296548007589765,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.39198185625159165,
+     "sd": 0.03698664652428988,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.003842279657537224,
+     "sd": 0.004279163015281699,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9236866676330076,
+     "sd": 0.0804878548353413,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.7218998495932326,
+     "sd": 0.0405791237595244,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9781613752108853,
+     "sd": 0.008052278497066181,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.3880806791504622,
+     "AMBIGUO": 0.09737355095935016,
+     "ACEPTADO_MAL": 0.07631333236699248,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9481751753818047,
+     "sd": 0.009773146495482126,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7503937855851943,
+     "sd": 0.025814791296292283,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9810720935880409,
+     "sd": 0.007436944723253137,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.24960621441480574,
+     "sd": 0.025814791296292283,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.014261039361397757,
+     "sd": 0.005729673024803702,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.7160411282636315,
+     "sd": 0.12739674864031675,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8627084945518737,
+     "sd": 0.025949233752915826,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9763223119872562,
+     "sd": 0.007373114914176093,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.1565947236236016,
+     "AMBIGUO": 0.1137374766935015,
+     "ACEPTADO_MAL": 0.2839588717363684,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9471218455814577,
+     "sd": 0.00935849222995369,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.6076287685751458,
+     "sd": 0.036739275157597825,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9936715453018843,
+     "sd": 0.0071327536659043225,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.39237123142485425,
+     "sd": 0.03673927515759782,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.003842279657537224,
+     "sd": 0.004279163015281699,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9236866676330076,
+     "sd": 0.0804878548353413,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.7211210992467076,
+     "sd": 0.04006714863986679,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9786598264008065,
+     "sd": 0.007994487850264421,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.3880806791504622,
+     "AMBIGUO": 0.09737355095935016,
+     "ACEPTADO_MAL": 0.07631333236699248,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "mayusculas|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.9481751753818047,
+     "sd": 0.009773146495482126,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7507831607584567,
+     "sd": 0.02626098839546687,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9810848391476161,
+     "sd": 0.007424080093855188,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.24921683924154317,
+     "sd": 0.02626098839546687,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.014261039361397757,
+     "sd": 0.005729673024803702,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.7160411282636315,
+     "sd": 0.12739674864031675,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8630978697251364,
+     "sd": 0.02639913482580267,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9763340988062179,
+     "sd": 0.007366972127777832,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.1565947236236016,
+     "AMBIGUO": 0.1137374766935015,
+     "ACEPTADO_MAL": 0.2839588717363684,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.9471218455814577,
+     "sd": 0.00935849222995369,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.6080181437484083,
+     "sd": 0.03698664652428988,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9936770889297699,
+     "sd": 0.0071296548007589765,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.39198185625159165,
+     "sd": 0.03698664652428988,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.003842279657537224,
+     "sd": 0.004279163015281699,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9236866676330076,
+     "sd": 0.0804878548353413,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.7218998495932326,
+     "sd": 0.0405791237595244,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9781613752108853,
+     "sd": 0.008052278497066181,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.3880806791504622,
+     "AMBIGUO": 0.09737355095935016,
+     "ACEPTADO_MAL": 0.07631333236699248,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9481751753818047,
+     "sd": 0.009773146495482126,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7503937855851943,
+     "sd": 0.025814791296292283,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9810720935880409,
+     "sd": 0.007436944723253137,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.24960621441480574,
+     "sd": 0.025814791296292283,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.014261039361397757,
+     "sd": 0.005729673024803702,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.7160411282636315,
+     "sd": 0.12739674864031675,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8627084945518737,
+     "sd": 0.025949233752915826,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9763223119872562,
+     "sd": 0.007373114914176093,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.1565947236236016,
+     "AMBIGUO": 0.1137374766935015,
+     "ACEPTADO_MAL": 0.2839588717363684,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9471218455814577,
+     "sd": 0.00935849222995369,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.6076287685751458,
+     "sd": 0.036739275157597825,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9936715453018843,
+     "sd": 0.0071327536659043225,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.39237123142485425,
+     "sd": 0.03673927515759782,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.003842279657537224,
+     "sd": 0.004279163015281699,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9236866676330076,
+     "sd": 0.0804878548353413,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.7211210992467076,
+     "sd": 0.04006714863986679,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9786598264008065,
+     "sd": 0.007994487850264421,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.3880806791504622,
+     "AMBIGUO": 0.09737355095935016,
+     "ACEPTADO_MAL": 0.07631333236699248,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "mayusculas|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.9495007670688995,
+     "sd": 0.009611395805149943,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7517717793395091,
+     "sd": 0.026174991201982016,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9815655973437172,
+     "sd": 0.008361030644921988,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.24822822066049083,
+     "sd": 0.02617499120198202,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.013924066255355274,
+     "sd": 0.006419485150523751,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.7131737374252731,
+     "sd": 0.14704616797840797,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8644031253500424,
+     "sd": 0.026079384568177117,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9763912320849453,
+     "sd": 0.008181130503872043,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.16126932325041063,
+     "AMBIGUO": 0.09474766952666325,
+     "ACEPTADO_MAL": 0.28682626257472704,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.9471218455814577,
+     "sd": 0.00935849222995369,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.6080181437484083,
+     "sd": 0.03698664652428988,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9936770889297699,
+     "sd": 0.0071296548007589765,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.39198185625159165,
+     "sd": 0.03698664652428988,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.003842279657537224,
+     "sd": 0.004279163015281699,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9236866676330076,
+     "sd": 0.0804878548353413,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.7218998495932326,
+     "sd": 0.0405791237595244,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9781613752108853,
+     "sd": 0.008052278497066181,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.3880806791504622,
+     "AMBIGUO": 0.09737355095935016,
+     "ACEPTADO_MAL": 0.07631333236699248,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9495007670688995,
+     "sd": 0.009611395805149943,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7513824041662466,
+     "sd": 0.025725191839579994,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9815527293206259,
+     "sd": 0.008374587256604388,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.24861759583375345,
+     "sd": 0.02572519183957999,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.013924066255355274,
+     "sd": 0.006419485150523751,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.7131737374252731,
+     "sd": 0.14704616797840797,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8640137501767798,
+     "sd": 0.02560887832743192,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9763788184264575,
+     "sd": 0.008190061262494526,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.16126932325041063,
+     "AMBIGUO": 0.09474766952666325,
+     "ACEPTADO_MAL": 0.28682626257472704,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9471218455814577,
+     "sd": 0.00935849222995369,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.6076287685751458,
+     "sd": 0.036739275157597825,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9936715453018843,
+     "sd": 0.0071327536659043225,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.39237123142485425,
+     "sd": 0.03673927515759782,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.003842279657537224,
+     "sd": 0.004279163015281699,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9236866676330076,
+     "sd": 0.0804878548353413,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.7211210992467076,
+     "sd": 0.04006714863986679,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9786598264008065,
+     "sd": 0.007994487850264421,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.3880806791504622,
+     "AMBIGUO": 0.09737355095935016,
+     "ACEPTADO_MAL": 0.07631333236699248,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "plural|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.9413970978956734,
+     "sd": 0.009873576637233891,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7500943588430488,
+     "sd": 0.026361708924627792,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9755230382632811,
+     "sd": 0.007176583671511219,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.2499056411569512,
+     "sd": 0.026361708924627796,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.018407361046010554,
+     "sd": 0.005564612147730319,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.6815121585867858,
+     "sd": 0.101906051802916,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8467324073712854,
+     "sd": 0.027125420696303124,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9719454874059059,
+     "sd": 0.008085936655565687,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.1236510447149974,
+     "AMBIGUO": 0.14394983869947112,
+     "ACEPTADO_MAL": 0.31848784141321423,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.9433968680561866,
+     "sd": 0.008620107100240061,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.590898804965422,
+     "sd": 0.03717552974327831,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9908185031987221,
+     "sd": 0.007371879407724128,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.40910119503457815,
+     "sd": 0.03717552974327831,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.00542922094891735,
+     "sd": 0.004274922525693846,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.8997231156944574,
+     "sd": 0.08061249125497585,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.6851030168046882,
+     "sd": 0.040304505019047844,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9776992548954002,
+     "sd": 0.008321816767137204,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.3188325677491658,
+     "AMBIGUO": 0.1503228412865665,
+     "ACEPTADO_MAL": 0.10027688430554267,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9413970978956734,
+     "sd": 0.009873576637233891,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7497049836697862,
+     "sd": 0.02596900028883934,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9755080686351961,
+     "sd": 0.007189255870842379,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.2502950163302137,
+     "sd": 0.025969000288839344,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.018407361046010554,
+     "sd": 0.005564612147730319,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.6815121585867858,
+     "sd": 0.101906051802916,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8463430321980228,
+     "sd": 0.026728371278007416,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9719315573979588,
+     "sd": 0.008092339421677534,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.1236510447149974,
+     "AMBIGUO": 0.14394983869947112,
+     "ACEPTADO_MAL": 0.31848784141321423,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9433968680561866,
+     "sd": 0.008620107100240061,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.5905094297921594,
+     "sd": 0.03692256887157556,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9908112060894039,
+     "sd": 0.007374795530019631,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.4094905702078407,
+     "sd": 0.03692256887157555,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.00542922094891735,
+     "sd": 0.004274922525693846,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.8997231156944574,
+     "sd": 0.08061249125497585,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.684324266458163,
+     "sd": 0.03983538388937298,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9782259237649156,
+     "sd": 0.008340422643575634,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.3188325677491658,
+     "AMBIGUO": 0.1503228412865665,
+     "ACEPTADO_MAL": 0.10027688430554267,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "plural|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.9317564756355818,
+     "sd": 0.011595308301363592,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7550300979179039,
+     "sd": 0.024437189184804437,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9670704551904027,
+     "sd": 0.010887556268364407,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.24496990208209604,
+     "sd": 0.024437189184804434,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.024954159659136242,
+     "sd": 0.008498118460506085,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.6331779921712148,
+     "sd": 0.12358978928695945,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.829049254250636,
+     "sd": 0.024533101204539796,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9623349922727081,
+     "sd": 0.010343719238594777,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.1034275942366996,
+     "AMBIGUO": 0.10266138851198969,
+     "ACEPTADO_MAL": 0.36682200782878516,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.940856200538341,
+     "sd": 0.011666964559289965,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.5704316669878648,
+     "sd": 0.0359444611575954,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9889663898911142,
+     "sd": 0.007984231921722696,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.4295683330121352,
+     "sd": 0.035944461157595406,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.006284942262207672,
+     "sd": 0.004482071718620828,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.8904456699914552,
+     "sd": 0.08245730758921242,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.6305488154081832,
+     "sd": 0.037174993271148093,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9841344135432752,
+     "sd": 0.008335423696466015,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.14980365391305867,
+     "AMBIGUO": 0.25334648712347807,
+     "ACEPTADO_MAL": 0.10955433000854471,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9324082826656277,
+     "sd": 0.011518278676630252,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7543793006082191,
+     "sd": 0.02402331635422299,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9673784033152634,
+     "sd": 0.010615545215525424,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.24562069939178072,
+     "sd": 0.02402331635422299,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.024692737522714107,
+     "sd": 0.008267246145514273,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.6330866986618411,
+     "sd": 0.12273671314287594,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8283984569409514,
+     "sd": 0.024071821376657938,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.962615217284848,
+     "sd": 0.010098950042301127,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.10429728113066376,
+     "AMBIGUO": 0.09996167971845935,
+     "ACEPTADO_MAL": 0.366913301338159,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9415080075683869,
+     "sd": 0.011551107231310791,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.5700422918146023,
+     "sd": 0.03581830381324417,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9889578739323284,
+     "sd": 0.007986422711126021,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.4299577081853977,
+     "sd": 0.03581830381324418,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.006284942262207672,
+     "sd": 0.004482071718620828,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.8882099341500693,
+     "sd": 0.08683748708981733,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.629770065061658,
+     "sd": 0.03683745625765887,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9847176249520926,
+     "sd": 0.008210374380977008,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.15098785829656644,
+     "AMBIGUO": 0.24729009223697482,
+     "ACEPTADO_MAL": 0.1117900658499307,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "abreviaturas|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.7647932130663544,
+     "sd": 0.017453601078471936,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.5799335082819278,
+     "sd": 0.024653797250800948,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.972808118817704,
+     "sd": 0.011322002111653275,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.4200664917180722,
+     "sd": 0.024653797250800948,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.01583093594897143,
+     "sd": 0.006707602680489886,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9330103179008227,
+     "sd": 0.027548893539577624,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.6828696794132393,
+     "sd": 0.025499884088065184,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9671885028467695,
+     "sd": 0.011076846079429412,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.03582515263274288,
+     "AMBIGUO": 0.029315282085785887,
+     "ACEPTADO_MAL": 0.06698968209917736,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.7607281284761209,
+     "sd": 0.016844441706034594,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.4192068850693829,
+     "sd": 0.035128101586915816,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9936966258225283,
+     "sd": 0.0074423415692873186,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.580793114930617,
+     "sd": 0.035128101586915816,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.0026572143658501867,
+     "sd": 0.003096421493025186,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9891733715134619,
+     "sd": 0.012854674262432744,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.5181914360033117,
+     "sd": 0.0408108875260521,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9718546361265457,
+     "sd": 0.009252144932683753,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.09157073439535438,
+     "AMBIGUO": 0.04336745074079382,
+     "ACEPTADO_MAL": 0.010826628486538089,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.7647932130663544,
+     "sd": 0.017453601078471936,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.5795441331086653,
+     "sd": 0.02423740534999704,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9727831578571318,
+     "sd": 0.01135095088148566,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.42045586689133474,
+     "sd": 0.02423740534999704,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.01583093594897143,
+     "sd": 0.006707602680489886,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9330103179008227,
+     "sd": 0.027548893539577624,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.6824803042399766,
+     "sd": 0.0250717863251039,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9671655357989231,
+     "sd": 0.011097781340694755,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.03582515263274288,
+     "AMBIGUO": 0.029315282085785887,
+     "ACEPTADO_MAL": 0.06698968209917736,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.7607281284761209,
+     "sd": 0.016844441706034594,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.4188175098961204,
+     "sd": 0.034945968901553,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9936872172511537,
+     "sd": 0.0074504821738923125,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.5811824901038796,
+     "sd": 0.034945968901553,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.0026572143658501867,
+     "sd": 0.003096421493025186,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9891733715134619,
+     "sd": 0.012854674262432744,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.5174126856567867,
+     "sd": 0.040444636802173126,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9725403100840321,
+     "sd": 0.009148067969880888,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.09157073439535438,
+     "AMBIGUO": 0.04336745074079382,
+     "ACEPTADO_MAL": 0.010826628486538089,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "abreviaturas|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.6464819407520984,
+     "sd": 0.0304050069838179,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.4634144473214909,
+     "sd": 0.03008485551550218,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9691000201861819,
+     "sd": 0.012723820993615395,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.536585552678509,
+     "sd": 0.030084855515502176,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.014261039361397757,
+     "sd": 0.005729673024803702,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9597273744393539,
+     "sd": 0.015787417164358327,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.5650576719889068,
+     "sd": 0.033518156659135455,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9629396601495103,
+     "sd": 0.012636816740306535,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.023937358917236338,
+     "AMBIGUO": 0.019541089473975263,
+     "ACEPTADO_MAL": 0.040272625560646085,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.6435354005026745,
+     "sd": 0.03036443941422776,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.3398535652618092,
+     "sd": 0.033714699085327274,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9920284399429914,
+     "sd": 0.009626833341945225,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.6601464347381908,
+     "sd": 0.033714699085327274,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.0026572143658501867,
+     "sd": 0.003096421493025186,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9928941028472437,
+     "sd": 0.008029159702462188,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.43627596340026525,
+     "sd": 0.03831844698398044,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9663401802098202,
+     "sd": 0.01184139743254634,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.05675660575517486,
+     "AMBIGUO": 0.026497878572708623,
+     "ACEPTADO_MAL": 0.0071058971527563405,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.6464819407520984,
+     "sd": 0.0304050069838179,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.4630250721482284,
+     "sd": 0.02978312949713459,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9690672792287295,
+     "sd": 0.012752424561645236,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.5369749278517715,
+     "sd": 0.02978312949713459,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.014261039361397757,
+     "sd": 0.005729673024803702,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9597273744393539,
+     "sd": 0.015787417164358327,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.5646682968156441,
+     "sd": 0.033183346750257546,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9629106863595924,
+     "sd": 0.012654358852734547,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.023937358917236338,
+     "AMBIGUO": 0.019541089473975263,
+     "ACEPTADO_MAL": 0.040272625560646085,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.6435354005026745,
+     "sd": 0.03036443941422776,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.3394641900885466,
+     "sd": 0.03349633565156758,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9920143893347655,
+     "sd": 0.009638089238143554,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.6605358099114532,
+     "sd": 0.03349633565156758,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.0026572143658501867,
+     "sd": 0.003096421493025186,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9928941028472437,
+     "sd": 0.008029159702462188,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.43549721305374006,
+     "sd": 0.037876463118410475,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9671363935569754,
+     "sd": 0.011765882989474232,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.05675660575517486,
+     "AMBIGUO": 0.026497878572708623,
+     "ACEPTADO_MAL": 0.0071058971527563405,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "orden|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.909590663025478,
+     "sd": 0.015559444798859146,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7160836905915063,
+     "sd": 0.03243670257569883,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9753330237367666,
+     "sd": 0.01023484874368386,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.2839163094084936,
+     "sd": 0.032436702575698834,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.017761963400550872,
+     "sd": 0.007598526928852198,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.7965344837564075,
+     "sd": 0.09835980062168843,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8131562765332319,
+     "sd": 0.031703576778066116,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9708669842425375,
+     "sd": 0.010268964164576316,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.08384365704644338,
+     "AMBIGUO": 0.06240482979675974,
+     "ACEPTADO_MAL": 0.2034655162435926,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.9062483678726757,
+     "sd": 0.015456250456241832,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.5709742804165551,
+     "sd": 0.03957852168147477,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9933374654504847,
+     "sd": 0.006305825168607599,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.4290257195834449,
+     "sd": 0.03957852168147478,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.003812407847229411,
+     "sd": 0.0035678258773999753,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9545431510450358,
+     "sd": 0.04817764577726544,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.6667388987301937,
+     "sd": 0.041057271308598584,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9799260723803483,
+     "sd": 0.008442560186024115,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.1843601323357582,
+     "AMBIGUO": 0.10370588482170418,
+     "ACEPTADO_MAL": 0.04545684895496412,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9093230886560628,
+     "sd": 0.015261023770442098,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7155485418526759,
+     "sd": 0.03234550271254276,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9756756174844099,
+     "sd": 0.00973852680055015,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.28445145814732403,
+     "sd": 0.03234550271254276,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.01749438903113565,
+     "sd": 0.007215494549262794,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.8014814922040554,
+     "sd": 0.08903452461137411,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8126211277944015,
+     "sd": 0.031569564113988986,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9711630597625464,
+     "sd": 0.009740527457814351,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.0833491015167216,
+     "AMBIGUO": 0.06550875911552283,
+     "ACEPTADO_MAL": 0.19851850779594477,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9059807935032603,
+     "sd": 0.015202743943286513,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.5707067060471399,
+     "sd": 0.039649273560799725,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.993806001310958,
+     "sd": 0.005338326315346098,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.4292932939528601,
+     "sd": 0.03964927356079973,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.003544833477814187,
+     "sd": 0.0030201156098692535,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9583822928183882,
+     "sd": 0.03918889506560217,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.666081949187516,
+     "sd": 0.040829039554716604,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9808679015089977,
+     "sd": 0.0075465711153861505,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.18354007543675394,
+     "AMBIGUO": 0.1063449317633827,
+     "ACEPTADO_MAL": 0.04161770718161183,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "orden|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.7170557270573652,
+     "sd": 0.02322151067011011,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.5283520199323969,
+     "sd": 0.04065656196698827,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9462305943547505,
+     "sd": 0.015888816742490743,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.471647980067603,
+     "sd": 0.04065656196698827,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.02832069828210091,
+     "sd": 0.008353911393360685,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.8999347023066703,
+     "sd": 0.027278175462347523,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.5985000022473034,
+     "sd": 0.04194398706286319,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9437501079170479,
+     "sd": 0.014695072118814646,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.03479587511650904,
+     "AMBIGUO": 0.05317353996408704,
+     "ACEPTADO_MAL": 0.10006529769332977,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.7011396608046873,
+     "sd": 0.024986882084174947,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.44484426759910917,
+     "sd": 0.038996657040402304,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9821181792132615,
+     "sd": 0.010702785294333531,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.5551557324008908,
+     "sd": 0.03899665704040229,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.007923629783010918,
+     "sd": 0.0047106908062055225,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9734495077259581,
+     "sd": 0.014834727196893124,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.5130687693516998,
+     "sd": 0.04185963965324393,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9732726312644159,
+     "sd": 0.010831353450881884,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.057111448273020005,
+     "AMBIGUO": 0.10726312399293558,
+     "ACEPTADO_MAL": 0.026550492274041958,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.7156329848359655,
+     "sd": 0.02285130924405866,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.5257751931041398,
+     "sd": 0.04096285281275779,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9459668036518242,
+     "sd": 0.015924845095524994,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.4742248068958602,
+     "sd": 0.0409628528127578,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.02832069828210091,
+     "sd": 0.008353911393360685,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9004420511713519,
+     "sd": 0.02723873314740906,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.5951746822379083,
+     "sd": 0.04204326649338799,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.94375176611291,
+     "sd": 0.014864443541201344,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.03396156685719402,
+     "AMBIGUO": 0.05541116064803832,
+     "ACEPTADO_MAL": 0.0995579488286482,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.6989528964120024,
+     "sd": 0.024354357577983675,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.4420488626585798,
+     "sd": 0.03928133172714982,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9820065764319297,
+     "sd": 0.010755370452687284,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.5579511373414202,
+     "sd": 0.039281331727149815,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.007923629783010918,
+     "sd": 0.0047106908062055225,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9736385019001312,
+     "sd": 0.014805872051905795,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.5097080050369305,
+     "sd": 0.041884965186914244,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9730955687194504,
+     "sd": 0.010892475348193912,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.05608129241481702,
+     "AMBIGUO": 0.10891683502776268,
+     "ACEPTADO_MAL": 0.02636149809986867,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "prefijo|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.7188394025724337,
+     "sd": 0.023549381770997215,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7418024259781468,
+     "sd": 0.023850770897634727,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.7600597279441657,
+     "sd": 0.02483318008668465,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.2581975740218531,
+     "sd": 0.023850770897634727,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.17784904635559176,
+     "sd": 0.01787238412448263,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.36692169386987283,
+     "sd": 0.042966002513186045,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.826004850592357,
+     "sd": 0.026061453062403164,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.7783739005885627,
+     "sd": 0.02273852954437882,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.021807252740613774,
+     "AMBIGUO": 0.2833355661206441,
+     "ACEPTADO_MAL": 0.633078306130127,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.7186148619259536,
+     "sd": 0.02244344722482093,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.4601227582753646,
+     "sd": 0.03355735575423526,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9943503121189335,
+     "sd": 0.006775631652843665,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.5398772417246354,
+     "sd": 0.03355735575423527,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.0026572143658501867,
+     "sd": 0.003096421493025186,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9903166978865139,
+     "sd": 0.011126379214485992,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.5438733663533777,
+     "sd": 0.03706327122533375,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9782557243734032,
+     "sd": 0.007979544696068519,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.04684835631736538,
+     "AMBIGUO": 0.880364296020019,
+     "ACEPTADO_MAL": 0.009683302113486189,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.28867883151894475,
+     "sd": 0.015855099092765845,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.36978948981063114,
+     "sd": 0.023020253242489474,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.5366533651335625,
+     "sd": 0.03346358065172998,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.6302105101893689,
+     "sd": 0.023020253242489474,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.17150576716021337,
+     "sd": 0.018099102108011748,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.7587941550476281,
+     "sd": 0.02559464447160777,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.39586423673973103,
+     "sd": 0.02435119460194132,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.5650281772663198,
+     "sd": 0.03199858834397292,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.002732565246991947,
+     "AMBIGUO": 0.1093452909670946,
+     "ACEPTADO_MAL": 0.24120584495237202,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.2875697085184089,
+     "sd": 0.015885946677575445,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.13872911028413473,
+     "sd": 0.015578959216892918,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9974536390613851,
+     "sd": 0.005286794791731898,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.8612708897158653,
+     "sd": 0.015578959216892911,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.00038937517326254664,
+     "sd": 0.0008055536574241182,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9994522784064339,
+     "sd": 0.0011346719970666038,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.16547368688036185,
+     "sd": 0.016574812738711683,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9674427295601443,
+     "sd": 0.012499437415611405,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.010174419909869508,
+     "AMBIGUO": 0.3435621377281087,
+     "ACEPTADO_MAL": 0.0005477215935660409,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "prefijo|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.3859942066260228,
+     "sd": 0.02160383369019136,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.4854002141383488,
+     "sd": 0.017664537592958572,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.6103986225553728,
+     "sd": 0.025181428631169164,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.5145997858616513,
+     "sd": 0.01766453759295856,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.188976939449012,
+     "sd": 0.012174622539739801,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.6921426262349469,
+     "sd": 0.01830941934575383,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.5204098213624987,
+     "sd": 0.015921243487272124,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.6349709480457528,
+     "sd": 0.024058370344680297,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.031204585059303198,
+     "AMBIGUO": 0.39841922692673715,
+     "ACEPTADO_MAL": 0.30785737376505307,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.38422829641240624,
+     "sd": 0.022196581924072995,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.21199069069213058,
+     "sd": 0.023562147759495874,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9887779373449546,
+     "sd": 0.009973912386565191,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.7880093093078695,
+     "sd": 0.02356214775949589,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.002310898026606832,
+     "sd": 0.002035151589682058,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9962573297394224,
+     "sd": 0.0033061162187075655,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.24707270006977092,
+     "sd": 0.02605499986045939,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9851005853855954,
+     "sd": 0.008069301830775612,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.013375667100152974,
+     "AMBIGUO": 0.7192578909378223,
+     "ACEPTADO_MAL": 0.0037426702605777885,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.14158867362996969,
+     "sd": 0.016097818253457897,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.2910089118909768,
+     "sd": 0.016334405243306933,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.3628135265190244,
+     "sd": 0.03409191007233126,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.7089910881090232,
+     "sd": 0.01633440524330693,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.18526086840111375,
+     "sd": 0.012145669177999942,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.7842283225572956,
+     "sd": 0.012804930013831413,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.2999501800917094,
+     "sd": 0.01568064346653522,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.37673526532168444,
+     "sd": 0.03480041221325795,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.07472794909995462,
+     "AMBIGUO": 0.514644790250917,
+     "ACEPTADO_MAL": 0.2157716774427043,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.13798286089149317,
+     "sd": 0.017042119534883618,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.02375639796904002,
+     "sd": 0.004701066857196545,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9908333333333333,
+     "sd": 0.028343651372034186,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.9762436020309601,
+     "sd": 0.004701066857196544,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.00017816210409288787,
+     "sd": 0.0005532695317944005,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.999793458542982,
+     "sd": 0.0006420197629339096,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.02725558947314045,
+     "sd": 0.00478752776885361,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9916083916083916,
+     "sd": 0.025928282409337366,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.005854968192059305,
+     "AMBIGUO": 0.7983684415399841,
+     "ACEPTADO_MAL": 0.0002065414570180106,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "sufijo|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.9463256818976195,
+     "sd": 0.010828613823033009,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7460458127979421,
+     "sd": 0.024996474993438145,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.976702182583208,
+     "sd": 0.00793723211977559,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.253954187202058,
+     "sd": 0.024996474993438145,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.017433734799628127,
+     "sd": 0.006054888001802655,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.6672796885494462,
+     "sd": 0.1258599156517107,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8597786016226623,
+     "sd": 0.025937821844685165,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.973139754665317,
+     "sd": 0.008233364762565552,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.14361356920103632,
+     "AMBIGUO": 0.09384975701306462,
+     "ACEPTADO_MAL": 0.3327203114505538,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.9468604234450355,
+     "sd": 0.009497628113371502,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.5341358923620041,
+     "sd": 0.03327194126251733,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9927672486181167,
+     "sd": 0.008215786380693773,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.46586410763799596,
+     "sd": 0.03327194126251733,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.003842279657537224,
+     "sd": 0.004279163015281699,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9247069105479874,
+     "sd": 0.07792429729725035,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.6481080736693602,
+     "sd": 0.036621983840338955,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9770816671855675,
+     "sd": 0.009521048722523314,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.38659889777394396,
+     "AMBIGUO": 0.09708812585813557,
+     "ACEPTADO_MAL": 0.07529308945201271,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9463256818976195,
+     "sd": 0.010828613823033009,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7456564376246796,
+     "sd": 0.02460736933043265,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9766878062379764,
+     "sd": 0.007948075760190637,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.2543435623753205,
+     "sd": 0.02460736933043265,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.017433734799628127,
+     "sd": 0.006054888001802655,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.6672796885494462,
+     "sd": 0.1258599156517107,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8593892264493999,
+     "sd": 0.025517142131738245,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9731268364199559,
+     "sd": 0.00823810068228013,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.14361356920103632,
+     "AMBIGUO": 0.09384975701306462,
+     "ACEPTADO_MAL": 0.3327203114505538,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9468604234450355,
+     "sd": 0.009497628113371502,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.5332834440590746,
+     "sd": 0.03320823081567646,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9936305142629692,
+     "sd": 0.006888792219497331,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.4667165559409255,
+     "sd": 0.03320823081567646,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.003379206527870234,
+     "sd": 0.0035925191368611433,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9333541254020987,
+     "sd": 0.06624324005807185,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.6468662501931681,
+     "sd": 0.03630081617415545,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9783443222921792,
+     "sd": 0.008719185890376749,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.38659889777394396,
+     "AMBIGUO": 0.105735340712247,
+     "ACEPTADO_MAL": 0.06664587459790132,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "sufijo|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.9451686862005406,
+     "sd": 0.011498258850956719,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.736356838987356,
+     "sd": 0.02513790209009839,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9746374977435603,
+     "sd": 0.008253896977643201,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.2636431610126439,
+     "sd": 0.02513790209009839,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.018729930433511597,
+     "sd": 0.006252976947138357,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.6543409338551808,
+     "sd": 0.11698672692655339,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8474911383368464,
+     "sd": 0.02673557607766793,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9753127526654103,
+     "sd": 0.007279484239854874,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.08084885694071199,
+     "AMBIGUO": 0.09016390778309659,
+     "ACEPTADO_MAL": 0.3456590661448192,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.9430127879234403,
+     "sd": 0.008819952259799174,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.3758228766231361,
+     "sd": 0.02725381130433382,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9917497298021664,
+     "sd": 0.008571712381668378,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.6241771233768639,
+     "sd": 0.0272538113043338,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.003041545525689045,
+     "sd": 0.003116653757117759,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9449931871815798,
+     "sd": 0.05454706244032371,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.4766301624429762,
+     "sd": 0.03244897322690774,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9829417567137023,
+     "sd": 0.010065794438222472,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.36466262459091775,
+     "AMBIGUO": 0.10417249626351544,
+     "ACEPTADO_MAL": 0.055006812818420216,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.944779311027278,
+     "sd": 0.011433894517222732,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.736356838987356,
+     "sd": 0.02513790209009839,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9746374977435603,
+     "sd": 0.008253896977643201,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.2636431610126439,
+     "sd": 0.02513790209009839,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.018729930433511597,
+     "sd": 0.006252976947138357,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.6576817343330781,
+     "sd": 0.1135767855121435,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8474911383368464,
+     "sd": 0.02673557607766793,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9753127526654103,
+     "sd": 0.007279484239854874,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.0800849680518231,
+     "AMBIGUO": 0.08948109074947311,
+     "ACEPTADO_MAL": 0.342318265666922,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9426234127501777,
+     "sd": 0.0085894253719576,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.3747028539507914,
+     "sd": 0.027364944073822044,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9936939539804577,
+     "sd": 0.005625007821430531,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.6252971460492087,
+     "sd": 0.027364944073822024,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.002310898026606832,
+     "sd": 0.002035151589682058,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9583874992241928,
+     "sd": 0.03649943865082263,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.4755101397706314,
+     "sd": 0.03244821248535071,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9844409530760186,
+     "sd": 0.007687696287353395,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.3613049707908579,
+     "AMBIGUO": 0.11612040916073174,
+     "ACEPTADO_MAL": 0.041612500775807235,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "ocr|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.8037301221199332,
+     "sd": 0.024557816194607233,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.5771078117295012,
+     "sd": 0.033471294677346886,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9681330081410305,
+     "sd": 0.009264491763625163,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.4228921882704988,
+     "sd": 0.033471294677346886,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.01846775295877197,
+     "sd": 0.005606954206949103,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9050473376113531,
+     "sd": 0.029289856993323954,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.685740674250057,
+     "sd": 0.033301574543477784,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9649726616024905,
+     "sd": 0.009865013756289964,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.036191336371970154,
+     "AMBIGUO": 0.034138405227192956,
+     "ACEPTADO_MAL": 0.09495266238864696,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.8009210284996664,
+     "sd": 0.02600536351632416,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.3856792753237523,
+     "sd": 0.030409539172813197,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9823520195381,
+     "sd": 0.008835908250589618,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.6143207246762478,
+     "sd": 0.030409539172813197,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.00684465259751661,
+     "sd": 0.0036132824172438014,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9660823583975132,
+     "sd": 0.016970334213703444,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.48354705878511633,
+     "sd": 0.033576299204470805,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9698626911811454,
+     "sd": 0.010389821004703667,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.09073674275957774,
+     "AMBIGUO": 0.05119956204886765,
+     "ACEPTADO_MAL": 0.033917641602486906,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.8068815072056627,
+     "sd": 0.02445074672282174,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.5786484300918889,
+     "sd": 0.03304477075688331,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9703161206269197,
+     "sd": 0.00845628390047474,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.42135156990811107,
+     "sd": 0.03304477075688331,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.017253109488019825,
+     "sd": 0.005129834867832606,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9097859110413221,
+     "sd": 0.027478641528441664,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.6872812926124446,
+     "sd": 0.03187061383500622,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9668112963885752,
+     "sd": 0.009278337731603411,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.03666213067377066,
+     "AMBIGUO": 0.035120959687107045,
+     "ACEPTADO_MAL": 0.09021408895867794,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.8041028869342262,
+     "sd": 0.026195802259714206,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.3855445742075847,
+     "sd": 0.03038299150508886,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9823447418172959,
+     "sd": 0.008838866832882871,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.6144554257924153,
+     "sd": 0.030382991505088865,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.00684465259751661,
+     "sd": 0.0036132824172438014,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.96560651293211,
+     "sd": 0.017120067740931298,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.48368530129010895,
+     "sd": 0.032817673537713504,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9692153005245127,
+     "sd": 0.010517177530045546,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.09365003413862939,
+     "AMBIGUO": 0.0457354154057278,
+     "ACEPTADO_MAL": 0.03439348706789017,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "ocr|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.6802345357688944,
+     "sd": 0.036731332701667875,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.4894233989967717,
+     "sd": 0.03321786566023964,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9611230940473889,
+     "sd": 0.008380340225284904,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.5105766010032283,
+     "sd": 0.03321786566023964,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.019096702725580728,
+     "sd": 0.00452447228402108,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9389364858573785,
+     "sd": 0.01886340798122127,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.5567594385464726,
+     "sd": 0.032496901744265984,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9576656083563229,
+     "sd": 0.008954131308760242,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.020490137006774257,
+     "AMBIGUO": 0.019454189589683004,
+     "ACEPTADO_MAL": 0.0610635141426215,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.6642859948315945,
+     "sd": 0.03804182384723866,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.2822428699945981,
+     "sd": 0.026214873860519565,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9774417121061724,
+     "sd": 0.00902650646783404,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.717757130005402,
+     "sd": 0.026214873860519565,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.00635763408204155,
+     "sd": 0.0025524077022349902,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9805990516443792,
+     "sd": 0.009003480937740662,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.329450496373871,
+     "sd": 0.02973844058685631,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9705847068013567,
+     "sd": 0.010029054093274177,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.05854551399708914,
+     "AMBIGUO": 0.06446206663181794,
+     "ACEPTADO_MAL": 0.01940094835562076,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.6851104228436122,
+     "sd": 0.03676750634693453,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.4920711846019916,
+     "sd": 0.03431766367672053,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9633119536202042,
+     "sd": 0.008602872769352446,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.5079288153980084,
+     "sd": 0.03431766367672053,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.018143481391250726,
+     "sd": 0.004682184707045853,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9409948321375051,
+     "sd": 0.01949537974124955,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.5594072241516925,
+     "sd": 0.03269344673638682,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9595789606388353,
+     "sd": 0.008626083865460203,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.020122534875571734,
+     "AMBIGUO": 0.019885828762342923,
+     "ACEPTADO_MAL": 0.0590051678624949,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.6690112537730506,
+     "sd": 0.03830091835209303,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.2820952685661103,
+     "sd": 0.026255490167514325,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9782951542540882,
+     "sd": 0.008976430097346543,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.7179047314338899,
+     "sd": 0.026255490167514314,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.006090059712626325,
+     "sd": 0.0024220969419701224,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9813319112418876,
+     "sd": 0.007972963798381458,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.32930289494538323,
+     "sd": 0.029810281775045647,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9713124626543251,
+     "sd": 0.010248843489389056,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.05869786581492055,
+     "AMBIGUO": 0.06408740534726975,
+     "ACEPTADO_MAL": 0.018668088758112277,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "espacios|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.9483993760900695,
+     "sd": 0.010046808945762055,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7507831607584567,
+     "sd": 0.02626098839546687,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9810848391476161,
+     "sd": 0.007424080093855188,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.24921683924154317,
+     "sd": 0.02626098839546687,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.014261039361397757,
+     "sd": 0.005729673024803702,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.7139613240099143,
+     "sd": 0.12882775563176516,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8642537421546445,
+     "sd": 0.02656107467445095,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9763667764127018,
+     "sd": 0.007357921446199227,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.15722807577869288,
+     "AMBIGUO": 0.11025168712075537,
+     "ACEPTADO_MAL": 0.2860386759900857,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.9471218455814577,
+     "sd": 0.00935849222995369,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.6080181437484083,
+     "sd": 0.03698664652428988,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9936770889297699,
+     "sd": 0.0071296548007589765,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.39198185625159165,
+     "sd": 0.03698664652428988,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.003842279657537224,
+     "sd": 0.004279163015281699,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9236866676330076,
+     "sd": 0.0804878548353413,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.7218998495932326,
+     "sd": 0.0405791237595244,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9781613752108853,
+     "sd": 0.008052278497066181,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.3880806791504622,
+     "AMBIGUO": 0.09737355095935016,
+     "ACEPTADO_MAL": 0.07631333236699248,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9483993760900695,
+     "sd": 0.010046808945762055,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7503937855851943,
+     "sd": 0.025814791296292283,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9810720935880409,
+     "sd": 0.007436944723253137,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.24960621441480574,
+     "sd": 0.025814791296292283,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.014261039361397757,
+     "sd": 0.005729673024803702,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.7139613240099143,
+     "sd": 0.12882775563176516,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8638643669813819,
+     "sd": 0.026109538629072893,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9763550277111357,
+     "sd": 0.007364025777818757,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.15722807577869288,
+     "AMBIGUO": 0.11025168712075537,
+     "ACEPTADO_MAL": 0.2860386759900857,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9471218455814577,
+     "sd": 0.00935849222995369,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.6076287685751458,
+     "sd": 0.036739275157597825,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9936715453018843,
+     "sd": 0.0071327536659043225,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.39237123142485425,
+     "sd": 0.03673927515759782,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.003842279657537224,
+     "sd": 0.004279163015281699,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9236866676330076,
+     "sd": 0.0804878548353413,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.7211210992467076,
+     "sd": 0.04006714863986679,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9786598264008065,
+     "sd": 0.007994487850264421,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.3880806791504622,
+     "AMBIGUO": 0.09737355095935016,
+     "ACEPTADO_MAL": 0.07631333236699248,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "espacios|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.7199204825653482,
+     "sd": 0.03476352591708298,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.5292419640034505,
+     "sd": 0.029263938264413897,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.949548788833593,
+     "sd": 0.012680531951791902,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.4707580359965495,
+     "sd": 0.029263938264413897,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.026741573064750567,
+     "sd": 0.006875172011276366,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9036476285225234,
+     "sd": 0.024788059565030284,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.5817094205174874,
+     "sd": 0.030719212014180437,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9467033643138827,
+     "sd": 0.01311376204430239,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.02413869821533168,
+     "AMBIGUO": 0.03140404790815944,
+     "ACEPTADO_MAL": 0.09635237147747663,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.7052897618123066,
+     "sd": 0.03431384921040598,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.22053525983301933,
+     "sd": 0.017820457419616787,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9875668104354324,
+     "sd": 0.010591291455064851,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.7794647401669805,
+     "sd": 0.017820457419616798,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.0027946199392159007,
+     "sd": 0.0024014730215123977,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.990559220950584,
+     "sd": 0.008254058085978514,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.2627252277432636,
+     "sd": 0.022975864526963662,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9699704257560464,
+     "sd": 0.014341695036555304,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.07644103334792574,
+     "AMBIGUO": 0.09312733927273135,
+     "ACEPTADO_MAL": 0.009440779049416002,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.7205462000964132,
+     "sd": 0.035431954892507986,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.5318746336683094,
+     "sd": 0.027826817361599417,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.949786456025673,
+     "sd": 0.012718567954923104,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.46812536633169055,
+     "sd": 0.027826817361599414,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.026741573064750567,
+     "sd": 0.006875172011276366,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9035177640328511,
+     "sd": 0.02436978825035265,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.5837767308081064,
+     "sd": 0.028878900645268747,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9468812649143997,
+     "sd": 0.013153442473273927,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.024193942822804865,
+     "AMBIGUO": 0.03162490241659279,
+     "ACEPTADO_MAL": 0.0964822359671488,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.7065595285737291,
+     "sd": 0.034980460147021775,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.22000210007058638,
+     "sd": 0.01755845381258298,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9898695761282312,
+     "sd": 0.009398427682487514,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.7799978999294137,
+     "sd": 0.017558453812582985,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.0022614601767829466,
+     "sd": 0.002127588021134011,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9923805295806595,
+     "sd": 0.007163912837590346,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.2622890274010134,
+     "sd": 0.02235477090863104,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9693929066328858,
+     "sd": 0.01357872526042249,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.07887929350773286,
+     "AMBIGUO": 0.09536102062445333,
+     "ACEPTADO_MAL": 0.007619470419340582,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "marca|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.9472435505249228,
+     "sd": 0.010787584052319714,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7590146207830146,
+     "sd": 0.023114513542031815,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.973978488211267,
+     "sd": 0.008426103110692596,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.2409853792169853,
+     "sd": 0.023114513542031815,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.01980411044876849,
+     "sd": 0.0065382384091613515,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.6165340153469391,
+     "sd": 0.14288893834476707,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8631954207153694,
+     "sd": 0.024101243247761358,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9761612119187116,
+     "sd": 0.007735585514503892,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.04813393411088473,
+     "AMBIGUO": 0.09758620882574527,
+     "ACEPTADO_MAL": 0.38346598465306103,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.9431640020840059,
+     "sd": 0.00801365920237869,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.5484135815605862,
+     "sd": 0.027744357991924963,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9895043757895646,
+     "sd": 0.008682423195811398,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.4515864184394139,
+     "sd": 0.027744357991924963,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.005731237379855433,
+     "sd": 0.004712172647208298,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.8953612112111935,
+     "sd": 0.08639619233287146,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.6524256878489576,
+     "sd": 0.03187150064896269,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9791392987313202,
+     "sd": 0.008651532083560528,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.36046891667492625,
+     "AMBIGUO": 0.09007341289368163,
+     "ACEPTADO_MAL": 0.10463878878880636,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9472435505249228,
+     "sd": 0.010787584052319714,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.7586252456097521,
+     "sd": 0.022692687975983596,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9739630954941001,
+     "sd": 0.008437007066948112,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.2413747543902479,
+     "sd": 0.022692687975983596,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.01980411044876849,
+     "sd": 0.0065382384091613515,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.6165340153469391,
+     "sd": 0.14288893834476707,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.8628060455421069,
+     "sd": 0.023644282774572322,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9761488173698604,
+     "sd": 0.007743757584805681,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.04813393411088473,
+     "AMBIGUO": 0.09758620882574527,
+     "ACEPTADO_MAL": 0.38346598465306103,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9427746269107434,
+     "sd": 0.00763638132754392,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.5466385983219612,
+     "sd": 0.026956681621081825,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9912433659713857,
+     "sd": 0.007191105022635406,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.45336140167803884,
+     "sd": 0.026956681621081828,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.00473500448775549,
+     "sd": 0.003836695332337366,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9143394788755168,
+     "sd": 0.07136992196492177,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.6506507046103327,
+     "sd": 0.031249298631807605,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9805871601470566,
+     "sd": 0.007518112773983261,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.3569696066620464,
+     "AMBIGUO": 0.10723325646017483,
+     "ACEPTADO_MAL": 0.08566052112448311,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  },
+  "marca|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media": 0.9100095728323678,
+     "sd": 0.015798690777442736,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.6418166656077665,
+     "sd": 0.027251014998289056,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9448800831074846,
+     "sd": 0.009556335659081556,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.35818333439223343,
+     "sd": 0.027251014998289053,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.03548402285091061,
+     "sd": 0.006821730644627508,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.5998447787250313,
+     "sd": 0.08094973175742814,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.7487139235961173,
+     "sd": 0.032864567131673225,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9409180945414752,
+     "sd": 0.00786163895160723,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.11727944101173408,
+     "AMBIGUO": 0.12701835539950354,
+     "ACEPTADO_MAL": 0.40015522127496883,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media": 0.8990449297299301,
+     "sd": 0.015791953262786856,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.3135969456314801,
+     "sd": 0.021288004811542558,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.984280674365243,
+     "sd": 0.007376314288884827,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.6864030543685199,
+     "sd": 0.02128800481154255,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.004987251504796421,
+     "sd": 0.0024372180443988484,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9499347076598179,
+     "sd": 0.02464804732135107,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.39277206820336646,
+     "sd": 0.029972588466345228,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9810502913759954,
+     "sd": 0.006912740734423401,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.21484211076031423,
+     "AMBIGUO": 0.3804977861463097,
+     "ACEPTADO_MAL": 0.050065292340182074,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media": 0.9096201976591056,
+     "sd": 0.015666129676488158,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.6418166656077665,
+     "sd": 0.027251014998289056,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9448800831074846,
+     "sd": 0.009556335659081556,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.35818333439223343,
+     "sd": 0.027251014998289053,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.03548402285091061,
+     "sd": 0.006821730644627508,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.6020204958726675,
+     "sd": 0.07889972923239916,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.7487139235961173,
+     "sd": 0.032864567131673225,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9409180945414752,
+     "sd": 0.00786163895160723,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.11662969753983254,
+     "AMBIGUO": 0.12636627507268267,
+     "ACEPTADO_MAL": 0.3979795041273325,
+     "RESUELTO_AUTO": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media": 0.8990449297299301,
+     "sd": 0.015791953262786856,
+     "n": 20
+    },
+    "aceptada": {
+     "media": 0.31260071273938017,
+     "sd": 0.020555538520733902,
+     "n": 20
+    },
+    "precision_aceptada": {
+     "media": 0.9872710578951231,
+     "sd": 0.0059051856512529685,
+     "n": 20
+    },
+    "revision_humana": {
+     "media": 0.6873992872606198,
+     "sd": 0.020555538520733902,
+     "n": 20
+    },
+    "aceptada_mal": {
+     "media": 0.003991018612696478,
+     "sd": 0.00188067737787831,
+     "n": 20
+    },
+    "errores_que_van_a_revision": {
+     "media": 0.9606113779431951,
+     "sd": 0.017116705352331327,
+     "n": 20
+    },
+    "aceptada_por_puntaje": {
+     "media": 0.3917758353112666,
+     "sd": 0.029354578125527362,
+     "n": 20
+    },
+    "precision_por_puntaje": {
+     "media": 0.9834369973746451,
+     "sd": 0.005919955058815615,
+     "n": 20
+    },
+    "destino_de_errores": {
+     "sin_match": 0.0,
+     "HUECO_CATALOGO": 0.21484211076031423,
+     "AMBIGUO": 0.3911744564296868,
+     "ACEPTADO_MAL": 0.039388622056804976,
+     "RESUELTO_AUTO": 0.0
+    }
+   }
+  }
+ },
+ "efecto_limpiador_y_canal_pp": {
+  "limpio|-": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.03893751732625572,
+     "error_estandar": 0.01801272737523957
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0012745559575322307,
+     "error_estandar": 0.0006089253837643989
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.038937517326254056,
+     "error_estandar": 0.01801272737523883
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0005543627885656877,
+     "error_estandar": 0.0002842021593380639
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 0.10533298003470526,
+     "error_estandar": 0.12357729984245056
+    },
+    "aceptada": {
+     "media_pp": 14.276501701004847,
+     "error_estandar": 0.48149020638107565
+    },
+    "precision_aceptada": {
+     "media_pp": -1.2592249782153908,
+     "error_estandar": 0.1393021736222704
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -20.7645539369376,
+     "error_estandar": 2.198115635430307
+    }
+   }
+  },
+  "tipeo|leve": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": -0.06985472772350287,
+     "error_estandar": 0.029261059964291552
+    },
+    "aceptada": {
+     "media_pp": -0.020950555888896716,
+     "error_estandar": 0.028344448065810858
+    },
+    "precision_aceptada": {
+     "media_pp": -0.1594441386190193,
+     "error_estandar": 0.04259281881370959
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -0.43957221678263886,
+     "error_estandar": 0.11422612356483913
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": -0.12974280093865642,
+     "error_estandar": 0.03698104841473318
+    },
+    "aceptada": {
+     "media_pp": 0.03893751732625461,
+     "error_estandar": 0.01801272737523902
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0020088007474738934,
+     "error_estandar": 0.0009482351457436774
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.02792630438568533,
+     "error_estandar": 0.007742734033737354
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 0.9900117152371811,
+     "error_estandar": 0.1547890875705066
+    },
+    "aceptada": {
+     "media_pp": 18.97513083063397,
+     "error_estandar": 0.44942280770373555
+    },
+    "precision_aceptada": {
+     "media_pp": -1.5448933690217597,
+     "error_estandar": 0.24685721967265137
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -7.494176161030678,
+     "error_estandar": 0.7114625434556953
+    }
+   }
+  },
+  "tipeo|fuerte": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": -0.1880176248819837,
+     "error_estandar": 0.053518766006595164
+    },
+    "aceptada": {
+     "media_pp": 0.04918528646130543,
+     "error_estandar": 0.06219755251987378
+    },
+    "precision_aceptada": {
+     "media_pp": -0.23462610032371717,
+     "error_estandar": 0.05077765684760513
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -0.3321078729584209,
+     "error_estandar": 0.08390467474861268
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": -0.2797169100337521,
+     "error_estandar": 0.0544422352706289
+    },
+    "aceptada": {
+     "media_pp": 0.05920262684408095,
+     "error_estandar": 0.02561348238449916
+    },
+    "precision_aceptada": {
+     "media_pp": -0.0625155403468719,
+     "error_estandar": 0.04516614312198755
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -0.04145307808878673,
+     "error_estandar": 0.04080572239031041
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 0.9310968482350418,
+     "error_estandar": 0.07993462887792482
+    },
+    "aceptada": {
+     "media_pp": 21.08047046164279,
+     "error_estandar": 0.47979371370118684
+    },
+    "precision_aceptada": {
+     "media_pp": -1.7407444688703648,
+     "error_estandar": 0.23150777212100368
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -4.292159904689052,
+     "error_estandar": 0.26331453924374454
+    }
+   }
+  },
+  "tildes|leve": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.03893751732625572,
+     "error_estandar": 0.01801272737523957
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0012745559575322307,
+     "error_estandar": 0.0006089253837643989
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.038937517326254056,
+     "error_estandar": 0.01801272737523883
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0005543627885656877,
+     "error_estandar": 0.0002842021593380639
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 0.10533298003470526,
+     "error_estandar": 0.12357729984245056
+    },
+    "aceptada": {
+     "media_pp": 14.276501701004847,
+     "error_estandar": 0.48149020638107565
+    },
+    "precision_aceptada": {
+     "media_pp": -1.2592249782153908,
+     "error_estandar": 0.1393021736222704
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -20.7645539369376,
+     "error_estandar": 2.198115635430307
+    }
+   }
+  },
+  "tildes|fuerte": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.03893751732625572,
+     "error_estandar": 0.01801272737523957
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0012745559575322307,
+     "error_estandar": 0.0006089253837643989
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.038937517326254056,
+     "error_estandar": 0.01801272737523883
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0005543627885656877,
+     "error_estandar": 0.0002842021593380639
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 0.10533298003470526,
+     "error_estandar": 0.12357729984245056
+    },
+    "aceptada": {
+     "media_pp": 14.276501701004847,
+     "error_estandar": 0.48149020638107565
+    },
+    "precision_aceptada": {
+     "media_pp": -1.2592249782153908,
+     "error_estandar": 0.1393021736222704
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -20.7645539369376,
+     "error_estandar": 2.198115635430307
+    }
+   }
+  },
+  "mayusculas|leve": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.03893751732625572,
+     "error_estandar": 0.01801272737523957
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0012745559575322307,
+     "error_estandar": 0.0006089253837643989
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.038937517326254056,
+     "error_estandar": 0.01801272737523883
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0005543627885656877,
+     "error_estandar": 0.0002842021593380639
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 0.10533298003470526,
+     "error_estandar": 0.12357729984245056
+    },
+    "aceptada": {
+     "media_pp": 14.276501701004847,
+     "error_estandar": 0.48149020638107565
+    },
+    "precision_aceptada": {
+     "media_pp": -1.2592249782153908,
+     "error_estandar": 0.1393021736222704
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -20.7645539369376,
+     "error_estandar": 2.198115635430307
+    }
+   }
+  },
+  "mayusculas|fuerte": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.03893751732625517,
+     "error_estandar": 0.018012727375239287
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0012868023091444636,
+     "error_estandar": 0.0006240398882584687
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.038937517326254056,
+     "error_estandar": 0.01801272737523883
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0005543627885656877,
+     "error_estandar": 0.0002842021593380639
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 0.23789214874418652,
+     "error_estandar": 0.1277222930322572
+    },
+    "aceptada": {
+     "media_pp": 14.37536355911008,
+     "error_estandar": 0.49131473788527485
+    },
+    "precision_aceptada": {
+     "media_pp": -1.2111491586052747,
+     "error_estandar": 0.1267090012710857
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -21.051293020773453,
+     "error_estandar": 2.3915227418394194
+    }
+   }
+  },
+  "plural|leve": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.03893751732625517,
+     "error_estandar": 0.018012727375239287
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0014969628084987585,
+     "error_estandar": 0.0007104924888702077
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.038937517326254056,
+     "error_estandar": 0.018012727375238752
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0007297109318216144,
+     "error_estandar": 0.0003544504231776498
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": -0.19997701605132087,
+     "error_estandar": 0.14330202891910238
+    },
+    "aceptada": {
+     "media_pp": 15.919555387762685,
+     "error_estandar": 0.4407397143305688
+    },
+    "precision_aceptada": {
+     "media_pp": -1.5295464935441216,
+     "error_estandar": 0.1519387233107632
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -21.821095710767157,
+     "error_estandar": 1.775122165992622
+    }
+   }
+  },
+  "plural|fuerte": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": -0.06518070300459533,
+     "error_estandar": 0.02351928840665761
+    },
+    "aceptada": {
+     "media_pp": 0.06507973096846864,
+     "error_estandar": 0.023407873680018582
+    },
+    "precision_aceptada": {
+     "media_pp": -0.03079481248607796,
+     "error_estandar": 0.02308299044124494
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.009129350937379654,
+     "error_estandar": 0.2011812333786271
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": -0.06518070300459422,
+     "error_estandar": 0.02351928840665725
+    },
+    "aceptada": {
+     "media_pp": 0.03893751732625461,
+     "error_estandar": 0.01801272737523902
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0008515958785698663,
+     "error_estandar": 0.00040703404193111154
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.22357358413859943,
+     "error_estandar": 0.11453757281489188
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": -0.9099724902759091,
+     "error_estandar": 0.11273554206237542
+    },
+    "aceptada": {
+     "media_pp": 18.45984309300392,
+     "error_estandar": 0.5504076757759149
+    },
+    "precision_aceptada": {
+     "media_pp": -2.189593470071133,
+     "error_estandar": 0.20305392063650402
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -25.72676778202405,
+     "error_estandar": 2.126216146116725
+    }
+   }
+  },
+  "abreviaturas|leve": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.038937517326254056,
+     "error_estandar": 0.01801272737523883
+    },
+    "precision_aceptada": {
+     "media_pp": 0.002496096057236219,
+     "error_estandar": 0.0011930082406426893
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.03893751732625461,
+     "error_estandar": 0.018012727375239058
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0009408571374586172,
+     "error_estandar": 0.0004973787788937017
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 0.4065084590233459,
+     "error_estandar": 0.11763981828067045
+    },
+    "aceptada": {
+     "media_pp": 16.072662321254484,
+     "error_estandar": 0.5701003389274123
+    },
+    "precision_aceptada": {
+     "media_pp": -2.088850700482436,
+     "error_estandar": 0.20187127167844834
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -5.616305361263927,
+     "error_estandar": 0.5285769586435756
+    }
+   }
+  },
+  "abreviaturas|fuerte": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.03893751732625461,
+     "error_estandar": 0.01801272737523902
+    },
+    "precision_aceptada": {
+     "media_pp": 0.003274095745260386,
+     "error_estandar": 0.001553877879066974
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.038937517326254334,
+     "error_estandar": 0.018012727375238922
+    },
+    "precision_aceptada": {
+     "media_pp": 0.001405060822594062,
+     "error_estandar": 0.000746933410219501
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 0.2946540249423818,
+     "error_estandar": 0.11405730723159163
+    },
+    "aceptada": {
+     "media_pp": 12.356088205968174,
+     "error_estandar": 0.4139355706492255
+    },
+    "precision_aceptada": {
+     "media_pp": -2.2928419756809584,
+     "error_estandar": 0.20867599777840815
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -3.316672840788975,
+     "error_estandar": 0.3043419367505193
+    }
+   }
+  },
+  "orden|leve": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": 0.02675743694152244,
+     "error_estandar": 0.018544274409260424
+    },
+    "aceptada": {
+     "media_pp": 0.05351487388304488,
+     "error_estandar": 0.03708854881852085
+    },
+    "precision_aceptada": {
+     "media_pp": -0.034259374764338824,
+     "error_estandar": 0.023804079646794284
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -0.4947008447647838,
+     "error_estandar": 0.34391764206313297
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": 0.02675743694152244,
+     "error_estandar": 0.018544274409260424
+    },
+    "aceptada": {
+     "media_pp": 0.02675743694152244,
+     "error_estandar": 0.018544274409260424
+    },
+    "precision_aceptada": {
+     "media_pp": -0.046853586047315154,
+     "error_estandar": 0.03242389043046791
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -0.3839141773352295,
+     "error_estandar": 0.2738951533769837
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 0.3342295152802288,
+     "error_estandar": 0.13045913774986734
+    },
+    "aceptada": {
+     "media_pp": 14.510941017495123,
+     "error_estandar": 0.49223776950090403
+    },
+    "precision_aceptada": {
+     "media_pp": -1.8004441713718464,
+     "error_estandar": 0.21432731717010242
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -15.800866728862847,
+     "error_estandar": 1.712154022789647
+    }
+   }
+  },
+  "orden|fuerte": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": 0.1422742221399803,
+     "error_estandar": 0.06318598159705384
+    },
+    "aceptada": {
+     "media_pp": 0.2576826828257228,
+     "error_estandar": 0.038422748602590345
+    },
+    "precision_aceptada": {
+     "media_pp": 0.02637907029261477,
+     "error_estandar": 0.004512484404441725
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -0.050734886468155604,
+     "error_estandar": 0.022625978750441197
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": 0.2186764392684731,
+     "error_estandar": 0.04672488819122932
+    },
+    "aceptada": {
+     "media_pp": 0.27954049405294723,
+     "error_estandar": 0.045292203957889444
+    },
+    "precision_aceptada": {
+     "media_pp": 0.011160278133168222,
+     "error_estandar": 0.002362681817431348
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -0.018899417417331255,
+     "error_estandar": 0.004484173599331602
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 1.5916066252677894,
+     "error_estandar": 0.09979269994621393
+    },
+    "aceptada": {
+     "media_pp": 8.350775233328779,
+     "error_estandar": 0.2824983588137642
+    },
+    "precision_aceptada": {
+     "media_pp": -3.5887584858511117,
+     "error_estandar": 0.2551100607094524
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -7.351480541928778,
+     "error_estandar": 0.4708663548941359
+    }
+   }
+  },
+  "prefijo|leve": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": 43.01605710534891,
+     "error_estandar": 0.6558672156496678
+    },
+    "aceptada": {
+     "media_pp": 37.20129361675158,
+     "error_estandar": 0.5968201102988012
+    },
+    "precision_aceptada": {
+     "media_pp": 22.340636281060295,
+     "error_estandar": 0.37408228304580454
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -39.18724611777552,
+     "error_estandar": 0.8501838954621542
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": 43.104515340754475,
+     "error_estandar": 0.6092191565819146
+    },
+    "aceptada": {
+     "media_pp": 32.13936479912299,
+     "error_estandar": 0.6674387000579931
+    },
+    "precision_aceptada": {
+     "media_pp": -0.31033269424514565,
+     "error_estandar": 0.16547055392103868
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -0.9135580519920143,
+     "error_estandar": 0.24203930389019418
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 0.02245406464802313,
+     "error_estandar": 0.11576820859779725
+    },
+    "aceptada": {
+     "media_pp": 28.16796677027823,
+     "error_estandar": 0.49816164445336425
+    },
+    "precision_aceptada": {
+     "media_pp": -23.429058417476814,
+     "error_estandar": 0.5929061032936811
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -62.3395004016641,
+     "error_estandar": 0.9611410434195066
+    }
+   }
+  },
+  "prefijo|fuerte": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": 24.440553299605305,
+     "error_estandar": 0.38559909222662797
+    },
+    "aceptada": {
+     "media_pp": 19.439130224737195,
+     "error_estandar": 0.3290168557745418
+    },
+    "precision_aceptada": {
+     "media_pp": 24.758509603634828,
+     "error_estandar": 0.5732903049216022
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -9.208569632234871,
+     "error_estandar": 0.37127031558905704
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": 24.62454355209131,
+     "error_estandar": 0.4001769308559404
+    },
+    "aceptada": {
+     "media_pp": 18.823429272309056,
+     "error_estandar": 0.46177166698812133
+    },
+    "precision_aceptada": {
+     "media_pp": -0.20553959883787992,
+     "error_estandar": 0.6509228130556484
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -0.3536128803559774,
+     "error_estandar": 0.07387355853039518
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 0.17659102136165394,
+     "error_estandar": 0.10543851313244713
+    },
+    "aceptada": {
+     "media_pp": 27.340952344621808,
+     "error_estandar": 0.3424140685555838
+    },
+    "precision_aceptada": {
+     "media_pp": -37.83793147895818,
+     "error_estandar": 0.5889574230378202
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -30.411470350447523,
+     "error_estandar": 0.4244315730502794
+    }
+   }
+  },
+  "sufijo|leve": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.03893751732625461,
+     "error_estandar": 0.01801272737523902
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0014376345231525978,
+     "error_estandar": 0.0006866784865272725
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.08524483029295316,
+     "error_estandar": 0.028707512978117227
+    },
+    "precision_aceptada": {
+     "media_pp": -0.08632656448523623,
+     "error_estandar": 0.04071114912090414
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -0.86472148541114,
+     "error_estandar": 0.4030431636887779
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": -0.05347415474161288,
+     "error_estandar": 0.13676054842994548
+    },
+    "aceptada": {
+     "media_pp": 21.190992043593802,
+     "error_estandar": 0.46552688431777356
+    },
+    "precision_aceptada": {
+     "media_pp": -1.6065066034909024,
+     "error_estandar": 0.1515156094101277
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -25.742722199854104,
+     "error_estandar": 2.0701730586067617
+    }
+   }
+  },
+  "sufijo|fuerte": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": 0.03893751732625461,
+     "error_estandar": 0.01801272737523902
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -0.3340800477897251,
+     "error_estandar": 0.16352712174353043
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": 0.03893751732625461,
+     "error_estandar": 0.01801272737523902
+    },
+    "aceptada": {
+     "media_pp": 0.1120022672344756,
+     "error_estandar": 0.04112247158075891
+    },
+    "precision_aceptada": {
+     "media_pp": -0.19442241782913594,
+     "error_estandar": 0.10237268210865413
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -1.3394312042613006,
+     "error_estandar": 0.6688806335849933
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 0.2155898277100393,
+     "error_estandar": 0.13647836144239278
+    },
+    "aceptada": {
+     "media_pp": 36.053396236421996,
+     "error_estandar": 0.45710783057125254
+    },
+    "precision_aceptada": {
+     "media_pp": -1.7112232058605727,
+     "error_estandar": 0.12553142058266667
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -29.06522533263989,
+     "error_estandar": 1.8091359181086328
+    }
+   }
+  },
+  "ocr|leve": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": -0.3151385085729558,
+     "error_estandar": 0.10183936626610918
+    },
+    "aceptada": {
+     "media_pp": -0.154061836238773,
+     "error_estandar": 0.11689270013900648
+    },
+    "precision_aceptada": {
+     "media_pp": -0.21831124858892825,
+     "error_estandar": 0.05101108694893674
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -0.47385734299690174,
+     "error_estandar": 0.1883000796615147
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": -0.31818584345598033,
+     "error_estandar": 0.09141868541765957
+    },
+    "aceptada": {
+     "media_pp": 0.013470111616758207,
+     "error_estandar": 0.020186088897605065
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0007277720804060861,
+     "error_estandar": 0.0009249056519938804
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.047584546540326844,
+     "error_estandar": 0.012379388781034128
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 0.2809093620266645,
+     "error_estandar": 0.12398379698417072
+    },
+    "aceptada": {
+     "media_pp": 19.14285364057489,
+     "error_estandar": 0.5037496491825223
+    },
+    "precision_aceptada": {
+     "media_pp": -1.4219011397069476,
+     "error_estandar": 0.17783980622297194
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -6.103502078616003,
+     "error_estandar": 0.5677097547089494
+    }
+   }
+  },
+  "ocr|fuerte": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": -0.4875887074717816,
+     "error_estandar": 0.161699327103286
+    },
+    "aceptada": {
+     "media_pp": -0.2647785605219958,
+     "error_estandar": 0.16896894399573353
+    },
+    "precision_aceptada": {
+     "media_pp": -0.21888595728153107,
+     "error_estandar": 0.05028925731959902
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -0.20583462801265942,
+     "error_estandar": 0.09558143028595498
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": -0.472525894145625,
+     "error_estandar": 0.1555601383381188
+    },
+    "aceptada": {
+     "media_pp": 0.014760142848783409,
+     "error_estandar": 0.035576143870765325
+    },
+    "precision_aceptada": {
+     "media_pp": -0.08534421479158893,
+     "error_estandar": 0.05926142832486771
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -0.07328595975084895,
+     "error_estandar": 0.07302483750978876
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 1.5948540937300109,
+     "error_estandar": 0.2083440634491776
+    },
+    "aceptada": {
+     "media_pp": 20.718052900217362,
+     "error_estandar": 0.5671723808204769
+    },
+    "precision_aceptada": {
+     "media_pp": -1.6318618058783443,
+     "error_estandar": 0.21373303311403777
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -4.166256578700073,
+     "error_estandar": 0.33250969983248
+    }
+   }
+  },
+  "espacios|leve": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.03893751732625572,
+     "error_estandar": 0.01801272737523957
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0012745559575322307,
+     "error_estandar": 0.0006089253837643989
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.038937517326254056,
+     "error_estandar": 0.01801272737523883
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0005543627885656877,
+     "error_estandar": 0.0002842021593380639
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 0.12775305086118016,
+     "error_estandar": 0.12045580792864774
+    },
+    "aceptada": {
+     "media_pp": 14.276501701004847,
+     "error_estandar": 0.48149020638107565
+    },
+    "precision_aceptada": {
+     "media_pp": -1.2592249782153908,
+     "error_estandar": 0.1393021736222704
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -20.972534362309325,
+     "error_estandar": 2.2268518479183554
+    }
+   }
+  },
+  "espacios|fuerte": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": -0.0625717531065112,
+     "error_estandar": 0.09719412511590277
+    },
+    "aceptada": {
+     "media_pp": -0.26326696648590525,
+     "error_estandar": 0.09384617270946605
+    },
+    "precision_aceptada": {
+     "media_pp": -0.023766719208000442,
+     "error_estandar": 0.007726279695067147
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.012986448967218234,
+     "error_estandar": 0.02970400311274584
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": -0.1269766761422636,
+     "error_estandar": 0.08505668379578882
+    },
+    "aceptada": {
+     "media_pp": 0.05331597624329554,
+     "error_estandar": 0.02188856889302015
+    },
+    "precision_aceptada": {
+     "media_pp": -0.2302765692798853,
+     "error_estandar": 0.09538360148492021
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -0.182130863007543,
+     "error_estandar": 0.07742193133869493
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 1.4630720753041788,
+     "error_estandar": 0.15402069596484705
+    },
+    "aceptada": {
+     "media_pp": 30.87067041704311,
+     "error_estandar": 0.6935985129422895
+    },
+    "precision_aceptada": {
+     "media_pp": -3.8018021601839367,
+     "error_estandar": 0.24233497592514303
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -8.691159242806062,
+     "error_estandar": 0.4875801523695101
+    }
+   }
+  },
+  "marca|leve": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.03893751732625461,
+     "error_estandar": 0.018012727375239096
+    },
+    "precision_aceptada": {
+     "media_pp": 0.001539271716695656,
+     "error_estandar": 0.0007359649879212334
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": 0.038937517326254056,
+     "error_estandar": 0.018012727375238752
+    },
+    "aceptada": {
+     "media_pp": 0.17749832386250386,
+     "error_estandar": 0.05266189812676791
+    },
+    "precision_aceptada": {
+     "media_pp": -0.17389901818210263,
+     "error_estandar": 0.06017201483577603
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -1.8978267664323245,
+     "error_estandar": 0.6147476296746558
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 0.40795484409170746,
+     "error_estandar": 0.14669572624234722
+    },
+    "aceptada": {
+     "media_pp": 21.060103922242867,
+     "error_estandar": 0.3777058440347474
+    },
+    "precision_aceptada": {
+     "media_pp": -1.552588757829767,
+     "error_estandar": 0.14589832852370035
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -27.882719586425463,
+     "error_estandar": 2.172864936963817
+    }
+   }
+  },
+  "marca|fuerte": {
+   "limpiador_menos_sin_limpiador_hibrido": {
+    "exactitud": {
+     "media_pp": 0.038937517326254056,
+     "error_estandar": 0.01801272737523883
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -0.2175717147636269,
+     "error_estandar": 0.10344406181132944
+    }
+   },
+   "limpiador_menos_sin_limpiador_lexico": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "error_estandar": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.09962328920999408,
+     "error_estandar": 0.03399519975195083
+    },
+    "precision_aceptada": {
+     "media_pp": -0.29903835298802195,
+     "error_estandar": 0.10314679940096905
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -1.067667028337711,
+     "error_estandar": 0.37359650927994914
+    }
+   },
+   "hibrido_menos_lexico_con_limpiador": {
+    "exactitud": {
+     "media_pp": 1.0964643102437768,
+     "error_estandar": 0.17592913272963243
+    },
+    "aceptada": {
+     "media_pp": 32.82197199762865,
+     "error_estandar": 0.4518913954789434
+    },
+    "precision_aceptada": {
+     "media_pp": -3.9400591257758237,
+     "error_estandar": 0.164769212527957
+    },
+    "errores_que_van_a_revision": {
+     "media_pp": -35.00899289347867,
+     "error_estandar": 1.555091815148156
+    }
+   }
+  }
+ },
+ "degradacion_vs_limpio": {
+  "tipeo|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": -14.458040481002172,
+     "sd_pp": 1.732784260755129
+    },
+    "aceptada": {
+     "media_pp": -14.109803873281408,
+     "sd_pp": 1.9623731673230604
+    },
+    "precision_aceptada": {
+     "media_pp": -2.1066991134042357,
+     "sd_pp": 0.6551195077531888
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -14.388185753278668,
+     "sd_pp": 1.7161967200587878
+    },
+    "aceptada": {
+     "media_pp": -14.049915800066254,
+     "sd_pp": 1.9598321160404566
+    },
+    "precision_aceptada": {
+     "media_pp": -1.9459804188276841,
+     "sd_pp": 0.6616859754294092
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": -15.342719216204646,
+     "sd_pp": 2.031187453097701
+    },
+    "aceptada": {
+     "media_pp": -18.808433002910526,
+     "sd_pp": 2.021105079636365
+    },
+    "precision_aceptada": {
+     "media_pp": -1.8210307225978668,
+     "sd_pp": 0.6255819410475688
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -15.212976415265988,
+     "sd_pp": 2.000579886668811
+    },
+    "aceptada": {
+     "media_pp": -18.80843300291053,
+     "sd_pp": 2.021105079636366
+    },
+    "precision_aceptada": {
+     "media_pp": -1.822485160556775,
+     "sd_pp": 0.6248560401319259
+    }
+   }
+  },
+  "tipeo|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": -26.551335334332,
+     "sd_pp": 2.7353891686353538
+    },
+    "aceptada": {
+     "media_pp": -26.837160408705063,
+     "sd_pp": 2.683982094378487
+    },
+    "precision_aceptada": {
+     "media_pp": -2.2460666192967884,
+     "sd_pp": 0.7236255710740505
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -26.36331770945002,
+     "sd_pp": 2.8204914679092465
+    },
+    "aceptada": {
+     "media_pp": -26.847408177840105,
+     "sd_pp": 2.778377135018988
+    },
+    "precision_aceptada": {
+     "media_pp": -2.010165963015539,
+     "sd_pp": 0.7761006916103864
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": -27.37709920253234,
+     "sd_pp": 2.791466856860027
+    },
+    "aceptada": {
+     "media_pp": -33.641129169343,
+     "sd_pp": 2.338012730082258
+    },
+    "precision_aceptada": {
+     "media_pp": -1.764547128641814,
+     "sd_pp": 0.8055438439909568
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -27.097382292498583,
+     "sd_pp": 2.79959705224634
+    },
+    "aceptada": {
+     "media_pp": -33.66139427886084,
+     "sd_pp": 2.325176392735232
+    },
+    "precision_aceptada": {
+     "media_pp": -1.7014772255063764,
+     "sd_pp": 0.7591502007852443
+    }
+   }
+  },
+  "tildes|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    }
+   }
+  },
+  "tildes|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    }
+   }
+  },
+  "mayusculas|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    }
+   }
+  },
+  "mayusculas|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": 0.13255916870948126,
+     "sd_pp": 0.1311267451075902
+    },
+    "aceptada": {
+     "media_pp": 0.09886185810523251,
+     "sd_pp": 0.1505148257935872
+    },
+    "precision_aceptada": {
+     "media_pp": 0.04807581961011609,
+     "sd_pp": 0.25244955510520684
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": 0.13255916870948126,
+     "sd_pp": 0.1311267451075902
+    },
+    "aceptada": {
+     "media_pp": 0.09886185810523307,
+     "sd_pp": 0.15051482579358763
+    },
+    "precision_aceptada": {
+     "media_pp": 0.048063573258503856,
+     "sd_pp": 0.2525049390841906
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    }
+   }
+  },
+  "plural|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": -0.677807748613123,
+     "sd_pp": 0.3047577774527536
+    },
+    "aceptada": {
+     "media_pp": -0.06888019154080438,
+     "sd_pp": 0.46166800504215727
+    },
+    "precision_aceptada": {
+     "media_pp": -0.5561800884335045,
+     "sd_pp": 0.2603761321926519
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -0.677807748613123,
+     "sd_pp": 0.3047577774527536
+    },
+    "aceptada": {
+     "media_pp": -0.06888019154080383,
+     "sd_pp": 0.461668005042156
+    },
+    "precision_aceptada": {
+     "media_pp": -0.5564024952844708,
+     "sd_pp": 0.26032947400980117
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": -0.3724977525270967,
+     "sd_pp": 0.3218240479499847
+    },
+    "aceptada": {
+     "media_pp": -1.7119338782986453,
+     "sd_pp": 0.4365973667155525
+    },
+    "precision_aceptada": {
+     "media_pp": -0.2858585731047736,
+     "sd_pp": 0.23783467891727833
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -0.3724977525270967,
+     "sd_pp": 0.3218240479499847
+    },
+    "aceptada": {
+     "media_pp": -1.7119338782986453,
+     "sd_pp": 0.4365973667155528
+    },
+    "precision_aceptada": {
+     "media_pp": -0.2860339212480295,
+     "sd_pp": 0.23785947192709236
+    }
+   }
+  },
+  "plural|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": -1.6418699746222933,
+     "sd_pp": 0.6283309547896808
+    },
+    "aceptada": {
+     "media_pp": 0.42469371594471284,
+     "sd_pp": 0.7976597694252097
+    },
+    "precision_aceptada": {
+     "media_pp": -1.4014383957213472,
+     "sd_pp": 0.5333652664468685
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -1.5766892716176981,
+     "sd_pp": 0.665320414023387
+    },
+    "aceptada": {
+     "media_pp": 0.3985515023024999,
+     "sd_pp": 0.7794824733134117
+    },
+    "precision_aceptada": {
+     "media_pp": -1.3693690272777368,
+     "sd_pp": 0.5131234480899652
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": -0.6265645043116791,
+     "sd_pp": 0.6969325326373235
+    },
+    "aceptada": {
+     "media_pp": -3.7586476760543563,
+     "sd_pp": 1.509841704524043
+    },
+    "precision_aceptada": {
+     "media_pp": -0.47106990386560516,
+     "sd_pp": 0.23502086489375845
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -0.5613838013070849,
+     "sd_pp": 0.7214716298739478
+    },
+    "aceptada": {
+     "media_pp": -3.758647676054357,
+     "sd_pp": 1.5098417045240433
+    },
+    "precision_aceptada": {
+     "media_pp": -0.4713671369556093,
+     "sd_pp": 0.23493422002186032
+    }
+   }
+  },
+  "abreviaturas|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": -18.338196231545034,
+     "sd_pp": 1.7165546405417107
+    },
+    "aceptada": {
+     "media_pp": -17.084965247652903,
+     "sd_pp": 1.7784586867141732
+    },
+    "precision_aceptada": {
+     "media_pp": -0.8276720329912124,
+     "sd_pp": 0.43285271368351774
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -18.338196231545034,
+     "sd_pp": 1.7165546405417107
+    },
+    "aceptada": {
+     "media_pp": -17.084965247652903,
+     "sd_pp": 1.7784586867141725
+    },
+    "precision_aceptada": {
+     "media_pp": -0.8288935730909163,
+     "sd_pp": 0.43445091649871165
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": -18.639371710533673,
+     "sd_pp": 1.7860045084568712
+    },
+    "aceptada": {
+     "media_pp": -18.881125867902544,
+     "sd_pp": 1.7122147241938142
+    },
+    "precision_aceptada": {
+     "media_pp": 0.001953689275832615,
+     "sd_pp": 0.22843466891151365
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -18.639371710533673,
+     "sd_pp": 1.7860045084568712
+    },
+    "aceptada": {
+     "media_pp": -18.881125867902544,
+     "sd_pp": 1.7122147241938146
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0015671949269396857,
+     "sd_pp": 0.22896817198984584
+    }
+   }
+  },
+  "abreviaturas|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": -30.169323462970635,
+     "sd_pp": 3.1144487891014974
+    },
+    "aceptada": {
+     "media_pp": -28.736871343696585,
+     "sd_pp": 3.2281716373982072
+    },
+    "precision_aceptada": {
+     "media_pp": -1.1984818961434227,
+     "sd_pp": 0.5547197028260379
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -30.169323462970635,
+     "sd_pp": 3.1144487891014974
+    },
+    "aceptada": {
+     "media_pp": -28.736871343696578,
+     "sd_pp": 3.2281716373982072
+    },
+    "precision_aceptada": {
+     "media_pp": -1.2004814359311506,
+     "sd_pp": 0.5561080821587736
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": -30.358644507878317,
+     "sd_pp": 3.105745200480978
+    },
+    "aceptada": {
+     "media_pp": -26.816457848659915,
+     "sd_pp": 2.619890162564482
+    },
+    "precision_aceptada": {
+     "media_pp": -0.16486489867785503,
+     "sd_pp": 0.35037731345438844
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -30.358644507878317,
+     "sd_pp": 3.105745200480978
+    },
+    "aceptada": {
+     "media_pp": -26.816457848659915,
+     "sd_pp": 2.619890162564482
+    },
+    "precision_aceptada": {
+     "media_pp": -0.1657155967118834,
+     "sd_pp": 0.35139953614673025
+    }
+   }
+  },
+  "orden|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": -3.858451235632691,
+     "sd_pp": 1.1280086142429337
+    },
+    "aceptada": {
+     "media_pp": -3.469947016695045,
+     "sd_pp": 1.1461243737490978
+    },
+    "precision_aceptada": {
+     "media_pp": -0.5751815410849742,
+     "sd_pp": 0.5743170010545173
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -3.885208672574213,
+     "sd_pp": 1.084634278640786
+    },
+    "aceptada": {
+     "media_pp": -3.4845243732518343,
+     "sd_pp": 1.1128179012169468
+    },
+    "precision_aceptada": {
+     "media_pp": -0.5396476103631033,
+     "sd_pp": 0.5562342509552656
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": -4.087347770878214,
+     "sd_pp": 1.2262733886794626
+    },
+    "aceptada": {
+     "media_pp": -3.7043863331853233,
+     "sd_pp": 0.9917246930102408
+    },
+    "precision_aceptada": {
+     "media_pp": -0.03396234792851838,
+     "sd_pp": 0.18655624115091993
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -4.114105207819736,
+     "sd_pp": 1.1949729198333146
+    },
+    "aceptada": {
+     "media_pp": -3.6922062528005917,
+     "sd_pp": 1.0286413468276348
+    },
+    "precision_aceptada": {
+     "media_pp": 0.013445600907362465,
+     "sd_pp": 0.3038898770140183
+    }
+   }
+  },
+  "orden|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": -23.111944832443957,
+     "sd_pp": 2.3432697826097915
+    },
+    "aceptada": {
+     "media_pp": -22.24311408260598,
+     "sd_pp": 2.839519633878815
+    },
+    "precision_aceptada": {
+     "media_pp": -3.4854244792865723,
+     "sd_pp": 1.4426928330131519
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -23.254219054583935,
+     "sd_pp": 2.3509323621558185
+    },
+    "aceptada": {
+     "media_pp": -22.461859248105455,
+     "sd_pp": 2.8340871325585772
+    },
+    "precision_aceptada": {
+     "media_pp": -3.510528993621656,
+     "sd_pp": 1.4489977399943283
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": -24.59821847767704,
+     "sd_pp": 2.5021940937075353
+    },
+    "aceptada": {
+     "media_pp": -16.317387614929917,
+     "sd_pp": 1.8949128444881587
+    },
+    "precision_aceptada": {
+     "media_pp": -1.1558909716508508,
+     "sd_pp": 0.5594925568046347
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -24.816894916945515,
+     "sd_pp": 2.47571990553797
+    },
+    "aceptada": {
+     "media_pp": -16.55799059165661,
+     "sd_pp": 1.8868622311507846
+    },
+    "precision_aceptada": {
+     "media_pp": -1.1664968869954533,
+     "sd_pp": 0.5654618218049349
+    }
+   }
+  },
+  "prefijo|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": -22.933577280937094,
+     "sd_pp": 2.0555065139477517
+    },
+    "aceptada": {
+     "media_pp": -0.8980734780309945,
+     "sd_pp": 1.2640675035376714
+    },
+    "precision_aceptada": {
+     "media_pp": -22.102511120345056,
+     "sd_pp": 2.8449691001694752
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -65.949634386286,
+     "sd_pp": 1.6746691612096551
+    },
+    "aceptada": {
+     "media_pp": -38.060429577456325,
+     "sd_pp": 3.0251199908943467
+    },
+    "precision_aceptada": {
+     "media_pp": -44.44187284544782,
+     "sd_pp": 3.5922082553349926
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": -22.850698365550418,
+     "sd_pp": 1.9684399322794157
+    },
+    "aceptada": {
+     "media_pp": -14.789538547304378,
+     "sd_pp": 1.6959998283745097
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0673223189163652,
+     "sd_pp": 0.20084992518934977
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -65.95521370630487,
+     "sd_pp": 1.5806474468215896
+    },
+    "aceptada": {
+     "media_pp": -46.88996582910111,
+     "sd_pp": 3.210218989875359
+    },
+    "precision_aceptada": {
+     "media_pp": 0.37820937595007653,
+     "sd_pp": 0.8051834860639405
+    }
+   }
+  },
+  "prefijo|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": -56.218096875578205,
+     "sd_pp": 2.395670831072188
+    },
+    "aceptada": {
+     "media_pp": -26.53829466201081,
+     "sd_pp": 1.900754854362995
+    },
+    "precision_aceptada": {
+     "media_pp": -37.06862165922435,
+     "sd_pp": 2.5622937227805833
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -80.6586501751835,
+     "sd_pp": 1.7545962276872176
+    },
+    "aceptada": {
+     "media_pp": -45.93848736942174,
+     "sd_pp": 2.4960697291558183
+    },
+    "precision_aceptada": {
+     "media_pp": -61.82585670690163,
+     "sd_pp": 3.3571941819472686
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": -56.289354916905154,
+     "sd_pp": 2.305658967897037
+    },
+    "aceptada": {
+     "media_pp": -39.60274530562777,
+     "sd_pp": 2.680717253353475
+    },
+    "precision_aceptada": {
+     "media_pp": -0.48991515848154926,
+     "sd_pp": 0.6027273423442538
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -80.91389846899644,
+     "sd_pp": 1.7045675494915224
+    },
+    "aceptada": {
+     "media_pp": -58.38723706061057,
+     "sd_pp": 3.6201148233497453
+    },
+    "precision_aceptada": {
+     "media_pp": -0.28382119685510354,
+     "sd_pp": 2.972553452756091
+    }
+   }
+  },
+  "sufijo|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": -0.1849493484185316,
+     "sd_pp": 0.23514318568107143
+    },
+    "aceptada": {
+     "media_pp": -0.4737347960514787,
+     "sd_pp": 0.39607580917592333
+    },
+    "precision_aceptada": {
+     "media_pp": -0.43826565644083376,
+     "sd_pp": 0.23961218181636837
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -0.1849493484185316,
+     "sd_pp": 0.23514318568107143
+    },
+    "aceptada": {
+     "media_pp": -0.47373479605147767,
+     "sd_pp": 0.39607580917592267
+    },
+    "precision_aceptada": {
+     "media_pp": -0.43842873500645413,
+     "sd_pp": 0.23950974616318754
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": -0.026142213642213474,
+     "sd_pp": 0.0813165332127671
+    },
+    "aceptada": {
+     "media_pp": -7.388225138640432,
+     "sd_pp": 1.101986701370225
+    },
+    "precision_aceptada": {
+     "media_pp": -0.09098403116532205,
+     "sd_pp": 0.10981985108666326
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -0.026142213642213474,
+     "sd_pp": 0.0813165332127671
+    },
+    "aceptada": {
+     "media_pp": -7.434532451607133,
+     "sd_pp": 1.1623026988184422
+    },
+    "precision_aceptada": {
+     "media_pp": -0.004103103891520132,
+     "sd_pp": 0.10911054991834952
+    }
+   }
+  },
+  "sufijo|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": -0.3006489181264055,
+     "sd_pp": 0.41053822240738763
+    },
+    "aceptada": {
+     "media_pp": -1.442632177110076,
+     "sd_pp": 0.8203208009428721
+    },
+    "precision_aceptada": {
+     "media_pp": -0.6447341404055551,
+     "sd_pp": 0.3874848793974159
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -0.33958643545266015,
+     "sd_pp": 0.4459170541301859
+    },
+    "aceptada": {
+     "media_pp": -1.4036946597838202,
+     "sd_pp": 0.7668054703679243
+    },
+    "precision_aceptada": {
+     "media_pp": -0.6434595844480229,
+     "sd_pp": 0.38805847672685034
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": -0.41090576580173954,
+     "sd_pp": 0.2661926187450727
+    },
+    "aceptada": {
+     "media_pp": -23.21952671252722,
+     "sd_pp": 1.6914945575454132
+    },
+    "precision_aceptada": {
+     "media_pp": -0.19273591276037338,
+     "sd_pp": 0.2570456598443966
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -0.4498432831279942,
+     "sd_pp": 0.3217467815737636
+    },
+    "aceptada": {
+     "media_pp": -23.29259146243544,
+     "sd_pp": 1.7194444695103883
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0022408678573282437,
+     "sd_pp": 0.44544288685533434
+    }
+   }
+  },
+  "ocr|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": -14.444505326187164,
+     "sd_pp": 1.8879071559966163
+    },
+    "aceptada": {
+     "media_pp": -17.367534902895564,
+     "sd_pp": 2.3654312592078144
+    },
+    "precision_aceptada": {
+     "media_pp": -1.2951831006585557,
+     "sd_pp": 0.6729972858188671
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -14.129366817614207,
+     "sd_pp": 1.8787983556284311
+    },
+    "aceptada": {
+     "media_pp": -17.174535549330535,
+     "sd_pp": 2.4492483197098895
+    },
+    "precision_aceptada": {
+     "media_pp": -1.0755972961120952,
+     "sd_pp": 0.6202973715698731
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": -14.62008170817912,
+     "sd_pp": 2.1720715762852434
+    },
+    "aceptada": {
+     "media_pp": -22.23388684246561,
+     "sd_pp": 2.243563460791247
+    },
+    "precision_aceptada": {
+     "media_pp": -1.132506939166999,
+     "sd_pp": 0.8040897768445032
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -14.301895864723141,
+     "sd_pp": 2.163245017587466
+    },
+    "aceptada": {
+     "media_pp": -22.20841943675611,
+     "sd_pp": 2.2450907683736387
+    },
+    "precision_aceptada": {
+     "media_pp": -1.1326803484588392,
+     "sd_pp": 0.8041936550230119
+    }
+   }
+  },
+  "ocr|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": -26.794063961291034,
+     "sd_pp": 3.326942224061068
+    },
+    "aceptada": {
+     "media_pp": -26.13597617616852,
+     "sd_pp": 2.883148407008456
+    },
+    "precision_aceptada": {
+     "media_pp": -1.9961745100227124,
+     "sd_pp": 0.6590979120626872
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -26.30647525381925,
+     "sd_pp": 3.3230331271242273
+    },
+    "aceptada": {
+     "media_pp": -25.832260098320262,
+     "sd_pp": 2.9977386569133158
+    },
+    "precision_aceptada": {
+     "media_pp": -1.776013996783649,
+     "sd_pp": 0.702911036184334
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": -28.28358507498634,
+     "sd_pp": 3.65161418655691
+    },
+    "aceptada": {
+     "media_pp": -32.57752737538103,
+     "sd_pp": 2.830234356338985
+    },
+    "precision_aceptada": {
+     "media_pp": -1.6235376823597583,
+     "sd_pp": 1.022822440308681
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -27.811059180840715,
+     "sd_pp": 3.63390678562494
+    },
+    "aceptada": {
+     "media_pp": -32.55335000090357,
+     "sd_pp": 2.7741408502060745
+    },
+    "precision_aceptada": {
+     "media_pp": -1.5376391047796036,
+     "sd_pp": 1.1575086289236058
+    }
+   }
+  },
+  "espacios|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": 0.022420070826474903,
+     "sd_pp": 0.06930293532379873
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": 0.022420070826474903,
+     "sd_pp": 0.06930293532379873
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    },
+    "precision_aceptada": {
+     "media_pp": 0.0,
+     "sd_pp": 0.0
+    }
+   }
+  },
+  "espacios|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": -22.825469281645656,
+     "sd_pp": 2.9264078420388264
+    },
+    "aceptada": {
+     "media_pp": -22.154119675500645,
+     "sd_pp": 2.5855139920095356
+    },
+    "precision_aceptada": {
+     "media_pp": -3.1536050314023147,
+     "sd_pp": 0.9217563122250844
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -22.762897528539145,
+     "sd_pp": 2.9989646705870716
+    },
+    "aceptada": {
+     "media_pp": -21.851915191688484,
+     "sd_pp": 2.579683044926291
+    },
+    "precision_aceptada": {
+     "media_pp": -3.1285637562367823,
+     "sd_pp": 0.9258691656474034
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": -24.18320837691513,
+     "sd_pp": 2.8892932653140817
+    },
+    "aceptada": {
+     "media_pp": -38.74828839153891,
+     "sd_pp": 3.477588236391937
+    },
+    "precision_aceptada": {
+     "media_pp": -0.6110278494337684,
+     "sd_pp": 0.8270559486088109
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -24.056231700772862,
+     "sd_pp": 2.9347023158770065
+    },
+    "aceptada": {
+     "media_pp": -38.762666850455936,
+     "sd_pp": 3.4736214916079455
+    },
+    "precision_aceptada": {
+     "media_pp": -0.38019691736531747,
+     "sd_pp": 0.8997779606821984
+    }
+   }
+  },
+  "marca|leve": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": -0.09316248568817853,
+     "sd_pp": 0.42056281453927863
+    },
+    "aceptada": {
+     "media_pp": 0.8231460024557862,
+     "sd_pp": 0.6412862916275682
+    },
+    "precision_aceptada": {
+     "media_pp": -0.7106350936349171,
+     "sd_pp": 0.42198770089203613
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -0.09316248568817853,
+     "sd_pp": 0.42056281453927863
+    },
+    "aceptada": {
+     "media_pp": 0.8231460024557874,
+     "sd_pp": 0.6412862916275676
+    },
+    "precision_aceptada": {
+     "media_pp": -0.7108998093940805,
+     "sd_pp": 0.4219264533723886
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": -0.39578434974518073,
+     "sd_pp": 0.3512633381395492
+    },
+    "aceptada": {
+     "media_pp": -5.960456218782231,
+     "sd_pp": 1.6191670393706328
+    },
+    "precision_aceptada": {
+     "media_pp": -0.4172713140205409,
+     "sd_pp": 0.48810077195401025
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -0.4347218670714348,
+     "sd_pp": 0.3703209014147845
+    },
+    "aceptada": {
+     "media_pp": -6.099017025318481,
+     "sd_pp": 1.662005275552861
+    },
+    "precision_aceptada": {
+     "media_pp": -0.24281793304987254,
+     "sd_pp": 0.5809560274100236
+    }
+   }
+  },
+  "marca|fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": {
+     "media_pp": -3.816560254943673,
+     "sd_pp": 0.9322534280519879
+    },
+    "aceptada": {
+     "media_pp": -10.896649515069026,
+     "sd_pp": 2.096961629327332
+    },
+    "precision_aceptada": {
+     "media_pp": -3.6204756040131514,
+     "sd_pp": 0.7937276607092261
+    }
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -3.8554977722699264,
+     "sd_pp": 0.9340486371386559
+    },
+    "aceptada": {
+     "media_pp": -10.85771199774277,
+     "sd_pp": 2.0938576433399927
+    },
+    "precision_aceptada": {
+     "media_pp": -3.6192010480556194,
+     "sd_pp": 0.7942565606360094
+    }
+   },
+   "lexico|limpiador": {
+    "exactitud": {
+     "media_pp": -4.807691585152743,
+     "sd_pp": 0.9867473416688076
+    },
+    "aceptada": {
+     "media_pp": -29.442119811692827,
+     "sd_pp": 2.5180723230153794
+    },
+    "precision_aceptada": {
+     "media_pp": -0.9396414564527185,
+     "sd_pp": 0.688946029829319
+    }
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": {
+     "media_pp": -4.807691585152743,
+     "sd_pp": 0.9867473416688076
+    },
+    "aceptada": {
+     "media_pp": -29.50280558357657,
+     "sd_pp": 2.495768477926639
+    },
+    "precision_aceptada": {
+     "media_pp": -0.6400487406761306,
+     "sd_pp": 0.9248942174867892
+    }
+   }
+  }
+ },
+ "resumen_global": {
+  "leve": {
+   "hibrido|limpiador": {
+    "exactitud": 0.8800240207752617,
+    "aceptada": 0.7029197121187365,
+    "precision_aceptada": 0.9550736321048952,
+    "revision_humana": 0.2970802878812635,
+    "aceptada_mal": 0.032074329584203885,
+    "errores_que_van_a_revision": 0.7260796453624491,
+    "aceptada_por_puntaje": 0.805837794136281,
+    "precision_por_puntaje": 0.9539457879559151
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": 0.841244183224358,
+    "aceptada": 0.6689630223734722,
+    "precision_aceptada": 0.9351287092393803,
+    "revision_humana": 0.3310369776265279,
+    "aceptada_mal": 0.031276264277851545,
+    "errores_que_van_a_revision": 0.7629845331100126,
+    "aceptada_por_puntaje": 0.7665967700560068,
+    "precision_por_puntaje": 0.9348616737793745
+   },
+   "lexico|limpiador": {
+    "exactitud": 0.8777267155021299,
+    "aceptada": 0.5230381566306904,
+    "precision_aceptada": 0.9903022362754137,
+    "revision_humana": 0.4769618433693095,
+    "aceptada_mal": 0.004800455256538012,
+    "errores_que_van_a_revision": 0.9399910366939661,
+    "aceptada_por_puntaje": 0.6245601203693009,
+    "precision_por_puntaje": 0.9755021617714758
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": 0.838888277637923,
+    "aceptada": 0.49333273789815024,
+    "precision_aceptada": 0.9908580013969566,
+    "revision_humana": 0.5066672621018496,
+    "aceptada_mal": 0.004437298930740757,
+    "errores_que_van_a_revision": 0.9436133181760067,
+    "aceptada_por_puntaje": 0.5894139662506945,
+    "precision_por_puntaje": 0.9751000818763109
+   }
+  },
+  "fuerte": {
+   "hibrido|limpiador": {
+    "exactitud": 0.7742690356297643,
+    "aceptada": 0.6012729221522598,
+    "precision_aceptada": 0.9312967059513378,
+    "revision_humana": 0.3987270778477402,
+    "aceptada_mal": 0.0368003294900339,
+    "errores_que_van_a_revision": 0.7861376376379301,
+    "aceptada_por_puntaje": 0.6830777709292002,
+    "precision_por_puntaje": 0.9304048620396181
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": 0.75258054129528,
+    "aceptada": 0.5836366994704747,
+    "precision_aceptada": 0.9092215690980289,
+    "revision_humana": 0.4163633005295253,
+    "aceptada_mal": 0.03624700340383766,
+    "errores_que_van_a_revision": 0.7955256221673145,
+    "aceptada_por_puntaje": 0.6629522581038884,
+    "precision_por_puntaje": 0.9073284882325587
+   },
+   "lexico|limpiador": {
+    "exactitud": 0.7680897797522209,
+    "aceptada": 0.3860873892886312,
+    "precision_aceptada": 0.9869377880549297,
+    "revision_humana": 0.6139126107113688,
+    "aceptada_mal": 0.0046044123475912045,
+    "errores_que_van_a_revision": 0.95872493984267,
+    "aceptada_por_puntaje": 0.45963693551462265,
+    "precision_por_puntaje": 0.9760943745449997
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": 0.7463281821837119,
+    "aceptada": 0.3682713673449514,
+    "precision_aceptada": 0.9879037980855315,
+    "revision_humana": 0.6317286326550486,
+    "aceptada_mal": 0.0041623212984346104,
+    "errores_que_van_a_revision": 0.9613184915218345,
+    "aceptada_por_puntaje": 0.4387655755236114,
+    "precision_por_puntaje": 0.9773007473126054
+   }
+  },
+  "todas": {
+   "hibrido|limpiador": {
+    "exactitud": 0.8271465282025132,
+    "aceptada": 0.6520963171354981,
+    "precision_aceptada": 0.9431851690281163,
+    "revision_humana": 0.3479036828645019,
+    "aceptada_mal": 0.034437329537118894,
+    "errores_que_van_a_revision": 0.7561086415001896,
+    "aceptada_por_puntaje": 0.7444577825327408,
+    "precision_por_puntaje": 0.9421753249977666
+   },
+   "hibrido|sin_limpiador": {
+    "exactitud": 0.796912362259819,
+    "aceptada": 0.6262998609219734,
+    "precision_aceptada": 0.9221751391687044,
+    "revision_humana": 0.3737001390780266,
+    "aceptada_mal": 0.0337616338408446,
+    "errores_que_van_a_revision": 0.7792550776386636,
+    "aceptada_por_puntaje": 0.7147745140799475,
+    "precision_por_puntaje": 0.9210950810059665
+   },
+   "lexico|limpiador": {
+    "exactitud": 0.8229082476271755,
+    "aceptada": 0.4545627729596607,
+    "precision_aceptada": 0.9886200121651718,
+    "revision_humana": 0.5454372270403393,
+    "aceptada_mal": 0.004702433802064608,
+    "errores_que_van_a_revision": 0.949357988268318,
+    "aceptada_por_puntaje": 0.5420985279419617,
+    "precision_por_puntaje": 0.9757982681582377
+   },
+   "lexico|sin_limpiador": {
+    "exactitud": 0.7926082299108174,
+    "aceptada": 0.4308020526215508,
+    "precision_aceptada": 0.989380899741244,
+    "revision_humana": 0.5691979473784493,
+    "aceptada_mal": 0.004299810114587684,
+    "errores_que_van_a_revision": 0.9524659048489206,
+    "aceptada_por_puntaje": 0.514089770887153,
+    "precision_por_puntaje": 0.9762004145944584
+   }
+  }
+ },
+ "limpio_por_origen_de_etiqueta": {
+  "concepto_corregido_en_revision": {
+   "renglones": 28,
+   "exactitud": 0.9285714285714286,
+   "aceptada": 0.5
+  },
+  "salida_aceptada_aviso_descartado_por_revisor": {
+   "renglones": 213,
+   "exactitud": 0.9577464788732394,
+   "aceptada": 0.4694835680751174
+  },
+  "salida_aceptada_sin_tocar_en_version_con_correcciones": {
+   "renglones": 2337,
+   "exactitud": 0.944801026957638,
+   "aceptada": 0.7749251176722294
+  },
+  "salida_aceptada_sin_tocar_version_aprobada_sin_correcciones": {
+   "renglones": 459,
+   "exactitud": 0.9586056644880174,
+   "aceptada": 0.7472766884531591
+  },
+  "corregido_por_persona": {
+   "renglones": 28,
+   "exactitud": 0.9285714285714286,
+   "aceptada": 0.5
+  },
+  "sin_concepto": {
+   "renglones": 283,
+   "exactitud": 0.8904593639575972,
+   "aceptada": 0.06007067137809187
+  }
+ },
+ "ejemplos_prefijo_donde_el_limpiador_cambia": [
+  {
+   "severidad": "leve",
+   "texto": "Lista de útiles: Snap cubes x 100 método Singapur (jardín, transición, 1°, 2°, 3°, 4° y 5°) (solo deben comprar estudiantes nuevos).",
+   "etiqueta": "C035",
+   "con_limpiador": "C035",
+   "sin_limpiador": null
+  },
+  {
+   "severidad": "leve",
+   "texto": "Lista de útiles: taja lápiz con deposito.",
+   "etiqueta": "C007",
+   "con_limpiador": "C007",
+   "sin_limpiador": null
+  },
+  {
+   "severidad": "leve",
+   "texto": "Lista de útiles: Calculadora (del año anterior).",
+   "etiqueta": "C026",
+   "con_limpiador": "C026",
+   "sin_limpiador": null
+  },
+  {
+   "severidad": "leve",
+   "texto": "Útiles: paquete base ten blocks Smart pack. método Singapur",
+   "etiqueta": "C035",
+   "con_limpiador": "C035",
+   "sin_limpiador": null
+  },
+  {
+   "severidad": "leve",
+   "texto": "Lista de útiles: Esferos (rojo y negro)",
+   "etiqueta": "C012",
+   "con_limpiador": "C012",
+   "sin_limpiador": null
+  },
+  {
+   "severidad": "leve",
+   "texto": "Lista de útiles: Cartuchera multiusos",
+   "etiqueta": "C009",
+   "con_limpiador": "C009",
+   "sin_limpiador": null
+  },
+  {
+   "severidad": "leve",
+   "texto": "Lista de útiles: Uniforme educación física",
+   "etiqueta": "C131",
+   "con_limpiador": "C131",
+   "sin_limpiador": null
+  },
+  {
+   "severidad": "leve",
+   "texto": "Lista de útiles: Diccionario de Español",
+   "etiqueta": "C034",
+   "con_limpiador": "C034",
+   "sin_limpiador": null
+  },
+  {
+   "severidad": "leve",
+   "texto": "Útiles: Cuadriculado de 50 hojas argollado Línea de investigación",
+   "etiqueta": "C001",
+   "con_limpiador": "C001",
+   "sin_limpiador": null
+  },
+  {
+   "severidad": "leve",
+   "texto": "Útiles: colores de buena calidad",
+   "etiqueta": "C004",
+   "con_limpiador": "C004",
+   "sin_limpiador": null
+  },
+  {
+   "severidad": "leve",
+   "texto": "Útiles: Tapabocas",
+   "etiqueta": "C146",
+   "con_limpiador": "C146",
+   "sin_limpiador": null
+  },
+  {
+   "severidad": "leve",
+   "texto": "Lista de útiles: Cuadriculado 50 hojas grande Educación Ética y en Valores Humanos",
+   "etiqueta": "C001",
+   "con_limpiador": "C001",
+   "sin_limpiador": null
+  },
+  {
+   "severidad": "fuerte",
+   "texto": "Papelería: Material escolar: Math in Focus Student Edition 5A y 5B. Ed. Marshall Cavendish.",
+   "etiqueta": null,
+   "con_limpiador": "C035",
+   "sin_limpiador": "C119"
+  },
+  {
+   "severidad": "fuerte",
+   "texto": "Para el salón: Kit de aseo: caja de counters x100",
+   "etiqueta": "C035",
+   "con_limpiador": "C035",
+   "sin_limpiador": "C036"
+  },
+  {
+   "severidad": "fuerte",
+   "texto": "Kit de arte: Kit de arte: cuadernos grandes cuadriculados cosidos de 100 hojas (Biología, Matemáticas, Química, Lengua Castellana, Física, Ciencias Sociales e Inglés)",
+   "etiqueta": "C001",
+   "con_limpiador": "C001",
+   "sin_limpiador": "C070"
+  },
+  {
+   "severidad": "fuerte",
+   "texto": "Papelería: Para el salón: tajalápiz de caja",
+   "etiqueta": "C007",
+   "con_limpiador": "C007",
+   "sin_limpiador": "C112"
+  },
+  {
+   "severidad": "fuerte",
+   "texto": "Papelería: Material escolar: lápiz negro.",
+   "etiqueta": "C002",
+   "con_limpiador": "C035",
+   "sin_limpiador": "C014"
+  },
+  {
+   "severidad": "fuerte",
+   "texto": "Para el salón: Kit de aseo: Plumones delgados",
+   "etiqueta": "C006",
+   "con_limpiador": "C006",
+   "sin_limpiador": "C021"
+  },
+  {
+   "severidad": "fuerte",
+   "texto": "Kit de aseo: Kit de aseo: pegamento (barra o líquido)",
+   "etiqueta": "C017",
+   "con_limpiador": "C017",
+   "sin_limpiador": "C070"
+  },
+  {
+   "severidad": "fuerte",
+   "texto": "Papelería: Material escolar: Cuadriculado 50 hojas grande Filosofía",
+   "etiqueta": "C001",
+   "con_limpiador": "C035",
+   "sin_limpiador": "C120"
+  },
+  {
+   "severidad": "fuerte",
+   "texto": "Kit de aseo: Materiales: Ferrocarril de 100 cuaderno grande",
+   "etiqueta": "C001",
+   "con_limpiador": "C001",
+   "sin_limpiador": "C035"
+  },
+  {
+   "severidad": "fuerte",
+   "texto": "Papelería: Material de apoyo: Uniforme de diario mujeres",
+   "etiqueta": "C131",
+   "con_limpiador": "C035",
+   "sin_limpiador": "C112"
+  },
+  {
+   "severidad": "fuerte",
+   "texto": "Para el salón: Kit de aseo: Lapiz rojo",
+   "etiqueta": "C002",
+   "con_limpiador": "C002",
+   "sin_limpiador": "C114"
+  },
+  {
+   "severidad": "fuerte",
+   "texto": "Kit de aseo: Kit de arte: Caja de plástico con el logo del colegio San Pedro y el nombre del estudiante",
+   "etiqueta": "C098",
+   "con_limpiador": "C098",
+   "sin_limpiador": "C070"
+  }
+ ],
+ "llamadas": {
+  "textos_perturbados_distintos": 29651,
+  "sin_vector_en_cache_(llamadas_a_Gemini)": 0,
+  "solicitudes": 0,
+  "emparejar_calls": 141864
+ },
+ "segundos": 800.7958459854126
+}

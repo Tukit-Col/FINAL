@@ -1,0 +1,2795 @@
+{
+"conceptos": [
+{
+"id": "74c2306c-a402-54aa-a17f-af8cade17be9",
+"codigo": "C009",
+"nombre": "Cartuchera",
+"sinonimos": [
+"cartuchera",
+"cartuchera grande cremallera",
+"koala como cartuchera",
+"cartuchera cremallera",
+"cartuchera mediana",
+"cartuchera multiuso",
+"cartuchera minimo dos compartimiento",
+"cartuchera personal",
+"cartuchera doble servicio",
+"cartuchera grande",
+"cartuchera resistente excelente calidad"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tamano",
+"compartimentos"
+]
+},
+{
+"id": "f507bbec-d821-58e8-94db-126f2ceb5925",
+"codigo": "C142",
+"nombre": "Componente electrónico especializado",
+"sinonimos": [
+"modulo relay",
+"modulo rele",
+"relay",
+"rele",
+"modulo relay 1 canal 5v",
+"puente h",
+"modulo puente h",
+"modulo puente h l298n recomendado",
+"l298n",
+"joystick",
+"joystick analogico",
+"joystick analogico para arduino ky 023",
+"ky 023",
+"modulo",
+"broche de batería de 9v",
+"pulsadores de 4 pines",
+"sensor de movimiento pir hcsr501",
+"sensor de proximidad hcsr04",
+"sensor de proximidad ir",
+"buzzer",
+"kit componentes electronicos"
+],
+"tipo_item": "otro",
+"discriminantes": []
+},
+{
+"id": "99871e44-007c-5ffd-b6c9-7adc4c9f0369",
+"codigo": "dic-ingles",
+"nombre": "Diccionario de inglés",
+"sinonimos": [
+"diccionario de ingles",
+"diccionario ingles espanol",
+"dicc ingles",
+"diccionario ingles",
+"diccionario ingles ingles",
+"diccionario inglés – inglés",
+"diccionario inglés- español",
+"diccionario inglés- inglés",
+"diccionario larousse básico inglés - español"
+],
+"tipo_item": "libro_libre",
+"discriminantes": [
+"monolingue"
+]
+},
+{
+"id": "fd8397a0-d3e6-5fa9-ae5c-e94a74f64248",
+"codigo": "C016",
+"nombre": "Pegante en barra",
+"sinonimos": [
+"pegante barra",
+"pegastic grande",
+"pegastic pequeno",
+"pega stick",
+"pegastick grande",
+"pegante barra mediano",
+"pegastic",
+"frasco pegastick",
+"pegante barra grande",
+"barra pegamento",
+"barra pegante",
+"colbon pegastic",
+"pegastic pegamento barra"
+],
+"tipo_item": "util",
+"discriminantes": [
+"gramaje"
+]
+},
+{
+"id": "b94205fe-1327-5a3e-9be6-25b892af9bb6",
+"codigo": "C052",
+"nombre": "Escarcha",
+"sinonimos": [
+"tubo escarcha colores variado",
+"tubo escarcha",
+"tubo escarcha color",
+"tubo escarcha tornasol"
+],
+"tipo_item": "util",
+"discriminantes": [
+"presentacion"
+]
+},
+{
+"id": "ac76ed33-447c-5586-91ed-8035ff5b3bb7",
+"codigo": "C053",
+"nombre": "Crayones",
+"sinonimos": [
+"caja crayola",
+"caja crayola triangular gruesa",
+"caja crayola pequena",
+"caja crayon"
+],
+"tipo_item": "util",
+"discriminantes": [
+"unidades"
+]
+},
+{
+"id": "e6f46e89-f624-5f8d-82b5-d06d3c281e21",
+"codigo": "C061",
+"nombre": "Aserrín",
+"sinonimos": [
+"bolsa aserrin",
+"paquete aserrin color",
+"paquete aserrin colores",
+"paquete aserrin marron pequeno",
+"paquete aserrin pequeno",
+"paquete aserrin pequeno colores"
+],
+"tipo_item": "util",
+"discriminantes": [
+"presentacion"
+]
+},
+{
+"id": "30764d23-99d5-52f4-92e4-3c56eb3eeb3a",
+"codigo": "C064",
+"nombre": "Portaminas",
+"sinonimos": [
+"portamina"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "f1fdad9b-e648-5457-ad61-7fbfea641154",
+"codigo": "C066",
+"nombre": "Flauta",
+"sinonimos": [
+"flauta dulce",
+"flauta"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tipo"
+]
+},
+{
+"id": "e7b03a29-5052-59fa-bf59-15deb7ab2815",
+"codigo": "C072",
+"nombre": "Lazo",
+"sinonimos": [
+"lazo saltar",
+"lazo cuerda saltar"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "dc421493-888b-537d-9a3c-ce323752a388",
+"codigo": "C080",
+"nombre": "Jabón",
+"sinonimos": [
+"frasco jabon liquido"
+],
+"tipo_item": "util",
+"discriminantes": [
+"presentacion"
+]
+},
+{
+"id": "df16d4a9-ac49-5dc7-b917-64e6a120b949",
+"codigo": "C085",
+"nombre": "Limpiapipas",
+"sinonimos": [
+"limpiapipas",
+"paquete limpia pipa"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "f04ff899-6541-541d-b9a5-8c99506d8210",
+"codigo": "C134",
+"nombre": "Libro o texto con título",
+"sinonimos": [
+"plan lector",
+"libro plan lector",
+"plan lector libro",
+"plan lector autor editorial",
+"lectura multidimensional método 84h"
+],
+"tipo_item": "libro_libre",
+"discriminantes": [
+"isbn13"
+]
+},
+{
+"id": "8ea61ce5-96bd-568c-96ab-fe2080d50892",
+"codigo": "C094",
+"nombre": "Tiza",
+"sinonimos": [
+"tiza colores",
+"tiza colores vivo",
+"caja de pasteles secos"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "2615454c-c672-5606-baa7-4b23de0f2a7e",
+"codigo": "C091",
+"nombre": "Sobre de manila",
+"sinonimos": [
+"sobre manila blanco tamano oficio"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "6dba19c5-ca1b-5aa0-a799-e76b6e9c623f",
+"codigo": "C092",
+"nombre": "Tablero de dibujo",
+"sinonimos": [
+"tabla dibujo tecnico formato a3",
+"tabla diseno formato",
+"tabla de diseno",
+"tablero de diseno",
+"tabla de dibujo",
+"tablero dibujo tecnico",
+"tabla dibujo tecnico",
+"tabla de dibujo formato"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "30cdbc45-f2a8-5c86-a3c4-6b765f5fd849",
+"codigo": "C093",
+"nombre": "Tinta china",
+"sinonimos": [
+"tinta china negra"
+],
+"tipo_item": "util",
+"discriminantes": [
+"color"
+]
+},
+{
+"id": "f35057a6-1539-549d-bd42-f44314bf2dcd",
+"codigo": "C102",
+"nombre": "Protoboard",
+"sinonimos": [
+"protoboard"
+],
+"tipo_item": "util",
+"discriminantes": [
+"puntos"
+]
+},
+{
+"id": "2411a862-e3f6-5427-a457-4629763884f0",
+"codigo": "C114",
+"nombre": "Kit de lápices de dibujo",
+"sinonimos": [
+"estuche lapices dibujo artistico",
+"estuche lapices para dibujo artistico serie h b",
+"lapices dibujo artistico",
+"estuche lapiz dibujo artistico serie h b",
+"kit lapices dibujo artistico",
+"lapiz serie durezas",
+"lapices serie durezas"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "f3a949f1-f20b-50ee-b609-e08a03765e0a",
+"codigo": "C115",
+"nombre": "Limpiatipos",
+"sinonimos": [
+"Goma de masilla",
+"goma limpiatipo",
+"goma limpiatipos",
+"limpiatipos",
+"goma de masilla",
+"goma limpia tipos",
+"limpia tipos"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "ba85071c-2df1-5b07-96e7-ba2af35baf60",
+"codigo": "C119",
+"nombre": "Papel acuarela",
+"sinonimos": [
+"papel acuarela",
+"paquete papel acuarela",
+"hoja papel acuarela tamano octavo"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "d3269faa-f5bb-52e1-b96d-51a29d01237c",
+"codigo": "C133",
+"nombre": "Plan lector virtual",
+"sinonimos": [
+"plan lector virtual",
+"plan lector virtual ingles",
+"plan lector virtual ingles raz plus",
+"raz plus",
+"raz kids",
+"plataforma raz plus",
+"licencia raz plus",
+"quovix",
+"plataforma de lectura",
+"licencia de lectura virtual",
+"plan lector virtual ingles raz plus administrada colombia quovix",
+"plan lector raz",
+"plan lector raz plus",
+"plan lector virtual raz plus",
+"comprension lectora plan lector virtual lengua castellana raz plus",
+"comprension lectora raz plus"
+],
+"tipo_item": "licencia_digital",
+"discriminantes": []
+},
+{
+"id": "aa19a19d-8757-5f24-aaba-d697b7f2f0d1",
+"codigo": "C135",
+"nombre": "Antifaz",
+"sinonimos": [
+"antifaz",
+"antifaz para dormir",
+"antifaz de dormir",
+"antifaz dormir",
+"antifaz dormir ejercicio sensorial",
+"antifaz para ejercicios sensoriales"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "984280c3-651e-515f-83b4-61f6e3ac229d",
+"codigo": "C136",
+"nombre": "Gafas de natación",
+"sinonimos": [
+"gafas de natacion",
+"gafas natacion",
+"gafas para natacion",
+"gafas de piscina",
+"gafas de natacion junior"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "680ada32-51ae-5ba8-af02-fb8f941a353f",
+"codigo": "C027",
+"nombre": "Pintura",
+"sinonimos": [
+"pintura acrilica tubo",
+"pintura academica olor amarillo azul rojo",
+"delantal pintura",
+"delantal antifluido azul oscuro pintura",
+"frasco pintura colores variado tapa dosificadora",
+"delantal antifluido azul oscuro pintura juego didactico ingles colores animal numero",
+"delantal pintura manga larga resistente",
+"delantal pintura manga larga resistente tela impermeable",
+"estuche pintura acrilica",
+"frasco pintura",
+"frasco pintura color fluorescente tapa dosificadora",
+"frasco pintura colores fluorescente tapa",
+"oleo",
+"óleo",
+"pintura al oleo",
+"pintura al óleo",
+"set de oleo",
+"oleo escolar",
+"pinturita"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tipo",
+"color"
+]
+},
+{
+"id": "d6958d1c-60d2-5b70-8a60-c55c487b75af",
+"codigo": "C032",
+"nombre": "Hojas",
+"sinonimos": [
+"hoja examen",
+"paquete hoja cuadriculada tamano carta"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tipo",
+"tamano"
+]
+},
+{
+"id": "b8569b59-63cf-53f5-b910-098b91e80738",
+"codigo": "C003",
+"nombre": "Block",
+"sinonimos": [
+"block cuadriculado tamano carta",
+"block cuadriculado tamano oficio",
+"block hoja blanca tamano carta",
+"block cuadriculado oficio",
+"block dibujo pequeno espiral",
+"block hoja cuadriculada",
+"block hoja linea",
+"block oficio rayado hoja trabajo",
+"block papel",
+"block hoja corazonista",
+"block mantequilla",
+"sketch book tamano carta",
+"block hoja blanca carta",
+"block hoja blanca tamano oficio",
+"block hoja cuadriculado tamano carta",
+"block oficio carta hoja trabajo",
+"block oficio cuadriculado hoja trabajo",
+"block rayado tamano oficio",
+"block din a4 formato tamano carta",
+"block dina a3 sin formato",
+"block hoja blanca oficio",
+"block hoja cuadriculada portafolio",
+"block hoja mantequilla",
+"block hoja milimetrada",
+"block papel mantequilla",
+"block cuadriculado carta",
+"block din a4 cuadriculado",
+"block hoja cuadriculada oficio",
+"block hoja cuadriculada portafolio carta",
+"block hoja cuadriculada tamano carta",
+"block hoja cuadriculada tamano oficio",
+"block hoja dina blanco",
+"block hoja oficio cuadriculado",
+"block hoja rayada tamano carta",
+"block hoja tamano carta cuadriculada",
+"block oficio cuadriculado",
+"block oficio hoja blanca",
+"block papel mantequilla tamano oficio",
+"block papel milimetrado tamano carta",
+"block tamano carta raya",
+"blocks hoja blanca tamano carta"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tipo",
+"tamano"
+]
+},
+{
+"id": "af3bf78a-278a-5066-9528-9776e9a34157",
+"codigo": "C021",
+"nombre": "Pincel",
+"sinonimos": [
+"pincel grueso",
+"pincel delgado",
+"kit pincel sintetico delgado plano redondo abanico",
+"pincel cerda suave redondo pelo nylon mango madera",
+"pincel grueso delgado",
+"pincel plano n",
+"pincel redondo n",
+"pincel cerda dura redondo",
+"pincel cerda suave plano pelo nylon mango madera",
+"pincel no",
+"pincel plano",
+"pincel punta plana redonda",
+"pincel redondo",
+"pincel sintetico no",
+"muda ropa completa pincel",
+"pincel",
+"pincel delgado plano",
+"pincel grueso redondo plano",
+"pincel mediano",
+"pincel pequeno",
+"pincel plano pelo camello",
+"plano pelo camello"
+],
+"tipo_item": "util",
+"discriminantes": [
+"grosor",
+"forma",
+"unidades"
+]
+},
+{
+"id": "0c165a72-913c-5f16-9bc7-dd3aa93849c4",
+"codigo": "C030",
+"nombre": "Acetato",
+"sinonimos": [
+"protector acetato tamano carta",
+"funda acetato tamano oficio",
+"paquete sobre acetato tamano carta",
+"acetato tamano carta",
+"carpeta acetato tamano oficio gancho legajador caucho cierre",
+"carpeta aro tamano carta acetato",
+"folder tamano carta sobre acetato",
+"hoja acetato tamano oficio",
+"sobre acetato",
+"sobre acetato transparente carta"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tamano"
+]
+},
+{
+"id": "86fb5daf-5c19-56aa-8f76-8d7b709d0389",
+"codigo": "C045",
+"nombre": "Notas adhesivas",
+"sinonimos": [
+"nota adhesiva",
+"paquete nota adhesiva"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "08d85592-26bc-5825-b05c-e969420095ff",
+"codigo": "C047",
+"nombre": "Algodón",
+"sinonimos": [
+"paquete algodon colores",
+"algodon colores",
+"paquete algodon pequeno",
+"bolsa pompones algodon",
+"paquete algodon",
+"paquete algodon colores pequeno",
+"paquete algodon mediano"
+],
+"tipo_item": "util",
+"discriminantes": [
+"presentacion"
+]
+},
+{
+"id": "d140c914-b4fc-5b64-ad33-1b3184fb88f0",
+"codigo": "C011",
+"nombre": "Carpeta",
+"sinonimos": [
+"carpeta folder tamano oficio",
+"carpeta gancho legajador",
+"carpeta liga tamano carta",
+"carpeta plastica oficio gancho plastico",
+"carpeta plastica tamano oficio gancho legajador",
+"carpeta plastica oficio gancho",
+"folder tamano carta",
+"archivador fuelle oficio bolsillo maleta",
+"carperta plastificada tamano oficio",
+"carpeta idea creativa papeleria",
+"carpeta sobre fuelle tamano oficio plastica",
+"carpeta legajadora plastica traslucida tamano oficio gancho legajador",
+"carpeta maletin",
+"carpeta plastica sobre tamano oficio",
+"carpeta plastica tamano octavo sobre",
+"carpeta plastificada caucho",
+"carpeta tamano oficio gancho legajador",
+"folder legajador tamano carta hoja repuesto cuadriculada",
+"portafolio blanco",
+"carpeta carton tamano carta gancho legajador",
+"carpeta carton tamano oficio gancho legajador",
+"carpeta folder tamano oficio ingles ciencia natural social",
+"carpeta legajador",
+"carpeta legajadora",
+"carpeta legajadoratamano oficio gancho",
+"carpeta maletin oficio",
+"carpeta material uso diario marcarla lugar visible",
+"carpeta plastica carta gancho",
+"carpeta plastica gancho legajador color azul",
+"carpeta plastica legajador tamano oficio",
+"carpeta plastica legajar gancho",
+"carpeta plastica negra gancho legajador",
+"carpeta plastica oficio gancho verde oscuro",
+"carpeta plastica roja gancho legajador",
+"carpeta plastica transparente legajador",
+"carpeta plastica verde gancho legajador",
+"carpeta plastificada color amarillo oficio",
+"carpeta plastificada oficio azul",
+"carpeta plastificada tamano oficio",
+"carpeta plastificada tamano oficio gancho legajador",
+"carpeta sobre",
+"carpeta tamano oficio caucho",
+"carpeta tamano oficio caucho sin gancho",
+"carpeta tamano oficio gancho carton",
+"carpeta tamano oficio plastificada gancho legajador no estilo sobre",
+"portafolio blanco buen estado"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tamano",
+"tipo",
+"color"
+]
+},
+{
+"id": "cdd8323b-d5b6-5c23-af36-24419a47c36e",
+"codigo": "C036",
+"nombre": "Juego de geometría",
+"sinonimos": [
+"kit geometrico regla escuadra transportador",
+"kit geometria regla transportador escuadra compas",
+"juego geometria pequeno",
+"juego geometrico regla escuadra transportador",
+"kit geometria compas graduable transportador escuadras",
+"juego geometrico escuadra regla transportador",
+"kit geometrico completo regla escuadra transportador compas",
+"kit geometrico regla compas transportador",
+"juego de geometria",
+"kit de geometria",
+"juego de escuadras 45 60",
+"juego escuadras",
+"juego escuadras 45 60",
+"escuadras juego 45 60",
+"escuadras juego",
+"instrumentos de trazo"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "74e4a83e-dfd5-5567-9241-7e803040edb2",
+"codigo": "C049",
+"nombre": "Delantal",
+"sinonimos": [
+"delantal plastico",
+"delantal",
+"delantal antifluido manga",
+"delantal manga larga impermeable pintar",
+"delantal manga larga tela antifluido talla mas grande acostumbrada",
+"delantal plastico manga larga",
+"overol drill",
+"protector ropa delantal plastico"
+],
+"tipo_item": "util",
+"discriminantes": [
+"material",
+"manga"
+]
+},
+{
+"id": "633c228f-a70f-5c2b-83a2-f859cc84e84b",
+"codigo": "C056",
+"nombre": "Rompecabezas",
+"sinonimos": [
+"rompecabezas madera",
+"rompecabezas",
+"rompecabezas ocho corte"
+],
+"tipo_item": "util",
+"discriminantes": [
+"piezas",
+"material"
+]
+},
+{
+"id": "ed059d14-bc7f-5407-8e2a-0075c9ddb8e6",
+"codigo": "C022",
+"nombre": "Plastilina",
+"sinonimos": [
+"caja plastilina grande",
+"caja plastilina",
+"plastilina",
+"estuche masa molder",
+"estuche plastilina bloque",
+"barra plastilina grande color",
+"caja plastilina barra larga",
+"caja plastilina barra tamano jumbo",
+"caja plastilina gigante larga",
+"barra plastilina",
+"caja plastilina grande fabercastell",
+"paquete plastilina mediano",
+"plastidedo"
+],
+"tipo_item": "util",
+"discriminantes": [
+"unidades",
+"presentacion",
+"tipo"
+]
+},
+{
+"id": "c7cae1a4-5fc0-5308-bca8-a425a9e56e79",
+"codigo": "C023",
+"nombre": "Transportador",
+"sinonimos": [
+"transportador",
+"transportador grado",
+"transportador plastico",
+"transportador regleta"
+],
+"tipo_item": "util",
+"discriminantes": [
+"grados"
+]
+},
+{
+"id": "cb731a1e-8752-5f3a-a6bd-18b33222c911",
+"codigo": "C024",
+"nombre": "Bata de laboratorio",
+"sinonimos": [
+"bata blanca laboratorio",
+"bata laboratorio",
+"bata blanca",
+"bata arte manga",
+"bata blanca laboratorio manga corta",
+"bata laboratorio manga corto",
+"bata blanca durante solicitara realizacion experimento",
+"protector ropa bata arte manga"
+],
+"tipo_item": "util",
+"discriminantes": [
+"color",
+"material",
+"manga"
+]
+},
+{
+"id": "09157fde-07d2-5c75-bbde-70d463d2cdf1",
+"codigo": "C025",
+"nombre": "Tabla periódica",
+"sinonimos": [
+"tabla periodica",
+"tabla periodica actualizada",
+"tabla periodica laminada tamano carta",
+"tabla periodica plastificada actualizada"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tamano"
+]
+},
+{
+"id": "cbe7c4f6-210e-5ac8-a377-946633d9b85d",
+"codigo": "C026",
+"nombre": "Calculadora",
+"sinonimos": [
+"calculadora cientifica",
+"calculadora",
+"calculadora funcion"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tipo"
+]
+},
+{
+"id": "3ed86f9a-69df-5914-9ea9-52c55849c0dc",
+"codigo": "C048",
+"nombre": "Biblia",
+"sinonimos": [
+"biblia"
+],
+"tipo_item": "libro_libre",
+"discriminantes": [
+"edicion"
+]
+},
+{
+"id": "b07f968d-4a18-50bb-be76-6271fe33a25c",
+"codigo": "C050",
+"nombre": "Lienzo",
+"sinonimos": [
+"lienzo blanco cms",
+"lienzo cms",
+"lienzo pintura numero libre eleccion",
+"lienzo pintura numero",
+"lienzo de pintura por numeros"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tamano",
+"tipo"
+]
+},
+{
+"id": "f198dce6-13da-56dc-a917-75a2a1a76997",
+"codigo": "C051",
+"nombre": "Témpera",
+"sinonimos": [
+"caja temperas",
+"temperas colores primario",
+"temperas colores neon",
+"caja temperas pincel delgado",
+"temperas grande color"
+],
+"tipo_item": "util",
+"discriminantes": [
+"colores",
+"acabado"
+]
+},
+{
+"id": "5795abcc-d7bf-576e-a6a9-fb48707b4d32",
+"codigo": "C055",
+"nombre": "Reforzadores",
+"sinonimos": [
+"reforzador folder",
+"paquete refuerzo hoja folder"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "0b990ce9-1fae-5f64-8bb4-3c8091146fe2",
+"codigo": "C004",
+"nombre": "Colores",
+"sinonimos": [
+"caja colores",
+"colores",
+"caja ecologico",
+"caja bicolor",
+"colores delgado",
+"lapiz colores",
+"caja colores doce punta grueso",
+"caja colores gigante triangular",
+"caja colores grande",
+"caja colores triangular",
+"caja colores triangular jumbo",
+"colores triangular grueso",
+"caja jumbo triangular",
+"colores amarillo azul rojo verde unidad indagacion pep",
+"colores buena calidad",
+"colores triangular",
+"caja color",
+"caja colores gigante triangular grueso doble punta",
+"caja colores grande triangular",
+"caja colores triangular grueso",
+"caja jumbo triangular delgado",
+"colores buena calidad triangular",
+"dosificadora colores fluorescente",
+"forro grande colores amarillo azul verde rojo transparente"
+],
+"tipo_item": "util",
+"discriminantes": [
+"unidades",
+"forma",
+"grosor"
+]
+},
+{
+"id": "2e460b2f-68ab-505b-9bd4-51bc9950a006",
+"codigo": "C005",
+"nombre": "Borrador",
+"sinonimos": [
+"borrador",
+"borrador nata",
+"borrador miga pan",
+"borrador nata grande",
+"goma de borrar",
+"goma borrar",
+"goma"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tipo"
+]
+},
+{
+"id": "542ed879-146f-5c43-828f-3da2c9bdf76b",
+"codigo": "C028",
+"nombre": "Silicona",
+"sinonimos": [
+"barra silicona delgada",
+"silicona liquida",
+"barra silicona delgada gruesa",
+"barra silicona gruesa",
+"barrita silicon delgada",
+"barra larga delgada silicona",
+"barra silicona",
+"barra silicona larga delgada gruesa",
+"barrita silicon gruesa",
+"frasco mediano silicona liquida",
+"pote grande silicon liquido transparente"
+],
+"tipo_item": "util",
+"discriminantes": [
+"presentacion",
+"grosor"
+]
+},
+{
+"id": "da63f378-d37e-59a5-bed7-fb88a003220b",
+"codigo": "C058",
+"nombre": "Agenda",
+"sinonimos": [
+"agenda",
+"planeador"
+],
+"tipo_item": "util",
+"discriminantes": [
+"ano"
+]
+},
+{
+"id": "4f2d2bcd-aea8-5200-b2d1-1b67bd6d3f1a",
+"codigo": "C059",
+"nombre": "Corrector",
+"sinonimos": [
+"corrector",
+"corrector liquido"
+],
+"tipo_item": "util",
+"discriminantes": [
+"presentacion"
+]
+},
+{
+"id": "cad77295-c534-5894-8317-20193187ec2c",
+"codigo": "C065",
+"nombre": "Acuarela",
+"sinonimos": [
+"acuarelas tubo",
+"paleta de acuarelas x 12"
+],
+"tipo_item": "util",
+"discriminantes": [
+"presentacion"
+]
+},
+{
+"id": "b9c82c5a-6a87-51be-a6e4-a01ede225f40",
+"codigo": "C060",
+"nombre": "Curvígrafo",
+"sinonimos": [
+"curvigrafo",
+"set juego curvigrafo"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "9064fa39-94d2-5865-8f03-0cbe5244de6e",
+"codigo": "C067",
+"nombre": "Muda de ropa",
+"sinonimos": [
+"muda ropa",
+"muda ropa pintar"
+],
+"tipo_item": "no_comprar",
+"discriminantes": []
+},
+{
+"id": "b1b15243-a6ad-53ec-8afb-cf990fede860",
+"codigo": "C068",
+"nombre": "Ojos móviles",
+"sinonimos": [
+"paquete ojo movil",
+"paquete ojo movil decorativo",
+"paquete pequeno ojo movil decorativo"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tamano"
+]
+},
+{
+"id": "2d399b1e-be5a-56ed-9131-ce4301210641",
+"codigo": "C069",
+"nombre": "Plantilla",
+"sinonimos": [
+"plantilla borrador",
+"plantilla enhebrado cuerpo humano vocal numero figura geometrica"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "3e44774e-ee6f-5ef8-b926-1f1e2be43aea",
+"codigo": "C001",
+"nombre": "Cuaderno",
+"sinonimos": [
+"cuaderno cuadriculado",
+"cuaderno cuadriculado grande cosido",
+"cuaderno grande cuadriculado cosido",
+"cuadriculado cuaderno grande",
+"cuadriculado grande",
+"cuaderno cuadriculado grande",
+"ferrocarril cuaderno grande",
+"cuaderno ferrocarril grande cosido",
+"cuaderno pentagramado",
+"cuaderno cuadriculado cocido",
+"cuaderno grande cuadriculado",
+"cuaderno ferrocarril cocido",
+"cuaderno cuadriculado cosido",
+"cuaderno cuadriculado grande sin espiral",
+"cuaderno grande rayado",
+"cuaderno pentagramado batuta magica ed big book",
+"cuaderno cuadricula m",
+"cuaderno empastado cuadriculado",
+"cuaderno empastado grande linea no espiral",
+"cuaderno empastado pequeno linea",
+"cuaderno pentagramado do re mi ed big book",
+"cuaderno cosido cuadriculado",
+"cuaderno cuadriculado argollado grande",
+"cuaderno cuadriculado cosido grande",
+"cuaderno ferrocarril",
+"cuaderno grande cosido cuadriculado",
+"cuaderno materia cuadriculado grande",
+"bitacora",
+"cuaderno argollado grande cuadriculado",
+"cuaderno cosido rayado",
+"cuaderno doble linea grande sin espiral",
+"cuaderno doble linea pequeno sin espiral",
+"cuaderno ferrocarril cosido",
+"cuaderno linea grande sin espiral",
+"cuaderno linea pequeno sin espiral",
+"pre cuadrito cuaderno grande",
+"cuaderno argollado cuadriculado grande",
+"cuaderno cosido cuadrito grande sin recuadro dibujo",
+"cuaderno cosido grande cuadriculado cuadro",
+"cuaderno cosido grande cuadro",
+"cuaderno cosido grande cuadro preescolar",
+"cuaderno cosido grande ferrocarril",
+"cuaderno cuadrito b cosido",
+"cuaderno ferrocarril b cosido",
+"cuaderno grande ferrocarril cosido",
+"cuaderno grande ferrocarril sin recuadro dibujo",
+"cuadernito tarea letra b script edicion semilla creativa",
+"cuadernito tarea letra c script edicion semilla creativa",
+"cuadernito tarea letra script edicion semilla creativa",
+"cuadernito tarea numero b edicion semilla creativa",
+"cuadernito tarea numero edicion semilla creativa",
+"cuaderno argollado cuadriculado",
+"cuaderno cocido",
+"cuaderno cosido cuadrito grande sin",
+"cuaderno cosido rengloncito c ferrocarril",
+"cuaderno cuadricula grande cocido",
+"cuaderno cuadriculado campo iyc",
+"cuaderno cuadriculado cuadro cosido",
+"cuaderno cuadriculado cuadro pequeno",
+"cuaderno cuadriculado grande argollado",
+"cuaderno cuadriculado tamano grande",
+"cuaderno cuadrito b",
+"cuaderno cuadro grande cosido forro azul",
+"cuaderno doble linea plus",
+"cuaderno ferrocarril grande",
+"cuaderno ferrocarril grande renglon enumerado",
+"cuaderno ferrocarril tamano grande",
+"cuaderno ferrocarril tamano renglon normal",
+"cuaderno grande",
+"cuaderno grande cosido cuadriculado cultura religiosa etica exp corporal",
+"cuaderno grande cosido ferrocarril lengua castellana",
+"cuaderno grande cuadriculado cosido ciencia natural matematica",
+"cuaderno grande rayado sin recuadro dibujo",
+"cuaderno maxi cuadrito plus",
+"cuaderno rayado grande cosido",
+"cuaderno rengloncito c",
+"cuaderno tarea numero c edicion semilla creativa",
+"cuadriculado cuaderno grand"
+],
+"tipo_item": "util",
+"discriminantes": [
+"hojas",
+"rayado",
+"materias",
+"encuadernacion"
+]
+},
+{
+"id": "4c073b03-0040-51f6-ba6b-6c205bef6f64",
+"codigo": "C002",
+"nombre": "Lápiz",
+"sinonimos": [
+"lapiz negro",
+"lapiz",
+"lapiz rojo",
+"lapiz hb",
+"lapiz negro delgado",
+"lapiz rojo delgado",
+"lapiz negro rojo",
+"lapiz rojo negro",
+"lapiz n negro",
+"lapiz negro triangular jumbo",
+"lapiz rojo triangular jumbo",
+"estuche lapiz n hb mi primer",
+"estuche lapiz rojo triangular",
+"lapiz rojo triangular",
+"lapiz triangular grueso",
+"estuche lapiz n hb mi primer triangular",
+"lapiz delgado negro",
+"lapiz mirado n negro",
+"lapiz mirado n rojo",
+"lapiz mirado no negro",
+"lapiz mirado no rojo",
+"lapiz n triangular",
+"lapiz negro dos rojo",
+"lapiz negro grueso",
+"lapiz negro grueso triangular",
+"lapiz negro hb",
+"lapiz negro triangular",
+"lapiz rojo grueso",
+"lapiz triangular delgado",
+"lapiz triangular negro"
+],
+"tipo_item": "util",
+"discriminantes": [
+"dureza",
+"forma",
+"color",
+"grosor"
+]
+},
+{
+"id": "870876a1-fd02-52ad-aa1e-99fa1aa00429",
+"codigo": "C039",
+"nombre": "Resaltador",
+"sinonimos": [
+"resaltador",
+"juego resaltador",
+"resaltador delgado colores",
+"basura tijeras punta roma pegastic resaltador",
+"colbon grande resaltador color"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "d6868a93-4019-525f-b1ff-8796f9e850e1",
+"codigo": "C040",
+"nombre": "Toallas y pañitos",
+"sinonimos": [
+"toalla pequena",
+"paquete panito",
+"pano humedo",
+"paquete toalla mano",
+"caja panuelo facial",
+"paquete panito humedo",
+"toalla mano",
+"pañitos húmedos",
+"caja de pañuelos faciales"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tipo"
+]
+},
+{
+"id": "b3a8bfa0-3ddf-5633-a605-a389d0b8785d",
+"codigo": "C037",
+"nombre": "Papel higiénico",
+"sinonimos": [
+"rollo papel higienico",
+"paquete papel higienico"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "32a44ca5-1573-542e-8578-2c7f3db5916e",
+"codigo": "C038",
+"nombre": "Lana",
+"sinonimos": [
+"madeja lana",
+"lana color"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "36905757-893d-5cb4-9fd8-6cb3fb16d1a3",
+"codigo": "C041",
+"nombre": "Cartón",
+"sinonimos": [
+"octavo carton paja",
+"octavo carton paja colores",
+"carton paja",
+"octavo carton paja blanco",
+"paquete carton paja octavo",
+"paquete carton paja"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tamano",
+"color"
+]
+},
+{
+"id": "83bb0692-02f3-593a-9357-aaf706c7786e",
+"codigo": "C042",
+"nombre": "Constitución Política",
+"sinonimos": [
+"constitucion politica colombia actualizada"
+],
+"tipo_item": "libro_libre",
+"discriminantes": []
+},
+{
+"id": "9e524238-2bd8-506b-9f5c-9faa895cf632",
+"codigo": "C086",
+"nombre": "Maleta",
+"sinonimos": [
+"morral escolar niño",
+"morral escolar infantil",
+"morral niño",
+"maleta grande rodachin donde puedan guardar",
+"maleta morral",
+"maleta capacidad carpeta tamano oficio uso diario"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tipo",
+"longitud"
+]
+},
+{
+"id": "27f2862d-fa46-5a7d-a1c8-bc51b7bb3814",
+"codigo": "C018",
+"nombre": "Compás",
+"sinonimos": [
+"compas",
+"compas precision",
+"compas precision transportador",
+"compas precision adaptador universal lapiz micropunta",
+"compas precision buena calidad lapso",
+"regla compas transportador"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tipo"
+]
+},
+{
+"id": "1cb49b3b-10e1-553f-8990-00917f4f1e61",
+"codigo": "C043",
+"nombre": "Lentejuelas",
+"sinonimos": [
+"metro lentejuelas",
+"metro lentejuelas color",
+"bolsita delentejuela",
+"bolsita delentejuela forma",
+"bolsita lentejuelas forma",
+"chelin colores",
+"metro lentejuelas color variado",
+"metro lentejuelas colores variado",
+"rollo cinta enmascarar ancha metro lentejuelas colores"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "cee349b6-2ae5-5edd-a8fe-1ecdab6af5e4",
+"codigo": "C044",
+"nombre": "Libro",
+"sinonimos": [
+"cuento coleccion buena noche tenga casa",
+"libro recorte",
+"revista didactica recortar",
+"cuento",
+"cuento coleccion buena noche",
+"libro colorear",
+"libro didactico colorear dibujo pequeno nino",
+"libro pasatiempo",
+"revista"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tipo"
+]
+},
+{
+"id": "af44d461-0456-52be-b1f7-16f7b7ff9316",
+"codigo": "C077",
+"nombre": "Cojín",
+"sinonimos": [
+"cojin"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "38dd688e-7888-53ae-b9e2-5c0431d0de8a",
+"codigo": "C078",
+"nombre": "Fichas bibliográficas",
+"sinonimos": [
+"bolsita ficha bibliografica",
+"ficha bibliografica",
+"paquete ficha bibliografica"
+],
+"tipo_item": "util",
+"discriminantes": [
+"color"
+]
+},
+{
+"id": "4c3b077b-604a-5417-a5ff-41d6efdddcf3",
+"codigo": "C079",
+"nombre": "Instrumento de percusión",
+"sinonimos": [
+"baquetas",
+"juego baquetas",
+"tambor ludico baquetas"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "099bd154-1b7b-5b73-bf88-a07f80092dc3",
+"codigo": "C088",
+"nombre": "Pintura facial",
+"sinonimos": [
+"pintucarita"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "6172caaa-cff3-5734-9af7-42298714307d",
+"codigo": "C103",
+"nombre": "Batería 9V",
+"sinonimos": [
+"Pila"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "d397d9e3-b2ab-5685-8f7b-1db4de385d1d",
+"codigo": "C090",
+"nombre": "Separadores",
+"sinonimos": [
+"separador plastico portafolio siguiente colores rosado cafe rojo verde oscuro"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "7e6c7c9f-cb13-5f65-a343-0fbdfe2ac4b9",
+"codigo": "C095",
+"nombre": "Arena decorativa",
+"sinonimos": [
+"paquete arena decorativa"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "f160d146-4ab6-553e-a689-29f93fd06304",
+"codigo": "C097",
+"nombre": "Esponja",
+"sinonimos": [
+"espuma lavar loza"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tipo"
+]
+},
+{
+"id": "881ca285-a827-5f43-ac32-2bb8e1195b42",
+"codigo": "C098",
+"nombre": "Plástico de burbujas",
+"sinonimos": [
+"metro plastico burbuja"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "be857f81-5c74-50be-944d-523033d41ada",
+"codigo": "C099",
+"nombre": "Plantilla del mapa de Colombia",
+"sinonimos": [
+"regleta mapa colombia",
+"plantilla mapa colombia",
+"mapa de colombia"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "5e4162c6-0056-5a53-99e7-3876e7c1c937",
+"codigo": "C100",
+"nombre": "Cepillo de dientes",
+"sinonimos": [
+"Cepillo dental",
+"Cepillo bucal"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "a88aae45-f863-59aa-a559-e385a14ae759",
+"codigo": "C101",
+"nombre": "Peine",
+"sinonimos": [
+"Peinilla",
+"Peineta"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "b70a9cf3-4897-5f2d-826d-22da540267d9",
+"codigo": "C110",
+"nombre": "Audífonos de diadema",
+"sinonimos": [
+"Headphones",
+"Audífonos de casco"
+],
+"tipo_item": "otro",
+"discriminantes": []
+},
+{
+"id": "f6174d12-fa44-5333-9da9-2b09f005bd89",
+"codigo": "C111",
+"nombre": "Gorro de natación",
+"sinonimos": [
+"Gorro de baño",
+"Gorro de silicona",
+"Gorro de látex",
+"Gorro de licra"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "8433fadc-fbde-54c5-998f-b439f794bdce",
+"codigo": "C112",
+"nombre": "Papel durex",
+"sinonimos": [
+"papel durex",
+"octavo papel durex",
+"hoja papel durex grms",
+"hoja papel durex tamano octavo",
+"hoja papel durex tamano",
+"sketchbook de papel durex",
+"hojas papel dure 180 grms",
+"sketchbook papel durex",
+"papel dure",
+"sketchbook papel durex tamano carta",
+"hoja papel dure grms"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tamano",
+"tipo"
+]
+},
+{
+"id": "e31bb7b0-3618-53ce-844b-76ae25c1c01f",
+"codigo": "C116",
+"nombre": "Pluma",
+"sinonimos": [
+"Pluma caligráfica",
+"Pluma estilográfica",
+"pluma caligrafia punta intercambiable",
+"pluma caligrafia",
+"pluma para caligrafia",
+"pluma para caligrafia con puntas intercambiables"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tipo"
+]
+},
+{
+"id": "5f1c9bff-25cf-573c-8c37-b49caad24a32",
+"codigo": "C125",
+"nombre": "Resistencia",
+"sinonimos": [],
+"tipo_item": "util",
+"discriminantes": [
+"valor"
+]
+},
+{
+"id": "223bd34c-7caa-5144-b35e-fa8aaeacdabb",
+"codigo": "C131",
+"nombre": "Uniforme",
+"sinonimos": [
+"uniforme de diario",
+"uniforme diario",
+"uniforme de educacion fisica",
+"uniforme para educacion fisica",
+"uniforme educacion fisica",
+"uniforme de gala",
+"uniforme de natacion",
+"sudadera",
+"sudadera del colegio",
+"traje de bano",
+"vestido de bano",
+"pantaloneta de bano",
+"baletas",
+"baletas para danzas",
+"baletas para danzas o gimnasia",
+"zapatillas de ballet",
+"zapatillas de danza",
+"tenis de cuero totalmente blancos"
+],
+"tipo_item": "uniforme",
+"discriminantes": []
+},
+{
+"id": "61fa5551-5b4d-5e08-9d34-b9c07e7f091a",
+"codigo": "C117",
+"nombre": "Paleta de pintura",
+"sinonimos": [
+"paleta mezcladora",
+"paleta mezcladora blanca",
+"paleta para pintura",
+"paleta de pintor",
+"paleta acuarelas",
+"paleta de acuarelas",
+"paleta acuarelas x 12"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "64d55041-d05f-5eeb-96d6-b0189ecd9cba",
+"codigo": "C118",
+"nombre": "Frascos para almacenar pintura",
+"sinonimos": [
+"Frascos Transparentes",
+"frasco vacio para pintura",
+"frascos transparentes para almacenar pintura",
+"frasco transparente almacenar pintura",
+"frascos para pintura",
+"transparentes almacenar pintura",
+"transparentes para almacenar pintura gramos"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "90397da0-bc36-5cdc-909b-9daf63d47430",
+"codigo": "C120",
+"nombre": "Papel pergamino",
+"sinonimos": [
+"papel pergamino",
+"octavo papel pergamino",
+"hoja papel pergamino",
+"block papel pergamino grado"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tamano"
+]
+},
+{
+"id": "0f6048c6-c90a-51db-b7ad-3bd3e0b32287",
+"codigo": "C122",
+"nombre": "LED",
+"sinonimos": [
+"Bombilla Led"
+],
+"tipo_item": "util",
+"discriminantes": [
+"color"
+]
+},
+{
+"id": "f47298af-9283-50fd-bf7c-b35df4af768e",
+"codigo": "C126",
+"nombre": "Papel kraft",
+"sinonimos": [
+"pliego papel kraft",
+"pliego papel kraft cafe"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "0a3a330b-6e69-5c8a-8deb-41f5152f775f",
+"codigo": "C127",
+"nombre": "Papel crepé",
+"sinonimos": [
+"pliego papel crepe",
+"pliego papel crepe colores vivo",
+"pliego papel crepe color",
+"pliego papel crepe colores",
+"pliego papel crepe colores fuerte",
+"pliego papel crepe colores surti"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "898f34ab-fcbb-582d-b9cd-937c33480a81",
+"codigo": "C128",
+"nombre": "Papel seda",
+"sinonimos": [
+"pliego papel seda",
+"pliego papel seda colores",
+"paquete papel seda",
+"paquete papel seda colores fuerte",
+"pliego papel seda colores variado"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "9817bf1e-3755-530d-b97d-393b1c0c2f88",
+"codigo": "C129",
+"nombre": "Papel bond",
+"sinonimos": [
+"papel bond",
+"papel bond blanco",
+"pliego papel bond",
+"pliego grande papel bond blanco"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tamano"
+]
+},
+{
+"id": "2c1829b3-35d6-5d4d-b695-3d34b8f42121",
+"codigo": "C130",
+"nombre": "Papel silueta",
+"sinonimos": [
+"paquete papel silueta",
+"paquete octavo papel silueta",
+"paquete papel silueta octavo",
+"octavo papel silueta",
+"paquete papel silueta colores",
+"papel silueta",
+"pliego papel silueta",
+"octavos papel silueta"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "d293b164-6ccc-5260-a711-bb9c8e68bd9d",
+"codigo": "C132",
+"nombre": "Títere",
+"sinonimos": [
+"titere",
+"titere de personaje",
+"titere de animal",
+"titere de mano",
+"titere de guante",
+"titere correspondiente personaje animal rol"
+],
+"tipo_item": "otro",
+"discriminantes": []
+},
+{
+"id": "fc7a5e72-5759-5eac-8c13-fdc06cfd027e",
+"codigo": "C029",
+"nombre": "Foamy",
+"sinonimos": [
+"octavo foamy escarchado",
+"paquete fomi octavo",
+"octavo foamy liso",
+"octavo foami escarchado",
+"paquete foamy liso tamano octavo colores",
+"paquete fomi moldeable",
+"paquete fomi octavo colores",
+"octavo foami liso",
+"octavo fomy escarchado",
+"paquete figura foami",
+"paquete foami escarchado tamano octavo colores",
+"paquete foami liso tamano octavo colores",
+"paquete foamy colores",
+"paquete foamy escarchado tamano octavo colores",
+"paquete foamy octavo",
+"paquete fomi escarchado",
+"paquete fomi octavo escarchado",
+"pliego foamy color"
+],
+"tipo_item": "util",
+"discriminantes": [
+"color",
+"tamano",
+"acabado"
+]
+},
+{
+"id": "38aafb9d-0308-515a-9e20-04a49bd78a70",
+"codigo": "C031",
+"nombre": "Resma",
+"sinonimos": [
+"resma hoja blanca tamano carta",
+"resma papel bond tamano carta",
+"resma papel tamano oficio",
+"resma papel tamano carta",
+"resma tamano carta",
+"media resma papel",
+"resma papel blanco tamano oficio",
+"resma papel oficio",
+"resma tamano oficio"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tamano"
+]
+},
+{
+"id": "247da93d-fa8c-5660-998d-c8a943b08861",
+"codigo": "C057",
+"nombre": "Vaso o plato",
+"sinonimos": [
+"frasco de pintura",
+"plato vaso plastico",
+"plato",
+"vaso pequeno plastico",
+"frasco fluorescente",
+"frasco para pintura",
+"vaso plastico",
+"frasco pintura",
+"frasco mezclar pintura"
+],
+"tipo_item": "util",
+"discriminantes": [
+"material",
+"tipo"
+]
+},
+{
+"id": "6177acf0-e334-57af-9a00-008af2c10a62",
+"codigo": "C074",
+"nombre": "Balón",
+"sinonimos": [
+"pelota fuchi",
+"balon plastico mediano"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tamano"
+]
+},
+{
+"id": "237d1ac3-7cfe-5514-9ee7-aa4b538c0822",
+"codigo": "C033",
+"nombre": "Palitos",
+"sinonimos": [
+"palito paleta",
+"paquete palo paleta colores",
+"paquete palito paleta colores",
+"palo pincho largo",
+"paquete bajalenguas",
+"bolsa palo paleta",
+"palo paleta",
+"paquete palito paleta"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tipo",
+"color"
+]
+},
+{
+"id": "193eeb61-c1fc-573e-8941-2d419920f445",
+"codigo": "C034",
+"nombre": "Diccionario",
+"sinonimos": [
+"diccionario espanol",
+"diccionario ingles frances",
+"diccionario de ingles",
+"diccionario ingles espanol",
+"dicc ingles",
+"diccionario ingles",
+"diccionario ingles ingles",
+"diccionario espanol ingles"
+],
+"tipo_item": "libro_libre",
+"discriminantes": [
+"idioma"
+]
+},
+{
+"id": "d6d5209e-b9da-54aa-ba5c-6467ab913be9",
+"codigo": "C035",
+"nombre": "Material Singapur",
+"sinonimos": [
+"snap cube metodo singapur",
+"paquete base ten blocks pack metodo singapur",
+"fractions utiles metodo singapur",
+"caja counters",
+"bolsa pequena bloque logico figura geometrica",
+"caja counters metodo singapur jardin transicion deben estudiante",
+"paquete base ten blocks pack metodo singapur utiliza transicion deben",
+"snap cube metodo singapur jardin transicion deben estudiante"
+],
+"tipo_item": "util",
+"discriminantes": [
+"unidades"
+]
+},
+{
+"id": "cdaa39ad-dcfd-5471-8a7d-5a6a4c1f33a3",
+"codigo": "C070",
+"nombre": "Kit de artes",
+"sinonimos": [
+"kit temperas pinceles",
+"kit tempera pincel",
+"set pintura escolar",
+"estuche de arte",
+"kit de pintura escolar",
+"kit arte comercializadora"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "dd7466e8-fdf4-55f3-b64c-6dfc20afafa1",
+"codigo": "C073",
+"nombre": "Punzón",
+"sinonimos": [
+"plastico punta metalica",
+"punzon",
+"punzon punta metalica"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "2c480946-bb8f-5b43-a361-d6d3e69fc7a7",
+"codigo": "C075",
+"nombre": "Bolsa de basura",
+"sinonimos": [
+"bolsa negra basura"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "08c424b6-ab69-5248-afad-d721b613bb8a",
+"codigo": "C076",
+"nombre": "Carboncillo",
+"sinonimos": [
+"caja pastel seco",
+"carboncillo",
+"difumino"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "afb8af86-de0e-5e36-83b6-905b5508be8e",
+"codigo": "C089",
+"nombre": "Pompones",
+"sinonimos": [
+"paquete pompones"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "fa9797bc-b106-55d0-a7aa-ac1a30e54405",
+"codigo": "C096",
+"nombre": "Copitos",
+"sinonimos": [
+"paquete copito"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "fe5d4809-37d4-51f8-a26b-ac5280fc0cab",
+"codigo": "C106",
+"nombre": "Sobre de acetato",
+"sinonimos": [
+"sobre de acetato",
+"sobre acetato",
+"sobre acetato grueso tamano oficio",
+"sobre acetato tamano carta",
+"sobre acetato tamano oficio",
+"paquete sobre acetato",
+"bolsillo de acetato"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tamano",
+"grosor"
+]
+},
+{
+"id": "5b18798e-9baa-5bee-b2ce-465b42a379fd",
+"codigo": "C107",
+"nombre": "Xilófono",
+"sinonimos": [],
+"tipo_item": "util",
+"discriminantes": [
+"notas"
+]
+},
+{
+"id": "5c363b9b-a95c-51d6-8ab7-5af38883ee05",
+"codigo": "C108",
+"nombre": "Cables caimanes",
+"sinonimos": [
+"caimanes",
+"caimanes electricos",
+"cables caimanes",
+"cable caiman",
+"pinzas caiman",
+"caimanes electricos para circuito"
+],
+"tipo_item": "util",
+"discriminantes": [
+"longitud"
+]
+},
+{
+"id": "372cd9c5-313f-51b7-a03b-56f2ab001818",
+"codigo": "C109",
+"nombre": "Cable mini USB",
+"sinonimos": [],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "577a0b54-c393-5cf6-adb4-9634ecb910e3",
+"codigo": "C113",
+"nombre": "Papel iris",
+"sinonimos": [
+"Papel para origami",
+"papel iris",
+"papel iris octavo",
+"hoja iris",
+"paquete hoja iris",
+"paquete papel iris",
+"papel para plegado",
+"block cartulina iris",
+"block cartulina iris tamano carta",
+"block de papel para plegado",
+"block hoja iris plegado",
+"block hoja iris tamano carta",
+"block hojas iris tamano carta",
+"block iris",
+"block iris plegado",
+"block iris plegado origami",
+"block iris tamano carta",
+"block iris tamano carta colores",
+"block oficio papel iris",
+"block oficio papel iris colores",
+"block origami",
+"block papel iris",
+"block papel iris carta",
+"block papel iris oficio",
+"block papel iris plegado",
+"block papel iris tamano carta",
+"block papel iris tamano oficio",
+"block papel origami",
+"block papel para plegado",
+"block papel plegado",
+"block tamano oficio papel iris"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tamano"
+]
+},
+{
+"id": "c3a9ed4c-9f20-5644-b8f4-0064d2a7ec81",
+"codigo": "C123",
+"nombre": "Arduino",
+"sinonimos": [
+"arduino"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "22a58cc0-d547-5827-856b-34cdb6622763",
+"codigo": "C012",
+"nombre": "Esfero",
+"sinonimos": [
+"esfero",
+"esfero negro",
+"esfero rojo negro",
+"esfero rojo",
+"esfero tinta negra",
+"lapicero negro",
+"boligrafo triangular colores",
+"esfero negro azul borrable",
+"esfero negro rojo",
+"esfero otro color titulo",
+"estuche boligrafo colores",
+"caja esfero color",
+"esfero minanegra",
+"lapiz lapicero negro azul otro colores"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tinta",
+"color"
+]
+},
+{
+"id": "c2c2885f-c6ec-5f74-93bd-ac53da98c7fe",
+"codigo": "C015",
+"nombre": "Cinta adhesiva",
+"sinonimos": [
+"cinta enmascarar",
+"cinta enmascarar ancha",
+"rollo cinta enmascarar ancha",
+"rollo cinta enmascarar grande",
+"rollo cinta transparente",
+"cinta enmascarar gruesa",
+"cinta transparente ancha",
+"cinta enmascarar mx",
+"rollo cinta transparente ancha",
+"cinta aislante",
+"cinta delgada enmascarar",
+"cinta transparente",
+"rollo cinta enmascarar gruesa",
+"rollo cinta transparente gruesa",
+"cinta ancha transparente",
+"cinta enmascarar grande",
+"cinta pequena transparente",
+"rollo cinta ancha enmascarar transparente",
+"rollo cinta ancha transparente",
+"rollo cinta enmascarar",
+"rollo cinta enmascarar ancho",
+"rollo cinta enmascarar delgada",
+"rollo cinta transparente delgada"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tipo"
+]
+},
+{
+"id": "0a83e934-d814-5de8-92e5-f8f3454f1b8b",
+"codigo": "C017",
+"nombre": "Pegante líquido",
+"sinonimos": [
+"pegamento",
+"colbon mediano",
+"colbon grande",
+"colbon",
+"pegante liquido",
+"pegante",
+"colbon pico",
+"frasco colbon",
+"frasco colbon grande",
+"colbon liquido grande",
+"colbon universal",
+"frasco grande pegante",
+"tarro colbon pegante universal"
+],
+"tipo_item": "util",
+"discriminantes": [
+"presentacion",
+"gramaje"
+]
+},
+{
+"id": "e92e5b6a-3aab-5ba9-9653-4f12c2ce2a6e",
+"codigo": "C019",
+"nombre": "Escuadra",
+"sinonimos": [
+"escuadra",
+"escuadras",
+"escuadra grado"
+],
+"tipo_item": "util",
+"discriminantes": [
+"longitud"
+]
+},
+{
+"id": "c095d65f-7343-5c86-ad22-61f6fd37a443",
+"codigo": "C020",
+"nombre": "Vinilo",
+"sinonimos": [
+"vinilo colores amarillo azul rojo",
+"estuche vinilo",
+"estuche vinilo fluorescente",
+"vinilo amarillo azul rojo blanco negro fluorescente",
+"vinilo grande color",
+"vinilo negro grande",
+"frasco vinilo blanco negro",
+"frasco vinilo colores primario",
+"vinilo color",
+"vinilo color amarillo",
+"vinilo color azul",
+"vinilo color rojo",
+"vinilo morado",
+"vinilo naranja",
+"vinilo negro",
+"vinilo verde",
+"frasco vinilo amarillo azul rojo blanco negro",
+"frasco vinilo color amarillo",
+"frasco vinilo color azul",
+"frasco vinilo color blanco",
+"frasco vinilo color fluorescente",
+"frasco vinilo color negro",
+"frasco vinilo grande",
+"frasco vinilo mediano uno rojo otro color",
+"vinilo amarillo",
+"vinilo amarillo grande",
+"vinilo azul",
+"vinilo azul grande",
+"vinilo blanco",
+"vinilo cafe",
+"vinilo color frasco fluorescente",
+"vinilo colores",
+"vinilo colores amarillo azul rojo blanco negro",
+"vinilo colores fluorescente",
+"vinilo grande color blanco negro piel",
+"vinilo grande color cafe morado gri",
+"vinilo grande color fluorescente",
+"vinilo grande color primario",
+"vinilo grande fluorescente",
+"vinilo neon",
+"vinilo rojo",
+"vinilo rojo amarillo azul blanco negro verde",
+"vinilo rojo grande",
+"vinilo rojo negro blanco verde amarillo azul"
+],
+"tipo_item": "util",
+"discriminantes": [
+"colores",
+"presentacion",
+"color"
+]
+},
+{
+"id": "08feaae2-ee12-52c7-91a7-0b89bf4a7f21",
+"codigo": "C081",
+"nombre": "Ábaco",
+"sinonimos": [
+"abaco",
+"abaco cerrado"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "dc6156a3-af62-5c30-a032-641ce728a12a",
+"codigo": "C124",
+"nombre": "Switch (interruptor)",
+"sinonimos": [
+"Interruptor"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tipo"
+]
+},
+{
+"id": "b0090a7c-2010-5e4d-bb53-c1f8f449244e",
+"codigo": "C149",
+"nombre": "Portabasura",
+"sinonimos": [
+"portabasura",
+"porta basura",
+"canasta de basura",
+"papelera de pupitre"
+],
+"tipo_item": "no_comprar",
+"discriminantes": []
+},
+{
+"id": "58da05a8-5ff8-5b45-8789-16e1473c4179",
+"codigo": "C054",
+"nombre": "Juego didáctico",
+"sinonimos": [
+"juego mesa",
+"juego didactico ingles animal fruta numero",
+"juego didactico ingles animal fruta parte cuerpo",
+"juego didactico sera asignado primera reunion",
+"juego enfermeria",
+"juego mesa letra numero",
+"juego precostura",
+"juego didactico mesa rompecabezas loteria parque",
+"juego didactico lectura escritura opcion rompecabezas loteria abc",
+"juego didactico de mesa",
+"juego didactico mesa",
+"juego didactico mesa sugiere rompecabezas loteria parques",
+"juego didactico mesa se sugiere rompecabezas loteria parques etc"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tipo"
+]
+},
+{
+"id": "d0ca76b4-151f-5936-8677-67e2d01d6f75",
+"codigo": "C087",
+"nombre": "Pilas",
+"sinonimos": [
+"pilas aaa"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "c4443e82-c8db-5b5e-85be-57a01a6beca3",
+"codigo": "C082",
+"nombre": "Clips y ganchos",
+"sinonimos": [
+"cajita pequena clips metalico",
+"cajita pequena grapa lisa"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "95a4a43c-4737-5aae-a7bc-e9043141cb6c",
+"codigo": "C084",
+"nombre": "Gel antibacterial",
+"sinonimos": [
+"frasco gel mano"
+],
+"tipo_item": "util",
+"discriminantes": [
+"presentacion"
+]
+},
+{
+"id": "a79ab9c6-ad8f-57d8-8ffa-9d6cd5d50c29",
+"codigo": "C008",
+"nombre": "Regla",
+"sinonimos": [
+"regla",
+"regla buen estado",
+"regla no metalica",
+"regla acero inoxidable",
+"regla no flexible",
+"regla plastica transparente",
+"regla pincel",
+"juego regla",
+"basura tijeras punta roma pegastic regla",
+"esfero lapiz negro n regla borrador tajalapiz",
+"regla no metalica flexible",
+"regla otra",
+"regla pincel uno grueso delgado",
+"regla plastica",
+"regla plastica no flexible",
+"regla 30 cm compás, transportador"
+],
+"tipo_item": "util",
+"discriminantes": [
+"longitud",
+"material"
+]
+},
+{
+"id": "b9930f58-7f34-5e23-bc8e-7280e1ecc301",
+"codigo": "C006",
+"nombre": "Marcador",
+"sinonimos": [
+"marcador borrable",
+"micropunta",
+"plumon",
+"plumon delgado",
+"marcador",
+"marcador grueso",
+"plumon punta delgada",
+"caja marcador grafico",
+"estuche marcador acrilico",
+"marcador permanente",
+"caja plumon",
+"caja plumon marcador",
+"estuche plumon delgado",
+"estuche plumon grueso",
+"juego plumon",
+"marcador delgado",
+"marcador permanente colores vivo tablero",
+"marcador permanente negro",
+"marcador pizarra blanca color negro",
+"micropunta negro",
+"paquete plumon",
+"caja marcador delgado",
+"caja plumon excelente calidad",
+"estuche plumon",
+"marcador sharpie negro",
+"paquete micropunta rotulador colores",
+"caja marcador grueso",
+"caja plumon acrilico doble punta",
+"caja plumon delgado",
+"caja plumon punta delgada cartuchera",
+"marcador borra seco",
+"marcador borra seco azul",
+"marcador borra seco rojo",
+"marcador borra seco verde",
+"marcador borrable negro color preferencia",
+"marcador borrable tablero grueso delgado",
+"marcador borrable uso estudiante",
+"marcador delgado permanente",
+"marcador grueso color azul",
+"marcador grueso color negro",
+"marcador grueso color rojo",
+"marcador grueso color verde",
+"marcador grueso permanente",
+"marcador negro grueso permanente",
+"marcador negro permanente",
+"marcador permanente grueso",
+"marcador permanente uno azul otro color",
+"marcador pizarra blanca color azul",
+"marcador pizarra blanca color rojo",
+"marcador pizarra blanca color verde",
+"marcador sharpie",
+"paquete micropunta colores",
+"paquete rotulador",
+"sharpie color azul",
+"sharpie color negro",
+"sharpie color rojo",
+"sharpie color verde",
+"sharpie punta fina",
+"plumones",
+"plumones delgados",
+"marcadores",
+"rotulador",
+"rotuladores"
+],
+"tipo_item": "util",
+"discriminantes": [
+"punta",
+"tipo",
+"color",
+"unidades"
+]
+},
+{
+"id": "cd2a9c85-ae6e-53fb-a68d-bade3ad04796",
+"codigo": "C007",
+"nombre": "Tajalápiz",
+"sinonimos": [
+"tajalapiz",
+"tajalapiz recipiente",
+"tajalapiz deposito",
+"sacapunta deposito",
+"tajalapiz caja",
+"tajalapiz portabasura",
+"taja lapiz deposito",
+"sacapunta depsito",
+"taja lapiz depsito",
+"tajalapiz depsito",
+"tajalapiz doble",
+"colores triangular tajalapiz",
+"tajalapiz colores grande deposito",
+"tajalapiz deposito borrador nata",
+"tajalapiz doble orificio deposito",
+"tajalapiz grueso"
+],
+"tipo_item": "util",
+"discriminantes": [
+"deposito",
+"orificios"
+]
+},
+{
+"id": "9338aa3c-a662-58e1-a24f-c56492d1ccf0",
+"codigo": "C014",
+"nombre": "Papel",
+"sinonimos": [
+"pliego papel periodico",
+"metro papel contac transparente",
+"pliego papel celofan color",
+"pliego papel celofan transparente",
+"pliego papel crepe seda color"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tamano",
+"color",
+"tipo"
+]
+},
+{
+"id": "48704357-9818-505d-858a-61662f54e964",
+"codigo": "C046",
+"nombre": "Tabla de picar",
+"sinonimos": [
+"tabla doble uso picado acrilico punzon punta metalica",
+"punzon tabla picado",
+"tabla picado",
+"tabla picado lado foami otro acrilico blanco punzon",
+"tabla picado punzon",
+"tabla picado punzon punta fina metalica",
+"tabla picar"
+],
+"tipo_item": "util",
+"discriminantes": [
+"material"
+]
+},
+{
+"id": "12c14dd4-1133-5e65-b763-55cc9598b94d",
+"codigo": "C063",
+"nombre": "Monogafas",
+"sinonimos": [
+"monogafas"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "1640b903-92dd-5068-9afc-4e94502a8d06",
+"codigo": "C013",
+"nombre": "Tijeras",
+"sinonimos": [
+"tijeras punta roma",
+"tijera punta roma",
+"tijeras",
+"tijera punta roma tener cuenta dominancia nin derecha izquierda",
+"dispensador basura tijeras punta roma pegastic",
+"tijera",
+"par tijeras punta roma",
+"tijera punta roma barra silicona gruesa"
+],
+"tipo_item": "util",
+"discriminantes": [
+"punta",
+"longitud"
+]
+},
+{
+"id": "959b27a7-d2a7-50d4-8513-7a8005c1b986",
+"codigo": "C121",
+"nombre": "Cables jumper",
+"sinonimos": [
+"Jumpers",
+"Cables de puente"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tipo",
+"longitud"
+]
+},
+{
+"id": "f7fede35-6c8f-523e-92b9-10a0901aeead",
+"codigo": "C139",
+"nombre": "Vestuario para presentaciones",
+"sinonimos": [
+"vestuario",
+"falda",
+"falda rotonda",
+"falda rotonda larga",
+"sombrero",
+"panoleta",
+"sombrero panoleta",
+"sombrero y panoleta para ensayo",
+"disfraz",
+"traje tipico",
+"vestuario para danzas",
+"falda rotonda y larga"
+],
+"tipo_item": "otro",
+"discriminantes": []
+},
+{
+"id": "b048ef3e-968f-5c79-8be0-2215ef118122",
+"codigo": "C140",
+"nombre": "Servomotor",
+"sinonimos": [
+"servo motor",
+"servomotor",
+"servo",
+"micro servo",
+"servo sg90",
+"servomotor sg90"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "6cddee5d-64e7-5b7f-aa88-f238e1d5f9ab",
+"codigo": "C141",
+"nombre": "Motor DC",
+"sinonimos": [
+"motor dc",
+"motor dc rectangular",
+"motor",
+"motorreductor",
+"motor reductor",
+"motor de corriente continua",
+"motor 3v",
+"motor 5v",
+"motor amarillo"
+],
+"tipo_item": "util",
+"discriminantes": [
+"tipo"
+]
+},
+{
+"id": "7a3680fa-eaf0-506c-a820-6c9a59c56b56",
+"codigo": "C143",
+"nombre": "Ecoline (acuarela líquida)",
+"sinonimos": [
+"ecoline",
+"ecolines",
+"ecolines colores primarios",
+"acuarela liquida",
+"acuarelas liquidas",
+"tinta ecoline"
+],
+"tipo_item": "util",
+"discriminantes": [
+"color"
+]
+},
+{
+"id": "916d3fdc-4bba-5692-a966-623bf0fd336c",
+"codigo": "C144",
+"nombre": "Piedras decorativas",
+"sinonimos": [
+"piedras decorativas",
+"piedras de colores",
+"piedras de bisuteria",
+"piedras bisuteria pequenas",
+"piedras de jardineria",
+"piedras de colores de jardineria",
+"gemas acrilicas",
+"piedrecillas",
+"gravilla de colores",
+"materiales generar textura piedras bisuteria pequenas",
+"materiales para generar textura piedras"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "d1dae842-9772-58bc-ae09-5103f338f489",
+"codigo": "C145",
+"nombre": "Cinta métrica",
+"sinonimos": [
+"cinta metrica",
+"cinta metrica metro",
+"cinta metrica costura",
+"metro de costura",
+"metro modisteria",
+"cinta de medir",
+"flexometro",
+"metro flexible"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "43e709e2-9cf3-52b8-bec2-a25456a92618",
+"codigo": "C146",
+"nombre": "Tapabocas",
+"sinonimos": [
+"tapabocas",
+"tapaboca",
+"tapabocas desechables",
+"caja tapabocas",
+"tapabocas antifluido",
+"tapabocas n95",
+"mascarilla",
+"mascarillas desechables",
+"cubrebocas"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "55a578d6-4fd8-550a-9bac-ef1e38344fd4",
+"codigo": "C147",
+"nombre": "Dispositivo electrónico (computador o tablet)",
+"sinonimos": [
+"dispositivo electronico",
+"dispositivo electronico computador tablet",
+"computador",
+"computador portatil",
+"portatil",
+"tablet",
+"ipad",
+"equipo de computo"
+],
+"tipo_item": "otro",
+"discriminantes": []
+},
+{
+"id": "43bb643a-0bef-5c1e-a0f8-aaad4a9c8387",
+"codigo": "C148",
+"nombre": "Espátulas de pintura",
+"sinonimos": [
+"espatula",
+"espatulas",
+"espatula de pintura",
+"espatulas de pintura",
+"juego de espatulas",
+"espatula para oleo"
+],
+"tipo_item": "util",
+"discriminantes": []
+},
+{
+"id": "fd1cecc2-bbc5-5f3c-a96b-f0fe870071b9",
+"codigo": "C062",
+"nombre": "Guantes",
+"sinonimos": [
+"guantes nitrilo latex"
+],
+"tipo_item": "util",
+"discriminantes": [
+"material"
+]
+},
+{
+"id": "c288b0ff-bcc6-577a-a0af-3a702ee7d5ae",
+"codigo": "C010",
+"nombre": "Cartulina",
+"sinonimos": [
+"paquete octavo cartulina colores fuerte",
+"paquete octavo cartulina blanca",
+"paquete cartulina bristol octavo",
+"octavo cartulina blanca",
+"paquete cartulina bristol",
+"octavo cartulina arte",
+"paquete cartulina arte octavo colores vivo",
+"paquete cartulina blanca octavo",
+"paquete cartulina octavo",
+"paquete octavo cartulina colores neon",
+"paquete octavo cartulina colores pastel",
+"pliego cartulina blanca",
+"cuarto cartulina blanca",
+"octavo cartulina negra",
+"paquete cartulina arte",
+"paquete cartulina arte octavo",
+"paquete cartulina blanca",
+"paquete cartulina blanca bristol",
+"paquete cartulina colores bristol",
+"paquete cartulina negra",
+"paquete octavo cartulina color blanco",
+"paquete octavo cartulina fluorescente colores",
+"paquete octavo cartulina negra",
+"paquete octavo cartulina pastel",
+"pliego cartulina negra",
+"cartulina negra octavo",
+"cartulina paquete arte",
+"cartulina paquete arte calipso blanco colores",
+"octavo cartulina roja",
+"octavo cartulina verde",
+"paquete cartulina arte octavo bristol",
+"paquete cartulina color amarillo azul verde agua marina similar",
+"paquete cartulina color blanco",
+"paquete cartulina colores pastel",
+"paquete cartulina fluorescente octavo",
+"paquete cartulina octavo bristol",
+"paquete octavo cartulina colores",
+"pliego cartulina dorada",
+"pliego papel cartulina blanca",
+"cartulina iris",
+"paquete cartulina iris",
+"paquete cartulina iris octavo",
+"paquete octavo cartulina iris"
+],
+"tipo_item": "util",
+"discriminantes": [
+"color",
+"tamano",
+"acabado"
+]
+},
+{
+"id": "b2b0d8d7-915d-5f68-acad-fa88ce9dacc0",
+"codigo": "C137",
+"nombre": "Lo entrega el colegio",
+"sinonimos": [
+"lo entrega el colegio",
+"cartilla agustiniana",
+"cartilla agustiniana medio virtual pagina colegio no se debe comprar",
+"agenda escolar sera entregada en el colegio",
+"sera entregada en el colegio",
+"no se debe comprar",
+"agenda escolar"
+],
+"tipo_item": "no_comprar",
+"discriminantes": []
+},
+{
+"id": "eba6aea9-cce1-51a1-b963-bc785828ddbf",
+"codigo": "C138",
+"nombre": "Cable eléctrico",
+"sinonimos": [
+"cable electrico",
+"cable estanado",
+"cable estanado calibre 22",
+"cable calibre 22",
+"cable para circuito",
+"cable de cobre"
+],
+"tipo_item": "util",
+"discriminantes": [
+"calibre"
+]
+}
+],
+"sinonimos_aprendidos": [
+{
+"concepto": "C134",
+"sinonimo": "lectura multidimensional método 84h"
+},
+{
+"concepto": "dic-ingles",
+"sinonimo": "diccionario inglés – inglés"
+},
+{
+"concepto": "C142",
+"sinonimo": "broche de batería de 9v"
+},
+{
+"concepto": "C142",
+"sinonimo": "pulsadores de 4 pines"
+},
+{
+"concepto": "C137",
+"sinonimo": "agenda escolar"
+},
+{
+"concepto": "C036",
+"sinonimo": "instrumentos de trazo"
+},
+{
+"concepto": "dic-ingles",
+"sinonimo": "diccionario inglés- español"
+},
+{
+"concepto": "C131",
+"sinonimo": "tenis de cuero totalmente blancos"
+},
+{
+"concepto": "C065",
+"sinonimo": "paleta de acuarelas x 12"
+},
+{
+"concepto": "C094",
+"sinonimo": "caja de pasteles secos"
+},
+{
+"concepto": "C139",
+"sinonimo": "falda rotonda y larga"
+},
+{
+"concepto": "dic-ingles",
+"sinonimo": "diccionario inglés- inglés"
+},
+{
+"concepto": "C142",
+"sinonimo": "sensor de movimiento pir hcsr501"
+},
+{
+"concepto": "C142",
+"sinonimo": "sensor de proximidad hcsr04"
+},
+{
+"concepto": "C142",
+"sinonimo": "sensor de proximidad ir"
+},
+{
+"concepto": "C040",
+"sinonimo": "pañitos húmedos"
+},
+{
+"concepto": "C040",
+"sinonimo": "caja de pañuelos faciales"
+},
+{
+"concepto": "C008",
+"sinonimo": "regla 30 cm compás, transportador"
+},
+{
+"concepto": "C142",
+"sinonimo": "buzzer"
+},
+{
+"concepto": "C142",
+"sinonimo": "kit componentes electronicos"
+},
+{
+"concepto": "dic-ingles",
+"sinonimo": "diccionario larousse básico inglés - español"
+}
+]
+}

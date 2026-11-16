@@ -1,0 +1,387 @@
+{
+ "fecha": "2026-11-15",
+ "modelo": "gemini-3.5-flash-lite",
+ "temperatura": 0,
+ "render_dpi": 150,
+ "commit": "09ec02d",
+ "metrica": "06_comparar_enfoques.calcular_prf1 (de2c887): texto normalizado igual o SequenceMatcher >= 0,75",
+ "gold": "renglones de la version vigente y revisada de cada lista (item_lista_oficial). Es la salida del sistema revisada por una persona: circular en parte. Solo el Agustiniano Ciudad Salitre tiene renglones editados (versiones 5 y 6); en los otros seis colegios el gold coincide con la lectura de produccion del 13-nov salvo la cantidad.",
+ "x_listas": 80,
+ "n_entrenamiento": 27,
+ "j_evaluacion": 53,
+ "colegios_entrenamiento": [
+  "COLEGIO AGUSTINIANO CIUDAD SALITRE",
+  "COLEGIO MADRE MATILDE",
+  "JARDIN INFANTIL OSITO DE MIEL"
+ ],
+ "colegios_evaluacion": [
+  "GIMNASIO NUEVO MODELIA",
+  "COLEGIO PARROQUIAL SAN PEDRO CLAVER",
+  "UNIDAD EDUCATIVA PRADOS DE ALAMEDA",
+  "UNIDAD EDUCATIVA BAHIA SOLANO"
+ ],
+ "listas_entrenamiento": [
+  "COLEGIO AGUSTINIANO CIUDAD SALITRE | Cuarto | 08dc73b4-80fe-49c5-9d35-923cf82fa7e7",
+  "COLEGIO AGUSTINIANO CIUDAD SALITRE | Decimo | 51756eb5-9d76-46ca-868d-17fd2a9e8608",
+  "COLEGIO AGUSTINIANO CIUDAD SALITRE | Jardin | 9b8abaf2-d3ff-4264-a302-8fb4827cf611",
+  "COLEGIO AGUSTINIANO CIUDAD SALITRE | Noveno | e27fb460-2f56-43d9-a788-4342fb8ef4cf",
+  "COLEGIO AGUSTINIANO CIUDAD SALITRE | Octavo | 77f115a4-ccfe-47c3-97e5-5de014dea7c7",
+  "COLEGIO AGUSTINIANO CIUDAD SALITRE | Once | 8d21ec9b-33a2-4fbc-ae88-115abe2919d1",
+  "COLEGIO AGUSTINIANO CIUDAD SALITRE | Primero | 7ab8cea0-84bd-4800-8778-089a8dc25254",
+  "COLEGIO AGUSTINIANO CIUDAD SALITRE | Quinto | 8f4a295b-1adf-45b7-8487-d62c247f9d8f",
+  "COLEGIO AGUSTINIANO CIUDAD SALITRE | Segundo | 2a392942-4ce0-440f-b6ba-d2415e4b8869",
+  "COLEGIO AGUSTINIANO CIUDAD SALITRE | Septimo | 5ab7c1cf-d792-4072-8240-cf1abe2921c2",
+  "COLEGIO AGUSTINIANO CIUDAD SALITRE | Sexto | 84b09ad3-bf6d-46a8-ac28-fb50414d98bb",
+  "COLEGIO AGUSTINIANO CIUDAD SALITRE | Tercero | 7476fdef-12a1-4f00-bf3d-edb8ab6f8a66",
+  "COLEGIO AGUSTINIANO CIUDAD SALITRE | Transicion | bf2b2371-6a5b-4a20-89b6-e6ea8b671048",
+  "COLEGIO MADRE MATILDE | Cuarto | 14908c16-8443-424d-bff7-17201b965bbe",
+  "COLEGIO MADRE MATILDE | Decimo | 575f5fcc-a4bb-4b2b-9d78-ee159f49f21c",
+  "COLEGIO MADRE MATILDE | Noveno | 70d7e7e3-cb8f-4730-a70d-7de07ef81f76",
+  "COLEGIO MADRE MATILDE | Octavo | 154212b5-5227-48d0-8791-a73cbe2575a3",
+  "COLEGIO MADRE MATILDE | Once | b6a2be80-cd59-4edd-b9e6-e3c5e9e51874",
+  "COLEGIO MADRE MATILDE | Primero | 2f31b3ee-de8a-4f08-92e8-ef389c529156",
+  "COLEGIO MADRE MATILDE | Quinto | d69580ce-edf9-4b01-a695-ae3a1aa27525",
+  "COLEGIO MADRE MATILDE | Segundo | dcc74f69-3df9-4f9e-8fc4-3617065b0aa7",
+  "COLEGIO MADRE MATILDE | Septimo | 6bf45bcb-72d9-4203-955a-50db354b05d1",
+  "COLEGIO MADRE MATILDE | Sexto | 7810e8b9-3c1b-4581-9d90-cabac727e535",
+  "COLEGIO MADRE MATILDE | Tercero | 414d0e89-f2b2-4df5-a642-ea9e1d2ec032",
+  "JARDIN INFANTIL OSITO DE MIEL | Jardin | e204d7ad-985e-4b8f-80f6-3ced108d9a7b",
+  "JARDIN INFANTIL OSITO DE MIEL | Prejardin | dd21db0f-1374-4b7b-adcc-cd47d935b17d",
+  "JARDIN INFANTIL OSITO DE MIEL | Transicion | ae5fccfc-b6fa-4ac7-977e-00d131e76936"
+ ],
+ "listas_evaluacion": [
+  "COLEGIO PARROQUIAL SAN PEDRO CLAVER | Cuarto | cb0b3fde-3667-4498-875d-03d125c43ced",
+  "COLEGIO PARROQUIAL SAN PEDRO CLAVER | Decimo | a25bb2d3-13db-486e-9457-24c722637fb7",
+  "COLEGIO PARROQUIAL SAN PEDRO CLAVER | Jardin | 320b735f-af53-428a-a23c-167ca6663a0e",
+  "COLEGIO PARROQUIAL SAN PEDRO CLAVER | Noveno | 2747da9e-3212-41d2-a4e3-8a980c81a127",
+  "COLEGIO PARROQUIAL SAN PEDRO CLAVER | Octavo | f4793e38-75e6-4e32-8685-ecadd5e07ac0",
+  "COLEGIO PARROQUIAL SAN PEDRO CLAVER | Once | eac18c9d-d39d-4364-bbe0-3108c045044c",
+  "COLEGIO PARROQUIAL SAN PEDRO CLAVER | Prejardin | 1dddef09-6f82-4379-9c8f-e4c591d4dd06",
+  "COLEGIO PARROQUIAL SAN PEDRO CLAVER | Primero | 7034f90a-0f5d-443b-9547-735aa858a677",
+  "COLEGIO PARROQUIAL SAN PEDRO CLAVER | Quinto | 1517d989-6d09-45f3-b3ee-dac2ee45deca",
+  "COLEGIO PARROQUIAL SAN PEDRO CLAVER | Segundo | c4eea720-95bc-435b-97ab-57bbc8ad6100",
+  "COLEGIO PARROQUIAL SAN PEDRO CLAVER | Septimo | f16db909-2d80-4f2c-8701-0435e7118f86",
+  "COLEGIO PARROQUIAL SAN PEDRO CLAVER | Sexto | b54c3dde-143b-4873-a0d4-64c000e8d986",
+  "COLEGIO PARROQUIAL SAN PEDRO CLAVER | Tercero | 4590befd-6191-4864-a147-97c4f7f0a8cf",
+  "COLEGIO PARROQUIAL SAN PEDRO CLAVER | Transicion | c4fb9c30-dbc2-44aa-aaf2-9641317d482a",
+  "GIMNASIO NUEVO MODELIA | Cuarto | 06cb9cc9-ed9e-4921-8638-33f3b584e1d0",
+  "GIMNASIO NUEVO MODELIA | Decimo | 86a2dae9-d964-45e3-890f-0f452016a82a",
+  "GIMNASIO NUEVO MODELIA | Jardin | fbd5107f-3c39-479b-a078-3b298a4b595f",
+  "GIMNASIO NUEVO MODELIA | Noveno | 5c5ed21e-33ea-4fc1-b683-cbfac20fc6ab",
+  "GIMNASIO NUEVO MODELIA | Octavo | 30a4686d-b8ed-4921-9e54-00089666e282",
+  "GIMNASIO NUEVO MODELIA | Once | 00fad313-e83d-4453-bd6c-1c6480b95381",
+  "GIMNASIO NUEVO MODELIA | Prejardin | 16caddda-dc25-4609-9cb6-643eebeec28d",
+  "GIMNASIO NUEVO MODELIA | Primero | c364193a-c99f-4567-9849-2f5a2ec8f298",
+  "GIMNASIO NUEVO MODELIA | Quinto | 12e7cbaf-6c40-4601-981f-b49b3cb3d76f",
+  "GIMNASIO NUEVO MODELIA | Segundo | 86067ccf-5872-46a7-8393-a2d06b1eef00",
+  "GIMNASIO NUEVO MODELIA | Septimo | 2e6f5480-4b49-49e5-be8a-ec6bb1a1b9eb",
+  "GIMNASIO NUEVO MODELIA | Sexto | 267d2865-c344-4cc1-9ff4-c816bfde5892",
+  "GIMNASIO NUEVO MODELIA | Tercero | 3879584f-706d-4af5-a7f7-19e6ac9a6d80",
+  "GIMNASIO NUEVO MODELIA | Transicion | 50bc45a9-b1a9-4eb6-83c3-24680df28251",
+  "UNIDAD EDUCATIVA BAHIA SOLANO | Cuarto | 71df06f6-f703-492a-aa99-46776143e65b",
+  "UNIDAD EDUCATIVA BAHIA SOLANO | Decimo | 1b5cd939-baf6-4525-b049-a84cd20a0f38",
+  "UNIDAD EDUCATIVA BAHIA SOLANO | Noveno | efb222b0-9ecc-4961-82ce-43f5f132c150",
+  "UNIDAD EDUCATIVA BAHIA SOLANO | Octavo | ffd4845d-d13e-448b-ab51-57f5cf76ce93",
+  "UNIDAD EDUCATIVA BAHIA SOLANO | Once | e8184120-a86a-4902-8f78-2ffeca35b8db",
+  "UNIDAD EDUCATIVA BAHIA SOLANO | Primero | d4cc9727-34df-4d19-9e3b-ef177b16f39f",
+  "UNIDAD EDUCATIVA BAHIA SOLANO | Quinto | d36fcc2c-85f4-4b42-adc4-2c94cf4b5639",
+  "UNIDAD EDUCATIVA BAHIA SOLANO | Segundo | 4624308c-6cb4-453b-a4a4-e98940daed7c",
+  "UNIDAD EDUCATIVA BAHIA SOLANO | Septimo | 67e2cfda-e940-4186-8813-ddeef040dad8",
+  "UNIDAD EDUCATIVA BAHIA SOLANO | Sexto | f19be09f-8f0e-4146-a602-8b5683f6d1b0",
+  "UNIDAD EDUCATIVA BAHIA SOLANO | Tercero | 29ea860d-b271-45a8-b417-24236bf3e7db",
+  "UNIDAD EDUCATIVA BAHIA SOLANO | Transicion | 23161efc-bf12-4961-a3e2-094be98de572",
+  "UNIDAD EDUCATIVA PRADOS DE ALAMEDA | Cuarto | c4a94f3a-2d27-40b5-8bf8-73320d974d6c",
+  "UNIDAD EDUCATIVA PRADOS DE ALAMEDA | Decimo | f4da0cf0-4c4e-47ee-8049-3032cd412306",
+  "UNIDAD EDUCATIVA PRADOS DE ALAMEDA | Jardin | 59189c6f-8d54-4b33-9b6c-869b4183bf06",
+  "UNIDAD EDUCATIVA PRADOS DE ALAMEDA | Noveno | 7593e50c-8ca8-4e3e-af1c-2bbcdf3295fa",
+  "UNIDAD EDUCATIVA PRADOS DE ALAMEDA | Octavo | 77cdb92d-4fc0-41fe-82bc-c9db34f948b4",
+  "UNIDAD EDUCATIVA PRADOS DE ALAMEDA | Once | 7623c833-3db8-48e7-9109-004f5694889f",
+  "UNIDAD EDUCATIVA PRADOS DE ALAMEDA | Primero | 436f6e9e-47e9-43e5-9542-5637a7ae7f32",
+  "UNIDAD EDUCATIVA PRADOS DE ALAMEDA | Quinto | fa150c80-33d3-4f0a-b841-90708fedf4db",
+  "UNIDAD EDUCATIVA PRADOS DE ALAMEDA | Segundo | 635c1949-cc89-45fd-8b77-b65c65c0cd17",
+  "UNIDAD EDUCATIVA PRADOS DE ALAMEDA | Septimo | e9b7f9a0-acfc-4138-83dd-8849acfcf661",
+  "UNIDAD EDUCATIVA PRADOS DE ALAMEDA | Sexto | e0991afc-5c08-434b-9aa4-2841d2069b86",
+  "UNIDAD EDUCATIVA PRADOS DE ALAMEDA | Tercero | 446d26e1-b950-4955-a777-a77688152158",
+  "UNIDAD EDUCATIVA PRADOS DE ALAMEDA | Transicion | 8ef6f54d-db5f-4be1-bac6-d3837dc5e9d8"
+ ],
+ "rondas": {
+  "v0": {
+   "delta_vs_v0_evaluacion": null,
+   "evaluacion": {
+    "P": 0.9396,
+    "R": 0.9275,
+    "F1_micro": 0.9335,
+    "F1_macro": 0.9397,
+    "P_macro": 0.9467,
+    "R_macro": 0.9368,
+    "tp": 1446,
+    "fp": 93,
+    "fn": 113,
+    "listas": 53,
+    "ic95_bootstrap_por_lista": {
+     "P": [
+      0.9127,
+      0.9636
+     ],
+     "R": [
+      0.8889,
+      0.9587
+     ],
+     "F1_micro": [
+      0.9054,
+      0.9585
+     ],
+     "F1_macro": [
+      0.9141,
+      0.962
+     ]
+    }
+   },
+   "entrenamiento": {
+    "P": 0.893,
+    "R": 0.9087,
+    "F1_micro": 0.9007,
+    "F1_macro": 0.9007,
+    "P_macro": 0.8974,
+    "R_macro": 0.9092,
+    "tp": 1343,
+    "fp": 161,
+    "fn": 135,
+    "listas": 27
+   },
+   "tipos_de_error": {
+    "entrenamiento": {
+     "fila_partida": 4,
+     "renglones_unidos": 3,
+     "duplicado": 5,
+     "texto_alterado": 49,
+     "extra_no_pedido": 94,
+     "omitido": 75,
+     "cantidad_distinta": 8
+    },
+    "evaluacion": {
+     "fila_partida": 6,
+     "renglones_unidos": 6,
+     "duplicado": 1,
+     "texto_alterado": 19,
+     "extra_no_pedido": 49,
+     "omitido": 71,
+     "cantidad_distinta": 3
+    }
+   },
+   "k": 0,
+   "instruccion": "Lee esta pagina de una lista de utiles escolares colombiana.\nLa pagina es una imagen: leela como tabla, no como texto suelto. Una fila es un item, aunque ocupe dos lineas.\nNo cortes una descripcion a la mitad. Si la fila dice \"Diccionario de sinonimos\", eso es el item entero.\nEn `cantidad` pon el numero de la columna de cantidad. Si no hay columna, dejala en null y no inventes una.\nSepara lo que se compra por aparte: \"Cartuchera con: esferos, borrador\" son 3 items, incluida la cartuchera\n(\"Cartuchera\", \"esferos\", \"borrador\"); \"Pinturas acrilicas: cian, magenta y rojo\" es un item por color\n(\"Pinturas acrilicas cian\", \"Pinturas acrilicas magenta\", \"Pinturas acrilicas rojo\"). Igual si los colores\nvienen al final: \"4 carpetas oficio con gancho. Colores: azul, rojo, verde, amarillo\" son 4 items (\"carpetas\noficio con gancho azul\"...). La cantidad total se reparte, nunca se repite: si es igual al numero de colores,\ncada item lleva cantidad 1.\nNo separes \"tajalapiz o portaminas\", un producto entero (\"Kit de 12 pinceles (planos, redondos)\")\nni una serie de durezas: \"Lapices HB, 2H, 2B, 6B\" es un solo item.\nCada uniforme es UN item con su nombre (\"Uniforme de diario\"), sin sus prendas.\nEn `grados` lista cada grado o curso cuya lista ES esta pagina (el titulo o encabezado: \"GRADO DECIMO\",\n\"Lista de Cuarto\"), con su nombre (Cuarto, no 4°). Un grado que solo se menciona de paso no cuenta:\n\"estos libros se usan el ano siguiente en 11\" o \"paquete del grado sexto en la tienda\" no son otra lista.\nSi la imagen esta recortada, borrosa o no alcanzas a leerla toda, pon `completa` en false.\nUn texto que sigue en la pagina siguiente no es una pagina cortada: lee lo que hay y deja `completa` en true.\nNo agregues items que no esten escritos.",
+   "costo_usd": 0.0684
+  },
+  "v1": {
+   "delta_vs_v0_evaluacion": {
+    "delta_f1_micro": -0.1481,
+    "ic95": [
+     -0.1884,
+     -0.1092
+    ]
+   },
+   "evaluacion": {
+    "P": 0.7593,
+    "R": 0.8133,
+    "F1_micro": 0.7854,
+    "F1_macro": 0.8044,
+    "P_macro": 0.7837,
+    "R_macro": 0.8336,
+    "tp": 1268,
+    "fp": 402,
+    "fn": 291,
+    "listas": 53,
+    "ic95_bootstrap_por_lista": {
+     "P": [
+      0.7145,
+      0.8023
+     ],
+     "R": [
+      0.7628,
+      0.8602
+     ],
+     "F1_micro": [
+      0.7408,
+      0.8272
+     ],
+     "F1_macro": [
+      0.7603,
+      0.8464
+     ]
+    }
+   },
+   "entrenamiento": {
+    "P": 0.8038,
+    "R": 0.862,
+    "F1_micro": 0.8319,
+    "F1_macro": 0.8112,
+    "P_macro": 0.7806,
+    "R_macro": 0.8499,
+    "tp": 1274,
+    "fp": 311,
+    "fn": 204,
+    "listas": 27
+   },
+   "tipos_de_error": {
+    "entrenamiento": {
+     "fila_partida": 3,
+     "renglones_unidos": 4,
+     "duplicado": 6,
+     "texto_alterado": 114,
+     "extra_no_pedido": 181,
+     "omitido": 72,
+     "cantidad_distinta": 11
+    },
+    "evaluacion": {
+     "fila_partida": 6,
+     "renglones_unidos": 14,
+     "duplicado": 1,
+     "texto_alterado": 119,
+     "extra_no_pedido": 250,
+     "omitido": 132,
+     "cantidad_distinta": 1
+    }
+   },
+   "k": 4,
+   "instruccion": "Lee esta pagina de una lista de utiles escolares colombiana.\nLa pagina es una imagen: leela como tabla, no como texto suelto. Una fila es un item, aunque ocupe dos lineas.\nNo cortes una descripcion a la mitad. Si la fila dice \"Diccionario de sinonimos\", eso es el item entero.\nEn `cantidad` pon el numero de la columna de cantidad. Si no hay columna, dejala en null y no inventes una.\nSepara lo que se compra por aparte: \"Cartuchera con: esferos, borrador\" son 3 items, incluida la cartuchera\n(\"Cartuchera\", \"esferos\", \"borrador\"); \"Pinturas acrilicas: cian, magenta y rojo\" es un item por color\n(\"Pinturas acrilicas cian\", \"Pinturas acrilicas magenta\", \"Pinturas acrilicas rojo\"). Igual si los colores\nvienen al final: \"4 carpetas oficio con gancho. Colores: azul, rojo, verde, amarillo\" son 4 items (\"carpetas\noficio con gancho azul\"...). La cantidad total se reparte, nunca se repite: si es igual al numero de colores,\ncada item lleva cantidad 1.\nNo separes \"tajalapiz o portaminas\", un producto entero (\"Kit de 12 pinceles (planos, redondos)\")\nni una serie de durezas: \"Lapices HB, 2H, 2B, 6B\" es un solo item.\nCada uniforme es UN item con su nombre (\"Uniforme de diario\"), sin sus prendas.\nEn `grados` lista cada grado o curso cuya lista ES esta pagina (el titulo o encabezado: \"GRADO DECIMO\",\n\"Lista de Cuarto\"), con su nombre (Cuarto, no 4°). Un grado que solo se menciona de paso no cuenta:\n\"estos libros se usan el ano siguiente en 11\" o \"paquete del grado sexto en la tienda\" no son otra lista.\nSi la imagen esta recortada, borrosa o no alcanzas a leerla toda, pon `completa` en false.\nUn texto que sigue en la pagina siguiente no es una pagina cortada: lee lo que hay y deja `completa` en true.\nNo agregues items que no esten escritos.\n\nEjemplos (fragmento de una pagina -> los items que esperamos). Son solo guias de formato: no los copies si no estan escritos en la pagina.\n\nEjemplo 1. Pagina:\n· Diccionario Escolar pequeño. Cualquier editorial.\n@LIBRO RAYITAS C / EDITORIAL MUNDO DE NIÑOS.\nAGENDA ESCOLAR (la entrega el colegio)\nItems:\n[{\"descripcion\": \"Diccionario Escolar pequeño. Cualquier editorial.\", \"cantidad\": 1},\n {\"descripcion\": \"LIBRO RAYITAS C / EDITORIAL MUNDO DE NIÑOS\", \"cantidad\": 1},\n {\"descripcion\": \"Agenda escolar (la entrega el colegio)\", \"cantidad\": 1}]\n\nEjemplo 2. Pagina:\n● 1 Kit de aseo personal: Pañitos húmedos, 1 caja de pañuelos faciales.\nItems:\n[{\"descripcion\": \"Kit de aseo personal\", \"cantidad\": 1},\n {\"descripcion\": \"Kit de aseo personal: Pañitos húmedos\", \"cantidad\": 1},\n {\"descripcion\": \"Kit de aseo personal: 1 caja de pañuelos faciales\", \"cantidad\": 1}]\n\nEjemplo 3. Pagina:\n1 regla 30 cm compás, transportador,\nTodo debidamente marcado.\nItems:\n[{\"descripcion\": \"regla 30 cm\", \"cantidad\": 1},\n {\"descripcion\": \"compás\", \"cantidad\": 1},\n {\"descripcion\": \"transportador\", \"cantidad\": 1}]\n\nEjemplo 4. Pagina:\n3 pintura académica con olor de 120g, amarillo, azul y rojo.\nItems:\n[{\"descripcion\": \"pintura académica con olor de 120g, amarillo\", \"cantidad\": 1},\n {\"descripcion\": \"pintura académica con olor de 120g, azul\", \"cantidad\": 1},\n {\"descripcion\": \"pintura académica con olor de 120g, rojo\", \"cantidad\": 1}]",
+   "costo_usd": 0.0765
+  },
+  "v2": {
+   "delta_vs_v0_evaluacion": {
+    "delta_f1_micro": -0.0714,
+    "ic95": [
+     -0.1059,
+     -0.0339
+    ]
+   },
+   "evaluacion": {
+    "P": 0.843,
+    "R": 0.882,
+    "F1_micro": 0.8621,
+    "F1_macro": 0.8659,
+    "P_macro": 0.8642,
+    "R_macro": 0.8776,
+    "tp": 1375,
+    "fp": 256,
+    "fn": 184,
+    "listas": 53,
+    "ic95_bootstrap_por_lista": {
+     "P": [
+      0.806,
+      0.8824
+     ],
+     "R": [
+      0.8445,
+      0.9156
+     ],
+     "F1_micro": [
+      0.8273,
+      0.8955
+     ],
+     "F1_macro": [
+      0.8318,
+      0.8971
+     ]
+    }
+   },
+   "entrenamiento": {
+    "P": 0.8758,
+    "R": 0.9303,
+    "F1_micro": 0.9022,
+    "F1_macro": 0.8865,
+    "P_macro": 0.8541,
+    "R_macro": 0.929,
+    "tp": 1375,
+    "fp": 195,
+    "fn": 103,
+    "listas": 27
+   },
+   "tipos_de_error": {
+    "entrenamiento": {
+     "fila_partida": 6,
+     "renglones_unidos": 1,
+     "duplicado": 7,
+     "texto_alterado": 31,
+     "extra_no_pedido": 134,
+     "omitido": 63,
+     "cantidad_distinta": 6
+    },
+    "evaluacion": {
+     "fila_partida": 10,
+     "renglones_unidos": 5,
+     "duplicado": 2,
+     "texto_alterado": 61,
+     "extra_no_pedido": 155,
+     "omitido": 98,
+     "cantidad_distinta": 1
+    }
+   },
+   "k": 3,
+   "instruccion": "Lee esta pagina de una lista de utiles escolares colombiana.\nLa pagina es una imagen: leela como tabla, no como texto suelto. Una fila es un item, aunque ocupe dos lineas.\nNo cortes una descripcion a la mitad. Si la fila dice \"Diccionario de sinonimos\", eso es el item entero.\nEn `cantidad` pon el numero de la columna de cantidad. Si no hay columna, dejala en null y no inventes una.\nSepara lo que se compra por aparte: \"Cartuchera con: esferos, borrador\" son 3 items, incluida la cartuchera\n(\"Cartuchera\", \"esferos\", \"borrador\"); \"Pinturas acrilicas: cian, magenta y rojo\" es un item por color\n(\"Pinturas acrilicas cian\", \"Pinturas acrilicas magenta\", \"Pinturas acrilicas rojo\"). Igual si los colores\nvienen al final: \"4 carpetas oficio con gancho. Colores: azul, rojo, verde, amarillo\" son 4 items (\"carpetas\noficio con gancho azul\"...). La cantidad total se reparte, nunca se repite: si es igual al numero de colores,\ncada item lleva cantidad 1.\nNo separes \"tajalapiz o portaminas\", un producto entero (\"Kit de 12 pinceles (planos, redondos)\")\nni una serie de durezas: \"Lapices HB, 2H, 2B, 6B\" es un solo item.\nCada uniforme es UN item con su nombre (\"Uniforme de diario\"), sin sus prendas.\nEn `grados` lista cada grado o curso cuya lista ES esta pagina (el titulo o encabezado: \"GRADO DECIMO\",\n\"Lista de Cuarto\"), con su nombre (Cuarto, no 4°). Un grado que solo se menciona de paso no cuenta:\n\"estos libros se usan el ano siguiente en 11\" o \"paquete del grado sexto en la tienda\" no son otra lista.\nSi la imagen esta recortada, borrosa o no alcanzas a leerla toda, pon `completa` en false.\nUn texto que sigue en la pagina siguiente no es una pagina cortada: lee lo que hay y deja `completa` en true.\nNo agregues items que no esten escritos.\n\nEjemplos (fragmento de una pagina -> los items que esperamos). Son solo guias de formato: no los copies si no estan escritos en la pagina.\n\nEjemplo 1. Pagina:\n· Diccionario Escolar pequeño. Cualquier editorial.\n@LIBRO RAYITAS C / EDITORIAL MUNDO DE NIÑOS.\nAGENDA ESCOLAR (la entrega el colegio)\nItems:\n[{\"descripcion\": \"Diccionario Escolar pequeño. Cualquier editorial.\", \"cantidad\": 1},\n {\"descripcion\": \"LIBRO RAYITAS C / EDITORIAL MUNDO DE NIÑOS\", \"cantidad\": 1},\n {\"descripcion\": \"Agenda escolar (la entrega el colegio)\", \"cantidad\": 1}]\n\nEjemplo 2. Pagina:\n1 regla 30 cm compás, transportador,\nTodo debidamente marcado.\nItems:\n[{\"descripcion\": \"regla 30 cm\", \"cantidad\": 1},\n {\"descripcion\": \"compás\", \"cantidad\": 1},\n {\"descripcion\": \"transportador\", \"cantidad\": 1}]\n\nEjemplo 3. Pagina:\nARTES\nBata para artes con mangas.\nTodo debidamente marcado.\nCartuchera con: esferos, lápices, borrador.\nLink de pago: https://pagoslearning.com/\nUNIFORMES\nUniforme de diario: blusa blanca, jardinera, medias y zapatos negros de cuero.\nItems:\n[{\"descripcion\": \"Bata para artes con mangas\", \"cantidad\": 1},\n {\"descripcion\": \"Cartuchera\", \"cantidad\": 1},\n {\"descripcion\": \"esferos\", \"cantidad\": 1},\n {\"descripcion\": \"lápices\", \"cantidad\": 1},\n {\"descripcion\": \"borrador\", \"cantidad\": 1},\n {\"descripcion\": \"Uniforme de diario\", \"cantidad\": 1}]\n(Sin \"ARTES:\" ni \"Cartuchera con:\" delante de cada item; la nota, el enlace y las prendas del uniforme no son items.)",
+   "costo_usd": 0.075
+  }
+ },
+ "version_elegida": "v0",
+ "cgs10": {
+  "nota": "solo comparacion, nunca ajuste; 6 de los 10 PDF siguen disponibles; 5 primeras paginas como el benchmark",
+  "corridas": {
+   "v0": {
+    "documentos": [
+     "DOC-CGS-005",
+     "DOC-CGS-006",
+     "DOC-CGS-007",
+     "DOC-CGS-008",
+     "DOC-CGS-009",
+     "DOC-CGS-010"
+    ],
+    "P": 0.7835,
+    "R": 0.9061,
+    "F1_micro": 0.8404,
+    "F1_macro": 0.8336,
+    "P_macro": 0.7777,
+    "R_macro": 0.9028,
+    "tp": 724,
+    "fp": 200,
+    "fn": 75,
+    "listas": 6
+   }
+  },
+  "referencia_benchmark_mismos_docs": {
+   "P": 0.956,
+   "R": 0.8973717146433041,
+   "F1_micro": 0.9257585539057456,
+   "F1_macro": 0.9241166666666666,
+   "P_macro": 0.9500666666666667,
+   "R_macro": 0.9073000000000001,
+   "tp": 717,
+   "fp": 33,
+   "fn": 82,
+   "listas": 6
+  },
+  "referencia_cgs10_completo": {
+   "P": 0.9654895666131621,
+   "R": 0.9303944315545244,
+   "F1_micro": 0.947617172115006,
+   "F1_macro": 0.94424,
+   "P_macro": 0.95874,
+   "R_macro": 0.93523,
+   "tp": 1203,
+   "fp": 43,
+   "fn": 90,
+   "listas": 10
+  }
+ },
+ "umbral": null,
+ "umbral_nota": "No hay un umbral de F1 de lectura fijado antes de medir en ningun commit; la figura no lo dibuja.",
+ "gasto": {
+  "total_usd": 0.2399,
+  "llamadas": 372,
+  "precio_supuesto_usd_por_millon": {
+   "entrada": 0.1,
+   "salida": 0.4
+  },
+  "tokens_entrada": 701910,
+  "tokens_salida": 424160
+ }
+}

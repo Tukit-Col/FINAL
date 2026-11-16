@@ -1,0 +1,793 @@
+{
+ "aviso_honestidad": "Los tres jueces son LLM (dos anotadores ciegos A y B y un consejo LLM como tercer juez en 8 desacuerdos); el oro NO es humano. Agustiniano Norte es 'otro colegio' pero de la misma congregacion que el colegio piloto (formato de lista y vocabulario parecidos): es generalizacion a un colegio nuevo, no a una congregacion nueva.",
+ "n": 200,
+ "union": {
+  "renglones_sin_unir": [],
+  "claves_texto_duplicadas_con_resultado_distinto": 0,
+  "criterio": "colegio Norte, grado y texto leido; en duplicados identicos se usa el primero (todos con igual resultado)"
+ },
+ "acuerdo_A_B": {
+  "porcentaje": 0.96,
+  "desacuerdos": 8,
+  "kappa_cohen": 0.9582147240865999,
+  "kappa_ic95": [
+   0.9266669657927195,
+   0.9842199007997658
+  ],
+  "kappa_ic95_por_grado": [
+   0.9346958434674487,
+   0.9791797029716514
+  ]
+ },
+ "oro": {
+  "por_acuerdo": 192,
+  "por_consejo": 8,
+  "consejo_dividido": {
+   "N048": "consejo dividido",
+   "N072": "consejo dividido",
+   "N086": "consejo dividido",
+   "N123": "consejo dividido",
+   "N131": "consejo dividido",
+   "N133": "consejo dividido",
+   "N164": "consejo dividido"
+  },
+  "etiquetas_fuera_de_taxonomia": []
+ },
+ "sistema_v2_vectores": {
+  "tau": 0.75,
+  "global": {
+   "n": 200,
+   "exactitud": {
+    "valor": 0.75,
+    "ic95": [
+     0.685,
+     0.81
+    ],
+    "ic95_por_lista": [
+     0.6842105263157895,
+     0.8256521739130434
+    ]
+   },
+   "aceptada": {
+    "valor": 0.705,
+    "ic95": [
+     0.64,
+     0.765
+    ],
+    "ic95_por_lista": [
+     0.6615895190436475,
+     0.751269035532995
+    ]
+   },
+   "precision_aceptada": {
+    "valor": 0.9148936170212766,
+    "ic95": [
+     0.8666666666666667,
+     0.9568345323741008
+    ],
+    "ic95_por_lista": [
+     0.8539929049053137,
+     0.9659863945578231
+    ]
+   }
+  },
+  "solo_renglones_con_acuerdo_A_B": {
+   "n": 192,
+   "exactitud": {
+    "valor": 0.78125,
+    "ic95": [
+     0.7239583333333334,
+     0.8385416666666666
+    ],
+    "ic95_por_lista": [
+     0.7216345632121541,
+     0.8481754719974615
+    ]
+   },
+   "aceptada": {
+    "valor": 0.7239583333333334,
+    "ic95": [
+     0.65625,
+     0.7813802083333327
+    ],
+    "ic95_por_lista": [
+     0.6884354568541633,
+     0.7665016920473773
+    ]
+   },
+   "precision_aceptada": {
+    "valor": 0.9280575539568345,
+    "ic95": [
+     0.8823427287581699,
+     0.9662274774774774
+    ],
+    "ic95_por_lista": [
+     0.8767905291540277,
+     0.9727891156462585
+    ]
+   }
+  }
+ },
+ "por_tipo": {
+  "libros_con_titulo_oro_C134": {
+   "n": 21,
+   "exactitud": {
+    "valor": 0.0,
+    "ic95": [
+     null,
+     null
+    ],
+    "ic95_por_lista": [
+     null,
+     null
+    ]
+   },
+   "aceptada": {
+    "valor": 0.0,
+    "ic95": [
+     null,
+     null
+    ],
+    "ic95_por_lista": [
+     null,
+     null
+    ]
+   },
+   "precision_aceptada": {
+    "valor": null,
+    "ic95": [
+     null,
+     null
+    ],
+    "ic95_por_lista": [
+     null,
+     null
+    ]
+   }
+  },
+  "resto": {
+   "n": 179,
+   "exactitud": {
+    "valor": 0.8379888268156425,
+    "ic95": [
+     0.7821229050279329,
+     0.888268156424581
+    ],
+    "ic95_por_lista": [
+     0.7671957671957672,
+     0.9065969652109548
+    ]
+   },
+   "aceptada": {
+    "valor": 0.7877094972067039,
+    "ic95": [
+     0.7262569832402235,
+     0.8437150837988819
+    ],
+    "ic95_por_lista": [
+     0.7540983606557377,
+     0.8227953003706553
+    ]
+   },
+   "precision_aceptada": {
+    "valor": 0.9148936170212766,
+    "ic95": [
+     0.8666666666666667,
+     0.9583333333333334
+    ],
+    "ic95_por_lista": [
+     0.8539929049053137,
+     0.9671052631578947
+    ]
+   }
+  }
+ },
+ "por_grado_n": {
+  "Cuarto": 16,
+  "Decimo": 17,
+  "Jardin": 9,
+  "Noveno": 16,
+  "Octavo": 15,
+  "Once": 15,
+  "Primero": 16,
+  "Quinto": 16,
+  "Segundo": 15,
+  "Septimo": 17,
+  "Sexto": 19,
+  "Tercero": 15,
+  "Transicion": 14
+ },
+ "sin_vectores_holdout_norte_csv": {
+  "global": {
+   "n": 200,
+   "exactitud": {
+    "valor": 0.74,
+    "ic95": [
+     0.68,
+     0.795
+    ],
+    "ic95_por_lista": [
+     0.6683667059788739,
+     0.8181818181818182
+    ]
+   },
+   "aceptada": {
+    "valor": 0.545,
+    "ic95": [
+     0.479875,
+     0.61
+    ],
+    "ic95_por_lista": [
+     0.4837132150336162,
+     0.6102564102564103
+    ]
+   },
+   "precision_aceptada": {
+    "valor": 0.981651376146789,
+    "ic95": [
+     0.9519230769230769,
+     1.0
+    ],
+    "ic95_por_lista": [
+     0.9523695054945055,
+     1.0
+    ]
+   }
+  },
+  "libros": {
+   "n": 21,
+   "exactitud": {
+    "valor": 0.0,
+    "ic95": [
+     null,
+     null
+    ],
+    "ic95_por_lista": [
+     null,
+     null
+    ]
+   },
+   "aceptada": {
+    "valor": 0.0,
+    "ic95": [
+     null,
+     null
+    ],
+    "ic95_por_lista": [
+     null,
+     null
+    ]
+   },
+   "precision_aceptada": {
+    "valor": null,
+    "ic95": [
+     null,
+     null
+    ],
+    "ic95_por_lista": [
+     null,
+     null
+    ]
+   }
+  },
+  "resto": {
+   "n": 179,
+   "exactitud": {
+    "valor": 0.8268156424581006,
+    "ic95": [
+     0.7653631284916201,
+     0.8770949720670391
+    ],
+    "ic95_por_lista": [
+     0.7541899441340782,
+     0.9
+    ]
+   },
+   "aceptada": {
+    "valor": 0.6089385474860335,
+    "ic95": [
+     0.5363128491620112,
+     0.6815642458100558
+    ],
+    "ic95_por_lista": [
+     0.5375637990407084,
+     0.6797867128298928
+    ]
+   },
+   "precision_aceptada": {
+    "valor": 0.981651376146789,
+    "ic95": [
+     0.9512195121951219,
+     1.0
+    ],
+    "ic95_por_lista": [
+     0.9519230769230769,
+     1.0
+    ]
+   }
+  }
+ },
+ "comparacion": {
+  "siete_colegios_ruta_real_n240": {
+   "exactitud": 0.825,
+   "precision_aceptada": 0.94375,
+   "aceptada": 0.6666666666666666
+  },
+  "norte_con_vectores": {
+   "exactitud": 0.75,
+   "precision_aceptada": 0.9148936170212766,
+   "aceptada": 0.705
+  },
+  "norte_sin_vectores": {
+   "exactitud": 0.74,
+   "precision_aceptada": 0.981651376146789,
+   "aceptada": 0.545
+  },
+  "nota": "oro LLM en los tres casos; muestras distintas (n 240 vs 200); no se afirma diferencia significativa si los IC se solapan",
+  "renglones_que_cambian_con_vectores": 37
+ },
+ "errores_total": 50,
+ "errores_por_origen": {
+  "resolucion": 47,
+  "lectura": 3
+ },
+ "errores_por_tipo": [
+  {
+   "tipo": "libro con titulo no reconocido (oro C134, sistema NINGUNO)",
+   "n": 21,
+   "aceptados": 0,
+   "discutibles": 0,
+   "ejemplos": [
+    {
+     "id": "N016",
+     "texto": "Miners of the fifth moon by Herber Puchta, Gavin Biggs (ELT)",
+     "oro": "C134",
+     "sistema": "NINGUNO",
+     "estado": "SIN_MATCH"
+    },
+    {
+     "id": "N040",
+     "texto": "The boy who stole the phararoh's lunch - Karen McCombie - Barrington Stoke",
+     "oro": "C134",
+     "sistema": "NINGUNO",
+     "estado": "SIN_MATCH"
+    },
+    {
+     "id": "N042",
+     "texto": "El violín de Auschwitz - Anna Lavatelli. Ilustraciones de Cinzia Ghigliano (Panamericana)",
+     "oro": "C134",
+     "sistema": "NINGUNO",
+     "estado": "SIN_MATCH"
+    }
+   ]
+  },
+  {
+   "tipo": "concepto existe en oro, sistema NINGUNO (SIN_MATCH)",
+   "n": 8,
+   "aceptados": 0,
+   "discutibles": 3,
+   "ejemplos": [
+    {
+     "id": "N047",
+     "texto": "Soporte a elegir de 50X40 (tabla mdf o lienzo)",
+     "oro": "C050",
+     "sistema": "NINGUNO",
+     "estado": "SIN_MATCH"
+    },
+    {
+     "id": "N058",
+     "texto": "acrilicos en frasco plastico blanco",
+     "oro": "C027",
+     "sistema": "NINGUNO",
+     "estado": "SIN_MATCH"
+    },
+    {
+     "id": "N083",
+     "texto": "2 títulos(cuentos) de su elección de la colección buenas noches Editorial norma",
+     "oro": "C044",
+     "sistema": "NINGUNO",
+     "estado": "SIN_MATCH"
+    }
+   ]
+  },
+  {
+   "tipo": "oro NINGUNO, sistema acepta un concepto",
+   "n": 6,
+   "aceptados": 6,
+   "discutibles": 1,
+   "ejemplos": [
+    {
+     "id": "N001",
+     "texto": "metro de cable UTP",
+     "oro": "NINGUNO",
+     "sistema": "C138",
+     "estado": "RESUELTO_AUTO"
+    },
+    {
+     "id": "N021",
+     "texto": "Palos de balso perfil cuadrado de 1.5 x 1.5 cm",
+     "oro": "NINGUNO",
+     "sistema": "C033",
+     "estado": "RESUELTO_AUTO"
+    },
+    {
+     "id": "N074",
+     "texto": "2 palos de balso perfil cuadrado de 1.5 x 1.5 cm",
+     "oro": "NINGUNO",
+     "sistema": "C033",
+     "estado": "RESUELTO_AUTO"
+    }
+   ]
+  },
+  {
+   "tipo": "concepto equivocado ACEPTADO",
+   "n": 6,
+   "aceptados": 6,
+   "discutibles": 2,
+   "ejemplos": [
+    {
+     "id": "N034",
+     "texto": "Diccionario Idioma extranjero: ingls-espaol, espaol-Idioma extranjero: ingls. Se sugiere Editorial MacMillan, Oxford, Pearson o Cambridge.",
+     "oro": "dic-ingles",
+     "sistema": "C034",
+     "estado": "RESUELTO_AUTO"
+    },
+    {
+     "id": "N069",
+     "texto": "Paquete de octavos de papel acuarela",
+     "oro": "C119",
+     "sistema": "C120",
+     "estado": "RESUELTO_AUTO"
+    },
+    {
+     "id": "N118",
+     "texto": "Marcadores resaltadores de diferentes colores",
+     "oro": "C039",
+     "sistema": "C006",
+     "estado": "RESUELTO_AUTO"
+    }
+   ]
+  },
+  {
+   "tipo": "concepto equivocado, no aceptado (HUECO/AMBIGUO)",
+   "n": 6,
+   "aceptados": 0,
+   "discutibles": 3,
+   "ejemplos": [
+    {
+     "id": "N078",
+     "texto": "hojas blancas",
+     "oro": "C032",
+     "sistema": "C003",
+     "estado": "AMBIGUO"
+    },
+    {
+     "id": "N099",
+     "texto": "Pantalla LCD 16x2 con I2C Soldado",
+     "oro": "C142",
+     "sistema": "C131",
+     "estado": "HUECO_CATALOGO"
+    },
+    {
+     "id": "N123",
+     "texto": "un block de hojas examen",
+     "oro": "C032",
+     "sistema": "C003",
+     "estado": "HUECO_CATALOGO"
+    }
+   ]
+  },
+  {
+   "tipo": "oro NINGUNO, sistema propone concepto sin aceptar",
+   "n": 3,
+   "aceptados": 0,
+   "discutibles": 3,
+   "ejemplos": [
+    {
+     "id": "N048",
+     "texto": "1 porta batería broche",
+     "oro": "NINGUNO",
+     "sistema": "C011",
+     "estado": "AMBIGUO"
+    },
+    {
+     "id": "N072",
+     "texto": "Porta pila broche 9V con Plug DC para ARDUINO",
+     "oro": "NINGUNO",
+     "sistema": "C064",
+     "estado": "AMBIGUO"
+    },
+    {
+     "id": "N133",
+     "texto": "1 Porta Pila Broche para Bateria 9V con Conector Plug",
+     "oro": "NINGUNO",
+     "sistema": "C064",
+     "estado": "AMBIGUO"
+    }
+   ]
+  }
+ ],
+ "aceptados_erroneos": {
+  "n": 12,
+  "discutibles": 3,
+  "detalle": [
+   {
+    "id": "N001",
+    "grado": "Octavo",
+    "texto": "metro de cable UTP",
+    "oro": "NINGUNO",
+    "sistema": "C138",
+    "estado": "RESUELTO_AUTO",
+    "puntaje": 0.7896,
+    "aceptado": true,
+    "origen": "resolucion",
+    "tipo": "oro NINGUNO, sistema acepta un concepto",
+    "nota_lectura": "",
+    "criterio_discutible": true,
+    "razon_discutible": "el sistema coincide con un anotador"
+   },
+   {
+    "id": "N021",
+    "grado": "Once",
+    "texto": "Palos de balso perfil cuadrado de 1.5 x 1.5 cm",
+    "oro": "NINGUNO",
+    "sistema": "C033",
+    "estado": "RESUELTO_AUTO",
+    "puntaje": 0.7726,
+    "aceptado": true,
+    "origen": "resolucion",
+    "tipo": "oro NINGUNO, sistema acepta un concepto",
+    "nota_lectura": "",
+    "criterio_discutible": false,
+    "razon_discutible": ""
+   },
+   {
+    "id": "N034",
+    "grado": "Sexto",
+    "texto": "Diccionario Idioma extranjero: ingls-espaol, espaol-Idioma extranjero: ingls. Se sugiere Editorial MacMillan, Oxford, Pearson o Cambridge.",
+    "oro": "dic-ingles",
+    "sistema": "C034",
+    "estado": "RESUELTO_AUTO",
+    "puntaje": 0.7552,
+    "aceptado": true,
+    "origen": "resolucion",
+    "tipo": "concepto equivocado ACEPTADO",
+    "nota_lectura": "perdio letras ('ingls-espaol'); el error es de resolucion (C034 y dic-ingles se solapan en la taxonomia).",
+    "criterio_discutible": true,
+    "razon_discutible": "conceptos solapados en la taxonomia (C034 / dic-ingles); los dos anotadores dudaron"
+   },
+   {
+    "id": "N069",
+    "grado": "Tercero",
+    "texto": "Paquete de octavos de papel acuarela",
+    "oro": "C119",
+    "sistema": "C120",
+    "estado": "RESUELTO_AUTO",
+    "puntaje": 0.8793,
+    "aceptado": true,
+    "origen": "resolucion",
+    "tipo": "concepto equivocado ACEPTADO",
+    "nota_lectura": "",
+    "criterio_discutible": false,
+    "razon_discutible": ""
+   },
+   {
+    "id": "N074",
+    "grado": "Decimo",
+    "texto": "2 palos de balso perfil cuadrado de 1.5 x 1.5 cm",
+    "oro": "NINGUNO",
+    "sistema": "C033",
+    "estado": "RESUELTO_AUTO",
+    "puntaje": 0.7706,
+    "aceptado": true,
+    "origen": "resolucion",
+    "tipo": "oro NINGUNO, sistema acepta un concepto",
+    "nota_lectura": "",
+    "criterio_discutible": false,
+    "razon_discutible": ""
+   },
+   {
+    "id": "N113",
+    "grado": "Transicion",
+    "texto": "Material reutilizable: envases plásticos",
+    "oro": "NINGUNO",
+    "sistema": "C035",
+    "estado": "RESUELTO_AUTO",
+    "puntaje": 0.7738,
+    "aceptado": true,
+    "origen": "resolucion",
+    "tipo": "oro NINGUNO, sistema acepta un concepto",
+    "nota_lectura": "",
+    "criterio_discutible": false,
+    "razon_discutible": ""
+   },
+   {
+    "id": "N118",
+    "grado": "Decimo",
+    "texto": "Marcadores resaltadores de diferentes colores",
+    "oro": "C039",
+    "sistema": "C006",
+    "estado": "RESUELTO_AUTO",
+    "puntaje": 0.8522,
+    "aceptado": true,
+    "origen": "resolucion",
+    "tipo": "concepto equivocado ACEPTADO",
+    "nota_lectura": "perdio la cantidad '2'; el error es de resolucion (resaltador vs marcador).",
+    "criterio_discutible": false,
+    "razon_discutible": ""
+   },
+   {
+    "id": "N127",
+    "grado": "Transicion",
+    "texto": "juego de fichas de construcción tamaño grande",
+    "oro": "C054",
+    "sistema": "C078",
+    "estado": "RESUELTO_AUTO",
+    "puntaje": 0.7671,
+    "aceptado": true,
+    "origen": "resolucion",
+    "tipo": "concepto equivocado ACEPTADO",
+    "nota_lectura": "",
+    "criterio_discutible": false,
+    "razon_discutible": ""
+   },
+   {
+    "id": "N131",
+    "grado": "Decimo",
+    "texto": "un block de papel edad media tamano oficio",
+    "oro": "C120",
+    "sistema": "C003",
+    "estado": "RESUELTO_AUTO",
+    "puntaje": 0.9533,
+    "aceptado": true,
+    "origen": "resolucion",
+    "tipo": "concepto equivocado ACEPTADO",
+    "nota_lectura": "",
+    "criterio_discutible": true,
+    "razon_discutible": "oro del consejo dividido; el sistema coincide con un anotador"
+   },
+   {
+    "id": "N137",
+    "grado": "Octavo",
+    "texto": "pliegos de papel periodico o Kraft",
+    "oro": "C014",
+    "sistema": "C126",
+    "estado": "RESUELTO_AUTO",
+    "puntaje": 0.9217,
+    "aceptado": true,
+    "origen": "resolucion",
+    "tipo": "concepto equivocado ACEPTADO",
+    "nota_lectura": "",
+    "criterio_discutible": false,
+    "razon_discutible": ""
+   },
+   {
+    "id": "N174",
+    "grado": "Transicion",
+    "texto": "Material reutilizable: tubos de cartón",
+    "oro": "NINGUNO",
+    "sistema": "C035",
+    "estado": "RESUELTO_AUTO",
+    "puntaje": 0.7698,
+    "aceptado": true,
+    "origen": "resolucion",
+    "tipo": "oro NINGUNO, sistema acepta un concepto",
+    "nota_lectura": "",
+    "criterio_discutible": false,
+    "razon_discutible": ""
+   },
+   {
+    "id": "N186",
+    "grado": "Sexto",
+    "texto": "Plástico (botellas)",
+    "oro": "NINGUNO",
+    "sistema": "C098",
+    "estado": "RESUELTO_AUTO",
+    "puntaje": 0.8334,
+    "aceptado": true,
+    "origen": "resolucion",
+    "tipo": "oro NINGUNO, sistema acepta un concepto",
+    "nota_lectura": "",
+    "criterio_discutible": false,
+    "razon_discutible": ""
+   }
+  ]
+ },
+ "errores_discutibles_total": 12,
+ "lectura": {
+  "con_efecto_en_el_error": {
+   "N078": "PDF: '1 block de hojas blancas tamano carta'; la lectura dejo 'hojas blancas' (faltan 'block' y 'tamano carta'). Con el texto leido el oro (C032) tambien es dudoso; con el texto correcto seria un block (C003, lo que el sistema propuso como AMBIGUO).",
+   "N058": "PDF: 'acrilicos en frasco plastico (amarillo, azul, rojo, negro, blanco)'; la lectura dejo 'frasco plastico blanco' (el parentesis de colores se fundio en un solo color).",
+   "N151": "PDF: encabezado 'Educacion Etica y en Valores Humanos' en su linea y 'Un cuaderno cuadriculado de 50 hojas.' debajo; la lectura pego la materia al renglon (sobran palabras) y el puntaje cayo a 0,11."
+  },
+  "sin_efecto": {
+   "N016": "agrego 'by' entre titulo y autor (no esta en el PDF); el error es de resolucion (libro con titulo).",
+   "N178": "agrego 'by' entre titulo y autor; el error es de resolucion (libro con titulo).",
+   "N034": "perdio letras ('ingls-espaol'); el error es de resolucion (C034 y dic-ingles se solapan en la taxonomia).",
+   "N111": "perdio letras ('Andrs Felipe Pelez'); el error es de resolucion (libro con titulo).",
+   "N118": "perdio la cantidad '2'; el error es de resolucion (resaltador vs marcador)."
+  },
+  "revision": "Los 200 textos se cotejaron con el vocabulario del PDF (pdftotext) y los 52 errores uno a uno; solo la presencia de palabras ajenas o letras perdidas se detecta de forma automatica, asi que los errores de lectura en renglones acertados (palabras que faltan) no estan contados: la tasa de lectura es una cota inferior.",
+  "defectos_automaticos_en_la_muestra": [
+   "N016",
+   "N034",
+   "N040(apostrofo)",
+   "N111",
+   "N178",
+   "N180(apostrofo)"
+  ]
+ },
+ "sensibilidad_sin_errores_de_lectura_causales": {
+  "n": 197,
+  "exactitud": {
+   "valor": 0.7614213197969543,
+   "ic95": [
+    0.700507614213198,
+    0.817258883248731
+   ],
+   "ic95_por_lista": [
+    0.6994954325888374,
+    0.8325328407224958
+   ]
+  },
+  "aceptada": {
+   "valor": 0.7157360406091371,
+   "ic95": [
+    0.6548223350253807,
+    0.7766497461928934
+   ],
+   "ic95_por_lista": [
+    0.6699029126213593,
+    0.7661859098290927
+   ]
+  },
+  "precision_aceptada": {
+   "valor": 0.9148936170212766,
+   "ic95": [
+    0.8671094750320102,
+    0.958904109589041
+   ],
+   "ic95_por_lista": [
+    0.8540145985401459,
+    0.9694714318760119
+   ]
+  }
+ },
+ "sensibilidad_sin_errores_discutibles": {
+  "nota": "excluye los renglones con error y criterio discutible (cota optimista)",
+  "n": 188,
+  "exactitud": {
+   "valor": 0.7978723404255319,
+   "ic95": [
+    0.7393617021276596,
+    0.8563829787234043
+   ],
+   "ic95_por_lista": [
+    0.7433155080213903,
+    0.859375
+   ]
+  },
+  "aceptada": {
+   "valor": 0.7340425531914894,
+   "ic95": [
+    0.6702127659574468,
+    0.7978723404255319
+   ],
+   "ic95_por_lista": [
+    0.6935483870967742,
+    0.7798799762916132
+   ]
+  },
+  "precision_aceptada": {
+   "valor": 0.9347826086956522,
+   "ic95": [
+    0.8896854575163399,
+    0.9722222222222222
+   ],
+   "ic95_por_lista": [
+    0.8805970149253731,
+    0.9794520547945206
+   ]
+  }
+ }
+}

@@ -63,13 +63,13 @@ Parte de las cifras de recuperación y la medición de τ del 4 de octubre perte
 Sí: la línea 15 deja solo kits de máxima disponibilidad ("solo lo disponible") y la utilidad MAUT no incluye u3 porque la disponibilidad ya está fijada en su máximo (p.39). El frente sigue siendo de cuatro objetivos, y el kit recomendado se escoge dentro de ese subconjunto.
 
 **17. ¿Qué tan independientes son los conjuntos de oro y qué parte de lo calibrado está validada?** (pp. 31-34, 41-42, 59)
-El oro de percepción se construyó corrigiendo la salida de Gemini (coincide en 86,7 % de los ítems literales), un solo revisor etiquetó los 405 pares (391 de un colegio) y la calibración usa 3 colegios de prueba apartados antes de mirar resultados. Todo se declara en VIII.2.1; lo firme es la ventaja sobre las reglas y sobre el azar.
+El oro de percepción se construyó corrigiendo la salida de Gemini (coincide en 86,7 % de los ítems literales), 4 anotadores con una pauta común etiquetaron los 405 pares, sin acuerdo entre ellos calculado, (391 de un colegio) y la calibración usa 3 colegios de prueba apartados antes de mirar resultados. Todo se declara en VIII.2.1; lo firme es la ventaja sobre las reglas y sobre el azar.
 
 **18. ¿Contra qué frente exacto se mide el hipervolumen de 0,9969 si hay espacios de hasta 10^17?** (pp. 41-42, 50)
 Ocho de las 40 listas de prueba se resolvieron de forma exacta (media 0,9969 en las 40, 0,9962 en las 32 con NSGA-II). Donde el exacto es inviable, la calidad se verificó con instancias de hasta 2^18; más allá no se verificó. No se comparó con otros optimizadores (MOEA/D, SPEA2); se apoya en la referencia [4].
 
-**19. ¿Por qué τ = 0,75 si la validación cruzada sugiere 0,33 a 0,60 y hay un solo revisor?** (pp. 34, 48-49)
-Se mantiene por prudencia: con un solo revisor y 391 de 405 pares de un colegio, la medición es débil. En τ = 0,75 la precisión fue 0,968 (IC 0,948 a 0,986) y la cobertura 84,0 % (aceptar todo daría 0,867). El costo de un τ alto es solo más revisión humana, y toda lista nueva se revisa antes de publicarse (PE-04). El 84 % es entre pares con candidato; de punta a punta se resolvió solo el 35,3 %.
+**19. ¿Por qué τ = 0,75 si la validación cruzada sugiere 0,33 a 0,60 y no se calculó el acuerdo entre los 4 anotadores?** (pp. 34, 48-49)
+Se mantiene por prudencia: sin acuerdo calculado entre los 4 anotadores y con 391 de 405 pares de un colegio, la medición es débil. En τ = 0,75 la precisión fue 0,968 (IC 0,948 a 0,986) y la cobertura 84,0 % (aceptar todo daría 0,867). El costo de un τ alto es solo más revisión humana, y toda lista nueva se revisa antes de publicarse (PE-04). El 84 % es entre pares con candidato; de punta a punta se resolvió solo el 35,3 %.
 
 ## VII. Resultados (pp. 46-56)
 
