@@ -7,7 +7,7 @@ Lo que se defiende:
 - El precio queda congelado en la linea al confirmar (ADR 0012, R-PRECIO): la
   linea guarda su propio `precio_unitario`, sin llave hacia el de Catalogo.
 - La direccion queda congelada en el envio (ADR 0015) con sus datos extendidos,
-  la localidad, el lugar de Google y el pin de OpenStreetMap (ADR 0049).
+  la localidad y el pin de OpenStreetMap (ADR 0049).
 """
 
 from __future__ import annotations
@@ -112,29 +112,25 @@ async def test_crear_orden_sin_datos_extendidos_los_deja_nulos(cliente):
     assert envio["documento_destinatario"] is None
     assert envio["indicaciones"] is None
     assert envio["localidad"] is None
-    assert envio["google_place_id"] is None
 
 
-async def test_crear_orden_congela_la_localidad_y_el_lugar_de_google(cliente):
-    # El checkout con Google Places manda la localidad canonica y el place_id
-    # de la sugerencia elegida; los dos quedan en la copia del envio.
+async def test_crear_orden_congela_la_localidad_y_las_indicaciones(cliente):
+    # El checkout manda la localidad canonica y las indicaciones; quedan en la
+    # copia del envio.
     orden = nueva_orden()
     orden["entrega"].update(
         {
             "localidad": "Chapinero",
-            "google_place_id": "ChIJx9Lr6tqZP44RQ1rNpuKDdeA",
             "indicaciones": "Apto 502, torre 2",
         }
     )
     cuerpo = (await cliente.post("/v1/ordenes", json=orden)).json()
     envio = cuerpo["envio"]
     assert envio["localidad"] == "Chapinero"
-    assert envio["google_place_id"] == "ChIJx9Lr6tqZP44RQ1rNpuKDdeA"
     assert envio["indicaciones"] == "Apto 502, torre 2"
     # Y vuelve igual al leer el pedido.
     leido = (await cliente.get(f"/v1/comercio/pedidos/{cuerpo['pedido_id']}", headers=OPERADOR_HDR)).json()
     assert leido["envio"]["localidad"] == "Chapinero"
-    assert leido["envio"]["google_place_id"] == "ChIJx9Lr6tqZP44RQ1rNpuKDdeA"
 
 
 async def test_crear_orden_congela_el_pin_confirmado_en_openstreetmap(cliente):
@@ -168,11 +164,10 @@ async def test_coordenadas_incompletas_o_fuera_de_colombia_se_rechazan(cliente, 
     assert (await cliente.post("/v1/ordenes", json=orden)).status_code == 400
 
 
-@pytest.mark.parametrize(("campo", "largo"), [("localidad", 65), ("google_place_id", 513)])
-async def test_una_localidad_o_un_place_id_demasiado_largos_se_rechazan(cliente, campo, largo):
+async def test_una_localidad_demasiado_larga_se_rechaza(cliente):
     # Como todo cuerpo que no cumple el esquema en Comercio: 400.
     orden = nueva_orden()
-    orden["entrega"][campo] = "x" * largo
+    orden["entrega"]["localidad"] = "x" * 65
     respuesta = await cliente.post("/v1/ordenes", json=orden)
     assert respuesta.status_code == 400
 

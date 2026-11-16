@@ -7,48 +7,29 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { escribirDireccionAMano } from "../src/lib/direccion-checkout.ts";
 
-const CON_LUGAR = {
-  direccion: "Cl. 26 #69-76, Bogotá, Colombia",
-  google_place_id: "ChIJ-lugar",
-  localidad: "Fontibón",
-  ciudad: "Bogotá",
-};
-
-test("editar a mano una dirección con lugar elegido suelta el lugar y la localidad", () => {
-  assert.deepEqual(escribirDireccionAMano(CON_LUGAR, "Cl. 26 #69-7"), {
-    direccion: "Cl. 26 #69-7",
-    google_place_id: "",
-    localidad: "",
-    ciudad: "Bogotá",
-  });
-});
-
-test("editar una dirección escrita a mano conserva la localidad elegida", () => {
-  const manual = { ...CON_LUGAR, google_place_id: "" };
-  assert.deepEqual(escribirDireccionAMano(manual, "Calle 26 # 69-76"), {
-    ...manual,
-    direccion: "Calle 26 # 69-76",
-  });
-});
-
 test("editar a mano una dirección con pin de OpenStreetMap suelta el pin y la localidad", () => {
   const conPin = {
     direccion: "Calle 72 # 10-34",
-    google_place_id: "",
     localidad: "Chapinero",
+    ciudad: "Bogotá",
     latitud: 4.65,
     longitud: -74.05,
   };
   assert.deepEqual(escribirDireccionAMano(conPin, "Calle 73 # 10-34"), {
     direccion: "Calle 73 # 10-34",
-    google_place_id: "",
     localidad: "",
+    ciudad: "Bogotá",
     latitud: null,
     longitud: null,
   });
 });
 
-test("sin pin ni lugar elegido, escribir solo cambia el texto", () => {
-  const manual = { direccion: "Cl", google_place_id: "", localidad: "Suba", latitud: null, longitud: null };
+test("sin pin, escribir solo cambia el texto y conserva la localidad elegida", () => {
+  const manual = { direccion: "Cl", localidad: "Suba", latitud: null, longitud: null };
   assert.deepEqual(escribirDireccionAMano(manual, "Cll 1"), { ...manual, direccion: "Cll 1" });
+});
+
+test("un formulario sin campos de coordenadas no los recibe al soltar el pin", () => {
+  const sinCampos = { direccion: "Cl", localidad: "Suba" };
+  assert.deepEqual(escribirDireccionAMano(sinCampos, "Cll 1"), { direccion: "Cll 1", localidad: "Suba" });
 });

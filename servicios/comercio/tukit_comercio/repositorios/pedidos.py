@@ -90,7 +90,6 @@ def _serializar_envio(fila: Any, *, con_celular: bool = False) -> dict[str, Any]
         "documento_destinatario": fila.documento_destinatario,
         "indicaciones": fila.indicaciones,
         "localidad": fila.localidad,
-        "google_place_id": fila.google_place_id,
         "latitud": fila.latitud,
         "longitud": fila.longitud,
         "transportadora": fila.transportadora,
@@ -477,7 +476,6 @@ class RepoPedidos:
                 documento_destinatario=getattr(entrega, "documento_destinatario", None),
                 indicaciones=getattr(entrega, "indicaciones", None),
                 localidad=getattr(entrega, "localidad", None),
-                google_place_id=getattr(entrega, "google_place_id", None),
                 latitud=getattr(entrega, "latitud", None),
                 longitud=getattr(entrega, "longitud", None),
             )

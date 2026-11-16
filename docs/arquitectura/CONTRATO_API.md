@@ -63,10 +63,10 @@ sesión de staff. Un cliente de 1.8 que ya mandaba el Bearer sigue funcionando s
 
 | Cambio | Dónde | Por qué |
 |---|---|---|
-| `entrega` del checkout (`POST /v1/trabajos/{id}/ordenar`) y de `POST /v1/ordenes` acepta los opcionales `localidad` (≤ 64), `indicaciones` (≤ 512), `departamento` (≤ 128) y `google_place_id` (≤ 512). Nunca coordenadas | §9.6 | Dirección con Google Places, localidad de Bogotá y "apartamento, torre, interior" |
-| `envio` gana `localidad` y `google_place_id` (columnas nulables, migración `b619c58fc0c3`) en `GET /v1/ordenes/{id}`, `GET /v1/comercio/mis-pedidos/{id}` y el detalle de logística | §9.6 | Logística ve la localidad y abre la dirección en Google Maps |
+| `entrega` del checkout (`POST /v1/trabajos/{id}/ordenar`) y de `POST /v1/ordenes` acepta los opcionales `localidad` (≤ 64), `indicaciones` (≤ 512) y `departamento` (≤ 128), más las coordenadas del pin confirmado en el mapa (ADR 0049) | §9.6 | Dirección con OpenStreetMap, localidad de Bogotá y "apartamento, torre, interior" |
+| `envio` gana `localidad` (columna nulable, migración `b619c58fc0c3`; `google_place_id` se quitó en `d3e8b52a7c19`) en `GET /v1/ordenes/{id}`, `GET /v1/comercio/mis-pedidos/{id}` y el detalle de logística | §9.6 | Logística ve la localidad y abre la dirección en Google Maps |
 | `envio` gana `latitud` y `longitud` (columnas nulables, migración `c7a41e9d02f5`) y `entrega` las acepta | §9.6 | Dirección con OpenStreetMap y pin confirmado, sin llave de Google (ADR 0049) |
-| La firma que decide si un pendiente se reutiliza compara todos los campos congelados de la entrega, salvo `google_place_id` | §9.4 | Otro apartamento u otra localidad no pueden despacharse con el dato viejo |
+| La firma que decide si un pendiente se reutiliza compara todos los campos congelados de la entrega | §9.4 | Otro apartamento u otra localidad no pueden despacharse con el dato viejo |
 | `GET /v1/comercio/mis-pedidos/{id}` agrega `linea_de_tiempo`; no quita nada | §9.7 | La página `/pedidos/{id}` del acudiente |
 | `POST /v1/admin/onboarding` designa el colegio con `colegio_id`, con `colegio_dane` + `colegio_nombre` o solo con `colegio_nombre`; sin ninguno, `422 colegio_requerido` | §12.8 | Subir desde la cola la lista de un colegio que Tukit aún no tiene |
 | `POST /v1/admin/onboarding` exige `Authorization: Bearer` de operador o admin: `401 sesion_invalida` sin sesión, `403 acceso_denegado` sin rol de staff, `503 identidad_no_disponible` si Identidad no responde. Se valida antes de leer el archivo. `OrigenDatos.onboarding` recibe el `token` primero | §12.8 | Antes cualquiera podía subir una lista a la cola y gastar una lectura de Gemini |
@@ -922,15 +922,14 @@ los de siempre; el resto es opcional, y un checkout de 1.7 sigue cerrando sin el
 | Campo | Largo | Qué es |
 |---|---|---|
 | `destinatario`, `direccion`, `ciudad` | 256, 512, 128 | Obligatorios |
-| `departamento` | ≤ 128 | Lo pre-llena Google o lo escribe el acudiente |
+| `departamento` | ≤ 128 | Lo pre-llena el mapa o lo escribe el acudiente |
 | `indicaciones` | ≤ 512 | "Apartamento, torre, interior o indicaciones" |
 | `localidad` | ≤ 64 | El nombre canónico de una de las 20 de Bogotá (`LOCALIDADES_BOGOTA` en `@tukit/contrato`). El formulario la exige en Bogotá y la deja vacía fuera; el servidor solo valida el largo |
-| `google_place_id` | ≤ 512 | El `id` del lugar que el acudiente eligió de las sugerencias. Si edita la dirección después, no viaja |
 | `latitud`, `longitud` | −4,3 a 13,6 y −81,8 a −66,8 | El pin que el acudiente confirmó en el mapa de OpenStreetMap (sin llave de Google, ADR 0049). Van juntas o ninguna; una sola, o un punto fuera de Colombia, es `400 entrada_invalida`. Si edita la dirección después, no viajan |
 
 `inteligencia` descarta cualquier otro campo antes de llamar a `comercio`; de las coordenadas solo
 cruzan `latitud` y `longitud`. Un largo de más es `400 entrada_invalida` (con `campo`), en los dos servicios. El
-`envio` que se lee de vuelta trae `localidad`, `google_place_id`, `latitud` y `longitud` (o `null`); con ellos `apps/admin` arma el
+`envio` que se lee de vuelta trae `localidad`, `latitud` y `longitud` (o `null`); con ellos `apps/admin` arma el
 enlace `https://www.google.com/maps/search/?api=1&query=…&query_place_id=…`
 (`enlaceGoogleMaps`).
 

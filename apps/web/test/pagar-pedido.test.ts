@@ -120,7 +120,6 @@ const envio = {
   indicaciones: "Torre 2",
   localidad: "Suba",
   departamento: null,
-  google_place_id: null,
 };
 
 test("el reintento recupera la entrega del pedido pendiente mas reciente del kit", () => {
@@ -136,7 +135,6 @@ test("el reintento recupera la entrega del pedido pendiente mas reciente del kit
     indicaciones: "Torre 2",
     localidad: "Suba",
     departamento: "",
-    google_place_id: "",
     latitud: null,
     longitud: null,
   });

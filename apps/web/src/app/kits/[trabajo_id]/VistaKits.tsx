@@ -366,8 +366,6 @@ function Checkout({
     indicaciones: "",
     localidad: "",
     departamento: "",
-    // Campo heredado del contrato de Comercio; el checkout ya no lo llena.
-    google_place_id: "",
     // El pin confirmado en el mapa de OpenStreetMap.
     latitud: null as number | null,
     longitud: null as number | null,
@@ -410,7 +408,6 @@ function Checkout({
       ({
         ...d,
         direccion: lugar.direccion,
-        google_place_id: lugar.google_place_id ?? "",
         latitud: lugar.latitud ?? null,
         longitud: lugar.longitud ?? null,
         localidad: lugar.localidad,
@@ -434,7 +431,6 @@ function Checkout({
         indicaciones: datos.indicaciones.trim(),
         localidad: datos.localidad,
         departamento: datos.departamento.trim(),
-        google_place_id: datos.google_place_id,
         // Juntas o ninguna: Comercio rechaza una sola.
         latitud: datos.latitud !== null && datos.longitud !== null ? datos.latitud : undefined,
         longitud: datos.latitud !== null && datos.longitud !== null ? datos.longitud : undefined,
