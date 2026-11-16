@@ -64,8 +64,7 @@ import {
   type ResumenHijo,
 } from "@/lib/kit-vista";
 import { abrirWidgetWompi } from "@/lib/wompi";
-import CampoDireccion, { type LugarElegido } from "./CampoDireccion";
-import CampoDireccionOsm from "./CampoDireccionOsm";
+import CampoDireccionOsm, { type LugarElegido } from "./CampoDireccionOsm";
 import LineaDeKit from "./LineaDeKit";
 import CabeceraCategoria from "./CabeceraCategoria";
 import AsistenteKitSlot from "./AsistenteKitSlot";
@@ -100,14 +99,12 @@ const CIUDAD_ENTREGA = "Bogotá";
 export default function VistaKits({
   trabajo,
   correo,
-  llaveMaps,
   matriculas,
   entregaPrevia,
   abrirPago,
 }: {
   trabajo: Trabajo;
   correo: string;
-  llaveMaps: string | null;
   // Colegio, grado y apodo de los hijos del portador (vacio sin sesion).
   matriculas: ApodoMatricula[];
   entregaPrevia: EntregaPrevia | null;
@@ -332,7 +329,6 @@ export default function VistaKits({
         perfil={kit.perfil}
         total={kit.total}
         correo={correo}
-        llaveMaps={llaveMaps}
         entregaPrevia={entregaPrevia}
         abrirPago={abrirPago}
       />
@@ -348,7 +344,6 @@ function Checkout({
   perfil,
   total,
   correo,
-  llaveMaps,
   entregaPrevia,
   abrirPago,
 }: {
@@ -356,8 +351,6 @@ function Checkout({
   perfil: PerfilKit;
   total: number;
   correo: string;
-  // La llave de Google Places, leida en el servidor; `null` => campos manuales.
-  llaveMaps: string | null;
   // La entrega del pedido pendiente de este kit (reintento tras un rechazo).
   entregaPrevia: EntregaPrevia | null;
   // Llegar con el formulario de entrega ya abierto ("Intentar de nuevo").
@@ -373,9 +366,9 @@ function Checkout({
     indicaciones: "",
     localidad: "",
     departamento: "",
-    // Solo si la direccion salio de una sugerencia de Google y no se edito.
+    // Campo heredado del contrato de Comercio; el checkout ya no lo llena.
     google_place_id: "",
-    // El pin confirmado en el mapa de OpenStreetMap (sin llave de Google).
+    // El pin confirmado en el mapa de OpenStreetMap.
     latitud: null as number | null,
     longitud: null as number | null,
     // Tras un pago rechazado, la entrega que ya se habia escrito.
@@ -404,14 +397,14 @@ function Checkout({
     (campo: Exclude<keyof typeof datos, "ciudad" | "latitud" | "longitud">) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setDatos((d) => ({ ...d, [campo]: e.target.value }));
 
-  // Editar la direccion a mano la desliga del lugar de Google que se eligio, y
-  // suelta la localidad que Google derivo de el (`direccion-checkout.ts`).
+  // Editar la direccion a mano la desliga del lugar que se eligio, y suelta la
+  // localidad y el pin derivados de el (`direccion-checkout.ts`).
   const escribirDireccion = (direccion: string) =>
     setDatos((d) => escribirDireccionAMano(d, direccion));
 
-  // Elegir una sugerencia fija la direccion de Google y pre-llena lo que se
-  // pudo derivar. El departamento que Google no trajo conserva lo escrito; la localidad siempre se reemplaza (la anterior era de otra
-  // direccion) y, si no se pudo derivar, queda vacia para elegirla.
+  // Elegir un resultado fija la direccion y pre-llena lo que se pudo derivar. El
+  // departamento que no se derivo conserva lo escrito; la localidad siempre se
+  // reemplaza (la anterior era de otra direccion) y, si no se pudo derivar, queda vacia para elegirla.
   const elegirLugar = (lugar: LugarElegido) =>
     setDatos((d) =>
       ({
@@ -528,25 +521,15 @@ function Checkout({
               required
             />
           </label>
-          {/* Con llave de Google, sus sugerencias (ADR 0044). Sin llave, la
-              búsqueda en OpenStreetMap con mapa de confirmación (ADR 0049). */}
-          {llaveMaps ? (
-            <CampoDireccion
-              llave={llaveMaps}
-              valor={datos.direccion}
-              onEscribir={escribirDireccion}
-              onElegir={elegirLugar}
-            />
-          ) : (
-            <CampoDireccionOsm
-              valor={datos.direccion}
-              latitud={datos.latitud}
-              longitud={datos.longitud}
-              onEscribir={escribirDireccion}
-              onElegir={elegirLugar}
-              onMoverPin={moverPin}
-            />
-          )}
+          {/* Búsqueda en OpenStreetMap con mapa de confirmación (ADR 0049). */}
+          <CampoDireccionOsm
+            valor={datos.direccion}
+            latitud={datos.latitud}
+            longitud={datos.longitud}
+            onEscribir={escribirDireccion}
+            onElegir={elegirLugar}
+            onMoverPin={moverPin}
+          />
           <label>
             Apto, torre, conjunto, referencias (opcional)
             <input
