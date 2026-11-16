@@ -1488,6 +1488,12 @@ async def fijar_producto(
     llegue de verdad al kit publicado.
     """
     try:
+        # `todos`: el revisor resolvio el RENGLON (un hueco, un «consiguelo por
+        # tu cuenta»), no un nivel: vale para cada kit del trabajo.
+        if perfil == "todos":
+            return await trabajos.fijar_producto_en_todos_los_kits(
+                api.app.state.motor, trabajo_id, item_id, cuerpo.sku, catalogo=api._catalogo()
+            )
         return await trabajos.fijar_producto_en_linea(
             api.app.state.motor, trabajo_id, perfil, item_id, cuerpo.sku, catalogo=api._catalogo()
         )

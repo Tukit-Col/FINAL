@@ -416,10 +416,30 @@ export default function LineaRevision({
           ) : null}
 
           {elegido || alternativas.length > 0 ? (
-            <ul className={styles.productos} aria-label="Opciones de producto">
-              {elegido ? tarjetaProducto(elegido, "elegido") : null}
-              {alternativas.map((alternativa) => tarjetaProducto(alternativa, "alternativa"))}
-            </ul>
+            <>
+              <ul className={styles.productos} aria-label="Opciones de producto">
+                {elegido ? tarjetaProducto(elegido, "elegido") : null}
+                {alternativas.map((alternativa) => tarjetaProducto(alternativa, "alternativa"))}
+              </ul>
+              {/* El armado guarda dos alternativas; el carrusel completo del
+                  concepto está en el catálogo. Elegir aquí cambia solo este kit. */}
+              {perfil ? (
+                <details className={styles.masOpciones}>
+                  <summary>Ver más opciones del catálogo</summary>
+                  <BuscarEnCatalogo
+                    concepto={linea.concepto ?? null}
+                    textoInicial={linea.descripcion}
+                    enviando={enviando}
+                    onElegir={(sku) =>
+                      void ejecutar(
+                        () => fijarProductoLinea(trabajoId, perfil, linea.item_id, sku),
+                        `Producto ${sku} puesto en este kit.`,
+                      )
+                    }
+                  />
+                </details>
+              ) : null}
+            </>
           ) : (
             <>
               <p className={styles.detalle}>
@@ -433,8 +453,8 @@ export default function LineaRevision({
                   enviando={enviando}
                   onElegir={(sku) =>
                     void ejecutar(
-                      () => fijarProductoLinea(trabajoId, perfil, linea.item_id, sku),
-                      `Producto ${sku} puesto en este kit.`,
+                      () => fijarProductoLinea(trabajoId, "todos", linea.item_id, sku),
+                      `Producto ${sku} puesto en todos los kits.`,
                     )
                   }
                 />
