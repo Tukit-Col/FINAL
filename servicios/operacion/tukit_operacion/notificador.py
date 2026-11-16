@@ -139,9 +139,22 @@ _ASUNTOS = {
 }
 
 
-def asunto_de(plantilla: str) -> str:
-    """El asunto del correo. Fijo por plantilla: nunca lleva datos del menor."""
-    return _ASUNTOS.get(plantilla, "Novedad en Tukit")
+def asunto_de(plantilla: str, datos: dict[str, object] | None = None) -> str:
+    """El asunto del correo: fijo por plantilla, y con el codigo del pedido o del caso
+    cuando lo hay. Nunca lleva datos del menor.
+
+    Sin el codigo, los avisos de un mismo pedido —y los de pedidos distintos— tienen el
+    mismo asunto y el cliente de correo los junta en una sola conversacion: el aviso
+    nuevo cae en un hilo viejo (leido, archivado o en la papelera) y el acudiente no
+    ve llegar nada.
+    """
+    asunto = _ASUNTOS.get(plantilla, "Novedad en Tukit")
+    datos = datos or {}
+    if datos.get("pedido"):
+        return f"{asunto} · pedido {datos['pedido']}"
+    if datos.get("caso"):
+        return f"{asunto} · caso {datos['caso']}"
+    return asunto
 
 
 _AZUL = "#1f4fd8"
@@ -566,7 +579,7 @@ class Correo:
         mensaje = EmailMessage()
         mensaje["From"] = desde
         mensaje["To"] = destino
-        mensaje["Subject"] = asunto_de(plantilla)
+        mensaje["Subject"] = asunto_de(plantilla, datos)
         # Gmail recibe por SMTP un correo sin Date ni Message-ID y luego no lo
         # entrega: el envio sale «exitoso» y el acudiente no ve nada.
         mensaje["Date"] = email.utils.formatdate(localtime=True)

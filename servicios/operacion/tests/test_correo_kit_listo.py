@@ -274,3 +274,11 @@ def test_el_correo_lleva_fecha_y_message_id():
     mensaje = Correo()._armar("a@b.co", "pedido_pagado", {"pedido": "AB12", "turno": "7", "caso": "CAS1"})
     assert mensaje["Date"]
     assert mensaje["Message-ID"] and mensaje["Message-ID"].startswith("<")
+
+
+def test_el_asunto_lleva_el_pedido_para_que_cada_aviso_sea_su_propia_conversacion():
+    assert asunto_de("pedido_pagado", {"pedido": "8A6E8818"}) == "Recibimos tu pago · pedido 8A6E8818"
+    assert asunto_de("caso_respuesta", {"caso": "AB12CD34"}) == "Respondimos tu caso · caso AB12CD34"
+    assert asunto_de("kits_publicados", {"listas": []}) == "Tu kit esta listo"
+    mensaje = Correo()._armar("a@b.co", "pedido_pagado", {"pedido": "AB12", "turno": "7", "caso": "CAS1"})
+    assert mensaje["Subject"] == "Recibimos tu pago · pedido AB12"
