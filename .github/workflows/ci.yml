@@ -324,3 +324,18 @@ jobs:
 
       - name: Pruebas contra Redis
         run: .venv/bin/pytest libs servicios ensayos -q -m redis -rs
+
+  # Los tests de TypeScript (contrato, web y admin) con el runner nativo de Node.
+  web:
+    name: Web y admin (tipos, estilo y pruebas)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test

@@ -12,6 +12,7 @@
     "build:web": "npm run build --workspace @tukit/web",
     "build:admin": "npm run build --workspace @tukit/admin",
     "lint": "npm run lint --workspace @tukit/web && npm run lint --workspace @tukit/admin",
-    "typecheck": "npm run typecheck --workspace @tukit/web && npm run typecheck --workspace @tukit/admin"
+    "typecheck": "npm run typecheck --workspace @tukit/web && npm run typecheck --workspace @tukit/admin",
+    "test": "npm run test --workspace @tukit/contrato && npm run test --workspace @tukit/web && npm run test --workspace @tukit/admin"
   }
 }
