@@ -81,7 +81,11 @@ def test_upgrade_agrega_el_evento_con_su_indice_parcial_y_downgrade_lo_quita():
         contexto = MigrationContext.configure(conexion)
         with Operations.context(contexto):
             revision.upgrade()
-            assert _columnas(conexion) == {c.name for c in Base.metadata.tables["notificacion"].columns}
+            # Las columnas de revisiones posteriores (asunto, detalle, destino_dominio) no son de esta.
+            posteriores = {"asunto", "detalle", "destino_dominio"}
+            assert _columnas(conexion) == {
+                c.name for c in Base.metadata.tables["notificacion"].columns
+            } - posteriores
             indices = {i["name"]: i for i in sa.inspect(conexion).get_indexes("notificacion")}
             indice = indices["uq_notificacion_evento_enviada"]
             assert indice["unique"]
