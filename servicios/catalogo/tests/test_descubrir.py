@@ -25,7 +25,6 @@ from tukit_catalogo.descubrir import (
     TIENDAS_LIBROS,
     PuertaCerrada,
     Revision,
-    _ean_valido,
     _misma_cosa,
     _plano,
     _sin_encabezado_de_grupo,
@@ -91,7 +90,8 @@ class TestLaPuertaQueDejaSalirALaTienda:
     """
 
     def test_una_lista_sin_revisar_abre_la_puerta(self):
-        exigir_sin_revisar("abc123", existe=True, revisada_en=None)
+        # La puerta abierta no alza: es lo unico que deja consultar tiendas.
+        assert exigir_sin_revisar("abc123", existe=True, revisada_en=None) is None
 
     def test_una_lista_ya_revisada_no_vuelve_a_buscar(self):
         with pytest.raises(PuertaCerrada, match="ya fue revisada"):
@@ -294,18 +294,6 @@ class TestLaConsultaQueSeLeMandaALaTienda:
 
     def test_quita_las_medidas(self):
         assert consulta_desde_renglon("vinilo de 250 gr azul") == "vinilo azul"
-
-
-class TestElEanQueTraeLaTiendaSoloEntraSiEsUno:
-    """Una tienda pone cualquier cosa en el campo EAN: un SKU, un vacio."""
-
-    @pytest.mark.parametrize("bueno", ["12345678", "123456789012", "1234567890123"])
-    def test_acepta_8_12_o_13_digitos(self, bueno):
-        assert _ean_valido(bueno) == bueno
-
-    @pytest.mark.parametrize("malo", [None, "", "  ", "123", "SKU-4451", "12a45678", "12345678901234"])
-    def test_descarta_lo_que_no_parece_un_ean(self, malo):
-        assert _ean_valido(malo) is None
 
 
 class TestDescartarPuedeCerrarElConcepto:

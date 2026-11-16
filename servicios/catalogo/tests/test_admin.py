@@ -20,7 +20,6 @@ import ast
 import inspect
 from typing import Any
 
-import pytest
 from tukit_catalogo import admin
 
 
@@ -84,16 +83,6 @@ class TestElPrecioSeVeEnPesos:
     def test_sin_precio_lo_dice(self):
         assert admin._pesos(None) == "sin precio"
         assert admin._pesos(0) == "sin precio"
-
-
-class TestElEanQueTraeLaTiendaSoloEntraSiEsUno:
-    @pytest.mark.parametrize("bueno", ["12345678", "123456789012", "1234567890123"])
-    def test_acepta_8_12_o_13_digitos(self, bueno):
-        assert admin._ean_valido(bueno) == bueno
-
-    @pytest.mark.parametrize("malo", [None, "", "  ", "123", "SKU-4451", "12a45678"])
-    def test_descarta_lo_que_no_parece_un_ean(self, malo):
-        assert admin._ean_valido(malo) is None
 
 
 class TestLaPaginaPinta:

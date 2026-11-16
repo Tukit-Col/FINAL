@@ -264,7 +264,9 @@ async def test_encolar_util_acepta_lo_elegido_aunque_no_tenga_todas_las_palabras
             "nivel": "confiable",
         },
     )
-    assert r.status_code == 201
+    assert r.status_code == 201 and r.json()["estado"] == "pendiente"
+    cola = (await cliente.get("/v1/admin/catalogo/propuestas")).json()
+    assert any(p["nombre"] == "Pilot Pluma Pen 2.4 Caligrafia" for p in cola["propuestas"])
 
 
 async def test_encolar_util_agotado_es_422_con_causa(cliente, monkeypatch):

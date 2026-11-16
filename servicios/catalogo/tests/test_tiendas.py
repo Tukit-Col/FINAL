@@ -44,14 +44,15 @@ class TestLaVarianteQueSeLeCobraAlPapa:
         correctos: son del mismo producto y de la misma tienda. Lo que decide
         es la palabra en la opcion.
         """
+        unidad, docena = 9500, 94200
         crudo = producto(
             "Tabla Picado Con Tablero Acrilico",
-            [variante("94200.00", "Docena"), variante("9500.00", "Unidad")],
+            [variante(f"{docena}.00", "Docena"), variante(f"{unidad}.00", "Unidad")],
         )
         oferta = _a_oferta_shopify("grancentral", "pgrancentral.com", crudo)
 
         assert oferta is not None
-        assert oferta.precio_cop == 9500
+        assert oferta.precio_cop == unidad
 
     def test_un_producto_de_una_sola_variante_se_lee_igual(self):
         """Casi todo el catalogo no ofrece docena y Shopify lo marca asi.
@@ -60,11 +61,12 @@ class TestLaVarianteQueSeLeCobraAlPapa:
         llamada 'Default Title'. No es una presentacion: es la ausencia de
         presentaciones, y hay que tomarla sin buscarle la palabra 'Unidad'.
         """
-        crudo = producto("Paquete Esponja x2 Unds Arte", [variante("7700.00")])
+        precio = 7700
+        crudo = producto("Paquete Esponja x2 Unds Arte", [variante(f"{precio}.00")])
         oferta = _a_oferta_shopify("grancentral", "pgrancentral.com", crudo)
 
         assert oferta is not None
-        assert oferta.precio_cop == 7700
+        assert oferta.precio_cop == precio
 
     def test_si_la_unidad_esta_agotada_no_se_cae_a_la_docena(self):
         """Agotado es agotado, y ofrecer la docena seria cambiarle el pedido.
@@ -73,17 +75,18 @@ class TestLaVarianteQueSeLeCobraAlPapa:
         vea el hueco. Devolver la docena disponible lo taparia con un producto
         que el papa no pidio y cuesta diez veces mas.
         """
+        unidad, docena = 5750, 56550
         crudo = producto(
             "Paquete Lentejuelas x9 Colores",
             [
-                variante("5750.00", "Unidad", available=False),
-                variante("56550.00", "Docena", available=True),
+                variante(f"{unidad}.00", "Unidad", available=False),
+                variante(f"{docena}.00", "Docena", available=True),
             ],
         )
         oferta = _a_oferta_shopify("grancentral", "pgrancentral.com", crudo)
 
         assert oferta is not None
-        assert oferta.precio_cop == 5750
+        assert oferta.precio_cop == unidad
         assert oferta.disponible is False
 
 
@@ -95,10 +98,11 @@ class TestElPrecioComoNumero:
         son de formato. Truncar en vez de redondear evita que un '.99' de
         alguna tienda suba el precio un peso sin que nadie lo haya decidido.
         """
-        crudo = producto("Cualquiera", [variante("6200.00")])
+        crudo = producto("Cualquiera", [variante("6200.99")])
         oferta = _a_oferta_shopify("grancentral", "pgrancentral.com", crudo)
 
         assert oferta is not None
+        # Trunca, no redondea: el '.99' no sube el precio un peso.
         assert oferta.precio_cop == 6200
         assert isinstance(oferta.precio_cop, int)
 

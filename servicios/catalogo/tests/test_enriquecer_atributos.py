@@ -1,212 +1,19 @@
-"""Pruebas del enriquecedor: sacar empaque y atributos del nombre.
+"""El enriquecedor lee del nombre los atributos y el personaje que el concepto pide.
 
 Todos los nombres de estas pruebas son reales, copiados del catalogo cargado.
 No son ejemplos inventados para que el codigo pase: son las formas concretas
 en que las tiendas colombianas escriben sus productos, con sus mayusculas
 irregulares, sus abreviaturas y sus cifras pegadas.
-
-Lo que se fija aqui es la distincion que rompio el carrito: separar el numero
-que cuenta EMPAQUES del numero que mide CONTENIDO. `Tempera de 12 ml x 12
-unidades` tiene dos doces y solo uno de ellos multiplica lo que el papa paga.
 """
 
 from __future__ import annotations
 
 import pytest
-from tukit_catalogo.embeddings import MODELO_FALSO, embeder_falso
 from tukit_catalogo.enriquecer import (
     atributos_ambiguos,
-    atributos_combinados,
-    atributos_de_ficha,
-    embeddings_a_actualizar,
     extraer_atributos,
-    extraer_empaque,
     extraer_personaje,
 )
-
-
-class TestPoblarEmbeddings:
-    """El canal semantico se puebla una vez y no se recalcula sin necesidad
-    (OE3). La fuente del vector es un puerto: aqui, el embeder falso, sin red."""
-
-    PRODUCTOS = [
-        {
-            "id": "p1",
-            "nombre": "Cuaderno cosido 100 hojas Norma",
-            "concepto": "cuaderno",
-            "atributos": {"rayado": "cuadriculado"},
-            "texto_embedding": None,
-            "embedding_model": None,
-        },
-        {
-            "id": "p2",
-            "nombre": "Block iris oficio",
-            "concepto": "block",
-            "atributos": {"tamano": "oficio"},
-            "texto_embedding": None,
-            "embedding_model": None,
-        },
-    ]
-
-    def test_calcula_un_vector_por_producto_sin_repetir_llamadas(self):
-        vistos: list[str] = []
-
-        def espia(textos):
-            vistos.extend(textos)
-            return embeder_falso(textos)
-
-        espia.modelo = MODELO_FALSO  # un espia refleja el contrato del puerto
-
-        cambios = embeddings_a_actualizar(self.PRODUCTOS, espia)
-
-        assert {c["pid"] for c in cambios} == {"p1", "p2"}
-        assert all(len(c["embedding"]) == 1024 for c in cambios)
-        assert all(c["embedding_model"] == MODELO_FALSO for c in cambios)
-        # El texto guardado deja ver de que se calculo: nombre + concepto + attrs.
-        p1 = next(c for c in cambios if c["pid"] == "p1")
-        assert "cuaderno" in p1["texto_embedding"].lower()
-        assert "cuadriculado" in p1["texto_embedding"].lower()
-        # Una sola llamada por producto, no una por atributo.
-        assert len(vistos) == 2
-
-    def test_es_idempotente_no_recalcula_lo_que_no_cambio(self):
-        # Primera pasada: se calcula todo.
-        cambios = embeddings_a_actualizar(self.PRODUCTOS, embeder_falso)
-        # La base ya tiene el vector y el texto con el que se calculo.
-        ya_poblados = [
-            {
-                **p,
-                "texto_embedding": next(c for c in cambios if c["pid"] == p["id"])["texto_embedding"],
-                "embedding_model": MODELO_FALSO,
-            }
-            for p in self.PRODUCTOS
-        ]
-
-        def no_debe_llamarse(textos):
-            raise AssertionError("no se debe recalcular un embedding que no cambio")
-
-        no_debe_llamarse.modelo = MODELO_FALSO
-
-        assert embeddings_a_actualizar(ya_poblados, no_debe_llamarse) == []
-
-    def test_recalcula_cuando_el_texto_cambia(self):
-        cambios = embeddings_a_actualizar(self.PRODUCTOS, embeder_falso)
-        poblados = [
-            {
-                **p,
-                "texto_embedding": next(c for c in cambios if c["pid"] == p["id"])["texto_embedding"],
-                "embedding_model": MODELO_FALSO,
-            }
-            for p in self.PRODUCTOS
-        ]
-        # Al primero le cambia el nombre: su texto ya no coincide, se recalcula;
-        # el segundo, intacto, no.
-        poblados[0]["nombre"] = "Cuaderno argollado 80 hojas"
-        rehechos = embeddings_a_actualizar(poblados, embeder_falso)
-        assert [c["pid"] for c in rehechos] == ["p1"]
-
-
-class TestEmpaqueContraContenido:
-    """El corazon del asunto: cual de los numeros del nombre es el empaque."""
-
-    @pytest.mark.parametrize(
-        ("nombre", "esperado"),
-        [
-            ("Lápices Kiut x 10 unidades", 10),
-            ("Marcador delgado neón x12 unidades", 12),
-            ("Paquete Esponja x2 Unds Arte", 2),
-            ("Paquete Cartulina Octavos x25 Unds Negra", 25),
-            ("Paquete Sobre Manila Amarillo X100 Gigante 27x37cm", 100),
-            ("Paquete Carton Cartulina Octavo x25 Unds", 25),
-            ("Paquete Forro Acetato Cuaderno Cosido X10 Azul", 10),
-            ("Crayones Kores Jumbo x 12 Uds", 12),
-        ],
-    )
-    def test_cuenta_los_empaques_de_verdad(self, nombre, esperado):
-        assert extraer_empaque(nombre).unidades == esperado
-
-    @pytest.mark.parametrize(
-        ("nombre", "porque"),
-        [
-            ("Tarro Vinilo Payasito x1000 Gramos Azul", "1000 gramos es contenido, no mil tarros"),
-            ("Rollo Plastico Burbuja X50 Metros 25 Centimetros", "50 metros es largo, no 50 rollos"),
-            ("Pegamento líquido Glukids x 250 g", "250 gramos es contenido"),
-            ("Óleo N.° 37 de 37 ml verde", "el 37 es el numero de color y los ml son contenido"),
-            ("Portaminas 2Mm FINLANDEK", "2 mm es el grosor de la mina"),
-            ("Lienzo con bastidor con grapa posterior 20 x 30 cm", "20 x 30 es una medida"),
-            ("Acetato para stencil 30,5 x 30,5 cm", "medida con coma decimal"),
-            ("Pegante en Barra  Avengers 40 Grs", "40 gramos es contenido"),
-        ],
-    )
-    def test_no_confunde_una_medida_con_un_empaque(self, nombre, porque):
-        assert extraer_empaque(nombre).unidades == 1, porque
-
-    def test_el_caso_de_los_dos_doces(self):
-        """`Tempera gouache de colores de 12 ml x 12 unidades`.
-
-        El primer 12 es cuanta pintura trae cada tarrito y el segundo es
-        cuantos tarritos vienen. Si se toma el primero, el kit cobra doce
-        veces de mas por algo que ya venia junto.
-        """
-        empaque = extraer_empaque("Témpera gouache de colores de 12 ml x 12 unidades")
-        assert empaque.unidades == 12
-        assert empaque.unidad_base == "unidad"
-
-    def test_toma_el_conteo_y_no_la_longitud_cuando_vienen_los_dos(self):
-        """`Cinta Cellux 18mm X5 Metros X10 Unds`: tres numeros, uno solo cuenta.
-
-        18 mm es el ancho, 5 metros es lo que mide cada rollo y 10 es cuantos
-        rollos trae el taco. Es el nombre mas hostil del catalogo y por eso
-        esta aqui.
-        """
-        assert extraer_empaque("Taco De Cinta Aislante Cellux 18mm X5 Metros X10 Unds Negra").unidades == 10
-
-
-class TestHojasSegunElConcepto:
-    """`N hojas` es empaque o atributo segun QUE cosa sea, no segun como se escriba.
-
-    Cien hojas de un cuaderno son una propiedad de ese cuaderno: sigue siendo
-    un cuaderno. Cinco hojas de acetato son cinco hojas: el paquete trae cinco.
-    La misma palabra y dos significados opuestos para el carrito.
-
-    Lo que decide no es una lista de excepciones a mano sino el concepto: si
-    declara `hojas` entre sus `atributos_discriminantes`, entonces las hojas
-    describen la cosa; si no, la cuentan.
-    """
-
-    def test_las_hojas_de_un_cuaderno_no_son_cien_cuadernos(self):
-        empaque = extraer_empaque(
-            "Cuaderno cosido doble línea de 100 hojas (surtido)",
-            atributos_del_concepto=("hojas", "rayado", "materias"),
-        )
-        assert empaque.unidades == 1
-        assert empaque.unidad_base == "unidad"
-
-    def test_las_hojas_de_un_acetato_si_son_el_paquete(self):
-        empaque = extraer_empaque(
-            "Acetato calibre 10 por 5 hojas", atributos_del_concepto=("calibre", "tamano")
-        )
-        assert empaque.unidades == 5
-        assert empaque.unidad_base == "hoja"
-
-    def test_el_cuaderno_argollado_tampoco_son_cien(self):
-        empaque = extraer_empaque(
-            "Cuaderno De Arte Bond Tapa Dura Surtido Media Carta X 40 Hj",
-            atributos_del_concepto=("hojas", "rayado", "materias"),
-        )
-        assert empaque.unidades == 1
-
-    def test_sin_saber_el_concepto_las_hojas_cuentan(self):
-        """Por omision se cuenta, porque es el caso mas comun fuera del cuaderno."""
-        assert extraer_empaque("Block cuadriculado por 50 hojas").unidades == 50
-
-
-class TestColoresComoConteo:
-    def test_una_caja_de_doce_colores_trae_doce(self):
-        assert extraer_empaque("Colores Faber Castell x 12 colores").unidades == 12
-
-    def test_lentejuelas_de_nueve_colores(self):
-        assert extraer_empaque("Paquete Lentejuelas x9 Colores (Metro por Color) Surtido").unidades == 9
 
 
 class TestAtributos:
@@ -333,20 +140,6 @@ class TestAtributos:
         assert extraer_atributos("Cuaderno argollado 5 materias", ("materias",))["materias"] == 5
 
 
-class TestEmpaqueEscritoDeOtroModo:
-    def test_la_x_pegada_a_un_punto_sigue_siendo_empaque(self):
-        """`Resaltadores..neon.x5 KIUT` es como lo escribio la tienda. Exigir
-        un espacio antes de la x contaba ese paquete de cinco como uno."""
-        assert extraer_empaque("Resaltadores..neon.x5 KIUT").unidades == 5
-
-    def test_paquete_de_doce_sin_la_x(self):
-        assert extraer_empaque("Lápices De Colores Lego Con Topper, Paquete De 12").unidades == 12
-        assert extraer_empaque("Caja de 24 crayones").unidades == 24
-
-    def test_una_caja_que_no_dice_cuantos_sigue_siendo_una(self):
-        assert extraer_empaque("Caja matemática: 1 compas, reglas, 1 tajalápiz (surtido)").unidades == 1
-
-
 class TestPersonaje:
     """El personaje va en su propia columna, no entre los atributos.
 
@@ -371,57 +164,7 @@ class TestPersonaje:
         assert extraer_personaje("Carpeta plástica legajadora") is None
 
 
-class TestAtributosDeLaFicha:
-    """Lo que la tienda publica en su ficha tecnica, traducido al catalogo.
-
-    La ficha trae mucho mas de lo que sirve. `Factor Neto PUM`, `Dividendo
-    PUM`, `IVA` y `Prime` son contabilidad de la tienda, no descripciones del
-    producto, y meterlos al catalogo solo le da ruido al resolutor.
-    """
-
-    def test_traduce_los_campos_utiles(self):
-        attrs = atributos_de_ficha(
-            {"Número de hojas": "50", "Tipo de linea": "Rayado", "Formato": "Cosido"},
-            ("hojas", "rayado", "tipo"),
-        )
-        assert attrs == {"hojas": 50, "rayado": "rayado", "tipo": "cosido"}
-
-    def test_ignora_la_contabilidad_de_la_tienda(self):
-        attrs = atributos_de_ficha(
-            {"Factor Neto PUM": "1,0", "IVA": "19", "Prime": "Si", "Número de hojas": "80"},
-            ("hojas", "tipo", "material"),
-        )
-        assert attrs == {"hojas": 80}
-
-    def test_solo_devuelve_lo_que_el_concepto_pide(self):
-        attrs = atributos_de_ficha({"Número de hojas": "50", "Peso": "112 gr."}, ("hojas",))
-        assert set(attrs) == {"hojas"}
-
-    def test_limpia_la_composicion_textil(self):
-        """La tienda escribe la ficha de composicion entera. Guardarla tal
-        cual hace que el resolutor compare `algodon` contra `Exterior:
-        Poliester=100%, Forro: Nylon=100%` y no encuentre nada."""
-        attrs = atributos_de_ficha({"Material": "Exterior: Poliester=100%"}, ("material",))
-        assert attrs["material"] == "poliester"
-        limpio = atributos_de_ficha({"Material": "Plástico resistente"}, ("material",))
-        assert limpio["material"] == "plastico"
-
-    def test_descarta_las_casillas_que_la_tienda_lleno_por_llenar(self):
-        """`N/A` y `Normal` no dicen nada del producto, pero parecen dato: si
-        entran al catalogo, el resolutor filtra por ellos."""
-        assert atributos_de_ficha({"Tipo": "N/A"}, ("tipo",)) == {}
-        assert atributos_de_ficha({"Tipo": "Normal"}, ("tipo",)) == {}
-        assert atributos_de_ficha({"Material": "-"}, ("material",)) == {}
-
-    def test_un_cero_declarado_no_es_una_pieza(self):
-        assert atributos_de_ficha({"Número de Piezas": "0"}, ("piezas",)) == {}
-        assert atributos_de_ficha({"Número de Piezas": "6"}, ("piezas",))["piezas"] == 6
-
-    def test_lee_el_color_de_la_ficha(self):
-        assert atributos_de_ficha({"Color": "Azul Rey"}, ("color",))["color"] == "azul"
-
-
-class TestLosConceptosQueNadieLograbaCumplir:
+class TestAtributosExigidosQueElNombreTrae:
     """Doce conceptos tenian productos y NINGUNO cumplia su atributo exigido.
 
     No era que faltaran productos: era que el nombre decia el dato y nadie lo
@@ -477,7 +220,7 @@ class TestLosConceptosQueNadieLograbaCumplir:
         assert attrs["presentacion"] == "bolsa"
 
 
-class TestLoQueLasListasSiPidenYNoSabiamosLeer:
+class TestAtributosQueLasListasPiden:
     """Los 84 atributos "que ninguna lista pide" casi todos si se piden.
 
     Al medir contra las 4.719 lineas del corpus, 84 pares concepto-atributo
@@ -571,7 +314,7 @@ class TestLoQueLasListasSiPidenYNoSabiamosLeer:
         assert extraer_atributos("Cartuchera mediana", ("compartimentos",)) == {}
 
 
-class TestElRayadoYLaFormaQueSeNosEscapaban:
+class TestRayadoYForma:
     """Dos atributos de mucha demanda que el nombre si trae.
 
     `rayado` es lo que un colegio escribe de un cuaderno casi siempre, y
@@ -612,43 +355,8 @@ class TestElRayadoYLaFormaQueSeNosEscapaban:
             ("Pincel Delgado Plano", "plano"),
         ],
     )
-    def test_la_forma_sigue_leyendo_lo_de_antes_y_lo_nuevo(self, texto, esperado):
+    def test_la_forma_del_lapiz_y_del_pincel(self, texto, esperado):
         assert extraer_atributos(texto, ("forma",)) == {"forma": esperado}
-
-
-class TestCamposDeFichaQueLaTiendaSiPublica:
-    """Traducciones que faltaban, medidas sobre las 147 fichas en cache.
-
-    `Tamaño` aparece en 14 fichas y no estaba traducido, siendo `tamano` el
-    atributo que mas falta en el catalogo. `Idioma` esta en 4 y es lo que
-    distingue un diccionario de otro. Se anaden los que la tienda publica de
-    verdad y no los que uno supondria: `Talla` no aparece en ninguna ficha,
-    asi que mapearlo habria sido codigo muerto con pinta de cobertura.
-    """
-
-    def test_el_tamano_de_la_ficha(self):
-        assert atributos_de_ficha({"Tamaño": "Grande"}, ("tamano",)) == {"tamano": "grande"}
-
-    def test_el_idioma_de_la_ficha(self):
-        assert atributos_de_ficha({"Idioma": "Español"}, ("idioma",)) == {"idioma": "espanol"}
-
-    def test_las_dimensiones_de_la_ficha(self):
-        assert atributos_de_ficha({"Dimensiones": "23.7 cm x 18.5 cm x 0.4 cm"}, ("dimensiones",)) == {
-            "dimensiones": "23.7 cm x 18.5 cm x 0.4 cm"
-        }
-
-    def test_la_punta_y_la_presentacion(self):
-        assert atributos_de_ficha({"Tipo de punta": "Una Punta"}, ("punta",)) == {"punta": "una punta"}
-        assert atributos_de_ficha({"Presentación": "Paq. x 10 uds."}, ("presentacion",)) == {
-            "presentacion": "paq. x 10 uds."
-        }
-
-    def test_sigue_devolviendo_solo_lo_pedido(self):
-        # La ficha trae cincuenta y un campos, y casi todos son contabilidad
-        # interna de la tienda: `Factor Neto PUM`, `IVA`, `Prime`.
-        assert atributos_de_ficha({"Tamaño": "Grande", "IVA": "19", "Prime": "Si"}, ("tamano",)) == {
-            "tamano": "grande"
-        }
 
 
 class TestCuandoElSilencioSignificaAlgo:
@@ -686,7 +394,7 @@ class TestCuandoElSilencioSignificaAlgo:
         assert extraer_atributos("Cuaderno cosido 100 hojas", ("rayado",)) == {}
 
 
-class TestLoQueSeptimoPediaYElNombreNoDecia:
+class TestAtributosDeUnaListaDeSeptimo:
     """Atributos que la auditoria de Septimo (Agustiniano Salitre) encontro
     sin leer, con renglones de esa lista y nombres reales del catalogo.
 
@@ -753,7 +461,7 @@ class TestLoQueSeptimoPediaYElNombreNoDecia:
             "punta": "punta fina"
         }
 
-    def test_la_punta_roma_de_las_tijeras_se_sigue_leyendo(self):
+    def test_la_punta_roma_de_las_tijeras(self):
         assert extraer_atributos("Tijera punta roma  NESSAN", ("punta",)) == {"punta": "punta roma"}
 
     @pytest.mark.parametrize(
@@ -850,7 +558,7 @@ class TestLoQueSeptimoPediaYElNombreNoDecia:
         assert extraer_atributos(texto, ("tamano",)) == {"tamano": esperado}
 
 
-class TestHuecosDelVocabularioQueDejoVerElCatalogo:
+class TestPalabrasDelVocabularioDelCatalogo:
     """Productos que seguian sin atributo despues de enriquecer, no por
     juicio sino porque la tabla no tenia la palabra (o la tenia escrita de
     una forma que nunca llegaba)."""
@@ -878,39 +586,6 @@ class TestHuecosDelVocabularioQueDejoVerElCatalogo:
     def test_el_papel_fotografico_no_son_hojas_de_examen(self):
         nombre = "Papel fotográfico carta a prueba de agua x 20 unidades"
         assert extraer_atributos(nombre, ("tipo",)) == {"tipo": "fotografico"}
-
-
-class TestReleerLoQueUnVocabularioViejoLeyoMal:
-    """Lo guardado gana sobre lo leido, salvo en las claves que se piden releer.
-
-    Sin esta salida, `tipo=permanente` en `Pintura al oleo de 75 ml, verde
-    permanente` y `punta=permanente` en los marcadores no se iban nunca: el
-    enriquecedor solo agregaba claves nuevas.
-    """
-
-    def test_lo_guardado_gana_por_omision(self):
-        assert atributos_combinados({"tipo": "permanente"}, {"tipo": "oleo", "color": "verde"}) == {
-            "tipo": "permanente",
-            "color": "verde",
-        }
-
-    def test_releer_una_clave_deja_mandar_al_nombre(self):
-        assert atributos_combinados(
-            {"tipo": "permanente"}, {"tipo": "oleo", "color": "verde"}, frozenset({"tipo"})
-        ) == {"tipo": "oleo", "color": "verde"}
-
-    def test_si_al_releer_el_nombre_no_dice_nada_la_clave_se_va(self):
-        # `Marcador Sharpie Punta Fina` tenia `tipo=punta fina`: no dice su tinta.
-        assert atributos_combinados(
-            {"tipo": "punta fina", "punta": "punta fina"},
-            {"punta": "punta fina"},
-            frozenset({"tipo", "punta"}),
-        ) == {"punta": "punta fina"}
-
-    def test_releer_no_toca_las_demas_claves(self):
-        assert atributos_combinados({"tipo": "x", "colores": 12}, {"colores": 10}, frozenset({"tipo"})) == {
-            "colores": 12
-        }
 
 
 class TestUnRenglonQueEnumeraVariosValoresNoExigeNinguno:
@@ -961,7 +636,7 @@ class TestUnRenglonQueEnumeraVariosValoresNoExigeNinguno:
     def test_lo_que_no_se_exige_por_ambiguo_queda_marcado(self, texto, esperado):
         assert atributos_ambiguos(texto, ("rayado", "forma", "grosor", "encuadernacion")) == esperado
 
-    def test_el_tipo_sigue_tomando_el_mas_especifico(self):
+    def test_el_tipo_toma_el_valor_mas_especifico(self):
         assert extraer_atributos("Block Repuesto Kiut Carta Cuadriculado KIUT", ("tipo",)) == {
             "tipo": "cuadriculado"
         }

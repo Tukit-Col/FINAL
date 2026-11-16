@@ -3,7 +3,7 @@
 Se fija que un lote con renglones guardados y sin guardar le pide al proveedor
 solo los que faltan, en orden, y devuelve el resultado en el orden original;
 que un fallo del proveedor no guarda nada y baja la tanda entera a lexico; que
-con Redis caido se calcula como hoy; la duracion de la clave; y que un embeder
+con Redis caido o lento se calcula todo con el proveedor; la duracion de la clave; y que un embeder
 sin modelo declarado no se cachea.
 """
 
@@ -15,7 +15,7 @@ import httpx
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
-from tukit_catalogo import cache_vectores, consulta
+from tukit_catalogo import cache_vectores
 from tukit_catalogo.api import app
 from tukit_catalogo.consulta import calcular_vectores
 from tukit_catalogo.embeddings import (
@@ -29,7 +29,7 @@ from tukit_catalogo.embeddings import (
 from tukit_catalogo.modelos import Base
 from tukit_comun.bd import MotorServicio
 from tukit_comun.cache import usar_cliente
-from tukit_comun.pruebas_redis import RedisEnMemoria, cliente_en_memoria
+from tukit_comun.pruebas_redis import RedisEnMemoria, cliente_en_memoria, clientes_de_prueba, lo_guardado
 
 
 class Proveedor:
@@ -120,7 +120,7 @@ async def test_un_fallo_del_proveedor_baja_la_tanda_entera_aunque_haya_guardados
     assert vectores == [None] * len(RENGLONES)
 
 
-async def test_con_redis_caido_calcula_como_hoy(redis):
+async def test_con_redis_caido_el_proveedor_recibe_el_lote_entero(redis):
     await _guardar(redis, RENGLONES[0])
     redis.caido = True
     proveedor = Proveedor()
@@ -131,7 +131,7 @@ async def test_con_redis_caido_calcula_como_hoy(redis):
     assert vectores == embeder_falso(RENGLONES)
 
 
-async def test_con_redis_lento_calcula_como_hoy(redis):
+async def test_con_redis_lento_el_proveedor_recibe_el_lote_entero(redis):
     redis.demora = 1.0
     proveedor = Proveedor()
 
@@ -238,7 +238,8 @@ async def http(monkeypatch):
         servicio="prueba", engine=engine, _fabrica=async_sessionmaker(engine, expire_on_commit=False)
     )
     proveedor = Proveedor()
-    monkeypatch.setattr(consulta, "_embeder_por_entorno", lambda: proveedor)
+    # La costura publica de la ruta, como `app.state.motor`; monkeypatch la quita al salir.
+    monkeypatch.setattr(app.state, "embeder", proveedor, raising=False)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as cliente:
         yield cliente, proveedor
     await engine.dispose()
@@ -264,3 +265,37 @@ async def test_por_la_ruta_con_redis_caido_responde_igual(http, redis):
 
     assert con_redis_caido == sin_cache
     assert proveedor.lotes == [RENGLONES, RENGLONES]
+
+
+# --- Contra un Redis de verdad ----------------------------------------------
+#
+# La API que arranca `make arriba` no tiene embeder sin la clave de Gemini, asi
+# que se corre la app aqui, con el embeder falso y contra el Redis de
+# `TUKIT_PRUEBAS_REDIS_URL`. Se salta sola si no hay Redis.
+
+RENGLONES_REDIS = ["2 cuadernos cuadriculados", "1 caja de colores", "pegante en barra"]
+
+
+@pytest.mark.redis
+async def test_la_segunda_lista_solo_calcula_el_renglon_nuevo_contra_redis(http):
+    cliente_http, proveedor = http
+
+    async with clientes_de_prueba() as (cliente,):
+        usar_cliente(cliente)
+        primera = await cliente_http.post("/v1/catalogo/emparejar", json={"renglones": RENGLONES_REDIS[:2]})
+        segunda = await cliente_http.post("/v1/catalogo/emparejar", json={"renglones": RENGLONES_REDIS})
+
+        assert primera.status_code == segunda.status_code == 200
+        assert proveedor.lotes == [RENGLONES_REDIS[:2], RENGLONES_REDIS[2:]]
+        assert not cliente.degradado
+        guardado = await lo_guardado(cliente.prefijo)
+
+    esperados = {
+        cliente.prefijo + cache_vectores.clave(MODELO_FALSO, texto): vector
+        for texto, vector in zip(RENGLONES_REDIS, embeder_falso(RENGLONES_REDIS), strict=True)
+    }
+    # En Redis quedan los vectores, con su vencimiento de un dia, y nada del texto.
+    assert {c: cache_vectores.de_bytes(g.valor) for c, g in guardado.items()} == esperados
+    assert all(len(g.valor) == 8 * DIMENSION_EMBEDDING for g in guardado.values())
+    assert all((24 * 3600 - 60) * 1000 < g.vence_en_ms <= 24 * 3600 * 1000 for g in guardado.values())
+    assert not any(b"cuaderno" in g.valor or "cuaderno" in c for c, g in guardado.items())

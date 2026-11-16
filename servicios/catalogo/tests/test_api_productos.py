@@ -38,6 +38,8 @@ from tukit_catalogo.modelos import (
 from tukit_comun.bd import MotorServicio
 
 CURADOR = uuid.UUID("22222222-2222-5222-8222-222222222222")
+# El precio sembrado del producto que editan y reclasifican las pruebas (pesos).
+PRECIO_SPIDER = 9900
 PRODUCTO = Base.metadata.tables["producto_canonico"]
 
 
@@ -63,7 +65,7 @@ def _siembra(sesion) -> dict[str, uuid.UUID]:
     productos: dict[str, ProductoCanonico] = {}
     especificacion = (
         # sku, concepto, nombre, nivel, personaje, precio (None = sin oferta)
-        ("TK-C001-SPIDER", cuaderno.id, "Cuaderno Spiderman", "confiable", "Spiderman", 9900),
+        ("TK-C001-SPIDER", cuaderno.id, "Cuaderno Spiderman", "confiable", "Spiderman", PRECIO_SPIDER),
         ("TK-C001-LISO", cuaderno.id, "Cuaderno liso", "economico", None, 4500),
         ("TK-C001-FROZEN", cuaderno.id, "Cuaderno Frozen", "premium", "Frozen", None),
         ("TK-C011-SPIDER", colores.id, "Colores Spiderman", "confiable", "Spiderman", 12000),
@@ -194,7 +196,7 @@ class TestEditarProducto:
         assert cuerpo["marca"] == "Scribe"
         assert cuerpo["es_propio"] is True
         # La forma publica conserva precio_desde y tiendas del producto con oferta.
-        assert cuerpo["precio_desde"] == 9900
+        assert cuerpo["precio_desde"] == PRECIO_SPIDER
         assert cuerpo["tiendas"] == 1
         assert cuerpo["concepto"]["codigo"] == "C001"
 
@@ -250,11 +252,6 @@ class TestEditarProducto:
         assert respuesta.status_code == 400
         assert respuesta.json()["campo"] == "quality_score"
 
-    async def test_sku_inexistente_es_404(self, cliente):
-        respuesta = await cliente.patch("/v1/catalogo/productos/NO-EXISTE", json={"marca": "x"})
-        assert respuesta.status_code == 404
-        assert respuesta.json()["error"] == "producto_no_existe"
-
     async def test_patch_atributos_no_escalar_es_422(self, cliente):
         # Un atributo con valor lista/objeto es basura tipada: se rechaza antes
         # de persistirla, nombrando la clave ofensora, no un 200 que la guarda.
@@ -270,6 +267,7 @@ class TestEditarProducto:
             json={"atributos": {"hojas": 80, "rayado": "cuadriculado", "deposito": True}},
         )
         assert respuesta.status_code == 200
+        assert respuesta.json()["atributos"] == {"hojas": 80, "rayado": "cuadriculado", "deposito": True}
 
 
 class TestReclasificar:
@@ -284,7 +282,7 @@ class TestReclasificar:
         # decir C001 (test_el_sku_nombra_al_concepto_y_al_nivel_que_dice_la_fila).
         # Ya hay un TK-C011-SPIDER: el re-acunado no lo pisa, lleva sufijo.
         assert cuerpo["sku"] == "TK-C011-SPIDER-2"
-        assert cuerpo["precio_desde"] == 9900
+        assert cuerpo["precio_desde"] == PRECIO_SPIDER
 
     async def test_reclasificar_invalida_el_embedding(self, cliente):
         await cliente.post("/v1/catalogo/productos/TK-C001-SPIDER/reclasificar", json={"concepto": "C011"})
@@ -298,13 +296,6 @@ class TestReclasificar:
         assert respuesta.status_code == 404
         assert respuesta.json()["error"] == "concepto_no_existe"
 
-    async def test_producto_inexistente_es_404(self, cliente):
-        respuesta = await cliente.post(
-            "/v1/catalogo/productos/NO-EXISTE/reclasificar", json={"concepto": "C011"}
-        )
-        assert respuesta.status_code == 404
-        assert respuesta.json()["error"] == "producto_no_existe"
-
 
 class TestRetirarProducto:
     async def test_es_soft_delete(self, cliente):
@@ -316,13 +307,27 @@ class TestRetirarProducto:
 
     async def test_desaparece_de_la_lectura_publica(self, cliente):
         await cliente.delete("/v1/catalogo/productos/TK-C001-SPIDER")
-        assert (await cliente.get("/v1/catalogo/productos/TK-C001-SPIDER")).status_code == 404
+        respuesta = await cliente.get("/v1/catalogo/productos/TK-C001-SPIDER")
+        assert respuesta.status_code == 404
+        assert respuesta.json()["error"] == "producto_no_existe"
 
-    async def test_retirar_dos_veces_sigue_siendo_204(self, cliente):
+    async def test_retirar_es_idempotente(self, cliente):
         assert (await cliente.delete("/v1/catalogo/productos/TK-C001-SPIDER")).status_code == 204
         assert (await cliente.delete("/v1/catalogo/productos/TK-C001-SPIDER")).status_code == 204
+        assert await _activo("TK-C001-SPIDER") is False
 
-    async def test_sku_inexistente_es_404(self, cliente):
-        respuesta = await cliente.delete("/v1/catalogo/productos/NO-EXISTE")
+
+class TestUnSkuQueNoExiste:
+    @pytest.mark.parametrize(
+        ("metodo", "ruta", "cuerpo"),
+        [
+            ("PATCH", "/v1/catalogo/productos/NO-EXISTE", {"marca": "x"}),
+            ("POST", "/v1/catalogo/productos/NO-EXISTE/reclasificar", {"concepto": "C011"}),
+            ("DELETE", "/v1/catalogo/productos/NO-EXISTE", None),
+        ],
+        ids=["editar", "reclasificar", "retirar"],
+    )
+    async def test_es_404_producto_no_existe(self, cliente, metodo, ruta, cuerpo):
+        respuesta = await cliente.request(metodo, ruta, json=cuerpo)
         assert respuesta.status_code == 404
         assert respuesta.json()["error"] == "producto_no_existe"

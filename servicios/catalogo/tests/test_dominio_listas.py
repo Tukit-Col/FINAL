@@ -33,8 +33,9 @@ def test_exigir_sin_revisar_ya_revisada_es_409():
     assert e.value.estado == 409 and e.value.error == "lista_ya_revisada"
 
 
-def test_exigir_sin_revisar_abierta_pasa():
-    _exigir_sin_revisar(SimpleNamespace(revisada_en=None))  # no alza
+def test_exigir_sin_revisar_deja_editar_una_version_abierta():
+    # La puerta solo se cierra con `revisada_en`; una abierta no alza ni devuelve nada.
+    assert _exigir_sin_revisar(SimpleNamespace(revisada_en=None)) is None
 
 
 def test_invariante_sin_concepto_exige_revision():
@@ -49,12 +50,14 @@ def test_invariante_no_surtible_sin_instruccion():
     assert e.value.error == "no_surtible_sin_instruccion" and e.value.estado == 422
 
 
-def test_invariante_no_surtible_con_instruccion_pasa():
-    _cuidar_invariantes("cid", True, "colegio_directo", "Se compra en el colegio")
+def test_invariante_acepta_lo_no_surtible_que_dice_como_conseguirlo():
+    assert _cuidar_invariantes("cid", True, "colegio_directo", "Se compra en el colegio") is None
 
 
-def test_invariante_surtible_sin_instruccion_pasa():
-    _cuidar_invariantes("cid", True, "mercado_abierto", None)
+def test_invariante_no_le_pide_instruccion_a_lo_que_tukit_surte():
+    # La instruccion solo se exige a lo que Tukit no surte; pedirla siempre
+    # rechazaria cada renglon de mercado abierto.
+    assert _cuidar_invariantes("cid", True, "mercado_abierto", None) is None
 
 
 def test_pagina_percepcion_lista_de_items_se_aplana_a_texto():
