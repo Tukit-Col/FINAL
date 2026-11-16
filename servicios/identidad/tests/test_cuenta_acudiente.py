@@ -2,37 +2,17 @@
 
 from __future__ import annotations
 
-import httpx
 import pytest
-from sqlalchemy import insert
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
-from tukit_comun.bd import MotorServicio
 from tukit_comun.identificadores import derivar
 from tukit_identidad.api import app
-from tukit_identidad.modelos import Base, Colegio, Sede
+
+from tests._ayudas_identidad import bearer, cliente_api, sembrar_rol_acudiente_y_colegio
 
 
 @pytest.fixture()
 async def cliente():
-    engine = create_async_engine(
-        "sqlite+aiosqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
-    )
-    async with engine.begin() as conexion:
-        await conexion.run_sync(Base.metadata.create_all)
-    fabrica = async_sessionmaker(engine, expire_on_commit=False)
-    async with fabrica() as s:
-        rol = Base.metadata.tables["rol"]
-        await s.execute(insert(rol).values(codigo="acudiente", nombre="Acudiente", del_sistema=True))
-        colegio = Colegio(id=derivar("colegio", "2.4"), nombre="Colegio San Pedro")
-        s.add(colegio)
-        await s.flush()
-        s.add(Sede(id=derivar("sede", "2.4", "u"), colegio_id=colegio.id, nombre="Sede unica"))
-        await s.commit()
-    app.state.motor = MotorServicio(servicio="prueba", engine=engine, _fabrica=fabrica)
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
+    async with cliente_api(sembrar_rol_acudiente_y_colegio) as http:
         yield http
-    await engine.dispose()
 
 
 async def test_crear_cuenta_devuelve_sesion_y_token(cliente):
@@ -49,7 +29,9 @@ async def test_crear_cuenta_devuelve_sesion_y_token(cliente):
     assert r.status_code == 201
     cuerpo = r.json()
     assert cuerpo["sesion"]["correo"] == "nueva@ejemplo.com"
-    assert cuerpo["token"]
+    # El token devuelto abre la sesion de la cuenta recien creada.
+    actual = await cliente.get("/v1/sesiones/actual", headers=bearer(cuerpo["token"]))
+    assert actual.json()["correo"] == "nueva@ejemplo.com"
 
 
 async def test_crear_cuenta_sin_aceptar_terminos_es_422_y_no_crea_nada(cliente):
@@ -58,7 +40,9 @@ async def test_crear_cuenta_sin_aceptar_terminos_es_422_y_no_crea_nada(cliente):
     assert r.status_code == 422
     assert r.json()["error"] == "consentimiento_requerido"
     # La cuenta no nacio: aceptando ahora el correo se crea (no es un 409).
-    assert (await cliente.post("/v1/cuenta", json={**datos, "acepta_terminos": True})).status_code == 201
+    aceptando = await cliente.post("/v1/cuenta", json={**datos, "acepta_terminos": True})
+    assert aceptando.status_code == 201
+    assert aceptando.json()["sesion"]["correo"] == "sin@ejemplo.com"
 
 
 async def test_crear_cuenta_deja_el_consentimiento_del_titular(cliente):

@@ -13,47 +13,35 @@ Fija tres cosas que el diseño promete y que son faciles de romper sin notar:
 
 from __future__ import annotations
 
-import httpx
 import pytest
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
-from tukit_comun.bd import MotorServicio
 from tukit_identidad.api import app
+from tukit_identidad.dominio.cuenta import CENTINELA_INVITADO
 from tukit_identidad.dominio.sesiones import (
     emitir_token,
     hashear_clave,
     leer_token,
     verificar_clave,
 )
-from tukit_identidad.modelos import AsignacionRol, Base, Usuario
+from tukit_identidad.modelos import AsignacionRol, Usuario
+
+from tests._ayudas_identidad import cliente_api
+
+
+async def _sembrar(sesion) -> None:
+    # Un acudiente con clave y un rol de ambito global, para no depender de
+    # que exista un colegio en esta base.
+    u = Usuario(correo="mama@ejemplo.com", clave_hash=hashear_clave("demo1234"))
+    sesion.add(u)
+    await sesion.flush()
+    sesion.add(AsignacionRol(usuario_id=u.id, rol_codigo="acudiente", ambito_tipo="global", ambito_id=None))
+    # Un contacto sin credencial, como el que crea `registrar_contacto`.
+    sesion.add(Usuario(correo="invitado@ejemplo.com", clave_hash=CENTINELA_INVITADO))
 
 
 @pytest.fixture()
 async def cliente():
-    engine = create_async_engine(
-        "sqlite+aiosqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
-    )
-    async with engine.begin() as conexion:
-        await conexion.run_sync(Base.metadata.create_all)
-
-    fabrica = async_sessionmaker(engine, expire_on_commit=False)
-    async with fabrica() as sesion:
-        # Un acudiente con clave y un rol de ambito global, para no depender de
-        # que exista un colegio en esta base.
-        u = Usuario(correo="mama@ejemplo.com", clave_hash=hashear_clave("demo1234"))
-        sesion.add(u)
-        await sesion.flush()
-        sesion.add(
-            AsignacionRol(usuario_id=u.id, rol_codigo="acudiente", ambito_tipo="global", ambito_id=None)
-        )
-        # Un contacto sin credencial, como el que crea `registrar_contacto`.
-        sesion.add(Usuario(correo="invitado@ejemplo.com", clave_hash="sin-credencial"))
-        await sesion.commit()
-
-    app.state.motor = MotorServicio(servicio="prueba", engine=engine, _fabrica=fabrica)
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
+    async with cliente_api(_sembrar) as http:
         yield http
-    await engine.dispose()
 
 
 class TestHashDeClave:
@@ -63,9 +51,9 @@ class TestHashDeClave:
         assert not verificar_clave("otra", h)
 
     def test_el_centinela_sin_credencial_no_valida_contra_nada(self):
-        """`clave_hash="sin-credencial"` es un contacto invitado: no puede
+        """`clave_hash=CENTINELA_INVITADO` es un contacto invitado: no puede
         entrar, aunque alguien mande esa cadena como clave."""
-        assert not verificar_clave("sin-credencial", "sin-credencial")
+        assert not verificar_clave(CENTINELA_INVITADO, CENTINELA_INVITADO)
 
     def test_dos_hashes_de_la_misma_clave_difieren_por_la_sal(self):
         assert hashear_clave("igual") != hashear_clave("igual")
@@ -132,9 +120,6 @@ class TestSesionActualYRevocacion:
         assert respuesta.status_code == 200
         assert respuesta.json()["correo"] == "mama@ejemplo.com"
 
-    async def test_sin_token_es_401(self, cliente):
-        assert (await cliente.get("/v1/sesiones/actual")).status_code == 401
-
     async def test_subir_la_version_de_permisos_revoca_el_token_viejo(self, cliente):
         """La palanca de revocacion del ADR 0016: el token viejo lleva vp=1;
         si la cuenta pasa a vp=2, el token deja de valer sin haber expirado."""
@@ -151,12 +136,20 @@ class TestSesionActualYRevocacion:
         assert respuesta.status_code == 401
         assert respuesta.json()["error"] == "sesion_revocada"
 
-    async def test_cerrar_sesion_responde_204(self, cliente):
-        assert (await cliente.post("/v1/sesiones/cierre")).status_code == 204
+    async def test_cerrar_sesion_sin_token_responde_204_sin_cuerpo(self, cliente):
+        """Cerrar sin token es un no-op: 204 vacio, y la sesion de otros sigue."""
+        token = (
+            await cliente.post("/v1/sesiones", json={"correo": "mama@ejemplo.com", "clave": "demo1234"})
+        ).json()["token"]
+        respuesta = await cliente.post("/v1/sesiones/cierre")
+        assert respuesta.status_code == 204
+        assert respuesta.content == b""
+        actual = await cliente.get("/v1/sesiones/actual", headers={"Authorization": f"Bearer {token}"})
+        assert actual.status_code == 200
 
     async def test_cerrar_sesion_revoca_el_token(self, cliente):
-        """Antes cerrar sesion solo borraba la cookie: el token seguia valiendo
-        hasta expirar, y quien lo hubiera copiado seguia entrando."""
+        """Borrar la cookie no basta: el token copiado valdria hasta expirar. Cerrar
+        sube la version de permisos y el token deja de valer."""
         token = (
             await cliente.post("/v1/sesiones", json={"correo": "mama@ejemplo.com", "clave": "demo1234"})
         ).json()["token"]
@@ -171,11 +164,12 @@ class TestSesionActualYRevocacion:
         nuevo = (
             await cliente.post("/v1/sesiones", json={"correo": "mama@ejemplo.com", "clave": "demo1234"})
         ).json()["token"]
-        assert (
-            await cliente.get("/v1/sesiones/actual", headers={"Authorization": f"Bearer {nuevo}"})
-        ).status_code == 200
+        otra_vez = await cliente.get("/v1/sesiones/actual", headers={"Authorization": f"Bearer {nuevo}"})
+        assert otra_vez.status_code == 200
+        assert otra_vez.json()["correo"] == "mama@ejemplo.com"
 
     async def test_cerrar_con_un_token_invalido_no_falla(self, cliente):
         """Cerrar es idempotente: un token vencido o inventado no es un error."""
         respuesta = await cliente.post("/v1/sesiones/cierre", headers={"Authorization": "Bearer inventado"})
         assert respuesta.status_code == 204
+        assert respuesta.content == b""

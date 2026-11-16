@@ -4,16 +4,7 @@ from __future__ import annotations
 
 import json
 
-from conftest import TOKEN_ACUDIENTE, bearer
-from test_logistica import (  # noqa: F401
-    OPERADOR_HDR,
-    REPARTIDOR,
-    _avanzar,
-    _filas,
-    _pedido_pagado,
-    cliente,
-)
-from test_logistica import HISTORIAL
+from _ayudas_comercio import HISTORIAL, OPERADOR_HDR, REPARTIDOR, avanzar, filas_de, pedido_pagado
 
 PROHIBIDAS = ("actor_id", "actor_correo", "nota", "repartidor_celular", "hijo", "apodo")
 
@@ -35,8 +26,9 @@ def _url(pedido_id, destino):
 
 
 async def _en_preparacion(cliente) -> str:
-    pedido_id = await _pedido_pagado(cliente)
-    assert (await _avanzar(cliente, pedido_id, {"destino": "en_preparacion"})).status_code == 200
+    pedido_id = await pedido_pagado(cliente)
+    avance = await avanzar(cliente, pedido_id, {"destino": "en_preparacion"})
+    assert avance.json()["estado"] == "en_preparacion"
     return pedido_id
 
 
@@ -46,7 +38,7 @@ def _actual(linea):
 
 async def test_destino_legal_muestra_el_paso_y_el_aviso(cliente):
     pedido_id = await _en_preparacion(cliente)
-    antes = await _filas(HISTORIAL, pedido_id)
+    antes = await filas_de(HISTORIAL, pedido_id)
     r = await cliente.get(_url(pedido_id, "despachado"), headers=OPERADOR_HDR)
     assert r.status_code == 200
     cuerpo = r.json()
@@ -55,7 +47,7 @@ async def test_destino_legal_muestra_el_paso_y_el_aviso(cliente):
     assert _actual(cuerpo["ahora"]) == ["en_preparacion"]
     assert _actual(cuerpo["despues"]) == ["despachado"]
     # No escribe nada.
-    assert len(await _filas(HISTORIAL, pedido_id)) == len(antes)
+    assert len(await filas_de(HISTORIAL, pedido_id)) == len(antes)
     detalle = (await cliente.get(f"/v1/comercio/pedidos/{pedido_id}", headers=OPERADOR_HDR)).json()
     assert detalle["estado"] == "en_preparacion"
 
@@ -71,16 +63,16 @@ async def test_destino_ilegal_o_desconocido_no_es_error(cliente):
 
 async def test_nada_privado_sale_en_la_vista(cliente):
     pedido_id = await _en_preparacion(cliente)
-    await _avanzar(cliente, pedido_id, {"destino": "despachado", **REPARTIDOR})
+    await avanzar(cliente, pedido_id, {"destino": "despachado", **REPARTIDOR})
     r = await cliente.get(_url(pedido_id, "en_reparto"), headers=OPERADOR_HDR)
     assert r.json()["legal"] is True
     assert not set(PROHIBIDAS) & _claves(r.json())
     assert REPARTIDOR["repartidor_celular"] not in json.dumps(r.json())
 
 
-async def test_solo_staff_y_404(cliente):
-    pedido_id = await _en_preparacion(cliente)
-    assert (await cliente.get(_url(pedido_id, "despachado"))).status_code == 401
-    assert (await cliente.get(_url(pedido_id, "despachado"), headers=bearer(TOKEN_ACUDIENTE))).status_code == 403
+async def test_la_vista_de_un_pedido_inexistente_es_404(cliente):
+    # El acceso (401/403) se prueba con las demas rutas de back-office en
+    # `test_logistica_acceso.py`.
     r = await cliente.get(_url("00000000-0000-4000-8000-000000000000", "despachado"), headers=OPERADOR_HDR)
     assert r.status_code == 404
+    assert r.json()["error"] == "pedido_no_existe"

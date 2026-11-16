@@ -82,17 +82,12 @@ async def _llamar(metodo: str, ruta: str, token: str | None = None) -> httpx.Res
 
 
 class TestLaConsolaExigeSesionDelEquipo:
+    @pytest.mark.parametrize("token", [None, "tok-inventado"], ids=["sin_token", "token_desconocido"])
     @pytest.mark.parametrize(("metodo", "ruta"), RUTAS_DE_CONSOLA)
-    async def test_sin_token_es_401_y_no_se_reenvia(self, atras, metodo, ruta):
-        respuesta = await _llamar(metodo, ruta)
+    async def test_sin_sesion_valida_es_401_y_no_se_reenvia(self, atras, metodo, ruta, token):
+        respuesta = await _llamar(metodo, ruta, token)
         assert respuesta.status_code == 401
         assert respuesta.json()["error"] == "sesion_invalida"
-        assert atras.reenviadas == []
-
-    @pytest.mark.parametrize(("metodo", "ruta"), RUTAS_DE_CONSOLA)
-    async def test_token_que_identidad_no_reconoce_es_401(self, atras, metodo, ruta):
-        respuesta = await _llamar(metodo, ruta, "tok-inventado")
-        assert respuesta.status_code == 401
         assert atras.reenviadas == []
 
     @pytest.mark.parametrize(("metodo", "ruta"), RUTAS_DE_CONSOLA)
@@ -122,8 +117,8 @@ class TestLaConsolaExigeSesionDelEquipo:
         assert doble.reenviadas == []
 
 
-class TestLoQueNoEsConsolaNoCambia:
-    async def test_la_sugerencia_del_acudiente_sigue_abierta(self, atras):
+class TestLoQueNoEsConsolaQuedaAbierto:
+    async def test_la_sugerencia_del_acudiente_es_abierta(self, atras):
         """`POST /v1/admin/sugerencias` lo llama la web publica, sin sesion: un
         acudiente sugiere su (colegio, grado). Leer el backlog si es del equipo."""
         respuesta = await _llamar("POST", "/v1/admin/sugerencias")
@@ -136,7 +131,7 @@ class TestLoQueNoEsConsolaNoCambia:
         assert atras.reenviadas == ["GET /v1/catalogo/conceptos"]
 
     @pytest.mark.parametrize("ruta", ["/v1/catalogo/productos/TK-001", "/v1/colegios/cccc"])
-    async def test_leer_un_producto_o_un_colegio_sigue_abierto(self, atras, ruta):
+    async def test_leer_un_producto_o_un_colegio_es_abierto(self, atras, ruta):
         """Solo se cierran las escrituras: la web lee productos y colegios sin sesion."""
         respuesta = await _llamar("GET", ruta)
         assert respuesta.status_code == 200

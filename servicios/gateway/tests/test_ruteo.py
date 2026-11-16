@@ -62,8 +62,7 @@ class TestElPrefijoMasLargoGana:
             # no inteligencia: su prefijo mas largo gana a `/v1/admin`.
             ("/v1/admin/acudientes", "identidad"),
             ("/v1/admin/acudientes/abc", "identidad"),
-            # El tablero de logistica y la bandeja de casos, que ahora si tienen
-            # servicio detras (comercio y operacion).
+            # El tablero de logistica y la bandeja de casos: comercio y operacion.
             ("/v1/comercio/pedidos", "comercio"),
             ("/v1/comercio/pedidos/abc", "comercio"),
             ("/v1/comercio/mis-pedidos", "comercio"),
@@ -76,8 +75,7 @@ class TestElPrefijoMasLargoGana:
             ("/v1/metricas/colegios/abc", "inteligencia"),
             ("/v1/operacion/casos", "operacion"),
             ("/v1/operacion/casos/abc", "operacion"),
-            # El checkout y el webhook de la pasarela, ahora servidos por
-            # comercio (§9): salieron de PENDIENTES cuando existio la escritura.
+            # El checkout y el webhook de la pasarela los sirve comercio (§9).
             ("/v1/ordenes", "comercio"),
             ("/v1/ordenes/abc/pago", "comercio"),
             ("/v1/ordenes/abc/retracto", "comercio"),
@@ -108,7 +106,7 @@ class TestElPrefijoMasLargoGana:
 
     def test_un_prefijo_parecido_pero_distinto_no_cuela(self):
         """`/v1/listasbla` no es `/v1/listas`. Sin la comprobacion del
-        separador, un endpoint nuevo mal escrito se reenviaria en silencio."""
+        separador, un endpoint mal escrito se reenviaria en silencio."""
         assert destino("/v1/listasbla") is None
 
     @pytest.mark.parametrize("ruta", ["/", "/v1", "/v2/catalogo", "/v1/inventado"])
@@ -116,16 +114,15 @@ class TestElPrefijoMasLargoGana:
         assert destino(ruta) is None
 
 
-class TestYaNoHayPagoPendiente:
-    """El §9 (checkout y webhook) ya no responde 501: tiene a comercio detras.
+class TestNingunaRutaSeAnunciaComoPendiente:
+    """Ninguna ruta responde 501 "pendiente": todo lo declarado tiene servicio.
 
-    Cuando el pago vivia en PENDIENTES, la puerta respondia 501 con la seccion
-    del contrato. Ahora que la escritura de comercio existe, esas rutas rutean
-    como cualquier otra y PENDIENTES queda vacio; esta prueba fija que no quedo
-    ningun 501 residual anunciando algo que ya se sirve.
+    `PENDIENTES` es el mapa de rutas del contrato sin servicio detras (la puerta
+    les responderia 501 con la seccion del contrato). Esta vacio: el checkout y
+    el webhook del §9 los sirve comercio y rutean como cualquier otra.
     """
 
-    def test_el_checkout_ya_no_esta_pendiente(self):
+    def test_el_checkout_y_el_webhook_no_estan_pendientes(self):
         from tukit_gateway.api import PENDIENTES, pendiente
 
         assert PENDIENTES == {}

@@ -9,30 +9,17 @@ from __future__ import annotations
 
 import logging
 import uuid
-from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime, timedelta
 
-import pytest_asyncio
 from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from tukit_comun.bd import MotorServicio
 from tukit_identidad.barrido_supresion import barrer, vence_el
-from tukit_identidad.modelos import BandejaSalida, Base, SolicitudSupresion, Usuario
+from tukit_identidad.modelos import BandejaSalida, SolicitudSupresion, Usuario
 from tukit_identidad.repositorios import RepoIdentidad
 
 TITULAR = uuid.uuid4()
 # Un lunes, para que los plazos en dias habiles se lean sin calendario a mano.
 RECIBIDA = datetime(2026, 10, 5, 15, 0, tzinfo=UTC)
-
-
-@pytest_asyncio.fixture
-async def motor() -> AsyncIterator[MotorServicio]:
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-    async with engine.begin() as conexion:
-        await conexion.run_sync(Base.metadata.create_all)
-    fabrica = async_sessionmaker(engine, expire_on_commit=False)
-    yield MotorServicio(servicio="identidad", engine=engine, _fabrica=fabrica)
-    await engine.dispose()
 
 
 async def _solicitud(motor: MotorServicio, *, confirmados: tuple[str, ...] = ()) -> uuid.UUID:

@@ -4,16 +4,8 @@ from __future__ import annotations
 
 import uuid
 
-from conftest import TOKEN_ACUDIENTE, bearer
-from test_logistica import (  # noqa: F401
-    HISTORIAL,
-    OPERADOR,
-    OPERADOR_HDR,
-    _filas,
-    _pedido_pagado,
-    _poner_estado,
-    cliente,
-)
+from _ayudas_comercio import HISTORIAL, OPERADOR_HDR, filas_de, pedido_pagado, poner_estado
+from conftest import ADMIN, OPERADOR, TOKEN_ADMIN, bearer
 from tukit_comercio.repositorios.pedidos import RepoPedidos
 
 URL = "/v1/comercio/pedidos/avanzar-lote"
@@ -24,20 +16,20 @@ async def _lote(cliente, ids, destino, headers=OPERADOR_HDR):
 
 
 async def test_tres_pagados_pasan_a_preparacion_con_historial_del_actor(cliente):
-    ids = [await _pedido_pagado(cliente) for _ in range(3)]
+    ids = [await pedido_pagado(cliente) for _ in range(3)]
     r = await _lote(cliente, ids, "en_preparacion")
     assert r.status_code == 200, r.text
     assert sorted(r.json()["avanzados"]) == sorted(ids)
     assert r.json()["fallidos"] == []
     for i in ids:
-        filas = await _filas(HISTORIAL, i)
+        filas = await filas_de(HISTORIAL, i)
         assert len(filas) == 1
         assert str(filas[0].actor_id) == OPERADOR
 
 
 async def test_uno_invalido_falla_y_los_buenos_persisten(cliente):
-    a, b, c = [await _pedido_pagado(cliente) for _ in range(3)]
-    await _poner_estado(c, "entregado")
+    a, b, c = [await pedido_pagado(cliente) for _ in range(3)]
+    await poner_estado(c, "entregado")
     r = await _lote(cliente, [a, b, c], "en_preparacion")
     cuerpo = r.json()
     assert sorted(cuerpo["avanzados"]) == sorted([a, b])
@@ -48,7 +40,7 @@ async def test_uno_invalido_falla_y_los_buenos_persisten(cliente):
 
 
 async def test_pedido_inexistente_va_a_fallidos(cliente):
-    a = await _pedido_pagado(cliente)
+    a = await pedido_pagado(cliente)
     fantasma = str(uuid.uuid4())
     r = await _lote(cliente, [a, fantasma], "en_preparacion")
     assert r.json()["avanzados"] == [a]
@@ -56,7 +48,7 @@ async def test_pedido_inexistente_va_a_fallidos(cliente):
 
 
 async def test_carrera_se_reporta_y_los_demas_siguen(cliente, monkeypatch):
-    a, b = [await _pedido_pagado(cliente) for _ in range(2)]
+    a, b = [await pedido_pagado(cliente) for _ in range(2)]
     original = RepoPedidos.avanzar_despacho
 
     async def con_carrera(self, *, pedido_id, **resto):
@@ -69,7 +61,7 @@ async def test_carrera_se_reporta_y_los_demas_siguen(cliente, monkeypatch):
     assert r.json()["avanzados"] == [b]
     assert r.json()["fallidos"][0]["pedido_id"] == a
     assert r.json()["fallidos"][0]["codigo"] == "avance_concurrente"
-    assert await _filas(HISTORIAL, a) == []
+    assert await filas_de(HISTORIAL, a) == []
 
 
 async def test_validaciones_de_forma(cliente):
@@ -85,7 +77,11 @@ async def test_validaciones_de_forma(cliente):
     assert (await _lote(cliente, [], "en_preparacion")).status_code == 422
 
 
-async def test_solo_staff(cliente):
-    a = await _pedido_pagado(cliente)
-    assert (await _lote(cliente, [a], "en_preparacion", headers={})).status_code == 401
-    assert (await _lote(cliente, [a], "en_preparacion", headers=bearer(TOKEN_ACUDIENTE))).status_code == 403
+async def test_el_admin_tambien_avanza_en_lote(cliente):
+    # El acceso (401/403) vive en `test_logistica_acceso.py` con las demas rutas
+    # de back-office.
+    a = await pedido_pagado(cliente)
+    r = await _lote(cliente, [a], "en_preparacion", headers=bearer(TOKEN_ADMIN))
+    assert r.json() == {"avanzados": [a], "fallidos": []}
+    (fila,) = await filas_de(HISTORIAL, a)
+    assert str(fila.actor_id) == ADMIN

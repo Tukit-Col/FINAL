@@ -16,39 +16,29 @@ from __future__ import annotations
 
 import uuid
 
-import httpx
 import pytest
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
-from tukit_comun.bd import MotorServicio
-from tukit_identidad.api import app
 from tukit_identidad.dominio.sesiones import emitir_token, hashear_clave
-from tukit_identidad.modelos import Base, Usuario
+from tukit_identidad.modelos import Usuario
+
+from tests._ayudas_identidad import cliente_api
 
 
 @pytest.fixture()
 async def cliente():
-    engine = create_async_engine(
-        "sqlite+aiosqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
-    )
-    async with engine.begin() as conexion:
-        await conexion.run_sync(Base.metadata.create_all)
+    """Un cliente que ya porta el token de `mama@ejemplo.com`."""
+    sembrado: dict[str, uuid.UUID] = {}
 
-    fabrica = async_sessionmaker(engine, expire_on_commit=False)
-    async with fabrica() as sesion:
+    async def _sembrar(sesion) -> None:
         usuario = Usuario(correo="mama@ejemplo.com", clave_hash=hashear_clave("demo1234"))
         sesion.add(usuario)
         await sesion.flush()
-        uid = usuario.id
-        await sesion.commit()
+        sembrado["uid"] = usuario.id
 
-    app.state.motor = MotorServicio(servicio="prueba", engine=engine, _fabrica=fabrica)
-    token = emitir_token(uid, version_permisos=1)
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
-        http.headers["Authorization"] = f"Bearer {token}"
+    async with cliente_api(_sembrar) as http:
+        uid = sembrado["uid"]
+        http.headers["Authorization"] = f"Bearer {emitir_token(uid, version_permisos=1)}"
         http.usuario_id = str(uid)  # type: ignore[attr-defined]
         yield http
-    await engine.dispose()
 
 
 async def test_ver_cuenta_devuelve_al_portador(cliente):
@@ -57,12 +47,6 @@ async def test_ver_cuenta_devuelve_al_portador(cliente):
     cuerpo = respuesta.json()
     assert cuerpo["usuario_id"] == cliente.usuario_id
     assert cuerpo["correo"] == "mama@ejemplo.com"
-
-
-async def test_sin_token_no_hay_cuenta(cliente):
-    respuesta = await cliente.get("/v1/cuenta", headers={"Authorization": ""})
-    assert respuesta.status_code == 401
-    assert respuesta.json()["error"] == "sesion_invalida"
 
 
 async def test_crear_direccion_cifra_la_linea_y_la_devuelve_descifrada(cliente):

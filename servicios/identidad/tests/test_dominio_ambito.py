@@ -18,11 +18,16 @@ def test_ambito_colegio_lleva_su_id():
     assert Ambito.colegio(cid) == Ambito(AmbitoTipo.COLEGIO, cid)
 
 
-def test_ambito_global_con_id_es_incoherente():
+@pytest.mark.parametrize(
+    ("tipo", "con_id"),
+    [
+        (AmbitoTipo.GLOBAL, True),
+        (AmbitoTipo.COLEGIO, False),
+        (AmbitoTipo.SEDE, False),
+        (AmbitoTipo.MATRICULA, False),
+    ],
+)
+def test_un_ambito_incoherente_con_su_identificador_es_un_error(tipo, con_id):
+    """El global no lleva id; todo ambito no global lo exige."""
     with pytest.raises(ValueError, match="incoherente"):
-        Ambito(AmbitoTipo.GLOBAL, uuid.uuid4())
-
-
-def test_ambito_no_global_sin_id_es_incoherente():
-    with pytest.raises(ValueError, match="incoherente"):
-        Ambito(AmbitoTipo.SEDE, None)
+        Ambito(tipo, uuid.uuid4() if con_id else None)

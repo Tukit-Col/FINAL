@@ -12,22 +12,22 @@ import uuid
 
 import httpx
 import pytest
-from sqlalchemy import insert, select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
-from tukit_comun.bd import MotorServicio
+from sqlalchemy import select
 from tukit_comun.identificadores import derivar
 from tukit_identidad.api import app
 from tukit_identidad.dominio.privacidad import (
+    FRASE_CONFIRMACION,
     confirmacion_valida,
     enmascarar_correo,
     enmascarar_telefono,
 )
 from tukit_identidad.dominio.sesiones import leer_token
-from tukit_identidad.modelos import Base, Colegio, Sede
+from tukit_identidad.modelos import Base
+
+from tests._ayudas_identidad import cliente_api, sembrar_rol_acudiente_y_colegio
 
 CLAVE = "clave1234"
-CONFIRMACION = {"confirmacion": "ELIMINAR MIS DATOS"}
+CONFIRMACION = {"confirmacion": FRASE_CONFIRMACION}
 
 
 class InventarioDoble:
@@ -50,27 +50,13 @@ class InventarioDoble:
 
 @pytest.fixture()
 async def entorno():
-    engine = create_async_engine(
-        "sqlite+aiosqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
-    )
-    async with engine.begin() as conexion:
-        await conexion.run_sync(Base.metadata.create_all)
-    fabrica = async_sessionmaker(engine, expire_on_commit=False)
-    async with fabrica() as s:
-        rol = Base.metadata.tables["rol"]
-        await s.execute(insert(rol).values(codigo="acudiente", nombre="Acudiente", del_sistema=True))
-        colegio = Colegio(id=derivar("colegio", "2.4"), nombre="Colegio San Pedro")
-        s.add(colegio)
-        await s.flush()
-        s.add(Sede(id=derivar("sede", "2.4", "u"), colegio_id=colegio.id, nombre="Sede unica"))
-        await s.commit()
-    app.state.motor = MotorServicio(servicio="prueba", engine=engine, _fabrica=fabrica)
     doble = InventarioDoble()
-    app.state.inventario = doble
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
-        yield http, doble, engine
-    del app.state.inventario
-    await engine.dispose()
+    async with cliente_api(sembrar_rol_acudiente_y_colegio) as http:
+        app.state.inventario = doble
+        try:
+            yield http, doble, app.state.motor.engine
+        finally:
+            del app.state.inventario
 
 
 async def _cuenta(http, correo: str, nombre: str = "Ana Ruiz", celular: str | None = "+57 300 555 4567"):
@@ -128,13 +114,6 @@ def test_el_contacto_sale_enmascarado():
 
 
 # ----------------------------------------------------------------- inventario
-
-
-async def test_sin_sesion_es_401(entorno):
-    http, _, _ = entorno
-    assert (await http.get("/v1/cuenta/mis-datos")).status_code == 401
-    assert (await http.get("/v1/cuenta/mis-datos/exportar")).status_code == 401
-    assert (await http.post("/v1/cuenta/supresion", json=CONFIRMACION)).status_code == 401
 
 
 async def test_el_inventario_lista_cuenta_hijos_matriculas_y_consentimientos(entorno):
@@ -204,7 +183,9 @@ async def test_suprimir_sin_la_frase_es_422_y_no_toca_nada(entorno):
     r = await http.post("/v1/cuenta/supresion", headers=tok, json={"confirmacion": "si"})
     assert r.status_code == 422
     assert r.json()["error"] == "confirmacion_requerida"
-    assert (await http.get("/v1/cuenta", headers=tok)).status_code == 200
+    cuenta = await http.get("/v1/cuenta", headers=tok)
+    assert cuenta.status_code == 200
+    assert cuenta.json()["correo"] == "ana@ejemplo.com"
 
 
 async def test_suprimir_borra_lo_personal_conserva_pedidos_y_cierra_la_cuenta(entorno):
@@ -258,13 +239,19 @@ async def test_suprimir_borra_lo_personal_conserva_pedidos_y_cierra_la_cuenta(en
 
 async def test_suprimir_con_el_token_de_otro_no_toca_mi_cuenta(entorno):
     http, _, _ = entorno
-    _, tok_a = await _cuenta(http, "ana@ejemplo.com")
+    uid_a, tok_a = await _cuenta(http, "ana@ejemplo.com")
     _, tok_b = await _cuenta(http, "beto@ejemplo.com", nombre="Beto")
     r = await http.post("/v1/cuenta/supresion", headers=tok_b, json=CONFIRMACION)
     assert r.status_code == 200
-    assert (await http.get("/v1/cuenta", headers=tok_a)).status_code == 200
+    assert r.json()["estado"] == "propagando"
+    # Se suprimio el portador del token (Beto) y Ana sigue intacta.
+    assert (await http.get("/v1/cuenta", headers=tok_b)).status_code == 401
+    cuenta_a = await http.get("/v1/cuenta", headers=tok_a)
+    assert cuenta_a.status_code == 200
+    assert cuenta_a.json() == {"usuario_id": uid_a, "correo": "ana@ejemplo.com", "nombre": "Ana Ruiz"}
     login = await http.post("/v1/sesiones", json={"correo": "ana@ejemplo.com", "clave": CLAVE})
     assert login.status_code == 200
+    assert login.json()["sesion"]["usuario_id"] == uid_a
 
 
 async def test_revocar_consentimiento_sin_suprimir(entorno):

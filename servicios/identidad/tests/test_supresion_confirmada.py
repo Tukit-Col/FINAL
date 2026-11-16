@@ -10,11 +10,8 @@ por el publicador comun.
 from __future__ import annotations
 
 import uuid
-from collections.abc import AsyncIterator
 
-import pytest_asyncio
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from tukit_comun.bandeja import Resultado
 from tukit_comun.bd import MotorServicio
 from tukit_comun.mensajes import Evento
@@ -24,16 +21,6 @@ from tukit_identidad.repositorios import RepoIdentidad
 from tukit_identidad.supresion import Cierre
 
 TITULAR = uuid.uuid4()
-
-
-@pytest_asyncio.fixture
-async def motor() -> AsyncIterator[MotorServicio]:
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-    async with engine.begin() as conexion:
-        await conexion.run_sync(Base.metadata.create_all)
-    fabrica = async_sessionmaker(engine, expire_on_commit=False)
-    yield MotorServicio(servicio="identidad", engine=engine, _fabrica=fabrica)
-    await engine.dispose()
 
 
 async def _solicitud(motor: MotorServicio) -> uuid.UUID:

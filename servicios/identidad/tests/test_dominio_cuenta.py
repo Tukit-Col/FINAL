@@ -29,5 +29,7 @@ def test_clave_corta_se_rechaza():
         validar_clave("x" * (CLAVE_MINIMA - 1))
 
 
-def test_clave_suficiente_pasa():
-    validar_clave("x" * CLAVE_MINIMA)  # no lanza
+@pytest.mark.parametrize("largo", [CLAVE_MINIMA, CLAVE_MINIMA + 24])
+def test_una_clave_del_largo_minimo_o_mas_es_valida(largo):
+    """El limite es inclusivo: `CLAVE_MINIMA` caracteres ya bastan."""
+    assert validar_clave("x" * largo) is None

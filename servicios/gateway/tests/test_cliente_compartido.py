@@ -11,20 +11,7 @@ puerta contaba en memoria. El cliente se crea al arrancar y se cierra al apagar.
 from __future__ import annotations
 
 import httpx
-from tukit_gateway.api import app
-
-
-def _contar_construcciones(monkeypatch) -> list[object]:
-    """Anota cada `httpx.AsyncClient` que se construya desde aqui."""
-    hechos: list[object] = []
-    original = httpx.AsyncClient.__init__
-
-    def espia(self, *args, **kwargs):
-        hechos.append(self)
-        original(self, *args, **kwargs)
-
-    monkeypatch.setattr(httpx.AsyncClient, "__init__", espia)
-    return hechos
+from tukit_gateway.api import RUTAS, app
 
 
 class TestUnSoloClientePorProceso:
@@ -35,27 +22,26 @@ class TestUnSoloClientePorProceso:
             assert not cliente.is_closed
         assert cliente.is_closed
 
-    async def test_las_peticiones_no_construyen_clientes(self, monkeypatch):
-        # Servicios a un puerto cerrado: el reenvio falla rapido con 503, pero
-        # recorre el camino entero, que es lo que se mide.
-        for variable in (
-            "TUKIT_CATALOGO_URL",
-            "TUKIT_IDENTIDAD_URL",
-            "TUKIT_INTELIGENCIA_URL",
-            "TUKIT_COMERCIO_URL",
-            "TUKIT_OPERACION_URL",
-        ):
-            monkeypatch.setenv(variable, "http://127.0.0.1:1")
+    async def test_reenvio_y_sonda_salen_por_el_cliente_compartido(self):
+        # El cliente compartido es un httpx de verdad con un transporte que anota
+        # cada salida. Si la puerta construyera otro cliente por peticion, esas
+        # salidas no pasarian por aqui y la cuenta no cuadraria.
+        salidas: list[str] = []
 
-        async with app.router.lifespan_context(app):
-            compartido = app.state.cliente
-            async with httpx.AsyncClient(
-                transport=httpx.ASGITransport(app=app), base_url="http://prueba"
-            ) as cliente:
-                hechos = _contar_construcciones(monkeypatch)
-                for _ in range(5):
-                    assert (await cliente.get("/v1/catalogo/conceptos")).status_code == 503
-                assert (await cliente.get("/v1/servicios")).status_code == 200
+        def anotar(peticion: httpx.Request) -> httpx.Response:
+            salidas.append(peticion.url.path)
+            return httpx.Response(200, json={"ok": True})
 
-            assert hechos == [], f"se construyeron {len(hechos)} clientes en 6 peticiones"
-            assert app.state.cliente is compartido
+        compartido = httpx.AsyncClient(transport=httpx.MockTransport(anotar))
+        app.state.cliente = compartido
+        transporte = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transporte, base_url="http://prueba") as cliente:
+            for _ in range(5):
+                assert (await cliente.get("/v1/catalogo/conceptos")).json() == {"ok": True}
+            sonda = (await cliente.get("/v1/servicios")).json()
+
+        servicios = set(RUTAS.values())
+        assert sonda["todos_arriba"] is True
+        assert set(sonda["servicios"]) == servicios
+        assert salidas == ["/v1/catalogo/conceptos"] * 5 + ["/health/ready"] * len(servicios)
+        assert app.state.cliente is compartido

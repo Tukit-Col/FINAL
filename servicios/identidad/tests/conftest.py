@@ -4,6 +4,9 @@ Los modelos usan tipos portables a proposito, asi que el mismo esquema corre
 aqui y en Postgres. Los indices parciales se declaran con `postgresql_where` y
 `sqlite_where` a la vez: si en SQLite degradaran a indices totales, la prueba
 del historial de asignaciones pasaria por el motivo equivocado.
+
+Las fixtures viven aqui; las funciones de siembra y los montajes de cliente,
+en `_ayudas_identidad.py`.
 """
 
 from __future__ import annotations
@@ -14,20 +17,11 @@ from collections.abc import AsyncIterator
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from tukit_identidad.modelos import (
-    AcudienteMatricula,
-    AmbitoTipo,
-    AsignacionRol,
-    Base,
-    Colegio,
-    Estudiante,
-    Matricula,
-    Permiso,
-    Rol,
-    RolPermiso,
-    Sede,
-    Usuario,
-)
+from tukit_comun.bd import MotorServicio
+from tukit_comun.identificadores import derivar
+from tukit_identidad.modelos import Base, Colegio, Sede
+
+from tests._ayudas_identidad import cliente_api, motor_sqlite
 
 
 @pytest.fixture(autouse=True)
@@ -52,72 +46,42 @@ async def db() -> AsyncIterator[AsyncSession]:
     await motor.dispose()
 
 
+@pytest_asyncio.fixture
+async def motor() -> AsyncIterator[MotorServicio]:
+    """La base PROPIA de Identidad como `MotorServicio`, con el API del runtime."""
+    async with motor_sqlite() as m:
+        yield m
+
+
+async def _sembrar_colegios(sesion) -> None:
+    """San Pedro ("2.4") con perfil completo y una sede; "Sin Perfil" ("9.9") sin
+    perfil ni sede, para que los campos de perfil serialicen null."""
+    colegio = Colegio(
+        id=derivar("colegio", "2.4"),
+        nombre="Colegio San Pedro",
+        dane="311001093652",
+        logo_url="https://cdn.tukit.co/colegios/san-pedro.png",
+        sitio_web="https://sanpedro.edu.co",
+        contacto_nombre="Secretaria academica",
+        contacto_email="secretaria@sanpedro.edu.co",
+        contacto_telefono="+57 1 2345678",
+        direccion="Calle 1 # 2-3, Bogota",
+    )
+    sesion.add(colegio)
+    await sesion.flush()
+    sesion.add(Sede(id=derivar("sede", "2.4", "Sede unica"), colegio_id=colegio.id, nombre="Sede unica"))
+    sesion.add(Colegio(id=derivar("colegio", "9.9"), nombre="Colegio Sin Perfil"))
+
+
+@pytest.fixture()
+async def cliente():
+    """Cliente HTTP contra la app con dos colegios sembrados (ver `_sembrar_colegios`).
+
+    Los archivos que necesitan otra siembra definen su propio `cliente`."""
+    async with cliente_api(_sembrar_colegios) as http:
+        yield http
+
+
 @pytest.fixture
 def id_nuevo():
     return lambda: uuid.uuid4()
-
-
-async def crear_usuario(db: AsyncSession, correo: str) -> Usuario:
-    u = Usuario(correo=correo, clave_hash="x")
-    db.add(u)
-    await db.flush()
-    return u
-
-
-async def crear_colegio_con_sede(db: AsyncSession, nombre: str) -> tuple[Colegio, Sede]:
-    colegio = Colegio(nombre=nombre)
-    db.add(colegio)
-    await db.flush()
-    sede = Sede(colegio_id=colegio.id, nombre=f"{nombre} - sede principal")
-    db.add(sede)
-    await db.flush()
-    return colegio, sede
-
-
-async def crear_matricula(db: AsyncSession, sede: Sede, grado: str = "5", anio: int = 2026) -> Matricula:
-    estudiante = Estudiante(nombre_cifrado=b"cifrado")
-    db.add(estudiante)
-    await db.flush()
-    matricula = Matricula(
-        estudiante_id=estudiante.id,
-        sede_id=sede.id,
-        colegio_id=sede.colegio_id,
-        grado=grado,
-        anio_lectivo=anio,
-    )
-    db.add(matricula)
-    await db.flush()
-    return matricula
-
-
-async def vincular_acudiente(db: AsyncSession, usuario: Usuario, matricula: Matricula) -> None:
-    db.add(AcudienteMatricula(usuario_id=usuario.id, matricula_id=matricula.id))
-    await db.flush()
-
-
-async def asignar(
-    db: AsyncSession,
-    usuario: Usuario,
-    rol_codigo: str,
-    tipo: AmbitoTipo,
-    ambito_id: uuid.UUID | None = None,
-    **extra,
-) -> AsignacionRol:
-    a = AsignacionRol(
-        usuario_id=usuario.id, rol_codigo=rol_codigo, ambito_tipo=tipo.value, ambito_id=ambito_id, **extra
-    )
-    db.add(a)
-    await db.flush()
-    return a
-
-
-async def crear_rol_con_permisos(db: AsyncSession, codigo: str, permisos: list[Permiso]) -> Rol:
-    rol = Rol(codigo=codigo, nombre=codigo)
-    db.add(rol)
-    for p in permisos:
-        db.add(p)
-    await db.flush()
-    for p in permisos:
-        db.add(RolPermiso(rol_codigo=codigo, permiso_codigo=p.codigo))
-    await db.flush()
-    return rol

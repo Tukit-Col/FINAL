@@ -28,3 +28,24 @@ async def _sin_cliente_compartido() -> AsyncIterator[None]:
     if cliente is not None:
         await cliente.aclose()
         del app.state.cliente
+
+
+@pytest.fixture()
+def atras():
+    """Cambia el cliente compartido de la puerta, no el `httpx` de verdad, que usa
+    el cliente de la prueba. `_sin_cliente_compartido` lo retira al final."""
+    from _ayudas_gateway import Atras
+
+    falso = Atras()
+    app.state.cliente = falso.cliente
+    return falso
+
+
+@pytest.fixture()
+def redis():
+    """Un Redis en memoria colgado como cliente de cache de la puerta."""
+    from tukit_comun.pruebas_redis import RedisEnMemoria, cliente_en_memoria
+
+    motor = RedisEnMemoria()
+    usar_cliente(cliente_en_memoria(motor))
+    return motor

@@ -174,7 +174,7 @@ def test_despacho_con_transportadora_y_guia_no_pide_repartidor():
     assert validar_avance("en_preparacion", "despachado", transportadora="Servientrega", guia="123") is None
 
 
-def test_despacho_sin_transportadora_sigue_pidiendo_repartidor():
+def test_despacho_sin_transportadora_pide_repartidor():
     rechazo = validar_avance("en_preparacion", "despachado", guia="123")
     assert rechazo is not None
     assert rechazo.razon == "despacho_incompleto"
