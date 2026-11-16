@@ -82,6 +82,50 @@ class Emparejamiento:
         return datos
 
 
+# Un libro pedido por TITULO no lo surte cualquier libro del concepto. El
+# concepto «libro o texto con titulo» junta todo el plan lector; sin esto, el
+# renglon «Los secretos de Hafiz Mustafa» recibia el primer libro por sku
+# («Valeria en el Reino de Malagana»), con su foto, como si fuera el pedido.
+# El discriminante del concepto es el isbn13, que ninguna lista escribe: el
+# titulo es lo unico que el renglon trae para decir CUAL libro es.
+_VACIAS_TITULO = frozenset(
+    "de del la las el los en y o a un una con para por al to the of and with an".split()
+)
+_CORTE_TITULO = re.compile(r"\(| \+ | - | / |,| with ", re.IGNORECASE)
+
+
+def _palabras_titulo(texto: str) -> set[str]:
+    import unicodedata
+
+    plano = "".join(
+        c for c in unicodedata.normalize("NFD", texto.lower()) if unicodedata.category(c) != "Mn"
+    )
+    return {p for p in re.findall(r"[a-z0-9+]+", plano) if len(p) > 1 and p not in _VACIAS_TITULO}
+
+
+def pide_titulo(discriminantes: tuple[str, ...] | list[str]) -> bool:
+    """El concepto distingue sus productos por isbn: cada producto es UN libro."""
+    return "isbn13" in tuple(discriminantes or ())
+
+
+def del_mismo_titulo(texto: str, productos: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Los productos cuyo titulo esta entero en el renglon.
+
+    El titulo es lo de antes del primer parentesis, guion o coma del nombre
+    («Gateway to the World b1 Student's Book (en Ingles)» -> gateway world b1
+    student book). Todas sus palabras tienen que estar en el renglon: asi el b1
+    no se confunde con el a2 ni con el b1+, y un titulo que no tenemos no trae
+    ningun libro.
+    """
+    del_renglon = _palabras_titulo(texto)
+    elegidos = []
+    for producto in productos:
+        titulo = _palabras_titulo(_CORTE_TITULO.split(producto.get("nombre") or "", maxsplit=1)[0])
+        if titulo and titulo <= del_renglon:
+            elegidos.append(producto)
+    return elegidos
+
+
 def _elegir_por_nivel(productos: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Una opcion por nivel, y la de marca antes que la de personaje.
 
@@ -271,6 +315,8 @@ def emparejar(
         if (k, v) not in _NO_SE_EXIGEN
     }
     del_concepto = [p for p in productos if p.get("concepto_id") == concepto_id]
+    if pide_titulo(concepto.get("discriminantes") or ()):
+        del_concepto = del_mismo_titulo(texto, del_concepto)
     if not del_concepto:
         return Emparejamiento(
             texto=texto,

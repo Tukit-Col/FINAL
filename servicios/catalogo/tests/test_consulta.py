@@ -275,3 +275,78 @@ class TestElAcudienteNoSaleALaRed:
         assert "tiendas.buscar" not in fuente
         assert "completar" not in fuente
         assert "urllib" not in fuente
+
+
+class TestUnLibroConTituloSoloSeSurteConEseTitulo:
+    """Un libro pedido por titulo no se cambia por otro libro del mismo concepto.
+
+    El Septimo de San Pedro Claver pedia «Los secretos de Hafiz Mustafa» y
+    «Sherlock, Lupin y yo», y el kit ofrecia «Valeria en el Reino de Malagana»
+    para todos: el concepto (libro con titulo) estaba bien, el producto no.
+    """
+
+    LIBRO = uuid.UUID("00000000-0000-0000-0000-000000000134")
+    CONCEPTO = {
+        "id": LIBRO,
+        "codigo": "C134",
+        "nombre": "Libro o texto con titulo",
+        "sinonimos": ["plan lector"],
+        "discriminantes": ("isbn13",),
+        "tipo_item": "libro_libre",
+    }
+
+    def _productos(self):
+        return [
+            _producto(self.LIBRO, "VAL", "Valeria en el Reino de Malagana", "confiable", {}),
+            _producto(
+                self.LIBRO,
+                "GW-B1",
+                "Gateway to the World b1 Student'S Book With Student'S app and Digital Student'S Book (en Inglés)",
+                "confiable",
+                {},
+            ),
+            _producto(
+                self.LIBRO,
+                "GW-A2",
+                "Gateway to the World a2 Student'S Book With Student'S app and Digital Student'S Book (en Inglés)",
+                "confiable",
+                {},
+            ),
+        ]
+
+    def _emparejar(self, texto):
+        return emparejar(texto, [self.CONCEPTO], self._productos(), concepto_forzado="C134")
+
+    def test_el_titulo_que_no_tenemos_es_un_hueco_y_no_otro_libro(self):
+        for texto in (
+            "Los secretos de Hafiz Mustafá - Francisco Leal Quevedo. Editorial Norma.",
+            "Sherlock, Lupin y yo. Último acto en el teatro de la Ópera. Irene Adler. Editorial Planeta.",
+            "Lectura Multidimensional Método 84H",
+        ):
+            r = self._emparejar(texto)
+            assert r.opciones == (), texto
+            assert r.estado == "hueco_catalogo", texto
+
+    def test_el_titulo_que_si_tenemos_se_surte_con_ese_libro(self):
+        r = self._emparejar("Valeria. En el reino de Malagana. Albeiro Echeverria. Editorial Panamericana.")
+        assert [o.sku for o in r.opciones] == ["VAL"]
+
+    def test_el_nivel_del_texto_escoge_la_edicion(self):
+        r = self._emparejar("GATEWAY TO THE WORLD B1 STUDENT'S BOOK. Editorial Macmillan Education.")
+        assert [o.sku for o in r.opciones] == ["GW-B1"]
+
+    def test_la_ruta_rapida_aplica_la_misma_regla(self):
+        from tukit_catalogo.routers.admin import _renglon_resuelto
+
+        candidatos, _, _ = _renglon_resuelto(
+            "Los secretos de Hafiz Mustafá - Francisco Leal Quevedo. Editorial Norma.",
+            {},
+            self._productos(),
+            ("isbn13",),
+            concepto="C134",
+        )
+        assert candidatos == []
+        candidatos, _, _ = _renglon_resuelto(
+            "Valeria. En el reino de Malagana.", {}, self._productos(), ("isbn13",), concepto="C134"
+        )
+        assert [c["sku"] for c in candidatos] == ["VAL"]

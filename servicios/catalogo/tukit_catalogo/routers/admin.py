@@ -554,8 +554,10 @@ def _renglon_resuelto(
     Lo que el renglon nombra con varios valores (`rayado o cuadriculado`) no
     se exige y se devuelve aparte para que una persona lo mire.
     """
-    from ..consulta import _cumple
+    from ..consulta import _cumple, del_mismo_titulo, pide_titulo
 
+    if pide_titulo(discriminantes):
+        productos = del_mismo_titulo(texto, productos)
     leidos, por_revisar, juego_inferido = _lo_que_dice_el_texto(texto, discriminantes, cantidad)
     impuestos = _con_lo_curado(leidos, curados, discriminantes)
 
