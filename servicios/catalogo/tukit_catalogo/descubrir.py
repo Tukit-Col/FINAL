@@ -123,9 +123,13 @@ PAR_DE_ESCUADRAS = re.compile(
 
 
 # Palabras con que un colegio abre un grupo antes de los dos puntos: "Kit escolar:",
-# "Materiales para generar textura como:", "Para las ninas:". Lista corta a
-# proposito: cualquier otro prefijo se trata como la cosa pedida.
+# "Materiales para generar textura como:", "Para las ninas:". Es el atajo: no hace
+# falta mirar el catalogo para saber que son un encabezado. Con cualquier otra
+# palabra, `clasificar` decide con el catalogo (`_sin_encabezado_de_grupo`).
 _PREFIJO_DE_GRUPO = re.compile(r"^(kit|materiales?|para)\b")
+
+# Un encabezado de grupo es corto: con mas palabras es la descripcion de la cosa.
+_PALABRAS_MAXIMAS_DE_ENCABEZADO = 5
 
 
 def consulta_desde_renglon(renglon: str) -> str:
@@ -248,6 +252,37 @@ def singular(palabra: str) -> str:
     return palabra
 
 
+def _sin_encabezado_de_grupo(renglon: str, conceptos: list[dict[str, Any]]) -> str:
+    """El renglon sin su encabezado: «Utiles: lapiz negro» -> «lapiz negro».
+
+    Ante «X: resto», X es un encabezado cuando no nombra nada de nuestro
+    catalogo y es corto. Si X es un concepto o un sinonimo —«Cuaderno: grande
+    empastado», «Colores: caja x 12»— es la cosa pedida y lo de despues es un
+    detalle: el renglon se deja como esta. «Nombrar» es que la cabeza de X sea,
+    en singular, la primera palabra de un nombre o sinonimo; la comparacion por
+    raiz de cinco letras de `_misma_cosa` no sirve aqui, porque `papeleria` y
+    `papel` quedan iguales y el encabezado se tomaria por un concepto.
+    """
+    grupo, dos_puntos, resto = renglon.partition(":")
+    if not dos_puntos or not resto.strip():
+        return renglon
+    if _PREFIJO_DE_GRUPO.match(grupo.strip()):
+        return resto
+    # Un encabezado es una frase corta sin punto: «La casa sonambula. Autor: X» es
+    # el titulo de un libro y su autor, no un grupo.
+    if not grupo.split() or len(grupo.split()) > _PALABRAS_MAXIMAS_DE_ENCABEZADO or "." in grupo:
+        return renglon
+    nucleo = singular(cabeza(grupo))
+    if not nucleo:
+        return renglon
+    for concepto in conceptos:
+        for candidato in [concepto["nombre"], *(concepto["sinonimos"] or [])]:
+            palabras = _plano(candidato).split()
+            if palabras and singular(palabras[0]) == nucleo:
+                return renglon
+    return resto
+
+
 def _misma_cosa(a: str, b: str) -> bool:
     """Si dos palabras nombran la misma cosa, comparando singulares."""
     sa, sb = singular(a), singular(b)
@@ -295,6 +330,7 @@ def clasificar(
     mejor_id, mejor_nombre, mejor = None, "", 0.0
     renglon = RANGO_DUREZA.sub(" serie durezas ", _plano(renglon))
     renglon = PAR_DE_ESCUADRAS.sub(" escuadras juego ", renglon)
+    renglon = _sin_encabezado_de_grupo(renglon, conceptos)
     nucleo = cabeza(renglon)
     for concepto in conceptos:
         # Recortado en 0: un coseno negativo no es "menos parecido que nada",
