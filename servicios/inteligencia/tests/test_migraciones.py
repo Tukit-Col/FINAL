@@ -1,6 +1,10 @@
-"""La migracion que devuelve a su lista los canonicos que eran el kit de un papa.
+"""Las migraciones de Alembic de Inteligencia, contra SQLite.
 
-Hasta que aprobar el trabajo de un acudiente dejo de fijarlo como canonico, cada
+La suite crea las tablas con `create_all`; estas pruebas cubren el otro lado:
+que la MIGRACION, la que corre contra Postgres, haga lo que el modelo declara.
+
+`canonico_de_lista` devuelve a su lista los canonicos que eran el kit de un
+papa. Hasta que aprobar el trabajo de un acudiente dejo de fijarlo como canonico, cada
 aprobacion en la cola de revision reemplazaba el puntero del grado por el kit de
 ese papa, con sus preferencias. La migracion apunta esos grados al ultimo
 `canonico_lista` publicado de su (colegio, grado, anio); un grado sin canonico
@@ -20,14 +24,15 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from tukit_inteligencia.modelos import Base
 
-_REVISION = Path(__file__).resolve().parents[1] / "migraciones/versions/20261025_1200_canonico_de_lista.py"
+_VERSIONES = Path(__file__).resolve().parents[1] / "migraciones/versions"
+_REVISION_CANONICO = _VERSIONES / "20261025_1200_canonico_de_lista.py"
 
 COLEGIO = "4c06f0e5-cb44-5865-93e5-ea7b2f115d49"
 OTRO = "2030c794-3ff4-5b1a-a2ec-5c5d383de3f1"
 
 
-def _cargar_revision():
-    spec = importlib.util.spec_from_file_location("revision_canonico_de_lista", _REVISION)
+def _cargar_revision_canonico():
+    spec = importlib.util.spec_from_file_location("revision_canonico_de_lista", _REVISION_CANONICO)
     modulo = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(modulo)
@@ -71,7 +76,7 @@ def _puntero(conexion, colegio: str, grado: str) -> uuid.UUID:
 
 
 def test_el_grado_vuelve_al_ultimo_canonico_de_su_lista():
-    revision = _cargar_revision()
+    revision = _cargar_revision_canonico()
     assert revision.down_revision == "3c7d9e1f5a28"
 
     engine = sa.create_engine("sqlite://")
@@ -129,7 +134,7 @@ def test_el_grado_vuelve_al_ultimo_canonico_de_su_lista():
 
 
 def test_sin_canonico_de_lista_el_puntero_se_queda():
-    revision = _cargar_revision()
+    revision = _cargar_revision_canonico()
     engine = sa.create_engine("sqlite://")
     with engine.begin() as conexion:
         Base.metadata.create_all(conexion)
@@ -145,7 +150,7 @@ def test_sin_canonico_de_lista_el_puntero_se_queda():
 
 
 def test_un_canonico_de_lista_no_se_toca():
-    revision = _cargar_revision()
+    revision = _cargar_revision_canonico()
     engine = sa.create_engine("sqlite://")
     with engine.begin() as conexion:
         Base.metadata.create_all(conexion)
@@ -172,3 +177,46 @@ def test_un_canonico_de_lista_no_se_toca():
             revision.upgrade()
 
         assert _puntero(conexion, COLEGIO, "Primero") == actual
+
+
+# --- importacion_lista (ADR 0040) -----------------------------------------------------------------
+
+
+# La migracion de `importacion_lista` va y vuelve en SQLite (ADR 0040).
+#
+# La suite crea las tablas con `create_all`, asi que la tabla nueva aparece sola
+# en las demas pruebas; esta cubre el otro lado: que la MIGRACION, la que corre
+# contra Postgres, cree la tabla que el modelo declara y que el downgrade la
+# quite. La tabla no tiene llaves foraneas, asi que basta una base vacia.
+
+
+_REVISION_IMPORTACION = _VERSIONES / "20261019_1200_importacion_lista.py"
+
+
+def _cargar_revision_importacion():
+    spec = importlib.util.spec_from_file_location("revision_importacion_lista", _REVISION_IMPORTACION)
+    modulo = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
+def test_upgrade_crea_la_tabla_del_modelo_y_downgrade_la_quita():
+    revision = _cargar_revision_importacion()
+    assert revision.down_revision == "9e3a5f7b2c41"
+
+    engine = sa.create_engine("sqlite://")
+    with engine.begin() as conexion:
+        contexto = MigrationContext.configure(conexion)
+        with Operations.context(contexto):
+            revision.upgrade()
+            inspector = sa.inspect(conexion)
+            columnas = {c["name"] for c in inspector.get_columns("importacion_lista")}
+            assert columnas == {c.name for c in Base.metadata.tables["importacion_lista"].columns}
+            indices = {i["name"]: i for i in inspector.get_indexes("importacion_lista")}
+            assert {"ix_importacion_pendiente", "ix_importacion_contacto"} <= set(indices)
+            unicas = {u["name"] for u in inspector.get_unique_constraints("importacion_lista")}
+            assert "uq_importacion_clave" in unicas
+
+            revision.downgrade()
+            assert "importacion_lista" not in sa.inspect(conexion).get_table_names()

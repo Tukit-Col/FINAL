@@ -15,7 +15,7 @@ import httpx
 import pytest
 from tukit_comun.cache import usar_cliente
 from tukit_comun.pruebas_redis import clientes_de_prueba, lo_guardado
-from tukit_inteligencia import api, cache_lecturas
+from tukit_inteligencia import cache_lecturas
 from tukit_inteligencia.api import app
 from tukit_inteligencia.percepcion import ItemExtraido, PaginaLeida
 
@@ -54,7 +54,7 @@ def _subida(pdf: bytes, referencia: str) -> dict:
     }
 
 
-async def test_dos_subidas_del_mismo_pdf_leen_una_vez_contra_redis(motor, monkeypatch):
+async def test_dos_subidas_del_mismo_pdf_leen_una_vez_contra_redis(motor):
     lecturas: list[int] = []
 
     def _leer(_png: bytes, numero: int) -> PaginaLeida:
@@ -64,8 +64,8 @@ async def test_dos_subidas_del_mismo_pdf_leen_una_vez_contra_redis(motor, monkey
             items=[ItemExtraido(descripcion="2 cuadernos cuadriculados", cantidad=2, confianza=0.9)],
         )
 
-    monkeypatch.setattr(api, "_RENDERIZAR", lambda _contenido: [b"p1", b"p2"])
-    monkeypatch.setattr(api, "_LEER", _leer)
+    app.state.renderizar = lambda _contenido: [b"p1", b"p2"]
+    app.state.leer = _leer
     app.state.motor = motor
     app.state.catalogo = Catalogo()
     app.state.identidad = Identidad()
@@ -89,4 +89,5 @@ async def test_dos_subidas_del_mismo_pdf_leen_una_vez_contra_redis(motor, monkey
     (lectura,) = guardado.values()
     assert set(json.loads(lectura.valor)) == {"grados", "paginas", "items"}
     assert CORREO.encode() not in lectura.valor
-    assert (30 * 24 * 3600 - 60) * 1000 < lectura.vence_en_ms <= 30 * 24 * 3600 * 1000
+    ttl_ms = 30 * 24 * 3600 * 1000  # el contrato de la ADR 0047
+    assert ttl_ms - 60_000 < lectura.vence_en_ms <= ttl_ms

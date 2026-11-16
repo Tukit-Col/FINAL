@@ -16,7 +16,7 @@ import httpx
 import pytest
 from tukit_comun.cache import usar_cliente
 from tukit_comun.pruebas_redis import RedisEnMemoria, cliente_en_memoria
-from tukit_inteligencia import api, cache_lecturas
+from tukit_inteligencia import cache_lecturas
 from tukit_inteligencia.api import app
 from tukit_inteligencia.percepcion import ItemExtraido, PaginaLeida, Percepcion, percibir
 
@@ -49,11 +49,22 @@ class Lector:
 
 
 @pytest.fixture()
-def lector(monkeypatch) -> Lector:
+def lector() -> Lector:
+    """El lector doble, puesto tambien como puerto de percepcion de la app."""
     lector = Lector()
-    monkeypatch.setattr(api, "_RENDERIZAR", lambda _contenido: [b"p1"])
-    monkeypatch.setattr(api, "_LEER", lector)
+    app.state.renderizar = lambda _contenido: [b"p1"]
+    app.state.leer = lector
     return lector
+
+
+@pytest.fixture()
+def leer_guardada(lector):
+    """`percibir_guardada` con el lector doble: la lectura con cache de un archivo."""
+
+    async def leer(contenido: bytes) -> Percepcion:
+        return await cache_lecturas.percibir_guardada(contenido, lambda archivo: _sin_cache(archivo, lector))
+
+    return leer
 
 
 @pytest.fixture()
@@ -70,64 +81,64 @@ def _sin_cache(contenido: bytes, lector: Lector) -> Percepcion:
 # --- El envoltorio ---------------------------------------------------------
 
 
-async def test_el_mismo_archivo_dos_veces_se_lee_una(lector, redis):
-    primera = await api._percibir_onboarding(b"%PDF-lista-cuarto")
-    segunda = await api._percibir_onboarding(b"%PDF-lista-cuarto")
+async def test_el_mismo_archivo_dos_veces_se_lee_una(leer_guardada, lector, redis):
+    primera = await leer_guardada(b"%PDF-lista-cuarto")
+    segunda = await leer_guardada(b"%PDF-lista-cuarto")
 
     assert lector.lecturas == [1]
     assert segunda == primera
     assert segunda.aceptada
 
 
-async def test_otro_archivo_se_lee_aparte(lector, redis):
-    await api._percibir_onboarding(b"%PDF-lista-cuarto")
-    await api._percibir_onboarding(b"%PDF-lista-quinto")
+async def test_otro_archivo_se_lee_aparte(leer_guardada, lector, redis):
+    await leer_guardada(b"%PDF-lista-cuarto")
+    await leer_guardada(b"%PDF-lista-quinto")
 
     assert lector.lecturas == [1, 1]
 
 
-async def test_un_rechazo_no_se_guarda(lector, redis):
+async def test_un_rechazo_no_se_guarda(leer_guardada, lector, redis):
     lector.pagina = _pagina(["Cuarto", "Quinto"])
 
     for _ in range(2):
-        percepcion = await api._percibir_onboarding(b"%PDF-dos-grados")
+        percepcion = await leer_guardada(b"%PDF-dos-grados")
         assert percepcion.error == "lista_de_varios_grados"
 
     assert lector.lecturas == [1, 1]
     assert redis.operaciones("guardar") == []
 
 
-async def test_una_pagina_incompleta_tampoco_se_guarda(lector, redis):
+async def test_una_pagina_incompleta_tampoco_se_guarda(leer_guardada, lector, redis):
     lector.pagina = _pagina(completa=False)
 
-    await api._percibir_onboarding(b"%PDF-incompleta")
-    await api._percibir_onboarding(b"%PDF-incompleta")
+    await leer_guardada(b"%PDF-incompleta")
+    await leer_guardada(b"%PDF-incompleta")
 
     assert lector.lecturas == [1, 1]
     assert redis.operaciones("guardar") == []
 
 
-async def test_un_archivo_vacio_no_pregunta_a_redis(lector, redis):
-    percepcion = await api._percibir_onboarding(b"")
+async def test_un_archivo_vacio_no_pregunta_a_redis(leer_guardada, lector, redis):
+    percepcion = await leer_guardada(b"")
 
     assert percepcion.error == "archivo_vacio"
     assert redis.llamadas == []
 
 
-async def test_otro_modelo_vuelve_a_leer(lector, redis, monkeypatch):
-    await api._percibir_onboarding(b"%PDF-lista-cuarto")
+async def test_otro_modelo_vuelve_a_leer(leer_guardada, lector, redis, monkeypatch):
+    await leer_guardada(b"%PDF-lista-cuarto")
     monkeypatch.setenv("GEMINI_MODELO", "gemini-otro-modelo")
 
-    await api._percibir_onboarding(b"%PDF-lista-cuarto")
+    await leer_guardada(b"%PDF-lista-cuarto")
 
     assert lector.lecturas == [1, 1]
 
 
-async def test_un_cambio_en_el_codigo_que_lee_vuelve_a_leer(lector, redis, monkeypatch):
-    await api._percibir_onboarding(b"%PDF-lista-cuarto")
+async def test_un_cambio_en_el_codigo_que_lee_vuelve_a_leer(leer_guardada, lector, redis, monkeypatch):
+    await leer_guardada(b"%PDF-lista-cuarto")
     monkeypatch.setattr(cache_lecturas, "_huella_del_codigo", lambda: "otro-prompt-u-otro-render")
 
-    await api._percibir_onboarding(b"%PDF-lista-cuarto")
+    await leer_guardada(b"%PDF-lista-cuarto")
 
     assert lector.lecturas == [1, 1]
 
@@ -150,55 +161,56 @@ def test_la_huella_cubre_render_prompt_y_reglas():
     assert len(cache_lecturas._huella_del_codigo()) == 64
 
 
-async def test_con_redis_caido_lee_como_hoy_y_responde_igual(lector, redis):
+async def test_con_redis_caido_lee_como_hoy_y_responde_igual(leer_guardada, lector, redis):
     redis.caido = True
 
-    primera = await api._percibir_onboarding(b"%PDF-lista-cuarto")
-    segunda = await api._percibir_onboarding(b"%PDF-lista-cuarto")
+    primera = await leer_guardada(b"%PDF-lista-cuarto")
+    segunda = await leer_guardada(b"%PDF-lista-cuarto")
 
     assert lector.lecturas == [1, 1]
     assert primera == segunda == _sin_cache(b"%PDF-lista-cuarto", Lector())
 
 
-async def test_con_redis_lento_lee_como_hoy_y_responde_igual(lector, redis):
+async def test_con_redis_lento_lee_como_hoy_y_responde_igual(leer_guardada, lector, redis):
     redis.demora = 1.0
 
-    percepcion = await api._percibir_onboarding(b"%PDF-lista-cuarto")
+    percepcion = await leer_guardada(b"%PDF-lista-cuarto")
 
     assert lector.lecturas == [1]
     assert percepcion == _sin_cache(b"%PDF-lista-cuarto", Lector())
 
 
-async def test_sin_redis_lee_cada_vez_como_hoy(lector):
-    await api._percibir_onboarding(b"%PDF-lista-cuarto")
-    await api._percibir_onboarding(b"%PDF-lista-cuarto")
+async def test_sin_redis_lee_cada_vez_como_hoy(leer_guardada, lector):
+    await leer_guardada(b"%PDF-lista-cuarto")
+    await leer_guardada(b"%PDF-lista-cuarto")
 
     assert lector.lecturas == [1, 1]
 
 
-async def test_la_duracion_es_de_treinta_dias_y_se_configura(lector, redis, monkeypatch):
-    await api._percibir_onboarding(b"%PDF-a")
+async def test_la_duracion_es_de_treinta_dias_y_se_configura(leer_guardada, lector, redis, monkeypatch):
+    await leer_guardada(b"%PDF-a")
     monkeypatch.setenv("TUKIT_CACHE_PERCEPCION_SEGUNDOS", "3600")
-    await api._percibir_onboarding(b"%PDF-b")
+    await leer_guardada(b"%PDF-b")
 
+    # Los 30 dias son el contrato de la ADR 0047, no un detalle del codigo.
     assert redis.vence_en("tukit:" + cache_lecturas.clave(b"%PDF-a")) == pytest.approx(30 * 24 * 3600, abs=5)
     assert redis.vence_en("tukit:" + cache_lecturas.clave(b"%PDF-b")) == pytest.approx(3600, abs=5)
 
 
-async def test_con_duracion_cero_no_hay_cache(lector, redis, monkeypatch):
+async def test_con_duracion_cero_no_hay_cache(leer_guardada, lector, redis, monkeypatch):
     monkeypatch.setenv("TUKIT_CACHE_PERCEPCION_SEGUNDOS", "0")
 
-    await api._percibir_onboarding(b"%PDF-lista-cuarto")
-    await api._percibir_onboarding(b"%PDF-lista-cuarto")
+    await leer_guardada(b"%PDF-lista-cuarto")
+    await leer_guardada(b"%PDF-lista-cuarto")
 
     assert lector.lecturas == [1, 1]
     assert redis.llamadas == []
 
 
-async def test_un_valor_ilegible_cuenta_como_no_guardado(lector, redis):
+async def test_un_valor_ilegible_cuenta_como_no_guardado(leer_guardada, lector, redis):
     await redis.guardar_varias({"tukit:" + cache_lecturas.clave(b"%PDF-roto"): b"{no es json"}, 60)
 
-    percepcion = await api._percibir_onboarding(b"%PDF-roto")
+    percepcion = await leer_guardada(b"%PDF-roto")
 
     assert lector.lecturas == [1]
     assert percepcion.aceptada

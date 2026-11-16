@@ -50,6 +50,23 @@ def _limitador_limpio() -> None:
 
 
 @pytest.fixture(autouse=True)
+def _sin_dobles_que_sobrevivan() -> Iterator[None]:
+    """Los dobles que una prueba pone en la frontera publica no pasan a la siguiente.
+
+    El modelo del asistente (`nl2c.usar_llamador`) y los puertos de percepcion
+    (`app.state.renderizar` / `app.state.leer`) son del proceso: sin esto, una
+    prueba leeria el PDF con el lector de la anterior."""
+    yield
+    from tukit_inteligencia import nl2c
+    from tukit_inteligencia.api import app
+
+    nl2c.usar_llamador(None)
+    for puerto in ("renderizar", "leer"):
+        if hasattr(app.state, puerto):
+            delattr(app.state, puerto)
+
+
+@pytest.fixture(autouse=True)
 def _sin_redis(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """Las pruebas corren sin Redis aunque quien las lance tenga `REDIS_URL`.
 

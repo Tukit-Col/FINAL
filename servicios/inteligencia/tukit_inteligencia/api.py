@@ -10,9 +10,9 @@ se crea, se consulta, y cuando termina se avisa. Las rutas viven en
 los helpers puros del pipeline en `dominio/` (ADR 0019). Este modulo solo
 ensambla y conserva el wiring que las rutas y las pruebas necesitan:
 
-- Los puertos de percepcion (`_RENDERIZAR`/`_LEER`/`_percibir_onboarding`) viven
-  aqui como indireccion de modulo para que el onboarding se pueda probar sin
-  pypdfium2 ni una llave de Gemini: las pruebas los sustituyen por dobles.
+- Los puertos de percepcion (render y lectura de pagina) tienen su valor por
+  omision aqui y se cambian por `app.state.renderizar` / `app.state.leer`, para
+  que el onboarding se pueda probar sin pypdfium2 ni una llave de Gemini.
   `_percibir_onboarding` reaprovecha la lectura guardada en Redis de un archivo
   ya leido (`cache_lecturas`, ADR 0047).
 - Los clientes remotos (`_catalogo`/`_identidad`/`_comercio`) leen de
@@ -61,23 +61,25 @@ from .routers.nl2c import router as router_nl2c  # noqa: E402
 
 PUERTO_POR_OMISION = 8013
 
-# Los dos puertos de percepcion viven como indireccion de modulo para que el
-# onboarding se pueda probar sin pypdfium2 y sin una llave de Gemini: las
-# pruebas sustituyen `_RENDERIZAR` y `_LEER` (o el envoltorio completo
-# `_percibir_onboarding`) por dobles. En produccion apuntan al render real y
-# al adaptador de Gemini, que es el unico sitio que toca la red y la llave.
+# Los dos puertos de percepcion tienen su valor por omision aqui y se pueden
+# cambiar por `app.state.renderizar` / `app.state.leer`, como los clientes
+# remotos: asi el onboarding se prueba sin pypdfium2 y sin una llave de Gemini.
+# En produccion apuntan al render real y al adaptador de Gemini, que es el
+# unico sitio que toca la red y la llave.
 _RENDERIZAR: Renderizar = paginas.renderizar
 _LEER: LeerPagina = gemini.pedir_pagina
 
 
 async def _percibir_onboarding(contenido: bytes) -> Percepcion:
-    """Envoltorio con los puertos por omision y la cache de lecturas,
-    monkeypatcheable en pruebas.
+    """La lectura de un PDF con los puertos de `app.state` (o los por omision)
+    y la cache de lecturas.
 
     La lectura sigue siendo la llamada sincrona de siempre; el envoltorio es
     asincrono para preguntarle a Redis sin bloquear el bucle."""
+    renderizar = getattr(app.state, "renderizar", None) or _RENDERIZAR
+    leer = getattr(app.state, "leer", None) or _LEER
     return await cache_lecturas.percibir_guardada(
-        contenido, lambda archivo: percibir(archivo, renderizar=_RENDERIZAR, leer=_LEER)
+        contenido, lambda archivo: percibir(archivo, renderizar=renderizar, leer=leer)
     )
 
 

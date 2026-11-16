@@ -22,9 +22,9 @@ import uuid
 
 import httpx
 import pytest
+from _ayudas_inteligencia import COLEGIO, CatalogoPreview
 from conftest import opcion, reconocido, renglon
 from sqlalchemy import select
-from test_preview_onboarding import COLEGIO, CatalogoPreview
 from tukit_inteligencia import trabajos
 from tukit_inteligencia.api import app
 from tukit_inteligencia.modelos import EstadoResolucion, EstadoTrabajo

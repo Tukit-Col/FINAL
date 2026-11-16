@@ -17,7 +17,7 @@ from tukit_inteligencia import trabajos
 from tukit_inteligencia.api import app
 
 TRABAJO = uuid.UUID("44444444-4444-5444-8444-444444444444")
-LEGADA = {"destinatario": "Ana Perez", "direccion": "Calle 72 # 10-34", "ciudad": "Bogotá"}
+ENTREGA_MINIMA = {"destinatario": "Ana Perez", "direccion": "Calle 72 # 10-34", "ciudad": "Bogotá"}
 
 
 @pytest.fixture()
@@ -38,17 +38,17 @@ def _cuerpo(entrega: dict) -> dict:
     return {"perfil": "Ahorrador", "correo": "ana@ejemplo.com", "entrega": entrega}
 
 
-async def test_sin_los_campos_nuevos_la_entrega_viaja_como_siempre(cliente_y_entregas):
+async def test_una_entrega_sin_localidad_ni_indicaciones_viaja_tal_cual(cliente_y_entregas):
     cliente, entregas = cliente_y_entregas
-    respuesta = await cliente.post(f"/v1/trabajos/{TRABAJO}/ordenar", json=_cuerpo(LEGADA))
+    respuesta = await cliente.post(f"/v1/trabajos/{TRABAJO}/ordenar", json=_cuerpo(ENTREGA_MINIMA))
     assert respuesta.status_code == 201
-    assert entregas == [LEGADA]
+    assert entregas == [ENTREGA_MINIMA]
 
 
 async def test_localidad_indicaciones_y_place_id_llegan_a_comercio(cliente_y_entregas):
     cliente, entregas = cliente_y_entregas
     completa = {
-        **LEGADA,
+        **ENTREGA_MINIMA,
         "departamento": "Bogotá, D.C.",
         "indicaciones": "Apto 502, torre 2",
         "localidad": "Chapinero",
@@ -61,7 +61,7 @@ async def test_localidad_indicaciones_y_place_id_llegan_a_comercio(cliente_y_ent
 
 async def test_el_pin_de_openstreetmap_llega_a_comercio(cliente_y_entregas):
     cliente, entregas = cliente_y_entregas
-    con_pin = {**LEGADA, "latitud": 4.651818, "longitud": -74.051003}
+    con_pin = {**ENTREGA_MINIMA, "latitud": 4.651818, "longitud": -74.051003}
     respuesta = await cliente.post(f"/v1/trabajos/{TRABAJO}/ordenar", json=_cuerpo(con_pin))
     assert respuesta.status_code == 201
     assert entregas == [con_pin]
@@ -73,7 +73,8 @@ async def test_el_pin_de_openstreetmap_llega_a_comercio(cliente_y_entregas):
 )
 async def test_un_pin_incompleto_o_fuera_de_colombia_no_llega_a_comercio(cliente_y_entregas, coordenadas):
     cliente, entregas = cliente_y_entregas
-    respuesta = await cliente.post(f"/v1/trabajos/{TRABAJO}/ordenar", json=_cuerpo({**LEGADA, **coordenadas}))
+    entrega = {**ENTREGA_MINIMA, **coordenadas}
+    respuesta = await cliente.post(f"/v1/trabajos/{TRABAJO}/ordenar", json=_cuerpo(entrega))
     assert respuesta.status_code in (400, 422)
     assert entregas == []
 
@@ -82,10 +83,10 @@ async def test_un_campo_desconocido_no_cruza(cliente_y_entregas):
     # Solo cruzan `latitud`/`longitud` (ADR 0049); un `lat`/`lng` inventado no.
     cliente, entregas = cliente_y_entregas
     respuesta = await cliente.post(
-        f"/v1/trabajos/{TRABAJO}/ordenar", json=_cuerpo({**LEGADA, "lat": 4.65, "lng": -74.05})
+        f"/v1/trabajos/{TRABAJO}/ordenar", json=_cuerpo({**ENTREGA_MINIMA, "lat": 4.65, "lng": -74.05})
     )
     assert respuesta.status_code == 201
-    assert entregas == [LEGADA]
+    assert entregas == [ENTREGA_MINIMA]
 
 
 @pytest.mark.parametrize(
@@ -94,7 +95,7 @@ async def test_un_campo_desconocido_no_cruza(cliente_y_entregas):
 async def test_un_campo_demasiado_largo_no_llega_a_comercio(cliente_y_entregas, campo, largo):
     cliente, entregas = cliente_y_entregas
     respuesta = await cliente.post(
-        f"/v1/trabajos/{TRABAJO}/ordenar", json=_cuerpo({**LEGADA, campo: "x" * largo})
+        f"/v1/trabajos/{TRABAJO}/ordenar", json=_cuerpo({**ENTREGA_MINIMA, campo: "x" * largo})
     )
     assert respuesta.status_code in (400, 422)
     assert entregas == []

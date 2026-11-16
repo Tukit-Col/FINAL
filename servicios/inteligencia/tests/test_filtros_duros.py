@@ -139,7 +139,7 @@ class TestSoloDisponibles:
         r = aplicar_filtros_duros([_reng(1, "x", c)], {"solo_disponibles": True})
         assert [x.sku for x in r[0].candidatos] == ["B"]
 
-    def test_sin_el_filtro_el_candidato_sin_precio_sigue_siendo_admisible(self):
+    def test_sin_el_filtro_el_candidato_sin_precio_es_admisible(self):
         c = (_cand("A", "economico", None, "Norma"), _cand("B", "premium", 900, "Otra"))
         r = aplicar_filtros_duros([_reng(1, "x", c)], {})
         assert len(r[0].candidatos) == 2

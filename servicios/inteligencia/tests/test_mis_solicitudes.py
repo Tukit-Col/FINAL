@@ -22,7 +22,7 @@ from typing import Any
 
 import httpx
 import pytest
-from sqlalchemy import insert
+from _ayudas_inteligencia import IdentidadFalsa, lista_del_catalogo, sembrar_trabajo
 from tukit_inteligencia import trabajos
 from tukit_inteligencia.api import app
 from tukit_inteligencia.modelos import Base, EstadoTrabajo
@@ -34,29 +34,6 @@ COLEGIO = "22222222-2222-5222-8222-222222222222"
 # Dos acudientes reales (UUID válidos): el token resuelve a uno de ellos.
 PADRE = uuid.UUID("aaaaaaaa-aaaa-5aaa-8aaa-aaaaaaaaaaaa")
 OTRO_PADRE = uuid.UUID("bbbbbbbb-bbbb-5bbb-8bbb-bbbbbbbbbbbb")
-
-
-@dataclass
-class IdentidadFalsa:
-    """Doble del puerto hacia identidad: token→usuario_id (UUID). Un token
-    ausente vale como inválido (`None` => 401); `caida=True` lanza `RemotoCaido`
-    para probar el fallo cerrado (503)."""
-
-    usuario_por_token: dict[str, uuid.UUID] = field(default_factory=dict)
-    caida: bool = False
-
-    async def sesion(self, token: str) -> dict[str, Any] | None:
-        if self.caida:
-            raise RemotoCaido("identidad", "simulada")
-        if token not in self.usuario_por_token:
-            return None
-        return {
-            "usuario_id": str(self.usuario_por_token[token]),
-            "correo": f"{token}@tukit.co",
-            "nombre": token,
-            "roles": [{"rol": "acudiente", "ambito": None}],
-            "version_permisos": 1,
-        }
 
 
 @dataclass
@@ -75,52 +52,6 @@ class CatalogoListasFalso:
         return list(self.por_contacto.get(contacto_referencia, ()))
 
 
-async def _sembrar_trabajo(
-    motor,
-    *,
-    usuario_id: uuid.UUID,
-    estado: str = EstadoTrabajo.PUBLICADO.value,
-    origen: str = "colegio_grado",
-    hijos: list[dict[str, Any]],
-    creado_en: datetime | None = None,
-) -> uuid.UUID:
-    trabajo_id = uuid.uuid4()
-    error = "prueba" if estado == EstadoTrabajo.FALLIDO.value else None
-    valores: dict[str, Any] = {
-        "id": trabajo_id,
-        "usuario_id": usuario_id,
-        "estado": estado,
-        "origen": origen,
-        "hijos": hijos,
-        "error": error,
-    }
-    if creado_en is not None:
-        valores["creado_en"] = creado_en
-    async with motor.sesion() as db:
-        conexion = await db.connection()
-        await conexion.execute(insert(TRABAJO).values(**valores))
-    return trabajo_id
-
-
-def _lista(
-    *,
-    version_id: str | None,
-    revisada: bool,
-    grado: str = "Quinto",
-    colegio_nombre: str | None = None,
-    creada_en: str,
-) -> dict[str, Any]:
-    return {
-        "version_id": version_id,
-        "colegio_id": COLEGIO,
-        "colegio_nombre": colegio_nombre,
-        "grado": grado,
-        "anio_lectivo": 2026,
-        "revisada_en": creada_en if revisada else None,
-        "creada_en": creada_en,
-    }
-
-
 # --------------------------------------------------------------------------
 # La función de dominio
 # --------------------------------------------------------------------------
@@ -130,7 +61,7 @@ async def test_lista_aprobada_y_su_trabajo_se_unen(motor):
     # Una lista aprobada y el trabajo que engendró (mismo version_id) salen como
     # UNA sola solicitud `aprobada`, no como dos filas.
     version_id = str(uuid.uuid4())
-    trabajo_id = await _sembrar_trabajo(
+    trabajo_id = await sembrar_trabajo(
         motor,
         usuario_id=PADRE,
         origen="lista_verificada",
@@ -139,7 +70,11 @@ async def test_lista_aprobada_y_su_trabajo_se_unen(motor):
     )
     catalogo = CatalogoListasFalso(
         por_contacto={
-            str(PADRE): [_lista(version_id=version_id, revisada=True, creada_en="2026-01-01T10:00:00+00:00")]
+            str(PADRE): [
+                lista_del_catalogo(
+                    version_id=version_id, revisada=True, creada_en="2026-01-01T10:00:00+00:00"
+                )
+            ]
         }
     )
 
@@ -157,7 +92,7 @@ async def test_lista_sin_aprobar_es_recibida(motor):
     catalogo = CatalogoListasFalso(
         por_contacto={
             str(PADRE): [
-                _lista(
+                lista_del_catalogo(
                     version_id=str(uuid.uuid4()),
                     revisada=False,
                     colegio_nombre="Colegio Nuevo",
@@ -177,7 +112,7 @@ async def test_lista_sin_aprobar_es_recibida(motor):
 
 
 async def test_trabajo_sin_lista_es_trabajo(motor):
-    trabajo_id = await _sembrar_trabajo(
+    trabajo_id = await sembrar_trabajo(
         motor,
         usuario_id=PADRE,
         estado=EstadoTrabajo.ESPERA_REVISION.value,
@@ -197,8 +132,8 @@ async def test_trabajo_sin_lista_es_trabajo(motor):
 
 async def test_solo_devuelve_datos_del_portador(motor):
     # Un trabajo de OTRO padre no debe aparecer en las solicitudes del portador.
-    await _sembrar_trabajo(motor, usuario_id=OTRO_PADRE, hijos=[{"colegio_id": COLEGIO, "grado": "Quinto"}])
-    mio = await _sembrar_trabajo(motor, usuario_id=PADRE, hijos=[{"colegio_id": COLEGIO, "grado": "Quinto"}])
+    await sembrar_trabajo(motor, usuario_id=OTRO_PADRE, hijos=[{"colegio_id": COLEGIO, "grado": "Quinto"}])
+    mio = await sembrar_trabajo(motor, usuario_id=PADRE, hijos=[{"colegio_id": COLEGIO, "grado": "Quinto"}])
     catalogo = CatalogoListasFalso(por_contacto={})
 
     resultado = await trabajos.mis_solicitudes(motor, PADRE, catalogo=catalogo)
@@ -213,12 +148,14 @@ async def test_orden_mas_reciente_primero(motor):
     # Un trabajo naive (SQLite) y una lista con fecha ISO aware: ordenar mezclando
     # ambos no debe lanzar TypeError, y la más reciente va primero.
     viejo = datetime(2026, 1, 1, 8, 0, 0)  # naive, como vuelve de SQLite
-    await _sembrar_trabajo(
+    await sembrar_trabajo(
         motor, usuario_id=PADRE, hijos=[{"colegio_id": COLEGIO, "grado": "Primero"}], creado_en=viejo
     )
     reciente = (datetime.now(UTC) + timedelta(days=1)).isoformat()
     catalogo = CatalogoListasFalso(
-        por_contacto={str(PADRE): [_lista(version_id=str(uuid.uuid4()), revisada=False, creada_en=reciente)]}
+        por_contacto={
+            str(PADRE): [lista_del_catalogo(version_id=str(uuid.uuid4()), revisada=False, creada_en=reciente)]
+        }
     )
 
     resultado = await trabajos.mis_solicitudes(motor, PADRE, catalogo=catalogo)
@@ -228,7 +165,7 @@ async def test_orden_mas_reciente_primero(motor):
 
 
 async def test_catalogo_caido_devuelve_trabajos_y_marca_listas_no_disponibles(motor):
-    trabajo_id = await _sembrar_trabajo(
+    trabajo_id = await sembrar_trabajo(
         motor, usuario_id=PADRE, hijos=[{"colegio_id": COLEGIO, "grado": "Quinto"}]
     )
     catalogo = CatalogoListasFalso(caida=True)
@@ -258,14 +195,13 @@ async def cliente(motor):
             delattr(app.state, attr)
 
 
-async def test_sin_token_es_401(cliente):
-    respuesta = await cliente.get(RUTA)
-    assert respuesta.status_code == 401
-    assert respuesta.json()["error"] == "sesion_invalida"
-
-
-async def test_token_invalido_es_401(cliente):
-    respuesta = await cliente.get(RUTA, headers={"Authorization": "Bearer no-existe"})
+@pytest.mark.parametrize(
+    "cabeceras",
+    [{}, {"Authorization": "Bearer no-existe"}],
+    ids=["sin_token", "token_invalido"],
+)
+async def test_sin_sesion_valida_es_401(cliente, cabeceras):
+    respuesta = await cliente.get(RUTA, headers=cabeceras)
     assert respuesta.status_code == 401
     assert respuesta.json()["error"] == "sesion_invalida"
 
@@ -290,8 +226,8 @@ async def test_identidad_caida_falla_cerrada_503(motor):
 async def test_portador_usa_el_usuario_de_la_sesion(motor):
     # Un trabajo del portador y otro de un tercero: la puerta solo devuelve el del
     # portador, y consulta al catálogo con SU usuario_id (el de la sesión).
-    await _sembrar_trabajo(motor, usuario_id=OTRO_PADRE, hijos=[{"colegio_id": COLEGIO, "grado": "Quinto"}])
-    mio = await _sembrar_trabajo(motor, usuario_id=PADRE, hijos=[{"colegio_id": COLEGIO, "grado": "Quinto"}])
+    await sembrar_trabajo(motor, usuario_id=OTRO_PADRE, hijos=[{"colegio_id": COLEGIO, "grado": "Quinto"}])
+    mio = await sembrar_trabajo(motor, usuario_id=PADRE, hijos=[{"colegio_id": COLEGIO, "grado": "Quinto"}])
     app.state.motor = motor
     app.state.identidad = IdentidadFalsa(usuario_por_token={"tok-padre": PADRE})
     catalogo = CatalogoListasFalso(por_contacto={})

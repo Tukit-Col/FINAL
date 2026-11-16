@@ -723,7 +723,17 @@ def _llamar_gemini(
     )
 
 
-_LLAMAR: Llamador = _llamar_gemini  # las pruebas lo sustituyen por un doble
+_LLAMAR: Llamador = _llamar_gemini
+
+
+def usar_llamador(llamador: Llamador | None) -> None:
+    """Cambia quien contesta por el modelo; `None` vuelve a Gemini.
+
+    Es la costura de las pruebas y del banco de ensayos: el doble recibe lo que
+    recibiria Gemini (sistema, texto del padre, declaraciones, lista blanca) y
+    devuelve una `RespuestaModelo`, sin red ni llave."""
+    global _LLAMAR
+    _LLAMAR = llamador if llamador is not None else _llamar_gemini
 
 
 async def consultar_modelo(

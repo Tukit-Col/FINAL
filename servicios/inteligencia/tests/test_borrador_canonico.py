@@ -12,15 +12,14 @@ from __future__ import annotations
 import uuid
 
 import pytest
+from _ayudas_inteligencia import COLEGIO, GRADO, catalogo_verificado, puntero_canonico, sembrar_preview
 from sqlalchemy import select, update
-from test_canonico_lista import GRADO, _preview, _puntero
-from test_fastroute import COLEGIO, _catalogo_verificado
 from tukit_inteligencia import trabajos
 from tukit_inteligencia.modelos import EstadoTrabajo, PerfilKit
 
 
 async def _canonico(motor, version: uuid.UUID | None = None) -> uuid.UUID:
-    preview = await _preview(motor, version or uuid.uuid4())
+    preview = await sembrar_preview(motor, version or uuid.uuid4())
     await trabajos.fijar_como_canonico(motor, preview)
     return preview
 
@@ -66,7 +65,7 @@ class TestAbrirBorrador:
         assert not {fila.item_crudo_id for fila in copiadas} & {fila.item_crudo_id for fila in originales}
         # El original sigue intacto y vigente.
         assert (await _trabajo(motor, canonico)).estado == EstadoTrabajo.PUBLICADO.value
-        assert await _puntero(motor) == canonico
+        assert await puntero_canonico(motor) == canonico
 
     async def test_un_segundo_pedido_devuelve_el_mismo_borrador(self, motor):
         canonico = await _canonico(motor)
@@ -126,7 +125,7 @@ class TestPublicarBorrador:
 
         await trabajos.fijar_como_canonico(motor, borrador)
 
-        assert await _puntero(motor) == borrador
+        assert await puntero_canonico(motor) == borrador
         assert (await _trabajo(motor, canonico)).estado == EstadoTrabajo.PUBLICADO.value
         (grado,) = await trabajos.grados_canonicos(motor, colegio_id=COLEGIO)
         assert grado["borrador_trabajo_id"] is None
@@ -167,7 +166,7 @@ class TestPublicarBorrador:
             anio_lectivo=2026,
             perfil=PerfilKit.AHORRADOR.value,
             usuario_id=uuid.uuid4(),
-            catalogo=_catalogo_verificado(),
+            catalogo=catalogo_verificado(),
         )
         borrador = uuid.UUID((await trabajos.abrir_borrador(motor, canonico))["trabajo_id"])
         await trabajos.fijar_como_canonico(motor, borrador)
@@ -183,7 +182,7 @@ class TestPublicarBorrador:
 
         with pytest.raises(trabajos.BorradorDesactualizado):
             await trabajos.fijar_como_canonico(motor, borrador)
-        assert await _puntero(motor) == nuevo
+        assert await puntero_canonico(motor) == nuevo
 
 
 async def _linea_con_producto(motor, trabajo_id: uuid.UUID):
@@ -202,7 +201,7 @@ class TestKitsPublicadosNoSeEditanEnSitio:
                 linea.perfil,
                 linea.item_crudo_id,
                 linea.sku,
-                catalogo=_catalogo_verificado(),
+                catalogo=catalogo_verificado(),
             )
 
     async def test_marcar_sin_coincidencia_en_un_canonico_publicado_se_niega(self, motor):

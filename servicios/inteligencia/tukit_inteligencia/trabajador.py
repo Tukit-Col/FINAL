@@ -197,11 +197,16 @@ async def barrer(motor: Any, *, catalogo: ClienteCatalogo | None = None) -> int:
     )
 
 
-async def correr_una_vez() -> int:
+async def correr_una_vez(*, motor: Any = None, catalogo: Any = None) -> int:
+    """Una pasada y el reintento de las listas pendientes.
+
+    Sin `motor` abre el suyo y lo cierra al terminar; uno que se le pasa (las
+    pruebas) es de quien lo paso."""
     from tukit_comun.bd import crear_motor
 
-    motor = crear_motor("inteligencia")
-    catalogo = ClienteCatalogo()
+    propio = motor is None
+    motor = motor or crear_motor("inteligencia")
+    catalogo = catalogo or ClienteCatalogo()
     try:
         hechos = await pasada(motor, catalogo=catalogo, retomar_colgados=True)
         importadas = await importaciones.reintentar_pendientes(motor, catalogo=catalogo)
@@ -209,19 +214,28 @@ async def correr_una_vez() -> int:
             print(f"[trabajador] listas importadas: {importadas}")
         return hechos
     finally:
-        await motor.cerrar()
+        if propio:
+            await motor.cerrar()
 
 
-async def _bucle(
+async def correr_en_bucle(
     intervalo: float,
     *,
     dormir: Callable[[float], Awaitable[None]] | None = None,
     con_avisos: bool = False,
+    motor: Any = None,
+    catalogo: Any = None,
 ) -> None:
+    """Pasadas en bucle resiliente: espera y reintenta si la base no responde.
+
+    Sin `motor` abre el suyo (con `pool_pre_ping`, que reconecta) y lo cierra al
+    salir; uno que se le pasa es de quien lo paso. `dormir` por omision es el
+    `asyncio.sleep` de cuando corre."""
     from tukit_comun.bd import crear_motor
 
-    motor = crear_motor("inteligencia")
-    catalogo = ClienteCatalogo()
+    propio = motor is None
+    motor = motor or crear_motor("inteligencia")
+    catalogo = catalogo or ClienteCatalogo()
     vuelta = 0
 
     async def _vuelta() -> None:
@@ -250,7 +264,8 @@ async def _bucle(
             _vuelta, intervalo=intervalo, proceso="inteligencia-trabajador", dormir=dormir or asyncio.sleep
         )
     finally:
-        await motor.cerrar()
+        if propio:
+            await motor.cerrar()
 
 
 async def escuchar_cola(
@@ -290,7 +305,7 @@ async def escuchar_cola(
                     dormir=dormir or asyncio.sleep,
                 )
             )
-            grupo.create_task(_bucle(intervalo, dormir=dormir, con_avisos=True))
+            grupo.create_task(correr_en_bucle(intervalo, dormir=dormir, con_avisos=True))
         return 0
     finally:
         await motor.cerrar()
@@ -312,7 +327,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[trabajador] trabajos procesados: {hechos}")
         return 0
     if argumentos.seguir:
-        asyncio.run(_bucle(argumentos.intervalo))
+        asyncio.run(correr_en_bucle(argumentos.intervalo))
     else:
         hechos = asyncio.run(correr_una_vez())
         print(f"[trabajador] trabajos procesados: {hechos}")
@@ -323,4 +338,12 @@ if __name__ == "__main__":
     raise SystemExit(main())
 
 
-__all__ = ["atender_aviso", "barrer", "correr_una_vez", "escuchar_cola", "main", "pasada"]
+__all__ = [
+    "atender_aviso",
+    "barrer",
+    "correr_en_bucle",
+    "correr_una_vez",
+    "escuchar_cola",
+    "main",
+    "pasada",
+]

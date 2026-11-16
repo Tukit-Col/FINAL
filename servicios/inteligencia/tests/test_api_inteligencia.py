@@ -230,8 +230,10 @@ class TestSinListaSeRechazaAlCrear:
             ),
         )
         assert respuesta.status_code == 202
+        assert respuesta.json()["estado"] == "encolado"
+        assert cliente.lanzados == [uuid.UUID(respuesta.json()["trabajo_id"])]
 
-    async def test_con_el_catalogo_caido_se_encola_como_antes(self, cliente):
+    async def test_con_el_catalogo_caido_se_encola_sin_verificar_la_lista(self, cliente):
         class CatalogoCaido:
             async def listas(self, **_kw):
                 raise RemotoCaido("catalogo", "simulado")
@@ -414,6 +416,7 @@ class TestQuienLeeUnTrabajo:
             f"/v1/trabajos/{trabajo_id}", headers={"Authorization": "Bearer tok-acud"}
         )
         assert respuesta.status_code == 200
+        assert respuesta.json()["trabajo_id"] == str(trabajo_id)
 
     async def test_otra_cuenta_recibe_404_y_no_403(self, cliente, motor):
         trabajo_id = await _crear_del_acudiente(cliente, motor)
@@ -469,6 +472,7 @@ class TestQuienLeeUnTrabajo:
             f"/v1/trabajos/{trabajo_id}", headers={"Authorization": "Bearer tok-staff"}
         )
         assert respuesta.status_code == 200
+        assert respuesta.json()["trabajo_id"] == str(trabajo_id)
 
     async def test_identidad_caida_con_dueno_con_clave_falla_cerrada(self, cliente, motor):
         trabajo_id = await _crear_del_acudiente(cliente, motor)
@@ -517,6 +521,8 @@ class TestQuienLeeUnTrabajo:
             f"/v1/trabajos/{trabajo_id}/kits/{kit['perfil']}/lineas/{kit['lineas'][0]['item_id']}/opciones"
         )
         assert respuesta.status_code == 200
+        elegido = kit["lineas"][0]["producto_elegido"]["sku"]
+        assert elegido in {o["sku"] for o in respuesta.json()["opciones"]}
 
 
 class TestLaColaYLaPublicacion:
