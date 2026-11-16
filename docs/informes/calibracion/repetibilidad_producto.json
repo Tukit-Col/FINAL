@@ -1,0 +1,1166 @@
+{
+ "resumen": {
+  "tau": 0.75,
+  "corte_sin_match": 0.5,
+  "lecturas_nuevas": 0,
+  "textos_unicos_resueltos": 630,
+  "textos_sin_vector_(coseno=0)": 0,
+  "renglones_agrupados": 430,
+  "renglones_inestables": 140,
+  "absorbidos_por_guardrail": 22,
+  "inestables_solo_por_ausencia": 123,
+  "inestables_resultado_distinto": 17,
+  "con_aceptacion_automatica": 118,
+  "conceptos_que_aparecen_o_desaparecen": 31,
+  "conceptos_union": 205,
+  "d_ruta_rapida": {
+   "listas_oficiales": 90,
+   "con_version_vigente_revisada": 80,
+   "memoria_dice": "76 grados de 7 colegios, cada lista aprobada por una persona",
+   "nota": "La base de desarrollo no reproduce el 76: hay mas listas y mas revisadas. Cuadrar la cifra antes de citarla."
+  }
+ },
+ "documentos": [
+  {
+   "documento": "CACS_SEPTIMO",
+   "corridas": 5,
+   "renglones_agrupados_entre_corridas": 105,
+   "a_renglones_presentes_en_las_5": 89,
+   "a_pct_renglones_estables_(presente_en_las_5_y_mismo_resultado)": 80.0,
+   "a_pct_mismo_concepto_entre_los_presentes_en_las_5": 95.5,
+   "a_renglones_presentes_en_las_5_con_cantidad_distinta": 7,
+   "b_conceptos_auto_por_corrida": [
+    53,
+    53,
+    52,
+    53,
+    51
+   ],
+   "b_conceptos_union": 53,
+   "b_conceptos_en_las_5": 51,
+   "b_conceptos_que_aparecen_o_desaparecen": 2,
+   "b_vs_primera_corrida": [
+    {
+     "aparecen": 0,
+     "desaparecen": 0
+    },
+    {
+     "aparecen": 0,
+     "desaparecen": 1
+    },
+    {
+     "aparecen": 0,
+     "desaparecen": 0
+    },
+    {
+     "aparecen": 0,
+     "desaparecen": 2
+    }
+   ],
+   "b_jaccard_conjunto_entre_corridas_media": 0.9811,
+   "b_jaccard_conjunto_entre_corridas_min": 0.9623,
+   "b_conceptos_variables": [
+    "Plan lector virtual",
+    "Transportador"
+   ],
+   "b_de_ellos_que_aparecen_en_revision_en_alguna_corrida": 0,
+   "c_renglones_inestables": 21,
+   "c_inestables_solo_por_ausencia_en_alguna_corrida": 16,
+   "c_inestables_con_resultado_distinto_(concepto_o_estado)": 5,
+   "c_absorbidos_por_guardrail_(nunca_>=tau)": 3,
+   "c_con_alguna_aceptacion_automatica": 18,
+   "estados_por_corrida": [
+    {
+     "auto": 89,
+     "revision": 2,
+     "sin_match": 6
+    },
+    {
+     "auto": 90,
+     "revision": 3,
+     "sin_match": 4
+    },
+    {
+     "auto": 88,
+     "revision": 3,
+     "sin_match": 7
+    },
+    {
+     "auto": 88,
+     "revision": 2,
+     "sin_match": 7
+    },
+    {
+     "auto": 85,
+     "revision": 4,
+     "sin_match": 7
+    }
+   ],
+   "ejemplos_inestables": [
+    {
+     "ejemplo": "Cartilla Agustiniana (medio virtual en la página del colegio, no se debe comprar)",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Lo entrega el colegio",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Lectura Multidimensional Método 84H",
+     "corridas_presente": 5,
+     "resultados": [
+      [
+       "Libro o texto con título",
+       "auto"
+      ],
+      [
+       "Libro o texto con título",
+       "revision"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Los secretos de Hafiz Mustafá - Francisco Leal Quevedo. Editorial Norma",
+     "corridas_presente": 5,
+     "resultados": [
+      [
+       "Libro o texto con título",
+       "auto"
+      ],
+      [
+       "sin concepto",
+       "sin_match"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Sherlock, Lupin y yo. Último acto en el teatro de la Ópera. Irene Adler. Editorial Planeta",
+     "corridas_presente": 5,
+     "resultados": [
+      [
+       "Libro o texto con título",
+       "auto"
+      ],
+      [
+       "sin concepto",
+       "sin_match"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Valeria. En el reino de Malagana. Albeiro Echeverria. Editorial Panamericana",
+     "corridas_presente": 5,
+     "resultados": [
+      [
+       "Libro o texto con título",
+       "auto"
+      ],
+      [
+       "sin concepto",
+       "sin_match"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Libro de Lectura Libre Guiada",
+     "corridas_presente": 3,
+     "resultados": [
+      [
+       "Libro",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Plan lector virtual Inglés RAZ- PLUS",
+     "corridas_presente": 5,
+     "resultados": [
+      [
+       "Libro o texto con título",
+       "auto"
+      ],
+      [
+       "Plan lector virtual",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Compás",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Compás",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Transportador 360 grados",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Transportador",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Regla 30 cm",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Regla",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Bata de laboratorio de material antifluido, debidamente marcada y uso obligatorio para ingreso a laboratorios de ciencias naturales, procesos fisicoquímicos",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Bata de laboratorio",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Kit básico de componentes electrónicos que se emplea a lo largo del bachillerato. Dependiendo del tipo de proyecto o experiencia práctica, se solicitarán materiales adicionales.",
+     "corridas_presente": 1,
+     "resultados": [
+      [
+       "Componente electrónico especializado",
+       "auto"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "documento": "CACS_TERCERO",
+   "corridas": 5,
+   "renglones_agrupados_entre_corridas": 98,
+   "a_renglones_presentes_en_las_5": 65,
+   "a_pct_renglones_estables_(presente_en_las_5_y_mismo_resultado)": 65.3,
+   "a_pct_mismo_concepto_entre_los_presentes_en_las_5": 98.5,
+   "a_renglones_presentes_en_las_5_con_cantidad_distinta": 3,
+   "b_conceptos_auto_por_corrida": [
+    49,
+    50,
+    48,
+    49,
+    49
+   ],
+   "b_conceptos_union": 52,
+   "b_conceptos_en_las_5": 46,
+   "b_conceptos_que_aparecen_o_desaparecen": 6,
+   "b_vs_primera_corrida": [
+    {
+     "aparecen": 2,
+     "desaparecen": 1
+    },
+    {
+     "aparecen": 1,
+     "desaparecen": 2
+    },
+    {
+     "aparecen": 1,
+     "desaparecen": 1
+    },
+    {
+     "aparecen": 2,
+     "desaparecen": 2
+    }
+   ],
+   "b_jaccard_conjunto_entre_corridas_media": 0.9446,
+   "b_jaccard_conjunto_entre_corridas_min": 0.9216,
+   "b_conceptos_variables": [
+    "Audífonos de diadema",
+    "Cartuchera",
+    "Libro o texto con título",
+    "Plan lector virtual",
+    "Transportador",
+    "Vestuario para presentaciones"
+   ],
+   "b_de_ellos_que_aparecen_en_revision_en_alguna_corrida": 3,
+   "c_renglones_inestables": 34,
+   "c_inestables_solo_por_ausencia_en_alguna_corrida": 30,
+   "c_inestables_con_resultado_distinto_(concepto_o_estado)": 4,
+   "c_absorbidos_por_guardrail_(nunca_>=tau)": 9,
+   "c_con_alguna_aceptacion_automatica": 25,
+   "estados_por_corrida": [
+    {
+     "auto": 79,
+     "revision": 4,
+     "sin_match": 3
+    },
+    {
+     "auto": 78,
+     "revision": 1,
+     "sin_match": 6
+    },
+    {
+     "auto": 74,
+     "revision": 1,
+     "sin_match": 4
+    },
+    {
+     "auto": 72,
+     "revision": 4,
+     "sin_match": 2
+    },
+    {
+     "auto": 75,
+     "revision": 2,
+     "sin_match": 4
+    }
+   ],
+   "ejemplos_inestables": [
+    {
+     "ejemplo": "Cartilla Agustiniana (medio virtual en la pagina del colegio, no se debe comprar)",
+     "corridas_presente": 2,
+     "resultados": [
+      [
+       "Lo entrega el colegio",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Comprension lectora y Plan lector virtual Lengua Castellana RAZ- PLUS",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Plan lector virtual",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Libro de plan lector: La familia mas rica del mundo, Editorial Enlace",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Libro o texto con título",
+       "auto"
+      ],
+      [
+       "sin concepto",
+       "sin_match"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Libro de plan lector: El pais mas hermoso del mundo. Editorial Norma",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Libro o texto con título",
+       "auto"
+      ],
+      [
+       "sin concepto",
+       "sin_match"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Libro de plan lector: Detective Equis. Antonia Sanin. Ediciones Castillo",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Libro o texto con título",
+       "auto"
+      ],
+      [
+       "sin concepto",
+       "sin_match"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Diccionario: El disponible en casa",
+     "corridas_presente": 3,
+     "resultados": [
+      [
+       "Diccionario",
+       "revision"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Plan lector virtual Ingles RAZ- PLUS, administrada en Colombia por QUOVIX",
+     "corridas_presente": 5,
+     "resultados": [
+      [
+       "Libro o texto con título",
+       "auto"
+      ],
+      [
+       "Plan lector virtual",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Audifonos estilo diadema (headphones, no earbuds) con conector tipo auxiliar o usb",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Audífonos de diadema",
+       "revision"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "1 lapiz negro delgado",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Lápiz",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Texto de grado segundo - Alpha Mathematics On-Level Practice Book. 3. Editorial Libros y Libros",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "sin concepto",
+       "sin_match"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Bata de laboratorio de material antifluido, debidamente marcada y uso obligatorio para ingreso a laboratorios de ciencias naturales",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Bata de laboratorio",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Todo debidamente marcado",
+     "corridas_presente": 3,
+     "resultados": [
+      [
+       "sin concepto",
+       "sin_match"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "documento": "CACS_JARDIN",
+   "corridas": 5,
+   "renglones_agrupados_entre_corridas": 113,
+   "a_renglones_presentes_en_las_5": 70,
+   "a_pct_renglones_estables_(presente_en_las_5_y_mismo_resultado)": 60.2,
+   "a_pct_mismo_concepto_entre_los_presentes_en_las_5": 98.6,
+   "a_renglones_presentes_en_las_5_con_cantidad_distinta": 2,
+   "b_conceptos_auto_por_corrida": [
+    44,
+    43,
+    42,
+    42,
+    43
+   ],
+   "b_conceptos_union": 46,
+   "b_conceptos_en_las_5": 40,
+   "b_conceptos_que_aparecen_o_desaparecen": 6,
+   "b_vs_primera_corrida": [
+    {
+     "aparecen": 2,
+     "desaparecen": 3
+    },
+    {
+     "aparecen": 0,
+     "desaparecen": 2
+    },
+    {
+     "aparecen": 0,
+     "desaparecen": 2
+    },
+    {
+     "aparecen": 0,
+     "desaparecen": 1
+    }
+   ],
+   "b_jaccard_conjunto_entre_corridas_media": 0.933,
+   "b_jaccard_conjunto_entre_corridas_min": 0.8889,
+   "b_conceptos_variables": [
+    "Gafas de natación",
+    "Gorro de natación",
+    "Muda de ropa",
+    "Papel acuarela",
+    "Papel bond",
+    "Títere"
+   ],
+   "b_de_ellos_que_aparecen_en_revision_en_alguna_corrida": 1,
+   "c_renglones_inestables": 45,
+   "c_inestables_solo_por_ausencia_en_alguna_corrida": 42,
+   "c_inestables_con_resultado_distinto_(concepto_o_estado)": 3,
+   "c_absorbidos_por_guardrail_(nunca_>=tau)": 5,
+   "c_con_alguna_aceptacion_automatica": 40,
+   "estados_por_corrida": [
+    {
+     "auto": 90,
+     "revision": 2,
+     "sin_match": 0
+    },
+    {
+     "auto": 85,
+     "revision": 5,
+     "sin_match": 0
+    },
+    {
+     "auto": 87,
+     "revision": 3,
+     "sin_match": 1
+    },
+    {
+     "auto": 88,
+     "revision": 2,
+     "sin_match": 1
+    },
+    {
+     "auto": 90,
+     "revision": 3,
+     "sin_match": 0
+    }
+   ],
+   "ejemplos_inestables": [
+    {
+     "ejemplo": "carpetas legajadoras plásticas traslucidas tamaño oficio con gancho legajador. Color: Amarillo",
+     "corridas_presente": 3,
+     "resultados": [
+      [
+       "Carpeta",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "carpetas legajadoras plásticas traslucidas tamaño oficio con gancho legajador. Color: Azul",
+     "corridas_presente": 3,
+     "resultados": [
+      [
+       "Carpeta",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "carpetas legajadoras plásticas traslucidas tamaño oficio con gancho legajador. Color: Rojo",
+     "corridas_presente": 3,
+     "resultados": [
+      [
+       "Carpeta",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "carpetas legajadoras plásticas traslucidas tamaño oficio con gancho legajador. Color: Verde",
+     "corridas_presente": 3,
+     "resultados": [
+      [
+       "Carpeta",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "frascos de pintura escolares de 100 ml de colores variados con tapa dosificadora (amarillo)",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Pintura",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "frascos de pintura escolares de 100 ml de colores variados con tapa dosificadora (azul)",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Pintura",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "frascos de pintura escolares de 100 ml de colores variados con tapa dosificadora (rojo)",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Pintura",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "frascos de pintura escolares de 100 ml de colores variados con tapa dosificadora (blanco)",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Pintura",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "frascos de pintura escolares de 100 ml de colores variados con tapa dosificadora (negro)",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Pintura",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "títere correspondiente algún personaje (Persona), (animal) o rol. Ejemplo: Mujer, hombre, niño, niña bombero(a), enfermera(o), cocodrilo, tigre etc.",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Títere",
+       "revision"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "cartuchera",
+     "corridas_presente": 1,
+     "resultados": [
+      [
+       "Cartuchera",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Pañitos húmedos",
+     "corridas_presente": 2,
+     "resultados": [
+      [
+       "Toallas y pañitos",
+       "auto"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "documento": "MODELIA_SEXTO",
+   "corridas": 5,
+   "renglones_agrupados_entre_corridas": 32,
+   "a_renglones_presentes_en_las_5": 32,
+   "a_pct_renglones_estables_(presente_en_las_5_y_mismo_resultado)": 100.0,
+   "a_pct_mismo_concepto_entre_los_presentes_en_las_5": 100.0,
+   "a_renglones_presentes_en_las_5_con_cantidad_distinta": 0,
+   "b_conceptos_auto_por_corrida": [
+    19,
+    19,
+    19,
+    19,
+    19
+   ],
+   "b_conceptos_union": 19,
+   "b_conceptos_en_las_5": 19,
+   "b_conceptos_que_aparecen_o_desaparecen": 0,
+   "b_vs_primera_corrida": [
+    {
+     "aparecen": 0,
+     "desaparecen": 0
+    },
+    {
+     "aparecen": 0,
+     "desaparecen": 0
+    },
+    {
+     "aparecen": 0,
+     "desaparecen": 0
+    },
+    {
+     "aparecen": 0,
+     "desaparecen": 0
+    }
+   ],
+   "b_jaccard_conjunto_entre_corridas_media": 1.0,
+   "b_jaccard_conjunto_entre_corridas_min": 1.0,
+   "b_conceptos_variables": [],
+   "b_de_ellos_que_aparecen_en_revision_en_alguna_corrida": 0,
+   "c_renglones_inestables": 0,
+   "c_inestables_solo_por_ausencia_en_alguna_corrida": 0,
+   "c_inestables_con_resultado_distinto_(concepto_o_estado)": 0,
+   "c_absorbidos_por_guardrail_(nunca_>=tau)": 0,
+   "c_con_alguna_aceptacion_automatica": 0,
+   "estados_por_corrida": [
+    {
+     "auto": 21,
+     "revision": 0,
+     "sin_match": 11
+    },
+    {
+     "auto": 21,
+     "revision": 0,
+     "sin_match": 11
+    },
+    {
+     "auto": 21,
+     "revision": 0,
+     "sin_match": 11
+    },
+    {
+     "auto": 21,
+     "revision": 0,
+     "sin_match": 11
+    },
+    {
+     "auto": 21,
+     "revision": 0,
+     "sin_match": 11
+    }
+   ],
+   "ejemplos_inestables": []
+  },
+  {
+   "documento": "BAHIASOLANO_DECIMO",
+   "corridas": 5,
+   "renglones_agrupados_entre_corridas": 43,
+   "a_renglones_presentes_en_las_5": 20,
+   "a_pct_renglones_estables_(presente_en_las_5_y_mismo_resultado)": 44.2,
+   "a_pct_mismo_concepto_entre_los_presentes_en_las_5": 95.0,
+   "a_renglones_presentes_en_las_5_con_cantidad_distinta": 0,
+   "b_conceptos_auto_por_corrida": [
+    9,
+    9,
+    10,
+    10,
+    14
+   ],
+   "b_conceptos_union": 15,
+   "b_conceptos_en_las_5": 6,
+   "b_conceptos_que_aparecen_o_desaparecen": 9,
+   "b_vs_primera_corrida": [
+    {
+     "aparecen": 0,
+     "desaparecen": 0
+    },
+    {
+     "aparecen": 2,
+     "desaparecen": 1
+    },
+    {
+     "aparecen": 3,
+     "desaparecen": 2
+    },
+    {
+     "aparecen": 6,
+     "desaparecen": 1
+    }
+   ],
+   "b_jaccard_conjunto_entre_corridas_media": 0.6669,
+   "b_jaccard_conjunto_entre_corridas_min": 0.5333,
+   "b_conceptos_variables": [
+    "Borrador",
+    "Calculadora",
+    "Dispositivo electrónico (computador o tablet)",
+    "Guantes",
+    "Juego de geometría",
+    "Kit de lápices de dibujo",
+    "Papel higiénico",
+    "Tablero de dibujo",
+    "Tapabocas"
+   ],
+   "b_de_ellos_que_aparecen_en_revision_en_alguna_corrida": 1,
+   "c_renglones_inestables": 24,
+   "c_inestables_solo_por_ausencia_en_alguna_corrida": 22,
+   "c_inestables_con_resultado_distinto_(concepto_o_estado)": 2,
+   "c_absorbidos_por_guardrail_(nunca_>=tau)": 4,
+   "c_con_alguna_aceptacion_automatica": 20,
+   "estados_por_corrida": [
+    {
+     "auto": 27,
+     "revision": 0,
+     "sin_match": 2
+    },
+    {
+     "auto": 27,
+     "revision": 0,
+     "sin_match": 1
+    },
+    {
+     "auto": 28,
+     "revision": 0,
+     "sin_match": 2
+    },
+    {
+     "auto": 29,
+     "revision": 1,
+     "sin_match": 1
+    },
+    {
+     "auto": 33,
+     "revision": 0,
+     "sin_match": 2
+    }
+   ],
+   "ejemplos_inestables": [
+    {
+     "ejemplo": "Martes de Prueba Milton Ochoa",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "sin concepto",
+       "sin_match"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Diseno grafico",
+     "corridas_presente": 2,
+     "resultados": [
+      [
+       "sin concepto",
+       "sin_match"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Lapices HB, 2H, 2B, 6B, borrador miga de pan, escuadras 30 y 45, tabla de diseno de formato 1/4",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Kit de lápices de dibujo",
+       "auto"
+      ],
+      [
+       "sin concepto",
+       "sin_match"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Diccionario de Espanol",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Diccionario",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Diccionario de ingles y lista de verbos irregulares",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Diccionario",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Calculadora cientifica y tabla periodica plastificada",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Calculadora",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Cartuchera con implementos necesarios",
+     "corridas_presente": 3,
+     "resultados": [
+      [
+       "Cartuchera",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Bata blanca, guantes de nitrilo y tapabocas",
+     "corridas_presente": 5,
+     "resultados": [
+      [
+       "Bata de laboratorio",
+       "auto"
+      ],
+      [
+       "Guantes",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Kit escolar: toalla de manos pequena, panitos humedos, papel higienico",
+     "corridas_presente": 3,
+     "resultados": [
+      [
+       "Toallas y pañitos",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Dispositivo electronico (computador, Tablet)",
+     "corridas_presente": 3,
+     "resultados": [
+      [
+       "Dispositivo electrónico (computador o tablet)",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Cartuchera",
+     "corridas_presente": 2,
+     "resultados": [
+      [
+       "Cartuchera",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Bata blanca",
+     "corridas_presente": 3,
+     "resultados": [
+      [
+       "Bata de laboratorio",
+       "auto"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "documento": "BAHIASOLANO_QUINTO",
+   "corridas": 5,
+   "renglones_agrupados_entre_corridas": 39,
+   "a_renglones_presentes_en_las_5": 26,
+   "a_pct_renglones_estables_(presente_en_las_5_y_mismo_resultado)": 59.0,
+   "a_pct_mismo_concepto_entre_los_presentes_en_las_5": 88.5,
+   "a_renglones_presentes_en_las_5_con_cantidad_distinta": 0,
+   "b_conceptos_auto_por_corrida": [
+    17,
+    19,
+    18,
+    18,
+    16
+   ],
+   "b_conceptos_union": 20,
+   "b_conceptos_en_las_5": 12,
+   "b_conceptos_que_aparecen_o_desaparecen": 8,
+   "b_vs_primera_corrida": [
+    {
+     "aparecen": 2,
+     "desaparecen": 0
+    },
+    {
+     "aparecen": 1,
+     "desaparecen": 0
+    },
+    {
+     "aparecen": 3,
+     "desaparecen": 2
+    },
+    {
+     "aparecen": 2,
+     "desaparecen": 3
+    }
+   ],
+   "b_jaccard_conjunto_entre_corridas_media": 0.8255,
+   "b_jaccard_conjunto_entre_corridas_min": 0.7,
+   "b_conceptos_variables": [
+    "Bata de laboratorio",
+    "Borrador",
+    "Guantes",
+    "Kit de artes",
+    "Papel higiénico",
+    "Portaminas",
+    "Tapabocas",
+    "Toallas y pañitos"
+   ],
+   "b_de_ellos_que_aparecen_en_revision_en_alguna_corrida": 0,
+   "c_renglones_inestables": 16,
+   "c_inestables_solo_por_ausencia_en_alguna_corrida": 13,
+   "c_inestables_con_resultado_distinto_(concepto_o_estado)": 3,
+   "c_absorbidos_por_guardrail_(nunca_>=tau)": 1,
+   "c_con_alguna_aceptacion_automatica": 15,
+   "estados_por_corrida": [
+    {
+     "auto": 32,
+     "revision": 0,
+     "sin_match": 1
+    },
+    {
+     "auto": 33,
+     "revision": 1,
+     "sin_match": 1
+    },
+    {
+     "auto": 33,
+     "revision": 0,
+     "sin_match": 1
+    },
+    {
+     "auto": 34,
+     "revision": 1,
+     "sin_match": 1
+    },
+    {
+     "auto": 31,
+     "revision": 1,
+     "sin_match": 1
+    }
+   ],
+   "ejemplos_inestables": [
+    {
+     "ejemplo": "Cartuchera con: Borrador",
+     "corridas_presente": 1,
+     "resultados": [
+      [
+       "Cartuchera",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "tajalapiz con recipiente",
+     "corridas_presente": 2,
+     "resultados": [
+      [
+       "Tajalápiz",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "colores de buena calidad",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Colores",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Bata blanca",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Bata de laboratorio",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "guantes de nitrilo",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Guantes",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "tapabocas",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Tapabocas",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Kit escolar: toalla de manos pequena",
+     "corridas_presente": 5,
+     "resultados": [
+      [
+       "Kit de artes",
+       "auto"
+      ],
+      [
+       "Toallas y pañitos",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "panitos humedos",
+     "corridas_presente": 5,
+     "resultados": [
+      [
+       "Kit de artes",
+       "auto"
+      ],
+      [
+       "Toallas y pañitos",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "papel higienico",
+     "corridas_presente": 5,
+     "resultados": [
+      [
+       "Kit de artes",
+       "auto"
+      ],
+      [
+       "Papel higiénico",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Uniforme diario ninas",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Uniforme",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Cartuchera",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Cartuchera",
+       "auto"
+      ]
+     ]
+    },
+    {
+     "ejemplo": "Borrador",
+     "corridas_presente": 4,
+     "resultados": [
+      [
+       "Borrador",
+       "auto"
+      ]
+     ]
+    }
+   ]
+  }
+ ]
+}

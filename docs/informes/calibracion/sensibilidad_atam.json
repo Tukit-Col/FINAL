@@ -1,0 +1,753 @@
+{
+ "criterios": [
+  "Políticas de respaldo independientes según el tipo de dato",
+  "Frontera de protección de los datos de menores",
+  "Crecimiento de cada servicio según su perfil de recursos",
+  "Desempeño de la lectura, normalización y optimización",
+  "Desempeño del proceso de compra antes del cobro",
+  "Costo de la capacidad fuera de temporada",
+  "Complejidad de operación para un equipo de 4 personas",
+  "Reproducibilidad del entorno completo en un solo equipo",
+  "Aislamiento de fallas entre dominios",
+  "Viabilidad de cronograma"
+ ],
+ "pesos": [
+  0.15,
+  0.12,
+  0.15,
+  0.12,
+  0.08,
+  0.08,
+  0.12,
+  0.06,
+  0.06,
+  0.06
+ ],
+ "calificaciones": [
+  [
+   1.0,
+   5.0,
+   3.0
+  ],
+  [
+   1.0,
+   5.0,
+   5.0
+  ],
+  [
+   1.0,
+   5.0,
+   4.0
+  ],
+  [
+   5.0,
+   3.0,
+   4.0
+  ],
+  [
+   5.0,
+   2.0,
+   5.0
+  ],
+  [
+   4.0,
+   2.0,
+   3.0
+  ],
+  [
+   5.0,
+   1.0,
+   3.0
+  ],
+  [
+   5.0,
+   2.0,
+   4.0
+  ],
+  [
+   2.0,
+   5.0,
+   4.0
+  ],
+  [
+   1.0,
+   2.0,
+   5.0
+  ]
+ ],
+ "alternativas": [
+  "Monolito",
+  "Grano fino",
+  "Grano grueso"
+ ],
+ "puntaje_base": [
+  2.82,
+  3.4400000000000004,
+  3.91
+ ],
+ "margen_base_sobre_segunda": 0.46999999999999975,
+ "a_un_peso": [
+  {
+   "criterio": "Políticas de respaldo independientes según el tipo de dato",
+   "-50%": {
+    "peso_nuevo": 0.08108108108108107,
+    "puntajes": [
+     2.967567567567567,
+     3.313513513513513,
+     3.9837837837837835
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.6702702702702705
+   },
+   "-25%": {
+    "peso_nuevo": 0.11688311688311688,
+    "puntajes": [
+     2.8909090909090915,
+     3.3792207792207796,
+     3.945454545454546
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.5662337662337666
+   },
+   "+25%": {
+    "peso_nuevo": 0.18072289156626503,
+    "puntajes": [
+     2.7542168674698795,
+     3.4963855421686745,
+     3.8771084337349397
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.38072289156626526
+   },
+   "+50%": {
+    "peso_nuevo": 0.20930232558139533,
+    "puntajes": [
+     2.6930232558139533,
+     3.5488372093023255,
+     3.846511627906977
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.2976744186046516
+   }
+  },
+  {
+   "criterio": "Frontera de protección de los datos de menores",
+   "-50%": {
+    "peso_nuevo": 0.06382978723404255,
+    "puntajes": [
+     2.936170212765957,
+     3.340425531914893,
+     3.840425531914893
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.5
+   },
+   "-25%": {
+    "peso_nuevo": 0.09278350515463918,
+    "puntajes": [
+     2.876288659793815,
+     3.3917525773195876,
+     3.876288659793814
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.4845360824742264
+   },
+   "+25%": {
+    "peso_nuevo": 0.14563106796116504,
+    "puntajes": [
+     2.7669902912621356,
+     3.485436893203883,
+     3.941747572815533
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.4563106796116503
+   },
+   "+50%": {
+    "peso_nuevo": 0.16981132075471697,
+    "puntajes": [
+     2.716981132075472,
+     3.5283018867924527,
+     3.971698113207547
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.44339622641509413
+   }
+  },
+  {
+   "criterio": "Crecimiento de cada servicio según su perfil de recursos",
+   "-50%": {
+    "peso_nuevo": 0.08108108108108107,
+    "puntajes": [
+     2.967567567567567,
+     3.313513513513513,
+     3.9027027027027024
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.5891891891891894
+   },
+   "-25%": {
+    "peso_nuevo": 0.11688311688311688,
+    "puntajes": [
+     2.8909090909090915,
+     3.3792207792207796,
+     3.9064935064935074
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.5272727272727278
+   },
+   "+25%": {
+    "peso_nuevo": 0.18072289156626503,
+    "puntajes": [
+     2.7542168674698795,
+     3.4963855421686745,
+     3.9132530120481928
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.4168674698795183
+   },
+   "+50%": {
+    "peso_nuevo": 0.20930232558139533,
+    "puntajes": [
+     2.6930232558139533,
+     3.548837209302326,
+     3.9162790697674423
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.3674418604651164
+   }
+  },
+  {
+   "criterio": "Desempeño de la lectura, normalización y optimización",
+   "-50%": {
+    "peso_nuevo": 0.06382978723404255,
+    "puntajes": [
+     2.680851063829787,
+     3.468085106382979,
+     3.9042553191489358
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.4361702127659566
+   },
+   "-25%": {
+    "peso_nuevo": 0.09278350515463918,
+    "puntajes": [
+     2.752577319587629,
+     3.45360824742268,
+     3.907216494845361
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.453608247422681
+   },
+   "+25%": {
+    "peso_nuevo": 0.14563106796116504,
+    "puntajes": [
+     2.8834951456310676,
+     3.427184466019417,
+     3.9126213592233
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.4854368932038833
+   },
+   "+50%": {
+    "peso_nuevo": 0.16981132075471697,
+    "puntajes": [
+     2.9433962264150946,
+     3.4150943396226414,
+     3.9150943396226414
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.5
+   }
+  },
+  {
+   "criterio": "Desempeño del proceso de compra antes del cobro",
+   "-50%": {
+    "peso_nuevo": 0.04166666666666666,
+    "puntajes": [
+     2.729166666666666,
+     3.4999999999999996,
+     3.864583333333333
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.3645833333333335
+   },
+   "-25%": {
+    "peso_nuevo": 0.06122448979591835,
+    "puntajes": [
+     2.775510204081632,
+     3.4693877551020407,
+     3.8877551020408156
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.418367346938775
+   },
+   "+25%": {
+    "peso_nuevo": 0.09803921568627451,
+    "puntajes": [
+     2.8627450980392153,
+     3.411764705882353,
+     3.931372549019608
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.5196078431372553
+   },
+   "+50%": {
+    "peso_nuevo": 0.11538461538461538,
+    "puntajes": [
+     2.9038461538461537,
+     3.3846153846153846,
+     3.951923076923077
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.5673076923076925
+   }
+  },
+  {
+   "criterio": "Costo de la capacidad fuera de temporada",
+   "-50%": {
+    "peso_nuevo": 0.04166666666666666,
+    "puntajes": [
+     2.770833333333333,
+     3.4999999999999996,
+     3.947916666666666
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.4479166666666665
+   },
+   "-25%": {
+    "peso_nuevo": 0.06122448979591835,
+    "puntajes": [
+     2.795918367346938,
+     3.469387755102041,
+     3.928571428571428
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.4591836734693868
+   },
+   "+25%": {
+    "peso_nuevo": 0.09803921568627451,
+    "puntajes": [
+     2.8431372549019605,
+     3.411764705882353,
+     3.892156862745098
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.48039215686274517
+   },
+   "+50%": {
+    "peso_nuevo": 0.11538461538461538,
+    "puntajes": [
+     2.865384615384615,
+     3.3846153846153846,
+     3.875
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.4903846153846154
+   }
+  },
+  {
+   "criterio": "Complejidad de operación para un equipo de 4 personas",
+   "-50%": {
+    "peso_nuevo": 0.06382978723404253,
+    "puntajes": [
+     2.6808510638297864,
+     3.5957446808510625,
+     3.9680851063829774
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.37234042553191493
+   },
+   "-25%": {
+    "peso_nuevo": 0.09278350515463915,
+    "puntajes": [
+     2.752577319587628,
+     3.5154639175257723,
+     3.938144329896906
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.42268041237113385
+   },
+   "+25%": {
+    "peso_nuevo": 0.14563106796116504,
+    "puntajes": [
+     2.8834951456310676,
+     3.368932038834951,
+     3.883495145631067
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.5145631067961163
+   },
+   "+50%": {
+    "peso_nuevo": 0.16981132075471697,
+    "puntajes": [
+     2.9433962264150946,
+     3.30188679245283,
+     3.858490566037736
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.5566037735849059
+   }
+  },
+  {
+   "criterio": "Reproducibilidad del entorno completo en un solo equipo",
+   "-50%": {
+    "peso_nuevo": 0.030927835051546386,
+    "puntajes": [
+     2.752577319587628,
+     3.4845360824742255,
+     3.90721649484536
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.4226804123711343
+   },
+   "-25%": {
+    "peso_nuevo": 0.04568527918781725,
+    "puntajes": [
+     2.7868020304568524,
+     3.461928934010152,
+     3.9086294416243645
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.44670050761421276
+   },
+   "+25%": {
+    "peso_nuevo": 0.07389162561576354,
+    "puntajes": [
+     2.852216748768472,
+     3.4187192118226593,
+     3.911330049261084
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.4926108374384248
+   },
+   "+50%": {
+    "peso_nuevo": 0.08737864077669902,
+    "puntajes": [
+     2.883495145631067,
+     3.398058252427184,
+     3.9126213592233
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.5145631067961163
+   }
+  },
+  {
+   "criterio": "Aislamiento de fallas entre dominios",
+   "-50%": {
+    "peso_nuevo": 0.030927835051546393,
+    "puntajes": [
+     2.8453608247422677,
+     3.391752577319587,
+     3.907216494845361
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.515463917525774
+   },
+   "-25%": {
+    "peso_nuevo": 0.04568527918781725,
+    "puntajes": [
+     2.83248730964467,
+     3.4162436548223343,
+     3.9086294416243645
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.49238578680203027
+   },
+   "+25%": {
+    "peso_nuevo": 0.07389162561576355,
+    "puntajes": [
+     2.807881773399015,
+     3.4630541871921174,
+     3.911330049261084
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.44827586206896664
+   },
+   "+50%": {
+    "peso_nuevo": 0.08737864077669902,
+    "puntajes": [
+     2.796116504854368,
+     3.485436893203883,
+     3.9126213592233
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.4271844660194173
+   }
+  },
+  {
+   "criterio": "Viabilidad de cronograma",
+   "-50%": {
+    "peso_nuevo": 0.030927835051546393,
+    "puntajes": [
+     2.8762886597938144,
+     3.484536082474226,
+     3.8762886597938144
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.39175257731958846
+   },
+   "-25%": {
+    "peso_nuevo": 0.04568527918781726,
+    "puntajes": [
+     2.847715736040609,
+     3.461928934010152,
+     3.8934010152284255
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.43147208121827374
+   },
+   "+25%": {
+    "peso_nuevo": 0.07389162561576355,
+    "puntajes": [
+     2.793103448275862,
+     3.4187192118226597,
+     3.9261083743842367
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.507389162561577
+   },
+   "+50%": {
+    "peso_nuevo": 0.08737864077669902,
+    "puntajes": [
+     2.766990291262135,
+     3.398058252427184,
+     3.941747572815533
+    ],
+    "ganador": "Grano grueso",
+    "margen_vs_segunda": 0.5436893203883493
+   }
+  }
+ ],
+ "a_gana_grueso": "40 de 40",
+ "b_dirichlet": {
+  "n_perfiles": 10000,
+  "semilla": 20261115,
+  "principal": 50,
+  "resultados": {
+   "20": {
+    "fraccion": {
+     "Monolito": 0.0093,
+     "Grano fino": 0.1061,
+     "Grano grueso": 0.8846
+    },
+    "sd_peso_15pct": 0.07791937224739796
+   },
+   "50": {
+    "fraccion": {
+     "Monolito": 0.0001,
+     "Grano fino": 0.0221,
+     "Grano grueso": 0.9778
+    },
+    "sd_peso_15pct": 0.05
+   },
+   "200": {
+    "fraccion": {
+     "Monolito": 0.0,
+     "Grano fino": 0.0,
+     "Grano grueso": 1.0
+    },
+    "sd_peso_15pct": 0.02518587616520329
+   },
+   "uniforme_sin_informacion": {
+    "fraccion": {
+     "Monolito": 0.06,
+     "Grano fino": 0.0617,
+     "Grano grueso": 0.8783
+    }
+   }
+  }
+ },
+ "c_una_a_la_vez": {
+  "casos": 44,
+  "gana_grueso": 44,
+  "cambian_ganador": [],
+  "peor_margen": {
+   "criterio": "Políticas de respaldo independientes según el tipo de dato",
+   "alternativa": "Grano grueso",
+   "delta": -1,
+   "ganador": "Grano grueso",
+   "margen": 0.3199999999999994
+  }
+ },
+ "c_peor_caso": {
+  "todas_a_la_vez_elegida_menos1_rivales_mas1": {
+   "puntajes": [
+    3.44,
+    3.960000000000001,
+    2.91
+   ],
+   "ganador": "Grano fino"
+  },
+  "solo_elegida_menos1": {
+   "puntajes": [
+    2.82,
+    3.4400000000000004,
+    2.91
+   ],
+   "ganador": "Grano fino"
+  },
+  "min_celdas_para_que_gane_grano_fino": [
+   4,
+   16
+  ],
+  "min_celdas_para_que_gane_monolito": [
+   9,
+   16
+  ]
+ },
+ "c_ruido_aleatorio": {
+  "descripcion": "cada celda +-1 o 0 con prob 1/3, recortado a 1..5",
+  "fraccion": {
+   "Monolito": 0.0002,
+   "Grano fino": 0.0612,
+   "Grano grueso": 0.9386
+  }
+ },
+ "c_pesos_y_ruido": {
+  "fraccion": {
+   "Monolito": 0.0088,
+   "Grano fino": 0.1057,
+   "Grano grueso": 0.8855
+  }
+ },
+ "d_cruce": [
+  {
+   "criterio": "Políticas de respaldo independientes según el tipo de dato",
+   "peso": 0.15,
+   "Monolito": null,
+   "Grano fino": {
+    "cruce": 0.3117408906882589,
+    "cambio_pp": 16.17408906882589,
+    "cambio_relativo": 1.0782726045883928
+   },
+   "mas_cercano": {
+    "rival": "Grano fino",
+    "cruce": 0.3117408906882589,
+    "cambio_pp": 16.17408906882589,
+    "cambio_relativo": 1.0782726045883928
+   }
+  },
+  {
+   "criterio": "Frontera de protección de los datos de menores",
+   "peso": 0.12,
+   "Monolito": null,
+   "Grano fino": null,
+   "mas_cercano": null
+  },
+  {
+   "criterio": "Crecimiento de cada servicio según su perfil de recursos",
+   "peso": 0.15,
+   "Monolito": null,
+   "Grano fino": {
+    "cruce": 0.42176870748299305,
+    "cambio_pp": 27.176870748299308,
+    "cambio_relativo": 1.811791383219954
+   },
+   "mas_cercano": {
+    "rival": "Grano fino",
+    "cruce": 0.42176870748299305,
+    "cambio_pp": 27.176870748299308,
+    "cambio_relativo": 1.811791383219954
+   }
+  },
+  {
+   "criterio": "Desempeño de la lectura, normalización y optimización",
+   "peso": 0.12,
+   "Monolito": {
+    "cruce": 0.5789473684210528,
+    "cambio_pp": 45.894736842105274,
+    "cambio_relativo": 3.824561403508773
+   },
+   "Grano fino": null,
+   "mas_cercano": {
+    "rival": "Monolito",
+    "cruce": 0.5789473684210528,
+    "cambio_pp": 45.894736842105274,
+    "cambio_relativo": 3.824561403508773
+   }
+  },
+  {
+   "criterio": "Desempeño del proceso de compra antes del cobro",
+   "peso": 0.08,
+   "Monolito": null,
+   "Grano fino": null,
+   "mas_cercano": null
+  },
+  {
+   "criterio": "Costo de la capacidad fuera de temporada",
+   "peso": 0.08,
+   "Monolito": {
+    "cruce": 0.5598086124401913,
+    "cambio_pp": 47.98086124401913,
+    "cambio_relativo": 5.997607655502391
+   },
+   "Grano fino": null,
+   "mas_cercano": {
+    "rival": "Monolito",
+    "cruce": 0.5598086124401913,
+    "cambio_pp": 47.98086124401913,
+    "cambio_relativo": 5.997607655502391
+   }
+  },
+  {
+   "criterio": "Complejidad de operación para un equipo de 4 personas",
+   "peso": 0.12,
+   "Monolito": {
+    "cruce": 0.43042071197411025,
+    "cambio_pp": 31.042071197411026,
+    "cambio_relativo": 2.586839266450919
+   },
+   "Grano fino": null,
+   "mas_cercano": {
+    "rival": "Monolito",
+    "cruce": 0.43042071197411025,
+    "cambio_pp": 31.042071197411026,
+    "cambio_relativo": 2.586839266450919
+   }
+  },
+  {
+   "criterio": "Reproducibilidad del entorno completo en un solo equipo",
+   "peso": 0.06,
+   "Monolito": {
+    "cruce": 0.5502392344497608,
+    "cambio_pp": 49.02392344497608,
+    "cambio_relativo": 8.170653907496012
+   },
+   "Grano fino": null,
+   "mas_cercano": {
+    "rival": "Monolito",
+    "cruce": 0.5502392344497608,
+    "cambio_pp": 49.02392344497608,
+    "cambio_relativo": 8.170653907496012
+   }
+  },
+  {
+   "criterio": "Aislamiento de fallas entre dominios",
+   "peso": 0.06,
+   "Monolito": null,
+   "Grano fino": {
+    "cruce": 0.3605442176870746,
+    "cambio_pp": 30.054421768707464,
+    "cambio_relativo": 5.0090702947845775
+   },
+   "mas_cercano": {
+    "rival": "Grano fino",
+    "cruce": 0.3605442176870746,
+    "cambio_pp": 30.054421768707464,
+    "cambio_relativo": 5.0090702947845775
+   }
+  },
+  {
+   "criterio": "Viabilidad de cronograma",
+   "peso": 0.06,
+   "Monolito": null,
+   "Grano fino": null,
+   "mas_cercano": null
+  }
+ ],
+ "d_mas_sensibles": [
+  "Políticas de respaldo independientes según el tipo de dato",
+  "Crecimiento de cada servicio según su perfil de recursos",
+  "Complejidad de operación para un equipo de 4 personas"
+ ]
+}

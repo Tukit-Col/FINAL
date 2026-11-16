@@ -6,7 +6,7 @@ valor conviene aceptar el emparejamiento sin revision humana.
 Fuente de las decisiones humanas. La tabla `transicion_resolucion` de la base
 `tukit_inteligencia` solo guarda transiciones automaticas (ver `contar_tabla`),
 asi que no sirve de etiqueta. La unica decision humana disponible es el concepto
-de `datos/curaduria/listas_revisadas.csv` (un solo revisor), que se une con los
+de `datos/curaduria/listas_revisadas.csv` (4 anotadores con una pauta común; acuerdo entre ellos no calculado), que se une con los
 renglones del benchmark (`bench_laya/instancias.json.gz`, emparejamiento solo
 lexico) por colegio, grado y texto del renglon. Un renglon cuenta como acierto
 cuando el concepto del resolver es el que dejo el revisor.

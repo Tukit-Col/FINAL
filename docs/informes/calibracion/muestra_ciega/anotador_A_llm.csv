@@ -1,0 +1,241 @@
+id,concepto_codigo,comentario
+M001,C008,
+M002,C007,
+M003,C001,cuaderno argollado
+M004,C006,estuche de plumones; duda con C004
+M005,C134,libro con autor y editorial; duda con NINGUNO
+M006,C009,
+M007,C133,plan lector virtual; duda con C134
+M008,C001,
+M009,C019,
+M010,C004,
+M011,C134,libro con autor y editorial; duda con NINGUNO
+M012,NINGUNO,kit de robotica no esta en el catalogo
+M013,C020,
+M014,C050,
+M015,C001,
+M016,C044,cuento generico
+M017,NINGUNO,cable USB tipo C no esta en el catalogo; duda con C109
+M018,C134,libro de texto con titulo y edicion
+M019,C058,planeador es agenda
+M020,C003,block; el papel iris es C113
+M021,dic-ingles,duda con C034 mas generico
+M022,C001,
+M023,C048,
+M024,C131,
+M025,C010,
+M026,C027,duda con C070 kit de artes
+M027,C036,
+M028,C010,
+M029,C013,
+M030,C011,
+M031,C003,
+M032,C146,
+M033,C124,
+M034,C134,libro de texto con titulo y autor
+M035,C001,
+M036,C006,
+M037,C002,lapices; tambien bicolores (C004) en la misma linea
+M038,C001,
+M039,C045,
+M040,C046,
+M041,C001,cuaderno pentagramado
+M042,C001,
+M043,C001,
+M044,C013,
+M045,C131,
+M046,C036,
+M047,C012,
+M048,C134,libro de texto con titulo; duda con NINGUNO
+M049,C133,
+M050,C075,
+M051,C134,libro con autor; duda con NINGUNO
+M052,C134,cuadernillo especifico; duda con NINGUNO
+M053,dic-ingles,
+M054,C131,
+M055,NINGUNO,traje de bano no esta en el catalogo
+M056,C134,libro con autor; duda con NINGUNO
+M057,C001,
+M058,C122,
+M059,C048,
+M060,C125,
+M061,C016,
+M062,C003,
+M063,C015,
+M064,NINGUNO,shield para ESP32 no esta en el catalogo
+M065,C007,
+M066,C057,
+M067,C106,
+M068,C001,
+M069,C016,
+M070,C103,
+M071,C018,
+M072,C001,
+M073,C134,libro con autor; duda con NINGUNO
+M074,C034,
+M075,C023,
+M076,C134,workbook especifico; duda con NINGUNO
+M077,C001,
+M078,C005,
+M079,C001,
+M080,C001,
+M081,NINGUNO,kit de tecnologia remite a un anexo; no se entiende el contenido
+M082,C001,
+M083,C131,
+M084,C007,
+M085,C001,cuaderno del ano anterior
+M086,C003,
+M087,C134,libro de texto especifico; duda con C035 material Singapur
+M088,C067,
+M089,C002,
+M090,C001,
+M091,C024,
+M092,C134,cuaderno de trabajo especifico; duda con NINGUNO
+M093,C003,
+M094,C001,
+M095,C134,libro de texto especifico; duda con NINGUNO
+M096,C003,
+M097,C014,
+M098,C001,
+M099,C134,libro con autor; duda con NINGUNO
+M100,C026,calculadora y tabla periodica; tomo la calculadora; duda con C025
+M101,NINGUNO,crema dental no esta en el catalogo
+M102,C002,
+M103,C011,
+M104,C006,
+M105,C036,
+M106,C004,
+M107,C002,
+M108,C131,
+M109,C001,
+M110,C004,creyones de madera son lapices de colores; duda con C053
+M111,C004,
+M112,C001,
+M113,C134,libro con autor; duda con NINGUNO
+M114,C134,cuaderno de trabajo especifico; duda con NINGUNO
+M115,C134,libro de plan lector con titulo y editorial
+M116,C017,pegante generico; duda con C016
+M117,C010,
+M118,C001,
+M119,C034,diccionario sin idioma indicado; duda
+M120,C001,
+M121,C139,falda rotonda para presentaciones; duda con C131
+M122,C069,
+M123,C034,
+M124,C004,
+M125,C007,
+M126,C131,
+M127,C001,
+M128,C040,
+M129,C039,
+M130,C017,
+M131,C136,
+M132,C018,
+M133,C134,libro de texto con titulo
+M134,dic-ingles,
+M135,C001,
+M136,C137,lo entrega el colegio
+M137,C003,block de papeles surtidos; duda con C014
+M138,C001,
+M139,C013,
+M140,C001,
+M141,dic-ingles,
+M142,C025,
+M143,C115,
+M144,C001,
+M145,C002,varios utiles en la linea; tomo lapices; duda con C092 y C013
+M146,C001,
+M147,C131,
+M148,C110,
+M149,C004,
+M150,C001,
+M151,C131,
+M152,C131,
+M153,C004,lapicero de colores; duda con C012
+M154,C001,
+M155,C002,
+M156,NINGUNO,plataforma de aprendizaje por suscripcion no es un util fisico
+M157,C001,
+M158,C112,sketchbook; duda con C003
+M159,C060,
+M160,C059,
+M161,C001,
+M162,C134,libro con titulo y editorial; duda con NINGUNO
+M163,C039,
+M164,C034,
+M165,C097,
+M166,C003,
+M167,C066,
+M168,C139,sombrero para ensayo; duda con C131 no aplica
+M169,C031,
+M170,C022,
+M171,NINGUNO,modulo ESP32 no esta en el catalogo
+M172,C002,
+M173,C028,
+M174,C001,
+M175,C094,caja de pasteles secos; duda con C076
+M176,C022,
+M177,C008,regla y colores; tomo la regla; duda con C004
+M178,C134,libro con editorial; duda con NINGUNO
+M179,C134,libro de texto con titulo; duda con NINGUNO
+M180,C008,
+M181,NINGUNO,modulo buzzer no esta en el catalogo
+M182,C003,
+M183,C001,
+M184,C040,
+M185,C131,
+M186,C133,plataforma digital de ingles; duda con NINGUNO
+M187,dic-ingles,
+M188,C019,
+M189,C005,
+M190,C131,
+M191,C001,
+M192,NINGUNO,diseno grafico es ambiguo y no se entiende el util
+M193,C131,
+M194,C016,
+M195,NINGUNO,texto de circular sin util concreto
+M196,C005,
+M197,C001,
+M198,C003,hojas de trabajo en block; duda con C031
+M199,C147,
+M200,C111,
+M201,C001,cuaderno pentagramado
+M202,C003,
+M203,C002,
+M204,C044,cuento generico del plan lector
+M205,C134,libro con autor; duda con NINGUNO
+M206,C001,
+M207,C108,
+M208,C002,
+M209,C008,
+M210,C001,
+M211,NINGUNO,pantalla OLED no esta en el catalogo
+M212,C001,
+M213,C012,
+M214,NINGUNO,sabana encauchada no esta en el catalogo
+M215,C026,calculadora y tabla periodica; tomo la calculadora; duda con C025
+M216,C037,
+M217,C010,
+M218,C001,
+M219,C134,guia especifica; duda con NINGUNO
+M220,C011,
+M221,C134,libro con editorial; duda con NINGUNO
+M222,C001,
+M223,C024,
+M224,C001,ferrocarril de cuaderno grande; duda
+M225,C134,libro con autor; duda con NINGUNO
+M226,C013,
+M227,C054,
+M228,C134,libro de plan lector con titulo
+M229,C003,block de cartulina iris; duda con C113
+M230,C008,
+M231,C019,
+M232,C005,
+M233,C001,
+M234,C001,
+M235,C005,
+M236,C001,
+M237,C001,
+M238,C062,
+M239,NINGUNO,almohada no esta en el catalogo
+M240,NINGUNO,traje de bano no esta en el catalogo

@@ -1,0 +1,62 @@
+{
+ "semilla": 20261115,
+ "total": 240,
+ "particion_base": {
+  "semilla": 20261101,
+  "listas_prueba": [
+   "COLEGIO AGUSTINIANO CIUDAD SALITRE|Quinto",
+   "COLEGIO MADRE MATILDE|Once",
+   "COLEGIO MADRE MATILDE|Sexto",
+   "COLEGIO MADRE MATILDE|Tercero",
+   "COLEGIO PARROQUIAL SAN PEDRO CLAVER|Decimo",
+   "COLEGIO PARROQUIAL SAN PEDRO CLAVER|Jardin",
+   "GIMNASIO NUEVO MODELIA|Once",
+   "GIMNASIO NUEVO MODELIA|Prejardin",
+   "GIMNASIO NUEVO MODELIA|Sexto",
+   "JARDIN INFANTIL OSITO DE MIEL|Prejardin",
+   "UNIDAD EDUCATIVA BAHIA SOLANO|Noveno",
+   "UNIDAD EDUCATIVA PRADOS DE ALAMEDA|Cuarto",
+   "UNIDAD EDUCATIVA PRADOS DE ALAMEDA|Decimo",
+   "UNIDAD EDUCATIVA PRADOS DE ALAMEDA|Quinto",
+   "UNIDAD EDUCATIVA PRADOS DE ALAMEDA|Segundo"
+  ]
+ },
+ "excepcion": {
+  "colegio": "COLEGIO MADRE MATILDE",
+  "listas": [
+   "Sexto",
+   "Tercero",
+   "Once"
+  ],
+  "motivo": "sin listas en la prueba de la semilla base; se usan las que mas veces fueron prueba en 20 semillas (4, 4 y 3 de 20); pudieron ser entrenamiento en otras"
+ },
+ "tamano_colegio": {
+  "GIMNASIO NUEVO MODELIA": 429,
+  "UNIDAD EDUCATIVA BAHIA SOLANO": 366,
+  "COLEGIO PARROQUIAL SAN PEDRO CLAVER": 349,
+  "JARDIN INFANTIL OSITO DE MIEL": 103,
+  "COLEGIO AGUSTINIANO CIUDAD SALITRE": 1084,
+  "UNIDAD EDUCATIVA PRADOS DE ALAMEDA": 415,
+  "COLEGIO MADRE MATILDE": 291
+ },
+ "elegibles_por_colegio": {
+  "GIMNASIO NUEVO MODELIA": 89,
+  "UNIDAD EDUCATIVA BAHIA SOLANO": 23,
+  "COLEGIO PARROQUIAL SAN PEDRO CLAVER": 54,
+  "JARDIN INFANTIL OSITO DE MIEL": 32,
+  "COLEGIO AGUSTINIANO CIUDAD SALITRE": 84,
+  "UNIDAD EDUCATIVA PRADOS DE ALAMEDA": 113,
+  "COLEGIO MADRE MATILDE": 76
+ },
+ "cuota_por_colegio": {
+  "GIMNASIO NUEVO MODELIA": 35,
+  "UNIDAD EDUCATIVA BAHIA SOLANO": 23,
+  "COLEGIO PARROQUIAL SAN PEDRO CLAVER": 32,
+  "JARDIN INFANTIL OSITO DE MIEL": 15,
+  "COLEGIO AGUSTINIANO CIUDAD SALITRE": 69,
+  "UNIDAD EDUCATIVA PRADOS DE ALAMEDA": 37,
+  "COLEGIO MADRE MATILDE": 29
+ },
+ "excluidos_por_texto_repetido": 163,
+ "limites": "n por colegio de 15 a unas 85; los IC por colegio son anchos. La muestra no cubre todos los grados."
+}

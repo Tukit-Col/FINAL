@@ -1,0 +1,201 @@
+id,concepto_codigo,comentario
+N001,C138,duda cable UTP de red no es electrico
+N002,C063,
+N003,C063,
+N004,C023,
+N005,C024,
+N006,C008,
+N007,C014,papel sin tipo especificado
+N008,C123,
+N009,C011,
+N010,C003,
+N011,C020,
+N012,C001,pentagramado no esta en catalogo se toma cuaderno
+N013,C142,
+N014,C013,
+N015,C102,
+N016,C134,libro con titulo duda con C044
+N017,C142,
+N018,C003,
+N019,C023,
+N020,C021,
+N021,NINGUNO,balso no esta en catalogo
+N022,C001,
+N023,C016,
+N024,C012,
+N025,C010,
+N026,C006,plumones son marcadores
+N027,C001,
+N028,C010,
+N029,C001,
+N030,C028,
+N031,C001,
+N032,NINGUNO,tapete deportivo no esta en catalogo
+N033,C062,
+N034,dic-ingles,diccionario ingles-espanol duda con C034 elegi el mas especifico
+N035,C003,
+N036,C001,asignatura indicada el articulo es el cuaderno
+N037,C032,
+N038,C048,
+N039,C013,
+N040,C134,libro con titulo duda con C044
+N041,C010,
+N042,C134,libro con titulo duda con C044
+N043,C026,
+N044,C001,
+N045,C134,texto con titulo
+N046,C113,duda block de papel iris vs C003
+N047,C050,soporte tabla mdf o lienzo elegi lienzo
+N048,C142,porta bateria broche duda con C103
+N049,C021,
+N050,C011,
+N051,C006,
+N052,C001,
+N053,C142,
+N054,C001,
+N055,C001,
+N056,C016,
+N057,C001,ferrocarril rayado asignado a cuaderno
+N058,C027,
+N059,C003,
+N060,C015,cinta aislante electrica tomada como cinta adhesiva
+N061,C134,libro con titulo
+N062,C003,
+N063,C113,duda block de papel iris vs C003
+N064,C062,
+N065,NINGUNO,guitarra no esta en catalogo
+N066,C134,
+N067,C048,
+N068,C122,
+N069,C119,
+N070,C053,
+N071,C011,
+N072,C142,porta pila 9V duda con C103
+N073,C023,
+N074,NINGUNO,balso no esta en catalogo
+N075,C028,
+N076,C003,
+N077,C045,
+N078,C032,duda con C129 papel bond
+N079,C002,
+N080,C015,
+N081,C015,
+N082,C134,
+N083,C044,
+N084,C028,
+N085,C005,
+N086,C065,dos opciones acuarela o acrilico duda con C027
+N087,C001,
+N088,C134,
+N089,C108,
+N090,C125,
+N091,C113,duda block de papel iris vs C003
+N092,C024,
+N093,C011,
+N094,C023,
+N095,C015,
+N096,C142,
+N097,C035,
+N098,C134,
+N099,C142,
+N100,C025,
+N101,C134,
+N102,C001,
+N103,C011,
+N104,C112,
+N105,C008,
+N106,C010,
+N107,C013,
+N108,C033,
+N109,C001,
+N110,C125,
+N111,C134,
+N112,C024,
+N113,NINGUNO,material reciclado no es util escolar del catalogo
+N114,C001,
+N115,C021,
+N116,C134,
+N117,C008,
+N118,C039,
+N119,C033,
+N120,C015,
+N121,C062,
+N122,C134,
+N123,C032,
+N124,C022,
+N125,C142,
+N126,C032,
+N127,C054,juego de construccion duda con C035
+N128,C015,
+N129,C003,
+N130,C010,
+N131,C120,papel edad media duda
+N132,C032,
+N133,C142,porta pila 9V duda con C103
+N134,C015,
+N135,C019,
+N136,NINGUNO,lija no esta en catalogo
+N137,C014,papel periodico o kraft duda con C126
+N138,C009,
+N139,C001,
+N140,C010,
+N141,C113,duda block de papel iris vs C003
+N142,C011,
+N143,C142,
+N144,C022,
+N145,C002,
+N146,C063,
+N147,C004,
+N148,C140,
+N149,C045,paquete de adhesivas no especifica duda
+N150,C134,
+N151,C001,
+N152,C041,
+N153,C121,
+N154,C001,
+N155,C001,
+N156,C021,
+N157,C134,
+N158,C010,
+N159,C134,
+N160,C139,vestuario generico duda con C131
+N161,C066,
+N162,C001,
+N163,C016,
+N164,C032,
+N165,NINGUNO,guitarra no esta en catalogo
+N166,C124,
+N167,C010,
+N168,C134,
+N169,C122,
+N170,C001,
+N171,C049,
+N172,C122,
+N173,C017,
+N174,NINGUNO,tubos de carton reciclado no es util del catalogo
+N175,C001,
+N176,NINGUNO,gesso no esta en catalogo
+N177,C004,
+N178,C134,
+N179,C009,
+N180,C134,
+N181,C022,
+N182,C134,
+N183,C001,
+N184,C006,
+N185,C023,
+N186,NINGUNO,plastico reciclado no es util del catalogo
+N187,C041,
+N188,C038,
+N189,C008,
+N190,C010,
+N191,C014,papel sin tipo especificado
+N192,C028,
+N193,C134,
+N194,C021,
+N195,C011,portafolio con aros duda el articulo principal es el portafolio
+N196,C102,
+N197,C146,
+N198,C010,
+N199,NINGUNO,ukelele no esta en catalogo
+N200,C065,

@@ -1,0 +1,241 @@
+id,concepto_codigo,comentario
+M001,C008,
+M002,C007,
+M003,C001,duda: argollado podria ser C003 Block; linea de investigacion ignorada
+M004,C006,
+M005,C134,duda: libro con titulo; alt C044 Libro
+M006,C009,
+M007,C133,
+M008,C001,
+M009,C019,
+M010,C004,
+M011,C134,duda: libro con titulo; alt C044 Libro
+M012,NINGUNO,kit de robotica no esta en el catalogo
+M013,C020,
+M014,C050,
+M015,C001,
+M016,C044,
+M017,NINGUNO,cable USB tipo C; el catalogo solo tiene mini USB C109
+M018,C134,duda: texto escolar con titulo; alt C044 Libro
+M019,C058,
+M020,C113,duda: block de papel iris; alt C003 Block
+M021,dic-ingles,duda: alt C034 Diccionario
+M022,C001,
+M023,C048,
+M024,C131,
+M025,C010,
+M026,C027,
+M027,C036,
+M028,C010,
+M029,C013,
+M030,C011,
+M031,C003,
+M032,C146,
+M033,C124,
+M034,C134,duda: libro con titulo; alt C044 Libro
+M035,C001,
+M036,C006,
+M037,C002,duda: lapices y bicolores; el principal es lapiz; alt C004 Colores
+M038,C001,
+M039,C045,
+M040,C046,duda: tabla de picar con punzon; alt C073 Punzon
+M041,C001,
+M042,C001,
+M043,C001,
+M044,C013,
+M045,C131,
+M046,C036,
+M047,C012,
+M048,C134,duda: texto escolar con titulo; alt NINGUNO
+M049,C133,
+M050,C075,
+M051,C134,
+M052,C134,duda: cuadernillo de lectoescritura; podria ser C044
+M053,dic-ingles,
+M054,C131,
+M055,NINGUNO,traje de bano no esta en el catalogo
+M056,C134,duda: titulo de libro; alt C044 Libro
+M057,C001,
+M058,C122,
+M059,C048,
+M060,C125,
+M061,C016,
+M062,C003,
+M063,C015,
+M064,C142,duda: shield para ESP32 no esta en el catalogo; el mas cercano es componente electronico
+M065,C007,
+M066,C057,
+M067,C106,
+M068,C001,
+M069,C016,
+M070,C103,
+M071,C018,
+M072,C001,
+M073,C134,
+M074,C034,
+M075,C023,
+M076,C134,duda: workbook con titulo; alt C044 Libro
+M077,C001,
+M078,C005,
+M079,C001,
+M080,C001,
+M081,NINGUNO,kit de tecnologia remite a un anexo; no se entiende el contenido
+M082,C001,
+M083,C131,
+M084,C007,
+M085,C001,
+M086,C003,
+M087,C134,duda: set de libros de texto con titulo; alt C035 Material Singapur
+M088,C067,
+M089,C002,
+M090,C001,
+M091,C024,
+M092,C134,duda: cuaderno de trabajo con titulo; alt C044 Libro
+M093,C003,
+M094,C001,
+M095,C134,
+M096,C003,
+M097,C014,
+M098,C001,
+M099,C134,
+M100,C026,duda: tambien tabla periodica C025
+M101,NINGUNO,crema dental no esta en el catalogo
+M102,C002,
+M103,C011,
+M104,C006,
+M105,C036,
+M106,C004,
+M107,C002,
+M108,C131,
+M109,C001,
+M110,C053,
+M111,C004,duda: caja triangular jumbo; alt C053 Crayones
+M112,C001,
+M113,C134,
+M114,C134,duda: cuaderno de trabajo con titulo; alt C044 Libro
+M115,C134,
+M116,C017,duda: pegante generico; alt C016 pegante en barra
+M117,C010,
+M118,C001,
+M119,C034,
+M120,C001,
+M121,C139,
+M122,C069,
+M123,C034,
+M124,C004,duda: caja triangular gigante; alt C053 Crayones
+M125,C007,
+M126,C131,
+M127,C001,
+M128,C040,
+M129,C039,
+M130,C017,
+M131,C136,
+M132,C018,
+M133,C134,
+M134,dic-ingles,
+M135,C001,
+M136,C137,
+M137,C003,
+M138,C001,
+M139,C013,
+M140,C001,
+M141,dic-ingles,
+M142,C025,
+M143,C115,
+M144,C001,
+M145,C002,duda: varios articulos; principal lapiz; tambien borrador escuadras y tabla de diseno
+M146,C001,
+M147,C131,
+M148,C110,
+M149,C004,
+M150,C001,
+M151,C131,
+M152,C131,
+M153,C004,duda: lapicero de colores; alt C012 Esfero
+M154,C001,
+M155,C002,
+M156,NINGUNO,plataforma de aprendizaje socioemocional; no es un util
+M157,C001,
+M158,C003,duda: sketch book; alt C112 Papel durex
+M159,C060,
+M160,C059,
+M161,C001,
+M162,C134,
+M163,C039,
+M164,C034,
+M165,C097,
+M166,C003,
+M167,C066,
+M168,C139,
+M169,C031,
+M170,C022,
+M171,C142,duda: modulo ESP32 no esta en el catalogo; el mas cercano es componente electronico
+M172,C002,
+M173,C028,
+M174,C001,
+M175,C094,duda: pasteles secos; alt C076 Carboncillo
+M176,C022,
+M177,C008,duda: regla y colores; alt C004 Colores
+M178,C134,
+M179,C134,
+M180,C008,
+M181,C142,duda: buzzer no esta en el catalogo; el mas cercano es componente electronico
+M182,C003,
+M183,C001,
+M184,C040,
+M185,C131,
+M186,NINGUNO,plataforma digital de ingles; el catalogo solo tiene plan lector virtual C133
+M187,dic-ingles,
+M188,C019,
+M189,C005,
+M190,C131,
+M191,C001,
+M192,NINGUNO,no se entiende el renglon; posible tablero de diseno C092
+M193,C131,
+M194,C016,
+M195,NINGUNO,no es un util; es una circular informativa
+M196,C005,
+M197,C001,
+M198,C003,
+M199,C147,
+M200,C111,
+M201,C001,
+M202,C003,
+M203,C002,
+M204,C044,
+M205,C134,
+M206,C001,
+M207,C108,
+M208,C002,
+M209,C008,
+M210,C001,
+M211,C142,duda: pantalla OLED no esta en el catalogo; el mas cercano es componente electronico
+M212,C001,
+M213,C012,
+M214,NINGUNO,sabana encauchada no esta en el catalogo
+M215,C026,duda: tambien tabla periodica C025
+M216,C037,
+M217,C010,
+M218,C001,
+M219,C044,duda: guia sin titulo; alt C134
+M220,C011,
+M221,C134,
+M222,C001,
+M223,C024,
+M224,C001,duda: ferrocarril de cuaderno; podria no ser cuaderno
+M225,C134,duda: titulo de libro; alt C044 Libro
+M226,C013,
+M227,C054,
+M228,C134,
+M229,C113,duda: block de cartulina iris; alt C010 Cartulina
+M230,C008,
+M231,C019,
+M232,C005,
+M233,C001,
+M234,C001,
+M235,C005,
+M236,C001,
+M237,C001,
+M238,C062,
+M239,C077,duda: almohada pequena; el mas cercano es cojin
+M240,NINGUNO,traje de bano no esta en el catalogo

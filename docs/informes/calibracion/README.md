@@ -84,7 +84,7 @@ Cada JSON repite estos datos en su campo `hardware`.
    conjunto de prueba tiene pocos colegios.
 3. **τ no se puede calibrar.** La tabla `transicion_resolucion` tiene 1265
    resoluciones, todas automáticas y todas con parecido 1,0; ninguna es humana.
-   La única fuente humana es la curaduría de un revisor, que se une con 405
+   La única fuente humana es la curaduría de 4 anotadores con una pauta común, que se une con 405
    renglones de 3 colegios (391 de uno solo). τ queda en 0,75 y se declara sin
    calibrar (`tau.json`).
 4. **No existe un kit óptimo de referencia.** El hipervolumen mide la
