@@ -93,7 +93,9 @@ import type {
 } from "./comercio";
 import type { MetricasColegio, ResumenPedidosColegio, SerieMetricas } from "./metricas";
 import type {
+  BandejaCorreos,
   BandejaOperacion,
+  FiltrosCorreos,
   Caso,
   CasoCreado,
   MiCaso,
@@ -1591,6 +1593,15 @@ export class ClienteApi implements OrigenDatos {
   casos(token?: string, usuarioId?: string): Promise<BandejaOperacion> {
     const qs = usuarioId ? `?usuario_id=${encodeURIComponent(usuarioId)}` : "";
     return this.pedir<BandejaOperacion>(`/v1/operacion/casos${qs}`, { headers: this.autoriza(token) });
+  }
+
+  correos(token: string, filtros: FiltrosCorreos = {}): Promise<BandejaCorreos> {
+    const qs = new URLSearchParams();
+    for (const [clave, valor] of Object.entries(filtros)) {
+      if (valor !== undefined && valor !== "") qs.set(clave, String(valor));
+    }
+    const sufijo = qs.size ? `?${qs}` : "";
+    return this.pedir<BandejaCorreos>(`/v1/operacion/correos${sufijo}`, { headers: this.autoriza(token) });
   }
 
   caso(casoId: string, token?: string): Promise<Caso> {

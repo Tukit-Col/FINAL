@@ -156,6 +156,44 @@ export interface BandejaOperacion {
   casos: Caso[];
 }
 
+// ------------------------------------------------------ Correos enviados
+//
+// Lo que el sistema avisó y qué pasó con cada aviso (`GET /v1/operacion/correos`).
+// Nunca trae la dirección del destinatario: solo su dominio.
+
+export type EstadoCorreo = "enviada" | "fallida" | "omitida";
+
+export interface CorreoEnviado {
+  id: string;
+  usuario_id: string;
+  canal: string;
+  plantilla: string;
+  estado: EstadoCorreo;
+  asunto: string | null;
+  /** Qué pasó con el envío: `smtp`, `consola`, `destino_no_enviable`, `smtp_error: ...`. */
+  detalle: string | null;
+  destino_dominio: string | null;
+  /** Código corto del pedido o del caso al que pertenece el aviso. */
+  pedido: string | null;
+  caso: string | null;
+  creado_en: string | null;
+  enviada_en: string | null;
+}
+
+export interface FiltrosCorreos {
+  estado?: EstadoCorreo;
+  plantilla?: string;
+  pedido?: string;
+  caso?: string;
+  limite?: number;
+}
+
+export interface BandejaCorreos {
+  /** Cuántos avisos hay en cada estado, sin filtros. */
+  resumen: Partial<Record<EstadoCorreo, number>>;
+  correos: CorreoEnviado[];
+}
+
 export function casoActivo(caso: Caso): boolean {
   return caso.estado !== "resuelto" && caso.estado !== "cerrado";
 }
