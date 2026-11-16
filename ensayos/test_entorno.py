@@ -23,8 +23,10 @@ def test_cargar_env_no_pisa_lo_que_ya_esta(tmp_path, monkeypatch):
     monkeypatch.delenv("TUKIT_PRUEBA_B")
 
 
-def test_sin_archivo_no_hace_nada(tmp_path):
+def test_sin_archivo_deja_el_entorno_igual(tmp_path):
+    antes = dict(os.environ)
     cargar_env(tmp_path / "no-existe.env")
+    assert dict(os.environ) == antes
 
 
 def test_la_cache_va_a_una_carpeta_ignorada_o_a_la_variable(tmp_path, monkeypatch):

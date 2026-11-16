@@ -89,7 +89,7 @@ class TestElCuadernoDeTresMateriasEsElDeCinco:
         assert (_sku(linea.ahorrador), _sku(linea.premium)) == ("TK-REV-648753", "TK-REV-546276")
 
 
-class TestLoQueTrajoElSurtidoDelQuinceDeOctubre:
+class TestElectronicaBatasYArtesTienenProducto:
     """Electronica (Zamux), batas antifluido (Maju), acrilico cian y ecoline
     (Comercial Papelera): los huecos que la auditoria v4 daba por imposibles con
     las tiendas registradas."""
@@ -116,7 +116,7 @@ class TestLoQueTrajoElSurtidoDelQuinceDeOctubre:
             ("7#43", "TK-REV-790637358"),  # acrilico cian
         ],
     )
-    def test_el_ahorrador_cobra_el_producto_nuevo(self, renglon, clave, sku):
+    def test_el_ahorrador_cobra_el_sku_curado(self, renglon, clave, sku):
         assert _sku(renglon(clave).ahorrador) == sku
 
     @pytest.mark.parametrize(
@@ -147,7 +147,7 @@ class TestLoQueTrajoElSurtidoDelQuinceDeOctubre:
         assert renglon("7#89").ahorrador is None
 
 
-class TestLoQueTrajoElSurtidoDelDoceDeOctubre:
+class TestLosHuecosDeLaAuditoriaV2TienenProducto:
     """Huecos de la auditoria v2 que se cerraron con productos aprobados en la cola."""
 
     @pytest.mark.parametrize(
@@ -169,7 +169,7 @@ class TestLoQueTrajoElSurtidoDelDoceDeOctubre:
             ("10#61", "TK-REV-3630108"),
         ],
     )
-    def test_el_ahorrador_cobra_el_producto_nuevo(self, renglon, clave, sku):
+    def test_el_ahorrador_cobra_el_sku_curado(self, renglon, clave, sku):
         assert _sku(renglon(clave).ahorrador) == sku
 
     def test_un_renglon_generico_no_recibe_la_variante(self, renglon):

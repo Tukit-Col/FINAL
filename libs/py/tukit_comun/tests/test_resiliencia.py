@@ -18,19 +18,23 @@ import pytest
 from tukit_comun.resiliencia import (
     CircuitoAbierto,
     Disyuntor,
+    disyuntor_de,
     llamada_protegida,
     reintentar_get,
 )
 
 
-def test_rechaza_reintentable_en_no_get():
+@pytest.mark.parametrize("metodo", ["POST", "put", "PATCH", "DELETE"])
+def test_rechaza_reintentable_en_no_get(metodo):
     with pytest.raises(ValueError):
-        llamada_protegida("catalogo", metodo="POST", reintentable=True)
+        llamada_protegida("catalogo", metodo=metodo, reintentable=True)
 
 
-def test_permite_reintentable_en_get():
-    # No debe levantar.
-    llamada_protegida("catalogo", metodo="GET", reintentable=True)
+@pytest.mark.parametrize(("metodo", "reintentable"), [("GET", True), ("get", True), ("POST", False)])
+def test_lo_permitido_devuelve_el_disyuntor_compartido_del_destino(metodo, reintentable):
+    disyuntor = llamada_protegida("catalogo", metodo=metodo, reintentable=reintentable)
+    assert disyuntor is disyuntor_de("catalogo")
+    assert disyuntor.destino == "catalogo"
 
 
 async def test_el_disyuntor_abre_tras_el_umbral():
