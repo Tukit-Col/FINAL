@@ -24,7 +24,6 @@ import styles from "./Kits.module.css";
 
 export interface LugarElegido extends DireccionDerivada {
   direccion: string;
-  google_place_id: string | null;
   latitud?: number;
   longitud?: number;
 }
@@ -119,7 +118,6 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
     setElegido(candidato);
     onElegir({
       direccion: candidato.direccion,
-      google_place_id: null,
       latitud: candidato.latitud,
       longitud: candidato.longitud,
       ...direccionDesdeNominatim(candidato.componentes),

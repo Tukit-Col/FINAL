@@ -50,17 +50,6 @@ async def test_orden_identica_del_mismo_kit_reutiliza_el_pedido_pendiente(client
     assert tablero["resumen"]["pedidos_totales"] == 1
 
 
-async def test_orden_identica_con_localidad_reutiliza_aunque_cambie_el_place_id(cliente):
-    # El place_id apunta al mismo texto de la direccion: no hace otra entrega.
-    primero = (
-        await cliente.post("/v1/ordenes", json=_con_entrega(localidad="Suba", google_place_id="a"))
-    ).json()
-    segundo = (
-        await cliente.post("/v1/ordenes", json=_con_entrega(localidad="Suba", google_place_id="b"))
-    ).json()
-    assert segundo["pedido_id"] == primero["pedido_id"]
-
-
 async def test_orden_con_campos_de_entrega_vacios_reutiliza_la_que_no_los_traia(cliente):
     # Un campo ausente y uno vacio son la misma entrega.
     primero = (await cliente.post("/v1/ordenes", json=_orden_kit())).json()

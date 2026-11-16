@@ -76,7 +76,6 @@ class Supresor:
                     telefono=None,
                     documento_destinatario=None,
                     indicaciones=None,
-                    google_place_id=None,
                     # El pin de un domicilio es tan identificante como el texto.
                     latitud=None,
                     longitud=None,

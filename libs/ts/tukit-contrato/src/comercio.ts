@@ -75,13 +75,12 @@ export interface Envio {
   departamento: string | null;
   documento_destinatario: string | null;
   indicaciones: string | null;
-  // Localidad de Bogota (nombre canonico de `LOCALIDADES_BOGOTA`) y el lugar de
-  // Google Places que eligio el acudiente. `null` fuera de Bogota, en pedidos
+  // Localidad de Bogota (nombre canonico de `LOCALIDADES_BOGOTA`)
+  // `null` fuera de Bogota, en pedidos
   // legados o si la direccion se escribio a mano.
   localidad: string | null;
-  google_place_id: string | null;
   // El punto que el acudiente confirmo en el mapa de OpenStreetMap (ADR 0049).
-  // `null` si la direccion se escribio a mano o eligio por Google.
+  // `null` si la direccion se escribio a mano.
   latitud: number | null;
   longitud: number | null;
   // Envios viejos, de cuando se despachaba por transportadora. Con reparto

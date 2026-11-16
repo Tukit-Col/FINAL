@@ -1,10 +1,10 @@
-// Las 20 localidades de Bogota y como sacarlas de una direccion de Google
-// Places (New). Puro y autocontenido: lo usan el checkout (web) para llenar
+// Las 20 localidades de Bogota y como sacarlas de una direccion de
+// OpenStreetMap. Puro y autocontenido: lo usan el checkout (web) para llenar
 // ciudad/localidad/departamento al elegir una sugerencia y el admin para el
 // enlace a Google Maps del pedido, y corre con `node --test`.
 //
 // La localidad se guarda con su nombre visible canonico (el de esta lista), no
-// con lo que Google escriba: Google dice "Localidad de Chapinero", "Santafé" o
+// con lo que escriba el mapa: puede decir "Localidad de Chapinero", "Santafé" o
 // "Los Mártires" segun la direccion, y la logistica agrupa por localidad. No hay
 // poligonos: si los componentes no traen una localidad reconocible, el
 // acudiente la elige de la lista.
@@ -68,73 +68,18 @@ export function esBogota(ciudad: string | null | undefined): boolean {
   return !!ciudad && CLAVES_BOGOTA.has(clave(ciudad));
 }
 
-// Un componente de direccion de Places (New): `place.addressComponents`.
-export interface ComponenteDireccion {
-  longText: string | null;
-  shortText: string | null;
-  types: readonly string[];
-}
-
 export interface DireccionDerivada {
   ciudad: string;
   localidad: LocalidadBogota | "";
   departamento: string;
 }
 
-// En que componentes buscar la localidad, en orden. Google la pone en
-// cualquiera de estos segun el barrio. `neighborhood` no: es el barrio, y hay
-// barrios que se llaman como otra localidad (el barrio Santa Fe queda en Los
-// Mártires). Sin localidad reconocible, la elige el acudiente.
-const TIPOS_LOCALIDAD = [
-  "sublocality_level_1",
-  "sublocality",
-  "administrative_area_level_3",
-  "administrative_area_level_2",
-];
-
-// De los componentes de una direccion a lo que el checkout pre-llena. La
-// localidad queda vacia fuera de Bogota o si ningun componente es una de las 20
-// (entonces la elige el acudiente).
-export function direccionDesdeComponentes(
-  componentes: readonly ComponenteDireccion[] | null | undefined,
-): DireccionDerivada {
-  const lista = componentes ?? [];
-  const de = (tipo: string) =>
-    lista.filter((c) => c.types.includes(tipo)).map((c) => c.longText?.trim() || c.shortText?.trim() || "");
-  const primero = (tipo: string) => de(tipo).find(Boolean) ?? "";
-
-  const departamento = primero("administrative_area_level_1");
-  const ciudad =
-    primero("locality") ||
-    primero("administrative_area_level_2") ||
-    // Bogota es distrito capital: a veces solo llega como departamento.
-    (esBogota(departamento) ? departamento : "");
-
-  let localidad: LocalidadBogota | "" = "";
-  if (esBogota(ciudad)) {
-    for (const tipo of TIPOS_LOCALIDAD) {
-      const casada = lista
-        .filter((c) => c.types.includes(tipo))
-        .flatMap((c) => [c.longText, c.shortText])
-        .map(localidadCanonica)
-        .find(Boolean);
-      if (casada) {
-        localidad = casada;
-        break;
-      }
-    }
-  }
-  return { ciudad, localidad, departamento };
-}
-
 // El enlace "Ver en Google Maps" de un envio. Con coordenadas (la direccion se
 // confirmo en el mapa de OpenStreetMap, ADR 0049) abre ese punto exacto. Sin
-// ellas busca por el texto de la direccion (con la ciudad si no la trae) y, si
-// el checkout guardo el `place_id`, lo fija para que Maps abra ese lugar.
+// ellas busca por el texto de la direccion (con la ciudad si no la trae).
 export function enlaceGoogleMaps(envio: {
   direccion: string;
   ciudad?: string | null;
-  google_place_id?: string | null;
   latitud?: number | null;
   longitud?: number | null;
 }): string {
@@ -145,19 +90,16 @@ export function enlaceGoogleMaps(envio: {
   const direccion = envio.direccion.trim();
   const ciudad = envio.ciudad?.trim() ?? "";
   const consulta = ciudad && !clave(direccion).includes(clave(ciudad)) ? `${direccion}, ${ciudad}` : direccion;
-  let url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(consulta)}`;
-  const lugar = envio.google_place_id?.trim();
-  if (lugar) url += `&query_place_id=${encodeURIComponent(lugar)}`;
-  return url;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(consulta)}`;
 }
 
 // La direccion de una respuesta de Nominatim (OpenStreetMap, `addressdetails=1`)
-// a lo que el checkout pre-llena. OSM no usa los tipos de Google: en Bogota
+// a lo que el checkout pre-llena. En Bogota
 // escribe la ciudad como "Bogotá ciudad", el departamento como "Bogotá,
 // Distrito Capital" y la localidad en `suburb` como "Localidad Chapinero".
 // `localidadCanonica` ya ignora el prefijo "Localidad", asi que basta probar los
-// campos donde OSM la suele poner. `neighbourhood` no: es el barrio (ver
-// `TIPOS_LOCALIDAD`). Sin localidad reconocible la elige el acudiente.
+// campos donde OSM la suele poner. `neighbourhood` no: es el barrio, y hay barrios que se llaman como otra localidad.
+// Sin localidad reconocible la elige el acudiente.
 const CAMPOS_LOCALIDAD_OSM = ["suburb", "city_district", "borough", "quarter"] as const;
 const CAMPOS_CIUDAD_OSM = ["city", "town", "village", "municipality"] as const;
 

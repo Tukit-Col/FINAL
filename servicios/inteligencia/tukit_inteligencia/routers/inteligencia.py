@@ -307,9 +307,8 @@ class AplicarCanonico(BaseModel):
 class EntregaCheckout(BaseModel):
     """La direccion a la que se entrega. Se COPIA congelada en Comercio (ADR 0015).
 
-    Los opcionales llegan del checkout con Google Places: `localidad` (una de las
-    20 de Bogota, por nombre), `indicaciones` (apartamento, torre, interior) y el
-    `google_place_id` de la sugerencia elegida. Mismos largos que Comercio. Las
+    Los opcionales llegan del checkout: `localidad` (una de las 20 de Bogota, por
+    nombre) e `indicaciones` (apartamento, torre, interior). Mismos largos que Comercio. Las
     coordenadas (`latitud`/`longitud`) solo cruzan las del pin confirmado en el
     mapa de OpenStreetMap (ADR 0049), juntas y dentro de Colombia. Cualquier otro
     campo desconocido se descarta aqui y no cruza."""
@@ -320,7 +319,6 @@ class EntregaCheckout(BaseModel):
     departamento: str | None = Field(default=None, max_length=128)
     indicaciones: str | None = Field(default=None, max_length=512)
     localidad: str | None = Field(default=None, max_length=64)
-    google_place_id: str | None = Field(default=None, max_length=512)
     latitud: float | None = Field(default=None, ge=-4.3, le=13.6)
     longitud: float | None = Field(default=None, ge=-81.8, le=-66.8)
 

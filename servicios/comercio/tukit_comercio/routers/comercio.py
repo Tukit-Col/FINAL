@@ -316,8 +316,7 @@ class DireccionEntrega(BaseModel):
 
     `localidad` es el nombre canonico de una de las 20 de Bogota; aqui solo se
     valida el largo, porque la regla "obligatoria en Bogota" es del formulario y
-    un cliente viejo tiene que seguir cerrando. `google_place_id` sale de la
-    sugerencia de Google Places (ADR 0044). `latitud`/`longitud` salen del pin
+    un cliente viejo tiene que seguir cerrando. `latitud`/`longitud` salen del pin
     que el acudiente confirmo en el mapa de OpenStreetMap (ADR 0049): van juntas
     o ninguna, y dentro de Colombia (un punto fuera es un error del cliente)."""
 
@@ -329,7 +328,6 @@ class DireccionEntrega(BaseModel):
     documento_destinatario: str | None = Field(default=None, max_length=64)
     indicaciones: str | None = Field(default=None, max_length=512)
     localidad: str | None = Field(default=None, max_length=64)
-    google_place_id: str | None = Field(default=None, max_length=512)
     latitud: float | None = Field(default=None, ge=-4.3, le=13.6)
     longitud: float | None = Field(default=None, ge=-81.8, le=-66.8)
 
@@ -785,7 +783,7 @@ async def _resolver_pendientes_del_kit(
     como esta (cancelarlo podria cobrar sin entregar), y si Wompi no responde
     tambien se deja: duplicar es mejor que cancelar a ciegas.
     """
-    # La entrega compara toda la copia congelada salvo el place_id, localidad
+    # La entrega compara toda la copia congelada , localidad
     # incluida: ver `CAMPOS_FIRMA_ENTREGA`.
     buscada = firma_orden(
         [(linea.sku, linea.cantidad, linea.precio_unitario) for linea in solicitud.lineas],

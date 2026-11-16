@@ -36,10 +36,9 @@ def vencido(creado_en: datetime, ahora: datetime | None = None) -> bool:
 
 
 # Los campos de la entrega que hacen "la misma orden": toda la copia congelada
-# del envio (ADR 0015) menos el `google_place_id`. Reutilizar un pendiente con
-# otra localidad u otro apartamento despacharia con los datos viejos; que no
-# case cuesta poco (se cancela el pendiente y se crea otro). El place_id apunta
-# al mismo texto de la direccion, asi que no hace otra entrega.
+# del envio (ADR 0015). Reutilizar un pendiente con otra localidad u otro
+# apartamento despacharia con los datos viejos; que no case cuesta poco (se
+# cancela el pendiente y se crea otro).
 CAMPOS_FIRMA_ENTREGA = (
     "destinatario",
     "direccion",

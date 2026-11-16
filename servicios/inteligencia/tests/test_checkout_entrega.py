@@ -2,8 +2,8 @@
 
 El navegador manda la direccion en `POST /v1/trabajos/{id}/ordenar` y aqui solo
 se valida y se pasa: la copia congelada vive en Comercio (ADR 0015). Se fija que
-los campos nuevos del checkout con Google Places (localidad, indicaciones,
-departamento, place_id) lleguen, y que sin ellos el cuerpo sea el de siempre
+los campos opcionales del checkout (localidad, indicaciones,
+departamento) lleguen, y que sin ellos el cuerpo sea el de siempre
 (un `None` de mas haria que Comercio viera otra entrega).
 """
 
@@ -45,14 +45,13 @@ async def test_una_entrega_sin_localidad_ni_indicaciones_viaja_tal_cual(cliente_
     assert entregas == [ENTREGA_MINIMA]
 
 
-async def test_localidad_indicaciones_y_place_id_llegan_a_comercio(cliente_y_entregas):
+async def test_localidad_e_indicaciones_llegan_a_comercio(cliente_y_entregas):
     cliente, entregas = cliente_y_entregas
     completa = {
         **ENTREGA_MINIMA,
         "departamento": "Bogotá, D.C.",
         "indicaciones": "Apto 502, torre 2",
         "localidad": "Chapinero",
-        "google_place_id": "ChIJx9Lr6tqZP44RQ1rNpuKDdeA",
     }
     respuesta = await cliente.post(f"/v1/trabajos/{TRABAJO}/ordenar", json=_cuerpo(completa))
     assert respuesta.status_code == 201
@@ -89,9 +88,7 @@ async def test_un_campo_desconocido_no_cruza(cliente_y_entregas):
     assert entregas == [ENTREGA_MINIMA]
 
 
-@pytest.mark.parametrize(
-    ("campo", "largo"), [("localidad", 65), ("google_place_id", 513), ("indicaciones", 513)]
-)
+@pytest.mark.parametrize(("campo", "largo"), [("localidad", 65), ("indicaciones", 513)])
 async def test_un_campo_demasiado_largo_no_llega_a_comercio(cliente_y_entregas, campo, largo):
     cliente, entregas = cliente_y_entregas
     respuesta = await cliente.post(
