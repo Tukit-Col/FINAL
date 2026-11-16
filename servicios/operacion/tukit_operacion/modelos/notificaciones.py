@@ -64,6 +64,12 @@ class Notificacion(Base):
     # El `id` de la fila en la bandeja de `evento_origen`. Referencia logica a
     # otra base, sin llave foranea, como `usuario_id`.
     evento_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    # Para el panel de correos enviados: el asunto que salio, que paso con el envio
+    # (`smtp`, `consola`, `destino_no_enviable`, `smtp_error: ...`) y el DOMINIO del
+    # destino. Nunca la direccion: eso es contacto y no se guarda.
+    asunto: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    detalle: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    destino_dominio: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
     __table_args__ = (
         Index("ix_notificacion_usuario", "usuario_id"),

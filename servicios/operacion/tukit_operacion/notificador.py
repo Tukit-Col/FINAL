@@ -25,7 +25,7 @@ import os
 import smtplib
 import urllib.parse
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from email.message import EmailMessage
 from pathlib import Path
 from typing import Protocol
@@ -51,6 +51,34 @@ class Envio:
     # Para wa-link, el enlace generado; para correo, None. Nunca el contacto.
     enlace: str | None = None
     detalle: str | None = None
+    # Para el panel de correos enviados: el asunto que salio y el DOMINIO del
+    # destino (no el correo: no se guarda, Ley 1581).
+    asunto: str | None = None
+    destino_dominio: str | None = None
+    # El envio no se intento a proposito (destino no enviable): no es un fallo
+    # que reintentar.
+    omitido: bool = False
+
+
+# Direcciones que no existen o son de siembra: un correo ahi rebota y daña la
+# reputacion de la cuenta que envia. Se omiten sin reintentar.
+_DOMINIOS_NO_ENVIABLES = ("tukit.co", "example.com", "ejemplo.com")
+_SUFIJOS_NO_ENVIABLES = (".test", ".invalid", ".local", ".example")
+
+
+def destino_enviable(correo: str) -> bool:
+    """Si vale la pena intentar entregar a `correo`.
+
+    `TUKIT_CORREO_PERMITIDOS` (direcciones separadas por coma) deja pasar
+    excepciones, por ejemplo una cuenta real en un dominio bloqueado."""
+    direccion = correo.strip().lower()
+    permitidos = {c.strip().lower() for c in os.environ.get("TUKIT_CORREO_PERMITIDOS", "").split(",")}
+    if direccion in permitidos:
+        return True
+    dominio = direccion.rsplit("@", 1)[-1]
+    if dominio.endswith(_SUFIJOS_NO_ENVIABLES):
+        return False
+    return not any(dominio == d or dominio.endswith("." + d) for d in _DOMINIOS_NO_ENVIABLES)
 
 
 class Notificador(Protocol):
@@ -604,19 +632,33 @@ class Correo:
     async def enviar(self, contacto: Contacto, plantilla: str, datos: dict[str, object]) -> Envio:
         if not contacto.correo:
             return Envio(canal="correo", exito=False, detalle="sin_correo")
+        dominio = contacto.correo.rsplit("@", 1)[-1].strip().lower()
+        asunto = asunto_de(plantilla, datos)
+        # La guarda solo importa con SMTP real: en modo consola nada sale y nada rebota.
+        if self._smtp_host() is not None and not destino_enviable(contacto.correo):
+            return Envio(
+                canal="correo",
+                exito=False,
+                detalle="destino_no_enviable",
+                asunto=asunto,
+                destino_dominio=dominio,
+                omitido=True,
+            )
         try:
             mensaje = self._armar(contacto.correo, plantilla, datos)
             host = self._smtp_host()
             if host is None:
-                return self._enviar_consola(contacto.usuario_id, mensaje)
-            # `smtplib.SMTP` es bloqueante (socket + starttls + login); correrlo tal
-            # cual dentro de este `async` congelaria el event loop —y con el la cola
-            # del repartidor— mientras un servidor de correo lento responde. Se corre
-            # en un hilo para que solo espere quien envia, no todo el servicio.
-            return await asyncio.to_thread(self._enviar_smtp, host, mensaje)
+                envio = self._enviar_consola(contacto.usuario_id, mensaje)
+            else:
+                # `smtplib.SMTP` es bloqueante (socket + starttls + login); correrlo tal
+                # cual dentro de este `async` congelaria el event loop —y con el la cola
+                # del repartidor— mientras un servidor de correo lento responde. Se corre
+                # en un hilo para que solo espere quien envia, no todo el servicio.
+                envio = await asyncio.to_thread(self._enviar_smtp, host, mensaje)
         except Exception as error:  # noqa: BLE001 - un correo nunca tumba al repartidor
             _log.warning("correo no enviado (%s): %s", plantilla, type(error).__name__)
-            return Envio(canal="correo", exito=False, detalle=f"error: {type(error).__name__}")
+            envio = Envio(canal="correo", exito=False, detalle=f"error: {type(error).__name__}")
+        return replace(envio, asunto=asunto, destino_dominio=dominio)
 
     def _enviar_consola(self, usuario_id: str, mensaje: EmailMessage) -> Envio:
         """Sin servidor: deja el aviso en el log y, si hay buzon, el .eml completo.
@@ -703,6 +745,7 @@ __all__ = [
     "Correo",
     "Contacto",
     "Envio",
+    "destino_enviable",
     "texto_de",
     "asunto_de",
     "html_de",

@@ -37,11 +37,18 @@ class RepoNotificaciones:
         ahora: datetime,
         evento_origen: str | None = None,
         evento_id: int | None = None,
+        asunto: str | None = None,
+        detalle: str | None = None,
+        destino_dominio: str | None = None,
+        omitida: bool = False,
     ) -> None:
         """Guarda una notificacion por id, sin contacto. `estado`/`enviada_en`
-        salen de si el envio salio: enviada+sello, o fallida+sin sello. El
+        salen de si el envio salio: enviada+sello, o fallida+sin sello; `omitida`
+        es el envio que no se intento a proposito (destino no enviable). El
         evento de bandeja que la origina, si lo hay, queda en `evento_origen` y
-        `evento_id` (ADR 0042)."""
+        `evento_id` (ADR 0042). `asunto`, `detalle` y `destino_dominio` alimentan
+        el panel de correos enviados; el dominio, nunca la direccion."""
+        estado = "omitida" if omitida else ("enviada" if exito else "fallida")
         await self.conexion.execute(
             insert(NOTIFICACION).values(
                 id=uuid.uuid4(),
@@ -49,11 +56,14 @@ class RepoNotificaciones:
                 canal=canal,
                 plantilla=plantilla,
                 datos=datos,  # variables de negocio, sin contacto
-                estado="enviada" if exito else "fallida",
+                estado=estado,
                 creado_en=ahora,
                 enviada_en=ahora if exito else None,
                 evento_origen=evento_origen,
                 evento_id=evento_id,
+                asunto=asunto,
+                detalle=detalle,
+                destino_dominio=destino_dominio,
             )
         )
 

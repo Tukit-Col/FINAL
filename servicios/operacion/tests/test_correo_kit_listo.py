@@ -19,7 +19,15 @@ from test_repartidor import (  # noqa: F401  (fixtures y ayudas del repartidor)
     motor_origen,
 )
 from tukit_operacion.dominio.reparto import datos_plantilla, lugar_de
-from tukit_operacion.notificador import Contacto, Correo, NotificadorFalso, asunto_de, html_de, texto_de
+from tukit_operacion.notificador import (
+    Contacto,
+    Correo,
+    NotificadorFalso,
+    asunto_de,
+    destino_enviable,
+    html_de,
+    texto_de,
+)
 
 APODO = "Sofi-la-pilosa"
 TRABAJO = uuid.UUID("33333333-3333-5333-8333-333333333333")
@@ -282,3 +290,44 @@ def test_el_asunto_lleva_el_pedido_para_que_cada_aviso_sea_su_propia_conversacio
     assert asunto_de("kits_publicados", {"listas": []}) == "Tu kit esta listo"
     mensaje = Correo()._armar("a@b.co", "pedido_pagado", {"pedido": "AB12", "turno": "7", "caso": "CAS1"})
     assert mensaje["Subject"] == "Recibimos tu pago · pedido AB12"
+
+
+def test_los_destinos_de_siembra_y_de_prueba_no_se_envian(monkeypatch):
+    monkeypatch.delenv("TUKIT_CORREO_PERMITIDOS", raising=False)
+    for falso in ("operador@tukit.co", "x@sub.tukit.co", "a@example.com", "a@ejemplo.com", "a@colegio.test"):
+        assert destino_enviable(falso) is False, falso
+    for real in ("maria@gmail.com", "papa@colegio.edu.co", "a@tukit.com"):
+        assert destino_enviable(real) is True, real
+
+
+def test_una_excepcion_por_entorno_deja_pasar_una_direccion_bloqueada(monkeypatch):
+    monkeypatch.setenv("TUKIT_CORREO_PERMITIDOS", "ayuda@tukit.co, Otra@Tukit.co")
+    assert destino_enviable("AYUDA@tukit.co") is True
+    assert destino_enviable("operador@tukit.co") is False
+
+
+async def test_destino_no_enviable_no_abre_smtp_y_se_marca_omitido(monkeypatch):
+    monkeypatch.setenv("TUKIT_SMTP_HOST", "smtp.invalido.test")
+    monkeypatch.delenv("TUKIT_CORREO_PERMITIDOS", raising=False)
+
+    def no_debe_abrirse(*_a, **_k):
+        raise AssertionError("no debia abrir SMTP")
+
+    monkeypatch.setattr("tukit_operacion.notificador.smtplib.SMTP", no_debe_abrirse)
+    envio = await Correo().enviar(
+        Contacto(usuario_id="u1", correo="operador@tukit.co"), "pedido_pagado", {"pedido": "AB12"}
+    )
+    assert (envio.exito, envio.omitido, envio.detalle) == (False, True, "destino_no_enviable")
+    assert envio.destino_dominio == "tukit.co"
+    assert envio.asunto == "Recibimos tu pago · pedido AB12"
+
+
+async def test_el_envio_lleva_asunto_y_dominio_pero_no_la_direccion(tmp_path, monkeypatch):
+    monkeypatch.delenv("TUKIT_SMTP_HOST", raising=False)  # consola: la guarda no aplica
+    monkeypatch.setenv("TUKIT_BUZON_DIR", str(tmp_path))
+    envio = await Correo().enviar(
+        Contacto(usuario_id="u1", correo="maria@gmail.com"), "pedido_pagado", {"pedido": "AB12"}
+    )
+    assert envio.exito and envio.destino_dominio == "gmail.com"
+    assert envio.asunto == "Recibimos tu pago · pedido AB12"
+    assert "maria" not in repr(envio)

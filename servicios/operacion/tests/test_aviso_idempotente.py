@@ -35,7 +35,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from test_repartidor import USUARIO, IdentidadContacto, _sembrar_kits_publicados, _tablas_origen
 from tukit_comun.bd import MotorServicio
 from tukit_operacion.modelos import Base
-from tukit_operacion.notificador import Envio, NotificadorFalso
+from tukit_operacion.notificador import Envio, NotificadorCompuesto, NotificadorFalso
 from tukit_operacion.repartidor import NOTIFICACION, Repartidor
 
 
@@ -273,3 +273,38 @@ class TestLaBaseLoRespalda:
             await _insertar_notificacion(conexion, "enviada", evento_origen=None, evento_id=None)
 
         assert len(await _notificaciones(motor_operacion)) == 6
+
+
+class TestElPanelDeCorreosVeLoQuePaso:
+    async def test_un_fallo_deja_su_detalle_registrado(self, motor_operacion, comercio):
+        engine, bandeja, _trabajo = comercio
+        await _sembrar_pedido_pagado(engine, bandeja)
+        reparto = _repartidor("comercio", motor_operacion, engine, _NotificadorQueFallaPrimero())
+
+        await reparto.pasada()
+
+        [fila] = await _notificaciones(motor_operacion)
+        assert (fila.estado, fila.detalle) == ("fallida", "proveedor_caido")
+
+    async def test_un_destino_no_enviable_queda_omitido_y_cierra_el_evento(
+        self, motor_operacion, comercio, monkeypatch
+    ):
+        monkeypatch.setenv("TUKIT_SMTP_HOST", "smtp.invalido.test")
+        monkeypatch.delenv("TUKIT_CORREO_PERMITIDOS", raising=False)
+        engine, bandeja, _trabajo = comercio
+        evento_id = await _sembrar_pedido_pagado(engine, bandeja)
+        reparto = _repartidor(
+            "comercio",
+            motor_operacion,
+            engine,
+            NotificadorCompuesto(),
+            identidad=IdentidadContacto(correo="operador@tukit.co", celular=None),
+        )
+
+        assert await reparto.pasada() == 1
+
+        [fila] = await _notificaciones(motor_operacion)
+        assert fila.estado == "omitida"
+        assert (fila.detalle, fila.destino_dominio) == ("destino_no_enviable", "tukit.co")
+        assert fila.asunto.startswith("Recibimos tu pago")
+        assert await _publicado(engine, bandeja, evento_id)
