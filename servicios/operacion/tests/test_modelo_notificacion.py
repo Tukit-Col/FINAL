@@ -1,27 +1,107 @@
-"""La migracion del evento en `notificacion` va y vuelve en SQLite (ADR 0042).
+"""La tabla `notificacion`: sin contacto, un aviso enviado por evento, y su migracion.
 
-La suite crea las tablas con `create_all`, asi que las columnas nuevas aparecen
-solas en las demas pruebas; esta cubre el otro lado: que la MIGRACION, la que
-corre contra Postgres, agregue lo que el modelo declara y que el downgrade lo
-quite. Se arma a mano la `notificacion` PREVIA (sin las columnas), con una fila
-de antes, y se ejerce solo el par upgrade/downgrade de esta revision.
+- **Sin dato de contacto** (Ley 1581). La notificacion referencia al usuario por
+  id; el servicio anterior persistia el correo en el contenido y el derecho al
+  olvido no lo alcanzaba. Ninguna columna de `notificacion` ni de
+  `preferencia_notificacion` se llama como un dato de contacto.
+- **Un aviso enviado por evento** (ADR 0042). Un indice unico parcial no deja
+  dos filas `enviada` del mismo `(evento_origen, evento_id)`; si deja varias
+  `fallida` y los avisos sin evento de antes de la columna.
+- **La migracion va y vuelve.** La suite crea las tablas con `create_all`; aqui
+  se ejerce el par upgrade/downgrade de la revision que agrega el evento, la que
+  corre contra Postgres, sobre la `notificacion` PREVIA armada a mano.
 """
 
 from __future__ import annotations
 
 import importlib.util
 import uuid
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
+import pytest_asyncio
 import sqlalchemy as sa
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
-from tukit_operacion.modelos import Base
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from tukit_operacion.modelos import Base, Notificacion, PreferenciaNotificacion
 
+NOTIFICACION = Base.metadata.tables["notificacion"]
+PROHIBIDAS = {"correo", "email", "celular", "telefono", "phone"}
 _REVISION = (
     Path(__file__).resolve().parents[1] / "migraciones/versions/20261019_1200_evento_en_notificacion.py"
 )
+
+
+def _aviso(estado: str, evento_origen: str | None = "comercio", evento_id: int | None = 7) -> dict:
+    return {
+        "id": uuid.uuid4(),
+        "usuario_id": uuid.uuid4(),
+        "canal": "correo",
+        "plantilla": "pedido_pagado",
+        "datos": {},
+        "estado": estado,
+        "evento_origen": evento_origen,
+        "evento_id": evento_id,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Sin dato de contacto
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("modelo", [Notificacion, PreferenciaNotificacion], ids=lambda m: m.__tablename__)
+def test_referencia_al_usuario_por_id_y_no_guarda_contacto(modelo):
+    columnas = {c.name for c in modelo.__table__.columns}
+    assert PROHIBIDAS.isdisjoint(columnas)
+    assert "usuario_id" in columnas
+
+
+# ---------------------------------------------------------------------------
+# Un aviso enviado por evento
+# ---------------------------------------------------------------------------
+
+
+@pytest_asyncio.fixture
+async def engine() -> AsyncIterator[AsyncEngine]:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conexion:
+        await conexion.run_sync(Base.metadata.create_all)
+    yield engine
+    await engine.dispose()
+
+
+async def test_no_admite_dos_avisos_enviados_del_mismo_evento(engine):
+    async with engine.connect() as conexion:
+        await conexion.execute(sa.insert(NOTIFICACION).values(**_aviso("enviada")))
+        with pytest.raises(sa.exc.IntegrityError):
+            async with conexion.begin_nested():
+                await conexion.execute(sa.insert(NOTIFICACION).values(**_aviso("enviada")))
+
+
+async def test_admite_varios_fallidos_y_avisos_sin_evento(engine):
+    filas = [
+        _aviso("fallida"),
+        _aviso("fallida"),
+        _aviso("enviada"),
+        _aviso("enviada", evento_origen="inteligencia"),
+        # Las notificaciones de antes de esta columna no tienen evento.
+        _aviso("enviada", evento_origen=None, evento_id=None),
+        _aviso("enviada", evento_origen=None, evento_id=None),
+    ]
+    async with engine.begin() as conexion:
+        for fila in filas:
+            await conexion.execute(sa.insert(NOTIFICACION).values(**fila))
+        total = await conexion.scalar(sa.select(sa.func.count()).select_from(NOTIFICACION))
+
+    assert total == len(filas)
+
+
+# ---------------------------------------------------------------------------
+# La migracion del evento (ADR 0042)
+# ---------------------------------------------------------------------------
 
 
 def _cargar_revision():
@@ -32,7 +112,7 @@ def _cargar_revision():
     return modulo
 
 
-def _notificacion(*extra: sa.Column) -> sa.Table:
+def _notificacion_previa(*extra: sa.Column) -> sa.Table:
     """`notificacion` como estaba ANTES de esta revision, mas `extra`."""
     return sa.Table(
         "notificacion",
@@ -53,26 +133,13 @@ def _columnas(conexion: sa.Connection) -> set[str]:
     return {c["name"] for c in sa.inspect(conexion).get_columns("notificacion")}
 
 
-def _aviso(estado: str, evento_origen: str | None = "comercio", evento_id: int | None = 1) -> dict:
-    return {
-        "id": uuid.uuid4(),
-        "usuario_id": uuid.uuid4(),
-        "canal": "correo",
-        "plantilla": "pedido_pagado",
-        "datos": {},
-        "estado": estado,
-        "evento_origen": evento_origen,
-        "evento_id": evento_id,
-    }
-
-
-def test_upgrade_agrega_el_evento_con_su_indice_parcial_y_downgrade_lo_quita():
+def test_la_migracion_agrega_el_evento_con_su_indice_parcial_y_el_downgrade_lo_quita():
     revision = _cargar_revision()
     assert revision.down_revision == "d0bf03671b97"
 
     engine = sa.create_engine("sqlite://")
     with engine.begin() as conexion:
-        previa = _notificacion()
+        previa = _notificacion_previa()
         previa.create(conexion)
         # Las notificaciones que ya existian no tienen evento y tienen que seguir valiendo.
         aviso_de_antes = {k: v for k, v in _aviso("enviada").items() if not k.startswith("evento_")}
@@ -83,15 +150,13 @@ def test_upgrade_agrega_el_evento_con_su_indice_parcial_y_downgrade_lo_quita():
             revision.upgrade()
             # Las columnas de revisiones posteriores (asunto, detalle, destino_dominio) no son de esta.
             posteriores = {"asunto", "detalle", "destino_dominio"}
-            assert _columnas(conexion) == {
-                c.name for c in Base.metadata.tables["notificacion"].columns
-            } - posteriores
+            assert _columnas(conexion) == {c.name for c in NOTIFICACION.columns} - posteriores
             indices = {i["name"]: i for i in sa.inspect(conexion).get_indexes("notificacion")}
             indice = indices["uq_notificacion_evento_enviada"]
             assert indice["unique"]
             assert indice["column_names"] == ["evento_origen", "evento_id"]
 
-            nueva = _notificacion(
+            nueva = _notificacion_previa(
                 sa.Column("evento_origen", sa.String(32), nullable=True),
                 sa.Column("evento_id", sa.BigInteger(), nullable=True),
             )

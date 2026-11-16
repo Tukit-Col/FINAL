@@ -9,6 +9,7 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 
 import httpx
+import pytest
 import pytest_asyncio
 from conftest import TOKEN_ACUDIENTE, TOKEN_OPERADOR, IdentidadFalsa, bearer
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -51,10 +52,13 @@ async def _aviso(plantilla: str, *, exito: bool = True, omitida: bool = False, m
         )
 
 
-async def test_solo_staff_ve_los_correos(cliente):
-    assert (await cliente.get("/v1/operacion/correos")).status_code == 401
-    assert (await cliente.get("/v1/operacion/correos", headers=bearer(TOKEN_ACUDIENTE))).status_code == 403
-    assert (await cliente.get("/v1/operacion/correos", headers=STAFF)).status_code == 200
+@pytest.mark.parametrize(
+    ("headers", "esperado"),
+    [({}, 401), (bearer(TOKEN_ACUDIENTE), 403), (STAFF, 200)],
+    ids=["sin_sesion", "acudiente", "staff"],
+)
+async def test_solo_staff_ve_los_correos(cliente, headers, esperado):
+    assert (await cliente.get("/v1/operacion/correos", headers=headers)).status_code == esperado
 
 
 async def test_lista_lo_mas_reciente_primero_con_resumen_y_sin_direccion(cliente):

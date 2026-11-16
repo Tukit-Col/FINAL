@@ -1,4 +1,4 @@
-"""Con las constantes actuales, el barrido reproduce `descubrir.clasificar` en 20 renglones."""
+"""`clasificacion` puntua igual que `descubrir.clasificar`: con las constantes actuales, en 20 renglones."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def test_reproduce_clasificar_en_20_renglones() -> None:
+def test_puntuar_reproduce_descubrir_clasificar_en_20_renglones() -> None:
     d = k.cargar()
     r = k.construir_rasgos(d)
     idx, s = k.puntuar(r, k.ACTUAL)

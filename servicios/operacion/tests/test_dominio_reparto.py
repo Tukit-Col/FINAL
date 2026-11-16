@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import uuid
 
+import pytest
 from tukit_operacion.dominio.reparto import (
     datos_plantilla,
     destinatario_en_carga,
@@ -73,12 +74,6 @@ def test_pedido_id_invalido_no_arma_enlace():
     assert "enlace" not in datos and "pedido" not in datos
 
 
-def test_nuevos_avisos_tienen_plantilla_y_usuario_en_carga():
-    for tipo in ("pedido_en_preparacion", "pedido_cancelado"):
-        assert plantilla_para(tipo) == tipo
-        assert destinatario_en_carga(tipo, {"usuario_id": "u-4"}) == "u-4"
-
-
 def test_cancelado_lleva_si_hay_reembolso_y_preparacion_si_retoma():
     cancelado = datos_plantilla("pedido_cancelado", uuid.uuid4(), {"reembolso": True}, base_web="https://tukit.co")
     assert cancelado["reembolso"] is True
@@ -92,10 +87,10 @@ def test_cancelado_lleva_si_hay_reembolso_y_preparacion_si_retoma():
 AVISOS_DE_LOGISTICA = ("pedido_despachado", "pedido_en_reparto", "pedido_entregado")
 
 
-def test_los_avisos_de_logistica_tienen_plantilla_y_usuario_en_carga():
-    for tipo in AVISOS_DE_LOGISTICA:
-        assert plantilla_para(tipo) == tipo
-        assert destinatario_en_carga(tipo, {"usuario_id": "u-3"}) == "u-3"
+@pytest.mark.parametrize("tipo", [*AVISOS_DE_LOGISTICA, "pedido_en_preparacion", "pedido_cancelado"])
+def test_los_avisos_de_pedido_tienen_plantilla_y_usuario_en_carga(tipo):
+    assert plantilla_para(tipo) == tipo
+    assert destinatario_en_carga(tipo, {"usuario_id": "u-3"}) == "u-3"
 
 
 def test_despachado_lleva_el_nombre_del_repartidor():

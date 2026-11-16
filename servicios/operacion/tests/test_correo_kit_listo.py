@@ -1,7 +1,8 @@
-"""El correo "Tu kit esta listo": plantilla, privacidad, fallo y idempotencia.
+"""Los correos del notificador: plantillas, marco HTML, privacidad, remitente y envio.
 
-Sin red ni SMTP: el modo consola escribe a un buzon temporal y los dobles
-reemplazan a Identidad. Ningun correo real sale."""
+Sin red ni SMTP: el modo consola escribe a un buzon temporal. Ningun correo real
+sale. Lo que el repartidor pone en cada aviso (colegio, listas, sin apodo) se
+prueba en `test_repartidor.py`."""
 
 from __future__ import annotations
 
@@ -9,26 +10,17 @@ import email
 import uuid
 from email import policy
 
-from sqlalchemy import insert
-from test_repartidor import (  # noqa: F401  (fixtures y ayudas del repartidor)
-    CORREO,
-    IdentidadContacto,
-    _contar_notificaciones,
-    _repartidor,
-    motor_operacion,
-    motor_origen,
-)
 from tukit_operacion.dominio.reparto import datos_plantilla, lugar_de
 from tukit_operacion.notificador import (
     Contacto,
     Correo,
-    NotificadorFalso,
     asunto_de,
     destino_enviable,
     html_de,
     texto_de,
 )
 
+CORREO = "ana@ejemplo.com"
 APODO = "Sofi-la-pilosa"
 TRABAJO = uuid.UUID("33333333-3333-5333-8333-333333333333")
 
@@ -113,37 +105,6 @@ async def test_sin_correo_es_fallo_no_excepcion():
     assert envio.exito is False and envio.detalle == "sin_correo"
 
 
-class _IdentidadConColegio(IdentidadContacto):
-    async def nombre_colegio(self, colegio_id: str) -> str | None:
-        return "Colegio Alamei"
-
-
-async def test_repartidor_pone_colegio_y_grado_una_sola_vez(motor_operacion, motor_origen, monkeypatch):  # noqa: F811
-    monkeypatch.setenv("TUKIT_WEB_URL", "https://tukit.co")
-    engine, bandeja, trabajo = motor_origen
-    async with engine.begin() as conexion:
-        await conexion.execute(insert(trabajo).values(id=TRABAJO, usuario_id=uuid.uuid4()))
-        await conexion.execute(
-            insert(bandeja).values(
-                tipo="kits_publicados",
-                agregado_tipo="trabajo_pipeline",
-                agregado_id=TRABAJO,
-                # La carga real no trae apodo ni referencia; aun si lo trajera, no se usa.
-                carga={"colegio_id": "c1", "grado": "3", "apodo": APODO},
-                intentos=0,
-            )
-        )
-    notificador = NotificadorFalso()
-    reparto = _repartidor(motor_operacion, engine, notificador, _IdentidadConColegio())
-    await reparto.pasada()
-    await reparto.pasada()  # una segunda pasada no reenvia
-    assert len(notificador.enviados) == 1
-    texto = notificador.enviados[0]["texto"]
-    assert "Colegio Alamei, grado 3" in texto and APODO not in texto
-    filas = await _contar_notificaciones(motor_operacion)
-    assert len(filas) == 1 and APODO not in str(filas[0])
-
-
 def test_todos_los_correos_llevan_enlace_y_pie_legal(monkeypatch):
     from tukit_operacion.notificador import _PLANTILLAS, destino_de, pie_texto
 
@@ -181,7 +142,7 @@ def test_barra_de_fases_marca_la_fase_de_cada_aviso():
     }
     for plantilla, fase in esperado.items():
         cuerpo = html_de(plantilla, {"pedido": "7F3A9C21", "repartidor": "Luis"})
-        assert f"Ahora: <b" in cuerpo and f">{fase}</b>" in cuerpo
+        assert "Ahora: <b" in cuerpo and f">{fase}</b>" in cuerpo
     for plantilla in ("incidencia", "pedido_cancelado", "kits_publicados", "caso_respuesta"):
         assert "Ahora:" not in html_de(plantilla, {"pedido": "7F3A9C21"})
 
@@ -200,52 +161,6 @@ def test_variantes_de_cancelacion_incidencia_y_retoma():
     cobro = html_de("incidencia", {"pedido": "AB", "motivo": "pago_tras_cancelacion"})
     assert "ya estaba cancelado" in cobro and "Devolvemos un pago" in cobro
     assert "Retomamos tu pedido" in html_de("pedido_en_preparacion", {"pedido": "AB", "retoma": True})
-
-
-class _IdentidadDosColegios(IdentidadContacto):
-    def __init__(self) -> None:
-        super().__init__()
-        self.colegios: list[str] = []
-
-    async def nombre_colegio(self, colegio_id: str) -> str | None:
-        self.colegios.append(colegio_id)
-        return {"c1": "Colegio A", "c2": "Colegio B"}.get(colegio_id)
-
-
-async def test_repartidor_nombra_todas_las_listas_del_hogar(
-    motor_operacion,  # noqa: F811
-    motor_origen,  # noqa: F811
-    monkeypatch,
-):
-    monkeypatch.setenv("TUKIT_WEB_URL", "https://tukit.co")
-    engine, bandeja, trabajo = motor_origen
-    async with engine.begin() as conexion:
-        await conexion.execute(insert(trabajo).values(id=TRABAJO, usuario_id=uuid.uuid4()))
-        await conexion.execute(
-            insert(bandeja).values(
-                tipo="kits_publicados",
-                agregado_tipo="trabajo_pipeline",
-                agregado_id=TRABAJO,
-                carga={
-                    "colegio_id": "c1",
-                    "grado": "Septimo",
-                    "listas": [
-                        {"colegio_id": "c1", "grado": "Septimo"},
-                        {"colegio_id": "c1", "grado": "Jardin"},
-                        {"colegio_id": "c2", "grado": "5"},
-                    ],
-                },
-                intentos=0,
-            )
-        )
-    notificador = NotificadorFalso()
-    identidad = _IdentidadDosColegios()
-    reparto = _repartidor(motor_operacion, engine, notificador, identidad)
-    await reparto.pasada()
-    texto = notificador.enviados[0]["texto"]
-    assert "Colegio A, grados Septimo y Jardin y Colegio B, grado 5" in texto
-    # Un nombre por colegio distinto, no por lista.
-    assert sorted(identidad.colegios) == ["c1", "c2"]
 
 
 def test_html_kit_listo_lista_cada_lista_y_dice_los_kits():
