@@ -253,3 +253,24 @@ def test_html_kit_listo_lista_cada_lista_y_dice_los_kits():
     # Una sola lista: la fila sigue llamandose "Lista" y el texto en singular.
     uno = html_de("kits_publicados", {"lugar": "Colegio X, grado 3", "listas": ["Colegio X, grado 3"]})
     assert ">Lista<" in uno and "Armamos la lista de Colegio X, grado 3" in uno
+
+
+def test_el_remitente_siempre_lleva_direccion(monkeypatch):
+    # `make` exporta TUKIT_SMTP_DESDE sin comillas y «TUKIT <tukit.ayuda@gmail.com>»
+    # llegaba cortado en «TUKIT»: un From sin direccion, que Gmail acepta y no
+    # entrega en la bandeja. Sin direccion se completa con la cuenta SMTP.
+    monkeypatch.setenv("TUKIT_SMTP_DESDE", "TUKIT")
+    monkeypatch.setenv("TUKIT_SMTP_USER", "tukit.ayuda@gmail.com")
+    mensaje = Correo()._armar("a@b.co", "pedido_pagado", {"pedido": "AB12", "turno": "7", "caso": "CAS1"})
+    assert mensaje["From"] == "TUKIT <tukit.ayuda@gmail.com>"
+    monkeypatch.setenv("TUKIT_SMTP_DESDE", "TUKIT <otro@tukit.co>")
+    mensaje = Correo()._armar("a@b.co", "pedido_pagado", {"pedido": "AB12", "turno": "7", "caso": "CAS1"})
+    assert mensaje["From"] == "TUKIT <otro@tukit.co>"
+
+
+def test_el_correo_lleva_fecha_y_message_id():
+    # Sin Date ni Message-ID, Gmail acepta el envio por SMTP y luego no lo
+    # pone en la bandeja: el E2E marcaba cuatro avisos «enviada» y no llego ninguno.
+    mensaje = Correo()._armar("a@b.co", "pedido_pagado", {"pedido": "AB12", "turno": "7", "caso": "CAS1"})
+    assert mensaje["Date"]
+    assert mensaje["Message-ID"] and mensaje["Message-ID"].startswith("<")

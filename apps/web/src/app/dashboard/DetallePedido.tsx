@@ -102,8 +102,9 @@ export default function DetallePedido({ pedido }: { pedido: Pedido }) {
           </dl>
 
           <ul className={styles.productosPedido}>
-            {pedido.lineas.map((l) => (
-              <li key={l.sku}>
+            {/* El mismo sku puede venir en dos renglones (un libro pedido dos veces). */}
+            {pedido.lineas.map((l, i) => (
+              <li key={`${l.sku}-${i}`}>
                 <span>
                   {l.cantidad} × {l.nombre}
                 </span>

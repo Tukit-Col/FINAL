@@ -18,6 +18,7 @@ pruebas y el desarrollo sin SMTP.
 from __future__ import annotations
 
 import asyncio
+import email.utils
 import html
 import logging
 import os
@@ -555,10 +556,21 @@ class Correo:
 
     def _armar(self, destino: str, plantilla: str, datos: dict[str, object]) -> EmailMessage:
         desde = self.remitente or os.environ.get("TUKIT_SMTP_DESDE", "no-responder@tukit.co")
+        # `make -include .env` corta un valor sin comillas en el primer espacio:
+        # «TUKIT <tukit.ayuda@gmail.com>» llegaba como «TUKIT», un From sin
+        # direccion que Gmail acepta y no entrega. Sin @ se completa con la
+        # cuenta que autentica, que es la unica que el SMTP deja usar.
+        if "@" not in desde:
+            cuenta = os.environ.get("TUKIT_SMTP_USER") or "no-responder@tukit.co"
+            desde = f"{desde.strip() or 'TUKIT'} <{cuenta}>"
         mensaje = EmailMessage()
         mensaje["From"] = desde
         mensaje["To"] = destino
         mensaje["Subject"] = asunto_de(plantilla)
+        # Gmail recibe por SMTP un correo sin Date ni Message-ID y luego no lo
+        # entrega: el envio sale «exitoso» y el acudiente no ve nada.
+        mensaje["Date"] = email.utils.formatdate(localtime=True)
+        mensaje["Message-ID"] = email.utils.make_msgid(domain=desde.rsplit("@", 1)[-1].strip(" >") or None)
         texto = texto_de(plantilla, datos)
         mensaje["List-Unsubscribe"] = f"<mailto:{_contacto()}?subject=BAJA>"
         destino = destino_de(plantilla, datos)

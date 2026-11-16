@@ -167,9 +167,9 @@ function Aprobado({ datos, pedido }: { datos: Resultado; pedido: Pedido | null }
       {pedido?.envio && <EntregaPedido envio={pedido.envio} />}
 
       <div className={styles.acciones}>
-        {/* La pagina del pedido sigue su camino hasta la puerta de la casa. */}
-        <Link href={`/pedidos/${datos.pedido_id}`} className={styles.boton}>
-          <Package size={18} aria-hidden /> Ver mi pedido
+        {/* El panel del acudiente: ahi ve este pedido y los demas. */}
+        <Link href="/dashboard" className={styles.boton}>
+          <Package size={18} aria-hidden /> Ir a mis pedidos
         </Link>
         <Link href="/" className={`${styles.boton} ${styles.secundario}`}>
           <Home size={18} aria-hidden /> Volver al inicio
