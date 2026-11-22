@@ -29,6 +29,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, Query, Request
 from pydantic import BaseModel, Field
+from tukit_comun.autenticacion import token_bearer
 from tukit_comun.http import ErrorDominio
 from tukit_comun.http import iso as _iso
 
@@ -73,15 +74,6 @@ _MENSAJE_CATEGORIA = {
 _ROLES_STAFF = frozenset({"admin", "operador"})
 
 
-def _token_bearer(authorization: str | None) -> str | None:
-    """El token del encabezado `Authorization`: `Bearer <token>` o el token pelado."""
-    if not authorization:
-        return None
-    partes = authorization.split(" ", 1)
-    if len(partes) == 2 and partes[0].lower() == "bearer":
-        return partes[1].strip()
-    return authorization.strip()
-
 
 async def _exigir_staff(request: Request, authorization: str | None) -> uuid.UUID:
     """Puerta operador/admin (ver `_exigir_staff_con_rol`); devuelve el `usuario_id`."""
@@ -92,7 +84,7 @@ async def _exigir_staff_con_rol(request: Request, authorization: str | None) -> 
     """Puerta operador/admin: 401 sin token o con uno invalido, 503 si Identidad
     no responde (FALLA CERRADA: no se autoriza por no poder preguntar), 403 si el
     rol no es staff. Devuelve el `usuario_id` de la sesion, que queda como actor."""
-    token = _token_bearer(authorization)
+    token = token_bearer(authorization)
     if not token:
         raise ErrorDominio("sesion_invalida", "El token no es valido o expiro.", estado=401)
     try:
@@ -561,19 +553,10 @@ async def abrir_caso(request: Request, solicitud: SolicitudCaso) -> dict[str, An
 # otra familia y colgarle el caso. Un caso ajeno responde 403.
 
 
-def _token_bearer(authorization: str | None) -> str | None:
-    if not authorization:
-        return None
-    partes = authorization.split(" ", 1)
-    if len(partes) == 2 and partes[0].lower() == "bearer":
-        return partes[1].strip()
-    return authorization.strip()
-
-
 async def _usuario_de_sesion(request: Request, authorization: str | None) -> uuid.UUID:
     """El `usuario_id` de la sesion. 401 sin token valido; 503 si Identidad no
     responde (falla cerrada)."""
-    token = _token_bearer(authorization)
+    token = token_bearer(authorization)
     if not token:
         raise ErrorDominio("sesion_invalida", "Inicia sesión para ver y abrir tus casos.", estado=401)
     try:

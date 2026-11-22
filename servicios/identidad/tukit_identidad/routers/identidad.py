@@ -27,6 +27,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, Query, Request, Response
 from pydantic import BaseModel, Field
+from tukit_comun.autenticacion import token_bearer
 from tukit_comun.cifrado import cifrador_desde_entorno
 from tukit_comun.http import ErrorDominio
 
@@ -87,15 +88,6 @@ _CAMPOS_FIJOS = ("nombre", "nit")
 # Parseo y forma; no tocan la base.
 
 
-def _token_del_encabezado(authorization: str | None) -> str | None:
-    if not authorization:
-        return None
-    partes = authorization.split(" ", 1)
-    if len(partes) == 2 and partes[0].lower() == "bearer":
-        return partes[1].strip()
-    return authorization.strip()
-
-
 def _direccion_publica(fila: Any) -> dict[str, Any]:
     """Una direccion descifrada para que la vea su dueno. La linea y el contacto
     se descifran aqui; en la base viajan cifrados."""
@@ -118,7 +110,7 @@ def _direccion_publica(fila: Any) -> dict[str, Any]:
 async def _usuario_del_token(authorization: str | None, repo: RepoIdentidad) -> Any:
     """El usuario activo portador del token, o 401. Reusa la verificacion de
     firma/expiracion y la revocacion por `version_permisos`."""
-    token = _token_del_encabezado(authorization)
+    token = token_bearer(authorization)
     payload = leer_token(token) if token else None
     if payload is None:
         raise ErrorDominio("sesion_invalida", "El token no es valido o expiro.", estado=401)
@@ -969,7 +961,7 @@ async def _mis_datos(peticion: Request, authorization: str | None, *, completo: 
             }
             for d in direcciones
         ]
-    remotos = await _inventario_remoto(peticion).resumen(_token_del_encabezado(authorization) or "")
+    remotos = await _inventario_remoto(peticion).resumen(token_bearer(authorization) or "")
     return {
         "cuenta": {
             "usuario_id": str(fila.id),
@@ -1073,7 +1065,7 @@ async def suprimir_mis_datos(
             estado=422,
             campo="confirmacion",
         )
-    remotos = await _inventario_remoto(peticion).resumen(_token_del_encabezado(authorization) or "")
+    remotos = await _inventario_remoto(peticion).resumen(token_bearer(authorization) or "")
     pedidos = remotos.get("pedidos", {})
     conservados = pedidos.get("total") if pedidos.get("disponible") else None
 

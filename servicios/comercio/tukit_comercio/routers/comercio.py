@@ -34,6 +34,7 @@ import httpx
 from fastapi import APIRouter, Header, Request
 from pydantic import AwareDatetime, BaseModel, Field, model_validator
 from sqlalchemy.exc import IntegrityError
+from tukit_comun.autenticacion import token_bearer
 from tukit_comun.http import ErrorDominio
 from tukit_comun.metricas import contar_orden_creada, contar_pago_aprobado
 
@@ -65,21 +66,12 @@ def _repo(conexion: Any) -> RepoPedidos:
 _ROLES_STAFF = frozenset({"admin", "operador"})
 
 
-def _token_bearer(authorization: str | None) -> str | None:
-    """El token del encabezado `Authorization`: `Bearer <token>` o el token pelado."""
-    if not authorization:
-        return None
-    partes = authorization.split(" ", 1)
-    if len(partes) == 2 and partes[0].lower() == "bearer":
-        return partes[1].strip()
-    return authorization.strip()
-
 
 async def _sesion_valida(request: Request, authorization: str | None) -> dict[str, Any]:
     """La sesion del portador, validada contra Identidad por HTTP (Comercio no
     lee la base de Identidad: regla 1). 401 sin token o con uno invalido; 503 si
     Identidad no responde: FALLA CERRADA, no autorizar por no poder preguntar."""
-    token = _token_bearer(authorization)
+    token = token_bearer(authorization)
     if not token:
         raise ErrorDominio("sesion_invalida", "El token no es valido o expiro.", estado=401)
     try:
