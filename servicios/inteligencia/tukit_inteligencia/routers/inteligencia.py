@@ -95,7 +95,6 @@ async def _exigir_dueno_del_trabajo(trabajo_id: uuid.UUID, authorization: str | 
 
 
 class PercepcionRechazada(ErrorDominio):
-
     def __init__(self, error: str, mensaje: str, *, grados_detectados: tuple[str, ...] = ()) -> None:
         super().__init__(error, mensaje, estado=422)
         self.grados_detectados = grados_detectados
@@ -108,7 +107,6 @@ class PercepcionRechazada(ErrorDominio):
 
 
 class Hijo(BaseModel):
-
     referencia: str = Field(min_length=1, max_length=64)
     colegio_id: str = Field(min_length=1, max_length=64)
     grado: str = Field(min_length=1, max_length=32)
@@ -139,7 +137,6 @@ _VALIDAR_PERSONAJE_POR_HIJO = TypeAdapter(PersonajePorHijo)
 
 
 class Preferencias(BaseModel):
-
     pesos: dict[str, float] | None = None
     presupuesto_por_hijo: int | None = Field(default=None, gt=0)
     disposicion_sobreprecio: float | None = Field(default=None, ge=0, le=1)
@@ -184,7 +181,6 @@ class FijarCanonico(BaseModel):
 
 
 class AplicarCanonico(BaseModel):
-
     colegio_id: str = Field(max_length=64)
     grado: str = Field(max_length=64)
     anio_lectivo: int = Field(ge=2020, le=2100)
@@ -204,7 +200,6 @@ class AplicarCanonico(BaseModel):
 
 
 class EntregaCheckout(BaseModel):
-
     destinatario: str = Field(min_length=1, max_length=256)
     direccion: str = Field(min_length=1, max_length=512)
     ciudad: str = Field(min_length=1, max_length=128)
@@ -222,7 +217,6 @@ class EntregaCheckout(BaseModel):
 
 
 class PeticionCheckout(BaseModel):
-
     perfil: str = Field(max_length=16)
     correo: str = Field(min_length=5, max_length=320)
     entrega: EntregaCheckout
@@ -553,7 +547,6 @@ async def reintentar(trabajo_id: uuid.UUID) -> dict[str, Any]:
 
 
 class ParteMultipart:
-
     __slots__ = ("nombre", "es_archivo", "contenido")
 
     def __init__(self, nombre: str, es_archivo: bool, contenido: bytes) -> None:
@@ -622,7 +615,6 @@ def _items_desde_percepcion(percepcion: Percepcion) -> tuple[list[dict[str, Any]
 
 
 class ColegioElegido(BaseModel):
-
     colegio_id: str | None = Field(default=None, max_length=64)
     colegio_dane: str | None = Field(default=None, max_length=32)
     colegio_nombre: str | None = Field(default=None, max_length=256)
@@ -648,7 +640,6 @@ class ColegioElegido(BaseModel):
 
 
 class HijoSubida(ColegioElegido):
-
     referencia: str = Field(min_length=1, max_length=64)
     grado: str = Field(min_length=1, max_length=32)
     anio_lectivo: int | None = Field(default=None, ge=2020, le=2100)
@@ -722,7 +713,7 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
     hijos del mismo (colegio, grado) comparten una sola version: se importa una
     vez para no pisar una lista con la otra.
 
-    Si el catalogo no responde (ADR 0040), la subida responde igual 202: lo que
+    Si el catalogo no responde, la subida responde igual 202: lo que
     no alcanzo a importarse queda guardado en `importacion_lista`, todo junto y
     con lo ya percibido, y su hijo trae `version_id: null, estado: "pendiente"`.
     El trabajador lo importa cuando el catalogo vuelve, con la misma clave de

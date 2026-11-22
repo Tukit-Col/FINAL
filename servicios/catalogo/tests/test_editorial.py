@@ -32,7 +32,6 @@ def _propuesta(sesion, edicion, **kw) -> PropuestaVersion:
 
 
 class TestVentanaDeDecision:
-
     def test_el_colegio_fija_su_ventana_una_vez_en_vez_de_decidir_bajo_presion(self, sesion):
         config = ConfiguracionColegioEditorial(colegio_id=COLEGIO)
         sesion.add(config)
@@ -67,7 +66,6 @@ class TestVentanaDeDecision:
 
 
 class TestCostoDeEvaluar:
-
     def test_la_propuesta_llega_con_la_comparacion_hecha(self, sesion):
         actual = crear_edicion(sesion, "9789580000010", anio_edicion=2023)
         nueva = crear_edicion(sesion, "9789580000011", anio_edicion=2026)
@@ -111,7 +109,6 @@ class TestCostoDeEvaluar:
 
 
 class TestBachilleratoInternacional:
-
     def test_el_programa_es_columna_y_no_texto_suelto(self, sesion):
         bi = crear_edicion(sesion, "9789580000020", programa="bachillerato_internacional")
         assert bi.programa == "bachillerato_internacional"

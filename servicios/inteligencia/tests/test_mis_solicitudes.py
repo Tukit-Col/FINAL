@@ -22,7 +22,6 @@ OTRO_PADRE = uuid.UUID("bbbbbbbb-bbbb-5bbb-8bbb-bbbbbbbbbbbb")
 
 @dataclass
 class CatalogoListasFalso:
-
     por_contacto: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     caida: bool = False
     contactos_pedidos: list[str] = field(default_factory=list)

@@ -31,7 +31,6 @@ from .extraccion import extraer_atributos
 
 @dataclass(frozen=True)
 class Problema:
-
     bloqueante: bool
     clase: str
     detalle: str
@@ -175,7 +174,6 @@ def leer_csv(ruta: Path) -> list[dict[str, str]]:
 
 @dataclass
 class Informe:
-
     escritos: dict[str, int]
     problemas: list[Problema]
     carencias: dict[str, tuple[int, int]]

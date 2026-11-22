@@ -23,7 +23,6 @@ QUITADOS_A_MANO: dict[str, int] = {}
 
 
 class TestDemandaAlta:
-
     @staticmethod
     def _alta_demanda(cargado: Session) -> list[Concepto]:
         conceptos = sorted(cargado.query(Concepto), key=lambda c: (-c.frecuencia_demanda, c.codigo))

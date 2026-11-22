@@ -19,7 +19,6 @@ from .base import Base
 
 
 class ZonaEntrega(Base):
-
     __tablename__ = "zona_entrega"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -32,7 +31,6 @@ class ZonaEntrega(Base):
 
 
 class RutaReparto(Base):
-
     __tablename__ = "ruta_reparto"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -49,7 +47,6 @@ class RutaReparto(Base):
 
 
 class Envio(Base):
-
     __tablename__ = "envio"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)

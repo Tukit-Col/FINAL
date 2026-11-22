@@ -41,7 +41,6 @@ class TestLosDosPapelesDeUnAtributo:
 
 
 class TestQueLaBaseTambienLoImpone:
-
     def test_hay_un_check_en_postgres(self):
         from tukit_catalogo.modelos import Concepto as C
 
@@ -55,6 +54,5 @@ class TestQueLaBaseTambienLoImpone:
 
 
 class TestUnSoloLugarParaLosAtributos:
-
     def test_el_concepto_no_tiene_atributos_requeridos(self):
         assert not hasattr(Concepto, "atributos_requeridos")

@@ -24,7 +24,6 @@ _PRIORIDADES = ", ".join(f"'{e.value}'" for e in Prioridad)
 
 
 class Caso(Base):
-
     __tablename__ = "caso"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -60,7 +59,6 @@ class Caso(Base):
 
 
 class EventoCaso(Base):
-
     __tablename__ = "evento_caso"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)

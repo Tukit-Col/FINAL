@@ -12,7 +12,6 @@ class MensajeInvalido(ValueError):
 
 @dataclass(frozen=True)
 class Evento:
-
     id: int
     origen: str
     tipo: str

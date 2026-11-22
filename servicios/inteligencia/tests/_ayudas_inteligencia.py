@@ -57,7 +57,6 @@ def item_resuelto(
 
 @dataclass
 class CatalogoVerificado(CatalogoFalso):
-
     revisada: bool = True
     items_resueltos: list[dict[str, Any]] = field(default_factory=list)
 
@@ -166,7 +165,6 @@ async def crear_y_procesar(motor, catalogo=None, preferencias=None):
 
 @dataclass
 class CatalogoRealista(CatalogoVerificado):
-
     async def producto_de_personaje(self, concepto: str, personaje: str) -> dict[str, Any] | None:
         self.llamadas.append("producto_de_personaje")
         if normalizar_personaje(personaje) != "spiderman":
@@ -189,7 +187,6 @@ def catalogo_realista() -> CatalogoRealista:
 
 @dataclass
 class CatalogoDosPersonajes(CatalogoRealista):
-
     async def producto_de_personaje(self, concepto: str, personaje: str) -> dict[str, Any] | None:
         self.llamadas.append("producto_de_personaje")
         if personaje.lower() not in {"spiderman", "frozen"}:
@@ -339,7 +336,6 @@ async def puntero_canonico(motor) -> Any:
 
 
 class CatalogoPreview(CatalogoFalso):
-
     def __init__(self, *, version_vigente: str | None = VERSION_VIGENTE, versiones=None, **kw):
         super().__init__(**kw)
         if versiones is None:
@@ -364,7 +360,6 @@ class CatalogoPreview(CatalogoFalso):
 
 @dataclass
 class IdentidadFalsa:
-
     usuario_por_token: dict[str, uuid.UUID] = field(default_factory=dict)
     caida: bool = False
 
@@ -444,7 +439,6 @@ def caidas_de_postgres() -> list[BaseException]:
 
 
 class EngineIntermitente:
-
     def __init__(self, real: Any, *errores: BaseException) -> None:
         self.real = real
         self.errores = list(errores)
@@ -473,7 +467,6 @@ class EngineIntermitente:
 
 
 class MotorDePrueba:
-
     def __init__(self, real: Any, engine: Any = None) -> None:
         self.real = real
         self.engine = engine if engine is not None else real.engine

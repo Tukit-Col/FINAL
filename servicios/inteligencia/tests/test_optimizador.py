@@ -12,7 +12,6 @@ from tukit_inteligencia.optimizador import (
 
 
 class TestLaCuentaDeUnidadesNoVuelveASumarCajas:
-
     @pytest.mark.parametrize(
         ("pedida", "empaque", "esperado"),
         [(12, 12, 1), (13, 12, 2), (1, 12, 1), (24, 12, 2), (3, 1, 3), (0, 12, 0)],
@@ -246,7 +245,6 @@ class TestLaConsolidacionEntreHermanos:
 
 
 class TestUnaHerramientaSePideEnVariasMateriasYSeCompraUnaVez:
-
     TIJERAS = Candidato(sku="TK-TIJ", nombre="Tijeras Eterna", nivel="economico", precio_cop=5800)
 
     def test_dos_renglones_de_la_misma_herramienta_se_compran_una_vez(self):
@@ -303,7 +301,6 @@ class TestUnaHerramientaSePideEnVariasMateriasYSeCompraUnaVez:
 
 
 class TestUnCandidatoSinPrecioNoGanaPorBarato:
-
     RENGLONES = [
         renglon_optimizador(
             1, "Cuaderno", (candidato("A-ECO", "economico", 3000), candidato("A-SIN", "premium", None))

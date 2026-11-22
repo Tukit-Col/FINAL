@@ -38,7 +38,6 @@ _CARGA = JSON().with_variant(JSONB(), "postgresql")
 
 
 class Resultado(Enum):
-
     HECHO = auto()
     OMITIR = auto()
     REINTENTAR = auto()
@@ -46,7 +45,6 @@ class Resultado(Enum):
 
 @runtime_checkable
 class Sink(Protocol):
-
     async def publicar(self, fila: Any) -> None: ...
 
 

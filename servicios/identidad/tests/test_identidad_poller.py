@@ -183,7 +183,6 @@ async def _contar(motor: MotorServicio) -> tuple[int, int, int]:
 
 
 class TestPollerMatriculaAlHijo:
-
     async def test_matricula_al_hijo_cuando_el_padre_existe(self, motor, motor_catalogo):
         await _sembrar_usuario(motor)
         await _sembrar_bandeja(motor_catalogo, **_carga(contacto_referencia=USUARIO_ID))
@@ -251,7 +250,6 @@ class TestPollerMatriculaAlHijo:
 
 
 class TestPollerConsumeLaColaConRabbitmq:
-
     @staticmethod
     def _evento(id_: int = 1, **extra: Any) -> Evento:
         return Evento(
@@ -356,7 +354,6 @@ class _Corte(Exception):
 
 
 class _Intermitente:
-
     def __init__(self, real: Any, *errores: BaseException) -> None:
         self.real = real
         self.errores = list(errores)

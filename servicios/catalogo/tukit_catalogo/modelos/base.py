@@ -20,7 +20,6 @@ DIMENSION_EMBEDDING = 1024
 
 
 class Nivel(enum.StrEnum):
-
     ECONOMICO = "economico"
     CONFIABLE = "confiable"
     PREMIUM = "premium"
@@ -34,7 +33,6 @@ CALIDAD_POR_NIVEL: dict[Nivel, float] = {
 
 
 class TipoItem(enum.StrEnum):
-
     UTIL = "util"
     TEXTO = "texto"
     LIBRO_LIBRE = "libro_libre"
@@ -46,7 +44,6 @@ class TipoItem(enum.StrEnum):
 
 
 class ModoAdquisicion(enum.StrEnum):
-
     MERCADO_ABIERTO = "mercado_abierto"
     LIBRO_LIBRE = "libro_libre"
     VENTA_DIRECTA_EDITORIAL = "venta_directa_editorial"
@@ -61,7 +58,6 @@ MODOS_SURTIBLES: frozenset[ModoAdquisicion] = frozenset(
 
 
 class UnidadBase(enum.StrEnum):
-
     UNIDAD = "unidad"
     HOJA = "hoja"
     PLIEGO = "pliego"
@@ -71,7 +67,6 @@ class UnidadBase(enum.StrEnum):
 
 
 class MetodoVinculacion(enum.StrEnum):
-
     EAN = "ean"
     ATRIBUTOS = "atributos"
     MANUAL = "manual"

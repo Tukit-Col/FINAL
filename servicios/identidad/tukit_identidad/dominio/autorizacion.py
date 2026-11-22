@@ -8,7 +8,6 @@ from ..modelos import AmbitoTipo
 
 @dataclass(frozen=True, slots=True)
 class Ambito:
-
     tipo: AmbitoTipo
     id: uuid.UUID | None = None
 

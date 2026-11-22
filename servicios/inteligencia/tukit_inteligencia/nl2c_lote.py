@@ -81,7 +81,6 @@ def etiqueta_valida(palabra: str) -> bool:
 
 @dataclass
 class Categoria:
-
     etiqueta: str
     refs: list[str]
 

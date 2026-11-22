@@ -91,7 +91,6 @@ class TestCrearConcepto:
 
 
 class TestLaCorreccionVuelveAlCatalogo:
-
     async def test_corregir_el_concepto_lo_aprende_como_sinonimo(self, cliente):
         from tukit_catalogo.clasificacion import clasificar
 

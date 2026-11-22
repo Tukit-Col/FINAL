@@ -15,7 +15,6 @@ COLEGIO = "11111111-1111-5111-8111-111111111111"
 
 
 class CatalogoImportador:
-
     def __init__(self) -> None:
         self.llamadas: list[dict] = []
 
@@ -50,7 +49,6 @@ class CatalogoImportador:
 
 
 class IdentidadDirectorio:
-
     def __init__(self) -> None:
         self.directorio: dict[str, dict] = {}
         self.consultas: list[str] = []
@@ -224,7 +222,6 @@ class TestOnboardingRechazado:
 
 
 class TestOnboardingConElCatalogoCaido:
-
     async def test_es_503_y_dice_que_no_se_guardo(self, cliente, catalogo, monkeypatch):
         async def _caido(**_kw):
             raise RemotoCaido(
@@ -254,7 +251,6 @@ DANE_SALITRE = "311001093652"
 
 
 class TestOnboardingDeUnColegioQueTukitNoTiene:
-
     async def test_del_directorio_deriva_el_id_del_dane_y_manda_sus_datos(self, cliente, catalogo, identidad):
         identidad.directorio[DANE_SALITRE] = {
             "dane": DANE_SALITRE,
@@ -327,7 +323,6 @@ class TestOnboardingDeUnColegioQueTukitNoTiene:
 
 
 class TestOnboardingExigeStaff:
-
     @pytest.mark.parametrize(
         ("cabeceras", "estado", "error"),
         [
@@ -364,7 +359,6 @@ class TestOnboardingExigeStaff:
 
 
 class TestColegioElegido:
-
     def test_el_colegio_id_gana(self):
         elegido = ColegioElegido(colegio_id=COLEGIO, colegio_dane=DANE_SALITRE, colegio_nombre="X")
         assert elegido.resolver_colegio() == (COLEGIO, None)

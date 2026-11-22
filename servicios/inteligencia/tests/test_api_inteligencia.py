@@ -33,7 +33,6 @@ async def cliente(motor, monkeypatch):
 
 
 class IdentidadDoble:
-
     def __init__(self) -> None:
         self.usuario_por_token: dict[str, str] = {}
         self.contactos: list[str] = []
@@ -173,7 +172,6 @@ class TestCrearDevuelve202:
 
 
 class TestSinListaSeRechazaAlCrear:
-
     async def test_ningun_hijo_con_lista_es_422_y_no_encola(self, cliente):
         respuesta = await cliente.post(
             "/v1/trabajos",
@@ -215,7 +213,6 @@ class TestSinListaSeRechazaAlCrear:
 
 
 class TestLaSesionEsLaProdiedad:
-
     async def test_crear_con_bearer_usa_el_usuario_de_sesion(self, cliente, motor):
         identidad = IdentidadDoble()
         identidad.usuario_por_token["tok-acud"] = "22222222-2222-5222-8222-222222222222"
@@ -261,7 +258,6 @@ class TestLaSesionEsLaProdiedad:
 
 
 class TestMisTrabajos:
-
     async def test_devuelve_los_del_acudiente_con_hijos_y_preferencias(self, cliente):
         identidad = IdentidadDoble()
         identidad.usuario_por_token["tok-acud"] = "22222222-2222-5222-8222-222222222222"
@@ -346,7 +342,6 @@ class TestConsultar:
 
 
 class TestQuienLeeUnTrabajo:
-
     OTRO_ID = "33333333-3333-5333-8333-333333333333"
     STAFF_ID = "55555555-5555-5555-8555-555555555555"
 

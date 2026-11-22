@@ -32,7 +32,6 @@ _ESTADOS_PEDIDO = ", ".join(f"'{e.value}'" for e in EstadoPedido)
 
 
 class Pedido(Base):
-
     __tablename__ = "pedido"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -66,7 +65,6 @@ class Pedido(Base):
 
 
 class LineaPedido(Base):
-
     __tablename__ = "linea_pedido"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -90,7 +88,6 @@ class LineaPedido(Base):
 
 
 class Devolucion(Base):
-
     __tablename__ = "devolucion"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -111,7 +108,6 @@ class Devolucion(Base):
 
 
 class HistorialPedido(Base):
-
     __tablename__ = "historial_pedido"
 
     id: Mapped[int] = mapped_column(

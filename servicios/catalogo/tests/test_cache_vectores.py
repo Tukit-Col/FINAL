@@ -24,7 +24,6 @@ from tukit_comun.pruebas_redis import RedisEnMemoria, cliente_en_memoria, client
 
 
 class Proveedor:
-
     modelo = MODELO_FALSO
 
     def __init__(self, *, falla: bool = False) -> None:

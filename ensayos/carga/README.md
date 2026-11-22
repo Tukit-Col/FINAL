@@ -54,7 +54,7 @@ del resumen están en `test_carga.py`.
 
 ## Umbrales y de dónde salen
 
-El SRS v6 (`DP-02`, §3.9; texto de reemplazo en `Arquitectura/ENMIENDA_SRS.md`, E-04.a)
+El SRS v6
 fija para el criterio de aceptación:
 
 - 50 usuarios concurrentes activos sobre el perfil de pico diario.

@@ -5,7 +5,6 @@ from tukit_gateway.api import app
 
 
 class Atras:
-
     def __init__(self) -> None:
         self.peticiones: list[tuple[str, str]] = []
         atras = self

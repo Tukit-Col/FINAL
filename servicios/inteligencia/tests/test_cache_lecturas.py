@@ -27,7 +27,6 @@ def _pagina(grados: list[str] | None = None, *, completa: bool = True) -> Pagina
 
 
 class Lector:
-
     def __init__(self) -> None:
         self.lecturas: list[int] = []
         self.pagina = _pagina()

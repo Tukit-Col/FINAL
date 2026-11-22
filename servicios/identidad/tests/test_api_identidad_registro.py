@@ -7,7 +7,6 @@ from tukit_identidad.api import app
 
 
 class TestElRegistroDelAcudiente:
-
     async def test_crea_una_cuenta_con_credencial_usable(self, cliente):
         respuesta = await cliente.post(
             "/v1/registro",

@@ -23,7 +23,6 @@ _AMBITOS = ", ".join(f"'{a.value}'" for a in AmbitoTipo)
 
 
 class Rol(Base):
-
     __tablename__ = "rol"
 
     codigo: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -33,7 +32,6 @@ class Rol(Base):
 
 
 class Permiso(Base):
-
     __tablename__ = "permiso"
 
     codigo: Mapped[str] = mapped_column(String(128), primary_key=True)
@@ -60,7 +58,6 @@ class RolPermiso(Base):
 
 
 class AsignacionRol(Base):
-
     __tablename__ = "asignacion_rol"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)

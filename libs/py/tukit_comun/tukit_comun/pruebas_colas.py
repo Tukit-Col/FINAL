@@ -30,7 +30,6 @@ def topologia_de_prueba(*, espera_reintento_ms: int = 100) -> Topologia:
 
 
 class Sonda:
-
     def __init__(self, url: str) -> None:
         self.url = url
         self._conexion: Any = None

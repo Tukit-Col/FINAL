@@ -24,7 +24,6 @@ Texto = JSON().with_variant(JSONB(), "postgresql")
 
 
 class EstadoTrabajo(enum.StrEnum):
-
     ENCOLADO = "encolado"
     PROCESANDO = "procesando"
     ESPERA_REVISION = "espera_revision"
@@ -55,7 +54,6 @@ TRANSICIONES: dict[EstadoTrabajo, frozenset[EstadoTrabajo]] = {
 
 
 class EstadoEtapa(enum.StrEnum):
-
     PENDIENTE = "pendiente"
     OK = "ok"
     DEGRADADA = "degradada"
@@ -64,7 +62,6 @@ class EstadoEtapa(enum.StrEnum):
 
 
 class EstadoResolucion(enum.StrEnum):
-
     RESUELTO_AUTO = "RESUELTO_AUTO"
     AMBIGUO = "AMBIGUO"
     SIN_MATCH = "SIN_MATCH"
@@ -72,7 +69,6 @@ class EstadoResolucion(enum.StrEnum):
 
 
 class PerfilKit(enum.StrEnum):
-
     AHORRADOR = "Ahorrador"
     FAN = "Fan"
     A_TU_MEDIDA = "A tu Medida"

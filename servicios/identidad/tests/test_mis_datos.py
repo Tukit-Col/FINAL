@@ -24,7 +24,6 @@ CONFIRMACION = {"confirmacion": FRASE_CONFIRMACION}
 
 
 class InventarioDoble:
-
     def __init__(self) -> None:
         self.pedidos: dict[str, list[dict]] = {}
         self.preguntas: list[str] = []

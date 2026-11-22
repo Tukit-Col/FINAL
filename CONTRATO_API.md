@@ -29,8 +29,7 @@ ahora recibe `401`.
 
 ### Qué cambió en 1.11
 
-El gateway limita la tasa, y Redis guarda la lectura de una lista y el vector de cada renglón
-(ADR 0047). Lo único nuevo para un cliente es el `429`. Un cliente de 1.10 sigue funcionando, y si
+El gateway limita la tasa, y Redis guarda la lectura de una lista y el vector de cada renglón. Lo único nuevo para un cliente es el `429`. Un cliente de 1.10 sigue funcionando, y si
 no trata el `429` lo ve como cualquier error con `error` y `mensaje`.
 
 | Cambio | Dónde | Por qué |
@@ -43,7 +42,7 @@ no trata el `429` lo ve como cualquier error con `error` y `mensaje`.
 
 ### Qué cambió en 1.10
 
-Cómo viajan los eventos entre servicios (ADR 0046). La API HTTP no cambia: un cliente de 1.9
+Cómo viajan los eventos entre servicios. La API HTTP no cambia: un cliente de 1.9
 sigue funcionando igual. Cambia el contrato entre servicios, que se describe en el §10.1.
 
 | Cambio | Dónde | Por qué |
@@ -56,16 +55,16 @@ sigue funcionando igual. Cambia el contrato entre servicios, que se describe en 
 
 ### Qué cambió en 1.9
 
-La dirección del checkout se autocompleta con Google Places (ADR 0044), el acudiente sigue su
+La dirección del checkout se autocompleta con Google Places, el acudiente sigue su
 pedido en una línea de tiempo y el staff sube desde la cola la lista de cualquier colegio de
-Bogotá (ADR 0045). Todo es aditivo, salvo una cosa: `POST /v1/admin/onboarding` ahora exige
+Bogotá. Todo es aditivo, salvo una cosa: `POST /v1/admin/onboarding` ahora exige
 sesión de staff. Un cliente de 1.8 que ya mandaba el Bearer sigue funcionando sin cambios.
 
 | Cambio | Dónde | Por qué |
 |---|---|---|
-| `entrega` del checkout (`POST /v1/trabajos/{id}/ordenar`) y de `POST /v1/ordenes` acepta los opcionales `localidad` (≤ 64), `indicaciones` (≤ 512) y `departamento` (≤ 128), más las coordenadas del pin confirmado en el mapa (ADR 0049) | §9.6 | Dirección con OpenStreetMap, localidad de Bogotá y "apartamento, torre, interior" |
+| `entrega` del checkout (`POST /v1/trabajos/{id}/ordenar`) y de `POST /v1/ordenes` acepta los opcionales `localidad` (≤ 64), `indicaciones` (≤ 512) y `departamento` (≤ 128), más las coordenadas del pin confirmado en el mapa | §9.6 | Dirección con OpenStreetMap, localidad de Bogotá y "apartamento, torre, interior" |
 | `envio` gana `localidad` (columna nulable, migración `b619c58fc0c3`; `google_place_id` se quitó en `d3e8b52a7c19`) en `GET /v1/ordenes/{id}`, `GET /v1/comercio/mis-pedidos/{id}` y el detalle de logística | §9.6 | Logística ve la localidad y abre la dirección en Google Maps |
-| `envio` gana `latitud` y `longitud` (columnas nulables, migración `c7a41e9d02f5`) y `entrega` las acepta | §9.6 | Dirección con OpenStreetMap y pin confirmado, sin llave de Google (ADR 0049) |
+| `envio` gana `latitud` y `longitud` (columnas nulables, migración `c7a41e9d02f5`) y `entrega` las acepta | §9.6 | Dirección con OpenStreetMap y pin confirmado, sin llave de Google |
 | La firma que decide si un pendiente se reutiliza compara todos los campos congelados de la entrega | §9.4 | Otro apartamento u otra localidad no pueden despacharse con el dato viejo |
 | `GET /v1/comercio/mis-pedidos/{id}` agrega `linea_de_tiempo`; no quita nada | §9.7 | La página `/pedidos/{id}` del acudiente |
 | `POST /v1/admin/onboarding` designa el colegio con `colegio_id`, con `colegio_dane` + `colegio_nombre` o solo con `colegio_nombre`; sin ninguno, `422 colegio_requerido` | §12.8 | Subir desde la cola la lista de un colegio que Tukit aún no tiene |
@@ -75,7 +74,7 @@ sesión de staff. Un cliente de 1.8 que ya mandaba el Bearer sigue funcionando s
 ### Qué cambió en 1.8
 
 Lo que hace la API cuando una dependencia propia se cae, según la verificación de caos de QA
-(fases 7 a 9). Detalle en los ADR 0040, 0041 y 0042.
+(fases 7 a 9).
 
 | Cambio | Dónde | Por qué |
 |---|---|---|
@@ -89,7 +88,7 @@ Lo que hace la API cuando una dependencia propia se cae, según la verificación
 ### Qué cambió en 1.7
 
 Se une la logística de pedidos de la rama `preview-kits` con los pagos de Wompi, y se rescatan
-de esa rama los arreglos de validar (no su cola ni su vista previa). Detalle en el ADR 0032.
+de esa rama los arreglos de validar (no su cola ni su vista previa).
 
 | Cambio | Dónde | Por qué |
 |---|---|---|
@@ -105,7 +104,7 @@ de esa rama los arreglos de validar (no su cola ni su vista previa). Detalle en 
 ### Qué cambió en 1.6
 
 El acudiente puede deshacer desde su panel: cancelar una solicitud y quitar o cambiar de colegio
-a un hijo (ADR 0031).
+a un hijo.
 
 | Cambio | Dónde | Por qué |
 |---|---|---|
@@ -117,7 +116,7 @@ a un hijo (ADR 0031).
 
 ### Qué cambió en 1.5
 
-Ya no se arman siempre tres kits: se arman los que el acudiente pidió (ADR 0030).
+Ya no se arman siempre tres kits: se arman los que el acudiente pidió.
 
 | Cambio | Dónde | Por qué |
 |---|---|---|
@@ -130,7 +129,7 @@ Ya no se arman siempre tres kits: se arman los que el acudiente pidió (ADR 0030
 ### Qué cambió en 1.4
 
 El acudiente puede cambiar productos de su kit y, en la ruta rápida, ver y pagar cualquiera de
-los tres kits. Las decisiones están en el ADR 0028 (`docs/arquitectura/adr/`).
+los tres kits.
 
 | Cambio | Dónde | Por qué |
 |---|---|---|
@@ -159,10 +158,10 @@ diseño no podía saber, y se documentan donde muerden.
 | Cambio | Dónde | Por qué |
 |---|---|---|
 | §9 implementado: orden, pago, sincronización, webhook, cancelación y "mis pedidos" | §9 | `comercio` existe y la puerta lo rutea; las rutas ya no responden `501` |
-| El pago se abre con el **widget** de Wompi y `POST /pago` devuelve sus datos firmados | §9.1 | El checkout alojado por URL responde 403 si el retorno es `localhost`. ADR 0033 |
-| `POST /v1/pagos/{transaccion_id}/sincronizar` | §9.2 | Sin URL pública el webhook no llega, y el pedido se quedaba sin confirmar. ADR 0034 |
+| El pago se abre con el **widget** de Wompi y `POST /pago` devuelve sus datos firmados | §9.1 | El checkout alojado por URL responde 403 si el retorno es `localhost` |
+| `POST /v1/pagos/{transaccion_id}/sincronizar` | §9.2 | Sin URL pública el webhook no llega, y el pedido se quedaba sin confirmar |
 | La clave de idempotencia es `<transacción>:<ESTADO>`, no el id del evento | §9.2 | Wompi no manda id de evento, y `PENDING` → `APPROVED` chocaba en el candado |
-| `POST /v1/ordenes/{id}/cancelar`, que consulta a Wompi antes | §9.3 | Cancelar con un PSE en curso cobraría sin entregar. ADR 0035 |
+| `POST /v1/ordenes/{id}/cancelar`, que consulta a Wompi antes | §9.3 | Cancelar con un PSE en curso cobraría sin entregar |
 | Un pedido se paga durante 24 horas; uno pendiente por kit | §9.4 | Cada clic en Pagar creaba un pedido, y uno viejo se cobraría a un precio viejo |
 | `comercio` en la tabla de puertos | §12.1 | Faltaba |
 
@@ -288,7 +287,7 @@ puede responder con una alternativa o una disculpa útil.
 
 `Ahorrador | Fan | A tu Medida | Premium`. Los tres primeros los nombran `OP-01` y `UI-02` del
 SRS; `A tu Medida` llega en 1.5. Ahorrador y Premium salen siempre; Fan y A tu Medida solo si el
-acudiente los pide (§5, ADR 0030).
+acudiente los pide (§5).
 
 **No confundir con el `nivel` de un producto** (`economico | confiable | premium`). Son
 ejes distintos que comparten la palabra "premium": el nivel describe un producto, el perfil
@@ -433,8 +432,7 @@ Tres reglas que este bloque impone y conviene no relajar:
 2. **`presupuesto_por_hijo` es una cota, no un gusto.** Es el uso más valioso de la
    encuesta: convierte una opinión en una restricción que el optimizador puede imponer.
 3. **Los pesos son datos personales derivados.** Se persisten cifrados en `kit.perfil` y
-   `kit.pesos_usados`, y entran al derecho al olvido. El manifiesto ya documenta que el
-   servicio anterior los dejaba en claro y los excluía del borrado.
+   `kit.pesos_usados`, y entran al derecho al olvido. Por eso no pueden quedar en claro ni fuera del borrado.
 
 Si el bloque viene vacío se usan los valores por defecto medidos: precio 0.35, marca
 exigida 0.30, calidad 0.25, personaje 0.10, que es el orden que dio la P21 normalizado.
@@ -487,7 +485,7 @@ vio.
 
 Son puntos del frente de Pareto que produce el optimizador, no consultas distintas. `OP-04`
 pide poder parametrizar los pesos, y eso es exactamente lo que los separa. Desde 1.5 no son
-siempre tres (ADR 0030): `Ahorrador` y `Premium` salen siempre, `Fan` solo si el acudiente
+siempre tres: `Ahorrador` y `Premium` salen siempre, `Fan` solo si el acudiente
 pidió un personaje y `A tu Medida` solo si eligió el punto medio o declaró un tope. Los
 canónicos de una lista (sin preferencias) son dos.
 
@@ -504,9 +502,8 @@ canónicos de una lista (sin preferencias) son dos.
       "tipo": "util",
       "estado_resolucion": "RESUELTO_AUTO",
 
-      // El corazón del arreglo de unidades. Tres números distintos que el
-      // sistema anterior colapsaba en uno, y de ahí salía sumar 12 cajas
-      // cuando la lista pedía 12 lápices.
+      // El corazón del arreglo de unidades. Tres números distintos: pedir 12 lápices no
+      // debe sumar 12 cajas.
       "cantidad_pedida":      12,        // en unidad base
       "unidad_base":          "unidad",
       "unidades_por_empaque": 12,
@@ -628,7 +625,7 @@ el conteo aparte: *"3 ítems los gestiona directamente el colegio"*.
 - Solo se acepta el producto sugerido de esa línea o una de sus `alternativas`. Cualquier otro
   sku responde `422 producto_no_permitido`: el acudiente elige entre lo que una persona revisó.
 - El cambio se guarda en el trabajo del acudiente, **nunca** en las líneas del kit, que pueden ser
-  el kit canónico de su grado (ADR 0028). `GET /v1/trabajos/{id}` lo aplica al leer, recalcula
+  el kit canónico de su grado. `GET /v1/trabajos/{id}` lo aplica al leer, recalcula
   el total y lo devuelve en `cambios` (`{perfil: {item_id: producto}}`). El pago lee ese mismo kit.
 - La línea cambiada trae `cambiado_por_acudiente: true` y `sku_sugerido`. El sugerido queda entre
   las `alternativas`; elegirlo de nuevo borra el cambio.
@@ -664,7 +661,7 @@ regla, derivada de la encuesta:
   El tope es `presupuesto_por_hijo` tal cual: `disposicion_sobreprecio` no lo estira, porque
   dice cuánto más pagaría por marca sin tope, no cuánto se puede pasar del tope que él mismo
   puso. Si no hay un kit distinto que armar (el tope alcanza para el Premium entero, o no
-  alcanza para subir ninguna marca), no se arma y `razon` dice por qué se marca el otro (ADR 0030).
+  alcanza para subir ninguna marca), no se arma y `razon` dice por qué se marca el otro.
 - **Por defecto `Ahorrador`.** 42 de 60 encuestados pagan como máximo 5 % más y 15 exigen
   precio igual o menor.
 - **`Premium`** solo si el acudiente pone calidad primero **y** declara ≥10 %.
@@ -734,12 +731,12 @@ una respuesta parcial honesta.
 | Reranker | No disponible | Se ordena por el canal vectorial, que mide mejor que la fusión |
 | Precio vencido | `vigente_hasta` pasado | La línea no entra al total y se marca para revisión |
 | Pasarela | Sin respuesta | La orden queda `pendiente_pago`; nunca se confirma sin confirmación |
-| Catálogo, en la subida del acudiente (`POST /v1/listas/subir`) | Sin respuesta, 5xx, 408 o 429 | `202`. Lo que no se importó queda guardado con lo ya percibido, y su hijo trae `version_id: null` y `estado: "pendiente"`. El trabajador lo importa cuando el catálogo vuelve, con la misma `clave_idempotencia`: una sola versión (ADR 0040) |
-| Catálogo, en el onboarding del admin (`POST /v1/admin/onboarding`) | Sin respuesta, 5xx, 408 o 429 | `503 servicio_no_disponible`; la lista no se guarda y el admin reintenta (ADR 0040) |
-| Postgres o RabbitMQ, en los procesos de fondo | Sin respuesta | Barredor, pollers, trabajador, repartidor y publicadores esperan (1 s, el doble cada vez, tope de 30 s) y siguen; un error de programación los termina (ADR 0041). Con broker, un evento sin publicar espera en su bandeja, y un mensaje que se estaba procesando vuelve a su cola sin gastar un intento (ADR 0046) |
-| Un consumidor, con broker | El manejo de un evento falla | El mensaje vuelve a su cola a los 10 s; al quinto intento queda en `<cola>.descartados`, con el motivo, y se registra como error (ADR 0046) |
-| Redis, en la caché de lecturas y de vectores | Sin respuesta, más de 250 ms o sin `REDIS_URL` | Se calcula como sin caché: la lista se vuelve a leer y los vectores se vuelven a pedir. La respuesta es la misma y no hay degradación que reportar, porque no se pierde nada. Un registro por episodio, no por petición (ADR 0047) |
-| Redis, en el límite de tasa del gateway | Sin respuesta, más de 250 ms o sin `REDIS_URL` | El gateway cuenta en su memoria. Con una réplica protege igual; con varias, cada una cuenta por su lado. Nunca un `500` (ADR 0047) |
+| Catálogo, en la subida del acudiente (`POST /v1/listas/subir`) | Sin respuesta, 5xx, 408 o 429 | `202`. Lo que no se importó queda guardado con lo ya percibido, y su hijo trae `version_id: null` y `estado: "pendiente"`. El trabajador lo importa cuando el catálogo vuelve, con la misma `clave_idempotencia`: una sola versión |
+| Catálogo, en el onboarding del admin (`POST /v1/admin/onboarding`) | Sin respuesta, 5xx, 408 o 429 | `503 servicio_no_disponible`; la lista no se guarda y el admin reintenta |
+| Postgres o RabbitMQ, en los procesos de fondo | Sin respuesta | Barredor, pollers, trabajador, repartidor y publicadores esperan (1 s, el doble cada vez, tope de 30 s) y siguen; un error de programación los termina. Con broker, un evento sin publicar espera en su bandeja, y un mensaje que se estaba procesando vuelve a su cola sin gastar un intento |
+| Un consumidor, con broker | El manejo de un evento falla | El mensaje vuelve a su cola a los 10 s; al quinto intento queda en `<cola>.descartados`, con el motivo, y se registra como error |
+| Redis, en la caché de lecturas y de vectores | Sin respuesta, más de 250 ms o sin `REDIS_URL` | Se calcula como sin caché: la lista se vuelve a leer y los vectores se vuelven a pedir. La respuesta es la misma y no hay degradación que reportar, porque no se pierde nada. Un registro por episodio, no por petición |
+| Redis, en el límite de tasa del gateway | Sin respuesta, más de 250 ms o sin `REDIS_URL` | El gateway cuenta en su memoria. Con una réplica protege igual; con varias, cada una cuenta por su lado. Nunca un `500` |
 
 Las degradaciones se reportan, no se esconden:
 
@@ -757,8 +754,7 @@ Las degradaciones se reportan, no se esconden:
 > (`comercio`, puerto 8014) y la puerta las rutea; ya no responden `501`. Solo existe el modo de
 > **pruebas**: con `WOMPI_MODO=sandbox` el servicio no arranca si alguna llave no es de prueba, y
 > con `WOMPI_MODO=falso` (por omisión) una pasarela simulada permite caminar todo el flujo sin
-> red. Producción no está en este contrato. Las decisiones están en los ADR 0033 a 0035
-> (`docs/arquitectura/adr/`).
+> red. Producción no está en este contrato.
 
 | Endpoint | Requisito | Qué hace |
 |---|---|---|
@@ -788,7 +784,7 @@ Tres invariantes que no se negocian, y siguen siendo los de 1.1:
 1. **Re-verificación antes de cobrar** (`UI-05`, `SC-05`): `POST /v1/ordenes` vuelve a leer el
    precio de cada línea en `catalogo`; si cambió, `422 precio_cambiado` y la orden no se cierra.
    Con `catalogo` caído, `503 catalogo_no_disponible`: no se cobra a ciegas.
-2. **El precio no se mueve después de confirmar** (`FU-08`, ADR 0012), con un límite nuevo: un
+2. **El precio no se mueve después de confirmar** (`FU-08`), con un límite nuevo: un
    pedido se puede pagar durante **24 horas**. Después se cobraría un precio viejo, y el acudiente
    vuelve a armar el kit, donde el precio se re-verifica (§9.4).
 3. **No se guardan medios de pago** (`SG-03`). La tarjeta, la cuenta y el celular se digitan en el
@@ -824,7 +820,7 @@ La firma de integridad se calcula aquí porque necesita el secreto, que nunca sa
 `redirectUrl` existe por PSE, que se lleva la pestaña al banco y vuelve por ahí con `?id=`.
 El navegador abre el widget **con `bootstrapTransport: "postmessage"`**: por omisión el widget
 mete la configuración en la URL de su iframe, y el CDN de Wompi responde 403 cuando ahí aparece
-un retorno a `localhost` (ADR 0033). Con `WOMPI_MODO=falso`, `widget` es `null` y
+un retorno a `localhost`. Con `WOMPI_MODO=falso`, `widget` es `null` y
 `url_redireccion` apunta a `/pago/simulado`.
 
 Errores: `404 pedido_no_existe` · `409 pedido_no_pagable` (ya no está pendiente) ·
@@ -842,7 +838,7 @@ entregan el id de la transacción, y la página de resultado pide:
 ```
 
 `comercio` consulta `GET /v1/transactions/{id}` en Wompi y aplica la respuesta con **el mismo
-aplicador que el webhook** (ADR 0034). Eso hace que funcione en `localhost` sin que Wompi pueda
+aplicador que el webhook**. Eso hace que funcione en `localhost` sin que Wompi pueda
 alcanzar el webhook, y que llegar por los dos caminos no aplique dos veces:
 
 - La idempotencia es contra `evento_pasarela_procesado` con la clave `<transacción>:<ESTADO>`:
@@ -868,7 +864,7 @@ firma no cuadra, `repetido` si ya se aplicó.
 
 `POST /v1/ordenes/{id}/cancelar` cancela un pedido `pendiente_pago` y libera su reserva de
 inventario. Antes **busca en Wompi, con la llave privada, cada intento que siga `iniciado`**,
-porque un PSE puede estar en curso o ya aprobado sin que Tukit lo sepa (ADR 0035):
+porque un PSE puede estar en curso o ya aprobado sin que Tukit lo sepa:
 
 | Lo que encuentra | Respuesta |
 |---|---|
@@ -916,7 +912,7 @@ adaptador `WompiSandbox` y uno falso para las pruebas y el desarrollo sin red.
 
 ### 9.6 La entrega (nuevo en 1.8)
 
-`entrega` se copia congelada en el `envio` del pedido (ADR 0015). Los tres primeros campos son
+`entrega` se copia congelada en el `envio` del pedido. Los tres primeros campos son
 los de siempre; el resto es opcional, y un checkout de 1.7 sigue cerrando sin ellos.
 
 | Campo | Largo | Qué es |
@@ -925,7 +921,7 @@ los de siempre; el resto es opcional, y un checkout de 1.7 sigue cerrando sin el
 | `departamento` | ≤ 128 | Lo pre-llena el mapa o lo escribe el acudiente |
 | `indicaciones` | ≤ 512 | "Apartamento, torre, interior o indicaciones" |
 | `localidad` | ≤ 64 | El nombre canónico de una de las 20 de Bogotá (`LOCALIDADES_BOGOTA` en `@tukit/contrato`). El formulario la exige en Bogotá y la deja vacía fuera; el servidor solo valida el largo |
-| `latitud`, `longitud` | −4,3 a 13,6 y −81,8 a −66,8 | El pin que el acudiente confirmó en el mapa de OpenStreetMap (sin llave de Google, ADR 0049). Van juntas o ninguna; una sola, o un punto fuera de Colombia, es `400 entrada_invalida`. Si edita la dirección después, no viajan |
+| `latitud`, `longitud` | −4,3 a 13,6 y −81,8 a −66,8 | El pin que el acudiente confirmó en el mapa de OpenStreetMap (sin llave de Google). Van juntas o ninguna; una sola, o un punto fuera de Colombia, es `400 entrada_invalida`. Si edita la dirección después, no viajan |
 
 `inteligencia` descarta cualquier otro campo antes de llamar a `comercio`; de las coordenadas solo
 cruzan `latitud` y `longitud`. Un largo de más es `400 entrada_invalida` (con `campo`), en los dos servicios. El
@@ -977,14 +973,9 @@ Los tipos son `LineaDeTiempoPedido` y `PedidoDelAcudiente` en `@tukit/contrato`
 
 ## 10. Notificación (operacion)
 
-> **Estado en 1.1: media implementada, y la mitad que falta es la que entrega.** Al aprobar
-> un trabajo, `inteligencia` escribe el evento `kits_publicados` en su bandeja de salida,
-> en la MISMA transacción que la publicación. Pero **no hay repartidor** que la lea ni
-> servicio `operacion` que la consuma, así que hoy no sale ni correo ni wa-link. Es
-> exactamente la deuda que el manifiesto documenta del sistema anterior (la mitad
-> transaccional escrita y la de entrega ausente), con la diferencia de que esta vez está
-> anotada donde se va a leer. El frontend no puede contar con el aviso: tiene que sondear
-> `GET /v1/trabajos/{id}`.
+> Al aprobar un trabajo, `inteligencia` escribe el evento `kits_publicados` en su bandeja de salida,
+> en la MISMA transacción que la publicación. El repartidor de `operacion` lo convierte en un aviso
+> (correo o wa-link). El frontend no debe contar con el aviso: puede sondear `GET /v1/trabajos/{id}`.
 
 Puerto `Notificador` (`FU-10`) con dos adaptadores en v1:
 
@@ -998,11 +989,9 @@ El SRS difiere a v2+ "la integración con WhatsApp Business para notificaciones
 decisión ya tomada, no por omisión. El puerto existe para que la Cloud API oficial entre
 después sin tocar el dominio.
 
-El contenido **no repite el correo ni el celular**: los referencia por identificador. Es la
-deuda que el manifiesto documenta en `operacion.notificacion`, donde el servicio anterior
-persistía el correo real del acudiente y el derecho al olvido no lo borraba.
+El contenido **no repite el correo ni el celular**: los referencia por identificador. Así el derecho al olvido lo alcanza.
 
-**Un evento, un aviso (desde 1.8, ADR 0042).** La bandeja entrega cada evento al menos una vez,
+**Un evento, un aviso.** La bandeja entrega cada evento al menos una vez,
 así que puede entregarlo otra vez (por ejemplo, si RabbitMQ se cae justo después del envío). La
 `notificacion` guarda de qué evento sale, y un evento que ya tiene su aviso `enviada` no se vuelve
 a enviar. Un envío que falló sí se reintenta.
@@ -1012,7 +1001,7 @@ a enviar. Un envío que falló sí se reintenta.
 Ningún cliente HTTP ve los eventos. Se describen aquí porque son el contrato entre servicios.
 
 El evento se escribe siempre en la `bandeja_salida` del productor, en la misma transacción del
-cambio. Lo que depende del modo es cómo sale de ahí (ADR 0046):
+cambio. Lo que depende del modo es cómo sale de ahí:
 
 - **Sin `RABBITMQ_URL`,** como en 1.9: el repartidor y los sondeadores leen la bandeja del
   productor, y el trabajador sondea `trabajo_pipeline`.
@@ -1082,15 +1071,13 @@ error que no está. El cuerpo trae la sección de este documento donde la ruta s
 Desde 1.2 `/v1/ordenes` sí tiene servicio detrás; el ejemplo queda porque muestra la forma del
 cuerpo, que es la misma para cualquier ruta declarada sin servicio.
 
-Nunca se devuelve al cliente lo que el cliente acaba de enviar en un mensaje de error: el
-manejador de validación del sistema anterior devolvía la contraseña recibida, y es uno de
-los defectos ya documentados. El manejador de errores de validación de los tres servicios
+Nunca se devuelve al cliente lo que el cliente acaba de enviar en un mensaje de error. El manejador de errores de validación de los tres servicios
 reescribe la respuesta por omisión del framework, que incluye el valor recibido en `input`,
 y deja solo `{error, mensaje, campo}`.
 
 ### 11.1 Demasiadas peticiones (nuevo en 1.11)
 
-El gateway cuenta cada petición antes de reenviarla (ADR 0047). Si pasa un tope, responde así:
+El gateway cuenta cada petición antes de reenviarla. Si pasa un tope, responde así:
 
 ```http
 HTTP/1.1 429 Too Many Requests
@@ -1252,8 +1239,7 @@ lateral sin tener que traer los 100 conceptos para contarlos.
 #### `GET /v1/catalogo/conceptos`
 
 Un **concepto** es la necesidad abstracta que el colegio pide (`cuaderno`), no un producto
-comercial. Es la capa que el sistema anterior no tenía y por la que la variabilidad
-terminológica colombiana (`esfero` = `bolígrafo`) no tenía dónde vivir.
+comercial. Es la capa donde vive la variabilidad terminológica colombiana (`esfero` = `bolígrafo`).
 
 | Parámetro | Qué hace |
 |---|---|
@@ -1437,7 +1423,7 @@ grado no tiene 500.
 
 ### 12.4 Colegios, sedes y grados (servicio `identidad`)
 
-Los colegios **no** viven en `catalogo`: la tenencia es de `identidad` (ADR 0013), y
+Los colegios **no** viven en `catalogo`: la tenencia es de `identidad`, y
 `lista_oficial.colegio_id` es una referencia lógica declarada en el manifiesto. Por eso
 `/v1/listas` devuelve `colegio_id` y no el nombre: el nombre se resuelve contra
 `/v1/colegios`, que el frontend puede cargar una vez.
@@ -1462,7 +1448,7 @@ oficial, que vive en una sola copia en `@tukit/contrato/directorio-colegios.json
 `apps/web` y `apps/admin` lo sirven estático en `/directorio-colegios.json` para buscar en el
 navegador sin llamar a ningún servicio. El logo de un colegio es su `logo_url` de `identidad`; si
 no tiene, el `imageURL` del directorio con su mismo DANE; si tampoco, sus iniciales
-(`logoDeColegio`, ADR 0045).
+(`logoDeColegio`).
 
 #### `POST /v1/contactos`
 
@@ -1762,7 +1748,7 @@ Sin rodeos, porque el frontend necesita saber contra qué puede programar hoy.
 | §12.3, §12.4, §12.5 completas | **Funcionan** con datos reales | 100 conceptos, 347 productos con precio, 7 tiendas, 17 colegios, 175 listas, 4.719 renglones |
 | `POST /v1/trabajos` entrada (a), colegio y grado | **Funciona** | Los kits del §5, con lista verificada sin volver a percibir. Pasan por revisión humana salvo la ruta rápida (`aplicar-canonico`) |
 | Entrada (b), un archivo | **Funciona por otra ruta** | `POST /v1/trabajos` sigue siendo solo JSON (`multipart` es `400`). Los PDF entran por `POST /v1/listas/subir` (`multipart`), van a la cola de revisión de listas y al aprobarse arman el kit. Necesita `GEMINI_API_KEY`. Con el catálogo caído responde `202` y la lista llega a la cola cuando el catálogo vuelve (§8) |
-| Optimizador | **NSGA-II** (pymoo), con enumeración exacta en listas chicas | Frente de 4 objetivos (costo, fidelidad, disponibilidad, personaje), sembrado con la heurística y la escalera de costo marginal. `Ahorrador` y `Premium` siempre; `Fan` y `A tu Medida` a pedido (ADR 0029, 0030) |
+| Optimizador | **NSGA-II** (pymoo), con enumeración exacta en listas chicas | Frente de 4 objetivos (costo, fidelidad, disponibilidad, personaje), sembrado con la heurística y la escalera de costo marginal. `Ahorrador` y `Premium` siempre; `Fan` y `A tu Medida` a pedido |
 | Consolidación entre hermanos | **Funciona**, probada | Solo se dispara cuando a dos hijos les toca el mismo sku y el empaque alcanza |
 | Notificación (§10) | **Funciona por correo** | El repartidor de `operacion` recibe `kits_publicados` y los eventos del pedido por su cola de RabbitMQ, o sin broker de las bandejas, y envía el correo (por consola si no hay SMTP), una vez por evento (§10). El wa-link se genera pero no se envía solo |
 | Pago (§9) | **Funciona contra Wompi sandbox** | Widget, sincronización, webhook y cancelación. Sin llaves (`WOMPI_MODO=falso`) una pasarela simulada camina el mismo flujo. No hay modo de producción |

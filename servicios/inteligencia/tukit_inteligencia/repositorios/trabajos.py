@@ -40,7 +40,6 @@ def _ahora() -> datetime:
 
 
 class RepoTrabajos:
-
     def __init__(self, conexion: Any) -> None:
         self.c = conexion
 

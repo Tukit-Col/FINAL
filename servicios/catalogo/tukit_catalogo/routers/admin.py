@@ -586,7 +586,7 @@ async def importar_lista(cuerpo: dict[str, Any]) -> dict[str, Any]:
     una `tarea_importacion` completada, no en la version, porque es un hecho del
     proceso de importacion y no del contenido publicado.
 
-    Con `clave_idempotencia` el POST se puede reintentar (ADR 0040): si ya entro
+    Con `clave_idempotencia` el POST se puede reintentar: si ya entro
     una importacion con esa clave, se responde con ella, el mismo cuerpo, y no
     se crea otra version. Es lo que hace seguro el reintento de inteligencia
     cuando la respuesta de un intento que si entro se perdio. Sin clave, cada

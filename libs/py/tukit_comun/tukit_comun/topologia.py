@@ -22,7 +22,6 @@ CABECERA_MOTIVO = "tukit-motivo"
 
 @dataclass(frozen=True)
 class Cola:
-
     nombre: str
     claves: tuple[str, ...]
     espera_reintento_ms: int = ESPERA_REINTENTO_MS
@@ -79,7 +78,6 @@ SUPRESION_CONFIRMADA = Cola("identidad.supresion", ("supresion_confirmada",))
 
 @dataclass(frozen=True)
 class Topologia:
-
     exchange: str = EXCHANGE
     colas: tuple[Cola, ...] = field(
         default=(

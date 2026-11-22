@@ -51,7 +51,6 @@ def _dane_de_carga(carga: dict[str, Any]) -> str | None:
 
 @dataclass
 class Poller:
-
     motor_identidad: MotorServicio
     motor_catalogo: AsyncEngine | None
     cifrador: Any = field(default_factory=cifrador_desde_entorno)

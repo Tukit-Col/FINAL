@@ -68,7 +68,6 @@ async def _cuaderno_filtra_por(cliente, discriminantes: list[str]) -> None:
 
 
 class TestCurarLosAtributosDeUnRenglon:
-
     async def test_la_revision_separa_lo_leido_de_lo_curado(self, cliente):
         await _cuaderno_filtra_por(cliente, ["rayado", "hojas"])
         vid = cliente.ids["abierta"]

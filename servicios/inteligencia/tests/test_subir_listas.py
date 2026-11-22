@@ -19,7 +19,6 @@ OTRO_COLEGIO = "22222222-2222-5222-8222-222222222222"
 
 
 class CatalogoImportador:
-
     def __init__(self) -> None:
         self.llamadas: list[dict] = []
         self._proximo = 0
@@ -62,7 +61,6 @@ class CatalogoImportador:
 
 
 class IdentidadDoble:
-
     def __init__(self, usuario_id: str | None = "usr-1") -> None:
         self.usuario_id = usuario_id
         self.llamadas: list[dict] = []
@@ -291,7 +289,6 @@ class TestSubirFeliz:
 
 
 class TestElApodoDeLaSubida:
-
     async def test_el_apodo_no_viaja_al_catalogo_y_queda_guardado_aqui(self, cliente, catalogo, motor):
         from tukit_inteligencia import apodos_subida
 
@@ -314,7 +311,6 @@ class TestElApodoDeLaSubida:
 
 
 class TestColegioPorDirectorioOEscrito:
-
     async def test_colegio_del_directorio_deriva_el_id_del_dane(self, cliente, catalogo):
         from tukit_comun import derivar
 
@@ -510,7 +506,6 @@ def _con_zona(momento: datetime) -> datetime:
 
 
 class CatalogoIntermitente(CatalogoImportador):
-
     def __init__(self) -> None:
         super().__init__()
         self.caido = False

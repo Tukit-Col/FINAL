@@ -25,7 +25,6 @@ class Nota(Base):
 
 
 class RepoNotas:
-
     def __init__(self, conexion: Any) -> None:
         self.conexion = conexion
 

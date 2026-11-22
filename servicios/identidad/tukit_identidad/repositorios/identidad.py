@@ -39,7 +39,6 @@ CONSENTIMIENTO = Base.metadata.tables["consentimiento"]
 
 
 class RepoIdentidad:
-
     def __init__(self, conexion: Any) -> None:
         self.conexion = conexion
 

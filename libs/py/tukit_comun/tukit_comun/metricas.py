@@ -92,7 +92,7 @@ def configurar_metricas() -> None:
     meter.create_observable_gauge(
         "tukit.breaker.abierto",
         callbacks=[_observar_breakers],
-        description="1 si el disyuntor del destino esta abierto, 0 si no (ADR 0020).",
+        description="1 si el disyuntor del destino esta abierto, 0 si no.",
     )
     _gauge_registrado = True
 

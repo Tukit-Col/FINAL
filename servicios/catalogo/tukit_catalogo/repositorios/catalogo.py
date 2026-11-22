@@ -118,7 +118,6 @@ def _normalizado_sql(columna: Any) -> Any:
 
 
 class RepoCatalogo:
-
     def __init__(self, conexion: Any) -> None:
         self.conexion = conexion
 

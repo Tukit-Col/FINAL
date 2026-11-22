@@ -107,19 +107,16 @@ async def _detalle_colegio(repo: RepoIdentidad, colegio_id: uuid.UUID) -> dict[s
 
 
 class Contacto(BaseModel):
-
     correo: str = Field(min_length=5, max_length=320)
     celular: str | None = Field(default=None, max_length=32)
 
 
 class Credenciales(BaseModel):
-
     correo: str = Field(min_length=5, max_length=320)
     clave: str = Field(min_length=1, max_length=256)
 
 
 class DireccionEntrada(BaseModel):
-
     etiqueta: str = Field(default="casa", max_length=64)
     ciudad: str = Field(min_length=1, max_length=128)
     localidad: str | None = Field(default=None, max_length=128)
@@ -333,7 +330,6 @@ _VERSION_TERMINOS_TITULAR = "2026-11"
 
 
 class HijoRegistro(BaseModel):
-
     colegio_id: uuid.UUID
     grado: str = Field(min_length=1, max_length=32)
     apodo: str | None = Field(default=None, max_length=120)
@@ -343,7 +339,6 @@ class HijoRegistro(BaseModel):
 
 
 class Registro(BaseModel):
-
     correo: str = Field(min_length=5, max_length=320)
     clave: str = Field(min_length=8, max_length=256)
     celular: str | None = Field(default=None, max_length=32)
@@ -352,7 +347,6 @@ class Registro(BaseModel):
 
 
 class MatriculasNuevas(BaseModel):
-
     hijos: list[HijoRegistro] = Field(default_factory=list)
 
 
@@ -538,7 +532,6 @@ async def guardar_matriculas(
 
 
 class CambioDeHijo(BaseModel):
-
     colegio_id: uuid.UUID
     grado: str = Field(min_length=1, max_length=32)
     apodo: str | None = Field(default=None, max_length=120)
@@ -785,7 +778,7 @@ async def archivar_direccion(
     direccion_id: uuid.UUID,
     authorization: Annotated[str | None, Header()] = None,
 ) -> None:
-    """Baja logica y no borrado (ADR 0015): un envio en curso todavia necesita
+    """Baja logica y no borrado: un envio en curso todavia necesita
     que la direccion exista mientras se entrega. La copia congelada del envio
     vive en Comercio y no se toca."""
     async with peticion.app.state.motor.sesion() as db:

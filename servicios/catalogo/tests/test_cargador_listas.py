@@ -50,7 +50,6 @@ def item(directorio: Path, *, conceptos=CONCEPTOS) -> dict:
 
 
 class TestModoAdquisicion:
-
     def test_desconocido_cae_en_mercado_abierto(self):
         assert normalizar_modo("desconocido") == ModoAdquisicion.MERCADO_ABIERTO.value
 
@@ -64,7 +63,6 @@ class TestModoAdquisicion:
 
 
 class TestInstruccionColegio:
-
     @pytest.mark.parametrize("modo", [m.value for m in ModoAdquisicion if m not in MODOS_SURTIBLES])
     def test_todo_modo_no_surtible_recibe_una_instruccion(self, modo):
         texto = instruccion_para(modo, None)
@@ -92,7 +90,6 @@ class TestInstruccionColegio:
 
 
 class TestCantidad:
-
     def test_un_cero_del_corpus_se_lee_como_uno(self):
         assert cantidad_valida("0") == 1
         assert cantidad_valida("") == 1
@@ -200,7 +197,6 @@ class TestResolucionDeConcepto:
 
 
 class TestIdentificadores:
-
     def test_el_colegio_se_deriva_igual_que_en_identidad(self):
         assert id_colegio("2.4") == derivar("colegio", "2.4")
         assert id_sede("2.4", "Sede unica") == derivar("sede", "2.4", "Sede unica")
@@ -229,7 +225,6 @@ class TestIdentificadores:
 
 
 class TestCsvVersionado:
-
     def test_el_corpus_entero_se_arma_sin_bloqueos(self):
         cargador = Cargador(DATOS)
         datos = cargador.armar([])
@@ -251,7 +246,6 @@ class TestCsvVersionado:
 
 
 class TestContraElEsquema:
-
     def _sembrar(self, sesion: Session, datos: dict) -> None:
         for tabla in ("lista_oficial", "version_lista_oficial", "item_lista_oficial"):
             sesion.execute(insert(Base.metadata.tables[tabla]), datos[tabla])

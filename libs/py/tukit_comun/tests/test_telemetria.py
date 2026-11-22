@@ -5,7 +5,6 @@ from tukit_comun.telemetria import configurar_telemetria, instrumentar_motor
 
 
 class _Intocable:
-
     def __init__(self) -> None:
         object.__setattr__(self, "accesos", [])
 

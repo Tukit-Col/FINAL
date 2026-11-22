@@ -219,7 +219,7 @@ async def escuchar_cola(
 
 def main(argv: list[str] | None = None) -> int:
     analizador = argparse.ArgumentParser(
-        description="Drena la cola de trabajos de Inteligencia y corre el pipeline (ADR 0024)."
+        description="Drena la cola de trabajos de Inteligencia y corre el pipeline."
     )
     analizador.add_argument("--seguir", action="store_true", help="Corre en bucle en vez de una pasada.")
     analizador.add_argument("--intervalo", type=float, default=5.0, help="Segundos entre pasadas.")

@@ -198,7 +198,7 @@ async def resolver_sku(peticion: Request, sku: str) -> dict[str, Any]:
     """El id canonico y el precio de un sku, para que Comercio congele la linea.
 
     Vive fuera de `/v1/catalogo` A PROPOSITO: la puerta rutea por ese prefijo,
-    asi que esta ruta no existe hacia el navegador (RPO cero, ADR 0017) y solo
+    asi que esta ruta no existe hacia el navegador (RPO cero) y solo
     la alcanza otro servicio que hable con Catalogo directo. Es la MISMA lectura
     que `precio_de` hace hoy, mas el id que la orden necesita y la superficie
     publica nunca expone.
@@ -259,7 +259,6 @@ async def listas_por_contacto(peticion: Request, contacto_referencia: uuid.UUID)
 
 
 class RetiroDeContacto(BaseModel):
-
     tarea_id: uuid.UUID | None = None
     version_id: uuid.UUID | None = None
 

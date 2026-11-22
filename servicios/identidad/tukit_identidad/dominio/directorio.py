@@ -23,7 +23,6 @@ _SEPARADOR_MULTIVALOR = "--"
 
 @dataclass(frozen=True)
 class ColegioDirectorio:
-
     dane: str
     nombre: str
     localidad: str | None = None

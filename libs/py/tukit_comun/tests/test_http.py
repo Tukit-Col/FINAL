@@ -85,7 +85,6 @@ class TestElSobreDeDominio:
 
 
 class TestElIdDeCorrelacion:
-
     async def test_sin_cabecera_se_acuña_una_y_vuelve_en_la_respuesta(self):
         respuesta = await _pedir("GET", "/quien-soy")
         cid = respuesta.headers.get(CABECERA_CORRELACION)
@@ -110,7 +109,6 @@ class TestElIdDeCorrelacion:
 
 
 class TestPoolHttpx:
-
     async def test_el_hook_estampa_el_id_vivo_de_la_peticion_en_curso(self):
         from tukit_comun.http import _sellar_correlacion, crear_pool, fijar_correlacion, reset_correlacion
 
@@ -139,7 +137,6 @@ class TestPoolHttpx:
 
 
 class TestLivenessYReadiness:
-
     async def test_live_responde_sin_base(self):
         respuesta = await _pedir("GET", "/health/live")
         assert respuesta.status_code == 200
@@ -199,7 +196,6 @@ class TestIso:
 
 
 class TestClienteEfimero:
-
     async def test_el_cliente_inyectado_se_reusa_y_no_se_cierra(self):
         inyectado = httpx.AsyncClient()
         try:

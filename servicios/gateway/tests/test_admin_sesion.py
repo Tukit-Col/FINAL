@@ -26,7 +26,6 @@ RUTAS_DE_CONSOLA = [
 
 
 class Atras:
-
     def __init__(self, *, identidad_caida: bool = False) -> None:
         self.identidad_caida = identidad_caida
         self.reenviadas: list[str] = []

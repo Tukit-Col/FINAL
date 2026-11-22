@@ -115,7 +115,6 @@ class TestParaServirAlFrontend:
 
 
 class TestRegenerarElJsonDeBusqueda:
-
     def test_cada_registro_lleva_image_url_nulo_por_omision(self):
         registros = generar_json_busqueda(_BLOQUE)
         assert [r["imageURL"] for r in registros] == [None, None]

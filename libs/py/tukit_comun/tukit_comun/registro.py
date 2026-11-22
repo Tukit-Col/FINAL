@@ -8,14 +8,12 @@ from .http import id_de_correlacion
 
 
 class _FiltroCorrelacion(logging.Filter):
-
     def filter(self, registro: logging.LogRecord) -> bool:
         registro.correlacion = id_de_correlacion() or "-"
         return True
 
 
 class _FormatoJSON(logging.Formatter):
-
     def format(self, registro: logging.LogRecord) -> str:
         cuerpo = {
             "nivel": registro.levelname,

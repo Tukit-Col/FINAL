@@ -26,7 +26,6 @@ _ESTADOS = ", ".join(f"'{e.value}'" for e in EstadoResolucion)
 
 
 class ItemCrudo(Base):
-
     __tablename__ = "item_crudo"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -69,7 +68,6 @@ class ItemCrudo(Base):
 
 
 class CandidatoItem(Base):
-
     __tablename__ = "candidato_item"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -105,7 +103,6 @@ class CandidatoItem(Base):
 
 
 class ResolucionItem(Base):
-
     __tablename__ = "resolucion_item"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -140,7 +137,6 @@ class ResolucionItem(Base):
 
 
 class TransicionResolucion(Base):
-
     __tablename__ = "transicion_resolucion"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)

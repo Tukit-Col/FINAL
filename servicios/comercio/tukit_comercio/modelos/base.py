@@ -15,7 +15,6 @@ Texto = JSON().with_variant(JSONB(), "postgresql")
 
 
 class EstadoPedido(enum.StrEnum):
-
     PENDIENTE_PAGO = "pendiente_pago"
     PAGADO = "pagado"
     EN_PREPARACION = "en_preparacion"
@@ -50,7 +49,6 @@ def transicion_valida(actual: str, siguiente: str) -> bool:
 
 
 class EstadoPago(enum.StrEnum):
-
     INICIADO = "iniciado"
     APROBADO = "aprobado"
     RECHAZADO = "rechazado"
@@ -58,7 +56,6 @@ class EstadoPago(enum.StrEnum):
 
 
 class MetodoPago(enum.StrEnum):
-
     PSE = "pse"
     NEQUI = "nequi"
     TARJETA = "tarjeta"

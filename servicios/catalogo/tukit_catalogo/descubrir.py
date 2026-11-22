@@ -198,7 +198,6 @@ def exigir_sin_revisar(id_corto: str, existe: bool, revisada_en: datetime | None
 
 @dataclass(frozen=True)
 class Revision:
-
     version_id: uuid.UUID
     colegio: str
     grado: str

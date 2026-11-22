@@ -29,7 +29,6 @@ def _contiene_palabras(frase: str, texto: str) -> bool:
 
 @dataclass(frozen=True)
 class FiltrosDuros:
-
     marcas_excluidas: tuple[tuple[str, str], ...] = ()
     solo_disponibles: bool = False
 

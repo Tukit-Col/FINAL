@@ -64,7 +64,6 @@ def _tablas_origen() -> tuple[MetaData, Table, Table]:
 
 
 class IdentidadContacto:
-
     def __init__(self, correo: str | None = CORREO, celular: str | None = CELULAR) -> None:
         self.correo = correo
         self.celular = celular
@@ -76,7 +75,6 @@ class IdentidadContacto:
 
 
 class _IdentidadConColegios(IdentidadContacto):
-
     def __init__(self, nombres: dict[str, str]) -> None:
         super().__init__()
         self.nombres = nombres
@@ -88,7 +86,6 @@ class _IdentidadConColegios(IdentidadContacto):
 
 
 class _NotificadorQueFallaPrimero(NotificadorFalso):
-
     def __init__(self) -> None:
         super().__init__()
         self.intentos = 0
@@ -109,7 +106,6 @@ class ChannelInvalidStateError(RuntimeError):
 
 
 class _SinkIntermitente:
-
     def __init__(self, *errores: BaseException) -> None:
         self.errores = list(errores)
         self.publicados: list[int] = []
@@ -128,7 +124,6 @@ def _broker_caido(veces: int) -> _SinkIntermitente:
 
 
 class _EngineIntermitente:
-
     def __init__(self, real: Any, *errores: BaseException) -> None:
         self.real = real
         self.errores = list(errores)
@@ -148,7 +143,6 @@ class _EngineIntermitente:
 
 
 class _MotorDePrueba:
-
     def __init__(self, real: MotorServicio) -> None:
         self.real = real
         self.engine = real.engine

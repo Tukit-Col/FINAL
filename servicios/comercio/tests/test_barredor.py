@@ -100,7 +100,6 @@ class _Corte(Exception):
 
 
 class _MotorIntermitente:
-
     def __init__(self, real, *errores: BaseException) -> None:
         self.real = real
         self.errores = list(errores)

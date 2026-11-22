@@ -45,7 +45,6 @@ def pesos_fmt(valor: int | None) -> str:
 
 @dataclass
 class ContextoKit:
-
     texto: str
     lineas: dict[str, dict[str, Any]]
     alternativas: dict[str, list[dict[str, Any]]]

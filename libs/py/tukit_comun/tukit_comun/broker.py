@@ -29,7 +29,6 @@ def url_broker() -> str | None:
 
 @dataclass
 class BrokerSink:
-
     url: str
     exchange: str = EXCHANGE
     _conexion: Any = None

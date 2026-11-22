@@ -28,7 +28,6 @@ _FUENTES = ", ".join(f"'{f.value}'" for f in FuentePrecio)
 
 
 class Tienda(Base):
-
     __tablename__ = "tienda"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -46,7 +45,6 @@ class Tienda(Base):
 
 
 class CorridaScraper(Base):
-
     __tablename__ = "corrida_scraper"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -70,7 +68,6 @@ class CorridaScraper(Base):
 
 
 class OfertaTienda(Base):
-
     __tablename__ = "oferta_tienda"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -120,7 +117,6 @@ class OfertaTienda(Base):
 
 
 class PrecioOferta(Base):
-
     __tablename__ = "precio_oferta"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)

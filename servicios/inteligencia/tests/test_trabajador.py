@@ -128,7 +128,6 @@ async def _pasar_a(motor, trabajo_id: uuid.UUID, estado: str, *, hace: timedelta
 
 
 class _Catalogo:
-
     def __init__(self) -> None:
         self.real = catalogo_verificado()
 

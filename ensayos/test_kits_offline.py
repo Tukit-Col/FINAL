@@ -17,7 +17,6 @@ def _sku(eleccion) -> str | None:
 
 
 class TestLoQueNoSeVendeLlegaComoLinea:
-
     @pytest.mark.parametrize("clave", ["J#86", "1#2", "J#1", "1#7", "J#68"])
     def test_uniforme_cartilla_licencia_audifonos_y_muda(self, renglon, clave):
         linea = renglon(clave)
@@ -41,7 +40,6 @@ def test_el_colegio_no_tiene_huecos():
 
 
 class TestLasFichasBlancasSonBlancas:
-
     def test_cada_perfil_lleva_fichas_blancas(self, renglon):
         linea = renglon("2#52")
         assert (_sku(linea.ahorrador), _sku(linea.premium)) == (
@@ -55,7 +53,6 @@ class TestLasFichasBlancasSonBlancas:
 
 
 class TestLasPiedrasDeTexturaSonUnSoloSet:
-
     def test_la_bisuteria_lleva_el_set(self, renglon):
         linea = renglon("2#71")
         assert (_sku(linea.ahorrador), _sku(linea.premium)) == ("TK-REV-603855", "TK-REV-603851")
@@ -66,7 +63,6 @@ class TestLasPiedrasDeTexturaSonUnSoloSet:
 
 
 class TestElCuadernoDeTresMateriasEsElDeCinco:
-
     @pytest.mark.parametrize("clave", ["10#17", "10#24", "10#27", "11#21", "11#24"])
     def test_cada_perfil_tiene_su_cuaderno(self, renglon, clave):
         linea = renglon(clave)
@@ -74,7 +70,6 @@ class TestElCuadernoDeTresMateriasEsElDeCinco:
 
 
 class TestElectronicaBatasYArtesTienenProducto:
-
     @pytest.mark.parametrize(
         "clave, sku",
         [
@@ -125,7 +120,6 @@ class TestElectronicaBatasYArtesTienenProducto:
 
 
 class TestLosHuecosDeLaAuditoriaV2TienenProducto:
-
     @pytest.mark.parametrize(
         "clave, sku",
         [
@@ -211,7 +205,6 @@ class TestMalElegidosQueYaCumplen:
 
 
 class TestEmpaqueYCantidad:
-
     @pytest.mark.parametrize("clave", ["6#40", "8#57", "J#39", "2#52", "T#78"])
     def test_un_paquete_alcanza(self, renglon, clave):
         assert renglon(clave).ahorrador.unidades == 1
@@ -235,7 +228,6 @@ class TestHerramientasPedidasEnVariasMaterias:
 
 
 class TestDesempateComoElOptimizador:
-
     @pytest.mark.parametrize("clave", ["J#62", "T#66", "1#21", "2#43"])
     def test_las_tijeras_punta_roma_del_ahorrador_son_las_mas_baratas(self, renglon, clave):
         assert _sku(renglon(clave).ahorrador) == "TK-REV-124275363"
@@ -262,7 +254,6 @@ def test_con_todo_igual_gana_el_primero_de_la_ruta_rapida():
 
 
 class TestLaCajaNoReemplazaALaUnidad:
-
     @pytest.mark.parametrize("clave", ["1#58", "J#96"])
     def test_un_marcador_borrable_no_es_la_caja_de_diez(self, renglon, clave):
         linea = renglon(clave)

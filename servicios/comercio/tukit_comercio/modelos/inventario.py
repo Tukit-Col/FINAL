@@ -19,7 +19,6 @@ from .base import Base
 
 
 class Inventario(Base):
-
     __tablename__ = "inventario"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -38,7 +37,6 @@ class Inventario(Base):
 
 
 class ReservaInventario(Base):
-
     __tablename__ = "reserva_inventario"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)

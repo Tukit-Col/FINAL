@@ -7,7 +7,6 @@ from tukit_catalogo.enriquecer import (
 
 
 class TestAtributosDeLaFicha:
-
     def test_traduce_los_campos_utiles(self):
         attrs = atributos_de_ficha(
             {"Número de hojas": "50", "Tipo de linea": "Rayado", "Formato": "Cosido"},
@@ -46,7 +45,6 @@ class TestAtributosDeLaFicha:
 
 
 class TestCamposDeFichaQueLaTiendaSiPublica:
-
     def test_el_tamano_de_la_ficha(self):
         assert atributos_de_ficha({"Tamaño": "Grande"}, ("tamano",)) == {"tamano": "grande"}
 
@@ -71,7 +69,6 @@ class TestCamposDeFichaQueLaTiendaSiPublica:
 
 
 class TestLoGuardadoContraLoReleido:
-
     def test_lo_guardado_gana_por_omision(self):
         assert atributos_combinados({"tipo": "permanente"}, {"tipo": "oleo", "color": "verde"}) == {
             "tipo": "permanente",

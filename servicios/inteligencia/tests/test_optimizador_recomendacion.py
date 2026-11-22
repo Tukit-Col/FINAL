@@ -8,7 +8,6 @@ from tukit_inteligencia.optimizador import (
 
 
 class TestQueKitsSeArman:
-
     RENGLONES = [
         renglon_optimizador(
             orden,
@@ -93,7 +92,6 @@ class TestLaRecomendacion:
 
 
 class TestATuMedida:
-
     RENGLONES = [
         renglon_optimizador(
             orden,
@@ -189,7 +187,6 @@ class TestATuMedida:
 
 
 class TestSeleccionMAUT:
-
     @staticmethod
     def _punto(costo, fidelidad, personaje=0.0, disponibilidad=1.0):
         from tukit_inteligencia.optimizador import SolucionFrente

@@ -1,7 +1,7 @@
 # Infraestructura local de desarrollo.
 #
 # Un solo Postgres 16 con la extension pgvector, que hospeda las CINCO bases
-# del sistema, y el RabbitMQ por el que viajan los eventos (ADR 0046). Que sean cinco bases logicas en un motor, y no cinco motores, es
+# del sistema, y el RabbitMQ por el que viajan los eventos. Que sean cinco bases logicas en un motor, y no cinco motores, es
 # deliberado para el piloto: el aislamiento que exige la arquitectura es de
 # ESQUEMA y de conexion (una base, un dueno, ver los cinco invariantes), no de
 # proceso. La funcion de aptitud `test_ningun_servicio_nombra_la_base_de_otro`
@@ -89,7 +89,7 @@ services:
       TUKIT_INTELIGENCIA_URL: http://inteligencia:8013
       TUKIT_CORS_ORIGENES: "http://localhost:3000,http://127.0.0.1:3000"
       # Con la URL, Inteligencia deja el aviso de cada trabajo en su bandeja
-      # para el trabajador (ADR 0046). El broker se encuentra por nombre de
+      # para el trabajador. El broker se encuentra por nombre de
       # servicio, igual que la base.
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
     depends_on:
@@ -98,7 +98,7 @@ services:
     command: ["python", "-m", "tukit_identidad.api", "--puerto", "8011", "--host", "0.0.0.0"]
     ports: ["8011:8011"]
 
-  # Catalogo, inteligencia y la puerta usan Redis (ADR 0047): los vectores, las
+  # Catalogo, inteligencia y la puerta usan Redis: los vectores, las
   # lecturas y el limite de tasa. Lo esperan arrancado pero no lo exigen
   # (`required: false`): sin el, la cache calcula como siempre y el limite
   # cuenta en la memoria de la puerta.
@@ -161,7 +161,7 @@ services:
   # Encendido por omision, como Postgres: `make bd-arriba` lo levanta y
   # `make arriba` lo comprueba antes de lanzar los procesos con `RABBITMQ_URL`.
   # Cada productor publica su bandeja aqui y cada consumidor escucha su cola
-  # (ADR 0046). Si no responde, los procesos sondean las bases como antes: el
+  #. Si no responde, los procesos sondean las bases como antes: el
   # broker acelera la entrega y quita las lecturas cruzadas, pero no es un
   # requisito para correr.
   #
@@ -208,7 +208,7 @@ services:
 
   redis:
     # La cache de las lecturas aceptadas y de los vectores, y el contador del
-    # limite de tasa de la puerta (ADR 0047). Esta en `api` porque catalogo,
+    # limite de tasa de la puerta. Esta en `api` porque catalogo,
     # inteligencia y la puerta lo usan, y sigue en `infra` para quien corre
     # `make arriba`, que lo comprueba. Mas adelante, tambien el backend del
     # circuit breaker (hoy en memoria) y el adaptador de socket.io (B.5).

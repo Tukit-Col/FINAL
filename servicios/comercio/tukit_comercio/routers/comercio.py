@@ -312,8 +312,8 @@ async def crear_orden(request: Request, solicitud: SolicitudOrden) -> dict[str, 
     La primera invariante del §9: antes de cerrar se relee el precio publico de
     cada linea; si cambio respecto al que el acudiente aprobo, la orden NO se
     cierra (`422 precio_cambiado`) y el acudiente decide sobre el precio nuevo.
-    Si coincide, se congela en la linea (ADR 0012), se copia la direccion al
-    envio (ADR 0015) y se crea la reserva de inventario. Nace `pendiente_pago`.
+    Si coincide, se congela en la linea, se copia la direccion al
+    envio y se crea la reserva de inventario. Nace `pendiente_pago`.
 
     La lectura de precios contra Catalogo (I/O de red) ocurre ANTES de abrir la
     sesion de base: nunca se sostiene una conexion de base a traves de una

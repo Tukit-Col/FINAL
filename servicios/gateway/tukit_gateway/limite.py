@@ -61,7 +61,6 @@ class Nivel:
 
 @dataclass(frozen=True)
 class Cuenta:
-
     clave: str
     ventana: int
     tope: int

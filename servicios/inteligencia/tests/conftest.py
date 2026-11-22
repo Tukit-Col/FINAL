@@ -88,7 +88,6 @@ def opcion(sku: str, nivel: str, precio: int | None, **kw: Any) -> dict[str, Any
 
 @dataclass
 class CatalogoFalso:
-
     renglones: list[dict[str, Any]] = field(default_factory=list)
     respuestas: dict[str, dict[str, Any]] = field(default_factory=dict)
     grado: str = "Cuarto"

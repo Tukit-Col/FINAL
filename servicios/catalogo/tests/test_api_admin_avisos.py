@@ -20,7 +20,6 @@ async def _aviso_de_repetido(cliente, version_id) -> dict | None:
 
 
 class TestAvisosDeUnaListaRevisada:
-
     async def test_avisa_el_repetido_el_atributo_ambiguo_y_lo_que_no_tiene_producto(self, cliente):
         await _con_cuadernos_extra(cliente, discriminantes=["rayado"])
         vid = await _version_revisada_con_renglones(

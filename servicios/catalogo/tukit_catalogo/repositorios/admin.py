@@ -20,7 +20,6 @@ CORRECCION = Base.metadata.tables["correccion_lista"]
 
 
 class RepoAdmin:
-
     def __init__(self, conexion: Any) -> None:
         self.c = conexion
 

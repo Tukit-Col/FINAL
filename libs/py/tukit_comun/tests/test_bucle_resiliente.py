@@ -109,7 +109,6 @@ def test_no_es_caida_transitoria(error):
 
 
 class _Vuelta:
-
     def __init__(self, *errores: BaseException | None) -> None:
         self.errores = list(errores)
         self.llamadas = 0

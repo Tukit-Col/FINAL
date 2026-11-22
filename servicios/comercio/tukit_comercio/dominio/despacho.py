@@ -39,7 +39,6 @@ _AVISOS = {
 
 @dataclass(frozen=True)
 class AvanceRechazado:
-
     razon: str
     estado: int
     campo: str = "destino"
@@ -47,7 +46,6 @@ class AvanceRechazado:
 
 @dataclass(frozen=True)
 class AvancePreparado:
-
     repartidor_nombre: str | None
     repartidor_celular: str | None
     tipo_incidencia: str | None
